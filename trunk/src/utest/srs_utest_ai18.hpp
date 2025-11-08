@@ -196,19 +196,8 @@ public:
     void clear_calls();
 };
 
-// Mock SrsProtocolUtility for testing discover_candidates
-class MockProtocolUtility : public SrsProtocolUtility
-{
-public:
-    std::vector<SrsIPAddress *> mock_ips_;
-
-public:
-    MockProtocolUtility();
-    virtual ~MockProtocolUtility();
-    virtual std::vector<SrsIPAddress *> &local_ips();
-    void add_ip(std::string ip, std::string ifname, bool is_ipv4, bool is_loopback, bool is_internet);
-    void clear_ips();
-};
+// Note: MockProtocolUtility has been merged into MockProtocolUtility
+// in srs_utest_manual_mock.hpp. Use MockProtocolUtility instead.
 
 // Mock ISrsAppConfig for testing discover_candidates
 class MockAppConfigForDiscoverCandidates : public MockAppConfig

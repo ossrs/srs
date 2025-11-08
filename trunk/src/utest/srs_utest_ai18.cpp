@@ -21,6 +21,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai23.hpp>
+#include <srs_utest_manual_mock.hpp>
 #include <sstream>
 
 // Mock ISrsSrtSocket implementation
@@ -193,10 +194,11 @@ VOID TEST(UdpListenerTest, ListenAndReceivePacket)
     dest_addr.sin_port = htons(port);
     dest_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 10; i++) {
         int sent = srs_sendto(client_fd, (void *)test_data.c_str(), test_data.size(),
                               (sockaddr *)&dest_addr, sizeof(dest_addr), SRS_UTIME_NO_TIMEOUT);
         EXPECT_EQ(sent, (int)test_data.size());
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
     }
 
     // Wait a bit for the listener to receive and process the packet
@@ -2186,39 +2188,8 @@ VOID TEST(ApiServerAsCandidatesTest, MajorUseScenario)
     EXPECT_TRUE(candidate_ips.find("192.168.1.100") != candidate_ips.end());
 }
 
-// Mock SrsProtocolUtility implementation
-MockProtocolUtility::MockProtocolUtility()
-{
-}
-
-MockProtocolUtility::~MockProtocolUtility()
-{
-    clear_ips();
-}
-
-vector<SrsIPAddress *> &MockProtocolUtility::local_ips()
-{
-    return mock_ips_;
-}
-
-void MockProtocolUtility::add_ip(string ip, string ifname, bool is_ipv4, bool is_loopback, bool is_internet)
-{
-    SrsIPAddress *addr = new SrsIPAddress();
-    addr->ip_ = ip;
-    addr->ifname_ = ifname;
-    addr->is_ipv4_ = is_ipv4;
-    addr->is_loopback_ = is_loopback;
-    addr->is_internet_ = is_internet;
-    mock_ips_.push_back(addr);
-}
-
-void MockProtocolUtility::clear_ips()
-{
-    for (size_t i = 0; i < mock_ips_.size(); i++) {
-        srs_freep(mock_ips_[i]);
-    }
-    mock_ips_.clear();
-}
+// Note: MockProtocolUtility has been merged into MockProtocolUtility
+// in srs_utest_manual_mock.hpp/cpp. All usages below now use MockProtocolUtility.
 
 // Mock ISrsAppConfig for discover_candidates implementation
 MockAppConfigForDiscoverCandidates::MockAppConfigForDiscoverCandidates()

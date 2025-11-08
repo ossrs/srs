@@ -3851,7 +3851,7 @@ srs_error_t SrsRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio)
             SrsAudioChannels channels = (SrsAudioChannels)audio_media->channel_;
 
             if ((err = stat_->on_audio_info(req_, codec_id, sample_rate, channels,
-                                             SrsAacObjectTypeReserved)) != srs_success) {
+                                            SrsAacObjectTypeReserved)) != srs_success) {
                 return srs_error_wrap(err, "stat audio info");
             }
             srs_trace("RTC: parsed %s codec, sample_rate=%dHz, channels=%d",

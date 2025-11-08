@@ -111,9 +111,8 @@
     XX(ERROR_STREAM_DISPOSING, 1098, "StreamDisposing", "Stream is disposing")                                         \
     XX(ERROR_NOT_IMPLEMENTED, 1099, "NotImplemented", "Feature is not implemented")                                    \
     XX(ERROR_NOT_SUPPORTED, 1100, "NotSupported", "Feature is not supported")                                          \
-    XX(ERROR_SYSTEM_FILE_UNLINK, 1101, "FileUnlink", "Failed to unlink file") \
+    XX(ERROR_SYSTEM_FILE_UNLINK, 1101, "FileUnlink", "Failed to unlink file")                                          \
     XX(ERROR_SYSTEM_AUTH, 1102, "SystemAuth", "Failed to authenticate stream")
-
 
 /**************************************************/
 /* RTMP protocol error. */
@@ -382,7 +381,7 @@
     XX(ERROR_RTSP_NO_TRACK, 5039, "RtspNoTrack", "Drop RTSP packet for track not found")                                                              \
     XX(ERROR_RTSP_TOKEN_NOT_NORMAL, 5040, "RtspToken", "Invalid RTSP token state not normal")                                                         \
     XX(ERROR_RTSP_REQUEST_HEADER_EOF, 5041, "RtspHeaderEof", "Invalid RTSP request for header EOF")                                                   \
-    XX(ERROR_RTSP_NEED_MORE_DATA, 5042, "RtspNeedMoreData", "Need more data to complete RTCP frame parsing") \
+    XX(ERROR_RTSP_NEED_MORE_DATA, 5042, "RtspNeedMoreData", "Need more data to complete RTCP frame parsing")                                          \
     XX(ERROR_RTC_INVALID_SDP, 5043, "RtcInvalidSdp", "Invalid SDP for RTC")
 
 /**************************************************/
@@ -492,7 +491,7 @@ public:
 //      }
 #define srs_error_new(code, fmt, ...) SrsCplxError::create(__FUNCTION__, __FILE__, __LINE__, code, fmt, ##__VA_ARGS__)
 
-// Wrap an existing error with additional context. The error code is 
+// Wrap an existing error with additional context. The error code is
 // preserved from the wrapped error.
 //
 // Example:
@@ -501,8 +500,8 @@ public:
 //      }
 #define srs_error_wrap(err, fmt, ...) SrsCplxError::wrap(__FUNCTION__, __FILE__, __LINE__, err, fmt, ##__VA_ARGS__)
 
-// Transform an error by wrapping it and changing its error code. Useful 
-// for converting internal errors to protocol-specific error codes (e.g., 
+// Transform an error by wrapping it and changing its error code. Useful
+// for converting internal errors to protocol-specific error codes (e.g.,
 // HTTP, RTMP). The wrapped error chain is preserved.
 //
 // Example:

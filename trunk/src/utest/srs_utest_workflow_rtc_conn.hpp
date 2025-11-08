@@ -30,54 +30,34 @@
 #include <srs_utest.hpp>
 
 #include <srs_app_factory.hpp>
-#include <srs_protocol_utility.hpp>
-
-#include <string>
-#include <vector>
-
-class MockAppFactoryForRtcConn;
-
-class MockProtocolUtilityForRtcConn : public ISrsProtocolUtility
-{
-public:
-    std::vector<SrsIPAddress *> ips_;
-    std::string mock_ip_;
-
-public:
-    MockProtocolUtilityForRtcConn(std::string ip);
-    virtual ~MockProtocolUtilityForRtcConn();
-
-public:
-    virtual std::vector<SrsIPAddress *> &local_ips();
-};
+#include <srs_utest_manual_mock.hpp>
 
 class MockAppFactoryForRtcConn : public SrsAppFactory
 {
 public:
     ISrsRtcSourceManager *rtc_sources_;
-    MockProtocolUtilityForRtcConn *mock_protocol_utility_;
+    MockProtocolUtility *mock_protocol_utility_;
 
 public:
-    MockAppFactoryForRtcConn();
-    virtual ~MockAppFactoryForRtcConn();
+    MockAppFactoryForRtcConn()
+    {
+        mock_protocol_utility_ = NULL;
+    }
+    virtual ~MockAppFactoryForRtcConn()
+    {
+    }
 
 public:
-    virtual ISrsProtocolUtility *create_protocol_utility();
-    virtual ISrsRtcPublishStream *create_rtc_publish_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketReceiver *receiver, const SrsContextId &cid);
-};
-
-class MockRtcSourceForRtcConn : public SrsRtcSource
-{
-public:
-    int rtp_audio_count_;
-    int rtp_video_count_;
-
-public:
-    MockRtcSourceForRtcConn();
-    virtual ~MockRtcSourceForRtcConn();
-
-public:
-    virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
+    virtual ISrsProtocolUtility *create_protocol_utility()
+    {
+        return mock_protocol_utility_;
+    }
+    virtual ISrsRtcPublishStream *create_rtc_publish_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketReceiver *receiver, const SrsContextId &cid)
+    {
+        SrsRtcPublishStream *publisher = new SrsRtcPublishStream(exec, expire, receiver, cid);
+        publisher->rtc_sources_ = rtc_sources_;
+        return publisher;
+    }
 };
 
 #endif

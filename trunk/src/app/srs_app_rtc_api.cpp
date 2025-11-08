@@ -666,7 +666,7 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     string code_str;
     if (true) {
         srs_error_t err = srs_success;
-        
+
         err = serve_http_with(w, r);
         if (err == srs_success) {
             return err;
@@ -674,8 +674,8 @@ srs_error_t SrsGoApiRtcWhip::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
         code = srs_error_code(err);
         code_str = srs_error_code_str(err);
-        srs_warn("WHIP: serve http for %s with err %d:%s, %s", 
-            r->url().c_str(), code, code_str.c_str(), srs_error_desc(err).c_str());
+        srs_warn("WHIP: serve http for %s with err %d:%s, %s",
+                 r->url().c_str(), code, code_str.c_str(), srs_error_desc(err).c_str());
         srs_freep(err);
     }
 

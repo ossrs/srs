@@ -78,9 +78,11 @@ public:
 
 public:
     // Create a Chrome-like WebRTC publisher offer SDP
-    std::string create_chrome_publisher_offer();
+    std::string create_chrome_publisher_offer_with_h264();
     // Create a Chrome-like WebRTC player offer SDP
-    std::string create_chrome_player_offer();
+    std::string create_chrome_player_offer_with_h264();
+    // Create a Chrome-like WebRTC publisher offer SDP with AV1
+    std::string create_chrome_publisher_offer_with_av1();
 };
 
 // Mock DTLS certificate for testing
@@ -162,6 +164,8 @@ class MockRtcSource : public SrsRtcSource
 {
 public:
     int on_rtp_count_;
+    int rtp_audio_count_;
+    int rtp_video_count_;
 
 public:
     MockRtcSource();
@@ -1330,6 +1334,25 @@ public:
     virtual srs_error_t transcode(SrsParsedAudioPacket *in, std::vector<SrsParsedAudioPacket *> &outs);
     virtual void free_frames(std::vector<SrsParsedAudioPacket *> &frames);
     virtual void aac_codec_header(uint8_t **data, int *len);
+};
+
+// Mock ISrsProtocolUtility for testing RTC connections
+// This class merges functionality from MockProtocolUtility in srs_utest_ai18.hpp
+// It supports both simple single-IP usage (via constructor) and complex multi-IP usage (via add_ip)
+class MockProtocolUtility : public ISrsProtocolUtility
+{
+public:
+    std::vector<SrsIPAddress *> ips_;
+    std::string mock_ip_;
+
+public:
+    MockProtocolUtility(std::string ip = "");
+    virtual ~MockProtocolUtility();
+
+public:
+    virtual std::vector<SrsIPAddress *> &local_ips();
+    void add_ip(std::string ip, std::string ifname, bool is_ipv4, bool is_loopback, bool is_internet);
+    void clear_ips();
 };
 
 #endif
