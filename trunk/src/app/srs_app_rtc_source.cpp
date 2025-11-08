@@ -3926,6 +3926,13 @@ srs_error_t SrsRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio)
                       srs_video_codec_id2str(codec_id).c_str(),
                       srs_hevc_profile2str(profile).c_str(),
                       level_id);
+        } else if (codec_id == SrsVideoCodecIdAV1 || codec_id == SrsVideoCodecIdVP9) {
+            // AV1 and VP9 are relay-only codecs for WebRTC-to-WebRTC
+            // No detailed profile/level parsing needed for relay mode
+            if ((err = stat_->on_video_info(req_, codec_id, 0, 0, 0, 0)) != srs_success) {
+                return srs_error_wrap(err, "stat video info");
+            }
+            srs_trace("RTC: parsed %s codec", srs_video_codec_id2str(codec_id).c_str());
         }
     }
 

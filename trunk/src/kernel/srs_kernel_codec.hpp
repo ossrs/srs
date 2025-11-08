@@ -61,8 +61,10 @@ enum SrsVideoCodecId {
     SrsVideoCodecIdAVC = 7,
     // See page 79 at @doc https://github.com/CDN-Union/H265/blob/master/Document/video_file_format_spec_v10_1_ksyun_20170615.doc
     SrsVideoCodecIdHEVC = 12,
-    // https://mp.weixin.qq.com/s/H3qI7zsON5sdf4oDJ9qlkg
+    // AV1 codec for WebRTC, https://github.com/ossrs/srs/pull/2324
     SrsVideoCodecIdAV1 = 13,
+    // VP9 codec for WebRTC, https://github.com/ossrs/srs/pull/4565
+    SrsVideoCodecIdVP9 = 14,
 };
 std::string srs_video_codec_id2str(SrsVideoCodecId codec);
 SrsVideoCodecId srs_video_codec_str2id(const std::string &codec);

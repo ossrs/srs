@@ -3406,6 +3406,38 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
                 track_desc->set_codec_payload((SrsCodecPayload *)video_payload);
                 break;
             }
+        } else if (remote_media_desc.is_video() && srs_video_codec_str2id(ruc->codec_) == SrsVideoCodecIdVP9) {
+            std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("VP9");
+            if (payloads.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid VP9 payload type");
+            }
+
+            for (int j = 0; j < (int)payloads.size(); j++) {
+                const SrsMediaPayloadType &payload = payloads.at(j);
+
+                // Generate video payload for vp9.
+                SrsVideoPayload *video_payload = new SrsVideoPayload(payload.payload_type_, payload.encoding_name_, payload.clock_rate_);
+
+                // TODO: FIXME: Only support some transport algorithms.
+                for (int k = 0; k < (int)payload.rtcp_fb_.size(); ++k) {
+                    const string &rtcp_fb = payload.rtcp_fb_.at(k);
+
+                    if (nack_enabled) {
+                        if (rtcp_fb == "nack" || rtcp_fb == "nack pli") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                    if (twcc_enabled && remote_twcc_id) {
+                        if (rtcp_fb == "transport-cc") {
+                            video_payload->rtcp_fbs_.push_back(rtcp_fb);
+                        }
+                    }
+                }
+
+                track_desc->type_ = "video";
+                track_desc->set_codec_payload((SrsCodecPayload *)video_payload);
+                break;
+            }
         } else if (remote_media_desc.is_video() && srs_video_codec_str2id(ruc->codec_) == SrsVideoCodecIdHEVC) {
             std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
             if (payloads.empty()) {
@@ -3804,6 +3836,14 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
                     // @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
                     track_descs = source->get_track_desc("video", "AV1X");
                 }
+            } else if (prefer_codec == SrsVideoCodecIdVP9) {
+                std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("VP9");
+                if (payloads.empty()) {
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no found valid VP9 payload type");
+                }
+
+                remote_payload = payloads.at(0);
+                track_descs = source->get_track_desc("video", "VP9");
             } else if (prefer_codec == SrsVideoCodecIdHEVC) {
                 std::vector<SrsMediaPayloadType> payloads = remote_media_desc.find_media_with_encoding_name("H265");
                 if (payloads.empty()) {

@@ -154,6 +154,12 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
         } else if (vcodec_ == SrsVideoCodecIdHEVC) {
             video->set("profile", SrsJsonAny::str(srs_hevc_profile2str(hevc_profile_).c_str()));
             video->set("level", SrsJsonAny::str(srs_hevc_level2str(hevc_level_).c_str()));
+        } else if (vcodec_ == SrsVideoCodecIdAV1) {
+            video->set("profile", SrsJsonAny::null());
+            video->set("level", SrsJsonAny::null());
+        } else if (vcodec_ == SrsVideoCodecIdVP9) {
+            video->set("profile", SrsJsonAny::null());
+            video->set("level", SrsJsonAny::null());
         } else {
             video->set("profile", SrsJsonAny::str("Other"));
             video->set("level", SrsJsonAny::str("Other"));

@@ -82,6 +82,8 @@ string srs_video_codec_id2str(SrsVideoCodecId codec)
         return "HEVC";
     case SrsVideoCodecIdAV1:
         return "AV1";
+    case SrsVideoCodecIdVP9:
+        return "VP9";
     case SrsVideoCodecIdReserved:
     case SrsVideoCodecIdReserved1:
     case SrsVideoCodecIdReserved2:
@@ -105,6 +107,8 @@ SrsVideoCodecId srs_video_codec_str2id(const std::string &codec)
         return SrsVideoCodecIdHEVC;
     } else if (upper_codec == "AV1") {
         return SrsVideoCodecIdAV1;
+    } else if (upper_codec == "VP9") {
+        return SrsVideoCodecIdVP9;
     } else if (upper_codec == "VP6") {
         return SrsVideoCodecIdOn2VP6;
     } else if (upper_codec == "VP6A") {
