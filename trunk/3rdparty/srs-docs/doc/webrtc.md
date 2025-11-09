@@ -456,7 +456,7 @@ DVR recording, or maximum compatibility.
 
 ## VP9 Codec Support
 
-SRS supports VP9 codec for WebRTC-to-WebRTC streaming since v7.0.0 ([#4548](https://github.com/ossrs/srs/issues/4548)).
+SRS supports VP9 codec for WebRTC-to-WebRTC streaming since v7.0.123 ([#4548](https://github.com/ossrs/srs/issues/4548)).
 VP9 is a royalty-free codec that saves 20-40% bandwidth compared to H.264. VP9 works better than H.264/H.265 with congestion control
 in WebRTC, making it ideal for keeping streams live under network fluctuations. SRS implements VP9 as relay-only (SFU mode),
 accepting VP9 streams via WHIP and forwarding to WHEP players without transcoding. VP9 streams cannot be converted to
