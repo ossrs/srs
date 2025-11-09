@@ -2453,7 +2453,7 @@ VOID TEST(SrsGoApiRtcWhipTest, DoServeHttpPublishSuccess)
 
     // Verify RTC user config fields were set correctly
     EXPECT_STREQ("203.0.113.10", ruc->eip_.c_str());
-    EXPECT_STREQ("h264", ruc->codec_.c_str());
+    EXPECT_STREQ("h264", ruc->vcodec_.c_str());
     EXPECT_TRUE(ruc->publish_); // action=publish
     EXPECT_TRUE(ruc->dtls_);    // dtls=true
     EXPECT_TRUE(ruc->srtp_);    // encrypt=true

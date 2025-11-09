@@ -178,7 +178,13 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
         audio->set("codec", SrsJsonAny::str(srs_audio_codec_id2str(acodec_).c_str()));
         audio->set("sample_rate", SrsJsonAny::integer(srs_audio_sample_rate2number(asample_rate_)));
         audio->set("channel", SrsJsonAny::integer(asound_type_ + 1));
-        audio->set("profile", SrsJsonAny::str(srs_aac_object2str(aac_object_).c_str()));
+
+        // G.711 codecs don't have profiles, similar to VP9/AV1
+        if (acodec_ == SrsAudioCodecIdPCMA || acodec_ == SrsAudioCodecIdPCMU) {
+            audio->set("profile", SrsJsonAny::null());
+        } else {
+            audio->set("profile", SrsJsonAny::str(srs_aac_object2str(aac_object_).c_str()));
+        }
     }
 
     return err;

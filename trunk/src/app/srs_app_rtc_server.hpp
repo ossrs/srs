@@ -70,7 +70,8 @@ public:
     std::string remote_sdp_str_;
     SrsSdp remote_sdp_;
     std::string eip_;
-    std::string codec_;
+    std::string vcodec_; // Video codec
+    std::string acodec_; // Audio codec
     std::string api_;
 
     // Session data.

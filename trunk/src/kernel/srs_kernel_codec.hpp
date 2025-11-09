@@ -170,8 +170,10 @@ enum SrsAudioCodecId {
     SrsAudioCodecIdNellymoser16kHzMono = 4,
     SrsAudioCodecIdNellymoser8kHzMono = 5,
     SrsAudioCodecIdNellymoser = 6,
-    SrsAudioCodecIdReservedG711AlawLogarithmicPCM = 7,
-    SrsAudioCodecIdReservedG711MuLawLogarithmicPCM = 8,
+    // G.711 A-law codec for WebRTC, https://github.com/ossrs/srs/issues/4075
+    SrsAudioCodecIdPCMA = 7,
+    // G.711 μ-law codec for WebRTC, https://github.com/ossrs/srs/issues/4075
+    SrsAudioCodecIdPCMU = 8,
     SrsAudioCodecIdReserved = 9,
     SrsAudioCodecIdAAC = 10,
     SrsAudioCodecIdSpeex = 11,

@@ -41,11 +41,15 @@ function SrsRtcWhipWhepAsync() {
     //      camera: boolean, whether capture video from camera, default to true.
     //      screen: boolean, whether capture video from screen, default to false.
     //      audio: boolean, whether play audio, default to true.
+    //      vcodec: string, video codec to use (e.g., 'h264', 'vp9', 'av1'), default to undefined.
+    //      acodec: string, audio codec to use (e.g., 'opus', 'pcmu', 'pcma'), default to undefined.
     self.publish = async function (url, options) {
         if (url.indexOf('/whip/') === -1) throw new Error(`invalid WHIP url ${url}`);
         const hasAudio = options?.audio ?? true;
         const useCamera = options?.camera ?? true;
         const useScreen = options?.screen ?? false;
+        const vcodec = options?.vcodec;
+        const acodec = options?.acodec;
 
         if (!hasAudio && !useCamera && !useScreen) throw new Error(`The camera, screen and audio can't be false at the same time`);
 
@@ -91,6 +95,13 @@ function SrsRtcWhipWhepAsync() {
 
         var offer = await self.pc.createOffer();
         await self.pc.setLocalDescription(offer);
+
+        // Filter codecs if specified
+        if (vcodec || acodec) {
+            offer.sdp = self.__internal.filterCodec(offer.sdp, vcodec, acodec);
+            console.log(`Filtered codecs (vcodec=${vcodec}, acodec=${acodec}): ${offer.sdp}`);
+        }
+
         const answer = await new Promise(function (resolve, reject) {
             console.log(`Generated offer: ${offer.sdp}`);
 
@@ -119,15 +130,26 @@ function SrsRtcWhipWhepAsync() {
     // @options The options to control playing, supports:
     //      videoOnly: boolean, whether only play video, default to false.
     //      audioOnly: boolean, whether only play audio, default to false.
+    //      vcodec: string, video codec to use (e.g., 'h264', 'vp9', 'av1'), default to undefined.
+    //      acodec: string, audio codec to use (e.g., 'opus', 'pcmu', 'pcma'), default to undefined.
     self.play = async function(url, options) {
         if (url.indexOf('/whip-play/') === -1 && url.indexOf('/whep/') === -1) throw new Error(`invalid WHEP url ${url}`);
         if (options?.videoOnly && options?.audioOnly) throw new Error(`The videoOnly and audioOnly in options can't be true at the same time`);
+        const vcodec = options?.vcodec;
+        const acodec = options?.acodec;
 
         if (!options?.videoOnly) self.pc.addTransceiver("audio", {direction: "recvonly"});
         if (!options?.audioOnly) self.pc.addTransceiver("video", {direction: "recvonly"});
 
         var offer = await self.pc.createOffer();
         await self.pc.setLocalDescription(offer);
+
+        // Filter codecs if specified
+        if (vcodec || acodec) {
+            offer.sdp = self.__internal.filterCodec(offer.sdp, vcodec, acodec);
+            console.log(`Filtered codecs (vcodec=${vcodec}, acodec=${acodec}): ${offer.sdp}`);
+        }
+
         const answer = await new Promise(function(resolve, reject) {
             console.log(`Generated offer: ${offer.sdp}`);
 
@@ -198,6 +220,43 @@ function SrsRtcWhipWhepAsync() {
                 sessionid: sessionid, // Should be ice-ufrag of answer:offer.
                 simulator: a.protocol + '//' + a.host + '/rtc/v1/nack/',
             };
+        },
+        filterCodec: (sdp, vcodec, acodec) => {
+            // Filter video codec if specified
+            if (vcodec) {
+                const vcodecUpper = vcodec.toUpperCase();
+                sdp = sdp.split('\n').filter(line => {
+                    // Keep all non-video lines
+                    if (!line.startsWith('a=rtpmap:') && !line.startsWith('a=rtcp-fb:') &&
+                        !line.startsWith('a=fmtp:')) {
+                        return true;
+                    }
+                    // For video codec lines, only keep the specified codec
+                    if (line.includes('video/')) {
+                        return line.toUpperCase().includes(vcodecUpper);
+                    }
+                    return true;
+                }).join('\n');
+            }
+
+            // Filter audio codec if specified
+            if (acodec) {
+                const acodecUpper = acodec.toUpperCase();
+                sdp = sdp.split('\n').filter(line => {
+                    // Keep all non-audio lines
+                    if (!line.startsWith('a=rtpmap:') && !line.startsWith('a=rtcp-fb:') &&
+                        !line.startsWith('a=fmtp:')) {
+                        return true;
+                    }
+                    // For audio codec lines, only keep the specified codec
+                    if (line.includes('audio/')) {
+                        return line.toUpperCase().includes(acodecUpper);
+                    }
+                    return true;
+                }).join('\n');
+            }
+
+            return sdp;
         },
     };
 

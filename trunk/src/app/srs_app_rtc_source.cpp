@@ -3838,7 +3838,7 @@ srs_error_t SrsRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio)
         SrsAudioCodecId codec_id = (SrsAudioCodecId)media->codec(false);
 
         // Parse channels and sample rate from track description
-        if (codec_id == SrsAudioCodecIdOpus) {
+        if (codec_id == SrsAudioCodecIdOpus || codec_id == SrsAudioCodecIdPCMA || codec_id == SrsAudioCodecIdPCMU) {
             SrsAudioPayload *audio_media = dynamic_cast<SrsAudioPayload *>(media);
             if (!audio_media) {
                 return err;

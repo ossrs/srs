@@ -125,9 +125,17 @@ $(function(){
 
         // For example: webrtc://r.ossrs.net/live/livestream
         var url = $("#txt_url").val();
+        var query = parse_query_string();
+
+        // Support codec parameters: codec (alias for vcodec), vcodec, acodec
+        var vcodec = query.vcodec || query.codec;
+        var acodec = query.acodec;
+
         sdk.play(url, {
             videoOnly: $('#ch_videoonly').prop('checked'),
             audioOnly: $('#ch_audioonly').prop('checked'),
+            vcodec: vcodec,
+            acodec: acodec
         }).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);

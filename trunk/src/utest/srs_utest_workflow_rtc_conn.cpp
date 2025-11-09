@@ -450,7 +450,7 @@ VOID TEST(BasicWorkflowRtcConnTest, ManuallyVerifyForPublisherWithAV1)
         ruc->dtls_ = true;
         ruc->srtp_ = true;
         ruc->audio_before_video_ = false;
-        ruc->codec_ = "av1"; // Specify AV1 codec
+        ruc->vcodec_ = "av1"; // Specify AV1 codec
 
         ruc->remote_sdp_str_ = mock_sdp_factory->create_chrome_publisher_offer_with_av1();
         HELPER_EXPECT_SUCCESS(ruc->remote_sdp_.parse(ruc->remote_sdp_str_));
@@ -665,7 +665,7 @@ VOID TEST(BasicWorkflowRtcConnTest, ManuallyVerifyForPublisherWithVP9)
         ruc->dtls_ = true;
         ruc->srtp_ = true;
         ruc->audio_before_video_ = false;
-        ruc->codec_ = "vp9"; // Specify VP9 codec
+        ruc->vcodec_ = "vp9"; // Specify VP9 codec
 
         ruc->remote_sdp_str_ = mock_sdp_factory->create_chrome_publisher_offer_with_vp9();
         HELPER_EXPECT_SUCCESS(ruc->remote_sdp_.parse(ruc->remote_sdp_str_));

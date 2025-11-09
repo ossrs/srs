@@ -24,7 +24,7 @@ function update_nav() {
     $("#nav_vlc").attr("href", "vlc.html" + window.location.search);
 }
 
-// Special extra params, such as auth_key.
+// Special extra params, such as auth_key, codec, vcodec, acodec.
 function user_extra_params(query, params, rtc) {
     var queries = params || [];
 
@@ -124,6 +124,9 @@ function build_default_whip_whep_url(query, apiPath) {
     console.log('?api=x to overwrite WebRTC API(1985).');
     console.log('?schema=http|https to overwrite WebRTC API protocol.');
     console.log(`?path=xxx to overwrite default ${apiPath}`);
+    console.log('?codec=xxx to specify video codec (alias for vcodec, e.g., h264, vp9, av1)');
+    console.log('?vcodec=xxx to specify video codec (e.g., h264, vp9, av1)');
+    console.log('?acodec=xxx to specify audio codec (e.g., opus, pcmu, pcma)');
 
     var server = (!query.server)? window.location.hostname:query.server;
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;

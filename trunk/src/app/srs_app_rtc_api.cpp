@@ -158,19 +158,25 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     if (eip.empty()) {
         eip = r->query_get("candidate");
     }
-    string codec = r->query_get("codec");
+    // Support vcodec/codec (alias for vcodec) and acodec parameters
+    string vcodec = r->query_get("vcodec");
+    if (vcodec.empty()) {
+        vcodec = r->query_get("codec");
+    }
+    string acodec = r->query_get("acodec");
     // For client to specifies whether encrypt by SRTP.
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
     srs_trace(
-        "RTC play %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s",
+        "RTC play %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, vcodec=%s, acodec=%s, srtp=%s, dtls=%s",
         streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), ruc.req_->app_.c_str(),
         ruc.req_->stream_.c_str(), remote_sdp_str.length(),
-        eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str());
+        eip.c_str(), vcodec.c_str(), acodec.c_str(), srtp.c_str(), dtls.c_str());
 
     ruc.eip_ = eip;
-    ruc.codec_ = codec;
+    ruc.vcodec_ = vcodec;
+    ruc.acodec_ = acodec;
     ruc.publish_ = false;
     ruc.dtls_ = (dtls != "false");
 
@@ -479,14 +485,20 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     if (eip.empty()) {
         eip = r->query_get("candidate");
     }
-    string codec = r->query_get("codec");
+    // Support vcodec/codec (alias for vcodec) and acodec parameters
+    string vcodec = r->query_get("vcodec");
+    if (vcodec.empty()) {
+        vcodec = r->query_get("codec");
+    }
+    string acodec = r->query_get("acodec");
 
-    srs_trace("RTC publish %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s",
+    srs_trace("RTC publish %s, api=%s, tid=%s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, vcodec=%s, acodec=%s",
               streamurl.c_str(), api.c_str(), tid.c_str(), clientip.c_str(), ruc.req_->app_.c_str(), ruc.req_->stream_.c_str(),
-              remote_sdp_str.length(), eip.c_str(), codec.c_str());
+              remote_sdp_str.length(), eip.c_str(), vcodec.c_str(), acodec.c_str());
 
     ruc.eip_ = eip;
-    ruc.codec_ = codec;
+    ruc.vcodec_ = vcodec;
+    ruc.acodec_ = acodec;
     ruc.publish_ = true;
     ruc.dtls_ = ruc.srtp_ = true;
 
@@ -776,7 +788,12 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
     if (eip.empty()) {
         eip = r->query_get("candidate");
     }
-    string codec = r->query_get("codec");
+    // Support vcodec/codec (alias for vcodec) and acodec parameters
+    string vcodec = r->query_get("vcodec");
+    if (vcodec.empty()) {
+        vcodec = r->query_get("codec");
+    }
+    string acodec = r->query_get("acodec");
     string app = r->query_get("app");
     string stream = r->query_get("stream");
     string action = r->query_get("action");
@@ -815,13 +832,14 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
     string srtp = r->query_get("encrypt");
     string dtls = r->query_get("dtls");
 
-    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, codec=%s, srtp=%s, dtls=%s, ufrag=%s, pwd=%s, param=%s",
+    srs_trace("RTC whip %s %s, clientip=%s, app=%s, stream=%s, offer=%dB, eip=%s, vcodec=%s, acodec=%s, srtp=%s, dtls=%s, ufrag=%s, pwd=%s, param=%s",
               action.c_str(), ruc->req_->get_stream_url().c_str(), clientip.c_str(), ruc->req_->app_.c_str(), ruc->req_->stream_.c_str(),
-              remote_sdp_str.length(), eip.c_str(), codec.c_str(), srtp.c_str(), dtls.c_str(), ruc->req_->ice_ufrag_.c_str(),
+              remote_sdp_str.length(), eip.c_str(), vcodec.c_str(), acodec.c_str(), srtp.c_str(), dtls.c_str(), ruc->req_->ice_ufrag_.c_str(),
               ruc->req_->ice_pwd_.c_str(), ruc->req_->param_.c_str());
 
     ruc->eip_ = eip;
-    ruc->codec_ = codec;
+    ruc->vcodec_ = vcodec;
+    ruc->acodec_ = acodec;
     ruc->publish_ = (action == "publish");
 
     // For client to specifies whether encrypt by SRTP.

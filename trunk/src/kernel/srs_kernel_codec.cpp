@@ -127,6 +127,10 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
         return "MP3";
     case SrsAudioCodecIdOpus:
         return "Opus";
+    case SrsAudioCodecIdPCMA:
+        return "PCMA";
+    case SrsAudioCodecIdPCMU:
+        return "PCMU";
     case SrsAudioCodecIdReserved1:
     case SrsAudioCodecIdLinearPCMPlatformEndian:
     case SrsAudioCodecIdADPCM:
@@ -134,8 +138,6 @@ string srs_audio_codec_id2str(SrsAudioCodecId codec)
     case SrsAudioCodecIdNellymoser16kHzMono:
     case SrsAudioCodecIdNellymoser8kHzMono:
     case SrsAudioCodecIdNellymoser:
-    case SrsAudioCodecIdReservedG711AlawLogarithmicPCM:
-    case SrsAudioCodecIdReservedG711MuLawLogarithmicPCM:
     case SrsAudioCodecIdReserved:
     case SrsAudioCodecIdSpeex:
     case SrsAudioCodecIdReservedMP3_8kHz:
@@ -157,6 +159,10 @@ SrsAudioCodecId srs_audio_codec_str2id(const std::string &codec)
         return SrsAudioCodecIdMP3;
     } else if (upper_codec == "OPUS") {
         return SrsAudioCodecIdOpus;
+    } else if (upper_codec == "PCMA") {
+        return SrsAudioCodecIdPCMA;
+    } else if (upper_codec == "PCMU") {
+        return SrsAudioCodecIdPCMU;
     } else if (upper_codec == "SPEEX") {
         return SrsAudioCodecIdSpeex;
     }
