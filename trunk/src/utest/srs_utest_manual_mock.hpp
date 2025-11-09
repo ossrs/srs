@@ -85,6 +85,8 @@ public:
     std::string create_chrome_publisher_offer_with_av1();
     // Create a Chrome-like WebRTC publisher offer SDP with VP9
     std::string create_chrome_publisher_offer_with_vp9();
+    // Create a Chrome-like WebRTC publisher offer SDP with G.711 PCMU audio
+    std::string create_chrome_publisher_offer_with_g711_pcmu();
 };
 
 // Mock DTLS certificate for testing

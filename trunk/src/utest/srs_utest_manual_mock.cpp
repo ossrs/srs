@@ -262,6 +262,60 @@ std::string MockSdpFactory::create_chrome_publisher_offer_with_vp9()
     return ss.str();
 }
 
+std::string MockSdpFactory::create_chrome_publisher_offer_with_g711_pcmu()
+{
+    // Create a real Chrome-like WebRTC SDP offer with H.264 video and G.711 PCMU audio
+    // Use member variables for SSRC and payload type values
+    // PCMU payload type is 0 (standard)
+    uint8_t pcmu_pt = 0;
+    std::stringstream ss;
+    ss << "v=0\r\n"
+       << "o=- 4611731400430051339 2 IN IP4 127.0.0.1\r\n"
+       << "s=-\r\n"
+       << "t=0 0\r\n"
+       << "a=group:BUNDLE 0 1\r\n"
+       << "a=msid-semantic: WMS stream\r\n"
+       // Audio media description (PCMU)
+       << "m=audio 9 UDP/TLS/RTP/SAVPF " << (int)pcmu_pt << "\r\n"
+       << "c=IN IP4 0.0.0.0\r\n"
+       << "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+       << "a=ice-ufrag:test1234\r\n"
+       << "a=ice-pwd:testpassword1234567890\r\n"
+       << "a=ice-options:trickle\r\n"
+       << "a=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\n"
+       << "a=setup:actpass\r\n"
+       << "a=mid:0\r\n"
+       << "a=sendonly\r\n"
+       << "a=rtcp-mux\r\n"
+       << "a=rtpmap:" << (int)pcmu_pt << " PCMU/8000\r\n"
+       << "a=ssrc:" << audio_ssrc_ << " cname:test-audio-cname\r\n"
+       << "a=ssrc:" << audio_ssrc_ << " msid:stream audio\r\n"
+       // Video media description (H.264)
+       << "m=video 9 UDP/TLS/RTP/SAVPF " << (int)video_pt_ << "\r\n"
+       << "c=IN IP4 0.0.0.0\r\n"
+       << "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+       << "a=ice-ufrag:test1234\r\n"
+       << "a=ice-pwd:testpassword1234567890\r\n"
+       << "a=ice-options:trickle\r\n"
+       << "a=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\n"
+       << "a=setup:actpass\r\n"
+       << "a=mid:1\r\n"
+       << "a=sendonly\r\n"
+       << "a=rtcp-mux\r\n"
+       << "a=rtcp-rsize\r\n"
+       << "a=rtpmap:" << (int)video_pt_ << " H264/90000\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " goog-remb\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " transport-cc\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " ccm fir\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " nack\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " nack pli\r\n"
+       << "a=fmtp:" << (int)video_pt_ << " level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+       << "a=ssrc:" << video_ssrc_ << " cname:test-video-cname\r\n"
+       << "a=ssrc:" << video_ssrc_ << " msid:stream video\r\n";
+
+    return ss.str();
+}
+
 MockDtlsCertificate::MockDtlsCertificate()
 {
     fingerprint_ = "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99";
