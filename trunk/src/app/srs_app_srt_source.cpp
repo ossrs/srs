@@ -969,6 +969,12 @@ srs_error_t SrsSrtFormat::on_srt_packet(SrsSrtPacket *pkt)
 {
     srs_error_t err = srs_success;
 
+    // Skip TS parsing if both video and audio codecs have been reported
+    // This avoids unnecessary TS decoding and log flooding from unrecognized stream types
+    if (video_codec_reported_ && audio_codec_reported_) {
+        return err;
+    }
+
     char *buf = pkt->data();
     int nb_buf = pkt->size();
 

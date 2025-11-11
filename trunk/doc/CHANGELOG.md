@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-11-11, AI: SRT: Stop TS parsing after codec detection. v7.0.125 (#4569)
 * v7.0, 2025-11-09, AI: WebRTC: Support G.711 (PCMU/PCMA) audio codec for WebRTC. v7.0.124 (#4075)
 * v7.0, 2025-11-08, AI: WebRTC: Support VP9 codec for WebRTC-to-WebRTC streaming. v7.0.123 (#4548)
 * v7.0, 2025-11-08, AI: API: Add audio_frames and video_frames to HTTP API. v7.0.122 (#4559)
