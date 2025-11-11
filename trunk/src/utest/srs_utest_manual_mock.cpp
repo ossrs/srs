@@ -316,6 +316,58 @@ std::string MockSdpFactory::create_chrome_publisher_offer_with_g711_pcmu()
     return ss.str();
 }
 
+std::string MockSdpFactory::create_libdatachannel_publisher_offer_with_h264()
+{
+    // Create a libdatachannel-like WebRTC SDP offer with H.264 video and Opus audio
+    // Key difference from Chrome: video comes first, then audio (libdatachannel order)
+    // This is the actual SDP format from issue 4570
+    std::stringstream ss;
+    ss << "v=0\r\n"
+       << "o=- rtc 4158491451 0 IN IP4 127.0.0.1\r\n"
+       << "s=-\r\n"
+       << "t=0 0\r\n"
+       << "a=group:BUNDLE video audio\r\n"
+       << "a=group:LS video audio\r\n"
+       << "a=msid-semantic:WMS *\r\n"
+       << "a=ice-options:ice2,trickle\r\n"
+       << "a=fingerprint:sha-256 28:37:F7:18:77:FC:46:33:6F:B2:0F:12:83:C2:BF:5C:61:5E:96:EB:4B:B9:97:81:92:7C:82:10:97:B8:8E:60\r\n"
+       // Video media description (H.264) - comes first in libdatachannel
+       << "m=video 56144 UDP/TLS/RTP/SAVPF " << (int)video_pt_ << " 97\r\n"
+       << "c=IN IP4 172.24.64.1\r\n"
+       << "a=mid:video\r\n"
+       << "a=sendonly\r\n"
+       << "a=ssrc:" << video_ssrc_ << " cname:video-send\r\n"
+       << "a=rtcp-mux\r\n"
+       << "a=rtpmap:" << (int)video_pt_ << " H264/90000\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " nack\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " nack pli\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " goog-remb\r\n"
+       << "a=fmtp:" << (int)video_pt_ << " profile-level-id=42e01f;packetization-mode=1;level-asymmetry-allowed=1\r\n"
+       << "a=rtpmap:97 RTX/90000\r\n"
+       << "a=fmtp:97 apt=" << (int)video_pt_ << "\r\n"
+       << "a=setup:actpass\r\n"
+       << "a=ice-ufrag:fEw/\r\n"
+       << "a=ice-pwd:jBua8YGWQKc/Vn6Y9EZ9+0\r\n"
+       << "a=candidate:1 1 UDP 2122317823 172.24.64.1 56144 typ host\r\n"
+       << "a=candidate:2 1 UDP 2122315767 10.0.0.94 56144 typ host\r\n"
+       << "a=candidate:3 1 UDP 1686189695 111.43.134.137 56144 typ srflx raddr 0.0.0.0 rport 0\r\n"
+       << "a=end-of-candidates\r\n"
+       // Audio media description (Opus) - comes second in libdatachannel
+       << "m=audio 56144 UDP/TLS/RTP/SAVPF " << (int)audio_pt_ << "\r\n"
+       << "c=IN IP4 172.24.64.1\r\n"
+       << "a=mid:audio\r\n"
+       << "a=sendonly\r\n"
+       << "a=ssrc:" << audio_ssrc_ << " cname:audio-send\r\n"
+       << "a=rtcp-mux\r\n"
+       << "a=rtpmap:" << (int)audio_pt_ << " opus/48000/2\r\n"
+       << "a=fmtp:" << (int)audio_pt_ << " minptime=10;maxaveragebitrate=98000;stereo=1;sprop-stereo=1;useinbandfec=1\r\n"
+       << "a=setup:actpass\r\n"
+       << "a=ice-ufrag:fEw/\r\n"
+       << "a=ice-pwd:jBua8YGWQKc/Vn6Y9EZ9+0\r\n";
+
+    return ss.str();
+}
+
 MockDtlsCertificate::MockDtlsCertificate()
 {
     fingerprint_ = "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99";

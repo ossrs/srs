@@ -87,6 +87,9 @@ public:
     std::string create_chrome_publisher_offer_with_vp9();
     // Create a Chrome-like WebRTC publisher offer SDP with G.711 PCMU audio
     std::string create_chrome_publisher_offer_with_g711_pcmu();
+    // Create a libdatachannel-like WebRTC publisher offer SDP with H.264 video and Opus audio
+    // This mimics the SDP format from libdatachannel library (video first, then audio)
+    std::string create_libdatachannel_publisher_offer_with_h264();
 };
 
 // Mock DTLS certificate for testing

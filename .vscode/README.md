@@ -40,6 +40,11 @@ cmake --build $HOME/git/srs/trunk/cmake/build
 
 ## macOS: SRS UTest
 
+The most straightforward way is to select a test name like `WorkflowRtcManuallyVerifyForPublisher`,
+then select `Debug gtest (macOS CodeLLDB)` and run the debug.
+
+Or you can use the following way to run specified test from the test panel.
+
 Install the following extensions:
 
 - C++ TestMate

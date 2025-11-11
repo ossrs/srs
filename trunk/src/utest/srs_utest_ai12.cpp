@@ -2039,6 +2039,116 @@ VOID TEST(SrsRtcPublisherNegotiatorTest, TypicalUseScenario)
     EXPECT_EQ("video", video_sdp.media_descs_[0].type_);
 }
 
+VOID TEST(SrsRtcPublisherNegotiatorTest, LibdatachannelUseScenario)
+{
+    srs_error_t err;
+
+    // Create SrsRtcPublisherNegotiator
+    SrsUniquePtr<SrsRtcPublisherNegotiator> negotiator(new SrsRtcPublisherNegotiator());
+
+    // Create mock request for initialization
+    SrsUniquePtr<MockRtcConnectionRequest> mock_request(new MockRtcConnectionRequest("test.vhost", "live", "stream1"));
+
+    // Create mock RTC user config with remote SDP
+    SrsUniquePtr<SrsRtcUserConfig> ruc(new SrsRtcUserConfig());
+    ruc->req_ = mock_request->copy();
+    ruc->publish_ = true;
+    ruc->dtls_ = true;
+    ruc->srtp_ = true;
+    ruc->audio_before_video_ = true;
+
+    // SDP from issue 4570 - libdatachannel format with video first, then audio
+    ruc->remote_sdp_str_ =
+        "v=0\r\n"
+        "o=- rtc 4158491451 0 IN IP4 127.0.0.1\r\n"
+        "s=-\r\n"
+        "t=0 0\r\n"
+        "a=group:BUNDLE video audio\r\n"
+        "a=group:LS video audio\r\n"
+        "a=msid-semantic:WMS *\r\n"
+        "a=ice-options:ice2,trickle\r\n"
+        "a=fingerprint:sha-256 28:37:F7:18:77:FC:46:33:6F:B2:0F:12:83:C2:BF:5C:61:5E:96:EB:4B:B9:97:81:92:7C:82:10:97:B8:8E:60\r\n"
+        "m=video 56144 UDP/TLS/RTP/SAVPF 96 97\r\n"
+        "c=IN IP4 172.24.64.1\r\n"
+        "a=mid:video\r\n"
+        "a=sendonly\r\n"
+        "a=ssrc:42 cname:video-send\r\n"
+        "a=rtcp-mux\r\n"
+        "a=rtpmap:96 H264/90000\r\n"
+        "a=rtcp-fb:96 nack\r\n"
+        "a=rtcp-fb:96 nack pli\r\n"
+        "a=rtcp-fb:96 goog-remb\r\n"
+        "a=fmtp:96 profile-level-id=42e01f;packetization-mode=1;level-asymmetry-allowed=1\r\n"
+        "a=rtpmap:97 RTX/90000\r\n"
+        "a=fmtp:97 apt=96\r\n"
+        "a=setup:actpass\r\n"
+        "a=ice-ufrag:fEw/\r\n"
+        "a=ice-pwd:jBua8YGWQKc/Vn6Y9EZ9+0\r\n"
+        "a=candidate:1 1 UDP 2122317823 172.24.64.1 56144 typ host\r\n"
+        "a=candidate:2 1 UDP 2122315767 10.0.0.94 56144 typ host\r\n"
+        "a=candidate:3 1 UDP 1686189695 111.43.134.137 56144 typ srflx raddr 0.0.0.0 rport 0\r\n"
+        "a=end-of-candidates\r\n"
+        "m=audio 56144 UDP/TLS/RTP/SAVPF 111\r\n"
+        "c=IN IP4 172.24.64.1\r\n"
+        "a=mid:audio\r\n"
+        "a=sendonly\r\n"
+        "a=ssrc:43 cname:audio-send\r\n"
+        "a=rtcp-mux\r\n"
+        "a=rtpmap:111 opus/48000/2\r\n"
+        "a=fmtp:111 minptime=10;maxaveragebitrate=98000;stereo=1;sprop-stereo=1;useinbandfec=1\r\n"
+        "a=setup:actpass\r\n"
+        "a=ice-ufrag:fEw/\r\n"
+        "a=ice-pwd:jBua8YGWQKc/Vn6Y9EZ9+0\r\n";
+
+    // Parse the remote SDP
+    HELPER_EXPECT_SUCCESS(ruc->remote_sdp_.parse(ruc->remote_sdp_str_));
+
+    // Create stream description for negotiation output
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    // Test negotiate_publish_capability - typical WebRTC publisher negotiation
+    HELPER_EXPECT_SUCCESS(negotiator->negotiate_publish_capability(ruc.get(), stream_desc.get()));
+
+    // Verify that stream description was populated with audio and video tracks
+    EXPECT_TRUE(stream_desc->audio_track_desc_ != NULL);
+    EXPECT_FALSE(stream_desc->video_track_descs_.empty());
+    EXPECT_EQ("audio", stream_desc->audio_track_desc_->type_);
+    EXPECT_EQ("video", stream_desc->video_track_descs_[0]->type_);
+
+    // Test generate_publish_local_sdp - create answer SDP
+    SrsSdp local_sdp;
+    HELPER_EXPECT_SUCCESS(negotiator->generate_publish_local_sdp(
+        ruc->req_, local_sdp, stream_desc.get(),
+        ruc->remote_sdp_.is_unified(), ruc->audio_before_video_));
+
+    // Verify that local SDP was generated with media descriptions
+    EXPECT_FALSE(local_sdp.media_descs_.empty());
+
+    // Find audio and video media descriptions
+    bool has_audio = false, has_video = false;
+    for (size_t i = 0; i < local_sdp.media_descs_.size(); i++) {
+        if (local_sdp.media_descs_[i].type_ == "audio")
+            has_audio = true;
+        if (local_sdp.media_descs_[i].type_ == "video")
+            has_video = true;
+    }
+    EXPECT_TRUE(has_audio);
+    EXPECT_TRUE(has_video);
+
+    // Test individual SDP generation methods
+    SrsSdp audio_sdp, video_sdp;
+    HELPER_EXPECT_SUCCESS(negotiator->generate_publish_local_sdp_for_audio(audio_sdp, stream_desc.get()));
+    HELPER_EXPECT_SUCCESS(negotiator->generate_publish_local_sdp_for_video(video_sdp, stream_desc.get(), true));
+
+    // Verify audio SDP generation
+    EXPECT_FALSE(audio_sdp.media_descs_.empty());
+    EXPECT_EQ("audio", audio_sdp.media_descs_[0].type_);
+
+    // Verify video SDP generation
+    EXPECT_FALSE(video_sdp.media_descs_.empty());
+    EXPECT_EQ("video", video_sdp.media_descs_[0].type_);
+}
+
 VOID TEST(SrsRtcConnectionTest, InitializeTypicalScenario)
 {
     srs_error_t err;

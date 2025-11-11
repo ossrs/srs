@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-          "name": "Launch SRS with conf/console.conf",
+          "name": "Debug SRS with conf/console.conf",
           "type": "cppdbg",
           "request": "launch",
           "program": "${workspaceFolder}/trunk/cmake/build/srs",
@@ -30,7 +30,7 @@
           }
         },
         {
-          "name": "Launch SRS with conf/rtc.conf",
+          "name": "Debug SRS with conf/rtc.conf",
           "type": "cppdbg",
           "request": "launch",
           "program": "${workspaceFolder}/trunk/cmake/build/srs",
@@ -58,40 +58,41 @@
           }
         },
         {
-          "name": "Launch SRS with console.conf",
-          "type": "cppdbg",
-          "request": "launch",
-          "program": "${workspaceFolder}/trunk/cmake/build/srs",
-          "args": ["-c", "console.conf"],
-          "stopAtEntry": false,
-          "cwd": "${workspaceFolder}/trunk",
-          "environment": [],
-          "externalConsole": false,
-          "linux": {
-            "MIMode": "gdb"
-          },
-          "osx": {
-            "MIMode": "lldb"
-          },
-          "setupCommands": [
-            {
-              "description": "Enable pretty-printing for gdb",
-              "text": "-enable-pretty-printing",
-              "ignoreFailures": true
-            }
-          ],
-          "preLaunchTask": "build",
-          "logging": {
-            "engineLogging": true
-          }
-        },
-        {
-          "name": "Launch srs-proxy",
+          "name": "Debug srs-proxy",
           "type": "go",
           "request": "launch",
           "mode": "auto",
           "cwd": "${workspaceFolder}/proxy",
           "program": "${workspaceFolder}/proxy"        
-        }    
+        },
+        {
+          "name": "Debug SRS (macOS, CodeLLDB) console.conf",
+          "type": "lldb",
+          "request": "launch",
+          "program": "${workspaceFolder}/trunk/cmake/build/srs",
+          "args": ["-c", "console.conf"],
+          "cwd": "${workspaceFolder}/trunk",
+          "stopOnEntry": false,
+          "terminal": "integrated",
+          "initCommands": [
+            "command script import lldb.formatters.cpp.libcxx"
+          ],
+          "preLaunchTask": "build",
+          "env": {},
+          "sourceLanguages": ["cpp"]
+        },
+        {
+          "name": "Debug gtest (macOS CodeLLDB)",
+          "type": "lldb",
+          "request": "launch",
+          "program": "${workspaceFolder}/trunk/cmake/build/utest",
+          "args": ["--gtest_filter=*${selectedText}*"],
+          "cwd": "${workspaceFolder}/trunk",
+          "terminal": "integrated",
+          "initCommands": [
+            "command script import lldb.formatters.cpp.libcxx"
+          ],
+          "sourceLanguages": ["cpp"]
+        }
     ]
 }

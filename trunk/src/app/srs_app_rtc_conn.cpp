@@ -3601,12 +3601,25 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
         for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
             const SrsSSRCInfo &ssrc_info = remote_media_desc.ssrc_infos_.at(j);
 
+            // Generate msid because it's optional in sdp.
+            string msid_tracker = ssrc_info.msid_tracker_;
+            if (msid_tracker.empty()) {
+                msid_tracker = srs_fmt_sprintf("track-%s-%s-%d", 
+                    track_desc->type_.c_str(), ssrc_info.cname_.c_str(), ssrc_info.ssrc_);
+            }
+
+            // Generate msid because it's optional in sdp.
+            string msid = ssrc_info.msid_;
+            if (msid.empty()) {
+                msid = req->app_ + "/" + req->stream_;
+            }
+
             // ssrc have same track id, will be description in the same track description.
-            if (track_id != ssrc_info.msid_tracker_) {
+            if (track_id != msid_tracker) {
                 SrsRtcTrackDescription *track_desc_copy = track_desc->copy();
                 track_desc_copy->ssrc_ = ssrc_info.ssrc_;
-                track_desc_copy->id_ = ssrc_info.msid_tracker_;
-                track_desc_copy->msid_ = ssrc_info.msid_;
+                track_desc_copy->id_ = msid_tracker;
+                track_desc_copy->msid_ = msid;
 
                 if (remote_media_desc.is_audio() && !stream_desc->audio_track_desc_) {
                     stream_desc->audio_track_desc_ = track_desc_copy;
@@ -3616,7 +3629,7 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
                     srs_freep(track_desc_copy);
                 }
             }
-            track_id = ssrc_info.msid_tracker_;
+            track_id = msid_tracker;
         }
 
         // set track fec_ssrc and rtx_ssrc
