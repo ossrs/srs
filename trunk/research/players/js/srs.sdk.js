@@ -34,6 +34,9 @@ function SrsRtcWhipWhepAsync() {
     self.displayStream = null;
     self.userStream = null;
 
+    // Store the WHIP session resource URL from Location header for cleanup.
+    self.resourceUrl = null;
+
     // See https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
     // @url The WebRTC url to publish with, for example:
     //      http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream
@@ -111,6 +114,14 @@ function SrsRtcWhipWhepAsync() {
                 if (xhr.status !== 200 && xhr.status !== 201) return reject(xhr);
                 const data = xhr.responseText;
                 console.log("Got answer: ", data);
+
+                // Extract Location header for WHIP session resource URL.
+                const location = xhr.getResponseHeader('Location');
+                if (location) {
+                    self.resourceUrl = new URL(location, url).href;
+                    console.log(`WHIP session resource URL: ${self.resourceUrl}`);
+                }
+
                 return data.code ? reject(xhr) : resolve(data);
             }
             xhr.open('POST', url, true);
@@ -159,6 +170,14 @@ function SrsRtcWhipWhepAsync() {
                 if (xhr.status !== 200 && xhr.status !== 201) return reject(xhr);
                 const data = xhr.responseText;
                 console.log("Got answer: ", data);
+
+                // Extract Location header for WHEP session resource URL.
+                const location = xhr.getResponseHeader('Location');
+                if (location) {
+                    self.resourceUrl = new URL(location, url).href;
+                    console.log(`WHEP session resource URL: ${self.resourceUrl}`);
+                }
+
                 return data.code ? reject(xhr) : resolve(data);
             }
             xhr.open('POST', url, true);
@@ -189,6 +208,25 @@ function SrsRtcWhipWhepAsync() {
                 track.stop();
             });
             self.userStream = null;
+        }
+
+        // Send DELETE request to WHIP session resource URL to cleanup server resources.
+        if (self.resourceUrl) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('DELETE', self.resourceUrl, true);
+            xhr.onload = function() {
+                if (xhr.readyState !== xhr.DONE) return;
+                if (xhr.status === 200) {
+                    console.log(`WHIP session deleted: ${self.resourceUrl}`);
+                } else {
+                    console.warn(`Failed to delete WHIP session: ${self.resourceUrl}, status: ${xhr.status}`);
+                }
+            };
+            xhr.onerror = function() {
+                console.warn(`Error deleting WHIP session: ${self.resourceUrl}`);
+            };
+            xhr.send();
+            self.resourceUrl = null;
         }
     };
 
