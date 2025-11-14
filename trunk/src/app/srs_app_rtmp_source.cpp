@@ -1659,7 +1659,7 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
             pps = source;
         } else {
             SrsSharedPtr<SrsLiveSource> source = app_factory_->create_live_source();
-            srs_trace("new live source, stream_url=%s", stream_url.c_str());
+            srs_trace("new live source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
             // Callback to notify request of source creation
@@ -1781,7 +1781,10 @@ SrsLiveSource::SrsLiveSource()
     mix_queue_ = new SrsMixQueue();
 
     can_publish_ = true;
-    stream_die_at_ = 0;
+    // Initialize stream_die_at_ to current time to prevent newly created sources
+    // from being immediately considered dead by stream_is_dead() check.
+    // @see https://github.com/ossrs/srs/issues/4449
+    stream_die_at_ = srs_time_now_cached();
     publisher_idle_at_ = 0;
 
     rtmp_bridge_ = NULL;

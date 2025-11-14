@@ -8,6 +8,11 @@
 
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtmp_source.hpp>
+#include <srs_app_srt_source.hpp>
+#ifdef SRS_RTSP
+#include <srs_app_rtsp_source.hpp>
+#endif
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
@@ -1790,7 +1795,6 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateInitializeFailure)
                         mock_source->set_initialize_error(initialize_error_);
                     }
                     SrsSharedPtr<SrsRtcSource> source = SrsSharedPtr<SrsRtcSource>(mock_source);
-                    srs_trace("new rtc source, stream_url=%s", stream_url.c_str());
                     pps = source;
 
                     pool_[stream_url] = source;
@@ -1870,7 +1874,6 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateErrorWrapping)
                     srs_freep(init_error);
 
                     SrsSharedPtr<SrsRtcSource> source = SrsSharedPtr<SrsRtcSource>(mock_source);
-                    srs_trace("new rtc source, stream_url=%s", stream_url.c_str());
                     pps = source;
 
                     pool_[stream_url] = source;
@@ -2176,14 +2179,16 @@ VOID TEST(AppTest2, RtcSourceOnConsumerDestroyStreamDeath)
 
     // Verify initial state - stream is not created (no publisher)
     EXPECT_FALSE(source->is_created_);
-    EXPECT_EQ(0, source->stream_die_at_);
+    // After fix #4449: stream_die_at_ is initialized to current time, not 0
+    srs_utime_t initial_die_at = source->stream_die_at_;
+    EXPECT_GT(initial_die_at, 0);
 
-    // Remove consumer when stream is not created - should set stream_die_at_
+    // Remove consumer when stream is not created - should update stream_die_at_
     srs_utime_t before_time = srs_time_now_cached();
     source->on_consumer_destroy(consumer);
     srs_utime_t after_time = srs_time_now_cached();
 
-    // Verify stream death time was set
+    // Verify stream death time was updated to current time
     EXPECT_TRUE(source->stream_die_at_ >= before_time);
     EXPECT_TRUE(source->stream_die_at_ <= after_time);
 
@@ -2215,13 +2220,15 @@ VOID TEST(AppTest2, RtcSourceOnConsumerDestroyStreamAlive)
 
     // Verify initial state
     EXPECT_TRUE(source->is_created_);
-    EXPECT_EQ(0, source->stream_die_at_);
+    // After fix #4449: stream_die_at_ is initialized to current time, not 0
+    srs_utime_t initial_die_at = source->stream_die_at_;
+    EXPECT_GT(initial_die_at, 0);
 
-    // Remove consumer when stream is created - should NOT set stream_die_at_
+    // Remove consumer when stream is created - should NOT update stream_die_at_
     source->on_consumer_destroy(consumer);
 
-    // Verify stream death time was NOT set
-    EXPECT_EQ(0, source->stream_die_at_);
+    // Verify stream death time was NOT changed (still has initial value)
+    EXPECT_EQ(initial_die_at, source->stream_die_at_);
 
     // Clean up
     srs_freep(consumer);
@@ -4598,3 +4605,144 @@ VOID TEST(AppTest2, RtcSourceGetTrackDescMultipleMatchingVideoTracks)
     EXPECT_EQ("video-h264-track-2", all_video_tracks[1]->id_);
     EXPECT_EQ("video-h265-track", all_video_tracks[2]->id_);
 }
+
+// Reproduce issue 4449: Newly created source is immediately considered dead
+// When a new source is created with stream_die_at_=0, if notify() timer fires
+// before a publisher connects, the source gets deleted because stream_is_dead()
+// returns true. This causes "new live source, dead=1" in logs.
+VOID TEST(ReproduceIssue4449, RtmpLiveSourceNotifyDeletesNewlyCreatedSource)
+{
+    srs_error_t err;
+
+    // Create a source manager
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+
+    // Create a mock request
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->host_ = "localhost";
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "thegobot";
+
+    // Fetch or create source (this creates a new source)
+    SrsSharedPtr<SrsLiveSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    // After fix: newly created source should NOT be dead
+    EXPECT_FALSE(source->stream_is_dead());
+    EXPECT_EQ(1, (int)manager->pool_.size());
+
+    // Simulate timer firing - call notify()
+    int pool_size_before = (int)manager->pool_.size();
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    int pool_size_after = (int)manager->pool_.size();
+
+    // After fix: the newly created source should NOT be deleted by notify
+    EXPECT_EQ(pool_size_before, pool_size_after);
+    EXPECT_EQ(1, pool_size_after);
+}
+
+// Test SRT source for the same issue
+VOID TEST(ReproduceIssue4449, SrtSourceNotifyDeletesNewlyCreatedSource)
+{
+    srs_error_t err;
+
+    // Create a SRT source manager
+    SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+
+    // Create a mock request
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->host_ = "localhost";
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "thegobot";
+
+    // Fetch or create source (this creates a new source)
+    SrsSharedPtr<SrsSrtSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    // After fix: newly created source should NOT be dead
+    EXPECT_FALSE(source->stream_is_dead());
+    EXPECT_EQ(1, (int)manager->pool_.size());
+
+    // Simulate timer firing - call notify()
+    int pool_size_before = (int)manager->pool_.size();
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    int pool_size_after = (int)manager->pool_.size();
+
+    // After fix: the newly created source should NOT be deleted by notify
+    EXPECT_EQ(pool_size_before, pool_size_after);
+    EXPECT_EQ(1, pool_size_after);
+}
+
+// Test RTC source for the same issue
+VOID TEST(ReproduceIssue4449, RtcSourceNotifyDeletesNewlyCreatedSource)
+{
+    srs_error_t err;
+
+    // Create a RTC source manager
+    SrsUniquePtr<SrsRtcSourceManager> manager(new SrsRtcSourceManager());
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+
+    // Create a mock request
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->host_ = "localhost";
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "thegobot";
+
+    // Fetch or create source (this creates a new source)
+    SrsSharedPtr<SrsRtcSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    // After fix: newly created source should NOT be dead
+    EXPECT_FALSE(source->stream_is_dead());
+    EXPECT_EQ(1, (int)manager->pool_.size());
+
+    // Simulate timer firing - call notify()
+    int pool_size_before = (int)manager->pool_.size();
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    int pool_size_after = (int)manager->pool_.size();
+
+    // After fix: the newly created source should NOT be deleted by notify
+    EXPECT_EQ(pool_size_before, pool_size_after);
+    EXPECT_EQ(1, pool_size_after);
+}
+
+#ifdef SRS_RTSP
+// Test RTSP source for the same issue
+VOID TEST(ReproduceIssue4449, RtspSourceNotifyDeletesNewlyCreatedSource)
+{
+    srs_error_t err;
+
+    // Create a RTSP source manager
+    SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+
+    // Create a mock request
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->host_ = "localhost";
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "thegobot";
+
+    // Fetch or create source (this creates a new source)
+    SrsSharedPtr<SrsRtspSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    // After fix: newly created source should NOT be dead
+    EXPECT_FALSE(source->stream_is_dead());
+    EXPECT_EQ(1, (int)manager->pool_.size());
+
+    // Simulate timer firing - call notify()
+    int pool_size_before = (int)manager->pool_.size();
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    int pool_size_after = (int)manager->pool_.size();
+
+    // After fix: the newly created source should NOT be deleted by notify
+    EXPECT_EQ(pool_size_before, pool_size_after);
+    EXPECT_EQ(1, pool_size_after);
+}
+#endif

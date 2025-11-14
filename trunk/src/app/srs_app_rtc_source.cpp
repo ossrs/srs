@@ -335,7 +335,7 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<Sr
             pps = source;
         } else {
             SrsSharedPtr<SrsRtcSource> source = SrsSharedPtr<SrsRtcSource>(new SrsRtcSource());
-            srs_trace("new rtc source, stream_url=%s", stream_url.c_str());
+            srs_trace("new rtc source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
             pool_[stream_url] = source;
@@ -399,7 +399,10 @@ SrsRtcSource::SrsRtcSource()
     circuit_breaker_ = _srs_circuit_breaker;
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
-    stream_die_at_ = 0;
+    // Initialize stream_die_at_ to current time to prevent newly created sources
+    // from being immediately considered dead by stream_is_dead() check.
+    // @see https://github.com/ossrs/srs/issues/4449
+    stream_die_at_ = srs_time_now_cached();
 
     app_factory_ = _srs_app_factory;
 }
