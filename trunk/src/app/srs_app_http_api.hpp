@@ -35,6 +35,12 @@ extern srs_error_t srs_api_response(ISrsHttpResponseWriter *w, ISrsHttpMessage *
 extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, int code);
 extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, srs_error_t code);
 
+// Parse pagination parameters from HTTP request query string.
+// @param r The HTTP request message.
+// @param start Output parameter for start index, defaults to 0, minimum 0.
+// @param count Output parameter for count, defaults to 10, minimum 1.
+extern void srs_api_parse_pagination(ISrsHttpMessage *r, int &start, int &count);
+
 // For http root.
 class SrsGoApiRoot : public ISrsHttpHandler
 {

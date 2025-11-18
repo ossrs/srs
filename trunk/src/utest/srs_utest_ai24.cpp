@@ -8,6 +8,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_fragment.hpp>
 #include <srs_app_hls.hpp>
+#include <srs_app_http_api.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_server.hpp>
@@ -21,6 +22,7 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
+#include <srs_utest_ai16.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -1310,4 +1312,107 @@ VOID TEST(SdpTest, ParseLibdatachannelSdpFromIssue4570)
         }
     }
     EXPECT_TRUE(found_audio_ssrc);
+}
+
+// Test: srs_api_parse_pagination with various input scenarios
+VOID TEST(HttpApiPaginationTest, ParsePagination)
+{
+    int start, count;
+
+    // Test 1: Default values (no query parameters)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(10, count);
+    }
+
+    // Test 2: Valid start and count
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "5";
+        mock_msg.query_params_["count"] = "20";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(5, start);
+        EXPECT_EQ(20, count);
+    }
+
+    // Test 3: Zero count (should use minimum 1)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "0";
+        mock_msg.query_params_["count"] = "0";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(1, count);
+    }
+
+    // Test 4: Negative start (should use minimum 0)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "-10";
+        mock_msg.query_params_["count"] = "5";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(5, count);
+    }
+
+    // Test 5: Negative count (should use minimum 1)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "10";
+        mock_msg.query_params_["count"] = "-5";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(10, start);
+        EXPECT_EQ(1, count);
+    }
+
+    // Test 6: Empty count string (should use default 10)
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "5";
+        mock_msg.query_params_["count"] = "";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(5, start);
+        EXPECT_EQ(10, count);
+    }
+
+    // Test 7: Only start parameter
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "15";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(15, start);
+        EXPECT_EQ(10, count);
+    }
+
+    // Test 8: Only count parameter
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["count"] = "25";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(25, count);
+    }
+
+    // Test 9: Invalid (non-numeric) values
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "abc";
+        mock_msg.query_params_["count"] = "xyz";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        // atoi returns 0 for invalid strings
+        EXPECT_EQ(0, start);
+        EXPECT_EQ(1, count); // minimum enforced since atoi returns 0
+    }
+
+    // Test 10: Large values
+    if (true) {
+        MockHttpMessageForApiResponse mock_msg;
+        mock_msg.query_params_["start"] = "1000000";
+        mock_msg.query_params_["count"] = "500";
+        srs_api_parse_pagination(&mock_msg, start, count);
+        EXPECT_EQ(1000000, start);
+        EXPECT_EQ(500, count);
+    }
 }

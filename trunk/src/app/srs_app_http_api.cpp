@@ -147,6 +147,18 @@ srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r,
     return srs_api_response_jsonp_code(w, callback, code);
 }
 
+void srs_api_parse_pagination(ISrsHttpMessage *r, int &start, int &count)
+{
+    std::string rstart = r->query_get("start");
+    std::string rcount = r->query_get("count");
+
+    // Parse start parameter, default to 0, minimum 0.
+    start = srs_max(0, atoi(rstart.c_str()));
+
+    // Parse count parameter, default to 10, minimum 1.
+    count = rcount.empty() ? 10 : srs_max(1, atoi(rcount.c_str()));
+}
+
 // @remark we will free the code.
 srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, srs_error_t code)
 {
@@ -794,10 +806,8 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
             SrsJsonArray *data = SrsJsonAny::array();
             obj->set("streams", data);
 
-            std::string rstart = r->query_get("start");
-            std::string rcount = r->query_get("count");
-            int start = srs_max(0, atoi(rstart.c_str()));
-            int count = srs_max(1, atoi(rcount.c_str()));
+            int start, count;
+            srs_api_parse_pagination(r, start, count);
             if ((err = stat_->dumps_streams(data, start, count)) != srs_success) {
                 int code = srs_error_code(err);
                 srs_freep(err);
@@ -866,10 +876,8 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
             SrsJsonArray *data = SrsJsonAny::array();
             obj->set("clients", data);
 
-            std::string rstart = r->query_get("start");
-            std::string rcount = r->query_get("count");
-            int start = srs_max(0, atoi(rstart.c_str()));
-            int count = srs_max(1, atoi(rcount.c_str()));
+            int start, count;
+            srs_api_parse_pagination(r, start, count);
             if ((err = stat_->dumps_clients(data, start, count)) != srs_success) {
                 int code = srs_error_code(err);
                 srs_freep(err);
