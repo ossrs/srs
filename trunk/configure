@@ -385,10 +385,11 @@ if [[ $SRS_UTEST == YES ]]; then
     MODULE_FILES+=("srs_utest_workflow_rtc_playstream" "srs_utest_workflow_rtc_publishstream"
         "srs_utest_workflow_rtc_conn" "srs_utest_workflow_rtmp_conn" "srs_utest_workflow_srt_conn" "srs_utest_workflow_http_conn"
         "srs_utest_workflow_forward" "srs_utest_workflow_rtc2rtmp" "srs_utest_workflow_rtmp2rtc")
-    MODULE_FILES+=("srs_utest_ai01" "srs_utest_ai02" "srs_utest_ai03" "srs_utest_ai04" "srs_utest_ai05"
+    MODULE_FILES+=(
+        "srs_utest_ai01" "srs_utest_ai02" "srs_utest_ai03" "srs_utest_ai04" "srs_utest_ai05"
         "srs_utest_ai06" "srs_utest_ai07" "srs_utest_ai08" "srs_utest_ai09" "srs_utest_ai10" "srs_utest_ai11"
         "srs_utest_ai12" "srs_utest_ai13" "srs_utest_ai14" "srs_utest_ai15" "srs_utest_ai16" "srs_utest_ai17"
-        "srs_utest_ai18" "srs_utest_ai19" "srs_utest_ai20" "srs_utest_ai24")
+        "srs_utest_ai18" "srs_utest_ai19" "srs_utest_ai20" "srs_utest_ai24" "srs_utest_ai25")
     if [[ $SRS_GB28181 == YES ]]; then
         MODULE_FILES+=("srs_utest_manual_gb28181" "srs_utest_ai23")
     fi

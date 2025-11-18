@@ -797,7 +797,24 @@ srs_error_t SrsGoApiStreams::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
             std::string rstart = r->query_get("start");
             std::string rcount = r->query_get("count");
             int start = srs_max(0, atoi(rstart.c_str()));
-            int count = srs_max(1, atoi(rcount.c_str()));
+
+            // Process the "count" query parameter
+            // 1. Default value is 10 if not provided or invalid
+            // 2. Valid values are positive integers
+            int count = 10; // Default value
+
+            if (!rcount.empty()) {
+                int value = atoi(rcount.c_str());
+
+                // Check if value is a positive integer
+                if (value > 0) {
+                    count = value;
+                } else {
+                    // Invalid count value (zero or negative), using default
+                    srs_trace("HTTP API: Invalid count parameter value: %s, using default value 10", rcount.c_str());
+                }
+            }
+            // If empty, we keep the default value of 10
             if ((err = stat_->dumps_streams(data, start, count)) != srs_success) {
                 int code = srs_error_code(err);
                 srs_freep(err);
@@ -869,7 +886,24 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
             std::string rstart = r->query_get("start");
             std::string rcount = r->query_get("count");
             int start = srs_max(0, atoi(rstart.c_str()));
-            int count = srs_max(1, atoi(rcount.c_str()));
+
+            // Process the "count" query parameter
+            // 1. Default value is 10 if not provided or invalid
+            // 2. Valid values are positive integers
+            int count = 10; // Default value
+
+            if (!rcount.empty()) {
+                int value = atoi(rcount.c_str());
+
+                // Check if value is a positive integer
+                if (value > 0) {
+                    count = value;
+                } else {
+                    // Invalid count value (zero or negative), using default
+                    srs_trace("HTTP API: Invalid count parameter value: %s, using default value 10", rcount.c_str());
+                }
+            }
+            // If empty, we keep the default value of 10
             if ((err = stat_->dumps_clients(data, start, count)) != srs_success) {
                 int code = srs_error_code(err);
                 srs_freep(err);
