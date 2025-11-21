@@ -1176,6 +1176,11 @@ srs_error_t SrsRtmpConn::handle_publish_message(SrsSharedPtr<SrsLiveSource> &sou
 
         // for flash, any packet is republish.
         if (info_->type_ == SrsRtmpConnFlashPublish) {
+            if (dynamic_cast<SrsFMLEStartPacket*>(pkt.get())) {
+                srs_warn("flash late FMLE start packet");
+                return err;
+            }
+
             // flash unpublish.
             // TODO: maybe need to support republish.
             srs_trace("flash flash publish finished.");
