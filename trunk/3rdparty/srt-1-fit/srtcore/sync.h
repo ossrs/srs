@@ -343,15 +343,19 @@ private:
     pthread_mutex_t m_mutex;
 };
 
-/// A pthread version of std::chrono::scoped_lock<mutex> (or lock_guard for C++11)
+/// A pthread version of std::scoped_lock (or lock_guard for C++11).
 class SRT_ATTR_SCOPED_CAPABILITY ScopedLock
 {
 public:
     SRT_ATTR_ACQUIRE(m)
-    explicit ScopedLock(Mutex& m);
+    explicit ScopedLock(Mutex& m)
+        : m_mutex(m)
+    {
+        m_mutex.lock();
+    }
 
     SRT_ATTR_RELEASE()
-    ~ScopedLock();
+    ~ScopedLock() { m_mutex.unlock(); }
 
 private:
     Mutex& m_mutex;
@@ -480,6 +484,122 @@ private:
 
 inline void setupCond(Condition& cv, const char*) { cv.init(); }
 inline void releaseCond(Condition& cv) { cv.destroy(); }
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Shared Mutex section
+//
+///////////////////////////////////////////////////////////////////////////////
+
+/// Implementation of a read-write mutex. 
+/// This allows multiple readers at a time, or a single writer.
+/// TODO: The class can be improved if needed to give writer a preference
+/// by adding additional m_iWritersWaiting member variable (counter).
+/// TODO: The m_iCountRead could be made atomic to make unlok_shared() faster and lock-free.
+class SharedMutex
+{
+public:
+    SharedMutex();
+    ~SharedMutex();
+
+public:
+    /// Acquire the lock for writting purposes. Only one thread can acquire this lock at a time
+    /// Once it is locked, no reader can acquire it
+    void lock();
+    bool try_lock();
+    void unlock();
+
+    /// Acquire the lock if no writter already has it. For read purpose only
+    /// Several readers can lock this at the same time.
+    void lock_shared();
+    bool try_lock_shared();
+    void unlock_shared();
+
+    int getReaderCount() const;
+
+protected:
+    Condition m_LockWriteCond;
+    Condition m_LockReadCond;
+
+    mutable Mutex m_Mutex;
+
+    int  m_iCountRead;
+    bool m_bWriterLocked;
+};
+
+/// A version of std::scoped_lock<std::shared_mutex> (or lock_guard for C++11).
+/// We could have used the srt::sync::ScopedLock making it a template-based class.
+/// But in that case all usages would have to be specificed like ScopedLock<Mutex> in C++03.
+class SRT_ATTR_SCOPED_CAPABILITY ExclusiveLock
+{
+public:
+    SRT_ATTR_ACQUIRE(m)
+    explicit ExclusiveLock(SharedMutex& m)
+        : m_mutex(m)
+    {
+        m_mutex.lock();
+    }
+
+    SRT_ATTR_RELEASE(m_mutex)
+    ~ExclusiveLock() { m_mutex.unlock(); }
+
+private:
+    SharedMutex& m_mutex;
+};
+
+/// A reduced implementation of the std::shared_lock functionality (available in C++14).
+class SRT_ATTR_SCOPED_CAPABILITY SharedLock
+{
+public:
+    SRT_ATTR_ACQUIRE_SHARED(m)
+    explicit SharedLock(SharedMutex& m)
+        : m_mtx(m)
+    {
+        m_mtx.lock_shared();
+    }
+
+    SRT_ATTR_RELEASE_SHARED(m_mtx)
+    ~SharedLock() { m_mtx.unlock_shared(); }
+
+private:
+    SharedMutex& m_mtx;
+};
+
+/// A class template for a shared object. It is a wrapper around a pointer to an object
+/// and a shared mutex. It allows multiple readers to access the object at the same time,
+/// but only one writer can access the object at a time.
+template <class T>
+class CSharedObjectPtr : public SharedMutex
+{
+public:
+    CSharedObjectPtr()
+        : m_pObj(NULL)
+    {
+    }
+
+    bool set(T* pObj)
+    {
+        ExclusiveLock lock(*this);
+        if (m_pObj)
+            return false;
+        m_pObj = pObj;
+        return true;
+    }
+
+    bool clearIf(const T* pObj)
+    {
+        ExclusiveLock lock(*this);
+        if (m_pObj != pObj)
+            return false;
+        m_pObj = NULL;
+        return true;
+    }
+
+    T* getPtrNoLock() const { return m_pObj; }
+
+private:
+    T* m_pObj;
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 //
@@ -669,6 +789,7 @@ public:
 
     UniqueLock& locker() { return m_ulock; }
 
+    SRT_ATTR_ACQUIRE(this->m_ulock.mutex())
     CUniqueSync(Mutex& mut, Condition& cnd)
         : CSync(cnd, m_ulock)
         , m_ulock(mut)
@@ -680,6 +801,9 @@ public:
         , m_ulock(event.mutex())
     {
     }
+
+    SRT_ATTR_RELEASE(this->m_ulock.mutex())
+    ~CUniqueSync() {}
 
     // These functions can be used safely because
     // this whole class guarantees that whatever happens
@@ -771,7 +895,7 @@ struct DurationUnitName<DUNIT_S>
 template<eDurationUnit UNIT>
 inline std::string FormatDuration(const steady_clock::duration& dur)
 {
-    return Sprint(DurationUnitName<UNIT>::count(dur)) + DurationUnitName<UNIT>::name();
+    return Sprint(std::fixed, DurationUnitName<UNIT>::count(dur)) + DurationUnitName<UNIT>::name();
 }
 
 inline std::string FormatDuration(const steady_clock::duration& dur)

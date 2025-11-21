@@ -175,6 +175,22 @@ public:
 #endif
   }
 
+  T operator|=(T i) {
+#if defined(ATOMIC_USE_SRT_SYNC_MUTEX) && (ATOMIC_USE_SRT_SYNC_MUTEX == 1)
+    ScopedLock lg_(mutex_);
+    const T t = value_ |= i;
+    return t;
+#elif defined(ATOMIC_USE_GCC_INTRINSICS)
+    return __atomic_or_fetch(&value_, i, __ATOMIC_SEQ_CST);
+#elif defined(ATOMIC_USE_MSVC_INTRINSICS)
+    return msvc::interlocked<T>::or_fetch(&value_, i);
+#elif defined(ATOMIC_USE_CPP11_ATOMIC)
+    return value_ |= i;
+#else
+    #error "Implement Me."
+#endif
+  }
+
   /// @brief Performs an atomic compare-and-swap (CAS) operation.
   ///
   /// The value of the atomic object is only updated to the new value if the

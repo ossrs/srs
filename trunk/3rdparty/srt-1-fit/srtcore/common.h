@@ -78,8 +78,13 @@ modified by
 #endif
 
 #ifdef _DEBUG
+#if defined(SRT_ENABLE_THREADCHECK)
+#include "threadcheck.h"
+#define SRT_ASSERT(cond) ASSERT(cond)
+#else
 #include <assert.h>
 #define SRT_ASSERT(cond) assert(cond)
+#endif
 #else
 #define SRT_ASSERT(cond)
 #endif
@@ -1421,6 +1426,17 @@ inline std::string SrtVersionString(int version)
 }
 
 bool SrtParseConfig(const std::string& s, SrtConfig& w_config);
+
+bool checkMappedIPv4(const uint16_t* sa);
+
+inline bool checkMappedIPv4(const sockaddr_in6& sa)
+{
+    const uint16_t* addr = reinterpret_cast<const uint16_t*>(&sa.sin6_addr.s6_addr);
+    return checkMappedIPv4(addr);
+}
+
+std::string FormatLossArray(const std::vector< std::pair<int32_t, int32_t> >& lra);
+std::ostream& PrintEpollEvent(std::ostream& os, int events, int et_events = 0);
 
 } // namespace srt
 

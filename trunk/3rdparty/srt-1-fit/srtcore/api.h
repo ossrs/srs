@@ -123,6 +123,18 @@ public:
 
     void construct();
 
+private:
+    srt::sync::atomic<int> m_iBusy;
+public:
+    void apiAcquire() { ++m_iBusy; }
+    void apiRelease() { --m_iBusy; }
+
+    int isStillBusy() const
+    {
+        return m_iBusy;
+    }
+
+
     SRT_ATTR_GUARDED_BY(m_ControlLock)
     sync::atomic<SRT_SOCKSTATUS> m_Status; //< current socket state
 
@@ -131,7 +143,8 @@ public:
     /// of sockets in order to prevent other methods from accessing invalid address.
     /// A timer is started and the socket will be removed after approximately
     /// 1 second (see CUDTUnited::checkBrokenSockets()).
-    sync::steady_clock::time_point m_tsClosureTimeStamp;
+    //sync::steady_clock::time_point m_tsClosureTimeStamp;
+    sync::AtomicClock<sync::steady_clock> m_tsClosureTimeStamp;
 
     sockaddr_any m_SelfAddr; //< local address of the socket
     sockaddr_any m_PeerAddr; //< peer address of the socket
@@ -151,7 +164,7 @@ private:
     CUDT m_UDT; //< internal SRT socket logic
 
 public:
-    std::set<SRTSOCKET> m_QueuedSockets; //< set of connections waiting for accept()
+    std::map<SRTSOCKET, sockaddr_any> m_QueuedSockets; //< set of connections waiting for accept()
 
     sync::Condition m_AcceptCond; //< used to block "accept" call
     sync::Mutex     m_AcceptLock; //< mutex associated to m_AcceptCond
@@ -324,7 +337,7 @@ public:
     int     epoll_release(const int eid);
 
 #if ENABLE_BONDING
-    // [[using locked(m_GlobControlLock)]]
+    SRT_ATR_NODISCARD SRT_ATTR_REQUIRES(m_GlobControlLock)
     CUDTGroup& addGroup(SRTSOCKET id, SRT_GROUP_TYPE type)
     {
         // This only ensures that the element exists.
@@ -346,7 +359,7 @@ public:
     void deleteGroup(CUDTGroup* g);
     void deleteGroup_LOCKED(CUDTGroup* g);
 
-    // [[using locked(m_GlobControlLock)]]
+    SRT_ATR_NODISCARD SRT_ATTR_REQUIRES(m_GlobControlLock)
     CUDTGroup* findPeerGroup_LOCKED(SRTSOCKET peergroup)
     {
         for (groups_t::iterator i = m_Groups.begin(); i != m_Groups.end(); ++i)
@@ -385,11 +398,13 @@ private:
 
 private:
     typedef std::map<SRTSOCKET, CUDTSocket*> sockets_t; // stores all the socket structures
-    sockets_t                                m_Sockets;
+    SRT_ATTR_GUARDED_BY(m_GlobControlLock)
+    sockets_t m_Sockets;
 
 #if ENABLE_BONDING
     typedef std::map<SRTSOCKET, CUDTGroup*> groups_t;
-    groups_t                                m_Groups;
+    SRT_ATTR_GUARDED_BY(m_GlobControlLock)
+    groups_t m_Groups;
 #endif
 
     sync::Mutex m_GlobControlLock; // used to synchronize UDT API
@@ -399,6 +414,7 @@ private:
     SRTSOCKET m_SocketIDGenerator;      // seed to generate a new unique socket ID
     SRTSOCKET m_SocketIDGenerator_init; // Keeps track of the very first one
 
+    SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     std::map<int64_t, std::set<SRTSOCKET> >
         m_PeerRec; // record sockets from peers to avoid repeated connection request, int64_t = (socker_id << 30) + isn
 
@@ -442,8 +458,56 @@ private:
             }
         }
     };
-
 #endif
+
+    CUDTSocket* locateAcquireSocket(SRTSOCKET u, ErrorHandling erh = ERH_RETURN);
+    bool acquireSocket(CUDTSocket* s);
+
+public:
+    struct SocketKeeper
+    {
+        CUDTSocket* socket;
+
+        SocketKeeper(): socket(NULL) {}
+
+        // This is intended for API functions to lock the socket's existence
+        // for the lifetime of their call.
+        SocketKeeper(CUDTUnited& glob, SRTSOCKET id, ErrorHandling erh = ERH_RETURN) { socket = glob.locateAcquireSocket(id, erh); }
+
+        // This is intended for TSBPD thread that should lock the socket's
+        // existence until it exits.
+        SocketKeeper(CUDTUnited& glob, CUDTSocket* s)
+        {
+            acquire(glob, s);
+        }
+
+        // Note: acquire doesn't check if the keeper already keeps anything.
+        // This is only for a use together with an empty constructor.
+        bool acquire(CUDTUnited& glob, CUDTSocket* s)
+        {
+            if (s == NULL)
+            {
+                socket = NULL;
+                return false;
+            }
+
+            const bool caught = glob.acquireSocket(s);
+            socket = caught ? s : NULL;
+            return caught;
+        }
+
+        ~SocketKeeper()
+        {
+            if (socket)
+            {
+                SRT_ASSERT(socket->isStillBusy() > 0);
+                socket->apiRelease();
+            }
+        }
+    };
+
+private:
+
     void updateMux(CUDTSocket* s, const sockaddr_any& addr, const UDPSOCKET* = NULL);
     bool updateListenerMux(CUDTSocket* s, const CUDTSocket* ls);
 
@@ -460,11 +524,13 @@ private:
         const sockaddr_any& reqaddr, const CSrtMuxerConfig& cfgSocket);
 
 private:
+    SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     std::map<int, CMultiplexer> m_mMultiplexer; // UDP multiplexer
-    sync::Mutex                 m_MultiplexerLock;
 
-private:
-    CCache<CInfoBlock>* m_pCache; // UDT network information cache
+    /// UDT network information cache.
+    /// Existence is guarded by m_GlobControlLock, but the cache itself is thread-safe.
+    SRT_ATTR_GUARDED_BY(m_GlobControlLock)
+    CCache<CInfoBlock>* const m_pCache;
 
 private:
     srt::sync::atomic<bool> m_bClosing;
@@ -472,14 +538,19 @@ private:
     sync::Condition         m_GCStopCond;
 
     sync::Mutex m_InitLock;
+    SRT_ATTR_GUARDED_BY(m_InitLock)
     int         m_iInstanceCount; // number of startup() called by application
+    SRT_ATTR_GUARDED_BY(m_InitLock)
     bool        m_bGCStatus;      // if the GC thread is working (true)
 
+    SRT_ATTR_GUARDED_BY(m_InitLock)
     sync::CThread m_GCThread;
     static void*  garbageCollect(void*);
 
+    SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     sockets_t m_ClosedSockets; // temporarily store closed sockets
 #if ENABLE_BONDING
+    SRT_ATTR_GUARDED_BY(m_GlobControlLock)
     groups_t m_ClosedGroups;
 #endif
 

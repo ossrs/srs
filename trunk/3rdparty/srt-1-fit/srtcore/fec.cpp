@@ -344,13 +344,13 @@ void FECFilterBuiltin::ConfigureColumns(Container& which, int32_t isn)
         if (col % numberRows() == numberRows() - 1)
         {
             offset = col + 1; // +1 because we want it for the next column
-            HLOGC(pflog.Debug, log << "ConfigureColumns: [" << (col+1) << "]... (resetting to row 0: +"
+            HLOGC(pflog.Debug, log << "ConfigureColumns: [" << (int(col)+1) << "]... (resetting to row 0: +"
                     << offset << " %" << CSeqNo::incseq(isn, (int32_t)offset) << ")");
         }
         else
         {
             offset += 1 + sizeRow();
-            HLOGC(pflog.Debug, log << "ConfigureColumns: [" << (col+1) << "] ... (continue +"
+            HLOGC(pflog.Debug, log << "ConfigureColumns: [" << (int(col)+1) << "] ... (continue +"
                     << offset << " %" << CSeqNo::incseq(isn, (int32_t)offset) << ")");
         }
     }
@@ -597,6 +597,9 @@ void FECFilterBuiltin::ClipData(Group& g, uint16_t length_net, uint8_t kflg,
     g.length_clip = g.length_clip ^ length_net;
     g.flag_clip = g.flag_clip ^ kflg;
     g.timestamp_clip = g.timestamp_clip ^ timestamp_hw;
+
+    HLOGC(pflog.Debug, log << "FEC CLIP: data pkt.size=" << payload_size
+            << " to a clip buffer size=" << payloadSize());
 
     // Payload goes "as is".
     for (size_t i = 0; i < payload_size; ++i)
@@ -852,7 +855,7 @@ bool FECFilterBuiltin::receive(const CPacket& rpkt, loss_seqs_t& loss_seqs)
     loss_seqs_t irrecover_row, irrecover_col;
 
 #if ENABLE_HEAVY_LOGGING
-    static string hangname [] = {"SUCCESS", "PAST", "CRAZY", "NOT-DONE"};
+    static string hangname [] = {"NOT-DONE", "SUCCESS", "PAST", "CRAZY"};
 #endif
 
     // Required for EHangStatus

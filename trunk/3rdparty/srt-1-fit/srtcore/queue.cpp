@@ -444,7 +444,7 @@ int srt::CSndQueue::sockoptQuery(int level, int type) const
 }
 
 #if ENABLE_LOGGING
-int srt::CSndQueue::m_counter = 0;
+srt::sync::atomic<int> srt::CSndQueue::m_counter(0);
 #endif
 
 void srt::CSndQueue::init(CChannel* c, CTimer* t)
@@ -504,11 +504,9 @@ void* srt::CSndQueue::worker(void* param)
 {
     CSndQueue* self = (CSndQueue*)param;
 
-#if ENABLE_LOGGING
-    THREAD_STATE_INIT(("SRT:SndQ:w" + Sprint(m_counter)).c_str());
-#else
-    THREAD_STATE_INIT("SRT:SndQ:worker");
-#endif
+    std::string thname;
+    ThreadName::get(thname);
+    THREAD_STATE_INIT(thname.c_str());
 
 #if defined(SRT_DEBUG_SNDQ_HIGHRATE)
 #define IF_DEBUG_HIGHRATE(statement) statement
@@ -573,6 +571,13 @@ void* srt::CSndQueue::worker(void* param)
         if (!u->m_bConnected || u->m_bBroken)
         {
             IF_DEBUG_HIGHRATE(self->m_WorkerStats.lNotReadyPop++);
+            continue;
+        }
+
+        CUDTUnited::SocketKeeper sk (CUDT::uglobal(), u->id());
+        if (!sk.socket)
+        {
+            HLOGC(qslog.Debug, log << "Socket to be processed was deleted in the meantime, not packing");
             continue;
         }
 
@@ -900,7 +905,7 @@ void srt::CRendezvousQueue::updateConnStatus(EReadStatus rst, EConnectStatus cst
 
     // Need a stub value for a case when there's no unit provided ("storage depleted" case).
     // It should be normally NOT IN USE because in case of "storage depleted", rst != RST_OK.
-    const SRTSOCKET dest_id = pkt ? pkt->m_iID : 0;
+    const SRTSOCKET dest_id = pkt ? pkt->id() : 0;
 
     // If no socket were qualified for further handling, finish here.
     // Otherwise toRemove and toProcess contain items to handle.
@@ -930,6 +935,16 @@ void srt::CRendezvousQueue::updateConnStatus(EReadStatus rst, EConnectStatus cst
 
         EReadStatus    read_st = rst;
         EConnectStatus conn_st = cst;
+
+        CUDTUnited::SocketKeeper sk (CUDT::uglobal(), i->id);
+        if (!sk.socket)
+        {
+            // Socket deleted already, so stop this and proceed to the next loop.
+            LOGC(cnlog.Error, log << "updateConnStatus: IPE: socket @" << i->id << " already closed, proceed to only removal from lists");
+            toRemove.push_back(*i);
+            continue;
+        }
+
 
         if (cst != CONN_RENDEZVOUS && dest_id != 0)
         {
@@ -976,14 +991,22 @@ void srt::CRendezvousQueue::updateConnStatus(EReadStatus rst, EConnectStatus cst
     for (vector<LinkStatusInfo>::iterator i = toRemove.begin(); i != toRemove.end(); ++i)
     {
         HLOGC(cnlog.Debug, log << "updateConnStatus: COMPLETING dep objects update on failed @" << i->id);
-        //
+        remove(i->id);
+
+        CUDTUnited::SocketKeeper sk (CUDT::uglobal(), i->id);
+        if (!sk.socket)
+        {
+            // This actually shall never happen, so it's a kind of paranoid check.
+            LOGC(cnlog.Error, log << "updateConnStatus: IPE: socket @" << i->id << " already closed, NOT ACCESSING its contents");
+            continue;
+        }
+
         // Setting m_bConnecting to false, and need to remove the socket from the rendezvous queue
         // because the next CUDT::close will not remove it from the queue when m_bConnecting = false,
         // and may crash on next pass.
         //
         // TODO: maybe lock i->u->m_ConnectionLock?
         i->u->m_bConnecting = false;
-        remove(i->u->m_SocketID);
 
         // DO NOT close the socket here because in this case it might be
         // unable to get status from at the right moment. Also only member
@@ -993,6 +1016,11 @@ void srt::CRendezvousQueue::updateConnStatus(EReadStatus rst, EConnectStatus cst
         // app can call any UDT API to learn the connection_broken error
         CUDT::uglobal().m_EPoll.update_events(
             i->u->m_SocketID, i->u->m_sPollID, SRT_EPOLL_IN | SRT_EPOLL_OUT | SRT_EPOLL_ERR, true);
+
+        // Make sure that the socket wasn't deleted in the meantime.
+        // Skip this part if it was. Note also that if the socket was
+        // decided to be deleted, it's already moved to m_ClosedSockets
+        // and should have been therefore already processed for deletion.
 
         i->u->completeBrokenConnectionDependencies(i->errorcode);
     }
@@ -1092,8 +1120,8 @@ bool srt::CRendezvousQueue::qualifyToHandle(EReadStatus    rst,
         if ((rst == RST_AGAIN || i->m_iID != iDstSockID) && tsNow <= tsRepeat)
         {
             HLOGC(cnlog.Debug,
-                  log << "RID:@" << i->m_iID << std::fixed << count_microseconds(tsNow - tsLastReq) / 1000.0
-                      << " ms passed since last connection request.");
+                  log << "RID:@" << i->m_iID << " " << FormatDuration<DUNIT_MS>(tsNow - tsLastReq)
+                      << " passed since last connection request.");
 
             continue;
         }
@@ -1129,8 +1157,6 @@ srt::CRcvQueue::CRcvQueue()
     , m_iIPversion()
     , m_szPayloadSize()
     , m_bClosing(false)
-    , m_LSLock()
-    , m_pListener(NULL)
     , m_pRendezvousQueue(NULL)
     , m_vNewEntry()
     , m_IDLock()
@@ -1208,11 +1234,9 @@ void* srt::CRcvQueue::worker(void* param)
     sockaddr_any sa(self->getIPversion());
     int32_t      id = 0;
 
-#if ENABLE_LOGGING
-    THREAD_STATE_INIT(("SRT:RcvQ:w" + Sprint(m_counter)).c_str());
-#else
-    THREAD_STATE_INIT("SRT:RcvQ:worker");
-#endif
+    std::string thname;
+    ThreadName::get(thname);
+    THREAD_STATE_INIT(thname.c_str());
 
     CUnit*         unit = 0;
     EConnectStatus cst  = CONN_AGAIN;
@@ -1385,7 +1409,7 @@ srt::EReadStatus srt::CRcvQueue::worker_RetrieveUnit(int32_t& w_id, CUnit*& w_un
 
     if (rst == RST_OK)
     {
-        w_id = w_unit->m_Packet.m_iID;
+        w_id = w_unit->m_Packet.id();
         HLOGC(qrlog.Debug,
               log << "INCOMING PACKET: FROM=" << w_addr.str() << " BOUND=" << m_pChannel->bindAddressAny().str() << " "
                   << w_unit->m_Packet.Info());
@@ -1404,11 +1428,13 @@ srt::EConnectStatus srt::CRcvQueue::worker_ProcessConnectionRequest(CUnit* unit,
     int  listener_ret  = SRT_REJ_UNKNOWN;
     bool have_listener = false;
     {
-        ScopedLock cg(m_LSLock);
-        if (m_pListener)
+        SharedLock shl(m_pListener);
+        CUDT*      pListener = m_pListener.getPtrNoLock();
+
+        if (pListener)
         {
-            LOGC(cnlog.Note, log << "PASSING request from: " << addr.str() << " to agent:" << m_pListener->socketID());
-            listener_ret = m_pListener->processConnectRequest(addr, unit->m_Packet);
+            LOGC(cnlog.Debug, log << "PASSING request from: " << addr.str() << " to listener:" << pListener->socketID());
+            listener_ret = pListener->processConnectRequest(addr, unit->m_Packet);
 
             // This function does return a code, but it's hard to say as to whether
             // anything can be done about it. In case when it's stated possible, the
@@ -1426,8 +1452,8 @@ srt::EConnectStatus srt::CRcvQueue::worker_ProcessConnectionRequest(CUnit* unit,
 
     if (have_listener) // That is, the above block with m_pListener->processConnectRequest was executed
     {
-        LOGC(cnlog.Note,
-             log << CONID() << "Listener managed the connection request from: " << addr.str()
+        LOGC(cnlog.Debug,
+             log << CONID() << "Listener got the connection request from: " << addr.str()
                  << " result:" << RequestTypeStr(UDTRequestType(listener_ret)));
         return listener_ret == SRT_REJ_UNKNOWN ? CONN_CONTINUE : CONN_REJECT;
     }
@@ -1446,6 +1472,12 @@ srt::EConnectStatus srt::CRcvQueue::worker_ProcessAddressedPacket(int32_t id, CU
         HLOGC(cnlog.Debug, log << "worker_ProcessAddressedPacket: resending to QUEUED socket @" << id);
         return worker_TryAsyncRend_OrStore(id, unit, addr);
     }
+    // Although we don´t have an exclusive passing here,
+    // we can count on that when the socket was once present in the hash,
+    // it will not be deleted for at least one GC cycle. But we still need
+    // to maintain the object existence until it's in use.
+    // Note that here we are out of any locks, so m_GlobControlLock can be locked.
+    CUDTUnited::SocketKeeper sk (CUDT::uglobal(), u->m_parent);
 
     // Found associated CUDT - process this as control or data packet
     // addressed to an associated socket.
@@ -1690,21 +1722,15 @@ int srt::CRcvQueue::recvfrom(int32_t id, CPacket& w_packet)
 
 int srt::CRcvQueue::setListener(CUDT* u)
 {
-    ScopedLock lslock(m_LSLock);
-
-    if (NULL != m_pListener)
+    if (!m_pListener.set(u))
         return -1;
 
-    m_pListener = u;
     return 0;
 }
 
 void srt::CRcvQueue::removeListener(const CUDT* u)
 {
-    ScopedLock lslock(m_LSLock);
-
-    if (u == m_pListener)
-        m_pListener = NULL;
+    m_pListener.clearIf(u);
 }
 
 void srt::CRcvQueue::registerConnector(const SRTSOCKET&                id,
@@ -1747,6 +1773,7 @@ void srt::CRcvQueue::setNewEntry(CUDT* u)
 
 bool srt::CRcvQueue::ifNewEntry()
 {
+    ScopedLock listguard(m_IDLock);
     return !(m_vNewEntry.empty());
 }
 

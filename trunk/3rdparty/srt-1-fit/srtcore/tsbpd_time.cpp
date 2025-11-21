@@ -108,7 +108,7 @@ bool CTsbpdTime::addDriftSample(uint32_t usPktTimestamp, const time_point& tsPkt
     if (!m_bTsbPdMode)
         return false;
 
-    ScopedLock lck(m_mtxRW);
+    ExclusiveLock lck(m_mtxRW);
 
     // Remember the first RTT sample measured. Ideally we need RTT0 - the one from the handshaking phase,
     // because TSBPD base is initialized there. But HS-based RTT is not yet implemented.
@@ -122,7 +122,7 @@ bool CTsbpdTime::addDriftSample(uint32_t usPktTimestamp, const time_point& tsPkt
     // is to estimate RTT change and assume that the change of the one way network delay is
     // approximated by the half of the RTT change.
     const duration               tdRTTDelta    = usRTTSample >= 0 ? microseconds_from((usRTTSample - m_iFirstRTT) / 2) : duration(0);
-    const time_point             tsPktBaseTime = getPktTsbPdBaseTime(usPktTimestamp);
+    const time_point             tsPktBaseTime = getPktBaseTimeNoLock(usPktTimestamp);
     const steady_clock::duration tdDrift       = tsPktArrival - tsPktBaseTime - tdRTTDelta;
 
     const bool updated = m_DriftTracer.update(count_microseconds(tdDrift));
@@ -158,6 +158,7 @@ bool CTsbpdTime::addDriftSample(uint32_t usPktTimestamp, const time_point& tsPkt
 
 void CTsbpdTime::setTsbPdMode(const steady_clock::time_point& timebase, bool wrap, duration delay)
 {
+    ExclusiveLock lck(m_mtxRW);
     m_bTsbPdMode      = true;
     m_bTsbPdWrapCheck = wrap;
 
@@ -183,6 +184,7 @@ void CTsbpdTime::applyGroupTime(const steady_clock::time_point& timebase,
     // newly added to the group must get EXACTLY the same internal timebase
     // or otherwise the TsbPd time calculation will ship different results
     // on different member sockets.
+    ExclusiveLock lck(m_mtxRW);
 
     m_bTsbPdMode = true;
 
@@ -196,6 +198,7 @@ void CTsbpdTime::applyGroupDrift(const steady_clock::time_point& timebase,
                                  bool                            wrp,
                                  const steady_clock::duration&   udrift)
 {
+    ExclusiveLock lck(m_mtxRW);
     // This is only when a drift was updated on one of the group members.
     HLOGC(brlog.Debug,
           log << "rcv-buffer: group synch uDRIFT: " << m_DriftTracer.drift() << " -> " << FormatDuration(udrift)
@@ -207,10 +210,10 @@ void CTsbpdTime::applyGroupDrift(const steady_clock::time_point& timebase,
     m_DriftTracer.forceDrift(count_microseconds(udrift));
 }
 
-CTsbpdTime::time_point CTsbpdTime::getTsbPdTimeBase(uint32_t timestamp_us) const
+CTsbpdTime::time_point CTsbpdTime::getBaseTimeNoLock(uint32_t timestamp_us) const
 {
     // A data packet within [TSBPD_WRAP_PERIOD; 2 * TSBPD_WRAP_PERIOD] would end TSBPD wrap-aware state.
-    // Some incoming control packets may not update the TSBPD base (calling updateTsbPdTimeBase(..)),
+    // Some incoming control packets may not update the TSBPD base (calling updateBaseTime(..)),
     // but may come before a data packet with a timestamp in this range. Therefore the whole range should be tracked.
     const int64_t carryover_us =
         (m_bTsbPdWrapCheck && timestamp_us <= 2 * TSBPD_WRAP_PERIOD) ? int64_t(CPacket::MAX_TIMESTAMP) + 1 : 0;
@@ -218,18 +221,33 @@ CTsbpdTime::time_point CTsbpdTime::getTsbPdTimeBase(uint32_t timestamp_us) const
     return (m_tsTsbPdTimeBase + microseconds_from(carryover_us));
 }
 
-CTsbpdTime::time_point CTsbpdTime::getPktTsbPdTime(uint32_t usPktTimestamp) const
+CTsbpdTime::time_point CTsbpdTime::getBaseTime(uint32_t timestamp_us) const
 {
-    return getPktTsbPdBaseTime(usPktTimestamp) + m_tdTsbPdDelay + microseconds_from(m_DriftTracer.drift());
+    SharedLock lck(m_mtxRW);
+    return getBaseTimeNoLock(timestamp_us);
 }
 
-CTsbpdTime::time_point CTsbpdTime::getPktTsbPdBaseTime(uint32_t usPktTimestamp) const
+CTsbpdTime::time_point CTsbpdTime::getPktTime(uint32_t usPktTimestamp) const
 {
-    return getTsbPdTimeBase(usPktTimestamp) + microseconds_from(usPktTimestamp);
+    SharedLock lck(m_mtxRW);
+    time_point value = getPktBaseTimeNoLock(usPktTimestamp) + m_tdTsbPdDelay + microseconds_from(m_DriftTracer.drift());
+
+    return value;
 }
 
-void CTsbpdTime::updateTsbPdTimeBase(uint32_t usPktTimestamp)
+CTsbpdTime::time_point CTsbpdTime::getPktBaseTimeNoLock(uint32_t usPktTimestamp) const
 {
+    return getBaseTimeNoLock(usPktTimestamp) + microseconds_from(usPktTimestamp);
+}
+
+CTsbpdTime::time_point CTsbpdTime::getPktBaseTime(uint32_t usPktTimestamp) const
+{
+    return getBaseTime(usPktTimestamp) + microseconds_from(usPktTimestamp);
+}
+
+void CTsbpdTime::updateBaseTime(uint32_t usPktTimestamp)
+{
+    ExclusiveLock lck(m_mtxRW);
     if (m_bTsbPdWrapCheck)
     {
         // Wrap check period.
@@ -258,7 +276,7 @@ void CTsbpdTime::updateTsbPdTimeBase(uint32_t usPktTimestamp)
 
 void CTsbpdTime::getInternalTimeBase(time_point& w_tb, bool& w_wrp, duration& w_udrift) const
 {
-    ScopedLock lck(m_mtxRW);
+    ExclusiveLock lck(m_mtxRW);
     w_tb     = m_tsTsbPdTimeBase;
     w_udrift = microseconds_from(m_DriftTracer.drift());
     w_wrp    = m_bTsbPdWrapCheck;

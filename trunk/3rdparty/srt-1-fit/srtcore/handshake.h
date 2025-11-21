@@ -311,6 +311,8 @@ public:
     // Applicable only when m_iVersion == HS_VERSION_SRT1
     int32_t flags() { return m_iType; }
 
+    bool v5orHigher() { return m_iVersion > 4; }
+
 public:
     int32_t m_iVersion;          // UDT version (HS_VERSION_* symbols)
     int32_t m_iType;             // UDT4: socket type (only UDT_DGRAM is valid); SRT1: extension flags

@@ -68,6 +68,7 @@ private:
     int m_KmRefreshRatePkt;
     int m_KmPreAnnouncePkt;
     int m_iCryptoMode;
+    bool m_bUseGcm153; // Older AES-GCM version existed up to SRT v1.5.3.
 
     HaiCrypt_Secret m_KmSecret;     //Key material shared secret
     // Sender
@@ -127,15 +128,18 @@ public:
     // Needed for CUDT
     void updateKmState(int cmd, size_t srtlen);
 
-    // Detailed processing
-    int processSrtMsg_KMREQ(const uint32_t* srtdata, size_t len, int hsv,
+    /// Process the KM request message.
+    /// @param srtv peer's SRT version.
+    int processSrtMsg_KMREQ(const uint32_t* srtdata, size_t len, int hsv, unsigned srtv,
             uint32_t srtdata_out[], size_t&);
 
-    // This returns:
-    // 1 - the given payload is the same as the currently used key
-    // 0 - there's no key in agent or the payload is error message with agent NOSECRET.
-    // -1 - the payload is error message with other state or it doesn't match the key
-    int processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len, int hsv);
+    /// Process the KM response message.
+    /// @param srtv peer's SRT version.
+    /// @returns
+    /// 1 - the given payload is the same as the currently used key
+    /// 0 - there's no key in agent or the payload is error message with agent NOSECRET.
+    /// -1 - the payload is error message with other state or it doesn't match the key
+    int processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len, unsigned srtv);
     void createFakeSndContext();
 
     const unsigned char* getKmMsg_data(size_t ki) const { return m_SndKmMsg[ki].Msg; }
@@ -207,7 +211,7 @@ public:
     std::string CONID() const;
     std::string FormatKmMessage(std::string hdr, int cmd, size_t srtlen);
 
-    bool init(HandshakeSide, const CSrtConfig&, bool);
+    bool init(HandshakeSide, const CSrtConfig&, bool bidir, bool bUseGcm153);
     SRT_ATTR_EXCLUDES(m_mtxLock)
     void close();
 

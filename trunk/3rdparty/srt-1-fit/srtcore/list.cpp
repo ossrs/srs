@@ -99,16 +99,7 @@ srt::CSndLossList::~CSndLossList()
 
 void srt::CSndLossList::traceState() const
 {
-    int pos = m_iHead;
-    while (pos != SRT_SEQNO_NONE)
-    {
-        std::cout << pos << ":[" << m_caSeq[pos].seqstart;
-        if (m_caSeq[pos].seqend != SRT_SEQNO_NONE)
-            std::cout << ", " << m_caSeq[pos].seqend;
-        std::cout << "], ";
-        pos = m_caSeq[pos].inext;
-    }
-    std::cout << "\n";
+    traceState(std::cout) << "\n";
 }
 
 int srt::CSndLossList::insert(int32_t seqno1, int32_t seqno2)
@@ -508,6 +499,10 @@ srt::CRcvLossList::~CRcvLossList()
 
 int srt::CRcvLossList::insert(int32_t seqno1, int32_t seqno2)
 {
+    SRT_ASSERT(seqno1 != SRT_SEQNO_NONE && seqno2 != SRT_SEQNO_NONE);
+    // Make sure that seqno2 isn't earlier than seqno1.
+    SRT_ASSERT(CSeqNo::seqcmp(seqno1, seqno2) <= 0);
+
     // Data to be inserted must be larger than all those in the list
     if (m_iLargestSeq != SRT_SEQNO_NONE && CSeqNo::seqcmp(seqno1, m_iLargestSeq) <= 0)
     {
@@ -658,6 +653,8 @@ bool srt::CRcvLossList::remove(int32_t seqno)
         }
 
         m_iLength--;
+        if (m_iLength == 0)
+            m_iLargestSeq = SRT_SEQNO_NONE;
 
         return true;
     }
@@ -713,6 +710,8 @@ bool srt::CRcvLossList::remove(int32_t seqno)
     }
 
     m_iLength--;
+    if (m_iLength == 0)
+        m_iLargestSeq = SRT_SEQNO_NONE;
 
     return true;
 }

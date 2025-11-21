@@ -78,7 +78,7 @@ int HaiCrypt_Rx_Process(HaiCrypt_Handle hhc,
 	}
 
 	/* Validate HaiCrypt message */
-	if (0 > (msg_type = crypto->msg_info->parseMsg(in_msg))) {
+	if (0 > (msg_type = hcryptMsg_SRT_ParseMsg(crypto->msg_info, in_msg))) {
 		return(-1);
 	}
 

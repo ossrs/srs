@@ -28,8 +28,8 @@ int hcryptCtx_Rx_Init(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const HaiCrypt_Cf
 		ctx->mode = (cfg->flags & HAICRYPT_CFG_F_GCM) ? HCRYPT_CTX_MODE_AESGCM : HCRYPT_CTX_MODE_AESCTR;
 	}
 	ctx->status = HCRYPT_CTX_S_INIT;
-
 	ctx->msg_info = crypto->msg_info;
+	ctx->use_gcm_153 = false; // Default initialization.
 
 	if (cfg && hcryptCtx_SetSecret(crypto, ctx, &cfg->secret)) {
 		return(-1);

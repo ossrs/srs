@@ -89,17 +89,52 @@ Write-Output "Windows version info: $VersionInfo"
 #-----------------------------------------------------------------------------
 
 # Locate OpenSSL root from local installation.
-$SslRoot = @{
-    "x64" = "C:\Program Files\OpenSSL-Win64";
-    "Win32" = "C:\Program Files (x86)\OpenSSL-Win32"
+# After version 3.something, OpenSSL has changed its installation layout.
+# We have to look for OpenSSL libraries in various locations.
+$SSL = @{
+    "x64" = @{
+        "alt" = "Win64";
+        "bits" = 64;
+        "root" = "C:\Program Files\OpenSSL-Win64"
+    };
+    "Win32" = @{
+        "alt" = "x86";
+        "bits" = 32;
+        "root" = "C:\Program Files (x86)\OpenSSL-Win32"
+    }
 }
 
-# Verify OpenSSL directories.
+# Verify OpenSSL directories and static libraries.
+Write-Output "Searching OpenSSL libraries ..."
 $Missing = 0
-foreach ($file in @($SslRoot["x64"], $SslRoot["Win32"])) {
-    if (-not (Test-Path $file)) {
-        Write-Output "**** Missing $file"
+foreach ($arch in @("x64", "Win32")) {
+    $root = $SSL[$arch]["root"]
+    $bits = $SSL[$arch]["bits"]
+    $alt = $SSL[$arch]["alt"]
+    if (-not (Test-Path $root)) {
+        Write-Output "**** Missing $root"
         $Missing = $Missing + 1
+    }
+    else {
+        foreach ($lib in @("ssl", "crypto")) {
+            foreach ($conf in @("MD", "MDd")) {
+                $name = "lib${lib}${conf}"
+                $SSL[$arch][$name] = ""
+                foreach ($try in @("$root\lib\VC\static\lib${lib}${bits}${conf}.lib",
+                                   "$root\lib\VC\${arch}\${conf}\lib${lib}_static.lib",
+                                   "$root\lib\VC\${alt}\${conf}\lib${lib}_static.lib")) {
+                    if (Test-Path $try) {
+                        $SSL[$arch][$name] = $try
+                        New-Variable "lib${lib}${bits}${conf}" "$try"
+                        break
+                    }
+                }
+                if (-not $SSL[$arch][$name]) {
+                    Write-Output "**** OpenSSL static library for $name not found"
+                    $Missing = $Missing + 1
+                }
+            }
+        }
     }
 }
 if ($Missing -gt 0) {
@@ -157,7 +192,7 @@ foreach ($Platform in @("x64", "Win32")) {
 
     # Run CMake.
     Write-Output "Configuring build for platform $Platform ..."
-    $SRoot = $SslRoot[$Platform]
+    $SRoot = $SSL[$Platform]["root"]
     & $CMake -S $RepoDir -B $BuildDir -A $Platform `
         -DENABLE_STDCXX_SYNC=ON `
         -DOPENSSL_ROOT_DIR="$SRoot" `
@@ -210,6 +245,14 @@ Write-Output "Building installer ..."
     /DOutDir="$OutDir" `
     /DBuildRoot="$TmpDir" `
     /DRepoDir="$RepoDir" `
+    /Dlibssl32MD="$libssl32MD" `
+    /Dlibssl32MDd="$libssl32MDd" `
+    /Dlibcrypto32MD="$libcrypto32MD" `
+    /Dlibcrypto32MDd="$libcrypto32MDd" `
+    /Dlibssl64MD="$libssl64MD" `
+    /Dlibssl64MDd="$libssl64MDd" `
+    /Dlibcrypto64MD="$libcrypto64MD" `
+    /Dlibcrypto64MDd="$libcrypto64MDd" `
     "$ScriptDir\libsrt.nsi" 
 
 if (-not (Test-Path $InstallExe)) {

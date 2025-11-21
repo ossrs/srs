@@ -51,7 +51,6 @@ modified by
 *****************************************************************************/
 
 #include "platform_sys.h"
-
 #include <iostream>
 #include <iomanip> // Logging
 #include <srt_compat.h>
@@ -176,6 +175,7 @@ void srt::CChannel::createSocket(int family)
     m_iSocket    = ::socket(family, SOCK_DGRAM, IPPROTO_UDP);
     cloexec_flag = true;
 #endif
+
 #else  // ENABLE_SOCK_CLOEXEC
     m_iSocket = ::socket(family, SOCK_DGRAM, IPPROTO_UDP);
 #endif // ENABLE_SOCK_CLOEXEC
@@ -184,17 +184,18 @@ void srt::CChannel::createSocket(int family)
         throw CUDTException(MJ_SETUP, MN_NONE, NET_ERROR);
 
 #if ENABLE_SOCK_CLOEXEC
-#ifdef _WIN32
-        // XXX ::SetHandleInformation(hInputWrite, HANDLE_FLAG_INHERIT, 0)
-#else
+
     if (cloexec_flag)
     {
+#ifdef _WIN32
+       // XXX ::SetHandleInformation(hInputWrite, HANDLE_FLAG_INHERIT, 0)
+#else
         if (0 != set_cloexec(m_iSocket, 1))
         {
             throw CUDTException(MJ_SETUP, MN_NONE, NET_ERROR);
         }
+#endif //_WIN32
     }
-#endif
 #endif // ENABLE_SOCK_CLOEXEC
 
     if ((m_mcfg.iIpV6Only != -1) && (family == AF_INET6)) // (not an error if it fails)
@@ -670,8 +671,8 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const socka
 #endif
 
     LOGC(kslog.Debug,
-         log << "CChannel::sendto: SENDING NOW DST=" << addr.str() << " target=@" << packet.m_iID
-             << " size=" << packet.getLength() << " pkt.ts=" << packet.m_iTimeStamp
+         log << "CChannel::sendto: SENDING NOW DST=" << addr.str() << " target=@" << packet.id()
+             << " size=" << packet.getLength() << " pkt.ts=" << packet.timestamp()
              << dsrc.str() << " " << packet.Info());
 #endif
 
@@ -734,7 +735,7 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const socka
 #endif
 
     // convert control information into network order
-    packet.toNL();
+    packet.toNetworkByteOrder();
 
 #ifndef _WIN32
     msghdr mh;
@@ -748,9 +749,10 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const socka
 
     // Note that even if PKTINFO is desired, the first caller's packet will be sent
     // without ancillary info anyway because there's no "peer" yet to know where to send it.
+    char mh_crtl_buf[sizeof(CMSGNodeIPv4) + sizeof(CMSGNodeIPv6)];
     if (m_bBindMasked && source_addr.family() != AF_UNSPEC && !source_addr.isany())
     {
-        if (!setSourceAddress(mh, source_addr))
+        if (!setSourceAddress(mh, mh_crtl_buf, source_addr))
         {
             LOGC(kslog.Error, log << "CChannel::setSourceAddress: source address invalid family #" << source_addr.family() << ", NOT setting.");
         }
@@ -772,24 +774,65 @@ int srt::CChannel::sendto(const sockaddr_any& addr, CPacket& packet, const socka
 
     const int res = (int)::sendmsg(m_iSocket, &mh, 0);
 #else
-    DWORD size     = (DWORD)(CPacket::HDR_SIZE + packet.getLength());
-    int   addrsize = addr.size();
+    class WSAEventRef
+    {
+    public:
+        WSAEventRef()
+            : e(::WSACreateEvent())
+        {
+        }
+        ~WSAEventRef()
+        {
+            ::WSACloseEvent(e);
+            e = NULL;
+        }
+        void reset()
+        {
+            ::WSAResetEvent(e);
+        }
+        WSAEVENT Handle()
+        {
+            return e;
+        }
+
+    private:
+        WSAEVENT e;
+    };
+#if !defined(__MINGW32__) && defined(ENABLE_CXX11)
+    thread_local WSAEventRef lEvent;
+#else
+    WSAEventRef lEvent;
+#endif
     WSAOVERLAPPED overlapped;
-    SecureZeroMemory((PVOID)&overlapped, sizeof(WSAOVERLAPPED));
+    ::SecureZeroMemory(&overlapped, sizeof(overlapped));
+    overlapped.hEvent = lEvent.Handle();
+
+    DWORD size = (DWORD)(packet.m_PacketVector[0].size() + packet.m_PacketVector[1].size());
+    int   addrsize = addr.size();
     int   res = ::WSASendTo(m_iSocket, (LPWSABUF)packet.m_PacketVector, 2, &size, 0, addr.get(), addrsize, &overlapped, NULL);
 
-    if (res == SOCKET_ERROR && NET_ERROR == WSA_IO_PENDING)
+    if (res == SOCKET_ERROR)
     {
-        DWORD dwFlags = 0;
-        const bool bCompleted = WSAGetOverlappedResult(m_iSocket, &overlapped, &size, true, &dwFlags);
-        WSACloseEvent(overlapped.hEvent);
-        res = bCompleted ? 0 : -1;
+        if (NET_ERROR == WSA_IO_PENDING)
+        {
+            DWORD dwFlags = 0;
+            const bool bCompleted = WSAGetOverlappedResult(m_iSocket, &overlapped, &size, TRUE, &dwFlags);
+            if (bCompleted)
+                res = 0;
+            else
+                LOGC(kslog.Warn, log << "CChannel::sendto call on ::WSAGetOverlappedResult failed with error: " << NET_ERROR);
+            lEvent.reset();
+        }
+        else
+        {
+            LOGC(kmlog.Error, log << CONID() << "WSASendTo failed with error: " << NET_ERROR);
+        }
     }
 
     res = (0 == res) ? size : -1;
 #endif
 
-    packet.toHL();
+    packet.toHostByteOrder();
 
     return res;
 }
@@ -821,6 +864,10 @@ srt::EReadStatus srt::CChannel::recvfrom(sockaddr_any& w_addr, CPacket& w_packet
 #ifndef _WIN32
     msghdr mh; // will not be used on failure
 
+#ifdef SRT_ENABLE_PKTINFO
+   // This buffer is mounted inside mh so it must stay in the same scope
+   char mh_crtl_buf[sizeof(CMSGNodeIPv4) + sizeof(CMSGNodeIPv6)];
+#endif
     if (select_ret > 0)
     {
         mh.msg_name       = (w_addr.get());
@@ -841,8 +888,8 @@ srt::EReadStatus srt::CChannel::recvfrom(sockaddr_any& w_addr, CPacket& w_packet
             // data. This might be interesting for the connection to
             // know to which address the packet should be sent back during
             // the handshake and then addressed when sending during connection.
-            mh.msg_control = (m_acCmsgRecvBuffer);
-            mh.msg_controllen = sizeof m_acCmsgRecvBuffer;
+            mh.msg_control = (mh_crtl_buf);
+            mh.msg_controllen = sizeof mh_crtl_buf;
         }
 #endif
 
@@ -1016,6 +1063,15 @@ srt::EReadStatus srt::CChannel::recvfrom(sockaddr_any& w_addr, CPacket& w_packet
             if ((msg_flags & errmsgflg[i].first) != 0)
                 flg << " " << errmsgflg[i].second;
 
+        if (msg_flags & MSG_TRUNC)
+        {
+            // Additionally show buffer information in this case
+            flg << " buffers: ";
+            for (size_t i = 0; i < CPacket::PV_SIZE; ++i)
+            {
+                flg << "[" << w_packet.m_PacketVector[i].iov_len << "] ";
+            }
+        }
         // This doesn't work the same way on Windows, so on Windows just skip it.
 #endif
 
@@ -1028,25 +1084,7 @@ srt::EReadStatus srt::CChannel::recvfrom(sockaddr_any& w_addr, CPacket& w_packet
     }
 
     w_packet.setLength(recv_size - CPacket::HDR_SIZE);
-
-    // convert back into local host order
-    // XXX use NtoHLA().
-    // for (int i = 0; i < 4; ++ i)
-    //   w_packet.m_nHeader[i] = ntohl(w_packet.m_nHeader[i]);
-    {
-        uint32_t* p = w_packet.m_nHeader;
-        for (size_t i = 0; i < SRT_PH_E_SIZE; ++i)
-        {
-            *p = ntohl(*p);
-            ++p;
-        }
-    }
-
-    if (w_packet.isControl())
-    {
-        for (size_t j = 0, n = w_packet.getLength() / sizeof(uint32_t); j < n; ++j)
-            *((uint32_t*)w_packet.m_pcData + j) = ntohl(*((uint32_t*)w_packet.m_pcData + j));
-    }
+    w_packet.toHostByteOrder();
 
     return RST_OK;
 

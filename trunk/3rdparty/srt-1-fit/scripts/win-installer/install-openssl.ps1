@@ -1,7 +1,7 @@
 ﻿#-----------------------------------------------------------------------------
 #
 #  SRT - Secure, Reliable, Transport
-#  Copyright (c) 2021, Thierry Lelegard
+#  Copyright (c) 2021-2024, Thierry Lelegard
 # 
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -36,7 +36,26 @@ param(
 )
 
 Write-Output "OpenSSL download and installation procedure"
-$OpenSSLHomePage = "http://slproweb.com/products/Win32OpenSSL.html"
+
+# A bit of history: Where to load OpenSSL binaries from?
+#
+# The packages are built by "slproweb". The binaries are downloadable from
+# their Web page at: http://slproweb.com/products/Win32OpenSSL.html
+#
+# Initially, the HTML for this page was built on server-side. This script
+# grabbed the URL content, parse the HTML and extracted the URL of the
+# binaries for the latest OpenSSL packages from the "href" of the links.
+#
+# At some point in 2024, the site changed policy. The Web page is no longer
+# built on server-side, but on client-side. The downloaded HTML contains some
+# JavaScript which dynamically builds the URL of the binaries for the latest
+# OpenSSL binaries. The previous method now finds no valid package URL from
+# the downloaded page (a full browser is needed to execute the JavaScript).
+# The JavaScript downloads a JSON file which contains all references to
+# the OpenSSL binaries. This script now uses the same method: download that
+# JSON file and parse it.
+
+$PackageList = "https://github.com/slproweb/opensslhashes/raw/master/win32_openssl_hashes.json"
 
 # A function to exit this script.
 function Exit-Script([string]$Message = "")
@@ -62,11 +81,11 @@ $TmpDir = "$RootDir\tmp"
 # Without this, Invoke-WebRequest is awfully slow.
 $ProgressPreference = 'SilentlyContinue'
 
-# Get the HTML page for OpenSSL downloads.
+# Get the JSON configuration file for OpenSSL downloads.
 $status = 0
 $message = ""
 try {
-    $response = Invoke-WebRequest -UseBasicParsing -UserAgent Download -Uri $OpenSSLHomePage
+    $response = Invoke-WebRequest -UseBasicParsing -UserAgent Download -Uri $PackageList
     $status = [int] [Math]::Floor($response.StatusCode / 100)
 }
 catch {
@@ -77,22 +96,27 @@ if ($status -ne 1 -and $status -ne 2) {
         Exit-Script "Status code $($response.StatusCode), $($response.StatusDescription)"
     }
     else {
-        Exit-Script "#### Error accessing ${OpenSSLHomePage}: $message"
+        Exit-Script "#### Error accessing ${PackageList}: $message"
     }
 }
+$config = ConvertFrom-Json $Response.Content
 
-# Parse HTML page to locate the latest MSI files.
-$Ref32 = $response.Links.href | Where-Object { $_ -like "*/Win32OpenSSL-*.msi" } | Select-Object -First 1
-$Ref64 = $response.Links.href | Where-Object { $_ -like "*/Win64OpenSSL-*.msi" } | Select-Object -First 1
+# Download and install MSI packages for 32 and 64 bit.
+foreach ($bits in @(32, 64)) {
 
-# Build the absolute URL's from base URL (the download page) and href links.
-$Url32 = New-Object -TypeName 'System.Uri' -ArgumentList ([System.Uri]$OpenSSLHomePage, $Ref32)
-$Url64 = New-Object -TypeName 'System.Uri' -ArgumentList ([System.Uri]$OpenSSLHomePage, $Ref64)
+    # Get the URL of the MSI installer from the JSON config.
+    $Url = $config.files | Get-Member | ForEach-Object {
+        $name = $_.name
+        $info = $config.files.$($_.name)
+        if (-not $info.light -and $info.installer -like "msi" -and $info.bits -eq $bits -and $info.arch -like "intel") {
+            $info.url
+        }
+    } | Select-Object -Last 1
+    if (-not $Url) {
+        Exit-Script "#### No MSI installer found for Win${bits}"
+    }
 
-# Download and install one MSI package.
-function Download-Install([string]$Url)
-{
-    $MsiName = (Split-Path -Leaf $Url.toString())
+    $MsiName = (Split-Path -Leaf $Url)
     $MsiPath = "$TmpDir\$MsiName"
 
     if (-not $ForceDownload -and (Test-Path $MsiPath)) {
@@ -113,7 +137,4 @@ function Download-Install([string]$Url)
     }
 }
 
-# Download and install the two MSI packages.
-Download-Install $Url32
-Download-Install $Url64
 Exit-Script

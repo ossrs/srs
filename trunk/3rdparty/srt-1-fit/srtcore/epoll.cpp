@@ -71,12 +71,6 @@ modified by
 using namespace std;
 using namespace srt::sync;
 
-#if ENABLE_HEAVY_LOGGING
-namespace srt {
-static ostream& PrintEpollEvent(ostream& os, int events, int et_events = 0);
-}
-#endif
-
 namespace srt_logging
 {
     extern Logger eilog, ealog;
@@ -955,31 +949,6 @@ int srt::CEPoll::update_events(const SRTSOCKET& uid, std::set<int>& eids, const 
 #if ENABLE_HEAVY_LOGGING
 namespace srt
 {
-
-static ostream& PrintEpollEvent(ostream& os, int events, int et_events)
-{
-    static pair<int, const char*> const namemap [] = {
-        make_pair(SRT_EPOLL_IN, "R"),
-        make_pair(SRT_EPOLL_OUT, "W"),
-        make_pair(SRT_EPOLL_ERR, "E"),
-        make_pair(SRT_EPOLL_UPDATE, "U")
-    };
-
-    int N = Size(namemap);
-
-    for (int i = 0; i < N; ++i)
-    {
-        if (events & namemap[i].first)
-        {
-            os << "[";
-            if (et_events & namemap[i].first)
-                os << "^";
-            os << namemap[i].second << "]";
-        }
-    }
-
-    return os;
-}
 
 string DisplayEpollResults(const std::map<SRTSOCKET, int>& sockset)
 {

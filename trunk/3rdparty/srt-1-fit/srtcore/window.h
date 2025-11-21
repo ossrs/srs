@@ -130,10 +130,12 @@ private:
 class CPktTimeWindowTools
 {
 public:
-   static int getPktRcvSpeed_in(const int* window, int* replica, const int* bytes, size_t asize, int& bytesps);
+   static int getPktRcvSpeed_in(const int* window, int* replica, const int* bytes, size_t asize, size_t hsize, int& bytesps);
    static int getBandwidth_in(const int* window, int* replica, size_t psize);
 
-   static void initializeWindowArrays(int* r_pktWindow, int* r_probeWindow, int* r_bytesWindow, size_t asize, size_t psize);
+   static void initializeWindowArrays(int* r_pktWindow, int* r_probeWindow, int* r_bytesWindow, size_t asize, size_t psize, size_t max_payload_size);
+
+   static int ceilPerMega(double value, double count);
 };
 
 template <size_t ASIZE = 16, size_t PSIZE = 16>
@@ -151,12 +153,13 @@ public:
         m_tsLastArrTime(sync::steady_clock::now()),
         m_tsCurrArrTime(),
         m_tsProbeTime(),
-        m_Probe1Sequence(SRT_SEQNO_NONE)
+        m_Probe1Sequence(SRT_SEQNO_NONE),
+        m_zPayloadSize(0),
+        m_zHeaderSize(0)
     {
         // Exception: up to CUDT ctor
         sync::setupMutex(m_lockPktWindow, "PktWindow");
         sync::setupMutex(m_lockProbeWindow, "ProbeWindow");
-        CPktTimeWindowTools::initializeWindowArrays(m_aPktWindow, m_aProbeWindow, m_aBytesWindow, ASIZE, PSIZE);
     }
 
    ~CPktTimeWindow()
@@ -174,11 +177,12 @@ public:
 
    int getPktRcvSpeed(int& w_bytesps) const
    {
+       SRT_ASSERT(m_zHeaderSize != 0 && m_zPayloadSize != 0);
        // Lock access to the packet Window
        sync::ScopedLock cg(m_lockPktWindow);
 
        int pktReplica[ASIZE];          // packet information window (inter-packet time)
-       return getPktRcvSpeed_in(m_aPktWindow, pktReplica, m_aBytesWindow, ASIZE, (w_bytesps));
+       return getPktRcvSpeed_in(m_aPktWindow, pktReplica, m_aBytesWindow, ASIZE, m_zHeaderSize, (w_bytesps));
    }
 
    int getPktRcvSpeed() const
@@ -192,6 +196,7 @@ public:
 
    int getBandwidth() const
    {
+       SRT_ASSERT(m_zHeaderSize != 0 && m_zPayloadSize != 0);
        // Lock access to the packet Window
        sync::ScopedLock cg(m_lockProbeWindow);
 
@@ -204,6 +209,7 @@ public:
 
    void onPktSent(int currtime)
    {
+       SRT_ASSERT(m_zHeaderSize != 0 && m_zPayloadSize != 0);
        int interval = currtime - m_iLastSentTime;
 
        if ((interval < m_iMinPktSndInt) && (interval > 0))
@@ -216,6 +222,7 @@ public:
 
    void onPktArrival(int pktsz = 0)
    {
+       SRT_ASSERT(m_zHeaderSize != 0 && m_zPayloadSize != 0);
        sync::ScopedLock cg(m_lockPktWindow);
 
        m_tsCurrArrTime = sync::steady_clock::now();
@@ -236,7 +243,8 @@ public:
    /// Shortcut to test a packet for possible probe 1 or 2
    void probeArrival(const CPacket& pkt, bool unordered)
    {
-       const int inorder16 = pkt.m_iSeqNo & PUMASK_SEQNO_PROBE;
+       SRT_ASSERT(m_zHeaderSize != 0 && m_zPayloadSize != 0);
+       const int inorder16 = pkt.seqno() & PUMASK_SEQNO_PROBE;
 
        // for probe1, we want 16th packet
        if (inorder16 == 0)
@@ -257,7 +265,8 @@ public:
    /// Record the arrival time of the first probing packet.
    void probe1Arrival(const CPacket& pkt, bool unordered)
    {
-       if (unordered && pkt.m_iSeqNo == m_Probe1Sequence)
+       SRT_ASSERT(m_zHeaderSize != 0 && m_zPayloadSize != 0);
+       if (unordered && pkt.seqno() == m_Probe1Sequence)
        {
            // Reset the starting probe into "undefined", when
            // a packet has come as retransmitted before the
@@ -267,13 +276,14 @@ public:
        }
 
        m_tsProbeTime = sync::steady_clock::now();
-       m_Probe1Sequence = pkt.m_iSeqNo; // Record the sequence where 16th packet probe was taken
+       m_Probe1Sequence = pkt.seqno(); // Record the sequence where 16th packet probe was taken
    }
 
    /// Record the arrival time of the second probing packet and the interval between packet pairs.
 
    void probe2Arrival(const CPacket& pkt)
    {
+       SRT_ASSERT(m_zHeaderSize != 0 && m_zPayloadSize != 0);
        // Reject probes that don't refer to the very next packet
        // towards the one that was lately notified by probe1Arrival.
        // Otherwise the result can be stupid.
@@ -282,7 +292,7 @@ public:
        // expected packet pair, behave as if the 17th packet was lost.
 
        // no start point yet (or was reset) OR not very next packet
-       if (m_Probe1Sequence == SRT_SEQNO_NONE || CSeqNo::incseq(m_Probe1Sequence) != pkt.m_iSeqNo)
+       if (m_Probe1Sequence == SRT_SEQNO_NONE || CSeqNo::incseq(m_Probe1Sequence) != pkt.seqno())
            return;
 
        // Grab the current time before trying to acquire
@@ -302,7 +312,7 @@ public:
        // record the probing packets interval
        // Adjust the time for what a complete packet would have take
        const int64_t timediff = sync::count_microseconds(m_tsCurrArrTime - m_tsProbeTime);
-       const int64_t timediff_times_pl_size = timediff * CPacket::SRT_MAX_PAYLOAD_SIZE;
+       const int64_t timediff_times_pl_size = timediff * m_zPayloadSize;
 
        // Let's take it simpler than it is coded here:
        // (stating that a packet has never zero size)
@@ -327,6 +337,14 @@ public:
            m_iProbeWindowPtr = 0;
    }
 
+   // Late initialization because these sizes aren't known at construction time of the parent CUDT class.
+   void initialize(size_t h, size_t s)
+   {
+       m_zHeaderSize = h;
+       m_zPayloadSize = s;
+       CPktTimeWindowTools::initializeWindowArrays(m_aPktWindow, m_aProbeWindow, m_aBytesWindow, ASIZE, PSIZE, s);
+   }
+
 private:
    int m_aPktWindow[ASIZE];                            // Packet information window (inter-packet time)
    int m_aBytesWindow[ASIZE];
@@ -344,6 +362,9 @@ private:
    sync::steady_clock::time_point m_tsCurrArrTime;     // Current packet arrival time
    sync::steady_clock::time_point m_tsProbeTime;       // Arrival time of the first probing packet
    int32_t m_Probe1Sequence;                           // Sequence number for which the arrival time was notified
+
+   size_t m_zPayloadSize;
+   size_t m_zHeaderSize;
 
 private:
    CPktTimeWindow(const CPktTimeWindow&);

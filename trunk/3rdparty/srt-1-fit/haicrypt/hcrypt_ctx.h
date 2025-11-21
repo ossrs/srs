@@ -70,6 +70,7 @@ typedef struct tag_hcrypt_Ctx {
 #define HCRYPT_CTX_MODE_AESCBC  3   /* Cipher-block chaining mode */
 #define HCRYPT_CTX_MODE_AESGCM  4   /* AES GCM authenticated encryption */
         unsigned         mode;
+        bool             use_gcm_153; /* AES-GCM compatibility mode (SRT v1.5.3 and earlier) */
 
         struct {
             size_t       key_len;
@@ -83,7 +84,7 @@ typedef struct tag_hcrypt_Ctx {
         size_t           sek_len;
         unsigned char    sek[HAICRYPT_KEY_MAX_SZ];
 
-        hcrypt_MsgInfo * msg_info;  /* Transport message handler */
+        const hcrypt_MsgInfo * msg_info;  /* Transport message handler */
         unsigned         pkt_cnt;   /* Key usage counter */
 
 #define HCRYPT_CTX_MAX_KM_PFX_SZ   16

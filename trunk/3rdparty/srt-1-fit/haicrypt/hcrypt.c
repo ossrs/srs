@@ -178,6 +178,18 @@ int HaiCrypt_Create(const HaiCrypt_Cfg *cfg, HaiCrypt_Handle *phhc)
     return(0);
 }
 
+int HaiCrypt_UpdateGcm153(HaiCrypt_Handle hhc, unsigned use_gcm_153)
+{
+    ASSERT(hhc != NULL);
+    hcrypt_Session* crypto = hhc;
+    if (!crypto)
+        return (-1);
+
+    crypto->ctx_pair[0].use_gcm_153 = use_gcm_153;
+    crypto->ctx_pair[1].use_gcm_153 = use_gcm_153;
+    return (0);
+}
+
 int HaiCrypt_ExtractConfig(HaiCrypt_Handle hhcSrc, HaiCrypt_Cfg* pcfg)
 {
     hcrypt_Session *crypto = (hcrypt_Session *)hhcSrc;
@@ -320,6 +332,7 @@ int HaiCrypt_Clone(HaiCrypt_Handle hhcSrc, HaiCrypt_CryptoDir tx, HaiCrypt_Handl
         cryptoClone->ctx_pair[1].flags &= ~HCRYPT_CTX_F_ENCRYPT;
         memset(cryptoClone->ctx_pair[0].salt, 0, sizeof(cryptoClone->ctx_pair[0].salt));
         cryptoClone->ctx_pair[0].salt_len = 0;
+        cryptoClone->ctx = &cryptoClone->ctx_pair[0];
     }
 
     *phhc = (void *)cryptoClone;

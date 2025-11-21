@@ -84,6 +84,25 @@ public:
     /// @return The seq. no. or -1 if the list is empty.
     int32_t popLostSeq();
 
+    template <class Stream>
+    Stream& traceState(Stream& sout) const
+    {
+        int pos = m_iHead;
+        while (pos != SRT_SEQNO_NONE)
+        {
+            sout << "[" << pos << "]:" << m_caSeq[pos].seqstart;
+            if (m_caSeq[pos].seqend != SRT_SEQNO_NONE)
+                sout << ":" << m_caSeq[pos].seqend;
+            if (m_caSeq[pos].inext == -1)
+                sout << "=|";
+            else
+                sout << "->[" << m_caSeq[pos].inext << "]";
+            sout << ", ";
+            pos = m_caSeq[pos].inext;
+        }
+        sout << " {len:" << m_iLength << " head:" << m_iHead << " last:" << m_iLastInsertPos << "}";
+        return sout;
+    }
     void traceState() const;
 
     // Debug/unittest support.

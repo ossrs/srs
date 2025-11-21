@@ -31,8 +31,6 @@ Caption "SRT Libraries Installer"
 !define ProductName "libsrt"
 !define Build32Dir  "${BuildRoot}\build.Win32"
 !define Build64Dir  "${BuildRoot}\build.x64"
-!define SSL32Dir    "C:\Program Files (x86)\OpenSSL-Win32"
-!define SSL64Dir    "C:\Program Files\OpenSSL-Win64"
 
 ; Installer file information.
 VIProductVersion ${VersionInfo}
@@ -142,26 +140,26 @@ Section "Install"
     CreateDirectory "$INSTDIR\lib\Release-x64"
     SetOutPath "$INSTDIR\lib\Release-x64"
     File /oname=srt.lib       "${Build64Dir}\Release\srt_static.lib"
-    File /oname=libcrypto.lib "${SSL64Dir}\lib\VC\static\libcrypto64MD.lib"
-    File /oname=libssl.lib    "${SSL64Dir}\lib\VC\static\libssl64MD.lib"
+    File /oname=libcrypto.lib "${libcrypto64MD}"
+    File /oname=libssl.lib    "${libssl64MD}"
 
     CreateDirectory "$INSTDIR\lib\Debug-x64"
     SetOutPath "$INSTDIR\lib\Debug-x64"
     File /oname=srt.lib       "${Build64Dir}\Debug\srt_static.lib"
-    File /oname=libcrypto.lib "${SSL64Dir}\lib\VC\static\libcrypto64MDd.lib"
-    File /oname=libssl.lib    "${SSL64Dir}\lib\VC\static\libssl64MDd.lib"
+    File /oname=libcrypto.lib "${libcrypto64MDd}"
+    File /oname=libssl.lib    "${libssl64MDd}"
 
     CreateDirectory "$INSTDIR\lib\Release-Win32"
     SetOutPath "$INSTDIR\lib\Release-Win32"
     File /oname=srt.lib       "${Build32Dir}\Release\srt_static.lib"
-    File /oname=libcrypto.lib "${SSL32Dir}\lib\VC\static\libcrypto32MD.lib"
-    File /oname=libssl.lib    "${SSL32Dir}\lib\VC\static\libssl32MD.lib"
+    File /oname=libcrypto.lib "${libcrypto32MD}"
+    File /oname=libssl.lib    "${libssl32MD}"
 
     CreateDirectory "$INSTDIR\lib\Debug-Win32"
     SetOutPath "$INSTDIR\lib\Debug-Win32"
     File /oname=srt.lib       "${Build32Dir}\Debug\srt_static.lib"
-    File /oname=libcrypto.lib "${SSL32Dir}\lib\VC\static\libcrypto32MDd.lib"
-    File /oname=libssl.lib    "${SSL32Dir}\lib\VC\static\libssl32MDd.lib"
+    File /oname=libcrypto.lib "${libcrypto32MDd}"
+    File /oname=libssl.lib    "${libssl32MDd}"
 
     ; Add an environment variable to installation root.
     WriteRegStr HKLM ${EnvironmentKey} "LIBSRT" "$INSTDIR"

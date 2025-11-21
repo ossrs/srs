@@ -35,7 +35,7 @@ int hcryptCtx_Tx_Init(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const HaiCrypt_Cf
 
 	ctx->mode = (cfg->flags & HAICRYPT_CFG_F_GCM) ? HCRYPT_CTX_MODE_AESGCM : HCRYPT_CTX_MODE_AESCTR;
 	ctx->status = HCRYPT_CTX_S_INIT;
-
+	ctx->use_gcm_153 = false; // Default initialization.
 	ctx->msg_info = crypto->msg_info;
 
 	if (hcryptCtx_SetSecret(crypto, ctx, &cfg->secret)) {
@@ -184,7 +184,6 @@ int hcryptCtx_Tx_Refresh(hcrypt_Session *crypto)
 	ASSERT(HCRYPT_CTX_S_SARDY <= new_ctx->status);
 
 	/* Keep same KEK, configuration, and salt */
-//	memcpy(&new_ctx->aes_kek, &ctx->aes_kek, sizeof(new_ctx->aes_kek));
 	memcpy(&new_ctx->cfg, &ctx->cfg, sizeof(new_ctx->cfg));
 
 	new_ctx->salt_len = ctx->salt_len;

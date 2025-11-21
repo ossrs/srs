@@ -230,18 +230,6 @@ bool srt::sync::Mutex::try_lock()
     return (pthread_mutex_trylock(&m_mutex) == 0);
 }
 
-srt::sync::ScopedLock::ScopedLock(Mutex& m)
-    : m_mutex(m)
-{
-    m_mutex.lock();
-}
-
-srt::sync::ScopedLock::~ScopedLock()
-{
-    m_mutex.unlock();
-}
-
-
 srt::sync::UniqueLock::UniqueLock(Mutex& m)
     : m_Mutex(m)
 {

@@ -21,7 +21,7 @@ def define_area(msg):
         if msg.startswith(f'[{area}] '):
             return area
 
-    return np.NaN
+    return np.nan
 
 
 def delete_prefix(msg):

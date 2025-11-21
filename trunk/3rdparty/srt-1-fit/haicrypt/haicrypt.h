@@ -37,6 +37,7 @@ HaiCrypt_Cryspr HaiCryptCryspr_Get_Instance (void);     /* Return a default crys
 #define HAICRYPT_KEY_MAX_SZ         32  /* MAX key */
 #define HAICRYPT_SECRET_MAX_SZ      (HAICRYPT_PWD_MAX_SZ > HAICRYPT_KEY_MAX_SZ ? HAICRYPT_PWD_MAX_SZ : HAICRYPT_KEY_MAX_SZ)
 #define	HAICRYPT_AUTHTAG_MAX        16  /* maximum length of the auth tag (e.g. GCM) */
+#define	HAICRYPT_AAD_MAX            16  /* maximum length of the additional authenticated data (GCM mode) */
 
 #define HAICRYPT_SALT_SZ            16
 
@@ -96,6 +97,7 @@ typedef struct hcrypt_Session_str* HaiCrypt_Handle;
 int  HaiCrypt_SetLogLevel(int level, int logfa);
 
 int  HaiCrypt_Create(const HaiCrypt_Cfg *cfg, HaiCrypt_Handle *phhc);
+int  HaiCrypt_UpdateGcm153(HaiCrypt_Handle hhc, unsigned use_gcm_153);
 int  HaiCrypt_Clone(HaiCrypt_Handle hhcSrc, HaiCrypt_CryptoDir tx, HaiCrypt_Handle *phhc);
 int  HaiCrypt_Close(HaiCrypt_Handle hhc);
 int  HaiCrypt_Tx_GetBuf(HaiCrypt_Handle hhc, size_t data_len, unsigned char **in_p);

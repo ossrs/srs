@@ -357,3 +357,98 @@ int srt::sync::genRandomInt(int minVal, int maxVal)
 #endif // HAVE_CXX11
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Shared Mutex 
+//
+////////////////////////////////////////////////////////////////////////////////
+
+srt::sync::SharedMutex::SharedMutex()
+    : m_LockWriteCond()
+    , m_LockReadCond()
+    , m_Mutex()
+    , m_iCountRead(0)
+    , m_bWriterLocked(false)
+{
+    setupCond(m_LockReadCond, "SharedMutex::m_pLockReadCond");
+    setupCond(m_LockWriteCond, "SharedMutex::m_pLockWriteCond");
+    setupMutex(m_Mutex, "SharedMutex::m_pMutex");
+}
+
+srt::sync::SharedMutex::~SharedMutex()
+{
+    releaseMutex(m_Mutex);
+    releaseCond(m_LockWriteCond);
+    releaseCond(m_LockReadCond);
+}
+
+void srt::sync::SharedMutex::lock()
+{
+    UniqueLock l1(m_Mutex);
+    while (m_bWriterLocked)
+        m_LockWriteCond.wait(l1);
+
+    m_bWriterLocked = true;
+    
+    while (m_iCountRead)
+        m_LockReadCond.wait(l1);
+}
+
+bool srt::sync::SharedMutex::try_lock()
+{
+    UniqueLock l1(m_Mutex);
+    if (m_bWriterLocked || m_iCountRead > 0)
+        return false;
+    
+    m_bWriterLocked = true;
+    return true;
+}
+
+void srt::sync::SharedMutex::unlock()
+{
+    ScopedLock lk(m_Mutex);
+    m_bWriterLocked = false;
+
+    m_LockWriteCond.notify_all();
+}
+
+void srt::sync::SharedMutex::lock_shared()
+{
+    UniqueLock lk(m_Mutex);
+    while (m_bWriterLocked)
+        m_LockWriteCond.wait(lk);
+
+    m_iCountRead++;
+}
+
+bool srt::sync::SharedMutex::try_lock_shared()
+{
+    UniqueLock lk(m_Mutex);
+    if (m_bWriterLocked)
+        return false;
+
+    m_iCountRead++;
+    return true;
+}
+
+void srt::sync::SharedMutex::unlock_shared()
+{
+    ScopedLock lk(m_Mutex);
+    
+    m_iCountRead--;
+
+    SRT_ASSERT(m_iCountRead >= 0);
+    if (m_iCountRead < 0)
+        m_iCountRead = 0;
+    
+    if (m_bWriterLocked && m_iCountRead == 0)
+        m_LockReadCond.notify_one();
+    
+}
+
+int srt::sync::SharedMutex::getReaderCount() const
+{
+    ScopedLock lk(m_Mutex);
+    return m_iCountRead;
+}

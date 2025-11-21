@@ -387,17 +387,11 @@ int srt_setrejectreason(SRTSOCKET sock, int value)
 
 int srt_listen_callback(SRTSOCKET lsn, srt_listen_callback_fn* hook, void* opaq)
 {
-    if (!hook)
-        return CUDT::APIError(MJ_NOTSUP, MN_INVAL);
-
     return CUDT::installAcceptHook(lsn, hook, opaq);
 }
 
 int srt_connect_callback(SRTSOCKET lsn, srt_connect_callback_fn* hook, void* opaq)
 {
-    if (!hook)
-        return CUDT::APIError(MJ_NOTSUP, MN_INVAL);
-
     return CUDT::installConnectHook(lsn, hook, opaq);
 }
 

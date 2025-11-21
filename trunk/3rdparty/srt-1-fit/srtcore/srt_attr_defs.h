@@ -31,6 +31,14 @@ used by SRT library internally.
 #define ATR_DEPRECATED
 #endif
 
+#if HAVE_CXX11
+#define SRT_ATR_ALIGNAS(n) alignas(n)
+#elif HAVE_GCC
+#define SRT_ATR_ALIGNAS(n) __attribute__((aligned(n)))
+#else
+#define SRT_ATR_ALIGNAS(n)
+#endif
+
 #if defined(__cplusplus) && __cplusplus > 199711L
 #define HAVE_CXX11 1
 // For gcc 4.7, claim C++11 is supported, as long as experimental C++0x is on,
@@ -110,7 +118,7 @@ used by SRT library internally.
 #define SRT_ATTR_RELEASE_GENERIC(...)
 #define SRT_ATTR_TRY_ACQUIRE(...) _Acquires_nonreentrant_lock_(expr)
 #define SRT_ATTR_TRY_ACQUIRE_SHARED(...)
-#define SRT_ATTR_EXCLUDES(...)
+#define SRT_ATTR_EXCLUDES(...) // the caller must not hold the given capabilities
 #define SRT_ATTR_ASSERT_CAPABILITY(expr)
 #define SRT_ATTR_ASSERT_SHARED_CAPABILITY(x)
 #define SRT_ATTR_RETURN_CAPABILITY(x)
@@ -171,6 +179,7 @@ used by SRT library internally.
 #define SRT_ATTR_TRY_ACQUIRE_SHARED(...) \
   THREAD_ANNOTATION_ATTRIBUTE__(try_acquire_shared_capability(__VA_ARGS__))
 
+// The caller must not hold the given capabilities.
 #define SRT_ATTR_EXCLUDES(...) \
   THREAD_ANNOTATION_ATTRIBUTE__(locks_excluded(__VA_ARGS__))
 

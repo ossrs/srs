@@ -68,8 +68,6 @@ modified by
 #include "packet.h"
 #include "threadname.h"
 
-#include <srt_compat.h> // SysStrError
-
 using namespace std;
 using namespace srt::sync;
 using namespace srt_logging;
@@ -205,7 +203,7 @@ void srt::CIPAddress::pton(sockaddr_any& w_addr, const uint32_t ip[4], const soc
     {
         // Check if the peer address is a model of IPv4-mapped-on-IPv6.
         // If so, it means that the `ip` array should be interpreted as IPv4.
-        const bool is_mapped_ipv4 = checkMappedIPv4((uint16_t*)peer.sin6.sin6_addr.s6_addr);
+        const bool is_mapped_ipv4 = checkMappedIPv4(peer.sin6);
 
         sockaddr_in6* a = (&w_addr.sin6);
 
@@ -448,6 +446,8 @@ bool SrtParseConfig(const string& s, SrtConfig& w_config)
 
     vector<string> parts;
     Split(s, ',', back_inserter(parts));
+    if (parts.empty())
+        return false;
 
     w_config.type = parts[0];
 
@@ -462,6 +462,54 @@ bool SrtParseConfig(const string& s, SrtConfig& w_config)
     }
 
     return true;
+}
+
+std::string FormatLossArray(const std::vector< std::pair<int32_t, int32_t> >& lra)
+{
+    std::ostringstream os;
+
+    os << "[ ";
+    for (std::vector< std::pair<int32_t, int32_t> >::const_iterator i = lra.begin(); i != lra.end(); ++i)
+    {
+        int len = CSeqNo::seqoff(i->first, i->second);
+        os << "%" << i->first;
+        if (len > 1)
+            os << "+" << len;
+        os << " ";
+    }
+
+    os << "]";
+    return os.str();
+}
+
+ostream& PrintEpollEvent(ostream& os, int events, int et_events)
+{
+    static pair<int, const char*> const namemap [] = {
+        make_pair(SRT_EPOLL_IN, "R"),
+        make_pair(SRT_EPOLL_OUT, "W"),
+        make_pair(SRT_EPOLL_ERR, "E"),
+        make_pair(SRT_EPOLL_UPDATE, "U")
+    };
+    bool any = false;
+
+    const int N = (int)Size(namemap);
+
+    for (int i = 0; i < N; ++i)
+    {
+        if (events & namemap[i].first)
+        {
+            os << "[";
+            if (et_events & namemap[i].first)
+                os << "^";
+            os << namemap[i].second << "]";
+            any = true;
+        }
+    }
+
+    if (!any)
+        os << "[]";
+
+    return os;
 }
 } // namespace srt
 
@@ -525,128 +573,6 @@ std::string MemberStatusStr(SRT_MEMBERSTATUS s)
 }
 #endif
 
-// Logging system implementation
-
-#if ENABLE_LOGGING
-
-srt::logging::LogDispatcher::Proxy::Proxy(LogDispatcher& guy) : that(guy), that_enabled(that.CheckEnabled())
-{
-    if (that_enabled)
-    {
-        i_file = "";
-        i_line = 0;
-        flags = that.src_config->flags;
-        // Create logger prefix
-        that.CreateLogLinePrefix(os);
-    }
-}
-
-LogDispatcher::Proxy LogDispatcher::operator()()
-{
-    return Proxy(*this);
-}
-
-void LogDispatcher::CreateLogLinePrefix(std::ostringstream& serr)
-{
-    using namespace std;
-    using namespace srt;
-
-    SRT_STATIC_ASSERT(ThreadName::BUFSIZE >= sizeof("hh:mm:ss.") * 2, // multiply 2 for some margin
-                      "ThreadName::BUFSIZE is too small to be used for strftime");
-    char tmp_buf[ThreadName::BUFSIZE];
-    if ( !isset(SRT_LOGF_DISABLE_TIME) )
-    {
-        // Not necessary if sending through the queue.
-        timeval tv;
-        gettimeofday(&tv, NULL);
-        struct tm tm = SysLocalTime((time_t) tv.tv_sec);
-
-        if (strftime(tmp_buf, sizeof(tmp_buf), "%X.", &tm))
-        {
-            serr << tmp_buf << setw(6) << setfill('0') << tv.tv_usec;
-        }
-    }
-
-    string out_prefix;
-    if ( !isset(SRT_LOGF_DISABLE_SEVERITY) )
-    {
-        out_prefix = prefix;
-    }
-
-    // Note: ThreadName::get needs a buffer of size min. ThreadName::BUFSIZE
-    if ( !isset(SRT_LOGF_DISABLE_THREADNAME) && ThreadName::get(tmp_buf) )
-    {
-        serr << "/" << tmp_buf << out_prefix << ": ";
-    }
-    else
-    {
-        serr << out_prefix << ": ";
-    }
-}
-
-std::string LogDispatcher::Proxy::ExtractName(std::string pretty_function)
-{
-    if ( pretty_function == "" )
-        return "";
-    size_t pos = pretty_function.find('(');
-    if ( pos == std::string::npos )
-        return pretty_function; // return unchanged.
-
-    pretty_function = pretty_function.substr(0, pos);
-
-    // There are also template instantiations where the instantiating
-    // parameters are encrypted inside. Therefore, search for the first
-    // open < and if found, search for symmetric >.
-
-    int depth = 1;
-    pos = pretty_function.find('<');
-    if ( pos != std::string::npos )
-    {
-        size_t end = pos+1;
-        for(;;)
-        {
-            ++pos;
-            if ( pos == pretty_function.size() )
-            {
-                --pos;
-                break;
-            }
-            if ( pretty_function[pos] == '<' )
-            {
-                ++depth;
-                continue;
-            }
-
-            if ( pretty_function[pos] == '>' )
-            {
-                --depth;
-                if ( depth <= 0 )
-                    break;
-                continue;
-            }
-        }
-
-        std::string afterpart = pretty_function.substr(pos+1);
-        pretty_function = pretty_function.substr(0, end) + ">" + afterpart;
-    }
-
-    // Now see how many :: can be found in the name.
-    // If this occurs more than once, take the last two.
-    pos = pretty_function.rfind("::");
-
-    if ( pos == std::string::npos || pos < 2 )
-        return pretty_function; // return whatever this is. No scope name.
-
-    // Find the next occurrence of :: - if found, copy up to it. If not,
-    // return whatever is found.
-    pos -= 2;
-    pos = pretty_function.rfind("::", pos);
-    if ( pos == std::string::npos )
-        return pretty_function; // nothing to cut
-
-    return pretty_function.substr(pos+2);
-}
-#endif
 
 } // (end namespace srt_logging)
 
