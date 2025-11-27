@@ -3604,8 +3604,8 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             // Generate msid because it's optional in sdp.
             string msid_tracker = ssrc_info.msid_tracker_;
             if (msid_tracker.empty()) {
-                msid_tracker = srs_fmt_sprintf("track-%s-%s-%d", 
-                    track_desc->type_.c_str(), ssrc_info.cname_.c_str(), ssrc_info.ssrc_);
+                msid_tracker = srs_fmt_sprintf("track-%s-%s-%d",
+                                               track_desc->type_.c_str(), ssrc_info.cname_.c_str(), ssrc_info.ssrc_);
             }
 
             // Generate msid because it's optional in sdp.

@@ -20,9 +20,9 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
-#include <srs_utest_ai16.hpp>
 
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
@@ -1241,7 +1241,7 @@ VOID TEST(SdpTest, ParseLibdatachannelSdpFromIssue4570)
     EXPECT_TRUE(sdp.media_descs_.size() == 2);
 
     // Verify first media description is video
-    SrsMediaDesc* video_desc = &sdp.media_descs_[0];
+    SrsMediaDesc *video_desc = &sdp.media_descs_[0];
     EXPECT_TRUE(video_desc->type_ == "video");
     EXPECT_TRUE(video_desc->mid_ == "video");
     EXPECT_TRUE(video_desc->sendonly_);
@@ -1253,7 +1253,7 @@ VOID TEST(SdpTest, ParseLibdatachannelSdpFromIssue4570)
     EXPECT_TRUE(video_desc->payload_types_.size() >= 1);
 
     // Find H264 payload (PT 96)
-    SrsMediaPayloadType* h264_payload = NULL;
+    SrsMediaPayloadType *h264_payload = NULL;
     for (size_t i = 0; i < video_desc->payload_types_.size(); i++) {
         if (video_desc->payload_types_[i].payload_type_ == 96) {
             h264_payload = &video_desc->payload_types_[i];
@@ -1277,7 +1277,7 @@ VOID TEST(SdpTest, ParseLibdatachannelSdpFromIssue4570)
     EXPECT_TRUE(found_video_ssrc);
 
     // Verify second media description is audio
-    SrsMediaDesc* audio_desc = &sdp.media_descs_[1];
+    SrsMediaDesc *audio_desc = &sdp.media_descs_[1];
     EXPECT_TRUE(audio_desc->type_ == "audio");
     EXPECT_TRUE(audio_desc->mid_ == "audio");
     EXPECT_TRUE(audio_desc->sendonly_);
@@ -1289,7 +1289,7 @@ VOID TEST(SdpTest, ParseLibdatachannelSdpFromIssue4570)
     EXPECT_TRUE(audio_desc->payload_types_.size() >= 1);
 
     // Find Opus payload (PT 111)
-    SrsMediaPayloadType* opus_payload = NULL;
+    SrsMediaPayloadType *opus_payload = NULL;
     for (size_t i = 0; i < audio_desc->payload_types_.size(); i++) {
         if (audio_desc->payload_types_[i].payload_type_ == 111) {
             opus_payload = &audio_desc->payload_types_[i];
