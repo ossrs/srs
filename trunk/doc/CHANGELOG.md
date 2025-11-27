@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-11-27, Merge [#4588](https://github.com/ossrs/srs/pull/4588): RTMP: Ignore FMLE start packet after flash publish. v7.0.129 (#4588)
 * v7.0, 2025-11-18, AI: API: Change pagination default count to 10, minimum 1. v7.0.128
 * v7.0, 2025-11-14, AI: Fix race condition causing immediate deletion of new sources. v7.0.127 (#4449)
 * v7.0, 2025-11-11, AI: WebRTC: Support optional msid attribute per RFC 8830. v7.0.126 (#4570)
