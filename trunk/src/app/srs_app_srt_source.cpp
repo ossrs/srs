@@ -293,20 +293,23 @@ srs_error_t SrsSrtConsumer::dump_packet(SrsSrtPacket **ppkt)
     return err;
 }
 
-void SrsSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
+bool SrsSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
 {
     mw_min_msgs_ = nb_msgs;
 
-    // when duration ok, signal to flush.
-    if ((int)queue_.size() > mw_min_msgs_) {
-        return;
+    // When duration ok, signal to flush.
+    if ((int)queue_.size() >= mw_min_msgs_) {
+        return true;
     }
 
-    // the enqueue will notify this cond.
+    // The enqueue will notify this cond.
     mw_waiting_ = true;
 
-    // use cond block wait for high performance mode.
+    // Use cond block wait for high performance mode.
     srs_cond_timedwait(mw_wait_, timeout);
+
+    // Return true if there are enough messages after wait.
+    return (int)queue_.size() >= mw_min_msgs_;
 }
 
 SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsFrameTarget *target)

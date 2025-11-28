@@ -107,7 +107,7 @@ public:
     virtual ~MockSrtConsumer();
     virtual srs_error_t enqueue(SrsSrtPacket *packet);
     virtual srs_error_t dump_packet(SrsSrtPacket **ppkt);
-    virtual void wait(int nb_msgs, srs_utime_t timeout);
+    virtual bool wait(int nb_msgs, srs_utime_t timeout);
     void set_enqueue_error(srs_error_t err);
     void reset();
 };

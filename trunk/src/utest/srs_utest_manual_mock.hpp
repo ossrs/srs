@@ -534,6 +534,7 @@ public:
     virtual bool get_srt_enabled(std::string vhost) { return srt_enabled_; }
     virtual std::string get_srt_default_streamid() { return "#!::r=live/livestream,m=request"; }
     virtual bool get_srt_to_rtmp(std::string vhost) { return srt_to_rtmp_; }
+    virtual srs_utime_t get_srto_peeridletimeout() { return 10 * SRS_UTIME_SECONDS; }
     virtual bool get_rtc_to_rtmp(std::string vhost) { return rtc_to_rtmp_; }
     virtual srs_utime_t get_rtc_stun_timeout(std::string vhost) { return 30 * SRS_UTIME_SECONDS; }
     virtual bool get_rtc_stun_strict_check(std::string vhost) { return false; }

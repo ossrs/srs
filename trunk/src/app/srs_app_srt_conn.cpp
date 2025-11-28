@@ -619,6 +619,7 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
     }
 
     int nb_packets = 0;
+    srs_utime_t timeout = config_->get_srto_peeridletimeout();
 
     while (true) {
         // Check recv thread error first, so we can detect the client disconnecting event.
@@ -634,8 +635,13 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
         SrsSrtPacket *pkt_raw = NULL;
         consumer->dump_packet(&pkt_raw);
         if (!pkt_raw) {
-            // TODO: FIXME: We should check the quit event.
-            consumer->wait(1, 1000 * SRS_UTIME_MILLISECONDS);
+            // Wait for peer_idle_timeout. Note that enqueue() signals the cond, so we wake up
+            // immediately when packets arrive during normal playback. Only check publisher disconnect
+            // when no packets available after timeout. @see https://github.com/ossrs/srs/issues/4591
+            bool has_msgs = consumer->wait(1, timeout);
+            if (!has_msgs && srt_source_->can_publish()) {
+                return srs_error_new(ERROR_SRT_SOURCE_DISCONNECTED, "srt source disconnected");
+            }
             continue;
         }
 

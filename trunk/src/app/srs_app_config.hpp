@@ -371,6 +371,8 @@ public:
 public:
     // SRT config
     virtual std::vector<std::string> get_srt_listens() = 0;
+    // Get the srt SRTO_PEERIDLETIMEO, peer idle timeout, default is 10000ms.
+    virtual srs_utime_t get_srto_peeridletimeout() = 0;
 
 public:
     // Stream caster config

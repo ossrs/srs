@@ -174,6 +174,10 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPlayer)
     mock_srt_conn->streamid_ = "#!::h=127.0.0.1,r=live/livestream,m=request";
     mock_srt_conn->srt_fd_ = 100;
 
+    // Simulate a publisher is connected (can_publish=false means publisher exists)
+    // @see https://github.com/ossrs/srs/issues/4591
+    mock_srt_sources->set_can_publish(false);
+
     // Create SrsMpegtsSrtConn - it takes ownership of srt_conn
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(mock_manager.get(), 100, "192.168.1.100", 9000));
 

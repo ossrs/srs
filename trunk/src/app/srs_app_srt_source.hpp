@@ -113,7 +113,9 @@ public:
 public:
     virtual srs_error_t enqueue(SrsSrtPacket *packet) = 0;
     virtual srs_error_t dump_packet(SrsSrtPacket **ppkt) = 0;
-    virtual void wait(int nb_msgs, srs_utime_t timeout) = 0;
+    // Wait for at-least some messages incoming in queue.
+    // @return true if there are enough messages, false if timeout.
+    virtual bool wait(int nb_msgs, srs_utime_t timeout) = 0;
 };
 
 // The SRT consumer, consume packets from SRT stream source.
@@ -146,7 +148,8 @@ public:
     // For SRT, we only got one packet, because there is not many packets in queue.
     virtual srs_error_t dump_packet(SrsSrtPacket **ppkt);
     // Wait for at-least some messages incoming in queue.
-    virtual void wait(int nb_msgs, srs_utime_t timeout);
+    // @return true if there are enough messages, false if timeout.
+    virtual bool wait(int nb_msgs, srs_utime_t timeout);
 };
 
 // The SRT format interface.
@@ -271,6 +274,8 @@ public:
     virtual SrsContextId source_id() = 0;
     virtual SrsContextId pre_source_id() = 0;
     virtual void on_consumer_destroy(ISrsSrtConsumer *consumer) = 0;
+    // Whether we can publish stream to the source, return true if no publisher.
+    virtual bool can_publish() = 0;
 };
 
 // A SRT source is a stream, to publish and to play with.

@@ -397,7 +397,8 @@
     XX(ERROR_SRT_SOURCE_BUSY, 6007, "SrtStreamBusy", "SRT stream already exists or busy") \
     XX(ERROR_RTMP_TO_SRT, 6008, "SrtFromRtmp", "Covert RTMP to SRT failed")               \
     XX(ERROR_SRT_STATS, 6009, "SrtStats", "SRT get statistic data failed")                \
-    XX(ERROR_SRT_TO_RTMP_EMPTY_SPS_PPS, 6010, "SrtToRtmpEmptySpsPps", "SRT to rtmp have empty sps or pps")
+    XX(ERROR_SRT_TO_RTMP_EMPTY_SPS_PPS, 6010, "SrtToRtmpEmptySpsPps", "SRT to rtmp have empty sps or pps") \
+    XX(ERROR_SRT_SOURCE_DISCONNECTED, 6011, "SrtSourceDisconnected", "SRT source publisher disconnected")
 
 /**************************************************/
 /* For user-define error. */

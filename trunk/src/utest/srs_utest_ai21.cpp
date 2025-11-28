@@ -1425,8 +1425,9 @@ srs_error_t MockSrtConsumer::dump_packet(SrsSrtPacket **ppkt)
     return srs_success;
 }
 
-void MockSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
+bool MockSrtConsumer::wait(int nb_msgs, srs_utime_t timeout)
 {
+    return true;
 }
 
 void MockSrtConsumer::set_enqueue_error(srs_error_t err)
