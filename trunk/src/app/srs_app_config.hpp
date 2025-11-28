@@ -487,6 +487,7 @@ public:
     virtual bool get_rtc_keep_original_ssrc(std::string vhost) = 0;
     virtual bool get_srt_enabled() = 0;
     virtual bool get_srt_enabled(std::string vhost) = 0;
+    virtual std::string get_srt_default_mode() = 0;
     virtual std::string get_srt_default_streamid() = 0;
     virtual bool get_srt_to_rtmp(std::string vhost) = 0;
     virtual bool get_rtc_to_rtmp(std::string vhost) = 0;
@@ -1076,6 +1077,8 @@ public:
     virtual int get_srto_pbkeylen();
     // Get the default app.
     virtual std::string get_default_app_name();
+    // Get the default mode.
+    virtual std::string get_srt_default_mode();
     // Get the default streamid when client doesn't provide one.
     virtual std::string get_srt_default_streamid();
 

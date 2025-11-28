@@ -755,10 +755,8 @@ utsname *SrsProtocolUtility::system_uname()
 // TODO: FIMXE: We should parse SRT streamid to URL object, rather than a HTTP url subpath.
 bool srs_srt_streamid_info(const std::string &streamid, SrtMode &mode, std::string &vhost, std::string &url_subpath)
 {
-    mode = SrtModePull;
-
     size_t pos = streamid.find("#!::");
-    if (pos != 0) {
+    if (pos != 0 || pos == string::npos) {
         pos = streamid.find("/");
         if (pos == streamid.npos) {
             SrsUniquePtr<ISrsConfig> config(_srs_kernel_factory->create_config());

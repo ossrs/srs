@@ -91,6 +91,11 @@ srt_server {
     # Overwrite by env SRS_SRT_SERVER_DEFAULT_APP
     # default: live
     default_app live;
+    # Default mode
+    # Overwrite by env SRS_SRT_SERVER_DEFAULT_MODE
+    # It can be: [publish, request]
+    # default: request
+    default_mode request;
 	# The peerlatency is set by the sender side and will notify the receiver side.
     # Overwrite by env SRS_SRT_SERVER_PEERLATENCY
     # default: 0
@@ -327,6 +332,19 @@ Here is an SRT URL with vhost support:
 
 Where:
 * `h`, maps to the vhost in the RTMP address
+
+## SRT URL short format
+
+You may want to use a simpler and shorter streamid format.
+
+If the client sends a streamid that does not begin with `#!::`, streamid value will be processed as `r=` value for the full format.
+
+So:
+* Short address: `srt://127.0.0.1:10080?streamid=livestream`
+* Identical to: `srt://127.0.0.1:10080?streamid=#!::r={default_app}/livestream,m={default_mode}`
+
+Important: You will probably want to use a short format for publishing, so you must also set `default_mode publish;`.
+Otherwise, it will be processed as a playback request by default.
 
 ## SRT URL without streamid
 

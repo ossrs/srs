@@ -343,7 +343,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
     }
 
     // Detect streamid of srt to request.
-    SrtMode mode = SrtModePull;
+    SrtMode mode = config_->get_srt_default_mode() == "publish" ? SrtModePush : SrtModePull;
     if (!srs_srt_streamid_to_request(streamid, mode, req_)) {
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
