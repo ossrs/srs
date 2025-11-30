@@ -299,6 +299,11 @@ std::string SrsConfigProxy::get_default_app_name()
 {
     return _srs_config->get_default_app_name();
 }
+
+std::string SrsConfigProxy::get_srt_default_mode()
+{
+    return _srs_config->get_srt_default_mode();
+}
 // LCOV_EXCL_STOP
 
 SrsTrueTime::SrsTrueTime()

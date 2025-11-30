@@ -360,11 +360,13 @@ VOID TEST(SrtServerTest, SrtListener)
 // Test srt app
 VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal)
 {
+    MockAppConfig config;
+
     if (true) {
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::r=live/livestream,key1=value1,key2=value2", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::r=live/livestream,key1=value1,key2=value2", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("", vhost.c_str());
         EXPECT_STREQ("live/livestream?key1=value1&key2=value2", subpath.c_str());
@@ -374,7 +376,7 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal)
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::h=host.com,r=live/livestream,key1=value1,key2=value2", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::h=host.com,r=live/livestream,key1=value1,key2=value2", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("host.com", vhost.c_str());
         EXPECT_STREQ("live/livestream?vhost=host.com&key1=value1&key2=value2", subpath.c_str());
@@ -383,11 +385,13 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoNormal)
 
 VOID TEST(ProtocolSrtTest, SrtGetStreamInfoMethod)
 {
+    MockAppConfig config;
+
     if (true) {
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::r=live/livestream,m=request", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::r=live/livestream,m=request", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("live/livestream", subpath.c_str());
     }
@@ -396,7 +400,7 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoMethod)
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::r=live/livestream,m=publish", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::r=live/livestream,m=publish", mode, vhost, subpath));
         EXPECT_EQ(SrtModePush, mode);
         EXPECT_STREQ("live/livestream", subpath.c_str());
     }
@@ -404,11 +408,13 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoMethod)
 
 VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
 {
+    MockAppConfig config;
+
     if (true) {
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::h=live/livestream,m=request", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::h=live/livestream,m=request", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("", vhost.c_str());
         EXPECT_STREQ("live/livestream", subpath.c_str());
@@ -418,7 +424,7 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::h=live/livestream,m=publish", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::h=live/livestream,m=publish", mode, vhost, subpath));
         EXPECT_EQ(SrtModePush, mode);
         EXPECT_STREQ("", vhost.c_str());
         EXPECT_STREQ("live/livestream", subpath.c_str());
@@ -428,7 +434,7 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::h=srs.srt.com.cn/live/livestream,m=request", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::h=srs.srt.com.cn/live/livestream,m=request", mode, vhost, subpath));
         EXPECT_EQ(SrtModePull, mode);
         EXPECT_STREQ("srs.srt.com.cn", vhost.c_str());
         EXPECT_STREQ("live/livestream?vhost=srs.srt.com.cn", subpath.c_str());
@@ -438,7 +444,7 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::h=srs.srt.com.cn/live/livestream,m=publish", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::h=srs.srt.com.cn/live/livestream,m=publish", mode, vhost, subpath));
         EXPECT_EQ(SrtModePush, mode);
         EXPECT_STREQ("srs.srt.com.cn", vhost.c_str());
         EXPECT_STREQ("live/livestream?vhost=srs.srt.com.cn", subpath.c_str());
@@ -448,21 +454,132 @@ VOID TEST(ProtocolSrtTest, SrtGetStreamInfoCompatible)
         SrtMode mode;
         string vhost;
         string subpath;
-        EXPECT_TRUE(srs_srt_streamid_info("#!::h=live/livestream?secret=d6d2be37,m=publish", mode, vhost, subpath));
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::h=live/livestream?secret=d6d2be37,m=publish", mode, vhost, subpath));
         EXPECT_EQ(SrtModePush, mode);
         EXPECT_STREQ("", vhost.c_str());
         EXPECT_STREQ("live/livestream?secret=d6d2be37", subpath.c_str());
     }
 }
 
+// Test short streamid format with default_mode config
+VOID TEST(ProtocolSrtTest, SrtGetStreamInfoShortFormat)
+{
+    MockAppConfig config;
+    config.srt_default_mode_ = "request";
+
+    // Test short format "live/livestream" - default mode is request (pull)
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "live/livestream", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePull, mode);
+        EXPECT_STREQ("", vhost.c_str());
+        EXPECT_STREQ("live/livestream", subpath.c_str());
+    }
+
+    // Test minimal format "livestream" - uses default app "live"
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "livestream", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePull, mode);
+        EXPECT_STREQ("", vhost.c_str());
+        EXPECT_STREQ("live/livestream", subpath.c_str());
+    }
+
+    // Test short format with stream name only, different stream
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "testkey", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePull, mode);
+        EXPECT_STREQ("", vhost.c_str());
+        EXPECT_STREQ("live/testkey", subpath.c_str());
+    }
+
+    // Test short format with custom app
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "myapp/mystream", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePull, mode);
+        EXPECT_STREQ("", vhost.c_str());
+        EXPECT_STREQ("myapp/mystream", subpath.c_str());
+    }
+}
+
+// Test short streamid format with default_mode=publish via mock config
+VOID TEST(ProtocolSrtTest, SrtGetStreamInfoShortFormatPublishMode)
+{
+    MockAppConfig config;
+    config.srt_default_mode_ = "publish";
+
+    // Test short format "live/livestream" - should be push mode now
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "live/livestream", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePush, mode);
+        EXPECT_STREQ("", vhost.c_str());
+        EXPECT_STREQ("live/livestream", subpath.c_str());
+    }
+
+    // Test minimal format "livestream" - uses default app "live", push mode
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "livestream", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePush, mode);
+        EXPECT_STREQ("", vhost.c_str());
+        EXPECT_STREQ("live/livestream", subpath.c_str());
+    }
+
+    // Test short format "testkey" - push mode
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "testkey", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePush, mode);
+        EXPECT_STREQ("", vhost.c_str());
+        EXPECT_STREQ("live/testkey", subpath.c_str());
+    }
+
+    // Full YAML format should still respect explicit mode (not affected by default_mode)
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::r=live/livestream,m=request", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePull, mode);
+        EXPECT_STREQ("live/livestream", subpath.c_str());
+    }
+
+    if (true) {
+        SrtMode mode;
+        string vhost;
+        string subpath;
+        EXPECT_TRUE(srs_srt_streamid_info(&config, "#!::r=live/livestream,m=publish", mode, vhost, subpath));
+        EXPECT_EQ(SrtModePush, mode);
+        EXPECT_STREQ("live/livestream", subpath.c_str());
+    }
+}
+
 VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
 {
+    MockAppConfig config;
     SrsProtocolUtility utility;
 
     if (true) {
         SrtMode mode;
         SrsRequest req;
-        EXPECT_TRUE(srs_srt_streamid_to_request("#!::r=live/livestream?key1=val1,key2=val2", mode, &req));
+        EXPECT_TRUE(srs_srt_streamid_to_request(&config, "#!::r=live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
         EXPECT_STREQ(req.vhost_.c_str(), utility.public_internet_address().c_str());
         EXPECT_STREQ(req.app_.c_str(), "live");
@@ -473,7 +590,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
     if (true) {
         SrtMode mode;
         SrsRequest req;
-        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=srs.srt.com.cn,r=live/livestream?key1=val1,key2=val2", mode, &req));
+        EXPECT_TRUE(srs_srt_streamid_to_request(&config, "#!::h=srs.srt.com.cn,r=live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
         EXPECT_STREQ(req.vhost_.c_str(), "srs.srt.com.cn");
         EXPECT_STREQ(req.app_.c_str(), "live");
@@ -484,7 +601,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
     if (true) {
         SrtMode mode;
         SrsRequest req;
-        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=live/livestream?key1=val1,key2=val2", mode, &req));
+        EXPECT_TRUE(srs_srt_streamid_to_request(&config, "#!::h=live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
         EXPECT_STREQ(req.vhost_.c_str(), utility.public_internet_address().c_str());
         EXPECT_STREQ(req.app_.c_str(), "live");
@@ -495,7 +612,7 @@ VOID TEST(ProtocolSrtTest, SrtStreamIdToRequest)
     if (true) {
         SrtMode mode;
         SrsRequest req;
-        EXPECT_TRUE(srs_srt_streamid_to_request("#!::h=srs.srt.com.cn/live/livestream?key1=val1,key2=val2", mode, &req));
+        EXPECT_TRUE(srs_srt_streamid_to_request(&config, "#!::h=srs.srt.com.cn/live/livestream?key1=val1,key2=val2", mode, &req));
         EXPECT_EQ(mode, SrtModePull);
         EXPECT_STREQ(req.vhost_.c_str(), "srs.srt.com.cn");
         EXPECT_STREQ(req.app_.c_str(), "live");

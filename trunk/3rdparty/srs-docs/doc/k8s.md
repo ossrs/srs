@@ -7,6 +7,8 @@ hide_table_of_contents: false
 
 # K8S
 
+> **Note:** SRS K8s is deprecated. Please use [CDK](./getting-started-cdk.md) instead.
+
 > Cloud+Docker+K8S enable everyone to build live video streaming cluster and service.
 
 Why should you use [k8s](https://docs.kubernetes.io/docs/concepts/overview/what-is-kubernetes) to build your SRS cluster?

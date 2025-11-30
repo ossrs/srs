@@ -753,15 +753,20 @@ utsname *SrsProtocolUtility::system_uname()
 
 // See streamid of https://github.com/ossrs/srs/issues/2893
 // TODO: FIMXE: We should parse SRT streamid to URL object, rather than a HTTP url subpath.
-bool srs_srt_streamid_info(const std::string &streamid, SrtMode &mode, std::string &vhost, std::string &url_subpath)
+bool srs_srt_streamid_info(ISrsConfig *config, const std::string &streamid, SrtMode &mode, std::string &vhost, std::string &url_subpath)
 {
     mode = SrtModePull;
 
     size_t pos = streamid.find("#!::");
     if (pos != 0) {
+        // Short format without #!:: prefix, use default_mode config.
+        std::string default_mode = config->get_srt_default_mode();
+        if (default_mode == "publish") {
+            mode = SrtModePush;
+        }
+
         pos = streamid.find("/");
         if (pos == streamid.npos) {
-            SrsUniquePtr<ISrsConfig> config(_srs_kernel_factory->create_config());
             url_subpath = config->get_default_app_name() + "/" + streamid;
             return true;
         }
@@ -849,10 +854,10 @@ bool srs_srt_streamid_info(const std::string &streamid, SrtMode &mode, std::stri
     return true;
 }
 
-bool srs_srt_streamid_to_request(const std::string &streamid, SrtMode &mode, ISrsRequest *request)
+bool srs_srt_streamid_to_request(ISrsConfig *config, const std::string &streamid, SrtMode &mode, ISrsRequest *request)
 {
     string url_subpath = "";
-    bool ret = srs_srt_streamid_info(streamid, mode, request->vhost_, url_subpath);
+    bool ret = srs_srt_streamid_info(config, streamid, mode, request->vhost_, url_subpath);
     if (!ret) {
         return ret;
     }
@@ -860,7 +865,6 @@ bool srs_srt_streamid_to_request(const std::string &streamid, SrtMode &mode, ISr
     size_t pos = url_subpath.find("/");
     string stream_with_params = "";
     if (pos == string::npos) {
-        SrsUniquePtr<ISrsConfig> config(_srs_kernel_factory->create_config());
         request->app_ = config->get_default_app_name();
         stream_with_params = url_subpath;
     } else {

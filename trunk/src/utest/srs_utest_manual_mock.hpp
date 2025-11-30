@@ -326,6 +326,7 @@ public:
     bool rtc_enabled_;
     bool rtc_init_rate_from_sdp_;
     bool asprocess_;
+    std::string srt_default_mode_;
 
 public:
     MockAppConfig()
@@ -357,6 +358,7 @@ public:
         rtc_enabled_ = false;
         rtc_init_rate_from_sdp_ = false;
         asprocess_ = false;
+        srt_default_mode_ = "request";
     }
     virtual ~MockAppConfig()
     {
@@ -533,6 +535,7 @@ public:
     virtual bool get_srt_enabled() { return srt_enabled_; }
     virtual bool get_srt_enabled(std::string vhost) { return srt_enabled_; }
     virtual std::string get_srt_default_streamid() { return "#!::r=live/livestream,m=request"; }
+    virtual std::string get_srt_default_mode() { return srt_default_mode_; }
     virtual bool get_srt_to_rtmp(std::string vhost) { return srt_to_rtmp_; }
     virtual srs_utime_t get_srto_peeridletimeout() { return 10 * SRS_UTIME_SECONDS; }
     virtual bool get_rtc_to_rtmp(std::string vhost) { return rtc_to_rtmp_; }

@@ -344,7 +344,7 @@ srs_error_t SrsMpegtsSrtConn::do_cycle()
 
     // Detect streamid of srt to request.
     SrtMode mode = SrtModePull;
-    if (!srs_srt_streamid_to_request(streamid, mode, req_)) {
+    if (!srs_srt_streamid_to_request(config_, streamid, mode, req_)) {
         return srs_error_new(ERROR_SRT_CONN, "invalid srt streamid=%s", streamid.c_str());
     }
 

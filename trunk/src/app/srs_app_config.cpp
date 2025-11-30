@@ -1935,7 +1935,7 @@ srs_error_t SrsConfig::check_normal_config()
         SrsConfDirective *conf = root_->get("srt_server");
         for (int i = 0; conf && i < (int)conf->directives_.size(); i++) {
             string n = conf->at(i)->name_;
-            if (n != "enabled" && n != "listen" && n != "maxbw" && n != "mss" && n != "latency" && n != "recvlatency" && n != "peerlatency" && n != "connect_timeout" && n != "peer_idle_timeout" && n != "sendbuf" && n != "recvbuf" && n != "payloadsize" && n != "default_app" && n != "sei_filter" && n != "mix_correct" && n != "tlpktdrop" && n != "tsbpdmode" && n != "passphrase" && n != "pbkeylen" && n != "default_streamid") {
+            if (n != "enabled" && n != "listen" && n != "maxbw" && n != "mss" && n != "latency" && n != "recvlatency" && n != "peerlatency" && n != "connect_timeout" && n != "peer_idle_timeout" && n != "sendbuf" && n != "recvbuf" && n != "payloadsize" && n != "default_app" && n != "sei_filter" && n != "mix_correct" && n != "tlpktdrop" && n != "tsbpdmode" && n != "passphrase" && n != "pbkeylen" && n != "default_streamid" && n != "default_mode") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal srt_server.%s", n.c_str());
             }
         }
@@ -7681,6 +7681,23 @@ string SrsConfig::get_srt_default_streamid()
     }
 
     conf = conf->get("default_streamid");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+    return conf->arg0();
+}
+
+string SrsConfig::get_srt_default_mode()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.srt_server.default_mode"); // SRS_SRT_SERVER_DEFAULT_MODE
+
+    static string DEFAULT = "request";
+    SrsConfDirective *conf = root_->get("srt_server");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("default_mode");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

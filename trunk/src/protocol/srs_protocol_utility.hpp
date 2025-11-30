@@ -32,6 +32,7 @@
 #include <ifaddrs.h>
 
 class ISrsHttpMessage;
+class ISrsConfig;
 
 class SrsMessageHeader;
 class SrsMediaPacket;
@@ -169,9 +170,11 @@ enum SrtMode {
 };
 
 // Get SRT streamid info.
-extern bool srs_srt_streamid_info(const std::string &streamid, SrtMode &mode, std::string &vhost, std::string &url_subpath);
+// @param config The config to get default_app and default_mode.
+extern bool srs_srt_streamid_info(ISrsConfig *config, const std::string &streamid, SrtMode &mode, std::string &vhost, std::string &url_subpath);
 
 // SRT streamid to request.
-extern bool srs_srt_streamid_to_request(const std::string &streamid, SrtMode &mode, ISrsRequest *request);
+// @param config The config to get default_app and default_mode.
+extern bool srs_srt_streamid_to_request(ISrsConfig *config, const std::string &streamid, SrtMode &mode, ISrsRequest *request);
 
 #endif

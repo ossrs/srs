@@ -24,6 +24,9 @@ public:
 public:
     virtual srs_utime_t get_pithy_print() = 0;
     virtual std::string get_default_app_name() = 0;
+    // Get the default mode for short streamid format.
+    // @return "publish" or "request", default is "request".
+    virtual std::string get_srt_default_mode() = 0;
 };
 
 // The factory to create kernel objects.
