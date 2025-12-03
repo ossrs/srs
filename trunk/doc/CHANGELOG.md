@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-12-03, AI: WebRTC: Fix audio-only WHIP publish without SSRC. v7.0.132 (#4570)
 * v7.0, 2025-11-30, SRT: Support default_mode config for short streamid format. v7.0.131
 * v7.0, 2025-11-28, SRT: Fix player not exiting when publisher disconnects. v7.0.130 (#4591)
 * v7.0, 2025-11-27, Merge [#4588](https://github.com/ossrs/srs/pull/4588): RTMP: Ignore FMLE start packet after flash publish. v7.0.129 (#4588)

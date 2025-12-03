@@ -3632,6 +3632,26 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             track_id = msid_tracker;
         }
 
+        // Handle case where no SSRC info is present in the offer (e.g., libdatachannel audio-only).
+        // We still need to create track description to generate proper SDP answer.
+        // See https://github.com/paullouisageneau/libdatachannel which may not include SSRC.
+        // See https://github.com/ossrs/srs/issues/4570#issuecomment-3604598513
+        if (remote_media_desc.ssrc_infos_.empty()) {
+            SrsRtcTrackDescription *track_desc_copy = track_desc->copy();
+            // Generate synthetic values since no SSRC info provided.
+            track_desc_copy->ssrc_ = 0;
+            track_desc_copy->id_ = srs_fmt_sprintf("track-%s-%s", track_desc->type_.c_str(), remote_media_desc.mid_.c_str());
+            track_desc_copy->msid_ = req->app_ + "/" + req->stream_;
+
+            if (remote_media_desc.is_audio() && !stream_desc->audio_track_desc_) {
+                stream_desc->audio_track_desc_ = track_desc_copy;
+            } else if (remote_media_desc.is_video()) {
+                stream_desc->video_track_descs_.push_back(track_desc_copy);
+            } else {
+                srs_freep(track_desc_copy);
+            }
+        }
+
         // set track fec_ssrc and rtx_ssrc
         for (int j = 0; j < (int)remote_media_desc.ssrc_groups_.size(); ++j) {
             const SrsSSRCGroup &ssrc_group = remote_media_desc.ssrc_groups_.at(j);

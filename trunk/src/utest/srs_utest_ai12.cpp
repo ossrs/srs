@@ -2149,6 +2149,91 @@ VOID TEST(SrsRtcPublisherNegotiatorTest, LibdatachannelUseScenario)
     EXPECT_EQ("video", video_sdp.media_descs_[0].type_);
 }
 
+// Test audio-only libdatachannel scenario WITHOUT SSRC info.
+// This test demonstrates the bug where libdatachannel fails with:
+// "Remote description has no ICE user fragment"
+// Root cause: When the offer SDP has no a=ssrc: line, stream_desc->audio_track_desc_
+// is never set, so generate_publish_local_sdp_for_audio() doesn't add the m=audio
+// section to the answer SDP.
+VOID TEST(SrsRtcPublisherNegotiatorTest, LibdatachannelAudioOnlyWithoutSsrc)
+{
+    srs_error_t err;
+
+    // Create SrsRtcPublisherNegotiator
+    SrsUniquePtr<SrsRtcPublisherNegotiator> negotiator(new SrsRtcPublisherNegotiator());
+
+    // Create mock request for initialization
+    SrsUniquePtr<MockRtcConnectionRequest> mock_request(new MockRtcConnectionRequest("test.vhost", "live", "voice_stream"));
+
+    // Create mock RTC user config with remote SDP
+    SrsUniquePtr<SrsRtcUserConfig> ruc(new SrsRtcUserConfig());
+    ruc->req_ = mock_request->copy();
+    ruc->publish_ = true;
+    ruc->dtls_ = true;
+    ruc->srtp_ = true;
+    ruc->audio_before_video_ = true;
+
+    // Audio-only SDP from libdatachannel - NO SSRC LINE (this is the key difference!)
+    // This matches the actual user-reported SDP that causes the bug
+    ruc->remote_sdp_str_ =
+        "v=0\r\n"
+        "o=rtc 4107523824 0 IN IP4 127.0.0.1\r\n"
+        "s=-\r\n"
+        "t=0 0\r\n"
+        "a=group:BUNDLE audio\r\n"
+        "a=group:LS audio\r\n"
+        "a=msid-semantic:WMS *\r\n"
+        "a=ice-options:ice2,trickle\r\n"
+        "a=fingerprint:sha-256 C3:22:A4:0D:46:6C:8C:3E:3B:05:59:63:C3:8A:43:97:30:4C:3E:5F:01:BA:C9:77:AC:10:89:A7:83:BA:21:08\r\n"
+        "m=audio 36954 UDP/TLS/RTP/SAVPF 111\r\n"
+        "c=IN IP4 192.168.1.100\r\n"
+        "a=mid:audio\r\n"
+        "a=sendonly\r\n"
+        "a=rtcp-mux\r\n"
+        "a=rtpmap:111 opus/48000/2\r\n"
+        "a=fmtp:111 minptime=10;maxaveragebitrate=96000;stereo=1;sprop-stereo=1;useinbandfec=1\r\n"
+        "a=setup:actpass\r\n"
+        "a=ice-ufrag:rUic\r\n"
+        "a=ice-pwd:76ZWO/4FkRx6r2nMUF8yeH\r\n"
+        // NOTE: No a=ssrc: line here - this is the bug trigger!
+        "a=candidate:1 1 UDP 2114977791 192.168.1.100 36954 typ host\r\n"
+        "a=end-of-candidates\r\n";
+
+    // Parse the remote SDP
+    HELPER_EXPECT_SUCCESS(ruc->remote_sdp_.parse(ruc->remote_sdp_str_));
+
+    // Verify only audio media description is present
+    EXPECT_EQ(1u, ruc->remote_sdp_.media_descs_.size());
+    EXPECT_EQ("audio", ruc->remote_sdp_.media_descs_[0].type_);
+
+    // Verify NO SSRC info in the parsed SDP (this is the bug condition)
+    EXPECT_TRUE(ruc->remote_sdp_.media_descs_[0].ssrc_infos_.empty());
+
+    // Create stream description for negotiation output
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    // Test negotiate_publish_capability - this should work but audio_track_desc_ will be NULL
+    HELPER_EXPECT_SUCCESS(negotiator->negotiate_publish_capability(ruc.get(), stream_desc.get()));
+
+    // BUG: audio_track_desc_ is NULL because there's no SSRC info in the offer
+    // This causes generate_publish_local_sdp_for_audio() to not add m=audio section
+    EXPECT_TRUE(stream_desc->audio_track_desc_ != NULL) << "BUG: audio_track_desc_ should not be NULL for audio-only SDP without SSRC";
+    EXPECT_TRUE(stream_desc->video_track_descs_.empty());
+
+    // Test generate_publish_local_sdp - create answer SDP
+    SrsSdp local_sdp;
+    HELPER_EXPECT_SUCCESS(negotiator->generate_publish_local_sdp(
+        ruc->req_, local_sdp, stream_desc.get(),
+        ruc->remote_sdp_.is_unified(), ruc->audio_before_video_));
+
+    // BUG: local_sdp.media_descs_ is empty because audio_track_desc_ was NULL
+    // This causes the answer SDP to have no m=audio line, which makes libdatachannel fail
+    EXPECT_EQ(1u, local_sdp.media_descs_.size()) << "BUG: Answer SDP should have m=audio section";
+    if (!local_sdp.media_descs_.empty()) {
+        EXPECT_EQ("audio", local_sdp.media_descs_[0].type_);
+    }
+}
+
 VOID TEST(SrsRtcConnectionTest, InitializeTypicalScenario)
 {
     srs_error_t err;
