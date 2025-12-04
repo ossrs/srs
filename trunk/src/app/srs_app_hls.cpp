@@ -200,6 +200,7 @@ srs_error_t SrsInitMp4Segment::init_encoder()
 SrsHlsM4sSegment::SrsHlsM4sSegment(ISrsFileWriter *fw)
 {
     fw_ = fw;
+    sequence_no_ = 0;
 }
 
 SrsHlsM4sSegment::~SrsHlsM4sSegment()
@@ -425,10 +426,10 @@ SrsHlsFmp4Muxer::SrsHlsFmp4Muxer()
     segments_ = new SrsFragmentWindow();
     latest_acodec_ = SrsAudioCodecIdForbidden;
     latest_vcodec_ = SrsVideoCodecIdForbidden;
+    sequence_header_ = false;
     video_track_id_ = 0;
     audio_track_id_ = 0;
     init_mp4_ready_ = false;
-    video_dts_ = 0;
 
     memset(key_, 0, 16);
     memset(iv_, 0, 16);
@@ -645,8 +646,16 @@ srs_error_t SrsHlsFmp4Muxer::write_audio(SrsMediaPacket *shared_audio, SrsFormat
         }
     }
 
-    if (current_->duration() >= hls_fragment_) {
-        if ((err = segment_close()) != srs_success) {
+    // For pure audio, we use a larger threshold to reap segment.
+    bool pure_audio_stream = (latest_vcodec_ == SrsVideoCodecIdForbidden || latest_vcodec_ == SrsVideoCodecIdDisabled);
+
+    bool reap = false;
+    if (pure_audio_stream) {
+        reap = is_segment_absolutely_overflow();
+    }
+
+    if (reap) {
+        if ((err = segment_close(shared_audio->timestamp_)) != srs_success) {
             return srs_error_wrap(err, "segment close");
         }
 
@@ -663,17 +672,22 @@ srs_error_t SrsHlsFmp4Muxer::write_video(SrsMediaPacket *shared_video, SrsFormat
 {
     srs_error_t err = srs_success;
 
-    video_dts_ = shared_video->timestamp_;
-
     if (!current_) {
         if ((err = segment_open(shared_video->timestamp_ * SRS_UTIME_MILLISECONDS)) != srs_success) {
             return srs_error_wrap(err, "open segment");
         }
     }
 
-    bool reopen = current_->duration() >= hls_fragment_;
+    bool reopen = false;
+    if (is_segment_overflow()) {
+        // wait for keyframe to reap segment.
+        if (!wait_keyframe() || format->video_->frame_type_ == SrsVideoAvcFrameTypeKeyFrame) {
+            reopen = true;
+        }
+    }
+
     if (reopen) {
-        if ((err = segment_close()) != srs_success) {
+        if ((err = segment_close(shared_video->timestamp_)) != srs_success) {
             return srs_error_wrap(err, "segment close");
         }
 
@@ -785,6 +799,11 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     current_ = new SrsHlsM4sSegment(writer_);
     current_->sequence_no_ = sequence_no_++;
 
+    if (sequence_header_) {
+        current_->set_sequence_header(true);
+        sequence_header_ = false;
+    }
+
     if ((err = write_hls_key()) != srs_success) {
         return srs_error_wrap(err, "write hls key");
     }
@@ -882,6 +901,7 @@ bool SrsHlsFmp4Muxer::is_segment_open()
 
 srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 {
+    sequence_header_ = true;
     return srs_success;
 }
 
@@ -936,14 +956,14 @@ void SrsHlsFmp4Muxer::update_duration(uint64_t dts)
     current_->append(dts / 90);
 }
 
-srs_error_t SrsHlsFmp4Muxer::segment_close()
+srs_error_t SrsHlsFmp4Muxer::segment_close(uint64_t dts)
 {
-    srs_error_t err = do_segment_close();
+    srs_error_t err = do_segment_close(dts);
 
     return err;
 }
 
-srs_error_t SrsHlsFmp4Muxer::do_segment_close()
+srs_error_t SrsHlsFmp4Muxer::do_segment_close(uint64_t dts)
 {
     srs_error_t err = srs_success;
 
@@ -952,7 +972,8 @@ srs_error_t SrsHlsFmp4Muxer::do_segment_close()
         return err;
     }
 
-    if ((err = current_->reap(video_dts_)) != srs_success) {
+    if ((err = current_->reap(dts)) != srs_success) {
+
         return srs_error_wrap(err, "reap segment");
     }
 
@@ -2503,8 +2524,9 @@ srs_error_t SrsHlsMp4Controller::on_unpublish()
     srs_error_t err = srs_success;
     req_ = NULL;
 
-    if ((err = muxer_->segment_close()) != srs_success) {
-        return srs_error_wrap(err, "hls: segment close");
+    uint64_t last_dts = srs_max(audio_dts_, video_dts_);
+    if ((err = muxer_->segment_close(last_dts)) != srs_success) {
+         return srs_error_wrap(err, "hls: segment close");
     }
 
     if ((err = muxer_->on_unpublish()) != srs_success) {
@@ -2584,6 +2606,10 @@ srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsMediaPacket *msg, SrsForm
 
     if ((err = muxer_->write_init_mp4(format, has_video_sh_, has_audio_sh_)) != srs_success) {
         return srs_error_wrap(err, "write init mp4");
+    }
+
+    if ((err = muxer_->on_sequence_header()) != srs_success) {
+        return srs_error_wrap(err, "on sequence header");
     }
 
     return err;
@@ -2967,3 +2993,4 @@ void SrsHls::hls_show_mux_log()
               srsu2msi(controller_->duration()), controller_->deviation());
 }
 // LCOV_EXCL_STOP
+

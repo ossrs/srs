@@ -480,7 +480,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string init_mp4_uri_; // URI for init.mp4 in m3u8 playlist
     int video_track_id_;
     int audio_track_id_;
-    uint64_t video_dts_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -488,6 +487,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsFragmentWindow *segments_;
     // The current writing segment.
     SrsHlsM4sSegment *current_;
+
+    bool sequence_header_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -559,13 +560,14 @@ public:
     // When flushing video or audio, we update the duration. But, we should also update the
     // duration before closing the segment. Keep in mind that it's fine to update the duration
     // several times using the same dts timestamp.
-    void update_duration(uint64_t dts);
-    // Close segment(ts).
-    virtual srs_error_t segment_close();
+    virtual void update_duration(uint64_t dts);
+    // Close segment.
+    virtual srs_error_t segment_close(uint64_t dts);
+
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    virtual srs_error_t do_segment_close();
+    virtual srs_error_t do_segment_close(uint64_t dts);
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
     virtual srs_error_t do_refresh_m3u8(std::string m3u8_file);
