@@ -13,7 +13,7 @@ architecture:
 
   origin_cluster:
     v6_mesh: "DEPRECATED - C++ MESH mode, RTMP only"
-    v7_proxy: "RECOMMENDED - Go-based proxy (github.com/ossrs/proxy-go), all protocols, better scaling"
+    v7_proxy: "RECOMMENDED - Go-based proxy (https://github.com/ossrs/srsx/tree/main/proxy-go), all protocols, better scaling"
 
 codebase_structure:
   dirs: "trunk/src/{main,core,kernel,protocol,app}"

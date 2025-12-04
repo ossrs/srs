@@ -91,27 +91,58 @@ For a detailed interpretation, please see Welcome to SRS: Mission, Vision, and V
 
 ## Release 7.0
 
-Code name: Kai. Named by TOC member [Haibo Chen](https://github.com/duiniuluantanqin). Expected to complete major development by the end of 2026 and officially release.
+Code name: Kai. Named by TOC member [Haibo Chen](https://github.com/duiniuluantanqin). Planned for release by the end of 2026.
 
 > Code Name Story: I am Haibo Chen, a core maintainer of SRS and a TOC member. The code name Kai is inspired by my son Chen Kaiqi's name. As a father, I aim to set a good example by doing meaningful and interesting work. I appreciate the support and collaboration from everyone in the community, making it more vibrant and warm. This upgrade aims to provide users with more powerful features and a smoother experience, laying a strong foundation for SRS's future.
 
-- [x] Support for Proxy Cluster, allowing more stream paths. [#4158](https://github.com/ossrs/srs/pull/4158)
-- [ ] WebRTC support for HEVC, recording HEVC to MP4 files, completing full HEVC support. [#4289](https://github.com/ossrs/srs/pull/4289), [#4349](https://github.com/ossrs/srs/pull/4349), [#4296](https://github.com/ossrs/srs/pull/4296)
-- [ ] HLS protocol support for fMP4. [#4159](https://github.com/ossrs/srs/pull/4159)
-- [ ] Support for RTSP protocol playback. [#4333](https://github.com/ossrs/srs/pull/4333)
+- [x] Proxy Cluster - Support for more stream paths. [#4158](https://github.com/ossrs/srs/pull/4158)
+- [ ] WebRTC HEVC - WebRTC support for HEVC, recording HEVC to MP4 files, completing full HEVC support. [#4289](https://github.com/ossrs/srs/pull/4289), [#4349](https://github.com/ossrs/srs/pull/4349), [#4296](https://github.com/ossrs/srs/pull/4296)
+- [ ] HLS fMP4 - HLS protocol support for fMP4. [#4159](https://github.com/ossrs/srs/pull/4159)
+- [ ] RTSP Playback - Support for RTSP protocol playback. [#4333](https://github.com/ossrs/srs/pull/4333)
 
 ## Release 6.0
 
-Development codename: Hang. It is planned for release by the end of 2025.
+Development codename: Hang. Named by TOC [John](https://github.com/xiaozhihong). Released on December 3, 2024, now the stable version replacing SRS 5.0.
 
-> Note: The development codename Hang is named by TOC [John](https://github.com/xiaozhihong), and the specific meaning 
+> Note: The development codename Hang is named by TOC [John](https://github.com/xiaozhihong), and the specific meaning
 > is left for everyone to appreciate and ponder.
 
-- [x] Supports HEVC encoding format, including protocols like RTMP, HTTP-FLV, HTTP-TS, HLS, and SRT. [#465](https://github.com/ossrs/srs/issues/465)
-- [x] Uses smart pointers (SrsUniquePtr and SrsSharedPtr) to improve memory management and fixes multiple memory leak issues. [#4089](https://github.com/ossrs/srs/pull/4089), [#4109](https://github.com/ossrs/srs/pull/4109)
-- [x] Supports IP whitelisting for HTTP-FLV, HLS, WebRTC, and SRT. [#3902](https://github.com/ossrs/srs/pull/3902)
-- [x] Added Basic Authentication feature for HTTP API. [#3458](https://github.com/ossrs/srs/pull/3458)
-- [x] GB28181 protocol supports external SIP servers. [#4101](https://github.com/ossrs/srs/pull/4101), [srs-sip](https://github.com/ossrs/srs-sip)
+**HEVC/H.265 Support (Major Feature)**
+
+- [x] HEVC over RTMP/HTTP-FLV - Full H.265 support for RTMP and HTTP-FLV streaming. [#465](https://github.com/ossrs/srs/issues/465)
+- [x] HEVC over HLS - H.265 support in HLS delivery.
+- [x] HEVC over HTTP-TS - H.265 support for MPEG-TS streaming.
+- [x] HEVC over SRT - H.265 support for SRT protocol.
+- [x] HEVC DVR to MP4 - Record H.265 streams to MP4 format.
+- [x] HEVC DVR to FLV - Record H.265 streams to FLV fragments.
+
+**WebRTC Enhancements**
+
+- [x] WHEP Support - WebRTC-HTTP Egress Protocol for playback.
+- [x] OPUS Stereo SDP option - Support for stereo audio in WebRTC.
+- [x] Configurable AAC to Opus bitrate - Customize transcoding bitrate.
+
+**Security & Authentication**
+
+- [x] IP Whitelist - Security support for HTTP-FLV, HLS, WebRTC, and SRT. [#3902](https://github.com/ossrs/srs/pull/3902)
+- [x] Basic Authentication - HTTP API authentication feature. [#3458](https://github.com/ossrs/srs/pull/3458)
+
+**SRT Improvements**
+
+- [x] Upgraded libsrt to v1.5.3 - Latest SRT library version.
+- [x] Configurable default_streamid - Customizable SRT stream IDs.
+- [x] Reduced SRT-to-RTC latency - Down to 200ms.
+
+**HLS Features**
+
+- [x] Kick-off HLS clients - Ability to disconnect HLS clients.
+
+**Other Improvements**
+
+- [x] Smart pointers (SrsUniquePtr and SrsSharedPtr) - Improved memory management and fixed multiple memory leak issues. [#4089](https://github.com/ossrs/srs/pull/4089), [#4109](https://github.com/ossrs/srs/pull/4109)
+- [x] GB28181 protocol - Support for external SIP servers. [#4101](https://github.com/ossrs/srs/pull/4101), [srs-sip](https://github.com/ossrs/srs-sip)
+
+SRS 6.0 was released at 2024.12, see [6.0-r0](https://github.com/ossrs/srs/releases/tag/v6.0-r0).
 
 # Release 5.0
 

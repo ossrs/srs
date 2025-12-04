@@ -269,12 +269,36 @@ srt_server {
     peerlatency 0;
     recvlatency 0;
     latency 0;
-    tlpktdrop off;
+    tlpktdrop on;
     tsbpdmode off;
 }
 ```
 
 > Note: If you still experience screen glitches with the above settings, please refer to the [FFmpeg patch](https://github.com/FFmpeg/FFmpeg/commit/9099046cc76c9e3bf02f62a237b4d444cdaf5b20).
+
+## Too-Late Packet Drop
+
+The `tlpktdrop` (Too-Late Packet Drop) setting controls whether SRT discards packets that arrive later than the configured latency window.
+
+When `tlpktdrop off` is combined with `tsbpdmode on`, the SRT receiver buffer can fill up with packets that cannot be recovered. Over time, iterating through this buffer to request retransmissions consumes 100% CPU, causing the server to become completely unresponsive - no new streams can be published, existing streams stop working, and even the HTTP API becomes unavailable.
+
+**Recommended configuration:**
+
+```
+srt_server {
+    enabled on;
+    listen 10080;
+    tlpktdrop on;
+}
+```
+
+**Key points:**
+
+* `tlpktdrop on` does NOT disable retransmission entirely. Packets within the latency window will still be retransmitted.
+* With `tlpktdrop on`, if the network has severe jitter, some late packets may be dropped, causing minor video glitches.
+* The trade-off is: occasional glitches (with `tlpktdrop on`) vs. potential server hang (with `tlpktdrop off` + `tsbpdmode on`).
+
+For more details, see [#4587](https://github.com/ossrs/srs/issues/4587).
 
 ## Video codec
 

@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-12-04, SRT: Enable tlpktdrop by default to prevent 100% CPU usage. v7.0.133 (#4587)
 * v7.0, 2025-12-03, AI: WebRTC: Fix audio-only WHIP publish without SSRC. v7.0.132 (#4570)
 * v7.0, 2025-11-30, SRT: Support default_mode config for short streamid format. v7.0.131
 * v7.0, 2025-11-28, SRT: Fix player not exiting when publisher disconnects. v7.0.130 (#4591)
