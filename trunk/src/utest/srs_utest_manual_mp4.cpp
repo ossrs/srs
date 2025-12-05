@@ -2595,3 +2595,175 @@ VOID TEST(KernelMp4Test, SrsMp4DvrJitter)
         EXPECT_EQ(0, jitter.get_first_sample_delta(SrsFrameTypeAudio));
     }
 }
+
+VOID TEST(KernelMp4Test, SrsMp4SampleManagerWrite)
+{
+    srs_error_t err;
+
+    // Test with video keyframe samples
+    if (true) {
+        SrsMp4SampleManager manager;
+        SrsMp4TrackFragmentBox traf;
+
+        // Create a video keyframe sample
+        SrsMp4Sample *video_sample = new SrsMp4Sample();
+        video_sample->type_ = SrsFrameTypeVideo;
+        video_sample->dts_ = 1000;
+        video_sample->pts_ = 1000;
+        video_sample->tbn_ = 90000;
+        video_sample->frame_type_ = SrsVideoAvcFrameTypeKeyFrame;
+        video_sample->nb_data_ = 100;
+
+        // Add sample to manager
+        manager.append(video_sample);
+
+        // Write samples to traf with appropriate next_dts
+        err = manager.write(&traf, video_sample->dts_ + 1000);
+        HELPER_EXPECT_SUCCESS(err);
+
+        // Verify TRUN box was created with correct entries
+        SrsMp4TrackFragmentRunBox *trun = traf.trun();
+        ASSERT_TRUE(trun != NULL);
+        ASSERT_EQ(1, (int)trun->entries_.size());
+
+        // Verify TRUN entry for video keyframe
+        SrsMp4TrunEntry *entry = trun->entries_.at(0);
+        EXPECT_EQ(1000, entry->sample_duration_);
+        EXPECT_EQ(100, entry->sample_size_);
+        EXPECT_EQ(0, entry->sample_composition_time_offset_);
+        // Keyframe should have sample_depends_on_no and sample_is_non_sync_sample=0 (sync sample)
+        EXPECT_EQ(0, entry->sample_flags_ & 0x00010000);
+    }
+
+    // Test with video non-keyframe samples
+    if (true) {
+        SrsMp4SampleManager manager;
+        SrsMp4TrackFragmentBox traf;
+
+        // Create a video non-keyframe sample
+        SrsMp4Sample *video_sample = new SrsMp4Sample();
+        video_sample->type_ = SrsFrameTypeVideo;
+        video_sample->dts_ = 2000;
+        video_sample->pts_ = 2000;
+        video_sample->tbn_ = 90000;
+        video_sample->frame_type_ = SrsVideoAvcFrameTypeInterFrame;
+        video_sample->nb_data_ = 50;
+
+        // Add sample to manager
+        manager.append(video_sample);
+
+        // Write samples to traf with appropriate next_dts
+        err = manager.write(&traf, video_sample->dts_ + 1000);
+        HELPER_EXPECT_SUCCESS(err);
+
+        // Verify TRUN box was created with correct entries
+        SrsMp4TrackFragmentRunBox *trun = traf.trun();
+        ASSERT_TRUE(trun != NULL);
+        ASSERT_EQ(1, (int)trun->entries_.size());
+
+        // Verify TRUN entry for video non-keyframe
+        SrsMp4TrunEntry *entry = trun->entries_.at(0);
+        EXPECT_EQ(1000, entry->sample_duration_);
+        EXPECT_EQ(50, entry->sample_size_);
+        EXPECT_EQ(0, entry->sample_composition_time_offset_);
+        // Non-keyframe should have sample_depends_on_yes and sample_is_non_sync_sample=1 (non-sync sample)
+        EXPECT_EQ((uint32_t)(0x00010000 | 0x00000000), entry->sample_flags_ & 0x00010000);
+    }
+
+    // Test with audio samples
+    if (true) {
+        SrsMp4SampleManager manager;
+        SrsMp4TrackFragmentBox traf;
+
+        // Create an audio sample
+        SrsMp4Sample *audio_sample = new SrsMp4Sample();
+        audio_sample->type_ = SrsFrameTypeAudio;
+        audio_sample->dts_ = 3000;
+        audio_sample->pts_ = 3000;
+        audio_sample->tbn_ = 44100;
+        audio_sample->nb_data_ = 200;
+
+        // Add sample to manager
+        manager.append(audio_sample);
+
+        // Write samples to traf with appropriate next_dts
+        err = manager.write(&traf, audio_sample->dts_ + 1000);
+        HELPER_EXPECT_SUCCESS(err);
+
+        // Verify TRUN box was created with correct entries
+        SrsMp4TrackFragmentRunBox *trun = traf.trun();
+        ASSERT_TRUE(trun != NULL);
+        ASSERT_EQ(1, (int)trun->entries_.size());
+
+        // Verify TRUN entry for audio sample
+        SrsMp4TrunEntry *entry = trun->entries_.at(0);
+        EXPECT_EQ(1000, entry->sample_duration_);
+        EXPECT_EQ(200, entry->sample_size_);
+        EXPECT_EQ(0, entry->sample_composition_time_offset_);
+        // Audio should have sample_depends_on_no and sample_is_non_sync_sample=0 (sync sample)
+        EXPECT_EQ(0, entry->sample_flags_ & 0x00010000);
+    }
+
+    // Test with multiple samples (video keyframe, video non-keyframe, audio)
+    if (true) {
+        SrsMp4SampleManager manager;
+        SrsMp4TrackFragmentBox traf;
+
+        // Create video keyframe sample
+        SrsMp4Sample *keyframe = new SrsMp4Sample();
+        keyframe->type_ = SrsFrameTypeVideo;
+        keyframe->dts_ = 1000;
+        keyframe->pts_ = 1000;
+        keyframe->tbn_ = 90000;
+        keyframe->frame_type_ = SrsVideoAvcFrameTypeKeyFrame;
+        keyframe->nb_data_ = 100;
+
+        // Create video non-keyframe sample
+        SrsMp4Sample *deltaframe = new SrsMp4Sample();
+        deltaframe->type_ = SrsFrameTypeVideo;
+        deltaframe->dts_ = 2000;
+        deltaframe->pts_ = 2000;
+        deltaframe->tbn_ = 90000;
+        deltaframe->frame_type_ = SrsVideoAvcFrameTypeInterFrame;
+        deltaframe->nb_data_ = 50;
+
+        // Create audio sample
+        SrsMp4Sample *audio = new SrsMp4Sample();
+        audio->type_ = SrsFrameTypeAudio;
+        audio->dts_ = 3000;
+        audio->pts_ = 3000;
+        audio->tbn_ = 44100;
+        audio->nb_data_ = 200;
+
+        // Add samples to manager
+        manager.append(keyframe);
+        manager.append(deltaframe);
+        manager.append(audio);
+
+        // Write samples to traf with appropriate next_dts
+        uint64_t next_dts = audio->dts_ + 1000;
+        err = manager.write(&traf, next_dts);
+        HELPER_EXPECT_SUCCESS(err);
+
+        // Verify TRUN box was created with correct entries
+        SrsMp4TrackFragmentRunBox *trun = traf.trun();
+        ASSERT_TRUE(trun != NULL);
+        ASSERT_EQ(3, (int)trun->entries_.size());
+
+        // Verify each entry
+        SrsMp4TrunEntry *entry1 = trun->entries_.at(0);
+        EXPECT_EQ(1000, entry1->sample_duration_);
+        EXPECT_EQ(100, entry1->sample_size_);
+        EXPECT_EQ(0, entry1->sample_flags_ & 0x00010000); // Keyframe (sample_is_non_sync_sample=0)
+
+        SrsMp4TrunEntry *entry2 = trun->entries_.at(1);
+        EXPECT_EQ(1000, entry2->sample_duration_);
+        EXPECT_EQ(50, entry2->sample_size_);
+        EXPECT_EQ((uint32_t)(0x00010000 | 0x00000000), entry2->sample_flags_ & 0x00010000); // Non-keyframe (sample_is_non_sync_sample=1)
+
+        SrsMp4TrunEntry *entry3 = trun->entries_.at(2);
+        EXPECT_EQ(1000, entry3->sample_duration_);
+        EXPECT_EQ(200, entry3->sample_size_);
+        EXPECT_EQ(0, entry3->sample_flags_ & 0x00010000); // Audio (sample_is_non_sync_sample=0)
+    }
+}

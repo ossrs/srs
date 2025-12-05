@@ -5791,20 +5791,49 @@ srs_error_t SrsMp4SampleManager::write(SrsMp4TrackFragmentBox *traf, uint64_t dt
     srs_error_t err = srs_success;
 
     SrsMp4TrackFragmentRunBox *trun = traf->trun();
+    if (trun == NULL) {
+        trun = new SrsMp4TrackFragmentRunBox();
+        traf->set_trun(trun);
+    }
     trun->flags_ = SrsMp4TrunFlagsDataOffset | SrsMp4TrunFlagsSampleDuration | SrsMp4TrunFlagsSampleSize | SrsMp4TrunFlagsSampleFlag | SrsMp4TrunFlagsSampleCtsOffset;
 
-    SrsMp4Sample *previous = NULL;
-
+    // ISO_IEC_14496-12-base-format-2012.pdf, 8.8.8.1 page 57
+    // Because trun->flags_ has not include SrsMp4TrunFlagsFirstSample(0x000004),
+    // so trun->first_sample_flags_ is not present, and each SrsMp4TrunEntry has sample_flags_.
+    // ISO_IEC_14496-12-base-format-2012.pdf, 8.8.3.1 page 53 define the sample_flags_'s layout.
+    // int(32) sample_flags = {
+    //    bit(4)  reserved = 0;
+    //    int(2)  is_leading;
+    //    int(2)  sample_depends_on;
+    //    int(2)  sample_is_depends_on;
+    //    int(2)  sample_has_redundancy;
+    //    bit(3)  sample_padding_value;
+    //    bit(1)  sample_is_non_sync_sample;
+    //    int(16) sample_degradation_priority;
+    // }
+    // ISO_IEC_14496-12-base-format-2012.pdf, 8.6.4.1, 8.6.4.3 page 41 define the sample_flags_'s values.
+    // sample_depends_on == 1: this sample does depend on others;
+    // sample_depends_on == 2: this sample does not depend on others;
     vector<SrsMp4Sample *>::iterator it;
     for (it = samples_.begin(); it != samples_.end(); ++it) {
         SrsMp4Sample *sample = *it;
         SrsMp4TrunEntry *entry = new SrsMp4TrunEntry(trun);
 
-        if (!previous) {
-            previous = sample;
-            entry->sample_flags_ = 0x02000000;
+        if (sample->type_ == SrsFrameTypeVideo) {
+            if (sample->frame_type_ == SrsVideoAvcFrameTypeKeyFrame) {
+                // For video keyframe: no dependencies (sample_depends_on = 2), IS a sync sample (sample_is_non_sync_sample = 0)
+                // ISO 14496-12 section 8.8.3.1: sample_is_non_sync_sample = 0 means this IS a sync sample
+                // This provides equivalent information to being in a sync sample table (stss box)
+                entry->sample_flags_ = 0x02000000 | 0x00000000;
+            } else {
+                // For video non-keyframe: has dependencies (sample_depends_on = 1), NOT a sync sample (sample_is_non_sync_sample = 1)
+                // ISO 14496-12 section 8.8.3.1: sample_is_non_sync_sample = 1 means this is NOT a sync sample
+                entry->sample_flags_ = 0x01000000 | 0x00010000;
+            }
         } else {
-            entry->sample_flags_ = 0x01000000;
+            // For audio, all samples are independent: no dependencies (sample_depends_on = 2), IS a sync sample (sample_is_non_sync_sample = 0)
+            // ISO 14496-12 section 8.8.3.1: sample_is_non_sync_sample = 0 means this IS a sync sample
+            entry->sample_flags_ = 0x02000000 | 0x00000000;
         }
 
         vector<SrsMp4Sample *>::iterator iter = (it + 1);
