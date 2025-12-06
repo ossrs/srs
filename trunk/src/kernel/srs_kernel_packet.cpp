@@ -643,6 +643,7 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
     // ignore info frame without error,
     // @see https://github.com/ossrs/srs/issues/288#issuecomment-69863909
     if (video_->frame_type_ == SrsVideoAvcFrameTypeVideoInfoFrame) {
+        video_->avc_packet_type_ = packet_type;
         srs_warn("avc ignore the info frame");
         return err;
     }
