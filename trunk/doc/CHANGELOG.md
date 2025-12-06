@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-12-06, Merge [#4604](https://github.com/ossrs/srs/pull/4604): DVR: Fix HEVC mp4 recording error. v7.0.135 (#4604)
 * v7.0, 2025-12-06, SRT: Fix peer_idle_timeout not applied to publishers and players. v7.0.134 (#4600)
 * v7.0, 2025-12-04, SRT: Enable tlpktdrop by default to prevent 100% CPU usage. v7.0.133 (#4587)
 * v7.0, 2025-12-03, AI: WebRTC: Fix audio-only WHIP publish without SSRC. v7.0.132 (#4570)
@@ -148,6 +149,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2025-12-06, Merge [#4605](https://github.com/ossrs/srs/pull/4605): DVR: Fix HEVC mp4 recording error. v6.0.185 (#4605)
 * v6.0, 2025-12-03, Merge [#4588](https://github.com/ossrs/srs/pull/4588): RTMP: Ignore FMLE start packet after flash publish. v6.0.184 (#4588)
 * v6.0, 2025-10-17, Merge [#4534](https://github.com/ossrs/srs/pull/4534): HLS: Fix a iterator bug in hls_ctx cleanup function. v6.0.182 (#4534)
 * v6.0, 2025-10-14, Disable sanitizer by default to fix memory leak. (#4364) v6.0.181
