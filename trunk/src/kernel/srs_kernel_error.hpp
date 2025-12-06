@@ -386,17 +386,17 @@
 
 /**************************************************/
 /* SRT protocol error. */
-#define SRS_ERRNO_MAP_SRT(XX)                                                             \
-    XX(ERROR_SRT_EPOLL, 6000, "SrtEpoll", "SRT epoll operation failed")                   \
-    XX(ERROR_SRT_IO, 6001, "SrtIo", "SRT read or write failed")                           \
-    XX(ERROR_SRT_TIMEOUT, 6002, "SrtTimeout", "SRT connection is timeout")                \
-    XX(ERROR_SRT_INTERRUPT, 6003, "SrtInterrupt", "SRT connection is interrupted")        \
-    XX(ERROR_SRT_LISTEN, 6004, "SrtListen", "SRT listen failed")                          \
-    XX(ERROR_SRT_SOCKOPT, 6005, "SrtSetSocket", "SRT set socket option failed")           \
-    XX(ERROR_SRT_CONN, 6006, "SrtConnection", "SRT connectin level error")                \
-    XX(ERROR_SRT_SOURCE_BUSY, 6007, "SrtStreamBusy", "SRT stream already exists or busy") \
-    XX(ERROR_RTMP_TO_SRT, 6008, "SrtFromRtmp", "Covert RTMP to SRT failed")               \
-    XX(ERROR_SRT_STATS, 6009, "SrtStats", "SRT get statistic data failed")                \
+#define SRS_ERRNO_MAP_SRT(XX)                                                                              \
+    XX(ERROR_SRT_EPOLL, 6000, "SrtEpoll", "SRT epoll operation failed")                                    \
+    XX(ERROR_SRT_IO, 6001, "SrtIo", "SRT read or write failed")                                            \
+    XX(ERROR_SRT_TIMEOUT, 6002, "SrtTimeout", "SRT connection is timeout")                                 \
+    XX(ERROR_SRT_INTERRUPT, 6003, "SrtInterrupt", "SRT connection is interrupted")                         \
+    XX(ERROR_SRT_LISTEN, 6004, "SrtListen", "SRT listen failed")                                           \
+    XX(ERROR_SRT_SOCKOPT, 6005, "SrtSetSocket", "SRT set socket option failed")                            \
+    XX(ERROR_SRT_CONN, 6006, "SrtConnection", "SRT connectin level error")                                 \
+    XX(ERROR_SRT_SOURCE_BUSY, 6007, "SrtStreamBusy", "SRT stream already exists or busy")                  \
+    XX(ERROR_RTMP_TO_SRT, 6008, "SrtFromRtmp", "Covert RTMP to SRT failed")                                \
+    XX(ERROR_SRT_STATS, 6009, "SrtStats", "SRT get statistic data failed")                                 \
     XX(ERROR_SRT_TO_RTMP_EMPTY_SPS_PPS, 6010, "SrtToRtmpEmptySpsPps", "SRT to rtmp have empty sps or pps") \
     XX(ERROR_SRT_SOURCE_DISCONNECTED, 6011, "SrtSourceDisconnected", "SRT source publisher disconnected")
 
