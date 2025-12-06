@@ -16,7 +16,17 @@ For detail features of SRS, please see [FEATURES](https://github.com/ossrs/srs/b
 
 Let's briefly introduce the history of SRS in reverse order.
 
-In January 2023, Star exceeded 20K and launched the Paid Star Planet. Oryx supported Virtual Live Broadcasting, 
+From June to December 2025, AI became a major contributor to SRS development. AI was used extensively to cleanup
+issues, review pull requests, and improve unit test coverage from 40% to 88%. AI also helped implement new features
+and enhancements. While AI is now a major contributor, the human maintainer still reviews each line of code generated
+by AI and makes all final decisions, ensuring code quality and project direction remain under human oversight.
+
+In January 2025, the paid star planet was closed and all paid support services were discontinued. The decision was
+made to build a purely volunteer-driven community without any monetization. While donations, sponsors, and backers
+are still needed and welcomed to support the project, no special paid services will be provided to anyone. With AI
+now working very well as a question answerer and problem solver, anyone who needs help should use AI first.
+
+In January 2023, Star exceeded 20K and launched the Paid Star Planet. Oryx supported Virtual Live Broadcasting,
 confirmed the development codename for version 6.0 as Hang, and introduced new TOC rules.
 
 In November 2022, the SRS TOC and developer community were established, with the number of active developers reaching 47. 
@@ -91,14 +101,59 @@ For a detailed interpretation, please see Welcome to SRS: Mission, Vision, and V
 
 ## Release 7.0
 
-Code name: Kai. Named by TOC member [Haibo Chen](https://github.com/duiniuluantanqin). Planned for release by the end of 2026.
+Code name: Kai. Named by TOC member [Haibo Chen](https://github.com/duiniuluantanqin). Development started August 2024, planned for release by the end of 2026.
 
 > Code Name Story: I am Haibo Chen, a core maintainer of SRS and a TOC member. The code name Kai is inspired by my son Chen Kaiqi's name. As a father, I aim to set a good example by doing meaningful and interesting work. I appreciate the support and collaboration from everyone in the community, making it more vibrant and warm. This upgrade aims to provide users with more powerful features and a smoother experience, laying a strong foundation for SRS's future.
 
-- [x] Proxy Cluster - Support for more stream paths. [#4158](https://github.com/ossrs/srs/pull/4158)
-- [ ] WebRTC HEVC - WebRTC support for HEVC, recording HEVC to MP4 files, completing full HEVC support. [#4289](https://github.com/ossrs/srs/pull/4289), [#4349](https://github.com/ossrs/srs/pull/4349), [#4296](https://github.com/ossrs/srs/pull/4296)
-- [ ] HLS fMP4 - HLS protocol support for fMP4. [#4159](https://github.com/ossrs/srs/pull/4159)
-- [ ] RTSP Playback - Support for RTSP protocol playback. [#4333](https://github.com/ossrs/srs/pull/4333)
+**New Protocols & Major Features**
+
+- [x] RTSP Playback - Support for viewing streams over RTSP protocol. [#4333](https://github.com/ossrs/srs/pull/4333)
+- [x] RTMPS Server - Support for RTMP over SSL server. [#4443](https://github.com/ossrs/srs/pull/4443)
+- [x] Proxy Cluster - Support for proxy server functionality with more stream paths. [#4158](https://github.com/ossrs/srs/pull/4158)
+- [x] IPv6 Support - Full IPv6 support for all protocols: RTMP, HTTP/HTTPS, WebRTC, SRT, RTSP. [#4457](https://github.com/ossrs/srs/pull/4457)
+
+**WebRTC Enhancements**
+
+- [x] VP9 Codec - Support for VP9 codec in WebRTC-to-WebRTC streaming. [#4548](https://github.com/ossrs/srs/pull/4548)
+- [x] G.711 Audio - Support for G.711 (PCMU/PCMA) audio codec for WebRTC. [#4075](https://github.com/ossrs/srs/pull/4075)
+- [x] HEVC Support - RTMP-to-WebRTC and WebRTC-to-RTMP conversion with HEVC. [#4289](https://github.com/ossrs/srs/pull/4289), [#4349](https://github.com/ossrs/srs/pull/4349)
+- [x] Audio Jitter Buffer - RTC audio packet jitter buffer for improved quality. [#4295](https://github.com/ossrs/srs/pull/4295)
+- [x] Dual Video Track - Support for dual video track with multiple codecs (AVC and HEVC) in RTMP2RTC bridge. [#4413](https://github.com/ossrs/srs/pull/4413)
+- [x] WHEP Support - WebRTC HTTP Egress Protocol for playback. [#3404](https://github.com/ossrs/srs/pull/3404)
+
+**HLS Improvements**
+
+- [x] HLS fMP4 - HLS protocol support for fMP4 segments for HEVC/LLHLS. [#4159](https://github.com/ossrs/srs/pull/4159)
+- [x] Query String Support - Support query string in hls_key_url for JWT tokens. [#4426](https://github.com/ossrs/srs/pull/4426)
+- [x] Master M3U8 Path - Support hls_master_m3u8_path_relative for reverse proxy. [#4338](https://github.com/ossrs/srs/pull/4338)
+
+**Architecture Changes**
+
+- [x] Single-Thread Architecture - Removed multi-threading support, changed to single-thread architecture for simplicity. [#4445](https://github.com/ossrs/srs/pull/4445)
+- [x] Always Enable WebRTC - WebRTC is now always enabled and enforces C++98 compatibility. [#4447](https://github.com/ossrs/srs/pull/4447)
+- [x] Always Enable SRT - SRT protocol is now always enabled. [#4460](https://github.com/ossrs/srs/pull/4460)
+- [x] Unified Server - Merged SRT and RTC servers into unified SrsServer. [#4459](https://github.com/ossrs/srs/pull/4459)
+- [x] HTTP Parser Upgrade - Upgraded from http-parser to llhttp. [#4469](https://github.com/ossrs/srs/pull/4469)
+- [x] Stream Publish Token - Implemented stream publish token system to prevent race conditions across all protocols. [#4452](https://github.com/ossrs/srs/pull/4452)
+
+**DVR & Recording**
+
+- [x] HEVC DVR to FLV - Support H.265 FLV fragments for DVR. [#4296](https://github.com/ossrs/srs/pull/4296)
+- [x] MP4 DVR Sync - Fix audio/video synchronization issues in WebRTC recordings. [#4230](https://github.com/ossrs/srs/pull/4230)
+
+**Code Quality & Build**
+
+- [x] Clang Format - Use clang-format to unify coding style. [#4366](https://github.com/ossrs/srs/pull/4366), [#4433](https://github.com/ossrs/srs/pull/4433)
+- [x] Memory Management - Multiple memory leak fixes and improved error handling throughout the codebase.
+- [x] Build Improvements - Better dependency detection and reporting. [#4293](https://github.com/ossrs/srs/pull/4293)
+
+**Other Improvements**
+
+- [x] GB28181 Changes - Removed embedded SIP server, enforce external SIP usage. [#4466](https://github.com/ossrs/srs/pull/4466)
+- [x] RTMP Config Section - Moved RTMP configs to rtmp{} section. [#4454](https://github.com/ossrs/srs/pull/4454)
+- [x] Cloud Features Removed - Removed cloud CLS and APM. [#4456](https://github.com/ossrs/srs/pull/4456)
+
+SRS 7.0 development started at 2024.08.
 
 ## Release 6.0
 

@@ -551,6 +551,12 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
 
     srs_trace("SRT: start publish url=%s", req_->get_stream_url().c_str());
 
+    // Set socket timeout to peer_idle_timeout for publishers.
+    // @see https://github.com/ossrs/srs/issues/4600
+    srs_utime_t timeout = config_->get_srto_peeridletimeout();
+    srt_conn_->set_recv_timeout(timeout);
+    srt_conn_->set_send_timeout(timeout);
+
     SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_publish());
 
     int nb_packets = 0;
@@ -598,6 +604,12 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
 {
     srs_error_t err = srs_success;
 
+    // Set socket timeout to peer_idle_timeout for players.
+    // @see https://github.com/ossrs/srs/issues/4600
+    srs_utime_t timeout = config_->get_srto_peeridletimeout();
+    srt_conn_->set_recv_timeout(timeout);
+    srt_conn_->set_send_timeout(timeout);
+
     ISrsSrtConsumer *consumer_raw = NULL;
     if ((err = srt_source_->create_consumer(consumer_raw)) != srs_success) {
         return srs_error_wrap(err, "create consumer, ts source=%s", req_->get_stream_url().c_str());
@@ -619,7 +631,6 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
     }
 
     int nb_packets = 0;
-    srs_utime_t timeout = config_->get_srto_peeridletimeout();
 
     while (true) {
         // Check recv thread error first, so we can detect the client disconnecting event.

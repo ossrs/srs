@@ -3612,3 +3612,57 @@ VOID TEST(ProcessTest, InitializeWithRedirections)
     // Verify cli_ contains full original command with redirections
     EXPECT_EQ(process->cli_, "/usr/bin/ffmpeg -i input.flv -c copy 1>stdout.log 2>stderr.log output.flv");
 }
+
+// Test SrsSrtSocket::set_recv_timeout and set_send_timeout
+// @see https://github.com/ossrs/srs/issues/4600
+VOID TEST(SrtSocketTest, SetRecvSendTimeout)
+{
+    // Test MockSrtSocket set_recv_timeout and set_send_timeout
+    if (true) {
+        MockSrtSocket mock_socket;
+
+        // Initial values should be 1 second as set in constructor
+        EXPECT_EQ(mock_socket.get_recv_timeout(), 1 * SRS_UTIME_SECONDS);
+        EXPECT_EQ(mock_socket.get_send_timeout(), 1 * SRS_UTIME_SECONDS);
+
+        // Set recv timeout to 10 seconds
+        srs_utime_t timeout = 10 * SRS_UTIME_SECONDS;
+        mock_socket.set_recv_timeout(timeout);
+        EXPECT_EQ(mock_socket.get_recv_timeout(), timeout);
+        EXPECT_EQ(mock_socket.get_send_timeout(), 1 * SRS_UTIME_SECONDS);
+
+        // Set send timeout to 10 seconds
+        mock_socket.set_send_timeout(timeout);
+        EXPECT_EQ(mock_socket.get_recv_timeout(), timeout);
+        EXPECT_EQ(mock_socket.get_send_timeout(), timeout);
+
+        // Set to a different value (60 seconds, like peer_idle_timeout)
+        timeout = 60 * SRS_UTIME_SECONDS;
+        mock_socket.set_recv_timeout(timeout);
+        mock_socket.set_send_timeout(timeout);
+        EXPECT_EQ(mock_socket.get_recv_timeout(), timeout);
+        EXPECT_EQ(mock_socket.get_send_timeout(), timeout);
+    }
+
+    // Test individual set methods work independently
+    if (true) {
+        MockSrtSocket mock_socket;
+
+        // Set recv timeout only
+        mock_socket.set_recv_timeout(5 * SRS_UTIME_SECONDS);
+        EXPECT_EQ(mock_socket.get_recv_timeout(), 5 * SRS_UTIME_SECONDS);
+        EXPECT_EQ(mock_socket.get_send_timeout(), 1 * SRS_UTIME_SECONDS);
+
+        // Set send timeout only
+        mock_socket.set_send_timeout(15 * SRS_UTIME_SECONDS);
+        EXPECT_EQ(mock_socket.get_recv_timeout(), 5 * SRS_UTIME_SECONDS);
+        EXPECT_EQ(mock_socket.get_send_timeout(), 15 * SRS_UTIME_SECONDS);
+
+        // Set both to same value (simulating peer_idle_timeout usage)
+        srs_utime_t peer_idle_timeout = 30 * SRS_UTIME_SECONDS;
+        mock_socket.set_recv_timeout(peer_idle_timeout);
+        mock_socket.set_send_timeout(peer_idle_timeout);
+        EXPECT_EQ(mock_socket.get_recv_timeout(), peer_idle_timeout);
+        EXPECT_EQ(mock_socket.get_send_timeout(), peer_idle_timeout);
+    }
+}
