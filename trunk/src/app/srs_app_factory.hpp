@@ -35,6 +35,7 @@ class ISrsFragment;
 class ISrsInitMp4;
 class ISrsFragmentWindow;
 class ISrsFragmentedMp4;
+class SrsHlsM4sSegment;
 class SrsFinalFactory;
 class ISrsIpListener;
 class ISrsTcpHandler;
@@ -89,6 +90,7 @@ public:
     virtual ISrsInitMp4 *create_init_mp4() = 0;
     virtual ISrsFragmentWindow *create_fragment_window() = 0;
     virtual ISrsFragmentedMp4 *create_fragmented_mp4() = 0;
+    virtual SrsHlsM4sSegment *create_hls_m4s_segment(ISrsFileWriter *fw) = 0;
     virtual ISrsIpListener *create_tcp_listener(ISrsTcpHandler *handler) = 0;
     virtual ISrsRtcConnection *create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid) = 0;
     virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin) = 0;
@@ -142,6 +144,7 @@ public:
     virtual ISrsInitMp4 *create_init_mp4();
     virtual ISrsFragmentWindow *create_fragment_window();
     virtual ISrsFragmentedMp4 *create_fragmented_mp4();
+    virtual SrsHlsM4sSegment *create_hls_m4s_segment(ISrsFileWriter *fw);
     virtual ISrsIpListener *create_tcp_listener(ISrsTcpHandler *handler);
     virtual ISrsRtcConnection *create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid);
     virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin);

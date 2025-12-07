@@ -15,6 +15,7 @@
 #include <srs_app_utility.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_mp4.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
 #include <srs_kernel_utility.hpp>
@@ -1415,4 +1416,89 @@ VOID TEST(HttpApiPaginationTest, ParsePagination)
         EXPECT_EQ(1000000, start);
         EXPECT_EQ(500, count);
     }
+}
+
+// Mock SrsHlsM4sSegment to capture dts passed to reap()
+// Used for testing issue #4594
+class MockSrsHlsM4sSegmentForBug4594 : public SrsHlsM4sSegment
+{
+public:
+    uint64_t captured_reap_dts_;
+    bool reap_called_;
+
+    MockSrsHlsM4sSegmentForBug4594() : SrsHlsM4sSegment(NULL), captured_reap_dts_(0), reap_called_(false) {}
+    virtual ~MockSrsHlsM4sSegmentForBug4594() {}
+
+    // Override reap to capture the dts parameter
+    virtual srs_error_t reap(uint64_t dts) {
+        reap_called_ = true;
+        captured_reap_dts_ = dts;
+        return srs_success;
+    }
+};
+
+// Mock factory to create MockSrsHlsM4sSegmentForBug4594
+class MockAppFactoryForBug4594 : public SrsAppFactory
+{
+public:
+    MockSrsHlsM4sSegmentForBug4594 *mock_segment_;
+
+    MockAppFactoryForBug4594() : mock_segment_(NULL) {}
+    virtual ~MockAppFactoryForBug4594() {}
+
+    virtual SrsHlsM4sSegment *create_hls_m4s_segment(ISrsFileWriter *fw) {
+        mock_segment_ = new MockSrsHlsM4sSegmentForBug4594();
+        return mock_segment_;
+    }
+};
+
+// Test for issue #4594: SrsHlsMp4Controller::on_unpublish() passes video_dts_=0 to reap()
+// for audio-only streams.
+//
+// When on_unpublish() is called for audio-only streams, the muxer's video_dts_ is 0 because
+// write_video() is never called. This causes reap(0) to be called, leading to
+// incorrect last sample duration calculation (overflow to huge values like 4294894594).
+//
+// @see https://github.com/ossrs/srs/issues/4594
+// @see https://github.com/ossrs/srs/pull/4602
+VOID TEST(HlsFmp4AudioOnlyBugTest, OnUnpublishUsesVideoDtsZeroForAudioOnly)
+{
+    srs_error_t err;
+
+    // Create SrsHlsMp4Controller - the entry point for HLS fMP4
+    SrsHlsMp4Controller controller;
+
+    // Access the internal muxer
+    SrsHlsFmp4Muxer *muxer = controller.muxer_;
+
+    // Set up mock request (required by do_segment_close for async hooks)
+    MockRequest mock_req("test_vhost", "live", "stream");
+    muxer->req_ = &mock_req;
+
+    // Create mock segment that captures the dts passed to reap()
+    MockSrsHlsM4sSegmentForBug4594 *mock_segment = new MockSrsHlsM4sSegmentForBug4594();
+    muxer->current_ = mock_segment;
+
+    // Simulate audio-only stream condition:
+    // - controller.audio_dts_ has a value (audio packets were written)
+    // - controller.video_dts_ is 0 (no video packets, write_video() never called)
+    controller.audio_dts_ = 72702;  // Example audio DTS in milliseconds
+    controller.video_dts_ = 0;      // No video for audio-only stream
+
+    // Call on_unpublish() - this triggers the bug path
+    HELPER_EXPECT_SUCCESS(controller.on_unpublish());
+
+    // Verify reap was called
+    ASSERT_TRUE(mock_segment->reap_called_) << "reap() should have been called by on_unpublish()";
+
+    // THE BUG TEST:
+    // This test SHOULD FAIL on the buggy develop branch because
+    // captured_reap_dts_ will be 0 instead of a proper audio timestamp (72702)
+    EXPECT_GT(mock_segment->captured_reap_dts_, 0u)
+        << "Bug #4594: on_unpublish() resulted in reap(dts=0) for audio-only stream! "
+        << "Expected non-zero dts (e.g., audio_dts_=" << controller.audio_dts_ << ") "
+        << "but reap() received " << mock_segment->captured_reap_dts_;
+
+    // Cleanup
+    muxer->req_ = NULL;
 }

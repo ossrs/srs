@@ -15,6 +15,7 @@
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
+#include <srs_app_hls.hpp>
 #include <srs_app_ingest.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_rtc_conn.hpp>
@@ -171,6 +172,11 @@ ISrsFragmentWindow *SrsAppFactory::create_fragment_window()
 ISrsFragmentedMp4 *SrsAppFactory::create_fragmented_mp4()
 {
     return new SrsFragmentedMp4();
+}
+
+SrsHlsM4sSegment *SrsAppFactory::create_hls_m4s_segment(ISrsFileWriter *fw)
+{
+    return new SrsHlsM4sSegment(fw);
 }
 
 ISrsIpListener *SrsAppFactory::create_tcp_listener(ISrsTcpHandler *handler)

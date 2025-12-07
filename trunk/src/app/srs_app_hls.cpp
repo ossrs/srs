@@ -426,7 +426,6 @@ SrsHlsFmp4Muxer::SrsHlsFmp4Muxer()
     segments_ = new SrsFragmentWindow();
     latest_acodec_ = SrsAudioCodecIdForbidden;
     latest_vcodec_ = SrsVideoCodecIdForbidden;
-    sequence_header_ = false;
     video_track_id_ = 0;
     audio_track_id_ = 0;
     init_mp4_ready_ = false;
@@ -796,13 +795,8 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     }
 
     // new segment.
-    current_ = new SrsHlsM4sSegment(writer_);
+    current_ = app_factory_->create_hls_m4s_segment(writer_);
     current_->sequence_no_ = sequence_no_++;
-
-    if (sequence_header_) {
-        current_->set_sequence_header(true);
-        sequence_header_ = false;
-    }
 
     if ((err = write_hls_key()) != srs_success) {
         return srs_error_wrap(err, "write hls key");
@@ -901,7 +895,6 @@ bool SrsHlsFmp4Muxer::is_segment_open()
 
 srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 {
-    sequence_header_ = true;
     return srs_success;
 }
 

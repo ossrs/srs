@@ -488,8 +488,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // The current writing segment.
     SrsHlsM4sSegment *current_;
 
-    bool sequence_header_;
-
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // Latest audio codec, parsed from stream.
