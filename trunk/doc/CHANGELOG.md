@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2025-12-07, Merge [#4602](https://github.com/ossrs/srs/pull/4602): HLS: Fix audio-only fMP4 playback skipping. v7.0.136 (#4602)
 * v7.0, 2025-12-06, Merge [#4604](https://github.com/ossrs/srs/pull/4604): DVR: Fix HEVC mp4 recording error. v7.0.135 (#4604)
 * v7.0, 2025-12-06, SRT: Fix peer_idle_timeout not applied to publishers and players. v7.0.134 (#4600)
 * v7.0, 2025-12-04, SRT: Enable tlpktdrop by default to prevent 100% CPU usage. v7.0.133 (#4587)
