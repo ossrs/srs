@@ -4326,6 +4326,85 @@ VOID TEST(KernelCodecTest, VideoFrameH264_BFrameDetection_EdgeCases)
     }
 }
 
+VOID TEST(KernelCodecTest, VideoFrameVideoInfoFrameHandling)
+{
+    srs_error_t err;
+
+    // Test both AVC and HEVC video codecs
+    SrsFormat format;
+    HELPER_EXPECT_SUCCESS(format.initialize());
+
+    // Test 1: AVC Video Info Frame handling with additional NALU data
+    {
+        // AVC Video Info Frame
+        // Frame type 5 (Video Info Frame) | Codec ID 7 (AVC)
+        uint8_t avc_video_info_frame[] = {
+            0x57,             // Frame type 5 (Video Info Frame) | Codec ID 7 (AVC)
+            0x01,             // AVC packet type 1 (NALU)
+            0x00, 0x00, 0x00, // Composition time 0
+            // NALU data (mock IDR frame)
+            0x00, 0x00, 0x00, 0x01, // NAL unit start code
+            0x65, 0x88, 0x84, 0x00  // IDR NALU (mock data)
+        };
+
+        // Call on_video with AVC video info frame - should not return error
+        err = format.on_video(2000, (char *)avc_video_info_frame, sizeof(avc_video_info_frame));
+        EXPECT_TRUE(err == NULL) << "Failed to handle AVC Video Info Frame with NALU data";
+
+        // Verify avc_packet_type_ is correctly set to SrsVideoAvcFrameTraitNALU (1)
+        EXPECT_TRUE(format.video_ != NULL) << "Video packet should be initialized after on_video call";
+        EXPECT_EQ(format.video_->avc_packet_type_, SrsVideoAvcFrameTraitNALU)
+            << "Expected avc_packet_type_ to be SrsVideoAvcFrameTraitNALU (1), got "
+            << format.video_->avc_packet_type_;
+
+        srs_freep(err);
+    }
+
+    // Test 2: HEVC Video Info Frame handling with coded frames
+    {
+        // HEVC Video Info Frame (enhanced RTMP format)
+        uint8_t hevc_video_info_frame[] = {
+            0xD1,                   // Frame type 5 (Video Info Frame) | Extended header flag (0x80) | Packet type 1
+            0x68, 0x76, 0x63, 0x31, // 'hvc1' FourCC (HEVC)
+            0x00, 0x00, 0x00        // Composition time 0 (for coded frames packet type)
+        };
+
+        // Call on_video with HEVC video info frame - should not return error
+        err = format.on_video(4000, (char *)hevc_video_info_frame, sizeof(hevc_video_info_frame));
+        EXPECT_TRUE(err == NULL) << "Failed to handle HEVC Video Info Frame with coded frames";
+
+        // Verify avc_packet_type_ is correctly set to SrsVideoHEVCFrameTraitPacketTypeCodedFrames (1)
+        EXPECT_TRUE(format.video_ != NULL) << "Video packet should be initialized after on_video call";
+        EXPECT_EQ(format.video_->avc_packet_type_, SrsVideoHEVCFrameTraitPacketTypeCodedFrames)
+            << "Expected avc_packet_type_ to be SrsVideoHEVCFrameTraitPacketTypeCodedFrames (1), got "
+            << format.video_->avc_packet_type_;
+
+        srs_freep(err);
+    }
+
+    // Test 3: HEVC Video Info Frame handling with coded frames X (optimized zero composition time)
+    {
+        // HEVC Video Info Frame with coded frames X (optimized)
+        uint8_t hevc_video_info_frame[] = {
+            0xD3,                  // Frame type 5 (Video Info Frame) | Extended header flag (0x80) | Packet type 3 (coded frames X)
+            0x68, 0x76, 0x63, 0x31 // 'hvc1' FourCC (HEVC)
+            // No composition time field for coded frames X (implied to be zero)
+        };
+
+        // Call on_video with HEVC video info frame - should not return error
+        err = format.on_video(7000, (char *)hevc_video_info_frame, sizeof(hevc_video_info_frame));
+        EXPECT_TRUE(err == NULL) << "Failed to handle HEVC Video Info Frame with coded frames X";
+
+        // Verify avc_packet_type_ is correctly set to SrsVideoHEVCFrameTraitPacketTypeCodedFramesX (3)
+        EXPECT_TRUE(format.video_ != NULL) << "Video packet should be initialized after on_video call";
+        EXPECT_EQ(format.video_->avc_packet_type_, SrsVideoHEVCFrameTraitPacketTypeCodedFramesX)
+            << "Expected avc_packet_type_ to be SrsVideoHEVCFrameTraitPacketTypeCodedFramesX (3), got "
+            << format.video_->avc_packet_type_;
+
+        srs_freep(err);
+    }
+}
+
 VOID TEST(KernelCodecTest, VideoFrameH265)
 {
     srs_error_t err;
