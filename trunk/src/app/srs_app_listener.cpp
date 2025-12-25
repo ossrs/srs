@@ -198,30 +198,41 @@ srs_error_t SrsUdpListener::cycle()
             return srs_error_wrap(err, "udp listener");
         }
 
-        int nread = 0;
-        sockaddr_storage from;
-        int nb_from = sizeof(from);
-        if ((nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr*)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
-            return srs_error_new(ERROR_SOCKET_READ, "udp read, nread=%d", nread);
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("%s listener: Ignore error, %s", label_.c_str(), srs_error_desc(err).c_str());
+            srs_freep(err);
         }
 
-        // Drop UDP health check packet of Aliyun SLB.
-        //      Healthcheck udp check
-        // @see https://help.aliyun.com/document_detail/27595.html
-        if (nread == 21 && buf[0] == 0x48 && buf[1] == 0x65 && buf[2] == 0x61 && buf[3] == 0x6c
-            && buf[19] == 0x63 && buf[20] == 0x6b) {
-            continue;
-        }
-
-        if ((err = handler->on_udp_packet((const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
-            return srs_error_wrap(err, "handle packet %d bytes", nread);
-        }
-        
         if (SrsUdpPacketRecvCycleInterval > 0) {
             srs_usleep(SrsUdpPacketRecvCycleInterval);
         }
     }
     
+    return err;
+}
+
+srs_error_t SrsUdpListener::do_cycle()
+{
+    srs_error_t err = srs_success;
+
+    int nread = 0;
+    sockaddr_storage from;
+    int nb_from = sizeof(from);
+    if ((nread = srs_recvfrom(lfd, buf, nb_buf, (sockaddr *)&from, &nb_from, SRS_UTIME_NO_TIMEOUT)) <= 0) {
+        return srs_error_new(ERROR_SOCKET_READ, "udp read, nread=%d", nread);
+    }
+
+    // Drop UDP health check packet of Aliyun SLB.
+    //      Healthcheck udp check
+    // @see https://help.aliyun.com/document_detail/27595.html
+    if (nread == 21 && buf[0] == 0x48 && buf[1] == 0x65 && buf[2] == 0x61 && buf[3] == 0x6c && buf[19] == 0x63 && buf[20] == 0x6b) {
+        return err;
+    }
+
+    if ((err = handler->on_udp_packet((const sockaddr *)&from, nb_from, buf, nread)) != srs_success) {
+        return srs_error_wrap(err, "handle packet %d bytes", nread);
+    }
+
     return err;
 }
 
@@ -303,21 +314,33 @@ srs_error_t SrsTcpListener::cycle()
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "tcp listener");
         }
-        
-        srs_netfd_t fd = srs_accept(lfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
-        if(fd == NULL){
-            return srs_error_new(ERROR_SOCKET_ACCEPT, "accept at fd=%d", srs_netfd_fileno(lfd));
-        }
-        
-        if ((err = srs_fd_closeexec(srs_netfd_fileno(fd))) != srs_success) {
-            return srs_error_wrap(err, "set closeexec");
-        }
-        
-        if ((err = handler->on_tcp_client(this, fd)) != srs_success) {
-            return srs_error_wrap(err, "handle fd=%d", srs_netfd_fileno(fd));
+
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("%s listener: Ignore error, %s", label_.c_str(), srs_error_desc(err).c_str());
+            srs_freep(err);
         }
     }
     
+    return err;
+}
+
+srs_error_t SrsTcpListener::do_cycle()
+{
+    srs_error_t err = srs_success;
+
+    srs_netfd_t fd = srs_accept(lfd, NULL, NULL, SRS_UTIME_NO_TIMEOUT);
+    if (fd == NULL) {
+        return srs_error_new(ERROR_SOCKET_ACCEPT, "accept at fd=%d", srs_netfd_fileno(lfd));
+    }
+
+    if ((err = srs_fd_closeexec(srs_netfd_fileno(fd))) != srs_success) {
+        return srs_error_wrap(err, "set closeexec");
+    }
+
+    if ((err = handler->on_tcp_client(this, fd)) != srs_success) {
+        return srs_error_wrap(err, "handle fd=%d", srs_netfd_fileno(fd));
+    }
+
     return err;
 }
 
