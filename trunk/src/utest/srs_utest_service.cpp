@@ -1574,3 +1574,117 @@ VOID TEST(ThreadCriticalTest, FailIfCloseActiveFD)
     h.fd = NULL;
 }
 
+class MockFailedTcpHandler : public ISrsTcpHandler
+{
+public:
+	int connection_count;
+public:
+	MockFailedTcpHandler() {
+        connection_count = 0;
+	}
+	virtual ~MockFailedTcpHandler() {
+	}
+public:
+    virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
+    {
+        srs_close_stfd(stfd);
+        connection_count++;
+        return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "Intentional failure for testing error handling");
+    }
+};
+
+VOID TEST(TCPServerTest, ListenerContinuesToAcceptAfterError)
+{
+    srs_error_t err;
+
+    MockFailedTcpHandler h;
+    SrsTcpListener l(&h);
+    l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
+
+    HELPER_EXPECT_SUCCESS(l.listen());
+
+    // Simulate multiple failed connection attempts
+    const int num_attempts = 3;
+    for (int i = 0; i < num_attempts; i++)
+    {
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        ASSERT_TRUE(sockfd > 0);
+
+        struct sockaddr_in server_addr;
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_addr.s_addr = inet_addr(_srs_tmp_host.c_str());
+        server_addr.sin_port = htons(_srs_tmp_port);
+
+        int ret = connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+        ASSERT_TRUE(ret == 0);
+
+        close(sockfd);
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS); // Wait for listener to process the connection
+    }
+
+    EXPECT_EQ(h.connection_count, num_attempts);
+
+    l.close();
+
+}
+
+class MockFailedUdpHandler : public ISrsUdpHandler
+{
+public:
+    int packet_count;
+
+public:
+    MockFailedUdpHandler()
+    {
+        packet_count = 0;
+    }
+    virtual ~MockFailedUdpHandler()
+    {
+    }
+
+public:
+    virtual srs_error_t on_udp_packet(const sockaddr *from, const int fromlen, char *buf, int nb_buf)
+    {
+        packet_count++;
+        return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "Intentional failure for testing UDP error handling");
+    }
+};
+
+VOID TEST(UDPServerTest, ListenerContinuesToReceiveAfterError)
+{
+    srs_error_t err;
+
+    MockFailedUdpHandler h;
+    SrsUdpListener l(&h);
+    l.set_endpoint(_srs_tmp_host, _srs_tmp_port);
+
+    HELPER_EXPECT_SUCCESS(l.listen());
+
+    // Create a UDP socket to send packets to the listener
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    ASSERT_TRUE(sockfd > 0);
+
+    struct sockaddr_in server_addr;
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr(_srs_tmp_host.c_str());
+    server_addr.sin_port = htons(_srs_tmp_port);
+
+    // Send multiple failed packet attempts
+    const int num_attempts = 3;
+    const char *test_data = "test data";
+    int data_len = strlen(test_data);
+    for (int i = 0; i < num_attempts; i++)
+    {
+        int ret = sendto(sockfd, test_data, data_len, 0, (struct sockaddr *)&server_addr, sizeof(server_addr));
+        ASSERT_TRUE(ret == data_len);
+
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS); // Wait for listener to process the packet
+    }
+
+    EXPECT_EQ(h.packet_count, num_attempts);
+
+    close(sockfd);
+    l.close();
+}
