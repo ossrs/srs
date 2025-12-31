@@ -2717,13 +2717,10 @@ srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
 // LCOV_EXCL_START
 void SrsHls::dispose()
 {
-    // We disabled the reload, so HLS will not be enabled by reloading.
-    // As a result, if HLS is disabled, we don't need to dispose.
-    if (!enabled_) {
-        return;
+    // Call on_unpublish only if still enabled to avoid duplicate calls.
+    if (enabled_) {
+        on_unpublish();
     }
-
-    on_unpublish();
 
     // Ignore when hls_dispose disabled.
     // @see https://github.com/ossrs/srs/issues/865
@@ -2732,6 +2729,7 @@ void SrsHls::dispose()
         return;
     }
 
+    // Always dispose files when hls_dispose timeout occurs, even if already unpublished.
     controller_->dispose();
 }
 // LCOV_EXCL_STOP

@@ -886,13 +886,10 @@ SrsDash::~SrsDash()
 
 void SrsDash::dispose()
 {
-    // We disabled the reload, so DASH will not be enabled by reloading.
-    // As a result, if DASH is disabled, we don't need to dispose.
-    if (!enabled_) {
-        return;
+    // Call on_unpublish only if still enabled to avoid duplicate calls.
+    if (enabled_) {
+        on_unpublish();
     }
-
-    on_unpublish();
 
     // Ignore when dash_dispose disabled.
     srs_utime_t dash_dispose = config_->get_dash_dispose(req_->vhost_);
@@ -900,6 +897,7 @@ void SrsDash::dispose()
         return;
     }
 
+    // Always dispose files when dash_dispose timeout occurs, even if already unpublished.
     controller_->dispose();
 }
 
