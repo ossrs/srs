@@ -1389,6 +1389,17 @@ VOID TEST(DashTest, LifecycleInitializeDisposeCleanupDelay)
     mock_controller->on_unpublish_called_ = false;
     mock_controller->dispose_called_ = false;
 
+    // Test dispose() when not enabled but dash_dispose is non-zero - should call controller->dispose() but not on_unpublish
+    dash->enabled_ = false;
+    mock_config->dash_dispose_ = 120 * SRS_UTIME_SECONDS;
+    dash->dispose();
+    EXPECT_FALSE(mock_controller->on_unpublish_called_); // enabled is false, so on_unpublish should not be called
+    EXPECT_TRUE(mock_controller->dispose_called_); // dash_dispose is non-zero, so controller->dispose() should be called
+
+    // Reset flags for next test
+    mock_controller->on_unpublish_called_ = false;
+    mock_controller->dispose_called_ = false;
+
     // Test dispose() when enabled and dash_dispose is non-zero - should call both on_unpublish and controller->dispose()
     dash->enabled_ = true;
     mock_config->dash_dispose_ = 120 * SRS_UTIME_SECONDS;
