@@ -15,6 +15,7 @@
 #include <srs_app_dash.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_fragment.hpp>
+#include <srs_app_hls.hpp>
 #include <srs_app_rtc_api.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_statistic.hpp>

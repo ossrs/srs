@@ -311,6 +311,7 @@ public:
     bool rtc_to_rtmp_;
     srs_utime_t dash_dispose_;
     bool dash_enabled_;
+    srs_utime_t hls_dispose_;
     bool api_as_candidates_;
     bool resolve_api_domain_;
     bool keep_api_domain_;
@@ -343,6 +344,7 @@ public:
         rtc_to_rtmp_ = false;
         dash_dispose_ = 0;
         dash_enabled_ = false;
+        hls_dispose_ = 0;
         api_as_candidates_ = true;
         resolve_api_domain_ = true;
         keep_api_domain_ = false;
@@ -562,7 +564,7 @@ public:
     virtual srs_utime_t get_hls_window(std::string vhost) { return 60 * SRS_UTIME_SECONDS; }
     virtual std::string get_hls_on_error(std::string vhost) { return "continue"; }
     virtual bool get_hls_cleanup(std::string vhost) { return true; }
-    virtual srs_utime_t get_hls_dispose(std::string vhost) { return 120 * SRS_UTIME_SECONDS; }
+    virtual srs_utime_t get_hls_dispose(std::string vhost) { return hls_dispose_; }
     virtual bool get_hls_wait_keyframe(std::string vhost) { return true; }
     virtual bool get_hls_keys(std::string vhost) { return false; }
     virtual int get_hls_fragments_per_key(std::string vhost) { return 5; }

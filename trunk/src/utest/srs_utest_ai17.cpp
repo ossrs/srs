@@ -1533,6 +1533,76 @@ VOID TEST(DashTest, PublishLifecycleWithAudioVideo)
     srs_freep(mock_hub);
 }
 
+// Test SrsHls dispose behavior after disabled
+// This test covers dispose() logic when enabled_ is false but hls_dispose is configured
+VOID TEST(HlsTest, LifecycleDisposeAfterDisabled)
+{
+    srs_error_t err;
+
+    // Create SrsHls object
+    SrsUniquePtr<SrsHls> hls(new SrsHls());
+
+    // Create mock dependencies
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    MockHlsController *mock_controller = new MockHlsController();
+    MockOriginHub *mock_hub = new MockOriginHub();
+
+    // Inject mock config into SrsHls
+    hls->config_ = mock_config.get();
+
+    // Inject mock controller into SrsHls
+    srs_freep(hls->controller_);
+    hls->controller_ = mock_controller;
+
+    // Inject mock request
+    hls->req_ = mock_req.get();
+
+    // Test dispose() when not enabled and hls_dispose is 0 - should not call on_unpublish or controller->dispose()
+    mock_config->hls_dispose_ = 0;
+    hls->dispose();
+    EXPECT_EQ(0, mock_controller->on_unpublish_count_);
+    EXPECT_EQ(0, mock_controller->dispose_count_); // hls_dispose is 0, so controller->dispose() should not be called
+
+    // Test dispose() when enabled but hls_dispose is 0 - should call on_unpublish but not controller->dispose()
+    hls->enabled_ = true;
+    mock_config->hls_dispose_ = 0;
+    hls->dispose();
+    EXPECT_EQ(1, mock_controller->on_unpublish_count_);
+    EXPECT_EQ(0, mock_controller->dispose_count_); // hls_dispose is 0, so controller->dispose() should not be called
+
+    // Reset counts for next test
+    mock_controller->reset();
+
+    // Test dispose() when not enabled but hls_dispose is non-zero - should call controller->dispose() but not on_unpublish
+    hls->enabled_ = false;
+    mock_config->hls_dispose_ = 120 * SRS_UTIME_SECONDS;
+    hls->dispose();
+    EXPECT_EQ(0, mock_controller->on_unpublish_count_); // enabled is false, so on_unpublish should not be called
+    EXPECT_EQ(1, mock_controller->dispose_count_); // hls_dispose is non-zero, so controller->dispose() should be called
+
+    // Reset counts for next test
+    mock_controller->reset();
+
+    // Test dispose() when enabled and hls_dispose is non-zero - should call both on_unpublish and controller->dispose()
+    hls->enabled_ = true;
+    mock_config->hls_dispose_ = 120 * SRS_UTIME_SECONDS;
+    hls->dispose();
+
+    // Verify dispose() called on_unpublish when enabled
+    EXPECT_EQ(1, mock_controller->on_unpublish_count_);
+
+    // Verify dispose() called controller->dispose() when hls_dispose is enabled
+    EXPECT_EQ(1, mock_controller->dispose_count_);
+
+    // Clean up - set to NULL to avoid double-free
+    hls->config_ = NULL;
+    hls->controller_ = NULL;
+    hls->req_ = NULL;
+    srs_freep(mock_controller);
+    srs_freep(mock_hub);
+}
+
 // Test SrsFragmentedMp4 delegation to fragment_ member
 // This test covers the major use scenario for SrsFragmentedMp4 ISrsFragment interface delegation
 VOID TEST(FragmentedMp4Test, FragmentDelegation)
