@@ -1537,8 +1537,6 @@ VOID TEST(DashTest, PublishLifecycleWithAudioVideo)
 // This test covers dispose() logic when enabled_ is false but hls_dispose is configured
 VOID TEST(HlsTest, LifecycleDisposeAfterDisabled)
 {
-    srs_error_t err;
-
     // Create SrsHls object
     SrsUniquePtr<SrsHls> hls(new SrsHls());
 
