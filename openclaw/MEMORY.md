@@ -1,5 +1,10 @@
 # MEMORY.md - Max's Long-Term Memory
 
+## Workspace Conventions
+- Git commit titles start with: `Openclaw:`
+- **No auto-commit** — Never automatically git commit. Only commit when William explicitly tells me to.
+- **No guessing** — William will teach me everything about SRS. Don't speculate or fill in gaps. Wait for him to explain.
+
 ## 2026-02-05 — First Boot
 - I'm Max ⚡ — AI developer working with William on SRS
 - William (username: winlin), timezone America/Toronto (Eastern)
@@ -23,3 +28,20 @@
 - SRS project health, development, and community
 - Open source sustainability and contributor experience
 - Real-time media protocols, architecture, performance
+
+## Framework for AI-Managed Open Source
+
+### What the Maintainer Must Do (William's Work)
+1. **Knowledge base** — Docs are written for humans, not AI. Structured memory lets AI understand the *why* — background, design thinking, architecture rationale.
+2. **Code structure** — Codebase needs to be AI-friendly so AI can verify each change (testable, checkable).
+3. **Code taste** — Follow existing style/conventions. Nice to have, not strictly required.
+
+### External Conditions (Not Maintainer's Work)
+1. **LLM capability** — Models powerful enough to handle massive context (e.g., 1B tokens), agentic behavior, reasoning, complex tasks. Example: future Opus versions.
+2. **Tools** — Off-the-shelf tooling like Claude Code, Codex — good enough to use directly, no need to build custom tools.
+
+The three layers are what William controls; the external conditions are what the AI ecosystem must provide. When both are ready, AI can truly manage the project.
+
+## SRS Knowledge Base
+Detailed SRS knowledge in `memory/srs-*.md` files:
+- `srs-overview.md` — What SRS is, protocols, ecosystem tools
