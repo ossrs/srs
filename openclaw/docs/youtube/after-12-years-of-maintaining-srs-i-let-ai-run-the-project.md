@@ -1,5 +1,11 @@
 # After 12 Years of Maintaining SRS, I Let AI Run the Open Source Project
 
+- **Author:** William
+- **Published:** 2026-01-10
+- **URL:** https://youtu.be/evN70DjiwcU
+
+> ⚠️ **Note:** This is a transcript from a specific date. Information may be outdated. Do not treat as authoritative — verify against current codebase and documentation.
+
 After several months of experimentation, I found that AI — powered by Augment — can effectively manage the SRS open-source project end to end, from issues and code to testing, bug fixes, and community support.
 
 However, this does not work automatically — AI still needs proper context, including clear guidelines, correctly configured ignore files, and a repository that gathers all relevant documentation while excluding unrelated content like third-party libraries.

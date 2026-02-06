@@ -1,5 +1,11 @@
 # How I Used AI to Improve My English for Open-Source Collaboration
 
+- **Author:** William
+- **Published:** 2026-01-21
+- **URL:** https://youtu.be/P1Y1z2Zzrg0
+
+> ⚠️ **Note:** This is a transcript from a specific date. Information may be outdated. Do not treat as authoritative — verify against current codebase and documentation.
+
 As a software engineer and open-source community maintainer, English communication is essential for my daily work. For a long time, my English listening and speaking were a real bottleneck, even after working in an English environment.
 
 In early 2025, my CELPIP scores for listening and speaking were both 6, and I still depended heavily on subtitles in meetings and avoided speaking when possible. After using AI consistently for daily listening and speaking practice, my scores improved to 8, and more importantly, my real-life performance changed: I can now follow meetings without subtitles and express my ideas more naturally.

@@ -1,5 +1,7 @@
 # SRS YouTube Channel
 
+> ⚠️ **IMPORTANT FOR AI AGENTS:** Documents in this folder are transcripts from YouTube videos. They may contain outdated information, opinions that have since changed, or ideas that were later revised. **Do not use these as a reliable knowledge base.** These documents represent thoughts at a specific point in time — not current truth. Always verify against the main SRS codebase, documentation, and current project state.
+
 ## About (Official Description)
 At SRS, our goal is to create a non-profit, open-source community that makes it easy for everyone to boost their businesses using video streaming!
 

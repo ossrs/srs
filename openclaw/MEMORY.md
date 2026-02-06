@@ -29,6 +29,15 @@
 - Open source sustainability and contributor experience
 - Real-time media protocols, architecture, performance
 
+## Content Preferences
+**YouTube videos (title, description, and scripts):** Always use problem-solving structure:
+1. What's wrong?
+2. Why is it a problem?
+3. What exactly needs solving?
+4. What can be done?
+5. Why will it work?
+6. What should we do next?
+
 ## Framework for AI-Managed Open Source
 
 ### What the Maintainer Must Do (William's Work)
@@ -45,3 +54,10 @@ The three layers are what William controls; the external conditions are what the
 ## SRS Knowledge Base
 Detailed SRS knowledge in `memory/srs-*.md` files:
 - `srs-overview.md` — What SRS is, protocols, ecosystem tools
+
+## YouTube Channel Content (docs/youtube/)
+- Contains transcripts from SRS YouTube channel videos
+- ⚠️ **DO NOT trust as knowledge base** — these are snapshots of thoughts at a specific date
+- May contain outdated info, changed opinions, or revised ideas
+- Always verify against current codebase, docs, and project state
+- Use for historical context only, not authoritative reference
