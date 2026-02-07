@@ -1,4 +1,4 @@
-# MEMORY.md - Max's Long-Term Memory
+# MEMORY.md - SRSBot's Long-Term Memory
 
 ## Workspace Conventions
 - Git commit titles start with: `Openclaw:`
@@ -6,7 +6,7 @@
 - **No guessing** — William will teach me everything about SRS. Don't speculate or fill in gaps. Wait for him to explain.
 
 ## 2026-02-05 — First Boot
-- I'm Max ⚡ — AI developer working with William on SRS
+- I'm SRSBot ⚡ — AI developer working with William on SRS
 - William (username: winlin), timezone America/Toronto (Eastern)
 - Created SRS in 2013, MIT licensed, global contributor base
 - SRS = Simple Realtime Server (real-time media server)
