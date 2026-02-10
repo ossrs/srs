@@ -124,3 +124,84 @@ Which underlying transport (TCP or UDP) each protocol uses in SRS:
 - **MPEG-DASH** — TCP (HTTP-based).
 - **RTSP** — TCP. SRS only supports TCP transport (no UDP/RTP interleaved).
 - **GB28181** — TCP. PS stream over TCP.
+
+## Most Common Usage
+
+The simplest way to use SRS: publish an RTMP stream and play it.
+
+Step 1: Build and run SRS.
+
+```bash
+cd srs/trunk
+./configure && make
+./objs/srs -c conf/console.conf
+```
+
+Default config `conf/console.conf` listens on RTMP port 1935, HTTP API port 1985, HTTP server port 8080. HLS and HTTP-FLV are enabled by default.
+
+Step 2: Publish RTMP. Use FFmpeg to push a stream (a test file `doc/source.flv` is included in the repo).
+
+```bash
+ffmpeg -re -i ./doc/source.flv -c copy -f flv rtmp://localhost/live/livestream
+```
+
+Step 3: Play.
+
+- **RTMP** (VLC): `rtmp://localhost/live/livestream`
+- **HTTP-FLV** (browser): [http://localhost:8080/live/livestream.flv](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.flv)
+- **HLS** (browser): [http://localhost:8080/live/livestream.m3u8](http://localhost:8080/players/srs_player.html?autostart=true&stream=livestream.m3u8)
+- **WebRTC** (browser): [http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream](http://localhost:8080/players/whep.html?autostart=true)
+
+## Features
+
+About the features supported by SRS.
+
+### Protocols
+
+The streaming protocols supported by SRS.
+
+- **RTMP** — SRS is fundamentally an RTMP server. It supports publishing and playing RTMP streams, which is the core foundation of SRS. All other protocols are built on top of RTMP as the base. v1.0, 2013
+- **SRT** — SRS is also an SRT server. It supports publishing and playing SRT streams. SRS uses [libsrt](https://github.com/Haivision/srt) to create the SRT server. v4.0, 2020-01
+- **WebRTC** — SRS is also a WebRTC server, supporting WHIP for publishing and WHEP for playing streams. SRS is an SFU (Selective Forwarding Unit) server. It does not support TURN. It does not support P2P for WebRTC. v4.0, 2020-03
+- **RTSP** — SRS only supports playing RTSP streams. Currently it only supports converting RTMP to RTSP. v7.0, 2025-07
+- **HLS** — SRS supports converting RTMP to HLS. HLS is the best compatibility protocol, supported by all platforms, all browsers, and all operating systems. v1.0, 2013
+- **MPEG-DASH** — SRS supports converting RTMP to DASH. DASH is similar to HLS, but not as widely supported by platforms as HLS. v5.0, 2022-11
+- **HTTP-FLV** — SRS supports converting RTMP to HTTP-FLV. FLV is a similar protocol to RTMP. FLV is CDN friendly. However, FLV is not supported by iPhone. v2.0, 2015-01
+- **GB28181** — SRS supports publishing streams using GB28181. SRS only supports TCP transport. SRS requires an external SIP server [srs-sip](https://github.com/ossrs/srs-sip). v5.0, 2022-10
+- **Other Protocols** — Besides the commonly used protocols, SRS also supports converting RTMP to HTTP-TS (v2.0, 2015-01), publishing by MPEG-TS over UDP (v2.0, 2015-01), and publishing via HTTP POST FLV (v2.0, 2015-05). These protocols are not commonly used.
+
+### Transmuxing
+
+SRS supports transmuxing between different protocols.
+
+- **Live Source** — If a packet enters the live source, it can be delivered by RTMP, HLS, HTTP-FLV, and HTTP-TS protocols. Other features like DVR and transcode can also be enabled.
+- **SRT Source** — For SRT source, the input and output are SRT packets.
+- **RTC Source** — For RTC source, the input is WHIP and the output is WHEP.
+
+- **SRT to Live Source** — SRS supports converting SRT source to live source.
+- **RTC to Live Source** — SRS supports converting RTC source to live source.
+- **Live to RTC Source** — SRS supports converting live source to RTC source.
+
+By default, transmuxing between sources is disabled. You need to enable it in the config.
+
+### Clustering
+
+- **Origin Cluster** — Used to extend the number of streams SRS can support. It is a cluster of multiple origin servers behind a proxy server. The proxy discovers which origin server a stream is on and routes to it. v3.0, 2018-02
+- **Edge Cluster** — The edge cluster of SRS is deprecated because it only supports the RTMP protocol. v1.0, 2014-04
+- **HLS Cluster** — Built by Nginx. It is a type of edge cluster for HLS. v5.0, 2022-04
+
+### Maintenance
+
+- **HTTP API** — You can query the system status like streams and stream details. You can also use the HTTP API to kick off streams and manage streams. v1.0, 2014-04
+- **Log** — SRS provides traceable log. Traceable log means you can trace a stream from edge to origin, from one server to another, from source to consumer. v1.0, 2014-05
+- **Prometheus Exporter** — SRS supports a Prometheus exporter. You can export the status of SRS to Prometheus, allowing you to pull the statistics of SRS into Prometheus. It is a very convenient and powerful feature. v5.0, 2022-09
+- **HTTP Callback** — Allows you to listen and handle events, for example publish or play events. You can authenticate clients and reject publishers if you want. v2.0, 2014-02
+
+### Others
+
+- **Ingest** — A feature that uses FFmpeg to pull streams into SRS. v1.0, 2014-04
+- **Forward** — SRS can forward streams to other servers. You can also use FFmpeg to forward streams from SRS to other servers. v1.0, 2013
+- **Transcode** — SRS uses FFmpeg to transcode streams, especially video and audio to different codecs and sizes. v1.0, 2014-04
+- **DVR** — SRS supports recording streams to files. You can use these files as VOD (Video on Demand). You can also use FFmpeg to pull streams from SRS and DVR to file. Besides this, HLS is in fact also a DVR feature. v1.0, 2014-04
+- **Security** — SRS supports IP allow list and deny list. You can also use HTTP callback as a security feature for authentication and verification. v2.0, 2015-01
+
