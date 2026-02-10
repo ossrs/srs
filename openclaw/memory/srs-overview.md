@@ -205,3 +205,66 @@ By default, transmuxing between sources is disabled. You need to enable it in th
 - **DVR** — SRS supports recording streams to files. You can use these files as VOD (Video on Demand). You can also use FFmpeg to pull streams from SRS and DVR to file. Besides this, HLS is in fact also a DVR feature. v1.0, 2014-04
 - **Security** — SRS supports IP allow list and deny list. You can also use HTTP callback as a security feature for authentication and verification. v2.0, 2015-01
 
+## Vision
+
+SRS was created as a personal open source project. As a software engineer, William has benefited from countless open source projects — large and small — and has always appreciated the contributions of the open source community. Creating and maintaining SRS for over a decade is his way of giving back. The history is simple: it's open source culture.
+
+SRS is a niche open source project — a media server with ~150,000 lines of code. Media servers are not used by everyone, so the user base will never be massive. This makes monetization impractical and undesirable.
+
+But small doesn't mean worthless. Even a small, niche open source project provides real value to the developers who use it and to the broader open source community and culture. The core vision of SRS is to remain a **pure open source project, with no commercial or business approach**. Attempting to monetize a niche open source project would kill its community — especially when the community is small, the project needs to stay driven by volunteers and genuine contribution.
+
+The challenge with this model has always been manpower. Volunteer-driven projects struggle to maintain consistent development and support. But AI changes this equation. AI can serve as an open source project maintainer — handling code, community support, and project health at a scale that wasn't possible before. This is the approach SRS is actively pursuing.
+
+## Ecosystem
+
+SRS is a media server, but the project also maintains several related tools. All projects are server-side — we don't maintain client-side projects like FFmpeg or WebRTC.
+
+- **srs-bench** — A benchmark tool as a separate project. It supports benchmarking protocols including RTMP, WebRTC, HTTP-FLV, HLS, and GB28181, simulating thousands of publishers and players to measure and improve SRS performance.
+- **Oryx** — An open source media server solution that integrates SRS, FFmpeg, and other media tools. It has a web console, a Go backend, and is designed for common media server use cases. Deployed as a single-node application.
+- **state-threads** — A coroutine library that is the cornerstone of SRS. It is similar to a C version of Go's goroutine, allowing SRS to run millions of coroutines. We maintain this project as part of the SRS ecosystem.
+
+## Comparison
+
+- **Nginx-RTMP** — An Nginx module that supports RTMP and HLS. There are also Nginx modules for HTTP-FLV. However, Nginx doesn't support WebRTC or SRT, making it limited as a live streaming media server.
+- **Janus** — A WebRTC SFU (Selective Forwarding Unit). Janus is designed for WebRTC, not live streaming — it doesn't support RTMP, HLS, or SRT. Both RTMP and SRT are critical protocols in live streaming, not for delivery but for ingesting streams.
+- **Red5** — A media server similar to SRS in scope, but written in Java. Performance is significantly lower. The media streaming industry uses C/C++ — FFmpeg, WebRTC, x264, and nearly the entire ecosystem are written in C/C++. This matters for both performance and interoperability: media servers often need to link against these libraries directly, and using the same language makes integration straightforward.
+
+SRS is a professional, C++-based media server purpose-built for the live streaming industry.
+
+## Limitations
+
+- **Edge Cluster** — SRS supports origin cluster, but the edge cluster only supports RTMP. More protocols need to be supported in the edge cluster.
+- **Single-Threaded** — SRS is a single-threaded media server. There are no plans to support multi-threading — you can build a cluster to saturate all CPUs instead.
+- **Linux Only** — SRS is designed for Linux and does not support Windows natively. However, you can use WSL (Windows Subsystem for Linux) on Windows.
+- **No Commercial Support** — As a pure open source project, there is no commercial support team. We are exploring how to use AI to maintain the project and support the community.
+
+## Performance
+
+SRS is a high-performance C++ media server. Performance varies by protocol:
+
+- **RTMP / HTTP-FLV** — Supports thousands of concurrent publishers and players. TCP-based protocols have the best performance.
+- **WebRTC** — Supports hundreds of publishers and players. With audio transcoding (e.g., AAC↔Opus), only dozens of connections. UDP-based, so lower throughput than TCP protocols.
+- **SRT** — Performance is determined by [libsrt](https://github.com/Haivision/srt). Supports several hundred connections. Also UDP-based.
+
+In general, UDP-based protocols (WebRTC, SRT) have lower performance than TCP-based protocols (RTMP, HTTP-FLV). SRS focuses on being a dedicated media server — it's not overly complicated, and performance is refined and improved with each version.
+
+## Configuration
+
+SRS uses both config files and environment variables to configure features.
+
+### Config Files
+
+Config files are in the `conf/` folder. Key files:
+
+- **conf/full.conf** — Contains all configurations SRS supports. This is a reference/document — do not use it directly.
+- **conf/srs.conf** — The default configuration. Enables some features but not all. Enable specific features by using or modifying the relevant config.
+- **conf/docker.conf** — Used for Docker deployment. Has special settings (e.g., no daemon mode).
+- **conf/console.conf** — Used for debugging or testing in the console.
+- Other files exist for specific features like clustering, DVR, or different protocols.
+
+### Environment Variables
+
+SRS also supports configuration via environment variables. This is especially useful for Docker and cloud-native deployments — you can set environment variables in YAML files or other platforms without needing a separate config file. 
+
+It's convenient to copy and paste, making documentation clearer. In the SRS docs, environment variables are often used to show how to run SRS with different configurations.
+
