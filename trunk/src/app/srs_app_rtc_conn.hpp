@@ -622,7 +622,7 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuffer *buf);
-    void update_rtp_packet_stats(bool is_audio);
+    void update_rtp_packet_stats(SrsRtpPacket *pkt, SrsRtcRecvTrack *track, bool is_audio);
 
 public:
     srs_error_t check_send_nacks();

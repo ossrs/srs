@@ -1687,7 +1687,7 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
     }
 
     // Update RTP packet statistics.
-    update_rtp_packet_stats(is_audio);
+    update_rtp_packet_stats(pkt, track, is_audio);
 
     // Consume packet by track.
     if ((err = track->on_rtp(source_, pkt)) != srs_success) {
@@ -1709,19 +1709,25 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
     return err;
 }
 
-void SrsRtcPublishStream::update_rtp_packet_stats(bool is_audio)
+void SrsRtcPublishStream::update_rtp_packet_stats(SrsRtpPacket *pkt, SrsRtcRecvTrack *track, bool is_audio)
 {
     srs_error_t err = srs_success;
 
-    // Count RTP packets for statistics.
+    // Count audio packets and video frames for statistics.
+    bool is_primary_ssrc = track && pkt->header_.get_ssrc() == track->get_ssrc();
+    if (!is_primary_ssrc) {
+        return;
+    }
+
     if (is_audio) {
         ++nn_audio_frames_;
-    } else {
+    } else if (pkt->header_.get_marker()) {
         ++nn_video_frames_;
     }
 
-    // Update the stat for video frames, counting RTP packets as frames.
-    if (nn_video_frames_ > 288) {
+    // Update the stat for video frames. Note that for WebRTC, a video frame may be
+    // fragmented into multiple RTP packets, so we count frames by RTP marker bit.
+    if (nn_video_frames_ > 30) {
         if ((err = stat_->on_video_frames(req_, nn_video_frames_)) != srs_success) {
             srs_warn("RTC: stat video frames err %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -1730,7 +1736,7 @@ void SrsRtcPublishStream::update_rtp_packet_stats(bool is_audio)
     }
 
     // Update the stat for audio frames periodically.
-    if (nn_audio_frames_ > 288) {
+    if (nn_audio_frames_ > 50) {
         if ((err = stat_->on_audio_frames(req_, nn_audio_frames_)) != srs_success) {
             srs_warn("RTC: stat audio frames err %s", srs_error_desc(err).c_str());
             srs_freep(err);
