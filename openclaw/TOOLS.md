@@ -35,6 +35,12 @@ Things like:
 
 Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
 
+### Telegram
+
+- Channel: `telegram`, accountId: `srs` (SRS bot)
+- William's chat ID: `7811218234`
+- When sending to William's Telegram: `channel: "telegram"`, `accountId: "srs"`, `target: "7811218234"`
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.

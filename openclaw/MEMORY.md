@@ -51,6 +51,13 @@
 
 The three layers are what William controls; the external conditions are what the AI ecosystem must provide. When both are ready, AI can truly manage the project.
 
+## Ideas Capture
+- When William shares isolated/separate ideas, save them to `docs/ideas.md`
+- This is for **rudimentary, temporary, brainstorm-level** ideas — not mature ones
+- Mature/specific topics go to their proper place (YouTube stuff → `docs/youtube/`, SRS knowledge → `memory/srs-*.md`)
+- `docs/ideas.md` is the scratch pad for early-stage thinking that doesn't belong anywhere else yet
+- Ideas may grow into major features or directions over time
+
 ## SRS Knowledge Base
 Detailed SRS knowledge in `memory/srs-*.md` files:
 - `srs-overview.md` — What SRS is, protocols, ecosystem tools, and **Features section** with all SRS features, versions, and dates

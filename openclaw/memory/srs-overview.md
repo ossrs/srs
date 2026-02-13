@@ -24,7 +24,7 @@ SRS is a **simple, high-efficiency, real-time media server**. It receives stream
 └────────────────────────────────────────────────────────────────----─┘
 ```
 
-### Publishers
+**Publishers:**
 
 - **FFmpeg** — Command-line tool for encoding/transcoding. Pushes RTMP, SRT, WHIP (WebRTC), etc.
 - **OBS (Open Broadcaster Software)** — Popular open-source streaming app. Pushes RTMP, SRT, WHIP (WebRTC).
@@ -34,7 +34,7 @@ SRS is a **simple, high-efficiency, real-time media server**. It receives stream
 - **Browsers** — Via WHIP (WebRTC).
 - **Apps** — Custom apps using RTMP/SRT/WebRTC SDKs.
 
-### Players
+**Players:**
 
 - **VLC** — Cross-platform media player. Plays RTMP, SRT, HLS, HTTP-FLV, RTSP.
 - **FFmpeg** — Command-line tool. Plays RTMP, SRT, HLS, HTTP-FLV (all protocols except WHEP).
@@ -46,7 +46,7 @@ SRS is a **simple, high-efficiency, real-time media server**. It receives stream
 - **Hardware decoders** — Set-top boxes, smart TVs, etc. Play HLS, RTMP.
 - **Apps** — Custom apps using player SDKs.
 
-### Tools
+**Tools:**
 
 - **FFmpeg** — https://ffmpeg.org
 - **OBS** — https://obsproject.com
@@ -83,23 +83,23 @@ SRS converts directly between protocols.
 
 ## Codecs
 
-### Video Codecs
+**Video Codecs:**
 
 - **H.264/AVC** — Core video codec, supported since v0.2 (2013). Works across all protocols: RTMP, HLS, HTTP-FLV, HTTP-TS, SRT, WebRTC, MPEG-DASH, GB28181, DVR.
 - **H.265/HEVC** — Supported since v6.0 via Enhanced RTMP. Works across RTMP, HTTP-FLV, HTTP-TS, HLS (including fMP4/LLHLS in v7.0), MPEG-DASH, SRT, GB28181, DVR (MP4/FLV). WebRTC HEVC supported in v7.0 (RTMP↔WebRTC conversion, Safari playback).
 - **AV1** — [Experimental] WebRTC only, v4.0.207+.
 - **VP9** — WebRTC-to-WebRTC streaming only, v7.0.123+.
 
-### Audio Codecs
+**Audio Codecs:**
 
 - **AAC** — Core audio codec, supported since v1.0. Works across all protocols: RTMP, HLS, HTTP-FLV, HTTP-TS, SRT, MPEG-DASH, GB28181, DVR. Transcoded to Opus for WebRTC output.
 - **MP3** — Supported for HLS (H.264+MP3), HTTP-FLV/TS, DVR. v1.0+. Transcoded to Opus for WebRTC output.
 - **Opus** — WebRTC native audio codec, v4.0+. Transcoded to AAC for RTMP output. SRS includes built-in AAC↔Opus transcoding.
 - **G.711 (PCMU/PCMA)** — WebRTC audio codec, v7.0.124+.
 
-### Audio Codec Support — Only AAC, MP3, and Opus are supported (v7.0.102+). Other audio codecs are rejected.
+Only AAC, MP3, and Opus are supported (v7.0.102+). Other audio codecs are rejected.
 
-### Codec Transcoding (Built-in)
+**Codec Transcoding (Built-in):**
 
 - **AAC to Opus** — Automatic when converting RTMP/SRT to WebRTC (`rtmp_to_rtc on`).
 - **Opus to AAC** — Automatic when converting WebRTC to RTMP (`rtc_to_rtmp on`).
@@ -107,9 +107,7 @@ SRS converts directly between protocols.
 
 Audio transcoding uses FFmpeg's libavcodec API (linked as a library), not an external FFmpeg process. No built-in video transcoding — SRS transmuxes video without re-encoding. Use external FFmpeg for video transcoding.
 
-### RTSP Output Codec Limitation
-
-SRS RTSP output (`rtmp_to_rtsp on`) only supports **H.264 + AAC**, even though the RTSP protocol itself supports many more codecs. This is an SRS implementation limitation, not a protocol limitation.
+**RTSP Output Codec Limitation:** SRS RTSP output (`rtmp_to_rtsp on`) only supports **H.264 + AAC**, even though the RTSP protocol itself supports many more codecs. This is an SRS implementation limitation, not a protocol limitation.
 
 ## Transport
 
@@ -156,9 +154,7 @@ Step 3: Play.
 
 About the features supported by SRS.
 
-### Protocols
-
-The streaming protocols supported by SRS.
+**Protocols** — The streaming protocols supported by SRS.
 
 - **RTMP** — SRS is fundamentally an RTMP server. It supports publishing and playing RTMP streams, which is the core foundation of SRS. All other protocols are built on top of RTMP as the base. v1.0, 2013
 - **SRT** — SRS is also an SRT server. It supports publishing and playing SRT streams. SRS uses [libsrt](https://github.com/Haivision/srt) to create the SRT server. v4.0, 2020-01
@@ -170,9 +166,7 @@ The streaming protocols supported by SRS.
 - **GB28181** — SRS supports publishing streams using GB28181. SRS only supports TCP transport. SRS requires an external SIP server [srs-sip](https://github.com/ossrs/srs-sip). v5.0, 2022-10
 - **Other Protocols** — Besides the commonly used protocols, SRS also supports converting RTMP to HTTP-TS (v2.0, 2015-01), publishing by MPEG-TS over UDP (v2.0, 2015-01), and publishing via HTTP POST FLV (v2.0, 2015-05). These protocols are not commonly used.
 
-### Transmuxing
-
-SRS supports transmuxing between different protocols.
+**Transmuxing** — SRS supports transmuxing between different protocols.
 
 - **Live Source** — If a packet enters the live source, it can be delivered by RTMP, HLS, HTTP-FLV, and HTTP-TS protocols. Other features like DVR and transcode can also be enabled.
 - **SRT Source** — For SRT source, the input and output are SRT packets.
@@ -184,20 +178,20 @@ SRS supports transmuxing between different protocols.
 
 By default, transmuxing between sources is disabled. You need to enable it in the config.
 
-### Clustering
+**Clustering:**
 
 - **Origin Cluster** — Used to extend the number of streams SRS can support. It is a cluster of multiple origin servers behind a proxy server. The proxy discovers which origin server a stream is on and routes to it. v3.0, 2018-02
 - **Edge Cluster** — The edge cluster of SRS is deprecated because it only supports the RTMP protocol. v1.0, 2014-04
 - **HLS Cluster** — Built by Nginx. It is a type of edge cluster for HLS. v5.0, 2022-04
 
-### Maintenance
+**Maintenance:**
 
 - **HTTP API** — You can query the system status like streams and stream details. You can also use the HTTP API to kick off streams and manage streams. v1.0, 2014-04
 - **Log** — SRS provides traceable log. Traceable log means you can trace a stream from edge to origin, from one server to another, from source to consumer. v1.0, 2014-05
 - **Prometheus Exporter** — SRS supports a Prometheus exporter. You can export the status of SRS to Prometheus, allowing you to pull the statistics of SRS into Prometheus. It is a very convenient and powerful feature. v5.0, 2022-09
 - **HTTP Callback** — Allows you to listen and handle events, for example publish or play events. You can authenticate clients and reject publishers if you want. v2.0, 2014-02
 
-### Others
+**Others:**
 
 - **Ingest** — A feature that uses FFmpeg to pull streams into SRS. v1.0, 2014-04
 - **Forward** — SRS can forward streams to other servers. You can also use FFmpeg to forward streams from SRS to other servers. v1.0, 2013
@@ -231,6 +225,39 @@ SRS is a media server, but the project also maintains several related tools. All
 
 SRS is a professional, C++-based media server purpose-built for the live streaming industry.
 
+## Dependencies
+
+SRS is a media server focused on **transmuxing** — converting between protocols without changing the codec. For example, publishing RTMP with H.264 and delivering it as HTTP-FLV, HLS, MPEG-DASH, or WebRTC, all in H.264. Transmuxing means repackaging the media stream into a different protocol format, not re-encoding.
+
+**SRS implements almost all protocol code itself** — RTMP, HLS, MPEG-DASH, MP4, HTTP-FLV, HTTP-TS, WebRTC. The goal is to keep as much code as possible in a single repository, which is easier to maintain — especially with AI. Depending on many third-party projects across different repositories makes maintenance harder.
+
+Despite the goal of self-contained code, SRS does use some third-party libraries (all MIT-compatible licenses):
+
+- **libsrt** — SRT protocol implementation by Haivision. SRS plans to rewrite this protocol stack with AI in the future.
+- **FFmpeg libavcodec** — Used for audio codec transcoding (AAC ↔ Opus). Live streaming commonly uses AAC, while WebRTC uses Opus. Communication systems (SIP, telecom) often use G.711. SRS needs to transcode between these audio codecs, and uses FFmpeg's codec library for this.
+- **OpenSSL** — Used for HTTPS and WebRTC DTLS.
+- **libsrtp** — Developed by Cisco, used to encrypt/decrypt RTP packets for WebRTC.
+- **state-threads (ST)** — Coroutine library used for SRS's server architecture. SRS plans to rewrite this with AI in the future.
+- **JSON parser** — Third-party JSON parsing library.
+
+The long-term goal is to rewrite as many dependencies as possible into SRS itself, using AI. Protocols like SRT and server libraries like state-threads are candidates for rewriting. Crypto libraries (OpenSSL, libsrtp) and codec libraries are not planned for rewriting — they are too specialized and security-sensitive. Having all code in a single repository makes it more stable and easier for AI to maintain.
+
+## Community
+
+SRS has an open source community, but it is not a highly active one. There are several reasons for this.
+
+Most maintainers are based in China — William worked in China for about 15–17 years, so most contributors are friends and colleagues from that time. After moving to Canada, he expanded connections with developers worldwide, especially in North America, but the community remains small.
+
+The media server space is a niche industry. Not many developers need a media server — unlike client-side tools like FFmpeg or WebRTC that everyone uses, media servers serve a smaller audience. And when commercial media services exist, even fewer people build their own. This limits the size of any open source media server community, not just SRS.
+
+SRS has been developed for over 13 years and has accumulated many useful features. But there is still a lot of work to do — many features to add, bugs to fix, and improvements to make. The project is maintained by volunteers with limited time, and development is not rapid.
+
+**AI as Maintainer** — William is actively working on introducing AI as a project maintainer — not just for bug fixes or code generation, but as a full maintainer like himself. The approach is to build a comprehensive knowledge base so that AI can understand the project deeply: the architecture, design decisions, history, and community context. The goal is to have an AI maintainer within roughly six months (mid-2026). This is an experiment in using AI to maintain complex software projects — not just small ones, but projects like media servers written in C++ where you can't simply let AI generate code and push it to production. For any complex backend server or service, you need confidence that AI truly understands what it's doing before trusting it with real changes. The approach SRS is developing — building a deep knowledge base so AI can act as a real maintainer — applies broadly to any project where correctness and reliability matter.
+
+**How to Participate:**
+- **Discord** — Join the SRS Discord community for discussions and support.
+- **Monthly Community Meetings** — The community holds monthly meetings to discuss project status, AI maintainer progress, and how to use AI in open source maintenance. Everyone is welcome to join.
+
 ## Limitations
 
 - **Edge Cluster** — SRS supports origin cluster, but the edge cluster only supports RTMP. More protocols need to be supported in the edge cluster.
@@ -252,8 +279,6 @@ In general, UDP-based protocols (WebRTC, SRT) have lower performance than TCP-ba
 
 SRS uses both config files and environment variables to configure features.
 
-### Config Files
-
 Config files are in the `conf/` folder. Key files:
 
 - **conf/full.conf** — Contains all configurations SRS supports. This is a reference/document — do not use it directly.
@@ -262,9 +287,5 @@ Config files are in the `conf/` folder. Key files:
 - **conf/console.conf** — Used for debugging or testing in the console.
 - Other files exist for specific features like clustering, DVR, or different protocols.
 
-### Environment Variables
-
-SRS also supports configuration via environment variables. This is especially useful for Docker and cloud-native deployments — you can set environment variables in YAML files or other platforms without needing a separate config file. 
-
-It's convenient to copy and paste, making documentation clearer. In the SRS docs, environment variables are often used to show how to run SRS with different configurations.
+SRS also supports configuration via environment variables. This is especially useful for Docker and cloud-native deployments — you can set environment variables in YAML files or other platforms without needing a separate config file. It's convenient to copy and paste, making documentation clearer. In the SRS docs, environment variables are often used to show how to run SRS with different configurations.
 
