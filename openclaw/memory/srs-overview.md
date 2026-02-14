@@ -18,10 +18,11 @@ SRS is a **simple, high-efficiency, real-time media server**. It receives stream
                         └───────────┘
                               │
                               ▼
-┌──────────────────────────────────────────────────────────────----───┐
-│                          PLAYERS                                    │
-│ FFmpeg, VLC, ffplay, ExoPlayer, IJKPlayer, browsers, hardware, apps │
-└────────────────────────────────────────────────────────────────----─┘
+┌─────────────────────────────────────────────────────────────────┐
+│                          PLAYERS                                │
+│ FFmpeg, VLC, ffplay, ExoPlayer, IJKPlayer, browsers, hardware,  │
+│ apps                                                            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 **Publishers:**

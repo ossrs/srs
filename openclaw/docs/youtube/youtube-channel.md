@@ -18,7 +18,7 @@ Official YouTube channel for the SRS open source project, covering:
 2. **AI-assisted development** — Research on using AI to manage open source projects
 
 ## Meta-Purpose
-The channel documents William training an AI (Max) with his knowledge base. This serves as:
+The channel documents William training an AI (SRSBot) with his knowledge base. This serves as:
 - Proof-of-concept for AI-managed open source
 - Educational content showing how AI can learn and teach a complex project
 - A model for scaling maintainer expertise across a community

@@ -34,7 +34,7 @@ AI supported this process, but not by translating everything. I tried to avoid d
 
 For content I found especially interesting, I combined extensive and intensive listening. I listened first for overall meaning, then revisited parts with subtitles or AI assistance. Because the topic already made sense, details became easier to absorb without frustration.
 
-Over time, listening stopped feeling like training and became a nature habit. I was no longer practicing English; I was simply listening to things I wanted to understand. The biggest value of AI was not intelligence or accuracy, but patience. It allowed me to stay in English longer, with less stress, until my listening ability finally caught up.
+Over time, listening stopped feeling like training and became a natural habit. I was no longer practicing English; I was simply listening to things I wanted to understand. The biggest value of AI was not intelligence or accuracy, but patience. It allowed me to stay in English longer, with less stress, until my listening ability finally caught up.
 
 ## How I Used AI to Break Through My Speaking Barrier
 
