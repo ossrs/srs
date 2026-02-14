@@ -38,8 +38,7 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 ### Telegram
 
 - Channel: `telegram`, accountId: `srs` (SRS bot)
-- William's chat ID: `7811218234`
-- When sending to William's Telegram: `channel: "telegram"`, `accountId: "srs"`, `target: "7811218234"`
+- When sending to William's Telegram: `channel: "telegram"`, `accountId: "srs"`
 
 ---
 
