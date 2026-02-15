@@ -1,8 +1,8 @@
 # SRS Coroutines
 
-SRS uses **State Threads (ST)** — a C++ coroutine library that provides lightweight threads. It is the cornerstone of SRS's architecture.
+SRS uses **State Threads (ST)** — a C coroutine library that provides lightweight user-space threads. It is the cornerstone of SRS's architecture.
 
-**Key insight:** ST gives SRS the programming model of Go (one coroutine per connection, sequential code, state in local variables) but in C++. It's essentially a C++ version of Go's concurrency model.
+**Key insight:** ST gives SRS the programming model of Go (one coroutine per connection, sequential code, state in local variables) but in C/C++. It's essentially a C implementation of Go's concurrency model, used by SRS's C++ codebase.
 
 This is why the code is maintainable despite handling thousands of concurrent connections — each connection handler reads like a simple sequential function.
 
@@ -29,7 +29,7 @@ Now multiply by thousands of connections. You need to serve one, switch to anoth
 - Lightweight threads in user space — same benefits as OS threads (local variables, call stacks, natural state storage) but without the OS overhead
 - Each connection gets its own coroutine with its own stack
 - Code reads like simple sequential logic (like OS threads) but performs like async
-- **This is what Go does with goroutines. SRS does the same thing in C++ using the State Threads (ST) library.**
+- **This is what Go does with goroutines. SRS does the same thing using the State Threads (ST) library — a C library used by SRS's C++ codebase.**
 
 ## How Coroutine Switching Works
 
@@ -39,13 +39,15 @@ When serving a connection, you can't just call a function to switch to another c
 
 This is the same concept as OS thread context switching, but:
 - **OS thread switch:** heavy, involves kernel, expensive
-- **Coroutine switch:** user-space only, just save/restore registers via function jumps (e.g., `setjmp`/`longjmp` or similar), very cheap
+- **Coroutine switch:** user-space only, just save/restore registers, very cheap
+
+ST originally used libc's `setjmp`/`longjmp` for context switching. But glibc later started encrypting (mangling) the saved context for security, making it impossible to manipulate the stack pointer from user code. So ST had to reimplement setjmp/longjmp in pure assembly — that's what `_st_md_cxt_save`/`_st_md_cxt_restore` are. They do exactly what setjmp/longjmp do (save and restore callee-saved registers, stack pointer, and program counter) but without glibc's encryption, giving ST full control over coroutine stacks.
 
 To implement this, you need to understand how function calls work at the CPU level — registers, stack pointers, program counters. The coroutine library handles all of this so application code never has to think about it.
 
 ## ST Library Origin and Design
 
-State Threads is derived from Netscape Portable Runtime (NSPR), reduced from 400+ source files to just 8. It's not a general-purpose threading library — it specifically targets Internet Applications (servers that are network I/O driven).
+State Threads is derived from Netscape Portable Runtime (NSPR). It's not a general-purpose threading library — it specifically targets Internet Applications (servers that are network I/O driven).
 
 Key design properties:
 - **Deterministic scheduling:** Context switch can only happen at I/O points or explicit synchronization points — never preemptive, never time-sliced
@@ -55,9 +57,9 @@ Key design properties:
 
 SRS maintains the fork at `ossrs/state-threads` (branch `srs`), continuously updating it to support modern CPUs and OSes including Linux, macOS, Windows, and architectures like x86_64, ARMv7, AARCH64, Apple M1, RISC-V, LoongArch, and MIPS.
 
-## The Burden: Maintaining a C++ Coroutine Library
+## The Burden: Maintaining a C Coroutine Library
 
-Coroutines are a fantastic idea for a C++ media server, but unlike Go (where goroutines are built into the language and runtime), **C++ has no standard coroutine library for this model**. (Note: C++20 co_await/co_yield is a different mechanism — not the same as user-space threads with full stacks.)
+Coroutines are a fantastic idea for a media server, but unlike Go (where goroutines are built into the language and runtime), **C/C++ has no standard coroutine library for this model**. (Note: C++20 co_await/co_yield is a different mechanism — not the same as user-space threads with full stacks.)
 
 **Platform Support Matrix**
 The coroutine switch must be implemented in **assembly language per CPU architecture**: ARM, ARMv8/AArch64, x86_64, MIPS — each has different register conventions. Multiply by OS (Linux, macOS, Windows) and you get a support matrix that is a maintenance burden.
@@ -73,11 +75,10 @@ Nobody else actively maintains this library — SRS must maintain it ourselves. 
 - **Result:** SRS 6 removed Windows support because SRT + coroutines couldn't coexist on Windows
 
 **Toolchain Gap**
-Go provides built-in tools: goroutine stack traces, scheduling profilers, debuggers that understand goroutines. With ST coroutines:
-- No built-in scheduler visualization
+Go provides built-in tools: goroutine stack traces, scheduling profilers, debuggers that understand goroutines. ST has a simple coroutine scheduler driven by I/O events and timers (not an OS thread scheduler), and includes basic `DEBUG_STATS` instrumentation (scheduler timing distribution, thread run/idle/yield counts, per-I/O-call and EAGAIN stats, epoll dispatch stats). But compared to Go's tooling:
 - No standard debugging tools that understand coroutine stacks
-- No performance analysis tools for coroutine scheduling
-- Everything must be built from scratch
+- No high-level performance analysis or visualization for coroutine scheduling
+- Instrumentation exists but is basic counters, not integrated tooling
 
 **Debugging and Profiling Limitations**
 - `perf -g` (stack traces) does not work with ST because ST modifies the stack pointer (SP), breaking frame pointer-based stack walking
