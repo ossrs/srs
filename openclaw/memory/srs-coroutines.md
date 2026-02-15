@@ -1,5 +1,11 @@
 # SRS Coroutines
 
+SRS uses **State Threads (ST)** — a C++ coroutine library that provides lightweight threads. It is the cornerstone of SRS's architecture.
+
+**Key insight:** ST gives SRS the programming model of Go (one coroutine per connection, sequential code, state in local variables) but in C++. It's essentially a C++ version of Go's concurrency model.
+
+This is why the code is maintainable despite handling thousands of concurrent connections — each connection handler reads like a simple sequential function.
+
 ## Why a Media Server Needs to Manage State per Connection
 
 A media server must serve many connections simultaneously — thousands of RTMP, HTTP, WebRTC clients at once. Each connection has **state**: handshake data, protocol parameters, stream URLs, buffers. This state lives in local variables and function call stacks.
@@ -101,11 +107,3 @@ In SRS 5.0, StateThreads were restructured to support thread-local functionality
 If Proxy continues to enhance its capabilities, encompassing various protocols and Edge functionality, it will gradually evolve into a Proxy+Origin cluster, fully resolving the multi-threading challenge.
 
 Additionally, we explored another potential architecture where specific capabilities are distributed across different threads, like using separate threads for WebRTC encryption and decryption. However, this approach transforms into a typical multi-threaded program rather than a thread-local architecture, resulting in performance overhead from locks and reduced stability — not an ideal direction.
-
-## SRS and State Threads
-
-SRS uses **State Threads (ST)** — a C++ coroutine library that provides lightweight threads. It is the cornerstone of SRS's architecture.
-
-**Key insight:** ST gives SRS the programming model of Go (one coroutine per connection, sequential code, state in local variables) but in C++. It's essentially a C++ version of Go's concurrency model.
-
-This is why the code is maintainable despite handling thousands of concurrent connections — each connection handler reads like a simple sequential function.

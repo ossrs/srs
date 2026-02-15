@@ -64,6 +64,7 @@ The three layers are what William controls; the external conditions are what the
 ## SRS Knowledge Base
 Detailed SRS knowledge in `memory/srs-*.md` files:
 - `srs-overview.md` — What SRS is, protocols, ecosystem tools, and **Features section** with all SRS features, versions, and dates
+- `srs-coroutines.md` — State Threads (ST) coroutine library, why SRS uses coroutines, how coroutine switching works, maintenance burden (platform matrix, Windows/SEH), and multi-CPU strategy (cluster > multi-threading)
 
 ### Rule: Keep Feature List Updated
 When creating new features, updating protocols, or making changes to SRS capabilities, **always update the Features section in `memory/srs-overview.md`** with the feature name, description, version, and date.
