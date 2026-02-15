@@ -43,6 +43,18 @@ This is the same concept as OS thread context switching, but:
 
 To implement this, you need to understand how function calls work at the CPU level — registers, stack pointers, program counters. The coroutine library handles all of this so application code never has to think about it.
 
+## ST Library Origin and Design
+
+State Threads is derived from Netscape Portable Runtime (NSPR), reduced from 400+ source files to just 8. It's not a general-purpose threading library — it specifically targets Internet Applications (servers that are network I/O driven).
+
+Key design properties:
+- **Deterministic scheduling:** Context switch can only happen at I/O points or explicit synchronization points — never preemptive, never time-sliced
+- **No locks needed:** Because switching is deterministic, global data doesn't need mutex protection in most cases. The entire application can freely use static variables and non-reentrant library functions
+- **Minimal syscalls:** No per-thread signal mask (unlike POSIX threads), so no save/restore of signal mask on context switch — eliminates two syscalls per switch
+- **~5000 lines of code:** Small enough to understand completely, but requires assembly per CPU/OS platform
+
+SRS maintains the fork at `ossrs/state-threads` (branch `srs`), continuously updating it to support modern CPUs and OSes including Linux, macOS, Windows, and architectures like x86_64, ARMv7, AARCH64, Apple M1, RISC-V, LoongArch, and MIPS.
+
 ## The Burden: Maintaining a C++ Coroutine Library
 
 Coroutines are a fantastic idea for a C++ media server, but unlike Go (where goroutines are built into the language and runtime), **C++ has no standard coroutine library for this model**. (Note: C++20 co_await/co_yield is a different mechanism — not the same as user-space threads with full stacks.)
@@ -67,8 +79,33 @@ Go provides built-in tools: goroutine stack traces, scheduling profilers, debugg
 - No performance analysis tools for coroutine scheduling
 - Everything must be built from scratch
 
+**Debugging and Profiling Limitations**
+- `perf -g` (stack traces) does not work with ST because ST modifies the stack pointer (SP), breaking frame pointer-based stack walking
+- Valgrind requires ST-specific hooks, supported since SRS 3+
+- ASAN (Address Sanitizer) is supported since SRS 5+, enabled by default in SRS 5, disabled by default in SRS 6 because it sometimes causes crashes for unknown reasons
+- These tools help but are workarounds — there are still no native tools that understand coroutine scheduling the way Go's runtime tools understand goroutines
+
 **Can AI Help?**
 This is a niche domain — not common knowledge. But AI has access to all the code, assembly specs, and documentation. There's hope that AI could maintain the coroutine library (especially for new CPU/OS ports), but it's unproven. The Windows/SEH problem is an example of something that might be too complex even for AI — or might be exactly where AI excels.
+
+## Coroutine-Native SRT
+
+SRS 4.0 (2019) added SRT support, but the initial implementation used libsrt's own threads and async I/O, separate from ST. This caused complex async code was difficult to maintain.
+
+In SRS 5.0, SRT was rewritten to be **coroutine-native** (PR#3010). The pattern for making any protocol coroutine-native:
+
+1. Call the protocol's API (e.g., `srt_recvmsg`)
+2. If success, return the data
+3. If the error is not "would block" (e.g., `SRT_EASYNCRCV`), return the error
+4. If "would block", switch the current coroutine via `st_cond_t` condition variable and let other coroutines run
+5. When the fd becomes ready (detected by `srt_epoll_uwait` in a poller coroutine), signal the condition variable to wake the waiting coroutine
+6. Repeat from step 1
+
+This is the same pattern ST uses internally for TCP (`st_read` handles `EAGAIN` the same way), just adapted to SRT's epoll API.
+
+**The maintainability win:** In callback/async style, connection state must live in global data structures and gets modified by different event callbacks — the object lifecycle is scattered across the event loop. In coroutine-native style, state lives in local variables on the coroutine stack, and the lifecycle is linear and contained in one coroutine function. This is the fundamental reason SRS uses coroutines.
+
+**Remaining issue:** libsrt uses C++ exceptions internally, which still causes the Windows/SEH compatibility problem described above. The coroutine-native rewrite solved the threading and maintainability issues but did not solve Windows portability. The fix requires either rewriting libsrt to avoid C++ exceptions or fixing the SEH/coroutine stack interaction on Windows. Not fixed yet, planned for the future.
 
 ## Multi-CPU: Cluster, Not Multi-Threading
 
@@ -83,16 +120,17 @@ ST library actually supports multi-threading, and William added multi-thread sup
 - With multi-thread: complexity explodes, load becomes opaque
 - **William's verdict: multi-threading doesn't solve the multi-CPU problem — it creates new, worse problems. It's a trauma maker.**
 
-**The Right Solution: Cluster (Multi-Process)**
-Use **multiple SRS processes** instead of multiple threads:
-- SRS Origin + SRS Edge cluster
-- Each process is single-threaded with coroutines (simple, observable)
-- Scale horizontally across CPU cores via multiple processes
-- Same approach as Nginx worker processes
+**The Right Solution: Proxy + Origin + Edge Cluster**
 
-**This is a settled decision** — William explored all approaches and is confident: cluster > multi-threading for saturating multiple CPUs.
+This is a **settled and confirmed decision**: SRS will remain single-process, single-threaded with coroutines. Multi-threading will be removed from SRS. The multi-CPU problem is solved entirely by the cluster architecture:
 
-## Multi-threading Timeline
+- **Proxy** (implemented in Go): Stateless, horizontally scalable, synchronizes state through Redis. Supports all protocols (RTMP/FLV/HLS/SRT/WebRTC). Proxies API and media traffic to Origin servers.
+- **Origin** (SRS, C++): Single-threaded with coroutines. Handles stream processing and protocol conversion.
+- **Edge** (SRS, C++): Single-threaded with coroutines. Caches streams from Origin for massive playback distribution.
+
+Multiple Origins behind a Proxy, combined with Edge servers, can scale to thousands of streams and tens of thousands of viewers per stream. Each component stays simple and observable — one CPU, one process, coroutines.
+
+## Multi-threading Timeline (Historical)
 
 SRS has traditionally been single-process, single-threaded, akin to a single-process version of Nginx, with the addition of coroutines for concurrent processing. Coroutines are implemented using the StateThreads library, which has been modified to support thread-local functionality for operation in a multi-threaded environment.
 
@@ -102,8 +140,14 @@ StateThreads multi-threading faces issues with Windows C++ exception handling. W
 
 Challenges with multi-thread scheduling and load balancing: While thread-local multi-threading addresses multi-core utilization, it still limits the need for streaming and playback to a single thread, preventing complete load balancing across multiple threads. Without thread-local functionality, serious locking and competition issues arise. Essentially, it's like running multiple K8s Pods within a single process and handling scheduling, monitoring, and load balancing internally, which can be quite complex.
 
-In SRS 5.0, StateThreads were restructured to support thread-local functionality and initiated a main thread and subthreads to transition the architecture into a multi-threaded model. However, various issues arose during subsequent stages, leading to a default return to a single-threaded architecture in SRS 6.0. The future may see the removal of multi-threading capabilities as they become less critical with the new Proxy and Edge architectures.
-
-If Proxy continues to enhance its capabilities, encompassing various protocols and Edge functionality, it will gradually evolve into a Proxy+Origin cluster, fully resolving the multi-threading challenge.
+In SRS 5.0, StateThreads were restructured to support thread-local functionality and initiated a main thread and subthreads to transition the architecture into a multi-threaded model. However, various issues arose during subsequent stages, leading to a default return to a single-threaded architecture in SRS 6.0. Multi-threading capabilities will be removed as the Proxy and Edge cluster architecture fully replaces them.
 
 Additionally, we explored another potential architecture where specific capabilities are distributed across different threads, like using separate threads for WebRTC encryption and decryption. However, this approach transforms into a typical multi-threaded program rather than a thread-local architecture, resulting in performance overhead from locks and reduced stability — not an ideal direction.
+
+## Can AI Replace RUST for ST Maintenance?
+
+RUST (specifically tokio) is conceptually similar to ST — both are polling-based async with cooperative scheduling. RUST offers advantages: no assembly needed, built-in multi-thread support, cross-platform without manual porting, better tooling. The "Hidden Flaws of SRS" blog explored RUST as a potential future direction.
+
+However, the real question is not about language features but about **ecosystem and maintenance capability**. If AI proves capable of maintaining ST's assembly code — understanding CPU register conventions, porting to new architectures, debugging platform-specific issues like Windows/SEH — then the ST maintenance burden disappears and there's no compelling reason to switch languages. The C++ ecosystem for the media industry (FFmpeg, libsrt, libwebrtc, and other open-source media streaming projects) matters more than language features.
+
+RUST is a fallback path if AI cannot handle the low-level ST maintenance. It's not an inevitable direction. The deciding factor is AI capability, not language preference.
