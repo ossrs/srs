@@ -1,7 +1,7 @@
 # MEMORY.md - SRSBot's Long-Term Memory
 
 ## Workspace Conventions
-- Git commit titles start with: `Openclaw:`
+- Git commit titles start with: `OpenClaw:`
 - **No auto-commit** — Never automatically git commit. Only commit when William explicitly tells me to.
 - **No guessing** — William will teach me everything about SRS. Don't speculate or fill in gaps. Wait for him to explain.
 
