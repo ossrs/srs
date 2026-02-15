@@ -29,6 +29,9 @@
 - Open source sustainability and contributor experience
 - Real-time media protocols, architecture, performance
 
+## Formatting Preferences
+- **Markdown headings:** Only use `#` and `##`. Never use `###` or deeper — use **bold text** instead for sub-sections.
+
 ## Content Preferences
 **YouTube videos (title, description, and scripts):** Always use problem-solving structure:
 1. What's wrong?
