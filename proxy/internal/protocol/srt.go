@@ -56,6 +56,12 @@ func (v *srsSRTServer) Close() error {
 		v.listener.Close()
 	}
 
+	v.sockets.Range(func(key uint32, conn *SRTConnection) bool {
+		conn.Close()
+		v.sockets.Delete(key)
+		return true
+	})
+
 	v.wg.Wait()
 	return nil
 }
@@ -105,6 +111,29 @@ func (v *srsSRTServer) Run(ctx context.Context) error {
 		}
 	}()
 
+	// Sweep dead SRT connections by timeout.
+	v.wg.Add(1)
+	go func() {
+		defer v.wg.Done()
+
+		for ctx.Err() == nil {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(10 * time.Second):
+			}
+
+			v.sockets.Range(func(key uint32, conn *SRTConnection) bool {
+				if time.Since(conn.lastActivity) > 5*time.Minute {
+					logger.Df(conn.ctx, "SRT connection timeout, skt=%v", key)
+					conn.Close()
+					v.sockets.Delete(key)
+				}
+				return true
+			})
+		}
+	}()
+
 	return nil
 }
 
@@ -124,22 +153,29 @@ func (v *srsSRTServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, d
 	}
 
 	conn, ok := v.sockets.LoadOrStore(socketID, NewSRTConnection(func(c *SRTConnection) {
-		c.ctx = logger.WithContext(ctx)
+		cctx, cancel := context.WithCancel(logger.WithContext(ctx))
+		c.ctx, c.cancel = cctx, cancel
 		c.listenerUDP, c.socketID = v.listener, socketID
 		c.start = v.start
 	}))
 
 	ctx = conn.ctx
+	conn.lastActivity = time.Now()
 	if !ok {
+		conn.cleanup = func() {
+			v.sockets.Delete(conn.socketID)
+		}
 		logger.Df(ctx, "Create new SRT connection skt=%v", socketID)
 	}
 
 	if newSocketID, err := conn.HandlePacket(pkt, addr, data); err != nil {
 		return errors.Wrapf(err, "handle packet")
 	} else if newSocketID != 0 && newSocketID != socketID {
-		// The connection may use a new socket ID.
-		// TODO: FIXME: Should cleanup the dead SRT connection.
+		v.sockets.Delete(socketID)
 		v.sockets.Store(newSocketID, conn)
+		conn.cleanup = func() {
+			v.sockets.Delete(newSocketID)
+		}
 	}
 
 	return nil
@@ -157,6 +193,8 @@ func (v *srsSRTServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, d
 type SRTConnection struct {
 	// The stream context for SRT connection.
 	ctx context.Context
+	// The cancel function for context, to cleanup goroutines.
+	cancel context.CancelFunc
 
 	// The current socket ID.
 	socketID uint32
@@ -168,6 +206,11 @@ type SRTConnection struct {
 
 	// Listener start time.
 	start time.Time
+	// The last activity time, for timeout detection.
+	lastActivity time.Time
+
+	// The callback to cleanup connection from server.
+	cleanup func()
 
 	// Handshake packets with client.
 	handshake0 *SRTHandshakePacket
@@ -177,11 +220,25 @@ type SRTConnection struct {
 }
 
 func NewSRTConnection(opts ...func(*SRTConnection)) *SRTConnection {
-	v := &SRTConnection{}
+	v := &SRTConnection{
+		lastActivity: time.Now(),
+	}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
+}
+
+func (v *SRTConnection) Close() error {
+	if v.cancel != nil {
+		v.cancel()
+	}
+
+	if v.backendUDP != nil {
+		v.backendUDP.Close()
+	}
+
+	return nil
 }
 
 func (v *SRTConnection) HandlePacket(pkt *SRTHandshakePacket, addr *net.UDPAddr, data []byte) (uint32, error) {
@@ -314,19 +371,30 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 		return errors.Wrapf(err, "write handshake 3")
 	}
 
-	// Start a goroutine to proxy message from backend to client.
-	// TODO: FIXME: Support close the connection when timeout or client disconnected.
 	go func() {
+		defer v.Close()
+		defer func() {
+			if v.cleanup != nil {
+				v.cleanup()
+			}
+		}()
+
 		for ctx.Err() == nil {
 			nn, err := v.backendUDP.Read(b)
 			if err != nil {
-				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Wf(ctx, "read from backend failed, err=%v", err)
+				if ctx.Err() != nil || utils.IsClosedNetworkError(err) {
+					logger.Df(ctx, "SRT proxy done, skt=%v", v.socketID)
+				} else {
+					logger.Wf(ctx, "read from backend failed, err=%v", err)
+				}
 				return
 			}
 			if _, err = v.listenerUDP.WriteToUDP(b[:nn], addr); err != nil {
-				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Wf(ctx, "write to client failed, err=%v", err)
+				if ctx.Err() != nil || utils.IsClosedNetworkError(err) {
+					logger.Df(ctx, "SRT proxy done, skt=%v", v.socketID)
+				} else {
+					logger.Wf(ctx, "write to client failed, err=%v", err)
+				}
 				return
 			}
 		}
@@ -371,7 +439,6 @@ func (v *SRTConnection) connectBackend(ctx context.Context, streamID string) err
 	}
 
 	// Connect to backend SRS server via UDP client.
-	// TODO: FIXME: Support close the connection when timeout or client disconnected.
 	backendAddr := net.UDPAddr{IP: net.ParseIP(backend.IP), Port: int(udpPort)}
 	if backendUDP, err := net.DialUDP("udp", nil, &backendAddr); err != nil {
 		return errors.Wrapf(err, "dial udp to %v of %v for %v", backendAddr, backend, streamURL)
