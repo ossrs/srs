@@ -136,7 +136,7 @@ Valgrind can't track ST coroutines by default because `setjmp`/`longjmp` switche
 
 SRS 4.0 (2019) added SRT support, but the initial implementation used libsrt's own threads and async I/O, separate from ST. This caused complex async code was difficult to maintain.
 
-In SRS 5.0, SRT was rewritten to be **coroutine-native** (PR#3010). The pattern for making any protocol coroutine-native:
+In SRS 5.0, SRT was rewritten to be **coroutine-native** ([srs#3010](https://github.com/ossrs/srs/pull/3010)). The pattern for making any protocol coroutine-native:
 
 1. Call the protocol's API (e.g., `srt_recvmsg`)
 2. If success, return the data
@@ -187,6 +187,85 @@ Challenges with multi-thread scheduling and load balancing: While thread-local m
 In SRS 5.0, StateThreads were restructured to support thread-local functionality and initiated a main thread and subthreads to transition the architecture into a multi-threaded model. However, various issues arose during subsequent stages, leading to a default return to a single-threaded architecture in SRS 6.0. Multi-threading capabilities will be removed as the Proxy and Edge cluster architecture fully replaces them.
 
 Additionally, we explored another potential architecture where specific capabilities are distributed across different threads, like using separate threads for WebRTC encryption and decryption. However, this approach transforms into a typical multi-threaded program rather than a thread-local architecture, resulting in performance overhead from locks and reduced stability — not an ideal direction.
+
+## Porting ST to New Platforms
+
+Porting ST to a new OS/CPU is simpler than it sounds. The core task is implementing two assembly functions: `_st_md_cxt_save` (save registers) and `_st_md_cxt_restore` (restore registers) — the custom replacements for `setjmp`/`longjmp`.
+
+**Current platform support (from [state-threads#22](https://github.com/ossrs/state-threads/issues/22)):**
+
+- **Linux + x86-64** — Stable. CentOS, Ubuntu server, etc.
+- **Linux + ARM (v7)** — Stable. Raspberry Pi and ARM devices. ([state-threads#1](https://github.com/ossrs/state-threads/issues/1))
+- **Linux + AArch64 (ARMv8)** — Stable. ARM servers. ([state-threads#9](https://github.com/ossrs/state-threads/issues/9))
+- **Linux + MIPS** — Dev. OpenWRT devices. ([state-threads#21](https://github.com/ossrs/state-threads/issues/21))
+- **Linux + MIPS64** — Dev. Loongson 3A4000/3B3000. ([state-threads#21](https://github.com/ossrs/state-threads/issues/21))
+- **Linux + LoongArch64** — Dev. Loongson 3A5000/3B5000, new ISA replacing MIPS. ([state-threads#24](https://github.com/ossrs/state-threads/issues/24))
+- **Linux + RISC-V** — Dev. StarFive boards. ([state-threads#28](https://github.com/ossrs/state-threads/pull/28))
+- **macOS + x86-64** — Stable. Intel Macs. ([state-threads#11](https://github.com/ossrs/state-threads/issues/11))
+- **macOS + AArch64 (M1/M2)** — Dev. Apple Silicon. ([state-threads#30](https://github.com/ossrs/state-threads/issues/30))
+- **Windows + x86-64 (Cygwin64)** — Dev. 64-bit only, no 32-bit Windows. ([state-threads#20](https://github.com/ossrs/state-threads/issues/20))
+
+"Stable" means production-tested in SRS deployments. "Dev" means implemented and working but less field-tested.
+
+**Why custom assembly instead of libc's setjmp/longjmp?**
+Early ST used glibc's `setjmp`, then modified the `jmp_buf` to swap the stack pointer to a heap-allocated coroutine stack. This required knowing glibc's internal `jmp_buf` layout. But newer glibc versions started **encrypting (pointer-mangling)** the saved registers inside `jmp_buf`, making it impossible to modify the SP from user code. The fix: implement save/restore entirely in assembly with ST's own `jmp_buf` layout. This is actually more portable — CPU register ABIs are stable and well-documented, while glibc internals are not. **All platforms now use custom assembly exclusively** — the libc setjmp path has been completely removed (attempting to use it is a compile error). Every OS/CPU goes through `_st_md_cxt_save`/`_st_md_cxt_restore` in the `.S` files.
+
+**Assembly files are organized by OS, not CPU:**
+- `md_linux.S` — Linux x86 platforms: i386, amd64/x86_64
+- `md_linux2.S` — Linux non-x86 platforms: aarch64, arm, riscv, mips64, mips, loongarch64
+- `md_darwin.S` — macOS/Darwin (different calling conventions and object format)
+- `md_cygwin64.S` — Windows via Cygwin64
+
+Within each file, CPU-specific sections are selected by `#ifdef` macros (`__x86_64__`, `__aarch64__`, `__mips__`, `__loongarch64`, `__riscv`, etc.).
+
+Note: All `.S` files check `MD_ST_NO_ASM` — historically this allowed disabling assembly and falling back to libc's `setjmp`/`longjmp`. Since the libc setjmp path has been removed (all platforms now require assembly), this macro no longer works — defining it will cause linker errors. It remains in the code as a leftover.
+
+**What registers to save?**
+Only the **callee-saved registers** matter — these are the registers a function must preserve across calls. The actual registers saved by ST's assembly (from the `.S` files):
+
+- **i386 (Linux):** ebx, esi, edi, ebp, esp, pc
+- **x86-64 (Linux/Darwin/Cygwin64):** rbx, rbp, r12-r15, rsp, pc
+- **ARM v7 (Linux):** v1-v6, sl, fp, sp, lr (i.e., r4-r9, r10, r11, r13, r14); optionally VFP d8-d15 and iWMMXt wr10-wr15
+- **AArch64 (Linux/Darwin):** x19-x28 (callee-saved), x29 (frame pointer), x30/lr (link register), sp, plus floating-point d8-d15
+- **MIPS/MIPS64 (Linux):** sp, gp, fp/s8, s0-s7, ra
+- **LoongArch64 (Linux):** sp (r3), ra (r1), fp (r22), s0-s8 (r23-r31)
+- **RISC-V (Linux):** sp, ra, fp/s0, s1-s11
+
+**The jmpbuf problem:**
+Different platforms define `jmp_buf` differently. Most use a field named `__jmpbuf`, but MIPS uses `__jb`, and field sizes differ (MIPS has 4-byte pointers with 8-byte `long long` jmpbuf entries). [state-threads#29](https://github.com/ossrs/state-threads/pull/29) addressed this by having ST define and use its own jmpbuf structure where possible, rather than relying on platform-specific layouts.
+
+The macro `MD_GET_SP(_t)` in `md.h` defines how to read/write the stack pointer in the jmpbuf for each platform. This is critical for `MD_INIT_CONTEXT` — when creating a coroutine, the SP in the saved context must be updated to point at the heap-allocated stack, since the coroutine can't use the creator's stack.
+
+**Porting toolkit (`tools/` directory):**
+Six utilities help with any new port:
+
+- **`porting.c`** — Prints detected OS/CPU macros, pointer sizes, and calling convention info. Run this first to understand your platform.
+- **`helloworld.c`** — Minimal ST validation: `st_init()` + loop with `st_sleep()`. If this prints, context switching works.
+- **`verify.c`** — Full API test: thread creation, mutex, cond variable, usleep, thread join. Validates the complete ST threading model.
+- **`jmpbuf.c`** — Shows the platform's `jmp_buf` struct definition via preprocessor expansion, useful for understanding field layout differences.
+- **`pcs.c`** — Analyzes the Procedure Call Standard (which registers are caller vs callee-saved).
+- **`stack.c`** — Inspects stack behavior on the platform.
+
+**Porting steps (using MIPS/OpenWRT as the reference example from [state-threads#21](https://github.com/ossrs/state-threads/issues/21)):**
+
+1. **Detect CPU macro:** `g++ -dM -E - </dev/null | grep -i aarch64` to find the `#define` your compiler provides (here `aarch64` is just an example — replace it with your target CPU name, e.g. `mips`, `riscv`, `loongarch`)
+2. **Study calling conventions:** Compile `tools/pcs.c` and use GDB's `si` (step instruction) to step through function call assembly — identify which registers are callee-saved (these are the ones you must save/restore in ST). Also refer to vendor docs (ARM/MIPS/RISC-V reference manuals) for the full callee-saved register list
+3. **Run jmpbuf.c:** Compile and debug `tools/jmpbuf.c` to learn which registers are saved by setjmp and understand the jmp_buf layout on your platform
+4. **Run porting.c:** Compile and run `tools/porting.c` to see register layout and check if setjmp stores registers in plaintext. Use GDB's `disassemble` on setjmp to see exactly which registers it saves and in what order — this is a quick way to learn and confirm the register list
+5. **Add empty stubs:** In the appropriate `.S` file, add `_st_md_cxt_save` and `_st_md_cxt_restore` under a new `#elif defined(__your_cpu__)` — empty functions that just return. Build `verify.c` and `helloworld.c` to confirm compilation and linking succeed, even though they won't run correctly yet
+6. **Implement the assembly:** Fill in the actual `sw`/`lw` (MIPS), `str`/`ldr` (ARM), `sd`/`ld` (RISC-V) instructions to save/restore each callee-saved register to/from the jmpbuf. `_st_md_cxt_save` returns 0; `_st_md_cxt_restore` sets return value to 1 and jumps to the saved return address
+7. **Define MD_GET_SP:** In `md.h`, add the macro for your platform so `MD_INIT_CONTEXT` can replace the SP with the coroutine's heap-allocated stack address
+8. **Test with helloworld:** If it prints messages with `st_sleep` pauses, context switching works
+9. **Test with verify:** Run `verify.c` for full API test — thread creation, mutex, cond variable, usleep, thread join. Also use it early (after adding empty stubs) to verify compilation and linking before implementing the assembly
+
+**Platform-specific build commands:**
+- Linux: `make linux-debug` (auto-detects CPU)
+- macOS: `make darwin-debug`
+- Windows: `make cygwin64-debug`
+- Force CPU: `make linux-debug EXTRA_CFLAGS="-D__aarch64__"` (if auto-detection fails)
+
+**Community contributions:**
+Several ports came from the community — RISC-V support ([state-threads#28](https://github.com/ossrs/state-threads/pull/28)) was contributed by T-bagwell (Steven Liu, Kuaishou) and later adopted by Arch Linux RISC-V. LoongArch64 ([state-threads#24](https://github.com/ossrs/state-threads/issues/24)) was driven by Loongson's new ISA replacing their earlier MIPS-based chips (3A4000 used mips64, 3A5000+ uses loongarch64). The Apple M1 port ([state-threads#30](https://github.com/ossrs/state-threads/issues/30)) required separate work from Linux aarch64 because Darwin has different calling conventions — notably Apple's [ARM64 platform requirements](https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms).
 
 ## Can AI Replace RUST for ST Maintenance?
 
