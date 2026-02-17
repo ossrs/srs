@@ -115,6 +115,23 @@ Go provides built-in tools: goroutine stack traces, scheduling profilers, debugg
 **Can AI Help?**
 This is a niche domain — not common knowledge. But AI has access to all the code, assembly specs, and documentation. There's hope that AI could maintain the coroutine library (especially for new CPU/OS ports), but it's unproven. The Windows/SEH problem is an example of something that might be too complex even for AI — or might be exactly where AI excels.
 
+## Valgrind Support
+
+Valgrind can't track ST coroutines by default because `setjmp`/`longjmp` switches the stack pointer to custom-allocated stacks that Valgrind doesn't know about, causing false positives.
+
+**The fix** (merged from [toffaletti's fork](https://github.com/toffaletti/state-threads/commit/7f57fc9acc05e657bca1223f1e5b9b1a45ed929b), [commit 4cca7a0](https://github.com/ossrs/state-threads/commit/4cca7a0272b70b184742dd68065af8a9a42e030f)):
+- Uses `VALGRIND_STACK_REGISTER(top, bottom)` when creating a coroutine to tell Valgrind about the custom stack
+- Uses `VALGRIND_STACK_DEREGISTER(id)` when the coroutine exits
+- Stores the registration ID in `_st_stack_t.valgrind_stack_id`
+- Skips the primordial thread (its stack is the normal process stack, already known to Valgrind)
+
+**Opt-in via compile flag:** `-DMD_VALGRIND -I/usr/local/include`. Zero overhead when not enabled — `NVALGRIND` is defined by default to disable all Valgrind macros.
+
+**What changed (3 files):**
+- **common.h** — Added `MD_VALGRIND`/`NVALGRIND` macro logic; added `valgrind_stack_id` field to `_st_stack_t`
+- **sched.c** — Included `<valgrind/valgrind.h>`; added `VALGRIND_STACK_REGISTER` in `st_thread_create()` and `VALGRIND_STACK_DEREGISTER` in `st_thread_exit()`
+- **README** — Added build instructions for Linux with Valgrind
+
 ## Coroutine-Native SRT
 
 SRS 4.0 (2019) added SRT support, but the initial implementation used libsrt's own threads and async I/O, separate from ST. This caused complex async code was difficult to maintain.
