@@ -267,34 +267,6 @@ Six utilities help with any new port:
 **Community contributions:**
 Several ports came from the community — RISC-V support ([state-threads#28](https://github.com/ossrs/state-threads/pull/28)) was contributed by T-bagwell (Steven Liu, Kuaishou) and later adopted by Arch Linux RISC-V. LoongArch64 ([state-threads#24](https://github.com/ossrs/state-threads/issues/24)) was driven by Loongson's new ISA replacing their earlier MIPS-based chips (3A4000 used mips64, 3A5000+ uses loongarch64). The Apple M1 port ([state-threads#30](https://github.com/ossrs/state-threads/issues/30)) required separate work from Linux aarch64 because Darwin has different calling conventions — notably Apple's [ARM64 platform requirements](https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms).
 
-## Cygwin64 ASM Implementation Details
-
-Issue [#20](https://github.com/ossrs/state-threads/issues/20), commit [25f55e8](https://github.com/ossrs/state-threads/commit/25f55e8d6a171e8d07f4f025640c11b7e4a2f2a2).
-
-Cygwin64 uses the **Windows x64 calling convention** (Microsoft ABI), which differs significantly from Linux/macOS (System V ABI):
-
-**jmpbuf:** `long[32]`, SP at index 6 (`JB_SP 6`). Defined in Cygwin's `/usr/include/machine/setjmp.h`.
-
-**Calling convention differences from System V:**
-- Parameters: RCX = 1st, RDX = 2nd (System V uses RDI, RSI)
-- `_st_md_cxt_save(jmp_buf env)` — env in RCX, returns 0 via RAX
-- `_st_md_cxt_restore(jmp_buf env, int val)` — env in RCX, val in RDX, returns val via RAX (the classic setjmp dual-return)
-
-**Register plan:**
-- **Volatile** (free to clobber): RAX, RCX, RDX, R8-R11. R8/R9 used as temporaries since save/restore have ≤2 params.
-- **Callee-saved** (must push/pop): RBX, RBP, RDI, RSI, R12-R15. Key difference: RDI/RSI are callee-saved on Windows but volatile on System V.
-
-**ASM techniques:**
-- **Caller SP recovery:** After `call` pushes 8-byte return address, caller's RSP = current RSP + 8, i.e. `lea r8, [rsp+0x8]`.
-- **No standard prologue:** ST's ASM skips the typical `push rbp; mov rbp,rsp; sub rsp,N` — it directly saves registers and `ret`s.
-- **GDB backtrace support:** Creating a fake caller stack frame (RBP chain + return address) when spawning coroutines enables `gdb bt` to show the full call stack.
-- **ASM flavor:** GNU assembler uses AT&T syntax by default; GDB can be switched to Intel with `set disassembly-flavor intel`.
-
-**Build specifics:**
-- `make cygwin64-debug` → compiles `md_cygwin64.S`
-- Event system: `select` (not epoll — Cygwin doesn't support it), defined as `MD_HAVE_SELECT`
-- Makefile uses `uname -s` instead of `uname -r` because Cygwin's `uname -r` contains parentheses that break Make
-
 ## Can AI Replace RUST for ST Maintenance?
 
 RUST (specifically tokio) is conceptually similar to ST — both are polling-based async with cooperative scheduling. RUST offers advantages: no assembly needed, built-in multi-thread support, cross-platform without manual porting, better tooling. The "Hidden Flaws of SRS" blog explored RUST as a potential future direction.
