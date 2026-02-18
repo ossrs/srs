@@ -275,6 +275,22 @@ However, the real question is not about language features but about **ecosystem 
 
 RUST is a fallback path if AI cannot handle the low-level ST maintenance. It's not an inevitable direction. The deciding factor is AI capability, not language preference.
 
+## Backtrace Support for Coroutines
+
+ST supports `backtrace()` and `backtrace_symbols()` for dumping stack traces from within coroutines ([state-threads#34](https://github.com/ossrs/state-threads/issues/34)). Since each coroutine has its own stack, standard backtrace works naturally — you get a full call chain like `bar → foo → start → _st_thread_main → st_thread_create`.
+
+**Usage:** Build and run the example in `tools/backtrace/`. Works on both Linux and Darwin.
+
+**Key details:**
+- On Linux, compile with `-rdynamic` to get function names in `backtrace_symbols()` output; without it you get raw offsets like `(+0x204b)`
+- On Darwin, uses `__builtin_return_address` to walk the stack
+- The return address points to the **instruction after the call** (the return site), so `addr2line` shows the next source line, not the call line itself — this is normal
+- Use `addr2line -C -p -s -f -a -e <binary> <address>` to convert offsets to source file:line
+- Use `nm <binary> | grep <func>` to find function base addresses, then compute offsets
+- `objdump -d <binary>` can verify the relationship between addresses and instructions
+
+This complements ST's GDB helper scripts (`nn_coroutines`, `show_coroutines`) as another debugging tool for coroutine-based code.
+
 ## Timeout Semantics
 
 ST timeouts have a subtle but important behavior: the timeout parameter is relative to `last_clock` (the timestamp of the last scheduler cycle), not the moment the function is called.
