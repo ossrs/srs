@@ -132,6 +132,17 @@ Valgrind can't track ST coroutines by default because `setjmp`/`longjmp` switche
 - **sched.c** — Included `<valgrind/valgrind.h>`; added `VALGRIND_STACK_REGISTER` in `st_thread_create()` and `VALGRIND_STACK_DEREGISTER` in `st_thread_exit()`
 - **README** — Added build instructions for Linux with Valgrind
 
+## Stack Memory Management: Cache vs Free
+
+By default, ST caches all thread stacks forever — when a coroutine exits, its stack goes onto a free list and gets reused by the next `_st_stack_new` call. This is efficient for long-running servers with stable thread counts, but wastes memory when threads are short-lived (stacks accumulate and never shrink).
+
+**Compile-time flag `MD_CACHE_STACK`** ([state-threads#38](https://github.com/ossrs/state-threads/issues/38), [commit b019860](https://github.com/ossrs/state-threads/commit/b01986064cf01de86cea7b24a2f95e7114ba3d75)) controls the behavior:
+
+- **With `MD_CACHE_STACK`** (original behavior): Freed stacks stay on the free list. `_st_stack_new` searches the list for a stack of sufficient size before allocating a new one.
+- **Without `MD_CACHE_STACK`**: Stacks are actually freed (`munmap`/`free`). When `_st_stack_new` runs, it first drains the entire free list — unmapping every cached stack — then allocates fresh.
+
+**Why not free immediately in `_st_stack_free`?** When a coroutine exits, it's still *running on its own stack* during cleanup. Freeing the stack out from under a running coroutine would crash. So `_st_stack_free` always appends to the free list, and the actual deallocation happens later in `_st_stack_new` (when a different coroutine is running on a different stack). The re-enabled `_st_delete_stk_segment` function handles the actual `munmap` or `free`.
+
 ## Coroutine-Native SRT
 
 SRS 4.0 (2019) added SRT support, but the initial implementation used libsrt's own threads and async I/O, separate from ST. This caused complex async code was difficult to maintain.
