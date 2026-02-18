@@ -11,7 +11,8 @@
 #include <arpa/inet.h>
 
 #define ST_UTEST_PORT 26878
-#define ST_UTEST_TIMEOUT (100 * SRS_UTIME_MILLISECONDS)
+#define ST_UTIME_MILLISECONDS 1000
+#define ST_UTEST_TIMEOUT (100 * ST_UTIME_MILLISECONDS)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for ping-pong TCP server coroutine.
