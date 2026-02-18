@@ -347,3 +347,30 @@ This means if a coroutine does CPU work between its last context switch and the 
 - `last_clock` was set 12ms ago, you call `st_read()` with a 10ms timeout → deadline is already in the past, may return as timed out immediately on the next scheduler cycle
 
 ST timeouts are suitable for coarse-grained purposes — detecting broken connections, idle peers, or stuck operations. Realistic timeouts should be on the order of seconds (e.g., 5s, 30s), where `last_clock` staleness is negligible. They are not designed for precise sub-millisecond timing.
+
+## `st_init()` — How the Coroutine World is Built
+
+`st_init()` is the entry point that bootstraps the entire coroutine runtime. It creates the scheduler data structures, the event system, the idle thread, and wraps the calling OS thread as the first coroutine. Here's what happens step by step:
+
+**Step 1: Set up the I/O event system.** Calls `st_set_eventsys(ST_EVENTSYS_DEFAULT)` to select the OS-level I/O multiplexer (epoll on Linux, kqueue on macOS), then `_st_io_init()` for one-time I/O setup (via `pthread_once`). Then calls `(*_st_eventsys->init)()` to create the actual epoll/kqueue file descriptor.
+
+**Step 2: Initialize all scheduler queues.** Four empty linked lists:
+- `run_q` — coroutines ready to run
+- `io_q` — coroutines blocked on socket I/O
+- `zombie_q` — dead coroutines awaiting cleanup
+- `_st_free_stacks` — recycled stack free list for reuse
+
+Also captures `pagesize` (for stack guard pages) and `last_clock` (current timestamp for timeout calculations).
+
+**Step 3: Create the Idle Thread.** This is the heart of ST. The idle thread is created via `st_thread_create(_st_idle_thread_start)`, then marked with `_ST_FL_IDLE_THREAD`, decremented from `_st_active_count` (it doesn't count as an "active" coroutine), and removed from the run queue (it's managed specially by the scheduler).
+
+The idle thread's loop is the core scheduler cycle:
+1. `(*_st_eventsys->dispatch)()` — calls `epoll_wait`/`kqueue`, blocking until I/O is ready or the earliest timeout fires. This is the **only place the process truly blocks**.
+2. `_st_vp_check_clock()` — walks the sleep heap, moves timed-out coroutines to the run queue, updates `last_clock`.
+3. `_st_switch_context(me)` — yields CPU to a ready coroutine from the run queue.
+4. When that coroutine eventually switches back (hits I/O or yields), the idle thread loops again.
+5. When `_st_active_count` drops to 0 (no more coroutines), the idle thread calls `exit(0)`.
+
+**Step 4: Create the Primordial Thread.** The current OS thread (the one calling `st_init()`) is wrapped into an `_st_thread_t` struct via `calloc`. It gets no new stack — it reuses the existing process stack. Its state is set to `_ST_ST_RUNNING`, flagged as `_ST_FL_PRIMORDIAL`, and assigned to `_st_this_thread`. This becomes the first running coroutine and `_st_active_count` is incremented to 1.
+
+**After `st_init()` returns**, the coroutine world is ready: event system initialized, idle thread created and waiting, primordial thread running. Control returns to `main()`, which is now executing as the primordial coroutine. From here, calling `st_thread_create()` spawns new coroutines, and the scheduler workflow activates once those coroutines hit their first I/O call.
