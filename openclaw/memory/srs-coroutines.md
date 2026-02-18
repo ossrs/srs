@@ -374,3 +374,42 @@ The idle thread's loop is the core scheduler cycle:
 **Step 4: Create the Primordial Thread.** The current OS thread (the one calling `st_init()`) is wrapped into an `_st_thread_t` struct via `calloc`. It gets no new stack — it reuses the existing process stack. Its state is set to `_ST_ST_RUNNING`, flagged as `_ST_FL_PRIMORDIAL`, and assigned to `_st_this_thread`. This becomes the first running coroutine and `_st_active_count` is incremented to 1.
 
 **After `st_init()` returns**, the coroutine world is ready: event system initialized, idle thread created and waiting, primordial thread running. Control returns to `main()`, which is now executing as the primordial coroutine. From here, calling `st_thread_create()` spawns new coroutines, and the scheduler workflow activates once those coroutines hit their first I/O call.
+
+## `st_thread_create()` — How a Coroutine is Born
+
+`st_thread_create(start, arg, joinable, stk_size)` allocates a new coroutine, sets up its execution context, and places it on the run queue — all without actually running it yet.
+
+**Step 1: Allocate the stack.** The requested size (default `ST_DEFAULT_STACK_SIZE`, typically 64KB) is rounded up to page alignment, then `_st_stack_new()` either reuses a stack from the free list or allocates fresh memory (via `mmap` or `malloc`). The stack includes a guard page at the bottom to catch overflow via SIGSEGV.
+
+**Step 2: Carve thread metadata from the top of the stack.** The thread control block (`_st_thread_t`) and per-thread data array (`ptds[ST_KEYS_MAX]`) are placed at the top of the stack, growing downward. Then the stack pointer is 64-byte aligned. The layout from high to low address:
+
+- `ptds[ST_KEYS_MAX]` — per-thread data slots (like thread-local storage)
+- `_st_thread_t` — the thread control block
+- 64-byte alignment padding
+- `stack->sp` — where the coroutine's actual execution stack begins (grows downward)
+- Guard page at the bottom
+
+This is efficient: one allocation provides both the stack and the control block — no separate `malloc` for the thread struct.
+
+**Step 3: Set up the initial context (the core trick).** This is the most subtle part:
+
+```c
+if (_st_md_cxt_save(thread->context)) {
+    _st_thread_main();
+}
+MD_GET_SP(thread) = (long)(stack->sp);
+```
+
+- `_st_md_cxt_save()` saves the **creator's** current CPU registers into `thread->context` and returns **0** (like `setjmp`)
+- Since it returns 0, the `if` body is **skipped** — `_st_thread_main()` is NOT called now
+- `MD_GET_SP()` then **overwrites the saved stack pointer** in the context to point at the new coroutine's heap-allocated stack
+
+Later, when the scheduler switches to this coroutine via `_st_md_cxt_restore(thread->context)`, it restores these saved registers — but with the **modified SP** pointing at the new stack. The restore returns **1** (non-zero), so the `if` is entered and `_st_thread_main()` executes — now running on the coroutine's own stack. `_st_thread_main()` simply calls `thread->start(thread->arg)` (the user's function), and when it returns, calls `st_thread_exit()`.
+
+This save-then-patch-SP trick is how ST creates a coroutine without running it: capture a register snapshot, swap the stack pointer to the new stack, defer execution until scheduled.
+
+**Step 4: Set up joinability.** If `joinable` is true, a condition variable (`thread->term`) is allocated so another coroutine can call `st_thread_join()` and block until this coroutine finishes.
+
+**Step 5: Make it runnable.** The thread's state is set to `_ST_ST_RUNNABLE`, `_st_active_count` is incremented, and the thread is inserted into `run_q`. The coroutine won't actually execute until the current coroutine yields (hits I/O, sleeps, or calls `st_thread_yield()`), at which point the scheduler picks it off the run queue.
+
+**Valgrind integration:** If `MD_VALGRIND` is enabled and the thread is not the primordial thread, `VALGRIND_STACK_REGISTER()` is called to register the custom stack region with Valgrind, preventing false positives from stack pointer switching.
