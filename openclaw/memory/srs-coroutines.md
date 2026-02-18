@@ -352,15 +352,15 @@ ST timeouts are suitable for coarse-grained purposes — detecting broken connec
 
 `st_init()` is the entry point that bootstraps the entire coroutine runtime. It creates the scheduler data structures, the event system, the idle thread, and wraps the calling OS thread as the first coroutine. Here's what happens step by step:
 
-**Step 1: Set up the I/O event system.** Calls `st_set_eventsys(ST_EVENTSYS_DEFAULT)` to select the OS-level I/O multiplexer (epoll on Linux, kqueue on macOS), then `_st_io_init()` for one-time I/O setup (via `pthread_once`). Then calls `(*_st_eventsys->init)()` to create the actual epoll/kqueue file descriptor.
+**Step 1: Select the event system and initialize I/O.** Calls `st_set_eventsys(ST_EVENTSYS_DEFAULT)` to select the OS-level I/O multiplexer (epoll on Linux, kqueue on macOS), then `_st_io_init()` for one-time I/O setup (ignores SIGPIPE, sets fd limits).
 
-**Step 2: Initialize all scheduler queues.** Four empty linked lists:
+**Step 2: Initialize all scheduler queues and create the event system.** First initializes the thread-local free stack list (`_st_free_stacks`), then zeroes the VP struct (`memset(&_st_this_vp, 0, ...)`), then initializes four empty linked lists:
 - `run_q` — coroutines ready to run
 - `io_q` — coroutines blocked on socket I/O
 - `zombie_q` — dead coroutines awaiting cleanup
 - `_st_free_stacks` — recycled stack free list for reuse
 
-Also captures `pagesize` (for stack guard pages) and `last_clock` (current timestamp for timeout calculations).
+Then calls `(*_st_eventsys->init)()` to create the actual epoll/kqueue file descriptor. Also captures `pagesize` (for stack guard pages) and `last_clock` (current timestamp for timeout calculations).
 
 **Step 3: Create the Idle Thread.** This is the heart of ST. The idle thread is created via `st_thread_create(_st_idle_thread_start)`, then marked with `_ST_FL_IDLE_THREAD`, decremented from `_st_active_count` (it doesn't count as an "active" coroutine), and removed from the run queue (it's managed specially by the scheduler).
 
@@ -379,17 +379,18 @@ The idle thread's loop is the core scheduler cycle:
 
 `st_thread_create(start, arg, joinable, stk_size)` allocates a new coroutine, sets up its execution context, and places it on the run queue — all without actually running it yet.
 
-**Step 1: Allocate the stack.** The requested size (default `ST_DEFAULT_STACK_SIZE`, typically 64KB) is rounded up to page alignment, then `_st_stack_new()` either reuses a stack from the free list or allocates fresh memory (via `mmap` or `malloc`). The stack includes a guard page at the bottom to catch overflow via SIGSEGV.
+**Step 1: Allocate the stack.** The requested size (default `ST_DEFAULT_STACK_SIZE` = 128KB) is rounded up to page alignment, then `_st_stack_new()` either reuses a stack from the free list or allocates fresh memory (via `mmap` or `malloc`). In DEBUG builds (without `MD_NO_PROTECT`), guard pages are set at both ends of the stack via `mprotect(..., PROT_NONE)` to catch overflow via SIGSEGV; in release builds there are no guard pages.
 
 **Step 2: Carve thread metadata from the top of the stack.** The thread control block (`_st_thread_t`) and per-thread data array (`ptds[ST_KEYS_MAX]`) are placed at the top of the stack, growing downward. Then the stack pointer is 64-byte aligned. The layout from high to low address:
 
 - `ptds[ST_KEYS_MAX]` — per-thread data slots (like thread-local storage)
 - `_st_thread_t` — the thread control block
 - 64-byte alignment padding
+- 128-byte pad (`_ST_STACK_PAD_SIZE`) reserved below the aligned SP
 - `stack->sp` — where the coroutine's actual execution stack begins (grows downward)
-- Guard page at the bottom
+- Guard page at the bottom (DEBUG builds only)
 
-This is efficient: one allocation provides both the stack and the control block — no separate `malloc` for the thread struct.
+Both `thread` and `ptds` are zeroed with `memset` after being carved from the stack. This is efficient: one allocation provides both the stack and the control block — no separate `malloc` for the thread struct.
 
 **Step 3: Set up the initial context (the core trick).** This is the most subtle part:
 
