@@ -292,6 +292,25 @@ Six utilities help with any new port:
 **Community contributions:**
 Several ports came from the community — RISC-V support ([state-threads#28](https://github.com/ossrs/state-threads/pull/28)) was contributed by T-bagwell (Steven Liu, Kuaishou) and later adopted by Arch Linux RISC-V. LoongArch64 ([state-threads#24](https://github.com/ossrs/state-threads/issues/24)) was driven by Loongson's new ISA replacing their earlier MIPS-based chips (3A4000 used mips64, 3A5000+ uses loongarch64). The Apple M1 port ([state-threads#30](https://github.com/ossrs/state-threads/issues/30)) required separate work from Linux aarch64 because Darwin has different calling conventions — notably Apple's [ARM64 platform requirements](https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms).
 
+## Future Direction: Refactor ST Internals from C to C++
+
+The current ST codebase is written in C with heavy use of macros and manual struct patterns (embedded linked lists, struct casting for "inheritance", macro-based queue operations). This code is difficult to read and understand — both for humans and AI. The macro layer obscures the actual logic, and C's manual patterns for data structures are not straightforward.
+
+**The plan:** Refactor ST's internal implementation from C to C++, while keeping the external C API unchanged (`st_read`, `st_write`, `st_accept`, etc. remain `extern "C"`). This is an internal rewrite only — no API changes for consumers.
+
+**Why C++:**
+- Replace opaque macros with readable C++ constructs (classes, templates, inline functions)
+- Replace manual linked list macros and struct casting with proper C++ data structures and type safety
+- RAII for resource management (stack allocation/deallocation, fd lifecycle)
+- The code becomes much clearer and more maintainable — critical for AI-managed maintenance
+
+**Why this matters for the AI strategy:**
+- AI can reason about C++ code far more easily than macro-heavy C
+- This directly enables the vision of AI maintaining ST long-term
+- Better code quality → fewer bugs → more confidence in AI-generated changes
+
+**Approach:** Incremental — start with the worst offenders (likely the macros in `common.h` and queue management in `sched.c`), convert piece by piece, verify with tests at each step.
+
 ## Can AI Replace RUST for ST Maintenance?
 
 RUST (specifically tokio) is conceptually similar to ST — both are polling-based async with cooperative scheduling. RUST offers advantages: no assembly needed, built-in multi-thread support, cross-platform without manual porting, better tooling. The "Hidden Flaws of SRS" blog explored RUST as a potential future direction.
