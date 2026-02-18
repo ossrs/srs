@@ -414,3 +414,187 @@ This save-then-patch-SP trick is how ST creates a coroutine without running it: 
 **Step 5: Make it runnable.** The thread's state is set to `_ST_ST_RUNNABLE`, `_st_active_count` is incremented, and the thread is inserted into `run_q`. The coroutine won't actually execute until the current coroutine yields (hits I/O, sleeps, or calls `st_thread_yield()`), at which point the scheduler picks it off the run queue.
 
 **Valgrind integration:** If `MD_VALGRIND` is enabled and the thread is not the primordial thread, `VALGRIND_STACK_REGISTER()` is called to register the custom stack region with Valgrind, preventing false positives from stack pointer switching.
+
+## Epoll-Driven I/O Workflow — How Coroutines Sleep and Wake
+
+This section traces exactly what happens when a coroutine does I/O — from `st_read()` through epoll and back. This is the core mechanism that makes ST work.
+
+**The I/O functions all follow the same pattern** (`st_read`, `st_write`, `st_accept`, `st_connect`, `st_recvfrom`, `st_sendto`, `st_recvmsg`, `st_sendmsg`):
+
+1. Try the raw syscall (`read`, `write`, `accept`, etc.) immediately
+2. If it succeeds → return the result. Zero overhead, no coroutine machinery involved
+3. If `EINTR` → retry the syscall
+4. If `EAGAIN`/`EWOULDBLOCK` → the socket isn't ready, enter the coroutine wait path via `st_netfd_poll()`
+5. If any other error → return error
+
+This "try first" design means ST adds zero overhead when data is already available — it's just a normal syscall.
+
+**`st_netfd_poll()` → `st_poll()`:** The poll wrapper converts a single fd into a `struct pollfd` and calls `st_poll()`, which is where the coroutine actually suspends.
+
+**`st_poll()` — The Coroutine Suspension Point (sched.c):**
+
+1. **Register with epoll:** Calls `_st_eventsys->pollset_add(pds, npds)`, which does `epoll_ctl(epfd, EPOLL_CTL_ADD, fd, {EPOLLIN|EPOLLOUT})` and increments per-fd reference counts (`_ST_EPOLL_READ_CNT`, `_ST_EPOLL_WRITE_CNT`). Multiple coroutines can watch the same fd — reference counts track this.
+
+2. **Create a poll queue entry on the stack:** A `_st_pollq_t` struct links the pollfd array to the waiting coroutine (`pq.thread = me`) and sets `pq.on_ioq = 1`.
+
+3. **Insert into `io_q`:** The poll queue entry is linked into the global I/O wait list. Later, `_st_epoll_dispatch()` walks this list to find which coroutines to wake.
+
+4. **Add to sleep heap (if timeout specified):** `_st_add_sleep_q(me, timeout)` sets `me->due = last_clock + timeout` and inserts into the binary heap. This ensures the coroutine wakes even if I/O never arrives.
+
+5. **Set state to `_ST_ST_IO_WAIT`** and call `_st_switch_context(me)` — the coroutine suspends. Registers are saved, and the scheduler picks the next runnable coroutine (or the idle thread if nothing else is ready).
+
+**`_st_vp_schedule()` — The Scheduler (sched.c):**
+
+When `_st_switch_context()` is called, `_st_vp_schedule()` decides what runs next:
+- If `run_q` is non-empty → pull the first thread off the head, switch to it
+- If `run_q` is empty → switch to the idle thread
+
+The idle thread is where `epoll_wait` lives — it's the "nobody else has anything to do, so let's wait for I/O" fallback.
+
+**The Idle Thread Loop (sched.c):**
+
+The idle thread runs a tight loop until no active coroutines remain:
+1. `_st_eventsys->dispatch()` → calls `_st_epoll_dispatch()`
+2. `_st_vp_check_clock()` → process expired timeouts
+3. Set self to `RUNNABLE`, call `_st_switch_context()` → yield to a ready coroutine
+4. When that coroutine eventually suspends, we return here and loop
+
+**`_st_epoll_dispatch()` — The Heart of I/O Multiplexing (event.c):**
+
+This function does three things: wait for I/O, wake coroutines, and clean up epoll state.
+
+*Phase 1 — Calculate epoll timeout from sleep heap:*
+- If `sleep_q` is NULL (no sleeping coroutines) → `timeout = -1` (block forever)
+- Otherwise → `timeout = sleep_q->due - last_clock` (wake at earliest deadline)
+- Special case: if timeout computes to 0ms but `min_timeout > 0` (sub-millisecond), round up to 1ms to avoid a spin loop (epoll_wait only has millisecond granularity)
+
+*Phase 2 — `epoll_wait()`:*
+- `nfd = epoll_wait(epfd, evtlist, evtlist_size, timeout)` — **this is the only true blocking point in the entire process**. The OS suspends the process until at least one fd is ready or the timeout expires.
+
+*Phase 3 — Mark fired fds:*
+- For each event returned by epoll, store the fired events in `_ST_EPOLL_REVENTS(osfd)`. If `EPOLLERR` or `EPOLLHUP` is set, also set the I/O bits (`EPOLLIN`/`EPOLLOUT`) so waiting coroutines see the error.
+
+*Phase 4 — Walk `io_q`, wake matching coroutines:*
+- For each `_st_pollq_t` entry on `io_q`, check each fd in its pollfd array against `_ST_EPOLL_REVENTS`. If any fd has matching events, set `pds->revents` and mark `notify = 1`.
+- If notify: remove the poll queue entry from `io_q` (`pq->on_ioq = 0`), call `_st_epoll_pollset_del()` to adjust epoll registration (decrement reference counts, `EPOLL_CTL_MOD` or `EPOLL_CTL_DEL` as needed), remove the thread from `sleep_q` if present, set `thread->state = _ST_ST_RUNNABLE`, and insert into `run_q`.
+
+*Phase 5 — Clean up fired fds in epoll:*
+- For each event in the epoll result list, clear `_ST_EPOLL_REVENTS`, then either `EPOLL_CTL_MOD` (if other coroutines still watch this fd) or `EPOLL_CTL_DEL` (if no more watchers). This keeps epoll's internal state in sync with ST's reference counts.
+
+**`_st_vp_check_clock()` — Timeout Processing (sched.c):**
+
+After dispatch returns, the idle thread checks for expired timeouts:
+1. Update `last_clock = st_utime()`
+2. Walk the sleep heap root: while `sleep_q->due <= now`, remove the thread from the heap
+3. If the thread was in `_ST_ST_COND_WAIT` state, set the `_ST_FL_TIMEDOUT` flag
+4. Set `thread->state = _ST_ST_RUNNABLE` and insert at the **head** of `run_q` (using `st_clist_insert_after`)
+
+**Priority detail:** Timed-out coroutines go to the head of `run_q`; I/O-ready coroutines go to the tail. Timeouts get priority because they represent deadlines.
+
+**Resumption — Back in `st_poll()`:**
+
+When the scheduler switches back to our coroutine, execution resumes right after the `_st_switch_context()` call in `st_poll()`:
+- If `pq.on_ioq == 0` → dispatch already removed us from `io_q`, I/O is ready. Count fds with non-zero `revents` and return the count.
+- If `pq.on_ioq == 1` → we timed out (woken by `_st_vp_check_clock`, not by dispatch). Remove ourselves from `io_q`, call `pollset_del` to clean up epoll registration, return 0.
+
+Back in `st_read()`, if `st_netfd_poll()` succeeded, the loop retries `read()` — which now succeeds because data is available. The data is returned to the application.
+
+**The `on_ioq` flag is the key mechanism** that distinguishes timeout wakeup from I/O wakeup. The dispatch function clears it (`pq->on_ioq = 0`) when I/O fires; `_st_vp_check_clock` does NOT touch it. So when `st_poll()` resumes, it checks this flag to know why it woke up.
+
+**Reference counting for shared fds:** Multiple coroutines can wait on the same fd (e.g., multiple readers on a UDP socket). `_ST_EPOLL_READ_CNT(fd)` and `_ST_EPOLL_WRITE_CNT(fd)` track how many coroutines watch each direction. `epoll_ctl` is only called when counts transition between 0 and non-zero. When a coroutine's I/O completes, `_st_epoll_pollset_del` decrements the count — if it reaches 0, the fd is removed from epoll; otherwise it's modified to reflect remaining watchers.
+
+## `st_usleep()` — Pure Timer-Based Coroutine Sleep
+
+`st_usleep(usecs)` suspends the current coroutine for a specified duration. Unlike I/O functions (`st_read`, `st_write`), it involves **no I/O at all** — the coroutine is placed only in the sleep heap and woken purely by timeout expiration.
+
+**The function (sync.c):**
+
+1. **Check interrupt flag.** If `_ST_FL_INTERRUPT` is set on the current thread, clear it and return `EINTR` immediately — the coroutine was interrupted by `st_thread_interrupt()` before it even started sleeping.
+
+2. **Set state and enter sleep heap.** If a finite timeout is given: set `me->state = _ST_ST_SLEEPING`, then `_st_add_sleep_q(me, usecs)` which computes `me->due = last_clock + usecs`, sets the `_ST_FL_ON_SLEEPQ` flag, assigns a heap index, and inserts into the binary heap (O(log N)). If `ST_UTIME_NO_TIMEOUT` is passed (via `st_sleep(-1)`), the state is set to `_ST_ST_SUSPENDED` instead — no sleep queue entry, the coroutine hangs indefinitely until explicitly interrupted.
+
+3. **Suspend.** `_st_switch_context(me)` saves the coroutine's CPU registers via `_st_md_cxt_save(me->context)` (returns 0 on save), then calls `_st_vp_schedule(me)` which picks the next runnable coroutine from `run_q` — or the idle thread if nothing else is ready — and switches to it via `_st_restore_context`.
+
+4. **The coroutine is now frozen.** Its registers are saved in `me->context`, and it sits in the sleep heap with a computed deadline. It is **not** in `io_q` and has no epoll registration — this is the key difference from I/O wait.
+
+5. **The idle thread wakes it.** The idle thread's `epoll_wait` uses the sleep heap root's deadline as its timeout. When `epoll_wait` returns (either from I/O on other fds or timeout expiration), `_st_vp_check_clock()` runs: it reads `now = st_utime()`, updates `last_clock`, then walks the sleep heap — any thread with `due <= now` is removed from the heap, set to `_ST_ST_RUNNABLE`, and inserted at the **head** of `run_q` (timed-out coroutines get priority over I/O-ready ones).
+
+6. **Resume.** When the scheduler switches back, `_st_md_cxt_restore(me->context, 1)` restores registers and returns 1 (non-zero), so the `if` in `_st_switch_context` is skipped and execution continues after the `_st_switch_context()` call in `st_usleep()`. A final interrupt check is performed, then `return 0` — sleep complete.
+
+**Comparison with I/O wait path:**
+
+- `st_usleep` uses **only the sleep heap** — no `io_q`, no `epoll_ctl`, no epoll registration. The coroutine is woken exclusively by `_st_vp_check_clock()`.
+- `st_read`/`st_write` (EAGAIN path) uses **both `io_q` and the sleep heap** — epoll watches the fd, and the sleep heap provides timeout fallback. The coroutine can be woken by either `_st_epoll_dispatch()` (I/O ready) or `_st_vp_check_clock()` (timeout), distinguished by the `on_ioq` flag.
+- In both cases, `epoll_wait`'s timeout is derived from the sleep heap root, so pure-sleep coroutines still influence when `epoll_wait` returns.
+
+**Timeout precision note:** The deadline is `last_clock + usecs`, not `now + usecs`. If CPU work happened since the last scheduler cycle (the last time `_st_vp_check_clock` updated `last_clock`), part of the sleep duration is already "consumed." For typical sleep durations (seconds), this staleness is negligible. This is why ST timeouts are designed for coarse-grained use — detecting broken connections or idle peers, not sub-millisecond timing.
+
+## `st_mutex` — Cooperative Mutex Workflow
+
+ST's mutex is simple because cooperative scheduling eliminates the need for atomic operations, spinlocks, or memory barriers — just pointer manipulation and coroutine switching.
+
+**The struct (common.h):**
+- `_st_thread_t *owner` — current mutex owner, NULL means unlocked
+- `_st_clist_t wait_q` — linked list of coroutines waiting to acquire the mutex
+
+**`st_mutex_lock()` — Three Paths (sync.c):**
+
+1. **Uncontended (owner == NULL).** Set `lock->owner = me`, return 0. Instant — just a pointer comparison and assignment, the cheapest possible lock. Safe because cooperative scheduling guarantees no other coroutine runs between the check and the assignment.
+
+2. **Same owner (owner == me).** Return `EDEADLK`. Deadlock detection — if you try to lock a mutex you already own, ST catches it immediately instead of hanging forever.
+
+3. **Contended (owner == someone else).** The coroutine must wait:
+   - Set `me->state = _ST_ST_LOCK_WAIT`
+   - Insert `me` into `lock->wait_q` (FIFO — insert before tail via `st_clist_insert_before`)
+   - Call `_st_switch_context(me)` — save registers, yield to scheduler
+   - The coroutine is now frozen: sitting on `lock->wait_q`, **not** on `sleep_q` (no timeout), **not** on `io_q` (no I/O). It can only be woken by `st_mutex_unlock()` or `st_thread_interrupt()`
+   - When resumed: remove self from `wait_q`, check if interrupted (return `EINTR` if interrupted and not the owner), otherwise return 0 — the coroutine now owns the mutex
+
+**`st_mutex_unlock()` (sync.c):**
+
+First checks that the caller actually owns the mutex (returns `EPERM` if not). Then walks `lock->wait_q` looking for a thread in `_ST_ST_LOCK_WAIT` state:
+
+- **Waiter found:** Direct ownership transfer — sets `lock->owner = waiter` immediately, sets `waiter->state = _ST_ST_RUNNABLE`, inserts waiter into `run_q` (at tail, normal priority). The unlocker does **not** yield — it keeps running. The waiter resumes when the current coroutine eventually hits I/O or yields.
+- **No waiters:** Simply sets `lock->owner = NULL`.
+
+**Key design properties:**
+
+- **No timeout.** Unlike `st_usleep` or `st_read`, `st_mutex_lock` has no timeout parameter. A waiting coroutine is not placed on the sleep heap — it waits indefinitely until unlocked or interrupted. For timed locking semantics, use `st_cond_timedwait` instead.
+- **Direct ownership transfer.** When unlocking with waiters, `lock->owner = waiter` is set before the waiter even resumes. This prevents a third coroutine from grabbing the mutex between the unlock and the waiter's resumption. Safe because cooperative scheduling means no preemption between these operations.
+- **FIFO fairness.** Waiters are added to the tail of `wait_q`; `st_mutex_unlock` walks from the head. First to wait is first to acquire. No starvation.
+- **No spin, no atomic ops, no syscalls.** The uncontended path is a pointer comparison and assignment. The contended path suspends the coroutine entirely — no busy-waiting. All of this works because no other coroutine can run between a check and an assignment in cooperative scheduling.
+
+## `st_cond` — Condition Variable Workflow
+
+ST's condition variable (`st_cond`) follows a similar pattern to `st_mutex` — `wait_q` linked list, `_st_switch_context` to suspend, wake by setting state to `RUNNABLE` — but solves a fundamentally different problem: **waiting for a condition/event to happen**, not exclusive resource ownership.
+
+**The struct (common.h):** Just a `wait_q` linked list — no `owner` field. Nobody "owns" a condition variable.
+
+**Comparison with `st_mutex`:**
+- **Purpose:** `st_mutex` = exclusive ownership of a resource. `st_cond` = wait for something to happen.
+- **Owner:** `st_mutex` has `lock->owner`. `st_cond` has no ownership concept.
+- **Timeout:** `st_mutex_lock` has no timeout — waits forever. `st_cond_timedwait` supports timeout via the sleep heap.
+- **Wake semantics:** `st_mutex_unlock` transfers ownership to ONE waiter. `st_cond_signal` wakes ONE waiter, `st_cond_broadcast` wakes ALL waiters — no ownership transfer.
+- **Wait state:** `st_mutex` uses `_ST_ST_LOCK_WAIT`. `st_cond` uses `_ST_ST_COND_WAIT`.
+
+**`st_cond_timedwait()` (sync.c):**
+
+1. **Check interrupt flag.** Return `EINTR` if `_ST_FL_INTERRUPT` is set.
+2. **Enter wait queue.** Set `me->state = _ST_ST_COND_WAIT`, insert into `cvar->wait_q` (FIFO).
+3. **Optionally enter sleep heap.** If `timeout != ST_UTIME_NO_TIMEOUT`, call `_st_add_sleep_q(me, timeout)`. This is the key difference from `st_mutex` — the coroutine lands in **two places simultaneously**: `cvar->wait_q` AND the sleep heap. It gets woken by whichever fires first.
+4. **Suspend.** `_st_switch_context(me)` saves registers and yields to the scheduler.
+5. **Resume.** Remove self from `wait_q`. Check `_ST_FL_TIMEDOUT` → return `ETIME`. Check `_ST_FL_INTERRUPT` → return `EINTR`. Otherwise return 0 (signaled successfully).
+
+**Dual-wakeup mechanism:** When both `wait_q` and sleep heap are active, the coroutine wakes from whichever fires first:
+- **Signal fires first** → `_st_cond_signal` removes the coroutine from the sleep heap (`_st_del_sleep_q`), sets it RUNNABLE. On resume, no `_ST_FL_TIMEDOUT` flag → returns 0.
+- **Timeout fires first** → `_st_vp_check_clock` finds the coroutine in `_ST_ST_COND_WAIT` state, sets the `_ST_FL_TIMEDOUT` flag, moves it to `run_q` (at head — timeout priority). On resume, flag is set → returns `ETIME`. The coroutine is still on `wait_q` but removes itself upon resumption.
+
+This is the same dual-wakeup pattern as the I/O path (`io_q` + sleep heap), but with `wait_q` instead of `io_q`.
+
+**`_st_cond_signal()` (sync.c):**
+
+Walks `cvar->wait_q` from head, for each thread in `_ST_ST_COND_WAIT` state: if the thread is on the sleep heap, removes it (`_st_del_sleep_q`); sets `thread->state = _ST_ST_RUNNABLE`; inserts into `run_q`. If not broadcast, breaks after the first waiter. If broadcast, continues to wake all waiters.
+
+**`st_cond_wait()` is simply `st_cond_timedwait(cvar, ST_UTIME_NO_TIMEOUT)`** — no sleep heap entry, waits indefinitely until signaled or interrupted.
+
+**Why SRS uses `st_cond` far more than `st_mutex`:** In a cooperative coroutine system, there is no preemption — no other coroutine runs between a check and an assignment, so mutual exclusion is rarely needed. What SRS needs constantly is "wait until something happens" — data arrives on an SRT socket, a stream becomes available, a client connects. `st_cond` is the primary tool for this. The coroutine-native SRT pattern is a perfect example: a coroutine calls `st_cond_wait` when `srt_recvmsg` returns EAGAIN, and a poller coroutine calls `st_cond_signal` when the fd becomes ready.
