@@ -33,3 +33,7 @@ Platform ASM: `md_darwin.S`, `md_linux.S`, `md_linux2.S`, `md_cygwin64.S`
 Build: `Makefile`
 
 **Load every single file listed above — no shortcuts, no skipping.**
+
+## Verifying Changes
+
+After any ST code change, run `scripts/verify.sh` from the ST source directory to build and execute unit tests. Always run this before considering a change complete.
