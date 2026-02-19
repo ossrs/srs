@@ -9,29 +9,30 @@ Answer questions about SRS using the knowledge base in the SRS repository.
 
 ## Setup
 
-The user must have the SRS repository cloned locally. The knowledge files live in the `openclaw/` directory of the repo.
+The user must have the SRS repository cloned locally. The knowledge files live in the `openclaw/` directory inside the SRS repo.
 
-## Finding the Repository
+Do **not** hardcode an absolute SRS path. Resolve `SRS_ROOT` dynamically:
 
-The default and recommended path is `~/git/srs/`. Check there first for `openclaw/memory/srs-overview.md`.
+1. If `SRS_ROOT` env is set and contains `openclaw/memory/srs-overview.md`, use it.
+2. Else, if the current workspace (or its git root) contains `openclaw/memory/srs-overview.md`, use that as `SRS_ROOT`.
+3. Else, if `~/git/srs/openclaw/memory/srs-overview.md` exists, use `~/git/srs`.
+4. Else, ask the user for their SRS repo root (or to clone it).
 
-If not found, ask the user to either:
-1. Clone the SRS repo to `~/git/srs/` (recommended): `git clone https://github.com/ossrs/srs.git ~/git/srs`
-2. Tell you where their existing SRS repo is located
+All paths below are relative to `$SRS_ROOT`.
 
 ## Loading Knowledge
 
 On first question, load **all** `srs-*.md` files from `openclaw/memory/` into context:
 
 ```bash
-ls openclaw/memory/srs-*.md
+ls "$SRS_ROOT"/openclaw/memory/srs-*.md
 ```
 
 Read every file found. Do not selectively load or search — load the entire knowledge base. Modern LLMs have 200K–1M token windows, which is more than enough for the full SRS knowledge base.
 
 ## Knowledge Files
 
-All files are in `openclaw/memory/` within the SRS repo:
+All files are in `$SRS_ROOT/openclaw/memory/`:
 
 - **srs-overview.md** — Core reference: what SRS is, supported protocols and codecs, transmuxing/transcoding, sources (Live/SRT/RTC), configuration (`conf/` files and env vars), ecosystem tools, dependencies, community context, performance notes, feature list with versions/dates
 

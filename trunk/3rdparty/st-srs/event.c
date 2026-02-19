@@ -63,7 +63,7 @@ __thread unsigned long long _st_stat_epoll_spin = 0;
 
 
 #ifdef MD_HAVE_SELECT
-static struct _st_seldata {
+static __thread struct _st_seldata {
     fd_set fd_read_set, fd_write_set, fd_exception_set;
     int fd_ref_cnts[FD_SETSIZE][3];
     int maxfd;
@@ -432,7 +432,8 @@ ST_HIDDEN int _st_select_fd_getlimit(void)
 
 ST_HIDDEN void _st_select_destroy(void)
 {
-    /* TODO: FIXME: Implements it */
+    free(_st_select_data);
+    _st_select_data = NULL;
 }
 
 static _st_eventsys_t _st_select_eventsys = {
