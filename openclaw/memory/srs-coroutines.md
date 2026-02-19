@@ -201,17 +201,15 @@ Additionally, we explored another potential architecture where specific capabili
 
 ## How `__thread` Makes ST Thread-Safe
 
-The multi-threading support in ST works by making each pthread run its own independent ST scheduler. The key mechanism is GCC's `__thread` storage class — every global/static variable that holds scheduler state becomes thread-local, so each pthread gets its own copy.
+ST's multi-threading model is simple: **one pthread, one ST scheduler**. It uses GCC's `__thread` so scheduler state is thread-local, not shared global state.
 
-This approach was pioneered by [toffaletti's fork](https://github.com/toffaletti/state-threads) and later adopted by ossrs/state-threads ([state-threads#19](https://github.com/ossrs/state-threads/issues/19)).
+This approach came from [toffaletti's fork](https://github.com/toffaletti/state-threads) and was later adopted by ossrs/state-threads ([state-threads#19](https://github.com/ossrs/state-threads/issues/19)).
 
-All global and static variables that hold scheduler state were converted to `__thread`: the VP struct, current thread pointer, active count, time cache in sched.c; the event system pointer and per-backend data structs (select/poll/kqueue/epoll) in event.c; the free stack list and counters in stk.c; the destructor table and key counter in key.c; plus matching `extern` declarations in common.h and sync.c.
+In practice, key runtime state is thread-local: current thread, VP/scheduler state, event backend data, free stack list, and key/destructor tables. `st_init()` initializes each thread's runtime (including calling `_st_io_init()` directly). In current code, the netfd freelist is also thread-local (`static __thread _st_netfd_t *_st_netfd_freelist`), so no mutex is needed there.
 
-Beyond adding `__thread`, several supporting changes were needed: each event backend got a `free()` method for per-pthread cleanup; `__thread` variables with dynamic initializers had to be initialized explicitly in `st_init()`; I/O init was wrapped in `pthread_once` to run only once; a primordial thread pointer was added to `_st_vp` so the idle thread can return cleanly; and the netfd freelist — the only truly shared resource — got a `pthread_mutex_t` since file descriptors can be passed between threads.
+**Design takeaway:** ST scales by isolation, not heavy locking. Each pthread runs an independent coroutine runtime with its own run queue, timers, and event loop.
 
-**The design principle:** Each pthread gets a complete, isolated ST scheduler — its own run queues, event loop, coroutine stacks, and timers. No locking needed for scheduler operations. The only shared state requiring a mutex is the netfd freelist. This is why the approach is clean — it's essentially N independent single-threaded ST instances that happen to live in the same process.
-
-**Why SRS moved away from this:** The `__thread` approach works at the ST library level — each thread runs an independent coroutine scheduler correctly. But at the application level (SRS), threads must still communicate and share streams. Load balancing across threads proved nearly impossible to observe or manage (see "Multi-CPU: Cluster, Not Multi-Threading" above). The cluster architecture solves multi-CPU without these problems.
+**Why SRS still moved away:** This works well inside ST, but SRS still faced hard cross-thread coordination and load-balancing problems at the application level. The project chose Proxy + Origin + Edge cluster architecture for multi-CPU scaling instead.
 
 ## Porting ST to New Platforms
 
