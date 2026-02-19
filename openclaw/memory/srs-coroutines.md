@@ -598,3 +598,270 @@ Walks `cvar->wait_q` from head, for each thread in `_ST_ST_COND_WAIT` state: if 
 **`st_cond_wait()` is simply `st_cond_timedwait(cvar, ST_UTIME_NO_TIMEOUT)`** — no sleep heap entry, waits indefinitely until signaled or interrupted.
 
 **Why SRS uses `st_cond` far more than `st_mutex`:** In a cooperative coroutine system, there is no preemption — no other coroutine runs between a check and an assignment, so mutual exclusion is rarely needed. What SRS needs constantly is "wait until something happens" — data arrives on an SRT socket, a stream becomes available, a client connects. `st_cond` is the primary tool for this. The coroutine-native SRT pattern is a perfect example: a coroutine calls `st_cond_wait` when `srt_recvmsg` returns EAGAIN, and a poller coroutine calls `st_cond_signal` when the fd becomes ready.
+
+## `st_thread_exit()` — How a Coroutine Dies
+
+`st_thread_exit(retval)` is called when a coroutine finishes — either explicitly by the user or implicitly via `_st_thread_main()` after the start function returns. It handles cleanup, joinability, and stack recycling. The coroutine never returns from this function.
+
+**Step 1: Store return value and run destructors.** Sets `thread->retval = retval`, then calls `_st_thread_cleanup(thread)` which iterates all thread-specific data keys (up to `ST_KEYS_MAX`). For each key that has both a non-NULL value and a registered destructor function, it calls the destructor and clears the slot. This is ST's equivalent of pthread key destructors.
+
+**Step 2: Decrement active count.** `_st_active_count--` — one fewer active coroutine. When this reaches 0, the idle thread will call `exit(0)` and the process terminates.
+
+**Step 3: Handle joinable threads (the zombie path).** If `thread->term` is non-NULL (thread was created with `joinable = 1`):
+
+1. Set `thread->state = _ST_ST_ZOMBIE` — the thread is dead but its resources are preserved for the joiner to inspect.
+2. Insert into `zombie_q` — this keeps the thread struct alive so `st_thread_join()` can read `retval`.
+3. `st_cond_signal(thread->term)` — wake any coroutine blocked in `st_thread_join()` waiting on this thread's termination condition variable.
+4. `_st_switch_context(thread)` — the zombie suspends. It will only be rescheduled by `st_thread_join()` after the joiner has read the return value.
+5. When rescheduled (by the joiner): destroy the termination condvar (`st_cond_destroy(thread->term)`), set `thread->term = NULL`.
+
+**Step 4: Free the stack.** If the thread is not the primordial thread, `_st_stack_free(thread->stack)` puts the stack on the free list. (Valgrind deregistration happens just before this if `MD_VALGRIND` is enabled.) The primordial thread's stack is the process stack — it's never freed.
+
+**Step 5: Final switch — no return.** `_st_switch_context(thread)` is called one last time. The scheduler picks the next runnable coroutine. Since the exiting thread is not on any queue (not in `run_q`, not in `zombie_q` anymore for non-joinable threads), it will never be scheduled again. Its stack has been freed (or put on the free list), and execution never returns here.
+
+**Why zombies need two context switches:** The first `_st_switch_context` (step 3) suspends the zombie so the joiner can run and read `retval`. The joiner then puts the zombie back on `run_q` (see `st_thread_join` below). The second `_st_switch_context` (step 5) is the final one — after the joiner has extracted what it needs, the zombie resumes briefly to destroy its condvar and free its stack, then switches away forever.
+
+**Non-joinable threads skip the zombie path entirely** — no condvar signal, no zombie queue, no waiting for a joiner. They go straight from cleanup → stack free → final switch.
+
+## `st_thread_join()` — Waiting for a Coroutine to Finish
+
+`st_thread_join(thread, retvalp)` blocks the calling coroutine until the target thread exits. It's the mechanism for "wait for this coroutine to complete and get its result."
+
+**Precondition checks:**
+
+1. `thread->term == NULL` → thread is not joinable (created with `joinable = 0`). Returns `EINVAL`.
+2. `_st_this_thread == thread` → trying to join yourself. Returns `EDEADLK`.
+3. `term->wait_q` is non-empty → another coroutine is already waiting to join this thread. Returns `EINVAL`. Only one joiner is allowed per joinable thread.
+
+**The wait loop:**
+
+```c
+while (thread->state != _ST_ST_ZOMBIE) {
+    if (st_cond_timedwait(term, ST_UTIME_NO_TIMEOUT) != 0)
+        return -1;
+}
+```
+
+The joiner calls `st_cond_timedwait` on the target's termination condvar with no timeout — it suspends indefinitely. When `st_thread_exit()` signals this condvar, the joiner wakes up and checks if the target is in `_ST_ST_ZOMBIE` state. If yes, the loop exits. If not (spurious wakeup or interrupt), it waits again.
+
+If `st_cond_timedwait` returns an error (interrupted via `st_thread_interrupt`), the join fails and returns -1.
+
+**After the target is zombie:**
+
+1. Read the return value: `*retvalp = thread->retval` (if `retvalp` is non-NULL).
+2. **Reschedule the zombie for final cleanup:** Remove the zombie from `zombie_q`, set its state to `_ST_ST_RUNNABLE`, insert into `run_q`. This lets the zombie resume in `st_thread_exit()` to destroy its condvar and free its stack (the second `_st_switch_context` in `st_thread_exit`).
+
+**Why the joiner reschedules the zombie instead of cleaning up directly:** The zombie's stack contains the `_st_thread_t` struct itself (thread metadata is carved from the top of the stack — see `st_thread_create`). If the joiner freed the stack, it would destroy the thread struct it's still reading from. Instead, the joiner puts the zombie back on `run_q`, and the zombie cleans up its own resources when it gets scheduled — running on its own stack, which is safe to free at the very end (the final `_st_switch_context` switches away before the stack memory is actually reused).
+
+**The complete lifecycle of a joinable thread:**
+
+1. `st_thread_create(start, arg, joinable=1, ...)` — born, placed on `run_q`
+2. Scheduled → runs `_st_thread_main()` → runs `start(arg)`
+3. `start` returns → `st_thread_exit(retval)` called
+4. Cleanup runs, state → `_ST_ST_ZOMBIE`, inserted into `zombie_q`
+5. `st_cond_signal(term)` wakes the joiner
+6. First `_st_switch_context` — zombie suspends
+7. Joiner wakes, reads `retval`, moves zombie from `zombie_q` to `run_q`
+8. Zombie resumes, destroys condvar, frees stack
+9. Final `_st_switch_context` — zombie is gone forever
+
+## `st_thread_interrupt()` — Waking a Coroutine From Any Wait State
+
+`st_thread_interrupt(thread)` is the "cancel" mechanism — it forces a coroutine to wake up regardless of what it's waiting on (I/O, sleep, condvar, mutex). The interrupted coroutine sees `EINTR` when it resumes.
+
+**The function (sched.c):**
+
+1. **Dead thread check.** If `thread->state == _ST_ST_ZOMBIE`, return immediately — can't interrupt a dead thread.
+
+2. **Set the interrupt flag.** `thread->flags |= _ST_FL_INTERRUPT`. This flag persists until the interrupted coroutine checks and clears it upon resumption.
+
+3. **Already running/runnable check.** If the thread is `_ST_ST_RUNNING` or `_ST_ST_RUNNABLE`, just return — the flag is set, and the thread will see it next time it enters an I/O or wait function. No queue manipulation needed.
+
+4. **Remove from sleep heap (if present).** If `_ST_FL_ON_SLEEPQ` is set, call `_st_del_sleep_q(thread)` to remove it from the timeout heap. This is necessary because the thread is being woken prematurely — its timeout is no longer relevant.
+
+5. **Make runnable.** Set `thread->state = _ST_ST_RUNNABLE`, insert into `run_q` (at tail via `st_clist_insert_before`).
+
+**What the function does NOT do:** It does not remove the thread from `io_q` or `cvar->wait_q`. This is handled by the interrupted coroutine itself when it resumes — the same pattern as timeout wakeups in `st_poll()` (checks `pq.on_ioq`), `st_cond_timedwait()` (removes self from `wait_q`), and `st_mutex_lock()` (removes self from `wait_q`).
+
+**How each wait function detects interruption:**
+
+- **`st_poll()` (I/O wait):** After resuming from `_st_switch_context`, checks `me->flags & _ST_FL_INTERRUPT`. If set, clears the flag, sets `errno = EINTR`, returns -1. The `pq.on_ioq` flag is still 1 (dispatch didn't wake us), so the poll entry is also cleaned up from `io_q` and epoll.
+
+- **`st_usleep()` (sleep):** Checks the interrupt flag both before sleeping and after resuming. If set, clears it, returns `EINTR`.
+
+- **`st_cond_timedwait()` (condvar wait):** After resuming, removes self from `wait_q`, then checks `_ST_FL_INTERRUPT`. If set, clears it, returns `EINTR`.
+
+- **`st_mutex_lock()` (mutex wait):** After resuming, removes self from `wait_q`. If the interrupt flag is set AND the thread is not the mutex owner (another thread could have unlocked the mutex at the same time as the interrupt), returns `EINTR`.
+
+**The interrupt flag is "sticky" until consumed:** Once set, it stays set until a wait function checks and clears it. If the thread is already running, the flag has no immediate effect — but the next time the thread calls `st_read()`, `st_usleep()`, `st_cond_wait()`, or any other blocking function, it will return `EINTR` immediately without actually blocking. This is by design — it prevents a race where the interrupt arrives between the decision to wait and the actual suspension.
+
+**Interrupt vs. the sleep heap:** When a thread is on both `io_q`/`wait_q` and the sleep heap (e.g., `st_cond_timedwait` with timeout), `st_thread_interrupt` only removes it from the sleep heap. The thread remains on `io_q`/`wait_q` until it resumes and cleans up. This is safe because the cleanup is always done by the thread itself after waking.
+
+**Use in SRS:** `st_thread_interrupt` is how SRS implements graceful shutdown. When SRS needs to stop (e.g., SIGINT), it interrupts all active coroutines. Each coroutine's I/O call returns `EINTR`, the coroutine sees the shutdown flag, and exits cleanly. Without this mechanism, coroutines blocked on I/O would never wake up to check if the server is shutting down.
+
+**Critical lifecycle rule (do not assume immediate termination):** `st_thread_interrupt()` does **not** terminate the target coroutine synchronously. It only marks/wakes the coroutine so its current blocking call can return (typically `-1` with `errno=EINTR`, for example `st_read`). The coroutine must then cooperatively unwind and return from its entry function. Therefore, the interrupter should use a join/synchronization step (for joinable threads, `st_thread_join`) to wait for actual thread exit, instead of assuming interrupt == already dead.
+
+## The Netfd Abstraction (`_st_netfd_t`) — ST's File Descriptor Wrapper
+
+Every socket or file descriptor used with ST must be wrapped in a `_st_netfd_t`. This struct is the bridge between raw OS file descriptors and ST's coroutine I/O system. All ST I/O functions (`st_read`, `st_write`, `st_accept`, `st_connect`, etc.) take `_st_netfd_t*` instead of raw `int` fds.
+
+**The struct (common.h):**
+
+```c
+typedef struct _st_netfd {
+    int osfd;                    /* Underlying OS file descriptor */
+    int inuse;                   /* In-use flag */
+    void *private_data;          /* Per-descriptor private data */
+    _st_destructor_t destructor; /* Private data destructor function */
+    void *aux_data;              /* Auxiliary data for internal use */
+    struct _st_netfd *next;      /* For putting on the free list */
+} _st_netfd_t;
+```
+
+- `osfd` — The actual OS file descriptor number (what you'd pass to `read(2)`, `write(2)`)
+- `inuse` — Whether this wrapper is active (1) or recycled on the free list (0)
+- `private_data` + `destructor` — Per-fd user data with cleanup callback, set via `st_netfd_setspecific()`. SRS uses this to attach application-level connection objects to the fd
+- `aux_data` — Reserved for internal use (currently a no-op; historically used for accept serialization in multi-process setups)
+- `next` — Singly-linked list pointer for the free list
+
+**The Free List — Object Recycling:**
+
+`_st_netfd_t` objects are recycled via a thread-local singly-linked free list (`_st_netfd_freelist`). When a netfd is freed (`st_netfd_free`), it's pushed onto the free list. When a new netfd is needed (`_st_netfd_new`), the free list is checked first — if non-empty, a recycled object is popped; otherwise a fresh one is `calloc`'d. This avoids malloc/free churn for the most frequently created/destroyed objects in a server (one per connection).
+
+The free list is `static __thread` — each pthread in a multi-threaded ST setup has its own free list, requiring no locking. Note: the earlier documentation mentioned the netfd freelist having a pthread mutex as the only shared-state lock. Looking at the current code, the freelist is actually thread-local (`static __thread _st_netfd_t *_st_netfd_freelist`), so no mutex is needed. The mutex for shared netfd state existed in older versions of the toffaletti multi-threading fork but the current ossrs/state-threads code uses `__thread` isolation instead.
+
+**Creating a Netfd — `_st_netfd_new(osfd, nonblock, is_socket)`:**
+
+This is the internal constructor called by all public creation functions:
+
+1. **Notify the event system:** Calls `_st_eventsys->fd_new(osfd)`. For epoll, this is `_st_epoll_fd_new` which ensures the per-fd data array (`fd_data`) is large enough to hold the fd's index — expanding it via `realloc` if needed. For kqueue, this does the same with its own `fd_data` array. This is how ST tracks per-fd reference counts and revents.
+2. **Get or allocate the wrapper:** Pop from `_st_netfd_freelist` if available, otherwise `calloc` a new one.
+3. **Set non-blocking mode:** If `nonblock` is true (which it always is for sockets), sets `O_NONBLOCK`. For sockets, tries `ioctl(FIONBIO)` first (one syscall) — if that fails, falls back to `fcntl(F_GETFL)` + `fcntl(F_SETFL, O_NONBLOCK)` (two syscalls). Non-blocking mode is essential — without it, `read`/`write` would block the entire process instead of returning `EAGAIN` for the coroutine to handle.
+4. **Return the wrapper** with `osfd` set and `inuse = 1`.
+
+**Public creation functions:**
+
+- `st_netfd_open(osfd)` — Wrap any fd, set non-blocking. Used for pipes, FIFOs, etc. Calls `_st_netfd_new(osfd, 1, 0)` — `is_socket=0` means it skips the `ioctl(FIONBIO)` shortcut.
+- `st_netfd_open_socket(osfd)` — Wrap a socket fd, set non-blocking. Calls `_st_netfd_new(osfd, 1, 1)` — `is_socket=1` enables the faster `ioctl` path.
+- `st_open(path, oflags, mode)` — Open a file/FIFO with `O_NONBLOCK` added to `oflags`, then wrap it. The fd is already non-blocking from the `open()` call, so `_st_netfd_new` is called with `nonblock=0` (no need to set it again).
+
+**Closing a Netfd — `st_netfd_close(fd)`:**
+
+1. **Notify the event system:** Calls `_st_eventsys->fd_close(fd->osfd)`. For epoll, `_st_epoll_fd_close` checks that no coroutines are still watching this fd (all reference counts must be zero) — if any are non-zero, it returns `EBUSY` and the close fails. This prevents closing an fd that other coroutines are waiting on.
+2. **Recycle the wrapper:** Calls `st_netfd_free(fd)` which clears `inuse`, calls the private data destructor if set, and pushes the wrapper onto the free list.
+3. **Close the OS fd:** `close(fd->osfd)`.
+
+**Freeing without closing — `st_netfd_free(fd)`:**
+
+Sometimes you want to release the ST wrapper without closing the underlying OS fd (e.g., if another library owns the fd lifecycle). `st_netfd_free` does this: clears `aux_data`, calls the private data destructor, sets `inuse = 0`, and pushes to the free list. The OS fd remains open.
+
+**The Per-Fd Data Array in the Event System:**
+
+The event system maintains an array indexed by OS fd number, allocated to hold at least `_st_osfd_limit` entries. For epoll, this is `_st_epoll_data->fd_data` — an array of `_epoll_fd_data_t`:
+
+```c
+typedef struct _epoll_fd_data {
+    int rd_ref_cnt;   /* Number of coroutines waiting for read */
+    int wr_ref_cnt;   /* Number of coroutines waiting for write */
+    int ex_ref_cnt;   /* Number of coroutines waiting for exception */
+    int revents;      /* Fired events from last epoll_wait */
+} _epoll_fd_data_t;
+```
+
+This is **not** inside `_st_netfd_t` — it's a separate array in the event system, indexed by raw fd number. The reference counts track how many coroutines are watching each direction on each fd. When `st_poll()` registers a coroutine via `_st_epoll_pollset_add`, it increments the appropriate counts and calls `epoll_ctl(EPOLL_CTL_ADD)` or `epoll_ctl(EPOLL_CTL_MOD)`. When the I/O completes or times out, `_st_epoll_pollset_del` decrements the counts and calls `EPOLL_CTL_MOD` or `EPOLL_CTL_DEL` accordingly.
+
+This separation (netfd wrapper vs. event system per-fd data) is a clean design: the netfd is the application-facing handle, while the per-fd data is the event system's internal bookkeeping. Multiple netfd wrappers could theoretically point to the same osfd (though this would be unusual), and the event system tracks watchers by raw fd number regardless.
+
+**I/O Initialization — `_st_io_init()`:**
+
+Called once during `st_init()`, this function does two things:
+
+1. **Ignore SIGPIPE.** Sets `SIGPIPE` handler to `SIG_IGN` via `sigaction`. Without this, writing to a closed socket would kill the process. With it, `write()` just returns `EPIPE` which ST handles normally.
+2. **Maximize fd limit.** Reads `RLIMIT_NOFILE` via `getrlimit`, raises `rlim_cur` to `rlim_max` via `setrlimit`, and stores the result in `_st_osfd_limit`. On macOS where `rlim_max` can be negative (a platform quirk), it falls back to the event system's limit or `rlim_cur`. The fd limit determines the size of the event system's per-fd data array.
+
+**Per-Fd Private Data — `st_netfd_setspecific` / `st_netfd_getspecific`:**
+
+These let application code attach arbitrary data to a netfd, similar to pthread key-specific data but per-fd instead of per-thread. `st_netfd_setspecific(fd, value, destructor)` stores a pointer and a cleanup function; when the netfd is freed, the destructor is called automatically. SRS uses this to associate connection handler objects with their socket fds.
+
+**Why every I/O function takes `_st_netfd_t*` instead of raw fd:**
+
+The netfd wrapper ensures three invariants: (1) the fd is always non-blocking, (2) the event system knows about the fd and can track watchers, and (3) the fd can carry application-specific data. Without the wrapper, application code could accidentally use a blocking fd with ST's I/O functions, bypassing the coroutine scheduler and stalling the entire process. The wrapper is a compile-time safety net — you can't accidentally pass a raw `int` where `_st_netfd_t*` is expected.
+
+## The Event System Abstraction (`_st_eventsys_t`) — How ST Swaps I/O Backends
+
+ST uses a vtable pattern — a struct of function pointers — so the scheduler can call I/O multiplexing operations without knowing which backend (epoll, kqueue, or select) is active.
+
+**The vtable struct (common.h):**
+
+```c
+typedef struct _st_eventsys_ops {
+    const char *name;                          /* "select", "kqueue", "epoll" */
+    int  val;                                  /* ST_EVENTSYS_SELECT or ST_EVENTSYS_ALT */
+    int  (*init)(void);                        /* Create the OS multiplexer */
+    void (*dispatch)(void);                    /* The blocking wait + wake coroutines loop */
+    int  (*pollset_add)(struct pollfd *, int); /* Register fds when a coroutine starts waiting */
+    void (*pollset_del)(struct pollfd *, int); /* Unregister fds when I/O completes or times out */
+    int  (*fd_new)(int);                       /* Notify backend about a new fd (expand arrays) */
+    int  (*fd_close)(int);                     /* Check fd can be closed (no active watchers) */
+    int  (*fd_getlimit)(void);                 /* Hard fd limit (FD_SETSIZE for select, 0=unlimited) */
+    void (*destroy)(void);                     /* Tear down the event system */
+} _st_eventsys_t;
+```
+
+The global pointer `__thread _st_eventsys_t *_st_eventsys` is thread-local — each pthread in a multi-threaded ST setup gets its own event system instance. Each backend defines a static instance of this struct with its functions filled in (e.g., `_st_epoll_eventsys`, `_st_kq_eventsys`, `_st_select_eventsys`), and `st_set_eventsys()` points the global at the chosen one.
+
+**The pollfd bridge:** All three backends speak `struct pollfd` at the interface level — `pollset_add` and `pollset_del` take `struct pollfd*`. This is the abstraction layer. The scheduler only knows about `POLLIN`/`POLLOUT`/`POLLPRI`. Each backend translates these to its native API internally (epoll events, kqueue filters, or fd_sets).
+
+**How the scheduler uses the vtable:** The scheduler never calls `epoll_wait` or `kevent` or `select` directly. Every call goes through `_st_eventsys->`:
+
+- `st_init()` → `_st_eventsys->init()` — creates epoll fd / kqueue fd / initializes fd_sets
+- Idle thread loop → `_st_eventsys->dispatch()` — the big blocking wait
+- `st_poll()` → `_st_eventsys->pollset_add(pds, npds)` — when a coroutine suspends on I/O
+- I/O completion / timeout → `_st_eventsys->pollset_del(pds, npds)` — cleanup registrations
+- `_st_netfd_new()` → `_st_eventsys->fd_new(osfd)` — expand per-fd arrays if needed
+- `st_netfd_close()` → `_st_eventsys->fd_close(osfd)` — check no active watchers before close
+
+**Three backends, compile-time selected:**
+
+- **select** — Cygwin64 (Windows). Compile flag `MD_HAVE_SELECT`. Val `ST_EVENTSYS_SELECT` (1). Hard limit of `FD_SETSIZE` fds. State stored in global (not `__thread`) `fd_set`s with per-fd reference count arrays.
+- **kqueue** — macOS/Darwin. Compile flag `MD_HAVE_KQUEUE`. Val `ST_EVENTSYS_ALT` (3). No fd limit. State in `__thread` struct with per-fd data array, plus add/delete kevent lists.
+- **epoll** — Linux. Compile flag `MD_HAVE_EPOLL`. Val `ST_EVENTSYS_ALT` (3). No fd limit. State in `__thread` struct with per-fd data array (read/write/exception reference counts + revents).
+
+Kqueue and epoll both use `ST_EVENTSYS_ALT` — they're interchangeable "advanced" backends. Select is the fallback. The Makefile defines which flags are set per platform: Darwin gets `MD_HAVE_KQUEUE` + `MD_HAVE_SELECT`, Linux gets `MD_HAVE_EPOLL` + `MD_HAVE_SELECT`, Cygwin64 gets only `MD_HAVE_SELECT`. If none of the three are defined, compilation fails with `#error`.
+
+**Backend selection (`st_set_eventsys`):**
+
+`st_init()` calls `st_set_eventsys(ST_EVENTSYS_DEFAULT)`, which maps to select (it resolves to `ST_EVENTSYS_SELECT` internally). To get epoll or kqueue, application code must call `st_set_eventsys(ST_EVENTSYS_ALT)` **before** `st_init()`. For `ST_EVENTSYS_ALT`: if `MD_HAVE_KQUEUE` is defined, kqueue is used; else if `MD_HAVE_EPOLL` is defined and `_st_epoll_is_supported()` confirms the kernel actually supports it (by probing `epoll_ctl` for `ENOSYS`), epoll is used. Once set, the pointer is locked — calling `st_set_eventsys` again returns `EBUSY`. SRS calls `st_set_eventsys(ST_EVENTSYS_ALT)` to get epoll on Linux and kqueue on macOS.
+
+**The uniform dispatch pattern:** Despite different OS APIs, all three `dispatch` functions follow the same structure:
+
+1. Calculate timeout from sleep heap root (`sleep_q->due - last_clock`)
+2. Call the OS blocking function (`select` / `kevent` / `epoll_wait`)
+3. Mark fired fds in per-fd state
+4. Walk `io_q` — for each waiting coroutine, check its fds against fired results
+5. If any fd matched → remove from `io_q` (`on_ioq = 0`), call `pollset_del` to clean up registrations, remove from sleep heap if present, set `_ST_ST_RUNNABLE`, insert into `run_q`
+6. Clean up OS-level state for fired fds
+
+The scheduler, idle thread, coroutine suspension/resumption — all identical regardless of backend. Only the vtable functions differ.
+
+**Backend-specific details:**
+
+*Select:*
+- Maintains three global `fd_set`s (read/write/exception) with per-fd reference counts. `dispatch` must copy all three fd_sets before calling `select()` because select modifies them in place.
+- Has a `_st_select_find_bad_fd()` recovery handler — when `select` returns `EBADF`, it walks all waiting fds with `fcntl(F_GETFL)` to identify and remove the bad one.
+- The `maxfd` tracker is maintained across add/del/dispatch — select requires the highest fd number + 1 as its first argument.
+- Not `__thread` — the select data is a plain static pointer, since Cygwin doesn't need multi-threaded ST.
+
+*Kqueue:*
+- Uses `EV_ONESHOT` flag — each registration fires once and auto-deregisters from kqueue. Elegant: no need to explicitly delete fired fds. Only unfired fds need explicit `EV_DELETE`.
+- Batches additions via an `addlist` — `pollset_add` queues `struct kevent` entries, and `dispatch` submits them all in a single `kevent()` call via the changelist parameter. This reduces syscalls.
+- Deletions are synchronous — `pollset_del` calls `kevent()` immediately with a `dellist` to avoid stale fd problems (can't defer because the fd might be closed before the next dispatch).
+- Handles **fork recovery** — if `getpid()` changes after `kevent` returns `EBADF`, it re-creates the kqueue fd and re-registers all fds from `io_q`. Kqueue fds don't survive `fork()`.
+- Timeout uses `struct timespec` (nanosecond precision).
+
+*Epoll:*
+- Level-triggered (no `EPOLLET` flag) — simplest model, events re-fire on every `epoll_wait` until the fd is consumed or removed.
+- Uses reference counting (`rd_ref_cnt`, `wr_ref_cnt`, `ex_ref_cnt`) per fd to support multiple coroutines watching the same fd. `epoll_ctl` is called to `ADD`/`MOD`/`DEL` as reference counts transition between 0 and non-zero.
+- `dispatch` has two cleanup passes for fired fds: the first pass (inside the `io_q` walk) calls `pollset_del` which handles unfired fds — but skips fired fds because their `_ST_EPOLL_REVENTS` is still set. The second pass (after the `io_q` walk) iterates the epoll result list, clears revents, and calls `EPOLL_CTL_MOD` or `EPOLL_CTL_DEL` based on remaining reference counts. This two-pass design avoids modifying epoll state while still iterating results that depend on it.
+- Timeout uses milliseconds (epoll_wait limitation). Rounds up sub-millisecond timeouts to 1ms to avoid spin loops — if `min_timeout > 0` but computes to 0ms, it's bumped to 1ms.
+- `_st_epoll_is_supported()` probes at selection time by calling `epoll_ctl(-1, EPOLL_CTL_ADD, -1, &ev)` — if errno is `ENOSYS`, epoll syscalls are stubs and the backend is rejected.
