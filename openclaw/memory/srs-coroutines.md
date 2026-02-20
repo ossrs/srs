@@ -346,13 +346,12 @@ ST timeouts are suitable for coarse-grained purposes — detecting broken connec
 
 `st_init()` is the entry point that bootstraps the entire coroutine runtime. It creates the scheduler data structures, the event system, the idle thread, and wraps the calling OS thread as the first coroutine. Here's what happens step by step:
 
-**Step 1: Select the event system and initialize I/O.** Calls `st_set_eventsys(ST_EVENTSYS_DEFAULT)` to select the OS-level I/O multiplexer (epoll on Linux, kqueue on macOS), then `_st_io_init()` for one-time I/O setup (ignores SIGPIPE, sets fd limits).
+**Step 1: Set fallback event system and initialize I/O.** Calls `st_set_eventsys(ST_EVENTSYS_DEFAULT)` which maps to the `select` backend as a fallback default. If the application already called `st_set_eventsys(ST_EVENTSYS_ALT)` before `st_init()` to get epoll (Linux) or kqueue (macOS), this call returns `EBUSY` and is harmlessly ignored — hence the code comment "We can ignore return value here". SRS does exactly this: calls `st_set_eventsys(ST_EVENTSYS_ALT)` before `st_init()` to get epoll/kqueue. Then `_st_io_init()` runs for one-time I/O setup (ignores SIGPIPE, sets fd limits).
 
-**Step 2: Initialize all scheduler queues and create the event system.** First initializes the thread-local free stack list (`_st_free_stacks`), then zeroes the VP struct (`memset(&_st_this_vp, 0, ...)`), then initializes four empty linked lists:
+**Step 2: Initialize all scheduler queues and create the event system.** First initializes the thread-local free stack list (`_st_free_stacks`), then zeroes the VP struct (`memset(&_st_this_vp, 0, ...)`), then initializes three empty linked lists:
 - `run_q` — coroutines ready to run
 - `io_q` — coroutines blocked on socket I/O
 - `zombie_q` — dead coroutines awaiting cleanup
-- `_st_free_stacks` — recycled stack free list for reuse
 
 Then calls `(*_st_eventsys->init)()` to create the actual epoll/kqueue file descriptor. Also captures `pagesize` (for stack guard pages) and `last_clock` (current timestamp for timeout calculations).
 
