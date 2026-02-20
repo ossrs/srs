@@ -333,12 +333,12 @@ This complements ST's GDB helper scripts (`nn_coroutines`, `show_coroutines`) as
 
 ST timeouts have a subtle but important behavior: the timeout parameter is relative to `last_clock` (the timestamp of the last scheduler cycle), not the moment the function is called.
 
-When you call `st_read(fd, buf, n, timeout)`, internally ST computes the deadline as `due = last_clock + timeout`. The `last_clock` value is updated in `_st_vp_check_clock()`, which only runs during scheduler cycles — in the idle thread loop after `dispatch()` returns, and in `st_thread_yield()`. Between those points, `last_clock` is frozen.
+When you call `st_read(fd, buf, n, timeout)`, internally ST computes the deadline as `due = last_clock + timeout` (in `_st_add_sleep_q`). The `last_clock` value is updated in `_st_vp_check_clock()`, which only runs during scheduler cycles — in the idle thread loop after `dispatch()` returns, and in `st_thread_yield()`. Between those points, `last_clock` is frozen.
 
-This means if a coroutine does CPU work between its last context switch and the I/O call, part of the timeout has already been "consumed" by that CPU time. For example:
+**The cancelling effect:** Both the deadline and the `epoll_wait` timeout are computed from the same stale `last_clock`: `due = last_clock + timeout`, `min_timeout = due - last_clock = timeout`. The staleness cancels out — `epoll_wait` always receives the full `timeout` value. On a busy server, frequent I/O keeps `last_clock` fresh and deadlines fire on time. On a quiet server, the actual wait approximates the full `timeout` regardless of staleness. For example:
 
-- `last_clock` was set 8ms ago, you call `st_read()` with a 10ms timeout → effective wait is at most 2ms
-- `last_clock` was set 12ms ago, you call `st_read()` with a 10ms timeout → deadline is already in the past, may return as timed out immediately on the next scheduler cycle
+- `last_clock` was set 8ms ago, you call `st_read()` with a 10ms timeout → `due = last_clock + 10ms` (only 2ms from now), but dispatch computes `min_timeout = due - last_clock = 10ms` → `epoll_wait` blocks for the full 10ms
+- On a busy server with frequent I/O, `last_clock` stays fresh — dispatch would compute `min_timeout = 2ms` and the deadline fires on time
 
 ST timeouts are suitable for coarse-grained purposes — detecting broken connections, idle peers, or stuck operations. Realistic timeouts should be on the order of seconds (e.g., 5s, 30s), where `last_clock` staleness is negligible. They are not designed for precise sub-millisecond timing.
 
@@ -346,7 +346,7 @@ ST timeouts are suitable for coarse-grained purposes — detecting broken connec
 
 `st_init()` is the entry point that bootstraps the entire coroutine runtime. It creates the scheduler data structures, the event system, the idle thread, and wraps the calling OS thread as the first coroutine. Here's what happens step by step:
 
-**Step 1: Set fallback event system and initialize I/O.** Calls `st_set_eventsys(ST_EVENTSYS_DEFAULT)` which maps to the `select` backend as a fallback default. If the application already called `st_set_eventsys(ST_EVENTSYS_ALT)` before `st_init()` to get epoll (Linux) or kqueue (macOS), this call returns `EBUSY` and is harmlessly ignored — hence the code comment "We can ignore return value here". SRS does exactly this: calls `st_set_eventsys(ST_EVENTSYS_ALT)` before `st_init()` to get epoll/kqueue. Then `_st_io_init()` runs for one-time I/O setup (ignores SIGPIPE, sets fd limits).
+**Step 1: Set event system and initialize I/O.** SRS calls `st_set_eventsys(ST_EVENTSYS_ALT)` before `st_init()` to select the platform-optimal backend — epoll on Linux, kqueue on macOS. Inside `st_init()`, `st_set_eventsys(ST_EVENTSYS_DEFAULT)` is called but returns `EBUSY` (since the event system is already set) and is harmlessly ignored — hence the code comment "We can ignore return value here". Then `_st_io_init()` runs for one-time I/O setup (ignores SIGPIPE, sets fd limits).
 
 **Step 2: Initialize all scheduler queues and create the event system.** First initializes the thread-local free stack list (`_st_free_stacks`), then zeroes the VP struct (`memset(&_st_this_vp, 0, ...)`), then initializes three empty linked lists:
 - `run_q` — coroutines ready to run
@@ -359,7 +359,7 @@ Then calls `(*_st_eventsys->init)()` to create the actual epoll/kqueue file desc
 
 The idle thread's loop is the core scheduler cycle:
 1. `(*_st_eventsys->dispatch)()` — calls `epoll_wait`/`kqueue`, blocking until I/O is ready or the earliest timeout fires. This is the **only place the process truly blocks**.
-2. `_st_vp_check_clock()` — walks the sleep heap, moves timed-out coroutines to the run queue, updates `last_clock`.
+2. `_st_vp_check_clock()` — updates `last_clock`, then walks the sleep heap and moves timed-out coroutines to the run queue.
 3. `_st_switch_context(me)` — yields CPU to a ready coroutine from the run queue.
 4. When that coroutine eventually switches back (hits I/O or yields), the idle thread loops again.
 5. When `_st_active_count` drops to 0 (no more coroutines), the idle thread calls `exit(0)`.
