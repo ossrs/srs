@@ -388,11 +388,14 @@ Both `thread` and `ptds` are zeroed with `memset` after being carved from the st
 **Step 3: Set up the initial context (the core trick).** This is the most subtle part:
 
 ```c
+/* Note that we must directly call rather than call any functions. */
 if (_st_md_cxt_save(thread->context)) {
     _st_thread_main();
 }
 MD_GET_SP(thread) = (long)(stack->sp);
 ```
+
+The code comment is a correctness constraint: `_st_md_cxt_save` must be called directly at this site, not wrapped in a helper function. It captures the current PC (return address) — when `_st_md_cxt_restore` later restores this context, execution resumes right here at the `if` check. If `_st_md_cxt_save` were called inside a helper function, the saved PC would point into that helper's frame, and the restored execution would return into a function frame that doesn't exist on the new coroutine's stack — crash.
 
 - `_st_md_cxt_save()` saves the **creator's** current CPU registers into `thread->context` and returns **0** (like `setjmp`)
 - Since it returns 0, the `if` body is **skipped** — `_st_thread_main()` is NOT called now
