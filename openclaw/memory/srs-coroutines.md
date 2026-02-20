@@ -217,6 +217,7 @@ Porting ST to a new OS/CPU is simpler than it sounds. The core task is implement
 
 **Current platform support (from [state-threads#22](https://github.com/ossrs/state-threads/issues/22)):**
 
+- **Linux + i386** — Stable. 32-bit x86 systems.
 - **Linux + x86-64** — Stable. CentOS, Ubuntu server, etc.
 - **Linux + ARM (v7)** — Stable. Raspberry Pi and ARM devices. ([state-threads#1](https://github.com/ossrs/state-threads/issues/1))
 - **Linux + AArch64 (ARMv8)** — Stable. ARM servers. ([state-threads#9](https://github.com/ossrs/state-threads/issues/9))
@@ -241,7 +242,7 @@ Early ST used glibc's `setjmp`, then modified the `jmp_buf` to swap the stack po
 
 Within each file, CPU-specific sections are selected by `#ifdef` macros (`__x86_64__`, `__aarch64__`, `__mips__`, `__loongarch64`, `__riscv`, etc.).
 
-Note: All `.S` files check `MD_ST_NO_ASM` — historically this allowed disabling assembly and falling back to libc's `setjmp`/`longjmp`. Since the libc setjmp path has been removed (all platforms now require assembly), this macro no longer works — defining it will cause linker errors. It remains in the code as a leftover.
+> Note: All `.S` files check `MD_ST_NO_ASM` — historically this allowed disabling assembly and falling back to libc's `setjmp`/`longjmp`. Since the libc setjmp path has been removed (all platforms now require assembly), this macro no longer works — defining it will cause linker errors. It remains in the code as a leftover.
 
 **What registers to save?**
 Only the **callee-saved registers** matter — these are the registers a function must preserve across calls. The actual registers saved by ST's assembly (from the `.S` files):
@@ -254,10 +255,10 @@ Only the **callee-saved registers** matter — these are the registers a functio
 - **LoongArch64 (Linux):** sp (r3), ra (r1), fp (r22), s0-s8 (r23-r31)
 - **RISC-V (Linux):** sp, ra, fp/s0, s1-s11
 
-**The jmpbuf problem:**
-Different platforms define `jmp_buf` differently. Most use a field named `__jmpbuf`, but MIPS uses `__jb`, and field sizes differ (MIPS has 4-byte pointers with 8-byte `long long` jmpbuf entries). [state-threads#29](https://github.com/ossrs/state-threads/pull/29) addressed this by having ST define and use its own jmpbuf structure where possible, rather than relying on platform-specific layouts.
+**The jmpbuf problem (historical, now resolved):**
+Different platforms define `jmp_buf` differently — field names (`__jmpbuf` vs `__jb`), field sizes, and layouts all varied. This was a problem when ST relied on the platform's `jmp_buf`. [state-threads#29](https://github.com/ossrs/state-threads/pull/29) resolved this by having ST define and use its own `_st_jmp_buf_t` structure (`long[22]` — sized for the largest platform, AArch64) instead of relying on platform-specific layouts. All platforms now use this unified structure, eliminating the cross-platform jmpbuf compatibility issue entirely.
 
-The macro `MD_GET_SP(_t)` in `md.h` defines how to read/write the stack pointer in the jmpbuf for each platform. This is critical for `MD_INIT_CONTEXT` — when creating a coroutine, the SP in the saved context must be updated to point at the heap-allocated stack, since the coroutine can't use the creator's stack.
+The macro `MD_GET_SP(_t)` in `md.h` defines how to read/write the stack pointer in ST's own jmpbuf for each platform. This is critical for `MD_INIT_CONTEXT` — when creating a coroutine, the SP in the saved context must be updated to point at the heap-allocated stack, since the coroutine can't use the creator's stack.
 
 **Porting toolkit (`tools/` directory):**
 Six utilities help with any new port:
@@ -272,23 +273,18 @@ Six utilities help with any new port:
 **Porting steps (using MIPS/OpenWRT as the reference example from [state-threads#21](https://github.com/ossrs/state-threads/issues/21)):**
 
 1. **Detect CPU macro:** `g++ -dM -E - </dev/null | grep -i aarch64` to find the `#define` your compiler provides (here `aarch64` is just an example — replace it with your target CPU name, e.g. `mips`, `riscv`, `loongarch`)
-2. **Study calling conventions:** Compile `tools/pcs.c` and use GDB's `si` (step instruction) to step through function call assembly — identify which registers are callee-saved (these are the ones you must save/restore in ST). Also refer to vendor docs (ARM/MIPS/RISC-V reference manuals) for the full callee-saved register list
-3. **Run jmpbuf.c:** Compile and debug `tools/jmpbuf.c` to learn which registers are saved by setjmp and understand the jmp_buf layout on your platform
-4. **Run porting.c:** Compile and run `tools/porting.c` to see register layout and check if setjmp stores registers in plaintext. Use GDB's `disassemble` on setjmp to see exactly which registers it saves and in what order — this is a quick way to learn and confirm the register list
-5. **Add empty stubs:** In the appropriate `.S` file, add `_st_md_cxt_save` and `_st_md_cxt_restore` under a new `#elif defined(__your_cpu__)` — empty functions that just return. Build `verify.c` and `helloworld.c` to confirm compilation and linking succeed, even though they won't run correctly yet
-6. **Implement the assembly:** Fill in the actual `sw`/`lw` (MIPS), `str`/`ldr` (ARM), `sd`/`ld` (RISC-V) instructions to save/restore each callee-saved register to/from the jmpbuf. `_st_md_cxt_save` returns 0; `_st_md_cxt_restore` sets return value to 1 and jumps to the saved return address
-7. **Define MD_GET_SP:** In `md.h`, add the macro for your platform so `MD_INIT_CONTEXT` can replace the SP with the coroutine's heap-allocated stack address
-8. **Test with helloworld:** If it prints messages with `st_sleep` pauses, context switching works
-9. **Test with verify:** Run `verify.c` for full API test — thread creation, mutex, cond variable, usleep, thread join. Also use it early (after adding empty stubs) to verify compilation and linking before implementing the assembly
+2. **Understand the platform:** Run `tools/porting.c` to see detected OS/CPU macros and pointer sizes. Compile `tools/pcs.c` and use GDB's `si` (step instruction) to step through function call assembly — identify which registers are callee-saved (these are the ones you must save/restore in ST). Also refer to vendor docs (ARM/MIPS/RISC-V reference manuals) for the full callee-saved register list. Optionally run `tools/jmpbuf.c` to see how the platform's libc setjmp saves registers — this is a useful cross-reference for confirming the callee-saved register list, even though ST uses its own jmpbuf and doesn't depend on libc's layout
+3. **Add empty stubs:** In the appropriate `.S` file, add `_st_md_cxt_save` and `_st_md_cxt_restore` under a new `#elif defined(__your_cpu__)` — empty functions that just return. Build `verify.c` and `helloworld.c` to confirm compilation and linking succeed, even though they won't run correctly yet
+4. **Implement the assembly:** Fill in the actual save/restore instructions for each callee-saved register to/from the jmpbuf — e.g., `sw`/`lw` (MIPS32), `sd`/`ld` (MIPS64, RISC-V), `stp`/`ldp` (AArch64), `stmia`/`ldmia` (ARM v7 — block load/store with register lists). `_st_md_cxt_save` returns 0; `_st_md_cxt_restore` sets return value to 1 and jumps to the saved return address
+5. **Define MD_GET_SP:** In `md.h`, add the macro for your platform so `MD_INIT_CONTEXT` can replace the SP with the coroutine's heap-allocated stack address
+6. **Test with helloworld:** If it prints messages with `st_sleep` pauses, context switching works
+7. **Test with verify:** Run `verify.c` for full API test — thread creation, mutex, cond variable, usleep, thread join. Also use it early (after adding empty stubs) to verify compilation and linking before implementing the assembly
 
 **Platform-specific build commands:**
 - Linux: `make linux-debug` (auto-detects CPU)
 - macOS: `make darwin-debug`
 - Windows: `make cygwin64-debug`
 - Force CPU: `make linux-debug EXTRA_CFLAGS="-D__aarch64__"` (if auto-detection fails)
-
-**Community contributions:**
-Several ports came from the community — RISC-V support ([state-threads#28](https://github.com/ossrs/state-threads/pull/28)) was contributed by T-bagwell (Steven Liu, Kuaishou) and later adopted by Arch Linux RISC-V. LoongArch64 ([state-threads#24](https://github.com/ossrs/state-threads/issues/24)) was driven by Loongson's new ISA replacing their earlier MIPS-based chips (3A4000 used mips64, 3A5000+ uses loongarch64). The Apple M1 port ([state-threads#30](https://github.com/ossrs/state-threads/issues/30)) required separate work from Linux aarch64 because Darwin has different calling conventions — notably Apple's [ARM64 platform requirements](https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms).
 
 ## Future Direction: Refactor ST Internals from C to C++
 
