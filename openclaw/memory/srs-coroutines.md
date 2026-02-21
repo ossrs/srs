@@ -429,7 +429,7 @@ This "try first" design means ST adds zero overhead when data is already availab
 
 **`st_poll()` — The Coroutine Suspension Point (sched.c):**
 
-1. **Register with epoll:** Calls `_st_eventsys->pollset_add(pds, npds)`, which does `epoll_ctl(epfd, EPOLL_CTL_ADD, fd, {EPOLLIN|EPOLLOUT})` and increments per-fd reference counts (`_ST_EPOLL_READ_CNT`, `_ST_EPOLL_WRITE_CNT`). Multiple coroutines can watch the same fd — reference counts track this.
+1. **Register with epoll:** Calls `_st_eventsys->pollset_add(pds, npds)`, which increments per-fd reference counts (`_ST_EPOLL_READ_CNT`, `_ST_EPOLL_WRITE_CNT`, `_ST_EPOLL_EXCEP_CNT` — one per event direction), then computes the new event mask from those counts and calls `epoll_ctl` — `EPOLL_CTL_ADD` if the fd had no prior watchers, or `EPOLL_CTL_MOD` if it already did. Multiple coroutines can watch the same fd — reference counts track this.
 
 2. **Create a poll queue entry on the stack:** A `_st_pollq_t` struct links the pollfd array to the waiting coroutine (`pq.thread = me`) and sets `pq.on_ioq = 1`.
 
@@ -468,11 +468,11 @@ This function does three things: wait for I/O, wake coroutines, and clean up epo
 - `nfd = epoll_wait(epfd, evtlist, evtlist_size, timeout)` — **this is the only true blocking point in the entire process**. The OS suspends the process until at least one fd is ready or the timeout expires.
 
 *Phase 3 — Mark fired fds:*
-- For each event returned by epoll, store the fired events in `_ST_EPOLL_REVENTS(osfd)`. If `EPOLLERR` or `EPOLLHUP` is set, also set the I/O bits (`EPOLLIN`/`EPOLLOUT`) so waiting coroutines see the error.
+- For each event returned by epoll, store the fired events in `_ST_EPOLL_REVENTS(osfd)`. If `EPOLLERR` or `EPOLLHUP` is set, also OR in the fd's currently-registered event bits (`_ST_EPOLL_EVENTS(osfd)` — whichever of `EPOLLIN`/`EPOLLOUT`/`EPOLLPRI` have non-zero ref counts) so waiting coroutines see the error.
 
 *Phase 4 — Walk `io_q`, wake matching coroutines:*
 - For each `_st_pollq_t` entry on `io_q`, check each fd in its pollfd array against `_ST_EPOLL_REVENTS`. If any fd has matching events, set `pds->revents` and mark `notify = 1`.
-- If notify: remove the poll queue entry from `io_q` (`pq->on_ioq = 0`), call `_st_epoll_pollset_del()` to adjust epoll registration (decrement reference counts, `EPOLL_CTL_MOD` or `EPOLL_CTL_DEL` as needed), remove the thread from `sleep_q` if present, set `thread->state = _ST_ST_RUNNABLE`, and insert into `run_q`.
+- If notify: remove the poll queue entry from `io_q` (`pq->on_ioq = 0`), call `_st_epoll_pollset_del()` which decrements reference counts for all fds in the pollfd array and calls `EPOLL_CTL_MOD`/`EPOLL_CTL_DEL` only for fds that did NOT fire (fds with `_ST_EPOLL_REVENTS != 0` are skipped — they are cleaned up later in Phase 5). Then remove the thread from `sleep_q` if present, set `thread->state = _ST_ST_RUNNABLE`, and insert into `run_q`.
 
 *Phase 5 — Clean up fired fds in epoll:*
 - For each event in the epoll result list, clear `_ST_EPOLL_REVENTS`, then either `EPOLL_CTL_MOD` (if other coroutines still watch this fd) or `EPOLL_CTL_DEL` (if no more watchers). This keeps epoll's internal state in sync with ST's reference counts.
@@ -497,7 +497,7 @@ Back in `st_read()`, if `st_netfd_poll()` succeeded, the loop retries `read()` �
 
 **The `on_ioq` flag is the key mechanism** that distinguishes timeout wakeup from I/O wakeup. The dispatch function clears it (`pq->on_ioq = 0`) when I/O fires; `_st_vp_check_clock` does NOT touch it. So when `st_poll()` resumes, it checks this flag to know why it woke up.
 
-**Reference counting for shared fds:** Multiple coroutines can wait on the same fd (e.g., multiple readers on a UDP socket). `_ST_EPOLL_READ_CNT(fd)` and `_ST_EPOLL_WRITE_CNT(fd)` track how many coroutines watch each direction. `epoll_ctl` is only called when counts transition between 0 and non-zero. When a coroutine's I/O completes, `_st_epoll_pollset_del` decrements the count — if it reaches 0, the fd is removed from epoll; otherwise it's modified to reflect remaining watchers.
+**Reference counting for shared fds:** Multiple coroutines can wait on the same fd (e.g., multiple readers on a UDP socket). `_ST_EPOLL_READ_CNT(fd)`, `_ST_EPOLL_WRITE_CNT(fd)`, and `_ST_EPOLL_EXCEP_CNT(fd)` track how many coroutines watch each direction. `epoll_ctl` is only called when the computed event mask (`_ST_EPOLL_EVENTS(fd)`) changes — i.e., when counts transition between 0 and non-zero. When a coroutine's I/O completes, `_st_epoll_pollset_del` decrements the counts — if all reach 0, the fd is removed from epoll; otherwise it's modified to reflect remaining watchers.
 
 ## `st_usleep()` — Pure Timer-Based Coroutine Sleep
 
