@@ -601,7 +601,7 @@ Walks `cvar->wait_q` from head, for each thread in `_ST_ST_COND_WAIT` state: if 
 
 `st_thread_exit(retval)` is called when a coroutine finishes — either explicitly by the user or implicitly via `_st_thread_main()` after the start function returns. It handles cleanup, joinability, and stack recycling. The coroutine never returns from this function.
 
-**Step 1: Store return value and run destructors.** Sets `thread->retval = retval`, then calls `_st_thread_cleanup(thread)` which iterates all thread-specific data keys (up to `ST_KEYS_MAX`). For each key that has both a non-NULL value and a registered destructor function, it calls the destructor and clears the slot. This is ST's equivalent of pthread key destructors.
+**Step 1: Store return value and run destructors.** Sets `thread->retval = retval`, then calls `_st_thread_cleanup(thread)` which iterates all created thread-specific data keys (up to `key_max`, not `ST_KEYS_MAX`). For each key that has both a non-NULL value and a registered destructor function, it calls the destructor and clears the slot. This is ST's equivalent of pthread key destructors.
 
 **Step 2: Decrement active count.** `_st_active_count--` — one fewer active coroutine. When this reaches 0, the idle thread will call `exit(0)` and the process terminates.
 
