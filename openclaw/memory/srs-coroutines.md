@@ -533,13 +533,15 @@ ST's mutex is simple because cooperative scheduling eliminates the need for atom
 - `_st_thread_t *owner` — current mutex owner, NULL means unlocked
 - `_st_clist_t wait_q` — linked list of coroutines waiting to acquire the mutex
 
-**`st_mutex_lock()` — Three Paths (sync.c):**
+**`st_mutex_lock()` (sync.c):**
 
-1. **Uncontended (owner == NULL).** Set `lock->owner = me`, return 0. Instant — just a pointer comparison and assignment, the cheapest possible lock. Safe because cooperative scheduling guarantees no other coroutine runs between the check and the assignment.
+1. **Check interrupt flag.** If `_ST_FL_INTERRUPT` is set on the current thread, clear it and return `EINTR` immediately — the coroutine was interrupted before it even attempted to acquire the lock. (Same pattern as `st_usleep` and `st_cond_timedwait`.)
 
-2. **Same owner (owner == me).** Return `EDEADLK`. Deadlock detection — if you try to lock a mutex you already own, ST catches it immediately instead of hanging forever.
+2. **Uncontended (owner == NULL).** Set `lock->owner = me`, return 0. Instant — just a pointer comparison and assignment, the cheapest possible lock. Safe because cooperative scheduling guarantees no other coroutine runs between the check and the assignment.
 
-3. **Contended (owner == someone else).** The coroutine must wait:
+3. **Same owner (owner == me).** Return `EDEADLK`. Deadlock detection — if you try to lock a mutex you already own, ST catches it immediately instead of hanging forever.
+
+4. **Contended (owner == someone else).** The coroutine must wait:
    - Set `me->state = _ST_ST_LOCK_WAIT`
    - Insert `me` into `lock->wait_q` (FIFO — insert before tail via `st_clist_insert_before`)
    - Call `_st_switch_context(me)` — save registers, yield to scheduler
