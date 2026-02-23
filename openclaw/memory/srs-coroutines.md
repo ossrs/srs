@@ -640,9 +640,7 @@ while (thread->state != _ST_ST_ZOMBIE) {
 }
 ```
 
-The joiner calls `st_cond_timedwait` on the target's termination condvar with no timeout — it suspends indefinitely. When `st_thread_exit()` signals this condvar, the joiner wakes up and checks if the target is in `_ST_ST_ZOMBIE` state. If yes, the loop exits. If not (spurious wakeup or interrupt), it waits again.
-
-If `st_cond_timedwait` returns an error (interrupted via `st_thread_interrupt`), the join fails and returns -1.
+The joiner calls `st_cond_timedwait` on the target's termination condvar with no timeout — it suspends indefinitely. When `st_thread_exit()` signals this condvar, the joiner wakes up and checks if the target is in `_ST_ST_ZOMBIE` state. If yes, the loop exits. If not (for example, a spurious wakeup), it waits again. If interrupted via `st_thread_interrupt`, `st_cond_timedwait` returns an error and `st_thread_join()` returns `-1` immediately.
 
 **After the target is zombie:**
 
@@ -691,7 +689,7 @@ If `st_cond_timedwait` returns an error (interrupted via `st_thread_interrupt`),
 
 - **`st_mutex_lock()` (mutex wait):** After resuming, removes self from `wait_q`. If the interrupt flag is set AND the thread is not the mutex owner (another thread could have unlocked the mutex at the same time as the interrupt), returns `EINTR`.
 
-**The interrupt flag is "sticky" until consumed:** Once set, it stays set until a wait function checks and clears it. If the thread is already running, the flag has no immediate effect — but the next time the thread calls `st_read()`, `st_usleep()`, `st_cond_wait()`, or any other blocking function, it will return `EINTR` immediately without actually blocking. This is by design — it prevents a race where the interrupt arrives between the decision to wait and the actual suspension.
+**The interrupt flag is "sticky" until consumed:** Once set, it stays set until a blocking path checks and clears it. If the thread is already running, the flag has no immediate effect. At the next wait point with explicit interrupt checks (`st_poll`, `st_usleep`, `st_cond_timedwait`, `st_mutex_lock`), the call returns `EINTR` instead of remaining blocked. For I/O wrappers like `st_read`/`st_write`, interruption is observed when they enter `st_poll` (typically after `EAGAIN`); if the syscall succeeds immediately, they may return data instead of `EINTR`. This design prevents races where interrupt arrives between deciding to wait and actually suspending.
 
 **Interrupt vs. the sleep heap:** When a thread is on both `io_q`/`wait_q` and the sleep heap (e.g., `st_cond_timedwait` with timeout), `st_thread_interrupt` only removes it from the sleep heap. The thread remains on `io_q`/`wait_q` until it resumes and cleans up. This is safe because the cleanup is always done by the thread itself after waking.
 
