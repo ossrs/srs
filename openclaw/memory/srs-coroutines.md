@@ -699,7 +699,7 @@ The joiner calls `st_cond_timedwait` on the target's termination condvar with no
 
 ## The Netfd Abstraction (`_st_netfd_t`) — ST's File Descriptor Wrapper
 
-Every socket or file descriptor used with ST must be wrapped in a `_st_netfd_t`. This struct is the bridge between raw OS file descriptors and ST's coroutine I/O system. All ST I/O functions (`st_read`, `st_write`, `st_accept`, `st_connect`, etc.) take `_st_netfd_t*` instead of raw `int` fds.
+Most socket/file descriptors used with ST's convenience I/O APIs are wrapped in a `_st_netfd_t`. This struct is the bridge between raw OS file descriptors and ST's coroutine I/O system. Most ST I/O helpers (`st_read`, `st_write`, `st_accept`, `st_connect`, etc.) take `_st_netfd_t*` instead of raw `int` fds, while the lower-level `st_poll()` API still accepts raw `struct pollfd` descriptors.
 
 **The struct (common.h):**
 
@@ -732,7 +732,7 @@ This is the internal constructor called by all public creation functions:
 
 1. **Notify the event system:** Calls `_st_eventsys->fd_new(osfd)`. For epoll, this is `_st_epoll_fd_new` which ensures the per-fd data array (`fd_data`) is large enough to hold the fd's index — expanding it via `realloc` if needed. For kqueue, this does the same with its own `fd_data` array. This is how ST tracks per-fd reference counts and revents.
 2. **Get or allocate the wrapper:** Pop from `_st_netfd_freelist` if available, otherwise `calloc` a new one.
-3. **Set non-blocking mode:** If `nonblock` is true (which it always is for sockets), sets `O_NONBLOCK`. For sockets, tries `ioctl(FIONBIO)` first (one syscall) — if that fails, falls back to `fcntl(F_GETFL)` + `fcntl(F_SETFL, O_NONBLOCK)` (two syscalls). Non-blocking mode is essential — without it, `read`/`write` would block the entire process instead of returning `EAGAIN` for the coroutine to handle.
+3. **Set non-blocking mode:** If `nonblock` is true (for example in `st_netfd_open_socket`, and in `st_accept` on platforms where accepted sockets do not inherit non-blocking mode), sets `O_NONBLOCK`. For sockets, tries `ioctl(FIONBIO)` first (one syscall) — if that fails, falls back to `fcntl(F_GETFL)` + `fcntl(F_SETFL, O_NONBLOCK)` (two syscalls). Non-blocking mode is essential — without it, `read`/`write` would block the entire process instead of returning `EAGAIN` for the coroutine to handle.
 4. **Return the wrapper** with `osfd` set and `inuse = 1`.
 
 **Public creation functions:**
@@ -753,7 +753,7 @@ Sometimes you want to release the ST wrapper without closing the underlying OS f
 
 **The Per-Fd Data Array in the Event System:**
 
-The event system maintains an array indexed by OS fd number, allocated to hold at least `_st_osfd_limit` entries. For epoll, this is `_st_epoll_data->fd_data` — an array of `_epoll_fd_data_t`:
+The event system maintains an array indexed by OS fd number. Initial sizing is backend-specific (epoll starts from `fd_hint`, derived from fd limits and `ST_EPOLL_EVTLIST_SIZE`; kqueue starts from `FD_SETSIZE`), and then grows dynamically via `realloc` as larger fd values appear. For epoll, this is `_st_epoll_data->fd_data` — an array of `_epoll_fd_data_t`:
 
 ```c
 typedef struct _epoll_fd_data {
@@ -764,7 +764,7 @@ typedef struct _epoll_fd_data {
 } _epoll_fd_data_t;
 ```
 
-This is **not** inside `_st_netfd_t` — it's a separate array in the event system, indexed by raw fd number. The reference counts track how many coroutines are watching each direction on each fd. When `st_poll()` registers a coroutine via `_st_epoll_pollset_add`, it increments the appropriate counts and calls `epoll_ctl(EPOLL_CTL_ADD)` or `epoll_ctl(EPOLL_CTL_MOD)`. When the I/O completes or times out, `_st_epoll_pollset_del` decrements the counts and calls `EPOLL_CTL_MOD` or `EPOLL_CTL_DEL` accordingly.
+This is **not** inside `_st_netfd_t` — it's a separate array in the event system, indexed by raw fd number. The reference counts track how many coroutines are watching each direction on each fd. When `st_poll()` registers a coroutine via `_st_epoll_pollset_add`, it increments the appropriate counts and calls `epoll_ctl(EPOLL_CTL_ADD)` or `epoll_ctl(EPOLL_CTL_MOD)`. During wakeup/timeout cleanup, `_st_epoll_pollset_del` decrements counts and updates epoll only for descriptors that did **not** fire in the current dispatch pass; fired descriptors are cleaned up in the dispatch function's second pass.
 
 This separation (netfd wrapper vs. event system per-fd data) is a clean design: the netfd is the application-facing handle, while the per-fd data is the event system's internal bookkeeping. Multiple netfd wrappers could theoretically point to the same osfd (though this would be unusual), and the event system tracks watchers by raw fd number regardless.
 
@@ -773,15 +773,15 @@ This separation (netfd wrapper vs. event system per-fd data) is a clean design: 
 Called once during `st_init()`, this function does two things:
 
 1. **Ignore SIGPIPE.** Sets `SIGPIPE` handler to `SIG_IGN` via `sigaction`. Without this, writing to a closed socket would kill the process. With it, `write()` just returns `EPIPE` which ST handles normally.
-2. **Maximize fd limit.** Reads `RLIMIT_NOFILE` via `getrlimit`, raises `rlim_cur` to `rlim_max` via `setrlimit`, and stores the result in `_st_osfd_limit`. On macOS where `rlim_max` can be negative (a platform quirk), it falls back to the event system's limit or `rlim_cur`. The fd limit determines the size of the event system's per-fd data array.
+2. **Maximize fd limit.** Reads `RLIMIT_NOFILE` via `getrlimit`, raises `rlim_cur` to `rlim_max` via `setrlimit`, and stores the result in `_st_osfd_limit`. On macOS where `rlim_max` can be negative (a platform quirk), it falls back to the event system's limit or `rlim_cur`. This fd limit influences backend initial sizing, but per-fd arrays are still expanded dynamically as needed.
 
 **Per-Fd Private Data — `st_netfd_setspecific` / `st_netfd_getspecific`:**
 
 These let application code attach arbitrary data to a netfd, similar to pthread key-specific data but per-fd instead of per-thread. `st_netfd_setspecific(fd, value, destructor)` stores a pointer and a cleanup function; when the netfd is freed, the destructor is called automatically. SRS uses this to associate connection handler objects with their socket fds.
 
-**Why every I/O function takes `_st_netfd_t*` instead of raw fd:**
+**Why most ST network I/O helpers take `_st_netfd_t*` (with `st_poll` as the raw-fd exception):**
 
-The netfd wrapper ensures three invariants: (1) the fd is always non-blocking, (2) the event system knows about the fd and can track watchers, and (3) the fd can carry application-specific data. Without the wrapper, application code could accidentally use a blocking fd with ST's I/O functions, bypassing the coroutine scheduler and stalling the entire process. The wrapper is a compile-time safety net — you can't accidentally pass a raw `int` where `_st_netfd_t*` is expected.
+The netfd wrapper ensures three invariants: (1) the fd is always non-blocking, (2) the event system knows about the fd and can track watchers, and (3) the fd can carry application-specific data. Without the wrapper, application code could accidentally use a blocking fd with ST's helper I/O functions, bypassing the coroutine scheduler and stalling the entire process. For APIs that require `_st_netfd_t*`, this is a compile-time guard against passing raw `int` fds; when direct raw-fd polling is needed, ST exposes `st_poll()` for that purpose.
 
 ## The Event System Abstraction (`_st_eventsys_t`) — How ST Swaps I/O Backends
 
