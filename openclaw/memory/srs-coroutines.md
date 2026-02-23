@@ -819,7 +819,7 @@ The global pointer `__thread _st_eventsys_t *_st_eventsys` is thread-local — e
 
 **Three backends, compile-time selected:**
 
-- **select** — Cygwin64 (Windows). Compile flag `MD_HAVE_SELECT`. Val `ST_EVENTSYS_SELECT` (1). Hard limit of `FD_SETSIZE` fds. State stored in global (not `__thread`) `fd_set`s with per-fd reference count arrays.
+- **select** — fallback backend (used on Cygwin64 and also compiled on Darwin/Linux). Compile flag `MD_HAVE_SELECT`. Val `ST_EVENTSYS_SELECT` (1). Hard limit of `FD_SETSIZE` fds. State stored in `__thread` `fd_set`s with per-fd reference count arrays.
 - **kqueue** — macOS/Darwin. Compile flag `MD_HAVE_KQUEUE`. Val `ST_EVENTSYS_ALT` (3). No fd limit. State in `__thread` struct with per-fd data array, plus add/delete kevent lists.
 - **epoll** — Linux. Compile flag `MD_HAVE_EPOLL`. Val `ST_EVENTSYS_ALT` (3). No fd limit. State in `__thread` struct with per-fd data array (read/write/exception reference counts + revents).
 
@@ -843,10 +843,10 @@ The scheduler, idle thread, coroutine suspension/resumption — all identical re
 **Backend-specific details:**
 
 *Select:*
-- Maintains three global `fd_set`s (read/write/exception) with per-fd reference counts. `dispatch` must copy all three fd_sets before calling `select()` because select modifies them in place.
+- Maintains three `__thread` `fd_set`s (read/write/exception) with per-fd reference counts. `dispatch` must copy all three fd_sets before calling `select()` because select modifies them in place.
 - Has a `_st_select_find_bad_fd()` recovery handler — when `select` returns `EBADF`, it walks all waiting fds with `fcntl(F_GETFL)` to identify and remove the bad one.
 - The `maxfd` tracker is maintained across add/del/dispatch — select requires the highest fd number + 1 as its first argument.
-- Not `__thread` — the select data is a plain static pointer, since Cygwin doesn't need multi-threaded ST.
+- The select backend data is `__thread` (`_st_select_data`), so each pthread keeps independent select bookkeeping.
 
 *Kqueue:*
 - Uses `EV_ONESHOT` flag — each registration fires once and auto-deregisters from kqueue. Elegant: no need to explicitly delete fired fds. Only unfired fds need explicit `EV_DELETE`.
@@ -854,6 +854,7 @@ The scheduler, idle thread, coroutine suspension/resumption — all identical re
 - Deletions are synchronous — `pollset_del` calls `kevent()` immediately with a `dellist` to avoid stale fd problems (can't defer because the fd might be closed before the next dispatch).
 - Handles **fork recovery** — if `getpid()` changes after `kevent` returns `EBADF`, it re-creates the kqueue fd and re-registers all fds from `io_q`. Kqueue fds don't survive `fork()`.
 - Timeout uses `struct timespec` (nanosecond precision).
+- `destroy` exists in the vtable, but current kqueue backend cleanup is a TODO (`_st_kq_destroy` is not implemented yet).
 
 *Epoll:*
 - Level-triggered (no `EPOLLET` flag) — simplest model, events re-fire on every `epoll_wait` until the fd is consumed or removed.
