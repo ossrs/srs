@@ -230,28 +230,34 @@
 
         // Start play HLS.
         if (r.stream.indexOf('.m3u8') > 0) {
-            if (!Hls.isSupported()) {
-                hide_for_error();
+            if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                $('#video_player').attr('src', r.url).show();
+                show_for_video_ok();
                 return;
             }
+            
+            if (Hls.isSupported()) {
+                show_for_video_ok();
+    
+                // See https://github.com/video-dev/hls.js/blob/master/docs/API.md#maxlivesyncplaybackrate
+                // See https://github.com/video-dev/hls.js/issues/3077#issuecomment-705152394
+                hlsPlayer = new Hls({
+                    enableWorker: true, // Improve performance and avoid lag/frame drops.
+                    lowLatencyMode: true, // Enable Low-Latency HLS part playlist and segment loading.
+                    liveSyncDurationCount: 2, // Start from the last few segments.
+                    liveMaxLatencyDurationCount: 10, // Maximum delay allowed from edge of live.
+                    maxBufferLength: 8, // Maximum buffer length in seconds.
+                    maxMaxBufferLength: 10, // The max Maximum buffer length in seconds.
+                    maxLiveSyncPlaybackRate: 1.2, // Catch up if the latency is large.
+                    liveDurationInfinity: true // Override current Media Source duration to Infinity for a live broadcast.
+                });
+                hlsPlayer.loadSource(r.url);
+                hlsPlayer.attachMedia(video);
+                video.play();
+                return;                
+            }
 
-            show_for_video_ok();
-
-            // See https://github.com/video-dev/hls.js/blob/master/docs/API.md#maxlivesyncplaybackrate
-            // See https://github.com/video-dev/hls.js/issues/3077#issuecomment-705152394
-            hlsPlayer = new Hls({
-                enableWorker: true, // Improve performance and avoid lag/frame drops.
-                lowLatencyMode: true, // Enable Low-Latency HLS part playlist and segment loading.
-                liveSyncDurationCount: 2, // Start from the last few segments.
-                liveMaxLatencyDurationCount: 10, // Maximum delay allowed from edge of live.
-                maxBufferLength: 8, // Maximum buffer length in seconds.
-                maxMaxBufferLength: 10, // The max Maximum buffer length in seconds.
-                maxLiveSyncPlaybackRate: 1.2, // Catch up if the latency is large.
-                liveDurationInfinity: true // Override current Media Source duration to Infinity for a live broadcast.
-            });
-            hlsPlayer.loadSource(r.url);
-            hlsPlayer.attachMedia(video);
-            video.play();
+            hide_for_error();
             return;
         }
 
