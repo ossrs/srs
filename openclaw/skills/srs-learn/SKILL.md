@@ -10,7 +10,8 @@ Turn SRS knowledge base docs into hands-on learning sessions:
 - Start from `memory/srs-*.md`
 - Let the user choose what to learn
 - Teach with real source code
-- Always create a new, standalone unit test file for the learner
+- Default: create a new, standalone unit test file for the learner
+- If the user explicitly requests reusing/modifying a specific existing utest file, follow the user's request instead of forcing a new file
 - Build and run it successfully before moving on
 - Teach workflow and debugging until the topic is understood
 
@@ -74,7 +75,9 @@ Example: for ST/coroutine topics, use `st-develop`.
 ## Step 4: Teach with Code + New Unit Test
 Read and follow the specialized skill identified in Step 3. It owns the build/test workflow.
 
-Always create a **new, standalone utest file**. Never modify existing test files — each lesson gets its own fresh file so the learner has a clean, isolated artifact to study.
+After completing build/run for a lesson, always run the specialized skill's required verifier (if defined) before declaring completion.
+
+By default, create a **new, standalone utest file** so each lesson has a clean, isolated artifact to study. If the user explicitly asks to continue in a specific existing utest file, modify that file instead.
 
 Teach in this order:
 
@@ -114,7 +117,7 @@ Ask short mastery-check questions:
 
 If the user wants more practice:
 - Propose an extension exercise (new edge case or variation)
-- Create a new utest file for it (same rules: build success + run success)
+- Create a new utest file for it (same rules: build success + run success), unless the user explicitly asks to continue in an existing utest file
 - Discuss results
 
 ## Output Format During Sessions

@@ -36,6 +36,6 @@
 
 
 cmake-build-debug
-/build/
+/build
+/cmake/build
 /trunk/cmake/build
-

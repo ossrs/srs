@@ -13,4 +13,14 @@ if [[ ! -d "$ST_DIR" ]]; then
 fi
 
 echo "ST source: $ST_DIR"
-cd "$ST_DIR" && make darwin-debug-utest && ./obj/st_utest
+
+CMAKE_DIR="$SRS_ROOT/cmake"
+BUILD_DIR="$SRS_ROOT/cmake/build"
+
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
+
+cmake .. -DCMAKE_BUILD_TYPE=Debug
+cmake --build . --target st_utest
+
+./st-build/st_utest

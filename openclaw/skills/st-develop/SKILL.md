@@ -39,9 +39,27 @@ Build: `Makefile`
 
 **Load every single file listed above — no shortcuts, no skipping.**
 
+## Unit Tests (utest)
+
+ST has a Google Test-based unit test suite in `$SRS_ROOT/trunk/3rdparty/st-srs/utest/`:
+
+- `st_utest.cpp` / `st_utest.hpp` — Test main and shared helpers
+- `st_utest_coroutines.cpp` — Coroutine tests (start, params, multiple coroutines, addition across yields)
+- `st_utest_tcp.cpp` — TCP connection test
+- `gtest-fit/` — Embedded Google Test framework
+
+**Build targets** (in the ST Makefile):
+- `darwin-debug-utest` — macOS debug build + utest
+- `linux-debug-utest` — Linux debug build + utest
+- `cygwin64-debug-utest` — Cygwin64 debug build + utest
+
+Coverage variants: `darwin-debug-gcov`, `linux-debug-gcov` (adds `-fprofile-arcs -ftest-coverage`).
+
+The build compiles ST as a static library first, then builds and links the utest binary at `obj/st_utest`.
+
 ## Verifying Changes
 
-After any ST code change, run the verifier script in this skill folder (not in the ST codebase):
+After any ST change (including utest-only changes), run the verifier script in this skill folder (not in the ST codebase):
 
 - `scripts/verify.sh`
 

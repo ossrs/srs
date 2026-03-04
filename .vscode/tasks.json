@@ -4,13 +4,24 @@
       {
         "label": "build",
         "type": "shell",
-        "command": "cmake --build ${workspaceFolder}/trunk/cmake/build",
+        "command": "${workspaceFolder}/cmake/build && cmake --build . --target srs utest",
         "group": {
           "kind": "build",
           "isDefault": true
         },
         "problemMatcher": ["$gcc"],
         "detail": "Build SRS by cmake."
+      },
+      {
+        "label": "st-build",
+        "type": "shell",
+        "command": "cd ${workspaceFolder}/cmake/build && cmake --build . --target st_utest",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": ["$gcc"],
+        "detail": "Build ST by cmake."
       }
     ]
   }
