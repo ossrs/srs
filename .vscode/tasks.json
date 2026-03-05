@@ -4,7 +4,7 @@
       {
         "label": "build",
         "type": "shell",
-        "command": "${workspaceFolder}/cmake/build && cmake --build . --target srs utest",
+        "command": "cd ${workspaceFolder}/cmake/build && cmake --build . --target srs utest",
         "group": {
           "kind": "build",
           "isDefault": true
