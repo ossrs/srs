@@ -342,6 +342,10 @@ When you call `st_read(fd, buf, n, timeout)`, internally ST computes the deadlin
 
 ST timeouts are suitable for coarse-grained purposes — detecting broken connections, idle peers, or stuck operations. Realistic timeouts should be on the order of seconds (e.g., 5s, 30s), where `last_clock` staleness is negligible. They are not designed for precise sub-millisecond timing.
 
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, BasicNetfdReadTimeout)`
+- `TEST(LearnKB, CondTimedwaitTimeout)`
+
 ## `st_init()` — How the Coroutine World is Built
 
 `st_init()` is the entry point that bootstraps the entire coroutine runtime. It creates the scheduler data structures, the event system, the idle thread, and wraps the calling OS thread as the first coroutine. Here's what happens step by step:
@@ -367,6 +371,12 @@ The idle thread's loop is the core scheduler cycle:
 **Step 4: Create the Primordial Thread.** The current OS thread (the one calling `st_init()`) is wrapped into an `_st_thread_t` struct via `calloc`. It gets no new stack — it reuses the existing process stack. Its state is set to `_ST_ST_RUNNING`, flagged as `_ST_FL_PRIMORDIAL`, and assigned to `_st_this_thread`. This becomes the first running coroutine and `_st_active_count` is incremented to 1.
 
 **After `st_init()` returns**, the coroutine world is ready: event system initialized, idle thread created and waiting, primordial thread running. Control returns to `main()`, which is now executing as the primordial coroutine. From here, calling `st_thread_create()` spawns new coroutines, and the scheduler workflow activates once those coroutines hit their first I/O call.
+
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, EventSysSelectedAndLockedAfterInit)`
+- `TEST(LearnKB, CoroutineRunsOnSeparateStack)`
+- `TEST(LearnKB, StartRoutineNotExecutedInline)`
+- `TEST(LearnKB, JoinDrivesFirstRunWhenNoManualYield)`
 
 ## `st_thread_create()` — How a Coroutine is Born
 
@@ -410,6 +420,13 @@ This save-then-patch-SP trick is how ST creates a coroutine without running it: 
 **Step 5: Make it runnable.** The thread's state is set to `_ST_ST_RUNNABLE`, `_st_active_count` is incremented, and the thread is inserted into `run_q`. The coroutine won't actually execute until the current coroutine yields (hits I/O, sleeps, or calls `st_thread_yield()`), at which point the scheduler picks it off the run queue.
 
 **Valgrind integration:** If `MD_VALGRIND` is enabled and the thread is not the primordial thread, `VALGRIND_STACK_REGISTER()` is called to register the custom stack region with Valgrind, preventing false positives from stack pointer switching.
+
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, CoroutineRunsOnSeparateStack)`
+- `TEST(LearnKB, StartRoutineNotExecutedInline)`
+- `TEST(LearnKB, JoinDrivesFirstRunWhenNoManualYield)`
+- `TEST(LearnKB, LocalStatePreservedAcrossYield)`
+- `TEST(LearnKB, ReturnValueThroughJoin)`
 
 ## Epoll-Driven I/O Workflow — How Coroutines Sleep and Wake
 
@@ -499,6 +516,10 @@ Back in `st_read()`, if `st_netfd_poll()` succeeded, the loop retries `read()` �
 
 **Reference counting for shared fds:** Multiple coroutines can wait on the same fd (e.g., multiple readers on a UDP socket). `_ST_EPOLL_READ_CNT(fd)`, `_ST_EPOLL_WRITE_CNT(fd)`, and `_ST_EPOLL_EXCEP_CNT(fd)` track how many coroutines watch each direction. `epoll_ctl` is only called when the computed event mask (`_ST_EPOLL_EVENTS(fd)`) changes — i.e., when counts transition between 0 and non-zero. When a coroutine's I/O completes, `_st_epoll_pollset_del` decrements the counts — if all reach 0, the fd is removed from epoll; otherwise it's modified to reflect remaining watchers.
 
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, BasicNetfdWriteThenRead)`
+- `TEST(LearnKB, BasicNetfdReadTimeout)`
+
 ## `st_usleep()` — Pure Timer-Based Coroutine Sleep
 
 `st_usleep(usecs)` suspends the current coroutine for a specified duration. Unlike I/O functions (`st_read`, `st_write`), it involves **no I/O at all** — the coroutine is placed only in the sleep heap and woken purely by timeout expiration.
@@ -524,6 +545,11 @@ Back in `st_read()`, if `st_netfd_poll()` succeeded, the loop retries `read()` �
 - In both cases, `epoll_wait`'s timeout is derived from the sleep heap root, so pure-sleep coroutines still influence when `epoll_wait` returns.
 
 **Timeout precision note:** The deadline is `last_clock + usecs`, not `now + usecs`. If CPU work happened since the last scheduler cycle (the last time `_st_vp_check_clock` updated `last_clock`), part of the sleep duration is already "consumed." For typical sleep durations (seconds), this staleness is negligible. This is why ST timeouts are designed for coarse-grained use — detecting broken connections or idle peers, not sub-millisecond timing.
+
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, ThreadInterruptWakeupFromUsleep)`
+- `TEST(LearnKB, LocalStatePreservedAcrossYield)`
+- `TEST(LearnKB, StartRoutineNotExecutedInline)`
 
 ## `st_mutex` — Cooperative Mutex Workflow
 
@@ -562,6 +588,10 @@ First checks that the caller actually owns the mutex (returns `EPERM` if not). T
 - **FIFO fairness.** Waiters are added to the tail of `wait_q`; `st_mutex_unlock` walks from the head. First to wait is first to acquire. No starvation.
 - **No spin, no atomic ops, no syscalls.** The uncontended path is a pointer comparison and assignment. The contended path suspends the coroutine entirely — no busy-waiting. All of this works because no other coroutine can run between a check and an assignment in cooperative scheduling.
 
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, MutexCooperativeWorkflow)`
+- `TEST(LearnKB, ThreadInterruptWakeupFromMutexWait)`
+
 ## `st_cond` — Condition Variable Workflow
 
 ST's condition variable (`st_cond`) follows a similar pattern to `st_mutex` — `wait_q` linked list, `_st_switch_context` to suspend, wake by setting state to `RUNNABLE` — but solves a fundamentally different problem: **waiting for a condition/event to happen**, not exclusive resource ownership.
@@ -597,6 +627,12 @@ Walks `cvar->wait_q` from head, for each thread in `_ST_ST_COND_WAIT` state: if 
 
 **Why SRS uses `st_cond` far more than `st_mutex`:** In a cooperative coroutine system, there is no preemption — no other coroutine runs between a check and an assignment, so mutual exclusion is rarely needed. What SRS needs constantly is "wait until something happens" — data arrives on an SRT socket, a stream becomes available, a client connects. `st_cond` is the primary tool for this. The coroutine-native SRT pattern is a perfect example: a coroutine calls `st_cond_wait` when `srt_recvmsg` returns EAGAIN, and a poller coroutine calls `st_cond_signal` when the fd becomes ready.
 
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, CondSignalWakeOne)`
+- `TEST(LearnKB, CondBroadcastWakeAll)`
+- `TEST(LearnKB, CondTimedwaitTimeout)`
+- `TEST(LearnKB, ThreadInterruptWakeupFromCondWait)`
+
 ## `st_thread_exit()` — How a Coroutine Dies
 
 `st_thread_exit(retval)` is called when a coroutine finishes — either explicitly by the user or implicitly via `_st_thread_main()` after the start function returns. It handles cleanup, joinability, and stack recycling. The coroutine never returns from this function.
@@ -620,6 +656,11 @@ Walks `cvar->wait_q` from head, for each thread in `_ST_ST_COND_WAIT` state: if 
 **Why zombies need two context switches:** The first `_st_switch_context` (step 3) suspends the zombie so the joiner can run and read `retval`. The joiner then puts the zombie back on `run_q` (see `st_thread_join` below). The second `_st_switch_context` (step 5) is the final one — after the joiner has extracted what it needs, the zombie resumes briefly to destroy its condvar and free its stack, then switches away forever.
 
 **Non-joinable threads skip the zombie path entirely** — no condvar signal, no zombie queue, no waiting for a joiner. They go straight from cleanup → stack free → final switch.
+
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, ThreadExitExplicitRetvalThroughJoin)`
+- `TEST(LearnKB, ThreadExitNonJoinableCannotJoin)`
+- `TEST(LearnKB, ReturnValueThroughJoin)`
 
 ## `st_thread_join()` — Waiting for a Coroutine to Finish
 
@@ -661,6 +702,13 @@ The joiner calls `st_cond_timedwait` on the target's termination condvar with no
 8. Zombie resumes, destroys condvar, frees stack
 9. Final `_st_switch_context` — zombie is gone forever
 
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, ReturnValueThroughJoin)`
+- `TEST(LearnKB, JoinDrivesFirstRunWhenNoManualYield)`
+- `TEST(LearnKB, ThreadExitExplicitRetvalThroughJoin)`
+- `TEST(LearnKB, ThreadExitNonJoinableCannotJoin)`
+- `TEST(LearnKB, StartRoutineNotExecutedInline)`
+
 ## `st_thread_interrupt()` — Waking a Coroutine From Any Wait State
 
 `st_thread_interrupt(thread)` is the "cancel" mechanism — it forces a coroutine to wake up regardless of what it's waiting on (I/O, sleep, condvar, mutex). The interrupted coroutine sees `EINTR` when it resumes.
@@ -696,6 +744,11 @@ The joiner calls `st_cond_timedwait` on the target's termination condvar with no
 **Use in SRS:** `st_thread_interrupt` is how SRS implements graceful shutdown. When SRS needs to stop (e.g., SIGINT), it interrupts all active coroutines. Each coroutine's I/O call returns `EINTR`, the coroutine sees the shutdown flag, and exits cleanly. Without this mechanism, coroutines blocked on I/O would never wake up to check if the server is shutting down.
 
 **Critical lifecycle rule (do not assume immediate termination):** `st_thread_interrupt()` does **not** terminate the target coroutine synchronously. It only marks/wakes the coroutine so its current blocking call can return (typically `-1` with `errno=EINTR`, for example `st_read`). The coroutine must then cooperatively unwind and return from its entry function. Therefore, the interrupter should use a join/synchronization step (for joinable threads, `st_thread_join`) to wait for actual thread exit, instead of assuming interrupt == already dead.
+
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, ThreadInterruptWakeupFromUsleep)`
+- `TEST(LearnKB, ThreadInterruptWakeupFromCondWait)`
+- `TEST(LearnKB, ThreadInterruptWakeupFromMutexWait)`
 
 ## The Netfd Abstraction (`_st_netfd_t`) — ST's File Descriptor Wrapper
 
@@ -783,6 +836,12 @@ These let application code attach arbitrary data to a netfd, similar to pthread 
 
 The netfd wrapper ensures three invariants: (1) the fd is always non-blocking, (2) the event system knows about the fd and can track watchers, and (3) the fd can carry application-specific data. Without the wrapper, application code could accidentally use a blocking fd with ST's helper I/O functions, bypassing the coroutine scheduler and stalling the entire process. For APIs that require `_st_netfd_t*`, this is a compile-time guard against passing raw `int` fds; when direct raw-fd polling is needed, ST exposes `st_poll()` for that purpose.
 
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, NetfdSpecificAndDestructorOnClose)`
+- `TEST(LearnKB, NetfdFreeKeepsOsfdOpen)`
+- `TEST(LearnKB, BasicNetfdWriteThenRead)`
+- `TEST(LearnKB, BasicNetfdReadTimeout)`
+
 ## The Event System Abstraction (`_st_eventsys_t`) — How ST Swaps I/O Backends
 
 ST uses a vtable pattern — a struct of function pointers — so the scheduler can call I/O multiplexing operations without knowing which backend (epoll, kqueue, or select) is active.
@@ -862,3 +921,8 @@ The scheduler, idle thread, coroutine suspension/resumption — all identical re
 - `dispatch` has two cleanup passes for fired fds: the first pass (inside the `io_q` walk) calls `pollset_del` which handles unfired fds — but skips fired fds because their `_ST_EPOLL_REVENTS` is still set. The second pass (after the `io_q` walk) iterates the epoll result list, clears revents, and calls `EPOLL_CTL_MOD` or `EPOLL_CTL_DEL` based on remaining reference counts. This two-pass design avoids modifying epoll state while still iterating results that depend on it.
 - Timeout uses milliseconds (epoll_wait limitation). Rounds up sub-millisecond timeouts to 1ms to avoid spin loops — if `min_timeout > 0` but computes to 0ms, it's bumped to 1ms.
 - `_st_epoll_is_supported()` probes at selection time by calling `epoll_ctl(-1, EPOLL_CTL_ADD, -1, &ev)` — if errno is `ENOSYS`, epoll syscalls are stubs and the backend is rejected.
+
+**Related test cases (`st_utest_learn_kb.cpp`):**
+- `TEST(LearnKB, EventSysSelectedAndLockedAfterInit)`
+- `TEST(LearnKB, BasicNetfdReadTimeout)`
+- `TEST(LearnKB, BasicNetfdWriteThenRead)`
