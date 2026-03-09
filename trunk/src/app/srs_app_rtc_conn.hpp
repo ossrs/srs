@@ -658,6 +658,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_twcc(uint16_t sn);
     SrsRtcAudioRecvTrack *get_audio_track(uint32_t ssrc);
     SrsRtcVideoRecvTrack *get_video_track(uint32_t ssrc);
+    // Find track description whose rtx_ssrc_ matches the given SSRC, for RTX (RFC 4588) unwrapping.
+    SrsRtcTrackDescription* find_track_desc_by_rtx_ssrc(uint32_t ssrc);
     void update_rtt(uint32_t ssrc, int rtt);
     void update_send_report_time(uint32_t ssrc, const SrsNtp &ntp, uint32_t rtp_time);
 };
