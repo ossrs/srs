@@ -159,7 +159,7 @@ About the features supported by SRS.
 
 - **RTMP** — SRS is fundamentally an RTMP server. It supports publishing and playing RTMP streams, which is the core foundation of SRS. All other protocols are built on top of RTMP as the base. v1.0, 2013
 - **SRT** — SRS is also an SRT server. It supports publishing and playing SRT streams. SRS uses [libsrt](https://github.com/Haivision/srt) to create the SRT server. v4.0, 2020-01
-- **WebRTC** — SRS is also a WebRTC server, supporting WHIP for publishing and WHEP for playing streams. SRS is an SFU (Selective Forwarding Unit) server. It does not support TURN. It does not support P2P for WebRTC. v4.0, 2020-03
+- **WebRTC** — SRS is also a WebRTC server, supporting WHIP for publishing and WHEP for playing streams. SRS is an SFU (Selective Forwarding Unit) server. It does not support TURN. It does not support P2P for WebRTC. Supports both RFC 4588 RTX (retransmission with separate SSRC) and legacy retransmission (resending original RTP packets). RFC 4588 RTX support v7.0, 2026-03
 - **RTSP** — SRS only supports playing RTSP streams. Currently it only supports converting RTMP to RTSP. v7.0, 2025-07
 - **HLS** — SRS supports converting RTMP to HLS. HLS is the best compatibility protocol, supported by all platforms, all browsers, and all operating systems. v1.0, 2013
 - **MPEG-DASH** — SRS supports converting RTMP to DASH. DASH is similar to HLS, but not as widely supported by platforms as HLS. v5.0, 2022-11
