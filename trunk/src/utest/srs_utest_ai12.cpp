@@ -2234,6 +2234,320 @@ VOID TEST(SrsRtcPublisherNegotiatorTest, LibdatachannelAudioOnlyWithoutSsrc)
     }
 }
 
+// Test RTX SSRC initialization during negotiation - verifies the bug fix
+// Bug: find_track_description_by_ssrc() returned NULL for inactive tracks during negotiation
+// Fix: Direct SSRC matching without checking is_active_ flag
+VOID TEST(SrsRtcPublisherNegotiatorTest, RtxSsrcInitialization)
+{
+    srs_error_t err;
+
+    // Create negotiator
+    SrsUniquePtr<SrsRtcPublisherNegotiator> negotiator(new SrsRtcPublisherNegotiator());
+
+    // Create mock request
+    SrsUniquePtr<MockRtcConnectionRequest> mock_request(new MockRtcConnectionRequest("test.vhost", "live", "rtxtest"));
+
+    // Create RTC user config with SDP containing FID groups (RTX)
+    SrsUniquePtr<SrsRtcUserConfig> ruc(new SrsRtcUserConfig());
+    ruc->req_ = mock_request->copy();
+    ruc->publish_ = true;
+    ruc->dtls_ = true;
+    ruc->srtp_ = true;
+    ruc->audio_before_video_ = false;
+
+    // SDP with RTX support - includes FID groups linking media SSRC with RTX SSRC
+    ruc->remote_sdp_str_ =
+        "v=0\r\n"
+        "o=- 123456 2 IN IP4 127.0.0.1\r\n"
+        "s=-\r\n"
+        "t=0 0\r\n"
+        "a=group:BUNDLE 0 1\r\n"
+        "a=msid-semantic: WMS stream\r\n"
+        "m=video 9 UDP/TLS/RTP/SAVPF 96 97\r\n"
+        "c=IN IP4 0.0.0.0\r\n"
+        "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+        "a=ice-ufrag:test\r\n"
+        "a=ice-pwd:testpassword\r\n"
+        "a=ice-options:trickle\r\n"
+        "a=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\n"
+        "a=setup:actpass\r\n"
+        "a=mid:0\r\n"
+        "a=sendrecv\r\n"
+        "a=rtcp-mux\r\n"
+        "a=rtpmap:96 H264/90000\r\n"
+        "a=rtcp-fb:96 nack\r\n"
+        "a=rtcp-fb:96 nack pli\r\n"
+        "a=fmtp:96 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+        "a=rtpmap:97 rtx/90000\r\n"
+        "a=fmtp:97 apt=96\r\n"
+        "a=ssrc:12345 cname:test-video\r\n"
+        "a=ssrc:12345 msid:stream video\r\n"
+        "a=ssrc:67890 cname:test-video\r\n"
+        "a=ssrc:67890 msid:stream video\r\n"
+        "a=ssrc-group:FID 12345 67890\r\n"
+        "m=audio 9 UDP/TLS/RTP/SAVPF 111 112\r\n"
+        "c=IN IP4 0.0.0.0\r\n"
+        "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+        "a=ice-ufrag:test\r\n"
+        "a=ice-pwd:testpassword\r\n"
+        "a=ice-options:trickle\r\n"
+        "a=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\n"
+        "a=setup:actpass\r\n"
+        "a=mid:1\r\n"
+        "a=sendrecv\r\n"
+        "a=rtcp-mux\r\n"
+        "a=rtpmap:111 opus/48000/2\r\n"
+        "a=rtcp-fb:111 nack\r\n"
+        "a=rtpmap:112 rtx/48000\r\n"
+        "a=fmtp:112 apt=111\r\n"
+        "a=ssrc:11111 cname:test-audio\r\n"
+        "a=ssrc:11111 msid:stream audio\r\n"
+        "a=ssrc:22222 cname:test-audio\r\n"
+        "a=ssrc:22222 msid:stream audio\r\n"
+        "a=ssrc-group:FID 11111 22222\r\n";
+
+    // Parse the remote SDP
+    HELPER_EXPECT_SUCCESS(ruc->remote_sdp_.parse(ruc->remote_sdp_str_));
+
+    // Create stream description for negotiation output
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    // Call negotiate_publish_capability - this is where the bug was
+    HELPER_EXPECT_SUCCESS(negotiator->negotiate_publish_capability(ruc.get(), stream_desc.get()));
+
+    // Verify tracks were created
+    EXPECT_TRUE(stream_desc->audio_track_desc_ != NULL);
+    EXPECT_FALSE(stream_desc->video_track_descs_.empty());
+
+    // THE KEY TEST: Verify RTX SSRCs were initialized correctly
+    // Without the fix, these would be 0 because find_track_description_by_ssrc()
+    // returns NULL for inactive tracks during negotiation
+
+    // Check video track RTX SSRC
+    SrsRtcTrackDescription *video_track = stream_desc->video_track_descs_[0];
+    EXPECT_EQ(12345, (int)video_track->ssrc_);
+    EXPECT_EQ(67890, (int)video_track->rtx_ssrc_);  // This would be 0 without the fix!
+
+    // Check audio track RTX SSRC
+    SrsRtcTrackDescription *audio_track = stream_desc->audio_track_desc_;
+    EXPECT_EQ(11111, (int)audio_track->ssrc_);
+    EXPECT_EQ(22222, (int)audio_track->rtx_ssrc_);  // This would be 0 without the fix!
+
+    // Verify tracks are inactive during negotiation (this is why the bug existed)
+    EXPECT_FALSE(video_track->is_active_);
+    EXPECT_FALSE(audio_track->is_active_);
+
+    // Verify has_ssrc() returns false for inactive tracks (the root cause)
+    EXPECT_FALSE(video_track->has_ssrc(12345));
+    EXPECT_FALSE(video_track->has_ssrc(67890));
+    EXPECT_FALSE(audio_track->has_ssrc(11111));
+    EXPECT_FALSE(audio_track->has_ssrc(22222));
+
+    // After activation, has_ssrc() should work
+    video_track->is_active_ = true;
+    audio_track->is_active_ = true;
+    EXPECT_TRUE(video_track->has_ssrc(12345));
+    EXPECT_TRUE(video_track->has_ssrc(67890));
+    EXPECT_TRUE(audio_track->has_ssrc(11111));
+    EXPECT_TRUE(audio_track->has_ssrc(22222));
+}
+
+// Test RTX packet unwrapping - verifies RFC 4588 RTX packet processing
+VOID TEST(SrsRtcPublishStreamTest, RtxPacketUnwrappingVideo)
+{
+    srs_error_t err;
+
+    // Create mock objects
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-rtx-unwrap");
+
+    // Create publish stream
+    SrsUniquePtr<SrsRtcPublishStream> ps(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    // Create video track with RTX support
+    SrsRtcTrackDescription video_desc;
+    video_desc.type_ = "video";
+    video_desc.ssrc_ = 12345;       // Media SSRC
+    video_desc.rtx_ssrc_ = 67890;   // RTX SSRC
+    video_desc.is_active_ = true;
+    video_desc.media_ = new SrsVideoPayload(96, "H264", 90000);
+
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, &video_desc, false);
+    ps->video_tracks_.push_back(video_track);
+
+    // Build RTX packet according to RFC 4588:
+    // RTP header (with RTX SSRC) + OSN (2 bytes) + original payload
+    uint8_t rtx_packet[] = {
+        // RTP header (12 bytes)
+        0x80,                    // V=2, P=0, X=0, CC=0
+        0x61,                    // M=0, PT=97 (RTX payload type)
+        0x00, 0x64,              // Sequence number = 100 (RTX sequence)
+        0x00, 0x00, 0x27, 0x10,  // Timestamp
+        0x00, 0x01, 0x09, 0x32,  // SSRC = 67890 (0x00010932) in network byte order
+        // OSN - Original Sequence Number (2 bytes)
+        0x00, 0x32,              // OSN = 50
+        // Original payload (8 bytes)
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08
+    };
+
+    // Parse the RTP packet
+    SrsRtpPacket rtp_pkt;
+    SrsBuffer buf((char*)rtx_packet, sizeof(rtx_packet));
+    HELPER_EXPECT_SUCCESS(rtp_pkt.decode(&buf));
+
+    // Verify initial state - packet has RTX SSRC
+    EXPECT_EQ(67890, (int)rtp_pkt.header_.get_ssrc());
+    EXPECT_EQ(97, (int)rtp_pkt.header_.get_payload_type());
+    EXPECT_EQ(100, (int)rtp_pkt.header_.get_sequence());
+
+    // Create buffer for payload processing
+    SrsBuffer payload_buf((char*)rtx_packet + 12, sizeof(rtx_packet) - 12);
+
+    // Call on_before_decode_payload - this should unwrap the RTX packet
+    SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
+    ISrsRtpPayloader *payload = NULL;
+    ps->on_before_decode_payload(&rtp_pkt, &payload_buf, &payload, &ppt);
+
+    // Verify RTX unwrapping occurred:
+    // 1. SSRC should be restored to media SSRC
+    EXPECT_EQ(12345, (int)rtp_pkt.header_.get_ssrc());
+
+    // 2. Sequence number should be restored to OSN
+    EXPECT_EQ(50, (int)rtp_pkt.header_.get_sequence());
+
+    // 3. Payload type should be restored to media PT
+    EXPECT_EQ(96, (int)rtp_pkt.header_.get_payload_type());
+
+    // 4. Buffer should have advanced past OSN (2 bytes)
+    EXPECT_EQ(8, payload_buf.left());  // Only original payload remains
+
+    // 5. First byte of remaining payload should be 0x01
+    EXPECT_EQ(0x01, (int)payload_buf.read_1bytes());
+}
+
+// Test RTX packet unwrapping with audio track
+VOID TEST(SrsRtcPublishStreamTest, RtxPacketUnwrappingAudio)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-rtx-unwrap-audio");
+
+    SrsUniquePtr<SrsRtcPublishStream> ps(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    // Create audio track with RTX support
+    SrsRtcTrackDescription audio_desc;
+    audio_desc.type_ = "audio";
+    audio_desc.ssrc_ = 11111;       // Media SSRC
+    audio_desc.rtx_ssrc_ = 22222;   // RTX SSRC
+    audio_desc.is_active_ = true;
+    audio_desc.media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, &audio_desc, false);
+    ps->audio_tracks_.push_back(audio_track);
+
+    // Build RTX packet for audio
+    uint8_t rtx_packet[] = {
+        0x80,                    // V=2, P=0, X=0, CC=0
+        0x70,                    // M=0, PT=112 (RTX PT for audio)
+        0x00, 0xc8,              // Sequence number = 200
+        0x00, 0x00, 0x4e, 0x20,  // Timestamp
+        0x00, 0x00, 0x56, 0xce,  // SSRC = 22222 (RTX SSRC)
+        0x00, 0x96,              // OSN = 150
+        0xaa, 0xbb, 0xcc, 0xdd   // Audio payload
+    };
+
+    SrsRtpPacket rtp_pkt;
+    SrsBuffer buf((char*)rtx_packet, sizeof(rtx_packet));
+    HELPER_EXPECT_SUCCESS(rtp_pkt.decode(&buf));
+
+    // Verify RTX SSRC before unwrapping
+    EXPECT_EQ(22222, (int)rtp_pkt.header_.get_ssrc());
+
+    SrsBuffer payload_buf((char*)rtx_packet + 12, sizeof(rtx_packet) - 12);
+    SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
+    ISrsRtpPayloader *payload = NULL;
+    ps->on_before_decode_payload(&rtp_pkt, &payload_buf, &payload, &ppt);
+
+    // Verify unwrapping
+    EXPECT_EQ(11111, (int)rtp_pkt.header_.get_ssrc());
+    EXPECT_EQ(150, (int)rtp_pkt.header_.get_sequence());
+    EXPECT_EQ(111, (int)rtp_pkt.header_.get_payload_type());
+    EXPECT_EQ(4, payload_buf.left());
+}
+
+// Test backward compatibility: old "RTX" method (resending original packet)
+// Before RFC 4588 support, peers would resend lost packets with the SAME SSRC
+// This test verifies that the old method still works (backward compatibility)
+VOID TEST(SrsRtcPublishStreamTest, OldStyleRetransmissionCompatibility)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-old-rtx");
+
+    SrsUniquePtr<SrsRtcPublishStream> ps(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    // Create video track with RTX SSRC configured
+    SrsRtcTrackDescription video_desc;
+    video_desc.type_ = "video";
+    video_desc.ssrc_ = 12345;       // Media SSRC
+    video_desc.rtx_ssrc_ = 67890;   // RTX SSRC (configured but not used in old method)
+    video_desc.is_active_ = true;
+    video_desc.media_ = new SrsVideoPayload(96, "H264", 90000);
+
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, &video_desc, false);
+    ps->video_tracks_.push_back(video_track);
+
+    // Old-style retransmission: peer resends the ORIGINAL packet with SAME SSRC
+    // (not using RFC 4588 RTX format)
+    uint8_t retransmitted_packet[] = {
+        0x80,                    // V=2, P=0, X=0, CC=0
+        0x60,                    // M=0, PT=96 (original media PT, not RTX PT)
+        0x00, 0x32,              // Sequence number = 50 (original sequence)
+        0x00, 0x00, 0x27, 0x10,  // Timestamp
+        0x00, 0x00, 0x30, 0x39,  // SSRC = 12345 (original media SSRC, NOT RTX SSRC)
+        0x01, 0x02, 0x03, 0x04   // Original payload (no OSN prefix)
+    };
+
+    SrsRtpPacket rtp_pkt;
+    SrsBuffer buf((char*)retransmitted_packet, sizeof(retransmitted_packet));
+    HELPER_EXPECT_SUCCESS(rtp_pkt.decode(&buf));
+
+    // Save original values
+    uint32_t orig_ssrc = rtp_pkt.header_.get_ssrc();
+    uint16_t orig_seq = rtp_pkt.header_.get_sequence();
+    uint8_t orig_pt = rtp_pkt.header_.get_payload_type();
+
+    EXPECT_EQ(12345, (int)orig_ssrc);  // Media SSRC
+    EXPECT_EQ(50, (int)orig_seq);
+    EXPECT_EQ(96, (int)orig_pt);
+
+    SrsBuffer payload_buf((char*)retransmitted_packet + 12, sizeof(retransmitted_packet) - 12);
+    SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
+    ISrsRtpPayloader *payload = NULL;
+    ps->on_before_decode_payload(&rtp_pkt, &payload_buf, &payload, &ppt);
+
+    // Verify packet is NOT unwrapped (because it uses media SSRC, not RTX SSRC)
+    // The old method should work: packet passes through unchanged
+    EXPECT_EQ(orig_ssrc, rtp_pkt.header_.get_ssrc());
+    EXPECT_EQ(orig_seq, rtp_pkt.header_.get_sequence());
+    EXPECT_EQ(orig_pt, rtp_pkt.header_.get_payload_type());
+    EXPECT_EQ(4, payload_buf.left());  // Payload unchanged (no OSN removed)
+
+    // Verify first byte is the actual payload (not OSN)
+    EXPECT_EQ(0x01, (int)payload_buf.read_1bytes());
+}
+
 VOID TEST(SrsRtcConnectionTest, InitializeTypicalScenario)
 {
     srs_error_t err;
