@@ -1,0 +1,53 @@
+{
+  "skill_name": "srs-support",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I'm publishing an RTMP stream with H.264+AAC. I want browser viewers to watch via WebRTC. Do I need to configure anything special, and will there be any transcoding?",
+      "expected_output": "Should explain rtmp_to_rtc config, AAC-to-Opus audio transcoding, H.264 video passthrough, and ideally mention performance impact and playback URL.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "mentions_rtmp_to_rtc_config",
+          "description": "Answer mentions 'rtmp_to_rtc on' as the required configuration",
+          "type": "contains_concept"
+        },
+        {
+          "name": "aac_to_opus_transcoding",
+          "description": "Answer explains that AAC audio is automatically transcoded to Opus for WebRTC",
+          "type": "contains_concept"
+        },
+        {
+          "name": "h264_no_transcoding",
+          "description": "Answer clarifies that H.264 video passes through without transcoding (transmux only)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "uses_libavcodec_not_external_ffmpeg",
+          "description": "Answer specifies that audio transcoding uses FFmpeg's libavcodec as a linked library, not an external FFmpeg process",
+          "type": "contains_concept"
+        },
+        {
+          "name": "performance_impact",
+          "description": "Answer mentions that audio transcoding reduces WebRTC capacity (dozens of connections vs hundreds for UDP protocols)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "disabled_by_default",
+          "description": "Answer mentions that rtmp_to_rtc is disabled by default and must be explicitly enabled",
+          "type": "contains_concept"
+        },
+        {
+          "name": "whep_playback",
+          "description": "Answer mentions WHEP endpoint or playback URL for WebRTC viewing",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not claim SRS does video transcoding or mention features not in the knowledge base",
+          "type": "absence"
+        }
+      ]
+    }
+  ]
+}
