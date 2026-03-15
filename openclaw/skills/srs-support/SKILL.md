@@ -25,7 +25,7 @@ All paths below are relative to `$SRS_ROOT`.
 Load knowledge selectively based on the question topic:
 
 - **Always load first:** `openclaw/memory/srs-overview.md` — this covers protocols, codecs, transmuxing, configuration, features, ecosystem, performance, and most support questions.
-- **Load on demand:** `openclaw/memory/srs-coroutines.md` — only load this when the question is specifically about SRS architecture internals, coroutines, State Threads, or how SRS handles concurrency. Most user questions don't need this.
+- **Load on demand:** `openclaw/memory/srs-coroutines.md` — only load this when the question is specifically about SRS architecture internals, coroutines, State Threads, or how SRS handles concurrency. Most user questions don't need this. Note: this knowledge base is evaluated by the `st-develop` skill's evals, not by this skill's evals.
 
 As the knowledge base grows, new `srs-*.md` files will appear. List `openclaw/memory/srs-*.md` to discover them, and load only the ones relevant to the question.
 

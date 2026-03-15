@@ -48,6 +48,563 @@
           "type": "absence"
         }
       ]
+    },
+    {
+      "id": 1,
+      "prompt": "I just cloned the SRS repo on my Linux box. How do I build it, push a test stream, and watch it in my browser?",
+      "expected_output": "Should provide build steps, run command with console.conf, FFmpeg publish command using doc/source.flv, browser playback URLs (HTTP-FLV/HLS), correct ports, and mention HTTP API or SRS console for checking streams.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "build_steps",
+          "description": "Answer includes build steps: cd srs/trunk, ./configure, and make",
+          "type": "contains_concept"
+        },
+        {
+          "name": "run_with_console_conf",
+          "description": "Answer shows running SRS with console.conf (./objs/srs -c conf/console.conf)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "ffmpeg_publish_with_test_file",
+          "description": "Answer shows FFmpeg publish command using the bundled doc/source.flv test file",
+          "type": "contains_concept"
+        },
+        {
+          "name": "rtmp_publish_url",
+          "description": "Answer includes RTMP publish URL like rtmp://localhost/live/livestream",
+          "type": "contains_concept"
+        },
+        {
+          "name": "browser_playback_urls",
+          "description": "Answer provides browser playback options: HTTP-FLV (.flv) and/or HLS (.m3u8) URLs",
+          "type": "contains_concept"
+        },
+        {
+          "name": "correct_ports",
+          "description": "Answer mentions correct default ports: RTMP 1935, HTTP 8080, or API 1985",
+          "type": "contains_concept"
+        },
+        {
+          "name": "api_or_console_for_checking",
+          "description": "Answer mentions HTTP API or SRS console for checking/monitoring streams",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not include hallucinated steps like npm install, Docker required, or incorrect commands",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My network is unstable with frequent packet loss. Should I use SRT or RTMP to push a live stream to SRS? What's the difference?",
+      "expected_output": "Should recommend SRT for unstable networks, explain TCP vs UDP difference, mention srt_to_rtmp conversion, and note tool support.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "recommend_srt_for_unstable_network",
+          "description": "Answer recommends SRT for unstable networks because it handles packet loss better than RTMP",
+          "type": "contains_concept"
+        },
+        {
+          "name": "tcp_vs_udp_transport",
+          "description": "Answer explains that RTMP uses TCP and SRT uses UDP",
+          "type": "contains_concept"
+        },
+        {
+          "name": "srt_version_and_libsrt",
+          "description": "Answer mentions SRT supported since v4.0 and/or uses libsrt",
+          "type": "contains_concept"
+        },
+        {
+          "name": "srt_to_rtmp_conversion",
+          "description": "Answer mentions srt_to_rtmp config for converting SRT to RTMP for downstream playback (HLS, HTTP-FLV, etc.)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "tool_support",
+          "description": "Answer mentions that common tools like OBS and FFmpeg support both SRT and RTMP",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate features not in the knowledge base",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Does SRS support H.265? Which protocols can I use with HEVC streams?",
+      "expected_output": "Should list H.265 support since v6.0, enumerate supported protocols, mention WebRTC HEVC in v7.0, and clarify no video transcoding.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "hevc_since_v6",
+          "description": "Answer mentions H.265/HEVC supported since v6.0 via Enhanced RTMP",
+          "type": "contains_concept"
+        },
+        {
+          "name": "supported_protocols",
+          "description": "Answer lists protocols that support HEVC: RTMP, HTTP-FLV, HTTP-TS, HLS, MPEG-DASH, SRT, GB28181, DVR",
+          "type": "contains_concept"
+        },
+        {
+          "name": "hls_fmp4_v7",
+          "description": "Answer mentions HLS fMP4/LLHLS support for HEVC in v7.0",
+          "type": "contains_concept"
+        },
+        {
+          "name": "webrtc_hevc_v7",
+          "description": "Answer mentions WebRTC HEVC supported in v7.0 with Safari and/or Chrome 136+ playback",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_video_transcoding",
+          "description": "Answer clarifies that SRS transmuxes H.265 video without re-encoding (no built-in video transcoding)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate unsupported HEVC features or incorrect protocol support",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need to serve 10,000 RTMP viewers. SRS is single-threaded — how do I scale it?",
+      "expected_output": "Should explain edge cluster for scaling viewers (deprecated, RTMP only), distinguish from origin cluster (for more streams), mention single-threaded design, and HLS cluster option.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "single_threaded_design",
+          "description": "Answer explains SRS is single-threaded by design with no multi-threading support",
+          "type": "contains_concept"
+        },
+        {
+          "name": "edge_cluster_for_viewers",
+          "description": "Answer mentions edge cluster as the solution for scaling viewers",
+          "type": "contains_concept"
+        },
+        {
+          "name": "edge_cluster_deprecated_new_planned",
+          "description": "Answer notes that edge cluster is currently deprecated (only supports RTMP), but a new version is planned",
+          "type": "contains_concept"
+        },
+        {
+          "name": "origin_cluster_distinction",
+          "description": "Answer distinguishes origin cluster as being for extending the number of streams, not for scaling viewers",
+          "type": "contains_concept"
+        },
+        {
+          "name": "tcp_performance",
+          "description": "Answer mentions that TCP protocols (RTMP, HTTP-FLV) support thousands of connections per instance",
+          "type": "contains_concept"
+        },
+        {
+          "name": "hls_cluster_option",
+          "description": "Answer mentions HLS cluster (built with Nginx) as an alternative for HLS viewers, since v5.0",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate multi-threading config or incorrect clustering features",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I'm choosing between SRS and Nginx-RTMP for a live streaming project. We need RTMP ingest and multiple playback options. Which one should I pick?",
+      "expected_output": "Should compare protocol coverage, maintenance status, Enhanced RTMP support, and be objective about both.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "nginx_rtmp_protocol_limits",
+          "description": "Answer mentions Nginx-RTMP supports RTMP and HLS, but not WebRTC, SRT, or HTTP-FLV",
+          "type": "contains_concept"
+        },
+        {
+          "name": "srs_protocol_coverage",
+          "description": "Answer mentions SRS supports RTMP, HLS, HTTP-FLV, WebRTC, SRT, MPEG-DASH, and more",
+          "type": "contains_concept"
+        },
+        {
+          "name": "both_support_rtmp_ingest",
+          "description": "Answer notes both support RTMP ingest from OBS/FFmpeg",
+          "type": "contains_concept"
+        },
+        {
+          "name": "enhanced_rtmp",
+          "description": "Answer mentions SRS supports Enhanced RTMP (e.g., HEVC over RTMP) and keeps up with RTMP protocol evolution",
+          "type": "contains_concept"
+        },
+        {
+          "name": "maintenance_status",
+          "description": "Answer mentions SRS is actively maintained (community and AI-assisted) while Nginx-RTMP has not been maintained for about a decade",
+          "type": "contains_concept"
+        },
+        {
+          "name": "objective_comparison",
+          "description": "Answer is objective and acknowledges Nginx-RTMP strengths (e.g., Nginx ecosystem integration)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate features about either server",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I have IP cameras that push GB28181 streams. Can SRS receive them? What do I need besides SRS?",
+      "expected_output": "Should explain GB28181 support, external srs-sip requirement, downstream delivery options, and v5 vs v6 differences.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "gb28181_publishing_support",
+          "description": "Answer confirms SRS supports receiving/publishing GB28181 streams",
+          "type": "contains_concept"
+        },
+        {
+          "name": "ps_over_tcp",
+          "description": "Answer mentions GB28181 uses PS (Program Stream) over TCP",
+          "type": "contains_concept"
+        },
+        {
+          "name": "external_srs_sip_required",
+          "description": "Answer mentions SRS requires an external SIP server (srs-sip) for SIP signaling in v6+",
+          "type": "contains_concept"
+        },
+        {
+          "name": "downstream_delivery",
+          "description": "Answer mentions GB28181 streams can be converted to RTMP for downstream delivery (HLS, HTTP-FLV, WebRTC, etc.)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "v5_vs_v6_rewrite",
+          "description": "Answer mentions GB28181 supported since v5.0 but completely rewritten in v6 — v5 had an embedded SIP server, v6 removed it and requires external srs-sip",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate features like a built-in SIP server in v6+",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I keep hearing \"transmuxing\" and \"transcoding\" — what's the difference? Which one does SRS do?",
+      "expected_output": "Should explain transmuxing vs transcoding, SRS focus on transmuxing, built-in audio-only transcoding, and external FFmpeg for video transcoding.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "transmuxing_definition",
+          "description": "Answer explains transmuxing = repackaging media into a different protocol format without re-encoding",
+          "type": "contains_concept"
+        },
+        {
+          "name": "transcoding_definition",
+          "description": "Answer explains transcoding = re-encoding media to a different codec",
+          "type": "contains_concept"
+        },
+        {
+          "name": "srs_focuses_on_transmuxing",
+          "description": "Answer states SRS focuses on transmuxing, not transcoding",
+          "type": "contains_concept"
+        },
+        {
+          "name": "builtin_audio_transcoding_only",
+          "description": "Answer mentions SRS has built-in audio transcoding only (AAC↔Opus) for WebRTC interop",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_builtin_video_transcoding",
+          "description": "Answer clarifies no built-in video transcoding — use external FFmpeg for that",
+          "type": "contains_concept"
+        },
+        {
+          "name": "external_ffmpeg_transcoding",
+          "description": "Answer mentions SRS has an external transcoding feature that uses FFmpeg",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate transcoding features",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I'm on Windows 10. Can I install and run SRS directly?",
+      "expected_output": "Should explain Linux-only, v5 Windows history, WSL/Docker workarounds, and future possibility.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "currently_linux_only",
+          "description": "Answer states SRS is currently Linux-only and does not run natively on Windows",
+          "type": "contains_concept"
+        },
+        {
+          "name": "v5_windows_history",
+          "description": "Answer mentions SRS v5 had Windows support but it was removed in v6 because AI couldn't maintain it",
+          "type": "contains_concept"
+        },
+        {
+          "name": "future_windows_possible",
+          "description": "Answer mentions Windows support may return in the future if AI becomes powerful enough to maintain it",
+          "type": "contains_concept"
+        },
+        {
+          "name": "wsl_workaround",
+          "description": "Answer suggests using WSL (Windows Subsystem for Linux) to run SRS on Windows",
+          "type": "contains_concept"
+        },
+        {
+          "name": "macos_for_dev",
+          "description": "Answer mentions macOS works for development but Linux is the target platform",
+          "type": "contains_concept"
+        },
+        {
+          "name": "docker_option",
+          "description": "Answer mentions Docker as another option for running SRS on non-Linux systems",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate a Windows installer or native Windows build",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I'm streaming a live event and want to save a recording. Can SRS record streams to files?",
+      "expected_output": "Should explain DVR feature, VOD use, HLS as recording with on_hls callback, and external FFmpeg option.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "dvr_support",
+          "description": "Answer mentions SRS supports DVR — recording streams to files",
+          "type": "contains_concept"
+        },
+        {
+          "name": "vod_use",
+          "description": "Answer mentions recorded files can be used as VOD (Video on Demand)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "dvr_since_v1",
+          "description": "Answer mentions DVR supported since v1.0",
+          "type": "contains_concept"
+        },
+        {
+          "name": "hls_as_recording",
+          "description": "Answer mentions HLS can be used as a form of recording (segments to .ts files) with on_hls callback to notify your system to manage the files",
+          "type": "contains_concept"
+        },
+        {
+          "name": "external_ffmpeg_recording",
+          "description": "Answer mentions using FFmpeg to pull streams from SRS and record externally",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate recording features",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "I want the lowest possible latency for my viewers. What protocol should I use in SRS? What's the latency difference between HLS and WebRTC?",
+      "expected_output": "Should compare latency across protocols, warn about player-side latency trap, and mention SRT as low-latency option.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "webrtc_lowest_latency",
+          "description": "Answer states WebRTC has the lowest latency — sub-second, real-time",
+          "type": "contains_concept"
+        },
+        {
+          "name": "srt_low_latency",
+          "description": "Answer mentions SRT also offers low latency — around 500ms to 1s, widely used in live streaming",
+          "type": "contains_concept"
+        },
+        {
+          "name": "http_flv_latency",
+          "description": "Answer mentions HTTP-FLV has around 1 second latency",
+          "type": "contains_concept"
+        },
+        {
+          "name": "hls_latency",
+          "description": "Answer mentions HLS has 3–5 seconds latency due to segmenting",
+          "type": "contains_concept"
+        },
+        {
+          "name": "player_side_latency_trap",
+          "description": "Answer warns that latency is an end-to-end problem and the player matters — VLC adds huge latency even with low-latency protocols, use browsers with WebRTC for true low latency",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate latency numbers or claim sub-second HLS",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "I want to live stream from my iPhone to SRS. What app should I use and what protocol?",
+      "expected_output": "Should recommend Larix Broadcaster, mention browser WHIP option, and suggest protocols.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "larix_broadcaster",
+          "description": "Answer recommends Larix Broadcaster as a mobile streaming app for iOS/Android supporting RTMP, SRT, WHIP",
+          "type": "contains_concept"
+        },
+        {
+          "name": "browser_whip_option",
+          "description": "Answer mentions publishing via browser using WHIP (WebRTC) as an option",
+          "type": "contains_concept"
+        },
+        {
+          "name": "rtmp_simplest",
+          "description": "Answer mentions RTMP as the simplest protocol option for mobile publishing",
+          "type": "contains_concept"
+        },
+        {
+          "name": "srt_for_unstable",
+          "description": "Answer mentions SRT as a good option if the network is unstable",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate an SRS mobile app or claim OBS works on phones",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "I don't want everyone to watch my stream. How do I control who can publish or play in SRS?",
+      "expected_output": "Should explain HTTP callback auth, IP allow/deny lists, HTTP API for kicking streams, and no built-in user management.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "http_callback_auth",
+          "description": "Answer mentions HTTP callback for authentication — listen to publish/play events and accept or reject clients",
+          "type": "contains_concept"
+        },
+        {
+          "name": "ip_allow_deny_list",
+          "description": "Answer mentions IP allow list and deny list for basic security",
+          "type": "contains_concept"
+        },
+        {
+          "name": "http_callback_since_v2",
+          "description": "Answer mentions HTTP callback supported since v2.0",
+          "type": "contains_concept"
+        },
+        {
+          "name": "http_api_kickoff",
+          "description": "Answer mentions HTTP API can be used to kick off/stop streams or disconnect publishers/viewers",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_builtin_user_management",
+          "description": "Answer clarifies no built-in username/password system — use HTTP callback to integrate with your own auth service",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate built-in user management features",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "I want to try SRS quickly without building from source. Can I run it in Docker?",
+      "expected_output": "Should explain Docker support, docker.conf, environment variables, ports to expose including UDP, and same publish/play workflow.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "docker_supported",
+          "description": "Answer confirms SRS supports Docker deployment",
+          "type": "contains_concept"
+        },
+        {
+          "name": "docker_conf",
+          "description": "Answer mentions using conf/docker.conf for Docker configuration (e.g., no daemon mode)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "env_variables",
+          "description": "Answer mentions SRS supports environment variables for configuration — useful for Docker/cloud-native deployments",
+          "type": "contains_concept"
+        },
+        {
+          "name": "ports_to_expose",
+          "description": "Answer mentions ports to expose: RTMP 1935, HTTP 8080, API 1985, and UDP ports for SRT and WebRTC",
+          "type": "contains_concept"
+        },
+        {
+          "name": "same_publish_play",
+          "description": "Answer mentions you can publish and play the same way as a native build",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate incorrect Docker image names or commands",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "I see SRS supports WebRTC. Can I use it to build a video conferencing app like Zoom?",
+      "expected_output": "Should explain SRS can work for small-scale conferencing but the main challenge is the application layer, not the SFU.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "small_scale_possible",
+          "description": "Answer explains SRS can work for very small-scale conferencing (1-to-1, 2-3 participants) via browser or smartphone",
+          "type": "contains_concept"
+        },
+        {
+          "name": "sfu_stream_count",
+          "description": "Answer explains SRS is an SFU — for 3 participants that means 9 streams to forward",
+          "type": "contains_concept"
+        },
+        {
+          "name": "application_layer_is_main_challenge",
+          "description": "Answer explains the biggest challenge for conferencing is not the SFU but the application layer: chat, hand-raising, recording (needs transcoding), SIP integration, etc.",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_turn_no_p2p",
+          "description": "Answer mentions SRS does not support TURN or P2P",
+          "type": "contains_concept"
+        },
+        {
+          "name": "not_for_large_scale",
+          "description": "Answer clarifies SRS is not the right fit for large-scale conferencing",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate built-in room management, MCU, or conferencing features",
+          "type": "absence"
+        }
+      ]
     }
   ]
 }
