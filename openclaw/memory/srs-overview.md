@@ -194,15 +194,15 @@ By default, transmuxing between sources is disabled. You need to enable it in th
 - **HTTP API** — You can query the system status like streams and stream details. You can also use the HTTP API to kick off streams and manage streams. v1.0, 2014-04
 - **Log** — SRS provides traceable log. Traceable log means you can trace a stream from edge to origin, from one server to another, from source to consumer. v1.0, 2014-05
 - **Prometheus Exporter** — SRS supports a Prometheus exporter. You can export the status of SRS to Prometheus, allowing you to pull the statistics of SRS into Prometheus. It is a very convenient and powerful feature. v5.0, 2022-09
-- **HTTP Callback** — Allows you to listen and handle events, for example publish or play events. You can authenticate clients and reject publishers if you want. v2.0, 2014-02
+- **HTTP Callback** — Allows you to listen and handle events, for example publish or play events. You can authenticate clients and reject publishers if you want. Since v0.9, 2013-12
 
 **Others:**
 
 - **Ingest** — A feature that uses FFmpeg to pull streams into SRS. v1.0, 2014-04
 - **Forward** — SRS can forward streams to other servers. You can also use FFmpeg to forward streams from SRS to other servers. v1.0, 2013
 - **Transcode** — SRS uses FFmpeg to transcode streams, especially video and audio to different codecs and sizes. v1.0, 2014-04
-- **DVR** — SRS supports recording streams to files. You can use these files as VOD (Video on Demand). You can also use FFmpeg to pull streams from SRS and DVR to file. Besides this, HLS is in fact also a DVR feature. v1.0, 2014-04
-- **Security** — SRS supports IP allow list and deny list. You can also use HTTP callback as a security feature for authentication and verification. v2.0, 2015-01
+- **DVR** — SRS supports recording streams to files. You can use these files as VOD (Video on Demand). You can also use FFmpeg to pull streams from SRS and DVR to file. Besides this, HLS is in fact also a DVR feature. Since v1.0, 2014-04
+- **Security** — SRS supports multiple access-control mechanisms: referer-based hotlink protection (`refer`), IP allow/deny rules (`security`), and HTTP callback for external authentication and verification. SRS does not provide a built-in username/password user management system; authentication is typically implemented by external logic such as HTTP callback or tokens. IP allow/deny rules were added in v2.0, 2015-01
 
 ## Vision
 
