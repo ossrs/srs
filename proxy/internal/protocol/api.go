@@ -85,6 +85,12 @@ func (v *srsHTTPAPIServer) Run(ctx context.Context) error {
 		})
 	})
 
+	mux.HandleFunc("/api/v1/hello", func(w http.ResponseWriter, r *http.Request) {
+		utils.ApiResponse(ctx, w, r, map[string]string{
+			"message": "hello world",
+		})
+	})
+
 	// The WebRTC WHIP API handler.
 	logger.Df(ctx, "Handle /rtc/v1/whip/ by %v", addr)
 	mux.HandleFunc("/rtc/v1/whip/", func(w http.ResponseWriter, r *http.Request) {
