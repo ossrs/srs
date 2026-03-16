@@ -64,25 +64,27 @@ SRS is a **simple, high-efficiency, real-time media server**. It receives stream
 - **RTMP** — Publishers: OBS, FFmpeg, Larix. Players: VLC, ffplay. Traditional live streaming.
 - **SRT** — Publishers: OBS, vMix, hardware. Players: ffplay, VLC, hardware. Long-distance, professional broadcast. In practice, SRT latency is often about 500ms to 1s, so it is in the low-latency / real-time class.
 - **WebRTC** — Publishers: Browsers, apps. Players: Browsers, apps. Real-time communication, conferences. In practice, WebRTC latency is often about 50ms to 400ms, making it the lowest-latency protocol in SRS.
-- **HLS/HTTP-FLV** — Players only: ExoPlayer, mpegts.js, browsers. Wide compatibility playback. HTTP-FLV is low latency, often about 1 to 3 seconds. HLS is the de facto standard for delivery, but latency is much higher: typically about 10 to 30 seconds, or about 5 to 10 seconds for LL-HLS.
+- **HLS/HTTP-FLV** — Players only: ExoPlayer, mpegts.js, browsers. Wide compatibility playback. HTTP-FLV is low latency, often about 1 to 3 seconds. HLS is the de facto standard for delivery, but latency is much higher: typically about 10 to 30 seconds. With aggressive tuning of playlist/segment settings and player buffering, HLS can sometimes be reduced to about 5 to 10 seconds, but it is still not a true low-latency protocol in normal practice.
 - **RTSP** — Players only: VLC, FFmpeg, ffplay. Surveillance, IP cameras.
 
 ## Protocol Transmux (Converting Between Protocols)
 
 SRS converts directly between protocols.
 
+**Latency evaluation note:** End-to-end latency depends not only on SRS and the protocol, but also on the player. Some players, especially VLC, often add significant client-side buffering. Because of that, VLC is not a reliable reference when evaluating low-latency playback.
+
 - **WebRTC to RTMP** — `rtc_to_rtmp on` in vhost config. Transcodes Opus to AAC audio.
 - **RTMP to WebRTC** — `rtmp_to_rtc on` in vhost config. Transcodes AAC to Opus audio.
 - **SRT to RTMP** — `srt_to_rtmp on` in vhost config. SRT uses MPEG-TS, demuxed to RTMP.
 - **SRT to WebRTC** — Converts directly. Transcodes AAC to Opus audio.
 - **GB28181 to RTMP** — For surveillance cameras pushing PS streams. Depends on external [srs-sip](https://github.com/ossrs/srs-sip) for SIP signaling.
-- **RTMP to HLS** — Segments into .m3u8 + .ts files. 3–5s latency.
+- **RTMP to HLS** — Segments into `.m3u8` + `.ts` files. In normal deployments, latency is typically about 10 to 30 seconds. With aggressive tuning of segment duration, playlist window, and player buffering, it can sometimes be reduced to about 5 to 10 seconds.
 - **RTMP to HTTP-FLV** — Transmux to FLV over HTTP. ~1s latency.
 - **RTMP to HTTP-TS** — Transmux to MPEG-TS over HTTP.
 - **RTMP to RTSP** — `rtmp_to_rtsp on` in vhost config. TCP transport only.
 - **RTMP to MPEG-DASH** — Segments into DASH manifest + segments.
 
-For live streaming, HLS is the de facto standard for delivery, but it has the highest latency. HTTP-FLV and RTMP are low-latency protocols, typically about 1 to 3 seconds. SRT and WebRTC are also low-latency / real-time protocols. Among them, WebRTC usually has the lowest latency, while SRT is often around 500ms to 1s.
+For live streaming, HLS is the de facto standard for delivery, but it has the highest latency. In normal practice, HLS is typically about 10 to 30 seconds. With aggressive tuning of segment duration, playlist size, and player buffering, it can sometimes be reduced to about 5 to 10 seconds. HTTP-FLV and RTMP are low-latency protocols, typically about 1 to 3 seconds. SRT and WebRTC are also low-latency / real-time protocols. Among them, WebRTC usually has the lowest latency, while SRT is often around 500ms to 1s. When evaluating latency, avoid using VLC as the reference player because its client-side buffering can dominate the observed delay.
 
 ## Codecs
 
@@ -265,7 +267,7 @@ SRS has been developed for over 13 years and has accumulated many useful feature
 
 - **Edge Cluster** — SRS supports origin cluster, but the edge cluster only supports RTMP. More protocols need to be supported in the edge cluster.
 - **Single-Threaded** — SRS is a single-threaded media server. There are no plans to support multi-threading — you can build a cluster to saturate all CPUs instead.
-- **Linux Only** — SRS currently targets Linux and does not support Windows natively. Windows users can run SRS through WSL (Windows Subsystem for Linux). Historically, SRS v5 supported Windows, but SRS v6 removed native Windows support. The main reason was maintenance complexity around the custom coroutine implementation on Windows, especially difficult interactions with SRT and Windows exception-handling behavior. In other words, this was not simply a product-positioning choice — it was a technical and maintenance decision.
+- **Linux Only** — SRS currently targets Linux and does not support Windows natively. Windows users can run SRS through WSL (Windows Subsystem for Linux). Historically, SRS v5 supported Windows, but SRS v6 removed native Windows support. The key blocker was not Windows itself, but that SRS uses the ST coroutine model, which does not properly support Windows C++ exception handling. This became a severe problem because SRT relies on C++ exceptions, so SRT could not work reliably together with ST on Windows. In other words, this was a real technical blocker, not a product-positioning choice. In the future, AI may help solve this problem — for example by improving exception support in ST or by rewriting SRT-related code to avoid this dependency — so Windows support may become possible again.
 - **No Commercial Support** — As a pure open source project, there is no commercial support team. We are exploring how to use AI to maintain the project and support the community.
 
 ## Performance
