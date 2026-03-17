@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	stdsync "sync"
 	"time"
 
 	"proxy/internal/env"
@@ -23,6 +24,8 @@ type MemoryLoadBalancer struct {
 	servers sync.Map[string, *SRSServer]
 	// The picked server to service client by specified stream URL, key is stream url.
 	picked sync.Map[string, *SRSServer]
+	// Mutex to protect the Pick operation when reselecting servers.
+	pickMutex stdsync.Mutex
 	// The HLS streaming, key is stream URL.
 	hlsStreamURL sync.Map[string, HLSPlayStream]
 	// The HLS streaming, key is SPBHID.
@@ -75,12 +78,36 @@ func (v *MemoryLoadBalancer) Update(ctx context.Context, server *SRSServer) erro
 }
 
 func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSServer, error) {
-	// Always proxy to the same server for the same stream URL.
-	if server, ok := v.picked.Load(streamURL); ok {
-		return server, nil
+	// First check (without lock): fast path for healthy servers.
+	// Try to load the previously picked server for this stream URL.
+	if pickedServer, ok := v.picked.Load(streamURL); ok {
+		// Check if the server still exists and is healthy by getting its latest state from servers map.
+		if actualServer, exists := v.servers.Load(pickedServer.ID()); exists {
+			if time.Since(actualServer.UpdatedAt) < ServerAliveDuration {
+				// Server is still healthy, return the latest server state.
+				// Most requests will return here without acquiring the lock.
+				return actualServer, nil
+			}
+		}
 	}
 
-	// Gather all servers that were alive within the last few seconds.
+	// Server is unhealthy or doesn't exist, need to pick a new one.
+	// Acquire lock to ensure only one goroutine picks a new server at a time.
+	v.pickMutex.Lock()
+	defer v.pickMutex.Unlock()
+
+	// Second check (with lock): another goroutine might have already updated the server.
+	if pickedServer, ok := v.picked.Load(streamURL); ok {
+		if actualServer, exists := v.servers.Load(pickedServer.ID()); exists {
+			if time.Since(actualServer.UpdatedAt) < ServerAliveDuration {
+				// Another goroutine has already picked a healthy server.
+				return actualServer, nil
+			}
+		}
+	}
+
+	// Now we're certain we need to pick a new server.
+	// Gather all servers that are alive within the last few seconds.
 	var servers []*SRSServer
 	v.servers.Range(func(key string, server *SRSServer) bool {
 		if time.Since(server.UpdatedAt) < ServerAliveDuration {
@@ -89,7 +116,7 @@ func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSSe
 		return true
 	})
 
-	// If no servers available, use all possible servers.
+	// If no healthy servers available, use all possible servers as fallback.
 	if len(servers) == 0 {
 		v.servers.Range(func(key string, server *SRSServer) bool {
 			servers = append(servers, server)
@@ -104,9 +131,10 @@ func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSSe
 
 	// Pick a server randomly from servers. Use global rand which is thread-safe since Go 1.20.
 	// For older Go versions, this is still safe as we're only reading from the servers slice.
-	server := servers[rand.Intn(len(servers))]
-	v.picked.Store(streamURL, server)
-	return server, nil
+	newServer := servers[rand.Intn(len(servers))]
+	v.picked.Store(streamURL, newServer)
+
+	return newServer, nil
 }
 
 func (v *MemoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
