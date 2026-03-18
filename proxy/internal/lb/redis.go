@@ -86,8 +86,11 @@ func (v *RedisLoadBalancer) Update(ctx context.Context, server *SRSServer) error
 		return errors.Wrapf(err, "marshal server %+v", server)
 	}
 
+	// Get the configurable server alive duration.
+	serverAliveDuration := GetServerAliveDuration(v.environment)
+
 	key := v.redisKeyServer(server.ID())
-	if err = v.rdb.Set(ctx, key, b, ServerAliveDuration).Err(); err != nil {
+	if err = v.rdb.Set(ctx, key, b, serverAliveDuration).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v server %+v", key, server)
 	}
 
@@ -214,14 +217,17 @@ func (v *RedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string
 		return nil, errors.Wrapf(err, "marshal HLS %v", value)
 	}
 
+	// Get the configurable HLS alive duration.
+	hlsAliveDuration := GetHLSAliveDuration(v.environment)
+
 	key := v.redisKeyHLS(streamURL)
-	if err = v.rdb.Set(ctx, key, b, HLSAliveDuration).Err(); err != nil {
+	if err = v.rdb.Set(ctx, key, b, hlsAliveDuration).Err(); err != nil {
 		return nil, errors.Wrapf(err, "set key=%v HLS %v", key, value)
 	}
 
 	// Get SPBHID from value
 	key2 := v.redisKeySPBHID(value.GetSPBHID())
-	if err := v.rdb.Set(ctx, key2, b, HLSAliveDuration).Err(); err != nil {
+	if err := v.rdb.Set(ctx, key2, b, hlsAliveDuration).Err(); err != nil {
 		return nil, errors.Wrapf(err, "set key=%v HLS %v", key2, value)
 	}
 
@@ -235,14 +241,17 @@ func (v *RedisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, v
 		return errors.Wrapf(err, "marshal WebRTC %v", value)
 	}
 
+	// Get the configurable RTC alive duration.
+	rtcAliveDuration := GetRTCAliveDuration(v.environment)
+
 	key := v.redisKeyRTC(streamURL)
-	if err = v.rdb.Set(ctx, key, b, RTCAliveDuration).Err(); err != nil {
+	if err = v.rdb.Set(ctx, key, b, rtcAliveDuration).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v WebRTC %v", key, value)
 	}
 
 	// Get Ufrag from value
 	key2 := v.redisKeyUfrag(value.GetUfrag())
-	if err := v.rdb.Set(ctx, key2, b, RTCAliveDuration).Err(); err != nil {
+	if err := v.rdb.Set(ctx, key2, b, rtcAliveDuration).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v WebRTC %v", key2, value)
 	}
 

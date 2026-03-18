@@ -59,6 +59,12 @@ type Environment interface {
 	DefaultBackendRTC() string
 	// Default backend SRT port (UDP)
 	DefaultBackendSRT() string
+	// Server alive duration for load balancer
+	ServerAliveDuration() string
+	// HLS stream alive duration for load balancer
+	HLSAliveDuration() string
+	// RTC stream alive duration for load balancer
+	RTCAliveDuration() string
 }
 
 type environment struct{}
@@ -160,6 +166,18 @@ func (e *environment) DefaultBackendSRT() string {
 	return os.Getenv("PROXY_DEFAULT_BACKEND_SRT")
 }
 
+func (e *environment) ServerAliveDuration() string {
+	return os.Getenv("PROXY_SERVER_ALIVE_DURATION")
+}
+
+func (e *environment) HLSAliveDuration() string {
+	return os.Getenv("PROXY_HLS_ALIVE_DURATION")
+}
+
+func (e *environment) RTCAliveDuration() string {
+	return os.Getenv("PROXY_RTC_ALIVE_DURATION")
+}
+
 // loadEnvFile loads the environment variables from .env file.
 func loadEnvFile(ctx context.Context) error {
 	if err := godotenv.Load(); err != nil {
@@ -222,6 +240,11 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	// Default backend udp srt port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_SRT", "10080")
 
+	// Load balancer TTL configurations.
+	setEnvDefault("PROXY_SERVER_ALIVE_DURATION", "300s")
+	setEnvDefault("PROXY_HLS_ALIVE_DURATION", "120s")
+	setEnvDefault("PROXY_RTC_ALIVE_DURATION", "120s")
+
 	logger.Df(ctx, "load .env as GO_PPROF=%v, "+
 		"PROXY_FORCE_QUIT_TIMEOUT=%v, PROXY_GRACE_QUIT_TIMEOUT=%v, "+
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
@@ -231,7 +254,8 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		"PROXY_DEFAULT_BACKEND_HTTP=%v, PROXY_DEFAULT_BACKEND_API=%v, "+
 		"PROXY_DEFAULT_BACKEND_RTC=%v, PROXY_DEFAULT_BACKEND_SRT=%v, "+
 		"PROXY_LOAD_BALANCER_TYPE=%v, PROXY_REDIS_HOST=%v, PROXY_REDIS_PORT=%v, "+
-		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v",
+		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v, "+
+		"PROXY_SERVER_ALIVE_DURATION=%v, PROXY_HLS_ALIVE_DURATION=%v, PROXY_RTC_ALIVE_DURATION=%v",
 		os.Getenv("GO_PPROF"),
 		os.Getenv("PROXY_FORCE_QUIT_TIMEOUT"), os.Getenv("PROXY_GRACE_QUIT_TIMEOUT"),
 		os.Getenv("PROXY_HTTP_API"), os.Getenv("PROXY_HTTP_SERVER"), os.Getenv("PROXY_RTMP_SERVER"),
@@ -242,6 +266,7 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		os.Getenv("PROXY_DEFAULT_BACKEND_RTC"), os.Getenv("PROXY_DEFAULT_BACKEND_SRT"),
 		os.Getenv("PROXY_LOAD_BALANCER_TYPE"), os.Getenv("PROXY_REDIS_HOST"), os.Getenv("PROXY_REDIS_PORT"),
 		os.Getenv("PROXY_REDIS_PASSWORD"), os.Getenv("PROXY_REDIS_DB"),
+		os.Getenv("PROXY_SERVER_ALIVE_DURATION"), os.Getenv("PROXY_HLS_ALIVE_DURATION"), os.Getenv("PROXY_RTC_ALIVE_DURATION"),
 	)
 }
 

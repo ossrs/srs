@@ -8,16 +8,32 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"proxy/internal/env"
 )
 
-// If server heartbeat in this duration, it's alive.
-const ServerAliveDuration = 300 * time.Second
+// ParseDurationOrDefault parses a duration string and returns the default if parsing fails.
+func ParseDurationOrDefault(s string, defaultDuration time.Duration) time.Duration {
+	if d, err := time.ParseDuration(s); err == nil {
+		return d
+	}
+	return defaultDuration
+}
 
-// If HLS streaming update in this duration, it's alive.
-const HLSAliveDuration = 120 * time.Second
+// GetServerAliveDuration returns the configurable server alive duration from environment.
+func GetServerAliveDuration(environment env.Environment) time.Duration {
+	return ParseDurationOrDefault(environment.ServerAliveDuration(), 300*time.Second)
+}
 
-// If WebRTC streaming update in this duration, it's alive.
-const RTCAliveDuration = 120 * time.Second
+// GetHLSAliveDuration returns the configurable HLS alive duration from environment.
+func GetHLSAliveDuration(environment env.Environment) time.Duration {
+	return ParseDurationOrDefault(environment.HLSAliveDuration(), 120*time.Second)
+}
+
+// GetRTCAliveDuration returns the configurable RTC alive duration from environment.
+func GetRTCAliveDuration(environment env.Environment) time.Duration {
+	return ParseDurationOrDefault(environment.RTCAliveDuration(), 120*time.Second)
+}
 
 // SRSServer represents a backend origin server.
 type SRSServer struct {
