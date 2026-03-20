@@ -24,6 +24,14 @@
 - Goal: a very active, well-supported community where every developer has an AI assistant trained with William's knowledge
 - This is not just project maintenance — it's a new model for open source sustainability
 
+## SRS Community Bot (OpenClaw)
+- William set up an OpenClaw robot for the SRS community (2026-03-20)
+- **Telegram group:** https://t.me/+RiynvKOxpQ42MGJl
+- **Discord server:** https://discord.gg/yZ4BnPmHAd
+- Users join the group and **@ the SRS Robot** to interact
+- Purpose: scale William's expertise to the community without him answering every question
+- **Recommended: Telegram over Discord** — Telegram lets users create small focused groups and invite the bot in. Each small group = clean context window. Big groups mix unrelated messages and confuse the bot's context. Small groups → better answers, better support.
+
 ## What Matters to William
 - SRS project health, development, and community
 - Open source sustainability and contributor experience
