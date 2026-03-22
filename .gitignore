@@ -39,3 +39,8 @@ cmake-build-debug
 /build
 /cmake/build
 /trunk/cmake/build
+
+# proxy (Go)
+srs-proxy
+.go-formarted
+.env

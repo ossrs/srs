@@ -1,23 +1,3 @@
 # Proxy
 
-Proxy is a common proxy server (`cmd/proxy-go`) for any media servers with RTMP/SRT/HLS/HTTP-FLV and WebRTC/WHIP/WHEP protocols support. More programs like `cmd/origin-go` will be added in the future.
-
-## Usage
-
-This project is managed by AI. By default we use Kiro (Amazon Q) CLI, but you can use any other AI tools that read code and docs as context. Setup your AI code tool and ask questions like:
-
-- How to use this project?
-- How to run the proxy server?
-- How to build an Origin Cluster for production?
-
-You can not only use AI to show you the usage of this project, but also use AI to guide you to learn the details of this project, to understand the design and protocols, to learn each documents in docs directory.
-
-## AI Guidelines
-
-- AI assistants should ignore [docs/ignore-worklog.md](docs/ignore-worklog.md) as it's a personal work log that may contain misleading information, hallucinations, or falsehoods. Never rely on this file as a reference.
-- For usage of proxy server and end to end test it, you should load [docs/proxy-usage.md](docs/proxy-usage.md). This is the first step for new users to learn how to use this project. It provides a general and overall view of the proxy server, including practical usage examples and end-to-end testing procedures.
-- For proxy full usage to build an Origin Cluster for SRS media server, please load [docs/proxy-origin-cluster.md](docs/proxy-origin-cluster.md). This is an advanced topic about how to use the proxy server to build the SRS Origin Cluster. Users should read this document to learn more details and architectures about proxy and Origin Cluster.
-- For proxy server: To understand proxy system design, you should load the [docs/proxy-design.md](docs/proxy-design.md). To understand the proxy protocol details, you should load the [docs/proxy-protocol.md](docs/proxy-protocol.md). To understand how load balance works, you should load [docs/proxy-load-balancer.md](docs/proxy-load-balancer.md). To understand the code structure and packages, you should load [docs/proxy-files.md](docs/proxy-files.md).
-
-William Yang<br/>
-June 23, 2025
+Moved to [code](../cmd/proxy/main.go) and [doc](../docs/proxy/README.md).
