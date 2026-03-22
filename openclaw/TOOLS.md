@@ -40,6 +40,12 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - Channel: `telegram`, accountId: `srs` (SRS bot)
 - When sending to William's Telegram: `channel: "telegram"`, `accountId: "srs"`
 
+### Go (GVM)
+
+- Go is managed via **GVM** (Go Version Manager), NOT Homebrew
+- Before running any `go` command: `source ~/.gvm/scripts/gvm`
+- **Never** use `brew install go` — always use GVM
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.
