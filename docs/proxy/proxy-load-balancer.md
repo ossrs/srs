@@ -2,7 +2,7 @@
 
 ## Overview
 
-The proxy-go load balancer distributes client streams across multiple backend origin servers. It provides a pluggable interface with two implementations:
+The proxy load balancer distributes client streams across multiple backend origin servers. It provides a pluggable interface with two implementations:
 
 1. **Memory Load Balancer** - For single proxy deployments
 2. **Redis Load Balancer** - For multi-proxy deployments with shared state
@@ -159,4 +159,3 @@ PROXY_REDIS_DB=0
 | **Complexity** | Simple | Moderate |
 | **Fault Tolerance** | Single point of failure | Multiple proxies |
 | **Best For** | Moderate traffic | High traffic, high availability |
-

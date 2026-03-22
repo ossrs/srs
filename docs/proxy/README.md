@@ -1,10 +1,10 @@
 # Proxy
 
-Proxy is a common proxy server (`cmd/proxy-go`) for any media servers with RTMP/SRT/HLS/HTTP-FLV and WebRTC/WHIP/WHEP protocols support. More programs like `cmd/origin-go` will be added in the future.
+Proxy is a common proxy server (`cmd/proxy`) for any media servers with RTMP/SRT/HLS/HTTP-FLV and WebRTC/WHIP/WHEP protocols support. More programs like `cmd/origin` will be added in the future.
 
 ## Usage
 
-This project is managed by AI. By default we use Kiro (Amazon Q) CLI, but you can use any other AI tools that read code and docs as context. Setup your AI code tool and ask questions like:
+This project is managed by AI. We recommend OpenClaw by default, but you can use any AI agent that supports skills, such as Claude Code, OpenAI Codex, Kiro CLI, or similar tools that can read code and docs as context. Setup your AI code tool and ask questions like:
 
 - How to use this project?
 - How to run the proxy server?

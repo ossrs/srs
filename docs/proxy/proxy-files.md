@@ -6,7 +6,7 @@ This document provides an overview of the Go codebase organization.
 
 ```
 /
-├── cmd/proxy-go/
+├── cmd/proxy/
 │   └── main.go                 # Application entry point
 └── internal/
     ├── debug/                  # Go profiling support

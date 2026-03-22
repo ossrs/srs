@@ -2,7 +2,7 @@
 
 ## Overview
 
-**proxy-go** is a stateless media streaming proxy with built-in load balancing that enables building scalable origin clusters. The proxy itself acts as the load balancer, routing streams from clients to backend origin servers.
+**proxy** is a stateless media streaming proxy with built-in load balancing that enables building scalable origin clusters. The proxy itself acts as the load balancer, routing streams from clients to backend origin servers.
 
 ```
 Client → Proxy (with Load Balancer) → Backend Origin Servers
