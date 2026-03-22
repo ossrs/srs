@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-03-22, Merge [#4653](https://github.com/ossrs/srs/pull/4653): OpenClaw: unify AI agent configs with shared persona symlinks. v7.0.140 (#4653)
 * v7.0, 2026-03-22, Merge [#4652](https://github.com/ossrs/srs/pull/4652): Proxy: restructure repo as Go project with proxy as first module. v7.0.139 (#4652)
 * v7.0, 2026-03-05, Merge [#4643](https://github.com/ossrs/srs/pull/4643): OpenClaw: add and refine ST knowledge-base and learning/review skills. v7.0.138 (#4643)
 * v7.0, 2025-12-31, Merge [#4618](https://github.com/ossrs/srs/pull/4618): HLS/DASH: Fix dispose() to cleanup files even after on_unpublish() sets enabled_ to false. v7.0.137 (#4618)
