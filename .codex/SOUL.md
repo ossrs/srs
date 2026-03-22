@@ -1,0 +1,1 @@
+../openclaw/SOUL.md

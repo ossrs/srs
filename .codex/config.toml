@@ -1,0 +1,7 @@
+#:schema https://developers.openai.com/codex/config-schema.json
+
+# Codex currently supports one explicit instruction entrypoint file.
+# That file can then instruct Codex to read additional local files at session start.
+model_instructions_file = "CODEX.md"
+project_doc_fallback_filenames = ["AGENTS.md", "IDENTITY.md", "MEMORY.md", "SOUL.md", "TOOLS.md", "USER.md"]
+project_doc_max_bytes = 131072
