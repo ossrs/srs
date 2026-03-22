@@ -1772,6 +1772,36 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer 
     }
 
     uint32_t ssrc = pkt->header_.get_ssrc();
+
+    // Unwrap RTX packet per RFC 4588. RTX packets arrive with RTX SSRC and RTX PT.
+    // The payload starts with a 2-byte Original Sequence Number (OSN), followed by
+    // the original RTP payload. Restore the original SSRC, PT, and sequence number,
+    // then advance the buffer past the OSN so downstream sees the original payload.
+    SrsRtcTrackDescription *td = find_track_desc_by_rtx_ssrc(ssrc);
+    if (td) {
+        if (!buf->require(2)) {
+            srs_warn("RTC: RTX packet too short, ssrc=%u, rtx_ssrc=%u", td->ssrc_, ssrc);
+            return;
+        }
+
+        uint16_t osn = (uint16_t)buf->read_2bytes();
+
+        srs_trace("RTC: RTX unwrap rtx_ssrc=%u, osn=%u, media_ssrc=%u, pt=%u, left=%d",
+                  ssrc, osn, td->ssrc_, td->media_ ? td->media_->pt_ : 0, buf->left());
+
+        pkt->header_.set_ssrc(td->ssrc_);
+        pkt->header_.set_sequence(osn);
+        if (td->media_) {
+            pkt->header_.set_payload_type(td->media_->pt_);
+        }
+
+        ssrc = td->ssrc_;
+
+        if (buf->empty()) {
+            return;
+        }
+    }
+
     SrsRtcAudioRecvTrack *audio_track = get_audio_track(ssrc);
     SrsRtcVideoRecvTrack *video_track = get_video_track(ssrc);
 
@@ -1972,6 +2002,23 @@ SrsRtcAudioRecvTrack *SrsRtcPublishStream::get_audio_track(uint32_t ssrc)
         }
     }
 
+    return NULL;
+}
+
+SrsRtcTrackDescription* SrsRtcPublishStream::find_track_desc_by_rtx_ssrc(uint32_t ssrc)
+{
+    for (int i = 0; i < (int)audio_tracks_.size(); ++i) {
+        SrsRtcTrackDescription *desc = audio_tracks_.at(i)->get_track_desc();
+        if (desc->rtx_ssrc_ && desc->rtx_ssrc_ == ssrc) {
+            return desc;
+        }
+    }
+    for (int i = 0; i < (int)video_tracks_.size(); ++i) {
+        SrsRtcTrackDescription *desc = video_tracks_.at(i)->get_track_desc();
+        if (desc->rtx_ssrc_ && desc->rtx_ssrc_ == ssrc) {
+            return desc;
+        }
+    }
     return NULL;
 }
 
@@ -3653,10 +3700,25 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
         }
 
         // set track fec_ssrc and rtx_ssrc
+        // Note: We match by ssrc_ directly instead of using find_track_description_by_ssrc(),
+        // because tracks are not yet active (is_active_=false) at this point, and has_ssrc()
+        // returns false for inactive tracks.
         for (int j = 0; j < (int)remote_media_desc.ssrc_groups_.size(); ++j) {
             const SrsSSRCGroup &ssrc_group = remote_media_desc.ssrc_groups_.at(j);
+            uint32_t primary_ssrc = ssrc_group.ssrcs_[0];
 
-            SrsRtcTrackDescription *track_desc = stream_desc->find_track_description_by_ssrc(ssrc_group.ssrcs_[0]);
+            SrsRtcTrackDescription *track_desc = NULL;
+            if (stream_desc->audio_track_desc_ && stream_desc->audio_track_desc_->ssrc_ == primary_ssrc) {
+                track_desc = stream_desc->audio_track_desc_;
+            }
+            if (!track_desc) {
+                for (int k = 0; k < (int)stream_desc->video_track_descs_.size(); ++k) {
+                    if (stream_desc->video_track_descs_.at(k)->ssrc_ == primary_ssrc) {
+                        track_desc = stream_desc->video_track_descs_.at(k);
+                        break;
+                    }
+                }
+            }
             if (!track_desc) {
                 continue;
             }
