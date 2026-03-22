@@ -1,7 +1,6 @@
 # MEMORY.md - SRSBot's Long-Term Memory
 
 ## Workspace Conventions
-- Git commit titles start with: `OpenClaw:`
 - **No auto-commit** — Never automatically git commit. Only commit when William explicitly tells me to.
 - **No guessing** — William will teach me everything about SRS. Don't speculate or fill in gaps. Wait for him to explain.
 
@@ -23,6 +22,14 @@
 - This scales William's expertise across the entire community without needing a traditional team
 - Goal: a very active, well-supported community where every developer has an AI assistant trained with William's knowledge
 - This is not just project maintenance — it's a new model for open source sustainability
+
+## SRS Community Bot (OpenClaw)
+- William set up an OpenClaw robot for the SRS community (2026-03-20)
+- **Telegram group:** https://t.me/+RiynvKOxpQ42MGJl
+- **Discord server:** https://discord.gg/yZ4BnPmHAd
+- Users join the group and **@ the SRS Robot** to interact
+- Purpose: scale William's expertise to the community without him answering every question
+- **Recommended: Telegram over Discord** — Telegram lets users create small focused groups and invite the bot in. Each small group = clean context window. Big groups mix unrelated messages and confuse the bot's context. Small groups → better answers, better support.
 
 ## What Matters to William
 - SRS project health, development, and community
@@ -60,6 +67,16 @@ The three layers are what William controls; the external conditions are what the
 - Mature/specific topics go to their proper place (YouTube stuff → `docs/youtube/`, SRS knowledge → `memory/srs-*.md`)
 - `docs/ideas.md` is the scratch pad for early-stage thinking that doesn't belong anywhere else yet
 - Ideas may grow into major features or directions over time
+
+## Changelog & Version
+- **Changelog:** `trunk/doc/CHANGELOG.md`
+- **Version file:** `trunk/src/core/srs_core_version7.hpp` — bump `VERSION_REVISION` to match the new changelog entry
+- **When to update:** When a PR is merged — not per commit
+- **Workflow:** Feature branch → multiple commits → create PR → merge PR → update changelog + version
+- Individual commits on a branch do NOT get changelog entries
+- The changelog entry is for the PR merge, not the individual commits within it
+- **Both files must be updated together** — changelog entry version must match `VERSION_REVISION`
+- Format follows existing pattern: `* v7.0, YYYY-MM-DD, Merge [#NNNN](url): Description. vX.Y.Z (#NNNN)`
 
 ## SRS Knowledge Base
 Detailed SRS knowledge in `memory/srs-*.md` files:

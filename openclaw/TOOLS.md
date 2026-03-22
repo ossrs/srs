@@ -40,6 +40,23 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - Channel: `telegram`, accountId: `srs` (SRS bot)
 - When sending to William's Telegram: `channel: "telegram"`, `accountId: "srs"`
 
+### Git Commit Workflow
+
+- **Never `git add`** — William stages files himself
+- **Never `git push`** — William pushes himself
+- **Commit workflow:** `git diff --cached` → understand the changes → write title/description → `git commit -m "OpenClaw: ..."`
+- Title prefix: `OpenClaw:`
+- **Co-author for ACP Claude Code:** If Claude Code (ACP) was used to make the changes, add:
+  `Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>`
+- **Co-author for ACP Codex:** If Codex (ACP) was used to make the changes, add:
+  `Co-authored-by: chatgpt-codex-connector[bot] <199175422+chatgpt-codex-connector[bot]@users.noreply.github.com>`
+
+### Go (GVM)
+
+- Go is managed via **GVM** (Go Version Manager), NOT Homebrew
+- Before running any `go` command: `source ~/.gvm/scripts/gvm`
+- **Never** use `brew install go` — always use GVM
+
 ---
 
 Add whatever helps you do your job. This is your cheat sheet.

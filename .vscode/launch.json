@@ -62,8 +62,8 @@
           "type": "go",
           "request": "launch",
           "mode": "auto",
-          "cwd": "${workspaceFolder}/proxy",
-          "program": "${workspaceFolder}/proxy"        
+          "cwd": "${workspaceFolder}/cmd/proxy",
+          "program": "${workspaceFolder}/cmd/proxy"        
         },
         {
           "name": "Debug SRS (macOS, CodeLLDB) console.conf",
