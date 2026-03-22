@@ -40,6 +40,13 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - Channel: `telegram`, accountId: `srs` (SRS bot)
 - When sending to William's Telegram: `channel: "telegram"`, `accountId: "srs"`
 
+### Git Commit Workflow
+
+- **Never `git add`** — William stages files himself
+- **Never `git push`** — William pushes himself
+- **Commit workflow:** `git diff --cached` → understand the changes → write title/description → `git commit -m "OpenClaw: ..."`
+- Title prefix: `OpenClaw:`
+
 ### Go (GVM)
 
 - Go is managed via **GVM** (Go Version Manager), NOT Homebrew
