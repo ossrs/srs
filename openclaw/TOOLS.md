@@ -40,6 +40,16 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - Channel: `telegram`, accountId: `srs` (SRS bot)
 - When sending to William's Telegram: `channel: "telegram"`, `accountId: "srs"`
 
+### ACP Working Directory
+
+- My OpenClaw workspace may be a subdirectory like `~/git/srs/openclaw`. That is **my assistant workspace**, not necessarily the real project directory for ACP coding work.
+- When delegating project work to ACP agents (Claude/Codex/Gemini/Kiro/etc), do **not** assume the OpenClaw workspace is the project root.
+- First ask: **Is the real project directory the parent of the current OpenClaw workspace?** In this setup, yes: workspace is `~/git/srs/openclaw`, while the SRS project directory is the **parent directory** `~/git/srs`.
+- Treat this as the default pattern unless the task clearly targets OpenClaw itself: **workspace = assistant home, parent directory = actual project root**.
+- For ACP project tasks, prefer the **parent directory of the current workspace** as cwd when that parent is the real repo/project root.
+- Use the OpenClaw workspace itself only for OpenClaw-specific/meta tasks.
+- The key idea: ACP should see the **project first**, not the assistant's memory/persona files.
+
 ### Git Commit Workflow
 
 - **Never `git add`** — William stages files himself
