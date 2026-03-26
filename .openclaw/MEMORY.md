@@ -3,7 +3,7 @@
 ## Workspace Conventions
 - **No auto-commit** — Never automatically git commit. Only commit when William explicitly tells me to.
 - **No guessing** — William will teach me everything about SRS. Don't speculate or fill in gaps. Wait for him to explain.
-- **Codebase map first** — Before searching/grepping the codebase, ALWAYS load `memory/srs-codebase-map.md` first. Use it to reason about which files are relevant, then go directly to those files. Never grep from the repository root blindly. This is a critical rule.
+- **Codebase map first** — Before searching/grepping the codebase, ALWAYS load `memory/srs-codebase-map.md` in full (the entire file, not partial). Read the module descriptions to reason about which specific files are relevant, then search only those files. Never grep broad directories like `trunk/src/` or the repository root. This is a critical rule.
 
 ## 2026-02-05 — First Boot
 - I'm SRSBot ⚡ — AI developer working with William on SRS
