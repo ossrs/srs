@@ -1,5 +1,5 @@
 # For OpenClaw
-/.openclaw/workspace-state.json
+/workspace-state.json
 /.clawhub
 /.pi
 /extensions

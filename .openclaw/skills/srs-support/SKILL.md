@@ -23,8 +23,19 @@ Load knowledge selectively based on the question topic:
 
 - **Always load first:** `memory/srs-overview.md` — this covers protocols, codecs, transmuxing, configuration, features, ecosystem, performance, and most support questions.
 - **Load on demand:** `memory/srs-coroutines.md` — only load this when the question is specifically about SRS architecture internals, coroutines, State Threads, or how SRS handles concurrency. Most user questions don't need this. Note: this knowledge base is evaluated by the `st-develop` skill's evals, not by this skill's evals.
+- **Load on demand:** `memory/srs-codebase-map.md` — only load this when you need to navigate the source code (e.g., the knowledge base doesn't answer the question and you need to find specific files or modules). Most support questions can be answered from the overview alone.
 
 As the knowledge base grows, new `srs-*.md` files will appear. List `memory/srs-*.md` to discover them, and load only the ones relevant to the question.
+
+## Codebase Navigation (CRITICAL)
+
+When the knowledge base doesn't have the answer and you need to search the source code, **DO NOT grep from the repository root**. Instead:
+
+1. Load `memory/srs-codebase-map.md` first
+2. Reason about which module/files are relevant to the question
+3. Go directly to those files
+
+This rule applies to all code searching — config lookups, feature investigations, implementation details. Always use the codebase map to navigate, never blind search.
 
 ## Answering by Topic
 

@@ -20,6 +20,7 @@ All AI tools — OpenClaw, Codex, Claude Code, Kiro CLI — see the same relativ
 Before any ST work, use the `read` tool to load the knowledge base. Do NOT use memory_search — read the full file directly.
 
 - `memory/srs-coroutines.md`
+- `memory/srs-codebase-map.md` — Load this when you need to find or navigate source files. Always use the codebase map to reason about which files are relevant before searching. Never grep from the repository root blindly.
 
 ## Loading ST Source Code (ON REQUEST)
 

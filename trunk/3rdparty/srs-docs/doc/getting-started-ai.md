@@ -7,50 +7,109 @@ hide_table_of_contents: false
 
 # AI Agent
 
-AI Agents are powerful tools for maintaining SRS and helping you understand, debug, operate, and develop SRS applications. We use a comprehensive set of AI Agents to maintain the SRS community and have established guidelines for AI to follow, enabling you to use these tools more efficiently.
+SRS provides several ways to use AI: you can chat with the SRS Robot in Telegram or Discord for quick answers, or run AI locally with OpenClaw, Claude Code, Codex, or Kiro using the pre-configured SRS knowledge base.
 
-## Augment Code
+## SRS Robot
 
-Augment Code is an exceptionally powerful AI Agent that we highly recommend. We have configured specific settings and guidelines for Augment Code, allowing you to simply open the SRS project with VSCode and immediately leverage the full power of AI assistance. SRS provides comprehensive context for AI to work effectively, including code, documentation, and tests.
+SRS provides an AI-powered support robot built on OpenClaw, available in both the Telegram group and Discord channel. The robot has a deep knowledge base covering SRS code, documentation, and common usage scenarios, and is powered by the latest AI model.
 
-To use Augment Code, first install VSCode, then install the Augment Code extension. Follow the installation guide at [Install Augment for Visual Studio Code](https://docs.augmentcode.com/setup-augment/install-visual-studio-code).
+You can ask the SRS Robot anything about SRS — how to use it, how to match your use case, how to configure it, how to debug issues, or any other questions. The robot will give you accurate, up-to-date answers based on the latest SRS knowledge base.
 
-Next, clone the SRS code and ensure you open the root directory, which contains the `.augment-guidelines` file:
+Join the SRS Telegram group: [https://t.me/+RiynvKOxpQ42MGJl](https://t.me/+RiynvKOxpQ42MGJl)
+
+Join the SRS Discord channel: [https://discord.gg/yZ4BnPmHAd](https://discord.gg/yZ4BnPmHAd)
+
+Once you're in the group, @ the SRS Robot and ask your question directly.
+
+## Claude Code
+
+You can use Claude Code locally with the SRS codebase. SRS ships with a pre-configured `.claude` directory so Claude Code works out of the box with full context of the project.
+
+Clone the SRS code and start Claude Code:
 
 ```bash
 git clone https://github.com/ossrs/srs.git
 cd srs
-code .
+claude
 ```
 
-You can verify the Augment Code settings to ensure the `Context` is correctly configured, then test it by asking Augment Code a question like this:
+Claude Code will automatically load the configuration from `srs/.claude`, giving it deep knowledge of the SRS codebase so you can ask questions, debug issues, write code, and more.
+
+## Codex
+
+You can also use Codex locally with the SRS codebase. SRS ships with a pre-configured `.codex` directory so Codex works out of the box.
+
+Clone the SRS code and start Codex:
+
+```bash
+git clone https://github.com/ossrs/srs.git
+cd srs
+codex
+```
+
+Codex will automatically load the configuration from `srs/.codex`.
+
+## Kiro
+
+You can also use Kiro locally with the SRS codebase. SRS ships with a pre-configured `.kiro` directory so Kiro works out of the box.
+
+Clone the SRS code and start Kiro:
+
+```bash
+git clone https://github.com/ossrs/srs.git
+cd srs
+kiro-cli
+```
+
+Kiro will automatically load the configuration from `srs/.kiro`.
+
+## OpenClaw
+
+You can create an OpenClaw agent with the SRS knowledge base for local use. First clone the SRS code:
+
+```bash
+git clone https://github.com/ossrs/srs.git
+```
+
+There are two ways to point the agent at the SRS knowledge base:
+
+- **Set the workspace directly** — when creating the agent, set the workspace path to `srs/.openclaw`.
+- **Soft link** — create the agent with its default workspace, then remove the default workspace directory and replace it with a soft link to `srs/.openclaw`:
+
+```bash
+ln -sf ~/git/srs/.openclaw ~/.openclaw/workspace
+```
+
+Once the agent is running, list the available skills and trigger them to load the knowledge base. The skills tell the AI which files to load and how to work more effectively with the SRS codebase.
+
+## Skills
+
+After starting OpenClaw, Claude Code, Codex, or Kiro with the SRS codebase, you should use skills to get the best results. Skills load the right knowledge base for your task and guide the AI through the correct workflow.
+
+The `srs-support` skill is provided for answering questions about the SRS project. It automatically loads the relevant knowledge base based on your question, so the AI can give you accurate and context-aware answers.
+
+More skills will be added over time. To see what skills are currently available, simply ask the AI:
 
 ```
-Will you follow any .augment-guidelines and .augmentignore of this project?
+What skills can I use for SRS?
 ```
 
-We've found that Augment Code demonstrates deep familiarity with the SRS codebase, comparable to that of experienced maintainers. For a practical example of using Augment Code to review pull requests and improve code quality, see [AI Agent for SRS](https://medium.com/@winlinam/f9eb12a1ce74).
+## Knowledge Base
 
-## GitHub Copilot
+Code and documentation alone are not enough for AI to truly understand and maintain a project. There is background knowledge, design thinking, accumulated experience, use cases, community communication, and debugging workflows that live only in people's heads — not in any file. The SRS knowledge base is an effort to make all of that explicit.
 
-GitHub Copilot is an effective AI Agent for reading and writing SRS code. We also utilize it for pull request reviews. While it's a valuable AI tool, it doesn't quite match the expertise level of an experienced maintainer.
+The knowledge base is the OpenClaw memory — files that encode the background, experience, and context behind SRS. It is built by having AI read the code and documents, then talking with AI to surface the implicit knowledge and write it down. Over time, the knowledge base will cover everything: not just what the code does, but why it was designed that way, how to think about problems, and how to operate and maintain the project.
 
-## Pull Request
+The knowledge base and the code together are the single source of truth for SRS. The knowledge base captures what the code cannot — background, design decisions, use cases, debugging experience, and community knowledge. In the future, traditional documentation will be generated from the knowledge base and maintained entirely by AI.
 
-SRS also uses AI to help review pull requests, making it important to structure your pull requests in a way that AI can effectively understand your changes and code. To ensure optimal AI review, please follow these guidelines:
+On top of the knowledge base, there are skills. Skills are workflows that tell AI how to handle specific tasks, such as:
 
-* Avoid renaming variables and functions in your pull request, as this can confuse AI analysis.
-* Avoid reordering functions or restructuring code, as this makes it difficult for AI to understand the actual changes.
-* Avoid moving or renaming files, as these appear as major changes to AI systems.
+- **Support** — answering user questions and matching use cases
+- **Issue triage and fix** — understanding, reproducing, and resolving issues
+- **Feature development** — designing and implementing new features
+- **Maintenance** — reviewing pull requests, managing releases, keeping the project healthy
+- **Debugging** — diagnosing and tracing problems in the codebase
 
-If you need to perform such refactoring tasks (renaming variables, functions, or files, or reordering functions), please submit a separate pull request before your main feature pull request. Clearly comment that the refactoring PR contains no logic changes, so we can skip AI review for that specific PR.
-
-## Comments
-
-Adding comments is highly beneficial and recommended, especially for complex logic that might confuse both you and AI. Generally, if you need AI assistance to understand or clarify code, you should also ask AI to add comments for that code.
-
-Comments are always valuable and welcome—think of them as prompts for AI. With accurate and thorough comments, AI can better understand complex code and implicit background knowledge. By maintaining these good practices, AI can continue to help improve project quality and create a better maintenance experience.
-
-You should also leverage AI to generate brief and clear commit messages and pull request descriptions. There's no need for excessive text—just enough to clarify the special context and knowledge that is implicit in the code.
+Each skill loads the relevant parts of the knowledge base and guides the AI through the right workflow for that task. This is what makes AI effective at maintaining SRS — not just raw intelligence, but structured knowledge and workflows built up over time.
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/getting-started-ai)

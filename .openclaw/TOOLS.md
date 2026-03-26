@@ -40,9 +40,9 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 - Channel: `telegram`, accountId: `srs` (SRS bot)
 - When sending to William's Telegram: `channel: "telegram"`, `accountId: "srs"`
 
-### ACP Working Directory
+### Working Directory
 
-- **Critical rule: find everything from the current working directory.** All SRS project directories are available here — no discovery, no parent traversal, no absolute paths.
+- ⚠️ **CRITICAL RULE:** Find everything from the current working directory. All SRS project directories are available here — no discovery, no parent traversal, no absolute paths.
 - Available directories: `trunk/`, `cmd/`, `internal/`, `cmake/`, `docs/`, `memory/`
 - All AI tools (OpenClaw, Codex, Claude Code, Kiro CLI) see the same relative paths.
 - ACP agents (Codex, Claude Code, etc.) also use the current directory as root — they find files from here too.
