@@ -4,6 +4,7 @@
 /.pi
 /extensions
 /skills/llm-switcher
+/skills/*workspace*
 
 # For speical folders.
 /personal*
