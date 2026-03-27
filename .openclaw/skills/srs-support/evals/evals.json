@@ -760,7 +760,7 @@
     },
     {
       "id": 19,
-      "prompt": "I'm using VLC to play an RTMP stream from SRS and the latency is about 8 seconds. Is SRS slow?",
+      "prompt": "I'm using VLC to play an RTMP stream from SRS and the latency is about 30 seconds. Is SRS slow?",
       "expected_output": "Should explain the VLC latency trap — VLC adds significant client-side buffering, SRS itself has low RTMP latency.",
       "files": [],
       "assertions": [
@@ -794,7 +794,7 @@
     {
       "id": 20,
       "prompt": "What ports do I need to open in my cloud server firewall for SRS to work with all protocols?",
-      "expected_output": "Should list all default ports with TCP/UDP distinction and protocol mapping.",
+      "expected_output": "Should list the default ports with TCP/UDP distinction and protocol mapping, including optional WebRTC-over-TCP when enabled.",
       "files": [],
       "assertions": [
         {
@@ -814,7 +814,12 @@
         },
         {
           "name": "webrtc_udp_port",
-          "description": "Answer mentions WebRTC on port 8000 (UDP)",
+          "description": "Answer mentions WebRTC media on port 8000 (UDP) by default",
+          "type": "contains_concept"
+        },
+        {
+          "name": "webrtc_tcp_port_optional",
+          "description": "Answer mentions optional WebRTC-over-TCP, typically on port 8000 (TCP) when rtc_server.tcp is enabled",
           "type": "contains_concept"
         },
         {

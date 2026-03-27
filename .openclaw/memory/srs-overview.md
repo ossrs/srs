@@ -32,7 +32,7 @@ SRS is a **simple, high-efficiency, real-time media server**. It receives stream
 - **Larix Broadcaster** — Mobile streaming app (iOS/Android). Pushes RTMP, SRT, WHIP (WebRTC).
 - **vMix** — Windows live production software. Pushes RTMP, SRT.
 - **Hardware encoders** — Devices like Teradek, Haivision, Blackmagic. Push RTMP, SRT.
-- **Browsers** — Via WHIP (WebRTC).
+- **Browsers (including mobile)** — Via WHIP (WebRTC). No app needed — users can publish directly from Safari/Chrome on iPhone or Android by opening the SRS demo page. This is the simplest zero-install option for mobile publishing.
 - **Apps** — Custom apps using RTMP/SRT/WebRTC SDKs.
 
 **Players:**
