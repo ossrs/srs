@@ -320,7 +320,7 @@
         },
         {
           "name": "builtin_audio_transcoding_only",
-          "description": "Answer mentions SRS has built-in audio transcoding only (AAC↔Opus) for WebRTC interop",
+          "description": "Answer mentions SRS has built-in audio transcoding only (AAC<->Opus) for WebRTC interop",
           "type": "contains_concept"
         },
         {
@@ -444,7 +444,7 @@
         },
         {
           "name": "hls_latency",
-          "description": "Answer mentions HLS has 3–5 seconds latency due to segmenting",
+          "description": "Answer mentions HLS has 3-5 seconds latency due to segmenting",
           "type": "contains_concept"
         },
         {
@@ -602,6 +602,234 @@
         {
           "name": "no_hallucination",
           "description": "Answer does not hallucinate built-in room management, MCU, or conferencing features",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "prompt": "WebRTC works fine on localhost, but when I try to publish from my phone on another network, it fails to connect. What's wrong?",
+      "expected_output": "Should diagnose candidate misconfiguration, HTTPS requirement, UDP firewall, and provide verification steps.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "candidate_misconfiguration",
+          "description": "Answer identifies candidate misconfiguration as the most likely cause — rtc_server candidate must be set to the server's public IP, not 127.0.0.1 or a private IP",
+          "type": "contains_concept"
+        },
+        {
+          "name": "https_required",
+          "description": "Answer explains HTTPS is required for WebRTC from non-localhost browsers — without HTTPS, the browser blocks getUserMedia/camera access",
+          "type": "contains_concept"
+        },
+        {
+          "name": "udp_firewall",
+          "description": "Answer mentions checking that UDP port 8000 is open in the firewall, since WebRTC uses UDP by default",
+          "type": "contains_concept"
+        },
+        {
+          "name": "verification_steps",
+          "description": "Answer provides concrete verification steps such as curl to check API connectivity, or checking the candidate value in the SDP response",
+          "type": "contains_concept"
+        },
+        {
+          "name": "references_webrtc_doc",
+          "description": "Answer references or draws information from the WebRTC documentation (webrtc.md or the Connection Failures section)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate TURN server setup or P2P configuration (SRS does not support either)",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "prompt": "My HLS stream has about 30 seconds of latency. I need it under 10 seconds. How do I reduce it?",
+      "expected_output": "Should explain HLS segment/window tuning, GOP alignment, player buffering, and suggest alternative protocols for even lower latency.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "hls_fragment_config",
+          "description": "Answer mentions reducing hls_fragment (segment duration) to a smaller value like 2 seconds",
+          "type": "contains_concept"
+        },
+        {
+          "name": "hls_window_config",
+          "description": "Answer mentions reducing hls_window to limit the number of segments in the playlist",
+          "type": "contains_concept"
+        },
+        {
+          "name": "gop_keyframe_alignment",
+          "description": "Answer explains the encoder's GOP/keyframe interval should match or be smaller than the fragment duration",
+          "type": "contains_concept"
+        },
+        {
+          "name": "player_side_buffering",
+          "description": "Answer mentions player-side buffering as a factor — some players buffer aggressively regardless of server settings",
+          "type": "contains_concept"
+        },
+        {
+          "name": "alternative_protocols",
+          "description": "Answer suggests alternative protocols for lower latency: HTTP-FLV (~1s) or WebRTC (sub-second) if HLS latency is still too high",
+          "type": "contains_concept"
+        },
+        {
+          "name": "realistic_hls_limits",
+          "description": "Answer sets realistic expectations — HLS can be tuned to about 5-10 seconds but is not a true low-latency protocol",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not claim sub-second HLS or hallucinate LL-HLS features not in SRS",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "prompt": "How do I check if SRS is receiving my stream? I published with FFmpeg but nothing seems to be playing.",
+      "expected_output": "Should guide user through HTTP API diagnostics, log checking, and common causes of stream-not-found.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "http_api_streams_check",
+          "description": "Answer shows checking active streams via HTTP API: curl http://localhost:1985/api/v1/streams",
+          "type": "contains_concept"
+        },
+        {
+          "name": "check_srs_running",
+          "description": "Answer suggests verifying SRS is running and listening on the expected ports",
+          "type": "contains_concept"
+        },
+        {
+          "name": "url_mismatch",
+          "description": "Answer mentions checking that the publish URL and play URL match exactly (app name and stream name)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "publish_before_play",
+          "description": "Answer mentions that the stream must be published before it can be played",
+          "type": "contains_concept"
+        },
+        {
+          "name": "check_logs",
+          "description": "Answer suggests checking SRS logs for errors or connection information",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate diagnostic tools or API endpoints that don't exist",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "prompt": "I deployed SRS behind Nginx as a reverse proxy. RTMP works fine but HTTP-FLV streaming is broken — the player connects but no video appears. What's wrong?",
+      "expected_output": "Should diagnose chunked transfer encoding issues with Nginx reverse proxy and provide correct proxy config.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "chunked_transfer_issue",
+          "description": "Answer identifies that HTTP-FLV requires chunked transfer encoding and Nginx proxy settings may break it (e.g., proxy_buffering must be off)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "nginx_proxy_config",
+          "description": "Answer provides or references Nginx proxy configuration for HTTP-FLV (proxy_pass, proxy_buffering off, or similar)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "rtmp_unaffected",
+          "description": "Answer explains why RTMP still works — RTMP uses its own TCP connection on port 1935, not going through the HTTP reverse proxy",
+          "type": "contains_concept"
+        },
+        {
+          "name": "references_http_server_doc",
+          "description": "Answer references or draws information from http-server.md or nginx-for-hls.md documentation",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate Nginx modules or SRS config options that don't exist",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "prompt": "I'm using VLC to play an RTMP stream from SRS and the latency is about 8 seconds. Is SRS slow?",
+      "expected_output": "Should explain the VLC latency trap — VLC adds significant client-side buffering, SRS itself has low RTMP latency.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "vlc_buffering_is_the_cause",
+          "description": "Answer explains that VLC adds significant client-side buffering and this is the primary cause of the observed latency, not SRS",
+          "type": "contains_concept"
+        },
+        {
+          "name": "vlc_not_reliable_for_latency",
+          "description": "Answer states VLC is not a reliable reference for evaluating low-latency playback",
+          "type": "contains_concept"
+        },
+        {
+          "name": "srs_rtmp_actual_latency",
+          "description": "Answer mentions SRS RTMP actual latency is much lower — typically 1-3 seconds",
+          "type": "contains_concept"
+        },
+        {
+          "name": "suggest_alternative_player",
+          "description": "Answer suggests using a different player to verify: ffplay, browser with HTTP-FLV, or browser with WebRTC",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not blame SRS for the latency or hallucinate VLC tuning options that solve the problem",
+          "type": "absence"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "What ports do I need to open in my cloud server firewall for SRS to work with all protocols?",
+      "expected_output": "Should list all default ports with TCP/UDP distinction and protocol mapping.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "rtmp_port",
+          "description": "Answer mentions RTMP on port 1935 (TCP)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "http_api_port",
+          "description": "Answer mentions HTTP API on port 1985 (TCP)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "http_stream_port",
+          "description": "Answer mentions HTTP streaming (HLS, HTTP-FLV) on port 8080 (TCP)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "webrtc_udp_port",
+          "description": "Answer mentions WebRTC on port 8000 (UDP)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "srt_udp_port",
+          "description": "Answer mentions SRT on port 10080 (UDP)",
+          "type": "contains_concept"
+        },
+        {
+          "name": "tcp_vs_udp_distinction",
+          "description": "Answer clearly distinguishes which ports need TCP vs UDP — this is critical for firewall configuration",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate incorrect port numbers or protocols",
           "type": "absence"
         }
       ]
