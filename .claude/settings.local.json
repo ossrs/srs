@@ -1,4 +1,29 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(file:*)",
+      "Bash(stat:*)",
+      "Bash(tree:*)",
+      "Bash(du:*)",
+      "Bash(diff:*)",
+      "Bash(which:*)",
+      "Bash(type:*)",
+      "Bash(realpath:*)",
+      "Bash(dirname:*)",
+      "Bash(basename:*)",
+      "Read",
+      "Glob",
+      "Grep"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
