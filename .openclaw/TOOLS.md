@@ -35,6 +35,12 @@ Things like:
 
 Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
 
+## Model Auth
+
+- Anthropic / Opus refresh: `claude setup-token` -> `openclaw models auth setup-token --provider anthropic`
+- Codex refresh: `openclaw models auth login --provider openai-codex`
+- Temporary workaround when one model auth is broken: use `/model ...` in the current session to switch to another working model.
+
 ### Telegram
 
 - Channel: `telegram`, accountId: `srs` (SRS bot)
