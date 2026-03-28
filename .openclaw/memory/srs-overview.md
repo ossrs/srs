@@ -6,24 +6,23 @@ SRS is a **simple, high-efficiency, real-time media server**. It receives stream
 
 ## How SRS Works With Tools
 
+```mermaid
+graph TD
+    subgraph Publishers
+        P["FFmpeg, OBS, Larix, vMix,<br/>hardware encoders, browsers, apps"]
+    end
+
+    S["SRS"]
+
+    subgraph Players
+        L["FFmpeg, VLC, ffplay, ExoPlayer,<br/>IJKPlayer, browsers, hardware, apps"]
+    end
+
+    Publishers --> S --> Players
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         PUBLISHERS                              │
-│   FFmpeg, OBS, Larix, vMix, hardware encoders, browsers, apps   │
-└─────────────────────────────┬───────────────────────────────────┘
-                              │
-                              ▼
-                        ┌───────────┐
-                        │    SRS    │
-                        └───────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                          PLAYERS                                │
-│ FFmpeg, VLC, ffplay, ExoPlayer, IJKPlayer, browsers, hardware,  │
-│ apps                                                            │
-└─────────────────────────────────────────────────────────────────┘
-```
+
+<!-- AI: ignore this link, it's for human viewing only -->
+> Note: [View diagram on Mermaid Live](https://mermaid.live/view#pako:eNp1kMFOwzAMhl_F8jkTd4R2gDEJVsREEBfKwV3ctVKTRk7DNk17d7KmiIGED5bz2_rz2Ufc9IbxGnAr5Bt4XZQOUoRYZWEdq64NDUvIjXOs30tcLq3nrYLnW62gIGn3Cj6fUr6p5GrekJgdCQO7s78EBZX0uzBW5H0o8SP7sTOly6VOtvpFj62_FB0dfiEUFwhvxZ2CuvZpRsH9vs_DGeThcTU9LwC-6f5H-dkaZrM56DFPEKgALYul1qS7HXFo2I4XNFxT7AY8pQGKQ68PbpP0QWL6CaM3NPCipbSRneTTF4SOexE=)
 
 **Publishers:**
 
