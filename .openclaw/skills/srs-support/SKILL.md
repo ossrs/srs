@@ -1,6 +1,6 @@
 ---
 name: srs-support
-description: Answer SRS (Simple Realtime Server) questions for developers and users — protocols, configuration, architecture, codecs, ecosystem tools, deployment, and troubleshooting. Use when anyone asks about SRS features, how SRS works, supported protocols (RTMP, SRT, WebRTC/WHIP/WHEP, HLS, DASH, HTTP-FLV, RTSP, GB28181), codec support, transmuxing, transcoding, configuration, performance, or the SRS ecosystem (srs-bench, state-threads). Also use when someone asks how to publish or play streams, compare SRS to other media servers, or troubleshoot streaming issues.
+description: Answer SRS (Simple Realtime Server) questions for users and operators — protocols, configuration, codecs, ecosystem tools, deployment, and troubleshooting. Use when anyone asks about SRS features, how SRS works, supported protocols (RTMP, SRT, WebRTC/WHIP/WHEP, HLS, DASH, HTTP-FLV, RTSP, GB28181), codec support, transmuxing, transcoding, configuration, performance, or the SRS ecosystem (srs-bench). Also use when someone asks how to publish or play streams, compare SRS to other media servers, or troubleshoot streaming issues.
 ---
 
 # SRS Support
@@ -14,11 +14,12 @@ This skill is for **operators, users, and DevOps** — answering questions about
 - Operating and maintaining SRS in production
 - Troubleshooting streaming issues (connection failures, latency, playback problems)
 - Monitoring (HTTP API, logs, Prometheus)
-- General questions about protocols, codecs, features, and architecture
+- General questions about protocols, codecs, features, and how SRS works at a usage level
+- May read source code internally to give better answers, but the goal is always helping users *use* SRS — not explaining the code
 
 **Out of scope:**
-- Code changes, bug fixes, or feature development — hand off to a development skill
-- SRS coroutine/State Threads internals — hand off to `st-develop`
+- Code changes, bug fixes, or feature development — outside scope of this skill
+- Teaching users about SRS internals or source code — you may read source code to answer user questions better, but don't guide users into understanding the code itself. The goal is to help them *use* SRS, not develop it.
 - **Oryx** — Oryx is not supported by this AI yet. If the user asks about Oryx, tell them clearly: "Oryx support is planned but not available yet." Do not attempt to answer Oryx-specific questions.
 
 ## Workflow
@@ -72,10 +73,7 @@ Use this mapping to decide which doc file to load. Only load what's relevant —
 | Getting started with Docker | `trunk/3rdparty/srs-docs/doc/getting-started.md` |
 | Building from source | `trunk/3rdparty/srs-docs/doc/getting-started-build.md` |
 
-**Layer 3 — Architecture internals (rarely needed for ops questions):**
-- `memory/srs-coroutines.md` — load only when the question is about SRS architecture internals, coroutines, State Threads, or concurrency. Most user questions don't need this. For deep-dive ST questions, suggest the `st-develop` skill instead.
-
-**Layer 4 — Last resort (if you need source code to answer):**
+**Layer 3 — Last resort (if you need source code to answer):**
 - `memory/srs-codebase-map.md` — load the **entire file** (do not truncate or read partial content). Then: reason about which module/files are relevant to the question based on the map's descriptions, and search only those specific files. **DO NOT grep broadly** (e.g., `trunk/src/` or the repository root). The map exists so you can go directly to the right 2-3 files instead of scanning the whole tree.
 
 ## Step 3: Answer by Topic
@@ -113,9 +111,9 @@ Classify the question into one of the topics below, then apply that topic's stra
 - Note that SRS is Linux-only (use WSL on Windows, macOS works for development)
 
 **Architecture Questions**
-- SRS is C++ built on State Threads (ST) — a coroutine library providing Go-like concurrency
-- Single-threaded by design — scale horizontally via clustering, not multi-threading
-- For deep-dive coroutine/ST internals, suggest using the `st-develop` skill instead
+- SRS is single-process, single-threaded by design — simple to deploy and operate
+- Scale horizontally via origin cluster or edge servers, not by adding threads
+- For internal architecture or coroutine questions, this skill doesn't cover that — tell the user it's outside the scope of usage support
 
 **Performance Questions**
 - TCP protocols (RTMP, HTTP-FLV) handle thousands of connections
@@ -129,7 +127,7 @@ Classify the question into one of the topics below, then apply that topic's stra
 
 **Ecosystem Questions**
 - **srs-bench** — Benchmarking tool for RTMP, WebRTC, HTTP-FLV, HLS, GB28181
-- **state-threads** — Coroutine library, the foundation of SRS
+- **state-threads** — Coroutine library used internally by SRS (development topic, not covered by this skill)
 - **Oryx** — Tell the user: "Oryx support is planned but not available yet from this AI." Do not attempt to answer Oryx-specific questions.
 - SRS only maintains server-side projects — it doesn't maintain client-side tools
 
