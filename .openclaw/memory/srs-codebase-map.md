@@ -8,7 +8,7 @@ This file helps AI navigate the SRS project. Instead of grepping blindly, AI sho
 
 SRS has three codebases:
 
-### C++ Media Server
+### C++ Media Server Code
 
 The C++ media server (`trunk/src/`) serves as both origin server and edge server. It uses the ST (State Threads) coroutine library and is the full-featured server with all SRS capabilities.
 
@@ -192,7 +192,7 @@ Config (`trunk/conf/`) is only for the C++ media server. The next-generation Go 
 - `full.conf` — Full reference config with all options documented
 - Feature-specific configs: `rtc.conf`, `srt.conf`, `hls.conf`, `dvr.*.conf`, `edge.conf`, `forward.*.conf`, `gb28181.conf`, `dash.conf`, etc.
 
-### State Threads
+### State Threads Code
 
 State Threads (`trunk/3rdparty/st-srs/`) is the coroutine library used by the C++ media server only. The Go server does not use ST.
 
@@ -207,7 +207,7 @@ State Threads (`trunk/3rdparty/st-srs/`) is the coroutine library used by the C+
 - `md.h` — Platform detection and context switch macros
 - `md_linux.S`, `md_linux2.S`, `md_darwin.S`, `md_cygwin64.S` — Assembly context switch per platform
 
-### Next-Generation Server
+### Next-Generation Server Code
 
 The next-generation server (`cmd/` + `internal/`) is written in Go and maintained by AI. It is the future of SRS. Currently it only supports proxy, but work is ongoing to support the full feature set including origin, edge, and proxy servers.
 
@@ -247,8 +247,12 @@ The knowledge base (`memory/srs-*.md`) captures William's knowledge about SRS �
 
 ## Documentation Structure
 
+### Tracking Docs
+
 **Tracking** — Project changelog and version history:
 - `trunk/doc/CHANGELOG.md` — Full changelog of all SRS versions, one entry per merged PR with version bump
+
+### C++ Media Server Docs
 
 **C++ Media Server Docs** (`trunk/3rdparty/srs-docs/doc/`) — User-facing documentation:
 - `introduction.md` — SRS overview: what it is, supported protocols (RTMP/WebRTC/HLS/SRT/etc.), features list, ST coroutine architecture, and learning path
@@ -287,6 +291,8 @@ The knowledge base (`memory/srs-*.md`) captures William's knowledge about SRS �
 - `license-en.md` — License details: SRS is MIT, State Threads is MPL/GPL dual-license, plus licenses for all third-party libraries (OpenSSL, libsrt, ffmpeg, etc.)
 - `product-en.md` — Release history: milestones from v1.0 (2013) to v7.0 (2025+), codenames, key achievements per release, AI contributor era (2025+)
 - `security-advisories-en.md` — CVE reports: CVE-2024-29882 (JSONP XSS), CVE-2023-34105 (command injection in demo api-server), with patch versions and links
+
+### Next-Generation Server Docs
 
 **Next-Generation Server Docs** (`docs/proxy/`) — Documentation for the Go server:
 - `proxy-design.md` — Architecture: stateless proxy with built-in load balancing, single-proxy vs multi-proxy (Redis) deployment modes, horizontal scaling behind NLB
