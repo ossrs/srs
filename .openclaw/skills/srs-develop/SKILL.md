@@ -102,7 +102,15 @@ Only after the user confirms the routing do you proceed to Step 2.
 3. **Read only those specific files.** Code gives you the implementation details: function signatures, patterns, conventions, edge cases. This is the *how*.
 4. If no relevant docs exist, scan the module directory listing (filenames only) to locate the right files, then read them.
 
-**Step 3:** *(to be defined)*
+**Step 3: Implement and Verify**
+
+1. Implement the code change.
+2. Run the proxy unit test script to verify:
+   ```
+   bash scripts/proxy-utest.sh
+   ```
+   (Path is relative to this skill's directory.)
+3. If tests fail, fix the issues and re-run until all tests pass.
 
 ### Origin Server
 

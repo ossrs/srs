@@ -13,6 +13,7 @@ import (
 func main() {
 	bs := bootstrap.NewBootstrap()
 	if err := bs.Start(context.Background()); err != nil {
-		os.Exit(-1) // Error is already logged inside Start().
+		// Error already logged in bootstrap.Start().
+		os.Exit(-1)
 	}
 }
