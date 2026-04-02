@@ -838,6 +838,64 @@
           "type": "absence"
         }
       ]
+    },
+    {
+      "id": 21,
+      "prompt": "I'm getting this error from SRS: [ERROR][1][48960q0o][4] serve error code=3001(HlsDecode)... avc demux annexb : not annexb. My camera pushes RTMP to SRS and I play via HLS. What causes this and how do I fix it?",
+      "expected_output": "Should explain the error comes from H.264 AnnexB format detection in the HLS muxing path, caused by the camera encoder producing malformed frames. Should NOT blame network packet loss — RTMP uses TCP which guarantees delivery. Should suggest camera firmware update, FFmpeg relay, or camera restart.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "annexb_format_detection",
+          "description": "Answer explains SRS detects AnnexB format (start code 00 00 00 01 or 00 00 01) on the first H.264 frame and locks in that format for subsequent frames",
+          "type": "contains_concept"
+        },
+        {
+          "name": "annexb_vs_ibmf_both_supported",
+          "description": "Answer mentions SRS supports both AnnexB and IBMF (AVCC) formats, auto-detecting from the first frame",
+          "type": "contains_concept"
+        },
+        {
+          "name": "camera_encoder_is_root_cause",
+          "description": "Answer identifies the camera encoder as the root cause — it produces a frame that doesn't conform to the AnnexB format after running for some time",
+          "type": "contains_concept"
+        },
+        {
+          "name": "hls_muxing_path",
+          "description": "Answer explains the error surfaces during HLS segment generation (error code HlsDecode/3001), when SRS demuxes H.264 data to remux into TS segments",
+          "type": "contains_concept"
+        },
+        {
+          "name": "not_network_packet_loss",
+          "description": "Answer does NOT blame network packet loss or TCP packet loss as a cause — RTMP runs over TCP which guarantees ordered, complete delivery. If TCP fails, the connection drops entirely rather than delivering corrupted data",
+          "type": "absence"
+        },
+        {
+          "name": "not_srs_bug",
+          "description": "Answer clarifies this is not an SRS bug — SRS correctly detects and reports the malformed data",
+          "type": "contains_concept"
+        },
+        {
+          "name": "fix_camera_firmware",
+          "description": "Answer suggests upgrading camera firmware as the most direct fix",
+          "type": "contains_concept"
+        },
+        {
+          "name": "fix_ffmpeg_relay",
+          "description": "Answer suggests using FFmpeg as a relay between camera and SRS to repackage the stream",
+          "type": "contains_concept"
+        },
+        {
+          "name": "fix_camera_restart",
+          "description": "Answer suggests periodic camera restart as a workaround if firmware can't be updated",
+          "type": "contains_concept"
+        },
+        {
+          "name": "no_hallucination",
+          "description": "Answer does not hallucinate SRS config options to fix this, does not claim network issues cause this error, and does not invent workarounds that don't exist",
+          "type": "absence"
+        }
+      ]
     }
   ]
 }

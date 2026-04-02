@@ -19,6 +19,7 @@
       "Bash(realpath:*)",
       "Bash(dirname:*)",
       "Bash(basename:*)",
+      "Bash(echo \"PID=$!\")",
       "Read",
       "Glob",
       "Grep"
