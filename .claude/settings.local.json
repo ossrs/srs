@@ -1,6 +1,9 @@
 {
   "permissions": {
     "allow": [
+      "Read",
+      "Glob",
+      "Grep",
       "Bash(find:*)",
       "Bash(ls:*)",
       "Bash(cat:*)",
@@ -20,9 +23,7 @@
       "Bash(dirname:*)",
       "Bash(basename:*)",
       "Bash(echo \"PID=$!\")",
-      "Read",
-      "Glob",
-      "Grep"
+      "Bash(make)"
     ]
   },
   "hooks": {
