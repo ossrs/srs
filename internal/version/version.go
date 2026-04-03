@@ -23,5 +23,5 @@ func Version() string {
 }
 
 func Signature() string {
-	return "SRSProxy"
+	return "SRSX"
 }

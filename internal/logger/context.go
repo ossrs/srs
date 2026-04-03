@@ -12,7 +12,7 @@ import (
 
 type key string
 
-var cidKey key = "cid.proxy.ossrs.org"
+var cidKey key = "cid.srsx.ossrs.org"
 
 // generateContextID generates a random context id in string.
 func GenerateContextID() string {

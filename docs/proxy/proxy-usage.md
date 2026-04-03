@@ -65,13 +65,13 @@ Both commands should successfully detect the stream and display video/audio code
 ## Code Conventions
 
 ## Factory Functions
-- Factory functions should use explicit interface names: `NewBootstrap()`, `NewMemoryLoadBalancer()`, etc.
+- Factory functions should use explicit interface names: `NewProxyBootstrap()`, `NewMemoryLoadBalancer()`, etc.
 - **Do not** use generic `New()` function names
 - This improves code clarity and makes the constructed type explicit at the call site
 - Example:
   ```go
   // Good
-  bs := bootstrap.NewBootstrap()
+  bs := bootstrap.NewProxyBootstrap()
 
   // Avoid
   bs := bootstrap.New()
