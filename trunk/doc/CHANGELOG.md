@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-04-06, Merge [#4657](https://github.com/ossrs/srs/pull/4657): Proxy: Refactor bootstrap for multi-server support and rebrand to SRSX. v7.0.142 (#4657)
 * v7.0, 2026-03-26, Merge [#4654](https://github.com/ossrs/srs/pull/4654): OpenClaw: Restructure workspace with symlinks, add codebase map, and rewrite AI docs. v7.0.141 (#4654)
 * v7.0, 2026-03-22, Merge [#4653](https://github.com/ossrs/srs/pull/4653): OpenClaw: unify AI agent configs with shared persona symlinks. v7.0.140 (#4653)
 * v7.0, 2026-03-22, Merge [#4652](https://github.com/ossrs/srs/pull/4652): Proxy: restructure repo as Go project with proxy as first module. v7.0.139 (#4652)
