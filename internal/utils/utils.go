@@ -69,11 +69,12 @@ func ApiCORS(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 
 // ParseBody read the body from r, and unmarshal JSON to v.
 func ParseBody(r io.ReadCloser, v interface{}) error {
+	defer r.Close()
+
 	b, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "read body")
 	}
-	defer r.Close()
 
 	if len(b) == 0 {
 		return nil
@@ -97,7 +98,7 @@ func BuildStreamURL(r string) (string, error) {
 	defaultVhost := !strings.Contains(u.Hostname(), ".")
 
 	// If hostname is actually an IP address, it's __defaultVhost__.
-	if ip := net.ParseIP(u.Hostname()); ip.To4() != nil {
+	if ip := net.ParseIP(u.Hostname()); ip != nil && ip.To4() != nil {
 		defaultVhost = true
 	}
 
