@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -224,7 +223,7 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 	}
 
 	// Parse the local SDP answer from backend.
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return errors.Wrapf(err, "read stream from %v", backendURL)
 	}
