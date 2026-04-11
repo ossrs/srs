@@ -347,13 +347,14 @@ func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 		return errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)
 	}
 
-	// Copy all headers from backend to client.
-	w.WriteHeader(resp.StatusCode)
+	// Copy all headers from backend to client before WriteHeader,
+	// because headers set after WriteHeader are silently ignored.
 	for k, v := range resp.Header {
 		for _, vv := range v {
 			w.Header().Add(k, vv)
 		}
 	}
+	w.WriteHeader(resp.StatusCode)
 
 	logger.Debug(ctx, "HTTP start streaming")
 
@@ -476,13 +477,14 @@ func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWrite
 		return errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)
 	}
 
-	// Copy all headers from backend to client.
-	w.WriteHeader(resp.StatusCode)
+	// Copy all headers from backend to client before WriteHeader,
+	// because headers set after WriteHeader are silently ignored.
 	for k, v := range resp.Header {
 		for _, vv := range v {
 			w.Header().Add(k, vv)
 		}
 	}
+	w.WriteHeader(resp.StatusCode)
 
 	// For TS file, directly copy it.
 	if !strings.HasSuffix(r.URL.Path, ".m3u8") {
@@ -502,7 +504,7 @@ func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWrite
 
 	m3u8 := string(b)
 	if strings.Contains(m3u8, ".ts?") {
-		m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbhid=%v&&", v.SRSProxyBackendHLSID))
+		m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbhid=%v&", v.SRSProxyBackendHLSID))
 	} else {
 		m3u8 = strings.ReplaceAll(m3u8, ".ts", fmt.Sprintf(".ts?spbhid=%v", v.SRSProxyBackendHLSID))
 	}
