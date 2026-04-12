@@ -12,7 +12,7 @@ When running the project for testing or development, you should:
 ```bash
 make && env PROXY_RTMP_SERVER=1935 PROXY_HTTP_SERVER=8080 \
     PROXY_HTTP_API=1985 PROXY_WEBRTC_SERVER=8000 PROXY_SRT_SERVER=10080 \
-    PROXY_SYSTEM_API=12025 PROXY_LOAD_BALANCER_TYPE=memory ./srs-proxy
+    PROXY_SYSTEM_API=12025 PROXY_LOAD_BALANCER_TYPE=memory ./bin/srs-proxy
 ```
 
 The proxy server should start and listen on the configured ports.

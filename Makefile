@@ -2,10 +2,11 @@
 
 all: build
 
-build: fmt ./srs-proxy
+build: fmt bin/srs-proxy
 
-./srs-proxy: cmd/proxy/*.go internal/**/*.go
-	go build -o srs-proxy ./cmd/proxy
+bin/srs-proxy: cmd/proxy/*.go internal/**/*.go
+	@mkdir -p bin
+	go build -o bin/srs-proxy ./cmd/proxy
 
 test:
 	go test ./...
@@ -17,7 +18,7 @@ fmt: ./.go-formarted
 	go fmt ./cmd/... ./internal/...
 
 clean:
-	rm -f srs-proxy .go-formarted
+	rm -rf bin .go-formarted
 
 run: fmt
 	go run ./cmd/proxy

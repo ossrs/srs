@@ -109,7 +109,7 @@ env PROXY_RTMP_SERVER=$PROXY_RTMP_PORT \
     PROXY_SRT_SERVER=$PROXY_SRT_PORT \
     PROXY_SYSTEM_API=$PROXY_SYSTEM_API_PORT \
     PROXY_LOAD_BALANCER_TYPE=memory \
-    ./srs-proxy >/tmp/srs-proxy-e2e.log 2>&1 &
+    ./bin/srs-proxy >/tmp/srs-proxy-e2e.log 2>&1 &
 PROXY_PID=$!
 echo "Proxy PID: $PROXY_PID"
 sleep 1
