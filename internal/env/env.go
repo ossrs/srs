@@ -4,10 +4,10 @@
 package env
 
 import (
+	"bufio"
 	"context"
 	"os"
-
-	"github.com/joho/godotenv"
+	"strings"
 
 	"srsx/internal/errors"
 	"srsx/internal/logger"
@@ -162,16 +162,98 @@ func (e *environment) DefaultBackendSRT() string {
 
 // loadEnvFile loads the environment variables from .env file.
 func loadEnvFile(ctx context.Context) error {
-	if err := godotenv.Load(); err != nil {
-		// If .env file doesn't exist, that's okay, just log and continue
+	envMap, err := parseEnvFile(".env")
+	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Df(ctx, "no .env file found, skipping")
 			return nil
 		}
 		return errors.Wrapf(err, "load .env file")
 	}
+
+	// Build a set of existing environment variable keys, so we don't overwrite them.
+	currentEnv := make(map[string]bool)
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		currentEnv[key] = true
+	}
+
+	for key, value := range envMap {
+		if !currentEnv[key] {
+			os.Setenv(key, value)
+		}
+	}
+
 	logger.Df(ctx, "successfully loaded .env file")
 	return nil
+}
+
+// parseEnvFile reads a .env file and returns a map of key-value pairs.
+func parseEnvFile(filename string) (map[string]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	envMap := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip empty lines and comments.
+		if line == "" || line[0] == '#' {
+			continue
+		}
+
+		// Strip optional "export " prefix.
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimPrefix(line, "export ")
+			line = strings.TrimSpace(line)
+		}
+
+		// Split on first '=' to get key and value.
+		key, value, found := strings.Cut(line, "=")
+		if !found {
+			continue
+		}
+
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+
+		// Handle quoted values.
+		if len(value) >= 2 {
+			if value[0] == '\'' && value[len(value)-1] == '\'' {
+				// Single-quoted: raw literal, no escaping.
+				value = value[1 : len(value)-1]
+			} else if value[0] == '"' && value[len(value)-1] == '"' {
+				// Double-quoted: process escape sequences.
+				value = value[1 : len(value)-1]
+				value = strings.ReplaceAll(value, `\n`, "\n")
+				value = strings.ReplaceAll(value, `\r`, "\r")
+				value = strings.ReplaceAll(value, `\"`, `"`)
+				value = strings.ReplaceAll(value, `\\`, `\`)
+			} else {
+				// Unquoted: strip inline comments.
+				if idx := strings.Index(value, " #"); idx != -1 {
+					value = strings.TrimSpace(value[:idx])
+				}
+			}
+		} else {
+			// Unquoted short value: strip inline comments.
+			if idx := strings.Index(value, " #"); idx != -1 {
+				value = strings.TrimSpace(value[:idx])
+			}
+		}
+
+		envMap[key] = value
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return envMap, nil
 }
 
 // buildDefaultEnvironmentVariables setups the default environment variables.
