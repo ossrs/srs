@@ -22,6 +22,11 @@
               "description": "Enable pretty-printing for gdb",
               "text": "-enable-pretty-printing",
               "ignoreFailures": true
+            },
+            {
+              "description": "Do not stop on SIGPIPE",
+              "text": "handle SIGPIPE nostop noprint pass",
+              "ignoreFailures": true
             }
           ],
           "preLaunchTask": "build",
@@ -49,6 +54,11 @@
             {
               "description": "Enable pretty-printing for gdb",
               "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+            },
+            {
+              "description": "Do not stop on SIGPIPE",
+              "text": "handle SIGPIPE nostop noprint pass",
               "ignoreFailures": true
             }
           ],
