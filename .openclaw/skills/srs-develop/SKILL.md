@@ -105,15 +105,19 @@ Only after the user confirms the routing do you proceed to Step 2.
 **Step 3: Implement and Verify**
 
 1. Implement the code change.
-2. Run the proxy unit tests to verify:
+2. If you changed or added a Go interface with a `//go:generate go tool counterfeiter ...` directive, regenerate fakes:
+   ```
+   make generate
+   ```
+3. Run the proxy unit tests to verify:
    ```
    bash scripts/proxy-utest.sh --coverage
    ```
-3. Run the proxy E2E test (starts proxy + SRS origin, publishes RTMP, verifies playback):
+4. Run the proxy E2E test (starts proxy + SRS origin, publishes RTMP, verifies playback):
    ```
    bash scripts/proxy-e2e-test.sh
    ```
-4. If any tests fail, fix the issues and re-run until all tests pass.
+5. If any tests fail, fix the issues and re-run until all tests pass.
 
 All script paths are relative to this skill's directory.
 

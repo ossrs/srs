@@ -1,8 +1,11 @@
-.PHONY: all build test fmt clean run
+.PHONY: all build test fmt clean run generate
 
 all: build
 
 build: fmt bin/srs-proxy
+
+generate:
+	go generate ./...
 
 bin/srs-proxy: cmd/proxy/*.go internal/**/*.go
 	@mkdir -p bin
