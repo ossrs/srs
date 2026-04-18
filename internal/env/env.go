@@ -6,11 +6,23 @@ package env
 import (
 	"bufio"
 	"context"
+	"io"
 	"os"
 	"strings"
 
 	"srsx/internal/errors"
 	"srsx/internal/logger"
+)
+
+// Indirections over os and filesystem primitives so tests can swap them
+// without touching real process env or the filesystem.
+var (
+	getEnv    = os.Getenv
+	setEnv    = os.Setenv
+	lookupEnv = os.LookupEnv
+	openFile  = func(name string) (io.ReadCloser, error) {
+		return os.Open(name)
+	}
 )
 
 // Environment provides access to environment variables.
@@ -171,16 +183,10 @@ func loadEnvFile(ctx context.Context) error {
 		return errors.Wrapf(err, "load .env file")
 	}
 
-	// Build a set of existing environment variable keys, so we don't overwrite them.
-	currentEnv := make(map[string]bool)
-	for _, entry := range os.Environ() {
-		key, _, _ := strings.Cut(entry, "=")
-		currentEnv[key] = true
-	}
-
+	// Skip keys already set in the environment so we don't overwrite them.
 	for key, value := range envMap {
-		if !currentEnv[key] {
-			os.Setenv(key, value)
+		if _, ok := lookupEnv(key); !ok {
+			setEnv(key, value)
 		}
 	}
 
@@ -188,16 +194,21 @@ func loadEnvFile(ctx context.Context) error {
 	return nil
 }
 
-// parseEnvFile reads a .env file and returns a map of key-value pairs.
+// parseEnvFile opens filename and parses its contents as .env-formatted lines.
 func parseEnvFile(filename string) (map[string]string, error) {
-	file, err := os.Open(filename)
+	file, err := openFile(filename)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
+	return parseEnvReader(file)
+}
 
+// parseEnvReader parses .env-formatted content from r. It performs no I/O
+// beyond reading r, so it is trivially testable with strings.NewReader.
+func parseEnvReader(r io.Reader) (map[string]string, error) {
 	envMap := make(map[string]string)
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
@@ -330,11 +341,6 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 // setEnvDefault set env key=value if not set.
 func setEnvDefault(key, value string) {
 	if getEnv(key) == "" {
-		os.Setenv(key, value)
+		setEnv(key, value)
 	}
-}
-
-// getEnv get the env by key.
-func getEnv(key string) string {
-	return os.Getenv(key)
 }

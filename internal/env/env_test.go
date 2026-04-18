@@ -5,14 +5,58 @@ package env
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
-	"path/filepath"
+	"strings"
 	"testing"
+
+	srserrors "srsx/internal/errors"
 )
 
-func TestParseEnvFile_BasicKeyValue(t *testing.T) {
-	f := writeTempEnv(t, "FOO=bar\nHELLO=world\n")
-	m, err := parseEnvFile(f)
+// fakeEnv is an in-memory replacement for process environment variables.
+// Tests install it via withFakeEnv so no real os.Setenv/os.Getenv call is
+// ever made, which keeps tests hermetic and free of global side effects.
+type fakeEnv struct {
+	store map[string]string
+}
+
+func (f *fakeEnv) get(k string) string   { return f.store[k] }
+func (f *fakeEnv) set(k, v string) error { f.store[k] = v; return nil }
+func (f *fakeEnv) lookup(k string) (string, bool) {
+	v, ok := f.store[k]
+	return v, ok
+}
+
+// withFakeEnv swaps getEnv/setEnv/lookupEnv to an in-memory map for the
+// duration of the test and restores the originals on cleanup.
+func withFakeEnv(t *testing.T) *fakeEnv {
+	t.Helper()
+	fe := &fakeEnv{store: map[string]string{}}
+	origGet, origSet, origLookup := getEnv, setEnv, lookupEnv
+	getEnv, setEnv, lookupEnv = fe.get, fe.set, fe.lookup
+	t.Cleanup(func() {
+		getEnv, setEnv, lookupEnv = origGet, origSet, origLookup
+	})
+	return fe
+}
+
+// withFakeOpen swaps openFile to return either content or err, and
+// restores the original on cleanup. If err is non-nil, content is ignored.
+func withFakeOpen(t *testing.T, content string, err error) {
+	t.Helper()
+	orig := openFile
+	openFile = func(string) (io.ReadCloser, error) {
+		if err != nil {
+			return nil, err
+		}
+		return io.NopCloser(strings.NewReader(content)), nil
+	}
+	t.Cleanup(func() { openFile = orig })
+}
+
+func TestParseEnvReader_BasicKeyValue(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("FOO=bar\nHELLO=world\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -24,9 +68,8 @@ func TestParseEnvFile_BasicKeyValue(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_SkipCommentsAndBlankLines(t *testing.T) {
-	f := writeTempEnv(t, "# this is a comment\n\nKEY=value\n\n# another comment\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_SkipCommentsAndBlankLines(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("# this is a comment\n\nKEY=value\n\n# another comment\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -38,9 +81,8 @@ func TestParseEnvFile_SkipCommentsAndBlankLines(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_ExportPrefix(t *testing.T) {
-	f := writeTempEnv(t, "export PORT=8080\nexport HOST=localhost\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_ExportPrefix(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("export PORT=8080\nexport HOST=localhost\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -52,24 +94,21 @@ func TestParseEnvFile_ExportPrefix(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_SingleQuoted(t *testing.T) {
-	f := writeTempEnv(t, "KEY='hello world'\nRAW='no\\nescaping'\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_SingleQuoted(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("KEY='hello world'\nRAW='no\\nescaping'\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if m["KEY"] != "hello world" {
 		t.Errorf("KEY = %q, want %q", m["KEY"], "hello world")
 	}
-	// Single quotes: backslash-n stays literal.
 	if m["RAW"] != `no\nescaping` {
 		t.Errorf("RAW = %q, want %q", m["RAW"], `no\nescaping`)
 	}
 }
 
-func TestParseEnvFile_DoubleQuoted(t *testing.T) {
-	f := writeTempEnv(t, `KEY="hello world"`+"\n"+`MSG="line1\nline2"`+"\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_DoubleQuoted(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader(`KEY="hello world"` + "\n" + `MSG="line1\nline2"` + "\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -81,9 +120,8 @@ func TestParseEnvFile_DoubleQuoted(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_DoubleQuotedEscapes(t *testing.T) {
-	f := writeTempEnv(t, `KEY="say \"hi\""`+"\n"+`BS="back\\slash"`+"\n"+`CR="a\rb"`+"\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_DoubleQuotedEscapes(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader(`KEY="say \"hi\""` + "\n" + `BS="back\\slash"` + "\n" + `CR="a\rb"` + "\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -98,9 +136,8 @@ func TestParseEnvFile_DoubleQuotedEscapes(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_InlineComment(t *testing.T) {
-	f := writeTempEnv(t, "KEY=value # this is a comment\nNUM=42 # the answer\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_InlineComment(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("KEY=value # this is a comment\nNUM=42 # the answer\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -112,9 +149,8 @@ func TestParseEnvFile_InlineComment(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_NoEqualsSign(t *testing.T) {
-	f := writeTempEnv(t, "NOEQUALS\nKEY=value\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_NoEqualsSign(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("NOEQUALS\nKEY=value\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -126,9 +162,8 @@ func TestParseEnvFile_NoEqualsSign(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_EmptyValue(t *testing.T) {
-	f := writeTempEnv(t, "KEY=\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_EmptyValue(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("KEY=\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -137,9 +172,8 @@ func TestParseEnvFile_EmptyValue(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_ValueWithEquals(t *testing.T) {
-	f := writeTempEnv(t, "URL=postgres://host:5432/db?opt=val\n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_ValueWithEquals(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("URL=postgres://host:5432/db?opt=val\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -148,19 +182,8 @@ func TestParseEnvFile_ValueWithEquals(t *testing.T) {
 	}
 }
 
-func TestParseEnvFile_FileNotFound(t *testing.T) {
-	_, err := parseEnvFile("/nonexistent/.env")
-	if err == nil {
-		t.Fatal("expected error for missing file")
-	}
-	if !os.IsNotExist(err) {
-		t.Errorf("expected os.IsNotExist, got: %v", err)
-	}
-}
-
-func TestParseEnvFile_WhitespaceAroundKeyValue(t *testing.T) {
-	f := writeTempEnv(t, "  KEY  =  value  \n")
-	m, err := parseEnvFile(f)
+func TestParseEnvReader_WhitespaceAroundKeyValue(t *testing.T) {
+	m, err := parseEnvReader(strings.NewReader("  KEY  =  value  \n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -169,32 +192,9 @@ func TestParseEnvFile_WhitespaceAroundKeyValue(t *testing.T) {
 	}
 }
 
-func TestLoadEnvFile_DoesNotOverwriteExisting(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("TEST_EXISTING=fromfile\nTEST_NEW=fromfile\n"), 0644); err != nil {
-		t.Fatalf("write .env: %v", err)
-	}
-	t.Chdir(dir)
-
-	t.Setenv("TEST_EXISTING", "fromshell")
-	unsetEnv(t, "TEST_NEW")
-
-	if err := loadEnvFile(context.Background()); err != nil {
-		t.Fatalf("loadEnvFile: %v", err)
-	}
-
-	if got := os.Getenv("TEST_EXISTING"); got != "fromshell" {
-		t.Errorf("TEST_EXISTING = %q, want %q (should not overwrite)", got, "fromshell")
-	}
-	if got := os.Getenv("TEST_NEW"); got != "fromfile" {
-		t.Errorf("TEST_NEW = %q, want %q", got, "fromfile")
-	}
-}
-
-func TestParseEnvFile_ShortValue(t *testing.T) {
+func TestParseEnvReader_ShortValue(t *testing.T) {
 	// Single-character value exercises the len(value) < 2 short-value branch.
-	f := writeTempEnv(t, "A=x\nB=y\n")
-	m, err := parseEnvFile(f)
+	m, err := parseEnvReader(strings.NewReader("A=x\nB=y\n"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -206,121 +206,144 @@ func TestParseEnvFile_ShortValue(t *testing.T) {
 	}
 }
 
-func TestSetEnvDefault_SetsWhenEmpty(t *testing.T) {
-	const key = "TEST_SET_ENV_DEFAULT_EMPTY"
-	// t.Setenv both guards against t.Parallel and auto-restores the
-	// original value on cleanup. setEnvDefault treats "" as unset.
-	t.Setenv(key, "")
-	setEnvDefault(key, "defaultVal")
-	if got := os.Getenv(key); got != "defaultVal" {
-		t.Errorf("%s = %q, want %q", key, got, "defaultVal")
+func TestParseEnvFile_FileNotFound(t *testing.T) {
+	withFakeOpen(t, "", os.ErrNotExist)
+	_, err := parseEnvFile(".env")
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected os.ErrNotExist, got: %v", err)
 	}
 }
 
-func TestSetEnvDefault_PreservesExisting(t *testing.T) {
-	const key = "TEST_SET_ENV_DEFAULT_EXISTING"
-	t.Setenv(key, "original")
-	setEnvDefault(key, "shouldNotApply")
-	if got := os.Getenv(key); got != "original" {
-		t.Errorf("%s = %q, want %q", key, got, "original")
+func TestParseEnvFile_OpenError(t *testing.T) {
+	// A non-NotExist open error should bubble up as-is.
+	sentinel := errors.New("boom")
+	withFakeOpen(t, "", sentinel)
+	_, err := parseEnvFile(".env")
+	if !errors.Is(err, sentinel) {
+		t.Errorf("expected sentinel error, got: %v", err)
+	}
+}
+
+func TestParseEnvFile_DelegatesToReader(t *testing.T) {
+	withFakeOpen(t, "FOO=bar\n", nil)
+	m, err := parseEnvFile(".env")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if m["FOO"] != "bar" {
+		t.Errorf("FOO = %q, want %q", m["FOO"], "bar")
+	}
+}
+
+func TestLoadEnvFile_DoesNotOverwriteExisting(t *testing.T) {
+	fe := withFakeEnv(t)
+	fe.store["TEST_EXISTING"] = "fromshell"
+	// TEST_NEW is absent from the store, so it should be loaded from the file.
+	withFakeOpen(t, "TEST_EXISTING=fromfile\nTEST_NEW=fromfile\n", nil)
+
+	if err := loadEnvFile(context.Background()); err != nil {
+		t.Fatalf("loadEnvFile: %v", err)
+	}
+	if got := fe.store["TEST_EXISTING"]; got != "fromshell" {
+		t.Errorf("TEST_EXISTING = %q, want %q (should not overwrite)", got, "fromshell")
+	}
+	if got := fe.store["TEST_NEW"]; got != "fromfile" {
+		t.Errorf("TEST_NEW = %q, want %q", got, "fromfile")
 	}
 }
 
 func TestLoadEnvFile_NoFileIsNoError(t *testing.T) {
-	// Run in a temp dir with no .env present.
-	t.Chdir(t.TempDir())
+	withFakeEnv(t)
+	withFakeOpen(t, "", os.ErrNotExist)
 	if err := loadEnvFile(context.Background()); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
 
-func TestLoadEnvFile_AppliesFromFile(t *testing.T) {
-	const key = "TEST_LOAD_ENV_FILE_APPLIES"
-	unsetEnv(t, key)
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(key+"=loaded\n"), 0644); err != nil {
-		t.Fatalf("write .env: %v", err)
+func TestLoadEnvFile_OpenErrorIsWrapped(t *testing.T) {
+	withFakeEnv(t)
+	sentinel := errors.New("disk gone")
+	withFakeOpen(t, "", sentinel)
+	err := loadEnvFile(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
-	t.Chdir(dir)
+	if srserrors.Cause(err) != sentinel {
+		t.Errorf("expected wrapped sentinel, got: %v", err)
+	}
+}
+
+func TestLoadEnvFile_AppliesFromFile(t *testing.T) {
+	fe := withFakeEnv(t)
+	withFakeOpen(t, "TEST_LOAD_ENV_FILE_APPLIES=loaded\n", nil)
 
 	if err := loadEnvFile(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got := os.Getenv(key); got != "loaded" {
-		t.Errorf("%s = %q, want %q", key, got, "loaded")
+	if got := fe.store["TEST_LOAD_ENV_FILE_APPLIES"]; got != "loaded" {
+		t.Errorf("got %q, want %q", got, "loaded")
+	}
+}
+
+func TestSetEnvDefault_SetsWhenEmpty(t *testing.T) {
+	fe := withFakeEnv(t)
+	// Key is absent (getEnv returns ""), so the default should apply.
+	setEnvDefault("KEY", "defaultVal")
+	if got := fe.store["KEY"]; got != "defaultVal" {
+		t.Errorf("KEY = %q, want %q", got, "defaultVal")
+	}
+}
+
+func TestSetEnvDefault_PreservesExisting(t *testing.T) {
+	fe := withFakeEnv(t)
+	fe.store["KEY"] = "original"
+	setEnvDefault("KEY", "shouldNotApply")
+	if got := fe.store["KEY"]; got != "original" {
+		t.Errorf("KEY = %q, want %q", got, "original")
 	}
 }
 
 func TestNewEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
-	// Work in a clean dir so no stray .env is picked up.
-	t.Chdir(t.TempDir())
+	withFakeEnv(t)
+	// No .env file present.
+	withFakeOpen(t, "", os.ErrNotExist)
 
-	// Keys with a default in buildDefaultEnvironmentVariables.
-	defaults := map[string]string{
-		"GO_PPROF":                      "",
-		"PROXY_FORCE_QUIT_TIMEOUT":      "30s",
-		"PROXY_GRACE_QUIT_TIMEOUT":      "20s",
-		"PROXY_HTTP_API":                "11985",
-		"PROXY_HTTP_SERVER":             "18080",
-		"PROXY_RTMP_SERVER":             "11935",
-		"PROXY_WEBRTC_SERVER":           "18000",
-		"PROXY_SRT_SERVER":              "20080",
-		"PROXY_SYSTEM_API":              "12025",
-		"PROXY_STATIC_FILES":            "./trunk/research",
-		"PROXY_LOAD_BALANCER_TYPE":      "memory",
-		"PROXY_REDIS_HOST":              "127.0.0.1",
-		"PROXY_REDIS_PORT":              "6379",
-		"PROXY_REDIS_PASSWORD":          "",
-		"PROXY_REDIS_DB":                "0",
-		"PROXY_DEFAULT_BACKEND_ENABLED": "off",
-		"PROXY_DEFAULT_BACKEND_IP":      "127.0.0.1",
-		"PROXY_DEFAULT_BACKEND_RTMP":    "1935",
-		"PROXY_DEFAULT_BACKEND_API":     "1985",
-		"PROXY_DEFAULT_BACKEND_RTC":     "8000",
-		"PROXY_DEFAULT_BACKEND_SRT":     "10080",
-	}
-	// Clear defaults so setEnvDefault actually applies them.
-	for k := range defaults {
-		t.Setenv(k, "")
-	}
-	// PROXY_DEFAULT_BACKEND_HTTP has no default; set it explicitly so the
-	// accessor has a value to return.
-	t.Setenv("PROXY_DEFAULT_BACKEND_HTTP", "8080")
+	// PROXY_DEFAULT_BACKEND_HTTP has no default in buildDefaultEnvironmentVariables;
+	// pre-set it so the accessor has a value to return.
+	setEnv("PROXY_DEFAULT_BACKEND_HTTP", "8080")
 
 	env, err := NewEnvironment(context.Background())
 	if err != nil {
 		t.Fatalf("NewEnvironment: %v", err)
 	}
 
-	// Verify every accessor returns the expected value.
 	cases := []struct {
 		name string
 		got  string
 		want string
 	}{
-		{"GoPprof", env.GoPprof(), defaults["GO_PPROF"]},
-		{"GraceQuitTimeout", env.GraceQuitTimeout(), defaults["PROXY_GRACE_QUIT_TIMEOUT"]},
-		{"ForceQuitTimeout", env.ForceQuitTimeout(), defaults["PROXY_FORCE_QUIT_TIMEOUT"]},
-		{"HttpAPI", env.HttpAPI(), defaults["PROXY_HTTP_API"]},
-		{"HttpServer", env.HttpServer(), defaults["PROXY_HTTP_SERVER"]},
-		{"RtmpServer", env.RtmpServer(), defaults["PROXY_RTMP_SERVER"]},
-		{"WebRTCServer", env.WebRTCServer(), defaults["PROXY_WEBRTC_SERVER"]},
-		{"SRTServer", env.SRTServer(), defaults["PROXY_SRT_SERVER"]},
-		{"SystemAPI", env.SystemAPI(), defaults["PROXY_SYSTEM_API"]},
-		{"StaticFiles", env.StaticFiles(), defaults["PROXY_STATIC_FILES"]},
-		{"LoadBalancerType", env.LoadBalancerType(), defaults["PROXY_LOAD_BALANCER_TYPE"]},
-		{"RedisHost", env.RedisHost(), defaults["PROXY_REDIS_HOST"]},
-		{"RedisPort", env.RedisPort(), defaults["PROXY_REDIS_PORT"]},
-		{"RedisPassword", env.RedisPassword(), defaults["PROXY_REDIS_PASSWORD"]},
-		{"RedisDB", env.RedisDB(), defaults["PROXY_REDIS_DB"]},
-		{"DefaultBackendEnabled", env.DefaultBackendEnabled(), defaults["PROXY_DEFAULT_BACKEND_ENABLED"]},
-		{"DefaultBackendIP", env.DefaultBackendIP(), defaults["PROXY_DEFAULT_BACKEND_IP"]},
-		{"DefaultBackendRTMP", env.DefaultBackendRTMP(), defaults["PROXY_DEFAULT_BACKEND_RTMP"]},
+		{"GoPprof", env.GoPprof(), ""},
+		{"GraceQuitTimeout", env.GraceQuitTimeout(), "20s"},
+		{"ForceQuitTimeout", env.ForceQuitTimeout(), "30s"},
+		{"HttpAPI", env.HttpAPI(), "11985"},
+		{"HttpServer", env.HttpServer(), "18080"},
+		{"RtmpServer", env.RtmpServer(), "11935"},
+		{"WebRTCServer", env.WebRTCServer(), "18000"},
+		{"SRTServer", env.SRTServer(), "20080"},
+		{"SystemAPI", env.SystemAPI(), "12025"},
+		{"StaticFiles", env.StaticFiles(), "./trunk/research"},
+		{"LoadBalancerType", env.LoadBalancerType(), "memory"},
+		{"RedisHost", env.RedisHost(), "127.0.0.1"},
+		{"RedisPort", env.RedisPort(), "6379"},
+		{"RedisPassword", env.RedisPassword(), ""},
+		{"RedisDB", env.RedisDB(), "0"},
+		{"DefaultBackendEnabled", env.DefaultBackendEnabled(), "off"},
+		{"DefaultBackendIP", env.DefaultBackendIP(), "127.0.0.1"},
+		{"DefaultBackendRTMP", env.DefaultBackendRTMP(), "1935"},
 		{"DefaultBackendHttp", env.DefaultBackendHttp(), "8080"},
-		{"DefaultBackendAPI", env.DefaultBackendAPI(), defaults["PROXY_DEFAULT_BACKEND_API"]},
-		{"DefaultBackendRTC", env.DefaultBackendRTC(), defaults["PROXY_DEFAULT_BACKEND_RTC"]},
-		{"DefaultBackendSRT", env.DefaultBackendSRT(), defaults["PROXY_DEFAULT_BACKEND_SRT"]},
+		{"DefaultBackendAPI", env.DefaultBackendAPI(), "1985"},
+		{"DefaultBackendRTC", env.DefaultBackendRTC(), "8000"},
+		{"DefaultBackendSRT", env.DefaultBackendSRT(), "10080"},
 	}
 	for _, c := range cases {
 		if c.got != c.want {
@@ -330,9 +353,9 @@ func TestNewEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
 }
 
 func TestNewEnvironment_PreservesPreSetValues(t *testing.T) {
-	// When a var is already set, setEnvDefault must not overwrite it.
-	t.Chdir(t.TempDir())
-	t.Setenv("PROXY_HTTP_API", "9999")
+	withFakeEnv(t)
+	withFakeOpen(t, "", os.ErrNotExist)
+	setEnv("PROXY_HTTP_API", "9999")
 
 	env, err := NewEnvironment(context.Background())
 	if err != nil {
@@ -343,31 +366,13 @@ func TestNewEnvironment_PreservesPreSetValues(t *testing.T) {
 	}
 }
 
-// unsetEnv removes key for the duration of the test and restores its
-// original value (or unset state) on cleanup. It also calls t.Setenv on
-// a sentinel so the test will panic if anyone adds t.Parallel() — env
-// vars are process-global and cannot be mutated safely in parallel.
-func unsetEnv(t *testing.T, key string) {
-	t.Helper()
-	t.Setenv("_ENV_TEST_NO_PARALLEL", "1")
-	prev, had := os.LookupEnv(key)
-	os.Unsetenv(key)
-	t.Cleanup(func() {
-		if had {
-			os.Setenv(key, prev)
-		} else {
-			os.Unsetenv(key)
-		}
-	})
-}
+func TestNewEnvironment_LoadEnvFailurePropagates(t *testing.T) {
+	withFakeEnv(t)
+	sentinel := errors.New("open failed")
+	withFakeOpen(t, "", sentinel)
 
-// writeTempEnv writes content to a temp .env file and returns the path.
-func writeTempEnv(t *testing.T, content string) string {
-	t.Helper()
-	dir := t.TempDir()
-	f := filepath.Join(dir, ".env")
-	if err := os.WriteFile(f, []byte(content), 0644); err != nil {
-		t.Fatalf("write temp .env: %v", err)
+	_, err := NewEnvironment(context.Background())
+	if srserrors.Cause(err) != sentinel {
+		t.Errorf("expected wrapped sentinel, got: %v", err)
 	}
-	return f
 }
