@@ -107,7 +107,7 @@ Only after the user confirms the routing do you proceed to Step 2.
 1. Implement the code change.
 2. Run the proxy unit tests to verify:
    ```
-   bash scripts/proxy-utest.sh
+   bash scripts/proxy-utest.sh --coverage
    ```
 3. Run the proxy E2E test (starts proxy + SRS origin, publishes RTMP, verifies playback):
    ```
