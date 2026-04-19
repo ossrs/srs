@@ -7,10 +7,8 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	stdErr "errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -71,7 +69,7 @@ func ApiCORS(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 
 // ParseBody read the body from r, and unmarshal JSON to v.
 func ParseBody(r io.ReadCloser, v interface{}) error {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "read body")
 	}
@@ -115,17 +113,17 @@ func BuildStreamURL(r string) (string, error) {
 func IsPeerClosedError(err error) bool {
 	causeErr := errors.Cause(err)
 
-	if stdErr.Is(causeErr, io.EOF) {
+	if errors.Is(causeErr, io.EOF) {
 		return true
 	}
 
-	if stdErr.Is(causeErr, syscall.EPIPE) {
+	if errors.Is(causeErr, syscall.EPIPE) {
 		return true
 	}
 
 	if netErr, ok := causeErr.(*net.OpError); ok {
 		if sysErr, ok := netErr.Err.(*os.SyscallError); ok {
-			if stdErr.Is(sysErr.Err, syscall.ECONNRESET) {
+			if errors.Is(sysErr.Err, syscall.ECONNRESET) {
 				return true
 			}
 		}
