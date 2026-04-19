@@ -45,7 +45,11 @@ type srsWebRTCServer struct {
 }
 
 func NewSRSWebRTCServer(environment env.Environment, opts ...func(*srsWebRTCServer)) *srsWebRTCServer {
-	v := &srsWebRTCServer{environment: environment}
+	v := &srsWebRTCServer{
+		environment: environment,
+		usernames:   sync.NewMap[string, *RTCConnection](),
+		addresses:   sync.NewMap[string, *RTCConnection](),
+	}
 	for _, opt := range opts {
 		opt(v)
 	}

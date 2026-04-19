@@ -36,7 +36,13 @@ type MemoryLoadBalancer struct {
 // NewMemoryLoadBalancer creates a new memory-based load balancer.
 func NewMemoryLoadBalancer(environment env.Environment) SRSLoadBalancer {
 	return &MemoryLoadBalancer{
-		environment: environment,
+		environment:  environment,
+		servers:      sync.NewMap[string, *SRSServer](),
+		picked:       sync.NewMap[string, *SRSServer](),
+		hlsStreamURL: sync.NewMap[string, HLSPlayStream](),
+		hlsSPBHID:    sync.NewMap[string, HLSPlayStream](),
+		rtcStreamURL: sync.NewMap[string, RTCConnection](),
+		rtcUfrag:     sync.NewMap[string, RTCConnection](),
 	}
 }
 

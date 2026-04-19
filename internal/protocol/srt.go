@@ -43,6 +43,7 @@ func NewSRSSRTServer(environment env.Environment, opts ...func(*srsSRTServer)) *
 	v := &srsSRTServer{
 		environment: environment,
 		start:       time.Now(),
+		sockets:     sync.NewMap[uint32, *SRTConnection](),
 	}
 
 	for _, opt := range opts {
