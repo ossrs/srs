@@ -14,7 +14,7 @@ type key string
 
 var cidKey key = "cid.srsx.ossrs.org"
 
-// generateContextID generates a random context id in string.
+// GenerateContextID generates a random context id in string.
 func GenerateContextID() string {
 	randomBytes := make([]byte, 32)
 	_, _ = rand.Read(randomBytes)
@@ -26,11 +26,11 @@ func GenerateContextID() string {
 
 // WithContext creates a new context with cid, which will be used for log.
 func WithContext(ctx context.Context) context.Context {
-	return WithContextID(ctx, GenerateContextID())
+	return withContextID(ctx, GenerateContextID())
 }
 
-// WithContextID creates a new context with cid, which will be used for log.
-func WithContextID(ctx context.Context, cid string) context.Context {
+// withContextID creates a new context with cid, which will be used for log.
+func withContextID(ctx context.Context, cid string) context.Context {
 	return context.WithValue(ctx, cidKey, cid)
 }
 

@@ -5,8 +5,9 @@ package logger
 
 import (
 	"context"
-	"io/ioutil"
-	stdLog "log"
+	"fmt"
+	"io"
+	"log/slog"
 	"os"
 )
 
@@ -15,8 +16,8 @@ type logger interface {
 }
 
 type loggerPlus struct {
-	logger *stdLog.Logger
-	level  string
+	logger *slog.Logger
+	level  slog.Level
 }
 
 func newLoggerPlus(opts ...func(*loggerPlus)) *loggerPlus {
@@ -27,61 +28,95 @@ func newLoggerPlus(opts ...func(*loggerPlus)) *loggerPlus {
 	return v
 }
 
-func (v *loggerPlus) Printf(ctx context.Context, f string, a ...interface{}) {
-	format, args := f, a
+func (v *loggerPlus) Printf(ctx context.Context, f string, a ...any) {
+	attrs := []slog.Attr{slog.Int("pid", os.Getpid())}
 	if cid := ContextID(ctx); cid != "" {
-		format, args = "[%v][%v][%v] "+format, append([]interface{}{v.level, os.Getpid(), cid}, a...)
+		attrs = append(attrs, slog.String("cid", cid))
 	}
-
-	v.logger.Printf(format, args...)
+	v.logger.LogAttrs(ctx, v.level, fmt.Sprintf(f, a...), attrs...)
 }
 
 var verboseLogger logger
 
-func Vf(ctx context.Context, format string, a ...interface{}) {
+func Vf(ctx context.Context, format string, a ...any) {
 	verboseLogger.Printf(ctx, format, a...)
 }
 
 var debugLogger logger
 
-func Df(ctx context.Context, format string, a ...interface{}) {
+func Df(ctx context.Context, format string, a ...any) {
 	debugLogger.Printf(ctx, format, a...)
 }
 
 var warnLogger logger
 
-func Wf(ctx context.Context, format string, a ...interface{}) {
+func Wf(ctx context.Context, format string, a ...any) {
 	warnLogger.Printf(ctx, format, a...)
 }
 
 var errorLogger logger
 
-func Ef(ctx context.Context, format string, a ...interface{}) {
+func Ef(ctx context.Context, format string, a ...any) {
 	errorLogger.Printf(ctx, format, a...)
 }
 
 const (
-	logVerboseLabel = "verb"
-	logDebugLabel   = "debug"
-	logWarnLabel    = "warn"
-	logErrorLabel   = "error"
+	levelVerb  slog.Level = slog.LevelDebug - 4
+	levelDebug slog.Level = slog.LevelDebug
+	levelWarn  slog.Level = slog.LevelWarn
+	levelError slog.Level = slog.LevelError
 )
 
+// newJSONLogger builds a slog.Logger that writes JSON records to w, renders the
+// time in UTC, and maps our custom levels to short lowercase labels.
+func newJSONLogger(w io.Writer) *slog.Logger {
+	h := slog.NewJSONHandler(w, &slog.HandlerOptions{
+		Level: levelVerb,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if len(groups) != 0 {
+				return a
+			}
+			switch a.Key {
+			case slog.TimeKey:
+				return slog.Time(slog.TimeKey, a.Value.Time().UTC())
+			case slog.LevelKey:
+				return slog.String(slog.LevelKey, levelLabel(a.Value.Any().(slog.Level)))
+			}
+			return a
+		},
+	})
+	return slog.New(h)
+}
+
+func levelLabel(l slog.Level) string {
+	switch l {
+	case levelVerb:
+		return "verb"
+	case levelDebug:
+		return "debug"
+	case levelWarn:
+		return "warn"
+	case levelError:
+		return "error"
+	}
+	return l.String()
+}
+
 func init() {
-	verboseLogger = newLoggerPlus(func(logger *loggerPlus) {
-		logger.logger = stdLog.New(ioutil.Discard, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
-		logger.level = logVerboseLabel
+	verboseLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(io.Discard)
+		l.level = levelVerb
 	})
-	debugLogger = newLoggerPlus(func(logger *loggerPlus) {
-		logger.logger = stdLog.New(os.Stdout, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
-		logger.level = logDebugLabel
+	debugLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(os.Stdout)
+		l.level = levelDebug
 	})
-	warnLogger = newLoggerPlus(func(logger *loggerPlus) {
-		logger.logger = stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
-		logger.level = logWarnLabel
+	warnLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(os.Stderr)
+		l.level = levelWarn
 	})
-	errorLogger = newLoggerPlus(func(logger *loggerPlus) {
-		logger.logger = stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
-		logger.level = logErrorLabel
+	errorLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(os.Stderr)
+		l.level = levelError
 	})
 }
