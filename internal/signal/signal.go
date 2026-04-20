@@ -15,9 +15,15 @@ import (
 	"srsx/internal/logger"
 )
 
+// Indirections so tests can substitute signal delivery and process exit.
+var (
+	signalNotify = signal.Notify
+	osExit       = os.Exit
+)
+
 func InstallSignals(ctx context.Context, cancel context.CancelFunc) {
 	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	signalNotify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
 	go func() {
 		for s := range sc {
@@ -40,7 +46,7 @@ func InstallForceQuit(ctx context.Context, environment env.Environment) error {
 		<-ctx.Done()
 		time.Sleep(forceTimeout)
 		logger.Wf(ctx, "Force to exit by timeout")
-		os.Exit(1)
+		osExit(1)
 	}()
 	return nil
 }
