@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-04-23, Merge [#4667](https://github.com/ossrs/srs/pull/4667): Proxy: Refactor internal/errors and internal/sync, and add unit tests across internal/*. v7.0.145 (#4667)
 * v7.0, 2026-04-18, Merge [#4665](https://github.com/ossrs/srs/pull/4665): Proxy: Harden internal/env tests and add counterfeiter fake generation. v7.0.144 (#4665)
 * v7.0, 2026-04-12, Merge [#4661](https://github.com/ossrs/srs/pull/4661): Proxy: Move build output to bin/, replace godotenv with custom .env parser, and update docs. v7.0.143 (#4661)
 * v7.0, 2026-04-06, Merge [#4657](https://github.com/ossrs/srs/pull/4657): Proxy: Refactor bootstrap for multi-server support and rebrand to SRSX. v7.0.142 (#4657)
