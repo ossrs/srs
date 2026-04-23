@@ -22,7 +22,7 @@ Route the user's request to exactly ONE task type. Follow that task only. Do not
 | **Develop Code** | User wants to add, modify, refactor code, or update docs — any planned change | → [Develop Code](#task-develop-code) | ✅ Supported |
 | **Fix a Bug** | User reports something broken, unexpected behavior, or an error | → [Fix a Bug](#task-fix-a-bug) | ❌ Not yet supported |
 | **Learn Code** | User wants to understand how code works — no changes intended | → [Learn Code](#task-learn-code) | ❌ Not yet supported |
-| **Review a PR** | User wants to review an existing pull request | → [Review a PR](#task-review-a-pr) | ❌ Not yet supported |
+| **Review a PR** | User wants to review an existing pull request | → [Review a PR](#task-review-a-pr) | ✅ Supported |
 
 **If the routed task is not yet supported**, stop and tell the user:
 - What task type you routed to
@@ -53,7 +53,37 @@ Do NOT attempt unsupported tasks.
 
 **Prerequisite:** You must arrive here via the [Task Router](#task-router). Do not execute this task directly — always complete the Task Router first to confirm this is the correct task type.
 
-**Not yet supported.** Will be added in a future update.
+**Scope:** Walk the pending changes on the current branch (relative to `develop`), summarize them, sync any stale navigation docs, then bump the version and add a changelog entry once the user supplies the PR number.
+
+**Guiding rules**
+- **The user drives staging.** Never `git add` on your own. After each step, stop and wait for the user to review and stage the files they approve. Only run `git commit` when they say so.
+- **Docs are navigation, not tutorials.** When a code change makes an entry stale, *correct* it — don't expand it. Only *add* a new entry when a new file or module was introduced; never to describe a refactor inside an existing module.
+
+**Step 1: Survey the changes**
+
+1. Run `git diff develop --stat` and `git log develop..HEAD --oneline` to get the shape of the branch.
+2. Drill into non-test source diffs with `git diff develop -- <path>` to understand what actually changed.
+3. Summarize back to the user: refactors, new files, and anything that could break downstream consumers (log format, public API, wire format, etc.).
+4. Pause and let the user redirect or ask for more detail.
+
+**Step 2: Correct stale navigation docs**
+
+1. Check `.openclaw/memory/srs-codebase-map.md` for entries covering any module touched in this PR.
+2. For each entry whose description is no longer accurate, make the **smallest** correction needed to match the new code. Keep the one-line summary style; do not expand into implementation detail.
+3. Stop. Let the user review. When they `git add` the files they accept, commit with a short message in the existing style, e.g. `Claude: Sync srs-codebase-map with internal/<modules>.`.
+
+**Step 3: Bump the version and update the changelog**
+
+1. Ask the user for the PR number if they haven't given it.
+2. Bump revision by one in **both** version files, keeping them in sync:
+   - `internal/version/version.go` — `VersionRevision()`
+   - `trunk/src/core/srs_core_version7.hpp` — `VERSION_REVISION`
+3. Add a new top entry to `trunk/doc/CHANGELOG.md` under `## SRS 7.0 Changelog`, matching the existing format:
+   ```
+   * v7.0, YYYY-MM-DD, Merge [#PR](URL): <Prefix>: <one-line summary>. v7.0.<rev> (#PR)
+   ```
+   Propose the summary to the user; don't invent one unilaterally.
+4. Stop. Let the user review. When they `git add` the version files and changelog, commit with a short message like `Proxy: Bump to v7.0.<rev> for #<PR>.`.
 
 ---
 
