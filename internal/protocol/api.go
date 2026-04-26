@@ -24,7 +24,7 @@ import (
 // to proxy other HTTP API of SRS like the streams and clients, etc.
 type srsHTTPAPIServer struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// The underlayer HTTP server.
 	server *http.Server
 	// The WebRTC server.
@@ -35,7 +35,7 @@ type srsHTTPAPIServer struct {
 	wg sync.WaitGroup
 }
 
-func NewSRSHTTPAPIServer(environment env.Environment, gracefulQuitTimeout time.Duration, rtc *srsWebRTCServer) *srsHTTPAPIServer {
+func NewSRSHTTPAPIServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration, rtc *srsWebRTCServer) *srsHTTPAPIServer {
 	v := &srsHTTPAPIServer{
 		environment:         environment,
 		gracefulQuitTimeout: gracefulQuitTimeout,
@@ -127,7 +127,7 @@ func (v *srsHTTPAPIServer) Run(ctx context.Context) error {
 // for Prometheus metrics.
 type systemAPI struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// The underlayer HTTP server.
 	server *http.Server
 	// The gracefully quit timeout, wait server to quit.
@@ -136,7 +136,7 @@ type systemAPI struct {
 	wg sync.WaitGroup
 }
 
-func NewSystemAPI(environment env.Environment, gracefulQuitTimeout time.Duration) *systemAPI {
+func NewSystemAPI(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) *systemAPI {
 	v := &systemAPI{
 		environment:         environment,
 		gracefulQuitTimeout: gracefulQuitTimeout,

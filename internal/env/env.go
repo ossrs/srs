@@ -25,8 +25,8 @@ var (
 	}
 )
 
-// Environment provides access to environment variables.
-type Environment interface {
+// ProxyEnvironment provides access to proxy environment variables.
+type ProxyEnvironment interface {
 	// Go pprof profiling
 	GoPprof() string
 	// Graceful quit timeout
@@ -73,102 +73,102 @@ type Environment interface {
 	DefaultBackendSRT() string
 }
 
-type environment struct{}
+type proxyEnvironment struct{}
 
-// NewEnvironment creates a new Environment instance, loading and building default environment variables.
-func NewEnvironment(ctx context.Context) (Environment, error) {
+// NewProxyEnvironment creates a new ProxyEnvironment instance, loading and building default environment variables.
+func NewProxyEnvironment(ctx context.Context) (ProxyEnvironment, error) {
 	if err := loadEnvFile(ctx); err != nil {
 		return nil, err
 	}
 	buildDefaultEnvironmentVariables(ctx)
-	return &environment{}, nil
+	return &proxyEnvironment{}, nil
 }
 
-func (e *environment) GoPprof() string {
+func (e *proxyEnvironment) GoPprof() string {
 	return getEnv("GO_PPROF")
 }
 
-func (e *environment) GraceQuitTimeout() string {
+func (e *proxyEnvironment) GraceQuitTimeout() string {
 	return getEnv("PROXY_GRACE_QUIT_TIMEOUT")
 }
 
-func (e *environment) ForceQuitTimeout() string {
+func (e *proxyEnvironment) ForceQuitTimeout() string {
 	return getEnv("PROXY_FORCE_QUIT_TIMEOUT")
 }
 
-func (e *environment) HttpAPI() string {
+func (e *proxyEnvironment) HttpAPI() string {
 	return getEnv("PROXY_HTTP_API")
 }
 
-func (e *environment) HttpServer() string {
+func (e *proxyEnvironment) HttpServer() string {
 	return getEnv("PROXY_HTTP_SERVER")
 }
 
-func (e *environment) RtmpServer() string {
+func (e *proxyEnvironment) RtmpServer() string {
 	return getEnv("PROXY_RTMP_SERVER")
 }
 
-func (e *environment) WebRTCServer() string {
+func (e *proxyEnvironment) WebRTCServer() string {
 	return getEnv("PROXY_WEBRTC_SERVER")
 }
 
-func (e *environment) SRTServer() string {
+func (e *proxyEnvironment) SRTServer() string {
 	return getEnv("PROXY_SRT_SERVER")
 }
 
-func (e *environment) SystemAPI() string {
+func (e *proxyEnvironment) SystemAPI() string {
 	return getEnv("PROXY_SYSTEM_API")
 }
 
-func (e *environment) StaticFiles() string {
+func (e *proxyEnvironment) StaticFiles() string {
 	return getEnv("PROXY_STATIC_FILES")
 }
 
-func (e *environment) LoadBalancerType() string {
+func (e *proxyEnvironment) LoadBalancerType() string {
 	return getEnv("PROXY_LOAD_BALANCER_TYPE")
 }
 
-func (e *environment) RedisHost() string {
+func (e *proxyEnvironment) RedisHost() string {
 	return getEnv("PROXY_REDIS_HOST")
 }
 
-func (e *environment) RedisPort() string {
+func (e *proxyEnvironment) RedisPort() string {
 	return getEnv("PROXY_REDIS_PORT")
 }
 
-func (e *environment) RedisPassword() string {
+func (e *proxyEnvironment) RedisPassword() string {
 	return getEnv("PROXY_REDIS_PASSWORD")
 }
 
-func (e *environment) RedisDB() string {
+func (e *proxyEnvironment) RedisDB() string {
 	return getEnv("PROXY_REDIS_DB")
 }
 
-func (e *environment) DefaultBackendEnabled() string {
+func (e *proxyEnvironment) DefaultBackendEnabled() string {
 	return getEnv("PROXY_DEFAULT_BACKEND_ENABLED")
 }
 
-func (e *environment) DefaultBackendIP() string {
+func (e *proxyEnvironment) DefaultBackendIP() string {
 	return getEnv("PROXY_DEFAULT_BACKEND_IP")
 }
 
-func (e *environment) DefaultBackendRTMP() string {
+func (e *proxyEnvironment) DefaultBackendRTMP() string {
 	return getEnv("PROXY_DEFAULT_BACKEND_RTMP")
 }
 
-func (e *environment) DefaultBackendHttp() string {
+func (e *proxyEnvironment) DefaultBackendHttp() string {
 	return getEnv("PROXY_DEFAULT_BACKEND_HTTP")
 }
 
-func (e *environment) DefaultBackendAPI() string {
+func (e *proxyEnvironment) DefaultBackendAPI() string {
 	return getEnv("PROXY_DEFAULT_BACKEND_API")
 }
 
-func (e *environment) DefaultBackendRTC() string {
+func (e *proxyEnvironment) DefaultBackendRTC() string {
 	return getEnv("PROXY_DEFAULT_BACKEND_RTC")
 }
 
-func (e *environment) DefaultBackendSRT() string {
+func (e *proxyEnvironment) DefaultBackendSRT() string {
 	return getEnv("PROXY_DEFAULT_BACKEND_SRT")
 }
 

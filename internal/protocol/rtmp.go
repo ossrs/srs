@@ -25,14 +25,14 @@ import (
 // not cache the stream, but just proxy the stream to backend.
 type srsRTMPServer struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// The TCP listener for RTMP server.
 	listener *net.TCPListener
 	// The wait group for all goroutines.
 	wg sync.WaitGroup
 }
 
-func NewSRSRTMPServer(environment env.Environment, opts ...func(*srsRTMPServer)) *srsRTMPServer {
+func NewSRSRTMPServer(environment env.ProxyEnvironment, opts ...func(*srsRTMPServer)) *srsRTMPServer {
 	v := &srsRTMPServer{environment: environment}
 	for _, opt := range opts {
 		opt(v)

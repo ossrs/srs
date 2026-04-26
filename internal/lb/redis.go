@@ -22,13 +22,13 @@ import (
 // RedisLoadBalancer stores state in Redis.
 type RedisLoadBalancer struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// The redis client sdk.
 	rdb *redis.Client
 }
 
 // NewRedisLoadBalancer creates a new Redis-based load balancer.
-func NewRedisLoadBalancer(environment env.Environment) SRSLoadBalancer {
+func NewRedisLoadBalancer(environment env.ProxyEnvironment) SRSLoadBalancer {
 	return &RedisLoadBalancer{
 		environment: environment,
 	}

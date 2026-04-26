@@ -28,7 +28,7 @@ import (
 // SDP answer.
 type srsWebRTCServer struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// The UDP listener for WebRTC server.
 	listener *net.UDPConn
 
@@ -44,7 +44,7 @@ type srsWebRTCServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewSRSWebRTCServer(environment env.Environment, opts ...func(*srsWebRTCServer)) *srsWebRTCServer {
+func NewSRSWebRTCServer(environment env.ProxyEnvironment, opts ...func(*srsWebRTCServer)) *srsWebRTCServer {
 	v := &srsWebRTCServer{
 		environment: environment,
 		usernames:   sync.NewMap[string, *RTCConnection](),

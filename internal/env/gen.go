@@ -3,4 +3,4 @@
 // SPDX-License-Identifier: MIT
 package env
 
-//go:generate go tool counterfeiter -o envfakes/fake_environment.go . Environment
+//go:generate go tool counterfeiter -o envfakes/fake_proxy_environment.go . ProxyEnvironment

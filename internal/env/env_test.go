@@ -303,7 +303,7 @@ func TestSetEnvDefault_PreservesExisting(t *testing.T) {
 	}
 }
 
-func TestNewEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
+func TestNewProxyEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
 	withFakeEnv(t)
 	// No .env file present.
 	withFakeOpen(t, "", os.ErrNotExist)
@@ -312,9 +312,9 @@ func TestNewEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
 	// pre-set it so the accessor has a value to return.
 	setEnv("PROXY_DEFAULT_BACKEND_HTTP", "8080")
 
-	env, err := NewEnvironment(context.Background())
+	env, err := NewProxyEnvironment(context.Background())
 	if err != nil {
-		t.Fatalf("NewEnvironment: %v", err)
+		t.Fatalf("NewProxyEnvironment: %v", err)
 	}
 
 	cases := []struct {
@@ -352,26 +352,26 @@ func TestNewEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
 	}
 }
 
-func TestNewEnvironment_PreservesPreSetValues(t *testing.T) {
+func TestNewProxyEnvironment_PreservesPreSetValues(t *testing.T) {
 	withFakeEnv(t)
 	withFakeOpen(t, "", os.ErrNotExist)
 	setEnv("PROXY_HTTP_API", "9999")
 
-	env, err := NewEnvironment(context.Background())
+	env, err := NewProxyEnvironment(context.Background())
 	if err != nil {
-		t.Fatalf("NewEnvironment: %v", err)
+		t.Fatalf("NewProxyEnvironment: %v", err)
 	}
 	if got := env.HttpAPI(); got != "9999" {
 		t.Errorf("HttpAPI() = %q, want %q", got, "9999")
 	}
 }
 
-func TestNewEnvironment_LoadEnvFailurePropagates(t *testing.T) {
+func TestNewProxyEnvironment_LoadEnvFailurePropagates(t *testing.T) {
 	withFakeEnv(t)
 	sentinel := errors.New("open failed")
 	withFakeOpen(t, "", sentinel)
 
-	_, err := NewEnvironment(context.Background())
+	_, err := NewProxyEnvironment(context.Background())
 	if srserrors.Cause(err) != sentinel {
 		t.Errorf("expected wrapped sentinel, got: %v", err)
 	}

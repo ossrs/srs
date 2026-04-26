@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-type FakeEnvironment struct {
+type FakeProxyEnvironment struct {
 	DefaultBackendAPIStub        func() string
 	defaultBackendAPIMutex       sync.RWMutex
 	defaultBackendAPIArgsForCall []struct {
@@ -231,7 +231,7 @@ type FakeEnvironment struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeEnvironment) DefaultBackendAPI() string {
+func (fake *FakeProxyEnvironment) DefaultBackendAPI() string {
 	fake.defaultBackendAPIMutex.Lock()
 	ret, specificReturn := fake.defaultBackendAPIReturnsOnCall[len(fake.defaultBackendAPIArgsForCall)]
 	fake.defaultBackendAPIArgsForCall = append(fake.defaultBackendAPIArgsForCall, struct {
@@ -249,19 +249,19 @@ func (fake *FakeEnvironment) DefaultBackendAPI() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) DefaultBackendAPICallCount() int {
+func (fake *FakeProxyEnvironment) DefaultBackendAPICallCount() int {
 	fake.defaultBackendAPIMutex.RLock()
 	defer fake.defaultBackendAPIMutex.RUnlock()
 	return len(fake.defaultBackendAPIArgsForCall)
 }
 
-func (fake *FakeEnvironment) DefaultBackendAPICalls(stub func() string) {
+func (fake *FakeProxyEnvironment) DefaultBackendAPICalls(stub func() string) {
 	fake.defaultBackendAPIMutex.Lock()
 	defer fake.defaultBackendAPIMutex.Unlock()
 	fake.DefaultBackendAPIStub = stub
 }
 
-func (fake *FakeEnvironment) DefaultBackendAPIReturns(result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendAPIReturns(result1 string) {
 	fake.defaultBackendAPIMutex.Lock()
 	defer fake.defaultBackendAPIMutex.Unlock()
 	fake.DefaultBackendAPIStub = nil
@@ -270,7 +270,7 @@ func (fake *FakeEnvironment) DefaultBackendAPIReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendAPIReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendAPIReturnsOnCall(i int, result1 string) {
 	fake.defaultBackendAPIMutex.Lock()
 	defer fake.defaultBackendAPIMutex.Unlock()
 	fake.DefaultBackendAPIStub = nil
@@ -284,7 +284,7 @@ func (fake *FakeEnvironment) DefaultBackendAPIReturnsOnCall(i int, result1 strin
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendEnabled() string {
+func (fake *FakeProxyEnvironment) DefaultBackendEnabled() string {
 	fake.defaultBackendEnabledMutex.Lock()
 	ret, specificReturn := fake.defaultBackendEnabledReturnsOnCall[len(fake.defaultBackendEnabledArgsForCall)]
 	fake.defaultBackendEnabledArgsForCall = append(fake.defaultBackendEnabledArgsForCall, struct {
@@ -302,19 +302,19 @@ func (fake *FakeEnvironment) DefaultBackendEnabled() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) DefaultBackendEnabledCallCount() int {
+func (fake *FakeProxyEnvironment) DefaultBackendEnabledCallCount() int {
 	fake.defaultBackendEnabledMutex.RLock()
 	defer fake.defaultBackendEnabledMutex.RUnlock()
 	return len(fake.defaultBackendEnabledArgsForCall)
 }
 
-func (fake *FakeEnvironment) DefaultBackendEnabledCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) DefaultBackendEnabledCalls(stub func() string) {
 	fake.defaultBackendEnabledMutex.Lock()
 	defer fake.defaultBackendEnabledMutex.Unlock()
 	fake.DefaultBackendEnabledStub = stub
 }
 
-func (fake *FakeEnvironment) DefaultBackendEnabledReturns(result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendEnabledReturns(result1 string) {
 	fake.defaultBackendEnabledMutex.Lock()
 	defer fake.defaultBackendEnabledMutex.Unlock()
 	fake.DefaultBackendEnabledStub = nil
@@ -323,7 +323,7 @@ func (fake *FakeEnvironment) DefaultBackendEnabledReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendEnabledReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendEnabledReturnsOnCall(i int, result1 string) {
 	fake.defaultBackendEnabledMutex.Lock()
 	defer fake.defaultBackendEnabledMutex.Unlock()
 	fake.DefaultBackendEnabledStub = nil
@@ -337,7 +337,7 @@ func (fake *FakeEnvironment) DefaultBackendEnabledReturnsOnCall(i int, result1 s
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendHttp() string {
+func (fake *FakeProxyEnvironment) DefaultBackendHttp() string {
 	fake.defaultBackendHttpMutex.Lock()
 	ret, specificReturn := fake.defaultBackendHttpReturnsOnCall[len(fake.defaultBackendHttpArgsForCall)]
 	fake.defaultBackendHttpArgsForCall = append(fake.defaultBackendHttpArgsForCall, struct {
@@ -355,19 +355,19 @@ func (fake *FakeEnvironment) DefaultBackendHttp() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) DefaultBackendHttpCallCount() int {
+func (fake *FakeProxyEnvironment) DefaultBackendHttpCallCount() int {
 	fake.defaultBackendHttpMutex.RLock()
 	defer fake.defaultBackendHttpMutex.RUnlock()
 	return len(fake.defaultBackendHttpArgsForCall)
 }
 
-func (fake *FakeEnvironment) DefaultBackendHttpCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) DefaultBackendHttpCalls(stub func() string) {
 	fake.defaultBackendHttpMutex.Lock()
 	defer fake.defaultBackendHttpMutex.Unlock()
 	fake.DefaultBackendHttpStub = stub
 }
 
-func (fake *FakeEnvironment) DefaultBackendHttpReturns(result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendHttpReturns(result1 string) {
 	fake.defaultBackendHttpMutex.Lock()
 	defer fake.defaultBackendHttpMutex.Unlock()
 	fake.DefaultBackendHttpStub = nil
@@ -376,7 +376,7 @@ func (fake *FakeEnvironment) DefaultBackendHttpReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendHttpReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendHttpReturnsOnCall(i int, result1 string) {
 	fake.defaultBackendHttpMutex.Lock()
 	defer fake.defaultBackendHttpMutex.Unlock()
 	fake.DefaultBackendHttpStub = nil
@@ -390,7 +390,7 @@ func (fake *FakeEnvironment) DefaultBackendHttpReturnsOnCall(i int, result1 stri
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendIP() string {
+func (fake *FakeProxyEnvironment) DefaultBackendIP() string {
 	fake.defaultBackendIPMutex.Lock()
 	ret, specificReturn := fake.defaultBackendIPReturnsOnCall[len(fake.defaultBackendIPArgsForCall)]
 	fake.defaultBackendIPArgsForCall = append(fake.defaultBackendIPArgsForCall, struct {
@@ -408,19 +408,19 @@ func (fake *FakeEnvironment) DefaultBackendIP() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) DefaultBackendIPCallCount() int {
+func (fake *FakeProxyEnvironment) DefaultBackendIPCallCount() int {
 	fake.defaultBackendIPMutex.RLock()
 	defer fake.defaultBackendIPMutex.RUnlock()
 	return len(fake.defaultBackendIPArgsForCall)
 }
 
-func (fake *FakeEnvironment) DefaultBackendIPCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) DefaultBackendIPCalls(stub func() string) {
 	fake.defaultBackendIPMutex.Lock()
 	defer fake.defaultBackendIPMutex.Unlock()
 	fake.DefaultBackendIPStub = stub
 }
 
-func (fake *FakeEnvironment) DefaultBackendIPReturns(result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendIPReturns(result1 string) {
 	fake.defaultBackendIPMutex.Lock()
 	defer fake.defaultBackendIPMutex.Unlock()
 	fake.DefaultBackendIPStub = nil
@@ -429,7 +429,7 @@ func (fake *FakeEnvironment) DefaultBackendIPReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendIPReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendIPReturnsOnCall(i int, result1 string) {
 	fake.defaultBackendIPMutex.Lock()
 	defer fake.defaultBackendIPMutex.Unlock()
 	fake.DefaultBackendIPStub = nil
@@ -443,7 +443,7 @@ func (fake *FakeEnvironment) DefaultBackendIPReturnsOnCall(i int, result1 string
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTC() string {
+func (fake *FakeProxyEnvironment) DefaultBackendRTC() string {
 	fake.defaultBackendRTCMutex.Lock()
 	ret, specificReturn := fake.defaultBackendRTCReturnsOnCall[len(fake.defaultBackendRTCArgsForCall)]
 	fake.defaultBackendRTCArgsForCall = append(fake.defaultBackendRTCArgsForCall, struct {
@@ -461,19 +461,19 @@ func (fake *FakeEnvironment) DefaultBackendRTC() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTCCallCount() int {
+func (fake *FakeProxyEnvironment) DefaultBackendRTCCallCount() int {
 	fake.defaultBackendRTCMutex.RLock()
 	defer fake.defaultBackendRTCMutex.RUnlock()
 	return len(fake.defaultBackendRTCArgsForCall)
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTCCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) DefaultBackendRTCCalls(stub func() string) {
 	fake.defaultBackendRTCMutex.Lock()
 	defer fake.defaultBackendRTCMutex.Unlock()
 	fake.DefaultBackendRTCStub = stub
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTCReturns(result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendRTCReturns(result1 string) {
 	fake.defaultBackendRTCMutex.Lock()
 	defer fake.defaultBackendRTCMutex.Unlock()
 	fake.DefaultBackendRTCStub = nil
@@ -482,7 +482,7 @@ func (fake *FakeEnvironment) DefaultBackendRTCReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTCReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendRTCReturnsOnCall(i int, result1 string) {
 	fake.defaultBackendRTCMutex.Lock()
 	defer fake.defaultBackendRTCMutex.Unlock()
 	fake.DefaultBackendRTCStub = nil
@@ -496,7 +496,7 @@ func (fake *FakeEnvironment) DefaultBackendRTCReturnsOnCall(i int, result1 strin
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTMP() string {
+func (fake *FakeProxyEnvironment) DefaultBackendRTMP() string {
 	fake.defaultBackendRTMPMutex.Lock()
 	ret, specificReturn := fake.defaultBackendRTMPReturnsOnCall[len(fake.defaultBackendRTMPArgsForCall)]
 	fake.defaultBackendRTMPArgsForCall = append(fake.defaultBackendRTMPArgsForCall, struct {
@@ -514,19 +514,19 @@ func (fake *FakeEnvironment) DefaultBackendRTMP() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTMPCallCount() int {
+func (fake *FakeProxyEnvironment) DefaultBackendRTMPCallCount() int {
 	fake.defaultBackendRTMPMutex.RLock()
 	defer fake.defaultBackendRTMPMutex.RUnlock()
 	return len(fake.defaultBackendRTMPArgsForCall)
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTMPCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) DefaultBackendRTMPCalls(stub func() string) {
 	fake.defaultBackendRTMPMutex.Lock()
 	defer fake.defaultBackendRTMPMutex.Unlock()
 	fake.DefaultBackendRTMPStub = stub
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTMPReturns(result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendRTMPReturns(result1 string) {
 	fake.defaultBackendRTMPMutex.Lock()
 	defer fake.defaultBackendRTMPMutex.Unlock()
 	fake.DefaultBackendRTMPStub = nil
@@ -535,7 +535,7 @@ func (fake *FakeEnvironment) DefaultBackendRTMPReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendRTMPReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendRTMPReturnsOnCall(i int, result1 string) {
 	fake.defaultBackendRTMPMutex.Lock()
 	defer fake.defaultBackendRTMPMutex.Unlock()
 	fake.DefaultBackendRTMPStub = nil
@@ -549,7 +549,7 @@ func (fake *FakeEnvironment) DefaultBackendRTMPReturnsOnCall(i int, result1 stri
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendSRT() string {
+func (fake *FakeProxyEnvironment) DefaultBackendSRT() string {
 	fake.defaultBackendSRTMutex.Lock()
 	ret, specificReturn := fake.defaultBackendSRTReturnsOnCall[len(fake.defaultBackendSRTArgsForCall)]
 	fake.defaultBackendSRTArgsForCall = append(fake.defaultBackendSRTArgsForCall, struct {
@@ -567,19 +567,19 @@ func (fake *FakeEnvironment) DefaultBackendSRT() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) DefaultBackendSRTCallCount() int {
+func (fake *FakeProxyEnvironment) DefaultBackendSRTCallCount() int {
 	fake.defaultBackendSRTMutex.RLock()
 	defer fake.defaultBackendSRTMutex.RUnlock()
 	return len(fake.defaultBackendSRTArgsForCall)
 }
 
-func (fake *FakeEnvironment) DefaultBackendSRTCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) DefaultBackendSRTCalls(stub func() string) {
 	fake.defaultBackendSRTMutex.Lock()
 	defer fake.defaultBackendSRTMutex.Unlock()
 	fake.DefaultBackendSRTStub = stub
 }
 
-func (fake *FakeEnvironment) DefaultBackendSRTReturns(result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendSRTReturns(result1 string) {
 	fake.defaultBackendSRTMutex.Lock()
 	defer fake.defaultBackendSRTMutex.Unlock()
 	fake.DefaultBackendSRTStub = nil
@@ -588,7 +588,7 @@ func (fake *FakeEnvironment) DefaultBackendSRTReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) DefaultBackendSRTReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) DefaultBackendSRTReturnsOnCall(i int, result1 string) {
 	fake.defaultBackendSRTMutex.Lock()
 	defer fake.defaultBackendSRTMutex.Unlock()
 	fake.DefaultBackendSRTStub = nil
@@ -602,7 +602,7 @@ func (fake *FakeEnvironment) DefaultBackendSRTReturnsOnCall(i int, result1 strin
 	}{result1}
 }
 
-func (fake *FakeEnvironment) ForceQuitTimeout() string {
+func (fake *FakeProxyEnvironment) ForceQuitTimeout() string {
 	fake.forceQuitTimeoutMutex.Lock()
 	ret, specificReturn := fake.forceQuitTimeoutReturnsOnCall[len(fake.forceQuitTimeoutArgsForCall)]
 	fake.forceQuitTimeoutArgsForCall = append(fake.forceQuitTimeoutArgsForCall, struct {
@@ -620,19 +620,19 @@ func (fake *FakeEnvironment) ForceQuitTimeout() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) ForceQuitTimeoutCallCount() int {
+func (fake *FakeProxyEnvironment) ForceQuitTimeoutCallCount() int {
 	fake.forceQuitTimeoutMutex.RLock()
 	defer fake.forceQuitTimeoutMutex.RUnlock()
 	return len(fake.forceQuitTimeoutArgsForCall)
 }
 
-func (fake *FakeEnvironment) ForceQuitTimeoutCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) ForceQuitTimeoutCalls(stub func() string) {
 	fake.forceQuitTimeoutMutex.Lock()
 	defer fake.forceQuitTimeoutMutex.Unlock()
 	fake.ForceQuitTimeoutStub = stub
 }
 
-func (fake *FakeEnvironment) ForceQuitTimeoutReturns(result1 string) {
+func (fake *FakeProxyEnvironment) ForceQuitTimeoutReturns(result1 string) {
 	fake.forceQuitTimeoutMutex.Lock()
 	defer fake.forceQuitTimeoutMutex.Unlock()
 	fake.ForceQuitTimeoutStub = nil
@@ -641,7 +641,7 @@ func (fake *FakeEnvironment) ForceQuitTimeoutReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) ForceQuitTimeoutReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) ForceQuitTimeoutReturnsOnCall(i int, result1 string) {
 	fake.forceQuitTimeoutMutex.Lock()
 	defer fake.forceQuitTimeoutMutex.Unlock()
 	fake.ForceQuitTimeoutStub = nil
@@ -655,7 +655,7 @@ func (fake *FakeEnvironment) ForceQuitTimeoutReturnsOnCall(i int, result1 string
 	}{result1}
 }
 
-func (fake *FakeEnvironment) GoPprof() string {
+func (fake *FakeProxyEnvironment) GoPprof() string {
 	fake.goPprofMutex.Lock()
 	ret, specificReturn := fake.goPprofReturnsOnCall[len(fake.goPprofArgsForCall)]
 	fake.goPprofArgsForCall = append(fake.goPprofArgsForCall, struct {
@@ -673,19 +673,19 @@ func (fake *FakeEnvironment) GoPprof() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) GoPprofCallCount() int {
+func (fake *FakeProxyEnvironment) GoPprofCallCount() int {
 	fake.goPprofMutex.RLock()
 	defer fake.goPprofMutex.RUnlock()
 	return len(fake.goPprofArgsForCall)
 }
 
-func (fake *FakeEnvironment) GoPprofCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) GoPprofCalls(stub func() string) {
 	fake.goPprofMutex.Lock()
 	defer fake.goPprofMutex.Unlock()
 	fake.GoPprofStub = stub
 }
 
-func (fake *FakeEnvironment) GoPprofReturns(result1 string) {
+func (fake *FakeProxyEnvironment) GoPprofReturns(result1 string) {
 	fake.goPprofMutex.Lock()
 	defer fake.goPprofMutex.Unlock()
 	fake.GoPprofStub = nil
@@ -694,7 +694,7 @@ func (fake *FakeEnvironment) GoPprofReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) GoPprofReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) GoPprofReturnsOnCall(i int, result1 string) {
 	fake.goPprofMutex.Lock()
 	defer fake.goPprofMutex.Unlock()
 	fake.GoPprofStub = nil
@@ -708,7 +708,7 @@ func (fake *FakeEnvironment) GoPprofReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) GraceQuitTimeout() string {
+func (fake *FakeProxyEnvironment) GraceQuitTimeout() string {
 	fake.graceQuitTimeoutMutex.Lock()
 	ret, specificReturn := fake.graceQuitTimeoutReturnsOnCall[len(fake.graceQuitTimeoutArgsForCall)]
 	fake.graceQuitTimeoutArgsForCall = append(fake.graceQuitTimeoutArgsForCall, struct {
@@ -726,19 +726,19 @@ func (fake *FakeEnvironment) GraceQuitTimeout() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) GraceQuitTimeoutCallCount() int {
+func (fake *FakeProxyEnvironment) GraceQuitTimeoutCallCount() int {
 	fake.graceQuitTimeoutMutex.RLock()
 	defer fake.graceQuitTimeoutMutex.RUnlock()
 	return len(fake.graceQuitTimeoutArgsForCall)
 }
 
-func (fake *FakeEnvironment) GraceQuitTimeoutCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) GraceQuitTimeoutCalls(stub func() string) {
 	fake.graceQuitTimeoutMutex.Lock()
 	defer fake.graceQuitTimeoutMutex.Unlock()
 	fake.GraceQuitTimeoutStub = stub
 }
 
-func (fake *FakeEnvironment) GraceQuitTimeoutReturns(result1 string) {
+func (fake *FakeProxyEnvironment) GraceQuitTimeoutReturns(result1 string) {
 	fake.graceQuitTimeoutMutex.Lock()
 	defer fake.graceQuitTimeoutMutex.Unlock()
 	fake.GraceQuitTimeoutStub = nil
@@ -747,7 +747,7 @@ func (fake *FakeEnvironment) GraceQuitTimeoutReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) GraceQuitTimeoutReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) GraceQuitTimeoutReturnsOnCall(i int, result1 string) {
 	fake.graceQuitTimeoutMutex.Lock()
 	defer fake.graceQuitTimeoutMutex.Unlock()
 	fake.GraceQuitTimeoutStub = nil
@@ -761,7 +761,7 @@ func (fake *FakeEnvironment) GraceQuitTimeoutReturnsOnCall(i int, result1 string
 	}{result1}
 }
 
-func (fake *FakeEnvironment) HttpAPI() string {
+func (fake *FakeProxyEnvironment) HttpAPI() string {
 	fake.httpAPIMutex.Lock()
 	ret, specificReturn := fake.httpAPIReturnsOnCall[len(fake.httpAPIArgsForCall)]
 	fake.httpAPIArgsForCall = append(fake.httpAPIArgsForCall, struct {
@@ -779,19 +779,19 @@ func (fake *FakeEnvironment) HttpAPI() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) HttpAPICallCount() int {
+func (fake *FakeProxyEnvironment) HttpAPICallCount() int {
 	fake.httpAPIMutex.RLock()
 	defer fake.httpAPIMutex.RUnlock()
 	return len(fake.httpAPIArgsForCall)
 }
 
-func (fake *FakeEnvironment) HttpAPICalls(stub func() string) {
+func (fake *FakeProxyEnvironment) HttpAPICalls(stub func() string) {
 	fake.httpAPIMutex.Lock()
 	defer fake.httpAPIMutex.Unlock()
 	fake.HttpAPIStub = stub
 }
 
-func (fake *FakeEnvironment) HttpAPIReturns(result1 string) {
+func (fake *FakeProxyEnvironment) HttpAPIReturns(result1 string) {
 	fake.httpAPIMutex.Lock()
 	defer fake.httpAPIMutex.Unlock()
 	fake.HttpAPIStub = nil
@@ -800,7 +800,7 @@ func (fake *FakeEnvironment) HttpAPIReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) HttpAPIReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) HttpAPIReturnsOnCall(i int, result1 string) {
 	fake.httpAPIMutex.Lock()
 	defer fake.httpAPIMutex.Unlock()
 	fake.HttpAPIStub = nil
@@ -814,7 +814,7 @@ func (fake *FakeEnvironment) HttpAPIReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) HttpServer() string {
+func (fake *FakeProxyEnvironment) HttpServer() string {
 	fake.httpServerMutex.Lock()
 	ret, specificReturn := fake.httpServerReturnsOnCall[len(fake.httpServerArgsForCall)]
 	fake.httpServerArgsForCall = append(fake.httpServerArgsForCall, struct {
@@ -832,19 +832,19 @@ func (fake *FakeEnvironment) HttpServer() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) HttpServerCallCount() int {
+func (fake *FakeProxyEnvironment) HttpServerCallCount() int {
 	fake.httpServerMutex.RLock()
 	defer fake.httpServerMutex.RUnlock()
 	return len(fake.httpServerArgsForCall)
 }
 
-func (fake *FakeEnvironment) HttpServerCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) HttpServerCalls(stub func() string) {
 	fake.httpServerMutex.Lock()
 	defer fake.httpServerMutex.Unlock()
 	fake.HttpServerStub = stub
 }
 
-func (fake *FakeEnvironment) HttpServerReturns(result1 string) {
+func (fake *FakeProxyEnvironment) HttpServerReturns(result1 string) {
 	fake.httpServerMutex.Lock()
 	defer fake.httpServerMutex.Unlock()
 	fake.HttpServerStub = nil
@@ -853,7 +853,7 @@ func (fake *FakeEnvironment) HttpServerReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) HttpServerReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) HttpServerReturnsOnCall(i int, result1 string) {
 	fake.httpServerMutex.Lock()
 	defer fake.httpServerMutex.Unlock()
 	fake.HttpServerStub = nil
@@ -867,7 +867,7 @@ func (fake *FakeEnvironment) HttpServerReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) LoadBalancerType() string {
+func (fake *FakeProxyEnvironment) LoadBalancerType() string {
 	fake.loadBalancerTypeMutex.Lock()
 	ret, specificReturn := fake.loadBalancerTypeReturnsOnCall[len(fake.loadBalancerTypeArgsForCall)]
 	fake.loadBalancerTypeArgsForCall = append(fake.loadBalancerTypeArgsForCall, struct {
@@ -885,19 +885,19 @@ func (fake *FakeEnvironment) LoadBalancerType() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) LoadBalancerTypeCallCount() int {
+func (fake *FakeProxyEnvironment) LoadBalancerTypeCallCount() int {
 	fake.loadBalancerTypeMutex.RLock()
 	defer fake.loadBalancerTypeMutex.RUnlock()
 	return len(fake.loadBalancerTypeArgsForCall)
 }
 
-func (fake *FakeEnvironment) LoadBalancerTypeCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) LoadBalancerTypeCalls(stub func() string) {
 	fake.loadBalancerTypeMutex.Lock()
 	defer fake.loadBalancerTypeMutex.Unlock()
 	fake.LoadBalancerTypeStub = stub
 }
 
-func (fake *FakeEnvironment) LoadBalancerTypeReturns(result1 string) {
+func (fake *FakeProxyEnvironment) LoadBalancerTypeReturns(result1 string) {
 	fake.loadBalancerTypeMutex.Lock()
 	defer fake.loadBalancerTypeMutex.Unlock()
 	fake.LoadBalancerTypeStub = nil
@@ -906,7 +906,7 @@ func (fake *FakeEnvironment) LoadBalancerTypeReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) LoadBalancerTypeReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) LoadBalancerTypeReturnsOnCall(i int, result1 string) {
 	fake.loadBalancerTypeMutex.Lock()
 	defer fake.loadBalancerTypeMutex.Unlock()
 	fake.LoadBalancerTypeStub = nil
@@ -920,7 +920,7 @@ func (fake *FakeEnvironment) LoadBalancerTypeReturnsOnCall(i int, result1 string
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RedisDB() string {
+func (fake *FakeProxyEnvironment) RedisDB() string {
 	fake.redisDBMutex.Lock()
 	ret, specificReturn := fake.redisDBReturnsOnCall[len(fake.redisDBArgsForCall)]
 	fake.redisDBArgsForCall = append(fake.redisDBArgsForCall, struct {
@@ -938,19 +938,19 @@ func (fake *FakeEnvironment) RedisDB() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) RedisDBCallCount() int {
+func (fake *FakeProxyEnvironment) RedisDBCallCount() int {
 	fake.redisDBMutex.RLock()
 	defer fake.redisDBMutex.RUnlock()
 	return len(fake.redisDBArgsForCall)
 }
 
-func (fake *FakeEnvironment) RedisDBCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) RedisDBCalls(stub func() string) {
 	fake.redisDBMutex.Lock()
 	defer fake.redisDBMutex.Unlock()
 	fake.RedisDBStub = stub
 }
 
-func (fake *FakeEnvironment) RedisDBReturns(result1 string) {
+func (fake *FakeProxyEnvironment) RedisDBReturns(result1 string) {
 	fake.redisDBMutex.Lock()
 	defer fake.redisDBMutex.Unlock()
 	fake.RedisDBStub = nil
@@ -959,7 +959,7 @@ func (fake *FakeEnvironment) RedisDBReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RedisDBReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) RedisDBReturnsOnCall(i int, result1 string) {
 	fake.redisDBMutex.Lock()
 	defer fake.redisDBMutex.Unlock()
 	fake.RedisDBStub = nil
@@ -973,7 +973,7 @@ func (fake *FakeEnvironment) RedisDBReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RedisHost() string {
+func (fake *FakeProxyEnvironment) RedisHost() string {
 	fake.redisHostMutex.Lock()
 	ret, specificReturn := fake.redisHostReturnsOnCall[len(fake.redisHostArgsForCall)]
 	fake.redisHostArgsForCall = append(fake.redisHostArgsForCall, struct {
@@ -991,19 +991,19 @@ func (fake *FakeEnvironment) RedisHost() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) RedisHostCallCount() int {
+func (fake *FakeProxyEnvironment) RedisHostCallCount() int {
 	fake.redisHostMutex.RLock()
 	defer fake.redisHostMutex.RUnlock()
 	return len(fake.redisHostArgsForCall)
 }
 
-func (fake *FakeEnvironment) RedisHostCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) RedisHostCalls(stub func() string) {
 	fake.redisHostMutex.Lock()
 	defer fake.redisHostMutex.Unlock()
 	fake.RedisHostStub = stub
 }
 
-func (fake *FakeEnvironment) RedisHostReturns(result1 string) {
+func (fake *FakeProxyEnvironment) RedisHostReturns(result1 string) {
 	fake.redisHostMutex.Lock()
 	defer fake.redisHostMutex.Unlock()
 	fake.RedisHostStub = nil
@@ -1012,7 +1012,7 @@ func (fake *FakeEnvironment) RedisHostReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RedisHostReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) RedisHostReturnsOnCall(i int, result1 string) {
 	fake.redisHostMutex.Lock()
 	defer fake.redisHostMutex.Unlock()
 	fake.RedisHostStub = nil
@@ -1026,7 +1026,7 @@ func (fake *FakeEnvironment) RedisHostReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RedisPassword() string {
+func (fake *FakeProxyEnvironment) RedisPassword() string {
 	fake.redisPasswordMutex.Lock()
 	ret, specificReturn := fake.redisPasswordReturnsOnCall[len(fake.redisPasswordArgsForCall)]
 	fake.redisPasswordArgsForCall = append(fake.redisPasswordArgsForCall, struct {
@@ -1044,19 +1044,19 @@ func (fake *FakeEnvironment) RedisPassword() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) RedisPasswordCallCount() int {
+func (fake *FakeProxyEnvironment) RedisPasswordCallCount() int {
 	fake.redisPasswordMutex.RLock()
 	defer fake.redisPasswordMutex.RUnlock()
 	return len(fake.redisPasswordArgsForCall)
 }
 
-func (fake *FakeEnvironment) RedisPasswordCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) RedisPasswordCalls(stub func() string) {
 	fake.redisPasswordMutex.Lock()
 	defer fake.redisPasswordMutex.Unlock()
 	fake.RedisPasswordStub = stub
 }
 
-func (fake *FakeEnvironment) RedisPasswordReturns(result1 string) {
+func (fake *FakeProxyEnvironment) RedisPasswordReturns(result1 string) {
 	fake.redisPasswordMutex.Lock()
 	defer fake.redisPasswordMutex.Unlock()
 	fake.RedisPasswordStub = nil
@@ -1065,7 +1065,7 @@ func (fake *FakeEnvironment) RedisPasswordReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RedisPasswordReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) RedisPasswordReturnsOnCall(i int, result1 string) {
 	fake.redisPasswordMutex.Lock()
 	defer fake.redisPasswordMutex.Unlock()
 	fake.RedisPasswordStub = nil
@@ -1079,7 +1079,7 @@ func (fake *FakeEnvironment) RedisPasswordReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RedisPort() string {
+func (fake *FakeProxyEnvironment) RedisPort() string {
 	fake.redisPortMutex.Lock()
 	ret, specificReturn := fake.redisPortReturnsOnCall[len(fake.redisPortArgsForCall)]
 	fake.redisPortArgsForCall = append(fake.redisPortArgsForCall, struct {
@@ -1097,19 +1097,19 @@ func (fake *FakeEnvironment) RedisPort() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) RedisPortCallCount() int {
+func (fake *FakeProxyEnvironment) RedisPortCallCount() int {
 	fake.redisPortMutex.RLock()
 	defer fake.redisPortMutex.RUnlock()
 	return len(fake.redisPortArgsForCall)
 }
 
-func (fake *FakeEnvironment) RedisPortCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) RedisPortCalls(stub func() string) {
 	fake.redisPortMutex.Lock()
 	defer fake.redisPortMutex.Unlock()
 	fake.RedisPortStub = stub
 }
 
-func (fake *FakeEnvironment) RedisPortReturns(result1 string) {
+func (fake *FakeProxyEnvironment) RedisPortReturns(result1 string) {
 	fake.redisPortMutex.Lock()
 	defer fake.redisPortMutex.Unlock()
 	fake.RedisPortStub = nil
@@ -1118,7 +1118,7 @@ func (fake *FakeEnvironment) RedisPortReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RedisPortReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) RedisPortReturnsOnCall(i int, result1 string) {
 	fake.redisPortMutex.Lock()
 	defer fake.redisPortMutex.Unlock()
 	fake.RedisPortStub = nil
@@ -1132,7 +1132,7 @@ func (fake *FakeEnvironment) RedisPortReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RtmpServer() string {
+func (fake *FakeProxyEnvironment) RtmpServer() string {
 	fake.rtmpServerMutex.Lock()
 	ret, specificReturn := fake.rtmpServerReturnsOnCall[len(fake.rtmpServerArgsForCall)]
 	fake.rtmpServerArgsForCall = append(fake.rtmpServerArgsForCall, struct {
@@ -1150,19 +1150,19 @@ func (fake *FakeEnvironment) RtmpServer() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) RtmpServerCallCount() int {
+func (fake *FakeProxyEnvironment) RtmpServerCallCount() int {
 	fake.rtmpServerMutex.RLock()
 	defer fake.rtmpServerMutex.RUnlock()
 	return len(fake.rtmpServerArgsForCall)
 }
 
-func (fake *FakeEnvironment) RtmpServerCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) RtmpServerCalls(stub func() string) {
 	fake.rtmpServerMutex.Lock()
 	defer fake.rtmpServerMutex.Unlock()
 	fake.RtmpServerStub = stub
 }
 
-func (fake *FakeEnvironment) RtmpServerReturns(result1 string) {
+func (fake *FakeProxyEnvironment) RtmpServerReturns(result1 string) {
 	fake.rtmpServerMutex.Lock()
 	defer fake.rtmpServerMutex.Unlock()
 	fake.RtmpServerStub = nil
@@ -1171,7 +1171,7 @@ func (fake *FakeEnvironment) RtmpServerReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) RtmpServerReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) RtmpServerReturnsOnCall(i int, result1 string) {
 	fake.rtmpServerMutex.Lock()
 	defer fake.rtmpServerMutex.Unlock()
 	fake.RtmpServerStub = nil
@@ -1185,7 +1185,7 @@ func (fake *FakeEnvironment) RtmpServerReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) SRTServer() string {
+func (fake *FakeProxyEnvironment) SRTServer() string {
 	fake.sRTServerMutex.Lock()
 	ret, specificReturn := fake.sRTServerReturnsOnCall[len(fake.sRTServerArgsForCall)]
 	fake.sRTServerArgsForCall = append(fake.sRTServerArgsForCall, struct {
@@ -1203,19 +1203,19 @@ func (fake *FakeEnvironment) SRTServer() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) SRTServerCallCount() int {
+func (fake *FakeProxyEnvironment) SRTServerCallCount() int {
 	fake.sRTServerMutex.RLock()
 	defer fake.sRTServerMutex.RUnlock()
 	return len(fake.sRTServerArgsForCall)
 }
 
-func (fake *FakeEnvironment) SRTServerCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) SRTServerCalls(stub func() string) {
 	fake.sRTServerMutex.Lock()
 	defer fake.sRTServerMutex.Unlock()
 	fake.SRTServerStub = stub
 }
 
-func (fake *FakeEnvironment) SRTServerReturns(result1 string) {
+func (fake *FakeProxyEnvironment) SRTServerReturns(result1 string) {
 	fake.sRTServerMutex.Lock()
 	defer fake.sRTServerMutex.Unlock()
 	fake.SRTServerStub = nil
@@ -1224,7 +1224,7 @@ func (fake *FakeEnvironment) SRTServerReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) SRTServerReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) SRTServerReturnsOnCall(i int, result1 string) {
 	fake.sRTServerMutex.Lock()
 	defer fake.sRTServerMutex.Unlock()
 	fake.SRTServerStub = nil
@@ -1238,7 +1238,7 @@ func (fake *FakeEnvironment) SRTServerReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) StaticFiles() string {
+func (fake *FakeProxyEnvironment) StaticFiles() string {
 	fake.staticFilesMutex.Lock()
 	ret, specificReturn := fake.staticFilesReturnsOnCall[len(fake.staticFilesArgsForCall)]
 	fake.staticFilesArgsForCall = append(fake.staticFilesArgsForCall, struct {
@@ -1256,19 +1256,19 @@ func (fake *FakeEnvironment) StaticFiles() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) StaticFilesCallCount() int {
+func (fake *FakeProxyEnvironment) StaticFilesCallCount() int {
 	fake.staticFilesMutex.RLock()
 	defer fake.staticFilesMutex.RUnlock()
 	return len(fake.staticFilesArgsForCall)
 }
 
-func (fake *FakeEnvironment) StaticFilesCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) StaticFilesCalls(stub func() string) {
 	fake.staticFilesMutex.Lock()
 	defer fake.staticFilesMutex.Unlock()
 	fake.StaticFilesStub = stub
 }
 
-func (fake *FakeEnvironment) StaticFilesReturns(result1 string) {
+func (fake *FakeProxyEnvironment) StaticFilesReturns(result1 string) {
 	fake.staticFilesMutex.Lock()
 	defer fake.staticFilesMutex.Unlock()
 	fake.StaticFilesStub = nil
@@ -1277,7 +1277,7 @@ func (fake *FakeEnvironment) StaticFilesReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) StaticFilesReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) StaticFilesReturnsOnCall(i int, result1 string) {
 	fake.staticFilesMutex.Lock()
 	defer fake.staticFilesMutex.Unlock()
 	fake.StaticFilesStub = nil
@@ -1291,7 +1291,7 @@ func (fake *FakeEnvironment) StaticFilesReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) SystemAPI() string {
+func (fake *FakeProxyEnvironment) SystemAPI() string {
 	fake.systemAPIMutex.Lock()
 	ret, specificReturn := fake.systemAPIReturnsOnCall[len(fake.systemAPIArgsForCall)]
 	fake.systemAPIArgsForCall = append(fake.systemAPIArgsForCall, struct {
@@ -1309,19 +1309,19 @@ func (fake *FakeEnvironment) SystemAPI() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) SystemAPICallCount() int {
+func (fake *FakeProxyEnvironment) SystemAPICallCount() int {
 	fake.systemAPIMutex.RLock()
 	defer fake.systemAPIMutex.RUnlock()
 	return len(fake.systemAPIArgsForCall)
 }
 
-func (fake *FakeEnvironment) SystemAPICalls(stub func() string) {
+func (fake *FakeProxyEnvironment) SystemAPICalls(stub func() string) {
 	fake.systemAPIMutex.Lock()
 	defer fake.systemAPIMutex.Unlock()
 	fake.SystemAPIStub = stub
 }
 
-func (fake *FakeEnvironment) SystemAPIReturns(result1 string) {
+func (fake *FakeProxyEnvironment) SystemAPIReturns(result1 string) {
 	fake.systemAPIMutex.Lock()
 	defer fake.systemAPIMutex.Unlock()
 	fake.SystemAPIStub = nil
@@ -1330,7 +1330,7 @@ func (fake *FakeEnvironment) SystemAPIReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) SystemAPIReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) SystemAPIReturnsOnCall(i int, result1 string) {
 	fake.systemAPIMutex.Lock()
 	defer fake.systemAPIMutex.Unlock()
 	fake.SystemAPIStub = nil
@@ -1344,7 +1344,7 @@ func (fake *FakeEnvironment) SystemAPIReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) WebRTCServer() string {
+func (fake *FakeProxyEnvironment) WebRTCServer() string {
 	fake.webRTCServerMutex.Lock()
 	ret, specificReturn := fake.webRTCServerReturnsOnCall[len(fake.webRTCServerArgsForCall)]
 	fake.webRTCServerArgsForCall = append(fake.webRTCServerArgsForCall, struct {
@@ -1362,19 +1362,19 @@ func (fake *FakeEnvironment) WebRTCServer() string {
 	return fakeReturns.result1
 }
 
-func (fake *FakeEnvironment) WebRTCServerCallCount() int {
+func (fake *FakeProxyEnvironment) WebRTCServerCallCount() int {
 	fake.webRTCServerMutex.RLock()
 	defer fake.webRTCServerMutex.RUnlock()
 	return len(fake.webRTCServerArgsForCall)
 }
 
-func (fake *FakeEnvironment) WebRTCServerCalls(stub func() string) {
+func (fake *FakeProxyEnvironment) WebRTCServerCalls(stub func() string) {
 	fake.webRTCServerMutex.Lock()
 	defer fake.webRTCServerMutex.Unlock()
 	fake.WebRTCServerStub = stub
 }
 
-func (fake *FakeEnvironment) WebRTCServerReturns(result1 string) {
+func (fake *FakeProxyEnvironment) WebRTCServerReturns(result1 string) {
 	fake.webRTCServerMutex.Lock()
 	defer fake.webRTCServerMutex.Unlock()
 	fake.WebRTCServerStub = nil
@@ -1383,7 +1383,7 @@ func (fake *FakeEnvironment) WebRTCServerReturns(result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) WebRTCServerReturnsOnCall(i int, result1 string) {
+func (fake *FakeProxyEnvironment) WebRTCServerReturnsOnCall(i int, result1 string) {
 	fake.webRTCServerMutex.Lock()
 	defer fake.webRTCServerMutex.Unlock()
 	fake.WebRTCServerStub = nil
@@ -1397,7 +1397,7 @@ func (fake *FakeEnvironment) WebRTCServerReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeEnvironment) Invocations() map[string][][]interface{} {
+func (fake *FakeProxyEnvironment) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
@@ -1407,7 +1407,7 @@ func (fake *FakeEnvironment) Invocations() map[string][][]interface{} {
 	return copiedInvocations
 }
 
-func (fake *FakeEnvironment) recordInvocation(key string, args []interface{}) {
+func (fake *FakeProxyEnvironment) recordInvocation(key string, args []interface{}) {
 	fake.invocationsMutex.Lock()
 	defer fake.invocationsMutex.Unlock()
 	if fake.invocations == nil {
@@ -1419,4 +1419,4 @@ func (fake *FakeEnvironment) recordInvocation(key string, args []interface{}) {
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
 
-var _ env.Environment = new(FakeEnvironment)
+var _ env.ProxyEnvironment = new(FakeProxyEnvironment)

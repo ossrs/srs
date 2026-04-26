@@ -102,7 +102,7 @@ func TestInstallSignals_HandlesRepeatedSignals(t *testing.T) {
 }
 
 func TestInstallForceQuit_InvalidDurationReturnsError(t *testing.T) {
-	fakeEnv := &envfakes.FakeEnvironment{}
+	fakeEnv := &envfakes.FakeProxyEnvironment{}
 	fakeEnv.ForceQuitTimeoutReturns("not-a-duration")
 
 	err := InstallForceQuit(t.Context(), fakeEnv)
@@ -121,7 +121,7 @@ func TestInstallForceQuit_ExitsAfterTimeout(t *testing.T) {
 	called, done, restore := swapExit(t)
 	defer restore()
 
-	fakeEnv := &envfakes.FakeEnvironment{}
+	fakeEnv := &envfakes.FakeProxyEnvironment{}
 	fakeEnv.ForceQuitTimeoutReturns("1ms")
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -149,7 +149,7 @@ func TestInstallForceQuit_WaitsForCancelBeforeSleeping(t *testing.T) {
 	called, done, restore := swapExit(t)
 	defer restore()
 
-	fakeEnv := &envfakes.FakeEnvironment{}
+	fakeEnv := &envfakes.FakeProxyEnvironment{}
 	fakeEnv.ForceQuitTimeoutReturns("10ms")
 
 	// Intentionally use a never-canceled context and leak the goroutine:

@@ -18,7 +18,7 @@ import (
 // MemoryLoadBalancer stores state in memory.
 type MemoryLoadBalancer struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// All available SRS servers, key is server ID.
 	servers sync.Map[string, *SRSServer]
 	// The picked server to service client by specified stream URL, key is stream url.
@@ -34,7 +34,7 @@ type MemoryLoadBalancer struct {
 }
 
 // NewMemoryLoadBalancer creates a new memory-based load balancer.
-func NewMemoryLoadBalancer(environment env.Environment) SRSLoadBalancer {
+func NewMemoryLoadBalancer(environment env.ProxyEnvironment) SRSLoadBalancer {
 	return &MemoryLoadBalancer{
 		environment:  environment,
 		servers:      sync.NewMap[string, *SRSServer](),

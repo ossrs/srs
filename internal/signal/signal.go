@@ -33,7 +33,7 @@ func InstallSignals(ctx context.Context, cancel context.CancelFunc) {
 	}()
 }
 
-func InstallForceQuit(ctx context.Context, environment env.Environment) error {
+func InstallForceQuit(ctx context.Context, environment env.ProxyEnvironment) error {
 	var forceTimeout time.Duration
 	timeoutStr := environment.ForceQuitTimeout()
 	if t, err := time.ParseDuration(timeoutStr); err != nil {

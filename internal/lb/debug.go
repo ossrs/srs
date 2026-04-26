@@ -13,7 +13,7 @@ import (
 )
 
 // NewDefaultSRSForDebugging initialize the default SRS media server, for debugging only.
-func NewDefaultSRSForDebugging(environment env.Environment) (*SRSServer, error) {
+func NewDefaultSRSForDebugging(environment env.ProxyEnvironment) (*SRSServer, error) {
 	if environment.DefaultBackendEnabled() != "on" {
 		return nil, nil
 	}

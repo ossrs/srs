@@ -28,7 +28,7 @@ import (
 // the request to the origin server.
 type srsHTTPStreamServer struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// The underlayer HTTP server.
 	server *http.Server
 	// The gracefully quit timeout, wait server to quit.
@@ -37,7 +37,7 @@ type srsHTTPStreamServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewSRSHTTPStreamServer(environment env.Environment, gracefulQuitTimeout time.Duration) *srsHTTPStreamServer {
+func NewSRSHTTPStreamServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) *srsHTTPStreamServer {
 	v := &srsHTTPStreamServer{
 		environment:         environment,
 		gracefulQuitTimeout: gracefulQuitTimeout,

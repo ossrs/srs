@@ -26,7 +26,7 @@ import (
 // backend server.
 type srsSRTServer struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// The UDP listener for SRT server.
 	listener *net.UDPConn
 
@@ -39,7 +39,7 @@ type srsSRTServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewSRSSRTServer(environment env.Environment, opts ...func(*srsSRTServer)) *srsSRTServer {
+func NewSRSSRTServer(environment env.ProxyEnvironment, opts ...func(*srsSRTServer)) *srsSRTServer {
 	v := &srsSRTServer{
 		environment: environment,
 		start:       time.Now(),

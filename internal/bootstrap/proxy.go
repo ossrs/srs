@@ -50,7 +50,7 @@ func (b *proxyBootstrap) Start(ctx context.Context) error {
 // It blocks until the context is cancelled.
 func (b *proxyBootstrap) run(ctx context.Context) error {
 	// Setup the environment variables.
-	environment, err := env.NewEnvironment(ctx)
+	environment, err := env.NewProxyEnvironment(ctx)
 	if err != nil {
 		return errors.Wrapf(err, "create environment")
 	}
@@ -81,7 +81,7 @@ func (b *proxyBootstrap) run(ctx context.Context) error {
 }
 
 // initializeLoadBalancer sets up the load balancer based on configuration.
-func (b *proxyBootstrap) initializeLoadBalancer(ctx context.Context, environment env.Environment) error {
+func (b *proxyBootstrap) initializeLoadBalancer(ctx context.Context, environment env.ProxyEnvironment) error {
 	switch environment.LoadBalancerType() {
 	case "redis":
 		lb.SrsLoadBalancer = lb.NewRedisLoadBalancer(environment)
@@ -97,7 +97,7 @@ func (b *proxyBootstrap) initializeLoadBalancer(ctx context.Context, environment
 }
 
 // startServers initializes and starts all protocol servers.
-func (b *proxyBootstrap) startServers(ctx context.Context, environment env.Environment, gracefulQuitTimeout time.Duration) error {
+func (b *proxyBootstrap) startServers(ctx context.Context, environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) error {
 	// Start the RTMP server.
 	srsRTMPServer := protocol.NewSRSRTMPServer(environment)
 	if err := srsRTMPServer.Run(ctx); err != nil {
