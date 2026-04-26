@@ -58,8 +58,11 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 
 - **Never `git add`** — William stages files himself
 - **Never `git push`** — William pushes himself
-- **Commit workflow:** `git diff --cached` → understand the changes → write title/description → `git commit -m "OpenClaw: ..."` or `"Claude: ..."`
-- Title prefix: `OpenClaw:` or `Claude:`
+- **Commit workflow:** `git diff --cached` → understand the changes → write title/description → choose the title prefix based on the tool used → `git commit -m "OpenClaw: ..."`, `"Claude: ..."`, or `"Codex: ..."`
+- Title prefix:
+  - Use `OpenClaw:` if OpenClaw made the changes.
+  - Use `Claude:` if Claude made the changes.
+  - Use `Codex:` if Codex made the changes.
 - **Co-author for ACP Claude Code:** If Claude Code (ACP) was used to make the changes, add:
   `Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>`
 - **Co-author for ACP Codex:** If Codex (ACP) was used to make the changes, add:
