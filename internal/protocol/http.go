@@ -64,7 +64,7 @@ func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
 	// Create server and handler.
 	mux := http.NewServeMux()
 	v.server = &http.Server{Addr: addr, Handler: mux}
-	logger.Df(ctx, "HTTP Stream server listen at %v", addr)
+	logger.Debug(ctx, "HTTP Stream server listen at %v", addr)
 
 	// Shutdown the server gracefully when quiting.
 	go func() {
@@ -78,7 +78,7 @@ func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
 	}()
 
 	// The basic version handler, also can be used as health check API.
-	logger.Df(ctx, "Handle /api/v1/versions by %v", addr)
+	logger.Debug(ctx, "Handle /api/v1/versions by %v", addr)
 	mux.HandleFunc("/api/v1/versions", func(w http.ResponseWriter, r *http.Request) {
 		type Response struct {
 			Code int    `json:"code"`
@@ -108,11 +108,11 @@ func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
 		}
 
 		staticServer = http.FileServer(http.Dir(staticFiles))
-		logger.Df(ctx, "Handle static files at %v", staticFiles)
+		logger.Debug(ctx, "Handle static files at %v", staticFiles)
 	}
 
 	// The default handler, for both static web server and streaming server.
-	logger.Df(ctx, "Handle / by %v", addr)
+	logger.Debug(ctx, "Handle / by %v", addr)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// For HLS streaming, we will proxy the request to the streaming server.
 		if strings.HasSuffix(r.URL.Path, ".m3u8") {
@@ -169,12 +169,12 @@ func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
 		err := v.server.ListenAndServe()
 		if err != nil {
 			if err == http.ErrServerClosed {
-				logger.Df(ctx, "HTTP Stream server done")
+				logger.Debug(ctx, "HTTP Stream server done")
 			} else if ctx.Err() != nil {
-				logger.Df(ctx, "HTTP Stream server done with context canceled")
+				logger.Debug(ctx, "HTTP Stream server done with context canceled")
 			} else {
 				// TODO: If HTTP Stream server closed unexpectedly, we should notice the main loop to quit.
-				logger.Wf(ctx, "HTTP Stream accept err %+v", err)
+				logger.Warn(ctx, "HTTP Stream accept err %+v", err)
 			}
 		}
 	}()
@@ -208,7 +208,7 @@ func (v *HTTPFlvTsConnection) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	if err := v.serve(ctx, w, r); err != nil {
 		utils.ApiError(ctx, w, r, err)
 	} else {
-		logger.Df(ctx, "HTTP client done")
+		logger.Debug(ctx, "HTTP client done")
 	}
 }
 
@@ -220,7 +220,7 @@ func (v *HTTPFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, 
 
 	// Build the stream URL in vhost/app/stream schema.
 	unifiedURL, fullURL := utils.ConvertURLToStreamURL(r)
-	logger.Df(ctx, "Got HTTP client from %v for %v", r.RemoteAddr, fullURL)
+	logger.Debug(ctx, "Got HTTP client from %v for %v", r.RemoteAddr, fullURL)
 
 	streamURL, err := utils.BuildStreamURL(unifiedURL)
 	if err != nil {
@@ -278,7 +278,7 @@ func (v *HTTPFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 		}
 	}
 
-	logger.Df(ctx, "HTTP start streaming")
+	logger.Debug(ctx, "HTTP start streaming")
 
 	// Proxy the stream from backend to client.
 	if _, err := io.Copy(w, resp.Body); err != nil {
@@ -332,7 +332,7 @@ func (v *HLSPlayStream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := v.serve(v.ctx, w, r); err != nil {
 		utils.ApiError(v.ctx, w, r, err)
 	} else {
-		logger.Df(v.ctx, "HLS client %v for %v with %v done",
+		logger.Debug(v.ctx, "HLS client %v for %v with %v done",
 			v.SRSProxyBackendHLSID, v.StreamURL, r.URL.Path)
 	}
 }

@@ -65,12 +65,12 @@ func (v *MemoryLoadBalancer) Initialize(ctx context.Context) error {
 					return
 				case <-time.After(30 * time.Second):
 					if err := v.Update(ctx, server); err != nil {
-						logger.Wf(ctx, "update default SRS %+v failed, %+v", server, err)
+						logger.Warn(ctx, "update default SRS %+v failed, %+v", server, err)
 					}
 				}
 			}
 		}()
-		logger.Df(ctx, "MemoryLB: Initialize default SRS media server, %+v", server)
+		logger.Debug(ctx, "MemoryLB: Initialize default SRS media server, %+v", server)
 	}
 	return nil
 }

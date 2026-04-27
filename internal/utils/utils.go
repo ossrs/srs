@@ -40,7 +40,7 @@ func ApiResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, da
 }
 
 func ApiError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	logger.Wf(ctx, "HTTP API error %+v", err)
+	logger.Warn(ctx, "HTTP API error %+v", err)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprintf(w, "%v\n", err)

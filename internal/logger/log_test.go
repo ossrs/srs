@@ -10,7 +10,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -31,39 +30,15 @@ func bufLoggerPlus(w io.Writer, level slog.Level) *loggerPlus {
 	})
 }
 
-func TestLevelLabel_Known(t *testing.T) {
-	cases := map[slog.Level]string{
-		levelVerb:  "verb",
-		levelDebug: "debug",
-		levelWarn:  "warn",
-		levelError: "error",
-	}
-	for lvl, want := range cases {
-		if got := levelLabel(lvl); got != want {
-			t.Errorf("levelLabel(%v) = %q, want %q", lvl, got, want)
-		}
-	}
-}
-
-func TestLevelLabel_UnknownFallsBackToString(t *testing.T) {
-	got := levelLabel(slog.Level(99))
-	if got == "" {
-		t.Fatalf("levelLabel(99) returned empty")
-	}
-	if got == "verb" || got == "debug" || got == "warn" || got == "error" {
-		t.Fatalf("levelLabel(99) = %q, want slog.Level.String() form", got)
-	}
-}
-
-func TestPrintf_EmitsAllFields(t *testing.T) {
+func TestLog_EmitsAllFields(t *testing.T) {
 	var buf bytes.Buffer
-	lp := bufLoggerPlus(&buf, levelDebug)
+	lp := bufLoggerPlus(&buf, slog.LevelDebug)
 	ctx := withContextID(context.Background(), "abc1234")
-	lp.Printf(ctx, "hello %s %d", "world", 42)
+	lp.Log(ctx, "hello %s %d", "world", 42)
 
 	m := decodeLine(t, buf.Bytes())
-	if m["level"] != "debug" {
-		t.Errorf("level = %v, want debug", m["level"])
+	if m["level"] != "DEBUG" {
+		t.Errorf("level = %v, want DEBUG", m["level"])
 	}
 	if m["msg"] != "hello world 42" {
 		t.Errorf("msg = %v, want %q", m["msg"], "hello world 42")
@@ -76,40 +51,56 @@ func TestPrintf_EmitsAllFields(t *testing.T) {
 		t.Errorf("pid = %v, want %d", m["pid"], os.Getpid())
 	}
 	ts, ok := m["time"].(string)
-	if !ok || !strings.HasSuffix(ts, "Z") {
-		t.Errorf("time = %v, want UTC suffix Z", m["time"])
+	if !ok {
+		t.Fatalf("time = %v, want string", m["time"])
 	}
 	if _, err := time.Parse(time.RFC3339Nano, ts); err != nil {
 		t.Errorf("time %q not RFC3339Nano: %v", ts, err)
 	}
 }
 
-func TestPrintf_OmitsCIDWhenAbsent(t *testing.T) {
+func TestLog_OmitsCIDWhenAbsent(t *testing.T) {
 	var buf bytes.Buffer
-	bufLoggerPlus(&buf, levelWarn).Printf(context.Background(), "no cid here")
+	bufLoggerPlus(&buf, slog.LevelWarn).Log(context.Background(), "no cid here")
 
 	m := decodeLine(t, buf.Bytes())
 	if v, present := m["cid"]; present {
 		t.Errorf("cid should be absent, got %v", v)
 	}
-	if m["level"] != "warn" {
-		t.Errorf("level = %v, want warn", m["level"])
+	if m["level"] != "WARN" {
+		t.Errorf("level = %v, want WARN", m["level"])
 	}
 }
 
-func TestPrintf_AllLevelsMapToLabel(t *testing.T) {
+func TestLog_EmitsStructuredArgs(t *testing.T) {
+	var buf bytes.Buffer
+	bufLoggerPlus(&buf, slog.LevelInfo).Log(context.Background(), "hello", "stream", "live/livestream", "retry", 2)
+
+	m := decodeLine(t, buf.Bytes())
+	if m["msg"] != "hello" {
+		t.Errorf("msg = %v, want hello", m["msg"])
+	}
+	if m["stream"] != "live/livestream" {
+		t.Errorf("stream = %v, want live/livestream", m["stream"])
+	}
+	if retry, ok := m["retry"].(float64); !ok || retry != 2 {
+		t.Errorf("retry = %v, want 2", m["retry"])
+	}
+}
+
+func TestLog_AllLevelsMapToLabel(t *testing.T) {
 	cases := []struct {
 		level slog.Level
 		label string
 	}{
-		{levelVerb, "verb"},
-		{levelDebug, "debug"},
-		{levelWarn, "warn"},
-		{levelError, "error"},
+		{slog.LevelInfo, "INFO"},
+		{slog.LevelDebug, "DEBUG"},
+		{slog.LevelWarn, "WARN"},
+		{slog.LevelError, "ERROR"},
 	}
 	for _, tc := range cases {
 		var buf bytes.Buffer
-		bufLoggerPlus(&buf, tc.level).Printf(context.Background(), "hi")
+		bufLoggerPlus(&buf, tc.level).Log(context.Background(), "hi")
 		m := decodeLine(t, buf.Bytes())
 		if m["level"] != tc.label {
 			t.Errorf("level(%v) rendered as %v, want %q", tc.level, m["level"], tc.label)
@@ -120,7 +111,7 @@ func TestPrintf_AllLevelsMapToLabel(t *testing.T) {
 func TestNewJSONLogger_GroupedAttrsPassThrough(t *testing.T) {
 	var buf bytes.Buffer
 	lg := newJSONLogger(&buf)
-	lg.LogAttrs(context.Background(), levelDebug, "grouped",
+	lg.LogAttrs(context.Background(), slog.LevelDebug, "grouped",
 		slog.Group("meta", slog.String("inner", "v")))
 
 	m := decodeLine(t, buf.Bytes())
@@ -134,22 +125,22 @@ func TestNewJSONLogger_GroupedAttrsPassThrough(t *testing.T) {
 }
 
 func TestPackageWrappers_RouteToRightLogger(t *testing.T) {
-	origV, origD, origW, origE := verboseLogger, debugLogger, warnLogger, errorLogger
+	origI, origD, origW, origE := infoLogger, debugLogger, warnLogger, errorLogger
 	t.Cleanup(func() {
-		verboseLogger, debugLogger, warnLogger, errorLogger = origV, origD, origW, origE
+		infoLogger, debugLogger, warnLogger, errorLogger = origI, origD, origW, origE
 	})
 
-	vBuf, dBuf, wBuf, eBuf := &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}
-	verboseLogger = bufLoggerPlus(vBuf, levelVerb)
-	debugLogger = bufLoggerPlus(dBuf, levelDebug)
-	warnLogger = bufLoggerPlus(wBuf, levelWarn)
-	errorLogger = bufLoggerPlus(eBuf, levelError)
+	iBuf, dBuf, wBuf, eBuf := &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}, &bytes.Buffer{}
+	infoLogger = bufLoggerPlus(iBuf, slog.LevelInfo)
+	debugLogger = bufLoggerPlus(dBuf, slog.LevelDebug)
+	warnLogger = bufLoggerPlus(wBuf, slog.LevelWarn)
+	errorLogger = bufLoggerPlus(eBuf, slog.LevelError)
 
 	ctx := context.Background()
-	Vf(ctx, "v=%d", 1)
-	Df(ctx, "d=%d", 2)
-	Wf(ctx, "w=%d", 3)
-	Ef(ctx, "e=%d", 4)
+	Info(ctx, "v=%d", 1)
+	Debug(ctx, "d=%d", 2)
+	Warn(ctx, "w=%d", 3)
+	Error(ctx, "e=%d", 4)
 
 	checks := []struct {
 		name  string
@@ -157,10 +148,10 @@ func TestPackageWrappers_RouteToRightLogger(t *testing.T) {
 		label string
 		msg   string
 	}{
-		{"Vf", vBuf, "verb", "v=1"},
-		{"Df", dBuf, "debug", "d=2"},
-		{"Wf", wBuf, "warn", "w=3"},
-		{"Ef", eBuf, "error", "e=4"},
+		{"Info", iBuf, "INFO", "v=1"},
+		{"Debug", dBuf, "DEBUG", "d=2"},
+		{"Warn", wBuf, "WARN", "w=3"},
+		{"Error", eBuf, "ERROR", "e=4"},
 	}
 	for _, c := range checks {
 		m := decodeLine(t, c.buf.Bytes())

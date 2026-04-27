@@ -29,7 +29,7 @@ type proxyBootstrap struct{}
 // Returns any error encountered during startup.
 func (b *proxyBootstrap) Start(ctx context.Context) error {
 	ctx = logger.WithContext(ctx)
-	logger.Df(ctx, "%v-Proxy/%v started", version.Signature(), version.Version())
+	logger.Debug(ctx, "%v-Proxy/%v started", version.Signature(), version.Version())
 
 	// Install signals.
 	ctx, cancel := context.WithCancel(ctx)
@@ -38,11 +38,11 @@ func (b *proxyBootstrap) Start(ctx context.Context) error {
 	// Run the main loop, ignore the user cancel error.
 	err := b.run(ctx)
 	if err != nil && ctx.Err() != context.Canceled {
-		logger.Ef(ctx, "main: %+v", err)
+		logger.Error(ctx, "main: %+v", err)
 		return err
 	}
 
-	logger.Df(ctx, "%v done", version.Signature())
+	logger.Debug(ctx, "%v done", version.Signature())
 	return nil
 }
 

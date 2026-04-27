@@ -63,7 +63,7 @@ func (v *srsHTTPAPIServer) Run(ctx context.Context) error {
 	// Create server and handler.
 	mux := http.NewServeMux()
 	v.server = &http.Server{Addr: addr, Handler: mux}
-	logger.Df(ctx, "HTTP API server listen at %v", addr)
+	logger.Debug(ctx, "HTTP API server listen at %v", addr)
 
 	// Shutdown the server gracefully when quiting.
 	go func() {
@@ -77,7 +77,7 @@ func (v *srsHTTPAPIServer) Run(ctx context.Context) error {
 	}()
 
 	// The basic version handler, also can be used as health check API.
-	logger.Df(ctx, "Handle /api/v1/versions by %v", addr)
+	logger.Debug(ctx, "Handle /api/v1/versions by %v", addr)
 	mux.HandleFunc("/api/v1/versions", func(w http.ResponseWriter, r *http.Request) {
 		utils.ApiResponse(ctx, w, r, map[string]string{
 			"signature": version.Signature(),
@@ -86,7 +86,7 @@ func (v *srsHTTPAPIServer) Run(ctx context.Context) error {
 	})
 
 	// The WebRTC WHIP API handler.
-	logger.Df(ctx, "Handle /rtc/v1/whip/ by %v", addr)
+	logger.Debug(ctx, "Handle /rtc/v1/whip/ by %v", addr)
 	mux.HandleFunc("/rtc/v1/whip/", func(w http.ResponseWriter, r *http.Request) {
 		if err := v.rtc.HandleApiForWHIP(ctx, w, r); err != nil {
 			utils.ApiError(ctx, w, r, err)
@@ -94,7 +94,7 @@ func (v *srsHTTPAPIServer) Run(ctx context.Context) error {
 	})
 
 	// The WebRTC WHEP API handler.
-	logger.Df(ctx, "Handle /rtc/v1/whep/ by %v", addr)
+	logger.Debug(ctx, "Handle /rtc/v1/whep/ by %v", addr)
 	mux.HandleFunc("/rtc/v1/whep/", func(w http.ResponseWriter, r *http.Request) {
 		if err := v.rtc.HandleApiForWHEP(ctx, w, r); err != nil {
 			utils.ApiError(ctx, w, r, err)
@@ -109,12 +109,12 @@ func (v *srsHTTPAPIServer) Run(ctx context.Context) error {
 		err := v.server.ListenAndServe()
 		if err != nil {
 			if err == http.ErrServerClosed {
-				logger.Df(ctx, "HTTP API server done")
+				logger.Debug(ctx, "HTTP API server done")
 			} else if ctx.Err() != nil {
-				logger.Df(ctx, "HTTP API server done with context canceled")
+				logger.Debug(ctx, "HTTP API server done with context canceled")
 			} else {
 				// TODO: If HTTP API server closed unexpectedly, we should notice the main loop to quit.
-				logger.Wf(ctx, "HTTP API accept err %+v", err)
+				logger.Warn(ctx, "HTTP API accept err %+v", err)
 			}
 		}
 	}()
@@ -163,7 +163,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 	// Create server and handler.
 	mux := http.NewServeMux()
 	v.server = &http.Server{Addr: addr, Handler: mux}
-	logger.Df(ctx, "System API server listen at %v", addr)
+	logger.Debug(ctx, "System API server listen at %v", addr)
 
 	// Shutdown the server gracefully when quiting.
 	go func() {
@@ -177,7 +177,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 	}()
 
 	// The basic version handler, also can be used as health check API.
-	logger.Df(ctx, "Handle /api/v1/versions by %v", addr)
+	logger.Debug(ctx, "Handle /api/v1/versions by %v", addr)
 	mux.HandleFunc("/api/v1/versions", func(w http.ResponseWriter, r *http.Request) {
 		utils.ApiResponse(ctx, w, r, map[string]string{
 			"signature": version.Signature(),
@@ -186,7 +186,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 	})
 
 	// The register service for SRS media servers.
-	logger.Df(ctx, "Handle /api/v1/srs/register by %v", addr)
+	logger.Debug(ctx, "Handle /api/v1/srs/register by %v", addr)
 	mux.HandleFunc("/api/v1/srs/register", func(w http.ResponseWriter, r *http.Request) {
 		if err := func() error {
 			var deviceID, ip, serverID, serviceID, pid string
@@ -247,7 +247,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 				return errors.Wrapf(err, "update SRS server %+v", server)
 			}
 
-			logger.Df(ctx, "Register SRS media server, %+v", server)
+			logger.Debug(ctx, "Register SRS media server, %+v", server)
 			return nil
 		}(); err != nil {
 			utils.ApiError(ctx, w, r, err)
@@ -271,12 +271,12 @@ func (v *systemAPI) Run(ctx context.Context) error {
 		err := v.server.ListenAndServe()
 		if err != nil {
 			if err == http.ErrServerClosed {
-				logger.Df(ctx, "System API server done")
+				logger.Debug(ctx, "System API server done")
 			} else if ctx.Err() != nil {
-				logger.Df(ctx, "System API server done with context canceled")
+				logger.Debug(ctx, "System API server done with context canceled")
 			} else {
 				// TODO: If System API server closed unexpectedly, we should notice the main loop to quit.
-				logger.Wf(ctx, "System API accept err %+v", err)
+				logger.Warn(ctx, "System API accept err %+v", err)
 			}
 		}
 	}()

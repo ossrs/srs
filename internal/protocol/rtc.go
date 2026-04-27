@@ -82,7 +82,7 @@ func (v *srsWebRTCServer) HandleApiForWHIP(ctx context.Context, w http.ResponseW
 
 	// Build the stream URL in vhost/app/stream schema.
 	unifiedURL, fullURL := utils.ConvertURLToStreamURL(r)
-	logger.Df(ctx, "Got WebRTC WHIP from %v with %vB offer for %v", r.RemoteAddr, len(remoteSDPOffer), fullURL)
+	logger.Debug(ctx, "Got WebRTC WHIP from %v with %vB offer for %v", r.RemoteAddr, len(remoteSDPOffer), fullURL)
 
 	streamURL, err := utils.BuildStreamURL(unifiedURL)
 	if err != nil {
@@ -119,7 +119,7 @@ func (v *srsWebRTCServer) HandleApiForWHEP(ctx context.Context, w http.ResponseW
 
 	// Build the stream URL in vhost/app/stream schema.
 	unifiedURL, fullURL := utils.ConvertURLToStreamURL(r)
-	logger.Df(ctx, "Got WebRTC WHEP from %v with %vB offer for %v", r.RemoteAddr, len(remoteSDPOffer), fullURL)
+	logger.Debug(ctx, "Got WebRTC WHEP from %v with %vB offer for %v", r.RemoteAddr, len(remoteSDPOffer), fullURL)
 
 	streamURL, err := utils.BuildStreamURL(unifiedURL)
 	if err != nil {
@@ -234,7 +234,7 @@ func (v *srsWebRTCServer) proxyApiToBackend(
 		return errors.Wrapf(err, "write local sdp answer %v", localSDPAnswer)
 	}
 
-	logger.Df(ctx, "Create WebRTC connection with local answer %vB with ice-ufrag=%v, ice-pwd=%vB",
+	logger.Debug(ctx, "Create WebRTC connection with local answer %vB with ice-ufrag=%v, ice-pwd=%vB",
 		len(localSDPAnswer), localICEUfrag, len(localICEPwd))
 	return nil
 }
@@ -256,7 +256,7 @@ func (v *srsWebRTCServer) Run(ctx context.Context) error {
 		return errors.Wrapf(err, "listen udp %v", saddr)
 	}
 	v.listener = listener
-	logger.Df(ctx, "WebRTC server listen at %v", saddr)
+	logger.Debug(ctx, "WebRTC server listen at %v", saddr)
 
 	// Consume all messages from UDP media transport.
 	v.wg.Add(1)
@@ -269,17 +269,17 @@ func (v *srsWebRTCServer) Run(ctx context.Context) error {
 			if err != nil {
 				// If context is canceled or connection is closed, exit gracefully without logging error.
 				if ctx.Err() != nil || utils.IsClosedNetworkError(err) {
-					logger.Df(ctx, "WebRTC server done")
+					logger.Debug(ctx, "WebRTC server done")
 					return
 				}
 				// TODO: If WebRTC server closed unexpectedly, we should notice the main loop to quit.
-				logger.Wf(ctx, "WebRTC read from udp failed, err=%+v", err)
+				logger.Warn(ctx, "WebRTC read from udp failed, err=%+v", err)
 				time.Sleep(1 * time.Second)
 				continue
 			}
 
 			if err := v.handleClientUDP(ctx, caddr, buf[:n]); err != nil {
-				logger.Wf(ctx, "WebRTC handle udp %vB failed, addr=%v, err=%+v", n, caddr, err)
+				logger.Warn(ctx, "WebRTC handle udp %vB failed, addr=%v, err=%+v", n, caddr, err)
 			}
 		}
 	}()
@@ -312,7 +312,7 @@ func (v *srsWebRTCServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr
 			return errors.Wrapf(err, "load webrtc by ufrag %v", pkt.Username)
 		} else {
 			connection = s.(*RTCConnection).Initialize(ctx, v.listener)
-			logger.Df(ctx, "Create WebRTC connection by ufrag=%v, stream=%v", pkt.Username, connection.StreamURL)
+			logger.Debug(ctx, "Create WebRTC connection by ufrag=%v, stream=%v", pkt.Username, connection.StreamURL)
 		}
 
 		// Cache connection for fast search.
@@ -418,13 +418,13 @@ func (v *RTCConnection) HandlePacket(addr *net.UDPAddr, data []byte) error {
 			n, _, err := v.backendUDP.ReadFromUDP(buf)
 			if err != nil {
 				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Wf(ctx, "read from backend failed, err=%v", err)
+				logger.Warn(ctx, "read from backend failed, err=%v", err)
 				break
 			}
 
 			if _, err = v.listenerUDP.WriteToUDP(buf[:n], v.clientUDP); err != nil {
 				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Wf(ctx, "write to client failed, err=%v", err)
+				logger.Warn(ctx, "write to client failed, err=%v", err)
 				break
 			}
 		}

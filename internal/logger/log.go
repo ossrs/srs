@@ -9,10 +9,13 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
+
+	"srsx/internal/version"
 )
 
 type logger interface {
-	Printf(ctx context.Context, format string, v ...any)
+	Log(ctx context.Context, msg string, args ...any)
 }
 
 type loggerPlus struct {
@@ -28,95 +31,73 @@ func newLoggerPlus(opts ...func(*loggerPlus)) *loggerPlus {
 	return v
 }
 
-func (v *loggerPlus) Printf(ctx context.Context, f string, a ...any) {
-	attrs := []slog.Attr{slog.Int("pid", os.Getpid())}
-	if cid := ContextID(ctx); cid != "" {
-		attrs = append(attrs, slog.String("cid", cid))
+func (v *loggerPlus) Log(ctx context.Context, msg string, args ...any) {
+	attrs := []any{
+		"pid", os.Getpid(),
+		"version", version.Version(),
 	}
-	v.logger.LogAttrs(ctx, v.level, fmt.Sprintf(f, a...), attrs...)
-}
 
-var verboseLogger logger
+	if cid := ContextID(ctx); cid != "" {
+		attrs = append(attrs, "cid", cid)
+	}
 
-func Vf(ctx context.Context, format string, a ...any) {
-	verboseLogger.Printf(ctx, format, a...)
+	// Keep compatibility with the old *f call sites while exposing the new
+	// slog-style API. New code should pass structured key/value args.
+	if len(args) > 0 && strings.Contains(msg, "%") {
+		msg = fmt.Sprintf(msg, args...)
+		args = nil
+	}
+	attrs = append(attrs, args...)
+	v.logger.Log(ctx, v.level, msg, attrs...)
 }
 
 var debugLogger logger
 
-func Df(ctx context.Context, format string, a ...any) {
-	debugLogger.Printf(ctx, format, a...)
+func Debug(ctx context.Context, msg string, args ...any) {
+	debugLogger.Log(ctx, msg, args...)
+}
+
+var infoLogger logger
+
+func Info(ctx context.Context, msg string, args ...any) {
+	infoLogger.Log(ctx, msg, args...)
 }
 
 var warnLogger logger
 
-func Wf(ctx context.Context, format string, a ...any) {
-	warnLogger.Printf(ctx, format, a...)
+func Warn(ctx context.Context, msg string, args ...any) {
+	warnLogger.Log(ctx, msg, args...)
 }
 
 var errorLogger logger
 
-func Ef(ctx context.Context, format string, a ...any) {
-	errorLogger.Printf(ctx, format, a...)
+func Error(ctx context.Context, msg string, args ...any) {
+	errorLogger.Log(ctx, msg, args...)
 }
 
-const (
-	levelVerb  slog.Level = slog.LevelDebug - 4
-	levelDebug slog.Level = slog.LevelDebug
-	levelWarn  slog.Level = slog.LevelWarn
-	levelError slog.Level = slog.LevelError
-)
-
-// newJSONLogger builds a slog.Logger that writes JSON records to w, renders the
-// time in UTC, and maps our custom levels to short lowercase labels.
+// newJSONLogger builds a slog.Logger that writes JSON records to w.
 func newJSONLogger(w io.Writer) *slog.Logger {
 	h := slog.NewJSONHandler(w, &slog.HandlerOptions{
-		Level: levelVerb,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if len(groups) != 0 {
-				return a
-			}
-			switch a.Key {
-			case slog.TimeKey:
-				return slog.Time(slog.TimeKey, a.Value.Time().UTC())
-			case slog.LevelKey:
-				return slog.String(slog.LevelKey, levelLabel(a.Value.Any().(slog.Level)))
-			}
-			return a
-		},
+		Level: slog.LevelDebug,
 	})
 	return slog.New(h)
 }
 
-func levelLabel(l slog.Level) string {
-	switch l {
-	case levelVerb:
-		return "verb"
-	case levelDebug:
-		return "debug"
-	case levelWarn:
-		return "warn"
-	case levelError:
-		return "error"
-	}
-	return l.String()
-}
-
 func init() {
-	verboseLogger = newLoggerPlus(func(l *loggerPlus) {
-		l.logger = newJSONLogger(io.Discard)
-		l.level = levelVerb
-	})
 	debugLogger = newLoggerPlus(func(l *loggerPlus) {
 		l.logger = newJSONLogger(os.Stdout)
-		l.level = levelDebug
+		l.level = slog.LevelDebug
+	})
+	infoLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(os.Stdout)
+		l.level = slog.LevelInfo
 	})
 	warnLogger = newLoggerPlus(func(l *loggerPlus) {
 		l.logger = newJSONLogger(os.Stderr)
-		l.level = levelWarn
+		l.level = slog.LevelWarn
 	})
 	errorLogger = newLoggerPlus(func(l *loggerPlus) {
 		l.logger = newJSONLogger(os.Stderr)
-		l.level = levelError
+		l.level = slog.LevelError
 	})
 }

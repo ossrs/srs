@@ -177,7 +177,7 @@ func loadEnvFile(ctx context.Context) error {
 	envMap, err := parseEnvFile(".env")
 	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Df(ctx, "no .env file found, skipping")
+			logger.Debug(ctx, "no .env file found, skipping")
 			return nil
 		}
 		return errors.Wrapf(err, "load .env file")
@@ -190,7 +190,7 @@ func loadEnvFile(ctx context.Context) error {
 		}
 	}
 
-	logger.Df(ctx, "successfully loaded .env file")
+	logger.Debug(ctx, "successfully loaded .env file")
 	return nil
 }
 
@@ -315,7 +315,7 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	// Default backend udp srt port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_SRT", "10080")
 
-	logger.Df(ctx, "load .env as GO_PPROF=%v, "+
+	logger.Debug(ctx, "load .env as GO_PPROF=%v, "+
 		"PROXY_FORCE_QUIT_TIMEOUT=%v, PROXY_GRACE_QUIT_TIMEOUT=%v, "+
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
 		"PROXY_WEBRTC_SERVER=%v, PROXY_SRT_SERVER=%v, "+

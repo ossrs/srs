@@ -78,7 +78,7 @@ func (v *srsSRTServer) Run(ctx context.Context) error {
 		return errors.Wrapf(err, "listen udp %v", saddr)
 	}
 	v.listener = listener
-	logger.Df(ctx, "SRT server listen at %v", saddr)
+	logger.Debug(ctx, "SRT server listen at %v", saddr)
 
 	// Consume all messages from UDP media transport.
 	v.wg.Add(1)
@@ -91,17 +91,17 @@ func (v *srsSRTServer) Run(ctx context.Context) error {
 			if err != nil {
 				// If context is canceled or connection is closed, exit gracefully without logging error.
 				if ctx.Err() != nil || utils.IsClosedNetworkError(err) {
-					logger.Df(ctx, "SRT server done")
+					logger.Debug(ctx, "SRT server done")
 					return
 				}
 				// TODO: If SRT server closed unexpectedly, we should notice the main loop to quit.
-				logger.Wf(ctx, "SRT read from udp failed, err=%+v", err)
+				logger.Warn(ctx, "SRT read from udp failed, err=%+v", err)
 				time.Sleep(1 * time.Second)
 				continue
 			}
 
 			if err := v.handleClientUDP(ctx, caddr, buf[:n]); err != nil {
-				logger.Wf(ctx, "SRT handle udp %vB failed, addr=%v, err=%+v", n, caddr, err)
+				logger.Warn(ctx, "SRT handle udp %vB failed, addr=%v, err=%+v", n, caddr, err)
 			}
 		}
 	}()
@@ -132,7 +132,7 @@ func (v *srsSRTServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, d
 
 	ctx = conn.ctx
 	if !ok {
-		logger.Df(ctx, "Create new SRT connection skt=%v", socketID)
+		logger.Debug(ctx, "Create new SRT connection skt=%v", socketID)
 	}
 
 	if newSocketID, err := conn.HandlePacket(pkt, addr, data); err != nil {
@@ -213,7 +213,7 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 	if pkt.SynCookie == 0 {
 		// Save handshake 0 packet.
 		v.handshake0 = pkt
-		logger.Df(ctx, "SRT Handshake 0: %v", v.handshake0)
+		logger.Debug(ctx, "SRT Handshake 0: %v", v.handshake0)
 
 		// Response handshake 1.
 		v.handshake1 = &SRTHandshakePacket{
@@ -234,7 +234,7 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 			SynCookie:       0x418d5e4e,
 			PeerIP:          net.ParseIP("127.0.0.1"),
 		}
-		logger.Df(ctx, "SRT Handshake 1: %v", v.handshake1)
+		logger.Debug(ctx, "SRT Handshake 1: %v", v.handshake1)
 
 		if b, err := v.handshake1.MarshalBinary(); err != nil {
 			return errors.Wrapf(err, "marshal handshake 1")
@@ -254,7 +254,7 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 
 	// Save handshake packet.
 	v.handshake2 = pkt
-	logger.Df(ctx, "SRT Handshake 2: %v, sid=%v", v.handshake2, streamID)
+	logger.Debug(ctx, "SRT Handshake 2: %v, sid=%v", v.handshake2, streamID)
 
 	// Start the UDP proxy to backend.
 	if err := v.connectBackend(ctx, streamID); err != nil {
@@ -272,7 +272,7 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 	} else if _, err = v.backendUDP.Write(b); err != nil {
 		return errors.Wrapf(err, "write handshake 0")
 	}
-	logger.Df(ctx, "Proxy send handshake 0: %v", v.handshake0)
+	logger.Debug(ctx, "Proxy send handshake 0: %v", v.handshake0)
 
 	// Read handshake 1 from backend server.
 	b := make([]byte, 4096)
@@ -282,7 +282,7 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 	} else if err := handshake1p.UnmarshalBinary(b[:nn]); err != nil {
 		return errors.Wrapf(err, "unmarshal handshake 1")
 	}
-	logger.Df(ctx, "Proxy got handshake 1: %v", handshake1p)
+	logger.Debug(ctx, "Proxy got handshake 1: %v", handshake1p)
 
 	// Proxy handshake 2 to backend server.
 	handshake2p := *v.handshake2
@@ -292,7 +292,7 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 	} else if _, err = v.backendUDP.Write(b); err != nil {
 		return errors.Wrapf(err, "write handshake 2")
 	}
-	logger.Df(ctx, "Proxy send handshake 2: %v", handshake2p)
+	logger.Debug(ctx, "Proxy send handshake 2: %v", handshake2p)
 
 	// Read handshake 3 from backend server.
 	handshake3p := &SRTHandshakePacket{}
@@ -301,13 +301,13 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 	} else if err := handshake3p.UnmarshalBinary(b[:nn]); err != nil {
 		return errors.Wrapf(err, "unmarshal handshake 3")
 	}
-	logger.Df(ctx, "Proxy got handshake 3: %v", handshake3p)
+	logger.Debug(ctx, "Proxy got handshake 3: %v", handshake3p)
 
 	// Response handshake 3 to client.
 	v.handshake3 = &*handshake3p
 	v.handshake3.SynCookie = v.handshake1.SynCookie
 	v.socketID = handshake3p.SRTSocketID
-	logger.Df(ctx, "Handshake 3: %v", v.handshake3)
+	logger.Debug(ctx, "Handshake 3: %v", v.handshake3)
 
 	if b, err := v.handshake3.MarshalBinary(); err != nil {
 		return errors.Wrapf(err, "marshal handshake 3")
@@ -322,12 +322,12 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 			nn, err := v.backendUDP.Read(b)
 			if err != nil {
 				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Wf(ctx, "read from backend failed, err=%v", err)
+				logger.Warn(ctx, "read from backend failed, err=%v", err)
 				return
 			}
 			if _, err = v.listenerUDP.WriteToUDP(b[:nn], addr); err != nil {
 				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Wf(ctx, "write to client failed, err=%v", err)
+				logger.Warn(ctx, "write to client failed, err=%v", err)
 				return
 			}
 		}

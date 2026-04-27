@@ -14,7 +14,7 @@ import (
 func HandleGoPprof(ctx context.Context, environment env.ProxyEnvironment) {
 	if addr := environment.GoPprof(); addr != "" {
 		go func() {
-			logger.Df(ctx, "Start Go pprof at %v", addr)
+			logger.Debug(ctx, "Start Go pprof at %v", addr)
 			http.ListenAndServe(addr, nil)
 		}()
 	}

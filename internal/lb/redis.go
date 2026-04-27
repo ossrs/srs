@@ -50,7 +50,7 @@ func (v *RedisLoadBalancer) Initialize(ctx context.Context) error {
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return errors.Wrapf(err, "unable to connect to redis %v", rdb.String())
 	}
-	logger.Df(ctx, "RedisLB: connected to redis %v ok", rdb.String())
+	logger.Debug(ctx, "RedisLB: connected to redis %v ok", rdb.String())
 
 	server, err := NewDefaultSRSForDebugging(v.environment)
 	if err != nil {
@@ -70,12 +70,12 @@ func (v *RedisLoadBalancer) Initialize(ctx context.Context) error {
 					return
 				case <-time.After(30 * time.Second):
 					if err := v.Update(ctx, server); err != nil {
-						logger.Wf(ctx, "update default SRS %+v failed, %+v", server, err)
+						logger.Warn(ctx, "update default SRS %+v failed, %+v", server, err)
 					}
 				}
 			}
 		}()
-		logger.Df(ctx, "RedisLB: Initialize default SRS media server, %+v", server)
+		logger.Debug(ctx, "RedisLB: Initialize default SRS media server, %+v", server)
 	}
 	return nil
 }

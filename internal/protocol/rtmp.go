@@ -65,7 +65,7 @@ func (v *srsRTMPServer) Run(ctx context.Context) error {
 		return errors.Wrapf(err, "listen rtmp addr %v", addr)
 	}
 	v.listener = listener
-	logger.Df(ctx, "RTMP server listen at %v", addr)
+	logger.Debug(ctx, "RTMP server listen at %v", addr)
 
 	v.wg.Add(1)
 	go func() {
@@ -76,10 +76,10 @@ func (v *srsRTMPServer) Run(ctx context.Context) error {
 			if err != nil {
 				// If context is canceled or connection is closed, exit gracefully without logging error.
 				if ctx.Err() != nil || utils.IsClosedNetworkError(err) {
-					logger.Df(ctx, "RTMP server done")
+					logger.Debug(ctx, "RTMP server done")
 				} else {
 					// TODO: If RTMP server closed unexpectedly, we should notice the main loop to quit.
-					logger.Wf(ctx, "RTMP server accept err %+v", err)
+					logger.Warn(ctx, "RTMP server accept err %+v", err)
 				}
 				return
 			}
@@ -91,9 +91,9 @@ func (v *srsRTMPServer) Run(ctx context.Context) error {
 
 				handleErr := func(err error) {
 					if utils.IsPeerClosedError(err) || utils.IsClosedNetworkError(err) {
-						logger.Df(ctx, "RTMP connection closed")
+						logger.Debug(ctx, "RTMP connection closed")
 					} else {
-						logger.Wf(ctx, "RTMP serve err %+v", err)
+						logger.Warn(ctx, "RTMP serve err %+v", err)
 					}
 				}
 
@@ -101,7 +101,7 @@ func (v *srsRTMPServer) Run(ctx context.Context) error {
 				if err := rc.serve(ctx, conn); err != nil {
 					handleErr(err)
 				} else {
-					logger.Df(ctx, "RTMP client done")
+					logger.Debug(ctx, "RTMP client done")
 				}
 			}(logger.WithContext(ctx), conn)
 		}
@@ -128,7 +128,7 @@ func NewRTMPConnection(opts ...func(*RTMPConnection)) *RTMPConnection {
 }
 
 func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
-	logger.Df(ctx, "Got RTMP client from %v", conn.RemoteAddr())
+	logger.Debug(ctx, "Got RTMP client from %v", conn.RemoteAddr())
 
 	// If any goroutine quit, cancel another one.
 	parentCtx := ctx
@@ -168,7 +168,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 	}
 
 	client := rtmp.NewProtocol(conn)
-	logger.Df(ctx, "RTMP simple handshake done")
+	logger.Debug(ctx, "RTMP simple handshake done")
 
 	// Expect RTMP connect command with tcUrl.
 	var connectReq *rtmp.ConnectAppPacket
@@ -209,7 +209,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 	}
 
 	tcUrl := connectReq.TcUrl()
-	logger.Df(ctx, "RTMP connect app %v", tcUrl)
+	logger.Debug(ctx, "RTMP connect app %v", tcUrl)
 
 	// Expect RTMP command to identify the client, a publisher or viewer.
 	var currentStreamID, nextStreamID int
@@ -285,7 +285,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 		// Update the stream ID for next request.
 		currentStreamID = nextStreamID
 	}
-	logger.Df(ctx, "RTMP identify tcUrl=%v, stream=%v, id=%v, type=%v",
+	logger.Debug(ctx, "RTMP identify tcUrl=%v, stream=%v, id=%v, type=%v",
 		tcUrl, streamName, currentStreamID, clientType)
 
 	// Find a backend SRS server to proxy the RTMP stream.
@@ -333,7 +333,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 			return errors.Wrapf(err, "start play")
 		}
 	}
-	logger.Df(ctx, "RTMP start streaming")
+	logger.Debug(ctx, "RTMP start streaming")
 
 	// For all proxy goroutines.
 	var wg sync.WaitGroup
@@ -352,7 +352,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 				if err != nil {
 					return errors.Wrapf(err, "read message")
 				}
-				//logger.Df(ctx, "client<- %v %v %vB", m.MessageType, m.Timestamp, len(m.Payload))
+				//logger.Debug(ctx, "client<- %v %v %vB", m.MessageType, m.Timestamp, len(m.Payload))
 
 				// TODO: Update the stream ID if not the same.
 				if err := client.WriteMessage(ctx, m); err != nil {
@@ -375,7 +375,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 				if err != nil {
 					return errors.Wrapf(err, "read message")
 				}
-				//logger.Df(ctx, "client-> %v %v %vB", m.MessageType, m.Timestamp, len(m.Payload))
+				//logger.Debug(ctx, "client-> %v %v %vB", m.MessageType, m.Timestamp, len(m.Payload))
 
 				// TODO: Update the stream ID if not the same.
 				if err := backend.client.WriteMessage(ctx, m); err != nil {
@@ -392,7 +392,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 	if r0 != nil {
 		// If backend connection closed normally, treat as normal disconnection
 		if utils.IsClosedNetworkError(r0) || utils.IsPeerClosedError(r0) {
-			logger.Df(ctx, "RTMP backend disconnected")
+			logger.Debug(ctx, "RTMP backend disconnected")
 			return nil
 		}
 		return errors.Wrapf(r0, "proxy backend->client")
@@ -400,7 +400,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 	if r1 != nil {
 		// If client connection closed normally, treat as normal disconnection
 		if utils.IsClosedNetworkError(r1) || utils.IsPeerClosedError(r1) {
-			logger.Df(ctx, "RTMP client disconnected")
+			logger.Debug(ctx, "RTMP client disconnected")
 			return nil
 		}
 		return errors.Wrapf(r1, "proxy client->backend")
@@ -495,7 +495,7 @@ func (v *RTMPClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 	if _, err = hs.ReadC2S2(c); err != nil {
 		return errors.Wrapf(err, "read c2")
 	}
-	logger.Df(ctx, "backend simple handshake done, server=%v", addr)
+	logger.Debug(ctx, "backend simple handshake done, server=%v", addr)
 
 	if err := hs.WriteC2S2(c, hs.C1S1()); err != nil {
 		return errors.Wrapf(err, "write c2")
@@ -515,7 +515,7 @@ func (v *RTMPClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 		if _, err := rtmp.ExpectPacket(ctx, client, &connectAppRes); err != nil {
 			return errors.Wrapf(err, "expect connect app res")
 		}
-		logger.Df(ctx, "backend connect RTMP app, tcUrl=%v, id=%v", tcUrl, connectAppRes.SrsID())
+		logger.Debug(ctx, "backend connect RTMP app, tcUrl=%v, id=%v", tcUrl, connectAppRes.SrsID())
 	}
 
 	// Play or view RTMP stream with server.
@@ -615,7 +615,7 @@ func (v *RTMPClientToBackend) publish(ctx context.Context, client *rtmp.Protocol
 			break
 		}
 	}
-	logger.Df(ctx, "backend publish stream=%v, sid=%v", streamName, currentStreamID)
+	logger.Debug(ctx, "backend publish stream=%v, sid=%v", streamName, currentStreamID)
 
 	return nil
 }
