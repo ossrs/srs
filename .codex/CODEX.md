@@ -1,16 +1,18 @@
-# Claude Workspace Instructions
+# Workspace Instructions
 
-Before doing any work in this repository, read these files in full:
+Keep the current working directory unchanged. For workspace instructions and workspace-owned files, look for files and folders under `.codex/`.
 
-- `IDENTITY.md`
-- `MEMORY.md`
-- `SOUL.md`
-- `TOOLS.md`
-- `USER.md`
+Before doing any work in this repository, read these files in full from `.codex/`:
+
+- `.codex/IDENTITY.md`
+- `.codex/MEMORY.md`
+- `.codex/SOUL.md`
+- `.codex/TOOLS.md`
+- `.codex/USER.md`
 
 Use them as the workspace context for identity, user preferences, memory, local tools, and operating conventions.
 
-Additional workspace folders:
+Additional `.codex/` workspace folders:
 
-- `skills/` — skills available for tasks in this repository.
-- `memory/` — persisted notes and references for this workspace.
+- `.codex/skills/` — skills available for tasks in this repository.
+- `.codex/memory/` — persisted notes and references for this workspace.
