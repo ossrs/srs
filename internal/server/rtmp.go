@@ -229,7 +229,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 				response = identifyRes
 
 				nextStreamID = 1
-				identifyRes.StreamID = *rtmp.NewAmf0Number(float64(nextStreamID))
+				identifyRes.SetStreamID(nextStreamID)
 			} else if pkt.CommandName == "getStreamLength" {
 				// Ignore and do not reply these packets.
 			} else {
@@ -243,7 +243,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 				identifyRes.Args = rtmp.NewAmf0Undefined()
 			}
 		case *rtmp.PublishPacket:
-			streamName = string(pkt.StreamName)
+			streamName = pkt.StreamName.String()
 			clientType = RTMPClientTypePublisher
 
 			identifyRes := rtmp.NewCallPacket()
@@ -257,7 +257,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 			data.Set("description", rtmp.NewAmf0String("Started publishing stream."))
 			identifyRes.Args = data
 		case *rtmp.PlayPacket:
-			streamName = string(pkt.StreamName)
+			streamName = pkt.StreamName.String()
 			clientType = RTMPClientTypeViewer
 
 			identifyRes := rtmp.NewCallPacket()
@@ -352,7 +352,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 				if err != nil {
 					return errors.Wrapf(err, "read message")
 				}
-				//logger.Debug(ctx, "client<- %v %v %vB", m.MessageType, m.Timestamp, len(m.Payload))
+				//logger.Debug(ctx, "client<- %v %v %vB", m.MessageType(), m.Timestamp(), len(m.Payload()))
 
 				// TODO: Update the stream ID if not the same.
 				if err := client.WriteMessage(ctx, m); err != nil {
@@ -375,7 +375,7 @@ func (v *RTMPConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 				if err != nil {
 					return errors.Wrapf(err, "read message")
 				}
-				//logger.Debug(ctx, "client-> %v %v %vB", m.MessageType, m.Timestamp, len(m.Payload))
+				//logger.Debug(ctx, "client-> %v %v %vB", m.MessageType(), m.Timestamp(), len(m.Payload()))
 
 				// TODO: Update the stream ID if not the same.
 				if err := backend.client.WriteMessage(ctx, m); err != nil {
@@ -421,7 +421,7 @@ type RTMPClientToBackend struct {
 	// The underlayer tcp client.
 	tcpConn *net.TCPConn
 	// The RTMP protocol client.
-	client *rtmp.Protocol
+	client rtmp.Protocol
 	// The stream type.
 	typ RTMPClientType
 }
@@ -527,7 +527,7 @@ func (v *RTMPClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 	return v.publish(ctx, client, streamName)
 }
 
-func (v *RTMPClientToBackend) publish(ctx context.Context, client *rtmp.Protocol, streamName string) error {
+func (v *RTMPClientToBackend) publish(ctx context.Context, client rtmp.Protocol, streamName string) error {
 	if true {
 		identifyReq := rtmp.NewCallPacket()
 		identifyReq.CommandName = "releaseStream"
@@ -592,8 +592,8 @@ func (v *RTMPClientToBackend) publish(ctx context.Context, client *rtmp.Protocol
 		publishStream := rtmp.NewPublishPacket()
 		publishStream.TransactionID = 5
 		publishStream.CommandObject = rtmp.NewAmf0Null()
-		publishStream.StreamName = *rtmp.NewAmf0String(streamName)
-		publishStream.StreamType = *rtmp.NewAmf0String("live")
+		publishStream.StreamName = rtmp.NewAmf0String(streamName)
+		publishStream.StreamType = rtmp.NewAmf0String("live")
 		if err := client.WritePacket(ctx, publishStream, currentStreamID); err != nil {
 			return errors.Wrapf(err, "publish")
 		}
@@ -609,8 +609,8 @@ func (v *RTMPClientToBackend) publish(ctx context.Context, client *rtmp.Protocol
 				return errors.Errorf("onStatus args not object")
 			} else if code := rtmp.NewAmf0Converter(data.Get("code")).ToString(); code == nil {
 				return errors.Errorf("onStatus code not string")
-			} else if *code != "NetStream.Publish.Start" {
-				return errors.Errorf("onStatus code=%v not NetStream.Publish.Start", *code)
+			} else if code.String() != "NetStream.Publish.Start" {
+				return errors.Errorf("onStatus code=%v not NetStream.Publish.Start", code.String())
 			}
 			break
 		}
@@ -620,7 +620,7 @@ func (v *RTMPClientToBackend) publish(ctx context.Context, client *rtmp.Protocol
 	return nil
 }
 
-func (v *RTMPClientToBackend) play(ctx context.Context, client *rtmp.Protocol, streamName string) error {
+func (v *RTMPClientToBackend) play(ctx context.Context, client rtmp.Protocol, streamName string) error {
 	var currentStreamID int
 	if true {
 		createStream := rtmp.NewCreateStreamPacket()
@@ -642,7 +642,7 @@ func (v *RTMPClientToBackend) play(ctx context.Context, client *rtmp.Protocol, s
 	}
 
 	playStream := rtmp.NewPlayPacket()
-	playStream.StreamName = *rtmp.NewAmf0String(streamName)
+	playStream.StreamName = rtmp.NewAmf0String(streamName)
 	if err := client.WritePacket(ctx, playStream, currentStreamID); err != nil {
 		return errors.Wrapf(err, "play")
 	}

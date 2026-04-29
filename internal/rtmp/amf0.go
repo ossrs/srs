@@ -95,7 +95,7 @@ var createBuffer = func() amf0Buffer {
 }
 
 // All AMF0 things.
-type amf0Any interface {
+type Amf0Any interface {
 	// Binary marshaler and unmarshaler.
 	encoding.BinaryUnmarshaler
 	encoding.BinaryMarshaler
@@ -106,59 +106,83 @@ type amf0Any interface {
 	amf0Marker() amf0Marker
 }
 
-type amf0Converter struct {
-	from amf0Any
+type Amf0Converter interface {
+	ToNumber() Amf0Number
+	ToBoolean() Amf0Boolean
+	ToString() Amf0String
+	ToObject() Amf0Object
+	ToNull() Amf0Null
+	ToUndefined() Amf0Undefined
+	ToEcmaArray() Amf0EcmaArray
+	ToStrictArray() Amf0StrictArray
 }
 
-func NewAmf0Converter(from amf0Any) *amf0Converter {
+type amf0Converter struct {
+	from Amf0Any
+}
+
+func NewAmf0Converter(from Amf0Any) Amf0Converter {
 	return &amf0Converter{from: from}
 }
 
-func (v *amf0Converter) ToNumber() *amf0Number {
-	return amf0AnyTo[*amf0Number](v.from)
-}
-
-func (v *amf0Converter) ToBoolean() *amf0Boolean {
-	return amf0AnyTo[*amf0Boolean](v.from)
-}
-
-func (v *amf0Converter) ToString() *amf0String {
-	return amf0AnyTo[*amf0String](v.from)
-}
-
-func (v *amf0Converter) ToObject() *amf0Object {
-	return amf0AnyTo[*amf0Object](v.from)
-}
-
-func (v *amf0Converter) ToNull() *amf0Null {
-	return amf0AnyTo[*amf0Null](v.from)
-}
-
-func (v *amf0Converter) ToUndefined() *amf0Undefined {
-	return amf0AnyTo[*amf0Undefined](v.from)
-}
-
-func (v *amf0Converter) ToEcmaArray() *amf0EcmaArray {
-	return amf0AnyTo[*amf0EcmaArray](v.from)
-}
-
-func (v *amf0Converter) ToStrictArray() *amf0StrictArray {
-	return amf0AnyTo[*amf0StrictArray](v.from)
-}
-
-// Convert any to specified object.
-func amf0AnyTo[T amf0Any](a amf0Any) T {
-	var to T
-	if a != nil {
-		if v, ok := a.(T); ok {
-			return v
-		}
+func (v *amf0Converter) ToNumber() Amf0Number {
+	if r, ok := v.from.(Amf0Number); ok {
+		return r
 	}
-	return to
+	return nil
+}
+
+func (v *amf0Converter) ToBoolean() Amf0Boolean {
+	if r, ok := v.from.(Amf0Boolean); ok {
+		return r
+	}
+	return nil
+}
+
+func (v *amf0Converter) ToString() Amf0String {
+	if r, ok := v.from.(Amf0String); ok {
+		return r
+	}
+	return nil
+}
+
+func (v *amf0Converter) ToObject() Amf0Object {
+	if r, ok := v.from.(Amf0Object); ok {
+		return r
+	}
+	return nil
+}
+
+func (v *amf0Converter) ToNull() Amf0Null {
+	if r, ok := v.from.(Amf0Null); ok {
+		return r
+	}
+	return nil
+}
+
+func (v *amf0Converter) ToUndefined() Amf0Undefined {
+	if r, ok := v.from.(Amf0Undefined); ok {
+		return r
+	}
+	return nil
+}
+
+func (v *amf0Converter) ToEcmaArray() Amf0EcmaArray {
+	if r, ok := v.from.(Amf0EcmaArray); ok {
+		return r
+	}
+	return nil
+}
+
+func (v *amf0Converter) ToStrictArray() Amf0StrictArray {
+	if r, ok := v.from.(Amf0StrictArray); ok {
+		return r
+	}
+	return nil
 }
 
 // Discovery the amf0 object from the bytes b.
-func Amf0Discovery(p []byte) (a amf0Any, err error) {
+func Amf0Discovery(p []byte) (a Amf0Any, err error) {
 	if len(p) < 1 {
 		return nil, errors.Errorf("require 1 bytes only %v", len(p))
 	}
@@ -228,12 +252,22 @@ func (v *amf0UTF8) MarshalBinary() (data []byte, err error) {
 	return
 }
 
+// Amf0Number is the AMF0 number type.
+type Amf0Number interface {
+	Amf0Any
+	Float64() float64
+}
+
 // The number object, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.2 Number Type
 type amf0Number float64
 
-func NewAmf0Number(f float64) *amf0Number {
+func NewAmf0Number(f float64) Amf0Number {
 	v := amf0Number(f)
 	return &v
+}
+
+func (v *amf0Number) Float64() float64 {
+	return float64(*v)
 }
 
 func (v *amf0Number) amf0Marker() amf0Marker {
@@ -266,12 +300,26 @@ func (v *amf0Number) MarshalBinary() (data []byte, err error) {
 	return
 }
 
+// Amf0String is the AMF0 string type.
+type Amf0String interface {
+	Amf0Any
+	String() string
+}
+
 // The string objet, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.4 String Type
 type amf0String string
 
-func NewAmf0String(s string) *amf0String {
+func NewAmf0String(s string) Amf0String {
+	return newAmf0String(s)
+}
+
+func newAmf0String(s string) *amf0String {
 	v := amf0String(s)
 	return &v
+}
+
+func (v *amf0String) String() string {
+	return string(*v)
 }
 
 func (v *amf0String) amf0Marker() amf0Marker {
@@ -344,7 +392,7 @@ func (v *amf0ObjectEOF) MarshalBinary() (data []byte, err error) {
 // Use array for object and ecma array, to keep the original order.
 type amf0Property struct {
 	key   amf0UTF8
-	value amf0Any
+	value Amf0Any
 }
 
 // The object-like AMF0 structure, like object and ecma array and strict array.
@@ -367,7 +415,7 @@ func (v *amf0ObjectBase) Size() int {
 	return size
 }
 
-func (v *amf0ObjectBase) Get(key string) amf0Any {
+func (v *amf0ObjectBase) Get(key string) Amf0Any {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
@@ -380,7 +428,7 @@ func (v *amf0ObjectBase) Get(key string) amf0Any {
 	return nil
 }
 
-func (v *amf0ObjectBase) Set(key string, value amf0Any) *amf0ObjectBase {
+func (v *amf0ObjectBase) Set(key string, value Amf0Any) *amf0ObjectBase {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 
@@ -411,21 +459,21 @@ func (v *amf0ObjectBase) unmarshal(p []byte, eof bool, maxElems int) (err error)
 		return errors.Errorf("maxElems=%v with eof", maxElems)
 	}
 
-	readOne := func() (amf0UTF8, amf0Any, error) {
+	readOne := func() (amf0UTF8, Amf0Any, error) {
 		var u amf0UTF8
 		if err = u.UnmarshalBinary(p); err != nil {
 			return "", nil, errors.WithMessage(err, "prop name")
 		}
 
 		p = p[u.Size():]
-		var a amf0Any
+		var a Amf0Any
 		if a, err = Amf0Discovery(p); err != nil {
 			return "", nil, errors.WithMessage(err, fmt.Sprintf("discover prop %v", string(u)))
 		}
 		return u, a, nil
 	}
 
-	pushOne := func(u amf0UTF8, a amf0Any) error {
+	pushOne := func(u amf0UTF8, a Amf0Any) error {
 		// For object property, consume the whole bytes.
 		if err = a.UnmarshalBinary(p); err != nil {
 			return errors.WithMessage(err, fmt.Sprintf("unmarshal prop %v", string(u)))
@@ -494,13 +542,24 @@ func (v *amf0ObjectBase) marshal(b amf0Buffer) (err error) {
 	return
 }
 
+// Amf0Object is the AMF0 object type.
+type Amf0Object interface {
+	Amf0Any
+	Get(key string) Amf0Any
+	Set(key string, value Amf0Any) Amf0Object
+}
+
 // The AMF0 object, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.5 Object Type
 type amf0Object struct {
 	amf0ObjectBase
 	eof amf0ObjectEOF
 }
 
-func NewAmf0Object() *amf0Object {
+func NewAmf0Object() Amf0Object {
+	return newAmf0Object()
+}
+
+func newAmf0Object() *amf0Object {
 	v := &amf0Object{}
 	v.properties = []*amf0Property{}
 	return v
@@ -508,6 +567,15 @@ func NewAmf0Object() *amf0Object {
 
 func (v *amf0Object) amf0Marker() amf0Marker {
 	return amf0MarkerObject
+}
+
+func (v *amf0Object) Get(key string) Amf0Any {
+	return v.amf0ObjectBase.Get(key)
+}
+
+func (v *amf0Object) Set(key string, value Amf0Any) Amf0Object {
+	v.amf0ObjectBase.Set(key, value)
+	return v
 }
 
 func (v *amf0Object) Size() int {
@@ -542,15 +610,20 @@ func (v *amf0Object) MarshalBinary() (data []byte, err error) {
 		return nil, errors.WithMessage(err, "marshal")
 	}
 
-	var pb []byte
-	if pb, err = v.eof.MarshalBinary(); err != nil {
+	if pb, err := v.eof.MarshalBinary(); err != nil {
 		return nil, errors.WithMessage(err, "marshal")
-	}
-	if _, err = b.Write(pb); err != nil {
+	} else if _, err = b.Write(pb); err != nil {
 		return nil, errors.Wrap(err, "marshal")
 	}
 
 	return b.Bytes(), nil
+}
+
+// Amf0EcmaArray is the AMF0 ECMA array type.
+type Amf0EcmaArray interface {
+	Amf0Any
+	Get(key string) Amf0Any
+	Set(key string, value Amf0Any) Amf0EcmaArray
 }
 
 // The AMF0 ecma array, please read @doc amf0_spec_121207.pdf, @page 6, @section 2.10 ECMA Array Type
@@ -560,7 +633,11 @@ type amf0EcmaArray struct {
 	eof   amf0ObjectEOF
 }
 
-func NewAmf0EcmaArray() *amf0EcmaArray {
+func NewAmf0EcmaArray() Amf0EcmaArray {
+	return newAmf0EcmaArray()
+}
+
+func newAmf0EcmaArray() *amf0EcmaArray {
 	v := &amf0EcmaArray{}
 	v.properties = []*amf0Property{}
 	return v
@@ -568,6 +645,15 @@ func NewAmf0EcmaArray() *amf0EcmaArray {
 
 func (v *amf0EcmaArray) amf0Marker() amf0Marker {
 	return amf0MarkerEcmaArray
+}
+
+func (v *amf0EcmaArray) Get(key string) Amf0Any {
+	return v.amf0ObjectBase.Get(key)
+}
+
+func (v *amf0EcmaArray) Set(key string, value Amf0Any) Amf0EcmaArray {
+	v.amf0ObjectBase.Set(key, value)
+	return v
 }
 
 func (v *amf0EcmaArray) Size() int {
@@ -606,15 +692,20 @@ func (v *amf0EcmaArray) MarshalBinary() (data []byte, err error) {
 		return nil, errors.WithMessage(err, "marshal")
 	}
 
-	var pb []byte
-	if pb, err = v.eof.MarshalBinary(); err != nil {
+	if pb, err := v.eof.MarshalBinary(); err != nil {
 		return nil, errors.WithMessage(err, "marshal")
-	}
-	if _, err = b.Write(pb); err != nil {
+	} else if _, err = b.Write(pb); err != nil {
 		return nil, errors.Wrap(err, "marshal")
 	}
 
 	return b.Bytes(), nil
+}
+
+// Amf0StrictArray is the AMF0 strict array type.
+type Amf0StrictArray interface {
+	Amf0Any
+	Get(key string) Amf0Any
+	Set(key string, value Amf0Any) Amf0StrictArray
 }
 
 // The AMF0 strict array, please read @doc amf0_spec_121207.pdf, @page 7, @section 2.12 Strict Array Type
@@ -623,7 +714,7 @@ type amf0StrictArray struct {
 	count uint32
 }
 
-func NewAmf0StrictArray() *amf0StrictArray {
+func NewAmf0StrictArray() Amf0StrictArray {
 	v := &amf0StrictArray{}
 	v.properties = []*amf0Property{}
 	return v
@@ -631,6 +722,15 @@ func NewAmf0StrictArray() *amf0StrictArray {
 
 func (v *amf0StrictArray) amf0Marker() amf0Marker {
 	return amf0MarkerStrictArray
+}
+
+func (v *amf0StrictArray) Get(key string) Amf0Any {
+	return v.amf0ObjectBase.Get(key)
+}
+
+func (v *amf0StrictArray) Set(key string, value Amf0Any) Amf0StrictArray {
+	v.amf0ObjectBase.Set(key, value)
+	return v
 }
 
 func (v *amf0StrictArray) Size() int {
@@ -708,15 +808,25 @@ func (v *amf0SingleMarkerObject) MarshalBinary() (data []byte, err error) {
 	return []byte{byte(v.target)}, nil
 }
 
+// Amf0Null is the AMF0 null type.
+type Amf0Null interface {
+	Amf0Any
+}
+
 // The AMF0 null, please read @doc amf0_spec_121207.pdf, @page 6, @section 2.7 null Type
 type amf0Null struct {
 	amf0SingleMarkerObject
 }
 
-func NewAmf0Null() *amf0Null {
+func NewAmf0Null() Amf0Null {
 	v := amf0Null{}
 	v.amf0SingleMarkerObject = newAmf0SingleMarkerObject(amf0MarkerNull)
 	return &v
+}
+
+// Amf0Undefined is the AMF0 undefined type.
+type Amf0Undefined interface {
+	Amf0Any
 }
 
 // The AMF0 undefined, please read @doc amf0_spec_121207.pdf, @page 6, @section 2.8 undefined Type
@@ -724,18 +834,28 @@ type amf0Undefined struct {
 	amf0SingleMarkerObject
 }
 
-func NewAmf0Undefined() amf0Any {
+func NewAmf0Undefined() Amf0Undefined {
 	v := amf0Undefined{}
 	v.amf0SingleMarkerObject = newAmf0SingleMarkerObject(amf0MarkerUndefined)
 	return &v
 }
 
+// Amf0Boolean is the public typed view of an AMF0 boolean.
+type Amf0Boolean interface {
+	Amf0Any
+	Bool() bool
+}
+
 // The AMF0 boolean, please read @doc amf0_spec_121207.pdf, @page 5, @section 2.3 Boolean Type
 type amf0Boolean bool
 
-func NewAmf0Boolean(b bool) amf0Any {
+func NewAmf0Boolean(b bool) Amf0Boolean {
 	v := amf0Boolean(b)
 	return &v
+}
+
+func (v *amf0Boolean) Bool() bool {
+	return bool(*v)
 }
 
 func (v *amf0Boolean) amf0Marker() amf0Marker {
