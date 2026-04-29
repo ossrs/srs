@@ -150,7 +150,7 @@ func newChunkStream() *chunkStream {
 
 // Protocol implements the RTMP command and chunk stack.
 type Protocol interface {
-	// Deprecated: Please use rtmp.ExpectPacket instead.
+	// Deprecated: Go does not support generic methods. Please use rtmp.ExpectPacket instead.
 	ExpectPacket(ctx context.Context, ppkt any) (Message, error)
 	ExpectMessage(ctx context.Context, types ...MessageType) (Message, error)
 	DecodeMessage(m Message) (Packet, error)
@@ -189,6 +189,10 @@ func NewProtocol(rw io.ReadWriter) Protocol {
 	return v
 }
 
+// ExpectPacket reads and decodes RTMP messages until it finds a packet of type T.
+//
+// Messages with other packet types are consumed and ignored. On success, ppkt is
+// set to the decoded packet and the Message carrying that packet is returned.
 func ExpectPacket[T Packet](ctx context.Context, v Protocol, ppkt *T) (m Message, err error) {
 	for {
 		if m, err = v.ReadMessage(ctx); err != nil {
@@ -209,9 +213,9 @@ func ExpectPacket[T Packet](ctx context.Context, v Protocol, ppkt *T) (m Message
 	return
 }
 
-// Deprecated: Please use rtmp.ExpectPacket instead.
+// Deprecated: Go does not support generic methods. Please use rtmp.ExpectPacket instead.
 func (v *protocol) ExpectPacket(ctx context.Context, ppkt any) (m Message, err error) {
-	panic("Please use rtmp.ExpectPacket instead")
+	panic("Go does not support generic methods; please use rtmp.ExpectPacket instead")
 }
 
 func (v *protocol) ExpectMessage(ctx context.Context, types ...MessageType) (m Message, err error) {
