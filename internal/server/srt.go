@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
-package protocol
+package server
 
 import (
 	"bytes"
