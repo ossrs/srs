@@ -301,6 +301,9 @@ The knowledge base (`memory/srs-*.md`) captures William's knowledge about SRS �
 - `proxy-load-balancer.md` — Load balancer design: memory vs Redis implementations, stream-to-server mapping, server health via heartbeats, protocol-specific state
 - `proxy-origin-cluster.md` — Origin cluster tutorial: build proxy + SRS, configure multi-origin with proxy, stream publishing and playback verification
 
+**Next-Generation Server API Examples** — Executable API documentation:
+- `internal/rtmp/example_test.go` — RTMP API examples: AMF0, handshake, and protocol workflow
+
 ## Testing and Verification Structure
 
 How to verify SRS works correctly.
