@@ -234,8 +234,6 @@ func (v *protocol) ExpectMessage(ctx context.Context, types ...MessageType) (m M
 			}
 		}
 	}
-
-	return
 }
 
 func (v *protocol) parseAMFObject(p []byte) (pkt Packet, err error) {

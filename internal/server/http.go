@@ -23,10 +23,15 @@ import (
 	"srsx/internal/version"
 )
 
-// srsHTTPStreamServer is the proxy server for SRS HTTP stream server, for HTTP-FLV, HTTP-TS,
+// HTTPStreamServer is the proxy server for SRS HTTP stream server, for HTTP-FLV, HTTP-TS,
 // HLS, etc. The proxy server will figure out which SRS origin server to proxy to, then proxy
 // the request to the origin server.
-type srsHTTPStreamServer struct {
+type HTTPStreamServer interface {
+	Run(ctx context.Context) error
+	Close() error
+}
+
+type httpStreamServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The underlayer HTTP server.
@@ -37,15 +42,15 @@ type srsHTTPStreamServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewSRSHTTPStreamServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) *srsHTTPStreamServer {
-	v := &srsHTTPStreamServer{
+func NewHTTPStreamServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) HTTPStreamServer {
+	v := &httpStreamServer{
 		environment:         environment,
 		gracefulQuitTimeout: gracefulQuitTimeout,
 	}
 	return v
 }
 
-func (v *srsHTTPStreamServer) Close() error {
+func (v *httpStreamServer) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 	defer cancel()
 	v.server.Shutdown(ctx)
@@ -54,7 +59,7 @@ func (v *srsHTTPStreamServer) Close() error {
 	return nil
 }
 
-func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
+func (v *httpStreamServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	addr := v.environment.HttpServer()
 	if !strings.Contains(addr, ":") {
@@ -123,12 +128,12 @@ func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
 				return
 			}
 
-			stream, _ := lb.SrsLoadBalancer.LoadOrStoreHLS(ctx, streamURL, NewHLSPlayStream(func(s *HLSPlayStream) {
+			stream, _ := lb.SrsLoadBalancer.LoadOrStoreHLS(ctx, streamURL, newHLSPlayStream(func(s *hlsPlayStream) {
 				s.SRSProxyBackendHLSID = logger.GenerateContextID()
 				s.StreamURL, s.FullURL = streamURL, fullURL
 			}))
 
-			stream.Initialize(ctx).(*HLSPlayStream).ServeHTTP(w, r)
+			stream.Initialize(ctx).(*hlsPlayStream).ServeHTTP(w, r)
 			return
 		}
 
@@ -140,13 +145,13 @@ func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
 				if stream, err := lb.SrsLoadBalancer.LoadHLSBySPBHID(ctx, srsProxyBackendID); err != nil {
 					http.Error(w, fmt.Sprintf("load stream by spbhid %v", srsProxyBackendID), http.StatusBadRequest)
 				} else {
-					stream.Initialize(ctx).(*HLSPlayStream).ServeHTTP(w, r)
+					stream.Initialize(ctx).(*hlsPlayStream).ServeHTTP(w, r)
 				}
 				return
 			}
 
 			// Use HTTP pseudo streaming to proxy the request.
-			NewHTTPFlvTsConnection(func(c *HTTPFlvTsConnection) {
+			newHTTPFlvTsConnection(func(c *httpFlvTsConnection) {
 				c.ctx = ctx
 			}).ServeHTTP(w, r)
 			return
@@ -182,26 +187,26 @@ func (v *srsHTTPStreamServer) Run(ctx context.Context) error {
 	return nil
 }
 
-// HTTPFlvTsConnection is an HTTP pseudo streaming connection, such as an HTTP-FLV or HTTP-TS
+// httpFlvTsConnection is an HTTP pseudo streaming connection, such as an HTTP-FLV or HTTP-TS
 // connection. There is no state need to be sync between proxy servers.
 //
 // When we got an HTTP FLV or TS request, we will parse the stream URL from the HTTP request,
 // then proxy to the corresponding backend server. All state is in the HTTP request, so this
 // connection is stateless.
-type HTTPFlvTsConnection struct {
+type httpFlvTsConnection struct {
 	// The context for HTTP streaming.
 	ctx context.Context
 }
 
-func NewHTTPFlvTsConnection(opts ...func(*HTTPFlvTsConnection)) *HTTPFlvTsConnection {
-	v := &HTTPFlvTsConnection{}
+func newHTTPFlvTsConnection(opts ...func(*httpFlvTsConnection)) *httpFlvTsConnection {
+	v := &httpFlvTsConnection{}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *HTTPFlvTsConnection) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (v *httpFlvTsConnection) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	ctx := logger.WithContext(v.ctx)
 
@@ -212,7 +217,7 @@ func (v *HTTPFlvTsConnection) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (v *HTTPFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *httpFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	// Always allow CORS for all requests.
 	if ok := utils.ApiCORS(ctx, w, r); ok {
 		return nil
@@ -240,7 +245,7 @@ func (v *HTTPFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, 
 	return nil
 }
 
-func (v *HTTPFlvTsConnection) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer) error {
+func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer) error {
 	// Parse HTTP port from backend.
 	if len(backend.HTTP) == 0 {
 		return errors.Errorf("no http stream server")
@@ -288,14 +293,14 @@ func (v *HTTPFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 	return nil
 }
 
-// HLSPlayStream is an HLS stream proxy, which represents the stream level object. This means multiple HLS
+// hlsPlayStream is an HLS stream proxy, which represents the stream level object. This means multiple HLS
 // clients will share this object, and they do not use the same ctx among proxy servers.
 //
 // Unlike the HTTP FLV or TS connection, HLS client may request the m3u8 or ts via different HTTP connections.
 // Especially for requesting ts, we need to identify the stream URl or backend server for it. So we create
 // the spbhid which can be seen as the hash of stream URL or backend server. The spbhid enable us to convert
 // to the stream URL and then query the backend server to serve it.
-type HLSPlayStream struct {
+type hlsPlayStream struct {
 	// The context for HLS streaming.
 	ctx context.Context
 
@@ -307,26 +312,26 @@ type HLSPlayStream struct {
 	FullURL string `json:"full_url"`
 }
 
-func NewHLSPlayStream(opts ...func(*HLSPlayStream)) *HLSPlayStream {
-	v := &HLSPlayStream{}
+func newHLSPlayStream(opts ...func(*hlsPlayStream)) *hlsPlayStream {
+	v := &hlsPlayStream{}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *HLSPlayStream) Initialize(ctx context.Context) lb.HLSPlayStream {
+func (v *hlsPlayStream) Initialize(ctx context.Context) lb.HLSPlayStream {
 	if v.ctx == nil {
 		v.ctx = logger.WithContext(ctx)
 	}
 	return v
 }
 
-func (v *HLSPlayStream) GetSPBHID() string {
+func (v *hlsPlayStream) GetSPBHID() string {
 	return v.SRSProxyBackendHLSID
 }
 
-func (v *HLSPlayStream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (v *hlsPlayStream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if err := v.serve(v.ctx, w, r); err != nil {
@@ -337,7 +342,7 @@ func (v *HLSPlayStream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (v *HLSPlayStream) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *hlsPlayStream) serve(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	ctx, streamURL, fullURL := v.ctx, v.StreamURL, v.FullURL
 
 	// Always allow CORS for all requests.
@@ -358,7 +363,7 @@ func (v *HLSPlayStream) serve(ctx context.Context, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func (v *HLSPlayStream) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer) error {
+func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer) error {
 	// Parse HTTP port from backend.
 	if len(backend.HTTP) == 0 {
 		return errors.Errorf("no rtmp server")

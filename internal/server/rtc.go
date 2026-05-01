@@ -23,10 +23,17 @@ import (
 	"srsx/internal/utils"
 )
 
-// srsWebRTCServer is the proxy for SRS WebRTC server via WHIP or WHEP protocol. It will figure out
+// WebRTCServer is the proxy for SRS WebRTC server via WHIP or WHEP protocol. It will figure out
 // which backend server to proxy to. It will also replace the UDP port to the proxy server's in the
 // SDP answer.
-type srsWebRTCServer struct {
+type WebRTCServer interface {
+	Run(ctx context.Context) error
+	Close() error
+	HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error
+	HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error
+}
+
+type webRTCServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The UDP listener for WebRTC server.
@@ -34,21 +41,21 @@ type srsWebRTCServer struct {
 
 	// Fast cache for the username to identify the connection.
 	// The key is username, the value is the UDP address.
-	usernames sync.Map[string, *RTCConnection]
+	usernames sync.Map[string, *rtcConnection]
 	// Fast cache for the udp address to identify the connection.
 	// The key is UDP address, the value is the username.
 	// TODO: Support fast earch by uint64 address.
-	addresses sync.Map[string, *RTCConnection]
+	addresses sync.Map[string, *rtcConnection]
 
 	// The wait group for server.
 	wg stdSync.WaitGroup
 }
 
-func NewSRSWebRTCServer(environment env.ProxyEnvironment, opts ...func(*srsWebRTCServer)) *srsWebRTCServer {
-	v := &srsWebRTCServer{
+func NewWebRTCServer(environment env.ProxyEnvironment, opts ...func(*webRTCServer)) WebRTCServer {
+	v := &webRTCServer{
 		environment: environment,
-		usernames:   sync.NewMap[string, *RTCConnection](),
-		addresses:   sync.NewMap[string, *RTCConnection](),
+		usernames:   sync.NewMap[string, *rtcConnection](),
+		addresses:   sync.NewMap[string, *rtcConnection](),
 	}
 	for _, opt := range opts {
 		opt(v)
@@ -56,7 +63,7 @@ func NewSRSWebRTCServer(environment env.ProxyEnvironment, opts ...func(*srsWebRT
 	return v
 }
 
-func (v *srsWebRTCServer) Close() error {
+func (v *webRTCServer) Close() error {
 	if v.listener != nil {
 		_ = v.listener.Close()
 	}
@@ -65,7 +72,7 @@ func (v *srsWebRTCServer) Close() error {
 	return nil
 }
 
-func (v *srsWebRTCServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *webRTCServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	ctx = logger.WithContext(ctx)
 
@@ -102,7 +109,7 @@ func (v *srsWebRTCServer) HandleApiForWHIP(ctx context.Context, w http.ResponseW
 	return nil
 }
 
-func (v *srsWebRTCServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *webRTCServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	ctx = logger.WithContext(ctx)
 
@@ -139,7 +146,7 @@ func (v *srsWebRTCServer) HandleApiForWHEP(ctx context.Context, w http.ResponseW
 	return nil
 }
 
-func (v *srsWebRTCServer) proxyApiToBackend(
+func (v *webRTCServer) proxyApiToBackend(
 	ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer,
 	remoteSDPOffer string, streamURL string,
 ) error {
@@ -215,11 +222,11 @@ func (v *srsWebRTCServer) proxyApiToBackend(
 	}
 
 	// Save the new WebRTC connection to LB.
-	icePair := &RTCICEPair{
+	icePair := &rtcICEPair{
 		RemoteICEUfrag: remoteICEUfrag, RemoteICEPwd: remoteICEPwd,
 		LocalICEUfrag: localICEUfrag, LocalICEPwd: localICEPwd,
 	}
-	if err := lb.SrsLoadBalancer.StoreWebRTC(ctx, streamURL, NewRTCConnection(func(c *RTCConnection) {
+	if err := lb.SrsLoadBalancer.StoreWebRTC(ctx, streamURL, newRTCConnection(func(c *rtcConnection) {
 		c.StreamURL, c.Ufrag = streamURL, icePair.Ufrag()
 		c.Initialize(ctx, v.listener)
 
@@ -239,7 +246,7 @@ func (v *srsWebRTCServer) proxyApiToBackend(
 	return nil
 }
 
-func (v *srsWebRTCServer) Run(ctx context.Context) error {
+func (v *webRTCServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	endpoint := v.environment.WebRTCServer()
 	if !strings.Contains(endpoint, ":") {
@@ -287,8 +294,8 @@ func (v *srsWebRTCServer) Run(ctx context.Context) error {
 	return nil
 }
 
-func (v *srsWebRTCServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
-	var connection *RTCConnection
+func (v *webRTCServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
+	var connection *rtcConnection
 
 	// If STUN binding request, parse the ufrag and identify the connection.
 	if err := func() error {
@@ -296,7 +303,7 @@ func (v *srsWebRTCServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr
 			return nil
 		}
 
-		var pkt RTCStunPacket
+		var pkt rtcStunPacket
 		if err := pkt.UnmarshalBinary(data); err != nil {
 			return errors.Wrapf(err, "unmarshal stun packet")
 		}
@@ -311,7 +318,7 @@ func (v *srsWebRTCServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr
 		if s, err := lb.SrsLoadBalancer.LoadWebRTCByUfrag(ctx, pkt.Username); err != nil {
 			return errors.Wrapf(err, "load webrtc by ufrag %v", pkt.Username)
 		} else {
-			connection = s.(*RTCConnection).Initialize(ctx, v.listener)
+			connection = s.(*rtcConnection).Initialize(ctx, v.listener)
 			logger.Debug(ctx, "Create WebRTC connection by ufrag=%v, stream=%v", pkt.Username, connection.StreamURL)
 		}
 
@@ -346,17 +353,17 @@ func (v *srsWebRTCServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr
 	return nil
 }
 
-// RTCConnection is a WebRTC connection proxy, for both WHIP and WHEP. It represents a WebRTC
+// rtcConnection is a WebRTC connection proxy, for both WHIP and WHEP. It represents a WebRTC
 // connection, identify by the ufrag in sdp offer/answer and ICE binding request.
 //
 // It's not like RTMP or HTTP FLV/TS proxy connection, which are stateless and all state is
-// in the client request. The RTCConnection is stateful, and need to sync the ufrag between
+// in the client request. The rtcConnection is stateful, and need to sync the ufrag between
 // proxy servers.
 //
 // The media transport is UDP, which is also a special thing for WebRTC. So if the client switch
 // to another UDP address, it may connect to another WebRTC proxy, then we should discover the
-// RTCConnection by the ufrag from the ICE binding request.
-type RTCConnection struct {
+// rtcConnection by the ufrag from the ICE binding request.
+type rtcConnection struct {
 	// The stream context for WebRTC streaming.
 	ctx context.Context
 
@@ -373,15 +380,15 @@ type RTCConnection struct {
 	listenerUDP *net.UDPConn
 }
 
-func NewRTCConnection(opts ...func(*RTCConnection)) *RTCConnection {
-	v := &RTCConnection{}
+func newRTCConnection(opts ...func(*rtcConnection)) *rtcConnection {
+	v := &rtcConnection{}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *RTCConnection) Initialize(ctx context.Context, listener *net.UDPConn) *RTCConnection {
+func (v *rtcConnection) Initialize(ctx context.Context, listener *net.UDPConn) *rtcConnection {
 	if v.ctx == nil {
 		v.ctx = logger.WithContext(ctx)
 	}
@@ -391,11 +398,11 @@ func (v *RTCConnection) Initialize(ctx context.Context, listener *net.UDPConn) *
 	return v
 }
 
-func (v *RTCConnection) GetUfrag() string {
+func (v *rtcConnection) GetUfrag() string {
 	return v.Ufrag
 }
 
-func (v *RTCConnection) HandlePacket(addr *net.UDPAddr, data []byte) error {
+func (v *rtcConnection) HandlePacket(addr *net.UDPAddr, data []byte) error {
 	ctx := v.ctx
 
 	// Update the current UDP address.
@@ -437,7 +444,7 @@ func (v *RTCConnection) HandlePacket(addr *net.UDPAddr, data []byte) error {
 	return nil
 }
 
-func (v *RTCConnection) connectBackend(ctx context.Context) error {
+func (v *rtcConnection) connectBackend(ctx context.Context) error {
 	if v.backendUDP != nil {
 		return nil
 	}
@@ -470,7 +477,7 @@ func (v *RTCConnection) connectBackend(ctx context.Context) error {
 	return nil
 }
 
-type RTCICEPair struct {
+type rtcICEPair struct {
 	// The remote ufrag, used for ICE username and session id.
 	RemoteICEUfrag string `json:"remote_ufrag"`
 	// The remote pwd, used for ICE password.
@@ -482,18 +489,18 @@ type RTCICEPair struct {
 }
 
 // Generate the ICE ufrag for the WebRTC streaming, format is remote-ufrag:local-ufrag.
-func (v *RTCICEPair) Ufrag() string {
+func (v *rtcICEPair) Ufrag() string {
 	return fmt.Sprintf("%v:%v", v.LocalICEUfrag, v.RemoteICEUfrag)
 }
 
-type RTCStunPacket struct {
+type rtcStunPacket struct {
 	// The stun message type.
 	MessageType uint16
 	// The stun username, or ufrag.
 	Username string
 }
 
-func (v *RTCStunPacket) UnmarshalBinary(data []byte) error {
+func (v *rtcStunPacket) UnmarshalBinary(data []byte) error {
 	if len(data) < 20 {
 		return errors.Errorf("stun packet too short %v", len(data))
 	}
