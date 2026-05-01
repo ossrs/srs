@@ -127,6 +127,12 @@ Which underlying transport (TCP or UDP) each protocol uses in SRS:
 - **RTSP** — TCP. SRS only supports TCP transport (no UDP/RTP interleaved).
 - **GB28181** — TCP. PS stream over TCP.
 
+Related transport protocols that are important in the media industry but **not supported by SRS or Oryx**:
+
+- **RIST** — UDP. Reliable Internet Stream Transport. Similar to SRT: a reliable, low-latency media transport over UDP, with retransmission and encryption options.
+- **MoQ** — UDP/QUIC. Media over QUIC. An IETF effort for low-latency media ingest and delivery over QUIC, usually over UDP and optionally through WebTransport.
+- **WebTransport** — UDP/QUIC, HTTP/3-based. A browser and network transport API/protocol that can carry media data, and one possible substrate for MoQ.
+
 ## Most Common Usage
 
 The simplest way to use SRS: publish an RTMP stream and play it.
@@ -292,4 +298,3 @@ Config files are in the `conf/` folder. Key files:
 - Other files exist for specific features like clustering, DVR, or different protocols.
 
 SRS also supports configuration via environment variables. This is especially useful for Docker and cloud-native deployments — you can set environment variables in YAML files or other platforms without needing a separate config file. It's convenient to copy and paste, making documentation clearer. In the SRS docs, environment variables are often used to show how to run SRS with different configurations.
-
