@@ -65,7 +65,7 @@ func ExampleAmf0Object() {
 	// is number: false
 }
 
-func ExampleRTMPHandshake() {
+func ExampleNewHandshake() {
 	client := rtmp.NewHandshake()
 	server := rtmp.NewHandshake()
 
@@ -136,7 +136,7 @@ func ExampleRTMPHandshake() {
 	// server cached c1: true
 }
 
-func ExampleRTMPProtocol() {
+func ExampleNewProtocol() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
