@@ -156,6 +156,10 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    bash scripts/proxy-e2e-redis-test.sh
    ```
+   - RTMP transmuxing test (starts proxy + one SRS origin, publishes RTMP, verifies RTMP/HTTP-FLV/HLS playback, and verifies WebRTC WHEP playback when `PROXY_TRANSMUX_TEST_RTC=on`):
+   ```
+   bash scripts/proxy-e2e-transmux-test.sh
+   ```
 5. If any tests fail, fix the issues and re-run until all tests pass.
 
 All script paths are relative to this skill's directory.

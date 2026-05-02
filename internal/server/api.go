@@ -97,10 +97,24 @@ func (v *httpAPIServer) Run(ctx context.Context) error {
 			utils.ApiError(ctx, w, r, err)
 		}
 	})
+	// Keep compatibility with the legacy SRS WebRTC publish API used by srs-bench.
+	logger.Debug(ctx, "Handle /rtc/v1/publish/ by %v", addr)
+	mux.HandleFunc("/rtc/v1/publish/", func(w http.ResponseWriter, r *http.Request) {
+		if err := v.rtc.HandleApiForWHIP(ctx, w, r); err != nil {
+			utils.ApiError(ctx, w, r, err)
+		}
+	})
 
 	// The WebRTC WHEP API handler.
 	logger.Debug(ctx, "Handle /rtc/v1/whep/ by %v", addr)
 	mux.HandleFunc("/rtc/v1/whep/", func(w http.ResponseWriter, r *http.Request) {
+		if err := v.rtc.HandleApiForWHEP(ctx, w, r); err != nil {
+			utils.ApiError(ctx, w, r, err)
+		}
+	})
+	// Keep compatibility with the legacy SRS WebRTC play API used by srs-bench.
+	logger.Debug(ctx, "Handle /rtc/v1/play/ by %v", addr)
+	mux.HandleFunc("/rtc/v1/play/", func(w http.ResponseWriter, r *http.Request) {
 		if err := v.rtc.HandleApiForWHEP(ctx, w, r); err != nil {
 			utils.ApiError(ctx, w, r, err)
 		}
