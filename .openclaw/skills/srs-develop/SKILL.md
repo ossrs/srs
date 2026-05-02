@@ -152,6 +152,10 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    bash scripts/proxy-e2e-cluster-test.sh
    ```
+   - Redis multi-proxy routing test (requires local Redis; starts two proxy instances with Redis LB, publishes through one proxy, verifies playback through the other):
+   ```
+   bash scripts/proxy-e2e-redis-test.sh
+   ```
 5. If any tests fail, fix the issues and re-run until all tests pass.
 
 All script paths are relative to this skill's directory.
