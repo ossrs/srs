@@ -143,9 +143,14 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    bash scripts/proxy-utest.sh --coverage
    ```
-4. Run the proxy E2E test (starts proxy + SRS origin, publishes RTMP, verifies playback):
+4. Run the proxy E2E tests:
+   - Single-origin RTMP proxy test (starts proxy + one SRS origin, publishes RTMP, verifies playback):
    ```
    bash scripts/proxy-e2e-test.sh
+   ```
+   - Multi-origin cluster routing test (starts proxy + two SRS origins, publishes multiple streams, verifies streams are assigned to different origins):
+   ```
+   bash scripts/proxy-e2e-cluster-test.sh
    ```
 5. If any tests fail, fix the issues and re-run until all tests pass.
 
