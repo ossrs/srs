@@ -12,7 +12,7 @@ import (
 	"srsx/internal/errors"
 	"srsx/internal/lb"
 	"srsx/internal/logger"
-	"srsx/internal/server"
+	"srsx/internal/proxy"
 	"srsx/internal/signal"
 	"srsx/internal/version"
 )
@@ -99,46 +99,46 @@ func (b *proxyBootstrap) initializeLoadBalancer(ctx context.Context, environment
 // startServers initializes and starts all protocol servers.
 func (b *proxyBootstrap) startServers(ctx context.Context, environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) error {
 	// Start the RTMP server.
-	rtmpServer := server.NewRTMPServer(environment)
-	if err := rtmpServer.Run(ctx); err != nil {
+	rtmpProxyServer := proxy.NewRTMPProxyServer(environment)
+	if err := rtmpProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "rtmp server")
 	}
-	defer rtmpServer.Close()
+	defer rtmpProxyServer.Close()
 
 	// Start the WebRTC server.
-	webRTCServer := server.NewWebRTCServer(environment)
-	if err := webRTCServer.Run(ctx); err != nil {
+	webRTCProxyServer := proxy.NewWebRTCProxyServer(environment)
+	if err := webRTCProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "rtc server")
 	}
-	defer webRTCServer.Close()
+	defer webRTCProxyServer.Close()
 
 	// Start the HTTP API server.
-	httpAPIServer := server.NewHTTPAPIServer(environment, gracefulQuitTimeout, webRTCServer)
-	if err := httpAPIServer.Run(ctx); err != nil {
+	httpAPIProxyServer := proxy.NewHTTPAPIProxyServer(environment, gracefulQuitTimeout, webRTCProxyServer)
+	if err := httpAPIProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "http api server")
 	}
-	defer httpAPIServer.Close()
+	defer httpAPIProxyServer.Close()
 
 	// Start the SRT server.
-	srsSRTServer := server.NewSRSSRTServer(environment)
-	if err := srsSRTServer.Run(ctx); err != nil {
+	srsSRTProxyServer := proxy.NewSRSSRTProxyServer(environment)
+	if err := srsSRTProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "srt server")
 	}
-	defer srsSRTServer.Close()
+	defer srsSRTProxyServer.Close()
 
 	// Start the System API server.
-	systemAPI := server.NewSystemAPI(environment, gracefulQuitTimeout)
+	systemAPI := proxy.NewSystemAPI(environment, gracefulQuitTimeout)
 	if err := systemAPI.Run(ctx); err != nil {
 		return errors.Wrapf(err, "system api server")
 	}
 	defer systemAPI.Close()
 
 	// Start the HTTP web server.
-	httpStreamServer := server.NewHTTPStreamServer(environment, gracefulQuitTimeout)
-	if err := httpStreamServer.Run(ctx); err != nil {
+	httpStreamProxyServer := proxy.NewHTTPStreamProxyServer(environment, gracefulQuitTimeout)
+	if err := httpStreamProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "http server")
 	}
-	defer httpStreamServer.Close()
+	defer httpStreamProxyServer.Close()
 
 	// Wait for the main loop to quit.
 	<-ctx.Done()

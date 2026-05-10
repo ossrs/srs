@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
-package server
+package proxy
 
 import (
 	"context"
@@ -23,17 +23,17 @@ import (
 	"srsx/internal/utils"
 )
 
-// WebRTCServer is the proxy for SRS WebRTC server via WHIP or WHEP protocol. It will figure out
+// WebRTCProxyServer is the proxy for SRS WebRTC server via WHIP or WHEP protocol. It will figure out
 // which backend server to proxy to. It will also replace the UDP port to the proxy server's in the
 // SDP answer.
-type WebRTCServer interface {
+type WebRTCProxyServer interface {
 	Run(ctx context.Context) error
 	Close() error
 	HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error
 	HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error
 }
 
-type webRTCServer struct {
+type webRTCProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The UDP listener for WebRTC server.
@@ -51,8 +51,8 @@ type webRTCServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewWebRTCServer(environment env.ProxyEnvironment, opts ...func(*webRTCServer)) WebRTCServer {
-	v := &webRTCServer{
+func NewWebRTCProxyServer(environment env.ProxyEnvironment, opts ...func(*webRTCProxyServer)) WebRTCProxyServer {
+	v := &webRTCProxyServer{
 		environment: environment,
 		usernames:   sync.NewMap[string, *rtcConnection](),
 		addresses:   sync.NewMap[string, *rtcConnection](),
@@ -63,7 +63,7 @@ func NewWebRTCServer(environment env.ProxyEnvironment, opts ...func(*webRTCServe
 	return v
 }
 
-func (v *webRTCServer) Close() error {
+func (v *webRTCProxyServer) Close() error {
 	if v.listener != nil {
 		_ = v.listener.Close()
 	}
@@ -72,7 +72,7 @@ func (v *webRTCServer) Close() error {
 	return nil
 }
 
-func (v *webRTCServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *webRTCProxyServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	ctx = logger.WithContext(ctx)
 
@@ -109,7 +109,7 @@ func (v *webRTCServer) HandleApiForWHIP(ctx context.Context, w http.ResponseWrit
 	return nil
 }
 
-func (v *webRTCServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (v *webRTCProxyServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	defer r.Body.Close()
 	ctx = logger.WithContext(ctx)
 
@@ -146,7 +146,7 @@ func (v *webRTCServer) HandleApiForWHEP(ctx context.Context, w http.ResponseWrit
 	return nil
 }
 
-func (v *webRTCServer) proxyApiToBackend(
+func (v *webRTCProxyServer) proxyApiToBackend(
 	ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer,
 	remoteSDPOffer string, streamURL string,
 ) error {
@@ -246,7 +246,7 @@ func (v *webRTCServer) proxyApiToBackend(
 	return nil
 }
 
-func (v *webRTCServer) Run(ctx context.Context) error {
+func (v *webRTCProxyServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	endpoint := v.environment.WebRTCServer()
 	if !strings.Contains(endpoint, ":") {
@@ -294,7 +294,7 @@ func (v *webRTCServer) Run(ctx context.Context) error {
 	return nil
 }
 
-func (v *webRTCServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
+func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
 	var connection *rtcConnection
 
 	// If STUN binding request, parse the ufrag and identify the connection.

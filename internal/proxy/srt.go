@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
-package server
+package proxy
 
 import (
 	"bytes"
@@ -21,10 +21,10 @@ import (
 	"srsx/internal/utils"
 )
 
-// srsSRTServer is the proxy for SRS server via SRT. It will figure out which backend server to
+// srsSRTProxyServer is the proxy for SRS server via SRT. It will figure out which backend server to
 // proxy to. It only parses the SRT handshake messages, parses the stream id, and proxy to the
 // backend server.
-type srsSRTServer struct {
+type srsSRTProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The UDP listener for SRT server.
@@ -39,8 +39,8 @@ type srsSRTServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewSRSSRTServer(environment env.ProxyEnvironment, opts ...func(*srsSRTServer)) *srsSRTServer {
-	v := &srsSRTServer{
+func NewSRSSRTProxyServer(environment env.ProxyEnvironment, opts ...func(*srsSRTProxyServer)) *srsSRTProxyServer {
+	v := &srsSRTProxyServer{
 		environment: environment,
 		start:       time.Now(),
 		sockets:     sync.NewMap[uint32, *SRTConnection](),
@@ -52,7 +52,7 @@ func NewSRSSRTServer(environment env.ProxyEnvironment, opts ...func(*srsSRTServe
 	return v
 }
 
-func (v *srsSRTServer) Close() error {
+func (v *srsSRTProxyServer) Close() error {
 	if v.listener != nil {
 		v.listener.Close()
 	}
@@ -61,7 +61,7 @@ func (v *srsSRTServer) Close() error {
 	return nil
 }
 
-func (v *srsSRTServer) Run(ctx context.Context) error {
+func (v *srsSRTProxyServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	endpoint := v.environment.SRTServer()
 	if !strings.Contains(endpoint, ":") {
@@ -109,7 +109,7 @@ func (v *srsSRTServer) Run(ctx context.Context) error {
 	return nil
 }
 
-func (v *srsSRTServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
+func (v *srsSRTProxyServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
 	socketID := utils.SrtParseSocketID(data)
 
 	var pkt *SRTHandshakePacket

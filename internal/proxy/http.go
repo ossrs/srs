@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
-package server
+package proxy
 
 import (
 	"context"
@@ -23,15 +23,15 @@ import (
 	"srsx/internal/version"
 )
 
-// HTTPStreamServer is the proxy server for SRS HTTP stream server, for HTTP-FLV, HTTP-TS,
+// HTTPStreamProxyServer is the proxy server for SRS HTTP stream server, for HTTP-FLV, HTTP-TS,
 // HLS, etc. The proxy server will figure out which SRS origin server to proxy to, then proxy
 // the request to the origin server.
-type HTTPStreamServer interface {
+type HTTPStreamProxyServer interface {
 	Run(ctx context.Context) error
 	Close() error
 }
 
-type httpStreamServer struct {
+type httpStreamProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The underlayer HTTP server.
@@ -42,15 +42,15 @@ type httpStreamServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewHTTPStreamServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) HTTPStreamServer {
-	v := &httpStreamServer{
+func NewHTTPStreamProxyServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) HTTPStreamProxyServer {
+	v := &httpStreamProxyServer{
 		environment:         environment,
 		gracefulQuitTimeout: gracefulQuitTimeout,
 	}
 	return v
 }
 
-func (v *httpStreamServer) Close() error {
+func (v *httpStreamProxyServer) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 	defer cancel()
 	v.server.Shutdown(ctx)
@@ -59,7 +59,7 @@ func (v *httpStreamServer) Close() error {
 	return nil
 }
 
-func (v *httpStreamServer) Run(ctx context.Context) error {
+func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	addr := v.environment.HttpServer()
 	if !strings.Contains(addr, ":") {

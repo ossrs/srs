@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
-package server
+package proxy
 
 import (
 	"context"
@@ -20,28 +20,28 @@ import (
 	"srsx/internal/version"
 )
 
-// HTTPAPIServer is the proxy for SRS HTTP API, to proxy the WebRTC HTTP API like WHIP and WHEP,
+// HTTPAPIProxyServer is the proxy for SRS HTTP API, to proxy the WebRTC HTTP API like WHIP and WHEP,
 // to proxy other HTTP API of SRS like the streams and clients, etc.
-type HTTPAPIServer interface {
+type HTTPAPIProxyServer interface {
 	Run(ctx context.Context) error
 	Close() error
 }
 
-type httpAPIServer struct {
+type httpAPIProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The underlayer HTTP server.
 	server *http.Server
 	// The WebRTC server.
-	rtc WebRTCServer
+	rtc WebRTCProxyServer
 	// The gracefully quit timeout, wait server to quit.
 	gracefulQuitTimeout time.Duration
 	// The wait group for all goroutines.
 	wg sync.WaitGroup
 }
 
-func NewHTTPAPIServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration, rtc WebRTCServer) HTTPAPIServer {
-	v := &httpAPIServer{
+func NewHTTPAPIProxyServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration, rtc WebRTCProxyServer) HTTPAPIProxyServer {
+	v := &httpAPIProxyServer{
 		environment:         environment,
 		gracefulQuitTimeout: gracefulQuitTimeout,
 		rtc:                 rtc,
@@ -49,7 +49,7 @@ func NewHTTPAPIServer(environment env.ProxyEnvironment, gracefulQuitTimeout time
 	return v
 }
 
-func (v *httpAPIServer) Close() error {
+func (v *httpAPIProxyServer) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 	defer cancel()
 	v.server.Shutdown(ctx)
@@ -58,7 +58,7 @@ func (v *httpAPIServer) Close() error {
 	return nil
 }
 
-func (v *httpAPIServer) Run(ctx context.Context) error {
+func (v *httpAPIProxyServer) Run(ctx context.Context) error {
 	// Parse address to listen.
 	addr := v.environment.HttpAPI()
 	if !strings.Contains(addr, ":") {

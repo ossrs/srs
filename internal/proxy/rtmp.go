@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
-package server
+package proxy
 
 import (
 	"context"
@@ -20,15 +20,15 @@ import (
 	"srsx/internal/version"
 )
 
-// RTMPServer is the proxy for SRS RTMP server, to proxy the RTMP stream to backend SRS
+// RTMPProxyServer is the proxy for SRS RTMP server, to proxy the RTMP stream to backend SRS
 // server. It will figure out the backend server to proxy to. Unlike the edge server, it will
 // not cache the stream, but just proxy the stream to backend.
-type RTMPServer interface {
+type RTMPProxyServer interface {
 	Run(ctx context.Context) error
 	Close() error
 }
 
-type rtmpServer struct {
+type rtmpProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The TCP listener for RTMP server.
@@ -37,15 +37,15 @@ type rtmpServer struct {
 	wg sync.WaitGroup
 }
 
-func NewRTMPServer(environment env.ProxyEnvironment, opts ...func(*rtmpServer)) RTMPServer {
-	v := &rtmpServer{environment: environment}
+func NewRTMPProxyServer(environment env.ProxyEnvironment, opts ...func(*rtmpProxyServer)) RTMPProxyServer {
+	v := &rtmpProxyServer{environment: environment}
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *rtmpServer) Close() error {
+func (v *rtmpProxyServer) Close() error {
 	if v.listener != nil {
 		v.listener.Close()
 	}
@@ -54,7 +54,7 @@ func (v *rtmpServer) Close() error {
 	return nil
 }
 
-func (v *rtmpServer) Run(ctx context.Context) error {
+func (v *rtmpProxyServer) Run(ctx context.Context) error {
 	endpoint := v.environment.RtmpServer()
 	if !strings.Contains(endpoint, ":") {
 		endpoint = ":" + endpoint
