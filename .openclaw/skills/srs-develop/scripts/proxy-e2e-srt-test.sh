@@ -1,8 +1,12 @@
 #!/bin/bash
-# E2E test for RTMP-to-multiple-protocol transmuxing through the proxy:
-# starts one proxy with memory load balancer + one SRS origin, publishes one
-# RTMP stream, then verifies RTMP, HTTP-FLV, and HLS playback through the
-# proxy. WebRTC WHEP verification is intentionally a placeholder (not run).
+# E2E test for SRT proxy: starts proxy + SRS origin, publishes an SRT stream
+# through the proxy, then verifies playback through the proxy in every form
+# the origin can transmux from SRT (srt_to_rtmp + rtmp_to_rtc):
+#   - SRT play (passthrough)
+#   - RTMP play (via srt_to_rtmp on origin)
+#   - HTTP-FLV (HTTP remux of the bridged RTMP)
+#   - HLS (m3u8 + TS segments)
+#   - WebRTC WHEP (placeholder only, not actually verified here)
 set -e
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
@@ -14,8 +18,7 @@ if [[ ! -f "$WORKSPACE/go.mod" ]]; then
   exit 1
 fi
 
-# Ports — use the same high ports as proxy-e2e-test.sh.
-# The proxy starts ALL servers, so we must assign unique ports for each.
+# Proxy ports — same layout as proxy-e2e-test.sh / proxy-e2e-transmux-test.sh.
 PROXY_RTMP_PORT=11935
 PROXY_HTTP_API_PORT=11985
 PROXY_HTTP_SERVER_PORT=18080
@@ -33,6 +36,11 @@ ORIGIN_SRT_PORT=10081
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
 STREAM_URL="live/livestream"
+
+# SRT streamid format used by SRS: "#!::r=<app>/<stream>,m=publish|request".
+# @see trunk/3rdparty/srs-docs/doc/srt.md and internal/proxy/srt.go.
+SRT_PUBLISH_URL="srt://localhost:$PROXY_SRT_PORT?streamid=#!::r=$STREAM_URL,m=publish"
+SRT_PLAY_URL="srt://localhost:$PROXY_SRT_PORT?streamid=#!::r=$STREAM_URL,m=request"
 
 # PIDs to clean up on exit.
 PROXY_PID=""
@@ -103,9 +111,9 @@ wait_for_hls_playlist() {
   exit 1
 }
 
-echo "=== E2E RTMP Transmux Proxy Test ==="
+echo "=== E2E SRT Proxy Test ==="
 echo "Workspace: $WORKSPACE"
-echo "Stream: $STREAM_URL"
+echo "Stream:    $STREAM_URL"
 echo ""
 
 # --- Pre-checks ---
@@ -123,6 +131,21 @@ if ! command -v ffprobe &>/dev/null; then
 fi
 if ! command -v curl &>/dev/null; then
   echo "Error: curl not found in PATH" >&2
+  exit 1
+fi
+# SRT URLs need libsrt compiled into ffmpeg/ffprobe. The default Homebrew
+# ffmpeg formula does NOT include libsrt — install the homebrew-ffmpeg tap
+# build with the explicit --with-srt option instead:
+#   brew tap homebrew-ffmpeg/ffmpeg
+#   brew uninstall ffmpeg            # if vanilla ffmpeg is already installed
+#   brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-srt
+if ! ffmpeg -hide_banner -protocols 2>/dev/null | grep -qw srt; then
+  echo "Error: ffmpeg was built without SRT protocol support." >&2
+  echo "The default 'brew install ffmpeg' does NOT include libsrt." >&2
+  echo "Install the homebrew-ffmpeg tap build with --with-srt instead:" >&2
+  echo "  brew tap homebrew-ffmpeg/ffmpeg" >&2
+  echo "  brew uninstall ffmpeg   # if vanilla ffmpeg is already installed" >&2
+  echo "  brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-srt" >&2
   exit 1
 fi
 
@@ -151,7 +174,7 @@ else
 fi
 
 # --- Step 3: Start proxy ---
-echo "=== Step 3: Starting proxy (memory LB) ==="
+echo "=== Step 3: Starting proxy (SRT :$PROXY_SRT_PORT, System API :$PROXY_SYSTEM_API_PORT) ==="
 cd "$WORKSPACE"
 env PROXY_RTMP_SERVER=$PROXY_RTMP_PORT \
     PROXY_HTTP_API=$PROXY_HTTP_API_PORT \
@@ -160,14 +183,14 @@ env PROXY_RTMP_SERVER=$PROXY_RTMP_PORT \
     PROXY_SRT_SERVER=$PROXY_SRT_PORT \
     PROXY_SYSTEM_API=$PROXY_SYSTEM_API_PORT \
     PROXY_LOAD_BALANCER_TYPE=memory \
-    ./bin/srs-proxy >/tmp/srs-proxy-transmux-e2e.log 2>&1 &
+    ./bin/srs-proxy >/tmp/srs-proxy-srt-e2e.log 2>&1 &
 PROXY_PID=$!
 echo "Proxy PID: $PROXY_PID"
 sleep 1
 
 if ! kill -0 "$PROXY_PID" 2>/dev/null; then
   echo "Error: proxy failed to start. Logs:" >&2
-  cat /tmp/srs-proxy-transmux-e2e.log >&2
+  cat /tmp/srs-proxy-srt-e2e.log >&2
   exit 1
 fi
 echo "Proxy started."
@@ -176,7 +199,7 @@ echo "Proxy started."
 echo "=== Step 4: Starting SRS origin ==="
 ulimit -n 10000 2>/dev/null || true
 cd "$WORKSPACE/trunk"
-./objs/srs -c conf/origin1-for-proxy.conf >/tmp/srs-origin-transmux-e2e.log 2>&1 &
+./objs/srs -c conf/origin1-for-proxy.conf >/tmp/srs-origin-srt-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 
@@ -186,48 +209,53 @@ sleep 12
 
 if ! kill -0 "$ORIGIN_PID" 2>/dev/null; then
   echo "Error: SRS origin failed to start. Logs:" >&2
-  cat /tmp/srs-origin-transmux-e2e.log >&2
+  cat /tmp/srs-origin-srt-e2e.log >&2
   exit 1
 fi
 echo "SRS origin started and registered."
 
-# --- Step 5: Publish RTMP stream ---
-echo "=== Step 5: Publishing RTMP stream to proxy ==="
-ffmpeg -stream_loop -1 -re -i "$SOURCE_FLV" -c copy -f flv \
-  "rtmp://localhost:$PROXY_RTMP_PORT/$STREAM_URL" >/tmp/srs-ffmpeg-transmux-e2e.log 2>&1 &
+# --- Step 5: Publish SRT stream ---
+echo "=== Step 5: Publishing SRT stream to proxy ==="
+echo "Publish URL: $SRT_PUBLISH_URL"
+ffmpeg -stream_loop -1 -re -i "$SOURCE_FLV" -c copy -f mpegts \
+  "$SRT_PUBLISH_URL" >/tmp/srs-ffmpeg-srt-e2e.log 2>&1 &
 FFMPEG_PID=$!
 echo "FFmpeg publisher PID: $FFMPEG_PID"
 
-# Wait for stream to stabilize and for the origin to start muxing HTTP/HLS.
+# Wait for the SRT handshake, the proxy<->backend bridge, and the
+# origin's srt_to_rtmp pipeline to spin up the derived streams.
 sleep 5
 
 if ! kill -0 "$FFMPEG_PID" 2>/dev/null; then
   echo "Error: FFmpeg publisher failed. Logs:" >&2
-  cat /tmp/srs-ffmpeg-transmux-e2e.log >&2
+  cat /tmp/srs-ffmpeg-srt-e2e.log >&2
   exit 1
 fi
 echo "Stream publishing."
 
-# --- Step 6: Verify RTMP playback ---
-echo "=== Step 6: Verifying RTMP playback via proxy ==="
+# --- Step 6: Verify SRT playback (passthrough) ---
+echo "=== Step 6: Verifying SRT playback via proxy ==="
+probe_has_audio_video "SRT" "$SRT_PLAY_URL"
+
+# --- Step 7: Verify RTMP playback (srt_to_rtmp) ---
+echo "=== Step 7: Verifying RTMP playback via proxy ==="
 probe_has_audio_video "RTMP" "rtmp://localhost:$PROXY_RTMP_PORT/$STREAM_URL"
 
-# --- Step 7: Verify HTTP-FLV playback ---
-echo "=== Step 7: Verifying HTTP-FLV playback via proxy ==="
+# --- Step 8: Verify HTTP-FLV playback ---
+echo "=== Step 8: Verifying HTTP-FLV playback via proxy ==="
 probe_has_audio_video "HTTP-FLV" "http://localhost:$PROXY_HTTP_SERVER_PORT/$STREAM_URL.flv"
 
-# --- Step 8: Verify HLS playback ---
-echo "=== Step 8: Verifying HLS playback via proxy ==="
+# --- Step 9: Verify HLS playback ---
+echo "=== Step 9: Verifying HLS playback via proxy ==="
 HLS_URL="http://localhost:$PROXY_HTTP_SERVER_PORT/$STREAM_URL.m3u8"
 wait_for_hls_playlist "$HLS_URL"
 probe_has_audio_video "HLS" "$HLS_URL"
 
-# --- Step 9: WebRTC WHEP playback (placeholder) ---
-echo "=== Step 9: WebRTC WHEP playback (placeholder) ==="
+# --- Step 10: WebRTC WHEP playback (placeholder) ---
+echo "=== Step 10: WebRTC WHEP playback (placeholder) ==="
 echo "SKIP: WebRTC WHEP playback is not verified by this script."
-echo "      The origin has rtmp_to_rtc enabled, so RTMP->RTC should work end-to-end,"
+echo "      The origin has rtmp_to_rtc enabled, so SRT->RTMP->RTC should work end-to-end,"
 echo "      but actual playback verification is intentionally left as a TODO here."
 
 echo ""
-echo "NOTE: RTSP is not tested here because the Go proxy currently has no RTSP listener."
-echo "=== E2E RTMP Transmux Proxy Test PASSED ==="
+echo "=== E2E SRT Proxy Test PASSED ==="

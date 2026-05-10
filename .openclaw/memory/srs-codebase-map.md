@@ -352,6 +352,7 @@ How to verify SRS works correctly.
 - `proxy-e2e-cluster-test.sh` — Multi-origin memory load-balancer E2E test.
 - `proxy-e2e-redis-test.sh` — Multi-proxy Redis load-balancer E2E test.
 - `proxy-e2e-transmux-test.sh` — RTMP publish through proxy, then verify RTMP, HTTP-FLV, HLS, and WebRTC playback.
+- `proxy-e2e-srt-test.sh` — SRT publish through proxy, then verify SRT, RTMP, HTTP-FLV, and HLS playback (WebRTC WHEP is a placeholder).
 
 **Summary: The Key Differences**
 
