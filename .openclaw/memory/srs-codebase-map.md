@@ -353,7 +353,8 @@ How to verify SRS works correctly.
 - `proxy-e2e-redis-test.sh` — Multi-proxy Redis load-balancer E2E test.
 - `proxy-e2e-transmux-test.sh` — RTMP publish through proxy, then verify RTMP, HTTP-FLV, HLS, and WebRTC playback.
 - `proxy-e2e-srt-test.sh` — SRT publish through proxy, then verify SRT, RTMP, HTTP-FLV, and HLS playback (WebRTC WHEP is a placeholder).
-- `setup-ffmpeg-with-whip.sh` — macOS-only: build ffmpeg from source into `~/.local/` with WHIP (openssl DTLS) and SRT support; auto-invoked by `proxy-e2e-srt-test.sh` when no SRT-capable ffmpeg is found.
+- `proxy-e2e-whip-test.sh` — WHIP (WebRTC) publish through proxy, then verify RTMP, HTTP-FLV, and HLS playback via the origin's `rtc_to_rtmp` bridge (WebRTC WHEP is a placeholder).
+- `setup-ffmpeg-with-whip.sh` — macOS-only: build ffmpeg from source into `~/.local/` with WHIP (openssl DTLS) and SRT support; auto-invoked by `proxy-e2e-srt-test.sh` and `proxy-e2e-whip-test.sh` when no suitable ffmpeg is found.
 
 **Summary: The Key Differences**
 

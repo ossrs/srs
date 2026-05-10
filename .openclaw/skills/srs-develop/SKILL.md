@@ -160,9 +160,13 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    bash scripts/proxy-e2e-transmux-test.sh
    ```
-   - SRT proxy + transmuxing test (starts proxy + one SRS origin, publishes SRT, verifies SRT/RTMP/HTTP-FLV/HLS playback; WebRTC WHEP is a placeholder). Requires an ffmpeg built with libsrt — the default `brew install ffmpeg` does NOT include it; install via the homebrew-ffmpeg tap with `--with-srt` (see the script's pre-check error for the exact commands):
+   - SRT proxy + transmuxing test (starts proxy + one SRS origin, publishes SRT, verifies SRT/RTMP/HTTP-FLV/HLS playback; WebRTC WHEP is a placeholder). Requires an ffmpeg built with libsrt; the script auto-runs `scripts/setup-ffmpeg-with-whip.sh` to build one into `~/.local/` if no SRT-capable ffmpeg is found:
    ```
    bash scripts/proxy-e2e-srt-test.sh
+   ```
+   - WHIP proxy + transmuxing test (starts proxy + one SRS origin, publishes WebRTC via WHIP, verifies RTMP/HTTP-FLV/HLS playback; WebRTC WHEP is a placeholder). Requires an ffmpeg with the `whip` muxer (built with `--enable-openssl`); the script auto-runs `scripts/setup-ffmpeg-with-whip.sh` if no suitable ffmpeg is found:
+   ```
+   bash scripts/proxy-e2e-whip-test.sh
    ```
 5. If any tests fail, fix the issues and re-run until all tests pass.
 
