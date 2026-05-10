@@ -71,7 +71,7 @@ probe_has_audio_video() {
 
   echo "Verifying $name playback: $url"
   local output
-  output=$(ffprobe -v error -show_streams "$url" 2>&1 || true)
+  output=$("$FFPROBE_BIN" -v error -show_streams "$url" 2>&1 || true)
 
   if echo "$output" | grep -q "codec_type=video"; then
     echo "PASS: $name video stream detected."
@@ -121,33 +121,59 @@ if [[ ! -f "$SOURCE_FLV" ]]; then
   echo "Error: test source not found: $SOURCE_FLV" >&2
   exit 1
 fi
-if ! command -v ffmpeg &>/dev/null; then
-  echo "Error: ffmpeg not found in PATH" >&2
-  exit 1
-fi
-if ! command -v ffprobe &>/dev/null; then
-  echo "Error: ffprobe not found in PATH" >&2
-  exit 1
-fi
 if ! command -v curl &>/dev/null; then
   echo "Error: curl not found in PATH" >&2
   exit 1
 fi
+
 # SRT URLs need libsrt compiled into ffmpeg/ffprobe. The default Homebrew
-# ffmpeg formula does NOT include libsrt — install the homebrew-ffmpeg tap
-# build with the explicit --with-srt option instead:
-#   brew tap homebrew-ffmpeg/ffmpeg
-#   brew uninstall ffmpeg            # if vanilla ffmpeg is already installed
-#   brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-srt
-if ! ffmpeg -hide_banner -protocols 2>/dev/null | grep -qw srt; then
-  echo "Error: ffmpeg was built without SRT protocol support." >&2
-  echo "The default 'brew install ffmpeg' does NOT include libsrt." >&2
-  echo "Install the homebrew-ffmpeg tap build with --with-srt instead:" >&2
-  echo "  brew tap homebrew-ffmpeg/ffmpeg" >&2
-  echo "  brew uninstall ffmpeg   # if vanilla ffmpeg is already installed" >&2
-  echo "  brew install homebrew-ffmpeg/ffmpeg/ffmpeg --with-srt" >&2
-  exit 1
+# ffmpeg formula does NOT include libsrt. Resolution order:
+#   1. Use ffmpeg/ffprobe from PATH if they support SRT.
+#   2. Otherwise, use ~/.local/bin/ffmpeg/ffprobe if previously built there.
+#   3. Otherwise, build from source via setup-ffmpeg-with-whip.sh (installs
+#      into ~/.local/) and use the freshly built binaries.
+ffmpeg_has_srt() {
+  local bin="$1"
+  [[ -x "$bin" ]] && "$bin" -hide_banner -protocols 2>/dev/null | grep -qw srt
+}
+
+resolve_ffmpeg() {
+  local sys_ffmpeg sys_ffprobe local_ffmpeg local_ffprobe
+  sys_ffmpeg="$(command -v ffmpeg || true)"
+  sys_ffprobe="$(command -v ffprobe || true)"
+  local_ffmpeg="$HOME/.local/bin/ffmpeg"
+  local_ffprobe="$HOME/.local/bin/ffprobe"
+
+  if [[ -n "$sys_ffprobe" ]] && ffmpeg_has_srt "$sys_ffmpeg"; then
+    FFMPEG_BIN="$sys_ffmpeg"
+    FFPROBE_BIN="$sys_ffprobe"
+    return 0
+  fi
+  if [[ -x "$local_ffprobe" ]] && ffmpeg_has_srt "$local_ffmpeg"; then
+    FFMPEG_BIN="$local_ffmpeg"
+    FFPROBE_BIN="$local_ffprobe"
+    return 0
+  fi
+  return 1
+}
+
+if ! resolve_ffmpeg; then
+  echo "No ffmpeg with SRT support found on PATH or in ~/.local/bin."
+  echo "Building ffmpeg from source via setup-ffmpeg-with-whip.sh — this can take several minutes."
+  bash "$SCRIPT_DIR/setup-ffmpeg-with-whip.sh"
+  FFMPEG_BIN="$HOME/.local/bin/ffmpeg"
+  FFPROBE_BIN="$HOME/.local/bin/ffprobe"
+  if ! ffmpeg_has_srt "$FFMPEG_BIN"; then
+    echo "Error: ffmpeg still lacks SRT support after running setup-ffmpeg-with-whip.sh." >&2
+    exit 1
+  fi
+  if [[ ! -x "$FFPROBE_BIN" ]]; then
+    echo "Error: ffprobe missing at $FFPROBE_BIN after running setup-ffmpeg-with-whip.sh." >&2
+    exit 1
+  fi
 fi
+echo "ffmpeg : $FFMPEG_BIN"
+echo "ffprobe: $FFPROBE_BIN"
 
 # --- Step 0: Clean up stale state ---
 rm -f "$WORKSPACE/trunk/objs/origin1.pid"
@@ -217,7 +243,7 @@ echo "SRS origin started and registered."
 # --- Step 5: Publish SRT stream ---
 echo "=== Step 5: Publishing SRT stream to proxy ==="
 echo "Publish URL: $SRT_PUBLISH_URL"
-ffmpeg -stream_loop -1 -re -i "$SOURCE_FLV" -c copy -f mpegts \
+"$FFMPEG_BIN" -stream_loop -1 -re -i "$SOURCE_FLV" -c copy -f mpegts \
   "$SRT_PUBLISH_URL" >/tmp/srs-ffmpeg-srt-e2e.log 2>&1 &
 FFMPEG_PID=$!
 echo "FFmpeg publisher PID: $FFMPEG_PID"
