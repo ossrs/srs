@@ -13,7 +13,7 @@ import (
 )
 
 // NewDefaultSRSForDebugging initialize the default SRS media server, for debugging only.
-func NewDefaultSRSForDebugging(environment env.ProxyEnvironment) (*SRSServer, error) {
+func NewDefaultSRSForDebugging(environment env.ProxyEnvironment) (*OriginServer, error) {
 	if environment.DefaultBackendEnabled() != "on" {
 		return nil, nil
 	}
@@ -25,7 +25,7 @@ func NewDefaultSRSForDebugging(environment env.ProxyEnvironment) (*SRSServer, er
 		return nil, fmt.Errorf("empty default backend rtmp")
 	}
 
-	server := NewSRSServer(func(srs *SRSServer) {
+	server := NewOriginServer(func(srs *OriginServer) {
 		srs.IP = environment.DefaultBackendIP()
 		srs.RTMP = []string{environment.DefaultBackendRTMP()}
 		srs.ServerID = fmt.Sprintf("default-%v", logger.GenerateContextID())

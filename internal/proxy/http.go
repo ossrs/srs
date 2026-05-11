@@ -245,7 +245,7 @@ func (v *httpFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, 
 	return nil
 }
 
-func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer) error {
+func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.OriginServer) error {
 	// Parse HTTP port from backend.
 	if len(backend.HTTP) == 0 {
 		return errors.Errorf("no http stream server")
@@ -363,7 +363,7 @@ func (v *hlsPlayStream) serve(ctx context.Context, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer) error {
+func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.OriginServer) error {
 	// Parse HTTP port from backend.
 	if len(backend.HTTP) == 0 {
 		return errors.Errorf("no rtmp server")

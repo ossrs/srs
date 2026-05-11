@@ -20,9 +20,9 @@ type MemoryLoadBalancer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// All available SRS servers, key is server ID.
-	servers sync.Map[string, *SRSServer]
+	servers sync.Map[string, *OriginServer]
 	// The picked server to service client by specified stream URL, key is stream url.
-	picked sync.Map[string, *SRSServer]
+	picked sync.Map[string, *OriginServer]
 	// The HLS streaming, key is stream URL.
 	hlsStreamURL sync.Map[string, HLSPlayStream]
 	// The HLS streaming, key is SPBHID.
@@ -34,11 +34,11 @@ type MemoryLoadBalancer struct {
 }
 
 // NewMemoryLoadBalancer creates a new memory-based load balancer.
-func NewMemoryLoadBalancer(environment env.ProxyEnvironment) SRSLoadBalancer {
+func NewMemoryLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 	return &MemoryLoadBalancer{
 		environment:  environment,
-		servers:      sync.NewMap[string, *SRSServer](),
-		picked:       sync.NewMap[string, *SRSServer](),
+		servers:      sync.NewMap[string, *OriginServer](),
+		picked:       sync.NewMap[string, *OriginServer](),
 		hlsStreamURL: sync.NewMap[string, HLSPlayStream](),
 		hlsSPBHID:    sync.NewMap[string, HLSPlayStream](),
 		rtcStreamURL: sync.NewMap[string, RTCConnection](),
@@ -75,20 +75,20 @@ func (v *MemoryLoadBalancer) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (v *MemoryLoadBalancer) Update(ctx context.Context, server *SRSServer) error {
+func (v *MemoryLoadBalancer) Update(ctx context.Context, server *OriginServer) error {
 	v.servers.Store(server.ID(), server)
 	return nil
 }
 
-func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSServer, error) {
+func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
 	// Always proxy to the same server for the same stream URL.
 	if server, ok := v.picked.Load(streamURL); ok {
 		return server, nil
 	}
 
 	// Gather all servers that were alive within the last few seconds.
-	var servers []*SRSServer
-	v.servers.Range(func(key string, server *SRSServer) bool {
+	var servers []*OriginServer
+	v.servers.Range(func(key string, server *OriginServer) bool {
 		if time.Since(server.UpdatedAt) < ServerAliveDuration {
 			servers = append(servers, server)
 		}
@@ -97,7 +97,7 @@ func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSSe
 
 	// If no servers available, use all possible servers.
 	if len(servers) == 0 {
-		v.servers.Range(func(key string, server *SRSServer) bool {
+		v.servers.Range(func(key string, server *OriginServer) bool {
 			servers = append(servers, server)
 			return true
 		})

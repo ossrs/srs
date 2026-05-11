@@ -19,8 +19,8 @@ const HLSAliveDuration = 120 * time.Second
 // If WebRTC streaming update in this duration, it's alive.
 const RTCAliveDuration = 120 * time.Second
 
-// SRSServer represents a backend origin server.
-type SRSServer struct {
+// OriginServer represents a backend origin server.
+type OriginServer struct {
 	// The server IP.
 	IP string `json:"ip,omitempty"`
 	// The server device ID, configured by user.
@@ -45,15 +45,15 @@ type SRSServer struct {
 	UpdatedAt time.Time `json:"update_at,omitempty"`
 }
 
-func (v *SRSServer) ID() string {
+func (v *OriginServer) ID() string {
 	return fmt.Sprintf("%v-%v-%v", v.ServerID, v.ServiceID, v.PID)
 }
 
-func (v *SRSServer) String() string {
+func (v *OriginServer) String() string {
 	return fmt.Sprintf("%v", v)
 }
 
-func (v *SRSServer) Format(f fmt.State, c rune) {
+func (v *OriginServer) Format(f fmt.State, c rune) {
 	switch c {
 	case 'v', 's':
 		if f.Flag('+') {
@@ -87,8 +87,8 @@ func (v *SRSServer) Format(f fmt.State, c rune) {
 	}
 }
 
-func NewSRSServer(opts ...func(*SRSServer)) *SRSServer {
-	v := &SRSServer{}
+func NewOriginServer(opts ...func(*OriginServer)) *OriginServer {
+	v := &OriginServer{}
 	for _, opt := range opts {
 		opt(v)
 	}
@@ -109,14 +109,14 @@ type RTCConnection interface {
 	GetUfrag() string
 }
 
-// SRSLoadBalancer is the interface to load balance the SRS servers.
-type SRSLoadBalancer interface {
+// OriginLoadBalancer is the interface to load balance the SRS servers.
+type OriginLoadBalancer interface {
 	// Initialize the load balancer.
 	Initialize(ctx context.Context) error
-	// Update the backend server.
-	Update(ctx context.Context, server *SRSServer) error
+	// Update records the latest registration or heartbeat for an origin server.
+	Update(ctx context.Context, server *OriginServer) error
 	// Pick a backend server for the specified stream URL.
-	Pick(ctx context.Context, streamURL string) (*SRSServer, error)
+	Pick(ctx context.Context, streamURL string) (*OriginServer, error)
 	// Load or store the HLS streaming for the specified stream URL.
 	LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error)
 	// Load the HLS streaming by SPBHID, the SRS Proxy Backend HLS ID.
@@ -128,4 +128,4 @@ type SRSLoadBalancer interface {
 }
 
 // SrsLoadBalancer is the global SRS load balancer instance.
-var SrsLoadBalancer SRSLoadBalancer
+var SrsLoadBalancer OriginLoadBalancer

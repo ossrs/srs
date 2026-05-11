@@ -147,7 +147,7 @@ func (v *webRTCProxyServer) HandleApiForWHEP(ctx context.Context, w http.Respons
 }
 
 func (v *webRTCProxyServer) proxyApiToBackend(
-	ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.SRSServer,
+	ctx context.Context, w http.ResponseWriter, r *http.Request, backend *lb.OriginServer,
 	remoteSDPOffer string, streamURL string,
 ) error {
 	// Parse HTTP port from backend.

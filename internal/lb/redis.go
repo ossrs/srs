@@ -28,7 +28,7 @@ type RedisLoadBalancer struct {
 }
 
 // NewRedisLoadBalancer creates a new Redis-based load balancer.
-func NewRedisLoadBalancer(environment env.ProxyEnvironment) SRSLoadBalancer {
+func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 	return &RedisLoadBalancer{
 		environment: environment,
 	}
@@ -80,7 +80,7 @@ func (v *RedisLoadBalancer) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (v *RedisLoadBalancer) Update(ctx context.Context, server *SRSServer) error {
+func (v *RedisLoadBalancer) Update(ctx context.Context, server *OriginServer) error {
 	b, err := json.Marshal(server)
 	if err != nil {
 		return errors.Wrapf(err, "marshal server %+v", server)
@@ -130,14 +130,14 @@ func (v *RedisLoadBalancer) Update(ctx context.Context, server *SRSServer) error
 	return nil
 }
 
-func (v *RedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSServer, error) {
+func (v *RedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
 	key := fmt.Sprintf("srs-proxy-url:%v", streamURL)
 
 	// Always proxy to the same server for the same stream URL.
 	if serverKey, err := v.rdb.Get(ctx, key).Result(); err == nil {
 		// If server not exists, ignore and pick another server for the stream URL.
 		if b, err := v.rdb.Get(ctx, serverKey).Bytes(); err == nil && len(b) > 0 {
-			var server SRSServer
+			var server OriginServer
 			if err := json.Unmarshal(b, &server); err != nil {
 				return nil, errors.Wrapf(err, "unmarshal key=%v server %v", key, string(b))
 			}
@@ -163,7 +163,7 @@ func (v *RedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSSer
 	// All server should be alive, if not, should have been removed by redis. So we only
 	// random pick one that is always available. Use global rand which is thread-safe since Go 1.20.
 	var serverKey string
-	var server SRSServer
+	var server OriginServer
 	for i := 0; i < 3; i++ {
 		tryServerKey := serverKeys[rand.Intn(len(serverKeys))]
 		b, err := v.rdb.Get(ctx, tryServerKey).Bytes()

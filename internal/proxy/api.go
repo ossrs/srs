@@ -255,7 +255,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 				return errors.Errorf("empty rtmp")
 			}
 
-			server := lb.NewSRSServer(func(srs *lb.SRSServer) {
+			server := lb.NewOriginServer(func(srs *lb.OriginServer) {
 				srs.IP, srs.DeviceID = ip, deviceID
 				srs.ServerID, srs.ServiceID, srs.PID = serverID, serviceID, pid
 				srs.RTMP, srs.HTTP, srs.API = rtmp, stream, api

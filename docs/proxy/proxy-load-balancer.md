@@ -53,14 +53,14 @@ Both implementations maintain stream-to-server mappings to ensure stream consist
 
 The load balancer uses a clean interface-based architecture:
 
-**Core Interface**: `SRSLoadBalancer`
+**Core Interface**: `OriginLoadBalancer`
 - Initialization and lifecycle management
 - Server registration and updates
 - Stream routing (Pick operation)
 - Protocol-specific state management (HLS, WebRTC)
 
 **Data Models**:
-- `SRSServer`: Backend origin server representation
+- `OriginServer`: Backend origin server representation
 - `HLSPlayStream`: Interface for HLS streaming sessions
 - `RTCConnection`: Interface for WebRTC connections
 
