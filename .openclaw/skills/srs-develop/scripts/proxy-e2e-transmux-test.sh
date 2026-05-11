@@ -32,7 +32,10 @@ ORIGIN_SRT_PORT=10081
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
-STREAM_URL="live/livestream"
+# Randomize per run so each invocation starts from clean origin state (HLS
+# segments, RTMP source, proxy stream registry) and never shares state with
+# sibling E2E tests that publish to "live/livestream".
+STREAM_URL="live/transmux$(date +%s)"
 
 # PIDs to clean up on exit.
 PROXY_PID=""

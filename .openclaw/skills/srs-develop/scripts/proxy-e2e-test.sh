@@ -24,6 +24,10 @@ PROXY_SYSTEM_API_PORT=12025
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
 ORIGIN_CONF="$WORKSPACE/trunk/conf/origin1-for-proxy.conf"
+# Randomize per run so each invocation starts from clean origin state (HLS
+# segments, RTMP source, proxy stream registry) and never shares state with
+# sibling E2E tests that publish to "live/livestream".
+STREAM_URL="live/rtmp$(date +%s)"
 
 # PIDs to clean up on exit.
 PROXY_PID=""
@@ -143,7 +147,7 @@ echo "SRS origin started and registered."
 # --- Step 5: Publish RTMP stream ---
 echo "=== Step 5: Publishing RTMP stream to proxy ==="
 ffmpeg -stream_loop -1 -re -i "$SOURCE_FLV" -c copy -f flv \
-  "rtmp://localhost:$PROXY_RTMP_PORT/live/livestream" >/tmp/srs-ffmpeg-e2e.log 2>&1 &
+  "rtmp://localhost:$PROXY_RTMP_PORT/$STREAM_URL" >/tmp/srs-ffmpeg-e2e.log 2>&1 &
 FFMPEG_PID=$!
 echo "FFmpeg publisher PID: $FFMPEG_PID"
 
@@ -160,7 +164,7 @@ echo "Stream publishing."
 # --- Step 6: Verify RTMP playback ---
 echo "=== Step 6: Verifying RTMP playback via proxy ==="
 PROBE_OUTPUT=$(ffprobe -v error -show_streams \
-  "rtmp://localhost:$PROXY_RTMP_PORT/live/livestream" 2>&1 || true)
+  "rtmp://localhost:$PROXY_RTMP_PORT/$STREAM_URL" 2>&1 || true)
 
 if echo "$PROBE_OUTPUT" | grep -q "codec_type=video"; then
   echo "PASS: Video stream detected."

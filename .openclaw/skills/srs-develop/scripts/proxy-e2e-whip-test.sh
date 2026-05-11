@@ -35,12 +35,16 @@ ORIGIN_SRT_PORT=10081
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
-STREAM_URL="live/livestream"
+# Randomize the stream name per run so each test starts from a clean origin
+# state (HLS segments, RTMP source, proxy stream registry) and never shares
+# state with sibling E2E tests that publish to "live/livestream".
+STREAM_NAME="whip$(date +%s)"
+STREAM_URL="live/$STREAM_NAME"
 
 # WHIP endpoint exposed by the proxy. The proxy parses ?app=&stream= via
 # utils.ConvertURLToStreamURL, then forwards the SDP exchange to the backend
 # SRS origin. @see internal/proxy/api.go and internal/proxy/rtc.go.
-WHIP_PUBLISH_URL="http://localhost:$PROXY_HTTP_API_PORT/rtc/v1/whip/?app=live&stream=livestream"
+WHIP_PUBLISH_URL="http://localhost:$PROXY_HTTP_API_PORT/rtc/v1/whip/?app=live&stream=$STREAM_NAME"
 
 # Make the SRS origin advertise a host candidate that loops back through the
 # proxy. The proxy rewrites only the port in the SDP answer (origin RTC port
@@ -114,6 +118,49 @@ wait_for_hls_playlist() {
   echo "FAIL: HLS playlist was not generated in ${deadline}s." >&2
   echo "Last HLS response:" >&2
   curl -v "$url" 2>&1 || true
+  exit 1
+}
+
+first_hls_segment() {
+  local url="$1"
+
+  curl -fsS "$url" 2>/dev/null | awk '
+    /^[[:space:]]*$/ { next }
+    /^#/ { next }
+    { print; exit }
+  '
+}
+
+wait_for_hls_to_skip_first_segment() {
+  local url="$1"
+  local deadline=60
+  local first_segment current_segment output
+
+  first_segment="$(first_hls_segment "$url")"
+  if [[ -z "$first_segment" ]]; then
+    echo "FAIL: HLS playlist has no media segment: $url" >&2
+    curl -fsS "$url" 2>&1 || true
+    exit 1
+  fi
+
+  echo "Waiting for HLS to skip the first possibly incomplete segment (up to ${deadline}s): $first_segment"
+  for ((i = 1; i <= deadline; i++)); do
+    current_segment="$(first_hls_segment "$url")"
+    if [[ -n "$current_segment" && "$current_segment" != "$first_segment" ]]; then
+      output=$("$FFPROBE_BIN" -v error -show_streams "$url" 2>&1 || true)
+      if echo "$output" | grep -q "codec_type=video" && echo "$output" | grep -q "codec_type=audio"; then
+        echo "HLS first segment advanced and audio/video is ready: $current_segment"
+        return
+      fi
+    fi
+    sleep 1
+  done
+
+  echo "FAIL: HLS did not skip the first segment and expose audio/video in ${deadline}s." >&2
+  echo "Last HLS response:" >&2
+  curl -fsS "$url" 2>&1 || true
+  echo "Last ffprobe output:" >&2
+  echo "$output" >&2
   exit 1
 }
 
@@ -285,6 +332,7 @@ probe_has_audio_video "HTTP-FLV" "http://localhost:$PROXY_HTTP_SERVER_PORT/$STRE
 echo "=== Step 8: Verifying HLS playback via proxy ==="
 HLS_URL="http://localhost:$PROXY_HTTP_SERVER_PORT/$STREAM_URL.m3u8"
 wait_for_hls_playlist "$HLS_URL"
+wait_for_hls_to_skip_first_segment "$HLS_URL"
 probe_has_audio_video "HLS" "$HLS_URL"
 
 # --- Step 9: WebRTC WHEP playback (placeholder) ---
