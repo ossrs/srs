@@ -36,6 +36,8 @@ type WebRTCProxyServer interface {
 type webRTCProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 	// The UDP listener for WebRTC server.
 	listener *net.UDPConn
 
@@ -51,11 +53,12 @@ type webRTCProxyServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewWebRTCProxyServer(environment env.ProxyEnvironment, opts ...func(*webRTCProxyServer)) WebRTCProxyServer {
+func NewWebRTCProxyServer(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, opts ...func(*webRTCProxyServer)) WebRTCProxyServer {
 	v := &webRTCProxyServer{
-		environment: environment,
-		usernames:   sync.NewMap[string, *rtcConnection](),
-		addresses:   sync.NewMap[string, *rtcConnection](),
+		environment:  environment,
+		loadBalancer: loadBalancer,
+		usernames:    sync.NewMap[string, *rtcConnection](),
+		addresses:    sync.NewMap[string, *rtcConnection](),
 	}
 	for _, opt := range opts {
 		opt(v)
@@ -97,7 +100,7 @@ func (v *webRTCProxyServer) HandleApiForWHIP(ctx context.Context, w http.Respons
 	}
 
 	// Pick a backend SRS server to proxy the RTMP stream.
-	backend, err := lb.SrsLoadBalancer.Pick(ctx, streamURL)
+	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}
@@ -134,7 +137,7 @@ func (v *webRTCProxyServer) HandleApiForWHEP(ctx context.Context, w http.Respons
 	}
 
 	// Pick a backend SRS server to proxy the RTMP stream.
-	backend, err := lb.SrsLoadBalancer.Pick(ctx, streamURL)
+	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}
@@ -226,7 +229,8 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 		RemoteICEUfrag: remoteICEUfrag, RemoteICEPwd: remoteICEPwd,
 		LocalICEUfrag: localICEUfrag, LocalICEPwd: localICEPwd,
 	}
-	if err := lb.SrsLoadBalancer.StoreWebRTC(ctx, streamURL, newRTCConnection(func(c *rtcConnection) {
+	if err := v.loadBalancer.StoreWebRTC(ctx, streamURL, newRTCConnection(func(c *rtcConnection) {
+		c.loadBalancer = v.loadBalancer
 		c.StreamURL, c.Ufrag = streamURL, icePair.Ufrag()
 		c.Initialize(ctx, v.listener)
 
@@ -315,10 +319,11 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr *net.UDPAd
 		}
 
 		// Load connection by username.
-		if s, err := lb.SrsLoadBalancer.LoadWebRTCByUfrag(ctx, pkt.Username); err != nil {
+		if s, err := v.loadBalancer.LoadWebRTCByUfrag(ctx, pkt.Username); err != nil {
 			return errors.Wrapf(err, "load webrtc by ufrag %v", pkt.Username)
 		} else {
 			connection = s.(*rtcConnection).Initialize(ctx, v.listener)
+			connection.loadBalancer = v.loadBalancer
 			logger.Debug(ctx, "Create WebRTC connection by ufrag=%v, stream=%v", pkt.Username, connection.StreamURL)
 		}
 
@@ -366,6 +371,8 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr *net.UDPAd
 type rtcConnection struct {
 	// The stream context for WebRTC streaming.
 	ctx context.Context
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 
 	// The stream URL in vhost/app/stream schema.
 	StreamURL string `json:"stream_url"`
@@ -450,7 +457,7 @@ func (v *rtcConnection) connectBackend(ctx context.Context) error {
 	}
 
 	// Pick a backend SRS server to proxy the RTC stream.
-	backend, err := lb.SrsLoadBalancer.Pick(ctx, v.StreamURL)
+	backend, err := v.loadBalancer.Pick(ctx, v.StreamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend")
 	}

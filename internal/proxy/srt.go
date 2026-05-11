@@ -27,6 +27,8 @@ import (
 type srsSRTProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 	// The UDP listener for SRT server.
 	listener *net.UDPConn
 
@@ -39,11 +41,12 @@ type srsSRTProxyServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewSRSSRTProxyServer(environment env.ProxyEnvironment, opts ...func(*srsSRTProxyServer)) *srsSRTProxyServer {
+func NewSRSSRTProxyServer(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, opts ...func(*srsSRTProxyServer)) *srsSRTProxyServer {
 	v := &srsSRTProxyServer{
-		environment: environment,
-		start:       time.Now(),
-		sockets:     sync.NewMap[uint32, *SRTConnection](),
+		environment:  environment,
+		loadBalancer: loadBalancer,
+		start:        time.Now(),
+		sockets:      sync.NewMap[uint32, *SRTConnection](),
 	}
 
 	for _, opt := range opts {
@@ -127,6 +130,7 @@ func (v *srsSRTProxyServer) handleClientUDP(ctx context.Context, addr *net.UDPAd
 	conn, ok := v.sockets.LoadOrStore(socketID, NewSRTConnection(func(c *SRTConnection) {
 		c.ctx = logger.WithContext(ctx)
 		c.listenerUDP, c.socketID = v.listener, socketID
+		c.loadBalancer = v.loadBalancer
 		c.start = v.start
 	}))
 
@@ -158,6 +162,8 @@ func (v *srsSRTProxyServer) handleClientUDP(ctx context.Context, addr *net.UDPAd
 type SRTConnection struct {
 	// The stream context for SRT connection.
 	ctx context.Context
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 
 	// The current socket ID.
 	socketID uint32
@@ -356,7 +362,7 @@ func (v *SRTConnection) connectBackend(ctx context.Context, streamID string) err
 	}
 
 	// Pick a backend SRS server to proxy the SRT stream.
-	backend, err := lb.SrsLoadBalancer.Pick(ctx, streamURL)
+	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}

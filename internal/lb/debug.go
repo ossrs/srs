@@ -12,8 +12,8 @@ import (
 	"srsx/internal/logger"
 )
 
-// NewDefaultSRSForDebugging initialize the default SRS media server, for debugging only.
-func NewDefaultSRSForDebugging(environment env.ProxyEnvironment) (*OriginServer, error) {
+// NewDefaultOriginServerForDebugging initializes the default origin server, for debugging only.
+func NewDefaultOriginServerForDebugging(environment env.ProxyEnvironment) (*OriginServer, error) {
 	if environment.DefaultBackendEnabled() != "on" {
 		return nil, nil
 	}

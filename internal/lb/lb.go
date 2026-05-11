@@ -126,6 +126,3 @@ type OriginLoadBalancer interface {
 	// Load the WebRTC streaming by ufrag, the ICE username.
 	LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error)
 }
-
-// SrsLoadBalancer is the global SRS load balancer instance.
-var SrsLoadBalancer OriginLoadBalancer

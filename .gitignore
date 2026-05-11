@@ -47,4 +47,9 @@ cmake-build-debug
 
 # For AI
 /*personal*
+/support*
+/*srs-consults*
 /*workspace*
+/skills/llm-switcher
+/skills/*workspace*
+/memory/202*.md

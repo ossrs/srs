@@ -19,8 +19,8 @@ import (
 	"srsx/internal/logger"
 )
 
-// RedisLoadBalancer stores state in Redis.
-type RedisLoadBalancer struct {
+// redisLoadBalancer stores state in Redis.
+type redisLoadBalancer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The redis client sdk.
@@ -29,12 +29,12 @@ type RedisLoadBalancer struct {
 
 // NewRedisLoadBalancer creates a new Redis-based load balancer.
 func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
-	return &RedisLoadBalancer{
+	return &redisLoadBalancer{
 		environment: environment,
 	}
 }
 
-func (v *RedisLoadBalancer) Initialize(ctx context.Context) error {
+func (v *redisLoadBalancer) Initialize(ctx context.Context) error {
 	redisDatabase, err := strconv.Atoi(v.environment.RedisDB())
 	if err != nil {
 		return errors.Wrapf(err, "invalid PROXY_REDIS_DB %v", v.environment.RedisDB())
@@ -52,7 +52,7 @@ func (v *RedisLoadBalancer) Initialize(ctx context.Context) error {
 	}
 	logger.Debug(ctx, "RedisLB: connected to redis %v ok", rdb.String())
 
-	server, err := NewDefaultSRSForDebugging(v.environment)
+	server, err := NewDefaultOriginServerForDebugging(v.environment)
 	if err != nil {
 		return errors.Wrapf(err, "initialize default SRS")
 	}
@@ -80,7 +80,7 @@ func (v *RedisLoadBalancer) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (v *RedisLoadBalancer) Update(ctx context.Context, server *OriginServer) error {
+func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) error {
 	b, err := json.Marshal(server)
 	if err != nil {
 		return errors.Wrapf(err, "marshal server %+v", server)
@@ -130,7 +130,7 @@ func (v *RedisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 	return nil
 }
 
-func (v *RedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
+func (v *redisLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
 	key := fmt.Sprintf("srs-proxy-url:%v", streamURL)
 
 	// Always proxy to the same server for the same stream URL.
@@ -188,7 +188,7 @@ func (v *RedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*Origin
 	return &server, nil
 }
 
-func (v *RedisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
+func (v *redisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
 	key := v.redisKeySPBHID(spbhid)
 
 	b, err := v.rdb.Get(ctx, key).Bytes()
@@ -208,7 +208,7 @@ func (v *RedisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) 
 	return nil, errors.Errorf("Redis load balancer cannot deserialize interface types")
 }
 
-func (v *RedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
+func (v *redisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
 	b, err := json.Marshal(value)
 	if err != nil {
 		return nil, errors.Wrapf(err, "marshal HLS %v", value)
@@ -229,7 +229,7 @@ func (v *RedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string
 	return value, nil
 }
 
-func (v *RedisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
+func (v *redisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
 	b, err := json.Marshal(value)
 	if err != nil {
 		return errors.Wrapf(err, "marshal WebRTC %v", value)
@@ -249,7 +249,7 @@ func (v *RedisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, v
 	return nil
 }
 
-func (v *RedisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error) {
+func (v *redisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error) {
 	key := v.redisKeyUfrag(ufrag)
 
 	b, err := v.rdb.Get(ctx, key).Bytes()
@@ -267,26 +267,26 @@ func (v *RedisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string)
 	return nil, errors.Errorf("Redis load balancer cannot deserialize interface types")
 }
 
-func (v *RedisLoadBalancer) redisKeyUfrag(ufrag string) string {
+func (v *redisLoadBalancer) redisKeyUfrag(ufrag string) string {
 	return fmt.Sprintf("srs-proxy-ufrag:%v", ufrag)
 }
 
-func (v *RedisLoadBalancer) redisKeyRTC(streamURL string) string {
+func (v *redisLoadBalancer) redisKeyRTC(streamURL string) string {
 	return fmt.Sprintf("srs-proxy-rtc:%v", streamURL)
 }
 
-func (v *RedisLoadBalancer) redisKeySPBHID(spbhid string) string {
+func (v *redisLoadBalancer) redisKeySPBHID(spbhid string) string {
 	return fmt.Sprintf("srs-proxy-spbhid:%v", spbhid)
 }
 
-func (v *RedisLoadBalancer) redisKeyHLS(streamURL string) string {
+func (v *redisLoadBalancer) redisKeyHLS(streamURL string) string {
 	return fmt.Sprintf("srs-proxy-hls:%v", streamURL)
 }
 
-func (v *RedisLoadBalancer) redisKeyServer(serverID string) string {
+func (v *redisLoadBalancer) redisKeyServer(serverID string) string {
 	return fmt.Sprintf("srs-proxy-server:%v", serverID)
 }
 
-func (v *RedisLoadBalancer) redisKeyServers() string {
+func (v *redisLoadBalancer) redisKeyServers() string {
 	return fmt.Sprintf("srs-proxy-all-servers")
 }

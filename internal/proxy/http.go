@@ -34,6 +34,8 @@ type HTTPStreamProxyServer interface {
 type httpStreamProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 	// The underlayer HTTP server.
 	server *http.Server
 	// The gracefully quit timeout, wait server to quit.
@@ -42,9 +44,10 @@ type httpStreamProxyServer struct {
 	wg stdSync.WaitGroup
 }
 
-func NewHTTPStreamProxyServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) HTTPStreamProxyServer {
+func NewHTTPStreamProxyServer(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, gracefulQuitTimeout time.Duration) HTTPStreamProxyServer {
 	v := &httpStreamProxyServer{
 		environment:         environment,
+		loadBalancer:        loadBalancer,
 		gracefulQuitTimeout: gracefulQuitTimeout,
 	}
 	return v
@@ -128,7 +131,8 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 				return
 			}
 
-			stream, _ := lb.SrsLoadBalancer.LoadOrStoreHLS(ctx, streamURL, newHLSPlayStream(func(s *hlsPlayStream) {
+			stream, _ := v.loadBalancer.LoadOrStoreHLS(ctx, streamURL, newHLSPlayStream(func(s *hlsPlayStream) {
+				s.loadBalancer = v.loadBalancer
 				s.SRSProxyBackendHLSID = logger.GenerateContextID()
 				s.StreamURL, s.FullURL = streamURL, fullURL
 			}))
@@ -142,7 +146,7 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 			strings.HasSuffix(r.URL.Path, ".ts") {
 			// If SPBHID is specified, it must be a HLS stream client.
 			if srsProxyBackendID := r.URL.Query().Get("spbhid"); srsProxyBackendID != "" {
-				if stream, err := lb.SrsLoadBalancer.LoadHLSBySPBHID(ctx, srsProxyBackendID); err != nil {
+				if stream, err := v.loadBalancer.LoadHLSBySPBHID(ctx, srsProxyBackendID); err != nil {
 					http.Error(w, fmt.Sprintf("load stream by spbhid %v", srsProxyBackendID), http.StatusBadRequest)
 				} else {
 					stream.Initialize(ctx).(*hlsPlayStream).ServeHTTP(w, r)
@@ -153,6 +157,7 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 			// Use HTTP pseudo streaming to proxy the request.
 			newHTTPFlvTsConnection(func(c *httpFlvTsConnection) {
 				c.ctx = ctx
+				c.loadBalancer = v.loadBalancer
 			}).ServeHTTP(w, r)
 			return
 		}
@@ -196,6 +201,8 @@ func (v *httpStreamProxyServer) Run(ctx context.Context) error {
 type httpFlvTsConnection struct {
 	// The context for HTTP streaming.
 	ctx context.Context
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 }
 
 func newHTTPFlvTsConnection(opts ...func(*httpFlvTsConnection)) *httpFlvTsConnection {
@@ -233,7 +240,7 @@ func (v *httpFlvTsConnection) serve(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	// Pick a backend SRS server to proxy the RTMP stream.
-	backend, err := lb.SrsLoadBalancer.Pick(ctx, streamURL)
+	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}
@@ -303,6 +310,8 @@ func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 type hlsPlayStream struct {
 	// The context for HLS streaming.
 	ctx context.Context
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 
 	// The spbhid, used to identify the backend server.
 	SRSProxyBackendHLSID string `json:"spbhid"`
@@ -351,7 +360,7 @@ func (v *hlsPlayStream) serve(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 
 	// Pick a backend SRS server to proxy the RTMP stream.
-	backend, err := lb.SrsLoadBalancer.Pick(ctx, streamURL)
+	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}

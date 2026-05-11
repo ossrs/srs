@@ -31,14 +31,16 @@ type RTMPProxyServer interface {
 type rtmpProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 	// The TCP listener for RTMP server.
 	listener *net.TCPListener
 	// The wait group for all goroutines.
 	wg sync.WaitGroup
 }
 
-func NewRTMPProxyServer(environment env.ProxyEnvironment, opts ...func(*rtmpProxyServer)) RTMPProxyServer {
-	v := &rtmpProxyServer{environment: environment}
+func NewRTMPProxyServer(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, opts ...func(*rtmpProxyServer)) RTMPProxyServer {
+	v := &rtmpProxyServer{environment: environment, loadBalancer: loadBalancer}
 	for _, opt := range opts {
 		opt(v)
 	}
@@ -102,7 +104,9 @@ func (v *rtmpProxyServer) Run(ctx context.Context) error {
 					}
 				}
 
-				rc := newRTMPConnection()
+				rc := newRTMPConnection(func(c *rtmpConnection) {
+					c.loadBalancer = v.loadBalancer
+				})
 				if err := rc.serve(ctx, conn); err != nil {
 					handleErr(err)
 				} else {
@@ -122,6 +126,8 @@ func (v *rtmpProxyServer) Run(ctx context.Context) error {
 // then proxy to the corresponding backend server. All state is in the RTMP request, so this
 // connection is stateless.
 type rtmpConnection struct {
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 }
 
 func newRTMPConnection(opts ...func(*rtmpConnection)) *rtmpConnection {
@@ -296,6 +302,7 @@ func (v *rtmpConnection) serve(ctx context.Context, conn *net.TCPConn) error {
 	// Find a backend SRS server to proxy the RTMP stream.
 	backend = newRTMPClientToBackend(func(client *rtmpClientToBackend) {
 		client.typ = clientType
+		client.loadBalancer = v.loadBalancer
 	})
 	defer backend.Close()
 
@@ -429,6 +436,8 @@ type rtmpClientToBackend struct {
 	client rtmp.Protocol
 	// The stream type.
 	typ RTMPClientType
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 }
 
 func newRTMPClientToBackend(opts ...func(*rtmpClientToBackend)) *rtmpClientToBackend {
@@ -454,7 +463,7 @@ func (v *rtmpClientToBackend) Connect(ctx context.Context, tcUrl, streamName str
 	}
 
 	// Pick a backend SRS server to proxy the RTMP stream.
-	backend, err := lb.SrsLoadBalancer.Pick(ctx, streamURL)
+	backend, err := v.loadBalancer.Pick(ctx, streamURL)
 	if err != nil {
 		return errors.Wrapf(err, "pick backend for %v", streamURL)
 	}

@@ -65,8 +65,9 @@ func (b *proxyBootstrap) run(ctx context.Context) error {
 	// Start the Go pprof if enabled.
 	debug.HandleGoPprof(ctx, environment)
 
-	// Initialize the load balancer.
-	if err := b.initializeLoadBalancer(ctx, environment); err != nil {
+	// Create and initialize the load balancer.
+	loadBalancer, err := b.initializeLoadBalancer(ctx, environment)
+	if err != nil {
 		return err
 	}
 
@@ -77,36 +78,37 @@ func (b *proxyBootstrap) run(ctx context.Context) error {
 	}
 
 	// Start all servers and block until context is cancelled.
-	return b.startServers(ctx, environment, gracefulQuitTimeout)
+	return b.startServers(ctx, environment, loadBalancer, gracefulQuitTimeout)
 }
 
 // initializeLoadBalancer sets up the load balancer based on configuration.
-func (b *proxyBootstrap) initializeLoadBalancer(ctx context.Context, environment env.ProxyEnvironment) error {
+func (b *proxyBootstrap) initializeLoadBalancer(ctx context.Context, environment env.ProxyEnvironment) (lb.OriginLoadBalancer, error) {
+	var loadBalancer lb.OriginLoadBalancer
 	switch environment.LoadBalancerType() {
 	case "redis":
-		lb.SrsLoadBalancer = lb.NewRedisLoadBalancer(environment)
+		loadBalancer = lb.NewRedisLoadBalancer(environment)
 	default:
-		lb.SrsLoadBalancer = lb.NewMemoryLoadBalancer(environment)
+		loadBalancer = lb.NewMemoryLoadBalancer(environment)
 	}
 
-	if err := lb.SrsLoadBalancer.Initialize(ctx); err != nil {
-		return errors.Wrapf(err, "initialize srs load balancer")
+	if err := loadBalancer.Initialize(ctx); err != nil {
+		return nil, errors.Wrapf(err, "initialize srs load balancer")
 	}
 
-	return nil
+	return loadBalancer, nil
 }
 
 // startServers initializes and starts all protocol servers.
-func (b *proxyBootstrap) startServers(ctx context.Context, environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) error {
+func (b *proxyBootstrap) startServers(ctx context.Context, environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, gracefulQuitTimeout time.Duration) error {
 	// Start the RTMP server.
-	rtmpProxyServer := proxy.NewRTMPProxyServer(environment)
+	rtmpProxyServer := proxy.NewRTMPProxyServer(environment, loadBalancer)
 	if err := rtmpProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "rtmp server")
 	}
 	defer rtmpProxyServer.Close()
 
 	// Start the WebRTC server.
-	webRTCProxyServer := proxy.NewWebRTCProxyServer(environment)
+	webRTCProxyServer := proxy.NewWebRTCProxyServer(environment, loadBalancer)
 	if err := webRTCProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "rtc server")
 	}
@@ -120,21 +122,21 @@ func (b *proxyBootstrap) startServers(ctx context.Context, environment env.Proxy
 	defer httpAPIProxyServer.Close()
 
 	// Start the SRT server.
-	srsSRTProxyServer := proxy.NewSRSSRTProxyServer(environment)
+	srsSRTProxyServer := proxy.NewSRSSRTProxyServer(environment, loadBalancer)
 	if err := srsSRTProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "srt server")
 	}
 	defer srsSRTProxyServer.Close()
 
 	// Start the System API server.
-	systemAPI := proxy.NewSystemAPI(environment, gracefulQuitTimeout)
+	systemAPI := proxy.NewSystemAPI(environment, loadBalancer, gracefulQuitTimeout)
 	if err := systemAPI.Run(ctx); err != nil {
 		return errors.Wrapf(err, "system api server")
 	}
 	defer systemAPI.Close()
 
 	// Start the HTTP web server.
-	httpStreamProxyServer := proxy.NewHTTPStreamProxyServer(environment, gracefulQuitTimeout)
+	httpStreamProxyServer := proxy.NewHTTPStreamProxyServer(environment, loadBalancer, gracefulQuitTimeout)
 	if err := httpStreamProxyServer.Run(ctx); err != nil {
 		return errors.Wrapf(err, "http server")
 	}

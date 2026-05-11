@@ -15,8 +15,8 @@ import (
 	"srsx/internal/sync"
 )
 
-// MemoryLoadBalancer stores state in memory.
-type MemoryLoadBalancer struct {
+// memoryLoadBalancer stores state in memory.
+type memoryLoadBalancer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// All available SRS servers, key is server ID.
@@ -35,7 +35,7 @@ type MemoryLoadBalancer struct {
 
 // NewMemoryLoadBalancer creates a new memory-based load balancer.
 func NewMemoryLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
-	return &MemoryLoadBalancer{
+	return &memoryLoadBalancer{
 		environment:  environment,
 		servers:      sync.NewMap[string, *OriginServer](),
 		picked:       sync.NewMap[string, *OriginServer](),
@@ -46,8 +46,8 @@ func NewMemoryLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer 
 	}
 }
 
-func (v *MemoryLoadBalancer) Initialize(ctx context.Context) error {
-	server, err := NewDefaultSRSForDebugging(v.environment)
+func (v *memoryLoadBalancer) Initialize(ctx context.Context) error {
+	server, err := NewDefaultOriginServerForDebugging(v.environment)
 	if err != nil {
 		return errors.Wrapf(err, "initialize default SRS")
 	}
@@ -75,12 +75,12 @@ func (v *MemoryLoadBalancer) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (v *MemoryLoadBalancer) Update(ctx context.Context, server *OriginServer) error {
+func (v *memoryLoadBalancer) Update(ctx context.Context, server *OriginServer) error {
 	v.servers.Store(server.ID(), server)
 	return nil
 }
 
-func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
+func (v *memoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
 	// Always proxy to the same server for the same stream URL.
 	if server, ok := v.picked.Load(streamURL); ok {
 		return server, nil
@@ -115,7 +115,7 @@ func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*Origi
 	return server, nil
 }
 
-func (v *MemoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
+func (v *memoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
 	// Load the HLS streaming for the SPBHID, for TS files.
 	if actual, ok := v.hlsSPBHID.Load(spbhid); !ok {
 		return nil, errors.Errorf("no HLS streaming for SPBHID %v", spbhid)
@@ -124,7 +124,7 @@ func (v *MemoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string)
 	}
 }
 
-func (v *MemoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
+func (v *memoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
 	// Update the HLS streaming for the stream URL, for M3u8.
 	actual, _ := v.hlsStreamURL.LoadOrStore(streamURL, value)
 	if actual == nil {
@@ -137,7 +137,7 @@ func (v *MemoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL strin
 	return actual, nil
 }
 
-func (v *MemoryLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
+func (v *memoryLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
 	// Update the WebRTC streaming for the stream URL.
 	v.rtcStreamURL.Store(streamURL, value)
 
@@ -146,7 +146,7 @@ func (v *MemoryLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, 
 	return nil
 }
 
-func (v *MemoryLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error) {
+func (v *memoryLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error) {
 	if actual, ok := v.rtcUfrag.Load(ufrag); !ok {
 		return nil, errors.Errorf("no WebRTC streaming for ufrag %v", ufrag)
 	} else {

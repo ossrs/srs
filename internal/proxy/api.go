@@ -147,6 +147,8 @@ func (v *httpAPIProxyServer) Run(ctx context.Context) error {
 type systemAPI struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
+	// The load balancer for origin servers.
+	loadBalancer lb.OriginLoadBalancer
 	// The underlayer HTTP server.
 	server *http.Server
 	// The gracefully quit timeout, wait server to quit.
@@ -155,9 +157,10 @@ type systemAPI struct {
 	wg sync.WaitGroup
 }
 
-func NewSystemAPI(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration) *systemAPI {
+func NewSystemAPI(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, gracefulQuitTimeout time.Duration) *systemAPI {
 	v := &systemAPI{
 		environment:         environment,
+		loadBalancer:        loadBalancer,
 		gracefulQuitTimeout: gracefulQuitTimeout,
 	}
 	return v
@@ -262,7 +265,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 				srs.SRT, srs.RTC = srt, rtc
 				srs.UpdatedAt = time.Now()
 			})
-			if err := lb.SrsLoadBalancer.Update(ctx, server); err != nil {
+			if err := v.loadBalancer.Update(ctx, server); err != nil {
 				return errors.Wrapf(err, "update SRS server %+v", server)
 			}
 
