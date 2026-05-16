@@ -11,26 +11,33 @@ import (
 	"strconv"
 	"time"
 
-	// Use v8 because we use Go 1.16+, while v9 requires Go 1.18+
-	"github.com/go-redis/redis/v8"
-
 	"srsx/internal/env"
 	"srsx/internal/errors"
 	"srsx/internal/logger"
+	"srsx/internal/redisclient"
 )
 
 // redisLoadBalancer stores state in Redis.
 type redisLoadBalancer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
-	// The redis client sdk.
-	rdb *redis.Client
+	// The redis client.
+	rdb redisclient.RedisClient
+	// newClient is the factory used by Initialize to build the Redis client.
+	// A struct field (rather than a package global) so concurrent tests can
+	// each supply their own without racing on shared state.
+	newClient func(addr, password string, db int) redisclient.RedisClient
+	// keepaliveInterval is the period at which the default-backend keep-alive
+	// goroutine re-Updates its registration. Struct field for test injection.
+	keepaliveInterval time.Duration
 }
 
 // NewRedisLoadBalancer creates a new Redis-based load balancer.
 func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 	return &redisLoadBalancer{
-		environment: environment,
+		environment:       environment,
+		newClient:         redisclient.New,
+		keepaliveInterval: 30 * time.Second,
 	}
 }
 
@@ -40,11 +47,11 @@ func (v *redisLoadBalancer) Initialize(ctx context.Context) error {
 		return errors.Wrapf(err, "invalid PROXY_REDIS_DB %v", v.environment.RedisDB())
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%v:%v", v.environment.RedisHost(), v.environment.RedisPort()),
-		Password: v.environment.RedisPassword(),
-		DB:       redisDatabase,
-	})
+	rdb := v.newClient(
+		fmt.Sprintf("%v:%v", v.environment.RedisHost(), v.environment.RedisPort()),
+		v.environment.RedisPassword(),
+		redisDatabase,
+	)
 	v.rdb = rdb
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
@@ -68,7 +75,7 @@ func (v *redisLoadBalancer) Initialize(ctx context.Context) error {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(30 * time.Second):
+				case <-time.After(v.keepaliveInterval):
 					if err := v.Update(ctx, server); err != nil {
 						logger.Warn(ctx, "update default SRS %+v failed, %+v", server, err)
 					}

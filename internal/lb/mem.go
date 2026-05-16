@@ -31,18 +31,23 @@ type memoryLoadBalancer struct {
 	rtcStreamURL sync.Map[string, RTCConnection]
 	// The WebRTC streaming, key is ufrag.
 	rtcUfrag sync.Map[string, RTCConnection]
+	// keepaliveInterval is the period at which the default-backend keep-alive
+	// goroutine re-Updates its registration. Struct field for test injection
+	// (avoids racing a package global across concurrent tests).
+	keepaliveInterval time.Duration
 }
 
 // NewMemoryLoadBalancer creates a new memory-based load balancer.
 func NewMemoryLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 	return &memoryLoadBalancer{
-		environment:  environment,
-		servers:      sync.NewMap[string, *OriginServer](),
-		picked:       sync.NewMap[string, *OriginServer](),
-		hlsStreamURL: sync.NewMap[string, HLSPlayStream](),
-		hlsSPBHID:    sync.NewMap[string, HLSPlayStream](),
-		rtcStreamURL: sync.NewMap[string, RTCConnection](),
-		rtcUfrag:     sync.NewMap[string, RTCConnection](),
+		environment:       environment,
+		servers:           sync.NewMap[string, *OriginServer](),
+		picked:            sync.NewMap[string, *OriginServer](),
+		hlsStreamURL:      sync.NewMap[string, HLSPlayStream](),
+		hlsSPBHID:         sync.NewMap[string, HLSPlayStream](),
+		rtcStreamURL:      sync.NewMap[string, RTCConnection](),
+		rtcUfrag:          sync.NewMap[string, RTCConnection](),
+		keepaliveInterval: 30 * time.Second,
 	}
 }
 
@@ -63,7 +68,7 @@ func (v *memoryLoadBalancer) Initialize(ctx context.Context) error {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(30 * time.Second):
+				case <-time.After(v.keepaliveInterval):
 					if err := v.Update(ctx, server); err != nil {
 						logger.Warn(ctx, "update default SRS %+v failed, %+v", server, err)
 					}

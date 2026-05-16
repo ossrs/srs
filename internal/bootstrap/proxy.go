@@ -33,7 +33,7 @@ func (b *proxyBootstrap) Start(ctx context.Context) error {
 
 	// Install signals.
 	ctx, cancel := context.WithCancel(ctx)
-	signal.InstallSignals(ctx, cancel)
+	signal.NewHandler().InstallSignals(ctx, cancel)
 
 	// Run the main loop, ignore the user cancel error.
 	err := b.run(ctx)
@@ -58,7 +58,7 @@ func (b *proxyBootstrap) run(ctx context.Context) error {
 	// When cancelled, the program is forced to exit due to a timeout. Normally, this doesn't occur
 	// because the main thread exits after the context is cancelled. However, sometimes the main thread
 	// may be blocked for some reason, so a forced exit is necessary to ensure the program terminates.
-	if err := signal.InstallForceQuit(ctx, environment); err != nil {
+	if err := signal.NewHandler().InstallForceQuit(ctx, environment); err != nil {
 		return errors.Wrapf(err, "install force quit")
 	}
 

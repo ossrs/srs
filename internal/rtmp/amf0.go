@@ -90,7 +90,9 @@ type amf0Buffer interface {
 	Write(p []byte) (n int, err error)
 }
 
-var createBuffer = func() amf0Buffer {
+// defaultBufFactory is the production amf0Buffer factory. Tests override the
+// per-instance bufFactory field on amf0ObjectBase instead of swapping a global.
+func defaultBufFactory() amf0Buffer {
 	return &bytes.Buffer{}
 }
 
@@ -399,6 +401,10 @@ type amf0Property struct {
 type amf0ObjectBase struct {
 	properties []*amf0Property
 	lock       sync.Mutex
+	// bufFactory creates the amf0Buffer used by MarshalBinary. Held as a
+	// per-instance field (not a package global) so concurrent tests can each
+	// install their own buggy buffers without racing on shared state.
+	bufFactory func() amf0Buffer
 }
 
 func (v *amf0ObjectBase) Size() int {
@@ -562,6 +568,7 @@ func NewAmf0Object() Amf0Object {
 func newAmf0Object() *amf0Object {
 	v := &amf0Object{}
 	v.properties = []*amf0Property{}
+	v.bufFactory = defaultBufFactory
 	return v
 }
 
@@ -600,7 +607,7 @@ func (v *amf0Object) UnmarshalBinary(data []byte) (err error) {
 }
 
 func (v *amf0Object) MarshalBinary() (data []byte, err error) {
-	b := createBuffer()
+	b := v.bufFactory()
 
 	if err = b.WriteByte(byte(amf0MarkerObject)); err != nil {
 		return nil, errors.Wrap(err, "marshal")
@@ -640,6 +647,7 @@ func NewAmf0EcmaArray() Amf0EcmaArray {
 func newAmf0EcmaArray() *amf0EcmaArray {
 	v := &amf0EcmaArray{}
 	v.properties = []*amf0Property{}
+	v.bufFactory = defaultBufFactory
 	return v
 }
 
@@ -678,7 +686,7 @@ func (v *amf0EcmaArray) UnmarshalBinary(data []byte) (err error) {
 }
 
 func (v *amf0EcmaArray) MarshalBinary() (data []byte, err error) {
-	b := createBuffer()
+	b := v.bufFactory()
 
 	if err = b.WriteByte(byte(amf0MarkerEcmaArray)); err != nil {
 		return nil, errors.Wrap(err, "marshal")
@@ -717,6 +725,7 @@ type amf0StrictArray struct {
 func NewAmf0StrictArray() Amf0StrictArray {
 	v := &amf0StrictArray{}
 	v.properties = []*amf0Property{}
+	v.bufFactory = defaultBufFactory
 	return v
 }
 
@@ -759,7 +768,7 @@ func (v *amf0StrictArray) UnmarshalBinary(data []byte) (err error) {
 }
 
 func (v *amf0StrictArray) MarshalBinary() (data []byte, err error) {
-	b := createBuffer()
+	b := v.bufFactory()
 
 	if err = b.WriteByte(byte(amf0MarkerStrictArray)); err != nil {
 		return nil, errors.Wrap(err, "marshal")

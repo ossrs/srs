@@ -16,59 +16,60 @@ import (
 	"srsx/internal/env/envfakes"
 )
 
-// swapNotify replaces signalNotify with a capturing fake and returns a getter
-// for the channel registered by the code under test plus a restore func.
-func swapNotify(t *testing.T) (func() chan<- os.Signal, func()) {
-	t.Helper()
-	orig := signalNotify
+// captureNotify returns a Handler whose notify field records the channel
+// passed by the code under test, plus a getter that retrieves it.
+func captureNotify() (*Handler, func() chan<- os.Signal) {
 	var (
 		mu sync.Mutex
 		ch chan<- os.Signal
 	)
-	signalNotify = func(c chan<- os.Signal, _ ...os.Signal) {
-		mu.Lock()
-		defer mu.Unlock()
-		ch = c
-	}
-	return func() chan<- os.Signal {
+	h := &Handler{
+		notify: func(c chan<- os.Signal, _ ...os.Signal) {
 			mu.Lock()
 			defer mu.Unlock()
-			return ch
-		}, func() {
-			signalNotify = orig
-		}
+			ch = c
+		},
+		exit: os.Exit,
+	}
+	return h, func() chan<- os.Signal {
+		mu.Lock()
+		defer mu.Unlock()
+		return ch
+	}
 }
 
-func swapExit(t *testing.T) (*int32, chan int, func()) {
-	t.Helper()
-	orig := osExit
+// captureExit returns a Handler whose exit field records the code and never
+// returns, plus a flag and channel that observe the call.
+func captureExit() (*Handler, *int32, chan int) {
 	var called int32
 	done := make(chan int, 1)
-	osExit = func(code int) {
-		atomic.StoreInt32(&called, 1)
-		select {
-		case done <- code:
-		default:
-		}
-		// Block to mimic os.Exit never returning; the goroutine holding us
-		// here is abandoned when the test ends.
-		select {}
+	h := &Handler{
+		notify: func(chan<- os.Signal, ...os.Signal) {},
+		exit: func(code int) {
+			atomic.StoreInt32(&called, 1)
+			select {
+			case done <- code:
+			default:
+			}
+			// Block to mimic os.Exit never returning; the goroutine holding us
+			// here is abandoned when the test ends.
+			select {}
+		},
 	}
-	return &called, done, func() { osExit = orig }
+	return h, &called, done
 }
 
 func TestInstallSignals_CancelsOnSignal(t *testing.T) {
-	getCh, restore := swapNotify(t)
-	defer restore()
+	h, getCh := captureNotify()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	InstallSignals(ctx, cancel)
+	h.InstallSignals(ctx, cancel)
 
 	ch := getCh()
 	if ch == nil {
-		t.Fatal("signalNotify was not called")
+		t.Fatal("notify was not called")
 	}
 	ch <- syscall.SIGINT
 
@@ -80,13 +81,12 @@ func TestInstallSignals_CancelsOnSignal(t *testing.T) {
 }
 
 func TestInstallSignals_HandlesRepeatedSignals(t *testing.T) {
-	getCh, restore := swapNotify(t)
-	defer restore()
+	h, getCh := captureNotify()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	InstallSignals(ctx, cancel)
+	h.InstallSignals(ctx, cancel)
 	ch := getCh()
 
 	// Multiple signals must not panic; cancel() is idempotent.
@@ -105,7 +105,7 @@ func TestInstallForceQuit_InvalidDurationReturnsError(t *testing.T) {
 	fakeEnv := &envfakes.FakeProxyEnvironment{}
 	fakeEnv.ForceQuitTimeoutReturns("not-a-duration")
 
-	err := InstallForceQuit(t.Context(), fakeEnv)
+	err := NewHandler().InstallForceQuit(t.Context(), fakeEnv)
 	if err == nil {
 		t.Fatal("want error for bad duration")
 	}
@@ -118,20 +118,19 @@ func TestInstallForceQuit_InvalidDurationReturnsError(t *testing.T) {
 }
 
 func TestInstallForceQuit_ExitsAfterTimeout(t *testing.T) {
-	called, done, restore := swapExit(t)
-	defer restore()
+	h, called, done := captureExit()
 
 	fakeEnv := &envfakes.FakeProxyEnvironment{}
 	fakeEnv.ForceQuitTimeoutReturns("1ms")
 
 	ctx, cancel := context.WithCancel(t.Context())
-	if err := InstallForceQuit(ctx, fakeEnv); err != nil {
+	if err := h.InstallForceQuit(ctx, fakeEnv); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
 
 	// Before cancel, the goroutine is blocked and exit must not fire.
 	if atomic.LoadInt32(called) != 0 {
-		t.Fatal("osExit called before ctx cancel")
+		t.Fatal("exit called before ctx cancel")
 	}
 	cancel()
 
@@ -141,30 +140,39 @@ func TestInstallForceQuit_ExitsAfterTimeout(t *testing.T) {
 			t.Fatalf("exit code = %d, want 1", code)
 		}
 	case <-time.After(time.Second):
-		t.Fatal("osExit not called after cancel + timeout")
+		t.Fatal("exit not called after cancel + timeout")
 	}
 }
 
 func TestInstallForceQuit_WaitsForCancelBeforeSleeping(t *testing.T) {
-	called, done, restore := swapExit(t)
-	defer restore()
+	h, called, done := captureExit()
 
 	fakeEnv := &envfakes.FakeProxyEnvironment{}
 	fakeEnv.ForceQuitTimeoutReturns("10ms")
 
-	// Intentionally use a never-canceled context and leak the goroutine:
-	// if we canceled at test end, the goroutine would wake and race with
-	// restore() writing osExit.
-	if err := InstallForceQuit(context.Background(), fakeEnv); err != nil {
+	// Intentionally use a never-canceled context and leak the goroutine: the
+	// handler's exit closure is owned by this test instance, so leaving the
+	// goroutine alive doesn't race other tests.
+	if err := h.InstallForceQuit(context.Background(), fakeEnv); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
 
 	select {
 	case <-done:
-		t.Fatal("osExit fired without ctx cancel")
+		t.Fatal("exit fired without ctx cancel")
 	case <-time.After(30 * time.Millisecond):
 	}
 	if atomic.LoadInt32(called) != 0 {
-		t.Fatal("osExit called unexpectedly")
+		t.Fatal("exit called unexpectedly")
+	}
+}
+
+func TestNewHandler_UsesRealOSDefaults(t *testing.T) {
+	h := NewHandler()
+	if h.notify == nil {
+		t.Error("notify default not set")
+	}
+	if h.exit == nil {
+		t.Error("exit default not set")
 	}
 }

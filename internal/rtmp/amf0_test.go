@@ -436,10 +436,21 @@ func (v *errorAmf0Any) amf0Marker() amf0Marker {
 	return amf0MarkerNumber
 }
 
-func TestAmf0MarshalErrors(t *testing.T) {
-	originalCreateBuffer := createBuffer
-	defer func() { createBuffer = originalCreateBuffer }()
+// setBufFactory replaces the bufFactory on whichever amf0 object-like type
+// underlies v. Concurrent tests can use this safely because each value carries
+// its own factory.
+func setBufFactory(v Amf0Any, fn func() amf0Buffer) {
+	switch v := v.(type) {
+	case *amf0Object:
+		v.bufFactory = fn
+	case *amf0EcmaArray:
+		v.bufFactory = fn
+	case *amf0StrictArray:
+		v.bufFactory = fn
+	}
+}
 
+func TestAmf0MarshalErrors(t *testing.T) {
 	for _, tt := range []struct {
 		name string
 		make func() Amf0Any
@@ -449,15 +460,16 @@ func TestAmf0MarshalErrors(t *testing.T) {
 		{"strict-array", func() Amf0Any { return NewAmf0StrictArray() }},
 	} {
 		t.Run(tt.name+" write-byte", func(t *testing.T) {
-			createBuffer = func() amf0Buffer { return &errorAmf0Buffer{writeByteErr: true} }
-			if _, err := tt.make().MarshalBinary(); err == nil {
+			value := tt.make()
+			setBufFactory(value, func() amf0Buffer { return &errorAmf0Buffer{writeByteErr: true} })
+			if _, err := value.MarshalBinary(); err == nil {
 				t.Fatal("MarshalBinary() should fail")
 			}
 		})
 
 		t.Run(tt.name+" write-prop", func(t *testing.T) {
-			createBuffer = func() amf0Buffer { return &errorAmf0Buffer{writeErr: true} }
 			value := tt.make()
+			setBufFactory(value, func() amf0Buffer { return &errorAmf0Buffer{writeErr: true} })
 			switch v := value.(type) {
 			case Amf0Object:
 				v.Set("name", NewAmf0String("stream"))
@@ -473,7 +485,6 @@ func TestAmf0MarshalErrors(t *testing.T) {
 		})
 	}
 
-	createBuffer = originalCreateBuffer
 	for _, tt := range []struct {
 		name string
 		make func() Amf0Any

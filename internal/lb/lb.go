@@ -109,20 +109,35 @@ type RTCConnection interface {
 	GetUfrag() string
 }
 
-// OriginLoadBalancer is the interface to load balance the SRS servers.
-type OriginLoadBalancer interface {
-	// Initialize the load balancer.
-	Initialize(ctx context.Context) error
+// OriginService is the interface for origin-server registry and stream routing.
+type OriginService interface {
 	// Update records the latest registration or heartbeat for an origin server.
 	Update(ctx context.Context, server *OriginServer) error
 	// Pick a backend server for the specified stream URL.
 	Pick(ctx context.Context, streamURL string) (*OriginServer, error)
+}
+
+// HLSService is the interface for HLS session state, indexed by stream URL and SPBHID.
+type HLSService interface {
 	// Load or store the HLS streaming for the specified stream URL.
 	LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error)
 	// Load the HLS streaming by SPBHID, the SRS Proxy Backend HLS ID.
 	LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error)
+}
+
+// RTCService is the interface for WebRTC session state, indexed by stream URL and ICE ufrag.
+type RTCService interface {
 	// Store the WebRTC streaming for the specified stream URL.
 	StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error
 	// Load the WebRTC streaming by ufrag, the ICE username.
 	LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error)
+}
+
+// OriginLoadBalancer is the interface to load balance the SRS servers.
+type OriginLoadBalancer interface {
+	OriginService
+	HLSService
+	RTCService
+	// Initialize the load balancer.
+	Initialize(ctx context.Context) error
 }

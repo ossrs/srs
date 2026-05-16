@@ -27,11 +27,16 @@ for arg in "$@"; do
 done
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
-# Navigate: scripts/ -> srs-develop/ -> skills/ -> .openclaw/ -> srs
-WORKSPACE="$(cd -P "$SCRIPT_DIR/../../../.." && pwd)"
+# Walk up from SCRIPT_DIR looking for go.mod. This avoids brittle "../../../.."
+# counting when the skills directory is reached via a symlink (which changes
+# the symbolic vs. physical depth).
+WORKSPACE="$SCRIPT_DIR"
+while [[ "$WORKSPACE" != "/" && ! -f "$WORKSPACE/go.mod" ]]; do
+  WORKSPACE="$(dirname "$WORKSPACE")"
+done
 
 if [[ ! -f "$WORKSPACE/go.mod" ]]; then
-  echo "Error: go.mod not found in WORKSPACE: $WORKSPACE" >&2
+  echo "Error: go.mod not found walking up from: $SCRIPT_DIR" >&2
   exit 1
 fi
 
