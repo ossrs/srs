@@ -896,6 +896,95 @@ func TestWebRTCProxyServer_HandleApiForWHEP_HappyPath(t *testing.T) {
 	}
 }
 
+// Legacy /rtc/v1/play/ (used by srs_bench) wraps the SDP in a JSON envelope
+// like {"sdp":"v=0\r\n..."} where \r\n is the literal 2-byte JSON escape, not
+// real CRLF. The proxy must unwrap the envelope before parsing ICE attributes;
+// otherwise the stored ufrag is contaminated with the next attributes and the
+// STUN binding from the client cannot be matched to the connection.
+func TestWebRTCProxyServer_HandleApiForWHEP_LegacyJSONEnvelope(t *testing.T) {
+	f := newWebRTCFixture()
+	f.env.WebRTCServerReturns("19000")
+
+	const backendRTCPort = "18000"
+	answerJSON := `{"code":0,"sessionid":"sid","sdp":"v=0\r\na=ice-ufrag:local-ufrag\r\na=ice-pwd:local-pwd-very-long-value-32xxxx\r\na=candidate:1 1 udp 1 1.2.3.4 ` + backendRTCPort + ` typ host\r\n"}`
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(answerJSON))
+	}))
+	defer backend.Close()
+
+	f.server.backendURL = func(b *lb.OriginServer, r *http.Request) (string, error) {
+		return backend.URL + r.URL.Path, nil
+	}
+	f.lb.PickReturns(&lb.OriginServer{IP: "10.0.0.1", API: []string{"1985"}, RTC: []string{backendRTCPort}}, nil)
+
+	offerJSON := `{"api":"http://10.0.0.1:1985/rtc/v1/play/","clientip":"","sdp":"v=0\r\na=ice-ufrag:remote-ufrag\r\na=ice-pwd:remote-pwd-very-long-value-32xx\r\n","streamurl":"webrtc://example.com/live/demo"}`
+	req := httptest.NewRequest(http.MethodPost, "http://example.com/rtc/v1/play/", strings.NewReader(offerJSON))
+	rec := httptest.NewRecorder()
+
+	if err := f.server.HandleApiForWHEP(context.Background(), rec, req); err != nil {
+		t.Fatalf("WHEP: %v", err)
+	}
+	if f.lb.StoreWebRTCCallCount() != 1 {
+		t.Fatalf("StoreWebRTC called %d times, want 1", f.lb.StoreWebRTCCallCount())
+	}
+	_, _, stored := f.lb.StoreWebRTCArgsForCall(0)
+	if got, want := stored.GetUfrag(), "local-ufrag:remote-ufrag"; got != want {
+		t.Fatalf("stored ufrag=%q, want %q", got, want)
+	}
+	// The response forwarded to the client should still be the JSON envelope
+	// with the backend port rewritten to the proxy's WebRTC port.
+	body := rec.Body.String()
+	if !strings.Contains(body, " 19000 typ host") {
+		t.Fatalf("answer did not rewrite backend port; got %q", body)
+	}
+	if strings.Contains(body, " "+backendRTCPort+" typ host") {
+		t.Fatalf("answer still contains original backend port; got %q", body)
+	}
+}
+
+func TestUnwrapSDPEnvelope(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "raw sdp passthrough",
+			in:   "v=0\r\na=ice-ufrag:abc\r\n",
+			want: "v=0\r\na=ice-ufrag:abc\r\n",
+		},
+		{
+			name: "json envelope unwrapped",
+			in:   `{"code":0,"sdp":"v=0\r\na=ice-ufrag:abc\r\n"}`,
+			want: "v=0\r\na=ice-ufrag:abc\r\n",
+		},
+		{
+			name: "json envelope with leading whitespace",
+			in:   "\n\t  " + `{"sdp":"v=0\r\n"}`,
+			want: "v=0\r\n",
+		},
+		{
+			name: "malformed json falls back to body",
+			in:   `{not json}`,
+			want: `{not json}`,
+		},
+		{
+			name: "json without sdp falls back to body",
+			in:   `{"code":0}`,
+			want: `{"code":0}`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := unwrapSDPEnvelope(tc.in); got != tc.want {
+				t.Fatalf("unwrapSDPEnvelope(%q)=%q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // webRTCProxyServer.proxyApiToBackend: error paths
 // ---------------------------------------------------------------------------

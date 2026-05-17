@@ -338,6 +338,24 @@ func TestParseIceUfragPwd_MissingPwd(t *testing.T) {
 	}
 }
 
+// SDP embedded in the legacy /rtc/v1/play/ JSON envelope arrives with "\r\n" as
+// the literal 2-byte sequence (backslash + r/n), not real CRLF. The value
+// charset must stop at the backslash, otherwise the ufrag would absorb the rest
+// of the SDP up to the next real whitespace.
+func TestParseIceUfragPwd_JSONEscapedSDP(t *testing.T) {
+	sdp := `v=0\r\na=ice-ufrag:1f1n4272\r\na=ice-pwd:5f6y69408x2h55232i080mj894901b8n\r\na=fingerprint:sha-256 2D:1D\r\n`
+	ufrag, pwd, err := ParseIceUfragPwd(sdp)
+	if err != nil {
+		t.Fatalf("err = %v", err)
+	}
+	if ufrag != "1f1n4272" {
+		t.Fatalf("ufrag=%q, want 1f1n4272", ufrag)
+	}
+	if pwd != "5f6y69408x2h55232i080mj894901b8n" {
+		t.Fatalf("pwd=%q, want 5f6y69408x2h55232i080mj894901b8n", pwd)
+	}
+}
+
 func TestParseSRTStreamID_WithHost(t *testing.T) {
 	host, resource, err := ParseSRTStreamID("h=example.com,r=live/stream")
 	if err != nil {
