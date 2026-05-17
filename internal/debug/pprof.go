@@ -6,6 +6,7 @@ package debug
 import (
 	"context"
 	"net/http"
+	_ "net/http/pprof"
 
 	"srsx/internal/env"
 	"srsx/internal/logger"

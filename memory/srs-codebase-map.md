@@ -303,6 +303,9 @@ The knowledge base (`memory/srs-*.md`) captures William's knowledge about SRS �
 - `proxy-load-balancer.md` — Load balancer design: memory vs Redis implementations, stream-to-server mapping, server health via heartbeats, protocol-specific state
 - `proxy-origin-cluster.md` — Origin cluster tutorial: build proxy + SRS, configure multi-origin with proxy, stream publishing and playback verification
 
+**Next-Generation Server Performance Docs** (`docs/perf/`) — Performance analysis guides for the Go server:
+- `proxy-whep.md` — WHEP perf analysis: enable GO_PPROF, run publisher + N WHEP players via srs_bench, collect CPU/alloc/heap/goroutine/trace profiles, read hot spots, diff before/after with `pprof -base`
+
 **Next-Generation Server API Examples** — Executable API documentation:
 - `internal/rtmp/example_test.go` — RTMP API examples: AMF0, handshake, and protocol workflow
 
