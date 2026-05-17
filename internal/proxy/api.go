@@ -31,20 +31,45 @@ type httpAPIProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
 	// The underlayer HTTP server.
-	server *http.Server
+	server httpServer
 	// The WebRTC server.
 	rtc WebRTCProxyServer
 	// The gracefully quit timeout, wait server to quit.
 	gracefulQuitTimeout time.Duration
 	// The wait group for all goroutines.
 	wg sync.WaitGroup
+	// shutdown gracefully shuts down the underlying HTTP server. Defaults to
+	// v.server.Shutdown; tests may override via a functional option to verify
+	// the shutdown contract without binding a real socket.
+	shutdown func(ctx context.Context) error
+	// newServer constructs the underlying HTTP server bound to addr and the
+	// ServeMux that handlers are registered on. Defaults to a real http.Server
+	// and ServeMux; tests may override via a functional option to supply a fake
+	// server that does not bind a real port.
+	newServer func(addr string) (httpServer, *http.ServeMux)
 }
 
-func NewHTTPAPIProxyServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration, rtc WebRTCProxyServer) HTTPAPIProxyServer {
+func NewHTTPAPIProxyServer(environment env.ProxyEnvironment, gracefulQuitTimeout time.Duration, rtc WebRTCProxyServer, opts ...func(*httpAPIProxyServer)) HTTPAPIProxyServer {
 	v := &httpAPIProxyServer{
 		environment:         environment,
 		gracefulQuitTimeout: gracefulQuitTimeout,
 		rtc:                 rtc,
+	}
+
+	// Default shutdown: delegate to the underlying http.Server. The closure
+	// captures v rather than v.server so the dereference happens at call time,
+	// after Run() has assigned v.server.
+	v.shutdown = func(ctx context.Context) error {
+		return v.server.Shutdown(ctx)
+	}
+	// Default newServer: a real http.Server and ServeMux pair.
+	v.newServer = func(addr string) (httpServer, *http.ServeMux) {
+		mux := http.NewServeMux()
+		return &http.Server{Addr: addr, Handler: mux}, mux
+	}
+
+	for _, opt := range opts {
+		opt(v)
 	}
 	return v
 }
@@ -52,7 +77,7 @@ func NewHTTPAPIProxyServer(environment env.ProxyEnvironment, gracefulQuitTimeout
 func (v *httpAPIProxyServer) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 	defer cancel()
-	v.server.Shutdown(ctx)
+	v.shutdown(ctx)
 
 	v.wg.Wait()
 	return nil
@@ -66,8 +91,8 @@ func (v *httpAPIProxyServer) Run(ctx context.Context) error {
 	}
 
 	// Create server and handler.
-	mux := http.NewServeMux()
-	v.server = &http.Server{Addr: addr, Handler: mux}
+	server, mux := v.newServer(addr)
+	v.server = server
 	logger.Debug(ctx, "HTTP API server listen at %v", addr)
 
 	// Shutdown the server gracefully when quiting.
@@ -78,7 +103,7 @@ func (v *httpAPIProxyServer) Run(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 		defer cancel()
 
-		v.server.Shutdown(ctx)
+		v.shutdown(ctx)
 	}()
 
 	// The basic version handler, also can be used as health check API.
@@ -150,18 +175,43 @@ type systemAPI struct {
 	// The load balancer for origin servers.
 	loadBalancer lb.OriginLoadBalancer
 	// The underlayer HTTP server.
-	server *http.Server
+	server httpServer
 	// The gracefully quit timeout, wait server to quit.
 	gracefulQuitTimeout time.Duration
 	// The wait group for all goroutines.
 	wg sync.WaitGroup
+	// shutdown gracefully shuts down the underlying HTTP server. Defaults to
+	// v.server.Shutdown; tests may override via a functional option to verify
+	// the shutdown contract without binding a real socket.
+	shutdown func(ctx context.Context) error
+	// newServer constructs the underlying HTTP server bound to addr and the
+	// ServeMux that handlers are registered on. Defaults to a real http.Server
+	// and ServeMux; tests may override via a functional option to supply a fake
+	// server that does not bind a real port.
+	newServer func(addr string) (httpServer, *http.ServeMux)
 }
 
-func NewSystemAPI(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, gracefulQuitTimeout time.Duration) *systemAPI {
+func NewSystemAPI(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, gracefulQuitTimeout time.Duration, opts ...func(*systemAPI)) *systemAPI {
 	v := &systemAPI{
 		environment:         environment,
 		loadBalancer:        loadBalancer,
 		gracefulQuitTimeout: gracefulQuitTimeout,
+	}
+
+	// Default shutdown: delegate to the underlying http.Server. The closure
+	// captures v rather than v.server so the dereference happens at call time,
+	// after Run() has assigned v.server.
+	v.shutdown = func(ctx context.Context) error {
+		return v.server.Shutdown(ctx)
+	}
+	// Default newServer: a real http.Server and ServeMux pair.
+	v.newServer = func(addr string) (httpServer, *http.ServeMux) {
+		mux := http.NewServeMux()
+		return &http.Server{Addr: addr, Handler: mux}, mux
+	}
+
+	for _, opt := range opts {
+		opt(v)
 	}
 	return v
 }
@@ -169,7 +219,7 @@ func NewSystemAPI(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBa
 func (v *systemAPI) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 	defer cancel()
-	v.server.Shutdown(ctx)
+	v.shutdown(ctx)
 
 	v.wg.Wait()
 	return nil
@@ -183,8 +233,8 @@ func (v *systemAPI) Run(ctx context.Context) error {
 	}
 
 	// Create server and handler.
-	mux := http.NewServeMux()
-	v.server = &http.Server{Addr: addr, Handler: mux}
+	server, mux := v.newServer(addr)
+	v.server = server
 	logger.Debug(ctx, "System API server listen at %v", addr)
 
 	// Shutdown the server gracefully when quiting.
@@ -195,7 +245,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(context.Background(), v.gracefulQuitTimeout)
 		defer cancel()
 
-		v.server.Shutdown(ctx)
+		v.shutdown(ctx)
 	}()
 
 	// The basic version handler, also can be used as health check API.
