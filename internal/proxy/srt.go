@@ -8,7 +8,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
+	"strconv"
 	"strings"
 	stdSync "sync"
 	"time"
@@ -29,8 +31,9 @@ type srsSRTProxyServer struct {
 	environment env.ProxyEnvironment
 	// The load balancer for origin servers.
 	loadBalancer lb.OriginLoadBalancer
-	// The UDP listener for SRT server.
-	listener *net.UDPConn
+	// The UDP listener for SRT server. Stored as net.PacketConn so tests
+	// can inject a fake listener via listenUDP.
+	listener net.PacketConn
 
 	// The SRT connections, identify by the socket ID.
 	sockets sync.Map[uint32, *SRTConnection]
@@ -39,6 +42,11 @@ type srsSRTProxyServer struct {
 
 	// The wait group for server.
 	wg stdSync.WaitGroup
+
+	// listenUDP opens the UDP listener for the SRT server. Defaults to a real
+	// net.ListenUDP on the resolved endpoint; tests may override via a functional
+	// option to supply a fake listener.
+	listenUDP func(ctx context.Context, endpoint string) (net.PacketConn, error)
 }
 
 func NewSRSSRTProxyServer(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, opts ...func(*srsSRTProxyServer)) *srsSRTProxyServer {
@@ -49,6 +57,15 @@ func NewSRSSRTProxyServer(environment env.ProxyEnvironment, loadBalancer lb.Orig
 		sockets:      sync.NewMap[uint32, *SRTConnection](),
 	}
 
+	// Default listenUDP: resolve the endpoint and open a real UDP socket.
+	v.listenUDP = func(ctx context.Context, endpoint string) (net.PacketConn, error) {
+		saddr, err := net.ResolveUDPAddr("udp", endpoint)
+		if err != nil {
+			return nil, errors.Wrapf(err, "resolve udp addr %v", endpoint)
+		}
+		return net.ListenUDP("udp", saddr)
+	}
+
 	for _, opt := range opts {
 		opt(v)
 	}
@@ -57,7 +74,7 @@ func NewSRSSRTProxyServer(environment env.ProxyEnvironment, loadBalancer lb.Orig
 
 func (v *srsSRTProxyServer) Close() error {
 	if v.listener != nil {
-		v.listener.Close()
+		_ = v.listener.Close()
 	}
 
 	v.wg.Wait()
@@ -71,17 +88,12 @@ func (v *srsSRTProxyServer) Run(ctx context.Context) error {
 		endpoint = ":" + endpoint
 	}
 
-	saddr, err := net.ResolveUDPAddr("udp", endpoint)
+	listener, err := v.listenUDP(ctx, endpoint)
 	if err != nil {
-		return errors.Wrapf(err, "resolve udp addr %v", endpoint)
-	}
-
-	listener, err := net.ListenUDP("udp", saddr)
-	if err != nil {
-		return errors.Wrapf(err, "listen udp %v", saddr)
+		return errors.Wrapf(err, "listen udp %v", endpoint)
 	}
 	v.listener = listener
-	logger.Debug(ctx, "SRT server listen at %v", saddr)
+	logger.Debug(ctx, "SRT server listen at %v", listener.LocalAddr())
 
 	// Consume all messages from UDP media transport.
 	v.wg.Add(1)
@@ -90,7 +102,7 @@ func (v *srsSRTProxyServer) Run(ctx context.Context) error {
 
 		for ctx.Err() == nil {
 			buf := make([]byte, 4096)
-			n, caddr, err := v.listener.ReadFromUDP(buf)
+			n, caddr, err := v.listener.ReadFrom(buf)
 			if err != nil {
 				// If context is canceled or connection is closed, exit gracefully without logging error.
 				if ctx.Err() != nil || utils.IsClosedNetworkError(err) {
@@ -112,7 +124,7 @@ func (v *srsSRTProxyServer) Run(ctx context.Context) error {
 	return nil
 }
 
-func (v *srsSRTProxyServer) handleClientUDP(ctx context.Context, addr *net.UDPAddr, data []byte) error {
+func (v *srsSRTProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, data []byte) error {
 	socketID := utils.SrtParseSocketID(data)
 
 	var pkt *SRTHandshakePacket
@@ -168,10 +180,12 @@ type SRTConnection struct {
 	// The current socket ID.
 	socketID uint32
 
-	// The UDP connection proxy to backend.
-	backendUDP *net.UDPConn
-	// The listener UDP connection, used to send messages to client.
-	listenerUDP *net.UDPConn
+	// The UDP connection proxy to backend. Stored as io.ReadWriteCloser so tests
+	// can inject a fake connection by overriding dialBackendUDP.
+	backendUDP io.ReadWriteCloser
+	// The listener UDP connection, used to send messages to client. Stored as
+	// net.PacketConn so tests can inject a fake listener.
+	listenerUDP net.PacketConn
 
 	// Listener start time.
 	start time.Time
@@ -181,17 +195,29 @@ type SRTConnection struct {
 	handshake1 *SRTHandshakePacket
 	handshake2 *SRTHandshakePacket
 	handshake3 *SRTHandshakePacket
+
+	// dialBackendUDP opens a UDP connection to a backend SRS server. Defaults to a real
+	// UDP dial; tests may override via a functional option to supply a fake connection.
+	dialBackendUDP func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error)
 }
 
 func NewSRTConnection(opts ...func(*SRTConnection)) *SRTConnection {
 	v := &SRTConnection{}
+
+	// Default dial: a real UDP connection to the backend. Uses Dialer.DialContext
+	// so ctx cancellation/deadline aborts DNS resolution (UDP itself has no handshake).
+	v.dialBackendUDP = func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, "udp", net.JoinHostPort(ip, strconv.Itoa(port)))
+	}
+
 	for _, opt := range opts {
 		opt(v)
 	}
 	return v
 }
 
-func (v *SRTConnection) HandlePacket(pkt *SRTHandshakePacket, addr *net.UDPAddr, data []byte) (uint32, error) {
+func (v *SRTConnection) HandlePacket(pkt *SRTHandshakePacket, addr net.Addr, data []byte) (uint32, error) {
 	ctx := v.ctx
 
 	// If not handshake, try to proxy to backend directly.
@@ -214,7 +240,7 @@ func (v *SRTConnection) HandlePacket(pkt *SRTHandshakePacket, addr *net.UDPAddr,
 	return v.socketID, nil
 }
 
-func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePacket, addr *net.UDPAddr, data []byte) error {
+func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePacket, addr net.Addr, data []byte) error {
 	// Handle handshake 0 and 1 messages.
 	if pkt.SynCookie == 0 {
 		// Save handshake 0 packet.
@@ -244,7 +270,7 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 
 		if b, err := v.handshake1.MarshalBinary(); err != nil {
 			return errors.Wrapf(err, "marshal handshake 1")
-		} else if _, err = v.listenerUDP.WriteToUDP(b, addr); err != nil {
+		} else if _, err = v.listenerUDP.WriteTo(b, addr); err != nil {
 			return errors.Wrapf(err, "write handshake 1")
 		}
 
@@ -309,15 +335,17 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 	}
 	logger.Debug(ctx, "Proxy got handshake 3: %v", handshake3p)
 
-	// Response handshake 3 to client.
-	v.handshake3 = &*handshake3p
+	// Response handshake 3 to client. Copy so rewriting the cookie below does
+	// not mutate the struct just decoded from the backend.
+	handshake3c := *handshake3p
+	v.handshake3 = &handshake3c
 	v.handshake3.SynCookie = v.handshake1.SynCookie
 	v.socketID = handshake3p.SRTSocketID
 	logger.Debug(ctx, "Handshake 3: %v", v.handshake3)
 
 	if b, err := v.handshake3.MarshalBinary(); err != nil {
 		return errors.Wrapf(err, "marshal handshake 3")
-	} else if _, err = v.listenerUDP.WriteToUDP(b, addr); err != nil {
+	} else if _, err = v.listenerUDP.WriteTo(b, addr); err != nil {
 		return errors.Wrapf(err, "write handshake 3")
 	}
 
@@ -331,7 +359,7 @@ func (v *SRTConnection) handleHandshake(ctx context.Context, pkt *SRTHandshakePa
 				logger.Warn(ctx, "read from backend failed, err=%v", err)
 				return
 			}
-			if _, err = v.listenerUDP.WriteToUDP(b[:nn], addr); err != nil {
+			if _, err = v.listenerUDP.WriteTo(b[:nn], addr); err != nil {
 				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
 				logger.Warn(ctx, "write to client failed, err=%v", err)
 				return
@@ -379,12 +407,11 @@ func (v *SRTConnection) connectBackend(ctx context.Context, streamID string) err
 
 	// Connect to backend SRS server via UDP client.
 	// TODO: FIXME: Support close the connection when timeout or client disconnected.
-	backendAddr := net.UDPAddr{IP: net.ParseIP(backend.IP), Port: int(udpPort)}
-	if backendUDP, err := net.DialUDP("udp", nil, &backendAddr); err != nil {
-		return errors.Wrapf(err, "dial udp to %v of %v for %v", backendAddr, backend, streamURL)
-	} else {
-		v.backendUDP = backendUDP
+	backendUDP, err := v.dialBackendUDP(ctx, backend.IP, int(udpPort))
+	if err != nil {
+		return errors.Wrapf(err, "dial udp to %v:%v of %v for %v", backend.IP, udpPort, backend, streamURL)
 	}
+	v.backendUDP = backendUDP
 
 	return nil
 }
