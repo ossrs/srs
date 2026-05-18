@@ -302,8 +302,12 @@ func (v *webRTCProxyServer) Run(ctx context.Context) error {
 	go func() {
 		defer v.wg.Done()
 
+		// Reuse a single receive buffer across iterations. handleClientUDP and the
+		// downstream HandlePacket consume the slice synchronously (kernel sendto
+		// copies bytes; STUN parsing copies the username via string()), so no caller
+		// retains the slice past the call.
+		buf := make([]byte, 4096)
 		for ctx.Err() == nil {
-			buf := make([]byte, 4096)
 			n, addr, err := listener.ReadFrom(buf)
 			if err != nil {
 				// If context is canceled or connection is closed, exit gracefully without logging error.
@@ -419,6 +423,11 @@ type rtcConnection struct {
 	// dialBackendUDP opens a UDP connection to a backend SRS server. Defaults to a real
 	// UDP dial; tests may override via a functional option to supply a fake connection.
 	dialBackendUDP func(ctx context.Context, ip string, port int) (io.ReadWriteCloser, error)
+
+	// Guards the spawn of the backend->client reader goroutine. HandlePacket is
+	// called on every inbound client packet (STUN keepalives + RTCP feedback at
+	// steady state) but the reader must only start once per connection.
+	startReader stdSync.Once
 }
 
 func newRTCConnection(opts ...func(*rtcConnection)) *rtcConnection {
@@ -467,24 +476,31 @@ func (v *rtcConnection) HandlePacket(addr net.Addr, data []byte) error {
 		return nil
 	}
 
-	// Proxy all messages from backend to client.
-	go func() {
-		for ctx.Err() == nil {
+	// Spawn the backend->client reader exactly once per connection. Previously
+	// this goroutine was launched unconditionally here on every inbound client
+	// packet, which leaked tens of thousands of goroutines under steady-state
+	// WHEP load (STUN keepalives + RTCP feedback). The buffer is reused across
+	// iterations: WriteTo copies into the kernel before returning, so the next
+	// Read can safely overwrite.
+	v.startReader.Do(func() {
+		go func() {
 			buf := make([]byte, 4096)
-			n, err := v.backendUDP.Read(buf)
-			if err != nil {
-				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Warn(ctx, "read from backend failed, err=%v", err)
-				break
-			}
+			for ctx.Err() == nil {
+				n, err := v.backendUDP.Read(buf)
+				if err != nil {
+					// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
+					logger.Warn(ctx, "read from backend failed, err=%v", err)
+					return
+				}
 
-			if _, err = v.listenerUDP.WriteTo(buf[:n], v.clientUDP); err != nil {
-				// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
-				logger.Warn(ctx, "write to client failed, err=%v", err)
-				break
+				if _, err = v.listenerUDP.WriteTo(buf[:n], v.clientUDP); err != nil {
+					// TODO: If backend server closed unexpectedly, we should notice the stream to quit.
+					logger.Warn(ctx, "write to client failed, err=%v", err)
+					return
+				}
 			}
-		}
-	}()
+		}()
+	})
 
 	if _, err := v.backendUDP.Write(data); err != nil {
 		return errors.Wrapf(err, "write to backend %v", v.StreamURL)
