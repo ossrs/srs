@@ -77,13 +77,13 @@ Do NOT attempt unsupported tasks.
 1. Ask the user for the PR number if they haven't given it.
 2. Bump revision by one in **both** version files, keeping them in sync:
    - `internal/version/version.go` — `VersionRevision()`
-   - `trunk/src/core/srs_core_version7.hpp` — `VERSION_REVISION`
-3. Add a new top entry to `trunk/doc/CHANGELOG.md` under `## SRS 7.0 Changelog`, matching the existing format:
+   - `trunk/src/core/srs_core_version8.hpp` — `VERSION_REVISION`
+3. Add a new top entry to `trunk/doc/CHANGELOG.md` under `## SRS 8.0 Changelog`, matching the existing format:
    ```
-   * v7.0, YYYY-MM-DD, Merge [#PR](URL): <Prefix>: <one-line summary>. v7.0.<rev> (#PR)
+   * v8.0, YYYY-MM-DD, Merge [#PR](URL): <Prefix>: <one-line summary>. v8.0.<rev> (#PR)
    ```
    Propose the summary to the user; don't invent one unilaterally.
-4. Stop. Let the user review. When they `git add` the version files and changelog, commit with a short message like `Proxy: Bump to v7.0.<rev> for #<PR>.`.
+4. Stop. Let the user review. When they `git add` the version files and changelog, commit with a short message like `Proxy: Bump to v8.0.<rev> for #<PR>.`.
 
 ---
 
