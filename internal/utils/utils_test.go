@@ -121,6 +121,19 @@ func TestParseBody_ReadError(t *testing.T) {
 	}
 }
 
+// TestParseBody_CloseCalledOnReadError verifies that r.Close() is called even
+// when ReadAll fails - this prevents the resource leak fixed by moving defer
+// to the top of the function.
+func TestParseBody_CloseCalledOnReadError(t *testing.T) {
+	rc := &errReadCloser{}
+	if err := ParseBody(rc, &struct{}{}); err == nil {
+		t.Fatal("want error")
+	}
+	if !rc.closed {
+		t.Fatal("Close() was not called on read error - resource leak")
+	}
+}
+
 func TestParseBody_UnmarshalError(t *testing.T) {
 	var v struct{ Name string }
 	err := ParseBody(io.NopCloser(strings.NewReader("not json")), &v)
@@ -136,11 +149,20 @@ func TestBuildStreamURL(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
+		// Domain names with dots use hostname as vhost.
+		// This case would panic with nil pointer dereference before the fix
+		// because net.ParseIP("example.com") returns nil and nil.To4() panics.
 		{"rtmp://example.com/live/stream", "example.com/live/stream"},
 		{"rtmp://example.com:1935/live/stream", "example.com/live/stream"},
+		// IPv4 addresses use defaultVhost.
 		{"rtmp://127.0.0.1/live/stream", "__defaultVhost__/live/stream"},
+		// Hostnames without dots use defaultVhost.
 		{"rtmp://localhost/live/stream", "__defaultVhost__/live/stream"},
 		{"rtmp://localhost:1935/live/stream", "__defaultVhost__/live/stream"},
+		// IPv6 addresses: net.ParseIP returns non-nil but To4() returns nil,
+		// but they still get defaultVhost because they contain no dots.
+		{"rtmp://[::1]/live/stream", "__defaultVhost__/live/stream"},
+		{"rtmp://[2001:db8::1]:1935/live/stream", "__defaultVhost__/live/stream"},
 	}
 	for _, c := range cases {
 		got, err := BuildStreamURL(c.in)
