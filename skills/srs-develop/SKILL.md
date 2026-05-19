@@ -152,6 +152,10 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    bash scripts/proxy-e2e-cluster-test.sh
    ```
+   - Proxy + SRS edge + SRS origin three-tier topology (starts proxy + one SRS edge in `mode remote` registered with the proxy + one upstream SRS origin, publishes RTMP via proxy→edge→origin, then plays the same stream with two concurrent RTMP players where the second joins after a delay as a late joiner on the active edge-pull):
+   ```
+   bash scripts/proxy-e2e-edge-test.sh
+   ```
    - Redis multi-proxy routing test (requires local Redis; starts two proxy instances with Redis LB, publishes through one proxy, verifies playback through the other):
    ```
    bash scripts/proxy-e2e-redis-test.sh
