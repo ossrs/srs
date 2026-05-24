@@ -177,6 +177,60 @@ func TestReadMessageExtendedTimestampAndChunking(t *testing.T) {
 	}
 }
 
+func TestReadMessageExtendedTimestampAsDeltaForFmt1(t *testing.T) {
+	ctx := context.Background()
+	var in bytes.Buffer
+	// fmt0 cid=5, timestamp=10, len=1, type video, stream=1, payload AA.
+	in.Write([]byte{0x05, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x01, byte(MessageTypeVideo), 0x01, 0x00, 0x00, 0x00, 0xAA})
+	// fmt1 cid=5, delta=0xffffff so the real delta is carried in the extended timestamp (=100),
+	// len=1, type video, payload BB. For fmt=1/2 the extended timestamp is a delta, so the
+	// message timestamp must accumulate: 10 + 100 = 110 (not be replaced by 100).
+	in.Write([]byte{0x45, 0xff, 0xff, 0xff, 0x00, 0x00, 0x01, byte(MessageTypeVideo)})
+	binary.Write(&in, binary.BigEndian, uint32(100))
+	in.Write([]byte{0xBB})
+
+	p := NewProtocol(&in).(*protocol)
+	for i, want := range []struct {
+		ts uint64
+		pl []byte
+	}{
+		{10, []byte{0xAA}},
+		{110, []byte{0xBB}},
+	} {
+		m, err := p.ReadMessage(ctx)
+		if err != nil {
+			t.Fatalf("ReadMessage #%v err=%v", i, err)
+		}
+		if m.Timestamp() != want.ts || !bytes.Equal(m.Payload(), want.pl) {
+			t.Fatalf("message #%v ts=%v payload=%x", i, m.Timestamp(), m.Payload())
+		}
+	}
+}
+
+func TestReadMessageType3OmitsExtendedTimestamp(t *testing.T) {
+	ctx := context.Background()
+	var in bytes.Buffer
+	// fmt0 cid=5, timestamp=0xffffff so an extended timestamp (=100) is present, len=8,
+	// type video, stream=1, with the first 4 payload bytes.
+	in.Write([]byte{0x05, 0xff, 0xff, 0xff, 0x00, 0x00, 0x08, byte(MessageTypeVideo), 0x01, 0x00, 0x00, 0x00})
+	binary.Write(&in, binary.BigEndian, uint32(100))
+	in.Write([]byte{0x01, 0x02, 0x03, 0x04})
+	// fmt3 continuation from a librtmp/ffmpeg-style sender that omits the extended timestamp.
+	// The next 4 bytes are payload, not an extended timestamp; the parser must detect the
+	// mismatch against the stored value (100) and treat them as payload, keeping ts=100.
+	in.Write([]byte{0xc5, 0x05, 0x06, 0x07, 0x08})
+
+	p := NewProtocol(&in).(*protocol)
+	p.input.opt.chunkSize = 4
+	m, err := p.ReadMessage(ctx)
+	if err != nil {
+		t.Fatalf("ReadMessage err=%v", err)
+	}
+	if m.Timestamp() != 100 || !bytes.Equal(m.Payload(), []byte{1, 2, 3, 4, 5, 6, 7, 8}) {
+		t.Fatalf("ts=%v payload=%x", m.Timestamp(), m.Payload())
+	}
+}
+
 func TestReadMessageHeaderErrors(t *testing.T) {
 	ctx := context.Background()
 	// Fresh non-zero chunk with fmt1 is rejected.
