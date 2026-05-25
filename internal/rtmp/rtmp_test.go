@@ -98,7 +98,7 @@ func TestBasicHeaderVariantsAndErrors(t *testing.T) {
 	}{
 		{"one-byte", []byte{0x85}, formatType2, 5},
 		{"two-byte", []byte{0x40, 0x0a}, formatType1, 74},
-		{"three-byte-code-path", []byte{0xc1, 0x01, 0x02}, formatType3, 65},
+		{"three-byte", []byte{0xc1, 0x01, 0x02}, formatType3, 577},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {

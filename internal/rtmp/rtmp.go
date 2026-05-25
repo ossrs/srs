@@ -714,6 +714,11 @@ func (v *protocol) readBasicHeader(ctx context.Context) (format formatType, cid 
 		return
 	}
 
+	// Here cid is 0 or 1: a marker selecting the 2B or 3B form, not the real cid. Keep it,
+	// because cid is overwritten below and the marker decides whether a third byte (the
+	// high-order part of the cid) follows. Do not test the overwritten cid for this.
+	marker := cid
+
 	// 64-319, 2B chunk header
 	if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
 		return format, cid, errors.Wrapf(err, "read basic header for cid=%v", cid)
@@ -721,7 +726,7 @@ func (v *protocol) readBasicHeader(ctx context.Context) (format formatType, cid 
 	cid = chunkID(64 + uint32(t))
 
 	// 64-65599, 3B chunk header
-	if cid == 1 {
+	if marker == 1 {
 		if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
 			return format, cid, errors.Wrapf(err, "read basic header for cid=%v", cid)
 		}
