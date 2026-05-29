@@ -143,7 +143,7 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    bash scripts/proxy-utest.sh --coverage
    ```
-4. Run the proxy E2E tests:
+4. Run **all** of the proxy E2E tests below — every one, not just the first. Run them one at a time (they bind fixed ports, so they cannot run in parallel), and do not stop early: a later test can fail even when the earlier ones pass.
    - Single-origin RTMP proxy test (starts proxy + one SRS origin, publishes RTMP, verifies playback):
    ```
    bash scripts/proxy-e2e-test.sh
