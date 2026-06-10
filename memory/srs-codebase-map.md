@@ -297,6 +297,7 @@ The knowledge base (`memory/srs-*.md`) captures William's knowledge about SRS �
 ### Next-Generation Server Docs
 
 **Next-Generation Server Docs** (`docs/proxy/`) — Documentation for the Go server:
+- `features.md` — Feature catalog: implemented proxy capabilities by area (protocol proxying, HTTP APIs, load balancing, backend registration, deployment modes, configuration, operations) with current limitations
 - `proxy-design.md` — Architecture: stateless proxy with built-in load balancing, single-proxy vs multi-proxy (Redis) deployment modes, horizontal scaling behind NLB
 - `proxy-protocol.md` — Backend registration protocol: default backend for debugging, automatic registration via SRS system API, heartbeat mechanism, env vars
 - `proxy-usage.md` — Step-by-step guide: build proxy, start SRS origin, verify registration, publish with FFmpeg, verify playback with ffprobe
