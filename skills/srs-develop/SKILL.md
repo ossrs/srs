@@ -68,7 +68,7 @@ Do NOT attempt unsupported tasks.
 
 **Step 2: Correct stale navigation docs**
 
-1. Check `.openclaw/memory/srs-codebase-map.md` for entries covering any module touched in this PR.
+1. Check `memory/srs-codebase-map.md` for entries covering any module touched in this PR.
 2. For each entry whose description is no longer accurate, make the **smallest** correction needed to match the new code. Keep the one-line summary style; do not expand into implementation detail.
 3. Stop. Let the user review. When they `git add` the files they accept, commit with a short message in the existing style, e.g. `Claude: Sync srs-codebase-map with internal/<modules>.`.
 

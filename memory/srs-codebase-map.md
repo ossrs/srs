@@ -352,7 +352,7 @@ How to verify SRS works correctly.
 - Reconnecting Load Test
 - Janus
 
-`.openclaw/skills/srs-develop/scripts/` — Go proxy verification and setup scripts:
+`skills/srs-develop/scripts/` — Go proxy verification and setup scripts:
 - `proxy-utest.sh` — Runs Go proxy unit tests with optional coverage.
 - `proxy-e2e-test.sh` — Single-origin RTMP proxy E2E test.
 - `proxy-e2e-cluster-test.sh` — Multi-origin memory load-balancer E2E test.
