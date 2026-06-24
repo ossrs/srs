@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Winlin
+// Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
 package lb
@@ -15,14 +15,14 @@ import (
 	"srsx/internal/sync"
 )
 
-// MemoryLoadBalancer stores state in memory.
-type MemoryLoadBalancer struct {
+// memoryLoadBalancer stores state in memory.
+type memoryLoadBalancer struct {
 	// The environment interface.
-	environment env.Environment
+	environment env.ProxyEnvironment
 	// All available SRS servers, key is server ID.
-	servers sync.Map[string, *SRSServer]
+	servers sync.Map[string, *OriginServer]
 	// The picked server to service client by specified stream URL, key is stream url.
-	picked sync.Map[string, *SRSServer]
+	picked sync.Map[string, *OriginServer]
 	// The HLS streaming, key is stream URL.
 	hlsStreamURL sync.Map[string, HLSPlayStream]
 	// The HLS streaming, key is SPBHID.
@@ -31,17 +31,28 @@ type MemoryLoadBalancer struct {
 	rtcStreamURL sync.Map[string, RTCConnection]
 	// The WebRTC streaming, key is ufrag.
 	rtcUfrag sync.Map[string, RTCConnection]
+	// keepaliveInterval is the period at which the default-backend keep-alive
+	// goroutine re-Updates its registration. Struct field for test injection
+	// (avoids racing a package global across concurrent tests).
+	keepaliveInterval time.Duration
 }
 
 // NewMemoryLoadBalancer creates a new memory-based load balancer.
-func NewMemoryLoadBalancer(environment env.Environment) SRSLoadBalancer {
-	return &MemoryLoadBalancer{
-		environment: environment,
+func NewMemoryLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
+	return &memoryLoadBalancer{
+		environment:       environment,
+		servers:           sync.NewMap[string, *OriginServer](),
+		picked:            sync.NewMap[string, *OriginServer](),
+		hlsStreamURL:      sync.NewMap[string, HLSPlayStream](),
+		hlsSPBHID:         sync.NewMap[string, HLSPlayStream](),
+		rtcStreamURL:      sync.NewMap[string, RTCConnection](),
+		rtcUfrag:          sync.NewMap[string, RTCConnection](),
+		keepaliveInterval: 30 * time.Second,
 	}
 }
 
-func (v *MemoryLoadBalancer) Initialize(ctx context.Context) error {
-	server, err := NewDefaultSRSForDebugging(v.environment)
+func (v *memoryLoadBalancer) Initialize(ctx context.Context) error {
+	server, err := NewDefaultOriginServerForDebugging(v.environment)
 	if err != nil {
 		return errors.Wrapf(err, "initialize default SRS")
 	}
@@ -57,32 +68,32 @@ func (v *MemoryLoadBalancer) Initialize(ctx context.Context) error {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(30 * time.Second):
+				case <-time.After(v.keepaliveInterval):
 					if err := v.Update(ctx, server); err != nil {
-						logger.Wf(ctx, "update default SRS %+v failed, %+v", server, err)
+						logger.Warn(ctx, "update default SRS %+v failed, %+v", server, err)
 					}
 				}
 			}
 		}()
-		logger.Df(ctx, "MemoryLB: Initialize default SRS media server, %+v", server)
+		logger.Debug(ctx, "MemoryLB: Initialize default SRS media server, %+v", server)
 	}
 	return nil
 }
 
-func (v *MemoryLoadBalancer) Update(ctx context.Context, server *SRSServer) error {
+func (v *memoryLoadBalancer) Update(ctx context.Context, server *OriginServer) error {
 	v.servers.Store(server.ID(), server)
 	return nil
 }
 
-func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSServer, error) {
+func (v *memoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
 	// Always proxy to the same server for the same stream URL.
 	if server, ok := v.picked.Load(streamURL); ok {
 		return server, nil
 	}
 
 	// Gather all servers that were alive within the last few seconds.
-	var servers []*SRSServer
-	v.servers.Range(func(key string, server *SRSServer) bool {
+	var servers []*OriginServer
+	v.servers.Range(func(key string, server *OriginServer) bool {
 		if time.Since(server.UpdatedAt) < ServerAliveDuration {
 			servers = append(servers, server)
 		}
@@ -91,7 +102,7 @@ func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSSe
 
 	// If no servers available, use all possible servers.
 	if len(servers) == 0 {
-		v.servers.Range(func(key string, server *SRSServer) bool {
+		v.servers.Range(func(key string, server *OriginServer) bool {
 			servers = append(servers, server)
 			return true
 		})
@@ -109,7 +120,7 @@ func (v *MemoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSSe
 	return server, nil
 }
 
-func (v *MemoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
+func (v *memoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
 	// Load the HLS streaming for the SPBHID, for TS files.
 	if actual, ok := v.hlsSPBHID.Load(spbhid); !ok {
 		return nil, errors.Errorf("no HLS streaming for SPBHID %v", spbhid)
@@ -118,7 +129,7 @@ func (v *MemoryLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string)
 	}
 }
 
-func (v *MemoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
+func (v *memoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
 	// Update the HLS streaming for the stream URL, for M3u8.
 	actual, _ := v.hlsStreamURL.LoadOrStore(streamURL, value)
 	if actual == nil {
@@ -131,7 +142,7 @@ func (v *MemoryLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL strin
 	return actual, nil
 }
 
-func (v *MemoryLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
+func (v *memoryLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
 	// Update the WebRTC streaming for the stream URL.
 	v.rtcStreamURL.Store(streamURL, value)
 
@@ -140,7 +151,7 @@ func (v *MemoryLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, 
 	return nil
 }
 
-func (v *MemoryLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error) {
+func (v *memoryLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error) {
 	if actual, ok := v.rtcUfrag.Load(ufrag); !ok {
 		return nil, errors.Errorf("no WebRTC streaming for ufrag %v", ufrag)
 	} else {

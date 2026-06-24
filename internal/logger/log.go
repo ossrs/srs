@@ -1,22 +1,26 @@
-// Copyright (c) 2025 Winlin
+// Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
 package logger
 
 import (
 	"context"
-	"io/ioutil"
-	stdLog "log"
+	"fmt"
+	"io"
+	"log/slog"
 	"os"
+	"strings"
+
+	"srsx/internal/version"
 )
 
 type logger interface {
-	Printf(ctx context.Context, format string, v ...any)
+	Log(ctx context.Context, msg string, args ...any)
 }
 
 type loggerPlus struct {
-	logger *stdLog.Logger
-	level  string
+	logger *slog.Logger
+	level  slog.Level
 }
 
 func newLoggerPlus(opts ...func(*loggerPlus)) *loggerPlus {
@@ -27,61 +31,73 @@ func newLoggerPlus(opts ...func(*loggerPlus)) *loggerPlus {
 	return v
 }
 
-func (v *loggerPlus) Printf(ctx context.Context, f string, a ...interface{}) {
-	format, args := f, a
-	if cid := ContextID(ctx); cid != "" {
-		format, args = "[%v][%v][%v] "+format, append([]interface{}{v.level, os.Getpid(), cid}, a...)
+func (v *loggerPlus) Log(ctx context.Context, msg string, args ...any) {
+	attrs := []any{
+		"pid", os.Getpid(),
+		"version", version.Version(),
 	}
 
-	v.logger.Printf(format, args...)
-}
+	if cid := ContextID(ctx); cid != "" {
+		attrs = append(attrs, "cid", cid)
+	}
 
-var verboseLogger logger
-
-func Vf(ctx context.Context, format string, a ...interface{}) {
-	verboseLogger.Printf(ctx, format, a...)
+	// Keep compatibility with the old *f call sites while exposing the new
+	// slog-style API. New code should pass structured key/value args.
+	if len(args) > 0 && strings.Contains(msg, "%") {
+		msg = fmt.Sprintf(msg, args...)
+		args = nil
+	}
+	attrs = append(attrs, args...)
+	v.logger.Log(ctx, v.level, msg, attrs...)
 }
 
 var debugLogger logger
 
-func Df(ctx context.Context, format string, a ...interface{}) {
-	debugLogger.Printf(ctx, format, a...)
+func Debug(ctx context.Context, msg string, args ...any) {
+	debugLogger.Log(ctx, msg, args...)
+}
+
+var infoLogger logger
+
+func Info(ctx context.Context, msg string, args ...any) {
+	infoLogger.Log(ctx, msg, args...)
 }
 
 var warnLogger logger
 
-func Wf(ctx context.Context, format string, a ...interface{}) {
-	warnLogger.Printf(ctx, format, a...)
+func Warn(ctx context.Context, msg string, args ...any) {
+	warnLogger.Log(ctx, msg, args...)
 }
 
 var errorLogger logger
 
-func Ef(ctx context.Context, format string, a ...interface{}) {
-	errorLogger.Printf(ctx, format, a...)
+func Error(ctx context.Context, msg string, args ...any) {
+	errorLogger.Log(ctx, msg, args...)
 }
 
-const (
-	logVerboseLabel = "verb"
-	logDebugLabel   = "debug"
-	logWarnLabel    = "warn"
-	logErrorLabel   = "error"
-)
+// newJSONLogger builds a slog.Logger that writes JSON records to w.
+func newJSONLogger(w io.Writer) *slog.Logger {
+	h := slog.NewJSONHandler(w, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+	return slog.New(h)
+}
 
 func init() {
-	verboseLogger = newLoggerPlus(func(logger *loggerPlus) {
-		logger.logger = stdLog.New(ioutil.Discard, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
-		logger.level = logVerboseLabel
+	debugLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(os.Stdout)
+		l.level = slog.LevelDebug
 	})
-	debugLogger = newLoggerPlus(func(logger *loggerPlus) {
-		logger.logger = stdLog.New(os.Stdout, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
-		logger.level = logDebugLabel
+	infoLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(os.Stdout)
+		l.level = slog.LevelInfo
 	})
-	warnLogger = newLoggerPlus(func(logger *loggerPlus) {
-		logger.logger = stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
-		logger.level = logWarnLabel
+	warnLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(os.Stderr)
+		l.level = slog.LevelWarn
 	})
-	errorLogger = newLoggerPlus(func(logger *loggerPlus) {
-		logger.logger = stdLog.New(os.Stderr, "", stdLog.Ldate|stdLog.Ltime|stdLog.Lmicroseconds)
-		logger.level = logErrorLabel
+	errorLogger = newLoggerPlus(func(l *loggerPlus) {
+		l.logger = newJSONLogger(os.Stderr)
+		l.level = slog.LevelError
 	})
 }

@@ -1076,7 +1076,7 @@ SrsHttpStreamServer::SrsHttpStreamServer()
 void SrsHttpStreamServer::assemble()
 {
     SrsHttpServeMux *mux = dynamic_cast<SrsHttpServeMux *>(mux_);
-    if (!mux) {
+    if (mux) {
         mux->add_dynamic_matcher(this);
     }
 }

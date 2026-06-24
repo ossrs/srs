@@ -41,10 +41,15 @@ cmake-build-debug
 /trunk/cmake/build
 
 # proxy (Go)
-srs-proxy
+/bin/
 .go-formarted
 .env
 
 # For AI
 /*personal*
+/support*
+/*srs-consults*
 /*workspace*
+/skills/llm-switcher
+/skills/*workspace*
+/memory/202*.md

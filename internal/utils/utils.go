@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Winlin
+// Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
 package utils
@@ -7,10 +7,8 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	stdErr "errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -42,7 +40,7 @@ func ApiResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, da
 }
 
 func ApiError(ctx context.Context, w http.ResponseWriter, r *http.Request, err error) {
-	logger.Wf(ctx, "HTTP API error %+v", err)
+	logger.Warn(ctx, "HTTP API error %+v", err)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusInternalServerError)
 	fmt.Fprintf(w, "%v\n", err)
@@ -71,7 +69,7 @@ func ApiCORS(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 
 // ParseBody read the body from r, and unmarshal JSON to v.
 func ParseBody(r io.ReadCloser, v interface{}) error {
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		return errors.Wrapf(err, "read body")
 	}
@@ -115,17 +113,17 @@ func BuildStreamURL(r string) (string, error) {
 func IsPeerClosedError(err error) bool {
 	causeErr := errors.Cause(err)
 
-	if stdErr.Is(causeErr, io.EOF) {
+	if errors.Is(causeErr, io.EOF) {
 		return true
 	}
 
-	if stdErr.Is(causeErr, syscall.EPIPE) {
+	if errors.Is(causeErr, syscall.EPIPE) {
 		return true
 	}
 
 	if netErr, ok := causeErr.(*net.OpError); ok {
 		if sysErr, ok := netErr.Err.(*os.SyscallError); ok {
-			if stdErr.Is(sysErr.Err, syscall.ECONNRESET) {
+			if errors.Is(sysErr.Err, syscall.ECONNRESET) {
 				return true
 			}
 		}
@@ -213,10 +211,13 @@ func SrtParseSocketID(data []byte) uint32 {
 	return 0
 }
 
-// ParseIceUfragPwd parse the ice-ufrag and ice-pwd from the SDP.
+// ParseIceUfragPwd parse the ice-ufrag and ice-pwd from the SDP. The value class
+// stops at any whitespace (real CRLF in raw SDP) or at a backslash, so the parser
+// is also safe against JSON-escaped SDP bodies where line breaks appear as the
+// 2-byte sequence "\r" / "\n" rather than real control characters.
 func ParseIceUfragPwd(sdp string) (ufrag, pwd string, err error) {
 	if true {
-		ufragRe := regexp.MustCompile(`a=ice-ufrag:([^\s]+)`)
+		ufragRe := regexp.MustCompile(`a=ice-ufrag:([^\s\\]+)`)
 		ufragMatch := ufragRe.FindStringSubmatch(sdp)
 		if len(ufragMatch) <= 1 {
 			return "", "", errors.Errorf("no ice-ufrag in sdp %v", sdp)
@@ -225,7 +226,7 @@ func ParseIceUfragPwd(sdp string) (ufrag, pwd string, err error) {
 	}
 
 	if true {
-		pwdRe := regexp.MustCompile(`a=ice-pwd:([^\s]+)`)
+		pwdRe := regexp.MustCompile(`a=ice-pwd:([^\s\\]+)`)
 		pwdMatch := pwdRe.FindStringSubmatch(sdp)
 		if len(pwdMatch) <= 1 {
 			return "", "", errors.Errorf("no ice-pwd in sdp %v", sdp)

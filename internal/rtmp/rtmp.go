@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Winlin
+// Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
 package rtmp
@@ -17,21 +17,31 @@ import (
 	"srsx/internal/errors"
 )
 
-// The handshake implements the RTMP handshake protocol.
-type Handshake struct {
+// Handshake implements the RTMP handshake protocol.
+type Handshake interface {
+	C1S1() []byte
+	WriteC0S0(w io.Writer) error
+	ReadC0S0(r io.Reader) ([]byte, error)
+	WriteC1S1(w io.Writer) error
+	ReadC1S1(r io.Reader) ([]byte, error)
+	WriteC2S2(w io.Writer, s1c1 []byte) error
+	ReadC2S2(r io.Reader) ([]byte, error)
+}
+
+type handshake struct {
 	// The c1s1 cache.
 	c1s1 []byte
 }
 
-func NewHandshake() *Handshake {
-	return &Handshake{}
+func NewHandshake() Handshake {
+	return &handshake{}
 }
 
-func (v *Handshake) C1S1() []byte {
+func (v *handshake) C1S1() []byte {
 	return v.c1s1
 }
 
-func (v *Handshake) WriteC0S0(w io.Writer) (err error) {
+func (v *handshake) WriteC0S0(w io.Writer) (err error) {
 	r := bytes.NewReader([]byte{0x03})
 	if _, err = io.Copy(w, r); err != nil {
 		return errors.Wrap(err, "write c0s0")
@@ -40,7 +50,7 @@ func (v *Handshake) WriteC0S0(w io.Writer) (err error) {
 	return
 }
 
-func (v *Handshake) ReadC0S0(r io.Reader) (c0 []byte, err error) {
+func (v *handshake) ReadC0S0(r io.Reader) (c0 []byte, err error) {
 	b := &bytes.Buffer{}
 	if _, err = io.CopyN(b, r, 1); err != nil {
 		return nil, errors.Wrap(err, "read c0s0")
@@ -51,7 +61,7 @@ func (v *Handshake) ReadC0S0(r io.Reader) (c0 []byte, err error) {
 	return
 }
 
-func (v *Handshake) WriteC1S1(w io.Writer) (err error) {
+func (v *handshake) WriteC1S1(w io.Writer) (err error) {
 	p := make([]byte, 1536)
 
 	// Use crypto/rand for thread-safe random generation
@@ -67,7 +77,7 @@ func (v *Handshake) WriteC1S1(w io.Writer) (err error) {
 	return
 }
 
-func (v *Handshake) ReadC1S1(r io.Reader) (c1s1 []byte, err error) {
+func (v *handshake) ReadC1S1(r io.Reader) (c1s1 []byte, err error) {
 	b := &bytes.Buffer{}
 	if _, err = io.CopyN(b, r, 1536); err != nil {
 		return nil, errors.Wrap(err, "read c1s1")
@@ -79,7 +89,7 @@ func (v *Handshake) ReadC1S1(r io.Reader) (c1s1 []byte, err error) {
 	return
 }
 
-func (v *Handshake) WriteC2S2(w io.Writer, s1c1 []byte) (err error) {
+func (v *handshake) WriteC2S2(w io.Writer, s1c1 []byte) (err error) {
 	r := bytes.NewReader(s1c1[:])
 	if _, err = io.Copy(w, r); err != nil {
 		return errors.Wrap(err, "write c2s2")
@@ -88,7 +98,7 @@ func (v *Handshake) WriteC2S2(w io.Writer, s1c1 []byte) (err error) {
 	return
 }
 
-func (v *Handshake) ReadC2S2(r io.Reader) (c2 []byte, err error) {
+func (v *handshake) ReadC2S2(r io.Reader) (c2 []byte, err error) {
 	b := &bytes.Buffer{}
 	if _, err = io.CopyN(b, r, 1536); err != nil {
 		return nil, errors.Wrap(err, "read c2s2")
@@ -126,20 +136,39 @@ func newSettings() *settings {
 
 // The chunk stream which transport a message once.
 type chunkStream struct {
-	format            formatType
-	cid               chunkID
-	header            messageHeader
-	message           *Message
-	count             uint64
-	extendedTimestamp bool
+	format  formatType
+	cid     chunkID
+	header  messageHeader
+	message *message
+	count   uint64
+
+	// Whether the chunk carries an extended timestamp, set when the (delta) timestamp in
+	// the message header equals 0xffffff. Type-3 continuation chunks inherit this from the
+	// preceding Type-0/1/2 chunk.
+	hasExtendedTimestamp bool
+	// The raw value last read from the extended timestamp field. Kept separately from
+	// header.Timestamp (the accumulated message timestamp) so we can both detect Type-3
+	// chunks that omit the extended timestamp and use it as a delta for fmt=1/2 chunks.
+	// See readMessageHeader.
+	extendedTimestamp uint32
 }
 
 func newChunkStream() *chunkStream {
 	return &chunkStream{}
 }
 
-// The protocol implements the RTMP command and chunk stack.
-type Protocol struct {
+// Protocol implements the RTMP command and chunk stack.
+type Protocol interface {
+	// Deprecated: Go does not support generic methods. Please use rtmp.ExpectPacket instead.
+	ExpectPacket(ctx context.Context, ppkt any) (Message, error)
+	ExpectMessage(ctx context.Context, types ...MessageType) (Message, error)
+	DecodeMessage(m Message) (Packet, error)
+	ReadMessage(ctx context.Context) (Message, error)
+	WritePacket(ctx context.Context, pkt Packet, streamID int) error
+	WriteMessage(ctx context.Context, m Message) error
+}
+
+type protocol struct {
 	r     *bufio.Reader
 	w     *bufio.Writer
 	input struct {
@@ -154,8 +183,8 @@ type Protocol struct {
 	}
 }
 
-func NewProtocol(rw io.ReadWriter) *Protocol {
-	v := &Protocol{
+func NewProtocol(rw io.ReadWriter) Protocol {
+	v := &protocol{
 		r: bufio.NewReader(rw),
 		w: bufio.NewWriter(rw),
 	}
@@ -169,7 +198,11 @@ func NewProtocol(rw io.ReadWriter) *Protocol {
 	return v
 }
 
-func ExpectPacket[T Packet](ctx context.Context, v *Protocol, ppkt *T) (m *Message, err error) {
+// ExpectPacket reads and decodes RTMP messages until it finds a packet of type T.
+//
+// Messages with other packet types are consumed and ignored. On success, ppkt is
+// set to the decoded packet and the Message carrying that packet is returned.
+func ExpectPacket[T Packet](ctx context.Context, v Protocol, ppkt *T) (m Message, err error) {
 	for {
 		if m, err = v.ReadMessage(ctx); err != nil {
 			return nil, errors.WithMessage(err, "read message")
@@ -189,12 +222,12 @@ func ExpectPacket[T Packet](ctx context.Context, v *Protocol, ppkt *T) (m *Messa
 	return
 }
 
-// Deprecated: Please use rtmp.ExpectPacket instead.
-func (v *Protocol) ExpectPacket(ctx context.Context, ppkt any) (m *Message, err error) {
-	panic("Please use rtmp.ExpectPacket instead")
+// Deprecated: Go does not support generic methods. Please use rtmp.ExpectPacket instead.
+func (v *protocol) ExpectPacket(ctx context.Context, ppkt any) (m Message, err error) {
+	panic("Go does not support generic methods; please use rtmp.ExpectPacket instead")
 }
 
-func (v *Protocol) ExpectMessage(ctx context.Context, types ...MessageType) (m *Message, err error) {
+func (v *protocol) ExpectMessage(ctx context.Context, types ...MessageType) (m Message, err error) {
 	for {
 		if m, err = v.ReadMessage(ctx); err != nil {
 			return nil, errors.WithMessage(err, "read message")
@@ -205,16 +238,14 @@ func (v *Protocol) ExpectMessage(ctx context.Context, types ...MessageType) (m *
 		}
 
 		for _, t := range types {
-			if m.MessageType == t {
+			if m.MessageType() == t {
 				return
 			}
 		}
 	}
-
-	return
 }
 
-func (v *Protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
+func (v *protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
 	var commandName amf0String
 	if err = commandName.UnmarshalBinary(p); err != nil {
 		return nil, errors.WithMessage(err, "unmarshal command name")
@@ -266,18 +297,18 @@ func (v *Protocol) parseAMFObject(p []byte) (pkt Packet, err error) {
 	}
 }
 
-func (v *Protocol) DecodeMessage(m *Message) (pkt Packet, err error) {
-	p := m.Payload[:]
+func (v *protocol) DecodeMessage(m Message) (pkt Packet, err error) {
+	p := m.Payload()[:]
 	if len(p) == 0 {
 		return nil, errors.New("Empty packet")
 	}
 
-	switch m.MessageType {
+	switch m.MessageType() {
 	case MessageTypeAMF3Command, MessageTypeAMF3Data:
 		p = p[1:]
 	}
 
-	switch m.MessageType {
+	switch m.MessageType() {
 	case MessageTypeSetChunkSize:
 		pkt = NewSetChunkSize()
 	case MessageTypeWindowAcknowledgementSize:
@@ -286,22 +317,22 @@ func (v *Protocol) DecodeMessage(m *Message) (pkt Packet, err error) {
 		pkt = NewSetPeerBandwidth()
 	case MessageTypeAMF0Command, MessageTypeAMF3Command, MessageTypeAMF0Data, MessageTypeAMF3Data:
 		if pkt, err = v.parseAMFObject(p); err != nil {
-			return nil, errors.WithMessage(err, fmt.Sprintf("Parse AMF %v", m.MessageType))
+			return nil, errors.WithMessage(err, fmt.Sprintf("Parse AMF %v", m.MessageType()))
 		}
 	case MessageTypeUserControl:
 		pkt = NewUserControl()
 	default:
-		return nil, errors.Errorf("Unknown message %v", m.MessageType)
+		return nil, errors.Errorf("Unknown message %v", m.MessageType())
 	}
 
 	if err = pkt.UnmarshalBinary(p); err != nil {
-		return nil, errors.WithMessage(err, fmt.Sprintf("Unmarshal %v", m.MessageType))
+		return nil, errors.WithMessage(err, fmt.Sprintf("Unmarshal %v", m.MessageType()))
 	}
 
 	return
 }
 
-func (v *Protocol) ReadMessage(ctx context.Context) (m *Message, err error) {
+func (v *protocol) ReadMessage(ctx context.Context) (m Message, err error) {
 	for m == nil {
 		// TODO: We should convert buffered io to async io, because we will be stuck in block io here,
 		// TODO: but the risk is acceptable because we literally will set the underlay io timeout.
@@ -331,15 +362,17 @@ func (v *Protocol) ReadMessage(ctx context.Context) (m *Message, err error) {
 			return nil, errors.WithMessage(err, "read message payload")
 		}
 
-		if err = v.onMessageArrivated(m); err != nil {
-			return nil, errors.WithMessage(err, "on message")
+		if m != nil {
+			if err = v.onMessageArrivated(m.asMessage()); err != nil {
+				return nil, errors.WithMessage(err, "on message")
+			}
 		}
 	}
 
 	return
 }
 
-func (v *Protocol) readMessagePayload(ctx context.Context, chunk *chunkStream) (m *Message, err error) {
+func (v *protocol) readMessagePayload(ctx context.Context, chunk *chunkStream) (m Message, err error) {
 	// Empty payload message.
 	if chunk.message.payloadLength == 0 {
 		m = chunk.message
@@ -348,7 +381,7 @@ func (v *Protocol) readMessagePayload(ctx context.Context, chunk *chunkStream) (
 	}
 
 	// Calculate the chunk payload size.
-	chunkedPayloadSize := int(chunk.message.payloadLength) - len(chunk.message.Payload)
+	chunkedPayloadSize := int(chunk.message.payloadLength) - len(chunk.message.payload)
 	if chunkedPayloadSize > int(v.input.opt.chunkSize) {
 		chunkedPayloadSize = int(v.input.opt.chunkSize)
 	}
@@ -357,10 +390,10 @@ func (v *Protocol) readMessagePayload(ctx context.Context, chunk *chunkStream) (
 	if _, err = io.ReadFull(v.r, b); err != nil {
 		return nil, errors.Wrapf(err, "read chunk %vB", chunkedPayloadSize)
 	}
-	chunk.message.Payload = append(chunk.message.Payload, b...)
+	chunk.message.payload = append(chunk.message.payload, b...)
 
 	// Got entire RTMP message?
-	if int(chunk.message.payloadLength) == len(chunk.message.Payload) {
+	if int(chunk.message.payloadLength) == len(chunk.message.payload) {
 		m = chunk.message
 		chunk.message = nil
 	}
@@ -426,7 +459,7 @@ var messageHeaderSizes = []int{11, 7, 3, 0}
 //	fmt=1, 0x4X
 //	fmt=2, 0x8X
 //	fmt=3, 0xCX
-func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, format formatType) (err error) {
+func (v *protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, format formatType) (err error) {
 	// We should not assert anything about fmt, for the first packet.
 	// (when first packet, the chunk.message is nil).
 	// the fmt maybe 0/1/2/3, the FMLE will send a 0xC4 for some audio packet.
@@ -480,7 +513,7 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 
 	// Create msg when new chunk stream start
 	if chunk.message == nil {
-		chunk.message = NewMessage()
+		chunk.message = newMessage()
 	}
 
 	// Read the message header.
@@ -516,29 +549,7 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 		// 0x00ffffff), this value MUST be 16777215, and the 'extended
 		// timestamp header' MUST be present. Otherwise, this value SHOULD be
 		// the entire delta.
-		chunk.extendedTimestamp = uint64(chunk.header.timestampDelta) >= extendedTimestamp
-		if !chunk.extendedTimestamp {
-			// Extended timestamp: 0 or 4 bytes
-			// This field MUST be sent when the normal timsestamp is set to
-			// 0xffffff, it MUST NOT be sent if the normal timestamp is set to
-			// anything else. So for values less than 0xffffff the normal
-			// timestamp field SHOULD be used in which case the extended timestamp
-			// MUST NOT be present. For values greater than or equal to 0xffffff
-			// the normal timestamp field MUST NOT be used and MUST be set to
-			// 0xffffff and the extended timestamp MUST be sent.
-			if format == formatType0 {
-				// 6.1.2.1. Type 0
-				// For a type-0 chunk, the absolute timestamp of the message is sent
-				// here.
-				chunk.header.Timestamp = uint64(chunk.header.timestampDelta)
-			} else {
-				// 6.1.2.2. Type 1
-				// 6.1.2.3. Type 2
-				// For a type-1 or type-2 chunk, the difference between the previous
-				// chunk's timestamp and the current chunk's timestamp is sent here.
-				chunk.header.Timestamp += uint64(chunk.header.timestampDelta)
-			}
-		}
+		chunk.hasExtendedTimestamp = uint64(chunk.header.timestampDelta) >= extendedTimestamp
 
 		if format <= formatType1 {
 			payloadLength := uint32(p[0])<<16 | uint32(p[1])<<8 | uint32(p[2])
@@ -561,27 +572,58 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 				p = p[4:]
 			}
 		}
-	} else {
-		// Update the timestamp even fmt=3 for first chunk packet
-		if isFirstChunkOfMsg && !chunk.extendedTimestamp {
-			chunk.header.Timestamp += uint64(chunk.header.timestampDelta)
-		}
 	}
 
-	// Read extended-timestamp
-	if chunk.extendedTimestamp {
-		var timestamp uint32
-		if err = binary.Read(v.r, binary.BigEndian, &timestamp); err != nil {
+	// Read extended-timestamp, present when the (delta) timestamp in the message header is
+	// 0xffffff. Type-3 chunks inherit hasExtendedTimestamp from the preceding chunk.
+	if chunk.hasExtendedTimestamp {
+		// Peek instead of read, so the 4 bytes can be left in place when a sender omits the
+		// extended timestamp on a Type-3 chunk (see the detection below).
+		var b []byte
+		if b, err = v.r.Peek(4); err != nil {
 			return errors.Wrapf(err, "read ext-ts, pkt-ts=%v", chunk.header.Timestamp)
 		}
 
 		// We always use 31bits timestamp, for some server may use 32bits extended timestamp.
 		// @see https://github.com/ossrs/srs/issues/111
-		timestamp &= 0x7fffffff
+		timestamp := binary.BigEndian.Uint32(b) & 0x7fffffff
 
-		// TODO: FIXME: Support detect the extended timestamp.
+		// For the RTMP v1 2009 version (6.1.3. Extended Timestamp), Type 3 chunks MUST NOT
+		// have this field. For the RTMP v1 2012 version (5.3.1.3. Extended Timestamp), it is
+		// present in Type 3 chunks when the most recent Type 0/1/2 chunk indicated one.
+		//
+		// FMLE/FMS/Flash Player follow the 2012 version and always send the extended
+		// timestamp in Type 3 chunks; librtmp/ffmpeg may not. So detect it: if this is not
+		// the first chunk of the message and the peeked value differs from the previously
+		// stored extended timestamp, the sender omitted it and these 4 bytes are payload, so
+		// leave them in the reader. Otherwise consume and store them.
 		// @see http://blog.csdn.net/win_lin/article/details/13363699
+		// @see https://github.com/veovera/enhanced-rtmp/issues/42
+		if !isFirstChunkOfMsg && chunk.extendedTimestamp > 0 && chunk.extendedTimestamp != timestamp {
+			// No extended timestamp on this Type-3 chunk; the 4 bytes belong to the payload.
+		} else {
+			if _, err = v.r.Discard(4); err != nil {
+				return errors.Wrapf(err, "discard ext-ts, pkt-ts=%v", chunk.header.Timestamp)
+			}
+			chunk.extendedTimestamp = timestamp
+		}
+	}
+
+	// Compute the message timestamp. The source is the extended timestamp when present,
+	// otherwise the 3-byte (delta) timestamp from the message header.
+	//
+	// fmt=0: the value is the absolute timestamp of the message.
+	// fmt=1/2 (and a fmt=3 first chunk continuing them): the value is a delta and is
+	// accumulated onto the previous timestamp. This is required when the delta is >= 0xffffff
+	// and is therefore carried in the extended timestamp.
+	timestamp := chunk.header.timestampDelta
+	if chunk.hasExtendedTimestamp {
+		timestamp = chunk.extendedTimestamp
+	}
+	if format == formatType0 {
 		chunk.header.Timestamp = uint64(timestamp)
+	} else if isFirstChunkOfMsg {
+		chunk.header.Timestamp += uint64(timestamp)
 	}
 
 	// The extended-timestamp must be unsigned-int,
@@ -659,7 +701,7 @@ func (v *Protocol) readMessageHeader(ctx context.Context, chunk *chunkStream, fo
 //
 // Chunk stream IDs with values 64-319 could be represented by both 2-
 // byte version and 3-byte version of this field.
-func (v *Protocol) readBasicHeader(ctx context.Context) (format formatType, cid chunkID, err error) {
+func (v *protocol) readBasicHeader(ctx context.Context) (format formatType, cid chunkID, err error) {
 	// 2-63, 1B chunk header
 	var t uint8
 	if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
@@ -672,6 +714,11 @@ func (v *Protocol) readBasicHeader(ctx context.Context) (format formatType, cid 
 		return
 	}
 
+	// Here cid is 0 or 1: a marker selecting the 2B or 3B form, not the real cid. Keep it,
+	// because cid is overwritten below and the marker decides whether a third byte (the
+	// high-order part of the cid) follows. Do not test the overwritten cid for this.
+	marker := cid
+
 	// 64-319, 2B chunk header
 	if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
 		return format, cid, errors.Wrapf(err, "read basic header for cid=%v", cid)
@@ -679,7 +726,7 @@ func (v *Protocol) readBasicHeader(ctx context.Context) (format formatType, cid 
 	cid = chunkID(64 + uint32(t))
 
 	// 64-65599, 3B chunk header
-	if cid == 1 {
+	if marker == 1 {
 		if err = binary.Read(v.r, binary.BigEndian, &t); err != nil {
 			return format, cid, errors.Wrapf(err, "read basic header for cid=%v", cid)
 		}
@@ -689,14 +736,14 @@ func (v *Protocol) readBasicHeader(ctx context.Context) (format formatType, cid 
 	return
 }
 
-func (v *Protocol) WritePacket(ctx context.Context, pkt Packet, streamID int) (err error) {
-	m := NewMessage()
+func (v *protocol) WritePacket(ctx context.Context, pkt Packet, streamID int) (err error) {
+	m := newMessage()
 
-	if m.Payload, err = pkt.MarshalBinary(); err != nil {
+	if m.payload, err = pkt.MarshalBinary(); err != nil {
 		return errors.WithMessage(err, "marshal payload")
 	}
 
-	m.MessageType = pkt.Type()
+	m.messageHeader.MessageType = pkt.Type()
 	m.streamID = uint32(streamID)
 	m.betterCid = pkt.BetterCid()
 
@@ -711,7 +758,7 @@ func (v *Protocol) WritePacket(ctx context.Context, pkt Packet, streamID int) (e
 	return
 }
 
-func (v *Protocol) onPacketWriten(m *Message, pkt Packet) (err error) {
+func (v *protocol) onPacketWriten(m *message, pkt Packet) (err error) {
 	var tid amf0Number
 	var name amf0String
 
@@ -734,16 +781,16 @@ func (v *Protocol) onPacketWriten(m *Message, pkt Packet) (err error) {
 	return
 }
 
-func (v *Protocol) onMessageArrivated(m *Message) (err error) {
+func (v *protocol) onMessageArrivated(m *message) (err error) {
 	if m == nil {
 		return
 	}
 
 	var pkt Packet
-	switch m.MessageType {
+	switch m.MessageType() {
 	case MessageTypeSetChunkSize, MessageTypeUserControl, MessageTypeWindowAcknowledgementSize:
 		if pkt, err = v.DecodeMessage(m); err != nil {
-			return errors.Errorf("decode message %v", m.MessageType)
+			return errors.Errorf("decode message %v", m.MessageType())
 		}
 	}
 
@@ -755,19 +802,20 @@ func (v *Protocol) onMessageArrivated(m *Message) (err error) {
 	return
 }
 
-func (v *Protocol) WriteMessage(ctx context.Context, m *Message) (err error) {
-	m.payloadLength = uint32(len(m.Payload))
+func (v *protocol) WriteMessage(ctx context.Context, m Message) (err error) {
+	msg := m.asMessage()
+	msg.payloadLength = uint32(len(msg.payload))
 
 	var c0h, c3h []byte
-	if c0h, err = m.generateC0Header(); err != nil {
+	if c0h, err = msg.generateC0Header(); err != nil {
 		return errors.WithMessage(err, "generate c0 header")
 	}
-	if c3h, err = m.generateC3Header(); err != nil {
+	if c3h, err = msg.generateC3Header(); err != nil {
 		return errors.WithMessage(err, "generate c3 header")
 	}
 
 	var h []byte
-	p := m.Payload
+	p := msg.payload
 	for len(p) > 0 {
 		// TODO: We should convert buffered io to async io, because we will be stuck in block io here,
 		// TODO: but the risk is acceptable because we literally will set the underlay io timeout.
@@ -899,29 +947,56 @@ type messageHeader struct {
 	Timestamp uint64
 }
 
-// The RTMP message, transport over chunk stream in RTMP.
+// Message is an RTMP message transported over a chunk stream.
 // Please read the cs id of @doc rtmp_specification_1.0.pdf, @page 30, @section 4.1. Message Header
-type Message struct {
+type Message interface {
+	MessageType() MessageType
+	Timestamp() uint64
+	Payload() []byte
+	asMessage() *message
+}
+
+type message struct {
 	messageHeader
 
 	// The payload which carries the RTMP packet.
-	Payload []byte
+	payload []byte
 }
 
-func NewMessage() *Message {
-	return &Message{}
+func NewMessage() Message {
+	return newMessage()
 }
 
-func NewStreamMessage(streamID int) *Message {
-	v := NewMessage()
+func newMessage() *message {
+	return &message{}
+}
+
+func NewStreamMessage(streamID int) Message {
+	v := newMessage()
 	v.streamID = uint32(streamID)
 	v.betterCid = chunkIDOverStream
 	return v
 }
 
-func (v *Message) generateC3Header() ([]byte, error) {
+func (v *message) MessageType() MessageType {
+	return v.messageHeader.MessageType
+}
+
+func (v *message) Timestamp() uint64 {
+	return v.messageHeader.Timestamp
+}
+
+func (v *message) Payload() []byte {
+	return v.payload
+}
+
+func (v *message) asMessage() *message {
+	return v
+}
+
+func (v *message) generateC3Header() ([]byte, error) {
 	var c3h []byte
-	if v.Timestamp < extendedTimestamp {
+	if v.messageHeader.Timestamp < extendedTimestamp {
 		c3h = make([]byte, 1)
 	} else {
 		c3h = make([]byte, 1+4)
@@ -935,19 +1010,19 @@ func (v *Message) generateC3Header() ([]byte, error) {
 	// but actually all products from adobe, such as FMS/AMS and Flash player and FMLE,
 	// always carry a extended timestamp in C3 header.
 	// @see: http://blog.csdn.net/win_lin/article/details/13363699
-	if v.Timestamp >= extendedTimestamp {
-		p[0] = byte(v.Timestamp >> 24)
-		p[1] = byte(v.Timestamp >> 16)
-		p[2] = byte(v.Timestamp >> 8)
-		p[3] = byte(v.Timestamp)
+	if v.messageHeader.Timestamp >= extendedTimestamp {
+		p[0] = byte(v.messageHeader.Timestamp >> 24)
+		p[1] = byte(v.messageHeader.Timestamp >> 16)
+		p[2] = byte(v.messageHeader.Timestamp >> 8)
+		p[3] = byte(v.messageHeader.Timestamp)
 	}
 
 	return c3h, nil
 }
 
-func (v *Message) generateC0Header() ([]byte, error) {
+func (v *message) generateC0Header() ([]byte, error) {
 	var c0h []byte
-	if v.Timestamp < extendedTimestamp {
+	if v.messageHeader.Timestamp < extendedTimestamp {
 		c0h = make([]byte, 1+3+3+1+4)
 	} else {
 		c0h = make([]byte, 1+3+3+1+4+4)
@@ -957,10 +1032,10 @@ func (v *Message) generateC0Header() ([]byte, error) {
 	p[0] = byte(v.betterCid) & 0x3f
 	p = p[1:]
 
-	if v.Timestamp < extendedTimestamp {
-		p[0] = byte(v.Timestamp >> 16)
-		p[1] = byte(v.Timestamp >> 8)
-		p[2] = byte(v.Timestamp)
+	if v.messageHeader.Timestamp < extendedTimestamp {
+		p[0] = byte(v.messageHeader.Timestamp >> 16)
+		p[1] = byte(v.messageHeader.Timestamp >> 8)
+		p[2] = byte(v.messageHeader.Timestamp)
 	} else {
 		p[0] = 0xff
 		p[1] = 0xff
@@ -973,7 +1048,7 @@ func (v *Message) generateC0Header() ([]byte, error) {
 	p[2] = byte(v.payloadLength)
 	p = p[3:]
 
-	p[0] = byte(v.MessageType)
+	p[0] = byte(v.messageHeader.MessageType)
 	p = p[1:]
 
 	p[0] = byte(v.streamID)
@@ -982,11 +1057,11 @@ func (v *Message) generateC0Header() ([]byte, error) {
 	p[3] = byte(v.streamID >> 24)
 	p = p[4:]
 
-	if v.Timestamp >= extendedTimestamp {
-		p[0] = byte(v.Timestamp >> 24)
-		p[1] = byte(v.Timestamp >> 16)
-		p[2] = byte(v.Timestamp >> 8)
-		p[3] = byte(v.Timestamp)
+	if v.messageHeader.Timestamp >= extendedTimestamp {
+		p[0] = byte(v.messageHeader.Timestamp >> 24)
+		p[1] = byte(v.messageHeader.Timestamp >> 16)
+		p[2] = byte(v.messageHeader.Timestamp >> 8)
+		p[3] = byte(v.messageHeader.Timestamp)
 	}
 
 	return c0h, nil
@@ -1039,8 +1114,8 @@ type Packet interface {
 type objectCallPacket struct {
 	CommandName   amf0String
 	TransactionID amf0Number
-	CommandObject *amf0Object
-	Args          *amf0Object
+	CommandObject Amf0Object
+	Args          Amf0Object
 }
 
 func (v *objectCallPacket) BetterCid() chunkID {
@@ -1081,7 +1156,7 @@ func (v *objectCallPacket) UnmarshalBinary(data []byte) (err error) {
 		return
 	}
 
-	v.Args = NewAmf0Object()
+	v.Args = newAmf0Object()
 	if err = v.Args.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal args")
 	}
@@ -1149,8 +1224,8 @@ func (v *ConnectAppPacket) UnmarshalBinary(data []byte) (err error) {
 
 func (v *ConnectAppPacket) TcUrl() string {
 	if v.CommandObject != nil {
-		if v, ok := v.CommandObject.Get("tcUrl").(*amf0String); ok {
-			return string(*v)
+		if v, ok := v.CommandObject.Get("tcUrl").(Amf0String); ok {
+			return v.String()
 		}
 	}
 	return ""
@@ -1172,9 +1247,9 @@ func NewConnectAppResPacket(tid amf0Number) *ConnectAppResPacket {
 
 func (v *ConnectAppResPacket) SrsID() string {
 	if v.Args != nil {
-		if v, ok := v.Args.Get("data").(*amf0EcmaArray); ok {
-			if v, ok := v.Get("srs_id").(*amf0String); ok {
-				return string(*v)
+		if v, ok := v.Args.Get("data").(Amf0EcmaArray); ok {
+			if v, ok := v.Get("srs_id").(Amf0String); ok {
+				return v.String()
 			}
 		}
 	}
@@ -1197,7 +1272,7 @@ func (v *ConnectAppResPacket) UnmarshalBinary(data []byte) (err error) {
 type variantCallPacket struct {
 	CommandName   amf0String
 	TransactionID amf0Number
-	CommandObject amf0Any // object or null
+	CommandObject Amf0Any // object or null
 }
 
 func (v *variantCallPacket) BetterCid() chunkID {
@@ -1231,6 +1306,12 @@ func (v *variantCallPacket) UnmarshalBinary(data []byte) (err error) {
 	}
 	p = p[v.TransactionID.Size():]
 
+	// Reset the optional command object before deciding whether it is present.
+	// A New*Packet constructor may have pre-set it to a default (e.g. Null), but
+	// when the wire data is exhausted here the object is absent. Leaving the stale
+	// default would make Size() count bytes that were never parsed, overflowing the
+	// caller's p = p[Size():] advance on truncated, untrusted input.
+	v.CommandObject = nil
 	if len(p) > 0 {
 		if v.CommandObject, err = Amf0Discovery(p); err != nil {
 			return errors.WithMessage(err, "discovery command object")
@@ -1273,7 +1354,7 @@ func (v *variantCallPacket) MarshalBinary() (data []byte, err error) {
 // @remark onStatus packet is a call packet.
 type CallPacket struct {
 	variantCallPacket
-	Args amf0Any // optional or object or null
+	Args Amf0Any // optional or object or null
 }
 
 func NewCallPacket() *CallPacket {
@@ -1282,9 +1363,9 @@ func NewCallPacket() *CallPacket {
 
 func (v *CallPacket) ArgsCode() string {
 	if v.Args != nil {
-		if v, ok := v.Args.(*amf0Object); ok {
-			if code, ok := v.Get("code").(*amf0String); ok {
-				return string(*code)
+		if v, ok := v.Args.(Amf0Object); ok {
+			if code, ok := v.Get("code").(Amf0String); ok {
+				return code.String()
 			}
 		}
 	}
@@ -1301,14 +1382,32 @@ func (v *CallPacket) Size() int {
 	return size
 }
 
+// advanceBytes returns p[n:] after verifying n lies within p. Packet
+// UnmarshalBinary advances its cursor by each embedded field's decoded Size();
+// on untrusted wire input a malformed length can make Size() exceed the bytes
+// actually present, so this guard turns a slice-out-of-range panic into a clean
+// error. See the RTMP test plan, P8 (adversarial resource-safety).
+func advanceBytes(p []byte, n int) ([]byte, error) {
+	if n < 0 || n > len(p) {
+		return nil, errors.Errorf("advance %v exceeds remaining %v bytes", n, len(p))
+	}
+	return p[n:], nil
+}
+
 func (v *CallPacket) UnmarshalBinary(data []byte) (err error) {
 	p := data
 
 	if err = v.variantCallPacket.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal call")
 	}
-	p = p[v.variantCallPacket.Size():]
+	if p, err = advanceBytes(p, v.variantCallPacket.Size()); err != nil {
+		return errors.WithMessage(err, "advance call")
+	}
 
+	// Reset the optional args before deciding whether they are present, for the
+	// same reason as variantCallPacket.CommandObject: a stale constructor default
+	// would be counted by Size() and overflow a later advance.
+	v.Args = nil
 	if len(p) > 0 {
 		if v.Args, err = Amf0Discovery(p); err != nil {
 			return errors.WithMessage(err, "discovery args")
@@ -1370,6 +1469,10 @@ func NewCreateStreamResPacket(tid amf0Number) *CreateStreamResPacket {
 	return v
 }
 
+func (v *CreateStreamResPacket) SetStreamID(streamID int) {
+	v.StreamID = amf0Number(streamID)
+}
+
 func (v *CreateStreamResPacket) Size() int {
 	return v.variantCallPacket.Size() + v.StreamID.Size()
 }
@@ -1380,7 +1483,9 @@ func (v *CreateStreamResPacket) UnmarshalBinary(data []byte) (err error) {
 	if err = v.variantCallPacket.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal call")
 	}
-	p = p[v.variantCallPacket.Size():]
+	if p, err = advanceBytes(p, v.variantCallPacket.Size()); err != nil {
+		return errors.WithMessage(err, "advance call")
+	}
 
 	if err = v.StreamID.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal sid")
@@ -1407,15 +1512,16 @@ func (v *CreateStreamResPacket) MarshalBinary() (data []byte, err error) {
 // Please read @doc rtmp_specification_1.0.pdf, @page 64, @section 4.2.6. Publish
 type PublishPacket struct {
 	variantCallPacket
-	StreamName amf0String
-	StreamType amf0String
+	StreamName Amf0String
+	StreamType Amf0String
 }
 
 func NewPublishPacket() *PublishPacket {
 	v := &PublishPacket{}
 	v.CommandName = commandPublish
 	v.CommandObject = NewAmf0Null()
-	v.StreamType = "live"
+	v.StreamName = NewAmf0String("")
+	v.StreamType = NewAmf0String("live")
 	return v
 }
 
@@ -1429,13 +1535,17 @@ func (v *PublishPacket) UnmarshalBinary(data []byte) (err error) {
 	if err = v.variantCallPacket.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal call")
 	}
-	p = p[v.variantCallPacket.Size():]
+	if p, err = advanceBytes(p, v.variantCallPacket.Size()); err != nil {
+		return errors.WithMessage(err, "advance call")
+	}
 
+	v.StreamName = newAmf0String("")
 	if err = v.StreamName.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal stream name")
 	}
 	p = p[v.StreamName.Size():]
 
+	v.StreamType = newAmf0String("")
 	if err = v.StreamType.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal stream type")
 	}
@@ -1466,13 +1576,14 @@ func (v *PublishPacket) MarshalBinary() (data []byte, err error) {
 // Please read @doc rtmp_specification_1.0.pdf, @page 54, @section 4.2.1. play
 type PlayPacket struct {
 	variantCallPacket
-	StreamName amf0String
+	StreamName Amf0String
 }
 
 func NewPlayPacket() *PlayPacket {
 	v := &PlayPacket{}
 	v.CommandName = commandPlay
 	v.CommandObject = NewAmf0Null()
+	v.StreamName = NewAmf0String("")
 	return v
 }
 
@@ -1486,8 +1597,11 @@ func (v *PlayPacket) UnmarshalBinary(data []byte) (err error) {
 	if err = v.variantCallPacket.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal call")
 	}
-	p = p[v.variantCallPacket.Size():]
+	if p, err = advanceBytes(p, v.variantCallPacket.Size()); err != nil {
+		return errors.WithMessage(err, "advance call")
+	}
 
+	v.StreamName = newAmf0String("")
 	if err = v.StreamName.UnmarshalBinary(p); err != nil {
 		return errors.WithMessage(err, "unmarshal stream name")
 	}

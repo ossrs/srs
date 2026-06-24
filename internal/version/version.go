@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Winlin
+// Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
 package version
@@ -6,16 +6,16 @@ package version
 import "fmt"
 
 func VersionMajor() int {
-	return 1
+	return 8
 }
 
 // VersionMinor specifies the typical version of SRS we adapt to.
 func VersionMinor() int {
-	return 5
+	return 0
 }
 
 func VersionRevision() int {
-	return 0
+	return 3
 }
 
 func Version() string {

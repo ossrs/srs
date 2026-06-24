@@ -46,7 +46,7 @@ Please see [Protocols](#protocols) for details.
 ## Build
 
 To build the proxy server, you need to have Go 1.18+ installed. Then, you can build the proxy
-server by below command, and get the executable binary `./srs-proxy`:
+server by below command, and get the executable binary `bin/srs-proxy`:
 
 ```bash
 git clone https://github.com/ossrs/srs.git
@@ -71,7 +71,7 @@ First, start the proxy server:
 ```bash
 env PROXY_RTMP_SERVER=1935 PROXY_HTTP_SERVER=8080 \
     PROXY_HTTP_API=1985 PROXY_WEBRTC_SERVER=8000 PROXY_SRT_SERVER=10080 \
-    PROXY_SYSTEM_API=12025 PROXY_LOAD_BALANCER_TYPE=memory ./srs-proxy
+    PROXY_SYSTEM_API=12025 PROXY_LOAD_BALANCER_TYPE=memory ./bin/srs-proxy
 ```
 
 > Note: Here we use the memory load balancer, you can switch to `redis` if you want to run more
@@ -124,7 +124,7 @@ First, start the proxy server:
 ```bash
 env PROXY_RTMP_SERVER=1935 PROXY_HTTP_SERVER=8080 \
     PROXY_HTTP_API=1985 PROXY_WEBRTC_SERVER=8000 PROXY_SRT_SERVER=10080 \
-    PROXY_SYSTEM_API=12025 PROXY_LOAD_BALANCER_TYPE=memory ./srs-proxy
+    PROXY_SYSTEM_API=12025 PROXY_LOAD_BALANCER_TYPE=memory ./bin/srs-proxy
 ```
 
 > Note: Here we use the memory load balancer, you can switch to `redis` if you want to run more
@@ -173,7 +173,7 @@ First, start the proxy server:
 ```bash
 env PROXY_RTMP_SERVER=1935 PROXY_HTTP_SERVER=8080 \
     PROXY_HTTP_API=1985 PROXY_WEBRTC_SERVER=8000 PROXY_SRT_SERVER=10080 \
-    PROXY_SYSTEM_API=12025 PROXY_LOAD_BALANCER_TYPE=memory ./srs-proxy
+    PROXY_SYSTEM_API=12025 PROXY_LOAD_BALANCER_TYPE=memory ./bin/srs-proxy
 ```
 
 > Note: Here we use the memory load balancer, you can switch to `redis` if you want to run more

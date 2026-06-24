@@ -2559,7 +2559,10 @@ srs_error_t SrsLiveSource::consumer_dumps(ISrsLiveConsumer *consumer, bool ds, b
     }
 
     // If stream is publishing, dumps the sequence header and gop cache.
-    bool hub_active = hub_ ? hub_->active() : false;
+    // On edge, hub_ is NULL; the source is "publishing" once the edge-pull has
+    // populated the meta cache. Late-joining consumers must still receive the
+    // cached metadata + sequence headers + GOP via this path.
+    bool hub_active = hub_ ? hub_->active() : (meta_->data() || meta_->vsh() || meta_->ash());
     if (hub_active) {
         // Copy metadata and sequence header to consumer.
         if ((err = meta_->dumps(consumer, atc_, jitter_algorithm_, dm, ds)) != srs_success) {

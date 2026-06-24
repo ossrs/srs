@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Winlin
+// Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
 package signal
@@ -15,19 +15,36 @@ import (
 	"srsx/internal/logger"
 )
 
-func InstallSignals(ctx context.Context, cancel context.CancelFunc) {
+// Handler installs OS signal handlers and the force-quit timer. The notify
+// and exit indirections are struct fields (not package globals) so concurrent
+// tests can each construct a handler with their own fakes without racing on
+// shared state.
+type Handler struct {
+	notify func(c chan<- os.Signal, sig ...os.Signal)
+	exit   func(code int)
+}
+
+// NewHandler returns a Handler wired to the real OS implementations.
+func NewHandler() *Handler {
+	return &Handler{
+		notify: signal.Notify,
+		exit:   os.Exit,
+	}
+}
+
+func (h *Handler) InstallSignals(ctx context.Context, cancel context.CancelFunc) {
 	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+	h.notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 
 	go func() {
 		for s := range sc {
-			logger.Df(ctx, "Got signal %v", s)
+			logger.Debug(ctx, "Got signal %v", s)
 			cancel()
 		}
 	}()
 }
 
-func InstallForceQuit(ctx context.Context, environment env.Environment) error {
+func (h *Handler) InstallForceQuit(ctx context.Context, environment env.ProxyEnvironment) error {
 	var forceTimeout time.Duration
 	timeoutStr := environment.ForceQuitTimeout()
 	if t, err := time.ParseDuration(timeoutStr); err != nil {
@@ -39,8 +56,8 @@ func InstallForceQuit(ctx context.Context, environment env.Environment) error {
 	go func() {
 		<-ctx.Done()
 		time.Sleep(forceTimeout)
-		logger.Wf(ctx, "Force to exit by timeout")
-		os.Exit(1)
+		logger.Warn(ctx, "Force to exit by timeout")
+		h.exit(1)
 	}()
 	return nil
 }

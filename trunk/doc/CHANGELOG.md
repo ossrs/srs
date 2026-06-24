@@ -4,9 +4,23 @@
 
 The changelog for SRS.
 
+<a name="v8-changes"></a>
+
+## SRS 8.0 Changelog
+* v8.0, 2026-05-28, Merge [#4680](https://github.com/ossrs/srs/pull/4680): RTMP: Fix chunk timestamp/basic-header decoding and harden packet unmarshal. v8.0.3 (#4680)
+* v8.0, 2026-05-19, Merge [#4678](https://github.com/ossrs/srs/pull/4678): Edge: Fix HTTP-FLV 404 and RTMP late-join missing sequence headers. v8.0.2 (#4678)
+* v8.0, 2026-05-17, Merge [#4676](https://github.com/ossrs/srs/pull/4676): Proxy: Fix RTC/SRT reader goroutine leak; unwrap legacy WHEP JSON envelope; add WHEP pprof guide. v8.0.1 (#4676)
+* v8.0, 2026-05-17, Init SRS 8.0, code Free. v8.0.0
+
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-05-17, Merge [#4675](https://github.com/ossrs/srs/pull/4675): Proxy: Refactor for testability; add SRT/WHIP E2E and unit tests. v7.0.148 (#4675)
+* v7.0, 2026-05-02, Merge [#4672](https://github.com/ossrs/srs/pull/4672): Proxy: Refactor server APIs and expand RTMP test coverage. v7.0.147 (#4672)
+* v7.0, 2026-04-28, Merge [#4670](https://github.com/ossrs/srs/pull/4670): Proxy: Refine logger and environment APIs. v7.0.146 (#4670)
+* v7.0, 2026-04-23, Merge [#4667](https://github.com/ossrs/srs/pull/4667): Proxy: Refactor internal/errors and internal/sync, and add unit tests across internal/*. v7.0.145 (#4667)
+* v7.0, 2026-04-18, Merge [#4665](https://github.com/ossrs/srs/pull/4665): Proxy: Harden internal/env tests and add counterfeiter fake generation. v7.0.144 (#4665)
+* v7.0, 2026-04-12, Merge [#4661](https://github.com/ossrs/srs/pull/4661): Proxy: Move build output to bin/, replace godotenv with custom .env parser, and update docs. v7.0.143 (#4661)
 * v7.0, 2026-04-06, Merge [#4657](https://github.com/ossrs/srs/pull/4657): Proxy: Refactor bootstrap for multi-server support and rebrand to SRSX. v7.0.142 (#4657)
 * v7.0, 2026-03-26, Merge [#4654](https://github.com/ossrs/srs/pull/4654): OpenClaw: Restructure workspace with symlinks, add codebase map, and rewrite AI docs. v7.0.141 (#4654)
 * v7.0, 2026-03-22, Merge [#4653](https://github.com/ossrs/srs/pull/4653): OpenClaw: unify AI agent configs with shared persona symlinks. v7.0.140 (#4653)

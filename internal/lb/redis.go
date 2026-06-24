@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Winlin
+// Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
 package lb
@@ -11,48 +11,55 @@ import (
 	"strconv"
 	"time"
 
-	// Use v8 because we use Go 1.16+, while v9 requires Go 1.18+
-	"github.com/go-redis/redis/v8"
-
 	"srsx/internal/env"
 	"srsx/internal/errors"
 	"srsx/internal/logger"
+	"srsx/internal/redisclient"
 )
 
-// RedisLoadBalancer stores state in Redis.
-type RedisLoadBalancer struct {
+// redisLoadBalancer stores state in Redis.
+type redisLoadBalancer struct {
 	// The environment interface.
-	environment env.Environment
-	// The redis client sdk.
-	rdb *redis.Client
+	environment env.ProxyEnvironment
+	// The redis client.
+	rdb redisclient.RedisClient
+	// newClient is the factory used by Initialize to build the Redis client.
+	// A struct field (rather than a package global) so concurrent tests can
+	// each supply their own without racing on shared state.
+	newClient func(addr, password string, db int) redisclient.RedisClient
+	// keepaliveInterval is the period at which the default-backend keep-alive
+	// goroutine re-Updates its registration. Struct field for test injection.
+	keepaliveInterval time.Duration
 }
 
 // NewRedisLoadBalancer creates a new Redis-based load balancer.
-func NewRedisLoadBalancer(environment env.Environment) SRSLoadBalancer {
-	return &RedisLoadBalancer{
-		environment: environment,
+func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
+	return &redisLoadBalancer{
+		environment:       environment,
+		newClient:         redisclient.New,
+		keepaliveInterval: 30 * time.Second,
 	}
 }
 
-func (v *RedisLoadBalancer) Initialize(ctx context.Context) error {
+func (v *redisLoadBalancer) Initialize(ctx context.Context) error {
 	redisDatabase, err := strconv.Atoi(v.environment.RedisDB())
 	if err != nil {
 		return errors.Wrapf(err, "invalid PROXY_REDIS_DB %v", v.environment.RedisDB())
 	}
 
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%v:%v", v.environment.RedisHost(), v.environment.RedisPort()),
-		Password: v.environment.RedisPassword(),
-		DB:       redisDatabase,
-	})
+	rdb := v.newClient(
+		fmt.Sprintf("%v:%v", v.environment.RedisHost(), v.environment.RedisPort()),
+		v.environment.RedisPassword(),
+		redisDatabase,
+	)
 	v.rdb = rdb
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
 		return errors.Wrapf(err, "unable to connect to redis %v", rdb.String())
 	}
-	logger.Df(ctx, "RedisLB: connected to redis %v ok", rdb.String())
+	logger.Debug(ctx, "RedisLB: connected to redis %v ok", rdb.String())
 
-	server, err := NewDefaultSRSForDebugging(v.environment)
+	server, err := NewDefaultOriginServerForDebugging(v.environment)
 	if err != nil {
 		return errors.Wrapf(err, "initialize default SRS")
 	}
@@ -68,19 +75,19 @@ func (v *RedisLoadBalancer) Initialize(ctx context.Context) error {
 				select {
 				case <-ctx.Done():
 					return
-				case <-time.After(30 * time.Second):
+				case <-time.After(v.keepaliveInterval):
 					if err := v.Update(ctx, server); err != nil {
-						logger.Wf(ctx, "update default SRS %+v failed, %+v", server, err)
+						logger.Warn(ctx, "update default SRS %+v failed, %+v", server, err)
 					}
 				}
 			}
 		}()
-		logger.Df(ctx, "RedisLB: Initialize default SRS media server, %+v", server)
+		logger.Debug(ctx, "RedisLB: Initialize default SRS media server, %+v", server)
 	}
 	return nil
 }
 
-func (v *RedisLoadBalancer) Update(ctx context.Context, server *SRSServer) error {
+func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) error {
 	b, err := json.Marshal(server)
 	if err != nil {
 		return errors.Wrapf(err, "marshal server %+v", server)
@@ -130,14 +137,14 @@ func (v *RedisLoadBalancer) Update(ctx context.Context, server *SRSServer) error
 	return nil
 }
 
-func (v *RedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSServer, error) {
+func (v *redisLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
 	key := fmt.Sprintf("srs-proxy-url:%v", streamURL)
 
 	// Always proxy to the same server for the same stream URL.
 	if serverKey, err := v.rdb.Get(ctx, key).Result(); err == nil {
 		// If server not exists, ignore and pick another server for the stream URL.
 		if b, err := v.rdb.Get(ctx, serverKey).Bytes(); err == nil && len(b) > 0 {
-			var server SRSServer
+			var server OriginServer
 			if err := json.Unmarshal(b, &server); err != nil {
 				return nil, errors.Wrapf(err, "unmarshal key=%v server %v", key, string(b))
 			}
@@ -163,7 +170,7 @@ func (v *RedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSSer
 	// All server should be alive, if not, should have been removed by redis. So we only
 	// random pick one that is always available. Use global rand which is thread-safe since Go 1.20.
 	var serverKey string
-	var server SRSServer
+	var server OriginServer
 	for i := 0; i < 3; i++ {
 		tryServerKey := serverKeys[rand.Intn(len(serverKeys))]
 		b, err := v.rdb.Get(ctx, tryServerKey).Bytes()
@@ -188,7 +195,7 @@ func (v *RedisLoadBalancer) Pick(ctx context.Context, streamURL string) (*SRSSer
 	return &server, nil
 }
 
-func (v *RedisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
+func (v *redisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) (HLSPlayStream, error) {
 	key := v.redisKeySPBHID(spbhid)
 
 	b, err := v.rdb.Get(ctx, key).Bytes()
@@ -208,7 +215,7 @@ func (v *RedisLoadBalancer) LoadHLSBySPBHID(ctx context.Context, spbhid string) 
 	return nil, errors.Errorf("Redis load balancer cannot deserialize interface types")
 }
 
-func (v *RedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
+func (v *redisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string, value HLSPlayStream) (HLSPlayStream, error) {
 	b, err := json.Marshal(value)
 	if err != nil {
 		return nil, errors.Wrapf(err, "marshal HLS %v", value)
@@ -229,7 +236,7 @@ func (v *RedisLoadBalancer) LoadOrStoreHLS(ctx context.Context, streamURL string
 	return value, nil
 }
 
-func (v *RedisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
+func (v *redisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, value RTCConnection) error {
 	b, err := json.Marshal(value)
 	if err != nil {
 		return errors.Wrapf(err, "marshal WebRTC %v", value)
@@ -249,7 +256,7 @@ func (v *RedisLoadBalancer) StoreWebRTC(ctx context.Context, streamURL string, v
 	return nil
 }
 
-func (v *RedisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error) {
+func (v *redisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string) (RTCConnection, error) {
 	key := v.redisKeyUfrag(ufrag)
 
 	b, err := v.rdb.Get(ctx, key).Bytes()
@@ -267,26 +274,26 @@ func (v *RedisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string)
 	return nil, errors.Errorf("Redis load balancer cannot deserialize interface types")
 }
 
-func (v *RedisLoadBalancer) redisKeyUfrag(ufrag string) string {
+func (v *redisLoadBalancer) redisKeyUfrag(ufrag string) string {
 	return fmt.Sprintf("srs-proxy-ufrag:%v", ufrag)
 }
 
-func (v *RedisLoadBalancer) redisKeyRTC(streamURL string) string {
+func (v *redisLoadBalancer) redisKeyRTC(streamURL string) string {
 	return fmt.Sprintf("srs-proxy-rtc:%v", streamURL)
 }
 
-func (v *RedisLoadBalancer) redisKeySPBHID(spbhid string) string {
+func (v *redisLoadBalancer) redisKeySPBHID(spbhid string) string {
 	return fmt.Sprintf("srs-proxy-spbhid:%v", spbhid)
 }
 
-func (v *RedisLoadBalancer) redisKeyHLS(streamURL string) string {
+func (v *redisLoadBalancer) redisKeyHLS(streamURL string) string {
 	return fmt.Sprintf("srs-proxy-hls:%v", streamURL)
 }
 
-func (v *RedisLoadBalancer) redisKeyServer(serverID string) string {
+func (v *redisLoadBalancer) redisKeyServer(serverID string) string {
 	return fmt.Sprintf("srs-proxy-server:%v", serverID)
 }
 
-func (v *RedisLoadBalancer) redisKeyServers() string {
+func (v *redisLoadBalancer) redisKeyServers() string {
 	return fmt.Sprintf("srs-proxy-all-servers")
 }

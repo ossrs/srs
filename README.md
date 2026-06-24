@@ -10,7 +10,7 @@
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
 [![](https://codecov.io/gh/ossrs/srs/graph/badge.svg?token=Zx2LhdtA39)](https://codecov.io/gh/ossrs/srs)
 
-SRS/7.0 ([Kai](https://ossrs.io/lts/en-us/product#release-70)) is a simple, high-efficiency, and real-time video server, 
+SRS/8.0 ([Free](https://ossrs.io/lts/en-us/product#release-80)) is a simple, high-efficiency, and real-time video server, 
 supporting RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS,
 with codec support for H.264, H.265, AV1, VP9, AAC, Opus, and G.711, 
 and essential [features](trunk/doc/Features.md#features).
@@ -201,7 +201,4 @@ Please read [MIRRORS](trunk/doc/Resources.md#mirrors).
 ## Dockers
 
 Please read [DOCKERS](trunk/doc/Dockers.md).
-
-Beijing, 2013.10<br/>
-Winlin
 

@@ -1,20 +1,32 @@
-// Copyright (c) 2025 Winlin
+// Copyright (c) 2026 Winlin
 //
 // SPDX-License-Identifier: MIT
 package env
 
 import (
+	"bufio"
 	"context"
+	"io"
 	"os"
-
-	"github.com/joho/godotenv"
+	"strings"
 
 	"srsx/internal/errors"
 	"srsx/internal/logger"
 )
 
-// Environment provides access to environment variables.
-type Environment interface {
+// Indirections over os and filesystem primitives so tests can swap them
+// without touching real process env or the filesystem.
+var (
+	getEnv    = os.Getenv
+	setEnv    = os.Setenv
+	lookupEnv = os.LookupEnv
+	openFile  = func(name string) (io.ReadCloser, error) {
+		return os.Open(name)
+	}
+)
+
+// ProxyEnvironment provides access to proxy environment variables.
+type ProxyEnvironment interface {
 	// Go pprof profiling
 	GoPprof() string
 	// Graceful quit timeout
@@ -61,117 +73,198 @@ type Environment interface {
 	DefaultBackendSRT() string
 }
 
-type environment struct{}
+type proxyEnvironment struct{}
 
-// NewEnvironment creates a new Environment instance, loading and building default environment variables.
-func NewEnvironment(ctx context.Context) (Environment, error) {
+// NewProxyEnvironment creates a new ProxyEnvironment instance, loading and building default environment variables.
+func NewProxyEnvironment(ctx context.Context) (ProxyEnvironment, error) {
 	if err := loadEnvFile(ctx); err != nil {
 		return nil, err
 	}
 	buildDefaultEnvironmentVariables(ctx)
-	return &environment{}, nil
+	return &proxyEnvironment{}, nil
 }
 
-func (e *environment) GoPprof() string {
-	return os.Getenv("GO_PPROF")
+func (e *proxyEnvironment) GoPprof() string {
+	return getEnv("GO_PPROF")
 }
 
-func (e *environment) GraceQuitTimeout() string {
-	return os.Getenv("PROXY_GRACE_QUIT_TIMEOUT")
+func (e *proxyEnvironment) GraceQuitTimeout() string {
+	return getEnv("PROXY_GRACE_QUIT_TIMEOUT")
 }
 
-func (e *environment) ForceQuitTimeout() string {
-	return os.Getenv("PROXY_FORCE_QUIT_TIMEOUT")
+func (e *proxyEnvironment) ForceQuitTimeout() string {
+	return getEnv("PROXY_FORCE_QUIT_TIMEOUT")
 }
 
-func (e *environment) HttpAPI() string {
-	return os.Getenv("PROXY_HTTP_API")
+func (e *proxyEnvironment) HttpAPI() string {
+	return getEnv("PROXY_HTTP_API")
 }
 
-func (e *environment) HttpServer() string {
-	return os.Getenv("PROXY_HTTP_SERVER")
+func (e *proxyEnvironment) HttpServer() string {
+	return getEnv("PROXY_HTTP_SERVER")
 }
 
-func (e *environment) RtmpServer() string {
-	return os.Getenv("PROXY_RTMP_SERVER")
+func (e *proxyEnvironment) RtmpServer() string {
+	return getEnv("PROXY_RTMP_SERVER")
 }
 
-func (e *environment) WebRTCServer() string {
-	return os.Getenv("PROXY_WEBRTC_SERVER")
+func (e *proxyEnvironment) WebRTCServer() string {
+	return getEnv("PROXY_WEBRTC_SERVER")
 }
 
-func (e *environment) SRTServer() string {
-	return os.Getenv("PROXY_SRT_SERVER")
+func (e *proxyEnvironment) SRTServer() string {
+	return getEnv("PROXY_SRT_SERVER")
 }
 
-func (e *environment) SystemAPI() string {
-	return os.Getenv("PROXY_SYSTEM_API")
+func (e *proxyEnvironment) SystemAPI() string {
+	return getEnv("PROXY_SYSTEM_API")
 }
 
-func (e *environment) StaticFiles() string {
-	return os.Getenv("PROXY_STATIC_FILES")
+func (e *proxyEnvironment) StaticFiles() string {
+	return getEnv("PROXY_STATIC_FILES")
 }
 
-func (e *environment) LoadBalancerType() string {
-	return os.Getenv("PROXY_LOAD_BALANCER_TYPE")
+func (e *proxyEnvironment) LoadBalancerType() string {
+	return getEnv("PROXY_LOAD_BALANCER_TYPE")
 }
 
-func (e *environment) RedisHost() string {
-	return os.Getenv("PROXY_REDIS_HOST")
+func (e *proxyEnvironment) RedisHost() string {
+	return getEnv("PROXY_REDIS_HOST")
 }
 
-func (e *environment) RedisPort() string {
-	return os.Getenv("PROXY_REDIS_PORT")
+func (e *proxyEnvironment) RedisPort() string {
+	return getEnv("PROXY_REDIS_PORT")
 }
 
-func (e *environment) RedisPassword() string {
-	return os.Getenv("PROXY_REDIS_PASSWORD")
+func (e *proxyEnvironment) RedisPassword() string {
+	return getEnv("PROXY_REDIS_PASSWORD")
 }
 
-func (e *environment) RedisDB() string {
-	return os.Getenv("PROXY_REDIS_DB")
+func (e *proxyEnvironment) RedisDB() string {
+	return getEnv("PROXY_REDIS_DB")
 }
 
-func (e *environment) DefaultBackendEnabled() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_ENABLED")
+func (e *proxyEnvironment) DefaultBackendEnabled() string {
+	return getEnv("PROXY_DEFAULT_BACKEND_ENABLED")
 }
 
-func (e *environment) DefaultBackendIP() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_IP")
+func (e *proxyEnvironment) DefaultBackendIP() string {
+	return getEnv("PROXY_DEFAULT_BACKEND_IP")
 }
 
-func (e *environment) DefaultBackendRTMP() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_RTMP")
+func (e *proxyEnvironment) DefaultBackendRTMP() string {
+	return getEnv("PROXY_DEFAULT_BACKEND_RTMP")
 }
 
-func (e *environment) DefaultBackendHttp() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_HTTP")
+func (e *proxyEnvironment) DefaultBackendHttp() string {
+	return getEnv("PROXY_DEFAULT_BACKEND_HTTP")
 }
 
-func (e *environment) DefaultBackendAPI() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_API")
+func (e *proxyEnvironment) DefaultBackendAPI() string {
+	return getEnv("PROXY_DEFAULT_BACKEND_API")
 }
 
-func (e *environment) DefaultBackendRTC() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_RTC")
+func (e *proxyEnvironment) DefaultBackendRTC() string {
+	return getEnv("PROXY_DEFAULT_BACKEND_RTC")
 }
 
-func (e *environment) DefaultBackendSRT() string {
-	return os.Getenv("PROXY_DEFAULT_BACKEND_SRT")
+func (e *proxyEnvironment) DefaultBackendSRT() string {
+	return getEnv("PROXY_DEFAULT_BACKEND_SRT")
 }
 
 // loadEnvFile loads the environment variables from .env file.
 func loadEnvFile(ctx context.Context) error {
-	if err := godotenv.Load(); err != nil {
-		// If .env file doesn't exist, that's okay, just log and continue
+	envMap, err := parseEnvFile(".env")
+	if err != nil {
 		if os.IsNotExist(err) {
-			logger.Df(ctx, "no .env file found, skipping")
+			logger.Debug(ctx, "no .env file found, skipping")
 			return nil
 		}
 		return errors.Wrapf(err, "load .env file")
 	}
-	logger.Df(ctx, "successfully loaded .env file")
+
+	// Skip keys already set in the environment so we don't overwrite them.
+	for key, value := range envMap {
+		if _, ok := lookupEnv(key); !ok {
+			setEnv(key, value)
+		}
+	}
+
+	logger.Debug(ctx, "successfully loaded .env file")
 	return nil
+}
+
+// parseEnvFile opens filename and parses its contents as .env-formatted lines.
+func parseEnvFile(filename string) (map[string]string, error) {
+	file, err := openFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return parseEnvReader(file)
+}
+
+// parseEnvReader parses .env-formatted content from r. It performs no I/O
+// beyond reading r, so it is trivially testable with strings.NewReader.
+func parseEnvReader(r io.Reader) (map[string]string, error) {
+	envMap := make(map[string]string)
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip empty lines and comments.
+		if line == "" || line[0] == '#' {
+			continue
+		}
+
+		// Strip optional "export " prefix.
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimPrefix(line, "export ")
+			line = strings.TrimSpace(line)
+		}
+
+		// Split on first '=' to get key and value.
+		key, value, found := strings.Cut(line, "=")
+		if !found {
+			continue
+		}
+
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+
+		// Handle quoted values.
+		if len(value) >= 2 {
+			if value[0] == '\'' && value[len(value)-1] == '\'' {
+				// Single-quoted: raw literal, no escaping.
+				value = value[1 : len(value)-1]
+			} else if value[0] == '"' && value[len(value)-1] == '"' {
+				// Double-quoted: process escape sequences.
+				value = value[1 : len(value)-1]
+				value = strings.ReplaceAll(value, `\n`, "\n")
+				value = strings.ReplaceAll(value, `\r`, "\r")
+				value = strings.ReplaceAll(value, `\"`, `"`)
+				value = strings.ReplaceAll(value, `\\`, `\`)
+			} else {
+				// Unquoted: strip inline comments.
+				if idx := strings.Index(value, " #"); idx != -1 {
+					value = strings.TrimSpace(value[:idx])
+				}
+			}
+		} else {
+			// Unquoted short value: strip inline comments.
+			if idx := strings.Index(value, " #"); idx != -1 {
+				value = strings.TrimSpace(value[:idx])
+			}
+		}
+
+		envMap[key] = value
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return envMap, nil
 }
 
 // buildDefaultEnvironmentVariables setups the default environment variables.
@@ -222,7 +315,7 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	// Default backend udp srt port, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_SRT", "10080")
 
-	logger.Df(ctx, "load .env as GO_PPROF=%v, "+
+	logger.Debug(ctx, "load .env as GO_PPROF=%v, "+
 		"PROXY_FORCE_QUIT_TIMEOUT=%v, PROXY_GRACE_QUIT_TIMEOUT=%v, "+
 		"PROXY_HTTP_API=%v, PROXY_HTTP_SERVER=%v, PROXY_RTMP_SERVER=%v, "+
 		"PROXY_WEBRTC_SERVER=%v, PROXY_SRT_SERVER=%v, "+
@@ -232,22 +325,22 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		"PROXY_DEFAULT_BACKEND_RTC=%v, PROXY_DEFAULT_BACKEND_SRT=%v, "+
 		"PROXY_LOAD_BALANCER_TYPE=%v, PROXY_REDIS_HOST=%v, PROXY_REDIS_PORT=%v, "+
 		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v",
-		os.Getenv("GO_PPROF"),
-		os.Getenv("PROXY_FORCE_QUIT_TIMEOUT"), os.Getenv("PROXY_GRACE_QUIT_TIMEOUT"),
-		os.Getenv("PROXY_HTTP_API"), os.Getenv("PROXY_HTTP_SERVER"), os.Getenv("PROXY_RTMP_SERVER"),
-		os.Getenv("PROXY_WEBRTC_SERVER"), os.Getenv("PROXY_SRT_SERVER"),
-		os.Getenv("PROXY_SYSTEM_API"), os.Getenv("PROXY_STATIC_FILES"), os.Getenv("PROXY_DEFAULT_BACKEND_ENABLED"),
-		os.Getenv("PROXY_DEFAULT_BACKEND_IP"), os.Getenv("PROXY_DEFAULT_BACKEND_RTMP"),
-		os.Getenv("PROXY_DEFAULT_BACKEND_HTTP"), os.Getenv("PROXY_DEFAULT_BACKEND_API"),
-		os.Getenv("PROXY_DEFAULT_BACKEND_RTC"), os.Getenv("PROXY_DEFAULT_BACKEND_SRT"),
-		os.Getenv("PROXY_LOAD_BALANCER_TYPE"), os.Getenv("PROXY_REDIS_HOST"), os.Getenv("PROXY_REDIS_PORT"),
-		os.Getenv("PROXY_REDIS_PASSWORD"), os.Getenv("PROXY_REDIS_DB"),
+		getEnv("GO_PPROF"),
+		getEnv("PROXY_FORCE_QUIT_TIMEOUT"), getEnv("PROXY_GRACE_QUIT_TIMEOUT"),
+		getEnv("PROXY_HTTP_API"), getEnv("PROXY_HTTP_SERVER"), getEnv("PROXY_RTMP_SERVER"),
+		getEnv("PROXY_WEBRTC_SERVER"), getEnv("PROXY_SRT_SERVER"),
+		getEnv("PROXY_SYSTEM_API"), getEnv("PROXY_STATIC_FILES"), getEnv("PROXY_DEFAULT_BACKEND_ENABLED"),
+		getEnv("PROXY_DEFAULT_BACKEND_IP"), getEnv("PROXY_DEFAULT_BACKEND_RTMP"),
+		getEnv("PROXY_DEFAULT_BACKEND_HTTP"), getEnv("PROXY_DEFAULT_BACKEND_API"),
+		getEnv("PROXY_DEFAULT_BACKEND_RTC"), getEnv("PROXY_DEFAULT_BACKEND_SRT"),
+		getEnv("PROXY_LOAD_BALANCER_TYPE"), getEnv("PROXY_REDIS_HOST"), getEnv("PROXY_REDIS_PORT"),
+		getEnv("PROXY_REDIS_PASSWORD"), getEnv("PROXY_REDIS_DB"),
 	)
 }
 
 // setEnvDefault set env key=value if not set.
 func setEnvDefault(key, value string) {
-	if os.Getenv(key) == "" {
-		os.Setenv(key, value)
+	if getEnv(key) == "" {
+		setEnv(key, value)
 	}
 }
