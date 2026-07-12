@@ -350,6 +350,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // Whether player started.
     bool is_started_;
+#ifdef SRS_HIKVISION
+    // Whether Hikvision on_play succeeded (pair with on_stop in destructor).
+    bool hik_play_active_;
+#endif
 
 public:
     SrsRtcPlayStream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketSender *sender, const SrsContextId &cid);

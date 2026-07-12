@@ -8,9 +8,12 @@
 
 #ifdef SRS_HIKVISION
 
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <srs_app_config.hpp>
@@ -83,9 +86,174 @@ static const int kHikvisionMaxQueuedPackets = 512;
 static bool srs_hikvision_valid_h264_sps(char *frame, int size);
 static bool srs_hikvision_valid_h264_pps(char *frame, int size);
 
-bool srs_hikvision_parse_stream(const string &stream, string &serialno, int &channel, int &subchannel)
+// Format HCNetSDK last error as "err=<code> msg=<NET_DVR_GetErrorMsg>".
+// Pass already-captured code when GetLastError was called earlier; otherwise
+// reads NET_DVR_GetLastError() now.
+static string srs_hikvision_sdk_errmsg(DWORD err_code = (DWORD)-1)
 {
-    // Parse from the right: SerialNO_CHANNEL_SUBCHANNEL
+    LONG e = (err_code == (DWORD)-1) ? (LONG)NET_DVR_GetLastError() : (LONG)err_code;
+    char *msg = NET_DVR_GetErrorMsg(&e);
+    if (msg && msg[0]) {
+        return srs_fmt_sprintf("err=%ld msg=%s", (long)e, msg);
+    }
+    return srs_fmt_sprintf("err=%ld", (long)e);
+}
+
+// Resolve sdk_path to an absolute path. Relative paths follow process cwd, so
+// systemd (often cwd=/) vs manual start (cwd=trunk) behave differently unless
+// we canonicalize before NET_DVR_SetSDKInitCfg.
+static string srs_hikvision_resolve_sdk_path(const string &configured)
+{
+    if (configured.empty()) {
+        return configured;
+    }
+
+    string candidate = configured;
+    if (configured[0] != '/') {
+        char cwd[PATH_MAX];
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+            candidate = string(cwd) + "/" + configured;
+        }
+    }
+
+    char resolved[PATH_MAX];
+    if (realpath(candidate.c_str(), resolved) != NULL) {
+        return string(resolved);
+    }
+    // realpath fails when path does not exist; still pass absolute-ish candidate.
+    return candidate;
+}
+
+// Preload HCNetSDK shared objects by absolute path. setenv(LD_LIBRARY_PATH)
+// after process start does NOT affect glibc dlopen search; without this,
+// RealPlay often fails with err=136 (HCPreview version mismatch) under systemd
+// when cwd=/ and components cannot resolve libhpr/libHCCore.
+// Returns srs_error if a critical library is missing or fails to load.
+static srs_error_t srs_hikvision_preload_sdk_libs(const string &sdk_path)
+{
+    srs_error_t err = srs_success;
+
+    // order matters: base deps first, then HCPreview and helpers.
+    static const char *kCritical[] = {
+        "libhpr.so",
+        "libHCCore.so",
+        "libhcnetsdk.so",
+        "HCNetSDKCom/libHCCoreDevCfg.so",
+        "HCNetSDKCom/libHCPreview.so",
+        NULL,
+    };
+    static const char *kOptional[] = {
+        "HCNetSDKCom/libStreamTransClient.so",
+        "HCNetSDKCom/libSystemTransform.so",
+        "HCNetSDKCom/libanalyzedata.so",
+        "libcrypto.so",
+        "libssl.so",
+        NULL,
+    };
+
+    SrsPath path;
+    int loaded = 0;
+    for (int i = 0; kCritical[i]; i++) {
+        string full = sdk_path + "/" + kCritical[i];
+        if (!path.exists(full)) {
+            return srs_error_new(ERROR_HIKVISION_SDK,
+                                 "preload missing critical %s (sdk_path=%s). "
+                                 "Copy a complete HCNetSDK tree (libhcnetsdk.so + HCNetSDKCom/) "
+                                 "or fix hikvision.sdk_path",
+                                 full.c_str(), sdk_path.c_str());
+        }
+        // Clear stale error then load.
+        dlerror();
+        void *h = dlopen(full.c_str(), RTLD_NOW | RTLD_GLOBAL);
+        if (!h) {
+            const char *dle = dlerror();
+            return srs_error_new(ERROR_HIKVISION_SDK,
+                                 "dlopen critical %s failed: %s (cwd-independent absolute load; "
+                                 "check arch and deps with: ldd %s)",
+                                 full.c_str(), dle ? dle : "unknown", full.c_str());
+        }
+        loaded++;
+        srs_trace("Hikvision: preloaded critical %s", full.c_str());
+    }
+    for (int i = 0; kOptional[i]; i++) {
+        string full = sdk_path + "/" + kOptional[i];
+        if (!path.exists(full)) {
+            srs_warn("Hikvision: preload skip optional missing %s", full.c_str());
+            continue;
+        }
+        dlerror();
+        void *h = dlopen(full.c_str(), RTLD_NOW | RTLD_GLOBAL);
+        if (!h) {
+            const char *dle = dlerror();
+            srs_warn("Hikvision: dlopen optional %s failed: %s", full.c_str(), dle ? dle : "unknown");
+        } else {
+            loaded++;
+            srs_trace("Hikvision: preloaded optional %s", full.c_str());
+        }
+    }
+    srs_trace("Hikvision: preload done count=%d sdk_path=%s", loaded, sdk_path.c_str());
+    return err;
+}
+
+// Unix timestamps used for playback start are always >= 1e9 (2001-09-09).
+// Subchannel values are small (0,1,2,...), so this separates live vs VOD names.
+static const int64_t kHikvisionPlaybackTsMin = 1000000000LL;
+
+static bool srs_hikvision_all_digits(const string &s)
+{
+    if (s.empty()) {
+        return false;
+    }
+    for (size_t i = 0; i < s.size(); i++) {
+        if (s[i] < '0' || s[i] > '9') {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void srs_hikvision_unix_to_dvr_time(time_t t, NET_DVR_TIME *out)
+{
+    memset(out, 0, sizeof(*out));
+    struct tm tm_buf;
+    // Device OSD / FindFile are typically local wall clock on the NVR; use localtime.
+    localtime_r(&t, &tm_buf);
+    out->dwYear = (DWORD)(tm_buf.tm_year + 1900);
+    out->dwMonth = (DWORD)(tm_buf.tm_mon + 1);
+    out->dwDay = (DWORD)tm_buf.tm_mday;
+    out->dwHour = (DWORD)tm_buf.tm_hour;
+    out->dwMinute = (DWORD)tm_buf.tm_min;
+    out->dwSecond = (DWORD)tm_buf.tm_sec;
+}
+
+static int64_t srs_hikvision_dvr_fields_to_unix(DWORD year, DWORD month, DWORD day, DWORD hour, DWORD minute, DWORD second)
+{
+    if (year < 2000 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
+        return 0;
+    }
+    struct tm tm_buf;
+    memset(&tm_buf, 0, sizeof(tm_buf));
+    tm_buf.tm_year = (int)year - 1900;
+    tm_buf.tm_mon = (int)month - 1;
+    tm_buf.tm_mday = (int)day;
+    tm_buf.tm_hour = (int)hour;
+    tm_buf.tm_min = (int)minute;
+    tm_buf.tm_sec = (int)second;
+    tm_buf.tm_isdst = -1;
+    time_t t = mktime(&tm_buf);
+    if (t == (time_t)-1) {
+        return 0;
+    }
+    return (int64_t)t;
+}
+
+bool srs_hikvision_parse_stream(const string &stream, string &serialno, int &channel, int &subchannel, int64_t *start_unix_ts)
+{
+    if (start_unix_ts) {
+        *start_unix_ts = 0;
+    }
+
+    // Parse from the right: SerialNO_CHANNEL_SUBCHANNEL or SerialNO_CHANNEL_UNIXTS
     size_t p2 = stream.find_last_of('_');
     if (p2 == string::npos || p2 == 0) {
         return false;
@@ -96,25 +264,32 @@ bool srs_hikvision_parse_stream(const string &stream, string &serialno, int &cha
     }
 
     string ch_s = stream.substr(p1 + 1, p2 - p1 - 1);
-    string sub_s = stream.substr(p2 + 1);
-    if (ch_s.empty() || sub_s.empty()) {
+    string last_s = stream.substr(p2 + 1);
+    if (!srs_hikvision_all_digits(ch_s) || !srs_hikvision_all_digits(last_s)) {
         return false;
-    }
-    for (size_t i = 0; i < ch_s.size(); i++) {
-        if (ch_s[i] < '0' || ch_s[i] > '9') {
-            return false;
-        }
-    }
-    for (size_t i = 0; i < sub_s.size(); i++) {
-        if (sub_s[i] < '0' || sub_s[i] > '9') {
-            return false;
-        }
     }
 
     serialno = stream.substr(0, p1);
     channel = ::atoi(ch_s.c_str());
-    subchannel = ::atoi(sub_s.c_str());
-    if (serialno.empty() || channel <= 0 || subchannel < 0) {
+    if (serialno.empty() || channel <= 0) {
+        return false;
+    }
+
+    // Playback: last token is unix timestamp (>= 1e9).
+    // Live: last token is subchannel (0,1,2,...).
+    if (last_s.size() >= 10) {
+        int64_t ts = (int64_t)strtoll(last_s.c_str(), NULL, 10);
+        if (ts >= kHikvisionPlaybackTsMin) {
+            subchannel = 0; // main stream for VOD by default
+            if (start_unix_ts) {
+                *start_unix_ts = ts;
+            }
+            return true;
+        }
+    }
+
+    subchannel = ::atoi(last_s.c_str());
+    if (subchannel < 0) {
         return false;
     }
     return true;
@@ -1248,9 +1423,9 @@ srs_error_t SrsHikvisionDevice::ensure_login()
 
     user_id_ = NET_DVR_Login_V40(&login_info, &device_info);
     if (user_id_ < 0) {
-        DWORD e = NET_DVR_GetLastError();
-        return srs_error_new(ERROR_HIKVISION_SDK, "login %s:%d serial=%s failed, err=%u",
-                             conf_.host_.c_str(), conf_.port_, conf_.serialno_.c_str(), (unsigned)e);
+        return srs_error_new(ERROR_HIKVISION_SDK, "login %s:%d serial=%s failed, %s",
+                             conf_.host_.c_str(), conf_.port_, conf_.serialno_.c_str(),
+                             srs_hikvision_sdk_errmsg().c_str());
     }
 
     logged_in_ = true;
@@ -1280,9 +1455,9 @@ srs_error_t SrsHikvisionDevice::ptz_control(int channel, int command, bool stop,
     DWORD dw_stop = stop ? 1 : 0;
     DWORD dw_speed = (DWORD)srs_max(1, srs_min(7, speed));
     if (!NET_DVR_PTZControlWithSpeed_Other(user_id_, channel, (DWORD)command, dw_stop, dw_speed)) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "PTZControl serial=%s ch=%d cmd=%d stop=%d speed=%d err=%u",
+        return srs_error_new(ERROR_HIKVISION_SDK, "PTZControl serial=%s ch=%d cmd=%d stop=%d speed=%d %s",
                              conf_.serialno_.c_str(), channel, command, stop ? 1 : 0, (int)dw_speed,
-                             (unsigned)NET_DVR_GetLastError());
+                             srs_hikvision_sdk_errmsg().c_str());
     }
     srs_trace("Hikvision: PTZ serial=%s ch=%d cmd=%d stop=%d speed=%d",
               conf_.serialno_.c_str(), channel, command, stop ? 1 : 0, (int)dw_speed);
@@ -1296,9 +1471,9 @@ srs_error_t SrsHikvisionDevice::ptz_preset(int channel, int preset_cmd, int pres
         return srs_error_wrap(err, "login for preset");
     }
     if (!NET_DVR_PTZPreset_Other(user_id_, channel, (DWORD)preset_cmd, (DWORD)preset_index)) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "PTZPreset serial=%s ch=%d cmd=%d preset=%d err=%u",
+        return srs_error_new(ERROR_HIKVISION_SDK, "PTZPreset serial=%s ch=%d cmd=%d preset=%d %s",
                              conf_.serialno_.c_str(), channel, preset_cmd, preset_index,
-                             (unsigned)NET_DVR_GetLastError());
+                             srs_hikvision_sdk_errmsg().c_str());
     }
     srs_trace("Hikvision: Preset serial=%s ch=%d cmd=%d preset=%d",
               conf_.serialno_.c_str(), channel, preset_cmd, preset_index);
@@ -1341,33 +1516,80 @@ static void CALLBACK srs_hikvision_realdata_cb(LONG lRealHandle, DWORD dwDataTyp
     }
 }
 
-// Preferred path: structured ES frames with type + timestamp.
-static void CALLBACK srs_hikvision_es_cb(LONG lPreviewHandle, NET_DVR_PACKET_INFO_EX *pack, void *pUser)
+// Preferred path: structured ES frames with type + timestamp (live + playback).
+static void srs_hikvision_handle_es_pack(SrsHikvisionStream *stream, NET_DVR_PACKET_INFO_EX *pack)
 {
-    SrsHikvisionStream *stream = (SrsHikvisionStream *)pUser;
     if (!stream || !pack || !pack->pPacketBuffer || pack->dwPacketSize == 0) {
         return;
     }
-    // Prefer low 32-bit device timestamp when present.
     uint32_t dts_ms = pack->dwTimeStamp;
-    stream->on_es_packet((int)pack->dwPacketType, dts_ms, (const char *)pack->pPacketBuffer, (int)pack->dwPacketSize);
+    int64_t abs_ts = srs_hikvision_dvr_fields_to_unix(pack->dwYear, pack->dwMonth, pack->dwDay,
+                                                       pack->dwHour, pack->dwMinute, pack->dwSecond);
+    stream->on_es_packet((int)pack->dwPacketType, dts_ms, abs_ts, (const char *)pack->pPacketBuffer,
+                         (int)pack->dwPacketSize);
 }
 
-SrsHikvisionEsPacket::SrsHikvisionEsPacket(int packet_type, uint32_t dts_ms, const char *data, int size)
+static void CALLBACK srs_hikvision_es_cb(LONG /*lPreviewHandle*/, NET_DVR_PACKET_INFO_EX *pack, void *pUser)
+{
+    srs_hikvision_handle_es_pack((SrsHikvisionStream *)pUser, pack);
+}
+
+static void CALLBACK srs_hikvision_playback_es_cb(LONG /*lPlayHandle*/, NET_DVR_PACKET_INFO_EX *pack, void *pUser)
+{
+    srs_hikvision_handle_es_pack((SrsHikvisionStream *)pUser, pack);
+}
+
+static void CALLBACK srs_hikvision_playback_data_cb(LONG /*lPlayHandle*/, DWORD dwDataType, BYTE *pBuffer, DWORD dwBufSize,
+                                                   void *pUser)
+{
+    SrsHikvisionStream *stream = (SrsHikvisionStream *)pUser;
+    if (!stream) {
+        return;
+    }
+    // NET_DVR_PLAYBACK_ALLFILEEND = 12: file / time-range finished.
+    if (dwDataType == NET_DVR_PLAYBACK_ALLFILEEND) {
+        stream->on_playback_eof();
+        return;
+    }
+    if (dwDataType == NET_DVR_SYSHEAD) {
+        if (dwBufSize >= 4 && pBuffer && pBuffer[0] == 0x00 && pBuffer[1] == 0x00 && pBuffer[2] == 0x01) {
+            stream->on_sdk_data((int)dwDataType, (const char *)pBuffer, (int)dwBufSize);
+        }
+        return;
+    }
+    if (dwDataType == NET_DVR_STREAMDATA || dwDataType == NET_DVR_AUDIOSTREAMDATA) {
+        if (pBuffer && dwBufSize > 0) {
+            stream->on_sdk_data((int)dwDataType, (const char *)pBuffer, (int)dwBufSize);
+        }
+    }
+}
+
+SrsHikvisionEsPacket::SrsHikvisionEsPacket(int packet_type, uint32_t dts_ms, int64_t abs_unix_ts, const char *data, int size)
 {
     packet_type_ = packet_type;
     dts_ms_ = dts_ms;
+    abs_unix_ts_ = abs_unix_ts;
     if (data && size > 0) {
         data_.assign(data, size);
     }
 }
 
-SrsHikvisionStream::SrsHikvisionStream(SrsHikvisionDevice *device, const string &stream_name, int channel, int subchannel)
+SrsHikvisionStream::SrsHikvisionStream(SrsHikvisionDevice *device, const string &stream_name, int channel, int subchannel,
+                                       int64_t start_unix_ts)
 {
     device_ = device;
     stream_name_ = stream_name;
     channel_ = channel;
     subchannel_ = subchannel;
+    start_unix_ts_ = start_unix_ts;
+    is_playback_ = (start_unix_ts >= kHikvisionPlaybackTsMin);
+    pb_aligned_ = !is_playback_;
+    pb_need_normal_speed_ = false;
+    pb_skip_count_ = 0;
+    pb_pace_inited_ = false;
+    pb_pace_first_dts_ms_ = 0;
+    pb_pace_origin_wall_ = 0;
+    pb_pace_last_delta_ms_ = 0;
     ref_count_ = 0;
     last_active_ = srs_time_now_cached();
     stopping_ = false;
@@ -1377,7 +1599,7 @@ SrsHikvisionStream::SrsHikvisionStream(SrsHikvisionDevice *device, const string 
     real_handle_ = -1;
     muxer_ = new SrsHikvisionMuxer();
     ps_ctx_ = new SrsPsContext();
-    trd_ = new SrsSTCoroutine("hik-stream", this);
+    trd_ = new SrsSTCoroutine(is_playback_ ? "hik-vod" : "hik-stream", this);
     pthread_mutex_init(&lock_, NULL);
     wake_pipe_[0] = wake_pipe_[1] = -1;
     wake_fd_ = NULL;
@@ -1466,7 +1688,7 @@ void SrsHikvisionStream::on_sdk_data(int /*data_type*/, const char *data, int si
     }
 }
 
-void SrsHikvisionStream::on_es_packet(int packet_type, uint32_t dts_ms, const char *data, int size)
+void SrsHikvisionStream::on_es_packet(int packet_type, uint32_t dts_ms, int64_t abs_unix_ts, const char *data, int size)
 {
     if (stopping_ || size <= 0 || !data) {
         return;
@@ -1477,20 +1699,40 @@ void SrsHikvisionStream::on_es_packet(int packet_type, uint32_t dts_ms, const ch
         return;
     }
 
-    SrsHikvisionEsPacket *pkt = new SrsHikvisionEsPacket(packet_type, dts_ms, data, size);
+    // Playback: NVR often starts at file head before requested time — drop until aligned.
+    if (should_drop_playback_frame(packet_type, abs_unix_ts)) {
+        return;
+    }
+
+    SrsHikvisionEsPacket *pkt = new SrsHikvisionEsPacket(packet_type, dts_ms, abs_unix_ts, data, size);
 
     pthread_mutex_lock(&lock_);
-    // Lock out PS for the rest of this RealPlay session.
+    // Lock out PS for the rest of this session.
     es_active_ = true;
     if (es_log_count_ < 8) {
         es_log_count_++;
-        srs_trace("Hikvision: ES pkt type=%d size=%d dts=%u stream=%s",
-                  packet_type, size, (unsigned)dts_ms, stream_name_.c_str());
+        srs_trace("Hikvision: ES pkt type=%d size=%d dts=%u abs=%lld stream=%s",
+                  packet_type, size, (unsigned)dts_ms, (long long)abs_unix_ts, stream_name_.c_str());
     }
-    if ((int)es_packets_.size() >= kHikvisionMaxQueuedPackets) {
-        SrsHikvisionEsPacket *old = es_packets_.front();
-        es_packets_.erase(es_packets_.begin());
-        srs_freep(old);
+    // VOD: keep a short pre-buffer only. SDK bursts + large queue → LiveSource shrink.
+    int max_q = is_playback_ ? 90 : kHikvisionMaxQueuedPackets;
+    if ((int)es_packets_.size() >= max_q) {
+        // Prefer dropping non-keyframes when over limit.
+        bool dropped = false;
+        for (size_t i = 0; i < es_packets_.size(); i++) {
+            if (es_packets_[i]->packet_type_ != 1 && es_packets_[i]->packet_type_ != 0) {
+                SrsHikvisionEsPacket *old = es_packets_[i];
+                es_packets_.erase(es_packets_.begin() + i);
+                srs_freep(old);
+                dropped = true;
+                break;
+            }
+        }
+        if (!dropped) {
+            SrsHikvisionEsPacket *old = es_packets_.front();
+            es_packets_.erase(es_packets_.begin());
+            srs_freep(old);
+        }
     }
     es_packets_.push_back(pkt);
     // Drop any PS backlog to avoid mixing paths.
@@ -1505,6 +1747,60 @@ void SrsHikvisionStream::on_es_packet(int packet_type, uint32_t dts_ms, const ch
         ssize_t n = ::write(wake_pipe_[1], &c, 1);
         (void)n;
     }
+}
+
+void SrsHikvisionStream::on_playback_eof()
+{
+    srs_trace("Hikvision: playback EOF stream=%s", stream_name_.c_str());
+    stopping_ = true;
+    if (wake_pipe_[1] > 0) {
+        char c = 1;
+        ssize_t n = ::write(wake_pipe_[1], &c, 1);
+        (void)n;
+    }
+}
+
+bool SrsHikvisionStream::should_drop_playback_frame(int packet_type, int64_t abs_unix_ts)
+{
+    if (!is_playback_ || pb_aligned_) {
+        return false;
+    }
+
+    // File/sys head: always drop until we lock onto requested time (muxer does not need it).
+    if (packet_type == 0) {
+        pb_skip_count_++;
+        return true;
+    }
+
+    // OSD missing/zero: after a few frames just start on first I-frame (avoid black forever).
+    // Also if we have already skipped a lot (NVR 1x from file head, or TZ mismatch),
+    // force-align on next I-frame so the player is not stuck "starting".
+    const int kForceAlignAfterSkips = 90; // ~3s at 30fps of drops, or sooner with I-frames only
+    bool force_align = (pb_skip_count_ >= kForceAlignAfterSkips);
+
+    // If OSD time available: drop frames strictly before requested start (5s grace for clock skew).
+    if (!force_align && abs_unix_ts > 0 && abs_unix_ts + 5 < start_unix_ts_) {
+        pb_skip_count_++;
+        if ((pb_skip_count_ % 60) == 1) {
+            srs_trace("Hikvision: playback skip pre-start frame abs=%lld need>=%lld skipped=%d stream=%s",
+                      (long long)abs_unix_ts, (long long)start_unix_ts_, pb_skip_count_, stream_name_.c_str());
+        }
+        return true;
+    }
+
+    // Align output on first I-frame at/after start so FLV starts cleanly.
+    if (packet_type != 1) {
+        pb_skip_count_++;
+        return true;
+    }
+
+    pb_aligned_ = true;
+    // Request normal speed after any PLAYFAST done at start (best-effort).
+    pb_need_normal_speed_ = true;
+    srs_trace("Hikvision: playback aligned stream=%s request_ts=%lld first_abs=%lld skipped=%d force=%d",
+              stream_name_.c_str(), (long long)start_unix_ts_, (long long)abs_unix_ts, pb_skip_count_,
+              force_align ? 1 : 0);
+    return false;
 }
 
 srs_error_t SrsHikvisionStream::start(const string &output)
@@ -1532,6 +1828,28 @@ srs_error_t SrsHikvisionStream::start(const string &output)
     output_ = output;
     muxer_->setup(output, stream_name_);
 
+    if (is_playback_) {
+        if ((err = start_playback()) != srs_success) {
+            return srs_error_wrap(err, "start playback");
+        }
+    } else {
+        if ((err = start_live()) != srs_success) {
+            return srs_error_wrap(err, "start live");
+        }
+    }
+
+    if ((err = trd_->start()) != srs_success) {
+        stop_sdk_handle();
+        return srs_error_wrap(err, "start stream coroutine");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHikvisionStream::start_live()
+{
+    srs_error_t err = srs_success;
+
     // Stream name SerialNO_CHANNEL_SUBCHANNEL maps to RealPlay_V40:
     //   lChannel     = CHANNEL     (1-based device channel)
     //   dwStreamType = SUBCHANNEL  (0=main, 1=sub, 2=stream3, ...)
@@ -1541,30 +1859,28 @@ srs_error_t SrsHikvisionStream::start(const string &output)
     preview.dwStreamType = (DWORD)subchannel_;
     preview.dwLinkMode = 0; // TCP
     preview.hPlayWnd = 0;
-    // Non-blocking connect avoids long stalls in ST coroutine.
     preview.bBlocked = 0;
 
     srs_trace("Hikvision: RealPlay_V40 serial=%s lChannel=%d dwStreamType=%u (0=main,1=sub)",
               device_->conf().serialno_.c_str(), (int)preview.lChannel, (unsigned)preview.dwStreamType);
 
-    // Always pass real-data callback (some SDK builds reject NULL callback).
-    // Prefer ES structured frames when SetESRealPlayCallBack works; otherwise use PS demux.
     real_handle_ = NET_DVR_RealPlay_V40(device_->user_id(), &preview, srs_hikvision_realdata_cb, this);
     if (real_handle_ < 0) {
         DWORD e = NET_DVR_GetLastError();
-        // NET_DVR_CHAN_NOTSUPPORT = 91
         const char *hint = "";
         if (e == 91) {
-            hint = " (NET_DVR_CHAN_NOTSUPPORT: this lChannel may not support dwStreamType; "
-                   "confirm NVR enabled sub-stream on that channel)";
+            hint = " (this lChannel may not support dwStreamType; confirm NVR enabled sub-stream)";
         } else if (e == 1) {
             hint = " (user/password error)";
         } else if (e == 7) {
             hint = " (connect device failed)";
+        } else if (e == 136) {
+            hint = " (HCPreview component version mismatch with libhcnetsdk; check sdk_path/HCNetSDKCom)";
         }
         return srs_error_new(ERROR_HIKVISION_SDK,
-                             "RealPlay serial=%s lChannel=%d dwStreamType=%u err=%u%s",
-                             device_->conf().serialno_.c_str(), channel_, subchannel_, (unsigned)e, hint);
+                             "RealPlay serial=%s lChannel=%d dwStreamType=%u %s%s",
+                             device_->conf().serialno_.c_str(), channel_, subchannel_,
+                             srs_hikvision_sdk_errmsg(e).c_str(), hint);
     }
 
     use_es_ = false;
@@ -1573,14 +1889,8 @@ srs_error_t SrsHikvisionStream::start(const string &output)
         use_es_ = true;
         srs_trace("Hikvision: ES callback enabled stream=%s", stream_name_.c_str());
     } else {
-        srs_warn("Hikvision: ES callback failed err=%u, use PS demux stream=%s",
-                 (unsigned)NET_DVR_GetLastError(), stream_name_.c_str());
-    }
-
-    if ((err = trd_->start()) != srs_success) {
-        NET_DVR_StopRealPlay(real_handle_);
-        real_handle_ = -1;
-        return srs_error_wrap(err, "start stream coroutine");
+        srs_warn("Hikvision: ES callback failed %s, use PS demux stream=%s",
+                 srs_hikvision_sdk_errmsg().c_str(), stream_name_.c_str());
     }
 
     srs_trace("Hikvision: RealPlay ok stream=%s handle=%ld ch=%d sub=%d es=%d",
@@ -1588,15 +1898,118 @@ srs_error_t SrsHikvisionStream::start(const string &output)
     return err;
 }
 
+srs_error_t SrsHikvisionStream::start_playback()
+{
+    srs_error_t err = srs_success;
+
+    // PlayBackByTime_V40: stream SerialNO_CHANNEL_UNIXTS from start_unix_ts_ for 24h window.
+    NET_DVR_VOD_PARA vod;
+    memset(&vod, 0, sizeof(vod));
+    vod.dwSize = sizeof(vod);
+    vod.struIDInfo.dwSize = sizeof(vod.struIDInfo);
+    vod.struIDInfo.dwChannel = (DWORD)channel_;
+    vod.byStreamType = (BYTE)srs_max(0, srs_min(3, subchannel_));
+    vod.hWnd = 0;
+    vod.byDrawFrame = 0;
+
+    time_t begin = (time_t)start_unix_ts_;
+    // 24h window; if still in the future, clamp end to now+1s so range is valid.
+    time_t end = begin + 24 * 3600;
+    time_t now = time(NULL);
+    if (end < begin + 60) {
+        end = begin + 3600;
+    }
+    if (begin > now + 60) {
+        srs_warn("Hikvision: playback start_ts=%lld is in the future (now=%lld)",
+                 (long long)begin, (long long)now);
+    }
+
+    srs_hikvision_unix_to_dvr_time(begin, &vod.struBeginTime);
+    srs_hikvision_unix_to_dvr_time(end, &vod.struEndTime);
+
+    srs_trace("Hikvision: PlayBackByTime serial=%s ch=%d streamType=%u begin=%04u-%02u-%02u %02u:%02u:%02u "
+              "end=%04u-%02u-%02u %02u:%02u:%02u (unix=%lld)",
+              device_->conf().serialno_.c_str(), channel_, (unsigned)vod.byStreamType,
+              (unsigned)vod.struBeginTime.dwYear, (unsigned)vod.struBeginTime.dwMonth,
+              (unsigned)vod.struBeginTime.dwDay, (unsigned)vod.struBeginTime.dwHour,
+              (unsigned)vod.struBeginTime.dwMinute, (unsigned)vod.struBeginTime.dwSecond,
+              (unsigned)vod.struEndTime.dwYear, (unsigned)vod.struEndTime.dwMonth,
+              (unsigned)vod.struEndTime.dwDay, (unsigned)vod.struEndTime.dwHour,
+              (unsigned)vod.struEndTime.dwMinute, (unsigned)vod.struEndTime.dwSecond,
+              (long long)start_unix_ts_);
+
+    real_handle_ = NET_DVR_PlayBackByTime_V40(device_->user_id(), &vod);
+    if (real_handle_ < 0) {
+        return srs_error_new(ERROR_HIKVISION_SDK,
+                             "PlayBackByTime serial=%s ch=%d start_ts=%lld %s",
+                             device_->conf().serialno_.c_str(), channel_, (long long)start_unix_ts_,
+                             srs_hikvision_sdk_errmsg().c_str());
+    }
+
+    use_es_ = false;
+    es_active_ = false;
+    if (NET_DVR_SetPlayBackESCallBack(real_handle_, srs_hikvision_playback_es_cb, this)) {
+        use_es_ = true;
+        srs_trace("Hikvision: playback ES callback enabled stream=%s", stream_name_.c_str());
+    } else {
+        srs_warn("Hikvision: SetPlayBackESCallBack failed %s, try PS data callback stream=%s",
+                 srs_hikvision_sdk_errmsg().c_str(), stream_name_.c_str());
+        if (!NET_DVR_SetPlayDataCallBack_V40(real_handle_, srs_hikvision_playback_data_cb, this)) {
+            stop_sdk_handle();
+            return srs_error_new(ERROR_HIKVISION_SDK, "SetPlayDataCallBack_V40 failed %s",
+                                 srs_hikvision_sdk_errmsg().c_str());
+        }
+    }
+
+    // Start streaming data (required after PlayBackByTime_*).
+    if (!NET_DVR_PlayBackControl_V40(real_handle_, NET_DVR_PLAYSTART, NULL, 0, NULL, NULL)) {
+        stop_sdk_handle();
+        return srs_error_new(ERROR_HIKVISION_SDK, "PlayBackControl PLAYSTART failed %s",
+                             srs_hikvision_sdk_errmsg().c_str());
+    }
+
+    // Seek to requested wall time. Do NOT leave PLAYFAST on — it floods the live
+    // source queue (see "shrinking, removed=700+") and breaks HTTP-FLV/WebRTC.
+    NET_DVR_TIME seek_t;
+    srs_hikvision_unix_to_dvr_time(begin, &seek_t);
+    if (!NET_DVR_PlayBackControl_V40(real_handle_, NET_DVR_PLAYSETTIME, &seek_t, sizeof(seek_t), NULL, NULL)) {
+        srs_warn("Hikvision: PLAYSETTIME failed %s (will drop pre-start frames in software)",
+                 srs_hikvision_sdk_errmsg().c_str());
+    } else {
+        srs_trace("Hikvision: PLAYSETTIME ok to %04u-%02u-%02u %02u:%02u:%02u",
+                  (unsigned)seek_t.dwYear, (unsigned)seek_t.dwMonth, (unsigned)seek_t.dwDay,
+                  (unsigned)seek_t.dwHour, (unsigned)seek_t.dwMinute, (unsigned)seek_t.dwSecond);
+    }
+    // Force 1x immediately after start/seek.
+    if (!NET_DVR_PlayBackControl_V40(real_handle_, NET_DVR_PLAYNORMAL, NULL, 0, NULL, NULL)) {
+        srs_warn("Hikvision: PLAYNORMAL at start failed %s", srs_hikvision_sdk_errmsg().c_str());
+    }
+
+    srs_trace("Hikvision: PlayBack ok stream=%s handle=%ld ch=%d start_ts=%lld es=%d",
+              stream_name_.c_str(), (long)real_handle_, channel_, (long long)start_unix_ts_, use_es_ ? 1 : 0);
+    return err;
+}
+
+void SrsHikvisionStream::stop_sdk_handle()
+{
+    if (real_handle_ < 0) {
+        return;
+    }
+    if (is_playback_) {
+        NET_DVR_StopPlayBack(real_handle_);
+        srs_trace("Hikvision: StopPlayBack stream=%s handle=%ld", stream_name_.c_str(), (long)real_handle_);
+    } else {
+        NET_DVR_StopRealPlay(real_handle_);
+        srs_trace("Hikvision: StopRealPlay stream=%s handle=%ld", stream_name_.c_str(), (long)real_handle_);
+    }
+    real_handle_ = -1;
+}
+
 void SrsHikvisionStream::stop()
 {
     // Must only be called from outside the stream coroutine (manager dispose / destructor).
     stopping_ = true;
-    if (real_handle_ >= 0) {
-        NET_DVR_StopRealPlay(real_handle_);
-        srs_trace("Hikvision: StopRealPlay stream=%s handle=%ld", stream_name_.c_str(), (long)real_handle_);
-        real_handle_ = -1;
-    }
+    stop_sdk_handle();
     if (trd_) {
         trd_->stop();
     }
@@ -1608,11 +2021,18 @@ srs_error_t SrsHikvisionStream::cycle()
     srs_error_t err = do_cycle();
 
     // Running ON this coroutine — do not trd_->stop()/join self (deadlock/assert).
-    // Only release the SDK preview handle; outer stop()/destructor joins the thread.
+    // Only release the SDK handle; outer stop()/destructor joins the thread.
     stopping_ = true;
     if (real_handle_ >= 0) {
-        NET_DVR_StopRealPlay(real_handle_);
-        srs_trace("Hikvision: StopRealPlay stream=%s handle=%ld (cycle end)", stream_name_.c_str(), (long)real_handle_);
+        if (is_playback_) {
+            NET_DVR_StopPlayBack(real_handle_);
+            srs_trace("Hikvision: StopPlayBack stream=%s handle=%ld (cycle end)", stream_name_.c_str(),
+                      (long)real_handle_);
+        } else {
+            NET_DVR_StopRealPlay(real_handle_);
+            srs_trace("Hikvision: StopRealPlay stream=%s handle=%ld (cycle end)", stream_name_.c_str(),
+                      (long)real_handle_);
+        }
         real_handle_ = -1;
     }
     clear_packets();
@@ -1627,6 +2047,16 @@ srs_error_t SrsHikvisionStream::do_cycle()
     while (!stopping_) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "pull");
+        }
+
+        // After catch-up (PLAYFAST at start), restore normal speed from ST thread.
+        if (pb_need_normal_speed_ && real_handle_ >= 0) {
+            pb_need_normal_speed_ = false;
+            if (!NET_DVR_PlayBackControl_V40(real_handle_, NET_DVR_PLAYNORMAL, NULL, 0, NULL, NULL)) {
+                srs_warn("Hikvision: PLAYNORMAL failed %s", srs_hikvision_sdk_errmsg().c_str());
+            } else {
+                srs_trace("Hikvision: PLAYNORMAL after align stream=%s", stream_name_.c_str());
+            }
         }
 
         // Wait for wake or timeout to poll queue.
@@ -1697,6 +2127,46 @@ srs_error_t SrsHikvisionStream::process_es_video(SrsHikvisionEsPacket *pkt)
     bool is_key = (pkt->packet_type_ == 0 || pkt->packet_type_ == 1);
     // dts_ms==0: muxer correct_timestamp() steps monotonically; do not mix wall-clock.
     uint32_t dts_ms = pkt->dts_ms_;
+
+    // VOD pacing: HCNetSDK often delivers frames as a burst (or residual fast mode).
+    // Without sleeping to media timeline, LiveSource queue exceeds 30s and shrinks
+    // ("shrinking, removed=700+"), so players see stalls / only SPS.
+    if (is_playback_ && pb_aligned_) {
+        if (!pb_pace_inited_) {
+            pb_pace_inited_ = true;
+            pb_pace_first_dts_ms_ = (int64_t)dts_ms;
+            pb_pace_origin_wall_ = srs_time_now_realtime();
+            pb_pace_last_delta_ms_ = 0;
+        } else {
+            int64_t delta_ms = (int64_t)dts_ms - pb_pace_first_dts_ms_;
+            if (delta_ms < 0) {
+                // wrap / reset base
+                pb_pace_first_dts_ms_ = (int64_t)dts_ms;
+                pb_pace_origin_wall_ = srs_time_now_realtime();
+                pb_pace_last_delta_ms_ = 0;
+                delta_ms = 0;
+            }
+            // Cap pathological jumps so we do not sleep for hours.
+            if (delta_ms > pb_pace_last_delta_ms_ + 1000) {
+                delta_ms = pb_pace_last_delta_ms_ + 40;
+                // Re-anchor so subsequent frames stay consistent.
+                pb_pace_first_dts_ms_ = (int64_t)dts_ms - delta_ms;
+            }
+            pb_pace_last_delta_ms_ = delta_ms;
+
+            srs_utime_t target = pb_pace_origin_wall_ + (srs_utime_t)delta_ms * SRS_UTIME_MILLISECONDS;
+            srs_utime_t now = srs_time_now_realtime();
+            // Allow small lead (50ms) so we stay slightly ahead of players.
+            if (target > now + 50 * SRS_UTIME_MILLISECONDS) {
+                srs_utime_t sleep_for = target - now;
+                // Never sleep more than 2s per frame (safety).
+                if (sleep_for > 2 * SRS_UTIME_SECONDS) {
+                    sleep_for = 2 * SRS_UTIME_SECONDS;
+                }
+                srs_usleep(sleep_for);
+            }
+        }
+    }
 
     if ((err = muxer_->on_es_video(pkt->data_.data(), (int)pkt->data_.size(), dts_ms, is_key)) != srs_success) {
         return srs_error_wrap(err, "mux es");
@@ -1865,26 +2335,84 @@ srs_error_t SrsHikvisionManager::init_sdk()
         return err;
     }
 
-    string sdk_path = config_->get_hikvision_sdk_path();
+    char cwd_buf[PATH_MAX];
+    const char *cwd = (getcwd(cwd_buf, sizeof(cwd_buf)) != NULL) ? cwd_buf : "(unknown)";
+
+    string sdk_path_conf = config_->get_hikvision_sdk_path();
+    string sdk_path = srs_hikvision_resolve_sdk_path(sdk_path_conf);
     if (!sdk_path.empty()) {
+        SrsPath path;
+        string lib_core = sdk_path + "/libhcnetsdk.so";
+        string lib_preview = sdk_path + "/HCNetSDKCom/libHCPreview.so";
+        string com_dir = sdk_path + "/HCNetSDKCom";
+        if (!path.exists(sdk_path)) {
+            srs_warn("Hikvision: sdk_path missing conf=%s resolved=%s cwd=%s "
+                     "(relative path is cwd-dependent under systemd; use absolute sdk_path or work_dir)",
+                     sdk_path_conf.c_str(), sdk_path.c_str(), cwd);
+        } else if (!path.exists(lib_core) || !path.exists(lib_preview)) {
+            srs_warn("Hikvision: sdk_path incomplete resolved=%s need libhcnetsdk.so + HCNetSDKCom/libHCPreview.so "
+                     "core_ok=%d preview_ok=%d cwd=%s",
+                     sdk_path.c_str(), path.exists(lib_core) ? 1 : 0, path.exists(lib_preview) ? 1 : 0, cwd);
+        } else {
+            srs_trace("Hikvision: sdk_path conf=%s resolved=%s cwd=%s",
+                      sdk_path_conf.c_str(), sdk_path.c_str(), cwd);
+        }
+
+        // Also set env for child tools; does not fix this process's dlopen alone.
+        string ld_extra = sdk_path + ":" + com_dir;
+        const char *old_ld = getenv("LD_LIBRARY_PATH");
+        string new_ld = old_ld && old_ld[0] ? (ld_extra + ":" + old_ld) : ld_extra;
+        setenv("LD_LIBRARY_PATH", new_ld.c_str(), 1);
+
+        // Absolute dlopen so HCPreview/deps resolve without relying on cwd/rpath.
+        // Fail hard: missing HCPreview here is the usual cause of RealPlay err=136.
+        if ((err = srs_hikvision_preload_sdk_libs(sdk_path)) != srs_success) {
+            return srs_error_wrap(err, "preload HCNetSDK from %s", sdk_path.c_str());
+        }
+
+        // Must be before NET_DVR_Init: directory that contains libhcnetsdk.so + HCNetSDKCom/.
         NET_DVR_LOCAL_SDK_PATH struComPath;
         memset(&struComPath, 0, sizeof(struComPath));
         strncpy(struComPath.sPath, sdk_path.c_str(), sizeof(struComPath.sPath) - 1);
         if (!NET_DVR_SetSDKInitCfg(NET_SDK_INIT_CFG_SDK_PATH, (void *)&struComPath)) {
-            srs_warn("Hikvision: SetSDKInitCfg path=%s failed err=%u", sdk_path.c_str(), (unsigned)NET_DVR_GetLastError());
-        } else {
-            srs_trace("Hikvision: sdk_path=%s", sdk_path.c_str());
+            srs_warn("Hikvision: SetSDKInitCfg SDK_PATH=%s failed %s", sdk_path.c_str(),
+                     srs_hikvision_sdk_errmsg().c_str());
         }
+
+        // Prefer SDK-bundled OpenSSL so component load does not pick host libs.
+        string crypto = sdk_path + "/libcrypto.so";
+        string ssl = sdk_path + "/libssl.so";
+        if (path.exists(crypto)) {
+            if (!NET_DVR_SetSDKInitCfg(NET_SDK_INIT_CFG_LIBEAY_PATH, (void *)crypto.c_str())) {
+                srs_warn("Hikvision: SetSDKInitCfg LIBEAY_PATH=%s failed %s", crypto.c_str(),
+                         srs_hikvision_sdk_errmsg().c_str());
+            }
+        }
+        if (path.exists(ssl)) {
+            if (!NET_DVR_SetSDKInitCfg(NET_SDK_INIT_CFG_SSLEAY_PATH, (void *)ssl.c_str())) {
+                srs_warn("Hikvision: SetSDKInitCfg SSLEAY_PATH=%s failed %s", ssl.c_str(),
+                         srs_hikvision_sdk_errmsg().c_str());
+            }
+        }
+    } else {
+        return srs_error_new(ERROR_HIKVISION_SDK,
+                             "hikvision.sdk_path empty (cwd=%s); set absolute path e.g. "
+                             "sdk_path /opt/hik-lib/lib-amd64;",
+                             cwd);
     }
 
     if (!NET_DVR_Init()) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "NET_DVR_Init failed err=%u", (unsigned)NET_DVR_GetLastError());
+        return srs_error_new(ERROR_HIKVISION_SDK, "NET_DVR_Init failed %s",
+                             srs_hikvision_sdk_errmsg().c_str());
     }
 
     NET_DVR_SetConnectTime(3000, 3);
     NET_DVR_SetReconnect(10000, TRUE);
     sdk_inited_ = true;
-    srs_trace("Hikvision: NET_DVR_Init ok, sdk=0x%x", (unsigned)NET_DVR_GetSDKVersion());
+    // Marker line to confirm this build has absolute preload (deploy check).
+    srs_trace("Hikvision: NET_DVR_Init ok, sdk=0x%x build=0x%x preload=1 sdk_path=%s cwd=%s",
+              (unsigned)NET_DVR_GetSDKVersion(), (unsigned)NET_DVR_GetSDKBuildVersion(),
+              sdk_path.c_str(), cwd);
     return err;
 }
 
@@ -1917,7 +2445,8 @@ srs_error_t SrsHikvisionManager::on_play(const string &stream_name)
     string serialno;
     int channel = 0;
     int subchannel = 0;
-    if (!srs_hikvision_parse_stream(stream_name, serialno, channel, subchannel)) {
+    int64_t start_unix_ts = 0;
+    if (!srs_hikvision_parse_stream(stream_name, serialno, channel, subchannel, &start_unix_ts)) {
         // Not a hikvision stream name; ignore.
         return err;
     }
@@ -1935,15 +2464,20 @@ srs_error_t SrsHikvisionManager::on_play(const string &stream_name)
         return err;
     }
 
-    SrsHikvisionStream *stream = new SrsHikvisionStream(device, stream_name, channel, subchannel);
+    SrsHikvisionStream *stream = new SrsHikvisionStream(device, stream_name, channel, subchannel, start_unix_ts);
     if ((err = stream->start(config_->get_hikvision_output())) != srs_success) {
         srs_freep(stream);
         return srs_error_wrap(err, "start stream %s", stream_name.c_str());
     }
     stream->add_ref();
     streams_[stream_name] = stream;
-    srs_trace("Hikvision: start stream=%s serial=%s ch=%d sub=%d",
-              stream_name.c_str(), serialno.c_str(), channel, subchannel);
+    if (start_unix_ts > 0) {
+        srs_trace("Hikvision: start playback stream=%s serial=%s ch=%d start_ts=%lld",
+                  stream_name.c_str(), serialno.c_str(), channel, (long long)start_unix_ts);
+    } else {
+        srs_trace("Hikvision: start live stream=%s serial=%s ch=%d sub=%d",
+                  stream_name.c_str(), serialno.c_str(), channel, subchannel);
+    }
     return err;
 }
 

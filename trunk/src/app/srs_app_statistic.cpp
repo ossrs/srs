@@ -441,6 +441,13 @@ void SrsStatistic::on_stream_close(ISrsRequest *req)
     SrsStatisticVhost *vhost = create_vhost(req);
     SrsStatisticStream *stream = create_stream(vhost, req);
     stream->close();
+
+    // Previously cleanup only ran on client disconnect. If the last player left
+    // while the stream was still publishing (Hikvision RealPlay / rtmp_to_rtc),
+    // unpublish never triggered cleanup and /api/v1/streams/ kept a dead entry
+    // (clients=0, kbps=0, publish.active=false). Clean up when both publisher
+    // and players are gone.
+    cleanup_stream(stream);
 }
 
 srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type)

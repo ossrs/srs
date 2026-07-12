@@ -37,6 +37,9 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_app_stream_token.hpp>
 #include <srs_app_utility.hpp>
+#ifdef SRS_HIKVISION
+#include <srs_app_hikvision.hpp>
+#endif
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_error.hpp>
@@ -506,6 +509,9 @@ SrsRtcPlayStream::SrsRtcPlayStream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expir
     req_ = NULL;
 
     is_started_ = false;
+#ifdef SRS_HIKVISION
+    hik_play_active_ = false;
+#endif
 
     mw_msgs_ = 0;
     realtime_ = true;
@@ -527,6 +533,14 @@ SrsRtcPlayStream::SrsRtcPlayStream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expir
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
+#ifdef SRS_HIKVISION
+    // Release RealPlay when the RTC player dies (client disconnect / session dispose).
+    if (hik_play_active_ && req_ && _srs_hikvision) {
+        _srs_hikvision->on_stop(req_->stream_);
+        hik_play_active_ = false;
+    }
+#endif
+
     if (req_ && exec_) {
         exec_->exec_rtc_async_work(new SrsRtcAsyncCallOnStop(cid_, req_));
     }
@@ -572,6 +586,17 @@ srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, Sr
     if ((err = stat_->on_client(cid_.c_str(), req_, expire_, SrsRtcConnPlay)) != srs_success) {
         return srs_error_wrap(err, "rtc: stat client");
     }
+
+#ifdef SRS_HIKVISION
+    // Pair with on_stop in ~SrsRtcPlayStream. Keep RealPlay ref tied to RTC player
+    // lifetime so disconnect releases NVR pull.
+    if (_srs_hikvision) {
+        if ((err = _srs_hikvision->on_play(req_->stream_)) != srs_success) {
+            return srs_error_wrap(err, "rtc: hikvision on_play");
+        }
+        hik_play_active_ = true;
+    }
+#endif
 
     if ((err = rtc_sources_->fetch_or_create(req_, source_)) != srs_success) {
         return srs_error_wrap(err, "rtc fetch source failed");

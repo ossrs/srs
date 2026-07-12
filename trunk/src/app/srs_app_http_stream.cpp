@@ -715,11 +715,33 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
 
 #ifdef SRS_HIKVISION
-    // On-demand Hikvision pull: stream name SerialNO_CHANNEL_SUBCHANNEL.
-    if (_srs_hikvision) {
-        if ((err = _srs_hikvision->on_play(req->stream_)) != srs_success) {
-            return srs_error_wrap(err, "http: hikvision on_play");
+    // RAII: always release Hikvision RealPlay on any return after successful on_play
+    // (early errors used to leak and keep NVR streams open).
+    struct SrsHikvisionHttpPlayGuard {
+        std::string stream_;
+        bool active_;
+        SrsHikvisionHttpPlayGuard() : active_(false) {}
+        ~SrsHikvisionHttpPlayGuard()
+        {
+            if (active_ && _srs_hikvision) {
+                _srs_hikvision->on_stop(stream_);
+            }
         }
+        srs_error_t start(const std::string &stream)
+        {
+            stream_ = stream;
+            if (!_srs_hikvision) {
+                return srs_success;
+            }
+            srs_error_t e = _srs_hikvision->on_play(stream_);
+            if (e == srs_success) {
+                active_ = true;
+            }
+            return e;
+        }
+    } hik_guard;
+    if ((err = hik_guard.start(req->stream_)) != srs_success) {
+        return srs_error_wrap(err, "http: hikvision on_play");
     }
 #endif
 
@@ -760,12 +782,6 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     // Do hook after serving.
     http_hooks_on_stop(r);
-
-#ifdef SRS_HIKVISION
-    if (_srs_hikvision) {
-        _srs_hikvision->on_stop(req->stream_);
-    }
-#endif
 
     return err;
 }

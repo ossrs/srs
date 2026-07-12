@@ -18,9 +18,7 @@
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_utility.hpp>
-#ifdef SRS_HIKVISION
-#include <srs_app_hikvision.hpp>
-#endif
+
 #include <unistd.h>
 using namespace std;
 
@@ -282,23 +280,12 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
         return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
 
-#ifdef SRS_HIKVISION
-    // On-demand Hikvision pull so WebRTC play can consume via rtmp_to_rtc.
-    if (_srs_hikvision) {
-        if ((err = _srs_hikvision->on_play(ruc->req_->stream_)) != srs_success) {
-            return srs_error_wrap(err, "RTC: hikvision on_play");
-        }
-    }
-#endif
+    // Hikvision on_play/on_stop is owned by SrsRtcPlayStream lifetime
+    // (initialize / destructor) so WebRTC disconnect releases RealPlay.
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     ISrsRtcConnection *session = NULL;
     if ((err = server_->create_rtc_session(ruc, local_sdp, &session)) != srs_success) {
-#ifdef SRS_HIKVISION
-        if (_srs_hikvision) {
-            _srs_hikvision->on_stop(ruc->req_->stream_);
-        }
-#endif
         return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc->dtls_, ruc->srtp_, ruc->eip_.c_str());
     }
 

@@ -45,12 +45,15 @@ class ISrsHttpResponseWriter;
 class ISrsHttpMessage;
 class ISrsHttpHandler;
 
-// Parse stream name SerialNO_CHANNEL_SUBCHANNEL from the right:
-//   last token  = subchannel (0=main, 1=sub, ...)
-//   2nd last    = channel (1-based logical channel)
-//   remaining   = serialno (may contain underscores)
-// Returns true when parsed successfully.
-extern bool srs_hikvision_parse_stream(const std::string &stream, std::string &serialno, int &channel, int &subchannel);
+// Parse stream name from the right:
+// Live:     SerialNO_CHANNEL_SUBCHANNEL
+//             last = subchannel (0=main, 1=sub, ...), 2nd last = channel
+// Playback: SerialNO_CHANNEL_UNIXTS
+//             last = unix timestamp (>= 1e9), 2nd last = channel, subchannel defaults 0
+//             e.g. G75965391_2_1783880413 -> ch=2 from 2026-...
+// Returns true when parsed successfully. start_unix_ts=0 means live RealPlay.
+extern bool srs_hikvision_parse_stream(const std::string &stream, std::string &serialno, int &channel, int &subchannel,
+                                       int64_t *start_unix_ts = NULL);
 
 // Device credentials from config.
 struct SrsHikvisionDeviceConfig {
@@ -134,17 +137,21 @@ SRS_DECLARE_PRIVATE: // clang-format on
     void close();
 };
 
-// ES packet from NET_DVR_SetESRealPlayCallBack (preferred path).
+// ES packet from NET_DVR_SetESRealPlayCallBack / SetPlayBackESCallBack.
 struct SrsHikvisionEsPacket {
     // 0-file head, 1-I, 2-B, 3-P, 10-audio, 11-private (SDK definition)
     int packet_type_;
     uint32_t dts_ms_;
+    // Absolute wall time from SDK OSD fields (0 if unknown).
+    int64_t abs_unix_ts_;
     std::string data_;
 
-    SrsHikvisionEsPacket(int packet_type, uint32_t dts_ms, const char *data, int size);
+    SrsHikvisionEsPacket(int packet_type, uint32_t dts_ms, int64_t abs_unix_ts, const char *data, int size);
 };
 
-// One on-demand RealPlay session for SerialNO_CHANNEL_SUBCHANNEL.
+// One on-demand RealPlay or playback session.
+// Live:      SerialNO_CHANNEL_SUBCHANNEL
+// Playback:  SerialNO_CHANNEL_UNIXTS
 class SrsHikvisionStream : public ISrsCoroutineHandler, public ISrsPsMessageHandler
 {
 // clang-format off
@@ -154,6 +161,18 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string output_;
     int channel_;
     int subchannel_;
+    // 0 = live; >0 = playback from this unix timestamp.
+    int64_t start_unix_ts_;
+    bool is_playback_;
+    // Drop frames until OSD time reaches start_unix_ts_ and first I-frame.
+    bool pb_aligned_;
+    bool pb_need_normal_speed_;
+    int pb_skip_count_;
+    // Real-time pacing for VOD (SDK often pushes faster than 1x).
+    bool pb_pace_inited_;
+    int64_t pb_pace_first_dts_ms_;
+    srs_utime_t pb_pace_origin_wall_;
+    int64_t pb_pace_last_delta_ms_;
     int ref_count_;
     srs_utime_t last_active_;
     bool stopping_;
@@ -164,6 +183,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool es_active_;
     int es_log_count_;
 
+    // RealPlay or PlayBack handle.
     long real_handle_;
     SrsHikvisionMuxer *muxer_;
     SrsPsContext *ps_ctx_;
@@ -178,7 +198,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_netfd_t wake_fd_;
 
 public:
-    SrsHikvisionStream(SrsHikvisionDevice *device, const std::string &stream_name, int channel, int subchannel);
+    SrsHikvisionStream(SrsHikvisionDevice *device, const std::string &stream_name, int channel, int subchannel,
+                       int64_t start_unix_ts = 0);
     virtual ~SrsHikvisionStream();
 
 public:
@@ -191,8 +212,10 @@ public:
     std::string stream_name();
     // Called from HCNetSDK worker thread (PS path fallback).
     void on_sdk_data(int data_type, const char *data, int size);
-    // Called from ES RealPlay callback thread.
-    void on_es_packet(int packet_type, uint32_t dts_ms, const char *data, int size);
+    // Called from ES RealPlay / PlayBack callback thread.
+    // abs_unix_ts: wall time from packet OSD (0 if unavailable).
+    void on_es_packet(int packet_type, uint32_t dts_ms, int64_t abs_unix_ts, const char *data, int size);
+    void on_playback_eof();
 
     // Interface ISrsCoroutineHandler
 public:
@@ -206,10 +229,14 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_cycle();
+    srs_error_t start_live();
+    srs_error_t start_playback();
+    void stop_sdk_handle();
     srs_error_t consume_packets();
     srs_error_t consume_es_packets();
     srs_error_t consume_ps_packets();
     srs_error_t process_es_video(SrsHikvisionEsPacket *pkt);
+    bool should_drop_playback_frame(int packet_type, int64_t abs_unix_ts);
     void clear_packets();
 };
 

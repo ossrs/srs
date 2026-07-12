@@ -137,8 +137,11 @@ if [[ $SRS_HIKVISION == YES ]]; then
         echo -e "${RED}Hikvision enabled but ${HIK_LIBDIR}/libhcnetsdk.so not found${BLACK}"
         exit 1
     fi
-    SrsLinkOptions="${SrsLinkOptions} -L${HIK_LIBDIR} -lhcnetsdk -lHCCore -lhpr -Wl,-rpath,${HIK_LIBDIR} -Wl,-rpath,${HIK_LIBDIR}/HCNetSDKCom"
-    echo "Hikvision SDK libs: ${HIK_LIBDIR}"
+    # Absolute rpath so systemd (cwd often /) still finds HCNetSDK libs.
+    HIK_LIBDIR_ABS="$(cd "${HIK_LIBDIR}" && pwd)"
+    SrsLinkOptions="${SrsLinkOptions} -L${HIK_LIBDIR_ABS} -lhcnetsdk -lHCCore -lhpr"
+    SrsLinkOptions="${SrsLinkOptions} -Wl,-rpath,${HIK_LIBDIR_ABS} -Wl,-rpath,${HIK_LIBDIR_ABS}/HCNetSDKCom"
+    echo "Hikvision SDK libs: ${HIK_LIBDIR_ABS}"
 fi
 
 # usrsctp for WebRTC DataChannel (optional).
