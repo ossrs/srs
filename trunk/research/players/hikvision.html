@@ -273,7 +273,11 @@
         <div class="btns">
           <button id="btnForceHttp">Force HTTP control</button>
         </div>
-        <div class="hint">按住方向键移动，松开自动 stop。优先 DataChannel，否则 HTTP。</div>
+        <div class="hint">
+          鼠标：按住方向按钮，松开 stop。优先 DataChannel，否则 HTTP。<br/>
+          键盘：<b>↑↓←→</b> 或 <b>WASD</b> 方向，<b>+/=</b> 放大，<b>-/_</b> 缩小，<b>空格</b> 停止。<br/>
+          焦点在输入框时不响应键盘 PTZ（先点页面空白/视频/按钮再按方向键）。
+        </div>
       </section>
 
       <section class="panel" style="margin-top:12px">
@@ -919,6 +923,95 @@
     btn.addEventListener('touchend', end);
     btn.addEventListener('touchcancel', end);
   }
+
+  // Keyboard PTZ: arrows / WASD + zoom + space stop.
+  // When focus is on input/textarea/select, do NOT steal keys (typing first).
+  const keyDirMap = {
+    ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    w: 'up', W: 'up', s: 'down', S: 'down', a: 'left', A: 'left', d: 'right', D: 'right',
+    '+': 'zoomin', '=': 'zoomin', '-': 'zoomout', '_': 'zoomout',
+    KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right',
+    NumpadAdd: 'zoomin', NumpadSubtract: 'zoomout'
+  };
+  const pressedPtzKeys = new Set();
+
+  function resolvePtzDir(ev) {
+    if (keyDirMap[ev.key]) return keyDirMap[ev.key];
+    if (keyDirMap[ev.code]) return keyDirMap[ev.code];
+    return null;
+  }
+
+  function isTypingTarget(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+    if (el.isContentEditable) return true;
+    return false;
+  }
+
+  function ptzKeyDown(ev) {
+    // Input focused → leave keys for typing (including arrows in number fields).
+    if (isTypingTarget(ev.target)) return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+
+    if (ev.key === ' ' || ev.code === 'Space') {
+      ev.preventDefault();
+      if (holdDir || pressedPtzKeys.size) {
+        holdDir = null;
+        pressedPtzKeys.clear();
+        sendControl(buildPtz('stop'));
+        log('PTZ keyboard stop', 'i');
+      }
+      return;
+    }
+
+    const dir = resolvePtzDir(ev);
+    if (!dir) return;
+    ev.preventDefault();
+    if (ev.repeat) return;
+    const id = ev.code || ev.key;
+    if (pressedPtzKeys.has(id)) return;
+    pressedPtzKeys.add(id);
+    holdDir = dir;
+    log('PTZ keyboard ' + dir, 'i');
+    sendControl(buildPtz(dir));
+  }
+
+  function ptzKeyUp(ev) {
+    if (isTypingTarget(ev.target)) return;
+    const dir = resolvePtzDir(ev);
+    if (!dir) return;
+    ev.preventDefault();
+    const id = ev.code || ev.key;
+    pressedPtzKeys.delete(id);
+    pressedPtzKeys.delete(ev.key);
+    pressedPtzKeys.delete(ev.code);
+    if (pressedPtzKeys.size > 0) {
+      const last = Array.from(pressedPtzKeys).pop();
+      const next = keyDirMap[last] || null;
+      if (next && holdDir !== next) {
+        holdDir = next;
+        sendControl(buildPtz(next));
+      }
+      return;
+    }
+    if (holdDir) {
+      holdDir = null;
+      sendControl(buildPtz('stop'));
+    }
+  }
+
+  function ptzBlurStop() {
+    if (holdDir || pressedPtzKeys.size) {
+      holdDir = null;
+      pressedPtzKeys.clear();
+      sendControl(buildPtz('stop'));
+    }
+  }
+
+  window.addEventListener('keydown', ptzKeyDown, true);
+  window.addEventListener('keyup', ptzKeyUp, true);
+  window.addEventListener('blur', ptzBlurStop);
 
   // Init defaults from URL / location
   (function initDefaults() {
