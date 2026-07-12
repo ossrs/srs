@@ -7,6 +7,12 @@
 *.so
 *.dylib
 
+# Allow Hikvision HCNetSDK proprietary shared libs under trunk/libs/
+!trunk/libs/
+!trunk/libs/**
+!trunk/libs/**/*.so
+!trunk/libs/**/*.so.*
+
 # Compiled Static libraries
 *.lai
 *.la
