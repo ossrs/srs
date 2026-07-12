@@ -18,6 +18,9 @@
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_utility.hpp>
+#ifdef SRS_HIKVISION
+#include <srs_app_hikvision.hpp>
+#endif
 #include <unistd.h>
 using namespace std;
 
@@ -69,8 +72,17 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     if ((err = do_serve_http(w, r, res.get())) != srs_success) {
         srs_warn("RTC error %s", srs_error_desc(err).c_str());
+        // Return JSON body so browser test page can show the reason.
+        res->set("code", SrsJsonAny::integer(srs_error_code(err)));
+        res->set("msg", SrsJsonAny::str(srs_error_summary(err).c_str()));
+        res->set("desc", SrsJsonAny::str(srs_error_desc(err).c_str()));
+        string body = res->dumps();
         srs_freep(err);
-        return srs_api_response_code(w, r, SRS_CONSTS_HTTP_BadRequest);
+        // Write JSON with 400 status in one response (avoid double write_header).
+        w->header()->set_content_length((int)body.length());
+        w->header()->set_content_type("application/json");
+        w->write_header(SRS_CONSTS_HTTP_BadRequest);
+        return w->write((char *)body.data(), (int)body.length());
     }
 
     return srs_api_response(w, r, res->dumps());
@@ -270,9 +282,23 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
         return srs_error_wrap(err, "RTC: http_hooks_on_play");
     }
 
+#ifdef SRS_HIKVISION
+    // On-demand Hikvision pull so WebRTC play can consume via rtmp_to_rtc.
+    if (_srs_hikvision) {
+        if ((err = _srs_hikvision->on_play(ruc->req_->stream_)) != srs_success) {
+            return srs_error_wrap(err, "RTC: hikvision on_play");
+        }
+    }
+#endif
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     ISrsRtcConnection *session = NULL;
     if ((err = server_->create_rtc_session(ruc, local_sdp, &session)) != srs_success) {
+#ifdef SRS_HIKVISION
+        if (_srs_hikvision) {
+            _srs_hikvision->on_stop(ruc->req_->stream_);
+        }
+#endif
         return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc->dtls_, ruc->srtp_, ruc->eip_.c_str());
     }
 
@@ -310,6 +336,12 @@ srs_error_t SrsGoApiRtcPlay::check_remote_sdp(const SrsSdp &remote_sdp)
     }
 
     for (std::vector<SrsMediaDesc>::const_iterator iter = remote_sdp.media_descs_.begin(); iter != remote_sdp.media_descs_.end(); ++iter) {
+#ifdef SRS_SCTP
+        // WebRTC DataChannel uses m=application (no rtcp-mux).
+        if (iter->type_ == "application") {
+            continue;
+        }
+#endif
         if (iter->type_ != "audio" && iter->type_ != "video") {
             return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "unsupport media type=%s", iter->type_.c_str());
         }

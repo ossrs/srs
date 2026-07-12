@@ -14,9 +14,12 @@
 #include <unistd.h>
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_mpegts_udp.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_app_stream_bridge.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
@@ -1125,6 +1128,40 @@ srs_error_t SrsHikvisionMuxer::ensure_publish()
     int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost_);
     source_->set_cache(enabled_cache);
     source_->set_gop_cache_max_frames(gcmf);
+
+    // Bridge LiveSource frames to WebRTC (same path as RTMP publish + rtmp_to_rtc).
+    // Without this, HTTP-FLV works but WebRTC play has no RTP (only STUN).
+#if defined(SRS_FFMPEG_FIT)
+    bool rtc_server_enabled = _srs_config->get_rtc_server_enabled();
+    bool rtc_enabled = _srs_config->get_rtc_enabled(req_->vhost_);
+    bool edge = _srs_config->get_vhost_is_edge(req_->vhost_);
+    bool rtmp_to_rtc = _srs_config->get_rtc_from_rtmp(req_->vhost_);
+    if (rtmp_to_rtc && edge) {
+        rtmp_to_rtc = false;
+        srs_warn("Hikvision: disable rtmp_to_rtc for edge vhost=%s", req_->vhost_.c_str());
+    }
+
+    if (rtc_server_enabled && rtc_enabled && rtmp_to_rtc) {
+        SrsSharedPtr<SrsRtcSource> rtc;
+        if ((err = _srs_rtc_sources->fetch_or_create(req_, rtc)) != srs_success) {
+            return srs_error_wrap(err, "create rtc source");
+        }
+        // Attach bridge only when RTC source is free to "publish" into.
+        if (rtc.get() && rtc->can_publish()) {
+            SrsRtmpBridge *bridge = new SrsRtmpBridge(_srs_app_factory);
+            bridge->enable_rtmp2rtc(rtc);
+            if ((err = bridge->initialize(req_)) != srs_success) {
+                srs_freep(bridge);
+                return srs_error_wrap(err, "rtmp2rtc bridge init");
+            }
+            source_->set_bridge(bridge);
+            srs_trace("Hikvision: rtmp_to_rtc bridge enabled for %s", req_->get_stream_url().c_str());
+        } else {
+            srs_warn("Hikvision: rtc source busy, skip rtmp_to_rtc bridge for %s",
+                     req_->get_stream_url().c_str());
+        }
+    }
+#endif
 
     if ((err = source_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "on_publish %s", req_->get_stream_url().c_str());

@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hikvision WebRTC + DataChannel PTZ</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --border: #2d3a4d;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --accent: #3b82f6;
+      --accent2: #22c55e;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #152033, var(--bg));
+    }
+    header h1 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .wrap {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 16px;
+      padding: 16px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    @media (max-width: 960px) {
+      .wrap { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    input, select, button, textarea {
+      font: inherit;
+    }
+    input[type=text], input[type=number], select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0d121a;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0 12px;
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: #243247;
+      color: var(--text);
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.1); }
+    button.primary { background: var(--accent); color: #fff; }
+    button.ok { background: var(--accent2); color: #06210f; font-weight: 600; }
+    button.danger { background: var(--danger); color: #fff; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    video {
+      width: 100%;
+      max-height: 70vh;
+      background: #000;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      aspect-ratio: 16/9;
+      object-fit: contain;
+    }
+    .status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status b { color: var(--text); font-weight: 500; }
+    .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      background: #555;
+      vertical-align: middle;
+    }
+    .dot.on { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+    .dot.warn { background: var(--warn); }
+    .dot.off { background: var(--danger); }
+    .pad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      max-width: 220px;
+      margin: 0 auto 12px;
+    }
+    .pad button {
+      height: 44px;
+      font-size: 18px;
+      user-select: none;
+      touch-action: none;
+    }
+    .pad .spacer { visibility: hidden; }
+    .log {
+      height: 220px;
+      overflow: auto;
+      background: #0a0e14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .log .t { color: #64748b; }
+    .log .i { color: #93c5fd; }
+    .log .ok { color: #86efac; }
+    .log .err { color: #fca5a5; }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+    code {
+      background: #0d121a;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hikvision · WebRTC 播放 + DataChannel 云台</h1>
+    <p>
+      拉流走 <code>/rtc/v1/play/</code>（offer 含 DataChannel）；
+      云台优先 DataChannel，失败可回落 HTTP API。
+      构建：<code>./configure --hikvision=on --sctp=on &amp;&amp; make</code>
+    </p>
+  </header>
+
+  <div class="wrap">
+    <section class="panel">
+      <h2>Preview</h2>
+      <video id="video" autoplay playsinline muted controls></video>
+      <div class="status">
+        <span><span id="dotMedia" class="dot"></span>Media: <b id="stMedia">idle</b></span>
+        <span><span id="dotDc" class="dot"></span>DataChannel: <b id="stDc">closed</b></span>
+        <span>ICE: <b id="stIce">-</b></span>
+        <span>Session: <b id="stSid">-</b></span>
+      </div>
+    </section>
+
+    <aside>
+      <section class="panel">
+        <h2>Connection</h2>
+        <label>Stream (SerialNO_CHANNEL_SUBCHANNEL)</label>
+        <input id="stream" type="text" value="G75965391_34_0" />
+
+        <div class="row">
+          <div>
+            <label>API host (http_api)</label>
+            <input id="apiHost" type="text" value="" placeholder="auto" />
+          </div>
+          <div>
+            <label>API port</label>
+            <input id="apiPort" type="number" value="1985" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>App</label>
+            <input id="app" type="text" value="live" />
+          </div>
+          <div>
+            <label>Candidate / EIP (optional)</label>
+            <input id="eip" type="text" value="" placeholder="e.g. 192.168.11.7" />
+          </div>
+        </div>
+
+        <div class="btns">
+          <button class="primary" id="btnPlay">Play</button>
+          <button class="danger" id="btnStop" disabled>Stop</button>
+          <button id="btnHttpFlv">Open HTTP-FLV</button>
+        </div>
+
+        <div class="hint">
+          streamurl 示例：<code>webrtc://HOST/live/G75965391_34_0</code><br/>
+          需配置 <code>rtc_server</code> + <code>vhost.rtc.rtmp_to_rtc on</code> + <code>--sctp=on</code>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:12px">
+        <h2>PTZ</h2>
+        <label>Speed (1-7)</label>
+        <input id="speed" type="number" min="1" max="7" value="4" />
+
+        <div class="pad">
+          <button class="spacer">·</button>
+          <button data-dir="up" title="up">▲</button>
+          <button class="spacer">·</button>
+          <button data-dir="left" title="left">◀</button>
+          <button data-dir="stop" class="danger" title="stop">■</button>
+          <button data-dir="right" title="right">▶</button>
+          <button data-dir="zoomout" title="zoom out">−</button>
+          <button data-dir="down" title="down">▼</button>
+          <button data-dir="zoomin" title="zoom in">＋</button>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Preset #</label>
+            <input id="preset" type="number" min="1" max="255" value="1" />
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:8px;padding-bottom:10px">
+            <button id="btnGoto">Goto</button>
+            <button id="btnSave">Save</button>
+          </div>
+        </div>
+
+        <div class="btns">
+          <button id="btnForceHttp">Force HTTP control</button>
+        </div>
+        <div class="hint">按住方向键移动，松开自动 stop。优先 DataChannel，否则 HTTP。</div>
+      </section>
+
+      <section class="panel" style="margin-top:12px">
+        <h2>Log</h2>
+        <div id="log" class="log"></div>
+        <div class="btns">
+          <button id="btnClearLog">Clear</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <script>
+(function () {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const logEl = $('log');
+  const video = $('video');
+
+  let pc = null;
+  let dc = null;
+  let playing = false;
+  let preferHttp = false;
+  let holdDir = null;
+
+  function log(msg, cls) {
+    const t = new Date().toLocaleTimeString();
+    const line = document.createElement('div');
+    line.innerHTML = '<span class="t">[' + t + ']</span> <span class="' + (cls || 'i') + '">' +
+      escapeHtml(String(msg)) + '</span>';
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+    console.log(msg);
+  }
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function setDot(id, state) {
+    const el = $(id);
+    el.className = 'dot ' + (state || '');
+  }
+
+  function apiBase() {
+    const host = ($('apiHost').value || window.location.hostname || '127.0.0.1').trim();
+    const port = ($('apiPort').value || '1985').trim();
+    const proto = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    return proto + '//' + host + ':' + port;
+  }
+
+  function streamName() {
+    return ($('stream').value || '').trim();
+  }
+
+  function streamUrl() {
+    const host = ($('apiHost').value || window.location.hostname || '127.0.0.1').trim();
+    const app = ($('app').value || 'live').trim();
+    return 'webrtc://' + host + '/' + app + '/' + streamName();
+  }
+
+  function playApiUrl() {
+    let url = apiBase() + '/rtc/v1/play/';
+    const eip = ($('eip').value || '').trim();
+    if (eip) url += '?eip=' + encodeURIComponent(eip);
+    return url;
+  }
+
+  // -------- Play (JSON /rtc/v1/play/ + DataChannel) --------
+  async function startPlay() {
+    stopPlay(true);
+    const stream = streamName();
+    if (!stream) {
+      log('stream empty', 'err');
+      return;
+    }
+
+    preferHttp = false;
+    $('btnPlay').disabled = true;
+    $('stMedia').textContent = 'connecting';
+    setDot('dotMedia', 'warn');
+
+    try {
+      pc = new RTCPeerConnection({
+        // SRS typically uses host/srflx candidates; leave empty iceServers.
+        iceServers: []
+      });
+
+      pc.oniceconnectionstatechange = () => {
+        $('stIce').textContent = pc.iceConnectionState;
+        log('ICE ' + pc.iceConnectionState);
+        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+          setDot('dotMedia', 'off');
+        }
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          setDot('dotMedia', 'on');
+          $('stMedia').textContent = 'playing';
+        }
+      };
+
+      pc.ontrack = (ev) => {
+        log('ontrack kind=' + (ev.track && ev.track.kind));
+        if (ev.streams && ev.streams[0]) {
+          video.srcObject = ev.streams[0];
+        } else {
+          if (!video.srcObject) video.srcObject = new MediaStream();
+          video.srcObject.addTrack(ev.track);
+        }
+        video.play().catch(() => {});
+      };
+
+      // Hikvision is typically video-only; avoid audio transceiver (no opus from device).
+      pc.addTransceiver('video', { direction: 'recvonly' });
+
+      // DataChannel BEFORE createOffer → m=application in offer
+      dc = pc.createDataChannel('hikvision', { ordered: true });
+      bindDc(dc);
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      log('local offer bytes=' + offer.sdp.length +
+          (offer.sdp.indexOf('m=application') >= 0 ? ' (has application)' : ' (NO application!)'),
+          offer.sdp.indexOf('m=application') >= 0 ? 'ok' : 'err');
+
+      const body = {
+        api: playApiUrl(),
+        streamurl: streamUrl(),
+        clientip: null,
+        sdp: offer.sdp
+      };
+      log('POST ' + playApiUrl() + ' streamurl=' + streamUrl());
+
+      const resp = await fetch(playApiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const text = await resp.text();
+      let data;
+      try { data = JSON.parse(text); } catch (e) {
+        throw new Error('play API non-JSON: HTTP ' + resp.status + ' ' + text.slice(0, 200));
+      }
+      if (!resp.ok || (data.code !== 0 && data.code !== undefined && data.code !== 200)) {
+        throw new Error('play failed code=' + data.code + ' body=' + text.slice(0, 300));
+      }
+      if (!data.sdp) throw new Error('answer sdp missing: ' + text.slice(0, 300));
+
+      $('stSid').textContent = data.sessionid || '-';
+      log('answer sessionid=' + (data.sessionid || '-') +
+          (String(data.sdp).indexOf('m=application') >= 0 ? ' (has application)' : ' (NO application in answer)'),
+          String(data.sdp).indexOf('m=application') >= 0 ? 'ok' : 'err');
+
+      await pc.setRemoteDescription({ type: 'answer', sdp: data.sdp });
+      playing = true;
+      $('btnStop').disabled = false;
+      $('stMedia').textContent = 'negotiated';
+      setDot('dotMedia', 'warn');
+      log('setRemoteDescription ok', 'ok');
+    } catch (e) {
+      log(String(e && e.message ? e.message : e), 'err');
+      stopPlay(true);
+      $('btnPlay').disabled = false;
+    }
+  }
+
+  function bindDc(channel) {
+    channel.binaryType = 'arraybuffer';
+    channel.onopen = () => {
+      log('DataChannel open label=' + channel.label, 'ok');
+      $('stDc').textContent = 'open';
+      setDot('dotDc', 'on');
+    };
+    channel.onclose = () => {
+      log('DataChannel closed');
+      $('stDc').textContent = 'closed';
+      setDot('dotDc', 'off');
+    };
+    channel.onerror = (ev) => {
+      log('DataChannel error ' + (ev && ev.message ? ev.message : ''), 'err');
+      setDot('dotDc', 'off');
+    };
+    channel.onmessage = (ev) => {
+      log('DC << ' + (typeof ev.data === 'string' ? ev.data : ('[' + ev.data.byteLength + 'B]')), 'ok');
+    };
+  }
+
+  function stopPlay(silent) {
+    if (holdDir) {
+      holdDir = null;
+    }
+    try { if (dc) dc.close(); } catch (e) {}
+    try { if (pc) pc.close(); } catch (e) {}
+    dc = null;
+    pc = null;
+    playing = false;
+    video.srcObject = null;
+    $('btnPlay').disabled = false;
+    $('btnStop').disabled = true;
+    $('stMedia').textContent = 'idle';
+    $('stDc').textContent = 'closed';
+    $('stIce').textContent = '-';
+    setDot('dotMedia', '');
+    setDot('dotDc', '');
+    if (!silent) log('stopped');
+  }
+
+  // -------- Control --------
+  function buildPtz(dir) {
+    return {
+      stream: streamName(),
+      cmd: 'ptz',
+      dir: dir,
+      speed: parseInt($('speed').value, 10) || 4
+    };
+  }
+
+  function buildPreset(cmd) {
+    return {
+      stream: streamName(),
+      cmd: cmd,
+      preset: parseInt($('preset').value, 10) || 1
+    };
+  }
+
+  async function sendControl(obj) {
+    const json = JSON.stringify(obj);
+    if (!preferHttp && dc && dc.readyState === 'open') {
+      try {
+        dc.send(json);
+        log('DC >> ' + json);
+        return;
+      } catch (e) {
+        log('DC send failed, fallback HTTP: ' + e, 'err');
+      }
+    }
+    await sendHttpControl(obj);
+  }
+
+  async function sendHttpControl(obj) {
+    const url = apiBase() + '/api/v1/hikvision/control';
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(obj)
+      });
+      const text = await resp.text();
+      log('HTTP ' + resp.status + ' << ' + text.slice(0, 300), resp.ok ? 'ok' : 'err');
+    } catch (e) {
+      log('HTTP control error: ' + e, 'err');
+    }
+  }
+
+  function bindHold(btn, dir) {
+    const start = (ev) => {
+      ev.preventDefault();
+      holdDir = dir;
+      sendControl(buildPtz(dir));
+    };
+    const end = (ev) => {
+      if (ev) ev.preventDefault();
+      if (holdDir === dir) {
+        holdDir = null;
+        sendControl(buildPtz('stop'));
+      }
+    };
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('touchstart', start, { passive: false });
+    btn.addEventListener('mouseup', end);
+    btn.addEventListener('mouseleave', end);
+    btn.addEventListener('touchend', end);
+    btn.addEventListener('touchcancel', end);
+  }
+
+  // Init defaults from URL / location
+  (function initDefaults() {
+    const q = new URLSearchParams(location.search);
+    if (q.get('stream')) $('stream').value = q.get('stream');
+    if (q.get('api')) $('apiHost').value = q.get('api');
+    if (q.get('port')) $('apiPort').value = q.get('port');
+    if (q.get('eip')) $('eip').value = q.get('eip');
+    if (!$('apiHost').value) {
+      $('apiHost').value = location.hostname || '127.0.0.1';
+    }
+    // Default eip to api host for LAN candidate
+    if (!$('eip').value && $('apiHost').value && $('apiHost').value !== 'localhost') {
+      $('eip').value = $('apiHost').value;
+    }
+    log('ready host=' + $('apiHost').value);
+  })();
+
+  $('btnPlay').onclick = () => startPlay();
+  $('btnStop').onclick = () => stopPlay(false);
+  $('btnClearLog').onclick = () => { logEl.innerHTML = ''; };
+  $('btnForceHttp').onclick = () => {
+    preferHttp = !preferHttp;
+    log('preferHttp=' + preferHttp, 'i');
+    $('btnForceHttp').textContent = preferHttp ? 'Use DataChannel first' : 'Force HTTP control';
+  };
+  $('btnHttpFlv').onclick = () => {
+    const host = location.hostname || $('apiHost').value || '127.0.0.1';
+    const app = ($('app').value || 'live').trim();
+    const url = location.protocol + '//' + host + ':8080/' + app + '/' + streamName() + '.flv';
+    window.open(url, '_blank');
+    log('open FLV ' + url);
+  };
+  $('btnGoto').onclick = () => sendControl(buildPreset('preset'));
+  $('btnSave').onclick = () => sendControl(buildPreset('save_preset'));
+
+  document.querySelectorAll('.pad button[data-dir]').forEach((btn) => {
+    const dir = btn.getAttribute('data-dir');
+    if (dir === 'stop') {
+      btn.onclick = () => sendControl(buildPtz('stop'));
+    } else {
+      bindHold(btn, dir);
+    }
+  });
+})();
+  </script>
+</body>
+</html>
