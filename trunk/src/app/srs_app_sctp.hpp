@@ -12,6 +12,9 @@
 #ifdef SRS_SCTP
 
 #include <srs_kernel_hourglass.hpp>
+#ifdef SRS_HIKVISION
+#include <srs_app_hikvision.hpp>
+#endif
 
 #include <map>
 #include <string>
@@ -65,8 +68,15 @@ public:
     virtual srs_error_t notify(int event, srs_utime_t interval, srs_utime_t tick);
 };
 
+// Forward decl for talk downlink without requiring hikvision when SCTP-only.
+class ISrsHikvisionTalkListener;
+
 // SCTP association over DTLS for one RTC peer connection (WebRTC DataChannel).
+// Also implements talk downlink sink when SRS_HIKVISION is enabled (see .cpp).
 class SrsSctp
+#ifdef SRS_HIKVISION
+    : public ISrsHikvisionTalkListener
+#endif
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -77,6 +87,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::map<uint16_t, SrsDataChannelInfo> data_channels_;
     // Stream context for control messages (e.g. SerialNO_CHANNEL_SUBCHANNEL).
     std::string stream_context_;
+    // Preferred sid for binary talk audio (label hik-audio or first open channel).
+    uint16_t talk_audio_sid_;
+    bool talk_audio_sid_set_;
 
 public:
     // dtls_writer must outlive this object (typically SrsSecurityTransport).
@@ -90,8 +103,15 @@ public:
 
     srs_error_t connect_peer();
     void feed(const char *buf, int nb_buf);
-    srs_error_t send(uint16_t sid, const char *buf, int len);
+    // string=true → PPID 51; string=false → PPID 53 binary.
+    srs_error_t send(uint16_t sid, const char *buf, int len, bool as_string = true);
     void broadcast(const char *buf, int len);
+
+#ifdef SRS_HIKVISION
+    // ISrsHikvisionTalkListener
+public:
+    virtual void on_talk_downlink(const std::string &talk_key, const char *data, int len);
+#endif
 
     // usrsctp callbacks (public for C linkage).
     srs_error_t on_sctp_event(const struct sctp_rcvinfo &rcv, void *data, size_t len);

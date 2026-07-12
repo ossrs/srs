@@ -91,8 +91,16 @@ public:
     virtual srs_error_t on_dtls_handshake_done() = 0;
     // DTLS receive application data callback.
     virtual srs_error_t on_dtls_application_data(const char *data, const int len) = 0;
-    // DTLS write dtls data.
+    // DTLS write dtls data (already-framed DTLS records from OpenSSL BIO).
     virtual srs_error_t write_dtls_data(void *data, int size) = 0;
+    // Encrypt and send DTLS application payload (e.g. SCTP for DataChannel).
+    // Default: not supported (no SCTP).
+    virtual srs_error_t write_dtls_application_data(const char *data, int size)
+    {
+        (void)data;
+        (void)size;
+        return srs_success;
+    }
     // Callback when DTLS Alert message.
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
 };
@@ -130,8 +138,10 @@ public:
     virtual ~SrsDtlsImpl();
 
 public:
-    // Internal API for sending DTLS packets.
+    // Internal API for sending DTLS packets (record layer).
     srs_error_t write_dtls_data(void *data, int size);
+    // Send application data (plaintext) encrypted as DTLS app_data via SSL_write.
+    srs_error_t write_application_data(const char *data, int size);
 
 public:
     virtual srs_error_t initialize(std::string version, std::string role);
@@ -234,6 +244,7 @@ public:
 public:
     virtual srs_error_t initialize(std::string role, std::string version) = 0;
     virtual srs_error_t start_active_handshake() = 0;
+    virtual srs_error_t write_application_data(const char *data, int size) = 0;
     virtual srs_error_t on_dtls(char *data, int nb_data) = 0;
     virtual srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key) = 0;
 };
@@ -259,6 +270,8 @@ public:
     // When got DTLS packet, may handshake packets or application data.
     // @remark When we are passive(DTLS server), we start handshake when got DTLS packet.
     srs_error_t on_dtls(char *data, int nb_data);
+    // Encrypt application payload (SCTP) into DTLS records.
+    srs_error_t write_application_data(const char *data, int size);
 
 public:
     srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key);

@@ -19,6 +19,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_http_api.hpp>
+#include <srs_app_http_client.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
@@ -34,6 +35,8 @@
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_http_client.hpp>
+#include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_raw_avc.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
@@ -146,6 +149,8 @@ static srs_error_t srs_hikvision_preload_sdk_libs(const string &sdk_path)
         "HCNetSDKCom/libStreamTransClient.so",
         "HCNetSDKCom/libSystemTransform.so",
         "HCNetSDKCom/libanalyzedata.so",
+        "HCNetSDKCom/libHCVoiceTalk.so",
+        "HCNetSDKCom/libAudioIntercom.so",
         "libcrypto.so",
         "libssl.so",
         NULL,
@@ -1386,6 +1391,9 @@ SrsHikvisionDevice::SrsHikvisionDevice(const SrsHikvisionDeviceConfig &conf)
     conf_ = conf;
     user_id_ = -1;
     logged_in_ = false;
+    channel_info_loaded_ = false;
+    channel_info_ok_ = false;
+    channel_info_loaded_at_ = 0;
 }
 
 SrsHikvisionDevice::~SrsHikvisionDevice()
@@ -1431,6 +1439,14 @@ srs_error_t SrsHikvisionDevice::ensure_login()
     logged_in_ = true;
     srs_trace("Hikvision: login ok serial=%s host=%s:%d user_id=%ld",
               conf_.serialno_.c_str(), conf_.host_.c_str(), conf_.port_, (long)user_id_);
+
+    // Soft-load ISAPI channel list so play can fail fast on missing stream types.
+    srs_error_t ch_err = ensure_channel_info();
+    if (ch_err != srs_success) {
+        srs_warn("Hikvision: channel info load failed serial=%s, err=%s",
+                 conf_.serialno_.c_str(), srs_error_desc(ch_err).c_str());
+        srs_freep(ch_err);
+    }
     return err;
 }
 
@@ -1442,6 +1458,162 @@ void SrsHikvisionDevice::logout()
     }
     user_id_ = -1;
     logged_in_ = false;
+    streaming_channel_ids_.clear();
+    channel_info_loaded_ = false;
+    channel_info_ok_ = false;
+    channel_info_loaded_at_ = 0;
+}
+
+// ISAPI StreamingChannel id: ch*100 + streamType, streamType 1=main,2=sub,3=third,4=event.
+static int srs_hikvision_isapi_stream_id(int channel, int subchannel)
+{
+    if (channel <= 0) {
+        return 0;
+    }
+    int st = srs_max(0, srs_min(3, subchannel)) + 1;
+    return channel * 100 + st;
+}
+
+srs_error_t SrsHikvisionDevice::ensure_channel_info()
+{
+    srs_error_t err = srs_success;
+
+    // Refresh every 5 minutes so NVR channel changes are picked up without restart.
+    const srs_utime_t kRefresh = 5 * 60 * SRS_UTIME_SECONDS;
+    if (channel_info_loaded_ && channel_info_ok_ && channel_info_loaded_at_ != 0 &&
+        srs_time_now_cached() - channel_info_loaded_at_ < kRefresh) {
+        return err;
+    }
+
+    // ISAPI is HTTP (port 80), not SDK port 8000. Same credentials as SDK login.
+    // Basic auth works on this NVR series; Digest also accepted by device.
+    SrsHttpClient hc;
+    if ((err = hc.initialize("http", conf_.host_, 80, 3 * SRS_UTIME_SECONDS)) != srs_success) {
+        channel_info_loaded_ = true;
+        channel_info_ok_ = false;
+        return srs_error_wrap(err, "isapi connect %s:80", conf_.host_.c_str());
+    }
+
+    string token;
+    if ((err = srs_av_base64_encode(conf_.user_ + ":" + conf_.password_, token)) != srs_success) {
+        channel_info_loaded_ = true;
+        channel_info_ok_ = false;
+        return srs_error_wrap(err, "isapi auth encode");
+    }
+    hc.set_header("Authorization", "Basic " + token);
+    hc.set_header("Accept", "application/xml");
+
+    ISrsHttpMessage *msg_raw = NULL;
+    if ((err = hc.get("/ISAPI/Streaming/channels", "", &msg_raw)) != srs_success) {
+        channel_info_loaded_ = true;
+        channel_info_ok_ = false;
+        return srs_error_wrap(err, "isapi GET Streaming/channels");
+    }
+    SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
+
+    int code = msg->status_code();
+    string body;
+    if ((err = msg->body_read_all(body)) != srs_success) {
+        channel_info_loaded_ = true;
+        channel_info_ok_ = false;
+        return srs_error_wrap(err, "isapi read body code=%d", code);
+    }
+    if (code != 200) {
+        channel_info_loaded_ = true;
+        channel_info_ok_ = false;
+        return srs_error_new(ERROR_HIKVISION_SDK, "isapi Streaming/channels HTTP %d body=%s",
+                             code, body.substr(0, 200).c_str());
+    }
+
+    // Parse all <id>NNN</id> under StreamingChannelList (simple scan is enough).
+    set<int> ids;
+    size_t pos = 0;
+    while (pos < body.size()) {
+        size_t a = body.find("<id>", pos);
+        if (a == string::npos) {
+            break;
+        }
+        a += 4;
+        size_t b = body.find("</id>", a);
+        if (b == string::npos) {
+            break;
+        }
+        string num = body.substr(a, b - a);
+        int id = ::atoi(num.c_str());
+        if (id > 0) {
+            ids.insert(id);
+        }
+        pos = b + 5;
+    }
+
+    if (ids.empty()) {
+        channel_info_loaded_ = true;
+        channel_info_ok_ = false;
+        return srs_error_new(ERROR_HIKVISION_SDK, "isapi Streaming/channels empty ids body=%s",
+                             body.substr(0, 200).c_str());
+    }
+
+    streaming_channel_ids_.swap(ids);
+    channel_info_loaded_ = true;
+    channel_info_ok_ = true;
+    channel_info_loaded_at_ = srs_time_now_cached();
+
+    // Compact summary for logs (first N ids).
+    string sample;
+    int n = 0;
+    for (set<int>::iterator it = streaming_channel_ids_.begin();
+         it != streaming_channel_ids_.end() && n < 16; ++it, ++n) {
+        if (!sample.empty()) {
+            sample += ",";
+        }
+        sample += srs_fmt_sprintf("%d", *it);
+    }
+    srs_trace("Hikvision: ISAPI channel info ok serial=%s count=%d sample=[%s%s]",
+              conf_.serialno_.c_str(), (int)streaming_channel_ids_.size(), sample.c_str(),
+              streaming_channel_ids_.size() > 16 ? ",..." : "");
+    return err;
+}
+
+srs_error_t SrsHikvisionDevice::check_stream_available(int channel, int subchannel)
+{
+    srs_error_t err = srs_success;
+
+    // Refresh cache if needed (soft).
+    if ((err = ensure_channel_info()) != srs_success) {
+        srs_warn("Hikvision: skip stream precheck (no channel info) serial=%s ch=%d sub=%d err=%s",
+                 conf_.serialno_.c_str(), channel, subchannel, srs_error_desc(err).c_str());
+        srs_freep(err);
+        return srs_success;
+    }
+    if (!channel_info_ok_ || streaming_channel_ids_.empty()) {
+        return srs_success;
+    }
+
+    int id = srs_hikvision_isapi_stream_id(channel, subchannel);
+    if (id <= 0) {
+        return srs_error_new(ERROR_HIKVISION_STREAM, "invalid channel/sub ch=%d sub=%d", channel, subchannel);
+    }
+    if (streaming_channel_ids_.find(id) != streaming_channel_ids_.end()) {
+        return srs_success;
+    }
+
+    // Build hint: which sibling streams exist for this channel.
+    string have;
+    for (int st = 1; st <= 4; st++) {
+        int sid = channel * 100 + st;
+        if (streaming_channel_ids_.count(sid)) {
+            if (!have.empty()) {
+                have += ",";
+            }
+            have += srs_fmt_sprintf("%d", sid);
+        }
+    }
+    return srs_error_new(ERROR_HIKVISION_STREAM,
+                         "stream not supported on NVR: serial=%s ch=%d sub=%d isapi_id=%d "
+                         "(not in /ISAPI/Streaming/channels; available for ch=%d: [%s]; "
+                         "try main stream sub=0 isapi_id=%d)",
+                         conf_.serialno_.c_str(), channel, subchannel, id, channel, have.c_str(),
+                         channel * 100 + 1);
 }
 
 srs_error_t SrsHikvisionDevice::ptz_control(int channel, int command, bool stop, int speed)
@@ -1596,6 +1768,12 @@ SrsHikvisionStream::SrsHikvisionStream(SrsHikvisionDevice *device, const string 
     use_es_ = false;
     es_active_ = false;
     es_log_count_ = 0;
+    ps_log_count_ = 0;
+    nn_es_pkts_ = 0;
+    nn_ps_pkts_ = 0;
+    nn_sdk_cbs_ = 0;
+    stream_start_wall_ = 0;
+    no_media_warned_ = false;
     real_handle_ = -1;
     muxer_ = new SrsHikvisionMuxer();
     ps_ctx_ = new SrsPsContext();
@@ -1666,10 +1844,17 @@ void SrsHikvisionStream::on_sdk_data(int /*data_type*/, const char *data, int si
     }
 
     pthread_mutex_lock(&lock_);
+    nn_sdk_cbs_++;
     // Once ES media has arrived, never accept PS (prevents 2x frames / VLC seeking).
     if (es_active_ || !es_packets_.empty()) {
         pthread_mutex_unlock(&lock_);
         return;
+    }
+
+    nn_ps_pkts_++;
+    if (ps_log_count_ < 8) {
+        ps_log_count_++;
+        srs_trace("Hikvision: PS chunk size=%d stream=%s (fallback path)", size, stream_name_.c_str());
     }
 
     string *pkt = new string(data, size);
@@ -1709,6 +1894,7 @@ void SrsHikvisionStream::on_es_packet(int packet_type, uint32_t dts_ms, int64_t 
     pthread_mutex_lock(&lock_);
     // Lock out PS for the rest of this session.
     es_active_ = true;
+    nn_es_pkts_++;
     if (es_log_count_ < 8) {
         es_log_count_++;
         srs_trace("Hikvision: ES pkt type=%d size=%d dts=%u abs=%lld stream=%s",
@@ -1838,6 +2024,15 @@ srs_error_t SrsHikvisionStream::start(const string &output)
         }
     }
 
+    // RealPlay may return success while NVR never delivers this stream type
+    // (e.g. sub-stream notSupport). Fail play request instead of hanging FLV/RTC.
+    // Live: 5s is enough. VOD: allow longer for NVR to open recording.
+    srs_utime_t media_timeout = is_playback_ ? 10 * SRS_UTIME_SECONDS : 5 * SRS_UTIME_SECONDS;
+    if ((err = wait_first_media(media_timeout)) != srs_success) {
+        stop_sdk_handle();
+        return err;
+    }
+
     if ((err = trd_->start()) != srs_success) {
         stop_sdk_handle();
         return srs_error_wrap(err, "start stream coroutine");
@@ -1846,9 +2041,59 @@ srs_error_t SrsHikvisionStream::start(const string &output)
     return err;
 }
 
+bool SrsHikvisionStream::has_media_packets()
+{
+    pthread_mutex_lock(&lock_);
+    bool ok = (nn_es_pkts_ > 0) || (nn_ps_pkts_ > 0) || !es_packets_.empty() || !ps_packets_.empty();
+    pthread_mutex_unlock(&lock_);
+    return ok;
+}
+
+srs_error_t SrsHikvisionStream::wait_first_media(srs_utime_t timeout)
+{
+    srs_error_t err = srs_success;
+    if (timeout <= 0) {
+        return err;
+    }
+
+    srs_utime_t start = srs_time_now_realtime();
+    while (!has_media_packets()) {
+        if (stopping_) {
+            return srs_error_new(ERROR_HIKVISION_STREAM, "stream stopped before media stream=%s",
+                                 stream_name_.c_str());
+        }
+        srs_utime_t elapsed = srs_time_now_realtime() - start;
+        if (elapsed >= timeout) {
+            int64_t es_n = 0, ps_n = 0, sdk_n = 0;
+            pthread_mutex_lock(&lock_);
+            es_n = nn_es_pkts_;
+            ps_n = nn_ps_pkts_;
+            sdk_n = nn_sdk_cbs_;
+            pthread_mutex_unlock(&lock_);
+            return srs_error_new(ERROR_HIKVISION_STREAM,
+                                 "no media within %dms stream=%s ch=%d sub=%d es_pkts=%lld ps_pkts=%lld sdk_cbs=%lld "
+                                 "(channel/stream type may not exist on NVR; try main stream *_0)",
+                                 (int)srsu2ms(timeout), stream_name_.c_str(), channel_, subchannel_,
+                                 (long long)es_n, (long long)ps_n, (long long)sdk_n);
+        }
+        // Yield so SDK callbacks can enqueue; short sleep for low latency fail-path.
+        srs_usleep(50 * SRS_UTIME_MILLISECONDS);
+    }
+
+    srs_trace("Hikvision: first media ready stream=%s wait=%dms",
+              stream_name_.c_str(), (int)srsu2ms(srs_time_now_realtime() - start));
+    return err;
+}
+
 srs_error_t SrsHikvisionStream::start_live()
 {
     srs_error_t err = srs_success;
+
+    // Pre-check via ISAPI Streaming/channels (fail fast when NVR has no this stream type).
+    // e.g. ch6 only has 601+604, not 602 → G75965391_6_1 rejected without RealPlay hang.
+    if ((err = device_->check_stream_available(channel_, subchannel_)) != srs_success) {
+        return srs_error_wrap(err, "stream precheck");
+    }
 
     // Stream name SerialNO_CHANNEL_SUBCHANNEL maps to RealPlay_V40:
     //   lChannel     = CHANNEL     (1-based device channel)
@@ -1893,6 +2138,7 @@ srs_error_t SrsHikvisionStream::start_live()
                  srs_hikvision_sdk_errmsg().c_str(), stream_name_.c_str());
     }
 
+    stream_start_wall_ = srs_time_now_cached();
     srs_trace("Hikvision: RealPlay ok stream=%s handle=%ld ch=%d sub=%d es=%d",
               stream_name_.c_str(), (long)real_handle_, channel_, subchannel_, use_es_ ? 1 : 0);
     return err;
@@ -1985,6 +2231,7 @@ srs_error_t SrsHikvisionStream::start_playback()
         srs_warn("Hikvision: PLAYNORMAL at start failed %s", srs_hikvision_sdk_errmsg().c_str());
     }
 
+    stream_start_wall_ = srs_time_now_cached();
     srs_trace("Hikvision: PlayBack ok stream=%s handle=%ld ch=%d start_ts=%lld es=%d",
               stream_name_.c_str(), (long)real_handle_, channel_, (long long)start_unix_ts_, use_es_ ? 1 : 0);
     return err;
@@ -2062,6 +2309,25 @@ srs_error_t SrsHikvisionStream::do_cycle()
         // Wait for wake or timeout to poll queue.
         char buf[256];
         srs_read(wake_fd_, buf, sizeof(buf), 100 * SRS_UTIME_MILLISECONDS);
+
+        // RealPlay may succeed while NVR never delivers media (sub-stream disabled, etc.).
+        if (!no_media_warned_ && stream_start_wall_ != 0 &&
+            srs_time_now_cached() - stream_start_wall_ > 3 * SRS_UTIME_SECONDS) {
+            int64_t es_n = 0, ps_n = 0, sdk_n = 0;
+            pthread_mutex_lock(&lock_);
+            es_n = nn_es_pkts_;
+            ps_n = nn_ps_pkts_;
+            sdk_n = nn_sdk_cbs_;
+            pthread_mutex_unlock(&lock_);
+            if (es_n == 0 && ps_n == 0) {
+                no_media_warned_ = true;
+                srs_warn("Hikvision: no media after 3s stream=%s ch=%d sub=%d es_cb_set=%d "
+                         "es_pkts=%lld ps_pkts=%lld sdk_cbs=%lld "
+                         "(check NVR dual-stream/sub-stream encoding for this channel; try main stream *_0)",
+                         stream_name_.c_str(), channel_, subchannel_, use_es_ ? 1 : 0,
+                         (long long)es_n, (long long)ps_n, (long long)sdk_n);
+            }
+        }
 
         if ((err = consume_packets()) != srs_success) {
             // Only reset PS demuxer on PS parse errors; muxer soft-handles RTMP write failures.
@@ -2223,6 +2489,308 @@ void SrsHikvisionStream::on_recover_mode(int /*nn_recover*/)
 }
 
 // ---------------------------------------------------------------------------
+// Voice talk (WebRTC DataChannel ↔ NET_DVR VoiceCom MR)
+// ---------------------------------------------------------------------------
+
+ISrsHikvisionTalkListener::ISrsHikvisionTalkListener()
+{
+}
+
+ISrsHikvisionTalkListener::~ISrsHikvisionTalkListener()
+{
+}
+
+static void CALLBACK srs_hikvision_voice_cb(LONG /*lVoiceComHandle*/, char *pRecvDataBuffer, DWORD dwBufSize,
+                                           BYTE byAudioFlag, void *pUser)
+{
+    SrsHikvisionTalkSession *sess = (SrsHikvisionTalkSession *)pUser;
+    if (!sess || !pRecvDataBuffer || dwBufSize == 0) {
+        return;
+    }
+    sess->on_voice_data(pRecvDataBuffer, (int)dwBufSize, (int)byAudioFlag);
+}
+
+SrsHikvisionTalkSession::SrsHikvisionTalkSession(SrsHikvisionDevice *device, int channel)
+{
+    device_ = device;
+    channel_ = channel;
+    voice_chan_ = channel > 0 ? channel : 1;
+    voice_handle_ = -1;
+    audio_enc_type_ = 2; // G711_A default
+    sample_rate_hz_ = 8000;
+    stopping_ = false;
+    last_active_ = srs_time_now_cached();
+    trd_ = new SrsSTCoroutine("hik-talk", this);
+    pthread_mutex_init(&lock_, NULL);
+    wake_pipe_[0] = wake_pipe_[1] = -1;
+    wake_fd_ = NULL;
+}
+
+SrsHikvisionTalkSession::~SrsHikvisionTalkSession()
+{
+    stop();
+    srs_freep(trd_);
+    clear_downlink();
+    if (wake_fd_) {
+        srs_close_stfd(wake_fd_);
+        wake_fd_ = NULL;
+    }
+    if (wake_pipe_[0] > 0) {
+        ::close(wake_pipe_[0]);
+        wake_pipe_[0] = -1;
+    }
+    if (wake_pipe_[1] > 0) {
+        ::close(wake_pipe_[1]);
+        wake_pipe_[1] = -1;
+    }
+    pthread_mutex_destroy(&lock_);
+    device_ = NULL;
+}
+
+int SrsHikvisionTalkSession::audio_enc_type() const
+{
+    return audio_enc_type_;
+}
+
+int SrsHikvisionTalkSession::sample_rate_hz() const
+{
+    return sample_rate_hz_;
+}
+
+int SrsHikvisionTalkSession::channel() const
+{
+    return channel_;
+}
+
+srs_utime_t SrsHikvisionTalkSession::last_active() const
+{
+    return last_active_;
+}
+
+void SrsHikvisionTalkSession::touch()
+{
+    last_active_ = srs_time_now_cached();
+}
+
+void SrsHikvisionTalkSession::add_listener(ISrsHikvisionTalkListener *l)
+{
+    if (!l) {
+        return;
+    }
+    for (size_t i = 0; i < listeners_.size(); i++) {
+        if (listeners_[i] == l) {
+            return;
+        }
+    }
+    listeners_.push_back(l);
+    touch();
+}
+
+int SrsHikvisionTalkSession::remove_listener(ISrsHikvisionTalkListener *l)
+{
+    for (size_t i = 0; i < listeners_.size(); i++) {
+        if (listeners_[i] == l) {
+            listeners_.erase(listeners_.begin() + i);
+            break;
+        }
+    }
+    return (int)listeners_.size();
+}
+
+int SrsHikvisionTalkSession::listener_count()
+{
+    return (int)listeners_.size();
+}
+
+srs_error_t SrsHikvisionTalkSession::start()
+{
+    srs_error_t err = srs_success;
+    if (voice_handle_ >= 0) {
+        return err;
+    }
+    if ((err = device_->ensure_login()) != srs_success) {
+        return srs_error_wrap(err, "login for talk");
+    }
+
+    NET_DVR_COMPRESSION_AUDIO ca;
+    memset(&ca, 0, sizeof(ca));
+    if (NET_DVR_GetCurrentAudioCompress(device_->user_id(), &ca)) {
+        audio_enc_type_ = (int)ca.byAudioEncType;
+        // byAudioSamplingRate: 0-default, 1-16k, 2-32k, 3-48k, 4-44.1k, 5-8k
+        switch (ca.byAudioSamplingRate) {
+        case 1:
+            sample_rate_hz_ = 16000;
+            break;
+        case 2:
+            sample_rate_hz_ = 32000;
+            break;
+        case 3:
+            sample_rate_hz_ = 48000;
+            break;
+        case 4:
+            sample_rate_hz_ = 44100;
+            break;
+        case 5:
+            sample_rate_hz_ = 8000;
+            break;
+        default:
+            sample_rate_hz_ = 8000;
+            break;
+        }
+    }
+
+    // MVP: only G.711 A/μ (and raw PCM) over DataChannel.
+    if (audio_enc_type_ != 1 && audio_enc_type_ != 2 && audio_enc_type_ != 8) {
+        return srs_error_new(ERROR_HIKVISION_SDK,
+                             "talk codec type=%d unsupported (need G711_U=1, G711_A=2, or PCM=8)",
+                             audio_enc_type_);
+    }
+
+    if (pipe(wake_pipe_) < 0) {
+        return srs_error_new(ERROR_SYSTEM_CREATE_PIPE, "talk wake pipe");
+    }
+    int flags = fcntl(wake_pipe_[1], F_GETFL, 0);
+    fcntl(wake_pipe_[1], F_SETFL, flags | O_NONBLOCK);
+    flags = fcntl(wake_pipe_[0], F_GETFL, 0);
+    fcntl(wake_pipe_[0], F_SETFL, flags | O_NONBLOCK);
+    if ((wake_fd_ = srs_netfd_open(wake_pipe_[0])) == NULL) {
+        return srs_error_new(ERROR_SYSTEM_CREATE_PIPE, "talk open wake");
+    }
+    wake_pipe_[0] = -1;
+
+    // MR = no local sound card (server-side). Try stream channel then 1.
+    voice_handle_ = NET_DVR_StartVoiceCom_MR_V30(device_->user_id(), (DWORD)voice_chan_,
+                                                 srs_hikvision_voice_cb, this);
+    if (voice_handle_ < 0 && voice_chan_ != 1) {
+        srs_warn("Hikvision: StartVoiceCom_MR ch=%d failed %s, retry voice_chan=1",
+                 voice_chan_, srs_hikvision_sdk_errmsg().c_str());
+        voice_chan_ = 1;
+        voice_handle_ = NET_DVR_StartVoiceCom_MR_V30(device_->user_id(), (DWORD)voice_chan_,
+                                                     srs_hikvision_voice_cb, this);
+    }
+    if (voice_handle_ < 0) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "StartVoiceCom_MR_V30 ch=%d %s",
+                             channel_, srs_hikvision_sdk_errmsg().c_str());
+    }
+
+    stopping_ = false;
+    if ((err = trd_->start()) != srs_success) {
+        NET_DVR_StopVoiceCom(voice_handle_);
+        voice_handle_ = -1;
+        return srs_error_wrap(err, "start talk coroutine");
+    }
+
+    srs_trace("Hikvision: talk started serial=%s ch=%d voice_chan=%d handle=%ld codec=%d rate=%d",
+              device_->conf().serialno_.c_str(), channel_, voice_chan_, (long)voice_handle_,
+              audio_enc_type_, sample_rate_hz_);
+    touch();
+    return err;
+}
+
+void SrsHikvisionTalkSession::stop()
+{
+    stopping_ = true;
+    if (voice_handle_ >= 0) {
+        NET_DVR_StopVoiceCom(voice_handle_);
+        srs_trace("Hikvision: StopVoiceCom handle=%ld ch=%d", (long)voice_handle_, channel_);
+        voice_handle_ = -1;
+    }
+    if (trd_) {
+        trd_->stop();
+    }
+    clear_downlink();
+}
+
+srs_error_t SrsHikvisionTalkSession::send_uplink(const char *data, int len)
+{
+    if (voice_handle_ < 0 || !data || len <= 0) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "talk not started or empty frame");
+    }
+    touch();
+    if (!NET_DVR_VoiceComSendData(voice_handle_, (char *)data, (DWORD)len)) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "VoiceComSendData len=%d %s",
+                             len, srs_hikvision_sdk_errmsg().c_str());
+    }
+    return srs_success;
+}
+
+void SrsHikvisionTalkSession::on_voice_data(const char *data, int size, int audio_flag)
+{
+    // byAudioFlag: 1 = data from device (downlink to PC), 0 = collected local (not used in MR).
+    if (stopping_ || audio_flag != 1 || size <= 0 || !data) {
+        return;
+    }
+    pthread_mutex_lock(&lock_);
+    if ((int)downlink_.size() >= 100) {
+        string *old = downlink_.front();
+        downlink_.erase(downlink_.begin());
+        srs_freep(old);
+    }
+    downlink_.push_back(new string(data, size));
+    pthread_mutex_unlock(&lock_);
+    if (wake_pipe_[1] > 0) {
+        char c = 1;
+        ssize_t n = ::write(wake_pipe_[1], &c, 1);
+        (void)n;
+    }
+}
+
+void SrsHikvisionTalkSession::clear_downlink()
+{
+    pthread_mutex_lock(&lock_);
+    for (size_t i = 0; i < downlink_.size(); i++) {
+        srs_freep(downlink_[i]);
+    }
+    downlink_.clear();
+    pthread_mutex_unlock(&lock_);
+}
+
+srs_error_t SrsHikvisionTalkSession::cycle()
+{
+    srs_error_t err = do_cycle();
+    stopping_ = true;
+    if (voice_handle_ >= 0) {
+        NET_DVR_StopVoiceCom(voice_handle_);
+        voice_handle_ = -1;
+    }
+    clear_downlink();
+    return err;
+}
+
+srs_error_t SrsHikvisionTalkSession::do_cycle()
+{
+    srs_error_t err = srs_success;
+    string key = device_->conf().serialno_ + "_" + srs_fmt_sprintf("%d", channel_);
+
+    while (!stopping_) {
+        if ((err = trd_->pull()) != srs_success) {
+            return srs_error_wrap(err, "talk pull");
+        }
+        char buf[64];
+        srs_read(wake_fd_, buf, sizeof(buf), 200 * SRS_UTIME_MILLISECONDS);
+
+        vector<string *> local;
+        pthread_mutex_lock(&lock_);
+        local.swap(downlink_);
+        pthread_mutex_unlock(&lock_);
+
+        for (size_t i = 0; i < local.size(); i++) {
+            string *pkt = local[i];
+            for (size_t j = 0; j < listeners_.size(); j++) {
+                if (listeners_[j]) {
+                    listeners_[j]->on_talk_downlink(key, pkt->data(), (int)pkt->size());
+                }
+            }
+            srs_freep(pkt);
+        }
+        if (!local.empty()) {
+            touch();
+        }
+    }
+    return err;
+}
+
+// ---------------------------------------------------------------------------
 // SrsHikvisionManager
 // ---------------------------------------------------------------------------
 
@@ -2286,6 +2854,11 @@ void SrsHikvisionManager::dispose()
         srs_freep(it->second);
     }
     ptz_sessions_.clear();
+
+    for (map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.begin(); it != talk_sessions_.end(); ++it) {
+        srs_freep(it->second);
+    }
+    talk_sessions_.clear();
 
     for (map<string, SrsHikvisionDevice *>::iterator it = devices_.begin(); it != devices_.end(); ++it) {
         srs_freep(it->second);
@@ -2654,7 +3227,8 @@ srs_error_t SrsHikvisionManager::apply_ptz_dir(SrsHikvisionDevice *device, int c
     return err;
 }
 
-srs_error_t SrsHikvisionManager::handle_control_json(const string &json, const string &stream_context)
+srs_error_t SrsHikvisionManager::handle_control_json(const string &json, const string &stream_context,
+                                                     ISrsHikvisionTalkListener *talk_listener, string *out_reply)
 {
     SrsJsonAny *any = SrsJsonAny::loads(json);
     if (!any || !any->is_object()) {
@@ -2662,10 +3236,135 @@ srs_error_t SrsHikvisionManager::handle_control_json(const string &json, const s
         return srs_error_new(ERROR_HIKVISION_CONFIG, "invalid control json");
     }
     SrsUniquePtr<SrsJsonObject> req(any->to_object());
-    return handle_control(req.get(), stream_context);
+    return handle_control(req.get(), stream_context, talk_listener, out_reply);
 }
 
-srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string &stream_context)
+srs_error_t SrsHikvisionManager::search_records(SrsHikvisionDevice *device, int channel, int64_t start_unix,
+                                                int64_t end_unix, int file_type, int stream_type, int max_results,
+                                                string *out_json)
+{
+    srs_error_t err = srs_success;
+    if (!device || !out_json) {
+        return srs_error_new(ERROR_HIKVISION_CONFIG, "search_records invalid args");
+    }
+    if ((err = device->ensure_login()) != srs_success) {
+        return srs_error_wrap(err, "login for search");
+    }
+    if (channel <= 0) {
+        return srs_error_new(ERROR_HIKVISION_CONFIG, "invalid channel %d", channel);
+    }
+    if (end_unix <= start_unix) {
+        return srs_error_new(ERROR_HIKVISION_CONFIG, "end must be > start");
+    }
+    // Cap range to 7 days to avoid long FindFile blocks.
+    if (end_unix - start_unix > 7 * 24 * 3600) {
+        return srs_error_new(ERROR_HIKVISION_CONFIG, "search range too large (max 7 days)");
+    }
+    max_results = srs_max(1, srs_min(1000, max_results));
+    if (file_type < 0) {
+        file_type = 0xff;
+    }
+    if (stream_type < 0) {
+        stream_type = 0; // auto prefer main
+    }
+
+    NET_DVR_FILECOND_V40 cond;
+    memset(&cond, 0, sizeof(cond));
+    cond.lChannel = channel;
+    cond.dwFileType = (DWORD)file_type;
+    cond.dwIsLocked = 0xff;
+    cond.dwUseCardNo = 0;
+    srs_hikvision_unix_to_dvr_time((time_t)start_unix, &cond.struStartTime);
+    srs_hikvision_unix_to_dvr_time((time_t)end_unix, &cond.struStopTime);
+    cond.byDrawFrame = 0;
+    cond.byFindType = 0;
+    cond.byQuickSearch = 0;
+    cond.byStreamType = (BYTE)stream_type;
+
+    LONG find_h = NET_DVR_FindFile_V40(device->user_id(), &cond);
+    if (find_h < 0) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "FindFile_V40 ch=%d %s", channel,
+                             srs_hikvision_sdk_errmsg().c_str());
+    }
+
+    SrsJsonArray *arr = SrsJsonAny::array();
+    int count = 0;
+    int finding_spins = 0;
+    const int kMaxFindingSpins = 2000; // ~20s if 10ms each
+
+    while (count < max_results) {
+        NET_DVR_FINDDATA_V40 fd;
+        memset(&fd, 0, sizeof(fd));
+        LONG st = NET_DVR_FindNextFile_V40(find_h, &fd);
+        if (st == NET_DVR_FILE_SUCCESS) {
+            finding_spins = 0;
+            int64_t t0 = srs_hikvision_dvr_fields_to_unix(fd.struStartTime.dwYear, fd.struStartTime.dwMonth,
+                                                          fd.struStartTime.dwDay, fd.struStartTime.dwHour,
+                                                          fd.struStartTime.dwMinute, fd.struStartTime.dwSecond);
+            int64_t t1 = srs_hikvision_dvr_fields_to_unix(fd.struStopTime.dwYear, fd.struStopTime.dwMonth,
+                                                          fd.struStopTime.dwDay, fd.struStopTime.dwHour,
+                                                          fd.struStopTime.dwMinute, fd.struStopTime.dwSecond);
+            SrsJsonObject *item = SrsJsonAny::object();
+            item->set("fileName", SrsJsonAny::str(fd.sFileName));
+            item->set("start", SrsJsonAny::integer(t0));
+            item->set("end", SrsJsonAny::integer(t1));
+            item->set("size", SrsJsonAny::integer((int64_t)fd.dwFileSize));
+            item->set("fileType", SrsJsonAny::integer((int)fd.byFileType));
+            item->set("streamType", SrsJsonAny::integer((int)fd.byStreamType));
+            item->set("locked", SrsJsonAny::integer((int)fd.byLocked));
+            item->set("fileIndex", SrsJsonAny::integer((int64_t)fd.dwFileIndex));
+            // Convenience for VOD play: SerialNO_CHANNEL_UNIXTS
+            string vod = device->conf().serialno_ + "_" + srs_fmt_sprintf("%d", channel) + "_" +
+                         srs_fmt_sprintf("%lld", (long long)t0);
+            item->set("vodStream", SrsJsonAny::str(vod.c_str()));
+            arr->add(item);
+            count++;
+            continue;
+        }
+        if (st == NET_DVR_ISFINDING) {
+            finding_spins++;
+            if (finding_spins > kMaxFindingSpins) {
+                NET_DVR_FindClose_V30(find_h);
+                srs_freep(arr);
+                return srs_error_new(ERROR_HIKVISION_SDK, "FindFile timeout ch=%d", channel);
+            }
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+            continue;
+        }
+        if (st == NET_DVR_NOMOREFILE || st == NET_DVR_FILE_NOFIND) {
+            break;
+        }
+        // Exception / other
+        DWORD e = NET_DVR_GetLastError();
+        NET_DVR_FindClose_V30(find_h);
+        srs_freep(arr);
+        return srs_error_new(ERROR_HIKVISION_SDK, "FindNextFile_V40 st=%ld ch=%d %s",
+                             (long)st, channel, srs_hikvision_sdk_errmsg(e).c_str());
+    }
+
+    NET_DVR_FindClose_V30(find_h);
+
+    SrsUniquePtr<SrsJsonObject> root(SrsJsonAny::object());
+    root->set("code", SrsJsonAny::integer(0));
+    root->set("msg", SrsJsonAny::str("ok"));
+    root->set("cmd", SrsJsonAny::str("search_record"));
+    // Align with existing external protocol naming (Search*Result).
+    root->set("id", SrsJsonAny::str("HIK::SearchRecordResult"));
+    root->set("channel", SrsJsonAny::integer(channel));
+    root->set("serialno", SrsJsonAny::str(device->conf().serialno_.c_str()));
+    root->set("start", SrsJsonAny::integer(start_unix));
+    root->set("end", SrsJsonAny::integer(end_unix));
+    root->set("count", SrsJsonAny::integer(count));
+    root->set("result", arr); // root owns arr
+
+    *out_json = root->dumps();
+    srs_trace("Hikvision: search_record ok serial=%s ch=%d count=%d range=%lld..%lld",
+              device->conf().serialno_.c_str(), channel, count, (long long)start_unix, (long long)end_unix);
+    return err;
+}
+
+srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string &stream_context,
+                                                ISrsHikvisionTalkListener *talk_listener, string *out_reply)
 {
     srs_error_t err = srs_success;
 
@@ -2693,12 +3392,14 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
         }
         channel = (int)prop->to_integer();
     } else if (!stream_context.empty()) {
+        // DataChannel path: stream comes from WebRTC play session (set_sctp_stream_context).
         int sub = 0;
         if (!srs_hikvision_parse_stream(stream_context, serialno, channel, sub)) {
             return srs_error_new(ERROR_HIKVISION_STREAM, "invalid stream context %s", stream_context.c_str());
         }
     } else {
-        return srs_error_new(ERROR_HIKVISION_CONFIG, "need stream or serialno+channel");
+        return srs_error_new(ERROR_HIKVISION_CONFIG,
+                             "need stream/serialno+channel (HTTP), or DataChannel on a play session");
     }
 
     if (channel <= 0) {
@@ -2743,7 +3444,222 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
         return err;
     }
 
+    if (cmd == "talk") {
+        string action = "start";
+        if ((prop = req->ensure_property_string("action")) != NULL) {
+            action = prop->to_str();
+        }
+        if (action == "start") {
+            int codec = 0, rate = 8000;
+            if ((err = talk_start(serialno, channel, talk_listener, &codec, &rate)) != srs_success) {
+                return srs_error_wrap(err, "talk start");
+            }
+            srs_trace("Hikvision: talk control start ok codec=%d rate=%d serial=%s ch=%d",
+                      codec, rate, serialno.c_str(), channel);
+            if (out_reply) {
+                *out_reply = srs_fmt_sprintf(
+                    "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"talk\",\"action\":\"start\",\"codec\":%d,\"rate\":%d}",
+                    codec, rate);
+            }
+            return err;
+        }
+        if (action == "stop") {
+            if ((err = talk_stop(serialno, channel, talk_listener)) != srs_success) {
+                return srs_error_wrap(err, "talk stop");
+            }
+            return err;
+        }
+        return srs_error_new(ERROR_HIKVISION_CONFIG, "talk action must be start|stop");
+    }
+
+    // Recording list: NET_DVR_FindFile_V40 (录像列表).
+    // Request: {"cmd":"search_record","stream":"SN_6_0","start":unix,"end":unix}
+    // Optional: file_type (default 0xff all), stream_type (0 auto), max (default 200)
+    // Also accept meta.start/meta.end style via top-level start/end.
+    if (cmd == "search_record" || cmd == "records" || cmd == "SearchRecord") {
+        int64_t start_unix = 0, end_unix = 0;
+        if ((prop = req->ensure_property_integer("start")) != NULL) {
+            start_unix = prop->to_integer();
+        }
+        if ((prop = req->ensure_property_integer("end")) != NULL) {
+            end_unix = prop->to_integer();
+        }
+        // Nested meta (compatible with external websocket clients).
+        if ((start_unix <= 0 || end_unix <= 0) && (prop = req->ensure_property_object("meta")) != NULL) {
+            SrsJsonObject *meta = prop->to_object();
+            SrsJsonAny *mp = NULL;
+            if (start_unix <= 0 && (mp = meta->ensure_property_integer("start")) != NULL) {
+                start_unix = mp->to_integer();
+            }
+            if (end_unix <= 0 && (mp = meta->ensure_property_integer("end")) != NULL) {
+                end_unix = mp->to_integer();
+            }
+            if ((mp = meta->ensure_property_integer("channel")) != NULL) {
+                channel = (int)mp->to_integer();
+            }
+        }
+        if (start_unix <= 0 || end_unix <= 0) {
+            return srs_error_new(ERROR_HIKVISION_CONFIG, "search_record needs start/end unix timestamps");
+        }
+        int file_type = 0xff;
+        if ((prop = req->ensure_property_integer("file_type")) != NULL) {
+            file_type = (int)prop->to_integer();
+        }
+        int stream_type = 0;
+        if ((prop = req->ensure_property_integer("stream_type")) != NULL) {
+            stream_type = (int)prop->to_integer();
+        }
+        int max_results = 200;
+        if ((prop = req->ensure_property_integer("max")) != NULL) {
+            max_results = (int)prop->to_integer();
+        }
+
+        string reply;
+        if ((err = search_records(device, channel, start_unix, end_unix, file_type, stream_type, max_results, &reply)) !=
+            srs_success) {
+            return srs_error_wrap(err, "search_record");
+        }
+        // Optional token/from for client correlation (websocket-style).
+        string from;
+        if ((prop = req->ensure_property_string("from")) != NULL) {
+            from = prop->to_str();
+        } else if ((prop = req->get_property("meta")) != NULL && prop->is_object()) {
+            SrsJsonAny *mp = prop->to_object()->ensure_property_string("from");
+            if (mp) {
+                from = mp->to_str();
+            }
+        }
+        if (!from.empty() && !reply.empty() && reply[reply.size() - 1] == '}') {
+            // from is client-provided; strip quotes to keep JSON valid.
+            string safe;
+            for (size_t i = 0; i < from.size(); i++) {
+                char c = from[i];
+                if (c == '"' || c == '\\') {
+                    safe.push_back('\\');
+                }
+                if ((unsigned char)c >= 0x20) {
+                    safe.push_back(c);
+                }
+            }
+            reply.resize(reply.size() - 1);
+            reply += ",\"token\":[\"" + safe + "\"]}";
+        }
+        if (out_reply) {
+            *out_reply = reply;
+        }
+        return err;
+    }
+
     return srs_error_new(ERROR_HIKVISION_CONFIG, "unknown cmd %s", cmd.c_str());
+}
+
+srs_error_t SrsHikvisionManager::talk_start(const string &serialno, int channel, ISrsHikvisionTalkListener *listener,
+                                            int *out_codec, int *out_rate)
+{
+    srs_error_t err = srs_success;
+    SrsHikvisionDevice *device = find_device(serialno);
+    if (!device) {
+        return srs_error_new(ERROR_HIKVISION_STREAM, "unknown serialno %s", serialno.c_str());
+    }
+    string key = ptz_key(serialno, channel);
+    SrsHikvisionTalkSession *sess = NULL;
+    map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.find(key);
+    if (it != talk_sessions_.end()) {
+        sess = it->second;
+    } else {
+        sess = new SrsHikvisionTalkSession(device, channel);
+        if ((err = sess->start()) != srs_success) {
+            srs_freep(sess);
+            return srs_error_wrap(err, "start talk session");
+        }
+        talk_sessions_[key] = sess;
+    }
+    if (listener) {
+        sess->add_listener(listener);
+    }
+    sess->touch();
+    if (out_codec) {
+        *out_codec = sess->audio_enc_type();
+    }
+    if (out_rate) {
+        *out_rate = sess->sample_rate_hz();
+    }
+    return err;
+}
+
+srs_error_t SrsHikvisionManager::talk_stop(const string &serialno, int channel, ISrsHikvisionTalkListener *listener)
+{
+    string key = ptz_key(serialno, channel);
+    map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.find(key);
+    if (it == talk_sessions_.end()) {
+        return srs_success;
+    }
+    SrsHikvisionTalkSession *sess = it->second;
+    int left = listener ? sess->remove_listener(listener) : 0;
+    if (left <= 0) {
+        srs_freep(sess);
+        talk_sessions_.erase(it);
+        srs_trace("Hikvision: talk session disposed key=%s", key.c_str());
+    }
+    return srs_success;
+}
+
+srs_error_t SrsHikvisionManager::talk_send_uplink(const string &stream_context, const char *data, int len)
+{
+    string serialno;
+    int channel = 0, sub = 0;
+    if (!srs_hikvision_parse_stream(stream_context, serialno, channel, sub)) {
+        return srs_error_new(ERROR_HIKVISION_STREAM, "invalid stream for talk uplink %s", stream_context.c_str());
+    }
+    string key = ptz_key(serialno, channel);
+    map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.find(key);
+    if (it == talk_sessions_.end()) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "talk not started for %s", key.c_str());
+    }
+    return it->second->send_uplink(data, len);
+}
+
+void SrsHikvisionManager::talk_remove_listener(ISrsHikvisionTalkListener *listener)
+{
+    if (!listener) {
+        return;
+    }
+    vector<string> empty_keys;
+    for (map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.begin(); it != talk_sessions_.end(); ++it) {
+        if (it->second->remove_listener(listener) <= 0) {
+            empty_keys.push_back(it->first);
+        }
+    }
+    for (size_t i = 0; i < empty_keys.size(); i++) {
+        map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.find(empty_keys[i]);
+        if (it == talk_sessions_.end()) {
+            continue;
+        }
+        srs_trace("Hikvision: talk dispose after listener leave key=%s", it->first.c_str());
+        srs_freep(it->second);
+        talk_sessions_.erase(it);
+    }
+}
+
+void SrsHikvisionManager::reap_talk_timeouts()
+{
+    srs_utime_t timeout = 120 * SRS_UTIME_SECONDS;
+    srs_utime_t now = srs_time_now_cached();
+    vector<string> to_remove;
+    for (map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.begin(); it != talk_sessions_.end(); ++it) {
+        if (it->second->listener_count() <= 0 || (now - it->second->last_active()) >= timeout) {
+            to_remove.push_back(it->first);
+        }
+    }
+    for (size_t i = 0; i < to_remove.size(); i++) {
+        map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.find(to_remove[i]);
+        if (it == talk_sessions_.end()) {
+            continue;
+        }
+        srs_trace("Hikvision: talk idle dispose key=%s", it->first.c_str());
+        srs_freep(it->second);
+        talk_sessions_.erase(it);
+    }
 }
 
 void SrsHikvisionManager::reap_ptz_timeouts()
@@ -2796,6 +3712,7 @@ srs_error_t SrsHikvisionManager::cycle()
 
         // Auto-stop PTZ when no stop command within ptz_timeout.
         reap_ptz_timeouts();
+        reap_talk_timeouts();
 
         srs_utime_t idle = config_->get_hikvision_idle_timeout();
         srs_utime_t now = srs_time_now_cached();
@@ -2851,7 +3768,8 @@ srs_error_t SrsGoApiHikvisionControl::serve_http(ISrsHttpResponseWriter *w, ISrs
         return srs_error_wrap(err, "read body");
     }
 
-    if ((err = _srs_hikvision->handle_control_json(body)) != srs_success) {
+    string reply;
+    if ((err = _srs_hikvision->handle_control_json(body, "", NULL, &reply)) != srs_success) {
         int code = srs_error_code(err);
         string msg = srs_error_summary(err);
         srs_warn("Hikvision control error %s", srs_error_desc(err).c_str());
@@ -2861,6 +3779,10 @@ srs_error_t SrsGoApiHikvisionControl::serve_http(ISrsHttpResponseWriter *w, ISrs
         return srs_api_response(w, r, res->dumps());
     }
 
+    // search_record returns full payload; other cmds use generic envelope.
+    if (!reply.empty()) {
+        return srs_api_response(w, r, reply);
+    }
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("msg", SrsJsonAny::str("ok"));
     return srs_api_response(w, r, res->dumps());

@@ -160,6 +160,7 @@ public:
     virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_application_data(const char *data, const int len);
     virtual srs_error_t write_dtls_data(void *data, int size);
+    virtual srs_error_t write_dtls_application_data(const char *data, int size);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

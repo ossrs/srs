@@ -492,6 +492,16 @@ srs_error_t SrsRtcUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
     return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
 }
 
+#ifdef SRS_SCTP
+void SrsRtcUdpNetwork::set_sctp_stream_context(const std::string &stream)
+{
+    SrsSecurityTransport *sec = dynamic_cast<SrsSecurityTransport *>(transport_);
+    if (sec) {
+        sec->set_sctp_stream_context(stream);
+    }
+}
+#endif
+
 SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *delta) : owner_(new SrsRtcTcpConn())
 {
     conn_ = conn;
@@ -746,6 +756,16 @@ void SrsRtcTcpNetwork::dispose()
 {
     state_ = SrsRtcNetworkStateClosed;
 }
+
+#ifdef SRS_SCTP
+void SrsRtcTcpNetwork::set_sctp_stream_context(const std::string &stream)
+{
+    SrsSecurityTransport *sec = dynamic_cast<SrsSecurityTransport *>(transport_);
+    if (sec) {
+        sec->set_sctp_stream_context(stream);
+    }
+}
+#endif
 
 #define SRS_RTC_TCP_PACKET_MAX 1500
 

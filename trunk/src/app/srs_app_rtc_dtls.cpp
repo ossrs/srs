@@ -454,6 +454,27 @@ long srs_dtls_bio_out_callback(BIO *bio, int cmd, const char *argp, int argi, lo
     return r0;
 }
 
+srs_error_t SrsDtlsImpl::write_application_data(const char *data, int size)
+{
+    srs_error_t err = srs_success;
+    if (!data || size <= 0) {
+        return err;
+    }
+    if (!handshake_done_for_us_ || !dtls_) {
+        return srs_error_new(ERROR_RTC_DTLS, "DTLS not ready for application write");
+    }
+
+    // SSL_write encrypts payload; BIO callback emits DTLS records via write_dtls_data.
+    int r0 = SSL_write(dtls_, data, size);
+    int r1 = SSL_get_error(dtls_, r0);
+    ERR_clear_error();
+    if (r0 <= 0 && r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE) {
+        return srs_error_new(ERROR_RTC_DTLS, "SSL_write app data r0=%d r1=%d size=%d", r0, r1, size);
+    }
+    srs_info("DTLS: SSL_write app data size=%d r0=%d", size, r0);
+    return err;
+}
+
 srs_error_t SrsDtlsImpl::write_dtls_data(void *data, int size)
 {
     srs_error_t err = srs_success;
@@ -598,8 +619,10 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char *data, int nb_data)
 
     // When already done, only for us, we still got message from client,
     // it might be our response is lost, or application data.
+    // Application data (SCTP/talk) is high-rate; use info to avoid flooding TRACE
+    // which blocks the single-thread event loop and freezes HTTP/API/new streams.
     if (handshake_done_for_us_) {
-        srs_trace("DTLS: After done, got %d bytes", nb_data);
+        srs_info("DTLS: After done, got %d bytes", nb_data);
     }
 
     // Feed the received DTLS packets to BIO; we will consume them later.
@@ -611,22 +634,21 @@ srs_error_t SrsDtlsImpl::do_on_dtls(char *data, int nb_data)
     state_trace((uint8_t *)data, nb_data, true, r0);
 
     // LCOV_EXCL_START
-    // If there is data available in bio_in, use SSL_read to allow SSL to process it.
-    // We limit the MTU to 1200 for DTLS handshake, which ensures that the buffer is large enough for reading.
-    // TODO: FIXME: DTLS application messages, such as DataChannel messages, may exceed 1500 bytes, but they should be
-    //  fragmented. This fragmentation should be done at the application level. However, I'm not certain about this
-    //  and will leave it to the developer who is responsible for developing the DataChannel.
+    // Drain all application data from this DTLS record (SCTP may deliver multiple msgs).
     char buf[kRtpPacketSize];
-    r0 = SSL_read(dtls_, buf, sizeof(buf));
-    int r1 = SSL_get_error(dtls_, r0);
-    ERR_clear_error();
-    if (r0 <= 0) {
-        if (r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE && r1 != SSL_ERROR_ZERO_RETURN) {
-            return srs_error_new(ERROR_RTC_DTLS, "DTLS: read r0=%d, r1=%d, done=%d", r0, r1, handshake_done_for_us_);
+    for (;;) {
+        r0 = SSL_read(dtls_, buf, sizeof(buf));
+        int r1 = SSL_get_error(dtls_, r0);
+        ERR_clear_error();
+        if (r0 <= 0) {
+            if (r1 != SSL_ERROR_WANT_READ && r1 != SSL_ERROR_WANT_WRITE && r1 != SSL_ERROR_ZERO_RETURN) {
+                return srs_error_new(ERROR_RTC_DTLS, "DTLS: read r0=%d, r1=%d, done=%d", r0, r1, handshake_done_for_us_);
+            }
+            break;
         }
-    } else {
-        srs_trace("DTLS: read r0=%d, r1=%d, padding=%d, done=%d, data=[%s]",
-                  r0, r1, BIO_ctrl_pending(bio_in_), handshake_done_for_us_, srs_strings_dumps_hex(buf, r0, 32).c_str());
+        // High-rate path (DataChannel talk audio); do not srs_trace each packet.
+        srs_info("DTLS: read r0=%d, r1=%d, padding=%d, done=%d",
+                 r0, r1, BIO_ctrl_pending(bio_in_), handshake_done_for_us_);
 
         if ((err = callback_->on_dtls_application_data(buf, r0)) != srs_success) {
             return srs_error_wrap(err, "on DTLS data, done=%d, r1=%d, size=%u, data=[%s]", handshake_done_for_us_,
@@ -665,9 +687,17 @@ void SrsDtlsImpl::state_trace(uint8_t *data, int length, bool incoming, int r0)
         handshake_type = (uint8_t)data[13];
     }
 
-    srs_trace("DTLS: State %s %s, done=%u, arq=%u, r0=%d, len=%u, cnt=%u, size=%u, hs=%u",
-              (is_dtls_client() ? "Active" : "Passive"), (incoming ? "RECV" : "SEND"), handshake_done_for_us_,
-              nn_arq_packets_, r0, length, content_type, size, handshake_type);
+    // content_type 23 = application_data (SCTP/DataChannel). After handshake it is
+    // high-rate; TRACE would flood the log and stall the single-thread server.
+    if (handshake_done_for_us_ && content_type == 23) {
+        srs_info("DTLS: State %s %s, done=%u, arq=%u, r0=%d, len=%u, cnt=%u, size=%u, hs=%u",
+                 (is_dtls_client() ? "Active" : "Passive"), (incoming ? "RECV" : "SEND"), handshake_done_for_us_,
+                 nn_arq_packets_, r0, length, content_type, size, handshake_type);
+    } else {
+        srs_trace("DTLS: State %s %s, done=%u, arq=%u, r0=%d, len=%u, cnt=%u, size=%u, hs=%u",
+                  (is_dtls_client() ? "Active" : "Passive"), (incoming ? "RECV" : "SEND"), handshake_done_for_us_,
+                  nn_arq_packets_, r0, length, content_type, size, handshake_type);
+    }
 }
 
 // LCOV_EXCL_START
@@ -974,6 +1004,14 @@ srs_error_t SrsDtls::initialize(std::string role, std::string version)
     }
 
     return impl_->initialize(version, role);
+}
+
+srs_error_t SrsDtls::write_application_data(const char *data, int size)
+{
+    if (!impl_) {
+        return srs_error_new(ERROR_RTC_DTLS, "no dtls impl");
+    }
+    return impl_->write_application_data(data, size);
 }
 
 srs_error_t SrsDtls::start_active_handshake()

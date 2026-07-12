@@ -141,6 +141,15 @@ srs_error_t SrsSecurityTransport::write_dtls_data(void *data, int size)
     return err;
 }
 
+srs_error_t SrsSecurityTransport::write_dtls_application_data(const char *data, int size)
+{
+    // Encrypt SCTP/etc. via SSL_write → BIO → write_dtls_data (UDP).
+    if (!dtls_) {
+        return srs_error_new(ERROR_RTC_DTLS, "no dtls for application write");
+    }
+    return dtls_->write_application_data(data, size);
+}
+
 srs_error_t SrsSecurityTransport::on_dtls(char *data, int nb_data)
 {
     return dtls_->on_dtls(data, nb_data);
@@ -2556,6 +2565,20 @@ srs_error_t SrsRtcConnection::initialize(ISrsRequest *r, bool dtls, bool srtp, s
     srs_trace("RTC init session, user=%s, url=%s, encrypt=%u/%u, DTLS(role=%s, version=%s), timeout=%dms, nack=%d",
               username.c_str(), r->get_stream_url().c_str(), dtls, srtp, cfg->dtls_role_.c_str(), cfg->dtls_version_.c_str(),
               srsu2msi(session_timeout_), nack_enabled_);
+
+#ifdef SRS_SCTP
+    // DataChannel control/talk defaults to this stream name (for PTZ/talk JSON).
+    if (networks_) {
+        SrsRtcUdpNetwork *udp = dynamic_cast<SrsRtcUdpNetwork *>(networks_->udp());
+        if (udp) {
+            udp->set_sctp_stream_context(r->stream_);
+        }
+        SrsRtcTcpNetwork *tcp = dynamic_cast<SrsRtcTcpNetwork *>(networks_->tcp());
+        if (tcp) {
+            tcp->set_sctp_stream_context(r->stream_);
+        }
+    }
+#endif
 
     return err;
 }

@@ -182,10 +182,10 @@
 </head>
 <body>
   <header>
-    <h1>Hikvision · WebRTC 播放 + DataChannel 云台</h1>
+    <h1>Hikvision · WebRTC 播放 + 云台 + 对讲</h1>
     <p>
-      拉流走 <code>/rtc/v1/play/</code>（offer 含 DataChannel）；
-      云台优先 DataChannel，失败可回落 HTTP API。
+      视频：<code>/rtc/v1/play/</code>；云台/对讲：DataChannel（可回落 HTTP）。
+      对讲：浏览器 G.711 ↔ 海康 <code>VoiceCom_MR</code>。
       构建：<code>./configure --hikvision=on --sctp=on &amp;&amp; make</code>
     </p>
   </header>
@@ -277,6 +277,38 @@
       </section>
 
       <section class="panel" style="margin-top:12px">
+        <h2>Talk 对讲</h2>
+        <div class="status" style="margin-bottom:10px">
+          <span><span id="dotTalk" class="dot"></span>Talk: <b id="stTalk">idle</b></span>
+          <span>codec: <b id="stTalkCodec">-</b></span>
+        </div>
+        <div class="btns">
+          <button class="primary" id="btnTalkStart">Start Talk</button>
+          <button class="danger" id="btnTalkStop" disabled>Stop Talk</button>
+        </div>
+        <div class="hint">
+          流程：Play → 等状态 <b>DataChannel: open</b>（常在 ICE connected 后）→ Start Talk。<br/>
+          麦克风需要<strong>安全上下文</strong>：请用 <code>https://IP:8088/players/hikvision.html</code>
+          （自签证书需点「高级→继续访问」），或本机 <code>http://127.0.0.1:8080/...</code>。<br/>
+          局域网纯 HTTP 下 <code>navigator.mediaDevices</code> 为 undefined，对讲会失败。<br/>
+          仅 HTTP-FLV 不能对讲（无 DataChannel）。
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:12px">
+        <h2>录像列表 search_record</h2>
+        <div class="btns">
+          <button id="btnSearchRec">Search last 24h</button>
+        </div>
+        <div id="recList" class="hint" style="max-height:160px;overflow:auto"></div>
+        <div class="hint">
+          DataChannel（推荐）: <code>{"cmd":"search_record","start":unix,"end":unix}</code> — 不用带 stream，用 Play 会话上下文。<br/>
+          HTTP: 需加 <code>"stream":"SN_6_0"</code>。<br/>
+          返回 <code>id=HIK::SearchRecordResult</code>，条目含 <code>vodStream</code> 可填入 Stream 回放。
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:12px">
         <h2>Log</h2>
         <div id="log" class="log"></div>
         <div class="btns">
@@ -297,6 +329,64 @@
   let pc = null;
   let dc = null;
   let playing = false;
+  let talking = false;
+  let talkCodec = 2; // G711_A default
+  let talkAudioCtx = null;
+  let talkProc = null;
+  let talkStream = null;
+  let talkPlayTime = 0;
+
+  // ---- G.711 A-law (ITU-T) ----
+  function linearToALawSample(sample) {
+    const ALAW_MAX = 0xFFF;
+    let sign = 0;
+    if (sample < 0) { sample = -sample; sign = 0x80; }
+    if (sample > ALAW_MAX) sample = ALAW_MAX;
+    sample >>= 4;
+    let exponent = 7;
+    for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
+    const mantissa = (sample >> ((exponent === 0) ? 4 : (exponent + 3))) & 0x0F;
+    return (sign | (exponent << 4) | mantissa) ^ 0x55;
+  }
+  function aLawToLinearSample(aVal) {
+    aVal ^= 0x55;
+    let t = ((aVal & 0x0F) << 4) + 8;
+    const seg = (aVal & 0x70) >> 4;
+    if (seg >= 1) t += 0x100;
+    if (seg > 1) t <<= (seg - 1);
+    return ((aVal & 0x80) ? t : -t);
+  }
+  function encodePcm16ToALaw(int16) {
+    const out = new Uint8Array(int16.length);
+    for (let i = 0; i < int16.length; i++) out[i] = linearToALawSample(int16[i]);
+    return out;
+  }
+  function decodeALawToFloat32(u8) {
+    const out = new Float32Array(u8.length);
+    for (let i = 0; i < u8.length; i++) {
+      out[i] = aLawToLinearSample(u8[i]) / 32768;
+    }
+    return out;
+  }
+  function downsampleTo8k(float32, inRate) {
+    if (inRate === 8000) return float32;
+    const ratio = inRate / 8000;
+    const n = Math.floor(float32.length / ratio);
+    const out = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const idx = Math.floor(i * ratio);
+      out[i] = float32[idx];
+    }
+    return out;
+  }
+  function floatToInt16(f32) {
+    const out = new Int16Array(f32.length);
+    for (let i = 0; i < f32.length; i++) {
+      let s = Math.max(-1, Math.min(1, f32[i]));
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return out;
+  }
   let preferHttp = false;
   let holdDir = null;
 
@@ -433,12 +523,71 @@
       $('btnStop').disabled = false;
       $('stMedia').textContent = 'negotiated';
       setDot('dotMedia', 'warn');
-      log('setRemoteDescription ok', 'ok');
+      log('setRemoteDescription ok — wait until DataChannel: open before Talk', 'ok');
+      updateTalkButtons();
+      // DC usually opens after DTLS; do not block play, but log when ready.
+      waitDcOpen(20000).then(() => {
+        log('DataChannel open — Talk 可用', 'ok');
+        updateTalkButtons();
+      }).catch((e) => {
+        log(String(e && e.message ? e.message : e), 'err');
+        updateTalkButtons();
+      });
     } catch (e) {
       log(String(e && e.message ? e.message : e), 'err');
       stopPlay(true);
       $('btnPlay').disabled = false;
     }
+  }
+
+  function updateTalkButtons() {
+    const dcOk = !!(dc && dc.readyState === 'open');
+    $('btnTalkStart').disabled = talking || !dcOk;
+    $('btnTalkStop').disabled = !talking;
+    if (!talking) {
+      $('stTalk').textContent = dcOk ? 'ready' : 'need DC';
+      setDot('dotTalk', dcOk ? 'warn' : '');
+    }
+  }
+
+  function waitDcOpen(timeoutMs) {
+    return new Promise((resolve, reject) => {
+      if (dc && dc.readyState === 'open') {
+        resolve();
+        return;
+      }
+      if (!dc) {
+        reject(new Error('no DataChannel (Play first; answer must include m=application / --sctp=on)'));
+        return;
+      }
+      if (dc.readyState === 'closed' || dc.readyState === 'closing') {
+        reject(new Error('DataChannel ' + dc.readyState));
+        return;
+      }
+      const t0 = Date.now();
+      const onOpen = () => { cleanup(); resolve(); };
+      const onFail = () => { cleanup(); reject(new Error('DataChannel failed/closed while waiting')); };
+      const timer = setInterval(() => {
+        if (dc && dc.readyState === 'open') {
+          cleanup();
+          resolve();
+        } else if (!dc || dc.readyState === 'closed' || Date.now() - t0 > timeoutMs) {
+          cleanup();
+          reject(new Error('DataChannel not open after ' + timeoutMs + 'ms (state=' +
+            (dc ? dc.readyState : 'null') + ', ICE=' + (pc ? pc.iceConnectionState : '-') +
+            '). 需 --sctp=on 且 answer 含 m=application，并等 ICE connected。'));
+        }
+      }, 100);
+      function cleanup() {
+        clearInterval(timer);
+        try { dc.removeEventListener('open', onOpen); } catch (e) {}
+        try { dc.removeEventListener('close', onFail); } catch (e) {}
+        try { dc.removeEventListener('error', onFail); } catch (e) {}
+      }
+      dc.addEventListener('open', onOpen);
+      dc.addEventListener('close', onFail);
+      dc.addEventListener('error', onFail);
+    });
   }
 
   function bindDc(channel) {
@@ -447,25 +596,184 @@
       log('DataChannel open label=' + channel.label, 'ok');
       $('stDc').textContent = 'open';
       setDot('dotDc', 'on');
+      updateTalkButtons();
     };
     channel.onclose = () => {
       log('DataChannel closed');
       $('stDc').textContent = 'closed';
       setDot('dotDc', 'off');
+      if (talking) stopTalk(true);
+      updateTalkButtons();
     };
     channel.onerror = (ev) => {
       log('DataChannel error ' + (ev && ev.message ? ev.message : ''), 'err');
       setDot('dotDc', 'off');
+      updateTalkButtons();
     };
     channel.onmessage = (ev) => {
-      log('DC << ' + (typeof ev.data === 'string' ? ev.data : ('[' + ev.data.byteLength + 'B]')), 'ok');
+      if (typeof ev.data === 'string') {
+        const short = ev.data.length > 400 ? ev.data.slice(0, 400) + '…' : ev.data;
+        log('DC << ' + short, 'ok');
+        try {
+          const j = JSON.parse(ev.data);
+          if (j && j.cmd === 'talk' && j.codec !== undefined) {
+            talkCodec = j.codec;
+            $('stTalkCodec').textContent = String(j.codec);
+          }
+          if (j && (j.cmd === 'search_record' || j.id === 'HIK::SearchRecordResult')) {
+            renderRecords(j);
+          }
+        } catch (e) {}
+        return;
+      }
+      // Binary: talk downlink G.711
+      const u8 = new Uint8Array(ev.data);
+      if (talking && talkAudioCtx && u8.length > 0) {
+        playTalkDownlink(u8);
+      }
     };
+  }
+
+  function playTalkDownlink(u8) {
+    try {
+      const f32 = decodeALawToFloat32(u8);
+      const buf = talkAudioCtx.createBuffer(1, f32.length, 8000);
+      buf.copyToChannel(f32, 0);
+      const src = talkAudioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(talkAudioCtx.destination);
+      const now = talkAudioCtx.currentTime;
+      if (talkPlayTime < now) talkPlayTime = now + 0.02;
+      src.start(talkPlayTime);
+      talkPlayTime += buf.duration;
+    } catch (e) {
+      log('talk play err ' + e, 'err');
+    }
+  }
+
+  // Mic requires secure context: https:// or http://localhost / 127.0.0.1
+  function micAccessHint() {
+    const host = window.location.hostname || '';
+    const isLocal = (host === 'localhost' || host === '127.0.0.1' || host === '[::1]');
+    const secure = !!(window.isSecureContext);
+    if (secure || isLocal) {
+      return '请允许浏览器麦克风权限，或检查系统/浏览器是否禁用了麦克风。';
+    }
+    const httpsUrl = 'https://' + host + ':8088' + (window.location.pathname || '/players/hikvision.html') +
+      (window.location.search || '');
+    return '当前为非安全上下文（HTTP + 局域网 IP），浏览器不提供 mediaDevices。' +
+      '请改用 HTTPS：' + httpsUrl +
+      '（自签证书需「高级→继续访问」）。或本机用 http://127.0.0.1:8080/...；' +
+      'Chrome 也可将本源加入 chrome://flags/#unsafely-treat-insecure-origin-as-secure';
+  }
+
+  function acquireMicStream() {
+    const constraints = {
+      audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
+      video: false
+    };
+    if (navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+      return navigator.mediaDevices.getUserMedia(constraints);
+    }
+    // Legacy prefixes (rare; still fail on insecure non-localhost in modern Chrome).
+    const legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+    if (typeof legacy === 'function') {
+      return new Promise(function (resolve, reject) {
+        legacy.call(navigator, constraints, resolve, reject);
+      });
+    }
+    const err = new Error(micAccessHint());
+    err.name = 'NotSupportedError';
+    return Promise.reject(err);
+  }
+
+  async function startTalk() {
+    if (talking) return;
+    // playing 在 setRemoteDescription 后就为 true，但 DC 要等 DTLS 完成后才 open。
+    if (!pc || !dc) {
+      log('请先点 Play 建立 WebRTC（对讲依赖 DataChannel，不能只用 HTTP-FLV）', 'err');
+      return;
+    }
+    try {
+      $('stTalk').textContent = 'waiting DC…';
+      setDot('dotTalk', 'warn');
+      log('waiting DataChannel open (state=' + dc.readyState + ', ICE=' + pc.iceConnectionState + ')…');
+      await waitDcOpen(15000);
+      log('DataChannel ready, starting talk…', 'ok');
+
+      if (!window.isSecureContext && !(location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+        log(micAccessHint(), 'err');
+        throw new Error('getUserMedia 需要 HTTPS（或 localhost）');
+      }
+
+      // Prefer DC for talk start (HTTP also works for start, but uplink needs DC).
+      await sendControl({ stream: streamName(), cmd: 'talk', action: 'start' });
+      talkStream = await acquireMicStream();
+      talkAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (talkAudioCtx.state === 'suspended') {
+        await talkAudioCtx.resume();
+      }
+      const src = talkAudioCtx.createMediaStreamSource(talkStream);
+      // ScriptProcessor is deprecated but widely available; 4096 @ 48k → ~10ms*8 after downsample.
+      const bufferSize = 4096;
+      talkProc = talkAudioCtx.createScriptProcessor(bufferSize, 1, 1);
+      talkProc.onaudioprocess = (ev) => {
+        if (!talking || !dc || dc.readyState !== 'open') return;
+        const input = ev.inputBuffer.getChannelData(0);
+        const f8k = downsampleTo8k(input, talkAudioCtx.sampleRate);
+        // Send 20ms frames (160 samples @ 8k)
+        const frame = 160;
+        for (let off = 0; off + frame <= f8k.length; off += frame) {
+          const slice = f8k.subarray(off, off + frame);
+          const i16 = floatToInt16(slice);
+          const g711 = encodePcm16ToALaw(i16);
+          try { dc.send(g711.buffer); } catch (e) {}
+        }
+      };
+      src.connect(talkProc);
+      // Must connect graph for ScriptProcessor; mute to avoid local mic monitor echo.
+      const mute = talkAudioCtx.createGain();
+      mute.gain.value = 0;
+      talkProc.connect(mute);
+      mute.connect(talkAudioCtx.destination);
+      talking = true;
+      talkPlayTime = 0;
+      $('stTalk').textContent = 'active';
+      setDot('dotTalk', 'on');
+      $('stTalkCodec').textContent = String(talkCodec) + ' (G711-A client)';
+      updateTalkButtons();
+      log('talk started (mic → G711-A → DC)', 'ok');
+    } catch (e) {
+      let msg = (e && e.message) ? e.message : String(e);
+      if (/getUserMedia|mediaDevices|NotAllowed|NotFound|NotSupported|Permission|secure/i.test(msg) ||
+          (e && (e.name === 'NotAllowedError' || e.name === 'NotFoundError' || e.name === 'NotSupportedError'))) {
+        msg = msg + ' — ' + micAccessHint();
+      }
+      log('talk start failed: ' + msg, 'err');
+      stopTalk(true);
+    }
+  }
+
+  function stopTalk(silent) {
+    if (talking) {
+      try { sendControl({ stream: streamName(), cmd: 'talk', action: 'stop' }); } catch (e) {}
+    }
+    talking = false;
+    try { if (talkProc) { talkProc.disconnect(); talkProc.onaudioprocess = null; } } catch (e) {}
+    talkProc = null;
+    try { if (talkStream) talkStream.getTracks().forEach((t) => t.stop()); } catch (e) {}
+    talkStream = null;
+    try { if (talkAudioCtx) talkAudioCtx.close(); } catch (e) {}
+    talkAudioCtx = null;
+    updateTalkButtons();
+    if (!silent) log('talk stopped');
   }
 
   function stopPlay(silent) {
     if (holdDir) {
       holdDir = null;
     }
+    stopTalk(true);
     try { if (dc) dc.close(); } catch (e) {}
     try { if (pc) pc.close(); } catch (e) {}
     dc = null;
@@ -483,9 +791,16 @@
   }
 
   // -------- Control --------
+  // DataChannel is bound to the WebRTC play stream on the server (stream_context).
+  // So DC messages can omit "stream"; HTTP still needs it.
+  function withStreamIfHttp(obj) {
+    const o = Object.assign({}, obj);
+    if (!o.stream) o.stream = streamName();
+    return o;
+  }
+
   function buildPtz(dir) {
     return {
-      stream: streamName(),
       cmd: 'ptz',
       dir: dir,
       speed: parseInt($('speed').value, 10) || 4
@@ -494,24 +809,79 @@
 
   function buildPreset(cmd) {
     return {
-      stream: streamName(),
       cmd: cmd,
       preset: parseInt($('preset').value, 10) || 1
     };
   }
 
   async function sendControl(obj) {
-    const json = JSON.stringify(obj);
     if (!preferHttp && dc && dc.readyState === 'open') {
+      // Prefer session context: do not send stream on DC.
+      const json = JSON.stringify(obj);
       try {
         dc.send(json);
-        log('DC >> ' + json);
+        log('DC >> ' + json + ' (stream from RTC context)');
         return;
       } catch (e) {
         log('DC send failed, fallback HTTP: ' + e, 'err');
       }
     }
-    await sendHttpControl(obj);
+    await sendHttpControl(withStreamIfHttp(obj));
+  }
+
+  function renderRecords(j) {
+    const el = $('recList');
+    if (!el) return;
+    const list = (j && j.result) || [];
+    el.innerHTML = 'count=' + (j.count != null ? j.count : list.length) + '<br/>';
+    list.slice(0, 50).forEach((r) => {
+      const line = document.createElement('div');
+      const vod = r.vodStream || '';
+      line.innerHTML = (r.fileName || '') + ' ' + r.start + '→' + r.end +
+        (vod ? ' <a href="#" data-vod="' + vod + '">' + vod + '</a>' : '');
+      el.appendChild(line);
+    });
+    el.querySelectorAll('a[data-vod]').forEach((a) => {
+      a.onclick = (e) => {
+        e.preventDefault();
+        $('stream').value = a.getAttribute('data-vod');
+        log('filled stream=' + a.getAttribute('data-vod'), 'ok');
+      };
+    });
+  }
+
+  async function searchRecords24h() {
+    const end = Math.floor(Date.now() / 1000);
+    const start = end - 86400;
+    const obj = {
+      cmd: 'search_record',
+      start: start,
+      end: end,
+      max: 50
+    };
+    // Prefer DC when open (stream taken from RTC play context on server).
+    if (!preferHttp && dc && dc.readyState === 'open') {
+      try {
+        dc.send(JSON.stringify(obj));
+        log('DC >> search_record ' + start + '..' + end + ' (no stream field)');
+        return;
+      } catch (e) {
+        log('DC search failed: ' + e, 'err');
+      }
+    }
+    try {
+      const url = apiBase() + '/api/v1/hikvision/control';
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(withStreamIfHttp(obj))
+      });
+      const j = await r.json();
+      log('HTTP search_record count=' + (j.count != null ? j.count : '?'), 'ok');
+      renderRecords(j);
+    } catch (e) {
+      log('search_record failed: ' + e, 'err');
+    }
   }
 
   async function sendHttpControl(obj) {
@@ -560,15 +930,27 @@
     if (!$('apiHost').value) {
       $('apiHost').value = location.hostname || '127.0.0.1';
     }
+    // HTTPS page → use HTTPS API port (1990); avoid mixed-content block on 1985.
+    if (!q.get('port') && location.protocol === 'https:') {
+      $('apiPort').value = '1990';
+    }
     // Default eip to api host for LAN candidate
     if (!$('eip').value && $('apiHost').value && $('apiHost').value !== 'localhost') {
       $('eip').value = $('apiHost').value;
     }
-    log('ready host=' + $('apiHost').value);
+    const sec = window.isSecureContext ? 'secure' : 'insecure';
+    log('ready host=' + $('apiHost').value + ' proto=' + location.protocol +
+      ' context=' + sec + ' apiPort=' + $('apiPort').value);
+    if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      log('麦克风对讲需要 HTTPS：https://' + location.hostname + ':8088/players/hikvision.html', 'err');
+    }
   })();
 
   $('btnPlay').onclick = () => startPlay();
   $('btnStop').onclick = () => stopPlay(false);
+  $('btnTalkStart').onclick = () => startTalk();
+  $('btnTalkStop').onclick = () => stopTalk(false);
+  if ($('btnSearchRec')) $('btnSearchRec').onclick = () => searchRecords24h();
   $('btnClearLog').onclick = () => { logEl.innerHTML = ''; };
   $('btnForceHttp').onclick = () => {
     preferHttp = !preferHttp;
@@ -578,7 +960,8 @@
   $('btnHttpFlv').onclick = () => {
     const host = location.hostname || $('apiHost').value || '127.0.0.1';
     const app = ($('app').value || 'live').trim();
-    const url = location.protocol + '//' + host + ':8080/' + app + '/' + streamName() + '.flv';
+    const httpPort = location.protocol === 'https:' ? '8088' : '8080';
+    const url = location.protocol + '//' + host + ':' + httpPort + '/' + app + '/' + streamName() + '.flv';
     window.open(url, '_blank');
     log('open FLV ' + url);
   };

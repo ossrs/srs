@@ -238,6 +238,9 @@ public:
     // Interface ISrsStreamWriter.
 public:
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+#ifdef SRS_SCTP
+    void set_sctp_stream_context(const std::string &stream);
+#endif
 };
 
 class SrsRtcTcpNetwork : public ISrsRtcNetwork
@@ -308,6 +311,9 @@ public:
 public:
     void set_peer_id(const std::string &ip, int port);
     void dispose();
+#ifdef SRS_SCTP
+    void set_sctp_stream_context(const std::string &stream);
+#endif
 };
 
 // The interface for TCP connection.

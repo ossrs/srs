@@ -18,6 +18,7 @@
 
 #include <map>
 #include <pthread.h>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -182,6 +183,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // (avoids double-publish / 2x frame rate when ES queue is briefly empty).
     bool es_active_;
     int es_log_count_;
+    int ps_log_count_;
+    // Diagnostics: RealPlay may succeed while NVR never sends media (e.g. sub-stream off).
+    int64_t nn_es_pkts_;
+    int64_t nn_ps_pkts_;
+    int64_t nn_sdk_cbs_;
+    srs_utime_t stream_start_wall_;
+    bool no_media_warned_;
 
     // RealPlay or PlayBack handle.
     long real_handle_;
@@ -231,6 +239,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_cycle();
     srs_error_t start_live();
     srs_error_t start_playback();
+    // After RealPlay/PlayBack: wait for first media packet or fail fast (no hang).
+    srs_error_t wait_first_media(srs_utime_t timeout);
+    bool has_media_packets();
     void stop_sdk_handle();
     srs_error_t consume_packets();
     srs_error_t consume_es_packets();
@@ -248,6 +259,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsHikvisionDeviceConfig conf_;
     long user_id_;
     bool logged_in_;
+    // ISAPI StreamingChannel ids present on NVR, e.g. 601=ch6 main, 602=ch6 sub.
+    // Empty + channel_info_ok_=false means probe failed (skip pre-check).
+    std::set<int> streaming_channel_ids_;
+    bool channel_info_loaded_;
+    bool channel_info_ok_;
+    srs_utime_t channel_info_loaded_at_;
 
 public:
     SrsHikvisionDevice(const SrsHikvisionDeviceConfig &conf);
@@ -258,6 +275,12 @@ public:
     long user_id() const;
     srs_error_t ensure_login();
     void logout();
+    // Load /ISAPI/Streaming/channels once (cached). Best-effort; failure is soft.
+    srs_error_t ensure_channel_info();
+    // Hikvision id = channel*100 + (subchannel+1): 0=main(...01), 1=sub(...02), ...
+    // Returns error if ISAPI list is known and id is absent (channel/stream notSupport).
+    // If channel info unavailable, returns success (caller may still use media timeout).
+    srs_error_t check_stream_available(int channel, int subchannel);
     // PTZ with speed. stop=true means stop the command.
     srs_error_t ptz_control(int channel, int command, bool stop, int speed);
     // preset_cmd: SET_PRESET=8, GOTO_PRESET=39
@@ -275,7 +298,71 @@ struct SrsHikvisionPtzSession {
     SrsHikvisionPtzSession();
 };
 
-// Global Hikvision manager: config, SDK lifecycle, on-demand streams, PTZ control.
+// Downlink audio from NVR VoiceCom → WebRTC DataChannel peers.
+class ISrsHikvisionTalkListener
+{
+public:
+    ISrsHikvisionTalkListener();
+    virtual ~ISrsHikvisionTalkListener();
+
+public:
+    // Encoded talk frame (G.711 etc.) from device, ready to send to browser as DC binary.
+    virtual void on_talk_downlink(const std::string &talk_key, const char *data, int len) = 0;
+};
+
+// One VoiceCom session per device channel (SDK typically allows one talk path).
+class SrsHikvisionTalkSession : public ISrsCoroutineHandler
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    SrsHikvisionDevice *device_;
+    int channel_;
+    int voice_chan_;
+    long voice_handle_;
+    // NET_DVR_COMPRESSION_AUDIO.byAudioEncType: 1=G711_U, 2=G711_A, 8=PCM, ...
+    int audio_enc_type_;
+    int sample_rate_hz_;
+    bool stopping_;
+    srs_utime_t last_active_;
+    std::vector<ISrsHikvisionTalkListener *> listeners_;
+
+    ISrsCoroutine *trd_;
+    pthread_mutex_t lock_;
+    std::vector<std::string *> downlink_;
+    int wake_pipe_[2];
+    srs_netfd_t wake_fd_;
+
+public:
+    SrsHikvisionTalkSession(SrsHikvisionDevice *device, int channel);
+    virtual ~SrsHikvisionTalkSession();
+
+public:
+    srs_error_t start();
+    void stop();
+    int audio_enc_type() const;
+    int sample_rate_hz() const;
+    int channel() const;
+    srs_utime_t last_active() const;
+    void touch();
+    void add_listener(ISrsHikvisionTalkListener *l);
+    // Returns remaining listener count.
+    int remove_listener(ISrsHikvisionTalkListener *l);
+    int listener_count();
+    srs_error_t send_uplink(const char *data, int len);
+    // Called from HCNetSDK voice callback thread.
+    void on_voice_data(const char *data, int size, int audio_flag);
+
+    // Interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    srs_error_t do_cycle();
+    void clear_downlink();
+};
+
+// Global Hikvision manager: config, SDK lifecycle, on-demand streams, PTZ, talk.
 class SrsHikvisionManager : public ISrsCoroutineHandler
 {
 // clang-format off
@@ -286,6 +373,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::map<std::string, SrsHikvisionStream *> streams_;
     // Key: serialno_channel
     std::map<std::string, SrsHikvisionPtzSession *> ptz_sessions_;
+    // Key: serialno_channel
+    std::map<std::string, SrsHikvisionTalkSession *> talk_sessions_;
     ISrsCoroutine *idle_trd_;
 
 public:
@@ -301,18 +390,25 @@ public:
     void on_stop(const std::string &stream_name);
     bool enabled();
 
-    // Control API (HTTP / future DataChannel). JSON body examples:
-    //   {"stream":"SN_1_0","cmd":"ptz","dir":"up","speed":4}
-    //   {"stream":"SN_1_0","cmd":"ptz","dir":"stop"}
-    //   {"stream":"SN_1_0","cmd":"preset","preset":1}
-    //   {"stream":"SN_1_0","cmd":"save_preset","preset":1}
-    //   {"serialno":"SN","channel":1,"cmd":"ptz","dir":"left","speed":4}
-    // stream_context: optional default stream name when JSON omits stream/serialno
-    //                 (e.g. WebRTC session stream when DataChannel is available).
-    srs_error_t handle_control_json(const std::string &json, const std::string &stream_context = "");
-    srs_error_t handle_control(SrsJsonObject *req, const std::string &stream_context = "");
+    // Control API (HTTP / DataChannel). JSON body examples:
+    //   {"stream":"SN_1_0","cmd":"ptz","dir":"up","speed":4}   // HTTP: stream required
+    //   {"cmd":"ptz","dir":"up"}                                  // DataChannel: stream from RTC play context
+    //   {"cmd":"talk","action":"start"}
+    //   {"cmd":"search_record","start":1700000000,"end":1700086400}
+    // stream_context: default stream for DataChannel (from WebRTC play session).
+    // talk_listener: optional DC peer for downlink audio (talk start).
+    // out_reply: optional full JSON response (e.g. search results); if empty on success, caller uses generic ok.
+    srs_error_t handle_control_json(const std::string &json, const std::string &stream_context = "",
+                                    ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL);
+    srs_error_t handle_control(SrsJsonObject *req, const std::string &stream_context = "",
+                               ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL);
 
-    // Interface ISrsCoroutineHandler (idle reaper + PTZ auto-stop)
+    // Binary G.711 (etc.) uplink from browser DataChannel → VoiceComSendData.
+    srs_error_t talk_send_uplink(const std::string &stream_context, const char *data, int len);
+    // Drop listener from all talk sessions (RTC dispose).
+    void talk_remove_listener(ISrsHikvisionTalkListener *listener);
+
+    // Interface ISrsCoroutineHandler (idle reaper + PTZ auto-stop + talk idle)
 public:
     virtual srs_error_t cycle();
 
@@ -328,6 +424,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t stop_ptz(SrsHikvisionDevice *device, int channel, SrsHikvisionPtzSession *sess);
     int compute_ptz_command(SrsHikvisionPtzSession *sess);
     void reap_ptz_timeouts();
+    srs_error_t talk_start(const std::string &serialno, int channel, ISrsHikvisionTalkListener *listener, int *out_codec, int *out_rate);
+    srs_error_t talk_stop(const std::string &serialno, int channel, ISrsHikvisionTalkListener *listener);
+    void reap_talk_timeouts();
+    // NET_DVR_FindFile_V40 recording list. start/end unix seconds (local device clock).
+    srs_error_t search_records(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
+                               int file_type, int stream_type, int max_results, std::string *out_json);
 };
 
 // HTTP API: POST /api/v1/hikvision/control

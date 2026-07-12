@@ -154,6 +154,8 @@ SrsSctp::SrsSctp(ISrsDtlsCallback *dtls_writer, ISrsSctpHandler *handler)
     dtls_writer_ = dtls_writer;
     handler_ = handler;
     sctp_socket_ = NULL;
+    talk_audio_sid_ = 0;
+    talk_audio_sid_set_ = false;
 
     if (_srs_sctp_env == NULL) {
         _srs_sctp_env = new SrsSctpGlobalEnv();
@@ -221,6 +223,11 @@ SrsSctp::SrsSctp(ISrsDtlsCallback *dtls_writer, ISrsSctpHandler *handler)
 
 SrsSctp::~SrsSctp()
 {
+#ifdef SRS_HIKVISION
+    if (_srs_hikvision) {
+        _srs_hikvision->talk_remove_listener(this);
+    }
+#endif
     if (sctp_socket_) {
         usrsctp_close(sctp_socket_);
         sctp_socket_ = NULL;
@@ -290,7 +297,9 @@ srs_error_t SrsSctp::write_dtls(const char *data, int len)
     if (!dtls_writer_ || !data || len <= 0) {
         return srs_error_new(ERROR_RTC_SCTP, "invalid dtls write");
     }
-    return dtls_writer_->write_dtls_data((void *)data, len);
+    // Must SSL_write (DTLS encrypt). Raw write_dtls_data leaves SCTP unencrypted and
+    // browsers never complete DataChannel (INIT retransmits forever).
+    return dtls_writer_->write_dtls_application_data(data, len);
 }
 
 srs_error_t SrsSctp::on_sctp_event(const struct sctp_rcvinfo & /*rcv*/, void *data, size_t len)
@@ -379,6 +388,11 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo &rcv, Srs
         ch.status_ = SrsDataChannelStatusOpen;
         data_channels_[ch.sid_] = ch;
 
+        if (label == "hik-audio" || !talk_audio_sid_set_) {
+            talk_audio_sid_ = ch.sid_;
+            talk_audio_sid_set_ = true;
+        }
+
         srs_trace("SCTP: DataChannel OPEN sid=%u label=%s type=%u stream=%s",
                   ch.sid_, label.c_str(), channel_type, stream_context_.c_str());
 
@@ -416,8 +430,7 @@ srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuff
 
     const char *data = stream->data();
     int len = stream->size();
-    srs_trace("SCTP: DataChannel msg sid=%u label=%s len=%d stream=%s",
-              rcv.rcv_sid, label.c_str(), len, stream_context_.c_str());
+    uint32_t ppid = ntohl(rcv.rcv_ppid);
 
     if (handler_) {
         if ((err = handler_->on_datachannel_message(rcv.rcv_sid, label, data, len)) != srs_success) {
@@ -427,27 +440,90 @@ srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuff
     }
 
 #ifdef SRS_HIKVISION
-    // Default: treat UTF-8 JSON as Hikvision PTZ control when no custom handler.
     if (_srs_hikvision && len > 0) {
-        string json(data, len);
-        if ((err = _srs_hikvision->handle_control_json(json, stream_context_)) != srs_success) {
-            // Reply error text to the same channel.
-            string reply = string("{\"code\":-1,\"msg\":\"") + srs_error_summary(err) + "\"}";
-            srs_warn("SCTP: hikvision control failed, err=%s", srs_error_desc(err).c_str());
-            srs_freep(err);
-            send(rcv.rcv_sid, reply.data(), (int)reply.size());
+        // Binary (or label hik-audio): talk uplink G.711 frames.
+        bool is_binary = (ppid == (uint32_t)SrsDataChannelPPIDBinary) || (label == "hik-audio");
+        // Heuristic: non-JSON first byte for binary audio on string channel.
+        if (!is_binary && len >= 2 && data[0] != '{' && data[0] != '[') {
+            is_binary = true;
+        }
+
+        if (is_binary) {
+            talk_audio_sid_ = rcv.rcv_sid;
+            talk_audio_sid_set_ = true;
+            if ((err = _srs_hikvision->talk_send_uplink(stream_context_, data, len)) != srs_success) {
+                srs_warn("SCTP: talk uplink failed, err=%s", srs_error_desc(err).c_str());
+                srs_freep(err);
+            }
             return srs_success;
         }
-        const char *ok = "{\"code\":0,\"msg\":\"ok\"}";
-        send(rcv.rcv_sid, ok, (int)strlen(ok));
+
+        // UTF-8 JSON control (PTZ / talk / search_record).
+        string json(data, len);
+        srs_trace("SCTP: DataChannel ctrl sid=%u label=%s len=%d stream=%s",
+                  rcv.rcv_sid, label.c_str(), len, stream_context_.c_str());
+        string reply;
+        if ((err = _srs_hikvision->handle_control_json(json, stream_context_, this, &reply)) != srs_success) {
+            string msg = srs_error_summary(err);
+            // Minimal escape for error text in JSON.
+            string safe;
+            for (size_t i = 0; i < msg.size(); i++) {
+                char c = msg[i];
+                if (c == '"' || c == '\\') {
+                    safe.push_back('\\');
+                }
+                if (c == '\n' || c == '\r') {
+                    safe.push_back(' ');
+                    continue;
+                }
+                if ((unsigned char)c >= 0x20) {
+                    safe.push_back(c);
+                }
+            }
+            reply = string("{\"code\":-1,\"msg\":\"") + safe + "\"}";
+            srs_warn("SCTP: hikvision control failed, err=%s", srs_error_desc(err).c_str());
+            srs_freep(err);
+            send(rcv.rcv_sid, reply.data(), (int)reply.size(), true);
+            return srs_success;
+        }
+        if (reply.empty()) {
+            reply = "{\"code\":0,\"msg\":\"ok\"}";
+        }
+        // Large search_record replies may exceed one SCTP msg; usrsctp handles multi-chunk.
+        send(rcv.rcv_sid, reply.data(), (int)reply.size(), true);
         return err;
     }
 #endif
 
+    srs_trace("SCTP: DataChannel msg sid=%u label=%s len=%d stream=%s",
+              rcv.rcv_sid, label.c_str(), len, stream_context_.c_str());
     return err;
 }
 
-srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len)
+#ifdef SRS_HIKVISION
+void SrsSctp::on_talk_downlink(const string & /*talk_key*/, const char *data, int len)
+{
+    if (!data || len <= 0) {
+        return;
+    }
+    uint16_t sid = talk_audio_sid_set_ ? talk_audio_sid_ : 0;
+    if (!talk_audio_sid_set_) {
+        // Fall back to any open channel.
+        map<uint16_t, SrsDataChannelInfo>::iterator it = data_channels_.begin();
+        if (it == data_channels_.end()) {
+            return;
+        }
+        sid = it->first;
+    }
+    srs_error_t err = send(sid, data, len, false);
+    if (err != srs_success) {
+        srs_warn("SCTP: talk downlink send failed, err=%s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+}
+#endif
+
+srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string)
 {
     srs_error_t err = srs_success;
     if (!sctp_socket_ || !buf || len <= 0) {
@@ -465,7 +541,7 @@ srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len)
     memset(&spa, 0, sizeof(spa));
     spa.sendv_flags = SCTP_SEND_SNDINFO_VALID;
     spa.sendv_sndinfo.snd_sid = sid;
-    spa.sendv_sndinfo.snd_ppid = htonl(SrsDataChannelPPIDString);
+    spa.sendv_sndinfo.snd_ppid = htonl(as_string ? SrsDataChannelPPIDString : SrsDataChannelPPIDBinary);
     spa.sendv_sndinfo.snd_flags = SCTP_EOR;
     spa.sendv_prinfo.pr_policy = SCTP_PR_SCTP_NONE;
 
