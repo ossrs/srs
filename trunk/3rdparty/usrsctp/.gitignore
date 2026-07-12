@@ -1,0 +1,84 @@
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM
+
+# Automake and make releated stuff
+Makefile
+Makefile.in
+.deps
+.libs
+/autom4te.cache
+/aclocal.m4
+/compile
+/configure
+/depcomp
+/install-sh
+/missing
+/stamp-h1
+/config.guess
+/config.log
+/config.status
+/config.sub
+/libtool
+/ltmain.sh
+/m4
+/usrsctp.pc
+.dirstamp
+
+# binaries
+programs/chargen_server_upcall
+programs/client
+programs/client_upcall
+programs/daytime_server
+programs/daytime_server_upcall
+programs/discard_server
+programs/discard_server_upcall
+programs/echo_server
+programs/echo_server_upcall
+programs/ekr_client
+programs/ekr_loop
+programs/ekr_loop_upcall
+programs/ekr_peer
+programs/ekr_server
+programs/http_client
+programs/http_client_upcall
+programs/rtcweb
+programs/st_client
+programs/tsctp
+programs/test_libmgmt
+programs/test_timer
+
+# callgrind
+callgrind.out*
+
+# cmake build
+/build

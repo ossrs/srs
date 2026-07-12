@@ -385,7 +385,8 @@
     XX(ERROR_RTSP_TOKEN_NOT_NORMAL, 5040, "RtspToken", "Invalid RTSP token state not normal")                                                         \
     XX(ERROR_RTSP_REQUEST_HEADER_EOF, 5041, "RtspHeaderEof", "Invalid RTSP request for header EOF")                                                   \
     XX(ERROR_RTSP_NEED_MORE_DATA, 5042, "RtspNeedMoreData", "Need more data to complete RTCP frame parsing")                                          \
-    XX(ERROR_RTC_INVALID_SDP, 5043, "RtcInvalidSdp", "Invalid SDP for RTC")
+    XX(ERROR_RTC_INVALID_SDP, 5043, "RtcInvalidSdp", "Invalid SDP for RTC")                                                                           \
+    XX(ERROR_RTC_SCTP, 5044, "RtcSctp", "RTC SCTP/DataChannel error")
 
 /**************************************************/
 /* SRT protocol error. */

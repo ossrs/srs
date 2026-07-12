@@ -1,0 +1,57 @@
+name: Build with CMake
+
+on:
+  push:
+    branches: [ master, github-actions ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+        cmake_build_type: [Debug, RelWithDebInfo]
+        sctp_invariants: [ON, OFF]
+        sctp_inet6: [ON, OFF]
+        sctp_inet: [ON, OFF]
+        sctp_debug: [ON, OFF]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        path: 'usrsctp_source'
+
+    - name: Prepare dirs
+      shell: bash
+      run: |
+        mkdir -p cmake_build
+        mkdir -p cmake_install
+        
+    - name: Generate CMake project
+      shell: bash
+      run: |
+        cd cmake_build
+        cmake -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} \
+              -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+              -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+              -Dsctp_debug=${{ matrix.sctp_debug }} \
+              -Dsctp_invariants=${{ matrix.sctp_invariants }} \
+              -Dsctp_inet6=${{ matrix.sctp_inet6 }} \
+              -Dsctp_inet=${{ matrix.sctp_inet }} \
+              -Dsctp_build_programs=ON \
+              -Dsctp_build_fuzzer=OFF \
+              -DCMAKE_INSTALL_PREFIX=${GITHUB_WORKSPACE}/cmake_install \
+              ${GITHUB_WORKSPACE}/usrsctp_source
+        
+    - name: Build and install project
+      shell: bash
+      run: |
+        cmake --build cmake_build \
+              --parallel 2 \
+              --config ${{ matrix.cmake_build_type }} \
+              --target install \
+              --clean-first

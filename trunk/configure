@@ -141,6 +141,15 @@ if [[ $SRS_HIKVISION == YES ]]; then
     echo "Hikvision SDK libs: ${HIK_LIBDIR}"
 fi
 
+# usrsctp for WebRTC DataChannel (optional).
+LibUsrsctpRoot=""
+LibUsrsctpFile=""
+if [[ $SRS_SCTP == YES ]]; then
+    LibUsrsctpRoot="${SRS_OBJS}/usrsctp/include"
+    LibUsrsctpFile="${SRS_OBJS}/usrsctp/lib/libusrsctp.a"
+    echo "usrsctp: ${LibUsrsctpFile}"
+fi
+
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS}/st"; LibSTfile="${LibSTRoot}/libst.a"
 if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-L${LibSTRoot} -lst"; fi
@@ -307,6 +316,9 @@ fi
 if [[ $SRS_HIKVISION == YES ]]; then
     ModuleLibIncs+=("${SRS_WORKDIR}/libs")
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=("${LibUsrsctpRoot}")
+fi
 MODULE_FILES=("srs_app_server" "srs_app_rtmp_conn" "srs_app_rtmp_source"
         "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder"
         "srs_app_st" "srs_app_log" "srs_app_config" "srs_app_stream_bridge"
@@ -336,6 +348,9 @@ fi
 if [[ $SRS_HIKVISION == YES ]]; then
     MODULE_FILES+=("srs_app_hikvision")
 fi
+if [[ $SRS_SCTP == YES ]]; then
+    MODULE_FILES+=("srs_app_sctp")
+fi
 
 DEFINES=""
 # add each modules for app
@@ -348,6 +363,9 @@ MODULE_DEPENDS=("CORE" "KERNEL" "PROTOCOL" "APP")
 ModuleLibIncs=(${SRS_OBJS} ${LibGperfRoot} ${LibSSLRoot} ${LibSrtpRoot})
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
+fi
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=("${LibUsrsctpRoot}")
 fi
 MODULE_FILES=("srs_main_server")
 SERVER_INCS="src/main"; MODULE_DIR=${SERVER_INCS} . $SRS_WORKDIR/auto/modules.sh
@@ -367,6 +385,9 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 # Always include SRT library files
 ModuleLibFiles+=("${LibSRTfile[*]}")
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibFiles+=("${LibUsrsctpFile}")
+fi
 # all depends objects
 MODULE_OBJS="${CORE_OBJS[@]} ${KERNEL_OBJS[@]} ${PROTOCOL_OBJS[@]} ${APP_OBJS[@]} ${SERVER_OBJS[@]}"
 ModuleLibIncs=(${SRS_OBJS} ${LibSTRoot} ${LibGperfRoot} ${LibSSLRoot} ${LibSrtpRoot})
@@ -375,6 +396,9 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 # Always include SRT libraries
 ModuleLibIncs+=(${LibSRTRoot})
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibIncs+=("${LibUsrsctpRoot}")
+fi
 MODULE_OBJS="${MODULE_OBJS} ${SRT_OBJS[@]}"
 LINK_OPTIONS="${LDFLAGS} ${SrsLinkOptions}${SrsGprofLink}${SrsGperfLink}"
 #
@@ -389,6 +413,9 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 # Always include SRT library files
 ModuleLibFiles+=("${LibSRTfile[*]}")
+if [[ $SRS_SCTP == YES ]]; then
+    ModuleLibFiles+=("${LibUsrsctpFile}")
+fi
 # For utest on mac.
 # @see https://github.com/protocolbuffers/protobuf/issues/51#issuecomment-111044468
 if [[ $SRS_OSX == YES ]]; then
@@ -663,6 +690,11 @@ if [[ $SRS_HIKVISION == YES ]]; then
     echo -e "${YELLOW}Experiment: Hikvision HCNetSDK is enabled.${BLACK}"
 else
     echo -e "${GREEN}Note: Hikvision HCNetSDK is disabled.${BLACK}"
+fi
+if [[ $SRS_SCTP == YES ]]; then
+    echo -e "${YELLOW}Experiment: WebRTC DataChannel/SCTP (usrsctp) is enabled.${BLACK}"
+else
+    echo -e "${GREEN}Note: WebRTC DataChannel/SCTP is disabled.${BLACK}"
 fi
 echo -e "${GREEN}Experiment: HEVC/H.265 is enabled. https://github.com/ossrs/srs/issues/465${BLACK}"
 echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"

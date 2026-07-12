@@ -429,6 +429,10 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream &os)
     for (std::vector<SrsMediaPayloadType>::iterator iter = payload_types_.begin(); iter != payload_types_.end(); ++iter) {
         os << " " << iter->payload_type_;
     }
+    // WebRTC DataChannel: m=application 9 UDP/DTLS/SCTP webrtc-datachannel
+    if (is_application()) {
+        os << " webrtc-datachannel";
+    }
 
     os << kCRLF;
 
@@ -479,6 +483,14 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream &os)
     if (!control_.empty()) {
         os << "a=control:" << control_ << kCRLF;
     }
+
+#ifdef SRS_SCTP
+    // WebRTC DataChannel SCTP attributes (RFC 8841).
+    if (is_application()) {
+        os << "a=sctp-port:5000" << kCRLF;
+        os << "a=max-message-size:262144" << kCRLF;
+    }
+#endif
 
     for (std::vector<SrsMediaPayloadType>::iterator iter = payload_types_.begin(); iter != payload_types_.end(); ++iter) {
         if ((err = iter->encode(os)) != srs_success) {

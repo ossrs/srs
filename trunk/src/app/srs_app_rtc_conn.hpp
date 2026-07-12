@@ -111,6 +111,11 @@ public:
     virtual srs_error_t unprotect_rtcp(void *packet, int *nb_plaintext) = 0;
 };
 
+#ifdef SRS_SCTP
+class SrsSctp;
+class ISrsSctpHandler;
+#endif
+
 // The security transport, use DTLS/SRTP to protect the data.
 class SrsSecurityTransport : public ISrsRtcTransport
 {
@@ -120,6 +125,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsDtls *dtls_;
     ISrsSRTP *srtp_;
     bool handshake_done_;
+#ifdef SRS_SCTP
+    SrsSctp *sctp_;
+    std::string sctp_stream_context_;
+    ISrsSctpHandler *sctp_handler_;
+#endif
 
 public:
     SrsSecurityTransport(ISrsRtcNetwork *s);
@@ -130,6 +140,11 @@ public:
     srs_error_t start_active_handshake();
     srs_error_t on_dtls(char *data, int nb_data);
     srs_error_t on_dtls_alert(std::string type, std::string desc);
+#ifdef SRS_SCTP
+    // Optional stream name for DataChannel PTZ JSON default context.
+    void set_sctp_stream_context(const std::string &stream);
+    void set_sctp_handler(ISrsSctpHandler *h);
+#endif
 
 public:
     // Encrypt the packet(paintext) to cipher, which is aso the packet ptr.

@@ -29,6 +29,9 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
+#ifdef SRS_SCTP
+#include <srs_app_sctp.hpp>
+#endif
 #include <srs_app_server.hpp>
 #include <srs_app_srt_source.hpp>
 #include <srs_app_statistic.hpp>
@@ -89,12 +92,19 @@ SrsSecurityTransport::SrsSecurityTransport(ISrsRtcNetwork *s)
     srtp_ = new SrsSRTP();
 
     handshake_done_ = false;
+#ifdef SRS_SCTP
+    sctp_ = NULL;
+    sctp_handler_ = NULL;
+#endif
 }
 
 SrsSecurityTransport::~SrsSecurityTransport()
 {
     srs_freep(dtls_);
     srs_freep(srtp_);
+#ifdef SRS_SCTP
+    srs_freep(sctp_);
+#endif
 }
 
 srs_error_t SrsSecurityTransport::initialize(SrsSessionConfig *cfg)
@@ -161,10 +171,42 @@ srs_error_t SrsSecurityTransport::on_dtls_application_data(const char *buf, cons
 {
     srs_error_t err = srs_success;
 
-    // TODO: process SCTP protocol(WebRTC datachannel support)
+#ifdef SRS_SCTP
+    // WebRTC DataChannel: DTLS application data is SCTP.
+    if (!sctp_) {
+        sctp_ = new SrsSctp(this, sctp_handler_);
+        sctp_->set_stream_context(sctp_stream_context_);
+        if ((err = sctp_->connect_peer()) != srs_success) {
+            srs_freep(sctp_);
+            return srs_error_wrap(err, "sctp connect");
+        }
+    }
+    sctp_->feed(buf, nb_buf);
+#else
+    srs_info("RTC: ignore DTLS application data %dB (SCTP/DataChannel not built)", nb_buf);
+    (void)buf;
+#endif
 
     return err;
 }
+
+#ifdef SRS_SCTP
+void SrsSecurityTransport::set_sctp_stream_context(const std::string &stream)
+{
+    sctp_stream_context_ = stream;
+    if (sctp_) {
+        sctp_->set_stream_context(stream);
+    }
+}
+
+void SrsSecurityTransport::set_sctp_handler(ISrsSctpHandler *h)
+{
+    sctp_handler_ = h;
+    if (sctp_) {
+        sctp_->set_handler(h);
+    }
+}
+#endif
 
 srs_error_t SrsSecurityTransport::srtp_initialize()
 {
@@ -2328,6 +2370,44 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig *ruc, SrsSdp &local_sd
         return srs_error_wrap(err, "generate local sdp");
     }
 
+#ifdef SRS_SCTP
+    // If offer includes m=application (DataChannel), answer with matching mid for BUNDLE.
+    for (size_t i = 0; i < ruc->remote_sdp_.media_descs_.size(); ++i) {
+        const SrsMediaDesc &remote_media_desc = ruc->remote_sdp_.media_descs_[i];
+        if (!remote_media_desc.is_application()) {
+            continue;
+        }
+        local_sdp.media_descs_.push_back(SrsMediaDesc("application"));
+        SrsMediaDesc &local_media_desc = local_sdp.media_descs_.back();
+        local_media_desc.mid_ = remote_media_desc.mid_;
+        local_sdp.groups_.push_back(local_media_desc.mid_);
+        local_media_desc.port_ = 9;
+        local_media_desc.protos_ = "UDP/DTLS/SCTP";
+        // DTLS setup role follows session negotiate.
+        if (remote_media_desc.session_info_.setup_ == "active") {
+            local_media_desc.session_info_.setup_ = "passive";
+        } else if (remote_media_desc.session_info_.setup_ == "passive") {
+            local_media_desc.session_info_.setup_ = "active";
+        } else {
+            local_media_desc.session_info_.setup_ = "passive";
+        }
+        // Share ICE/fingerprint from first A/V media if present.
+        if (!local_sdp.media_descs_.empty()) {
+            for (size_t j = 0; j < local_sdp.media_descs_.size(); j++) {
+                if (!local_sdp.media_descs_[j].is_application()) {
+                    local_media_desc.session_info_.ice_ufrag_ = local_sdp.media_descs_[j].session_info_.ice_ufrag_;
+                    local_media_desc.session_info_.ice_pwd_ = local_sdp.media_descs_[j].session_info_.ice_pwd_;
+                    local_media_desc.session_info_.fingerprint_algo_ = local_sdp.media_descs_[j].session_info_.fingerprint_algo_;
+                    local_media_desc.session_info_.fingerprint_ = local_sdp.media_descs_[j].session_info_.fingerprint_;
+                    break;
+                }
+            }
+        }
+        srs_trace("RTC: answer DataChannel m=application mid=%s for stream=%s",
+                  local_media_desc.mid_.c_str(), req->stream_.c_str());
+    }
+#endif
+
     if ((err = create_player(req, play_sub_relations)) != srs_success) {
         return srs_error_wrap(err, "create player");
     }
@@ -3831,6 +3911,13 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
 
         if (remote_media_desc.is_video())
             nn_any_video_parsed++;
+
+#ifdef SRS_SCTP
+        // DataChannel m-line is negotiated separately in add_player answer.
+        if (remote_media_desc.is_application()) {
+            continue;
+        }
+#endif
 
         // Whether feature enabled in remote extmap.
         int remote_twcc_id = 0;

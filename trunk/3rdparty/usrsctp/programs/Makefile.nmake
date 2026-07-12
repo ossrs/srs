@@ -1,0 +1,179 @@
+#
+# Copyright (C) 2011-2012 Michael Tuexen
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. Neither the name of the project nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.	IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+
+CFLAGS=/W3 /WX /I..\usrsctplib
+
+CVARSDLL=-DINET -DINET6
+
+LINKFLAGS=/LIBPATH:..\usrsctplib usrsctp.lib
+
+.c.obj::
+	$(CC) $(CVARSDLL) $(CFLAGS) -Fd.\ -c $<
+
+all: \
+	programs_helper.obj \
+	client \
+	client_upcall \
+	daytime_server \
+	daytime_server_upcall \
+	discard_server \
+	discard_server_upcall \
+	echo_server \
+	echo_server_upcall \
+	tsctp \
+	rtcweb \
+	ekr_client \
+	ekr_server \
+	ekr_peer \
+	ekr_loop \
+	ekr_loop_upcall \
+	test_libmgmt \
+	http_client \
+	http_client_upcall \
+	st_client
+	
+programs_helper.obj : programs_helper.c programs_helper.h
+	cl $(CVARSDLL) $(CFLAGS) -c programs_helper.c
+
+client:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c client.c
+	link -out:client.exe client.obj programs_helper.obj $(LINKFLAGS)
+
+client_upcall:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c client_upcall.c
+	link -out:client_upcall.exe client_upcall.obj programs_helper.obj $(LINKFLAGS)
+
+daytime_server:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c daytime_server.c
+	link -out:daytime_server.exe daytime_server.obj programs_helper.obj $(LINKFLAGS)
+
+daytime_server_upcall:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c daytime_server_upcall.c
+	link -out:daytime_server_upcall.exe daytime_server_upcall.obj programs_helper.obj $(LINKFLAGS)
+
+discard_server:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c discard_server.c
+	link -out:discard_server.exe discard_server.obj programs_helper.obj $(LINKFLAGS)
+
+discard_server_upcall:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c discard_server_upcall.c
+	link -out:discard_server_upcall.exe discard_server_upcall.obj programs_helper.obj $(LINKFLAGS)
+
+echo_server:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c echo_server.c
+	link -out:echo_server.exe echo_server.obj programs_helper.obj $(LINKFLAGS)
+
+echo_server_upcall:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c echo_server_upcall.c
+	link -out:echo_server_upcall.exe echo_server_upcall.obj programs_helper.obj $(LINKFLAGS)
+
+tsctp:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c tsctp.c
+	link -out:tsctp.exe tsctp.obj programs_helper.obj $(LINKFLAGS)
+
+rtcweb:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c rtcweb.c
+	link -out:rtcweb.exe rtcweb.obj programs_helper.obj $(LINKFLAGS)
+
+ekr_client:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c ekr_client.c
+	link -out:ekr_client.exe ekr_client.obj programs_helper.obj $(LINKFLAGS)
+
+ekr_server:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c ekr_server.c
+	link -out:ekr_server.exe ekr_server.obj programs_helper.obj $(LINKFLAGS)
+
+ekr_peer:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c ekr_peer.c
+	link -out:ekr_peer.exe ekr_peer.obj programs_helper.obj $(LINKFLAGS)
+
+ekr_loop:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c ekr_loop.c
+	link -out:ekr_loop.exe ekr_loop.obj programs_helper.obj $(LINKFLAGS)
+
+ekr_loop_upcall:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c ekr_loop_upcall.c
+	link -out:ekr_loop_upcall.exe ekr_loop_upcall.obj programs_helper.obj $(LINKFLAGS)
+
+test_libmgmt:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c test_libmgmt.c
+	link -out:test_libmgmt.exe test_libmgmt.obj programs_helper.obj $(LINKFLAGS)
+
+http_client:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c http_client.c
+	link -out:http_client.exe http_client.obj programs_helper.obj $(LINKFLAGS)
+
+http_client_upcall:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c http_client_upcall.c
+	link -out:http_client_upcall.exe http_client_upcall.obj programs_helper.obj $(LINKFLAGS)
+
+st_client:
+	$(CC) $(CFLAGS) $(CVARSDLL) -c st_client.c
+	link -out:st_client.exe st_client.obj programs_helper.obj $(LINKFLAGS)
+
+clean:
+	del /F client.exe
+	del /F client.obj
+	del /F client_upcall.exe
+	del /F client_upcall.obj
+	del /F daytime_server.exe
+	del /F daytime_server.obj
+	del /F daytime_server_upcall.exe
+	del /F daytime_server_upcall.obj
+	del /F discard_server.exe
+	del /F discard_server.obj
+	del /F discard_server_upcall.exe
+	del /F discard_server_upcall.obj
+	del /F echo_server.exe
+	del /F echo_server.obj
+	del /F echo_server_upcall.exe
+	del /F echo_server_upcall.obj
+	del /F tsctp.exe
+	del /F tsctp.obj
+	del /F rtcweb.exe
+	del /F rtcweb.obj
+	del /F ekr_client.exe
+	del /F ekr_client.obj
+	del /F ekr_server.exe
+	del /F ekr_server.obj
+	del /F ekr_peer.exe
+	del /F ekr_peer.obj
+	del /F ekr_loop.exe
+	del /F ekr_loop.obj
+	del /F ekr_loop_upcall.exe
+	del /F ekr_loop_upcall.obj
+	del /F test_libmgmt.exe
+	del /F test_libmgmt.obj
+	del /F http_client.exe
+	del /F http_client.obj
+	del /F http_client_upcall.exe
+	del /F http_client_upcall.obj
+	del /F st_client.exe
+	del /F st_client.obj

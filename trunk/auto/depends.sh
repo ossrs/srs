@@ -704,6 +704,42 @@ if [[ $SRS_UTEST == YES ]]; then
 fi
 
 #####################################################################################
+# build usrsctp for WebRTC DataChannel (optional)
+#####################################################################################
+if [[ $SRS_SCTP == YES ]]; then
+    if [[ -f ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/usrsctp/lib/libusrsctp.a ]]; then
+        rm -rf ${SRS_OBJS}/usrsctp &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/usrsctp ${SRS_OBJS}/ &&
+        echo "The usrsctp is ok."
+    else
+        echo "Building usrsctp (WebRTC DataChannel)." &&
+        rm -rf ${SRS_OBJS}/${SRS_PLATFORM}/usrsctp-build ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/usrsctp \
+            ${SRS_OBJS}/usrsctp &&
+        mkdir -p ${SRS_OBJS}/${SRS_PLATFORM}/usrsctp-build &&
+        mkdir -p ${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/usrsctp/include &&
+        mkdir -p ${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/usrsctp/lib &&
+        (
+            USRSCTP_SRC="$(cd ${SRS_WORKDIR}/3rdparty/usrsctp && pwd)" &&
+            cd ${SRS_OBJS}/${SRS_PLATFORM}/usrsctp-build &&
+            cmake "${USRSCTP_SRC}" \
+                -Dsctp_build_programs=0 \
+                -Dsctp_debug=0 \
+                -Dsctp_werror=0 \
+                -DCMAKE_INSTALL_PREFIX=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/usrsctp \
+                -DCMAKE_C_FLAGS="-Wno-error" &&
+            make ${SRS_JOBS} &&
+            # Install headers + static lib manually (cmake install layout varies).
+            cp -f "${USRSCTP_SRC}/usrsctplib/usrsctp.h" \
+                ${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/usrsctp/include/ &&
+            cp -f usrsctplib/libusrsctp.a ${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/usrsctp/lib/
+        ) &&
+        cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/usrsctp ${SRS_OBJS}/ &&
+        echo "The usrsctp is ok."
+    fi
+    ret=$?; if [[ $ret -ne 0 ]]; then echo "Build usrsctp failed, ret=$ret"; exit $ret; fi
+fi
+
+#####################################################################################
 # build gperf code
 #####################################################################################
 if [[ $SRS_GPERF == YES ]]; then
