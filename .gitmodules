@@ -1,0 +1,3 @@
+[submodule "trunk/3rdparty/usrsctp"]
+	path = trunk/3rdparty/usrsctp
+	url = https://github.com/sctplab/usrsctp.git
