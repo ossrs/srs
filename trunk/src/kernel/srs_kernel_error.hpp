@@ -334,7 +334,10 @@
     XX(ERROR_STREAM_CASTER_HEVC_FORMAT, 4057, "CasterTsHevcFormat", "Invalid ts HEVC Format for stream caster")              \
     XX(ERROR_HTTP_JSONP, 4058, "HttpJsonp", "Invalid callback for JSONP")                                                    \
     XX(ERROR_HEVC_NALU_UEV, 4059, "HevcNaluUev", "Failed to read UEV for HEVC NALU")                                         \
-    XX(ERROR_HEVC_NALU_SEV, 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")
+    XX(ERROR_HEVC_NALU_SEV, 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")                                          \
+    XX(ERROR_HIKVISION_CONFIG, 4061, "HikvisionConfig", "Invalid configuration for Hikvision SDK")                           \
+    XX(ERROR_HIKVISION_SDK, 4062, "HikvisionSdk", "Hikvision SDK call failed")                                               \
+    XX(ERROR_HIKVISION_STREAM, 4063, "HikvisionStream", "Invalid or unknown Hikvision stream name")
 
 /**************************************************/
 /* RTC/RTSP protocol error. */

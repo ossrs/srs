@@ -45,6 +45,9 @@ using namespace std;
 #ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
 #endif
+#ifdef SRS_HIKVISION
+#include <srs_app_hikvision.hpp>
+#endif
 
 // the timeout in srs_utime_t to wait encoder to republish
 // if timeout, close the connection.
@@ -605,8 +608,23 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
             return srs_error_wrap(err, "rtmp: callback on play");
         }
 
+#ifdef SRS_HIKVISION
+        // On-demand Hikvision pull: stream name SerialNO_CHANNEL_SUBCHANNEL.
+        if (_srs_hikvision) {
+            if ((err = _srs_hikvision->on_play(req->stream_)) != srs_success) {
+                return srs_error_wrap(err, "rtmp: hikvision on_play");
+            }
+        }
+#endif
+
         err = playing(live_source);
         http_hooks_on_stop();
+
+#ifdef SRS_HIKVISION
+        if (_srs_hikvision) {
+            _srs_hikvision->on_stop(req->stream_);
+        }
+#endif
 
         return err;
     }

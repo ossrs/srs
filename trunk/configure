@@ -125,6 +125,22 @@ END
 # the link options, always use static link
 SrsLinkOptions="-ldl -lpthread";
 
+# Hikvision HCNetSDK (optional, proprietary).
+if [[ $SRS_HIKVISION == YES ]]; then
+    HIK_ARCH=$(uname -m)
+    if [[ $HIK_ARCH == aarch64 || $HIK_ARCH == arm64 ]]; then
+        HIK_LIBDIR="${SRS_WORKDIR}/libs/lib-aarch64"
+    else
+        HIK_LIBDIR="${SRS_WORKDIR}/libs/lib-amd64"
+    fi
+    if [[ ! -f ${HIK_LIBDIR}/libhcnetsdk.so ]]; then
+        echo -e "${RED}Hikvision enabled but ${HIK_LIBDIR}/libhcnetsdk.so not found${BLACK}"
+        exit 1
+    fi
+    SrsLinkOptions="${SrsLinkOptions} -L${HIK_LIBDIR} -lhcnetsdk -lHCCore -lhpr -Wl,-rpath,${HIK_LIBDIR} -Wl,-rpath,${HIK_LIBDIR}/HCNetSDKCom"
+    echo "Hikvision SDK libs: ${HIK_LIBDIR}"
+fi
+
 # st(state-threads) the basic network library for SRS.
 LibSTRoot="${SRS_OBJS}/st"; LibSTfile="${LibSTRoot}/libst.a"
 if [[ $SRS_SHARED_ST == YES ]]; then LibSTfile="-L${LibSTRoot} -lst"; fi
@@ -288,6 +304,9 @@ fi
 if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
+if [[ $SRS_HIKVISION == YES ]]; then
+    ModuleLibIncs+=("${SRS_WORKDIR}/libs")
+fi
 MODULE_FILES=("srs_app_server" "srs_app_rtmp_conn" "srs_app_rtmp_source"
         "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder"
         "srs_app_st" "srs_app_log" "srs_app_config" "srs_app_stream_bridge"
@@ -313,6 +332,9 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
 fi
 if [[ $SRS_GB28181 == YES ]]; then
     MODULE_FILES+=("srs_app_gb28181")
+fi
+if [[ $SRS_HIKVISION == YES ]]; then
+    MODULE_FILES+=("srs_app_hikvision")
 fi
 
 DEFINES=""
@@ -636,6 +658,11 @@ if [[ $SRS_GB28181 == YES ]]; then
     echo -e "${YELLOW}Experiment: GB28181 is enabled. https://github.com/ossrs/srs/issues/3176${BLACK}"
 else
     echo -e "${GREEN}Warning: GB28181 is disabled.${BLACK}"
+fi
+if [[ $SRS_HIKVISION == YES ]]; then
+    echo -e "${YELLOW}Experiment: Hikvision HCNetSDK is enabled.${BLACK}"
+else
+    echo -e "${GREEN}Note: Hikvision HCNetSDK is disabled.${BLACK}"
 fi
 echo -e "${GREEN}Experiment: HEVC/H.265 is enabled. https://github.com/ossrs/srs/issues/465${BLACK}"
 echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"

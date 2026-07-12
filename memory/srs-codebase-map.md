@@ -178,6 +178,7 @@ Utilities:
 - `app_latest_version` — Version check against upstream
 - `app_caster_flv` — HTTP-FLV push ingest (stream caster)
 - `app_mpegts_udp` — MPEG-TS over UDP ingest
+- `app_hikvision` — Hikvision HCNetSDK on-demand pull (SerialNO_CHANNEL_SUBCHANNEL → RealPlay → PS → RTMP). Optional build `--hikvision=on`. Config: top-level `hikvision { device { serialno/host/user/password } }`
 - `app_stream_token` — Stream publish token management
 - `app_circuit_breaker` — Circuit breaker for overload protection
 - `app_hds` — HDS (Adobe HTTP Dynamic Streaming)
@@ -190,7 +191,7 @@ Config (`trunk/conf/`) is only for the C++ media server. The next-generation Go 
 
 - `srs.conf` — Default config
 - `full.conf` — Full reference config with all options documented
-- Feature-specific configs: `rtc.conf`, `srt.conf`, `hls.conf`, `dvr.*.conf`, `edge.conf`, `forward.*.conf`, `gb28181.conf`, `dash.conf`, etc.
+- Feature-specific configs: `rtc.conf`, `srt.conf`, `hls.conf`, `dvr.*.conf`, `edge.conf`, `forward.*.conf`, `gb28181.conf`, `hikvision.conf`, `dash.conf`, etc.
 
 ### State Threads Code
 

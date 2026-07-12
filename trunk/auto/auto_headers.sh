@@ -111,6 +111,12 @@ else
     srs_undefine_macro "SRS_GB28181" $SRS_AUTO_HEADERS_H
 fi
 
+if [[ $SRS_HIKVISION == YES ]]; then
+    srs_define_macro "SRS_HIKVISION" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_HIKVISION" $SRS_AUTO_HEADERS_H
+fi
+
 
 
 if [[ $SRS_UTEST == YES ]]; then

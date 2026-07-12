@@ -10,6 +10,7 @@ SRS_RTSP=NO
 # SRS_H265 is always enabled, no longer configurable
 SRS_H265=RESERVED
 SRS_GB28181=NO
+SRS_HIKVISION=NO
 SRS_CXX11=NO
 SRS_CXX14=NO
 SRS_BACKTRACE=YES
@@ -184,6 +185,7 @@ Features:
   --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
   --rtsp=on|off             Whether build the RTSP (requires RTC). Default: $(value2switch $SRS_RTSP)
   --gb28181=on|off          Whether build the GB28181. Default: $(value2switch $SRS_GB28181)
+  --hikvision=on|off        Whether build Hikvision HCNetSDK pull. Default: $(value2switch $SRS_HIKVISION)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
   --ffmpeg-opus=on|off      Whether enable the FFmpeg native opus codec. Default: $(value2switch $SRS_FFMPEG_OPUS)
 
@@ -357,6 +359,7 @@ function parse_user_option() {
         --ffmpeg-opus)                  SRS_FFMPEG_OPUS=$(switch2value $value) ;;
         --h265)                         SRS_H265=$(switch2value $value) ;;
         --gb28181)                      SRS_GB28181=$(switch2value $value) ;;
+        --hikvision)                    SRS_HIKVISION=$(switch2value $value) ;;
         --cxx11)                        SRS_CXX11=$(switch2value $value) ;;
         --cxx14)                        SRS_CXX14=$(switch2value $value) ;;
         --backtrace)                    SRS_BACKTRACE=$(switch2value $value) ;;
@@ -685,6 +688,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtsp=$(value2switch $SRS_RTSP)"
 
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --gb28181=$(value2switch $SRS_GB28181)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hikvision=$(value2switch $SRS_HIKVISION)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx14=$(value2switch $SRS_CXX14)"

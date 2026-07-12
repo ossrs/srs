@@ -39,6 +39,9 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_utility.hpp>
+#ifdef SRS_HIKVISION
+#include <srs_app_hikvision.hpp>
+#endif
 
 ISrsBufferCache::ISrsBufferCache()
 {
@@ -711,6 +714,15 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "http hook");
     }
 
+#ifdef SRS_HIKVISION
+    // On-demand Hikvision pull: stream name SerialNO_CHANNEL_SUBCHANNEL.
+    if (_srs_hikvision) {
+        if ((err = _srs_hikvision->on_play(req->stream_)) != srs_success) {
+            return srs_error_wrap(err, "http: hikvision on_play");
+        }
+    }
+#endif
+
     // Fast check whether stream is still available.
     if (!entry_->enabled) {
         return srs_error_new(ERROR_RTMP_STREAM_NOT_FOUND, "stream not found");
@@ -748,6 +760,12 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
 
     // Do hook after serving.
     http_hooks_on_stop(r);
+
+#ifdef SRS_HIKVISION
+    if (_srs_hikvision) {
+        _srs_hikvision->on_stop(req->stream_);
+    }
+#endif
 
     return err;
 }

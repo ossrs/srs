@@ -55,6 +55,9 @@ using namespace std;
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
+#ifdef SRS_HIKVISION
+#include <srs_app_hikvision.hpp>
+#endif
 #include <srs_app_srt_conn.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_srt_source.hpp>
@@ -126,6 +129,9 @@ srs_error_t srs_global_initialize()
 #endif
 #ifdef SRS_GB28181
     _srs_gb_manager = new SrsResourceManager("GB", true);
+#endif
+#ifdef SRS_HIKVISION
+    _srs_hikvision = new SrsHikvisionManager();
 #endif
 
     // Create global async worker for DVR.
@@ -323,6 +329,12 @@ void SrsServer::dispose()
 
     // dispose the source for hls and dvr.
     live_sources_->dispose();
+
+#ifdef SRS_HIKVISION
+    if (_srs_hikvision) {
+        _srs_hikvision->dispose();
+    }
+#endif
 
     // @remark don't dispose all connections, for too slow.
 }
@@ -535,6 +547,14 @@ srs_error_t SrsServer::run()
 #ifdef SRS_GB28181
     if ((err = gb_manager_->start()) != srs_success) {
         return srs_error_wrap(err, "start manager");
+    }
+#endif
+
+#ifdef SRS_HIKVISION
+    if (_srs_hikvision) {
+        if ((err = _srs_hikvision->initialize()) != srs_success) {
+            return srs_error_wrap(err, "hikvision initialize");
+        }
     }
 #endif
 
@@ -795,6 +815,14 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux_->handle("/api/v1/clusters", new SrsGoApiClusters())) != srs_success) {
         return srs_error_wrap(err, "handle clusters");
     }
+
+#ifdef SRS_HIKVISION
+    // Hikvision PTZ/control: POST JSON {"stream":"SN_1_0","cmd":"ptz","dir":"up","speed":4}
+    // Same command path will be used by WebRTC DataChannel once SCTP is available.
+    if ((err = http_api_mux_->handle("/api/v1/hikvision/control", new SrsGoApiHikvisionControl())) != srs_success) {
+        return srs_error_wrap(err, "handle hikvision control");
+    }
+#endif
 
     // test the request info.
     if ((err = http_api_mux_->handle("/api/v1/tests/requests", new SrsGoApiRequests())) != srs_success) {

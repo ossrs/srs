@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="GB2312"?>
+<SdkLocal>
+	<SdkLog>
+        <logLevel>3</logLevel><!--req, 1-ERROR, 2-DEBUG, 3-INFO-->
+        <logDirectory>./SDKLOG/</logDirectory><!--the end of the string must be '/'-->
+        <autoDelete>true</autoDelete><!--true: There are less than 10 files in the directory, it will be auto deleted by sdk when the files are more than 10; false: No upper limit to the number of log files-->
+    </SdkLog>
+	<HeartbeatCfg>
+		<Interval>120</Interval> <!-- 心跳时间间隔，单位秒，等于0，使用默认值120s，取值范围为[30, 120] 小于30s，间隔为30s，大于120s，间隔为120s-->
+		<Count>1</Count> 	<!-- 触发异常回调需要心跳交互异常的次数，等于0，使用默认值1次-->
+	</HeartbeatCfg>
+</SdkLocal>

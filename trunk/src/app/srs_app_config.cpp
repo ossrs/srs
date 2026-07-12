@@ -1890,7 +1890,7 @@ srs_error_t SrsConfig::check_normal_config()
     for (int i = 0; i < (int)root_->directives_.size(); i++) {
         SrsConfDirective *conf = root_->at(i);
         std::string n = conf->name_;
-        if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "tencentcloud_apm" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "asprocess" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps") {
+        if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "tencentcloud_apm" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "asprocess" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps" && n != "hikvision") {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
     }
@@ -2000,6 +2000,24 @@ srs_error_t SrsConfig::check_normal_config()
             string n = conf->at(i)->name_;
             if (n != "enabled" && n != "listen" && n != "label" && n != "tag") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal exporter.%s", n.c_str());
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective *conf = root_->get("hikvision");
+        for (int i = 0; conf && i < (int)conf->directives_.size(); i++) {
+            SrsConfDirective *obj = conf->at(i);
+            string n = obj->name_;
+            if (n != "enabled" && n != "sdk_path" && n != "output" && n != "idle_timeout" && n != "ptz_timeout" && n != "device") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal hikvision.%s", n.c_str());
+            }
+            if (n == "device") {
+                for (int j = 0; j < (int)obj->directives_.size(); j++) {
+                    string m = obj->at(j)->name_;
+                    if (m != "serialno" && m != "host" && m != "port" && m != "user" && m != "password") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal hikvision.device.%s", m.c_str());
+                    }
+                }
             }
         }
     }
@@ -3107,6 +3125,200 @@ string SrsConfig::get_exporter_tag()
 
     conf = conf->get("tag");
     if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+bool SrsConfig::get_hikvision_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.hikvision.enabled"); // SRS_HIKVISION_ENABLED
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective *conf = root_->get("hikvision");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+string SrsConfig::get_hikvision_output()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.hikvision.output"); // SRS_HIKVISION_OUTPUT
+
+    static string DEFAULT = "rtmp://127.0.0.1/live/[stream]";
+
+    SrsConfDirective *conf = root_->get("hikvision");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("output");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_hikvision_sdk_path()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.hikvision.sdk_path"); // SRS_HIKVISION_SDK_PATH
+
+    static string DEFAULT = "";
+
+    SrsConfDirective *conf = root_->get("hikvision");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("sdk_path");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+srs_utime_t SrsConfig::get_hikvision_idle_timeout()
+{
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.hikvision.idle_timeout"); // SRS_HIKVISION_IDLE_TIMEOUT
+
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
+
+    SrsConfDirective *conf = root_->get("hikvision");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("idle_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+}
+
+srs_utime_t SrsConfig::get_hikvision_ptz_timeout()
+{
+    SRS_OVERWRITE_BY_ENV_SECONDS("srs.hikvision.ptz_timeout"); // SRS_HIKVISION_PTZ_TIMEOUT
+
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
+
+    SrsConfDirective *conf = root_->get("hikvision");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("ptz_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+}
+
+vector<SrsConfDirective *> SrsConfig::get_hikvision_devices()
+{
+    vector<SrsConfDirective *> devices;
+
+    SrsConfDirective *conf = root_->get("hikvision");
+    if (!conf) {
+        return devices;
+    }
+
+    for (int i = 0; i < (int)conf->directives_.size(); i++) {
+        SrsConfDirective *dir = conf->at(i);
+        if (dir->name_ == "device") {
+            devices.push_back(dir);
+        }
+    }
+
+    return devices;
+}
+
+string SrsConfig::get_hikvision_device_serialno(SrsConfDirective *device)
+{
+    static string DEFAULT = "";
+
+    if (!device) {
+        return DEFAULT;
+    }
+
+    SrsConfDirective *conf = device->get("serialno");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_hikvision_device_host(SrsConfDirective *device)
+{
+    static string DEFAULT = "";
+
+    if (!device) {
+        return DEFAULT;
+    }
+
+    SrsConfDirective *conf = device->get("host");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+int SrsConfig::get_hikvision_device_port(SrsConfDirective *device)
+{
+    static int DEFAULT = 8000;
+
+    if (!device) {
+        return DEFAULT;
+    }
+
+    SrsConfDirective *conf = device->get("port");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return ::atoi(conf->arg0().c_str());
+}
+
+string SrsConfig::get_hikvision_device_user(SrsConfDirective *device)
+{
+    static string DEFAULT = "admin";
+
+    if (!device) {
+        return DEFAULT;
+    }
+
+    SrsConfDirective *conf = device->get("user");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_hikvision_device_password(SrsConfDirective *device)
+{
+    static string DEFAULT = "";
+
+    if (!device) {
+        return DEFAULT;
+    }
+
+    SrsConfDirective *conf = device->get("password");
+    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
 

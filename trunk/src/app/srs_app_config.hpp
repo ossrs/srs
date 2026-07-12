@@ -390,6 +390,20 @@ public:
     virtual std::string get_exporter_tag() = 0;
 
 public:
+    // Hikvision config (HCNetSDK on-demand pull)
+    virtual bool get_hikvision_enabled() = 0;
+    virtual std::string get_hikvision_output() = 0;
+    virtual std::string get_hikvision_sdk_path() = 0;
+    virtual srs_utime_t get_hikvision_idle_timeout() = 0;
+    virtual srs_utime_t get_hikvision_ptz_timeout() = 0;
+    virtual std::vector<SrsConfDirective *> get_hikvision_devices() = 0;
+    virtual std::string get_hikvision_device_serialno(SrsConfDirective *device) = 0;
+    virtual std::string get_hikvision_device_host(SrsConfDirective *device) = 0;
+    virtual int get_hikvision_device_port(SrsConfDirective *device) = 0;
+    virtual std::string get_hikvision_device_user(SrsConfDirective *device) = 0;
+    virtual std::string get_hikvision_device_password(SrsConfDirective *device) = 0;
+
+public:
     // Stats config
     virtual bool get_stats_enabled() = 0;
     virtual int get_stats_network() = 0;
@@ -1575,6 +1589,20 @@ public:
     virtual std::string get_exporter_listen();
     virtual std::string get_exporter_label();
     virtual std::string get_exporter_tag();
+
+    // hikvision section (HCNetSDK on-demand pull)
+public:
+    virtual bool get_hikvision_enabled();
+    virtual std::string get_hikvision_output();
+    virtual std::string get_hikvision_sdk_path();
+    virtual srs_utime_t get_hikvision_idle_timeout();
+    virtual srs_utime_t get_hikvision_ptz_timeout();
+    virtual std::vector<SrsConfDirective *> get_hikvision_devices();
+    virtual std::string get_hikvision_device_serialno(SrsConfDirective *device);
+    virtual std::string get_hikvision_device_host(SrsConfDirective *device);
+    virtual int get_hikvision_device_port(SrsConfDirective *device);
+    virtual std::string get_hikvision_device_user(SrsConfDirective *device);
+    virtual std::string get_hikvision_device_password(SrsConfDirective *device);
 };
 
 #endif
