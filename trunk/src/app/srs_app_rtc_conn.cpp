@@ -103,11 +103,21 @@ SrsSecurityTransport::SrsSecurityTransport(ISrsRtcNetwork *s)
 
 SrsSecurityTransport::~SrsSecurityTransport()
 {
+#ifdef SRS_SCTP
+    // Close SCTP before DTLS so late usrsctp callbacks cannot write freed SSL.
+    // If bulk FLV transfer is mid-flight (busy after srs_usleep yield), defer delete.
+    if (sctp_) {
+        sctp_->close();
+        if (sctp_->is_busy()) {
+            sctp_->mark_orphan();
+            sctp_ = NULL;
+        } else {
+            srs_freep(sctp_);
+        }
+    }
+#endif
     srs_freep(dtls_);
     srs_freep(srtp_);
-#ifdef SRS_SCTP
-    srs_freep(sctp_);
-#endif
 }
 
 srs_error_t SrsSecurityTransport::initialize(SrsSessionConfig *cfg)

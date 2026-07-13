@@ -822,6 +822,10 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux_->handle("/api/v1/hikvision/control", new SrsGoApiHikvisionControl())) != srs_success) {
         return srs_error_wrap(err, "handle hikvision control");
     }
+    // Cached FLV from DC cmd=play (PlaybackFileReady token); TCP not WebRTC.
+    if ((err = http_api_mux_->handle("/api/v1/hikvision/playback", new SrsGoApiHikvisionPlayback())) != srs_success) {
+        return srs_error_wrap(err, "handle hikvision playback");
+    }
 #endif
 
     // test the request info.

@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -23,6 +24,7 @@
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_app_st.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
@@ -2510,6 +2512,28 @@ srs_error_t ISrsHikvisionTalkListener::dc_send_binary(const char * /*data*/, int
     return srs_error_new(ERROR_HIKVISION_CONFIG, "dc_send_binary requires WebRTC DataChannel peer");
 }
 
+void ISrsHikvisionTalkListener::dc_acquire()
+{
+}
+
+void ISrsHikvisionTalkListener::dc_release()
+{
+}
+
+void ISrsHikvisionTalkListener::dc_note_play_ack(int64_t /*got*/)
+{
+}
+
+int64_t ISrsHikvisionTalkListener::dc_play_ack_got() const
+{
+    return 0;
+}
+
+bool ISrsHikvisionTalkListener::dc_alive() const
+{
+    return true;
+}
+
 static void CALLBACK srs_hikvision_voice_cb(LONG /*lVoiceComHandle*/, char *pRecvDataBuffer, DWORD dwBufSize,
                                            BYTE byAudioFlag, void *pUser)
 {
@@ -2869,6 +2893,12 @@ void SrsHikvisionManager::dispose()
         srs_freep(it->second);
     }
     talk_sessions_.clear();
+
+    for (map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.begin(); it != playback_cache_.end();
+         ++it) {
+        srs_freep(it->second);
+    }
+    playback_cache_.clear();
 
     for (map<string, SrsHikvisionDevice *>::iterator it = devices_.begin(); it != devices_.end(); ++it) {
         srs_freep(it->second);
@@ -3543,47 +3573,202 @@ srs_error_t SrsHikvisionManager::download_playback_flv(SrsHikvisionDevice *devic
     return err;
 }
 
-srs_error_t SrsHikvisionManager::send_flv_over_dc(ISrsHikvisionTalkListener *dc, int64_t start_unix, int64_t end_unix,
-                                                  const string &flv, string *out_reply)
+// Async job: SDK download + HTTP cache. Never bulk-send FLV over DataChannel
+// (same UDP 5-tuple as ICE/RTP → browser ICE disconnect + usrsctp EAGAIN storms can stall ST).
+class SrsHikvisionDcPlayJob : public ISrsCoroutineHandler
 {
-    srs_error_t err = srs_success;
-    if (!dc) {
-        return srs_error_new(ERROR_HIKVISION_CONFIG, "DataChannel peer required for cmd=play file transfer");
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    SrsHikvisionManager *mgr_;
+    SrsHikvisionDevice *device_;
+    int channel_;
+    int64_t start_unix_;
+    int64_t end_unix_;
+    ISrsHikvisionTalkListener *dc_;
+    ISrsCoroutine *trd_;
+
+public:
+    SrsHikvisionDcPlayJob(SrsHikvisionManager *mgr, SrsHikvisionDevice *device, int channel, int64_t start_unix,
+                          int64_t end_unix, ISrsHikvisionTalkListener *dc)
+    {
+        mgr_ = mgr;
+        device_ = device;
+        channel_ = channel;
+        start_unix_ = start_unix;
+        end_unix_ = end_unix;
+        dc_ = dc;
+        trd_ = new SrsSTCoroutine("hik-dc-play", this);
     }
-    const int chunk = 64 * 1024;
-    int total = (int)flv.size();
-    int chunks = (total + chunk - 1) / chunk;
-    if (chunks < 1) {
-        chunks = 1;
+    virtual ~SrsHikvisionDcPlayJob()
+    {
+        srs_freep(trd_);
     }
 
-    string header = srs_fmt_sprintf(
-        "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackFile\",\"format\":\"flv\","
-        "\"size\":%d,\"chunkSize\":%d,\"chunks\":%d,\"playback\":%lld,\"playback_stop\":%lld}",
-        total, chunk, chunks, (long long)start_unix, (long long)end_unix);
-    if ((err = dc->dc_send_text(header)) != srs_success) {
-        return srs_error_wrap(err, "dc header");
+    srs_error_t start()
+    {
+        // No dc_acquire: we only send one small JSON notify (no bulk yields holding SCTP).
+        return trd_->start();
     }
 
-    for (int i = 0; i < total; i += chunk) {
-        int n = srs_min(chunk, total - i);
-        if ((err = dc->dc_send_binary(flv.data() + i, n)) != srs_success) {
-            return srs_error_wrap(err, "dc binary chunk offset=%d", i);
+    virtual srs_error_t cycle()
+    {
+        srs_error_t err = srs_success;
+        string flv;
+        if ((err = mgr_->download_playback_flv(device_, channel_, start_unix_, end_unix_, flv)) != srs_success) {
+            srs_warn("Hikvision: async play download failed, err=%s", srs_error_desc(err).c_str());
+            srs_freep(err);
+            if (dc_ && dc_->dc_alive()) {
+                string ej = srs_fmt_sprintf(
+                    "{\"code\":-1,\"cmd\":\"play\",\"id\":\"HIK::PlaybackFileError\",\"msg\":\"download failed\","
+                    "\"playback\":%lld,\"playback_stop\":%lld}",
+                    (long long)start_unix_, (long long)end_unix_);
+                srs_error_t se = dc_->dc_send_text(ej);
+                srs_freep(se);
+            }
+            trd_ = NULL;
+            delete this;
+            return srs_success;
         }
-        // Yield so DTLS/SCTP can flush between large chunks.
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+        string token = mgr_->store_playback_flv(flv, start_unix_, end_unix_);
+        string url = "/api/v1/hikvision/playback?token=" + token;
+        srs_trace("Hikvision: playback ready size=%d token=%s range=%lld..%lld", (int)flv.size(), token.c_str(),
+                  (long long)start_unix_, (long long)end_unix_);
+
+        if (dc_ && dc_->dc_alive()) {
+            // Small JSON only — client downloads FLV via HTTP (TCP), not DC binary.
+            string ready = srs_fmt_sprintf(
+                "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackFileReady\",\"format\":\"flv\","
+                "\"size\":%d,\"url\":\"%s\",\"token\":\"%s\",\"via\":\"http\","
+                "\"playback\":%lld,\"playback_stop\":%lld}",
+                (int)flv.size(), url.c_str(), token.c_str(), (long long)start_unix_, (long long)end_unix_);
+            srs_error_t se = dc_->dc_send_text(ready);
+            if (se != srs_success) {
+                srs_warn("Hikvision: notify PlaybackFileReady failed, err=%s", srs_error_desc(se).c_str());
+                srs_freep(se);
+            }
+        }
+
+        trd_ = NULL;
+        delete this;
+        return srs_success;
+    }
+};
+
+// Unclaimed FLV (client never HTTP GET):
+// - TTL 2 minutes, reaped every 1s by idle cycle
+// - Max 4 entries / ~64MB total so memory cannot grow unbounded
+// - take() consumes entry immediately; dispose() frees all
+string SrsHikvisionManager::store_playback_flv(const string &flv, int64_t start_unix, int64_t end_unix)
+{
+    const size_t kMaxEntries = 4;
+    const size_t kMaxBytes = 64 * 1024 * 1024;
+    const srs_utime_t kTtl = 2 * 60 * SRS_UTIME_SECONDS;
+
+    reap_playback_cache();
+
+    // Drop earliest-expiring unclaimed entries until under limits.
+    while (!playback_cache_.empty()) {
+        size_t bytes = 0;
+        for (map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.begin();
+             it != playback_cache_.end(); ++it) {
+            bytes += it->second->flv.size();
+        }
+        if (playback_cache_.size() < kMaxEntries && bytes + flv.size() <= kMaxBytes) {
+            break;
+        }
+        map<string, SrsHikvisionPlaybackCache *>::iterator victim = playback_cache_.begin();
+        for (map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.begin();
+             it != playback_cache_.end(); ++it) {
+            if (it->second->expire_at < victim->second->expire_at) {
+                victim = it;
+            }
+        }
+        srs_warn("Hikvision: playback cache drop unclaimed token=%s size=%d (limit)", victim->first.c_str(),
+                 (int)victim->second->flv.size());
+        srs_freep(victim->second);
+        playback_cache_.erase(victim);
     }
 
-    string endj = srs_fmt_sprintf(
-        "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackFileEnd\",\"size\":%d,"
-        "\"playback\":%lld,\"playback_stop\":%lld}",
-        total, (long long)start_unix, (long long)end_unix);
-    if (out_reply) {
-        *out_reply = endj;
-    } else if ((err = dc->dc_send_text(endj)) != srs_success) {
-        return srs_error_wrap(err, "dc end");
+    string token = srs_fmt_sprintf("%lld%04d%04d", (long long)srs_time_now_realtime(),
+                                   (int)(::rand() % 10000), (int)(::rand() % 10000));
+    SrsHikvisionPlaybackCache *c = new SrsHikvisionPlaybackCache();
+    c->flv = flv;
+    c->start_unix = start_unix;
+    c->end_unix = end_unix;
+    c->expire_at = srs_time_now_realtime() + kTtl;
+    playback_cache_[token] = c;
+
+    size_t bytes = 0;
+    for (map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.begin(); it != playback_cache_.end();
+         ++it) {
+        bytes += it->second->flv.size();
     }
-    return err;
+    srs_trace("Hikvision: playback cache store token=%s size=%d entries=%d bytes=%d ttl=%ds", token.c_str(),
+              (int)flv.size(), (int)playback_cache_.size(), (int)bytes, (int)(kTtl / SRS_UTIME_SECONDS));
+    return token;
+}
+
+bool SrsHikvisionManager::take_playback_flv(const string &token, string &flv_out)
+{
+    if (token.empty()) {
+        return false;
+    }
+    map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.find(token);
+    if (it == playback_cache_.end()) {
+        return false;
+    }
+    SrsHikvisionPlaybackCache *c = it->second;
+    if (srs_time_now_realtime() > c->expire_at) {
+        srs_warn("Hikvision: playback cache expired token=%s size=%d (client never downloaded)", token.c_str(),
+                 (int)c->flv.size());
+        srs_freep(c);
+        playback_cache_.erase(it);
+        return false;
+    }
+    // Consume: remove from map so memory is released after HTTP write buffer is done.
+    flv_out.swap(c->flv);
+    srs_freep(c);
+    playback_cache_.erase(it);
+    return true;
+}
+
+void SrsHikvisionManager::reap_playback_cache()
+{
+    srs_utime_t now = srs_time_now_realtime();
+    vector<string> dead;
+    for (map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.begin(); it != playback_cache_.end();
+         ++it) {
+        if (now > it->second->expire_at) {
+            dead.push_back(it->first);
+        }
+    }
+    for (size_t i = 0; i < dead.size(); i++) {
+        map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.find(dead[i]);
+        if (it == playback_cache_.end()) {
+            continue;
+        }
+        srs_warn("Hikvision: playback cache reap unclaimed token=%s size=%d", it->first.c_str(),
+                 (int)it->second->flv.size());
+        srs_freep(it->second);
+        playback_cache_.erase(it);
+    }
+}
+
+srs_error_t SrsHikvisionManager::start_dc_play_job(SrsHikvisionDevice *device, int channel, int64_t start_unix,
+                                                    int64_t end_unix, ISrsHikvisionTalkListener *dc)
+{
+    if (!device || !dc) {
+        return srs_error_new(ERROR_HIKVISION_CONFIG, "start_dc_play_job need device+dc");
+    }
+    SrsHikvisionDcPlayJob *job = new SrsHikvisionDcPlayJob(this, device, channel, start_unix, end_unix, dc);
+    srs_error_t err = job->start();
+    if (err != srs_success) {
+        delete job;
+        return srs_error_wrap(err, "start dc play job");
+    }
+    // job self-deletes in cycle().
+    return srs_success;
 }
 
 srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string &stream_context,
@@ -3774,6 +3959,24 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
         return err;
     }
 
+    // Client FLV flow-control ACK during bulk DC transfer.
+    // {"cmd":"play_ack","got":bytesReceived}
+    if (cmd == "play_ack" || cmd == "flv_ack") {
+        int64_t got = 0;
+        if ((prop = req->ensure_property_integer("got")) != NULL) {
+            got = prop->to_integer();
+        } else if ((prop = req->ensure_property_integer("offset")) != NULL) {
+            got = prop->to_integer();
+        }
+        if (talk_listener && got >= 0) {
+            talk_listener->dc_note_play_ack(got);
+        }
+        if (out_reply) {
+            *out_reply = "__noreply__";
+        }
+        return err;
+    }
+
     // Bulk file download via SDK (PlayBackSaveData + PLAYFAST), remux to FLV, return over DC/HTTP.
     // {"cmd":"play","playback":unixStart,"playback_stop":unixStop}
     // NOT the 1x stream VOD path — NVR pushes recording file as fast as possible.
@@ -3794,18 +3997,24 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
                                  "cmd=play needs playback + playback_stop (unix seconds, stop>start)");
         }
 
+        // DataChannel: never bulk FLV on SCTP (ICE death). Async SDK download → HTTP token URL.
+        if (talk_listener) {
+            if ((err = start_dc_play_job(device, channel, start_unix, end_unix, talk_listener)) != srs_success) {
+                return srs_error_wrap(err, "start async play job");
+            }
+            if (out_reply) {
+                *out_reply = srs_fmt_sprintf(
+                    "{\"code\":0,\"msg\":\"accepted\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackAccepted\","
+                    "\"via\":\"http\",\"playback\":%lld,\"playback_stop\":%lld}",
+                    (long long)start_unix, (long long)end_unix);
+            }
+            return err;
+        }
+        // HTTP: sync download + raw FLV body (not on SCTP stack).
         string flv;
         if ((err = download_playback_flv(device, channel, start_unix, end_unix, flv)) != srs_success) {
             return srs_error_wrap(err, "sdk download flv");
         }
-
-        if (talk_listener) {
-            if ((err = send_flv_over_dc(talk_listener, start_unix, end_unix, flv, out_reply)) != srs_success) {
-                return srs_error_wrap(err, "send flv over dc");
-            }
-            return err;
-        }
-        // HTTP: return raw FLV body.
         if (out_binary) {
             *out_binary = flv;
             if (out_reply) {
@@ -3983,6 +4192,7 @@ srs_error_t SrsHikvisionManager::cycle()
         // Auto-stop PTZ when no stop command within ptz_timeout.
         reap_ptz_timeouts();
         reap_talk_timeouts();
+        reap_playback_cache();
 
         srs_utime_t idle = config_->get_hikvision_idle_timeout();
         srs_utime_t now = srs_time_now_cached();
@@ -4067,6 +4277,55 @@ srs_error_t SrsGoApiHikvisionControl::serve_http(ISrsHttpResponseWriter *w, ISrs
     res->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
     res->set("msg", SrsJsonAny::str("ok"));
     return srs_api_response(w, r, res->dumps());
+}
+
+// ---------------------------------------------------------------------------
+// SrsGoApiHikvisionPlayback — GET cached FLV (token from DC PlaybackFileReady)
+// ---------------------------------------------------------------------------
+
+SrsGoApiHikvisionPlayback::SrsGoApiHikvisionPlayback()
+{
+}
+
+SrsGoApiHikvisionPlayback::~SrsGoApiHikvisionPlayback()
+{
+}
+
+srs_error_t SrsGoApiHikvisionPlayback::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+{
+    srs_error_t err = srs_success;
+
+    if (!_srs_hikvision || !_srs_hikvision->enabled()) {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_ServiceUnavailable);
+    }
+
+    // Only GET — POST is control API.
+    if (!r->is_http_get()) {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
+    }
+
+    string token = r->query_get("token");
+    if (token.empty()) {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_BadRequest);
+    }
+
+    string flv;
+    if (!_srs_hikvision->take_playback_flv(token, flv) || flv.empty()) {
+        srs_warn("Hikvision: playback token missing/expired token=%s", token.c_str());
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound);
+    }
+
+    w->header()->set_content_type("video/x-flv");
+    w->header()->set_content_length((int)flv.size());
+    // Allow browser download from demo page.
+    w->header()->set("Content-Disposition", "attachment; filename=\"playback.flv\"");
+    w->header()->set("Cache-Control", "no-store");
+
+    if ((err = w->write((char *)flv.data(), (int)flv.size())) != srs_success) {
+        return srs_error_wrap(err, "write playback flv");
+    }
+    srs_trace("Hikvision: HTTP playback served token=%s size=%d", token.c_str(), (int)flv.size());
+    return w->final_request();
 }
 
 #endif // SRS_HIKVISION

@@ -313,6 +313,13 @@ public:
     virtual srs_error_t dc_send_text(const std::string &s);
     // Optional: send binary (e.g. FLV file chunks) on DataChannel (default: unsupported).
     virtual srs_error_t dc_send_binary(const char *data, int len);
+    // Hold peer alive across yields (srs_usleep) during bulk FLV send; default no-op.
+    virtual void dc_acquire();
+    virtual void dc_release();
+    // Flow control for bulk FLV: client reports received bytes via play_ack.
+    virtual void dc_note_play_ack(int64_t got);
+    virtual int64_t dc_play_ack_got() const;
+    virtual bool dc_alive() const;
 };
 
 // One VoiceCom session per device channel (SDK typically allows one talk path).
@@ -380,6 +387,16 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::map<std::string, SrsHikvisionPtzSession *> ptz_sessions_;
     // Key: serialno_channel
     std::map<std::string, SrsHikvisionTalkSession *> talk_sessions_;
+    // Temporary FLV cache for HTTP download after DC cmd=play (token → body).
+    // Bulk FLV must NOT go over WebRTC DataChannel (kills ICE / can stall ST).
+    struct SrsHikvisionPlaybackCache {
+        std::string flv;
+        int64_t start_unix;
+        int64_t end_unix;
+        srs_utime_t expire_at;
+        SrsHikvisionPlaybackCache() : start_unix(0), end_unix(0), expire_at(0) {}
+    };
+    std::map<std::string, SrsHikvisionPlaybackCache *> playback_cache_;
     ISrsCoroutine *idle_trd_;
 
 public:
@@ -400,11 +417,13 @@ public:
     //   {"cmd":"ptz","dir":"up"}                                  // DataChannel: stream from RTC play context
     //   {"cmd":"talk","action":"start"}
     //   {"cmd":"search_record","start":1700000000,"end":1700086400}
-    //   {"cmd":"play","playback":1700000000,"playback_stop":1700000060}  // DC: FLV file via binary msgs
+    //   {"cmd":"play","playback":1700000000,"playback_stop":1700000060}
+    //     DC: async SDK download → HIK::PlaybackFileReady + HTTP token URL (not bulk DC binary)
+    //     HTTP POST: raw video/x-flv body
     // stream_context: default stream for DataChannel (from WebRTC play session).
     // talk_listener: optional DC peer for talk + play file transfer.
     // out_reply: optional full JSON response (e.g. search results); if empty on success, caller uses generic ok.
-    // out_binary: optional FLV body for HTTP clients of cmd=play (DC uses talk_listener binary send).
+    // out_binary: optional FLV body for HTTP clients of cmd=play.
     srs_error_t handle_control_json(const std::string &json, const std::string &stream_context = "",
                                     ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL,
                                     std::string *out_binary = NULL);
@@ -416,6 +435,15 @@ public:
     srs_error_t talk_send_uplink(const std::string &stream_context, const char *data, int len);
     // Drop listener from all talk sessions (RTC dispose).
     void talk_remove_listener(ISrsHikvisionTalkListener *listener);
+
+    // Used by async DC play job (public for SrsHikvisionDcPlayJob).
+    srs_error_t download_playback_flv(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
+                                      std::string &flv_out);
+    // Cache FLV for HTTP GET /api/v1/hikvision/playback?token=...
+    std::string store_playback_flv(const std::string &flv, int64_t start_unix, int64_t end_unix);
+    // Take (consume) cached FLV by token. Returns false if missing/expired.
+    bool take_playback_flv(const std::string &token, std::string &flv_out);
+    void reap_playback_cache();
 
     // Interface ISrsCoroutineHandler (idle reaper + PTZ auto-stop + talk idle)
 public:
@@ -439,13 +467,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // NET_DVR_FindFile_V40 recording list. start/end unix seconds (local device clock).
     srs_error_t search_records(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
                                int file_type, int stream_type, int max_results, std::string *out_json);
-    // SDK bulk download (PlayBackSaveData + PLAYFAST), then remux to FLV via ffmpeg.
-    // Not the 1x VOD HTTP-FLV path — downloads as fast as NVR allows.
-    srs_error_t download_playback_flv(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
-                                      std::string &flv_out);
-    // Send FLV over DataChannel: JSON header + binary chunks; out_reply = end JSON.
-    srs_error_t send_flv_over_dc(ISrsHikvisionTalkListener *dc, int64_t start_unix, int64_t end_unix,
-                                 const std::string &flv, std::string *out_reply);
+    // Async: SDK download + cache + DC notify URL (must NOT run inside usrsctp recv).
+    srs_error_t start_dc_play_job(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
+                                  ISrsHikvisionTalkListener *dc);
 };
 
 // HTTP API: POST /api/v1/hikvision/control
@@ -455,6 +479,18 @@ class SrsGoApiHikvisionControl : public ISrsHttpHandler
 public:
     SrsGoApiHikvisionControl();
     virtual ~SrsGoApiHikvisionControl();
+
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+};
+
+// HTTP API: GET /api/v1/hikvision/playback?token=...
+// Returns cached FLV from DC cmd=play async job (does not use WebRTC path).
+class SrsGoApiHikvisionPlayback : public ISrsHttpHandler
+{
+public:
+    SrsGoApiHikvisionPlayback();
+    virtual ~SrsGoApiHikvisionPlayback();
 
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);

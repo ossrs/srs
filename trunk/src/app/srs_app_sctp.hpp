@@ -90,6 +90,14 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // Preferred sid for binary talk audio (label hik-audio or first open channel).
     uint16_t talk_audio_sid_;
     bool talk_audio_sid_set_;
+    // Set when RTC transport is disposing; late usrsctp callbacks must no-op.
+    bool closed_;
+    // Bulk transfer in progress (FLV over DC). Keep this object alive across srs_usleep yields.
+    int busy_count_;
+    // Transport destroyed while busy_; self-delete when busy reaches 0.
+    bool orphan_;
+    // Client FLV receive watermark (bytes) from {"cmd":"play_ack","got":N}.
+    int64_t flv_ack_got_;
 
 public:
     // dtls_writer must outlive this object (typically SrsSecurityTransport).
@@ -100,6 +108,13 @@ public:
     void set_handler(ISrsSctpHandler *h);
     void set_stream_context(const std::string &stream);
     std::string stream_context() const;
+    // Detach DTLS writer and stop accepting send/feed (call before free transport).
+    void close();
+    bool is_busy() const;
+    // If busy, mark orphan instead of delete (caller must not freep).
+    void mark_orphan();
+    void acquire();
+    void release();
 
     srs_error_t connect_peer();
     void feed(const char *buf, int nb_buf);
@@ -113,6 +128,11 @@ public:
     virtual void on_talk_downlink(const std::string &talk_key, const char *data, int len);
     virtual srs_error_t dc_send_text(const std::string &s);
     virtual srs_error_t dc_send_binary(const char *data, int len);
+    virtual void dc_acquire();
+    virtual void dc_release();
+    virtual void dc_note_play_ack(int64_t got);
+    virtual int64_t dc_play_ack_got() const;
+    virtual bool dc_alive() const;
 #endif
 
     // usrsctp callbacks (public for C linkage).

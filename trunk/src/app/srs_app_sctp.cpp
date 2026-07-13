@@ -101,7 +101,8 @@ static int on_send_sctp_data(void *addr, void *data, size_t len, uint8_t /*tos*/
 
     srs_error_t err = sctp->write_dtls(reinterpret_cast<const char *>(data), (int)len);
     if (err != srs_success) {
-        srs_warn("SCTP: write DTLS failed, err=%s", srs_error_desc(err).c_str());
+        // During teardown this is common; do not spam as hard failure.
+        srs_info("SCTP: write DTLS failed, err=%s", srs_error_desc(err).c_str());
         srs_freep(err);
         return -1;
     }
@@ -156,6 +157,10 @@ SrsSctp::SrsSctp(ISrsDtlsCallback *dtls_writer, ISrsSctpHandler *handler)
     sctp_socket_ = NULL;
     talk_audio_sid_ = 0;
     talk_audio_sid_set_ = false;
+    closed_ = false;
+    busy_count_ = 0;
+    orphan_ = false;
+    flv_ack_got_ = 0;
 
     if (_srs_sctp_env == NULL) {
         _srs_sctp_env = new SrsSctpGlobalEnv();
@@ -190,6 +195,18 @@ SrsSctp::SrsSctp(ISrsDtlsCallback *dtls_writer, ISrsSctpHandler *handler)
         srs_warn("SCTP: SCTP_NODELAY failed ret=%d", ret);
     }
 
+    // Larger send buffer for bulk FLV transfer over DataChannel (avoids early EAGAIN).
+    int sndbuf = 2 * 1024 * 1024;
+    ret = usrsctp_setsockopt(sctp_socket_, SOL_SOCKET, SO_SNDBUF, &sndbuf, sizeof(sndbuf));
+    if (ret < 0) {
+        srs_warn("SCTP: SO_SNDBUF failed ret=%d", ret);
+    }
+    int rcvbuf = 2 * 1024 * 1024;
+    ret = usrsctp_setsockopt(sctp_socket_, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf));
+    if (ret < 0) {
+        srs_warn("SCTP: SO_RCVBUF failed ret=%d", ret);
+    }
+
     struct sctp_event event;
     memset(&event, 0, sizeof(event));
     event.se_on = 1;
@@ -221,6 +238,45 @@ SrsSctp::SrsSctp(ISrsDtlsCallback *dtls_writer, ISrsSctpHandler *handler)
     }
 }
 
+void SrsSctp::close()
+{
+    closed_ = true;
+    // Detach transport first so late usrsctp send callbacks cannot touch freed DTLS.
+    dtls_writer_ = NULL;
+    handler_ = NULL;
+    data_channels_.clear();
+    if (sctp_socket_) {
+        usrsctp_close(sctp_socket_);
+        sctp_socket_ = NULL;
+    }
+}
+
+bool SrsSctp::is_busy() const
+{
+    return busy_count_ > 0;
+}
+
+void SrsSctp::mark_orphan()
+{
+    orphan_ = true;
+}
+
+void SrsSctp::acquire()
+{
+    busy_count_++;
+}
+
+void SrsSctp::release()
+{
+    if (busy_count_ > 0) {
+        busy_count_--;
+    }
+    if (busy_count_ == 0 && orphan_) {
+        // Transport already gone; finish deferred delete.
+        delete this;
+    }
+}
+
 SrsSctp::~SrsSctp()
 {
 #ifdef SRS_HIKVISION
@@ -228,13 +284,10 @@ SrsSctp::~SrsSctp()
         _srs_hikvision->talk_remove_listener(this);
     }
 #endif
-    if (sctp_socket_) {
-        usrsctp_close(sctp_socket_);
-        sctp_socket_ = NULL;
-    }
+    close();
     usrsctp_deregister_address(static_cast<void *>(this));
-    dtls_writer_ = NULL;
-    handler_ = NULL;
+    orphan_ = false;
+    busy_count_ = 0;
 }
 
 void SrsSctp::set_handler(ISrsSctpHandler *h)
@@ -286,7 +339,7 @@ srs_error_t SrsSctp::connect_peer()
 
 void SrsSctp::feed(const char *buf, int nb_buf)
 {
-    if (!buf || nb_buf <= 0) {
+    if (closed_ || !sctp_socket_ || !buf || nb_buf <= 0) {
         return;
     }
     usrsctp_conninput(this, buf, (size_t)nb_buf, 0);
@@ -294,8 +347,9 @@ void SrsSctp::feed(const char *buf, int nb_buf)
 
 srs_error_t SrsSctp::write_dtls(const char *data, int len)
 {
-    if (!dtls_writer_ || !data || len <= 0) {
-        return srs_error_new(ERROR_RTC_SCTP, "invalid dtls write");
+    // After RTC dispose, usrsctp may still flush; ignore silently.
+    if (closed_ || !dtls_writer_ || !data || len <= 0) {
+        return srs_success;
     }
     // Must SSL_write (DTLS encrypt). Raw write_dtls_data leaves SCTP unencrypted and
     // browsers never complete DataChannel (INIT retransmits forever).
@@ -388,7 +442,8 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo &rcv, Srs
         ch.status_ = SrsDataChannelStatusOpen;
         data_channels_[ch.sid_] = ch;
 
-        if (label == "hik-audio" || !talk_audio_sid_set_) {
+        // Only bind talk audio sid for the audio channel — never steal control DC.
+        if (label == "hik-audio") {
             talk_audio_sid_ = ch.sid_;
             talk_audio_sid_set_ = true;
         }
@@ -486,6 +541,10 @@ srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuff
             send(rcv.rcv_sid, reply.data(), (int)reply.size(), true);
             return srs_success;
         }
+        // play_ack uses noreply to avoid ACK-of-ACK traffic during bulk FLV.
+        if (reply == "__noreply__") {
+            return err;
+        }
         if (reply.empty()) {
             reply = "{\"code\":0,\"msg\":\"ok\"}";
         }
@@ -522,15 +581,23 @@ void SrsSctp::on_talk_downlink(const string & /*talk_key*/, const char *data, in
     }
 }
 
-static uint16_t srs_sctp_pick_open_sid(const map<uint16_t, SrsDataChannelInfo> &chs, uint16_t talk_sid, bool talk_set)
+// Control / bulk FLV: prefer labeled "hikvision" or sid 0; never prefer hik-audio.
+static uint16_t srs_sctp_pick_control_sid(const map<uint16_t, SrsDataChannelInfo> &chs)
 {
-    if (talk_set && chs.find(talk_sid) != chs.end()) {
-        return talk_sid;
+    map<uint16_t, SrsDataChannelInfo>::const_iterator it;
+    for (it = chs.begin(); it != chs.end(); ++it) {
+        if (it->second.status_ == SrsDataChannelStatusOpen && it->second.label_ == "hikvision") {
+            return it->first;
+        }
     }
-    // Prefer sid 0 (default labeled channel) if open.
-    map<uint16_t, SrsDataChannelInfo>::const_iterator it = chs.find(0);
-    if (it != chs.end() && it->second.status_ == SrsDataChannelStatusOpen) {
+    it = chs.find(0);
+    if (it != chs.end() && it->second.status_ == SrsDataChannelStatusOpen && it->second.label_ != "hik-audio") {
         return 0;
+    }
+    for (it = chs.begin(); it != chs.end(); ++it) {
+        if (it->second.status_ == SrsDataChannelStatusOpen && it->second.label_ != "hik-audio") {
+            return it->first;
+        }
     }
     for (it = chs.begin(); it != chs.end(); ++it) {
         if (it->second.status_ == SrsDataChannelStatusOpen) {
@@ -545,7 +612,10 @@ srs_error_t SrsSctp::dc_send_text(const string &s)
     if (s.empty()) {
         return srs_success;
     }
-    uint16_t sid = srs_sctp_pick_open_sid(data_channels_, talk_audio_sid_, talk_audio_sid_set_);
+    if (closed_) {
+        return srs_error_new(ERROR_RTC_SCTP, "dc closed");
+    }
+    uint16_t sid = srs_sctp_pick_control_sid(data_channels_);
     return send(sid, s.data(), (int)s.size(), true);
 }
 
@@ -554,16 +624,52 @@ srs_error_t SrsSctp::dc_send_binary(const char *data, int len)
     if (!data || len <= 0) {
         return srs_success;
     }
-    uint16_t sid = srs_sctp_pick_open_sid(data_channels_, talk_audio_sid_, talk_audio_sid_set_);
+    if (closed_) {
+        return srs_error_new(ERROR_RTC_SCTP, "dc closed");
+    }
+    // Bulk FLV and generic binary go on control channel (not talk audio).
+    uint16_t sid = srs_sctp_pick_control_sid(data_channels_);
     return send(sid, data, len, false);
+}
+
+void SrsSctp::dc_acquire()
+{
+    acquire();
+}
+
+void SrsSctp::dc_release()
+{
+    release();
+}
+
+void SrsSctp::dc_note_play_ack(int64_t got)
+{
+    // got < 0 resets watermark for a new FLV transfer.
+    if (got < 0) {
+        flv_ack_got_ = 0;
+        return;
+    }
+    if (got >= flv_ack_got_) {
+        flv_ack_got_ = got;
+    }
+}
+
+int64_t SrsSctp::dc_play_ack_got() const
+{
+    return flv_ack_got_;
+}
+
+bool SrsSctp::dc_alive() const
+{
+    return !closed_ && sctp_socket_ != NULL;
 }
 #endif
 
 srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string)
 {
     srs_error_t err = srs_success;
-    if (!sctp_socket_ || !buf || len <= 0) {
-        return srs_error_new(ERROR_RTC_SCTP, "invalid send");
+    if (closed_ || !sctp_socket_ || !buf || len <= 0) {
+        return srs_error_new(ERROR_RTC_SCTP, "invalid send closed=%d", closed_ ? 1 : 0);
     }
 
     map<uint16_t, SrsDataChannelInfo>::iterator iter = data_channels_.find(sid);
@@ -599,11 +705,27 @@ srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string
         }
     }
 
-    int ret = usrsctp_sendv(sctp_socket_, buf, (size_t)len, NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0);
-    if (ret < 0) {
-        return srs_error_new(ERROR_RTC_SCTP, "usrsctp_sendv ret=%d errno=%d", ret, errno);
+    // Non-blocking: brief EAGAIN retry only (control/talk). Bulk FLV no longer uses DC.
+    // Long retry loops previously starved ST and made the whole process appear hung.
+    const int kMaxAttempts = 100; // ~1s with 10ms sleep
+    int ret = -1;
+    int last_errno = 0;
+    for (int attempt = 0; attempt < kMaxAttempts; attempt++) {
+        if (closed_ || !sctp_socket_) {
+            return srs_error_new(ERROR_RTC_SCTP, "dc closed during send");
+        }
+        ret = usrsctp_sendv(sctp_socket_, buf, (size_t)len, NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0);
+        if (ret >= 0) {
+            return err;
+        }
+        last_errno = errno;
+        if (last_errno != EAGAIN && last_errno != EWOULDBLOCK) {
+            break;
+        }
+        usrsctp_handle_timers(10);
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
     }
-    return err;
+    return srs_error_new(ERROR_RTC_SCTP, "usrsctp_sendv ret=%d errno=%d len=%d after retries", ret, last_errno, len);
 }
 
 void SrsSctp::broadcast(const char *buf, int len)

@@ -309,9 +309,10 @@
           DataChannel（推荐）: <code>{"cmd":"search_record","start":unix,"end":unix}</code> — 不用带 stream，用 Play 会话上下文。<br/>
           HTTP: 需加 <code>"stream":"SN_6_0"</code>。<br/>
           返回 <code>id=HIK::SearchRecordResult</code>，条目含 <code>vodStream</code> 可填入 Stream 回放。<br/>
-          整段下载 FLV（SDK <code>PlayBackSaveData</code> 高速落盘，再转 FLV，非 1x 拉流；≤300s）：
+          整段下载 FLV（SDK 高速落盘→FLV；≤300s）：
           <code>{"cmd":"play","playback":startUnix,"playback_stop":endUnix}</code><br/>
-          DC 回包：JSON <code>HIK::PlaybackFile</code> → 二进制 FLV 分片 → <code>HIK::PlaybackFileEnd</code>。
+          DC 只做信令：<code>PlaybackAccepted</code> → SDK 落盘 → <code>PlaybackFileReady</code> +
+          <code>GET /api/v1/hikvision/playback?token=…</code> 下 FLV（走 HTTP，不占 ICE）。
         </div>
       </section>
 
@@ -342,6 +343,8 @@
   let talkProc = null;
   let talkStream = null;
   let talkPlayTime = 0;
+  // FLV download state (HTTP via token after DC PlaybackFileReady).
+  let flvHttpBusy = false;
 
   // ---- G.711 A-law (ITU-T) ----
   function linearToALawSample(sample) {
@@ -464,10 +467,11 @@
       pc.oniceconnectionstatechange = () => {
         $('stIce').textContent = pc.iceConnectionState;
         log('ICE ' + pc.iceConnectionState);
-        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+        if (pc.iceConnectionState === 'failed') {
           setDot('dotMedia', 'off');
-        }
-        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        } else if (pc.iceConnectionState === 'disconnected') {
+          setDot('dotMedia', 'warn');
+        } else if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
           setDot('dotMedia', 'on');
           $('stMedia').textContent = 'playing';
         }
@@ -630,15 +634,118 @@
           if (j && (j.cmd === 'search_record' || j.id === 'HIK::SearchRecordResult')) {
             renderRecords(j);
           }
+          if (j && j.id === 'HIK::PlaybackAccepted') {
+            log('FLV accepted: SDK download then HTTP URL (not DC binary)…', 'i');
+          }
+          if (j && j.id === 'HIK::PlaybackFileReady' && j.url) {
+            fetchPlaybackFlvHttp(j);
+          }
+          if (j && j.id === 'HIK::PlaybackFileError') {
+            log('FLV download error: ' + (j.msg || JSON.stringify(j)), 'err');
+          }
         } catch (e) {}
         return;
       }
-      // Binary: talk downlink G.711
+      // Binary: talk downlink G.711 only (bulk FLV uses HTTP now).
       const u8 = new Uint8Array(ev.data);
       if (talking && talkAudioCtx && u8.length > 0) {
         playTalkDownlink(u8);
       }
     };
+  }
+
+  function saveFlvBlob(blob, start, end) {
+    const name = 'hik_' + (start || 'rec') + '_' + (end || '') + '.flv';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      try { document.body.removeChild(a); } catch (e) {}
+      try { URL.revokeObjectURL(url); } catch (e) {}
+    }, 2000);
+    log('FLV saved ' + name + ' bytes=' + blob.size, 'ok');
+  }
+
+  async function fetchPlaybackFlvHttp(j) {
+    if (flvHttpBusy) {
+      log('FLV HTTP download already in progress', 'i');
+      return;
+    }
+    flvHttpBusy = true;
+    try {
+      let path = j.url || '';
+      if (path.indexOf('http') !== 0) {
+        // Relative API path → same host as API (HTTPS demo often uses :8088 for page, API on 1990/1985).
+        path = apiBase() + path;
+      }
+      log('HTTP GET FLV ' + path + ' size~' + (j.size || '?'), 'i');
+      const resp = await fetch(path, { method: 'GET', credentials: 'omit' });
+      if (!resp.ok) {
+        throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
+      }
+      const buf = await resp.arrayBuffer();
+      const blob = new Blob([buf], { type: 'video/x-flv' });
+      saveFlvBlob(blob, j.playback, j.playback_stop);
+    } catch (e) {
+      log('HTTP FLV download failed: ' + e, 'err');
+    } finally {
+      flvHttpBusy = false;
+    }
+  }
+
+  function downloadRecordFlv(startUnix, endUnix) {
+    startUnix = parseInt(startUnix, 10);
+    endUnix = parseInt(endUnix, 10);
+    if (!startUnix || !endUnix || endUnix <= startUnix) {
+      log('invalid record range', 'err');
+      return;
+    }
+    if (endUnix - startUnix > 300) {
+      log('range >300s, server may clamp duration', 'i');
+    }
+    const obj = { cmd: 'play', playback: startUnix, playback_stop: endUnix };
+    // Prefer DC signaling → server caches FLV → HTTP GET token URL (keeps ICE alive).
+    if (!preferHttp && dc && dc.readyState === 'open') {
+      try {
+        dc.send(JSON.stringify(obj));
+        log('DC >> play (HTTP file ready soon) ' + startUnix + '..' + endUnix, 'ok');
+        return;
+      } catch (e) {
+        log('DC play failed: ' + e, 'err');
+      }
+    }
+    // Fallback: HTTP POST control returns raw FLV body (blocks until SDK done).
+    (async () => {
+      try {
+        flvHttpBusy = true;
+        const url = apiBase() + '/api/v1/hikvision/control';
+        log('HTTP POST play (sync FLV)…', 'i');
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(withStreamIfHttp(obj))
+        });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error('HTTP ' + resp.status + ' ' + t.slice(0, 200));
+        }
+        const ct = (resp.headers.get('content-type') || '');
+        if (ct.indexOf('flv') < 0 && ct.indexOf('octet') < 0) {
+          const t = await resp.text();
+          throw new Error('unexpected JSON/text: ' + t.slice(0, 200));
+        }
+        const buf = await resp.arrayBuffer();
+        saveFlvBlob(new Blob([buf], { type: 'video/x-flv' }), startUnix, endUnix);
+      } catch (e) {
+        log('HTTP play failed: ' + e, 'err');
+      } finally {
+        flvHttpBusy = false;
+      }
+    })();
   }
 
   function playTalkDownlink(u8) {
@@ -844,8 +951,11 @@
     list.slice(0, 50).forEach((r) => {
       const line = document.createElement('div');
       const vod = r.vodStream || '';
-      line.innerHTML = (r.fileName || '') + ' ' + r.start + '→' + r.end +
-        (vod ? ' <a href="#" data-vod="' + vod + '">' + vod + '</a>' : '');
+      const st = r.start != null ? r.start : '';
+      const en = r.end != null ? r.end : '';
+      line.innerHTML = (r.fileName || '') + ' ' + st + '→' + en +
+        (vod ? ' <a href="#" data-vod="' + vod + '">vod</a>' : '') +
+        (st && en ? ' <a href="#" data-dl-start="' + st + '" data-dl-end="' + en + '">下载FLV</a>' : '');
       el.appendChild(line);
     });
     el.querySelectorAll('a[data-vod]').forEach((a) => {
@@ -853,6 +963,12 @@
         e.preventDefault();
         $('stream').value = a.getAttribute('data-vod');
         log('filled stream=' + a.getAttribute('data-vod'), 'ok');
+      };
+    });
+    el.querySelectorAll('a[data-dl-start]').forEach((a) => {
+      a.onclick = (e) => {
+        e.preventDefault();
+        downloadRecordFlv(a.getAttribute('data-dl-start'), a.getAttribute('data-dl-end'));
       };
     });
   }
