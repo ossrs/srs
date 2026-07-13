@@ -387,10 +387,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::map<std::string, SrsHikvisionPtzSession *> ptz_sessions_;
     // Key: serialno_channel
     std::map<std::string, SrsHikvisionTalkSession *> talk_sessions_;
-    // Temporary FLV cache for HTTP download after DC cmd=play (token → body).
-    // Bulk FLV must NOT go over WebRTC DataChannel (kills ICE / can stall ST).
+    // Temporary MPEG-TS cache for HTTP download after DC cmd=play (token → body).
+    // For mpegts.js (incl. iOS MSE). Bulk file must NOT go over WebRTC DataChannel.
     struct SrsHikvisionPlaybackCache {
-        std::string flv;
+        std::string body; // MPEG-TS bytes
         int64_t start_unix;
         int64_t end_unix;
         srs_utime_t expire_at;
@@ -418,12 +418,12 @@ public:
     //   {"cmd":"talk","action":"start"}
     //   {"cmd":"search_record","start":1700000000,"end":1700086400}
     //   {"cmd":"play","playback":1700000000,"playback_stop":1700000060}
-    //     DC: async SDK download → HIK::PlaybackFileReady + HTTP token URL (not bulk DC binary)
-    //     HTTP POST: raw video/x-flv body
+    //     DC: async SDK download → HIK::PlaybackFileReady + HTTP token URL (MPEG-TS for mpegts.js)
+    //     HTTP POST: raw video/mp2t body
     // stream_context: default stream for DataChannel (from WebRTC play session).
-    // talk_listener: optional DC peer for talk + play file transfer.
+    // talk_listener: optional DC peer for talk + play notify.
     // out_reply: optional full JSON response (e.g. search results); if empty on success, caller uses generic ok.
-    // out_binary: optional FLV body for HTTP clients of cmd=play.
+    // out_binary: optional MPEG-TS body for HTTP clients of cmd=play.
     srs_error_t handle_control_json(const std::string &json, const std::string &stream_context = "",
                                     ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL,
                                     std::string *out_binary = NULL);
@@ -437,12 +437,13 @@ public:
     void talk_remove_listener(ISrsHikvisionTalkListener *listener);
 
     // Used by async DC play job (public for SrsHikvisionDcPlayJob).
-    srs_error_t download_playback_flv(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
-                                      std::string &flv_out);
-    // Cache FLV for HTTP GET /api/v1/hikvision/playback?token=...
-    std::string store_playback_flv(const std::string &flv, int64_t start_unix, int64_t end_unix);
-    // Take (consume) cached FLV by token. Returns false if missing/expired.
-    bool take_playback_flv(const std::string &token, std::string &flv_out);
+    // SDK bulk save → ffmpeg remux MPEG-TS (H.264+AAC) for mpegts.js / iPhone MSE.
+    srs_error_t download_playback_ts(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
+                                     std::string &ts_out);
+    // Cache MPEG-TS for HTTP GET /api/v1/hikvision/playback?token=...
+    std::string store_playback_ts(const std::string &ts, int64_t start_unix, int64_t end_unix);
+    // Take (consume) cached body by token. Returns false if missing/expired.
+    bool take_playback_ts(const std::string &token, std::string &ts_out);
     void reap_playback_cache();
 
     // Interface ISrsCoroutineHandler (idle reaper + PTZ auto-stop + talk idle)
@@ -485,7 +486,7 @@ public:
 };
 
 // HTTP API: GET /api/v1/hikvision/playback?token=...
-// Returns cached FLV from DC cmd=play async job (does not use WebRTC path).
+// Returns cached MPEG-TS from DC cmd=play async job (mpegts.js / video/mp2t).
 class SrsGoApiHikvisionPlayback : public ISrsHttpHandler
 {
 public:

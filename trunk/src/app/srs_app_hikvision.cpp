@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -3405,29 +3406,186 @@ srs_error_t SrsHikvisionManager::search_records(SrsHikvisionDevice *device, int 
     return err;
 }
 
-// Worker payload: HCNetSDK + ffmpeg must NOT run on ST thread (blocks entire SRS).
+// Worker: HCNetSDK PlayBack + ffmpeg off ST thread.
+// Prefer a *separate* NET_DVR login so live RealPlay is not blocked/deadlocked.
+// If NVR rejects 2nd login (common for viewer accounts), fall back to shared user_id.
+// Output: MPEG-TS H.264+AAC for mpegts.js.
 struct SrsHikvisionDlWorkerCtx {
-    LONG user_id;
+    string host;
+    int port;
+    string user;
+    string password;
+    LONG shared_user_id; // live session; used only if own-login fails
     int channel;
     int64_t start_unix;
     int64_t end_unix;
     string raw_path;
-    string flv_path;
-    string flv_out;
+    string ts_path;
+    string ts_out;
     int64_t raw_sz;
+    int64_t progress_bytes; // ST may read for logs
     bool play_done;
-    int err_code; // 0=ok, else ERROR_*
+    int err_code; // 0=ok
     string err_msg;
     volatile int finished; // 0 running, 1 done
 };
+
+// At most one download at a time (NVR/ffmpeg load).
+static volatile int g_hik_dl_inflight = 0;
+
+static bool srs_hikvision_looks_like_mpegts(const string &data)
+{
+    if (data.size() < 188) {
+        return false;
+    }
+    const unsigned char *p = (const unsigned char *)data.data();
+    size_t n = data.size();
+    if (p[0] == 0x47) {
+        return true;
+    }
+    size_t limit = srs_min(n, (size_t)1024);
+    for (size_t i = 0; i + 188 <= limit; i++) {
+        if (p[i] == 0x47 && (i + 188 >= n || p[i + 188] == 0x47)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int64_t srs_hikvision_file_size(const char *path)
+{
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        return 0;
+    }
+    fseek(fp, 0, SEEK_END);
+    int64_t sz = (int64_t)ftell(fp);
+    fclose(fp);
+    return sz > 0 ? sz : 0;
+}
+
+static void srs_hikvision_dl_mark_done(SrsHikvisionDlWorkerCtx *w)
+{
+    __sync_synchronize();
+    w->finished = 1;
+    __sync_synchronize();
+}
+
+static int srs_hikvision_system_status(int st)
+{
+    if (st == -1) {
+        return -1;
+    }
+    if (WIFEXITED(st)) {
+        return WEXITSTATUS(st);
+    }
+    return st;
+}
+
+static void srs_hikvision_read_fferr(const string &log_path, string &err_tail)
+{
+    err_tail.clear();
+    FILE *lf = fopen(log_path.c_str(), "rb");
+    if (!lf) {
+        return;
+    }
+    fseek(lf, 0, SEEK_END);
+    long sz = ftell(lf);
+    if (sz > 0) {
+        long off = sz > 400 ? sz - 400 : 0;
+        fseek(lf, off, SEEK_SET);
+        char buf[512];
+        size_t n = fread(buf, 1, sizeof(buf) - 1, lf);
+        buf[n] = 0;
+        err_tail = buf;
+        for (size_t i = 0; i < err_tail.size(); i++) {
+            char c = err_tail[i];
+            if (c == '\n' || c == '\r' || c == '"' || c == '\\') {
+                err_tail[i] = ' ';
+            }
+        }
+    }
+    fclose(lf);
+    ::unlink(log_path.c_str());
+}
+
+// Run ffmpeg → MPEG-TS. Try autodect then -f mpeg (IMKH/PS). No -map ?: (old ffmpeg).
+static int srs_hikvision_run_ffmpeg_mpegts(const string &raw_path, const string &ts_path, bool audio,
+                                           string &err_tail)
+{
+    string log_path = ts_path + ".fferr";
+    const char *timeout_bin = NULL;
+    if (::access("/usr/bin/timeout", X_OK) == 0) {
+        timeout_bin = "/usr/bin/timeout 90 ";
+    } else if (::access("/bin/timeout", X_OK) == 0) {
+        timeout_bin = "/bin/timeout 90 ";
+    } else {
+        timeout_bin = "";
+    }
+
+    // demux_hint: "" auto, or "-f mpeg "
+    const char *hints[] = {"", "-f mpeg "};
+    for (int hi = 0; hi < 2; hi++) {
+        string cmd;
+        if (audio) {
+            cmd = srs_fmt_sprintf(
+                "%sffmpeg -y -hide_banner -loglevel error %s-i '%s' "
+                "-c:v copy -c:a aac -b:a 64k -ar 16000 -ac 1 -shortest -f mpegts '%s' 2>'%s'",
+                timeout_bin, hints[hi], raw_path.c_str(), ts_path.c_str(), log_path.c_str());
+        } else {
+            cmd = srs_fmt_sprintf(
+                "%sffmpeg -y -hide_banner -loglevel error %s-i '%s' "
+                "-an -c:v copy -f mpegts '%s' 2>'%s'",
+                timeout_bin, hints[hi], raw_path.c_str(), ts_path.c_str(), log_path.c_str());
+        }
+        int st = srs_hikvision_system_status(::system(cmd.c_str()));
+        srs_hikvision_read_fferr(log_path, err_tail);
+        if (st == 0 && srs_hikvision_file_size(ts_path.c_str()) >= 188) {
+            return 0;
+        }
+        ::unlink(ts_path.c_str());
+    }
+    return err_tail.empty() ? -1 : 1;
+}
 
 static void *srs_hikvision_dl_worker(void *arg)
 {
     SrsHikvisionDlWorkerCtx *w = (SrsHikvisionDlWorkerCtx *)arg;
     w->err_code = 0;
     w->raw_sz = 0;
+    w->progress_bytes = 0;
     w->play_done = false;
-    w->flv_out.clear();
+    w->ts_out.clear();
+
+    LONG uid = -1;
+    bool own_login = false;
+
+    // 1) Prefer dedicated login (isolates from live RealPlay).
+    NET_DVR_USER_LOGIN_INFO login_info;
+    NET_DVR_DEVICEINFO_V40 device_info;
+    memset(&login_info, 0, sizeof(login_info));
+    memset(&device_info, 0, sizeof(device_info));
+    strncpy(login_info.sDeviceAddress, w->host.c_str(), sizeof(login_info.sDeviceAddress) - 1);
+    login_info.wPort = (WORD)w->port;
+    strncpy(login_info.sUserName, w->user.c_str(), sizeof(login_info.sUserName) - 1);
+    strncpy(login_info.sPassword, w->password.c_str(), sizeof(login_info.sPassword) - 1);
+    login_info.bUseAsynLogin = FALSE;
+
+    uid = NET_DVR_Login_V40(&login_info, &device_info);
+    if (uid >= 0) {
+        own_login = true;
+    } else {
+        // 2) Viewer often allows only 1 session — reuse live login.
+        if (w->shared_user_id >= 0) {
+            uid = w->shared_user_id;
+            own_login = false;
+        } else {
+            w->err_code = ERROR_HIKVISION_SDK;
+            w->err_msg = string("download login ") + srs_hikvision_sdk_errmsg() + " (no shared session)";
+            srs_hikvision_dl_mark_done(w);
+            return NULL;
+        }
+    }
 
     NET_DVR_VOD_PARA vod;
     memset(&vod, 0, sizeof(vod));
@@ -3439,38 +3597,48 @@ static void *srs_hikvision_dl_worker(void *arg)
     srs_hikvision_unix_to_dvr_time((time_t)w->start_unix, &vod.struBeginTime);
     srs_hikvision_unix_to_dvr_time((time_t)w->end_unix, &vod.struEndTime);
 
-    LONG pb = NET_DVR_PlayBackByTime_V40(w->user_id, &vod);
+    LONG pb = NET_DVR_PlayBackByTime_V40(uid, &vod);
     if (pb < 0) {
         w->err_code = ERROR_HIKVISION_SDK;
-        w->err_msg = string("PlayBackByTime_V40 ") + srs_hikvision_sdk_errmsg();
-        w->finished = 1;
+        w->err_msg = string("PlayBackByTime_V40 ") + srs_hikvision_sdk_errmsg() +
+                     (own_login ? " (own-login)" : " (shared-login)");
+        if (own_login) {
+            NET_DVR_Logout(uid);
+        }
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
 
     if (!NET_DVR_PlayBackSaveData(pb, (char *)w->raw_path.c_str())) {
         NET_DVR_StopPlayBack(pb);
+        if (own_login) {
+            NET_DVR_Logout(uid);
+        }
         w->err_code = ERROR_HIKVISION_SDK;
         w->err_msg = string("PlayBackSaveData ") + srs_hikvision_sdk_errmsg();
-        w->finished = 1;
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
     if (!NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYSTART, NULL, 0, NULL, NULL)) {
         NET_DVR_StopPlayBackSave(pb);
         NET_DVR_StopPlayBack(pb);
+        if (own_login) {
+            NET_DVR_Logout(uid);
+        }
         w->err_code = ERROR_HIKVISION_SDK;
         w->err_msg = string("PLAYSTART ") + srs_hikvision_sdk_errmsg();
-        w->finished = 1;
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
     for (int i = 0; i < 4; i++) {
         NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYFAST, NULL, 0, NULL, NULL);
     }
 
-    // OS thread: use usleep, never srs_usleep.
+    // OS thread only — never srs_usleep here.
     int64_t last_sz = -1;
     int stable = 0;
     time_t t0 = time(NULL);
-    const int kTimeoutSec = 120;
+    const int kTimeoutSec = 90;
     while ((int)(time(NULL) - t0) < kTimeoutSec) {
         int pos = 0;
         DWORD npos = sizeof(pos);
@@ -3482,27 +3650,25 @@ static void *srs_hikvision_dl_worker(void *arg)
             if (pos > 100) {
                 NET_DVR_StopPlayBackSave(pb);
                 NET_DVR_StopPlayBack(pb);
+                if (own_login) {
+                    NET_DVR_Logout(uid);
+                }
                 ::unlink(w->raw_path.c_str());
                 w->err_code = ERROR_HIKVISION_SDK;
                 w->err_msg = srs_fmt_sprintf("download PLAYGETPOS=%d %s", pos, srs_hikvision_sdk_errmsg().c_str());
-                w->finished = 1;
+                srs_hikvision_dl_mark_done(w);
                 return NULL;
             }
         }
-        FILE *fp = fopen(w->raw_path.c_str(), "rb");
-        int64_t sz = 0;
-        if (fp) {
-            fseek(fp, 0, SEEK_END);
-            sz = (int64_t)ftell(fp);
-            fclose(fp);
-        }
+        int64_t sz = srs_hikvision_file_size(w->raw_path.c_str());
+        w->progress_bytes = sz;
         if (sz > 0 && sz == last_sz) {
             stable++;
-            if (stable >= 15 && pos >= 95) {
+            if (stable >= 15 && sz > 1024) {
                 w->play_done = true;
                 break;
             }
-            if (stable >= 40 && sz > 1024) {
+            if (stable >= 12 && pos >= 90) {
                 w->play_done = true;
                 break;
             }
@@ -3515,99 +3681,84 @@ static void *srs_hikvision_dl_worker(void *arg)
 
     NET_DVR_StopPlayBackSave(pb);
     NET_DVR_StopPlayBack(pb);
-
-    FILE *rfp = fopen(w->raw_path.c_str(), "rb");
-    if (!rfp) {
-        w->err_code = ERROR_HIKVISION_SDK;
-        w->err_msg = "open raw download failed";
-        w->finished = 1;
-        return NULL;
+    if (own_login) {
+        NET_DVR_Logout(uid);
     }
-    fseek(rfp, 0, SEEK_END);
-    w->raw_sz = (int64_t)ftell(rfp);
-    fclose(rfp);
+
+    w->raw_sz = srs_hikvision_file_size(w->raw_path.c_str());
+    w->progress_bytes = w->raw_sz;
     if (w->raw_sz < 1024) {
         ::unlink(w->raw_path.c_str());
         w->err_code = ERROR_HIKVISION_SDK;
         w->err_msg = srs_fmt_sprintf("SDK download empty/small size=%lld done=%d", (long long)w->raw_sz,
                                      w->play_done ? 1 : 0);
-        w->finished = 1;
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
 
-    // G.711 (FLV idx 7) is not playable in flv.js → re-encode audio to AAC.
-    string cmd_aac = srs_fmt_sprintf(
-        "ffmpeg -y -hide_banner -loglevel error -i '%s' -map 0:v:0? -map 0:a:0? "
-        "-c:v copy -c:a aac -b:a 64k -ar 16000 -ac 1 -f flv '%s'",
-        w->raw_path.c_str(), w->flv_path.c_str());
-    int st = ::system(cmd_aac.c_str());
-    const char *via = "vcopy+aac";
+    // AAC for mpegts.js; fallback video-only. Use -f mpeg for IMKH/PS.
+    string ff_err;
+    int st = srs_hikvision_run_ffmpeg_mpegts(w->raw_path, w->ts_path, true, ff_err);
     if (st != 0) {
-        ::unlink(w->flv_path.c_str());
-        string cmd_an = srs_fmt_sprintf(
-            "ffmpeg -y -hide_banner -loglevel error -i '%s' -map 0:v:0? -an -c:v copy -f flv '%s'",
-            w->raw_path.c_str(), w->flv_path.c_str());
-        st = ::system(cmd_an.c_str());
-        via = "vcopy-an";
+        ::unlink(w->ts_path.c_str());
+        st = srs_hikvision_run_ffmpeg_mpegts(w->raw_path, w->ts_path, false, ff_err);
     }
     ::unlink(w->raw_path.c_str());
     if (st != 0) {
-        ::unlink(w->flv_path.c_str());
+        ::unlink(w->ts_path.c_str());
         w->err_code = ERROR_HIKVISION_STREAM;
-        w->err_msg = srs_fmt_sprintf("ffmpeg remux failed status=%d", st);
-        w->finished = 1;
+        w->err_msg = srs_fmt_sprintf("ffmpeg remux mpegts failed status=%d %s", st, ff_err.c_str());
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
 
-    FILE *ffp = fopen(w->flv_path.c_str(), "rb");
+    FILE *ffp = fopen(w->ts_path.c_str(), "rb");
     if (!ffp) {
         w->err_code = ERROR_HIKVISION_STREAM;
-        w->err_msg = "open flv failed";
-        w->finished = 1;
+        w->err_msg = "open mpegts failed";
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
     fseek(ffp, 0, SEEK_END);
     long fsz = ftell(ffp);
     fseek(ffp, 0, SEEK_SET);
-    if (fsz < 13) {
+    if (fsz < 188) {
         fclose(ffp);
-        ::unlink(w->flv_path.c_str());
+        ::unlink(w->ts_path.c_str());
         w->err_code = ERROR_HIKVISION_STREAM;
-        w->err_msg = srs_fmt_sprintf("flv too small size=%ld", fsz);
-        w->finished = 1;
+        w->err_msg = srs_fmt_sprintf("mpegts too small size=%ld", fsz);
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
-    w->flv_out.resize((size_t)fsz);
-    size_t nr = fread((void *)w->flv_out.data(), 1, (size_t)fsz, ffp);
+    w->ts_out.resize((size_t)fsz);
+    size_t nr = fread((void *)w->ts_out.data(), 1, (size_t)fsz, ffp);
     fclose(ffp);
-    ::unlink(w->flv_path.c_str());
+    ::unlink(w->ts_path.c_str());
     if ((long)nr != fsz) {
-        w->flv_out.clear();
+        w->ts_out.clear();
         w->err_code = ERROR_HIKVISION_STREAM;
-        w->err_msg = srs_fmt_sprintf("fread flv incomplete %zu/%ld", nr, fsz);
-        w->finished = 1;
+        w->err_msg = srs_fmt_sprintf("fread mpegts incomplete %zu/%ld", nr, fsz);
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
-    if (w->flv_out[0] != 'F' || w->flv_out[1] != 'L' || w->flv_out[2] != 'V') {
-        w->flv_out.clear();
+    if (!srs_hikvision_looks_like_mpegts(w->ts_out)) {
+        w->ts_out.clear();
         w->err_code = ERROR_HIKVISION_STREAM;
-        w->err_msg = "remux output is not FLV";
-        w->finished = 1;
+        w->err_msg = "remux output is not MPEG-TS";
+        srs_hikvision_dl_mark_done(w);
         return NULL;
     }
 
-    // via string only for logging on ST side via err_msg empty + size.
-    (void)via;
     w->err_code = 0;
-    w->finished = 1;
+    srs_hikvision_dl_mark_done(w);
     return NULL;
 }
 
-srs_error_t SrsHikvisionManager::download_playback_flv(SrsHikvisionDevice *device, int channel, int64_t start_unix,
-                                                       int64_t end_unix, string &flv_out)
+srs_error_t SrsHikvisionManager::download_playback_ts(SrsHikvisionDevice *device, int channel, int64_t start_unix,
+                                                      int64_t end_unix, string &ts_out)
 {
     srs_error_t err = srs_success;
-    flv_out.clear();
+    ts_out.clear();
 
     if (!device || channel <= 0 || start_unix <= 0 || end_unix <= start_unix) {
         return srs_error_new(ERROR_HIKVISION_CONFIG, "invalid download range ch=%d start=%lld end=%lld", channel,
@@ -3616,45 +3767,65 @@ srs_error_t SrsHikvisionManager::download_playback_flv(SrsHikvisionDevice *devic
     const int64_t kMaxDur = 300;
     if (end_unix - start_unix > kMaxDur) {
         end_unix = start_unix + kMaxDur;
-        srs_warn("Hikvision: download_playback_flv clamp duration to %llds", (long long)kMaxDur);
+        srs_warn("Hikvision: download_playback_ts clamp duration to %llds", (long long)kMaxDur);
     }
 
-    if ((err = device->ensure_login()) != srs_success) {
-        return srs_error_wrap(err, "login for download");
+    // One download at a time (ST-visible); live stream keeps using device login.
+    if (__sync_lock_test_and_set(&g_hik_dl_inflight, 1)) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "another playback download is in progress");
     }
 
     string tag = srs_fmt_sprintf("%d_%lld_%lld", channel, (long long)start_unix, (long long)srs_time_now_realtime());
     string raw_path = string("/tmp/hik_dl_") + tag + ".bin";
-    string flv_path = string("/tmp/hik_dl_") + tag + ".flv";
+    string ts_path = string("/tmp/hik_dl_") + tag + ".ts";
     ::unlink(raw_path.c_str());
-    ::unlink(flv_path.c_str());
+    ::unlink(ts_path.c_str());
 
-    // Run blocking HCNetSDK + ffmpeg on OS thread so ST keeps RTC/HTTP/SCTP alive.
-    // Heap-allocate: worker lifetime independent of this stack frame.
+    // Ensure live login exists so we can fall back if 2nd login is rejected.
+    if ((err = device->ensure_login()) != srs_success) {
+        __sync_lock_release(&g_hik_dl_inflight);
+        return srs_error_wrap(err, "login before download");
+    }
+
+    const SrsHikvisionDeviceConfig &conf = device->conf();
     SrsHikvisionDlWorkerCtx *work = new SrsHikvisionDlWorkerCtx();
-    work->user_id = (LONG)device->user_id();
+    work->host = conf.host_;
+    work->port = conf.port_;
+    work->user = conf.user_;
+    work->password = conf.password_;
+    work->shared_user_id = (LONG)device->user_id();
     work->channel = channel;
     work->start_unix = start_unix;
     work->end_unix = end_unix;
     work->raw_path = raw_path;
-    work->flv_path = flv_path;
+    work->ts_path = ts_path;
     work->raw_sz = 0;
+    work->progress_bytes = 0;
     work->play_done = false;
     work->err_code = 0;
     work->finished = 0;
 
-    srs_trace("Hikvision: SDK download worker start ch=%d range=%lld..%lld raw=%s", channel, (long long)start_unix,
-              (long long)end_unix, raw_path.c_str());
+    srs_trace("Hikvision: SDK download worker start ch=%d range=%lld..%lld host=%s shared_uid=%ld (mpegts)", channel,
+              (long long)start_unix, (long long)end_unix, conf.host_.c_str(), (long)work->shared_user_id);
 
     pthread_t tid;
     int pr = pthread_create(&tid, NULL, srs_hikvision_dl_worker, work);
     if (pr != 0) {
         delete work;
+        __sync_lock_release(&g_hik_dl_inflight);
         return srs_error_new(ERROR_HIKVISION_SDK, "pthread_create download worker failed ret=%d", pr);
     }
 
-    // Poll from ST coroutine (yields so ICE/API keep working). Worker self-caps ~120s + ffmpeg.
+    // ST poll — yields so RTC/HTTP/SCTP stay alive. Worker self-limits (~90s + 60s ffmpeg).
+    srs_utime_t t0 = srs_time_now_realtime();
+    srs_utime_t last_log = t0;
     while (!work->finished) {
+        srs_utime_t now = srs_time_now_realtime();
+        if (now - last_log > 5 * SRS_UTIME_SECONDS) {
+            srs_trace("Hikvision: download progress ch=%d raw_bytes=%lld elapsed=%ds", channel,
+                      (long long)work->progress_bytes, (int)((now - t0) / SRS_UTIME_SECONDS));
+            last_log = now;
+        }
         srs_usleep(50 * SRS_UTIME_MILLISECONDS);
     }
     pthread_join(tid, NULL);
@@ -3662,19 +3833,20 @@ srs_error_t SrsHikvisionManager::download_playback_flv(SrsHikvisionDevice *devic
     if (work->err_code != 0) {
         err = srs_error_new(work->err_code, "%s", work->err_msg.c_str());
         delete work;
+        __sync_lock_release(&g_hik_dl_inflight);
         return err;
     }
 
-    flv_out.swap(work->flv_out);
-    srs_trace("Hikvision: SDK download_playback_flv ok ch=%d size=%d raw=%lld range=%lld..%lld done=%d", channel,
-              (int)flv_out.size(), (long long)work->raw_sz, (long long)start_unix, (long long)end_unix,
+    ts_out.swap(work->ts_out);
+    srs_trace("Hikvision: SDK download_playback_ts ok ch=%d size=%d raw=%lld range=%lld..%lld done=%d", channel,
+              (int)ts_out.size(), (long long)work->raw_sz, (long long)start_unix, (long long)end_unix,
               work->play_done ? 1 : 0);
     delete work;
+    __sync_lock_release(&g_hik_dl_inflight);
     return err;
 }
 
-// Async job: SDK download + HTTP cache. Never bulk-send FLV over DataChannel
-// (same UDP 5-tuple as ICE/RTP → browser ICE disconnect + usrsctp EAGAIN storms can stall ST).
+// Async job: SDK download + HTTP cache (MPEG-TS). Never bulk-send over DataChannel.
 class SrsHikvisionDcPlayJob : public ISrsCoroutineHandler
 {
 // clang-format off
@@ -3713,15 +3885,34 @@ public:
     virtual srs_error_t cycle()
     {
         srs_error_t err = srs_success;
-        string flv;
-        if ((err = mgr_->download_playback_flv(device_, channel_, start_unix_, end_unix_, flv)) != srs_success) {
+        string ts;
+        if ((err = mgr_->download_playback_ts(device_, channel_, start_unix_, end_unix_, ts)) != srs_success) {
+            string detail = srs_error_summary(err);
             srs_warn("Hikvision: async play download failed, err=%s", srs_error_desc(err).c_str());
             srs_freep(err);
             if (dc_ && dc_->dc_alive()) {
+                // Escape for JSON string value.
+                string safe;
+                for (size_t i = 0; i < detail.size() && i < 200; i++) {
+                    char c = detail[i];
+                    if (c == '"' || c == '\\') {
+                        safe.push_back('\\');
+                    }
+                    if (c == '\n' || c == '\r') {
+                        safe.push_back(' ');
+                        continue;
+                    }
+                    if ((unsigned char)c >= 0x20) {
+                        safe.push_back(c);
+                    }
+                }
+                if (safe.empty()) {
+                    safe = "download failed";
+                }
                 string ej = srs_fmt_sprintf(
-                    "{\"code\":-1,\"cmd\":\"play\",\"id\":\"HIK::PlaybackFileError\",\"msg\":\"download failed\","
+                    "{\"code\":-1,\"cmd\":\"play\",\"id\":\"HIK::PlaybackFileError\",\"msg\":\"%s\","
                     "\"playback\":%lld,\"playback_stop\":%lld}",
-                    (long long)start_unix_, (long long)end_unix_);
+                    safe.c_str(), (long long)start_unix_, (long long)end_unix_);
                 srs_error_t se = dc_->dc_send_text(ej);
                 srs_freep(se);
             }
@@ -3730,18 +3921,19 @@ public:
             return srs_success;
         }
 
-        string token = mgr_->store_playback_flv(flv, start_unix_, end_unix_);
+        string token = mgr_->store_playback_ts(ts, start_unix_, end_unix_);
         string url = "/api/v1/hikvision/playback?token=" + token;
-        srs_trace("Hikvision: playback ready size=%d token=%s range=%lld..%lld", (int)flv.size(), token.c_str(),
-                  (long long)start_unix_, (long long)end_unix_);
+        srs_trace("Hikvision: playback ready format=mpegts size=%d token=%s range=%lld..%lld", (int)ts.size(),
+                  token.c_str(), (long long)start_unix_, (long long)end_unix_);
 
         if (dc_ && dc_->dc_alive()) {
-            // Small JSON only — client downloads FLV via HTTP (TCP), not DC binary.
+            // Small JSON only — client downloads MPEG-TS via HTTP for mpegts.js.
             string ready = srs_fmt_sprintf(
-                "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackFileReady\",\"format\":\"flv\","
-                "\"size\":%d,\"url\":\"%s\",\"token\":\"%s\",\"via\":\"http\","
+                "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackFileReady\","
+                "\"format\":\"mpegts\",\"mime\":\"video/mp2t\",\"size\":%d,\"url\":\"%s\",\"token\":\"%s\","
+                "\"via\":\"http\",\"player\":\"mpegts.js\","
                 "\"playback\":%lld,\"playback_stop\":%lld}",
-                (int)flv.size(), url.c_str(), token.c_str(), (long long)start_unix_, (long long)end_unix_);
+                (int)ts.size(), url.c_str(), token.c_str(), (long long)start_unix_, (long long)end_unix_);
             srs_error_t se = dc_->dc_send_text(ready);
             if (se != srs_success) {
                 srs_warn("Hikvision: notify PlaybackFileReady failed, err=%s", srs_error_desc(se).c_str());
@@ -3755,11 +3947,8 @@ public:
     }
 };
 
-// Unclaimed FLV (client never HTTP GET):
-// - TTL 2 minutes, reaped every 1s by idle cycle
-// - Max 4 entries / ~64MB total so memory cannot grow unbounded
-// - take() consumes entry immediately; dispose() frees all
-string SrsHikvisionManager::store_playback_flv(const string &flv, int64_t start_unix, int64_t end_unix)
+// Unclaimed MPEG-TS (client never HTTP GET): TTL 2min, max 4 entries / ~64MB.
+string SrsHikvisionManager::store_playback_ts(const string &ts, int64_t start_unix, int64_t end_unix)
 {
     const size_t kMaxEntries = 4;
     const size_t kMaxBytes = 64 * 1024 * 1024;
@@ -3767,14 +3956,13 @@ string SrsHikvisionManager::store_playback_flv(const string &flv, int64_t start_
 
     reap_playback_cache();
 
-    // Drop earliest-expiring unclaimed entries until under limits.
     while (!playback_cache_.empty()) {
         size_t bytes = 0;
         for (map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.begin();
              it != playback_cache_.end(); ++it) {
-            bytes += it->second->flv.size();
+            bytes += it->second->body.size();
         }
-        if (playback_cache_.size() < kMaxEntries && bytes + flv.size() <= kMaxBytes) {
+        if (playback_cache_.size() < kMaxEntries && bytes + ts.size() <= kMaxBytes) {
             break;
         }
         map<string, SrsHikvisionPlaybackCache *>::iterator victim = playback_cache_.begin();
@@ -3785,7 +3973,7 @@ string SrsHikvisionManager::store_playback_flv(const string &flv, int64_t start_
             }
         }
         srs_warn("Hikvision: playback cache drop unclaimed token=%s size=%d (limit)", victim->first.c_str(),
-                 (int)victim->second->flv.size());
+                 (int)victim->second->body.size());
         srs_freep(victim->second);
         playback_cache_.erase(victim);
     }
@@ -3793,7 +3981,7 @@ string SrsHikvisionManager::store_playback_flv(const string &flv, int64_t start_
     string token = srs_fmt_sprintf("%lld%04d%04d", (long long)srs_time_now_realtime(),
                                    (int)(::rand() % 10000), (int)(::rand() % 10000));
     SrsHikvisionPlaybackCache *c = new SrsHikvisionPlaybackCache();
-    c->flv = flv;
+    c->body = ts;
     c->start_unix = start_unix;
     c->end_unix = end_unix;
     c->expire_at = srs_time_now_realtime() + kTtl;
@@ -3802,14 +3990,15 @@ string SrsHikvisionManager::store_playback_flv(const string &flv, int64_t start_
     size_t bytes = 0;
     for (map<string, SrsHikvisionPlaybackCache *>::iterator it = playback_cache_.begin(); it != playback_cache_.end();
          ++it) {
-        bytes += it->second->flv.size();
+        bytes += it->second->body.size();
     }
-    srs_trace("Hikvision: playback cache store token=%s size=%d entries=%d bytes=%d ttl=%ds", token.c_str(),
-              (int)flv.size(), (int)playback_cache_.size(), (int)bytes, (int)(kTtl / SRS_UTIME_SECONDS));
+    srs_trace("Hikvision: playback cache store token=%s size=%d entries=%d bytes=%d ttl=%ds format=mpegts",
+              token.c_str(), (int)ts.size(), (int)playback_cache_.size(), (int)bytes,
+              (int)(kTtl / SRS_UTIME_SECONDS));
     return token;
 }
 
-bool SrsHikvisionManager::take_playback_flv(const string &token, string &flv_out)
+bool SrsHikvisionManager::take_playback_ts(const string &token, string &ts_out)
 {
     if (token.empty()) {
         return false;
@@ -3821,13 +4010,12 @@ bool SrsHikvisionManager::take_playback_flv(const string &token, string &flv_out
     SrsHikvisionPlaybackCache *c = it->second;
     if (srs_time_now_realtime() > c->expire_at) {
         srs_warn("Hikvision: playback cache expired token=%s size=%d (client never downloaded)", token.c_str(),
-                 (int)c->flv.size());
+                 (int)c->body.size());
         srs_freep(c);
         playback_cache_.erase(it);
         return false;
     }
-    // Consume: remove from map so memory is released after HTTP write buffer is done.
-    flv_out.swap(c->flv);
+    ts_out.swap(c->body);
     srs_freep(c);
     playback_cache_.erase(it);
     return true;
@@ -3849,7 +4037,7 @@ void SrsHikvisionManager::reap_playback_cache()
             continue;
         }
         srs_warn("Hikvision: playback cache reap unclaimed token=%s size=%d", it->first.c_str(),
-                 (int)it->second->flv.size());
+                 (int)it->second->body.size());
         srs_freep(it->second);
         playback_cache_.erase(it);
     }
@@ -4077,9 +4265,8 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
         return err;
     }
 
-    // Bulk file download via SDK (PlayBackSaveData + PLAYFAST), remux to FLV, return over DC/HTTP.
+    // Bulk file download via SDK (PlayBackSaveData + PLAYFAST), remux to MPEG-TS for mpegts.js.
     // {"cmd":"play","playback":unixStart,"playback_stop":unixStop}
-    // NOT the 1x stream VOD path — NVR pushes recording file as fast as possible.
     if (cmd == "play") {
         int64_t start_unix = 0, end_unix = 0;
         if ((prop = req->ensure_property_integer("playback")) != NULL) {
@@ -4097,7 +4284,7 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
                                  "cmd=play needs playback + playback_stop (unix seconds, stop>start)");
         }
 
-        // DataChannel: never bulk FLV on SCTP (ICE death). Async SDK download → HTTP token URL.
+        // DataChannel: async SDK download → HTTP token URL (MPEG-TS). No bulk on SCTP.
         if (talk_listener) {
             if ((err = start_dc_play_job(device, channel, start_unix, end_unix, talk_listener)) != srs_success) {
                 return srs_error_wrap(err, "start async play job");
@@ -4105,23 +4292,26 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
             if (out_reply) {
                 *out_reply = srs_fmt_sprintf(
                     "{\"code\":0,\"msg\":\"accepted\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackAccepted\","
-                    "\"via\":\"http\",\"playback\":%lld,\"playback_stop\":%lld}",
+                    "\"format\":\"mpegts\",\"via\":\"http\",\"player\":\"mpegts.js\","
+                    "\"playback\":%lld,\"playback_stop\":%lld}",
                     (long long)start_unix, (long long)end_unix);
             }
             return err;
         }
-        // HTTP: sync download + raw FLV body (not on SCTP stack).
-        string flv;
-        if ((err = download_playback_flv(device, channel, start_unix, end_unix, flv)) != srs_success) {
-            return srs_error_wrap(err, "sdk download flv");
+        // HTTP: sync download + raw MPEG-TS body.
+        string ts;
+        if ((err = download_playback_ts(device, channel, start_unix, end_unix, ts)) != srs_success) {
+            return srs_error_wrap(err, "sdk download mpegts");
         }
         if (out_binary) {
-            *out_binary = flv;
+            *out_binary = ts;
             if (out_reply) {
                 *out_reply = srs_fmt_sprintf(
-                    "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackFile\",\"format\":\"flv\","
-                    "\"size\":%d,\"playback\":%lld,\"playback_stop\":%lld,\"via\":\"sdk_playback_save\"}",
-                    (int)flv.size(), (long long)start_unix, (long long)end_unix);
+                    "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"play\",\"id\":\"HIK::PlaybackFile\","
+                    "\"format\":\"mpegts\",\"mime\":\"video/mp2t\",\"size\":%d,"
+                    "\"playback\":%lld,\"playback_stop\":%lld,\"via\":\"sdk_playback_save\","
+                    "\"player\":\"mpegts.js\"}",
+                    (int)ts.size(), (long long)start_unix, (long long)end_unix);
             }
             return err;
         }
@@ -4360,12 +4550,13 @@ srs_error_t SrsGoApiHikvisionControl::serve_http(ISrsHttpResponseWriter *w, ISrs
         return srs_api_response(w, r, res->dumps());
     }
 
-    // cmd=play may return raw FLV body.
+    // cmd=play may return raw MPEG-TS body (mpegts.js / video/mp2t).
     if (!binary.empty()) {
-        w->header()->set_content_type("video/x-flv");
+        w->header()->set_content_type("video/mp2t");
         w->header()->set_content_length((int)binary.size());
+        w->header()->set("Content-Disposition", "attachment; filename=\"playback.ts\"");
         if ((err = w->write((char *)binary.data(), (int)binary.size())) != srs_success) {
-            return srs_error_wrap(err, "write flv body");
+            return srs_error_wrap(err, "write mpegts body");
         }
         return w->final_request();
     }
@@ -4380,7 +4571,7 @@ srs_error_t SrsGoApiHikvisionControl::serve_http(ISrsHttpResponseWriter *w, ISrs
 }
 
 // ---------------------------------------------------------------------------
-// SrsGoApiHikvisionPlayback — GET cached FLV (token from DC PlaybackFileReady)
+// SrsGoApiHikvisionPlayback — GET cached MPEG-TS (token from DC PlaybackFileReady)
 // ---------------------------------------------------------------------------
 
 SrsGoApiHikvisionPlayback::SrsGoApiHikvisionPlayback()
@@ -4409,22 +4600,23 @@ srs_error_t SrsGoApiHikvisionPlayback::serve_http(ISrsHttpResponseWriter *w, ISr
         return srs_go_http_error(w, SRS_CONSTS_HTTP_BadRequest);
     }
 
-    string flv;
-    if (!_srs_hikvision->take_playback_flv(token, flv) || flv.empty()) {
+    string ts;
+    if (!_srs_hikvision->take_playback_ts(token, ts) || ts.empty()) {
         srs_warn("Hikvision: playback token missing/expired token=%s", token.c_str());
         return srs_go_http_error(w, SRS_CONSTS_HTTP_NotFound);
     }
 
-    w->header()->set_content_type("video/x-flv");
-    w->header()->set_content_length((int)flv.size());
-    // Allow browser download from demo page.
-    w->header()->set("Content-Disposition", "attachment; filename=\"playback.flv\"");
+    // mpegts.js: type mse/mpegts, mime video/mp2t (or application/octet-stream).
+    w->header()->set_content_type("video/mp2t");
+    w->header()->set_content_length((int)ts.size());
+    w->header()->set("Content-Disposition", "attachment; filename=\"playback.ts\"");
     w->header()->set("Cache-Control", "no-store");
+    w->header()->set("Access-Control-Allow-Origin", "*");
 
-    if ((err = w->write((char *)flv.data(), (int)flv.size())) != srs_success) {
-        return srs_error_wrap(err, "write playback flv");
+    if ((err = w->write((char *)ts.data(), (int)ts.size())) != srs_success) {
+        return srs_error_wrap(err, "write playback mpegts");
     }
-    srs_trace("Hikvision: HTTP playback served token=%s size=%d", token.c_str(), (int)flv.size());
+    srs_trace("Hikvision: HTTP playback mpegts served token=%s size=%d", token.c_str(), (int)ts.size());
     return w->final_request();
 }
 
