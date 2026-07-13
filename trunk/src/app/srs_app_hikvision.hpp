@@ -102,6 +102,15 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRawAacStream *aac_;
     std::string aac_specific_config_;
 
+    // G.711 (NVR) → software decode → AAC encode (SrsFormat rejects raw PCMA).
+    // No dependency on libavcodec pcm_alaw (may be missing in some builds).
+    void *g711_aac_enc_;   // AVCodecContext*
+    void *g711_aac_frame_; // AVFrame*
+    void *g711_aac_pkt_;   // AVPacket*
+    std::vector<float> g711_pcm_f_;
+    bool g711_aac_ready_;
+    bool g711_aac_sh_sent_;
+
     ISrsPithyPrint *pprint_;
 
 public:
@@ -114,6 +123,9 @@ public:
     // Direct ES path (from SetESRealPlayCallBack): demux NALUs and publish.
     // is_key_hint: true for I-frame packets from SDK.
     srs_error_t on_es_video(const char *data, int size, uint32_t dts_ms, bool is_key_hint);
+    // Live original audio always (not talk): G.711 → AAC → FLV for RTMP + rtmp_to_rtc(Opus).
+    // alaw=true → PCMA, false → PCMU.
+    srs_error_t on_es_g711(const char *data, int size, uint32_t dts_ms, bool alaw);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -131,6 +143,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t write_h265_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts);
     srs_error_t on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs);
     srs_error_t write_audio_raw_frame(char *frame, int frame_size, SrsRawAacStreamCodec *codec, uint32_t dts);
+    srs_error_t ensure_g711_aac_encoder();
+    srs_error_t encode_g711_pcm_to_aac(uint32_t dts);
     // Normalize device/PS timestamps to 0-based monotonic milliseconds.
     uint32_t correct_timestamp(uint32_t dts_ms);
     srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char *data, int size);
@@ -259,6 +273,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsHikvisionDeviceConfig conf_;
     long user_id_;
     bool logged_in_;
+    // From NET_DVR_DEVICEINFO_V30 after login (for voice talk channel mapping).
+    int start_dchan_;       // byStartDChan
+    int start_dtalk_chan_;  // byStartDTalkChan — voice talk base channel
     // ISAPI StreamingChannel ids present on NVR, e.g. 601=ch6 main, 602=ch6 sub.
     // Empty + channel_info_ok_=false means probe failed (skip pre-check).
     std::set<int> streaming_channel_ids_;
@@ -273,6 +290,9 @@ public:
 public:
     const SrsHikvisionDeviceConfig &conf() const;
     long user_id() const;
+    // Map logical camera channel → VoiceCom channel (hikevent: byStartDTalkChan + ch - 1).
+    int voice_channel_for(int camera_channel) const;
+    int start_dtalk_chan() const;
     srs_error_t ensure_login();
     void logout();
     // Load /ISAPI/Streaming/channels once (cached). Best-effort; failure is soft.
@@ -307,7 +327,7 @@ public:
     virtual ~ISrsHikvisionTalkListener();
 
 public:
-    // Encoded talk frame (G.711 etc.) from device, ready to send to browser as DC binary.
+    // Talk downlink as PCM S16LE mono (device G.711 already decoded by TalkSession).
     virtual void on_talk_downlink(const std::string &talk_key, const char *data, int len) = 0;
     // Optional: send JSON text on the control DataChannel (default: unsupported).
     virtual srs_error_t dc_send_text(const std::string &s);
@@ -323,6 +343,7 @@ public:
 };
 
 // One VoiceCom session per device channel (SDK typically allows one talk path).
+// Browser always sends/receives raw PCM S16LE; server encodes/decodes for the device.
 class SrsHikvisionTalkSession : public ISrsCoroutineHandler
 {
 // clang-format off
@@ -334,6 +355,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // NET_DVR_COMPRESSION_AUDIO.byAudioEncType: 1=G711_U, 2=G711_A, 8=PCM, ...
     int audio_enc_type_;
     int sample_rate_hz_;
+    // Client uplink sample rate (Hz). Browser resamples to this; default = device rate.
+    int client_pcm_rate_hz_;
     bool stopping_;
     srs_utime_t last_active_;
     std::vector<ISrsHikvisionTalkListener *> listeners_;
@@ -341,6 +364,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     pthread_mutex_t lock_;
     std::vector<std::string *> downlink_;
+    // Accumulated client PCM S16LE (after resample to device rate) before encode/send.
+    std::string pcm_uplink_;
+    // Linux HCNetSDK G.711 encoder handle (NET_DVR_InitG711Encoder); NULL if unused.
+    void *g711_enc_;
+    int g711_in_frame_bytes_; // PCM bytes per encode (from enc_info.in_frame_size, typically 640)
     int wake_pipe_[2];
     srs_netfd_t wake_fd_;
 
@@ -353,6 +381,7 @@ public:
     void stop();
     int audio_enc_type() const;
     int sample_rate_hz() const;
+    int client_pcm_rate_hz() const;
     int channel() const;
     srs_utime_t last_active() const;
     void touch();
@@ -360,6 +389,7 @@ public:
     // Returns remaining listener count.
     int remove_listener(ISrsHikvisionTalkListener *l);
     int listener_count();
+    // data = raw PCM S16LE mono from browser (not device G.711).
     srs_error_t send_uplink(const char *data, int len);
     // Called from HCNetSDK voice callback thread.
     void on_voice_data(const char *data, int size, int audio_flag);
@@ -372,6 +402,10 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_cycle();
     void clear_downlink();
+    // Encode one device-sized frame from pcm_uplink_ head and VoiceComSendData.
+    srs_error_t flush_uplink_encoded();
+    // Device G.711/PCM frame → PCM S16LE for browser.
+    std::string decode_downlink_to_pcm(const char *data, int size);
 };
 
 // Global Hikvision manager: config, SDK lifecycle, on-demand streams, PTZ, talk.

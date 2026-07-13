@@ -215,7 +215,7 @@
     <h1>Hikvision · WebRTC 播放 + 云台 + 对讲</h1>
     <p>
       视频：<code>/rtc/v1/play/</code>；云台/对讲：DataChannel（可回落 HTTP）。
-      对讲：浏览器 G.711 ↔ 海康 <code>VoiceCom_MR</code>。
+      对讲：浏览器只上行 PCM；听原 preview 音频，不另开 VoiceCom 下行。
       构建：<code>./configure --hikvision=on --sctp=on &amp;&amp; make</code>
     </p>
   </header>
@@ -225,7 +225,7 @@
     <div class="main-col">
       <section class="panel">
         <h2>Live Preview (WebRTC)</h2>
-        <video id="video" autoplay playsinline muted controls></video>
+        <video id="video" autoplay playsinline controls></video>
         <div class="status">
           <span><span id="dotMedia" class="dot"></span>Media: <b id="stMedia">idle</b></span>
           <span><span id="dotDc" class="dot"></span>DataChannel: <b id="stDc">closed</b></span>
@@ -331,7 +331,10 @@
           <button class="primary" id="btnTalkStart">Start</button>
           <button class="danger" id="btnTalkStop" disabled>Stop</button>
         </div>
-        <div class="hint">需 HTTPS 安全上下文 + DataChannel open。</div>
+        <div class="hint">
+          Live 预览声 = 摄像机原始音轨（与 Talk 无关）。<br/>
+          Talk = 麦克风 → SDK → 摄像机喇叭；需 HTTPS + DC open。
+        </div>
       </section>
 
       <section class="panel">
@@ -360,7 +363,6 @@
   let talkAudioCtx = null;
   let talkProc = null;
   let talkStream = null;
-  let talkPlayTime = 0;
   // MPEG-TS download/play (HTTP via token after DC PlaybackFileReady). mpegts.js on #videoVod.
   let tsHttpBusy = false;
   let tsPlayer = null;
@@ -399,46 +401,21 @@
     return !!fl.msePlayback;
   }
 
-  // ---- G.711 A-law (ITU-T) ----
-  function linearToALawSample(sample) {
-    const ALAW_MAX = 0xFFF;
-    let sign = 0;
-    if (sample < 0) { sample = -sample; sign = 0x80; }
-    if (sample > ALAW_MAX) sample = ALAW_MAX;
-    sample >>= 4;
-    let exponent = 7;
-    for (let expMask = 0x4000; (sample & expMask) === 0 && exponent > 0; exponent--, expMask >>= 1) {}
-    const mantissa = (sample >> ((exponent === 0) ? 4 : (exponent + 3))) & 0x0F;
-    return (sign | (exponent << 4) | mantissa) ^ 0x55;
-  }
-  function aLawToLinearSample(aVal) {
-    aVal ^= 0x55;
-    let t = ((aVal & 0x0F) << 4) + 8;
-    const seg = (aVal & 0x70) >> 4;
-    if (seg >= 1) t += 0x100;
-    if (seg > 1) t <<= (seg - 1);
-    return ((aVal & 0x80) ? t : -t);
-  }
-  function encodePcm16ToALaw(int16) {
-    const out = new Uint8Array(int16.length);
-    for (let i = 0; i < int16.length; i++) out[i] = linearToALawSample(int16[i]);
-    return out;
-  }
-  function decodeALawToFloat32(u8) {
-    const out = new Float32Array(u8.length);
-    for (let i = 0; i < u8.length; i++) {
-      out[i] = aLawToLinearSample(u8[i]) / 32768;
-    }
-    return out;
-  }
-  function downsampleTo8k(float32, inRate) {
-    if (inRate === 8000) return float32;
-    const ratio = inRate / 8000;
+  // ---- Talk audio: browser always uses PCM S16LE ----
+  // Device G.711/PCM encoding is done only on SRS (matches previous Python sendVoice path).
+  let talkPcmRate = 8000; // negotiated via talk start reply.rate
+  function resampleFloatToRate(float32, inRate, outRate) {
+    if (!inRate || !outRate || Math.abs(inRate - outRate) < 1) return float32;
+    const ratio = inRate / outRate;
     const n = Math.floor(float32.length / ratio);
+    if (n <= 0) return new Float32Array(0);
     const out = new Float32Array(n);
     for (let i = 0; i < n; i++) {
-      const idx = Math.floor(i * ratio);
-      out[i] = float32[idx];
+      const src = i * ratio;
+      const i0 = Math.floor(src);
+      const i1 = Math.min(i0 + 1, float32.length - 1);
+      const f = src - i0;
+      out[i] = float32[i0] * (1 - f) + float32[i1] * f;
     }
     return out;
   }
@@ -446,10 +423,11 @@
     const out = new Int16Array(f32.length);
     for (let i = 0; i < f32.length; i++) {
       let s = Math.max(-1, Math.min(1, f32[i]));
-      out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      out[i] = (s < 0 ? s * 0x8000 : s * 0x7FFF) | 0;
     }
     return out;
   }
+
   let preferHttp = false;
   let holdDir = null;
 
@@ -531,18 +509,39 @@
       };
 
       pc.ontrack = (ev) => {
-        log('ontrack kind=' + (ev.track && ev.track.kind));
+        log('ontrack kind=' + (ev.track && ev.track.kind) +
+          (ev.track ? ' id=' + ev.track.id : ''));
         if (ev.streams && ev.streams[0]) {
           video.srcObject = ev.streams[0];
         } else {
           if (!video.srcObject) video.srcObject = new MediaStream();
           video.srcObject.addTrack(ev.track);
         }
-        video.play().catch(() => {});
+        // Play click is a user gesture → try with audio (not muted).
+        video.muted = false;
+        video.volume = 1;
+        const p = video.play();
+        if (p && p.catch) {
+          p.catch((e) => {
+            // Some browsers still block autoplay with sound; unmute after second click on video.
+            log('live play with audio blocked: ' + e + ' — click video to unmute', 'i');
+            video.muted = true;
+            video.play().catch(() => {});
+            const once = () => {
+              video.muted = false;
+              video.volume = 1;
+              video.play().catch(() => {});
+              video.removeEventListener('click', once);
+              log('live audio unmuted', 'ok');
+            };
+            video.addEventListener('click', once);
+          });
+        }
       };
 
-      // Hikvision is typically video-only; avoid audio transceiver (no opus from device).
+      // Recv video + audio (NVR may send G.711/AAC → SRS RTC).
       pc.addTransceiver('video', { direction: 'recvonly' });
+      pc.addTransceiver('audio', { direction: 'recvonly' });
 
       // DataChannel BEFORE createOffer → m=application in offer
       dc = pc.createDataChannel('hikvision', { ordered: true });
@@ -680,9 +679,12 @@
         log('DC << ' + short, 'ok');
         try {
           const j = JSON.parse(ev.data);
-          if (j && j.cmd === 'talk' && j.codec !== undefined) {
-            talkCodec = j.codec;
-            $('stTalkCodec').textContent = String(j.codec);
+          if (j && j.cmd === 'talk') {
+            if (j.codec !== undefined) {
+              talkCodec = j.codec;
+              $('stTalkCodec').textContent = String(j.codec) + ' (dev, srv-enc)';
+            }
+            if (j.rate) talkPcmRate = parseInt(j.rate, 10) || 8000;
           }
           if (j && (j.cmd === 'search_record' || j.id === 'HIK::SearchRecordResult')) {
             renderRecords(j);
@@ -699,11 +701,8 @@
         } catch (e) {}
         return;
       }
-      // Binary: talk downlink G.711 only (recording file uses HTTP MPEG-TS).
-      const u8 = new Uint8Array(ev.data);
-      if (talking && talkAudioCtx && u8.length > 0) {
-        playTalkDownlink(u8);
-      }
+      // Binary DC: reserved (talk is uplink-only; listen via WebRTC preview audio).
+      // Ignore so we never mix a second VoiceCom path into the speaker.
     };
   }
 
@@ -904,23 +903,6 @@
     })();
   }
 
-  function playTalkDownlink(u8) {
-    try {
-      const f32 = decodeALawToFloat32(u8);
-      const buf = talkAudioCtx.createBuffer(1, f32.length, 8000);
-      buf.copyToChannel(f32, 0);
-      const src = talkAudioCtx.createBufferSource();
-      src.buffer = buf;
-      src.connect(talkAudioCtx.destination);
-      const now = talkAudioCtx.currentTime;
-      if (talkPlayTime < now) talkPlayTime = now + 0.02;
-      src.start(talkPlayTime);
-      talkPlayTime += buf.duration;
-    } catch (e) {
-      log('talk play err ' + e, 'err');
-    }
-  }
-
   // Mic requires secure context: https:// or http://localhost / 127.0.0.1
   function micAccessHint() {
     const host = window.location.hostname || '';
@@ -976,43 +958,98 @@
         throw new Error('getUserMedia 需要 HTTPS（或 localhost）');
       }
 
-      // Prefer DC for talk start (HTTP also works for start, but uplink needs DC).
-      await sendControl({ stream: streamName(), cmd: 'talk', action: 'start' });
+      // Wait for server talk session; rate is PCM sample rate browser must use.
+      const waitReply = waitDcJson(
+        (j) => j && j.cmd === 'talk' && j.action === 'start' && j.code !== -1,
+        8000
+      );
+      await sendControl({ cmd: 'talk', action: 'start' });
+      let reply = null;
+      try {
+        reply = await waitReply;
+      } catch (e) {
+        log('talk start reply: ' + e + ' — default PCM rate=8000', 'i');
+      }
+      if (reply && reply.codec !== undefined && reply.codec !== null) {
+        talkCodec = parseInt(reply.codec, 10) || talkCodec;
+      }
+      if (reply && reply.rate) {
+        talkPcmRate = parseInt(reply.rate, 10) || 8000;
+      }
+      log('talk server ok format=pcm rate=' + talkPcmRate +
+        ' (device codec=' + talkCodec + ', SRS encodes)', 'ok');
+
       talkStream = await acquireMicStream();
-      talkAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      talkAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
       if (talkAudioCtx.state === 'suspended') {
         await talkAudioCtx.resume();
       }
       const src = talkAudioCtx.createMediaStreamSource(talkStream);
-      // ScriptProcessor is deprecated but widely available; 4096 @ 48k → ~10ms*8 after downsample.
-      const bufferSize = 4096;
+      // 2048 @ 48k ≈ 42ms → ~N samples at talkPcmRate.
+      const bufferSize = 2048;
       talkProc = talkAudioCtx.createScriptProcessor(bufferSize, 1, 1);
+      let ulFrames = 0;
+      let ulBytes = 0;
+      let ulErrors = 0;
+      let lastUlLogAt = 0;
+      let pcmCarry = new Float32Array(0);
+      // 20ms frames at negotiated rate (160 samples @ 8k → 320 bytes PCM).
+      const frameSamples = Math.max(80, Math.round((talkPcmRate || 8000) * 0.02));
+      // Mark active before connecting so first onaudioprocess is not dropped.
+      talking = true;
       talkProc.onaudioprocess = (ev) => {
         if (!talking || !dc || dc.readyState !== 'open') return;
         const input = ev.inputBuffer.getChannelData(0);
-        const f8k = downsampleTo8k(input, talkAudioCtx.sampleRate);
-        // Send 20ms frames (160 samples @ 8k)
-        const frame = 160;
-        for (let off = 0; off + frame <= f8k.length; off += frame) {
-          const slice = f8k.subarray(off, off + frame);
+        const fRate = resampleFloatToRate(input, talkAudioCtx.sampleRate, talkPcmRate || 8000);
+        const merged = new Float32Array(pcmCarry.length + fRate.length);
+        merged.set(pcmCarry, 0);
+        merged.set(fRate, pcmCarry.length);
+        let off = 0;
+        for (; off + frameSamples <= merged.length; off += frameSamples) {
+          const slice = merged.subarray(off, off + frameSamples);
           const i16 = floatToInt16(slice);
-          const g711 = encodePcm16ToALaw(i16);
-          try { dc.send(g711.buffer); } catch (e) {}
+          // Always send raw PCM S16LE; never G.711 from browser.
+          // Copy to standalone ArrayBuffer (avoid sharing Int16Array backing store).
+          const payload = new Uint8Array(i16.byteLength);
+          payload.set(new Uint8Array(i16.buffer, i16.byteOffset, i16.byteLength));
+          try {
+            dc.send(payload.buffer);
+            ulFrames++;
+            ulBytes += payload.length;
+            // First few frames + once per second so log is not mistaken for "stopped".
+            const now = Date.now();
+            if (ulFrames <= 3 || (now - lastUlLogAt) >= 1000) {
+              lastUlLogAt = now;
+              log('talk uplink running frames=' + ulFrames + ' bytes=' + ulBytes +
+                ' last=' + payload.length + 'B @' + talkPcmRate + 'Hz', 'i');
+              $('stTalk').textContent = 'active ul=' + ulFrames;
+            }
+          } catch (e) {
+            ulErrors++;
+            if (ulErrors <= 5 || (ulErrors % 50) === 0) {
+              log('talk uplink send failed #' + ulErrors + ': ' + e, 'err');
+            }
+          }
+        }
+        // Copy remainder (do not keep a view of the temporary merged buffer).
+        if (off < merged.length) {
+          pcmCarry = merged.slice(off);
+        } else {
+          pcmCarry = new Float32Array(0);
         }
       };
       src.connect(talkProc);
-      // Must connect graph for ScriptProcessor; mute to avoid local mic monitor echo.
+      // ScriptProcessor must reach destination; gain 0 = no local mic monitor.
       const mute = talkAudioCtx.createGain();
       mute.gain.value = 0;
       talkProc.connect(mute);
       mute.connect(talkAudioCtx.destination);
-      talking = true;
-      talkPlayTime = 0;
       $('stTalk').textContent = 'active';
       setDot('dotTalk', 'on');
-      $('stTalkCodec').textContent = String(talkCodec) + ' (G711-A client)';
+      $('stTalkCodec').textContent = String(talkCodec) + ' (dev) / PCM uplink';
       updateTalkButtons();
-      log('talk started (mic → G711-A → DC)', 'ok');
+      log('talk started (mic → PCM @' + talkPcmRate + 'Hz → SRS → NVR; listen via preview)', 'ok');
+      log('note: uplink log prints first frames then ~1/s (not stopped after 5)', 'i');
     } catch (e) {
       let msg = (e && e.message) ? e.message : String(e);
       if (/getUserMedia|mediaDevices|NotAllowed|NotFound|NotSupported|Permission|secure/i.test(msg) ||
@@ -1099,6 +1136,38 @@
       }
     }
     await sendHttpControl(withStreamIfHttp(obj));
+  }
+
+  // Wait for a DC JSON reply matching predicate (for talk start codec, etc.).
+  function waitDcJson(matchFn, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      if (!dc || dc.readyState !== 'open') {
+        reject(new Error('DataChannel not open'));
+        return;
+      }
+      const t0 = Date.now();
+      const onMsg = (ev) => {
+        if (typeof ev.data !== 'string') return;
+        try {
+          const j = JSON.parse(ev.data);
+          if (matchFn(j)) {
+            cleanup();
+            resolve(j);
+          }
+        } catch (e) {}
+      };
+      const timer = setInterval(() => {
+        if (Date.now() - t0 > timeoutMs) {
+          cleanup();
+          reject(new Error('DC reply timeout ' + timeoutMs + 'ms'));
+        }
+      }, 100);
+      function cleanup() {
+        clearInterval(timer);
+        try { dc.removeEventListener('message', onMsg); } catch (e) {}
+      }
+      dc.addEventListener('message', onMsg);
+    });
   }
 
   function renderRecords(j) {

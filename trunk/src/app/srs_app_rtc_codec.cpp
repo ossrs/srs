@@ -23,6 +23,12 @@ static const AVCodec *srs_find_decoder_by_id(SrsAudioCodecId id)
 #else
         return avcodec_find_decoder_by_name("libopus");
 #endif
+    } else if (id == SrsAudioCodecIdPCMA) {
+        // G.711 A-law (Hikvision live / talk)
+        return avcodec_find_decoder(AV_CODEC_ID_PCM_ALAW);
+    } else if (id == SrsAudioCodecIdPCMU) {
+        // G.711 μ-law
+        return avcodec_find_decoder(AV_CODEC_ID_PCM_MULAW);
     }
     return NULL;
 }
@@ -223,11 +229,21 @@ srs_error_t SrsAudioTranscoder::init_dec(SrsAudioCodecId src_codec)
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not allocate audio codec context");
     }
 
+    // G.711 has no in-band config; must set layout before open.
+    if (src_codec == SrsAudioCodecIdPCMA || src_codec == SrsAudioCodecIdPCMU) {
+        dec_->sample_rate = 8000;
+        dec_->channels = 1;
+        dec_->channel_layout = AV_CH_LAYOUT_MONO;
+        dec_->sample_fmt = AV_SAMPLE_FMT_S16;
+    }
+
     if (avcodec_open2(dec_, codec, NULL) < 0) {
         return srs_error_new(ERROR_RTC_RTP_MUXER, "Could not open codec");
     }
 
-    dec_->channel_layout = av_get_default_channel_layout(dec_->channels);
+    if (!dec_->channel_layout) {
+        dec_->channel_layout = av_get_default_channel_layout(dec_->channels > 0 ? dec_->channels : 1);
+    }
 
     dec_frame_ = av_frame_alloc();
     if (!dec_frame_) {

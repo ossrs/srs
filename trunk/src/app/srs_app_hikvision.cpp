@@ -28,6 +28,14 @@
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_stream_bridge.hpp>
+
+extern "C" {
+#include <libavcodec/avcodec.h>
+#include <libavutil/channel_layout.h>
+#include <libavutil/frame.h>
+#include <libavutil/opt.h>
+#include <libavutil/samplefmt.h>
+}
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
@@ -333,12 +341,30 @@ SrsHikvisionMuxer::SrsHikvisionMuxer()
     vps_sps_pps_sent_ = false;
 
     aac_ = new SrsRawAacStream();
+    g711_aac_enc_ = NULL;
+    g711_aac_frame_ = NULL;
+    g711_aac_pkt_ = NULL;
+    g711_aac_ready_ = false;
+    g711_aac_sh_sent_ = false;
     pprint_ = SrsPithyPrint::create_caster();
 }
 
 SrsHikvisionMuxer::~SrsHikvisionMuxer()
 {
     close();
+    if (g711_aac_enc_) {
+        avcodec_free_context((AVCodecContext **)&g711_aac_enc_);
+        g711_aac_enc_ = NULL;
+    }
+    if (g711_aac_frame_) {
+        av_frame_free((AVFrame **)&g711_aac_frame_);
+        g711_aac_frame_ = NULL;
+    }
+    if (g711_aac_pkt_) {
+        av_packet_free((AVPacket **)&g711_aac_pkt_);
+        g711_aac_pkt_ = NULL;
+    }
+    g711_pcm_f_.clear();
     srs_freep(req_);
     srs_freep(avc_);
     srs_freep(hevc_);
@@ -1116,12 +1142,31 @@ srs_error_t SrsHikvisionMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
     }
 
     uint32_t dts = correct_timestamp((uint32_t)(msg->dts_ / 90));
+    if (!avs || avs->empty()) {
+        return err;
+    }
+
+    // Peek: AAC ADTS starts with 0xFFF sync; otherwise Hikvision often uses raw G.711.
+    int left = avs->left();
+    char *p = avs->data() + avs->pos();
+    bool maybe_adts = (left >= 2 && (unsigned char)p[0] == 0xff && ((unsigned char)p[1] & 0xf0) == 0xf0);
+
+    if (!maybe_adts) {
+        // Original stream audio for live (always publish, independent of talk).
+        return on_es_g711(p, left, dts, true);
+    }
+
     while (!avs->empty()) {
         char *frame = NULL;
         int frame_size = 0;
         SrsRawAacStreamCodec codec;
         if ((err = aac_->adts_demux(avs, &frame, &frame_size, codec)) != srs_success) {
-            // Non-AAC (e.g. G.711) is common on Hikvision; ignore quietly.
+            // Fallback remaining bytes as G.711 (common on NVR).
+            srs_freep(err);
+            int rem = avs->left();
+            if (rem > 0) {
+                return on_es_g711(avs->data() + avs->pos(), rem, dts, true);
+            }
             return srs_success;
         }
         if (frame_size <= 0) {
@@ -1158,6 +1203,305 @@ srs_error_t SrsHikvisionMuxer::write_audio_raw_frame(char *frame, int frame_size
         return srs_error_wrap(err, "mux aac to flv");
     }
     return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
+}
+
+// ITU-T G.711 A-law → linear 16-bit (software, no libavcodec pcm_alaw needed).
+static int16_t srs_hik_alaw_to_linear(uint8_t a_val)
+{
+    a_val ^= 0x55;
+    int t = (a_val & 0x0f) << 4;
+    int seg = (a_val & 0x70) >> 4;
+    switch (seg) {
+    case 0:
+        t += 8;
+        break;
+    case 1:
+        t += 0x108;
+        break;
+    default:
+        t += 0x108;
+        t <<= (seg - 1);
+        break;
+    }
+    return (a_val & 0x80) ? t : -t;
+}
+
+// ITU-T G.711 μ-law → linear 16-bit.
+static int16_t srs_hik_ulaw_to_linear(uint8_t u_val)
+{
+    u_val = ~u_val;
+    int t = ((u_val & 0x0f) << 3) + 0x84;
+    t <<= ((unsigned)u_val & 0x70) >> 4;
+    return (u_val & 0x80) ? (0x84 - t) : (t - 0x84);
+}
+
+// Linear 16-bit → G.711 μ-law (Sun/CCITT).
+static uint8_t srs_hik_linear_to_ulaw(int16_t sample)
+{
+    const int BIAS = 0x84;
+    const int CLIP = 32635;
+    int pcm = (int)sample;
+    int sign = (pcm < 0) ? 0x80 : 0;
+    if (pcm < 0) {
+        pcm = -pcm;
+        if (pcm > 32767) {
+            pcm = 32767;
+        }
+    }
+    if (pcm > CLIP) {
+        pcm = CLIP;
+    }
+    pcm += BIAS;
+    int exponent = 7;
+    for (int mask = 0x4000; (pcm & mask) == 0 && exponent > 0; exponent--, mask >>= 1) {
+    }
+    int mantissa = (pcm >> (exponent + 3)) & 0x0f;
+    return (uint8_t)(~(sign | (exponent << 4) | mantissa));
+}
+
+// Linear 16-bit → G.711 A-law (Sun polarity: +ve uses 0xD5 mask).
+static uint8_t srs_hik_linear_to_alaw(int16_t sample)
+{
+    const int ALAW_MAX = 0xFFF;
+    int pcm = (int)sample;
+    int mask;
+    if (pcm >= 0) {
+        mask = 0xD5;
+    } else {
+        mask = 0x55;
+        pcm = -pcm - 8;
+        if (pcm < 0) {
+            pcm = 0;
+        }
+    }
+    if (pcm > 32767) {
+        pcm = 32767;
+    }
+    pcm >>= 3;
+    if (pcm > ALAW_MAX) {
+        pcm = ALAW_MAX;
+    }
+    int exponent = 7;
+    for (int exp_mask = 0x400; (pcm & exp_mask) == 0 && exponent > 0; exponent--, exp_mask >>= 1) {
+    }
+    int mantissa = (pcm >> ((exponent == 0) ? 4 : (exponent + 3))) & 0x0f;
+    return (uint8_t)(((exponent << 4) | mantissa) ^ mask);
+}
+
+// Encode n samples S16LE → G.711 bytes (1:1). alaw=true → A-law else μ-law.
+static void srs_hik_encode_pcm_to_g711(const int16_t *pcm, int n, bool alaw, uint8_t *out)
+{
+    for (int i = 0; i < n; i++) {
+        out[i] = alaw ? srs_hik_linear_to_alaw(pcm[i]) : srs_hik_linear_to_ulaw(pcm[i]);
+    }
+}
+
+// Decode n G.711 bytes → S16LE. alaw=true → A-law else μ-law.
+static void srs_hik_decode_g711_to_pcm(const uint8_t *g711, int n, bool alaw, int16_t *out)
+{
+    for (int i = 0; i < n; i++) {
+        out[i] = alaw ? srs_hik_alaw_to_linear(g711[i]) : srs_hik_ulaw_to_linear(g711[i]);
+    }
+}
+
+// Linear resample S16LE mono from src_rate → dst_rate (simple lerp).
+static void srs_hik_resample_s16(const int16_t *src, int src_n, int src_rate, int dst_rate, std::vector<int16_t> &dst)
+{
+    dst.clear();
+    if (src_n <= 0 || src_rate <= 0 || dst_rate <= 0) {
+        return;
+    }
+    if (src_rate == dst_rate) {
+        dst.assign(src, src + src_n);
+        return;
+    }
+    int dst_n = (int)((int64_t)src_n * dst_rate / src_rate);
+    if (dst_n <= 0) {
+        return;
+    }
+    dst.resize((size_t)dst_n);
+    for (int i = 0; i < dst_n; i++) {
+        double pos = (double)i * (double)src_rate / (double)dst_rate;
+        int i0 = (int)pos;
+        int i1 = i0 + 1;
+        if (i0 >= src_n) {
+            i0 = src_n - 1;
+        }
+        if (i1 >= src_n) {
+            i1 = src_n - 1;
+        }
+        double f = pos - (double)i0;
+        double v = (1.0 - f) * (double)src[i0] + f * (double)src[i1];
+        if (v > 32767.0) {
+            v = 32767.0;
+        }
+        if (v < -32768.0) {
+            v = -32768.0;
+        }
+        dst[(size_t)i] = (int16_t)v;
+    }
+}
+
+srs_error_t SrsHikvisionMuxer::ensure_g711_aac_encoder()
+{
+    srs_error_t err = srs_success;
+    if (g711_aac_ready_) {
+        return err;
+    }
+
+    const AVCodec *codec = avcodec_find_encoder_by_name("aac");
+    if (!codec) {
+        codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
+    }
+    if (!codec) {
+        return srs_error_new(ERROR_HIKVISION_STREAM, "AAC encoder not found in libavcodec");
+    }
+
+    AVCodecContext *enc = avcodec_alloc_context3(codec);
+    if (!enc) {
+        return srs_error_new(ERROR_HIKVISION_STREAM, "alloc AAC encoder context failed");
+    }
+    enc->sample_rate = 8000;
+    enc->channels = 1;
+    enc->channel_layout = AV_CH_LAYOUT_MONO;
+    enc->sample_fmt = AV_SAMPLE_FMT_FLTP;
+    enc->bit_rate = 24000;
+    enc->time_base = (AVRational){1, 8000};
+    enc->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
+    if (codec->sample_fmts) {
+        enc->sample_fmt = codec->sample_fmts[0];
+    }
+    if (avcodec_open2(enc, codec, NULL) < 0) {
+        avcodec_free_context(&enc);
+        return srs_error_new(ERROR_HIKVISION_STREAM, "open AAC encoder failed");
+    }
+
+    AVFrame *frame = av_frame_alloc();
+    AVPacket *pkt = av_packet_alloc();
+    if (!frame || !pkt) {
+        av_frame_free(&frame);
+        av_packet_free(&pkt);
+        avcodec_free_context(&enc);
+        return srs_error_new(ERROR_HIKVISION_STREAM, "alloc AAC frame/packet failed");
+    }
+    frame->nb_samples = enc->frame_size > 0 ? enc->frame_size : 1024;
+    frame->format = enc->sample_fmt;
+    frame->channel_layout = enc->channel_layout;
+    frame->sample_rate = enc->sample_rate;
+    frame->channels = enc->channels;
+    if (av_frame_get_buffer(frame, 0) < 0) {
+        av_frame_free(&frame);
+        av_packet_free(&pkt);
+        avcodec_free_context(&enc);
+        return srs_error_new(ERROR_HIKVISION_STREAM, "alloc AAC frame buffer failed");
+    }
+
+    g711_aac_enc_ = enc;
+    g711_aac_frame_ = frame;
+    g711_aac_pkt_ = pkt;
+    g711_aac_ready_ = true;
+    g711_aac_sh_sent_ = false;
+    g711_pcm_f_.clear();
+    srs_trace("Hikvision: G711→AAC encoder ready rate=%d frame=%d stream=%s", enc->sample_rate, frame->nb_samples,
+              stream_.c_str());
+    return err;
+}
+
+srs_error_t SrsHikvisionMuxer::encode_g711_pcm_to_aac(uint32_t dts)
+{
+    srs_error_t err = srs_success;
+    AVCodecContext *enc = (AVCodecContext *)g711_aac_enc_;
+    AVFrame *frame = (AVFrame *)g711_aac_frame_;
+    AVPacket *pkt = (AVPacket *)g711_aac_pkt_;
+    if (!enc || !frame || !pkt) {
+        return err;
+    }
+
+    const int need = frame->nb_samples;
+    while ((int)g711_pcm_f_.size() >= need) {
+        if (av_frame_make_writable(frame) < 0) {
+            return srs_error_new(ERROR_HIKVISION_STREAM, "AAC frame not writable");
+        }
+        // FLTP mono: plane 0
+        float *dst = (float *)frame->data[0];
+        for (int i = 0; i < need; i++) {
+            dst[i] = g711_pcm_f_[i];
+        }
+        g711_pcm_f_.erase(g711_pcm_f_.begin(), g711_pcm_f_.begin() + need);
+
+        frame->pts = AV_NOPTS_VALUE;
+        int ret = avcodec_send_frame(enc, frame);
+        if (ret < 0) {
+            return srs_error_new(ERROR_HIKVISION_STREAM, "AAC send_frame failed ret=%d", ret);
+        }
+        while (ret >= 0) {
+            ret = avcodec_receive_packet(enc, pkt);
+            if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+                break;
+            }
+            if (ret < 0) {
+                return srs_error_new(ERROR_HIKVISION_STREAM, "AAC receive_packet failed ret=%d", ret);
+            }
+
+            // Sequence header once from extradata (AudioSpecificConfig).
+            if (!g711_aac_sh_sent_ && enc->extradata && enc->extradata_size > 0) {
+                char *sh = new char[2 + enc->extradata_size];
+                sh[0] = (char)0xae; // AAC + mono
+                sh[1] = 0x00;
+                memcpy(sh + 2, enc->extradata, enc->extradata_size);
+                if ((err = rtmp_write_packet(SrsFrameTypeAudio, dts, sh, 2 + enc->extradata_size)) != srs_success) {
+                    av_packet_unref(pkt);
+                    return srs_error_wrap(err, "write aac sh");
+                }
+                g711_aac_sh_sent_ = true;
+                srs_trace("Hikvision: inject AAC SH from G711 size=%d stream=%s", enc->extradata_size, stream_.c_str());
+            }
+
+            char *flv = new char[2 + pkt->size];
+            flv[0] = (char)0xae;
+            flv[1] = 0x01;
+            memcpy(flv + 2, pkt->data, pkt->size);
+            if ((err = rtmp_write_packet(SrsFrameTypeAudio, dts, flv, 2 + pkt->size)) != srs_success) {
+                av_packet_unref(pkt);
+                return srs_error_wrap(err, "write aac raw");
+            }
+            static int aac_log = 0;
+            if (aac_log < 5) {
+                aac_log++;
+                srs_trace("Hikvision: inject AAC from G711 size=%d dts=%u stream=%s", pkt->size, dts, stream_.c_str());
+            }
+            av_packet_unref(pkt);
+        }
+    }
+    return err;
+}
+
+srs_error_t SrsHikvisionMuxer::on_es_g711(const char *data, int size, uint32_t dts_ms, bool alaw)
+{
+    srs_error_t err = srs_success;
+    if (!data || size <= 0) {
+        return err;
+    }
+    if ((err = ensure_publish()) != srs_success) {
+        return srs_error_wrap(err, "ensure publish for g711");
+    }
+    if ((err = ensure_g711_aac_encoder()) != srs_success) {
+        return srs_error_wrap(err, "ensure g711 aac encoder");
+    }
+
+    uint32_t dts = correct_timestamp(dts_ms);
+
+    // Software G.711 → float PCM @ 8kHz mono (matches AAC encoder sample_rate).
+    g711_pcm_f_.reserve(g711_pcm_f_.size() + (size_t)size);
+    for (int i = 0; i < size; i++) {
+        int16_t s = alaw ? srs_hik_alaw_to_linear((uint8_t)data[i]) : srs_hik_ulaw_to_linear((uint8_t)data[i]);
+        g711_pcm_f_.push_back((float)s / 32768.0f);
+    }
+
+    if ((err = encode_g711_pcm_to_aac(dts)) != srs_success) {
+        return srs_error_wrap(err, "encode g711 aac");
+    }
+    return err;
 }
 
 uint32_t SrsHikvisionMuxer::correct_timestamp(uint32_t dts_ms)
@@ -1395,6 +1739,8 @@ SrsHikvisionDevice::SrsHikvisionDevice(const SrsHikvisionDeviceConfig &conf)
     conf_ = conf;
     user_id_ = -1;
     logged_in_ = false;
+    start_dchan_ = 0;
+    start_dtalk_chan_ = 0;
     channel_info_loaded_ = false;
     channel_info_ok_ = false;
     channel_info_loaded_at_ = 0;
@@ -1413,6 +1759,28 @@ const SrsHikvisionDeviceConfig &SrsHikvisionDevice::conf() const
 long SrsHikvisionDevice::user_id() const
 {
     return user_id_;
+}
+
+int SrsHikvisionDevice::start_dtalk_chan() const
+{
+    return start_dtalk_chan_;
+}
+
+// Match magicbear/py-hikevent startVoiceTalk:
+//   if (cameraNo >= 1) cameraNo = byStartDTalkChan + cameraNo - 1;
+//   else cameraNo = byStartDChan;
+int SrsHikvisionDevice::voice_channel_for(int camera_channel) const
+{
+    if (camera_channel >= 1) {
+        if (start_dtalk_chan_ > 0) {
+            return start_dtalk_chan_ + camera_channel - 1;
+        }
+        return camera_channel;
+    }
+    if (start_dchan_ > 0) {
+        return start_dchan_;
+    }
+    return 1;
 }
 
 srs_error_t SrsHikvisionDevice::ensure_login()
@@ -1440,9 +1808,12 @@ srs_error_t SrsHikvisionDevice::ensure_login()
                              srs_hikvision_sdk_errmsg().c_str());
     }
 
+    start_dchan_ = (int)device_info.struDeviceV30.byStartDChan;
+    start_dtalk_chan_ = (int)device_info.struDeviceV30.byStartDTalkChan;
     logged_in_ = true;
-    srs_trace("Hikvision: login ok serial=%s host=%s:%d user_id=%ld",
-              conf_.serialno_.c_str(), conf_.host_.c_str(), conf_.port_, (long)user_id_);
+    srs_trace("Hikvision: login ok serial=%s host=%s:%d user_id=%ld startDChan=%d startDTalkChan=%d",
+              conf_.serialno_.c_str(), conf_.host_.c_str(), conf_.port_, (long)user_id_, start_dchan_,
+              start_dtalk_chan_);
 
     // Soft-load ISAPI channel list so play can fail fast on missing stream types.
     srs_error_t ch_err = ensure_channel_info();
@@ -1462,6 +1833,8 @@ void SrsHikvisionDevice::logout()
     }
     user_id_ = -1;
     logged_in_ = false;
+    start_dchan_ = 0;
+    start_dtalk_chan_ = 0;
     streaming_channel_ids_.clear();
     channel_info_loaded_ = false;
     channel_info_ok_ = false;
@@ -1839,17 +2212,31 @@ srs_utime_t SrsHikvisionStream::last_active()
     return last_active_;
 }
 
-void SrsHikvisionStream::on_sdk_data(int /*data_type*/, const char *data, int size)
+void SrsHikvisionStream::on_sdk_data(int data_type, const char *data, int size)
 {
-    // PS path is fallback only. Some channels (esp. sub-stream) may not
-    // deliver ES callbacks even when SetESRealPlayCallBack returns success.
+    // PS path is fallback for video. Audio can arrive as:
+    // - ES packet_type=10 via SetESRealPlayCallBack
+    // - NET_DVR_AUDIOSTREAMDATA (3) via RealPlay real-data callback (even when ES video is active)
     if (stopping_ || size <= 0 || !data) {
+        return;
+    }
+
+    // Always accept dedicated audio stream for live preview (independent of talk).
+    // NET_DVR_AUDIOSTREAMDATA == 3
+    if (data_type == 3) {
+        static int astream_log = 0;
+        if (astream_log < 5) {
+            astream_log++;
+            srs_trace("Hikvision: AUDIOSTREAMDATA size=%d stream=%s", size, stream_name_.c_str());
+        }
+        // Treat as ES audio type 10; muxer injects G.711 into live.
+        on_es_packet(10, 0, 0, data, size);
         return;
     }
 
     pthread_mutex_lock(&lock_);
     nn_sdk_cbs_++;
-    // Once ES media has arrived, never accept PS (prevents 2x frames / VLC seeking).
+    // Once ES media has arrived, never accept PS video (prevents 2x frames / VLC seeking).
     if (es_active_ || !es_packets_.empty()) {
         pthread_mutex_unlock(&lock_);
         return;
@@ -1882,9 +2269,8 @@ void SrsHikvisionStream::on_es_packet(int packet_type, uint32_t dts_ms, int64_t 
     if (stopping_ || size <= 0 || !data) {
         return;
     }
-    // Keep video head + I/P/B frames; ignore audio/private for now.
     // packet_type: 0-file head, 1-I, 2-B, 3-P, 10-audio, 11-private
-    if (packet_type != 0 && packet_type != 1 && packet_type != 2 && packet_type != 3) {
+    if (packet_type != 0 && packet_type != 1 && packet_type != 2 && packet_type != 3 && packet_type != 10) {
         return;
     }
 
@@ -2373,6 +2759,17 @@ srs_error_t SrsHikvisionStream::consume_es_packets()
 
     for (size_t i = 0; i < local.size(); i++) {
         SrsHikvisionEsPacket *pkt = local[i];
+        if (pkt && pkt->packet_type_ == 10) {
+            // SDK audio ES: typically raw G.711 A-law @ 8kHz mono.
+            uint32_t dts_ms = pkt->dts_ms_;
+            if ((err = muxer_->on_es_g711(pkt->data_.data(), (int)pkt->data_.size(), dts_ms, true)) != srs_success) {
+                srs_warn("Hikvision: es g711 audio failed stream=%s, err=%s", stream_name_.c_str(),
+                         srs_error_desc(err).c_str());
+                srs_freep(err);
+            }
+            srs_freep(pkt);
+            continue;
+        }
         if ((err = process_es_video(pkt)) != srs_success) {
             for (size_t j = i; j < local.size(); j++) {
                 srs_freep(local[j]);
@@ -2392,7 +2789,7 @@ srs_error_t SrsHikvisionStream::process_es_video(SrsHikvisionEsPacket *pkt)
         return err;
     }
 
-    // packet_type: 0 head, 1 I, 2 B, 3 P
+    // packet_type: 0 head, 1 I, 2 B, 3 P (audio handled in consume_es_packets)
     // type=0 is often a tiny config blob; still feed demux for SPS/PPS if present.
     bool is_key = (pkt->packet_type_ == 0 || pkt->packet_type_ == 1);
     // dts_ms==0: muxer correct_timestamp() steps monotonically; do not mix wall-clock.
@@ -2550,16 +2947,21 @@ SrsHikvisionTalkSession::SrsHikvisionTalkSession(SrsHikvisionDevice *device, int
 {
     device_ = device;
     channel_ = channel;
+    // Placeholder; start() remaps via device_->voice_channel_for (byStartDTalkChan + ch - 1).
     voice_chan_ = channel > 0 ? channel : 1;
     voice_handle_ = -1;
     audio_enc_type_ = 2; // G711_A default
     sample_rate_hz_ = 8000;
+    client_pcm_rate_hz_ = 8000; // browser always sends S16LE at this rate
     stopping_ = false;
     last_active_ = srs_time_now_cached();
     trd_ = new SrsSTCoroutine("hik-talk", this);
     pthread_mutex_init(&lock_, NULL);
     wake_pipe_[0] = wake_pipe_[1] = -1;
     wake_fd_ = NULL;
+    g711_enc_ = NULL;
+    // hikevent: InitG711Encoder then for G711_U in_frame_size/=2 → typically 320 PCM → 160 G711.
+    g711_in_frame_bytes_ = 320;
 }
 
 SrsHikvisionTalkSession::~SrsHikvisionTalkSession()
@@ -2591,6 +2993,11 @@ int SrsHikvisionTalkSession::audio_enc_type() const
 int SrsHikvisionTalkSession::sample_rate_hz() const
 {
     return sample_rate_hz_;
+}
+
+int SrsHikvisionTalkSession::client_pcm_rate_hz() const
+{
+    return client_pcm_rate_hz_;
 }
 
 int SrsHikvisionTalkSession::channel() const
@@ -2638,6 +3045,58 @@ int SrsHikvisionTalkSession::listener_count()
     return (int)listeners_.size();
 }
 
+// Map NET_DVR_COMPRESSION_AUDIO.byAudioSamplingRate → Hz.
+// 0=default, 1=16k, 2=32k, 3=48k, 4=44.1k, 5=8k
+static int srs_hik_audio_sampling_rate_hz(BYTE rate_code, int enc_type)
+{
+    switch (rate_code) {
+    case 1:
+        return 16000;
+    case 2:
+        return 32000;
+    case 3:
+        return 48000;
+    case 4:
+        return 44100;
+    case 5:
+        return 8000;
+    default:
+        break;
+    }
+    // G.711 is always 8 kHz in practice; G722 often 16 kHz.
+    if (enc_type == AUDIOTALKTYPE_G711_MU || enc_type == AUDIOTALKTYPE_G711_A) {
+        return 8000;
+    }
+    if (enc_type == AUDIOTALKTYPE_G722 || enc_type == AUDIOTALKTYPE_G722C) {
+        return 16000;
+    }
+    return 8000;
+}
+
+static const char *srs_hik_audio_enc_name(int enc)
+{
+    switch (enc) {
+    case 0:
+        return "G722";
+    case 1:
+        return "G711_U";
+    case 2:
+        return "G711_A";
+    case 5:
+        return "MP2L2";
+    case 6:
+        return "G726";
+    case 7:
+        return "AAC";
+    case 8:
+        return "PCM";
+    case 9:
+        return "G722.1C";
+    default:
+        return "unknown";
+    }
+}
+
 srs_error_t SrsHikvisionTalkSession::start()
 {
     srs_error_t err = srs_success;
@@ -2648,39 +3107,10 @@ srs_error_t SrsHikvisionTalkSession::start()
         return srs_error_wrap(err, "login for talk");
     }
 
-    NET_DVR_COMPRESSION_AUDIO ca;
-    memset(&ca, 0, sizeof(ca));
-    if (NET_DVR_GetCurrentAudioCompress(device_->user_id(), &ca)) {
-        audio_enc_type_ = (int)ca.byAudioEncType;
-        // byAudioSamplingRate: 0-default, 1-16k, 2-32k, 3-48k, 4-44.1k, 5-8k
-        switch (ca.byAudioSamplingRate) {
-        case 1:
-            sample_rate_hz_ = 16000;
-            break;
-        case 2:
-            sample_rate_hz_ = 32000;
-            break;
-        case 3:
-            sample_rate_hz_ = 48000;
-            break;
-        case 4:
-            sample_rate_hz_ = 44100;
-            break;
-        case 5:
-            sample_rate_hz_ = 8000;
-            break;
-        default:
-            sample_rate_hz_ = 8000;
-            break;
-        }
-    }
-
-    // MVP: only G.711 A/μ (and raw PCM) over DataChannel.
-    if (audio_enc_type_ != 1 && audio_enc_type_ != 2 && audio_enc_type_ != 8) {
-        return srs_error_new(ERROR_HIKVISION_SDK,
-                             "talk codec type=%d unsupported (need G711_U=1, G711_A=2, or PCM=8)",
-                             audio_enc_type_);
-    }
+    // Map logical camera channel → VoiceCom channel like py-hikevent (NOT raw video ch).
+    voice_chan_ = device_->voice_channel_for(channel_);
+    srs_trace("Hikvision: talk map camera_ch=%d -> voice_chan=%d (startDTalkChan=%d)", channel_,
+              voice_chan_, device_->start_dtalk_chan());
 
     if (pipe(wake_pipe_) < 0) {
         return srs_error_new(ERROR_SYSTEM_CREATE_PIPE, "talk wake pipe");
@@ -2694,9 +3124,19 @@ srs_error_t SrsHikvisionTalkSession::start()
     }
     wake_pipe_[0] = -1;
 
-    // MR = no local sound card (server-side). Try stream channel then 1.
+    // MR = no local sound card. Match hikevent: StartVoiceCom first, then GetCurrentAudioCompress_V50.
     voice_handle_ = NET_DVR_StartVoiceCom_MR_V30(device_->user_id(), (DWORD)voice_chan_,
                                                  srs_hikvision_voice_cb, this);
+    if (voice_handle_ < 0) {
+        // Fallback: try raw channel (some devices / IPC without DTalk base).
+        if (voice_chan_ != channel_ && channel_ > 0) {
+            srs_warn("Hikvision: StartVoiceCom_MR voice_chan=%d failed %s, retry camera_ch=%d",
+                     voice_chan_, srs_hikvision_sdk_errmsg().c_str(), channel_);
+            voice_chan_ = channel_;
+            voice_handle_ = NET_DVR_StartVoiceCom_MR_V30(device_->user_id(), (DWORD)voice_chan_,
+                                                         srs_hikvision_voice_cb, this);
+        }
+    }
     if (voice_handle_ < 0 && voice_chan_ != 1) {
         srs_warn("Hikvision: StartVoiceCom_MR ch=%d failed %s, retry voice_chan=1",
                  voice_chan_, srs_hikvision_sdk_errmsg().c_str());
@@ -2705,20 +3145,106 @@ srs_error_t SrsHikvisionTalkSession::start()
                                                      srs_hikvision_voice_cb, this);
     }
     if (voice_handle_ < 0) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "StartVoiceCom_MR_V30 ch=%d %s",
-                             channel_, srs_hikvision_sdk_errmsg().c_str());
+        return srs_error_new(ERROR_HIKVISION_SDK, "StartVoiceCom_MR_V30 camera_ch=%d voice_chan=%d %s",
+                             channel_, voice_chan_, srs_hikvision_sdk_errmsg().c_str());
+    }
+
+    // Query compress on the *mapped* voice channel (hikevent order).
+    NET_DVR_COMPRESSION_AUDIO ca;
+    memset(&ca, 0, sizeof(ca));
+    bool got_compress = false;
+    const char *compress_src = "default";
+    NET_DVR_AUDIO_CHANNEL ach;
+    memset(&ach, 0, sizeof(ach));
+    ach.dwChannelNum = (DWORD)voice_chan_;
+    if (NET_DVR_GetCurrentAudioCompress_V50(device_->user_id(), &ach, &ca)) {
+        got_compress = true;
+        compress_src = "GetCurrentAudioCompress_V50";
+    } else {
+        srs_warn("Hikvision: GetCurrentAudioCompress_V50 voice_chan=%u failed %s, try global",
+                 (unsigned)ach.dwChannelNum, srs_hikvision_sdk_errmsg().c_str());
+        memset(&ca, 0, sizeof(ca));
+        if (NET_DVR_GetCurrentAudioCompress(device_->user_id(), &ca)) {
+            got_compress = true;
+            compress_src = "GetCurrentAudioCompress";
+        }
+    }
+
+    if (got_compress) {
+        audio_enc_type_ = (int)ca.byAudioEncType;
+        sample_rate_hz_ = srs_hik_audio_sampling_rate_hz(ca.byAudioSamplingRate, audio_enc_type_);
+        srs_trace("Hikvision: talk compress src=%s enc=%d(%s) samplingCode=%u rate=%dHz bitRate=%u support=0x%02x voice_chan=%u",
+                  compress_src, audio_enc_type_, srs_hik_audio_enc_name(audio_enc_type_),
+                  (unsigned)ca.byAudioSamplingRate, sample_rate_hz_, (unsigned)ca.byAudioBitRate,
+                  (unsigned)ca.bySupport, (unsigned)voice_chan_);
+    } else {
+        audio_enc_type_ = AUDIOTALKTYPE_G711_A;
+        sample_rate_hz_ = 8000;
+        srs_warn("Hikvision: talk compress unavailable, default G711_A@8k");
+    }
+
+    // G.711 is always 8 kHz.
+    if (audio_enc_type_ == AUDIOTALKTYPE_G711_MU || audio_enc_type_ == AUDIOTALKTYPE_G711_A) {
+        sample_rate_hz_ = 8000;
+    }
+
+    if (audio_enc_type_ != AUDIOTALKTYPE_G711_MU && audio_enc_type_ != AUDIOTALKTYPE_G711_A &&
+        audio_enc_type_ != AUDIOTALKTYPE_PCM) {
+        NET_DVR_StopVoiceCom(voice_handle_);
+        voice_handle_ = -1;
+        return srs_error_new(ERROR_HIKVISION_SDK,
+                             "talk codec type=%d(%s) unsupported (need G711_U=1, G711_A=2, or PCM=8)",
+                             audio_enc_type_, srs_hik_audio_enc_name(audio_enc_type_));
+    }
+
+    // Init G.711 encoder like hikevent sendVoice (do NOT force in_frame_size before Init).
+    if (audio_enc_type_ == AUDIOTALKTYPE_G711_MU || audio_enc_type_ == AUDIOTALKTYPE_G711_A) {
+        NET_DVR_AUDIOENC_INFO enc_info;
+        memset(&enc_info, 0, sizeof(enc_info));
+        g711_enc_ = NET_DVR_InitG711Encoder(&enc_info);
+        // hikevent treats -1 as failure; also treat NULL as failure.
+        if (!g711_enc_ || (long)g711_enc_ == -1) {
+            g711_enc_ = NULL;
+            srs_warn("Hikvision: InitG711Encoder failed %s, software G.711 fallback",
+                     srs_hikvision_sdk_errmsg().c_str());
+            // hikevent G711 path: out=160 → PCM in=320 bytes (160 samples).
+            g711_in_frame_bytes_ = 320;
+        } else {
+            // SDK fills in_frame_size; hikevent then halves it for G711_U only.
+            int in_sz = (int)enc_info.in_frame_size;
+            if (in_sz <= 0) {
+                in_sz = 640;
+            }
+            if (audio_enc_type_ == AUDIOTALKTYPE_G711_MU) {
+                in_sz /= 2; // exact match hikevent.cpp after InitG711Encoder
+            }
+            if (in_sz < 2) {
+                in_sz = 320;
+            }
+            g711_in_frame_bytes_ = in_sz;
+            srs_trace("Hikvision: InitG711Encoder ok in_frame=%d enc=%d(%s)", g711_in_frame_bytes_,
+                      audio_enc_type_, srs_hik_audio_enc_name(audio_enc_type_));
+        }
     }
 
     stopping_ = false;
     if ((err = trd_->start()) != srs_success) {
+        if (g711_enc_) {
+            NET_DVR_ReleaseG711Encoder(g711_enc_);
+            g711_enc_ = NULL;
+        }
         NET_DVR_StopVoiceCom(voice_handle_);
         voice_handle_ = -1;
         return srs_error_wrap(err, "start talk coroutine");
     }
 
-    srs_trace("Hikvision: talk started serial=%s ch=%d voice_chan=%d handle=%ld codec=%d rate=%d",
+    client_pcm_rate_hz_ = sample_rate_hz_ > 0 ? sample_rate_hz_ : 8000;
+    pcm_uplink_.clear();
+
+    srs_trace("Hikvision: talk started serial=%s camera_ch=%d voice_chan=%d handle=%ld codec=%d(%s) rate=%d pcm_frame=%d",
               device_->conf().serialno_.c_str(), channel_, voice_chan_, (long)voice_handle_,
-              audio_enc_type_, sample_rate_hz_);
+              audio_enc_type_, srs_hik_audio_enc_name(audio_enc_type_), sample_rate_hz_,
+              g711_in_frame_bytes_);
     touch();
     return err;
 }
@@ -2731,10 +3257,137 @@ void SrsHikvisionTalkSession::stop()
         srs_trace("Hikvision: StopVoiceCom handle=%ld ch=%d", (long)voice_handle_, channel_);
         voice_handle_ = -1;
     }
+    if (g711_enc_) {
+        NET_DVR_ReleaseG711Encoder(g711_enc_);
+        g711_enc_ = NULL;
+    }
     if (trd_) {
         trd_->stop();
     }
     clear_downlink();
+    pcm_uplink_.clear();
+}
+
+// Prefer large PCM flush for type=8 (matches common sendVoice 4096-byte chunks).
+static const int SRS_HIK_TALK_PCM_SEND_BYTES = 4096;
+
+srs_error_t SrsHikvisionTalkSession::flush_uplink_encoded()
+{
+    srs_error_t err = srs_success;
+    if (voice_handle_ < 0) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "talk not started");
+    }
+
+    // PCM device: send raw S16LE in 4096-byte chunks (user's previous sendVoice pattern).
+    if (audio_enc_type_ == AUDIOTALKTYPE_PCM) {
+        while ((int)pcm_uplink_.size() >= SRS_HIK_TALK_PCM_SEND_BYTES) {
+            if (!NET_DVR_VoiceComSendData(voice_handle_, (char *)pcm_uplink_.data(),
+                                          (DWORD)SRS_HIK_TALK_PCM_SEND_BYTES)) {
+                return srs_error_new(ERROR_HIKVISION_SDK, "VoiceComSendData pcm len=%d %s",
+                                     SRS_HIK_TALK_PCM_SEND_BYTES, srs_hikvision_sdk_errmsg().c_str());
+            }
+            pcm_uplink_.erase(0, (size_t)SRS_HIK_TALK_PCM_SEND_BYTES);
+            static int ul_pcm = 0;
+            static srs_utime_t ul_pcm_last = 0;
+            ul_pcm++;
+            srs_utime_t now = srs_time_now_cached();
+            if (ul_pcm <= 3 || (now - ul_pcm_last) >= 1 * SRS_UTIME_SECONDS) {
+                ul_pcm_last = now;
+                srs_trace("Hikvision: talk uplink PCM n=%d last_len=%d handle=%ld ch=%d", ul_pcm,
+                          SRS_HIK_TALK_PCM_SEND_BYTES, (long)voice_handle_, channel_);
+            }
+        }
+        return err;
+    }
+
+    // G.711 U/A — match hikevent sendVoice:
+    //   g711_type 0=μ (enc=1), 1=A (enc=2)
+    //   EncodeG711Frame then force out_frame_size = 160
+    //   VoiceComSendData(..., 160)
+    if (audio_enc_type_ != AUDIOTALKTYPE_G711_MU && audio_enc_type_ != AUDIOTALKTYPE_G711_A) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "talk encode unsupported codec=%d(%s)",
+                             audio_enc_type_, srs_hik_audio_enc_name(audio_enc_type_));
+    }
+    const int g711_type = (audio_enc_type_ == AUDIOTALKTYPE_G711_A) ? 1 : 0; // 0=μ 1=A
+    const bool alaw = (audio_enc_type_ == AUDIOTALKTYPE_G711_A);
+    const int pcm_need = g711_in_frame_bytes_ > 0 ? g711_in_frame_bytes_ : 320;
+    if (pcm_need < 2 || (pcm_need % 2) != 0 || pcm_need > 8192) {
+        return srs_error_new(ERROR_HIKVISION_SDK, "invalid g711 pcm frame size %d", pcm_need);
+    }
+    const int samples = pcm_need / 2;
+    // hikevent always sends 160-byte G711 frames.
+    const int g711_out_len = 160;
+    std::vector<BYTE> pcm_in((size_t)pcm_need);
+    std::vector<BYTE> g711_out((size_t)srs_max(samples, g711_out_len) + 64);
+
+    // At most a few frames per uplink callback to avoid bursting (hikevent sleeps 20ms/frame).
+    int sent = 0;
+    const int max_per_call = 4;
+    while ((int)pcm_uplink_.size() >= pcm_need && sent < max_per_call) {
+        memcpy(pcm_in.data(), pcm_uplink_.data(), (size_t)pcm_need);
+        int out_len = g711_out_len;
+        const char *enc_how = "soft";
+        BOOL ok = FALSE;
+        if (g711_enc_) {
+            NET_DVR_AUDIOENC_PROCESS_PARAM ep;
+            memset(&ep, 0, sizeof(ep));
+            ep.in_buf = pcm_in.data();
+            ep.out_buf = g711_out.data();
+            ep.out_frame_size = 0;
+            ep.g711_type = g711_type;
+            ok = NET_DVR_EncodeG711Frame(g711_enc_, &ep);
+            if (ok) {
+                enc_how = "sdk";
+                // hikevent hardcodes 160 after EncodeG711Frame for type 1/2.
+                out_len = g711_out_len;
+                if (ep.out_frame_size > 0 && (int)ep.out_frame_size < out_len) {
+                    out_len = (int)ep.out_frame_size;
+                }
+            }
+        }
+        if (!ok) {
+            // Software: encode exactly g711_out_len samples if we have enough PCM.
+            int soft_samples = srs_min(samples, g711_out_len);
+            if (soft_samples < g711_out_len && samples >= g711_out_len) {
+                soft_samples = g711_out_len;
+            }
+            // Prefer 160 samples → 160 bytes (matches hikevent VoiceComSendData size).
+            soft_samples = g711_out_len;
+            if (pcm_need < soft_samples * 2) {
+                // Not enough PCM in this frame size config; encode what we have.
+                soft_samples = samples;
+            }
+            srs_hik_encode_pcm_to_g711((const int16_t *)pcm_in.data(), soft_samples, alaw, g711_out.data());
+            out_len = soft_samples;
+            enc_how = "soft";
+            static int soft_once = 0;
+            if (soft_once < 3) {
+                soft_once++;
+                srs_warn("Hikvision: EncodeG711Frame sdk miss, software (%s) samples=%d",
+                         alaw ? "A-law" : "μ-law", soft_samples);
+            }
+        }
+        if (!NET_DVR_VoiceComSendData(voice_handle_, (char *)g711_out.data(), (DWORD)out_len)) {
+            return srs_error_new(ERROR_HIKVISION_SDK,
+                                 "VoiceComSendData g711 len=%d enc=%d(%s) g711_type=%d voice_chan=%d %s",
+                                 out_len, audio_enc_type_, srs_hik_audio_enc_name(audio_enc_type_),
+                                 g711_type, voice_chan_, srs_hikvision_sdk_errmsg().c_str());
+        }
+        pcm_uplink_.erase(0, (size_t)pcm_need);
+        sent++;
+        static int ul_g711 = 0;
+        static srs_utime_t ul_g711_last = 0;
+        ul_g711++;
+        srs_utime_t now = srs_time_now_cached();
+        if (ul_g711 <= 3 || (now - ul_g711_last) >= 1 * SRS_UTIME_SECONDS) {
+            ul_g711_last = now;
+            srs_trace("Hikvision: talk uplink G711 n=%d last_len=%d enc=%d(%s) g711_type=%d via=%s "
+                      "handle=%ld camera_ch=%d voice_chan=%d",
+                      ul_g711, out_len, audio_enc_type_, srs_hik_audio_enc_name(audio_enc_type_),
+                      g711_type, enc_how, (long)voice_handle_, channel_, voice_chan_);
+        }
+    }
+    return err;
 }
 
 srs_error_t SrsHikvisionTalkSession::send_uplink(const char *data, int len)
@@ -2742,33 +3395,67 @@ srs_error_t SrsHikvisionTalkSession::send_uplink(const char *data, int len)
     if (voice_handle_ < 0 || !data || len <= 0) {
         return srs_error_new(ERROR_HIKVISION_SDK, "talk not started or empty frame");
     }
-    touch();
-    if (!NET_DVR_VoiceComSendData(voice_handle_, (char *)data, (DWORD)len)) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "VoiceComSendData len=%d %s",
-                             len, srs_hikvision_sdk_errmsg().c_str());
+    // Browser always sends raw PCM S16LE mono. Odd trailing byte is dropped.
+    int usable = len & ~1;
+    if (usable <= 0) {
+        return srs_success;
     }
-    return srs_success;
+    touch();
+
+    const int16_t *src = (const int16_t *)data;
+    int src_n = usable / (int)sizeof(int16_t);
+    int src_rate = client_pcm_rate_hz_ > 0 ? client_pcm_rate_hz_ : 8000;
+    int dst_rate = sample_rate_hz_ > 0 ? sample_rate_hz_ : 8000;
+
+    vector<int16_t> resampled;
+    if (src_rate != dst_rate) {
+        srs_hik_resample_s16(src, src_n, src_rate, dst_rate, resampled);
+        if (!resampled.empty()) {
+            pcm_uplink_.append((const char *)resampled.data(), resampled.size() * sizeof(int16_t));
+        }
+    } else {
+        pcm_uplink_.append(data, (size_t)usable);
+    }
+
+    // Cap buffer (~1s @ 8k S16) to avoid unbounded growth if encode stalls.
+    const size_t max_pcm = (size_t)dst_rate * sizeof(int16_t);
+    if (pcm_uplink_.size() > max_pcm * 2) {
+        pcm_uplink_.erase(0, pcm_uplink_.size() - max_pcm);
+        srs_warn("Hikvision: talk pcm uplink overflow, drop old ch=%d", channel_);
+    }
+
+    return flush_uplink_encoded();
 }
 
-void SrsHikvisionTalkSession::on_voice_data(const char *data, int size, int audio_flag)
+std::string SrsHikvisionTalkSession::decode_downlink_to_pcm(const char *data, int size)
 {
-    // byAudioFlag: 1 = data from device (downlink to PC), 0 = collected local (not used in MR).
-    if (stopping_ || audio_flag != 1 || size <= 0 || !data) {
-        return;
+    string out;
+    if (!data || size <= 0) {
+        return out;
     }
-    pthread_mutex_lock(&lock_);
-    if ((int)downlink_.size() >= 100) {
-        string *old = downlink_.front();
-        downlink_.erase(downlink_.begin());
-        srs_freep(old);
+    // Device already PCM: pass through.
+    if (audio_enc_type_ == 8) {
+        out.assign(data, (size_t)size);
+        return out;
     }
-    downlink_.push_back(new string(data, size));
-    pthread_mutex_unlock(&lock_);
-    if (wake_pipe_[1] > 0) {
-        char c = 1;
-        ssize_t n = ::write(wake_pipe_[1], &c, 1);
-        (void)n;
+    if (audio_enc_type_ != 1 && audio_enc_type_ != 2) {
+        // Unknown: still try pass-through so client can ignore.
+        out.assign(data, (size_t)size);
+        return out;
     }
+    const bool alaw = (audio_enc_type_ == 2);
+    vector<int16_t> pcm((size_t)size);
+    srs_hik_decode_g711_to_pcm((const uint8_t *)data, size, alaw, pcm.data());
+    out.assign((const char *)pcm.data(), pcm.size() * sizeof(int16_t));
+    return out;
+}
+
+void SrsHikvisionTalkSession::on_voice_data(const char * /*data*/, int /*size*/, int /*audio_flag*/)
+{
+    // Talk is uplink-only: browser mic → VoiceCom → camera speaker.
+    // Local listen uses the existing RealPlay/WebRTC preview audio — do not
+    // push a second VoiceCom downlink stream to the client (causes noise/duplex).
+    return;
 }
 
 void SrsHikvisionTalkSession::clear_downlink()
@@ -2789,7 +3476,12 @@ srs_error_t SrsHikvisionTalkSession::cycle()
         NET_DVR_StopVoiceCom(voice_handle_);
         voice_handle_ = -1;
     }
+    if (g711_enc_) {
+        NET_DVR_ReleaseG711Encoder(g711_enc_);
+        g711_enc_ = NULL;
+    }
     clear_downlink();
+    pcm_uplink_.clear();
     return err;
 }
 
@@ -2812,8 +3504,15 @@ srs_error_t SrsHikvisionTalkSession::do_cycle()
 
         for (size_t i = 0; i < local.size(); i++) {
             string *pkt = local[i];
+            static int dl_log = 0;
+            if (dl_log < 8) {
+                dl_log++;
+                srs_trace("Hikvision: talk downlink PCM len=%d listeners=%d ch=%d dev_codec=%d rate=%d",
+                          (int)pkt->size(), (int)listeners_.size(), channel_, audio_enc_type_, sample_rate_hz_);
+            }
             for (size_t j = 0; j < listeners_.size(); j++) {
                 if (listeners_[j]) {
+                    // Always PCM S16LE for browser (device G.711 already decoded).
                     listeners_[j]->on_talk_downlink(key, pkt->data(), (int)pkt->size());
                 }
             }
@@ -4151,11 +4850,14 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
             if ((err = talk_start(serialno, channel, talk_listener, &codec, &rate)) != srs_success) {
                 return srs_error_wrap(err, "talk start");
             }
-            srs_trace("Hikvision: talk control start ok codec=%d rate=%d serial=%s ch=%d",
+            srs_trace("Hikvision: talk control start ok codec=%d rate=%d format=pcm serial=%s ch=%d",
                       codec, rate, serialno.c_str(), channel);
             if (out_reply) {
+                // Browser always uses PCM; codec is device-side only (server encodes).
                 *out_reply = srs_fmt_sprintf(
-                    "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"talk\",\"action\":\"start\",\"codec\":%d,\"rate\":%d}",
+                    "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"talk\",\"action\":\"start\","
+                    "\"codec\":%d,\"rate\":%d,\"format\":\"pcm\",\"uplink\":\"pcm\","
+                    "\"downlink\":\"preview\"}",
                     codec, rate);
             }
             return err;
