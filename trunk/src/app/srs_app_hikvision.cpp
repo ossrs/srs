@@ -3045,6 +3045,19 @@ int SrsHikvisionTalkSession::listener_count()
     return (int)listeners_.size();
 }
 
+bool SrsHikvisionTalkSession::has_listener(ISrsHikvisionTalkListener *l) const
+{
+    if (!l) {
+        return false;
+    }
+    for (size_t i = 0; i < listeners_.size(); i++) {
+        if (listeners_[i] == l) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Map NET_DVR_COMPRESSION_AUDIO.byAudioSamplingRate → Hz.
 // 0=default, 1=16k, 2=32k, 3=48k, 4=44.1k, 5=8k
 static int srs_hik_audio_sampling_rate_hz(BYTE rate_code, int enc_type)
@@ -4845,26 +4858,58 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
         if ((prop = req->ensure_property_string("action")) != NULL) {
             action = prop->to_str();
         }
+        // Optional talk channel override (DC/HTTP). Default = stream/session channel.
+        // Accept: channel | talk_channel | camChannel (compat).
+        int talk_ch = channel;
+        if ((prop = req->ensure_property_integer("channel")) != NULL) {
+            int ov = (int)prop->to_integer();
+            if (ov > 0) {
+                talk_ch = ov;
+            }
+        } else if ((prop = req->ensure_property_integer("talk_channel")) != NULL) {
+            int ov = (int)prop->to_integer();
+            if (ov > 0) {
+                talk_ch = ov;
+            }
+        } else if ((prop = req->ensure_property_integer("camChannel")) != NULL) {
+            int ov = (int)prop->to_integer();
+            if (ov > 0) {
+                talk_ch = ov;
+            }
+        }
+        if (talk_ch <= 0) {
+            return srs_error_new(ERROR_HIKVISION_CONFIG, "invalid talk channel %d", talk_ch);
+        }
+        if (talk_ch != channel) {
+            srs_trace("Hikvision: talk channel override stream_ch=%d -> talk_ch=%d serial=%s", channel,
+                      talk_ch, serialno.c_str());
+        }
+
         if (action == "start") {
             int codec = 0, rate = 8000;
-            if ((err = talk_start(serialno, channel, talk_listener, &codec, &rate)) != srs_success) {
+            if ((err = talk_start(serialno, talk_ch, talk_listener, &codec, &rate)) != srs_success) {
                 return srs_error_wrap(err, "talk start");
             }
             srs_trace("Hikvision: talk control start ok codec=%d rate=%d format=pcm serial=%s ch=%d",
-                      codec, rate, serialno.c_str(), channel);
+                      codec, rate, serialno.c_str(), talk_ch);
             if (out_reply) {
                 // Browser always uses PCM; codec is device-side only (server encodes).
                 *out_reply = srs_fmt_sprintf(
                     "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"talk\",\"action\":\"start\","
-                    "\"codec\":%d,\"rate\":%d,\"format\":\"pcm\",\"uplink\":\"pcm\","
+                    "\"codec\":%d,\"rate\":%d,\"channel\":%d,\"format\":\"pcm\",\"uplink\":\"pcm\","
                     "\"downlink\":\"preview\"}",
-                    codec, rate);
+                    codec, rate, talk_ch);
             }
             return err;
         }
         if (action == "stop") {
-            if ((err = talk_stop(serialno, channel, talk_listener)) != srs_success) {
+            if ((err = talk_stop(serialno, talk_ch, talk_listener)) != srs_success) {
                 return srs_error_wrap(err, "talk stop");
+            }
+            if (out_reply) {
+                *out_reply = srs_fmt_sprintf(
+                    "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"talk\",\"action\":\"stop\",\"channel\":%d}",
+                    talk_ch);
             }
             return err;
         }
@@ -5075,8 +5120,19 @@ srs_error_t SrsHikvisionManager::talk_stop(const string &serialno, int channel, 
     return srs_success;
 }
 
-srs_error_t SrsHikvisionManager::talk_send_uplink(const string &stream_context, const char *data, int len)
+srs_error_t SrsHikvisionManager::talk_send_uplink(const string &stream_context, const char *data, int len,
+                                                  ISrsHikvisionTalkListener *listener)
 {
+    // Prefer the session this peer joined (talk channel may differ from preview stream ch).
+    if (listener) {
+        for (map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.begin();
+             it != talk_sessions_.end(); ++it) {
+            if (it->second && it->second->has_listener(listener)) {
+                return it->second->send_uplink(data, len);
+            }
+        }
+    }
+
     string serialno;
     int channel = 0, sub = 0;
     if (!srs_hikvision_parse_stream(stream_context, serialno, channel, sub)) {
@@ -5084,10 +5140,17 @@ srs_error_t SrsHikvisionManager::talk_send_uplink(const string &stream_context, 
     }
     string key = ptz_key(serialno, channel);
     map<string, SrsHikvisionTalkSession *>::iterator it = talk_sessions_.find(key);
-    if (it == talk_sessions_.end()) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "talk not started for %s", key.c_str());
+    if (it != talk_sessions_.end()) {
+        return it->second->send_uplink(data, len);
     }
-    return it->second->send_uplink(data, len);
+    // Fallback: any talk session for this serialno (single active talk path).
+    string prefix = serialno + "_";
+    for (it = talk_sessions_.begin(); it != talk_sessions_.end(); ++it) {
+        if (it->first.size() >= prefix.size() && it->first.compare(0, prefix.size(), prefix) == 0) {
+            return it->second->send_uplink(data, len);
+        }
+    }
+    return srs_error_new(ERROR_HIKVISION_SDK, "talk not started for %s (or peer not joined)", key.c_str());
 }
 
 void SrsHikvisionManager::talk_remove_listener(ISrsHikvisionTalkListener *listener)

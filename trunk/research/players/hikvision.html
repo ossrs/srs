@@ -327,13 +327,20 @@
           <span><span id="dotTalk" class="dot"></span>Talk: <b id="stTalk">idle</b></span>
           <span>codec: <b id="stTalkCodec">-</b></span>
         </div>
+        <div class="row">
+          <div>
+            <label>Talk 通道</label>
+            <input id="talkChannel" type="number" min="1" max="512" placeholder="空=当前流" />
+          </div>
+        </div>
         <div class="btns">
           <button class="primary" id="btnTalkStart">Start</button>
           <button class="danger" id="btnTalkStop" disabled>Stop</button>
         </div>
         <div class="hint">
           Live 预览声 = 摄像机原始音轨（与 Talk 无关）。<br/>
-          Talk = 麦克风 → SDK → 摄像机喇叭；需 HTTPS + DC open。
+          Talk = 麦克风 → SDK → 摄像机喇叭；需 HTTPS + DC open。<br/>
+          Talk 通道可与预览流不同；留空则用当前流通道。
         </div>
       </section>
 
@@ -963,7 +970,15 @@
         (j) => j && j.cmd === 'talk' && j.action === 'start' && j.code !== -1,
         8000
       );
-      await sendControl({ cmd: 'talk', action: 'start' });
+      const talkReq = { cmd: 'talk', action: 'start' };
+      // Optional: explicit talk channel (else server uses current stream channel).
+      const talkChEl = $('talkChannel');
+      const talkChRaw = talkChEl ? String(talkChEl.value || '').trim() : '';
+      if (talkChRaw !== '') {
+        const talkCh = parseInt(talkChRaw, 10);
+        if (talkCh > 0) talkReq.channel = talkCh;
+      }
+      await sendControl(talkReq);
       let reply = null;
       try {
         reply = await waitReply;
@@ -976,7 +991,10 @@
       if (reply && reply.rate) {
         talkPcmRate = parseInt(reply.rate, 10) || 8000;
       }
+      const usedCh = (reply && reply.channel) ? reply.channel
+        : (talkReq.channel || '(stream)');
       log('talk server ok format=pcm rate=' + talkPcmRate +
+        ' channel=' + usedCh +
         ' (device codec=' + talkCodec + ', SRS encodes)', 'ok');
 
       talkStream = await acquireMicStream();
@@ -1063,7 +1081,16 @@
 
   function stopTalk(silent) {
     if (talking) {
-      try { sendControl({ stream: streamName(), cmd: 'talk', action: 'stop' }); } catch (e) {}
+      try {
+        const stopReq = { cmd: 'talk', action: 'stop' };
+        const talkChEl = $('talkChannel');
+        const talkChRaw = talkChEl ? String(talkChEl.value || '').trim() : '';
+        if (talkChRaw !== '') {
+          const talkCh = parseInt(talkChRaw, 10);
+          if (talkCh > 0) stopReq.channel = talkCh;
+        }
+        sendControl(stopReq);
+      } catch (e) {}
     }
     talking = false;
     try { if (talkProc) { talkProc.disconnect(); talkProc.onaudioprocess = null; } } catch (e) {}

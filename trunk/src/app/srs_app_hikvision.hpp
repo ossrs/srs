@@ -389,6 +389,7 @@ public:
     // Returns remaining listener count.
     int remove_listener(ISrsHikvisionTalkListener *l);
     int listener_count();
+    bool has_listener(ISrsHikvisionTalkListener *l) const;
     // data = raw PCM S16LE mono from browser (not device G.711).
     srs_error_t send_uplink(const char *data, int len);
     // Called from HCNetSDK voice callback thread.
@@ -465,8 +466,10 @@ public:
                                ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL,
                                std::string *out_binary = NULL);
 
-    // Binary G.711 (etc.) uplink from browser DataChannel → VoiceComSendData.
-    srs_error_t talk_send_uplink(const std::string &stream_context, const char *data, int len);
+    // Binary PCM uplink from browser DataChannel → encode → VoiceComSendData.
+    // If listener is set, route to the talk session that listener joined (may differ from stream ch).
+    srs_error_t talk_send_uplink(const std::string &stream_context, const char *data, int len,
+                                ISrsHikvisionTalkListener *listener = NULL);
     // Drop listener from all talk sessions (RTC dispose).
     void talk_remove_listener(ISrsHikvisionTalkListener *listener);
 

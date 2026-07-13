@@ -506,7 +506,9 @@ srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuff
         if (is_binary) {
             talk_audio_sid_ = rcv.rcv_sid;
             talk_audio_sid_set_ = true;
-            if ((err = _srs_hikvision->talk_send_uplink(stream_context_, data, len)) != srs_success) {
+            // Pass `this` so uplink routes to the talk session this DC peer joined
+            // (talk channel may differ from preview stream channel).
+            if ((err = _srs_hikvision->talk_send_uplink(stream_context_, data, len, this)) != srs_success) {
                 srs_warn("SCTP: talk uplink failed, err=%s", srs_error_desc(err).c_str());
                 srs_freep(err);
             }
