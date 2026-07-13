@@ -34,7 +34,7 @@ function user_extra_params(query, params, rtc) {
             || key === 'http_port' || key === 'pathname' || key === 'port'
             || key === 'server' || key === 'stream' || key === 'buffer'
             || key === 'schema' || key === 'vhost' || key === 'api'
-            || key === 'path'
+            || key === 'path' || key === 'token' || key === 'url'
         ) {
             continue;
         }
@@ -120,6 +120,7 @@ function build_default_rtc_url(query) {
 
 function build_default_whip_whep_url(query, apiPath) {
     // The format for query string to overwrite configs of server.
+    console.log('?url=xxx to set the whole WHIP/WHEP url directly, ignoring other params');
     console.log('?eip=x.x.x.x to overwrite candidate. 覆盖服务器candidate(外网IP)配置');
     console.log('?api=x to overwrite WebRTC API(1985).');
     console.log('?schema=http|https to overwrite WebRTC API protocol.');
@@ -127,6 +128,13 @@ function build_default_whip_whep_url(query, apiPath) {
     console.log('?codec=xxx to specify video codec (alias for vcodec, e.g., h264, vp9, av1)');
     console.log('?vcodec=xxx to specify video codec (e.g., h264, vp9, av1)');
     console.log('?acodec=xxx to specify audio codec (e.g., opus, pcmu, pcma)');
+    console.log('?token=xxx to send a bearer token in the Authorization header');
+
+    // Allow setting the whole url directly, e.g. an external WHIP/WHEP endpoint.
+    // Default to https:// when the scheme is omitted.
+    if (query.url) {
+        return /^https?:\/\//i.test(query.url) ? query.url : 'https://' + query.url;
+    }
 
     var server = (!query.server)? window.location.hostname:query.server;
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;

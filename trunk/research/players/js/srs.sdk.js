@@ -37,6 +37,9 @@ function SrsRtcWhipWhepAsync() {
     // Store the WHIP session resource URL from Location header for cleanup.
     self.resourceUrl = null;
 
+    // Store the bearer token to authenticate the DELETE teardown request.
+    self.bearerToken = null;
+
     // See https://datatracker.ietf.org/doc/draft-ietf-wish-whip/
     // @url The WebRTC url to publish with, for example:
     //      http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream
@@ -46,13 +49,15 @@ function SrsRtcWhipWhepAsync() {
     //      audio: boolean, whether play audio, default to true.
     //      vcodec: string, video codec to use (e.g., 'h264', 'vp9', 'av1'), default to undefined.
     //      acodec: string, audio codec to use (e.g., 'opus', 'pcmu', 'pcma'), default to undefined.
+    //      token: string, bearer token for WHIP Authorization header, default to undefined.
     self.publish = async function (url, options) {
-        if (url.indexOf('/whip/') === -1) throw new Error(`invalid WHIP url ${url}`);
         const hasAudio = options?.audio ?? true;
         const useCamera = options?.camera ?? true;
         const useScreen = options?.screen ?? false;
         const vcodec = options?.vcodec;
         const acodec = options?.acodec;
+        // Keep the token for the DELETE teardown request in close().
+        self.bearerToken = options?.token;
 
         if (!hasAudio && !useCamera && !useScreen) throw new Error(`The camera, screen and audio can't be false at the same time`);
 
@@ -126,6 +131,7 @@ function SrsRtcWhipWhepAsync() {
             }
             xhr.open('POST', url, true);
             xhr.setRequestHeader('Content-type', 'application/sdp');
+            if (self.bearerToken) xhr.setRequestHeader('Authorization', 'Bearer ' + self.bearerToken);
             xhr.send(offer.sdp);
         });
         await self.pc.setRemoteDescription(
@@ -143,11 +149,13 @@ function SrsRtcWhipWhepAsync() {
     //      audioOnly: boolean, whether only play audio, default to false.
     //      vcodec: string, video codec to use (e.g., 'h264', 'vp9', 'av1'), default to undefined.
     //      acodec: string, audio codec to use (e.g., 'opus', 'pcmu', 'pcma'), default to undefined.
+    //      token: string, bearer token for WHEP Authorization header, default to undefined.
     self.play = async function(url, options) {
-        if (url.indexOf('/whip-play/') === -1 && url.indexOf('/whep/') === -1) throw new Error(`invalid WHEP url ${url}`);
         if (options?.videoOnly && options?.audioOnly) throw new Error(`The videoOnly and audioOnly in options can't be true at the same time`);
         const vcodec = options?.vcodec;
         const acodec = options?.acodec;
+        // Keep the token for the DELETE teardown request in close().
+        self.bearerToken = options?.token;
 
         if (!options?.videoOnly) self.pc.addTransceiver("audio", {direction: "recvonly"});
         if (!options?.audioOnly) self.pc.addTransceiver("video", {direction: "recvonly"});
@@ -182,6 +190,7 @@ function SrsRtcWhipWhepAsync() {
             }
             xhr.open('POST', url, true);
             xhr.setRequestHeader('Content-type', 'application/sdp');
+            if (self.bearerToken) xhr.setRequestHeader('Authorization', 'Bearer ' + self.bearerToken);
             xhr.send(offer.sdp);
         });
         await self.pc.setRemoteDescription(
@@ -214,6 +223,7 @@ function SrsRtcWhipWhepAsync() {
         if (self.resourceUrl) {
             const xhr = new XMLHttpRequest();
             xhr.open('DELETE', self.resourceUrl, true);
+            if (self.bearerToken) xhr.setRequestHeader('Authorization', 'Bearer ' + self.bearerToken);
             xhr.onload = function() {
                 if (xhr.readyState !== xhr.DONE) return;
                 if (xhr.status === 200) {
@@ -228,6 +238,8 @@ function SrsRtcWhipWhepAsync() {
             xhr.send();
             self.resourceUrl = null;
         }
+
+        self.bearerToken = null;
     };
 
     // The callback when got local stream.
