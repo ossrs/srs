@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -3404,6 +3405,204 @@ srs_error_t SrsHikvisionManager::search_records(SrsHikvisionDevice *device, int 
     return err;
 }
 
+// Worker payload: HCNetSDK + ffmpeg must NOT run on ST thread (blocks entire SRS).
+struct SrsHikvisionDlWorkerCtx {
+    LONG user_id;
+    int channel;
+    int64_t start_unix;
+    int64_t end_unix;
+    string raw_path;
+    string flv_path;
+    string flv_out;
+    int64_t raw_sz;
+    bool play_done;
+    int err_code; // 0=ok, else ERROR_*
+    string err_msg;
+    volatile int finished; // 0 running, 1 done
+};
+
+static void *srs_hikvision_dl_worker(void *arg)
+{
+    SrsHikvisionDlWorkerCtx *w = (SrsHikvisionDlWorkerCtx *)arg;
+    w->err_code = 0;
+    w->raw_sz = 0;
+    w->play_done = false;
+    w->flv_out.clear();
+
+    NET_DVR_VOD_PARA vod;
+    memset(&vod, 0, sizeof(vod));
+    vod.dwSize = sizeof(vod);
+    vod.struIDInfo.dwSize = sizeof(vod.struIDInfo);
+    vod.struIDInfo.dwChannel = (DWORD)w->channel;
+    vod.byStreamType = 0;
+    vod.hWnd = 0;
+    srs_hikvision_unix_to_dvr_time((time_t)w->start_unix, &vod.struBeginTime);
+    srs_hikvision_unix_to_dvr_time((time_t)w->end_unix, &vod.struEndTime);
+
+    LONG pb = NET_DVR_PlayBackByTime_V40(w->user_id, &vod);
+    if (pb < 0) {
+        w->err_code = ERROR_HIKVISION_SDK;
+        w->err_msg = string("PlayBackByTime_V40 ") + srs_hikvision_sdk_errmsg();
+        w->finished = 1;
+        return NULL;
+    }
+
+    if (!NET_DVR_PlayBackSaveData(pb, (char *)w->raw_path.c_str())) {
+        NET_DVR_StopPlayBack(pb);
+        w->err_code = ERROR_HIKVISION_SDK;
+        w->err_msg = string("PlayBackSaveData ") + srs_hikvision_sdk_errmsg();
+        w->finished = 1;
+        return NULL;
+    }
+    if (!NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYSTART, NULL, 0, NULL, NULL)) {
+        NET_DVR_StopPlayBackSave(pb);
+        NET_DVR_StopPlayBack(pb);
+        w->err_code = ERROR_HIKVISION_SDK;
+        w->err_msg = string("PLAYSTART ") + srs_hikvision_sdk_errmsg();
+        w->finished = 1;
+        return NULL;
+    }
+    for (int i = 0; i < 4; i++) {
+        NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYFAST, NULL, 0, NULL, NULL);
+    }
+
+    // OS thread: use usleep, never srs_usleep.
+    int64_t last_sz = -1;
+    int stable = 0;
+    time_t t0 = time(NULL);
+    const int kTimeoutSec = 120;
+    while ((int)(time(NULL) - t0) < kTimeoutSec) {
+        int pos = 0;
+        DWORD npos = sizeof(pos);
+        if (NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYGETPOS, NULL, 0, &pos, &npos)) {
+            if (pos == 100) {
+                w->play_done = true;
+                break;
+            }
+            if (pos > 100) {
+                NET_DVR_StopPlayBackSave(pb);
+                NET_DVR_StopPlayBack(pb);
+                ::unlink(w->raw_path.c_str());
+                w->err_code = ERROR_HIKVISION_SDK;
+                w->err_msg = srs_fmt_sprintf("download PLAYGETPOS=%d %s", pos, srs_hikvision_sdk_errmsg().c_str());
+                w->finished = 1;
+                return NULL;
+            }
+        }
+        FILE *fp = fopen(w->raw_path.c_str(), "rb");
+        int64_t sz = 0;
+        if (fp) {
+            fseek(fp, 0, SEEK_END);
+            sz = (int64_t)ftell(fp);
+            fclose(fp);
+        }
+        if (sz > 0 && sz == last_sz) {
+            stable++;
+            if (stable >= 15 && pos >= 95) {
+                w->play_done = true;
+                break;
+            }
+            if (stable >= 40 && sz > 1024) {
+                w->play_done = true;
+                break;
+            }
+        } else {
+            stable = 0;
+            last_sz = sz;
+        }
+        ::usleep(100 * 1000);
+    }
+
+    NET_DVR_StopPlayBackSave(pb);
+    NET_DVR_StopPlayBack(pb);
+
+    FILE *rfp = fopen(w->raw_path.c_str(), "rb");
+    if (!rfp) {
+        w->err_code = ERROR_HIKVISION_SDK;
+        w->err_msg = "open raw download failed";
+        w->finished = 1;
+        return NULL;
+    }
+    fseek(rfp, 0, SEEK_END);
+    w->raw_sz = (int64_t)ftell(rfp);
+    fclose(rfp);
+    if (w->raw_sz < 1024) {
+        ::unlink(w->raw_path.c_str());
+        w->err_code = ERROR_HIKVISION_SDK;
+        w->err_msg = srs_fmt_sprintf("SDK download empty/small size=%lld done=%d", (long long)w->raw_sz,
+                                     w->play_done ? 1 : 0);
+        w->finished = 1;
+        return NULL;
+    }
+
+    // G.711 (FLV idx 7) is not playable in flv.js → re-encode audio to AAC.
+    string cmd_aac = srs_fmt_sprintf(
+        "ffmpeg -y -hide_banner -loglevel error -i '%s' -map 0:v:0? -map 0:a:0? "
+        "-c:v copy -c:a aac -b:a 64k -ar 16000 -ac 1 -f flv '%s'",
+        w->raw_path.c_str(), w->flv_path.c_str());
+    int st = ::system(cmd_aac.c_str());
+    const char *via = "vcopy+aac";
+    if (st != 0) {
+        ::unlink(w->flv_path.c_str());
+        string cmd_an = srs_fmt_sprintf(
+            "ffmpeg -y -hide_banner -loglevel error -i '%s' -map 0:v:0? -an -c:v copy -f flv '%s'",
+            w->raw_path.c_str(), w->flv_path.c_str());
+        st = ::system(cmd_an.c_str());
+        via = "vcopy-an";
+    }
+    ::unlink(w->raw_path.c_str());
+    if (st != 0) {
+        ::unlink(w->flv_path.c_str());
+        w->err_code = ERROR_HIKVISION_STREAM;
+        w->err_msg = srs_fmt_sprintf("ffmpeg remux failed status=%d", st);
+        w->finished = 1;
+        return NULL;
+    }
+
+    FILE *ffp = fopen(w->flv_path.c_str(), "rb");
+    if (!ffp) {
+        w->err_code = ERROR_HIKVISION_STREAM;
+        w->err_msg = "open flv failed";
+        w->finished = 1;
+        return NULL;
+    }
+    fseek(ffp, 0, SEEK_END);
+    long fsz = ftell(ffp);
+    fseek(ffp, 0, SEEK_SET);
+    if (fsz < 13) {
+        fclose(ffp);
+        ::unlink(w->flv_path.c_str());
+        w->err_code = ERROR_HIKVISION_STREAM;
+        w->err_msg = srs_fmt_sprintf("flv too small size=%ld", fsz);
+        w->finished = 1;
+        return NULL;
+    }
+    w->flv_out.resize((size_t)fsz);
+    size_t nr = fread((void *)w->flv_out.data(), 1, (size_t)fsz, ffp);
+    fclose(ffp);
+    ::unlink(w->flv_path.c_str());
+    if ((long)nr != fsz) {
+        w->flv_out.clear();
+        w->err_code = ERROR_HIKVISION_STREAM;
+        w->err_msg = srs_fmt_sprintf("fread flv incomplete %zu/%ld", nr, fsz);
+        w->finished = 1;
+        return NULL;
+    }
+    if (w->flv_out[0] != 'F' || w->flv_out[1] != 'L' || w->flv_out[2] != 'V') {
+        w->flv_out.clear();
+        w->err_code = ERROR_HIKVISION_STREAM;
+        w->err_msg = "remux output is not FLV";
+        w->finished = 1;
+        return NULL;
+    }
+
+    // via string only for logging on ST side via err_msg empty + size.
+    (void)via;
+    w->err_code = 0;
+    w->finished = 1;
+    return NULL;
+}
+
 srs_error_t SrsHikvisionManager::download_playback_flv(SrsHikvisionDevice *device, int channel, int64_t start_unix,
                                                        int64_t end_unix, string &flv_out)
 {
@@ -3414,7 +3613,6 @@ srs_error_t SrsHikvisionManager::download_playback_flv(SrsHikvisionDevice *devic
         return srs_error_new(ERROR_HIKVISION_CONFIG, "invalid download range ch=%d start=%lld end=%lld", channel,
                              (long long)start_unix, (long long)end_unix);
     }
-    // Bulk SDK download — still cap to keep DC payload reasonable.
     const int64_t kMaxDur = 300;
     if (end_unix - start_unix > kMaxDur) {
         end_unix = start_unix + kMaxDur;
@@ -3425,151 +3623,53 @@ srs_error_t SrsHikvisionManager::download_playback_flv(SrsHikvisionDevice *devic
         return srs_error_wrap(err, "login for download");
     }
 
-    // Temp files under work dir /tmp.
     string tag = srs_fmt_sprintf("%d_%lld_%lld", channel, (long long)start_unix, (long long)srs_time_now_realtime());
     string raw_path = string("/tmp/hik_dl_") + tag + ".bin";
     string flv_path = string("/tmp/hik_dl_") + tag + ".flv";
     ::unlink(raw_path.c_str());
     ::unlink(flv_path.c_str());
 
-    NET_DVR_VOD_PARA vod;
-    memset(&vod, 0, sizeof(vod));
-    vod.dwSize = sizeof(vod);
-    vod.struIDInfo.dwSize = sizeof(vod.struIDInfo);
-    vod.struIDInfo.dwChannel = (DWORD)channel;
-    vod.byStreamType = 0; // main
-    vod.hWnd = 0;
-    srs_hikvision_unix_to_dvr_time((time_t)start_unix, &vod.struBeginTime);
-    srs_hikvision_unix_to_dvr_time((time_t)end_unix, &vod.struEndTime);
+    // Run blocking HCNetSDK + ffmpeg on OS thread so ST keeps RTC/HTTP/SCTP alive.
+    // Heap-allocate: worker lifetime independent of this stack frame.
+    SrsHikvisionDlWorkerCtx *work = new SrsHikvisionDlWorkerCtx();
+    work->user_id = (LONG)device->user_id();
+    work->channel = channel;
+    work->start_unix = start_unix;
+    work->end_unix = end_unix;
+    work->raw_path = raw_path;
+    work->flv_path = flv_path;
+    work->raw_sz = 0;
+    work->play_done = false;
+    work->err_code = 0;
+    work->finished = 0;
 
-    LONG pb = NET_DVR_PlayBackByTime_V40(device->user_id(), &vod);
-    if (pb < 0) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "PlayBackByTime_V40 ch=%d %s", channel,
-                             srs_hikvision_sdk_errmsg().c_str());
-    }
-
-    // Save to local file as fast as NVR pushes (not live 1x pull).
-    if (!NET_DVR_PlayBackSaveData(pb, (char *)raw_path.c_str())) {
-        NET_DVR_StopPlayBack(pb);
-        return srs_error_new(ERROR_HIKVISION_SDK, "PlayBackSaveData %s", srs_hikvision_sdk_errmsg().c_str());
-    }
-    if (!NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYSTART, NULL, 0, NULL, NULL)) {
-        NET_DVR_StopPlayBackSave(pb);
-        NET_DVR_StopPlayBack(pb);
-        return srs_error_new(ERROR_HIKVISION_SDK, "PLAYSTART for download %s", srs_hikvision_sdk_errmsg().c_str());
-    }
-    // Accelerate download (multiple PLAYFAST steps).
-    for (int i = 0; i < 4; i++) {
-        NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYFAST, NULL, 0, NULL, NULL);
-    }
-
-    srs_trace("Hikvision: SDK download started ch=%d range=%lld..%lld raw=%s", channel, (long long)start_unix,
+    srs_trace("Hikvision: SDK download worker start ch=%d range=%lld..%lld raw=%s", channel, (long long)start_unix,
               (long long)end_unix, raw_path.c_str());
 
-    // Wait until playback progress reaches end (or timeout / file size stable).
-    int64_t last_sz = -1;
-    int stable = 0;
-    srs_utime_t t0 = srs_time_now_realtime();
-    const srs_utime_t kTimeout = 120 * SRS_UTIME_SECONDS;
-    bool done = false;
-    while (srs_time_now_realtime() - t0 < kTimeout) {
-        int pos = 0;
-        DWORD npos = sizeof(pos);
-        if (NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYGETPOS, NULL, 0, &pos, &npos)) {
-            // pos 0-100 normal; >100 often means exception on some firmwares.
-            if (pos == 100) {
-                done = true;
-                break;
-            }
-            if (pos > 100) {
-                NET_DVR_StopPlayBackSave(pb);
-                NET_DVR_StopPlayBack(pb);
-                ::unlink(raw_path.c_str());
-                return srs_error_new(ERROR_HIKVISION_SDK, "download PLAYGETPOS=%d %s", pos,
-                                     srs_hikvision_sdk_errmsg().c_str());
-            }
-        }
-        // File growth check (viewer may not report pos reliably).
-        FILE *fp = fopen(raw_path.c_str(), "rb");
-        int64_t sz = 0;
-        if (fp) {
-            fseek(fp, 0, SEEK_END);
-            sz = (int64_t)ftell(fp);
-            fclose(fp);
-        }
-        if (sz > 0 && sz == last_sz) {
-            stable++;
-            if (stable >= 15 && pos >= 95) { // ~1.5s stable near end
-                done = true;
-                break;
-            }
-            if (stable >= 40 && sz > 1024) { // ~4s stable with data
-                done = true;
-                break;
-            }
-        } else {
-            stable = 0;
-            last_sz = sz;
-        }
-        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    pthread_t tid;
+    int pr = pthread_create(&tid, NULL, srs_hikvision_dl_worker, work);
+    if (pr != 0) {
+        delete work;
+        return srs_error_new(ERROR_HIKVISION_SDK, "pthread_create download worker failed ret=%d", pr);
     }
 
-    NET_DVR_StopPlayBackSave(pb);
-    NET_DVR_StopPlayBack(pb);
-
-    // Read raw size
-    FILE *rfp = fopen(raw_path.c_str(), "rb");
-    if (!rfp) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "open raw download %s failed", raw_path.c_str());
+    // Poll from ST coroutine (yields so ICE/API keep working). Worker self-caps ~120s + ffmpeg.
+    while (!work->finished) {
+        srs_usleep(50 * SRS_UTIME_MILLISECONDS);
     }
-    fseek(rfp, 0, SEEK_END);
-    int64_t raw_sz = (int64_t)ftell(rfp);
-    fclose(rfp);
-    if (raw_sz < 1024) {
-        ::unlink(raw_path.c_str());
-        return srs_error_new(ERROR_HIKVISION_SDK, "SDK download empty/small size=%lld done=%d",
-                             (long long)raw_sz, done ? 1 : 0);
+    pthread_join(tid, NULL);
+
+    if (work->err_code != 0) {
+        err = srs_error_new(work->err_code, "%s", work->err_msg.c_str());
+        delete work;
+        return err;
     }
 
-    // Remux IMKH/MPEG-PS → FLV with system ffmpeg (copy, no re-encode). Fast.
-    string cmd = srs_fmt_sprintf(
-        "ffmpeg -y -hide_banner -loglevel error -i %s -c copy -f flv %s",
-        raw_path.c_str(), flv_path.c_str());
-    int st = ::system(cmd.c_str());
-    ::unlink(raw_path.c_str());
-    if (st != 0) {
-        ::unlink(flv_path.c_str());
-        return srs_error_new(ERROR_HIKVISION_STREAM, "ffmpeg remux to flv failed status=%d", st);
-    }
-
-    FILE *ffp = fopen(flv_path.c_str(), "rb");
-    if (!ffp) {
-        return srs_error_new(ERROR_HIKVISION_STREAM, "open flv %s failed", flv_path.c_str());
-    }
-    fseek(ffp, 0, SEEK_END);
-    long fsz = ftell(ffp);
-    fseek(ffp, 0, SEEK_SET);
-    if (fsz < 13) {
-        fclose(ffp);
-        ::unlink(flv_path.c_str());
-        return srs_error_new(ERROR_HIKVISION_STREAM, "flv too small size=%ld", fsz);
-    }
-    flv_out.resize((size_t)fsz);
-    size_t nr = fread((void *)flv_out.data(), 1, (size_t)fsz, ffp);
-    fclose(ffp);
-    ::unlink(flv_path.c_str());
-    if ((long)nr != fsz) {
-        flv_out.clear();
-        return srs_error_new(ERROR_HIKVISION_STREAM, "fread flv incomplete %zu/%ld", nr, fsz);
-    }
-    if (flv_out[0] != 'F' || flv_out[1] != 'L' || flv_out[2] != 'V') {
-        flv_out.clear();
-        return srs_error_new(ERROR_HIKVISION_STREAM, "remux output is not FLV");
-    }
-
-    srs_trace("Hikvision: SDK download_playback_flv ok ch=%d size=%d raw=%lld range=%lld..%lld done=%d",
-              channel, (int)flv_out.size(), (long long)raw_sz, (long long)start_unix, (long long)end_unix,
-              done ? 1 : 0);
+    flv_out.swap(work->flv_out);
+    srs_trace("Hikvision: SDK download_playback_flv ok ch=%d size=%d raw=%lld range=%lld..%lld done=%d", channel,
+              (int)flv_out.size(), (long long)work->raw_sz, (long long)start_unix, (long long)end_unix,
+              work->play_done ? 1 : 0);
+    delete work;
     return err;
 }
 
