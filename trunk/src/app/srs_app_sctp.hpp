@@ -111,6 +111,8 @@ public:
     // ISrsHikvisionTalkListener
 public:
     virtual void on_talk_downlink(const std::string &talk_key, const char *data, int len);
+    virtual srs_error_t dc_send_text(const std::string &s);
+    virtual srs_error_t dc_send_binary(const char *data, int len);
 #endif
 
     // usrsctp callbacks (public for C linkage).

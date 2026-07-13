@@ -299,6 +299,7 @@ struct SrsHikvisionPtzSession {
 };
 
 // Downlink audio from NVR VoiceCom → WebRTC DataChannel peers.
+// Also optional DC writer for control replies (SrsSctp implements send helpers).
 class ISrsHikvisionTalkListener
 {
 public:
@@ -308,6 +309,10 @@ public:
 public:
     // Encoded talk frame (G.711 etc.) from device, ready to send to browser as DC binary.
     virtual void on_talk_downlink(const std::string &talk_key, const char *data, int len) = 0;
+    // Optional: send JSON text on the control DataChannel (default: unsupported).
+    virtual srs_error_t dc_send_text(const std::string &s);
+    // Optional: send binary (e.g. FLV file chunks) on DataChannel (default: unsupported).
+    virtual srs_error_t dc_send_binary(const char *data, int len);
 };
 
 // One VoiceCom session per device channel (SDK typically allows one talk path).
@@ -395,13 +400,17 @@ public:
     //   {"cmd":"ptz","dir":"up"}                                  // DataChannel: stream from RTC play context
     //   {"cmd":"talk","action":"start"}
     //   {"cmd":"search_record","start":1700000000,"end":1700086400}
+    //   {"cmd":"play","playback":1700000000,"playback_stop":1700000060}  // DC: FLV file via binary msgs
     // stream_context: default stream for DataChannel (from WebRTC play session).
-    // talk_listener: optional DC peer for downlink audio (talk start).
+    // talk_listener: optional DC peer for talk + play file transfer.
     // out_reply: optional full JSON response (e.g. search results); if empty on success, caller uses generic ok.
+    // out_binary: optional FLV body for HTTP clients of cmd=play (DC uses talk_listener binary send).
     srs_error_t handle_control_json(const std::string &json, const std::string &stream_context = "",
-                                    ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL);
+                                    ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL,
+                                    std::string *out_binary = NULL);
     srs_error_t handle_control(SrsJsonObject *req, const std::string &stream_context = "",
-                               ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL);
+                               ISrsHikvisionTalkListener *talk_listener = NULL, std::string *out_reply = NULL,
+                               std::string *out_binary = NULL);
 
     // Binary G.711 (etc.) uplink from browser DataChannel → VoiceComSendData.
     srs_error_t talk_send_uplink(const std::string &stream_context, const char *data, int len);
@@ -430,6 +439,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // NET_DVR_FindFile_V40 recording list. start/end unix seconds (local device clock).
     srs_error_t search_records(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
                                int file_type, int stream_type, int max_results, std::string *out_json);
+    // SDK bulk download (PlayBackSaveData + PLAYFAST), then remux to FLV via ffmpeg.
+    // Not the 1x VOD HTTP-FLV path — downloads as fast as NVR allows.
+    srs_error_t download_playback_flv(SrsHikvisionDevice *device, int channel, int64_t start_unix, int64_t end_unix,
+                                      std::string &flv_out);
+    // Send FLV over DataChannel: JSON header + binary chunks; out_reply = end JSON.
+    srs_error_t send_flv_over_dc(ISrsHikvisionTalkListener *dc, int64_t start_unix, int64_t end_unix,
+                                 const std::string &flv, std::string *out_reply);
 };
 
 // HTTP API: POST /api/v1/hikvision/control

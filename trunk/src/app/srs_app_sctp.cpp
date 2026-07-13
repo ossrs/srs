@@ -521,6 +521,42 @@ void SrsSctp::on_talk_downlink(const string & /*talk_key*/, const char *data, in
         srs_freep(err);
     }
 }
+
+static uint16_t srs_sctp_pick_open_sid(const map<uint16_t, SrsDataChannelInfo> &chs, uint16_t talk_sid, bool talk_set)
+{
+    if (talk_set && chs.find(talk_sid) != chs.end()) {
+        return talk_sid;
+    }
+    // Prefer sid 0 (default labeled channel) if open.
+    map<uint16_t, SrsDataChannelInfo>::const_iterator it = chs.find(0);
+    if (it != chs.end() && it->second.status_ == SrsDataChannelStatusOpen) {
+        return 0;
+    }
+    for (it = chs.begin(); it != chs.end(); ++it) {
+        if (it->second.status_ == SrsDataChannelStatusOpen) {
+            return it->first;
+        }
+    }
+    return 0;
+}
+
+srs_error_t SrsSctp::dc_send_text(const string &s)
+{
+    if (s.empty()) {
+        return srs_success;
+    }
+    uint16_t sid = srs_sctp_pick_open_sid(data_channels_, talk_audio_sid_, talk_audio_sid_set_);
+    return send(sid, s.data(), (int)s.size(), true);
+}
+
+srs_error_t SrsSctp::dc_send_binary(const char *data, int len)
+{
+    if (!data || len <= 0) {
+        return srs_success;
+    }
+    uint16_t sid = srs_sctp_pick_open_sid(data_channels_, talk_audio_sid_, talk_audio_sid_set_);
+    return send(sid, data, len, false);
+}
 #endif
 
 srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string)

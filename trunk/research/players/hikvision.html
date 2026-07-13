@@ -308,7 +308,10 @@
         <div class="hint">
           DataChannel（推荐）: <code>{"cmd":"search_record","start":unix,"end":unix}</code> — 不用带 stream，用 Play 会话上下文。<br/>
           HTTP: 需加 <code>"stream":"SN_6_0"</code>。<br/>
-          返回 <code>id=HIK::SearchRecordResult</code>，条目含 <code>vodStream</code> 可填入 Stream 回放。
+          返回 <code>id=HIK::SearchRecordResult</code>，条目含 <code>vodStream</code> 可填入 Stream 回放。<br/>
+          整段下载 FLV（SDK <code>PlayBackSaveData</code> 高速落盘，再转 FLV，非 1x 拉流；≤300s）：
+          <code>{"cmd":"play","playback":startUnix,"playback_stop":endUnix}</code><br/>
+          DC 回包：JSON <code>HIK::PlaybackFile</code> → 二进制 FLV 分片 → <code>HIK::PlaybackFileEnd</code>。
         </div>
       </section>
 
