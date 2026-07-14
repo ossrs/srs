@@ -219,6 +219,7 @@ MockDtls::MockDtls()
     start_active_handshake_error_ = srs_success;
     on_dtls_error_ = srs_success;
     get_srtp_key_error_ = srs_success;
+    write_application_data_error_ = srs_success;
 
     reset();
 }
@@ -229,6 +230,7 @@ MockDtls::~MockDtls()
     srs_freep(start_active_handshake_error_);
     srs_freep(on_dtls_error_);
     srs_freep(get_srtp_key_error_);
+    srs_freep(write_application_data_error_);
 }
 
 void MockDtls::reset()
@@ -237,11 +239,13 @@ void MockDtls::reset()
     srs_freep(start_active_handshake_error_);
     srs_freep(on_dtls_error_);
     srs_freep(get_srtp_key_error_);
+    srs_freep(write_application_data_error_);
 
     initialize_error_ = srs_success;
     start_active_handshake_error_ = srs_success;
     on_dtls_error_ = srs_success;
     get_srtp_key_error_ = srs_success;
+    write_application_data_error_ = srs_success;
 
     last_role_ = "";
     last_version_ = "";
@@ -252,6 +256,7 @@ void MockDtls::reset()
     start_active_handshake_count_ = 0;
     on_dtls_count_ = 0;
     get_srtp_key_count_ = 0;
+    write_application_data_count_ = 0;
 }
 
 srs_error_t MockDtls::initialize(std::string role, std::string version)
@@ -266,6 +271,12 @@ srs_error_t MockDtls::start_active_handshake()
 {
     start_active_handshake_count_++;
     return srs_error_copy(start_active_handshake_error_);
+}
+
+srs_error_t MockDtls::write_application_data(const char * /*data*/, int /*size*/)
+{
+    write_application_data_count_++;
+    return srs_error_copy(write_application_data_error_);
 }
 
 srs_error_t MockDtls::on_dtls(char *data, int nb_data)

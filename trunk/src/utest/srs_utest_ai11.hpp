@@ -112,6 +112,7 @@ public:
     srs_error_t start_active_handshake_error_;
     srs_error_t on_dtls_error_;
     srs_error_t get_srtp_key_error_;
+    srs_error_t write_application_data_error_;
     std::string last_role_;
     std::string last_version_;
     std::string recv_key_;
@@ -120,6 +121,7 @@ public:
     int start_active_handshake_count_;
     int on_dtls_count_;
     int get_srtp_key_count_;
+    int write_application_data_count_;
 
 public:
     MockDtls();
@@ -128,6 +130,7 @@ public:
 public:
     virtual srs_error_t initialize(std::string role, std::string version);
     virtual srs_error_t start_active_handshake();
+    virtual srs_error_t write_application_data(const char *data, int size);
     virtual srs_error_t on_dtls(char *data, int nb_data);
     virtual srs_error_t get_srtp_key(std::string &recv_key, std::string &send_key);
 
