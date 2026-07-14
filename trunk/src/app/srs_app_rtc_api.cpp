@@ -113,14 +113,15 @@ srs_error_t SrsGoApiRtcPlay::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     SrsUniquePtr<SrsJsonObject> req(req_raw);
 
     // Fetch params from req object.
+    // Use srs_error_new (not wrap(success)): wrap copies code=0 and breaks JSON error clients/tests.
     SrsJsonAny *prop = NULL;
     if ((prop = req->ensure_property_string("sdp")) == NULL) {
-        return srs_error_wrap(err, "not sdp");
+        return srs_error_new(ERROR_RTC_API_BODY, "not sdp");
     }
     string remote_sdp_str = prop->to_str();
 
     if ((prop = req->ensure_property_string("streamurl")) == NULL) {
-        return srs_error_wrap(err, "not streamurl");
+        return srs_error_new(ERROR_RTC_API_BODY, "not streamurl");
     }
     string streamurl = prop->to_str();
 
@@ -447,14 +448,15 @@ srs_error_t SrsGoApiRtcPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHtt
     SrsUniquePtr<SrsJsonObject> req(req_raw);
 
     // Fetch params from req object.
+    // Use srs_error_new (not wrap(success)): wrap copies code=0 and breaks JSON error clients/tests.
     SrsJsonAny *prop = NULL;
     if ((prop = req->ensure_property_string("sdp")) == NULL) {
-        return srs_error_wrap(err, "not sdp");
+        return srs_error_new(ERROR_RTC_API_BODY, "not sdp");
     }
     string remote_sdp_str = prop->to_str();
 
     if ((prop = req->ensure_property_string("streamurl")) == NULL) {
-        return srs_error_wrap(err, "not streamurl");
+        return srs_error_new(ERROR_RTC_API_BODY, "not streamurl");
     }
     string streamurl = prop->to_str();
 
