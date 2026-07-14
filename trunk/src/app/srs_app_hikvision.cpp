@@ -288,7 +288,8 @@ bool srs_hikvision_parse_stream(const string &stream, string &serialno, int &cha
 
     serialno = stream.substr(0, p1);
     channel = ::atoi(ch_s.c_str());
-    if (serialno.empty() || channel <= 0) {
+    // channel >= 1: normal; channel == 0: live zero-channel (NET_DVR_ZeroStartPlay).
+    if (serialno.empty() || channel < 0) {
         return false;
     }
 
@@ -297,6 +298,10 @@ bool srs_hikvision_parse_stream(const string &stream, string &serialno, int &cha
     if (last_s.size() >= 10) {
         int64_t ts = (int64_t)strtoll(last_s.c_str(), NULL, 10);
         if (ts >= kHikvisionPlaybackTsMin) {
+            // VOD is not supported on zero-channel naming.
+            if (channel <= 0) {
+                return false;
+            }
             subchannel = 0; // main stream for VOD by default
             if (start_unix_ts) {
                 *start_unix_ts = ts;
@@ -335,10 +340,13 @@ SrsHikvisionMuxer::SrsHikvisionMuxer()
     h264_sps_changed_ = false;
     h264_pps_changed_ = false;
     h264_sps_pps_sent_ = false;
+    h264_got_idr_ = false;
+    h264_ps_es_.clear();
 
     hevc_ = new SrsRawHEVCStream();
     vps_sps_pps_change_ = false;
     vps_sps_pps_sent_ = false;
+    h265_ps_es_.clear();
 
     aac_ = new SrsRawAacStream();
     g711_aac_enc_ = NULL;
@@ -491,6 +499,23 @@ srs_error_t SrsHikvisionMuxer::on_es_video(const char *data, int size, uint32_t 
         return srs_success;
     }
 
+    bool has_idr = is_key_hint;
+    if (!has_idr) {
+        for (size_t i = 0; i < vcl_nalus.size(); i++) {
+            if (vcl_nalus[i].first &&
+                (((uint8_t)vcl_nalus[i].first[0]) & 0x1f) == (uint8_t)SrsAvcNaluTypeIDR) {
+                has_idr = true;
+                break;
+            }
+        }
+    }
+    if (h264_sps_pps_sent_ && !h264_got_idr_ && !has_idr) {
+        return srs_success;
+    }
+    if (has_idr) {
+        h264_got_idr_ = true;
+    }
+
     if ((err = write_h264_ipb_frames(vcl_nalus, dts, pts)) != srs_success) {
         if (srs_error_code(err) == ERROR_H264_DROP_BEFORE_SPS_PPS) {
             srs_info("Hikvision ES: drop AU before sps/pps key_hint=%d nalus=%d", is_key_hint ? 1 : 0, (int)vcl_nalus.size());
@@ -533,7 +558,9 @@ static bool srs_hikvision_is_h264_nalu_type(uint8_t b0)
 // H.264 SPS must have nal_ref_idc != 0 and reasonable size (not a whole frame mis-detected).
 static bool srs_hikvision_valid_h264_sps(char *frame, int size)
 {
-    if (!frame || size < 4 || size > 128) {
+    // Real SPS is typically ~10–50B. Tiny slices from mid-stream false start-codes
+    // (common on zero-channel PS path) cause green screen if accepted.
+    if (!frame || size < 8 || size > 64) {
         return false;
     }
     uint8_t b0 = (uint8_t)frame[0];
@@ -542,6 +569,10 @@ static bool srs_hikvision_valid_h264_sps(char *frame, int size)
     }
     // nal_ref_idc (bits 5-6) must be non-zero for SPS.
     if (((b0 >> 5) & 0x03) == 0) {
+        return false;
+    }
+    // Prefer standard forbidden_zero_bit=0 and common headers (0x67/0x27).
+    if ((b0 & 0x80) != 0) {
         return false;
     }
     // Common H.264 profile_idc values.
@@ -795,6 +826,60 @@ srs_error_t SrsHikvisionMuxer::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
     return mux_h264(msg, avs);
 }
 
+// True if byte looks like a real H.264 NAL header (not entropy garbage after 00 00 01).
+static bool srs_hikvision_plausible_h264_nal_hdr(uint8_t b0)
+{
+    // forbidden_zero_bit must be 0.
+    if (b0 & 0x80) {
+        return false;
+    }
+    uint8_t nt = b0 & 0x1f;
+    // Common NAL types from cameras: non-IDR, IDR, SEI, SPS, PPS, AUD.
+    // Skip 0 (unspecified) and reserved/uncommon types that often appear in false start codes.
+    return nt == 1 || nt == 5 || nt == 6 || nt == 7 || nt == 8 || nt == 9;
+}
+
+// Collect Annex-B NAL start offsets (byte after 00 00 01 / 00 00 00 01).
+// Require a plausible NAL header after the start code to avoid splitting mid-slice
+// on accidental 00 00 01 patterns in RBSP (causes ~5KB ghost frames / green screen).
+static void srs_hikvision_annexb_starts(const char *data, int size, vector<int> &starts)
+{
+    starts.clear();
+    for (int i = 0; i + 3 < size;) {
+        if (data[i] == 0 && data[i + 1] == 0) {
+            if (data[i + 2] == 1) {
+                int nal_off = i + 3;
+                if (nal_off < size && srs_hikvision_plausible_h264_nal_hdr((uint8_t)data[nal_off])) {
+                    starts.push_back(nal_off);
+                }
+                i += 3;
+                continue;
+            }
+            if (i + 3 < size && data[i + 2] == 0 && data[i + 3] == 1) {
+                int nal_off = i + 4;
+                if (nal_off < size && srs_hikvision_plausible_h264_nal_hdr((uint8_t)data[nal_off])) {
+                    starts.push_back(nal_off);
+                }
+                i += 4;
+                continue;
+            }
+        }
+        i++;
+    }
+}
+
+// Start-code length immediately before NAL byte at `nal_off`.
+static int srs_hikvision_annexb_sc_len(const char *data, int nal_off)
+{
+    if (nal_off >= 4 && data[nal_off - 4] == 0 && data[nal_off - 3] == 0 && data[nal_off - 2] == 0 && data[nal_off - 1] == 1) {
+        return 4;
+    }
+    if (nal_off >= 3 && data[nal_off - 3] == 0 && data[nal_off - 2] == 0 && data[nal_off - 1] == 1) {
+        return 3;
+    }
+    return 0;
+}
+
 srs_error_t SrsHikvisionMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
@@ -806,31 +891,87 @@ srs_error_t SrsHikvisionMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
         pts = dts + (raw_pts - raw_dts);
     }
 
-    while (!avs->empty()) {
-        char *frame = NULL;
-        int frame_size = 0;
-        if ((err = demux_h264_nalu(avs, &frame, &frame_size)) != srs_success) {
-            // Soft-fail: skip rest of this PES instead of killing the stream.
-            srs_warn("Hikvision: demux h264 failed, drop rest, err=%s", srs_error_desc(err).c_str());
-            srs_freep(err);
-            break;
+    // Zero-channel PS packs split large slices across PES (~4–5KB). Never treat a PES
+    // boundary as end-of-NAL: only emit NALUs closed by the next Annex-B start code.
+    if (avs && !avs->empty()) {
+        h264_ps_es_.append(avs->data() + avs->pos(), avs->left());
+        avs->skip(avs->left());
+    }
+    // Safety: corrupt stream / missing start codes must not grow forever.
+    if ((int)h264_ps_es_.size() > 4 * 1024 * 1024) {
+        srs_warn("Hikvision: h264 PS ES buffer overflow %dB, reset", (int)h264_ps_es_.size());
+        h264_ps_es_.clear();
+        return err;
+    }
+
+    const char *data = h264_ps_es_.data();
+    int size = (int)h264_ps_es_.size();
+    vector<int> starts;
+    srs_hikvision_annexb_starts(data, size, starts);
+
+    if (starts.empty()) {
+        // Wait for a start code; drop obvious garbage without one.
+        if (size > 512) {
+            srs_info("Hikvision: drop %dB PS ES without Annex-B start code", size);
+            h264_ps_es_.clear();
         }
+        return err;
+    }
+
+    // Complete NALs: starts[k] .. (starts[k+1] - sc_len). Last start is incomplete — keep it.
+    if ((int)starts.size() < 2) {
+        // Only incomplete NAL in buffer. Drop leading junk before first start code.
+        int keep = starts[0] - srs_hikvision_annexb_sc_len(data, starts[0]);
+        if (keep > 0) {
+            h264_ps_es_.erase(0, keep);
+        }
+        return err;
+    }
+
+    // Owned copies: buffer will be erased after scan.
+    vector<string> complete_nals;
+    complete_nals.reserve(starts.size() - 1);
+    for (size_t k = 0; k + 1 < starts.size(); k++) {
+        int sc = srs_hikvision_annexb_sc_len(data, starts[k + 1]);
+        int nal_end = starts[k + 1] - sc;
+        int nal_size = nal_end - starts[k];
+        if (nal_size <= 0 || nal_size > 4 * 1024 * 1024) {
+            continue;
+        }
+        complete_nals.push_back(string(data + starts[k], nal_size));
+    }
+
+    // Keep incomplete tail (last start code + payload so far).
+    int keep_from = starts.back() - srs_hikvision_annexb_sc_len(data, starts.back());
+    if (keep_from < 0) {
+        keep_from = 0;
+    }
+    if (keep_from > 0 && keep_from < (int)h264_ps_es_.size()) {
+        h264_ps_es_.erase(0, keep_from);
+    } else if (keep_from >= (int)h264_ps_es_.size()) {
+        h264_ps_es_.clear();
+    }
+
+    for (size_t i = 0; i < complete_nals.size(); i++) {
+        char *frame = (char *)complete_nals[i].data();
+        int frame_size = (int)complete_nals[i].size();
         if (!frame || frame_size <= 0) {
-            break;
+            continue;
         }
 
         SrsAvcNaluType nt = (SrsAvcNaluType)(frame[0] & 0x1f);
-        if (nt != SrsAvcNaluTypeSPS && nt != SrsAvcNaluTypePPS && nt != SrsAvcNaluTypeIDR &&
-            nt != SrsAvcNaluTypeNonIDR && nt != SrsAvcNaluTypeSEI && nt != SrsAvcNaluTypeAccessUnitDelimiter) {
-            continue;
-        }
-        if (nt == SrsAvcNaluTypeSEI || nt == SrsAvcNaluTypeAccessUnitDelimiter) {
+        if (nt == SrsAvcNaluTypeSEI || nt == SrsAvcNaluTypeAccessUnitDelimiter ||
+            nt == SrsAvcNaluTypeFilterData || nt == SrsAvcNaluTypeEOSequence || nt == SrsAvcNaluTypeEOStream) {
             continue;
         }
 
         if (avc_->is_sps(frame, frame_size)) {
+            // Lock first good SPS — PS zero-channel often has false start-codes.
+            if (h264_sps_pps_sent_) {
+                continue;
+            }
             if (!srs_hikvision_valid_h264_sps(frame, frame_size)) {
-                srs_warn("Hikvision: skip invalid SPS size=%d first=%#x", frame_size, (uint8_t)frame[0]);
+                srs_info("Hikvision: skip invalid SPS size=%d first=%#x", frame_size, (uint8_t)frame[0]);
                 continue;
             }
             string sps;
@@ -838,24 +979,26 @@ srs_error_t SrsHikvisionMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
                 srs_freep(err);
                 continue;
             }
-            if (h264_sps_ == sps) {
-                continue;
-            }
-            h264_sps_changed_ = true;
-            h264_sps_ = sps;
-            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
-                // Soft reconnect on publish errors.
-                srs_warn("Hikvision: write sps/pps failed, reconnect, err=%s", srs_error_desc(err).c_str());
-                srs_freep(err);
-                close();
-                break;
+            if (h264_sps_ != sps) {
+                string prev = h264_sps_;
+                h264_sps_changed_ = true;
+                h264_sps_ = sps;
+                if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+                    srs_warn("Hikvision: write sps/pps failed, keep previous, err=%s", srs_error_desc(err).c_str());
+                    srs_freep(err);
+                    h264_sps_ = prev;
+                    h264_sps_changed_ = false;
+                }
             }
             continue;
         }
 
         if (avc_->is_pps(frame, frame_size)) {
+            if (h264_sps_pps_sent_) {
+                continue;
+            }
             if (!srs_hikvision_valid_h264_pps(frame, frame_size)) {
-                srs_warn("Hikvision: skip invalid PPS size=%d first=%#x", frame_size, (uint8_t)frame[0]);
+                srs_info("Hikvision: skip invalid PPS size=%d first=%#x", frame_size, (uint8_t)frame[0]);
                 continue;
             }
             string pps;
@@ -863,35 +1006,76 @@ srs_error_t SrsHikvisionMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
                 srs_freep(err);
                 continue;
             }
-            if (h264_pps_ == pps) {
-                continue;
-            }
-            h264_pps_changed_ = true;
-            h264_pps_ = pps;
-            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
-                srs_warn("Hikvision: write sps/pps failed, reconnect, err=%s", srs_error_desc(err).c_str());
-                srs_freep(err);
-                close();
-                break;
+            if (h264_pps_ != pps) {
+                string prev = h264_pps_;
+                h264_pps_changed_ = true;
+                h264_pps_ = pps;
+                if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+                    srs_warn("Hikvision: write sps/pps failed, keep previous, err=%s", srs_error_desc(err).c_str());
+                    srs_freep(err);
+                    h264_pps_ = prev;
+                    h264_pps_changed_ = false;
+                }
             }
             continue;
         }
 
-        if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
-            // Drop frames before SPS/PPS rather than fail the stream.
+        // VCL: one complete slice NAL = one access unit (typical IPC single-slice).
+        if (nt != SrsAvcNaluTypeIDR && nt != SrsAvcNaluTypeNonIDR) {
+            continue;
+        }
+        if (frame_size < 4 || frame_size > 4 * 1024 * 1024) {
+            continue;
+        }
+        if (!h264_sps_pps_sent_) {
+            continue; // wait for SH
+        }
+        bool is_idr = (nt == SrsAvcNaluTypeIDR);
+        // Zero-channel 704x576 IDRs are typically 80KB+; a ~5KB "IDR" is almost always a
+        // false start-code split before reassembly has the full slice — skip to avoid green.
+        if (is_idr && frame_size < 8192) {
+            static int drop_small_idr = 0;
+            if (drop_small_idr++ < 8) {
+                srs_trace("Hikvision: drop tiny IDR size=%d (likely incomplete)", frame_size);
+            }
+            continue;
+        }
+        if (!h264_got_idr_ && !is_idr) {
+            static int drop_p = 0;
+            if (drop_p++ < 8) {
+                srs_trace("Hikvision: drop pre-IDR VCL size=%d (wait keyframe)", frame_size);
+            }
+            continue;
+        }
+        // Multiple complete slices can close on the same PES stamp — keep DTS monotonic.
+        if (last_out_dts_ >= 0 && (int64_t)dts <= last_out_dts_) {
+            dts = (uint32_t)(last_out_dts_ + 40);
+            pts = dts;
+        }
+        last_out_dts_ = (int64_t)dts;
+
+        if (is_idr) {
+            h264_got_idr_ = true;
+            static int idr_log = 0;
+            if (idr_log++ < 8) {
+                srs_trace("Hikvision: complete IDR size=%d dts=%u (PS Annex-B reassembly)", frame_size, dts);
+            }
+        }
+
+        vector<pair<char *, int> > vcl_nalus;
+        vcl_nalus.push_back(make_pair(frame, frame_size));
+        if ((err = write_h264_ipb_frames(vcl_nalus, dts, pts)) != srs_success) {
             if (srs_error_code(err) == ERROR_H264_DROP_BEFORE_SPS_PPS) {
-                srs_info("Hikvision: drop frame before sps/pps");
                 srs_freep(err);
+                err = srs_success;
                 continue;
             }
-            // Socket write / publish failure: soft reconnect, keep PS state.
-            srs_warn("Hikvision: write frame failed, reconnect, err=%s", srs_error_desc(err).c_str());
+            srs_warn("Hikvision: write AU failed, drop, err=%s", srs_error_desc(err).c_str());
             srs_freep(err);
-            close();
-            break;
+            err = srs_success;
+            continue;
         }
     }
-
     return err;
 }
 
@@ -1652,8 +1836,13 @@ srs_error_t SrsHikvisionMuxer::ensure_publish()
         return srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "stream %s busy", req_->get_stream_url().c_str());
     }
 
-    bool enabled_cache = _srs_config->get_gop_cache(req_->vhost_);
+    // Always enable GOP cache for Hikvision so WebRTC late-joiners get a keyframe
+    // (zero-channel PS especially — otherwise green until next IDR).
+    bool enabled_cache = true;
     int gcmf = _srs_config->get_gop_cache_max_frames(req_->vhost_);
+    if (gcmf <= 0) {
+        gcmf = 2500;
+    }
     source_->set_cache(enabled_cache);
     source_->set_gop_cache_max_frames(gcmf);
 
@@ -1719,15 +1908,18 @@ void SrsHikvisionMuxer::close()
 
     aac_specific_config_ = "";
     h264_sps_pps_sent_ = false;
+    h264_got_idr_ = false;
     h264_sps_ = "";
     h264_pps_ = "";
     h264_sps_changed_ = false;
     h264_pps_changed_ = false;
+    h264_ps_es_.clear();
     vps_sps_pps_sent_ = false;
     vps_sps_pps_change_ = false;
     h265_vps_ = "";
     h265_sps_ = "";
     h265_pps_ = "";
+    h265_ps_es_.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -2479,6 +2671,46 @@ srs_error_t SrsHikvisionStream::start_live()
 {
     srs_error_t err = srs_success;
 
+    // Zero-channel (合码通道): stream SerialNO_0_SUB → NET_DVR_ZeroStartPlay.
+    // Normal: SerialNO_CHANNEL_SUBCHANNEL → RealPlay_V40.
+    if (channel_ == 0) {
+        // Zero channel is not listed as Streaming/channels 101/201; skip ISAPI precheck.
+        // CLIENTINFO.lChannel is 1-based zero-channel index; stream ch=0 means first zero chan.
+        NET_DVR_CLIENTINFO ci;
+        memset(&ci, 0, sizeof(ci));
+        ci.lChannel = 1;
+        // bit31: 0=main, 1=sub; low bits: 0=TCP (same as RealPlay dwLinkMode=0).
+        ci.lLinkMode = (subchannel_ > 0) ? (LONG)0x80000000 : 0;
+        ci.hPlayWnd = 0;
+        ci.sMultiCastIP = NULL;
+
+        srs_trace("Hikvision: ZeroStartPlay serial=%s zeroIndex=%ld linkMode=0x%lx sub=%d",
+                  device_->conf().serialno_.c_str(), (long)ci.lChannel, (unsigned long)ci.lLinkMode,
+                  subchannel_);
+
+        real_handle_ = NET_DVR_ZeroStartPlay(device_->user_id(), &ci, srs_hikvision_realdata_cb, this, FALSE);
+        if (real_handle_ < 0) {
+            return srs_error_new(ERROR_HIKVISION_SDK, "ZeroStartPlay serial=%s zeroIndex=%ld %s",
+                                 device_->conf().serialno_.c_str(), (long)ci.lChannel,
+                                 srs_hikvision_sdk_errmsg().c_str());
+        }
+
+        // Force IDR ASAP — zero channel often starts mid-GOP → green screen until next key.
+        if (!NET_DVR_ZeroMakeKeyFrame(device_->user_id(), ci.lChannel)) {
+            srs_warn("Hikvision: ZeroMakeKeyFrame failed %s (continue)", srs_hikvision_sdk_errmsg().c_str());
+        } else {
+            srs_trace("Hikvision: ZeroMakeKeyFrame ok zeroIndex=%ld", (long)ci.lChannel);
+        }
+
+        // ZeroStartPlay only provides real-data (PS) callback; no ES callback API.
+        use_es_ = false;
+        es_active_ = false;
+        stream_start_wall_ = srs_time_now_cached();
+        srs_trace("Hikvision: ZeroStartPlay ok stream=%s handle=%ld zeroIndex=%ld sub=%d",
+                  stream_name_.c_str(), (long)real_handle_, (long)ci.lChannel, subchannel_);
+        return err;
+    }
+
     // Pre-check via ISAPI Streaming/channels (fail fast when NVR has no this stream type).
     // e.g. ch6 only has 601+604, not 602 → G75965391_6_1 rejected without RealPlay hang.
     if ((err = device_->check_stream_available(channel_, subchannel_)) != srs_success) {
@@ -2635,6 +2867,9 @@ void SrsHikvisionStream::stop_sdk_handle()
     if (is_playback_) {
         NET_DVR_StopPlayBack(real_handle_);
         srs_trace("Hikvision: StopPlayBack stream=%s handle=%ld", stream_name_.c_str(), (long)real_handle_);
+    } else if (channel_ == 0) {
+        NET_DVR_ZeroStopPlay(real_handle_);
+        srs_trace("Hikvision: ZeroStopPlay stream=%s handle=%ld", stream_name_.c_str(), (long)real_handle_);
     } else {
         NET_DVR_StopRealPlay(real_handle_);
         srs_trace("Hikvision: StopRealPlay stream=%s handle=%ld", stream_name_.c_str(), (long)real_handle_);
@@ -2664,6 +2899,10 @@ srs_error_t SrsHikvisionStream::cycle()
         if (is_playback_) {
             NET_DVR_StopPlayBack(real_handle_);
             srs_trace("Hikvision: StopPlayBack stream=%s handle=%ld (cycle end)", stream_name_.c_str(),
+                      (long)real_handle_);
+        } else if (channel_ == 0) {
+            NET_DVR_ZeroStopPlay(real_handle_);
+            srs_trace("Hikvision: ZeroStopPlay stream=%s handle=%ld (cycle end)", stream_name_.c_str(),
                       (long)real_handle_);
         } else {
             NET_DVR_StopRealPlay(real_handle_);
@@ -2854,10 +3093,21 @@ srs_error_t SrsHikvisionStream::consume_ps_packets()
         string *pkt = local[i];
         SrsBuffer stream((char *)pkt->data(), (int)pkt->size());
         if ((err = ps_ctx_->decode(&stream, this)) != srs_success) {
-            for (size_t j = i; j < local.size(); j++) {
-                srs_freep(local[j]);
+            // Soft-fail: StreamBusy / bad frame must not abort the PS demuxer for remaining chunks
+            // (zero-channel used to spam StreamBusy after a bad SPS close()).
+            int code = srs_error_code(err);
+            if (code == ERROR_SYSTEM_STREAM_BUSY || code == ERROR_H264_DROP_BEFORE_SPS_PPS) {
+                srs_info("Hikvision: ps decode soft drop code=%d", code);
+                srs_freep(err);
+                err = srs_success;
+                srs_freep(pkt);
+                continue;
             }
-            return srs_error_wrap(err, "ps decode");
+            srs_warn("Hikvision: ps decode failed, drop chunk, err=%s", srs_error_desc(err).c_str());
+            srs_freep(err);
+            err = srs_success;
+            srs_freep(pkt);
+            continue;
         }
         srs_freep(pkt);
     }

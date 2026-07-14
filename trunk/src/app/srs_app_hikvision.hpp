@@ -91,6 +91,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string h264_pps_;
     bool h264_pps_changed_;
     bool h264_sps_pps_sent_;
+    // After SH, drop inter frames until first IDR (avoids green screen on mid-GOP join / zero-chan).
+    bool h264_got_idr_;
+    // Zero-channel PS: large IDR/P slices are split across multiple PES packs (~4–5KB each).
+    // Reassemble Annex-B ES across PES and only emit NALUs closed by the next start code.
+    std::string h264_ps_es_;
 
     ISrsRawHEVCStream *hevc_;
     bool vps_sps_pps_change_;
@@ -98,6 +103,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string h265_sps_;
     std::string h265_pps_;
     bool vps_sps_pps_sent_;
+    std::string h265_ps_es_;
 
     ISrsRawAacStream *aac_;
     std::string aac_specific_config_;
@@ -164,8 +170,8 @@ struct SrsHikvisionEsPacket {
     SrsHikvisionEsPacket(int packet_type, uint32_t dts_ms, int64_t abs_unix_ts, const char *data, int size);
 };
 
-// One on-demand RealPlay or playback session.
-// Live:      SerialNO_CHANNEL_SUBCHANNEL
+// One on-demand RealPlay / ZeroStartPlay / playback session.
+// Live:      SerialNO_CHANNEL_SUBCHANNEL  (CHANNEL=0 → NET_DVR_ZeroStartPlay)
 // Playback:  SerialNO_CHANNEL_UNIXTS
 class SrsHikvisionStream : public ISrsCoroutineHandler, public ISrsPsMessageHandler
 {
