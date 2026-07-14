@@ -472,6 +472,18 @@ public:
     virtual std::string get_exporter_listen() { return ""; }
     virtual std::string get_exporter_label() { return ""; }
     virtual std::string get_exporter_tag() { return ""; }
+    // Hikvision config (HCNetSDK on-demand pull) — required by ISrsAppConfig
+    virtual bool get_hikvision_enabled() { return false; }
+    virtual std::string get_hikvision_output() { return "rtmp://127.0.0.1/live/[stream]"; }
+    virtual std::string get_hikvision_sdk_path() { return ""; }
+    virtual srs_utime_t get_hikvision_idle_timeout() { return 30 * SRS_UTIME_SECONDS; }
+    virtual srs_utime_t get_hikvision_ptz_timeout() { return 30 * SRS_UTIME_SECONDS; }
+    virtual std::vector<SrsConfDirective *> get_hikvision_devices() { return std::vector<SrsConfDirective *>(); }
+    virtual std::string get_hikvision_device_serialno(SrsConfDirective * /*device*/) { return ""; }
+    virtual std::string get_hikvision_device_host(SrsConfDirective * /*device*/) { return ""; }
+    virtual int get_hikvision_device_port(SrsConfDirective * /*device*/) { return 8000; }
+    virtual std::string get_hikvision_device_user(SrsConfDirective * /*device*/) { return ""; }
+    virtual std::string get_hikvision_device_password(SrsConfDirective * /*device*/) { return ""; }
     virtual bool get_stats_enabled() { return false; }
     virtual int get_stats_network() { return 0; }
     virtual bool get_heartbeat_enabled() { return false; }
