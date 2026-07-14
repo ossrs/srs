@@ -110,11 +110,14 @@ public:
     std::string stream_context() const;
     // Detach DTLS writer and stop accepting send/feed (call before free transport).
     void close();
+    bool is_closed() const;
     bool is_busy() const;
     // If busy, mark orphan instead of delete (caller must not freep).
     void mark_orphan();
     void acquire();
     void release();
+    // True while this instance is registered for usrsctp send/recv callbacks.
+    static bool is_live(SrsSctp *s);
 
     srs_error_t connect_peer();
     void feed(const char *buf, int nb_buf);

@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <set>
+
 #include <srs_app_hikvision.hpp>
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_core_autofree.hpp>
@@ -23,6 +25,10 @@
 #include <srs_kernel_utility.hpp>
 
 using namespace std;
+
+// Live SrsSctp instances. usrsctp send/recv C callbacks must not touch freed objects
+// (RTC dispose can freep SrsSctp while timers or in-flight usrsctp_sendv still fire).
+static set<SrsSctp *> g_sctp_live;
 
 enum SrsDataChannelMessageType {
     SrsDataChannelMessageTypeAck = 2,
@@ -72,7 +78,10 @@ static int on_recv_sctp_data(struct socket *sock, union sctp_sockstore addr, voi
                              struct sctp_rcvinfo rcv, int flags, void *ulp_info)
 {
     SrsSctp *sctp = reinterpret_cast<SrsSctp *>(ulp_info);
-    if (!sctp || !data) {
+    if (!data) {
+        return 1;
+    }
+    if (!SrsSctp::is_live(sctp) || sctp->is_closed()) {
         free(data);
         return 1;
     }
@@ -95,8 +104,9 @@ static int on_recv_sctp_data(struct socket *sock, union sctp_sockstore addr, voi
 static int on_send_sctp_data(void *addr, void *data, size_t len, uint8_t /*tos*/, uint8_t /*set_df*/)
 {
     SrsSctp *sctp = reinterpret_cast<SrsSctp *>(addr);
-    if (!sctp || !data || len <= 0) {
-        return 0;
+    // Drop late/timer sends after RTC dispose (object freep or close()).
+    if (!SrsSctp::is_live(sctp) || !data || len <= 0 || sctp->is_closed()) {
+        return -1;
     }
 
     srs_error_t err = sctp->write_dtls(reinterpret_cast<const char *>(data), (int)len);
@@ -166,6 +176,7 @@ SrsSctp::SrsSctp(ISrsDtlsCallback *dtls_writer, ISrsSctpHandler *handler)
         _srs_sctp_env = new SrsSctpGlobalEnv();
     }
 
+    g_sctp_live.insert(this);
     usrsctp_register_address(static_cast<void *>(this));
     sctp_socket_ = usrsctp_socket(AF_CONN, SOCK_STREAM, IPPROTO_SCTP, on_recv_sctp_data, NULL, 0,
                                   static_cast<void *>(this));
@@ -240,6 +251,15 @@ SrsSctp::SrsSctp(ISrsDtlsCallback *dtls_writer, ISrsSctpHandler *handler)
 
 void SrsSctp::close()
 {
+    // Idempotent. Order matters: mark closed + detach writer BEFORE usrsctp_close,
+    // because usrsctp_close may re-enter on_send_sctp_data on this object.
+    if (closed_) {
+        if (sctp_socket_) {
+            usrsctp_close(sctp_socket_);
+            sctp_socket_ = NULL;
+        }
+        return;
+    }
     closed_ = true;
     // Detach transport first so late usrsctp send callbacks cannot touch freed DTLS.
     dtls_writer_ = NULL;
@@ -249,6 +269,13 @@ void SrsSctp::close()
         usrsctp_close(sctp_socket_);
         sctp_socket_ = NULL;
     }
+    // Stop timer-driven sends using this address as soon as the assoc is closed.
+    usrsctp_deregister_address(static_cast<void *>(this));
+}
+
+bool SrsSctp::is_closed() const
+{
+    return closed_;
 }
 
 bool SrsSctp::is_busy() const
@@ -277,15 +304,23 @@ void SrsSctp::release()
     }
 }
 
+bool SrsSctp::is_live(SrsSctp *s)
+{
+    return s != NULL && g_sctp_live.find(s) != g_sctp_live.end();
+}
+
 SrsSctp::~SrsSctp()
 {
+    // Unregister before close so C callbacks never see a half-destroyed this.
+    g_sctp_live.erase(this);
 #ifdef SRS_HIKVISION
     if (_srs_hikvision) {
         _srs_hikvision->talk_remove_listener(this);
     }
 #endif
     close();
-    usrsctp_deregister_address(static_cast<void *>(this));
+    // deregister may already have run in close(); safe to call again only if still registered.
+    // usrsctp docs: deregister when done; double-deregister is undefined — only if close skipped it.
     orphan_ = false;
     busy_count_ = 0;
 }
@@ -348,12 +383,20 @@ void SrsSctp::feed(const char *buf, int nb_buf)
 srs_error_t SrsSctp::write_dtls(const char *data, int len)
 {
     // After RTC dispose, usrsctp may still flush; ignore silently.
-    if (closed_ || !dtls_writer_ || !data || len <= 0) {
+    // Snapshot writer: close() can run re-entrantly from SSL/network paths and null it.
+    if (closed_ || !data || len <= 0) {
+        return srs_success;
+    }
+    ISrsDtlsCallback *writer = dtls_writer_;
+    if (!writer) {
+        return srs_success;
+    }
+    if (closed_ || dtls_writer_ != writer) {
         return srs_success;
     }
     // Must SSL_write (DTLS encrypt). Raw write_dtls_data leaves SCTP unencrypted and
     // browsers never complete DataChannel (INIT retransmits forever).
-    return dtls_writer_->write_dtls_application_data(data, len);
+    return writer->write_dtls_application_data(data, len);
 }
 
 srs_error_t SrsSctp::on_sctp_event(const struct sctp_rcvinfo & /*rcv*/, void *data, size_t len)
@@ -674,10 +717,15 @@ srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string
         return srs_error_new(ERROR_RTC_SCTP, "invalid send closed=%d", closed_ ? 1 : 0);
     }
 
+    // Hold this alive across srs_usleep yields so RTC dispose cannot freep mid-send
+    // (that race caused GPF in write_dtls via dangling dtls_writer_).
+    acquire();
+
     map<uint16_t, SrsDataChannelInfo>::iterator iter = data_channels_.find(sid);
     if (iter == data_channels_.end()) {
         // Allow send before OPEN tracked (some clients); still try.
     } else if (iter->second.status_ != SrsDataChannelStatusOpen) {
+        release();
         return srs_error_new(ERROR_RTC_SCTP, "channel sid=%u not open", sid);
     }
 
@@ -714,10 +762,12 @@ srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string
     int last_errno = 0;
     for (int attempt = 0; attempt < kMaxAttempts; attempt++) {
         if (closed_ || !sctp_socket_) {
+            release();
             return srs_error_new(ERROR_RTC_SCTP, "dc closed during send");
         }
         ret = usrsctp_sendv(sctp_socket_, buf, (size_t)len, NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0);
         if (ret >= 0) {
+            release();
             return err;
         }
         last_errno = errno;
@@ -727,6 +777,7 @@ srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string
         usrsctp_handle_timers(10);
         srs_usleep(10 * SRS_UTIME_MILLISECONDS);
     }
+    release();
     return srs_error_new(ERROR_RTC_SCTP, "usrsctp_sendv ret=%d errno=%d len=%d after retries", ret, last_errno, len);
 }
 
