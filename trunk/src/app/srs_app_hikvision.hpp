@@ -116,6 +116,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<float> g711_pcm_f_;
     bool g711_aac_ready_;
     bool g711_aac_sh_sent_;
+    // Live stream G.711 law: true=A-law (type 2), false=μ-law (type 1).
+    // Must match device compress (wrong law → harsh noise).
+    bool live_audio_alaw_;
+    bool live_audio_law_set_;
 
     ISrsPithyPrint *pprint_;
 
@@ -125,12 +129,15 @@ public:
 
 public:
     void setup(std::string output, std::string stream);
+    // Configure live G.711 law from device compress (AUDIOTALKTYPE_G711_A=2 → A-law).
+    void set_live_g711_law(bool alaw);
+    bool live_g711_alaw() const;
     srs_error_t on_ts_message(SrsTsMessage *msg);
     // Direct ES path (from SetESRealPlayCallBack): demux NALUs and publish.
     // is_key_hint: true for I-frame packets from SDK.
     srs_error_t on_es_video(const char *data, int size, uint32_t dts_ms, bool is_key_hint);
     // Live original audio always (not talk): G.711 → AAC → FLV for RTMP + rtmp_to_rtc(Opus).
-    // alaw=true → PCMA, false → PCMU.
+    // alaw=true → PCMA, false → PCMU. Prefer omit and use set_live_g711_law().
     srs_error_t on_es_g711(const char *data, int size, uint32_t dts_ms, bool alaw);
 
 // clang-format off
@@ -298,6 +305,9 @@ public:
     long user_id() const;
     // Map logical camera channel → VoiceCom channel (hikevent: byStartDTalkChan + ch - 1).
     int voice_channel_for(int camera_channel) const;
+    // Live stream audio encode type (AUDIOTALKTYPE_*). -1 if unknown.
+    // Tries video channel then DTalk-mapped channel then global compress.
+    int query_stream_audio_enc(int camera_channel) const;
     int start_dtalk_chan() const;
     srs_error_t ensure_login();
     void logout();

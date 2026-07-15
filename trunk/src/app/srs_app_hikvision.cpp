@@ -354,6 +354,9 @@ SrsHikvisionMuxer::SrsHikvisionMuxer()
     g711_aac_pkt_ = NULL;
     g711_aac_ready_ = false;
     g711_aac_sh_sent_ = false;
+    // Default A-law only until set_live_g711_law() from device compress query.
+    live_audio_alaw_ = true;
+    live_audio_law_set_ = false;
     pprint_ = SrsPithyPrint::create_caster();
 }
 
@@ -385,6 +388,18 @@ void SrsHikvisionMuxer::setup(string output, string stream)
 {
     output_ = output;
     stream_ = stream;
+}
+
+void SrsHikvisionMuxer::set_live_g711_law(bool alaw)
+{
+    live_audio_alaw_ = alaw;
+    live_audio_law_set_ = true;
+    srs_trace("Hikvision: live G.711 law=%s stream=%s", alaw ? "A-law" : "μ-law", stream_.c_str());
+}
+
+bool SrsHikvisionMuxer::live_g711_alaw() const
+{
+    return live_audio_alaw_;
 }
 
 srs_error_t SrsHikvisionMuxer::on_ts_message(SrsTsMessage *msg)
@@ -1337,7 +1352,8 @@ srs_error_t SrsHikvisionMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
 
     if (!maybe_adts) {
         // Original stream audio for live (always publish, independent of talk).
-        return on_es_g711(p, left, dts, true);
+        // Law must match device compress (μ vs A); wrong law → harsh noise.
+        return on_es_g711(p, left, dts, live_audio_alaw_);
     }
 
     while (!avs->empty()) {
@@ -1349,7 +1365,7 @@ srs_error_t SrsHikvisionMuxer::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
             srs_freep(err);
             int rem = avs->left();
             if (rem > 0) {
-                return on_es_g711(avs->data() + avs->pos(), rem, dts, true);
+                return on_es_g711(avs->data() + avs->pos(), rem, dts, live_audio_alaw_);
             }
             return srs_success;
         }
@@ -1673,13 +1689,23 @@ srs_error_t SrsHikvisionMuxer::on_es_g711(const char *data, int size, uint32_t d
         return srs_error_wrap(err, "ensure g711 aac encoder");
     }
 
+    // Prefer device-queried law when set (parameter is legacy/fallback).
+    const bool use_alaw = live_audio_law_set_ ? live_audio_alaw_ : alaw;
+
     uint32_t dts = correct_timestamp(dts_ms);
 
     // Software G.711 → float PCM @ 8kHz mono (matches AAC encoder sample_rate).
     g711_pcm_f_.reserve(g711_pcm_f_.size() + (size_t)size);
     for (int i = 0; i < size; i++) {
-        int16_t s = alaw ? srs_hik_alaw_to_linear((uint8_t)data[i]) : srs_hik_ulaw_to_linear((uint8_t)data[i]);
+        int16_t s = use_alaw ? srs_hik_alaw_to_linear((uint8_t)data[i]) : srs_hik_ulaw_to_linear((uint8_t)data[i]);
         g711_pcm_f_.push_back((float)s / 32768.0f);
+    }
+
+    static int g711_dec_log = 0;
+    if (g711_dec_log < 3) {
+        g711_dec_log++;
+        srs_trace("Hikvision: decode G.711 %s size=%d law_set=%d stream=%s",
+                  use_alaw ? "A-law" : "μ-law", size, live_audio_law_set_ ? 1 : 0, stream_.c_str());
     }
 
     if ((err = encode_g711_pcm_to_aac(dts)) != srs_success) {
@@ -1973,6 +1999,63 @@ int SrsHikvisionDevice::voice_channel_for(int camera_channel) const
         return start_dchan_;
     }
     return 1;
+}
+
+int SrsHikvisionDevice::query_stream_audio_enc(int camera_channel) const
+{
+    if (!logged_in_ || user_id_ < 0) {
+        return -1;
+    }
+
+    // Prefer stream compression config — this is the live/network encode type.
+    // GetCurrentAudioCompress_V50(video_ch) often returns talk-side law and mis-labels
+    // μ-law streams as A-law (harsh noise after wrong decode).
+    if (camera_channel > 0) {
+        NET_DVR_COMPRESSIONCFG_V30 cfg;
+        memset(&cfg, 0, sizeof(cfg));
+        DWORD ret_len = 0;
+        if (NET_DVR_GetDVRConfig(user_id_, NET_DVR_GET_COMPRESSCFG_V30, camera_channel, &cfg,
+                                 sizeof(cfg), &ret_len)) {
+            // Network stream first (preview/ES), then record main.
+            BYTE net_enc = cfg.struNetPara.byAudioEncType;
+            BYTE rec_enc = cfg.struNormHighRecordPara.byAudioEncType;
+            if (net_enc != 0xff && net_enc != 0xfe) {
+                srs_trace("Hikvision: stream audio enc from COMPRESSCFG net ch=%d enc=%u",
+                          camera_channel, (unsigned)net_enc);
+                return (int)net_enc;
+            }
+            if (rec_enc != 0xff && rec_enc != 0xfe) {
+                srs_trace("Hikvision: stream audio enc from COMPRESSCFG rec ch=%d enc=%u",
+                          camera_channel, (unsigned)rec_enc);
+                return (int)rec_enc;
+            }
+        }
+    }
+
+    NET_DVR_COMPRESSION_AUDIO ca;
+    memset(&ca, 0, sizeof(ca));
+
+    // Global compress (IPC / default).
+    if (NET_DVR_GetCurrentAudioCompress(user_id_, &ca)) {
+        srs_trace("Hikvision: stream audio enc from global compress enc=%u", (unsigned)ca.byAudioEncType);
+        return (int)ca.byAudioEncType;
+    }
+
+    // DTalk-mapped channel (talk path; last resort for stream).
+    NET_DVR_AUDIO_CHANNEL ach;
+    memset(&ach, 0, sizeof(ach));
+    if (camera_channel > 0) {
+        int vc = voice_channel_for(camera_channel);
+        if (vc > 0) {
+            ach.dwChannelNum = (DWORD)vc;
+            if (NET_DVR_GetCurrentAudioCompress_V50(user_id_, &ach, &ca)) {
+                srs_trace("Hikvision: stream audio enc from V50 voice_ch=%d enc=%u", vc,
+                          (unsigned)ca.byAudioEncType);
+                return (int)ca.byAudioEncType;
+            }
+        }
+    }
+    return -1;
 }
 
 srs_error_t SrsHikvisionDevice::ensure_login()
@@ -2421,7 +2504,7 @@ void SrsHikvisionStream::on_sdk_data(int data_type, const char *data, int size)
             astream_log++;
             srs_trace("Hikvision: AUDIOSTREAMDATA size=%d stream=%s", size, stream_name_.c_str());
         }
-        // Treat as ES audio type 10; muxer injects G.711 into live.
+        // Treat as ES audio type 10; muxer injects G.711 into live (law from device query).
         on_es_packet(10, 0, 0, data, size);
         return;
     }
@@ -2760,6 +2843,22 @@ srs_error_t SrsHikvisionStream::start_live()
                  srs_hikvision_sdk_errmsg().c_str(), stream_name_.c_str());
     }
 
+    // Live G.711 law: 1=μ-law, 2=A-law. Hardcoding A-law made μ-law channels pure noise.
+    if (muxer_ && channel_ > 0) {
+        int enc = device_->query_stream_audio_enc(channel_);
+        if (enc == AUDIOTALKTYPE_G711_MU) {
+            muxer_->set_live_g711_law(false);
+        } else if (enc == AUDIOTALKTYPE_G711_A) {
+            muxer_->set_live_g711_law(true);
+        } else if (enc >= 0) {
+            srs_warn("Hikvision: stream audio enc=%d not G.711 (ch=%d stream=%s); keep default A-law",
+                     enc, channel_, stream_name_.c_str());
+        } else {
+            srs_warn("Hikvision: stream audio enc query failed ch=%d stream=%s; keep default A-law",
+                     channel_, stream_name_.c_str());
+        }
+    }
+
     stream_start_wall_ = srs_time_now_cached();
     srs_trace("Hikvision: RealPlay ok stream=%s handle=%ld ch=%d sub=%d es=%d",
               stream_name_.c_str(), (long)real_handle_, channel_, subchannel_, use_es_ ? 1 : 0);
@@ -2826,6 +2925,15 @@ srs_error_t SrsHikvisionStream::start_playback()
             stop_sdk_handle();
             return srs_error_new(ERROR_HIKVISION_SDK, "SetPlayDataCallBack_V40 failed %s",
                                  srs_hikvision_sdk_errmsg().c_str());
+        }
+    }
+
+    if (muxer_ && channel_ > 0) {
+        int enc = device_->query_stream_audio_enc(channel_);
+        if (enc == AUDIOTALKTYPE_G711_MU) {
+            muxer_->set_live_g711_law(false);
+        } else if (enc == AUDIOTALKTYPE_G711_A) {
+            muxer_->set_live_g711_law(true);
         }
     }
 
@@ -2999,9 +3107,10 @@ srs_error_t SrsHikvisionStream::consume_es_packets()
     for (size_t i = 0; i < local.size(); i++) {
         SrsHikvisionEsPacket *pkt = local[i];
         if (pkt && pkt->packet_type_ == 10) {
-            // SDK audio ES: typically raw G.711 A-law @ 8kHz mono.
+            // SDK audio ES: raw G.711 @ 8kHz mono (A-law or μ-law from device compress).
             uint32_t dts_ms = pkt->dts_ms_;
-            if ((err = muxer_->on_es_g711(pkt->data_.data(), (int)pkt->data_.size(), dts_ms, true)) != srs_success) {
+            if ((err = muxer_->on_es_g711(pkt->data_.data(), (int)pkt->data_.size(), dts_ms,
+                                          muxer_->live_g711_alaw())) != srs_success) {
                 srs_warn("Hikvision: es g711 audio failed stream=%s, err=%s", stream_name_.c_str(),
                          srs_error_desc(err).c_str());
                 srs_freep(err);
