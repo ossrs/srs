@@ -329,6 +329,10 @@
         </div>
         <div class="row">
           <div>
+            <label>Talk 设备 serial</label>
+            <input id="talkSerial" type="text" placeholder="空=当前流设备" />
+          </div>
+          <div>
             <label>Talk 通道</label>
             <input id="talkChannel" type="number" min="1" max="512" placeholder="空=当前流" />
           </div>
@@ -340,7 +344,7 @@
         <div class="hint">
           Live 预览声 = 摄像机原始音轨（与 Talk 无关）。<br/>
           Talk = 麦克风 → SDK → 摄像机喇叭；需 HTTPS + DC open。<br/>
-          Talk 通道可与预览流不同；留空则用当前流通道。
+          serial / 通道可与预览流不同；留空则用当前流。serial 必须在 hikvision devices 配置中。
         </div>
       </section>
 
@@ -367,6 +371,8 @@
   let playing = false;
   let talking = false;
   let talkCodec = 2; // G711_A default
+  let talkActiveSerial = null; // last successful talk target (for stop)
+  let talkActiveChannel = null;
   let talkAudioCtx = null;
   let talkProc = null;
   let talkStream = null;
@@ -971,6 +977,12 @@
         8000
       );
       const talkReq = { cmd: 'talk', action: 'start' };
+      // Optional: another configured device serial (else current stream device).
+      const talkSerialEl = $('talkSerial');
+      const talkSerialRaw = talkSerialEl ? String(talkSerialEl.value || '').trim() : '';
+      if (talkSerialRaw !== '') {
+        talkReq.serial = talkSerialRaw;
+      }
       // Optional: explicit talk channel (else server uses current stream channel).
       const talkChEl = $('talkChannel');
       const talkChRaw = talkChEl ? String(talkChEl.value || '').trim() : '';
@@ -991,10 +1003,14 @@
       if (reply && reply.rate) {
         talkPcmRate = parseInt(reply.rate, 10) || 8000;
       }
+      const usedSerial = (reply && reply.serial) ? reply.serial
+        : (talkReq.serial || null);
       const usedCh = (reply && reply.channel) ? reply.channel
-        : (talkReq.channel || '(stream)');
+        : (talkReq.channel || null);
+      talkActiveSerial = usedSerial;
+      talkActiveChannel = usedCh;
       log('talk server ok format=pcm rate=' + talkPcmRate +
-        ' channel=' + usedCh +
+        ' serial=' + (usedSerial || '(stream)') + ' channel=' + (usedCh || '(stream)') +
         ' (device codec=' + talkCodec + ', SRS encodes)', 'ok');
 
       talkStream = await acquireMicStream();
@@ -1083,16 +1099,29 @@
     if (talking) {
       try {
         const stopReq = { cmd: 'talk', action: 'stop' };
-        const talkChEl = $('talkChannel');
-        const talkChRaw = talkChEl ? String(talkChEl.value || '').trim() : '';
-        if (talkChRaw !== '') {
-          const talkCh = parseInt(talkChRaw, 10);
-          if (talkCh > 0) stopReq.channel = talkCh;
+        if (talkActiveSerial) {
+          stopReq.serial = talkActiveSerial;
+        } else {
+          const talkSerialEl = $('talkSerial');
+          const talkSerialRaw = talkSerialEl ? String(talkSerialEl.value || '').trim() : '';
+          if (talkSerialRaw !== '') stopReq.serial = talkSerialRaw;
+        }
+        if (talkActiveChannel) {
+          stopReq.channel = talkActiveChannel;
+        } else {
+          const talkChEl = $('talkChannel');
+          const talkChRaw = talkChEl ? String(talkChEl.value || '').trim() : '';
+          if (talkChRaw !== '') {
+            const talkCh = parseInt(talkChRaw, 10);
+            if (talkCh > 0) stopReq.channel = talkCh;
+          }
         }
         sendControl(stopReq);
       } catch (e) {}
     }
     talking = false;
+    talkActiveSerial = null;
+    talkActiveChannel = null;
     try { if (talkProc) { talkProc.disconnect(); talkProc.onaudioprocess = null; } } catch (e) {}
     talkProc = null;
     try { if (talkStream) talkStream.getTracks().forEach((t) => t.stop()); } catch (e) {}

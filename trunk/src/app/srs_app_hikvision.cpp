@@ -5061,19 +5061,23 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
                              "need stream/serialno+channel (HTTP), or DataChannel on a play session");
     }
 
-    if (channel <= 0) {
-        return srs_error_new(ERROR_HIKVISION_CONFIG, "invalid channel %d", channel);
+    if ((prop = req->ensure_property_string("cmd")) == NULL) {
+        return srs_error_new(ERROR_HIKVISION_CONFIG, "cmd required");
+    }
+    string cmd = prop->to_str();
+
+    // Talk may target another device (serial) and/or channel; zero-channel preview (ch=0) is ok
+    // when talk.channel is set. Other cmds still need a real camera channel on a known device.
+    if (cmd != "talk") {
+        if (channel <= 0) {
+            return srs_error_new(ERROR_HIKVISION_CONFIG, "invalid channel %d", channel);
+        }
     }
 
     SrsHikvisionDevice *device = find_device(serialno);
     if (!device) {
         return srs_error_new(ERROR_HIKVISION_STREAM, "unknown serialno %s", serialno.c_str());
     }
-
-    if ((prop = req->ensure_property_string("cmd")) == NULL) {
-        return srs_error_new(ERROR_HIKVISION_CONFIG, "cmd required");
-    }
-    string cmd = prop->to_str();
 
     if (cmd == "ptz") {
         string dir = "stop";
@@ -5108,6 +5112,27 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
         if ((prop = req->ensure_property_string("action")) != NULL) {
             action = prop->to_str();
         }
+        // Optional talk device override (DC/HTTP). Default = stream/session serial.
+        // Accept: serial | serialno. Must be a configured hikvision device.
+        string talk_serial = serialno;
+        if ((prop = req->ensure_property_string("serial")) != NULL) {
+            string ov = prop->to_str();
+            if (!ov.empty()) {
+                talk_serial = ov;
+            }
+        } else if ((prop = req->ensure_property_string("serialno")) != NULL) {
+            string ov = prop->to_str();
+            if (!ov.empty()) {
+                talk_serial = ov;
+            }
+        }
+        if (talk_serial.empty()) {
+            return srs_error_new(ERROR_HIKVISION_CONFIG, "talk serial empty");
+        }
+        if (!find_device(talk_serial)) {
+            return srs_error_new(ERROR_HIKVISION_STREAM, "talk serial not found: %s (not in hikvision devices)",
+                                 talk_serial.c_str());
+        }
         // Optional talk channel override (DC/HTTP). Default = stream/session channel.
         // Accept: channel | talk_channel | camChannel (compat).
         int talk_ch = channel;
@@ -5127,39 +5152,54 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
                 talk_ch = ov;
             }
         }
+        // Preview may be zero-channel (ch=0); talk still needs a real camera channel.
         if (talk_ch <= 0) {
-            return srs_error_new(ERROR_HIKVISION_CONFIG, "invalid talk channel %d", talk_ch);
+            return srs_error_new(ERROR_HIKVISION_CONFIG,
+                                 "invalid talk channel %d (set channel when preview is zero-channel)", talk_ch);
         }
-        if (talk_ch != channel) {
-            srs_trace("Hikvision: talk channel override stream_ch=%d -> talk_ch=%d serial=%s", channel,
-                      talk_ch, serialno.c_str());
+        if (talk_serial != serialno || talk_ch != channel) {
+            srs_trace("Hikvision: talk target override stream=%s/%d -> talk=%s/%d", serialno.c_str(), channel,
+                      talk_serial.c_str(), talk_ch);
+        }
+
+        // Serial is from config keys; still sanitize for JSON reply.
+        string talk_serial_json;
+        for (size_t i = 0; i < talk_serial.size(); i++) {
+            char c = talk_serial[i];
+            if (c == '"' || c == '\\') {
+                talk_serial_json.push_back('\\');
+            }
+            if ((unsigned char)c >= 0x20) {
+                talk_serial_json.push_back(c);
+            }
         }
 
         if (action == "start") {
             int codec = 0, rate = 8000;
-            if ((err = talk_start(serialno, talk_ch, talk_listener, &codec, &rate)) != srs_success) {
+            if ((err = talk_start(talk_serial, talk_ch, talk_listener, &codec, &rate)) != srs_success) {
                 return srs_error_wrap(err, "talk start");
             }
             srs_trace("Hikvision: talk control start ok codec=%d rate=%d format=pcm serial=%s ch=%d",
-                      codec, rate, serialno.c_str(), talk_ch);
+                      codec, rate, talk_serial.c_str(), talk_ch);
             if (out_reply) {
                 // Browser always uses PCM; codec is device-side only (server encodes).
                 *out_reply = srs_fmt_sprintf(
                     "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"talk\",\"action\":\"start\","
-                    "\"codec\":%d,\"rate\":%d,\"channel\":%d,\"format\":\"pcm\",\"uplink\":\"pcm\","
-                    "\"downlink\":\"preview\"}",
-                    codec, rate, talk_ch);
+                    "\"codec\":%d,\"rate\":%d,\"channel\":%d,\"serial\":\"%s\",\"format\":\"pcm\","
+                    "\"uplink\":\"pcm\",\"downlink\":\"preview\"}",
+                    codec, rate, talk_ch, talk_serial_json.c_str());
             }
             return err;
         }
         if (action == "stop") {
-            if ((err = talk_stop(serialno, talk_ch, talk_listener)) != srs_success) {
+            if ((err = talk_stop(talk_serial, talk_ch, talk_listener)) != srs_success) {
                 return srs_error_wrap(err, "talk stop");
             }
             if (out_reply) {
                 *out_reply = srs_fmt_sprintf(
-                    "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"talk\",\"action\":\"stop\",\"channel\":%d}",
-                    talk_ch);
+                    "{\"code\":0,\"msg\":\"ok\",\"cmd\":\"talk\",\"action\":\"stop\","
+                    "\"channel\":%d,\"serial\":\"%s\"}",
+                    talk_ch, talk_serial_json.c_str());
             }
             return err;
         }

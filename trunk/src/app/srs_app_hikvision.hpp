@@ -462,6 +462,8 @@ public:
     //     DC: async SDK download → HIK::PlaybackFileReady + HTTP token URL (MPEG-TS for mpegts.js)
     //     HTTP POST: raw video/mp2t body
     // stream_context: default stream for DataChannel (from WebRTC play session).
+    // Talk (DataChannel): optional {"serial"|"serialno"} targets another configured device
+    // (must exist in hikvision devices); optional channel/talk_channel/camChannel override.
     // talk_listener: optional DC peer for talk + play notify.
     // out_reply: optional full JSON response (e.g. search results); if empty on success, caller uses generic ok.
     // out_binary: optional MPEG-TS body for HTTP clients of cmd=play.
