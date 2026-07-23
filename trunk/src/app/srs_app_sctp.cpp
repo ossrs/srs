@@ -30,6 +30,47 @@ using namespace std;
 // (RTC dispose can freep SrsSctp while timers or in-flight usrsctp_sendv still fire).
 static set<SrsSctp *> g_sctp_live;
 
+// Global depth of any usrsctp API that may hold assoc/INP locks (conninput / handle_timers / sendv).
+// ST must never enter sendv/conninput from another coroutine while this is > 0.
+// NOTE: even usrsctp_init_nothreads still spawns "SCTP iterator" pthread; it mostly waits,
+// but TCB locks are non-recursive — yield while holding them (DTLS UDP send) deadlocks feed.
+static int g_usrsctp_api_depth = 0;
+// Re-entrancy guard for drain_after_usrsctp (process_pending may srs_usleep).
+static int g_sctp_draining = 0;
+
+static void srs_sctp_enter_api(const char *where)
+{
+    g_usrsctp_api_depth++;
+    if (g_usrsctp_api_depth > 1) {
+        srs_warn("SCTP: re-enter usrsctp api depth=%d via %s", g_usrsctp_api_depth, where ? where : "?");
+    } else {
+        srs_info("SCTP: enter usrsctp api via %s depth=%d", where ? where : "?", g_usrsctp_api_depth);
+    }
+}
+
+static void srs_sctp_leave_api(const char *where)
+{
+    if (g_usrsctp_api_depth > 0) {
+        g_usrsctp_api_depth--;
+    }
+    srs_info("SCTP: leave usrsctp api via %s depth=%d", where ? where : "?", g_usrsctp_api_depth);
+}
+
+static bool srs_sctp_api_idle()
+{
+    return g_usrsctp_api_depth == 0;
+}
+
+// After leaving usrsctp: flush deferred DTLS for all live peers (UDP/SSL may ST-yield safely).
+static void srs_sctp_flush_all_dtls_out()
+{
+    for (set<SrsSctp *>::iterator it = g_sctp_live.begin(); it != g_sctp_live.end(); ++it) {
+        if (*it) {
+            (*it)->flush_dtls_out();
+        }
+    }
+}
+
 enum SrsDataChannelMessageType {
     SrsDataChannelMessageTypeAck = 2,
     SrsDataChannelMessageTypeOpen = 3,
@@ -86,6 +127,9 @@ static int on_recv_sctp_data(struct socket *sock, union sctp_sockstore addr, voi
         return 1;
     }
 
+    // usrsctp holds association locks here — never usrsctp_sendv re-entrantly.
+    sctp->enter_recv_callback();
+
     srs_error_t err = srs_success;
     if (flags & MSG_NOTIFICATION) {
         err = sctp->on_sctp_event(rcv, data, len);
@@ -97,6 +141,7 @@ static int on_recv_sctp_data(struct socket *sock, union sctp_sockstore addr, voi
         srs_freep(err);
     }
 
+    sctp->leave_recv_callback();
     free(data);
     return 1;
 }
@@ -109,13 +154,10 @@ static int on_send_sctp_data(void *addr, void *data, size_t len, uint8_t /*tos*/
         return -1;
     }
 
-    srs_error_t err = sctp->write_dtls(reinterpret_cast<const char *>(data), (int)len);
-    if (err != srs_success) {
-        // During teardown this is common; do not spam as hard failure.
-        srs_info("SCTP: write DTLS failed, err=%s", srs_error_desc(err).c_str());
-        srs_freep(err);
-        return -1;
-    }
+    // CRITICAL: usrsctp holds TCB/INP locks here. SSL_write → UDP sendto can ST-yield;
+    // then UDP coroutine feed()→conninput waits forever on SCTP_TCB_LOCK.
+    // Only copy into deferred queue; real DTLS write runs after leave_api.
+    sctp->queue_dtls_out(reinterpret_cast<const char *>(data), (int)len);
     return 0;
 }
 
@@ -153,8 +195,35 @@ SrsSctpGlobalEnv::~SrsSctpGlobalEnv()
 
 srs_error_t SrsSctpGlobalEnv::notify(int /*event*/, srs_utime_t interval, srs_utime_t /*tick*/)
 {
-    // usrsctp_handle_timers expects milliseconds.
-    usrsctp_handle_timers((uint32_t)srsu2ms(interval));
+    // CRITICAL: never usrsctp_handle_timers() then usrsctp_sendv() in the same call —
+    // that deadlocks in sctp_lower_sosend (assoc lock). Alternate ticks instead.
+    // Never enter usrsctp if another path is mid API (g_usrsctp_api_depth).
+    static int s_sctp_tick = 0;
+    s_sctp_tick++;
+    if ((s_sctp_tick & 1) == 0) {
+        if (!srs_sctp_api_idle()) {
+            srs_warn("SCTP: timer skip flush (usrsctp busy depth=%d deferred peers=%d)", g_usrsctp_api_depth,
+                     (int)g_sctp_live.size());
+            return srs_success;
+        }
+        // Even ticks: drain deferred DC sends + any leftover DTLS outs.
+        for (set<SrsSctp *>::iterator it = g_sctp_live.begin(); it != g_sctp_live.end(); ++it) {
+            if (*it) {
+                (*it)->flush_deferred_sends();
+                (*it)->flush_dtls_out();
+            }
+        }
+    } else {
+        if (!srs_sctp_api_idle()) {
+            srs_warn("SCTP: timer skip handle_timers (usrsctp busy depth=%d)", g_usrsctp_api_depth);
+            return srs_success;
+        }
+        // Odd ticks: usrsctp timers only (may queue DTLS via on_send).
+        srs_sctp_enter_api("handle_timers");
+        usrsctp_handle_timers((uint32_t)srsu2ms(interval));
+        srs_sctp_leave_api("handle_timers");
+        srs_sctp_flush_all_dtls_out();
+    }
     return srs_success;
 }
 
@@ -171,6 +240,12 @@ SrsSctp::SrsSctp(ISrsDtlsCallback *dtls_writer, ISrsSctpHandler *handler)
     busy_count_ = 0;
     orphan_ = false;
     flv_ack_got_ = 0;
+    in_recv_callback_ = 0;
+    in_usrsctp_send_ = 0;
+    deferred_sends_.clear();
+    pending_app_msgs_.clear();
+    pending_dtls_out_.clear();
+    pending_feeds_.clear();
 
     if (_srs_sctp_env == NULL) {
         _srs_sctp_env = new SrsSctpGlobalEnv();
@@ -265,6 +340,10 @@ void SrsSctp::close()
     dtls_writer_ = NULL;
     handler_ = NULL;
     data_channels_.clear();
+    deferred_sends_.clear();
+    pending_app_msgs_.clear();
+    pending_dtls_out_.clear();
+    pending_feeds_.clear();
     if (sctp_socket_) {
         usrsctp_close(sctp_socket_);
         sctp_socket_ = NULL;
@@ -372,12 +451,217 @@ srs_error_t SrsSctp::connect_peer()
     return err;
 }
 
+void SrsSctp::do_conninput(const char *buf, int nb_buf)
+{
+    if (closed_ || !sctp_socket_ || !buf || nb_buf <= 0) {
+        return;
+    }
+    srs_sctp_enter_api("conninput");
+    usrsctp_conninput(this, buf, (size_t)nb_buf, 0);
+    srs_sctp_leave_api("conninput");
+    // SACK/DATA may have queued DTLS packets while TCB was locked — flush now.
+    flush_dtls_out();
+}
+
 void SrsSctp::feed(const char *buf, int nb_buf)
 {
     if (closed_ || !sctp_socket_ || !buf || nb_buf <= 0) {
         return;
     }
-    usrsctp_conninput(this, buf, (size_t)nb_buf, 0);
+    // If another ST path is mid usrsctp (or we re-enter from drain), only queue.
+    // Holds no locks — safe to copy; drained after that path leaves usrsctp.
+    if (!srs_sctp_api_idle() || g_sctp_draining) {
+        if (pending_feeds_.size() < 64) {
+            pending_feeds_.push_back(string(buf, nb_buf));
+            srs_trace("SCTP: feed deferred len=%d api=%d drain=%d q=%d", nb_buf, g_usrsctp_api_depth,
+                      g_sctp_draining, (int)pending_feeds_.size());
+        } else {
+            srs_warn("SCTP: feed drop (queue full) len=%d", nb_buf);
+        }
+        return;
+    }
+
+    // 1) conninput only: recv queues DCEP ACK + app msgs; output → pending_dtls_out_.
+    // 2) Outside locks: DTLS write, app dispatch (may srs_usleep), deferred DC sends.
+    do_conninput(buf, nb_buf);
+    if (closed_) {
+        return;
+    }
+    drain_after_usrsctp();
+}
+
+void SrsSctp::drain_after_usrsctp()
+{
+    if (closed_ || g_sctp_draining) {
+        return;
+    }
+    g_sctp_draining = 1;
+
+    // Loop: process_pending may srs_usleep; other feeds queue into pending_feeds_.
+    // sendv queues more DTLS; drain until quiet or closed.
+    for (int guard = 0; guard < 32 && !closed_; guard++) {
+        bool work = false;
+
+        if (!pending_feeds_.empty() && srs_sctp_api_idle()) {
+            vector<string> feeds;
+            feeds.swap(pending_feeds_);
+            srs_trace("SCTP: drain pending_feeds n=%d", (int)feeds.size());
+            for (size_t i = 0; i < feeds.size() && !closed_; i++) {
+                do_conninput(feeds[i].data(), (int)feeds[i].size());
+            }
+            work = true;
+        }
+
+        if (!pending_app_msgs_.empty()) {
+            process_pending_app_messages();
+            work = true;
+        }
+
+        if (!deferred_sends_.empty() && usrsctp_send_safe()) {
+            flush_deferred_sends();
+            work = true;
+        }
+
+        flush_dtls_out();
+
+        if (!work && pending_feeds_.empty() && pending_app_msgs_.empty() && deferred_sends_.empty() &&
+            pending_dtls_out_.empty()) {
+            break;
+        }
+        if (!work) {
+            break;
+        }
+    }
+
+    g_sctp_draining = 0;
+}
+
+void SrsSctp::enter_recv_callback()
+{
+    in_recv_callback_++;
+    srs_info("SCTP: enter_recv depth=%d api=%d", in_recv_callback_, g_usrsctp_api_depth);
+}
+
+void SrsSctp::leave_recv_callback()
+{
+    if (in_recv_callback_ > 0) {
+        in_recv_callback_--;
+    }
+    srs_info("SCTP: leave_recv depth=%d api=%d pending_app=%d deferred=%d", in_recv_callback_, g_usrsctp_api_depth,
+             (int)pending_app_msgs_.size(), (int)deferred_sends_.size());
+}
+
+bool SrsSctp::usrsctp_send_safe() const
+{
+    // Global api depth covers conninput/handle_timers on any peer; local flags cover this assoc.
+    return in_recv_callback_ == 0 && in_usrsctp_send_ == 0 && !closed_ && srs_sctp_api_idle();
+}
+
+// DataChannel over DTLS: keep one SCTP message well under path MTU / usrsctp comfort.
+// Large search_record JSON (16KB+) deadlocks usrsctp_sendv on this build.
+static const int kSctpMaxAppMsg = 3500;
+
+void SrsSctp::queue_send(uint16_t sid, const char *buf, int len, bool as_string, bool dcep_control)
+{
+    if (closed_ || !buf || len <= 0) {
+        return;
+    }
+    PendingSend p;
+    p.sid_ = sid;
+    p.as_string_ = as_string;
+    p.dcep_control_ = dcep_control;
+    if (!dcep_control && as_string && len > kSctpMaxAppMsg) {
+        // Truncate JSON safely for control path (prefer small error over deadlock).
+        static const char *kTooBig =
+            "{\"code\":-1,\"msg\":\"reply too large for DataChannel; reduce search max\"}";
+        p.data_.assign(kTooBig);
+        srs_warn("SCTP: drop oversized DC text len=%d sid=%u (max=%d)", len, sid, kSctpMaxAppMsg);
+    } else if (len > kSctpMaxAppMsg && !dcep_control) {
+        srs_warn("SCTP: drop oversized DC binary len=%d sid=%u", len, sid);
+        return;
+    } else {
+        p.data_.assign(buf, len);
+    }
+    deferred_sends_.push_back(p);
+    srs_trace("SCTP: queue_send sid=%u len=%d str=%d dcep=%d q=%d safe=%d api=%d recv=%d", sid, len,
+              as_string ? 1 : 0, dcep_control ? 1 : 0, (int)deferred_sends_.size(), usrsctp_send_safe() ? 1 : 0,
+              g_usrsctp_api_depth, in_recv_callback_);
+}
+
+void SrsSctp::flush_deferred_sends()
+{
+    if (closed_ || deferred_sends_.empty()) {
+        return;
+    }
+    if (!usrsctp_send_safe()) {
+        srs_warn("SCTP: flush skip n=%d (safe=0 api=%d recv=%d send=%d closed=%d)", (int)deferred_sends_.size(),
+                 g_usrsctp_api_depth, in_recv_callback_, in_usrsctp_send_, closed_ ? 1 : 0);
+        return;
+    }
+    // Swap out so nested cannot re-process; send_now re-queues if still unsafe.
+    vector<PendingSend> pending;
+    pending.swap(deferred_sends_);
+    srs_trace("SCTP: flush begin n=%d", (int)pending.size());
+    for (size_t i = 0; i < pending.size(); i++) {
+        if (closed_) {
+            break;
+        }
+        if (!usrsctp_send_safe()) {
+            // Put remainder back (including current).
+            deferred_sends_.insert(deferred_sends_.begin(), pending.begin() + i, pending.end());
+            srs_warn("SCTP: flush pause at %d/%d requeue=%d api=%d", (int)i, (int)pending.size(),
+                     (int)deferred_sends_.size(), g_usrsctp_api_depth);
+            break;
+        }
+        const PendingSend &p = pending[i];
+        srs_trace("SCTP: flush item %d/%d sid=%u len=%d dcep=%d", (int)i + 1, (int)pending.size(), p.sid_,
+                  (int)p.data_.size(), p.dcep_control_ ? 1 : 0);
+        srs_error_t err = send_now(p.sid_, p.data_.data(), (int)p.data_.size(), p.as_string_, p.dcep_control_);
+        if (err != srs_success) {
+            srs_warn("SCTP: deferred send failed sid=%u len=%d err=%s", p.sid_, (int)p.data_.size(),
+                     srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+    }
+    srs_trace("SCTP: flush end left=%d", (int)deferred_sends_.size());
+}
+
+void SrsSctp::queue_dtls_out(const char *data, int len)
+{
+    if (closed_ || !data || len <= 0) {
+        return;
+    }
+    if (pending_dtls_out_.size() >= 256) {
+        srs_warn("SCTP: drop dtls out (queue full) len=%d", len);
+        return;
+    }
+    pending_dtls_out_.push_back(string(data, len));
+    srs_info("SCTP: queue_dtls_out len=%d q=%d api=%d", len, (int)pending_dtls_out_.size(), g_usrsctp_api_depth);
+}
+
+void SrsSctp::flush_dtls_out()
+{
+    if (closed_ || pending_dtls_out_.empty()) {
+        return;
+    }
+    // Only write when not inside usrsctp (UDP/SSL must not run under TCB lock).
+    if (!srs_sctp_api_idle()) {
+        srs_warn("SCTP: flush_dtls_out skip n=%d api=%d", (int)pending_dtls_out_.size(), g_usrsctp_api_depth);
+        return;
+    }
+    vector<string> pending;
+    pending.swap(pending_dtls_out_);
+    srs_trace("SCTP: flush_dtls_out n=%d", (int)pending.size());
+    for (size_t i = 0; i < pending.size(); i++) {
+        if (closed_) {
+            break;
+        }
+        srs_error_t err = write_dtls(pending[i].data(), (int)pending[i].size());
+        if (err != srs_success) {
+            srs_info("SCTP: write DTLS failed, err=%s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+    }
 }
 
 srs_error_t SrsSctp::write_dtls(const char *data, int len)
@@ -494,17 +778,13 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo &rcv, Srs
         srs_trace("SCTP: DataChannel OPEN sid=%u label=%s type=%u stream=%s",
                   ch.sid_, label.c_str(), channel_type, stream_context_.c_str());
 
-        // DCEP ACK (message type 2).
+        // DCEP ACK (message type 2). Must not usrsctp_sendv while still in recv callback.
         char ack = (char)SrsDataChannelMessageTypeAck;
-        struct sctp_sendv_spa spa;
-        memset(&spa, 0, sizeof(spa));
-        spa.sendv_flags = SCTP_SEND_SNDINFO_VALID;
-        spa.sendv_sndinfo.snd_sid = rcv.rcv_sid;
-        spa.sendv_sndinfo.snd_ppid = htonl(SrsDataChannelPPIDControl);
-        spa.sendv_sndinfo.snd_flags = SCTP_EOR;
-        int ret = usrsctp_sendv(sctp_socket_, &ack, 1, NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0);
-        if (ret < 0) {
-            srs_warn("SCTP: send DCEP ACK failed ret=%d errno=%d", ret, errno);
+        if ((err = send_now(rcv.rcv_sid, &ack, 1, false, true)) != srs_success) {
+            // send_now queues if in_recv; only real failures reach here after flush.
+            srs_warn("SCTP: queue/send DCEP ACK failed, err=%s", srs_error_desc(err).c_str());
+            srs_freep(err);
+            err = srs_success;
         }
         return err;
     }
@@ -519,6 +799,7 @@ srs_error_t SrsSctp::on_data_channel_control(const struct sctp_rcvinfo &rcv, Srs
 
 srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuffer *stream)
 {
+    // Runs under usrsctp_conninput with TCB lock held — only enqueue; never SDK / usleep / sendv.
     srs_error_t err = srs_success;
     string label;
     map<uint16_t, SrsDataChannelInfo>::iterator it = data_channels_.find(rcv.rcv_sid);
@@ -528,29 +809,71 @@ srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuff
 
     const char *data = stream->data();
     int len = stream->size();
+    if (!data || len <= 0) {
+        return err;
+    }
     uint32_t ppid = ntohl(rcv.rcv_ppid);
 
+    bool is_binary = (ppid == (uint32_t)SrsDataChannelPPIDBinary) || (label == "hik-audio");
+    if (!is_binary && len >= 2 && data[0] != '{' && data[0] != '[') {
+        is_binary = true;
+    }
+
+    PendingAppMsg m;
+    m.sid_ = rcv.rcv_sid;
+    m.label_ = label;
+    m.data_.assign(data, len);
+    m.is_binary_ = is_binary;
+    pending_app_msgs_.push_back(m);
+    srs_trace("SCTP: defer app msg sid=%u label=%s len=%d bin=%d q=%d stream=%s", rcv.rcv_sid, label.c_str(), len,
+              is_binary ? 1 : 0, (int)pending_app_msgs_.size(), stream_context_.c_str());
+    return err;
+}
+
+void SrsSctp::process_pending_app_messages()
+{
+    if (closed_ || pending_app_msgs_.empty()) {
+        return;
+    }
+    vector<PendingAppMsg> pending;
+    pending.swap(pending_app_msgs_);
+    srs_trace("SCTP: process_pending_app n=%d", (int)pending.size());
+    for (size_t i = 0; i < pending.size(); i++) {
+        if (closed_) {
+            break;
+        }
+        const PendingAppMsg &m = pending[i];
+        srs_error_t err =
+            dispatch_app_message(m.sid_, m.label_, m.data_.data(), (int)m.data_.size(), m.is_binary_);
+        if (err != srs_success) {
+            srs_warn("SCTP: dispatch app msg failed sid=%u len=%d err=%s", m.sid_, (int)m.data_.size(),
+                     srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+    }
+}
+
+srs_error_t SrsSctp::dispatch_app_message(uint16_t sid, const string &label, const char *data, int len,
+                                          bool is_binary)
+{
+    srs_error_t err = srs_success;
+    if (!data || len <= 0) {
+        return err;
+    }
+
     if (handler_) {
-        if ((err = handler_->on_datachannel_message(rcv.rcv_sid, label, data, len)) != srs_success) {
+        if ((err = handler_->on_datachannel_message(sid, label, data, len)) != srs_success) {
             return srs_error_wrap(err, "handler");
         }
         return err;
     }
 
 #ifdef SRS_HIKVISION
-    if (_srs_hikvision && len > 0) {
-        // Binary (or label hik-audio): talk uplink G.711 frames.
-        bool is_binary = (ppid == (uint32_t)SrsDataChannelPPIDBinary) || (label == "hik-audio");
-        // Heuristic: non-JSON first byte for binary audio on string channel.
-        if (!is_binary && len >= 2 && data[0] != '{' && data[0] != '[') {
-            is_binary = true;
-        }
-
+    if (_srs_hikvision) {
         if (is_binary) {
-            talk_audio_sid_ = rcv.rcv_sid;
+            talk_audio_sid_ = sid;
             talk_audio_sid_set_ = true;
-            // Pass `this` so uplink routes to the talk session this DC peer joined
-            // (talk channel may differ from preview stream channel).
+            // Pass `this` so uplink routes to the talk session this DC peer joined.
             if ((err = _srs_hikvision->talk_send_uplink(stream_context_, data, len, this)) != srs_success) {
                 srs_warn("SCTP: talk uplink failed, err=%s", srs_error_desc(err).c_str());
                 srs_freep(err);
@@ -558,14 +881,13 @@ srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuff
             return srs_success;
         }
 
-        // UTF-8 JSON control (PTZ / talk / search_record).
+        // UTF-8 JSON control (PTZ / talk / search_record) — may srs_usleep / SDK block.
         string json(data, len);
-        srs_trace("SCTP: DataChannel ctrl sid=%u label=%s len=%d stream=%s",
-                  rcv.rcv_sid, label.c_str(), len, stream_context_.c_str());
+        srs_trace("SCTP: DataChannel ctrl sid=%u label=%s len=%d stream=%s", sid, label.c_str(), len,
+                  stream_context_.c_str());
         string reply;
         if ((err = _srs_hikvision->handle_control_json(json, stream_context_, this, &reply)) != srs_success) {
             string msg = srs_error_summary(err);
-            // Minimal escape for error text in JSON.
             string safe;
             for (size_t i = 0; i < msg.size(); i++) {
                 char c = msg[i];
@@ -583,24 +905,23 @@ srs_error_t SrsSctp::on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuff
             reply = string("{\"code\":-1,\"msg\":\"") + safe + "\"}";
             srs_warn("SCTP: hikvision control failed, err=%s", srs_error_desc(err).c_str());
             srs_freep(err);
-            send(rcv.rcv_sid, reply.data(), (int)reply.size(), true);
+            send(sid, reply.data(), (int)reply.size(), true);
             return srs_success;
         }
-        // play_ack uses noreply to avoid ACK-of-ACK traffic during bulk FLV.
         if (reply == "__noreply__") {
             return err;
         }
         if (reply.empty()) {
             reply = "{\"code\":0,\"msg\":\"ok\"}";
         }
-        // Large search_record replies may exceed one SCTP msg; usrsctp handles multi-chunk.
-        send(rcv.rcv_sid, reply.data(), (int)reply.size(), true);
+        srs_trace("SCTP: ctrl reply sid=%u len=%d", sid, (int)reply.size());
+        send(sid, reply.data(), (int)reply.size(), true);
         return err;
     }
 #endif
 
-    srs_trace("SCTP: DataChannel msg sid=%u label=%s len=%d stream=%s",
-              rcv.rcv_sid, label.c_str(), len, stream_context_.c_str());
+    srs_trace("SCTP: DataChannel msg sid=%u label=%s len=%d stream=%s", sid, label.c_str(), len,
+              stream_context_.c_str());
     return err;
 }
 
@@ -661,7 +982,14 @@ srs_error_t SrsSctp::dc_send_text(const string &s)
         return srs_error_new(ERROR_RTC_SCTP, "dc closed");
     }
     uint16_t sid = srs_sctp_pick_control_sid(data_channels_);
-    return send(sid, s.data(), (int)s.size(), true);
+    // Always queue first. Flush only when usrsctp is idle (timer/feed also drain).
+    queue_send(sid, s.data(), (int)s.size(), true, false);
+    if (usrsctp_send_safe()) {
+        flush_deferred_sends();
+    } else {
+        srs_trace("SCTP: dc_send_text queued only (not safe) len=%d api=%d", (int)s.size(), g_usrsctp_api_depth);
+    }
+    return srs_success;
 }
 
 srs_error_t SrsSctp::dc_send_binary(const char *data, int len)
@@ -674,7 +1002,13 @@ srs_error_t SrsSctp::dc_send_binary(const char *data, int len)
     }
     // Bulk FLV and generic binary go on control channel (not talk audio).
     uint16_t sid = srs_sctp_pick_control_sid(data_channels_);
-    return send(sid, data, len, false);
+    queue_send(sid, data, len, false, false);
+    if (usrsctp_send_safe()) {
+        flush_deferred_sends();
+    } else {
+        srs_trace("SCTP: dc_send_binary queued only (not safe) len=%d api=%d", len, g_usrsctp_api_depth);
+    }
+    return srs_success;
 }
 
 void SrsSctp::dc_acquire()
@@ -712,32 +1046,55 @@ bool SrsSctp::dc_alive() const
 
 srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string)
 {
+    return send_now(sid, buf, len, as_string, false);
+}
+
+srs_error_t SrsSctp::send_now(uint16_t sid, const char *buf, int len, bool as_string, bool dcep_control)
+{
     srs_error_t err = srs_success;
     if (closed_ || !sctp_socket_ || !buf || len <= 0) {
         return srs_error_new(ERROR_RTC_SCTP, "invalid send closed=%d", closed_ ? 1 : 0);
     }
 
+    // Never re-enter usrsctp while recv callback or another sendv holds the assoc lock.
+    if (!usrsctp_send_safe()) {
+        srs_trace("SCTP: send_now defer sid=%u len=%d (api=%d recv=%d send=%d)", sid, len, g_usrsctp_api_depth,
+                  in_recv_callback_, in_usrsctp_send_);
+        queue_send(sid, buf, len, as_string, dcep_control);
+        return err;
+    }
+
     // Hold this alive across srs_usleep yields so RTC dispose cannot freep mid-send
     // (that race caused GPF in write_dtls via dangling dtls_writer_).
     acquire();
+    in_usrsctp_send_++;
+    srs_sctp_enter_api("sendv");
 
     map<uint16_t, SrsDataChannelInfo>::iterator iter = data_channels_.find(sid);
-    if (iter == data_channels_.end()) {
-        // Allow send before OPEN tracked (some clients); still try.
-    } else if (iter->second.status_ != SrsDataChannelStatusOpen) {
-        release();
-        return srs_error_new(ERROR_RTC_SCTP, "channel sid=%u not open", sid);
+    if (!dcep_control) {
+        if (iter == data_channels_.end()) {
+            // Allow send before OPEN tracked (some clients); still try.
+        } else if (iter->second.status_ != SrsDataChannelStatusOpen) {
+            srs_sctp_leave_api("sendv");
+            in_usrsctp_send_--;
+            release();
+            return srs_error_new(ERROR_RTC_SCTP, "channel sid=%u not open", sid);
+        }
     }
 
     struct sctp_sendv_spa spa;
     memset(&spa, 0, sizeof(spa));
     spa.sendv_flags = SCTP_SEND_SNDINFO_VALID;
     spa.sendv_sndinfo.snd_sid = sid;
-    spa.sendv_sndinfo.snd_ppid = htonl(as_string ? SrsDataChannelPPIDString : SrsDataChannelPPIDBinary);
+    if (dcep_control) {
+        spa.sendv_sndinfo.snd_ppid = htonl(SrsDataChannelPPIDControl);
+    } else {
+        spa.sendv_sndinfo.snd_ppid = htonl(as_string ? SrsDataChannelPPIDString : SrsDataChannelPPIDBinary);
+    }
     spa.sendv_sndinfo.snd_flags = SCTP_EOR;
     spa.sendv_prinfo.pr_policy = SCTP_PR_SCTP_NONE;
 
-    if (iter != data_channels_.end()) {
+    if (!dcep_control && iter != data_channels_.end()) {
         const SrsDataChannelInfo &ch = iter->second;
         if (ch.channel_type_ & 0x80) {
             spa.sendv_sndinfo.snd_flags |= SCTP_UNORDERED;
@@ -755,30 +1112,32 @@ srs_error_t SrsSctp::send(uint16_t sid, const char *buf, int len, bool as_string
         }
     }
 
-    // Non-blocking: brief EAGAIN retry only (control/talk). Bulk FLV no longer uses DC.
-    // Long retry loops previously starved ST and made the whole process appear hung.
-    const int kMaxAttempts = 100; // ~1s with 10ms sleep
+    // Single attempt — no timer re-entry / usleep while holding in_usrsctp_send_ (deadlock risk).
     int ret = -1;
     int last_errno = 0;
-    for (int attempt = 0; attempt < kMaxAttempts; attempt++) {
-        if (closed_ || !sctp_socket_) {
-            release();
-            return srs_error_new(ERROR_RTC_SCTP, "dc closed during send");
-        }
+    srs_trace("SCTP: usrsctp_sendv begin sid=%u len=%d dcep=%d", sid, len, dcep_control ? 1 : 0);
+    if (!closed_ && sctp_socket_) {
         ret = usrsctp_sendv(sctp_socket_, buf, (size_t)len, NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0);
-        if (ret >= 0) {
-            release();
-            return err;
+        if (ret < 0) {
+            last_errno = errno;
         }
-        last_errno = errno;
-        if (last_errno != EAGAIN && last_errno != EWOULDBLOCK) {
-            break;
-        }
-        usrsctp_handle_timers(10);
-        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
     }
+    srs_trace("SCTP: usrsctp_sendv end sid=%u len=%d ret=%d errno=%d", sid, len, ret, last_errno);
+    srs_sctp_leave_api("sendv");
+    in_usrsctp_send_--;
+    // DTLS packets queued during sendv — flush while not holding usrsctp locks.
+    flush_dtls_out();
     release();
-    return srs_error_new(ERROR_RTC_SCTP, "usrsctp_sendv ret=%d errno=%d len=%d after retries", ret, last_errno, len);
+
+    if (ret >= 0) {
+        return err;
+    }
+    // EAGAIN: re-queue for timer/feed flush (do not spin with usrsctp_handle_timers here).
+    if (last_errno == EAGAIN || last_errno == EWOULDBLOCK) {
+        queue_send(sid, buf, len, as_string, dcep_control);
+        return err;
+    }
+    return srs_error_new(ERROR_RTC_SCTP, "usrsctp_sendv ret=%d errno=%d len=%d", ret, last_errno, len);
 }
 
 void SrsSctp::broadcast(const char *buf, int len)

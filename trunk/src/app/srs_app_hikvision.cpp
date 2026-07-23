@@ -4503,6 +4503,42 @@ struct SrsHikvisionDlWorkerCtx {
 
 // At most one download at a time (NVR/ffmpeg load).
 static volatile int g_hik_dl_inflight = 0;
+// time(NULL) when lock taken; 0 free. Steal if stuck (hung worker never released).
+static volatile int64_t g_hik_dl_lock_since = 0;
+
+static void srs_hikvision_dl_unlock()
+{
+    g_hik_dl_lock_since = 0;
+    __sync_lock_release(&g_hik_dl_inflight);
+}
+
+// Wait for slot (ST-friendly). Steal lock held longer than stuck_sec.
+static srs_error_t srs_hikvision_dl_acquire_wait(srs_utime_t wait_max, int stuck_sec)
+{
+    srs_utime_t t0 = srs_time_now_realtime();
+    int nlog = 0;
+    while (__sync_lock_test_and_set(&g_hik_dl_inflight, 1) != 0) {
+        int64_t since = g_hik_dl_lock_since;
+        int64_t now = (int64_t)time(NULL);
+        if (since > 0 && stuck_sec > 0 && now - since >= stuck_sec) {
+            srs_warn("Hikvision: steal stuck download lock held=%llds", (long long)(now - since));
+            srs_hikvision_dl_unlock();
+            continue;
+        }
+        if (srs_time_now_realtime() - t0 > wait_max) {
+            return srs_error_new(ERROR_HIKVISION_SDK,
+                                 "playback download busy (waited %ds); retry later",
+                                 (int)(wait_max / SRS_UTIME_SECONDS));
+        }
+        if (nlog++ < 3 || (nlog % 30) == 0) {
+            srs_trace("Hikvision: wait download slot elapsed=%ds",
+                      (int)((srs_time_now_realtime() - t0) / SRS_UTIME_SECONDS));
+        }
+        srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    }
+    g_hik_dl_lock_since = (int64_t)time(NULL);
+    return srs_success;
+}
 
 static bool srs_hikvision_looks_like_mpegts(const string &data)
 {
@@ -4580,34 +4616,87 @@ static void srs_hikvision_read_fferr(const string &log_path, string &err_tail)
     ::unlink(log_path.c_str());
 }
 
-// Run ffmpeg → MPEG-TS. Try autodect then -f mpeg (IMKH/PS). No -map ?: (old ffmpeg).
+// Timed StopPlayBackSave — SDK can block forever after large SaveData.
+struct SrsHikvisionDlStopCtx {
+    LONG pb;
+    volatile int done;
+};
+static void *srs_hikvision_dl_stop_thread(void *arg)
+{
+    SrsHikvisionDlStopCtx *c = (SrsHikvisionDlStopCtx *)arg;
+    if (c && c->pb >= 0) {
+        NET_DVR_PlayBackControl_V40(c->pb, NET_DVR_PLAYSTOP, NULL, 0, NULL, NULL);
+        NET_DVR_StopPlayBackSave(c->pb);
+        NET_DVR_StopPlayBack(c->pb);
+    }
+    if (c) {
+        c->done = 1;
+    }
+    return NULL;
+}
+static bool srs_hikvision_dl_stop_timed(LONG pb, int timeout_ms)
+{
+    if (pb < 0) {
+        return true;
+    }
+    SrsHikvisionDlStopCtx ctx;
+    ctx.pb = pb;
+    ctx.done = 0;
+    pthread_t tid;
+    if (pthread_create(&tid, NULL, srs_hikvision_dl_stop_thread, &ctx) != 0) {
+        NET_DVR_StopPlayBackSave(pb);
+        NET_DVR_StopPlayBack(pb);
+        return true;
+    }
+    int w = 0;
+    while (!ctx.done && w < timeout_ms) {
+        ::usleep(50 * 1000);
+        w += 50;
+    }
+    if (ctx.done) {
+        pthread_join(tid, NULL);
+        return true;
+    }
+    pthread_detach(tid);
+    return false;
+}
+
+// Run ffmpeg → MPEG-TS. Hikvision SaveData is IMKH/PS: force -f mpeg first (auto demux hangs).
 static int srs_hikvision_run_ffmpeg_mpegts(const string &raw_path, const string &ts_path, bool audio,
                                            string &err_tail)
 {
     string log_path = ts_path + ".fferr";
-    const char *timeout_bin = NULL;
+    const char *timeout_bin = "";
     if (::access("/usr/bin/timeout", X_OK) == 0) {
-        timeout_bin = "/usr/bin/timeout 90 ";
+        timeout_bin = "/usr/bin/timeout 30 ";
     } else if (::access("/bin/timeout", X_OK) == 0) {
-        timeout_bin = "/bin/timeout 90 ";
-    } else {
-        timeout_bin = "";
+        timeout_bin = "/bin/timeout 30 ";
     }
 
-    // demux_hint: "" auto, or "-f mpeg "
-    const char *hints[] = {"", "-f mpeg "};
-    for (int hi = 0; hi < 2; hi++) {
+    // Prefer -f mpeg video-only (proven ~seconds); then with AAC; avoid bare auto probe first.
+    struct {
+        const char *fmt;
+        bool aac;
+    } attempts[] = {
+        {"-f mpeg ", false},
+        {"-f mpeg ", true},
+        {"", false},
+    };
+    for (size_t i = 0; i < sizeof(attempts) / sizeof(attempts[0]); i++) {
+        if (!audio && attempts[i].aac) {
+            continue;
+        }
         string cmd;
-        if (audio) {
+        if (attempts[i].aac) {
             cmd = srs_fmt_sprintf(
-                "%sffmpeg -y -hide_banner -loglevel error %s-i '%s' "
-                "-c:v copy -c:a aac -b:a 64k -ar 16000 -ac 1 -shortest -f mpegts '%s' 2>'%s'",
-                timeout_bin, hints[hi], raw_path.c_str(), ts_path.c_str(), log_path.c_str());
+                "%sffmpeg -y -hide_banner -loglevel error -probesize 2M -analyzeduration 2M "
+                "%s-i '%s' -c:v copy -c:a aac -b:a 64k -ar 16000 -ac 1 -shortest -f mpegts '%s' 2>'%s'",
+                timeout_bin, attempts[i].fmt, raw_path.c_str(), ts_path.c_str(), log_path.c_str());
         } else {
             cmd = srs_fmt_sprintf(
-                "%sffmpeg -y -hide_banner -loglevel error %s-i '%s' "
-                "-an -c:v copy -f mpegts '%s' 2>'%s'",
-                timeout_bin, hints[hi], raw_path.c_str(), ts_path.c_str(), log_path.c_str());
+                "%sffmpeg -y -hide_banner -loglevel error -probesize 2M -analyzeduration 2M "
+                "%s-i '%s' -an -c:v copy -f mpegts '%s' 2>'%s'",
+                timeout_bin, attempts[i].fmt, raw_path.c_str(), ts_path.c_str(), log_path.c_str());
         }
         int st = srs_hikvision_system_status(::system(cmd.c_str()));
         srs_hikvision_read_fferr(log_path, err_tail);
@@ -4701,45 +4790,20 @@ static void *srs_hikvision_dl_worker(void *arg)
         srs_hikvision_dl_mark_done(w);
         return NULL;
     }
-    for (int i = 0; i < 4; i++) {
-        NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYFAST, NULL, 0, NULL, NULL);
-    }
+    // Avoid PLAYFAST / PLAYGETPOS — both can block inside HCNetSDK forever on this NVR.
+    // Completion is based only on SaveData file growth (OS file size is non-blocking).
 
-    // OS thread only — never srs_usleep here.
     int64_t last_sz = -1;
     int stable = 0;
     time_t t0 = time(NULL);
-    const int kTimeoutSec = 90;
+    const int kTimeoutSec = 60;
     while ((int)(time(NULL) - t0) < kTimeoutSec) {
-        int pos = 0;
-        DWORD npos = sizeof(pos);
-        if (NET_DVR_PlayBackControl_V40(pb, NET_DVR_PLAYGETPOS, NULL, 0, &pos, &npos)) {
-            if (pos == 100) {
-                w->play_done = true;
-                break;
-            }
-            if (pos > 100) {
-                NET_DVR_StopPlayBackSave(pb);
-                NET_DVR_StopPlayBack(pb);
-                if (own_login) {
-                    NET_DVR_Logout(uid);
-                }
-                ::unlink(w->raw_path.c_str());
-                w->err_code = ERROR_HIKVISION_SDK;
-                w->err_msg = srs_fmt_sprintf("download PLAYGETPOS=%d %s", pos, srs_hikvision_sdk_errmsg().c_str());
-                srs_hikvision_dl_mark_done(w);
-                return NULL;
-            }
-        }
         int64_t sz = srs_hikvision_file_size(w->raw_path.c_str());
         w->progress_bytes = sz;
-        if (sz > 0 && sz == last_sz) {
+        // ~1.5s stable file size → SaveData finished writing.
+        if (sz > 1024 && sz == last_sz) {
             stable++;
-            if (stable >= 15 && sz > 1024) {
-                w->play_done = true;
-                break;
-            }
-            if (stable >= 12 && pos >= 90) {
+            if (stable >= 15) {
                 w->play_done = true;
                 break;
             }
@@ -4750,9 +4814,9 @@ static void *srs_hikvision_dl_worker(void *arg)
         ::usleep(100 * 1000);
     }
 
-    NET_DVR_StopPlayBackSave(pb);
-    NET_DVR_StopPlayBack(pb);
-    if (own_login) {
+    // StopPlayBackSave can hang forever — max 3s then remux existing bytes.
+    bool stop_ok = srs_hikvision_dl_stop_timed(pb, 3000);
+    if (own_login && stop_ok) {
         NET_DVR_Logout(uid);
     }
 
@@ -4767,12 +4831,45 @@ static void *srs_hikvision_dl_worker(void *arg)
         return NULL;
     }
 
-    // AAC for mpegts.js; fallback video-only. Use -f mpeg for IMKH/PS.
+    // Snapshot so ffmpeg never waits on an SDK-open SaveData file.
+    string snap = w->raw_path + ".snap";
+    {
+        FILE *in = fopen(w->raw_path.c_str(), "rb");
+        FILE *out = in ? fopen(snap.c_str(), "wb") : NULL;
+        bool ok = false;
+        if (in && out) {
+            char buf[1024 * 1024];
+            int64_t left = w->raw_sz;
+            ok = true;
+            while (left > 0) {
+                size_t n = fread(buf, 1, (size_t)srs_min(left, (int64_t)sizeof(buf)), in);
+                if (n == 0 || fwrite(buf, 1, n, out) != n) {
+                    ok = false;
+                    break;
+                }
+                left -= (int64_t)n;
+            }
+        }
+        if (in) {
+            fclose(in);
+        }
+        if (out) {
+            fclose(out);
+        }
+        if (ok) {
+            ::unlink(w->raw_path.c_str());
+            w->raw_path = snap;
+        } else {
+            ::unlink(snap.c_str());
+        }
+    }
+
+    // Video-only -f mpeg first (IMKH, ~0.1s); then try with audio.
     string ff_err;
-    int st = srs_hikvision_run_ffmpeg_mpegts(w->raw_path, w->ts_path, true, ff_err);
+    int st = srs_hikvision_run_ffmpeg_mpegts(w->raw_path, w->ts_path, false, ff_err);
     if (st != 0) {
         ::unlink(w->ts_path.c_str());
-        st = srs_hikvision_run_ffmpeg_mpegts(w->raw_path, w->ts_path, false, ff_err);
+        st = srs_hikvision_run_ffmpeg_mpegts(w->raw_path, w->ts_path, true, ff_err);
     }
     ::unlink(w->raw_path.c_str());
     if (st != 0) {
@@ -4841,9 +4938,9 @@ srs_error_t SrsHikvisionManager::download_playback_ts(SrsHikvisionDevice *device
         srs_warn("Hikvision: download_playback_ts clamp duration to %llds", (long long)kMaxDur);
     }
 
-    // One download at a time (ST-visible); live stream keeps using device login.
-    if (__sync_lock_test_and_set(&g_hik_dl_inflight, 1)) {
-        return srs_error_new(ERROR_HIKVISION_SDK, "another playback download is in progress");
+    // One download at a time. Wait/steal instead of instant 4062 (hung worker used to pin lock forever).
+    if ((err = srs_hikvision_dl_acquire_wait(120 * SRS_UTIME_SECONDS, 120)) != srs_success) {
+        return srs_error_wrap(err, "acquire download slot");
     }
 
     string tag = srs_fmt_sprintf("%d_%lld_%lld", channel, (long long)start_unix, (long long)srs_time_now_realtime());
@@ -4854,7 +4951,7 @@ srs_error_t SrsHikvisionManager::download_playback_ts(SrsHikvisionDevice *device
 
     // Ensure live login exists so we can fall back if 2nd login is rejected.
     if ((err = device->ensure_login()) != srs_success) {
-        __sync_lock_release(&g_hik_dl_inflight);
+        srs_hikvision_dl_unlock();
         return srs_error_wrap(err, "login before download");
     }
 
@@ -4883,11 +4980,11 @@ srs_error_t SrsHikvisionManager::download_playback_ts(SrsHikvisionDevice *device
     int pr = pthread_create(&tid, NULL, srs_hikvision_dl_worker, work);
     if (pr != 0) {
         delete work;
-        __sync_lock_release(&g_hik_dl_inflight);
+        srs_hikvision_dl_unlock();
         return srs_error_new(ERROR_HIKVISION_SDK, "pthread_create download worker failed ret=%d", pr);
     }
 
-    // ST poll — yields so RTC/HTTP/SCTP stay alive. Worker self-limits (~90s + 60s ffmpeg).
+    // ST poll — yields so RTC/HTTP/SCTP stay alive. Worker self-limits (~60s + remux).
     srs_utime_t t0 = srs_time_now_realtime();
     srs_utime_t last_log = t0;
     while (!work->finished) {
@@ -4904,7 +5001,7 @@ srs_error_t SrsHikvisionManager::download_playback_ts(SrsHikvisionDevice *device
     if (work->err_code != 0) {
         err = srs_error_new(work->err_code, "%s", work->err_msg.c_str());
         delete work;
-        __sync_lock_release(&g_hik_dl_inflight);
+        srs_hikvision_dl_unlock();
         return err;
     }
 
@@ -4913,7 +5010,7 @@ srs_error_t SrsHikvisionManager::download_playback_ts(SrsHikvisionDevice *device
               (int)ts_out.size(), (long long)work->raw_sz, (long long)start_unix, (long long)end_unix,
               work->play_done ? 1 : 0);
     delete work;
-    __sync_lock_release(&g_hik_dl_inflight);
+    srs_hikvision_dl_unlock();
     return err;
 }
 
@@ -5356,11 +5453,23 @@ srs_error_t SrsHikvisionManager::handle_control(SrsJsonObject *req, const string
         if ((prop = req->ensure_property_integer("max")) != NULL) {
             max_results = (int)prop->to_integer();
         }
+        // DataChannel: keep JSON small — 16KB+ search_record replies deadlock usrsctp_sendv.
+        if (talk_listener) {
+            max_results = srs_min(max_results, 25);
+        }
 
         string reply;
         if ((err = search_records(device, channel, start_unix, end_unix, file_type, stream_type, max_results, &reply)) !=
             srs_success) {
             return srs_error_wrap(err, "search_record");
+        }
+        // Hard cap DC payload size (SCTP one-message).
+        if (talk_listener && reply.size() > 3200) {
+            reply = srs_fmt_sprintf(
+                "{\"code\":0,\"msg\":\"truncated\",\"cmd\":\"search_record\",\"id\":\"HIK::SearchRecordResult\","
+                "\"channel\":%d,\"serialno\":\"%s\",\"start\":%lld,\"end\":%lld,\"count\":-1,"
+                "\"hint\":\"too many results for DataChannel; pass max<=15 or narrower range\"}",
+                channel, device->conf().serialno_.c_str(), (long long)start_unix, (long long)end_unix);
         }
         // Optional token/from for client correlation (websocket-style).
         string from;

@@ -18,6 +18,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <usrsctp.h>
 
@@ -98,6 +99,41 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool orphan_;
     // Client FLV receive watermark (bytes) from {"cmd":"play_ack","got":N}.
     int64_t flv_ack_got_;
+    // Nested depth while inside usrsctp recv callback (on_recv_sctp_data).
+    // Must not call usrsctp_sendv re-entrantly → deadlock on assoc lock.
+    int in_recv_callback_;
+    // Depth while inside usrsctp_sendv (non-reentrant per instance).
+    int in_usrsctp_send_;
+    // Queued while unsafe to send; flushed after feed()/timer when idle.
+    struct PendingSend {
+        uint16_t sid_;
+        std::string data_;
+        bool as_string_;
+        // true → PPID 50 DCEP control (ACK); false → string/binary data PPID.
+        bool dcep_control_;
+        PendingSend() : sid_(0), as_string_(true), dcep_control_(false)
+        {
+        }
+    };
+    std::vector<PendingSend> deferred_sends_;
+    // App DC payloads deferred until usrsctp_conninput returns.
+    // CRITICAL: never run handle_control_json / SDK / srs_usleep inside recv callback —
+    // ST can switch to timer→flush→sendv while usrsctp still holds TCB lock → deadlock.
+    struct PendingAppMsg {
+        uint16_t sid_;
+        std::string label_;
+        std::string data_;
+        bool is_binary_;
+        PendingAppMsg() : sid_(0), is_binary_(false)
+        {
+        }
+    };
+    std::vector<PendingAppMsg> pending_app_msgs_;
+    // SCTP→DTLS packets queued from on_send_sctp_data. NEVER write UDP/SSL inside
+    // usrsctp (sendto may ST-yield while TCB locked → UDP feed deadlocks on TCB).
+    std::vector<std::string> pending_dtls_out_;
+    // Incoming DTLS/SCTP payloads if feed() while another usrsctp API is active.
+    std::vector<std::string> pending_feeds_;
 
 public:
     // dtls_writer must outlive this object (typically SrsSecurityTransport).
@@ -142,11 +178,33 @@ public:
     srs_error_t on_sctp_event(const struct sctp_rcvinfo &rcv, void *data, size_t len);
     srs_error_t on_sctp_data(const struct sctp_rcvinfo &rcv, void *data, size_t len);
     srs_error_t write_dtls(const char *data, int len);
+    // Queue only (called from usrsctp output callback while locks held).
+    void queue_dtls_out(const char *data, int len);
+    // Enter/leave recv-callback scope (called from C on_recv_sctp_data).
+    void enter_recv_callback();
+    void leave_recv_callback();
+    // Safe to call from any ST coroutine (DcPlayJob etc.): always queues, never usrsctp_sendv
+    // re-entrantly. Flushed after DTLS feed and on SCTP timer tick.
+    void queue_send(uint16_t sid, const char *buf, int len, bool as_string, bool dcep_control = false);
+    // Drain deferred queue if not inside usrsctp (public for timer).
+    void flush_deferred_sends();
+    // Run Hikvision/control handlers queued during recv (must be outside usrsctp).
+    void process_pending_app_messages();
+    // Flush deferred DTLS UDP writes (must be outside usrsctp).
+    void flush_dtls_out();
+    // Drain pending_feeds_ then app msgs then deferred sends (outside usrsctp).
+    void drain_after_usrsctp();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_data_channel_control(const struct sctp_rcvinfo &rcv, SrsBuffer *stream);
     srs_error_t on_data_channel_msg(const struct sctp_rcvinfo &rcv, SrsBuffer *stream);
+    // Actually call usrsctp_sendv (never from inside recv callback / nested send).
+    srs_error_t send_now(uint16_t sid, const char *buf, int len, bool as_string, bool dcep_control);
+    bool usrsctp_send_safe() const;
+    srs_error_t dispatch_app_message(uint16_t sid, const std::string &label, const char *data, int len,
+                                     bool is_binary);
+    void do_conninput(const char *buf, int nb_buf);
 };
 
 extern SrsSctpGlobalEnv *_srs_sctp_env;
