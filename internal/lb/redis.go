@@ -138,7 +138,7 @@ func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 }
 
 func (v *redisLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
-	key := fmt.Sprintf("srs-proxy-url:%v", streamURL)
+	key := v.redisKeyURL(streamURL)
 
 	// Always proxy to the same server for the same stream URL.
 	if serverKey, err := v.rdb.Get(ctx, key).Result(); err == nil {
@@ -275,25 +275,36 @@ func (v *redisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string)
 }
 
 func (v *redisLoadBalancer) redisKeyUfrag(ufrag string) string {
-	return fmt.Sprintf("srs-proxy-ufrag:%v", ufrag)
+	return v.redisKey(fmt.Sprintf("srs-proxy-ufrag:%v", ufrag))
 }
 
 func (v *redisLoadBalancer) redisKeyRTC(streamURL string) string {
-	return fmt.Sprintf("srs-proxy-rtc:%v", streamURL)
+	return v.redisKey(fmt.Sprintf("srs-proxy-rtc:%v", streamURL))
 }
 
 func (v *redisLoadBalancer) redisKeySPBHID(spbhid string) string {
-	return fmt.Sprintf("srs-proxy-spbhid:%v", spbhid)
+	return v.redisKey(fmt.Sprintf("srs-proxy-spbhid:%v", spbhid))
 }
 
 func (v *redisLoadBalancer) redisKeyHLS(streamURL string) string {
-	return fmt.Sprintf("srs-proxy-hls:%v", streamURL)
+	return v.redisKey(fmt.Sprintf("srs-proxy-hls:%v", streamURL))
+}
+
+func (v *redisLoadBalancer) redisKeyURL(streamURL string) string {
+	return v.redisKey(fmt.Sprintf("srs-proxy-url:%v", streamURL))
 }
 
 func (v *redisLoadBalancer) redisKeyServer(serverID string) string {
-	return fmt.Sprintf("srs-proxy-server:%v", serverID)
+	return v.redisKey(fmt.Sprintf("srs-proxy-server:%v", serverID))
 }
 
 func (v *redisLoadBalancer) redisKeyServers() string {
-	return fmt.Sprintf("srs-proxy-all-servers")
+	return v.redisKey("srs-proxy-all-servers")
+}
+
+func (v *redisLoadBalancer) redisKey(key string) string {
+	if prefix := v.environment.RedisKeyPrefix(); prefix != "" {
+		return fmt.Sprintf("%v:%v", prefix, key)
+	}
+	return key
 }

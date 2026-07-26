@@ -96,6 +96,9 @@ parses the minimum needed to route, then proxies traffic to the chosen backend.
   deployments; lowest latency, no external dependencies.
 - **Redis load balancer** — shared state with TTL-based expiration for
   multi-proxy deployments scaling horizontally behind a network load balancer.
+- **Redis key namespaces** — optional `PROXY_REDIS_KEY_PREFIX`; empty by default
+  for backward compatibility, or set to isolate independent proxy clusters that
+  share one Redis database.
 - **Stream-level stickiness** — the first request for a stream URL picks a
   backend; every later request for that stream routes to the same backend.
   Stream→server mappings never expire.

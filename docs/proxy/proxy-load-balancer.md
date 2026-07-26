@@ -112,9 +112,15 @@ PROXY_REDIS_HOST=127.0.0.1
 PROXY_REDIS_PORT=6379
 PROXY_REDIS_PASSWORD=
 PROXY_REDIS_DB=0
+PROXY_REDIS_KEY_PREFIX=
 ```
 
 3. Redis Key Design
+
+`PROXY_REDIS_KEY_PREFIX` optionally namespaces every Redis key. It is empty by
+default, preserving the key names below. When set to `xxx`, keys use the form
+`xxx:srs-proxy-...`. Every proxy in the same logical cluster must use the same
+prefix.
 
 **Server Keys**:
 - `srs-proxy-server:{serverID}` - Server registration (300s TTL)

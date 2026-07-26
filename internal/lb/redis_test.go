@@ -641,19 +641,32 @@ func TestRedisLB_StoreWebRTC_SecondSetFails(t *testing.T) {
 // ----------------------------------------------------------------------------
 
 func TestRedisLB_KeyHelpers(t *testing.T) {
-	lb := &redisLoadBalancer{}
-	for _, tt := range []struct {
-		got, want string
+	for _, tc := range []struct {
+		name, prefix, wantPrefix string
 	}{
-		{lb.redisKeyUfrag("u"), "srs-proxy-ufrag:u"},
-		{lb.redisKeyRTC("url"), "srs-proxy-rtc:url"},
-		{lb.redisKeySPBHID("s"), "srs-proxy-spbhid:s"},
-		{lb.redisKeyHLS("url"), "srs-proxy-hls:url"},
-		{lb.redisKeyServer("id"), "srs-proxy-server:id"},
-		{lb.redisKeyServers(), "srs-proxy-all-servers"},
+		{"default", "", ""},
+		{"configured", "xxx", "xxx:"},
 	} {
-		if tt.got != tt.want {
-			t.Errorf("got %q, want %q", tt.got, tt.want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			env := &envfakes.FakeProxyEnvironment{}
+			env.RedisKeyPrefixReturns(tc.prefix)
+			lb := NewRedisLoadBalancer(env).(*redisLoadBalancer)
+
+			for _, tt := range []struct {
+				got, want string
+			}{
+				{lb.redisKeyUfrag("u"), tc.wantPrefix + "srs-proxy-ufrag:u"},
+				{lb.redisKeyRTC("url"), tc.wantPrefix + "srs-proxy-rtc:url"},
+				{lb.redisKeySPBHID("s"), tc.wantPrefix + "srs-proxy-spbhid:s"},
+				{lb.redisKeyHLS("url"), tc.wantPrefix + "srs-proxy-hls:url"},
+				{lb.redisKeyURL("url"), tc.wantPrefix + "srs-proxy-url:url"},
+				{lb.redisKeyServer("id"), tc.wantPrefix + "srs-proxy-server:id"},
+				{lb.redisKeyServers(), tc.wantPrefix + "srs-proxy-all-servers"},
+			} {
+				if tt.got != tt.want {
+					t.Errorf("got %q, want %q", tt.got, tt.want)
+				}
+			}
+		})
 	}
 }

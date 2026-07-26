@@ -157,6 +157,16 @@ type FakeProxyEnvironment struct {
 	redisHostReturnsOnCall map[int]struct {
 		result1 string
 	}
+	RedisKeyPrefixStub        func() string
+	redisKeyPrefixMutex       sync.RWMutex
+	redisKeyPrefixArgsForCall []struct {
+	}
+	redisKeyPrefixReturns struct {
+		result1 string
+	}
+	redisKeyPrefixReturnsOnCall map[int]struct {
+		result1 string
+	}
 	RedisPasswordStub        func() string
 	redisPasswordMutex       sync.RWMutex
 	redisPasswordArgsForCall []struct {
@@ -1022,6 +1032,59 @@ func (fake *FakeProxyEnvironment) RedisHostReturnsOnCall(i int, result1 string) 
 		})
 	}
 	fake.redisHostReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefix() string {
+	fake.redisKeyPrefixMutex.Lock()
+	ret, specificReturn := fake.redisKeyPrefixReturnsOnCall[len(fake.redisKeyPrefixArgsForCall)]
+	fake.redisKeyPrefixArgsForCall = append(fake.redisKeyPrefixArgsForCall, struct {
+	}{})
+	stub := fake.RedisKeyPrefixStub
+	fakeReturns := fake.redisKeyPrefixReturns
+	fake.recordInvocation("RedisKeyPrefix", []interface{}{})
+	fake.redisKeyPrefixMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefixCallCount() int {
+	fake.redisKeyPrefixMutex.RLock()
+	defer fake.redisKeyPrefixMutex.RUnlock()
+	return len(fake.redisKeyPrefixArgsForCall)
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefixCalls(stub func() string) {
+	fake.redisKeyPrefixMutex.Lock()
+	defer fake.redisKeyPrefixMutex.Unlock()
+	fake.RedisKeyPrefixStub = stub
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefixReturns(result1 string) {
+	fake.redisKeyPrefixMutex.Lock()
+	defer fake.redisKeyPrefixMutex.Unlock()
+	fake.RedisKeyPrefixStub = nil
+	fake.redisKeyPrefixReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefixReturnsOnCall(i int, result1 string) {
+	fake.redisKeyPrefixMutex.Lock()
+	defer fake.redisKeyPrefixMutex.Unlock()
+	fake.RedisKeyPrefixStub = nil
+	if fake.redisKeyPrefixReturnsOnCall == nil {
+		fake.redisKeyPrefixReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.redisKeyPrefixReturnsOnCall[i] = struct {
 		result1 string
 	}{result1}
 }

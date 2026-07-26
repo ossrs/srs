@@ -191,6 +191,7 @@ By default, transmuxing between sources is disabled. You need to enable it in th
 **Clustering:**
 
 - **Origin Cluster** — Used to extend the number of streams SRS can support. It is a cluster of multiple origin servers behind a proxy server. The proxy discovers which origin server a stream is on and routes to it. v3.0, 2018-02
+- **Proxy Redis Key Namespace** — The next-generation Go proxy can isolate independent clusters sharing one Redis database with the optional `PROXY_REDIS_KEY_PREFIX`; the default is empty for backward-compatible key names. v8.0.4, 2026-07
 - **Edge Cluster** — Used to extend the number of viewers a stream can support. The current edge cluster is deprecated because it only supports the RTMP protocol, but a new edge cluster is planned to support more protocols. v1.0, 2014-04
 - **HLS Cluster** — Built by Nginx. It is a type of edge cluster for HLS. v5.0, 2022-04
 

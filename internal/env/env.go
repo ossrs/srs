@@ -57,6 +57,8 @@ type ProxyEnvironment interface {
 	RedisPassword() string
 	// Redis database
 	RedisDB() string
+	// Optional Redis key prefix
+	RedisKeyPrefix() string
 	// Default backend enabled
 	DefaultBackendEnabled() string
 	// Default backend IP
@@ -142,6 +144,10 @@ func (e *proxyEnvironment) RedisPassword() string {
 
 func (e *proxyEnvironment) RedisDB() string {
 	return getEnv("PROXY_REDIS_DB")
+}
+
+func (e *proxyEnvironment) RedisKeyPrefix() string {
+	return getEnv("PROXY_REDIS_KEY_PREFIX")
 }
 
 func (e *proxyEnvironment) DefaultBackendEnabled() string {
@@ -301,6 +307,8 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	setEnvDefault("PROXY_REDIS_PASSWORD", "")
 	// The redis server db.
 	setEnvDefault("PROXY_REDIS_DB", "0")
+	// Optional prefix for all Redis keys.
+	setEnvDefault("PROXY_REDIS_KEY_PREFIX", "")
 
 	// Whether enable the default backend server, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_ENABLED", "off")
@@ -324,7 +332,7 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		"PROXY_DEFAULT_BACKEND_HTTP=%v, PROXY_DEFAULT_BACKEND_API=%v, "+
 		"PROXY_DEFAULT_BACKEND_RTC=%v, PROXY_DEFAULT_BACKEND_SRT=%v, "+
 		"PROXY_LOAD_BALANCER_TYPE=%v, PROXY_REDIS_HOST=%v, PROXY_REDIS_PORT=%v, "+
-		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v",
+		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v, PROXY_REDIS_KEY_PREFIX=%v",
 		getEnv("GO_PPROF"),
 		getEnv("PROXY_FORCE_QUIT_TIMEOUT"), getEnv("PROXY_GRACE_QUIT_TIMEOUT"),
 		getEnv("PROXY_HTTP_API"), getEnv("PROXY_HTTP_SERVER"), getEnv("PROXY_RTMP_SERVER"),
@@ -334,7 +342,7 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		getEnv("PROXY_DEFAULT_BACKEND_HTTP"), getEnv("PROXY_DEFAULT_BACKEND_API"),
 		getEnv("PROXY_DEFAULT_BACKEND_RTC"), getEnv("PROXY_DEFAULT_BACKEND_SRT"),
 		getEnv("PROXY_LOAD_BALANCER_TYPE"), getEnv("PROXY_REDIS_HOST"), getEnv("PROXY_REDIS_PORT"),
-		getEnv("PROXY_REDIS_PASSWORD"), getEnv("PROXY_REDIS_DB"),
+		getEnv("PROXY_REDIS_PASSWORD"), getEnv("PROXY_REDIS_DB"), getEnv("PROXY_REDIS_KEY_PREFIX"),
 	)
 }
 

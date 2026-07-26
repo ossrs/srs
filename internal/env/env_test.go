@@ -337,6 +337,7 @@ func TestNewProxyEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
 		{"RedisPort", env.RedisPort(), "6379"},
 		{"RedisPassword", env.RedisPassword(), ""},
 		{"RedisDB", env.RedisDB(), "0"},
+		{"RedisKeyPrefix", env.RedisKeyPrefix(), ""},
 		{"DefaultBackendEnabled", env.DefaultBackendEnabled(), "off"},
 		{"DefaultBackendIP", env.DefaultBackendIP(), "127.0.0.1"},
 		{"DefaultBackendRTMP", env.DefaultBackendRTMP(), "1935"},
@@ -356,6 +357,7 @@ func TestNewProxyEnvironment_PreservesPreSetValues(t *testing.T) {
 	withFakeEnv(t)
 	withFakeOpen(t, "", os.ErrNotExist)
 	setEnv("PROXY_HTTP_API", "9999")
+	setEnv("PROXY_REDIS_KEY_PREFIX", "xxx")
 
 	env, err := NewProxyEnvironment(context.Background())
 	if err != nil {
@@ -363,6 +365,9 @@ func TestNewProxyEnvironment_PreservesPreSetValues(t *testing.T) {
 	}
 	if got := env.HttpAPI(); got != "9999" {
 		t.Errorf("HttpAPI() = %q, want %q", got, "9999")
+	}
+	if got := env.RedisKeyPrefix(); got != "xxx" {
+		t.Errorf("RedisKeyPrefix() = %q, want %q", got, "xxx")
 	}
 }
 
