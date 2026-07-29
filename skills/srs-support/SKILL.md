@@ -22,15 +22,20 @@ This skill is for **operators, users, and DevOps** — answering questions about
 - Teaching users about SRS internals or source code — you may read source code to answer user questions better, but don't guide users into understanding the code itself. The goal is to help them *use* SRS, not develop it.
 - **Oryx** — Oryx is not supported by this AI yet. If the user asks about Oryx, tell them clearly: "Oryx support is planned but not available yet." Do not attempt to answer Oryx-specific questions.
 
+## Skill Dependencies
+
+- `skills/srs-internal-docs/SKILL.md` — Route and load project documentation. This skill remains responsible for the support workflow and final answer.
+- `skills/srs-internal-codemap/SKILL.md` — Route source-code investigation to the relevant server map. This skill remains responsible for the support workflow and final answer.
+
 ## Workflow
 
-Follow these three steps in order for every question.
+Follow these four steps in order for every question.
 
 ## Step 1: Setup
 
 All files are in the current working directory. Find everything from here — no discovery logic needed.
 
-Available directories: `trunk/`, `cmd/`, `internal/`, `cmake/`, `docs/`, `memory/`
+Available directories: `trunk/`, `cmd/`, `internal/`, `cmake/`, `memory/`, `skills/`
 
 All AI tools — OpenClaw, Codex, Claude Code, Kiro CLI — see the same relative paths.
 
@@ -39,42 +44,19 @@ All AI tools — OpenClaw, Codex, Claude Code, Kiro CLI — see the same relativ
 Load knowledge in layers. Start minimal, expand only if needed.
 
 **Layer 1 — Always load:**
-- `memory/srs-overview.md` — covers protocols, codecs, transmuxing, configuration, features, ecosystem, performance. This answers most general questions.
+- `references/srs-overview.md` — covers protocols, codecs, transmuxing, configuration, features, ecosystem, performance. This answers most general questions.
 
-**Layer 2 — Load the relevant doc file(s) based on the question topic:**
+**Layer 2 — Load relevant project documentation through `srs-internal-docs`:**
 
-Use this mapping to decide which doc file to load. Only load what's relevant — don't load all of them.
-
-| Topic | Doc file(s) to load |
-|---|---|
-| RTMP config, tuning, RTMPS | `trunk/3rdparty/srs-docs/doc/rtmp.md` |
-| HLS config, latency, encryption, fMP4 | `trunk/3rdparty/srs-docs/doc/hls.md` |
-| WebRTC setup, candidate, connection issues | `trunk/3rdparty/srs-docs/doc/webrtc.md` |
-| HTTP-FLV, WebSocket FLV | `trunk/3rdparty/srs-docs/doc/flv.md` |
-| SRT config, streamid, latency modes | `trunk/3rdparty/srs-docs/doc/srt.md` |
-| RTSP playback | `trunk/3rdparty/srs-docs/doc/rtsp.md` |
-| HEVC/H.265 protocol support | `trunk/3rdparty/srs-docs/doc/hevc.md` |
-| DVR, recording to file | `trunk/3rdparty/srs-docs/doc/dvr.md` |
-| HTTP callbacks, authentication | `trunk/3rdparty/srs-docs/doc/http-callback.md` |
-| IP allow/deny, access control | `trunk/3rdparty/srs-docs/doc/security.md` |
-| HTTP API, stream monitoring | `trunk/3rdparty/srs-docs/doc/http-api.md` |
-| Prometheus, Grafana, metrics | `trunk/3rdparty/srs-docs/doc/exporter.md` |
-| Ports, firewall, resource planning | `trunk/3rdparty/srs-docs/doc/resource.md` |
-| Embedded HTTP server, reverse proxy | `trunk/3rdparty/srs-docs/doc/http-server.md` |
-| Nginx for HLS/DASH distribution | `trunk/3rdparty/srs-docs/doc/nginx-for-hls.md` |
-| Edge server, CDN clustering | `trunk/3rdparty/srs-docs/doc/edge.md` |
-| Origin cluster, proxy server | `trunk/3rdparty/srs-docs/doc/origin-cluster.md` |
-| Low latency tuning | `trunk/3rdparty/srs-docs/doc/low-latency.md` |
-| Performance profiling, benchmarks | `trunk/3rdparty/srs-docs/doc/performance.md` |
-| Ingest external streams | `trunk/3rdparty/srs-docs/doc/ingest.md` |
-| Forward to other servers | `trunk/3rdparty/srs-docs/doc/forward.md` |
-| FFmpeg transcoding | `trunk/3rdparty/srs-docs/doc/ffmpeg.md` |
-| Snapshots, thumbnails | `trunk/3rdparty/srs-docs/doc/snapshot.md` |
-| Getting started with Docker | `trunk/3rdparty/srs-docs/doc/getting-started.md` |
-| Building from source | `trunk/3rdparty/srs-docs/doc/getting-started-build.md` |
+1. Load `skills/srs-internal-docs/SKILL.md`.
+2. Use its Reference Router to select the relevant C++ media server documentation reference.
+3. Load only the project documents relevant to the question. Do not duplicate documentation routing or guess document paths in this skill.
 
 **Layer 3 — Last resort (if you need source code to answer):**
-- `memory/srs-codebase-map.md` — load the **entire file** (do not truncate or read partial content). Then: reason about which module/files are relevant to the question based on the map's descriptions, and search only those specific files. **DO NOT grep broadly** (e.g., `trunk/src/` or the repository root). The map exists so you can go directly to the right 2-3 files instead of scanning the whole tree.
+
+1. Load `skills/srs-internal-codemap/SKILL.md`.
+2. Use its Reference Router to select the C++ media server or next-generation Go server map based on the component being investigated and, when needed, the testing and verification map.
+3. Use the selected map to identify the smallest relevant module and file set. Do not grep broad directories or the repository root.
 
 ## Step 3: Answer by Topic
 
@@ -88,7 +70,7 @@ Classify the question into one of the topics below, then apply that topic's stra
 
 **Protocol Questions**
 - State which protocols SRS supports and their role (publish, play, or both)
-- Include the version and date when a protocol was added (from the Features list in srs-overview.md)
+- Include the version and date when a protocol was added (from the Features list in `references/srs-overview.md`)
 - Clarify transport: which protocols use TCP vs UDP
 - For protocol comparisons, explain the tradeoffs (latency, compatibility, performance)
 
@@ -100,14 +82,14 @@ Classify the question into one of the topics below, then apply that topic's stra
 
 **Configuration Questions**
 - Reference `trunk/conf/full.conf` as the complete configuration reference
-- For specific features, load the relevant doc file from Layer 2 — it contains detailed config options and examples
+- For specific features, use Layer 2 to load the relevant documentation with detailed configuration and examples
 - Mention environment variable support for Docker/cloud-native deployments
 - For getting started, recommend `trunk/conf/console.conf` for local testing
 
 **Deployment & Getting Started**
 - Provide the standard build steps: `cd trunk && ./configure && make`
 - Show the basic publish/play workflow with FFmpeg and common players
-- For Docker questions, reference `trunk/conf/docker.conf` and load `getting-started.md`
+- For Docker questions, reference `trunk/conf/docker.conf` and use Layer 2 to load the getting-started documentation
 - Note that SRS is Linux-only (use WSL on Windows, macOS works for development)
 
 **Architecture Questions**
@@ -144,22 +126,22 @@ When the user reports a problem ("it's not working", "stream won't play", "high 
 - Any error messages or log output
 
 **SRS diagnostic tools:**
-- **HTTP API** — Check active streams: `curl http://localhost:1985/api/v1/streams`. Check clients: `curl http://localhost:1985/api/v1/clients`. Check server info: `curl http://localhost:1985/api/v1/summaries`. Load the `http-api.md` doc for full API reference.
+- **HTTP API** — Check active streams: `curl http://localhost:1985/api/v1/streams`. Check clients: `curl http://localhost:1985/api/v1/clients`. Check server info: `curl http://localhost:1985/api/v1/summaries`. Use Layer 2 to load the full HTTP API reference.
 - **Logs** — SRS uses traceable log with context IDs. Each connection gets a unique context ID, allowing you to trace a stream across the system. Check `trunk/objs/srs.log` or console output.
-- **Prometheus** — If configured, check metrics at the exporter endpoint. Load `exporter.md` for setup.
+- **Prometheus** — If configured, check metrics at the exporter endpoint. Use Layer 2 to load the exporter setup documentation.
 
 **Common failure patterns and solutions:**
 
 *WebRTC won't connect from remote browser:*
-- Most common cause: **candidate misconfiguration**. The `candidate` in `rtc_server` must be set to the server's public IP, not `127.0.0.1` or a private IP. Load `webrtc.md` for details.
+- Most common cause: **candidate misconfiguration**. The `candidate` in `rtc_server` must be set to the server's public IP, not `127.0.0.1` or a private IP. Use Layer 2 to load the WebRTC documentation.
 - HTTPS is required for WebRTC from non-localhost browsers. Without HTTPS, the browser blocks `getUserMedia`.
 - Check that UDP port 8000 is open in the firewall. WebRTC uses UDP by default.
-- Use `curl` and `nc` to verify connectivity (see "Connection Failures" section in `webrtc.md`).
+- Use `curl` and `nc` to verify connectivity using the connection-failure guidance in the selected WebRTC documentation.
 
 *HLS latency is too high (20-30 seconds):*
 - Default HLS latency is high by design (segment-based). To reduce: decrease `hls_fragment` (e.g., 2s), decrease `hls_window` (e.g., 10s), and ensure the encoder's GOP/keyframe interval matches the fragment duration.
 - Player-side buffering also matters — some players buffer aggressively.
-- Load `hls.md` and `low-latency.md` for config details.
+- Use Layer 2 to load the HLS and low-latency documentation for configuration details.
 - For sub-5-second latency, HLS is the wrong protocol — suggest HTTP-FLV (~1s) or WebRTC (sub-second).
 
 *Stream plays fine in one protocol but not another:*
@@ -178,7 +160,7 @@ When the user reports a problem ("it's not working", "stream won't play", "high 
 - HTTP-FLV requires chunked transfer encoding — verify Nginx passes it through
 - HLS works well behind Nginx with proxy caching
 - WebRTC WHIP/WHEP needs proper proxy headers
-- Load `http-server.md` for reverse proxy config examples (Nginx, Caddy)
+- Use Layer 2 to load reverse-proxy configuration examples for Nginx and Caddy
 
 *Connection limit reached:*
 - Check `max_connections` in config (default varies by version)
@@ -188,4 +170,4 @@ When the user reports a problem ("it's not working", "stream won't play", "high 
 *Ports and firewall:*
 - Default ports: RTMP 1935 (TCP), HTTP API 1985 (TCP), HTTP streaming 8080 (TCP), WebRTC 8000 (UDP), SRT 10080 (UDP)
 - UDP ports are often blocked by firewalls — check explicitly
-- Load `resource.md` for the full port reference
+- Use Layer 2 to load the full port reference

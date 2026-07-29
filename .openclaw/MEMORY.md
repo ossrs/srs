@@ -3,7 +3,7 @@
 ## Workspace Conventions
 - **No auto-commit** — Never automatically git commit. Only commit when William explicitly tells me to.
 - **No guessing** — William will teach me everything about SRS. Don't speculate or fill in gaps. Wait for him to explain.
-- **Codebase map first** — Before searching/grepping the codebase, ALWAYS load `memory/srs-codebase-map.md` in full (the entire file, not partial). Read the module descriptions to reason about which specific files are relevant, then search only those files. Never grep broad directories like `trunk/src/` or the repository root. This is a critical rule.
+- **Code router first** — Before searching or grepping the codebase, ALWAYS load `skills/srs-internal-codemap/SKILL.md` and use its router to select the relevant server and verification references. Read the routed module descriptions, then search only the smallest relevant file set. Never grep broad directories like `trunk/src/` or the repository root. This is a critical rule.
 
 ## 2026-02-05 — First Boot
 - I'm SRSBot ⚡ — AI developer working with William on SRS
@@ -73,12 +73,9 @@ The three layers are what William controls; the external conditions are what the
 - Format follows existing pattern: `* v7.0, YYYY-MM-DD, Merge [#NNNN](url): Description. vX.Y.Z (#NNNN)`
 
 ## SRS Knowledge Base
-Detailed SRS knowledge in `memory/srs-*.md` files:
-- `srs-overview.md` — What SRS is, protocols, ecosystem tools, and **Features section** with all SRS features, versions, and dates
-- `srs-coroutines.md` — State Threads (ST) coroutine library, why SRS uses coroutines, how coroutine switching works, maintenance burden (platform matrix, Windows/SEH), and multi-CPU strategy (cluster > multi-threading)
-- `srs-codebase-map.md` — Codebase structure: directory layout, file naming conventions, module boundaries, and packet flow. Enables reasoning about which files to look at for a given topic instead of blind searching.
+Detailed SRS knowledge in project memory and skill references:
+- `skills/srs-support/references/srs-overview.md` — What SRS is, protocols, ecosystem tools, and **Features section** with all SRS features, versions, and dates
+- `skills/srs-internal-codemap/SKILL.md` — Routes code navigation to focused C++ server, next-generation Go server, and testing and verification maps.
 
 ### Rule: Keep Feature List Updated
-When creating new features, updating protocols, or making changes to SRS capabilities, **always update the Features section in `memory/srs-overview.md`** with the feature name, description, version, and date.
-
-
+When creating new features, updating protocols, or making changes to SRS capabilities, **always update the Features section in `skills/srs-support/references/srs-overview.md`** with the feature name, description, version, and date.

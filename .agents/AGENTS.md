@@ -15,4 +15,3 @@ Use them as the workspace context for identity, user preferences, memory, local 
 Additional `.agents/` workspace folders:
 
 - `.agents/skills/` — skills available for tasks in this repository.
-- `.agents/memory/` — persisted notes and references for this workspace.

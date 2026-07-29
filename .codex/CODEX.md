@@ -15,4 +15,3 @@ Use them as the workspace context for identity, user preferences, memory, local 
 Additional `.codex/` workspace folders:
 
 - `.codex/skills/` — skills available for tasks in this repository.
-- `.codex/memory/` — persisted notes and references for this workspace.

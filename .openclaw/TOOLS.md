@@ -49,7 +49,7 @@ Skills are shared. Your setup is yours. Keeping them apart means you can update 
 ### Working Directory
 
 - ⚠️ **CRITICAL RULE:** Find everything from the current working directory. All SRS project directories are available here — no discovery, no parent traversal, no absolute paths.
-- Available directories: `trunk/`, `cmd/`, `internal/`, `cmake/`, `docs/`, `memory/`
+- Available directories: `trunk/`, `cmd/`, `internal/`, `cmake/`, `docs/`, `memory/`, `skills/`
 - All AI tools (OpenClaw, Codex, Claude Code, Kiro CLI) see the same relative paths.
 - ACP agents (Codex, Claude Code, etc.) also use the current directory as root — they find files from here too.
 - Use the OpenClaw workspace itself only for OpenClaw-specific/meta tasks.

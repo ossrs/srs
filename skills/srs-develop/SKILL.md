@@ -9,6 +9,11 @@ description: Develop, modify, debug, and maintain the next-generation SRS media 
 
 **Code and documents are the only truth.** Issue descriptions may be inaccurate. Pull requests may be misleading. Feature descriptions may be insufficient. Always ground your understanding in the actual source code and project documentation. Documents capture design intent, architecture rationale, and complex background that code alone cannot express — they are another form of code. When code and documents conflict, investigate rather than assume one is wrong.
 
+## Skill Dependencies
+
+- `skills/srs-internal-docs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
+- `skills/srs-internal-codemap/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
+
 ---
 
 ## Task Router
@@ -112,9 +117,9 @@ Do not modify issues or create Truth Records.
 
 **Step 2: Correct stale navigation docs**
 
-1. Check `memory/srs-codebase-map.md` for entries covering any module touched in this PR.
+1. Load `skills/srs-internal-codemap/SKILL.md`, route to the next-generation Go server map, and check the entries covering each module touched in this PR.
 2. For each entry whose description is no longer accurate, make the **smallest** correction needed to match the new code. Keep the one-line summary style; do not expand into implementation detail.
-3. Stop. Let the user review. When they `git add` the files they accept, commit with a short message in the existing style, e.g. `Claude: Sync srs-codebase-map with internal/<modules>.`.
+3. Stop. Let the user review. When they `git add` the files they accept, commit with a short message in the existing style, e.g. `Codex: Sync internal Go code map with internal/<modules>.`.
 
 **Step 3: Bump the version and update the changelog**
 
@@ -157,15 +162,16 @@ The proxy server is a complex, growing product — not a small app. It has many 
 
 **Step 1: Module Routing (MANDATORY)**
 
-1. Read the codebase map: `memory/srs-codebase-map.md` — both the **Next-Generation Server Code** section (code modules: `cmd/` + `internal/`) and the **Next-Generation Server Docs** section (documentation: `docs/proxy/`).
-2. Study the module descriptions and doc descriptions. Understand what each covers and its boundaries.
-3. Reason about which module(s) and which doc(s) are relevant to the user's request. Consider:
+1. Load `skills/srs-internal-codemap/SKILL.md`, then use its Reference Router to select the next-generation Go server code map.
+2. Load `skills/srs-internal-docs/SKILL.md`, then use its Reference Router to select the relevant next-generation server documentation references.
+3. Study the routed module and document descriptions. Understand what each covers and its boundaries.
+4. Reason about which module(s) and which document(s) are relevant to the user's request. Consider:
    - Which module owns the functionality being changed?
    - Which modules might be affected as dependencies?
    - Which docs cover the design/architecture of this area?
    - Is this a new module or a change to an existing one?
-4. **Present your reasoning to the user — both the module(s) and doc(s) you identified — and ask for confirmation.** Even if you are confident, you MUST ask. Do not proceed without confirmation.
-5. If you are unsure, stop and ask the user to clarify. Do not guess.
+5. **Present your reasoning to the user — both the module(s) and document(s) you identified — and ask for confirmation.** Even if you are confident, you MUST ask. Do not proceed without confirmation.
+6. If you are unsure, stop and ask the user to clarify. Do not guess.
 
 Only after the user confirms the routing do you proceed to Step 2.
 
@@ -183,42 +189,9 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    make generate
    ```
-3. Run the proxy unit tests to verify:
-   ```
-   bash scripts/proxy-utest.sh --coverage
-   ```
-4. Run **all** of the proxy E2E tests below — every one, not just the first. Run them one at a time (they bind fixed ports, so they cannot run in parallel), and do not stop early: a later test can fail even when the earlier ones pass.
-   - Single-origin RTMP proxy test (starts proxy + one SRS origin, publishes RTMP, verifies playback):
-   ```
-   bash scripts/proxy-e2e-test.sh
-   ```
-   - Multi-origin cluster routing test (starts proxy + two SRS origins, publishes multiple streams, verifies streams are assigned to different origins):
-   ```
-   bash scripts/proxy-e2e-cluster-test.sh
-   ```
-   - Proxy + SRS edge + SRS origin three-tier topology (starts proxy + one SRS edge in `mode remote` registered with the proxy + one upstream SRS origin, publishes RTMP via proxy→edge→origin, then plays the same stream with two concurrent RTMP players where the second joins after a delay as a late joiner on the active edge-pull):
-   ```
-   bash scripts/proxy-e2e-edge-test.sh
-   ```
-   - Redis multi-proxy routing test (requires local Redis; starts two proxy instances with Redis LB, publishes through one proxy, verifies playback through the other):
-   ```
-   bash scripts/proxy-e2e-redis-test.sh
-   ```
-   - RTMP transmuxing test (starts proxy + one SRS origin, publishes RTMP, verifies RTMP/HTTP-FLV/HLS playback; WebRTC WHEP is a placeholder):
-   ```
-   bash scripts/proxy-e2e-transmux-test.sh
-   ```
-   - SRT proxy + transmuxing test (starts proxy + one SRS origin, publishes SRT, verifies SRT/RTMP/HTTP-FLV/HLS playback; WebRTC WHEP is a placeholder). Requires an ffmpeg built with libsrt; the script auto-runs `scripts/setup-ffmpeg-with-whip.sh` to build one into `~/.local/` if no SRT-capable ffmpeg is found:
-   ```
-   bash scripts/proxy-e2e-srt-test.sh
-   ```
-   - WHIP proxy + transmuxing test (starts proxy + one SRS origin, publishes WebRTC via WHIP, verifies RTMP/HTTP-FLV/HLS playback; WebRTC WHEP is a placeholder). Requires an ffmpeg with the `whip` muxer (built with `--enable-openssl`); the script auto-runs `scripts/setup-ffmpeg-with-whip.sh` if no suitable ffmpeg is found:
-   ```
-   bash scripts/proxy-e2e-whip-test.sh
-   ```
-5. If any tests fail, fix the issues and re-run until all tests pass.
-
-All script paths are relative to this skill's directory.
+3. Use `skills/srs-internal-codemap/SKILL.md` to route to the testing and verification map.
+4. Run the proxy unit test and every proxy E2E test required by that map, sequentially and without stopping early.
+5. If any test fails, fix the issue and re-run until all required tests pass.
 
 ### Origin Server
 
