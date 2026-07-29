@@ -24,8 +24,8 @@ This skill is for **operators, users, and DevOps** — answering questions about
 
 ## Skill Dependencies
 
-- `skills/srs-internal-docs/SKILL.md` — Route and load project documentation. This skill remains responsible for the support workflow and final answer.
-- `skills/srs-internal-codemap/SKILL.md` — Route source-code investigation to the relevant server map. This skill remains responsible for the support workflow and final answer.
+- `skills/internal-docs-for-srs/SKILL.md` — Route and load project documentation. This skill remains responsible for the support workflow and final answer.
+- `skills/internal-codemap-for-srs/SKILL.md` — Route source-code investigation to the relevant server map. This skill remains responsible for the support workflow and final answer.
 
 ## Workflow
 
@@ -46,15 +46,15 @@ Load knowledge in layers. Start minimal, expand only if needed.
 **Layer 1 — Always load:**
 - `references/srs-overview.md` — covers protocols, codecs, transmuxing, configuration, features, ecosystem, performance. This answers most general questions.
 
-**Layer 2 — Load relevant project documentation through `srs-internal-docs`:**
+**Layer 2 — Load relevant project documentation through `internal-docs-for-srs`:**
 
-1. Load `skills/srs-internal-docs/SKILL.md`.
+1. Load `skills/internal-docs-for-srs/SKILL.md`.
 2. Use its Reference Router to select the relevant C++ media server documentation reference.
 3. Load only the project documents relevant to the question. Do not duplicate documentation routing or guess document paths in this skill.
 
 **Layer 3 — Last resort (if you need source code to answer):**
 
-1. Load `skills/srs-internal-codemap/SKILL.md`.
+1. Load `skills/internal-codemap-for-srs/SKILL.md`.
 2. Use its Reference Router to select the C++ media server or next-generation Go server map based on the component being investigated and, when needed, the testing and verification map.
 3. Use the selected map to identify the smallest relevant module and file set. Do not grep broad directories or the repository root.
 

@@ -1,5 +1,5 @@
 ---
-name: srs-internal-codemap
+name: internal-codemap-for-srs
 description: Route SRS code tasks to the smallest relevant trusted codebase map and verification guidance. Use whenever support, development, debugging, review, or maintenance work requires locating, choosing, reading, modifying, testing, or verifying SRS code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, and the test, E2E, and benchmark structure. Use as the code-navigation dependency of srs-support and srs-develop; the parent skill remains responsible for the user-facing workflow and result.
 ---
 
@@ -15,15 +15,15 @@ Route code work to focused codebase maps. The parent skill owns the user-facing 
 - Never grep the repository root or broad trees such as `trunk/src/`, `cmd/`, or `internal/`.
 - When a selected reference lists a module directory rather than every file, list filenames only inside that module, choose the smallest relevant set, then read or search only those files.
 - If no route covers the task, report that the code router does not cover it. Do not discover a new route ad hoc.
-- Use `skills/srs-internal-docs/SKILL.md` for project documentation. Do not route documentation here.
+- Use `skills/internal-docs-for-srs/SKILL.md` for project documentation. Do not route documentation here.
 
 ## Reference Router
 
 | Code area | Use when | Load |
 |---|---|---|
-| C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, media processing, or State Threads | `skills/srs-internal-codemap/references/cpp-server.md` |
-| Next-generation Go server | The task concerns the Go proxy, future Go origin or edge services, `cmd/`, or `internal/` | `skills/srs-internal-codemap/references/go-server.md` |
-| Testing and verification | The task requires choosing or running unit, black-box, E2E, proxy, reproduction, or benchmark verification | `skills/srs-internal-codemap/references/testing.md` |
+| C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, media processing, or State Threads | `references/cpp-server.md` |
+| Next-generation Go server | The task concerns the Go proxy, future Go origin or edge services, `cmd/`, or `internal/` | `references/go-server.md` |
+| Testing and verification | The task requires choosing or running unit, black-box, E2E, proxy, reproduction, or benchmark verification | `references/testing.md` |
 
 For a comparison or migration across generations, load both server maps. Add the testing reference only when verification is required.
 

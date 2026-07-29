@@ -1,6 +1,6 @@
 # SRS Testing and Verification Map
 
-Use this reference after `skills/srs-internal-codemap/SKILL.md` determines that a task requires tests, verification, reproduction, or benchmarking.
+Use this reference after `skills/internal-codemap-for-srs/SKILL.md` determines that a task requires tests, verification, reproduction, or benchmarking.
 
 ## C++ Media Server Verification
 

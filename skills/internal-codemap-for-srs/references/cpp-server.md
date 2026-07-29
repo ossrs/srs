@@ -1,6 +1,6 @@
 # C++ Server Code Map
 
-Use this reference after `skills/srs-internal-codemap/SKILL.md` routes a task to the first-generation C++ media server. The listed modules, directories, configuration files, and State Threads files define the trusted navigation scope.
+Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a task to the first-generation C++ media server. The listed modules, directories, configuration files, and State Threads files define the trusted navigation scope.
 
 ## C++ Media Server Code
 

@@ -1,6 +1,6 @@
 # Next-Generation Go Server Code Map
 
-Use this reference after `skills/srs-internal-codemap/SKILL.md` routes a task to the next-generation Go server. The listed modules and files define the trusted navigation scope.
+Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a task to the next-generation Go server. The listed modules and files define the trusted navigation scope.
 
 ## Next-Generation Server Code
 

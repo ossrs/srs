@@ -1,5 +1,5 @@
 ---
-name: srs-internal-docs
+name: internal-docs-for-srs
 description: Route SRS tasks to the smallest relevant set of trusted project documentation and maintain the Go project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, including as a documentation dependency of srs-support and srs-develop. Covers the C++ media server documentation, website pages, changelog, executable API examples, and the next-generation Go server and performance documentation stored under this skill.
 ---
 
@@ -21,15 +21,15 @@ Route SRS tasks to focused documentation indexes. The parent skill owns the user
 
 | Documentation area | Load | Summary |
 |---|---|---|
-| C++ media server documentation | `skills/srs-internal-docs/references/cpp-server-docs.md` | Changelog, releases, getting started, protocols, configuration, deployment, operation, monitoring, troubleshooting, website pages, licensing, and security advisories |
-| Executable Go API documentation | `skills/srs-internal-docs/references/go-api-examples.md` | Executable examples that document public Go APIs |
-| Proxy feature status and limitations | `skills/srs-internal-docs/references/proxy/features.md` | Implemented protocols, APIs, load balancing, deployment, configuration, operations, and current limitations |
-| Proxy architecture | `skills/srs-internal-docs/references/proxy/proxy-design.md` | Stateless proxy design, built-in load balancing, Redis mode, and horizontal scaling |
-| Backend registration | `skills/srs-internal-docs/references/proxy/proxy-protocol.md` | Backend registration, debugging backend, heartbeat protocol, and environment variables |
-| Getting started with the proxy | `skills/srs-internal-docs/references/proxy/proxy-usage.md` | First document for new users: build, start, register, publish, and verify with an SRS origin |
-| Load-balancer behavior | `skills/srs-internal-docs/references/proxy/proxy-load-balancer.md` | Memory and Redis load balancers, stream mapping, health tracking, and protocol state |
-| Production origin clusters | `skills/srs-internal-docs/references/proxy/proxy-origin-cluster.md` | Advanced usage: configure and verify a multi-origin cluster through the proxy |
-| WHEP performance analysis | `skills/srs-internal-docs/references/perf/proxy-whep.md` | Profile WHEP with pprof and srs-bench and compare CPU, allocation, heap, goroutine, and trace data |
+| C++ media server documentation | `references/cpp-server-docs.md` | Changelog, releases, getting started, protocols, configuration, deployment, operation, monitoring, troubleshooting, website pages, licensing, and security advisories |
+| Executable Go API documentation | `references/go-api-examples.md` | Executable examples that document public Go APIs |
+| Proxy feature status and limitations | `references/proxy/features.md` | Implemented protocols, APIs, load balancing, deployment, configuration, operations, and current limitations |
+| Proxy architecture | `references/proxy/proxy-design.md` | Stateless proxy design, built-in load balancing, Redis mode, and horizontal scaling |
+| Backend registration | `references/proxy/proxy-protocol.md` | Backend registration, debugging backend, heartbeat protocol, and environment variables |
+| Getting started with the proxy | `references/proxy/proxy-usage.md` | First document for new users: build, start, register, publish, and verify with an SRS origin |
+| Load-balancer behavior | `references/proxy/proxy-load-balancer.md` | Memory and Redis load balancers, stream mapping, health tracking, and protocol state |
+| Production origin clusters | `references/proxy/proxy-origin-cluster.md` | Advanced usage: configure and verify a multi-origin cluster through the proxy |
+| WHEP performance analysis | `references/perf/proxy-whep.md` | Profile WHEP with pprof and srs-bench and compare CPU, allocation, heap, goroutine, and trace data |
 
 If a task spans multiple areas, load only the required references or bundled documents from the table.
 

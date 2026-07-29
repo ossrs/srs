@@ -11,8 +11,8 @@ description: Develop, modify, debug, and maintain the next-generation SRS media 
 
 ## Skill Dependencies
 
-- `skills/srs-internal-docs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
-- `skills/srs-internal-codemap/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
+- `skills/internal-docs-for-srs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
+- `skills/internal-codemap-for-srs/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
 
 ## Git Workflow
 
@@ -146,7 +146,7 @@ Do not modify issues or create Truth Records.
 
 **Step 2: Correct stale navigation docs**
 
-1. Load `skills/srs-internal-codemap/SKILL.md`, route to the next-generation Go server map, and check the entries covering each module touched in this PR.
+1. Load `skills/internal-codemap-for-srs/SKILL.md`, route to the next-generation Go server map, and check the entries covering each module touched in this PR.
 2. For each entry whose description is no longer accurate, make the **smallest** correction needed to match the new code. Keep the one-line summary style; do not expand into implementation detail.
 3. Stop and let the user review and stage the files they accept. After an explicit commit request, use a short message such as `<Tool>: Sync internal Go code map with internal/<modules>.`.
 
@@ -191,8 +191,8 @@ The proxy server is a complex, growing product — not a small app. It has many 
 
 **Step 1: Module Routing (MANDATORY)**
 
-1. Load `skills/srs-internal-codemap/SKILL.md`, then use its Reference Router to select the next-generation Go server code map.
-2. Load `skills/srs-internal-docs/SKILL.md`, then use its Reference Router to select the relevant next-generation server documentation references.
+1. Load `skills/internal-codemap-for-srs/SKILL.md`, then use its Reference Router to select the next-generation Go server code map.
+2. Load `skills/internal-docs-for-srs/SKILL.md`, then use its Reference Router to select the relevant next-generation server documentation references.
 3. Study the routed module and document descriptions. Understand what each covers and its boundaries.
 4. Reason about which module(s) and which document(s) are relevant to the user's request. Consider:
    - Which module owns the functionality being changed?
@@ -218,7 +218,7 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    make generate
    ```
-3. Use `skills/srs-internal-codemap/SKILL.md` to route to the testing and verification map.
+3. Use `skills/internal-codemap-for-srs/SKILL.md` to route to the testing and verification map.
 4. Run the proxy unit test and every proxy E2E test required by that map, sequentially and without stopping early.
 5. If any test fails, fix the issue and re-run until all required tests pass.
 
