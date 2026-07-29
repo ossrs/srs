@@ -1,6 +1,6 @@
 ---
 name: srs-support
-description: Answer SRS (Simple Realtime Server) questions for users and operators — protocols, configuration, codecs, ecosystem tools, deployment, and troubleshooting. Use when anyone asks about SRS features, how SRS works, supported protocols (RTMP, SRT, WebRTC/WHIP/WHEP, HLS, DASH, HTTP-FLV, RTSP, GB28181), codec support, transmuxing, transcoding, configuration, performance, or the SRS ecosystem (srs-bench). Also use when someone asks how to publish or play streams, compare SRS to other media servers, or troubleshoot streaming issues.
+description: Answer SRS (Simple Realtime Server) questions for users and operators — protocols, configuration, codecs, ecosystem tools, deployment, troubleshooting, and community support. Use when anyone asks about SRS features, how SRS works, supported protocols (RTMP, SRT, WebRTC/WHIP/WHEP, HLS, DASH, HTTP-FLV, RTSP, GB28181), codec support, transmuxing, transcoding, configuration, performance, the SRS ecosystem (srs-bench), community channels, or the SRS Robot. Also use when someone asks how to publish or play streams, compare SRS to other media servers, find community help, or troubleshoot streaming issues.
 ---
 
 # SRS Support
@@ -112,6 +112,11 @@ Classify the question into one of the topics below, then apply that topic's stra
 - **state-threads** — Coroutine library used internally by SRS (development topic, not covered by this skill)
 - **Oryx** — Tell the user: "Oryx support is planned but not available yet from this AI." Do not attempt to answer Oryx-specific questions.
 - SRS only maintains server-side projects — it doesn't maintain client-side tools
+
+**Community Support Questions**
+- For users seeking community help or the SRS Robot, provide the Telegram and Discord links from `references/srs-overview.md`
+- Tell users to join a group and mention (`@`) the SRS Robot when asking a question
+- Recommend Telegram because users can create small, focused groups with cleaner context; explain that large groups may mix unrelated conversations
 
 ## Step 4: Troubleshooting
 

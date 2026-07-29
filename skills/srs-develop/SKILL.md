@@ -14,6 +14,20 @@ description: Develop, modify, debug, and maintain the next-generation SRS media 
 - `skills/srs-internal-docs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
 - `skills/srs-internal-codemap/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
 
+## Git Workflow
+
+Apply these rules whenever a task produces a commit:
+
+- Never run `git add`; William stages the files he approves.
+- Never run `git push`; William pushes the branch.
+- Commit only when William explicitly asks.
+- Before committing, run `git diff --cached`, understand the staged changes, and write an appropriate title and description.
+- Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, or `Codex:`.
+- If Claude Code (ACP) made changes, add:
+  `Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>`
+- If Codex (ACP) made changes, add:
+  `Co-authored-by: chatgpt-codex-connector[bot] <199175422+chatgpt-codex-connector[bot]@users.noreply.github.com>`
+
 ---
 
 ## Task Router
@@ -105,7 +119,6 @@ Do not modify issues or create Truth Records.
 **Scope:** Walk the pending changes on the current branch (relative to `develop`), summarize them, sync any stale navigation docs, then bump the version and add a changelog entry once the user supplies the PR number.
 
 **Guiding rules**
-- **The user drives staging.** Never `git add` on your own. After each step, stop and wait for the user to review and stage the files they approve. Only run `git commit` when they say so.
 - **Docs are navigation, not tutorials.** When a code change makes an entry stale, *correct* it — don't expand it. Only *add* a new entry when a new file or module was introduced; never to describe a refactor inside an existing module.
 
 **Step 1: Survey the changes**
@@ -119,7 +132,7 @@ Do not modify issues or create Truth Records.
 
 1. Load `skills/srs-internal-codemap/SKILL.md`, route to the next-generation Go server map, and check the entries covering each module touched in this PR.
 2. For each entry whose description is no longer accurate, make the **smallest** correction needed to match the new code. Keep the one-line summary style; do not expand into implementation detail.
-3. Stop. Let the user review. When they `git add` the files they accept, commit with a short message in the existing style, e.g. `Codex: Sync internal Go code map with internal/<modules>.`.
+3. Stop and let the user review and stage the files they accept. After an explicit commit request, use a short message such as `<Tool>: Sync internal Go code map with internal/<modules>.`.
 
 **Step 3: Bump the version and update the changelog**
 
@@ -132,7 +145,7 @@ Do not modify issues or create Truth Records.
    * v8.0, YYYY-MM-DD, Merge [#PR](URL): <Prefix>: <one-line summary>. v8.0.<rev> (#PR)
    ```
    Propose the summary to the user; don't invent one unilaterally.
-4. Stop. Let the user review. When they `git add` the version files and changelog, commit with a short message like `Proxy: Bump to v8.0.<rev> for #<PR>.`.
+4. Stop and let the user review and stage the version files and changelog. After an explicit commit request, use a short message such as `<Tool>: Bump to v8.0.<rev> for #<PR>.`.
 
 ---
 

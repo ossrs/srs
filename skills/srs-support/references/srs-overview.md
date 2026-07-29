@@ -265,6 +265,14 @@ SRS has been developed for over 13 years and has accumulated many useful feature
 
 **AI as Maintainer** — William is actively working on introducing AI as a project maintainer — not just for bug fixes or code generation, but as a full maintainer like himself. The approach is to build a comprehensive knowledge base so that AI can understand the project deeply: the architecture, design decisions, history, and community context. The goal is to have an AI maintainer within roughly six months (mid-2026). This is an experiment in using AI to maintain complex software projects — not just small ones, but projects like media servers written in C++ where you can't simply let AI generate code and push it to production. For any complex backend server or service, you need confidence that AI truly understands what it's doing before trusting it with real changes. The approach SRS is developing — building a deep knowledge base so AI can act as a real maintainer — applies broadly to any project where correctness and reliability matter.
 
+**SRS Community Bot (OpenClaw):**
+- William set up an OpenClaw robot for the SRS community on 2026-03-20.
+- **Telegram group:** https://t.me/+RiynvKOxpQ42MGJl
+- **Discord server:** https://discord.gg/yZ4BnPmHAd
+- Join a group and mention (`@`) the **SRS Robot** to interact with it.
+- The bot scales William's expertise to the community without requiring him to answer every question.
+- **Telegram is recommended over Discord:** Telegram lets users create small, focused groups and invite the bot. Each small group provides a clean context window, while large groups mix unrelated conversations and reduce answer quality.
+
 **How to Participate:**
 - **Discord** — Join the SRS Discord community for discussions and support.
 - **Monthly Community Meetings** — The community holds monthly meetings to discuss project status, AI maintainer progress, and how to use AI in open source maintenance. Everyone is welcome to join.
