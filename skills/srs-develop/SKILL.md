@@ -23,10 +23,26 @@ Apply these rules whenever a task produces a commit:
 - Commit only when William explicitly asks.
 - Before committing, run `git diff --cached`, understand the staged changes, and write an appropriate title and description.
 - Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, or `Codex:`.
-- If Claude Code (ACP) made changes, add:
-  `Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>`
-- If Codex (ACP) made changes, add:
-  `Co-authored-by: chatgpt-codex-connector[bot] <199175422+chatgpt-codex-connector[bot]@users.noreply.github.com>`
+- If Claude made changes, use this exact commit message format:
+  ```
+  Commit title.
+
+  Commit description.
+
+  ---------
+
+  Co-authored-by: Claude Fable 5 <noreply@anthropic.com>
+  ```
+- If Codex made changes, use this exact commit message format:
+  ```
+  Commit title.
+
+  Commit description.
+
+  ---------
+
+  Co-authored-by: chatgpt-codex-connector[bot] <199175422+chatgpt-codex-connector[bot]@users.noreply.github.com>
+  ```
 
 ---
 
