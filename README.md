@@ -65,7 +65,7 @@ HTTP API, DVR, and transcoding, please check the documents in [English](https://
 or [Chinese](https://ossrs.net).
 
 I recommend to use AI to understand and maintain your SRS, please follow the wiki
-[AI Agent](trunk/3rdparty/srs-docs/doc/getting-started-ai.md) for details.
+[AI Agent](skills/internal-docs-for-srs/references/cpp-docs/doc/getting-started-ai.md) for details.
 
 <a name="authors"></a>
 <a name="sponsor"></a>

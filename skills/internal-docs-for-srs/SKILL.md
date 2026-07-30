@@ -1,11 +1,11 @@
 ---
 name: internal-docs-for-srs
-description: Route SRS tasks to the smallest relevant set of trusted project documentation and maintain the Go project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, including as a documentation dependency of srs-support and srs-develop. Covers the C++ media server documentation, website pages, changelog, executable API examples, and the next-generation Go server and performance documentation stored under this skill.
+description: Route SRS tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, including as a documentation dependency of srs-support and srs-develop. Covers the C++ media server documentation, website pages, changelog, executable API examples, and the next-generation Go server and performance documentation stored under this skill.
 ---
 
 # SRS Internal Documentation
 
-Route SRS tasks to focused documentation indexes. The parent skill owns the user-facing task; this skill owns documentation navigation and the bundled next-generation Go project documentation.
+Route SRS tasks to focused documentation references. The parent skill owns the user-facing task; this skill owns documentation navigation and the bundled SRS project documentation.
 
 ## Core Rules
 
@@ -15,43 +15,84 @@ Route SRS tasks to focused documentation indexes. The parent skill owns the user
 - Treat only project files listed in this skill or a selected reference as trusted documentation.
 - If no route covers the task, report that the documentation router does not cover it. Do not scan or broadly grep documentation directories.
 - Select the smallest relevant set of project documents from their descriptions.
-- Keep broad external project-file routing in the section references and focused Go document routing in this skill. Do not duplicate topic-to-file tables in dependent skills.
+- Keep trusted document routing in this skill. Do not duplicate topic-to-file tables in dependent skills.
 
 ## Reference Router
 
-| Documentation area | Load | Summary |
-|---|---|---|
-| C++ media server documentation | `references/cpp-server-docs.md` | Changelog, releases, getting started, protocols, configuration, deployment, operation, monitoring, troubleshooting, website pages, licensing, and security advisories |
-| RTMP Go API examples | `internal/rtmp/example_test.go` | RTMP API examples for AMF0, handshake, and protocol workflows |
-| WHEP performance analysis | `references/perf/proxy-whep.md` | Profile WHEP with pprof and srs-bench and compare CPU, allocation, heap, goroutine, and trace data |
+For C++ media server tracking and releases, load:
+
+- `trunk/doc/CHANGELOG.md` — Full changelog of all SRS versions, with one entry and version bump for each merged pull request.
+
+For C++ media server user documentation, select the smallest relevant document:
+
+- `references/cpp-docs/doc/introduction.md` — SRS overview, supported protocols, feature list, State Threads architecture, and learning path.
+- `references/cpp-docs/doc/getting-started.md` — Docker quick start, RTMP publishing, HTTP-FLV/HLS playback, WebRTC, HTTPS, SRT, and stream URL patterns.
+- `references/cpp-docs/doc/getting-started-ai.md` — SRS Robot, local AI agents, the skills system, and the project knowledge-base philosophy.
+- `references/cpp-docs/doc/getting-started-build.md` — Build SRS from source and cross-build for ARM or MIPS.
+- `references/cpp-docs/doc/getting-started-cdk.md` — Deploy SRS on AWS with srs-cdk.
+- `references/cpp-docs/doc/getting-started-oryx.md` — Deploy and use Oryx, including recording, forwarding, AI subtitles, HTTPS, Docker, Helm, and aaPanel.
+- `references/cpp-docs/doc/rtmp.md` — RTMP usage, Enhanced RTMP, configuration, RTMPS, protocol comparisons, and codec history.
+- `references/cpp-docs/doc/hls.md` — HLS compatibility, latency, segment configuration, HTTPS, and audio transcoding from WebRTC.
+- `references/cpp-docs/doc/webrtc.md` — WHIP/WHEP, SFU architecture, RTMP-to-RTC conversion, TURN/ICE, audio transcoding, and platform usage.
+- `references/cpp-docs/doc/flv.md` — HTTP-FLV delivery, configuration, latency, protocol comparisons, and browser compatibility.
+- `references/cpp-docs/doc/srt.md` — SRT transport, latency, MPEG-TS encapsulation, HEVC, configuration, stream IDs, and weak-network behavior.
+- `references/cpp-docs/doc/rtsp.md` — RTSP playback, TCP transport, RTMP publishing workflow, configuration, and build option.
+- `references/cpp-docs/doc/http-server.md` — Embedded HTTP server, HLS/static serving, API endpoint, configuration, and reverse proxies.
+- `references/cpp-docs/doc/hevc.md` — H.265/HEVC protocol compatibility, Enhanced RTMP, encoder setup, and bandwidth tradeoffs.
+- `references/cpp-docs/doc/dvr.md` — FLV/MP4 recording, plans, paths, HTTP callbacks, and Oryx recording features.
+- `references/cpp-docs/doc/ingest.md` — Pull external files, RTSP cameras, or HTTP streams through FFmpeg and republish them to SRS.
+- `references/cpp-docs/doc/forward.md` — Forward RTMP streams to other servers, configure master/slave roles, and compare forwarding with edge mode.
+- `references/cpp-docs/doc/security.md` — IP and CIDR allow/deny rules for publishing and playback.
+- `references/cpp-docs/doc/snapshot.md` — Capture stream thumbnails through HTTP callbacks or the transcoder.
+- `references/cpp-docs/doc/http-api.md` — HTTP API endpoints for server, stream, and client statistics, including CORS and console integration.
+- `references/cpp-docs/doc/http-callback.md` — Event callbacks for connection, publishing, playback, DVR, authentication, and business logic.
+- `references/cpp-docs/doc/exporter.md` — Prometheus metrics, Grafana integration, labels, tags, and cloud-native observability.
+- `references/cpp-docs/doc/origin-cluster.md` — Proxy-based load balancing across origin servers and the Go proxy architecture.
+- `references/cpp-docs/doc/edge.md` — Edge caching, pull-on-play, push-on-publish, and multi-level CDN topology.
+- `references/cpp-docs/doc/nginx-for-hls.md` — Distribute and cache HLS/DASH through NGINX.
+- `references/cpp-docs/doc/resource.md` — Port, firewall, HTTPS, and resource reference.
+- `references/cpp-docs/doc/low-latency.md` — RTMP latency tuning, GOP and queue settings, merge-write optimization, and protocol comparison.
+- `references/cpp-docs/doc/performance.md` — UDP tuning, perf, gprof, Valgrind, ASAN, leak detection, and benchmarking methodology.
+- `references/cpp-docs/doc/ffmpeg.md` — FFmpeg transcoding, multi-bitrate output, stream filtering, and per-vhost/app/stream configuration.
+
+For C++ media server website pages, select the smallest relevant page:
+
+- `references/cpp-docs/pages/faq-oryx-en.md` — Oryx FAQ covering setup, upgrades, HTTPS, authentication, recording, re-streaming, and FFmpeg replacement.
+- `references/cpp-docs/pages/faq-server-en.md` — SRS server FAQ covering CDN, VoD, common errors, protocol issues, and community support.
+- `references/cpp-docs/pages/license-en.md` — SRS, State Threads, and third-party library licenses.
+- `references/cpp-docs/pages/product-en.md` — Release milestones, codenames, achievements, and product history.
+- `references/cpp-docs/pages/security-advisories-en.md` — Published CVEs, affected versions, patches, and security references.
+
+For RTMP Go API examples, load:
+
+- `internal/rtmp/example_test.go` — RTMP API examples for AMF0, handshake, and protocol workflows.
+
+For WHEP performance analysis, load:
+
+- `references/perf/proxy-whep.md` — Profile WHEP with pprof and srs-bench and compare CPU, allocation, heap, goroutine, and trace data.
 
 For next-generation Go proxy documentation, select the smallest relevant document:
 
-| Documentation area | Load | Summary |
-|---|---|---|
-| Proxy feature status and limitations | `references/proxy/features.md` | Implemented protocols, APIs, load balancing, deployment, configuration, operations, and current limitations |
-| Proxy architecture | `references/proxy/proxy-design.md` | Stateless proxy design, built-in load balancing, Redis mode, and horizontal scaling |
-| Backend registration | `references/proxy/proxy-protocol.md` | Backend registration, debugging backend, heartbeat protocol, and environment variables |
-| Getting started with the proxy | `references/proxy/proxy-usage.md` | First document for new users: build, start, register, publish, and verify with an SRS origin |
-| Load-balancer behavior | `references/proxy/proxy-load-balancer.md` | Memory and Redis load balancers, stream mapping, health tracking, and protocol state |
-| Production origin clusters | `references/proxy/proxy-origin-cluster.md` | Advanced usage: configure and verify a multi-origin cluster through the proxy |
+- `references/proxy/features.md` — Proxy feature status and limitations, including implemented protocols, APIs, load balancing, deployment, configuration, operations, and current limitations.
+- `references/proxy/proxy-design.md` — Proxy architecture, including stateless proxy design, built-in load balancing, Redis mode, and horizontal scaling.
+- `references/proxy/proxy-protocol.md` — Backend registration, debugging backend, heartbeat protocol, and environment variables.
+- `references/proxy/proxy-usage.md` — Getting started with the proxy: build, start, register, publish, and verify with an SRS origin.
+- `references/proxy/proxy-load-balancer.md` — Load-balancer behavior for memory and Redis load balancers, stream mapping, health tracking, and protocol state.
+- `references/proxy/proxy-origin-cluster.md` — Production origin clusters: advanced usage for configuring and verifying a multi-origin cluster through the proxy.
 
-If a task spans multiple areas, load only the required references or bundled documents from the tables.
+If a task spans multiple areas, load only the required references or bundled documents from the lists.
 
 ## Workflow
 
 1. Classify the documentation need with the Reference Router.
-2. For external project documentation indexes, load the selected reference and choose the relevant project documents from its descriptions.
-3. For direct or bundled Go documentation, load the selected document directly from the router.
-4. Load only the documents required for the task.
-5. Return control to the parent skill for answering, development, troubleshooting, review, or editing.
+2. Load the selected project or bundled document directly from the router.
+3. Load only the documents required for the task.
+4. Return control to the parent skill for answering, development, troubleshooting, review, or editing.
 
 When invoked directly, follow the same routing workflow and then apply the relevant support or development workflow.
 
 ## Maintaining the Router
 
-- Add, remove, or rename external trusted project documents in exactly one reference file.
-- Update the Reference Router when a reference is added, removed, renamed, or changes responsibility.
-- When bundled Go documentation is added, removed, renamed, or changes responsibility, update its row in the Reference Router.
+- Update the Reference Router when a trusted document is added, removed, renamed, or changes responsibility.
 - Keep router summaries and file descriptions concise and focused on navigation.
-- Do not duplicate document content or implementation details in the router or references.
+- Do not duplicate document content or implementation details in the router.
