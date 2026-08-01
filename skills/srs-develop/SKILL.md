@@ -118,6 +118,14 @@ Do not modify issues or create Truth Records.
 4. Publish the approved record to the issue.
 5. Replace the issue entry in `references/issues.md` with the same record and comment URL.
 
+### Usage-error exception
+
+Use this only when verification shows user misuse already covered by the documentation or SRS AI, not a bug, feature request, or documentation gap.
+
+1. Write and publish a normal, detailed Truth Record explaining the report, evidence, correct usage, and why it is not a bug; close the issue after approval.
+2. As an exception to Step 4.5, keep its `references/issues.md` entry very brief: issue and Truth Record links, verification/closure status, and one or two sentences stating the misuse and correct usage.
+3. Do not change code, documentation, the knowledge base, or skills solely for that issue when the existing guidance is already sufficient.
+
 ---
 
 ## Task: Learn Code

@@ -196,3 +196,13 @@ PR #4644 fixes FID association and RTX packet unwrapping, but it is still open a
 **Conclusion**
 
 This is a valid missing feature with a confirmed initialization bug, not a regression in same-SSRC NACK retransmission. Handle this issue together with PR #4644; do not use the proposed early `is_active_ = true` workaround as the final fix.
+
+## #4663 — CURRENT
+
+- Issue: https://github.com/ossrs/srs/issues/4663
+- Truth Record: https://github.com/ossrs/srs/issues/4663#issuecomment-5151376223
+- Verified: 2026-08-01; closed as a usage error with no project change
+
+**Conclusion**
+
+The publisher used stream `livestream`, but WHEP requested `livestream.flv`. WHEP treats `.flv` as part of the stream name; it is only appropriate for HTTP-FLV URLs. Use `stream=livestream`. This is user URL misuse, not an SRS bug, and the existing documentation is sufficient.
