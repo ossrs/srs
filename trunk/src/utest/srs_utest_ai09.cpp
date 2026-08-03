@@ -2317,7 +2317,11 @@ VOID TEST(RtcFrameBuilderTest, PacketSequenceHeaderAvc_NoSTAPANoRawPayload)
     EXPECT_EQ(0, target.on_frame_count_);
 }
 
-// Test SrsRtcFrameBuilder::packet_sequence_header_avc comprehensive coverage
+// Test SrsRtcFrameBuilder::packet_sequence_header_avc comprehensive coverage.
+// Pins the sequence-header dedup contract: identical repeated parameter sets are
+// not re-emitted (libwebrtc repeats SPS/PPS with every IDR; re-emitting makes HLS
+// stamp #EXT-X-DISCONTINUITY before every segment), changed parameter sets are
+// emitted, and a failed emit is retried on the next arrival.
 VOID TEST(RtcFrameBuilderTest, PacketSequenceHeaderAvc_ComprehensiveCoverage)
 {
     srs_error_t err;
@@ -2341,19 +2345,51 @@ VOID TEST(RtcFrameBuilderTest, PacketSequenceHeaderAvc_ComprehensiveCoverage)
     HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(pps_pkt.get()));
     EXPECT_EQ(1, target.on_frame_count_);
 
-    // Reset target for next test
-    target.reset();
-
-    // Test 3: Process STAP-A with both SPS and PPS (should generate frame immediately)
+    // Test 3: STAP-A repeating the SAME SPS/PPS must NOT re-emit the sequence
+    // header — the bytes are identical to what was already delivered.
     SrsUniquePtr<SrsRtpPacket> stap_pkt(create_stap_a_packet_with_sps_pps());
     HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(stap_pkt.get()));
-    EXPECT_EQ(1, target.on_frame_count_);
+    EXPECT_EQ(1, target.on_frame_count_); // No change: identical bytes deduped
 
     // Test 4: Process non-SPS/PPS packet (should do nothing)
     uint8_t idr_data[] = {0x65, 0x88, 0x84, 0x00, 0x10};
     SrsUniquePtr<SrsRtpPacket> idr_pkt(create_raw_payload_packet(SrsAvcNaluTypeIDR, idr_data, sizeof(idr_data)));
     HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(idr_pkt.get()));
     EXPECT_EQ(1, target.on_frame_count_); // No change
+
+    // Test 5: CHANGED parameter sets (e.g. resolution switch) must emit again.
+    uint8_t sps2_data[] = {0x67, 0x42, 0x00, 0x28, 0x9a, 0x66, 0x02, 0x80};
+    SrsUniquePtr<SrsRtpPacket> sps2_pkt(create_raw_payload_packet(SrsAvcNaluTypeSPS, sps2_data, sizeof(sps2_data)));
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(sps2_pkt.get()));
+    SrsUniquePtr<SrsRtpPacket> pps2_pkt(create_raw_payload_packet(SrsAvcNaluTypePPS, pps_data, sizeof(pps_data)));
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(pps2_pkt.get()));
+    EXPECT_EQ(2, target.on_frame_count_); // Changed bytes: new emit
+
+    // Test 6: A FAILED emit must be retried on the next parameter-set arrival,
+    // because the header is recorded as delivered only after a successful emit.
+    target.frame_error_ = srs_error_new(ERROR_RTC_RTP_MUXER, "mock frame target error");
+    uint8_t sps3_data[] = {0x67, 0x42, 0x00, 0x33, 0x9a, 0x66, 0x02, 0x80};
+    SrsUniquePtr<SrsRtpPacket> sps3_pkt(create_raw_payload_packet(SrsAvcNaluTypeSPS, sps3_data, sizeof(sps3_data)));
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(sps3_pkt.get()));
+    SrsUniquePtr<SrsRtpPacket> pps3_pkt(create_raw_payload_packet(SrsAvcNaluTypePPS, pps_data, sizeof(pps_data)));
+    HELPER_EXPECT_FAILED(builder.packet_sequence_header_avc(pps3_pkt.get()));
+    EXPECT_EQ(3, target.on_frame_count_); // Emit was attempted and failed
+
+    // Clear the failure; the same (still-undelivered) header arrives again and
+    // must be emitted this time, not treated as a duplicate.
+    srs_freep(target.frame_error_);
+    SrsUniquePtr<SrsRtpPacket> sps4_pkt(create_raw_payload_packet(SrsAvcNaluTypeSPS, sps3_data, sizeof(sps3_data)));
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(sps4_pkt.get()));
+    SrsUniquePtr<SrsRtpPacket> pps4_pkt(create_raw_payload_packet(SrsAvcNaluTypePPS, pps_data, sizeof(pps_data)));
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(pps4_pkt.get()));
+    EXPECT_EQ(4, target.on_frame_count_); // Retry succeeded
+
+    // And once delivered, repeating that header again is deduped as usual.
+    SrsUniquePtr<SrsRtpPacket> sps5_pkt(create_raw_payload_packet(SrsAvcNaluTypeSPS, sps3_data, sizeof(sps3_data)));
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(sps5_pkt.get()));
+    SrsUniquePtr<SrsRtpPacket> pps5_pkt(create_raw_payload_packet(SrsAvcNaluTypePPS, pps_data, sizeof(pps_data)));
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(pps5_pkt.get()));
+    EXPECT_EQ(4, target.on_frame_count_); // No change: deduped after success
 }
 
 // Test SrsRtcFrameBuilder::on_rtp with exact sync state transitions
