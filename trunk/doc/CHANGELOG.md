@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-03, Merge [#4694](https://github.com/ossrs/srs/pull/4694): Codex: Add configurable proxy origin registration TTL. v8.0.6 (#4694)
 * v8.0, 2026-08-02, Merge [#4692](https://github.com/ossrs/srs/pull/4692): Codex: Fix live source cleanup race before publisher activation. v8.0.5 (#4692)
 * v8.0, 2026-07-26, Merge [#4689](https://github.com/ossrs/srs/pull/4689): Codex: Improve proxy tooling and maintainer workflows. v8.0.4 (#4689)
 * v8.0, 2026-05-28, Merge [#4680](https://github.com/ossrs/srs/pull/4680): RTMP: Fix chunk timestamp/basic-header decoding and harden packet unmarshal. v8.0.3 (#4680)
