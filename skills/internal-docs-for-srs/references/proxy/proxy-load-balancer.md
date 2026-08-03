@@ -85,7 +85,6 @@ The load balancer uses a clean interface-based architecture:
 
 ```bash
 PROXY_LOAD_BALANCER_TYPE=memory
-PROXY_ORIGIN_SERVER_TTL=300s
 ```
 
 ## Redis Load Balancer
@@ -113,8 +112,6 @@ PROXY_REDIS_HOST=127.0.0.1
 PROXY_REDIS_PORT=6379
 PROXY_REDIS_PASSWORD=
 PROXY_REDIS_DB=0
-PROXY_REDIS_KEY_PREFIX=
-PROXY_ORIGIN_SERVER_TTL=300s
 ```
 
 3. Redis Key Design
