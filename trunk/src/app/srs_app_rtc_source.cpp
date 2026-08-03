@@ -2131,6 +2131,15 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_avc(SrsRtpPacket *pkt,
         return srs_error_wrap(err, "mux sequence header");
     }
 
+    // WebRTC publishers (libwebrtc) repeat SPS/PPS with every IDR, so this is reached
+    // once per keyframe interval. Re-emitting an identical sequence header each time
+    // makes HLS mark the open segment (SrsHlsMuxer::on_sequence_header) and stamp
+    // #EXT-X-DISCONTINUITY before every segment. RTMP encoders send the sequence
+    // header once; match that contract and only emit when the bytes change.
+    if (sh == last_sh_) {
+        return err;
+    }
+
     // h264 packet to flv packet.
     char *flv = NULL;
     int nb_flv = 0;
@@ -2153,6 +2162,10 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_avc(SrsRtpPacket *pkt,
     if ((err = frame_target_->on_frame(&msg)) != srs_success) {
         return err;
     }
+
+    // Record only after a successful emit, so a failed emit is retried on the
+    // next keyframe instead of being remembered as delivered.
+    last_sh_ = sh;
 
     return err;
 }
@@ -2230,6 +2243,13 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_hevc(SrsRtpPacket *pkt
         return srs_error_wrap(err, "mux sequence header");
     }
 
+    // Same dedup as the AVC path: WebRTC publishers repeat parameter sets with
+    // every IDR; only emit the sequence header when the bytes change, else HLS
+    // stamps #EXT-X-DISCONTINUITY before every segment.
+    if (sh == last_sh_) {
+        return err;
+    }
+
     char *flv = NULL;
     int nb_flv = 0;
     if ((err = hevc->mux_hevc2flv_enhanced(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, pkt->get_avsync_time(),
@@ -2250,6 +2270,10 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_hevc(SrsRtpPacket *pkt
     if ((err = frame_target_->on_frame(&msg)) != srs_success) {
         return err;
     }
+
+    // Record only after a successful emit, so a failed emit is retried on the
+    // next keyframe instead of being remembered as delivered.
+    last_sh_ = sh;
 
     return err;
 }

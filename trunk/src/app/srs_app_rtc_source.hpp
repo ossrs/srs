@@ -600,6 +600,14 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtpPacket *obs_whip_sps_;
     SrsRtpPacket *obs_whip_pps_;
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // The last emitted video sequence header (avcC/hvcC bytes). WebRTC publishers
+    // (libwebrtc) repeat SPS/PPS with every IDR; re-emitting the sequence header per
+    // keyframe makes HLS stamp #EXT-X-DISCONTINUITY before every segment. Only
+    // re-emit when the bytes actually change.
+    std::string last_sh_;
+
 public:
     SrsRtcFrameBuilder(ISrsAppFactory *factory, ISrsFrameTarget *target);
     virtual ~SrsRtcFrameBuilder();
