@@ -2331,6 +2331,11 @@ void MockStreamPublishTokenManager::release_token(const std::string &stream_url)
     release_token_count_++;
 }
 
+bool MockStreamPublishTokenManager::is_acquired(const std::string &stream_url)
+{
+    return token_to_return_ && token_to_return_->stream_url() == stream_url && token_to_return_->is_acquired();
+}
+
 void MockStreamPublishTokenManager::set_acquire_token_error(srs_error_t err)
 {
     srs_freep(acquire_token_error_);

@@ -206,3 +206,114 @@ This is a valid missing feature with a confirmed initialization bug, not a regre
 **Conclusion**
 
 The publisher used stream `livestream`, but WHEP requested `livestream.flv`. WHEP treats `.flv` as part of the stream name; it is only appropriate for HTTP-FLV URLs. Use `stream=livestream`. This is user URL misuse, not an SRS bug, and the existing documentation is sufficient.
+
+## #4656 — CURRENT
+
+- Issue: https://github.com/ossrs/srs/issues/4656
+- Truth Record: https://github.com/ossrs/srs/issues/4656#issuecomment-5161223806
+- Verified: 2026-08-02
+- Branch: `forge`
+- Commit: `4843c69d8df2aea45bde8f73e5ed2fa72e3a924f`, with an uncommitted candidate fix
+- Version: SRS `8.0.4`; another user reported the problem on SRS `6.0.166`
+- Environment: macOS 26.5.2, arm64; FFmpeg/FFprobe 8.1.1
+- Supersedes: None; no previous authorized Truth Record
+- Changes: Candidate fix and regression tests, not committed or released
+
+### Reported problem
+
+An affected stream can continue receiving publisher data while new RTMP and HTTP-FLV players receive no media. SRS logs show players creating a consumer with `active=0`. HLS can continue playing the same stream.
+
+Restarting SRS, or kicking the publisher and allowing it to republish, restores playback. A [second report](https://github.com/ossrs/srs/issues/4656#issuecomment-4610706424) described the same intermittent behavior on SRS 6.0.166.
+
+### Confirmed root cause
+
+The publisher acquires its global stream publish token before fetching the live source.
+
+A race is possible after the publisher fetches source **A** but before `acquire_publish()` activates it:
+
+1. The publisher acquires the stream publish token.
+2. It fetches source **A** from the live-source manager.
+3. It yields before calling `acquire_publish()`.
+4. Because source **A** is not active yet, the cleanup timer can consider it dead and erase it from the manager's source pool.
+5. The publisher still retains a shared pointer to source **A**, so it later activates and publishes media into **A**.
+6. A new player cannot find **A** in the pool and creates source **B** for the same stream URL.
+7. Source **B** has no publisher, so the player gets `active=0` and no media.
+
+HLS can continue because the publisher and its existing HLS pipeline still reference source **A**, while new RTMP and HTTP-FLV players use source **B**.
+
+### Deterministic reproduction
+
+A test-only environment variable was added before `acquire_publish()`:
+
+```bash
+SRS_TEST_PUBLISH_BEFORE_ACQUIRE_DELAY=30000
+```
+
+With a cleanup delay shorter than 30 seconds, this forces the pending publisher to yield long enough for source cleanup.
+
+Without the cleanup fix:
+
+- SRS removes source **A** during the injected delay.
+- The publisher subsequently activates its retained source **A**.
+- New RTMP and HTTP-FLV consumers report `active=0` and receive no stream.
+- HLS continues from source **A**.
+
+This reproduces the defining symptoms of #4656.
+
+### Candidate fix
+
+The existing stream publish token now acts as a liveness guard for the pending source.
+
+`SrsStreamPublishTokenManager` exposes whether a stream URL's token is acquired. Live-source cleanup removes a dead source only when its publish token is not acquired:
+
+```cpp
+bool is_stream_acquired = _srs_stream_publish_tokens &&
+    _srs_stream_publish_tokens->is_acquired(it->first);
+
+if (source->stream_is_dead() && !is_stream_acquired) {
+    // Remove the dead source.
+}
+```
+
+This preserves the source-pool entry while a publisher owns the stream token, including while it yields before activation. Normal cleanup resumes after the token is released.
+
+### Verification
+
+With the candidate fix and the 30-second injected delay:
+
+- The source was not removed during the delay.
+- The publisher activated the same source retained in the pool.
+- HTTP-FLV playback succeeded with H.264 video and AAC audio.
+- RTMP playback succeeded with H.264 video and AAC audio.
+- Players created consumers with `active=1`.
+
+The deterministic unit regression test directly creates the dangerous state: a dead source in the pool with an acquired publish token.
+
+Negative control:
+
+```text
+Without cleanup guard:
+Expected pool size: 1
+Actual pool size:   0
+FAILED: ReproduceIssue4656.PublishTokenKeepsPendingLiveSource
+```
+
+With the cleanup guard restored:
+
+```text
+PASSED: ReproduceIssue4656.PublishTokenKeepsPendingLiveSource
+```
+
+The complete unit-test suite passed: 2,188 tests from 274 suites. A normal non-ASan SRS production build also succeeded.
+
+### Conclusion
+
+This is a confirmed source-lifecycle race. A publisher can activate a source that the live-source manager has already removed, causing the publisher and new players to reference different source objects for the same stream URL.
+
+Keeping the source in the manager while its publish token is acquired is the smallest direct fix. The deterministic reproduction, negative-control test, fixed regression test, protocol playback checks, complete unit-test suite, and production build all support the fix.
+
+The candidate change remains uncommitted and unreleased pending maintainer review.
+
+### Unknowns
+
+The original deployments did not provide enough scheduling-level evidence to prove that every reported occurrence followed this exact race. However, the deterministic reproduction matches the reported publisher-active, player-`active=0`, and HLS-still-playing behavior.

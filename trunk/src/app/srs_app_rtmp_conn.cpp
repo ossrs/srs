@@ -932,6 +932,13 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
         return srs_error_wrap(err, "rtmp: callback on publish");
     }
 
+    // Test-only delay to reproduce a race between source cleanup and publisher activation.
+    srs_utime_t test_publish_delay = (srs_utime_t)(::atoi(srs_getenv("SRS_TEST_PUBLISH_BEFORE_ACQUIRE_DELAY").c_str()) * SRS_UTIME_MILLISECONDS);
+    if (test_publish_delay > 0) {
+        srs_warn("test: delay before acquire publish, delay=%dms", srsu2msi(test_publish_delay));
+        srs_usleep(test_publish_delay);
+    }
+
     // TODO: FIXME: Should refine the state of publishing.
     srs_error_t acquire_err = acquire_publish(source);
     if ((err = acquire_err) == srs_success) {
