@@ -137,6 +137,16 @@ type FakeProxyEnvironment struct {
 	loadBalancerTypeReturnsOnCall map[int]struct {
 		result1 string
 	}
+	OriginServerTTLStub        func() string
+	originServerTTLMutex       sync.RWMutex
+	originServerTTLArgsForCall []struct {
+	}
+	originServerTTLReturns struct {
+		result1 string
+	}
+	originServerTTLReturnsOnCall map[int]struct {
+		result1 string
+	}
 	RedisDBStub        func() string
 	redisDBMutex       sync.RWMutex
 	redisDBArgsForCall []struct {
@@ -926,6 +936,59 @@ func (fake *FakeProxyEnvironment) LoadBalancerTypeReturnsOnCall(i int, result1 s
 		})
 	}
 	fake.loadBalancerTypeReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTL() string {
+	fake.originServerTTLMutex.Lock()
+	ret, specificReturn := fake.originServerTTLReturnsOnCall[len(fake.originServerTTLArgsForCall)]
+	fake.originServerTTLArgsForCall = append(fake.originServerTTLArgsForCall, struct {
+	}{})
+	stub := fake.OriginServerTTLStub
+	fakeReturns := fake.originServerTTLReturns
+	fake.recordInvocation("OriginServerTTL", []interface{}{})
+	fake.originServerTTLMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTLCallCount() int {
+	fake.originServerTTLMutex.RLock()
+	defer fake.originServerTTLMutex.RUnlock()
+	return len(fake.originServerTTLArgsForCall)
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTLCalls(stub func() string) {
+	fake.originServerTTLMutex.Lock()
+	defer fake.originServerTTLMutex.Unlock()
+	fake.OriginServerTTLStub = stub
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTLReturns(result1 string) {
+	fake.originServerTTLMutex.Lock()
+	defer fake.originServerTTLMutex.Unlock()
+	fake.OriginServerTTLStub = nil
+	fake.originServerTTLReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTLReturnsOnCall(i int, result1 string) {
+	fake.originServerTTLMutex.Lock()
+	defer fake.originServerTTLMutex.Unlock()
+	fake.OriginServerTTLStub = nil
+	if fake.originServerTTLReturnsOnCall == nil {
+		fake.originServerTTLReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.originServerTTLReturnsOnCall[i] = struct {
 		result1 string
 	}{result1}
 }

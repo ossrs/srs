@@ -179,6 +179,45 @@ func TestRedisLB_Initialize_Success(t *testing.T) {
 	}
 }
 
+func TestRedisLB_Update_UsesConfiguredOriginServerTTL(t *testing.T) {
+	fake := &redisclientfakes.FakeRedisClient{}
+	fake.PingReturns(statusCmd(nil))
+	fake.SetReturns(statusCmd(nil))
+	fake.GetReturns(stringErr(redis.Nil))
+
+	env := &envfakes.FakeProxyEnvironment{}
+	env.RedisDBReturns("0")
+	env.OriginServerTTLReturns("45s")
+	lb := withFakeClient(env, fake)
+	if err := lb.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+
+	server := &OriginServer{ServerID: "s", ServiceID: "v", PID: "1"}
+	if err := lb.Update(context.Background(), server); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if got := fake.SetCallCount(); got != 2 {
+		t.Fatalf("Set call count = %d, want 2", got)
+	}
+
+	_, serverKey, _, serverTTL := fake.SetArgsForCall(0)
+	if want := lb.redisKeyServer(server.ID()); serverKey != want {
+		t.Fatalf("server key = %q, want %q", serverKey, want)
+	}
+	if serverTTL != 45*time.Second {
+		t.Fatalf("server TTL = %v, want %v", serverTTL, 45*time.Second)
+	}
+
+	_, serversKey, _, serversTTL := fake.SetArgsForCall(1)
+	if want := lb.redisKeyServers(); serversKey != want {
+		t.Fatalf("server-index key = %q, want %q", serversKey, want)
+	}
+	if serversTTL != 0 {
+		t.Fatalf("server-index TTL = %v, want no expiration", serversTTL)
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Update.
 // ----------------------------------------------------------------------------

@@ -59,6 +59,8 @@ type ProxyEnvironment interface {
 	RedisDB() string
 	// Optional Redis key prefix
 	RedisKeyPrefix() string
+	// Origin server registration lifetime
+	OriginServerTTL() string
 	// Default backend enabled
 	DefaultBackendEnabled() string
 	// Default backend IP
@@ -148,6 +150,10 @@ func (e *proxyEnvironment) RedisDB() string {
 
 func (e *proxyEnvironment) RedisKeyPrefix() string {
 	return getEnv("PROXY_REDIS_KEY_PREFIX")
+}
+
+func (e *proxyEnvironment) OriginServerTTL() string {
+	return getEnv("PROXY_ORIGIN_SERVER_TTL")
 }
 
 func (e *proxyEnvironment) DefaultBackendEnabled() string {
@@ -309,6 +315,8 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	setEnvDefault("PROXY_REDIS_DB", "0")
 	// Optional prefix for all Redis keys.
 	setEnvDefault("PROXY_REDIS_KEY_PREFIX", "")
+	// Origin server registration and health-check lifetime.
+	setEnvDefault("PROXY_ORIGIN_SERVER_TTL", "300s")
 
 	// Whether enable the default backend server, for debugging.
 	setEnvDefault("PROXY_DEFAULT_BACKEND_ENABLED", "off")
@@ -332,7 +340,8 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		"PROXY_DEFAULT_BACKEND_HTTP=%v, PROXY_DEFAULT_BACKEND_API=%v, "+
 		"PROXY_DEFAULT_BACKEND_RTC=%v, PROXY_DEFAULT_BACKEND_SRT=%v, "+
 		"PROXY_LOAD_BALANCER_TYPE=%v, PROXY_REDIS_HOST=%v, PROXY_REDIS_PORT=%v, "+
-		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v, PROXY_REDIS_KEY_PREFIX=%v",
+		"PROXY_REDIS_PASSWORD=%v, PROXY_REDIS_DB=%v, PROXY_REDIS_KEY_PREFIX=%v, "+
+		"PROXY_ORIGIN_SERVER_TTL=%v",
 		getEnv("GO_PPROF"),
 		getEnv("PROXY_FORCE_QUIT_TIMEOUT"), getEnv("PROXY_GRACE_QUIT_TIMEOUT"),
 		getEnv("PROXY_HTTP_API"), getEnv("PROXY_HTTP_SERVER"), getEnv("PROXY_RTMP_SERVER"),
@@ -343,6 +352,7 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		getEnv("PROXY_DEFAULT_BACKEND_RTC"), getEnv("PROXY_DEFAULT_BACKEND_SRT"),
 		getEnv("PROXY_LOAD_BALANCER_TYPE"), getEnv("PROXY_REDIS_HOST"), getEnv("PROXY_REDIS_PORT"),
 		getEnv("PROXY_REDIS_PASSWORD"), getEnv("PROXY_REDIS_DB"), getEnv("PROXY_REDIS_KEY_PREFIX"),
+		getEnv("PROXY_ORIGIN_SERVER_TTL"),
 	)
 }
 

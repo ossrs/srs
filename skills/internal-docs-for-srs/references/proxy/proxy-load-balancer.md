@@ -85,6 +85,7 @@ The load balancer uses a clean interface-based architecture:
 
 ```bash
 PROXY_LOAD_BALANCER_TYPE=memory
+PROXY_ORIGIN_SERVER_TTL=300s
 ```
 
 ## Redis Load Balancer
@@ -113,6 +114,7 @@ PROXY_REDIS_PORT=6379
 PROXY_REDIS_PASSWORD=
 PROXY_REDIS_DB=0
 PROXY_REDIS_KEY_PREFIX=
+PROXY_ORIGIN_SERVER_TTL=300s
 ```
 
 3. Redis Key Design
@@ -123,7 +125,7 @@ default, preserving the key names below. When set to `xxx`, keys use the form
 prefix.
 
 **Server Keys**:
-- `srs-proxy-server:{serverID}` - Server registration (300s TTL)
+- `srs-proxy-server:{serverID}` - Server registration (`PROXY_ORIGIN_SERVER_TTL`, default 300s)
 - `srs-proxy-all-servers` - Server list index (no expiration)
 
 **Stream Mapping Keys**:
@@ -137,11 +139,15 @@ prefix.
 
 ## Expiration and Cleanup
 
-**Server Heartbeat**: 300 seconds
+**Server Heartbeat**: `PROXY_ORIGIN_SERVER_TTL` (default 300 seconds)
 - Servers must send updates every 30 seconds (recommended)
-- Considered dead if no update within 300 seconds
+- Considered dead if no update within the configured lifetime
 - Memory LB: filtered during selection
 - Redis LB: automatic TTL expiration
+
+The configured lifetime must be longer than the origin heartbeat interval, with
+enough margin for transient delays. It accepts Go duration syntax such as `45s`
+or `2m` and must be positive.
 
 **Session State**: 120 seconds
 - HLS and WebRTC sessions expire after 120 seconds of inactivity

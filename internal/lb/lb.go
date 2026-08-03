@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// If server heartbeat in this duration, it's alive.
+// ServerAliveDuration is the default origin registration lifetime.
 const ServerAliveDuration = 300 * time.Second
 
 // If HLS streaming update in this duration, it's alive.
@@ -18,6 +18,21 @@ const HLSAliveDuration = 120 * time.Second
 
 // If WebRTC streaming update in this duration, it's alive.
 const RTCAliveDuration = 120 * time.Second
+
+func parseOriginServerTTL(value string) (time.Duration, error) {
+	if value == "" {
+		return ServerAliveDuration, nil
+	}
+
+	ttl, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid PROXY_ORIGIN_SERVER_TTL %q: %w", value, err)
+	}
+	if ttl <= 0 {
+		return 0, fmt.Errorf("invalid PROXY_ORIGIN_SERVER_TTL %q: must be positive", value)
+	}
+	return ttl, nil
+}
 
 // OriginServer represents a backend origin server.
 type OriginServer struct {

@@ -45,7 +45,8 @@ heartbeat {
 When heartbeat is enabled:
 - SRS automatically registers itself on startup
 - Sends periodic heartbeats (default: every 30 seconds) to keep the registration alive
-- Proxy marks servers as unavailable if heartbeats stop (after 300 seconds)
+- Proxy marks servers as unavailable if heartbeats stop (after
+  `PROXY_ORIGIN_SERVER_TTL`, default 300 seconds)
 - No manual intervention required - fully automatic
 
 For multi-proxy deployments, configure every proxy to use the same shared Redis instance. An
@@ -53,7 +54,7 @@ origin only needs to send each heartbeat to one proxy because that proxy writes 
 to shared Redis, where all proxies can read it. However, SRS accepts only one `heartbeat.url`, so
 the URL should point to a highly available frontend such as an NLB or VIP that routes the System
 API to a healthy proxy. If it points directly to one proxy and that proxy fails, SRS does not try
-another proxy and the registration expires after 300 seconds.
+another proxy and the registration expires after `PROXY_ORIGIN_SERVER_TTL` (default 300 seconds).
 
 This is the **recommended approach** for production deployments with SRS backend servers.
 
@@ -81,8 +82,10 @@ curl -X POST http://127.0.0.1:12025/api/v1/srs/register \
 #{"code":0,"pid":"53783"}
 ```
 
-A single request only registers the backend until its 300-second TTL expires. Custom integrations
-must repeat the request periodically to maintain the heartbeat.
+A single request only registers the backend until its configured TTL expires. Custom integrations
+must repeat the request periodically to maintain the heartbeat. Configure the lifetime with
+`PROXY_ORIGIN_SERVER_TTL` using a positive Go duration such as `45s` or `2m`; it must remain longer
+than the heartbeat interval. The default is `300s`.
 
 ### Registration Fields
 

@@ -30,6 +30,8 @@ type redisLoadBalancer struct {
 	// keepaliveInterval is the period at which the default-backend keep-alive
 	// goroutine re-Updates its registration. Struct field for test injection.
 	keepaliveInterval time.Duration
+	// originServerTTL is the Redis expiration applied to origin registrations.
+	originServerTTL time.Duration
 }
 
 // NewRedisLoadBalancer creates a new Redis-based load balancer.
@@ -38,10 +40,17 @@ func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 		environment:       environment,
 		newClient:         redisclient.New,
 		keepaliveInterval: 30 * time.Second,
+		originServerTTL:   ServerAliveDuration,
 	}
 }
 
 func (v *redisLoadBalancer) Initialize(ctx context.Context) error {
+	originServerTTL, err := parseOriginServerTTL(v.environment.OriginServerTTL())
+	if err != nil {
+		return err
+	}
+	v.originServerTTL = originServerTTL
+
 	redisDatabase, err := strconv.Atoi(v.environment.RedisDB())
 	if err != nil {
 		return errors.Wrapf(err, "invalid PROXY_REDIS_DB %v", v.environment.RedisDB())
@@ -94,7 +103,7 @@ func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 	}
 
 	key := v.redisKeyServer(server.ID())
-	if err = v.rdb.Set(ctx, key, b, ServerAliveDuration).Err(); err != nil {
+	if err = v.rdb.Set(ctx, key, b, v.originServerTTL).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v server %+v", key, server)
 	}
 

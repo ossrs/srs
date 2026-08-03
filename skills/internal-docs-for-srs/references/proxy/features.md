@@ -102,10 +102,11 @@ parses the minimum needed to route, then proxies traffic to the chosen backend.
 - **Stream-level stickiness** — the first request for a stream URL picks a
   backend; every later request for that stream routes to the same backend.
   Stream→server mappings never expire.
-- **Health-based selection** — servers with a heartbeat within 300s
-  (`ServerAliveDuration`) are preferred; selection among them is random for even
-  distribution. The memory LB falls back to all registered servers when none are
-  healthy; the Redis LB expires dead servers via a 300s TTL instead.
+- **Health-based selection** — servers with a heartbeat within
+  `PROXY_ORIGIN_SERVER_TTL` (default `300s`) are preferred; selection among them
+  is random for even distribution. The memory LB falls back to all registered
+  servers when none are healthy; the Redis LB expires dead servers using the
+  configured TTL instead.
 - **HLS session state** — dual-indexed by stream URL and by `spbhid`. In Redis,
   entries expire after 120s (`HLSAliveDuration`); the memory LB keeps them
   in-process without expiration.
