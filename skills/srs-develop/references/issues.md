@@ -317,3 +317,69 @@ The candidate change remains uncommitted and unreleased pending maintainer revie
 ### Unknowns
 
 The original deployments did not provide enough scheduling-level evidence to prove that every reported occurrence followed this exact race. However, the deterministic reproduction matches the reported publisher-active, player-`active=0`, and HLS-still-playing behavior.
+
+## #4647 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4647
+- **Truth Record:** https://github.com/ossrs/srs/issues/4647#issuecomment-5173896319
+- **Verified:** 2026-08-03
+- **Branch:** `develop`
+- **Commit:** `b6b70164cd3bc665040d387105a77420ced22fd3`
+- **Version:** SRS `8.0.6`
+- **Environment:** macOS 26.5.2, arm64; Go 1.25.0
+- **Merged PR:** https://github.com/ossrs/srs/pull/4694
+- **Earlier PR:** https://github.com/ossrs/srs/pull/4650 — closed without merging
+- **Supersedes:** None; no previous authorized Truth Record
+
+### Reported problem
+
+The proxy used a fixed 300-second lifetime for origin registrations. Some deployments have shorter heartbeat and failover requirements and need to configure this lifetime.
+
+### Current state
+
+SRS Proxy now supports:
+
+```bash
+PROXY_ORIGIN_SERVER_TTL=45s
+```
+
+The value accepts positive Go duration syntax such as `45s` or `2m`. Invalid, zero, and negative values cause load-balancer initialization to fail. When unset, the default remains 300 seconds.
+
+One parser, `parseOriginServerTTL`, owns the default and validation. Both memory and Redis load balancers obtain the configured value during initialization.
+
+### Load-balancer behavior
+
+- **Memory load balancer:** Origins with heartbeats inside the configured lifetime are preferred. As before, if no origins are healthy, it falls back to all registered origins.
+- **Redis load balancer:** The configured lifetime is applied directly to each origin-registration Redis key. An expired registration is unavailable for new routing.
+- Stream mappings remain persistent and are not controlled by this setting.
+
+### Scope decision
+
+Only the origin-registration lifetime is configurable.
+
+The fixed 120-second HLS and WebRTC session-cache lifetimes remain unchanged. They represent internal transient session state, are unrelated to origin heartbeat/failover requirements, and currently have no demonstrated need for operator configuration.
+
+The earlier PR #4650 proposed configuring all three lifetimes. The merged implementation intentionally uses only `PROXY_ORIGIN_SERVER_TTL`.
+
+### Verification
+
+- Proxy unit tests with coverage passed: **65.5%**
+- Single-origin RTMP E2E passed
+- Multi-origin memory load-balancer E2E passed
+- Proxy-edge-origin E2E passed
+- Redis multi-proxy E2E passed
+- RTMP transmux E2E passed
+- SRT proxy E2E passed
+- WHIP proxy E2E passed
+- Final targeted `internal/lb` unit tests passed
+- `git diff --check` passed
+
+Unit coverage verifies the default, custom duration, invalid value, zero, and negative cases. It also verifies configured memory-LB health selection and the Redis registration-key TTL.
+
+### Conclusion
+
+Issue #4647 is resolved in SRS 8.0.6. Operators can configure the origin-registration lifetime consistently for memory and Redis load balancers while the default behavior remains backward compatible.
+
+### Unknowns
+
+No dedicated E2E test waits for a short configured lifetime to expire in real time. The TTL parsing and both load-balancer applications are covered by unit tests, while the complete default-configuration proxy workflows are covered by E2E tests.
