@@ -1,6 +1,6 @@
 ---
 name: internal-codemap-for-srs
-description: Route SRS code tasks to the smallest relevant trusted codebase map and verification guidance. Use whenever support, development, debugging, review, or maintenance work requires locating, choosing, reading, modifying, testing, or verifying SRS code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, and the test, E2E, and benchmark structure. Use as the code-navigation dependency of srs-support and srs-develop; the parent skill remains responsible for the user-facing workflow and result.
+description: Route SRS code tasks to the smallest relevant trusted codebase map and verification guidance. Use whenever support, development, debugging, review, or maintenance work requires locating, choosing, reading, modifying, testing, or verifying SRS code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, browser publishers and players for WHIP, WHEP, HTTP-FLV, and HLS, and the test, E2E, and benchmark structure. Use as the code-navigation dependency of srs-support and srs-develop; the parent skill remains responsible for the user-facing workflow and result.
 ---
 
 # SRS Internal Code Map
@@ -23,13 +23,14 @@ Route code work to focused codebase maps. The parent skill owns the user-facing 
 |---|---|---|
 | C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, media processing, or State Threads | `references/cpp-server.md` |
 | Next-generation Go server | The task concerns the Go proxy, future Go origin or edge services, `cmd/`, or `internal/` | `references/go-server.md` |
+| Browser publishers and players | The task concerns browser publishing or playback with WHIP, WHEP, HTTP-FLV, or HLS, including code under `trunk/research/players/` | `references/browser-clients.md` |
 | Testing and verification | The task requires choosing or running unit, black-box, E2E, proxy, reproduction, or benchmark verification | `references/testing.md` |
 
 For a comparison or migration across generations, load both server maps. Add the testing reference only when verification is required.
 
 ## Workflow
 
-1. Classify the request as C++ media server, next-generation Go server, testing and verification, or an explicit combination.
+1. Classify the request as C++ media server, next-generation Go server, browser publishers and players, testing and verification, or an explicit combination.
 2. If the server generation is unclear and choosing incorrectly could change the result, ask the user to clarify. Do not guess.
 3. Load the selected reference file or files.
 4. Use their descriptions to identify the responsible module and the smallest relevant file set.

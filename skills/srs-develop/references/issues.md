@@ -400,3 +400,87 @@ SRS Proxy supports registering origins but does not provide APIs for querying re
 An origin query API would be valuable for debugging and verifying registrations. A stream mapping API would also be useful. However, these APIs—and other operational APIs—need careful, comprehensive design.
 
 This is a valuable feature request, but it is deferred while higher-priority bugs are addressed. Keep the issue open and revisit it when there is time to design the API properly.
+
+## #4645 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4645
+- **Truth Record:** https://github.com/ossrs/srs/issues/4645#issuecomment-5180983219
+- **Verified:** 2026-08-04
+- **Branch:** `forge`
+- **Commit:** `df73ac14de5e26bec66fa4ded4b9a159dec4b9f1`, with a staged candidate fix
+- **Version:** SRS `8.0.6`
+- **Environment:** macOS 26.5.2, arm64; Node.js 22.22.0
+- **Supersedes:** None; no previous authorized Truth Record
+- **Release state:** Uncommitted and unreleased
+
+### Reported problem
+
+The browser HTTP-FLV/HLS player generated incorrect media URLs when accessed through HTTP or HTTPS reverse proxies.
+
+Without explicit query overrides, `build_default_flv_url()` always selected HTTP port 8080. HTTPS selected port 1935. This could bypass the public reverse proxy, produce mixed-content requests, or target a closed port.
+
+### Confirmed root cause
+
+The browser player constructed its default media endpoint from inconsistent inputs:
+
+- Hostname came from `window.location.hostname`.
+- Scheme defaulted to `http`.
+- Port defaulted to 8080 for HTTP and 1935 otherwise.
+- The public page protocol and port were ignored.
+
+`is_default_port()` itself was correct. Explicit HTTP port 80 and HTTPS port 443 were already omitted properly.
+
+`parse_query_string()` was also working as designed: optional `schema`, `server`, `port`, `vhost`, `app`, and `stream` properties appear only when supplied in the query string.
+
+### Candidate fix
+
+`trunk/research/players/js/srs.page.js` now:
+
+1. Uses the player page's protocol and public port by default.
+2. Omits standard HTTP port 80 and HTTPS port 443.
+3. Preserves direct SRS access on port 8080.
+4. Preserves explicit `schema`, `server`, `port`, and `vhost` overrides.
+5. Uses the standard port for an explicitly selected protocol when it differs from the page protocol.
+
+### Regression coverage
+
+Added:
+
+```text
+skills/srs-develop/scripts/browser-page-url-test.js
+```
+
+Run with:
+
+```bash
+node skills/srs-develop/scripts/browser-page-url-test.js
+```
+
+The testing command is recorded in:
+
+```text
+skills/internal-codemap-for-srs/references/testing.md
+```
+
+All six cases passed:
+
+- Direct SRS HTTP server on port 8080
+- Public HTTP origin on port 80
+- Public HTTPS origin on port 443
+- Custom reverse-proxy port
+- Explicit protocol change without a port
+- Explicit target overrides
+
+JavaScript syntax checks and `git diff --check` also passed.
+
+### Conclusion
+
+The default browser URL-generation bug is confirmed, and the staged candidate fixes it for player URLs without explicit target overrides.
+
+The fix is uncommitted and unreleased pending maintainer review.
+
+### Remaining unknowns
+
+- A real browser/reverse-proxy playback test has not been performed.
+- The issue's example page URL explicitly contains `port=8080`. Explicit overrides remain authoritative. If another page or console automatically inserts that parameter, its URL generator requires a separate fix.
+- The reporter did not provide the exact SRS version, browser, or complete reverse-proxy configuration.

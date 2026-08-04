@@ -47,26 +47,41 @@ function user_extra_params(query, params, rtc) {
     return queries;
 }
 
+function default_port_for_schema(schema) {
+    if (schema === 'http') {
+        return 80;
+    }
+    if (schema === 'https') {
+        return 443;
+    }
+    if (schema === 'webrtc') {
+        return 1985;
+    }
+    if (schema === 'rtmp') {
+        return 1935;
+    }
+    return 0;
+}
+
 function is_default_port(schema, port) {
-    return (schema === 'http' && port === 80)
-        || (schema === 'https' && port === 443)
-        || (schema === 'webrtc' && port === 1985)
-        || (schema === 'rtmp' && port === 1935);
+    return default_port_for_schema(schema) === port;
 }
 
 /**
 @param server the ip of server. default to window.location.hostname
 @param vhost the vhost of HTTP-FLV. default to window.location.hostname
-@param port the port of HTTP-FLV. default to 1935
+@param port the port of HTTP-FLV. default to the current page port
 @param app the app of HTTP-FLV. default to live.
 @param stream the stream of HTTP-FLV. default to livestream.flv
 */
 function build_default_flv_url() {
     var query = parse_query_string();
 
-    var schema = (!query.schema)? "http":query.schema;
+    var location_schema = window.location.protocol.replace(':', '');
+    var schema = query.schema || location_schema || "http";
     var server = (!query.server)? window.location.hostname:query.server;
-    var port = (!query.port)? (schema==="http"? 8080:1935) : Number(query.port);
+    var port = Number(query.port || ((query.schema && query.schema !== location_schema)?
+        default_port_for_schema(schema) : (window.location.port || default_port_for_schema(schema))));
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
     var stream = (!query.stream)? "livestream.flv":query.stream;

@@ -2,6 +2,14 @@
 
 Use this reference after `skills/internal-codemap-for-srs/SKILL.md` determines that a task requires tests, verification, reproduction, or benchmarking.
 
+## Browser Client Verification
+
+Browser player URL generation is verified independently with Node.js and does not require a running SRS server:
+
+```bash
+node skills/srs-develop/scripts/browser-page-url-test.js
+```
+
 ## C++ Media Server Verification
 
 `trunk/src/utest/` — Unit tests for internal functions, classes, parsers, codecs, and configuration without starting SRS. Links directly against SRS source and uses mocks such as `MockSrsConfig`.
