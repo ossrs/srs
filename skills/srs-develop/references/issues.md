@@ -383,3 +383,20 @@ Issue #4647 is resolved in SRS 8.0.6. Operators can configure the origin-registr
 ### Unknowns
 
 No dedicated E2E test waits for a short configured lifetime to expire in real time. The TTL parsing and both load-balancer applications are covered by unit tests, while the complete default-configuration proxy workflows are covered by E2E tests.
+
+## #4646 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4646
+- **Truth Record:** https://github.com/ossrs/srs/issues/4646#issuecomment-5180281566
+- **Verified:** 2026-08-04
+- **Branch:** `forge`
+- **Commit:** `ae221b5e2c13bbfb9f51ffe70ed57ae32da423cf`
+- **Version:** SRS `8.0.6`
+- **Environment:** macOS 26.5.2, arm64; Go 1.25.0
+- **Changes/tests:** None
+
+SRS Proxy supports registering origins but does not provide APIs for querying registered origins or stream-to-origin mappings.
+
+An origin query API would be valuable for debugging and verifying registrations. A stream mapping API would also be useful. However, these APIs—and other operational APIs—need careful, comprehensive design.
+
+This is a valuable feature request, but it is deferred while higher-priority bugs are addressed. Keep the issue open and revisit it when there is time to design the API properly.
