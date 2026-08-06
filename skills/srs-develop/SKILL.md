@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, and maintain the next-generation SRS media server written in Go. This is the AI-maintained successor to the first-generation C++ SRS server. Currently, planned changes are supported for the Go proxy server only; the next-generation Go origin and edge server workflows are not yet supported. Use for all development tasks, for example, adding features, fixing bugs, refactoring code, understanding code architecture, reviewing changes, and writing tests for the Go codebase. NOT for end-user support, usage questions, configuration help, or learning how to use SRS — use the srs-support skill for those. Only activate when the task is explicitly about developing or modifying the Go SRS codebase.
+description: Develop, modify, debug, review, maintain, and explain the SRS codebase. Use for planned changes to the next-generation Go server, bug maintenance, issue triage, pull-request review, and Learn Code questions about how existing C++ or Go SRS code works, including architecture, control flow, and implementation details. Planned feature development is currently supported only for the Go proxy server; the C++ server is in maintenance mode, and planned Go origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use the srs-support skill for those.
 ---
 
 # SRS Development
@@ -65,7 +65,7 @@ Route the user's request to exactly ONE task type. Follow that task only. Do not
 | **Develop Code** | User wants to add, modify, refactor code, or update docs — any planned change | → [Develop Code](#task-develop-code) | ✅ Supported |
 | **Scan Issues** | User wants recent issues needing maintainer attention | → [Scan Issues](#task-scan-issues) | ✅ Supported |
 | **Fix a Bug** | User reports something broken, unexpected behavior, or an error | → [Fix a Bug](#task-fix-a-bug) | ✅ Supported |
-| **Learn Code** | User wants to understand how code works — no changes intended | → [Learn Code](#task-learn-code) | ❌ Not yet supported |
+| **Learn Code** | User wants to understand how code works — no changes intended | → [Learn Code](#task-learn-code) | ✅ Supported |
 | **Review a PR** | User wants to review an existing pull request | → [Review a PR](#task-review-a-pr) | ✅ Supported |
 
 **If the routed task is not yet supported**, stop and tell the user:
@@ -140,7 +140,34 @@ Use this only when verification shows user misuse already covered by the documen
 
 **Prerequisite:** You must arrive here via the [Task Router](#task-router). Do not execute this task directly — always complete the Task Router first to confirm this is the correct task type.
 
-**Not yet supported.** Will be added in a future update.
+**Scope:** Explain how existing SRS code works without modifying the project. Cover implementation, architecture, control flow, data flow, module boundaries, and behavior grounded in the current code and project documentation. This task may examine either the C++ media server or the next-generation Go server.
+
+### Step 1: Route and read documentation first
+
+1. Load `skills/internal-docs-for-srs/SKILL.md` and use its Reference Router before reading project documentation.
+2. Classify the question by server generation, service, protocol, or feature. Select and read the smallest relevant document set for design intent, architecture, and documented behavior.
+3. If the documentation router has no matching route, or a fully resolved routed file is unavailable, record the documentation gap and continue to code routing. Do not broadly search documentation directories or invent intent.
+
+### Step 2: Route to the responsible code
+
+1. Load `skills/internal-codemap-for-srs/SKILL.md` and use its Reference Router to select the relevant server map. If choosing the wrong server generation would materially change the answer, ask the user to clarify.
+2. Use the selected map descriptions to identify the owning module and the smallest relevant file set. When the map lists a directory, list filenames only in that directory before selecting files.
+3. Read or search only the selected files. Add another routed module only when evidence shows that the implementation crosses the first module boundary.
+
+### Step 3: Trace and reconcile the implementation
+
+1. Trace the narrowest useful path from the feature entry point, such as configuration, API, listener, protocol handler, or public interface, through its owning module and required lower-level dependencies.
+2. Separate the common implementation path from protocol-specific or service-specific behavior. Identify defaults, platform-dependent behavior, fallbacks, and limitations when relevant.
+3. Compare documentation with code. Investigate material conflicts instead of silently preferring either source. Clearly separate confirmed behavior, reasonable inference, and unknowns.
+4. Use the testing and verification map only when the user requests runtime verification or static evidence is insufficient for an important claim. Do not change code or tests as part of Learn Code.
+
+### Step 4: Answer the question
+
+1. Answer the user's question directly before describing the investigation.
+2. State the examined server generation and, when behavior may vary by revision, the current branch and commit.
+3. Cite the responsible files with focused line ranges and explain how their responsibilities connect. Do not return an unstructured file dump.
+4. Report relevant documentation gaps, code/document conflicts, limitations, and unresolved questions.
+5. Make no project changes. If the investigation reveals a likely bug or desired change, report it and let the user start a separate Fix a Bug or Develop Code task.
 
 ---
 
