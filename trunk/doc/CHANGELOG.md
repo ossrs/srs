@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-06, Merge [#4699](https://github.com/ossrs/srs/pull/4699): Codex: Reject duplicate WebRTC TCP owners. v8.0.8 (#4699)
 * v8.0, 2026-08-04, Merge [#4698](https://github.com/ossrs/srs/pull/4698): Codex: Fix browser player URLs behind reverse proxies and refresh issue records. v8.0.7 (#4698)
 * v8.0, 2026-08-03, Merge [#4694](https://github.com/ossrs/srs/pull/4694): Codex: Add configurable proxy origin registration TTL. v8.0.6 (#4694)
 * v8.0, 2026-08-02, Merge [#4692](https://github.com/ossrs/srs/pull/4692): Codex: Fix live source cleanup race before publisher activation. v8.0.5 (#4692)

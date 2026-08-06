@@ -485,6 +485,134 @@ The fix is uncommitted and unreleased pending maintainer review.
 - The issue's example page URL explicitly contains `port=8080`. Explicit overrides remain authoritative. If another page or console automatically inserts that parameter, its URL generator requires a separate fix.
 - The reporter did not provide the exact SRS version, browser, or complete reverse-proxy configuration.
 
+## #4642 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4642
+- **Truth Record:** https://github.com/ossrs/srs/issues/4642#issuecomment-5207071995
+- **Title:** `Bug: SIGSEGV in SrsRtcTcpConn when WebRTC-over-TCP viewer disconnects (v6.0.184)`
+- **Verified:** 2026-08-06
+- **Issue state:** Open, no comments before this Truth Record, label `TransByAI`
+- **Reported version:** SRS `6.0.184` / `63edbef90864d425a6303c64bae9600631a4c0f9`
+- **Current checked source:** SRS `8.0.7`, remote `develop` `ee0c5cd98a38966a982d675f6533e85acdbca6dd`
+- **Unfixed baseline:** `d5ab7db9a9ff7471fedb4ff857fba0645c4dc85e`
+- **Candidate fix:** `5f4d5c9a40501d8e0e46ddbe304806a34c51a637` on branch `forge`
+- **Verification:** macOS 26.5.2 arm64, ASAN-enabled C++ utests
+- **Runtime reproduction:** Not done; no browser/Docker production SIGSEGV was reproduced
+- **Release state:** Fix is local only; not merged or released
+
+### Summary
+
+The issue's exact explanation is wrong: since PR #4083 in SRS `6.0.127`, the recorded WebRTC-over-TCP owner is interrupted during RTC network destruction, and `SrsRtcTcpConn::interrupt()` clears that owner's `session_` pointer.
+
+But the code still had a real ownership bug that can explain the reported crash location.
+
+### Confirmed bug
+
+Before the fix, a second TCP connection for the same RTC session could replace the first connection as owner before the code checked uniqueness:
+
+```cpp
+if (network->owner().get() != this) {
+    network->set_owner(*wrapper_);
+    session_ = session;
+}
+if (network->owner().get() != this) {
+    return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
+}
+```
+
+Bad sequence:
+
+1. Connection A handshakes and stores the RTC session pointer.
+2. Connection B handshakes for the same RTC session.
+3. B replaces A as network owner.
+4. A still has a raw `session_` pointer, but teardown will only interrupt B.
+5. A can later dereference stale memory at `session_->tcp()`, matching the reported crash area.
+
+The dummy owner was not the direct cause. The direct cause was **replace before reject**. The dummy owner made that pattern easier to write because the first real connection had to replace something.
+
+### Regression test
+
+Added utest:
+
+```text
+ReproduceIssue4642.RejectSecondTcpConnForSameRtcSession
+```
+
+It creates one mock RTC session and two TCP connections with the same ICE username.
+
+Expected behavior:
+
+- A succeeds and becomes owner.
+- B fails with `ERROR_RTC_TCP_UNIQUE`.
+- A remains owner.
+- B never stores the session pointer.
+
+On the unfixed baseline, the test failed because B succeeded, replaced A, and stored the session pointer. This reproduces the stale-pointer prerequisite deterministically without intentionally crashing the test process.
+
+### Fix
+
+The fix makes the TCP owner empty initially, then rejects any second owner before changing state:
+
+```cpp
+SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session->tcp());
+if (network->owner().get()) {
+    return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
+}
+network->set_owner(*wrapper_);
+session_ = session;
+```
+
+The network destructor now checks for an owner before interrupting it:
+
+```cpp
+if (owner_.get()) {
+    owner_->interrupt();
+}
+```
+
+### Verification after fix
+
+Build:
+
+```bash
+cd trunk
+./configure --utest --gb28181=on --sanitizer=on --build-cache=off
+make utest
+```
+
+Targeted tests:
+
+```bash
+ASAN_OPTIONS=detect_leaks=0 ./objs/srs_utest \
+  --gtest_filter='RtcTcpConnTest.*:ReproduceIssue4642.*'
+```
+
+Result: 5 tests passed.
+
+Full C++ utest suite:
+
+```bash
+ASAN_OPTIONS=detect_leaks=0 ./objs/srs_utest
+```
+
+Result: 2239 tests passed.
+
+### Conclusion
+
+This issue is **partially confirmed**.
+
+- Not confirmed: the issue's exact claim that `session_` is never cleared for the recorded owner.
+- Confirmed: a second TCP connection could displace the first owner and leave the first connection with a stale raw session pointer.
+- Fixed locally: duplicate TCP owners are rejected before ownership/session state changes.
+- Still needed before closing: review, merge, release, and ideally reporter/runtime confirmation that the original SIGSEGV used this two-connection path.
+
+### Unknowns
+
+- Whether the reporter's deployment actually created two TCP connections for one RTC session.
+- Whether every reported crash followed this path.
+- The reporter's exact Docker image digest.
+- Whether a production ASAN reproducer would show the same sequence.
+
 ## #4641 — CURRENT
 
 - **Issue:** https://github.com/ossrs/srs/issues/4641
