@@ -484,3 +484,25 @@ The fix is uncommitted and unreleased pending maintainer review.
 - A real browser/reverse-proxy playback test has not been performed.
 - The issue's example page URL explicitly contains `port=8080`. Explicit overrides remain authoritative. If another page or console automatically inserts that parameter, its URL generator requires a separate fix.
 - The reporter did not provide the exact SRS version, browser, or complete reverse-proxy configuration.
+
+## #4641 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4641
+- **Truth Record:** https://github.com/ossrs/srs/issues/4641#issuecomment-5203763730
+- **Verified:** 2026-08-06
+- **Branch:** `forge`
+- **Commit:** `ee0c5cd98a38966a982d675f6533e85acdbca6dd`
+- **Version:** SRS `8.0.7`
+- **Changes:** None
+
+SRS supports IPv6 RTMP listening since v7.0.67. Configure it explicitly:
+
+```conf
+rtmp {
+    listen [::]:1935;
+}
+```
+
+The report provides no SRS version, configuration, logs, or network details, so an SRS bug cannot be established. This is most likely a deployment or listener-configuration issue.
+
+No project change is required. The reporter should use the IPv6 listener configuration and provide complete logs and configuration if the problem remains.

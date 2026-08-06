@@ -9,13 +9,20 @@ Route code work to focused codebase maps. The parent skill owns the user-facing 
 
 ## Core Rules
 
-- Work from the current working directory. Do not search parent directories or discover alternate repository roots.
+- Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
 - Use the Reference Router before reading, searching, or modifying code, configuration, tests, or verification scripts.
 - Treat only files and module directories listed by the selected reference as trusted navigation scope.
 - Never grep the repository root or broad trees such as `trunk/src/`, `cmd/`, or `internal/`.
 - When a selected reference lists a module directory rather than every file, list filenames only inside that module, choose the smallest relevant set, then read or search only those files.
 - If no route covers the task, report that the code router does not cover it. Do not discover a new route ad hoc.
 - Use `skills/internal-docs-for-srs/SKILL.md` for project documentation. Do not route documentation here.
+
+## Path Resolution
+
+- Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
+- Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
+- Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
+- Before reporting a routed file as missing, check its fully resolved path directly.
 
 ## Reference Router
 
@@ -32,7 +39,7 @@ For a comparison or migration across generations, load both server maps. Add the
 
 1. Classify the request as C++ media server, next-generation Go server, browser publishers and players, testing and verification, or an explicit combination.
 2. If the server generation is unclear and choosing incorrectly could change the result, ask the user to clarify. Do not guess.
-3. Load the selected reference file or files.
+3. Resolve the selected path according to [Path Resolution](#path-resolution), then load the reference file or files.
 4. Use their descriptions to identify the responsible module and the smallest relevant file set.
 5. Read or search only those files. Add a second routed module only when evidence shows a dependency crosses the first module boundary.
 6. Return control to the parent skill for support, development, debugging, review, or maintenance.

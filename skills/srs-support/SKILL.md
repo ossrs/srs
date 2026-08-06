@@ -33,11 +33,18 @@ Follow these four steps in order for every question.
 
 ## Step 1: Setup
 
-All files are in the current working directory. Find everything from here — no discovery logic needed.
+Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
 
 Available directories: `trunk/`, `cmd/`, `internal/`, `cmake/`, `memory/`, `skills/`
 
 All AI tools — OpenClaw, Codex, Claude Code, Kiro CLI — see the same relative paths.
+
+### Path Resolution
+
+- Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
+- Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
+- Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
+- Before reporting a routed file as missing, check its fully resolved path directly.
 
 ## Step 2: Load Knowledge
 

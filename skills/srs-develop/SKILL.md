@@ -14,6 +14,14 @@ description: Develop, modify, debug, and maintain the next-generation SRS media 
 - `skills/internal-docs-for-srs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
 - `skills/internal-codemap-for-srs/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
 
+## Path Resolution
+
+- Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
+- Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
+- Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
+- Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
+- Before reporting a routed file as missing, check its fully resolved path directly.
+
 ## Git Workflow
 
 Apply these rules whenever a task produces a commit:

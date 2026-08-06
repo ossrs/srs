@@ -9,13 +9,20 @@ Route SRS tasks to focused documentation references. The parent skill owns the u
 
 ## Core Rules
 
-- Work from the current working directory. Do not search parent directories or discover alternate repository roots.
+- Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
 - Use the Reference Router before loading any reference or bundled document.
 - Load only the references and bundled documents relevant to the task. Do not load everything.
 - Treat only project files listed in this skill or a selected reference as trusted documentation.
 - If no route covers the task, report that the documentation router does not cover it. Do not scan or broadly grep documentation directories.
 - Select the smallest relevant set of project documents from their descriptions.
 - Keep trusted document routing in this skill. Do not duplicate topic-to-file tables in dependent skills.
+
+## Path Resolution
+
+- Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
+- Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
+- Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
+- Before reporting a routed file as missing, check its fully resolved path directly.
 
 ## Reference Router
 
@@ -85,7 +92,7 @@ If a task spans multiple areas, load only the required references or bundled doc
 ## Workflow
 
 1. Classify the documentation need with the Reference Router.
-2. Load the selected project or bundled document directly from the router.
+2. Resolve the selected path according to [Path Resolution](#path-resolution), then load the project or bundled document directly.
 3. Load only the documents required for the task.
 4. Return control to the parent skill for answering, development, troubleshooting, review, or editing.
 
