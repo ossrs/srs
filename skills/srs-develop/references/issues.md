@@ -635,6 +635,32 @@ The report provides no SRS version, configuration, logs, or network details, so 
 
 No project change is required. The reporter should use the IPv6 listener configuration and provide complete logs and configuration if the problem remains.
 
+## #4634 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4634
+- **Truth Record:** https://github.com/ossrs/srs/issues/4634#issuecomment-5216829576
+- **Verified:** 2026-08-07
+- **Branch:** `forge`
+- **Commit:** `2bb5e4428f393d09546f53f46ffbdd246dedcd95`
+- **Version:** SRS `8.0.9`
+- **Changes:** None
+- **Closure:** Expected behavior; issue closed.
+
+Edge RTC disable is expected and already documented: classic Edge supports RTMP/HTTP-FLV, not WebRTC. Users should check Edge docs or ask SRS AI before opening usage questions already covered by docs.
+
+## #4633 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4633
+- **Truth Record:** https://github.com/ossrs/srs/issues/4633#issuecomment-5216986292
+- **Verified:** 2026-08-07
+- **Branch:** `forge`
+- **Commit:** `2bb5e4428f393d09546f53f46ffbdd246dedcd95`
+- **Version:** SRS `8.0.9`
+- **Changes:** None
+- **Closure:** Not closed yet; usage/configuration issue, no project change.
+
+The reported `0x01` is the HTTP-FLV header flag for video-only, not an RTMP header. SRS already supports the requested behavior: for RTC-to-HTTP-FLV playback that must advertise both tracks from the first FLV header, configure `http_remux { has_audio on; has_video on; guess_has_av off; }`; users should read the HTTP-FLV docs or ask SRS AI before opening documented-configuration issues.
+
 ## #4639 — CURRENT
 
 - **Issue:** https://github.com/ossrs/srs/issues/4639
