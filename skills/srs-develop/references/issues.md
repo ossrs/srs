@@ -634,3 +634,49 @@ rtmp {
 The report provides no SRS version, configuration, logs, or network details, so an SRS bug cannot be established. This is most likely a deployment or listener-configuration issue.
 
 No project change is required. The reporter should use the IPv6 listener configuration and provide complete logs and configuration if the problem remains.
+
+## #4639 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4639
+- **Truth Record:** Pending maintainer publication
+- **Verified:** 2026-08-07
+- **Branch:** `forge`
+- **Commit:** `9be7486e751a67bb809cc9926e4a19da262e25b7`, with a staged candidate fix
+- **Version:** SRS `8.0.8`; issue reported against SRS `6.0-r0`
+- **Environment:** macOS arm64, Apple Clang, ASAN utest build
+- **Supersedes:** `NO_TRUTH` 2026-02-28 — report identified concatenated SDP lines when downlink SSRC groups are present, but had no maintainer verification.
+
+### Confirmed facts
+
+RFC 8866 defines CRLF as the SDP line terminator. Parsers should tolerate LF-only lines, but this bug is neither CRLF nor LF: `SrsSSRCGroup::encode()` emitted no line terminator.
+
+The defect is local to `SrsSSRCGroup::encode()` in `trunk/src/protocol/srs_protocol_sdp.cpp`. Before the fix, encoding an SSRC group followed by another SDP attribute produced concatenated output:
+
+```text
+a=ssrc-group:FID 12345 67890a=ssrc:12345 cname:test-cname\r\n
+```
+
+Other SDP encoders already append `kCRLF`; this is not a general SDP encoding problem.
+
+### Fix and regression coverage
+
+The candidate fix adds `os << kCRLF;` after the SSRC group SSRC list.
+
+Regression coverage:
+
+- `ProtocolSdpTest.SrsSSRCGroupEncode` now requires the exact output `a=ssrc-group:FID 12345 67890\r\n`.
+- `ProtocolSdpTest.SrsSSRCGroupEncodeBeforeSsrcInfo` verifies that a following `a=ssrc:` line is separated, not concatenated.
+
+Before the production fix, both regression tests failed. After the fix:
+
+- `make utest -j4` passed.
+- `ASAN_OPTIONS=detect_leaks=0 ./objs/srs_utest --gtest_filter='ProtocolSdpTest.SrsSSRCGroupEncode*'` passed: 2 tests passed.
+- `ASAN_OPTIONS=detect_leaks=0 ./objs/srs_utest` passed: 2240 tests passed.
+
+### Conclusion
+
+#4639 is a real narrow SDP formatting bug in `SrsSSRCGroup::encode()`. The root cause is a missing line terminator after the encoded `a=ssrc-group:` attribute. The local code change fixes the concatenation by appending `kCRLF`.
+
+### Unknowns
+
+Current `SrsMediaDesc::encode()` does not appear to serialize `ssrc_groups_` in the normal media-description path, so the exact runtime path from the report depends on the downlink SSRC-group usage path.
