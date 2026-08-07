@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-07, Merge [#4703](https://github.com/ossrs/srs/pull/4703): Codex: Clean up publish state after forward backend failures. v8.0.10 (#4703)
 * v8.0, 2026-08-07, Merge [#4701](https://github.com/ossrs/srs/pull/4701): Codex: Terminate SSRC group SDP lines. v8.0.9 (#4701)
 * v8.0, 2026-08-06, Merge [#4699](https://github.com/ossrs/srs/pull/4699): Codex: Reject duplicate WebRTC TCP owners. v8.0.8 (#4699)
 * v8.0, 2026-08-04, Merge [#4698](https://github.com/ossrs/srs/pull/4698): Codex: Fix browser player URLs behind reverse proxies and refresh issue records. v8.0.7 (#4698)
@@ -1459,4 +1460,3 @@ The changelog for SRS.
 * v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
 
 Winlin 2021
-

@@ -674,6 +674,33 @@ The reported `0x01` is the HTTP-FLV header flag for video-only, not an RTMP head
 
 The edge established TCP, but the origin did not complete the RTMP handshake within 30 seconds. During that wait, the current publisher owns the edge stream, so another publisher for the same stream is correctly rejected as busy; the state resets after timeout. No SRS defect was confirmed.
 
+## #4631 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4631
+- **Truth Record:** https://github.com/ossrs/srs/issues/4631#issuecomment-5218171343
+- **Verified:** 2026-08-07
+- **Branch:** `forge`
+- **Commit:** `70309a6a21a2b9a148b11a03cd40ab806087e7cc`
+- **Version:** SRS `8.0.9`
+- **Changes:** Fixed on `forge`; not merged or released
+- **Verification:** Runtime reproduction and 2,190 passing unit tests
+
+### Current state
+
+A dynamic-forward backend error such as HTTP 500 correctly rejects the current publication because SRS cannot obtain valid forwarding destinations. Before the fix, that error left the live source permanently busy: later publishers received `StreamBusy`, the stream was absent from `/api/v1/streams/`, and only restarting SRS cleared it.
+
+`SrsLiveSource::on_publish()` marks the source as publishing before initializing the origin hub and querying the backend. When backend discovery failed, `acquire_publish()` returned an error, but the publishing workflow released the source only after successful acquisition. The global publish token was released; the live source's local publish state was not.
+
+### Resolution and verification
+
+The publishing workflow now releases publish state after successful or failed acquisition, except for `StreamBusy`. That exception is required because a busy stream belongs to another publisher and must not be released by the rejected session. The original backend error is still returned, and the external unpublish hook remains limited to sessions that successfully entered the publish lifecycle.
+
+The regression test performs two consecutive backend failures and verifies that both reach the backend, both return the original HTTP error, and the source is available after each attempt. Runtime verification confirmed that a publication rejected by HTTP 500 can be retried successfully after the backend recovers, without restarting SRS. All 2,190 unit tests passed.
+
+### Workaround
+
+For released versions, return HTTP 200 with `code: 0` and empty `urls` to accept publishing without forwarding. Restart SRS to clear an already stuck stream.
+
 ## #4639 — CURRENT
 
 - **Issue:** https://github.com/ossrs/srs/issues/4639
