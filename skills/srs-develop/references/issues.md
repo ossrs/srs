@@ -759,3 +759,12 @@ Current `SrsMediaDesc::encode()` does not appear to serialize `ssrc_groups_` in 
 - **Closure:** Expected behavior; issue closed.
 
 SRS supports one GB28181 media listener by design; all cameras should use that configured port. The old `sip.listen` was a separate embedded SIP service, not another media listener, and current versions require an external SIP server. Users should read the GB28181 documentation or ask SRS AI before opening usage questions about documented behavior.
+
+## #4628 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4628
+- **Truth Record:** https://github.com/ossrs/srs/issues/4628#issuecomment-5225936717
+- **Verified:** 2026-08-08
+- **Closure:** Expected behavior; issue closed with no project changes.
+
+SRS already supports kicking HLS viewers: query `hls-play` clients through `/api/v1/clients/` and delete the client ID. An HLS viewer correctly reports `publish: false`; users should read the HLS and HTTP API documentation or ask SRS AI before opening documented-usage issues.
