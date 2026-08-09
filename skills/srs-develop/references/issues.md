@@ -779,6 +779,15 @@ The available evidence is consistent with that old defect, but does not prove it
 
 **Conclusion:** No new bug is confirmed in the current version. Please upgrade to a current SRS release, use `stream=test`, and report back with complete logs and publishing details if the problem remains.
 
+## #4624 [FIXED] Live source removed during publisher activation
+
+- **Issue:** https://github.com/ossrs/srs/issues/4624
+- **Truth Record:** https://github.com/ossrs/srs/issues/4624#issuecomment-5234396855
+- **Verified:** 2026-08-09
+- **Changes:** None
+
+SRS `v6.0-r0` had a live-source cleanup race during publisher activation. It is fixed in SRS `7.0.151+` and `8.0.5+`; affected users should upgrade to a current SRS release.
+
 ## #4628 [USAGE] Kick HLS viewers through the client API
 
 - **Issue:** https://github.com/ossrs/srs/issues/4628
