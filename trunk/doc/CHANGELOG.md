@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-08-09, Merge [#4704](https://github.com/ossrs/srs/pull/4704): Codex: Fix MP4 DVR timing for repeated DTS samples. v7.0.154 (#4704)
 * v7.0, 2026-08-07, Merge [#4701](https://github.com/ossrs/srs/pull/4701): Codex: Terminate SSRC group SDP lines. v7.0.153 (#4701)
 * v7.0, 2026-08-07, Merge [#4699](https://github.com/ossrs/srs/pull/4699): Codex: Reject duplicate WebRTC TCP owners. v7.0.152 (#4699)
 * v7.0, 2026-08-03, Merge [#4692](https://github.com/ossrs/srs/pull/4692): Codex: Fix live source cleanup race before publisher activation. v7.0.151 (#4692)
