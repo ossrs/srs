@@ -796,3 +796,102 @@ SRS already supports kicking HLS viewers: query `hls-play` clients through `/api
 - **Closure:** Unsupported usage; issue closed with no project changes.
 
 SRS does not support PCMA/G.711 A-law in RTMP. Use AAC or MP3, transcode before publishing, or use G.711 only with the documented WebRTC WHIP/WHEP workflow.
+
+## #4625 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4625
+- **Truth Record:** https://github.com/ossrs/srs/issues/4625#issuecomment-5233336576
+- **Reported version:** SRS 6.0.184 (`63edbef90864d425a6303c64bae9600631a4c0f9`)
+- **Verified branch/commit:** `forge` at `2f1f67a8125ae4051ed46e74143b15acc7a5ce54`
+- **Current SRS version:** 8.0.10
+- **Environment:** macOS 26.5.2 arm64; FFmpeg n8.1.1; ASAN C++ unit-test build
+- **Supersedes:** None; this is the first Truth Record for this issue.
+
+### Confirmed problem
+
+The reporter's MP4 is internally inconsistent:
+
+- MP4 header duration (`mvhd`/`tkhd`/`mdhd`/`elst`): **30.259 seconds**.
+- Duration obtained by accumulating the video `stts` sample table: **140.099 seconds**.
+- Video samples: **3,857**.
+- Samples containing pictures: **964** (`31` IDR and `933` non-IDR).
+- Auxiliary/non-picture samples: **2,893** (`1,928` SEI, `964` AUD, and `1` type-13 NAL).
+
+This explains the observed behavior: VLC lists the file as approximately 30 seconds from the MP4 header, but playback follows the much longer sample timeline and reaches approximately 140 seconds. SEI/AUD-only samples do not decode a new picture, so the previous picture remains visible while their incorrect durations consume playback time.
+
+### Root cause
+
+SRS DVR records every RTMP video message as an MP4 sample. Consecutive messages from this stream can share the same DTS, for example a picture followed by separate SEI/AUD messages at the same timestamp. Their legitimate MP4 timing delta is therefore zero.
+
+`SrsMp4SampleManager::write_track` used `sample_delta_ == 0` to determine whether the current `stts` entry was uninitialized. A real zero-duration entry was consequently mistaken for an empty entry. When the next positive DTS delta arrived, SRS replaced the zero delta instead of starting a new `stts` entry, assigning elapsed time to the accumulated same-DTS samples and inflating the playback timeline.
+
+### Concrete timing example
+
+This simplified example shows the failure mode. It illustrates the confirmed same-DTS condition; it is not a claim that the exact original RTMP sequence can be reconstructed from the MP4.
+
+There are only two decoded video pictures:
+
+| RTMP video message | H.264 content | DTS | Decoded picture? |
+|---|---|---:|---|
+| 1 | IDR picture | 0 ms | Yes |
+| 2 | SEI metadata | 0 ms | No |
+| 3 | AUD delimiter | 0 ms | No |
+| 4 | P-picture | 30 ms | Yes |
+
+SEI and AUD are H.264 auxiliary NAL units, not additional video frames. The IDR, SEI, and AUD messages belong to the same timestamp group, so the clock must not advance between them. The intended timeline is therefore:
+
+```text
+0 ms                              30 ms
+|                                   |
+IDR + SEI + AUD                     P-picture
+```
+
+The correct timing deltas are effectively:
+
+```text
+0 ms, 0 ms, 0 ms, 30 ms
+```
+
+Only one 30 ms interval passes between the two real pictures. However, the old `stts` builder treated the legitimate zero-delta entry as uninitialized. When the 30 ms delta arrived, it replaced the accumulated zero delta and effectively assigned 30 ms to each message:
+
+```text
+30 ms, 30 ms, 30 ms, 30 ms
+```
+
+That group consequently consumed about 120 ms instead of 30 ms. Repeating this pattern throughout the recording inflated the MP4 sample timeline even though the source DTS range, and therefore the MP4 header duration, remained approximately correct.
+
+The original RTMP message timestamps are not independently preserved in the resulting MP4, so their exact original sequence cannot be reconstructed solely from this attachment. The malformed `stts` table and NAL distribution directly prove the file inconsistency, and a controlled RTMP reproduction confirms the same-DTS failure mode.
+
+### Fix
+
+Commit `2f1f67a8125ae4051ed46e74143b15acc7a5ce54` changes the `stts` initialization test to use `sample_count_ == 0`. This preserves zero as a valid DTS delta. It also adds regression test `ReproduceIssue4625.PreserveZeroDtsInMp4Stts`.
+
+For the regression sequence `9, 9, 9, 9, 39` ms:
+
+- Correct `stts`: `(1,9), (3,0), (1,30)`; total duration `39` ms.
+- Before the fix: `(1,9), (4,30)`; total duration `129` ms.
+- After the fix: the correct entries and duration are preserved.
+
+### Runtime reproduction
+
+A deterministic H.264/FLV sample was generated with four RTMP video packets per DTS and published through RTMP into SRS DVR MP4:
+
+- Before the fix: MP4 header **28.920 seconds**, `stts` timeline **115.710 seconds**, 3,858 samples.
+- After the fix: MP4 header **28.920 seconds**, `stts` timeline **28.920 seconds**, 3,858 samples.
+- Post-fix entries preserve repeated zero deltas, such as `(4,0), (1,30), (3,0), (1,30)`.
+
+### Verification
+
+- Targeted ASAN unit test: passed.
+- Full ASAN C++ unit suite: **2,191 tests passed** from 275 suites.
+- Blackbox DVR tests passed:
+  - `TestFast_RtmpPublish_DvrFlv_Basic`
+  - `TestFast_RtmpPublish_DvrMp4_Basic`
+- Controlled FFmpeg → RTMP → SRS DVR MP4 integration: passed; header and `stts` durations match after the fix.
+- `git diff --check`: passed.
+
+### Conclusion
+
+The report is a confirmed SRS MP4 DVR timing bug caused by treating a legitimate zero DTS delta as an uninitialized `stts` entry. It is fixed and regression-tested in commit `2f1f67a8125ae4051ed46e74143b15acc7a5ce54` on the local `forge` branch.
+
+The fix has not yet been merged or released. Confirmation against a fresh capture of the reporter's original RTMP input and confirmation in a released SRS version remain pending.
