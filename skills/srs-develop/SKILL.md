@@ -124,7 +124,29 @@ Do not modify issues or create Truth Records.
 2. Draft a self-contained Truth Record with the exact date, branch, commit, version, environment, evidence, conclusion, unknowns, and superseded record.
 3. Stop for maintainer review and approval.
 4. Publish the approved record to the issue.
-5. Replace the issue entry in `references/issues.md` with the same record and comment URL.
+5. Replace the issue entry in `references/issues.md` with the same record and comment URL, using the [Truth Record Index Headings](#truth-record-index-headings) format.
+
+### Truth Record Index Headings
+
+Use this format in `references/issues.md`:
+
+```markdown
+## #<issue-number> [<CATEGORY>] <concise verified title>
+```
+
+```markdown
+## #4639 [BUG] Missing CRLF after SDP SSRC group
+```
+
+Use one category:
+
+- `[BUG]` — Confirmed defect.
+- `[FEATURE]` — Unsupported requested capability.
+- `[USAGE]` — Expected behavior or user/configuration error.
+- `[SECURITY]` — Security exposure or design concern.
+- `[DOCS]` — Missing or incorrect documentation.
+- `[LIMITATION]` — Confirmed non-defect limitation.
+- `[UNCONFIRMED]` — Insufficient evidence to classify.
 
 ### Usage-error exception
 
