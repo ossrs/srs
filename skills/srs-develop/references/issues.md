@@ -760,6 +760,25 @@ Current `SrsMediaDesc::encode()` does not appear to serialize `ssrc_groups_` in 
 
 SRS supports one GB28181 media listener by design; all cameras should use that configured port. The old `sip.listen` was a separate embedded SIP service, not another media listener, and current versions require an external SIP server. Users should read the GB28181 documentation or ask SRS AI before opening usage questions about documented behavior.
 
+## #4626 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4626
+- **Truth Record:** https://github.com/ossrs/srs/issues/4626#issuecomment-5229451675
+- **Verified:** 2026-08-07
+- **Reported version:** SRS `7.0.89`
+- **Current checked version:** SRS `8.0.10`
+- **Changes:** None
+
+The original WHEP URL used `stream=test.flv`, but the published stream was `test`. The correct WHEP parameter is `stream=test`.
+
+The reporter also tried the correct stream name but still received no media. Logs show that WHEP signaling, ICE, and DTLS succeeded.
+
+SRS `7.0.89` had a known source-cleanup problem that could cause a publisher and player to use different source objects, resulting in playback without media. This was fixed in SRS `7.0.127` and later strengthened in SRS `8.0.5`.
+
+The available evidence is consistent with that old defect, but does not prove it was the exact cause.
+
+**Conclusion:** No new bug is confirmed in the current version. Please upgrade to a current SRS release, use `stream=test`, and report back with complete logs and publishing details if the problem remains.
+
 ## #4628 — CURRENT
 
 - **Issue:** https://github.com/ossrs/srs/issues/4628
