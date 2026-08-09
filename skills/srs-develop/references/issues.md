@@ -768,3 +768,12 @@ SRS supports one GB28181 media listener by design; all cameras should use that c
 - **Closure:** Expected behavior; issue closed with no project changes.
 
 SRS already supports kicking HLS viewers: query `hls-play` clients through `/api/v1/clients/` and delete the client ID. An HLS viewer correctly reports `publish: false`; users should read the HLS and HTTP API documentation or ask SRS AI before opening documented-usage issues.
+
+## #4627 — CURRENT
+
+- **Issue:** https://github.com/ossrs/srs/issues/4627
+- **Truth Record:** https://github.com/ossrs/srs/issues/4627#issuecomment-5229356765
+- **Verified:** 2026-08-08
+- **Closure:** Unsupported usage; issue closed with no project changes.
+
+SRS does not support PCMA/G.711 A-law in RTMP. Use AAC or MP3, transcode before publishing, or use G.711 only with the documented WebRTC WHIP/WHEP workflow.
