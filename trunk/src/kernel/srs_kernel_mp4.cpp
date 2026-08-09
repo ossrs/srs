@@ -5860,7 +5860,7 @@ srs_error_t SrsMp4SampleManager::write_track(SrsFrameType track,
         if (stts) {
             if (previous) {
                 uint32_t delta = (uint32_t)(sample->dts_ - previous->dts_);
-                if (stts_entry.sample_delta_ == 0 || stts_entry.sample_delta_ == delta) {
+                if (stts_entry.sample_count_ == 0 || stts_entry.sample_delta_ == delta) {
                     stts_entry.sample_delta_ = delta;
                     stts_entry.sample_count_++;
                 } else {
