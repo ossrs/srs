@@ -904,3 +904,12 @@ A deterministic H.264/FLV sample was generated with four RTMP video packets per 
 The report is a confirmed SRS MP4 DVR timing bug caused by treating a legitimate zero DTS delta as an uninitialized `stts` entry. It is fixed and regression-tested in commit `2f1f67a8125ae4051ed46e74143b15acc7a5ce54` on the local `forge` branch.
 
 The fix has not yet been merged or released. Confirmation against a fresh capture of the reporter's original RTMP input and confirmation in a released SRS version remain pending.
+
+## #4623 [USAGE] Private origin address registered across unrelated networks
+
+- **Issue:** https://github.com/ossrs/srs/issues/4623
+- **Truth Record:** https://github.com/ossrs/srs/issues/4623#issuecomment-5234472135
+- **Verified:** 2026-08-09
+- **Closure:** Networking/configuration usage error; issue closed with no project changes.
+
+The origin registered a private IP that the remote proxy could not reach. Set `SRS_DEVICE_IP` to an origin IP reachable by the proxy, and read the documentation or ask SRS AI for deployment guidance.
