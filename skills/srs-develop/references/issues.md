@@ -952,3 +952,32 @@ Issue #4622 is a confirmed SRS bug.
 Commit `778623fa6459a7080847a5ddee83f1f43bd1eb48` makes URL reconstruction idempotent, avoids appending parameters already contained in `tcUrl`, preserves legacy RTMP URL compatibility, and adds regression coverage.
 
 All 2,247 ASAN unit tests passed. Merge, release, whole-server callback verification, and reporter confirmation remain pending.
+
+## #4621 [BUG] HTTP-FLV discarded the forwarded client IP
+
+- **Issue:** https://github.com/ossrs/srs/issues/4621
+- **Truth Record:** https://github.com/ossrs/srs/issues/4621#issuecomment-5241813445
+- **Verified:** 2026-08-10
+- **Branch/commit:** `develop` at `34f635a1af69aabaaa232598b8ad2b04da3dff63`
+- **Version:** SRS `8.0.14`
+- **Merged PR:** https://github.com/ossrs/srs/pull/4711
+- **Supersedes:** None; first authorized Truth Record
+
+### Confirmed problem
+
+Nginx Proxy Manager sent `X-Forwarded-For` and `X-Real-IP`, but SRS displayed the proxy address for HTTP-FLV clients. `real_ip on;` is not an SRS configuration directive.
+
+SRS parsed the forwarded address correctly, but `SrsLiveStream::serve_http_impl()` overwrote it with the proxy's TCP peer address before recording client statistics and applying playback security.
+
+### Fix and verification
+
+HTTP-FLV now uses the first `X-Forwarded-For` address, then `X-Real-IP`, and finally the TCP peer address as fallback. The same address is used for client statistics and playback security.
+
+- Regression test `ReproduceIssue4621.PreserveForwardedIpForHttpFlvClient`: passed.
+- Existing proxy-header parser test: passed.
+- Full ASAN C++ unit suite: **2,248 tests passed**.
+- Runtime reproduction confirmed `/api/v1/clients/` reports the forwarded address.
+
+### Conclusion
+
+The confirmed bug is fixed and merged in SRS 8.0.14. Only trusted reverse proxies should be allowed to supply forwarding headers; a configurable trusted-proxy allowlist remains outside this fix.
