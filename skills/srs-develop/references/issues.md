@@ -2,6 +2,32 @@
 
 Record only verified maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion.
 
+## #4697 [ENHANCEMENT] RTC audio pause/resume compatibility
+
+- Issue: https://github.com/ossrs/srs/issues/4697
+- Truth Record: https://github.com/ossrs/srs/issues/4697#issuecomment-5242316171
+- Verified: 2026-08-10
+- Branch: `develop`
+- Commit: `8cba52441cc144d9b4f7e7963c7924e6e0849a10`
+- Version: SRS `8.0.10`
+- Environment: macOS 26.5.2, arm64
+- Changes: None
+- Closure: Declined compatibility enhancement; closed as not planned
+
+**Background**
+
+Normal WebRTC audio muting uses continuous encoded silence or negotiated Opus DTX while maintaining a correct RTP timeline. The reporter corrected the original DTX explanation: DTX was not negotiated, and the affected `flutter_webrtc` desktop stack uses a `webrtc-sdk` fork that sends no audio RTP packets while `track.enabled=false`, then resumes the lane later.
+
+**Impact**
+
+In this workflow, an audio pause of approximately N seconds can leave resumed audio approximately N seconds behind continuing video. This can produce one HLS segment approximately as long as the pause and temporarily increase `EXT-X-TARGETDURATION`.
+
+**Why SRS does not support it**
+
+Server-side compatibility logic would need to distinguish an intentional mute from DTX, packet loss, a network interruption, or publisher failure, then safely synthesize or rewrite timestamps. This would add substantial implementation and regression-test complexity across RTC synchronization, audio transcoding, audio-only and mixed streams, RTMP, and HLS.
+
+Use a publisher that sends silent audio, correctly negotiates DTX, or preserves the RTP timestamp and RTCP sender-report timeline while its audio lane is stopped. SRS will not add complex timestamp heuristics for this client-specific behavior.
+
 ## #4690 [SECURITY] Unauthenticated proxy registration endpoint
 
 - Issue: https://github.com/ossrs/srs/issues/4690
