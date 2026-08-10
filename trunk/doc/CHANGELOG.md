@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-10, Merge [#4708](https://github.com/ossrs/srs/pull/4708): Codex: Fix duplicated RTMP HTTP callback parameters. v8.0.13 (#4708)
 * v8.0, 2026-08-09, Merge [#4706](https://github.com/ossrs/srs/pull/4706): RTC2RTMP: Deduplicate AVC and HEVC sequence headers. v8.0.12 (#4706)
 * v8.0, 2026-08-09, Merge [#4704](https://github.com/ossrs/srs/pull/4704): Codex: Fix MP4 DVR timing for repeated DTS samples. v8.0.11 (#4704)
 * v8.0, 2026-08-07, Merge [#4703](https://github.com/ossrs/srs/pull/4703): Codex: Clean up publish state after forward backend failures. v8.0.10 (#4703)

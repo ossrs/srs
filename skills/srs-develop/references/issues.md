@@ -913,3 +913,42 @@ The fix has not yet been merged or released. Confirmation against a fresh captur
 - **Closure:** Networking/configuration usage error; issue closed with no project changes.
 
 The origin registered a private IP that the remote proxy could not reach. Set `SRS_DEVICE_IP` to an origin IP reachable by the proxy, and read the documentation or ask SRS AI for deployment guidance.
+
+## #4622 [BUG] RTMP callback parameters duplicated when tcUrl is parsed twice
+
+- **Issue:** https://github.com/ossrs/srs/issues/4622
+- **Truth Record:** https://github.com/ossrs/srs/issues/4622#issuecomment-5240365106
+- **Verified:** 2026-08-10
+- **Fix commit:** `778623fa6459a7080847a5ddee83f1f43bd1eb48`
+- **Version:** SRS `8.0.12`
+
+### Confirmed problem
+
+SRS parses an RTMP request during connection and again after identifying the publish stream. When `tcUrl` contains a query parameter, the second parsing could append that parameter again.
+
+For example:
+
+```text
+Input:  ?token=abc
+Output: ?token=abc?token=abc
+```
+
+Parameters supplied only through the publish stream work correctly. The defect occurs when parameters previously extracted from `tcUrl` are reused during the second parsing.
+
+### Root cause
+
+`srs_net_url_parse_tcurl()` uses `stream` and `param` as both inputs and outputs. On the second call, the old implementation rebuilt the URL from:
+
+```text
+tcUrl + identified stream + previously extracted param
+```
+
+It did not recognize that `param` was already contained in `tcUrl`. The HTTP callback merely serialized the resulting duplicated value.
+
+### Conclusion
+
+Issue #4622 is a confirmed SRS bug.
+
+Commit `778623fa6459a7080847a5ddee83f1f43bd1eb48` makes URL reconstruction idempotent, avoids appending parameters already contained in `tcUrl`, preserves legacy RTMP URL compatibility, and adds regression coverage.
+
+All 2,247 ASAN unit tests passed. Merge, release, whole-server callback verification, and reporter confirmation remain pending.
