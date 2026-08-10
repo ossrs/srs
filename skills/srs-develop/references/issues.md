@@ -967,6 +967,13 @@ RTC-to-RTMP conversion is disabled by default. Use `conf/rtc2rtmp.conf` or enabl
 
 The configuration exposed GB28181 media port 9000 as UDP instead of TCP, used an unreachable hard-coded candidate, and omitted the final vhost brace; current SRS also requires an external SIP server.
 
+## #4611 [BUG] HTTP-FLV on-demand playback regression
+
+- **Issue:** https://github.com/ossrs/srs/issues/4611
+- **Truth Record:** https://github.com/ossrs/srs/issues/4611#issuecomment-5247064760
+- **Verified:** 2026-08-10
+- **Closure:** Fixed in SRS 7.0.150 and 8.0.2 by PR #4678; issue closed with no additional project changes.
+
 ## #4622 [BUG] RTMP callback parameters duplicated when tcUrl is parsed twice
 
 - **Issue:** https://github.com/ossrs/srs/issues/4622
