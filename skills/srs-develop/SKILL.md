@@ -118,25 +118,24 @@ Do not modify issues or create Truth Records.
 4. Run the relevant verification.
 5. If it is not a bug, update support or documentation only when needed; otherwise make no change.
 
-**Step 4: Update the issue Truth Record**
+**Step 4: Update the GitHub issue Truth Record**
 
 1. Re-verify the final project state, changes, and test results.
-2. Draft a detailed, self-contained, issue-facing Truth Record with the exact date, branch, commit, version, environment, relevant background, evidence, conclusion, unknowns, next action, and superseded record.
+2. Draft a detailed, self-contained, issue-facing Truth Record with the exact date, branch, commit, version, environment, relevant background, evidence, conclusion, unknowns, next action, and superseded record. This GitHub comment is the canonical and complete Truth Record; make it understandable to contributors who have not read the investigation.
 3. Stop for maintainer review and approval.
 4. Publish the approved record to the issue.
-5. Only after publication succeeds, replace the issue entry in `references/issues.md` with a separate concise local knowledge record and the new comment URL, using the [Local Issue Record Headings](#local-issue-record-headings) format.
+5. If publication fails, stop. Do not update the local issue record.
 
-### GitHub Truth Record and Local Issue Record
+**Step 5: Update the local issue record**
 
-- Treat the approved GitHub issue comment as the canonical Truth Record. Make it detailed enough to stand alone for contributors who have not read the investigation.
-- Treat `references/issues.md` as both a navigation aid and a durable local knowledge base, not merely an index and not a copy of the GitHub comment. Keep enough verified information for a future maintainer or AI to understand the issue's important project impact without opening GitHub.
-- Make the local record proportional to the issue's technical importance. Concise means removing narrative, background, and redundant evidence; it does not mean omitting essential verified knowledge.
-- For `[BUG]` and `[SECURITY]`, preserve the symptom or exposure, affected scope, verified mechanism or root cause, impact, fix or workaround status, critical unknowns, and next action.
-- For `[FEATURE]`, `[LIMITATION]`, and `[DOCS]`, preserve the requested or missing capability, verified current behavior or boundary, important design decision or impact, workaround when relevant, and disposition or next action.
-- For `[USAGE]` or a simple question, keep only the links, classification, correct usage or answer, and closure status unless the investigation revealed reusable project knowledge.
-- For `[UNCONFIRMED]`, preserve the exact unresolved claim, what was checked, the evidence still missing, and the next verification step.
-- Include the verification date, branch, commit, version, and environment when needed to establish the record's scope or reproducibility. Keep the local conclusions consistent with the GitHub record and use its comment URL for the full investigation and evidence.
-- Publish to GitHub first so the local record can link to the exact authorized comment. Do not update the local record if publication fails.
+1. Only after the GitHub Truth Record is published successfully, replace the issue entry in `references/issues.md` with a separate local knowledge record and the exact new comment URL. Use the [Local Issue Record Headings](#local-issue-record-headings) format.
+2. Keep this record brief and concise compared with the GitHub Truth Record, but treat it as a durable AI knowledge record rather than merely an index or a summary of the GitHub comment. Preserve enough verified information for a future maintainer or AI to understand the issue's important project impact without opening GitHub; use the comment link when the full investigation or evidence is needed.
+3. Make the record proportional to the issue's technical importance:
+   - For `[BUG]` and `[SECURITY]`, preserve the symptom or exposure, affected scope, verified mechanism or root cause, impact, fix or workaround status, critical unknowns, and next action.
+   - For `[FEATURE]`, `[LIMITATION]`, and `[DOCS]`, preserve the requested or missing capability, verified current behavior or boundary, important design decision or impact, workaround when relevant, and disposition or next action.
+   - For `[USAGE]` or a simple question that does not reveal an SRS defect or reusable project knowledge, keep only the issue and Truth Record links, classification, correct usage or answer, and closure status. Be especially concise when the user only needed to follow existing documentation or ask SRS AI.
+   - For `[UNCONFIRMED]`, preserve the exact unresolved claim, what was checked, the evidence still missing, and the next verification step.
+4. Include the verification date, branch, commit, version, and environment only when needed to establish scope or reproducibility. Keep every local conclusion consistent with the canonical GitHub Truth Record.
 
 ### Local Issue Record Headings
 
