@@ -958,6 +958,15 @@ SRS intentionally uses the configured `default_streamid` when a publisher suppli
 
 RTC-to-RTMP conversion is disabled by default. Use `conf/rtc2rtmp.conf` or enable `rtc_to_rtmp`, and use the same vhost, app, and stream for WebRTC publishing and RTMP playback.
 
+## #4616 [USAGE] Incorrect GB28181 Docker configuration
+
+- **Issue:** https://github.com/ossrs/srs/issues/4616
+- **Truth Record:** https://github.com/ossrs/srs/issues/4616#issuecomment-5247039175
+- **Verified:** 2026-08-10
+- **Closure:** Configuration usage error; closed with no project changes.
+
+The configuration exposed GB28181 media port 9000 as UDP instead of TCP, used an unreachable hard-coded candidate, and omitted the final vhost brace; current SRS also requires an external SIP server.
+
 ## #4622 [BUG] RTMP callback parameters duplicated when tcUrl is parsed twice
 
 - **Issue:** https://github.com/ossrs/srs/issues/4622
