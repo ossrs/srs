@@ -600,6 +600,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtpPacket *obs_whip_sps_;
     SrsRtpPacket *obs_whip_pps_;
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Last video sequence header delivered to the RTMP target. WebRTC publishers
+    // may repeat unchanged parameter sets with every keyframe.
+    std::string last_video_sequence_header_;
+
 public:
     SrsRtcFrameBuilder(ISrsAppFactory *factory, ISrsFrameTarget *target);
     virtual ~SrsRtcFrameBuilder();
