@@ -923,6 +923,15 @@ The origin registered a private IP that the remote proxy could not reach. Set `S
 
 SRS intentionally uses the configured `default_streamid` when a publisher supplies no stream ID. A random per-connection name would be unknown to consumers and unstable across reconnections. Publishers must use stable, distinct stream IDs.
 
+## #4617 [USAGE] Enable RTC-to-RTMP conversion
+
+- **Issue:** https://github.com/ossrs/srs/issues/4617
+- **Truth Record:** https://github.com/ossrs/srs/issues/4617#issuecomment-5242032033
+- **Verified:** 2026-08-10
+- **Closure:** Configuration usage issue; closed with no project changes.
+
+RTC-to-RTMP conversion is disabled by default. Use `conf/rtc2rtmp.conf` or enable `rtc_to_rtmp`, and use the same vhost, app, and stream for WebRTC publishing and RTMP playback.
+
 ## #4622 [BUG] RTMP callback parameters duplicated when tcUrl is parsed twice
 
 - **Issue:** https://github.com/ossrs/srs/issues/4622
