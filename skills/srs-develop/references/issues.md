@@ -914,6 +914,15 @@ The fix has not yet been merged or released. Confirmation against a fresh captur
 
 The origin registered a private IP that the remote proxy could not reach. Set `SRS_DEVICE_IP` to an origin IP reachable by the proxy, and read the documentation or ask SRS AI for deployment guidance.
 
+## #4620 [FEATURE] Generated names for SRT publishers without stream IDs
+
+- **Issue:** https://github.com/ossrs/srs/issues/4620
+- **Truth Record:** https://github.com/ossrs/srs/issues/4620#issuecomment-5241943782
+- **Verified:** 2026-08-10
+- **Closure:** Proposal rejected; issue closed as not planned with no project changes.
+
+SRS intentionally uses the configured `default_streamid` when a publisher supplies no stream ID. A random per-connection name would be unknown to consumers and unstable across reconnections. Publishers must use stable, distinct stream IDs.
+
 ## #4622 [BUG] RTMP callback parameters duplicated when tcUrl is parsed twice
 
 - **Issue:** https://github.com/ossrs/srs/issues/4622
