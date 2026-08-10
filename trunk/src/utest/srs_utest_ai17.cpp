@@ -3517,9 +3517,13 @@ VOID TEST(StatisticTest, DumpsMetrics)
     stat->kbps_->add_delta(1024 * 100, 1024 * 200); // 100KB recv, 200KB send
     stat->kbps_->sample();
 
-    // Simulate some client disconnections with errors to increment nb_errs_
-    stat->on_disconnect("client1", srs_error_new(ERROR_SOCKET_READ, "test error 1"));
-    stat->on_disconnect("client2", srs_error_new(ERROR_SOCKET_WRITE, "test error 2"));
+    // Simulate some client disconnections with genuine errors to increment nb_errs_.
+    err = srs_error_new(ERROR_SYSTEM_CLIENT_INVALID, "test error 1");
+    stat->on_disconnect("client1", err);
+    srs_freep(err);
+    err = srs_error_new(ERROR_RTMP_HANDSHAKE, "test error 2");
+    stat->on_disconnect("client2", err);
+    srs_freep(err);
 
     // Test dumps_metrics() - major use scenario
     int64_t send_bytes = 0;
@@ -3547,6 +3551,49 @@ VOID TEST(StatisticTest, DumpsMetrics)
 
     // nerrs should be 2 (client1 and client2 disconnected with errors)
     EXPECT_EQ(2, nerrs);
+}
+
+VOID TEST(ReproduceIssue4609, GracefulDisconnectsDoNotIncrementErrors)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    MockExpire conn;
+
+    int graceful_codes[] = {
+        ERROR_SOCKET_READ,
+        ERROR_SOCKET_READ_FULLY,
+        ERROR_SOCKET_WRITE,
+        ERROR_SRT_IO,
+        ERROR_HTTP_STREAM_EOF,
+    };
+    int nb_graceful_codes = sizeof(graceful_codes) / sizeof(int);
+
+    for (int i = 0; i < nb_graceful_codes; i++) {
+        stringstream ss;
+        ss << "client-" << i;
+        string client_id = ss.str();
+        HELPER_EXPECT_SUCCESS(stat->on_client(client_id, req.get(), &conn, SrsRtmpConnPlay));
+
+        srs_error_t graceful_close = srs_error_new(graceful_codes[i], "gracefully closed");
+        EXPECT_TRUE(srs_is_client_gracefully_close(graceful_close) || srs_is_server_gracefully_close(graceful_close));
+        stat->on_disconnect(client_id, graceful_close);
+        srs_freep(graceful_close);
+    }
+
+    int64_t send_bytes = 0;
+    int64_t recv_bytes = 0;
+    int64_t nstreams = 0;
+    int64_t nclients = 0;
+    int64_t total_nclients = 0;
+    int64_t nerrs = 0;
+    HELPER_EXPECT_SUCCESS(stat->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs));
+
+    EXPECT_EQ(0, nclients);
+    EXPECT_EQ(nb_graceful_codes, total_nclients);
+    EXPECT_EQ(0, nerrs);
 }
 
 // Mock ISrsHttpResponseReader implementation for SrsHttpHooks testing
