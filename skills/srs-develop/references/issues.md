@@ -1065,3 +1065,17 @@ HTTP-FLV now uses the first `X-Forwarded-For` address, then `X-Real-IP`, and fin
 ### Conclusion
 
 The confirmed bug is fixed and merged in SRS 8.0.14. Only trusted reverse proxies should be allowed to supply forwarding headers; a configurable trusted-proxy allowlist remains outside this fix.
+
+## #4532 [FEATURE] SCTE-35 forwarding in SRT-to-RTMP
+
+- **Issue:** https://github.com/ossrs/srs/issues/4532
+- **Truth Record:** https://github.com/ossrs/srs/issues/4532#issuecomment-5247905549
+- **Verified:** 2026-08-10
+- **Server source:** `develop` at `1acb366246b43587f4e4ab7d33cfc4c6a1768cf1`
+- **Version:** SRS `8.0.15`
+- **Changes:** None
+- **Closure:** Declined feature; closed as not planned
+
+The supplied MPEG-TS contains H.264, AAC LATM (`0x11`), and SCTE-35 (`0x86`). Current SRS produced H.264-only RTMP in reproduction: it has no SCTE-35 mapping and supports ADTS AAC (`0x0f`), not the sample's LATM audio. The original total-output failure and related 100% CPU claim were not reproduced, although unsupported repeated PMT entries caused warning and parsing overhead.
+
+SRS will not implement or maintain SCTE-35 support or forwarding through RTMP. Preserve SCTE-35 in an MPEG-TS/SRT workflow or process/remove it externally; convert LATM to ADTS AAC when RTMP audio is required.
