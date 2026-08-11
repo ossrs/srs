@@ -1,19 +1,19 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Oryx bug report
+about: Create a report to help us improve Oryx
 title: ''
 labels: bug
 assignees: ''
 
 ---
 
-!!! Before submitting a new bug report, make sure you have asked the [AI](https://github.com/ossrs/srs/blob/develop/skills/internal-docs-for-srs/references/cpp-docs/doc/getting-started-ai.md) about your issue, because we have setup the project with docs for AI, so AI know everything including questions, usage, bugs, features, workflows, etc.
+!!! Before submitting a new bug report, make sure you have asked the [AI](https://github.com/ossrs/srs/blob/develop/skills/internal-docs-for-srs/references/cpp-docs/doc/getting-started-ai.md) about your issue, because we have set up the project with documentation for AI covering questions, usage, bugs, features, and workflows.
 
 **Describe the bug**
 A clear and concise description of what the bug is.
 
 **Version**
-Desribe your SRS Server version here.
+Describe your Oryx version here.
 
 **To Reproduce**
 Steps to reproduce the behavior:
