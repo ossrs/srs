@@ -49,4 +49,4 @@ For a comparison or migration across generations, load both server maps. Add the
 - Add, remove, or rename code modules and trusted files in exactly one server reference.
 - Update the Reference Router when a reference is added, removed, renamed, or changes responsibility.
 - Keep module descriptions concise and focused on ownership, boundaries, and navigation.
-- Keep verification commands and test-suite responsibilities in `references/testing.md`; do not duplicate them in dependent skills.
+- Keep server, protocol, E2E, and benchmark verification commands and test-suite responsibilities in `references/testing.md`; do not duplicate them in dependent skills. Keep service-specific standalone verification in the owning parent skill.

@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, review, maintain, and explain the SRS codebase. Use for planned changes to the next-generation Go server, bug maintenance, issue and pull-request triage, pull-request review, and Learn Code questions about how existing C++ or Go SRS code works, including architecture, control flow, and implementation details. Planned feature development is currently supported only for the Go proxy server; the C++ server is in maintenance mode, and planned Go origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use the srs-support skill for those.
+description: Develop, modify, debug, review, maintain, and explain the SRS codebase. Use for planned changes to the next-generation Go server or SRS browser player, bug maintenance, issue and pull-request triage, pull-request review, and Learn Code questions about how existing C++ or Go SRS code works, including architecture, control flow, and implementation details. Planned feature development is currently supported for the Go proxy server and SRS player; the C++ server is in maintenance mode, and planned Go origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use the srs-support skill for those.
 ---
 
 # SRS Development
@@ -270,6 +270,7 @@ Use this only when verification shows user misuse already covered by the documen
 | Service | Route To | Status |
 |---|---|---|
 | **Proxy server** | → [Proxy Server](#proxy-server) | ✅ Supported |
+| **SRS player** | → [SRS Player](#srs-player) | ✅ Supported |
 | **Origin server** | → [Origin Server](#origin-server) | ❌ Not yet supported |
 | **Edge server** | → [Edge Server](#edge-server) | ❌ Not yet supported |
 
@@ -313,6 +314,23 @@ Only after the user confirms the routing do you proceed to Step 2.
 3. Use `skills/internal-codemap-for-srs/SKILL.md` to route to the testing and verification map.
 4. Run the proxy unit test and every proxy E2E test required by that map, sequentially and without stopping early.
 5. If any test fails, fix the issue and re-run until all required tests pass.
+
+### SRS Player
+
+#### Step 1: Route and Understand
+
+1. Load `skills/internal-codemap-for-srs/SKILL.md`, then use its Reference Router to select the browser publishers and players code map.
+2. Load `skills/internal-docs-for-srs/SKILL.md`, then use its Reference Router to select the smallest relevant documentation set when the router covers the change.
+3. Use the routed descriptions to identify and read only the player files and documentation relevant to the requested change.
+
+#### Step 2: Implement and Verify
+
+1. Implement the player change.
+2. Verify browser player URL generation independently with Node.js; a running SRS server is not required:
+   ```bash
+   node scripts/browser-page-url-test.js
+   ```
+3. If the change also requires server, protocol, E2E, or benchmark verification, use `skills/internal-codemap-for-srs/references/testing.md` to select and run the relevant tests.
 
 ### Origin Server
 
