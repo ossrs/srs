@@ -1,11 +1,11 @@
 ---
 name: internal-docs-for-srs
-description: Route SRS tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, including as a documentation dependency of srs-support and srs-develop. Covers the C++ media server documentation, website pages, changelog, executable API examples, and the next-generation Go server and performance documentation stored under this skill.
+description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, Oryx project documentation, website pages, changelog, executable API examples, and next-generation Go server and performance documentation.
 ---
 
 # SRS Internal Documentation
 
-Route SRS tasks to focused documentation references. The parent skill owns the user-facing task; this skill owns documentation navigation and the bundled SRS project documentation.
+Route SRS and Oryx tasks to focused documentation references. The parent skill owns the user-facing task; this skill owns documentation navigation and the bundled project documentation.
 
 ## Core Rules
 
@@ -21,14 +21,19 @@ Route SRS tasks to focused documentation references. The parent skill owns the u
 
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
+- For Oryx documentation stored in its repository, use exactly `~/git/oryx`. Do not expand this path or search for alternate Oryx roots. If the directory is missing, tell the user to clone `https://github.com/ossrs/oryx`; do not clone it automatically.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
 - Before reporting a routed file as missing, check its fully resolved path directly.
 
 ## Reference Router
 
+### C++ Media Server Releases
+
 For C++ media server tracking and releases, load:
 
 - `trunk/doc/CHANGELOG.md` — Full changelog of all SRS versions, with one entry and version bump for each merged pull request.
+
+### C++ Media Server User Documentation
 
 For C++ media server user documentation, select the smallest relevant document:
 
@@ -37,7 +42,6 @@ For C++ media server user documentation, select the smallest relevant document:
 - `references/cpp-docs/doc/getting-started-ai.md` — SRS Robot, local AI agents, the skills system, and the project knowledge-base philosophy.
 - `references/cpp-docs/doc/getting-started-build.md` — Build SRS from source and cross-build for ARM or MIPS.
 - `references/cpp-docs/doc/getting-started-cdk.md` — Deploy SRS on AWS with srs-cdk.
-- `references/cpp-docs/doc/getting-started-oryx.md` — Deploy and use Oryx, including recording, forwarding, AI subtitles, HTTPS, Docker, Helm, and aaPanel.
 - `references/cpp-docs/doc/rtmp.md` — RTMP usage, Enhanced RTMP, configuration, RTMPS, protocol comparisons, and codec history.
 - `references/cpp-docs/doc/hls.md` — HLS compatibility, latency, segment configuration, HTTPS, and audio transcoding from WebRTC.
 - `references/cpp-docs/doc/webrtc.md` — WHIP/WHEP, SFU architecture, RTMP-to-RTC conversion, TURN/ICE, audio transcoding, and platform usage.
@@ -62,21 +66,54 @@ For C++ media server user documentation, select the smallest relevant document:
 - `references/cpp-docs/doc/performance.md` — UDP tuning, perf, gprof, Valgrind, ASAN, leak detection, and benchmarking methodology.
 - `references/cpp-docs/doc/ffmpeg.md` — FFmpeg transcoding, multi-bitrate output, stream filtering, and per-vhost/app/stream configuration.
 
+### C++ Media Server Website Pages
+
 For C++ media server website pages, select the smallest relevant page:
 
-- `references/cpp-docs/pages/faq-oryx-en.md` — Oryx FAQ covering setup, upgrades, HTTPS, authentication, recording, re-streaming, and FFmpeg replacement.
 - `references/cpp-docs/pages/faq-server-en.md` — SRS server FAQ covering CDN, VoD, common errors, protocol issues, and community support.
 - `references/cpp-docs/pages/license-en.md` — SRS, State Threads, and third-party library licenses.
 - `references/cpp-docs/pages/product-en.md` — Release milestones, codenames, achievements, and product history.
 - `references/cpp-docs/pages/security-advisories-en.md` — Published CVEs, affected versions, patches, and security references.
 
+### Oryx Documentation
+
+For Oryx documentation, select the smallest relevant document:
+
+- `references/cpp-docs/doc/getting-started-oryx.md` — Oryx overview, deployment, comparison with SRS, authentication, recording, forwarding, virtual live, transcoding, AI features, OpenAPI, and HTTP callbacks.
+- `references/cpp-docs/pages/faq-oryx-en.md` — Oryx setup, upgrades, HTTPS, authentication, recording, re-streaming, storage, and common operational questions.
+- `~/git/oryx/README.md` — Oryx overview, Docker deployment, ports, persistent `/data` layout, environment variables, features, and dependencies.
+- `~/git/oryx/DEVELOPER.md` — Oryx OpenAPI, environment variables, ports, deployment variants, development workflows, testing, and changelog.
+- `trunk/3rdparty/srs-docs/blog/2022-04-09-Oryx-Tutorial.md` — One-click, Docker, Lightsail, and DigitalOcean deployment, plus RTMP, WebRTC, and SRT getting started.
+- `trunk/3rdparty/srs-docs/blog/2022-04-12-Oryx-HTTPS.md` — DNS, automatic HTTPS, Let's Encrypt, and certificate renewal.
+- `trunk/3rdparty/srs-docs/blog/2022-04-15-Oryx-WordPress-Plugin.md` — Embed HLS, HTTP-FLV, and WebRTC streams in WordPress.
+- `trunk/3rdparty/srs-docs/blog/2022-04-29-BT-aaPanel.md` — Install and operate Oryx through aaPanel.
+- `trunk/3rdparty/srs-docs/blog/2023-08-29-Oryx-Ensuring-Authentication-for-Live-Streaming-Publishing.md` — Global publish-secret authentication and its limitations.
+- `trunk/3rdparty/srs-docs/blog/2023-09-09-Oryx-Multi-Platform-Streaming.md` — Restream to YouTube, Twitch, and Facebook.
+- `trunk/3rdparty/srs-docs/blog/2023-09-10-Oryx-Record-Live-Streaming.md` — Server-side recording, MP4 generation, filters, and storage.
+- `trunk/3rdparty/srs-docs/blog/2023-09-11-Oryx-Virtual-Live-Events.md` — Publish prerecorded files as live streams.
+- `trunk/3rdparty/srs-docs/blog/2023-10-11-Oryx-Stream-IP-Camera-Events.md` — Pull RTSP cameras and forward them to streaming platforms.
+- `trunk/3rdparty/srs-docs/blog/2023-10-21-Oryx-Live-Transcoding.md` — FFmpeg-based bitrate and resolution transcoding.
+- `trunk/3rdparty/srs-docs/blog/2023-11-28-Oryx-Live-Streams-Transcription.md` — Whisper transcription, embedded subtitles, and WebVTT.
+- `trunk/3rdparty/srs-docs/blog/2023-12-12-Oryx-OBS-WHIP-Service.md` — Publish WHIP from OBS and play through WHEP.
+- `trunk/3rdparty/srs-docs/blog/2024-01-31-Browser-Voice-Driven-GPT.md` — Browser voice assistant, live rooms, language coaching, and translation.
+- `trunk/3rdparty/srs-docs/blog/2024-02-21-Dubbing-Translating.md` — Video translation, ASR, TTS, segment editing, and export.
+- `trunk/3rdparty/srs-docs/blog/2024-05-20-OCR-Video-Streams.md` — Live-stream OCR, configurable AI instructions, and callbacks.
+
+For Oryx, prefer the getting-started guide, FAQ, and repository documentation. Treat dated blogs as scenario-specific guidance. If commands, UI labels, tooling, or behavior differ, prefer documentation matching the user's Oryx version.
+
+### RTMP Go API Examples
+
 For RTMP Go API examples, load:
 
 - `internal/rtmp/example_test.go` — RTMP API examples for AMF0, handshake, and protocol workflows.
 
+### WHEP Performance Analysis
+
 For WHEP performance analysis, load:
 
 - `references/perf/proxy-whep.md` — Profile WHEP with pprof and srs-bench and compare CPU, allocation, heap, goroutine, and trace data.
+
+### Next-Generation Go Proxy Documentation
 
 For next-generation Go proxy documentation, select the smallest relevant document:
 
