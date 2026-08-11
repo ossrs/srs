@@ -29,9 +29,9 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 Apply these rules whenever a task produces a commit:
 
 - Identify the owning repository before inspecting or committing staged changes. Use the current repository for SRS and skills, `git -C ~/git/oryx` for Oryx, and `git -C ~/git/dev-docker` for Dev Docker.
-- Never run `git add`; William stages the files he approves.
-- Never run `git push`; William pushes the branch.
-- Commit only when William explicitly asks.
+- Never run `git add`; the user stages the files they approve.
+- Never run `git push`; the user pushes the branch.
+- Commit only when the user explicitly asks.
 - Before committing, run the owning repository's staged diff, understand every staged change, and write an appropriate title and description. Do not include staged changes from another repository in the same commit.
 - Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, or `Codex:`.
 - If Claude made changes, use this exact commit message format:
