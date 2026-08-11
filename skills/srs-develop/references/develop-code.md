@@ -2,7 +2,7 @@
 
 **Prerequisite:** Use this workflow only after the Task Router in `skills/srs-develop/SKILL.md` selects **Develop Code**. Do not execute it directly.
 
-**Scope:** This task covers any planned code or documentation change — adding new features, modifying existing functionality, refactoring code, and updating documentation.
+**Scope:** This task covers any planned SRS or Oryx code or documentation change — adding features, modifying functionality, refactoring code, changing packaging, and updating project or skill documentation.
 
 **Important:** The C++ media server (origin + edge) is in **maintenance mode** — only bug fixes are accepted, no new features. New server features belong in the next-generation Go server. The SRS player and Dev Docker have separate supported workflows below. You may reference the C++ server's code to understand how things were done before, but do not add features to it.
 
@@ -13,6 +13,8 @@
 | **Proxy server** | → [Proxy Server](#proxy-server) | ✅ Supported |
 | **SRS player** | → [SRS Player](#srs-player) | ✅ Supported |
 | **Dev Docker** | → [Dev Docker](#dev-docker) | ✅ Supported |
+| **Oryx** | → [Oryx](#oryx) | ✅ Supported |
+| **Project or skill documentation** | → [Project or Skill Documentation](#project-or-skill-documentation) | ✅ Supported |
 | **Origin server** | → [Origin Server](#origin-server) | ❌ Not yet supported |
 | **Edge server** | → [Edge Server](#edge-server) | ❌ Not yet supported |
 
@@ -142,6 +144,42 @@ Dev Docker is maintained in the separate `ossrs/dev-docker` repository. Its long
 4. Run an issue-specific media or protocol reproduction when the dependency change fixes behavior; a successful image build and version command are not sufficient.
 5. Verify every affected architecture when the change can vary across amd64, arm64, or armv7. If required Docker, Buildx, registry, or architecture verification is unavailable, report the exact unverified scope rather than claiming success.
 6. Do not push images or Git branches. Stop for user review and staging in each modified repository.
+
+## Oryx
+
+Oryx is maintained in the separate `ossrs/oryx` repository. It combines a Go platform backend, React dashboard, SRS, Redis, NGINX, FFmpeg workers, Docker packaging, installers, release automation, and black-box tests. Route to the owning feature before reading code.
+
+### Step 1: Route the Product Area (MANDATORY)
+
+1. Check `~/git/oryx` directly. If it does not exist, stop and ask the user to clone `https://github.com/ossrs/oryx` into `~/git/oryx`.
+2. Keep the SRS repository as the current working directory. Use `git -C ~/git/oryx ...` for Oryx Git operations and do not expand the configured path.
+3. Inspect the status, branch, commit, and remotes of both repositories. Do not overwrite unrelated work or switch a dirty Oryx worktree.
+4. Load `skills/internal-codemap-for-srs/SKILL.md`, route to `references/oryx.md`, and identify the smallest responsible backend, UI, runtime, packaging, installer, release, and test slice.
+5. Load `skills/internal-docs-for-srs/SKILL.md` and select the smallest relevant Oryx documentation set. Prefer version-matched repository documentation over dated scenario blogs.
+6. Present the selected Oryx files, documents, product boundaries, and proposed verification to the user. Ask for confirmation before editing.
+
+### Step 2: Understand the Oryx Path
+
+1. Read the confirmed documents for intended behavior and constraints.
+2. Read only the confirmed source files. Trace the narrowest path from dashboard or OpenAPI input through the Go handler and worker to Redis, SRS, FFmpeg, files, or external services as relevant.
+3. When the task crosses into standalone SRS, load only the responsible SRS code map. Do not treat Oryx-generated SRS configuration as standalone SRS ownership.
+4. Identify persistent `/data` state, secrets, external APIs, long-running workers, and generated configuration affected by the change.
+
+### Step 3: Implement the Confirmed Change
+
+1. Make the smallest change in `~/git/oryx` and add focused regression coverage.
+2. Keep backend JSON fields, OpenAPI behavior, React consumers, locale strings, and feature status views consistent when the change crosses those surfaces.
+3. Do not edit vendored dependencies, compiled UI output, generated binaries, symlinked runtime directories, or `platform/containers/data/` state unless the confirmed task explicitly owns them.
+4. Never expose administrator passwords, publish secrets, Bearer tokens, OpenAI keys, destination stream keys, or cloud credentials in source, tests, logs, or fixtures.
+
+### Step 4: Verify
+
+1. Run `git -C ~/git/oryx diff --check` and inspect the complete Oryx diff.
+2. Follow `skills/internal-codemap-for-srs/references/oryx.md` to run the smallest applicable Go, React, shell, Python, release-service, image, or integration verification.
+3. Run black-box tests only against an explicitly disposable Oryx instance. Start with one selected `-run` case before widening scope.
+4. Do not request real certificates, call OpenAI or cloud services, publish images, create releases, modify DNS, or use production stream keys unless the user explicitly authorizes that external effect.
+5. If full Docker, media, browser, installer, or external-service verification is unavailable, report the exact unverified scope. Do not claim success from compilation alone.
+6. Do not stage, commit, push, or publish. Stop for user review and staging.
 
 ## Origin Server
 

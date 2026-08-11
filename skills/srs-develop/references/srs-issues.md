@@ -1,6 +1,6 @@
-# Issue Truth Records
+# SRS Issue Truth Records
 
-Record only verified maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion.
+Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
 ## #4697 [ENHANCEMENT] RTC audio pause/resume compatibility
 
