@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-10, Merge [#4712](https://github.com/ossrs/srs/pull/4712): Codex: Fix graceful disconnect client error metrics and update issue records. v8.0.15 (#4712)
 * v8.0, 2026-08-10, Merge [#4711](https://github.com/ossrs/srs/pull/4711): Codex: Preserve forwarded HTTP-FLV client IP behind a reverse proxy. v8.0.14 (#4711)
 * v8.0, 2026-08-10, Merge [#4708](https://github.com/ossrs/srs/pull/4708): Codex: Fix duplicated RTMP HTTP callback parameters. v8.0.13 (#4708)
 * v8.0, 2026-08-09, Merge [#4706](https://github.com/ossrs/srs/pull/4706): RTC2RTMP: Deduplicate AVC and HEVC sequence headers. v8.0.12 (#4706)

@@ -967,6 +967,30 @@ RTC-to-RTMP conversion is disabled by default. Use `conf/rtc2rtmp.conf` or enabl
 
 The configuration exposed GB28181 media port 9000 as UDP instead of TCP, used an unreachable hard-coded candidate, and omitted the final vhost brace; current SRS also requires an external SIP server.
 
+## #4609 [BUG] Graceful disconnects inflated client error metrics
+
+- Issue: https://github.com/ossrs/srs/issues/4609
+- Truth Record: https://github.com/ossrs/srs/issues/4609#issuecomment-5247423361
+- Verified: 2026-08-10
+- Branch: `forge`, synchronized with `winlin/develop`
+- Commit: `aff1e7d2b4457fc13a61e65e7b1dbec3c4f95afb`
+- Version: SRS `8.0.14`; reproduced on SRS `6.0.185`
+- Status: Fixed and tested on `winlin/develop`; not yet merged into `ossrs/srs:develop` or released
+
+**Confirmed bug**
+
+`SrsStatistic::on_disconnect()` counted every nonzero disconnect code as an error before the connection lifecycle classified graceful termination. This incorrectly increased `srs_clients_errs_total` for `ERROR_SOCKET_READ`, `ERROR_SOCKET_READ_FULLY`, `ERROR_SOCKET_WRITE`, `ERROR_SRT_IO`, and `ERROR_HTTP_STREAM_EOF`.
+
+The fix excludes existing client- and server-graceful-close classifications while preserving genuine error counting. The regression test covers all five codes, and the final ASAN run passed 2249 tests from 291 suites. Runtime verification confirmed that normal RTMP player exits no longer increase `srs_clients_errs_total`.
+
+**Unconfirmed claim**
+
+The reported historical-maximum behavior of `srs_clients` was not reproduced; controlled tests returned it to the active-client count. Falling `srs_clients_total` values in the issue graph cannot originate from one uninterrupted verified SRS process and may involve restarts, multiple targets, or time-series configuration.
+
+**Next action**
+
+Merge the fix into `ossrs/srs:develop` and release it. If the `srs_clients` anomaly persists, collect the exact image digest, raw `/metrics`, PID/build samples, and Prometheus target and relabeling configuration.
+
 ## #4611 [BUG] HTTP-FLV on-demand playback regression
 
 - **Issue:** https://github.com/ossrs/srs/issues/4611
