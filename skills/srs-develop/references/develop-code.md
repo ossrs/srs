@@ -179,7 +179,6 @@ Oryx is maintained in the separate `ossrs/oryx` repository. It combines a Go pla
 3. Run black-box tests only against an explicitly disposable Oryx instance. Start with one selected `-run` case before widening scope.
 4. Do not request real certificates, call OpenAI or cloud services, publish images, create releases, modify DNS, or use production stream keys unless the user explicitly authorizes that external effect.
 5. If full Docker, media, browser, installer, or external-service verification is unavailable, report the exact unverified scope. Do not claim success from compilation alone.
-6. Do not stage, commit, push, or publish. Stop for user review and staging.
 
 ## Origin Server
 
