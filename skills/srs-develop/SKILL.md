@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, review, maintain, and explain the SRS codebase. Use for planned changes to the next-generation Go server, bug maintenance, issue triage, pull-request review, and Learn Code questions about how existing C++ or Go SRS code works, including architecture, control flow, and implementation details. Planned feature development is currently supported only for the Go proxy server; the C++ server is in maintenance mode, and planned Go origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use the srs-support skill for those.
+description: Develop, modify, debug, review, maintain, and explain the SRS codebase. Use for planned changes to the next-generation Go server, bug maintenance, issue and pull-request triage, pull-request review, and Learn Code questions about how existing C++ or Go SRS code works, including architecture, control flow, and implementation details. Planned feature development is currently supported only for the Go proxy server; the C++ server is in maintenance mode, and planned Go origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use the srs-support skill for those.
 ---
 
 # SRS Development
@@ -64,6 +64,7 @@ Route the user's request to exactly ONE task type. Follow that task only. Do not
 |---|---|---|---|
 | **Develop Code** | User wants to add, modify, refactor code, or update docs — any planned change | → [Develop Code](#task-develop-code) | ✅ Supported |
 | **Scan Issues** | User wants recent issues needing maintainer attention | → [Scan Issues](#task-scan-issues) | ✅ Supported |
+| **Scan PRs** | User wants recent pull requests needing maintainer attention | → [Scan PRs](#task-scan-prs) | ✅ Supported |
 | **Fix a Bug** | User reports something broken, unexpected behavior, or an error | → [Fix a Bug](#task-fix-a-bug) | ✅ Supported |
 | **Learn Code** | User wants to understand how code works — no changes intended | → [Learn Code](#task-learn-code) | ✅ Supported |
 | **Review a PR** | User wants to review an existing pull request | → [Review a PR](#task-review-a-pr) | ✅ Supported |
@@ -87,6 +88,21 @@ Do NOT attempt unsupported tasks.
 4. Continue until the requested count (default five). Return each issue link, status, latest meaningful activity, and one-line reason.
 
 Do not modify issues or create Truth Records.
+
+---
+
+## Task: Scan PRs
+
+**Prerequisite:** Arrive here via the [Task Router](#task-router).
+
+1. Scan open pull requests by GitHub `updated_at`, newest first; do not rely on labels, review state, or the author's summary.
+2. For each pull request, read the complete body, commit history, code diff, comments, reviews and review threads, and checks. Inspect the relevant current code and documentation needed to understand the change and verify its claims.
+3. Assess the pull request from that complete current state. Look for correctness problems, regressions, compatibility impact, missing tests or documentation, unresolved feedback, and failing or incomplete checks.
+4. Continue until the requested count (default five). Return each pull request link, change summary, latest meaningful activity, checks and review state, findings, and one-line reason it needs maintainer attention.
+
+Pull requests have no Truth Record. Do not invent one or treat any comment, review, or summary as authoritative; reconcile every source with the code change and current project state.
+
+Do not modify, comment on, or submit reviews for pull requests.
 
 ---
 
