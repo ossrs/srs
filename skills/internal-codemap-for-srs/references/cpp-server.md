@@ -153,9 +153,9 @@ Edge/Forward/Bridge:
 - `app_stream_bridge` — Bridge between sources (RTMP↔RTC↔SRT)
 
 Ingest/Transcode:
-- `app_ingest` — Ingest: pull external streams via FFmpeg
-- `app_encoder` — Transcode: FFmpeg transcoding management
-- `app_ffmpeg` — FFmpeg process wrapper
+- `app_ingest` — Ingest: pull external streams through an external FFmpeg-compatible binary
+- `app_encoder` — Transcode: configure and supervise external FFmpeg transcoding jobs
+- `app_ffmpeg` — Translate SRS ingest/transcode configuration into FFmpeg CLI arguments
 
 Utilities:
 - `app_security` — Security: allow/deny rules for publish/play
@@ -200,6 +200,15 @@ State Threads (`trunk/3rdparty/st-srs/`) is the coroutine library used by the C+
 - `public.h` — Public API
 - `md.h` — Platform detection and context switch macros
 - `md_linux.S`, `md_linux2.S`, `md_darwin.S`, `md_cygwin64.S` — Assembly context switch per platform
+
+## FFmpeg Integration Paths
+
+The C++ server uses FFmpeg through two independent paths; do not treat the executable and the linked libraries as one dependency:
+
+- **In-process FFmpeg API** — `app_rtc_codec` calls `libavcodec`, `libswresample`, and `libavutil` directly for packet-level AAC/MP3/Opus audio conversion in the RTMP-to-RTC and RTC-to-RTMP bridges. This path is compiled under `SRS_FFMPEG_FIT`, normally links the pruned `trunk/3rdparty/ffmpeg-4-fit/` libraries into `objs/srs`, and does not start an FFmpeg process. Follow `app_rtc_source` for bridge ownership and `app_rtc_codec` for decode, resample, FIFO, encode, and FFmpeg log handling.
+- **External FFmpeg binary** — `app_ingest` and `app_encoder` create `app_ffmpeg`, which builds CLI arguments and delegates to `app_process` to `fork()` and `execv()` the configured executable. This path handles general ingest, video/audio transcoding, filters, snapshots, containers, and protocols supported by that executable; media normally enters or leaves SRS through configured URLs rather than in-process frames. A normal SRS source build finds the host `ffmpeg` with `which` and copies it to `objs/ffmpeg/bin/ffmpeg`; it does not build the full CLI from `ffmpeg-4-fit`. For the FFmpeg versions compiled by the Docker toolchain, default-binary selection, and packaging into release images, route separately to the [Dev Docker map](dev-docker.md).
+
+The similarly named output paths have different roles: `objs/ffmpeg/lib/` and its headers support the linked API, while `objs/ffmpeg/bin/ffmpeg` is the independently executable CLI. Use `trunk/auto/depends.sh` to trace both source-build dependency paths.
 
 ## FFmpeg Fit Code
 
