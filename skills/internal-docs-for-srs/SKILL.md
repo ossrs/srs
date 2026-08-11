@@ -1,6 +1,6 @@
 ---
 name: internal-docs-for-srs
-description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, Oryx project documentation, website pages, changelog, executable API examples, and next-generation Go server and performance documentation.
+description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, Oryx project documentation, website pages, changelog, executable API examples, and next-generation Go server and performance documentation.
 ---
 
 # SRS Internal Documentation
@@ -80,7 +80,7 @@ For C++ media server website pages, select the smallest relevant page:
 For Oryx documentation, select the smallest relevant document:
 
 - `references/cpp-docs/doc/getting-started-oryx.md` — Oryx overview, deployment, comparison with SRS, authentication, recording, forwarding, virtual live, transcoding, AI features, OpenAPI, and HTTP callbacks.
-- `references/cpp-docs/pages/faq-oryx-en.md` — Oryx setup, upgrades, HTTPS, authentication, recording, re-streaming, storage, and common operational questions.
+- `references/cpp-docs/pages/faq-oryx-en.md` — Oryx setup, upgrades, HTTPS, authentication, recording to local disk or S3-compatible cloud storage, re-streaming, and common operational questions.
 - `~/git/oryx/README.md` — Oryx overview, Docker deployment, ports, persistent `/data` layout, environment variables, features, and dependencies.
 - `~/git/oryx/DEVELOPER.md` — Oryx OpenAPI, environment variables, ports, deployment variants, development workflows, testing, and changelog.
 - `trunk/3rdparty/srs-docs/blog/2022-04-09-Oryx-Tutorial.md` — One-click, Docker, Lightsail, and DigitalOcean deployment, plus RTMP, WebRTC, and SRT getting started.
@@ -89,7 +89,7 @@ For Oryx documentation, select the smallest relevant document:
 - `trunk/3rdparty/srs-docs/blog/2022-04-29-BT-aaPanel.md` — Install and operate Oryx through aaPanel.
 - `trunk/3rdparty/srs-docs/blog/2023-08-29-Oryx-Ensuring-Authentication-for-Live-Streaming-Publishing.md` — Global publish-secret authentication and its limitations.
 - `trunk/3rdparty/srs-docs/blog/2023-09-09-Oryx-Multi-Platform-Streaming.md` — Restream to YouTube, Twitch, and Facebook.
-- `trunk/3rdparty/srs-docs/blog/2023-09-10-Oryx-Record-Live-Streaming.md` — Server-side recording, MP4 generation, filters, and storage.
+- `trunk/3rdparty/srs-docs/blog/2023-09-10-Oryx-Record-Live-Streaming.md` — Server-side recording, MP4 generation, filters, and local or S3-compatible cloud storage.
 - `trunk/3rdparty/srs-docs/blog/2023-09-11-Oryx-Virtual-Live-Events.md` — Publish prerecorded files as live streams.
 - `trunk/3rdparty/srs-docs/blog/2023-10-11-Oryx-Stream-IP-Camera-Events.md` — Pull RTSP cameras and forward them to streaming platforms.
 - `trunk/3rdparty/srs-docs/blog/2023-10-21-Oryx-Live-Transcoding.md` — FFmpeg-based bitrate and resolution transcoding.

@@ -197,13 +197,20 @@ Treat Oryx as its own product. Do not translate an Oryx dashboard workflow into 
 
 ### Step 2: Load Knowledge
 
-Use documentation rather than the SRS overview as the Oryx knowledge path:
+Load knowledge in layers and stop when there is enough information.
 
+**Layer 1 — Always load:**
+- `references/oryx-overview.md` — Oryx overview, features, deployment, operation, and troubleshooting.
+
+**Layer 2 — Load relevant Oryx documentation:**
 1. Load `skills/internal-docs-for-srs/SKILL.md`.
 2. Use its **Oryx Documentation** subsection to select the smallest relevant document.
 3. Prefer the getting-started guide, FAQ, and repository documentation.
 4. Treat dated blogs as scenario-specific guidance. Prefer documentation matching the user's Oryx version when commands, UI labels, or behavior differ.
-5. Do not load `references/srs-overview.md` unless the question explicitly depends on underlying SRS behavior. If it does, handle that part separately through the SRS workflow.
+
+**Layer 3 — Source-code boundary:**
+- Do not inspect Oryx source code under this support skill.
+- If the question explicitly depends on underlying SRS behavior, handle that part separately through the SRS workflow rather than loading `references/srs-overview.md` into the Oryx workflow.
 
 ### Step 3: Answer by Topic
 
