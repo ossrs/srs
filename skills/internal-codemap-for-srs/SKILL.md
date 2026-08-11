@@ -31,7 +31,7 @@ Route code work to focused codebase maps. The parent skill owns the user-facing 
 | C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, media processing, or State Threads | `references/cpp-server.md` |
 | Next-generation Go server | The task concerns the Go proxy, future Go origin or edge services, `cmd/`, or `internal/` | `references/go-server.md` |
 | Browser publishers and players | The task concerns browser publishing or playback with WHIP, WHEP, HTTP-FLV, or HLS, including code under `trunk/research/players/` | `references/browser-clients.md` |
-| Testing and verification | The task requires choosing or running unit, black-box, E2E, proxy, reproduction, or benchmark verification | `references/testing.md` |
+| Testing and verification | The task requires choosing or running C++ unit, black-box, E2E, reproduction, or benchmark verification | `references/testing.md` |
 
 For a comparison or migration across generations, load both server maps. Add the testing reference only when verification is required.
 
@@ -49,4 +49,4 @@ For a comparison or migration across generations, load both server maps. Add the
 - Add, remove, or rename code modules and trusted files in exactly one server reference.
 - Update the Reference Router when a reference is added, removed, renamed, or changes responsibility.
 - Keep module descriptions concise and focused on ownership, boundaries, and navigation.
-- Keep server, protocol, E2E, and benchmark verification commands and test-suite responsibilities in `references/testing.md`; do not duplicate them in dependent skills. Keep service-specific standalone verification in the owning parent skill.
+- Keep repository-native C++ server, protocol, E2E, and benchmark verification in `references/testing.md`. Keep verification scripts bundled with a parent skill in that owning skill; do not duplicate them here.

@@ -311,9 +311,42 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    make generate
    ```
-3. Use `skills/internal-codemap-for-srs/SKILL.md` to route to the testing and verification map.
-4. Run the proxy unit test and every proxy E2E test required by that map, sequentially and without stopping early.
-5. If any test fails, fix the issue and re-run until all required tests pass.
+3. Run the unit test first, then every E2E test below in order. The E2E scripts bind fixed ports, so run them sequentially. Do not stop after an early success or failure; record every result, fix failures, and repeat until all required tests pass.
+
+   1. Go proxy unit tests with coverage:
+      ```bash
+      bash scripts/proxy-utest.sh --coverage
+      ```
+   2. Single-origin RTMP proxy:
+      ```bash
+      bash scripts/proxy-e2e-test.sh
+      ```
+   3. Multi-origin memory load-balancer routing:
+      ```bash
+      bash scripts/proxy-e2e-cluster-test.sh
+      ```
+   4. Proxy, SRS edge, and SRS origin three-tier topology with a late-joining player:
+      ```bash
+      bash scripts/proxy-e2e-edge-test.sh
+      ```
+   5. Redis multi-proxy routing:
+      ```bash
+      bash scripts/proxy-e2e-redis-test.sh
+      ```
+   6. RTMP publish with RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
+      ```bash
+      bash scripts/proxy-e2e-transmux-test.sh
+      ```
+   7. SRT publish with SRT, RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
+      ```bash
+      bash scripts/proxy-e2e-srt-test.sh
+      ```
+   8. WHIP publish with RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
+      ```bash
+      bash scripts/proxy-e2e-whip-test.sh
+      ```
+
+   The SRT test requires an FFmpeg build with libsrt. The WHIP test requires the `whip` muxer and OpenSSL. Both scripts automatically run `scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available.
 
 ### SRS Player
 
