@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, review, maintain, and explain the SRS codebase. Use for planned changes to the next-generation Go server or SRS browser player, bug maintenance, issue and pull-request triage, pull-request review, and Learn Code questions about how existing C++ or Go SRS code works, including architecture, control flow, and implementation details. Planned feature development is currently supported for the Go proxy server and SRS player; the C++ server is in maintenance mode, and planned Go origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use the srs-support skill for those.
+description: Develop, modify, debug, review, maintain, and explain the SRS codebase and Docker image toolchain. Use for planned changes to the next-generation Go server, SRS browser player, or ossrs/dev-docker images; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions about how existing C++, Go, browser, or Docker build code works. Planned development is currently supported for the Go proxy server, SRS player, and Dev Docker; the C++ server is in maintenance mode, and planned Go origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use the srs-support skill for those.
 ---
 
 # SRS Development
@@ -17,6 +17,7 @@ description: Develop, modify, debug, review, maintain, and explain the SRS codeb
 ## Path Resolution
 
 - Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
+- For the Dev Docker service only, use the configured `~/git/dev-docker` checkout through `git -C` while keeping the current working directory unchanged. If it does not exist, ask the user to clone `https://github.com/ossrs/dev-docker` into that exact path; do not clone it automatically or search for another checkout.
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
@@ -263,14 +264,15 @@ Use this only when verification shows user misuse already covered by the documen
 
 **Scope:** This task covers any planned code or documentation change — adding new features, modifying existing functionality, refactoring code, and updating documentation.
 
-**Important:** The C++ media server (origin + edge) is in **maintenance mode** — only bug fixes are accepted, no new features. All new feature development happens in the **next-generation Go server**. You may reference the C++ server's code to understand how things were done before, but do not add features to it.
+**Important:** The C++ media server (origin + edge) is in **maintenance mode** — only bug fixes are accepted, no new features. New server features belong in the next-generation Go server. The SRS player and Dev Docker have separate supported workflows below. You may reference the C++ server's code to understand how things were done before, but do not add features to it.
 
-**Service Router** — Determine which Go service the feature targets. Route to exactly ONE service. Do not guess — if unclear, ask the user to clarify.
+**Service Router** — Determine which service or product the change targets. Route to exactly ONE service. Do not guess — if unclear, ask the user to clarify.
 
 | Service | Route To | Status |
 |---|---|---|
 | **Proxy server** | → [Proxy Server](#proxy-server) | ✅ Supported |
 | **SRS player** | → [SRS Player](#srs-player) | ✅ Supported |
+| **Dev Docker** | → [Dev Docker](#dev-docker) | ✅ Supported |
 | **Origin server** | → [Origin Server](#origin-server) | ❌ Not yet supported |
 | **Edge server** | → [Edge Server](#edge-server) | ❌ Not yet supported |
 
@@ -364,6 +366,42 @@ Only after the user confirms the routing do you proceed to Step 2.
    node scripts/browser-page-url-test.js
    ```
 3. If the change also requires server, protocol, E2E, or benchmark verification, use `skills/internal-codemap-for-srs/references/testing.md` to select and run the relevant tests.
+
+### Dev Docker
+
+Dev Docker is maintained in the separate `ossrs/dev-docker` repository. Its long-lived branches independently define base, cache, cross-build, compatibility, and specialized images, so route to the owning branch before reading or changing files.
+
+#### Step 1: Route the Branch and Files (MANDATORY)
+
+1. Load `skills/internal-codemap-for-srs/SKILL.md`, route to the SRS Docker build images map, and read `skills/internal-codemap-for-srs/references/dev-docker.md`.
+2. Check `~/git/dev-docker` directly. If it does not exist, stop and ask the user to clone `https://github.com/ossrs/dev-docker` into `~/git/dev-docker`.
+3. Keep the SRS repository as the current working directory. Use `git -C ~/git/dev-docker ...` for every Dev Docker Git operation.
+4. Check the status, current branch, commit, and remote branches of both repositories. Do not switch a dirty Dev Docker worktree or overwrite unrelated changes.
+5. Identify the single owning branch, smallest relevant Dockerfile or workflow set, produced image tags and platforms, parent layers, and downstream SRS or cache images affected by the change.
+6. Present that routing and dependency impact to the user and ask for confirmation. Do not edit Dev Docker before confirmation.
+
+#### Step 2: Understand the Image Path
+
+1. Read only the confirmed branch files. When the branch is not checked out, inspect it with `git show origin/<branch>:<path>` rather than switching merely to read it.
+2. Trace the image from its parent `FROM` layer through dependency installation, named tool binaries, aggregation or default symlinks, and `.github/workflows/release.yml` publication jobs.
+3. When the tool is packaged into an SRS release image, also inspect the SRS root `Dockerfile` and confirm the exact source binary copied into `objs/ffmpeg/bin/` or another runtime location.
+4. Record the vendored archive, version, build options, target architectures, image tags, cache consumers, and compatibility constraints relevant to the requested change.
+
+#### Step 3: Implement the Confirmed Change
+
+1. Switch to or create the confirmed Dev Docker branch only after verifying its worktree is clean. Keep the shell working directory unchanged and use `git -C`.
+2. Make the smallest dependency-layer, archive, aggregation, workflow, cache, or specialized-image change required. Do not update compatibility branches unless they are explicitly in scope.
+3. When changing a dependency version, keep the referenced vendored archive, Dockerfile version, named binaries, default selection, and workflow layer graph consistent.
+4. Update downstream cache branches or the SRS root `Dockerfile` only when the confirmed dependency path requires it.
+
+#### Step 4: Verify
+
+1. Run `git diff --check` and inspect the complete diffs in every modified repository.
+2. Follow `skills/internal-codemap-for-srs/references/dev-docker.md` to build the smallest changed image layer, then the aggregate and final consumer images required by the dependency graph.
+3. Verify the actual packaged binary and version inside the final image, not only the intermediate build layer.
+4. Run an issue-specific media or protocol reproduction when the dependency change fixes behavior; a successful image build and version command are not sufficient.
+5. Verify every affected architecture when the change can vary across amd64, arm64, or armv7. If required Docker, Buildx, registry, or architecture verification is unavailable, report the exact unverified scope rather than claiming success.
+6. Do not push images or Git branches. Stop for user review and staging in each modified repository.
 
 ### Origin Server
 

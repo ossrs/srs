@@ -1,6 +1,6 @@
 ---
 name: internal-codemap-for-srs
-description: Route SRS code tasks to the smallest relevant trusted codebase map and verification guidance. Use whenever support, development, debugging, review, or maintenance work requires locating, choosing, reading, modifying, testing, or verifying SRS code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, browser publishers and players for WHIP, WHEP, HTTP-FLV, and HLS, and the test, E2E, and benchmark structure. Use as the code-navigation dependency of srs-support and srs-develop; the parent skill remains responsible for the user-facing workflow and result.
+description: Route SRS code tasks to the smallest relevant trusted codebase map and verification guidance. Use whenever support, development, debugging, review, or maintenance work requires locating, choosing, reading, modifying, testing, or verifying SRS code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, browser publishers and players for WHIP, WHEP, HTTP-FLV, and HLS, the SRS Docker image toolchain, and the test, E2E, and benchmark structure. Use as the code-navigation dependency of srs-support and srs-develop; the parent skill remains responsible for the user-facing workflow and result.
 ---
 
 # SRS Internal Code Map
@@ -10,6 +10,7 @@ Route code work to focused codebase maps. The parent skill owns the user-facing 
 ## Core Rules
 
 - Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
+- The SRS Docker image route is the only external-repository exception. Use its configured `~/git/dev-docker` checkout through `git -C`; do not change the current working directory or search for another checkout.
 - Use the Reference Router before reading, searching, or modifying code, configuration, tests, or verification scripts.
 - Treat only files and module directories listed by the selected reference as trusted navigation scope.
 - Never grep the repository root or broad trees such as `trunk/src/`, `cmd/`, or `internal/`.
@@ -21,6 +22,7 @@ Route code work to focused codebase maps. The parent skill owns the user-facing 
 
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
+- Resolve files selected by `references/dev-docker.md` in the configured `~/git/dev-docker` checkout while keeping the current working directory unchanged.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
 - Before reporting a routed file as missing, check its fully resolved path directly.
 
@@ -31,13 +33,14 @@ Route code work to focused codebase maps. The parent skill owns the user-facing 
 | C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, media processing, or State Threads | `references/cpp-server.md` |
 | Next-generation Go server | The task concerns the Go proxy, future Go origin or edge services, `cmd/`, or `internal/` | `references/go-server.md` |
 | Browser publishers and players | The task concerns browser publishing or playback with WHIP, WHEP, HTTP-FLV, or HLS, including code under `trunk/research/players/` | `references/browser-clients.md` |
+| SRS Docker build images | The task concerns `ossrs/dev-docker`, Docker dependency or cache images, packaged FFmpeg and other build tools, image branches, or how the SRS release image receives those tools | `references/dev-docker.md` |
 | Testing and verification | The task requires choosing or running C++ unit, black-box, E2E, reproduction, or benchmark verification | `references/testing.md` |
 
 For a comparison or migration across generations, load both server maps. Add the testing reference only when verification is required.
 
 ## Workflow
 
-1. Classify the request as C++ media server, next-generation Go server, browser publishers and players, testing and verification, or an explicit combination.
+1. Classify the request as C++ media server, next-generation Go server, browser publishers and players, SRS Docker build images, testing and verification, or an explicit combination.
 2. If the server generation is unclear and choosing incorrectly could change the result, ask the user to clarify. Do not guess.
 3. Resolve the selected path according to [Path Resolution](#path-resolution), then load the reference file or files.
 4. Use their descriptions to identify the responsible module and the smallest relevant file set.
