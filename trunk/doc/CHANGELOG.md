@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-08-10, Merge [#4713](https://github.com/ossrs/srs/pull/4713): Codex: Do not count graceful disconnects as client errors. v7.0.157 (#4713)
 * v7.0, 2026-08-10, Merge [#4708](https://github.com/ossrs/srs/pull/4708): Codex: Fix duplicated RTMP HTTP callback parameters. v7.0.156 (#4708)
 * v7.0, 2026-08-09, Merge [#4706](https://github.com/ossrs/srs/pull/4706): RTC2RTMP: Deduplicate AVC and HEVC sequence headers. v7.0.155 (#4706)
 * v7.0, 2026-08-09, Merge [#4704](https://github.com/ossrs/srs/pull/4704): Codex: Fix MP4 DVR timing for repeated DTS samples. v7.0.154 (#4704)
