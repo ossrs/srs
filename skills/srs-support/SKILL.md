@@ -260,7 +260,8 @@ Apply these rules to all Oryx answers:
 
 Gather these details first when missing:
 - Oryx version and deployment method
-- Docker command, installer, or Helm settings
+- Docker image tag and command, installer version, or Helm settings
+- Host operating system and whether the deployment uses Docker, aaPanel, or Baota
 - Whether `/data` is mounted persistently
 - Dashboard scenario and settings involved
 - Publishing and playback methods and redacted URLs
@@ -271,16 +272,37 @@ Gather these details first when missing:
 - Health: `curl http://localhost/terraform/v1/mgmt/check`
 - Container: `docker ps --filter name=oryx`
 - Logs: `docker logs --tail 200 oryx`
+- Persistent files: `docker exec -it oryx ls -lah /data`
 - Protected APIs: obtain the Bearer token from `System > OpenAPI` without exposing it
 - Adjust the host or exposed HTTP port in commands for the user's deployment
+
+**Feature or UI is missing after installation or upgrade**
+- Compare the deployed image, Helm chart, script, or aaPanel plugin version with the version that documents the feature.
+- Oryx upgrades are performed by the deployment platform, not from the dashboard. Preserve `/data` when replacing a Docker container or reinstalling the aaPanel application.
+- For a newly installed instance, allow 3–5 minutes for Oryx and Redis to become ready, then refresh the dashboard and check the container logs.
+- Prefer Ubuntu 20 or newer. For servers outside China, use aaPanel rather than Baota; install the latest released aaPanel plugin manually when the store version is stale.
+
+**Dashboard domain or automatic HTTPS fails**
+- Verify the DNS A record resolves to the public Oryx IP. A local hosts-file entry is insufficient for Let's Encrypt validation.
+- Verify public TCP ports 80 and 443 reach the Oryx HTTP and HTTPS ports; automatic certificate validation requires port 80.
+- For aaPanel, verify the configured Oryx domain or default website rather than assuming direct IP access is configured.
+
+**A second Oryx instance conflicts with the first**
+- Give every instance a unique container name, host `/data` directory, and HTTP, RTMP, WebRTC, and SRT host ports.
+- Set `HTTP_PORT`, `RTMP_PORT`, `RTC_PORT`, and `SRT_PORT` to the exposed host ports so dashboard-generated URLs are correct.
 
 **Configuration or recordings disappear after restart**
 - Verify that persistent host storage is mounted to `/data`.
 - Do not advise keeping persistent state only in the container filesystem.
 
+**A server file is unavailable to virtual live or dubbing**
+- The file must be visible inside the container under `/data`; a host path outside a bind mount is not accessible to Oryx.
+- Verify the mapped path with `docker exec -it oryx ls -lh /data/<path>` before changing the feature settings.
+
 **Publishing is rejected**
 - Verify the dashboard-generated publish URL and global publish secret.
 - Do not add the publish secret to playback URLs unless version-matched documentation requires it.
+- If a legacy camera cannot send `?secret=...`, load the FAQ before advising its documented stream-name workaround; playback must then use the same stream name.
 
 **WHIP, WHEP, or browser publishing fails**
 - Verify HTTPS and camera or microphone permission.
@@ -292,13 +314,26 @@ Gather these details first when missing:
 
 **Recording is not available immediately**
 - Verify the recording rule and stream filter.
-- Allow the stream to close and MP4 post-processing to finish.
+- Recording may intentionally remain open across brief publishing interruptions. Use the dashboard or documented asynchronous API to end the task when an MP4 is needed promptly.
+- Allow segment processing and MP4 post-processing to finish, and use the completion callback rather than assuming the file is immediately available.
 - Check task status and Oryx logs before treating the recording as lost.
+
+**Recording to another disk or S3-compatible storage fails**
+- For local disks, verify the target is mounted where Oryx can access it under `/data`; do not use a host-only symbolic link for `/data/record` in a Docker deployment.
+- For AWS, Azure, DigitalOcean Spaces, or another S3-compatible service, verify the mounted bucket is visible inside Oryx, normally at `/data/srs-s3-bucket`, then restart Oryx.
+- Configure `Setup Recording Rules > Post Processing > Copy Record File` to copy completed MP4 files to the bucket mount.
+- Never mount the entire `/data` or `/data/record` working directory directly on cloud storage. Temporary recording I/O can overload or suspend the cloud filesystem; use a dedicated bucket directory and post-processing copy.
 
 **Restreaming, virtual live, transcoding, or camera streaming fails**
 - Verify the source URL or file, destination URL and key, and FFmpeg task status.
 - Check the documented silent-audio option for video-only cameras.
+- For a custom RTMP destination in `rtmp://host/app/stream` form, split the value after the final slash into the destination stream key when the dashboard requests separate fields.
+- For long-running virtual live events, verify the configured bitrate limit and monthly traffic budget; the documented default input limit is 5 Mbps.
 
 **An AI feature fails**
 - Test the configured OpenAI service from the dashboard without exposing the key.
 - Load the specific transcription, voice assistant, dubbing, or OCR document before suggesting settings.
+- For transcription playback problems, verify the configured FFmpeg video parameters and keep `-bf 0` when the result must also work with WebRTC.
+
+**A custom FFmpeg binary is not used**
+- The documented replacement workflow is Docker-only: bind-mount the executable to `/usr/local/bin/ffmpeg`, then verify that path inside the container.
