@@ -14,7 +14,6 @@
 | **SRS player** | → [SRS Player](#srs-player) | ✅ Supported |
 | **Dev Docker** | → [Dev Docker](#dev-docker) | ✅ Supported |
 | **Oryx** | → [Oryx](#oryx) | ✅ Supported |
-| **Project or skill documentation** | → [Project or Skill Documentation](#project-or-skill-documentation) | ✅ Supported |
 | **Origin server** | → [Origin Server](#origin-server) | ❌ Not yet supported |
 | **Edge server** | → [Edge Server](#edge-server) | ❌ Not yet supported |
 

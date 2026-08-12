@@ -1079,3 +1079,17 @@ The confirmed bug is fixed and merged in SRS 8.0.14. Only trusted reverse proxie
 The supplied MPEG-TS contains H.264, AAC LATM (`0x11`), and SCTE-35 (`0x86`). Current SRS produced H.264-only RTMP in reproduction: it has no SCTE-35 mapping and supports ADTS AAC (`0x0f`), not the sample's LATM audio. The original total-output failure and related 100% CPU claim were not reproduced, although unsupported repeated PMT entries caused warning and parsing overhead.
 
 SRS will not implement or maintain SCTE-35 support or forwarding through RTMP. Preserve SCTE-35 in an MPEG-TS/SRT workflow or process/remove it externally; convert LATM to ADTS AAC when RTMP audio is required.
+
+## #4410 [LIMITATION] HEVC snapshot requires FFmpeg 8
+
+- **Issue:** https://github.com/ossrs/srs/issues/4410
+- **Truth Record:** https://github.com/ossrs/srs/issues/4410#issuecomment-5261035872
+- **Verified:** 2026-08-11
+- **Toolchain branch/commit:** `ossrs/dev-docker:ubuntu20` at `75327dc6cd4d9c517e65a51798195e8053c16a98`
+- **FFmpeg:** 8.1.2 with NASM 2.16.03
+- **Environment:** GitHub Actions Ubuntu 22.04; linux/amd64, linux/arm64, and linux/arm/v7
+- **Closure:** Toolchain updated and verified; issue closed as completed
+
+SRS 6.0.166 packaged FFmpeg 5.0.2, which could not correctly recognize the HEVC signaling in the reporter's OBS RTMP/FLV stream. `iformat hevc` was also incorrect because the input remained FLV-wrapped; snapshot transcoding should use `iformat flv`.
+
+The Ubuntu 20 toolchain now selects FFmpeg 8.1.2 by default. Its multi-architecture release workflow passed, including Enhanced FLV HEVC encode, probe, and snapshot decode verification on amd64 and arm64; armv7 retains native HEVC decoding without the libx265 encoding test. The SRS Dockerfile copies this default FFmpeg into `objs/ffmpeg/bin/ffmpeg`, so newly built SRS images receive the fix. Previously published images such as `6.0.166` remain affected unless rebuilt.
