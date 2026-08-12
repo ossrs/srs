@@ -11,10 +11,10 @@
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
 [![](https://codecov.io/gh/ossrs/srs/graph/badge.svg?token=Zx2LhdtA39)](https://codecov.io/gh/ossrs/srs)
 
-SRS/8.0 ([Free](https://ossrs.io/lts/en-us/product#release-80)) is a simple, high-efficiency, and real-time video server, 
-supporting RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS,
-with codec support for H.264, H.265, AV1, VP9, AAC, Opus, and G.711, 
-and essential [features](trunk/doc/Features.md#features).
+SRS/8.0 ([Free](https://ossrs.io/lts/en-us/product#release-80)) is a simple, high-performance, AI-driven real-time media server.
+It supports RTMP, WebRTC, HLS, HTTP-FLV, SRT, MPEG-DASH, and GB28181 on Linux and macOS across
+x86_64, ARMv7, AArch64, Apple M1, RISC-V, LoongArch, and MIPS architectures. Supported codecs include
+H.264, H.265, AV1, VP9, AAC, Opus, and G.711. See the complete list of [features](trunk/doc/Features.md#features).
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
 
