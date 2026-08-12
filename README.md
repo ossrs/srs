@@ -64,6 +64,10 @@ To learn more about RTMP, HLS, HTTP-FLV, SRT, MPEG-DASH, WebRTC protocols, clust
 HTTP API, DVR, and transcoding, please check the documents in [English](https://ossrs.io) 
 or [Chinese](https://ossrs.net).
 
+<a name="ai-agent"></a>
+
+## AI Agent
+
 I recommend to use AI to understand and maintain your SRS, please follow the wiki
 [AI Agent](skills/internal-docs-for-srs/references/cpp-docs/doc/getting-started-ai.md) for details.
 
@@ -107,6 +111,8 @@ distributed under their [licenses](https://ossrs.io/lts/en-us/license).
 
 ## Releases
 
+* 2026-08-12, [Release v7.0-d0](https://github.com/ossrs/srs/releases/tag/v7.0-d0), v7.0-d0, 7.0 dev0, v7.0.157, 313784 lines.
+* 2026-08-12, [Release v6.0-r1](https://github.com/ossrs/srs/releases/tag/v6.0-r1), v6.0-r1, 6.0 release1, v6.0.191, 171396 lines.
 * 2025-12-03, [Release v6.0-r0](https://github.com/ossrs/srs/releases/tag/v6.0-r0), v6.0-r0, 6.0 release0, v6.0.184, 170962 lines.
 * 2025-11-03, [Release v6.0-b3](https://github.com/ossrs/srs/releases/tag/v6.0-b3), v6.0-b3, 6.0 beta3, v6.0.183, 170957 lines.
 * 2025-10-16, [Release v6.0-b2](https://github.com/ossrs/srs/releases/tag/v6.0-b2), v6.0-b2, 6.0 beta2, v6.0.181, 170948 lines.
@@ -189,4 +195,3 @@ Please read [MIRRORS](trunk/doc/Resources.md#mirrors).
 ## Dockers
 
 Please read [DOCKERS](trunk/doc/Dockers.md).
-
