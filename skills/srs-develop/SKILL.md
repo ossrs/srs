@@ -17,8 +17,8 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 ## Path Resolution
 
 - Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
-- For Oryx, use exactly `~/git/oryx` through `git -C` while keeping the current working directory unchanged. If it does not exist, ask the user to clone `https://github.com/ossrs/oryx` into that exact path; do not clone it automatically, expand the path, or search for another checkout.
-- For Dev Docker, use exactly `~/git/dev-docker` through `git -C` while keeping the current working directory unchanged. If it does not exist, ask the user to clone `https://github.com/ossrs/dev-docker` into that exact path; do not clone it automatically or search for another checkout.
+- For Oryx, use the project-root-relative `oryx/` path through `git -C` while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the Oryx checkout available there; do not create it automatically, resolve the symlink, or search for another checkout.
+- For Dev Docker, use the project-root-relative `dev-docker/` path through `git -C` while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the Dev Docker checkout available there; do not create it automatically, resolve the symlink, or search for another checkout.
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
@@ -28,7 +28,7 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 
 Apply these rules whenever a task produces a commit:
 
-- Identify the owning repository before inspecting or committing staged changes. Use the current repository for SRS and skills, `git -C ~/git/oryx` for Oryx, and `git -C ~/git/dev-docker` for Dev Docker.
+- Identify the owning repository before inspecting or committing staged changes. Use the current repository for SRS and skills, `git -C oryx/` for Oryx, and `git -C dev-docker/` for Dev Docker.
 - Never run `git add`; the user stages the files they approve.
 - Never run `git push`; the user pushes the branch.
 - Commit only when the user explicitly asks.

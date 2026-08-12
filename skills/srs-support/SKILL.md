@@ -191,7 +191,7 @@ Gather these details first when missing:
 Treat Oryx as its own product. Do not translate an Oryx dashboard workflow into raw SRS configuration unless the selected Oryx documentation explicitly requires it.
 
 - Use the current SRS workspace to load this skill and `internal-docs-for-srs`.
-- Follow the Oryx path rules in `internal-docs-for-srs`, including its fixed `~/git/oryx` repository location.
+- Follow the Oryx path rules in `internal-docs-for-srs`, including its project-root-relative `oryx/` path and symlink support.
 - Do not inspect Oryx Go, React, packaging, or other source code under this support skill.
 - Redact passwords, publish secrets, API tokens, OpenAI keys, and destination stream keys from commands, logs, and URLs.
 

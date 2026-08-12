@@ -9,7 +9,7 @@
 Select exactly one issue repository before investigation:
 
 - **SRS:** `ossrs/srs`, the current workspace, and `references/srs-issues.md`.
-- **Oryx:** `ossrs/oryx`, the configured `~/git/oryx` checkout, and `references/oryx-issues.md`.
+- **Oryx:** `ossrs/oryx`, the configured `oryx/` checkout, and `references/oryx-issues.md`.
 
 Use an explicit issue URL, product name, or established task context. Ask when ambiguous. If evidence shows an Oryx symptom is caused by standalone SRS, keep the original issue repository as the Truth Record owner and load the smallest additional SRS code map; do not silently move the task between projects.
 

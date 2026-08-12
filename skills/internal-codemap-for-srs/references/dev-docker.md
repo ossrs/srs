@@ -5,9 +5,9 @@ Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a tas
 ## Repository Boundary
 
 - Authoritative repository: `https://github.com/ossrs/dev-docker`
-- Configured local checkout: `~/git/dev-docker`
-- Check this path directly before using the route. If it does not exist, stop and ask the user to clone `https://github.com/ossrs/dev-docker` into `~/git/dev-docker`; do not clone it automatically or search for another checkout.
-- Keep the SRS repository as the current working directory. Inspect the Docker repository with `git -C ~/git/dev-docker ...`.
+- Project-root-relative checkout path: `dev-docker/`
+- Check this path directly before using the route. It may be a directory or a symlink to the user's preferred checkout. If it is unavailable, stop and ask the user to make the `https://github.com/ossrs/dev-docker` checkout available there; do not create it automatically or search for another checkout.
+- Keep the SRS repository as the current working directory. Inspect the Docker repository with `git -C dev-docker/ ...`. Never replace this relative path with the symlink target or an absolute path.
 - Do not assume the checked-out branch owns the requested image. Check status and branches first, then read the target branch with `git show origin/<branch>:<path>` when switching is unnecessary.
 - The repository uses long-lived branches as independent image definitions. A file named `Dockerfile` has different responsibilities on different branches.
 
@@ -16,8 +16,8 @@ Before editing, verify both repositories are clean and record their branches and
 ```bash
 git status --short --branch
 git rev-parse HEAD
-git -C ~/git/dev-docker status --short --branch
-git -C ~/git/dev-docker rev-parse HEAD
+git -C dev-docker/ status --short --branch
+git -C dev-docker/ rev-parse HEAD
 ```
 
 ## Primary Ubuntu 20 Toolchain
@@ -105,10 +105,10 @@ When a dependency update affects both the base image and cache images, update an
 Static verification:
 
 ```bash
-git -C ~/git/dev-docker diff --check
-git -C ~/git/dev-docker diff --stat
-git -C ~/git/dev-docker grep -n 'ffmpeg-' origin/ubuntu20 -- 'Dockerfile*'
-git -C ~/git/dev-docker show origin/ubuntu20:Dockerfile.base999999
+git -C dev-docker/ diff --check
+git -C dev-docker/ diff --stat
+git -C dev-docker/ grep -n 'ffmpeg-' origin/ubuntu20 -- 'Dockerfile*'
+git -C dev-docker/ show origin/ubuntu20:Dockerfile.base999999
 ```
 
 Runtime verification requires Docker or Buildx. Use the smallest changed layer first, then the final consumer image. At minimum verify:

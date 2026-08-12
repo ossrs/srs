@@ -16,16 +16,16 @@ Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a tas
 ## Repository Boundary
 
 - Authoritative repository: `https://github.com/ossrs/oryx`
-- Configured local checkout: `~/git/oryx`
-- Check this path directly before using the route. If it does not exist, stop and ask the user to clone `https://github.com/ossrs/oryx` into `~/git/oryx`; do not clone it automatically or search for another checkout.
-- Keep the SRS repository as the current working directory. Use `git -C ~/git/oryx ...` for Git operations and use paths beginning with `~/git/oryx` for file operations. Never replace this configured path with its expanded absolute path.
+- Project-root-relative checkout path: `oryx/`
+- Check this path directly before using the route. It may be a directory or a symlink to the user's preferred checkout. If it is unavailable, stop and ask the user to make the `https://github.com/ossrs/oryx` checkout available there; do not create it automatically or search for another checkout.
+- Keep the SRS repository as the current working directory. Use `git -C oryx/ ...` for Git operations and use paths beginning with `oryx/` for file operations. Never replace this relative path with the symlink target or an absolute path.
 - Before editing, inspect the branch, commit, and worktree state of both repositories. Do not overwrite unrelated changes:
 
 ```bash
 git status --short --branch
 git rev-parse HEAD
-git -C ~/git/oryx status --short --branch
-git -C ~/git/oryx rev-parse HEAD
+git -C oryx/ status --short --branch
+git -C oryx/ rev-parse HEAD
 ```
 
 - Route Oryx documentation through `skills/internal-docs-for-srs/SKILL.md`. Use this reference for source, configuration, packaging, and verification navigation.
@@ -46,7 +46,7 @@ Use `mgmt/bootstrap` only for the outer host-managed deployment that starts and 
 
 ## Go Platform Backend
 
-The trusted backend scope is the selected files under `~/git/oryx/platform/`. List filenames in this directory first, then choose the smallest files below. Do not search the whole directory by default.
+The trusted backend scope is the selected files under `oryx/platform/`. List filenames in this directory first, then choose the smallest files below. Do not search the whole directory by default.
 
 ### Core Lifecycle and Shared Infrastructure
 
@@ -83,7 +83,7 @@ Pair backend changes with `service.go`, `utils.go`, or `srs-hooks.go` only when 
 
 ## React Dashboard
 
-The trusted dashboard scope is `~/git/oryx/ui/src/`. Select the smallest page and its directly imported components.
+The trusted dashboard scope is `oryx/ui/src/`. Select the smallest page and its directly imported components.
 
 ### Application Shell
 
@@ -172,20 +172,20 @@ Treat publication, cloud provisioning, DNS, certificate issuance, registry login
 Always start with static checks in the changed repository:
 
 ```bash
-git -C ~/git/oryx diff --check
-git -C ~/git/oryx diff --stat
+git -C oryx/ diff --check
+git -C oryx/ diff --stat
 ```
 
 Choose only the relevant next step:
 
-- Go platform change: `(cd ~/git/oryx/platform && go test -mod=vendor ./...)`
-- React component or page change: `(cd ~/git/oryx/ui && npm test -- --runInBand)` after dependencies are available; also run `npm run lint` for JavaScript changes.
-- Release-service change: `(cd ~/git/oryx/releases && go test ./...)`
+- Go platform change: `(cd oryx/platform && go test -mod=vendor ./...)`
+- React component or page change: `(cd oryx/ui && npm test -- --runInBand)` after dependencies are available; also run `npm run lint` for JavaScript changes.
+- Release-service change: `(cd oryx/releases && go test ./...)`
 - Shell change: `bash -n <changed-script>` for each changed Bash script.
 - Installer Python change: run a syntax check for the changed Python files, then use only the matching disposable installer workflow when integration verification is required.
 - Docker or assembled-runtime change: build the Oryx image, then run the smallest matching `test/` case against a disposable container.
 
-The root CI-equivalent build is `make -j && make test -j` from `~/git/oryx`, but it is broader and requires Node dependencies, Go dependencies, FFmpeg/ffprobe, and the media fixture expected by the test harness. Use it only after focused checks or for release-level changes.
+The root CI-equivalent build is `make -j && make test -j` from `oryx/`, but it is broader and requires Node dependencies, Go dependencies, FFmpeg/ffprobe, and the media fixture expected by the test harness. Use it only after focused checks or for release-level changes.
 
 Integration tests can initialize passwords, write persistent `/data`, start media publishers, replace containers, request real certificates, call OpenAI, or contact cloud services depending on flags. Run them only against an explicitly disposable target, redact all secrets, and select a specific test with `-run` before widening scope. Use `DEVELOPER.md` and `.github/workflows/pullrequest.yml` for the version-matched command and required setup.
 

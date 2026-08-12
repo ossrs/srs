@@ -11,14 +11,14 @@
 
 1. Select exactly one repository from the user's PR URL, product name, or established task context:
    - SRS: current workspace.
-   - Oryx: `~/git/oryx`, accessed through `git -C` without changing the current working directory.
-2. Ask when the product is ambiguous. If the selected Oryx checkout is missing, ask the user to clone `https://github.com/ossrs/oryx` into `~/git/oryx`.
+   - Oryx: `oryx/`, accessed through `git -C` without changing the current working directory.
+2. Ask when the product is ambiguous. If the project-root-relative `oryx/` path is unavailable, ask the user to make the `https://github.com/ossrs/oryx` checkout available there directly or through a symlink.
 3. Determine the actual PR base from the pull request when available. Otherwise use `develop` for SRS and `origin/main` for Oryx unless the branch clearly tracks another base.
 4. Inspect the selected repository's status, branch, commit, and remotes. Do not overwrite unrelated work or mix diffs from both repositories.
 
 ## Step 1: Survey the changes
 
-1. Run the selected repository's diff-stat and log relative to the confirmed base. Use `git -C ~/git/oryx` for Oryx.
+1. Run the selected repository's diff-stat and log relative to the confirmed base. Use `git -C oryx/` for Oryx.
 2. Drill into non-test source diffs relative to that base to understand what actually changed.
 3. Summarize back to the user: refactors, new files, and anything that could break downstream consumers (log format, public API, wire format, etc.).
 4. Pause and let the user redirect or ask for more detail.

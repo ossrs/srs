@@ -115,8 +115,8 @@ Dev Docker is maintained in the separate `ossrs/dev-docker` repository. Its long
 ### Step 1: Route the Branch and Files (MANDATORY)
 
 1. Load `skills/internal-codemap-for-srs/SKILL.md`, route to the SRS Docker build images map, and read `skills/internal-codemap-for-srs/references/dev-docker.md`.
-2. Check `~/git/dev-docker` directly. If it does not exist, stop and ask the user to clone `https://github.com/ossrs/dev-docker` into `~/git/dev-docker`.
-3. Keep the SRS repository as the current working directory. Use `git -C ~/git/dev-docker ...` for every Dev Docker Git operation.
+2. Check the project-root-relative `dev-docker/` path directly. It may be a directory or a symlink to the user's preferred checkout. If it is unavailable, stop and ask the user to make the `https://github.com/ossrs/dev-docker` checkout available there.
+3. Keep the SRS repository as the current working directory. Use `git -C dev-docker/ ...` for every Dev Docker Git operation and do not resolve or replace the relative path.
 4. Check the status, current branch, commit, and remote branches of both repositories. Do not switch a dirty Dev Docker worktree or overwrite unrelated changes.
 5. Identify the single owning branch, smallest relevant Dockerfile or workflow set, produced image tags and platforms, parent layers, and downstream SRS or cache images affected by the change.
 6. Present that routing and dependency impact to the user and ask for confirmation. Do not edit Dev Docker before confirmation.
@@ -150,8 +150,8 @@ Oryx is maintained in the separate `ossrs/oryx` repository. It combines a Go pla
 
 ### Step 1: Route the Product Area (MANDATORY)
 
-1. Check `~/git/oryx` directly. If it does not exist, stop and ask the user to clone `https://github.com/ossrs/oryx` into `~/git/oryx`.
-2. Keep the SRS repository as the current working directory. Use `git -C ~/git/oryx ...` for Oryx Git operations and do not expand the configured path.
+1. Check the project-root-relative `oryx/` path directly. It may be a directory or a symlink to the user's preferred checkout. If it is unavailable, stop and ask the user to make the `https://github.com/ossrs/oryx` checkout available there.
+2. Keep the SRS repository as the current working directory. Use `git -C oryx/ ...` for Oryx Git operations and do not resolve or replace the relative path.
 3. Inspect the status, branch, commit, and remotes of both repositories. Do not overwrite unrelated work or switch a dirty Oryx worktree.
 4. Load `skills/internal-codemap-for-srs/SKILL.md`, route to `references/oryx.md`, and identify the smallest responsible backend, UI, runtime, packaging, installer, release, and test slice.
 5. Load `skills/internal-docs-for-srs/SKILL.md` and select the smallest relevant Oryx documentation set. Prefer version-matched repository documentation over dated scenario blogs.
@@ -166,14 +166,14 @@ Oryx is maintained in the separate `ossrs/oryx` repository. It combines a Go pla
 
 ### Step 3: Implement the Confirmed Change
 
-1. Make the smallest change in `~/git/oryx` and add focused regression coverage.
+1. Make the smallest change in `oryx/` and add focused regression coverage.
 2. Keep backend JSON fields, OpenAPI behavior, React consumers, locale strings, and feature status views consistent when the change crosses those surfaces.
 3. Do not edit vendored dependencies, compiled UI output, generated binaries, symlinked runtime directories, or `platform/containers/data/` state unless the confirmed task explicitly owns them.
 4. Never expose administrator passwords, publish secrets, Bearer tokens, OpenAI keys, destination stream keys, or cloud credentials in source, tests, logs, or fixtures.
 
 ### Step 4: Verify
 
-1. Run `git -C ~/git/oryx diff --check` and inspect the complete Oryx diff.
+1. Run `git -C oryx/ diff --check` and inspect the complete Oryx diff.
 2. Follow `skills/internal-codemap-for-srs/references/oryx.md` to run the smallest applicable Go, React, shell, Python, release-service, image, or integration verification.
 3. Run black-box tests only against an explicitly disposable Oryx instance. Start with one selected `-run` case before widening scope.
 4. Do not request real certificates, call OpenAI or cloud services, publish images, create releases, modify DNS, or use production stream keys unless the user explicitly authorizes that external effect.

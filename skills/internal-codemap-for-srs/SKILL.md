@@ -10,10 +10,10 @@ Route SRS and Oryx code work to focused codebase maps. The parent skill owns the
 ## Core Rules
 
 - Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
-- The only external-repository exceptions are the SRS Docker image checkout at `~/git/dev-docker` and Oryx at `~/git/oryx`. Keep the current working directory unchanged, use the configured paths exactly without expanding them, and do not search for alternate checkouts.
+- The only external-repository exceptions are Dev Docker through the project-root-relative `dev-docker/` path and Oryx through the project-root-relative `oryx/` path. Keep the current working directory unchanged, do not resolve either symlink, and do not search for alternate checkouts.
 - Use the Reference Router before reading, searching, or modifying code, configuration, tests, or verification scripts.
 - Treat only files and module directories listed by the selected reference as trusted navigation scope.
-- Never grep a repository root or broad trees such as `trunk/src/`, `cmd/`, `internal/`, `~/git/oryx/platform/`, or `~/git/oryx/ui/`.
+- Never grep a repository root or broad trees such as `trunk/src/`, `cmd/`, `internal/`, `oryx/platform/`, or `oryx/ui/`.
 - When a selected reference lists a module directory rather than every file, list filenames only inside that module, choose the smallest relevant set, then read or search only those files.
 - If no route covers the task, report that the code router does not cover it. Do not discover a new route ad hoc.
 - Use `skills/internal-docs-for-srs/SKILL.md` for project documentation. Do not route documentation here.
@@ -22,8 +22,8 @@ Route SRS and Oryx code work to focused codebase maps. The parent skill owns the
 
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
-- Resolve files selected by `references/dev-docker.md` in the configured `~/git/dev-docker` checkout while keeping the current working directory unchanged.
-- Resolve files selected by `references/oryx.md` in the configured `~/git/oryx` checkout while keeping the current working directory unchanged. If it is missing, tell the user to clone `https://github.com/ossrs/oryx` into `~/git/oryx`; do not clone it automatically.
+- Resolve files selected by `references/dev-docker.md` through the project-root-relative `dev-docker/` path while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the `https://github.com/ossrs/dev-docker` checkout available there; do not create it automatically.
+- Resolve files selected by `references/oryx.md` through the project-root-relative `oryx/` path while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the `https://github.com/ossrs/oryx` checkout available there; do not create it automatically.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
 - Before reporting a routed file as missing, check its fully resolved path directly.
 
@@ -36,7 +36,7 @@ Route SRS and Oryx code work to focused codebase maps. The parent skill owns the
 | Browser publishers and players | The task concerns browser publishing or playback with WHIP, WHEP, HTTP-FLV, or HLS, including code under `trunk/research/players/` | `references/browser-clients.md` |
 | SRS Docker build images | The task concerns `ossrs/dev-docker`, Docker dependency or cache images, packaged FFmpeg and other build tools, image branches, or how the SRS release image receives those tools | `references/dev-docker.md` |
 | Testing and verification | The task requires choosing or running C++ unit, black-box, E2E, reproduction, or benchmark verification | `references/testing.md` |
-| Oryx integrated video solution | The task concerns `ossrs/oryx`, `~/git/oryx`, its Go platform, React dashboard, SRS/Redis runtime integration, Docker image, installers, release service, or integration tests | `references/oryx.md` |
+| Oryx integrated video solution | The task concerns `ossrs/oryx`, `oryx/`, its Go platform, React dashboard, SRS/Redis runtime integration, Docker image, installers, release service, or integration tests | `references/oryx.md` |
 
 For a comparison or migration across SRS generations, load both server maps. Add the SRS testing reference only when SRS verification is required. For work crossing standalone SRS and Oryx, load the Oryx map and only the smallest responsible SRS map.
 

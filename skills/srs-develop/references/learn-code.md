@@ -15,7 +15,7 @@
 1. Load `skills/internal-codemap-for-srs/SKILL.md` and use its Reference Router to select the relevant SRS or Oryx map. If choosing the wrong product or server generation would materially change the answer, ask the user to clarify.
 2. Use the selected map descriptions to identify the owning module and the smallest relevant file set. When the map lists a directory, list filenames only in that directory before selecting files.
 3. Read or search only the selected files. Add another routed module only when evidence shows that the implementation crosses the first module boundary.
-4. For Oryx, keep the current working directory unchanged and inspect the configured `~/git/oryx` checkout. If it is missing, ask the user to clone it; do not search for another checkout.
+4. For Oryx, keep the current working directory unchanged and inspect the project-root-relative `oryx/` path, which may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the checkout available there; do not search for another checkout.
 
 ## Step 3: Trace and reconcile the implementation
 

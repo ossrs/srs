@@ -21,7 +21,7 @@ Route SRS and Oryx tasks to focused documentation references. The parent skill o
 
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
-- For Oryx documentation stored in its repository, use exactly `~/git/oryx`. Do not expand this path or search for alternate Oryx roots. If the directory is missing, tell the user to clone `https://github.com/ossrs/oryx`; do not clone it automatically.
+- For Oryx documentation stored in its repository, use the project-root-relative `oryx/` path. The path may be a directory or a symlink to the user's preferred checkout. Do not resolve the symlink or search for alternate Oryx roots. If the path is unavailable, ask the user to make the `https://github.com/ossrs/oryx` checkout available there; do not create it automatically.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
 - Before reporting a routed file as missing, check its fully resolved path directly.
 
@@ -81,8 +81,8 @@ For Oryx documentation, select the smallest relevant document:
 
 - `references/cpp-docs/doc/getting-started-oryx.md` — Oryx overview, deployment, comparison with SRS, authentication, recording, forwarding, virtual live, transcoding, AI features, OpenAPI, and HTTP callbacks.
 - `references/cpp-docs/pages/faq-oryx-en.md` — Oryx setup, upgrades, HTTPS, authentication, recording to local disk or S3-compatible cloud storage, re-streaming, and common operational questions.
-- `~/git/oryx/README.md` — Oryx overview, Docker deployment, ports, persistent `/data` layout, environment variables, features, and dependencies.
-- `~/git/oryx/DEVELOPER.md` — Oryx OpenAPI, environment variables, ports, deployment variants, development workflows, testing, and changelog.
+- `oryx/README.md` — Oryx overview, Docker deployment, ports, persistent `/data` layout, environment variables, features, and dependencies.
+- `oryx/DEVELOPER.md` — Oryx OpenAPI, environment variables, ports, deployment variants, development workflows, testing, and changelog.
 - `trunk/3rdparty/srs-docs/blog/2022-04-09-Oryx-Tutorial.md` — One-click, Docker, Lightsail, and DigitalOcean deployment, plus RTMP, WebRTC, and SRT getting started.
 - `trunk/3rdparty/srs-docs/blog/2022-04-12-Oryx-HTTPS.md` — DNS, automatic HTTPS, Let's Encrypt, and certificate renewal.
 - `trunk/3rdparty/srs-docs/blog/2022-04-15-Oryx-WordPress-Plugin.md` — Embed HLS, HTTP-FLV, and WebRTC streams in WordPress.
