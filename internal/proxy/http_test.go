@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	stdSync "sync"
@@ -50,6 +51,122 @@ func reservedClosedPort(t *testing.T) (string, string) {
 		t.Fatalf("close listener: %v", err)
 	}
 	return addr.IP.String(), strconv.Itoa(addr.Port)
+}
+
+// =============================================================================
+// HTTP response header helpers
+// =============================================================================
+
+func TestCopyBackendResponseHeaders(t *testing.T) {
+	dst := http.Header{
+		"Cache-Control": {"old-value"},
+		"X-Proxy":       {"preserved"},
+	}
+	src := http.Header{}
+	src.Set("Cache-Control", "no-cache")
+	src.Set("Content-Type", "application/vnd.apple.mpegurl")
+	src.Add("X-Multi-Value", "first")
+	src.Add("X-Multi-Value", "second")
+
+	// Connection nominates extra fields that are hop-by-hop even when their
+	// names are otherwise unknown to the proxy.
+	src.Add("Connection", "X-Backend-Hop, X-Backend-Second")
+	src.Set("X-Backend-Hop", "secret")
+	src.Set("X-Backend-Second", "secret-2")
+
+	for _, name := range []string{
+		"Proxy-Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"TE",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+	} {
+		src.Set(name, "must-not-pass")
+	}
+
+	copyBackendResponseHeaders(dst, src)
+
+	for name, want := range map[string][]string{
+		"Cache-Control": {"no-cache"},
+		"Content-Type":  {"application/vnd.apple.mpegurl"},
+		"X-Multi-Value": {"first", "second"},
+		"X-Proxy":       {"preserved"},
+	} {
+		if got := dst.Values(name); !slices.Equal(got, want) {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+
+	for _, name := range []string{
+		"Connection",
+		"X-Backend-Hop",
+		"X-Backend-Second",
+		"Proxy-Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"TE",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+	} {
+		if got := dst.Values(name); len(got) != 0 {
+			t.Errorf("hop-by-hop header %s was copied: %q", name, got)
+		}
+	}
+}
+
+func TestRepairRewrittenResponseHeaders(t *testing.T) {
+	header := http.Header{
+		"Accept-Ranges":    {"bytes"},
+		"Content-Digest":   {"sha-256=:digest:"},
+		"Content-Encoding": {"gzip"},
+		"Content-Length":   {"18", "stale-duplicate"},
+		"Content-Md5":      {"md5"},
+		"Content-Range":    {"bytes 0-17/18"},
+		"Digest":           {"sha-256=digest"},
+		"Etag":             {`"origin-playlist-v1"`},
+		"Repr-Digest":      {"sha-256=:digest:"},
+		"Cache-Control":    {"no-cache"},
+		"Content-Type":     {"application/vnd.apple.mpegurl"},
+		"Last-Modified":    {"Wed, 12 Aug 2026 12:00:00 GMT"},
+		"Vary":             {"Origin"},
+		"X-Origin":         {"srs"},
+	}
+
+	repairRewrittenResponseHeaders(header, 39)
+
+	for _, name := range []string{
+		"Accept-Ranges",
+		"Content-Digest",
+		"Content-Encoding",
+		"Content-MD5",
+		"Content-Range",
+		"Digest",
+		"ETag",
+		"Repr-Digest",
+	} {
+		if got := header.Values(name); len(got) != 0 {
+			t.Errorf("stale representation header %s remains: %q", name, got)
+		}
+	}
+	if got := header.Values("Content-Length"); !slices.Equal(got, []string{"39"}) {
+		t.Errorf("Content-Length = %q, want [39]", got)
+	}
+	for name, want := range map[string]string{
+		"Cache-Control": "no-cache",
+		"Content-Type":  "application/vnd.apple.mpegurl",
+		"Last-Modified": "Wed, 12 Aug 2026 12:00:00 GMT",
+		"Vary":          "Origin",
+		"X-Origin":      "srs",
+	} {
+		if got := header.Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
 }
 
 // =============================================================================
