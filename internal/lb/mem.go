@@ -35,6 +35,9 @@ type memoryLoadBalancer struct {
 	// goroutine re-Updates its registration. Struct field for test injection
 	// (avoids racing a package global across concurrent tests).
 	keepaliveInterval time.Duration
+	// originServerTTL is the period during which an origin registration is
+	// considered healthy.
+	originServerTTL time.Duration
 }
 
 // NewMemoryLoadBalancer creates a new memory-based load balancer.
@@ -52,31 +55,39 @@ func NewMemoryLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer 
 }
 
 func (v *memoryLoadBalancer) Initialize(ctx context.Context) error {
+	originServerTTL, err := parseOriginServerTTL(v.environment.OriginServerTTL())
+	if err != nil {
+		return err
+	}
+	v.originServerTTL = originServerTTL
+
 	server, err := NewDefaultOriginServerForDebugging(v.environment)
 	if err != nil {
 		return errors.Wrapf(err, "initialize default SRS")
 	}
 
-	if server != nil {
-		if err := v.Update(ctx, server); err != nil {
-			return errors.Wrapf(err, "update default SRS %+v", server)
-		}
+	if server == nil {
+		return nil
+	}
 
-		// Keep alive.
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(v.keepaliveInterval):
-					if err := v.Update(ctx, server); err != nil {
-						logger.Warn(ctx, "update default SRS %+v failed, %+v", server, err)
-					}
+	if err := v.Update(ctx, server); err != nil {
+		return errors.Wrapf(err, "update default SRS %+v", server)
+	}
+
+	// Keep alive.
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(v.keepaliveInterval):
+				if err := v.Update(ctx, server); err != nil {
+					logger.Warn(ctx, "update default SRS %+v failed, %+v", server, err)
 				}
 			}
-		}()
-		logger.Debug(ctx, "MemoryLB: Initialize default SRS media server, %+v", server)
-	}
+		}
+	}()
+	logger.Debug(ctx, "MemoryLB: Initialize default SRS media server, %+v", server)
 	return nil
 }
 
@@ -94,7 +105,7 @@ func (v *memoryLoadBalancer) Pick(ctx context.Context, streamURL string) (*Origi
 	// Gather all servers that were alive within the last few seconds.
 	var servers []*OriginServer
 	v.servers.Range(func(key string, server *OriginServer) bool {
-		if time.Since(server.UpdatedAt) < ServerAliveDuration {
+		if time.Since(server.UpdatedAt) < v.originServerTTL {
 			servers = append(servers, server)
 		}
 		return true

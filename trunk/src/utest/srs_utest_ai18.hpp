@@ -231,6 +231,7 @@ public:
 public:
     virtual srs_error_t acquire_token(ISrsRequest *req, SrsStreamPublishToken *&token);
     virtual void release_token(const std::string &stream_url);
+    virtual bool is_acquired(const std::string &stream_url);
     void set_acquire_token_error(srs_error_t err);
     void reset();
 };

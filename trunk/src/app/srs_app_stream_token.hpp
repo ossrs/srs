@@ -77,6 +77,7 @@ public:
 public:
     virtual srs_error_t acquire_token(ISrsRequest *req, SrsStreamPublishToken *&token) = 0;
     virtual void release_token(const std::string &stream_url) = 0;
+    virtual bool is_acquired(const std::string &stream_url) = 0;
 };
 
 // The global stream publish token manager ensures only one publisher
@@ -107,6 +108,9 @@ public:
     // This is called automatically when the token is destroyed.
     // @param stream_url The stream URL to release the token for
     void release_token(const std::string &stream_url);
+
+    // Whether a publisher currently owns the token for the stream URL.
+    bool is_acquired(const std::string &stream_url);
 };
 
 // Global instance accessor

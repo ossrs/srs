@@ -137,6 +137,16 @@ type FakeProxyEnvironment struct {
 	loadBalancerTypeReturnsOnCall map[int]struct {
 		result1 string
 	}
+	OriginServerTTLStub        func() string
+	originServerTTLMutex       sync.RWMutex
+	originServerTTLArgsForCall []struct {
+	}
+	originServerTTLReturns struct {
+		result1 string
+	}
+	originServerTTLReturnsOnCall map[int]struct {
+		result1 string
+	}
 	RedisDBStub        func() string
 	redisDBMutex       sync.RWMutex
 	redisDBArgsForCall []struct {
@@ -155,6 +165,16 @@ type FakeProxyEnvironment struct {
 		result1 string
 	}
 	redisHostReturnsOnCall map[int]struct {
+		result1 string
+	}
+	RedisKeyPrefixStub        func() string
+	redisKeyPrefixMutex       sync.RWMutex
+	redisKeyPrefixArgsForCall []struct {
+	}
+	redisKeyPrefixReturns struct {
+		result1 string
+	}
+	redisKeyPrefixReturnsOnCall map[int]struct {
 		result1 string
 	}
 	RedisPasswordStub        func() string
@@ -920,6 +940,59 @@ func (fake *FakeProxyEnvironment) LoadBalancerTypeReturnsOnCall(i int, result1 s
 	}{result1}
 }
 
+func (fake *FakeProxyEnvironment) OriginServerTTL() string {
+	fake.originServerTTLMutex.Lock()
+	ret, specificReturn := fake.originServerTTLReturnsOnCall[len(fake.originServerTTLArgsForCall)]
+	fake.originServerTTLArgsForCall = append(fake.originServerTTLArgsForCall, struct {
+	}{})
+	stub := fake.OriginServerTTLStub
+	fakeReturns := fake.originServerTTLReturns
+	fake.recordInvocation("OriginServerTTL", []interface{}{})
+	fake.originServerTTLMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTLCallCount() int {
+	fake.originServerTTLMutex.RLock()
+	defer fake.originServerTTLMutex.RUnlock()
+	return len(fake.originServerTTLArgsForCall)
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTLCalls(stub func() string) {
+	fake.originServerTTLMutex.Lock()
+	defer fake.originServerTTLMutex.Unlock()
+	fake.OriginServerTTLStub = stub
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTLReturns(result1 string) {
+	fake.originServerTTLMutex.Lock()
+	defer fake.originServerTTLMutex.Unlock()
+	fake.OriginServerTTLStub = nil
+	fake.originServerTTLReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) OriginServerTTLReturnsOnCall(i int, result1 string) {
+	fake.originServerTTLMutex.Lock()
+	defer fake.originServerTTLMutex.Unlock()
+	fake.OriginServerTTLStub = nil
+	if fake.originServerTTLReturnsOnCall == nil {
+		fake.originServerTTLReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.originServerTTLReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
 func (fake *FakeProxyEnvironment) RedisDB() string {
 	fake.redisDBMutex.Lock()
 	ret, specificReturn := fake.redisDBReturnsOnCall[len(fake.redisDBArgsForCall)]
@@ -1022,6 +1095,59 @@ func (fake *FakeProxyEnvironment) RedisHostReturnsOnCall(i int, result1 string) 
 		})
 	}
 	fake.redisHostReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefix() string {
+	fake.redisKeyPrefixMutex.Lock()
+	ret, specificReturn := fake.redisKeyPrefixReturnsOnCall[len(fake.redisKeyPrefixArgsForCall)]
+	fake.redisKeyPrefixArgsForCall = append(fake.redisKeyPrefixArgsForCall, struct {
+	}{})
+	stub := fake.RedisKeyPrefixStub
+	fakeReturns := fake.redisKeyPrefixReturns
+	fake.recordInvocation("RedisKeyPrefix", []interface{}{})
+	fake.redisKeyPrefixMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefixCallCount() int {
+	fake.redisKeyPrefixMutex.RLock()
+	defer fake.redisKeyPrefixMutex.RUnlock()
+	return len(fake.redisKeyPrefixArgsForCall)
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefixCalls(stub func() string) {
+	fake.redisKeyPrefixMutex.Lock()
+	defer fake.redisKeyPrefixMutex.Unlock()
+	fake.RedisKeyPrefixStub = stub
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefixReturns(result1 string) {
+	fake.redisKeyPrefixMutex.Lock()
+	defer fake.redisKeyPrefixMutex.Unlock()
+	fake.RedisKeyPrefixStub = nil
+	fake.redisKeyPrefixReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) RedisKeyPrefixReturnsOnCall(i int, result1 string) {
+	fake.redisKeyPrefixMutex.Lock()
+	defer fake.redisKeyPrefixMutex.Unlock()
+	fake.RedisKeyPrefixStub = nil
+	if fake.redisKeyPrefixReturnsOnCall == nil {
+		fake.redisKeyPrefixReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.redisKeyPrefixReturnsOnCall[i] = struct {
 		result1 string
 	}{result1}
 }

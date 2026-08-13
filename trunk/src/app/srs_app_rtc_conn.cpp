@@ -1686,8 +1686,11 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
         srs_freep(err);
     }
 
-    // Update RTP packet statistics.
-    update_rtp_packet_stats(is_audio);
+    // Update media-frame statistics. The receive track owns the decision because
+    // it knows which SSRC is primary and how its media marks a frame boundary.
+    if (track->is_media_frame(pkt)) {
+        update_rtp_frame_stats(is_audio);
+    }
 
     // Consume packet by track.
     if ((err = track->on_rtp(source_, pkt)) != srs_success) {
@@ -1709,18 +1712,18 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
     return err;
 }
 
-void SrsRtcPublishStream::update_rtp_packet_stats(bool is_audio)
+void SrsRtcPublishStream::update_rtp_frame_stats(bool is_audio)
 {
     srs_error_t err = srs_success;
 
-    // Count RTP packets for statistics.
+    // Count media-frame observations accepted by the receive track.
     if (is_audio) {
         ++nn_audio_frames_;
     } else {
         ++nn_video_frames_;
     }
 
-    // Update the stat for video frames, counting RTP packets as frames.
+    // Update the stat for video frames periodically.
     if (nn_video_frames_ > 288) {
         if ((err = stat_->on_video_frames(req_, nn_video_frames_)) != srs_success) {
             srs_warn("RTC: stat video frames err %s", srs_error_desc(err).c_str());

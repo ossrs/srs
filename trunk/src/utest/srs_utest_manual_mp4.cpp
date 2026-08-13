@@ -2455,6 +2455,49 @@ VOID TEST(KernelMp4Test, SrsMp4M2tsInitEncoder)
     }
 }
 
+VOID TEST(ReproduceIssue4625, PreserveZeroDtsInMp4Stts)
+{
+    srs_error_t err;
+
+    SrsMp4SampleManager samples;
+
+    // Reproduce a publisher that sends one picture and three auxiliary H.264
+    // packets at the same DTS, followed by the next picture 30ms later.
+    uint64_t dts[] = {9, 9, 9, 9, 39};
+    for (int i = 0; i < 5; i++) {
+        SrsMp4Sample *sample = new SrsMp4Sample();
+        sample->type_ = SrsFrameTypeVideo;
+        sample->index_ = i;
+        sample->tbn_ = 1000;
+        sample->dts_ = dts[i];
+        sample->pts_ = dts[i];
+        samples.append(sample);
+    }
+
+    SrsMp4DecodingTime2SampleBox stts;
+    HELPER_ASSERT_SUCCESS(samples.write_track(SrsFrameTypeVideo, &stts, NULL, NULL, NULL, NULL, NULL));
+
+    uint64_t duration = 0;
+    uint32_t sample_count = 0;
+    for (vector<SrsMp4SttsEntry>::iterator it = stts.entries_.begin(); it != stts.entries_.end(); ++it) {
+        duration += (uint64_t)it->sample_count_ * it->sample_delta_;
+        sample_count += it->sample_count_;
+    }
+
+    EXPECT_EQ(5, (int)sample_count);
+    EXPECT_EQ(39, (int)duration);
+
+    // The first entry preserves the initial 9ms offset, the next three
+    // same-DTS samples have zero delta, and the final sample advances 30ms.
+    ASSERT_EQ(3, (int)stts.entries_.size());
+    EXPECT_EQ(1, (int)stts.entries_[0].sample_count_);
+    EXPECT_EQ(9, (int)stts.entries_[0].sample_delta_);
+    EXPECT_EQ(3, (int)stts.entries_[1].sample_count_);
+    EXPECT_EQ(0, (int)stts.entries_[1].sample_delta_);
+    EXPECT_EQ(1, (int)stts.entries_[2].sample_count_);
+    EXPECT_EQ(30, (int)stts.entries_[2].sample_delta_);
+}
+
 VOID TEST(KernelMp4Test, SrsMp4DvrJitter)
 {
     // Test basic initialization

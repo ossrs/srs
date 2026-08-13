@@ -297,6 +297,7 @@ srs_error_t SrsSSRCGroup::encode(std::ostringstream &os)
     for (int i = 0; i < (int)ssrcs_.size(); i++) {
         os << " " << ssrcs_[i];
     }
+    os << kCRLF;
 
     return err;
 }

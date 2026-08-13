@@ -3315,6 +3315,31 @@ VOID TEST(StatisticTest, AudioSampleRateAAC48000Hz)
     EXPECT_EQ(48000, sample_rate_any->to_integer());
 }
 
+// Verify that stream statistics expose their age in seconds, matching the
+// floating-point "alive" field provided by the clients API.
+VOID TEST(StatisticTest, StreamAliveDuration)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "stream-alive"));
+
+    stat->on_stream_publish(req.get(), "publisher-alive");
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+
+    // Use the cached clock to make this test deterministic without sleeping.
+    stream->create_ = srs_time_now_cached() - 2345 * SRS_UTIME_MILLISECONDS;
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(stream->dumps(obj.get()));
+
+    SrsJsonAny *alive = obj->get_property("alive");
+    ASSERT_TRUE(alive != NULL);
+    EXPECT_TRUE(alive->is_number());
+    EXPECT_DOUBLE_EQ(2.345, alive->to_number());
+}
+
 // Test SrsStatistic dumps methods: dumps_streams, dumps_clients, and dumps_hints_kv
 // This test covers the major use scenario for dumping statistics to JSON and hints
 VOID TEST(StatisticTest, DumpsStreamsClientsAndHints)
@@ -3517,9 +3542,13 @@ VOID TEST(StatisticTest, DumpsMetrics)
     stat->kbps_->add_delta(1024 * 100, 1024 * 200); // 100KB recv, 200KB send
     stat->kbps_->sample();
 
-    // Simulate some client disconnections with errors to increment nb_errs_
-    stat->on_disconnect("client1", srs_error_new(ERROR_SOCKET_READ, "test error 1"));
-    stat->on_disconnect("client2", srs_error_new(ERROR_SOCKET_WRITE, "test error 2"));
+    // Simulate some client disconnections with genuine errors to increment nb_errs_.
+    err = srs_error_new(ERROR_SYSTEM_CLIENT_INVALID, "test error 1");
+    stat->on_disconnect("client1", err);
+    srs_freep(err);
+    err = srs_error_new(ERROR_RTMP_HANDSHAKE, "test error 2");
+    stat->on_disconnect("client2", err);
+    srs_freep(err);
 
     // Test dumps_metrics() - major use scenario
     int64_t send_bytes = 0;
@@ -3547,6 +3576,49 @@ VOID TEST(StatisticTest, DumpsMetrics)
 
     // nerrs should be 2 (client1 and client2 disconnected with errors)
     EXPECT_EQ(2, nerrs);
+}
+
+VOID TEST(ReproduceIssue4609, GracefulDisconnectsDoNotIncrementErrors)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    MockExpire conn;
+
+    int graceful_codes[] = {
+        ERROR_SOCKET_READ,
+        ERROR_SOCKET_READ_FULLY,
+        ERROR_SOCKET_WRITE,
+        ERROR_SRT_IO,
+        ERROR_HTTP_STREAM_EOF,
+    };
+    int nb_graceful_codes = sizeof(graceful_codes) / sizeof(int);
+
+    for (int i = 0; i < nb_graceful_codes; i++) {
+        stringstream ss;
+        ss << "client-" << i;
+        string client_id = ss.str();
+        HELPER_EXPECT_SUCCESS(stat->on_client(client_id, req.get(), &conn, SrsRtmpConnPlay));
+
+        srs_error_t graceful_close = srs_error_new(graceful_codes[i], "gracefully closed");
+        EXPECT_TRUE(srs_is_client_gracefully_close(graceful_close) || srs_is_server_gracefully_close(graceful_close));
+        stat->on_disconnect(client_id, graceful_close);
+        srs_freep(graceful_close);
+    }
+
+    int64_t send_bytes = 0;
+    int64_t recv_bytes = 0;
+    int64_t nstreams = 0;
+    int64_t nclients = 0;
+    int64_t total_nclients = 0;
+    int64_t nerrs = 0;
+    HELPER_EXPECT_SUCCESS(stat->dumps_metrics(send_bytes, recv_bytes, nstreams, nclients, total_nclients, nerrs));
+
+    EXPECT_EQ(0, nclients);
+    EXPECT_EQ(nb_graceful_codes, total_nclients);
+    EXPECT_EQ(0, nerrs);
 }
 
 // Mock ISrsHttpResponseReader implementation for SrsHttpHooks testing
