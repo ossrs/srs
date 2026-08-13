@@ -868,7 +868,22 @@ srs_utime_t SrsSslConnection::get_recv_timeout()
 
 srs_error_t SrsSslConnection::read_fully(void* buf, size_t size, ssize_t* nread)
 {
-    return transport->read_fully(buf, size, nread);
+    srs_error_t err = srs_success;
+    ssize_t nb = 0;
+
+    while (nb < (ssize_t)size) {
+        ssize_t once_nb = 0;
+        if ((err = read((char*)buf + nb, size - nb, &once_nb)) != srs_success) {
+            return srs_error_wrap(err, "tls: read");
+        }
+        nb += once_nb;
+    }
+
+    if (nread) {
+        *nread = nb;
+    }
+
+    return err;
 }
 
 int64_t SrsSslConnection::get_recv_bytes()
@@ -980,4 +995,3 @@ srs_error_t SrsSslConnection::writev(const iovec *iov, int iov_size, ssize_t* nw
 
     return err;
 }
-

@@ -2348,7 +2348,7 @@ srs_error_t SrsConfig::check_normal_config()
             && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate"
             && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "threads"
             && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls"
-            && n != "exporter"
+            && n != "exporter" && n != "rtmps"
             ) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
@@ -2433,6 +2433,15 @@ srs_error_t SrsConfig::check_normal_config()
                 && n != "ip_family" && n != "api_as_candidates" && n != "resolve_api_domain"
                 && n != "keep_api_domain" && n != "use_auto_detect_network_ip") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtc_server.%s", n.c_str());
+            }
+        }
+    }
+    if (true) {
+        SrsConfDirective* conf = root->get("rtmps");
+        for (int i = 0; conf && i < (int)conf->directives.size(); i++) {
+            string n = conf->at(i)->name;
+            if (n != "enabled" && n != "listen" && n != "key" && n != "cert") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal rtmps.%s", n.c_str());
             }
         }
     }
@@ -8905,4 +8914,91 @@ SrsConfDirective* SrsConfig::get_stats_disk_device()
     }
     
     return conf;
+}
+
+SrsConfDirective* SrsConfig::get_rtmps()
+{
+    return root->get("rtmps");
+}
+
+bool SrsConfig::get_rtmps_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.rtmps.enabled"); // SRS_RTMPS_ENABLED
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective* conf = get_rtmps();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+vector<string> SrsConfig::get_rtmps_listen()
+{
+    if (!srs_getenv("srs.rtmps.listen").empty()) { // SRS_RTMPS_LISTEN
+        return srs_string_split(srs_getenv("srs.rtmps.listen"), " ");
+    }
+
+    vector<string> ports;
+
+    SrsConfDirective* conf = get_rtmps();
+    if (!conf) {
+        return ports;
+    }
+
+    conf = conf->get("listen");
+    if (!conf) {
+        return ports;
+    }
+
+    for (int i = 0; i < (int)conf->args.size(); i++) {
+        ports.push_back(conf->args.at(i));
+    }
+
+    return ports;
+}
+
+string SrsConfig::get_rtmps_ssl_key()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.rtmps.key"); // SRS_RTMPS_KEY
+
+    static string DEFAULT = "./conf/server.key";
+
+    SrsConfDirective* conf = get_rtmps();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("key");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
+}
+
+string SrsConfig::get_rtmps_ssl_cert()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.rtmps.cert"); // SRS_RTMPS_CERT
+
+    static string DEFAULT = "./conf/server.crt";
+
+    SrsConfDirective* conf = get_rtmps();
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("cert");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }

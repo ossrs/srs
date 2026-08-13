@@ -23,8 +23,10 @@ using namespace std;
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_protocol_conn.hpp>
+#include <srs_app_conn.hpp>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <string.h>
 #include <st.h>
 
 MockSrsConnection::MockSrsConnection()
@@ -63,6 +65,52 @@ VOID TEST(ServiceTimeTest, TimeUnit)
 
     EXPECT_TRUE(srs_is_never_timeout(SRS_UTIME_NO_TIMEOUT));
     EXPECT_FALSE(srs_is_never_timeout(0));
+}
+
+class MockFragmentedSslConnection : public SrsSslConnection
+{
+private:
+    string data_;
+    size_t pos_;
+public:
+    int read_calls_;
+public:
+    MockFragmentedSslConnection(string data) : SrsSslConnection(NULL)
+    {
+        data_ = data;
+        pos_ = 0;
+        read_calls_ = 0;
+    }
+public:
+    virtual srs_error_t read(void* buf, size_t size, ssize_t* nread)
+    {
+        read_calls_++;
+
+        size_t nn = data_.size() - pos_;
+        if (nn > size) nn = size;
+        if (nn > 2) nn = 2;
+        if (!nn) return srs_error_new(ERROR_SOCKET_READ, "no more data");
+
+        ::memcpy(buf, data_.data() + pos_, nn);
+        pos_ += nn;
+        if (nread) *nread = nn;
+
+        return srs_success;
+    }
+};
+
+VOID TEST(TlsConnectionTest, ReadFullyUsesDecryptedReadPath)
+{
+    srs_error_t err;
+
+    MockFragmentedSslConnection ssl("Hello SRS");
+    char buf[10] = {0};
+    ssize_t nread = 0;
+
+    HELPER_ASSERT_SUCCESS(ssl.read_fully(buf, 9, &nread));
+    EXPECT_EQ(9, nread);
+    EXPECT_STREQ("Hello SRS", buf);
+    EXPECT_EQ(5, ssl.read_calls_);
 }
 
 class MockTcpHandler : public ISrsTcpHandler

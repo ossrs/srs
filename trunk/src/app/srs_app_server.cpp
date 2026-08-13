@@ -336,6 +336,7 @@ SrsServer::SrsServer()
     ppid = ::getppid();
 
     rtmp_listener_ = new SrsMultipleTcpListeners(this);
+    rtmps_listener_ = new SrsMultipleTcpListeners(this);
     api_listener_ = new SrsTcpListener(this);
     apis_listener_ = new SrsTcpListener(this);
     http_listener_ = new SrsTcpListener(this);
@@ -393,6 +394,7 @@ void SrsServer::destroy()
     srs_freep(latest_version_);
     srs_freep(conn_manager);
     srs_freep(rtmp_listener_);
+    srs_freep(rtmps_listener_);
     srs_freep(api_listener_);
     srs_freep(apis_listener_);
     srs_freep(http_listener_);
@@ -412,6 +414,7 @@ void SrsServer::dispose()
     
     // Destroy all listeners.
     rtmp_listener_->close();
+    rtmps_listener_->close();
     api_listener_->close();
     apis_listener_->close();
     http_listener_->close();
@@ -443,6 +446,7 @@ void SrsServer::gracefully_dispose()
 
     // Destroy all listeners.
     rtmp_listener_->close();
+    rtmps_listener_->close();
     api_listener_->close();
     apis_listener_->close();
     http_listener_->close();
@@ -578,6 +582,14 @@ srs_error_t SrsServer::listen()
     rtmp_listener_->add(_srs_config->get_listens())->set_label("RTMP");
     if ((err = rtmp_listener_->listen()) != srs_success) {
         return srs_error_wrap(err, "rtmp listen");
+    }
+
+    // Create RTMPS listeners.
+    if (_srs_config->get_rtmps_enabled()) {
+        rtmps_listener_->add(_srs_config->get_rtmps_listen())->set_label("RTMPS");
+        if ((err = rtmps_listener_->listen()) != srs_success) {
+            return srs_error_wrap(err, "rtmps listen");
+        }
     }
 
     // Create HTTP API listener.
@@ -1232,7 +1244,11 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener* listener, srs_netfd_t& stf
     // Create resource by normal listeners.
     if (!resource) {
         if (listener == rtmp_listener_) {
-            resource = new SrsRtmpConn(this, stfd2, ip, port);
+            SrsRtmpTransport* transport = new SrsRtmpTransport(stfd2);
+            resource = new SrsRtmpConn(this, transport, ip, port);
+        } else if (listener == rtmps_listener_) {
+            SrsRtmpTransport* transport = new SrsRtmpsTransport(stfd2);
+            resource = new SrsRtmpConn(this, transport, ip, port);
         } else if (listener == api_listener_ || listener == apis_listener_) {
             string key = listener == apis_listener_ ? _srs_config->get_https_api_ssl_key() : "";
             string cert = listener == apis_listener_ ? _srs_config->get_https_api_ssl_cert() : "";
