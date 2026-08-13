@@ -3315,6 +3315,31 @@ VOID TEST(StatisticTest, AudioSampleRateAAC48000Hz)
     EXPECT_EQ(48000, sample_rate_any->to_integer());
 }
 
+// Verify that stream statistics expose their age in seconds, matching the
+// floating-point "alive" field provided by the clients API.
+VOID TEST(StatisticTest, StreamAliveDuration)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "stream-alive"));
+
+    stat->on_stream_publish(req.get(), "publisher-alive");
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+
+    // Use the cached clock to make this test deterministic without sleeping.
+    stream->create_ = srs_time_now_cached() - 2345 * SRS_UTIME_MILLISECONDS;
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(stream->dumps(obj.get()));
+
+    SrsJsonAny *alive = obj->get_property("alive");
+    ASSERT_TRUE(alive != NULL);
+    EXPECT_TRUE(alive->is_number());
+    EXPECT_DOUBLE_EQ(2.345, alive->to_number());
+}
+
 // Test SrsStatistic dumps methods: dumps_streams, dumps_clients, and dumps_hints_kv
 // This test covers the major use scenario for dumping statistics to JSON and hints
 VOID TEST(StatisticTest, DumpsStreamsClientsAndHints)

@@ -3199,6 +3199,16 @@ uint32_t SrsRtcRecvTrack::get_ssrc()
     return track_desc_->ssrc_;
 }
 
+bool SrsRtcRecvTrack::is_primary_rtp(SrsRtpPacket *pkt)
+{
+    return pkt && pkt->header_.get_ssrc() == track_desc_->ssrc_;
+}
+
+bool SrsRtcRecvTrack::is_media_frame(SrsRtpPacket *pkt)
+{
+    return is_primary_rtp(pkt);
+}
+
 void SrsRtcRecvTrack::update_rtt(int rtt)
 {
     nack_receiver_->update_rtt(rtt);
@@ -3374,6 +3384,13 @@ SrsRtcAudioRecvTrack::~SrsRtcAudioRecvTrack()
 {
 }
 
+bool SrsRtcAudioRecvTrack::is_media_frame(SrsRtpPacket *pkt)
+{
+    // Audio statistics historically count one frame observation per primary RTP
+    // packet. RTX and FEC packets belong to the track but are transport overhead.
+    return is_primary_rtp(pkt);
+}
+
 void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt)
 {
     // No payload, ignore.
@@ -3420,6 +3437,13 @@ SrsRtcVideoRecvTrack::SrsRtcVideoRecvTrack(ISrsRtcPacketReceiver *receiver, SrsR
 
 SrsRtcVideoRecvTrack::~SrsRtcVideoRecvTrack()
 {
+}
+
+bool SrsRtcVideoRecvTrack::is_media_frame(SrsRtpPacket *pkt)
+{
+    // The marker bit identifies the final RTP packet of a video frame. Only the
+    // primary stream describes source frames; RTX and FEC packets do not.
+    return is_primary_rtp(pkt) && pkt->header_.get_marker();
 }
 
 void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt)

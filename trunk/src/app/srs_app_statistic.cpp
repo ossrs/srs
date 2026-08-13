@@ -81,6 +81,7 @@ SrsStatisticStream::SrsStatisticStream()
     id_ = srs_generate_stat_vid();
     vhost_ = NULL;
     active_ = false;
+    create_ = srs_time_now_cached();
 
     has_video_ = false;
     vcodec_ = SrsVideoCodecIdReserved;
@@ -120,6 +121,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
     obj->set("tcUrl", SrsJsonAny::str(tcUrl_.c_str()));
     obj->set("url", SrsJsonAny::str(url_.c_str()));
     obj->set("live_ms", SrsJsonAny::integer(srsu2ms(srs_time_now_cached())));
+    obj->set("alive", SrsJsonAny::number(srsu2ms(srs_time_now_cached() - create_) / 1000.0));
     obj->set("clients", SrsJsonAny::integer(nb_clients_));
     obj->set("frames", SrsJsonAny::integer(video_frames_->sugar_ + audio_frames_->sugar_));
     obj->set("audio_frames", SrsJsonAny::integer(audio_frames_->sugar_));

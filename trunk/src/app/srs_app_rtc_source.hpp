@@ -914,11 +914,15 @@ public:
     srs_error_t on_nack(SrsRtpPacket **ppkt);
 
 public:
+    // Whether this RTP packet represents one media-frame observation for
+    // statistics. Auxiliary transport packets such as RTX and FEC are excluded.
+    virtual bool is_media_frame(SrsRtpPacket *pkt);
     virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt) = 0;
     virtual srs_error_t check_send_nacks() = 0;
 
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
+    bool is_primary_rtp(SrsRtpPacket *pkt);
     virtual srs_error_t do_check_send_nacks(uint32_t &timeout_nacks);
 };
 
@@ -932,6 +936,7 @@ public:
     virtual void on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt);
 
 public:
+    virtual bool is_media_frame(SrsRtpPacket *pkt);
     virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt);
     virtual srs_error_t check_send_nacks();
 };
@@ -946,6 +951,7 @@ public:
     virtual void on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt);
 
 public:
+    virtual bool is_media_frame(SrsRtpPacket *pkt);
     virtual srs_error_t on_rtp(SrsSharedPtr<SrsRtcSource> &source, SrsRtpPacket *pkt);
     virtual srs_error_t check_send_nacks();
 };
