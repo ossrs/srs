@@ -7,7 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
-* v6.0, 2026-08-13, Backport [#4443](https://github.com/ossrs/srs/pull/4443): Support RTMPS server. v6.0.192
+* v6.0, 2026-08-13, Backport [#4443](https://github.com/ossrs/srs/pull/4443): Support RTMPS server, including [#4036](https://github.com/ossrs/srs/issues/4036): Handle graceful TLS shutdown. v6.0.192
 * v6.0, 2026-08-12, Backport [#4712](https://github.com/ossrs/srs/pull/4712): Codex: Do not count graceful disconnects as client errors. v6.0.191
 * v6.0, 2026-08-12, Merge [#4706](https://github.com/ossrs/srs/pull/4706): RTC2RTMP: Deduplicate AVC sequence headers. v6.0.190 (#4706)
 * v6.0, 2026-08-12, Merge [#4704](https://github.com/ossrs/srs/pull/4704): Codex: Fix MP4 DVR timing for repeated DTS samples. v6.0.189 (#4704)
