@@ -2,7 +2,8 @@
 
 About milestones of SRS.
 
-* [Release 7.0](#release70), 2025~Now, Code: Kai
+* [Release 8.0](#release80), 2026~Now, Code: Free
+* [Release 7.0](#release70), 2025~2026, Code: Kai
 * [Release 6.0](#release60), 2023~2025, Code: Hang
 * [Release 5.0](#release50), 2022~2023, Code: Bee
 * [Release 4.0](#release40), 2020~2021, Code: Leo
@@ -98,6 +99,14 @@ scenarios and industries.
 * Values: Simplicity, openness, and pragmatism.
 
 For a detailed interpretation, please see Welcome to SRS: Mission, Vision, and Values.
+
+## Release 8.0
+
+Code name: Free. Development started in 2026, currently in progress.
+
+> Code Name Story: "Free" represents the new era of open source development empowered by AI. Both freedom and free — the AI agent is not just free labor, it is like a copy of myself, or even tens of copies, all deeply understanding this project, how to deliver high-quality code, and how to serve the community. AI handles all the dirty work — the boring tasks, the documentation, the coding — and often does it better than I could, with ten times the power. We built an AI robot for the community to answer questions and help users learn this project, and we used AI to almost entirely rewrite the SRS Proxy server — its structure, its workflow — so that AI agents can comprehensively manage and maintain it. With AI I have power, and I have choice: no longer waiting for other developers to contribute, I am free to manage this project, freed from the labor of maintaining it alone. This is a fantastic, amazing new era for building and sustaining open source projects and communities.
+
+SRS 8.0 development started at 2026.
 
 ## Release 7.0
 

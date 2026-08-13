@@ -24,6 +24,7 @@ using namespace std;
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_stream_token.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
@@ -1744,9 +1745,14 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
             return srs_error_wrap(err, "source cycle, id=[%s]", cid.c_str());
         }
 
+        // A publisher may yield after fetching the source but before activating it.
+        // Keep the source in the pool while its publish token is still acquired.
+        const string &stream_url = it->first;
+        bool is_stream_acquired = _srs_stream_publish_tokens->is_acquired(stream_url);
+
         // When source expired, remove it.
         // @see https://github.com/ossrs/srs/issues/713
-        if (source->stream_is_dead()) {
+        if (source->stream_is_dead() && !is_stream_acquired) {
             SrsContextId cid = source->source_id();
             if (cid.empty())
                 cid = source->pre_source_id();

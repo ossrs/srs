@@ -3785,3 +3785,50 @@ VOID TEST(ProtocolRTMPTest, DiscoveryUrl)
         EXPECT_STREQ("?k=v", param.c_str());
     }
 }
+
+static void srs_utest_issue4622_discover(string tcUrl, string publish_stream, string &app, string &stream, string &param)
+{
+    string schema, host, vhost;
+    int port = 0;
+
+    // SrsRtmpServer::connect_app parses the complete tcUrl first.
+    srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+
+    // The RTMP publish name overwrites stream, then stream_service_cycle parses
+    // the request again and, if necessary, recovers the stream name from app.
+    stream = publish_stream;
+    srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+    if (stream.empty()) {
+        srs_net_url_guess_stream(app, param, stream);
+    }
+}
+
+VOID TEST(ReproduceIssue4622, ParamInFullTcUrlWithEmptyPublishStream)
+{
+    string app, stream, param;
+    srs_utest_issue4622_discover("rtmp://localhost:1935/live/livestream2?token=tokenGoesHere", "", app, stream, param);
+
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("livestream2", stream.c_str());
+    EXPECT_STREQ("?token=tokenGoesHere", param.c_str());
+}
+
+VOID TEST(ReproduceIssue4622, ParamInAppTcUrlWithNamedPublishStream)
+{
+    string app, stream, param;
+    srs_utest_issue4622_discover("rtmp://localhost:1935/live?token=tokenGoesHere", "livestream2", app, stream, param);
+
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("livestream2", stream.c_str());
+    EXPECT_STREQ("?token=tokenGoesHere", param.c_str());
+}
+
+VOID TEST(ReproduceIssue4622, SameParamInTcUrlAndPublishStream)
+{
+    string app, stream, param;
+    srs_utest_issue4622_discover("rtmp://localhost:1935/live?token=tokenGoesHere", "livestream2?token=tokenGoesHere", app, stream, param);
+
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("livestream2", stream.c_str());
+    EXPECT_STREQ("?token=tokenGoesHere", param.c_str());
+}

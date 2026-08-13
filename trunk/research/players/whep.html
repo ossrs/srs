@@ -57,6 +57,12 @@
     </div>
 
     <p></p>
+    <div class="form-inline">
+        Token:
+        <input type="text" id="txt_token" class="input-xxlarge" value="" placeholder="Optional bearer token for Authorization header">
+    </div>
+
+    <p></p>
     <video id="rtc_media_player" controls autoplay></video>
 
     <p></p>
@@ -131,11 +137,15 @@ $(function(){
         var vcodec = query.vcodec || query.codec;
         var acodec = query.acodec;
 
+        // Support bearer token via the input box for WHEP Authorization header.
+        var token = $("#txt_token").val();
+
         sdk.play(url, {
             videoOnly: $('#ch_videoonly').prop('checked'),
             audioOnly: $('#ch_audioonly').prop('checked'),
             vcodec: vcodec,
-            acodec: acodec
+            acodec: acodec,
+            token: token
         }).then(function(session){
             $('#sessionid').html(session.sessionid);
             $('#simulator-drop').attr('href', session.simulator + '?drop=1&username=' + session.sessionid);
@@ -168,6 +178,7 @@ $(function(){
     $('#rtc_media_player').hide();
     var query = parse_query_string();
     srs_init_whep("#txt_url", query);
+    if (query.token) $("#txt_token").val(query.token);
 
     $("#btn_play").click(startPlay);
     $("#btn_stop").click(stopPlay);

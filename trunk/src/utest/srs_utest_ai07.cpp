@@ -10,6 +10,7 @@
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_srt_source.hpp>
+#include <srs_app_stream_token.hpp>
 #ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
 #endif
@@ -4641,6 +4642,48 @@ VOID TEST(ReproduceIssue4449, RtmpLiveSourceNotifyDeletesNewlyCreatedSource)
     // After fix: the newly created source should NOT be deleted by notify
     EXPECT_EQ(pool_size_before, pool_size_after);
     EXPECT_EQ(1, pool_size_after);
+}
+
+// Reproduce issue 4656: A publisher owns a source but yields before on_publish(),
+// so the cleanup timer must not remove that source from the manager.
+VOID TEST(ReproduceIssue4656, PublishTokenKeepsPendingLiveSource)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->host_ = "localhost";
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "pending-publisher";
+
+    SrsSharedPtr<SrsLiveSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    // Make the inactive source eligible for immediate cleanup.
+    source->stream_die_at_ = srs_time_now_cached() - 10 * SRS_UTIME_MINUTES;
+    EXPECT_TRUE(source->stream_is_dead());
+
+    SrsStreamPublishTokenManager tokens;
+    SrsStreamPublishTokenManager *previous_tokens = _srs_stream_publish_tokens;
+    _srs_stream_publish_tokens = &tokens;
+
+    SrsStreamPublishToken *token = NULL;
+    HELPER_EXPECT_SUCCESS(tokens.acquire_token(req.get(), token));
+
+    // The pending publisher token pins the source in the manager.
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    EXPECT_EQ(1, (int)manager->pool_.size());
+    EXPECT_EQ(source.get(), manager->fetch(req.get()).get());
+
+    // Once the pending publisher leaves, normal cleanup resumes.
+    srs_freep(token);
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    EXPECT_EQ(0, (int)manager->pool_.size());
+
+    _srs_stream_publish_tokens = previous_tokens;
 }
 
 // Test SRT source for the same issue

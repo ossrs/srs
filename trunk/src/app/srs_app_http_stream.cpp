@@ -694,8 +694,12 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     // remove the extension of stream if have. for instance, test.flv -> test
     req->stream_ = path.filepath_filename(req->stream_);
 
-    // update client ip
+    // Update client IP, preferring the original address forwarded by a proxy.
     req->ip_ = hc->remote_ip();
+    string original_ip = srs_get_original_ip(r);
+    if (!original_ip.empty()) {
+        req->ip_ = original_ip;
+    }
 
     // We must do stat the client before hooks, because hooks depends on it.
     if ((err = stat_->on_client(_srs_context->get_id().c_str(), req.get(), hc, SrsFlvPlay)) != srs_success) {

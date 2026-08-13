@@ -53,3 +53,4 @@ cmake-build-debug
 /skills/llm-switcher
 /skills/*workspace*
 /memory/202*.md
+/tasks

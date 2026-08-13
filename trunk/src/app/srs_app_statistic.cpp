@@ -14,6 +14,7 @@ using namespace std;
 #include <srs_protocol_conn.hpp>
 
 #include <srs_app_utility.hpp>
+#include <srs_kernel_error.hpp>
 #include <srs_kernel_kbps.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
@@ -80,6 +81,7 @@ SrsStatisticStream::SrsStatisticStream()
     id_ = srs_generate_stat_vid();
     vhost_ = NULL;
     active_ = false;
+    create_ = srs_time_now_cached();
 
     has_video_ = false;
     vcodec_ = SrsVideoCodecIdReserved;
@@ -119,6 +121,7 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
     obj->set("tcUrl", SrsJsonAny::str(tcUrl_.c_str()));
     obj->set("url", SrsJsonAny::str(url_.c_str()));
     obj->set("live_ms", SrsJsonAny::integer(srsu2ms(srs_time_now_cached())));
+    obj->set("alive", SrsJsonAny::number(srsu2ms(srs_time_now_cached() - create_) / 1000.0));
     obj->set("clients", SrsJsonAny::integer(nb_clients_));
     obj->set("frames", SrsJsonAny::integer(video_frames_->sugar_ + audio_frames_->sugar_));
     obj->set("audio_frames", SrsJsonAny::integer(audio_frames_->sugar_));
@@ -493,7 +496,8 @@ void SrsStatistic::on_disconnect(std::string id, srs_error_t err)
     stream->nb_clients_--;
     vhost->nb_clients_--;
 
-    if (srs_error_code(err) != ERROR_SUCCESS) {
+    bool is_graceful_close = srs_is_client_gracefully_close(err) || srs_is_server_gracefully_close(err);
+    if (srs_error_code(err) != ERROR_SUCCESS && !is_graceful_close) {
         nb_errs_++;
     }
 

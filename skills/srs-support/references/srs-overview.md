@@ -191,6 +191,7 @@ By default, transmuxing between sources is disabled. You need to enable it in th
 **Clustering:**
 
 - **Origin Cluster** — Used to extend the number of streams SRS can support. It is a cluster of multiple origin servers behind a proxy server. The proxy discovers which origin server a stream is on and routes to it. v3.0, 2018-02
+- **Proxy Redis Key Namespace** — The next-generation Go proxy can isolate independent clusters sharing one Redis database with the optional `PROXY_REDIS_KEY_PREFIX`; the default is empty for backward-compatible key names. v8.0.4, 2026-07
 - **Edge Cluster** — Used to extend the number of viewers a stream can support. The current edge cluster is deprecated because it only supports the RTMP protocol, but a new edge cluster is planned to support more protocols. v1.0, 2014-04
 - **HLS Cluster** — Built by Nginx. It is a type of edge cluster for HLS. v5.0, 2022-04
 
@@ -263,6 +264,14 @@ The media server space is a niche industry. Not many developers need a media ser
 SRS has been developed for over 13 years and has accumulated many useful features. But there is still a lot of work to do — many features to add, bugs to fix, and improvements to make. The project is maintained by volunteers with limited time, and development is not rapid.
 
 **AI as Maintainer** — William is actively working on introducing AI as a project maintainer — not just for bug fixes or code generation, but as a full maintainer like himself. The approach is to build a comprehensive knowledge base so that AI can understand the project deeply: the architecture, design decisions, history, and community context. The goal is to have an AI maintainer within roughly six months (mid-2026). This is an experiment in using AI to maintain complex software projects — not just small ones, but projects like media servers written in C++ where you can't simply let AI generate code and push it to production. For any complex backend server or service, you need confidence that AI truly understands what it's doing before trusting it with real changes. The approach SRS is developing — building a deep knowledge base so AI can act as a real maintainer — applies broadly to any project where correctness and reliability matter.
+
+**SRS Community Bot (OpenClaw):**
+- William set up an OpenClaw robot for the SRS community on 2026-03-20.
+- **Telegram group:** https://t.me/+RiynvKOxpQ42MGJl
+- **Discord server:** https://discord.gg/yZ4BnPmHAd
+- Join a group and mention (`@`) the **SRS Robot** to interact with it.
+- The bot scales William's expertise to the community without requiring him to answer every question.
+- **Telegram is recommended over Discord:** Telegram lets users create small, focused groups and invite the bot. Each small group provides a clean context window, while large groups mix unrelated conversations and reduce answer quality.
 
 **How to Participate:**
 - **Discord** — Join the SRS Discord community for discussions and support.

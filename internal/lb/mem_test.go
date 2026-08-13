@@ -172,13 +172,36 @@ func TestMemLB_Pick_AliveServer_Sticky(t *testing.T) {
 	}
 }
 
+func TestMemLB_Pick_ConfiguredOriginServerTTL(t *testing.T) {
+	env := &envfakes.FakeProxyEnvironment{}
+	env.OriginServerTTLReturns("1m")
+	env.DefaultBackendEnabledReturns("off")
+	lb := NewMemoryLoadBalancer(env).(*memoryLoadBalancer)
+	if err := lb.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+
+	stale := &OriginServer{ServerID: "stale", PID: "1", UpdatedAt: time.Now().Add(-2 * time.Minute)}
+	alive := &OriginServer{ServerID: "alive", PID: "1", UpdatedAt: time.Now()}
+	_ = lb.Update(context.Background(), stale)
+	_ = lb.Update(context.Background(), alive)
+
+	got, err := lb.Pick(context.Background(), "url1")
+	if err != nil {
+		t.Fatalf("Pick: %v", err)
+	}
+	if got != alive {
+		t.Fatalf("Pick returned %v, want the origin within the configured TTL %v", got, alive)
+	}
+}
+
 func TestMemLB_Pick_OnlyDeadServers_Fallback(t *testing.T) {
 	lb := newMem()
 	// UpdatedAt long past => not alive. Tests the fallback "use all servers" branch.
 	s := &OriginServer{
 		ServerID:  "a",
 		PID:       "1",
-		UpdatedAt: time.Now().Add(-2 * ServerAliveDuration),
+		UpdatedAt: time.Now().Add(-10 * time.Minute),
 	}
 	_ = lb.Update(context.Background(), s)
 
