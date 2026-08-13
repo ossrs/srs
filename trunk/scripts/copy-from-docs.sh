@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# 
+# Copy from srs-docs to srs skills.
+#
+
 SRS_WORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 SRS_DOCS="$SRS_WORK_DIR/skills/internal-docs-for-srs/references/cpp-docs"
 

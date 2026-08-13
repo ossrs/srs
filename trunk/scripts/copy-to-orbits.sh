@@ -1,10 +1,18 @@
 #!/bin/bash
 
+#
+# Copy from srs 3rdparty to other repository like signaling, 
+# httpx-static, srs-bench, state-threads.
+# 
+
+SRS_WORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+cd $SRS_WORK_DIR/trunk
+
 if [[ ! -d 3rdparty/signaling || ! -d 3rdparty/httpx-static || ! -d 3rdparty/srs-bench ]]; then
   echo "no signaling or httpx-static or srs-bench in $(pwd)"
   exit -1
 fi
-if [[ ! -d ~/git/signaling || ! -d ~/git/go-oryx/httpx-static || ! -d ~/git/srs-bench ]]; then
+if [[ ! -d ~/git/signaling || ! -d ~/git/httpx-static/httpx-static || ! -d ~/git/srs-bench ]]; then
   echo "no signaling or httpx-static or srs-bench at ~/git"
   exit -1
 fi
@@ -25,9 +33,9 @@ cp -R 3rdparty/signaling/.gitignore ~/git/signaling/ &&
 (cd ~/git/signaling && git status)
 
 echo "Copy httpx-static"
-cp -R 3rdparty/httpx-static/* ~/git/go-oryx/httpx-static/ &&
-cp -R 3rdparty/httpx-static/.gitignore ~/git/go-oryx/httpx-static/ &&
-(cd ~/git/go-oryx && git status)
+cp -R 3rdparty/httpx-static/* ~/git/httpx-static/httpx-static/ &&
+cp -R 3rdparty/httpx-static/.gitignore ~/git/httpx-static/httpx-static/ &&
+(cd ~/git/httpx-static && git status)
 
 echo "Copy srs-bench"
 cp -R 3rdparty/srs-bench/* ~/git/srs-bench/ &&
@@ -35,5 +43,7 @@ cp -R 3rdparty/srs-bench/.gitignore ~/git/srs-bench/ &&
 (cd ~/git/srs-bench && git status)
 
 echo "Copy state-threads"
-cp -R 3rdparty/st-srs/* ~/git/state-threads/ &&
+cp -R 3rdparty/st-srs/*.h ~/git/state-threads/ &&
+cp -R 3rdparty/st-srs/*.c ~/git/state-threads/ &&
+cp -R 3rdparty/st-srs/*.S ~/git/state-threads/ &&
 (cd ~/git/state-threads && git st)
