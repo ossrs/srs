@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-12, Merge [#4717](https://github.com/ossrs/srs/pull/4717): Codex: Correct RTC frame statistics. v8.0.19 (#4717)
 * v8.0, 2026-08-12, Merge [#4716](https://github.com/ossrs/srs/pull/4716): JSON: Update vendored json-parser library. v8.0.18 (#4716)
 * v8.0, 2026-08-12, Merge [#4715](https://github.com/ossrs/srs/pull/4715): CI: Modernize GitHub Actions for SRS 8.0. v8.0.17 (#4715)
 * v8.0, 2026-08-11, Merge [#4714](https://github.com/ossrs/srs/pull/4714): Skills: Expand development workflows and add Oryx support. v8.0.16 (#4714)
