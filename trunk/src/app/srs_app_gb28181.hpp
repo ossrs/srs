@@ -171,6 +171,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // When wait for media connecting, timeout if exceed.
     srs_utime_t connecting_starttime_;
+    // Timeout for an API-created session waiting for its media TCP connection.
+    srs_utime_t media_connect_timeout_;
     // The time we enter reinviting state.
     srs_utime_t reinviting_starttime_;
     // The number of timeout, dispose session if exceed.

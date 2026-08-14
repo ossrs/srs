@@ -22,7 +22,8 @@ HTTP_API_PORT="${SRS_GB_HTTP_API_PORT:-22985}"
 MEDIA_PORT="${SRS_GB_MEDIA_PORT:-29001}"
 STREAM_ID="${SRS_GB_STREAM_ID:-gb-api-timeout-$$}"
 SSRC="${SRS_GB_SSRC:-47190002}"
-WAIT_SECONDS="${SRS_GB_API_WAIT_SECONDS:-5}"
+MEDIA_CONNECT_TIMEOUT="${SRS_GB_MEDIA_CONNECT_TIMEOUT:-0.5}"
+WAIT_SECONDS="${SRS_GB_API_WAIT_SECONDS:-1}"
 TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/srs-gb-api-timeout.XXXXXX")
 SRS_CONF="$TEST_DIR/srs.conf"
 SRS_LOG="$TEST_DIR/srs.log"
@@ -62,6 +63,7 @@ trap cleanup EXIT
 echo "=== E2E GB28181 API Session Timeout Cleanup Test ==="
 echo "Workspace: $WORKSPACE"
 echo "Session: id=$STREAM_ID, ssrc=$SSRC"
+echo "Configured media connect timeout: ${MEDIA_CONNECT_TIMEOUT}s"
 echo "Wait for session timeout: ${WAIT_SECONDS}s"
 echo ""
 
@@ -103,6 +105,7 @@ stream_caster {
   caster gb28181;
   output rtmp://127.0.0.1:$RTMP_PORT/live/[stream];
   listen $MEDIA_PORT;
+  media_connect_timeout $MEDIA_CONNECT_TIMEOUT;
 }
 
 http_api {

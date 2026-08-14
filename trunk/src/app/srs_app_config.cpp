@@ -2187,7 +2187,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; stream_caster && i < (int)stream_caster->directives_.size(); i++) {
             SrsConfDirective *conf = stream_caster->at(i);
             string n = conf->name_;
-            if (n != "enabled" && n != "caster" && n != "output" && n != "listen" && n != "sip") {
+            if (n != "enabled" && n != "caster" && n != "output" && n != "listen" && n != "media_connect_timeout" && n != "sip") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", n.c_str());
             }
 
@@ -3194,6 +3194,22 @@ int SrsConfig::get_stream_caster_listen(SrsConfDirective *conf)
     }
 
     return ::atoi(conf->arg0().c_str());
+}
+
+srs_utime_t SrsConfig::get_stream_caster_media_connect_timeout(SrsConfDirective *conf)
+{
+    static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("media_connect_timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_rtsp_server_enabled()

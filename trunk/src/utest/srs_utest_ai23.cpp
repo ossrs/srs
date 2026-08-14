@@ -67,6 +67,7 @@ void MockGbMuxer::reset()
 MockAppConfigForGbSession::MockAppConfigForGbSession()
 {
     stream_caster_output_ = "";
+    media_connect_timeout_ = 10 * SRS_UTIME_SECONDS;
 }
 
 MockAppConfigForGbSession::~MockAppConfigForGbSession()
@@ -76,6 +77,11 @@ MockAppConfigForGbSession::~MockAppConfigForGbSession()
 std::string MockAppConfigForGbSession::get_stream_caster_output(SrsConfDirective *conf)
 {
     return stream_caster_output_;
+}
+
+srs_utime_t MockAppConfigForGbSession::get_stream_caster_media_connect_timeout(SrsConfDirective *conf)
+{
+    return media_connect_timeout_;
 }
 
 void MockAppConfigForGbSession::set_stream_caster_output(const std::string &output)
@@ -114,6 +120,7 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
 
     // Setup mock config to return test output
     mock_config->set_stream_caster_output("rtmp://127.0.0.1/live/test_stream");
+    mock_config->media_connect_timeout_ = 500 * SRS_UTIME_MILLISECONDS;
 
     // Test setup() method
     SrsConfDirective *conf = NULL;
@@ -122,6 +129,7 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
     // Verify muxer->setup() was called with correct output
     EXPECT_TRUE(mock_muxer->setup_called_);
     EXPECT_STREQ("rtmp://127.0.0.1/live/test_stream", mock_muxer->setup_output_.c_str());
+    EXPECT_EQ(500 * SRS_UTIME_MILLISECONDS, session->media_connect_timeout_);
 
     // Test setup_owner() method
     SrsSharedResource<ISrsGbSession> *wrapper = NULL;

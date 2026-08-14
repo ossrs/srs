@@ -33,7 +33,6 @@ using namespace std;
 #define SRS_GB_MAX_RECOVER 16
 #define SRS_GB_LARGE_PACKET 1500
 #define SRS_GB_SESSION_DRIVE_INTERVAL (300 * SRS_UTIME_MILLISECONDS)
-#define SRS_GB_SESSION_MEDIA_TIMEOUT (3 * SRS_UTIME_SECONDS)
 
 extern bool srs_is_rtcp(const uint8_t *data, size_t len);
 
@@ -111,6 +110,7 @@ void SrsGbSession::setup(SrsConfDirective *conf)
 {
     std::string output = config_->get_stream_caster_output(conf);
     muxer_->setup(output);
+    media_connect_timeout_ = config_->get_stream_caster_media_connect_timeout(conf);
 
     srs_trace("Session: Start output=%s", output.c_str());
 }
@@ -291,7 +291,7 @@ srs_error_t SrsGbSession::drive_state()
     // The publish API reserves the ID and SSRC while the external SIP server
     // starts its media publisher. Once TCP binds, its connection owns the
     // session lifecycle; otherwise release an abandoned reservation.
-    if (connecting_starttime_ && srs_time_now_realtime() - connecting_starttime_ >= SRS_GB_SESSION_MEDIA_TIMEOUT) {
+    if (srs_time_since(connecting_starttime_, srs_time_now_realtime()) >= media_connect_timeout_) {
         return srs_error_new(ERROR_SUCCESS, "wait media connection timeout");
     }
 

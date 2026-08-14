@@ -55,6 +55,7 @@ class MockAppConfigForGbSession : public MockAppConfig
 {
 public:
     std::string stream_caster_output_;
+    srs_utime_t media_connect_timeout_;
 
 public:
     MockAppConfigForGbSession();
@@ -62,6 +63,7 @@ public:
 
 public:
     virtual std::string get_stream_caster_output(SrsConfDirective *conf);
+    virtual srs_utime_t get_stream_caster_media_connect_timeout(SrsConfDirective *conf);
     void set_stream_caster_output(const std::string &output);
 };
 
