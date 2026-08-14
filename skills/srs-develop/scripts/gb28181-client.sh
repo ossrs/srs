@@ -117,12 +117,24 @@ if not 0 < ssrc <= 0xFFFFFFFF:
     raise SystemExit("SSRC must be between 1 and 4294967295")
 
 # A PS pack and complete audio PES packet derived from the SRS GB28181 parser
-# regression fixture. Sending two packs makes SRS deliver the first pack to
-# the GB session and marks the media transport connected.
-ps_pack = bytes.fromhex(
-    "000001ba44686e4c9401013013feffff0000a005"
-    "000001c000828c8009211a1ba351fffffff8"
-) + b"x" * 118
+# regression fixture. The PES payload contains two valid AAC-LC/44.1kHz/stereo
+# ADTS silence frames, rather than placeholder bytes that trigger an ADTS
+# warning in the GB muxer. Sending two PS packs makes SRS deliver the first one
+# to the GB session and marks the media transport connected.
+ps_header = bytes.fromhex("000001ba44686e4c9401013013feffff0000a005")
+aac_adts = bytes.fromhex(
+    "fff1508003dffcde02004c61766336322e32382e31303100422008c11838"
+    "fff1508001bffc211004608c1c"
+)
+pes_optional_header = bytes.fromhex("8c8009211a1ba351fffffff8")
+pes_packet_length = len(pes_optional_header) + len(aac_adts)
+audio_pes = (
+    bytes.fromhex("000001c0")
+    + struct.pack("!H", pes_packet_length)
+    + pes_optional_header
+    + aac_adts
+)
+ps_pack = ps_header + audio_pes
 
 with socket.create_connection((host, port), timeout=3) as conn:
     for sequence in (1, 2):
@@ -133,4 +145,3 @@ with socket.create_connection((host, port), timeout=3) as conn:
 
 print("GB TCP publisher disconnected")
 PY
-
