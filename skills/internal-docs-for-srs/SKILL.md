@@ -48,6 +48,7 @@ For C++ media server user documentation, select the smallest relevant document:
 - `references/cpp-docs/doc/flv.md` — HTTP-FLV delivery, configuration, latency, protocol comparisons, and browser compatibility.
 - `references/cpp-docs/doc/srt.md` — SRT transport, latency, MPEG-TS encapsulation, HEVC, configuration, stream IDs, and weak-network behavior.
 - `references/cpp-docs/doc/rtsp.md` — RTSP playback, TCP transport, RTMP publishing workflow, configuration, and build option.
+- `references/cpp-docs/doc/gb28181.md` — External-SIP GB28181 media publishing, HTTP session creation, TCP transport, timeout configuration, and session lifecycle.
 - `references/cpp-docs/doc/http-server.md` — Embedded HTTP server, HLS/static serving, API endpoint, configuration, and reverse proxies.
 - `references/cpp-docs/doc/hevc.md` — H.265/HEVC protocol compatibility, Enhanced RTMP, encoder setup, and bandwidth tradeoffs.
 - `references/cpp-docs/doc/dvr.md` — FLV/MP4 recording, plans, paths, HTTP callbacks, and Oryx recording features.
