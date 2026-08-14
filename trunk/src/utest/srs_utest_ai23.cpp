@@ -122,6 +122,8 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
     mock_config->set_stream_caster_output("rtmp://127.0.0.1/live/test_stream");
     mock_config->media_connect_timeout_ = 500 * SRS_UTIME_MILLISECONDS;
 
+    EXPECT_EQ(0, session->media_connect_timeout_);
+
     // Test setup() method
     SrsConfDirective *conf = NULL;
     session->setup(conf);
@@ -384,7 +386,14 @@ VOID TEST(GB28181Test, SessionOnMediaTransport)
 VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
 {
     srs_error_t err = srs_success;
+    SrsUniquePtr<MockAppConfigForGbSession> mock_config(new MockAppConfigForGbSession());
+    MockGbMuxer *mock_muxer = new MockGbMuxer();
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    session->config_ = mock_config.get();
+    session->muxer_ = mock_muxer;
+    mock_config->media_connect_timeout_ = 500 * SRS_UTIME_MILLISECONDS;
+    session->setup(NULL);
 
     session->connecting_starttime_ = srs_time_now_realtime();
     HELPER_EXPECT_SUCCESS(session->drive_state());
@@ -399,6 +408,9 @@ VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
     SrsSharedResource<ISrsGbMediaTcpConn> media_resource(media);
     session->on_media_transport(media_resource);
     HELPER_EXPECT_SUCCESS(session->drive_state());
+
+    session->muxer_ = NULL;
+    srs_freep(mock_muxer);
 }
 
 // Test SrsGbSession::on_media_disconnected - only the current transport may
@@ -444,6 +456,7 @@ VOID TEST(GB28181Test, SessionDriveState)
     session->muxer_ = mock_muxer;
     session->media_ = SrsSharedResource<ISrsGbMediaTcpConn>(mock_media);
     session->device_id_ = "test-device-123";
+    session->setup(NULL);
 
     // Verify initial state is Init
     EXPECT_EQ(SrsGbSessionStateInit, session->state_);
