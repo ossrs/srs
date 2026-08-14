@@ -2,6 +2,20 @@
 
 Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
+## #4719 [BUG] External-SIP GB28181 sessions remain reserved after media termination
+
+- Issue: https://github.com/ossrs/srs/issues/4719
+- Truth Record: https://github.com/ossrs/srs/issues/4719#issuecomment-5288512580
+- Verified: 2026-08-14
+- Fix: PR https://github.com/ossrs/srs/pull/4721, SRS `8.0.22`, commit `dc1a651588d5d3c589b73e8ea7b8fe42eca26508`
+- Status: Fix pending merge; no v6 backport has been prepared or verified
+
+`POST /gb/v1/publish/` reserves a stream ID and SSRC. Before the fix, closing the bound RTP/PS-over-TCP publisher removed its TCP media resource but did not terminate the owning GB session, leaving both indexes busy. An API-created session that never connected could also remain reserved indefinitely.
+
+PR #4721 makes the current media TCP disconnect terminate the session through its existing executor/resource-manager cleanup path, while ignoring stale-transport disconnects. It also expires never-connected API sessions after configurable `stream_caster.media_connect_timeout`, which defaults to 10 seconds. Both lifecycle E2E tests passed, and the complete AddressSanitizer suite passed 2,253/2,253 tests.
+
+No explicit unpublish API was added. SIP BYE does not directly notify SRS; after media binds, closing the current media TCP connection is the terminal event. A controller-driven unpublish endpoint, if needed for devices that retain TCP after BYE, remains a separate API design task.
+
 ## #4697 [ENHANCEMENT] RTC audio pause/resume compatibility
 
 - Issue: https://github.com/ossrs/srs/issues/4697
