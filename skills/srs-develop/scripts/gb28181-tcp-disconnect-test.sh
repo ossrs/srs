@@ -1,6 +1,7 @@
 #!/bin/bash
-# E2E test for the external-SIP GB28181 lifecycle. It builds and starts a
-# disposable SRS, runs the mock GB client, then verifies identifier reuse.
+# E2E test for external-SIP GB28181 TCP disconnect cleanup. It builds and
+# starts a disposable SRS, publishes media over TCP, closes it, then verifies
+# that the same stream ID and SSRC are reusable.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
@@ -15,13 +16,13 @@ if [[ ! -f "$WORKSPACE/trunk/configure" ]]; then
 fi
 
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
-GB_CLIENT="$SCRIPT_DIR/gb28181-client.sh"
+GB_PUBLISH_STREAM="$SCRIPT_DIR/gb28181-publish-stream.sh"
 RTMP_PORT="${SRS_GB_RTMP_PORT:-21935}"
 HTTP_API_PORT="${SRS_GB_HTTP_API_PORT:-21985}"
 MEDIA_PORT="${SRS_GB_MEDIA_PORT:-29000}"
 STREAM_ID="${SRS_GB_STREAM_ID:-gb-lifecycle-$$}"
 SSRC="${SRS_GB_SSRC:-47190001}"
-TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/srs-gb-lifecycle.XXXXXX")
+TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/srs-gb-tcp-disconnect.XXXXXX")
 SRS_CONF="$TEST_DIR/srs.conf"
 SRS_LOG="$TEST_DIR/srs.log"
 SRS_PID_FILE="$TEST_DIR/srs.pid"
@@ -57,7 +58,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "=== E2E GB28181 External-SIP Lifecycle Test ==="
+echo "=== E2E GB28181 TCP Disconnect Cleanup Test ==="
 echo "Workspace: $WORKSPACE"
 echo "Session: id=$STREAM_ID, ssrc=$SSRC"
 echo ""
@@ -68,8 +69,8 @@ for tool in curl python3 make; do
     exit 1
   fi
 done
-if [[ ! -x "$GB_CLIENT" ]]; then
-  echo "Error: GB client is not executable: $GB_CLIENT" >&2
+if [[ ! -x "$GB_PUBLISH_STREAM" ]]; then
+  echo "Error: GB stream publisher is not executable: $GB_PUBLISH_STREAM" >&2
   exit 1
 fi
 
@@ -136,8 +137,8 @@ if [[ "$READY" != "1" ]]; then
 fi
 echo "SRS started: API :$HTTP_API_PORT, GB TCP :$MEDIA_PORT"
 
-echo "=== Step 3: Creating, publishing, and disconnecting GB client ==="
-"$GB_CLIENT" \
+echo "=== Step 3: Creating and disconnecting a GB stream publisher ==="
+"$GB_PUBLISH_STREAM" \
   --api-url "http://127.0.0.1:$HTTP_API_PORT" \
   --media-host 127.0.0.1 \
   --media-port "$MEDIA_PORT" \
@@ -162,4 +163,4 @@ fi
 
 TEST_PASSED=1
 echo ""
-echo "=== E2E GB28181 External-SIP Lifecycle Test PASSED ==="
+echo "=== E2E GB28181 TCP Disconnect Cleanup Test PASSED ==="

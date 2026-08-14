@@ -31,9 +31,9 @@
 using namespace std;
 
 #define SRS_GB_MAX_RECOVER 16
-#define SRS_GB_MAX_TIMEOUT 3
 #define SRS_GB_LARGE_PACKET 1500
 #define SRS_GB_SESSION_DRIVE_INTERVAL (300 * SRS_UTIME_MILLISECONDS)
+#define SRS_GB_SESSION_MEDIA_TIMEOUT (3 * SRS_UTIME_SECONDS)
 
 extern bool srs_is_rtcp(const uint8_t *data, size_t len);
 
@@ -73,12 +73,12 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     muxer_ = new SrsGbMuxer(this);
     state_ = SrsGbSessionStateInit;
 
-    connecting_starttime_ = 0;
     nn_timeout_ = 0;
     reinviting_starttime_ = 0;
 
     ppp_ = new SrsAlonePithyPrint();
     startime_ = srs_time_now_realtime();
+    connecting_starttime_ = startime_;
     total_packs_ = 0;
     total_msgs_ = 0;
     total_recovered_ = 0;
@@ -188,6 +188,7 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
 void SrsGbSession::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
 {
     media_ = media;
+    connecting_starttime_ = 0;
 
     // Change id of SIP and all its child coroutines.
     media_->set_cid(cid_);
@@ -230,7 +231,7 @@ srs_error_t SrsGbSession::cycle()
 
     // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
-        srs_trace("client finished %s.", srs_error_summary(err).c_str());
+        srs_warn("client finished %s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
@@ -286,6 +287,13 @@ srs_error_t SrsGbSession::do_cycle()
 srs_error_t SrsGbSession::drive_state()
 {
     srs_error_t err = srs_success;
+
+    // The publish API reserves the ID and SSRC while the external SIP server
+    // starts its media publisher. Once TCP binds, its connection owns the
+    // session lifecycle; otherwise release an abandoned reservation.
+    if (connecting_starttime_ && srs_time_now_realtime() - connecting_starttime_ >= SRS_GB_SESSION_MEDIA_TIMEOUT) {
+        return srs_error_new(ERROR_SUCCESS, "wait media connection timeout");
+    }
 
 #define SRS_GB_CHANGE_STATE_TO(state)                                        \
     {                                                                        \

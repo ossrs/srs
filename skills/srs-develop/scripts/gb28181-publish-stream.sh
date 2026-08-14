@@ -1,12 +1,14 @@
 #!/bin/bash
-# Minimal external-SIP GB28181 test client. It creates an SRS GB session over
-# HTTP, sends two RFC4571-framed RTP/PS packets over TCP, then disconnects.
+# Simulate an external-SIP GB28181 publisher. It creates an SRS session through
+# the publish API, sends RFC4571-framed RTP/PS over TCP, then disconnects.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
+GB_CREATE_SESSION="$SCRIPT_DIR/gb28181-create-session.sh"
 API_URL="http://127.0.0.1:1985"
 MEDIA_HOST="127.0.0.1"
 MEDIA_PORT=""
-STREAM_ID="gb-client-$$"
+STREAM_ID="gb-publish-stream-$$"
 SSRC="47190001"
 HOLD_SECONDS="0.2"
 
@@ -63,20 +65,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-for tool in curl python3; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    echo "Error: $tool is required" >&2
-    exit 1
-  fi
-done
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Error: python3 is required" >&2
+  exit 1
+fi
+if [[ ! -x "$GB_CREATE_SESSION" ]]; then
+  echo "Error: GB session creation helper is not executable: $GB_CREATE_SESSION" >&2
+  exit 1
+fi
 
-API_URL="${API_URL%/}"
-echo "Create GB session: id=$STREAM_ID, ssrc=$SSRC"
-PUBLISH_RESPONSE=$(curl --silent --show-error \
-  --request POST \
-  --header 'Content-Type: application/json' \
-  --data "{\"id\":\"$STREAM_ID\",\"ssrc\":\"$SSRC\"}" \
-  "$API_URL/gb/v1/publish/")
+PUBLISH_RESPONSE=$("$GB_CREATE_SESSION" \
+  --api-url "$API_URL" \
+  --id "$STREAM_ID" \
+  --ssrc "$SSRC")
 echo "Publish response: $PUBLISH_RESPONSE"
 
 read -r RESPONSE_CODE RESPONSE_PORT RESPONSE_IS_TCP <<EOF

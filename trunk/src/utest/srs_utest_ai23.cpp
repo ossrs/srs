@@ -364,10 +364,33 @@ VOID TEST(GB28181Test, SessionOnMediaTransport)
 
     // Verify that the session's context ID was passed to the media transport
     EXPECT_EQ(0, mock_media->received_cid_.compare(session_cid));
+    EXPECT_EQ(0, session->connecting_starttime_);
 
     // Clean up - set to NULL to avoid double-free
     session->muxer_ = NULL;
     srs_freep(mock_muxer);
+}
+
+// Test that an API-created session expires while waiting for its media TCP
+// connection, but stops using that timeout as soon as a transport binds.
+VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
+{
+    srs_error_t err = srs_success;
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    session->connecting_starttime_ = srs_time_now_realtime();
+    HELPER_EXPECT_SUCCESS(session->drive_state());
+
+    session->connecting_starttime_ = srs_time_now_realtime() - 10 * SRS_UTIME_SECONDS;
+    err = session->drive_state();
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SUCCESS, srs_error_code(err));
+    srs_freep(err);
+
+    MockGbMediaTcpConn *media = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> media_resource(media);
+    session->on_media_transport(media_resource);
+    HELPER_EXPECT_SUCCESS(session->drive_state());
 }
 
 // Test SrsGbSession::on_media_disconnected - only the current transport may

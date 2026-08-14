@@ -202,7 +202,7 @@ The first-generation C++ media server is in maintenance mode. Accept bug fixes, 
 
 1. Run the focused regression first, then the complete applicable verification selected from `references/testing.md`.
 2. Build the C++ server with the affected feature enabled and run `git diff --check`.
-3. For an external-SIP GB28181 session-lifecycle fix, run `scripts/gb28181-lifecycle-test.sh`. It builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, simulates an RTP/PS-over-TCP publisher, then requires the same ID and SSRC to be publishable again after TCP disconnect.
+3. For external-SIP GB28181 session cleanup, run the focused regression for the affected terminal event. Use `scripts/gb28181-tcp-disconnect-test.sh` when a bound RTP/PS-over-TCP publisher disconnects, and `scripts/gb28181-api-timeout-test.sh` when an API-created session never receives a TCP connection. Each script builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, then requires the same ID and SSRC to become publishable again.
 4. Run sanitizer verification when the fix changes coroutine interruption, sockets, resource ownership, shared pointers, or object destruction.
 5. Report every test result and any unverified platform or configuration scope. Do not push or stage files.
 
