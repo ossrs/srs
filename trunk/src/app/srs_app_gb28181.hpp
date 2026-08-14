@@ -131,6 +131,8 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid) = 0;
     // Notice session to use current media connection.
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media) = 0;
+    // Notice session that its current media connection is disconnected.
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media) = 0;
 
 public:
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs) = 0;
@@ -218,6 +220,8 @@ public:
 
     // When got available media transport.
     void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    // When current media transport is disconnected.
+    void on_media_disconnected(ISrsGbMediaTcpConn *media);
 
     // Interface ISrsCoroutineHandler
 public:

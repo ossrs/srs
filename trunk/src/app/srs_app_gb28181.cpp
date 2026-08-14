@@ -193,6 +193,18 @@ void SrsGbSession::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> medi
     media_->set_cid(cid_);
 }
 
+void SrsGbSession::on_media_disconnected(ISrsGbMediaTcpConn *media)
+{
+    // Ignore a stale transport after the session has switched to a new one.
+    if (media_.get() != media) {
+        return;
+    }
+
+    if (owner_coroutine_) {
+        owner_coroutine_->interrupt();
+    }
+}
+
 // LCOV_EXCL_START
 srs_error_t SrsGbSession::cycle()
 {
@@ -533,6 +545,14 @@ srs_error_t SrsGbMediaTcpConn::cycle()
 
     // Change state to disconnected.
     connected_ = false;
+
+    // The external SIP server owns the signaling lifecycle, so a closed media
+    // transport is the terminal event available to SRS for this session.
+    if (session_) {
+        session_->on_media_disconnected(this);
+        session_ = NULL;
+    }
+
     srs_trace("PS: Media disconnect, code=%d", srs_error_code(err));
 
     // success.

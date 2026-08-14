@@ -286,6 +286,7 @@ public:
     virtual void setup(SrsConfDirective *conf);
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
@@ -350,6 +351,7 @@ public:
     virtual void setup(SrsConfDirective *conf);
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
@@ -518,6 +520,7 @@ public:
     virtual void setup(SrsConfDirective *conf);
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();

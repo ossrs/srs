@@ -370,6 +370,28 @@ VOID TEST(GB28181Test, SessionOnMediaTransport)
     srs_freep(mock_muxer);
 }
 
+// Test SrsGbSession::on_media_disconnected - only the current transport may
+// terminate the session, while a stale transport must be ignored.
+VOID TEST(GB28181Test, SessionOnMediaDisconnected)
+{
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+
+    MockGbMediaTcpConn *current = new MockGbMediaTcpConn();
+    MockGbMediaTcpConn *stale = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> current_resource(current);
+    SrsSharedResource<ISrsGbMediaTcpConn> stale_resource(stale);
+
+    session->setup_owner(NULL, owner.get(), NULL);
+    session->on_media_transport(current_resource);
+
+    session->on_media_disconnected(stale);
+    EXPECT_FALSE(owner->interrupt_called_);
+
+    session->on_media_disconnected(current);
+    EXPECT_TRUE(owner->interrupt_called_);
+}
+
 // Test SrsGbSession::drive_state - covers the major use scenario:
 // 1. Session starts in Init state with media disconnected
 // 2. When media connects, session transitions to Established state
@@ -794,6 +816,10 @@ void MockGbSessionForMediaConn::on_media_transport(SrsSharedResource<ISrsGbMedia
 {
     on_media_transport_called_ = true;
     received_media_ = media;
+}
+
+void MockGbSessionForMediaConn::on_media_disconnected(ISrsGbMediaTcpConn *media)
+{
 }
 
 void MockGbSessionForMediaConn::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
@@ -1313,6 +1339,10 @@ void MockGbSessionForMuxer::setup_owner(SrsSharedResource<ISrsGbSession> *wrappe
 }
 
 void MockGbSessionForMuxer::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
+{
+}
+
+void MockGbSessionForMuxer::on_media_disconnected(ISrsGbMediaTcpConn *media)
 {
 }
 
@@ -2130,6 +2160,10 @@ void MockGbSessionForApiPublish::setup_owner(SrsSharedResource<ISrsGbSession> *w
 }
 
 void MockGbSessionForApiPublish::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
+{
+}
+
+void MockGbSessionForApiPublish::on_media_disconnected(ISrsGbMediaTcpConn *media)
 {
 }
 

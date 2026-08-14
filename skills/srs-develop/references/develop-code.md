@@ -14,6 +14,7 @@
 | **SRS player** | → [SRS Player](#srs-player) | ✅ Supported |
 | **Dev Docker** | → [Dev Docker](#dev-docker) | ✅ Supported |
 | **Oryx** | → [Oryx](#oryx) | ✅ Supported |
+| **C++ media server maintenance** | → [C++ Media Server Maintenance](#c-media-server-maintenance) | ✅ Supported |
 | **Origin server** | → [Origin Server](#origin-server) | ❌ Not yet supported |
 | **Edge server** | → [Edge Server](#edge-server) | ❌ Not yet supported |
 
@@ -178,6 +179,32 @@ Oryx is maintained in the separate `ossrs/oryx` repository. It combines a Go pla
 3. Run black-box tests only against an explicitly disposable Oryx instance. Start with one selected `-run` case before widening scope.
 4. Do not request real certificates, call OpenAI or cloud services, publish images, create releases, modify DNS, or use production stream keys unless the user explicitly authorizes that external effect.
 5. If full Docker, media, browser, installer, or external-service verification is unavailable, report the exact unverified scope. Do not claim success from compilation alone.
+
+## C++ Media Server Maintenance
+
+The first-generation C++ media server is in maintenance mode. Accept bug fixes, security fixes, compatibility fixes, tests, and documentation corrections; do not add planned features.
+
+### Step 1: Route and Reproduce
+
+1. Load `skills/internal-codemap-for-srs/SKILL.md`, route to `references/cpp-server.md`, and select the smallest responsible module and file set.
+2. Load `skills/internal-docs-for-srs/SKILL.md` and select only the documentation relevant to the affected behavior.
+3. When verification is required, load `skills/internal-codemap-for-srs/references/testing.md` and choose the smallest unit, black-box, E2E, or benchmark surface that can reproduce the report.
+4. Reproduce the problem on the relevant branch and version before modifying code. Record the exact command, configuration, input, and observed result.
+
+### Step 2: Implement the Maintenance Fix
+
+1. Identify the verified root cause and implement the smallest compatible fix.
+2. Preserve C++98 compatibility and the existing coroutine, resource-ownership, protocol, configuration, and error-handling conventions.
+3. Add focused regression coverage that fails before the fix and passes afterward.
+4. Update user documentation only when the behavior or maintenance result changes what operators need to know.
+
+### Step 3: Verify
+
+1. Run the focused regression first, then the complete applicable verification selected from `references/testing.md`.
+2. Build the C++ server with the affected feature enabled and run `git diff --check`.
+3. For an external-SIP GB28181 session-lifecycle fix, run `scripts/gb28181-lifecycle-test.sh`. It builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, simulates an RTP/PS-over-TCP publisher, then requires the same ID and SSRC to be publishable again after TCP disconnect.
+4. Run sanitizer verification when the fix changes coroutine interruption, sockets, resource ownership, shared pointers, or object destruction.
+5. Report every test result and any unverified platform or configuration scope. Do not push or stage files.
 
 ## Origin Server
 
