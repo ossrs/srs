@@ -179,6 +179,45 @@ func TestRedisLB_Initialize_Success(t *testing.T) {
 	}
 }
 
+func TestRedisLB_Update_UsesConfiguredOriginServerTTL(t *testing.T) {
+	fake := &redisclientfakes.FakeRedisClient{}
+	fake.PingReturns(statusCmd(nil))
+	fake.SetReturns(statusCmd(nil))
+	fake.GetReturns(stringErr(redis.Nil))
+
+	env := &envfakes.FakeProxyEnvironment{}
+	env.RedisDBReturns("0")
+	env.OriginServerTTLReturns("45s")
+	lb := withFakeClient(env, fake)
+	if err := lb.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+
+	server := &OriginServer{ServerID: "s", ServiceID: "v", PID: "1"}
+	if err := lb.Update(context.Background(), server); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+	if got := fake.SetCallCount(); got != 2 {
+		t.Fatalf("Set call count = %d, want 2", got)
+	}
+
+	_, serverKey, _, serverTTL := fake.SetArgsForCall(0)
+	if want := lb.redisKeyServer(server.ID()); serverKey != want {
+		t.Fatalf("server key = %q, want %q", serverKey, want)
+	}
+	if serverTTL != 45*time.Second {
+		t.Fatalf("server TTL = %v, want %v", serverTTL, 45*time.Second)
+	}
+
+	_, serversKey, _, serversTTL := fake.SetArgsForCall(1)
+	if want := lb.redisKeyServers(); serversKey != want {
+		t.Fatalf("server-index key = %q, want %q", serversKey, want)
+	}
+	if serversTTL != 0 {
+		t.Fatalf("server-index TTL = %v, want no expiration", serversTTL)
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Update.
 // ----------------------------------------------------------------------------
@@ -641,19 +680,32 @@ func TestRedisLB_StoreWebRTC_SecondSetFails(t *testing.T) {
 // ----------------------------------------------------------------------------
 
 func TestRedisLB_KeyHelpers(t *testing.T) {
-	lb := &redisLoadBalancer{}
-	for _, tt := range []struct {
-		got, want string
+	for _, tc := range []struct {
+		name, prefix, wantPrefix string
 	}{
-		{lb.redisKeyUfrag("u"), "srs-proxy-ufrag:u"},
-		{lb.redisKeyRTC("url"), "srs-proxy-rtc:url"},
-		{lb.redisKeySPBHID("s"), "srs-proxy-spbhid:s"},
-		{lb.redisKeyHLS("url"), "srs-proxy-hls:url"},
-		{lb.redisKeyServer("id"), "srs-proxy-server:id"},
-		{lb.redisKeyServers(), "srs-proxy-all-servers"},
+		{"default", "", ""},
+		{"configured", "xxx", "xxx:"},
 	} {
-		if tt.got != tt.want {
-			t.Errorf("got %q, want %q", tt.got, tt.want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			env := &envfakes.FakeProxyEnvironment{}
+			env.RedisKeyPrefixReturns(tc.prefix)
+			lb := NewRedisLoadBalancer(env).(*redisLoadBalancer)
+
+			for _, tt := range []struct {
+				got, want string
+			}{
+				{lb.redisKeyUfrag("u"), tc.wantPrefix + "srs-proxy-ufrag:u"},
+				{lb.redisKeyRTC("url"), tc.wantPrefix + "srs-proxy-rtc:url"},
+				{lb.redisKeySPBHID("s"), tc.wantPrefix + "srs-proxy-spbhid:s"},
+				{lb.redisKeyHLS("url"), tc.wantPrefix + "srs-proxy-hls:url"},
+				{lb.redisKeyURL("url"), tc.wantPrefix + "srs-proxy-url:url"},
+				{lb.redisKeyServer("id"), tc.wantPrefix + "srs-proxy-server:id"},
+				{lb.redisKeyServers(), tc.wantPrefix + "srs-proxy-all-servers"},
+			} {
+				if tt.got != tt.want {
+					t.Errorf("got %q, want %q", tt.got, tt.want)
+				}
+			}
+		})
 	}
 }

@@ -1845,6 +1845,49 @@ SrsRtpPacket *create_raw_payload_packet(SrsAvcNaluType nalu_type, const uint8_t 
     return pkt;
 }
 
+// Reproduce #4695: WebRTC publishers may repeat unchanged AVC SPS/PPS with
+// every keyframe. The RTC-to-RTMP bridge should not emit an identical video
+// sequence header more than once.
+VOID TEST(ReproduceIssue4695, AvcDoesNotEmitIdenticalSequenceHeaderTwice)
+{
+    srs_error_t err;
+
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
+
+    SrsUniquePtr<SrsRtpPacket> first(create_stap_a_packet_with_sps_pps());
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(first.get()));
+    EXPECT_EQ(1, target.on_frame_count_);
+
+    SrsUniquePtr<SrsRtpPacket> repeated(create_stap_a_packet_with_sps_pps());
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(repeated.get()));
+    EXPECT_EQ(1, target.on_frame_count_);
+}
+
+// Reproduce #4695 for HEVC: unchanged VPS/SPS/PPS repeated with a keyframe
+// should not produce another RTC-to-RTMP video sequence header.
+VOID TEST(ReproduceIssue4695, HevcDoesNotEmitIdenticalSequenceHeaderTwice)
+{
+    srs_error_t err;
+
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdHEVC));
+
+    SrsUniquePtr<SrsRtpPacket> first(create_hevc_stap_packet_with_vps_sps_pps());
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_hevc(first.get()));
+    EXPECT_EQ(1, target.on_frame_count_);
+
+    SrsUniquePtr<SrsRtpPacket> repeated(create_hevc_stap_packet_with_vps_sps_pps());
+    HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_hevc(repeated.get()));
+    EXPECT_EQ(1, target.on_frame_count_);
+}
+
 // Test SrsRtcFrameBuilder::packet_sequence_header_avc with STAP-A payload containing SPS and PPS
 VOID TEST(RtcFrameBuilderTest, PacketSequenceHeaderAvc_STAPAPayload_WithSPSAndPPS)
 {
@@ -2344,16 +2387,17 @@ VOID TEST(RtcFrameBuilderTest, PacketSequenceHeaderAvc_ComprehensiveCoverage)
     // Reset target for next test
     target.reset();
 
-    // Test 3: Process STAP-A with both SPS and PPS (should generate frame immediately)
+    // Test 3: Process STAP-A with the same SPS and PPS. The identical sequence
+    // header was already delivered above, so it should be suppressed.
     SrsUniquePtr<SrsRtpPacket> stap_pkt(create_stap_a_packet_with_sps_pps());
     HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(stap_pkt.get()));
-    EXPECT_EQ(1, target.on_frame_count_);
+    EXPECT_EQ(0, target.on_frame_count_);
 
     // Test 4: Process non-SPS/PPS packet (should do nothing)
     uint8_t idr_data[] = {0x65, 0x88, 0x84, 0x00, 0x10};
     SrsUniquePtr<SrsRtpPacket> idr_pkt(create_raw_payload_packet(SrsAvcNaluTypeIDR, idr_data, sizeof(idr_data)));
     HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_avc(idr_pkt.get()));
-    EXPECT_EQ(1, target.on_frame_count_); // No change
+    EXPECT_EQ(0, target.on_frame_count_); // No change
 }
 
 // Test SrsRtcFrameBuilder::on_rtp with exact sync state transitions

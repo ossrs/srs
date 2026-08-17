@@ -23,6 +23,7 @@
 
 #include <srs_utest_workflow_forward.hpp>
 
+#include <srs_app_rtmp_conn.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
 
@@ -43,6 +44,79 @@ ISrsBasicRtmpClient *MockAppFactoryForForwarder::create_rtmp_client(std::string 
         mock_rtmp_client_->set_url(url);
     }
     return mock_rtmp_client_;
+}
+
+MockHttpHooksForForwardBackendFailure::MockHttpHooksForForwardBackendFailure()
+{
+    on_forward_backend_count_ = 0;
+    on_forward_backend_error_ = srs_success;
+}
+
+MockHttpHooksForForwardBackendFailure::~MockHttpHooksForForwardBackendFailure()
+{
+    srs_freep(on_forward_backend_error_);
+}
+
+srs_error_t MockHttpHooksForForwardBackendFailure::on_forward_backend(std::string url, ISrsRequest *req, std::vector<std::string> &rtmp_urls)
+{
+    on_forward_backend_count_++;
+    return srs_error_copy(on_forward_backend_error_);
+}
+
+void MockHttpHooksForForwardBackendFailure::set_on_forward_backend_error(srs_error_t err)
+{
+    srs_freep(on_forward_backend_error_);
+    on_forward_backend_error_ = srs_error_copy(err);
+}
+
+// A dynamic-forward backend is an external dependency. If it fails, SRS should reject the
+// current publish attempt and roll back the partially acquired live source so the publisher
+// can retry. This regression test defines the required rollback behavior.
+VOID TEST(BasicWorkflowForwardTest, ForwardBackendFailureRollsBackPublishState)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockAppStatistic> mock_stat(new MockAppStatistic());
+    SrsUniquePtr<MockHttpHooksForForwardBackendFailure> mock_hooks(new MockHttpHooksForForwardBackendFailure());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "stream1"));
+
+    mock_config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+    mock_hooks->set_on_forward_backend_error(srs_error_new(ERROR_HTTP_STATUS_INVALID, "mock HTTP 500"));
+
+    SrsLiveSource *raw_source = new SrsLiveSource();
+    raw_source->config_ = mock_config.get();
+    raw_source->stat_ = mock_stat.get();
+    raw_source->req_ = req->copy();
+    SrsSharedPtr<SrsLiveSource> source(raw_source);
+
+    SrsOriginHub *hub = new SrsOriginHub();
+    hub->config_ = mock_config.get();
+    hub->stat_ = mock_stat.get();
+    hub->hooks_ = mock_hooks.get();
+    HELPER_EXPECT_SUCCESS(hub->initialize(source, raw_source->req_));
+    raw_source->hub_ = hub;
+
+    SrsUniquePtr<SrsRtmpConn> conn(new SrsRtmpConn(new MockRtmpTransport(), "127.0.0.1", 1935));
+    conn->config_ = mock_config.get();
+    conn->stat_ = mock_stat.get();
+    conn->hooks_ = mock_hooks.get();
+    conn->info_->req_->vhost_ = req->vhost_;
+    conn->info_->req_->app_ = req->app_;
+    conn->info_->req_->stream_ = req->stream_;
+    conn->info_->edge_ = false;
+
+    // Each attempt should reach the backend and fail with its original error. Most importantly,
+    // the failed attempt must leave the live source available for the next publisher.
+    for (int i = 0; i < 2; i++) {
+        err = conn->publishing(source);
+        EXPECT_TRUE(err != srs_success);
+        EXPECT_EQ(ERROR_HTTP_STATUS_INVALID, srs_error_code(err));
+        srs_freep(err);
+
+        EXPECT_TRUE(source->can_publish(false));
+    }
+    EXPECT_EQ(2, mock_hooks->on_forward_backend_count_);
 }
 
 // This test is used to verify the basic workflow of the forwarding.

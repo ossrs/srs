@@ -2112,7 +2112,7 @@ VOID TEST(ProtocolSdpTest, SrsSSRCGroupEncode)
     HELPER_EXPECT_SUCCESS(ssrc_group.encode(os));
 
     std::string result = os.str();
-    EXPECT_TRUE(result.find("a=ssrc-group:FID 12345 67890") != std::string::npos);
+    EXPECT_STREQ("a=ssrc-group:FID 12345 67890\r\n", result.c_str());
 
     // Test invalid semantic (should fail)
     SrsSSRCGroup invalid_group;
@@ -2131,6 +2131,26 @@ VOID TEST(ProtocolSdpTest, SrsSSRCGroupEncode)
     std::ostringstream os3;
     srs_error_t encode_err2 = empty_group.encode(os3);
     HELPER_EXPECT_FAILED(encode_err2);
+}
+
+VOID TEST(ProtocolSdpTest, SrsSSRCGroupEncodeBeforeSsrcInfo)
+{
+    srs_error_t err = srs_success;
+
+    std::vector<uint32_t> ssrcs;
+    ssrcs.push_back(12345);
+    ssrcs.push_back(67890);
+
+    SrsSSRCGroup ssrc_group("FID", ssrcs);
+    SrsSSRCInfo ssrc_info(12345, "test-cname", "", "");
+
+    std::ostringstream os;
+    HELPER_EXPECT_SUCCESS(ssrc_group.encode(os));
+    HELPER_EXPECT_SUCCESS(ssrc_info.encode(os));
+
+    EXPECT_STREQ("a=ssrc-group:FID 12345 67890\r\n"
+                 "a=ssrc:12345 cname:test-cname\r\n",
+                 os.str().c_str());
 }
 
 VOID TEST(ProtocolSdpTest, SrsMediaDescUpdateMsid)

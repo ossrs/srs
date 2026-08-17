@@ -34,7 +34,7 @@ function user_extra_params(query, params, rtc) {
             || key === 'http_port' || key === 'pathname' || key === 'port'
             || key === 'server' || key === 'stream' || key === 'buffer'
             || key === 'schema' || key === 'vhost' || key === 'api'
-            || key === 'path'
+            || key === 'path' || key === 'token' || key === 'url'
         ) {
             continue;
         }
@@ -47,26 +47,41 @@ function user_extra_params(query, params, rtc) {
     return queries;
 }
 
+function default_port_for_schema(schema) {
+    if (schema === 'http') {
+        return 80;
+    }
+    if (schema === 'https') {
+        return 443;
+    }
+    if (schema === 'webrtc') {
+        return 1985;
+    }
+    if (schema === 'rtmp') {
+        return 1935;
+    }
+    return 0;
+}
+
 function is_default_port(schema, port) {
-    return (schema === 'http' && port === 80)
-        || (schema === 'https' && port === 443)
-        || (schema === 'webrtc' && port === 1985)
-        || (schema === 'rtmp' && port === 1935);
+    return default_port_for_schema(schema) === port;
 }
 
 /**
 @param server the ip of server. default to window.location.hostname
 @param vhost the vhost of HTTP-FLV. default to window.location.hostname
-@param port the port of HTTP-FLV. default to 1935
+@param port the port of HTTP-FLV. default to the current page port
 @param app the app of HTTP-FLV. default to live.
 @param stream the stream of HTTP-FLV. default to livestream.flv
 */
 function build_default_flv_url() {
     var query = parse_query_string();
 
-    var schema = (!query.schema)? "http":query.schema;
+    var location_schema = window.location.protocol.replace(':', '');
+    var schema = query.schema || location_schema || "http";
     var server = (!query.server)? window.location.hostname:query.server;
-    var port = (!query.port)? (schema==="http"? 8080:1935) : Number(query.port);
+    var port = Number(query.port || ((query.schema && query.schema !== location_schema)?
+        default_port_for_schema(schema) : (window.location.port || default_port_for_schema(schema))));
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;
     var app = (!query.app)? "live":query.app;
     var stream = (!query.stream)? "livestream.flv":query.stream;
@@ -120,6 +135,7 @@ function build_default_rtc_url(query) {
 
 function build_default_whip_whep_url(query, apiPath) {
     // The format for query string to overwrite configs of server.
+    console.log('?url=xxx to set the whole WHIP/WHEP url directly, ignoring other params');
     console.log('?eip=x.x.x.x to overwrite candidate. 覆盖服务器candidate(外网IP)配置');
     console.log('?api=x to overwrite WebRTC API(1985).');
     console.log('?schema=http|https to overwrite WebRTC API protocol.');
@@ -127,6 +143,13 @@ function build_default_whip_whep_url(query, apiPath) {
     console.log('?codec=xxx to specify video codec (alias for vcodec, e.g., h264, vp9, av1)');
     console.log('?vcodec=xxx to specify video codec (e.g., h264, vp9, av1)');
     console.log('?acodec=xxx to specify audio codec (e.g., opus, pcmu, pcma)');
+    console.log('?token=xxx to send a bearer token in the Authorization header');
+
+    // Allow setting the whole url directly, e.g. an external WHIP/WHEP endpoint.
+    // Default to https:// when the scheme is omitted.
+    if (query.url) {
+        return /^https?:\/\//i.test(query.url) ? query.url : 'https://' + query.url;
+    }
 
     var server = (!query.server)? window.location.hostname:query.server;
     var vhost = (!query.vhost)? window.location.hostname:query.vhost;

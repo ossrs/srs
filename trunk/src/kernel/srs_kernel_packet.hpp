@@ -50,6 +50,9 @@ public:
     // Stream identifier for the packet. It's optional, so only used for some
     // protocols, for example, RTMP.
     int32_t stream_id_;
+    // Preferred RTMP chunk stream id. It's optional and only used by RTMP.
+    // If unset, RTMP falls back to a message-type based default.
+    int32_t prefer_cid_;
 
 public:
     // Raw payload data of the media packet.

@@ -131,6 +131,8 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid) = 0;
     // Notice session to use current media connection.
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media) = 0;
+    // Notice session that its current media connection is disconnected.
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media) = 0;
 
 public:
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs) = 0;
@@ -169,6 +171,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // When wait for media connecting, timeout if exceed.
     srs_utime_t connecting_starttime_;
+    // Timeout for an API-created session waiting for its media TCP connection.
+    srs_utime_t media_connect_timeout_;
     // The time we enter reinviting state.
     srs_utime_t reinviting_starttime_;
     // The number of timeout, dispose session if exceed.
@@ -218,6 +222,8 @@ public:
 
     // When got available media transport.
     void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    // When current media transport is disconnected.
+    void on_media_disconnected(ISrsGbMediaTcpConn *media);
 
     // Interface ISrsCoroutineHandler
 public:
