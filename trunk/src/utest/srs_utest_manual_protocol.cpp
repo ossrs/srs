@@ -4384,6 +4384,71 @@ VOID TEST(ProtocolStackTest, ProtocolSendVMessage)
     EXPECT_EQ(16, bio.out_buffer.length());
 }
 
+// Verify the preferred RTMP chunk stream IDs used by connection setup and
+// stream commands. This is a regression test for the SrsMediaPacket refactor,
+// which lost the packet-specific preferred CSID and fell back to message type.
+VOID TEST(ProtocolStackTest, ProtocolPacketPreferredChunkStreamIds)
+{
+    srs_error_t err = srs_success;
+
+    // Protocol-control messages must use CSID 2.
+    {
+        MockBufferIO bio;
+        SrsProtocol proto(&bio);
+
+        HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(new SrsSetChunkSizePacket(), 0));
+        ASSERT_GT(bio.out_buffer.length(), 0);
+        EXPECT_EQ(RTMP_CID_ProtocolControl, (uint8_t)bio.out_buffer.bytes()[0] & 0x3f);
+    }
+
+    {
+        MockBufferIO bio;
+        SrsProtocol proto(&bio);
+
+        HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(new SrsSetPeerBandwidthPacket(), 0));
+        ASSERT_GT(bio.out_buffer.length(), 0);
+        EXPECT_EQ(RTMP_CID_ProtocolControl, (uint8_t)bio.out_buffer.bytes()[0] & 0x3f);
+    }
+
+    // SRS assigns NetConnection commands to CSID 3.
+    {
+        MockBufferIO bio;
+        SrsProtocol proto(&bio);
+
+        HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(new SrsConnectAppResPacket(), 0));
+        ASSERT_GT(bio.out_buffer.length(), 0);
+        EXPECT_EQ(RTMP_CID_OverConnection, (uint8_t)bio.out_buffer.bytes()[0] & 0x3f);
+    }
+
+    {
+        MockBufferIO bio;
+        SrsProtocol proto(&bio);
+
+        HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(new SrsOnBWDonePacket(), 0));
+        ASSERT_GT(bio.out_buffer.length(), 0);
+        EXPECT_EQ(RTMP_CID_OverConnection, (uint8_t)bio.out_buffer.bytes()[0] & 0x3f);
+    }
+
+    // SRS assigns NetStream commands to CSID 5.
+    {
+        MockBufferIO bio;
+        SrsProtocol proto(&bio);
+
+        HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(new SrsPublishPacket(), 1));
+        ASSERT_GT(bio.out_buffer.length(), 0);
+        EXPECT_EQ(RTMP_CID_OverStream, (uint8_t)bio.out_buffer.bytes()[0] & 0x3f);
+    }
+
+    {
+        MockBufferIO bio;
+        SrsProtocol proto(&bio);
+
+        HELPER_EXPECT_SUCCESS(proto.send_and_free_packet(new SrsPlayPacket(), 1));
+        ASSERT_GT(bio.out_buffer.length(), 0);
+        EXPECT_EQ(RTMP_CID_OverStream, (uint8_t)bio.out_buffer.bytes()[0] & 0x3f);
+    }
+}
+
 /**
  * send a SrsCallPacket packet
  */

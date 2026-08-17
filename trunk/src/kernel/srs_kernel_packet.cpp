@@ -41,6 +41,7 @@ SrsMediaPacket::SrsMediaPacket()
 {
     timestamp_ = 0;
     stream_id_ = 0;
+    prefer_cid_ = 0;
     message_type_ = SrsFrameTypeForbidden;
     payload_ = SrsSharedPtr<SrsMemoryBlock>(NULL);
 
@@ -96,6 +97,7 @@ SrsMediaPacket *SrsMediaPacket::copy()
 
     copy->timestamp_ = timestamp_;
     copy->stream_id_ = stream_id_;
+    copy->prefer_cid_ = prefer_cid_;
     copy->message_type_ = message_type_;
     copy->payload_ = payload_;
 
