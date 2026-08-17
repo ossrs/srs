@@ -32,6 +32,8 @@ Use this reference after `skills/internal-codemap-for-srs/SKILL.md` determines t
 
 `trunk/3rdparty/srs-bench/` — Performance and load benchmark, not a correctness test suite. The `./objs/srs_bench` binary simulates concurrent WHIP, WHEP, RTMP, reconnecting, DVR, plaintext RTC, and Janus workloads and reports metrics without pass/fail assertions.
 
+`skills/srs-develop/scripts/` — Cross-component integration verification owned by the parent development skill. For every standalone SRS runtime change in either the Go proxy or C++ media server, run the complete matrix in `skills/srs-develop/references/integration-tests.md` after component-native tests. The `proxy-*` names identify the entry topology, not a proxy-only scope; these scripts also verify SRS origin, edge, Redis, and protocol interoperability.
+
 ## Verification Types
 
 | Type | Server running? | Tests | Network | Pass/fail |
@@ -39,6 +41,7 @@ Use this reference after `skills/internal-codemap-for-srs/SKILL.md` determines t
 | Unit | No | Isolated internal logic | No | Yes |
 | Black-box | Yes, self-managed | Whole-server behavior | Yes | Yes |
 | E2E | Yes, externally managed | Protocol workflows | Yes | Yes |
+| Cross-component integration | Self-managed by scripts | Proxy, origin, edge, routing, and protocol interoperability | Yes | Yes |
 | Benchmark | Yes, externally managed | Performance and capacity | Yes | No, metrics only |
 
 Use the smallest relevant test during iteration, then run the complete required suite defined by the parent development workflow before declaring the task verified.

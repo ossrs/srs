@@ -14,6 +14,10 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 - `skills/internal-docs-for-srs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
 - `skills/internal-codemap-for-srs/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
 
+## Cross-Component Verification
+
+For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md` in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification. Apply this requirement during development, bug fixing, and pull-request review; do not treat the `proxy-*` script names as limiting the suite to proxy changes.
+
 ## Path Resolution
 
 - Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.

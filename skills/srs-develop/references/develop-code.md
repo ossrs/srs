@@ -55,42 +55,7 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```
    make generate
    ```
-3. Run the unit test first, then every E2E test below in order. The E2E scripts bind fixed ports, so run them sequentially. Do not stop after an early success or failure; record every result, fix failures, and repeat until all required tests pass.
-
-   1. Go proxy unit tests with coverage:
-      ```bash
-      bash scripts/proxy-utest.sh --coverage
-      ```
-   2. Single-origin RTMP proxy:
-      ```bash
-      bash scripts/proxy-e2e-test.sh
-      ```
-   3. Multi-origin memory load-balancer routing:
-      ```bash
-      bash scripts/proxy-e2e-cluster-test.sh
-      ```
-   4. Proxy, SRS edge, and SRS origin three-tier topology with a late-joining player:
-      ```bash
-      bash scripts/proxy-e2e-edge-test.sh
-      ```
-   5. Redis multi-proxy routing:
-      ```bash
-      bash scripts/proxy-e2e-redis-test.sh
-      ```
-   6. RTMP publish with RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
-      ```bash
-      bash scripts/proxy-e2e-transmux-test.sh
-      ```
-   7. SRT publish with SRT, RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
-      ```bash
-      bash scripts/proxy-e2e-srt-test.sh
-      ```
-   8. WHIP publish with RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
-      ```bash
-      bash scripts/proxy-e2e-whip-test.sh
-      ```
-
-   The SRT test requires an FFmpeg build with libsrt. The WHIP test requires the `whip` muxer and OpenSSL. Both scripts automatically run `scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available.
+3. Run the complete cross-component verification matrix in `references/integration-tests.md`. Run every command sequentially and record every result.
 
 ## SRS Player
 
@@ -201,10 +166,11 @@ The first-generation C++ media server is in maintenance mode. Accept bug fixes, 
 ### Step 3: Verify
 
 1. Run the focused regression first, then the complete applicable verification selected from `references/testing.md`.
-2. Build the C++ server with the affected feature enabled and run `git diff --check`.
-3. For external-SIP GB28181 session cleanup, run the focused regression for the affected terminal event. Use `scripts/gb28181-tcp-disconnect-test.sh` when a bound RTP/PS-over-TCP publisher disconnects, and `scripts/gb28181-api-timeout-test.sh` when an API-created session never receives a TCP connection. Each script builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, then requires the same ID and SSRC to become publishable again.
-4. Run sanitizer verification when the fix changes coroutine interruption, sockets, resource ownership, shared pointers, or object destruction.
-5. Report every test result and any unverified platform or configuration scope. Do not push or stage files.
+2. Run every command in `references/integration-tests.md`. These scripts are mandatory cross-component verification for C++ media-server changes, despite their `proxy-*` names, and supplement rather than replace C++ unit, black-box, protocol E2E, and benchmark tests.
+3. Build the C++ server with the affected feature enabled and run `git diff --check`.
+4. For external-SIP GB28181 session cleanup, run the focused regression for the affected terminal event. Use `scripts/gb28181-tcp-disconnect-test.sh` when a bound RTP/PS-over-TCP publisher disconnects, and `scripts/gb28181-api-timeout-test.sh` when an API-created session never receives a TCP connection. Each script builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, then requires the same ID and SSRC to become publishable again.
+5. Run sanitizer verification when the fix changes coroutine interruption, sockets, resource ownership, shared pointers, or object destruction.
+6. Report every test result and any unverified platform or configuration scope. Do not push or stage files.
 
 ## Origin Server
 

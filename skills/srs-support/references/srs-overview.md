@@ -307,3 +307,21 @@ Config files are in the `conf/` folder. Key files:
 - Other files exist for specific features like clustering, DVR, or different protocols.
 
 SRS also supports configuration via environment variables. This is especially useful for Docker and cloud-native deployments — you can set environment variables in YAML files or other platforms without needing a separate config file. It's convenient to copy and paste, making documentation clearer. In the SRS docs, environment variables are often used to show how to run SRS with different configurations.
+
+## Versions and Branches
+
+SRS uses `develop` for the next major version and creates a versioned release branch when that major version enters its release line. A release branch does not by itself mean that the version has reached a stable `rN` release; use the Git tags and GitHub Releases to determine the release stage.
+
+Current branch map, verified on 2026-08-17:
+
+- **`develop` is SRS 8** — SRS 8 is under active development and has not been released. There is currently no `8.0release` branch, no `v8` release tag, and no official SRS 8 Docker image tag. Users who want to try SRS 8 must build the `develop` branch from source. Treat it as unstable development code rather than a production release.
+- **`7.0release` is the SRS 7 release line** — The branch exists, but release maturity must be read from its tags. The current milestone is `v7.0-d0` (`d` means development), so it is not yet a stable `v7.0-rN` release. Docker tags such as `ossrs/srs:7` are available for the published SRS 7 milestone.
+- **`6.0release` is the current stable release line** — The current stable tag is `v6.0-r1`. The `r` suffix denotes a stable release.
+
+Use these official locations when checking current status:
+
+- Branches: https://github.com/ossrs/srs/branches
+- Releases and maturity tags: https://github.com/ossrs/srs/releases
+- Docker image tags: https://hub.docker.com/r/ossrs/srs/tags
+
+When a user asks where to get **SRS 8**, do not answer only that it is unavailable or send them only to the Releases page. Explain that it is available as unreleased source on `develop`, while official packages and versioned Docker images require an SRS 8 release tag.
