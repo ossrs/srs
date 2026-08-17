@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-17, Merge [#4723](https://github.com/ossrs/srs/pull/4723): RTMP: Restore correct chunk stream IDs for strict clients. v8.0.23 (#4723)
 * v8.0, 2026-08-13, Merge [#4721](https://github.com/ossrs/srs/pull/4721): GB28181: Clean up external SIP sessions after timeout or TCP disconnect. v8.0.22 (#4721)
 * v8.0, 2026-08-13, Merge [#4679](https://github.com/ossrs/srs/pull/4679): ST: Mark the Linux process stack as non-executable. v8.0.21 (#4679)
 * v8.0, 2026-08-12, Merge [#4718](https://github.com/ossrs/srs/pull/4718): Proxy: Preserve HTTP response headers and safely rewrite HLS. v8.0.20 (#4718)
