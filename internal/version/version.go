@@ -15,7 +15,7 @@ func VersionMinor() int {
 }
 
 func VersionRevision() int {
-	return 156
+	return 158
 }
 
 func Version() string {
