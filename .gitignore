@@ -54,3 +54,4 @@ cmake-build-debug
 /skills/*workspace*
 /memory/202*.md
 /tasks
+/objs
