@@ -116,6 +116,28 @@
     var hlsPlayer = null;
     var dashPlayer = null;
 
+    var resetMediaElement = function(media) {
+        if (!media) return;
+
+        media.pause();
+        media.removeAttribute('src');
+        media.load();
+    };
+
+    var playMediaElement = function(media) {
+        var promise = media.play();
+        if (promise && promise.catch) {
+            promise.catch(function(e) {
+                console.warn('Failed to start media playback:', e);
+            });
+        }
+    };
+
+    var canPlayNativeHls = function(video) {
+        return video.canPlayType('application/vnd.apple.mpegurl')
+            || video.canPlayType('application/x-mpegURL');
+    };
+
     var stopPlayers = function () {
         if (flvPlayer) {
             flvPlayer.destroy();
@@ -133,6 +155,9 @@
             dashPlayer.destroy();
             dashPlayer = null;
         }
+
+        resetMediaElement(document.getElementById('video_player'));
+        resetMediaElement(document.getElementById('audio_player'));
     };
 
     var hide_for_error = function () {
@@ -230,34 +255,37 @@
 
         // Start play HLS.
         if (r.stream.indexOf('.m3u8') > 0) {
-            if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                $('#video_player').attr('src', r.url).show();
+            if (canPlayNativeHls(video)) {
                 show_for_video_ok();
+                $('#video_player').attr('src', r.url).show();
+                playMediaElement(video);
                 return;
             }
-            
-            if (Hls.isSupported()) {
-                show_for_video_ok();
-    
-                // See https://github.com/video-dev/hls.js/blob/master/docs/API.md#maxlivesyncplaybackrate
-                // See https://github.com/video-dev/hls.js/issues/3077#issuecomment-705152394
-                hlsPlayer = new Hls({
-                    enableWorker: true, // Improve performance and avoid lag/frame drops.
-                    lowLatencyMode: true, // Enable Low-Latency HLS part playlist and segment loading.
-                    liveSyncDurationCount: 2, // Start from the last few segments.
-                    liveMaxLatencyDurationCount: 10, // Maximum delay allowed from edge of live.
-                    maxBufferLength: 8, // Maximum buffer length in seconds.
-                    maxMaxBufferLength: 10, // The max Maximum buffer length in seconds.
-                    maxLiveSyncPlaybackRate: 1.2, // Catch up if the latency is large.
-                    liveDurationInfinity: true // Override current Media Source duration to Infinity for a live broadcast.
-                });
-                hlsPlayer.loadSource(r.url);
-                hlsPlayer.attachMedia(video);
-                video.play();
-                return;                
+
+            if (!Hls.isSupported()) {
+                hide_for_error();
+                return;
             }
 
-            hide_for_error();
+            show_for_video_ok();
+
+            // See https://github.com/video-dev/hls.js/blob/master/docs/API.md#maxlivesyncplaybackrate
+            // See https://github.com/video-dev/hls.js/issues/3077#issuecomment-705152394
+            hlsPlayer = new Hls({
+                enableWorker: true, // Improve performance and avoid lag/frame drops.
+                lowLatencyMode: true, // Enable Low-Latency HLS part playlist and segment loading.
+                liveSyncDurationCount: 2, // Start from the last few segments.
+                liveMaxLatencyDurationCount: 10, // Maximum delay allowed from edge of live.
+                maxBufferLength: 8, // Maximum buffer length in seconds.
+                maxMaxBufferLength: 10, // The max Maximum buffer length in seconds.
+                maxLiveSyncPlaybackRate: 1.2, // Catch up if the latency is large.
+                liveDurationInfinity: true // Override current Media Source duration to Infinity for a live broadcast.
+            });
+            hlsPlayer.on(Hls.Events.MANIFEST_PARSED, function() {
+                playMediaElement(video);
+            });
+            hlsPlayer.loadSource(r.url);
+            hlsPlayer.attachMedia(video);
             return;
         }
 
