@@ -149,18 +149,11 @@ func TestBuildStreamURL(t *testing.T) {
 	cases := []struct {
 		in, want string
 	}{
-		// Domain names with dots use hostname as vhost.
-		// This case would panic with nil pointer dereference before the fix
-		// because net.ParseIP("example.com") returns nil and nil.To4() panics.
 		{"rtmp://example.com/live/stream", "example.com/live/stream"},
 		{"rtmp://example.com:1935/live/stream", "example.com/live/stream"},
-		// IPv4 addresses use defaultVhost.
 		{"rtmp://127.0.0.1/live/stream", "__defaultVhost__/live/stream"},
-		// Hostnames without dots use defaultVhost.
 		{"rtmp://localhost/live/stream", "__defaultVhost__/live/stream"},
 		{"rtmp://localhost:1935/live/stream", "__defaultVhost__/live/stream"},
-		// IPv6 addresses: net.ParseIP returns non-nil but To4() returns nil,
-		// but they still get defaultVhost because they contain no dots.
 		{"rtmp://[::1]/live/stream", "__defaultVhost__/live/stream"},
 		{"rtmp://[2001:db8::1]:1935/live/stream", "__defaultVhost__/live/stream"},
 	}

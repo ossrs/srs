@@ -98,7 +98,7 @@ func BuildStreamURL(r string) (string, error) {
 	defaultVhost := !strings.Contains(u.Hostname(), ".")
 
 	// If hostname is actually an IP address, it's __defaultVhost__.
-	if ip := net.ParseIP(u.Hostname()); ip != nil && ip.To4() != nil {
+	if ip := net.ParseIP(u.Hostname()); ip.To4() != nil {
 		defaultVhost = true
 	}
 
