@@ -4,7 +4,7 @@
       {
         "label": "build",
         "type": "shell",
-        "command": "cd ${workspaceFolder}/cmake/build && cmake --build . --target srs utest",
+        "command": "if [ ! -f \"${workspaceFolder}/cmake/build/CMakeCache.txt\" ]; then cmake -S \"${workspaceFolder}/cmake\" -B \"${workspaceFolder}/cmake/build\"; fi && cmake --build \"${workspaceFolder}/cmake/build\" --target srs utest",
         "group": {
           "kind": "build",
           "isDefault": true
@@ -15,7 +15,7 @@
       {
         "label": "st-build",
         "type": "shell",
-        "command": "cd ${workspaceFolder}/cmake/build && cmake --build . --target st_utest",
+        "command": "if [ ! -f \"${workspaceFolder}/cmake/build/CMakeCache.txt\" ]; then cmake -S \"${workspaceFolder}/cmake\" -B \"${workspaceFolder}/cmake/build\"; fi && cmake --build \"${workspaceFolder}/cmake/build\" --target st_utest",
         "group": {
           "kind": "build",
           "isDefault": true
@@ -24,5 +24,6 @@
         "detail": "Build ST by cmake."
       }
     ]
-  }
+}
+
   
