@@ -196,8 +196,9 @@ Issue according to the requirements.
 
 ### [RTSP](#rtsp)
 * `RTSP`: How to support RTSP streaming, RTSP server, RTSP playback, etc.
-  > 1. SRS supports pulling RTSP with Ingest, but does not support pushing RTSP stream to SRS, which is not the correct usage. For detailed reasons, please refer to [#2304](https://github.com/ossrs/srs/issues/2304).
-  > 1. Of course, RTSP server and RTSP playback will not be supported either, please refer to [#476](https://github.com/ossrs/srs/issues/476).
+  > 1. SRS supports pulling RTSP sources with Ingest, but does not support pushing RTSP streams directly to SRS. RTSP push is not the recommended SRS usage; for details, please refer to [#2304](https://github.com/ossrs/srs/issues/2304).
+  > 1. SRS supports RTSP playback/server in SRS 7.0.47+ by converting an RTMP stream to RTSP. Build with `./configure --rtsp=on`, enable `rtmp_to_rtsp on`, publish by RTMP, then play with RTSP, for example `ffplay -rtsp_transport tcp -i rtsp://localhost:8554/live/livestream`. See [RTSP](../docs/v7/doc/rtsp).
+  > 1. RTSP playback only supports TCP/interleaved transport; UDP transport is not supported. SRS RTSP output currently targets H.264 + AAC streams.
   > 1. If you need a large number of camera connections, such as 10,000, using FFmpeg may be more difficult. For such large-scale businesses, the recommended solution is to use ST+SRS code to implement an RTSP forwarding server.
 * `Browser RTSP`: How to play RTSP streams in a browser
   > 1. How to play RTSP streams in HTML5, using FFmpeg to pull RTSP streams, and how to reduce latency. Refer to this [link](https://stackoverflow.com/a/70400665/17679565).
