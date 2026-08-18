@@ -15,4 +15,3 @@ Use them as the workspace context for identity, user preferences, memory, local 
 Additional `.claude/` workspace folders:
 
 - `.claude/skills/` — skills available for tasks in this repository.
-- `.claude/memory/` — persisted notes and references for this workspace.

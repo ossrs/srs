@@ -1834,6 +1834,7 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     }
 
     video_codec_ = video_codec;
+    last_video_sequence_header_.clear();
 
     return err;
 }
@@ -1841,6 +1842,7 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
 srs_error_t SrsRtcFrameBuilder::on_publish()
 {
     is_first_audio_ = true;
+    last_video_sequence_header_.clear();
 
     return srs_success;
 }
@@ -2131,6 +2133,13 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_avc(SrsRtpPacket *pkt,
         return srs_error_wrap(err, "mux sequence header");
     }
 
+    // WebRTC publishers may repeat unchanged SPS/PPS with every keyframe. If we
+    // emit the same RTMP sequence header again, HLS marks the open segment as a
+    // discontinuity, so only forward the header when its content changes.
+    if (sh == last_video_sequence_header_) {
+        return err;
+    }
+
     // h264 packet to flv packet.
     char *flv = NULL;
     int nb_flv = 0;
@@ -2153,6 +2162,8 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_avc(SrsRtpPacket *pkt,
     if ((err = frame_target_->on_frame(&msg)) != srs_success) {
         return err;
     }
+
+    last_video_sequence_header_ = sh;
 
     return err;
 }
@@ -2230,6 +2241,13 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_hevc(SrsRtpPacket *pkt
         return srs_error_wrap(err, "mux sequence header");
     }
 
+    // HEVC publishers may likewise repeat unchanged VPS/SPS/PPS with every
+    // keyframe. Suppress the duplicate RTMP sequence header to avoid marking
+    // each open HLS segment as a discontinuity.
+    if (sh == last_video_sequence_header_) {
+        return err;
+    }
+
     char *flv = NULL;
     int nb_flv = 0;
     if ((err = hevc->mux_hevc2flv_enhanced(sh, SrsVideoAvcFrameTypeKeyFrame, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, pkt->get_avsync_time(),
@@ -2250,6 +2268,8 @@ srs_error_t SrsRtcFrameBuilder::do_packet_sequence_header_hevc(SrsRtpPacket *pkt
     if ((err = frame_target_->on_frame(&msg)) != srs_success) {
         return err;
     }
+
+    last_video_sequence_header_ = sh;
 
     return err;
 }
@@ -3179,6 +3199,16 @@ uint32_t SrsRtcRecvTrack::get_ssrc()
     return track_desc_->ssrc_;
 }
 
+bool SrsRtcRecvTrack::is_primary_rtp(SrsRtpPacket *pkt)
+{
+    return pkt && pkt->header_.get_ssrc() == track_desc_->ssrc_;
+}
+
+bool SrsRtcRecvTrack::is_media_frame(SrsRtpPacket *pkt)
+{
+    return is_primary_rtp(pkt);
+}
+
 void SrsRtcRecvTrack::update_rtt(int rtt)
 {
     nack_receiver_->update_rtt(rtt);
@@ -3354,6 +3384,13 @@ SrsRtcAudioRecvTrack::~SrsRtcAudioRecvTrack()
 {
 }
 
+bool SrsRtcAudioRecvTrack::is_media_frame(SrsRtpPacket *pkt)
+{
+    // Audio statistics historically count one frame observation per primary RTP
+    // packet. RTX and FEC packets belong to the track but are transport overhead.
+    return is_primary_rtp(pkt);
+}
+
 void SrsRtcAudioRecvTrack::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt)
 {
     // No payload, ignore.
@@ -3400,6 +3437,13 @@ SrsRtcVideoRecvTrack::SrsRtcVideoRecvTrack(ISrsRtcPacketReceiver *receiver, SrsR
 
 SrsRtcVideoRecvTrack::~SrsRtcVideoRecvTrack()
 {
+}
+
+bool SrsRtcVideoRecvTrack::is_media_frame(SrsRtpPacket *pkt)
+{
+    // The marker bit identifies the final RTP packet of a video frame. Only the
+    // primary stream describes source frames; RTX and FEC packets do not.
+    return is_primary_rtp(pkt) && pkt->header_.get_marker();
 }
 
 void SrsRtcVideoRecvTrack::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer *buf, ISrsRtpPayloader **ppayload, SrsRtpPacketPayloadType *ppt)

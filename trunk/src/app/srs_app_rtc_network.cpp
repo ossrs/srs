@@ -492,7 +492,7 @@ srs_error_t SrsRtcUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
     return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
 }
 
-SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *delta) : owner_(new SrsRtcTcpConn())
+SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *delta)
 {
     conn_ = conn;
     delta_ = delta;
@@ -504,7 +504,9 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
 
 SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
 {
-    owner_->interrupt();
+    if (owner_.get()) {
+        owner_->interrupt();
+    }
     srs_freep(transport_);
 }
 
@@ -957,13 +959,11 @@ srs_error_t SrsRtcTcpConn::handshake()
 
     // Should support only one TCP candidate.
     SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session->tcp());
-    if (network->owner().get() != this) {
-        network->set_owner(*wrapper_);
-        session_ = session;
-    }
-    if (network->owner().get() != this) {
+    if (network->owner().get()) {
         return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
     }
+    network->set_owner(*wrapper_);
+    session_ = session;
 
     // For each binding request, update the TCP socket.
     if (ping.is_binding_request()) {

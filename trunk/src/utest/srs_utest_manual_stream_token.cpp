@@ -80,6 +80,24 @@ VOID TEST(StreamTokenTest, SingleTokenAcquisition)
     srs_freep(token);
 }
 
+VOID TEST(StreamTokenTest, QueryTokenAcquisition)
+{
+    srs_error_t err;
+
+    SrsStreamPublishTokenManager manager;
+    MockStreamTokenRequest req("/live/stream1");
+
+    EXPECT_FALSE(manager.is_acquired("/live/stream1"));
+
+    SrsStreamPublishToken *token = NULL;
+    HELPER_EXPECT_SUCCESS(manager.acquire_token(&req, token));
+    EXPECT_TRUE(manager.is_acquired("/live/stream1"));
+    EXPECT_FALSE(manager.is_acquired("/live/stream2"));
+
+    srs_freep(token);
+    EXPECT_FALSE(manager.is_acquired("/live/stream1"));
+}
+
 VOID TEST(StreamTokenTest, DuplicateTokenRejection)
 {
     srs_error_t err;

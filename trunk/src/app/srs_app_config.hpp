@@ -381,6 +381,7 @@ public:
     virtual std::string get_stream_caster_engine(SrsConfDirective *conf) = 0;
     virtual std::string get_stream_caster_output(SrsConfDirective *conf) = 0;
     virtual int get_stream_caster_listen(SrsConfDirective *conf) = 0;
+    virtual srs_utime_t get_stream_caster_media_connect_timeout(SrsConfDirective *conf) = 0;
 
 public:
     // Exporter config
@@ -855,6 +856,8 @@ public:
     virtual std::string get_stream_caster_output(SrsConfDirective *conf);
     // Get the listen port of stream caster.
     virtual int get_stream_caster_listen(SrsConfDirective *conf);
+    // Get the timeout for waiting for a GB28181 media connection.
+    virtual srs_utime_t get_stream_caster_media_connect_timeout(SrsConfDirective *conf);
     // rtsp section
 public:
     virtual bool get_rtsp_server_enabled();

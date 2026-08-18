@@ -59,6 +59,8 @@ public:
     // The publisher connection id.
     std::string publisher_id_;
     int nb_clients_;
+    // The time when this stream statistic was created.
+    srs_utime_t create_;
 
 public:
     // The stream total kbps.

@@ -10,14 +10,29 @@ import (
 	"time"
 )
 
-// If server heartbeat in this duration, it's alive.
-const ServerAliveDuration = 300 * time.Second
-
 // If HLS streaming update in this duration, it's alive.
 const HLSAliveDuration = 120 * time.Second
 
 // If WebRTC streaming update in this duration, it's alive.
 const RTCAliveDuration = 120 * time.Second
+
+// parseOriginServerTTL parses PROXY_ORIGIN_SERVER_TTL, defaulting to 300 seconds when unset.
+func parseOriginServerTTL(value string) (time.Duration, error) {
+	const serverAliveDuration = 300 * time.Second
+
+	if value == "" {
+		return serverAliveDuration, nil
+	}
+
+	ttl, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid PROXY_ORIGIN_SERVER_TTL %q: %w", value, err)
+	}
+	if ttl <= 0 {
+		return 0, fmt.Errorf("invalid PROXY_ORIGIN_SERVER_TTL %q: must be positive", value)
+	}
+	return ttl, nil
+}
 
 // OriginServer represents a backend origin server.
 type OriginServer struct {

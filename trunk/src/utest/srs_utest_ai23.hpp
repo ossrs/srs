@@ -55,6 +55,7 @@ class MockAppConfigForGbSession : public MockAppConfig
 {
 public:
     std::string stream_caster_output_;
+    srs_utime_t media_connect_timeout_;
 
 public:
     MockAppConfigForGbSession();
@@ -62,6 +63,7 @@ public:
 
 public:
     virtual std::string get_stream_caster_output(SrsConfDirective *conf);
+    virtual srs_utime_t get_stream_caster_media_connect_timeout(SrsConfDirective *conf);
     void set_stream_caster_output(const std::string &output);
 };
 
@@ -286,6 +288,7 @@ public:
     virtual void setup(SrsConfDirective *conf);
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
@@ -350,6 +353,7 @@ public:
     virtual void setup(SrsConfDirective *conf);
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
@@ -518,6 +522,7 @@ public:
     virtual void setup(SrsConfDirective *conf);
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
