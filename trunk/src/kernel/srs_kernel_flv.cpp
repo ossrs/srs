@@ -25,17 +25,23 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 
-int srs_rtmp_prefer_cid(SrsFrameType message_type)
+int srs_rtmp_prefer_cid(int message_type)
 {
-    if (message_type == SrsFrameTypeVideo) {
+    if (message_type == RTMP_MSG_SetChunkSize || message_type == RTMP_MSG_AbortMessage ||
+        message_type == RTMP_MSG_Acknowledgement || message_type == RTMP_MSG_UserControlMessage ||
+        message_type == RTMP_MSG_WindowAcknowledgementSize || message_type == RTMP_MSG_SetPeerBandwidth) {
+        return RTMP_CID_ProtocolControl;
+    } else if (message_type == RTMP_MSG_VideoMessage) {
         return RTMP_CID_Video;
-    } else if (message_type == SrsFrameTypeAudio) {
+    } else if (message_type == RTMP_MSG_AudioMessage) {
         return RTMP_CID_Audio;
-    } else if (message_type == SrsFrameTypeCommand || message_type == SrsFrameTypeScript) {
+    } else if (message_type == RTMP_MSG_AMF0CommandMessage) {
+        return RTMP_CID_OverConnection;
+    } else if (message_type == RTMP_MSG_AMF3CommandMessage) {
+        return RTMP_CID_OverConnection;
+    } else if (message_type == RTMP_MSG_AMF0DataMessage) {
         return RTMP_CID_OverStream;
-    } else if (message_type == (SrsFrameType)RTMP_MSG_AMF0CommandMessage) {
-        return RTMP_CID_OverStream;
-    } else if (message_type == (SrsFrameType)RTMP_MSG_AMF3DataMessage) {
+    } else if (message_type == RTMP_MSG_AMF3DataMessage) {
         return RTMP_CID_OverStream;
     } else {
         return RTMP_CID_OverConnection;
@@ -45,7 +51,13 @@ int srs_rtmp_prefer_cid(SrsFrameType message_type)
 int srs_rtmp_write_chunk_header(SrsMediaPacket *msg, char *cache, int nb_cache, bool c0)
 {
     int payload_length = msg->payload_.get() ? msg->payload_->size() : 0;
-    int chunk_id = srs_rtmp_prefer_cid(msg->message_type_);
+    int chunk_id = msg->prefer_cid_;
+    if (chunk_id < 2 || chunk_id > 63) {
+        chunk_id = srs_rtmp_prefer_cid(msg->message_type_);
+    }
+    if (chunk_id < 2 || chunk_id > 63) {
+        chunk_id = RTMP_CID_ProtocolControl;
+    }
 
     if (c0) {
         return srs_chunk_header_c0(chunk_id,
@@ -192,6 +204,11 @@ SrsMessageHeader::SrsMessageHeader()
     payload_length_ = 0;
     timestamp_delta_ = 0;
     stream_id_ = 0;
+    // Leave the preferred CSID unset until the RTMP packet, decoder, or
+    // message initializer assigns one. The writer will otherwise derive it
+    // from message_type_, which is required for manually assembled messages
+    // such as audio/video extracted from an aggregate message.
+    prefer_cid_ = 0;
 
     timestamp_ = 0;
 }
@@ -267,6 +284,7 @@ void SrsMessageHeader::initialize_amf0_script(int size, int stream)
     timestamp_delta_ = (int32_t)0;
     timestamp_ = (int64_t)0;
     stream_id_ = (int32_t)stream;
+    prefer_cid_ = RTMP_CID_OverConnection2;
 }
 
 void SrsMessageHeader::initialize_audio(int size, uint32_t time, int stream)
@@ -276,6 +294,7 @@ void SrsMessageHeader::initialize_audio(int size, uint32_t time, int stream)
     timestamp_delta_ = (int32_t)time;
     timestamp_ = (int64_t)time;
     stream_id_ = (int32_t)stream;
+    prefer_cid_ = RTMP_CID_Audio;
 }
 
 void SrsMessageHeader::initialize_video(int size, uint32_t time, int stream)
@@ -285,6 +304,7 @@ void SrsMessageHeader::initialize_video(int size, uint32_t time, int stream)
     timestamp_delta_ = (int32_t)time;
     timestamp_ = (int64_t)time;
     stream_id_ = (int32_t)stream;
+    prefer_cid_ = RTMP_CID_Video;
 }
 
 SrsRtmpCommonMessage::SrsRtmpCommonMessage()
@@ -328,6 +348,7 @@ void SrsRtmpCommonMessage::to_msg(SrsMediaPacket *msg)
     msg->payload_ = payload_;
     msg->timestamp_ = header_.timestamp_;
     msg->stream_id_ = header_.stream_id_;
+    msg->prefer_cid_ = header_.prefer_cid_;
     msg->message_type_ = (SrsFrameType)header_.message_type_;
 }
 

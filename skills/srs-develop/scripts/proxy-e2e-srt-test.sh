@@ -46,7 +46,7 @@ SRS_BINARY="$WORKSPACE/trunk/objs/srs"
 STREAM_URL="live/srt$(date +%s)"
 
 # SRT streamid format used by SRS: "#!::r=<app>/<stream>,m=publish|request".
-# @see trunk/3rdparty/srs-docs/doc/srt.md and internal/proxy/srt.go.
+# @see skills/internal-docs-for-srs/references/cpp-docs/doc/srt.md and internal/proxy/srt.go.
 SRT_PUBLISH_URL="srt://localhost:$PROXY_SRT_PORT?streamid=#!::r=$STREAM_URL,m=publish"
 SRT_PLAY_URL="srt://localhost:$PROXY_SRT_PORT?streamid=#!::r=$STREAM_URL,m=request"
 

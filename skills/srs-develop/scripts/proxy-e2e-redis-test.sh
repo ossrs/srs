@@ -40,12 +40,16 @@ REDIS_PORT="${PROXY_REDIS_PORT:-6379}"
 REDIS_PASSWORD="${PROXY_REDIS_PASSWORD:-}"
 REDIS_DB="${PROXY_REDIS_DB:-0}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
+if [[ -n "${PROXY_REDIS_KEY_PREFIX:-}" ]]; then
+  REDIS_KEY_PREFIX="$PROXY_REDIS_KEY_PREFIX"
+else
+  REDIS_KEY_PREFIX="e2e-$(LC_ALL=C tr -dc 'a-f0-9' </dev/urandom | head -c 8)"
+fi
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
-# Randomize per run so each invocation uses unique Redis keys and never shares
-# state with sibling E2E tests or a developer's local proxy that publishes to
-# "live/livestream".
+# Keep the stream name recognizable in logs. Redis state isolation comes from
+# REDIS_KEY_PREFIX, which is unique per test invocation unless explicitly set.
 STREAM_NAME="redis$(date +%s)"
 STREAM_PATH="live/$STREAM_NAME"
 TEST_STREAM_URL="__defaultVhost__/$STREAM_PATH"
@@ -61,6 +65,15 @@ redis_cli() {
     redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" -a "$REDIS_PASSWORD" -n "$REDIS_DB" "$@"
   else
     redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" -n "$REDIS_DB" "$@"
+  fi
+}
+
+redis_key() {
+  local key="$1"
+  if [[ -n "$REDIS_KEY_PREFIX" ]]; then
+    printf '%s:%s' "$REDIS_KEY_PREFIX" "$key"
+  else
+    printf '%s' "$key"
   fi
 }
 
@@ -81,7 +94,8 @@ cleanup_redis_state() {
   fi
 
   local count=0
-  local stream_key="srs-proxy-url:$TEST_STREAM_URL"
+  local stream_key
+  stream_key="$(redis_key "srs-proxy-url:$TEST_STREAM_URL")"
   if [[ "$(redis_cli exists "$stream_key" 2>/dev/null || echo 0)" != "0" ]]; then
     redis_cli del "$stream_key" >/dev/null 2>&1 || true
     count=$((count + 1))
@@ -90,6 +104,8 @@ cleanup_redis_state() {
   # The origin server generates its server key from runtime IDs, so discover only
   # server records that match this test origin's identity and configured ports.
   local server_keys=()
+  local server_pattern
+  server_pattern="$(redis_key "srs-proxy-server:*")"
   local key value
   while IFS= read -r key; do
     [[ -z "$key" ]] && continue
@@ -102,12 +118,13 @@ cleanup_redis_state() {
       redis_cli del "$key" >/dev/null 2>&1 || true
       count=$((count + 1))
     fi
-  done < <(redis_cli --scan --pattern 'srs-proxy-server:*' 2>/dev/null || true)
+  done < <(redis_cli --scan --pattern "$server_pattern" 2>/dev/null || true)
 
   # Keep the shared server index, but remove only the test origin server keys.
   if [[ ${#server_keys[@]} -gt 0 ]]; then
-    local servers_json updated_json
-    servers_json="$(redis_cli get srs-proxy-all-servers 2>/dev/null || true)"
+    local servers_key servers_json updated_json
+    servers_key="$(redis_key "srs-proxy-all-servers")"
+    servers_json="$(redis_cli get "$servers_key" 2>/dev/null || true)"
     if [[ -n "$servers_json" ]]; then
       updated_json="$($PYTHON_BIN - "$servers_json" "${server_keys[@]}" <<'PY'
 import json, sys
@@ -118,9 +135,9 @@ print(json.dumps(servers, separators=(",", ":")))
 PY
 )"
       if [[ "$updated_json" == "[]" ]]; then
-        redis_cli del srs-proxy-all-servers >/dev/null 2>&1 || true
+        redis_cli del "$servers_key" >/dev/null 2>&1 || true
       else
-        redis_cli set srs-proxy-all-servers "$updated_json" >/dev/null 2>&1 || true
+        redis_cli set "$servers_key" "$updated_json" >/dev/null 2>&1 || true
       fi
     fi
   fi
@@ -149,6 +166,7 @@ trap cleanup EXIT
 echo "=== E2E RTMP Proxy Redis Load Balancer Test ==="
 echo "Workspace: $WORKSPACE"
 echo "Redis: $REDIS_HOST:$REDIS_PORT db=$REDIS_DB"
+echo "Redis key prefix: $REDIS_KEY_PREFIX"
 echo ""
 
 # --- Pre-checks ---
@@ -224,6 +242,7 @@ env PROXY_RTMP_SERVER=$PROXY_A_RTMP_PORT \
     PROXY_REDIS_PORT="$REDIS_PORT" \
     PROXY_REDIS_PASSWORD="$REDIS_PASSWORD" \
     PROXY_REDIS_DB="$REDIS_DB" \
+    PROXY_REDIS_KEY_PREFIX="$REDIS_KEY_PREFIX" \
     ./bin/srs-proxy >/tmp/srs-proxy-redis-a-e2e.log 2>&1 &
 PROXY_A_PID=$!
 echo "Proxy A PID: $PROXY_A_PID"
@@ -250,6 +269,7 @@ env PROXY_RTMP_SERVER=$PROXY_B_RTMP_PORT \
     PROXY_REDIS_PORT="$REDIS_PORT" \
     PROXY_REDIS_PASSWORD="$REDIS_PASSWORD" \
     PROXY_REDIS_DB="$REDIS_DB" \
+    PROXY_REDIS_KEY_PREFIX="$REDIS_KEY_PREFIX" \
     ./bin/srs-proxy >/tmp/srs-proxy-redis-b-e2e.log 2>&1 &
 PROXY_B_PID=$!
 echo "Proxy B PID: $PROXY_B_PID"
@@ -279,7 +299,7 @@ if ! kill -0 "$ORIGIN_PID" 2>/dev/null; then
   cat /tmp/srs-origin-redis-e2e.log >&2
   exit 1
 fi
-if ! redis_cli --scan --pattern 'srs-proxy-server:*' | grep -q 'srs-proxy-server:'; then
+if ! redis_cli --scan --pattern "$(redis_key "srs-proxy-server:*")" | grep -q 'srs-proxy-server:'; then
   echo "Error: SRS origin did not register in Redis. Proxy A logs:" >&2
   cat /tmp/srs-proxy-redis-a-e2e.log >&2
   exit 1

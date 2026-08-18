@@ -30,6 +30,8 @@ type redisLoadBalancer struct {
 	// keepaliveInterval is the period at which the default-backend keep-alive
 	// goroutine re-Updates its registration. Struct field for test injection.
 	keepaliveInterval time.Duration
+	// originServerTTL is the Redis expiration applied to origin registrations.
+	originServerTTL time.Duration
 }
 
 // NewRedisLoadBalancer creates a new Redis-based load balancer.
@@ -42,6 +44,12 @@ func NewRedisLoadBalancer(environment env.ProxyEnvironment) OriginLoadBalancer {
 }
 
 func (v *redisLoadBalancer) Initialize(ctx context.Context) error {
+	originServerTTL, err := parseOriginServerTTL(v.environment.OriginServerTTL())
+	if err != nil {
+		return err
+	}
+	v.originServerTTL = originServerTTL
+
 	redisDatabase, err := strconv.Atoi(v.environment.RedisDB())
 	if err != nil {
 		return errors.Wrapf(err, "invalid PROXY_REDIS_DB %v", v.environment.RedisDB())
@@ -94,7 +102,7 @@ func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 	}
 
 	key := v.redisKeyServer(server.ID())
-	if err = v.rdb.Set(ctx, key, b, ServerAliveDuration).Err(); err != nil {
+	if err = v.rdb.Set(ctx, key, b, v.originServerTTL).Err(); err != nil {
 		return errors.Wrapf(err, "set key=%v server %+v", key, server)
 	}
 
@@ -138,7 +146,7 @@ func (v *redisLoadBalancer) Update(ctx context.Context, server *OriginServer) er
 }
 
 func (v *redisLoadBalancer) Pick(ctx context.Context, streamURL string) (*OriginServer, error) {
-	key := fmt.Sprintf("srs-proxy-url:%v", streamURL)
+	key := v.redisKeyURL(streamURL)
 
 	// Always proxy to the same server for the same stream URL.
 	if serverKey, err := v.rdb.Get(ctx, key).Result(); err == nil {
@@ -275,25 +283,36 @@ func (v *redisLoadBalancer) LoadWebRTCByUfrag(ctx context.Context, ufrag string)
 }
 
 func (v *redisLoadBalancer) redisKeyUfrag(ufrag string) string {
-	return fmt.Sprintf("srs-proxy-ufrag:%v", ufrag)
+	return v.redisKey(fmt.Sprintf("srs-proxy-ufrag:%v", ufrag))
 }
 
 func (v *redisLoadBalancer) redisKeyRTC(streamURL string) string {
-	return fmt.Sprintf("srs-proxy-rtc:%v", streamURL)
+	return v.redisKey(fmt.Sprintf("srs-proxy-rtc:%v", streamURL))
 }
 
 func (v *redisLoadBalancer) redisKeySPBHID(spbhid string) string {
-	return fmt.Sprintf("srs-proxy-spbhid:%v", spbhid)
+	return v.redisKey(fmt.Sprintf("srs-proxy-spbhid:%v", spbhid))
 }
 
 func (v *redisLoadBalancer) redisKeyHLS(streamURL string) string {
-	return fmt.Sprintf("srs-proxy-hls:%v", streamURL)
+	return v.redisKey(fmt.Sprintf("srs-proxy-hls:%v", streamURL))
+}
+
+func (v *redisLoadBalancer) redisKeyURL(streamURL string) string {
+	return v.redisKey(fmt.Sprintf("srs-proxy-url:%v", streamURL))
 }
 
 func (v *redisLoadBalancer) redisKeyServer(serverID string) string {
-	return fmt.Sprintf("srs-proxy-server:%v", serverID)
+	return v.redisKey(fmt.Sprintf("srs-proxy-server:%v", serverID))
 }
 
 func (v *redisLoadBalancer) redisKeyServers() string {
-	return fmt.Sprintf("srs-proxy-all-servers")
+	return v.redisKey("srs-proxy-all-servers")
+}
+
+func (v *redisLoadBalancer) redisKey(key string) string {
+	if prefix := v.environment.RedisKeyPrefix(); prefix != "" {
+		return fmt.Sprintf("%v:%v", prefix, key)
+	}
+	return key
 }

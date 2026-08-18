@@ -468,6 +468,7 @@ public:
     virtual std::string get_stream_caster_engine(SrsConfDirective *conf) { return ""; }
     virtual std::string get_stream_caster_output(SrsConfDirective *conf) { return ""; }
     virtual int get_stream_caster_listen(SrsConfDirective *conf) { return 0; }
+    virtual srs_utime_t get_stream_caster_media_connect_timeout(SrsConfDirective *conf) { return 10 * SRS_UTIME_SECONDS; }
     virtual bool get_exporter_enabled() { return false; }
     virtual std::string get_exporter_listen() { return ""; }
     virtual std::string get_exporter_label() { return ""; }

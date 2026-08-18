@@ -10,6 +10,37 @@ import (
 	"time"
 )
 
+func TestParseOriginServerTTL(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		value   string
+		want    time.Duration
+		wantErr bool
+	}{
+		{name: "default", value: "", want: 300 * time.Second},
+		{name: "custom", value: "45s", want: 45 * time.Second},
+		{name: "invalid", value: "soon", wantErr: true},
+		{name: "zero", value: "0s", wantErr: true},
+		{name: "negative", value: "-1s", wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseOriginServerTTL(tt.value)
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "PROXY_ORIGIN_SERVER_TTL") {
+					t.Fatalf("parseOriginServerTTL(%q) error = %v, want configuration error", tt.value, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseOriginServerTTL(%q): %v", tt.value, err)
+			}
+			if got != tt.want {
+				t.Fatalf("parseOriginServerTTL(%q) = %v, want %v", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestOriginServerID(t *testing.T) {
 	for _, tt := range []struct {
 		name string

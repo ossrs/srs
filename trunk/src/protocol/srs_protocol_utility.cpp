@@ -43,42 +43,96 @@ using namespace std;
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_st.hpp>
 
-void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string &vhost, string &app, string &stream, int &port, string &param)
+// Normalize a query parameter so it can be appended directly to a URL.
+// For example, "token=abc" becomes "?token=abc", while "?token=abc" and
+// an empty parameter are returned unchanged.
+static string srs_net_url_normalize_param(const string &param)
 {
-    // Build the full URL with stream and param if provided
-    string fullUrl = tcUrl;
-    fullUrl += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
-    fullUrl += param.empty() ? "" : (param.at(0) == '?' ? param : "?" + param);
+    if (param.empty() || param.at(0) == '?') {
+        return param;
+    }
+    return "?" + param;
+}
 
-    // For compatibility, transform legacy ...vhost... format
-    //      rtmp://ip/app...vhost...VHOST/stream
-    // to query parameter format:
-    //      rtmp://ip/app?vhost=VHOST/stream
-    fullUrl = srs_strings_replace(fullUrl, "...vhost...", "?vhost=");
+// Reconstruct the complete URL from the RTMP connect tcUrl, publish stream,
+// and previously discovered parameter. For example:
+//      tcUrl="rtmp://localhost/live", stream="livestream", param="?token=abc"
+// becomes:
+//      rtmp://localhost/live/livestream?token=abc
+//
+// The request may be parsed twice. If tcUrl already contains param, this
+// function does not append it again. If stream repeats the same parameter,
+// the duplicate suffix is removed before rebuilding the URL.
+static string srs_net_url_build_full_url(const string &tcUrl, string stream, const string &param)
+{
+    string normalized_param = srs_net_url_normalize_param(param);
+    bool param_in_tcurl = !normalized_param.empty() && tcUrl.find(normalized_param) != string::npos;
 
-    // Convert legacy RTMP URL format to standard format
-    // Legacy: rtmp://ip/app/app2?vhost=xxx/stream
-    // Standard: rtmp://ip/app/app2/stream?vhost=xxx
-    fullUrl = srs_net_url_convert_legacy_rtmp_url(fullUrl);
-
-    // Remove the _definst_ of FMLE URL.
-    if (fullUrl.find("/_definst_") != string::npos) {
-        fullUrl = srs_strings_replace(fullUrl, "/_definst_", "");
+    // RTMP parses the request once for connect and again after identifying the
+    // publish stream. Do not append parameters derived from tcUrl back to it.
+    if (param_in_tcurl && srs_strings_ends_with(stream, normalized_param)) {
+        stream = stream.substr(0, stream.size() - normalized_param.size());
     }
 
-    // Parse the standard URL using SrsHttpUri.
+    string full_url = tcUrl;
+    full_url += stream.empty() ? "/" : (stream.at(0) == '/' ? stream : "/" + stream);
+    if (!param_in_tcurl) {
+        full_url += normalized_param;
+    }
+    return full_url;
+}
+
+// Convert legacy RTMP and FMLE URL forms to the standard form understood by
+// SrsHttpUri. For example:
+//      rtmp://localhost/live?vhost=example.com/livestream
+// becomes:
+//      rtmp://localhost/live/livestream?vhost=example.com
+// It also converts the old "...vhost..." marker and removes "/_definst_".
+static string srs_net_url_normalize_legacy_url(string url)
+{
+    // Legacy vhost marker: rtmp://ip/app...vhost...VHOST/stream
+    url = srs_strings_replace(url, "...vhost...", "?vhost=");
+
+    // Legacy query placement: rtmp://ip/app/app2?vhost=xxx/stream
+    url = srs_net_url_convert_legacy_rtmp_url(url);
+
+    // FMLE inserts this virtual instance into the application path.
+    if (url.find("/_definst_") != string::npos) {
+        url = srs_strings_replace(url, "/_definst_", "");
+    }
+    return url;
+}
+
+// Parse an RTMP tcUrl together with its publish stream and parameters into the
+// request fields used by SRS. Both stream and param are inputs and outputs.
+// For example, this input:
+//      tcUrl="rtmp://localhost:1935/live"
+//      stream="livestream?token=abc", param=""
+// produces:
+//      schema="rtmp", host="localhost", vhost="localhost", port=1935
+//      app="live", stream="livestream", param="?token=abc"
+//
+// The function first reconstructs and normalizes one complete URL, parses it
+// once with SrsHttpUri, and then extracts the individual request fields.
+void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string &vhost, string &app, string &stream, int &port, string &param)
+{
+    // Reconstruct one complete URL, then normalize legacy RTMP forms before parsing.
+    string full_url = srs_net_url_build_full_url(tcUrl, stream, param);
+    full_url = srs_net_url_normalize_legacy_url(full_url);
+
+    // Parse the normalized URL once, then copy each component to the request.
     SrsHttpUri uri;
     srs_error_t err = srs_success;
-    if ((err = uri.initialize(fullUrl)) != srs_success) {
-        srs_warn("Ignore parse url=%s err %s", fullUrl.c_str(), srs_error_desc(err).c_str());
+    if ((err = uri.initialize(full_url)) != srs_success) {
+        srs_warn("Ignore parse url=%s err %s", full_url.c_str(), srs_error_desc(err).c_str());
         srs_freep(err);
         return;
     }
 
-    // Extract basic URL components
     schema = uri.get_schema();
     host = uri.get_host();
     port = uri.get_port();
+
     SrsPath path;
     stream = path.filepath_base(uri.get_path());
     param = uri.get_query().empty() ? "" : "?" + uri.get_query();
@@ -106,6 +160,12 @@ void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string 
     }
 }
 
+// Move a query placed before the final stream path to the standard URL suffix.
+// Some legacy RTMP clients send:
+//      rtmp://localhost/live?vhost=example.com/livestream
+// This function converts it to:
+//      rtmp://localhost/live/livestream?vhost=example.com
+// A URL whose query is already after the stream path is returned unchanged.
 string srs_net_url_convert_legacy_rtmp_url(const string &url)
 {
     // Check if this is a legacy RTMP URL format: rtmp://ip/app/app2?vhost=xxx/stream
