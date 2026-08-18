@@ -4,9 +4,51 @@
 
 The changelog for SRS.
 
+<a name="v8-changes"></a>
+
+## SRS 8.0 Changelog
+* v8.0, 2026-08-18, Merge [#4659](https://github.com/ossrs/srs/pull/4659): Proxy: Fix resource leak in ParseBody. v8.0.26 (#4659)
+* v8.0, 2026-08-17, Merge [#4662](https://github.com/ossrs/srs/pull/4662): Dev: Improve VS Code debug and CMake build tasks. v8.0.25 (#4662)
+* v8.0, 2026-08-17, Merge [#4660](https://github.com/ossrs/srs/pull/4660): Proxy: Replace deprecated io/ioutil with io package. v8.0.24 (#4660)
+* v8.0, 2026-08-17, Merge [#4723](https://github.com/ossrs/srs/pull/4723): RTMP: Restore correct chunk stream IDs for strict clients. v8.0.23 (#4723)
+* v8.0, 2026-08-13, Merge [#4721](https://github.com/ossrs/srs/pull/4721): GB28181: Clean up external SIP sessions after timeout or TCP disconnect. v8.0.22 (#4721)
+* v8.0, 2026-08-13, Merge [#4679](https://github.com/ossrs/srs/pull/4679): ST: Mark the Linux process stack as non-executable. v8.0.21 (#4679)
+* v8.0, 2026-08-12, Merge [#4718](https://github.com/ossrs/srs/pull/4718): Proxy: Preserve HTTP response headers and safely rewrite HLS. v8.0.20 (#4718)
+* v8.0, 2026-08-12, Merge [#4717](https://github.com/ossrs/srs/pull/4717): Codex: Correct RTC frame statistics. v8.0.19 (#4717)
+* v8.0, 2026-08-12, Merge [#4716](https://github.com/ossrs/srs/pull/4716): JSON: Update vendored json-parser library. v8.0.18 (#4716)
+* v8.0, 2026-08-12, Merge [#4715](https://github.com/ossrs/srs/pull/4715): CI: Modernize GitHub Actions for SRS 8.0. v8.0.17 (#4715)
+* v8.0, 2026-08-11, Merge [#4714](https://github.com/ossrs/srs/pull/4714): Skills: Expand development workflows and add Oryx support. v8.0.16 (#4714)
+* v8.0, 2026-08-10, Merge [#4712](https://github.com/ossrs/srs/pull/4712): Codex: Fix graceful disconnect client error metrics and update issue records. v8.0.15 (#4712)
+* v8.0, 2026-08-10, Merge [#4711](https://github.com/ossrs/srs/pull/4711): Codex: Preserve forwarded HTTP-FLV client IP behind a reverse proxy. v8.0.14 (#4711)
+* v8.0, 2026-08-10, Merge [#4708](https://github.com/ossrs/srs/pull/4708): Codex: Fix duplicated RTMP HTTP callback parameters. v8.0.13 (#4708)
+* v8.0, 2026-08-09, Merge [#4706](https://github.com/ossrs/srs/pull/4706): RTC2RTMP: Deduplicate AVC and HEVC sequence headers. v8.0.12 (#4706)
+* v8.0, 2026-08-09, Merge [#4704](https://github.com/ossrs/srs/pull/4704): Codex: Fix MP4 DVR timing for repeated DTS samples. v8.0.11 (#4704)
+* v8.0, 2026-08-07, Merge [#4703](https://github.com/ossrs/srs/pull/4703): Codex: Clean up publish state after forward backend failures. v8.0.10 (#4703)
+* v8.0, 2026-08-07, Merge [#4701](https://github.com/ossrs/srs/pull/4701): Codex: Terminate SSRC group SDP lines. v8.0.9 (#4701)
+* v8.0, 2026-08-06, Merge [#4699](https://github.com/ossrs/srs/pull/4699): Codex: Reject duplicate WebRTC TCP owners. v8.0.8 (#4699)
+* v8.0, 2026-08-04, Merge [#4698](https://github.com/ossrs/srs/pull/4698): Codex: Fix browser player URLs behind reverse proxies and refresh issue records. v8.0.7 (#4698)
+* v8.0, 2026-08-03, Merge [#4694](https://github.com/ossrs/srs/pull/4694): Codex: Add configurable proxy origin registration TTL. v8.0.6 (#4694)
+* v8.0, 2026-08-02, Merge [#4692](https://github.com/ossrs/srs/pull/4692): Codex: Fix live source cleanup race before publisher activation. v8.0.5 (#4692)
+* v8.0, 2026-07-26, Merge [#4689](https://github.com/ossrs/srs/pull/4689): Codex: Improve proxy tooling and maintainer workflows. v8.0.4 (#4689)
+* v8.0, 2026-05-28, Merge [#4680](https://github.com/ossrs/srs/pull/4680): RTMP: Fix chunk timestamp/basic-header decoding and harden packet unmarshal. v8.0.3 (#4680)
+* v8.0, 2026-05-19, Merge [#4678](https://github.com/ossrs/srs/pull/4678): Edge: Fix HTTP-FLV 404 and RTMP late-join missing sequence headers. v8.0.2 (#4678)
+* v8.0, 2026-05-17, Merge [#4676](https://github.com/ossrs/srs/pull/4676): Proxy: Fix RTC/SRT reader goroutine leak; unwrap legacy WHEP JSON envelope; add WHEP pprof guide. v8.0.1 (#4676)
+* v8.0, 2026-05-17, Init SRS 8.0, code Free. v8.0.0
+
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-05-17, Merge [#4675](https://github.com/ossrs/srs/pull/4675): Proxy: Refactor for testability; add SRT/WHIP E2E and unit tests. v7.0.148 (#4675)
+* v7.0, 2026-05-02, Merge [#4672](https://github.com/ossrs/srs/pull/4672): Proxy: Refactor server APIs and expand RTMP test coverage. v7.0.147 (#4672)
+* v7.0, 2026-04-28, Merge [#4670](https://github.com/ossrs/srs/pull/4670): Proxy: Refine logger and environment APIs. v7.0.146 (#4670)
+* v7.0, 2026-04-23, Merge [#4667](https://github.com/ossrs/srs/pull/4667): Proxy: Refactor internal/errors and internal/sync, and add unit tests across internal/*. v7.0.145 (#4667)
+* v7.0, 2026-04-18, Merge [#4665](https://github.com/ossrs/srs/pull/4665): Proxy: Harden internal/env tests and add counterfeiter fake generation. v7.0.144 (#4665)
+* v7.0, 2026-04-12, Merge [#4661](https://github.com/ossrs/srs/pull/4661): Proxy: Move build output to bin/, replace godotenv with custom .env parser, and update docs. v7.0.143 (#4661)
+* v7.0, 2026-04-06, Merge [#4657](https://github.com/ossrs/srs/pull/4657): Proxy: Refactor bootstrap for multi-server support and rebrand to SRSX. v7.0.142 (#4657)
+* v7.0, 2026-03-26, Merge [#4654](https://github.com/ossrs/srs/pull/4654): OpenClaw: Restructure workspace with symlinks, add codebase map, and rewrite AI docs. v7.0.141 (#4654)
+* v7.0, 2026-03-22, Merge [#4653](https://github.com/ossrs/srs/pull/4653): OpenClaw: unify AI agent configs with shared persona symlinks. v7.0.140 (#4653)
+* v7.0, 2026-03-22, Merge [#4652](https://github.com/ossrs/srs/pull/4652): Proxy: restructure repo as Go project with proxy as first module. v7.0.139 (#4652)
+* v7.0, 2026-03-05, Merge [#4643](https://github.com/ossrs/srs/pull/4643): OpenClaw: add and refine ST knowledge-base and learning/review skills. v7.0.138 (#4643)
 * v7.0, 2025-12-31, Merge [#4618](https://github.com/ossrs/srs/pull/4618): HLS/DASH: Fix dispose() to cleanup files even after on_unpublish() sets enabled_ to false. v7.0.137 (#4618)
 * v7.0, 2025-12-07, Merge [#4602](https://github.com/ossrs/srs/pull/4602): HLS: Fix audio-only fMP4 playback skipping. v7.0.136 (#4602)
 * v7.0, 2025-12-06, Merge [#4604](https://github.com/ossrs/srs/pull/4604): DVR: Fix HEVC mp4 recording error. v7.0.135 (#4604)
@@ -1434,4 +1476,3 @@ The changelog for SRS.
 * v0.1, 2013-10-17, support rtmp chunk2message protocol(recv\_message).
 
 Winlin 2021
-

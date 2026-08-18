@@ -6,14 +6,15 @@
 [![](https://img.shields.io/twitter/follow/srs_server?style=social)](https://twitter.com/srs_server)
 [![](https://img.shields.io/badge/SRS-YouTube-red)](https://www.youtube.com/@srs_server)
 [![](https://badgen.net/discord/members/yZ4BnPmHAd)](https://discord.gg/yZ4BnPmHAd)
+[![](https://img.shields.io/badge/Telegram-2CA5E0?logo=telegram&logoColor=white)](https://t.me/+RiynvKOxpQ42MGJl)
 [![](https://opencollective.com/srs-server/tiers/badge.svg)](https://opencollective.com/srs-server)
 [![](https://img.shields.io/docker/pulls/ossrs/srs)](https://hub.docker.com/r/ossrs/srs/tags)
 [![](https://codecov.io/gh/ossrs/srs/graph/badge.svg?token=Zx2LhdtA39)](https://codecov.io/gh/ossrs/srs)
 
-SRS/7.0 ([Kai](https://ossrs.io/lts/en-us/product#release-70)) is a simple, high-efficiency, and real-time video server, 
-supporting RTMP/WebRTC/HLS/HTTP-FLV/SRT/MPEG-DASH/GB28181, Linux/macOS, X86_64/ARMv7/AARCH64/M1/RISCV/LOONGARCH/MIPS,
-with codec support for H.264, H.265, AV1, VP9, AAC, Opus, and G.711, 
-and essential [features](trunk/doc/Features.md#features).
+SRS/8.0 ([Free](https://ossrs.io/lts/en-us/product#release-80)) is a simple, high-performance, AI-driven real-time media server.
+It supports RTMP, WebRTC, HLS, HTTP-FLV, SRT, MPEG-DASH, and GB28181 on Linux and macOS across
+x86_64, ARMv7, AArch64, Apple M1, RISC-V, LoongArch, and MIPS architectures. Supported codecs include
+H.264, H.265, AV1, VP9, AAC, Opus, and G.711. See the complete list of [features](trunk/doc/Features.md#features).
 
 [![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
 
@@ -63,28 +64,15 @@ To learn more about RTMP, HLS, HTTP-FLV, SRT, MPEG-DASH, WebRTC protocols, clust
 HTTP API, DVR, and transcoding, please check the documents in [English](https://ossrs.io) 
 or [Chinese](https://ossrs.net).
 
-If you want to use an IDE, VSCode is recommended. VSCode supports macOS, and Linux
-platforms. The settings are ready. All you need to do is open the folder with VSCode and 
-enjoy the efficiency brought by the IDE. See [VSCode README](.vscode/README.md) for details.
+<a name="ai-agent"></a>
 
-## Sponsor
+## AI Agent
 
-Would you like additional assistance from us? By becoming a sponsor or backer of SRS, we can provide you 
-with the support you need:
-
-* Backer: $5 per month, online text chat support through Discord.
-* Sponsor: $100 per month, online text chat plus online meeting support.
-
-Please visit [OpenCollective](https://opencollective.com/srs-server) to become a backer or sponsor, and send 
-us a direct message on [Discord](https://discord.gg/yZ4BnPmHAd). We are currently providing support to the 
-developers listed below:
-
-[![](https://opencollective.com/srs-server/backers.svg?width=800&button=false)](https://opencollective.com/srs-server)
-
-At SRS, our goal is to create a free, open-source community that helps developers all over the world 
-build high-quality streaming and RTC platforms for their businesses.
+I recommend to use AI to understand and maintain your SRS, please follow the wiki
+[AI Agent](skills/internal-docs-for-srs/references/cpp-docs/doc/getting-started-ai.md) for details.
 
 <a name="authors"></a>
+<a name="sponsor"></a>
 
 ## Contributing
 
@@ -112,6 +100,10 @@ A huge `THANK YOU` goes out to:
 We're really thankful to everyone in the community for helping us find bugs and improve the project. 
 To stay in touch and keep helping our community, please check out this [guide](https://github.com/ossrs/srs/contribute).
 
+Of course, financial support is very important to us, so we can build the website and use AI tools to 
+maintain the community. Please visit [OpenCollective](https://opencollective.com/srs-server) to become 
+a backer or sponsor.
+
 ## LICENSE
 
 SRS is licenced under [MIT](https://github.com/ossrs/srs/blob/develop/LICENSE), and some third-party libraries are 
@@ -119,6 +111,8 @@ distributed under their [licenses](https://ossrs.io/lts/en-us/license).
 
 ## Releases
 
+* 2026-08-12, [Release v7.0-d0](https://github.com/ossrs/srs/releases/tag/v7.0-d0), v7.0-d0, 7.0 dev0, v7.0.157, 313784 lines.
+* 2026-08-12, [Release v6.0-r1](https://github.com/ossrs/srs/releases/tag/v6.0-r1), v6.0-r1, 6.0 release1, v6.0.191, 171396 lines.
 * 2025-12-03, [Release v6.0-r0](https://github.com/ossrs/srs/releases/tag/v6.0-r0), v6.0-r0, 6.0 release0, v6.0.184, 170962 lines.
 * 2025-11-03, [Release v6.0-b3](https://github.com/ossrs/srs/releases/tag/v6.0-b3), v6.0-b3, 6.0 beta3, v6.0.183, 170957 lines.
 * 2025-10-16, [Release v6.0-b2](https://github.com/ossrs/srs/releases/tag/v6.0-b2), v6.0-b2, 6.0 beta2, v6.0.181, 170948 lines.
@@ -201,7 +195,3 @@ Please read [MIRRORS](trunk/doc/Resources.md#mirrors).
 ## Dockers
 
 Please read [DOCKERS](trunk/doc/Dockers.md).
-
-Beijing, 2013.10<br/>
-Winlin
-

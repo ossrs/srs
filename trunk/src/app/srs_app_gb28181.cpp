@@ -31,7 +31,6 @@
 using namespace std;
 
 #define SRS_GB_MAX_RECOVER 16
-#define SRS_GB_MAX_TIMEOUT 3
 #define SRS_GB_LARGE_PACKET 1500
 #define SRS_GB_SESSION_DRIVE_INTERVAL (300 * SRS_UTIME_MILLISECONDS)
 
@@ -73,12 +72,13 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     muxer_ = new SrsGbMuxer(this);
     state_ = SrsGbSessionStateInit;
 
-    connecting_starttime_ = 0;
     nn_timeout_ = 0;
     reinviting_starttime_ = 0;
 
     ppp_ = new SrsAlonePithyPrint();
     startime_ = srs_time_now_realtime();
+    connecting_starttime_ = startime_;
+    media_connect_timeout_ = 0;
     total_packs_ = 0;
     total_msgs_ = 0;
     total_recovered_ = 0;
@@ -111,6 +111,7 @@ void SrsGbSession::setup(SrsConfDirective *conf)
 {
     std::string output = config_->get_stream_caster_output(conf);
     muxer_->setup(output);
+    media_connect_timeout_ = config_->get_stream_caster_media_connect_timeout(conf);
 
     srs_trace("Session: Start output=%s", output.c_str());
 }
@@ -188,9 +189,22 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
 void SrsGbSession::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
 {
     media_ = media;
+    connecting_starttime_ = 0;
 
     // Change id of SIP and all its child coroutines.
     media_->set_cid(cid_);
+}
+
+void SrsGbSession::on_media_disconnected(ISrsGbMediaTcpConn *media)
+{
+    // Ignore a stale transport after the session has switched to a new one.
+    if (media_.get() != media) {
+        return;
+    }
+
+    if (owner_coroutine_) {
+        owner_coroutine_->interrupt();
+    }
 }
 
 // LCOV_EXCL_START
@@ -218,7 +232,7 @@ srs_error_t SrsGbSession::cycle()
 
     // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
-        srs_trace("client finished %s.", srs_error_summary(err).c_str());
+        srs_warn("client finished %s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
@@ -274,6 +288,13 @@ srs_error_t SrsGbSession::do_cycle()
 srs_error_t SrsGbSession::drive_state()
 {
     srs_error_t err = srs_success;
+
+    // The publish API reserves the ID and SSRC while the external SIP server
+    // starts its media publisher. Once TCP binds, its connection owns the
+    // session lifecycle; otherwise release an abandoned reservation.
+    if (srs_time_since(connecting_starttime_, srs_time_now_realtime()) >= media_connect_timeout_) {
+        return srs_error_new(ERROR_SUCCESS, "wait media connection timeout");
+    }
 
 #define SRS_GB_CHANGE_STATE_TO(state)                                        \
     {                                                                        \
@@ -533,6 +554,14 @@ srs_error_t SrsGbMediaTcpConn::cycle()
 
     // Change state to disconnected.
     connected_ = false;
+
+    // The external SIP server owns the signaling lifecycle, so a closed media
+    // transport is the terminal event available to SRS for this session.
+    if (session_) {
+        session_->on_media_disconnected(this);
+        session_ = NULL;
+    }
+
     srs_trace("PS: Media disconnect, code=%d", srs_error_code(err));
 
     // success.

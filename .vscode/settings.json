@@ -1,11 +1,11 @@
 {
-    "cmake.sourceDirectory": "${workspaceFolder}/trunk/cmake",
-    "cmake.buildDirectory": "${workspaceFolder}/trunk/cmake/build",
+    "cmake.sourceDirectory": "${workspaceFolder}/cmake",
+    "cmake.buildDirectory": "${workspaceFolder}/cmake/build",
     "cmake.configureOnOpen": false,
     "cmake.ctest.testExplorerIntegrationEnabled": false,
     "testMate.cpp.test.advancedExecutables": [ 
         "{build,Build,BUILD,out,Out,OUT}/**/*{test,Test,TEST}*",
-        "${workspaceFolder}/trunk/cmake/build/**/*{utest,test,Test,TEST}*"
+        "${workspaceFolder}/cmake/build/**/*{utest,test,Test,TEST}*"
     ],
     "files.associations": {
         "vector": "cpp",

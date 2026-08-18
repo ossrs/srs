@@ -15,6 +15,18 @@ WARNFLAGS += -Wall -Wno-deprecated-declarations -Wno-unused-private-field -Wno-u
 # House-keeping build targets.
 all : $(ST_DIR)/obj/st_utest
 
+# Auto-setup: symlink gtest-fit from SRS 3rdparty if not present.
+$(GTEST_DIR)/include/gtest/gtest.h:
+	@if [ ! -d "$(ST_UTEST)/gtest-fit" -a -d "$(ST_UTEST)/../../gtest-fit" ]; then \
+		echo "Auto-link gtest-fit from $(ST_UTEST)/../../gtest-fit"; \
+		ln -sf ../../gtest-fit $(ST_UTEST)/gtest-fit; \
+	fi
+	@if [ ! -f "$@" ]; then \
+		echo "Error: gtest not found. Please download from https://github.com/google/googletest/releases/tag/release-1.11.0"; \
+		echo "  or symlink: ln -sf /path/to/gtest-fit $(ST_UTEST)/gtest-fit"; \
+		exit 1; \
+	fi
+
 clean :
 	rm -f $(ST_DIR)/obj/st_utest* $(ST_DIR)/obj/gtest*
 
@@ -26,7 +38,7 @@ GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_DIR)/include/gt
 # implementation details, the dependencies specified below are
 # conservative and not optimized.  This is fine as Google Test
 # compiles fast and for ordinary users its source rarely changes.
-$(ST_DIR)/obj/gtest-all.o : $(GTEST_SRCS_)
+$(ST_DIR)/obj/gtest-all.o : $(GTEST_DIR)/include/gtest/gtest.h $(GTEST_SRCS_)
 	$(CXX) -c $(GTEST_DIR)/src/gtest-all.cc -o $@ \
         $(CXXFLAGS) $(UTEST_FLAGS) \
         $(WARNFLAGS) \
@@ -61,7 +73,7 @@ OBJECTS_FILES = $(patsubst %.cpp,%.o,$(SOURCE_FILES))
 OBJECTS = $(addprefix $(ST_DIR)/obj/,$(OBJECTS_FILES))
 
 # Objects, build each object of utest
-$(ST_DIR)/obj/%.o : %.cpp $(ST_UTEST_DEPS) $(UTEST_DEPS)
+$(ST_DIR)/obj/%.o : %.cpp $(ST_UTEST_DEPS) $(UTEST_DEPS) $(GTEST_DIR)/include/gtest/gtest.h
 	$(CXX) -c $< -o $@ \
         $(CXXFLAGS) $(UTEST_FLAGS) \
         $(WARNFLAGS) \

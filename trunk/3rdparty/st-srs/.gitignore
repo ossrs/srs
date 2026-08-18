@@ -12,3 +12,5 @@ googletest-*
 coverage
 codecov
 *.dSYM
+
+/cmake/build/

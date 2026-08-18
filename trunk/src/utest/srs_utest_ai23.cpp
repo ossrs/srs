@@ -67,6 +67,7 @@ void MockGbMuxer::reset()
 MockAppConfigForGbSession::MockAppConfigForGbSession()
 {
     stream_caster_output_ = "";
+    media_connect_timeout_ = 10 * SRS_UTIME_SECONDS;
 }
 
 MockAppConfigForGbSession::~MockAppConfigForGbSession()
@@ -76,6 +77,11 @@ MockAppConfigForGbSession::~MockAppConfigForGbSession()
 std::string MockAppConfigForGbSession::get_stream_caster_output(SrsConfDirective *conf)
 {
     return stream_caster_output_;
+}
+
+srs_utime_t MockAppConfigForGbSession::get_stream_caster_media_connect_timeout(SrsConfDirective *conf)
+{
+    return media_connect_timeout_;
 }
 
 void MockAppConfigForGbSession::set_stream_caster_output(const std::string &output)
@@ -114,6 +120,9 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
 
     // Setup mock config to return test output
     mock_config->set_stream_caster_output("rtmp://127.0.0.1/live/test_stream");
+    mock_config->media_connect_timeout_ = 500 * SRS_UTIME_MILLISECONDS;
+
+    EXPECT_EQ(0, session->media_connect_timeout_);
 
     // Test setup() method
     SrsConfDirective *conf = NULL;
@@ -122,6 +131,7 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
     // Verify muxer->setup() was called with correct output
     EXPECT_TRUE(mock_muxer->setup_called_);
     EXPECT_STREQ("rtmp://127.0.0.1/live/test_stream", mock_muxer->setup_output_.c_str());
+    EXPECT_EQ(500 * SRS_UTIME_MILLISECONDS, session->media_connect_timeout_);
 
     // Test setup_owner() method
     SrsSharedResource<ISrsGbSession> *wrapper = NULL;
@@ -364,10 +374,65 @@ VOID TEST(GB28181Test, SessionOnMediaTransport)
 
     // Verify that the session's context ID was passed to the media transport
     EXPECT_EQ(0, mock_media->received_cid_.compare(session_cid));
+    EXPECT_EQ(0, session->connecting_starttime_);
 
     // Clean up - set to NULL to avoid double-free
     session->muxer_ = NULL;
     srs_freep(mock_muxer);
+}
+
+// Test that an API-created session expires while waiting for its media TCP
+// connection, but stops using that timeout as soon as a transport binds.
+VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
+{
+    srs_error_t err = srs_success;
+    SrsUniquePtr<MockAppConfigForGbSession> mock_config(new MockAppConfigForGbSession());
+    MockGbMuxer *mock_muxer = new MockGbMuxer();
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    session->config_ = mock_config.get();
+    session->muxer_ = mock_muxer;
+    mock_config->media_connect_timeout_ = 500 * SRS_UTIME_MILLISECONDS;
+    session->setup(NULL);
+
+    session->connecting_starttime_ = srs_time_now_realtime();
+    HELPER_EXPECT_SUCCESS(session->drive_state());
+
+    session->connecting_starttime_ = srs_time_now_realtime() - 10 * SRS_UTIME_SECONDS;
+    err = session->drive_state();
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SUCCESS, srs_error_code(err));
+    srs_freep(err);
+
+    MockGbMediaTcpConn *media = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> media_resource(media);
+    session->on_media_transport(media_resource);
+    HELPER_EXPECT_SUCCESS(session->drive_state());
+
+    session->muxer_ = NULL;
+    srs_freep(mock_muxer);
+}
+
+// Test SrsGbSession::on_media_disconnected - only the current transport may
+// terminate the session, while a stale transport must be ignored.
+VOID TEST(GB28181Test, SessionOnMediaDisconnected)
+{
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+
+    MockGbMediaTcpConn *current = new MockGbMediaTcpConn();
+    MockGbMediaTcpConn *stale = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> current_resource(current);
+    SrsSharedResource<ISrsGbMediaTcpConn> stale_resource(stale);
+
+    session->setup_owner(NULL, owner.get(), NULL);
+    session->on_media_transport(current_resource);
+
+    session->on_media_disconnected(stale);
+    EXPECT_FALSE(owner->interrupt_called_);
+
+    session->on_media_disconnected(current);
+    EXPECT_TRUE(owner->interrupt_called_);
 }
 
 // Test SrsGbSession::drive_state - covers the major use scenario:
@@ -391,6 +456,7 @@ VOID TEST(GB28181Test, SessionDriveState)
     session->muxer_ = mock_muxer;
     session->media_ = SrsSharedResource<ISrsGbMediaTcpConn>(mock_media);
     session->device_id_ = "test-device-123";
+    session->setup(NULL);
 
     // Verify initial state is Init
     EXPECT_EQ(SrsGbSessionStateInit, session->state_);
@@ -794,6 +860,10 @@ void MockGbSessionForMediaConn::on_media_transport(SrsSharedResource<ISrsGbMedia
 {
     on_media_transport_called_ = true;
     received_media_ = media;
+}
+
+void MockGbSessionForMediaConn::on_media_disconnected(ISrsGbMediaTcpConn *media)
+{
 }
 
 void MockGbSessionForMediaConn::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
@@ -1313,6 +1383,10 @@ void MockGbSessionForMuxer::setup_owner(SrsSharedResource<ISrsGbSession> *wrappe
 }
 
 void MockGbSessionForMuxer::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
+{
+}
+
+void MockGbSessionForMuxer::on_media_disconnected(ISrsGbMediaTcpConn *media)
 {
 }
 
@@ -2130,6 +2204,10 @@ void MockGbSessionForApiPublish::setup_owner(SrsSharedResource<ISrsGbSession> *w
 }
 
 void MockGbSessionForApiPublish::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
+{
+}
+
+void MockGbSessionForApiPublish::on_media_disconnected(ISrsGbMediaTcpConn *media)
 {
 }
 
@@ -3897,50 +3975,50 @@ void MockRtcConnectionForTcpConnHandshake::reset()
     on_binding_request_called_ = false;
 }
 
+static std::string build_rtc_tcp_stun_binding_request(std::string username)
+{
+    char stun_buf[128];
+    memset(stun_buf, 0, sizeof(stun_buf));
+
+    int username_len = (int)username.size();
+    int username_padded = (username_len + 3) / 4 * 4;
+    int message_size = 4 + username_padded;
+    int stun_size = 20 + message_size;
+
+    // STUN header: BindingRequest, message length, magic cookie and transaction ID.
+    stun_buf[0] = 0x00;
+    stun_buf[1] = 0x01;
+    stun_buf[2] = (message_size >> 8) & 0xff;
+    stun_buf[3] = message_size & 0xff;
+    stun_buf[4] = 0x21;
+    stun_buf[5] = 0x12;
+    stun_buf[6] = 0xa4;
+    stun_buf[7] = 0x42;
+    for (int i = 8; i < 20; ++i) {
+        stun_buf[i] = i - 8;
+    }
+
+    // USERNAME attribute.
+    stun_buf[20] = 0x00;
+    stun_buf[21] = 0x06;
+    stun_buf[22] = (username_len >> 8) & 0xff;
+    stun_buf[23] = username_len & 0xff;
+    memcpy(stun_buf + 24, username.data(), username_len);
+
+    // RFC4571 frame: two-byte packet length followed by the STUN packet.
+    std::string frame;
+    frame.push_back((stun_size >> 8) & 0xff);
+    frame.push_back(stun_size & 0xff);
+    frame.append(stun_buf, stun_size);
+    return frame;
+}
+
 // Test SrsRtcTcpConn::handshake - major use scenario
 VOID TEST(RtcTcpConnTest, HandshakeWithStunBindingRequest)
 {
     srs_error_t err;
 
-    // Create a STUN binding request packet manually
-    // STUN header: message type (2) + message length (2) + magic cookie (4) + transaction ID (12) = 20 bytes
-    // Plus username attribute: type (2) + length (2) + value (padded to 4-byte boundary)
-    char stun_buf[128];
-    memset(stun_buf, 0, sizeof(stun_buf));
-
-    // STUN header
-    stun_buf[0] = 0x00;
-    stun_buf[1] = 0x01; // BindingRequest
-    stun_buf[2] = 0x00;
-    stun_buf[3] = 0x10; // message length = 16 (username attribute: 4 + 12)
-
-    // Magic cookie (0x2112A442)
-    stun_buf[4] = 0x21;
-    stun_buf[5] = 0x12;
-    stun_buf[6] = 0xA4;
-    stun_buf[7] = 0x42;
-
-    // Transaction ID (12 bytes)
-    for (int i = 8; i < 20; i++) {
-        stun_buf[i] = i - 8;
-    }
-
-    // Username attribute: type=0x0006, length=12, value="test:session"
-    stun_buf[20] = 0x00;
-    stun_buf[21] = 0x06; // Username attribute type
-    stun_buf[22] = 0x00;
-    stun_buf[23] = 0x0C; // Length = 12
-    memcpy(stun_buf + 24, "test:session", 12);
-
-    int stun_size = 36; // 20 (header) + 16 (username attribute)
-
-    // Prepare read data: 2-byte length prefix + STUN packet
-    std::string read_data;
-    uint8_t len_prefix[2];
-    len_prefix[0] = (stun_size >> 8) & 0xFF;
-    len_prefix[1] = stun_size & 0xFF;
-    read_data.append((char *)len_prefix, 2);
-    read_data.append(stun_buf, stun_size);
+    std::string read_data = build_rtc_tcp_stun_binding_request("test:session");
 
     // Create mock socket with read data
     SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> mock_io(new MockProtocolReadWriterForTcpNetwork());
@@ -4004,6 +4082,64 @@ VOID TEST(RtcTcpConnTest, HandshakeWithStunBindingRequest)
     tcp_conn->skt_ = NULL;
     tcp_conn->conn_manager_ = NULL;
     tcp_conn->wrapper_ = NULL;
+    tcp_network->sendonly_skt_ = NULL;
+    mock_session->tcp_network_ = NULL;
+    mock_conn_manager->session_to_return_ = NULL;
+}
+
+// Issue #4642: A second TCP connection for the same RTC session must not
+// displace the first owner, otherwise the first connection keeps a stale
+// session pointer after the session interrupts only the recorded owner.
+VOID TEST(ReproduceIssue4642, RejectSecondTcpConnForSameRtcSession)
+{
+    srs_error_t err;
+    std::string read_data = build_rtc_tcp_stun_binding_request("test:session");
+
+    SrsUniquePtr<MockResourceManagerForTcpConnHandshake> mock_conn_manager(new MockResourceManagerForTcpConnHandshake());
+    SrsUniquePtr<MockRtcConnectionForTcpConnHandshake> mock_session(new MockRtcConnectionForTcpConnHandshake());
+    SrsUniquePtr<MockEphemeralDelta> mock_delta(new MockEphemeralDelta());
+    SrsUniquePtr<SrsRtcTcpNetwork> tcp_network(new SrsRtcTcpNetwork(mock_session.get(), mock_delta.get()));
+
+    mock_session->tcp_network_ = tcp_network.get();
+    mock_conn_manager->session_to_return_ = mock_session.get();
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io_a(new MockProtocolReadWriterForTcpNetwork());
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io_b(new MockProtocolReadWriterForTcpNetwork());
+    io_a->set_read_data(read_data);
+    io_b->set_read_data(read_data);
+
+    SrsRtcTcpConn *raw_a = new SrsRtcTcpConn(io_a.get(), "192.168.1.10", 10000);
+    SrsRtcTcpConn *raw_b = new SrsRtcTcpConn(io_b.get(), "192.168.1.11", 10001);
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_a(new SrsSharedResource<ISrsRtcTcpConn>(raw_a));
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_b(new SrsSharedResource<ISrsRtcTcpConn>(raw_b));
+
+    raw_a->conn_manager_ = mock_conn_manager.get();
+    raw_a->wrapper_ = wrapper_a.get();
+    raw_b->conn_manager_ = mock_conn_manager.get();
+    raw_b->wrapper_ = wrapper_b.get();
+
+    HELPER_EXPECT_SUCCESS(raw_a->handshake());
+    EXPECT_EQ(raw_a, tcp_network->owner().get());
+    EXPECT_EQ(mock_session.get(), raw_a->session_);
+
+    err = raw_b->handshake();
+    EXPECT_TRUE(err != srs_success);
+    if (err != srs_success) {
+        EXPECT_EQ(ERROR_RTC_TCP_UNIQUE, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    EXPECT_EQ(raw_a, tcp_network->owner().get());
+    EXPECT_EQ(mock_session.get(), raw_a->session_);
+    EXPECT_TRUE(raw_b->session_ == NULL);
+
+    // Prevent the connection and mock socket owners from deleting the same sockets.
+    raw_a->skt_ = NULL;
+    raw_b->skt_ = NULL;
+    raw_a->conn_manager_ = NULL;
+    raw_b->conn_manager_ = NULL;
+    raw_a->wrapper_ = NULL;
+    raw_b->wrapper_ = NULL;
     tcp_network->sendonly_skt_ = NULL;
     mock_session->tcp_network_ = NULL;
     mock_conn_manager->session_to_return_ = NULL;

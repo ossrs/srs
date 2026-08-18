@@ -145,3 +145,16 @@ void SrsStreamPublishTokenManager::release_token(const std::string &stream_url)
     // Erase from map first, then delete the token
     tokens_.erase(it);
 }
+
+bool SrsStreamPublishTokenManager::is_acquired(const std::string &stream_url)
+{
+    SrsLocker(&mutex_);
+
+    std::map<std::string, SrsStreamPublishToken *>::iterator it = tokens_.find(stream_url);
+    if (it == tokens_.end()) {
+        return false;
+    }
+
+    SrsStreamPublishToken *token = it->second;
+    return token->is_acquired();
+}

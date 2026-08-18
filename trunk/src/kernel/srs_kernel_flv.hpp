@@ -151,6 +151,8 @@ public:
     // Four-byte field that identifies the stream of the message. These
     // bytes are set in little-endian format.
     int32_t stream_id_;
+    // Preferred chunk stream id for writing this message back to RTMP.
+    int32_t prefer_cid_;
 
     // Four-byte field that contains a timestamp of the message.
     // The 4 bytes are packed in the big-endian order.
@@ -432,8 +434,8 @@ public:
     virtual srs_error_t seek2(int64_t offset);
 };
 
-// Get the prefer cid for message type.
-extern int srs_rtmp_prefer_cid(SrsFrameType message_type);
+// Get the prefer cid for RTMP message type.
+extern int srs_rtmp_prefer_cid(int message_type);
 
 // Generate the RTMP chunk header for shared ptr message.
 // @param msg, the shared ptr message to generate header for.

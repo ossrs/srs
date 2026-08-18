@@ -117,8 +117,9 @@
     /* r29 and r30 are used as the frame register and link register (avoid) */
     #define JB_X29           10
     #define JB_LR            11
-    /* Register '31' is one of two registers depending on the instruction context:
-        For instructions dealing with the stack, it is the stack pointer, named rsp */
+    /* In AArch64, register encoding '31' is context-dependent (there is no "x31"):
+        - In stack-related instructions, it refers to SP (the stack pointer)
+        - In other instructions, it refers to XZR (the zero register) */
     #define JB_SP   13
 
     /* FP registers */

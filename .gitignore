@@ -36,6 +36,22 @@
 
 
 cmake-build-debug
-/build/
+/build
+/cmake/build
 /trunk/cmake/build
 
+# proxy (Go)
+/bin/
+.go-formarted
+.env
+
+# For AI
+/*personal*
+/support*
+/*srs-consults*
+/*workspace*
+/skills/llm-switcher
+/skills/*workspace*
+/memory/202*.md
+/tasks
+/objs

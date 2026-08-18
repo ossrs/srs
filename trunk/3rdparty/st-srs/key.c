@@ -49,8 +49,8 @@
 /*
  * Destructor table for per-thread private data
  */
-static _st_destructor_t _st_destructors[ST_KEYS_MAX];
-static int key_max = 0;
+static __thread _st_destructor_t _st_destructors[ST_KEYS_MAX];
+static __thread int key_max = 0;
 
 
 /*

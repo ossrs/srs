@@ -7,6 +7,6 @@
 #ifndef SRS_CORE_VERSION_HPP
 #define SRS_CORE_VERSION_HPP
 
-#include <srs_core_version7.hpp>
+#include <srs_core_version8.hpp>
 
 #endif
