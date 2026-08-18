@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-17, Merge [#4662](https://github.com/ossrs/srs/pull/4662): Dev: Improve VS Code debug and CMake build tasks. v8.0.25 (#4662)
 * v8.0, 2026-08-17, Merge [#4660](https://github.com/ossrs/srs/pull/4660): Proxy: Replace deprecated io/ioutil with io package. v8.0.24 (#4660)
 * v8.0, 2026-08-17, Merge [#4723](https://github.com/ossrs/srs/pull/4723): RTMP: Restore correct chunk stream IDs for strict clients. v8.0.23 (#4723)
 * v8.0, 2026-08-13, Merge [#4721](https://github.com/ossrs/srs/pull/4721): GB28181: Clean up external SIP sessions after timeout or TCP disconnect. v8.0.22 (#4721)
