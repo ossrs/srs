@@ -5793,7 +5793,7 @@ VOID TEST(ConfigHttpApiTest, CheckHttpApiAuthEnabled)
     // Test explicit auth enabled
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "http_api{auth{enabled on;}}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "http_api{auth{enabled on;type basic;}}"));
 
         EXPECT_TRUE(conf.get_http_api_auth_enabled());
     }
@@ -5848,7 +5848,7 @@ VOID TEST(ConfigHttpApiTest, CheckHttpApiAuthUsername)
     // Test default value when auth exists but no username config
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "http_api{auth{enabled on;}}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "http_api{auth{enabled on;type basic;}}"));
 
         // Should return default value when no username config
         EXPECT_STREQ("", conf.get_http_api_auth_username().c_str());
@@ -5900,7 +5900,7 @@ VOID TEST(ConfigHttpApiTest, CheckHttpApiAuthPassword)
     // Test default value when auth exists but no password config
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "http_api{auth{enabled on;}}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "http_api{auth{enabled on;type basic;}}"));
 
         // Should return default value when no password config
         EXPECT_STREQ("", conf.get_http_api_auth_password().c_str());
@@ -5929,7 +5929,7 @@ VOID TEST(ConfigHttpApiTest, CheckHttpApiAuthPassword)
     // Test complete auth configuration
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "http_api{enabled on; auth{enabled on; username testuser; password testpass;}}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "http_api{enabled on; auth{enabled on; type basic; username testuser; password testpass;}}"));
 
         EXPECT_TRUE(conf.get_http_api_enabled());
         EXPECT_TRUE(conf.get_http_api_auth_enabled());

@@ -1915,10 +1915,22 @@ srs_error_t SrsConfig::check_normal_config()
             if (n == "auth") {
                 for (int j = 0; j < (int)obj->directives_.size(); j++) {
                     string m = obj->at(j)->name_;
-                    if (m != "enabled" && m != "username" && m != "password") {
+                    if (m != "enabled" && m != "type" && m != "username" && m != "password") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.auth.%s", m.c_str());
                     }
                 }
+            }
+        }
+
+        if (get_http_api_auth_enabled()) {
+            string auth_type = get_http_api_auth_type();
+            if (auth_type.empty()) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID,
+                                     "SRS_HTTP_API_AUTH_TYPE is required when HTTP API authentication is enabled");
+            }
+            if (auth_type != "basic") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID,
+                                     "invalid SRS_HTTP_API_AUTH_TYPE=%s, only basic is supported", auth_type.c_str());
             }
         }
     }
@@ -7200,6 +7212,30 @@ bool SrsConfig::get_http_api_auth_enabled()
     }
 
     return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+std::string SrsConfig::get_http_api_auth_type()
+{
+    SRS_OVERWRITE_BY_ENV_STRING("srs.http_api.auth.type"); // SRS_HTTP_API_AUTH_TYPE
+
+    static string DEFAULT = "";
+
+    SrsConfDirective *conf = root_->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("auth");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("type");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    return conf->arg0();
 }
 
 std::string SrsConfig::get_http_api_auth_username()

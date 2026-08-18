@@ -329,6 +329,8 @@ public:
     virtual bool get_raw_api_allow_update() = 0;
     // Whether http api auth enabled.
     virtual bool get_http_api_auth_enabled() = 0;
+    // Get the http api auth type.
+    virtual std::string get_http_api_auth_type() = 0;
     // Get the http api auth username.
     virtual std::string get_http_api_auth_username() = 0;
     // Get the http api auth password.
@@ -1455,6 +1457,8 @@ public:
     virtual bool get_raw_api_allow_update();
     // Whether http api auth enabled.
     virtual bool get_http_api_auth_enabled();
+    // Get the http api auth type.
+    virtual std::string get_http_api_auth_type();
     // Get the http api auth username.
     virtual std::string get_http_api_auth_username();
     // Get the http api auth password.

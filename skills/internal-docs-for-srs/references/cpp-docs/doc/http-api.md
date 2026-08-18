@@ -99,6 +99,10 @@ http_api {
         # Overwrite by env SRS_HTTP_API_AUTH_ENABLED
         # default: off
         enabled         on;
+        # The authentication type. Currently only basic is supported.
+        # Required when authentication is enabled.
+        # Overwrite by env SRS_HTTP_API_AUTH_TYPE
+        type            basic;
         # The username of Basic authentication:
         # Overwrite by env SRS_HTTP_API_AUTH_USERNAME
         username        admin;
@@ -503,6 +507,7 @@ http_api {
     listen 1985;
     auth {
         enabled on;
+        type basic;
         username admin;
         password admin;
     }
@@ -513,7 +518,8 @@ Otherwise, you can use environment variables to enable it:
 
 ```bash
 env SRS_HTTP_API_ENABLED=on SRS_HTTP_SERVER_ENABLED=on \
-    SRS_HTTP_API_AUTH_ENABLED=on SRS_HTTP_API_AUTH_USERNAME=admin SRS_HTTP_API_AUTH_PASSWORD=admin \
+    SRS_HTTP_API_AUTH_ENABLED=on SRS_HTTP_API_AUTH_TYPE=basic \
+    SRS_HTTP_API_AUTH_USERNAME=admin SRS_HTTP_API_AUTH_PASSWORD=admin \
     ./objs/srs -e
 ```
 
@@ -529,5 +535,4 @@ To clean up the username and password, you can access the HTTP API with the user
 Winlin 2015.8
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/http-api)
-
 
