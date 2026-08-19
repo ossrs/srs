@@ -428,6 +428,7 @@ public:
     virtual bool get_http_api_auth_enabled() { return false; }
     virtual std::string get_http_api_auth_type() { return ""; }
     virtual std::string get_http_api_auth_token() { return ""; }
+    virtual bool get_http_api_auth_rtc_bearer_enabled() { return false; }
     virtual std::string get_http_api_auth_username() { return ""; }
     virtual std::string get_http_api_auth_password() { return ""; }
     virtual srs_error_t raw_to_json(SrsJsonObject *obj) { return srs_success; }

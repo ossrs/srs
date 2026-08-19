@@ -1915,7 +1915,7 @@ srs_error_t SrsConfig::check_normal_config()
             if (n == "auth") {
                 for (int j = 0; j < (int)obj->directives_.size(); j++) {
                     string m = obj->at(j)->name_;
-                    if (m != "enabled" && m != "type" && m != "token" && m != "username" && m != "password") {
+                    if (m != "enabled" && m != "type" && m != "token" && m != "rtc_bearer_enabled" && m != "username" && m != "password") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal http_api.auth.%s", m.c_str());
                     }
                 }
@@ -1935,6 +1935,16 @@ srs_error_t SrsConfig::check_normal_config()
             if (auth_type == "bearer" && get_http_api_auth_token().empty()) {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID,
                                      "SRS_HTTP_API_AUTH_TOKEN is required for bearer authentication");
+            }
+        }
+        if (get_http_api_auth_rtc_bearer_enabled()) {
+            if (!get_http_api_auth_enabled()) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID,
+                                     "SRS_HTTP_API_AUTH_ENABLED must be on when RTC Bearer authentication is enabled");
+            }
+            if (get_http_api_auth_type() != "bearer") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID,
+                                     "SRS_HTTP_API_AUTH_TYPE must be bearer when RTC Bearer authentication is enabled");
             }
         }
     }
@@ -7289,6 +7299,30 @@ std::string SrsConfig::get_http_api_auth_token()
     }
 
     return conf->arg0();
+}
+
+bool SrsConfig::get_http_api_auth_rtc_bearer_enabled()
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.http_api.auth.rtc_bearer_enabled"); // SRS_HTTP_API_AUTH_RTC_BEARER_ENABLED
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective *conf = root_->get("http_api");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("auth");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("rtc_bearer_enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
 }
 
 std::string SrsConfig::get_http_api_auth_username()

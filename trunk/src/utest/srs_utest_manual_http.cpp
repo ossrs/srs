@@ -1496,9 +1496,9 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
     }
 }
 
-static srs_error_t srs_utest_initialize_bearer_auth(SrsHttpAuthMux *auth, string token)
+static srs_error_t srs_utest_initialize_bearer_auth(SrsHttpAuthMux *auth, string token, bool rtc_bearer_enabled = false)
 {
-    return auth->initialize(new SrsHttpBearerAuthenticator(token));
+    return auth->initialize(new SrsHttpBearerAuthenticator(token, rtc_bearer_enabled));
 }
 
 VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBearerAuth)
@@ -1566,7 +1566,24 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBearerAuth)
         EXPECT_STREQ("Bearer", w.header()->get("WWW-Authenticate").c_str());
     }
 
-    // A matching Bearer token authorizes WHIP and WHEP signaling requests.
+    // Bearer authentication does not protect WHIP and WHEP signaling requests by default.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+        HELPER_ASSERT_SUCCESS(s.handle("/", new MockHttpHandler("Hello, world!")));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_POST, (llhttp_status_t)200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/rtc/v1/whip/?app=live&stream=livestream", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(srs_utest_initialize_bearer_auth(&auth, "secret-token"));
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // A matching Bearer token authorizes WHIP and WHEP signaling requests when explicitly enabled.
     if (true) {
         SrsHttpServeMux s;
         HELPER_ASSERT_SUCCESS(s.initialize());
@@ -1582,12 +1599,12 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBearerAuth)
         r.set_header(&h, false);
 
         SrsHttpAuthMux auth(&s);
-        HELPER_ASSERT_SUCCESS(srs_utest_initialize_bearer_auth(&auth, "secret-token"));
+        HELPER_ASSERT_SUCCESS(srs_utest_initialize_bearer_auth(&auth, "secret-token", true));
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
     }
 
-    // A WHIP or WHEP request without a Bearer token is rejected.
+    // A WHIP or WHEP request without a Bearer token is rejected when explicitly enabled.
     if (true) {
         SrsHttpServeMux s;
         HELPER_ASSERT_SUCCESS(s.initialize());
@@ -1599,7 +1616,7 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBearerAuth)
         HELPER_ASSERT_SUCCESS(r.set_url("/rtc/v1/whep/?app=live&stream=livestream", false));
 
         SrsHttpAuthMux auth(&s);
-        HELPER_ASSERT_SUCCESS(srs_utest_initialize_bearer_auth(&auth, "secret-token"));
+        HELPER_ASSERT_SUCCESS(srs_utest_initialize_bearer_auth(&auth, "secret-token", true));
         HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
         EXPECT_EQ(401, w.w->status_);
         EXPECT_STREQ("Bearer", w.header()->get("WWW-Authenticate").c_str());

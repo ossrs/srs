@@ -1206,9 +1206,10 @@ srs_error_t SrsHttpBasicAuthenticator::authenticate(ISrsHttpResponseWriter *w, I
     return err;
 }
 
-SrsHttpBearerAuthenticator::SrsHttpBearerAuthenticator(string token)
+SrsHttpBearerAuthenticator::SrsHttpBearerAuthenticator(string token, bool rtc_bearer_enabled)
 {
     token_ = token;
+    rtc_bearer_enabled_ = rtc_bearer_enabled;
 }
 
 SrsHttpBearerAuthenticator::~SrsHttpBearerAuthenticator()
@@ -1217,9 +1218,9 @@ SrsHttpBearerAuthenticator::~SrsHttpBearerAuthenticator()
 
 bool SrsHttpBearerAuthenticator::match(ISrsHttpMessage *r)
 {
-    // Bearer authentication protects both the HTTP API and WebRTC signaling APIs.
+    // Bearer authentication always protects the HTTP API and optionally protects WebRTC signaling APIs.
     string path = r->path();
-    return path.find("/api/") != string::npos || path.find("/rtc/") != string::npos;
+    return path.find("/api/") != string::npos || (rtc_bearer_enabled_ && path.find("/rtc/") != string::npos);
 }
 
 srs_error_t SrsHttpBearerAuthenticator::authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)

@@ -333,6 +333,8 @@ public:
     virtual std::string get_http_api_auth_type() = 0;
     // Get the http api auth bearer token.
     virtual std::string get_http_api_auth_token() = 0;
+    // Whether Bearer authentication protects WebRTC signaling APIs.
+    virtual bool get_http_api_auth_rtc_bearer_enabled() = 0;
     // Get the http api auth username.
     virtual std::string get_http_api_auth_username() = 0;
     // Get the http api auth password.
@@ -1466,6 +1468,8 @@ public:
     virtual std::string get_http_api_auth_type();
     // Get the http api auth bearer token.
     virtual std::string get_http_api_auth_token();
+    // Whether Bearer authentication protects WebRTC signaling APIs.
+    virtual bool get_http_api_auth_rtc_bearer_enabled();
     // Get the http api auth username.
     virtual std::string get_http_api_auth_username();
     // Get the http api auth password.

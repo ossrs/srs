@@ -294,7 +294,8 @@ srs_error_t SrsHttpConn::set_auth_enabled(bool auth_enabled)
             authenticator = new SrsHttpBasicAuthenticator(
                 config_->get_http_api_auth_username(), config_->get_http_api_auth_password());
         } else if (type == "bearer") {
-            authenticator = new SrsHttpBearerAuthenticator(config_->get_http_api_auth_token());
+            authenticator = new SrsHttpBearerAuthenticator(
+                config_->get_http_api_auth_token(), config_->get_http_api_auth_rtc_bearer_enabled());
         } else {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid http api auth type=%s", type.c_str());
         }

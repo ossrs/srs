@@ -604,9 +604,10 @@ class SrsHttpBearerAuthenticator : public ISrsHttpAuthenticator
 {
 private:
     std::string token_;
+    bool rtc_bearer_enabled_;
 
 public:
-    SrsHttpBearerAuthenticator(std::string token);
+    SrsHttpBearerAuthenticator(std::string token, bool rtc_bearer_enabled);
     virtual ~SrsHttpBearerAuthenticator();
 
 public:

@@ -307,13 +307,15 @@ Bellow is the workflow:
 
 ### Authentication
 
-SRS supports Bearer authentication for WHIP and WHEP signaling. Enable
-`http_api.auth`, set its type to `bearer`, and configure a token:
+SRS optionally supports Bearer authentication for WHIP and WHEP signaling. It
+is disabled for RTC by default. Enable `http_api.auth`, set its type to
+`bearer`, configure a token, and explicitly enable RTC Bearer authentication:
 
 ```bash
 env SRS_HTTP_API_AUTH_ENABLED=on \
     SRS_HTTP_API_AUTH_TYPE=bearer \
     SRS_HTTP_API_AUTH_TOKEN=srs-api-token \
+    SRS_HTTP_API_AUTH_RTC_BEARER_ENABLED=on \
     ./objs/srs -c conf/rtc.conf
 ```
 
@@ -323,12 +325,13 @@ The WHIP or WHEP client must send the token in the HTTP request:
 Authorization: Bearer srs-api-token
 ```
 
-Basic authentication does not apply to WHIP or WHEP. SRS also supports HTTP
-callback authorization for WebRTC: `on_publish` handles WHIP publishing and
-`on_play` handles WHEP playback. Bearer authentication and HTTP callbacks can
-be enabled together; the request must first pass Bearer authentication and then
-be accepted by the callback. See [HTTP API Authentication](./http-api.md#authentication)
-and [HTTP Callback](./http-callback.md).
+Basic authentication does not apply to WHIP or WHEP. When RTC Bearer
+authentication is disabled, SRS can use HTTP callbacks alone for WebRTC
+authorization: `on_publish` handles WHIP publishing and `on_play` handles WHEP
+playback. Bearer authentication and HTTP callbacks can also be enabled together;
+the request must first pass Bearer authentication and then be accepted by the
+callback. See [HTTP API Authentication](./http-api.md#authentication) and
+[HTTP Callback](./http-callback.md).
 
 If you install SRS on a Mac or Linux, you can test the local SRS service with localhost. However, if you're using 
 Windows, a remote Linux server, or need to test on other devices, you must use HTTPS for WHIP streaming, while 

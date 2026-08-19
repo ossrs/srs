@@ -192,9 +192,11 @@ Description about some fields:
 > Note: The callbacks for streaming are `on_publish` and `on_unpublish`, while the callbacks for playback are `on_play` and `on_stop`.
 
 > Note: These callbacks also apply to WebRTC. WHIP publishing invokes
-> `on_publish`, and WHEP playback invokes `on_play`. They can be combined with
-> [Bearer authentication](./http-api.md#bearer-token-authentication): the WHIP or
-> WHEP request must pass Bearer authentication before SRS invokes the callback.
+> `on_publish`, and WHEP playback invokes `on_play`. The callbacks can authorize
+> WHIP and WHEP by themselves because RTC Bearer authentication is disabled by
+> default. When combined with [Bearer authentication](./http-api.md#bearer-token-authentication),
+> enable `rtc_bearer_enabled`; the WHIP or WHEP request must then pass Bearer
+> authentication before SRS invokes the callback.
 
 > Note: Before SRS 4, there were `on_connect` and `on_close`, which are events defined by RTMP and only applicable to RTMP streams. These events overlap with streaming and playback events, so their use is not recommended.
 
