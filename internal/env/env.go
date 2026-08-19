@@ -92,7 +92,7 @@ func NewProxyEnvironment(ctx context.Context) (ProxyEnvironment, error) {
 	}
 	buildDefaultEnvironmentVariables(ctx)
 	environment := &proxyEnvironment{}
-	if err := validateHTTPAPIAuth(environment); err != nil {
+	if err := environment.validate(); err != nil {
 		return nil, err
 	}
 	return environment, nil
@@ -382,18 +382,19 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	)
 }
 
-func validateHTTPAPIAuth(environment ProxyEnvironment) error {
-	if environment.HttpAPIAuthEnabled() != "on" {
+// validate ensures the proxy environment is internally consistent before it is exposed to callers.
+func (e *proxyEnvironment) validate() error {
+	if e.HttpAPIAuthEnabled() != "on" {
 		return nil
 	}
 
-	if environment.HttpAPIAuthType() == "" {
+	if e.HttpAPIAuthType() == "" {
 		return errors.Errorf("PROXY_HTTP_API_AUTH_TYPE is required when HTTP API authentication is enabled")
 	}
-	if environment.HttpAPIAuthType() != "bearer" {
-		return errors.Errorf("invalid PROXY_HTTP_API_AUTH_TYPE=%v, proxy only supports bearer", environment.HttpAPIAuthType())
+	if e.HttpAPIAuthType() != "bearer" {
+		return errors.Errorf("invalid PROXY_HTTP_API_AUTH_TYPE=%v, proxy only supports bearer", e.HttpAPIAuthType())
 	}
-	if environment.HttpAPIAuthToken() == "" {
+	if e.HttpAPIAuthToken() == "" {
 		return errors.Errorf("PROXY_HTTP_API_AUTH_TOKEN is required for bearer authentication")
 	}
 

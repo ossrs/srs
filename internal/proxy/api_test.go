@@ -541,6 +541,90 @@ func TestSystemAPI_New_OptCanOverrideAllSeams(t *testing.T) {
 	}
 }
 
+func TestSystemAPI_RequireHTTPAPIAuth(t *testing.T) {
+	tests := []struct {
+		name             string
+		enabled          string
+		authorization    string
+		wantStatus       int
+		wantNextCalls    int
+		wantAuthenticate string
+	}{
+		{
+			name:          "disabled allows request",
+			enabled:       "off",
+			wantStatus:    http.StatusNoContent,
+			wantNextCalls: 1,
+		},
+		{
+			name:             "missing authorization",
+			enabled:          "on",
+			wantStatus:       http.StatusUnauthorized,
+			wantAuthenticate: "Bearer",
+		},
+		{
+			name:             "wrong authentication scheme",
+			enabled:          "on",
+			authorization:    "Basic secret-token",
+			wantStatus:       http.StatusUnauthorized,
+			wantAuthenticate: "Bearer",
+		},
+		{
+			name:             "empty bearer token",
+			enabled:          "on",
+			authorization:    "Bearer ",
+			wantStatus:       http.StatusUnauthorized,
+			wantAuthenticate: "Bearer",
+		},
+		{
+			name:             "wrong bearer token",
+			enabled:          "on",
+			authorization:    "Bearer wrong-token",
+			wantStatus:       http.StatusUnauthorized,
+			wantAuthenticate: "Bearer",
+		},
+		{
+			name:          "correct bearer token",
+			enabled:       "on",
+			authorization: "Bearer secret-token",
+			wantStatus:    http.StatusNoContent,
+			wantNextCalls: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			environment := &envfakes.FakeProxyEnvironment{}
+			environment.HttpAPIAuthEnabledReturns(tc.enabled)
+			environment.HttpAPIAuthTokenReturns("secret-token")
+			server := &systemAPI{environment: environment}
+
+			nextCalls := 0
+			handler := server.requireHTTPAPIAuth(func(w http.ResponseWriter, r *http.Request) {
+				nextCalls++
+				w.WriteHeader(http.StatusNoContent)
+			})
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/srs/register", nil)
+			if tc.authorization != "" {
+				req.Header.Set("Authorization", tc.authorization)
+			}
+			rec := httptest.NewRecorder()
+
+			handler(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", rec.Code, tc.wantStatus)
+			}
+			if nextCalls != tc.wantNextCalls {
+				t.Errorf("next calls = %d, want %d", nextCalls, tc.wantNextCalls)
+			}
+			if got := rec.Header().Get("WWW-Authenticate"); got != tc.wantAuthenticate {
+				t.Errorf("WWW-Authenticate = %q, want %q", got, tc.wantAuthenticate)
+			}
+		})
+	}
+}
+
 // =============================================================================
 // systemAPI — default factory behavior
 // =============================================================================

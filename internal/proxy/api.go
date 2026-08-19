@@ -21,30 +21,6 @@ import (
 	"srsx/internal/version"
 )
 
-func authorizeHTTPAPI(environment env.ProxyEnvironment, w http.ResponseWriter, r *http.Request) bool {
-	if environment.HttpAPIAuthEnabled() != "on" {
-		return true
-	}
-
-	const prefix = "Bearer "
-	authorization := r.Header.Get("Authorization")
-	if !strings.HasPrefix(authorization, prefix) {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		return false
-	}
-
-	provided := strings.TrimPrefix(authorization, prefix)
-	expected := environment.HttpAPIAuthToken()
-	if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		return false
-	}
-
-	return true
-}
-
 // HTTPAPIProxyServer is the proxy for SRS HTTP API, to proxy the WebRTC HTTP API like WHIP and WHEP,
 // to proxy other HTTP API of SRS like the streams and clients, etc.
 type HTTPAPIProxyServer interface {
@@ -216,6 +192,34 @@ type systemAPI struct {
 	newServer func(addr string) (httpServer, *http.ServeMux)
 }
 
+// requireHTTPAPIAuth authenticates Bearer credentials before invoking the next HTTP handler.
+func (v *systemAPI) requireHTTPAPIAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if v.environment.HttpAPIAuthEnabled() != "on" {
+			next(w, r)
+			return
+		}
+
+		const prefix = "Bearer "
+		authorization := r.Header.Get("Authorization")
+		if !strings.HasPrefix(authorization, prefix) {
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		provided := strings.TrimPrefix(authorization, prefix)
+		expected := v.environment.HttpAPIAuthToken()
+		if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		next(w, r)
+	}
+}
+
 func NewSystemAPI(environment env.ProxyEnvironment, loadBalancer lb.OriginLoadBalancer, gracefulQuitTimeout time.Duration, opts ...func(*systemAPI)) *systemAPI {
 	v := &systemAPI{
 		environment:         environment,
@@ -284,11 +288,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 
 	// The register service for SRS media servers.
 	logger.Debug(ctx, "Handle /api/v1/srs/register by %v", addr)
-	mux.HandleFunc("/api/v1/srs/register", func(w http.ResponseWriter, r *http.Request) {
-		if !authorizeHTTPAPI(v.environment, w, r) {
-			return
-		}
-
+	mux.HandleFunc("/api/v1/srs/register", v.requireHTTPAPIAuth(func(w http.ResponseWriter, r *http.Request) {
 		if err := func() error {
 			var deviceID, ip, serverID, serviceID, pid string
 			var rtmp, stream, api, srt, rtc []string
@@ -362,7 +362,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 		utils.ApiResponse(ctx, w, r, &Response{
 			Code: 0, PID: fmt.Sprintf("%v", os.Getpid()),
 		})
-	})
+	}))
 
 	// Run System API server.
 	v.wg.Add(1)

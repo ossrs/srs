@@ -357,6 +357,65 @@ func TestNewProxyEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
 	}
 }
 
+func TestProxyEnvironment_Validate(t *testing.T) {
+	tests := []struct {
+		name      string
+		enabled   string
+		authType  string
+		token     string
+		wantError string
+	}{
+		{
+			name:     "disabled ignores credentials",
+			enabled:  "off",
+			authType: "basic",
+		},
+		{
+			name:      "enabled requires type",
+			enabled:   "on",
+			wantError: "PROXY_HTTP_API_AUTH_TYPE",
+		},
+		{
+			name:      "enabled rejects unsupported type",
+			enabled:   "on",
+			authType:  "basic",
+			wantError: "only supports bearer",
+		},
+		{
+			name:      "bearer requires token",
+			enabled:   "on",
+			authType:  "bearer",
+			wantError: "PROXY_HTTP_API_AUTH_TOKEN",
+		},
+		{
+			name:     "bearer with token",
+			enabled:  "on",
+			authType: "bearer",
+			token:    "secret-token",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			withFakeEnv(t)
+			setEnv("PROXY_HTTP_API_AUTH_ENABLED", tc.enabled)
+			setEnv("PROXY_HTTP_API_AUTH_TYPE", tc.authType)
+			setEnv("PROXY_HTTP_API_AUTH_TOKEN", tc.token)
+
+			err := (&proxyEnvironment{}).validate()
+			if tc.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+					t.Fatalf("error = %v, want error containing %q", err, tc.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("validate: %v", err)
+			}
+		})
+	}
+}
+
 func TestNewProxyEnvironment_ValidatesHTTPAPIAuth(t *testing.T) {
 	tests := []struct {
 		name      string
