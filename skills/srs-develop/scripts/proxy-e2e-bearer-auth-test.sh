@@ -1,7 +1,7 @@
 #!/bin/bash
 # E2E test for Bearer authentication across the Go proxy and C++ SRS server.
-# Verifies startup validation, protected API requests, and authenticated origin
-# heartbeat registration.
+# Verifies startup validation, protected API and WHIP/WHEP requests, and
+# authenticated origin heartbeat registration.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
@@ -83,6 +83,16 @@ expect_status() {
     fail_with_logs "$label returned HTTP $got, expected $want"
   fi
   echo "PASS: $label returned HTTP $want."
+}
+
+expect_not_status() {
+  local label="$1"
+  local got="$2"
+  local unwanted="$3"
+  if [[ "$got" == "$unwanted" ]]; then
+    fail_with_logs "$label unexpectedly returned HTTP $got"
+  fi
+  echo "PASS: $label passed authentication and returned HTTP $got."
 }
 
 expect_bearer_challenge() {
@@ -287,8 +297,35 @@ if ! grep -q '"code":0' "$BODY_FILE"; then
   fail_with_logs "authenticated SRS API request did not return code 0"
 fi
 
-# --- Step 7: Verify authenticated heartbeat registration ---
-echo "=== Step 7: Verifying authenticated SRS heartbeat ==="
+# --- Step 7: Verify WHIP and WHEP Bearer authentication ---
+echo "=== Step 7: Verifying WHIP and WHEP Bearer authentication ==="
+status=$(curl -sS -X POST -D "$HEADERS_FILE" -o "$BODY_FILE" -w '%{http_code}' \
+  -H 'Content-Type: application/sdp' --data-binary 'v=0' \
+  "http://127.0.0.1:$ORIGIN_API_PORT/rtc/v1/whip/?app=live&stream=bearer-auth")
+expect_status "WHIP without a token" "$status" 401
+expect_bearer_challenge "WHIP without a token"
+
+status=$(curl -sS -X POST -D "$HEADERS_FILE" -o "$BODY_FILE" -w '%{http_code}' \
+  -H "Authorization: Bearer $PROXY_AUTH_TOKEN" \
+  -H 'Content-Type: application/sdp' --data-binary 'v=0' \
+  "http://127.0.0.1:$ORIGIN_API_PORT/rtc/v1/whep/?app=live&stream=bearer-auth")
+expect_status "WHEP with the proxy token" "$status" 401
+expect_bearer_challenge "WHEP with the proxy token"
+
+status=$(curl -sS -X POST -D "$HEADERS_FILE" -o "$BODY_FILE" -w '%{http_code}' \
+  -H "Authorization: Bearer $SRS_AUTH_TOKEN" \
+  -H 'Content-Type: application/sdp' --data-binary 'v=0' \
+  "http://127.0.0.1:$ORIGIN_API_PORT/rtc/v1/whip/?app=live&stream=bearer-auth")
+expect_not_status "WHIP with the correct token" "$status" 401
+
+status=$(curl -sS -X POST -D "$HEADERS_FILE" -o "$BODY_FILE" -w '%{http_code}' \
+  -H "Authorization: Bearer $SRS_AUTH_TOKEN" \
+  -H 'Content-Type: application/sdp' --data-binary 'v=0' \
+  "http://127.0.0.1:$ORIGIN_API_PORT/rtc/v1/whep/?app=live&stream=bearer-auth")
+expect_not_status "WHEP with the correct token" "$status" 401
+
+# --- Step 8: Verify authenticated heartbeat registration ---
+echo "=== Step 8: Verifying authenticated SRS heartbeat ==="
 registered=0
 for _ in {1..120}; do
   if grep -q 'device=origin1' "$PROXY_LOG"; then

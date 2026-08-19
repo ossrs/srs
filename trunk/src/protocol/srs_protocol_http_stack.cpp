@@ -1162,6 +1162,12 @@ SrsHttpBasicAuthenticator::~SrsHttpBasicAuthenticator()
 {
 }
 
+bool SrsHttpBasicAuthenticator::match(ISrsHttpMessage *r)
+{
+    // Basic authentication only protects the HTTP API.
+    return r->path().find("/api/") != string::npos;
+}
+
 srs_error_t SrsHttpBasicAuthenticator::authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     srs_error_t err = srs_success;
@@ -1207,6 +1213,13 @@ SrsHttpBearerAuthenticator::SrsHttpBearerAuthenticator(string token)
 
 SrsHttpBearerAuthenticator::~SrsHttpBearerAuthenticator()
 {
+}
+
+bool SrsHttpBearerAuthenticator::match(ISrsHttpMessage *r)
+{
+    // Bearer authentication protects both the HTTP API and WebRTC signaling APIs.
+    string path = r->path();
+    return path.find("/api/") != string::npos || path.find("/rtc/") != string::npos;
 }
 
 srs_error_t SrsHttpBearerAuthenticator::authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
@@ -1273,9 +1286,7 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         return err;
     }
 
-    // We only apply for api starts with /api/ for HTTP API.
-    // We don't apply for other apis such as /rtc/, for which we use http callback.
-    if (r->path().find("/api/") == std::string::npos) {
+    if (!authenticator_->match(r)) {
         return err;
     }
 

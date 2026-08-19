@@ -305,6 +305,31 @@ Bellow is the workflow:
 
 [![](/img/doc-whip-whep-workflow.png)](https://www.figma.com/file/fA75Nl6Fr6v8hsrJba5Xrn/How-Does-WHIP%2FWHEP-Work%3F?type=whiteboard&node-id=0-1)
 
+### Authentication
+
+SRS supports Bearer authentication for WHIP and WHEP signaling. Enable
+`http_api.auth`, set its type to `bearer`, and configure a token:
+
+```bash
+env SRS_HTTP_API_AUTH_ENABLED=on \
+    SRS_HTTP_API_AUTH_TYPE=bearer \
+    SRS_HTTP_API_AUTH_TOKEN=srs-api-token \
+    ./objs/srs -c conf/rtc.conf
+```
+
+The WHIP or WHEP client must send the token in the HTTP request:
+
+```text
+Authorization: Bearer srs-api-token
+```
+
+Basic authentication does not apply to WHIP or WHEP. SRS also supports HTTP
+callback authorization for WebRTC: `on_publish` handles WHIP publishing and
+`on_play` handles WHEP playback. Bearer authentication and HTTP callbacks can
+be enabled together; the request must first pass Bearer authentication and then
+be accepted by the callback. See [HTTP API Authentication](./http-api.md#authentication)
+and [HTTP Callback](./http-callback.md).
+
 If you install SRS on a Mac or Linux, you can test the local SRS service with localhost. However, if you're using 
 Windows, a remote Linux server, or need to test on other devices, you must use HTTPS for WHIP streaming, while 
 WHEP can still use HTTP. To enable SRS HTTPS, refer to [HTTPS API](./http-api.md#https-api), or use a web server 
@@ -664,5 +689,4 @@ would require fundamentally redesigning the WebRTC A/V sync mechanism, which is 
 [#4076](https://github.com/ossrs/srs/issues/4076)
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/webrtc)
-
 

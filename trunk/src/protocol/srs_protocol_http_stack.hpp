@@ -576,6 +576,8 @@ public:
     virtual ~ISrsHttpAuthenticator();
 
 public:
+    // Whether this strategy should authenticate the request.
+    virtual bool match(ISrsHttpMessage *r) = 0;
     virtual srs_error_t authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r) = 0;
 };
 
@@ -592,6 +594,7 @@ public:
     virtual ~SrsHttpBasicAuthenticator();
 
 public:
+    virtual bool match(ISrsHttpMessage *r);
     virtual srs_error_t authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 
@@ -607,6 +610,7 @@ public:
     virtual ~SrsHttpBearerAuthenticator();
 
 public:
+    virtual bool match(ISrsHttpMessage *r);
     virtual srs_error_t authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 

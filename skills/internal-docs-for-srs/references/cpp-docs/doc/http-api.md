@@ -93,7 +93,8 @@ http_api {
         # Always off by https://github.com/ossrs/srs/issues/2653
         #allow_update off;
     }
-    # the auth is authentication for http api
+    # Authentication for the HTTP API. Bearer authentication also protects WebRTC signaling APIs,
+    # including WHIP and WHEP. Basic authentication only protects HTTP APIs under /api/.
     auth {
         # whether enable the HTTP AUTH.
         # Overwrite by env SRS_HTTP_API_AUTH_ENABLED
@@ -104,6 +105,7 @@ http_api {
         # Overwrite by env SRS_HTTP_API_AUTH_TYPE
         type            basic;
         # The token of Bearer authentication. Required when type is bearer.
+        # The same token protects HTTP APIs under /api/ and WebRTC signaling APIs under /rtc/.
         # Overwrite by env SRS_HTTP_API_AUTH_TOKEN
         token           secret-token;
         # The username of Basic authentication:
@@ -537,9 +539,9 @@ To clean up the username and password, you can access the HTTP API with the user
 
 ### Bearer Token Authentication
 
-Bearer authentication protects the SRS HTTP API with a token sent in the
-`Authorization` request header. When authentication is enabled, set the type to
-`bearer` and configure a non-empty token:
+Bearer authentication protects the SRS HTTP API and WebRTC signaling APIs with
+a token sent in the `Authorization` request header. This includes WHIP and WHEP
+requests under `/rtc/`. Set the type to `bearer` and configure a non-empty token:
 
 ```bash
 # conf/http.api.auth.bearer.conf
@@ -570,13 +572,30 @@ curl -H 'Authorization: Bearer srs-api-token' \
     http://127.0.0.1:1985/api/v1/versions
 ```
 
+Use the same header for WHIP and WHEP signaling requests:
+
+```bash
+curl -H 'Authorization: Bearer srs-api-token' \
+    -H 'Content-Type: application/sdp' --data-binary @offer.sdp \
+    'http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream'
+```
+
 Requests with a missing or incorrect token receive HTTP `401 Unauthorized` and
 the response header `WWW-Authenticate: Bearer`.
 
-`SRS_HTTP_API_AUTH_TOKEN` protects the SRS server's own HTTP API. It is separate
-from proxy registration authentication and heartbeat credentials.
+`SRS_HTTP_API_AUTH_TOKEN` protects the SRS server's own HTTP and WebRTC
+signaling APIs. It is separate from proxy registration authentication and
+heartbeat credentials.
 
-> Note: authentication is only enabled for the HTTP APIs, neither for the HTTP server nor the WebRTC HTTP APIs.
+> Note: Basic authentication only protects APIs under `/api/`; it does not apply
+> to WHIP, WHEP, or other WebRTC signaling APIs under `/rtc/`. Bearer
+> authentication protects both `/api/` and `/rtc/`. Neither type protects files
+> served by the HTTP server.
+
+Bearer authentication can be combined with [HTTP callbacks](./http-callback.md).
+After a WHIP or WHEP request passes Bearer authentication, SRS still invokes
+`on_publish` or `on_play`, allowing the business server to apply stream-specific
+authorization.
 
 Winlin 2015.8
 

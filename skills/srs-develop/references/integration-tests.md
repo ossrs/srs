@@ -36,7 +36,7 @@ Run focused and component-native tests first, then run every command below seque
    ```bash
    bash skills/srs-develop/scripts/proxy-e2e-whip-test.sh
    ```
-9. Bearer authentication startup validation, protected SRS and proxy APIs, and authenticated origin registration:
+9. Bearer authentication startup validation, protected SRS, WHIP/WHEP, and proxy APIs, and authenticated origin registration:
    ```bash
    bash skills/srs-develop/scripts/proxy-e2e-bearer-auth-test.sh
    ```
