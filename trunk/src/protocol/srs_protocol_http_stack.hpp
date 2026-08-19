@@ -604,6 +604,7 @@ class SrsHttpBearerAuthenticator : public ISrsHttpAuthenticator
 {
 private:
     std::string token_;
+    // Whether Bearer authentication also protects WebRTC signaling APIs under /rtc/.
     bool rtc_bearer_enabled_;
 
 public:

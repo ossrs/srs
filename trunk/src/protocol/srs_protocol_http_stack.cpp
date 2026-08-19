@@ -1283,11 +1283,7 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter *w, ISrsHttpMessage *
 {
     srs_error_t err = srs_success;
 
-    if (!authenticator_) {
-        return err;
-    }
-
-    if (!authenticator_->match(r)) {
+    if (!authenticator_ || !authenticator_->match(r)) {
         return err;
     }
 
