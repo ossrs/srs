@@ -80,25 +80,25 @@ For C++ media server website pages, select the smallest relevant page:
 
 For Oryx documentation, select the smallest relevant document:
 
-- `references/cpp-docs/doc/getting-started-oryx.md` — Oryx overview, deployment, comparison with SRS, authentication, recording, forwarding, virtual live, transcoding, AI features, OpenAPI, and HTTP callbacks.
-- `references/cpp-docs/pages/faq-oryx-en.md` — Oryx setup, upgrades, HTTPS, authentication, recording to local disk or S3-compatible cloud storage, re-streaming, and common operational questions.
+- `references/oryx/getting-started-oryx.md` — Oryx overview, deployment, comparison with SRS, authentication, recording, forwarding, virtual live, transcoding, AI features, OpenAPI, and HTTP callbacks.
+- `references/oryx/faq-oryx-en.md` — Oryx setup, upgrades, HTTPS, authentication, recording to local disk or S3-compatible cloud storage, re-streaming, and common operational questions.
 - `oryx/README.md` — Oryx overview, Docker deployment, ports, persistent `/data` layout, environment variables, features, and dependencies.
 - `oryx/DEVELOPER.md` — Oryx OpenAPI, environment variables, ports, deployment variants, development workflows, testing, and changelog.
-- `trunk/3rdparty/srs-docs/blog/2022-04-09-Oryx-Tutorial.md` — One-click, Docker, Lightsail, and DigitalOcean deployment, plus RTMP, WebRTC, and SRT getting started.
-- `trunk/3rdparty/srs-docs/blog/2022-04-12-Oryx-HTTPS.md` — DNS, automatic HTTPS, Let's Encrypt, and certificate renewal.
-- `trunk/3rdparty/srs-docs/blog/2022-04-15-Oryx-WordPress-Plugin.md` — Embed HLS, HTTP-FLV, and WebRTC streams in WordPress.
-- `trunk/3rdparty/srs-docs/blog/2022-04-29-BT-aaPanel.md` — Install and operate Oryx through aaPanel.
-- `trunk/3rdparty/srs-docs/blog/2023-08-29-Oryx-Ensuring-Authentication-for-Live-Streaming-Publishing.md` — Global publish-secret authentication and its limitations.
-- `trunk/3rdparty/srs-docs/blog/2023-09-09-Oryx-Multi-Platform-Streaming.md` — Restream to YouTube, Twitch, and Facebook.
-- `trunk/3rdparty/srs-docs/blog/2023-09-10-Oryx-Record-Live-Streaming.md` — Server-side recording, MP4 generation, filters, and local or S3-compatible cloud storage.
-- `trunk/3rdparty/srs-docs/blog/2023-09-11-Oryx-Virtual-Live-Events.md` — Publish prerecorded files as live streams.
-- `trunk/3rdparty/srs-docs/blog/2023-10-11-Oryx-Stream-IP-Camera-Events.md` — Pull RTSP cameras and forward them to streaming platforms.
-- `trunk/3rdparty/srs-docs/blog/2023-10-21-Oryx-Live-Transcoding.md` — FFmpeg-based bitrate and resolution transcoding.
-- `trunk/3rdparty/srs-docs/blog/2023-11-28-Oryx-Live-Streams-Transcription.md` — Whisper transcription, embedded subtitles, and WebVTT.
-- `trunk/3rdparty/srs-docs/blog/2023-12-12-Oryx-OBS-WHIP-Service.md` — Publish WHIP from OBS and play through WHEP.
-- `trunk/3rdparty/srs-docs/blog/2024-01-31-Browser-Voice-Driven-GPT.md` — Browser voice assistant, live rooms, language coaching, and translation.
-- `trunk/3rdparty/srs-docs/blog/2024-02-21-Dubbing-Translating.md` — Video translation, ASR, TTS, segment editing, and export.
-- `trunk/3rdparty/srs-docs/blog/2024-05-20-OCR-Video-Streams.md` — Live-stream OCR, configurable AI instructions, and callbacks.
+- `references/oryx/2022-04-09-Oryx-Tutorial.md` — One-click, Docker, Lightsail, and DigitalOcean deployment, plus RTMP, WebRTC, and SRT getting started.
+- `references/oryx/2022-04-12-Oryx-HTTPS.md` — DNS, automatic HTTPS, Let's Encrypt, and certificate renewal.
+- `references/oryx/2022-04-15-Oryx-WordPress-Plugin.md` — Embed HLS, HTTP-FLV, and WebRTC streams in WordPress.
+- `references/oryx/2022-04-29-BT-aaPanel.md` — Install and operate Oryx through aaPanel.
+- `references/oryx/2023-08-29-Oryx-Ensuring-Authentication-for-Live-Streaming-Publishing.md` — Global publish-secret authentication and its limitations.
+- `references/oryx/2023-09-09-Oryx-Multi-Platform-Streaming.md` — Restream to YouTube, Twitch, and Facebook.
+- `references/oryx/2023-09-10-Oryx-Record-Live-Streaming.md` — Server-side recording, MP4 generation, filters, and local or S3-compatible cloud storage.
+- `references/oryx/2023-09-11-Oryx-Virtual-Live-Events.md` — Publish prerecorded files as live streams.
+- `references/oryx/2023-10-11-Oryx-Stream-IP-Camera-Events.md` — Pull RTSP cameras and forward them to streaming platforms.
+- `references/oryx/2023-10-21-Oryx-Live-Transcoding.md` — FFmpeg-based bitrate and resolution transcoding.
+- `references/oryx/2023-11-28-Oryx-Live-Streams-Transcription.md` — Whisper transcription, embedded subtitles, and WebVTT.
+- `references/oryx/2023-12-12-Oryx-OBS-WHIP-Service.md` — Publish WHIP from OBS and play through WHEP.
+- `references/oryx/2024-01-31-Browser-Voice-Driven-GPT.md` — Browser voice assistant, live rooms, language coaching, and translation.
+- `references/oryx/2024-02-21-Dubbing-Translating.md` — Video translation, ASR, TTS, segment editing, and export.
+- `references/oryx/2024-05-20-OCR-Video-Streams.md` — Live-stream OCR, configurable AI instructions, and callbacks.
 
 For Oryx, prefer the getting-started guide, FAQ, and repository documentation. Treat dated blogs as scenario-specific guidance. If commands, UI labels, tooling, or behavior differ, prefer documentation matching the user's Oryx version.
 

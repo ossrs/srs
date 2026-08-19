@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 
-# Copy from srs-docs to srs skills.
+#
+# Copy from srs skills to srs-docs.
 #
 
 SRS_WORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
@@ -20,9 +20,9 @@ if [[ ! -d "$SRS_ORYX_DOCS" ]]; then
   exit -1
 fi
 
-for target in "$SRS_DOCS/doc/"*.md; do
-  source="$SRS_DOCS_CURRENT/doc/$(basename "$target")"
-  if [[ ! -f "$source" ]]; then
+for source in "$SRS_DOCS/doc/"*.md; do
+  target="$SRS_DOCS_CURRENT/doc/$(basename "$source")"
+  if [[ ! -f "$target" ]]; then
     continue
   fi
   if ! cp "$source" "$target"; then
@@ -32,9 +32,9 @@ for target in "$SRS_DOCS/doc/"*.md; do
 done
 echo "Copy doc success"
 
-for target in "$SRS_DOCS/pages/"*.md; do
-  source="$SRS_DOCS_SOURCE/pages/$(basename "$target")"
-  if [[ ! -f "$source" ]]; then
+for source in "$SRS_DOCS/pages/"*.md; do
+  target="$SRS_DOCS_SOURCE/pages/$(basename "$source")"
+  if [[ ! -f "$target" ]]; then
     continue
   fi
   if ! cp "$source" "$target"; then
@@ -44,13 +44,13 @@ for target in "$SRS_DOCS/pages/"*.md; do
 done
 echo "Copy pages success"
 
-for target in "$SRS_ORYX_DOCS/"*.md; do
-  name=$(basename "$target")
-  for source in \
+for source in "$SRS_ORYX_DOCS/"*.md; do
+  name=$(basename "$source")
+  for target in \
     "$SRS_DOCS_CURRENT/doc/$name" \
     "$SRS_DOCS_SOURCE/pages/$name" \
     "$SRS_DOCS_SOURCE/blog-en/$name"; do
-    if [[ ! -f "$source" ]]; then
+    if [[ ! -f "$target" ]]; then
       continue
     fi
     if ! cp "$source" "$target"; then
