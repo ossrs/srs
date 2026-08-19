@@ -427,6 +427,7 @@ public:
     virtual bool get_raw_api_allow_update() { return false; }
     virtual bool get_http_api_auth_enabled() { return false; }
     virtual std::string get_http_api_auth_type() { return ""; }
+    virtual std::string get_http_api_auth_token() { return ""; }
     virtual std::string get_http_api_auth_username() { return ""; }
     virtual std::string get_http_api_auth_password() { return ""; }
     virtual srs_error_t raw_to_json(SrsJsonObject *obj) { return srs_success; }
@@ -482,6 +483,9 @@ public:
     virtual std::string get_heartbeat_device_id() { return ""; }
     virtual bool get_heartbeat_summaries() { return false; }
     virtual bool get_heartbeat_ports() { return false; }
+    virtual bool get_heartbeat_auth_enabled() { return false; }
+    virtual std::string get_heartbeat_auth_type() { return ""; }
+    virtual std::string get_heartbeat_auth_token() { return ""; }
     virtual bool get_circuit_breaker() { return false; }
     virtual int get_high_threshold() { return 0; }
     virtual int get_high_pulse() { return 0; }

@@ -331,6 +331,8 @@ public:
     virtual bool get_http_api_auth_enabled() = 0;
     // Get the http api auth type.
     virtual std::string get_http_api_auth_type() = 0;
+    // Get the http api auth bearer token.
+    virtual std::string get_http_api_auth_token() = 0;
     // Get the http api auth username.
     virtual std::string get_http_api_auth_username() = 0;
     // Get the http api auth password.
@@ -405,6 +407,9 @@ public:
     virtual std::string get_heartbeat_device_id() = 0;
     virtual bool get_heartbeat_summaries() = 0;
     virtual bool get_heartbeat_ports() = 0;
+    virtual bool get_heartbeat_auth_enabled() = 0;
+    virtual std::string get_heartbeat_auth_type() = 0;
+    virtual std::string get_heartbeat_auth_token() = 0;
 
 public:
     // Circuit breaker config
@@ -1459,6 +1464,8 @@ public:
     virtual bool get_http_api_auth_enabled();
     // Get the http api auth type.
     virtual std::string get_http_api_auth_type();
+    // Get the http api auth bearer token.
+    virtual std::string get_http_api_auth_token();
     // Get the http api auth username.
     virtual std::string get_http_api_auth_username();
     // Get the http api auth password.
@@ -1557,6 +1564,12 @@ public:
     // Whether report with summaries of http api: /api/v1/summaries.
     virtual bool get_heartbeat_summaries();
     virtual bool get_heartbeat_ports();
+    // Whether authenticate heartbeat requests.
+    virtual bool get_heartbeat_auth_enabled();
+    // Get the heartbeat authentication type.
+    virtual std::string get_heartbeat_auth_type();
+    // Get the heartbeat Bearer token.
+    virtual std::string get_heartbeat_auth_token();
     // stats section
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

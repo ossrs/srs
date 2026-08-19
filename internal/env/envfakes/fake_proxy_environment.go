@@ -117,6 +117,36 @@ type FakeProxyEnvironment struct {
 	httpAPIReturnsOnCall map[int]struct {
 		result1 string
 	}
+	HttpAPIAuthEnabledStub        func() string
+	httpAPIAuthEnabledMutex       sync.RWMutex
+	httpAPIAuthEnabledArgsForCall []struct {
+	}
+	httpAPIAuthEnabledReturns struct {
+		result1 string
+	}
+	httpAPIAuthEnabledReturnsOnCall map[int]struct {
+		result1 string
+	}
+	HttpAPIAuthTokenStub        func() string
+	httpAPIAuthTokenMutex       sync.RWMutex
+	httpAPIAuthTokenArgsForCall []struct {
+	}
+	httpAPIAuthTokenReturns struct {
+		result1 string
+	}
+	httpAPIAuthTokenReturnsOnCall map[int]struct {
+		result1 string
+	}
+	HttpAPIAuthTypeStub        func() string
+	httpAPIAuthTypeMutex       sync.RWMutex
+	httpAPIAuthTypeArgsForCall []struct {
+	}
+	httpAPIAuthTypeReturns struct {
+		result1 string
+	}
+	httpAPIAuthTypeReturnsOnCall map[int]struct {
+		result1 string
+	}
 	HttpServerStub        func() string
 	httpServerMutex       sync.RWMutex
 	httpServerArgsForCall []struct {
@@ -830,6 +860,165 @@ func (fake *FakeProxyEnvironment) HttpAPIReturnsOnCall(i int, result1 string) {
 		})
 	}
 	fake.httpAPIReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthEnabled() string {
+	fake.httpAPIAuthEnabledMutex.Lock()
+	ret, specificReturn := fake.httpAPIAuthEnabledReturnsOnCall[len(fake.httpAPIAuthEnabledArgsForCall)]
+	fake.httpAPIAuthEnabledArgsForCall = append(fake.httpAPIAuthEnabledArgsForCall, struct {
+	}{})
+	stub := fake.HttpAPIAuthEnabledStub
+	fakeReturns := fake.httpAPIAuthEnabledReturns
+	fake.recordInvocation("HttpAPIAuthEnabled", []interface{}{})
+	fake.httpAPIAuthEnabledMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthEnabledCallCount() int {
+	fake.httpAPIAuthEnabledMutex.RLock()
+	defer fake.httpAPIAuthEnabledMutex.RUnlock()
+	return len(fake.httpAPIAuthEnabledArgsForCall)
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthEnabledCalls(stub func() string) {
+	fake.httpAPIAuthEnabledMutex.Lock()
+	defer fake.httpAPIAuthEnabledMutex.Unlock()
+	fake.HttpAPIAuthEnabledStub = stub
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthEnabledReturns(result1 string) {
+	fake.httpAPIAuthEnabledMutex.Lock()
+	defer fake.httpAPIAuthEnabledMutex.Unlock()
+	fake.HttpAPIAuthEnabledStub = nil
+	fake.httpAPIAuthEnabledReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthEnabledReturnsOnCall(i int, result1 string) {
+	fake.httpAPIAuthEnabledMutex.Lock()
+	defer fake.httpAPIAuthEnabledMutex.Unlock()
+	fake.HttpAPIAuthEnabledStub = nil
+	if fake.httpAPIAuthEnabledReturnsOnCall == nil {
+		fake.httpAPIAuthEnabledReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.httpAPIAuthEnabledReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthToken() string {
+	fake.httpAPIAuthTokenMutex.Lock()
+	ret, specificReturn := fake.httpAPIAuthTokenReturnsOnCall[len(fake.httpAPIAuthTokenArgsForCall)]
+	fake.httpAPIAuthTokenArgsForCall = append(fake.httpAPIAuthTokenArgsForCall, struct {
+	}{})
+	stub := fake.HttpAPIAuthTokenStub
+	fakeReturns := fake.httpAPIAuthTokenReturns
+	fake.recordInvocation("HttpAPIAuthToken", []interface{}{})
+	fake.httpAPIAuthTokenMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthTokenCallCount() int {
+	fake.httpAPIAuthTokenMutex.RLock()
+	defer fake.httpAPIAuthTokenMutex.RUnlock()
+	return len(fake.httpAPIAuthTokenArgsForCall)
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthTokenCalls(stub func() string) {
+	fake.httpAPIAuthTokenMutex.Lock()
+	defer fake.httpAPIAuthTokenMutex.Unlock()
+	fake.HttpAPIAuthTokenStub = stub
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthTokenReturns(result1 string) {
+	fake.httpAPIAuthTokenMutex.Lock()
+	defer fake.httpAPIAuthTokenMutex.Unlock()
+	fake.HttpAPIAuthTokenStub = nil
+	fake.httpAPIAuthTokenReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthTokenReturnsOnCall(i int, result1 string) {
+	fake.httpAPIAuthTokenMutex.Lock()
+	defer fake.httpAPIAuthTokenMutex.Unlock()
+	fake.HttpAPIAuthTokenStub = nil
+	if fake.httpAPIAuthTokenReturnsOnCall == nil {
+		fake.httpAPIAuthTokenReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.httpAPIAuthTokenReturnsOnCall[i] = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthType() string {
+	fake.httpAPIAuthTypeMutex.Lock()
+	ret, specificReturn := fake.httpAPIAuthTypeReturnsOnCall[len(fake.httpAPIAuthTypeArgsForCall)]
+	fake.httpAPIAuthTypeArgsForCall = append(fake.httpAPIAuthTypeArgsForCall, struct {
+	}{})
+	stub := fake.HttpAPIAuthTypeStub
+	fakeReturns := fake.httpAPIAuthTypeReturns
+	fake.recordInvocation("HttpAPIAuthType", []interface{}{})
+	fake.httpAPIAuthTypeMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthTypeCallCount() int {
+	fake.httpAPIAuthTypeMutex.RLock()
+	defer fake.httpAPIAuthTypeMutex.RUnlock()
+	return len(fake.httpAPIAuthTypeArgsForCall)
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthTypeCalls(stub func() string) {
+	fake.httpAPIAuthTypeMutex.Lock()
+	defer fake.httpAPIAuthTypeMutex.Unlock()
+	fake.HttpAPIAuthTypeStub = stub
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthTypeReturns(result1 string) {
+	fake.httpAPIAuthTypeMutex.Lock()
+	defer fake.httpAPIAuthTypeMutex.Unlock()
+	fake.HttpAPIAuthTypeStub = nil
+	fake.httpAPIAuthTypeReturns = struct {
+		result1 string
+	}{result1}
+}
+
+func (fake *FakeProxyEnvironment) HttpAPIAuthTypeReturnsOnCall(i int, result1 string) {
+	fake.httpAPIAuthTypeMutex.Lock()
+	defer fake.httpAPIAuthTypeMutex.Unlock()
+	fake.HttpAPIAuthTypeStub = nil
+	if fake.httpAPIAuthTypeReturnsOnCall == nil {
+		fake.httpAPIAuthTypeReturnsOnCall = make(map[int]struct {
+			result1 string
+		})
+	}
+	fake.httpAPIAuthTypeReturnsOnCall[i] = struct {
 		result1 string
 	}{result1}
 }

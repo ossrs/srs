@@ -36,6 +36,10 @@ Run focused and component-native tests first, then run every command below seque
    ```bash
    bash skills/srs-develop/scripts/proxy-e2e-whip-test.sh
    ```
+9. Bearer authentication startup validation, protected SRS and proxy APIs, and authenticated origin registration:
+   ```bash
+   bash skills/srs-develop/scripts/proxy-e2e-bearer-auth-test.sh
+   ```
 
 The SRT test requires an FFmpeg build with libsrt. The WHIP test requires the `whip` muxer and OpenSSL. Both scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available. If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification.
 

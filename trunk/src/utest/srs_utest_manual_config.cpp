@@ -4395,6 +4395,64 @@ VOID TEST(ConfigEnvTest, CheckHttpApiAuthTypeBasic)
     HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 }
 
+VOID TEST(ConfigEnvTest, CheckHttpApiAuthTypeBearer)
+{
+    srs_error_t err;
+
+    // Bearer authentication is valid when an explicit token is configured.
+    MockSrsConfig conf;
+
+    SrsSetEnvConfig(conf, http_api_auth_enabled, "SRS_HTTP_API_AUTH_ENABLED", "on");
+    SrsSetEnvConfig(conf, http_api_auth_type, "SRS_HTTP_API_AUTH_TYPE", "bearer");
+    SrsSetEnvConfig(conf, http_api_auth_token, "SRS_HTTP_API_AUTH_TOKEN", "secret-token");
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+}
+
+VOID TEST(ConfigEnvTest, CheckHttpApiAuthBearerRequiresToken)
+{
+    // Bearer authentication must not start without a token.
+    MockSrsConfig conf;
+
+    SrsSetEnvConfig(conf, http_api_auth_enabled, "SRS_HTTP_API_AUTH_ENABLED", "on");
+    SrsSetEnvConfig(conf, http_api_auth_type, "SRS_HTTP_API_AUTH_TYPE", "bearer");
+    SrsSetEnvConfig(conf, http_api_auth_token, "SRS_HTTP_API_AUTH_TOKEN", "");
+
+    srs_error_t parse_err = conf.mock_parse(_MIN_OK_CONF);
+    EXPECT_TRUE(parse_err != srs_success);
+    if (parse_err != srs_success) {
+        EXPECT_TRUE(srs_error_desc(parse_err).find("SRS_HTTP_API_AUTH_TOKEN") != string::npos);
+    }
+    srs_freep(parse_err);
+}
+
+VOID TEST(ConfigEnvTest, CheckHeartbeatAuthTypeBearer)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+
+    SrsSetEnvConfig(conf, heartbeat_auth_enabled, "SRS_HEARTBEAT_AUTH_ENABLED", "on");
+    SrsSetEnvConfig(conf, heartbeat_auth_type, "SRS_HEARTBEAT_AUTH_TYPE", "bearer");
+    SrsSetEnvConfig(conf, heartbeat_auth_token, "SRS_HEARTBEAT_AUTH_TOKEN", "proxy-token");
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+}
+
+VOID TEST(ConfigEnvTest, CheckHeartbeatAuthBearerRequiresToken)
+{
+    MockSrsConfig conf;
+
+    SrsSetEnvConfig(conf, heartbeat_auth_enabled, "SRS_HEARTBEAT_AUTH_ENABLED", "on");
+    SrsSetEnvConfig(conf, heartbeat_auth_type, "SRS_HEARTBEAT_AUTH_TYPE", "bearer");
+    SrsSetEnvConfig(conf, heartbeat_auth_token, "SRS_HEARTBEAT_AUTH_TOKEN", "");
+
+    srs_error_t parse_err = conf.mock_parse(_MIN_OK_CONF);
+    EXPECT_TRUE(parse_err != srs_success);
+    if (parse_err != srs_success) {
+        EXPECT_TRUE(srs_error_desc(parse_err).find("SRS_HEARTBEAT_AUTH_TOKEN") != string::npos);
+    }
+    srs_freep(parse_err);
+}
+
 VOID TEST(ConfigEnvTest, CheckEnvValuesHttpApi)
 {
     if (true) {
@@ -4416,11 +4474,15 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHttpApi)
         SrsSetEnvConfig(conf, http_api_auth_type, "SRS_HTTP_API_AUTH_TYPE", "basic");
         EXPECT_STREQ("basic", conf.get_http_api_auth_type().c_str());
 
+        SrsSetEnvConfig(conf, http_api_auth_token, "SRS_HTTP_API_AUTH_TOKEN", "secret-token");
+        EXPECT_STREQ("secret-token", conf.get_http_api_auth_token().c_str());
+
         SrsSetEnvConfig(conf, http_api_auth_username, "SRS_HTTP_API_AUTH_USERNAME", "admin");
         EXPECT_STREQ("admin", conf.get_http_api_auth_username().c_str());
 
         SrsSetEnvConfig(conf, http_api_auth_password, "SRS_HTTP_API_AUTH_PASSWORD", "123456");
         EXPECT_STREQ("123456", conf.get_http_api_auth_password().c_str());
+
     }
 
     if (true) {
@@ -4901,6 +4963,15 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesHeartbeat)
 
         SrsSetEnvConfig(conf, heartbeat_summaries, "SRS_HEARTBEAT_SUMMARIES", "on");
         EXPECT_TRUE(conf.get_heartbeat_summaries());
+
+        SrsSetEnvConfig(conf, heartbeat_auth_enabled, "SRS_HEARTBEAT_AUTH_ENABLED", "on");
+        EXPECT_TRUE(conf.get_heartbeat_auth_enabled());
+
+        SrsSetEnvConfig(conf, heartbeat_auth_type, "SRS_HEARTBEAT_AUTH_TYPE", "bearer");
+        EXPECT_STREQ("bearer", conf.get_heartbeat_auth_type().c_str());
+
+        SrsSetEnvConfig(conf, heartbeat_auth_token, "SRS_HEARTBEAT_AUTH_TOKEN", "proxy-token");
+        EXPECT_STREQ("proxy-token", conf.get_heartbeat_auth_token().c_str());
     }
 }
 

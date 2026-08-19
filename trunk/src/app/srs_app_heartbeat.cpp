@@ -168,6 +168,10 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
         return srs_error_wrap(err, "init uri=%s", uri.get_url().c_str());
     }
 
+    if (config_->get_heartbeat_auth_enabled() && config_->get_heartbeat_auth_type() == "bearer") {
+        http->set_header("Authorization", "Bearer " + config_->get_heartbeat_auth_token());
+    }
+
     std::string req = obj->dumps();
     ISrsHttpMessage *msg_raw = NULL;
     if ((err = http->post(uri.get_path(), req, &msg_raw)) != srs_success) {

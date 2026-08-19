@@ -576,7 +576,7 @@ public:
     virtual ~ISrsHttpAuthMux();
 
 public:
-    virtual srs_error_t initialize(bool enabled, std::string username, std::string password) = 0;
+    virtual srs_error_t initialize(bool enabled, std::string type, std::string username, std::string password, std::string token) = 0;
 };
 
 // The filter http mux, directly serve the http AUTH requests,
@@ -588,8 +588,10 @@ class SrsHttpAuthMux : public ISrsHttpAuthMux
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     bool enabled_;
+    std::string type_;
     std::string username_;
     std::string password_;
+    std::string token_;
     ISrsHttpHandler *next_;
 
 public:
@@ -597,6 +599,8 @@ public:
     virtual ~SrsHttpAuthMux();
 
 public:
+    virtual srs_error_t initialize(bool enabled, std::string type, std::string username, std::string password, std::string token);
+    // Compatibility helper for Basic authentication.
     virtual srs_error_t initialize(bool enabled, std::string username, std::string password);
     // Interface ISrsCommonHttpHandler
 public:

@@ -331,6 +331,9 @@ func TestNewProxyEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
 		{"WebRTCServer", env.WebRTCServer(), "18000"},
 		{"SRTServer", env.SRTServer(), "20080"},
 		{"SystemAPI", env.SystemAPI(), "12025"},
+		{"HttpAPIAuthEnabled", env.HttpAPIAuthEnabled(), "off"},
+		{"HttpAPIAuthType", env.HttpAPIAuthType(), ""},
+		{"HttpAPIAuthToken", env.HttpAPIAuthToken(), ""},
 		{"StaticFiles", env.StaticFiles(), "./trunk/research"},
 		{"LoadBalancerType", env.LoadBalancerType(), "memory"},
 		{"RedisHost", env.RedisHost(), "127.0.0.1"},
@@ -351,6 +354,75 @@ func TestNewProxyEnvironment_AppliesDefaultsAndAccessors(t *testing.T) {
 		if c.got != c.want {
 			t.Errorf("%s() = %q, want %q", c.name, c.got, c.want)
 		}
+	}
+}
+
+func TestNewProxyEnvironment_ValidatesHTTPAPIAuth(t *testing.T) {
+	tests := []struct {
+		name      string
+		enabled   string
+		authType  string
+		token     string
+		wantError string
+	}{
+		{
+			name:     "disabled by default",
+			enabled:  "off",
+			authType: "basic",
+		},
+		{
+			name:      "enabled requires type",
+			enabled:   "on",
+			wantError: "PROXY_HTTP_API_AUTH_TYPE",
+		},
+		{
+			name:      "proxy rejects basic",
+			enabled:   "on",
+			authType:  "basic",
+			wantError: "only supports bearer",
+		},
+		{
+			name:      "bearer requires token",
+			enabled:   "on",
+			authType:  "bearer",
+			wantError: "PROXY_HTTP_API_AUTH_TOKEN",
+		},
+		{
+			name:     "bearer with token",
+			enabled:  "on",
+			authType: "bearer",
+			token:    "secret-token",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			withFakeEnv(t)
+			withFakeOpen(t, "", os.ErrNotExist)
+			setEnv("PROXY_HTTP_API_AUTH_ENABLED", tc.enabled)
+			setEnv("PROXY_HTTP_API_AUTH_TYPE", tc.authType)
+			setEnv("PROXY_HTTP_API_AUTH_TOKEN", tc.token)
+
+			environment, err := NewProxyEnvironment(context.Background())
+			if tc.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+					t.Fatalf("error = %v, want error containing %q", err, tc.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("NewProxyEnvironment: %v", err)
+			}
+			if got := environment.HttpAPIAuthEnabled(); got != tc.enabled {
+				t.Errorf("HttpAPIAuthEnabled() = %q, want %q", got, tc.enabled)
+			}
+			if got := environment.HttpAPIAuthType(); got != tc.authType {
+				t.Errorf("HttpAPIAuthType() = %q, want %q", got, tc.authType)
+			}
+			if got := environment.HttpAPIAuthToken(); got != tc.token {
+				t.Errorf("HttpAPIAuthToken() = %q, want %q", got, tc.token)
+			}
+		})
 	}
 }
 

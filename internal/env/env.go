@@ -45,6 +45,12 @@ type ProxyEnvironment interface {
 	SRTServer() string
 	// System API server port
 	SystemAPI() string
+	// Whether proxy registration API authentication is enabled
+	HttpAPIAuthEnabled() string
+	// Proxy registration API authentication type
+	HttpAPIAuthType() string
+	// Proxy registration API Bearer token
+	HttpAPIAuthToken() string
 	// Static files directory
 	StaticFiles() string
 	// Load balancer type (memory or redis)
@@ -85,7 +91,11 @@ func NewProxyEnvironment(ctx context.Context) (ProxyEnvironment, error) {
 		return nil, err
 	}
 	buildDefaultEnvironmentVariables(ctx)
-	return &proxyEnvironment{}, nil
+	environment := &proxyEnvironment{}
+	if err := validateHTTPAPIAuth(environment); err != nil {
+		return nil, err
+	}
+	return environment, nil
 }
 
 func (e *proxyEnvironment) GoPprof() string {
@@ -122,6 +132,18 @@ func (e *proxyEnvironment) SRTServer() string {
 
 func (e *proxyEnvironment) SystemAPI() string {
 	return getEnv("PROXY_SYSTEM_API")
+}
+
+func (e *proxyEnvironment) HttpAPIAuthEnabled() string {
+	return getEnv("PROXY_HTTP_API_AUTH_ENABLED")
+}
+
+func (e *proxyEnvironment) HttpAPIAuthType() string {
+	return getEnv("PROXY_HTTP_API_AUTH_TYPE")
+}
+
+func (e *proxyEnvironment) HttpAPIAuthToken() string {
+	return getEnv("PROXY_HTTP_API_AUTH_TOKEN")
 }
 
 func (e *proxyEnvironment) StaticFiles() string {
@@ -300,6 +322,10 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 	setEnvDefault("PROXY_SRT_SERVER", "20080")
 	// The API server of proxy itself.
 	setEnvDefault("PROXY_SYSTEM_API", "12025")
+	// HTTP API authentication is disabled by default.
+	setEnvDefault("PROXY_HTTP_API_AUTH_ENABLED", "off")
+	setEnvDefault("PROXY_HTTP_API_AUTH_TYPE", "")
+	setEnvDefault("PROXY_HTTP_API_AUTH_TOKEN", "")
 	// The static directory for web server, optional.
 	setEnvDefault("PROXY_STATIC_FILES", "./trunk/research")
 
@@ -354,6 +380,24 @@ func buildDefaultEnvironmentVariables(ctx context.Context) {
 		getEnv("PROXY_REDIS_PASSWORD"), getEnv("PROXY_REDIS_DB"), getEnv("PROXY_REDIS_KEY_PREFIX"),
 		getEnv("PROXY_ORIGIN_SERVER_TTL"),
 	)
+}
+
+func validateHTTPAPIAuth(environment ProxyEnvironment) error {
+	if environment.HttpAPIAuthEnabled() != "on" {
+		return nil
+	}
+
+	if environment.HttpAPIAuthType() == "" {
+		return errors.Errorf("PROXY_HTTP_API_AUTH_TYPE is required when HTTP API authentication is enabled")
+	}
+	if environment.HttpAPIAuthType() != "bearer" {
+		return errors.Errorf("invalid PROXY_HTTP_API_AUTH_TYPE=%v, proxy only supports bearer", environment.HttpAPIAuthType())
+	}
+	if environment.HttpAPIAuthToken() == "" {
+		return errors.Errorf("PROXY_HTTP_API_AUTH_TOKEN is required for bearer authentication")
+	}
+
+	return nil
 }
 
 // setEnvDefault set env key=value if not set.

@@ -99,10 +99,13 @@ http_api {
         # Overwrite by env SRS_HTTP_API_AUTH_ENABLED
         # default: off
         enabled         on;
-        # The authentication type. Currently only basic is supported.
+        # The authentication type. Supported values are basic and bearer.
         # Required when authentication is enabled.
         # Overwrite by env SRS_HTTP_API_AUTH_TYPE
         type            basic;
+        # The token of Bearer authentication. Required when type is bearer.
+        # Overwrite by env SRS_HTTP_API_AUTH_TOKEN
+        token           secret-token;
         # The username of Basic authentication:
         # Overwrite by env SRS_HTTP_API_AUTH_USERNAME
         username        admin;
@@ -500,8 +503,10 @@ Other RAW APIs are disabled by SRS 4.0.
 
 Starting from version `5.0.152+` or `6.0.40+`, SRS supports HTTP API authentication, which can be enabled by configuring `http_api.auth`.
 
+### Basic Authentication
+
 ```bash
-# conf/http.api.auth.conf
+# conf/http.api.auth.basic.conf
 http_api {
     enabled on;
     listen 1985;
@@ -530,9 +535,49 @@ Then, you can access the following urls to verify it:
 To clean up the username and password, you can access the HTTP API with the username only:
 - http://admin@localhost:1985/api/v1/versions
 
+### Bearer Token Authentication
+
+Bearer authentication protects the SRS HTTP API with a token sent in the
+`Authorization` request header. When authentication is enabled, set the type to
+`bearer` and configure a non-empty token:
+
+```bash
+# conf/http.api.auth.bearer.conf
+http_api {
+    enabled on;
+    listen 1985;
+    auth {
+        enabled on;
+        type bearer;
+        token srs-api-token;
+    }
+}
+```
+
+The equivalent environment variables are:
+
+```bash
+env SRS_HTTP_API_AUTH_ENABLED=on \
+    SRS_HTTP_API_AUTH_TYPE=bearer \
+    SRS_HTTP_API_AUTH_TOKEN=srs-api-token \
+    ./objs/srs -c conf/srs.conf
+```
+
+Include the token in each API request:
+
+```bash
+curl -H 'Authorization: Bearer srs-api-token' \
+    http://127.0.0.1:1985/api/v1/versions
+```
+
+Requests with a missing or incorrect token receive HTTP `401 Unauthorized` and
+the response header `WWW-Authenticate: Bearer`.
+
+`SRS_HTTP_API_AUTH_TOKEN` protects the SRS server's own HTTP API. It is separate
+from proxy registration authentication and heartbeat credentials.
+
 > Note: authentication is only enabled for the HTTP APIs, neither for the HTTP server nor the WebRTC HTTP APIs.
 
 Winlin 2015.8
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/http-api)
-

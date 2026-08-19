@@ -5,6 +5,7 @@ package proxy
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"os"
@@ -19,6 +20,30 @@ import (
 	"srsx/internal/utils"
 	"srsx/internal/version"
 )
+
+func authorizeHTTPAPI(environment env.ProxyEnvironment, w http.ResponseWriter, r *http.Request) bool {
+	if environment.HttpAPIAuthEnabled() != "on" {
+		return true
+	}
+
+	const prefix = "Bearer "
+	authorization := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authorization, prefix) {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return false
+	}
+
+	provided := strings.TrimPrefix(authorization, prefix)
+	expected := environment.HttpAPIAuthToken()
+	if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		return false
+	}
+
+	return true
+}
 
 // HTTPAPIProxyServer is the proxy for SRS HTTP API, to proxy the WebRTC HTTP API like WHIP and WHEP,
 // to proxy other HTTP API of SRS like the streams and clients, etc.
@@ -260,6 +285,10 @@ func (v *systemAPI) Run(ctx context.Context) error {
 	// The register service for SRS media servers.
 	logger.Debug(ctx, "Handle /api/v1/srs/register by %v", addr)
 	mux.HandleFunc("/api/v1/srs/register", func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeHTTPAPI(v.environment, w, r) {
+			return
+		}
+
 		if err := func() error {
 			var deviceID, ip, serverID, serviceID, pid string
 			var rtmp, stream, api, srt, rtc []string

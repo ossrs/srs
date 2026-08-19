@@ -26,6 +26,8 @@ using namespace std;
 
 #define SRS_HTTP_AUTH_SCHEME_BASIC "Basic"
 #define SRS_HTTP_AUTH_PREFIX_BASIC SRS_HTTP_AUTH_SCHEME_BASIC " "
+#define SRS_HTTP_AUTH_SCHEME_BEARER "Bearer"
+#define SRS_HTTP_AUTH_PREFIX_BEARER SRS_HTTP_AUTH_SCHEME_BEARER " "
 
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x) + 2) / 3 * 4 + 1)
@@ -1152,13 +1154,20 @@ SrsHttpAuthMux::~SrsHttpAuthMux()
 {
 }
 
-srs_error_t SrsHttpAuthMux::initialize(bool enabled, std::string username, std::string password)
+srs_error_t SrsHttpAuthMux::initialize(bool enabled, std::string type, std::string username, std::string password, std::string token)
 {
     enabled_ = enabled;
+    type_ = type;
     username_ = username;
     password_ = password;
+    token_ = token;
 
     return srs_success;
+}
+
+srs_error_t SrsHttpAuthMux::initialize(bool enabled, std::string username, std::string password)
+{
+    return initialize(enabled, "basic", username, password, "");
 }
 
 srs_error_t SrsHttpAuthMux::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
@@ -1190,6 +1199,26 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter *w, ISrsHttpMessage *
     }
 
     std::string auth = r->header()->get("Authorization");
+
+    if (type_ == "bearer") {
+        if (auth.empty()) {
+            w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
+            return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
+        }
+        if (!srs_strings_starts_with(auth, SRS_HTTP_AUTH_PREFIX_BEARER)) {
+            w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
+            return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid bearer auth");
+        }
+
+        std::string token = auth.substr(sizeof(SRS_HTTP_AUTH_PREFIX_BEARER) - 1);
+        if (token.empty() || token != token_) {
+            w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
+            return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid bearer token");
+        }
+
+        return err;
+    }
+
     if (auth.empty()) {
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");

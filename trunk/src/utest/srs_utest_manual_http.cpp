@@ -1496,6 +1496,77 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
     }
 }
 
+static srs_error_t srs_utest_initialize_bearer_auth(SrsHttpAuthMux *auth, string token)
+{
+    return auth->initialize(true, "bearer", "", "", token);
+}
+
+VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBearerAuth)
+{
+    srs_error_t err;
+
+    // A matching Bearer token authorizes HTTP API requests.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+        HELPER_ASSERT_SUCCESS(s.handle("/", new MockHttpHandler("Hello, world!")));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/versions", false));
+
+        SrsHttpHeader h;
+        h.set("Authorization", "Bearer secret-token");
+        r.set_header(&h, false);
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(srs_utest_initialize_bearer_auth(&auth, "secret-token"));
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(200, "Hello, world!", w);
+    }
+
+    // A wrong Bearer token is rejected with a Bearer challenge.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+        HELPER_ASSERT_SUCCESS(s.handle("/", new MockHttpHandler("Hello, world!")));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/versions", false));
+
+        SrsHttpHeader h;
+        h.set("Authorization", "Bearer wrong-token");
+        r.set_header(&h, false);
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(srs_utest_initialize_bearer_auth(&auth, "secret-token"));
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        EXPECT_EQ(401, w.w->status_);
+        EXPECT_STREQ("Bearer", w.header()->get("WWW-Authenticate").c_str());
+    }
+
+    // A missing Authorization header is rejected with a Bearer challenge.
+    if (true) {
+        SrsHttpServeMux s;
+        HELPER_ASSERT_SUCCESS(s.initialize());
+        HELPER_ASSERT_SUCCESS(s.handle("/", new MockHttpHandler("Hello, world!")));
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+        HELPER_ASSERT_SUCCESS(r.set_url("/api/v1/versions", false));
+
+        SrsHttpAuthMux auth(&s);
+        HELPER_ASSERT_SUCCESS(srs_utest_initialize_bearer_auth(&auth, "secret-token"));
+        HELPER_ASSERT_SUCCESS(auth.serve_http(&w, &r));
+        EXPECT_EQ(401, w.w->status_);
+        EXPECT_STREQ("Bearer", w.header()->get("WWW-Authenticate").c_str());
+    }
+}
+
 VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
 {
     srs_error_t err;

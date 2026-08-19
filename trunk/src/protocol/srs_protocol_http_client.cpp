@@ -281,6 +281,11 @@ ISrsHttpClient::~ISrsHttpClient()
 {
 }
 
+ISrsHttpClient *ISrsHttpClient::set_header(string k, string v)
+{
+    return this;
+}
+
 SrsHttpClient::SrsHttpClient()
 {
     transport_ = NULL;

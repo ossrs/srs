@@ -65,6 +65,8 @@ public:
 public:
     // Initialize the client.
     virtual srs_error_t initialize(std::string schema, std::string h, int p, srs_utime_t tm = SRS_HTTP_CLIENT_TIMEOUT) = 0;
+    // Set HTTP request header. Implementations that do not support custom headers may ignore it.
+    virtual ISrsHttpClient *set_header(std::string k, std::string v);
     // Get data from the uri.
     virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage **ppmsg) = 0;
     // Post data to the uri.

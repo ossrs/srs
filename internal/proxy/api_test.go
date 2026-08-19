@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"srsx/internal/env"
 	"srsx/internal/env/envfakes"
 	"srsx/internal/lb/lbfakes"
 )
@@ -53,7 +54,7 @@ func (f *fakeWebRTCProxyServer) HandleApiForWHEP(ctx context.Context, w http.Res
 // captureMuxFromHTTPAPIRun drives NewHTTPAPIProxyServer.Run with a fake server
 // that captures the registered mux. Caller is responsible for cancelling ctx
 // to trigger shutdown.
-func captureMuxFromHTTPAPIRun(t *testing.T, env *envfakes.FakeProxyEnvironment,
+func captureMuxFromHTTPAPIRun(t *testing.T, environment env.ProxyEnvironment,
 	rtc WebRTCProxyServer, ctx context.Context,
 	opts ...func(*httpAPIProxyServer)) (*http.ServeMux, *fakeHTTPProxyServer, *httpAPIProxyServer) {
 	t.Helper()
@@ -70,7 +71,7 @@ func captureMuxFromHTTPAPIRun(t *testing.T, env *envfakes.FakeProxyEnvironment,
 			}
 		},
 	}
-	srvIface := NewHTTPAPIProxyServer(env, 50*time.Millisecond, rtc, append(baseOpts, opts...)...)
+	srvIface := NewHTTPAPIProxyServer(environment, 50*time.Millisecond, rtc, append(baseOpts, opts...)...)
 	srv := srvIface.(*httpAPIProxyServer)
 
 	if err := srv.Run(ctx); err != nil {
@@ -84,7 +85,7 @@ func captureMuxFromHTTPAPIRun(t *testing.T, env *envfakes.FakeProxyEnvironment,
 
 // captureMuxFromSystemAPIRun drives NewSystemAPI.Run with a fake server that
 // captures the registered mux. Caller cancels ctx to trigger shutdown.
-func captureMuxFromSystemAPIRun(t *testing.T, env *envfakes.FakeProxyEnvironment,
+func captureMuxFromSystemAPIRun(t *testing.T, environment env.ProxyEnvironment,
 	lbFake *lbfakes.FakeOriginLoadBalancer, ctx context.Context,
 	opts ...func(*systemAPI)) (*http.ServeMux, *fakeHTTPProxyServer, *systemAPI) {
 	t.Helper()
@@ -101,7 +102,7 @@ func captureMuxFromSystemAPIRun(t *testing.T, env *envfakes.FakeProxyEnvironment
 			}
 		},
 	}
-	srv := NewSystemAPI(env, lbFake, 50*time.Millisecond, append(baseOpts, opts...)...)
+	srv := NewSystemAPI(environment, lbFake, 50*time.Millisecond, append(baseOpts, opts...)...)
 
 	if err := srv.Run(ctx); err != nil {
 		t.Fatalf("Run: %v", err)
@@ -712,6 +713,66 @@ func TestSystemAPI_Run_HandlerVersionsReturnsJSON(t *testing.T) {
 	}
 	if body["version"] == "" {
 		t.Error("version should be populated")
+	}
+}
+
+func TestSystemAPI_Run_HandlerRegisterRequiresBearerToken(t *testing.T) {
+	tests := []struct {
+		name             string
+		authorization    string
+		wantStatus       int
+		wantUpdateCalls  int
+		wantAuthenticate string
+	}{
+		{
+			name:             "missing authorization",
+			wantStatus:       http.StatusUnauthorized,
+			wantAuthenticate: "Bearer",
+		},
+		{
+			name:             "wrong bearer token",
+			authorization:    "Bearer wrong-token",
+			wantStatus:       http.StatusUnauthorized,
+			wantAuthenticate: "Bearer",
+		},
+		{
+			name:            "correct bearer token",
+			authorization:   "Bearer secret-token",
+			wantStatus:      http.StatusOK,
+			wantUpdateCalls: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			environment := &envfakes.FakeProxyEnvironment{}
+			environment.SystemAPIReturns(":0")
+			environment.HttpAPIAuthEnabledReturns("on")
+			environment.HttpAPIAuthTypeReturns("bearer")
+			environment.HttpAPIAuthTokenReturns("secret-token")
+			lbFake := &lbfakes.FakeOriginLoadBalancer{}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			mux, _, _ := captureMuxFromSystemAPIRun(t, environment, lbFake, ctx)
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/srs/register", validRegisterBody(t))
+			if tc.authorization != "" {
+				req.Header.Set("Authorization", tc.authorization)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", rec.Code, tc.wantStatus)
+			}
+			if got := lbFake.UpdateCallCount(); got != tc.wantUpdateCalls {
+				t.Errorf("Update calls = %d, want %d", got, tc.wantUpdateCalls)
+			}
+			if got := rec.Header().Get("WWW-Authenticate"); got != tc.wantAuthenticate {
+				t.Errorf("WWW-Authenticate = %q, want %q", got, tc.wantAuthenticate)
+			}
+		})
 	}
 }
 

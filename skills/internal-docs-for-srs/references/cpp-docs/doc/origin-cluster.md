@@ -263,6 +263,20 @@ environment variables:
 > Note: The default backend origin server, is designed for any RTMP server like nginx-rtmp, it does not
 > require the origin server to register to the proxy server.
 
+## Authentication
+
+Configure the proxy registration API with:
+
+* `PROXY_HTTP_API_AUTH_ENABLED`: Whether to authenticate origin registration requests. Default: `off`
+* `PROXY_HTTP_API_AUTH_TYPE`: Authentication type. The proxy requires `bearer` when authentication is enabled.
+* `PROXY_HTTP_API_AUTH_TOKEN`: Bearer token accepted by the proxy registration API. Required when authentication is enabled.
+
+Configure each SRS origin to authenticate its heartbeat request with:
+
+* `SRS_HEARTBEAT_AUTH_ENABLED`: Whether the SRS origin authenticates its heartbeat request. Default: `off`
+* `SRS_HEARTBEAT_AUTH_TYPE`: Heartbeat authentication type. Use `bearer` for an authenticated proxy.
+* `SRS_HEARTBEAT_AUTH_TOKEN`: Credential sent by the SRS origin. Set it to the proxy's `PROXY_HTTP_API_AUTH_TOKEN`. It is independent from `SRS_HTTP_API_AUTH_TOKEN`, which protects the origin's own HTTP API.
+
 ## Design
 
 The proxy works with SRS origin servers, and the stream flow operates as follows:
@@ -426,4 +440,3 @@ manage service. For example, if you don't want to modify the nginx-rtmp code, yo
 to register the nginx-rtmp to proxy server.
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/origin-cluster)
-

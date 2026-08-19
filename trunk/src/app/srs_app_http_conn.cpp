@@ -289,8 +289,10 @@ srs_error_t SrsHttpConn::set_auth_enabled(bool auth_enabled)
 
     // initialize the auth, which will proxy to mux.
     if ((err = auth_->initialize(auth_enabled,
+                                 config_->get_http_api_auth_type(),
                                  config_->get_http_api_auth_username(),
-                                 config_->get_http_api_auth_password())) != srs_success) {
+                                 config_->get_http_api_auth_password(),
+                                 config_->get_http_api_auth_token())) != srs_success) {
         return srs_error_wrap(err, "init auth");
     }
 

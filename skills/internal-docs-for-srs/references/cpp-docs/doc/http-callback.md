@@ -261,6 +261,17 @@ heartbeat {
     # Overwrite by env SRS_HEARTBEAT_SUMMARIES
     # default: off
     summaries off;
+    # Optional authentication for the heartbeat request.
+    auth {
+        # Overwrite by env SRS_HEARTBEAT_AUTH_ENABLED
+        # default: off
+        enabled off;
+        # Overwrite by env SRS_HEARTBEAT_AUTH_TYPE
+        # only bearer is supported
+        type bearer;
+        # Overwrite by env SRS_HEARTBEAT_AUTH_TOKEN
+        token proxy-registration-token;
+    }
 }
 ```
 
@@ -422,5 +433,4 @@ The HttpCallback can used to snapshot, please read [snapshot](./snapshot.md#http
 Winlin 2015.1
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.io&path=/lts/doc/en/v7/http-callback)
-
 
