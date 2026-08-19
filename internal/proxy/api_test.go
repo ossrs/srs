@@ -541,7 +541,7 @@ func TestSystemAPI_New_OptCanOverrideAllSeams(t *testing.T) {
 	}
 }
 
-func TestSystemAPI_RequireHTTPAPIAuth(t *testing.T) {
+func TestSystemAPI_WithHTTPAPIAuth(t *testing.T) {
 	tests := []struct {
 		name             string
 		enabled          string
@@ -600,7 +600,7 @@ func TestSystemAPI_RequireHTTPAPIAuth(t *testing.T) {
 			server := &systemAPI{environment: environment}
 
 			nextCalls := 0
-			handler := server.requireHTTPAPIAuth(func(w http.ResponseWriter, r *http.Request) {
+			handler := server.withHTTPAPIAuth(func(w http.ResponseWriter, r *http.Request) {
 				nextCalls++
 				w.WriteHeader(http.StatusNoContent)
 			})

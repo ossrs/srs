@@ -192,8 +192,8 @@ type systemAPI struct {
 	newServer func(addr string) (httpServer, *http.ServeMux)
 }
 
-// requireHTTPAPIAuth authenticates Bearer credentials before invoking the next HTTP handler.
-func (v *systemAPI) requireHTTPAPIAuth(next http.HandlerFunc) http.HandlerFunc {
+// withHTTPAPIAuth wraps next with the configured HTTP API authentication.
+func (v *systemAPI) withHTTPAPIAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if v.environment.HttpAPIAuthEnabled() != "on" {
 			next(w, r)
@@ -288,7 +288,7 @@ func (v *systemAPI) Run(ctx context.Context) error {
 
 	// The register service for SRS media servers.
 	logger.Debug(ctx, "Handle /api/v1/srs/register by %v", addr)
-	mux.HandleFunc("/api/v1/srs/register", v.requireHTTPAPIAuth(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v1/srs/register", v.withHTTPAPIAuth(func(w http.ResponseWriter, r *http.Request) {
 		if err := func() error {
 			var deviceID, ip, serverID, serviceID, pid string
 			var rtmp, stream, api, srt, rtc []string
