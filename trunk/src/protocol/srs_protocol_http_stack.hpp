@@ -568,6 +568,48 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 
+// The interface for an HTTP authentication strategy.
+class ISrsHttpAuthenticator
+{
+public:
+    ISrsHttpAuthenticator();
+    virtual ~ISrsHttpAuthenticator();
+
+public:
+    virtual srs_error_t authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r) = 0;
+};
+
+// Authenticate HTTP requests using Basic authentication.
+// @see https://www.rfc-editor.org/rfc/rfc7617
+class SrsHttpBasicAuthenticator : public ISrsHttpAuthenticator
+{
+private:
+    std::string username_;
+    std::string password_;
+
+public:
+    SrsHttpBasicAuthenticator(std::string username, std::string password);
+    virtual ~SrsHttpBasicAuthenticator();
+
+public:
+    virtual srs_error_t authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+};
+
+// Authenticate HTTP requests using a Bearer token.
+// @see https://www.rfc-editor.org/rfc/rfc6750
+class SrsHttpBearerAuthenticator : public ISrsHttpAuthenticator
+{
+private:
+    std::string token_;
+
+public:
+    SrsHttpBearerAuthenticator(std::string token);
+    virtual ~SrsHttpBearerAuthenticator();
+
+public:
+    virtual srs_error_t authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+};
+
 // The interface for AUTH mux.
 class ISrsHttpAuthMux : public ISrsHttpHandler
 {
@@ -576,22 +618,18 @@ public:
     virtual ~ISrsHttpAuthMux();
 
 public:
-    virtual srs_error_t initialize(bool enabled, std::string type, std::string username, std::string password, std::string token) = 0;
+    // The mux takes ownership of authenticator on success. Use NULL to disable authentication.
+    virtual srs_error_t initialize(ISrsHttpAuthenticator *authenticator) = 0;
 };
 
 // The filter http mux, directly serve the http AUTH requests,
 // while proxy to the worker mux for services.
-// @see https://www.rfc-editor.org/rfc/rfc7617
 // @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/WWW-Authenticate
 class SrsHttpAuthMux : public ISrsHttpAuthMux
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    bool enabled_;
-    std::string type_;
-    std::string username_;
-    std::string password_;
-    std::string token_;
+    ISrsHttpAuthenticator *authenticator_;
     ISrsHttpHandler *next_;
 
 public:
@@ -599,9 +637,7 @@ public:
     virtual ~SrsHttpAuthMux();
 
 public:
-    virtual srs_error_t initialize(bool enabled, std::string type, std::string username, std::string password, std::string token);
-    // Compatibility helper for Basic authentication.
-    virtual srs_error_t initialize(bool enabled, std::string username, std::string password);
+    virtual srs_error_t initialize(ISrsHttpAuthenticator *authenticator);
     // Interface ISrsCommonHttpHandler
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
