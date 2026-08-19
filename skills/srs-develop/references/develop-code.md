@@ -116,6 +116,8 @@ Dev Docker is maintained in the separate `ossrs/dev-docker` repository. Its long
 
 Oryx is maintained in the separate `ossrs/oryx` repository. It combines a Go platform backend, React dashboard, SRS, Redis, NGINX, FFmpeg workers, Docker packaging, installers, release automation, and black-box tests. Route to the owning feature before reading code.
 
+For maintainer macOS development where Oryx should be built, run, debugged, and demonstrated locally without running Oryx in Docker, use [Oryx Local Development on macOS](oryx-local-development.md). This local workflow runs Redis, local SRS, the Go backend, and the React dashboard as separate processes.
+
 ### Step 1: Route the Product Area (MANDATORY)
 
 1. Check the project-root-relative `oryx/` path directly. It may be a directory or a symlink to the user's preferred checkout. If it is unavailable, stop and ask the user to make the `https://github.com/ossrs/oryx` checkout available there.
