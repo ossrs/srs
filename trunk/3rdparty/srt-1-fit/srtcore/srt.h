@@ -16,6 +16,22 @@ written by
 #ifndef INC_SRTC_H
 #define INC_SRTC_H
 
+#ifndef SRT_API
+#ifdef _WIN32
+   #ifdef SRT_DYNAMIC
+      #ifdef SRT_EXPORTS
+         #define SRT_API __declspec(dllexport)
+      #else
+         #define SRT_API __declspec(dllimport)
+      #endif
+   #else // !SRT_DYNAMIC
+      #define SRT_API
+   #endif
+#else
+   #define SRT_API __attribute__ ((visibility("default")))
+#endif
+#endif
+
 #include "version.h"
 
 #include "platform_sys.h"
@@ -32,34 +48,6 @@ written by
 
 //if compiling with MinGW, it only works on XP or above
 //use -D_WIN32_WINNT=0x0501
-
-
-#ifdef _WIN32
-   #ifndef __MINGW32__
-      // Explicitly define 32-bit and 64-bit numbers
-      typedef __int32 int32_t;
-      typedef __int64 int64_t;
-      typedef unsigned __int32 uint32_t;
-      #ifndef LEGACY_WIN32
-         typedef unsigned __int64 uint64_t;
-      #else
-         // VC 6.0 does not support unsigned __int64: may cause potential problems.
-         typedef __int64 uint64_t;
-      #endif
-   #endif
-   #ifdef SRT_DYNAMIC
-      #ifdef SRT_EXPORTS
-         #define SRT_API __declspec(dllexport)
-      #else
-         #define SRT_API __declspec(dllimport)
-      #endif
-   #else // !SRT_DYNAMIC
-      #define SRT_API
-   #endif
-#else
-   #define SRT_API __attribute__ ((visibility("default")))
-#endif
-
 
 // For feature tests if you need.
 // You can use these constants with SRTO_MINVERSION option.
@@ -121,17 +109,21 @@ written by
 
 #define SRT_ATR_DEPRECATED
 #define SRT_ATR_DEPRECATED_PX [[deprecated]]
+#define SRT_ATR_NODISCARD [[nodiscard]]
 
 // GNUG is GNU C/C++; this syntax is also supported by Clang
 #elif defined(__GNUC__)
 #define SRT_ATR_DEPRECATED_PX
 #define SRT_ATR_DEPRECATED __attribute__((deprecated))
+#define SRT_ATR_NODISCARD __attribute__((warn_unused_result))
 #elif defined(_MSC_VER)
 #define SRT_ATR_DEPRECATED_PX __declspec(deprecated)
 #define SRT_ATR_DEPRECATED // no postfix-type modifier
+#define SRT_ATR_NODISCARD _Check_return_
 #else
 #define SRT_ATR_DEPRECATED_PX
 #define SRT_ATR_DEPRECATED
+#define SRT_ATR_NODISCARD
 #endif
 
 #ifdef __cplusplus
@@ -150,8 +142,10 @@ static const int32_t SRTGROUP_MASK = (1 << 30);
 
 #ifdef _WIN32
    typedef SOCKET SYSSOCKET;
+   static const SYSSOCKET SYSSOCKET_INVALID = INVALID_SOCKET;
 #else
    typedef int SYSSOCKET;
+   static const int SYSSOCKET_INVALID = -1;
 #endif
 
 #ifndef ENABLE_BONDING
@@ -194,7 +188,7 @@ typedef enum SRT_SOCKOPT {
    SRTO_RCVTIMEO = 14,       // recv() timeout
    SRTO_REUSEADDR = 15,      // reuse an existing port or create a new one
    SRTO_MAXBW = 16,          // maximum bandwidth (bytes per second) that the connection can use
-   SRTO_STATE = 17,          // current socket state, see UDTSTATUS, read only
+   SRTO_STATE = 17,          // current socket state, see SRT_SOCKSTATUS, read only
    SRTO_EVENT = 18,          // current available events associated with the socket
    SRTO_SNDDATA = 19,        // size of data in the sending buffer
    SRTO_RCVDATA = 20,        // size of data available for recv
@@ -229,7 +223,7 @@ typedef enum SRT_SOCKOPT {
    SRTO_PAYLOADSIZE,         // Maximum payload size sent in one UDP packet (0 if unlimited)
    SRTO_TRANSTYPE = 50,      // Transmission type (set of options required for given transmission type)
    SRTO_KMREFRESHRATE,       // After sending how many packets the encryption key should be flipped to the new key
-   SRTO_KMPREANNOUNCE,       // How many packets before key flip the new key is annnounced and after key flip the old one decommissioned
+   SRTO_KMPREANNOUNCE,       // How many packets before key flip the new key is announced and after key flip the old one decommissioned
    SRTO_ENFORCEDENCRYPTION,  // Connection to be rejected or quickly broken when one side encryption set or bad password
    SRTO_IPV6ONLY,            // IPV6_V6ONLY mode
    SRTO_PEERIDLETIMEO,       // Peer-idle timeout (max time of silence heard from peer) in [ms]
@@ -607,7 +601,7 @@ enum SRT_REJECT_REASON
 #define SRT_LOGFA_CONGEST    7   // cclog: Congestion control module
 #define SRT_LOGFA_PFILTER    8   // pflog: Packet filter module
 
-#define SRT_LOGFA_API_CTRL   11  // aclog: API part for socket and library managmenet
+#define SRT_LOGFA_API_CTRL   11  // aclog: API part for socket and library management
 
 #define SRT_LOGFA_QUE_CTRL   13  // qclog: Queue control activities
 

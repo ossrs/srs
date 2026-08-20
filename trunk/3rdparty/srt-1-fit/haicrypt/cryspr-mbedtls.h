@@ -50,7 +50,7 @@ written by
 #endif
 
 /*
-#define CRYSPR_AESCTX to the CRYSPR specifix AES key context object.
+#define CRYSPR_AESCTX to the CRYSPR-specific AES key context object.
 This type reserves room in the CRYPSPR control block for Haicrypt KEK and SEK
 It is set from the keystring through CRYSPR_methods.aes_set_key and passed
 to CRYSPR_methods.aes_XXX.

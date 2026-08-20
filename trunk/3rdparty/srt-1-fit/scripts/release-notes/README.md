@@ -11,7 +11,7 @@ git log --pretty=format:"%h|%s|%an|%ae" v1.4.0...HEAD > commits.csv
 Use the produced `commits.csv` file as an input to the script:
 
 ```shell
-python scripts/release-notes/generate-release-notes.py commits.csv
+python scripts/release-notes/generate_release_notes.py commits.csv
 ```
 
 The script produces `release-notes.md` as an output.

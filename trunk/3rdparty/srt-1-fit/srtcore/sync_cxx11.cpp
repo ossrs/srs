@@ -58,6 +58,24 @@ srt::sync::Condition::~Condition() {}
 
 void srt::sync::Condition::init() {}
 
+void srt::sync::Condition::reset()
+{
+    // SRT attempts to safely handle `fork()` in multithreaded environments,
+    // even though using `fork()` in such contexts is strongly discouraged.
+    // This is because `fork()` only duplicates the calling thread, leaving
+    // synchronization primitives (like condition variables) in an
+    // undefined or inconsistent state in the child process.
+    //
+    // To mitigate this, SRT forcefully reinitializes these synchronization
+    // primitives post-fork. In POSIX, this is done by overwriting the object
+    // with its default-initialized state. In C++11, we achieve the same effect
+    // using *placement new* to reconstruct the object in place. This ensures
+    // the condition variable is returned to a fresh, "neutral" state,
+    // as if it was just created.
+
+    new (&m_cv) std::condition_variable;
+}
+
 void srt::sync::Condition::destroy() {}
 
 void srt::sync::Condition::wait(UniqueLock& lock)

@@ -87,7 +87,7 @@ public:
     /// @param size initial number of blocks (each block to store one packet payload).
     /// @param maxpld maximum packet payload (including auth tag).
     /// @param authtag auth tag length in bytes (16 for GCM, 0 otherwise).
-    CSndBuffer(int size = 32, int maxpld = 1500, int authtag = 0);
+    CSndBuffer(int ip_family, int size, int maxpld, int authtag);
     ~CSndBuffer();
 
 public:
@@ -116,6 +116,10 @@ public:
     SRT_ATTR_EXCLUDES(m_BufLock)
     int addBufferFromFile(std::fstream& ifs, int len);
 
+    // Special values that can be returned by readData.
+    static const int READ_NONE = 0;
+    static const int READ_DROP = -1;
+
     /// Find data position to pack a DATA packet from the furthest reading point.
     /// @param [out] packet the packet to read.
     /// @param [out] origintime origin time stamp of the message
@@ -130,14 +134,29 @@ public:
     SRT_ATTR_EXCLUDES(m_BufLock)
     time_point peekNextOriginal() const;
 
+    struct DropRange
+    {
+        static const size_t BEGIN = 0, END = 1;
+        int32_t seqno[2];
+        int32_t msgno;
+    };
     /// Find data position to pack a DATA packet for a retransmission.
+    /// IMPORTANT: @a packet is [in,out] because it is expected to get set
+    /// the sequence number of the packet expected to be sent next. The sender
+    /// buffer normally doesn't handle sequence numbers and the consistency
+    /// between the sequence number of a packet already sent and kept in the
+    /// buffer is achieved by having the sequence number recorded in the
+    /// CUDT::m_iSndLastDataAck field that should represent the oldest packet
+    /// still in the buffer.
     /// @param [in] offset offset from the last ACK point (backward sequence number difference)
-    /// @param [out] packet the packet to read.
-    /// @param [out] origintime origin time stamp of the message
-    /// @param [out] msglen length of the message
-    /// @return Actual length of data read (return 0 if offset too large, -1 if TTL exceeded).
+    /// @param [in,out] w_packet storage for the packet, preinitialized with sequence number
+    /// @param [out] w_origintime origin time stamp of the message
+    /// @param [out] w_drop the drop information in case when dropping is to be done instead
+    /// @retval >0 Length of the data read.
+    /// @retval READ_NONE No data available or @a offset points out of the buffer occupied space.
+    /// @retval READ_DROP The call requested data drop due to TTL exceeded, to be handled first.
     SRT_ATTR_EXCLUDES(m_BufLock)
-    int readData(const int offset, CPacket& w_packet, time_point& w_origintime, int& w_msglen);
+    int readData(const int offset, CPacket& w_packet, time_point& w_origintime, DropRange& w_drop);
 
     /// Get the time of the last retransmission (if any) of the DATA packet.
     /// @param [in] offset offset from the last ACK point (backward sequence number difference)
@@ -241,7 +260,11 @@ private:
     int m_iSize; // buffer size (number of packets)
     const int m_iBlockLen;  // maximum length of a block holding packet payload and AUTH tag (excluding packet header).
     const int m_iAuthTagSize; // Authentication tag size (if GCM is enabled).
-    int m_iCount; // number of used blocks
+
+    // NOTE: This is atomic AND under lock because the function getCurrBufSize()
+    // is returning it WITHOUT locking. Modification, however, must stay under
+    // a lock.
+    sync::atomic<int> m_iCount; // number of used blocks
 
     int        m_iBytesCount; // number of payload bytes in queue
     time_point m_tsLastOriginTime;

@@ -102,11 +102,12 @@ void AvgBufSize::update(const steady_clock::time_point& now, int pkts, int bytes
     m_dTimespanMAvg   = avg_iir_w<1000, double>(m_dTimespanMAvg, timespan_ms, elapsed_ms);
 }
 
-CRateEstimator::CRateEstimator()
+CRateEstimator::CRateEstimator(int /*family*/)
     : m_iInRatePktsCount(0)
     , m_iInRateBytesCount(0)
     , m_InRatePeriod(INPUTRATE_FAST_START_US) // 0.5 sec (fast start)
     , m_iInRateBps(INPUTRATE_INITIAL_BYTESPS)
+    , m_iFullHeaderSize(CPacket::UDP_HDR_SIZE + CPacket::HDR_SIZE)
 {}
 
 void CRateEstimator::setInputRateSmpPeriod(int period)
@@ -142,7 +143,7 @@ void CRateEstimator::updateInputRate(const time_point& time, int pkts, int bytes
         return;
 
     // Required Byte/sec rate (payload + headers)
-    m_iInRateBytesCount += (m_iInRatePktsCount * CPacket::SRT_DATA_HDR_SIZE);
+    m_iInRateBytesCount += (m_iInRatePktsCount * m_iFullHeaderSize);
     m_iInRateBps = (int)(((int64_t)m_iInRateBytesCount * 1000000) / period_us);
     HLOGC(bslog.Debug,
         log << "updateInputRate: pkts:" << m_iInRateBytesCount << " bytes:" << m_iInRatePktsCount
@@ -233,7 +234,7 @@ void CSndRateEstimator::addSample(const time_point& ts, int pkts, size_t bytes)
         }
         else
         {
-            m_iRateBps = sum.m_iBytesCount * 1000 / (iNumPeriods * SAMPLE_DURATION_MS);
+            m_iRateBps = (sum.m_iBytesCount + CPacket::HDR_SIZE * sum.m_iPktsCount) * 1000 / (iNumPeriods * SAMPLE_DURATION_MS);
         }
 
         HLOGC(bslog.Note,
@@ -252,14 +253,15 @@ void CSndRateEstimator::addSample(const time_point& ts, int pkts, size_t bytes)
         }
     }
 
-    m_Samples[m_iCurSampleIdx].m_iBytesCount += bytes;
-    m_Samples[m_iCurSampleIdx].m_iPktsCount += pkts;
+    m_Samples[m_iCurSampleIdx].m_iBytesCount += (int) bytes;
+    m_Samples[m_iCurSampleIdx].m_iPktsCount  += pkts;
 }
 
 int CSndRateEstimator::getCurrentRate() const
 {
     SRT_ASSERT(m_iCurSampleIdx >= 0 && m_iCurSampleIdx < NUM_PERIODS);
-    return (int) avg_iir<16, unsigned long long>(m_iRateBps, m_Samples[m_iCurSampleIdx].m_iBytesCount * 1000 / SAMPLE_DURATION_MS);
+    const Sample& s = m_Samples[m_iCurSampleIdx];
+    return (int) avg_iir<16, unsigned long long>(m_iRateBps, (CPacket::HDR_SIZE * s.m_iPktsCount + s.m_iBytesCount) * 1000 / SAMPLE_DURATION_MS);
 }
 
 int CSndRateEstimator::incSampleIdx(int val, int inc) const

@@ -14,6 +14,19 @@ do
  esac
 done
 
+if [ $ARCH_ABI = "armeabi-v7a" ]; then
+    BOTAN_CONFIGURE_CPU=armv7
+    BOTAN_CXX_FLAGS=""
+elif [ $ARCH_ABI = "arm64-v8a" ]; then
+    BOTAN_CONFIGURE_CPU=arm64
+    BOTAN_CXX_FLAGS="-march=armv8-a+crypto"
+elif [ $ARCH_ABI = "x86" ]; then
+    BOTAN_CONFIGURE_CPU=x86
+    BOTAN_CXX_FLAGS=""
+elif [ $ARCH_ABI = "x86_64" ]; then
+    BOTAN_CONFIGURE_CPU=x86_64
+    BOTAN_CXX_FLAGS=""
+fi
 
 cd $SRC_DIR
 ./configure --use-enclib=$ENC_LIB \
@@ -23,9 +36,11 @@ cd $SRC_DIR
 --STATIC_MBEDTLS=FALSE \
 --MBEDTLS_INCLUDE_DIR=$INSTALL_DIR/include --MBEDTLS_INCLUDE_DIRS=$INSTALL_DIR/include \
 --MBEDTLS_LIBRARIES=$INSTALL_DIR/lib/libmbedtls.so \
+--BOTAN_OS=android \
+--BOTAN_CPU=$BOTAN_CONFIGURE_CPU \
 --CMAKE_PREFIX_PATH=$INSTALL_DIR --CMAKE_INSTALL_PREFIX=$INSTALL_DIR --CMAKE_ANDROID_NDK=$NDK_ROOT \
 --CMAKE_SYSTEM_NAME=Android --CMAKE_SYSTEM_VERSION=$API_LEVEL --CMAKE_ANDROID_ARCH_ABI=$ARCH_ABI \
---CMAKE_C_FLAGS="-fPIC" --CMAKE_SHARED_LINKER_FLAGS="-Wl,--build-id" \
+--CMAKE_C_FLAGS="-fPIC" --CMAKE_CXX_FLAGS=$BOTAN_CXX_FLAGS --CMAKE_SHARED_LINKER_FLAGS="-Wl,--build-id" \
 --enable-c++11 --enable-stdcxx-sync \
 --enable-debug=2 --enable-logging=0 --enable-heavy-logging=0 --enable-apps=0
 make

@@ -42,7 +42,7 @@ typedef uint32_t hcrypt_Pki;
 
 #define HCRYPT_MSG_PT_MS    1       /* Media stream */
 #define HCRYPT_MSG_PT_KM    2       /* Keying Material */
-#define HCRYPT_MSG_PT_RESV7 7       /* Reserved to dicriminate MPEG-TS packet (SyncByte=0x47) */
+#define HCRYPT_MSG_PT_RESV7 7       /* Reserved to discriminate MPEG-TS packet (SyncByte=0x47) */
 
 
 #define HCRYPT_MSG_F_eSEK   0x01    /* Even Stream Encrypting Key */
@@ -57,7 +57,6 @@ typedef struct {
         void        (*setPki)(unsigned char *msg, hcrypt_Pki);
         void        (*resetCache)(unsigned char *pfx_cache, unsigned pkt_type, unsigned flags);
         void        (*indexMsg)(unsigned char *msg, unsigned char *pfx_cache);
-        int         (*parseMsg)(unsigned char *msg);
 }hcrypt_MsgInfo;
 
 
@@ -72,6 +71,7 @@ typedef struct {
 
 #define hcryptMsg_PaddedLen(len, fact)  ((((len)+(fact)-1)/(fact))*(fact))
 
+int hcryptMsg_SRT_ParseMsg(const hcrypt_MsgInfo* mi, unsigned char* msg);
 
 /*
  *  HaiCrypt KMmsg (Keying Material):
@@ -128,9 +128,8 @@ typedef struct {
 #define HCRYPT_AUTH_AES_GCM     1
 
 #define HCRYPT_SE_TSUDP         1
-        hcrypt_MsgInfo *        hcryptMsg_STA_MsgInfo(void);
 #define HCRYPT_SE_TSSRT         2
-        hcrypt_MsgInfo *        hcryptMsg_SRT_MsgInfo(void);
+  const hcrypt_MsgInfo *        hcryptMsg_SRT_MsgInfo(void);
 
 #define hcryptMsg_KM_GetVersion(msg)    (((msg)[HCRYPT_MSG_KM_OFS_VERSION]>>4)& 0xF)
 #define hcryptMsg_KM_GetPktType(msg)    (((msg)[HCRYPT_MSG_KM_OFS_PT]) & 0xF)
