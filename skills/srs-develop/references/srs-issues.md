@@ -2,6 +2,26 @@
 
 Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
+## #4727 [SECURITY] Bundled SRT 1.5.3 exposed CVE-2026-55868/55869 stack overflows
+
+- Issue: https://github.com/ossrs/srs/issues/4727
+- Truth Record: https://github.com/ossrs/srs/issues/4727#issuecomment-5356428807
+- Verified: 2026-08-20
+- Fix: PR https://github.com/ossrs/srs/pull/4729, SRS `8.0.29`, commit `5f00d0e1825b1512c670ff8c12d829841d145170`
+- Status: Fix pending merge; no v7 or v6 backport has been prepared or verified
+
+SRS vendored SRT 1.5.3 in `trunk/3rdparty/srt-1-fit/` on `develop`, `7.0release`, and `6.0release`. Both CVEs fixed upstream in 1.5.6 were confirmed reachable, not merely present by version. `processSrtMsg_KMREQ` (`crypto.cpp:150-151`) and `processSrtMsg_KMRSP` (`crypto.cpp:368-370`) copied `len/4` words into a 104-byte stack buffer (`SRTDATA_MAXSIZE`) without any capacity check; the KMREQ size test is a lower bound running after the copy, and KMRSP had no check at all.
+
+The enforced-encryption gate in `interpretSrtHandshake` (`core.cpp:2582`; `bEnforcedEnc` defaults true and SRS never overrides it) protects the handshake path when no passphrase is set, but **not** the post-connect `UMSG_EXT` path (`core.cpp:1993`, `2034`), which has no passphrase gate and always finds `m_pCryptoControl` non-null because `acceptAndRespond` calls `createCrypter` unconditionally. At the default MSS of 1500 the maximum payload is 1456 bytes, giving about 1352 bytes of stack overflow from any peer that completes a handshake. SRS streamid and callback auth run after `srt_accept` returns and do not gate it.
+
+Exposure was limited to deployments that explicitly enable `srt_server`; `get_srt_enabled()` defaults to false and stock `conf/srs.conf` has no `srt_server` block.
+
+The three non-CVE fixes in 1.5.6 are lower priority for SRS. The LOSSREPORT (`core.cpp:8656`) and DROPREQ (`core.cpp:8902`) out-of-bounds reads stay inside the 1500-byte unit slot from `CUnitQueue::allocateEntry` (`queue.cpp:114-128`), so they corrupt logic with stale bytes rather than violating memory safety. The `CRcvBuffer::dropMessage` guard is unreachable under SRS defaults because its only caller sits behind `!m_bTLPktDrop || !m_bTsbPd` and SRS defaults both to true.
+
+Useful for future upgrades: the fit tree is a pure subset of upstream with **zero** content modifications. The sole SRS-local change is `trunk/3rdparty/patches/srt/api.cpp-01.patch`, a one-line log-level change applied at build time by `auto/depends.sh`; it is matched by content, so its line number drifts and should be regenerated on each upgrade.
+
+Unknown: no PoC was built. Reachability rests on static analysis, and exploitability beyond DoS depends on stack-protector settings that SRS does not set explicitly.
+
 ## #4719 [BUG] External-SIP GB28181 sessions remain reserved after media termination
 
 - Issue: https://github.com/ossrs/srs/issues/4719
