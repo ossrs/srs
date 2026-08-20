@@ -901,6 +901,9 @@ void SrsServer::stop()
         srs_trace("srs gracefully quit");
     }
 
+    // Stop libsrt and join its worker threads, before the process destroys the libsrt global objects.
+    srs_srt_cleanup();
+
     // This is the last line log of SRS.
     srs_trace("srs terminated");
 }
