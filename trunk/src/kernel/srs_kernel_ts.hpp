@@ -356,6 +356,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // when any codec changed, write the PAT/PMT.
     SrsVideoCodecId vcodec_;
     SrsAudioCodecId acodec_;
+    // The version_number of the PMT. It must be incremented (modulo 32) whenever the
+    // content of the PMT changes, per ISO/IEC 13818-1 2.6.4, so that strict demuxers
+    // (e.g. libVLC) pick up newly announced elementary streams such as AAC audio that
+    // may appear after the first, video-only PMT was sent.
+    uint8_t pmt_version_;
 
 public:
     SrsTsContext();
@@ -498,7 +503,7 @@ public:
 public:
     static SrsTsPacket *create_pat(ISrsTsContext *context, int16_t pmt_number, int16_t pmt_pid);
     static SrsTsPacket *create_pmt(ISrsTsContext *context, int16_t pmt_number, int16_t pmt_pid,
-                                   int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as);
+                                   int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as, uint8_t version_number = 0);
     static SrsTsPacket *create_pes_first(ISrsTsContext *context, int16_t pid, SrsTsPESStreamId sid,
                                          uint8_t continuity_counter, bool discontinuity, int64_t pcr, int64_t dts, int64_t pts, int size);
     static SrsTsPacket *create_pes_continue(ISrsTsContext *context,

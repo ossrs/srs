@@ -4372,3 +4372,137 @@ VOID TEST(KernelTSTest, SrsTsTransmuxer_set_has_video)
     // Test passes if methods execute without crashing
     EXPECT_TRUE(true);
 }
+
+// An in-memory ISrsStreamWriter that captures every byte written.
+class MockTsBufferWriter : public ISrsStreamWriter
+{
+public:
+    std::string data_;
+public:
+    MockTsBufferWriter() {}
+    virtual ~MockTsBufferWriter() {}
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite) {
+        data_.append((const char *)buf, size);
+        if (nwrite) {
+            *nwrite = (ssize_t)size;
+        }
+        return srs_success;
+    }
+};
+
+// Scan the captured TS stream for PMT sections and return their version_numbers,
+// in transmission order.
+// @remark This is a minimal parser for SRS-generated PMT packets, not a general TS
+//      demuxer: SRS emits each PMT in a single payload-unit-start packet (the muxer
+//      asserts the PMT fits in one 188B packet), so the version byte is always at a
+//      fixed offset after the pointer_field.
+static std::vector<uint8_t> ts_collect_pmt_versions(const std::string &data)
+{
+    std::vector<uint8_t> versions;
+    const size_t plen = SRS_TS_PACKET_SIZE;
+    // Mirrors TS_PMT_PID in srs_kernel_ts.cpp (a .cpp-local define).
+    const int pmt_pid = 0x1001;
+
+    for (size_t off = 0; off + plen <= data.size(); off += plen) {
+        const unsigned char *p = (const unsigned char *)data.data() + off;
+        if (p[0] != 0x47) {
+            continue;
+        }
+        // PID is the low 13 bits of bytes 1-2.
+        int pid = ((p[1] & 0x1F) << 8) | p[2];
+        if (pid != pmt_pid) {
+            continue;
+        }
+        int payload_off = 4;
+        int afc = (p[3] >> 4) & 0x03;
+        if (afc == 0x02) { // adaptation field only
+            continue;
+        }
+        if (afc == 0x03) { // adaptation field + payload
+            payload_off += 1 + p[4];
+        }
+        // Need pointer_field(1) + table_id(1) ... up to the version byte at pos+5,
+        // i.e. payload_off + 7 bytes must fit in the packet.
+        if ((size_t)(payload_off + 7) > plen) {
+            continue;
+        }
+        // pointer_field then table_id.
+        int pos = payload_off;
+        pos++; // skip pointer_field
+        if (p[pos] != SrsTsPsiIdPms) {
+            continue;
+        }
+        // version/current_next byte: after table_id(1) + section_length(2) + program_number(2)
+        int vbyte = p[pos + 5];
+        versions.push_back((vbyte >> 1) & 0x1F);
+    }
+    return versions;
+}
+
+// Regression test: when the PMT content changes after the first announcement (e.g.
+// AAC audio appears after an initial video-only PMT), the PMT version_number must
+// increment per ISO/IEC 13818-1 so strict demuxers accept the new elementary
+// stream. Otherwise players like libVLC report "packets for PID 257 have no PMT
+// entry" and drop the audio.
+VOID TEST(KernelTSTest, PmtVersionIncrementsOnCodecChange)
+{
+    srs_error_t err;
+
+    MockTsBufferWriter writer;
+    SrsTsContext context;
+
+    // Start in "guess has a/v" mode: neither codec is known yet, exactly like a
+    // fresh HTTP-TS connection.
+    SrsTsContextWriter tscw(&writer, &context, SrsAudioCodecIdForbidden, SrsVideoCodecIdForbidden);
+
+    // 1. First frame is video: announce a video-only PMT (version 0).
+    SrsTsMessage *vmsg = new SrsTsMessage();
+    vmsg->sid_ = SrsTsPESStreamIdVideoCommon;
+    vmsg->dts_ = 0;
+    vmsg->pts_ = 0;
+    vmsg->PES_packet_length_ = 0;
+    const char vdata[] = {0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0x00, 0x1e};
+    vmsg->payload_->append((char *)vdata, sizeof(vdata));
+
+    tscw.set_vcodec(SrsVideoCodecIdAVC);
+    HELPER_EXPECT_SUCCESS(tscw.write_video(vmsg));
+    srs_freep(vmsg);
+
+    // 2. Then AAC audio arrives: the PMT must be re-announced with a new version.
+    SrsTsMessage *amsg = new SrsTsMessage();
+    amsg->sid_ = SrsTsPESStreamIdAudioCommon;
+    amsg->dts_ = 0;
+    amsg->pts_ = 0;
+    amsg->PES_packet_length_ = 0;
+    // Payload content is irrelevant; only the codec switch drives the PMT refresh.
+    const std::string adata = std::string("\xff\xf1\x00\x00\x00\x00\x00", 7);
+    amsg->payload_->append((char *)adata.data(), adata.size());
+
+    tscw.set_acodec(SrsAudioCodecIdAAC);
+    HELPER_EXPECT_SUCCESS(tscw.write_audio(amsg));
+    srs_freep(amsg);
+
+    std::vector<uint8_t> versions = ts_collect_pmt_versions(writer.data_);
+    ASSERT_GE((int)versions.size(), 2);
+    EXPECT_EQ(0, versions[0]); // first PMT: video only
+    EXPECT_EQ(1, versions[1]); // second PMT: gains AAC audio, version bumped
+
+    // 3. Reset (new segment/connection) should restart versioning at 0.
+    context.reset();
+    MockTsBufferWriter reset_writer;
+    SrsTsContextWriter reset_tscw(&reset_writer, &context, SrsAudioCodecIdAAC, SrsVideoCodecIdAVC);
+
+    SrsTsMessage *reset_audio = new SrsTsMessage();
+    reset_audio->sid_ = SrsTsPESStreamIdAudioCommon;
+    reset_audio->dts_ = 0;
+    reset_audio->pts_ = 0;
+    reset_audio->PES_packet_length_ = 0;
+    reset_audio->payload_->append((char *)adata.data(), adata.size());
+    HELPER_EXPECT_SUCCESS(reset_tscw.write_audio(reset_audio));
+    srs_freep(reset_audio);
+
+    std::vector<uint8_t> reset_versions = ts_collect_pmt_versions(reset_writer.data_);
+    ASSERT_GE((int)reset_versions.size(), 1);
+    EXPECT_EQ(0, reset_versions[0]);
+}
