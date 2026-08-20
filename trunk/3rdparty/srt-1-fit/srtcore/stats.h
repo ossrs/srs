@@ -59,14 +59,7 @@ public:
         , m_packets(n)
     {}
 
-    BytesPackets& operator+= (const BytesPackets& other)
-    {
-        m_bytes   += other.m_bytes;
-        m_packets += other.m_packets;
-        return *this;
-    }
 
-public:
     void reset()
     {
         m_packets = 0;
@@ -89,26 +82,40 @@ public:
         return m_packets;
     }
 
-    uint64_t bytesWithHdr() const
+    BytesPackets& operator+= (const BytesPackets& other)
     {
-        return m_bytes + m_packets * CPacket::SRT_DATA_HDR_SIZE;
+        m_bytes   += other.m_bytes;
+        m_packets += other.m_packets;
+        return *this;
     }
 
-private:
+    uint64_t bytesWithHdr(size_t hdr_size) const
+    {
+        return m_bytes + m_packets * hdr_size;
+    }
+
+protected:
     uint64_t m_bytes;
     uint32_t m_packets;
 };
 
-template <class METRIC_TYPE>
+
+template <class METRIC_TYPE, class BASE_METRIC_TYPE = METRIC_TYPE>
 struct Metric
 {
     METRIC_TYPE trace;
     METRIC_TYPE total;
 
-    void count(METRIC_TYPE val)
+    void count(BASE_METRIC_TYPE val)
     {
         trace += val;
         total += val;
+    }
+
+    void setupHeaderSize(int loc)
+    {
+        trace.setupHeaderSize(loc);
+        total.setupHeaderSize(loc);
     }
 
     void reset()

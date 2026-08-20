@@ -81,7 +81,7 @@ void srt::CCryptoControl::globalInit()
 {
 #ifdef SRT_ENABLE_ENCRYPTION
     // We need to force the Cryspr to be initialized during startup to avoid the
-    // possibility of multiple threads initialzing the same static data later on.
+    // possibility of multiple threads initializing the same static data later on.
     HaiCryptCryspr_Get_Instance();
 #endif
 }
@@ -135,232 +135,257 @@ void srt::CCryptoControl::createFakeSndContext()
     }
 }
 
+#ifdef SRT_ENABLE_ENCRYPTION
+
 int srt::CCryptoControl::processSrtMsg_KMREQ(
-        const uint32_t* srtdata SRT_ATR_UNUSED,
-        size_t bytelen SRT_ATR_UNUSED,
-        int hsv SRT_ATR_UNUSED,
+        const uint32_t* srtdata, size_t bytelen, int hsv, unsigned srtv,
         uint32_t pw_srtdata_out[], size_t& w_srtlen)
 {
-    //Receiver
-    /* All 32-bit msg fields swapped on reception
-     * But HaiCrypt expect network order message
-     * Re-swap to cancel it.
-     */
-#ifdef SRT_ENABLE_ENCRYPTION
-    w_srtlen = bytelen/sizeof(srtdata[SRT_KMR_KMSTATE]);
-    HtoNLA((pw_srtdata_out), srtdata, w_srtlen);
     unsigned char* kmdata = reinterpret_cast<unsigned char*>(pw_srtdata_out);
 
     // The side that has received KMREQ is always an HSD_RESPONDER, regardless of
     // what has called this function. The HSv5 handshake only enforces bidirectional
     // connection.
 
+    // They actually mean the same thing in HSv5, but removal of bidirectional can be
+    // only done when the compat with <1.3.0 is allowed to be broken.
     const bool bidirectional = hsv > CUDT::HS_VERSION_UDT4;
+    const bool kmx_update = m_hRcvCrypto;
+    SRT_KM_STATE failure_state = m_KmSecret.len == 0 ? SRT_KM_S_NOSECRET : SRT_KM_S_BADSECRET;
+    bool bUseGCM = false;
 
-    // Local macro to return rejection appropriately.
-    // CHANGED. The first version made HSv5 reject the connection.
-    // This isn't well handled by applications, so the connection is
-    // still established, but unable to handle any transport.
-//#define KMREQ_RESULT_REJECTION() if (bidirectional) { return SRT_CMD_NONE; } else { w_srtlen = 1; goto HSv4_ErrorReport; }
-#define KMREQ_RESULT_REJECTION() { w_srtlen = 1; goto HSv4_ErrorReport; }
-
-    int rc = HAICRYPT_OK; // needed before 'goto' run from KMREQ_RESULT_REJECTION macro
-    bool wasb4 SRT_ATR_UNUSED = false;
-    size_t sek_len = 0;
-
-    const bool bUseGCM =
-        (m_iCryptoMode == CSrtConfig::CIPHER_MODE_AUTO && kmdata[HCRYPT_MSG_KM_OFS_CIPHER] == HCRYPT_CIPHER_AES_GCM) ||
-        (m_iCryptoMode == CSrtConfig::CIPHER_MODE_AES_GCM);
-
-    // What we have to do:
-    // If encryption is on (we know that by having m_KmSecret nonempty), create
-    // the crypto context (if bidirectional, create for both sending and receiving).
-    // Both crypto contexts should be set with the same length of the key.
-    // The problem with interpretinting this should be reported as SRT_CMD_NONE,
-    // should be appropriately handled by the caller, as it expects that this
-    // function normally return SRT_CMD_KMRSP.
-    if ( bytelen <= HCRYPT_MSG_KM_OFS_SALT )  //Sanity on message
+    // TRY-BLOCK, with THROW done by "goto Error".
     {
-        LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: size of the KM (" << bytelen << ") is too small, must be >" << HCRYPT_MSG_KM_OFS_SALT);
-        m_RcvKmState = SRT_KM_S_BADSECRET;
-        KMREQ_RESULT_REJECTION();
-    }
-
-    HLOGC(cnlog.Debug, log << "KMREQ: getting SEK and creating receiver crypto");
-    sek_len = hcryptMsg_KM_GetSekLen(kmdata);
-    if ( sek_len == 0 )
-    {
-        LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: Received SEK is empty - REJECTING!");
-        m_RcvKmState = SRT_KM_S_BADSECRET;
-        KMREQ_RESULT_REJECTION();
-    }
-
-    // Write the key length
-    m_iRcvKmKeyLen = sek_len;
-    // Overwrite the key length anyway - it doesn't make sense to somehow
-    // keep the original setting because it will only make KMX impossible.
-#if ENABLE_HEAVY_LOGGING
-    if (m_iSndKmKeyLen != m_iRcvKmKeyLen)
-    {
-        LOGC(cnlog.Debug, log << "processSrtMsg_KMREQ: Agent's PBKEYLEN=" << m_iSndKmKeyLen
-                << " overwritten by Peer's PBKEYLEN=" << m_iRcvKmKeyLen);
-    }
-#endif
-    m_iSndKmKeyLen = m_iRcvKmKeyLen;
-
-    // This is checked only now so that the SRTO_PBKEYLEN return always the correct value,
-    // even if encryption is not possible because Agent didn't set a password, or supplied
-    // a wrong password.
-    if (m_KmSecret.len == 0)  //We have a shared secret <==> encryption is on
-    {
-        LOGC(cnlog.Warn, log << "processSrtMsg_KMREQ: Agent does not declare encryption - won't decrypt incoming packets!");
-        m_RcvKmState = SRT_KM_S_NOSECRET;
-        KMREQ_RESULT_REJECTION();
-    }
-    wasb4 = m_hRcvCrypto;
-
-    if (!createCryptoCtx((m_hRcvCrypto), m_iRcvKmKeyLen, HAICRYPT_CRYPTO_DIR_RX, bUseGCM))
-    {
-        LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: Can't create RCV CRYPTO CTX - must reject...");
-        m_RcvKmState = SRT_KM_S_NOSECRET;
-        KMREQ_RESULT_REJECTION();
-    }
-
-    // Deduce resulting mode.
-    m_iCryptoMode = bUseGCM ? CSrtConfig::CIPHER_MODE_AES_GCM : CSrtConfig::CIPHER_MODE_AES_CTR;
-
-    if (!wasb4)
-    {
-        HLOGC(cnlog.Debug, log << "processSrtMsg_KMREQ: created RX ENC with KeyLen=" << m_iRcvKmKeyLen);
-    }
-    // We have both sides set with password, so both are pending for security
-    m_RcvKmState = SRT_KM_S_SECURING;
-    // m_SndKmState is set to SECURING or UNSECURED in init(),
-    // or it might have been set to SECURED, NOSECRET or BADSECRET in the previous
-    // handshake iteration (handshakes may be sent multiple times for the same connection).
-
-    rc = HaiCrypt_Rx_Process(m_hRcvCrypto, kmdata, bytelen, NULL, NULL, 0);
-    switch(rc >= 0 ? HAICRYPT_OK : rc)
-    {
-    case HAICRYPT_OK:
-        m_RcvKmState = SRT_KM_S_SECURED;
-        HLOGC(cnlog.Debug, log << "KMREQ/rcv: (snd) Rx process successful - SECURED.");
-        //Send back the whole message to confirm
-        break;
-    case HAICRYPT_ERROR_WRONG_SECRET: //Unmatched shared secret to decrypt wrapped key
-        m_RcvKmState = m_SndKmState = SRT_KM_S_BADSECRET;
-        //Send status KMRSP message to tel error
-        w_srtlen = 1;
-        LOGC(cnlog.Warn, log << "KMREQ/rcv: (snd) Rx process failure - BADSECRET");
-        break;
-    case HAICRYPT_ERROR_CIPHER:
-#ifdef ENABLE_AEAD_API_PREVIEW
-        m_RcvKmState = m_SndKmState = SRT_KM_S_BADCRYPTOMODE;
-#else
-        m_RcvKmState = m_SndKmState = SRT_KM_S_BADSECRET; // Use "bad secret" as a fallback.
-#endif
-        w_srtlen = 1;
-        LOGC(cnlog.Warn, log << "KMREQ/rcv: (snd) Rx process failure - BADCRYPTOMODE");
-        break;
-    case HAICRYPT_ERROR: //Other errors
-    default:
-        m_RcvKmState = m_SndKmState = SRT_KM_S_NOSECRET;
-        w_srtlen = 1;
-        LOGC(cnlog.Warn, log << "KMREQ/rcv: (snd) Rx process failure (IPE) - NOSECRET");
-        break;
-    }
-
-    LOGP(cnlog.Note, FormatKmMessage("processSrtMsg_KMREQ", SRT_CMD_KMREQ, bytelen));
-
-    // Since now, when CCryptoControl::decrypt() encounters an error, it will print it, ONCE,
-    // until the next KMREQ is received as a key regeneration.
-    m_bErrorReported = false;
-
-    if (w_srtlen == 1)
-        goto HSv4_ErrorReport;
-
-    // Configure the sender context also, if it succeeded to configure the
-    // receiver context and we are using bidirectional mode.
-    if (bidirectional)
-    {
-        // Note: 'bidirectional' means that we want a bidirectional key update,
-        // which happens only and exclusively with HSv5 handshake - not when the
-        // usual key update through UMSG_EXT+SRT_CMD_KMREQ was done (which is used
-        // in HSv4 versions also to initialize the first key, unlike HSv5).
-        if (m_RcvKmState == SRT_KM_S_SECURED)
+        if (bytelen % sizeof(uint32_t) != 0 || bytelen > HCRYPT_MSG_KM_MAX_SZ)
         {
-            if (m_SndKmState == SRT_KM_S_SECURING && !m_hSndCrypto)
+            LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: size of the KM (" << bytelen << ") is too high, must be < " << HCRYPT_MSG_KM_MAX_SZ);
+            goto Error;
+        }
+
+        // Default successful settings: original length and contents
+        w_srtlen = bytelen/sizeof(srtdata[SRT_KMR_KMSTATE]);
+
+        /* All 32-bit msg fields swapped on reception
+         * But HaiCrypt expect network order message
+         * Re-swap to cancel it.
+         */
+        HtoNLA((pw_srtdata_out), srtdata, w_srtlen);
+
+        if (!kmx_update) // Only in initial/handshake
+        {
+            // If this is NOT changed anywhere later, failure_state value will be used
+            m_RcvKmState = SRT_KM_S_SECURING;
+        }
+
+        if ((m_iCryptoMode == CSrtConfig::CIPHER_MODE_AUTO && kmdata[HCRYPT_MSG_KM_OFS_CIPHER] == HCRYPT_CIPHER_AES_GCM)
+                || (m_iCryptoMode == CSrtConfig::CIPHER_MODE_AES_GCM))
+            bUseGCM = true;
+
+        m_bUseGcm153 = srtv <= SrtVersion(1, 5, 3);
+
+        // INITIAL ACTIONS (first time KMREQ received):
+        // If encryption is on (we know that by having m_KmSecret nonempty), create
+        // the crypto context (if bidirectional, create for both sending and receiving).
+        // Both crypto contexts should be set with the same length of the key.
+        // Report SRT_CMD_NONE if no response is to be sent or SRT_CMD_KMRSP if the
+        // response is filled and ready (including erroneous).
+        if (bytelen <= HCRYPT_MSG_KM_OFS_SALT)  //Sanity on message
+        {
+            LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: size of the KM (" << bytelen << ") is too small, must be >" << HCRYPT_MSG_KM_OFS_SALT);
+            goto Error;
+        }
+
+        size_t sek_len = hcryptMsg_KM_GetSekLen(kmdata);
+        if (sek_len == 0)
+        {
+            LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: Received SEK is empty - REJECTING!");
+            goto Error;
+        }
+
+        bool new_keylen = m_iSndKmKeyLen != sek_len;
+
+        if (kmx_update && new_keylen)
+        {
+            LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: KMX refresh came in with a DIFFERENT KEY LEN: " << sek_len);
+            goto Error;
+        }
+
+        HLOGC(cnlog.Debug, log << "KMREQ: getting SEK and creating receiver crypto sek_len=" << sek_len
+                << " local=" << m_iSndKmKeyLen
+                << (new_keylen ? " - OVERRIDE with received SEK len" : ""));
+
+        // Write the key length.
+        // Overwrite the key length anyway - it doesn't make sense to somehow
+        // keep the original setting because it will only make KMX impossible.
+        m_iSndKmKeyLen = m_iRcvKmKeyLen = sek_len;
+
+        // This is checked only now so that the SRTO_PBKEYLEN return always the correct value,
+        // even if encryption is not possible because Agent didn't set a password, or supplied
+        // a wrong password.
+        if (!hasPassphrase())  //We have a shared secret <==> encryption is on
+        {
+            LOGC(cnlog.Warn, log << "processSrtMsg_KMREQ: Agent does not declare encryption - won't decrypt incoming packets!");
+            goto Error;
+        }
+
+        if (!createCryptoCtx((m_hRcvCrypto), m_iRcvKmKeyLen, HAICRYPT_CRYPTO_DIR_RX, bUseGCM))
+        {
+            LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: Can't create RCV CRYPTO CTX - must reject...");
+            failure_state = SRT_KM_S_NOSECRET;
+            goto Error;
+        }
+
+        if (!kmx_update)
+        {
+            // Deduce resulting mode.
+            m_iCryptoMode = bUseGCM ? CSrtConfig::CIPHER_MODE_AES_GCM : CSrtConfig::CIPHER_MODE_AES_CTR;
+            HLOGC(cnlog.Debug, log << "processSrtMsg_KMREQ: created RX ENC with KeyLen=" << m_iRcvKmKeyLen);
+        }
+
+        // We have both sides set with password, so both are pending for security
+        int rc = HaiCrypt_Rx_Process(m_hRcvCrypto, kmdata, bytelen, NULL, NULL, 0);
+        LOGC(cnlog.Note, log << FormatKmMessage("processSrtMsg_KMREQ", SRT_CMD_KMREQ, bytelen) << " result: " << rc);
+
+        // Since now, when CCryptoControl::decrypt() encounters an error, it will print it, ONCE,
+        // until the next KMREQ is received as a key regeneration.
+        m_bErrorReported = false;
+
+        if (rc >= HAICRYPT_OK)
+        {
+            m_RcvKmState = SRT_KM_S_SECURED;
+            HLOGC(cnlog.Debug, log << "KMREQ/rcv: (snd) Rx process successful - SECURED.");
+        }
+        else
+        {
+            switch(rc)
             {
-                m_iSndKmKeyLen = m_iRcvKmKeyLen;
-                if (HaiCrypt_Clone(m_hRcvCrypto, HAICRYPT_CRYPTO_DIR_TX, &m_hSndCrypto) != HAICRYPT_OK)
+            case HAICRYPT_ERROR_WRONG_SECRET: //Unmatched shared secret to decrypt wrapped key
+                failure_state = SRT_KM_S_BADSECRET;
+                //Send status KMRSP message to tel error
+                LOGC(cnlog.Warn, log << "KMREQ/rcv: (snd) Rx process failure - BADSECRET");
+                break;
+            case HAICRYPT_ERROR_CIPHER:
+#ifdef ENABLE_AEAD_API_PREVIEW
+                failure_state = SRT_KM_S_BADCRYPTOMODE;
+#else
+                failure_state = SRT_KM_S_BADSECRET; // Use "bad secret" as a fallback.
+#endif
+                LOGC(cnlog.Warn, log << "KMREQ/rcv: (snd) Rx process failure - BADCRYPTOMODE");
+                break;
+            case HAICRYPT_ERROR: //Other errors
+            default:
+                failure_state = SRT_KM_S_NOSECRET;
+                LOGC(cnlog.Warn, log << "KMREQ/rcv: (snd) Rx process failure (IPE) - NOSECRET");
+                break;
+            }
+
+            if (!kmx_update)
+            {
+                // Only initially, set this also to SND state.
+                m_SndKmState = failure_state;
+            }
+            goto Error;
+        }
+
+        // Configure the sender context also, if it succeeded to configure the
+        // receiver context and we are using bidirectional mode.
+        if (bidirectional)
+        {
+            // Note: 'bidirectional' means that we want a bidirectional key update,
+            // which happens only and exclusively with HSv5 handshake - not when the
+            // usual key update through UMSG_EXT+SRT_CMD_KMREQ was done (which is used
+            // in HSv4 versions also to initialize the first key, unlike HSv5).
+            if (m_RcvKmState == SRT_KM_S_SECURED)
+            {
+                if (m_SndKmState == SRT_KM_S_SECURING && !m_hSndCrypto)
                 {
-                    LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: Can't create SND CRYPTO CTX - WILL NOT SEND-ENCRYPT correctly!");
-                    if (hasPassphrase())
-                        m_SndKmState = SRT_KM_S_BADSECRET;
+                    m_iSndKmKeyLen = m_iRcvKmKeyLen;
+                    if (HaiCrypt_Clone(m_hRcvCrypto, HAICRYPT_CRYPTO_DIR_TX, &m_hSndCrypto) != HAICRYPT_OK)
+                    {
+                        LOGC(cnlog.Error, log << "processSrtMsg_KMREQ: Can't create SND CRYPTO CTX - WILL NOT SEND-ENCRYPT correctly!");
+                        m_SndKmState = failure_state;
+                    }
                     else
-                        m_SndKmState = SRT_KM_S_NOSECRET;
+                    {
+                        m_SndKmState = SRT_KM_S_SECURED;
+                    }
+
+                    LOGC(cnlog.Note, log << FormatKmMessage("processSrtMsg_KMREQ", SRT_CMD_KMREQ, bytelen)
+                            << " SndKeyLen=" << m_iSndKmKeyLen
+                            << " TX CRYPTO CTX CLONED FROM RX"
+                        );
+
+                    // Write the KM message into the field from which it will be next sent.
+                    memcpy((m_SndKmMsg[0].Msg), kmdata, bytelen);
+                    m_SndKmMsg[0].MsgLen = bytelen;
+                    m_SndKmMsg[0].iPeerRetry = 0; // Don't start sending them upon connection :)
                 }
                 else
                 {
-                    m_SndKmState = SRT_KM_S_SECURED;
+                    HLOGC(cnlog.Debug, log << "processSrtMsg_KMREQ: NOT cloning RX to TX crypto: already in "
+                            << KmStateStr(m_SndKmState) << " state");
                 }
-
-                LOGC(cnlog.Note, log << FormatKmMessage("processSrtMsg_KMREQ", SRT_CMD_KMREQ, bytelen)
-                        << " SndKeyLen=" << m_iSndKmKeyLen
-                        << " TX CRYPTO CTX CLONED FROM RX"
-                    );
-
-                // Write the KM message into the field from which it will be next sent.
-                memcpy((m_SndKmMsg[0].Msg), kmdata, bytelen);
-                m_SndKmMsg[0].MsgLen = bytelen;
-                m_SndKmMsg[0].iPeerRetry = 0; // Don't start sending them upon connection :)
             }
             else
             {
-                HLOGC(cnlog.Debug, log << "processSrtMsg_KMREQ: NOT cloning RX to TX crypto: already in "
-                        << KmStateStr(m_SndKmState) << " state");
+                HLOGP(cnlog.Debug, "processSrtMsg_KMREQ: NOT SECURED - not replaying failed security association to TX CRYPTO CTX");
             }
         }
         else
         {
-            HLOGP(cnlog.Debug, "processSrtMsg_KMREQ: NOT SECURED - not replaying failed security association to TX CRYPTO CTX");
+            HLOGC(cnlog.Debug, log << "processSrtMsg_KMREQ: NOT REPLAYING the key update to TX CRYPTO CTX.");
         }
+
+        if (m_hRcvCrypto != NULL)
+            HaiCrypt_UpdateGcm153(m_hRcvCrypto, m_bUseGcm153);
+        if (m_hSndCrypto != NULL)
+            HaiCrypt_UpdateGcm153(m_hSndCrypto, m_bUseGcm153);
+
+        // NOTE: The "loop" gets exit with return HERE.
+        return SRT_CMD_KMRSP;
     }
-    else
-    {
-        HLOGC(cnlog.Debug, log << "processSrtMsg_KMREQ: NOT REPLAYING the key update to TX CRYPTO CTX.");
-    }
+Error: // CATCH POINT
 
-    return SRT_CMD_KMRSP;
-
-HSv4_ErrorReport:
-
-    if (bidirectional && hasPassphrase())
-    {
-        // If the Forward KMX process has failed, the reverse-KMX process was not done at all.
-        // This will lead to incorrect object configuration and will fail to properly declare
-        // the transmission state.
-        // Create the "fake crypto" with the passphrsae you currently have.
-        createFakeSndContext();
-    }
-#undef KMREQ_RESULT_REJECTION
-
-#else
-    // It's ok that this is reported as error because this happens in a scenario,
-    // when non-encryption-enabled SRT application is contacted by encryption-enabled SRT
-    // application which tries to make a security association.
-    LOGC(cnlog.Warn, log << "processSrtMsg_KMREQ: Encryption not enabled at compile time - must reject...");
-    m_RcvKmState = SRT_KM_S_NOSECRET;
-#endif
-
+    // NOTE: This is set, but if we return NONE, this will not be
+    // taken into account anyhow. The state is returned this way only for
+    // unit tests so that they recognize the result of the call.
     w_srtlen = 1;
+    pw_srtdata_out[SRT_KMR_KMSTATE] = failure_state;
 
-    pw_srtdata_out[SRT_KMR_KMSTATE] = m_RcvKmState;
-    return SRT_CMD_KMRSP;
+    if (!kmx_update)
+    {
+        // Set the appropriate error, if it wasn't already set before 
+        m_RcvKmState = failure_state;
+        if (bidirectional && hasPassphrase())
+        {
+            // If the Forward KMX process has failed, the reverse-KMX process was not done at all.
+            // This will lead to incorrect object configuration and will fail to properly declare
+            // the transmission state.
+            // Create the "fake crypto" with the passphrsae you currently have.
+            createFakeSndContext();
+        }
+
+        return SRT_CMD_KMRSP;
+    }
+    return SRT_CMD_NONE;
 }
 
-int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len, int /* XXX unused? hsv*/)
+int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len, unsigned srtv)
 {
+    // Validate the wire-supplied length before using it:
+    //  - oversize would overflow the fixed-size stack buffer below;
+    //  - non-word-aligned or too-small payloads are malformed by protocol and would
+    //    feed uninitialised stack into downstream key-matching logic.
+    if (len > SRT_CMD_MAXSZ
+        || len < sizeof(uint32_t)
+        || (len % sizeof(uint32_t)) != 0)
+    {
+        LOGC(cnlog.Error, log << "processSrtMsg_KMRSP: malformed len " << len
+                              << " (must be a non-zero multiple of " << sizeof(uint32_t)
+                              << ", up to " << SRT_CMD_MAXSZ << ") - rejecting");
+        return SRT_CMD_NONE;
+    }
+
     /* All 32-bit msg fields (if present) swapped on reception
      * But HaiCrypt expect network order message
      * Re-swap to cancel it.
@@ -370,9 +395,6 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
     HtoNLA(srtd, srtdata, srtlen);
 
     int retstatus = -1;
-
-    // Unused?
-    //bool bidirectional = hsv > CUDT::HS_VERSION_UDT4;
 
     // Since now, when CCryptoControl::decrypt() encounters an error, it will print it, ONCE,
     // until the next KMREQ is received as a key regeneration.
@@ -459,12 +481,42 @@ int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t* srtdata, size_t len
         }
         HLOGC(cnlog.Debug, log << "processSrtMsg_KMRSP: key[0]: len=" << m_SndKmMsg[0].MsgLen << " retry=" << m_SndKmMsg[0].iPeerRetry
             << "; key[1]: len=" << m_SndKmMsg[1].MsgLen << " retry=" << m_SndKmMsg[1].iPeerRetry);
+
+        m_bUseGcm153 = srtv <= SrtVersion(1, 5, 3);
+        if (m_hRcvCrypto != NULL)
+            HaiCrypt_UpdateGcm153(m_hRcvCrypto, m_bUseGcm153);
+        if (m_hSndCrypto != NULL)
+            HaiCrypt_UpdateGcm153(m_hSndCrypto, m_bUseGcm153);
     }
 
     LOGP(cnlog.Note, FormatKmMessage("processSrtMsg_KMRSP", SRT_CMD_KMRSP, len));
 
     return retstatus;
 }
+
+#else
+
+int srt::CCryptoControl::processSrtMsg_KMREQ(
+        const uint32_t*, size_t, int, unsigned, // ignore input
+        uint32_t pw_srtdata_out[], size_t& w_srtlen)
+{
+    // It's ok that this is reported as error because this happens in a scenario,
+    // when non-encryption-enabled SRT application is contacted by encryption-enabled SRT
+    // application which tries to make a security association.
+    LOGC(cnlog.Warn, log << "processSrtMsg_KMREQ: Encryption not enabled at compile time - must reject...");
+    m_RcvKmState = SRT_KM_S_NOSECRET;
+    pw_srtdata_out[SRT_KMR_KMSTATE] = m_RcvKmState;
+    w_srtlen = 1;
+
+    return SRT_CMD_KMRSP;
+}
+
+int srt::CCryptoControl::processSrtMsg_KMRSP(const uint32_t*, size_t, unsigned)
+{
+    LOGP(cnlog.Error, "processSrtMsg_KMRSP: Encryption not enabled at compile time; not expected to receive SRT_CMD_KMRSP");
+    return SRT_CMD_NONE;
+}
+#endif
 
 void srt::CCryptoControl::sendKeysToPeer(CUDT* sock SRT_ATR_UNUSED, int iSRTT SRT_ATR_UNUSED)
 {
@@ -590,9 +642,11 @@ srt::CCryptoControl::CCryptoControl(SRTSOCKET id)
     , m_iRcvKmKeyLen(0)
     , m_SndKmState(SRT_KM_S_UNSECURED)
     , m_RcvKmState(SRT_KM_S_UNSECURED)
+    , m_CurrentKey(EK_NOENC)
     , m_KmRefreshRatePkt(0)
     , m_KmPreAnnouncePkt(0)
     , m_iCryptoMode(CSrtConfig::CIPHER_MODE_AUTO)
+    , m_bUseGcm153(false)
     , m_bErrorReported(false)
 {
     m_KmSecret.len = 0;
@@ -606,7 +660,7 @@ srt::CCryptoControl::CCryptoControl(SRTSOCKET id)
     m_hRcvCrypto = NULL;
 }
 
-bool srt::CCryptoControl::init(HandshakeSide side, const CSrtConfig& cfg, bool bidirectional SRT_ATR_UNUSED)
+bool srt::CCryptoControl::init(HandshakeSide side, const CSrtConfig& cfg, bool bidirectional SRT_ATR_UNUSED, bool bUseGcm153 SRT_ATR_UNUSED)
 {
     // NOTE: initiator creates m_hSndCrypto. When bidirectional,
     // it creates also m_hRcvCrypto with the same key length.
@@ -620,6 +674,7 @@ bool srt::CCryptoControl::init(HandshakeSide side, const CSrtConfig& cfg, bool b
     // Set UNSECURED state as default
     m_RcvKmState = SRT_KM_S_UNSECURED;
     m_iCryptoMode = cfg.iCryptoMode;
+    m_bUseGcm153 = bUseGcm153;
 
 #ifdef SRT_ENABLE_ENCRYPTION
     if (!cfg.bTSBPD && m_iCryptoMode == CSrtConfig::CIPHER_MODE_AUTO)
@@ -807,7 +862,7 @@ srt::EncryptionStatus srt::CCryptoControl::encrypt(CPacket& w_packet SRT_ATR_UNU
     {
         return ENCS_FAILED;
     }
-    else if ( rc > 0 )
+    else if (rc > 0)
     {
         // XXX what happens if the encryption is said to be "succeeded",
         // but the length is 0? Shouldn't this be treated as unwanted?
@@ -854,9 +909,9 @@ srt::EncryptionStatus srt::CCryptoControl::decrypt(CPacket& w_packet SRT_ATR_UNU
     if (m_RcvKmState != SRT_KM_S_SECURED)
     {
         // If not "secured", it means that it won't be able to decrypt packets,
-        // so there's no point to even try to send them to HaiCrypt_Rx_Data.
+        // so there's no point in even trying to send them to HaiCrypt_Rx_Data.
         // Actually the current conditions concerning m_hRcvCrypto are such that this object
-        // is cretaed in case of SRT_KM_S_BADSECRET, so it will simply fail to decrypt,
+        // is created in case of SRT_KM_S_BADSECRET, so it will simply fail to decrypt,
         // but with SRT_KM_S_NOSECRET m_hRcvCrypto is not even created (is NULL), which
         // will then cause an error to be reported, misleadingly. Simply don't try to
         // decrypt anything as long as you are not sure that the connection is secured.

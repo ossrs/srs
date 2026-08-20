@@ -47,6 +47,7 @@ using namespace std;
 #endif
 #ifdef SRS_SRT
 #include <srs_app_srt_source.hpp>
+#include <srs_protocol_srt.hpp>
 #endif
 
 SrsSignalManager* SrsSignalManager::instance = NULL;
@@ -881,6 +882,11 @@ void SrsServer::stop()
         gracefully_dispose();
         srs_trace("srs gracefully quit");
     }
+
+#ifdef SRS_SRT
+    // Stop libsrt and join its worker threads, before the process destroys the libsrt global objects.
+    srs_srt_cleanup();
+#endif
 
     // This is the last line log of SRS.
     srs_trace("srs terminated");

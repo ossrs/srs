@@ -109,17 +109,17 @@ set errortypes {
     NOTSUP "Operation not supported" {
         NONE           ""
         ISBOUND        "Cannot do this operation on a BOUND socket"
-        ISCONNECTED    "Cannot do this operation on a CONNECTED socket"
+        ISCONNECTED    "Cannot do this operation on a CONNECTED or LISTENING socket"
         INVAL          "Bad parameters"
         SIDINVAL       "Invalid socket ID"
         ISUNBOUND      "Cannot do this operation on an UNBOUND socket"
         NOLISTEN       "Socket is not in listening state"
         ISRENDEZVOUS   "Listen/accept is not supported in rendezvous connection setup"
         ISRENDUNBOUND  "Cannot call connect on UNBOUND socket in rendezvous connection setup"
-        INVALMSGAPI    "Incorrect use of Message API (sendmsg/recvmsg)."
-        INVALBUFFERAPI "Incorrect use of Buffer API (send/recv) or File API (sendfile/recvfile)."
+        INVALMSGAPI    "Incorrect use of Message API (sendmsg/recvmsg)"
+        INVALBUFFERAPI "Incorrect use of Buffer API (send/recv) or File API (sendfile/recvfile)"
         BUSY           "Another socket is already listening on the same port"
-        XSIZE          "Message is too large to send (it must be less than the SRT send buffer size)"
+        XSIZE          "Message too large to send (exceeds send buffer size)"
         EIDINVAL       "Invalid epoll ID"
         EEMPTY         "All sockets removed from epoll, waiting would deadlock"
         BUSYPORT       "Another socket is bound to that port and is not reusable for requested settings"
@@ -169,7 +169,7 @@ const char* strerror_get_message(size_t major, size_t minor)
     }
 
     const char** array = strerror_array_major[major];
-    size_t size = strerror_array_sizes[major];
+    const size_t size = strerror_array_sizes[major];
 
     if (minor >= size)
     {

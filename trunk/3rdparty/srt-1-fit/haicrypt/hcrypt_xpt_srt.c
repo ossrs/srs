@@ -65,7 +65,6 @@ written by
 #define HCRYPT_MSG_SRT_OFS_MSGNO	4
 #define HCRYPT_MSG_SRT_SHF_KFLGS	27   //shift
 
-static hcrypt_MsgInfo _hcMsg_SRT_MsgInfo;
 
 static unsigned hcryptMsg_SRT_GetKeyFlags(unsigned char *msg)
 {
@@ -110,7 +109,22 @@ static void hcryptMsg_SRT_IndexMsg(unsigned char *msg, unsigned char *pfx_cache)
 	return; //nothing to do, header and index maintained by SRT
 }
 
-static int hcryptMsg_SRT_ParseMsg(unsigned char *msg)
+static const hcrypt_MsgInfo _hcMsg_SRT_MsgInfo = {
+	.hdr_len     = HCRYPT_MSG_SRT_HDR_SZ,
+	.pfx_len     = HCRYPT_MSG_SRT_PFX_SZ,
+	.getKeyFlags = hcryptMsg_SRT_GetKeyFlags,
+	.getPki      = hcryptMsg_SRT_GetPki,
+	.setPki      = hcryptMsg_SRT_SetPki,
+	.resetCache  = hcryptMsg_SRT_ResetCache,
+	.indexMsg    = hcryptMsg_SRT_IndexMsg
+};
+
+const hcrypt_MsgInfo* hcryptMsg_SRT_MsgInfo(void)
+{
+	return (&_hcMsg_SRT_MsgInfo);
+}
+
+int hcryptMsg_SRT_ParseMsg(const hcrypt_MsgInfo* mi, unsigned char *msg)
 {
 	int rc;
 
@@ -126,10 +140,10 @@ static int hcryptMsg_SRT_ParseMsg(unsigned char *msg)
 
 	switch(rc) {
 	case HCRYPT_MSG_PT_MS:
-		if (hcryptMsg_HasNoSek(&_hcMsg_SRT_MsgInfo, msg)
-		||  hcryptMsg_HasBothSek(&_hcMsg_SRT_MsgInfo, msg)) {
+		if (hcryptMsg_HasNoSek(mi, msg)
+		||  hcryptMsg_HasBothSek(mi, msg)) {
 			HCRYPT_LOG(LOG_ERR, "invalid MS msg flgs: %02x\n", 
-				hcryptMsg_GetKeyIndex(&_hcMsg_SRT_MsgInfo, msg));
+				hcryptMsg_GetKeyIndex(mi, msg));
 			return(-1);
 		}
 		break;
@@ -153,19 +167,4 @@ static int hcryptMsg_SRT_ParseMsg(unsigned char *msg)
 	return(rc);	/* -1: error, 0: unknown: >0: PT */
 }	
 
-static hcrypt_MsgInfo _hcMsg_SRT_MsgInfo;
-
-hcrypt_MsgInfo *hcryptMsg_SRT_MsgInfo(void)
-{
-	_hcMsg_SRT_MsgInfo.hdr_len      = HCRYPT_MSG_SRT_HDR_SZ;
-	_hcMsg_SRT_MsgInfo.pfx_len      = HCRYPT_MSG_SRT_PFX_SZ;
-	_hcMsg_SRT_MsgInfo.getKeyFlags  = hcryptMsg_SRT_GetKeyFlags;
-	_hcMsg_SRT_MsgInfo.getPki       = hcryptMsg_SRT_GetPki;
-	_hcMsg_SRT_MsgInfo.setPki       = hcryptMsg_SRT_SetPki;
-	_hcMsg_SRT_MsgInfo.resetCache   = hcryptMsg_SRT_ResetCache;
-	_hcMsg_SRT_MsgInfo.indexMsg     = hcryptMsg_SRT_IndexMsg;
-	_hcMsg_SRT_MsgInfo.parseMsg     = hcryptMsg_SRT_ParseMsg;
-
-	return(&_hcMsg_SRT_MsgInfo);
-}
 

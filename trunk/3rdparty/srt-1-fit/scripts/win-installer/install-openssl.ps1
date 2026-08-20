@@ -1,7 +1,7 @@
 ﻿#-----------------------------------------------------------------------------
 #
 #  SRT - Secure, Reliable, Transport
-#  Copyright (c) 2021, Thierry Lelegard
+#  Copyright (c) 2021-2024, Thierry Lelegard
 # 
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -36,7 +36,9 @@ param(
 )
 
 Write-Output "OpenSSL download and installation procedure"
-$OpenSSLHomePage = "http://slproweb.com/products/Win32OpenSSL.html"
+
+# The list of OpenSSL packages is available in a JSON file. See more details in README.md.
+$PackageList = "https://github.com/slproweb/opensslhashes/raw/master/win32_openssl_hashes.json"
 
 # A function to exit this script.
 function Exit-Script([string]$Message = "")
@@ -62,11 +64,11 @@ $TmpDir = "$RootDir\tmp"
 # Without this, Invoke-WebRequest is awfully slow.
 $ProgressPreference = 'SilentlyContinue'
 
-# Get the HTML page for OpenSSL downloads.
+# Get the JSON configuration file for OpenSSL downloads.
 $status = 0
 $message = ""
 try {
-    $response = Invoke-WebRequest -UseBasicParsing -UserAgent Download -Uri $OpenSSLHomePage
+    $response = Invoke-WebRequest -UseBasicParsing -UserAgent Download -Uri $PackageList
     $status = [int] [Math]::Floor($response.StatusCode / 100)
 }
 catch {
@@ -77,43 +79,41 @@ if ($status -ne 1 -and $status -ne 2) {
         Exit-Script "Status code $($response.StatusCode), $($response.StatusDescription)"
     }
     else {
-        Exit-Script "#### Error accessing ${OpenSSLHomePage}: $message"
+        Exit-Script "#### Error accessing ${PackageList}: $message"
     }
 }
+$config = ConvertFrom-Json $Response.Content
 
-# Parse HTML page to locate the latest MSI files.
-$Ref32 = $response.Links.href | Where-Object { $_ -like "*/Win32OpenSSL-*.msi" } | Select-Object -First 1
-$Ref64 = $response.Links.href | Where-Object { $_ -like "*/Win64OpenSSL-*.msi" } | Select-Object -First 1
-
-# Build the absolute URL's from base URL (the download page) and href links.
-$Url32 = New-Object -TypeName 'System.Uri' -ArgumentList ([System.Uri]$OpenSSLHomePage, $Ref32)
-$Url64 = New-Object -TypeName 'System.Uri' -ArgumentList ([System.Uri]$OpenSSLHomePage, $Ref64)
-
-# Download and install one MSI package.
-function Download-Install([string]$Url)
-{
-    $MsiName = (Split-Path -Leaf $Url.toString())
-    $MsiPath = "$TmpDir\$MsiName"
-
-    if (-not $ForceDownload -and (Test-Path $MsiPath)) {
-        Write-Output "$MsiName already downloaded, use -ForceDownload to download again"
+# Find the URL of the latest "universal" installer in the JSON config file.
+$Url = $config.files | Get-Member | ForEach-Object {
+    $name = $_.name
+    $info = $config.files.$($_.name)
+    if (-not $info.light -and $info.installer -like "exe" -and $info.arch -like "universal") {
+        $info.url
     }
-    else {
-        Write-Output "Downloading $Url ..."
-        Invoke-WebRequest -UseBasicParsing -UserAgent Download -Uri $Url -OutFile $MsiPath
-    }
-
-    if (-not (Test-Path $MsiPath)) {
-        Exit-Script "$Url download failed"
-    }
-
-    if (-not $NoInstall) {
-        Write-Output "Installing $MsiName"
-        Start-Process msiexec.exe -ArgumentList @("/i", $MsiPath, "/qn", "/norestart") -Wait
-    }
+} | Select-Object -Last 1
+if (-not $Url) {
+    Exit-Script "#### No universal installer found"
 }
 
-# Download and install the two MSI packages.
-Download-Install $Url32
-Download-Install $Url64
+$ExeName = (Split-Path -Leaf $Url)
+$ExePath = "$TmpDir\$ExeName"
+
+if (-not $ForceDownload -and (Test-Path $ExePath)) {
+    Write-Output "$ExeName already downloaded, use -ForceDownload to download again"
+}
+else {
+    Write-Output "Downloading $Url ..."
+    Invoke-WebRequest -UseBasicParsing -UserAgent Download -Uri $Url -OutFile $ExePath
+}
+
+if (-not (Test-Path $ExePath)) {
+    Exit-Script "$Url download failed"
+}
+
+if (-not $NoInstall) {
+    Write-Output "Installing $ExeName"
+    Start-Process -FilePath $ExePath -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/ALLUSERS") -Wait
+}
+
 Exit-Script

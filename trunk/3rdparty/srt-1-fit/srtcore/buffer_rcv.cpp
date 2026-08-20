@@ -130,7 +130,7 @@ CRcvBuffer::CRcvBuffer(int initSeqNo, size_t size, CUnitQueue* unitqueue, bool b
     , m_bMessageAPI(bMessageAPI)
     , m_iBytesCount(0)
     , m_iPktsCount(0)
-    , m_uAvgPayloadSz(SRT_LIVE_DEF_PLSIZE)
+    , m_uAvgPayloadSz(0)
 {
     SRT_ASSERT(size < size_t(std::numeric_limits<int>::max())); // All position pointers are integers
 }
@@ -206,7 +206,7 @@ int CRcvBuffer::insert(CUnit* unit)
     return 0;
 }
 
-int CRcvBuffer::dropUpTo(int32_t seqno)
+std::pair<int, int> CRcvBuffer::dropUpTo(int32_t seqno)
 {
     IF_RCVBUF_DEBUG(ScopedLog scoped_log);
     IF_RCVBUF_DEBUG(scoped_log.ss << "CRcvBuffer::dropUpTo: seqno " << seqno << " m_iStartSeqNo " << m_iStartSeqNo);
@@ -215,16 +215,23 @@ int CRcvBuffer::dropUpTo(int32_t seqno)
     if (len <= 0)
     {
         IF_RCVBUF_DEBUG(scoped_log.ss << ". Nothing to drop.");
-        return 0;
+        return std::make_pair(0, 0);
     }
 
     m_iMaxPosOff -= len;
     if (m_iMaxPosOff < 0)
         m_iMaxPosOff = 0;
 
-    const int iDropCnt = len;
+    int iNumDropped = 0; // Number of dropped packets that were missing.
+    int iNumDiscarded = 0; // The number of dropped packets that existed in the buffer.
     while (len > 0)
     {
+        // Note! Dropping a EntryState_Read must not be counted as a drop because it was read.
+        // Note! Dropping a EntryState_Drop must not be counted as a drop because it was already dropped and counted earlier.
+        if (m_entries[m_iStartPos].status == EntryState_Avail)
+			++iNumDiscarded;
+        else if (m_entries[m_iStartPos].status == EntryState_Empty)
+			++iNumDropped;
         dropUnitInPos(m_iStartPos);
         m_entries[m_iStartPos].status = EntryState_Empty;
         SRT_ASSERT(m_entries[m_iStartPos].pUnit == NULL && m_entries[m_iStartPos].status == EntryState_Empty);
@@ -239,14 +246,14 @@ int CRcvBuffer::dropUpTo(int32_t seqno)
 
     // If the nonread position is now behind the starting position, set it to the starting position and update.
     // Preceding packets were likely missing, and the non read position can probably be moved further now.
-    if (CSeqNo::seqcmp(m_iFirstNonreadPos, m_iStartPos) < 0)
+    if (!isInRange(m_iStartPos, m_iMaxPosOff, m_szSize, m_iFirstNonreadPos))
     {
         m_iFirstNonreadPos = m_iStartPos;
         updateNonreadPos();
     }
     if (!m_tsbpd.isEnabled() && m_bMessageAPI)
         updateFirstReadableOutOfOrder();
-    return iDropCnt;
+    return std::make_pair(iNumDropped, iNumDiscarded);
 }
 
 int CRcvBuffer::dropAll()
@@ -255,7 +262,8 @@ int CRcvBuffer::dropAll()
         return 0;
 
     const int end_seqno = CSeqNo::incseq(m_iStartSeqNo, m_iMaxPosOff);
-    return dropUpTo(end_seqno);
+    const std::pair<int, int> numDropped = dropUpTo(end_seqno);
+    return numDropped.first + numDropped.second;
 }
 
 int CRcvBuffer::dropMessage(int32_t seqnolo, int32_t seqnohi, int32_t msgno, DropActionIfExists actionOnExisting)
@@ -268,10 +276,10 @@ int CRcvBuffer::dropMessage(int32_t seqnolo, int32_t seqnohi, int32_t msgno, Dro
     // Drop by packet seqno range to also wipe those packets that do not exist in the buffer.
     const int offset_a = CSeqNo::seqoff(m_iStartSeqNo, seqnolo);
     const int offset_b = CSeqNo::seqoff(m_iStartSeqNo, seqnohi);
-    if (offset_b < 0)
+    if (offset_b < 0 || offset_a >= (int) m_szSize)
     {
         LOGC(rbuflog.Debug, log << "CRcvBuffer.dropMessage(): nothing to drop. Requested [" << seqnolo << "; "
-            << seqnohi << "]. Buffer start " << m_iStartSeqNo << ".");
+            << seqnohi << "]. Buffer start " << m_iStartSeqNo << " size " << m_szSize << ".");
         return 0;
     }
 
@@ -475,7 +483,7 @@ int CRcvBuffer::readMessage(char* data, size_t len, SRT_MSGCTRL* msgctrl)
 
     if (!m_tsbpd.isEnabled())
         // We need updateFirstReadableOutOfOrder() here even if we are reading inorder,
-        // incase readable inorder packets are all read out.
+        // in case readable inorder packets are all read out.
         updateFirstReadableOutOfOrder();
 
     const int bytes_read = int(dst - data);
@@ -752,13 +760,24 @@ CRcvBuffer::PacketInfo CRcvBuffer::getFirstReadablePacketInfo(time_point time_no
         return unreadableInfo;
 }
 
+int32_t CRcvBuffer::getFirstNonreadSeqNo() const
+{
+    const int offset = offPos(m_iStartPos, m_iFirstNonreadPos);
+    return CSeqNo::incseq(m_iStartSeqNo, offset);
+}
+
 void CRcvBuffer::countBytes(int pkts, int bytes)
 {
     ScopedLock lock(m_BytesCountLock);
     m_iBytesCount += bytes; // added or removed bytes from rcv buffer
     m_iPktsCount  += pkts;
     if (bytes > 0)          // Assuming one pkt when adding bytes
-        m_uAvgPayloadSz = avg_iir<100>(m_uAvgPayloadSz, (unsigned) bytes);
+    {
+        if (!m_uAvgPayloadSz)
+            m_uAvgPayloadSz = bytes;
+        else
+            m_uAvgPayloadSz = avg_iir<100>(m_uAvgPayloadSz, (unsigned) bytes);
+    }
 }
 
 void CRcvBuffer::releaseUnitInPos(int pos)
@@ -1077,12 +1096,12 @@ void CRcvBuffer::applyGroupDrift(const steady_clock::time_point& timebase,
 
 CRcvBuffer::time_point CRcvBuffer::getTsbPdTimeBase(uint32_t usPktTimestamp) const
 {
-    return m_tsbpd.getTsbPdTimeBase(usPktTimestamp);
+    return m_tsbpd.getBaseTime(usPktTimestamp);
 }
 
 void CRcvBuffer::updateTsbPdTimeBase(uint32_t usPktTimestamp)
 {
-    m_tsbpd.updateTsbPdTimeBase(usPktTimestamp);
+    m_tsbpd.updateBaseTime(usPktTimestamp);
 }
 
 string CRcvBuffer::strFullnessState(int iFirstUnackSeqNo, const time_point& tsNow) const
@@ -1106,7 +1125,7 @@ string CRcvBuffer::strFullnessState(int iFirstUnackSeqNo, const time_point& tsNo
             {
                 ss << ", timespan ";
                 const uint32_t usPktTimestamp = packetAt(iLastPos).getMsgTimeStamp();
-                ss << count_milliseconds(m_tsbpd.getPktTsbPdTime(usPktTimestamp) - nextValidPkt.tsbpd_time);
+                ss << count_milliseconds(m_tsbpd.getPktTime(usPktTimestamp) - nextValidPkt.tsbpd_time);
                 ss << " ms";
             }
         }
@@ -1123,7 +1142,7 @@ string CRcvBuffer::strFullnessState(int iFirstUnackSeqNo, const time_point& tsNo
 
 CRcvBuffer::time_point CRcvBuffer::getPktTsbPdTime(uint32_t usPktTimestamp) const
 {
-    return m_tsbpd.getPktTsbPdTime(usPktTimestamp);
+    return m_tsbpd.getPktTime(usPktTimestamp);
 }
 
 /* Return moving average of acked data pkts, bytes, and timespan (ms) of the receive buffer */

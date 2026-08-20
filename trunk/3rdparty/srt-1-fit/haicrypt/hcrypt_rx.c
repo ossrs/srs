@@ -61,6 +61,29 @@ int HaiCrypt_Rx_Data(HaiCrypt_Handle hhc,
 	return(nb);
 }
 
+int HaiCrypt_GetKeyIndex(HaiCrypt_Handle hhc, unsigned char* in_msg)
+{
+	hcrypt_Session *crypto = (hcrypt_Session *)hhc;
+	int msg_type;
+
+	if ((NULL == crypto)
+	||  (NULL == in_msg)) {
+
+		HCRYPT_LOG(LOG_ERR, "%s", "invalid parameters\n");
+		return(-1);
+	}
+
+	/* Validate HaiCrypt message */
+	if (0 > (msg_type = hcryptMsg_SRT_ParseMsg(crypto->msg_info, in_msg))) {
+		return(-1);
+	}
+
+    if (msg_type != HCRYPT_MSG_PT_KM)
+        return -1;
+
+    return hcryptMsg_GetKeyIndex(crypto->msg_info, in_msg);
+}
+
 int HaiCrypt_Rx_Process(HaiCrypt_Handle hhc, 
 	unsigned char *in_msg, size_t in_len, 
 	void *out_p[], size_t out_len_p[], int maxout)
@@ -78,7 +101,7 @@ int HaiCrypt_Rx_Process(HaiCrypt_Handle hhc,
 	}
 
 	/* Validate HaiCrypt message */
-	if (0 > (msg_type = crypto->msg_info->parseMsg(in_msg))) {
+	if (0 > (msg_type = hcryptMsg_SRT_ParseMsg(crypto->msg_info, in_msg))) {
 		return(-1);
 	}
 
@@ -99,6 +122,13 @@ int HaiCrypt_Rx_Process(HaiCrypt_Handle hhc,
 			HCRYPT_LOG(LOG_ERR, "%s", "cryspr had no decryptor\n");
 			nbout = -1;
 		} else if (ctx->status >= HCRYPT_CTX_S_KEYED) {
+            if ((int)(in_len) <= crypto->msg_info->pfx_len)
+            {
+                // XXX NOTE: SRT doesn't use this type of messages, so it shouldn't
+                // be a danger, but then you can still find something like that on the wire.
+                HCRYPT_LOG(LOG_ERR, "%s%d", "Invalid enc data packet: ", in_len);
+                return -1;
+            }
 			hcrypt_DataDesc indata;
 			indata.pfx      = in_msg;
 			indata.payload  = &in_msg[crypto->msg_info->pfx_len];

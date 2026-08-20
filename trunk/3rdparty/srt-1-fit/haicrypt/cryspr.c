@@ -17,6 +17,10 @@ written by
 		CRYSPR/4SRT Initial implementation.
 *****************************************************************************/
 
+#ifndef _WIN32
+#include <arpa/inet.h>  /* htonl */
+#endif
+
 #include "hcrypt.h"
 #include "cryspr.h"
 
@@ -429,6 +433,8 @@ static int crysprFallback_MsEncrypt(
 
 	/* Auth tag produced by AES GCM. */
 	unsigned char tag[HAICRYPT_AUTHTAG_MAX];
+	/* Additional authenticated data used by AES-GCM. */
+	unsigned char aad[HAICRYPT_AAD_MAX];
 
 	/*
 	 * Get buffer room from the internal circular output buffer.
@@ -452,33 +458,30 @@ static int crysprFallback_MsEncrypt(
 			/* Get input packet index (in network order) */
 			hcrypt_Pki pki = hcryptMsg_GetPki(ctx->msg_info, in_data[0].pfx, 1);
 
-			/*
-			 * Compute the Initial Vector
-			 * IV (128-bit):
-			 *    0   1   2   3   4   5  6   7   8   9   10  11  12  13  14  15
-			 * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-			 * |                   0s                  |      pki      |  ctr  |
-			 * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-			 *                            XOR
-			 * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-			 * |                         nonce                         +
-			 * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-			 *
-			 * pki    (32-bit): packet index
-			 * ctr    (16-bit): block counter
-			 * nonce (112-bit): number used once (salt)
-			*/
-			hcrypt_SetCtrIV((unsigned char *)&pki, ctx->salt, iv);
-
 			if (ctx->mode == HCRYPT_CTX_MODE_AESGCM)
 			{
-				const int iret = cryspr_cb->cryspr->aes_gcm_cipher(true, aes_key, iv, in_data[0].pfx, pfx_len, in_data[0].payload, in_data[0].len,
+				const bool old_aead = ctx->use_gcm_153; // SRT v1.5.2 to v1.5.3.
+				if (old_aead)
+				{
+					hcrypt_SetCtrIV((unsigned char*)&pki, ctx->salt, iv);
+					memcpy(aad, in_data[0].pfx, sizeof(aad));
+				}
+				else
+				{
+					hcrypt_SetGcmIV((unsigned char*)&pki, ctx->salt, iv);
+
+					for (size_t i = 0; i < sizeof(aad) / 4; ++i)
+						*((uint32_t*)aad + i) = htonl(*((uint32_t*)in_data[0].pfx + i));
+				}
+
+				const int iret = cryspr_cb->cryspr->aes_gcm_cipher(true, aes_key, iv, aad, sizeof(aad), in_data[0].payload, in_data[0].len,
 						&out_msg[pfx_len], tag);
 				if (iret) {
 					return(iret);
 				}
 			}
 			else {
+				hcrypt_SetCtrIV((unsigned char *)&pki, ctx->salt, iv);
 #if CRYSPR_HAS_AESCTR
 				cryspr_cb->cryspr->aes_ctr_cipher(true, aes_key, iv, in_data[0].payload, in_data[0].len,
 						&out_msg[pfx_len]);
@@ -599,28 +602,26 @@ static int crysprFallback_MsDecrypt(CRYSPR_cb *cryspr_cb, hcrypt_Ctx *ctx,
 				/* Get input packet index (in network order) */
 				hcrypt_Pki pki = hcryptMsg_GetPki(ctx->msg_info, in_data[0].pfx, 1);
 
-				/*
-				 * Compute the Initial Vector
-				 * IV (128-bit):
-				 *    0   1   2   3   4   5  6   7   8   9   10  11  12  13  14  15
-				 * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-				 * |                   0s                  |      pki      |  ctr  |
-				 * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-				 *                            XOR
-				 * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-				 * |                         nonce                         +
-				 * +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-				 *
-				 * pki    (32-bit): packet index
-				 * ctr    (16-bit): block counter
-				 * nonce (112-bit): number used once (salt)
-				 */
-				hcrypt_SetCtrIV((unsigned char *)&pki, ctx->salt, iv);
-
 				if (ctx->mode == HCRYPT_CTX_MODE_AESGCM)
 				{
+					/* Additional authenticated data used by AES-GCM. */
+					unsigned char aad[HAICRYPT_AAD_MAX];
+					const bool old_aead = ctx->use_gcm_153; // SRT v1.5.2 to v1.5.3.
+					if (old_aead)
+					{
+						hcrypt_SetCtrIV((unsigned char*)&pki, ctx->salt, iv);
+						memcpy(aad, in_data[0].pfx, sizeof(aad));
+					}
+					else
+					{
+						hcrypt_SetGcmIV((unsigned char*)&pki, ctx->salt, iv);
+
+						for (size_t i = 0; i < sizeof(aad) / 4; ++i)
+							*((uint32_t*)aad + i) = htonl(*((uint32_t*)in_data[0].pfx + i));
+					}
+
 					unsigned char* tag = in_data[0].payload + in_data[0].len - HAICRYPT_AUTHTAG_MAX;
-					int liret = cryspr_cb->cryspr->aes_gcm_cipher(false, aes_key, iv, in_data[0].pfx, ctx->msg_info->pfx_len, in_data[0].payload, in_data[0].len - HAICRYPT_AUTHTAG_MAX,
+					int liret = cryspr_cb->cryspr->aes_gcm_cipher(false, aes_key, iv, aad, sizeof(aad), in_data[0].payload, in_data[0].len - HAICRYPT_AUTHTAG_MAX,
 						out_txt, tag);
 					if (liret) {
 						return(liret);
@@ -628,6 +629,7 @@ static int crysprFallback_MsDecrypt(CRYSPR_cb *cryspr_cb, hcrypt_Ctx *ctx,
 					out_len = in_data[0].len - HAICRYPT_AUTHTAG_MAX;
 				}
 				else {
+					hcrypt_SetCtrIV((unsigned char*)&pki, ctx->salt, iv);
 #if CRYSPR_HAS_AESCTR
 					cryspr_cb->cryspr->aes_ctr_cipher(false, aes_key, iv, in_data[0].payload, in_data[0].len,
 						out_txt);

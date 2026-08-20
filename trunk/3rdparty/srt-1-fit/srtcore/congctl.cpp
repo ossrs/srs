@@ -60,9 +60,10 @@ void SrtCongestion::Check()
 
 class LiveCC: public SrtCongestionControlBase
 {
-    int64_t  m_llSndMaxBW;          //Max bandwidth (bytes/sec)
+    srt::sync::atomic<int64_t>  m_llSndMaxBW;          //Max bandwidth (bytes/sec)
     srt::sync::atomic<size_t>   m_zSndAvgPayloadSize;  //Average Payload Size of packets to xmit
     size_t   m_zMaxPayloadSize;
+    size_t   m_zHeaderSize;
 
     // NAKREPORT stuff.
     int m_iMinNakInterval_us;                       // Minimum NAK Report Period (usec)
@@ -80,6 +81,8 @@ public:
         if (m_zMaxPayloadSize == 0)
             m_zMaxPayloadSize = parent->maxPayloadSize();
         m_zSndAvgPayloadSize = m_zMaxPayloadSize;
+
+        m_zHeaderSize = parent->m_config.iMSS - parent->maxPayloadSize();
 
         m_iMinNakInterval_us = 20000;   //Minimum NAK Report Period (usec)
         m_iNakReportAccel = 2;       //Default NAK Report Period (RTT) accelerator (send periodic NAK every RTT/2)
@@ -173,7 +176,7 @@ private:
     void updatePktSndPeriod()
     {
         // packet = payload + header
-        const double pktsize = (double) m_zSndAvgPayloadSize.load() + CPacket::SRT_DATA_HDR_SIZE;
+        const double pktsize = (double) m_zSndAvgPayloadSize.load() + m_zHeaderSize;
         m_dPktSndPeriod = 1000 * 1000.0 * (pktsize / m_llSndMaxBW);
         HLOGC(cclog.Debug, log << "LiveCC: sending period updated: " << m_dPktSndPeriod
                 << " by avg pktsize=" << m_zSndAvgPayloadSize
@@ -592,7 +595,7 @@ private:
             {
                 m_dPktSndPeriod = m_dCWndSize / (m_parent->SRTT() + m_iRCInterval);
                 HLOGC(cclog.Debug, log << "FileCC: CHKTIMER, SLOWSTART:OFF, sndperiod=" << m_dPktSndPeriod << "us AS wndsize/(RTT+RCIV) (wndsize="
-                    << setprecision(6) << m_dCWndSize << " RTT=" << m_parent->SRTT() << " RCIV=" << m_iRCInterval << ")");
+                    << m_dCWndSize << " RTT=" << m_parent->SRTT() << " RCIV=" << m_iRCInterval << ")");
             }
         }
         else

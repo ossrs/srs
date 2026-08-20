@@ -36,7 +36,7 @@ set loggers {
 	RSRC       rs  5  "System resource allocation and management"
 	CONGEST    cc  7  "Congestion control module"
 	PFILTER    pf  8  "Packet filter module"
-	API_CTRL   ac  11 "API part for socket and library managmenet"
+	API_CTRL   ac  11 "API part for socket and library management"
 	QUE_CTRL   qc  13 "Queue control activities"
 	EPOLL_UPD  ei  16 "EPoll, internal update activities"
 
@@ -140,7 +140,7 @@ proc GenerateModelForSrtH {} {
 				continue
 			}
 
-			# End of generated section. Switch back to pass-thru.
+			# End of generated section. Switch back to pass-through.
 
 			# First fill the gap
 			append contents "\n\$entries\n\n"

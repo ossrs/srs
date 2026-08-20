@@ -51,7 +51,6 @@ public:
         virtual ~Factory();
     };
 private:
-    friend bool ParseFilterConfig(const std::string& s, SrtFilterConfig& out, PacketFilter::Factory** ppf);
 
     template <class Target>
     class Creator: public Factory
@@ -73,7 +72,6 @@ private:
         Creator() {}
         virtual ~Creator() {}
     };
-
 
     // We need a private wrapper for the auto-pointer, can't use
     // std::unique_ptr here due to no C++11.
@@ -114,14 +112,6 @@ private:
         Factory* get() { return f; }
     };
 
-    // The list of builtin names that are reserved.
-    static std::set<std::string> builtin_filters;
-
-    // Temporarily changed to linear searching, until this is exposed
-    // for a user-defined filter.
-    typedef std::map<std::string, ManagedPtr> filters_map_t;
-    static filters_map_t filters;
-
     // This is a filter container.
     SrtPacketFilterBase* m_filter;
     void Check()
@@ -133,29 +123,52 @@ private:
         // Don't do any check for now.
     }
 
+    friend class Internal;
+
 public:
-
-    static void globalInit();
-
-    static bool IsBuiltin(const std::string&);
-
-    template <class NewFilter>
-    static bool add(const std::string& name)
+    class Internal
     {
-        if (IsBuiltin(name))
-            return false;
+    public:
 
-        filters[name] = new Creator<NewFilter>;
-        return true;
-    }
+        // The list of builtin names that are reserved.
+        std::set<std::string> m_builtin_filters;
 
-    static Factory* find(const std::string& type)
-    {
-        filters_map_t::iterator i = filters.find(type);
-        if (i == filters.end())
-            return NULL; // No matter what to return - this is "undefined behavior" to be prevented
-        return i->second.get();
-    }
+        // Temporarily changed to linear searching, until this is exposed
+        // for a user-defined filter.
+        typedef std::map<std::string, ManagedPtr> filters_map_t;
+        filters_map_t m_filters;
+
+
+    public:
+
+        bool IsBuiltin(const std::string& s)
+        {
+            return m_builtin_filters.count(s);
+        }
+
+        template <class NewFilter>
+        bool add(const std::string& name)
+        {
+            if (IsBuiltin(name))
+                return false;
+
+            m_filters[name] = new Creator<NewFilter>;
+            return true;
+        }
+
+        Factory* find(const std::string& type)
+        {
+            filters_map_t::iterator i = m_filters.find(type);
+            if (i == m_filters.end())
+                return NULL; // No matter what to return - this is "undefined behavior" to be prevented
+            return i->second.get();
+        }
+        bool ParseConfig(const std::string& s, SrtFilterConfig& out, PacketFilter::Factory** ppf = NULL);
+        bool CheckFilterCompat(srt::SrtFilterConfig& w_agent, const srt::SrtFilterConfig& peer);
+    public:
+        Internal();
+    };
+    static Internal& internal(); // Singleton accessor
 
     // Filter is optional, so this check should be done always
     // manually.
@@ -171,7 +184,7 @@ public:
     // Copy constructor - important when listener-spawning
     // Things being done:
     // 1. The filter is individual, so don't copy it. Set NULL.
-    // 2. This will be configued anyway basing on possibly a new rule set.
+    // 2. This will be configured anyway basing on possibly a new rule set.
     PacketFilter(const PacketFilter& source SRT_ATR_UNUSED): m_filter(), m_parent(), m_sndctlpkt(0), m_unitq() {}
 
     // This function will be called by the parent CUDT
@@ -188,8 +201,8 @@ public:
     ~PacketFilter();
 
     // Simple wrappers
-    void feedSource(CPacket& w_packet);
-    SRT_ARQLevel arqLevel();
+    void feedSource(CPacket& w_packet) { SRT_ASSERT(m_filter); return m_filter->feedSource((w_packet)); }
+    SRT_ARQLevel arqLevel() { SRT_ASSERT(m_filter); return m_filter->arqLevel(); }
     bool packControlPacket(int32_t seq, int kflg, CPacket& w_packet);
     void receive(CUnit* unit, std::vector<CUnit*>& w_incoming, loss_seqs_t& w_loss_seqs);
 
@@ -207,12 +220,10 @@ protected:
     std::vector<SrtPacket> m_provided;
 };
 
-bool CheckFilterCompat(SrtFilterConfig& w_agent, SrtFilterConfig peer);
-
-inline void PacketFilter::feedSource(CPacket& w_packet) { SRT_ASSERT(m_filter); return m_filter->feedSource((w_packet)); }
-inline SRT_ARQLevel PacketFilter::arqLevel() { SRT_ASSERT(m_filter); return m_filter->arqLevel(); }
-
-bool ParseFilterConfig(const std::string& s, SrtFilterConfig& out, PacketFilter::Factory** ppf);
+inline bool CheckFilterCompat(SrtFilterConfig& w_agent, const SrtFilterConfig& peer)
+{
+    return PacketFilter::internal().CheckFilterCompat((w_agent), peer);
+}
 
 } // namespace srt
 

@@ -99,6 +99,12 @@ srt::CUDTSocket::~CUDTSocket()
     releaseMutex(m_ControlLock);
 }
 
+void srt::CUDTSocket::resetAtFork()
+{
+    m_UDT.resetAtFork();
+    resetCond(m_AcceptCond);
+}
+
 SRT_SOCKSTATUS srt::CUDTSocket::getStatus()
 {
     // TTL in CRendezvousQueue::updateConnStatus() will set m_bConnecting to false.
@@ -148,8 +154,7 @@ void srt::CUDTSocket::setBrokenClosed()
 
 bool srt::CUDTSocket::readReady()
 {
-    // TODO: Use m_RcvBufferLock here (CUDT::isRcvReadReady())?
-    if (m_UDT.m_bConnected && m_UDT.m_pRcvBuffer->isRcvDataReady())
+    if (m_UDT.m_bConnected && m_UDT.isRcvBufferReady())
         return true;
 
     if (m_UDT.m_bListening)
@@ -175,8 +180,7 @@ srt::CUDTUnited::CUDTUnited()
     , m_GlobControlLock()
     , m_IDLock()
     , m_mMultiplexer()
-    , m_MultiplexerLock()
-    , m_pCache(NULL)
+    , m_pCache(new CCache<CInfoBlock>)
     , m_bClosing(false)
     , m_GCStopCond()
     , m_InitLock()
@@ -191,13 +195,23 @@ srt::CUDTUnited::CUDTUnited()
     // XXX An unlikely exception thrown from the below calls
     // might destroy the application before `main`. This shouldn't
     // be a problem in general.
+    setupMutex(m_GCStartLock, "GCStart");
     setupMutex(m_GCStopLock, "GCStop");
     setupCond(m_GCStopCond, "GCStop");
     setupMutex(m_GlobControlLock, "GlobControl");
     setupMutex(m_IDLock, "ID");
     setupMutex(m_InitLock, "Init");
+    // Global initialization code
+#ifdef _WIN32
+    WORD    wVersionRequested;
+    WSADATA wsaData;
+    wVersionRequested = MAKEWORD(2, 2);
 
-    m_pCache = new CCache<CInfoBlock>;
+    if (0 != WSAStartup(wVersionRequested, &wsaData))
+        throw CUDTException(MJ_SETUP, MN_NONE, WSAGetLastError());
+#endif
+    CCryptoControl::globalInit();
+    HLOGC(inlog.Debug, log << "SRT Clock Type: " << SRT_SYNC_CLOCK_STR);
 }
 
 srt::CUDTUnited::~CUDTUnited()
@@ -205,11 +219,12 @@ srt::CUDTUnited::~CUDTUnited()
     // Call it if it wasn't called already.
     // This will happen at the end of main() of the application,
     // when the user didn't call srt_cleanup().
-    if (m_bGCStatus)
-    {
-        cleanup();
-    }
+    enterCS(m_InitLock);
+    stopGarbageCollector();
+    leaveCS(m_InitLock);
 
+    // DO NOT call closeAllSockets() here; instead rely on that
+    // all sockets have been closed when exiting the GC.
     releaseMutex(m_GlobControlLock);
     releaseMutex(m_IDLock);
     releaseMutex(m_InitLock);
@@ -223,8 +238,11 @@ srt::CUDTUnited::~CUDTUnited()
     releaseCond(m_GCStopCond);
 #endif
     releaseMutex(m_GCStopLock);
-
+    releaseMutex(m_GCStartLock);
     delete m_pCache;
+#ifdef _WIN32
+    WSACleanup();
+#endif
 }
 
 string srt::CUDTUnited::CONID(SRTSOCKET sock)
@@ -237,39 +255,183 @@ string srt::CUDTUnited::CONID(SRTSOCKET sock)
     return os.str();
 }
 
+bool srt::CUDTUnited::startGarbageCollector()
+{
+
+    ScopedLock guard(m_GCStartLock);
+    if (!m_bGCStatus)
+    {
+        m_bClosing = false;
+        m_bGCStatus = StartThread(m_GCThread, garbageCollect, this, "SRT:GC");
+    }
+    return m_bGCStatus;
+}
+
+void srt::CUDTUnited::stopGarbageCollector()
+{
+
+    ScopedLock guard(m_GCStartLock);
+    if (m_bGCStatus)
+    {
+        m_bGCStatus = false;
+        {
+            CUniqueSync gclock (m_GCStopLock, m_GCStopCond);
+            m_bClosing = true;
+            gclock.notify_all();
+        }
+        m_GCThread.join();
+    }
+}
+
+void srt::CUDTUnited::cleanupAllSockets()
+{
+    for (sockets_t::iterator i = m_Sockets.begin(); i != m_Sockets.end(); ++i)
+    {
+        CUDTSocket* s = i->second;
+
+#if ENABLE_BONDING
+        if (s->m_GroupOf)
+        {
+            s->removeFromGroup(false);
+        }
+#endif
+
+        // remove from listener's queue
+        sockets_t::iterator ls = m_Sockets.find(s->m_ListenSocket);
+        if (ls == m_Sockets.end())
+        {
+            ls = m_ClosedSockets.find(s->m_ListenSocket);
+        }
+        if (ls != m_ClosedSockets.end())
+        {
+            ls->second->m_QueuedSockets.erase(s->m_SocketID);
+        }
+        s->core().closeAtFork();
+        s->resetAtFork();
+        delete(s);
+    }
+    m_Sockets.clear();
+
+#if ENABLE_BONDING
+    for (groups_t::iterator j = m_Groups.begin(); j != m_Groups.end(); ++j)
+    {
+        delete j->second;
+    }
+    m_Groups.clear();
+#endif
+    for (map<int, CMultiplexer>::iterator i = m_mMultiplexer.begin(); i != m_mMultiplexer.end(); ++i)
+    {
+        CMultiplexer &multiplexer = i->second;
+        multiplexer.resetAtFork();
+    }
+    m_mMultiplexer.clear();
+}
+
+
+void srt::CUDTUnited::closeAllSockets()
+{
+    // remove all sockets and multiplexers
+    HLOGC(inlog.Debug, log << "GC: GLOBAL EXIT - releasing all pending sockets. Acquiring control lock...");
+
+    {
+        // Pre-closing: run over all open sockets and close them.
+        SharedLock glock(m_GlobControlLock);
+
+        for (sockets_t::iterator i = m_Sockets.begin(); i != m_Sockets.end(); ++i)
+        {
+            CUDTSocket* s = i->second;
+            s->breakSocket_LOCKED();
+
+#if ENABLE_BONDING
+            if (s->m_GroupOf)
+            {
+                HLOGC(smlog.Debug,
+                      log << "@" << s->m_SocketID << " IS MEMBER OF $" << s->m_GroupOf->id()
+                          << " (IPE?) - REMOVING FROM GROUP");
+                s->removeFromGroup(false);
+            }
+#endif
+        }
+    }
+
+    {
+        ExclusiveLock glock(m_GlobControlLock);
+
+        for (sockets_t::iterator i = m_Sockets.begin(); i != m_Sockets.end(); ++i)
+        {
+            CUDTSocket* s = i->second;
+
+            m_ClosedSockets[i->first] = s;
+
+            // remove from listener's queue
+            sockets_t::iterator ls = m_Sockets.find(s->m_ListenSocket);
+            if (ls == m_Sockets.end())
+            {
+                ls = m_ClosedSockets.find(s->m_ListenSocket);
+                if (ls == m_ClosedSockets.end())
+                    continue;
+            }
+
+            enterCS(ls->second->m_AcceptLock);
+            ls->second->m_QueuedSockets.erase(s->m_SocketID);
+            leaveCS(ls->second->m_AcceptLock);
+        }
+        m_Sockets.clear();
+
+        for (sockets_t::iterator j = m_ClosedSockets.begin(); j != m_ClosedSockets.end(); ++j)
+        {
+            j->second->m_tsClosureTimeStamp = steady_clock::time_point();
+        }
+
+#if ENABLE_BONDING
+        for (groups_t::iterator j = m_Groups.begin(); j != m_Groups.end(); ++j)
+        {
+            SRTSOCKET id = j->second->m_GroupID;
+            m_ClosedGroups[id] = j->second;
+        }
+        m_Groups.clear();
+#endif
+    }
+
+    HLOGC(inlog.Debug, log << "GC: GLOBAL EXIT - releasing all CLOSED sockets.");
+    while (true)
+    {
+        checkBrokenSockets();
+
+        enterCS(m_GlobControlLock);
+        bool empty = m_ClosedSockets.empty();
+        leaveCS(m_GlobControlLock);
+
+        if (empty)
+            break;
+
+        HLOGC(inlog.Debug, log << "GC: checkBrokenSockets didn't wipe all sockets, repeating after 1s sleep");
+        srt::sync::this_thread::sleep_for(milliseconds_from(1));
+    }
+
+
+}
+
+
 int srt::CUDTUnited::startup()
 {
     ScopedLock gcinit(m_InitLock);
-
-    if (m_iInstanceCount++ > 0)
-        return 1;
-
-        // Global initialization code
-#ifdef _WIN32
-    WORD    wVersionRequested;
-    WSADATA wsaData;
-    wVersionRequested = MAKEWORD(2, 2);
-
-    if (0 != WSAStartup(wVersionRequested, &wsaData))
-        throw CUDTException(MJ_SETUP, MN_NONE, WSAGetLastError());
-#endif
-
-    CCryptoControl::globalInit();
-
-    PacketFilter::globalInit();
-
+    m_iInstanceCount++;
     if (m_bGCStatus)
-        return 1;
+        return (m_iInstanceCount == 1) ? 1 : 0;
+    else
+        return startGarbageCollector() ? 0 : -1; 
+}
 
-    m_bClosing = false;
-
-    if (!StartThread(m_GCThread, garbageCollect, this, "SRT:GC"))
-        return -1;
-
-    m_bGCStatus = true;
-
-    HLOGC(inlog.Debug, log << "SRT Clock Type: " << SRT_SYNC_CLOCK_STR);
-
+int srt::CUDTUnited::cleanupAtFork()
+{
+    cleanupAllSockets();
+    resetThread(&m_GCThread);
+    resetCond(m_GCStopCond);
+    m_GCStopLock.unlock();
+    setupCond(m_GCStopCond, "GCStop");
+    m_iInstanceCount=0;
+    m_bGCStatus = false;
     return 0;
 }
 
@@ -288,28 +450,8 @@ int srt::CUDTUnited::cleanup()
     if (--m_iInstanceCount > 0)
         return 0;
 
-    if (!m_bGCStatus)
-        return 0;
-
-    {
-        UniqueLock gclock(m_GCStopLock);
-        m_bClosing = true;
-    }
-    // NOTE: we can do relaxed signaling here because
-    // waiting on m_GCStopCond has a 1-second timeout,
-    // after which the m_bClosing flag is cheched, which
-    // is set here above. Worst case secenario, this
-    // pthread_join() call will block for 1 second.
-    CSync::notify_one_relaxed(m_GCStopCond);
-    m_GCThread.join();
-
-    m_bGCStatus = false;
-
-    // Global destruction code
-#ifdef _WIN32
-    WSACleanup();
-#endif
-
+    stopGarbageCollector();
+    closeAllSockets();
     return 0;
 }
 
@@ -452,7 +594,7 @@ SRTSOCKET srt::CUDTUnited::newSocket(CUDTSocket** pps)
         HLOGC(smlog.Debug, log << CONID(ns->m_SocketID) << "newSocket: mapping socket " << ns->m_SocketID);
 
         // protect the m_Sockets structure.
-        ScopedLock cs(m_GlobControlLock);
+        ExclusiveLock cs(m_GlobControlLock);
         m_Sockets[ns->m_SocketID] = ns;
     }
     catch (...)
@@ -463,12 +605,19 @@ SRTSOCKET srt::CUDTUnited::newSocket(CUDTSocket** pps)
         throw CUDTException(MJ_SYSTEMRES, MN_MEMORY, 0);
     }
 
+    startGarbageCollector();
     if (pps)
         *pps = ns;
 
     return ns->m_SocketID;
 }
 
+// XXX NOTE: TSan reports here false positive against the call
+// to CRcvQueue::removeListener. This here will apply shared
+// lock on m_GlobControlLock in the call of locateSocket, while
+// having applied a shared lock on CRcvQueue::m_pListener in
+// CRcvQueue::worker_ProcessConnectionRequest. As this thread
+// locks both mutexes as shared, it doesn't form a deadlock.
 int srt::CUDTUnited::newConnection(const SRTSOCKET     listen,
                                    const sockaddr_any& peer,
                                    const CPacket&      hspkt,
@@ -533,7 +682,11 @@ int srt::CUDTUnited::newConnection(const SRTSOCKET     listen,
     }
 
     // exceeding backlog, refuse the connection request
-    if (ls->m_QueuedSockets.size() >= ls->m_uiBackLog)
+
+    enterCS(ls->m_AcceptLock);
+    size_t backlog = ls->m_QueuedSockets.size();
+    leaveCS(ls->m_AcceptLock);
+    if (backlog >= ls->m_uiBackLog)
     {
         w_error = SRT_REJ_BACKLOG;
         LOGC(cnlog.Note, log << "newConnection: listen backlog=" << ls->m_uiBackLog << " EXCEEDED");
@@ -542,6 +695,8 @@ int srt::CUDTUnited::newConnection(const SRTSOCKET     listen,
 
     try
     {
+        // Protect the config of the listener socket from a data race.
+        ScopedLock lck(ls->core().m_ConnectionLock);
         ns = new CUDTSocket(*ls);
         // No need to check the peer, this is the address from which the request has come.
         ns->m_PeerAddr = peer;
@@ -602,7 +757,7 @@ int srt::CUDTUnited::newConnection(const SRTSOCKET     listen,
         HLOGC(cnlog.Debug, log <<
                 "newConnection: incoming " << peer.str() << ", mapping socket " << ns->m_SocketID);
         {
-            ScopedLock cg(m_GlobControlLock);
+            ExclusiveLock cg(m_GlobControlLock);
             m_Sockets[ns->m_SocketID] = ns;
         }
 
@@ -651,12 +806,15 @@ int srt::CUDTUnited::newConnection(const SRTSOCKET     listen,
 
     {
         // protect the m_PeerRec structure (and group existence)
-        ScopedLock glock(m_GlobControlLock);
+        ExclusiveLock glock(m_GlobControlLock);
         try
         {
             HLOGC(cnlog.Debug, log << "newConnection: mapping peer " << ns->m_PeerID
                     << " to that socket (" << ns->m_SocketID << ")");
             m_PeerRec[ns->getPeerSpec()].insert(ns->m_SocketID);
+
+            LOGC(cnlog.Note, log << "@" << ns->m_SocketID << " connection on listener @" << listen
+                << " (" << ns->m_SelfAddr.str() << ") from peer @" << ns->m_PeerID << " (" << peer.str() << ")");
         }
         catch (...)
         {
@@ -714,10 +872,10 @@ int srt::CUDTUnited::newConnection(const SRTSOCKET     listen,
                 g->m_bConnected = true;
             }
 
-            // XXX PROLBEM!!! These events are subscribed here so that this is done once, lazily,
+            // XXX PROBLEM!!! These events are subscribed here so that this is done once, lazily,
             // but groupwise connections could be accepted from multiple listeners for the same group!
             // m_listener MUST BE A CONTAINER, NOT POINTER!!!
-            // ALSO: Maybe checking "the same listener" is not necessary as subscruption may be done
+            // ALSO: Maybe checking "the same listener" is not necessary as subscription may be done
             // multiple times anyway?
             if (!g->m_listener)
             {
@@ -764,7 +922,7 @@ int srt::CUDTUnited::newConnection(const SRTSOCKET     listen,
         enterCS(ls->m_AcceptLock);
         try
         {
-            ls->m_QueuedSockets.insert(ns->m_SocketID);
+            ls->m_QueuedSockets[ns->m_SocketID] = ns->m_PeerAddr;
         }
         catch (...)
         {
@@ -822,7 +980,7 @@ ERR_ROLLBACK:
         // connect() in UDT code) may fail, in which case this socket should not be
         // further processed and should be removed.
         {
-            ScopedLock cg(m_GlobControlLock);
+            ExclusiveLock cg(m_GlobControlLock);
 
 #if ENABLE_BONDING
             if (ns->m_GroupOf)
@@ -897,7 +1055,7 @@ int srt::CUDTUnited::installConnectHook(const SRTSOCKET u, srt_connect_callback_
 SRT_SOCKSTATUS srt::CUDTUnited::getStatus(const SRTSOCKET u)
 {
     // protects the m_Sockets structure
-    ScopedLock cg(m_GlobControlLock);
+    SharedLock cg(m_GlobControlLock);
 
     sockets_t::const_iterator i = m_Sockets.find(u);
 
@@ -988,27 +1146,34 @@ int srt::CUDTUnited::listen(const SRTSOCKET u, int backlog)
     // it could have changed the state. It could be also set listen in another
     // thread, so check it out.
 
-    // do nothing if the socket is already listening
-    if (s->m_Status == SRTS_LISTENING)
-        return 0;
-
-    // a socket can listen only if is in OPENED status
-    if (s->m_Status != SRTS_OPENED)
-        throw CUDTException(MJ_NOTSUP, MN_ISUNBOUND, 0);
-
-    // [[using assert(s->m_Status == OPENED)]];
-
-    // listen is not supported in rendezvous connection setup
     if (s->core().m_config.bRendezvous)
         throw CUDTException(MJ_NOTSUP, MN_ISRENDEZVOUS, 0);
 
-    s->m_uiBackLog = backlog;
+    switch(s->m_Status)
+    {
+        case SRTS_INIT:
+            throw CUDTException(MJ_NOTSUP, MN_ISUNBOUND, 0);
+            break;
+        case SRTS_OPENED:
+            s->m_uiBackLog = backlog;
+            s->core().setListenState(); // propagates CUDTException,
+            s->m_Status = SRTS_LISTENING;
+            break;
+        case SRTS_LISTENING:
+            s->m_uiBackLog = backlog;
+            break;
+        case SRTS_CONNECTING:
+        case SRTS_CONNECTED:
+            throw CUDTException(MJ_NOTSUP, MN_ISCONNECTED, 0);
+            break;
+        case SRTS_BROKEN:
+        case SRTS_CLOSING:
+        case SRTS_CLOSED:
+        case SRTS_NONEXIST:
+            throw CUDTException(MJ_SETUP, MN_CLOSED, 0);
+            break;
+    }
 
-    // [[using assert(s->m_Status == OPENED)]]; // (still, unchanged)
-
-    s->core().setListenState(); // propagates CUDTException,
-                                // if thrown, remains in OPENED state if so.
-    s->m_Status = SRTS_LISTENING;
 
     return 0;
 }
@@ -1108,8 +1273,22 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
         }
         else if (ls->m_QueuedSockets.size() > 0)
         {
-            set<SRTSOCKET>::iterator b = ls->m_QueuedSockets.begin();
-            u                          = *b;
+            map<SRTSOCKET, sockaddr_any>::iterator b = ls->m_QueuedSockets.begin();
+
+            if (pw_addr != NULL && pw_addrlen != NULL)
+            {
+                // Check if the length of the buffer to fill the name in
+                // was large enough.
+                const int len = b->second.size();
+                if (*pw_addrlen < len)
+                {
+                    // In case when the address cannot be rewritten,
+                    // DO NOT accept, but leave the socket in the queue.
+                    throw CUDTException(MJ_NOTSUP, MN_INVAL, 0);
+                }
+            }
+
+            u = b->first;
             ls->m_QueuedSockets.erase(b);
             accepted = true;
         }
@@ -1157,7 +1336,7 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
     {
         // Put a lock to protect the group against accidental deletion
         // in the meantime.
-        ScopedLock glock(m_GlobControlLock);
+        SharedLock glock(m_GlobControlLock);
         // Check again; it's unlikely to happen, but
         // it's a theoretically possible scenario
         if (s->m_GroupOf)
@@ -1180,14 +1359,8 @@ SRTSOCKET srt::CUDTUnited::accept(const SRTSOCKET listen, sockaddr* pw_addr, int
 
     if (pw_addr != NULL && pw_addrlen != NULL)
     {
-        // Check if the length of the buffer to fill the name in
-        // was large enough.
-        const int len = s->m_PeerAddr.size();
-        if (*pw_addrlen < len)
-            throw CUDTException(MJ_NOTSUP, MN_INVAL, 0);
-
-        memcpy((pw_addr), &s->m_PeerAddr, len);
-        *pw_addrlen = len;
+        memcpy((pw_addr), s->m_PeerAddr.get(), s->m_PeerAddr.size());
+        *pw_addrlen = s->m_PeerAddr.size();
     }
 
     return u;
@@ -1395,7 +1568,7 @@ int srt::CUDTUnited::groupConnect(CUDTGroup* pg, SRT_SOCKGROUPCONFIG* targets, i
             for (size_t i = 0; i < g.m_config.size(); ++i)
             {
                 HLOGC(aclog.Debug, log << "groupConnect: OPTION @" << sid << " #" << g.m_config[i].so);
-                error_reason = "setting group-derived option: #" + Sprint(g.m_config[i].so);
+                error_reason = "group-derived option: #" + Sprint(g.m_config[i].so);
                 ns->core().setOpt(g.m_config[i].so, &g.m_config[i].value[0], (int)g.m_config[i].value.size());
             }
 
@@ -1443,13 +1616,13 @@ int srt::CUDTUnited::groupConnect(CUDTGroup* pg, SRT_SOCKGROUPCONFIG* targets, i
         }
 
         {
-            ScopedLock cs(m_GlobControlLock);
+            ExclusiveLock cs(m_GlobControlLock);
             if (m_Sockets.count(sid) == 0)
             {
                 HLOGC(aclog.Debug, log << "srt_connect_group: socket @" << sid << " deleted in process");
                 // Someone deleted the socket in the meantime?
                 // Unlikely, but possible in theory.
-                // Don't delete anyhting - it's alreay done.
+                // Don't delete anything - it's already done.
                 continue;
             }
 
@@ -1495,7 +1668,7 @@ int srt::CUDTUnited::groupConnect(CUDTGroup* pg, SRT_SOCKGROUPCONFIG* targets, i
             }
         }
 
-        // XXX This should be reenabled later, this should
+        // XXX This should be re-enabled later, this should
         // be probably still in use to exchange information about
         // packets asymmetrically lost. But for no other purpose.
         /*
@@ -1549,7 +1722,7 @@ int srt::CUDTUnited::groupConnect(CUDTGroup* pg, SRT_SOCKGROUPCONFIG* targets, i
             targets[tii].errorcode = e.getErrorCode();
             targets[tii].id        = CUDT::INVALID_SOCK;
 
-            ScopedLock cl(m_GlobControlLock);
+            ExclusiveLock cl(m_GlobControlLock);
             ns->removeFromGroup(false);
             m_Sockets.erase(ns->m_SocketID);
             // Intercept to delete the socket on failure.
@@ -1561,7 +1734,7 @@ int srt::CUDTUnited::groupConnect(CUDTGroup* pg, SRT_SOCKGROUPCONFIG* targets, i
             LOGC(aclog.Fatal, log << "groupConnect: IPE: UNKNOWN EXCEPTION from connectIn");
             targets[tii].errorcode = SRT_ESYSOBJ;
             targets[tii].id        = CUDT::INVALID_SOCK;
-            ScopedLock cl(m_GlobControlLock);
+            ExclusiveLock cl(m_GlobControlLock);
             ns->removeFromGroup(false);
             m_Sockets.erase(ns->m_SocketID);
             // Intercept to delete the socket on failure.
@@ -1625,7 +1798,7 @@ int srt::CUDTUnited::groupConnect(CUDTGroup* pg, SRT_SOCKGROUPCONFIG* targets, i
             // pending, about to be broken, and srt_connect() is called again?
             // SHOULD BLOCK the latter, even though is OPEN.
             // Or, OPEN should be removed from here and srt_connect(_group)
-            // should block always if the group doesn't have neither 1 conencted link
+            // should block always if the group doesn't have neither 1 connected link
             g.m_bOpened = true;
 
             g.m_stats.tsLastSampleTime = steady_clock::now();
@@ -1821,7 +1994,7 @@ int srt::CUDTUnited::groupConnect(CUDTGroup* pg, SRT_SOCKGROUPCONFIG* targets, i
     // function will still be polling sockets to determine the last man
     // standing. Each one could, however, break by a different reason,
     // for example, one by timeout, another by wrong passphrase. Check
-    // the `errorcode` field to determine the reaon for particular link.
+    // the `errorcode` field to determine the reason for particular link.
     if (retval == -1)
         throw CUDTException(MJ_CONNECTION, MN_CONNLOST, 0);
 
@@ -1858,7 +2031,12 @@ int srt::CUDTUnited::connectIn(CUDTSocket* s, const sockaddr_any& target_addr, i
     }
     else
     {
-        if (s->m_Status != SRTS_OPENED)
+        // Only SRTS_OPENED status is otherwise expected.
+        // Although depending on the state, different type of errors
+        if (int(s->m_Status) >= SRTS_BROKEN) // BROKEN, CLOSING, CLOSED, NONEXIST
+            throw CUDTException(MJ_SETUP, MN_CLOSED, 0);
+
+        if (s->m_Status != SRTS_OPENED) // LISTENING, CONNECTING, CONNECTED
             throw CUDTException(MJ_NOTSUP, MN_ISCONNECTED, 0);
 
         // status = SRTS_OPENED, so family should be known already.
@@ -1906,11 +2084,28 @@ int srt::CUDTUnited::close(const SRTSOCKET u)
         return 0;
     }
 #endif
-    CUDTSocket* s = locateSocket(u);
-    if (!s)
-        throw CUDTException(MJ_NOTSUP, MN_SIDINVAL, 0);
+#if ENABLE_HEAVY_LOGGING
+    // Wrapping the log into a destructor so that it
+    // is printed AFTER the destructor of SocketKeeper.
+    struct ScopedExitLog
+    {
+        const CUDTSocket* const ps;
+        ScopedExitLog(const CUDTSocket* p): ps(p){}
+        ~ScopedExitLog()
+        {
+            if (ps) // Could be not acquired by SocketKeeper, occasionally
+            {
+                HLOGC(smlog.Debug, log << "CUDTUnited::close/end: @" << ps->m_SocketID << " busy=" << ps->isStillBusy());
+            }
+        }
+    };
+#endif
 
-    return close(s);
+    SocketKeeper k(*this, u, ERH_THROW);
+    IF_HEAVY_LOGGING(ScopedExitLog slog(k.socket));
+    HLOGC(smlog.Debug, log << "CUDTUnited::close/begin: @" << u << " busy=" << k.socket->isStillBusy());
+
+    return close(k.socket);
 }
 
 #if ENABLE_BONDING
@@ -1918,7 +2113,7 @@ void srt::CUDTUnited::deleteGroup(CUDTGroup* g)
 {
     using srt_logging::gmlog;
 
-    srt::sync::ScopedLock cg(m_GlobControlLock);
+    srt::sync::ExclusiveLock cg(m_GlobControlLock);
     return deleteGroup_LOCKED(g);
 }
 
@@ -1963,6 +2158,9 @@ void srt::CUDTUnited::deleteGroup_LOCKED(CUDTGroup* g)
 
 int srt::CUDTUnited::close(CUDTSocket* s)
 {
+    // Set the closing flag BEFORE you attempt to acquire
+    s->setBreaking();
+
     HLOGC(smlog.Debug, log << s->core().CONID() << "CLOSE. Acquiring control lock");
     ScopedLock socket_cg(s->m_ControlLock);
     HLOGC(smlog.Debug, log << s->core().CONID() << "CLOSING (removing from listening, closing CUDT)");
@@ -2009,7 +2207,7 @@ int srt::CUDTUnited::close(CUDTSocket* s)
         HLOGC(smlog.Debug,
               log << "@" << u << "U::close done. GLOBAL CLOSE: " << s->core().CONID()
                   << "Acquiring GLOBAL control lock");
-        ScopedLock manager_cg(m_GlobControlLock);
+        ExclusiveLock manager_cg(m_GlobControlLock);
         // since "s" is located before m_GlobControlLock, locate it again in case
         // it became invalid
         // XXX This is very weird; if we state that the CUDTSocket object
@@ -2080,7 +2278,7 @@ int srt::CUDTUnited::close(CUDTSocket* s)
             // Done the other way, but still done. You can stop waiting.
             bool isgone = false;
             {
-                ScopedLock manager_cg(m_GlobControlLock);
+                SharedLock manager_cg(m_GlobControlLock);
                 isgone = m_ClosedSockets.count(u) == 0;
             }
             if (!isgone)
@@ -2482,7 +2680,7 @@ int srt::CUDTUnited::epoll_release(const int eid)
 
 srt::CUDTSocket* srt::CUDTUnited::locateSocket(const SRTSOCKET u, ErrorHandling erh)
 {
-    ScopedLock  cg(m_GlobControlLock);
+    SharedLock cg(m_GlobControlLock);
     CUDTSocket* s = locateSocket_LOCKED(u);
     if (!s)
     {
@@ -2510,7 +2708,7 @@ srt::CUDTSocket* srt::CUDTUnited::locateSocket_LOCKED(SRTSOCKET u)
 #if ENABLE_BONDING
 srt::CUDTGroup* srt::CUDTUnited::locateAcquireGroup(SRTSOCKET u, ErrorHandling erh)
 {
-    ScopedLock cg(m_GlobControlLock);
+    SharedLock cg(m_GlobControlLock);
 
     const groups_t::iterator i = m_Groups.find(u);
     if (i == m_Groups.end())
@@ -2527,7 +2725,7 @@ srt::CUDTGroup* srt::CUDTUnited::locateAcquireGroup(SRTSOCKET u, ErrorHandling e
 
 srt::CUDTGroup* srt::CUDTUnited::acquireSocketsGroup(CUDTSocket* s)
 {
-    ScopedLock cg(m_GlobControlLock);
+    SharedLock cg(m_GlobControlLock);
     CUDTGroup* g = s->m_GroupOf;
     if (!g)
         return NULL;
@@ -2539,9 +2737,48 @@ srt::CUDTGroup* srt::CUDTUnited::acquireSocketsGroup(CUDTSocket* s)
 }
 #endif
 
+srt::CUDTSocket* srt::CUDTUnited::locateAcquireSocket(SRTSOCKET u, ErrorHandling erh)
+{
+    SharedLock cg(m_GlobControlLock);
+
+    CUDTSocket* s = locateSocket_LOCKED(u);
+    if (!s)
+    {
+        if (erh == ERH_THROW)
+            throw CUDTException(MJ_NOTSUP, MN_SIDINVAL, 0);
+        return NULL;
+    }
+
+    s->apiAcquire();
+    return s;
+}
+
+bool srt::CUDTUnited::acquireSocket(CUDTSocket* s)
+{
+    // Note that before using this function you must be certain
+    // that the socket isn't broken already and it still has at least
+    // one more GC cycle to live. In other words, you must be certain
+    // that this pointer passed here isn't dangling and was obtained
+    // directly from m_Sockets, or even better, has been acquired
+    // by some other functionality already, which is only about to
+    // be released earlier than you need.
+    SharedLock cg(m_GlobControlLock);
+    s->apiAcquire();
+    // Keep the lock so that no one changes anything in the meantime.
+    // If the socket m_Status == SRTS_CLOSED (set by setClosed()), then
+    // this socket is no longer present in the m_Sockets container
+    if (s->m_Status >= SRTS_BROKEN)
+    {
+        s->apiRelease();
+        return false;
+    }
+
+    return true;
+}
+
 srt::CUDTSocket* srt::CUDTUnited::locatePeer(const sockaddr_any& peer, const SRTSOCKET id, int32_t isn)
 {
-    ScopedLock cg(m_GlobControlLock);
+    SharedLock cg(m_GlobControlLock);
 
     map<int64_t, set<SRTSOCKET> >::iterator i = m_PeerRec.find(CUDTSocket::getPeerSpec(id, isn));
     if (i == m_PeerRec.end())
@@ -2565,7 +2802,7 @@ srt::CUDTSocket* srt::CUDTUnited::locatePeer(const sockaddr_any& peer, const SRT
 
 void srt::CUDTUnited::checkBrokenSockets()
 {
-    ScopedLock cg(m_GlobControlLock);
+    ExclusiveLock cg(m_GlobControlLock);
 
 #if ENABLE_BONDING
     vector<SRTSOCKET> delgids;
@@ -2605,26 +2842,29 @@ void srt::CUDTUnited::checkBrokenSockets()
 
         if (s->m_Status == SRTS_LISTENING)
         {
-            const steady_clock::duration elapsed = steady_clock::now() - s->m_tsClosureTimeStamp;
+            const steady_clock::duration elapsed = steady_clock::now() - s->m_tsClosureTimeStamp.load();
             // A listening socket should wait an extra 3 seconds
             // in case a client is connecting.
             if (elapsed < milliseconds_from(CUDT::COMM_CLOSE_BROKEN_LISTENER_TIMEOUT_MS))
                 continue;
         }
-        else if ((s->core().m_pRcvBuffer != NULL)
-        // FIXED: calling isRcvDataAvailable() just to get the information
-        // whether there are any data waiting in the buffer,
-        // NOT WHETHER THEY ARE ALSO READY TO PLAY at the time when
-        // this function is called (isRcvDataReady also checks if the
-        // available data is "ready to play").
-                 && s->core().m_pRcvBuffer->hasAvailablePackets())
+        else
         {
-            const int bc = s->core().m_iBrokenCounter.load();
-            if (bc > 0)
+            CUDT& u = s->core();
+
+            enterCS(u.m_RcvBufferLock);
+            bool has_avail_packets = u.m_pRcvBuffer && u.m_pRcvBuffer->hasAvailablePackets();
+            leaveCS(u.m_RcvBufferLock);
+
+            if (has_avail_packets)
             {
-                // if there is still data in the receiver buffer, wait longer
-                s->core().m_iBrokenCounter.store(bc - 1);
-                continue;
+                const int bc = u.m_iBrokenCounter.load();
+                if (bc > 0)
+                {
+                    // if there is still data in the receiver buffer, wait longer
+                    s->core().m_iBrokenCounter.store(bc - 1);
+                    continue;
+                }
             }
         }
 
@@ -2660,31 +2900,48 @@ void srt::CUDTUnited::checkBrokenSockets()
 
     for (sockets_t::iterator j = m_ClosedSockets.begin(); j != m_ClosedSockets.end(); ++j)
     {
+        CUDTSocket* ps = j->second;
+
+        // NOTE: There is still a hypothetical risk here that ps
+        // was made busy while the socket was already moved to m_ClosedSocket,
+        // if the socket was acquired through CUDTUnited::acquireSocket (that is,
+        // busy flag acquisition was done through the CUDTSocket* pointer rather
+        // than through the numeric ID). Therefore this way of busy acquisition
+        // should be done only if at the moment of acquisition there are certainly
+        // other conditions applying on the socket that prevent it from being deleted.
+        if (ps->isStillBusy())
+        {
+            HLOGC(smlog.Debug, log << "checkBrokenSockets: @" << ps->m_SocketID << " is still busy, SKIPPING THIS CYCLE.");
+            continue;
+        }
+
+        CUDT& u = ps->core();
+
         // HLOGC(smlog.Debug, log << "checking CLOSED socket: " << j->first);
-        if (!is_zero(j->second->core().m_tsLingerExpiration))
+        if (!is_zero(u.m_tsLingerExpiration))
         {
             // asynchronous close:
-            if ((!j->second->core().m_pSndBuffer) || (0 == j->second->core().m_pSndBuffer->getCurrBufSize()) ||
-                (j->second->core().m_tsLingerExpiration <= steady_clock::now()))
+            if ((!u.m_pSndBuffer) || (0 == u.m_pSndBuffer->getCurrBufSize()) ||
+                (u.m_tsLingerExpiration <= steady_clock::now()))
             {
-                HLOGC(smlog.Debug, log << "checkBrokenSockets: marking CLOSED qualified @" << j->second->m_SocketID);
-                j->second->core().m_tsLingerExpiration = steady_clock::time_point();
-                j->second->core().m_bClosing           = true;
-                j->second->m_tsClosureTimeStamp        = steady_clock::now();
+                HLOGC(smlog.Debug, log << "checkBrokenSockets: marking CLOSED qualified @" << ps->m_SocketID);
+                u.m_tsLingerExpiration = steady_clock::time_point();
+                u.m_bClosing           = true;
+                ps->m_tsClosureTimeStamp        = steady_clock::now();
             }
         }
 
         // timeout 1 second to destroy a socket AND it has been removed from
         // RcvUList
         const steady_clock::time_point now        = steady_clock::now();
-        const steady_clock::duration   closed_ago = now - j->second->m_tsClosureTimeStamp;
+        const steady_clock::duration   closed_ago = now - ps->m_tsClosureTimeStamp.load();
         if (closed_ago > seconds_from(1))
         {
-            CRNode* rnode = j->second->core().m_pRNode;
+            CRNode* rnode = u.m_pRNode;
             if (!rnode || !rnode->m_bOnList)
             {
                 HLOGC(smlog.Debug,
-                      log << "checkBrokenSockets: @" << j->second->m_SocketID << " closed "
+                      log << "checkBrokenSockets: @" << ps->m_SocketID << " closed "
                           << FormatDuration(closed_ago) << " ago and removed from RcvQ - will remove");
 
                 // HLOGC(smlog.Debug, log << "will unref socket: " << j->first);
@@ -2727,6 +2984,14 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
     if (rn && rn->m_bOnList)
         return;
 
+    if (s->isStillBusy())
+    {
+        HLOGC(smlog.Debug, log << "@" << s->m_SocketID << " is still busy, NOT deleting");
+        return;
+    }
+
+    HLOGC(smlog.Note, log << "@" << s->m_SocketID << " busy=" << s->isStillBusy());
+
 #if ENABLE_BONDING
     if (s->m_GroupOf)
     {
@@ -2743,23 +3008,24 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
 
         // if it is a listener, close all un-accepted sockets in its queue
         // and remove them later
-        for (set<SRTSOCKET>::iterator q = s->m_QueuedSockets.begin(); q != s->m_QueuedSockets.end(); ++q)
+        for (map<SRTSOCKET, sockaddr_any>::iterator q = s->m_QueuedSockets.begin();
+                q != s->m_QueuedSockets.end(); ++ q)
         {
-            sockets_t::iterator si = m_Sockets.find(*q);
+            sockets_t::iterator si = m_Sockets.find(q->first);
             if (si == m_Sockets.end())
             {
                 // gone in the meantime
                 LOGC(smlog.Error,
-                     log << "removeSocket: IPE? socket @" << (*q) << " being queued for listener socket @"
-                         << s->m_SocketID << " is GONE in the meantime ???");
+                     log << "removeSocket: IPE? socket @" << (q->first) << " being queued for listener socket @"
+                        << s->m_SocketID << " is GONE in the meantime ???");
                 continue;
             }
 
             CUDTSocket* as = si->second;
 
             as->breakSocket_LOCKED();
-            m_ClosedSockets[*q] = as;
-            m_Sockets.erase(*q);
+            m_ClosedSockets[q->first] = as;
+            m_Sockets.erase(q->first);
         }
     }
 
@@ -2782,8 +3048,20 @@ void srt::CUDTUnited::removeSocket(const SRTSOCKET u)
     // delete this one
     m_ClosedSockets.erase(i);
 
+   // XXX This below section can unlock m_GlobControlLock
+   // just for calling CUDT::closeInternal(), which is needed
+   // to avoid locking m_ConnectionLock after m_GlobControlLock,
+   // while m_ConnectionLock orders BEFORE m_GlobControlLock.
+   // This should be perfectly safe thing to do after the socket
+   // ID has been erased from m_ClosedSockets. No container access
+   // is done in this case.
+   //
+   // Report: P04-1.28, P04-2.27, P04-2.50, P04-2.55
+
     HLOGC(smlog.Debug, log << "GC/removeSocket: closing associated UDT @" << u);
+    leaveCS(m_GlobControlLock);
     s->core().closeInternal();
+    enterCS(m_GlobControlLock);
     HLOGC(smlog.Debug, log << "GC/removeSocket: DELETING SOCKET @" << u);
     delete s;
     HLOGC(smlog.Debug, log << "GC/removeSocket: socket @" << u << " DELETED. Checking muxer.");
@@ -2878,8 +3156,9 @@ bool srt::CUDTUnited::channelSettingsMatch(const CSrtMuxerConfig& cfgMuxer, cons
 
 void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, const UDPSOCKET* udpsock /*[[nullable]]*/)
 {
-    ScopedLock cg(m_GlobControlLock);
-
+    const int         port      = reqaddr.hport();
+    ExclusiveLock cg(m_GlobControlLock);
+  
     // If udpsock is provided, then this socket will be simply
     // taken for binding as a good deal. It would be nice to make
     // a sanity check to see if this UDP socket isn't already installed
@@ -2889,7 +3168,6 @@ void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, cons
     {
         // If not, we need to see if there exist already a multiplexer bound
         // to the same endpoint.
-        const int         port      = reqaddr.hport();
         const CSrtConfig& cfgSocket = s->core().m_config;
 
         // This loop is going to check the attempted binding of
@@ -2909,7 +3187,7 @@ void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, cons
         bool reuse_attempt = false;
         for (map<int, CMultiplexer>::iterator i = m_mMultiplexer.begin(); i != m_mMultiplexer.end(); ++i)
         {
-            CMultiplexer& m = i->second;
+            CMultiplexer const& m = i->second;
 
             // First, we need to find a multiplexer with the same port.
             if (m.m_iPort != port)
@@ -3057,7 +3335,7 @@ void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, cons
             {
                 LOGC(smlog.Error,
                      log << "bind: Wildcard address: " << reqaddr.str()
-                         << " conflicts with existting IP binding: " << mux_addr.str());
+                         << " conflicts with existing IP binding: " << mux_addr.str());
                 throw CUDTException(MJ_NOTSUP, MN_BUSYPORT, 0);
             }
             // If this is bound to a certain address, AND:
@@ -3106,6 +3384,8 @@ void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, cons
             SRT_ASSERT(false);
         }
     }
+
+
 
     // a new multiplexer is needed
     CMultiplexer m;
@@ -3162,7 +3442,7 @@ void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, cons
         // Rewrite the port here, as it might be only known upon return
         // from CChannel::open.
         m.m_iPort               = installMuxer((s), m);
-        m_mMultiplexer[m.m_iID] = m;
+        swap(m_mMultiplexer[m.m_iID],m);
     }
     catch (const CUDTException&)
     {
@@ -3175,7 +3455,7 @@ void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, cons
         throw CUDTException(MJ_SYSTEMRES, MN_MEMORY, 0);
     }
 
-    HLOGC(smlog.Debug, log << "bind: creating new multiplexer for port " << m.m_iPort);
+    HLOGC(smlog.Debug, log << "bind: creating new multiplexer for port " << port);
 }
 
 // This function is going to find a multiplexer for the port contained
@@ -3185,7 +3465,7 @@ void srt::CUDTUnited::updateMux(CUDTSocket* s, const sockaddr_any& reqaddr, cons
 // multiplexer wasn't found by id, the search by port number continues.
 bool srt::CUDTUnited::updateListenerMux(CUDTSocket* s, const CUDTSocket* ls)
 {
-    ScopedLock cg(m_GlobControlLock);
+    ExclusiveLock cg(m_GlobControlLock);
     const int  port = ls->m_SelfAddr.hport();
 
     HLOGC(smlog.Debug,
@@ -3286,66 +3566,6 @@ void* srt::CUDTUnited::garbageCollect(void* p)
         HLOGC(inlog.Debug, log << "GC: sleep 1 s");
         self->m_GCStopCond.wait_for(gclock, seconds_from(1));
     }
-
-    // remove all sockets and multiplexers
-    HLOGC(inlog.Debug, log << "GC: GLOBAL EXIT - releasing all pending sockets. Acquring control lock...");
-
-    {
-        ScopedLock glock(self->m_GlobControlLock);
-
-        for (sockets_t::iterator i = self->m_Sockets.begin(); i != self->m_Sockets.end(); ++i)
-        {
-            CUDTSocket* s = i->second;
-            s->breakSocket_LOCKED();
-
-#if ENABLE_BONDING
-            if (s->m_GroupOf)
-            {
-                HLOGC(smlog.Debug,
-                      log << "@" << s->m_SocketID << " IS MEMBER OF $" << s->m_GroupOf->id()
-                          << " (IPE?) - REMOVING FROM GROUP");
-                s->removeFromGroup(false);
-            }
-#endif
-            self->m_ClosedSockets[i->first] = s;
-
-            // remove from listener's queue
-            sockets_t::iterator ls = self->m_Sockets.find(s->m_ListenSocket);
-            if (ls == self->m_Sockets.end())
-            {
-                ls = self->m_ClosedSockets.find(s->m_ListenSocket);
-                if (ls == self->m_ClosedSockets.end())
-                    continue;
-            }
-
-            enterCS(ls->second->m_AcceptLock);
-            ls->second->m_QueuedSockets.erase(s->m_SocketID);
-            leaveCS(ls->second->m_AcceptLock);
-        }
-        self->m_Sockets.clear();
-
-        for (sockets_t::iterator j = self->m_ClosedSockets.begin(); j != self->m_ClosedSockets.end(); ++j)
-        {
-            j->second->m_tsClosureTimeStamp = steady_clock::time_point();
-        }
-    }
-
-    HLOGC(inlog.Debug, log << "GC: GLOBAL EXIT - releasing all CLOSED sockets.");
-    while (true)
-    {
-        self->checkBrokenSockets();
-
-        enterCS(self->m_GlobControlLock);
-        bool empty = self->m_ClosedSockets.empty();
-        leaveCS(self->m_GlobControlLock);
-
-        if (empty)
-            break;
-
-        HLOGC(inlog.Debug, log << "GC: checkBrokenSockets didn't wipe all sockets, repeating after 1s sleep");
-        srt::sync::this_thread::sleep_for(milliseconds_from(1));
-    }
-
     THREAD_EXIT();
     return NULL;
 }
@@ -3354,6 +3574,14 @@ void* srt::CUDTUnited::garbageCollect(void* p)
 
 int srt::CUDT::startup()
 {
+#if HAVE_PTHREAD_ATFORK
+    static bool registered = false;
+    if (!registered)
+    {
+        pthread_atfork(NULL, NULL, (void (*)()) srt::CUDT::cleanupAtFork);
+        registered = true;
+    }
+#endif 
     return uglobal().startup();
 }
 
@@ -3362,11 +3590,17 @@ int srt::CUDT::cleanup()
     return uglobal().cleanup();
 }
 
+int srt::CUDT::cleanupAtFork()
+{
+    CUDTUnited &context = uglobal();
+    context.cleanupAtFork();
+    new (&context) CUDTUnited();
+
+    return context.startup();
+}
+
 SRTSOCKET srt::CUDT::socket()
 {
-    if (!uglobal().m_bGCStatus)
-        uglobal().startup();
-
     try
     {
         return uglobal().newSocket();
@@ -3414,16 +3648,12 @@ srt::CUDTGroup& srt::CUDT::newGroup(const int type)
 
 SRTSOCKET srt::CUDT::createGroup(SRT_GROUP_TYPE gt)
 {
-    // Doing the same lazy-startup as with srt_create_socket()
-    if (!uglobal().m_bGCStatus)
-        uglobal().startup();
-
     try
     {
-        srt::sync::ScopedLock globlock(uglobal().m_GlobControlLock);
+        srt::sync::ExclusiveLock globlock(uglobal().m_GlobControlLock);
         return newGroup(gt).id();
         // Note: potentially, after this function exits, the group
-        // could be deleted, immediately, from a separate thread (tho
+        // could be deleted, immediately, from a separate thread (though
         // unlikely because the other thread would need some handle to
         // keep it). But then, the first call to any API function would
         // return invalid ID error.
@@ -3476,7 +3706,7 @@ SRTSOCKET srt::CUDT::getGroupOfSocket(SRTSOCKET socket)
 {
     // Lock this for the whole function as we need the group
     // to persist the call.
-    ScopedLock  glock(uglobal().m_GlobControlLock);
+    SharedLock glock(uglobal().m_GlobControlLock);
     CUDTSocket* s = uglobal().locateSocket_LOCKED(socket);
     if (!s || !s->m_GroupOf)
         return APIError(MJ_NOTSUP, MN_INVAL, 0);
@@ -3793,7 +4023,7 @@ int srt::CUDT::getsockopt(SRTSOCKET u, int, SRT_SOCKOPT optname, void* pw_optval
 
 int srt::CUDT::setsockopt(SRTSOCKET u, int, SRT_SOCKOPT optname, const void* optval, int optlen)
 {
-    if (!optval)
+    if (!optval || optlen < 0)
         return APIError(MJ_NOTSUP, MN_INVAL, 0);
 
     try

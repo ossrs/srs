@@ -230,18 +230,6 @@ bool srt::sync::Mutex::try_lock()
     return (pthread_mutex_trylock(&m_mutex) == 0);
 }
 
-srt::sync::ScopedLock::ScopedLock(Mutex& m)
-    : m_mutex(m)
-{
-    m_mutex.lock();
-}
-
-srt::sync::ScopedLock::~ScopedLock()
-{
-    m_mutex.unlock();
-}
-
-
 srt::sync::UniqueLock::UniqueLock(Mutex& m)
     : m_Mutex(m)
 {
@@ -300,15 +288,33 @@ Condition::~Condition() {}
 void Condition::init()
 {
     pthread_condattr_t* attr = NULL;
-#if SRT_SYNC_CLOCK == SRT_SYNC_CLOCK_GETTIME_MONOTONIC
+#if SRT_SYNC_CLOCK == SRT_SYNC_CLOCK_GETTIME_MONOTONIC && HAVE_PTHREAD_CONDATTR_SETCLOCK
     pthread_condattr_t  CondAttribs;
     pthread_condattr_init(&CondAttribs);
-    pthread_condattr_setclock(&CondAttribs, CLOCK_MONOTONIC);
+    if (pthread_condattr_setclock(&CondAttribs, CLOCK_MONOTONIC) != 0)
+    {
+        pthread_condattr_destroy(&CondAttribs);
+        LOGC(inlog.Fatal, log << "IPE: pthread_condattr_setclock failed to set up a monotonic clock for a CV");
+    }
     attr = &CondAttribs;
 #endif
     const int res = pthread_cond_init(&m_cv, attr);
+#if SRT_SYNC_CLOCK == SRT_SYNC_CLOCK_GETTIME_MONOTONIC && HAVE_PTHREAD_CONDATTR_SETCLOCK
+    if (attr != NULL)
+    {
+        pthread_condattr_destroy(attr);
+    }
+#endif
     if (res != 0)
         throw std::runtime_error("pthread_cond_init monotonic failed");
+}
+
+void Condition::reset()
+{
+
+    pthread_cond_t  temp = PTHREAD_COND_INITIALIZER;
+    memcpy(&m_cv, (void *) &temp, sizeof(m_cv));
+    init();
 }
 
 void Condition::destroy()
@@ -324,7 +330,7 @@ void Condition::wait(UniqueLock& lock)
 bool Condition::wait_for(UniqueLock& lock, const steady_clock::duration& rel_time)
 {
     timespec timeout;
-#if SRT_SYNC_CLOCK == SRT_SYNC_CLOCK_GETTIME_MONOTONIC
+#if SRT_SYNC_CLOCK == SRT_SYNC_CLOCK_GETTIME_MONOTONIC && HAVE_PTHREAD_CONDATTR_SETCLOCK
     clock_gettime(CLOCK_MONOTONIC, &timeout);
     const uint64_t now_us = timeout.tv_sec * uint64_t(1000000) + (timeout.tv_nsec / 1000);
 #else
@@ -372,6 +378,7 @@ void Condition::notify_all()
 srt::sync::CThread::CThread()
 {
     m_thread = pthread_t();
+    m_pid = getpid();
 }
 
 srt::sync::CThread::CThread(void *(*start_routine) (void *), void *arg)
@@ -393,20 +400,20 @@ srt::sync::CThread& srt::sync::CThread::operator=(CThread& other)
         LOGC(inlog.Error, log << "IPE: Assigning to a thread that is not terminated!");
 
 #ifndef DEBUG
-#ifndef __ANDROID__
+#if !defined(__ANDROID__) && !defined(__OHOS__)
         // In case of production build the hanging thread should be terminated
         // to avoid hang ups and align with C++11 implementation.
         // There is no pthread_cancel on Android. See #1476. This error should not normally
         // happen, but if it happen, then detaching the thread.
         pthread_cancel(m_thread);
-#endif // __ANDROID__
+#endif // __ANDROID__ __OHOS__
 #else
         join();
 #endif
     }
-
     // Move thread handler from other
     m_thread = other.m_thread;
+    m_pid = other.m_pid;
     other.m_thread = pthread_t();
     return *this;
 }
@@ -421,24 +428,27 @@ void srt::sync::CThread::create_thread(void *(*start_routine) (void *), void *ar
 
 bool srt::sync::CThread::joinable() const
 {
-    return !pthread_equal(m_thread, pthread_t());
+    return m_pid == getpid() && !pthread_equal(m_thread, pthread_t());
 }
 
 void srt::sync::CThread::join()
 {
-    void *retval;
-    const int ret SRT_ATR_UNUSED = pthread_join(m_thread, &retval);
-    if (ret != 0)
-    {
-        LOGC(inlog.Error, log << "pthread_join failed with " << ret);
-    }
+	if (joinable())
+	{
+        void *retval;
+        const int ret SRT_ATR_UNUSED = pthread_join(m_thread, &retval);
+        if (ret != 0)
+        {
+            LOGC(inlog.Error, log << "pthread_join failed with " << ret << " (" << m_thread << ")");
+        }
 #ifdef HEAVY_LOGGING
-    else
-    {
-        HLOGC(inlog.Debug, log << "pthread_join SUCCEEDED");
-    }
+        else
+        {
+            HLOGC(inlog.Debug, log << "pthread_join SUCCEEDED");
+        }
 #endif
-    // After joining, joinable should be false
+        // After joining, joinable should be false
+	}
     m_thread = pthread_t();
     return;
 }
@@ -451,6 +461,7 @@ void srt::sync::CThread::create(void *(*start_routine) (void *), void *arg)
         LOGC(inlog.Error, log << "pthread_create failed with " << st);
         throw CThreadException(MJ_SYSTEMRES, MN_THREAD, 0);
     }
+    m_pid = getpid();
 }
 
 
@@ -556,7 +567,7 @@ CUDTException& GetThreadLocalError()
 {
     // In POSIX version we take into account the possibility
     // of having an allocation error here. Therefore we need to
-    // allow thie value to return NULL and have some fallback
+    // allow this value to return NULL and have some fallback
     // for that case. The dynamic memory allocation failure should
     // be the only case as to why it is unable to get the pointer
     // to the error description.

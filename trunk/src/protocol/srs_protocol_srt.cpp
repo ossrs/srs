@@ -128,6 +128,15 @@ srs_error_t srs_srt_log_initialize()
     return err;
 }
 
+// Release the libsrt global resources, which closes the remaining SRT sockets and joins the internal worker threads.
+// SRS starts libsrt lazily and never stopped it, so its worker threads outlived the libsrt global objects that are
+// destroyed at exit. Since libsrt 1.5.6, ~LogDispatcher resets its config pointer to NULL, so a worker thread that
+// logs while the process is tearing down may dereference it and crash. Always stop libsrt before returning from main.
+void srs_srt_cleanup()
+{
+    srt_cleanup();
+}
+
 srs_srt_t srs_srt_socket_invalid()
 {
     return SRT_INVALID_SOCK;

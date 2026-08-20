@@ -148,7 +148,7 @@ typedef struct tag_CRYSPR_methods {
 
         /*
         * km_setkey:
-        * Set the Key Encypting Key for Wrap (Encryption) or UnWrap (Decryption).
+        * Set the Key Encrypting Key for Wrap (Encryption) or UnWrap (Decryption).
         * Context (ctx) tells if it's for Wrap or Unwrap
         * A Context flags (ctx->flags) also tells if this is for wrap(encryption) or unwrap(decryption) context (HCRYPT_CTX_F_ENCRYPT)
         */

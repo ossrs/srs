@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v6-changes"></a>
 
 ## SRS 6.0 Changelog
+* v6.0, 2026-08-20, Backport [#4729](https://github.com/ossrs/srs/pull/4729): SRT: Upgrade libsrt from 1.5.3 to 1.5.6 for CVE-2026-55868/55869. v6.0.192
 * v6.0, 2026-08-12, Backport [#4712](https://github.com/ossrs/srs/pull/4712): Codex: Do not count graceful disconnects as client errors. v6.0.191
 * v6.0, 2026-08-12, Merge [#4706](https://github.com/ossrs/srs/pull/4706): RTC2RTMP: Deduplicate AVC sequence headers. v6.0.190 (#4706)
 * v6.0, 2026-08-12, Merge [#4704](https://github.com/ossrs/srs/pull/4704): Codex: Fix MP4 DVR timing for repeated DTS samples. v6.0.189 (#4704)

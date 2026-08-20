@@ -84,6 +84,25 @@ public:
     /// @return The seq. no. or -1 if the list is empty.
     int32_t popLostSeq();
 
+    template <class Stream>
+    Stream& traceState(Stream& sout) const
+    {
+        int pos = m_iHead;
+        while (pos != SRT_SEQNO_NONE)
+        {
+            sout << "[" << pos << "]:" << m_caSeq[pos].seqstart;
+            if (m_caSeq[pos].seqend != SRT_SEQNO_NONE)
+                sout << ":" << m_caSeq[pos].seqend;
+            if (m_caSeq[pos].inext == -1)
+                sout << "=|";
+            else
+                sout << "->[" << m_caSeq[pos].inext << "]";
+            sout << ", ";
+            pos = m_caSeq[pos].inext;
+        }
+        sout << " {len:" << m_iLength << " head:" << m_iHead << " last:" << m_iLastInsertPos << "}";
+        return sout;
+    }
     void traceState() const;
 
     // Debug/unittest support.
@@ -143,7 +162,7 @@ public:
 
     /// Insert a series of loss seq. no. between "seqno1" and "seqno2" into the receiver's loss list.
     /// @param [in] seqno1 sequence number starts.
-    /// @param [in] seqno2 seqeunce number ends.
+    /// @param [in] seqno2 sequence number ends.
     /// @return length of the loss record inserted (seqlen(seqno1, seqno2)), -1 on error.
     int insert(int32_t seqno1, int32_t seqno2);
 

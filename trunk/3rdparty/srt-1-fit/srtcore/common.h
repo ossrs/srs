@@ -78,8 +78,13 @@ modified by
 #endif
 
 #ifdef _DEBUG
+#if defined(SRT_ENABLE_THREADCHECK)
+#include "threadcheck.h"
+#define SRT_ASSERT(cond) ASSERT(cond)
+#else
 #include <assert.h>
 #define SRT_ASSERT(cond) assert(cond)
+#endif
 #else
 #define SRT_ASSERT(cond)
 #endif
@@ -560,7 +565,7 @@ struct EventSlot
 
 // UDT Sequence Number 0 - (2^31 - 1)
 
-// seqcmp: compare two seq#, considering the wraping
+// seqcmp: compare two seq#, considering the wrapping
 // seqlen: length from the 1st to the 2nd seq#, including both
 // seqoff: offset from the 2nd to the 1st seq#
 // incseq: increase the seq# by 1
@@ -596,7 +601,7 @@ public:
        return seqcmp(value, other.value) <= 0;
    }
 
-   // circular arithmetics
+   // circular arithmetic
    friend int operator-(const CSeqNo& c1, const CSeqNo& c2)
    {
        return seqoff(c2.value, c1.value);
@@ -1421,6 +1426,18 @@ inline std::string SrtVersionString(int version)
 }
 
 bool SrtParseConfig(const std::string& s, SrtConfig& w_config);
+
+bool checkMappedIPv4(const uint16_t* sa);
+
+inline bool checkMappedIPv4(const sockaddr_in6& sa)
+{
+    const uint16_t* addr = reinterpret_cast<const uint16_t*>(&sa.sin6_addr.s6_addr);
+    return checkMappedIPv4(addr);
+}
+
+std::string FormatLossArray(const std::vector< std::pair<int32_t, int32_t> >& lra);
+std::ostream& PrintEpollEvent(std::ostream& os, int events, int et_events = 0);
+std::string FormatValue(int value, int factor, const char* unit);
 
 } // namespace srt
 

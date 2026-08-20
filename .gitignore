@@ -46,3 +46,9 @@ cmake-build-debug
 
 /proxy
 /trunk/ide/vscode-build
+cmake
+objs
+personal-*
+bin
+.go-formarted
+.openclaw
