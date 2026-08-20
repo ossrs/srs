@@ -110,7 +110,7 @@ modified by
 //              Control Info: None
 //      2: Acknowledgement (UMSG_ACK)
 //              Add. Info:    The ACK sequence number
-//              Control Info: The sequence number to which (but not include) all the previous packets have beed received
+//              Control Info: The sequence number to which (but not include) all the previous packets have been received
 //              Optional:     RTT
 //                            RTT Variance
 //                            available receiver buffer size (in bytes)
@@ -131,7 +131,7 @@ modified by
 //      7: Message Drop Request (UMSG_DROPREQ)
 //              Add. Info:    Message ID
 //              Control Info: first sequence number of the message
-//                            last seqeunce number of the message
+//                            last sequence number of the message
 //      8: Error Signal from the Peer Side (UMSG_PEERERROR)
 //              Add. Info:    Error code
 //              Control Info: None
@@ -151,7 +151,7 @@ modified by
 //   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 //   Loss List Field Coding:
-//      For any consecutive lost seqeunce numbers that the differnece between
+//      For any consecutive lost sequence numbers that the difference between
 //      the last and first is more than 1, only record the first (a) and the
 //      the last (b) sequence numbers in the loss list field, and modify the
 //      the first bit of a to 1.
@@ -159,7 +159,7 @@ modified by
 //      the original sequence numbers in the field.
 
 #include "platform_sys.h"
-
+#include <cstddef>
 #include <cstring>
 #include "packet.h"
 #include "handshake.h"
@@ -174,15 +174,11 @@ using namespace srt_logging;
 
 namespace srt {
 
-// Set up the aliases in the constructure
+// Set up the aliases in the constructor
 CPacket::CPacket()
     : m_nHeader() // Silences GCC 12 warning "used uninitialized".
     , m_extra_pad()
     , m_data_owned(false)
-    , m_iSeqNo((int32_t&)(m_nHeader[SRT_PH_SEQNO]))
-    , m_iMsgNo((int32_t&)(m_nHeader[SRT_PH_MSGNO]))
-    , m_iTimeStamp((int32_t&)(m_nHeader[SRT_PH_TIMESTAMP]))
-    , m_iID((int32_t&)(m_nHeader[SRT_PH_ID]))
     , m_pcData((char*&)(m_PacketVector[PV_DATA].dataRef()))
 {
     m_nHeader.clear();
@@ -436,38 +432,29 @@ void CPacket::pack(UDTMessageType pkttype, const int32_t* lparam, void* rparam, 
     }
 }
 
-void CPacket::toNL()
+void CPacket::toNetworkByteOrder()
 {
-    // XXX USE HtoNLA!
+    // The payload of data packet should remain in network byte order.
     if (isControl())
     {
-        for (ptrdiff_t i = 0, n = getLength() / 4; i < n; ++i)
-            *((uint32_t*)m_pcData + i) = htonl(*((uint32_t*)m_pcData + i));
+        HtoNLA((uint32_t*) m_pcData, (const uint32_t*) m_pcData, getLength() / 4);
     }
 
-    // convert packet header into network order
+    // Convert packet header independent of packet type.
     uint32_t* p = m_nHeader;
-    for (int j = 0; j < 4; ++j)
-    {
-        *p = htonl(*p);
-        ++p;
-    }
+    HtoNLA(p, p, 4);
 }
 
-void CPacket::toHL()
+void CPacket::toHostByteOrder()
 {
-    // convert back into local host order
+    // Convert packet header independent of packet type.
     uint32_t* p = m_nHeader;
-    for (int k = 0; k < 4; ++k)
-    {
-        *p = ntohl(*p);
-        ++p;
-    }
+    NtoHLA(p, p, 4);
 
+	// The payload of data packet should remain in network byte order.
     if (isControl())
     {
-        for (ptrdiff_t l = 0, n = getLength() / 4; l < n; ++l)
-            *((uint32_t*)m_pcData + l) = ntohl(*((uint32_t*)m_pcData + l));
+        NtoHLA((uint32_t*)m_pcData, (const uint32_t*)m_pcData, getLength() / 4);
     }
 }
 
@@ -601,7 +588,7 @@ inline void SprintSpecialWord(std::ostream& os, int32_t val)
 std::string CPacket::Info()
 {
     std::ostringstream os;
-    os << "TARGET=@" << m_iID << " ";
+    os << "TARGET=@" << id() << " ";
 
     if (isControl())
     {

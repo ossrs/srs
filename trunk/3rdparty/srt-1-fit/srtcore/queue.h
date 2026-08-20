@@ -157,6 +157,7 @@ public:
     };
 
     static EReschedule rescheduleIf(bool cond) { return cond ? DO_RESCHEDULE : DONT_RESCHEDULE; }
+    void resetAtFork();
 
     /// Update the timestamp of the UDT instance on the list.
     /// @param [in] u pointer to the UDT instance
@@ -338,7 +339,7 @@ public:
 
     /// @brief Update status of connections in the pending queue.
     /// Stop connecting if TTL expires. Resend handshake request every 250 ms if no response from the peer.
-    /// @param rst result of reading from a UDP socket: received packet / nothin read / read error.
+    /// @param rst result of reading from a UDP socket: received packet / nothing read / read error.
     /// @param cst target status for pending connection: reject or proceed.
     /// @param pktIn packet received from the UDP socket.
     void updateConnStatus(EReadStatus rst, EConnectStatus cst, CUnit* unit);
@@ -367,7 +368,7 @@ private:
     /// - Sockets with expired TTL go to the 'to_remove' list and removed from the queue straight away.
     /// - If HS request is to be resent (resend 250 ms if no response from the peer) go to the 'to_process' list.
     ///
-    /// @param rst result of reading from a UDP socket: received packet / nothin read / read error.
+    /// @param rst result of reading from a UDP socket: received packet / nothing read / read error.
     /// @param cst target status for pending connection: reject or proceed.
     /// @param iDstSockID destination socket ID of the received packet.
     /// @param[in,out] toRemove stores sockets with expired TTL.
@@ -401,6 +402,7 @@ public:
     ~CSndQueue();
 
 public:
+    void resetAtFork();
     // XXX There's currently no way to access the socket ID set for
     // whatever the queue is currently working for. Required to find
     // some way to do this, possibly by having a "reverse pointer".
@@ -439,6 +441,7 @@ public:
     int sockoptQuery(int level, int type) const;
 
     void setClosing() { m_bClosing = true; }
+    void stop();
 
 private:
     static void*  worker(void* param);
@@ -469,7 +472,7 @@ public:
 private:
 
 #if ENABLE_LOGGING
-    static int m_counter;
+    static srt::sync::atomic<int> m_counter;
 #endif
 
     CSndQueue(const CSndQueue&);
@@ -486,6 +489,7 @@ public:
     ~CRcvQueue();
 
 public:
+    void resetAtFork();
     // XXX There's currently no way to access the socket ID set for
     // whatever the queue is currently working. Required to find
     // some way to do this, possibly by having a "reverse pointer".
@@ -513,8 +517,11 @@ public:
 
     int getIPversion() { return m_iIPversion; }
 
+    void removeFromLists(CUDT* u);
+
+    void stop();
 private:
-    static void*  worker(void* param);
+    static void*  worker(void* param) ATR_NOEXCEPT;
     sync::CThread m_WorkerThread;
     // Subroutines of worker
     EReadStatus    worker_RetrieveUnit(int32_t& id, CUnit*& unit, sockaddr_any& sa);
@@ -538,8 +545,9 @@ private:
 #endif
 
 private:
-    int  setListener(CUDT* u);
-    void removeListener(const CUDT* u);
+    bool setListener(CUDT* u);
+    CUDT* getListener();
+    bool removeListener(CUDT* u);
 
     void registerConnector(const SRTSOCKET&                      id,
                            CUDT*                                 u,
@@ -554,9 +562,8 @@ private:
     void storePktClone(int32_t id, const CPacket& pkt);
 
 private:
-    sync::Mutex       m_LSLock;
-    CUDT*             m_pListener;        // pointer to the (unique, if any) listening UDT entity
-    CRendezvousQueue* m_pRendezvousQueue; // The list of sockets in rendezvous mode
+    sync::CSharedObjectPtr<CUDT> m_pListener;        // pointer to the (unique, if any) listening UDT entity
+    CRendezvousQueue*            m_pRendezvousQueue; // The list of sockets in rendezvous mode
 
     std::vector<CUDT*> m_vNewEntry; // newly added entries, to be inserted
     sync::Mutex        m_IDLock;
@@ -592,9 +599,26 @@ struct CMultiplexer
         , m_pRcvQueue(NULL)
         , m_pChannel(NULL)
         , m_pTimer(NULL)
+        , m_iPort(0)
+        , m_iIPversion(0)
+        , m_iRefCount(1)
+        , m_iID(-1)
     {
     }
 
+    ~CMultiplexer()
+    {
+        if (m_pRcvQueue != NULL)
+            delete m_pRcvQueue;
+        if (m_pSndQueue != NULL)
+            delete m_pSndQueue;
+        if (m_pTimer != NULL)
+            delete m_pTimer;
+        close();
+    }
+    void resetAtFork();
+    void close();
+    void stop();
     void destroy();
 };
 

@@ -223,7 +223,7 @@ private:
     bool send_CheckIdle(const gli_t d, std::vector<SRTSOCKET>& w_wipeme, std::vector<SRTSOCKET>& w_pendingLinks);
 
 
-    /// This function checks if the member has just become idle (check if sender buffer is empty) to send a KEEPALIVE immidiatelly.
+    /// This function checks if the member has just become idle (check if sender buffer is empty) to send a KEEPALIVE immediately.
     /// @todo Check it is some abandoned logic.
     void sendBackup_CheckIdleTime(gli_t w_d);
     
@@ -247,11 +247,11 @@ private:
     /// @param[in,out] w_mc message control
     /// @param[in] currtime current time
     /// @param[in] currseq current packet sequence number
-    /// @param[out] w_nsuccessful number of members with successfull sending.
+    /// @param[out] w_nsuccessful number of members with successful sending.
     /// @param[in,out] maxActiveWeight
     /// @param[in,out] sendBackupCtx context
     /// @param[in,out] w_cx error
-    /// @return group send result: -1 if sending over all members has failed; number of bytes sent overwise.
+    /// @return group send result: -1 if sending over all members has failed; number of bytes sent otherwise.
     int sendBackup_SendOverActive(const char* buf, int len, SRT_MSGCTRL& w_mc, const steady_clock::time_point& currtime, int32_t& w_curseq,
         size_t& w_nsuccessful, uint16_t& w_maxActiveWeight, SendBackupCtx& w_sendBackupCtx, CUDTException& w_cx);
     
@@ -312,6 +312,8 @@ private:
     void sendBackup_SilenceRedundantLinks(SendBackupCtx& w_sendBackupCtx, const steady_clock::time_point& currtime);
 
     void send_CheckValidSockets();
+
+    SRT_KM_STATE getGroupEncryptionState();
 
 public:
     int recv(char* buf, int len, SRT_MSGCTRL& w_mc);
@@ -611,7 +613,7 @@ public:
 
 private:
     // Fields required for SRT_GTYPE_BACKUP groups.
-    senderBuffer_t        m_SenderBuffer;
+    senderBuffer_t        m_SenderBuffer; // This mechanism is to be removed on group-common sndbuf
     int32_t               m_iSndOldestMsgNo; // oldest position in the sender buffer
     sync::atomic<int32_t> m_iSndAckedMsgNo;
     uint32_t              m_uOPT_MinStabilityTimeout_us;
@@ -800,7 +802,7 @@ public:
     SRTU_PROPERTY_RW_CHAIN(CUDTGroup, SRT_GROUP_TYPE, type, m_type);
     SRTU_PROPERTY_RW_CHAIN(CUDTGroup, int32_t, currentSchedSequence, m_iLastSchedSeqNo);
     SRTU_PROPERTY_RRW(std::set<int>&, epollset, m_sPollID);
-    SRTU_PROPERTY_RW_CHAIN(CUDTGroup, int64_t, latency, m_iTsbPdDelay_us);
+    SRTU_PROPERTY_RW_CHAIN(CUDTGroup, int64_t, latency_us, m_iTsbPdDelay_us);
     SRTU_PROPERTY_RO(bool, closing, m_bClosing);
 };
 

@@ -71,12 +71,6 @@ modified by
 using namespace std;
 using namespace srt::sync;
 
-#if ENABLE_HEAVY_LOGGING
-namespace srt {
-static ostream& PrintEpollEvent(ostream& os, int events, int et_events = 0);
-}
-#endif
-
 namespace srt_logging
 {
     extern Logger eilog, ealog;
@@ -492,7 +486,7 @@ int srt::CEPoll::setflags(const int eid, int32_t flags)
 
 int srt::CEPoll::uwait(const int eid, SRT_EPOLL_EVENT* fdsSet, int fdsSize, int64_t msTimeOut)
 {
-    // It is allowed to call this function witn fdsSize == 0
+    // It is allowed to call this function with fdsSize == 0
     // and therefore also NULL fdsSet. This will then only report
     // the number of ready sockets, just without information which.
     if (fdsSize < 0 || (fdsSize > 0 && !fdsSet))
@@ -528,22 +522,17 @@ int srt::CEPoll::uwait(const int eid, SRT_EPOLL_EVENT* fdsSet, int fdsSize, int6
                 throw CUDTException(MJ_NOTSUP, MN_INVAL);
             }
 
-            int total = 0; // This is a list, so count it during iteration
-            CEPollDesc::enotice_t::iterator i = ed.enotice_begin();
-            while (i != ed.enotice_end())
+            CEPollDesc::enotice_t::iterator i = ed.enotice_begin(), inext;
+            int pos = 0; // This is a list, so count it during iteration
+            for (inext = i ; i != ed.enotice_end() && pos < fdsSize ; ++pos, i = inext)
             {
-                int pos = total; // previous past-the-end position
-                ++total;
-
-                if (total > fdsSize)
-                    break;
+                ++inext; // deletion-safe list loop
 
                 fdsSet[pos] = *i;
-
-                ed.checkEdge(i++); // NOTE: potentially deletes `i`
+                ed.checkEdge(i); // NOTE: potentially deletes `i`
             }
-            if (total)
-                return total;
+            if (pos) // pos is increased by 1 towards the last used position
+                return pos;
         }
 
         if ((msTimeOut >= 0) && (count_microseconds(srt::sync::steady_clock::now() - entertime) >= msTimeOut * int64_t(1000)))
@@ -955,31 +944,6 @@ int srt::CEPoll::update_events(const SRTSOCKET& uid, std::set<int>& eids, const 
 #if ENABLE_HEAVY_LOGGING
 namespace srt
 {
-
-static ostream& PrintEpollEvent(ostream& os, int events, int et_events)
-{
-    static pair<int, const char*> const namemap [] = {
-        make_pair(SRT_EPOLL_IN, "R"),
-        make_pair(SRT_EPOLL_OUT, "W"),
-        make_pair(SRT_EPOLL_ERR, "E"),
-        make_pair(SRT_EPOLL_UPDATE, "U")
-    };
-
-    int N = Size(namemap);
-
-    for (int i = 0; i < N; ++i)
-    {
-        if (events & namemap[i].first)
-        {
-            os << "[";
-            if (et_events & namemap[i].first)
-                os << "^";
-            os << namemap[i].second << "]";
-        }
-    }
-
-    return os;
-}
 
 string DisplayEpollResults(const std::map<SRTSOCKET, int>& sockset)
 {

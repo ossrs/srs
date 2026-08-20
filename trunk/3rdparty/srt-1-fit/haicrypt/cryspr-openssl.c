@@ -207,7 +207,7 @@ CRYSPR_methods *crysprOpenSSL(void)
     #if !(CRYSPR_HAS_AESCTR && CRYSPR_HAS_AESKWRAP)
         /* AES-ECB only required if cryspr has no AES-CTR and no AES KeyWrap */
         /* OpenSSL has both AESCTR and AESKWRP and the AESECB wrapper is only used
-           to test the falback methods */
+           to test the fallback methods */
         crysprOpenSSL_methods.aes_ecb_cipher = crysprOpenSSL_AES_EcbCipher;
     #endif
     #if !CRYSPR_HAS_PBKDF2

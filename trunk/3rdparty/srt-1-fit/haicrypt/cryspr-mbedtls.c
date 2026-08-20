@@ -246,7 +246,7 @@ CRYSPR_methods *crysprMbedtls(void)
     crysprMbedtls_methods.aes_ecb_cipher = crysprMbedtls_AES_EcbCipher;
 #endif
 #if !CRYSPR_HAS_PBKDF2
-    crysprMbedtls_methods.sha1_msg_digest= crysprMbedtls_SHA1_MsgDigest; //Onl required if using generic KmPbkdf2
+    crysprMbedtls_methods.sha1_msg_digest= crysprMbedtls_SHA1_MsgDigest; //Only required if using generic KmPbkdf2
 #endif
 
     //--Crypto Session (Top API)

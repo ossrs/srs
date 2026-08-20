@@ -70,6 +70,8 @@ written by
 #define SRT_VERSION_MIN(v) (0x00FF00 & (v))
 #define SRT_VERSION_PCH(v) (0x0000FF & (v))
 
+static const int SRT_OHEAD_DEFAULT_P100 = 25;
+
 // NOTE: SRT_VERSION is primarily defined in the build file.
 extern const int32_t SRT_DEF_VERSION;
 
@@ -91,7 +93,7 @@ struct CSrtMuxerConfig
     int iUDPSndBufSize; // UDP sending buffer size
     int iUDPRcvBufSize; // UDP receiving buffer size
 
-    // NOTE: this operator is not reversable. The syntax must use:
+    // NOTE: this operator is not reversible. The syntax must use:
     //  muxer_entry == socket_entry
     bool isCompatWith(const CSrtMuxerConfig& other) const
     {
@@ -142,6 +144,12 @@ public:
         memset(stor, 0, sizeof stor);
     }
 
+    StringStorage(const char* s, size_t length)
+        : len(0)
+    {
+        set(s, length);
+	}
+
     bool set(const char* s, size_t length)
     {
         if (length > SIZE)
@@ -170,7 +178,7 @@ public:
 
     std::string str() const
     {
-        return len == 0 ? std::string() : std::string(stor);
+        return len == 0 ? std::string() : std::string(stor, len);
     }
 
     const char* c_str() const
@@ -204,7 +212,7 @@ struct CSrtConfig: CSrtMuxerConfig
     static const int      COMM_RESPONSE_TIMEOUT_MS      = 5 * 1000; // 5 seconds
     static const uint32_t COMM_DEF_MIN_STABILITY_TIMEOUT_MS = 60;   // 60 ms
 
-    // Mimimum recv flight flag size is 32 packets
+    // Minimum recv flight flag size is 32 packets
     static const int    DEF_MIN_FLIGHT_PKT = 32;
     static const size_t MAX_SID_LENGTH     = 512;
     static const size_t MAX_PFILTER_LENGTH = 64;
@@ -310,7 +318,7 @@ struct CSrtConfig: CSrtMuxerConfig
         , iCryptoMode(CIPHER_MODE_AUTO)
         , llInputBW(0)
         , llMinInputBW(0)
-        , iOverheadBW(25)
+        , iOverheadBW(SRT_OHEAD_DEFAULT_P100)
         , bRcvNakReport(true)
         , iMaxReorderTolerance(0) // Sensible optimal value is 10, 0 preserves old behavior
         , uKmRefreshRatePkt(0)
@@ -331,7 +339,7 @@ struct CSrtConfig: CSrtMuxerConfig
 
         // Default congestion is "live".
         // Available builtin congestions: "file".
-        // Others can be registerred.
+        // Others can be registered.
         sCongestion.set("live", 4);
     }
 
@@ -342,6 +350,12 @@ struct CSrtConfig: CSrtMuxerConfig
     }
 
     int set(SRT_SOCKOPT optName, const void* val, int size);
+
+    bool payloadSizeFits(size_t val, int ip_family, std::string& w_errmsg) ATR_NOTHROW;
+
+    // This function returns the number of bytes that are allocated
+    // for a single packet in the sender and receiver buffer.
+    int bytesPerPkt() const { return iMSS - int(CPacket::UDP_HDR_SIZE); }
 };
 
 template <typename T>
@@ -378,6 +392,9 @@ inline bool cast_optval(const void* optval, int optlen)
     }
     return false;
 }
+
+
+int RcvBufferSizeOptionToValue(int optval, int flightflag, int mss);
 
 } // namespace srt
 

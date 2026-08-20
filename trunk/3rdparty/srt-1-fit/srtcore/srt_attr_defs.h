@@ -17,18 +17,17 @@ used by SRT library internally.
 
 // ATTRIBUTES:
 //
-// SRT_ATR_UNUSED: declare an entity ALLOWED to be unused (prevents warnings)
-// ATR_DEPRECATED: declare an entity deprecated (compiler should warn when used)
 // ATR_NOEXCEPT: The true `noexcept` from C++11, or nothing if compiling in pre-C++11 mode
 // ATR_NOTHROW: In C++11: `noexcept`. In pre-C++11: `throw()`. Required for GNU libstdc++.
 // ATR_CONSTEXPR: In C++11: `constexpr`. Otherwise empty.
 // ATR_OVERRIDE: In C++11: `override`. Otherwise empty.
 // ATR_FINAL: In C++11: `final`. Otherwise empty.
 
+
 #ifdef __GNUG__
-#define ATR_DEPRECATED __attribute__((deprecated))
+#define HAVE_GCC 1
 #else
-#define ATR_DEPRECATED
+#define HAVE_GCC 0
 #endif
 
 #if defined(__cplusplus) && __cplusplus > 199711L
@@ -36,18 +35,15 @@ used by SRT library internally.
 // For gcc 4.7, claim C++11 is supported, as long as experimental C++0x is on,
 // however it's only the "most required C++11 support".
 #if defined(__GXX_EXPERIMENTAL_CXX0X__) && __GNUC__ == 4 && __GNUC_MINOR__ >= 7 // 4.7 only!
-#define ATR_NOEXCEPT
-#define ATR_NOTHROW throw()
-#define ATR_CONSTEXPR
-#define ATR_OVERRIDE
-#define ATR_FINAL
 #else
 #define HAVE_FULL_CXX11 1
-#define ATR_NOEXCEPT noexcept
-#define ATR_NOTHROW noexcept
-#define ATR_CONSTEXPR constexpr
-#define ATR_OVERRIDE override
-#define ATR_FINAL final
+
+#if __cplusplus >= 201703L
+#define HAVE_CXX17 1
+#else
+#define HAVE_CXX17 0
+#endif
+
 #endif
 #elif defined(_MSC_VER) && _MSC_VER >= 1800
 // Microsoft Visual Studio supports C++11, but not fully,
@@ -57,26 +53,41 @@ used by SRT library internally.
 #define HAVE_CXX11 1
 #if defined(_MSC_FULL_VER) && _MSC_FULL_VER >= 190023026
 #define HAVE_FULL_CXX11 1
+
+#if __cplusplus >= 201703L
+#define HAVE_CXX17 1
+#else
+#define HAVE_CXX17 0
+#endif
+
+#endif
+#else
+#define HAVE_CXX11 0
+#define HAVE_CXX17 0
+#endif // __cplusplus
+
+#if HAVE_FULL_CXX11
 #define ATR_NOEXCEPT noexcept
 #define ATR_NOTHROW noexcept
 #define ATR_CONSTEXPR constexpr
 #define ATR_OVERRIDE override
 #define ATR_FINAL final
 #else
+// These are both for HAVE_CXX11 == 1 and 0.
 #define ATR_NOEXCEPT
 #define ATR_NOTHROW throw()
 #define ATR_CONSTEXPR
 #define ATR_OVERRIDE
 #define ATR_FINAL
 #endif
+
+#if HAVE_CXX11
+#define SRT_ATR_ALIGNAS(n) alignas(n)
+#elif HAVE_GCC
+#define SRT_ATR_ALIGNAS(n) __attribute__((aligned(n)))
 #else
-#define HAVE_CXX11 0
-#define ATR_NOEXCEPT
-#define ATR_NOTHROW throw()
-#define ATR_CONSTEXPR
-#define ATR_OVERRIDE
-#define ATR_FINAL
-#endif // __cplusplus
+#define SRT_ATR_ALIGNAS(n)
+#endif
 
 #if !HAVE_CXX11 && defined(REQUIRE_CXX11) && REQUIRE_CXX11 == 1
 #error "The currently compiled application required C++11, but your compiler doesn't support it."
@@ -110,7 +121,7 @@ used by SRT library internally.
 #define SRT_ATTR_RELEASE_GENERIC(...)
 #define SRT_ATTR_TRY_ACQUIRE(...) _Acquires_nonreentrant_lock_(expr)
 #define SRT_ATTR_TRY_ACQUIRE_SHARED(...)
-#define SRT_ATTR_EXCLUDES(...)
+#define SRT_ATTR_EXCLUDES(...) // the caller must not hold the given capabilities
 #define SRT_ATTR_ASSERT_CAPABILITY(expr)
 #define SRT_ATTR_ASSERT_SHARED_CAPABILITY(x)
 #define SRT_ATTR_RETURN_CAPABILITY(x)
@@ -171,6 +182,7 @@ used by SRT library internally.
 #define SRT_ATTR_TRY_ACQUIRE_SHARED(...) \
   THREAD_ANNOTATION_ATTRIBUTE__(try_acquire_shared_capability(__VA_ARGS__))
 
+// The caller must not hold the given capabilities.
 #define SRT_ATTR_EXCLUDES(...) \
   THREAD_ANNOTATION_ATTRIBUTE__(locks_excluded(__VA_ARGS__))
 

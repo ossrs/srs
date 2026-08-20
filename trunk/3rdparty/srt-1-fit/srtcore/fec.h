@@ -132,10 +132,10 @@ private:
 
         // Base index at the oldest column platform determines
         // the base index of the queue. Meaning, first you need
-        // to determnine the column index, where the index 0 is
+        // to determine the column index, where the index 0 is
         // the fistmost element of this queue. After determining
         // the column index, there must be also a second factor
-        // deteremined - which column series it is. So, this can
+        // determined - which column series it is. So, this can
         // start by extracting the base sequence of the element
         // at the index column. This is the series 0. Now, the
         // distance between these two sequences, divided by

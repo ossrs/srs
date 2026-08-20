@@ -21,6 +21,10 @@
 #include "cryspr-mbedtls.h"
 #define cryspr4SRT() crysprMbedtls()
 #define CRYSPR_IMPL_DESC "MbedTLS"
+#elif defined(USE_BOTAN)
+#include "cryspr-botan.h"
+#define cryspr4SRT() crysprBotan()
+#define CRYSPR_IMPL_DESC "Botan"
 #else
 #error Cryspr implementation not selected. Please define USE_* + OPENSSL/GNUTLS/MBEDTLS.
 #define CRYSPR_IMPL_DESC "No Cipher"

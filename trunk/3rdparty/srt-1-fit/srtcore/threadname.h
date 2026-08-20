@@ -103,6 +103,8 @@ class ThreadName
 #elif defined(HAVE_PTHREAD_SETNAME_NP)
     #if defined(__APPLE__)
             return pthread_setname_np(name) == 0;
+    #elif defined(__NetBSD__)
+            return pthread_setname_np(pthread_self(), "%s", name) == 0;
     #else
             return pthread_setname_np(pthread_self(), name) == 0;
     #endif
