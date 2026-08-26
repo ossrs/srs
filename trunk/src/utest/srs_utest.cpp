@@ -144,6 +144,9 @@ GTEST_API_ int main(int argc, char **argv)
     testing::InitGoogleTest(&argc, argv);
     int r0 = RUN_ALL_TESTS();
 
+    // Stop libsrt and join its worker threads, before the process destroys the libsrt global objects.
+    srs_srt_cleanup();
+
     return r0;
 }
 

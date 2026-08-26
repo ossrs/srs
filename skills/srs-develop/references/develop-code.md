@@ -6,6 +6,8 @@
 
 **Important:** The C++ media server (origin + edge) is in **maintenance mode** — only bug fixes are accepted, no new features. New server features belong in the next-generation Go server. The SRS player and Dev Docker have separate supported workflows below. You may reference the C++ server's code to understand how things were done before, but do not add features to it.
 
+**Version and changelog:** If the change bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and apply it, whichever service you routed to. For SRS that means bumping **both** version files, not only the C++ one.
+
 **Service Router** — Determine which service or product the change targets. Route to exactly ONE service. Do not guess — if unclear, ask the user to clarify.
 
 | Service | Route To | Status |

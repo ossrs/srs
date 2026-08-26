@@ -7,7 +7,7 @@ echo_help()
   echo "    -a    Target API level"
   echo "    -t    Space-separated list of target architectures"
   echo "          Android supports the following architectures: armeabi-v7a arm64-v8a x86 x86_64"
-  echo "    -e    Encryption library to be used. Possible options: openssl (default) mbedtls"
+  echo "    -e    Encryption library to be used. Possible options: openssl (default) mbedtls botan"
   echo "    -o    OpenSSL version. E.g. 1.1.1l"
   echo "    -m    Mbed TLS version. E.g. v2.26.0"
   echo
@@ -56,12 +56,7 @@ unamestr=$(uname -s)
 if [ "$unamestr" = 'Linux' ]; then
  HOST_TAG='linux-x86_64'
 elif [ "$unamestr" = 'Darwin' ]; then
- if [ $(uname -p) = 'arm' ]; then
-  echo "NDK does not currently support ARM64"
-  exit 128
- else
-  HOST_TAG='darwin-x86_64'
- fi
+ HOST_TAG='darwin-x86_64'
 fi
 
 # Write files relative to current location
@@ -84,6 +79,8 @@ elif [ $ENC_LIB = 'mbedtls' ]; then
    git -C $BASE_DIR/mbedtls checkout $MBEDTLS_VERSION
   fi
  fi
+elif [ $ENC_LIB = 'botan' ]; then
+ echo "Using Botan for encryption."
 else
  echo "Unknown encryption library. Possible options: openssl mbedtls"
  exit 128

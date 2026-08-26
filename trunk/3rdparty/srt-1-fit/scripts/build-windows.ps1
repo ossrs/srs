@@ -10,13 +10,14 @@
 ################################################################################
 
 param (
-    [Parameter()][String]$VS_VERSION = "2019",
+    [Parameter()][String]$VS_VERSION = "2022",
     [Parameter()][String]$CONFIGURATION = "Release",
     [Parameter()][String]$DEVENV_PLATFORM = "x64",
     [Parameter()][String]$ENABLE_ENCRYPTION = "OFF",
     [Parameter()][String]$STATIC_LINK_SSL = "OFF",
     [Parameter()][String]$CXX11 = "ON",
     [Parameter()][String]$BUILD_APPS = "ON",
+    [Parameter()][String]$BUILD_TESTAPPS = "OFF",
     [Parameter()][String]$UNIT_TESTS = "OFF",
     [Parameter()][String]$BUILD_DIR = "_build",
     [Parameter()][String]$VCPKG_OPENSSL = "OFF",
@@ -36,9 +37,9 @@ $projectRoot = Join-Path $PSScriptRoot "/.." -Resolve
 # if running within AppVeyor, use environment variables to set params instead of passed-in values
 if ( $Env:APPVEYOR ) { 
     if ( $Env:PLATFORM -eq 'x86' ) { $DEVENV_PLATFORM = 'Win32' } else { $DEVENV_PLATFORM = 'x64' }
+    if ( $Env:APPVEYOR_BUILD_WORKER_IMAGE -eq 'Visual Studio 2022' ) { $VS_VERSION='2022' }
     if ( $Env:APPVEYOR_BUILD_WORKER_IMAGE -eq 'Visual Studio 2019' ) { $VS_VERSION='2019' }
     if ( $Env:APPVEYOR_BUILD_WORKER_IMAGE -eq 'Visual Studio 2015' ) { $VS_VERSION='2015' }
-    if ( $Env:APPVEYOR_BUILD_WORKER_IMAGE -eq 'Visual Studio 2013' ) { $VS_VERSION='2013' }
 
     #if not statically linking OpenSSL, set flag to gather the specific openssl package from the build server into package
     if ( $STATIC_LINK_SSL -eq 'OFF' ) { $Env:GATHER_SSL_INTO_PACKAGE = $true }
@@ -48,24 +49,35 @@ if ( $Env:APPVEYOR ) {
     
     $CONFIGURATION = $Env:CONFIGURATION
 
-    #appveyor has many openssl installations - place the latest one in the default location unless VS2013
-    if( $VS_VERSION -ne '2013' ) {
-        Remove-Item -Path "C:\OpenSSL-Win32" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        Remove-Item -Path "C:\OpenSSL-Win64" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
-        Copy-Item -Path "C:\OpenSSL-v111-Win32" "C:\OpenSSL-Win32" -Recurse | Out-Null
-        Copy-Item -Path "C:\OpenSSL-v111-Win64" "C:\OpenSSL-Win64" -Recurse | Out-Null
-    }
+	# See https://www.appveyor.com/docs/windows-images-software/#visual-studio-2022
+	# According to AppVeyor environment definition:
+	#
+	# 2013 - 2017: C:\OpenSSL-Win*: v1.0.2p, C:\OpenSSL-v111-Win*: v1.1.1 (v1.1.1d for 2015+)
+	# 2019 - 2022: C:\OpenSSL-Win*: v1.1.1w  and C:\OpenSSL-v3* with version 3+
+	# SO:
+	# For 2013 - 2017: Delete C:\OpenSSL-Win* and replace it with contents of C:\OpenSSL-v111-Win*
+	# For 2019 - 2022: Do nothing.
+	# Note: No guarantee that C:\OpenSSL-Win* directories will always contain version v1.1.1+ in
+	# any future versions for AppVeyor Windows environment, but then probably the SRT project
+	# would have to be adjusted to this version anyway.
+
+	if ($VS_VERSION -lt 2019) {
+		#appveyor has many openssl installations - place the latest one in the default location unless VS2013
+		Remove-Item -Path "C:\OpenSSL-Win32" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+		Remove-Item -Path "C:\OpenSSL-Win64" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null
+		Copy-Item -Path "C:\OpenSSL-v111-Win32" "C:\OpenSSL-Win32" -Recurse | Out-Null
+		Copy-Item -Path "C:\OpenSSL-v111-Win64" "C:\OpenSSL-Win64" -Recurse | Out-Null
+	}
 }
 
 # persist VS_VERSION so it can be used in an artifact name later
 $Env:VS_VERSION = $VS_VERSION
 
 # select the appropriate cmake generator string given the environment
+if ( $VS_VERSION -eq '2022' ) { $CMAKE_GENERATOR = 'Visual Studio 17 2022'; $MSBUILDVER = "17.10"; }
 if ( $VS_VERSION -eq '2019' ) { $CMAKE_GENERATOR = 'Visual Studio 16 2019'; $MSBUILDVER = "16.0"; }
 if ( $VS_VERSION -eq '2015' -and $DEVENV_PLATFORM -eq 'Win32' ) { $CMAKE_GENERATOR = 'Visual Studio 14 2015'; $MSBUILDVER = "14.0"; }
 if ( $VS_VERSION -eq '2015' -and $DEVENV_PLATFORM -eq 'x64' ) { $CMAKE_GENERATOR = 'Visual Studio 14 2015 Win64'; $MSBUILDVER = "14.0"; }
-if ( $VS_VERSION -eq '2013' -and $DEVENV_PLATFORM -eq 'Win32' ) { $CMAKE_GENERATOR = 'Visual Studio 12 2013'; $MSBUILDVER = "12.0"; }
-if ( $VS_VERSION -eq '2013' -and $DEVENV_PLATFORM -eq 'x64' ) { $CMAKE_GENERATOR = 'Visual Studio 12 2013 Win64'; $MSBUILDVER = "12.0"; }
 
 # clear any previous build and create & enter the build directory
 $buildDir = Join-Path "$projectRoot" "$BUILD_DIR"
@@ -138,6 +150,7 @@ $cmakeFlags = "-DCMAKE_BUILD_TYPE=$CONFIGURATION " +
                 "-DENABLE_APPS=$BUILD_APPS " + 
                 "-DENABLE_ENCRYPTION=$ENABLE_ENCRYPTION " +
                 "-DENABLE_BONDING=$BONDING " +
+				"-DENABLE_TESTING=$BUILD_TESTAPPS " +
                 "-DENABLE_UNITTESTS=$UNIT_TESTS"
 
 # if VCPKG is flagged to provide OpenSSL, checkout VCPKG and install package
@@ -178,11 +191,11 @@ if ( $VCPKG_OPENSSL -eq 'ON' ) {
     $cmakeFlags += " -DCMAKE_TOOLCHAIN_FILE=$projectRoot\vcpkg\scripts\buildsystems\vcpkg.cmake"
 }
 else {    
-    $cmakeFlags += " -DOPENSSL_USE_STATIC_LIBS=$STATIC_LINK_SSL "
+    $cmakeFlags += " -DSRT_USE_OPENSSL_STATIC_LIBS=$STATIC_LINK_SSL "
 }
 
 # cmake uses a flag for architecture from vs2019, so add that as a suffix
-if ( $VS_VERSION -eq '2019' ) {    
+if ( $VS_VERSION -ge '2019' ) {    
     $cmakeFlags += " -A `"$DEVENV_PLATFORM`""
 }
 

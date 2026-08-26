@@ -322,7 +322,7 @@ Non-runtime support:
 
 ## SRT Fit Code
 
-SRT Fit (`trunk/3rdparty/srt-1-fit/`) is the vendored SRT 1.5.3 transport library used by the C++ media server's SRT listener, connections, and source. It builds `libsrt` without the upstream command-line applications and uses OpenSSL through HaiCrypt for payload encryption; the Go server does not use this tree.
+SRT Fit (`trunk/3rdparty/srt-1-fit/`) is the vendored SRT 1.5.6 transport library used by the C++ media server's SRT listener, connections, and source. It builds `libsrt` without the upstream command-line applications and uses OpenSSL through HaiCrypt for payload encryption; the Go server does not use this tree. The tree is pristine upstream source with the apps, tests, docs, examples, and CI files removed; the only SRS-local change is `trunk/3rdparty/patches/srt/api.cpp-01.patch`, applied at build time by `trunk/auto/depends.sh`.
 
 Build and portability:
 - `CMakeLists.txt` — Library version, source selection, crypto backend, build options, targets, and installation
@@ -356,4 +356,4 @@ HaiCrypt (`haicrypt/`):
 - `haicrypt.h`, `hcrypt.c`, `hcrypt_ctx_rx.c`, `hcrypt_ctx_tx.c`, `hcrypt_rx.c`, `hcrypt_tx.c` — Encryption API, key contexts, key rotation, and packet encrypt/decrypt paths
 - `hcrypt_sa.c`, `hcrypt_msg.h`, `hcrypt_xpt_srt.c` — Security associations, key messages, and SRT packet transport adapter
 - `cryspr.c`, `cryspr.h`, `cryspr-openssl*.c` — Crypto-provider abstraction and OpenSSL backends used by the SRS build
-- `cryspr-gnutls.*`, `cryspr-mbedtls.*` — Alternative crypto backends retained from upstream
+- `cryspr-gnutls.*`, `cryspr-mbedtls.*`, `cryspr-botan.*` — Alternative crypto backends retained from upstream

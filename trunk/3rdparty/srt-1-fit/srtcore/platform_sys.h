@@ -21,6 +21,20 @@
 //
 // SRT_IMPORT_TIME   (mach time on Mac, portability gettimeofday on WIN32)
 // SRT_IMPORT_EVENT  (includes kevent on Mac)
+#ifdef _WIN32
+   #ifndef __MINGW32__
+      // Explicitly define 32-bit and 64-bit numbers
+      typedef __int32 int32_t;
+      typedef __int64 int64_t;
+      typedef unsigned __int32 uint32_t;
+      #ifndef LEGACY_WIN32
+         typedef unsigned __int64 uint64_t;
+      #else
+         // VC 6.0 does not support unsigned __int64: may cause potential problems.
+         typedef __int64 uint64_t;
+      #endif
+   #endif
+#endif
 
 
 #ifdef _WIN32
@@ -54,7 +68,9 @@
 // also other macros, like TARGET_OS_IOS etc.
 
 #include "TargetConditionals.h"
+#ifndef __APPLE_USE_RFC_3542
 #define __APPLE_USE_RFC_3542 /* IPV6_PKTINFO */
+#endif
 
 #ifdef SRT_IMPORT_TIME
       #include <mach/mach_time.h>

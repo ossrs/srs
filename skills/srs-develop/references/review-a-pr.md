@@ -39,15 +39,4 @@
 ## Step 4: Apply project version and changelog rules
 
 1. Ask the user for the PR number if they haven't given it.
-2. For SRS, bump revision by one in **both** version files, keeping them in sync:
-   - `internal/version/version.go` — `VersionRevision()`
-   - `trunk/src/core/srs_core_version8.hpp` — `VERSION_REVISION`
-3. For SRS, add a new top entry to `trunk/doc/CHANGELOG.md` under `## SRS 8.0 Changelog`, matching the existing format:
-   ```
-   * v8.0, YYYY-MM-DD, Merge [#PR](URL): <Prefix>: <one-line summary>. v8.0.<rev> (#PR)
-   ```
-   Propose the summary to the user; don't invent one unilaterally.
-4. For Oryx, inspect `platform/version.go`, the newest entries under `DEVELOPER.md#changelog`, tags, and branch history before proposing a version. Do not assume the version constant and newest changelog entry are already synchronized.
-5. When the maintainer approves an Oryx version update, change `platform/version.go` and add the smallest matching entry under the current series in `DEVELOPER.md`. Do not change `releases/version.go`; its legacy `latest`, `api`, and `stable` values are a separate compatibility service unless the PR explicitly changes that service.
-6. Do not force a version bump for Oryx documentation, skill, issue-template, or maintenance-only work when the maintainer does not intend a release. Ask rather than infer.
-7. Stop and let the user review and stage the version and changelog files. After an explicit commit request, follow `SKILL.md`'s repository-aware Git Workflow.
+2. Load `references/version-and-changelog.md` and apply it. It is the single owner of the version-bump and changelog rules for both projects, including the requirement to keep the two SRS version files in sync.

@@ -66,8 +66,8 @@ public:
 
     /// Drop packets in the receiver buffer from the current position up to the seqno (excluding seqno).
     /// @param [in] seqno drop units up to this sequence number
-    /// @return  number of dropped packets.
-    int dropUpTo(int32_t seqno);
+    /// @return number of dropped (missing) and discarded (available) packets as a pair(dropped, discarded).
+    std::pair<int, int> dropUpTo(int32_t seqno);
 
     /// @brief Drop all the packets in the receiver buffer.
     /// The starting position and seqno are shifted right after the last packet in the buffer.
@@ -94,7 +94,7 @@ public:
     /// @param seqnolo sequence number of the first packet in the dropping range.
     /// @param seqnohi sequence number of the last packet in the dropping range.
     /// @param msgno message number to drop (0 if unknown)
-    /// @param actionOnExisting Should an exising SOLO packet be dropped from the buffer or preserved?
+    /// @param actionOnExisting Should an existing SOLO packet be dropped from the buffer or preserved?
     /// @return the number of packets actually dropped.
     int dropMessage(int32_t seqnolo, int32_t seqnohi, int32_t msgno, DropActionIfExists actionOnExisting);
 
@@ -162,7 +162,7 @@ public:
     int getRcvDataSize() const;
 
     /// Get the number of packets, bytes and buffer timespan.
-    /// Differs from getRcvDataSize() that it counts all packets in the buffer, not only continious.
+    /// Differs from getRcvDataSize() that it counts all packets in the buffer, not only continuous.
     int getRcvDataSize(int& bytes, int& timespan) const;
 
     struct PacketInfo
@@ -187,6 +187,11 @@ public:
 
     PacketInfo getFirstReadablePacketInfo(time_point time_now) const;
 
+    /// @brief Get the sequence number of the first packet that can't be read
+    /// (either because it is missing, or because it is a part of a bigger message
+    /// that is not fully available yet).
+    int32_t getFirstNonreadSeqNo() const;
+
     /// Get information on packets available to be read.
     /// @returns a pair of sequence numbers (first available; first unavailable).
     /// 
@@ -200,9 +205,23 @@ public:
         return (m_iMaxPosOff == 0);
     }
 
+    /// Returns the currently used number of cells, including
+    /// gaps with empty cells, or in other words, the distance
+    /// between the initial position and the youngest received packet.
+    size_t size() const
+    {
+        return m_iMaxPosOff;
+    }
+
+    // Returns true if the buffer is full. Requires locking.
+    bool full() const
+    {
+        return size() == capacity();
+    }
+
     /// Return buffer capacity.
     /// One slot had to be empty in order to tell the difference between "empty buffer" and "full buffer".
-    /// E.g. m_iFirstNonreadPos would again point to m_iStartPos if m_szSize entries are added continiously.
+    /// E.g. m_iFirstNonreadPos would again point to m_iStartPos if m_szSize entries are added continuously.
     /// TODO: Old receiver buffer capacity returns the actual size. Check for conflicts.
     size_t capacity() const
     {
@@ -239,9 +258,15 @@ private:
     inline int incPos(int pos, int inc = 1) const { return (pos + inc) % m_szSize; }
     inline int decPos(int pos) const { return (pos - 1) >= 0 ? (pos - 1) : int(m_szSize - 1); }
     inline int offPos(int pos1, int pos2) const { return (pos2 >= pos1) ? (pos2 - pos1) : int(m_szSize + pos2 - pos1); }
+
+    /// @brief Compares the two positions in the receiver buffer relative to the starting position.
+    /// @param pos2 a position in the receiver buffer.
+    /// @param pos1 a position in the receiver buffer.
+    /// @return a positive value if pos2 is ahead of pos1; a negative value, if pos2 is behind pos1; otherwise returns 0.
     inline int cmpPos(int pos2, int pos1) const
     {
-        // XXX maybe not the best implementation, but this keeps up to the rule
+        // XXX maybe not the best implementation, but this keeps up to the rule.
+        // Maybe use m_iMaxPosOff to ensure a position is not behind the m_iStartPos.
         const int off1 = pos1 >= m_iStartPos ? pos1 - m_iStartPos : pos1 + (int)m_szSize - m_iStartPos;
         const int off2 = pos2 >= m_iStartPos ? pos2 - m_iStartPos : pos2 + (int)m_szSize - m_iStartPos;
 
@@ -327,9 +352,8 @@ private:
         EntryStatus status;
     };
 
-    //static Entry emptyEntry() { return Entry { NULL, EntryState_Empty }; }
-
-    FixedArray<Entry> m_entries;
+    typedef FixedArray<Entry> entries_t;
+    entries_t m_entries;
 
     const size_t m_szSize;     // size of the array of units (buffer)
     CUnitQueue*  m_pUnitQueue; // the shared unit queue

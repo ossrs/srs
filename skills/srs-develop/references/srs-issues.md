@@ -2,6 +2,22 @@
 
 Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
+## #4727 [SECURITY] Bundled SRT 1.5.3 exposed CVE-2026-55868/55869 stack overflows
+
+- Issue: https://github.com/ossrs/srs/issues/4727
+- Truth Record: https://github.com/ossrs/srs/issues/4727#issuecomment-5356428807
+- Verified: 2026-08-20
+- Fix: PR https://github.com/ossrs/srs/pull/4729, SRS `8.0.29`, commit `5f00d0e1825b1512c670ff8c12d829841d145170`
+- Status: Fix pending merge; no v7 or v6 backport has been prepared or verified
+
+SRS vendored SRT 1.5.3 on all maintained branches. `processSrtMsg_KMREQ` and `processSrtMsg_KMRSP` copied `len/4` words into a 104-byte stack buffer with no capacity check. The enforced-encryption gate protects the handshake path, but not the post-connect `UMSG_EXT` path, which needs no passphrase — about 1352 bytes of stack overflow from any peer that completes a handshake. Exposure was limited to deployments that explicitly enable `srt_server`, which is off by default.
+
+Fixed by vendoring upstream 1.5.6. The three non-CVE fixes in 1.5.6 matter little for SRS: the LOSSREPORT and DROPREQ out-of-bounds reads stay inside the allocated packet slot, and the `dropMessage` guard is unreachable under SRS defaults.
+
+Useful for future upgrades: the fit tree is a pure subset of upstream with **zero** content modifications. The only SRS-local change is `trunk/3rdparty/patches/srt/api.cpp-01.patch`, applied at build time by `auto/depends.sh` and matched by content, so its line number drifts and should be regenerated each upgrade.
+
+Unknown: no PoC was built; reachability rests on static analysis.
+
 ## #4719 [BUG] External-SIP GB28181 sessions remain reserved after media termination
 
 - Issue: https://github.com/ossrs/srs/issues/4719

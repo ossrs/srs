@@ -28,8 +28,8 @@ int hcryptCtx_Rx_Init(hcrypt_Session *crypto, hcrypt_Ctx *ctx, const HaiCrypt_Cf
 		ctx->mode = (cfg->flags & HAICRYPT_CFG_F_GCM) ? HCRYPT_CTX_MODE_AESGCM : HCRYPT_CTX_MODE_AESCTR;
 	}
 	ctx->status = HCRYPT_CTX_S_INIT;
-
 	ctx->msg_info = crypto->msg_info;
+	ctx->use_gcm_153 = false; // Default initialization.
 
 	if (cfg && hcryptCtx_SetSecret(crypto, ctx, &cfg->secret)) {
 		return(-1);
@@ -152,24 +152,25 @@ int hcryptCtx_Rx_ParseKM(hcrypt_Session *crypto, unsigned char *km_msg, size_t m
 		return(-1);
 	}
 
+	hcrypt_Ctx new_ctx = *ctx;
 	/* Check Salt and get if new */
-	if ((salt_len != ctx->salt_len)
-	||  (0 != memcmp(ctx->salt, &km_msg[HCRYPT_MSG_KM_OFS_SALT], salt_len))) {
+	if ((salt_len != new_ctx.salt_len)
+	||  (0 != memcmp(new_ctx.salt, &km_msg[HCRYPT_MSG_KM_OFS_SALT], salt_len))) {
 		/* Salt changed (or 1st KMmsg received) */
-		memcpy(ctx->salt, &km_msg[HCRYPT_MSG_KM_OFS_SALT], salt_len);
-		ctx->salt_len = salt_len;
+		memcpy(new_ctx.salt, &km_msg[HCRYPT_MSG_KM_OFS_SALT], salt_len);
+		new_ctx.salt_len = salt_len;
 		do_pbkdf = 1; /* Impact on password derived kek */
 	}
 
 	/* Check SEK length and get if new */
-	if (sek_len != ctx->sek_len) {
+	if (sek_len != new_ctx.sek_len) {
 		/* Key length changed or 1st KMmsg received */
-		ctx->sek_len = sek_len;
+		new_ctx.sek_len = sek_len;
 		do_pbkdf = 1; /* Impact on password derived kek */
 	}
 
 	/* Check cipher mode */
-	if (ctx->mode != km_msg[HCRYPT_MSG_KM_OFS_CIPHER])
+	if (new_ctx.mode != km_msg[HCRYPT_MSG_KM_OFS_CIPHER])
 	{
 		HCRYPT_LOG(LOG_WARNING, "%s", "cipher mode mismatch\n");
 		return(-3);
@@ -179,21 +180,32 @@ int hcryptCtx_Rx_ParseKM(hcrypt_Session *crypto, unsigned char *km_msg, size_t m
 	 * Regenerate KEK if it is password derived
 	 * and Salt or SEK length changed
 	 */
-	if (ctx->cfg.pwd_len && do_pbkdf) {
-		if (hcryptCtx_GenSecret(crypto, ctx)) {
+	int rollback_kek = 0;
+	if (new_ctx.cfg.pwd_len && do_pbkdf) {
+		if (hcryptCtx_GenSecret(crypto, &new_ctx)) {
 			return(-1);
 		}
-		ctx->status = HCRYPT_CTX_S_SARDY;
+		new_ctx.status = HCRYPT_CTX_S_SARDY;
 		kek_len = sek_len;	/* KEK changed */
+		rollback_kek = 1;
 	}
 
 	/* Unwrap SEK(s) and set in context */
-	if (0 > crypto->cryspr->km_unwrap(crypto->cryspr_cb, seks,
-		&km_msg[HCRYPT_MSG_KM_OFS_SALT + salt_len], 
-		(unsigned int)((sek_cnt * sek_len) + HAICRYPT_WRAPKEY_SIGN_SZ))) {
-		HCRYPT_LOG(LOG_WARNING, "%s", "unwrap key failed\n");
+	unsigned int msglen = (sek_cnt * sek_len) + HAICRYPT_WRAPKEY_SIGN_SZ;
+	int wrc = crypto->cryspr->km_unwrap(crypto->cryspr_cb, seks,
+			&km_msg[HCRYPT_MSG_KM_OFS_SALT + salt_len], msglen);
+
+	if (wrc < 0) {
+		HCRYPT_LOG(LOG_WARNING, "%s%s\n", "unwrap key failed - internal KEK: ", rollback_kek ? "ROLLBACK" : "unchanged");
+		// Rollback the call to hcryptCtx_GenSecret done on the new_ctx,
+		// and restore the old secret from old ctx. GenSecret is required by
+		// km_unwrap, but only after failed call we know this should remain unchanged.
+		if (rollback_kek) {
+			hcryptCtx_GenSecret(crypto, ctx);
+		}
 		return(-2); //Report unmatched shared secret
 	}
+    *ctx = new_ctx;
 	/*
 	 * First SEK in KMmsg is eSEK if both SEK present
 	 */

@@ -52,9 +52,9 @@ written by
 #define CRYSPR_HAS_PBKDF2 1             /* Define to 1 if CRYSPR has Password-based Key Derivaion Function 2 */
 
 /*
-#define CRYSPR_AESCTX to the CRYSPR specifix AES key context object.
+#define CRYSPR_AESCTX to the CRYSPR-specific AES key context object.
 This type reserves room in the CRYPSPR control block for Haicrypt KEK and SEK
-It is set from hte keystring through CRYSPR_methods.aes_set_key and passed
+It is set from the keystring through CRYSPR_methods.aes_set_key and passed
 to CRYSPR_methods.aes_*.
 */
 typedef AES_KEY CRYSPR_AESCTX;          /* CRYpto Service PRovider AES key context */

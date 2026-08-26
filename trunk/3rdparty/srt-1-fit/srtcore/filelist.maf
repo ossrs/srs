@@ -16,6 +16,7 @@ handshake.cpp
 list.cpp
 logger_default.cpp
 logger_defs.cpp
+logging.cpp
 md5.cpp
 packet.cpp
 packetfilter.cpp

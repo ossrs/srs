@@ -8,8 +8,10 @@
 #   This decides if SDKS will be selected from the iPhoneOS.platform or iPhoneSimulator.platform folders
 #   OS - the default, used to build for iPhone and iPad physical devices, which have an arm arch.
 #   SIMULATOR - used to build for the Simulator platforms, which have an x86 arch.
+#   TV - used to build for tvOS devices
+#   TV_SIMULATOR - used to build for tvOS Simulator platforms, which have an x86 arch.
 #
-# IOS_ARCH = arm64 (default for OS), armv7, armv7s, i386 (default for SIMULATOR), x86_64 (default for SIMULATOR64)
+# IOS_ARCH = arm64 (default for OS and TV), armv7, armv7s, i386 (default for SIMULATOR), x86_64 (default for SIMULATOR64 and TV_SIMULATOR)
 #
 # CMAKE_IOS_DEVELOPER_ROOT = automatic(default) or /path/to/platform/Developer folder
 #   By default this location is automatcially chosen based on the IOS_PLATFORM value above.
@@ -19,8 +21,6 @@
 #   By default this location is automatcially chosen based on the CMAKE_IOS_DEVELOPER_ROOT value.
 #   In this case it will always be the most up-to-date SDK found in the CMAKE_IOS_DEVELOPER_ROOT path.
 #   If set manually, this will force the use of a specific SDK version
-#
-# IOS_DISABLE_BITCODE - set to 1 if you want to disable bitcode generation
 
 # Standard settings
 set (CMAKE_SYSTEM_NAME Darwin)
@@ -29,13 +29,16 @@ set (UNIX True)
 set (APPLE True)
 set (IOS True)
 
+# With Xcode 16, Apple has deprecated bitcode for all platforms
+set(CMAKE_XCODE_ATTRIBUTE_ENABLE_BITCODE "NO")
+
 # Required as of cmake 2.8.10
 set (CMAKE_OSX_DEPLOYMENT_TARGET "" CACHE STRING "Force unset of the deployment target for iOS" FORCE)
 
 # Determine the cmake host system version so we know where to find the iOS SDKs
 find_program (CMAKE_UNAME uname /bin /usr/bin /usr/local/bin)
 if (CMAKE_UNAME)
-	exec_program(uname ARGS -r OUTPUT_VARIABLE CMAKE_HOST_SYSTEM_VERSION)
+	execute_process(COMMAND uname -r OUTPUT_VARIABLE CMAKE_HOST_SYSTEM_VERSION)
 	string (REGEX REPLACE "^([0-9]+)\\.([0-9]+).*$" "\\1" DARWIN_MAJOR_VERSION "${CMAKE_HOST_SYSTEM_VERSION}")
 endif (CMAKE_UNAME)
 
@@ -47,10 +50,6 @@ set (CMAKE_C_OSX_COMPATIBILITY_VERSION_FLAG "-compatibility_version ")
 set (CMAKE_C_OSX_CURRENT_VERSION_FLAG "-current_version ")
 set (CMAKE_CXX_OSX_COMPATIBILITY_VERSION_FLAG "${CMAKE_C_OSX_COMPATIBILITY_VERSION_FLAG}")
 set (CMAKE_CXX_OSX_CURRENT_VERSION_FLAG "${CMAKE_C_OSX_CURRENT_VERSION_FLAG}")
-
-if (NOT DEFINED IOS_DISABLE_BITCODE)
-	set (EMBED_OPTIONS "-fembed-bitcode")
-endif(NOT DEFINED IOS_DISABLE_BITCODE)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR ENABLE_DEBUG)
 	set(IOS_DEBUG_OPTIONS "-glldb -gmodules")
@@ -101,6 +100,12 @@ if (${IOS_PLATFORM} STREQUAL OS)
 
 	# This causes the installers to properly locate the output libraries
 	set (CMAKE_XCODE_EFFECTIVE_PLATFORMS "-iphoneos")
+elseif (${IOS_PLATFORM} STREQUAL TV)
+	set (IOS_PLATFORM_LOCATION "AppleTVOS.platform")
+	unset(CMAKE_IOS_DEVELOPER_ROOT CACHE)
+	unset(CMAKE_IOS_SDK_ROOT CACHE)
+	# This causes the installers to properly locate the output libraries
+	set (CMAKE_XCODE_EFFECTIVE_PLATFORMS "-appletvos")
 elseif (${IOS_PLATFORM} STREQUAL SIMULATOR)
     set (SIMULATOR true)
 	set (IOS_PLATFORM_LOCATION "iPhoneSimulator.platform")
@@ -113,13 +118,35 @@ elseif (${IOS_PLATFORM} STREQUAL SIMULATOR64)
 
 	# This causes the installers to properly locate the output libraries
 	set (CMAKE_XCODE_EFFECTIVE_PLATFORMS "-iphonesimulator")
+elseif (${IOS_PLATFORM} STREQUAL ARM_SIMULATOR)
+    set (SIMULATOR true)
+	set (IOS_PLATFORM_LOCATION "iPhoneSimulator.platform")
+
+	# This causes the installers to properly locate the output libraries
+	set (CMAKE_XCODE_EFFECTIVE_PLATFORMS "-iphonesimulator")
+elseif (${IOS_PLATFORM} STREQUAL TV_SIMULATOR)
+    set (SIMULATOR true)
+	set (IOS_PLATFORM_LOCATION "AppleTVSimulator.platform")
+	unset(CMAKE_IOS_DEVELOPER_ROOT CACHE)
+	unset(CMAKE_IOS_SDK_ROOT CACHE)
+
+	# This causes the installers to properly locate the output libraries
+	set (CMAKE_XCODE_EFFECTIVE_PLATFORMS "-appletvsimulator")
+elseif (${IOS_PLATFORM} STREQUAL TV_ARM_SIMULATOR)
+    set (SIMULATOR true)
+	set (IOS_PLATFORM_LOCATION "AppleTVSimulator.platform")
+	unset(CMAKE_IOS_DEVELOPER_ROOT CACHE)
+	unset(CMAKE_IOS_SDK_ROOT CACHE)
+
+	# This causes the installers to properly locate the output libraries
+	set (CMAKE_XCODE_EFFECTIVE_PLATFORMS "-appletvsimulator")
 else (${IOS_PLATFORM} STREQUAL OS)
-	message (FATAL_ERROR "Unsupported IOS_PLATFORM value selected. Please choose OS or SIMULATOR")
+	message (FATAL_ERROR "Unsupported IOS_PLATFORM value selected. Please choose OS, TV or SIMULATOR")
 endif (${IOS_PLATFORM} STREQUAL OS)
 
 # Setup iOS developer location unless specified manually with CMAKE_IOS_DEVELOPER_ROOT
 if (NOT DEFINED CMAKE_IOS_DEVELOPER_ROOT)
-	exec_program(/usr/bin/xcode-select ARGS -print-path OUTPUT_VARIABLE CMAKE_XCODE_DEVELOPER_DIR)
+	execute_process(COMMAND /usr/bin/xcode-select -print-path OUTPUT_VARIABLE CMAKE_XCODE_DEVELOPER_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 	set (CMAKE_IOS_DEVELOPER_ROOT "${CMAKE_XCODE_DEVELOPER_DIR}/Platforms/${IOS_PLATFORM_LOCATION}/Developer")
 endif (NOT DEFINED CMAKE_IOS_DEVELOPER_ROOT)
 set (CMAKE_IOS_DEVELOPER_ROOT ${CMAKE_IOS_DEVELOPER_ROOT} CACHE PATH "Location of iOS Platform")
@@ -149,6 +176,10 @@ if (NOT DEFINED IOS_ARCH)
 		set (IOS_ARCH i386)
 	elseif (${IOS_PLATFORM} STREQUAL SIMULATOR64)
 		set (IOS_ARCH x86_64)
+	elseif (${IOS_PLATFORM} STREQUAL ARM_SIMULATOR)
+		set (IOS_ARCH arm64)
+	elseif (${IOS_PLATFORM} STREQUAL TV_ARM_SIMULATOR)
+		set (IOS_ARCH arm64)
 	endif (${IOS_PLATFORM} STREQUAL OS)
 endif(NOT DEFINED IOS_ARCH)
 set (CMAKE_OSX_ARCHITECTURES ${IOS_ARCH} CACHE STRING "Build architecture for iOS")

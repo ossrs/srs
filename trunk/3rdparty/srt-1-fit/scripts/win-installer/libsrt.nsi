@@ -28,11 +28,10 @@ Caption "SRT Libraries Installer"
 !include "x64.nsh"
 !verbose pop
 
-!define ProductName "libsrt"
-!define Build32Dir  "${BuildRoot}\build.Win32"
-!define Build64Dir  "${BuildRoot}\build.x64"
-!define SSL32Dir    "C:\Program Files (x86)\OpenSSL-Win32"
-!define SSL64Dir    "C:\Program Files\OpenSSL-Win64"
+!define ProductName   "libsrt"
+!define BuildWin32Dir "${BuildRoot}\build.Win32"
+!define BuildWin64Dir "${BuildRoot}\build.x64"
+!define BuildArm64Dir "${BuildRoot}\build.ARM64"
 
 ; Installer file information.
 VIProductVersion ${VersionInfo}
@@ -95,6 +94,7 @@ functionEnd
 function un.onInit
     ; In 64-bit installers, don't use registry redirection.
     ${If} ${RunningX64}
+    ${OrIf} ${IsNativeARM64}
         SetRegView 64
     ${EndIf}
 functionEnd
@@ -130,7 +130,7 @@ Section "Install"
     File "${RepoDir}\srtcore\platform_sys.h"
     File "${RepoDir}\srtcore\srt.h"
     File "${RepoDir}\srtcore\udt.h"
-    File "${Build64Dir}\version.h"
+    File "${BuildWin64Dir}\version.h"
 
     CreateDirectory "$INSTDIR\include\win"
     SetOutPath "$INSTDIR\include\win"
@@ -141,27 +141,39 @@ Section "Install"
     
     CreateDirectory "$INSTDIR\lib\Release-x64"
     SetOutPath "$INSTDIR\lib\Release-x64"
-    File /oname=srt.lib       "${Build64Dir}\Release\srt_static.lib"
-    File /oname=libcrypto.lib "${SSL64Dir}\lib\VC\static\libcrypto64MD.lib"
-    File /oname=libssl.lib    "${SSL64Dir}\lib\VC\static\libssl64MD.lib"
+    File /oname=srt.lib       "${BuildWin64Dir}\Release\srt_static.lib"
+    File /oname=libcrypto.lib "${libcryptoWin64Release}"
+    File /oname=libssl.lib    "${libsslWin64Release}"
 
     CreateDirectory "$INSTDIR\lib\Debug-x64"
     SetOutPath "$INSTDIR\lib\Debug-x64"
-    File /oname=srt.lib       "${Build64Dir}\Debug\srt_static.lib"
-    File /oname=libcrypto.lib "${SSL64Dir}\lib\VC\static\libcrypto64MDd.lib"
-    File /oname=libssl.lib    "${SSL64Dir}\lib\VC\static\libssl64MDd.lib"
+    File /oname=srt.lib       "${BuildWin64Dir}\Debug\srt_static.lib"
+    File /oname=libcrypto.lib "${libcryptoWin64Debug}"
+    File /oname=libssl.lib    "${libsslWin64Debug}"
 
     CreateDirectory "$INSTDIR\lib\Release-Win32"
     SetOutPath "$INSTDIR\lib\Release-Win32"
-    File /oname=srt.lib       "${Build32Dir}\Release\srt_static.lib"
-    File /oname=libcrypto.lib "${SSL32Dir}\lib\VC\static\libcrypto32MD.lib"
-    File /oname=libssl.lib    "${SSL32Dir}\lib\VC\static\libssl32MD.lib"
+    File /oname=srt.lib       "${BuildWin32Dir}\Release\srt_static.lib"
+    File /oname=libcrypto.lib "${libcryptoWin32Release}"
+    File /oname=libssl.lib    "${libsslWin32Release}"
 
     CreateDirectory "$INSTDIR\lib\Debug-Win32"
     SetOutPath "$INSTDIR\lib\Debug-Win32"
-    File /oname=srt.lib       "${Build32Dir}\Debug\srt_static.lib"
-    File /oname=libcrypto.lib "${SSL32Dir}\lib\VC\static\libcrypto32MDd.lib"
-    File /oname=libssl.lib    "${SSL32Dir}\lib\VC\static\libssl32MDd.lib"
+    File /oname=srt.lib       "${BuildWin32Dir}\Debug\srt_static.lib"
+    File /oname=libcrypto.lib "${libcryptoWin32Debug}"
+    File /oname=libssl.lib    "${libsslWin32Debug}"
+
+    CreateDirectory "$INSTDIR\lib\Release-Arm64"
+    SetOutPath "$INSTDIR\lib\Release-Arm64"
+    File /oname=srt.lib       "${BuildArm64Dir}\Release\srt_static.lib"
+    File /oname=libcrypto.lib "${libcryptoArm64Release}"
+    File /oname=libssl.lib    "${libsslArm64Release}"
+
+    CreateDirectory "$INSTDIR\lib\Debug-Arm64"
+    SetOutPath "$INSTDIR\lib\Debug-Arm64"
+    File /oname=srt.lib       "${BuildArm64Dir}\Debug\srt_static.lib"
+    File /oname=libcrypto.lib "${libcryptoArm64Debug}"
+    File /oname=libssl.lib    "${libsslArm64Debug}"
 
     ; Add an environment variable to installation root.
     WriteRegStr HKLM ${EnvironmentKey} "LIBSRT" "$INSTDIR"
