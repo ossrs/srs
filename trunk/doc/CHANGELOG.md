@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-08-26, Merge [#4731](https://github.com/ossrs/srs/pull/4731): TS: Increment PMT version when codecs change for strict demuxers. v8.0.29 (#4731)
 * v8.0, 2026-08-18, Merge [#4726](https://github.com/ossrs/srs/pull/4726): API: Support Bearer authentication for SRS and proxy APIs. v8.0.28 (#4726)
 * v8.0, 2026-08-18, Merge [#4638](https://github.com/ossrs/srs/pull/4638): Player: Support native HLS playback before hls.js fallback. v8.0.27 (#4638)
 * v8.0, 2026-08-18, Merge [#4659](https://github.com/ossrs/srs/pull/4659): Proxy: Fix resource leak in ParseBody. v8.0.26 (#4659)
