@@ -2,6 +2,15 @@
 
 Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
+## #4728 [FEATURE] Optional H.264 SEI stripping for Oryx Virtual Live
+
+- Issue: https://github.com/ossrs/srs/issues/4728
+- Truth Record: https://github.com/ossrs/srs/issues/4728#issuecomment-5462820007
+- Verified: 2026-08-29
+- Status: Oryx enhancement proposed; no project change yet
+
+Oryx Virtual Live remuxes uploaded MP4 files through FFmpeg into RTMP before SRS generates HLS. No standalone SRS defect is confirmed. Add an explicit Oryx compatibility option for `-bsf:v filter_units=remove_types=6`; preserve valid SEI by default. A reproducible affected source is still needed for verification.
+
 ## #4727 [SECURITY] Bundled SRT 1.5.3 exposed CVE-2026-55868/55869 stack overflows
 
 - Issue: https://github.com/ossrs/srs/issues/4727
