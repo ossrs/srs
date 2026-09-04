@@ -4,10 +4,13 @@
 # -- RTMP, SRT, and WHIP -- and for each one verify playback via RTMP,
 # HTTP-FLV, and HLS, plus confirm the stream shows up in the SRS HTTP API.
 #
-# Starts Redis (if unreachable), local SRS, and the Oryx Go backend as
-# needed (same self-start/cleanup-only-what-it-started behavior as
-# oryx-api-smoke-test.sh), then publishes with ffmpeg and verifies with
-# ffprobe/curl (same pattern as proxy-e2e-srt-test.sh / proxy-e2e-whip-test.sh).
+# Requires the shared local stack (Redis, SRS, Oryx Go backend) to already be
+# running -- start it once with oryx-stack-start.sh. This script only starts
+# its own ffmpeg publishers and cleans those up; it does not manage server
+# lifecycle, so it is safe to run concurrently with other oryx-*-test.sh
+# scripts against that same shared stack. Publishes with ffmpeg and verifies
+# with ffprobe/curl (same pattern as proxy-e2e-srt-test.sh /
+# proxy-e2e-whip-test.sh).
 #
 # SRT publish requires an ffmpeg built with libsrt, which the default
 # Homebrew formula does not include; this script builds one via
@@ -28,8 +31,6 @@ fi
 
 ORYX_DIR="$WORKSPACE/oryx"
 PLATFORM_DIR="$ORYX_DIR/platform"
-SRS_BINARY="$WORKSPACE/trunk/objs/srs"
-SRS_CONF="containers/conf/srs.release-local.conf"
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 ENDPOINT="${ORYX_ENDPOINT:-http://localhost:2022}"
 SRS_API="${SRS_API_ENDPOINT:-http://localhost:1985}"
@@ -39,10 +40,7 @@ SRS_SRT="${SRS_SRT_ENDPOINT:-srt://localhost:10080}"
 ENV_FILE="$PLATFORM_DIR/containers/data/config/.env"
 APP="live"
 
-# PIDs of processes this script started; empty means "already running,
-# leave it alone" and cleanup skips it. FFMPEG_PID is always ours to kill.
-SRS_PID=""
-BACKEND_PID=""
+# PID of this script's own ffmpeg publisher; always ours to kill.
 FFMPEG_PID=""
 
 cleanup() {
@@ -51,56 +49,9 @@ cleanup() {
   if [[ -n "$FFMPEG_PID" ]]; then
     kill -9 "$FFMPEG_PID" 2>/dev/null || true
   fi
-  if [[ -n "$BACKEND_PID" ]]; then
-    echo "Stopping Oryx backend (pid $BACKEND_PID)..."
-    kill "$BACKEND_PID" 2>/dev/null || true
-  fi
-  if [[ -n "$SRS_PID" ]]; then
-    echo "Stopping local SRS (pid $SRS_PID)..."
-    kill "$SRS_PID" 2>/dev/null || true
-  fi
-  sleep 1
-  if [[ -n "$BACKEND_PID" ]]; then
-    kill -9 "$BACKEND_PID" 2>/dev/null || true
-    # "go run" builds and execs a child process; the wrapper PID above may
-    # not own it, so also reap anything still bound to the backend ports.
-    for port in 2022 2024 2443; do
-      lsof -ti :"$port" 2>/dev/null | xargs kill -9 2>/dev/null || true
-    done
-  fi
-  if [[ -n "$SRS_PID" ]]; then
-    kill -9 "$SRS_PID" 2>/dev/null || true
-    for port in 1935 1985 8080 8000 10080; do
-      lsof -ti :"$port" 2>/dev/null | xargs kill -9 2>/dev/null || true
-    done
-  fi
-  echo "Cleanup done. Redis is left running (shared service)."
+  echo "Cleanup done."
 }
 trap cleanup EXIT
-
-wait_for_http() {
-  local url="$1" max="$2" waited=0
-  while ! curl -sS -m 2 -o /dev/null "$url" 2>/dev/null; do
-    waited=$((waited + 1))
-    if [[ "$waited" -ge "$max" ]]; then
-      return 1
-    fi
-    sleep 1
-  done
-  return 0
-}
-
-wait_for_redis() {
-  local max="$1" waited=0
-  while [[ "$(redis-cli ping 2>/dev/null)" != "PONG" ]]; do
-    waited=$((waited + 1))
-    if [[ "$waited" -ge "$max" ]]; then
-      return 1
-    fi
-    sleep 1
-  done
-  return 0
-}
 
 # SRT needs libsrt, WHIP needs the whip muxer -- the default Homebrew ffmpeg
 # formula has neither reliably. Resolution order: PATH, then ~/.local/bin
@@ -134,28 +85,35 @@ resolve_ffmpeg() {
 }
 
 probe_has_audio_video() {
-  local name="$1" url="$2"
+  local name="$1" url="$2" deadline=10
   echo "Verifying $name playback: $url"
   local output
-  output=$("$FFPROBE_BIN" -v error -show_streams "$url" 2>&1 || true)
+  # One-shot muxers (e.g. WHIP's audio track landing in HTTP-FLV) can lag a
+  # beat behind video, especially under concurrent CPU load -- retry instead
+  # of failing on the first incomplete probe.
+  for ((i = 1; i <= deadline; i++)); do
+    output=$("$FFPROBE_BIN" -v error -show_streams "$url" 2>&1 || true)
+    if echo "$output" | grep -q "codec_type=video" && echo "$output" | grep -q "codec_type=audio"; then
+      echo "PASS: $name video stream detected."
+      echo "PASS: $name audio stream detected."
+      return
+    fi
+    sleep 1
+  done
 
   if echo "$output" | grep -q "codec_type=video"; then
     echo "PASS: $name video stream detected."
   else
-    echo "FAIL: $name no video stream detected." >&2
-    echo "ffprobe output:" >&2
-    echo "$output" >&2
-    exit 1
+    echo "FAIL: $name no video stream detected after ${deadline}s." >&2
   fi
-
   if echo "$output" | grep -q "codec_type=audio"; then
     echo "PASS: $name audio stream detected."
   else
-    echo "FAIL: $name no audio stream detected." >&2
-    echo "ffprobe output:" >&2
-    echo "$output" >&2
-    exit 1
+    echo "FAIL: $name no audio stream detected after ${deadline}s." >&2
   fi
+  echo "ffprobe output:" >&2
+  echo "$output" >&2
+  exit 1
 }
 
 wait_for_hls_playlist() {
@@ -235,58 +193,13 @@ echo "=== Oryx Live Streaming Test ==="
 echo "Endpoint: $ENDPOINT"
 echo ""
 
-# --- Step 0: Ensure Redis, SRS, and the Oryx Go backend are up ---
-echo "=== Step 0: Ensure Redis, SRS, and the Oryx Go backend are running ==="
-
-if [[ "$(redis-cli ping 2>/dev/null)" != "PONG" ]]; then
-  echo "Redis not reachable, starting via 'brew services start redis'..."
-  if ! command -v brew &>/dev/null; then
-    echo "FAIL: redis is not running and 'brew' is not available to start it." >&2
-    exit 1
-  fi
-  brew services start redis >/dev/null
-  if ! wait_for_redis 15; then
-    echo "FAIL: redis did not become ready within 15s." >&2
-    exit 1
-  fi
-  echo "Redis: started."
-else
-  echo "Redis: already running, leaving it alone."
+# --- Step 0: Require the shared stack to already be running ---
+if ! curl -sS -m 2 -o /dev/null "$SRS_API/api/v1/versions" 2>/dev/null || \
+   ! curl -sS -m 2 -o /dev/null "$ENDPOINT/terraform/v1/mgmt/versions" 2>/dev/null; then
+  echo "FAIL: local Oryx stack is not running. Start it first:" >&2
+  echo "  bash $SCRIPT_DIR/oryx-stack-start.sh" >&2
+  exit 1
 fi
-
-if ! curl -sS -m 2 -o /dev/null "$SRS_API/api/v1/versions" 2>/dev/null; then
-  if [[ ! -f "$SRS_BINARY" ]]; then
-    echo "FAIL: SRS binary not found at $SRS_BINARY." >&2
-    echo "Build it first: cd $WORKSPACE/trunk && ./configure && make" >&2
-    exit 1
-  fi
-  echo "SRS not reachable, starting local SRS..."
-  (cd "$PLATFORM_DIR" && exec "$SRS_BINARY" -c "$SRS_CONF") >/tmp/oryx-live-srs.log 2>&1 &
-  SRS_PID=$!
-  if ! wait_for_http "$SRS_API/api/v1/versions" 15; then
-    echo "FAIL: SRS did not become ready within 15s. Logs:" >&2
-    cat /tmp/oryx-live-srs.log >&2
-    exit 1
-  fi
-  echo "SRS: started (pid $SRS_PID)."
-else
-  echo "SRS: already running, leaving it alone."
-fi
-
-if ! curl -sS -m 2 -o /dev/null "$ENDPOINT/terraform/v1/mgmt/versions" 2>/dev/null; then
-  echo "Oryx backend not reachable, starting 'go run .'..."
-  (cd "$PLATFORM_DIR" && exec env AUTO_SELF_SIGNED_CERTIFICATE=off go run .) >/tmp/oryx-live-backend.log 2>&1 &
-  BACKEND_PID=$!
-  if ! wait_for_http "$ENDPOINT/terraform/v1/mgmt/versions" 60; then
-    echo "FAIL: Oryx backend did not become ready within 60s. Logs:" >&2
-    cat /tmp/oryx-live-backend.log >&2
-    exit 1
-  fi
-  echo "Oryx backend: started (pid $BACKEND_PID)."
-else
-  echo "Oryx backend: already running, leaving it alone."
-fi
-echo ""
 
 # --- Step 1: Resolve ffmpeg/ffprobe with SRT + WHIP support ---
 echo "=== Step 1: Resolve ffmpeg with SRT and WHIP support ==="

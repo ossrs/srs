@@ -149,21 +149,27 @@ curl http://localhost:1985/api/v1/versions
 
 ## Local Verification Scripts
 
-Every script below self-starts Redis (if unreachable), local SRS, and the Oryx Go backend using this document's same commands and ports, then stops only the processes it started — anything already running before the script was invoked (Redis included) is left alone. None of them start the React dashboard; none needs it.
+Server lifecycle is split from the test scripts so multiple tests can run against one shared stack instead of each script starting and tearing down its own:
+
+- `scripts/oryx-stack-start.sh` — starts Redis (if unreachable), local SRS, the Oryx Go backend, and the React dashboard as needed, using this document's same commands and ports, then exits. Anything already running before it was invoked is left alone. Records what it actually started in `/tmp/oryx-stack-state.env` (override with `$ORYX_STACK_STATE_FILE`).
+- `scripts/oryx-stack-stop.sh` — stops only what `oryx-stack-start.sh` recorded as having started; Redis is never stopped (shared service). Safe to call any time, including with nothing started — it's then a no-op.
+
+Run `oryx-stack-start.sh` once, then run any number of the test scripts below. None of them start or stop the shared stack themselves, so they are safe to run concurrently against it:
 
 - `scripts/oryx-api-smoke-test.sh` — Version (no-auth health check), password login, Bearer security-key authentication. Reads the mgmt password from `$MGMT_PASSWORD` or `oryx/platform/containers/data/config/.env`; only prints byte-lengths of tokens/secrets, never their values. Override the target with `ORYX_ENDPOINT` if the Go backend is not on the default `http://localhost:2022`.
 - `scripts/oryx-live-streaming-test.sh` — End-to-end check of the "Live" scenario page (`?tab=live`): queries the publish secret from `/terraform/v1/hooks/srs/secret/query` (what the page's `useUrls()` hook calls), then publishes through RTMP, SRT, and WHIP in turn with that secret. For each protocol, confirms the stream shows up as actively published in the SRS HTTP API (`/api/v1/streams/`) and verifies playback via RTMP, HTTP-FLV, and HLS. SRT and WHIP need an ffmpeg built with `--enable-libsrt` and the `whip` muxer, which the default Homebrew formula lacks — the script resolves one from `PATH`, then `~/.local/bin`, then builds one via `scripts/setup-ffmpeg-with-whip.sh` (several minutes on first run, cached afterward).
 
-When verifying a change that touches local Oryx development, or just confirming the local stack is healthy end to end, run every script in this list, in order:
+To verify a change that touches local Oryx development, or just confirm the local stack is healthy end to end, run all of them with one command:
 
 ```bash
-bash skills/srs-develop/scripts/oryx-api-smoke-test.sh
-bash skills/srs-develop/scripts/oryx-live-streaming-test.sh
+bash skills/srs-develop/scripts/oryx-run-tests.sh
 ```
 
-Add new Oryx verification scripts to this same list as they're written, and keep them running in this same sequential order — do not let it fall out of sync with `scripts/`.
+`scripts/oryx-run-tests.sh` runs `oryx-stack-start.sh`, launches every script in `TEST_SCRIPTS` backgrounded and joined with `wait` so they genuinely run in parallel, always runs `oryx-stack-stop.sh` afterward regardless of pass/fail, then prints a PASS/FAIL summary (failing scripts have their full log inlined). Do not hand-write a background/`wait` snippet instead — the default macOS `/bin/bash` is 3.2, which breaks silently on associative arrays and other bash 4+ syntax, so a hand-rolled parallel launcher is easy to get subtly wrong; use the runner script and keep it bash-3.2-compatible.
 
-Open the dashboard:
+Add new Oryx verification scripts to this same list and to `TEST_SCRIPTS` in `oryx-run-tests.sh`; each new one should assume the shared stack is already running (fail fast with a pointer to `oryx-stack-start.sh` if not) rather than starting its own.
+
+`oryx-stack-start.sh` already starts the dashboard, so after running it, just open it:
 
 ```text
 http://localhost:3000
