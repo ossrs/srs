@@ -147,6 +147,14 @@ curl http://localhost:2022/terraform/v1/mgmt/versions
 curl http://localhost:1985/api/v1/versions
 ```
 
+For a fuller, self-contained check of the Oryx platform API, run `scripts/oryx-api-smoke-test.sh`. It exercises the version (no-auth health check), password login, and Bearer security-key authentication endpoints:
+
+```bash
+bash skills/srs-develop/scripts/oryx-api-smoke-test.sh
+```
+
+It starts Redis (if unreachable), local SRS, and the Oryx Go backend as needed, using this document's same commands and ports, then stops only the processes it started — anything already running before the script was invoked (Redis included) is left alone. It does not start the React dashboard; the API checks do not need it. It reads the mgmt password from `$MGMT_PASSWORD` or from `oryx/platform/containers/data/config/.env`, and only prints byte-lengths of tokens/secrets, never their values. Override the target with `ORYX_ENDPOINT` if the Go backend is not on the default `http://localhost:2022`.
+
 Open the dashboard:
 
 ```text
