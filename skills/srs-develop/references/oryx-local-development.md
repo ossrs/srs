@@ -147,13 +147,21 @@ curl http://localhost:2022/terraform/v1/mgmt/versions
 curl http://localhost:1985/api/v1/versions
 ```
 
-For a fuller, self-contained check of the Oryx platform API, run `scripts/oryx-api-smoke-test.sh`. It exercises the version (no-auth health check), password login, and Bearer security-key authentication endpoints:
+## Local Verification Scripts
+
+Every script below self-starts Redis (if unreachable), local SRS, and the Oryx Go backend using this document's same commands and ports, then stops only the processes it started — anything already running before the script was invoked (Redis included) is left alone. None of them start the React dashboard; none needs it.
+
+- `scripts/oryx-api-smoke-test.sh` — Version (no-auth health check), password login, Bearer security-key authentication. Reads the mgmt password from `$MGMT_PASSWORD` or `oryx/platform/containers/data/config/.env`; only prints byte-lengths of tokens/secrets, never their values. Override the target with `ORYX_ENDPOINT` if the Go backend is not on the default `http://localhost:2022`.
+- `scripts/oryx-live-streaming-test.sh` — End-to-end check of the "Live" scenario page (`?tab=live`): queries the publish secret from `/terraform/v1/hooks/srs/secret/query` (what the page's `useUrls()` hook calls), then publishes through RTMP, SRT, and WHIP in turn with that secret. For each protocol, confirms the stream shows up as actively published in the SRS HTTP API (`/api/v1/streams/`) and verifies playback via RTMP, HTTP-FLV, and HLS. SRT and WHIP need an ffmpeg built with `--enable-libsrt` and the `whip` muxer, which the default Homebrew formula lacks — the script resolves one from `PATH`, then `~/.local/bin`, then builds one via `scripts/setup-ffmpeg-with-whip.sh` (several minutes on first run, cached afterward).
+
+When verifying a change that touches local Oryx development, or just confirming the local stack is healthy end to end, run every script in this list, in order:
 
 ```bash
 bash skills/srs-develop/scripts/oryx-api-smoke-test.sh
+bash skills/srs-develop/scripts/oryx-live-streaming-test.sh
 ```
 
-It starts Redis (if unreachable), local SRS, and the Oryx Go backend as needed, using this document's same commands and ports, then stops only the processes it started — anything already running before the script was invoked (Redis included) is left alone. It does not start the React dashboard; the API checks do not need it. It reads the mgmt password from `$MGMT_PASSWORD` or from `oryx/platform/containers/data/config/.env`, and only prints byte-lengths of tokens/secrets, never their values. Override the target with `ORYX_ENDPOINT` if the Go backend is not on the default `http://localhost:2022`.
+Add new Oryx verification scripts to this same list as they're written, and keep them running in this same sequential order — do not let it fall out of sync with `scripts/`.
 
 Open the dashboard:
 
