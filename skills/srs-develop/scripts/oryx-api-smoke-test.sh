@@ -66,13 +66,23 @@ fi
 
 # --- Step 3: Login by password, exchange it for the security key (Bearer) ---
 echo "=== Step 2: POST /terraform/v1/mgmt/login (password -> security key) ==="
-LOGIN_RESP=$(curl -sS -m 5 -X POST "$ENDPOINT/terraform/v1/mgmt/login" \
-  -H 'Content-Type: application/json' \
-  -d "{\"password\":\"$PASSWORD\"}")
-TOKEN=$(echo "$LOGIN_RESP" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
-BEARER=$(echo "$LOGIN_RESP" | sed -n 's/.*"bearer":"\([^"]*\)".*/\1/p')
+# The backend serializes logins with a mutex and replies "login is running,
+# try later" to a losing concurrent request -- expected when multiple
+# oryx-*-test.sh scripts log in around the same moment, not a real failure.
+# Retry past it instead of hard-failing.
+TOKEN=""
+BEARER=""
+for ((i = 1; i <= 10; i++)); do
+  LOGIN_RESP=$(curl -sS -m 5 -X POST "$ENDPOINT/terraform/v1/mgmt/login" \
+    -H 'Content-Type: application/json' \
+    -d "{\"password\":\"$PASSWORD\"}")
+  TOKEN=$(echo "$LOGIN_RESP" | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+  BEARER=$(echo "$LOGIN_RESP" | sed -n 's/.*"bearer":"\([^"]*\)".*/\1/p')
+  [[ -n "$TOKEN" && -n "$BEARER" ]] && break
+  sleep 1
+done
 if [[ -z "$TOKEN" || -z "$BEARER" ]]; then
-  echo "FAIL: login did not return a token/security key: $LOGIN_RESP" >&2
+  echo "FAIL: login did not return a token/security key after retries: $LOGIN_RESP" >&2
   exit 1
 fi
 echo "PASS: login ok, token=${#TOKEN} bytes, security key=${#BEARER} bytes"

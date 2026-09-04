@@ -14,6 +14,7 @@ TEST_SCRIPTS=(
   oryx-api-smoke-test.sh
   oryx-live-streaming-test.sh
   oryx-live-room-test.sh
+  oryx-forward-test.sh
 )
 
 echo "=== Oryx Test Suite ==="
