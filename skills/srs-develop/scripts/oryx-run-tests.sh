@@ -13,6 +13,7 @@ SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
 TEST_SCRIPTS=(
   oryx-api-smoke-test.sh
   oryx-live-streaming-test.sh
+  oryx-live-room-test.sh
 )
 
 echo "=== Oryx Test Suite ==="
