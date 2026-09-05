@@ -16,6 +16,7 @@ TEST_SCRIPTS=(
   oryx-live-room-test.sh
   oryx-forward-test.sh
   oryx-record-test.sh
+  oryx-transcode-test.sh
   oryx-vlive-test.sh
   oryx-camera-test.sh
 )
