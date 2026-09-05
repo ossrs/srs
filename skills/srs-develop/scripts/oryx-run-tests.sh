@@ -17,6 +17,7 @@ TEST_SCRIPTS=(
   oryx-forward-test.sh
   oryx-record-test.sh
   oryx-vlive-test.sh
+  oryx-camera-test.sh
 )
 
 echo "=== Oryx Test Suite ==="
