@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-09-04, Merge [#4734](https://github.com/ossrs/srs/pull/4734): Skills: Add Oryx scenario-page API test scripts. v8.0.32 (#4734)
 * v8.0, 2026-09-03, Merge [#4733](https://github.com/ossrs/srs/pull/4733): Dev: Add Oryx local development workflow, API smoke test, and doc reorg. v8.0.31 (#4733)
 * v8.0, 2026-08-26, Merge [#4731](https://github.com/ossrs/srs/pull/4731): TS: Increment PMT version when codecs change for strict demuxers. v8.0.30 (#4731)
 * v8.0, 2026-08-20, Merge [#4729](https://github.com/ossrs/srs/pull/4729): SRT: Upgrade libsrt from 1.5.3 to 1.5.6 for CVE-2026-55868/55869. v8.0.29 (#4729)
