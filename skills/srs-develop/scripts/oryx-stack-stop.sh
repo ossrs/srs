@@ -1,61 +1,68 @@
 #!/bin/bash
-# Shared teardown for local Oryx verification: stops only what
-# oryx-stack-start.sh actually started, per $STATE_FILE. Redis is never
-# stopped (shared system service). Safe to call even if nothing was started
-# or the state file is missing -- it's then a no-op.
-
+# Stop the local development stack by its server sockets, even without PID
+# state. These ports are reserved for this stack. Never stop Redis.
+# TCP clients connected to these ports are NOT selected.
 STATE_FILE="${ORYX_STACK_STATE_FILE:-/tmp/oryx-stack-state.env}"
 
-if [[ ! -f "$STATE_FILE" ]]; then
-  echo "No $STATE_FILE found, nothing to stop."
-  exit 0
+if ! command -v lsof >/dev/null; then
+  echo "FAIL: lsof is required to discover and verify running services." >&2
+  exit 1
 fi
 
-SRS_STARTED_PID=""
-BACKEND_STARTED_PID=""
-UI_STARTED_PID=""
-# shellcheck disable=SC1090
-source "$STATE_FILE"
+stack_pids() {
+  local port pids status
+  for port in 3000 2022 2024 2443 1935 1985 8080; do
+    pids=$(lsof -nP -a -t -iTCP:"$port" -sTCP:LISTEN)
+    status=$?
+    # lsof returns 1 when there are no matching sockets.
+    if [[ "$status" -gt 1 ]]; then return "$status"; fi
+    printf '%s\n' "$pids"
+  done
+  for port in 8000 10080; do
+    pids=$(lsof -nP -a -t -iUDP:"$port")
+    status=$?
+    if [[ "$status" -gt 1 ]]; then return "$status"; fi
+    printf '%s\n' "$pids"
+  done
+}
+
+read_pids() {
+  local found
+  found=$(stack_pids) || return 1
+  PIDS=$(printf '%s\n' "$found" | awk '/^[0-9]+$/ && $1 > 1' | sort -un)
+}
+
+signal_stack() {
+  local pid
+  for pid in $PIDS; do
+    echo "Stopping stack listener $pid ($1)..."
+    kill "-$1" "$pid" 2>/dev/null || true
+  done
+}
+
+wait_stopped() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    read_pids || return 1
+    [[ -z "$PIDS" ]] && return 0
+    sleep 1
+  done
+  read_pids || return 1
+  [[ -z "$PIDS" ]]
+}
 
 echo "=== Oryx Stack Stop ==="
-
-if [[ -n "$UI_STARTED_PID" ]]; then
-  echo "Stopping React dashboard (pid $UI_STARTED_PID)..."
-  kill "$UI_STARTED_PID" 2>/dev/null || true
-fi
-if [[ -n "$BACKEND_STARTED_PID" ]]; then
-  echo "Stopping Oryx backend (pid $BACKEND_STARTED_PID)..."
-  kill "$BACKEND_STARTED_PID" 2>/dev/null || true
-fi
-if [[ -n "$SRS_STARTED_PID" ]]; then
-  echo "Stopping local SRS (pid $SRS_STARTED_PID)..."
-  kill "$SRS_STARTED_PID" 2>/dev/null || true
-fi
-sleep 1
-if [[ -n "$UI_STARTED_PID" ]]; then
-  kill -9 "$UI_STARTED_PID" 2>/dev/null || true
-  # "npm start" runs react-scripts as a child process; the wrapper PID above
-  # may not own it, so also reap anything still bound to the dev-server port.
-  lsof -ti :3000 2>/dev/null | xargs kill -9 2>/dev/null || true
-fi
-if [[ -n "$BACKEND_STARTED_PID" ]]; then
-  kill -9 "$BACKEND_STARTED_PID" 2>/dev/null || true
-  # "go run" builds and execs a child process; the wrapper PID above may not
-  # own it, so also reap anything still bound to the backend ports.
-  for port in 2022 2024 2443; do
-    lsof -ti :"$port" 2>/dev/null | xargs kill -9 2>/dev/null || true
-  done
-fi
-if [[ -n "$SRS_STARTED_PID" ]]; then
-  kill -9 "$SRS_STARTED_PID" 2>/dev/null || true
-  for port in 1935 1985 8080 8000 10080; do
-    lsof -ti :"$port" 2>/dev/null | xargs kill -9 2>/dev/null || true
-  done
+read_pids || exit 1
+signal_stack TERM
+if ! wait_stopped; then
+  read_pids || exit 1
+  signal_stack KILL
+  if ! wait_stopped; then
+    echo "FAIL: stack ports are still occupied; check permissions or a service supervisor. Redis was not touched." >&2
+    exit 1
+  fi
 fi
 
-if [[ -z "$SRS_STARTED_PID" && -z "$BACKEND_STARTED_PID" && -z "$UI_STARTED_PID" ]]; then
-  echo "Nothing recorded as started by oryx-stack-start.sh; leaving the stack alone."
-fi
-
-rm -f "$STATE_FILE"
-echo "Cleanup done. Redis is left running (shared service)."
+# Do not signal stale recorded PIDs: they may now belong to unrelated processes.
+rm -f "$STATE_FILE" || exit 1
+echo "Cleanup done. All local stack ports are clear. Redis is left running."

@@ -1,14 +1,7 @@
 #!/bin/bash
-# Shared startup for local Oryx verification: starts Redis (if unreachable),
-# local SRS, the Oryx Go backend, and the React dashboard as needed, then
-# exits -- it does NOT stay running or tear anything down itself.
-#
-# Run this once, then run any number of oryx-*-test.sh scripts against the
-# shared stack. Those scripts no longer manage server lifecycle themselves,
-# so they are safe to run concurrently. Run oryx-stack-stop.sh when done.
-#
-# Records what it actually started (vs. what was already running) in
-# $STATE_FILE, so oryx-stack-stop.sh stops only what this script started.
+# Clean restart of local SRS, the Oryx backend, and the React dashboard.
+# Redis is started only if unavailable and is never stopped. Run lifecycle
+# commands sequentially; tests can then share the running stack.
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
 # Walk up from SCRIPT_DIR looking for go.mod, the SRS repo root. This avoids
@@ -59,9 +52,44 @@ wait_for_redis() {
 
 echo "=== Oryx Stack Start ==="
 
+# Cleanup always targets the standard local development ports. Do not use
+# remote/custom readiness endpoints to accidentally accept a different stack.
+if [[ "$ENDPOINT" != "http://localhost:2022" ||
+      "$SRS_API" != "http://localhost:1985" ||
+      "$UI_ENDPOINT" != "http://localhost:3000" ]]; then
+  echo "FAIL: clean startup supports only the default local stack endpoints." >&2
+  exit 1
+fi
+
+# Check prerequisites before disrupting an existing stack.
+if [[ ! -f "$SRS_BINARY" || ! -d "$UI_DIR/node_modules" ]]; then
+  echo "FAIL: build trunk/objs/srs and install oryx/ui dependencies first." >&2
+  exit 1
+fi
+for tool in go npm curl redis-cli lsof; do
+  command -v "$tool" >/dev/null || { echo "FAIL: missing $tool" >&2; exit 1; }
+done
+bash "$SCRIPT_DIR/oryx-stack-stop.sh" || exit 1
+
 SRS_PID=""
 BACKEND_PID=""
 UI_PID=""
+
+save_state() {
+  local temporary
+  temporary=$(mktemp "${STATE_FILE}.XXXXXX") || return 1
+  if ! printf 'SRS_STARTED_PID="%s"\nBACKEND_STARTED_PID="%s"\nUI_STARTED_PID="%s"\n' \
+      "$SRS_PID" "$BACKEND_PID" "$UI_PID" > "$temporary" ||
+      ! mv -f "$temporary" "$STATE_FILE"; then
+    rm -f "$temporary"
+    return 1
+  fi
+}
+
+# Check persistence before starting anything, and save partial startup on
+# failure too, so an unsuccessful readiness check cannot orphan tracking.
+save_state || exit 1
+trap 'save_state || { echo "FAIL: cannot save $STATE_FILE" >&2; exit 1; }' EXIT
 
 if [[ "$(redis-cli ping 2>/dev/null)" != "PONG" ]]; then
   echo "Redis not reachable, starting via 'brew services start redis'..."
@@ -79,13 +107,13 @@ else
   echo "Redis: already running, leaving it alone."
 fi
 
-if ! curl -sS -m 2 -o /dev/null "$SRS_API/api/v1/versions" 2>/dev/null; then
+{
   if [[ ! -f "$SRS_BINARY" ]]; then
     echo "FAIL: SRS binary not found at $SRS_BINARY." >&2
     echo "Build it first: cd $WORKSPACE/trunk && ./configure && make" >&2
     exit 1
   fi
-  echo "SRS not reachable, starting local SRS..."
+  echo "Starting local SRS..."
   (cd "$PLATFORM_DIR" && exec "$SRS_BINARY" -c "$SRS_CONF") >/tmp/oryx-stack-srs.log 2>&1 &
   SRS_PID=$!
   disown "$SRS_PID" 2>/dev/null || true
@@ -95,12 +123,10 @@ if ! curl -sS -m 2 -o /dev/null "$SRS_API/api/v1/versions" 2>/dev/null; then
     exit 1
   fi
   echo "SRS: started (pid $SRS_PID)."
-else
-  echo "SRS: already running, leaving it alone."
-fi
+}
 
-if ! curl -sS -m 2 -o /dev/null "$ENDPOINT/terraform/v1/mgmt/versions" 2>/dev/null; then
-  echo "Oryx backend not reachable, starting 'go run .'..."
+{
+  echo "Starting Oryx backend with 'go run .'..."
   (cd "$PLATFORM_DIR" && exec env AUTO_SELF_SIGNED_CERTIFICATE=off go run .) >/tmp/oryx-stack-backend.log 2>&1 &
   BACKEND_PID=$!
   disown "$BACKEND_PID" 2>/dev/null || true
@@ -110,17 +136,15 @@ if ! curl -sS -m 2 -o /dev/null "$ENDPOINT/terraform/v1/mgmt/versions" 2>/dev/nu
     exit 1
   fi
   echo "Oryx backend: started (pid $BACKEND_PID)."
-else
-  echo "Oryx backend: already running, leaving it alone."
-fi
+}
 
-if ! curl -sS -m 2 -o /dev/null "$UI_ENDPOINT" 2>/dev/null; then
+{
   if [[ ! -d "$UI_DIR/node_modules" ]]; then
     echo "FAIL: UI dependencies not installed at $UI_DIR/node_modules." >&2
     echo "Install them first: cd $UI_DIR && npm install" >&2
     exit 1
   fi
-  echo "React dashboard not reachable, starting 'npm start'..."
+  echo "Starting React dashboard with 'npm start'..."
   (cd "$UI_DIR" && exec npm start) >/tmp/oryx-stack-ui.log 2>&1 &
   UI_PID=$!
   disown "$UI_PID" 2>/dev/null || true
@@ -130,15 +154,9 @@ if ! curl -sS -m 2 -o /dev/null "$UI_ENDPOINT" 2>/dev/null; then
     exit 1
   fi
   echo "React dashboard: started (pid $UI_PID)."
-else
-  echo "React dashboard: already running, leaving it alone."
-fi
+}
 
-cat > "$STATE_FILE" <<EOF
-SRS_STARTED_PID="$SRS_PID"
-BACKEND_STARTED_PID="$BACKEND_PID"
-UI_STARTED_PID="$UI_PID"
-EOF
+save_state || exit 1
 
 echo ""
 echo "State recorded in $STATE_FILE"

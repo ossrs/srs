@@ -3,7 +3,7 @@
 # ScenarioTranscode.js): publish a source stream, enable transcoding to a
 # new output stream, wait for the transcode task to report a running FFmpeg
 # frame, verify the transcoded output stream is actually playable, then stop
-# and restore the original config.
+# it explicitly, leaving transcoding disabled.
 #
 # There is exactly one global transcode task (see TranscodeWorker/
 # TranscodeTask in oryx/platform/trancode.go, filename spelling preserved) --
@@ -11,9 +11,9 @@
 # picks the most-recently-active SRS stream (excluding its own output) as
 # input. So this script cannot run concurrently with another instance of
 # itself (or with the dashboard doing the same thing) without the two racing
-# on the same task; it queries and backs up the existing config first and
-# always restores it on exit, matching the restore behavior in
-# oryx-record-test.sh.
+# on the same task. It leaves the test configuration disabled on exit,
+# even if transcoding was enabled before the test. Use only a development
+# target where replacing the global transcode configuration is acceptable.
 #
 # Requires the shared local stack (Redis, SRS, Oryx Go backend) to already be
 # running -- start it once with oryx-stack-start.sh. This script only starts
@@ -44,15 +44,59 @@ ENV_FILE="$PLATFORM_DIR/containers/data/config/.env"
 APP="live"
 
 FFMPEG_PID=""
+TRANSCODE_NEEDS_STOP=""
+STOP_BODY=""
 cleanup() {
+  local status=$?
+  trap - EXIT INT TERM
   echo ""
   echo "=== Cleaning up ==="
+  if [[ -n "$TRANSCODE_NEEDS_STOP" ]]; then
+    stop_transcode || status=1
+  fi
   if [[ -n "$FFMPEG_PID" ]]; then
     kill -9 "$FFMPEG_PID" 2>/dev/null || true
+    wait "$FFMPEG_PID" 2>/dev/null || true
   fi
   echo "Cleanup done."
+  exit "$status"
 }
 trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# HTTP success alone is insufficient: Oryx reports API errors in JSON.
+api_succeeded() {
+  jq -e '.code == 0' >/dev/null 2>&1
+}
+
+stop_transcode() {
+  local response attempt
+  echo "Stopping transcoding..."
+  if ! response=$(curl -fsS -m 5 -X POST "$ENDPOINT/terraform/v1/ffmpeg/transcode/apply" \
+    -H "Authorization: Bearer $BEARER" -H 'Content-Type: application/json' \
+    -d "$STOP_BODY") || ! printf '%s' "$response" | api_succeeded; then
+    echo "FAIL: could not disable transcoding." >&2
+    return 1
+  fi
+
+  # Disabling is asynchronous. Do not report success while FFmpeg is running.
+  for ((attempt = 1; attempt <= 15; attempt++)); do
+    if response=$(curl -fsS -m 5 -X POST "$ENDPOINT/terraform/v1/ffmpeg/transcode/task" \
+      -H "Authorization: Bearer $BEARER" -H 'Content-Type: application/json' -d '{}') &&
+      printf '%s' "$response" | jq -e '
+        .code == 0 and .data.enabled == false and
+        .data.input == "" and .data.output == ""
+      ' >/dev/null 2>&1; then
+      TRANSCODE_NEEDS_STOP=""
+      echo "PASS: transcoding disabled and task stopped."
+      return 0
+    fi
+    sleep 1
+  done
+  echo "FAIL: transcode task did not stop after disabling." >&2
+  return 1
+}
 
 check_srs_stream_published() {
   local stream="$1" deadline="$2"
@@ -101,8 +145,8 @@ if ! curl -sS -m 2 -o /dev/null "$SRS_API/api/v1/versions" 2>/dev/null || \
   echo "  bash $SCRIPT_DIR/oryx-stack-start.sh" >&2
   exit 1
 fi
-if ! command -v ffmpeg &>/dev/null || ! command -v ffprobe &>/dev/null; then
-  echo "FAIL: ffmpeg/ffprobe not found in PATH." >&2
+if ! command -v ffmpeg &>/dev/null || ! command -v ffprobe &>/dev/null || ! command -v jq &>/dev/null; then
+  echo "FAIL: ffmpeg/ffprobe/jq not found in PATH." >&2
   exit 1
 fi
 
@@ -143,22 +187,8 @@ if [[ -z "$PUBLISH_SECRET" ]]; then
   exit 1
 fi
 
-# --- Step 2: Back up the current global transcode config, restore on exit ---
-echo "=== Step 1: Back up current transcode config ==="
-BACKUP_CONF=$(curl -sS -m 5 -X POST "$ENDPOINT/terraform/v1/ffmpeg/transcode/query" \
-  -H "Authorization: Bearer $BEARER" -H 'Content-Type: application/json' -d '{}')
-echo "Backed up: $BACKUP_CONF"
-echo ""
-
-restore_transcode_config() {
-  curl -sS -m 5 -X POST "$ENDPOINT/terraform/v1/ffmpeg/transcode/apply" \
-    -H "Authorization: Bearer $BEARER" -H 'Content-Type: application/json' \
-    -d "$BACKUP_CONF" >/dev/null 2>&1 || true
-}
-trap 'restore_transcode_config; cleanup' EXIT
-
-# --- Step 3: Publish the source stream via RTMP ---
-echo "=== Step 2: Publish source stream via RTMP ==="
+# --- Step 2: Publish the source stream via RTMP ---
+echo "=== Step 1: Publish source stream via RTMP ==="
 SOURCE_STREAM="transtest-src-$(date +%s)"
 ffmpeg -re -stream_loop -1 -i "$SOURCE_FLV" -c copy -f flv \
   "$SRS_RTMP/$APP/$SOURCE_STREAM?secret=$PUBLISH_SECRET" >/tmp/oryx-transcode-source.log 2>&1 &
@@ -172,21 +202,27 @@ fi
 check_srs_stream_published "$SOURCE_STREAM" 15
 echo ""
 
-# --- Step 4: Enable transcoding to a new output stream ---
-echo "=== Step 3: Enable transcode ==="
+# --- Step 3: Enable transcoding to a new output stream ---
+echo "=== Step 2: Enable transcode ==="
 TRANSCODE_STREAM="transtest-dst-$(date +%s)"
 APPLY_BODY=$(cat <<EOF
 {"all":true,"vcodec":"libx264","acodec":"aac","vbitrate":200,"abitrate":16,"achannels":0,"vprofile":"baseline","vpreset":"ultrafast","server":"$SRS_RTMP/$APP/","secret":"$TRANSCODE_STREAM?secret=$PUBLISH_SECRET"}
 EOF
 )
-curl -sS -m 5 -X POST "$ENDPOINT/terraform/v1/ffmpeg/transcode/apply" \
+# Arm cleanup before sending the request: a timeout may still enable the task.
+STOP_BODY="${APPLY_BODY/\"all\":true/\"all\":false}"
+TRANSCODE_NEEDS_STOP=1
+if ! APPLY_RESP=$(curl -fsS -m 5 -X POST "$ENDPOINT/terraform/v1/ffmpeg/transcode/apply" \
   -H "Authorization: Bearer $BEARER" -H 'Content-Type: application/json' \
-  -d "$APPLY_BODY" >/dev/null
+  -d "$APPLY_BODY") || ! printf '%s' "$APPLY_RESP" | api_succeeded; then
+  echo "FAIL: could not enable transcoding." >&2
+  exit 1
+fi
 echo "Transcode config applied, output -> $SRS_RTMP/$APP/$TRANSCODE_STREAM"
 echo ""
 
-# --- Step 5: Poll the transcode task until FFmpeg reports a running frame ---
-echo "=== Step 4: Wait for transcode task to be running ==="
+# --- Step 4: Poll the transcode task until FFmpeg reports a running frame ---
+echo "=== Step 3: Wait for transcode task to be running ==="
 TASK_OK=""
 for ((i = 1; i <= 30; i++)); do
   TASK_RESP=$(curl -sS -m 5 -X POST "$ENDPOINT/terraform/v1/ffmpeg/transcode/task" \
@@ -203,22 +239,20 @@ for ((i = 1; i <= 30; i++)); do
 done
 if [[ -z "$TASK_OK" ]]; then
   echo "FAIL: transcode task never reported enabled with input/output/frame within 30s." >&2
-  echo "Last response: $TASK_RESP" >&2
   exit 1
 fi
-echo "PASS: transcode task running, input=$INPUT output=$OUTPUT"
+echo "PASS: transcode task running."
 echo ""
 
-# --- Step 6: Verify the transcoded output stream is actually playable ---
-echo "=== Step 5: Verify transcoded output stream ==="
+# --- Step 5: Verify the transcoded output stream is actually playable ---
+echo "=== Step 4: Verify transcoded output stream ==="
 check_srs_stream_published "$TRANSCODE_STREAM" 30
 probe_has_audio_video "Transcoded output" "$SRS_HTTP/$APP/$TRANSCODE_STREAM.flv"
 echo ""
 
-# --- Step 7: Disable transcoding and stop the source publisher ---
-echo "=== Step 6: Disable transcode and restore original config ==="
-restore_transcode_config
-echo "PASS: transcode config restored."
+# --- Step 6: Disable transcoding and stop the source publisher ---
+echo "=== Step 5: Disable transcode and wait for task to stop ==="
+stop_transcode || exit 1
 
 kill -9 "$FFMPEG_PID" 2>/dev/null || true
 wait "$FFMPEG_PID" 2>/dev/null || true

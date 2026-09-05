@@ -18,6 +18,10 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 
 For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md` in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification. Apply this requirement during development, bug fixing, and pull-request review; do not treat the `proxy-*` script names as limiting the suite to proxy changes.
 
+## Skill Script Language
+
+Use **Bash** for skill-owned automation and AI test scripts, including regression helpers. Keep them compatible with macOS `/bin/bash` 3.2. Do not create or run Python scripts, inline Python, or Python validation helpers unless the user explicitly requests Python. Use shell utilities such as `curl` and `jq` for HTTP and JSON work; check required commands before running the test.
+
 ## Version and Changelog
 
 Whenever a task bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and follow it. Apply this in every workflow, not only Review a PR: bug fixes and feature work reach a version bump too, and the rules do not change with the routed task.
