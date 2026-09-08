@@ -1,14 +1,24 @@
 #!/bin/bash
 
 # 
-# Copy from srs-docs to srs skills.
+# Copy from SRS Docs2 to SRS skills.
 #
 
-SRS_WORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+SRS_WORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SRS_DOCS="$SRS_WORK_DIR/skills/internal-docs-for-srs/references/cpp-docs"
 SRS_ORYX_DOCS="$SRS_WORK_DIR/skills/internal-docs-for-srs/references/oryx"
-SRS_DOCS_SOURCE=~/git/srs-docs/for-writers
-SRS_DOCS_CURRENT=~/git/srs-docs/i18n/en-us/docusaurus-plugin-content-docs/current
+SRS_DOCS2="$SRS_WORK_DIR/website"
+SRS_DOCS2_CURRENT="$SRS_DOCS2/docs"
+SRS_DOCS2_PAGES="$SRS_DOCS2/src/pages"
+SRS_DOCS2_BLOG="$SRS_DOCS2/blog"
+
+docs2_page_path() {
+  case "$1" in
+    faq-server-en.md) echo "$SRS_DOCS2_PAGES/faq.md" ;;
+    *-en.md) echo "$SRS_DOCS2_PAGES/${1%-en.md}.md" ;;
+    *) echo "$SRS_DOCS2_PAGES/$1" ;;
+  esac
+}
 
 if [[ ! -d "$SRS_DOCS" ]]; then
   echo "no cpp-docs in $SRS_WORK_DIR"
@@ -20,8 +30,13 @@ if [[ ! -d "$SRS_ORYX_DOCS" ]]; then
   exit -1
 fi
 
+if [[ ! -d "$SRS_DOCS2_CURRENT" || ! -d "$SRS_DOCS2_PAGES" || ! -d "$SRS_DOCS2_BLOG" ]]; then
+  echo "no SRS Docs2 project in $SRS_DOCS2"
+  exit -1
+fi
+
 for target in "$SRS_DOCS/doc/"*.md; do
-  source="$SRS_DOCS_CURRENT/doc/$(basename "$target")"
+  source="$SRS_DOCS2_CURRENT/doc/$(basename "$target")"
   if [[ ! -f "$source" ]]; then
     continue
   fi
@@ -33,7 +48,7 @@ done
 echo "Copy doc success"
 
 for target in "$SRS_DOCS/pages/"*.md; do
-  source="$SRS_DOCS_SOURCE/pages/$(basename "$target")"
+  source=$(docs2_page_path "$(basename "$target")")
   if [[ ! -f "$source" ]]; then
     continue
   fi
@@ -46,10 +61,11 @@ echo "Copy pages success"
 
 for target in "$SRS_ORYX_DOCS/"*.md; do
   name=$(basename "$target")
+  page_source=$(docs2_page_path "$name")
   for source in \
-    "$SRS_DOCS_CURRENT/doc/$name" \
-    "$SRS_DOCS_SOURCE/pages/$name" \
-    "$SRS_DOCS_SOURCE/blog-en/$name"; do
+    "$SRS_DOCS2_CURRENT/doc/$name" \
+    "$page_source" \
+    "$SRS_DOCS2_BLOG/$name"; do
     if [[ ! -f "$source" ]]; then
       continue
     fi

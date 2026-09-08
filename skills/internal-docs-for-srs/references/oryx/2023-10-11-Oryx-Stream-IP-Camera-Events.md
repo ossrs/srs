@@ -14,7 +14,7 @@ Do you have an IP camera that supports only the RTSP protocol and want to stream
 or Facebook? The simplest solution is to use Oryx. With just one click, you can stream your IP 
 camera to these platforms for continuous 24/7 streaming.
 
-<!--truncate-->
+{/* truncate */}
 
 How to change IP Camera's RTSP stream to RTMP/RTMPS for live streaming platforms? You can use OBS or 
 Oryx. OBS requires a device, while Oryx works on a cloud server and in the backend. See the 

@@ -17,7 +17,7 @@ In this tutorial, you will learn how to deploy a live streaming media server, us
 deployed with aaPanel, it's also possible to deploy an extra media server to power your website with live streaming
 service, for example, to enable live streaming feature for your WordPress website.
 
-<!--truncate-->
+{/* truncate */}
 
 ## Prerequisites
 

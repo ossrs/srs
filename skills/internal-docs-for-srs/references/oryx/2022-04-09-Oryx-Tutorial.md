@@ -14,7 +14,7 @@ Streaming video is very popular in a variety of industries, and there are many t
 media server, using [SRS](https://github.com/ossrs/srs) or [NGINX-RTMP](https://github.com/arut/nginx-rtmp-module) 
 that host stream does not rely on other service providers.
 
-<!--truncate-->
+{/* truncate */}
 
 But if we want to build a online video streaming service, it's  much more than only a media server:
 

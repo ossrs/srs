@@ -2,7 +2,7 @@
 
 About Q&A, please follow [rules](https://stackoverflow.com/help/product-support)：
 
-* Please read the [Wiki](../docs/v4/doc/introduction) first.
+* Please read the [Wiki](./docs/v4/doc/introduction) first.
 * Search your issue in this FAQ and [issues](https://github.com/ossrs/srs/issues)
 * How do I? -- [Stack Overflow](https://stackoverflow.com/questions/tagged/simple-realtime-server)
 * I got this error, why? -- [Stack Overflow](https://stackoverflow.com/questions/tagged/simple-realtime-server)
@@ -25,11 +25,11 @@ Issue according to the requirements.
 * Questions about RTMP/HTTP-FLV/WebRTC live streaming?
   > 1. SRS only supports streaming protocols, such as live streaming or WebRTC. For details, please refer to the cluster section in the WiKi.
 * Questions about HLS/DASH segmented live streaming, or on-demand/recording/VoD/DVR?
-  > 1. SRS can record as on-demand files. Please refer to [DVR](../docs/v4/doc/dvr)
-  > 1. SRS can generate HLS or DASH. Please refer to [HLS](../docs/v4/doc/delivery-hls)
+  > 1. SRS can record as on-demand files. Please refer to [DVR](./docs/v4/doc/dvr)
+  > 1. SRS can generate HLS or DASH. Please refer to [HLS](./docs/v4/doc/delivery-hls)
 * Questions about HLS/DASH/VoD/DVR distribution clusters?
-  > 1. These are all HTTP files, and for HTTP file distribution clusters, it is recommended to use NGINX. Please refer to [HLS Cluster](../docs/v4/doc/sample-hls-cluster)
-  > 1. You can use NGINX in conjunction with SRS Edge to distribute HTTP-FLV, implementing the distribution of all HTTP protocols. Please refer to [Nginx For HLS](../docs/v4/doc/nginx-for-hls#work-with-srs-edge-server)
+  > 1. These are all HTTP files, and for HTTP file distribution clusters, it is recommended to use NGINX. Please refer to [HLS Cluster](./docs/v4/doc/sample-hls-cluster)
+  > 1. You can use NGINX in conjunction with SRS Edge to distribute HTTP-FLV, implementing the distribution of all HTTP protocols. Please refer to [Nginx For HLS](./docs/v4/doc/nginx-for-hls#work-with-srs-edge-server)
 * SRS source cluster, multi-stream hot backup, stream switching, push stream disaster recovery, questions about live stream disaster recovery and switching, refer to [link](https://stackoverflow.com/a/70629002/17679565).
 * How can you build a server network to provide nearby services and expand server capacity? You can use the SRS Edge cluster as a solution. For more information, refer to this [link](https://stackoverflow.com/a/71030396/17679565).
 * How to create multi-stream backup and switch between them: Use multiple streams and select one that is available. For stream disaster recovery and switching, refer to this [link](https://stackoverflow.com/a/77363633/17679565).
@@ -77,7 +77,7 @@ Issue according to the requirements.
 * `Edge HLS/DVR/RTC`: Does Edge Cluster support for HLS/DVR/RTC, etc.
   > 1. Edge is a live streaming cluster that only supports live streaming protocols such as RTMP and FLV. Only the origin server can support HLS/DVR/RTC. Refer to [#1066](https://github.com/ossrs/srs/issues/1066)
   > 1. Currently, there is no restriction on using HLS/DVR/RTC capabilities in Edge, but they will be disabled in the future. So please do not use them this way, and they won't work.
-  > 1. For the HLS cluster, please refer to the documentation [HLS Edge Cluster](../docs/v5/doc/nginx-for-hls)
+  > 1. For the HLS cluster, please refer to the documentation [HLS Edge Cluster](./docs/v5/doc/nginx-for-hls)
   > 1. The development of WebRTC and SRT clustering capabilities is in progress. Refer to [#3138](ttps://github.com/ossrs/srs/issues/3138)
 
 <a name='ffmpeg'></a>
@@ -150,9 +150,9 @@ Issue according to the requirements.
 
 ### [HTTPS & HTTP2/3](#https-h2-3)
 * `HTTPS`: How to use HTTPS services, API, Callback, Streaming, WebRTC, etc.
-  > 1. [HTTPS API](../docs/v4/doc/http-api#https-api) provides transport layer security for the API. WebRTC push streaming requires HTTPS pages, which can only access HTTPS APIs.
-  > 1. [HTTPS Callback](../docs/v4/doc/http-callback#https-callback) calls back to HTTPS services. If your server uses the HTTPS protocol, most business systems use HTTPS for security purposes.
-  > 1. [HTTPS Live Streaming](../docs/v4/doc/delivery-http-flv#https-flv-live-stream) provides transport layer security for streaming, mainly because HTTPS pages can only access HTTPS resources.
+  > 1. [HTTPS API](./docs/v4/doc/http-api#https-api) provides transport layer security for the API. WebRTC push streaming requires HTTPS pages, which can only access HTTPS APIs.
+  > 1. [HTTPS Callback](./docs/v4/doc/http-callback#https-callback) calls back to HTTPS services. If your server uses the HTTPS protocol, most business systems use HTTPS for security purposes.
+  > 1. [HTTPS Live Streaming](./docs/v4/doc/delivery-http-flv#https-flv-live-stream) provides transport layer security for streaming, mainly because HTTPS pages can only access HTTPS resources.
   > 1. Automatically apply for SSL certificates from `letsencrypt` for a single domain, making it easier for small and medium-sized enterprises to deploy SRS and avoiding the high overhead of HTTPS proxies for streaming media businesses. See [#2864](https://github.com/ossrs/srs/issues/2864)
   > 1. Use Nginx or Caddy as reverse proxies for HTTP/HTTPS Proxy to provide unified HTTP/HTTPS services. See [#2881](https://github.com/ossrs/srs/issues/2881)
 * `HTTP2`: How to do HTTP2-FLV or HTTP2 HLS, etc.
@@ -166,11 +166,11 @@ Issue according to the requirements.
 * `Latency`: How to reduce latency, how to do low-latency live streaming, and how much latency WebRTC has.
   > 1. Live streaming latency is generally 1 to 3 seconds, WebRTC latency is around 100ms, why is the latency of the self-built environment so high?
   > 1. The most common reason for high latency is using the VLC player, which has a latency of tens of seconds. Please switch to the SRS H5 player.
-  > 1. Latency is related to each link, not just SRS reducing latency. It is also related to the push tool (FFmpeg/OBS) and the player. Please refer to [Realtime](../docs/v4/doc/sample-realtime) and follow the steps to set up a low-latency environment. Don't start with your own fancy operations, just follow the documentation.
+  > 1. Latency is related to each link, not just SRS reducing latency. It is also related to the push tool (FFmpeg/OBS) and the player. Please refer to [Realtime](./docs/v4/doc/sample-realtime) and follow the steps to set up a low-latency environment. Don't start with your own fancy operations, just follow the documentation.
   > 1. If you still find high latency after following the steps, how to troubleshoot? Please refer to [#2742](https://github.com/ossrs/srs/issues/2742)
 * `HLS Latency`: How to reduce the latency of HLS.
   > 1. HLS has a large delay, and it takes a long time to watch after switching content. How to reduce HLS latency? Refer to the [link](https://video.stackexchange.com/a/36923/42693).
-  > 1. How to config SRS for [HLS Latency](../docs/v6/doc/hls#hls-low-latency)
+  > 1. How to config SRS for [HLS Latency](./docs/v6/doc/hls#hls-low-latency)
 * `Benchmark`: How to benchmark and testing latency.
   > 1. How to measure and optimize live streaming latency, latency in different stages and protocols, how to improve and measure latency, refer to this [link](https://stackoverflow.com/a/70402476/17679565).
 
@@ -181,7 +181,7 @@ Issue according to the requirements.
   > 1. Performance is a comprehensive topic, including the quality of the project, the capacity and concurrency it supports, how to optimize performance, and even memory issues, such as memory leaks (leading to reduced performance), out-of-bounds and wild pointer problems.
   > 1. If you need to understand the concurrency of SRS, you must divide it into separate concurrency for live streaming and WebRTC. Live streaming can use [srs-bench](https://github.com/ossrs/srs-bench), and WebRTC can use the [feature/rtc](https://github.com/ossrs/srs-bench/tree/feature/rtc) branch for stress testing to obtain the concurrency supported by your hardware and software environment under specific bitrates, latency, and business characteristics.
   > 1. SRS also provides official concurrency data, which can be found in [Performance](https://github.com/ossrs/srs/blob/4.0release/trunk/doc/PERFORMANCE.md#performance). It also explains how to measure this concurrency, the conditions under which the data is obtained, and specific optimization code.
-  > 1. If you need to investigate performance issues, memory leaks, or wild pointer problems, you must use system-related tools such as perf, valgrind, or gperftools. For more information, please refer to [SRS Performance (CPU), Memory Optimization Tool Usage](https://www.jianshu.com/p/6d4a89359352) or [Perf](../docs/v4/doc/perf).
+  > 1. If you need to investigate performance issues, memory leaks, or wild pointer problems, you must use system-related tools such as perf, valgrind, or gperftools. For more information, please refer to [SRS Performance (CPU), Memory Optimization Tool Usage](https://www.jianshu.com/p/6d4a89359352) or [Perf](./docs/v4/doc/perf).
   > 1. It is important to note that valgrind has been supported since SRS 3.0 (inclusive), and the ST patch has been applied.
 
 <a name='player'></a>
@@ -197,7 +197,7 @@ Issue according to the requirements.
 ### [RTSP](#rtsp)
 * `RTSP`: How to support RTSP streaming, RTSP server, RTSP playback, etc.
   > 1. SRS supports pulling RTSP sources with Ingest, but does not support pushing RTSP streams directly to SRS. RTSP push is not the recommended SRS usage; for details, please refer to [#2304](https://github.com/ossrs/srs/issues/2304).
-  > 1. SRS supports RTSP playback/server in SRS 7.0.47+ by converting an RTMP stream to RTSP. Build with `./configure --rtsp=on`, enable `rtmp_to_rtsp on`, publish by RTMP, then play with RTSP, for example `ffplay -rtsp_transport tcp -i rtsp://localhost:8554/live/livestream`. See [RTSP](../docs/v7/doc/rtsp).
+  > 1. SRS supports RTSP playback/server in SRS 7.0.47+ by converting an RTMP stream to RTSP. Build with `./configure --rtsp=on`, enable `rtmp_to_rtsp on`, publish by RTMP, then play with RTSP, for example `ffplay -rtsp_transport tcp -i rtsp://localhost:8554/live/livestream`. See [RTSP](./docs/v7/doc/rtsp).
   > 1. RTSP playback only supports TCP/interleaved transport; UDP transport is not supported. SRS RTSP output currently targets H.264 + AAC streams.
   > 1. If you need a large number of camera connections, such as 10,000, using FFmpeg may be more difficult. For such large-scale businesses, the recommended solution is to use ST+SRS code to implement an RTSP forwarding server.
 * `Browser RTSP`: How to play RTSP streams in a browser
@@ -297,7 +297,7 @@ topic. If your question is similar, please watch the video directly:
 ### WebRTC Demo Failed
 
 **Question** Failed to join RTC room or start conversation
-> According to the 5.0 documentation for [SFU: One to One](../docs/v5/doc/webrtc#sfu-one-to-one), I have completed the following configurations:
+> According to the 5.0 documentation for [SFU: One to One](./docs/v5/doc/webrtc#sfu-one-to-one), I have completed the following configurations:
 > 1. Configured the CANDIDATE to use the internal IP address 192.168.100.140.
 > 1. Used Docker to start RTC service, Signaling service, and HTTPS service.
 > 1. Successfully accessed http://192.168.100.140/demos/ and was able to open it without any issues.
@@ -306,7 +306,7 @@ topic. If your question is similar, please watch the video directly:
 > I have already used a self-signed OpenSSL key and crt certificate, but encountered a TLS certificate handshake error.
 
 **Answer**
-> 1. First, it is important to clarify that you strictly followed the documentation.[SFU: One to One](../docs/v5/doc/webrtc#sfu-one-to-one)
+> 1. First, it is important to clarify that you strictly followed the documentation.[SFU: One to One](./docs/v5/doc/webrtc#sfu-one-to-one)
 > 1. In order to identify the cause, you can investigate potential factors such as certificate problems, HTTPS connection issues, and browser permission settings etc.
 
 ## Deleting

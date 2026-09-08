@@ -546,15 +546,40 @@ This configuration allows:
 
 ## VLC
 
-VLC has an important limitation: it does not support the `streamid` URL parameter. When VLC connects 
-to an SRT server, it always sends an empty `SRTO_STREAMID` socket option, regardless of what you put
-in the URL. This means VLC can only use the simple URL format `srt://127.0.0.1:10080` without any 
-streamid parameter.
+VLC 3.0.17 and later support the SRT `SRTO_STREAMID` socket option. However, the structured SRS
+stream ID used in this guide starts with `#`, such as `#!::r=live/livestream,m=request`, and VLC
+treats that character as the beginning of a URL fragment. Therefore, do not append this SRS stream
+ID directly to VLC's network URL. Use the simple URL `srt://127.0.0.1:10080` and set the stream ID
+separately in VLC's SRT settings.
 
-To support VLC and other clients that don't set `SRTO_STREAMID`, SRS provides a `default_streamid` 
-configuration option. When a client connects without setting streamid, SRS will use this configured 
-default value. By default, SRS uses `#!::r=live/livestream,m=publish` for backward compatibility, 
-but for VLC playback, you should configure it to use `m=request` mode instead.
+To set the stream ID in the VLC user interface:
+
+1. Open VLC preferences:
+   - Windows or Linux: select **Tools > Preferences**.
+   - macOS: select **VLC > Settings…**. On older versions, this item may be named **Preferences…**.
+2. Open the advanced settings:
+   - Windows or Linux: at the bottom-left, change **Show settings** to **All**.
+   - macOS: click **Show All** at the bottom-left.
+3. Select **Input / Codecs > Access modules > SRT**.
+4. Enter `#!::r=live/livestream,m=request` in **SRT Stream ID**.
+5. Click **Save**.
+6. Open the network stream:
+   - Windows or Linux: select **Media > Open Network Stream**.
+   - macOS: select **File > Open Network**.
+7. Enter `srt://127.0.0.1:10080` and start playback.
+
+The VLC preference is persistent and applies to later SRT connections. Change or clear it when you
+need to play a different stream. You can also supply the value for one VLC invocation from the
+command line:
+
+```bash
+vlc --streamid='#!::r=live/livestream,m=request' 'srt://127.0.0.1:10080'
+```
+
+For older VLC releases, or when the VLC stream ID field is empty, SRS provides a `default_streamid`
+configuration option. When a client connects without setting `SRTO_STREAMID`, SRS uses this
+configured default value. By default, SRS uses `#!::r=live/livestream,m=publish` for backward
+compatibility, but for VLC playback you should configure it to use `m=request` mode instead.
 
 SRS provides a ready-to-use configuration file `conf/srt.vlc.conf` optimized for VLC compatibility. 
 Start SRS with this configuration:
@@ -578,14 +603,13 @@ ffmpeg -re -i ./doc/source.flv -c copy -pes_payload_size 0 -f mpegts \
   'srt://127.0.0.1:10080?streamid=#!::r=live/livestream,m=publish'
 ```
 
-Then play with VLC using the simple URL (VLC will use the server's default streamid with `m=request`):
+Then either configure VLC's **SRT Stream ID** as described above, or leave that field empty to use
+the server's `default_streamid`. Open the stream in VLC:
 
 - Open VLC Media Player
 - Go to Media → Open Network Stream
 - Enter URL: `srt://127.0.0.1:10080`
 - Click Play
-
-> Note: VLC doesn't support SRT with streamid, so you should use the simple URL format `srt://127.0.0.1:10080` without any streamid parameter.
 
 You can also play with FFplay by explicitly setting the streamid:
 
@@ -593,8 +617,10 @@ You can also play with FFplay by explicitly setting the streamid:
 ffplay 'srt://127.0.0.1:10080?streamid=#!::r=live/livestream,m=request'
 ```
 
-The key difference between clients: VLC always uses the server's `default_streamid` configuration, while 
-FFmpeg/FFplay/OBS can set streamid in the URL or settings, which overrides the server default.
+The key difference between clients is how the SRS stream ID is supplied. FFmpeg, FFplay, and OBS can
+include it in their URL or settings. VLC 3.0.17 and later can send it through the separate
+**SRT Stream ID** setting or the `--streamid` command-line option. If VLC sends no stream ID, SRS
+falls back to `default_streamid`.
 
 ## Q&A
 
@@ -603,4 +629,3 @@ FFmpeg/FFplay/OBS can set streamid in the URL or settings, which overrides the s
 > Yes, it is supported. You can use OBS/FFmpeg to push SRT streams to SRS, and SRS will convert the SRT stream into the RTMP protocol. Then, you can convert RTMP to HLS, FLV, WebRTC, and also forward the RTMP stream to Nginx.
 
 ![](https://ossrs.io/gif/v1/sls.gif?site=ossrs.net&path=/lts/doc/en/v7/srt)
-

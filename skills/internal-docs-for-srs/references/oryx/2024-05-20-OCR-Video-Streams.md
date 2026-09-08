@@ -15,7 +15,7 @@ vast amount of video content daily. But have you ever wondered how we can make s
 in these videos? This is where AI comes in. With the help of artificial intelligence, we can now recognize 
 text, identify objects, and even describe scenes in video streams.
 
-<!--truncate-->
+{/* truncate */}
 
 One powerful tool that makes this process easy is Oryx. In this blog, we'll explore how Oryx can help you 
 perform OCR (Optical Character Recognition) on video streams, allowing you to extract valuable information 

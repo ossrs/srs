@@ -15,7 +15,7 @@ and viewers. In this comprehensive guide, we will delve into the importance of s
 in live streaming, discuss the Oryx solution for secure publishing, and provide a step-by-step guide 
 on setting up the Oryx for your own live streaming service.
 
-<!--truncate-->
+{/* truncate */}
 
 ## The Importance of Authentication in Live Streaming
 

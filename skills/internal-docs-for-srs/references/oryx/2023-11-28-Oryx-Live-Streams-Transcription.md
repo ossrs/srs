@@ -15,7 +15,7 @@ Recognition (ASR) to create real-time subtitles. Have you ever wondered how live
 inclusive, especially for people with hearing disabilities or those who are non-native speakers? 
 The answer lies in an innovative technology that’s reshaping how we experience live content.
 
-<!--truncate-->
+{/* truncate */}
 
 We'll focus on a game-changing tool in ASR – OpenAI's Whisper. This isn't just any technology; it's 
 a powerful AI service that understands almost every language in the world and transcripts speech 
