@@ -11,6 +11,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_http_stream.hpp>
 #include <srs_app_rtc_api.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_statistic.hpp>
@@ -20,6 +21,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_utest_ai13.hpp>
+#include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_ai23.hpp>
@@ -4222,6 +4224,120 @@ VOID TEST(HttpHooksTest, OnPlaySuccess)
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;
     hooks->stat_ = NULL;
+}
+
+VOID TEST(HttpHooksTest, PlaybackHttpErrorResponse)
+{
+    struct TestCase {
+        int hook_status;
+        const char *body;
+        int player_status;
+    } cases[] = {
+        {200, "{\"code\":0}", 0},
+        {200, "0", 0},
+        {201, "{\"code\":0}", 0},
+        {201, "0", 0},
+        {401, "private backend response", 401},
+        {403, "{\"code\":401}", 403},
+        {503, "", 503},
+        {200, "{\"code\":401,\"message\":\"private backend response\"}", 401},
+        {201, "{\"code\":403}", 403},
+        {200, "{\"code\":503}", 503},
+        {200, "{\"code\":400}", 400},
+        {200, "{\"code\":599}", 599},
+        {200, "{\"code\":399}", 500},
+        {200, "{\"code\":600}", 500},
+        {200, "{\"code\":4294967697}", 500},
+        {200, "{\"code\":-1}", 500},
+        {200, "{\"code\":\"401\"}", 500},
+        {200, "{\"message\":\"private backend response\"}", 500},
+        {200, "invalid JSON", 500},
+        {200, "", 500},
+        {302, "{\"code\":401}", 500},
+        {0, "", 500}, // Transport failure before receiving an HTTP response.
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+        SCOPED_TRACE(i);
+        srs_error_t err = srs_success;
+        SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+        MockResponseWriter writer;
+        MockRequest request("test.vhost", "live", "stream1");
+        MockBufferCache cache;
+        MockStatisticForLiveStream stat;
+        MockSecurity security;
+        MockAppConfigForLiveStreamHooks config;
+        config.http_hooks_enabled_ = true;
+        config.on_play_directive_ = new SrsConfDirective();
+        config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/private-hook?token=secret");
+        if (cases[i].player_status) {
+            config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/second-hook");
+        }
+
+        MockAppFactoryForHooksTest factory;
+        MockStatisticForHooks hook_stat;
+        SrsHttpHooks hooks;
+        hooks.factory_ = &factory;
+        hooks.stat_ = &hook_stat;
+
+        srs_error_t post_error = srs_success;
+        factory.mock_http_client_ = new MockHttpClientForHooks();
+        if (cases[i].hook_status == 0) {
+            post_error = srs_error_new(ERROR_SOCKET_TIMEOUT, "private transport failure");
+            factory.mock_http_client_->post_error_ = post_error;
+        } else {
+            MockHttpMessageForHooks *response = new MockHttpMessageForHooks();
+            response->status_code_ = cases[i].hook_status;
+            response->body_content_ = cases[i].body;
+            factory.mock_http_client_->mock_response_ = response;
+        }
+
+        SrsLiveStream stream(&request, &cache);
+        stream.stat_ = &stat;
+        srs_freep(stream.security_);
+        stream.security_ = &security;
+        stream.config_ = &config;
+        stream.hooks_ = &hooks;
+        stream.entry_ = new SrsHttpMuxEntry();
+        stream.entry_->enabled = false;
+
+        err = stream.serve_http(&writer, message.get());
+        if (cases[i].player_status) {
+            EXPECT_TRUE(err == srs_success);
+            string response(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+            char expected[32];
+            snprintf(expected, sizeof(expected), "HTTP/1.1 %d ", cases[i].player_status);
+            EXPECT_EQ(0, response.find(expected));
+            EXPECT_EQ(string::npos, response.find("private"));
+            EXPECT_EQ(string::npos, response.find("secret"));
+            EXPECT_EQ(string::npos, response.find("127.0.0.1"));
+        } else {
+            EXPECT_EQ(ERROR_RTMP_STREAM_NOT_FOUND, srs_error_code(err));
+            EXPECT_EQ(0, writer.io.out_buffer.length());
+        }
+        EXPECT_TRUE(stream.viewers_.empty());
+        srs_freep(err);
+        srs_freep(post_error);
+        stream.stat_ = NULL;
+        stream.security_ = NULL;
+        stream.config_ = NULL;
+        stream.hooks_ = NULL;
+        srs_freep(stream.entry_);
+    }
+}
+
+VOID TEST(HttpHooksTest, ExistingOnPlayImplementation)
+{
+    srs_error_t err = srs_success;
+    MockHttpHooksForLiveStream hooks;
+    MockRequest request("test.vhost", "live", "stream1");
+    ISrsHttpHooks *existing_hooks = &hooks;
+    int http_status = 0;
+
+    hooks.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "rejected");
+    HELPER_EXPECT_FAILED(existing_hooks->on_play("http://localhost/on_play", &request, &http_status));
+    EXPECT_EQ(500, http_status);
+    EXPECT_EQ(1, hooks.on_play_count_);
 }
 
 VOID TEST(HttpHooksTest, OnStopSuccess)

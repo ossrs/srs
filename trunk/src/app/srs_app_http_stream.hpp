@@ -298,7 +298,7 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_serve_http(SrsLiveSource *source, ISrsLiveConsumer *consumer, ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
-    virtual srs_error_t http_hooks_on_play(ISrsHttpMessage *r);
+    virtual srs_error_t http_hooks_on_play(ISrsHttpMessage *r, int *http_status = NULL);
     virtual void http_hooks_on_stop(ISrsHttpMessage *r);
     virtual srs_error_t streaming_send_messages(ISrsBufferEncoder *enc, SrsMediaPacket **msgs, int nb_msgs);
 };
