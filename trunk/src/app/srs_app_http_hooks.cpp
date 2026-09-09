@@ -45,6 +45,14 @@ ISrsHttpHooks::~ISrsHttpHooks()
 {
 }
 
+srs_error_t ISrsHttpHooks::on_play(string url, ISrsRequest *req, int *http_status)
+{
+    if (http_status) {
+        *http_status = SRS_CONSTS_HTTP_InternalServerError;
+    }
+    return on_play(url, req);
+}
+
 SrsHttpHooks::SrsHttpHooks()
 {
     factory_ = _srs_app_factory;
@@ -219,6 +227,11 @@ void SrsHttpHooks::on_unpublish(string url, ISrsRequest *req)
 
 srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req)
 {
+    return on_play(url, req, NULL);
+}
+
+srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req, int *http_status)
+{
     srs_error_t err = srs_success;
 
     SrsContextId cid = _srs_context->get_id();
@@ -246,10 +259,10 @@ srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req)
 
     std::string data = obj->dumps();
     std::string res;
-    int status_code;
+    int status_code = 0;
 
     SrsUniquePtr<ISrsHttpClient> http(factory_->create_http_client());
-    if ((err = do_post(http.get(), url, data, status_code, res)) != srs_success) {
+    if ((err = do_post(http.get(), url, data, status_code, res, http_status)) != srs_success) {
         return srs_error_wrap(err, "http: on_play failed, client_id=%s, url=%s, request=%s, response=%s, status=%d",
                               cid.c_str(), url.c_str(), data.c_str(), res.c_str(), status_code);
     }
@@ -598,9 +611,13 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, ISrsRequest *req, std::
     return err;
 }
 
-srs_error_t SrsHttpHooks::do_post(ISrsHttpClient *hc, std::string url, std::string req, int &code, string &res)
+srs_error_t SrsHttpHooks::do_post(ISrsHttpClient *hc, std::string url, std::string req, int &code, string &res, int *http_status)
 {
     srs_error_t err = srs_success;
+
+    if (http_status) {
+        *http_status = SRS_CONSTS_HTTP_InternalServerError;
+    }
 
     SrsHttpUri uri;
     if ((err = uri.initialize(url)) != srs_success) {
@@ -623,6 +640,9 @@ srs_error_t SrsHttpHooks::do_post(ISrsHttpClient *hc, std::string url, std::stri
     SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);
 
     code = msg->status_code();
+    if (http_status && code >= 400 && code < 600) {
+        *http_status = code;
+    }
     if ((err = msg->body_read_all(res)) != srs_success) {
         return srs_error_wrap(err, "http: body read");
     }
@@ -659,6 +679,11 @@ srs_error_t SrsHttpHooks::do_post(ISrsHttpClient *hc, std::string url, std::stri
     }
 
     if ((res_code->to_integer()) != ERROR_SUCCESS) {
+        // Application error codes outside the HTTP error range remain internal errors.
+        int64_t hook_code = res_code->to_integer();
+        if (http_status && hook_code >= 400 && hook_code < 600) {
+            *http_status = (int)hook_code;
+        }
         return srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %" PRId64 " %s", res_code->to_integer(), res.c_str());
     }
 

@@ -62,6 +62,10 @@ public:
     // @return srs_success if playing is allowed, error otherwise to reject playing.
     virtual srs_error_t on_play(std::string url, ISrsRequest *req) = 0;
 
+    // As above, optionally returning a 4xx/5xx HTTP status on failure, or 500 if unavailable.
+    // The default implementation preserves existing hook implementations.
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, int *http_status);
+
     // Stream stop playing notification hook.
     // Called when a client stops playing/subscribing to a stream.
     // This is a notification-only hook that cannot prevent the stop operation.
@@ -169,6 +173,7 @@ public:
     srs_error_t on_publish(std::string url, ISrsRequest *req);
     void on_unpublish(std::string url, ISrsRequest *req);
     srs_error_t on_play(std::string url, ISrsRequest *req);
+    srs_error_t on_play(std::string url, ISrsRequest *req, int *http_status);
     void on_stop(std::string url, ISrsRequest *req);
     srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
     srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
@@ -179,7 +184,7 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    srs_error_t do_post(ISrsHttpClient *hc, std::string url, std::string req, int &code, std::string &res);
+    srs_error_t do_post(ISrsHttpClient *hc, std::string url, std::string req, int &code, std::string &res, int *http_status = NULL);
 };
 
 // Global HTTP hooks instance

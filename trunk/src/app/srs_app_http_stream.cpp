@@ -711,8 +711,12 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     }
 
     // We must do hook after stat, because depends on it.
-    if ((err = http_hooks_on_play(r)) != srs_success) {
-        return srs_error_wrap(err, "http hook");
+    int http_status = SRS_CONSTS_HTTP_InternalServerError;
+    if ((err = http_hooks_on_play(r, &http_status)) != srs_success) {
+        srs_warn("http hook: %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+        // Hook errors can contain credentials and internal URLs. Return only the status text.
+        return srs_go_http_error(w, http_status);
     }
 
     // Fast check whether stream is still available.
@@ -922,7 +926,7 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, ISrsLiveConsumer
     return srs_error_new(ERROR_HTTP_STREAM_EOF, "Stream EOF");
 }
 
-srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r)
+srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r, int *http_status)
 {
     srs_error_t err = srs_success;
 
@@ -951,7 +955,7 @@ srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_play(url, nreq.get())) != srs_success) {
+        if ((err = hooks_->on_play(url, nreq.get(), http_status)) != srs_success) {
             return srs_error_wrap(err, "http on_play %s", url.c_str());
         }
     }

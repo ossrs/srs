@@ -425,6 +425,22 @@ Content-Length: 11
 {"code": 0}
 ```
 
+### HTTP Live Playback Errors
+
+When an `on_play` callback rejects HTTP live playback (HTTP-FLV, HTTP-TS, AAC, or
+MP3 through `http_remux`), SRS sends an HTTP error response to the player:
+
+* A callback HTTP status in the `400`-`599` range is passed through.
+* For callback HTTP `200` or `201`, an integer JSON `code` in the `400`-`599`
+  range becomes the playback HTTP status. For example, `{"code":401}` returns
+  HTTP `401 Unauthorized` to the player.
+* Other application error codes, invalid or empty responses, and transport
+  failures return HTTP `500 Internal Server Error`.
+
+The response body contains only the standard HTTP status text. Callback URLs,
+request parameters, and backend error messages are not included. Successful
+callbacks and rejection handling for other playback protocols are unchanged.
+
 You could run the example HTTP callback server by:
 
 ```
