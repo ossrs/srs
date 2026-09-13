@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2025 The SRS Authors
+// Copyright (c) 2013-2026 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -1373,7 +1373,7 @@ void json_value_free (json_value * value)
 #endif
 
 //
-// Copyright (c) 2013-2025 The SRS Authors
+// Copyright (c) 2013-2026 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //

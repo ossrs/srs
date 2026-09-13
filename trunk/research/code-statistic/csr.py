@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 #
-# Copyright (c) 2013-2025 Winlin
+# Copyright (c) 2013-2026 Winlin
 #
 # SPDX-License-Identifier: MIT
 #
