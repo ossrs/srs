@@ -423,6 +423,7 @@ public:
     int last_response_seq_;
     std::string last_response_session_;
     std::string last_response_type_; // "OPTIONS", "DESCRIBE", "SETUP", "PLAY", "TEARDOWN"
+    int last_response_status_;
     srs_error_t send_message_error_;
 
 public:

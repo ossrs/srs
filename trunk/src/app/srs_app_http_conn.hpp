@@ -51,6 +51,21 @@ class ISrsAppConfig;
 class ISrsStatistic;
 class ISrsAppFactory;
 
+// The root error handler of HTTP streaming, which converts an error into an HTTP status for the
+// viewer. Without it the connection is simply closed, which the viewer cannot tell apart from a
+// crash or a network failure, and which a player retries because it looks like a transport error.
+//
+// Call it from the root of a streaming handler, never from the branch that produced the error, so
+// that every error gets a status instead of only the ones somebody remembered to handle. This is
+// the same pattern SrsGoApiRtcWhip::serve_http() uses for the WHIP API.
+//
+// It does nothing when err is success, or when the response header is already sent, because the
+// viewer is already being served and the status can no longer be changed.
+//
+// Note that it never sends the error description to the viewer, which may carry the HTTP callback
+// URL or the response of the callback backend. Only the error code and its short name are sent.
+extern void srs_http_stream_serve_error(ISrsHttpResponseWriter *w, srs_error_t err);
+
 // The owner of HTTP connection.
 class ISrsHttpConnOwner
 {

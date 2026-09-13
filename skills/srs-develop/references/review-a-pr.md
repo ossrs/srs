@@ -40,3 +40,9 @@
 
 1. Ask the user for the PR number if they haven't given it.
 2. Load `references/version-and-changelog.md` and apply it. It is the single owner of the version-bump and changelog rules for both projects, including the requirement to keep the two SRS version files in sync.
+
+## Step 5: Comment on the PR (optional)
+
+1. Only when the user explicitly asks. Never post or edit a PR comment on your own initiative.
+2. Post one comment with `gh pr comment <number> --repo <owner/repo> --body-file <file>`. Keep it to the findings the user asked for (e.g. Background/Current state/Conclusion); drop metadata sections meant for issue Truth Records.
+3. To revise it later instead of duplicating, use `gh pr comment <number> --repo <owner/repo> --edit-last --body-file <file>`.

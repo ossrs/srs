@@ -1649,6 +1649,7 @@ MockRtspStack::MockRtspStack()
     last_response_seq_ = 0;
     last_response_session_ = "";
     last_response_type_ = "";
+    last_response_status_ = 0;
     send_message_error_ = srs_success;
 }
 
@@ -1667,6 +1668,7 @@ srs_error_t MockRtspStack::send_message(SrsRtspResponse *res)
     send_message_called_ = true;
     last_response_seq_ = (int)res->seq_;
     last_response_session_ = res->session_;
+    last_response_status_ = res->status_;
 
     // Determine response type by dynamic_cast
     if (dynamic_cast<SrsRtspOptionsResponse *>(res)) {
@@ -1688,6 +1690,7 @@ void MockRtspStack::reset()
     last_response_seq_ = 0;
     last_response_session_ = "";
     last_response_type_ = "";
+    last_response_status_ = 0;
     srs_freep(send_message_error_);
 }
 
@@ -4434,4 +4437,65 @@ VOID TEST(DvrSegmentPlanTest, OnAudioTypicalScenario)
     // Clean up injected dependencies to avoid double-free
     plan->segment_ = NULL;
     plan->config_ = NULL;
+}
+
+// RTSP: the hook's rejection must reach the player as an authorization status.
+//
+// This is the RTSP half of the cross-protocol on_play rejection goal suite in srs_utest_ai25.cpp;
+// it lives here because RTSP only builds with --rtsp=on.
+//
+// SrsRtspConnection::on_rtsp_request() maps only ERROR_RTSP_NO_TRACK and ERROR_SYSTEM_SECURITY_DENY
+// to a meaningful DESCRIBE status. An on_play rejection carries neither code, so today every
+// rejected viewer is answered with a blanket 500 Internal Server Error, which describes a server
+// fault rather than an authorization decision. This test is expected to FAIL until that mapping
+// covers hook rejections.
+VOID TEST(HookRejectionTest, RtspRejectedViewerReceivesHookStatus)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspStack *mock_rtsp = new MockRtspStack();
+    MockSecurity mock_security;
+    MockRtspSourceManager mock_rtsp_sources;
+
+    // Enable the on_play hook for this vhost.
+    MockAppConfigForHttpHooksOnPlay mock_config;
+    mock_config.http_hooks_enabled_ = true;
+    mock_config.on_play_directive_ = new SrsConfDirective();
+    mock_config.on_play_directive_->name_ = "on_play";
+    mock_config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/play");
+
+    // The hook rejects this viewer as unauthorized.
+    MockHttpHooksForOnPlay mock_hooks;
+    mock_hooks.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code 401");
+
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->rtsp_ = mock_rtsp;
+    conn->config_ = &mock_config;
+    conn->security_ = &mock_security;
+    conn->hooks_ = &mock_hooks;
+    conn->rtsp_sources_ = &mock_rtsp_sources;
+    conn->session_id_ = "test_session_123";
+
+    SrsRtspRequest *req = new SrsRtspRequest();
+    req->method_ = "DESCRIBE";
+    req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+    req->seq_ = 1;
+
+    mock_rtsp->reset();
+    err = conn->on_rtsp_request(req);
+    HELPER_EXPECT_SUCCESS(err);
+
+    // The hook must have been consulted and a DESCRIBE response returned.
+    EXPECT_EQ(1, mock_hooks.on_play_count_);
+    EXPECT_TRUE(mock_rtsp->send_message_called_);
+    EXPECT_STREQ("DESCRIBE", mock_rtsp->last_response_type_.c_str());
+
+    // GOAL: the rejection is reported as an authorization failure, not as a server fault.
+    EXPECT_EQ(SRS_CONSTS_RTSP_Unauthorized, mock_rtsp->last_response_status_);
+
+    // Clean up injected dependencies to avoid double-free.
+    conn->config_ = NULL;
+    conn->security_ = NULL;
+    conn->hooks_ = NULL;
+    conn->rtsp_sources_ = NULL;
 }

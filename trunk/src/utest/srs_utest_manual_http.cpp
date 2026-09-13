@@ -100,6 +100,11 @@ void MockResponseWriter::write_header(int code)
     w->write_header(code);
 }
 
+bool MockResponseWriter::header_wrote()
+{
+    return w->header_wrote();
+}
+
 srs_error_t MockResponseWriter::filter(SrsHttpHeader *h)
 {
     h->del("Content-Type");
@@ -148,6 +153,11 @@ srs_error_t MockResponseWriterForJsonp::writev(const iovec *iov, int iovcnt, ssi
 void MockResponseWriterForJsonp::write_header(int code)
 {
     w->write_header(code);
+}
+
+bool MockResponseWriterForJsonp::header_wrote()
+{
+    return w->header_wrote();
 }
 
 srs_error_t MockResponseWriterForJsonp::filter(SrsHttpHeader *h)

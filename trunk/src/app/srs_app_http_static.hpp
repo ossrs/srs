@@ -14,6 +14,10 @@
 class ISrsFileReaderFactory;
 class ISrsCommonHttpHandler;
 class ISrsHttpServeMux;
+class ISrsAppConfig;
+class ISrsStatistic;
+class ISrsHttpHooks;
+class ISrsSharedTimer;
 
 // HLS virtual connection, build on query string ctx of hls stream.
 class SrsHlsVirtualConn : public ISrsExpire
@@ -23,6 +27,10 @@ public:
     ISrsRequest *req_;
     std::string ctx_;
     bool interrupt_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
 
 public:
     SrsHlsVirtualConn();
@@ -46,6 +54,9 @@ public:
     virtual ~SrsHlsStream();
 
 public:
+    void assemble(); // Construct object, to avoid call function in constructor.
+
+public:
     virtual srs_error_t serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, ISrsFileReaderFactory *factory, std::string fullpath, ISrsRequest *req, bool *served);
     virtual void on_serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 
@@ -65,7 +76,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsSecurity *security_;
+    ISrsSecurity *security_;
+    ISrsAppConfig *config_;
+    ISrsStatistic *stat_;
+    ISrsHttpHooks *hooks_;
+    ISrsSharedTimer *shared_timer_;
 };
 
 // The Vod streaming, like FLV, MP4 or HLS streaming.
@@ -78,6 +93,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsVodStream(std::string root_dir);
     virtual ~SrsVodStream();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on

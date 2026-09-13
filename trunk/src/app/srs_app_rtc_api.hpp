@@ -43,13 +43,19 @@ public:
     virtual ~SrsGoApiRtcPlay();
 
 public:
+    // @deprecated The JSON play API, which answers a JSON body carrying an SDP. Use the standard
+    // WHEP API served by SrsGoApiRtcWhip instead. Kept only for existing clients; do not extend it,
+    // and add new playback behavior to the WHEP path.
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // @deprecated Body of the JSON play API above. See the note on serve_http().
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res);
 
 public:
+    // The shared negotiation used by both the deprecated JSON API and the standard WHEP API, which
+    // reaches it through SrsGoApiRtcWhip. This overload is not deprecated.
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc);
 
 // clang-format off
@@ -79,13 +85,19 @@ public:
     virtual ~SrsGoApiRtcPublish();
 
 public:
+    // @deprecated The JSON publish API, which answers a JSON body carrying an SDP. Use the standard
+    // WHIP API served by SrsGoApiRtcWhip instead. Kept only for existing clients; do not extend it,
+    // and add new publish behavior to the WHIP path.
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // @deprecated Body of the JSON publish API above. See the note on serve_http().
     virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *res);
 
 public:
+    // The shared negotiation used by both the deprecated JSON API and the standard WHIP API, which
+    // reaches it through SrsGoApiRtcWhip. This overload is not deprecated.
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc);
 
 // clang-format off

@@ -9,6 +9,10 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 
 **Code and documents are the only truth.** Issue descriptions may be inaccurate. Pull requests may be misleading. Feature descriptions may be insufficient. Always ground your understanding in the actual source code and project documentation. Documents capture design intent, architecture rationale, and complex background that code alone cannot express — they are another form of code. When code and documents conflict, investigate rather than assume one is wrong.
 
+## Independent Implementation from a Reference PR
+
+When reimplementing a fix instead of adopting a specific pull request as-is — most often a "fixes"/"resolves" PR whose implementation is rejected — read only its problem description and discussion to understand what is broken. Do not open, re-read, or pattern-match its diff while designing or writing the fix. Design and implement from the current codebase and the problem statement alone.
+
 ## Skill Dependencies
 
 - `skills/internal-docs-for-srs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
@@ -17,6 +21,12 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 ## Cross-Component Verification
 
 For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md` in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification. Apply this requirement during development, bug fixing, and pull-request review; do not treat the `proxy-*` script names as limiting the suite to proxy changes.
+
+## Testable Code and Test-Driven Development
+
+Whenever a task writes or changes a test, load `references/testable-code.md` and follow it. Apply this in every workflow, not only Develop Code: bug fixes, features, and pull-request review all reach tests.
+
+Two rules from it override any default behavior. **Write the test first, run it, and confirm it fails before implementing anything** — writing the test and making it pass are separate, reviewable steps. **When the code under test cannot be mocked, refactor it until it can**; that refactor is a behavior-preserving testability change, not a feature, so it is permitted even in C++ maintenance mode.
 
 ## Skill Script Language
 
