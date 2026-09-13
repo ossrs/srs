@@ -17,7 +17,7 @@ multiple languages can greatly enhance its impact. That's where Oryx comes in â€
 multilingual dubbing and translation services powered by OpenAI, breaking language barriers is now simpler 
 and more cost-effective than ever.
 
-<!--truncate-->
+{/* truncate */}
 
 In this blog, we will discuss how Oryx supports dubbing and translating video files from one language to 
 another, such as converting a video with English speech to Chinese subtitles and speech. We will explore how 

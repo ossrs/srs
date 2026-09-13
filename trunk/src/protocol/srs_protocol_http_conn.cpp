@@ -1019,6 +1019,11 @@ void SrsHttpResponseWriter::write_header(int code)
     return writer_->write_header();
 }
 
+bool SrsHttpResponseWriter::header_wrote()
+{
+    return writer_->header_wrote();
+}
+
 srs_error_t SrsHttpResponseWriter::build_first_line(std::stringstream &ss, char *data, int size)
 {
     srs_error_t err = srs_success;

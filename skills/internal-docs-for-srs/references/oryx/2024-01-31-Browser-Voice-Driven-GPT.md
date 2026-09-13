@@ -13,7 +13,7 @@ it from any location. Picture an AI assistant that makes learning spoken English
 that enables seamless conversation between you and a friend speaking a different language by translating everything 
 instantly. Discover how to turn these exciting possibilities into reality!
 
-<!--truncate-->
+{/* truncate */}
 
 Introducing a cutting-edge to technology: our easy to build, browser-based, voice-driven GPT AI assistant,
 a transformative tool in interaction. Built with the user-friendly Oryx, which effortlessly enables

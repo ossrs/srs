@@ -263,6 +263,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     virtual srs_error_t do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer *consumer, SrsQueueRecvThread *trd);
+    // Authorize the publisher, before it is told that publishing started. See publishing().
+    virtual srs_error_t authorize_publish();
     virtual srs_error_t publishing(SrsSharedPtr<SrsLiveSource> source);
     virtual srs_error_t do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPublishRecvThread *trd);
     virtual srs_error_t acquire_publish(SrsSharedPtr<SrsLiveSource> source);

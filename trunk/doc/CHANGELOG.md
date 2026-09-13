@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-09-13, Merge [#4736](https://github.com/ossrs/srs/pull/4736): Hooks: Report on_play and on_publish rejection to the client. v8.0.34 (#4736)
 * v8.0, 2026-09-05, Merge [#4735](https://github.com/ossrs/srs/pull/4735): Skills: Harden Oryx local stack lifecycle and transcode cleanup. v8.0.33 (#4735)
 * v8.0, 2026-09-04, Merge [#4734](https://github.com/ossrs/srs/pull/4734): Skills: Add Oryx scenario-page API test scripts. v8.0.32 (#4734)
 * v8.0, 2026-09-03, Merge [#4733](https://github.com/ossrs/srs/pull/4733): Dev: Add Oryx local development workflow, API smoke test, and doc reorg. v8.0.31 (#4733)

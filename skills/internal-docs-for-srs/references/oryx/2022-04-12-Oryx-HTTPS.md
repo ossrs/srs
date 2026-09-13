@@ -21,7 +21,7 @@ security reasons.
 
 In this tutorial, you will learn how to configure the HTTPS for SRS droplets, and your certificate will be renewed automatically.
 
-<!--truncate-->
+{/* truncate */}
 
 ## Prerequisites
 

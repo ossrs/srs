@@ -19,7 +19,7 @@ But what if you would like to embed your HTTP-FLV, HLS or WebRTC stream straight
 In this tutorial, I will show you how you set up your WordPress and SRS Player plugin to stream right through your
 website for viewers to watch.
 
-<!--truncate-->
+{/* truncate */}
 
 ## Prerequisites
 

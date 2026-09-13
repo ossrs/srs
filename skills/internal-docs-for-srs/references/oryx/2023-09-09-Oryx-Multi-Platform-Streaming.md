@@ -10,7 +10,7 @@ custom_edit_url: null
 
 In today's digital world, live streaming has become an essential tool for businesses, content creators, and individuals to engage with their audiences. With the increasing popularity of various live streaming platforms like YouTube, Twitch, and Facebook, it has become crucial to stream your content on multiple platforms simultaneously to reach a wider audience. This blog will guide you through the process of live streaming to multiple platforms using Oryx.
 
-<!--truncate-->
+{/* truncate */}
 
 Oryx is a powerful and easy-to-use solution that allows you to live stream to multiple platforms with just a few clicks. It also enables you to stream to your own platform or even set up an intranet live stream within your company. Let's dive into the steps to set up live streaming on multiple platforms using Oryx.
 

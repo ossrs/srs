@@ -621,6 +621,8 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
                 res->status_ = SRS_CONSTS_RTSP_NotFound;
             } else if (srs_error_code(err) == ERROR_SYSTEM_SECURITY_DENY) {
                 res->status_ = SRS_CONSTS_RTSP_Forbidden;
+            } else if (srs_error_code(err) == ERROR_SYSTEM_AUTH) {
+                res->status_ = SRS_CONSTS_RTSP_Unauthorized;
             }
             srs_warn("RTSP: DESCRIBE failed: %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -756,8 +758,10 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
         return srs_error_wrap(err, "RTSP: security check");
     }
 
+    // Transform to ERROR_SYSTEM_AUTH, so that DESCRIBE answers 401 instead of 500, see
+    // on_rtsp_request(). A refused viewer is not a server fault.
     if ((err = http_hooks_on_play(request_)) != srs_success) {
-        return srs_error_wrap(err, "RTSP: http_hooks_on_play");
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTSP: http_hooks_on_play");
     }
 
     if ((err = rtsp_sources_->fetch_or_create(request_, source_)) != srs_success) {

@@ -668,6 +668,10 @@ srs_error_t SrsLiveStream::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage
     srs_assert(it != viewers_.end());
     viewers_.erase(it);
 
+    // This is the root of HTTP streaming, so it owns telling the viewer why it was refused. Never
+    // respond in the branch that raised the error, see srs_http_stream_serve_error.
+    srs_http_stream_serve_error(w, err);
+
     return err;
 }
 
@@ -710,9 +714,11 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "flv: security check");
     }
 
-    // We must do hook after stat, because depends on it.
+    // We must do hook after stat, because depends on it. Transform to ERROR_SYSTEM_AUTH, so that
+    // the root error handler in serve_http() answers 401 rather than 500; a refused viewer is not a
+    // server fault.
     if ((err = http_hooks_on_play(r)) != srs_success) {
-        return srs_error_wrap(err, "http hook");
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "http hook");
     }
 
     // Fast check whether stream is still available.

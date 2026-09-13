@@ -590,27 +590,38 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
 
     switch (info_->type_) {
     case SrsRtmpConnPlay: {
-        // response connection start play
-        if ((err = rtmp_->start_play(info_->res_->stream_id_)) != srs_success) {
-            return srs_error_wrap(err, "rtmp: start play");
-        }
-
         // We must do stat the client before hooks, because hooks depends on it.
         if ((err = stat_->on_client(_srs_context->get_id().c_str(), req, this, info_->type_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: stat client");
         }
 
-        // We must do hook after stat, because depends on it.
+        // We must do hook after stat, because depends on it. Note that we must authorize the
+        // viewer before responding, because start_play() sends onStatus(NetStream.Play.Start),
+        // which tells the viewer that playback started; a refused viewer must never receive it.
         if ((err = http_hooks_on_play()) != srs_success) {
             return srs_error_wrap(err, "rtmp: callback on play");
         }
 
+        // response connection start play
+        if ((err = rtmp_->start_play(info_->res_->stream_id_)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: start play");
+        }
+        
         err = playing(live_source);
+
+        // The on_stop hook pairs with the on_play hook above, whatever happened after it.
         http_hooks_on_stop();
 
         return err;
     }
     case SrsRtmpConnFMLEPublish: {
+        // Authorize the publisher before responding, because start_fmle_publish() sends
+        // onStatus(NetStream.Publish.Start), which tells the publisher that publishing started;
+        // a refused publisher must never receive it.
+        if ((err = authorize_publish()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: authorize FMLE publish");
+        }
+
         if ((err = rtmp_->start_fmle_publish(info_->res_->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: start FMLE publish");
         }
@@ -619,6 +630,10 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     }
     // LCOV_EXCL_START
     case SrsRtmpConnHaivisionPublish: {
+        if ((err = authorize_publish()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: authorize HAIVISION publish");
+        }
+
         if ((err = rtmp_->start_haivision_publish(info_->res_->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: start HAIVISION publish");
         }
@@ -626,6 +641,10 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
         return publishing(live_source);
     }
     case SrsRtmpConnFlashPublish: {
+        if ((err = authorize_publish()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: authorize FLASH publish");
+        }
+
         if ((err = rtmp_->start_flash_publish(info_->res_->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: start FLASH publish");
         }
@@ -905,7 +924,9 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
     return err;
 }
 
-srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
+// Decide whether the publisher may publish, before stream_service_cycle() responds to it with
+// onStatus(NetStream.Publish.Start). A refused publisher must never be told publishing started.
+srs_error_t SrsRtmpConn::authorize_publish()
 {
     srs_error_t err = srs_success;
 
@@ -931,6 +952,18 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
     if ((err = http_hooks_on_publish()) != srs_success) {
         return srs_error_wrap(err, "rtmp: callback on publish");
     }
+
+    return err;
+}
+
+srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
+{
+    srs_error_t err = srs_success;
+
+    // Note that the publisher is already authorized by authorize_publish(), which
+    // stream_service_cycle() runs before it responds that publishing started.
+
+    ISrsRequest *req = info_->req_;
 
     // Test-only delay to reproduce a race between source cleanup and publisher activation.
     srs_utime_t test_publish_delay = (srs_utime_t)(::atoi(srs_getenv("SRS_TEST_PUBLISH_BEFORE_ACQUIRE_DELAY").c_str()) * SRS_UTIME_MILLISECONDS);

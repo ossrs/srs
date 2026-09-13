@@ -14,7 +14,7 @@ With Oryx, you can easily record your live streaming and publish it on a web pag
 to access. In this blog, we will guide you through the process of recording live streaming to an MP4 file 
 using Oryx.
 
-<!--truncate-->
+{/* truncate */}
 
 Live streaming has become increasingly popular, and many content creators want to record their live streams 
 for later use or to provide their audience with video-on-demand (VoD) content. While there are various 

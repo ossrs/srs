@@ -17,7 +17,7 @@ effective way to achieve this is through live streaming transcoding, a process t
 and save costs without compromising on video quality. In this blog, we'll explore the benefits of using Oryx 
 for efficient live streaming transcoding and how it can lead to significant cost savings.
 
-<!--truncate-->
+{/* truncate */}
 
 Live streaming transcoding involves converting a live stream from Oryx using FFmpeg into various bitrates and 
 resolutions, before pushing it back to Oryx. This process allows for a reduction in bandwidth while maintaining 

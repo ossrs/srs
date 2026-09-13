@@ -16,7 +16,7 @@ process of effortlessly building your own WHIP service using the Oryx, all with 
 Say goodbye to the complexities of security, authentication, and WebRTC, and embrace the future of sub-second 
 live streaming and seamless OBS-RTC room connections.
 
-<!--truncate-->
+{/* truncate */}
 
 Join us as we break down the barriers of online streaming and help you unlock the full potential of OBS's 
 WHIP support. Our easy-to-understand, step-by-step tutorial will empower you to create a secure and efficient 

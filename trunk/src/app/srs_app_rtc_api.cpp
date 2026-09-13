@@ -61,6 +61,10 @@ SrsGoApiRtcPlay::~SrsGoApiRtcPlay()
 // Response:
 //      {"sdp":"answer...", "sid":"..."}
 // @see https://github.com/rtcdn/rtcdn-draft
+// @deprecated The JSON play API. Use the standard WHEP API served by SrsGoApiRtcWhip instead.
+// Note that every failure here answers HTTP 200 with a fixed {"code":400} body, which is why the
+// specific reason for a rejection cannot reach the player; the WHEP path maps errors to real HTTP
+// status codes. Do not extend this API.
 srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     srs_error_t err = srs_success;
@@ -266,8 +270,11 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
         return srs_error_wrap(err, "RTC: security check");
     }
 
+    // Transform to ERROR_SYSTEM_AUTH, so that WHEP answers 401 instead of 500, see
+    // SrsGoApiRtcWhip::serve_http(). A refused viewer is not a server fault. This is the same
+    // treatment the publish path gives to a refused publisher.
     if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_play");
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_play");
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
@@ -387,6 +394,9 @@ SrsGoApiRtcPublish::~SrsGoApiRtcPublish()
 // Response:
 //      {"sdp":"answer...", "sid":"..."}
 // @see https://github.com/rtcdn/rtcdn-draft
+// @deprecated The JSON publish API. Use the standard WHIP API served by SrsGoApiRtcWhip instead.
+// Like the JSON play API, every failure answers HTTP 200 with a fixed {"code":400} body. Do not
+// extend this API.
 srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     srs_error_t err = srs_success;

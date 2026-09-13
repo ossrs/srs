@@ -351,6 +351,7 @@ public:
     virtual srs_error_t write(char *data, int size);
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
     virtual void write_header(int code);
+    virtual bool header_wrote();
     // Interface ISrsHttpFirstLineWriter
 public:
     virtual srs_error_t build_first_line(std::stringstream &ss, char *data, int size);

@@ -52,7 +52,7 @@ Only after the user confirms the routing do you proceed to Step 2.
 
 ### Step 3: Implement and Verify
 
-1. Implement the code change.
+1. Implement the code change, adding test coverage under the test-first contract in `references/testable-code.md`.
 2. If you changed or added a Go interface with a `//go:generate go tool counterfeiter ...` directive, regenerate fakes:
    ```
    make generate
@@ -136,7 +136,7 @@ For maintainer macOS development where Oryx should be built, run, debugged, and 
 
 ### Step 3: Implement the Confirmed Change
 
-1. Make the smallest change in `oryx/` and add focused regression coverage.
+1. Make the smallest change in `oryx/` and add focused regression coverage, applying the test-first contract in `references/testable-code.md`.
 2. Keep backend JSON fields, OpenAPI behavior, React consumers, locale strings, and feature status views consistent when the change crosses those surfaces.
 3. Do not edit vendored dependencies, compiled UI output, generated binaries, symlinked runtime directories, or `platform/containers/data/` state unless the confirmed task explicitly owns them.
 4. Never expose administrator passwords, publish secrets, Bearer tokens, OpenAI keys, destination stream keys, or cloud credentials in source, tests, logs, or fixtures.
@@ -164,7 +164,7 @@ The first-generation C++ media server is in maintenance mode. Accept bug fixes, 
 
 1. Identify the verified root cause and implement the smallest compatible fix.
 2. Preserve C++98 compatibility and the existing coroutine, resource-ownership, protocol, configuration, and error-handling conventions.
-3. Add focused regression coverage that fails before the fix and passes afterward.
+3. Add focused regression coverage following `references/testable-code.md`: write the test first, run it, and confirm it fails before implementing the fix. When the code under test is not mockable, refactor it for testability first; that refactor is behavior-preserving and is accepted in maintenance mode.
 4. Update user documentation only when the behavior or maintenance result changes what operators need to know.
 
 ### Step 3: Verify

@@ -256,7 +256,7 @@ All responses should use:
 * `Status: 200 OK` and `{"code": 0}` for success.
 * Otherwise, error or fail.
 
-See examples in [HTTP Callback](../docs/v7/doc/http-callback#go-example)
+See examples in [HTTP Callback](../../v7/doc/http-callback#go-example)
 
 ### HTTP Callback: Connectivity Check
 

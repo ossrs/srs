@@ -20,7 +20,7 @@ Virtual live events allows streamers to have plenty of preparation time, making 
 It helps reduce anxiety for inexperienced streamers, prevents network issues, enables 24/7 live streaming, 
 reaches a wider audience, and offers more possibilities for live broadcasts.
 
-<!--truncate-->
+{/* truncate */}
 
 Oryx enables you to create virtual live events with just one click, broadcasting them to multiple platforms
 like YouTube, Twitch, and Facebook. In this blog post, we'll walk you through the steps to create a virtual live
