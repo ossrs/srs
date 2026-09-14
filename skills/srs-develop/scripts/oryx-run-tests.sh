@@ -1,8 +1,9 @@
 #!/bin/bash
-# Runs every Oryx local verification script in parallel against one shared
-# stack: starts the stack (oryx-stack-start.sh), launches all test scripts
-# backgrounded and waits for them, always stops the stack afterward
-# (oryx-stack-stop.sh) regardless of pass/fail, then prints a summary.
+# Runs every Oryx local verification script against one shared stack: starts
+# the stack (oryx-stack-start.sh), runs oryx-ci-test.sh on its own first,
+# then launches the remaining test scripts backgrounded and waits for them,
+# always stops the stack afterward (oryx-stack-stop.sh) regardless of
+# pass/fail, then prints a summary.
 #
 # This exists so "run all the tests" is one command instead of a hand-typed
 # background/wait snippet that is easy to paste wrong and end up serialized.
@@ -33,6 +34,24 @@ if [[ "$START_STATUS" -ne 0 ]]; then
 fi
 echo ""
 
+FAILED_NAMES=()
+FAILED_LOGS=()
+
+# The repository's own test suite runs first and alone, not in the parallel
+# batch below: its TestSystem_LoginByPassword has no retry, and the backend's
+# login handler uses TryLock (platform/service.go:729), so a concurrent login
+# from oryx-api-smoke-test.sh would fail it spuriously.
+echo "=== Running oryx-ci-test.sh (sequential, before the parallel batch) ==="
+SEQ_LOG="/tmp/oryx-run-tests-oryx-ci-test.sh.log"
+if bash "$SCRIPT_DIR/oryx-ci-test.sh" >"$SEQ_LOG" 2>&1; then
+  echo "PASS: oryx-ci-test.sh"
+else
+  echo "FAIL: oryx-ci-test.sh"
+  FAILED_NAMES+=("oryx-ci-test.sh")
+  FAILED_LOGS+=("$SEQ_LOG")
+fi
+echo ""
+
 echo "=== Running ${#TEST_SCRIPTS[@]} test scripts in parallel ==="
 # Plain indexed arrays only -- the default macOS /bin/bash is 3.2 and has no
 # associative arrays (declare -A). LOG_FILES[i] corresponds to
@@ -48,8 +67,6 @@ for name in "${TEST_SCRIPTS[@]}"; do
 done
 echo ""
 
-FAILED_NAMES=()
-FAILED_LOGS=()
 for i in "${!TEST_SCRIPTS[@]}"; do
   name="${TEST_SCRIPTS[$i]}"
   pid="${PIDS[$i]}"
@@ -79,4 +96,4 @@ if [[ "${#FAILED_NAMES[@]}" -gt 0 ]]; then
   exit 1
 fi
 
-echo "=== Oryx Test Suite PASSED (${#TEST_SCRIPTS[@]}/${#TEST_SCRIPTS[@]}) ==="
+echo "=== Oryx Test Suite PASSED ($(( ${#TEST_SCRIPTS[@]} + 1 ))/$(( ${#TEST_SCRIPTS[@]} + 1 ))) ==="

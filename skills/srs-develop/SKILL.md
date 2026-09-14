@@ -36,8 +36,6 @@ Use **Bash** for skill-owned automation and AI test scripts, including regressio
 
 Whenever a task bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and follow it. Apply this in every workflow, not only Review a PR: bug fixes and feature work reach a version bump too, and the rules do not change with the routed task.
 
-For SRS this always means bumping **both** version files together — `trunk/src/core/srs_core_version8.hpp` and `internal/version/version.go`. Nothing in the build or tests catches a mismatch, so read both back after editing.
-
 ## Path Resolution
 
 - Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.

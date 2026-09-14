@@ -25,9 +25,43 @@ Propose the summary to the user; don't invent one unilaterally.
 
 ## Oryx
 
-Inspect `platform/version.go`, the newest entries under `DEVELOPER.md#changelog`, tags, and branch history before proposing a version. Do not assume the version constant and newest changelog entry are already synchronized.
+**Bump all five together. Bumping only `platform/version.go` is a defect.**
 
-When the maintainer approves an Oryx version update, change `platform/version.go` and add the smallest matching entry under the current series in `DEVELOPER.md`. Do not change `releases/version.go`; its legacy `latest`, `api`, and `stable` values are a separate compatibility service unless the PR explicitly changes that service.
+| File | Field | Value |
+|---|---|---|
+| `platform/version.go` | `const version` | `v7.15.32` — with the `v` |
+| `scripts/setup-aapanel/info.json` | `"versions"` | `7.15.32` |
+| `scripts/setup-bt/info.json` | `"versions"` | `7.15.32` |
+| `scripts/setup-droplet/srs.json` | `"application_version"` | `7.15.32` |
+| `DEVELOPER.md` | changelog entry | see below |
+
+Read all five current values first; they drift. Do not change `releases/version.go`; its legacy `latest`, `api`, and `stable` values are a separate compatibility service.
+
+Append the entry as the **last** line of the current series under `## Changelog`. Oryx is newest-last within a series and newest-series-first — the opposite of the SRS convention:
+
+```
+* v7.15:
+    * Docker: Upgrade the build and runtime toolchain and use SRS 7. v7.15.25
+    * <Prefix>: <one-line summary>. v7.15.32
+```
+
+Propose the summary to the user; don't invent one unilaterally.
+
+**Never publish a release.** Do not run `auto/pub.sh`, create or push a tag, or trigger the release workflow. Once the bump is committed and pushed, report the command and stop:
+
+```bash
+cd oryx && ./auto/pub.sh --target v7.15.32
+```
+
+`--target` is required: the script parses flags only, and without it derives the last tag and bumps the patch by one. It refuses to tag until the four code locations match the target, the worktree is clean, and the branch is in sync with `origin`.
+
+## Releasing a New Version
+
+A version bump is not a release. Bumping happens on every merged change; releasing tags one chosen revision and is a separate, deliberate act. Never release — prepare the bump, then report the command and stop.
+
+- **SRS** — Push a `v8*` tag to trigger `.github/workflows/release.yml`. Development happens on `develop`; each released series has a long-lived `<MAJOR>.0release` branch.
+- **Oryx** — `cd oryx && ./auto/pub.sh --target vX.Y.Z`. The branch decides the release type: a tag from `main` publishes a prerelease, a tag from `release/X.Y` publishes the stable/latest release. Not every revision is tagged; after publishing, link that changelog entry to its release page.
+- **Proxy** — No release process exists yet. Its version is bumped alongside SRS but never released separately. Do not invent one.
 
 ## Both projects
 
