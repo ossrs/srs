@@ -4954,6 +4954,42 @@ VOID TEST(KernelCodecTest, VideoFormatSepcial)
     }
 }
 
+// A rejected sequence header with lengthSizeMinusOne==2 must not leave the invalid
+// value in vcodec()->NAL_unit_length_, where the next frame would pick it up.
+VOID TEST(KernelCodecTest, VideoFormatSpsInvalidLengthSizeMinusOne)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        uint8_t sh[] = {
+            0x17,             // 1, Keyframe; 7, AVC.
+            0x00,             // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // AVC extra data, SPS/PPS.
+            0x00, 0x00, 0x00, 0x00,
+            0x02, // lengthSizeMinusOne
+            0x00,
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char *)sh, sizeof(sh)));
+
+        ASSERT_TRUE(f.vcodec() != NULL);
+        EXPECT_NE(2, f.vcodec()->NAL_unit_length_);
+
+        // A following frame must return an error instead of aborting. The payload must
+        // not start with an AnnexB start code, so that it falls through to the IBMF path.
+        uint8_t frame[] = {
+            0x27,             // 2, Inter frame; 7, AVC.
+            0x01,             // 1, NALU.
+            0x00, 0x00, 0x00, // Composition time.
+            0xff, 0x65,       // NALU, not in AnnexB format.
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char *)frame, sizeof(frame)));
+    }
+}
+
 VOID TEST(KernelCoecTest, VideoFormatRbspData)
 {
     if (true) {
