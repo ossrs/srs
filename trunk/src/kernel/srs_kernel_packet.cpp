@@ -828,17 +828,20 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
     dec_conf_rec_p->temporal_id_nested_ = (data_byte >> 2) & 0x01;
 
     // Parse the NALU size.
-    dec_conf_rec_p->length_size_minus_one_ = data_byte & 0x03;
-    vcodec_->NAL_unit_length_ = dec_conf_rec_p->length_size_minus_one_;
+    uint8_t length_size_minus_one = data_byte & 0x03;
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // 5.2.4.1 AVC decoder configuration record
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
     // length encoded with 1, 2, or 4 bytes, respectively.
-    if (vcodec_->NAL_unit_length_ == 2) {
+    // Validate before assigning, so a rejected sequence header leaves no invalid state,
+    // neither in the codec config nor in the decoder configuration record.
+    if (length_size_minus_one == 2) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
     }
+    dec_conf_rec_p->length_size_minus_one_ = length_size_minus_one;
+    vcodec_->NAL_unit_length_ = dec_conf_rec_p->length_size_minus_one_;
 
     uint8_t numOfArrays = stream->read_1bytes();
     srs_info("avg_frame_rate:%d, constant_frame_rate:%d, num_temporal_layers:%d, temporal_id_nested:%d, length_size_minus_one:%d, numOfArrays:%d",
@@ -1833,16 +1836,17 @@ srs_error_t SrsFormat::avc_demux_sps_pps(SrsBuffer *stream)
     // parse the NALU size.
     int8_t lengthSizeMinusOne = stream->read_1bytes();
     lengthSizeMinusOne &= 0x03;
-    vcodec_->NAL_unit_length_ = lengthSizeMinusOne;
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // 5.2.4.1 AVC decoder configuration record
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
     // length encoded with 1, 2, or 4 bytes, respectively.
-    if (vcodec_->NAL_unit_length_ == 2) {
+    // Validate before assigning, so a rejected sequence header leaves no invalid state.
+    if (lengthSizeMinusOne == 2) {
         return srs_error_new(ERROR_HLS_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
     }
+    vcodec_->NAL_unit_length_ = lengthSizeMinusOne;
 
     // 1 sps, 7.3.2.1 Sequence parameter set RBSP syntax
     // ISO_IEC_14496-10-AVC-2003.pdf, page 45.
@@ -2308,7 +2312,9 @@ srs_error_t SrsFormat::do_avc_demux_ibmf_format(SrsBuffer *stream)
     // 5.2.4.1 AVC decoder configuration record
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
-    // length encoded with 1, 2, or 4 bytes, respectively.
+    // length encoded with 1, 2, or 4 bytes, respectively. Both sequence header parsers
+    // reject 2 before assigning this field, so it is an invariant the server maintains,
+    // not untrusted input, and an assert is the right guard for it.
     srs_assert(vcodec_->NAL_unit_length_ != 2);
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
