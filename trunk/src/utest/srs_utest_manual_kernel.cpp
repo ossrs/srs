@@ -5121,9 +5121,90 @@ VOID TEST(KernelCodecTest, VideoFormatHevcInvalidLengthSizeMinusOne)
         ASSERT_TRUE(f.vcodec() != NULL);
         EXPECT_EQ(0, f.vcodec()->NAL_unit_length_);
 
+        // The decoder configuration record must not keep the rejected value either. Only
+        // "not 2" can be asserted here: SrsHevcDecoderConfigurationRecord has no
+        // constructor and SrsVideoCodecConfig does not initialize hevc_dec_conf_record_,
+        // so this field is indeterminate until an hvcC parses. See the AfterValid test
+        // below for the deterministic case.
+        EXPECT_NE(2, f.vcodec()->hevc_dec_conf_record_.length_size_minus_one_);
+
         // As in the AVC case, the rejected sequence header leaves the codec looking
         // initialized, so the frame below is not dropped by video_nalu_demux.
         EXPECT_TRUE(f.vcodec()->is_avc_codec_ok());
+
+        // A following frame must return an error instead of aborting the process.
+        uint8_t frame[] = {
+            0x2c,             // 2, Inter frame; 12, HEVC.
+            0x01,             // 1, NALU.
+            0x00, 0x00, 0x00, // Composition time.
+            0xff, 0x65,       // NALU.
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char *)frame, sizeof(frame)));
+    }
+}
+
+// The HEVC equivalent of VideoFormatSpsInvalidLengthSizeMinusOneAfterValid: an accepted
+// hvcC establishes a valid length_size_minus_one, and a later malformed one must not
+// overwrite it, in vcodec()->NAL_unit_length_ nor in the decoder configuration record.
+VOID TEST(KernelCodecTest, VideoFormatHevcInvalidLengthSizeMinusOneAfterValid)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsFormat f;
+        HELPER_EXPECT_SUCCESS(f.initialize());
+
+        // A minimal but well formed hvcC: numOfArrays is 0, so there is no VPS/SPS/PPS to
+        // demux and hevc_demux_hvcc() succeeds.
+        uint8_t sh[] = {
+            0x1c,             // 1, Keyframe; 12, HEVC.
+            0x00,             // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // HEVC extra data, VPS/SPS/PPS.
+            0x01,                               // configuration_version, must be 1.
+            0x00,                               // profile_space, tier_flag, profile_idc.
+            0x00, 0x00, 0x00, 0x00,             // general_profile_compatibility_flags.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // general_constraint_indicator_flags.
+            0x00,                               // general_level_idc.
+            0x00, 0x00,                         // min_spatial_segmentation_idc.
+            0x00,                               // parallelism_type.
+            0x00,                               // chroma_format.
+            0x00,                               // bit_depth_luma_minus8.
+            0x00,                               // bit_depth_chroma_minus8.
+            0x00, 0x00,                         // avg_frame_rate.
+            0x03,                               // ..., length_size_minus_one, 4 bytes.
+            0x00,                               // numOfArrays.
+        };
+        HELPER_EXPECT_SUCCESS(f.on_video(0, (char *)sh, sizeof(sh)));
+
+        ASSERT_TRUE(f.vcodec() != NULL);
+        EXPECT_EQ(3, f.vcodec()->NAL_unit_length_);
+        EXPECT_EQ(3, f.vcodec()->hevc_dec_conf_record_.length_size_minus_one_);
+
+        uint8_t bad_sh[] = {
+            0x1c,             // 1, Keyframe; 12, HEVC.
+            0x00,             // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // HEVC extra data, VPS/SPS/PPS.
+            0x01,                               // configuration_version, must be 1.
+            0x00,                               // profile_space, tier_flag, profile_idc.
+            0x00, 0x00, 0x00, 0x00,             // general_profile_compatibility_flags.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // general_constraint_indicator_flags.
+            0x00,                               // general_level_idc.
+            0x00, 0x00,                         // min_spatial_segmentation_idc.
+            0x00,                               // parallelism_type.
+            0x00,                               // chroma_format.
+            0x00,                               // bit_depth_luma_minus8.
+            0x00,                               // bit_depth_chroma_minus8.
+            0x00, 0x00,                         // avg_frame_rate.
+            0x02,                               // ..., length_size_minus_one
+            0x00,                               // numOfArrays.
+        };
+        HELPER_EXPECT_FAILED(f.on_video(0, (char *)bad_sh, sizeof(bad_sh)));
+
+        // Both fields must keep the value from the accepted sequence header.
+        EXPECT_EQ(3, f.vcodec()->NAL_unit_length_);
+        EXPECT_EQ(3, f.vcodec()->hevc_dec_conf_record_.length_size_minus_one_);
 
         // A following frame must return an error instead of aborting the process.
         uint8_t frame[] = {

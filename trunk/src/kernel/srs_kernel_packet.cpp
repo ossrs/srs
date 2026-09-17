@@ -828,17 +828,19 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
     dec_conf_rec_p->temporal_id_nested_ = (data_byte >> 2) & 0x01;
 
     // Parse the NALU size.
-    dec_conf_rec_p->length_size_minus_one_ = data_byte & 0x03;
+    uint8_t length_size_minus_one = data_byte & 0x03;
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 16
     // 5.2.4.1 AVC decoder configuration record
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
     // length encoded with 1, 2, or 4 bytes, respectively.
-    // Validate before assigning, so a rejected sequence header leaves no invalid state.
-    if (dec_conf_rec_p->length_size_minus_one_ == 2) {
+    // Validate before assigning, so a rejected sequence header leaves no invalid state,
+    // neither in the codec config nor in the decoder configuration record.
+    if (length_size_minus_one == 2) {
         return srs_error_new(ERROR_HEVC_DECODE_ERROR, "sps lengthSizeMinusOne should never be 2");
     }
+    dec_conf_rec_p->length_size_minus_one_ = length_size_minus_one;
     vcodec_->NAL_unit_length_ = dec_conf_rec_p->length_size_minus_one_;
 
     uint8_t numOfArrays = stream->read_1bytes();
