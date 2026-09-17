@@ -2310,11 +2310,10 @@ srs_error_t SrsFormat::do_avc_demux_ibmf_format(SrsBuffer *stream)
     // 5.2.4.1 AVC decoder configuration record
     // 5.2.4.1.2 Semantics
     // The value of this field shall be one of 0, 1, or 3 corresponding to a
-    // length encoded with 1, 2, or 4 bytes, respectively. Return an error instead of
-    // asserting, because this parses untrusted input from the publisher.
-    if (vcodec_->NAL_unit_length_ == 2) {
-        return srs_error_new(ERROR_HLS_DECODE_ERROR, "NAL_unit_length should never be 2");
-    }
+    // length encoded with 1, 2, or 4 bytes, respectively. Both sequence header parsers
+    // reject 2 before assigning this field, so it is an invariant the server maintains,
+    // not untrusted input, and an assert is the right guard for it.
+    srs_assert(vcodec_->NAL_unit_length_ != 2);
 
     // 5.3.4.2.1 Syntax, ISO_IEC_14496-15-AVC-format-2012.pdf, page 20
     for (int i = 0; i < PictureLength;) {
