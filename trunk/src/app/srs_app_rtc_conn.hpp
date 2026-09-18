@@ -1013,6 +1013,7 @@ class SrsRtcPlayerNegotiator : public ISrsRtcPlayerNegotiator
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsRtcSourceManager *rtc_sources_;
+    ISrsRtcSSRCGenerator *ssrc_generator_;
 
 public:
     SrsRtcPlayerNegotiator();

@@ -46,6 +46,8 @@ class ISrsCircuitBreaker;
 class ISrsRtcPublishStream;
 class ISrsAppFactory;
 class ISrsStatistic;
+class ISrsAppConfig;
+class ISrsRtcSSRCGenerator;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType = 111;
@@ -53,6 +55,8 @@ const int kAudioPayloadType = 111;
 const int kVideoPayloadType = 102;
 // Chrome HEVC defaults as 49.
 const int KVideoPayloadTypeHevc = 49;
+// Chrome AV1 defaults as 45.
+const int KVideoPayloadTypeAv1 = 45;
 
 // Audio jitter buffer size (in packets)
 const int AUDIO_JITTER_BUFFER_SIZE = 100;
@@ -237,6 +241,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtcBridge *rtc_bridge_;
     // Circuit breaker for protecting server resources.
     ISrsCircuitBreaker *circuit_breaker_;
+    ISrsAppConfig *config_;
+    ISrsStatistic *stat_;
+    ISrsSharedTimer *shared_timer_;
+    ISrsRtcSSRCGenerator *ssrc_generator_;
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
@@ -248,6 +256,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtcPublishStream *publish_stream_;
     // Steam description for this steam.
     SrsRtcSourceDescription *stream_desc_;
+    // The video codec the bridge detected in the stream it is publishing, or
+    // SrsVideoCodecIdReserved if there is no bridge or it has not parsed a sequence header yet.
+    SrsVideoCodecId bridge_video_codec_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -339,6 +350,11 @@ public:
     virtual bool has_stream_desc();
     virtual void set_stream_desc(SrsRtcSourceDescription *stream_desc);
     virtual std::vector<SrsRtcTrackDescription *> get_track_desc(std::string type, std::string media_type);
+    // Set the video codec detected by the bridge, which is the codec of the stream it publishes.
+    virtual void set_bridge_video_codec(SrsVideoCodecId codec);
+    // The video codec of the stream being published, or SrsVideoCodecIdReserved while it is
+    // unknown, for example when nothing is published yet, so the player may choose any codec.
+    virtual SrsVideoCodecId publish_video_codec();
     // interface ISrsFastTimerHandler
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -358,6 +374,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     ISrsRtpTarget *rtp_target_;
+    ISrsAppConfig *config_;
     // The format, codec information.
     SrsRtmpFormat *format_;
     // The metadata cache.
@@ -1142,7 +1159,18 @@ public:
     virtual srs_error_t on_rtcp(SrsRtpPacket *pkt);
 };
 
-class SrsRtcSSRCGenerator
+// The generator of SSRC for RTC tracks.
+class ISrsRtcSSRCGenerator
+{
+public:
+    ISrsRtcSSRCGenerator();
+    virtual ~ISrsRtcSSRCGenerator();
+
+public:
+    virtual uint32_t generate_ssrc() = 0;
+};
+
+class SrsRtcSSRCGenerator : public ISrsRtcSSRCGenerator
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
