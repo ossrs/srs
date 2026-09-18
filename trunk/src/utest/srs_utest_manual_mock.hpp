@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2025 The SRS Authors
+// Copyright (c) 2013-2026 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -71,6 +71,10 @@ public:
     // Video track properties
     uint32_t video_ssrc_;
     uint8_t video_pt_;
+    // The payload type of H.265, for the offer with both H.264 and H.265.
+    uint8_t video_hevc_pt_;
+    // The payload type of AV1, for the offer with both H.264 and AV1.
+    uint8_t video_av1_pt_;
 
 public:
     MockSdpFactory();
@@ -81,6 +85,9 @@ public:
     std::string create_chrome_publisher_offer_with_h264();
     // Create a Chrome-like WebRTC player offer SDP
     std::string create_chrome_player_offer_with_h264();
+    // Create a WebRTC player offer SDP which supports H.264, H.265 and AV1, so the codec of the
+    // answer is decided by the server, not by what the client is able to decode.
+    std::string create_player_offer_with_all_codecs();
     // Create a Chrome-like WebRTC publisher offer SDP with AV1
     std::string create_chrome_publisher_offer_with_av1();
     // Create a Chrome-like WebRTC publisher offer SDP with VP9
@@ -592,6 +599,11 @@ public:
     virtual int get_time_jitter(std::string vhost) { return SrsRtmpJitterAlgorithmFULL; }
     virtual bool get_mix_correct(std::string vhost) { return false; }
     virtual bool try_annexb_first(std::string vhost) { return true; }
+    virtual bool get_rtc_keep_bframe(std::string vhost) { return false; }
+    virtual bool get_rtc_keep_avc_nalu_sei(std::string vhost) { return true; }
+    virtual bool get_rtc_server_merge_nalus() { return false; }
+    virtual srs_utime_t get_rtc_pli_for_rtmp(std::string vhost) { return 6 * SRS_UTIME_SECONDS; }
+    virtual int get_rtc_opus_bitrate(std::string vhost) { return 48000; }
     virtual bool get_vhost_is_edge(std::string vhost) { return false; }
     virtual bool get_atc_auto(std::string vhost) { return false; }
     virtual bool get_reduce_sequence_header(std::string vhost) { return false; }

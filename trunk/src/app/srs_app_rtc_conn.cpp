@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2025 The SRS Authors
+// Copyright (c) 2013-2026 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -3190,12 +3190,14 @@ SrsRtcPlayerNegotiator::SrsRtcPlayerNegotiator()
 {
     config_ = _srs_config;
     rtc_sources_ = _srs_rtc_sources;
+    ssrc_generator_ = SrsRtcSSRCGenerator::instance();
 }
 
 SrsRtcPlayerNegotiator::~SrsRtcPlayerNegotiator()
 {
     config_ = NULL;
     rtc_sources_ = NULL;
+    ssrc_generator_ = NULL;
 }
 
 bool srs_sdp_has_h264_profile(const SrsMediaPayloadType &payload_type, const string &profile)
@@ -3880,8 +3882,23 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
             track_descs = source_audio_tracks;
         } else if (remote_media_desc.is_video()) {
             SrsVideoCodecId prefer_codec = srs_video_codec_str2id(ruc->vcodec_);
+
+            // While publishing, the codec of the stream decides, because SRS never transcodes for
+            // WebRTC. Answering any other codec delivers no media at all.
+            // @see https://github.com/ossrs/srs/issues/4738
+            SrsVideoCodecId stream_codec = source->publish_video_codec();
+            if (stream_codec != SrsVideoCodecIdReserved) {
+                if (prefer_codec == SrsVideoCodecIdReserved) {
+                    prefer_codec = stream_codec;
+                } else if (prefer_codec != stream_codec) {
+                    return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "stream is %s, not the required %s",
+                                         srs_video_codec_id2str(stream_codec).c_str(), ruc->vcodec_.c_str());
+                }
+            }
+
+            // Before publishing, the codec of the stream is unknown, so the client decides. If it
+            // requires no codec, use the first track, see SrsRtcSource::init_for_play_before_publishing.
             if (prefer_codec == SrsVideoCodecIdReserved) {
-                // Get the source codec if not specified.
                 std::vector<SrsRtcTrackDescription *> source_track_descs = source->get_track_desc("video", "");
                 if (!source_track_descs.empty()) {
                     SrsRtcTrackDescription *first_track = source_track_descs.at(0);
@@ -3962,6 +3979,14 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
 
                 track_descs = source->get_track_desc("video", "H264");
             }
+
+            // Refuse the player rather than answering audio only without any error, which leaves
+            // the client waiting for a video track that never arrives.
+            // @see https://github.com/ossrs/srs/issues/4738
+            if (track_descs.empty()) {
+                return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no %s track in source",
+                                     srs_video_codec_id2str(prefer_codec).c_str());
+            }
         }
 
         for (int j = 0; j < (int)track_descs.size(); ++j) {
@@ -4010,7 +4035,7 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
             // Otherwise, generate a new SSRC for each player.
             // @see https://github.com/ossrs/srs/issues/3850
             if (!keep_original_ssrc) {
-                track->ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+                track->ssrc_ = ssrc_generator_->generate_ssrc();
             }
 
             // TODO: FIXME: set audio_payload rtcp_fbs_,

@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2025 The SRS Authors
+// Copyright (c) 2013-2026 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -50,6 +50,8 @@ MockSdpFactory::MockSdpFactory()
     audio_pt_ = 111;
     video_ssrc_ = 2002;
     video_pt_ = 96;
+    video_hevc_pt_ = 49;
+    video_av1_pt_ = 45;
 }
 
 MockSdpFactory::~MockSdpFactory()
@@ -100,6 +102,63 @@ std::string MockSdpFactory::create_chrome_player_offer_with_h264()
        << "a=rtcp-fb:" << (int)video_pt_ << " nack pli\r\n"
        << "a=rtcp-fb:" << (int)video_pt_ << " transport-cc\r\n"
        << "a=fmtp:" << (int)video_pt_ << " level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n";
+
+    return ss.str();
+}
+
+std::string MockSdpFactory::create_player_offer_with_all_codecs()
+{
+    // Create a player offer which accepts H.264, H.265 and AV1, so that nothing the client offers
+    // limits the codec of the answer, and the server decides it. Note that the client states no
+    // preference by the order of the payload types, it asks for a codec by the vcodec parameter.
+    std::stringstream ss;
+    ss << "v=0\r\n"
+       << "o=- 4611731400430051338 2 IN IP4 127.0.0.1\r\n"
+       << "s=-\r\n"
+       << "t=0 0\r\n"
+       << "a=group:BUNDLE 0 1\r\n"
+       << "a=msid-semantic: WMS\r\n"
+       // Audio media description (Opus)
+       << "m=audio 9 UDP/TLS/RTP/SAVPF " << (int)audio_pt_ << "\r\n"
+       << "c=IN IP4 0.0.0.0\r\n"
+       << "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+       << "a=ice-ufrag:test1234\r\n"
+       << "a=ice-pwd:testpassword1234567890\r\n"
+       << "a=ice-options:trickle\r\n"
+       << "a=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\n"
+       << "a=setup:actpass\r\n"
+       << "a=mid:0\r\n"
+       << "a=recvonly\r\n"
+       << "a=rtcp-mux\r\n"
+       << "a=rtpmap:" << (int)audio_pt_ << " opus/48000/2\r\n"
+       << "a=fmtp:" << (int)audio_pt_ << " minptime=10;useinbandfec=1\r\n"
+       // Video media description, H.264, H.265 and AV1.
+       << "m=video 9 UDP/TLS/RTP/SAVPF " << (int)video_pt_ << " " << (int)video_hevc_pt_ << " " << (int)video_av1_pt_ << "\r\n"
+       << "c=IN IP4 0.0.0.0\r\n"
+       << "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+       << "a=ice-ufrag:test1234\r\n"
+       << "a=ice-pwd:testpassword1234567890\r\n"
+       << "a=ice-options:trickle\r\n"
+       << "a=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\n"
+       << "a=setup:actpass\r\n"
+       << "a=mid:1\r\n"
+       << "a=recvonly\r\n"
+       << "a=rtcp-mux\r\n"
+       << "a=rtcp-rsize\r\n"
+       << "a=rtpmap:" << (int)video_pt_ << " H264/90000\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " nack\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " nack pli\r\n"
+       << "a=rtcp-fb:" << (int)video_pt_ << " transport-cc\r\n"
+       << "a=fmtp:" << (int)video_pt_ << " level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+       << "a=rtpmap:" << (int)video_hevc_pt_ << " H265/90000\r\n"
+       << "a=rtcp-fb:" << (int)video_hevc_pt_ << " nack\r\n"
+       << "a=rtcp-fb:" << (int)video_hevc_pt_ << " nack pli\r\n"
+       << "a=rtcp-fb:" << (int)video_hevc_pt_ << " transport-cc\r\n"
+       << "a=fmtp:" << (int)video_hevc_pt_ << " level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST\r\n"
+       << "a=rtpmap:" << (int)video_av1_pt_ << " AV1/90000\r\n"
+       << "a=rtcp-fb:" << (int)video_av1_pt_ << " nack\r\n"
+       << "a=rtcp-fb:" << (int)video_av1_pt_ << " nack pli\r\n"
+       << "a=rtcp-fb:" << (int)video_av1_pt_ << " transport-cc\r\n";
 
     return ss.str();
 }

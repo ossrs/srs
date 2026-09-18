@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2025 Winlin
+ * Copyright (c) 2013-2026 Winlin
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,6 +30,8 @@
 #include <srs_app_stream_token.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_rtp.hpp>
+#include <srs_utest_ai08.hpp>
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_service.hpp>
@@ -1218,3 +1220,329 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisherWithG71
     // Stop the publisher
     publisher->stop();
 }
+
+#ifdef SRS_FFMPEG_FIT
+// The scenario for the play negotiation tests below, see issue #4738.
+//
+// SRS treats H.264, H.265 and AV1 equally, and the rule is the same for all of them:
+//
+//   1. Before publishing, the codec of the stream is unknown, so the client decides. Any codec it
+//      asks for is allowed, and asking for none answers the first placeholder track. See
+//      SrsRtcSource::init_for_play_before_publishing for the placeholder tracks.
+//   2. While publishing, the codec of the stream is known, so the stream decides. Asking for none
+//      answers the codec of the stream, asking for that codec is allowed, and asking for any other
+//      codec is refused, because SRS never transcodes for WebRTC and the client could only ever
+//      get a black picture.
+//
+// A stream published by a non-WebRTC publisher, such as RTMP or SRT, keeps the placeholder tracks,
+// and the bridge selects the track of the codec it detects from the video sequence header, see
+// SrsRtcRtpBuilder::on_video. So the answer must match the track the bridge selected, both the
+// codec and the SSRC, otherwise SrsRtcPlayStream::send_packet drops every packet as "Drop for ssrc
+// %u not found" and the client shows a black picture.
+//
+// A stream published by a WebRTC publisher replaces the placeholder tracks with the tracks it
+// negotiated, see SrsRtcConnection::add_publisher, so the source holds exactly one video track.
+// @see https://github.com/ossrs/srs/issues/4738
+class MockRtcPlayScenario
+{
+public:
+    MockRtcSourceManager rtc_sources_;
+    MockAppConfig config_;
+    MockSdpFactory sdp_;
+    MockRtcAsyncCallRequest req_;
+    MockRtpTarget rtp_target_;
+    SrsSharedPtr<SrsRtcSource> source_;
+    SrsRtcRtpBuilder *builder_;
+    SrsRtcPlayerNegotiator negotiator_;
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations_;
+
+public:
+    MockRtcPlayScenario() : req_("test.vhost", "live", "stream1"), source_(new SrsRtcSource())
+    {
+        builder_ = NULL;
+        negotiator_.config_ = &config_;
+        negotiator_.rtc_sources_ = &rtc_sources_;
+    }
+    virtual ~MockRtcPlayScenario()
+    {
+        srs_freep(builder_);
+
+        std::map<uint32_t, SrsRtcTrackDescription *>::iterator it;
+        for (it = sub_relations_.begin(); it != sub_relations_.end(); ++it) {
+            srs_freep(it->second);
+        }
+    }
+
+public:
+    // Create the source with the placeholder tracks, without any publisher yet.
+    srs_error_t initialize()
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = source_->initialize(&req_)) != srs_success) {
+            return srs_error_wrap(err, "initialize source");
+        }
+        rtc_sources_.mock_source_ = source_;
+
+        return err;
+    }
+
+    // Publish a stream of the codec by RTMP or SRT, which is bridged to the RTC source. Only H.264
+    // and H.265 are supported by the bridge, see SrsRtcRtpBuilder::on_video.
+    srs_error_t publish_by_bridge(SrsVideoCodecId codec)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = initialize()) != srs_success) {
+            return srs_error_wrap(err, "initialize");
+        }
+
+        builder_ = new SrsRtcRtpBuilder(_srs_app_factory, &rtp_target_, source_);
+        if ((err = builder_->initialize(&req_)) != srs_success) {
+            return srs_error_wrap(err, "initialize builder");
+        }
+
+        // The bridge selects the track of the codec it detected from the sequence header.
+        if ((err = builder_->initialize_video_track(codec)) != srs_success) {
+            return srs_error_wrap(err, "initialize video track");
+        }
+
+        return err;
+    }
+
+    // Publish a stream of the codec by WebRTC, which replaces the placeholder tracks with the
+    // negotiated ones, so the source holds exactly one video track.
+    srs_error_t publish_by_webrtc(std::string codec_name, uint8_t video_pt)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = initialize()) != srs_success) {
+            return srs_error_wrap(err, "initialize");
+        }
+
+        SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+        SrsRtcTrackDescription *audio_track = new SrsRtcTrackDescription();
+        stream_desc->audio_track_desc_ = audio_track;
+        audio_track->type_ = "audio";
+        audio_track->id_ = "audio-publisher";
+        audio_track->ssrc_ = 3001;
+        audio_track->direction_ = "recvonly";
+        audio_track->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", 48000, 2);
+
+        SrsRtcTrackDescription *video_track = new SrsRtcTrackDescription();
+        stream_desc->video_track_descs_.push_back(video_track);
+        video_track->type_ = "video";
+        video_track->id_ = "video-publisher";
+        video_track->ssrc_ = 3002;
+        video_track->direction_ = "recvonly";
+        video_track->media_ = new SrsVideoPayload(video_pt, codec_name, 90000);
+
+        source_->set_stream_desc(stream_desc.get());
+
+        return err;
+    }
+
+    // Play the stream, with vcodec asked by the client, or empty if the client asks for none.
+    srs_error_t play(std::string vcodec, std::string offer)
+    {
+        srs_error_t err = srs_success;
+
+        SrsRtcUserConfig ruc;
+        srs_freep(ruc.req_);
+        ruc.req_ = new MockRtcAsyncCallRequest("test.vhost", "live", "stream1");
+        ruc.publish_ = false;
+        ruc.dtls_ = true;
+        ruc.srtp_ = true;
+        ruc.vcodec_ = vcodec;
+
+        if ((err = ruc.remote_sdp_.parse(offer)) != srs_success) {
+            return srs_error_wrap(err, "parse offer");
+        }
+
+        return negotiator_.negotiate_play_capability(&ruc, sub_relations_);
+    }
+
+    // The video track the player subscribes to, NULL if the player gets no video at all.
+    SrsRtcTrackDescription *video_track()
+    {
+        std::map<uint32_t, SrsRtcTrackDescription *>::iterator it;
+        for (it = sub_relations_.begin(); it != sub_relations_.end(); ++it) {
+            if (it->second->type_ == "video") {
+                return it->second;
+            }
+        }
+        return NULL;
+    }
+
+    // The SSRC of the publisher the player subscribes to, for the video track.
+    uint32_t video_publish_ssrc()
+    {
+        std::map<uint32_t, SrsRtcTrackDescription *>::iterator it;
+        for (it = sub_relations_.begin(); it != sub_relations_.end(); ++it) {
+            if (it->second->type_ == "video") {
+                return it->first;
+            }
+        }
+        return 0;
+    }
+
+    // The SSRC the bridge builds the RTP packets with.
+    uint32_t bridge_ssrc()
+    {
+        return builder_->video_builder_->video_ssrc_;
+    }
+};
+
+// One row of the matrix below: the codec the client asks for, and the codec it should be answered
+// with, or NULL if the request should be refused.
+struct MockRtcPlayCase
+{
+    const char *vcodec_;
+    const char *answer_;
+};
+
+#define SRS_ARRAY_LENGTH(a) (int)(sizeof(a) / sizeof(a[0]))
+
+// Play before publishing. The codec of the stream is unknown, so the client decides: every codec
+// it asks for is allowed, and asking for none answers the first placeholder track, H.264.
+// @see https://github.com/ossrs/srs/issues/4738
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayBeforePublishWithAnyCodec)
+{
+    srs_error_t err;
+
+    MockRtcPlayCase cases[] = {
+        {"", "H264"},
+        {"h264", "H264"},
+        {"h265", "H265"},
+        {"av1", "AV1"},
+    };
+
+    for (int i = 0; i < SRS_ARRAY_LENGTH(cases); i++) {
+        MockRtcPlayScenario s;
+        HELPER_EXPECT_SUCCESS(s.initialize());
+
+        err = s.play(cases[i].vcodec_, s.sdp_.create_player_offer_with_all_codecs());
+        EXPECT_TRUE(srs_success == err) << "vcodec=" << cases[i].vcodec_ << ", err=" << srs_error_desc(err);
+        srs_freep(err);
+
+        ASSERT_TRUE(s.video_track() != NULL) << "vcodec=" << cases[i].vcodec_;
+        EXPECT_STREQ(cases[i].answer_, s.video_track()->media_->name_.c_str()) << "vcodec=" << cases[i].vcodec_;
+    }
+}
+
+// Publish H.264 by RTMP or SRT. The codec of the stream is known, so the stream decides: asking for
+// none or for H.264 answers H.264, on the SSRC the bridge sends with, and asking for any other
+// codec is refused.
+// @see https://github.com/ossrs/srs/issues/4738
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayAvcStreamWithAnyCodec)
+{
+    srs_error_t err;
+
+    MockRtcPlayCase cases[] = {
+        {"", "H264"},
+        {"h264", "H264"},
+        {"h265", NULL},
+        {"av1", NULL},
+    };
+
+    for (int i = 0; i < SRS_ARRAY_LENGTH(cases); i++) {
+        MockRtcPlayScenario s;
+        HELPER_EXPECT_SUCCESS(s.publish_by_bridge(SrsVideoCodecIdAVC));
+
+        err = s.play(cases[i].vcodec_, s.sdp_.create_player_offer_with_all_codecs());
+        if (!cases[i].answer_) {
+            EXPECT_TRUE(srs_success != err) << "vcodec=" << cases[i].vcodec_;
+            srs_freep(err);
+            continue;
+        }
+
+        EXPECT_TRUE(srs_success == err) << "vcodec=" << cases[i].vcodec_ << ", err=" << srs_error_desc(err);
+        srs_freep(err);
+
+        ASSERT_TRUE(s.video_track() != NULL) << "vcodec=" << cases[i].vcodec_;
+        EXPECT_STREQ(cases[i].answer_, s.video_track()->media_->name_.c_str()) << "vcodec=" << cases[i].vcodec_;
+        EXPECT_EQ(s.bridge_ssrc(), s.video_publish_ssrc()) << "vcodec=" << cases[i].vcodec_;
+    }
+}
+
+// Publish H.265 by RTMP or SRT, which is the issue reported in #4738. The same rule as H.264.
+// @see https://github.com/ossrs/srs/issues/4738
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayHevcStreamWithAnyCodec)
+{
+    srs_error_t err;
+
+    MockRtcPlayCase cases[] = {
+        {"", "H265"},
+        {"h264", NULL},
+        {"h265", "H265"},
+        {"av1", NULL},
+    };
+
+    for (int i = 0; i < SRS_ARRAY_LENGTH(cases); i++) {
+        MockRtcPlayScenario s;
+        HELPER_EXPECT_SUCCESS(s.publish_by_bridge(SrsVideoCodecIdHEVC));
+
+        err = s.play(cases[i].vcodec_, s.sdp_.create_player_offer_with_all_codecs());
+        if (!cases[i].answer_) {
+            EXPECT_TRUE(srs_success != err) << "vcodec=" << cases[i].vcodec_;
+            srs_freep(err);
+            continue;
+        }
+
+        EXPECT_TRUE(srs_success == err) << "vcodec=" << cases[i].vcodec_ << ", err=" << srs_error_desc(err);
+        srs_freep(err);
+
+        ASSERT_TRUE(s.video_track() != NULL) << "vcodec=" << cases[i].vcodec_;
+        EXPECT_STREQ(cases[i].answer_, s.video_track()->media_->name_.c_str()) << "vcodec=" << cases[i].vcodec_;
+        EXPECT_EQ(s.bridge_ssrc(), s.video_publish_ssrc()) << "vcodec=" << cases[i].vcodec_;
+    }
+}
+
+// Publish AV1 by WebRTC, which is the only way to publish AV1, because the RTMP to RTC bridge
+// supports H.264 and H.265 only. The same rule as H.264 and H.265.
+// @see https://github.com/ossrs/srs/issues/4738
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayAv1StreamWithAnyCodec)
+{
+    srs_error_t err;
+
+    MockRtcPlayCase cases[] = {
+        {"", "AV1"},
+        {"h264", NULL},
+        {"h265", NULL},
+        {"av1", "AV1"},
+    };
+
+    for (int i = 0; i < SRS_ARRAY_LENGTH(cases); i++) {
+        MockRtcPlayScenario s;
+        HELPER_EXPECT_SUCCESS(s.publish_by_webrtc("AV1", 45));
+
+        err = s.play(cases[i].vcodec_, s.sdp_.create_player_offer_with_all_codecs());
+        if (!cases[i].answer_) {
+            EXPECT_TRUE(srs_success != err) << "vcodec=" << cases[i].vcodec_;
+            srs_freep(err);
+            continue;
+        }
+
+        EXPECT_TRUE(srs_success == err) << "vcodec=" << cases[i].vcodec_ << ", err=" << srs_error_desc(err);
+        srs_freep(err);
+
+        ASSERT_TRUE(s.video_track() != NULL) << "vcodec=" << cases[i].vcodec_;
+        EXPECT_STREQ(cases[i].answer_, s.video_track()->media_->name_.c_str()) << "vcodec=" << cases[i].vcodec_;
+    }
+}
+
+// Play an H.265 stream by a client which does not support H.265, such as Chrome without HEVC. SRS
+// does not transcode for WebRTC, so there is no way to serve this client. Refuse it with an
+// explicit error, rather than answering an H.264 SDP that the server never sends, which leaves the
+// client with a black picture and no clue why.
+// @see https://github.com/ossrs/srs/issues/4738
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayHevcStreamByAvcOnlyPlayer)
+{
+    srs_error_t err;
+
+    MockRtcPlayScenario s;
+    HELPER_EXPECT_SUCCESS(s.publish_by_bridge(SrsVideoCodecIdHEVC));
+    HELPER_EXPECT_FAILED(s.play("", s.sdp_.create_chrome_player_offer_with_h264()));
+}
+#endif

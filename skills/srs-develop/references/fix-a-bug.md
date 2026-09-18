@@ -64,7 +64,7 @@ Use this only when verification shows user misuse already covered by the selecte
 3. Add regression coverage before the fix, following `references/testable-code.md`: the test must fail first, and code that cannot be mocked is refactored for testability before it is tested. Then implement the smallest fix.
 4. Use `skills/internal-codemap-for-srs/SKILL.md` and `skills/internal-docs-for-srs/SKILL.md` to route the selected product and run the relevant verification. For Oryx, follow `references/oryx.md` and use only a disposable integration target.
 5. For any standalone SRS runtime fix in the Go proxy or C++ media server, run every command in `references/integration-tests.md` after focused and component-native tests. The suite is mandatory cross-component verification, not proxy-only coverage.
-6. If the fix bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and apply it. For SRS that means bumping **both** version files, not only the C++ one.
+6. If the fix bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and apply it.
 7. If it is not a bug, update support or documentation only when needed; otherwise make no change.
 
 ## Step 4: Update the GitHub issue Truth Record

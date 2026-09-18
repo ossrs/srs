@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2025 The SRS Authors
+// Copyright (c) 2013-2026 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -393,10 +393,15 @@ SrsRtcSource::SrsRtcSource()
 
     publish_stream_ = NULL;
     stream_desc_ = NULL;
+    bridge_video_codec_ = SrsVideoCodecIdReserved;
 
     req_ = NULL;
     rtc_bridge_ = NULL;
     circuit_breaker_ = _srs_circuit_breaker;
+    config_ = _srs_config;
+    stat_ = _srs_stat;
+    shared_timer_ = _srs_shared_timer;
+    ssrc_generator_ = SrsRtcSSRCGenerator::instance();
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
     // Initialize stream_die_at_ to current time to prevent newly created sources
@@ -423,6 +428,11 @@ SrsRtcSource::~SrsRtcSource()
     srs_trace("free rtc source id=[%s]", cid.c_str());
 
     app_factory_ = NULL;
+    circuit_breaker_ = NULL;
+    config_ = NULL;
+    stat_ = NULL;
+    shared_timer_ = NULL;
+    ssrc_generator_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -498,14 +508,14 @@ void SrsRtcSource::init_for_play_before_publishing()
         audio_track_desc->type_ = "audio";
         audio_track_desc->id_ = "audio-" + rand.gen_str(8);
 
-        uint32_t audio_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        uint32_t audio_ssrc = ssrc_generator_->generate_ssrc();
         audio_track_desc->ssrc_ = audio_ssrc;
         audio_track_desc->direction_ = "recvonly";
 
         audio_track_desc->media_ = new SrsAudioPayload(kAudioPayloadType, "opus", kAudioSamplerate, kAudioChannel);
     }
 
-    // video track descriptions - support both H.264 and H.265 for play before publishing
+    // video track descriptions - support H.264, H.265 and AV1 for play before publishing
     // This allows clients to choose their preferred codec during SDP negotiation
     if (true) {
         // H.264 track description
@@ -515,7 +525,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         h264_track_desc->type_ = "video";
         h264_track_desc->id_ = "video-h264-" + rand.gen_str(8);
 
-        uint32_t h264_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        uint32_t h264_ssrc = ssrc_generator_->generate_ssrc();
         h264_track_desc->ssrc_ = h264_ssrc;
         h264_track_desc->direction_ = "recvonly";
 
@@ -533,7 +543,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         h265_track_desc->type_ = "video";
         h265_track_desc->id_ = "video-h265-" + rand.gen_str(8);
 
-        uint32_t h265_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+        uint32_t h265_ssrc = ssrc_generator_->generate_ssrc();
         h265_track_desc->ssrc_ = h265_ssrc;
         h265_track_desc->direction_ = "recvonly";
 
@@ -541,6 +551,22 @@ void SrsRtcSource::init_for_play_before_publishing()
         h265_track_desc->media_ = h265_payload;
 
         h265_payload->set_h265_param_desc("level-id=156;profile-id=1;tier-flag=0;tx-mode=SRST");
+    }
+
+    if (true) {
+        // AV1 track description. Note that AV1 is published by WebRTC only, because the bridge
+        // from RTMP or SRT supports H.264 and H.265 only.
+        SrsRtcTrackDescription *av1_track_desc = new SrsRtcTrackDescription();
+        stream_desc->video_track_descs_.push_back(av1_track_desc);
+
+        av1_track_desc->type_ = "video";
+        av1_track_desc->id_ = "video-av1-" + rand.gen_str(8);
+
+        uint32_t av1_ssrc = ssrc_generator_->generate_ssrc();
+        av1_track_desc->ssrc_ = av1_ssrc;
+        av1_track_desc->direction_ = "recvonly";
+
+        av1_track_desc->media_ = new SrsVideoPayload(KVideoPayloadTypeAv1, "AV1", kVideoSamplerate);
     }
 
     set_stream_desc(stream_desc.get());
@@ -703,14 +729,13 @@ srs_error_t SrsRtcSource::on_publish()
         }
 
         // The PLI interval for RTC2RTMP.
-        pli_for_rtmp_ = _srs_config->get_rtc_pli_for_rtmp(req_->vhost_);
+        pli_for_rtmp_ = config_->get_rtc_pli_for_rtmp(req_->vhost_);
 
         // @see SrsRtcSource::on_timer()
-        _srs_shared_timer->timer100ms()->subscribe(this);
+        shared_timer_->timer100ms()->subscribe(this);
     }
 
-    SrsStatistic *stat = _srs_stat;
-    stat->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, _source_id.c_str());
 
     return err;
 }
@@ -729,6 +754,9 @@ void SrsRtcSource::on_unpublish()
     }
     _source_id = SrsContextId();
 
+    // The codec of the stream is unknown again, so the next player may choose any codec.
+    bridge_video_codec_ = SrsVideoCodecIdReserved;
+
     for (size_t i = 0; i < event_handlers_.size(); i++) {
         ISrsRtcSourceEventHandler *h = event_handlers_.at(i);
         h->on_unpublish();
@@ -737,14 +765,15 @@ void SrsRtcSource::on_unpublish()
     // free bridge resource
     if (rtc_bridge_) {
         // For SrsRtcSource::on_timer()
-        _srs_shared_timer->timer100ms()->unsubscribe(this);
+        if (shared_timer_) {
+            shared_timer_->timer100ms()->unsubscribe(this);
+        }
 
         rtc_bridge_->on_unpublish();
         srs_freep(rtc_bridge_);
     }
 
-    SrsStatistic *stat = _srs_stat;
-    stat->on_stream_close(req_);
+    stat_->on_stream_close(req_);
 
     // Destroy and cleanup source when no publishers and consumers.
     if (consumers_.empty()) {
@@ -857,6 +886,37 @@ std::vector<SrsRtcTrackDescription *> SrsRtcSource::get_track_desc(std::string t
     return track_descs;
 }
 
+void SrsRtcSource::set_bridge_video_codec(SrsVideoCodecId codec)
+{
+    bridge_video_codec_ = codec;
+}
+
+SrsVideoCodecId SrsRtcSource::publish_video_codec()
+{
+    // The bridge from RTMP or SRT keeps the tracks created for play before publishing, so the
+    // codec of the stream is the one it detected in the video sequence header.
+    if (bridge_video_codec_ != SrsVideoCodecIdReserved) {
+        return bridge_video_codec_;
+    }
+
+    if (!stream_desc_ || stream_desc_->video_track_descs_.empty()) {
+        return SrsVideoCodecIdReserved;
+    }
+
+    // A WebRTC publisher replaces the tracks created for play before publishing by the tracks it
+    // negotiated, which describe exactly one codec, the codec of the stream. While the tracks for
+    // play before publishing describe one track per supported codec, so the codec is still unknown.
+    SrsVideoCodecId codec = SrsVideoCodecId(stream_desc_->video_track_descs_.at(0)->media_->codec(true));
+    for (int i = 1; i < (int)stream_desc_->video_track_descs_.size(); i++) {
+        SrsRtcTrackDescription *track_desc = stream_desc_->video_track_descs_.at(i);
+        if (SrsVideoCodecId(track_desc->media_->codec(true)) != codec) {
+            return SrsVideoCodecIdReserved;
+        }
+    }
+
+    return codec;
+}
+
 srs_error_t SrsRtcSource::on_timer(srs_utime_t interval)
 {
     srs_error_t err = srs_success;
@@ -889,6 +949,7 @@ SrsRtcRtpBuilder::SrsRtcRtpBuilder(ISrsAppFactory *factory, ISrsRtpTarget *targe
 {
     rtp_target_ = target;
     source_ = source;
+    config_ = _srs_config;
 
     req_ = NULL;
     format_ = new SrsRtmpFormat();
@@ -920,6 +981,7 @@ SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
     srs_freep(video_builder_);
 
     app_factory_ = NULL;
+    config_ = NULL;
 }
 
 srs_error_t SrsRtcRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
@@ -970,6 +1032,11 @@ srs_error_t SrsRtcRtpBuilder::initialize_video_track(SrsVideoCodecId codec)
         return srs_error_wrap(err, "initialize video builder");
     }
 
+    // Now the codec of the stream is known, so the player must be answered with this codec, on the
+    // SSRC of this track, otherwise every packet we build is dropped.
+    // @see https://github.com/ossrs/srs/issues/4738
+    source_->set_bridge_video_codec(codec);
+
     srs_trace("RTMP2RTC: Initialize video track with codec=%s, ssrc=%u, pt=%d",
               codec_name.c_str(), video_ssrc, video_payload_type);
 
@@ -987,11 +1054,11 @@ srs_error_t SrsRtcRtpBuilder::initialize(ISrsRequest *r)
     }
 
     // Setup the SPS/PPS parsing strategy.
-    format_->try_annexb_first_ = _srs_config->try_annexb_first(r->vhost_);
+    format_->try_annexb_first_ = config_->try_annexb_first(r->vhost_);
 
-    keep_bframe_ = _srs_config->get_rtc_keep_bframe(req_->vhost_);
-    keep_avc_nalu_sei_ = _srs_config->get_rtc_keep_avc_nalu_sei(req_->vhost_);
-    merge_nalus_ = _srs_config->get_rtc_server_merge_nalus();
+    keep_bframe_ = config_->get_rtc_keep_bframe(req_->vhost_);
+    keep_avc_nalu_sei_ = config_->get_rtc_keep_avc_nalu_sei(req_->vhost_);
+    merge_nalus_ = config_->get_rtc_server_merge_nalus();
     srs_trace("RTC bridge from RTMP, keep_bframe=%d, keep_avc_nalu_sei=%d, merge_nalus=%d",
               keep_bframe_, keep_avc_nalu_sei_, merge_nalus_);
 
@@ -1110,7 +1177,7 @@ srs_error_t SrsRtcRtpBuilder::init_codec(SrsAudioCodecId codec)
     codec_ = app_factory_->create_audio_transcoder();
 
     // Initialize the codec according to the codec in stream.
-    int bitrate = _srs_config->get_rtc_opus_bitrate(req_->vhost_); // The output bitrate in bps.
+    int bitrate = config_->get_rtc_opus_bitrate(req_->vhost_); // The output bitrate in bps.
     if ((err = codec_->initialize(codec, SrsAudioCodecIdOpus, kAudioChannel, kAudioSamplerate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "init codec=%d", codec);
     }
@@ -3815,6 +3882,14 @@ SrsRtcSSRCGenerator::SrsRtcSSRCGenerator()
 }
 
 SrsRtcSSRCGenerator::~SrsRtcSSRCGenerator()
+{
+}
+
+ISrsRtcSSRCGenerator::ISrsRtcSSRCGenerator()
+{
+}
+
+ISrsRtcSSRCGenerator::~ISrsRtcSSRCGenerator()
 {
 }
 

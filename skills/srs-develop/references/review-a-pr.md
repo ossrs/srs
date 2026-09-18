@@ -39,7 +39,7 @@
 ## Step 4: Apply project version and changelog rules
 
 1. Ask the user for the PR number if they haven't given it.
-2. Load `references/version-and-changelog.md` and apply it. It is the single owner of the version-bump and changelog rules for both projects, including the requirement to keep the two SRS version files in sync.
+2. Load `references/version-and-changelog.md` and apply it. It is the single owner of the version-bump and changelog rules for both projects.
 
 ## Step 5: Comment on the PR (optional)
 

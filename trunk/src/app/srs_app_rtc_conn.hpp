@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2025 The SRS Authors
+// Copyright (c) 2013-2026 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -1013,6 +1013,7 @@ class SrsRtcPlayerNegotiator : public ISrsRtcPlayerNegotiator
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsRtcSourceManager *rtc_sources_;
+    ISrsRtcSSRCGenerator *ssrc_generator_;
 
 public:
     SrsRtcPlayerNegotiator();

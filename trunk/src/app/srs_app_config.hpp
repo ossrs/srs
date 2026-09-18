@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2013-2025 The SRS Authors
+// Copyright (c) 2013-2026 The SRS Authors
 //
 // SPDX-License-Identifier: MIT
 //
@@ -554,6 +554,11 @@ public:
     virtual int get_time_jitter(std::string vhost) = 0;
     virtual bool get_mix_correct(std::string vhost) = 0;
     virtual bool try_annexb_first(std::string vhost) = 0;
+    virtual bool get_rtc_keep_bframe(std::string vhost) = 0;
+    virtual bool get_rtc_keep_avc_nalu_sei(std::string vhost) = 0;
+    virtual bool get_rtc_server_merge_nalus() = 0;
+    virtual srs_utime_t get_rtc_pli_for_rtmp(std::string vhost) = 0;
+    virtual int get_rtc_opus_bitrate(std::string vhost) = 0;
     virtual bool get_vhost_is_edge(std::string vhost) = 0;
     virtual bool get_atc_auto(std::string vhost) = 0;
     virtual bool get_reduce_sequence_header(std::string vhost) = 0;

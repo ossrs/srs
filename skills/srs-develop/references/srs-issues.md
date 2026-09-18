@@ -2,6 +2,17 @@
 
 Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
+## #4738 [BUG] WebRTC play answers H.264 for an H.265 stream
+
+- Issue: https://github.com/ossrs/srs/issues/4738
+- Truth Record: https://github.com/ossrs/srs/issues/4738#issuecomment-5723763184
+- Verified: 2026-09-17; SRS `8.0.36`
+- Status: Fixed on `develop`, pending review
+
+Playing H.265 over WebRTC without `?vcodec=` answered H.264 and delivered no video: the negotiator used the order of the play-before-publishing placeholder tracks, H.264 first, while the RTMP-to-RTC bridge built RTP on the H.265 placeholder's SSRC, so every packet was dropped. Affects `7.0.44`+ and all `8.0`, with `rtmp_to_rtc on` and a non-WebRTC publisher. Workaround: `?vcodec=h265`.
+
+The rule is now: before publishing the client may choose any codec; while publishing the stream decides and a conflicting request is refused. The bridge records the codec on the RTC source in `bridge_video_codec_`, which `negotiate_play_capability` reads. Added an AV1 placeholder track, and an empty track list is refused rather than answered audio-only, which also makes a VP9 request before publishing an error. Tests: `MockRtcPlayScenario` in `trunk/src/utest/srs_utest_workflow_rtc_conn.cpp`.
+
 ## #4728 [FEATURE] Optional H.264 SEI stripping for Oryx Virtual Live
 
 - Issue: https://github.com/ossrs/srs/issues/4728
