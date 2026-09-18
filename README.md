@@ -16,7 +16,7 @@ It supports RTMP, WebRTC, HLS, HTTP-FLV, SRT, MPEG-DASH, and GB28181 on Linux an
 x86_64, ARMv7, AArch64, Apple M1, RISC-V, LoongArch, and MIPS architectures. Supported codecs include
 H.264, H.265, AV1, VP9, AAC, Opus, and G.711. See the complete list of [features](trunk/doc/Features.md#features).
 
-[![SRS Overview](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-sd.png?v=114)](https://ossrs.net/wiki/images/SRS-SingleNode-4.0-hd.png)
+[![SRS Overview](https://ossrs.io/lts/en-us/img/SRS-SingleNode-4.0-hd.png?v=115)](https://ossrs.io/lts/en-us/img/SRS-SingleNode-4.0-hd.png)
 
 > Note: For more details on the single-node architecture for SRS, please visit the following [link](https://www.figma.com/file/333POxVznQ8Wz1Rxlppn36/SRS-4.0-Server-Arch).
 
