@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-09-18, Merge [#4742](https://github.com/ossrs/srs/pull/4742): RTC: Answer the video codec of the stream for WebRTC play. v7.0.162 (#4742)
 * v7.0, 2026-09-17, Merge [#4741](https://github.com/ossrs/srs/pull/4741): Codec: Validate lengthSizeMinusOne to avoid abort on malformed SPS. v7.0.161 (#4741)
 * v7.0, 2026-08-20, Merge [#4729](https://github.com/ossrs/srs/pull/4729): SRT: Upgrade libsrt from 1.5.3 to 1.5.6 for CVE-2026-55868/55869. v7.0.160 (#4729)
 * v7.0, 2026-08-18, Merge [#4659](https://github.com/ossrs/srs/pull/4659): Proxy: Fix resource leak in ParseBody. v7.0.159 (#4659)
