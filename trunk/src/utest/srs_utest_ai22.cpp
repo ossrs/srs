@@ -4499,3 +4499,48 @@ VOID TEST(HookRejectionTest, RtspRejectedViewerReceivesHookStatus)
     conn->hooks_ = NULL;
     conn->rtsp_sources_ = NULL;
 }
+
+// RTSP player of a multi-level stream, the RTSP part of the stream URL rule in srs_utest_ai26.cpp:
+// "tenant-1/live/0/0/AZR-001" must resolve to app "tenant-1/live/0/0" and stream "AZR-001", the
+// same app and stream every other protocol resolves, see #4739.
+VOID TEST(StreamUrlRuleTest, RtspPlayerMultiLevelUrl)
+{
+    srs_error_t err = srs_success;
+
+    MockEdgeConfig mock_config;
+    MockSecurity mock_security;
+    MockHttpHooks mock_hooks;
+    MockRtspSourceManager mock_rtsp_sources;
+
+    // A source with a video track, so DESCRIBE can answer.
+    SrsSharedPtr<SrsRtspSource> mock_source(new SrsRtspSource());
+    SrsRtcTrackDescription *video_desc = new SrsRtcTrackDescription();
+    video_desc->type_ = "video";
+    video_desc->ssrc_ = 2001;
+    video_desc->media_ = new SrsVideoPayload(96, "H264", 90000);
+    mock_source->video_desc_ = video_desc;
+    mock_rtsp_sources.mock_source_ = mock_source;
+    mock_rtsp_sources.fetch_or_create_error_ = srs_success;
+
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->config_ = &mock_config;
+    conn->security_ = &mock_security;
+    conn->hooks_ = &mock_hooks;
+    conn->rtsp_sources_ = &mock_rtsp_sources;
+
+    SrsUniquePtr<SrsRtspRequest> req(new SrsRtspRequest());
+    req->uri_ = "rtsp://127.0.0.1:8554/tenant-1/live/0/0/AZR-001";
+
+    std::string sdp;
+    HELPER_EXPECT_SUCCESS(conn->do_describe(req.get(), sdp));
+
+    EXPECT_STREQ("tenant-1/live/0/0", conn->request_->app_.c_str());
+    EXPECT_STREQ("AZR-001", conn->request_->stream_.c_str());
+    EXPECT_TRUE(srs_strings_ends_with(conn->request_->get_stream_url(), "/tenant-1/live/0/0/AZR-001"))
+        << conn->request_->get_stream_url();
+
+    conn->config_ = NULL;
+    conn->security_ = NULL;
+    conn->hooks_ = NULL;
+    conn->rtsp_sources_ = NULL;
+}

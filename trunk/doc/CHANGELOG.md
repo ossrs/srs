@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-09-18, Merge [#4743](https://github.com/ossrs/srs/pull/4743): Protocol: Resolve multi-level paths as app folders and a stream file for all protocols. v8.0.37 (#4743)
 * v8.0, 2026-09-17, Merge [#4742](https://github.com/ossrs/srs/pull/4742): RTC: Answer the video codec of the stream for WebRTC play. v8.0.36 (#4742)
 * v8.0, 2026-09-15, Merge [#4741](https://github.com/ossrs/srs/pull/4741): Codec: Validate lengthSizeMinusOne to avoid abort on malformed SPS. v8.0.35 (#4741)
 * v8.0, 2026-09-13, Merge [#4736](https://github.com/ossrs/srs/pull/4736): Hooks: Report on_play and on_publish rejection to the client. v8.0.34 (#4736)

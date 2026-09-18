@@ -831,6 +831,14 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
     ruc->req_->vhost_ = ruc->req_->host_;
     ruc->req_->app_ = app.empty() ? "live" : app;
     ruc->req_->stream_ = stream.empty() ? "livestream" : stream;
+
+    // Like a file path, the last segment is the stream and the others are the app, the same as
+    // RTMP. So app=tenant&stream=live/stream is normalized to app tenant/live and stream stream.
+    size_t pos = ruc->req_->stream_.rfind("/");
+    if (pos != string::npos) {
+        ruc->req_->app_ += "/" + ruc->req_->stream_.substr(0, pos);
+        ruc->req_->stream_ = ruc->req_->stream_.substr(pos + 1);
+    }
     ruc->req_->param_ = r->query();
 
     ruc->req_->ice_ufrag_ = r->query_get("ice-ufrag");
