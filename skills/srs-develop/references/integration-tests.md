@@ -44,3 +44,18 @@ Run focused and component-native tests first, then run every command below seque
 The SRT test requires an FFmpeg build with libsrt. The WHIP test requires the `whip` muxer and OpenSSL. Both scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available. If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification.
 
 Run feature-specific bundled tests in addition to this matrix when the routed workflow requires them, such as the browser URL test or GB28181 external-SIP cleanup tests. Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, and `setup-ffmpeg-with-whip.sh` are not standalone test cases unless a workflow explicitly invokes them.
+
+## Verification Tiers
+
+The trigger picks the tier, never the expected runtime. Report every layer not run as unverified.
+
+1. **Iterate** — after each small change: the focused test plus all C++ and Go unit tests.
+2. **Gate** — once per batch, before a commit that will be pushed or opened as a PR: Iterate, the suite above, and the black-box or regression cases for the touched protocol.
+3. **Full** — when the user asks to run all tests, before merging a PR, and before pushing a backport or release. Run every layer, with no subset:
+   - C++ unit: configure `trunk/` with the flags in `trunk/Dockerfile.test` (without `--build-cache`), remove stale `trunk/objs/Platform-*/utest/*.o`, then `make utest && ./objs/srs_utest`.
+   - The suite above.
+   - In `trunk/3rdparty/srs-bench` after `make test`: `./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64`, then `-test.run '^TestSlow' -test.parallel 1`; pass `-srs-ffmpeg "$(command -v ffmpeg)" -srs-ffprobe "$(command -v ffprobe)"` because its lookup ignores `PATH`.
+   - Regression: in `trunk/`, `./objs/srs -c conf/regression-test.conf`, wait 10s, run `./objs/srs_test -test.v` in `3rdparty/srs-bench`, then kill `$(cat objs/srs.pid)`.
+   - `SRS_GB_SKIP_BUILD=1` with each `skills/srs-develop/scripts/gb28181-*-test.sh` (their build reconfigures `trunk/`), and `node skills/srs-develop/scripts/browser-page-url-test.js`.
+
+   Check each layer's exit code separately, and strip ANSI codes before counting `--- PASS`.

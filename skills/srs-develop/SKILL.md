@@ -20,7 +20,7 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 
 ## Cross-Component Verification
 
-For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md` in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification. Apply this requirement during development, bug fixing, and pull-request review; do not treat the `proxy-*` script names as limiting the suite to proxy changes.
+For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md` in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification. Apply this requirement during development, bug fixing, and pull-request review; do not treat the `proxy-*` script names as limiting the suite to proxy changes. Pick the tier in its Verification Tiers by trigger, never by expected runtime; "run all tests" and backports require Full.
 
 ## Testable Code and Test-Driven Development
 
