@@ -15,3 +15,4 @@ Words that voice dictation commonly gets wrong. Left = what dictation produces, 
 | tour | tool | "a tool to publish streams" |
 | share | shell | "a shell script", "shell command" |
 | commend | command | "run this command" |
+| AR scale | AI skill | "updated the AI skill" |

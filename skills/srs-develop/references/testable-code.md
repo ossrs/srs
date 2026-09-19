@@ -1,17 +1,23 @@
 # Testable Code and Test-Driven Development
 
-**Scope:** The single owner of how tests are added to SRS and Oryx — the test-first contract, the definition of mockable, and the C++ patterns that make mocking possible. Every workflow that writes or changes a test loads this file; do not restate these rules elsewhere.
+**Scope:** The single owner of how tests are added to SRS and Oryx — the test-first contract, the definition of mockable, and the C++ patterns that make mocking possible. Every task that touches code loads this file; do not restate these rules elsewhere.
 
 **The principle behind every rule below:** code that cannot be mocked cannot be unit tested. When a test is hard to write, the test is reporting a defect in the code's structure, not a reason to skip the test.
 
 ## The test-first contract
 
-Apply this whenever a task adds a test, regardless of which task the router selected.
+Apply this to every task that touches code, regardless of which task the router selected. Work proceeds in three steps, in order, never merged.
 
-1. **Write the test before the implementation.** The test states the intended behavior — the goal — not the behavior that exists today.
-2. **Run it and watch it fail.** A red-phase test that was never executed proves nothing. Confirm it fails, and that it fails for the reason you intended rather than a setup mistake, a crash, or a compile error.
-3. **Never implement the behavior in the same step as the test.** Writing the test and making it pass are separate, reviewable steps. Report the observed failure to the maintainer before implementing anything.
-4. **Report the exact red/green split.** Name which tests fail, which pass, and the assertion output for each. Do not describe a test as failing "as designed" without having run it.
+1. **Tests first, no implementation.** Write every test that verifies the issue, the feature, or the interface. Start with integration tests through existing public APIs, such as srs-bench and the workflow utests, because they need no new interface. Then write unit tests, declaring any new interface as stubs with no behavior so they compile. Run them all. Failing is the expected result.
+2. **Refactor for testability, no implementation.** When the code under test cannot be mocked, refactor it under the testability contract below. Tests may still fail.
+3. **Implement, then make every test pass.** Fix the bug or build the feature. Edit a test in this step only to fix a proven mistake in the test itself, and say so.
+
+Rules that hold across the steps:
+
+- **The test states the goal**, the intended behavior, not the behavior that exists today.
+- **Run it and watch it fail.** A red-phase test that was never executed proves nothing. Confirm it fails, and that it fails for the reason you intended rather than a setup mistake, a crash, or a compile error.
+- **Report the observed failure to the maintainer before step 3.** Writing the tests and making them pass are separate, reviewable steps.
+- **Report the exact red/green split.** Name which tests fail, which pass, and the assertion output for each. Do not describe a test as failing "as designed" without having run it.
 
 A bug fix and a new capability both start red: a bug's regression test fails until the fix lands, and a capability's test fails until the capability exists.
 
