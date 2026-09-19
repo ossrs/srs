@@ -200,8 +200,10 @@ void srs_net_url_guess_stream(string &app, string &param, string &stream)
 {
     size_t pos = std::string::npos;
 
-    // Extract stream from app, if contains slash.
-    if ((pos = app.find("/")) != std::string::npos) {
+    // Extract stream from app, if contains slash. Like a file path, the last segment is the
+    // stream and the others are the app, so "tenant/live/stream" is app "tenant/live".
+    size_t query = app.find("?");
+    if ((pos = app.substr(0, query).rfind("/")) != std::string::npos) {
         stream = app.substr(pos + 1);
         app = app.substr(0, pos);
 
@@ -922,22 +924,23 @@ bool srs_srt_streamid_to_request(ISrsConfig *config, const std::string &streamid
         return ret;
     }
 
-    size_t pos = url_subpath.find("/");
-    string stream_with_params = "";
-    if (pos == string::npos) {
-        request->app_ = config->get_default_app_name();
-        stream_with_params = url_subpath;
-    } else {
-        request->app_ = url_subpath.substr(0, pos);
-        stream_with_params = url_subpath.substr(pos + 1);
+    // Separate the params first, because a param value may contain slashes.
+    string url_path = url_subpath;
+    size_t pos = url_path.find("?");
+    if (pos != string::npos) {
+        request->param_ = url_path.substr(pos + 1);
+        url_path = url_path.substr(0, pos);
     }
 
-    pos = stream_with_params.find("?");
+    // Like a file path, the last segment is the stream and the others are the app, so
+    // "tenant/live/stream" is app "tenant/live" and stream "stream", the same as RTMP.
+    pos = url_path.rfind("/");
     if (pos == string::npos) {
-        request->stream_ = stream_with_params;
+        request->app_ = config->get_default_app_name();
+        request->stream_ = url_path;
     } else {
-        request->stream_ = stream_with_params.substr(0, pos);
-        request->param_ = stream_with_params.substr(pos + 1);
+        request->app_ = url_path.substr(0, pos);
+        request->stream_ = url_path.substr(pos + 1);
     }
 
     SrsProtocolUtility utility;

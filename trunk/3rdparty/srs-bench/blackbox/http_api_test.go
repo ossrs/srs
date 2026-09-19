@@ -57,6 +57,7 @@ func TestFast_Http_Api_Basic_Auth(t *testing.T) {
 	svr := NewSRSServer(func(v *srsServer) {
 		v.envs = []string{
 			"SRS_HTTP_API_AUTH_ENABLED=on",
+			"SRS_HTTP_API_AUTH_TYPE=basic",
 			"SRS_HTTP_API_AUTH_USERNAME=admin",
 			"SRS_HTTP_API_AUTH_PASSWORD=admin",
 		}

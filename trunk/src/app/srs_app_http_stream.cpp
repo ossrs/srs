@@ -1310,9 +1310,15 @@ srs_error_t SrsHttpStreamServer::dynamic_match(ISrsHttpMessage *request, ISrsHtt
     //      matched for "/live/livestream.flv"
     //      matched for "ossrs.net/live/livestream.flv"
     //      not-matched for "/livestream.flv", which is actually "/__defaultApp__/livestream.flv", HTTP not support default app.
-    //      not-matched for "/live/show/livestream.flv"
+    //      matched for "/tenant/live/livestream.flv", app is "tenant/live" because the app is like a folder path.
+    // Only the [app] can span multiple segments, so a template without it must match exactly.
     string upath = request->path();
-    if (srs_strings_count(upath, "/") != srs_strings_count(entry->mount_, "/")) {
+    int upath_slashes = srs_strings_count(upath, "/");
+    int mount_slashes = srs_strings_count(entry->mount_, "/");
+    if (upath_slashes < mount_slashes) {
+        return err;
+    }
+    if (upath_slashes > mount_slashes && entry->mount_.find("[app]") == string::npos) {
         return err;
     }
 
