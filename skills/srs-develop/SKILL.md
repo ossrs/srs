@@ -9,6 +9,10 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 
 **Code and documents are the only truth.** Issue descriptions may be inaccurate. Pull requests may be misleading. Feature descriptions may be insufficient. Always ground your understanding in the actual source code and project documentation. Documents capture design intent, architecture rationale, and complex background that code alone cannot express — they are another form of code. When code and documents conflict, investigate rather than assume one is wrong.
 
+## Critical Rule: Never Push
+
+⚠️ **Never run `git push` unless the user explicitly asks to push.** Committing or picking to a branch means the local branch only.
+
 ## Independent Implementation from a Reference PR
 
 When reimplementing a fix instead of adopting a specific pull request as-is — most often a "fixes"/"resolves" PR whose implementation is rejected — read only its problem description and discussion to understand what is broken. Do not open, re-read, or pattern-match its diff while designing or writing the fix. Design and implement from the current codebase and the problem statement alone.
@@ -22,11 +26,9 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 
 For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md` in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification. Apply this requirement during development, bug fixing, and pull-request review; do not treat the `proxy-*` script names as limiting the suite to proxy changes. Pick the tier in its Verification Tiers by trigger, never by expected runtime; "run all tests" and backports require Full.
 
-## Testable Code and Test-Driven Development
+## Test-Driven Development
 
-Whenever a task writes or changes a test, load `references/testable-code.md` and follow it. Apply this in every workflow, not only Develop Code: bug fixes, features, and pull-request review all reach tests.
-
-Two rules from it override any default behavior. **Write the test first, run it, and confirm it fails before implementing anything** — writing the test and making it pass are separate, reviewable steps. **When the code under test cannot be mocked, refactor it until it can**; that refactor is a behavior-preserving testability change, not a feature, so it is permitted even in C++ maintenance mode.
+TDD is the principle for every task that touches code, in every workflow: bug fix, feature, enhancement, refactor, or review. Load `references/testable-code.md` and follow its three steps in order, never skipped or merged: tests first, refactor for testability, then implement and make every test pass. These rules override any default behavior.
 
 ## Skill Script Language
 
@@ -52,7 +54,7 @@ Apply these rules whenever a task produces a commit:
 
 - Identify the owning repository before inspecting or committing staged changes. Use the current repository for SRS and skills, `git -C oryx/` for Oryx, and `git -C dev-docker/` for Dev Docker.
 - Never run `git add`; the user stages the files they approve.
-- Never run `git push`; the user pushes the branch.
+- Never run `git push` unless the user explicitly asks.
 - Commit only when the user explicitly asks.
 - Before committing, run the owning repository's staged diff, understand every staged change, and write an appropriate title and description. Do not include staged changes from another repository in the same commit.
 - Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, or `Codex:`.

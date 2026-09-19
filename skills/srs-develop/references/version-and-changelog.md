@@ -57,9 +57,21 @@ cd oryx && ./auto/pub.sh --target v7.15.32
 
 ## Releasing a New Version
 
-A version bump is not a release. Bumping happens on every merged change; releasing tags one chosen revision and is a separate, deliberate act. Never release — prepare the bump, then report the command and stop.
+A version bump is not a release. Bumping happens on every merged change; releasing tags one chosen revision and is a separate, deliberate act. Never release — prepare it locally, report the commands for the user to run, and stop.
 
-- **SRS** — Push a `v8*` tag to trigger `.github/workflows/release.yml`. Development happens on `develop`; each released series has a long-lived `<MAJOR>.0release` branch.
+- **SRS** — Development happens on `develop`; each released series has a long-lived `<MAJOR>.0release` branch. Pushing a `vX.0-<stage>` tag triggers that branch's `.github/workflows/release.yml`, which creates a draft GitHub release and Docker images; the user publishes the draft. To prepare a release on `<MAJOR>.0release`:
+  1. Pick the tag: stages go `d` (dev) → `a` (alpha) → `b` (beta) → `r` (release), e.g. `v7.0-a0`. No version bump.
+  2. Count lines: `git ls-files trunk/src | grep -E '\.(h|hpp|c|cpp|cc|S)$' | xargs cat | wc -l`.
+  3. Add the top line under `## Releases` in `README.md`:
+     `* 2026-09-18, [Release v7.0-a0](https://github.com/ossrs/srs/releases/tag/v7.0-a0), v7.0-a0, 7.0 alpha0, v7.0.162, 314832 lines.`
+  4. Add the top line under `## SRS 7.0 Changelog` in `trunk/doc/CHANGELOG.md`:
+     `* <strong>v7.0, 2026-09-18, [7.0 alpha0(7.0.162)](https://github.com/ossrs/srs/releases/tag/v7.0-a0) released. 314832 lines.</strong>`
+  5. Commit as `Release v7.0-a0, 7.0 alpha0, v7.0.162, 314832 lines.`, then add the same `README.md` line to local `develop`.
+  6. Stop. Report these commands for the user to run; never run them yourself: `git push origin 7.0release`, then `git tag v7.0-a0 && git push origin v7.0-a0`.
+  7. After the user pushes the tag, wait for the workflow to create the release, then draft a `## Changelog` section for its description and ask the user to paste it at `https://github.com/ossrs/srs/releases/edit/v7.0-a0`; updating it manually is expected. Follow the previous release of the series (`gh release view v7.0-d0 -R ossrs/srs`) and put the section between the commit subject and `## Resource`:
+     - One sentence naming the release and its baseline, e.g. `SRS 7.0-a0 is the first alpha release of SRS 7. Compared with v7.0-d0, ...`
+     - One bullet per `CHANGELOG.md` entry since the previous tag (`git diff v7.0-d0 v7.0-a0 -- trunk/doc/CHANGELOG.md`), each linking its PR. For a large release, summarize the major changes and add `## Important Changes` for breaking changes.
+     - `For all N commits, see the [SRS 7 changelog](https://github.com/ossrs/srs/blob/v7.0-a0/trunk/doc/CHANGELOG.md#srs-70-changelog).`
 - **Oryx** — `cd oryx && ./auto/pub.sh --target vX.Y.Z`. The branch decides the release type: a tag from `main` publishes a prerelease, a tag from `release/X.Y` publishes the stable/latest release. Not every revision is tagged; after publishing, link that changelog entry to its release page.
 - **Proxy** — No release process exists yet. Its version is bumped alongside SRS but never released separately. Do not invent one.
 
