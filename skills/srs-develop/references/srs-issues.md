@@ -2,6 +2,15 @@
 
 Record only verified `ossrs/srs` maintenance status and the latest maintainer-approved Truth Record. Never copy unverified issue discussion. Keep Oryx records in `references/oryx-issues.md`.
 
+## #4739 [BUG] SRT multi-level stream IDs could not play over HTTP-FLV/TS
+
+- Issue: https://github.com/ossrs/srs/issues/4739
+- Truth Record: https://github.com/ossrs/srs/issues/4739#issuecomment-5737675082
+- Verified: 2026-09-18; SRS `8.0.37`, `c9aa52aa8`
+- Status: Fixed on `forge` (PR #4743), pending review
+
+SRT split the stream ID at the first `/`, so HTTP-FLV/TS viewers of multi-level streams hung. Now every protocol treats the last segment as the stream and the rest as the app.
+
 ## #4738 [BUG] WebRTC play answers H.264 for an H.265 stream
 
 - Issue: https://github.com/ossrs/srs/issues/4738
