@@ -43,7 +43,7 @@ Run focused and component-native tests first, then run every command below seque
 
 The SRT test requires an FFmpeg build with libsrt. The WHIP test requires the `whip` muxer and OpenSSL. Both scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available. If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification.
 
-Run feature-specific bundled tests in addition to this matrix when the routed workflow requires them, such as the browser URL test or GB28181 external-SIP cleanup tests. Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, and `setup-ffmpeg-with-whip.sh` are not standalone test cases unless a workflow explicitly invokes them.
+Run feature-specific bundled tests in addition to this matrix when the routed workflow requires them, such as the browser URL test or GB28181 external-SIP cleanup tests. A change to the `install` target in `trunk/configure` also runs `skills/srs-develop/scripts/install-target-test.sh`, which checks the generated recipe against the local sed; it needs no build and catches GNU-only syntax that fails on BSD/macOS. Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, and `setup-ffmpeg-with-whip.sh` are not standalone test cases unless a workflow explicitly invokes them.
 
 ## Verification Tiers
 
