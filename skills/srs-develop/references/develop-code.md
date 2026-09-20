@@ -4,7 +4,7 @@
 
 **Scope:** This task covers any planned SRS or Oryx code or documentation change — adding features, modifying functionality, refactoring code, changing packaging, and updating project or skill documentation.
 
-**Important:** The C++ media server (origin + edge) is in **maintenance mode** — only bug fixes are accepted, no new features. New server features belong in the next-generation Go server. The SRS player and Dev Docker have separate supported workflows below. You may reference the C++ server's code to understand how things were done before, but do not add features to it.
+**Important:** The SRS player and Dev Docker have separate supported workflows below.
 
 **Version and changelog:** If the change bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and apply it, whichever service you routed to.
 
@@ -151,7 +151,7 @@ For maintainer macOS development where Oryx should be built, run, debugged, and 
 
 ## C++ Media Server Maintenance
 
-The first-generation C++ media server is in maintenance mode. Accept bug fixes, security fixes, compatibility fixes, tests, and documentation corrections; do not add planned features.
+Accept new features, bug fixes, security fixes, compatibility fixes, tests, and documentation corrections.
 
 ### Step 1: Route and Reproduce
 
@@ -178,7 +178,7 @@ The first-generation C++ media server is in maintenance mode. Accept bug fixes, 
 
 ## Origin Server
 
-**Not yet supported.** This refers to the next-generation Go origin server workflow. The first-generation C++ origin server still exists, but it is in maintenance mode and only bug fixes are accepted there.
+**Not yet supported.** This refers to the next-generation origin server workflow.
 
 ## Edge Server
 

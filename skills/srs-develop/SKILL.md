@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases and the SRS Docker image toolchain. Use for planned changes to the next-generation SRS Go proxy, SRS browser player, ossrs/dev-docker images, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. The C++ SRS server is in maintenance mode, and planned Go origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
+description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases and the SRS Docker image toolchain. Use for planned changes to the next-generation SRS Go proxy, SRS browser player, ossrs/dev-docker images, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Planned next-generation origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
 ---
 
 # SRS and Oryx Development
@@ -12,6 +12,10 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 ## Critical Rule: Never Push
 
 ⚠️ **Never run `git push` unless the user explicitly asks to push.** Committing or picking to a branch means the local branch only.
+
+## Critical Rule: Minimal AI Skill Changes
+
+⚠️ **Keep every AI skill change as minimal as possible.** The maintainer reviews every line and word, so change only what the task requires.
 
 ## Independent Implementation from a Reference PR
 
