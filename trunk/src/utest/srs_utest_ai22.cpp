@@ -1958,6 +1958,98 @@ VOID TEST(RtspPlayStreamTest, OnStreamChange)
     EXPECT_EQ(1, (int)play_stream->video_tracks_.size());
 }
 
+// A republish brings new SSRCs: on_stream_change re-keys the track maps, so it must also clear the fast cache, or the
+// slots keep the old SSRCs and every packet of the new stream misses the cache for the rest of the session.
+VOID TEST(RtspPlayStreamTest, OnStreamChangeResetsTrackCache)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspConnection mock_session;
+    MockStatisticForRtspPlayStream mock_stat;
+    MockRtspSourceManager mock_rtsp_sources;
+    MockAppFactoryForRtspPlayStream mock_app_factory;
+    mock_rtsp_sources.mock_source_ = SrsSharedPtr<SrsRtspSource>(new SrsRtspSource());
+    SrsUniquePtr<MockEdgeRequest> mock_req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtspPlayStream> play_stream(new SrsRtspPlayStream(&mock_session, cid));
+    play_stream->stat_ = &mock_stat;
+    play_stream->rtsp_sources_ = &mock_rtsp_sources;
+    play_stream->app_factory_ = &mock_app_factory;
+
+    // The first publisher: audio 1001 and video 2001.
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "audio_track";
+    audio_desc->ssrc_ = 1001;
+    audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->id_ = "video_track";
+    video_desc->ssrc_ = 2001;
+    video_desc->media_ = new SrsVideoPayload(102, "H264", 90000);
+
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+    sub_relations[1001] = audio_desc.get();
+    sub_relations[2001] = video_desc.get();
+    HELPER_EXPECT_SUCCESS(play_stream->initialize(mock_req.get(), sub_relations));
+
+    // One packet per SSRC fills two slots.
+    if (true) {
+        SrsUniquePtr<SrsRtpPacket> audio_pkt(new SrsRtpPacket());
+        audio_pkt->header_.set_ssrc(1001);
+        audio_pkt->header_.set_sequence(100);
+        audio_pkt->frame_type_ = SrsFrameTypeAudio;
+        SrsRtpPacket *audio_pkt_ptr = audio_pkt.get();
+        HELPER_EXPECT_SUCCESS(play_stream->send_packet(audio_pkt_ptr));
+
+        SrsUniquePtr<SrsRtpPacket> video_pkt(new SrsRtpPacket());
+        video_pkt->header_.set_ssrc(2001);
+        video_pkt->header_.set_sequence(200);
+        video_pkt->frame_type_ = SrsFrameTypeVideo;
+        SrsRtpPacket *video_pkt_ptr = video_pkt.get();
+        HELPER_EXPECT_SUCCESS(play_stream->send_packet(video_pkt_ptr));
+    }
+    EXPECT_EQ(1001u, play_stream->cache_ssrc0_);
+    EXPECT_EQ(2001u, play_stream->cache_ssrc1_);
+
+    // The publisher republishes with new SSRCs.
+    SrsUniquePtr<SrsRtcSourceDescription> new_desc(new SrsRtcSourceDescription());
+    SrsRtcTrackDescription *new_audio_desc = new SrsRtcTrackDescription();
+    new_audio_desc->type_ = "audio";
+    new_audio_desc->ssrc_ = 1002;
+    new_audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    new_desc->audio_track_desc_ = new_audio_desc;
+    SrsRtcTrackDescription *new_video_desc = new SrsRtcTrackDescription();
+    new_video_desc->type_ = "video";
+    new_video_desc->ssrc_ = 2002;
+    new_video_desc->media_ = new SrsVideoPayload(102, "H264", 90000);
+    new_desc->video_track_descs_.push_back(new_video_desc);
+    play_stream->on_stream_change(new_desc.get());
+
+    // The cache starts over, so nothing routes by the old SSRCs.
+    EXPECT_EQ(0u, play_stream->cache_ssrc0_);
+    EXPECT_EQ(0u, play_stream->cache_ssrc1_);
+    EXPECT_EQ(0u, play_stream->cache_ssrc2_);
+    EXPECT_TRUE(play_stream->cache_track0_ == NULL);
+    EXPECT_TRUE(play_stream->cache_track1_ == NULL);
+
+    // The first packet of the new stream takes the first slot again.
+    MockRtspSendTrack *video_track = dynamic_cast<MockRtspSendTrack *>(play_stream->video_tracks_[2002]);
+    ASSERT_TRUE(video_track != NULL);
+    video_track->reset();
+    SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+    pkt->header_.set_ssrc(2002);
+    pkt->header_.set_sequence(201);
+    pkt->frame_type_ = SrsFrameTypeVideo;
+    SrsRtpPacket *pkt_ptr = pkt.get();
+    HELPER_EXPECT_SUCCESS(play_stream->send_packet(pkt_ptr));
+    EXPECT_EQ(1, video_track->on_rtp_count_);
+    EXPECT_EQ(2002u, play_stream->cache_ssrc0_);
+    EXPECT_EQ(video_track, play_stream->cache_track0_);
+    EXPECT_EQ(0u, play_stream->cache_ssrc1_);
+}
+
 VOID TEST(RtspPlayStreamTest, SendPacketWithCacheAndTrackLookup)
 {
     srs_error_t err = srs_success;
