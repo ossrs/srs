@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-09-21, RTC: Resolve the publish and play tracks once per SSRC through the fast cache. v7.0.163
 * <strong>v7.0, 2026-09-18, [7.0 alpha0(7.0.162)](https://github.com/ossrs/srs/releases/tag/v7.0-a0) released. 314832 lines.</strong>
 * v7.0, 2026-09-18, Merge [#4742](https://github.com/ossrs/srs/pull/4742): RTC: Answer the video codec of the stream for WebRTC play. v7.0.162 (#4742)
 * v7.0, 2026-09-17, Merge [#4741](https://github.com/ossrs/srs/pull/4741): Codec: Validate lengthSizeMinusOne to avoid abort on malformed SPS. v7.0.161 (#4741)

@@ -377,6 +377,164 @@ VOID TEST(SrsRtcPublishStreamTest, OnBeforeDecodePayloadTypicalScenario)
     }
 }
 
+// The decode handler resolves the track through the same fast cache as do_on_rtp_plaintext,
+// so it must fill the cache when it looks up a track by a linear scan.
+VOID TEST(SrsRtcPublishStreamTest, OnBeforeDecodePayloadFillsTrackCache)
+{
+    // Create mock objects
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-on-before-decode-payload-fills-cache");
+
+    // Create SrsRtcPublishStream with mock dependencies
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    // Create video track with proper codec payload
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(create_video_track_description_with_codec("H264", 0x12345678));
+    SrsRtcVideoRecvTrack *video_track = new SrsRtcVideoRecvTrack(&mock_receiver, video_desc.get(), false);
+    publish_stream->video_tracks_.push_back(video_track);
+
+    // Create audio track with proper codec payload
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(create_test_track_description("audio", 0x87654321));
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get(), false);
+    publish_stream->audio_tracks_.push_back(audio_track);
+
+    // The cache starts empty.
+    EXPECT_EQ((uint32_t)0, publish_stream->cache_ssrc0_);
+    EXPECT_EQ((uint32_t)0, publish_stream->cache_ssrc1_);
+
+    char buffer_data[1024];
+    memset(buffer_data, 0x42, sizeof(buffer_data));
+
+    // An empty buffer carries no payload, so it must not populate the cache.
+    if (true) {
+        SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+        pkt->header_.set_ssrc(0x87654321);
+        SrsBuffer buf(buffer_data, 0);
+        ISrsRtpPayloader *payload = NULL;
+        SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
+
+        publish_stream->on_before_decode_payload(pkt.get(), &buf, &payload, &ppt);
+        EXPECT_EQ((uint32_t)0, publish_stream->cache_ssrc0_);
+    }
+
+    // The first audio packet resolves by scan and caches the audio track.
+    if (true) {
+        SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+        pkt->header_.set_ssrc(0x87654321);
+        SrsBuffer buf(buffer_data, 80);
+        ISrsRtpPayloader *payload = NULL;
+        SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
+
+        publish_stream->on_before_decode_payload(pkt.get(), &buf, &payload, &ppt);
+        srs_freep(payload);
+
+        EXPECT_EQ((uint32_t)0x87654321, publish_stream->cache_ssrc0_);
+        EXPECT_TRUE(publish_stream->cache_is_audio0_);
+        EXPECT_TRUE(publish_stream->cache_track0_ == (SrsRtcRecvTrack *)audio_track);
+    }
+
+    // The first video packet takes the next cache slot.
+    if (true) {
+        SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+        pkt->header_.set_ssrc(0x12345678);
+        SrsBuffer buf(buffer_data, 100);
+        ISrsRtpPayloader *payload = NULL;
+        SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
+
+        publish_stream->on_before_decode_payload(pkt.get(), &buf, &payload, &ppt);
+        srs_freep(payload);
+
+        EXPECT_EQ((uint32_t)0x12345678, publish_stream->cache_ssrc1_);
+        EXPECT_FALSE(publish_stream->cache_is_audio1_);
+        EXPECT_TRUE(publish_stream->cache_track1_ == (SrsRtcRecvTrack *)video_track);
+    }
+}
+
+// The decode handler must read the fast cache instead of scanning the track vectors. The cached
+// SSRC belongs to no track in the vectors, so only a cache hit can deliver the payload.
+VOID TEST(SrsRtcPublishStreamTest, OnBeforeDecodePayloadUsesTrackCache)
+{
+    // Create mock objects
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-on-before-decode-payload-uses-cache");
+
+    // Create SrsRtcPublishStream with mock dependencies
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    // Create audio track with proper codec payload. The publish stream owns and frees it.
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(create_test_track_description("audio", 0x87654321));
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get(), false);
+    publish_stream->audio_tracks_.push_back(audio_track);
+
+    // Prime the cache with an SSRC that no track description matches, so get_audio_track() and
+    // get_video_track() both return NULL for it.
+    publish_stream->cache_ssrc0_ = 0xDEADBEEF;
+    publish_stream->cache_is_audio0_ = true;
+    publish_stream->cache_track0_ = audio_track;
+
+    char buffer_data[1024];
+    memset(buffer_data, 0x55, sizeof(buffer_data));
+    SrsBuffer buf(buffer_data, 80);
+
+    SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+    pkt->header_.set_ssrc(0xDEADBEEF);
+    ISrsRtpPayloader *payload = NULL;
+    SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
+
+    publish_stream->on_before_decode_payload(pkt.get(), &buf, &payload, &ppt);
+
+    // The cached audio track set the raw payload.
+    EXPECT_TRUE(payload != NULL);
+    EXPECT_EQ(SrsRtpPacketPayloadTypeRaw, ppt);
+    srs_freep(payload);
+}
+
+// An unfilled cache slot holds ssrc 0, so it must never shadow the track scan for a packet whose
+// ssrc is 0. Note that has_ssrc(0) matches any active track that has no rtx or fec ssrc, so the
+// scan attributes such a packet to the first audio track.
+VOID TEST(SrsRtcPublishStreamTest, OnBeforeDecodePayloadEmptyCacheSlotDoesNotShadowTracks)
+{
+    // Create mock objects
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-on-before-decode-payload-zero-ssrc");
+
+    // Create SrsRtcPublishStream with mock dependencies
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    // Create audio track with proper codec payload. The publish stream owns and frees it.
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(create_test_track_description("audio", 0x87654321));
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get(), false);
+    publish_stream->audio_tracks_.push_back(audio_track);
+
+    // The cache is empty, so cache_ssrc0_ is 0 and matches this packet.
+    EXPECT_EQ((uint32_t)0, publish_stream->cache_ssrc0_);
+
+    char buffer_data[1024];
+    memset(buffer_data, 0x55, sizeof(buffer_data));
+    SrsBuffer buf(buffer_data, 80);
+
+    SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+    pkt->header_.set_ssrc(0);
+    ISrsRtpPayloader *payload = NULL;
+    SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
+
+    publish_stream->on_before_decode_payload(pkt.get(), &buf, &payload, &ppt);
+
+    // The track is found by the scan, not shadowed by the empty cache slot.
+    EXPECT_TRUE(payload != NULL);
+    EXPECT_EQ(SrsRtpPacketPayloadTypeRaw, ppt);
+    srs_freep(payload);
+}
+
 VOID TEST(SrsRtcPublishStreamTest, SendPeriodicTwccTypicalScenario)
 {
     srs_error_t err;
