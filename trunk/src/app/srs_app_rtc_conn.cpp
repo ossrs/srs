@@ -577,6 +577,11 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
     if (!desc)
         return;
 
+    // The maps are re-keyed to the new publisher's SSRCs below, so the fast cache, which holds
+    // the old ones, starts over; otherwise every packet of the new stream misses it from now on.
+    cache_ssrc0_ = cache_ssrc1_ = cache_ssrc2_ = 0;
+    cache_track0_ = cache_track1_ = cache_track2_ = NULL;
+
     // Refresh the relation for audio.
     // TODO: FIXME: Match by label?
     if (desc && desc->audio_track_desc_ && audio_tracks_.size() == 1) {

@@ -2660,6 +2660,124 @@ VOID TEST(RtcPlayStreamTest, OnStreamChangeSuccess)
     srs_freep(source_desc);
 }
 
+// A republish brings new SSRCs: on_stream_change re-keys the track maps, so it must also clear the fast cache, or the
+// slots keep the old SSRCs and every packet of the new stream misses the cache for the rest of the session.
+VOID TEST(RtcPlayStreamTest, OnStreamChangeResetsTrackCache)
+{
+    srs_error_t err;
+
+    MockAppConfig mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockAppStatistic mock_stat;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    MockRtcAsyncTaskExecutor mock_async_executor;
+    MockExpire mock_expire;
+    MockRtcPacketSender mock_packet_sender;
+
+    SrsContextId cid;
+    cid.set_value("test-stream-change-resets-cache");
+    SrsUniquePtr<SrsRtcPlayStream> play_stream(new SrsRtcPlayStream(&mock_async_executor, &mock_expire, &mock_packet_sender, cid));
+    play_stream->config_ = &mock_config;
+    play_stream->rtc_sources_ = &mock_rtc_sources;
+    play_stream->stat_ = &mock_stat;
+
+    MockRtcPliWorker *mock_pli_worker = new MockRtcPliWorker(play_stream.get());
+    srs_freep(play_stream->pli_worker_);
+    play_stream->pli_worker_ = mock_pli_worker;
+
+    // The first publisher: audio 12345 and video 67890. The send tracks copy the descriptions.
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+    SrsRtcTrackDescription *audio_desc = new SrsRtcTrackDescription();
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "audio-track-id";
+    audio_desc->ssrc_ = 12345;
+    audio_desc->is_active_ = true;
+    audio_desc->media_ = new SrsCodecPayload();
+    audio_desc->media_->pt_ = 111;
+    audio_desc->media_->pt_of_publisher_ = 111;
+    sub_relations[12345] = audio_desc;
+
+    SrsRtcTrackDescription *video_desc = new SrsRtcTrackDescription();
+    video_desc->type_ = "video";
+    video_desc->id_ = "video-track-id";
+    video_desc->ssrc_ = 67890;
+    video_desc->is_active_ = true;
+    video_desc->media_ = new SrsCodecPayload();
+    video_desc->media_->pt_ = 96;
+    video_desc->media_->pt_of_publisher_ = 96;
+    sub_relations[67890] = video_desc;
+    HELPER_EXPECT_SUCCESS(play_stream->initialize(&mock_request, sub_relations));
+
+    // One packet per SSRC fills two slots.
+    if (true) {
+        SrsRtpPacket *audio_pkt = new SrsRtpPacket();
+        audio_pkt->header_.set_ssrc(12345);
+        audio_pkt->header_.set_sequence(100);
+        audio_pkt->header_.set_payload_type(111);
+        audio_pkt->frame_type_ = SrsFrameTypeAudio;
+        HELPER_EXPECT_SUCCESS(play_stream->send_packet(audio_pkt));
+        srs_freep(audio_pkt);
+
+        SrsRtpPacket *video_pkt = new SrsRtpPacket();
+        video_pkt->header_.set_ssrc(67890);
+        video_pkt->header_.set_sequence(200);
+        video_pkt->header_.set_payload_type(96);
+        video_pkt->frame_type_ = SrsFrameTypeVideo;
+        HELPER_EXPECT_SUCCESS(play_stream->send_packet(video_pkt));
+        srs_freep(video_pkt);
+    }
+    EXPECT_EQ(12345u, play_stream->cache_ssrc0_);
+    EXPECT_EQ(67890u, play_stream->cache_ssrc1_);
+
+    // The publisher republishes with new SSRCs.
+    SrsRtcSourceDescription *source_desc = new SrsRtcSourceDescription();
+    SrsRtcTrackDescription *new_audio_desc = new SrsRtcTrackDescription();
+    new_audio_desc->type_ = "audio";
+    new_audio_desc->id_ = "new-audio-track-id";
+    new_audio_desc->ssrc_ = 54321;
+    new_audio_desc->is_active_ = true;
+    new_audio_desc->media_ = new SrsCodecPayload();
+    new_audio_desc->media_->pt_ = 111;
+    new_audio_desc->media_->pt_of_publisher_ = 111;
+    source_desc->audio_track_desc_ = new_audio_desc;
+
+    SrsRtcTrackDescription *new_video_desc = new SrsRtcTrackDescription();
+    new_video_desc->type_ = "video";
+    new_video_desc->id_ = "new-video-track-id";
+    new_video_desc->ssrc_ = 98765;
+    new_video_desc->is_active_ = true;
+    new_video_desc->media_ = new SrsCodecPayload();
+    new_video_desc->media_->pt_ = 96;
+    new_video_desc->media_->pt_of_publisher_ = 96;
+    source_desc->video_track_descs_.push_back(new_video_desc);
+    play_stream->on_stream_change(source_desc);
+
+    // The cache starts over, so nothing routes by the old SSRCs.
+    EXPECT_EQ(0u, play_stream->cache_ssrc0_);
+    EXPECT_EQ(0u, play_stream->cache_ssrc1_);
+    EXPECT_EQ(0u, play_stream->cache_ssrc2_);
+    EXPECT_TRUE(play_stream->cache_track0_ == NULL);
+    EXPECT_TRUE(play_stream->cache_track1_ == NULL);
+
+    // The first packet of the new stream takes the first slot again.
+    if (true) {
+        SrsRtpPacket *video_pkt = new SrsRtpPacket();
+        video_pkt->header_.set_ssrc(98765);
+        video_pkt->header_.set_sequence(201);
+        video_pkt->header_.set_payload_type(96);
+        video_pkt->frame_type_ = SrsFrameTypeVideo;
+        HELPER_EXPECT_SUCCESS(play_stream->send_packet(video_pkt));
+        srs_freep(video_pkt);
+    }
+    EXPECT_EQ(98765u, play_stream->cache_ssrc0_);
+    EXPECT_TRUE(play_stream->cache_track0_ == (SrsRtcSendTrack *)play_stream->video_tracks_[98765]);
+    EXPECT_EQ(0u, play_stream->cache_ssrc1_);
+
+    srs_freep(audio_desc);
+    srs_freep(video_desc);
+    srs_freep(source_desc);
+}
+
 // Mock RTC send track implementation
 MockRtcSendTrack::MockRtcSendTrack(ISrsRtcPacketSender *sender, SrsRtcTrackDescription *track_desc, bool is_audio)
     : SrsRtcSendTrack(sender, track_desc, is_audio)
