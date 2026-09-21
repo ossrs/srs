@@ -373,6 +373,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_rtcp_nack(SrsRtcpNack *rtcp);
     srs_error_t on_rtcp_ps_feedback(SrsRtcpFbCommon *rtcp);
     srs_error_t on_rtcp_rr(SrsRtcpRR *rtcp);
+    // Find the track by ssrc, from the fast cache, or by the tracks of is_audio and building the
+    // cache. Return NULL if no track matches the ssrc.
+    SrsRtcSendTrack *find_track(uint32_t ssrc, bool is_audio);
     uint32_t get_video_publish_ssrc(uint32_t play_ssrc);
     // Interface ISrsRtcPliWorkerHandler
 public:
@@ -656,6 +659,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_twcc(uint16_t sn);
+    // Find the track by ssrc, from the fast cache, or by scanning the tracks and building the
+    // cache. Return NULL if no track matches the ssrc, and set is_audio for the track found.
+    SrsRtcRecvTrack *find_track(uint32_t ssrc, bool &is_audio);
     SrsRtcAudioRecvTrack *get_audio_track(uint32_t ssrc);
     SrsRtcVideoRecvTrack *get_video_track(uint32_t ssrc);
     void update_rtt(uint32_t ssrc, int rtt);

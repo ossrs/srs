@@ -739,43 +739,8 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket *&pkt)
 
     uint32_t ssrc = pkt->header_.get_ssrc();
 
-    // Try to find track from cache.
-    SrsRtcSendTrack *track = NULL;
-    if (cache_ssrc0_ == ssrc) {
-        track = cache_track0_;
-    } else if (cache_ssrc1_ == ssrc) {
-        track = cache_track1_;
-    } else if (cache_ssrc2_ == ssrc) {
-        track = cache_track2_;
-    }
-
-    // Find by original tracks and build fast cache.
-    if (!track) {
-        if (pkt->is_audio()) {
-            map<uint32_t, SrsRtcAudioSendTrack *>::iterator it = audio_tracks_.find(ssrc);
-            if (it != audio_tracks_.end()) {
-                track = it->second;
-            }
-        } else {
-            map<uint32_t, SrsRtcVideoSendTrack *>::iterator it = video_tracks_.find(ssrc);
-            if (it != video_tracks_.end()) {
-                track = it->second;
-            }
-        }
-
-        if (track && !cache_ssrc2_) {
-            if (!cache_ssrc0_) {
-                cache_ssrc0_ = ssrc;
-                cache_track0_ = track;
-            } else if (!cache_ssrc1_) {
-                cache_ssrc1_ = ssrc;
-                cache_track1_ = track;
-            } else if (!cache_ssrc2_) {
-                cache_ssrc2_ = ssrc;
-                cache_track2_ = track;
-            }
-        }
-    }
+    // Find the track, generally from the fast cache built by the first packet of the ssrc.
+    SrsRtcSendTrack *track = find_track(ssrc, pkt->is_audio());
 
     // Ignore if no track found.
     if (!track) {
@@ -797,6 +762,51 @@ srs_error_t SrsRtcPlayStream::send_packet(SrsRtpPacket *&pkt)
     }
 
     return err;
+}
+
+SrsRtcSendTrack *SrsRtcPlayStream::find_track(uint32_t ssrc, bool is_audio)
+{
+    // Try to find track from cache. Note that an unfilled slot keeps the ssrc 0, so we must
+    // check the track, not the slot, before using it.
+    SrsRtcSendTrack *track = NULL;
+    if (cache_ssrc0_ == ssrc) {
+        track = cache_track0_;
+    } else if (cache_ssrc1_ == ssrc) {
+        track = cache_track1_;
+    } else if (cache_ssrc2_ == ssrc) {
+        track = cache_track2_;
+    }
+    if (track) {
+        return track;
+    }
+
+    // Find by original tracks and build fast cache.
+    if (is_audio) {
+        map<uint32_t, SrsRtcAudioSendTrack *>::iterator it = audio_tracks_.find(ssrc);
+        if (it != audio_tracks_.end()) {
+            track = it->second;
+        }
+    } else {
+        map<uint32_t, SrsRtcVideoSendTrack *>::iterator it = video_tracks_.find(ssrc);
+        if (it != video_tracks_.end()) {
+            track = it->second;
+        }
+    }
+
+    if (track && !cache_ssrc2_) {
+        if (!cache_ssrc0_) {
+            cache_ssrc0_ = ssrc;
+            cache_track0_ = track;
+        } else if (!cache_ssrc1_) {
+            cache_ssrc1_ = ssrc;
+            cache_track1_ = track;
+        } else if (!cache_ssrc2_) {
+            cache_ssrc2_ = ssrc;
+            cache_track2_ = track;
+        }
+    }
+
+    return track;
 }
 
 void SrsRtcPlayStream::set_all_tracks_status(bool status)
@@ -1631,46 +1641,9 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
     // For source to consume packet.
     uint32_t ssrc = pkt->header_.get_ssrc();
 
-    // Try to find track from cache.
-    SrsRtcRecvTrack *track = NULL;
+    // Find the track, generally from the fast cache built when decoding the payload.
     bool is_audio = true;
-    if (cache_ssrc0_ == ssrc) {
-        track = cache_track0_;
-        is_audio = cache_is_audio0_;
-    } else if (cache_ssrc1_ == ssrc) {
-        track = cache_track1_;
-        is_audio = cache_is_audio1_;
-    } else if (cache_ssrc2_ == ssrc) {
-        track = cache_track2_;
-        is_audio = cache_is_audio2_;
-    }
-
-    // Find by original tracks and build fast cache.
-    if (!track) {
-        track = get_audio_track(ssrc);
-        if (track) {
-            is_audio = true;
-        } else {
-            is_audio = false;
-            track = get_video_track(ssrc);
-        }
-
-        if (track && !cache_ssrc2_) {
-            if (!cache_ssrc0_) {
-                cache_ssrc0_ = ssrc;
-                cache_is_audio0_ = is_audio;
-                cache_track0_ = track;
-            } else if (!cache_ssrc1_) {
-                cache_ssrc1_ = ssrc;
-                cache_is_audio1_ = is_audio;
-                cache_track1_ = track;
-            } else if (!cache_ssrc2_) {
-                cache_ssrc2_ = ssrc;
-                cache_is_audio2_ = is_audio;
-                cache_track2_ = track;
-            }
-        }
-    }
+    SrsRtcRecvTrack *track = find_track(ssrc, is_audio);
 
     // Set the frame type.
     pkt->frame_type_ = is_audio ? SrsFrameTypeAudio : SrsFrameTypeVideo;
@@ -1774,15 +1747,70 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer 
         return;
     }
 
-    uint32_t ssrc = pkt->header_.get_ssrc();
-    SrsRtcAudioRecvTrack *audio_track = get_audio_track(ssrc);
-    SrsRtcVideoRecvTrack *video_track = get_video_track(ssrc);
+    // Find the track and build the fast cache, which is also used by do_on_rtp_plaintext after
+    // the packet is decoded. So we only scan the tracks once for each ssrc.
+    bool is_audio = true;
+    SrsRtcRecvTrack *track = find_track(pkt->header_.get_ssrc(), is_audio);
 
-    if (audio_track) {
-        audio_track->on_before_decode_payload(pkt, buf, ppayload, ppt);
-    } else if (video_track) {
-        video_track->on_before_decode_payload(pkt, buf, ppayload, ppt);
+    // Ignore if no track found.
+    if (!track) {
+        return;
     }
+
+    // The handler is defined by the audio and video tracks, not by SrsRtcRecvTrack, so we must
+    // cast to the actual type, which is identified by is_audio.
+    if (is_audio) {
+        static_cast<SrsRtcAudioRecvTrack *>(track)->on_before_decode_payload(pkt, buf, ppayload, ppt);
+    } else {
+        static_cast<SrsRtcVideoRecvTrack *>(track)->on_before_decode_payload(pkt, buf, ppayload, ppt);
+    }
+}
+
+SrsRtcRecvTrack *SrsRtcPublishStream::find_track(uint32_t ssrc, bool &is_audio)
+{
+    // Try to find track from cache. Note that an unfilled slot keeps the ssrc 0, so we must
+    // check the track, not the slot, before using it.
+    SrsRtcRecvTrack *track = NULL;
+    if (cache_ssrc0_ == ssrc) {
+        track = cache_track0_;
+        is_audio = cache_is_audio0_;
+    } else if (cache_ssrc1_ == ssrc) {
+        track = cache_track1_;
+        is_audio = cache_is_audio1_;
+    } else if (cache_ssrc2_ == ssrc) {
+        track = cache_track2_;
+        is_audio = cache_is_audio2_;
+    }
+    if (track) {
+        return track;
+    }
+
+    // Find by original tracks and build fast cache.
+    track = get_audio_track(ssrc);
+    if (track) {
+        is_audio = true;
+    } else {
+        is_audio = false;
+        track = get_video_track(ssrc);
+    }
+
+    if (track && !cache_ssrc2_) {
+        if (!cache_ssrc0_) {
+            cache_ssrc0_ = ssrc;
+            cache_is_audio0_ = is_audio;
+            cache_track0_ = track;
+        } else if (!cache_ssrc1_) {
+            cache_ssrc1_ = ssrc;
+            cache_is_audio1_ = is_audio;
+            cache_track1_ = track;
+        } else if (!cache_ssrc2_) {
+            cache_ssrc2_ = ssrc;
+            cache_is_audio2_ = is_audio;
+            cache_track2_ = track;
+        }
+    }
+
+    return track;
 }
 
 srs_error_t SrsRtcPublishStream::send_periodic_twcc()

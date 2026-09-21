@@ -2837,6 +2837,63 @@ VOID TEST(RtcPlayStreamTest, SendPacketBasic)
     srs_freep(video_desc);
 }
 
+// An unfilled cache slot holds ssrc 0, so it must never shadow the track maps for a packet whose
+// ssrc is 0. This test locks in the current behavior and passes before any refactoring, because
+// send_packet only takes the cached track when it is not NULL.
+VOID TEST(RtcPlayStreamTest, SendPacketEmptyCacheSlotDoesNotShadowTracks)
+{
+    srs_error_t err;
+
+    // Create mock objects
+    MockAppConfig mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockAppStatistic mock_stat;
+    MockRtcAsyncTaskExecutor mock_async_executor;
+    MockExpire mock_expire;
+    MockRtcPacketSender mock_packet_sender;
+
+    // Create RTC play stream with mock interfaces
+    SrsContextId cid;
+    cid.set_value("test-send-packet-zero-ssrc-cid");
+    SrsUniquePtr<SrsRtcPlayStream> play_stream(new SrsRtcPlayStream(&mock_async_executor, &mock_expire, &mock_packet_sender, cid));
+
+    // Mock the dependencies by setting the private members
+    play_stream->config_ = &mock_config;
+    play_stream->rtc_sources_ = &mock_rtc_sources;
+    play_stream->stat_ = &mock_stat;
+
+    // Create an audio track whose ssrc is 0, which collides with the unfilled cache slot.
+    SrsRtcTrackDescription *audio_desc = new SrsRtcTrackDescription();
+    audio_desc->type_ = "audio";
+    audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    audio_desc->ssrc_ = 0;
+
+    MockRtcSendTrack *mock_audio_track = new MockRtcSendTrack(&mock_packet_sender, audio_desc, true);
+    play_stream->audio_tracks_[0] = (SrsRtcAudioSendTrack *)mock_audio_track;
+
+    // The cache is empty, so cache_ssrc0_ is 0 and matches this packet.
+    EXPECT_EQ((uint32_t)0, play_stream->cache_ssrc0_);
+
+    SrsRtpPacket *audio_pkt = new SrsRtpPacket();
+    audio_pkt->header_.set_ssrc(0);
+    audio_pkt->header_.set_sequence(100);
+    audio_pkt->header_.set_payload_type(111);
+    audio_pkt->frame_type_ = SrsFrameTypeAudio;
+
+    HELPER_EXPECT_SUCCESS(play_stream->send_packet(audio_pkt));
+
+    // The track is found by the map, not shadowed by the empty cache slot.
+    EXPECT_EQ(1, mock_audio_track->on_rtp_count_);
+
+    // Clear the track references from play_stream before cleanup to avoid double-free
+    play_stream->audio_tracks_.clear();
+
+    // Clean up
+    srs_freep(audio_pkt);
+    srs_freep(mock_audio_track);
+    srs_freep(audio_desc);
+}
+
 // Note: NACK functionality test would require more complex setup
 // including proper track initialization and NACK buffer management.
 // The basic send_packet functionality is covered by SendPacketBasic test.

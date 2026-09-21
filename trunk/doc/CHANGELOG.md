@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-09-21, RTC: Resolve the publish and play tracks once per SSRC through the fast cache. v8.0.39
 * v8.0, 2026-09-19, Merge [#4746](https://github.com/ossrs/srs/pull/4746): Build: Fix make install failing on macOS due to BSD sed -i. v8.0.38 (#4746)
 * v8.0, 2026-09-18, Merge [#4743](https://github.com/ossrs/srs/pull/4743): Protocol: Resolve multi-level paths as app folders and a stream file for all protocols. v8.0.37 (#4743)
 * v8.0, 2026-09-17, Merge [#4742](https://github.com/ossrs/srs/pull/4742): RTC: Answer the video codec of the stream for WebRTC play. v8.0.36 (#4742)
