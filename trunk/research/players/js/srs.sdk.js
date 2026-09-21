@@ -259,15 +259,17 @@ function SrsRtcWhipWhepAsync() {
     // Internal APIs.
     self.__internal = {
         parseId: (url, offer, answer) => {
-            let sessionid = offer.substr(offer.indexOf('a=ice-ufrag:') + 'a=ice-ufrag:'.length);
-            sessionid = sessionid.substr(0, sessionid.indexOf('\n') - 1) + ':';
-            sessionid += answer.substr(answer.indexOf('a=ice-ufrag:') + 'a=ice-ufrag:'.length);
-            sessionid = sessionid.substr(0, sessionid.indexOf('\n'));
+            // SRS keys the session by its own ufrag first, so the id is the answer ufrag, then the offer one.
+            const ufrag = (sdp) => {
+                const value = sdp.substr(sdp.indexOf('a=ice-ufrag:') + 'a=ice-ufrag:'.length);
+                return value.split('\n')[0].trim();
+            };
+            const sessionid = ufrag(answer) + ':' + ufrag(offer);
 
             const a = document.createElement("a");
             a.href = url;
             return {
-                sessionid: sessionid, // Should be ice-ufrag of answer:offer.
+                sessionid: sessionid, // The ice-ufrag of answer:offer.
                 simulator: a.protocol + '//' + a.host + '/rtc/v1/nack/',
             };
         },

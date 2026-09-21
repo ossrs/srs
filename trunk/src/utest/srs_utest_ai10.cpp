@@ -2015,15 +2015,17 @@ VOID TEST(SrsRedPayloadTest, BasicFunctionality)
 // Test SrsRtxPayloadDes
 VOID TEST(SrsRtxPayloadDesTest, BasicFunctionality)
 {
-    SrsRtxPayloadDes payload(96, 97);
+    SrsRtxPayloadDes payload(96, 97, 90000);
 
     EXPECT_EQ(96, payload.pt_);
     EXPECT_EQ(97, payload.apt_);
+    EXPECT_EQ(90000, payload.sample_);
 
     // Test copy
     SrsUniquePtr<SrsRtxPayloadDes> copied(payload.copy());
     EXPECT_EQ(96, copied->pt_);
     EXPECT_EQ(97, copied->apt_);
+    EXPECT_EQ(90000, copied->sample_);
 
     // Test generate_media_payload_type
     SrsMediaPayloadType media_type = payload.generate_media_payload_type();

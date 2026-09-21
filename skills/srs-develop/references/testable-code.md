@@ -121,6 +121,8 @@ Mocks record what they were asked to do (`on_play_count_`, `start_play_count_`, 
 
 ### Registering a new utest file
 
+AI maintains the `srs_utest_ai*` and `srs_utest_workflow_*` files: a unit test goes into an existing `srs_utest_ai*` file or a new `srs_utest_aiNN`, a workflow test into the matching `srs_utest_workflow_*` file. The `srs_utest_manual_*` files are defined and implemented by humans; never add a test to them.
+
 Add the basename to the `MODULE_FILES` list in `trunk/configure`, then re-run `./configure --utest`; a new file is not compiled until configure regenerates the makefile.
 
 Some test files are conditional: `srs_utest_ai21`/`ai22` build only with `--rtsp=on` (default off) and `srs_utest_ai23` only with GB28181. A test that includes an RTSP or GB28181 header must live in one of those files, not in an unconditionally built one.

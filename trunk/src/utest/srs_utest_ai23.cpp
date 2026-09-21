@@ -1546,7 +1546,7 @@ srs_error_t MockRtcConnectionForTcpConn::on_dtls_application_data(const char *da
     return srs_success;
 }
 
-srs_error_t MockRtcConnectionForTcpConn::on_rtp_cipher(char *data, int nb_data)
+srs_error_t MockRtcConnectionForTcpConn::on_rtp_cipher(char *data, int nb_data, bool *dropped)
 {
     return srs_success;
 }
@@ -2721,7 +2721,7 @@ srs_error_t MockRtcConnectionForUdpNetwork::on_dtls_alert(std::string type, std:
     return srs_error_copy(on_dtls_alert_error_);
 }
 
-srs_error_t MockRtcConnectionForUdpNetwork::on_rtp_cipher(char *data, int nb_data)
+srs_error_t MockRtcConnectionForUdpNetwork::on_rtp_cipher(char *data, int nb_data, bool *dropped)
 {
     on_rtp_cipher_called_ = true;
     return srs_success;
@@ -3862,7 +3862,7 @@ srs_error_t MockRtcConnectionForTcpConnHandshake::on_dtls_application_data(const
     return srs_success;
 }
 
-srs_error_t MockRtcConnectionForTcpConnHandshake::on_rtp_cipher(char *data, int nb_data)
+srs_error_t MockRtcConnectionForTcpConnHandshake::on_rtp_cipher(char *data, int nb_data, bool *dropped)
 {
     return srs_success;
 }

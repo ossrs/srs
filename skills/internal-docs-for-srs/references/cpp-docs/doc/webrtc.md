@@ -132,6 +132,10 @@ vhost rtc.vhost.srs.com {
         # Whether support NACK.
         # default: on
         nack on;
+        # Whether to prefer RFC 4588 RTX when answering a NACK. This is a preference, not a
+        # requirement: SRS never forces RTX on a peer that did not offer it. Requires nack on.
+        # default: off
+        nack_prefer_rtx off;
         # Whether support TWCC.
         # default: on
         twcc on;
@@ -160,6 +164,7 @@ For each vhost, the configuration is `rtc` section, for example:
 * `rtc.rtc_to_rtmp`：Whether enable transmuxing RTC to RTMP.
 * `rtc.stun_timeout`：The timeout in seconds for session timeout.
 * `rtc.nack`：Whether support NACK for ARQ.
+* `rtc.nack_prefer_rtx`：Whether to prefer RFC 4588 RTX over plain retransmission for a peer that offers it. Please read [Config: NACK and RTX](./webrtc.md#config-nack-and-rtx) for detail.
 * `rtc.twcc`：Whether support TWCC for congestion feedback.
 * `rtc.dtls_role`：The role of dtls when peer is actpass: passive or active.
 
@@ -237,6 +242,38 @@ docker run --rm --env CANDIDATE=$CANDIDATE \
 ```
 
 > Note：About the usage of srs-docker, please read [srs-docker](https://github.com/ossrs/dev-docker/tree/v4#usage).
+
+## Config: NACK and RTX
+
+When a packet is lost, the receiver asks for it with an RTCP NACK, and the sender resends it. There are two ways to
+resend:
+
+* **Plain retransmission** sends the original packet again, on the same SSRC with the same sequence number, which the
+  receiver cannot tell apart from the original.
+* **RFC 4588 RTX** wraps the lost packet in a new packet on a separate RTX SSRC, with its own sequence number and
+  payload type and the original sequence number, so the receiver can tell a retransmission from the original.
+
+SRS supports both, in both directions of a session, and a per-vhost preference chooses which one it selects for a peer
+that can do both:
+
+```
+vhost rtc.vhost.srs.com {
+    rtc {
+        nack on;
+        # Whether to prefer RFC 4588 RTX when answering a NACK. This is a preference, not a
+        # requirement: SRS never forces RTX on a peer that did not offer it.
+        # default: off
+        nack_prefer_rtx off;
+    }
+}
+```
+
+With `nack_prefer_rtx on`, SRS uses RTX for a peer that offers `rtx` and plain retransmission for one that does not.
+With `nack_prefer_rtx off`, every peer gets plain retransmission, so you can test the fallback with the same client.
+Only video uses RTX; browsers never offer `rtx` for audio.
+
+When RTX is negotiated, the SDP answer carries the `rtx` payload and its FID group, and SRS resends lost packets on the
+RTX SSRC.
 
 ## Stream URL
 

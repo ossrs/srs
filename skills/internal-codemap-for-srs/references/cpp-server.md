@@ -37,7 +37,7 @@ Buffers & I/O:
 - `kernel_file` — File reader/writer implementations
 
 RTC primitives:
-- `kernel_rtc_rtp` — RTP packet structure, encode/decode
+- `kernel_rtc_rtp` — RTP packet structure, encode/decode, RFC 4588 RTX payload
 - `kernel_rtc_rtcp` — RTCP packet types, encode/decode
 - `kernel_rtc_queue` — RTP ring buffer and reorder queue
 

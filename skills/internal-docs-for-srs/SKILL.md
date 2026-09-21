@@ -44,7 +44,7 @@ For C++ media server user documentation, select the smallest relevant document:
 - `references/cpp-docs/doc/getting-started-cdk.md` — Deploy SRS on AWS with srs-cdk.
 - `references/cpp-docs/doc/rtmp.md` — RTMP usage, Enhanced RTMP, configuration, RTMPS, protocol comparisons, and codec history.
 - `references/cpp-docs/doc/hls.md` — HLS compatibility, latency, segment configuration, HTTPS, and audio transcoding from WebRTC.
-- `references/cpp-docs/doc/webrtc.md` — WHIP/WHEP, SFU architecture, RTMP-to-RTC conversion, TURN/ICE, audio transcoding, and platform usage.
+- `references/cpp-docs/doc/webrtc.md` — WHIP/WHEP, SFU architecture, RTMP-to-RTC conversion, TURN/ICE, audio transcoding, NACK and RTX retransmission, and platform usage.
 - `references/cpp-docs/doc/flv.md` — HTTP-FLV delivery, configuration, latency, protocol comparisons, and browser compatibility.
 - `references/cpp-docs/doc/srt.md` — SRT transport, latency, MPEG-TS encapsulation, HEVC, configuration, stream IDs, and weak-network behavior.
 - `references/cpp-docs/doc/rtsp.md` — RTSP playback, TCP transport, RTMP publishing workflow, configuration, and build option.

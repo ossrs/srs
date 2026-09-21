@@ -487,6 +487,16 @@ srs_error_t SrsMediaDesc::encode(std::ostringstream &os)
         }
     }
 
+    // The ssrc-group lines bind an RTX or FEC stream to its media stream, RFC 5576 section 4.2, and browsers write
+    // them before the ssrc lines of the streams they name.
+    for (std::vector<SrsSSRCGroup>::iterator iter = ssrc_groups_.begin(); iter != ssrc_groups_.end(); ++iter) {
+        SrsSSRCGroup &ssrc_group = *iter;
+
+        if ((err = ssrc_group.encode(os)) != srs_success) {
+            return srs_error_wrap(err, "encode ssrc group failed");
+        }
+    }
+
     for (std::vector<SrsSSRCInfo>::iterator iter = ssrc_infos_.begin(); iter != ssrc_infos_.end(); ++iter) {
         SrsSSRCInfo &ssrc_info = *iter;
 

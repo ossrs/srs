@@ -6,6 +6,8 @@
 
 #include <srs_utest_manual_mock.hpp>
 
+#include <srs_kernel_rtc_rtp.hpp>
+
 #include <srs_app_caster_flv.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
@@ -580,6 +582,12 @@ MockRtcSource::MockRtcSource()
     on_rtp_count_ = 0;
     rtp_audio_count_ = 0;
     rtp_video_count_ = 0;
+    last_rtp_ssrc_ = 0;
+    last_rtp_seq_ = 0;
+    last_rtp_pt_ = 0;
+    last_rtp_timestamp_ = 0;
+    last_rtp_marker_ = false;
+    last_rtp_padding_ = 0;
 }
 
 MockRtcSource::~MockRtcSource()
@@ -589,6 +597,20 @@ MockRtcSource::~MockRtcSource()
 srs_error_t MockRtcSource::on_rtp(SrsRtpPacket *pkt)
 {
     on_rtp_count_++;
+    last_rtp_ssrc_ = pkt->header_.get_ssrc();
+    last_rtp_seq_ = pkt->header_.get_sequence();
+    last_rtp_pt_ = pkt->header_.get_payload_type();
+    last_rtp_timestamp_ = pkt->header_.get_timestamp();
+    last_rtp_marker_ = pkt->header_.get_marker();
+    last_rtp_padding_ = pkt->header_.get_padding();
+    last_rtp_payload_.clear();
+    if (pkt->payload()) {
+        char buf[kRtpPacketSize];
+        SrsBuffer stream(buf, sizeof(buf));
+        srs_error_t err = pkt->payload()->encode(&stream);
+        srs_freep(err);
+        last_rtp_payload_.assign(buf, stream.pos());
+    }
 
     // Count audio and video packets separately
     if (pkt->frame_type_ == SrsFrameTypeAudio) {
@@ -826,12 +848,75 @@ srs_error_t MockRtcPacketSender::do_send_packet(SrsRtpPacket *pkt)
 {
     send_packet_count_++;
     last_sent_packet_ = pkt;
+
+    char buf[kRtpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+    srs_error_t err = pkt->encode(&stream);
+    if (err == srs_success) {
+        sent_packets_.push_back(std::string(buf, stream.pos()));
+    } else {
+        srs_freep(err);
+    }
     return send_packet_error_;
 }
 
 void MockRtcPacketSender::set_send_packet_error(srs_error_t err)
 {
     send_packet_error_ = err;
+}
+
+MockLogForNack::MockLogForNack()
+{
+    previous_ = _srs_log;
+    _srs_log = this;
+}
+
+MockLogForNack::~MockLogForNack()
+{
+    _srs_log = previous_;
+}
+
+srs_error_t MockLogForNack::initialize()
+{
+    return srs_success;
+}
+
+void MockLogForNack::reopen()
+{
+}
+
+void MockLogForNack::log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args)
+{
+    char buf[4096];
+    int size = vsnprintf(buf, sizeof(buf), fmt, args);
+    if (size < 0) {
+        return;
+    }
+    if (size > (int)sizeof(buf) - 1) {
+        size = (int)sizeof(buf) - 1;
+    }
+    lines_.push_back(std::string(buf, size));
+}
+
+int MockLogForNack::count(const std::string &needle)
+{
+    int nn = 0;
+    for (size_t i = 0; i < lines_.size(); i++) {
+        if (lines_[i].find(needle) != std::string::npos) {
+            nn++;
+        }
+    }
+    return nn;
+}
+
+std::string MockLogForNack::find(const std::string &needle)
+{
+    for (size_t i = 0; i < lines_.size(); i++) {
+        if (lines_[i].find(needle) != std::string::npos) {
+            return lines_[i];
+        }
+    }
+    return "";
 }
 
 // MockRtcFormat implementation

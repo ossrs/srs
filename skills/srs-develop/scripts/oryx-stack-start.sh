@@ -110,7 +110,7 @@ fi
 {
   if [[ ! -f "$SRS_BINARY" ]]; then
     echo "FAIL: SRS binary not found at $SRS_BINARY." >&2
-    echo "Build it first: cd $WORKSPACE/trunk && ./configure && make" >&2
+    echo "Build it first: cd $WORKSPACE/trunk && ./configure --simulator=on && make" >&2
     exit 1
   fi
   echo "Starting local SRS..."

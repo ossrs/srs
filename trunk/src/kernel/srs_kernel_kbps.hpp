@@ -173,6 +173,12 @@ extern SrsPps *_srs_pps_rnack2;
 extern SrsPps *_srs_pps_rhnack;
 extern SrsPps *_srs_pps_rmnack;
 
+// RFC 4588 RTX statistics: sent, received, unwrapped, and padding-only dropped.
+extern SrsPps *_srs_pps_srtx;
+extern SrsPps *_srs_pps_rrtx;
+extern SrsPps *_srs_pps_rrtx_unwrap;
+extern SrsPps *_srs_pps_rrtx_padding;
+
 // WebRTC control statistics
 extern SrsPps *_srs_pps_pli;
 extern SrsPps *_srs_pps_twcc;
@@ -243,6 +249,7 @@ public:
     std::string rtcp_desc_;
     std::string snk_desc_;
     std::string rnk_desc_;
+    std::string rtx_desc_;
     std::string fid_desc_;
 };
 

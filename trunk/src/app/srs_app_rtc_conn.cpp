@@ -66,6 +66,9 @@ extern SrsPps *_srs_pps_snack4;
 
 extern SrsPps *_srs_pps_rnack;
 extern SrsPps *_srs_pps_rnack2;
+extern SrsPps *_srs_pps_rrtx;
+extern SrsPps *_srs_pps_rrtx_unwrap;
+extern SrsPps *_srs_pps_rrtx_padding;
 
 extern SrsPps *_srs_pps_pub;
 extern SrsPps *_srs_pps_conn;
@@ -925,7 +928,18 @@ srs_error_t SrsRtcPlayStream::on_rtcp_nack(SrsRtcpNack *rtcp)
         return srs_error_new(ERROR_RTC_NO_TRACK, "no track for %u ssrc", ssrc);
     }
 
+    // A NACK that names the RTX SSRC is ignored, never answered from the media cache with RTX sequence numbers.
+    if (ssrc != target->track_desc_->ssrc_) {
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+        srs_trace("NACK: received ssrc=%u is RTX, ignored", ssrc);
+#endif
+        return err;
+    }
+
     vector<uint16_t> seqs = rtcp->get_lost_sns();
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+    srs_trace("NACK: received ssrc=%u, seqs=[%s]", ssrc, srs_strings_join(seqs, ",").c_str());
+#endif
     if ((err = target->on_recv_nack(seqs)) != srs_success) {
         return srs_error_wrap(err, "track response nack. id:%s, ssrc=%u", target->get_track_id().c_str(), ssrc);
     }
@@ -1220,7 +1234,7 @@ SrsRtcPublishStream::SrsRtcPublishStream(ISrsExecRtcAsyncTask *exec, ISrsExpire 
     twcc_epp_ = new SrsErrorPithyPrint(3.0);
 
     req_ = NULL;
-    nn_simulate_nack_drop_ = 0;
+    nn_simulate_nack_drop_publisher_ = 0;
     nack_enabled_ = false;
     nack_no_copy_ = false;
     pt_to_drop_ = 0;
@@ -1242,6 +1256,8 @@ SrsRtcPublishStream::SrsRtcPublishStream(ISrsExecRtcAsyncTask *exec, ISrsExpire 
     cache_ssrc0_ = cache_ssrc1_ = cache_ssrc2_ = 0;
     cache_is_audio0_ = cache_is_audio1_ = cache_is_audio2_ = false;
     cache_track0_ = cache_track1_ = cache_track2_ = NULL;
+    cache_rtx_ssrc0_ = cache_rtx_ssrc1_ = 0;
+    cache_rtx_track0_ = cache_rtx_track1_ = NULL;
 
     stat_ = _srs_stat;
     config_ = _srs_config;
@@ -1566,18 +1582,23 @@ srs_error_t SrsRtcPublishStream::on_twcc(uint16_t sn)
     return err;
 }
 
-srs_error_t SrsRtcPublishStream::on_rtp_cipher(char *data, int nb_data)
+srs_error_t SrsRtcPublishStream::on_rtp_cipher(char *data, int nb_data, bool *dropped)
 {
     srs_error_t err = srs_success;
 
-    // For NACK simulator, drop packet.
-    if (nn_simulate_nack_drop_) {
+    // The out-parameter is always written, true only when this hook drops the packet, so no caller needs to seed it.
+    *dropped = false;
+
+    // For NACK simulator, drop packet. The network layer stops here, so the packet is neither decrypted nor delivered, and
+    // the retransmission SRTP later sees is not a replay of it.
+    if (nn_simulate_nack_drop_publisher_) {
         SrsBuffer b(data, nb_data);
         SrsRtpHeader h;
         h.ignore_padding(true);
         err = h.decode(&b);
         srs_freep(err); // Ignore any error for simluate drop.
         simulate_drop_packet(&h, nb_data);
+        *dropped = true;
         return err;
     }
 
@@ -1601,6 +1622,7 @@ srs_error_t SrsRtcPublishStream::on_rtp_cipher(char *data, int nb_data)
     if (pt_to_drop_) {
         uint8_t pt = srs_rtp_fast_parse_pt(data, nb_data);
         if (pt_to_drop_ == pt) {
+            *dropped = true;
             return err;
         }
     }
@@ -1645,10 +1667,11 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
 
     // For source to consume packet.
     uint32_t ssrc = pkt->header_.get_ssrc();
-
+    
     // Find the track, generally from the fast cache built when decoding the payload.
     bool is_audio = true;
-    SrsRtcRecvTrack *track = find_track(ssrc, is_audio);
+    bool is_rtx = false;
+    SrsRtcRecvTrack *track = find_track(ssrc, is_audio, is_rtx);
 
     // Set the frame type.
     pkt->frame_type_ = is_audio ? SrsFrameTypeAudio : SrsFrameTypeVideo;
@@ -1656,6 +1679,18 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
     // Ignore if no track found.
     if (!track) {
         return srs_error_new(ERROR_RTC_RTP, "unknown ssrc=%u", ssrc);
+    }
+
+    // A packet still on the RTX SSRC after decode is a padding-only probe, which libwebrtc sends for bandwidth
+    // estimation: it carries no OSN, so on_before_decode_payload left it alone.
+    if (is_rtx) {
+        ++_srs_pps_rrtx->sugar_;
+        ++_srs_pps_rrtx_padding->sugar_;
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+        srs_trace("NACK: RTX padding ssrc=%u, pt=%u, seq=%u, %d bytes, dropped", ssrc, (uint32_t)pkt->header_.get_payload_type(),
+                  (uint32_t)pkt->header_.get_sequence(), (int)pkt->nb_bytes());
+#endif
+        return err;
     }
 
     // Report codec information to statistics on first RTP packet.
@@ -1755,11 +1790,44 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer 
     // Find the track and build the fast cache, which is also used by do_on_rtp_plaintext after
     // the packet is decoded. So we only scan the tracks once for each ssrc.
     bool is_audio = true;
-    SrsRtcRecvTrack *track = find_track(pkt->header_.get_ssrc(), is_audio);
+    bool is_rtx = false;
+    SrsRtcRecvTrack *track = find_track(pkt->header_.get_ssrc(), is_audio, is_rtx);
 
     // Ignore if no track found.
     if (!track) {
         return;
+    }
+
+    // SrsRtpPacket::decode has parsed the header and cut the padding off buf, so an RTX packet from the publisher,
+    // RFC 4588 section 4, is now the two-byte OSN followed by the original payload. Restore the original onto the
+    // header, so the media path never sees RTX. The RTX payload reads the OSN and leaves buf at the original payload,
+    // which the video track decodes below. A padding-only probe, which libwebrtc sends for bandwidth estimation,
+    // carries no original payload: nothing, or no more than an OSN, is left once the padding is gone. It stays on the
+    // RTX SSRC, and do_on_rtp_plaintext counts and drops it after decode.
+    if (is_rtx) {
+        SrsRtcTrackDescription *desc = track->get_track_desc();
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+        uint16_t rtx_seq = pkt->header_.get_sequence();
+        uint8_t rtx_pt = pkt->header_.get_payload_type();
+        int nb_rtx = (int)pkt->header_.nb_bytes() + buf->left() + pkt->header_.get_padding();
+#endif
+        SrsRtpRtxPayload rtx;
+        srs_error_t err = rtx.decode(buf);
+        if (err != srs_success || !rtx.payload_->nb_bytes()) {
+            srs_freep(err);
+            return;
+        }
+
+        uint16_t osn = rtx.osn_;
+        pkt->header_.set_ssrc(desc->ssrc_);
+        pkt->header_.set_payload_type(desc->media_->pt_);
+        pkt->header_.set_sequence(osn);
+        ++_srs_pps_rrtx->sugar_;
+        ++_srs_pps_rrtx_unwrap->sugar_;
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+        srs_trace("NACK: RTX recv ssrc=%u, pt=%u, seq=%u, osn=%u, media ssrc=%u, pt=%u, %d bytes", desc->rtx_ssrc_, (uint32_t)rtx_pt,
+                  (uint32_t)rtx_seq, (uint32_t)osn, desc->ssrc_, (uint32_t)desc->media_->pt_, nb_rtx);
+#endif
     }
 
     // The handler is defined by the audio and video tracks, not by SrsRtcRecvTrack, so we must
@@ -1771,11 +1839,14 @@ void SrsRtcPublishStream::on_before_decode_payload(SrsRtpPacket *pkt, SrsBuffer 
     }
 }
 
-SrsRtcRecvTrack *SrsRtcPublishStream::find_track(uint32_t ssrc, bool &is_audio)
+SrsRtcRecvTrack *SrsRtcPublishStream::find_track(uint32_t ssrc, bool &is_audio, bool &is_rtx)
 {
+    is_rtx = false;
+    
     // Try to find track from cache. Note that an unfilled slot keeps the ssrc 0, so we must
     // check the track, not the slot, before using it.
     SrsRtcRecvTrack *track = NULL;
+
     if (cache_ssrc0_ == ssrc) {
         track = cache_track0_;
         is_audio = cache_is_audio0_;
@@ -1790,6 +1861,19 @@ SrsRtcRecvTrack *SrsRtcPublishStream::find_track(uint32_t ssrc, bool &is_audio)
         return track;
     }
 
+    // The RTX SSRC of a video track has slots of its own, checked after the media slots because
+    // RTX packets are rare beside media, and never taking a media slot from a media SSRC.
+    if (cache_rtx_ssrc0_ == ssrc) {
+        track = cache_rtx_track0_;
+    } else if (cache_rtx_ssrc1_ == ssrc) {
+        track = cache_rtx_track1_;
+    }
+    if (track) {
+        is_audio = false;
+        is_rtx = true;
+        return track;
+    }
+
     // Find by original tracks and build fast cache.
     track = get_audio_track(ssrc);
     if (track) {
@@ -1797,6 +1881,23 @@ SrsRtcRecvTrack *SrsRtcPublishStream::find_track(uint32_t ssrc, bool &is_audio)
     } else {
         is_audio = false;
         track = get_video_track(ssrc);
+    }
+
+    // has_ssrc matches the RTX SSRC as well as the media SSRC, so tell them apart here, once per ssrc.
+    if (track && !is_audio) {
+        uint32_t rtx_ssrc = track->get_track_desc()->rtx_ssrc_;
+        is_rtx = rtx_ssrc && ssrc == rtx_ssrc;
+    }
+
+    if (track && is_rtx) {
+        if (!cache_rtx_ssrc0_) {
+            cache_rtx_ssrc0_ = ssrc;
+            cache_rtx_track0_ = track;
+        } else if (!cache_rtx_ssrc1_) {
+            cache_rtx_ssrc1_ = ssrc;
+            cache_rtx_track1_ = track;
+        }
+        return track;
     }
 
     if (track && !cache_ssrc2_) {
@@ -1975,16 +2076,16 @@ srs_error_t SrsRtcPublishStream::do_request_keyframe(uint32_t ssrc, SrsContextId
 
 void SrsRtcPublishStream::simulate_nack_drop(int nn)
 {
-    nn_simulate_nack_drop_ = nn;
+    nn_simulate_nack_drop_publisher_ = nn;
 }
 
 void SrsRtcPublishStream::simulate_drop_packet(SrsRtpHeader *h, int nn_bytes)
 {
-    srs_warn("RTC: NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop_,
+    srs_warn("RTC: NACK simulator #%d drop seq=%u, ssrc=%u/%s, ts=%u, %d bytes", nn_simulate_nack_drop_publisher_,
              h->get_sequence(), h->get_ssrc(), (get_video_track(h->get_ssrc()) ? "Video" : "Audio"), h->get_timestamp(),
              nn_bytes);
 
-    nn_simulate_nack_drop_--;
+    nn_simulate_nack_drop_publisher_--;
 }
 
 SrsRtcVideoRecvTrack *SrsRtcPublishStream::get_video_track(uint32_t ssrc)
@@ -2026,9 +2127,16 @@ void SrsRtcPublishStream::update_rtt(uint32_t ssrc, int rtt)
 
 void SrsRtcPublishStream::update_send_report_time(uint32_t ssrc, const SrsNtp &ntp, uint32_t rtp_time)
 {
+    // get_video_track also matches the RTX SSRC of a video track. The publisher sends a sender report
+    // for the RTX SSRC too, but the track keeps the sender report of its media SSRC, for A/V sync and
+    // for the LSR it echoes in the receiver report of that SSRC. So ignore the RTX one, never let it
+    // overwrite the media one.
     SrsRtcVideoRecvTrack *video_track = get_video_track(ssrc);
     if (video_track) {
-        return video_track->update_send_report_time(ntp, rtp_time);
+        if (video_track->get_ssrc() == ssrc) {
+            video_track->update_send_report_time(ntp, rtp_time);
+        }
+        return;
     }
 
     SrsRtcAudioRecvTrack *audio_track = get_audio_track(ssrc);
@@ -2126,7 +2234,7 @@ SrsRtcConnection::SrsRtcConnection(ISrsExecRtcAsyncTask *exec, const SrsContextI
     disposing_ = false;
 
     twcc_id_ = 0;
-    nn_simulate_player_nack_drop_ = 0;
+    nn_simulate_nack_drop_player_ = 0;
     pli_epp_ = new SrsErrorPithyPrint();
 
     nack_enabled_ = false;
@@ -2613,7 +2721,7 @@ srs_error_t SrsRtcConnection::on_rtcp_feedback_remb(SrsRtcpFbCommon *rtcp)
     return srs_success;
 }
 
-srs_error_t SrsRtcConnection::on_rtp_cipher(char *data, int nb_data)
+srs_error_t SrsRtcConnection::on_rtp_cipher(char *data, int nb_data, bool *dropped)
 {
     srs_error_t err = srs_success;
 
@@ -2623,7 +2731,7 @@ srs_error_t SrsRtcConnection::on_rtp_cipher(char *data, int nb_data)
     }
     srs_assert(publisher);
 
-    return publisher->on_rtp_cipher(data, nb_data);
+    return publisher->on_rtp_cipher(data, nb_data, dropped);
 }
 
 srs_error_t SrsRtcConnection::on_rtp_plaintext(char *data, int nb_data)
@@ -2787,6 +2895,13 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver *nack, uint32_t ss
         return;
     }
 
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+    if (true) {
+        vector<uint16_t> sns = rtcpNack.get_lost_sns();
+        srs_trace("NACK: request ssrc=%u, seqs=[%s]", ssrc, srs_strings_join(sns, ",").c_str());
+    }
+#endif
+
     ++_srs_pps_snack2->sugar_;
     ++_srs_pps_srtcps->sugar_;
 
@@ -2948,16 +3063,16 @@ void SrsRtcConnection::simulate_nack_drop(int nn)
         publisher->simulate_nack_drop(nn);
     }
 
-    nn_simulate_player_nack_drop_ = nn;
+    nn_simulate_nack_drop_player_ = nn;
 }
 
 void SrsRtcConnection::simulate_player_drop_packet(SrsRtpHeader *h, int nn_bytes)
 {
-    srs_warn("RTC: NACK simulator #%d player drop seq=%u, ssrc=%u, ts=%u, %d bytes", nn_simulate_player_nack_drop_,
+    srs_warn("RTC: NACK simulator #%d player drop seq=%u, ssrc=%u, ts=%u, %d bytes", nn_simulate_nack_drop_player_,
              h->get_sequence(), h->get_ssrc(), h->get_timestamp(),
              nn_bytes);
 
-    nn_simulate_player_nack_drop_--;
+    nn_simulate_nack_drop_player_--;
 }
 
 srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket *pkt)
@@ -2987,7 +3102,7 @@ srs_error_t SrsRtcConnection::do_send_packet(SrsRtpPacket *pkt)
     }
 
     // For NACK simulator, drop packet.
-    if (nn_simulate_player_nack_drop_) {
+    if (nn_simulate_nack_drop_player_) {
         simulate_player_drop_packet(&pkt->header_, (int)iov->iov_len);
         iov->iov_len = 0;
         return err;
@@ -3337,6 +3452,7 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
 
     bool nack_enabled = config_->get_rtc_nack_enabled(req->vhost_);
     bool twcc_enabled = config_->get_rtc_twcc_enabled(req->vhost_);
+    bool nack_prefer_rtx = config_->get_rtc_nack_prefer_rtx(req->vhost_);
     // TODO: FIME: Should check packetization-mode=1 also.
     bool has_42e01f = srs_sdp_has_h264_profile(remote_sdp, "42e01f");
 
@@ -3632,8 +3748,21 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
         // TODO: FIXME: use one parse payload from sdp.
 
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("red"));
-        track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("rtx"));
         track_desc->create_auxiliary_payload(remote_media_desc.find_media_with_encoding_name("ulpfec"));
+        // RTX is a preference, never a requirement: take the rtx payload whose apt is the negotiated video payload type
+        // only when NACK is on and the server prefers RTX. The RTX SSRC comes from the FID group below, and without
+        // one the rtx payload is dropped again.
+        if (nack_enabled && nack_prefer_rtx && remote_media_desc.is_video()) {
+            std::vector<SrsMediaPayloadType> rtx_pts = remote_media_desc.find_media_with_encoding_name("rtx");
+            for (int k = 0; k < (int)rtx_pts.size(); k++) {
+                const SrsMediaPayloadType &rtx_pt = rtx_pts.at(k);
+                if ((int)srs_rtx_parse_apt(rtx_pt.format_specific_param_) != (int)track_desc->media_->pt_) {
+                    continue;
+                }
+                track_desc->create_auxiliary_payload(std::vector<SrsMediaPayloadType>(1, rtx_pt));
+                break;
+            }
+        }
 
         std::string track_id;
         for (int j = 0; j < (int)remote_media_desc.ssrc_infos_.size(); ++j) {
@@ -3700,9 +3829,19 @@ srs_error_t SrsRtcPublisherNegotiator::negotiate_publish_capability(SrsRtcUserCo
             }
 
             if (ssrc_group.semantic_ == "FID") {
-                track_desc->set_rtx_ssrc(ssrc_group.ssrcs_[1]);
+                if (track_desc->rtx_) {
+                    track_desc->set_rtx_ssrc(ssrc_group.ssrcs_[1]);
+                }
             } else if (ssrc_group.semantic_ == "FEC") {
                 track_desc->set_fec_ssrc(ssrc_group.ssrcs_[1]);
+            }
+        }
+        
+        // An rtx payload without a FID group cannot name its RTX SSRC, so that track answers plain.
+        for (int j = 0; j < (int)stream_desc->video_track_descs_.size(); ++j) {
+            SrsRtcTrackDescription *video_track = stream_desc->video_track_descs_.at(j);
+            if (video_track->rtx_ && !video_track->rtx_ssrc_) {
+                srs_freep(video_track->rtx_);
             }
         }
     }
@@ -3836,6 +3975,10 @@ srs_error_t SrsRtcPublisherNegotiator::generate_publish_local_sdp_for_video(SrsS
             local_media_desc.payload_types_.push_back(payload->generate_media_payload_type());
         }
 
+        if (video_track->rtx_) {
+            local_media_desc.payload_types_.push_back(video_track->rtx_->generate_media_payload_type());
+        }
+
         if (!unified_plan) {
             // For PlanB, only need media desc info, not ssrc info;
             break;
@@ -3855,6 +3998,7 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
     bool nack_enabled = config_->get_rtc_nack_enabled(req->vhost_);
     bool twcc_enabled = config_->get_rtc_twcc_enabled(req->vhost_);
     bool keep_original_ssrc = config_->get_rtc_keep_original_ssrc(req->vhost_);
+    bool nack_prefer_rtx = config_->get_rtc_nack_prefer_rtx(req->vhost_);
 
     SrsSharedPtr<SrsRtcSource> source;
     if ((err = rtc_sources_->fetch_or_create(req, source)) != srs_success) {
@@ -4071,13 +4215,24 @@ srs_error_t SrsRtcPlayerNegotiator::negotiate_play_capability(SrsRtcUserConfig *
                 track->ssrc_ = ssrc_generator_->generate_ssrc();
             }
 
-            // TODO: FIXME: set audio_payload rtcp_fbs_,
-            // according by whether downlink is support transport algorithms.
-            // TODO: FIXME: if we support downlink RTX, MUST assign rtx_ssrc_, rtx_pt, rtx_apt
-            // not support rtx
-            if (true) {
-                srs_freep(track->rtx_);
-                track->rtx_ssrc_ = 0;
+            // RFC 4588 RTX is a preference, never a requirement: answer with rtx only when NACK is on, the server
+            // prefers RTX, and the offer carries an rtx payload whose apt is the negotiated video payload type.
+            // Otherwise the player gets plain retransmission on the media SSRC, as before.
+            srs_freep(track->rtx_);
+            track->rtx_ssrc_ = 0;
+            if (nack_enabled && nack_prefer_rtx && remote_media_desc.is_video()) {
+                vector<SrsMediaPayloadType> rtx_pts = remote_media_desc.find_media_with_encoding_name("rtx");
+                for (int k = 0; k < (int)rtx_pts.size(); k++) {
+                    const SrsMediaPayloadType &rtx_pt = rtx_pts.at(k);
+                    if ((int)srs_rtx_parse_apt(rtx_pt.format_specific_param_) != remote_payload.payload_type_) {
+                        continue;
+                    }
+
+                    track->rtx_ = new SrsRtxPayloadDes(rtx_pt.payload_type_, remote_payload.payload_type_, rtx_pt.clock_rate_);
+                    // The RTX SSRC is allocated for this player track, never reused from the publisher.
+                    track->rtx_ssrc_ = ssrc_generator_->generate_ssrc();
+                    break;
+                }
             }
 
             track->set_direction("sendonly");
@@ -4139,6 +4294,10 @@ void video_track_generate_play_offer(SrsRtcTrackDescription *track, string mid, 
     if (track->red_) {
         SrsRedPayload *red_payload = (SrsRedPayload *)track->red_;
         local_media_desc.payload_types_.push_back(red_payload->generate_media_payload_type());
+    }
+
+    if (track->rtx_) {
+        local_media_desc.payload_types_.push_back(track->rtx_->generate_media_payload_type());
     }
 }
 

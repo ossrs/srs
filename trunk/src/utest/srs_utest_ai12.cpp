@@ -82,6 +82,7 @@ void MockRtcAudioRecvTrackForNack::reset()
 VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherTypicalScenario)
 {
     srs_error_t err;
+    bool dropped = false;
 
     // Create mock objects
     MockRtcAsyncTaskExecutor mock_exec;
@@ -103,11 +104,11 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherTypicalScenario)
     };
 
     // Test normal RTP packet processing (default state: no NACK simulation, no TWCC, no PT drop)
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)simple_rtp_data, sizeof(simple_rtp_data)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)simple_rtp_data, sizeof(simple_rtp_data), &dropped));
 
     // Test with NACK simulation enabled
     publish_stream->simulate_nack_drop(1); // Simulate dropping 1 packet
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)simple_rtp_data, sizeof(simple_rtp_data)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)simple_rtp_data, sizeof(simple_rtp_data), &dropped));
 
     // Test with a different RTP packet after NACK simulation is consumed
     unsigned char rtp_data2[] = {
@@ -116,12 +117,13 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherTypicalScenario)
         0x56, 0x78, 0x9A, 0xBD, // timestamp
         0xDE, 0xF0, 0x12, 0x35  // SSRC
     };
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_data2, sizeof(rtp_data2)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_data2, sizeof(rtp_data2), &dropped));
 }
 
 VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherTwccParsingTypicalScenario)
 {
     srs_error_t err;
+    bool dropped = false;
 
     // Create mock objects
     MockRtcAsyncTaskExecutor mock_exec;
@@ -151,7 +153,7 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherTwccParsingTypicalScenario)
 
     // Test the TWCC parsing path in on_rtp_cipher
     // This should successfully parse TWCC and call on_twcc(0x1234)
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_with_twcc, sizeof(rtp_with_twcc)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_with_twcc, sizeof(rtp_with_twcc), &dropped));
 
     // Test with different TWCC sequence number
     unsigned char rtp_with_twcc2[] = {
@@ -166,7 +168,7 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherTwccParsingTypicalScenario)
     };
 
     // Test another TWCC parsing scenario
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_with_twcc2, sizeof(rtp_with_twcc2)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_with_twcc2, sizeof(rtp_with_twcc2), &dropped));
 
     // Test RTP packet without extension (should skip TWCC parsing)
     unsigned char rtp_no_ext[] = {
@@ -177,7 +179,7 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherTwccParsingTypicalScenario)
     };
 
     // This should succeed but skip TWCC parsing since no extension bit is set
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_no_ext, sizeof(rtp_no_ext)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_no_ext, sizeof(rtp_no_ext), &dropped));
 }
 
 VOID TEST(SrsRtcPublishStreamTest, OnRtpPlaintextTypicalScenario)
@@ -493,6 +495,74 @@ VOID TEST(SrsRtcPublishStreamTest, OnBeforeDecodePayloadUsesTrackCache)
     EXPECT_TRUE(payload != NULL);
     EXPECT_EQ(SrsRtpPacketPayloadTypeRaw, ppt);
     srs_freep(payload);
+}
+
+// A publisher with audio, camera and screen share fills the three media slots, and each video track has an RTX SSRC
+// on top. The RTX SSRCs must resolve to their video tracks through the RTX slots, never by taking a media slot from a
+// media SSRC, whatever the order of arrival; the lookup reports RTX, so callers need no comparison of their own.
+VOID TEST(SrsRtcPublishStreamTest, FindTrackKeepsRtxOutOfTheMediaCache)
+{
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-find-track-rtx-cache");
+
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    // The publish stream owns and frees the tracks; the descriptions belong to the test.
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(create_test_track_description("audio", 1001));
+    SrsRtcAudioRecvTrack *audio_track = new SrsRtcAudioRecvTrack(&mock_receiver, audio_desc.get(), false);
+    publish_stream->audio_tracks_.push_back(audio_track);
+
+    SrsUniquePtr<SrsRtcTrackDescription> camera_desc(create_video_track_description_with_codec("H264", 2001));
+    camera_desc->rtx_ssrc_ = 2002;
+    SrsRtcVideoRecvTrack *camera_track = new SrsRtcVideoRecvTrack(&mock_receiver, camera_desc.get(), false);
+    publish_stream->video_tracks_.push_back(camera_track);
+
+    SrsUniquePtr<SrsRtcTrackDescription> screen_desc(create_video_track_description_with_codec("H264", 3001));
+    screen_desc->rtx_ssrc_ = 3002;
+    SrsRtcVideoRecvTrack *screen_track = new SrsRtcVideoRecvTrack(&mock_receiver, screen_desc.get(), false);
+    publish_stream->video_tracks_.push_back(screen_track);
+
+    bool is_audio = true;
+    bool is_rtx = true;
+
+    // The camera's RTX arrives first, before any media: it takes an RTX slot, not the first media slot.
+    EXPECT_TRUE(publish_stream->find_track(2002, is_audio, is_rtx) == (SrsRtcRecvTrack *)camera_track);
+    EXPECT_FALSE(is_audio);
+    EXPECT_TRUE(is_rtx);
+    EXPECT_EQ(2002u, publish_stream->cache_rtx_ssrc0_);
+    EXPECT_TRUE(publish_stream->cache_rtx_track0_ == (SrsRtcRecvTrack *)camera_track);
+    EXPECT_EQ(0u, publish_stream->cache_ssrc0_);
+
+    // The three media SSRCs fill the three media slots.
+    EXPECT_TRUE(publish_stream->find_track(1001, is_audio, is_rtx) == (SrsRtcRecvTrack *)audio_track);
+    EXPECT_TRUE(is_audio);
+    EXPECT_FALSE(is_rtx);
+    EXPECT_TRUE(publish_stream->find_track(2001, is_audio, is_rtx) == (SrsRtcRecvTrack *)camera_track);
+    EXPECT_FALSE(is_audio);
+    EXPECT_FALSE(is_rtx);
+    EXPECT_TRUE(publish_stream->find_track(3001, is_audio, is_rtx) == (SrsRtcRecvTrack *)screen_track);
+    EXPECT_FALSE(is_audio);
+    EXPECT_FALSE(is_rtx);
+    EXPECT_EQ(1001u, publish_stream->cache_ssrc0_);
+    EXPECT_EQ(2001u, publish_stream->cache_ssrc1_);
+    EXPECT_EQ(3001u, publish_stream->cache_ssrc2_);
+
+    // The screen's RTX takes the second RTX slot although the media cache is full.
+    EXPECT_TRUE(publish_stream->find_track(3002, is_audio, is_rtx) == (SrsRtcRecvTrack *)screen_track);
+    EXPECT_FALSE(is_audio);
+    EXPECT_TRUE(is_rtx);
+    EXPECT_EQ(3002u, publish_stream->cache_rtx_ssrc1_);
+    EXPECT_TRUE(publish_stream->cache_rtx_track1_ == (SrsRtcRecvTrack *)screen_track);
+
+    // A hit in the RTX cache is served from the cache: the cached SSRC matches no track description, so only the cache
+    // can resolve it.
+    publish_stream->cache_rtx_ssrc1_ = 0xDEADBEEF;
+    EXPECT_TRUE(publish_stream->find_track(0xDEADBEEF, is_audio, is_rtx) == (SrsRtcRecvTrack *)screen_track);
+    EXPECT_FALSE(is_audio);
+    EXPECT_TRUE(is_rtx);
 }
 
 // An unfilled cache slot holds ssrc 0, so it must never shadow the track scan for a packet whose
@@ -838,6 +908,7 @@ VOID TEST(SrsRtcPublishStreamTest, UpdateSendReportTimeTypicalScenario)
 VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherPayloadTypeDropTypicalScenario)
 {
     srs_error_t err;
+    bool dropped = false;
 
     // Create mock objects
     MockRtcAsyncTaskExecutor mock_exec;
@@ -861,7 +932,7 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherPayloadTypeDropTypicalScenario)
     };
 
     // Test packet with PT=96 - should be dropped (return success but packet is ignored)
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_data_pt96, sizeof(rtp_data_pt96)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_data_pt96, sizeof(rtp_data_pt96), &dropped));
 
     // Create RTP packet with different payload type 97 (should NOT be dropped)
     unsigned char rtp_data_pt97[] = {
@@ -872,13 +943,13 @@ VOID TEST(SrsRtcPublishStreamTest, OnRtpCipherPayloadTypeDropTypicalScenario)
     };
 
     // Test packet with PT=97 - should NOT be dropped (normal processing)
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_data_pt97, sizeof(rtp_data_pt97)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_data_pt97, sizeof(rtp_data_pt97), &dropped));
 
     // Test scenario: No payload type configured to drop (pt_to_drop_ = 0)
     publish_stream->pt_to_drop_ = 0;
 
     // Test packet with PT=96 when no drop configured - should process normally
-    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_data_pt96, sizeof(rtp_data_pt96)));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_rtp_cipher((char *)rtp_data_pt96, sizeof(rtp_data_pt96), &dropped));
 }
 
 VOID TEST(SrsRtcPublishStreamTest, DoOnRtpPlaintextAudioTrackTypicalScenario)
@@ -1091,7 +1162,7 @@ VOID TEST(SrsRtcConnectionTest, TestConstructorAndDestructor)
     EXPECT_FALSE(conn->disposing_);
     EXPECT_TRUE(conn->req_ == NULL);
     EXPECT_EQ(0, conn->twcc_id_);
-    EXPECT_EQ(0, conn->nn_simulate_player_nack_drop_);
+    EXPECT_EQ(0, conn->nn_simulate_nack_drop_player_);
     EXPECT_FALSE(conn->nack_enabled_);
     EXPECT_EQ(0, conn->last_stun_time_);
     EXPECT_EQ(0, conn->session_timeout_);
@@ -1692,19 +1763,19 @@ VOID TEST(SrsRtcConnectionTest, SimulateNackDropTypicalScenario)
     // Test typical scenario: simulate dropping 3 packets
     int nn_packets_to_drop = 3;
 
-    // Call simulate_nack_drop - should set nn_simulate_player_nack_drop_ and propagate to publishers
+    // Call simulate_nack_drop - should set nn_simulate_nack_drop_player_ and propagate to publishers
     conn->simulate_nack_drop(nn_packets_to_drop);
 
     // Verify that the connection's NACK drop counter is set correctly
-    EXPECT_EQ(nn_packets_to_drop, conn->nn_simulate_player_nack_drop_);
+    EXPECT_EQ(nn_packets_to_drop, conn->nn_simulate_nack_drop_player_);
 
     // Test with zero packets (disable simulation)
     conn->simulate_nack_drop(0);
-    EXPECT_EQ(0, conn->nn_simulate_player_nack_drop_);
+    EXPECT_EQ(0, conn->nn_simulate_nack_drop_player_);
 
     // Test with different packet count
     conn->simulate_nack_drop(5);
-    EXPECT_EQ(5, conn->nn_simulate_player_nack_drop_);
+    EXPECT_EQ(5, conn->nn_simulate_nack_drop_player_);
 }
 
 VOID TEST(SrsRtcConnectionTest, SimulatePlayerDropPacketTypicalScenario)
@@ -1718,7 +1789,7 @@ VOID TEST(SrsRtcConnectionTest, SimulatePlayerDropPacketTypicalScenario)
     SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
 
     // Set up NACK simulation counter
-    conn->nn_simulate_player_nack_drop_ = 2;
+    conn->nn_simulate_nack_drop_player_ = 2;
 
     // Create a test RTP header
     SrsRtpHeader test_header;
@@ -1733,15 +1804,15 @@ VOID TEST(SrsRtcConnectionTest, SimulatePlayerDropPacketTypicalScenario)
     conn->simulate_player_drop_packet(&test_header, test_bytes);
 
     // Verify that the counter was decremented
-    EXPECT_EQ(1, conn->nn_simulate_player_nack_drop_);
+    EXPECT_EQ(1, conn->nn_simulate_nack_drop_player_);
 
     // Test dropping another packet
     conn->simulate_player_drop_packet(&test_header, test_bytes);
-    EXPECT_EQ(0, conn->nn_simulate_player_nack_drop_);
+    EXPECT_EQ(0, conn->nn_simulate_nack_drop_player_);
 
     // Test when counter is already zero (should not go negative)
     conn->simulate_player_drop_packet(&test_header, test_bytes);
-    EXPECT_EQ(-1, conn->nn_simulate_player_nack_drop_); // Counter continues to decrement
+    EXPECT_EQ(-1, conn->nn_simulate_nack_drop_player_); // Counter continues to decrement
 }
 
 VOID TEST(SrsRtcConnectionTest, DoSendPacketTypicalScenario)
@@ -1773,7 +1844,7 @@ VOID TEST(SrsRtcConnectionTest, DoSendPacketTypicalScenario)
     pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
 
     // Test scenario 1: Normal packet sending (no NACK simulation)
-    conn->nn_simulate_player_nack_drop_ = 0;
+    conn->nn_simulate_nack_drop_player_ = 0;
 
     // Mock the network to avoid actual network operations
     MockRtcNetwork mock_network;
@@ -1785,13 +1856,13 @@ VOID TEST(SrsRtcConnectionTest, DoSendPacketTypicalScenario)
     // we'll test the NACK simulation path which is more testable
 
     // Test scenario 2: NACK simulation enabled - packet should be dropped
-    conn->nn_simulate_player_nack_drop_ = 1;
+    conn->nn_simulate_nack_drop_player_ = 1;
 
     // This should drop the packet and return success without sending
     HELPER_EXPECT_SUCCESS(conn->do_send_packet(pkt.get()));
 
     // Verify that the NACK counter was decremented
-    EXPECT_EQ(0, conn->nn_simulate_player_nack_drop_);
+    EXPECT_EQ(0, conn->nn_simulate_nack_drop_player_);
 }
 
 VOID TEST(SrsRtcConnectionTest, SetAllTracksStatusTypicalScenario)
@@ -2043,6 +2114,7 @@ VOID TEST(SrsRtcConnectionTest, AddPublisherTypicalScenario)
 VOID TEST(SrsRtcConnectionTest, OnRtpCipherTypicalScenario)
 {
     srs_error_t err;
+    bool dropped = false;
 
     // Create mock objects
     MockRtcAsyncTaskExecutor mock_exec;
@@ -2075,17 +2147,17 @@ VOID TEST(SrsRtcConnectionTest, OnRtpCipherTypicalScenario)
     conn->publishers_[stream_url] = publish_stream.get();
 
     // Test typical scenario: on_rtp_cipher should find publisher and delegate to it
-    HELPER_EXPECT_SUCCESS(conn->on_rtp_cipher((char *)rtp_data, sizeof(rtp_data)));
+    HELPER_EXPECT_SUCCESS(conn->on_rtp_cipher((char *)rtp_data, sizeof(rtp_data), &dropped));
 
     // Test error scenario: no publishers
     conn->publishers_ssrc_map_.clear();
     conn->publishers_.clear();
-    HELPER_EXPECT_FAILED(conn->on_rtp_cipher((char *)rtp_data, sizeof(rtp_data)));
+    HELPER_EXPECT_FAILED(conn->on_rtp_cipher((char *)rtp_data, sizeof(rtp_data), &dropped));
 
     // Test error scenario: invalid SSRC (too small packet)
     conn->publishers_[stream_url] = publish_stream.get();
     unsigned char invalid_rtp_data[] = {0x80, 0x60}; // Too small for SSRC parsing
-    HELPER_EXPECT_FAILED(conn->on_rtp_cipher((char *)invalid_rtp_data, sizeof(invalid_rtp_data)));
+    HELPER_EXPECT_FAILED(conn->on_rtp_cipher((char *)invalid_rtp_data, sizeof(invalid_rtp_data), &dropped));
 
     // Clean up: Remove from connection maps to prevent double-free in destructor
     conn->publishers_ssrc_map_.clear();

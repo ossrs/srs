@@ -28,6 +28,12 @@
 #define SRS_NACK_DEBUG_DROP_PACKET_PT 109
 #define SRS_NACK_DEBUG_DROP_PACKET_N 3
 
+// Whether to log every NACK request and every retransmission, plain or RTX, packet by packet, to verify the NACK and
+// RTX logic against the network simulator or the debug drop above. Never enabled in a release build.
+#if defined(SRS_SIMULATOR) || defined(SRS_DEBUG_NACK_DROP)
+#define SRS_NACK_DEBUG_LOG_ENABLED
+#endif
+
 class SrsRtpPacket;
 class SrsMemoryBlock;
 
@@ -430,6 +436,26 @@ public:
 public:
     SrsRtpRawPayload();
     virtual ~SrsRtpRawPayload();
+    // interface ISrsRtpPayloader
+public:
+    virtual uint64_t nb_bytes();
+    virtual srs_error_t encode(SrsBuffer *buf);
+    virtual srs_error_t decode(SrsBuffer *buf);
+    virtual ISrsRtpPayloader *copy();
+};
+
+// The RFC 4588 RTX payload: the two-byte original sequence number (OSN) followed by the original payload. The payload
+// is owned: the sender stores a copy of the cached payload, so the cached packet is never mutated, and decode creates a
+// raw payload. Like every payloader, the payload references the media bytes of its packet and never copies them.
+class SrsRtpRtxPayload : public ISrsRtpPayloader
+{
+public:
+    uint16_t osn_;
+    ISrsRtpPayloader *payload_;
+
+public:
+    SrsRtpRtxPayload();
+    virtual ~SrsRtpRtxPayload();
     // interface ISrsRtpPayloader
 public:
     virtual uint64_t nb_bytes();

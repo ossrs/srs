@@ -675,6 +675,28 @@ func registerMiniCodecs(api *testWebRTCAPI) error {
 }
 
 // Implements interface testWebRTCAPIInitFunc to init testWebRTCAPI
+// The mini codecs plus an RFC 4588 rtx payload for the H.264 payload type, as browsers offer it.
+func registerMiniCodecsWithRtx(api *testWebRTCAPI) error {
+	v := api
+
+	if err := registerMiniCodecs(v); err != nil {
+		return err
+	}
+
+	if err := v.mediaEngine.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: webrtc.RTPCodecCapability{
+			MimeType: webrtc.MimeTypeRTX, ClockRate: 90000, Channels: 0,
+			SDPFmtpLine: "apt=108", RTCPFeedback: nil,
+		},
+		PayloadType: 109,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Implements interface testWebRTCAPIInitFunc to init testWebRTCAPI
 func registerMiniCodecsWithoutNack(api *testWebRTCAPI) error {
 	v := api
 
