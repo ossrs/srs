@@ -15,6 +15,8 @@
 #include <srs_app_reload.hpp>
 #include <srs_protocol_log.hpp>
 
+class ISrsAppConfig;
+
 // Use memory/disk cache and donot flush when write log.
 // it's ok to use it without config, which will log to console, and default trace level.
 // when you want to use different level, override this classs, set the protected _level.
@@ -34,6 +36,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool log_to_file_tank_;
     // Whether use utc time.
     bool utc_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
 
 public:
     SrsFileLog();

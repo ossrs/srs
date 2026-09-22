@@ -465,6 +465,11 @@ public:
     std::string get_default_app_name() { return "live"; }
     void subscribe(ISrsReloadHandler *handler) {}
     void unsubscribe(ISrsReloadHandler *handler) {}
+    virtual bool get_log_tank_file() { return false; }
+    virtual std::string get_log_file() { return ""; }
+    virtual std::string get_log_level() { return "trace"; }
+    virtual std::string get_log_level_v2() { return ""; }
+    virtual bool get_utc_time() { return false; }
     virtual srs_error_t reload(SrsReloadState *pstate) { return srs_success; }
     virtual srs_error_t persistence() { return srs_success; }
     virtual std::string config() { return ""; }

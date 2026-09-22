@@ -35,6 +35,9 @@ SrsFileLog::SrsFileLog()
     fd_ = -1;
     log_to_file_tank_ = false;
     utc_ = false;
+
+    // The config global does not exist yet when the logger is created, so it is captured by initialize().
+    config_ = NULL;
 }
 
 SrsFileLog::~SrsFileLog()
@@ -46,32 +49,43 @@ SrsFileLog::~SrsFileLog()
         fd_ = -1;
     }
 
-    if (_srs_config) {
-        _srs_config->unsubscribe(this);
+    if (config_) {
+        config_->unsubscribe(this);
     }
+
+    config_ = NULL;
 }
 
 // LCOV_EXCL_START
 srs_error_t SrsFileLog::initialize()
 {
-    if (_srs_config) {
-        _srs_config->subscribe(this);
+    // Capture the config here rather than in the constructor: the logger is one of the first objects created, before
+    // the config global exists.
+    config_ = _srs_config;
 
-        log_to_file_tank_ = _srs_config->get_log_tank_file();
-        utc_ = _srs_config->get_utc_time();
+    if (config_) {
+        config_->subscribe(this);
 
-        std::string level = _srs_config->get_log_level();
-        std::string level_v2 = _srs_config->get_log_level_v2();
+        log_to_file_tank_ = config_->get_log_tank_file();
+        utc_ = config_->get_utc_time();
+
+        std::string level = config_->get_log_level();
+        std::string level_v2 = config_->get_log_level_v2();
         level_ = level_v2.empty() ? srs_get_log_level(level) : srs_get_log_level_v2(level_v2);
     }
 
     return srs_success;
 }
+// LCOV_EXCL_STOP
 
 void SrsFileLog::reopen()
 {
+    // Clear the descriptor with the close. Every path below may leave without opening a new file, and write_log()
+    // opens one only when the descriptor is negative, so a closed descriptor left here would be written to after the
+    // number has been handed to another socket or file.
     if (fd_ > 0) {
         ::close(fd_);
+        fd_ = -1;
     }
 
     if (!log_to_file_tank_) {
@@ -81,6 +95,7 @@ void SrsFileLog::reopen()
     open_log_file();
 }
 
+// LCOV_EXCL_START
 void SrsFileLog::log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args)
 {
     if (level < level_ || level >= SrsLogLevelDisabled) {
@@ -155,13 +170,15 @@ void SrsFileLog::write_log(int &fd, char *str_log, int size, int level)
     }
 }
 
+// LCOV_EXCL_STOP
+
 void SrsFileLog::open_log_file()
 {
-    if (!_srs_config) {
+    if (!config_) {
         return;
     }
 
-    std::string filename = _srs_config->get_log_file();
+    std::string filename = config_->get_log_file();
 
     if (filename.empty()) {
         return;
@@ -171,4 +188,3 @@ void SrsFileLog::open_log_file()
                  O_RDWR | O_CREAT | O_APPEND,
                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 }
-// LCOV_EXCL_STOP

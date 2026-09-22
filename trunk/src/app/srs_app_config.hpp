@@ -656,6 +656,13 @@ public:
     virtual std::string get_engine_output(SrsConfDirective *conf) = 0;
     virtual bool get_security_enabled(std::string vhost) = 0;
     virtual SrsConfDirective *get_security_rules(std::string vhost) = 0;
+    // Whether write log to file, otherwise to console.
+    virtual bool get_log_tank_file() = 0;
+    // The file to write log to, empty if not configured.
+    virtual std::string get_log_file() = 0;
+    virtual std::string get_log_level() = 0;
+    virtual std::string get_log_level_v2() = 0;
+    virtual bool get_utc_time() = 0;
 };
 
 // The config service provider.
