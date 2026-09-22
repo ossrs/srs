@@ -13,7 +13,9 @@
 #include <srs_utest.hpp>
 
 #include <srs_app_config.hpp>
+#include <srs_kernel_file.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <map>
@@ -69,6 +71,31 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
     virtual srs_error_t find_handler(ISrsHttpMessage *r, ISrsHttpHandler **ph);
     virtual void unhandle(std::string pattern, ISrsHttpHandler *handler);
+};
+
+// Serves the VOD file from memory, for the range tests of SrsVodStream.
+class MockFileReaderFactoryForVodStream : public ISrsFileReaderFactory
+{
+public:
+    std::string content_;
+
+public:
+    MockFileReaderFactoryForVodStream(std::string content);
+    virtual ~MockFileReaderFactoryForVodStream();
+
+public:
+    virtual SrsFileReader *create_file_reader();
+};
+
+// Keeps the Content-Range header, which MockResponseWriter drops, so the range tests can assert it.
+class MockResponseWriterForVodStream : public MockResponseWriter
+{
+public:
+    MockResponseWriterForVodStream();
+    virtual ~MockResponseWriterForVodStream();
+
+public:
+    virtual srs_error_t filter(SrsHttpHeader *h);
 };
 
 #endif

@@ -7,6 +7,7 @@
 
 #include <srs_app_http_static.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 using namespace std;
 
@@ -371,4 +372,118 @@ VOID TEST(HttpStaticServerTest, InitializeFailsWhenAVhostCannotBeMounted)
 
     ASSERT_EQ(1, (int)mux.patterns_.size());
     EXPECT_STREQ("/hls/", mux.patterns_[0].c_str());
+}
+
+MockFileReaderFactoryForVodStream::MockFileReaderFactoryForVodStream(string content)
+{
+    content_ = content;
+}
+
+MockFileReaderFactoryForVodStream::~MockFileReaderFactoryForVodStream()
+{
+}
+
+SrsFileReader *MockFileReaderFactoryForVodStream::create_file_reader()
+{
+    return new MockSrsFileReader(content_.data(), (int)content_.length());
+}
+
+MockResponseWriterForVodStream::MockResponseWriterForVodStream()
+{
+}
+
+MockResponseWriterForVodStream::~MockResponseWriterForVodStream()
+{
+}
+
+srs_error_t MockResponseWriterForVodStream::filter(SrsHttpHeader *h)
+{
+    h->del("Content-Type");
+    h->del("Server");
+    h->del("Connection");
+    h->del("Access-Control-Allow-Origin");
+    h->del("Access-Control-Allow-Methods");
+    h->del("Access-Control-Expose-Headers");
+    h->del("Access-Control-Allow-Headers");
+    return srs_success;
+}
+
+// Serve fullpath as MP4 with the range of url, and return the raw HTTP response in resp.
+static srs_error_t mock_vod_serve_mp4(string content, string url, string &resp)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    SrsVodStream stream("/tmp");
+    stream.set_fs_factory(new MockFileReaderFactoryForVodStream(content));
+    stream.set_path(new MockSrsPathAlwaysExists());
+    stream.entry_ = &entry;
+
+    MockResponseWriterForVodStream w;
+    SrsHttpMessage r(NULL, NULL);
+    if ((err = r.set_url(url, false)) != srs_success) {
+        return srs_error_wrap(err, "set url");
+    }
+
+    if ((err = stream.serve_http(&w, &r)) != srs_success) {
+        return srs_error_wrap(err, "serve http");
+    }
+
+    resp = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+    return err;
+}
+
+// The last byte position of a range is inclusive, so an end at the file size is one byte past the last byte. Clamp it
+// to the last byte, instead of promising a byte that does not exist and reading past the end of the file.
+VOID TEST(VodStreamRangeTest, RangeEndAtFilesizeServesTheWholeFile)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=0-13", resp));
+
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Length: 13", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 0-12/13", resp);
+    EXPECT_PRED2(is_string_contain, "Hello, world!", resp);
+}
+
+// A range end far beyond the file is clamped to the last byte as well.
+VOID TEST(VodStreamRangeTest, RangeEndBeyondFilesizeIsClamped)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=7-100", resp));
+
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Length: 6", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 7-12/13", resp);
+    EXPECT_PRED2(is_string_contain, "world!", resp);
+}
+
+// A range inside the file is served as before, with the last byte position it asked for.
+VOID TEST(VodStreamRangeTest, RangeInsideTheFileIsUnchanged)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=2-5", resp));
+
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Length: 4", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 2-5/13", resp);
+    EXPECT_PRED2(is_string_contain, "llo,", resp);
+}
+
+// A range that starts past the last byte has nothing to serve, so it still fails.
+VOID TEST(VodStreamRangeTest, RangeStartBeyondTheLastByteFails)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_EXPECT_FAILED(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=13-20", resp));
 }

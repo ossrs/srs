@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-09-22, HTTP: Clamp the VOD MP4 range end to the last byte of the file. v8.0.42
 * v8.0, 2026-09-21, Merge [#4746](https://github.com/ossrs/srs/pull/4746): WebRTC: Support RFC 4588 RTX retransmission with SSRC multiplexing, preferred by nack_prefer_rtx. v8.0.41 (#4746)
 * v8.0, 2026-09-21, RTC: Reset the play track cache when the publisher republishes with new SSRCs. v8.0.40
 * v8.0, 2026-09-21, RTC: Resolve the publish and play tracks once per SSRC through the fast cache. v8.0.39

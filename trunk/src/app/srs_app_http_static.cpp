@@ -571,7 +571,13 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
         end = fs->filesize() - 1;
     }
 
-    if (end > fs->filesize() || start > end || end < 0) {
+    // The end is the last byte position and it is inclusive, so the last byte a client may ask for is filesize-1.
+    // Clamp an end that reaches or passes the end of the file, as the clients expect the bytes that do exist.
+    if (end >= fs->filesize()) {
+        end = fs->filesize() - 1;
+    }
+
+    if (start > end || end < 0) {
         return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
                              fullpath.c_str(), fs->filesize(), start);
     }
