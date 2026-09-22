@@ -12,8 +12,10 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_kernel_factory.hpp>
 #include <srs_kernel_hourglass.hpp>
 #include <srs_kernel_io.hpp>
+#include <srs_kernel_log.hpp>
 #include <srs_kernel_resource.hpp>
 #include <srs_kernel_rtc_queue.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -108,12 +110,95 @@ class MockSrsFastTimer : public ISrsFastTimerHandler
 {
 public:
     std::vector<srs_utime_t> timer_calls_;
+    // The error to return from on_timer, owned by the timer under test.
+    srs_error_t on_timer_error_;
 
 public:
     MockSrsFastTimer();
     virtual ~MockSrsFastTimer();
     virtual srs_error_t on_timer(srs_utime_t interval);
     void clear();
+};
+
+// Mock ISrsCoroutine for testing SrsFastTimer::cycle()
+class MockCoroutineForFastTimer : public ISrsCoroutine
+{
+public:
+    int pull_count_;
+    // Return success for the first pull_success_ pulls, then pull_error_.
+    int pull_success_;
+    int start_count_;
+    int stop_count_;
+    srs_error_t start_error_;
+    SrsContextId cid_;
+
+public:
+    MockCoroutineForFastTimer();
+    virtual ~MockCoroutineForFastTimer();
+
+public:
+    virtual srs_error_t start();
+    virtual void stop();
+    virtual void interrupt();
+    virtual srs_error_t pull();
+    virtual const SrsContextId &cid();
+    virtual void set_cid(const SrsContextId &cid);
+};
+
+// Mock ISrsTime for testing SrsFastTimer::cycle()
+class MockTimeForFastTimer : public ISrsTime
+{
+public:
+    std::vector<srs_utime_t> usleep_calls_;
+
+public:
+    MockTimeForFastTimer();
+    virtual ~MockTimeForFastTimer();
+
+public:
+    virtual void usleep(srs_utime_t duration);
+};
+
+// Mock ISrsContext for testing SrsFastTimer::assemble()
+class MockContextForFastTimer : public ISrsContext
+{
+public:
+    SrsContextId id_;
+    int get_id_count_;
+
+public:
+    MockContextForFastTimer();
+    virtual ~MockContextForFastTimer();
+
+public:
+    virtual SrsContextId generate_id();
+    virtual const SrsContextId &get_id();
+    virtual const SrsContextId &set_id(const SrsContextId &v);
+};
+
+// Mock ISrsKernelFactory for testing SrsFastTimer::assemble()
+class MockKernelFactoryForFastTimer : public ISrsKernelFactory
+{
+public:
+    // The objects returned by the factory, borrowed and not owned by the mock.
+    ISrsCoroutine *coroutine_;
+    ISrsTime *time_;
+    // What the factory was asked to create.
+    int create_coroutine_count_;
+    int create_time_count_;
+    std::string coroutine_name_;
+    ISrsCoroutineHandler *coroutine_handler_;
+    SrsContextId coroutine_cid_;
+
+public:
+    MockKernelFactoryForFastTimer();
+    virtual ~MockKernelFactoryForFastTimer();
+
+public:
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
+    virtual ISrsTime *create_time();
+    virtual ISrsConfig *create_config();
+    virtual ISrsCond *create_cond();
 };
 
 // Mock RTP ring buffer for testing NACK receiver

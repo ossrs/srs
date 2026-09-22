@@ -16,6 +16,8 @@
 #include <vector>
 
 class ISrsCoroutine;
+class ISrsContext;
+class ISrsKernelFactory;
 
 // The handler for the tick.
 class ISrsHourGlassHandler
@@ -144,12 +146,18 @@ class SrsFastTimer : public ISrsCoroutineHandler, public ISrsFastTimer
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     srs_utime_t interval_;
+    std::string label_;
     std::vector<ISrsFastTimerHandler *> handlers_;
     ISrsTime *time_;
+    ISrsKernelFactory *factory_;
+    ISrsContext *context_;
 
 public:
     SrsFastTimer(std::string label, srs_utime_t interval);
     virtual ~SrsFastTimer();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     srs_error_t start();

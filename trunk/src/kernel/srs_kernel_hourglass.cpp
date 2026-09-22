@@ -155,14 +155,27 @@ ISrsFastTimer::~ISrsFastTimer()
 SrsFastTimer::SrsFastTimer(std::string label, srs_utime_t interval)
 {
     interval_ = interval;
-    trd_ = _srs_kernel_factory->create_coroutine(label, this, _srs_context->get_id());
-    time_ = _srs_kernel_factory->create_time();
+    label_ = label;
+    trd_ = NULL;
+    time_ = NULL;
+
+    factory_ = _srs_kernel_factory;
+    context_ = _srs_context;
 }
 
 SrsFastTimer::~SrsFastTimer()
 {
     srs_freep(trd_);
     srs_freep(time_);
+
+    factory_ = NULL;
+    context_ = NULL;
+}
+
+void SrsFastTimer::assemble()
+{
+    trd_ = factory_->create_coroutine(label_, this, context_->get_id());
+    time_ = factory_->create_time();
 }
 
 srs_error_t SrsFastTimer::start()
@@ -296,9 +309,13 @@ srs_error_t SrsSharedTimer::initialize()
 
     // Initialize global shared timers
     timer20ms_ = new SrsFastTimer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    timer20ms_->assemble();
     timer100ms_ = new SrsFastTimer("shared", 100 * SRS_UTIME_MILLISECONDS);
+    timer100ms_->assemble();
     timer1s_ = new SrsFastTimer("shared", 1 * SRS_UTIME_SECONDS);
+    timer1s_->assemble();
     timer5s_ = new SrsFastTimer("shared", 5 * SRS_UTIME_SECONDS);
+    timer5s_->assemble();
     clock_monitor_ = new SrsClockWallMonitor();
 
     // Start all timers
