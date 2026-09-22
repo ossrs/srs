@@ -566,9 +566,12 @@ ISrsHttpServer::~ISrsHttpServer()
 SrsHttpServer::SrsHttpServer()
 {
     http_stream_ = new SrsHttpStreamServer();
-    http_stream_->assemble();
-
     http_static_ = new SrsHttpStaticServer();
+}
+
+void SrsHttpServer::assemble()
+{
+    http_stream_->assemble();
 }
 
 SrsHttpServer::~SrsHttpServer()
@@ -597,7 +600,6 @@ srs_error_t SrsHttpServer::initialize()
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHttpServer::handle(std::string pattern, ISrsHttpHandler *handler)
 {
     return http_static_->mux()->handle(pattern, handler);
@@ -631,7 +633,6 @@ srs_error_t SrsHttpServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage
     // Use http static as default server.
     return http_static_->mux()->serve_http(w, r);
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpServer::http_mount(ISrsRequest *r)
 {
