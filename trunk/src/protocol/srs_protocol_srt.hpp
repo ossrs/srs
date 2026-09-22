@@ -119,6 +119,30 @@ public:
 };
 ISrsSrtPoller *srs_srt_poller_new();
 
+// The SRT socket options, which set the srs_srt_set_xxx options on a SRT fd.
+class ISrsSrtOptions
+{
+public:
+    ISrsSrtOptions();
+    virtual ~ISrsSrtOptions();
+
+public:
+    virtual srs_error_t set_maxbw(srs_srt_t srt_fd, int64_t maxbw) = 0;
+    virtual srs_error_t set_mss(srs_srt_t srt_fd, int mss) = 0;
+    virtual srs_error_t set_payload_size(srs_srt_t srt_fd, int payload_size) = 0;
+    virtual srs_error_t set_connect_timeout(srs_srt_t srt_fd, int timeout) = 0;
+    virtual srs_error_t set_peer_idle_timeout(srs_srt_t srt_fd, int timeout) = 0;
+    virtual srs_error_t set_tsbpdmode(srs_srt_t srt_fd, bool tsbpdmode) = 0;
+    virtual srs_error_t set_sndbuf(srs_srt_t srt_fd, int sndbuf) = 0;
+    virtual srs_error_t set_rcvbuf(srs_srt_t srt_fd, int rcvbuf) = 0;
+    virtual srs_error_t set_tlpktdrop(srs_srt_t srt_fd, bool tlpktdrop) = 0;
+    virtual srs_error_t set_latency(srs_srt_t srt_fd, int latency) = 0;
+    virtual srs_error_t set_rcv_latency(srs_srt_t srt_fd, int rcv_latency) = 0;
+    virtual srs_error_t set_peer_latency(srs_srt_t srt_fd, int peer_latency) = 0;
+    virtual srs_error_t set_passphrase(srs_srt_t srt_fd, const std::string &passphrase) = 0;
+    virtual srs_error_t set_pbkeylen(srs_srt_t srt_fd, int pbkeylen) = 0;
+};
+
 // Srt socket interface.
 class ISrsSrtSocket
 {

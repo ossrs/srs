@@ -377,8 +377,21 @@ public:
 public:
     // SRT config
     virtual std::vector<std::string> get_srt_listens() = 0;
+    virtual int64_t get_srto_maxbw() = 0;
+    virtual int get_srto_mss() = 0;
+    virtual bool get_srto_tsbpdmode() = 0;
+    virtual int get_srto_latency() = 0;
+    virtual int get_srto_recv_latency() = 0;
+    virtual int get_srto_peer_latency() = 0;
+    virtual bool get_srto_tlpktdrop() = 0;
+    virtual srs_utime_t get_srto_conntimeout() = 0;
     // Get the srt SRTO_PEERIDLETIMEO, peer idle timeout, default is 10000ms.
     virtual srs_utime_t get_srto_peeridletimeout() = 0;
+    virtual int get_srto_sendbuf() = 0;
+    virtual int get_srto_recvbuf() = 0;
+    virtual int get_srto_payloadsize() = 0;
+    virtual std::string get_srto_passphrase() = 0;
+    virtual int get_srto_pbkeylen() = 0;
 
 public:
     // Stream caster config

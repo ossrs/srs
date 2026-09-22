@@ -614,7 +614,20 @@ public:
     virtual std::string get_srt_default_streamid() { return "#!::r=live/livestream,m=request"; }
     virtual std::string get_srt_default_mode() { return srt_default_mode_; }
     virtual bool get_srt_to_rtmp(std::string vhost) { return srt_to_rtmp_; }
+    virtual int64_t get_srto_maxbw() { return -1; }
+    virtual int get_srto_mss() { return 1500; }
+    virtual bool get_srto_tsbpdmode() { return true; }
+    virtual int get_srto_latency() { return 120; }
+    virtual int get_srto_recv_latency() { return 120; }
+    virtual int get_srto_peer_latency() { return 0; }
+    virtual bool get_srto_tlpktdrop() { return true; }
+    virtual srs_utime_t get_srto_conntimeout() { return 3 * SRS_UTIME_SECONDS; }
     virtual srs_utime_t get_srto_peeridletimeout() { return 10 * SRS_UTIME_SECONDS; }
+    virtual int get_srto_sendbuf() { return 8192 * (1500 - 28); }
+    virtual int get_srto_recvbuf() { return 8192 * (1500 - 28); }
+    virtual int get_srto_payloadsize() { return 1316; }
+    virtual std::string get_srto_passphrase() { return ""; }
+    virtual int get_srto_pbkeylen() { return 0; }
     virtual bool get_rtc_to_rtmp(std::string vhost) { return rtc_to_rtmp_; }
     virtual srs_utime_t get_rtc_stun_timeout(std::string vhost) { return 30 * SRS_UTIME_SECONDS; }
     virtual bool get_rtc_stun_strict_check(std::string vhost) { return false; }

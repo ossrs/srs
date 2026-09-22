@@ -184,6 +184,11 @@ ISrsIpListener *SrsAppFactory::create_tcp_listener(ISrsTcpHandler *handler)
     return new SrsTcpListener(handler);
 }
 
+ISrsSrtListener *SrsAppFactory::create_srt_listener(ISrsSrtHandler *handler, std::string ip, int port)
+{
+    return NULL;
+}
+
 ISrsRtcConnection *SrsAppFactory::create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid)
 {
     SrsRtcConnection *session = new SrsRtcConnection(exec, cid);

@@ -709,6 +709,14 @@ ISrsSrtPoller *srs_srt_poller_new()
     return new SrsSrtPoller();
 }
 
+ISrsSrtOptions::ISrsSrtOptions()
+{
+}
+
+ISrsSrtOptions::~ISrsSrtOptions()
+{
+}
+
 ISrsSrtSocket::ISrsSrtSocket()
 {
 }

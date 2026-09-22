@@ -15,6 +15,8 @@
 class SrsSrtServer;
 class SrsHourGlass;
 class ISrsSrtClientHandler;
+class ISrsAppConfig;
+class ISrsAppFactory;
 
 // Interface for SRT client acceptance
 class ISrsSrtClientHandler
@@ -35,6 +37,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string ip_;
     int port_;
     ISrsSrtClientHandler *srt_handler_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
+    ISrsSrtOptions *srt_options_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

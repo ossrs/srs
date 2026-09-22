@@ -33,6 +33,10 @@ SrsSrtAcceptor::SrsSrtAcceptor(ISrsSrtClientHandler *srt_handler)
     port_ = 0;
     srt_handler_ = srt_handler;
     listener_ = NULL;
+
+    config_ = NULL;
+    app_factory_ = NULL;
+    srt_options_ = NULL;
 }
 
 SrsSrtAcceptor::~SrsSrtAcceptor()
