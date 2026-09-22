@@ -1153,8 +1153,57 @@ void MockCoroutineForRtmpConn::set_cid(const SrsContextId &cid)
 {
 }
 
+MockContextForRtmpConn::MockContextForRtmpConn()
+{
+    generate_id_count_ = 0;
+    set_id_count_ = 0;
+}
+
+MockContextForRtmpConn::~MockContextForRtmpConn()
+{
+}
+
+SrsContextId MockContextForRtmpConn::generate_id()
+{
+    generate_id_count_++;
+    return id_;
+}
+
+const SrsContextId &MockContextForRtmpConn::get_id()
+{
+    return id_;
+}
+
+const SrsContextId &MockContextForRtmpConn::set_id(const SrsContextId &v)
+{
+    set_id_count_++;
+    id_ = v;
+    return id_;
+}
+
+MockAppFactoryForRtmpConn::MockAppFactoryForRtmpConn()
+{
+    coroutine_ = NULL;
+    create_coroutine_count_ = 0;
+    coroutine_handler_ = NULL;
+}
+
+MockAppFactoryForRtmpConn::~MockAppFactoryForRtmpConn()
+{
+}
+
+ISrsCoroutine *MockAppFactoryForRtmpConn::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
+{
+    create_coroutine_count_++;
+    coroutine_name_ = name;
+    coroutine_handler_ = handler;
+    coroutine_cid_ = cid;
+    return coroutine_;
+}
+
 MockRtmpTransportForDoCycle::MockRtmpTransportForDoCycle()
 {
+    io_count_ = 0;
 }
 
 MockRtmpTransportForDoCycle::~MockRtmpTransportForDoCycle()
@@ -1183,6 +1232,7 @@ int MockRtmpTransportForDoCycle::osfd()
 
 ISrsProtocolReadWriter *MockRtmpTransportForDoCycle::io()
 {
+    io_count_++;
     return NULL;
 }
 
@@ -1266,6 +1316,58 @@ VOID TEST(SrsRtmpConnTest, ConstructorAndAssemble)
 
     // Cleanup mock config
     srs_freep(mock_config);
+}
+
+// The RTMP connection is the primary publish and play path, so a test has to be able to replace its
+// context, its coroutine factory and its transport before any of them is used. Construction must
+// therefore stay quiescent, and every collaborator call must happen in assemble().
+VOID TEST(SrsRtmpConnTest, AssembleWiresCollaboratorsFromInjectedDependencies)
+{
+    MockRtmpTransportForDoCycle *transport = new MockRtmpTransportForDoCycle();
+    SrsRtmpConn *conn = new SrsRtmpConn(transport, "192.168.1.100", 1935);
+
+    // GOAL: construction reaches no collaborator, so a test can replace them before any work runs.
+    EXPECT_TRUE(NULL == conn->trd_);
+    EXPECT_TRUE(NULL == conn->rtmp_);
+    EXPECT_EQ(0, conn->create_time_);
+    EXPECT_EQ(0, transport->io_count_);
+
+    MockCoroutineForRtmpConn trd;
+
+    MockAppFactoryForRtmpConn factory;
+    factory.coroutine_ = &trd;
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("rtmp-cid");
+
+    MockAppConfigForRtmpConn config;
+
+    conn->app_factory_ = &factory;
+    conn->context_ = &context;
+    conn->config_ = &config;
+    conn->assemble();
+
+    // GOAL: the client identity, the coroutine, the transport wiring and the reload subscription
+    // are all established by assemble(), through the injected dependencies.
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("rtmp", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(conn == factory.coroutine_handler_);
+    EXPECT_STREQ("rtmp-cid", factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&trd == conn->trd_);
+    EXPECT_TRUE(NULL != conn->rtmp_);
+    EXPECT_TRUE(conn->create_time_ > 0);
+    EXPECT_TRUE(transport->io_count_ > 0);
+    EXPECT_EQ(1, config.subscribe_count_);
+    EXPECT_TRUE(conn == config.last_subscribed_handler_);
+
+    // The coroutine is borrowed from the mock factory, so the destructor must not free it.
+    conn->trd_ = NULL;
+    conn->app_factory_ = NULL;
+    conn->context_ = NULL;
+    srs_freep(conn);
+    EXPECT_EQ(1, config.unsubscribe_count_);
 }
 
 VOID TEST(SrsServerTest, OnBeforeConnectionExceedLimit)
@@ -1411,6 +1513,7 @@ VOID TEST(SrsRtmpConnTest, StreamServiceCycleSelection)
 
     // Create connection
     SrsRtmpConn *conn = new SrsRtmpConn(mock_transport, "192.168.1.100", 1935);
+    conn->assemble();
 
     // Create mock rtmp server
     MockRtmpServer *mock_rtmp = new MockRtmpServer();
@@ -2526,6 +2629,7 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnClose)
 
     // Inject mocks into connection
     conn->config_ = mock_config;
+    conn->assemble();
     conn->hooks_ = mock_hooks;
 
     // Set up request with valid vhost
@@ -2684,6 +2788,7 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnPublishSuccess)
 
     // Inject mocks into connection
     conn->config_ = mock_config;
+    conn->assemble();
     conn->hooks_ = mock_hooks;
 
     // Set up request with valid vhost
@@ -2765,6 +2870,7 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnUnpublishSuccess)
 
     // Inject mocks into connection
     conn->config_ = mock_config;
+    conn->assemble();
     conn->hooks_ = mock_hooks;
 
     // Set up request with valid vhost
@@ -2846,6 +2952,7 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnStopSuccess)
 
     // Inject mocks into connection
     conn->config_ = mock_config;
+    conn->assemble();
     conn->hooks_ = mock_hooks;
 
     // Set up request with valid vhost
@@ -3000,6 +3107,7 @@ VOID TEST(SrsRtmpConnTest, HttpHooksOnPlaySuccess)
 
     // Inject mocks into connection
     conn->config_ = mock_config;
+    conn->assemble();
     conn->hooks_ = mock_hooks;
 
     // Set up request with valid vhost

@@ -121,6 +121,8 @@ VOID TEST(BasicWorkflowRtmp2RtcTest, ManuallyVerifyTypicalScenario)
 #ifdef SRS_RTSP
     conn->rtsp_sources_ = mock_rtsp_sources.get();
 #endif
+    conn->assemble();
+
     srs_freep(conn->rtmp_);
     conn->rtmp_ = mock_rtmp_server;
     srs_freep(conn->security_);

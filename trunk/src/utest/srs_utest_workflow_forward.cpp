@@ -101,6 +101,8 @@ VOID TEST(BasicWorkflowForwardTest, ForwardBackendFailureRollsBackPublishState)
     conn->config_ = mock_config.get();
     conn->stat_ = mock_stat.get();
     conn->hooks_ = mock_hooks.get();
+    conn->assemble();
+
     conn->info_->req_->vhost_ = req->vhost_;
     conn->info_->req_->app_ = req->app_;
     conn->info_->req_->stream_ = req->stream_;

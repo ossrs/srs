@@ -207,22 +207,17 @@ const char *SrsRtmpsTransport::transport_type()
 
 SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
 {
-    // Create a identify for this client.
-    _srs_context->set_id(_srs_context->generate_id());
-
     transport_ = transport;
     ip_ = cip;
     port_ = cport;
-    create_time_ = srsu2ms(srs_time_now_cached());
+    create_time_ = 0;
 
-    trd_ = new SrsSTCoroutine("rtmp", this, _srs_context->get_id());
+    trd_ = NULL;
 
     kbps_ = new SrsNetworkKbps();
-    kbps_->set_io(transport_->io(), transport_->io());
     delta_ = new SrsNetworkDelta();
-    delta_->set_io(transport_->io(), transport_->io());
 
-    rtmp_ = new SrsRtmpServer(transport_->io());
+    rtmp_ = NULL;
     refer_ = new SrsRefer();
     security_ = new SrsSecurity();
     duration_ = 0;
@@ -239,6 +234,7 @@ SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
     publish_normal_timeout_ = 0;
 
     app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
     config_ = _srs_config;
     manager_ = _srs_conn_manager;
     stream_publish_tokens_ = _srs_stream_publish_tokens;
@@ -254,6 +250,18 @@ SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
 
 void SrsRtmpConn::assemble()
 {
+    // Create a identify for this client.
+    context_->set_id(context_->generate_id());
+
+    create_time_ = srsu2ms(srs_time_now_cached());
+
+    trd_ = app_factory_->create_coroutine("rtmp", this, context_->get_id());
+
+    kbps_->set_io(transport_->io(), transport_->io());
+    delta_->set_io(transport_->io(), transport_->io());
+
+    rtmp_ = new SrsRtmpServer(transport_->io());
+
     config_->subscribe(this);
 }
 
@@ -263,7 +271,9 @@ SrsRtmpConn::~SrsRtmpConn()
         config_->unsubscribe(this);
     }
 
-    trd_->interrupt();
+    if (trd_) {
+        trd_->interrupt();
+    }
     // wakeup the handler which need to notice.
     if (wakable_) {
         wakable_->wakeup();
@@ -280,6 +290,7 @@ SrsRtmpConn::~SrsRtmpConn()
     srs_freep(security_);
 
     app_factory_ = NULL;
+    context_ = NULL;
     config_ = NULL;
     manager_ = NULL;
     stream_publish_tokens_ = NULL;
@@ -591,7 +602,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     switch (info_->type_) {
     case SrsRtmpConnPlay: {
         // We must do stat the client before hooks, because hooks depends on it.
-        if ((err = stat_->on_client(_srs_context->get_id().c_str(), req, this, info_->type_)) != srs_success) {
+        if ((err = stat_->on_client(context_->get_id().c_str(), req, this, info_->type_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: stat client");
         }
 
@@ -732,7 +743,7 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
     }
 
     // Use receiving thread to receive packets from peer.
-    SrsQueueRecvThread trd(consumer.get(), rtmp_, SRS_PERF_MW_SLEEP, _srs_context->get_id());
+    SrsQueueRecvThread trd(consumer.get(), rtmp_, SRS_PERF_MW_SLEEP, context_->get_id());
 
     if ((err = trd.start()) != srs_success) {
         return srs_error_wrap(err, "rtmp: start receive thread");
@@ -873,7 +884,7 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
 
         if (count <= 0) {
 #ifndef SRS_PERF_QUEUE_COND_WAIT
-            srs_usleep(mw_sleep);
+            srs_usleep(mw_sleep_);
 #endif
             // ignore when nothing got.
             continue;
@@ -944,7 +955,7 @@ srs_error_t SrsRtmpConn::authorize_publish()
     }
 
     // We must do stat the client before hooks, because hooks depends on it.
-    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req, this, info_->type_)) != srs_success) {
+    if ((err = stat_->on_client(context_->get_id().c_str(), req, this, info_->type_)) != srs_success) {
         return srs_error_wrap(err, "rtmp: stat client");
     }
 
@@ -977,7 +988,7 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
     if ((err = acquire_err) == srs_success) {
         // use isolate thread to recv,
         // @see: https://github.com/ossrs/srs/issues/237
-        SrsPublishRecvThread rtrd(rtmp_, req, transport_->osfd(), 0, this, source, _srs_context->get_id());
+        SrsPublishRecvThread rtrd(rtmp_, req, transport_->osfd(), 0, this, source, context_->get_id());
         rtrd.assemble();
 
         err = do_publishing(source, &rtrd);
