@@ -27,6 +27,7 @@
 #include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_srt_listener.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>
@@ -186,7 +187,7 @@ ISrsIpListener *SrsAppFactory::create_tcp_listener(ISrsTcpHandler *handler)
 
 ISrsSrtListener *SrsAppFactory::create_srt_listener(ISrsSrtHandler *handler, std::string ip, int port)
 {
-    return NULL;
+    return new SrsSrtListener(handler, ip, port);
 }
 
 ISrsRtcConnection *SrsAppFactory::create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid)

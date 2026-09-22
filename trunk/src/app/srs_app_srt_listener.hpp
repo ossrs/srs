@@ -39,7 +39,7 @@ public:
 };
 
 // Bind and listen SRT(udp) port, use handler to process the client.
-class SrsSrtListener : public ISrsCoroutineHandler
+class SrsSrtListener : public ISrsSrtListener, public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

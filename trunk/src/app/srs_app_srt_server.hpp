@@ -46,7 +46,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsSrtListener *listener_;
+    ISrsSrtListener *listener_;
 
 public:
     SrsSrtAcceptor(ISrsSrtClientHandler *srt_handler);
