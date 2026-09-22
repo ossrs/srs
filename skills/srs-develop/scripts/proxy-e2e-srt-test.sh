@@ -6,7 +6,7 @@
 #   - RTMP play (via srt_to_rtmp on origin)
 #   - HTTP-FLV (HTTP remux of the bridged RTMP)
 #   - HLS (m3u8 + TS segments)
-#   - WebRTC WHEP (placeholder only, not actually verified here)
+#   - WebRTC WHEP (via rtmp_to_rtc on origin, played with tools/pion-whep)
 set -e
 
 SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
@@ -100,6 +100,50 @@ probe_has_audio_video() {
   fi
 }
 
+# Play over WHEP with tools/pion-whep, because FFmpeg has no WHEP demuxer, and
+# require both video and audio RTP packets. The tool is rebuilt when its binary
+# is missing or older than its sources.
+verify_whep_playback() {
+  local url="$1"
+  local log="$2"
+  local tool_dir="$WORKSPACE/tools/pion-whep"
+  local tool_bin="$tool_dir/objs/pion-whep"
+  local summary video audio
+
+  if [[ ! -x "$tool_bin" ]] || [[ -n "$(find "$tool_dir" -maxdepth 1 \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' \) -newer "$tool_bin")" ]]; then
+    echo "Building pion-whep: $tool_bin"
+    (cd "$tool_dir" && mkdir -p objs && go build -o objs/pion-whep .)
+  fi
+
+  echo "Verifying WHEP playback: $url"
+  if ! "$tool_bin" -hide_banner -f whep -i "$url" -t 5 -f null - >"$log" 2>&1; then
+    echo "FAIL: WHEP playback failed. pion-whep log:" >&2
+    cat "$log" >&2
+    exit 1
+  fi
+
+  summary="$(grep -a "^Received video=" "$log" | tail -1)"
+  video="$(echo "$summary" | sed -n 's/^Received video=\([0-9]*\),.*/\1/p')"
+  audio="$(echo "$summary" | sed -n 's/^Received video=[0-9]*, audio=\([0-9]*\) .*/\1/p')"
+  echo "pion-whep: $summary"
+
+  if [[ -n "$video" && "$video" -gt 0 ]]; then
+    echo "PASS: WHEP video packets received."
+  else
+    echo "FAIL: WHEP no video packets received." >&2
+    cat "$log" >&2
+    exit 1
+  fi
+
+  if [[ -n "$audio" && "$audio" -gt 0 ]]; then
+    echo "PASS: WHEP audio packets received."
+  else
+    echo "FAIL: WHEP no audio packets received." >&2
+    cat "$log" >&2
+    exit 1
+  fi
+}
+
 wait_for_hls_playlist() {
   local url="$1"
   local deadline=45
@@ -131,6 +175,10 @@ if [[ ! -f "$SOURCE_FLV" ]]; then
 fi
 if ! command -v curl &>/dev/null; then
   echo "Error: curl not found in PATH" >&2
+  exit 1
+fi
+if ! command -v go &>/dev/null; then
+  echo "Error: go not found in PATH" >&2
   exit 1
 fi
 
@@ -233,7 +281,10 @@ echo "Proxy started."
 echo "=== Step 4: Starting SRS origin ==="
 ulimit -n 10000 2>/dev/null || true
 cd "$WORKSPACE/trunk"
-./objs/srs -c conf/origin1-for-proxy.conf >/tmp/srs-origin-srt-e2e.log 2>&1 &
+# The proxy rewrites only the port of the WebRTC candidate, so the origin must
+# advertise an IP the WHEP player can reach.
+env CANDIDATE="127.0.0.1" \
+    ./objs/srs -c conf/origin1-for-proxy.conf >/tmp/srs-origin-srt-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 
@@ -285,11 +336,10 @@ HLS_URL="http://localhost:$PROXY_HTTP_SERVER_PORT/$STREAM_URL.m3u8"
 wait_for_hls_playlist "$HLS_URL"
 probe_has_audio_video "HLS" "$HLS_URL"
 
-# --- Step 10: WebRTC WHEP playback (placeholder) ---
-echo "=== Step 10: WebRTC WHEP playback (placeholder) ==="
-echo "SKIP: WebRTC WHEP playback is not verified by this script."
-echo "      The origin has rtmp_to_rtc enabled, so SRT->RTMP->RTC should work end-to-end,"
-echo "      but actual playback verification is intentionally left as a TODO here."
+# --- Step 10: Verify WebRTC WHEP playback (srt_to_rtmp + rtmp_to_rtc) ---
+echo "=== Step 10: Verifying WebRTC WHEP playback via proxy ==="
+verify_whep_playback "http://localhost:$PROXY_HTTP_API_PORT/rtc/v1/whep/?app=live&stream=${STREAM_URL#live/}" \
+  /tmp/srs-pion-whep-srt-e2e.log
 
 echo ""
 echo "=== E2E SRT Proxy Test PASSED ==="
