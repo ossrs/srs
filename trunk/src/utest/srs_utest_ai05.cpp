@@ -434,10 +434,12 @@ VOID TEST(KernelResourceTest, SrsSharedResourceBasic)
 
 MockSrsHourGlass::MockSrsHourGlass()
 {
+    notify_error_ = srs_success;
 }
 
 MockSrsHourGlass::~MockSrsHourGlass()
 {
+    srs_freep(notify_error_);
 }
 
 srs_error_t MockSrsHourGlass::notify(int event, srs_utime_t interval, srs_utime_t tick)
@@ -445,7 +447,12 @@ srs_error_t MockSrsHourGlass::notify(int event, srs_utime_t interval, srs_utime_
     events_.push_back(event);
     intervals_.push_back(interval);
     ticks_.push_back(tick);
-    return srs_success;
+
+    // Hand the error over to the caller, which owns it from now on.
+    srs_error_t err = notify_error_;
+    notify_error_ = srs_success;
+
+    return err;
 }
 
 void MockSrsHourGlass::clear()
@@ -4641,6 +4648,145 @@ VOID TEST(KernelHourglassTest, SrsFastTimerCycleNeverNotifiesAFreedHandler)
     timer.context_ = NULL;
 }
 
+VOID TEST(KernelHourglassTest, SrsHourGlassAssembleCreatesCoroutineFromInjectedFactory)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+    context.set_id(SrsContextId().set_value("hourglass-cid"));
+
+    MockSrsHourGlass handler;
+    SrsHourGlass hourglass("sources", &handler, 1 * SRS_UTIME_SECONDS);
+
+    // Construction reaches no collaborator, so a test can replace them before any work happens.
+    EXPECT_TRUE(NULL == hourglass.trd_);
+    EXPECT_TRUE(NULL == hourglass.time_);
+
+    hourglass.factory_ = &factory;
+    hourglass.context_ = &context;
+    hourglass.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_EQ(1, factory.create_time_count_);
+    // The coroutine is named after the label, which the hourglass now keeps until assemble().
+    EXPECT_STREQ("timer-sources", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(&hourglass == factory.coroutine_handler_);
+    EXPECT_STREQ("hourglass-cid", factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&trd == hourglass.trd_);
+    EXPECT_TRUE(&time == hourglass.time_);
+
+    // The mocks are borrowed, so the destructor must not free them.
+    hourglass.trd_ = NULL;
+    hourglass.time_ = NULL;
+    hourglass.factory_ = NULL;
+    hourglass.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsHourGlassCycleNotifiesDueTicksAndSleepsResolution)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    MockSrsHourGlass handler;
+    SrsHourGlass hourglass("sources", &handler, 100 * SRS_UTIME_MILLISECONDS);
+    hourglass.factory_ = &factory;
+    hourglass.context_ = &context;
+    hourglass.assemble();
+
+    // Without the injected coroutine and clock, cycle() would run the real timer forever.
+    ASSERT_TRUE(&trd == hourglass.trd_);
+    ASSERT_TRUE(&time == hourglass.time_);
+
+    srs_error_t err = srs_success;
+    HELPER_EXPECT_SUCCESS(hourglass.tick(1, 200 * SRS_UTIME_MILLISECONDS));
+    HELPER_EXPECT_SUCCESS(hourglass.tick(2, 300 * SRS_UTIME_MILLISECONDS));
+
+    // Four rounds, then the coroutine is interrupted.
+    trd.pull_success_ = 4;
+
+    err = hourglass.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // An event fires when the elapsed time is a multiple of its interval: at 0ms both are due, at
+    // 100ms neither, at 200ms event 1, at 300ms event 2.
+    ASSERT_EQ(4, (int)handler.events_.size());
+    EXPECT_EQ(1, handler.events_[0]);
+    EXPECT_EQ(2, handler.events_[1]);
+    EXPECT_EQ(1, handler.events_[2]);
+    EXPECT_EQ(2, handler.events_[3]);
+
+    // The handler is told the interval of its own event and the total elapsed time of the round.
+    EXPECT_EQ(200 * SRS_UTIME_MILLISECONDS, handler.intervals_[0]);
+    EXPECT_EQ(300 * SRS_UTIME_MILLISECONDS, handler.intervals_[1]);
+    EXPECT_EQ(0, handler.ticks_[0]);
+    EXPECT_EQ(0, handler.ticks_[1]);
+    EXPECT_EQ(200 * SRS_UTIME_MILLISECONDS, handler.ticks_[2]);
+    EXPECT_EQ(300 * SRS_UTIME_MILLISECONDS, handler.ticks_[3]);
+
+    // One sleep of the resolution per round, whether or not an event was due.
+    ASSERT_EQ(4, (int)time.usleep_calls_.size());
+    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, time.usleep_calls_[0]);
+    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, time.usleep_calls_[3]);
+
+    hourglass.trd_ = NULL;
+    hourglass.time_ = NULL;
+    hourglass.factory_ = NULL;
+    hourglass.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsHourGlassCycleStopsWhenHandlerFails)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    MockSrsHourGlass handler;
+    SrsHourGlass hourglass("sources", &handler, 100 * SRS_UTIME_MILLISECONDS);
+    hourglass.factory_ = &factory;
+    hourglass.context_ = &context;
+    hourglass.assemble();
+
+    ASSERT_TRUE(&trd == hourglass.trd_);
+    ASSERT_TRUE(&time == hourglass.time_);
+
+    srs_error_t err = srs_success;
+    HELPER_EXPECT_SUCCESS(hourglass.tick(1, 100 * SRS_UTIME_MILLISECONDS));
+
+    handler.notify_error_ = srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "notify");
+    trd.pull_success_ = 3;
+
+    // Unlike the shared fast timer, which swallows a subscriber error, the hourglass hands it to
+    // the owner of the timer: the round ends at the failed handler and the timer stops.
+    err = hourglass.cycle();
+    EXPECT_EQ(ERROR_SYSTEM_ASSERT_FAILED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, (int)handler.events_.size());
+    EXPECT_EQ(0, (int)time.usleep_calls_.size());
+
+    hourglass.trd_ = NULL;
+    hourglass.time_ = NULL;
+    hourglass.factory_ = NULL;
+    hourglass.context_ = NULL;
+}
+
 VOID TEST(KernelHourglassTest, SrsHourGlass_untick)
 {
     // Test SrsHourGlass::untick method
@@ -4692,6 +4838,8 @@ VOID TEST(KernelHourglassTest, SrsHourGlass_stop)
 
     MockHourGlassHandler handler;
     SrsHourGlass hourglass("test", &handler, 100 * SRS_UTIME_MILLISECONDS);
+    // The coroutine this test starts and stops is created by assemble(), not by construction.
+    hourglass.assemble();
 
     // Add a tick
     srs_error_t err = hourglass.tick(1, 200 * SRS_UTIME_MILLISECONDS);

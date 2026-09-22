@@ -64,6 +64,7 @@ public:
 //
 // Usage:
 //      SrsHourGlass* hg = new SrsHourGlass("nack", handler, 100 * SRS_UTIME_MILLISECONDS);
+//      hg->assemble();
 //
 //      hg->tick(1, 300 * SRS_UTIME_MILLISECONDS);
 //      hg->tick(2, 500 * SRS_UTIME_MILLISECONDS);
@@ -80,6 +81,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsHourGlassHandler *handler_;
     srs_utime_t resolution_;
     ISrsTime *time_;
+    ISrsKernelFactory *factory_;
+    ISrsContext *context_;
     // The ticks:
     //      key: the event of tick.
     //      value: the interval of tick.
@@ -92,6 +95,9 @@ public:
     // TODO: FIMXE: Refine to SrsHourGlass(std::string label);
     SrsHourGlass(std::string label, ISrsHourGlassHandler *h, srs_utime_t resolution);
     virtual ~SrsHourGlass();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     // Start or stop the hourglass.

@@ -98,6 +98,8 @@ public:
     std::vector<int> events_;
     std::vector<srs_utime_t> intervals_;
     std::vector<srs_utime_t> ticks_;
+    // The error to return from notify, owned by the hourglass under test.
+    srs_error_t notify_error_;
 
 public:
     MockSrsHourGlass();

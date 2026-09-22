@@ -52,14 +52,26 @@ SrsHourGlass::SrsHourGlass(string label, ISrsHourGlassHandler *h, srs_utime_t re
     handler_ = h;
     resolution_ = resolution;
     total_elapse_ = 0;
-    trd_ = _srs_kernel_factory->create_coroutine("timer-" + label, this, _srs_context->get_id());
-    time_ = _srs_kernel_factory->create_time();
+    trd_ = NULL;
+    time_ = NULL;
+
+    factory_ = _srs_kernel_factory;
+    context_ = _srs_context;
 }
 
 SrsHourGlass::~SrsHourGlass()
 {
     srs_freep(trd_);
     srs_freep(time_);
+
+    factory_ = NULL;
+    context_ = NULL;
+}
+
+void SrsHourGlass::assemble()
+{
+    trd_ = factory_->create_coroutine("timer-" + label_, this, context_->get_id());
+    time_ = factory_->create_time();
 }
 
 srs_error_t SrsHourGlass::start()

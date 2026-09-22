@@ -270,6 +270,7 @@ SrsRtcSourceManager::SrsRtcSourceManager()
 {
     lock_ = srs_mutex_new();
     timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
+    timer_->assemble();
 }
 
 SrsRtcSourceManager::~SrsRtcSourceManager()

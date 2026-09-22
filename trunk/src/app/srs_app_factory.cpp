@@ -93,7 +93,9 @@ ISrsOriginHub *SrsAppFactory::create_origin_hub()
 
 ISrsHourGlass *SrsAppFactory::create_hourglass(const std::string &name, ISrsHourGlassHandler *handler, srs_utime_t interval)
 {
-    return new SrsHourGlass(name, handler, interval);
+    SrsHourGlass *timer = new SrsHourGlass(name, handler, interval);
+    timer->assemble();
+    return timer;
 }
 
 ISrsBasicRtmpClient *SrsAppFactory::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
