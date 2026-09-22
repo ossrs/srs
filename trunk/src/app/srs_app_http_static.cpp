@@ -463,6 +463,7 @@ bool SrsHlsStream::is_interrupt(std::string id)
 
 SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)
 {
+    config_ = _srs_config;
 }
 
 void SrsVodStream::assemble()
@@ -472,6 +473,7 @@ void SrsVodStream::assemble()
 
 SrsVodStream::~SrsVodStream()
 {
+    config_ = NULL;
 }
 
 srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath, int64_t offset)
@@ -617,7 +619,7 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     SrsUniquePtr<ISrsRequest> req(hr->to_request(hr->host())->as_http());
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req->vhost_);
+    SrsConfDirective *parsed_vhost = config_->get_vhost(req->vhost_);
     if (parsed_vhost) {
         req->vhost_ = parsed_vhost->arg0();
     }

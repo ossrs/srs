@@ -73,6 +73,28 @@ public:
     virtual void unhandle(std::string pattern, ISrsHttpHandler *handler);
 };
 
+// Resolves the vhost of a VOD request, and records what the VOD and HLS streams asked about.
+class MockAppConfigForVodStream : public MockAppConfig
+{
+public:
+    // The vhosts SrsVodStream asked to resolve, in order.
+    std::vector<std::string> resolved_vhosts_;
+    // The vhosts SrsHlsStream was asked about, in order, after the resolution.
+    std::vector<std::string> hls_ctx_vhosts_;
+
+public:
+    MockAppConfigForVodStream();
+    virtual ~MockAppConfigForVodStream();
+
+public:
+    // Resolve every vhost to a directive named canonical, as an alias or wildcard vhost does.
+    void resolve_vhost_as(std::string canonical);
+
+public:
+    virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true);
+    virtual bool get_hls_ctx_enabled(std::string vhost);
+};
+
 // Serves the VOD file from memory, for the range tests of SrsVodStream.
 class MockFileReaderFactoryForVodStream : public ISrsFileReaderFactory
 {

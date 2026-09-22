@@ -374,6 +374,35 @@ VOID TEST(HttpStaticServerTest, InitializeFailsWhenAVhostCannotBeMounted)
     EXPECT_STREQ("/hls/", mux.patterns_[0].c_str());
 }
 
+MockAppConfigForVodStream::MockAppConfigForVodStream()
+{
+}
+
+MockAppConfigForVodStream::~MockAppConfigForVodStream()
+{
+}
+
+void MockAppConfigForVodStream::resolve_vhost_as(string canonical)
+{
+    srs_freep(default_vhost_);
+
+    default_vhost_ = new SrsConfDirective();
+    default_vhost_->name_ = "vhost";
+    default_vhost_->args_.push_back(canonical);
+}
+
+SrsConfDirective *MockAppConfigForVodStream::get_vhost(string vhost, bool try_default_vhost)
+{
+    resolved_vhosts_.push_back(vhost);
+    return default_vhost_;
+}
+
+bool MockAppConfigForVodStream::get_hls_ctx_enabled(string vhost)
+{
+    hls_ctx_vhosts_.push_back(vhost);
+    return false;
+}
+
 MockFileReaderFactoryForVodStream::MockFileReaderFactoryForVodStream(string content)
 {
     content_ = content;
@@ -486,4 +515,79 @@ VOID TEST(VodStreamRangeTest, RangeStartBeyondTheLastByteFails)
 
     string resp;
     HELPER_EXPECT_FAILED(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=13-20", resp));
+}
+
+// Serve the playlist at url, with config deciding the vhost, and return the raw HTTP response in resp.
+static srs_error_t mock_vod_serve_m3u8(MockAppConfigForVodStream *config, string url, string &resp)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    SrsVodStream stream("/tmp");
+    stream.set_fs_factory(new MockFileReaderFactoryForVodStream("#EXTM3U\n"));
+    stream.set_path(new MockSrsPathAlwaysExists());
+    stream.entry_ = &entry;
+
+    // The VOD stream resolves the vhost of the request, then the HLS stream it delegates to decides
+    // whether to serve the request as an HLS session. Both read the same config.
+    stream.config_ = config;
+    stream.hls_.config_ = config;
+
+    MockResponseWriterForVodStream w;
+    SrsHttpMessage r(NULL, NULL);
+    if ((err = r.set_url(url, false)) == srs_success) {
+        err = stream.serve_http(&w, &r);
+    }
+
+    resp = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+    stream.config_ = NULL;
+    stream.hls_.config_ = NULL;
+
+    return err;
+}
+
+// A vhost the config resolves to another name, such as an alias or a wildcard vhost, must reach the
+// HLS stream under the resolved name. Otherwise the HLS settings of the vhost that actually owns the
+// stream are never read, and the playlist is served with the settings of a vhost that does not exist.
+VOID TEST(VodStreamVhostTest, M3u8CtxServesTheVhostResolvedByConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForVodStream config;
+    config.resolve_vhost_as("srs.io");
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_m3u8(&config, "/live/stream.m3u8?vhost=ossrs.net", resp));
+
+    // The vhost of the request is the one asked about.
+    ASSERT_EQ(1, (int)config.resolved_vhosts_.size());
+    EXPECT_STREQ("ossrs.net", config.resolved_vhosts_[0].c_str());
+
+    // GOAL: the HLS stream is asked about the resolved vhost, not the one from the URL.
+    ASSERT_EQ(1, (int)config.hls_ctx_vhosts_.size());
+    EXPECT_STREQ("srs.io", config.hls_ctx_vhosts_[0].c_str());
+}
+
+// A vhost the config does not resolve keeps the name from the URL, and is still served as a plain
+// file by the default HLS handler, because this config disables the HLS ctx sessions.
+VOID TEST(VodStreamVhostTest, M3u8CtxKeepsTheRequestVhostWhenConfigResolvesNone)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForVodStream config;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_m3u8(&config, "/live/stream.m3u8?vhost=ossrs.net", resp));
+
+    // GOAL: the vhost is resolved through the injected config, not through the process global.
+    ASSERT_EQ(1, (int)config.resolved_vhosts_.size());
+    EXPECT_STREQ("ossrs.net", config.resolved_vhosts_[0].c_str());
+
+    ASSERT_EQ(1, (int)config.hls_ctx_vhosts_.size());
+    EXPECT_STREQ("ossrs.net", config.hls_ctx_vhosts_[0].c_str());
+
+    EXPECT_PRED2(is_string_contain, "#EXTM3U", resp);
 }
