@@ -768,6 +768,10 @@ public:
     virtual SrsMediaPayloadType generate_media_payload_type();
 };
 
+// Parse the associated payload type from the fmtp of an rtx payload, for example "apt=106", RFC 4588 section 8.1.
+// Return 0 when the fmtp names no apt.
+uint8_t srs_rtx_parse_apt(const std::string &fmtp);
+
 class SrsRtxPayloadDes : public SrsCodecPayload
 {
 public:
@@ -775,7 +779,7 @@ public:
 
 public:
     SrsRtxPayloadDes();
-    SrsRtxPayloadDes(uint8_t pt, uint8_t apt);
+    SrsRtxPayloadDes(uint8_t pt, uint8_t apt, int sample);
     virtual ~SrsRtxPayloadDes();
 
 public:
@@ -1106,6 +1110,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool keep_original_ssrc_;
     // The pithy print for special stage.
     SrsErrorPithyPrint *nack_epp;
+    // The RTX sequence space of this track, RFC 4588 section 4, independent of the media sequence.
+    uint16_t rtx_seq_;
 
 public:
     SrsRtcSendTrack(ISrsRtcPacketSender *sender, SrsRtcTrackDescription *track_desc, bool is_audio);

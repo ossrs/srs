@@ -1,0 +1,470 @@
+#!/bin/bash
+# E2E test for RFC 4588 RTX on the WebRTC play (downlink) path. It starts a
+# disposable SRS built with the NACK drop simulator, which every E2E script
+# here enables, with nack_prefer_rtx on, publishes over WHIP with FFmpeg, and
+# plays over WHEP with pion-whep from tools/pion-whep: a pion peer that offers
+# rtx like a browser, sends a NACK for every gap it sees, and logs every
+# retransmission it gets back, plain or RTX. Then:
+#   1. checks the player's offer carries rtx and apt, so the peer is RTX-capable;
+#   2. checks the SRS answer carries a=rtpmap:<pt> rtx/90000, a=fmtp:<pt>
+#      apt=<media pt> and a=ssrc-group:FID <media ssrc> <rtx ssrc>, and that
+#      pion bound the RTX SSRC as the repair stream of the video track;
+#   3. drops sent packets through the NACK simulator API on the player's
+#      session so the player must request a retransmission;
+#   4. expects the detail NACK logs of the simulator build to show the chain
+#      packet by packet: "NACK: received" for the video SSRC, "NACK: resend RTX"
+#      on the RTX SSRC with that sequence as osn and no "NACK: resend plain",
+#      and the tool log to show "NACK sent" answered by "Recovered RTX" with
+#      the same osn and no "Recovered plain".
+# pion keeps repeating a NACK until the sequence reaches its receive log, and an
+# RTX repair arrives on the RTX SSRC instead, so the same sequences are asked
+# for and resent many times; the checks count distinct sequences, not lines.
+# On failure it prints where the chain broke: no video packet dropped, no NACK
+# received by SRS, no RTX resent, or an RTX resend not recovered by the tool.
+#
+# Environment:
+#   SRS_RTX_DROP=<n>       packets to drop through the simulator (default 30)
+#   SRS_RTX_WAIT=<s>       seconds to wait for the recovery (default 30)
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -P "$(dirname "$0")" && pwd)"
+WORKSPACE="$SCRIPT_DIR"
+while [[ "$WORKSPACE" != "/" && ! -f "$WORKSPACE/trunk/configure" ]]; do
+  WORKSPACE="$(dirname "$WORKSPACE")"
+done
+
+if [[ ! -f "$WORKSPACE/trunk/configure" ]]; then
+  echo "Error: SRS workspace not found walking up from: $SCRIPT_DIR" >&2
+  exit 1
+fi
+
+SRS_BINARY="$WORKSPACE/trunk/objs/srs"
+SRS_AUTO_HEADERS="$WORKSPACE/trunk/objs/srs_auto_headers.hpp"
+SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
+TOOL_DIR="$WORKSPACE/tools/pion-whep"
+TOOL_BIN="$TOOL_DIR/objs/pion-whep"
+RTMP_PORT="${SRS_RTX_RTMP_PORT:-31935}"
+HTTP_API_PORT="${SRS_RTX_HTTP_API_PORT:-31985}"
+RTC_PORT="${SRS_RTX_RTC_PORT:-38000}"
+DROP="${SRS_RTX_DROP:-30}"
+WAIT="${SRS_RTX_WAIT:-30}"
+STREAM_NAME="rtx$(date +%s)"
+STREAM_URL="live/$STREAM_NAME"
+WHIP_URL="http://127.0.0.1:$HTTP_API_PORT/rtc/v1/whip/?app=live&stream=$STREAM_NAME"
+WHEP_URL="http://127.0.0.1:$HTTP_API_PORT/rtc/v1/whep/?app=live&stream=$STREAM_NAME"
+API="http://127.0.0.1:$HTTP_API_PORT"
+TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/srs-rtc-rtx-play.XXXXXX")
+SRS_CONF="$TEST_DIR/srs.conf"
+SRS_LOG="$TEST_DIR/srs.log"
+SRS_PID_FILE="$TEST_DIR/srs.pid"
+FFMPEG_LOG="$TEST_DIR/ffmpeg.log"
+TOOL_LOG="$TEST_DIR/pion-whep.log"
+BUILD_LOG="$TEST_DIR/build.log"
+SRS_PID=""
+FFMPEG_PID=""
+TOOL_PID=""
+TEST_PASSED=0
+
+cleanup() {
+  echo ""
+  echo "=== Cleaning up ==="
+  for pid in $TOOL_PID $FFMPEG_PID $SRS_PID; do
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null || true
+      for _ in {1..20}; do
+        if ! kill -0 "$pid" 2>/dev/null; then
+          break
+        fi
+        sleep 0.1
+      done
+    fi
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    if [[ -n "$pid" ]]; then
+      wait "$pid" 2>/dev/null || true
+    fi
+  done
+
+  if [[ "$TEST_PASSED" == "1" ]]; then
+    rm -rf "$TEST_DIR"
+  else
+    echo "Logs kept for review:" >&2
+    echo "  SRS:       $SRS_LOG" >&2
+    echo "  FFmpeg:    $FFMPEG_LOG" >&2
+    echo "  pion-whep: $TOOL_LOG" >&2
+  fi
+  echo "Cleanup done."
+}
+trap cleanup EXIT
+
+# The tool prints the SDP it sent and received at -loglevel debug, with CRLF.
+tool_offer() {
+  sed -n '/^Offer SDP:/,/^Input #0/p' "$TOOL_LOG" | tr -d '\r'
+}
+tool_answer() {
+  sed -n '/^Answer SDP:/,/^Session URL:/p' "$TOOL_LOG" | tr -d '\r'
+}
+video_section() {
+  awk '/^m=video/ { on = 1 } /^m=audio/ { on = 0 } on'
+}
+
+# Print the SRS counters and NACK lines that explain a failure.
+dump_evidence() {
+  echo "--- SRS RTC counters ---" >&2
+  grep -a "RTC: Server conns=" "$SRS_LOG" | tail -6 >&2 || true
+  echo "--- SRS NACK simulator drops ---" >&2
+  grep -a "NACK simulator" "$SRS_LOG" | tail -8 >&2 || true
+  echo "--- SRS NACK detail logs ---" >&2
+  grep -a "NACK: received\|NACK: resend\|NACK: miss" "$SRS_LOG" | tail -8 >&2 || true
+  echo "--- pion-whep NACK and recovery ---" >&2
+  grep -a "NACK sent\|Recovered " "$TOOL_LOG" | tail -8 >&2 || true
+}
+
+echo "=== E2E WebRTC RTX Play Test ==="
+echo "Workspace: $WORKSPACE"
+echo "Stream:    $STREAM_URL"
+echo "Drop:      $DROP packets, wait up to ${WAIT}s for the recovery"
+echo ""
+
+for tool in curl jq make go; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "Error: $tool is required" >&2
+    exit 1
+  fi
+done
+if [[ ! -f "$SOURCE_FLV" ]]; then
+  echo "Error: test source not found: $SOURCE_FLV" >&2
+  exit 1
+fi
+
+# WHIP needs an ffmpeg with the whip muxer, see proxy-e2e-whip-test.sh.
+ffmpeg_has_whip() {
+  local bin="$1"
+  [[ -x "$bin" ]] && "$bin" -hide_banner -muxers 2>/dev/null | grep -qw whip
+}
+FFMPEG_BIN=""
+for candidate in "$(command -v ffmpeg || true)" "$HOME/.local/bin/ffmpeg"; do
+  if [[ -n "$candidate" ]] && ffmpeg_has_whip "$candidate"; then
+    FFMPEG_BIN="$candidate"
+    break
+  fi
+done
+if [[ -z "$FFMPEG_BIN" ]]; then
+  echo "Error: no ffmpeg with the whip muxer on PATH or in ~/.local/bin." >&2
+  echo "       Build one with: bash $SCRIPT_DIR/setup-ffmpeg-with-whip.sh" >&2
+  exit 1
+fi
+echo "ffmpeg: $FFMPEG_BIN"
+
+# The NACK API /rtc/v1/nack/ is compiled only with --simulator=on, which every
+# E2E script here passes to configure, so an existing binary is reused as is.
+srs_has_simulator() {
+  [[ -x "$SRS_BINARY" ]] && grep -q "^#define SRS_SIMULATOR$" "$SRS_AUTO_HEADERS" 2>/dev/null
+}
+if srs_has_simulator; then
+  echo "=== Step 1: SRS already built with the NACK simulator ==="
+else
+  echo "=== Step 1: Building SRS with the NACK simulator ==="
+  (
+    cd "$WORKSPACE/trunk"
+    ./configure --simulator=on >"$BUILD_LOG" 2>&1
+    make -s >>"$BUILD_LOG" 2>&1
+  )
+  if ! srs_has_simulator; then
+    echo "Error: SRS build did not enable the simulator, see $BUILD_LOG" >&2
+    exit 1
+  fi
+fi
+echo "SRS: $SRS_BINARY"
+
+# Rebuild the tool when its binary is missing or older than its sources.
+tool_is_stale() {
+  [[ ! -x "$TOOL_BIN" ]] || [[ -n "$(find "$TOOL_DIR" -maxdepth 1 \( -name '*.go' -o -name 'go.mod' -o -name 'go.sum' \) -newer "$TOOL_BIN")" ]]
+}
+if tool_is_stale; then
+  echo "=== Step 2: Building pion-whep ==="
+  if ! ( cd "$TOOL_DIR" && mkdir -p objs && go build -o objs/pion-whep . ) >"$BUILD_LOG" 2>&1; then
+    echo "Error: pion-whep build failed, see $BUILD_LOG" >&2
+    cat "$BUILD_LOG" >&2
+    exit 1
+  fi
+else
+  echo "=== Step 2: pion-whep already built ==="
+fi
+echo "pion-whep: $TOOL_BIN"
+
+cat >"$SRS_CONF" <<CONF
+listen $RTMP_PORT;
+pid $SRS_PID_FILE;
+max_connections 1000;
+daemon off;
+srs_log_tank console;
+
+http_api {
+  enabled on;
+  listen $HTTP_API_PORT;
+}
+
+rtc_server {
+  enabled on;
+  listen $RTC_PORT;
+  candidate 127.0.0.1;
+}
+
+vhost __defaultVhost__ {
+  rtc {
+    enabled on;
+    nack_prefer_rtx on;
+    rtc_to_rtmp off;
+  }
+}
+CONF
+
+echo "=== Step 3: Starting SRS with nack_prefer_rtx on ==="
+(
+  cd "$WORKSPACE/trunk"
+  exec "$SRS_BINARY" -c "$SRS_CONF" >"$SRS_LOG" 2>&1
+) &
+SRS_PID=$!
+echo "SRS PID: $SRS_PID"
+
+READY=0
+for _ in {1..50}; do
+  if curl --silent --fail "$API/api/v1/versions" >/dev/null; then
+    READY=1
+    break
+  fi
+  if ! kill -0 "$SRS_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$READY" != "1" ]]; then
+  echo "FAIL: SRS did not start" >&2
+  tail -40 "$SRS_LOG" >&2
+  exit 1
+fi
+echo "SRS started: API :$HTTP_API_PORT, WebRTC udp :$RTC_PORT"
+
+echo "=== Step 4: Publishing over WHIP with FFmpeg ==="
+# WebRTC needs H.264 baseline + Opus; source.flv is H.264 High + AAC.
+"$FFMPEG_BIN" -hide_banner -loglevel warning -nostats -stream_loop -1 -re -i "$SOURCE_FLV" \
+  -c:v libx264 -profile:v baseline -level 3.1 -pix_fmt yuv420p \
+  -tune zerolatency -preset ultrafast \
+  -c:a libopus -ar 48000 -ac 2 \
+  -f whip "$WHIP_URL" >"$FFMPEG_LOG" 2>&1 &
+FFMPEG_PID=$!
+echo "FFmpeg PID: $FFMPEG_PID"
+
+ESTABLISHED=0
+for _ in {1..150}; do
+  if grep -aq "RTC: Publisher url=/$STREAM_URL established" "$SRS_LOG"; then
+    ESTABLISHED=1
+    break
+  fi
+  if ! kill -0 "$FFMPEG_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$ESTABLISHED" != "1" ]]; then
+  echo "FAIL: WHIP publisher was not established" >&2
+  tail -40 "$FFMPEG_LOG" >&2
+  exit 1
+fi
+echo "Publisher established."
+
+echo "=== Step 5: Playing over WHEP with pion-whep ==="
+# The debug log level prints the offer, the answer, the session URL and one
+# line per NACK sent and per recovery. The duration bounds the run.
+"$TOOL_BIN" -hide_banner -loglevel debug \
+  -f whep -i "$WHEP_URL" -t "$((WAIT + 20))" -f null - >"$TOOL_LOG" 2>&1 &
+TOOL_PID=$!
+echo "pion-whep PID: $TOOL_PID"
+
+ESTABLISHED=0
+for _ in {1..150}; do
+  if grep -aq "RTC: Subscriber url=/$STREAM_URL established" "$SRS_LOG" && grep -aq "^Session URL:" "$TOOL_LOG"; then
+    ESTABLISHED=1
+    break
+  fi
+  if ! kill -0 "$TOOL_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$ESTABLISHED" != "1" ]]; then
+  echo "FAIL: WHEP player was not established" >&2
+  tail -40 "$TOOL_LOG" >&2
+  exit 1
+fi
+echo "Player established."
+
+echo "=== Step 6: Checking the player's offer carries rtx ==="
+OFFER_VIDEO=$(tool_offer | video_section)
+if ! printf '%s\n' "$OFFER_VIDEO" | grep -q "^a=rtpmap:[0-9]* rtx/90000"; then
+  echo "FAIL: offer has no rtx payload, the peer is not RTX-capable" >&2
+  exit 1
+fi
+if ! printf '%s\n' "$OFFER_VIDEO" | grep -q "^a=fmtp:[0-9]* apt=[0-9]*"; then
+  echo "FAIL: offer has no apt for its rtx payload" >&2
+  exit 1
+fi
+printf '%s\n' "$OFFER_VIDEO" | grep "rtx/90000\|apt=" | head -4 | sed 's/^/  offer: /'
+echo "PASS: offer carries rtx and apt."
+
+echo "=== Step 7: Checking the SRS answer negotiates rtx with a FID group ==="
+ANSWER_VIDEO=$(tool_answer | video_section)
+if [[ -z "$ANSWER_VIDEO" ]]; then
+  echo "FAIL: no video section in the SRS answer" >&2
+  exit 1
+fi
+MEDIA_PT=$(printf '%s\n' "$ANSWER_VIDEO" | sed -n -E 's/^a=rtpmap:([0-9]+) H264\/90000$/\1/p' | head -1)
+RTX_PT=$(printf '%s\n' "$ANSWER_VIDEO" | sed -n -E 's/^a=rtpmap:([0-9]+) rtx\/90000$/\1/p' | head -1)
+if [[ -z "$MEDIA_PT" ]]; then
+  echo "FAIL: answer has no H264 payload" >&2
+  printf '%s\n' "$ANSWER_VIDEO" >&2
+  exit 1
+fi
+if [[ -z "$RTX_PT" ]]; then
+  echo "FAIL: answer has no a=rtpmap:<pt> rtx/90000, RTX was not negotiated" >&2
+  printf '%s\n' "$ANSWER_VIDEO" >&2
+  exit 1
+fi
+if ! printf '%s\n' "$ANSWER_VIDEO" | grep -q "^a=fmtp:$RTX_PT apt=$MEDIA_PT$"; then
+  echo "FAIL: answer lacks a=fmtp:$RTX_PT apt=$MEDIA_PT" >&2
+  printf '%s\n' "$ANSWER_VIDEO" >&2
+  exit 1
+fi
+# SRS sends, so the play answer declares both SSRCs and binds them by FID.
+MEDIA_SSRC=$(printf '%s\n' "$ANSWER_VIDEO" | sed -n -E 's/^a=ssrc-group:FID ([0-9]+) ([0-9]+)$/\1/p' | head -1)
+RTX_SSRC=$(printf '%s\n' "$ANSWER_VIDEO" | sed -n -E 's/^a=ssrc-group:FID ([0-9]+) ([0-9]+)$/\2/p' | head -1)
+if [[ -z "$MEDIA_SSRC" || -z "$RTX_SSRC" ]]; then
+  echo "FAIL: answer has no a=ssrc-group:FID" >&2
+  printf '%s\n' "$ANSWER_VIDEO" >&2
+  exit 1
+fi
+for ssrc in "$MEDIA_SSRC" "$RTX_SSRC"; do
+  if ! printf '%s\n' "$ANSWER_VIDEO" | grep -q "^a=ssrc:$ssrc cname:"; then
+    echo "FAIL: answer has no a=ssrc:$ssrc cname: for a FID member" >&2
+    printf '%s\n' "$ANSWER_VIDEO" >&2
+    exit 1
+  fi
+done
+printf '%s\n' "$ANSWER_VIDEO" | grep "^m=video\|rtx/90000\|apt=\|ssrc-group:FID" | sed 's/^/  answer: /'
+echo "PASS: answer negotiates rtx pt=$RTX_PT for H264 pt=$MEDIA_PT; video ssrc=$MEDIA_SSRC, rtx ssrc=$RTX_SSRC."
+
+echo "=== Step 8: Waiting for video packets to reach the player ==="
+RECEIVED=0
+for _ in {1..100}; do
+  RECEIVED=$(grep -a "Received packets video=" "$TOOL_LOG" | tail -1 | sed -n -E 's/.*video=([0-9]+),.*/\1/p' || true)
+  if [[ -n "$RECEIVED" && "$RECEIVED" -gt 0 ]]; then
+    break
+  fi
+  sleep 0.1
+done
+if [[ -z "$RECEIVED" || "$RECEIVED" -le 0 ]]; then
+  echo "FAIL: the player received no video packet" >&2
+  tail -20 "$TOOL_LOG" >&2
+  exit 1
+fi
+# pion binds the RTX SSRC of the FID group as the repair stream of the video track.
+if ! grep -aq "Stream #0:[0-9]*: Video: .*ssrc=$MEDIA_SSRC, .*rtx ssrc=$RTX_SSRC$" "$TOOL_LOG"; then
+  echo "FAIL: the player did not bind rtx ssrc=$RTX_SSRC to the video track ssrc=$MEDIA_SSRC" >&2
+  grep -a "Stream #0:" "$TOOL_LOG" >&2 || true
+  exit 1
+fi
+echo "Video packets received: $RECEIVED, repair stream bound to rtx ssrc=$RTX_SSRC"
+
+echo "=== Step 9: Dropping $DROP sent packets through the NACK simulator ==="
+USERNAME=$(grep -a -m1 "^Session URL:" "$TOOL_LOG" | sed -E 's/.*[?&]session=([^ &]*).*/\1/' || true)
+if [[ -z "$USERNAME" ]]; then
+  echo "FAIL: session username not found in the pion-whep log" >&2
+  exit 1
+fi
+echo "Session username: $USERNAME"
+# SRS reads the query verbatim, without percent-decoding, so the username stays literal.
+NACK_RESPONSE=$(curl --silent --show-error "$API/rtc/v1/nack/?username=$USERNAME&drop=$DROP")
+echo "NACK API response: $NACK_RESPONSE"
+if [[ "$(printf '%s' "$NACK_RESPONSE" | jq -r '.code')" != "0" ]]; then
+  echo "FAIL: NACK API refused the drop request" >&2
+  exit 1
+fi
+
+sleep 2
+VIDEO_DROPS=$(grep -ac "NACK simulator #.* player drop seq=[0-9]*, ssrc=$MEDIA_SSRC," "$SRS_LOG" || true)
+if [[ "$VIDEO_DROPS" -le 0 ]]; then
+  echo "FAIL: the simulator dropped no video packet, raise SRS_RTX_DROP" >&2
+  dump_evidence
+  exit 1
+fi
+echo "Video packets dropped: $VIDEO_DROPS"
+
+echo "=== Step 10: Waiting for an RTX retransmission to be recovered (up to ${WAIT}s) ==="
+# The simulator build logs every NACK received and every resend, so the chain
+# is verified packet by packet: the player asks for a sequence on the video
+# SSRC, SRS resends it on the RTX SSRC with the RTX payload type and that
+# sequence as osn, and the tool recovers the same osn from the RTX SSRC. A
+# plain answer would show "NACK: resend plain" on the media SSRC instead.
+received_seqs() {
+  grep -a "NACK: received ssrc=$MEDIA_SSRC, seqs=\[" "$SRS_LOG" \
+    | sed -E 's/.*seqs=\[([0-9,]*)\].*/\1/' | tr ',' '\n' | sort -u || true
+}
+RESENT=0
+RECOVERED=0
+for _ in $(seq 1 "$WAIT"); do
+  RESENT=0
+  RECOVERED=0
+  for seq in $(received_seqs); do
+    if grep -aq "NACK: resend RTX seq=[0-9]*, ssrc=$RTX_SSRC, pt=$RTX_PT, osn=$seq, media ssrc=$MEDIA_SSRC, pt=$MEDIA_PT," "$SRS_LOG"; then
+      RESENT=$((RESENT + 1))
+      if grep -aq "Recovered RTX seq=[0-9]*, ssrc=$RTX_SSRC, pt=$RTX_PT, osn=$seq$" "$TOOL_LOG"; then
+        RECOVERED=$((RECOVERED + 1))
+      fi
+    fi
+  done
+  if [[ "$RECOVERED" -gt 0 ]]; then
+    break
+  fi
+  sleep 1
+done
+
+RECEIVED_NACKS=$(grep -ac "NACK: received ssrc=$MEDIA_SSRC, seqs=\[" "$SRS_LOG" || true)
+RTX_IGNORED=$(grep -ac "NACK: received ssrc=$RTX_SSRC is RTX, ignored" "$SRS_LOG" || true)
+PLAIN_RESENDS=$(grep -ac "NACK: resend plain seq=" "$SRS_LOG" || true)
+TOOL_NACKS=$(grep -ac "NACK sent ssrc=$MEDIA_SSRC, seqs=\[" "$TOOL_LOG" || true)
+TOOL_PLAIN=$(grep -ac "Recovered plain seq=" "$TOOL_LOG" || true)
+echo "SRS NACKs received: $RECEIVED_NACKS, sequences resent as RTX: $RESENT, recovered by the tool: $RECOVERED, plain resends: $PLAIN_RESENDS, NACKs to the RTX SSRC: $RTX_IGNORED"
+echo "pion-whep NACKs sent: $TOOL_NACKS, plain recoveries: $TOOL_PLAIN"
+
+if [[ "$RECOVERED" -le 0 ]]; then
+  if [[ "$TOOL_NACKS" -le 0 ]]; then
+    echo "FAIL: the player sent no NACK after the drops" >&2
+  elif [[ "$RECEIVED_NACKS" -le 0 ]]; then
+    echo "FAIL: the player sent a NACK but SRS received none for ssrc=$MEDIA_SSRC" >&2
+  elif [[ "$RESENT" -le 0 ]]; then
+    echo "FAIL: SRS received a NACK but resent none of its sequences as RTX" >&2
+  else
+    echo "FAIL: SRS resent RTX packets but the player recovered none of them" >&2
+  fi
+  dump_evidence
+  exit 1
+fi
+if [[ "$PLAIN_RESENDS" -gt 0 || "$TOOL_PLAIN" -gt 0 ]]; then
+  echo "FAIL: a plain retransmission was used although the answer negotiated RTX" >&2
+  dump_evidence
+  exit 1
+fi
+if [[ "$RTX_IGNORED" -gt 0 ]]; then
+  echo "FAIL: the player sent a NACK for the RTX SSRC" >&2
+  dump_evidence
+  exit 1
+fi
+grep -a "NACK: received ssrc=$MEDIA_SSRC,\|NACK: resend RTX seq=" "$SRS_LOG" | head -3 | sed 's/^/  srs: /' || true
+grep -a "NACK sent ssrc=$MEDIA_SSRC,\|Recovered RTX seq=" "$TOOL_LOG" | head -3 | sed 's/^/  pion-whep: /' || true
+echo "PASS: a NACK was answered by an RTX resend on the RTX SSRC and recovered by the player."
+
+TEST_PASSED=1
+echo ""
+echo "=== E2E WebRTC RTX Play Test PASSED ==="

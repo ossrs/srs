@@ -193,7 +193,7 @@ echo "Proxy built: $WORKSPACE/bin/srs-proxy"
 if [[ ! -f "$SRS_BINARY" ]]; then
   echo "=== Step 2: Building SRS origins ==="
   cd "$WORKSPACE/trunk"
-  ./configure && make 2>&1 | tail -3
+  ./configure --simulator=on && make 2>&1 | tail -3
   echo "SRS origins built: $SRS_BINARY"
 else
   echo "=== Step 2: SRS origins already built ==="

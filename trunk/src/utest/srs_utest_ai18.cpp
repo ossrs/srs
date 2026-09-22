@@ -2519,7 +2519,7 @@ srs_error_t MockRtcConnectionForUpdateSessions::on_dtls_alert(std::string type, 
     return srs_success;
 }
 
-srs_error_t MockRtcConnectionForUpdateSessions::on_rtp_cipher(char *data, int nb_data)
+srs_error_t MockRtcConnectionForUpdateSessions::on_rtp_cipher(char *data, int nb_data, bool *dropped)
 {
     return srs_success;
 }

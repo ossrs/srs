@@ -151,7 +151,7 @@ make -s
 echo "=== Step 2: Building SRS origin ==="
 cd "$WORKSPACE/trunk"
 if [[ ! -f objs/Makefile ]]; then
-  ./configure
+  ./configure --simulator=on
 fi
 make -s
 

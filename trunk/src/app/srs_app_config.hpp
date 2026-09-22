@@ -488,6 +488,7 @@ public:
 public:
     virtual bool get_rtc_nack_enabled(std::string vhost) = 0;
     virtual bool get_rtc_nack_no_copy(std::string vhost) = 0;
+    virtual bool get_rtc_nack_prefer_rtx(std::string vhost) = 0;
     virtual bool get_realtime_enabled(std::string vhost, bool is_rtc) = 0;
     virtual int get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc) = 0;
     virtual SrsConfDirective *get_vhost_on_unpublish(std::string vhost) = 0;
@@ -928,6 +929,7 @@ public:
     srs_utime_t get_rtc_pli_for_rtmp(std::string vhost);
     bool get_rtc_nack_enabled(std::string vhost);
     bool get_rtc_nack_no_copy(std::string vhost);
+    bool get_rtc_nack_prefer_rtx(std::string vhost);
     bool get_rtc_twcc_enabled(std::string vhost);
     int get_rtc_opus_bitrate(std::string vhost);
     int get_rtc_aac_bitrate(std::string vhost);

@@ -73,3 +73,55 @@ for (const testCase of cases) {
     assert.equal(buildDefaultFlvUrl(testCase.page), testCase.expected, testCase.name);
     console.log(`PASS: ${testCase.name}`);
 }
+
+// The NACK drop simulator link on the WHIP, WHEP, RTC and GB28181 pages is keyed by the session id that
+// srs.sdk.js builds from the two ICE ufrags. SRS keys a session by its own ufrag first, see the username
+// built in SrsRtcConnection, so the id is the answer ufrag, then the offer ufrag, with no line ending.
+const sdkSource = fs.readFileSync(path.join(playerJs, 'srs.sdk.js'), 'utf8');
+
+function parseSessionId(offerSdp, answerSdp) {
+    const context = {
+        console,
+        document: {
+            createElement: () => {
+                const anchor = {};
+                Object.defineProperty(anchor, 'href', {
+                    set(value) {
+                        const parsed = new URL(value);
+                        anchor.protocol = parsed.protocol;
+                        anchor.host = parsed.host;
+                    },
+                });
+                return anchor;
+            },
+        },
+        RTCPeerConnection: function () {},
+        MediaStream: function () {},
+    };
+
+    vm.createContext(context);
+    vm.runInContext(sdkSource, context);
+
+    const sdk = context.SrsRtcWhipWhepAsync();
+    return sdk.__internal.parseId('http://localhost:1985/rtc/v1/whip/', offerSdp, answerSdp).sessionid;
+}
+
+const sessionCases = [
+    {
+        name: 'builds the session id as the answer ufrag then the offer ufrag',
+        offer: 'v=0\r\na=ice-ufrag:CYFt\r\na=ice-pwd:offerpwd\r\n',
+        answer: 'v=0\r\na=ice-ufrag:688p38a5\r\na=ice-pwd:answerpwd\r\n',
+        expected: '688p38a5:CYFt',
+    },
+    {
+        name: 'builds the session id when the SDP carries no carriage returns',
+        offer: 'v=0\na=ice-ufrag:CYFt\na=ice-pwd:offerpwd\n',
+        answer: 'v=0\na=ice-ufrag:688p38a5\na=ice-pwd:answerpwd\n',
+        expected: '688p38a5:CYFt',
+    },
+];
+
+for (const testCase of sessionCases) {
+    assert.equal(parseSessionId(testCase.offer, testCase.answer), testCase.expected, testCase.name);
+    console.log(`PASS: ${testCase.name}`);
+}

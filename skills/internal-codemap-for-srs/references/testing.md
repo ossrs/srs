@@ -7,9 +7,9 @@ Use this reference after `skills/internal-codemap-for-srs/SKILL.md` determines t
 `trunk/src/utest/` — Unit tests for internal functions, classes, parsers, codecs, and configuration without starting SRS. Links directly against SRS source and uses mocks such as `MockSrsConfig`.
 
 - Build and run: `cd trunk && ./configure --utest && make utest && ./objs/srs_utest`
-- `srs_utest_ai01`–`ai24` — AI-written tests
-- `srs_utest_manual_*` — Manually written tests
-- `srs_utest_workflow_*` — Workflow and integration tests
+- `srs_utest_ai01`–`ai27` — AI-written unit tests; a new AI unit test goes into one of these or a new `srs_utest_aiNN`
+- `srs_utest_manual_*` — Manually written tests, defined and implemented by humans; AI never adds a test to them
+- `srs_utest_workflow_*` — Workflow and integration tests, AI-maintained like `srs_utest_ai*`
 
 `trunk/3rdparty/srs-bench/blackbox/` — Black-box tests against a self-managed SRS process. Each test starts SRS with `NewSRSServer()`, uses FFmpeg or FFprobe to publish and play, verifies output, and manages the server lifecycle.
 

@@ -539,6 +539,87 @@ VOID TEST(ConfigRtcTest, CheckRtcNackNoCopy)
     }
 }
 
+VOID TEST(ConfigRtcTest, CheckRtcNackPreferRtx)
+{
+    srs_error_t err;
+
+    // Default off.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("__defaultVhost__"));
+        EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com"));
+    }
+
+    // Default when vhost exists but no rtc section.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
+
+        EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com"));
+    }
+
+    // Default when rtc section exists but no nack_prefer_rtx config.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{enabled on;}}"));
+
+        EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com"));
+    }
+
+    // The directive must pass the vhost.rtc whitelist in check_normal_config.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{nack_prefer_rtx on;}}"));
+    }
+
+    // Test default value when nack_prefer_rtx has empty argument
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{nack_prefer_rtx;}}"));
+
+        EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com"));
+    }
+
+    // Test explicit nack_prefer_rtx enabled
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{nack_prefer_rtx on;}}"));
+
+        EXPECT_TRUE(conf.get_rtc_nack_prefer_rtx("test.com"));
+    }
+
+    // Test explicit nack_prefer_rtx disabled
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{nack_prefer_rtx off;}}"));
+
+        EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com"));
+    }
+
+    // Test various boolean values (SRS_CONF_PREFER_FALSE: only "on" is true, as for stun_strict_check)
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{nack_prefer_rtx true;}}"));
+        EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com")); // "true" != "on", so it's false
+
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{nack_prefer_rtx yes;}}"));
+        EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com")); // "yes" != "on", so it's false
+    }
+}
+
+VOID TEST(ConfigRtcTest, CheckRtcNackPreferRtxEnvironmentVariable)
+{
+    if (true) {
+        MockSrsConfig conf;
+
+        // The env overrides an absent directive.
+        SrsSetEnvConfig(conf, rtc_nack_prefer_rtx, "SRS_VHOST_RTC_NACK_PREFER_RTX", "on");
+        EXPECT_TRUE(conf.get_rtc_nack_prefer_rtx("__defaultVhost__"));
+    }
+}
+
 VOID TEST(ConfigRtcTest, CheckRtcTwccEnabled)
 {
     srs_error_t err;

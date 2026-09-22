@@ -492,10 +492,10 @@ void SrsRtcSessionManager::srs_update_rtc_sessions()
     SrsKbsRtcStats stats;
     srs_global_rtc_update(&stats);
 
-    srs_trace("RTC: Server conns=%u%s%s%s%s%s%s%s",
+    srs_trace("RTC: Server conns=%u%s%s%s%s%s%s%s%s",
               nn_rtc_conns,
               stats.rpkts_desc_.c_str(), stats.spkts_desc_.c_str(), stats.rtcp_desc_.c_str(), stats.snk_desc_.c_str(),
-              stats.rnk_desc_.c_str(), loss_desc.c_str(), stats.fid_desc_.c_str());
+              stats.rnk_desc_.c_str(), stats.rtx_desc_.c_str(), loss_desc.c_str(), stats.fid_desc_.c_str());
 }
 
 // LCOV_EXCL_START

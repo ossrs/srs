@@ -42,6 +42,8 @@ type rtpInterceptor struct {
 	// If rtpReader is nil, use the default next one to read.
 	rtpReader     interceptor.RTPReaderFunc
 	nextRTPReader interceptor.RTPReader
+	// The options that installed the hooks, re-applied for each remote stream so its hooks bind to that stream.
+	options []rtpInterceptorOptionFunc
 	// If rtpWriter is nil, use the default next one to write.
 	rtpWriter     interceptor.RTPWriterFunc
 	nextRTPWriter interceptor.RTPWriter
@@ -50,7 +52,7 @@ type rtpInterceptor struct {
 }
 
 func newRTPInterceptor(options ...rtpInterceptorOptionFunc) *rtpInteceptorFactory {
-	v := &rtpInterceptor{}
+	v := &rtpInterceptor{options: options}
 	for _, opt := range options {
 		opt(v)
 	}
@@ -73,8 +75,15 @@ func (v *rtpInterceptor) UnbindLocalStream(info *interceptor.StreamInfo) {
 }
 
 func (v *rtpInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
-	v.nextRTPReader = reader
-	return v // Handle all RTP
+	// Each remote stream gets its own interceptor with its own next reader. With RFC 4588 RTX negotiated, pion binds
+	// the repair stream as a stream of its own, and one next reader shared by every stream would make them all read
+	// from the stream bound last, the repair stream, which carries nothing without loss.
+	p := &rtpInterceptor{options: v.options}
+	for _, opt := range v.options {
+		opt(p)
+	}
+	p.nextRTPReader = reader
+	return p // Handle all RTP of this stream
 }
 
 func (v *rtpInterceptor) Read(b []byte, a interceptor.Attributes) (int, interceptor.Attributes, error) {

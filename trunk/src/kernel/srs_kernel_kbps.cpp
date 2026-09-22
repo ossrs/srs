@@ -265,6 +265,11 @@ srs_error_t srs_global_kbps_initialize()
     _srs_pps_rhnack = new SrsPps();
     _srs_pps_rmnack = new SrsPps();
 
+    _srs_pps_srtx = new SrsPps();
+    _srs_pps_rrtx = new SrsPps();
+    _srs_pps_rrtx_unwrap = new SrsPps();
+    _srs_pps_rrtx_padding = new SrsPps();
+
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
     _srs_pps_recvfrom = new SrsPps();
     _srs_pps_recvfrom_eagain = new SrsPps();
@@ -543,6 +548,15 @@ void srs_global_rtc_update(SrsKbsRtcStats *stats)
     if (_srs_pps_rnack->r10s() || _srs_pps_rnack2->r10s() || _srs_pps_rhnack->r10s() || _srs_pps_rmnack->r10s()) {
         snprintf(buf, sizeof(buf), ", rnk=(%d,%d,h:%d,m:%d)", _srs_pps_rnack->r10s(), _srs_pps_rnack2->r10s(), _srs_pps_rhnack->r10s(), _srs_pps_rmnack->r10s());
         rnk_desc = buf;
+    }
+
+    // The RTX group prints cumulative totals since server start, not a 10s rate like its neighbors: retransmissions are
+    // rare events whose rate rounds to the clamp of 1, while the total matches the detail NACK logs line for line and
+    // stays on every later line once RTX has happened. A print never resets it.
+    string &rtx_desc = stats->rtx_desc_;
+    if (_srs_pps_srtx->sugar_ || _srs_pps_rrtx->sugar_ || _srs_pps_rrtx_unwrap->sugar_ || _srs_pps_rrtx_padding->sugar_) {
+        snprintf(buf, sizeof(buf), ", rtx=(s:%" PRId64 ",r:%" PRId64 ",u:%" PRId64 ",p:%" PRId64 ")", _srs_pps_srtx->sugar_, _srs_pps_rrtx->sugar_, _srs_pps_rrtx_unwrap->sugar_, _srs_pps_rrtx_padding->sugar_);
+        rtx_desc = buf;
     }
 
     string &fid_desc = stats->fid_desc_;

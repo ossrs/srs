@@ -155,7 +155,7 @@ public:
     // ISrsRtcConnection interface
     virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
-    virtual srs_error_t on_rtp_cipher(char *data, int nb_data);
+    virtual srs_error_t on_rtp_cipher(char *data, int nb_data, bool *dropped);
     virtual srs_error_t on_rtp_plaintext(char *data, int nb_data);
     virtual srs_error_t on_rtcp(char *data, int nb_data);
     virtual srs_error_t on_binding_request(SrsStunPacket *r, std::string &ice_pwd);
@@ -418,7 +418,7 @@ public:
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
     virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_application_data(const char *data, const int len);
-    virtual srs_error_t on_rtp_cipher(char *data, int nb_data);
+    virtual srs_error_t on_rtp_cipher(char *data, int nb_data, bool *dropped);
     virtual srs_error_t on_rtp_plaintext(char *buf, int nb_buf);
     virtual srs_error_t on_rtcp(char *buf, int nb_buf);
     virtual srs_error_t on_binding_request(SrsStunPacket *r, std::string &ice_pwd);
@@ -741,7 +741,7 @@ public:
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
     virtual srs_error_t on_dtls_handshake_done();
     virtual srs_error_t on_dtls_application_data(const char *data, const int len);
-    virtual srs_error_t on_rtp_cipher(char *data, int nb_data);
+    virtual srs_error_t on_rtp_cipher(char *data, int nb_data, bool *dropped);
     virtual srs_error_t on_rtp_plaintext(char *buf, int nb_buf);
     virtual srs_error_t on_rtcp(char *buf, int nb_buf);
     virtual srs_error_t on_binding_request(SrsStunPacket *r, std::string &ice_pwd);

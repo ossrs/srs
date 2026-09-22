@@ -180,6 +180,15 @@ public:
     int on_rtp_count_;
     int rtp_audio_count_;
     int rtp_video_count_;
+    // The header of the last packet that reached the source, to check what a retransmission restored.
+    uint32_t last_rtp_ssrc_;
+    uint16_t last_rtp_seq_;
+    uint8_t last_rtp_pt_;
+    uint32_t last_rtp_timestamp_;
+    bool last_rtp_marker_;
+    uint8_t last_rtp_padding_;
+    // The payload bytes of that packet, encoded back from its payloader.
+    std::string last_rtp_payload_;
 
 public:
     MockRtcSource();
@@ -209,6 +218,29 @@ public:
     void set_fetch_or_create_error(srs_error_t err);
 };
 
+
+// Mock SSRC generator for testing, returning consecutive known values so a test can tell which allocation went where.
+class MockRtcSSRCGenerator : public ISrsRtcSSRCGenerator
+{
+public:
+    uint32_t next_;
+    int count_;
+
+public:
+    MockRtcSSRCGenerator()
+    {
+        next_ = 500001;
+        count_ = 0;
+    }
+    virtual ~MockRtcSSRCGenerator()
+    {
+    }
+    virtual uint32_t generate_ssrc()
+    {
+        count_++;
+        return next_++;
+    }
+};
 // Mock statistic for testing
 class MockAppStatistic : public ISrsStatistic
 {
@@ -272,6 +304,8 @@ public:
     srs_error_t send_packet_error_;
     int send_packet_count_;
     SrsRtpPacket *last_sent_packet_;
+    // Each sent packet encoded at send time, because a retransmission may be a temporary that is freed after the call.
+    std::vector<std::string> sent_packets_;
 
 public:
     MockRtcPacketSender();
@@ -280,6 +314,30 @@ public:
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket *pkt);
     void set_send_packet_error(srs_error_t err);
+};
+
+// Mock ISrsLog that records every formatted line while it is alive: it replaces the global log in the constructor and
+// restores it in the destructor, so a test asserts the NACK and RTX detail logs of the simulator build.
+class MockLogForNack : public ISrsLog
+{
+public:
+    ISrsLog *previous_;
+    std::vector<std::string> lines_;
+
+public:
+    MockLogForNack();
+    virtual ~MockLogForNack();
+
+public:
+    virtual srs_error_t initialize();
+    virtual void reopen();
+    virtual void log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args);
+
+public:
+    // The number of recorded lines that contain needle.
+    int count(const std::string &needle);
+    // The first recorded line that contains needle, or an empty string.
+    std::string find(const std::string &needle);
 };
 
 // Mock RTC format for testing
@@ -312,6 +370,7 @@ public:
     SrsConfDirective *on_hls_directive_;
     bool rtc_nack_enabled_;
     bool rtc_nack_no_copy_;
+    bool rtc_nack_prefer_rtx_;
     int rtc_drop_for_pt_;
     bool rtc_twcc_enabled_;
     bool srt_enabled_;
@@ -345,6 +404,7 @@ public:
         on_hls_directive_ = NULL;
         rtc_nack_enabled_ = true;
         rtc_nack_no_copy_ = false;
+        rtc_nack_prefer_rtx_ = false;
         rtc_drop_for_pt_ = 0;
         rtc_twcc_enabled_ = true;
         srt_enabled_ = false;
@@ -542,6 +602,7 @@ public:
     virtual SrsConfDirective *get_vhost_on_dvr(std::string vhost) { return NULL; }
     virtual bool get_rtc_nack_enabled(std::string vhost) { return rtc_nack_enabled_; }
     virtual bool get_rtc_nack_no_copy(std::string vhost) { return rtc_nack_no_copy_; }
+    virtual bool get_rtc_nack_prefer_rtx(std::string vhost) { return rtc_nack_prefer_rtx_; }
     virtual bool get_realtime_enabled(std::string vhost, bool is_rtc) { return true; }
     virtual int get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc) { return mw_msgs_; }
     virtual int get_rtc_drop_for_pt(std::string vhost) { return rtc_drop_for_pt_; }
@@ -702,6 +763,7 @@ public:
     void clear_on_unpublish_directive() { srs_freep(on_unpublish_directive_); }
     void set_rtc_nack_enabled(bool enabled) { rtc_nack_enabled_ = enabled; }
     void set_rtc_nack_no_copy(bool no_copy) { rtc_nack_no_copy_ = no_copy; }
+    void set_rtc_nack_prefer_rtx(bool prefer) { rtc_nack_prefer_rtx_ = prefer; }
     void set_rtc_drop_for_pt(int pt) { rtc_drop_for_pt_ = pt; }
     void set_rtc_twcc_enabled(bool enabled) { rtc_twcc_enabled_ = enabled; }
     void set_srt_enabled(bool enabled) { srt_enabled_ = enabled; }

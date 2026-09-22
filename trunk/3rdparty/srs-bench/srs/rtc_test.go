@@ -41,6 +41,8 @@ import (
 	"github.com/ossrs/go-oryx-lib/flv"
 	"github.com/ossrs/go-oryx-lib/logger"
 	"github.com/pion/interceptor"
+	"github.com/pion/interceptor/pkg/nack"
+	"github.com/pion/interceptor/pkg/report"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 )
@@ -2561,6 +2563,789 @@ func TestRtcPublish_HttpFlvPlay_HEVC(t *testing.T) {
 
 				if audioPacketsOK, videoPacketsOK := hasAudio && nnAudio >= 10, hasVideo && nnVideo >= 10; audioPacketsOK && videoPacketsOK && hevcDetected {
 					logger.Tf(ctx, "HEVC Flv recv %v/%v audio, %v/%v video, hevc detected=%v", hasAudio, nnAudio, hasVideo, nnVideo, hevcDetected)
+					cancel()
+				}
+				return nil
+			}
+			if err := player.Consume(ctx); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+	}()
+}
+
+// Return the two SSRCs of the first a=ssrc-group:FID line, or an error when the line is absent or malformed.
+func rtxFidGroupOfAnswer(sdp string) (string, string, error) {
+	for _, line := range strings.Split(sdp, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "a=ssrc-group:FID ") {
+			continue
+		}
+		fields := strings.Fields(strings.TrimPrefix(line, "a=ssrc-group:FID "))
+		if len(fields) != 2 || fields[0] == fields[1] {
+			return "", "", errors.Errorf("invalid FID group %v", line)
+		}
+		return fields[0], fields[1], nil
+	}
+	return "", "", errors.Errorf("no FID group in %v", sdp)
+}
+
+// A player that offers rtx for H.264 gets an RFC 4588 answer: the rtx payload with apt, and a FID group binding the
+// media SSRC to a second SSRC. The server runs regression-test.conf with nack_prefer_rtx on.
+func TestRtx_PlayWithRtxOffer(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1, r2, r3 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var resources []io.Closer
+	defer func() {
+		for _, resource := range resources {
+			_ = resource.Close()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// The event notify.
+	var thePublisher *testPublisher
+	var thePlayer *testPlayer
+
+	mainReady, mainReadyCancel := context.WithCancel(context.Background())
+	publishReady, publishReadyCancel := context.WithCancel(context.Background())
+
+	// Objects init.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		doInit := func() (err error) {
+			streamSuffix := fmt.Sprintf("rtx-play-%v-%v", os.Getpid(), rand.Int())
+
+			// Initialize player with private api.
+			if thePlayer, err = newTestPlayer(registerMiniCodecsWithRtx, func(play *testPlayer) error {
+				play.streamSuffix = streamSuffix
+				play.onOffer = func(s *webrtc.SessionDescription) error {
+					if !strings.Contains(s.SDP, "a=rtpmap:109 rtx/90000") || !strings.Contains(s.SDP, "a=fmtp:109 apt=108") {
+						return errors.Errorf("offer has no rtx for 108: %v", s.SDP)
+					}
+					return nil
+				}
+				play.onAnswer = func(s *webrtc.SessionDescription) error {
+					if !strings.Contains(s.SDP, "a=rtpmap:109 rtx/90000") {
+						return errors.Errorf("answer has no rtx rtpmap: %v", s.SDP)
+					}
+					if !strings.Contains(s.SDP, "a=fmtp:109 apt=108") {
+						return errors.Errorf("answer has no apt for rtx: %v", s.SDP)
+					}
+					if _, _, err := rtxFidGroupOfAnswer(s.SDP); err != nil {
+						return errors.Wrapf(err, "answer FID")
+					}
+					cancel()
+					return nil
+				}
+				resources = append(resources, play)
+				return play.Setup(*srsVnetClientIP)
+			}); err != nil {
+				return err
+			}
+
+			// Initialize publisher with private api.
+			if thePublisher, err = newTestPublisher(registerMiniCodecs, func(pub *testPublisher) error {
+				pub.streamSuffix = streamSuffix
+				pub.iceReadyCancel = publishReadyCancel
+				resources = append(resources, pub)
+				return pub.Setup(*srsVnetClientIP)
+			}); err != nil {
+				return err
+			}
+
+			// Init done.
+			mainReadyCancel()
+
+			<-ctx.Done()
+			return nil
+		}
+
+		if err := doInit(); err != nil {
+			r1 = err
+		}
+	}()
+
+	// Run publisher.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-mainReady.Done():
+			r2 = thePublisher.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "pub done")
+		}
+	}()
+
+	// Run player.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-publishReady.Done():
+			r3 = thePlayer.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "play done")
+		}
+	}()
+}
+
+// A player that does not offer rtx gets the plain answer, with no rtx payload and no FID group, even though the
+// server prefers RTX: the preference is never a requirement.
+func TestRtx_PlayWithoutRtxOffer(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1, r2, r3 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var resources []io.Closer
+	defer func() {
+		for _, resource := range resources {
+			_ = resource.Close()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// The event notify.
+	var thePublisher *testPublisher
+	var thePlayer *testPlayer
+
+	mainReady, mainReadyCancel := context.WithCancel(context.Background())
+	publishReady, publishReadyCancel := context.WithCancel(context.Background())
+
+	// Objects init.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		doInit := func() (err error) {
+			streamSuffix := fmt.Sprintf("rtx-play-plain-%v-%v", os.Getpid(), rand.Int())
+
+			// Initialize player with private api.
+			if thePlayer, err = newTestPlayer(registerMiniCodecs, func(play *testPlayer) error {
+				play.streamSuffix = streamSuffix
+				play.onOffer = func(s *webrtc.SessionDescription) error {
+					// The stream name carries "rtx", so look for the rtpmap form only.
+					if strings.Contains(s.SDP, " rtx/90000") {
+						return errors.Errorf("offer must not carry rtx: %v", s.SDP)
+					}
+					return nil
+				}
+				play.onAnswer = func(s *webrtc.SessionDescription) error {
+					if strings.Contains(s.SDP, " rtx/90000") || strings.Contains(s.SDP, "a=ssrc-group:FID") {
+						return errors.Errorf("answer must not carry rtx: %v", s.SDP)
+					}
+					if n := strings.Count(s.SDP, "nack"); n != 2 {
+						return errors.Errorf("invalid %v nack", n)
+					}
+					cancel()
+					return nil
+				}
+				resources = append(resources, play)
+				return play.Setup(*srsVnetClientIP)
+			}); err != nil {
+				return err
+			}
+
+			// Initialize publisher with private api.
+			if thePublisher, err = newTestPublisher(registerMiniCodecs, func(pub *testPublisher) error {
+				pub.streamSuffix = streamSuffix
+				pub.iceReadyCancel = publishReadyCancel
+				resources = append(resources, pub)
+				return pub.Setup(*srsVnetClientIP)
+			}); err != nil {
+				return err
+			}
+
+			// Init done.
+			mainReadyCancel()
+
+			<-ctx.Done()
+			return nil
+		}
+
+		if err := doInit(); err != nil {
+			r1 = err
+		}
+	}()
+
+	// Run publisher.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-mainReady.Done():
+			r2 = thePublisher.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "pub done")
+		}
+	}()
+
+	// Run player.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-publishReady.Done():
+			r3 = thePlayer.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "play done")
+		}
+	}()
+}
+
+// Count the RTP packets of every remote stream by SSRC. pion binds the RTX repair stream as a stream of its own, so
+// the raw RTX packets are seen here, on the RTX SSRC with the RTX payload type, before pion unwraps them.
+type rtxCountingInterceptor struct {
+	bypassInterceptor
+	onPacket func(h *rtp.Header)
+}
+
+func (v *rtxCountingInterceptor) NewInterceptor(id string) (interceptor.Interceptor, error) {
+	return v, nil
+}
+
+func (v *rtxCountingInterceptor) BindRemoteStream(info *interceptor.StreamInfo, reader interceptor.RTPReader) interceptor.RTPReader {
+	return interceptor.RTPReaderFunc(func(b []byte, a interceptor.Attributes) (int, interceptor.Attributes, error) {
+		n, attr, err := reader.Read(b, a)
+		if err == nil && n > 0 {
+			h := rtp.Header{}
+			if _, perr := h.Unmarshal(b[:n]); perr == nil {
+				v.onPacket(&h)
+			}
+		}
+		return n, attr, err
+	})
+}
+
+// With RTX negotiated, a player's NACK is answered on the RTX SSRC with the RTX payload type. A vnet chunk filter
+// drops a burst of media packets on their way to the player, pion's NACK generator asks for them, and the packets that
+// come back are counted on the RTX SSRC of the answer's FID group, before pion unwraps them. The NACK API of SRS is
+// not used: it exists only in builds with the simulator on, which the test build is not. The server runs
+// regression-test.conf with nack_prefer_rtx on.
+func TestRtx_PlayReceivesRtxOnNack(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1, r2, r3 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var resources []io.Closer
+	defer func() {
+		for _, resource := range resources {
+			_ = resource.Close()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// The event notify.
+	var thePublisher *testPublisher
+	var thePlayer *testPlayer
+
+	mainReady, mainReadyCancel := context.WithCancel(context.Background())
+	publishReady, publishReadyCancel := context.WithCancel(context.Background())
+
+	// The SSRCs of the answer's FID group, and the packets counted on each.
+	var mediaSsrc, rtxSsrc uint32
+	var nnMedia, nnRtx int
+	// The media packets the filter saw and dropped on their way to the player.
+	var nnSeen, nnDropped int
+
+	// Objects init.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		doInit := func() (err error) {
+			streamSuffix := fmt.Sprintf("rtx-nack-%v-%v", os.Getpid(), rand.Int())
+
+			generator, err := nack.NewGeneratorInterceptor()
+			if err != nil {
+				return errors.Wrapf(err, "nack generator")
+			}
+
+			counter := &rtxCountingInterceptor{}
+			counter.onPacket = func(h *rtp.Header) {
+				if rtxSsrc != 0 && h.SSRC == rtxSsrc {
+					nnRtx++
+					if h.PayloadType != 109 {
+						r0 = errors.Errorf("rtx packet pt=%v, expect 109", h.PayloadType)
+						cancel()
+					}
+					if nnRtx >= 3 {
+						logger.Tf(ctx, "got %v rtx packets after %v media packets, %v dropped", nnRtx, nnMedia, nnDropped)
+						cancel()
+					}
+					return
+				}
+				if h.SSRC != mediaSsrc {
+					return
+				}
+				nnMedia++
+				if nnMedia > 500 && nnRtx == 0 {
+					r0 = errors.Errorf("no rtx packet after %v media packets", nnMedia)
+					cancel()
+				}
+			}
+
+			// Initialize player with private api.
+			if thePlayer, err = newTestPlayer(registerMiniCodecsWithRtx, func(play *testPlayer) error {
+				play.streamSuffix = streamSuffix
+				play.onAnswer = func(s *webrtc.SessionDescription) error {
+					media, rtx, err := rtxFidGroupOfAnswer(s.SDP)
+					if err != nil {
+						return errors.Wrapf(err, "answer FID")
+					}
+					if _, err := fmt.Sscanf(media+" "+rtx, "%d %d", &mediaSsrc, &rtxSsrc); err != nil {
+						return errors.Wrapf(err, "parse FID %v %v", media, rtx)
+					}
+					return nil
+				}
+				resources = append(resources, play)
+				return play.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+					api.registry.Add(counter)
+					api.registry.Add(generator)
+
+					// Drop ten media packets to the player after the first thirty, at the vnet router, so the player
+					// NACKs them. The RTX packets that answer arrive on another SSRC and pass.
+					api.router.AddChunkFilter(func(c vnet.Chunk) bool {
+						b := c.UserData()
+						if len(b) < 12 || !srsIsRTPOrRTCP(b) || srsIsRTCP(b) {
+							return true
+						}
+						if !strings.HasPrefix(c.DestinationAddr().String(), *srsVnetClientIP) {
+							return true
+						}
+						ssrc := uint32(b[8])<<24 | uint32(b[9])<<16 | uint32(b[10])<<8 | uint32(b[11])
+						if mediaSsrc == 0 || ssrc != mediaSsrc {
+							return true
+						}
+						nnSeen++
+						if nnSeen > 30 && nnSeen <= 40 {
+							nnDropped++
+							return false
+						}
+						return true
+					})
+				})
+			}); err != nil {
+				return err
+			}
+
+			// Initialize publisher with private api.
+			if thePublisher, err = newTestPublisher(registerMiniCodecs, func(pub *testPublisher) error {
+				pub.streamSuffix = streamSuffix
+				pub.iceReadyCancel = publishReadyCancel
+				resources = append(resources, pub)
+				return pub.Setup(*srsVnetClientIP)
+			}); err != nil {
+				return err
+			}
+
+			// Init done.
+			mainReadyCancel()
+
+			<-ctx.Done()
+			return nil
+		}
+
+		if err := doInit(); err != nil {
+			r1 = err
+		}
+	}()
+
+	// Run publisher.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-mainReady.Done():
+			r2 = thePublisher.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "pub done")
+		}
+	}()
+
+	// Run player.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-publishReady.Done():
+			r3 = thePlayer.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "play done")
+		}
+	}()
+}
+
+// Send every tenth video packet as an RFC 4588 RTX packet instead of the original: the header copied onto the RTX
+// SSRC and payload type of the stream with its own sequence, the two-byte OSN, then the original payload. pion in
+// srs-bench has no RTX responder, so this is how a test publisher puts RTX packets on the wire for SRS to unwrap.
+type rtxEveryTenthInterceptor struct {
+	bypassInterceptor
+	rtxSeq  uint16
+	onRtx   func()
+	onMedia func()
+}
+
+func (v *rtxEveryTenthInterceptor) NewInterceptor(id string) (interceptor.Interceptor, error) {
+	return v, nil
+}
+
+func (v *rtxEveryTenthInterceptor) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
+	if info.SSRCRetransmission == 0 {
+		return writer
+	}
+
+	var nn int
+	return interceptor.RTPWriterFunc(func(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
+		if nn++; nn%10 != 0 {
+			v.onMedia()
+			return writer.Write(header, payload, attributes)
+		}
+
+		h := *header
+		h.SSRC = info.SSRCRetransmission
+		h.PayloadType = info.PayloadTypeRetransmission
+		h.SequenceNumber = v.rtxSeq
+		v.rtxSeq++
+
+		rtxPayload := make([]byte, 2+len(payload))
+		rtxPayload[0] = byte(header.SequenceNumber >> 8)
+		rtxPayload[1] = byte(header.SequenceNumber)
+		copy(rtxPayload[2:], payload)
+
+		v.onRtx()
+		return writer.Write(&h, rtxPayload, attributes)
+	})
+}
+
+// Publish with rtx negotiated and every tenth video packet sent only as RTX, then play the stream by HTTP-FLV. The
+// answer must advertise rtx with apt and no SSRC lines, and the FLV playback must still deliver whole video frames,
+// which it cannot unless SRS unwraps the RTX packets into the originals. The server runs regression-test.conf with
+// nack_prefer_rtx on.
+func TestRtx_PublishWithRtxOffer(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1, r2, r3 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var resources []io.Closer
+	defer func() {
+		for _, resource := range resources {
+			_ = resource.Close()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	var thePublisher *testPublisher
+	var nnRtx, nnMedia int
+
+	mainReady, mainReadyCancel := context.WithCancel(context.Background())
+	publishReady, publishReadyCancel := context.WithCancel(context.Background())
+	streamSuffix := fmt.Sprintf("rtx-publish-%v-%v", os.Getpid(), rand.Int())
+
+	// Objects init.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		doInit := func() (err error) {
+			rtx := &rtxEveryTenthInterceptor{}
+			rtx.onRtx = func() { nnRtx++ }
+			rtx.onMedia = func() { nnMedia++ }
+
+			// The bridge to RTMP needs sender reports to compute the timestamps of the FLV tags.
+			reports, err := report.NewSenderInterceptor()
+			if err != nil {
+				return errors.Wrapf(err, "sender report")
+			}
+
+			if thePublisher, err = newTestPublisher(registerMiniCodecsWithRtx, func(pub *testPublisher) error {
+				pub.streamSuffix = streamSuffix
+				pub.iceReadyCancel = publishReadyCancel
+				pub.onOffer = func(s *webrtc.SessionDescription) error {
+					if !strings.Contains(s.SDP, "a=rtpmap:109 rtx/90000") || !strings.Contains(s.SDP, "a=ssrc-group:FID ") {
+						return errors.Errorf("offer has no rtx or FID: %v", s.SDP)
+					}
+					return nil
+				}
+				pub.onAnswer = func(s *webrtc.SessionDescription) error {
+					if !strings.Contains(s.SDP, "a=rtpmap:109 rtx/90000") || !strings.Contains(s.SDP, "a=fmtp:109 apt=108") {
+						return errors.Errorf("answer has no rtx: %v", s.SDP)
+					}
+					if strings.Contains(s.SDP, "a=ssrc-group") || strings.Contains(s.SDP, "a=ssrc:") {
+						return errors.Errorf("recvonly answer must not carry ssrc lines: %v", s.SDP)
+					}
+					return nil
+				}
+				resources = append(resources, pub)
+				return pub.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+					api.registry.Add(reports)
+					api.registry.Add(rtx)
+				})
+			}); err != nil {
+				return err
+			}
+
+			// Init done.
+			mainReadyCancel()
+
+			<-ctx.Done()
+			return nil
+		}
+
+		if err := doInit(); err != nil {
+			r1 = err
+		}
+	}()
+
+	// Run publisher.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-mainReady.Done():
+			r2 = thePublisher.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "pub done, %v media and %v rtx packets", nnMedia, nnRtx)
+		}
+	}()
+
+	// Run player.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-publishReady.Done():
+		}
+
+		player := NewFLVPlayer()
+		defer player.Close()
+
+		r3 = func() error {
+			flvUrl := fmt.Sprintf("http://%v%v-%v.flv", *srsHttpServer, *srsStream, streamSuffix)
+			if err := player.Play(ctx, flvUrl); err != nil {
+				return err
+			}
+
+			var nnVideo, nnAudio int
+			var hasVideo, hasAudio bool
+			player.onRecvHeader = func(ha, hv bool) error {
+				hasAudio, hasVideo = ha, hv
+				return nil
+			}
+			player.onRecvTag = func(tagType flv.TagType, size, timestamp uint32, tag []byte) error {
+				if tagType == flv.TagTypeAudio {
+					nnAudio++
+				} else if tagType == flv.TagTypeVideo {
+					nnVideo++
+				}
+
+				// Enough frames only after RTX packets were sent, so recovered frames are among them.
+				if hasAudio && nnAudio >= 10 && hasVideo && nnVideo >= 30 && nnRtx >= 3 {
+					logger.Tf(ctx, "Flv recv %v audio, %v video, after %v rtx of %v media packets", nnAudio, nnVideo, nnRtx, nnMedia)
+					cancel()
+				}
+				return nil
+			}
+			if err := player.Consume(ctx); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+	}()
+}
+
+// A publisher that offers no rtx gets the plain answer although the server prefers RTX, and the stream still plays.
+func TestRtx_PublishWithoutRtxOffer(t *testing.T) {
+	ctx := logger.WithContext(context.Background())
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
+
+	var r0, r1, r2, r3 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	var resources []io.Closer
+	defer func() {
+		for _, resource := range resources {
+			_ = resource.Close()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	var thePublisher *testPublisher
+
+	mainReady, mainReadyCancel := context.WithCancel(context.Background())
+	publishReady, publishReadyCancel := context.WithCancel(context.Background())
+	streamSuffix := fmt.Sprintf("rtx-publish-plain-%v-%v", os.Getpid(), rand.Int())
+
+	// Objects init.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		doInit := func() (err error) {
+			// The bridge to RTMP needs sender reports to compute the timestamps of the FLV tags.
+			reports, err := report.NewSenderInterceptor()
+			if err != nil {
+				return errors.Wrapf(err, "sender report")
+			}
+
+			if thePublisher, err = newTestPublisher(registerMiniCodecs, func(pub *testPublisher) error {
+				pub.streamSuffix = streamSuffix
+				pub.iceReadyCancel = publishReadyCancel
+				pub.onAnswer = func(s *webrtc.SessionDescription) error {
+					// The stream name carries "rtx", so look for the rtpmap form only.
+					if strings.Contains(s.SDP, " rtx/90000") {
+						return errors.Errorf("answer must not carry rtx: %v", s.SDP)
+					}
+					return nil
+				}
+				resources = append(resources, pub)
+				return pub.Setup(*srsVnetClientIP, func(api *testWebRTCAPI) {
+					api.registry.Add(reports)
+				})
+			}); err != nil {
+				return err
+			}
+
+			// Init done.
+			mainReadyCancel()
+
+			<-ctx.Done()
+			return nil
+		}
+
+		if err := doInit(); err != nil {
+			r1 = err
+		}
+	}()
+
+	// Run publisher.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+		case <-mainReady.Done():
+			r2 = thePublisher.Run(logger.WithContext(ctx), cancel)
+			logger.Tf(ctx, "pub done")
+		}
+	}()
+
+	// Run player.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-publishReady.Done():
+		}
+
+		player := NewFLVPlayer()
+		defer player.Close()
+
+		r3 = func() error {
+			flvUrl := fmt.Sprintf("http://%v%v-%v.flv", *srsHttpServer, *srsStream, streamSuffix)
+			if err := player.Play(ctx, flvUrl); err != nil {
+				return err
+			}
+
+			var nnVideo, nnAudio int
+			var hasVideo, hasAudio bool
+			player.onRecvHeader = func(ha, hv bool) error {
+				hasAudio, hasVideo = ha, hv
+				return nil
+			}
+			player.onRecvTag = func(tagType flv.TagType, size, timestamp uint32, tag []byte) error {
+				if tagType == flv.TagTypeAudio {
+					nnAudio++
+				} else if tagType == flv.TagTypeVideo {
+					nnVideo++
+				}
+				if hasAudio && nnAudio >= 10 && hasVideo && nnVideo >= 10 {
+					logger.Tf(ctx, "Flv recv %v audio, %v video", nnAudio, nnVideo)
 					cancel()
 				}
 				return nil

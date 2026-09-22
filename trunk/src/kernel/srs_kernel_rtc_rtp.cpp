@@ -1065,6 +1065,68 @@ ISrsRtpPayloader *SrsRtpRawPayload::copy()
     return cp;
 }
 
+SrsRtpRtxPayload::SrsRtpRtxPayload()
+{
+    osn_ = 0;
+    payload_ = NULL;
+}
+
+SrsRtpRtxPayload::~SrsRtpRtxPayload()
+{
+    srs_freep(payload_);
+}
+
+uint64_t SrsRtpRtxPayload::nb_bytes()
+{
+    return 2 + (payload_ ? payload_->nb_bytes() : 0);
+}
+
+srs_error_t SrsRtpRtxPayload::encode(SrsBuffer *buf)
+{
+    srs_error_t err = srs_success;
+
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "rtx osn requires 2 bytes");
+    }
+    buf->write_2bytes((int16_t)osn_);
+
+    if (payload_ && (err = payload_->encode(buf)) != srs_success) {
+        return srs_error_wrap(err, "rtx payload");
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtpRtxPayload::decode(SrsBuffer *buf)
+{
+    srs_error_t err = srs_success;
+
+    if (!buf->require(2)) {
+        return srs_error_new(ERROR_RTC_RTP_MUXER, "rtx osn requires 2 bytes, left %d", buf->left());
+    }
+    osn_ = (uint16_t)buf->read_2bytes();
+
+    // A raw payload references the rest without consuming it, so the buffer is left at the original payload, where
+    // the media track picks the payloader that decodes it.
+    srs_freep(payload_);
+    payload_ = new SrsRtpRawPayload();
+    if ((err = payload_->decode(buf)) != srs_success) {
+        return srs_error_wrap(err, "rtx payload");
+    }
+
+    return err;
+}
+
+ISrsRtpPayloader *SrsRtpRtxPayload::copy()
+{
+    SrsRtpRtxPayload *cp = new SrsRtpRtxPayload();
+
+    cp->osn_ = osn_;
+    cp->payload_ = payload_ ? payload_->copy() : NULL;
+
+    return cp;
+}
+
 SrsRtpRawNALUs::SrsRtpRawNALUs()
 {
     cursor_ = 0;

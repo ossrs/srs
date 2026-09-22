@@ -314,7 +314,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // Fast cache for tracks.
+    // Fast cache for tracks, keyed by the SSRC of the packets from the source. There is no RTX slot,
+    // because RTX is unwrapped before a packet reaches the source, and the RTX packet for a NACK
+    // is built by the send track itself and sent directly, never looked up here.
     uint32_t cache_ssrc0_;
     uint32_t cache_ssrc1_;
     uint32_t cache_ssrc2_;
@@ -508,7 +510,8 @@ public:
     virtual const SrsContextId &context_id() = 0;
     virtual srs_error_t initialize(ISrsRequest *req, SrsRtcSourceDescription *stream_desc) = 0;
     virtual srs_error_t on_rtcp(SrsRtcpCommon *rtcp) = 0;
-    virtual srs_error_t on_rtp_cipher(char *buf, int nb_buf) = 0;
+    // Handle the cipher packet before it is decrypted; a dropped packet is neither decrypted nor delivered.
+    virtual srs_error_t on_rtp_cipher(char *buf, int nb_buf, bool *dropped) = 0;
     virtual srs_error_t on_rtp_plaintext(char *buf, int nb_buf) = 0;
     virtual srs_error_t start() = 0;
     virtual srs_error_t check_send_nacks() = 0;
@@ -569,7 +572,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     SrsSharedPtr<SrsRtcSource> source_;
     // Simulators.
-    int nn_simulate_nack_drop_;
+    int nn_simulate_nack_drop_publisher_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -589,6 +592,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtcRecvTrack *cache_track0_;
     SrsRtcRecvTrack *cache_track1_;
     SrsRtcRecvTrack *cache_track2_;
+    // Fast cache for the RTX SSRC of each video track, kept apart from the media cache: RTX packets are rare beside
+    // media, so they must never take a media slot, and a hit here tells the caller the packet is RTX.
+    uint32_t cache_rtx_ssrc0_;
+    uint32_t cache_rtx_ssrc1_;
+    SrsRtcRecvTrack *cache_rtx_track0_;
+    SrsRtcRecvTrack *cache_rtx_track1_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -619,7 +628,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t send_rtcp_xr_rrtr();
 
 public:
-    srs_error_t on_rtp_cipher(char *buf, int nb_buf);
+    srs_error_t on_rtp_cipher(char *buf, int nb_buf, bool *dropped);
     srs_error_t on_rtp_plaintext(char *buf, int nb_buf);
 
 // clang-format off
@@ -660,8 +669,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_twcc(uint16_t sn);
     // Find the track by ssrc, from the fast cache, or by scanning the tracks and building the
-    // cache. Return NULL if no track matches the ssrc, and set is_audio for the track found.
-    SrsRtcRecvTrack *find_track(uint32_t ssrc, bool &is_audio);
+    // cache. Return NULL if no track matches the ssrc, and set is_audio for the track found and is_rtx when the
+    // ssrc is the RTX SSRC of that video track.
+    SrsRtcRecvTrack *find_track(uint32_t ssrc, bool &is_audio, bool &is_rtx);
     SrsRtcAudioRecvTrack *get_audio_track(uint32_t ssrc);
     SrsRtcVideoRecvTrack *get_video_track(uint32_t ssrc);
     void update_rtt(uint32_t ssrc, int rtt);
@@ -743,8 +753,9 @@ public:
     // DTLS callbacks.
     virtual srs_error_t on_dtls_handshake_done() = 0;
     virtual srs_error_t on_dtls_alert(std::string type, std::string desc) = 0;
-    // RTP/RTCP packet handling.
-    virtual srs_error_t on_rtp_cipher(char *data, int nb_data) = 0;
+    // RTP/RTCP packet handling. The cipher hook runs before the packet is decrypted and may drop it, for the NACK
+    // simulator or a payload type configured to drop; a dropped packet is neither decrypted nor delivered.
+    virtual srs_error_t on_rtp_cipher(char *data, int nb_data, bool *dropped) = 0;
     virtual srs_error_t on_rtp_plaintext(char *data, int nb_data) = 0;
     virtual srs_error_t on_rtcp(char *data, int nb_data) = 0;
     // STUN binding request.
@@ -851,7 +862,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // twcc handler
     int twcc_id_;
     // Simulators.
-    int nn_simulate_player_nack_drop_;
+    int nn_simulate_nack_drop_player_;
     // Pithy print for PLI request.
     SrsErrorPithyPrint *pli_epp_;
 
@@ -906,7 +917,7 @@ public:
 public:
     // Before initialize, user must set the local SDP, which is used to inititlize DTLS.
     srs_error_t initialize(ISrsRequest *r, bool dtls, bool srtp, std::string username);
-    srs_error_t on_rtp_cipher(char *data, int nb_data);
+    srs_error_t on_rtp_cipher(char *data, int nb_data, bool *dropped);
     srs_error_t on_rtp_plaintext(char *data, int nb_data);
 
 // clang-format off

@@ -3829,6 +3829,60 @@ VOID TEST(KernelRTPTest, srs_global_rtc_update)
     EXPECT_TRUE(true);
 }
 
+VOID TEST(KernelRTPTest, srs_global_rtc_update_RtxPrintsCumulativeTotals)
+{
+    // The rtx=(s,r,u,p) group prints cumulative totals since server start, never a 10s rate and never reset by a
+    // print. Retransmissions are rare events: a rate rounds to the clamp of 1 and hides the count, while the total
+    // matches the detail NACK logs line for line and stays on every later stats line once RTX has happened.
+    // The four counters are globals shared with the other tests, so save and restore them.
+    int64_t srtx = _srs_pps_srtx->sugar_;
+    int64_t rrtx = _srs_pps_rrtx->sugar_;
+    int64_t unwrap = _srs_pps_rrtx_unwrap->sugar_;
+    int64_t padding = _srs_pps_rrtx_padding->sugar_;
+
+    // No RTX at all: the group is absent, so a server that never used RTX prints the same line as before.
+    if (true) {
+        SrsKbsRtcStats stats;
+        _srs_pps_srtx->sugar_ = 0;
+        _srs_pps_rrtx->sugar_ = 0;
+        _srs_pps_rrtx_unwrap->sugar_ = 0;
+        _srs_pps_rrtx_padding->sugar_ = 0;
+        srs_global_rtc_update(&stats);
+        EXPECT_STREQ("", stats.rtx_desc_.c_str());
+    }
+
+    // The totals print as they are on the first print, and unchanged on the next, so nothing depends on the clock
+    // or on a 10s window having rolled.
+    if (true) {
+        SrsKbsRtcStats stats;
+        _srs_pps_srtx->sugar_ = 3;
+        _srs_pps_rrtx->sugar_ = 8;
+        _srs_pps_rrtx_unwrap->sugar_ = 7;
+        _srs_pps_rrtx_padding->sugar_ = 1;
+        srs_global_rtc_update(&stats);
+        EXPECT_STREQ(", rtx=(s:3,r:8,u:7,p:1)", stats.rtx_desc_.c_str());
+        srs_global_rtc_update(&stats);
+        EXPECT_STREQ(", rtx=(s:3,r:8,u:7,p:1)", stats.rtx_desc_.c_str());
+
+        // More RTX accumulates onto the previous total; a print never resets it.
+        _srs_pps_rrtx->sugar_ += 4;
+        _srs_pps_rrtx_unwrap->sugar_ += 4;
+        srs_global_rtc_update(&stats);
+        EXPECT_STREQ(", rtx=(s:3,r:12,u:11,p:1)", stats.rtx_desc_.c_str());
+
+        // A total beyond 32 bits prints whole, because the counters are 64-bit.
+        int64_t big = ((int64_t)1 << 32) + 705032704; // 5000000000
+        _srs_pps_srtx->sugar_ = big;
+        srs_global_rtc_update(&stats);
+        EXPECT_STREQ(", rtx=(s:5000000000,r:12,u:11,p:1)", stats.rtx_desc_.c_str());
+    }
+
+    _srs_pps_srtx->sugar_ = srtx;
+    _srs_pps_rrtx->sugar_ = rrtx;
+    _srs_pps_rrtx_unwrap->sugar_ = unwrap;
+    _srs_pps_rrtx_padding->sugar_ = padding;
+}
+
 VOID TEST(KernelRTPTest, srs_rtp_fast_parse_twcc)
 {
     // Test srs_rtp_fast_parse_twcc function

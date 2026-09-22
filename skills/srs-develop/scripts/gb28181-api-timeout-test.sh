@@ -82,7 +82,7 @@ echo "=== Step 1: Building SRS with GB28181 ==="
 if [[ "${SRS_GB_SKIP_BUILD:-0}" != "1" ]]; then
   (
     cd "$WORKSPACE/trunk"
-    ./configure --gb28181=on >"$BUILD_LOG" 2>&1
+    ./configure --gb28181=on --simulator=on >"$BUILD_LOG" 2>&1
     make -s >>"$BUILD_LOG" 2>&1
   )
 elif [[ ! -x "$SRS_BINARY" ]]; then

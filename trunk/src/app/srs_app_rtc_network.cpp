@@ -320,8 +320,14 @@ srs_error_t SrsRtcUdpNetwork::on_rtp(char *data, int nb_data)
     // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
-    if ((err = conn_->on_rtp_cipher(data, nb_data)) != srs_success) {
+    // The cipher hook may drop the packet, for the NACK simulator or a payload type configured to drop, before it is
+    // decrypted; a dropped packet is neither decrypted nor delivered.
+    bool dropped = false;
+    if ((err = conn_->on_rtp_cipher(data, nb_data, &dropped)) != srs_success) {
         return srs_error_wrap(err, "cipher=%d", nb_data);
+    }
+    if (dropped) {
+        return err;
     }
 
     int nb_unprotected_buf = nb_data;
@@ -672,8 +678,14 @@ srs_error_t SrsRtcTcpNetwork::on_rtp(char *data, int nb_data)
     // Update stat when we received data.
     delta_->add_delta(nb_data, 0);
 
-    if ((err = conn_->on_rtp_cipher(data, nb_data)) != srs_success) {
+    // The cipher hook may drop the packet, for the NACK simulator or a payload type configured to drop, before it is
+    // decrypted; a dropped packet is neither decrypted nor delivered.
+    bool dropped = false;
+    if ((err = conn_->on_rtp_cipher(data, nb_data, &dropped)) != srs_success) {
         return srs_error_wrap(err, "cipher=%d", nb_data);
+    }
+    if (dropped) {
+        return err;
     }
 
     int nb_unprotected_buf = nb_data;

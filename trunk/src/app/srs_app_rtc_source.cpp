@@ -53,6 +53,12 @@ SrsPps *_srs_pps_rnack2 = NULL;
 SrsPps *_srs_pps_rhnack = NULL;
 SrsPps *_srs_pps_rmnack = NULL;
 
+// The RFC 4588 RTX packets sent by us(SFU), and received from the publisher.
+SrsPps *_srs_pps_srtx = NULL;
+SrsPps *_srs_pps_rrtx = NULL;
+SrsPps *_srs_pps_rrtx_unwrap = NULL;
+SrsPps *_srs_pps_rrtx_padding = NULL;
+
 extern SrsPps *_srs_pps_aloss2;
 extern SrsServer *_srs_server;
 
@@ -3001,7 +3007,7 @@ SrsRtxPayloadDes::SrsRtxPayloadDes()
 {
 }
 
-SrsRtxPayloadDes::SrsRtxPayloadDes(uint8_t pt, uint8_t apt) : SrsCodecPayload(pt, "rtx", 8000), apt_(apt)
+SrsRtxPayloadDes::SrsRtxPayloadDes(uint8_t pt, uint8_t apt, int sample) : SrsCodecPayload(pt, "rtx", sample), apt_(apt)
 {
 }
 
@@ -3031,7 +3037,7 @@ SrsMediaPayloadType SrsRtxPayloadDes::generate_media_payload_type()
     media_payload_type.encoding_name_ = name_;
     media_payload_type.clock_rate_ = sample_;
     std::ostringstream format_specific_param;
-    format_specific_param << "fmtp:" << pt_ << " apt=" << apt_;
+    format_specific_param << "apt=" << (int)apt_;
 
     media_payload_type.format_specific_param_ = format_specific_param.str();
 
@@ -3097,6 +3103,16 @@ void SrsRtcTrackDescription::set_codec_payload(SrsCodecPayload *payload)
     media_ = payload;
 }
 
+// Parse the associated payload type from the fmtp of an rtx payload, for example "apt=106", RFC 4588 section 8.1.
+uint8_t srs_rtx_parse_apt(const std::string &fmtp)
+{
+    size_t pos = fmtp.find("apt=");
+    if (pos == std::string::npos) {
+        return 0;
+    }
+    return (uint8_t)::atoi(fmtp.substr(pos + 4).c_str());
+}
+
 void SrsRtcTrackDescription::create_auxiliary_payload(const std::vector<SrsMediaPayloadType> payloads)
 {
     if (!payloads.size()) {
@@ -3109,8 +3125,8 @@ void SrsRtcTrackDescription::create_auxiliary_payload(const std::vector<SrsMedia
         red_ = new SrsRedPayload(payload.payload_type_, "red", payload.clock_rate_, ::atol(payload.encoding_param_.c_str()));
     } else if (payload.encoding_name_ == "rtx") {
         srs_freep(rtx_);
-        // TODO: FIXME: Rtx clock_rate should be payload.clock_rate_
-        rtx_ = new SrsRtxPayloadDes(payload.payload_type_, ::atol(payload.encoding_param_.c_str()));
+        // The apt is the fmtp word, for example apt=106, and the clock rate is the one the rtpmap offered.
+        rtx_ = new SrsRtxPayloadDes(payload.payload_type_, srs_rtx_parse_apt(payload.format_specific_param_), payload.clock_rate_);
     } else if (payload.encoding_name_ == "ulpfec") {
         srs_freep(ulpfec_);
         ulpfec_ = new SrsCodecPayload(payload.payload_type_, "ulpfec", payload.clock_rate_);
@@ -3197,12 +3213,14 @@ SrsRtcSourceDescription *SrsRtcSourceDescription::copy()
 
 SrsRtcTrackDescription *SrsRtcSourceDescription::find_track_description_by_ssrc(uint32_t ssrc)
 {
-    if (audio_track_desc_ && audio_track_desc_->has_ssrc(ssrc)) {
+    // Match the media SSRC alone: negotiation binds the FID and FEC groups to tracks that are not active yet, so the
+    // active gate of has_ssrc must not apply here.
+    if (audio_track_desc_ && audio_track_desc_->ssrc_ == ssrc) {
         return audio_track_desc_;
     }
 
     for (int i = 0; i < (int)video_track_descs_.size(); ++i) {
-        if (video_track_descs_.at(i)->has_ssrc(ssrc)) {
+        if (video_track_descs_.at(i)->ssrc_ == ssrc) {
             return video_track_descs_.at(i);
         }
     }
@@ -3395,8 +3413,8 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket **ppkt)
     if (nack_info) {
         // seq had been received.
         nack_receiver_->remove(seq);
-#ifdef SRS_NACK_DEBUG_DROP_ENABLED
-        srs_trace("NACK: recovered seq=%u", seq);
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+        srs_trace("NACK: recovered seq=%u, ssrc=%u, pt=%u", seq, pkt->header_.get_ssrc(), (uint32_t)pkt->header_.get_payload_type());
 #endif
     } else {
         // insert check nack list
@@ -3648,6 +3666,10 @@ SrsRtcSendTrack::SrsRtcSendTrack(ISrsRtcPacketSender *sender, SrsRtcTrackDescrip
     }
 
     nack_epp = new SrsErrorPithyPrint();
+    
+    // The RTX sequence space starts at a random point, like a fresh RTP stream, RFC 3550 section 5.1.
+    SrsRand rand;
+    rtx_seq_ = (uint16_t)rand.integer();
 }
 
 SrsRtcSendTrack::~SrsRtcSendTrack()
@@ -3756,6 +3778,9 @@ srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t> &lost_seqs)
         uint16_t seq = lost_seqs.at(i);
         SrsRtpPacket *pkt = fetch_rtp_packet(seq);
         if (pkt == NULL) {
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+            srs_trace("NACK: miss seq=%u, ssrc=%u, not in cache", seq, track_desc_->ssrc_);
+#endif
             continue;
         }
 
@@ -3765,7 +3790,40 @@ srs_error_t SrsRtcSendTrack::on_recv_nack(const vector<uint16_t> &lost_seqs)
                       pkt->header_.get_ssrc(), pkt->header_.get_timestamp(), nn, nack_epp->nn_count_, pkt->nb_bytes());
         }
 
+        // With RTX negotiated, answer with an RTX packet instead, RFC 4588 section 4: a copy of the header on the RTX
+        // SSRC, payload type and sequence, attached to a payloader that references the cached payload without owning
+        // it, so the cache is never mutated and later NACKs, plain or RTX, still see the original packet.
+        if (track_desc_->rtx_ && track_desc_->rtx_ssrc_) {
+            SrsRtpPacket rtx;
+            rtx.header_ = pkt->header_;
+            rtx.header_.set_ssrc(track_desc_->rtx_ssrc_);
+            rtx.header_.set_payload_type(track_desc_->rtx_->pt_);
+            rtx.header_.set_sequence(rtx_seq_++);
+
+            SrsRtpRtxPayload *payload = new SrsRtpRtxPayload();
+            payload->osn_ = pkt->header_.get_sequence();
+            payload->payload_ = pkt->payload() ? pkt->payload()->copy() : NULL;
+            // The payload type tag only classifies a decoded payload, such as FU-A or STAP, and nothing reads
+            // it for a packet built to send, so Unknown, the default, is enough for the RTX payload.
+            rtx.set_payload(payload, SrsRtpPacketPayloadTypeUnknown);
+
+            ++_srs_pps_srtx->sugar_;
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+            srs_trace("NACK: resend RTX seq=%u, ssrc=%u, pt=%u, osn=%u, media ssrc=%u, pt=%u, ts=%u, %d bytes", rtx.header_.get_sequence(),
+                      track_desc_->rtx_ssrc_, (uint32_t)track_desc_->rtx_->pt_, pkt->header_.get_sequence(), pkt->header_.get_ssrc(),
+                      (uint32_t)pkt->header_.get_payload_type(), pkt->header_.get_timestamp(), (int)rtx.nb_bytes());
+#endif
+            if ((err = sender_->do_send_packet(&rtx)) != srs_success) {
+                return srs_error_wrap(err, "rtx send");
+            }
+            continue;
+        }
+
         // By default, we send packets by sendmmsg.
+#ifdef SRS_NACK_DEBUG_LOG_ENABLED
+        srs_trace("NACK: resend plain seq=%u, ssrc=%u, pt=%u, ts=%u, %d bytes", pkt->header_.get_sequence(), pkt->header_.get_ssrc(),
+                  (uint32_t)pkt->header_.get_payload_type(), pkt->header_.get_timestamp(), (int)pkt->nb_bytes());
+#endif
         if ((err = sender_->do_send_packet(pkt)) != srs_success) {
             return srs_error_wrap(err, "raw send");
         }
@@ -3799,9 +3857,14 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket *pkt)
         pkt->header_.set_payload_type(track_desc_->media_->pt_);
     } else if (track_desc_->red_ && pkt->header_.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
         // If PT is RED from publisher, change to PT of RED for subscriber.
+        //
+        // Note that RED is not supported: SRS never decodes the redundant data to recover a loss and never generates
+        // RED, it only passes the RED packets of the publisher through.
         pkt->header_.set_payload_type(track_desc_->red_->pt_);
     } else {
-        // TODO: FIXME: Should update PT for RTX.
+        // Any other payload type is sent unchanged.
+        //
+        // RTX never gets here: SRS never negotiates RTX for audio.
     }
 
     // Rebuild the sequence number and timestamp of packet, see https://github.com/ossrs/srs/issues/3167
@@ -3849,9 +3912,14 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket *pkt)
         pkt->header_.set_payload_type(track_desc_->media_->pt_);
     } else if (track_desc_->red_ && pkt->header_.get_payload_type() == track_desc_->red_->pt_of_publisher_) {
         // If PT is RED from publisher, change to PT of RED for subscriber.
+        //
+        // Note that RED is not supported: SRS never decodes the redundant data to recover a loss and never generates
+        // RED, it only passes the RED packets of the publisher through.
         pkt->header_.set_payload_type(track_desc_->red_->pt_);
     } else {
-        // TODO: FIXME: Should update PT for RTX.
+        // Any other payload type is sent unchanged.
+        //
+        // RTX never gets here: RTX from the publisher is unwrapped to media, and RTX to a player is only sent on NACK.
     }
 
     // Rebuild the sequence number and timestamp of packet, see https://github.com/ossrs/srs/issues/3167
