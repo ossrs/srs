@@ -352,6 +352,9 @@ public:
     virtual std::string get_https_stream_ssl_cert() = 0;
     virtual std::string get_http_stream_dir() = 0;
     virtual bool get_http_stream_crossdomain() = 0;
+    virtual bool get_vhost_http_enabled(std::string vhost) = 0;
+    virtual std::string get_vhost_http_mount(std::string vhost) = 0;
+    virtual std::string get_vhost_http_dir(std::string vhost) = 0;
 
 public:
     // WebRTC config

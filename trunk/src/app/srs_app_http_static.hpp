@@ -132,6 +132,10 @@ class SrsHttpStaticServer : public ISrsHttpStaticServer
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsHttpServeMux *mux_;
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
 public:
     SrsHttpStaticServer();
     virtual ~SrsHttpStaticServer();

@@ -666,11 +666,15 @@ ISrsHttpStaticServer::~ISrsHttpStaticServer()
 SrsHttpStaticServer::SrsHttpStaticServer()
 {
     mux_ = new SrsHttpServeMux();
+
+    config_ = _srs_config;
 }
 
 SrsHttpStaticServer::~SrsHttpStaticServer()
 {
     srs_freep(mux_);
+
+    config_ = NULL;
 }
 
 // LCOV_EXCL_START
