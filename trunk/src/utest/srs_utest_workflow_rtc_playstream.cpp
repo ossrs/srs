@@ -232,7 +232,7 @@ VOID TEST(BasicWorkflowRtcPlayStreamTest, ManuallyVerify)
 }
 
 // Build a play stream on the mock sender with the factory's audio and video tracks, the video track carrying RTX as
-// the Phase 2 negotiation produces it when rtx_pt is not 0: the rtx payload for the media payload type, on rtx_ssrc.
+// the play negotiation produces it when rtx_pt is not 0: the rtx payload for the media payload type, on rtx_ssrc.
 // Push one video packet with a payload through the source so the send track sends and caches it, then NACK it through
 // the public on_rtcp and return the bytes the mock sender captured.
 class MockRtcPlayStreamRtxScenario
@@ -380,7 +380,7 @@ VOID TEST(BasicWorkflowRtcPlayStreamTest, RtxRetransmitsOnNack)
 
 // Without rtx on the track, as negotiation leaves it for a player that offered no rtx or under nack_prefer_rtx off,
 // the same NACK is answered with the cached packet unchanged: media SSRC, payload type and sequence, and no packet on
-// any second SSRC. This passes from the start and locks in plain retransmission as the accepted fallback.
+// any second SSRC, the plain retransmission fallback.
 VOID TEST(BasicWorkflowRtcPlayStreamTest, PlainRetransmitsOnNackWithoutRtx)
 {
     srs_error_t err;

@@ -106,8 +106,8 @@ func TestParseOptionsRejectsBadCommandLinesNamingTheOption(t *testing.T) {
 }
 
 // PION_WHEP_RTX chooses the retransmission format the tool offers, since FFmpeg has no option for it. Unset or on
-// offers rtx for every video codec as a browser does and lets SRS choose. This case passes from the start: on is
-// the accepted default, so the tool behaves as before when the variable is absent.
+// offers rtx for every video codec as a browser does and lets SRS choose. On is the
+// default, so the tool offers rtx when the variable is absent.
 func TestRtxFromEnvDefaultsToOn(t *testing.T) {
 	for _, value := range []string{"", "on"} {
 		rtx, err := rtxFromEnv(func(string) string { return value })

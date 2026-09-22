@@ -7,10 +7,10 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
-* v8.0, 2026-09-21, WebRTC: Support RFC 4588 RTX retransmission with SSRC multiplexing, preferred by nack_prefer_rtx. v8.0.41
+* v8.0, 2026-09-21, Merge [#4746](https://github.com/ossrs/srs/pull/4746): WebRTC: Support RFC 4588 RTX retransmission with SSRC multiplexing, preferred by nack_prefer_rtx. v8.0.41 (#4746)
 * v8.0, 2026-09-21, RTC: Reset the play track cache when the publisher republishes with new SSRCs. v8.0.40
 * v8.0, 2026-09-21, RTC: Resolve the publish and play tracks once per SSRC through the fast cache. v8.0.39
-* v8.0, 2026-09-19, Merge [#4746](https://github.com/ossrs/srs/pull/4746): Build: Fix make install failing on macOS due to BSD sed -i. v8.0.38 (#4746)
+* v8.0, 2026-09-19, Merge [#4745](https://github.com/ossrs/srs/pull/4745): Build: Fix make install failing on macOS due to BSD sed -i. v8.0.38 (#4745)
 * v8.0, 2026-09-18, Merge [#4743](https://github.com/ossrs/srs/pull/4743): Protocol: Resolve multi-level paths as app folders and a stream file for all protocols. v8.0.37 (#4743)
 * v8.0, 2026-09-17, Merge [#4742](https://github.com/ossrs/srs/pull/4742): RTC: Answer the video codec of the stream for WebRTC play. v8.0.36 (#4742)
 * v8.0, 2026-09-15, Merge [#4741](https://github.com/ossrs/srs/pull/4741): Codec: Validate lengthSizeMinusOne to avoid abort on malformed SPS. v8.0.35 (#4741)

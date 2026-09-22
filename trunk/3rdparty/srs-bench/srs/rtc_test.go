@@ -2712,8 +2712,8 @@ func TestRtx_PlayWithRtxOffer(t *testing.T) {
 	}()
 }
 
-// A player that does not offer rtx gets today's answer, with no rtx payload and no FID group, even though the server
-// prefers RTX. This locks in the accepted fallback: the preference is never a requirement.
+// A player that does not offer rtx gets the plain answer, with no rtx payload and no FID group, even though the
+// server prefers RTX: the preference is never a requirement.
 func TestRtx_PlayWithoutRtxOffer(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)
@@ -3224,8 +3224,7 @@ func TestRtx_PublishWithRtxOffer(t *testing.T) {
 	}()
 }
 
-// A publisher that offers no rtx gets today's answer although the server prefers RTX, and the stream still plays.
-// This locks in the accepted fallback.
+// A publisher that offers no rtx gets the plain answer although the server prefers RTX, and the stream still plays.
 func TestRtx_PublishWithoutRtxOffer(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(*srsTimeout)*time.Millisecond)

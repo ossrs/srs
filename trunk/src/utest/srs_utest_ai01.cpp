@@ -543,7 +543,7 @@ VOID TEST(ConfigRtcTest, CheckRtcNackPreferRtx)
 {
     srs_error_t err;
 
-    // Default off is the accepted final behavior, so this case passes from the start.
+    // Default off.
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
@@ -552,7 +552,7 @@ VOID TEST(ConfigRtcTest, CheckRtcNackPreferRtx)
         EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com"));
     }
 
-    // Default when vhost exists but no rtc section; passes from the start for the same reason.
+    // Default when vhost exists but no rtc section.
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
@@ -560,7 +560,7 @@ VOID TEST(ConfigRtcTest, CheckRtcNackPreferRtx)
         EXPECT_FALSE(conf.get_rtc_nack_prefer_rtx("test.com"));
     }
 
-    // Default when rtc section exists but no nack_prefer_rtx config; passes from the start.
+    // Default when rtc section exists but no nack_prefer_rtx config.
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{enabled on;}}"));

@@ -123,8 +123,7 @@ func TestNackLoggerLogsRtxResendWithTheOsn(t *testing.T) {
 	}
 }
 
-// This case passes from the start: it locks in that nothing but a NACK and its
-// resend is ever logged, which the no-op stub already satisfies.
+// Nothing but a NACK and its resend is ever logged.
 func TestNackLoggerIgnoresOtherRtcpAndUnrequestedDuplicates(t *testing.T) {
 	h := newLoggerHarness(&interceptor.StreamInfo{SSRC: 1000, PayloadType: 106, MimeType: "video/H264"})
 	h.write(t, 1000, 106, 10, []byte{0x65, 0x88})

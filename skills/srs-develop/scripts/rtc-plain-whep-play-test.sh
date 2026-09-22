@@ -17,10 +17,8 @@
 #      of one of the requested sequences on the media SSRC, with no
 #      "NACK: resend RTX", and the tool log to show "NACK sent" answered by
 #      "Recovered plain" for that sequence with no "Recovered RTX".
-# This locks in the accepted fallback: plain retransmission is today's behavior
-# and stays the answer for every peer under nack_prefer_rtx off, so the test
-# passes as soon as the tool works and was never red on SRS itself. To force
-# the fallback from the client side instead, against an SRS that prefers RTX,
+# Plain retransmission is the answer for every peer under nack_prefer_rtx off.
+# To force the fallback from the client side instead, against an SRS that prefers RTX,
 # run the tool with PION_WHEP_RTX=off; this script keeps the server-side rule.
 # On failure it prints where the chain broke: no video packet dropped, no NACK
 # received by SRS, no plain resend, or a resend not recovered by the tool.

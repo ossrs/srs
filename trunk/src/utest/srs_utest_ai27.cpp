@@ -334,8 +334,8 @@ VOID TEST(KernelRtcRtxTest, TrackDescriptionCreatesRtxFromOffer)
 
 VOID TEST(KernelRtcRtxTest, TrackDescriptionCopyKeepsRtx)
 {
-    // copy() already deep-copies the rtx payload and the RTX SSRC, so this passes from the start; it locks in what the
-    // play negotiation relies on when it copies the source track for each player.
+    // copy() deep-copies the rtx payload and the RTX SSRC, which the play negotiation relies on when it copies the
+    // source track for each player.
     SrsRtcTrackDescription track;
     track.type_ = "video";
     track.rtx_ = new SrsRtxPayloadDes(kRtxPt, kMediaPt, 90000);
@@ -483,8 +483,8 @@ VOID TEST(KernelRtcRtxTest, SendTrackAnswersNackWithRtx)
     }
 }
 
-// Without RTX on the track, or with an rtx payload but no RTX SSRC, the cached packet is resent unchanged. Both pass
-// from the start and lock in plain retransmission as the accepted fallback.
+// Without RTX on the track, or with an rtx payload but no RTX SSRC, the cached packet is resent unchanged, the plain
+// retransmission fallback.
 VOID TEST(KernelRtcRtxTest, SendTrackAnswersNackPlainWithoutRtx)
 {
     srs_error_t err = srs_success;

@@ -1687,7 +1687,7 @@ public:
     SrsMediaDesc *video_desc() { return &local_sdp_.media_descs_[1]; }
 };
 
-// Assert today's plain answer: one video payload, one SSRC, no FID group, and two SSRCs registered on the connection.
+// Assert the plain answer: one video payload, one SSRC, no FID group, and two SSRCs registered on the connection.
 static void expect_plain_player_answer(MockRtcPlayerRtxScenario &s)
 {
     EXPECT_EQ(2, (int)s.conn_->players_ssrc_map_.size());
@@ -1761,8 +1761,8 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerRtxOfferNegotiatesRtx)
     EXPECT_EQ(1, (int)audio->ssrc_infos_.size());
 }
 
-// A player that offers no rtx gets today's answer although the server prefers RTX. This passes from the start and
-// locks in the accepted fallback: the preference never becomes a requirement.
+// A player that offers no rtx gets the plain answer although the server prefers RTX: the preference never becomes a
+// requirement.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerWithoutRtxOfferKeepsPlainAnswer)
 {
     srs_error_t err;
@@ -1772,8 +1772,8 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerWithoutRtxOfferKeepsPlainAn
     expect_plain_player_answer(s);
 }
 
-// An RTX-capable offer against nack_prefer_rtx off gets today's answer, with no rtx payload and no FID group. This
-// passes from the start and is the case that proves the preference is only a preference.
+// An RTX-capable offer against nack_prefer_rtx off gets the plain answer, with no rtx payload and no FID group. This
+// is the case that proves the preference is only a preference.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerRtxOfferWithPreferOffKeepsPlainAnswer)
 {
     srs_error_t err;
@@ -1843,9 +1843,9 @@ public:
     }
 };
 
-// The negotiator selects the rtx payload whose apt is the negotiated video payload type, plan D3, carries the offered
-// clock rate, and allocates the RTX SSRC through the generator after the media SSRC, plan D7. The offer lists audio
-// first, so the generator hands out 500001 to audio, 500002 to video, and 500003 to the RTX stream.
+// The negotiator selects the rtx payload whose apt is the negotiated video payload type, carries the offered clock
+// rate, and allocates the RTX SSRC through the generator after the media SSRC. The offer lists audio first, so the
+// generator hands out 500001 to audio, 500002 to video, and 500003 to the RTX stream.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayNegotiatorSelectsRtxByApt)
 {
     srs_error_t err;
@@ -1868,7 +1868,6 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayNegotiatorSelectsRtxByApt)
 }
 
 // Without a usable rtx offer the track carries no RTX at all, so the generator is asked for the two media SSRCs only.
-// These cases pass from the start: today's answer is the accepted final answer for each of them, plan D1.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayNegotiatorKeepsPlainWithoutUsableRtx)
 {
     srs_error_t err;
@@ -2182,7 +2181,7 @@ public:
     }
 };
 
-// Assert today's plain publish answer: one video payload, two SSRCs registered, and a plain retransmission of a media
+// Assert the plain publish answer: one video payload, two SSRCs registered, and a plain retransmission of a media
 // packet reaches the source as the media packet it is.
 static void expect_plain_publisher(MockRtcPublisherRtxScenario &s)
 {
@@ -2267,7 +2266,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxOfferNegotiatesAndUnw
         EXPECT_EQ(padding + 3, _srs_pps_rrtx_padding->sugar_);
     }
 
-    // A sender report for the RTX SSRC is ignored: the media track's sender report time is untouched, plan D9.
+    // A sender report for the RTX SSRC is ignored: the media track's sender report time is untouched.
     SrsRtcpSR sr;
     sr.set_ssrc(kPubRtxSsrc);
     sr.set_ntp(0x0102030405060708ULL);
@@ -2278,8 +2277,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxOfferNegotiatesAndUnw
 
 // The unwrap does not depend on the header shape: an RTX packet with a CSRC, a one-byte extension SRS does not know,
 // the marker bit and padding restores the original with all of them, because the RTP decoder parses the header once and
-// only the SSRC, payload type and sequence are rewritten. This locks in accepted behavior across the move of the unwrap
-// from the kernel byte helpers into the decode hook, so it passes before and after that change.
+// only the SSRC, payload type and sequence are rewritten.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxUnwrapsAnyHeaderShape)
 {
     srs_error_t err;
@@ -2343,8 +2341,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxResolvesThroughRtxCac
     EXPECT_EQ(3, s.source_->rtp_video_count_);
 }
 
-// A publisher that offers no rtx gets today's answer although the server prefers RTX. Passes from the start and locks
-// in the accepted fallback.
+// A publisher that offers no rtx gets the plain answer although the server prefers RTX.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherWithoutRtxOfferKeepsPlainAnswer)
 {
     srs_error_t err;
@@ -2356,8 +2353,8 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherWithoutRtxOfferKeepsPlai
     expect_plain_publisher(s);
 }
 
-// An rtx offer without a FID group cannot tell SRS the RTX SSRC, so the answer stays plain, plan D2. The answer is
-// already plain today, but the track keeps a stray rtx payload from the inert plumbing, so this is red until Green.
+// An rtx offer without a FID group cannot tell SRS the RTX SSRC, so the answer stays plain and the video
+// track keeps no rtx payload.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxOfferWithoutFidKeepsPlainAnswer)
 {
     srs_error_t err;
@@ -2367,8 +2364,8 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxOfferWithoutFidKeepsP
     expect_plain_publisher(s);
 }
 
-// An RTX-capable offer against nack_prefer_rtx off gets today's answer; the preference is only a preference, plan D1.
-// The answer is already plain today, but the track keeps a stray rtx payload, so this is red until Green.
+// An RTX-capable offer against nack_prefer_rtx off gets the plain answer and the video track keeps no rtx payload;
+// the preference is only a preference.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxOfferWithPreferOffKeepsPlainAnswer)
 {
     srs_error_t err;
@@ -2529,7 +2526,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherPlainLogsDetail)
 #endif
 
 // Drive SrsRtcPublisherNegotiator::negotiate_publish_capability directly with a mock config. The track descriptions
-// it produces are inactive, so the FID association must not depend on an active track, plan D13.
+// it produces are inactive, so the FID association must not depend on an active track.
 class MockRtcPublisherRtxNegotiation
 {
 public:
@@ -2596,8 +2593,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublishNegotiatorSelectsRtxAndFid
 }
 
 // Without a usable rtx offer the video track carries no RTX: no FID group, the preference off, or every apt naming
-// another payload. Today's answer is already plain for each, plan D1 and D2, but the inert plumbing stores the first
-// rtx payload on the track regardless, so these are red until Green.
+// another payload. The track keeps neither an rtx payload nor an RTX SSRC.
 VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublishNegotiatorKeepsPlainWithoutUsableRtx)
 {
     srs_error_t err;

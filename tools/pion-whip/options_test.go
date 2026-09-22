@@ -106,8 +106,7 @@ func TestParseOptionsRejectsBadCommandLinesNamingTheOption(t *testing.T) {
 	}
 }
 
-// PION_WHIP_RTX unset or on offers rtx and lets SRS choose the format. This case passes from the start: it locks in
-// the accepted default.
+// PION_WHIP_RTX unset or on offers rtx and lets SRS choose the format, the default.
 func TestRtxFromEnvDefaultsToOn(t *testing.T) {
 	for _, value := range []string{"", "on"} {
 		rtx, err := rtxFromEnv(func(string) string { return value })

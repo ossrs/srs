@@ -67,7 +67,7 @@ func payloadTypes(section string) []string {
 }
 
 // With RTX on, the default, the offer carries an rtx payload with apt for every video codec, as a browser's does,
-// so SRS may answer RTX. This case passes from the start: it locks in today's offer as the accepted default.
+// so SRS may answer RTX.
 func TestOfferWithRtxCarriesRtxForEveryVideoCodec(t *testing.T) {
 	video := videoSection(t, offerFor(t, true))
 	rtx := strings.Count(video, " rtx/90000")

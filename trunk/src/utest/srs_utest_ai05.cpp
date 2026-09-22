@@ -3840,8 +3840,7 @@ VOID TEST(KernelRTPTest, srs_global_rtc_update_RtxPrintsCumulativeTotals)
     int64_t unwrap = _srs_pps_rrtx_unwrap->sugar_;
     int64_t padding = _srs_pps_rrtx_padding->sugar_;
 
-    // No RTX at all: the group is absent, so a server that never used RTX prints the line it prints today. This
-    // case passes from the start and locks in the accepted behavior.
+    // No RTX at all: the group is absent, so a server that never used RTX prints the same line as before.
     if (true) {
         SrsKbsRtcStats stats;
         _srs_pps_srtx->sugar_ = 0;

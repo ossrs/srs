@@ -16,9 +16,7 @@
 #      one of the requested sequences on the media SSRC, with no "NACK: RTX
 #      recv" line and no rtx=(s,r,u,p) counter, and the tool log to show
 #      "NACK received" answered by "Resend plain" with no "Resend RTX".
-# This locks in the accepted fallback: plain retransmission is today's behavior
-# and stays the answer for every peer under nack_prefer_rtx off, so the test
-# passes as soon as the tool works and was never red on SRS itself.
+# Plain retransmission is the answer for every peer under nack_prefer_rtx off.
 # On failure it prints where the chain broke: no video packet dropped, no gap
 # detected by SRS, no NACK received by the tool, or a resend not recovered.
 #

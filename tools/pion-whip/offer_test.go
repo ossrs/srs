@@ -86,7 +86,7 @@ func ssrcsOf(section string) []string {
 
 // With RTX on, the default, the offer is sendonly and carries an rtx payload with apt for every video codec and an
 // a=ssrc-group:FID binding the video SSRC to an RTX SSRC, as a browser's or FFmpeg's WHIP offer does, so SRS may
-// answer RTX. This case passes from the start: it locks in today's offer as the accepted default.
+// answer RTX.
 func TestOfferWithRtxCarriesRtxAndFidForTheVideo(t *testing.T) {
 	video := videoSection(t, offerFor(t, true))
 	rtx := strings.Count(video, " rtx/90000")
