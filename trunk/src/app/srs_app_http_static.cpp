@@ -682,6 +682,7 @@ srs_error_t SrsHttpStaticServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpM
 {
     return mux_->serve_http(w, r);
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpStaticServer::initialize()
 {
@@ -690,7 +691,7 @@ srs_error_t SrsHttpStaticServer::initialize()
     bool default_root_exists = false;
 
     // http static file and flv vod stream mount for each vhost.
-    SrsConfDirective *root = _srs_config->get_root();
+    SrsConfDirective *root = config_->get_root();
     for (int i = 0; i < (int)root->directives_.size(); i++) {
         SrsConfDirective *conf = root->at(i);
 
@@ -706,14 +707,14 @@ srs_error_t SrsHttpStaticServer::initialize()
 
         if (pmount == "/") {
             default_root_exists = true;
-            std::string dir = _srs_config->get_vhost_http_dir(vhost);
+            std::string dir = config_->get_vhost_http_dir(vhost);
             srs_warn("http: root mount to %s", dir.c_str());
         }
     }
 
     if (!default_root_exists) {
         // add root
-        std::string dir = _srs_config->get_http_stream_dir();
+        std::string dir = config_->get_http_stream_dir();
         SrsVodStream *stream = new SrsVodStream(dir);
         stream->assemble();
         if ((err = mux_->handle("/", stream)) != srs_success) {
@@ -724,30 +725,28 @@ srs_error_t SrsHttpStaticServer::initialize()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 ISrsHttpServeMux *SrsHttpStaticServer::mux()
 {
     return mux_;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string &pmount)
 {
     srs_error_t err = srs_success;
 
     // when vhost disabled, ignore.
-    if (!_srs_config->get_vhost_enabled(vhost)) {
+    if (!config_->get_vhost_enabled(vhost)) {
         return err;
     }
 
     // when vhost http_static disabled, ignore.
-    if (!_srs_config->get_vhost_http_enabled(vhost)) {
+    if (!config_->get_vhost_http_enabled(vhost)) {
         return err;
     }
 
-    std::string mount = _srs_config->get_vhost_http_mount(vhost);
-    std::string dir = _srs_config->get_vhost_http_dir(vhost);
+    std::string mount = config_->get_vhost_http_mount(vhost);
+    std::string dir = config_->get_vhost_http_dir(vhost);
 
     // replace the vhost variable
     mount = srs_strings_replace(mount, "[vhost]", vhost);
@@ -773,4 +772,3 @@ srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string &pmount)
 
     return err;
 }
-// LCOV_EXCL_STOP
