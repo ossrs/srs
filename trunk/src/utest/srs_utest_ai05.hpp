@@ -120,6 +120,24 @@ public:
     void clear();
 };
 
+// Mock ISrsFastTimerHandler that unsubscribes a handler while the timer is dispatching, to cover
+// the subscriber list changing under SrsFastTimer::cycle().
+class MockUnsubscribingFastTimer : public ISrsFastTimerHandler
+{
+public:
+    // The timer to unsubscribe from, and the handler to remove, which may be this one.
+    ISrsFastTimer *timer_;
+    ISrsFastTimerHandler *target_;
+    int on_timer_count_;
+
+public:
+    MockUnsubscribingFastTimer();
+    virtual ~MockUnsubscribingFastTimer();
+
+public:
+    virtual srs_error_t on_timer(srs_utime_t interval);
+};
+
 // Mock ISrsCoroutine for testing SrsFastTimer::cycle()
 class MockCoroutineForFastTimer : public ISrsCoroutine
 {

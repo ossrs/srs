@@ -11,6 +11,7 @@
 
 #include <srs_kernel_st.hpp>
 
+#include <deque>
 #include <map>
 #include <string>
 #include <vector>
@@ -148,6 +149,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_utime_t interval_;
     std::string label_;
     std::vector<ISrsFastTimerHandler *> handlers_;
+    // The handlers the round in progress has not notified yet. The round pops them off the front, and
+    // unsubscribe() removes a handler from here as well, so a handler that leaves during the round is
+    // never notified after it left, even if it was destroyed.
+    std::deque<ISrsFastTimerHandler *> pending_;
     ISrsTime *time_;
     ISrsKernelFactory *factory_;
     ISrsContext *context_;

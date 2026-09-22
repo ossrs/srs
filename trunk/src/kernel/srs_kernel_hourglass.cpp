@@ -202,6 +202,12 @@ void SrsFastTimer::unsubscribe(ISrsFastTimerHandler *timer)
     if (it != handlers_.end()) {
         handlers_.erase(it);
     }
+
+    // Also take it out of the round in progress, so it is not notified after it left.
+    deque<ISrsFastTimerHandler *>::iterator p = std::find(pending_.begin(), pending_.end(), timer);
+    if (p != pending_.end()) {
+        pending_.erase(p);
+    }
 }
 
 srs_error_t SrsFastTimer::cycle()
@@ -215,8 +221,14 @@ srs_error_t SrsFastTimer::cycle()
 
         ++_srs_pps_timer->sugar_;
 
-        for (int i = 0; i < (int)handlers_.size(); i++) {
-            ISrsFastTimerHandler *timer = handlers_.at(i);
+        // Notify from a queue rather than walking handlers_, because a handler may unsubscribe during
+        // its callback, or from another coroutine while the callback yields, and erasing from the
+        // vector under the walk would skip the handler after it. Popping from the queue does not
+        // depend on positions, so unsubscribe() can remove from it freely.
+        pending_.assign(handlers_.begin(), handlers_.end());
+        while (!pending_.empty()) {
+            ISrsFastTimerHandler *timer = pending_.front();
+            pending_.pop_front();
 
             if ((err = timer->on_timer(interval_)) != srs_success) {
                 srs_freep(err); // Ignore any error for shared timer.
