@@ -71,6 +71,7 @@ public:
     bool http_hooks_enabled_;
     SrsConfDirective *on_play_directive_;
     SrsConfDirective *on_stop_directive_;
+    srs_utime_t hls_window_;
 
 public:
     MockAppConfigForLiveStreamHooks();
@@ -80,6 +81,7 @@ public:
     virtual bool get_vhost_http_hooks_enabled(std::string vhost);
     virtual SrsConfDirective *get_vhost_on_play(std::string vhost);
     virtual SrsConfDirective *get_vhost_on_stop(std::string vhost);
+    virtual srs_utime_t get_hls_window(std::string vhost);
 };
 
 // Mock ISrsHttpHooks for testing SrsLiveStream::http_hooks_on_play() and http_hooks_on_stop()
@@ -153,6 +155,8 @@ class MockStatisticForLiveStream : public ISrsStatistic
 public:
     int on_client_count_;
     srs_error_t on_client_error_;
+    int on_disconnect_count_;
+    std::vector<std::string> on_disconnect_ids_;
 
 public:
     MockStatisticForLiveStream();

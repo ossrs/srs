@@ -23,6 +23,8 @@ class ISrsAppFactory;
 // Build features string for version query
 extern void srs_build_features(std::stringstream &ss);
 
+// Deprecated: the latest version query is not used anymore, so do not add tests or
+// testability refactors for this class.
 class SrsLatestVersion : public ISrsCoroutineHandler
 {
 // clang-format off

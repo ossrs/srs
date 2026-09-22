@@ -411,6 +411,7 @@ void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
 
     return;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
 {
@@ -421,16 +422,15 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
         string ctx = it->first;
         SrsHlsVirtualConn *info = it->second;
 
-        srs_utime_t hls_window = _srs_config->get_hls_window(info->req_->vhost_);
+        srs_utime_t hls_window = config_->get_hls_window(info->req_->vhost_);
         if (info->request_time_ + (2 * hls_window) < srs_time_now_cached()) {
             SrsContextRestore(_srs_context->get_id());
             _srs_context->set_id(SrsContextId().set_value(ctx));
 
             http_hooks_on_stop(info->req_);
 
-            SrsStatistic *stat = _srs_stat;
             // TODO: FIXME: Should finger out the err.
-            stat->on_disconnect(ctx, srs_success);
+            stat_->on_disconnect(ctx, srs_success);
 
             srs_freep(info);
             map_ctx_info_.erase(it++);
@@ -441,7 +441,6 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 bool SrsHlsStream::is_interrupt(std::string id)
 {
