@@ -161,6 +161,7 @@ VOID TEST(PithyPrintTest, SrsAlonePithyPrintBasicFunctionality)
     // Test basic initialization
     if (true) {
         SrsAlonePithyPrint app;
+        app.assemble();
         // Should be initialized with nb_clients_ = 1
         EXPECT_EQ(1, app.info_.nb_clients_);
     }
@@ -168,6 +169,7 @@ VOID TEST(PithyPrintTest, SrsAlonePithyPrintBasicFunctionality)
     // Test elapse and can_print
     if (true) {
         SrsAlonePithyPrint app;
+        app.assemble();
 
         // Initially should not be able to print
         EXPECT_FALSE(app.can_print());

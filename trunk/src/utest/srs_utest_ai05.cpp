@@ -863,6 +863,7 @@ VOID TEST(KernelStreamTest, SimpleStreamAppending)
 VOID TEST(KernelPithyPrintTest, AlonePithyPrint)
 {
     SrsAlonePithyPrint print;
+    print.assemble();
 
     // The behavior depends on internal timing, just verify it doesn't crash
     bool can_print_initial = print.can_print();

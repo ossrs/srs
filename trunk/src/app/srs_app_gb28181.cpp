@@ -76,6 +76,7 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     reinviting_starttime_ = 0;
 
     ppp_ = new SrsAlonePithyPrint();
+    ppp_->assemble();
     startime_ = srs_time_now_realtime();
     connecting_starttime_ = startime_;
     media_connect_timeout_ = 0;

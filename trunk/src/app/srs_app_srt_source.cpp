@@ -328,6 +328,7 @@ SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsFrameTarget *target)
     audio_streamid_ = 2;
 
     pp_audio_duration_ = new SrsAlonePithyPrint();
+    pp_audio_duration_->assemble();
 }
 
 SrsSrtFrameBuilder::~SrsSrtFrameBuilder()
