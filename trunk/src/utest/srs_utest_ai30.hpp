@@ -12,6 +12,7 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_log.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <string>
@@ -31,6 +32,38 @@ public:
 
 public:
     virtual std::string get_log_file();
+};
+
+// What the file logger wrote, captured instead of a log file and a console.
+class MockLogWriterForFileLog : public ISrsLogWriter
+{
+public:
+    // The path of the last open_file(), and how many times it was asked to open one.
+    std::string opened_path_;
+    int open_file_count_;
+    // The descriptor open_file() returns. Negative means the open failed.
+    int open_fd_;
+    // The descriptor of the last close_file(), and how many times it was asked to close one.
+    int closed_fd_;
+    int close_file_count_;
+    // The descriptor and bytes of the last write_file(), and how many times it was called.
+    int written_fd_;
+    std::string written_;
+    int write_file_count_;
+    // The color and bytes of the last write_console(), and how many times it was called.
+    std::string console_color_;
+    std::string console_;
+    int write_console_count_;
+
+public:
+    MockLogWriterForFileLog();
+    virtual ~MockLogWriterForFileLog();
+    // Interface ISrsLogWriter
+public:
+    virtual int open_file(const std::string &path);
+    virtual void close_file(int fd);
+    virtual void write_file(int fd, const char *str_log, int size);
+    virtual void write_console(const char *color, const char *str_log, int size);
 };
 
 #endif

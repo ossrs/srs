@@ -27,6 +27,49 @@
 // reserved for the end of log data, it must be strlen(LOG_TAIL)
 #define LOG_TAIL_SIZE 1
 
+ISrsLogWriter::ISrsLogWriter()
+{
+}
+
+ISrsLogWriter::~ISrsLogWriter()
+{
+}
+
+SrsLogWriter::SrsLogWriter()
+{
+}
+
+SrsLogWriter::~SrsLogWriter()
+{
+}
+
+int SrsLogWriter::open_file(const std::string &path)
+{
+    return ::open(path.c_str(),
+                  O_RDWR | O_CREAT | O_APPEND,
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+}
+
+void SrsLogWriter::close_file(int fd)
+{
+    ::close(fd);
+}
+
+void SrsLogWriter::write_file(int fd, const char *str_log, int size)
+{
+    ::write(fd, str_log, size);
+}
+
+void SrsLogWriter::write_console(const char *color, const char *str_log, int size)
+{
+    if (!color || !*color) {
+        printf("%.*s", size, str_log);
+    } else {
+        printf("%s%.*s\033[0m", color, size, str_log);
+    }
+    fflush(stdout);
+}
+
 SrsFileLog::SrsFileLog()
 {
     level_ = SrsLogLevelTrace;
@@ -38,22 +81,25 @@ SrsFileLog::SrsFileLog()
 
     // The config global does not exist yet when the logger is created, so it is captured by initialize().
     config_ = NULL;
+
+    writer_ = new SrsLogWriter();
 }
 
 SrsFileLog::~SrsFileLog()
 {
     srs_freepa(log_data_);
 
-    if (fd_ > 0) {
-        ::close(fd_);
-        fd_ = -1;
+    if (writer_ && fd_ > 0) {
+        writer_->close_file(fd_);
     }
+    fd_ = -1;
 
     if (config_) {
         config_->unsubscribe(this);
     }
 
     config_ = NULL;
+    srs_freep(writer_);
 }
 
 // LCOV_EXCL_START
@@ -84,7 +130,7 @@ void SrsFileLog::reopen()
     // opens one only when the descriptor is negative, so a closed descriptor left here would be written to after the
     // number has been handed to another socket or file.
     if (fd_ > 0) {
-        ::close(fd_);
+        writer_->close_file(fd_);
         fd_ = -1;
     }
 
@@ -95,7 +141,6 @@ void SrsFileLog::reopen()
     open_log_file();
 }
 
-// LCOV_EXCL_START
 void SrsFileLog::log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args)
 {
     if (level < level_ || level >= SrsLogLevelDisabled) {
@@ -148,13 +193,12 @@ void SrsFileLog::write_log(int &fd, char *str_log, int size, int level)
         // \033[33m : yellow text code in shell
         // \033[0m : normal text code
         if (level <= SrsLogLevelTrace) {
-            printf("%.*s", size, str_log);
+            writer_->write_console("", str_log, size);
         } else if (level == SrsLogLevelWarn) {
-            printf("\033[33m%.*s\033[0m", size, str_log);
+            writer_->write_console("\033[33m", str_log, size);
         } else {
-            printf("\033[31m%.*s\033[0m", size, str_log);
+            writer_->write_console("\033[31m", str_log, size);
         }
-        fflush(stdout);
 
         return;
     }
@@ -166,11 +210,9 @@ void SrsFileLog::write_log(int &fd, char *str_log, int size, int level)
 
     // write log to file.
     if (fd > 0) {
-        ::write(fd, str_log, size);
+        writer_->write_file(fd, str_log, size);
     }
 }
-
-// LCOV_EXCL_STOP
 
 void SrsFileLog::open_log_file()
 {
@@ -184,7 +226,5 @@ void SrsFileLog::open_log_file()
         return;
     }
 
-    fd_ = ::open(filename.c_str(),
-                 O_RDWR | O_CREAT | O_APPEND,
-                 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+    fd_ = writer_->open_file(filename);
 }
