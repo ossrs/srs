@@ -195,9 +195,6 @@ ISrsMpegtsSrtConnection::~ISrsMpegtsSrtConnection()
 
 SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_srt_t srt_fd, std::string ip, int port) : srt_source_(new SrsSrtSource())
 {
-    // Create a identify for this client.
-    _srs_context->set_id(_srs_context->generate_id());
-
     resource_manager_ = resource_manager;
 
     srt_conn_ = new SrsSrtConnection(srt_fd);
@@ -205,17 +202,17 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
     port_ = port;
 
     kbps_ = new SrsNetworkKbps();
-    kbps_->set_io(srt_conn_, srt_conn_);
     delta_ = new SrsNetworkDelta();
-    delta_->set_io(srt_conn_, srt_conn_);
 
-    trd_ = new SrsSTCoroutine("ts-srt", this, _srs_context->get_id());
+    trd_ = NULL;
 
     req_ = new SrsRequest();
     req_->ip_ = ip;
 
     security_ = new SrsSecurity();
 
+    app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
     stat_ = _srs_stat;
     config_ = _srs_config;
     stream_publish_tokens_ = _srs_stream_publish_tokens;
@@ -223,6 +220,17 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
     live_sources_ = _srs_sources;
     rtc_sources_ = _srs_rtc_sources;
     hooks_ = _srs_hooks;
+}
+
+void SrsMpegtsSrtConn::assemble()
+{
+    // Create a identify for this client.
+    context_->set_id(context_->generate_id());
+
+    kbps_->set_io(srt_conn_, srt_conn_);
+    delta_->set_io(srt_conn_, srt_conn_);
+
+    trd_ = app_factory_->create_coroutine("ts-srt", this, context_->get_id());
 }
 
 SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
@@ -235,6 +243,8 @@ SrsMpegtsSrtConn::~SrsMpegtsSrtConn()
     srs_freep(req_);
     srs_freep(security_);
 
+    app_factory_ = NULL;
+    context_ = NULL;
     stat_ = NULL;
     config_ = NULL;
     stream_publish_tokens_ = NULL;
@@ -403,7 +413,7 @@ srs_error_t SrsMpegtsSrtConn::publishing()
     srs_error_t err = srs_success;
 
     // We must do stat the client before hooks, because hooks depends on it.
-    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPublish)) != srs_success) {
+    if ((err = stat_->on_client(context_->get_id().c_str(), req_, this, SrsSrtConnPublish)) != srs_success) {
         return srs_error_wrap(err, "srt: stat client");
     }
 
@@ -431,7 +441,7 @@ srs_error_t SrsMpegtsSrtConn::playing()
     srs_error_t err = srs_success;
 
     // We must do stat the client before hooks, because hooks depends on it.
-    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
+    if ((err = stat_->on_client(context_->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
         return srs_error_wrap(err, "srt: stat client");
     }
 
@@ -502,7 +512,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
     }
 
     // Bridge to RTMP and RTC streaming.
-    SrsSrtBridge *bridge = new SrsSrtBridge(_srs_app_factory);
+    SrsSrtBridge *bridge = new SrsSrtBridge(app_factory_);
 
     bool srt_to_rtmp = config_->get_srt_to_rtmp(req_->vhost_);
     if (srt_to_rtmp && edge) {

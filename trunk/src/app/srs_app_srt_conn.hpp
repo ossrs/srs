@@ -34,6 +34,8 @@ class ISrsSrtSourceManager;
 class ISrsLiveSourceManager;
 class ISrsRtcSourceManager;
 class ISrsHttpHooks;
+class ISrsAppFactory;
+class ISrsContext;
 class SrsSrtStat;
 
 // The SRT connection interface.
@@ -141,6 +143,8 @@ class SrsMpegtsSrtConn : public ISrsMpegtsSrtConnection
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
     ISrsStatistic *stat_;
     ISrsAppConfig *config_;
     ISrsStreamPublishTokenManager *stream_publish_tokens_;
@@ -152,6 +156,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_srt_t srt_fd, std::string ip, int port);
     virtual ~SrsMpegtsSrtConn();
+    void assemble(); // Construct object, to avoid call function in constructor.
     // Interface ISrsResource.
 public:
     virtual std::string desc();

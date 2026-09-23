@@ -612,6 +612,7 @@ VOID TEST(HookRejectionTest, SrtRejectedViewerIsRefusedWithoutStatusChannel)
 
     srs_srt_t dummy_fd = 1;
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, dummy_fd, "192.168.1.100", 9000));
+    conn->assemble();
 
     // Enable the on_play hook for this vhost.
     SrsUniquePtr<MockAppConfigForSrtHooks> config(new MockAppConfigForSrtHooks());

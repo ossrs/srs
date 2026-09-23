@@ -82,6 +82,7 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPublisher)
     conn->srt_conn_ = mock_srt_conn;
     srs_freep(conn->security_);
     conn->security_ = mock_security;
+    conn->assemble();
 
     // Start the SRT connection.
     if (true) {
@@ -192,6 +193,7 @@ VOID TEST(BasicWorkflowSrtConnTest, ManuallyVerifyForPlayer)
     conn->srt_conn_ = mock_srt_conn;
     srs_freep(conn->security_);
     conn->security_ = mock_security;
+    conn->assemble();
 
     // Start the SRT connection.
     if (true) {

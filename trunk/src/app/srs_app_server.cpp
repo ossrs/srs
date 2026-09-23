@@ -1342,7 +1342,9 @@ srs_error_t SrsServer::srt_fd_to_resource(srs_srt_t srt_fd, ISrsResource **pr)
     SrsContextRestore(_srs_context->get_id());
 
     // Convert to SRT connection.
-    *pr = new SrsMpegtsSrtConn(conn_manager_, srt_fd, ip, port);
+    SrsMpegtsSrtConn *conn = new SrsMpegtsSrtConn(conn_manager_, srt_fd, ip, port);
+    conn->assemble();
+    *pr = conn;
 
     return err;
 }
