@@ -41,6 +41,7 @@ class ISrsStatistic;
 class ISrsRtspSourceManager;
 class ISrsHttpHooks;
 class ISrsAppConfig;
+class ISrsContext;
 
 // The handler for RTSP play stream.
 class ISrsRtspPlayStream
@@ -149,6 +150,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     ISrsAppConfig *config_;
     ISrsHttpHooks *hooks_;
+    ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

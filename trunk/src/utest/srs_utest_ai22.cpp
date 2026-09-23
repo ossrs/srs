@@ -1746,11 +1746,145 @@ void MockRtspPlayStream::reset()
     srs_freep(start_error_);
 }
 
+// MockResourceManagerForRtspConn implementation
+MockResourceManagerForRtspConn::MockResourceManagerForRtspConn()
+{
+    subscribe_count_ = 0;
+    unsubscribe_count_ = 0;
+    last_subscribed_handler_ = NULL;
+    last_unsubscribed_handler_ = NULL;
+}
+
+MockResourceManagerForRtspConn::~MockResourceManagerForRtspConn()
+{
+}
+
+srs_error_t MockResourceManagerForRtspConn::start()
+{
+    return srs_success;
+}
+
+bool MockResourceManagerForRtspConn::empty()
+{
+    return true;
+}
+
+size_t MockResourceManagerForRtspConn::size()
+{
+    return 0;
+}
+
+void MockResourceManagerForRtspConn::add(ISrsResource *conn, bool *exists)
+{
+}
+
+void MockResourceManagerForRtspConn::add_with_id(const std::string &id, ISrsResource *conn)
+{
+}
+
+void MockResourceManagerForRtspConn::add_with_fast_id(uint64_t id, ISrsResource *conn)
+{
+}
+
+void MockResourceManagerForRtspConn::add_with_name(const std::string &name, ISrsResource *conn)
+{
+}
+
+ISrsResource *MockResourceManagerForRtspConn::at(int index)
+{
+    return NULL;
+}
+
+ISrsResource *MockResourceManagerForRtspConn::find_by_id(std::string id)
+{
+    return NULL;
+}
+
+ISrsResource *MockResourceManagerForRtspConn::find_by_fast_id(uint64_t id)
+{
+    return NULL;
+}
+
+ISrsResource *MockResourceManagerForRtspConn::find_by_name(std::string name)
+{
+    return NULL;
+}
+
+void MockResourceManagerForRtspConn::remove(ISrsResource *c)
+{
+}
+
+void MockResourceManagerForRtspConn::subscribe(ISrsDisposingHandler *h)
+{
+    subscribe_count_++;
+    last_subscribed_handler_ = h;
+}
+
+void MockResourceManagerForRtspConn::unsubscribe(ISrsDisposingHandler *h)
+{
+    unsubscribe_count_++;
+    last_unsubscribed_handler_ = h;
+}
+
 // MockAppFactoryForRtspPlayStream implementation
+MockCoroutineForRtsp::MockCoroutineForRtsp()
+{
+    start_count_ = 0;
+    stop_count_ = 0;
+    start_error_ = srs_success;
+    pull_error_ = srs_success;
+}
+
+MockCoroutineForRtsp::~MockCoroutineForRtsp()
+{
+    srs_freep(start_error_);
+    srs_freep(pull_error_);
+}
+
+srs_error_t MockCoroutineForRtsp::start()
+{
+    start_count_++;
+
+    if (start_error_ != srs_success) {
+        return srs_error_copy(start_error_);
+    }
+    return srs_success;
+}
+
+void MockCoroutineForRtsp::stop()
+{
+    stop_count_++;
+}
+
+void MockCoroutineForRtsp::interrupt()
+{
+}
+
+srs_error_t MockCoroutineForRtsp::pull()
+{
+    if (pull_error_ != srs_success) {
+        return srs_error_copy(pull_error_);
+    }
+    return srs_success;
+}
+
+const SrsContextId &MockCoroutineForRtsp::cid()
+{
+    return cid_;
+}
+
+void MockCoroutineForRtsp::set_cid(const SrsContextId &cid)
+{
+    cid_ = cid;
+}
+
 MockAppFactoryForRtspPlayStream::MockAppFactoryForRtspPlayStream()
 {
     create_rtsp_audio_send_track_count_ = 0;
     create_rtsp_video_send_track_count_ = 0;
+    coroutine_ = NULL;
+    create_coroutine_count_ = 0;
+    coroutine_handler_ = NULL;
 }
 
 MockAppFactoryForRtspPlayStream::~MockAppFactoryForRtspPlayStream()
@@ -1767,6 +1901,15 @@ ISrsRtspSendTrack *MockAppFactoryForRtspPlayStream::create_rtsp_video_send_track
 {
     create_rtsp_video_send_track_count_++;
     return new MockRtspSendTrack("video_track", track_desc);
+}
+
+ISrsCoroutine *MockAppFactoryForRtspPlayStream::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
+{
+    create_coroutine_count_++;
+    coroutine_name_ = name;
+    coroutine_handler_ = handler;
+    coroutine_cid_ = cid;
+    return coroutine_;
 }
 
 void MockAppFactoryForRtspPlayStream::reset()
@@ -2193,6 +2336,78 @@ VOID TEST(RtspPlayStreamTest, SendPacketWithCacheAndTrackLookup)
     EXPECT_EQ(1, video_track->on_rtp_count_);
 }
 
+// The sender coroutine is what delivers packets to an RTSP player, so a test must be able to replace
+// it before start() runs. Otherwise the started-twice guard and the start failure are only reachable
+// by creating a real coroutine.
+VOID TEST(RtspPlayStreamTest, StartCreatesSenderCoroutineThroughFactory)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspConnection mock_session;
+    MockStatisticForRtspPlayStream mock_stat;
+    MockAppFactoryForRtspPlayStream mock_factory;
+    MockCoroutineForRtsp mock_trd;
+    mock_factory.coroutine_ = &mock_trd;
+
+    SrsContextId cid = SrsContextId().set_value("rtsp-play");
+    SrsUniquePtr<SrsRtspPlayStream> play_stream(new SrsRtspPlayStream(&mock_session, cid));
+
+    play_stream->stat_ = &mock_stat;
+    play_stream->app_factory_ = &mock_factory;
+
+    // GOAL: start() reaches the sender coroutine through the factory and starts it.
+    HELPER_EXPECT_SUCCESS(play_stream->start());
+    EXPECT_EQ(1, mock_factory.create_coroutine_count_);
+    EXPECT_STREQ("rtsp_sender", mock_factory.coroutine_name_.c_str());
+    EXPECT_TRUE(play_stream.get() == mock_factory.coroutine_handler_);
+    EXPECT_STREQ("rtsp-play", mock_factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&mock_trd == play_stream->trd_);
+    EXPECT_EQ(1, mock_trd.start_count_);
+    EXPECT_TRUE(play_stream->is_started);
+
+    // GOAL: a repeated PLAY cannot start a second coroutine for the same stream.
+    HELPER_EXPECT_SUCCESS(play_stream->start());
+    EXPECT_EQ(1, mock_factory.create_coroutine_count_);
+    EXPECT_EQ(1, mock_trd.start_count_);
+
+    // GOAL: stop() reaches the same coroutine instance the factory handed out.
+    play_stream->stop();
+    EXPECT_EQ(1, mock_trd.stop_count_);
+
+    // The coroutine is borrowed from the mock factory, so the destructor must not free it. The
+    // statistic stays injected because the destructor reports the disconnect through it.
+    play_stream->trd_ = NULL;
+    play_stream->app_factory_ = NULL;
+}
+
+// A failed sender coroutine must leave the play stream unstarted, so that the session is torn down
+// instead of being treated as a playing client.
+VOID TEST(RtspPlayStreamTest, StartFailsWhenSenderCoroutineFails)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspConnection mock_session;
+    MockStatisticForRtspPlayStream mock_stat;
+    MockAppFactoryForRtspPlayStream mock_factory;
+    MockCoroutineForRtsp mock_trd;
+    mock_trd.start_error_ = srs_error_new(ERROR_THREAD_STARTED, "mock start failure");
+    mock_factory.coroutine_ = &mock_trd;
+
+    SrsContextId cid = SrsContextId().set_value("rtsp-play");
+    SrsUniquePtr<SrsRtspPlayStream> play_stream(new SrsRtspPlayStream(&mock_session, cid));
+
+    play_stream->stat_ = &mock_stat;
+    play_stream->app_factory_ = &mock_factory;
+
+    // GOAL: the coroutine failure is reported and the stream is not marked started.
+    HELPER_EXPECT_FAILED(play_stream->start());
+    EXPECT_EQ(1, mock_trd.start_count_);
+    EXPECT_FALSE(play_stream->is_started);
+
+    play_stream->trd_ = NULL;
+    play_stream->app_factory_ = NULL;
+}
+
 VOID TEST(RtspPlayStreamTest, SetAllTracksStatus)
 {
     // Create mock dependencies
@@ -2269,6 +2484,56 @@ VOID TEST(RtspPlayStreamTest, SetAllTracksStatus)
 
     // Note: play_stream will be destroyed before mocks go out of scope
     // The destructor will free the tracks in the maps and call stat_->on_disconnect()
+}
+
+// The RTSP connection is the entry point of every RTSP session, so a test has to be able to replace
+// its context, its coroutine factory and its resource manager before any of them is used.
+// Construction must therefore stay quiescent, and every collaborator call must happen in assemble().
+// The context, coroutine and factory mocks are the generic recorders already defined for SrsRtmpConn.
+VOID TEST(RtspConnectionTest, AssembleWiresCollaboratorsFromInjectedDependencies)
+{
+    MockResourceManagerForRtspConn manager;
+    SrsRtspConnection *conn = new SrsRtspConnection(&manager, NULL, "127.0.0.1", 8554);
+
+    // GOAL: construction reaches no collaborator, so a test can replace them before any work runs.
+    EXPECT_TRUE(NULL == conn->trd_);
+
+    MockCoroutineForRtmpConn trd;
+
+    MockAppFactoryForRtmpConn factory;
+    factory.coroutine_ = &trd;
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("rtsp-cid");
+
+    conn->app_factory_ = &factory;
+    conn->context_ = &context;
+    conn->rtsp_manager_ = &manager;
+    conn->assemble();
+
+    // GOAL: the session identity, the coroutine and the dispose subscription are all established by
+    // assemble(), through the injected dependencies.
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ("rtsp-cid", conn->cid_.c_str());
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("rtsp", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(conn == factory.coroutine_handler_);
+    EXPECT_STREQ("rtsp-cid", factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&trd == conn->trd_);
+    EXPECT_EQ(1, manager.subscribe_count_);
+    EXPECT_TRUE(conn == manager.last_subscribed_handler_);
+
+    // The coroutine is borrowed from the mock factory, so the destructor must not free it.
+    ISrsDisposingHandler *subscribed = conn;
+    conn->trd_ = NULL;
+    conn->app_factory_ = NULL;
+    conn->context_ = NULL;
+    srs_freep(conn);
+
+    // GOAL: the dispose subscription is symmetric on the same injected manager instance.
+    EXPECT_EQ(1, manager.unsubscribe_count_);
+    EXPECT_TRUE(subscribed == manager.last_unsubscribed_handler_);
 }
 
 // Test SrsRtspConnection::on_rtsp_request() - major use scenario
@@ -2409,8 +2674,10 @@ VOID TEST(RtspConnectionTest, OnRtspRequestCompletePlayFlow)
 // through active session management to disposal.
 VOID TEST(RtspConnectionTest, SessionLifecycleAndDisposal)
 {
-    // Create RTSP connection
+    // Create RTSP connection. This test drives the session identity, so it assembles the connection
+    // with the production dependencies captured by the constructor.
     SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->assemble();
 
     // Test 1: Context management
     {

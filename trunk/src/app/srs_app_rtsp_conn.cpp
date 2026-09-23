@@ -19,7 +19,6 @@ using namespace std;
 #include <srs_app_rtsp_source.hpp>
 #endif
 #include <srs_app_security.hpp>
-#include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
@@ -205,7 +204,7 @@ srs_error_t SrsRtspPlayStream::start()
     }
 
     srs_freep(trd_);
-    trd_ = new SrsFastCoroutine("rtsp_sender", this, cid_);
+    trd_ = app_factory_->create_coroutine("rtsp_sender", this, cid_);
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "rtsp_sender");
@@ -382,8 +381,6 @@ ISrsRtspConnection::~ISrsRtspConnection()
 SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWriter *skt, std::string cip, int port)
 {
     manager_ = cm;
-    cid_ = _srs_context->generate_id();
-    _srs_context->set_id(cid_);
 
     // Initialize timeout management fields from SrsRtspConnection2
     last_stun_time = 0;
@@ -395,7 +392,7 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     ip_ = cip;
     port_ = port;
     rtsp_ = new SrsRtspStack(skt);
-    trd_ = new SrsSTCoroutine("rtsp", this, _srs_context->get_id());
+    trd_ = NULL;
 
     // Initialize merged SrsRtspSession members
     skt_ = skt;
@@ -415,16 +412,26 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     config_ = _srs_config;
     rtsp_sources_ = _srs_rtsp_sources;
     hooks_ = _srs_hooks;
+    app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
 }
 
 void SrsRtspConnection::assemble()
 {
+    // Create a identify for this session.
+    cid_ = context_->generate_id();
+    context_->set_id(cid_);
+
+    trd_ = app_factory_->create_coroutine("rtsp", this, context_->get_id());
+
     rtsp_manager_->subscribe(this);
 }
 
 SrsRtspConnection::~SrsRtspConnection()
 {
-    rtsp_manager_->unsubscribe(this);
+    if (rtsp_manager_) {
+        rtsp_manager_->unsubscribe(this);
+    }
 
     srs_freep(request_);
     srs_freep(rtsp_);
@@ -457,6 +464,8 @@ SrsRtspConnection::~SrsRtspConnection()
     config_ = NULL;
     rtsp_sources_ = NULL;
     hooks_ = NULL;
+    app_factory_ = NULL;
+    context_ = NULL;
 }
 
 // LCOV_EXCL_START
@@ -712,7 +721,7 @@ void SrsRtspConnection::on_before_dispose(ISrsResource *c)
     }
 
     if (session && session == this) {
-        _srs_context->set_id(cid_);
+        context_->set_id(cid_);
         srs_trace("RTSP: session detach from [%s](%s), disposing=%d", c->get_id().c_str(),
                   c->desc().c_str(), disposing_);
     }
@@ -727,7 +736,7 @@ void SrsRtspConnection::on_disposing(ISrsResource *c)
 
 void SrsRtspConnection::switch_to_context()
 {
-    _srs_context->set_id(cid_);
+    context_->set_id(cid_);
 }
 
 const SrsContextId &SrsRtspConnection::context_id()

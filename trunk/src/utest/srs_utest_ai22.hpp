@@ -398,12 +398,43 @@ public:
     void reset();
 };
 
+// Mock ISrsCoroutine for testing the RTSP sender coroutine, which must be replaceable so that the
+// started-twice guard and the start failure of SrsRtspPlayStream::start() are reachable.
+class MockCoroutineForRtsp : public ISrsCoroutine
+{
+public:
+    int start_count_;
+    int stop_count_;
+    srs_error_t start_error_;
+    srs_error_t pull_error_;
+    SrsContextId cid_;
+
+public:
+    MockCoroutineForRtsp();
+    virtual ~MockCoroutineForRtsp();
+
+public:
+    virtual srs_error_t start();
+    virtual void stop();
+    virtual void interrupt();
+    virtual srs_error_t pull();
+    virtual const SrsContextId &cid();
+    virtual void set_cid(const SrsContextId &cid);
+};
+
 // Mock ISrsAppFactory for testing SrsRtspPlayStream
 class MockAppFactoryForRtspPlayStream : public SrsAppFactory
 {
 public:
     int create_rtsp_audio_send_track_count_;
     int create_rtsp_video_send_track_count_;
+    // The coroutine returned by the factory, borrowed and not owned by the mock.
+    ISrsCoroutine *coroutine_;
+    // What the factory was asked to create.
+    int create_coroutine_count_;
+    std::string coroutine_name_;
+    ISrsCoroutineHandler *coroutine_handler_;
+    SrsContextId coroutine_cid_;
 
 public:
     MockAppFactoryForRtspPlayStream();
@@ -412,6 +443,7 @@ public:
 public:
     virtual ISrsRtspSendTrack *create_rtsp_audio_send_track(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc);
     virtual ISrsRtspSendTrack *create_rtsp_video_send_track(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc);
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
     void reset();
 };
 
@@ -458,6 +490,37 @@ public:
     virtual void stop();
     virtual void set_all_tracks_status(bool status);
     void reset();
+};
+
+// Mock ISrsResourceManager for testing SrsRtspConnection::assemble() and its destructor, which must
+// subscribe and unsubscribe the dispose handler on the same injected manager instance.
+class MockResourceManagerForRtspConn : public ISrsResourceManager
+{
+public:
+    int subscribe_count_;
+    int unsubscribe_count_;
+    ISrsDisposingHandler *last_subscribed_handler_;
+    ISrsDisposingHandler *last_unsubscribed_handler_;
+
+public:
+    MockResourceManagerForRtspConn();
+    virtual ~MockResourceManagerForRtspConn();
+
+public:
+    virtual srs_error_t start();
+    virtual bool empty();
+    virtual size_t size();
+    virtual void add(ISrsResource *conn, bool *exists = NULL);
+    virtual void add_with_id(const std::string &id, ISrsResource *conn);
+    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn);
+    virtual void add_with_name(const std::string &name, ISrsResource *conn);
+    virtual ISrsResource *at(int index);
+    virtual ISrsResource *find_by_id(std::string id);
+    virtual ISrsResource *find_by_fast_id(uint64_t id);
+    virtual ISrsResource *find_by_name(std::string name);
+    virtual void remove(ISrsResource *c);
+    virtual void subscribe(ISrsDisposingHandler *h);
+    virtual void unsubscribe(ISrsDisposingHandler *h);
 };
 #endif
 
