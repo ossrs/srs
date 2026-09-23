@@ -3078,6 +3078,40 @@ VOID TEST(RtspConnectionTest, DoSetupWithTcpTransport)
     conn->networks_.clear();
 }
 
+// SETUP carries its parameters in the Transport header, but that header is optional as far as the
+// parser is concerned: SrsRtspRequest::transport_ stays NULL when it is absent, and is_setup() only
+// looks at the method. A client may therefore reach the SETUP branch with no transport at all, and
+// it must be answered as a bad request rather than asserted on, because srs_assert is plain assert()
+// and no build defines NDEBUG, so the assertion ends the whole process and every session on it.
+VOID TEST(RtspConnectionTest, SetupWithoutTransportIsRejected)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspStack *mock_rtsp = new MockRtspStack();
+
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->rtsp_ = mock_rtsp;
+    conn->session_id_ = "test_session_123";
+
+    // A SETUP with no Transport header at all: transport_ is left NULL by the parser.
+    SrsRtspRequest *req = new SrsRtspRequest();
+    req->method_ = "SETUP";
+    req->uri_ = "rtsp://127.0.0.1:8554/live/stream/trackID=0";
+    req->seq_ = 7;
+    req->stream_id_ = 0;
+    EXPECT_TRUE(NULL == req->transport_);
+
+    // GOAL: the request is refused and the connection survives to serve the next one.
+    HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+    EXPECT_TRUE(mock_rtsp->send_message_called_);
+    EXPECT_EQ(7, mock_rtsp->last_response_seq_);
+    EXPECT_EQ(SRS_CONSTS_RTSP_BadRequest, mock_rtsp->last_response_status_);
+    EXPECT_STREQ("test_session_123", mock_rtsp->last_response_session_.c_str());
+
+    conn->rtsp_ = NULL;
+    srs_freep(mock_rtsp);
+}
+
 // RTSP has no session state machine: on_rtsp_request dispatches each request on its own, so a
 // client may send DESCRIBE more than once. Each DESCRIBE rebuilds the SDP from the source, so the
 // track descriptions it stores must be rebuilt with it, not silently discarded.

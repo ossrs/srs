@@ -654,7 +654,20 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
         std::string local_sdp_escaped = srs_strings_replace(sdp.c_str(), "\r\n", "\\r\\n");
         srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp: %s", req->seq_, session_id_.c_str(), local_sdp_escaped.c_str());
     } else if (req->is_setup()) {
-        srs_assert(req->transport_);
+        // SETUP carries its parameters in the Transport header, which the parser leaves NULL when the
+        // client omits it, while is_setup() only looks at the method. Refuse such a request here: the
+        // response and do_setup() below both dereference the transport, and asserting on it would end
+        // the process, and every other session with it, on input any client can send.
+        if (!req->transport_) {
+            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+            res->status_ = SRS_CONSTS_RTSP_BadRequest;
+            res->session_ = session_id_;
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
+                return srs_error_wrap(err, "response setup");
+            }
+            srs_warn("RTSP: SETUP cseq=%ld without transport, session=%s", req->seq_, session_id_.c_str());
+            return err;
+        }
 
         SrsUniquePtr<SrsRtspSetupResponse> res(new SrsRtspSetupResponse((int)req->seq_));
         res->session_ = session_id_;
