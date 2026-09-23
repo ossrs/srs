@@ -474,7 +474,10 @@ srs_error_t SrsRtspConnection::do_send_packet(SrsRtpPacket *pkt)
     srs_error_t err = srs_success;
 
     uint32_t ssrc = pkt->header_.get_ssrc();
-    ISrsStreamWriter *network = networks_[ssrc];
+    // Look up without inserting: this runs for every RTP packet, and operator[] would default-insert
+    // a NULL entry on each miss.
+    std::map<uint32_t, ISrsStreamWriter *>::iterator it = networks_.find(ssrc);
+    ISrsStreamWriter *network = (it == networks_.end()) ? NULL : it->second;
     if (!network) {
         return srs_error_new(ERROR_RTSP_NO_TRACK, "network not found for ssrc: %u", ssrc);
     }
@@ -794,6 +797,14 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
     local_sdp.control_ = req->uri_;
     local_sdp.ice_lite_ = ""; // Disable this line.
 
+    // A client may DESCRIBE more than once, and each one rebuilds the track set from the source, so
+    // drop the previous one first. The track ids restart at 0 below, so a stale entry would collide
+    // on that id in get_ssrc_by_stream_id() and bind SETUP to an SSRC that is no longer published.
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        srs_freep(it->second);
+    }
+    tracks_.clear();
+
     uint32_t track_id = 0;
     SrsRtcTrackDescription *audio_desc = source_->audio_desc();
     if (audio_desc) {
@@ -887,7 +898,11 @@ srs_error_t SrsRtspConnection::do_setup(SrsRtspRequest *req, uint32_t *pssrc)
                              "UDP transport not supported, only TCP/interleaved mode is supported");
     }
 
+    // A client may re-SETUP a track, for instance to move it to another interleaved channel. The
+    // writer installed by the previous SETUP is owned here, so free it before taking the new one.
     SrsRtspTcpNetwork *network = new SrsRtspTcpNetwork(skt_, req->transport_->interleaved_min_);
+    ISrsStreamWriter *&slot = networks_[ssrc];
+    srs_freep(slot);
     networks_[ssrc] = network;
 
     *pssrc = ssrc;

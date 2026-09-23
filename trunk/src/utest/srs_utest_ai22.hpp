@@ -492,6 +492,24 @@ public:
     void reset();
 };
 
+// Mock ISrsStreamWriter for testing that SrsRtspConnection::do_setup() frees the writer it replaces.
+// It reports its own destruction through a flag the test owns, because the leak is otherwise only
+// visible to a leak checker, which macOS does not provide.
+class MockStreamWriterForRtspConn : public ISrsStreamWriter
+{
+public:
+    // Set to true by the destructor, so a test can prove the writer was freed. Borrowed, not owned.
+    bool *destroyed_;
+    int write_count_;
+
+public:
+    MockStreamWriterForRtspConn(bool *destroyed);
+    virtual ~MockStreamWriterForRtspConn();
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+};
+
 // Mock ISrsResourceManager for testing SrsRtspConnection::assemble() and its destructor, which must
 // subscribe and unsubscribe the dispose handler on the same injected manager instance.
 class MockResourceManagerForRtspConn : public ISrsResourceManager
