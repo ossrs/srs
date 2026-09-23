@@ -3779,3 +3779,115 @@ VOID TEST(MpegtsSrtConnTest, AcquirePublishBridgesThroughInjectedFactory)
     conn->live_sources_ = NULL;
     conn->app_factory_ = NULL;
 }
+
+MockLiveSourceForSrtPublishFailure::MockLiveSourceForSrtPublishFailure()
+{
+    on_publish_error_ = srs_success;
+    on_publish_count_ = 0;
+    on_unpublish_count_ = 0;
+}
+
+MockLiveSourceForSrtPublishFailure::~MockLiveSourceForSrtPublishFailure()
+{
+    srs_freep(on_publish_error_);
+}
+
+srs_error_t MockLiveSourceForSrtPublishFailure::on_publish()
+{
+    on_publish_count_++;
+    return srs_error_copy(on_publish_error_);
+}
+
+void MockLiveSourceForSrtPublishFailure::on_unpublish()
+{
+    on_unpublish_count_++;
+}
+
+// When the RTMP target of the SRT bridge fails to publish, for example because a forward backend
+// is down, the SRT source has already been marked as publishing. The failed session must release
+// it, otherwise every later publish of the stream is refused as busy until SRS restarts.
+VOID TEST(MpegtsSrtConnTest, PublishingReleasesStateWhenBridgePublishFails)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+    conn->req_->vhost_ = "__defaultVhost__";
+    conn->req_->app_ = "live";
+    conn->req_->stream_ = "livestream";
+
+    SrsSrtSource *srt_source = new SrsSrtSource();
+    conn->srt_source_ = SrsSharedPtr<SrsSrtSource>(srt_source);
+    HELPER_EXPECT_SUCCESS(srt_source->initialize(conn->req_));
+
+    // The mock config enables SRT to RTMP, so the bridge publishes the failing RTMP target.
+    MockAppConfig config;
+    MockAppStatistic stat;
+    MockHttpHooks hooks;
+    MockLiveSourceManager live_sources;
+    MockLiveSourceForSrtPublishFailure *live_source = new MockLiveSourceForSrtPublishFailure();
+    live_source->on_publish_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "forward backend down");
+    live_sources.mock_source_ = SrsSharedPtr<SrsLiveSource>(live_source);
+
+    conn->config_ = &config;
+    conn->stat_ = &stat;
+    conn->hooks_ = &hooks;
+    conn->live_sources_ = &live_sources;
+    srs_freep(conn->security_);
+    conn->security_ = new MockSecurity();
+
+    err = conn->publishing();
+    EXPECT_EQ(ERROR_SOCKET_CONNECT, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, live_source->on_publish_count_);
+
+    // GOAL: the SRT source and the RTMP target are released, so the stream can be published again.
+    EXPECT_TRUE(srt_source->can_publish());
+    EXPECT_EQ(1, live_source->on_unpublish_count_);
+
+    conn->config_ = NULL;
+    conn->stat_ = NULL;
+    conn->hooks_ = NULL;
+    conn->live_sources_ = NULL;
+}
+
+// A session refused because the SRT stream is busy never owned it, so it must not release the
+// publisher that does. This passes from the start and guards the release above from widening.
+VOID TEST(MpegtsSrtConnTest, PublishingKeepsOtherPublisherWhenSrtStreamBusy)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+    conn->req_->vhost_ = "__defaultVhost__";
+    conn->req_->app_ = "live";
+    conn->req_->stream_ = "livestream";
+
+    // Another session is publishing the SRT stream.
+    SrsSrtSource *srt_source = new SrsSrtSource();
+    conn->srt_source_ = SrsSharedPtr<SrsSrtSource>(srt_source);
+    HELPER_EXPECT_SUCCESS(srt_source->initialize(conn->req_));
+    HELPER_EXPECT_SUCCESS(srt_source->on_publish());
+
+    MockAppConfig config;
+    MockAppStatistic stat;
+    MockHttpHooks hooks;
+    MockLiveSourceManager live_sources;
+
+    conn->config_ = &config;
+    conn->stat_ = &stat;
+    conn->hooks_ = &hooks;
+    conn->live_sources_ = &live_sources;
+    srs_freep(conn->security_);
+    conn->security_ = new MockSecurity();
+
+    err = conn->publishing();
+    EXPECT_EQ(ERROR_SRT_SOURCE_BUSY, srs_error_code(err));
+    srs_freep(err);
+
+    // GOAL: the other session still owns the stream.
+    EXPECT_FALSE(srt_source->can_publish());
+
+    conn->config_ = NULL;
+    conn->stat_ = NULL;
+    conn->hooks_ = NULL;
+    conn->live_sources_ = NULL;
+}
