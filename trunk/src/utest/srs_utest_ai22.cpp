@@ -2128,6 +2128,83 @@ VOID TEST(RtspPlayStreamTest, OnStreamChange)
     EXPECT_EQ(1, (int)play_stream->video_tracks_.size());
 }
 
+// The track maps and SrsRtspConnection::networks_ sit on opposite sides of an SSRC rewrite: the maps are keyed by the
+// publisher SSRC of arriving packets, while SrsRtspSendTrack::on_rtp rewrites each packet to track_desc_->ssrc_ before
+// do_send_packet looks it up in networks_, which SETUP keyed from the same track description. A republish must
+// therefore re-key the maps to the new publisher SSRC without touching track_desc_->ssrc_, or every packet after it
+// would miss in networks_ and the client would also see its negotiated SSRC change mid-session.
+//
+// This test passes from the start: it locks in the current, intended behavior rather than driving a fix. Without it,
+// assigning the new SSRC to track_desc_ inside on_stream_change would leave every existing test green.
+VOID TEST(RtspPlayStreamTest, OnStreamChangeKeepsSubscriberSsrc)
+{
+    srs_error_t err = srs_success;
+
+    MockStatisticForRtspPlayStream mock_stat;
+    MockRtspSourceManager mock_rtsp_sources;
+    MockAppFactoryForRtspPlayStream mock_app_factory;
+    mock_rtsp_sources.mock_source_ = SrsSharedPtr<SrsRtspSource>(new SrsRtspSource());
+
+    SrsUniquePtr<MockEdgeRequest> mock_req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtspPlayStream> play_stream(new SrsRtspPlayStream(NULL, cid));
+    play_stream->stat_ = &mock_stat;
+    play_stream->rtsp_sources_ = &mock_rtsp_sources;
+    play_stream->app_factory_ = &mock_app_factory;
+
+    // SETUP negotiated SSRC 1001 for audio and 2001 for video, which is what networks_ is keyed by.
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "0";
+    audio_desc->ssrc_ = 1001;
+    audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    audio_desc->media_->pt_of_publisher_ = 111;
+
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->id_ = "1";
+    video_desc->ssrc_ = 2001;
+    video_desc->media_ = new SrsVideoPayload(102, "H264", 90000);
+    video_desc->media_->pt_of_publisher_ = 102;
+
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+    sub_relations[1001] = audio_desc.get();
+    sub_relations[2001] = video_desc.get();
+    HELPER_EXPECT_SUCCESS(play_stream->initialize(mock_req.get(), sub_relations));
+
+    ISrsRtspSendTrack *audio_track = play_stream->audio_tracks_[1001];
+    ISrsRtspSendTrack *video_track = play_stream->video_tracks_[2001];
+    EXPECT_EQ(1001, (int)audio_track->track_desc()->ssrc_);
+    EXPECT_EQ(2001, (int)video_track->track_desc()->ssrc_);
+
+    // The publisher republishes and comes back with different SSRCs.
+    SrsUniquePtr<SrsRtcSourceDescription> new_desc(new SrsRtcSourceDescription());
+    new_desc->audio_track_desc_ = new SrsRtcTrackDescription();
+    new_desc->audio_track_desc_->type_ = "audio";
+    new_desc->audio_track_desc_->ssrc_ = 1002;
+    new_desc->audio_track_desc_->media_ = new SrsAudioPayload(112, "opus", 48000, 2);
+    new_desc->audio_track_desc_->media_->pt_ = 112;
+
+    SrsRtcTrackDescription *new_video_desc = new SrsRtcTrackDescription();
+    new_video_desc->type_ = "video";
+    new_video_desc->ssrc_ = 2002;
+    new_video_desc->media_ = new SrsVideoPayload(103, "H264", 90000);
+    new_video_desc->media_->pt_ = 103;
+    new_desc->video_track_descs_.push_back(new_video_desc);
+
+    play_stream->on_stream_change(new_desc.get());
+
+    // The input side follows the publisher, so arriving packets still find their track.
+    EXPECT_TRUE(play_stream->audio_tracks_.find(1002) != play_stream->audio_tracks_.end());
+    EXPECT_TRUE(play_stream->video_tracks_.find(2002) != play_stream->video_tracks_.end());
+
+    // GOAL: the output side does not move. These SSRCs are what on_rtp stamps onto every outgoing
+    // packet and what SrsRtspConnection::networks_ is keyed by, so they must survive the republish.
+    EXPECT_EQ(1001, (int)audio_track->track_desc()->ssrc_);
+    EXPECT_EQ(2001, (int)video_track->track_desc()->ssrc_);
+}
+
 // A republish brings new SSRCs: on_stream_change re-keys the track maps, so it must also clear the fast cache, or the
 // slots keep the old SSRCs and every packet of the new stream misses the cache for the rest of the session.
 VOID TEST(RtspPlayStreamTest, OnStreamChangeResetsTrackCache)
