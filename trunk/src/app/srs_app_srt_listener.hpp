@@ -25,8 +25,21 @@ public:
     virtual srs_error_t on_srt_client(srs_srt_t srt_fd) = 0;
 };
 
+// The SRT listener, which creates the socket, then listens after the options are set.
+class ISrsSrtListener
+{
+public:
+    ISrsSrtListener();
+    virtual ~ISrsSrtListener();
+
+public:
+    virtual srs_srt_t fd() = 0;
+    virtual srs_error_t create_socket() = 0;
+    virtual srs_error_t listen() = 0;
+};
+
 // Bind and listen SRT(udp) port, use handler to process the client.
-class SrsSrtListener : public ISrsCoroutineHandler
+class SrsSrtListener : public ISrsSrtListener, public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

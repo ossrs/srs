@@ -23,6 +23,7 @@ using namespace std;
 #include <srs_utest_ai17.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_manual_http.hpp>
+#include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 // Goal tests for hook rejection across every protocol, for both players and publishers.
@@ -163,6 +164,146 @@ VOID TEST(HookRejectionTest, HlsRejectedViewerReceivesHookStatus)
     EXPECT_EQ(string::npos, response.find("api/v1/play"));
 
     srs_freep(err);
+    hls->config_ = NULL;
+    hls->stat_ = NULL;
+    hls->hooks_ = NULL;
+    hls->security_ = NULL;
+}
+
+MockFileReaderFactoryForHlsStream::MockFileReaderFactoryForHlsStream(std::string content)
+{
+    content_ = content;
+    create_count_ = 0;
+}
+
+MockFileReaderFactoryForHlsStream::~MockFileReaderFactoryForHlsStream()
+{
+}
+
+SrsFileReader *MockFileReaderFactoryForHlsStream::create_file_reader()
+{
+    create_count_++;
+    return new MockSrsFileReader(content_.data(), (int)content_.length());
+}
+
+// Request an HLS playlist with the given URL, and return the raw HTTP response in resp.
+static srs_error_t mock_hls_serve_m3u8(SrsHlsStream *hls, ISrsFileReaderFactory *factory, std::string url, std::string &resp)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+    if ((err = message->set_url(url, false)) != srs_success) {
+        return srs_error_wrap(err, "set url");
+    }
+
+    SrsUniquePtr<MockRequest> request(new MockRequest("test.vhost", "live", "stream1"));
+    MockResponseWriter writer;
+
+    bool served = false;
+    err = hls->serve_m3u8_ctx(&writer, message.get(), factory, "./objs/nginx/html/live/stream1.m3u8", request.get(), &served);
+
+    resp = string(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    return err;
+}
+
+// HLS: a viewer rejected by the on_play hook must stay rejected when it retries with the same hls_ctx.
+//
+// The client may choose the hls_ctx of a new session in the query string. SrsHlsStream::serve_m3u8_ctx()
+// calls alive() even when serve_new_session() failed, so the rejected ctx is kept as a live session.
+// The retry then finds that ctx and takes serve_exists_session(), which serves the playlist without
+// consulting the hook, so any client passes on_play by simply asking twice.
+VOID TEST(HookRejectionTest, HlsRejectedViewerCannotRetryWithSameCtx)
+{
+    srs_error_t err = srs_success;
+
+    MockStatisticForLiveStream stat;
+    MockSecurity security;
+    MockFileReaderFactoryForHlsStream factory("#EXTM3U\n#EXTINF:10.000,\nstream1-0.ts\n");
+
+    MockAppConfigForLiveStreamHooks config;
+    config.http_hooks_enabled_ = true;
+    config.on_play_directive_ = new SrsConfDirective();
+    config.on_play_directive_->name_ = "on_play";
+    config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/play");
+
+    // The hook rejects every attempt of this viewer as unauthorized.
+    MockHttpHooksForLiveStream hooks;
+    hooks.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+
+    // Only the captured dependencies are replaced. assemble() is not called, so the stream is never
+    // subscribed to the real shared timer.
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    hls->config_ = &config;
+    hls->stat_ = &stat;
+    hls->hooks_ = &hooks;
+    srs_freep(hls->security_);
+    hls->security_ = &security;
+    hls->shared_timer_ = NULL;
+
+    // The first request with a client-chosen hls_ctx is refused by the hook.
+    string resp;
+    HELPER_EXPECT_FAILED(mock_hls_serve_m3u8(hls.get(), &factory, "/live/stream1.m3u8?hls_ctx=chosenbyclient", resp));
+    EXPECT_EQ(1, hooks.on_play_count_);
+    EXPECT_EQ(0, (int)resp.find("HTTP/1.1 401"));
+
+    // The refused viewer is removed from statistic at once, because it has no session to expire.
+    EXPECT_EQ(1, stat.on_disconnect_count_);
+
+    // GOAL: retrying with the same hls_ctx asks the hook again and is refused again. The playlist of
+    // the stream must never be read for a viewer the hook refused.
+    HELPER_EXPECT_FAILED(mock_hls_serve_m3u8(hls.get(), &factory, "/live/stream1.m3u8?hls_ctx=chosenbyclient", resp));
+    EXPECT_EQ(2, hooks.on_play_count_);
+    EXPECT_EQ(0, (int)resp.find("HTTP/1.1 401"));
+    EXPECT_EQ(string::npos, resp.find("stream1-0.ts"));
+    EXPECT_EQ(0, factory.create_count_);
+
+    hls->config_ = NULL;
+    hls->stat_ = NULL;
+    hls->hooks_ = NULL;
+    hls->security_ = NULL;
+}
+
+// HLS: a viewer denied by the security rules must stay denied when it retries with the same hls_ctx.
+//
+// The security check runs in serve_new_session() before the hook, so it is bypassed by the same retry
+// as the on_play hook. A denied viewer has no status mapped yet, so it is refused by closing the
+// connection with an empty response.
+VOID TEST(HookRejectionTest, HlsDeniedViewerCannotRetryWithSameCtx)
+{
+    srs_error_t err = srs_success;
+
+    MockStatisticForLiveStream stat;
+    MockAppConfigForLiveStreamHooks config;
+    MockHttpHooksForLiveStream hooks;
+    MockFileReaderFactoryForHlsStream factory("#EXTM3U\n#EXTINF:10.000,\nstream1-0.ts\n");
+
+    // The security rules deny every attempt of this viewer.
+    MockSecurity security;
+    security.check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "deny by rule");
+
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    hls->config_ = &config;
+    hls->stat_ = &stat;
+    hls->hooks_ = &hooks;
+    srs_freep(hls->security_);
+    hls->security_ = &security;
+    hls->shared_timer_ = NULL;
+
+    // The first request with a client-chosen hls_ctx is denied.
+    string resp;
+    HELPER_EXPECT_FAILED(mock_hls_serve_m3u8(hls.get(), &factory, "/live/stream1.m3u8?hls_ctx=chosenbyclient", resp));
+    EXPECT_EQ(1, security.check_count_);
+    EXPECT_TRUE(resp.empty());
+
+    // The denied viewer is removed from statistic at once, because it has no session to expire.
+    EXPECT_EQ(1, stat.on_disconnect_count_);
+
+    // GOAL: retrying with the same hls_ctx runs the security check again and is denied again.
+    HELPER_EXPECT_FAILED(mock_hls_serve_m3u8(hls.get(), &factory, "/live/stream1.m3u8?hls_ctx=chosenbyclient", resp));
+    EXPECT_EQ(2, security.check_count_);
+    EXPECT_TRUE(resp.empty());
+    EXPECT_EQ(0, factory.create_count_);
+
     hls->config_ = NULL;
     hls->stat_ = NULL;
     hls->hooks_ = NULL;

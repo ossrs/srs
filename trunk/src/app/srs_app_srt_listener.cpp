@@ -18,6 +18,14 @@ ISrsSrtHandler::~ISrsSrtHandler()
 {
 }
 
+ISrsSrtListener::ISrsSrtListener()
+{
+}
+
+ISrsSrtListener::~ISrsSrtListener()
+{
+}
+
 SrsSrtListener::SrsSrtListener(ISrsSrtHandler *h, std::string i, int p)
 {
     handler_ = h;

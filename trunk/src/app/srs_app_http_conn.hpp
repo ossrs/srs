@@ -276,6 +276,7 @@ public:
     virtual ~SrsHttpServer();
 
 public:
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual srs_error_t initialize();
     // Interface ISrsCommonHttpHandler
 public:

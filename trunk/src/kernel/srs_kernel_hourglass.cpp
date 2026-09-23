@@ -52,14 +52,26 @@ SrsHourGlass::SrsHourGlass(string label, ISrsHourGlassHandler *h, srs_utime_t re
     handler_ = h;
     resolution_ = resolution;
     total_elapse_ = 0;
-    trd_ = _srs_kernel_factory->create_coroutine("timer-" + label, this, _srs_context->get_id());
-    time_ = _srs_kernel_factory->create_time();
+    trd_ = NULL;
+    time_ = NULL;
+
+    factory_ = _srs_kernel_factory;
+    context_ = _srs_context;
 }
 
 SrsHourGlass::~SrsHourGlass()
 {
     srs_freep(trd_);
     srs_freep(time_);
+
+    factory_ = NULL;
+    context_ = NULL;
+}
+
+void SrsHourGlass::assemble()
+{
+    trd_ = factory_->create_coroutine("timer-" + label_, this, context_->get_id());
+    time_ = factory_->create_time();
 }
 
 srs_error_t SrsHourGlass::start()
@@ -155,14 +167,27 @@ ISrsFastTimer::~ISrsFastTimer()
 SrsFastTimer::SrsFastTimer(std::string label, srs_utime_t interval)
 {
     interval_ = interval;
-    trd_ = _srs_kernel_factory->create_coroutine(label, this, _srs_context->get_id());
-    time_ = _srs_kernel_factory->create_time();
+    label_ = label;
+    trd_ = NULL;
+    time_ = NULL;
+
+    factory_ = _srs_kernel_factory;
+    context_ = _srs_context;
 }
 
 SrsFastTimer::~SrsFastTimer()
 {
     srs_freep(trd_);
     srs_freep(time_);
+
+    factory_ = NULL;
+    context_ = NULL;
+}
+
+void SrsFastTimer::assemble()
+{
+    trd_ = factory_->create_coroutine(label_, this, context_->get_id());
+    time_ = factory_->create_time();
 }
 
 srs_error_t SrsFastTimer::start()
@@ -189,6 +214,12 @@ void SrsFastTimer::unsubscribe(ISrsFastTimerHandler *timer)
     if (it != handlers_.end()) {
         handlers_.erase(it);
     }
+
+    // Also take it out of the round in progress, so it is not notified after it left.
+    deque<ISrsFastTimerHandler *>::iterator p = std::find(pending_.begin(), pending_.end(), timer);
+    if (p != pending_.end()) {
+        pending_.erase(p);
+    }
 }
 
 srs_error_t SrsFastTimer::cycle()
@@ -202,8 +233,14 @@ srs_error_t SrsFastTimer::cycle()
 
         ++_srs_pps_timer->sugar_;
 
-        for (int i = 0; i < (int)handlers_.size(); i++) {
-            ISrsFastTimerHandler *timer = handlers_.at(i);
+        // Notify from a queue rather than walking handlers_, because a handler may unsubscribe during
+        // its callback, or from another coroutine while the callback yields, and erasing from the
+        // vector under the walk would skip the handler after it. Popping from the queue does not
+        // depend on positions, so unsubscribe() can remove from it freely.
+        pending_.assign(handlers_.begin(), handlers_.end());
+        while (!pending_.empty()) {
+            ISrsFastTimerHandler *timer = pending_.front();
+            pending_.pop_front();
 
             if ((err = timer->on_timer(interval_)) != srs_success) {
                 srs_freep(err); // Ignore any error for shared timer.
@@ -296,9 +333,13 @@ srs_error_t SrsSharedTimer::initialize()
 
     // Initialize global shared timers
     timer20ms_ = new SrsFastTimer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    timer20ms_->assemble();
     timer100ms_ = new SrsFastTimer("shared", 100 * SRS_UTIME_MILLISECONDS);
+    timer100ms_->assemble();
     timer1s_ = new SrsFastTimer("shared", 1 * SRS_UTIME_SECONDS);
+    timer1s_->assemble();
     timer5s_ = new SrsFastTimer("shared", 5 * SRS_UTIME_SECONDS);
+    timer5s_->assemble();
     clock_monitor_ = new SrsClockWallMonitor();
 
     // Start all timers

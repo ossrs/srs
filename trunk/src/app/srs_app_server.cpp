@@ -200,6 +200,7 @@ SrsServer::SrsServer()
 #endif
 
     http_server_ = new SrsHttpServer();
+    http_server_->assemble();
     reuse_api_over_server_ = false;
     reuse_rtc_over_server_ = false;
 

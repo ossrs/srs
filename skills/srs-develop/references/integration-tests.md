@@ -24,15 +24,15 @@ Run focused and component-native tests first, then run every command below seque
    ```bash
    bash skills/srs-develop/scripts/proxy-e2e-redis-test.sh
    ```
-6. RTMP publish with RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
+6. RTMP publish with RTMP, HTTP-FLV, HLS, and WHEP playback verification:
    ```bash
    bash skills/srs-develop/scripts/proxy-e2e-transmux-test.sh
    ```
-7. SRT publish with SRT, RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
+7. SRT publish with SRT, RTMP, HTTP-FLV, HLS, and WHEP playback verification:
    ```bash
    bash skills/srs-develop/scripts/proxy-e2e-srt-test.sh
    ```
-8. WHIP publish with RTMP, HTTP-FLV, and HLS playback verification; WHEP remains a placeholder:
+8. WHIP publish with RTMP, HTTP-FLV, HLS, and WHEP playback verification:
    ```bash
    bash skills/srs-develop/scripts/proxy-e2e-whip-test.sh
    ```
@@ -41,7 +41,7 @@ Run focused and component-native tests first, then run every command below seque
    bash skills/srs-develop/scripts/proxy-e2e-bearer-auth-test.sh
    ```
 
-The SRT test requires an FFmpeg build with libsrt. The WHIP test requires the `whip` muxer and OpenSSL. Both scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available. If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification.
+The SRT test requires an FFmpeg build with libsrt. The WHIP test requires the `whip` muxer and OpenSSL. Both scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available. If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification. The transmux, SRT, and WHIP tests play WHEP with `tools/pion-whep`, because FFmpeg has no WHEP demuxer; they build it with `go` when the binary is missing or stale.
 
 Run feature-specific bundled tests in addition to this matrix when the routed workflow or the touched area requires them:
 

@@ -352,6 +352,9 @@ public:
     virtual std::string get_https_stream_ssl_cert() = 0;
     virtual std::string get_http_stream_dir() = 0;
     virtual bool get_http_stream_crossdomain() = 0;
+    virtual bool get_vhost_http_enabled(std::string vhost) = 0;
+    virtual std::string get_vhost_http_mount(std::string vhost) = 0;
+    virtual std::string get_vhost_http_dir(std::string vhost) = 0;
 
 public:
     // WebRTC config
@@ -377,8 +380,21 @@ public:
 public:
     // SRT config
     virtual std::vector<std::string> get_srt_listens() = 0;
+    virtual int64_t get_srto_maxbw() = 0;
+    virtual int get_srto_mss() = 0;
+    virtual bool get_srto_tsbpdmode() = 0;
+    virtual int get_srto_latency() = 0;
+    virtual int get_srto_recv_latency() = 0;
+    virtual int get_srto_peer_latency() = 0;
+    virtual bool get_srto_tlpktdrop() = 0;
+    virtual srs_utime_t get_srto_conntimeout() = 0;
     // Get the srt SRTO_PEERIDLETIMEO, peer idle timeout, default is 10000ms.
     virtual srs_utime_t get_srto_peeridletimeout() = 0;
+    virtual int get_srto_sendbuf() = 0;
+    virtual int get_srto_recvbuf() = 0;
+    virtual int get_srto_payloadsize() = 0;
+    virtual std::string get_srto_passphrase() = 0;
+    virtual int get_srto_pbkeylen() = 0;
 
 public:
     // Stream caster config
@@ -640,6 +656,13 @@ public:
     virtual std::string get_engine_output(SrsConfDirective *conf) = 0;
     virtual bool get_security_enabled(std::string vhost) = 0;
     virtual SrsConfDirective *get_security_rules(std::string vhost) = 0;
+    // Whether write log to file, otherwise to console.
+    virtual bool get_log_tank_file() = 0;
+    // The file to write log to, empty if not configured.
+    virtual std::string get_log_file() = 0;
+    virtual std::string get_log_level() = 0;
+    virtual std::string get_log_level_v2() = 0;
+    virtual bool get_utc_time() = 0;
 };
 
 // The config service provider.

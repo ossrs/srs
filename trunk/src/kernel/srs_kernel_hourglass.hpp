@@ -11,11 +11,14 @@
 
 #include <srs_kernel_st.hpp>
 
+#include <deque>
 #include <map>
 #include <string>
 #include <vector>
 
 class ISrsCoroutine;
+class ISrsContext;
+class ISrsKernelFactory;
 
 // The handler for the tick.
 class ISrsHourGlassHandler
@@ -61,6 +64,7 @@ public:
 //
 // Usage:
 //      SrsHourGlass* hg = new SrsHourGlass("nack", handler, 100 * SRS_UTIME_MILLISECONDS);
+//      hg->assemble();
 //
 //      hg->tick(1, 300 * SRS_UTIME_MILLISECONDS);
 //      hg->tick(2, 500 * SRS_UTIME_MILLISECONDS);
@@ -77,6 +81,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsHourGlassHandler *handler_;
     srs_utime_t resolution_;
     ISrsTime *time_;
+    ISrsKernelFactory *factory_;
+    ISrsContext *context_;
     // The ticks:
     //      key: the event of tick.
     //      value: the interval of tick.
@@ -89,6 +95,9 @@ public:
     // TODO: FIMXE: Refine to SrsHourGlass(std::string label);
     SrsHourGlass(std::string label, ISrsHourGlassHandler *h, srs_utime_t resolution);
     virtual ~SrsHourGlass();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     // Start or stop the hourglass.
@@ -144,12 +153,22 @@ class SrsFastTimer : public ISrsCoroutineHandler, public ISrsFastTimer
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     srs_utime_t interval_;
+    std::string label_;
     std::vector<ISrsFastTimerHandler *> handlers_;
+    // The handlers the round in progress has not notified yet. The round pops them off the front, and
+    // unsubscribe() removes a handler from here as well, so a handler that leaves during the round is
+    // never notified after it left, even if it was destroyed.
+    std::deque<ISrsFastTimerHandler *> pending_;
     ISrsTime *time_;
+    ISrsKernelFactory *factory_;
+    ISrsContext *context_;
 
 public:
     SrsFastTimer(std::string label, srs_utime_t interval);
     virtual ~SrsFastTimer();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     srs_error_t start();

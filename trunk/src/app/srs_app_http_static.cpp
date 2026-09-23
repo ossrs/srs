@@ -134,6 +134,16 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     } else {
         // Create a m3u8 in memory, contains the session id(ctx).
         err = serve_new_session(w, r, req, ctx);
+
+        // Never keep the ctx of a refused viewer alive, because the client may choose the ctx, and a
+        // retry with it would be served as an existing session, which skips the security check and
+        // the on_play hook. The viewer was added to statistic before the checks and has no session
+        // to expire, so remove it now.
+        if (err != srs_success) {
+            stat_->on_disconnect(ctx, err);
+            srs_http_stream_serve_error(w, err);
+            return err;
+        }
     }
 
     // Always make the ctx alive now.
@@ -411,6 +421,7 @@ void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
 
     return;
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
 {
@@ -421,16 +432,15 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
         string ctx = it->first;
         SrsHlsVirtualConn *info = it->second;
 
-        srs_utime_t hls_window = _srs_config->get_hls_window(info->req_->vhost_);
+        srs_utime_t hls_window = config_->get_hls_window(info->req_->vhost_);
         if (info->request_time_ + (2 * hls_window) < srs_time_now_cached()) {
             SrsContextRestore(_srs_context->get_id());
             _srs_context->set_id(SrsContextId().set_value(ctx));
 
             http_hooks_on_stop(info->req_);
 
-            SrsStatistic *stat = _srs_stat;
             // TODO: FIXME: Should finger out the err.
-            stat->on_disconnect(ctx, srs_success);
+            stat_->on_disconnect(ctx, srs_success);
 
             srs_freep(info);
             map_ctx_info_.erase(it++);
@@ -441,7 +451,6 @@ srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 bool SrsHlsStream::is_interrupt(std::string id)
 {
@@ -454,6 +463,7 @@ bool SrsHlsStream::is_interrupt(std::string id)
 
 SrsVodStream::SrsVodStream(string root_dir) : SrsHttpFileServer(root_dir)
 {
+    config_ = _srs_config;
 }
 
 void SrsVodStream::assemble()
@@ -463,6 +473,7 @@ void SrsVodStream::assemble()
 
 SrsVodStream::~SrsVodStream()
 {
+    config_ = NULL;
 }
 
 srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath, int64_t offset)
@@ -562,7 +573,13 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
         end = fs->filesize() - 1;
     }
 
-    if (end > fs->filesize() || start > end || end < 0) {
+    // The end is the last byte position and it is inclusive, so the last byte a client may ask for is filesize-1.
+    // Clamp an end that reaches or passes the end of the file, as the clients expect the bytes that do exist.
+    if (end >= fs->filesize()) {
+        end = fs->filesize() - 1;
+    }
+
+    if (start > end || end < 0) {
         return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
                              fullpath.c_str(), fs->filesize(), start);
     }
@@ -602,7 +619,7 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     SrsUniquePtr<ISrsRequest> req(hr->to_request(hr->host())->as_http());
 
     // discovery vhost, resolve the vhost from config
-    SrsConfDirective *parsed_vhost = _srs_config->get_vhost(req->vhost_);
+    SrsConfDirective *parsed_vhost = config_->get_vhost(req->vhost_);
     if (parsed_vhost) {
         req->vhost_ = parsed_vhost->arg0();
     }
@@ -657,11 +674,15 @@ ISrsHttpStaticServer::~ISrsHttpStaticServer()
 SrsHttpStaticServer::SrsHttpStaticServer()
 {
     mux_ = new SrsHttpServeMux();
+
+    config_ = _srs_config;
 }
 
 SrsHttpStaticServer::~SrsHttpStaticServer()
 {
     srs_freep(mux_);
+
+    config_ = NULL;
 }
 
 // LCOV_EXCL_START
@@ -669,6 +690,7 @@ srs_error_t SrsHttpStaticServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpM
 {
     return mux_->serve_http(w, r);
 }
+// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpStaticServer::initialize()
 {
@@ -677,7 +699,7 @@ srs_error_t SrsHttpStaticServer::initialize()
     bool default_root_exists = false;
 
     // http static file and flv vod stream mount for each vhost.
-    SrsConfDirective *root = _srs_config->get_root();
+    SrsConfDirective *root = config_->get_root();
     for (int i = 0; i < (int)root->directives_.size(); i++) {
         SrsConfDirective *conf = root->at(i);
 
@@ -693,14 +715,14 @@ srs_error_t SrsHttpStaticServer::initialize()
 
         if (pmount == "/") {
             default_root_exists = true;
-            std::string dir = _srs_config->get_vhost_http_dir(vhost);
+            std::string dir = config_->get_vhost_http_dir(vhost);
             srs_warn("http: root mount to %s", dir.c_str());
         }
     }
 
     if (!default_root_exists) {
         // add root
-        std::string dir = _srs_config->get_http_stream_dir();
+        std::string dir = config_->get_http_stream_dir();
         SrsVodStream *stream = new SrsVodStream(dir);
         stream->assemble();
         if ((err = mux_->handle("/", stream)) != srs_success) {
@@ -711,30 +733,28 @@ srs_error_t SrsHttpStaticServer::initialize()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 ISrsHttpServeMux *SrsHttpStaticServer::mux()
 {
     return mux_;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string &pmount)
 {
     srs_error_t err = srs_success;
 
     // when vhost disabled, ignore.
-    if (!_srs_config->get_vhost_enabled(vhost)) {
+    if (!config_->get_vhost_enabled(vhost)) {
         return err;
     }
 
     // when vhost http_static disabled, ignore.
-    if (!_srs_config->get_vhost_http_enabled(vhost)) {
+    if (!config_->get_vhost_http_enabled(vhost)) {
         return err;
     }
 
-    std::string mount = _srs_config->get_vhost_http_mount(vhost);
-    std::string dir = _srs_config->get_vhost_http_dir(vhost);
+    std::string mount = config_->get_vhost_http_mount(vhost);
+    std::string dir = config_->get_vhost_http_dir(vhost);
 
     // replace the vhost variable
     mount = srs_strings_replace(mount, "[vhost]", vhost);
@@ -760,4 +780,3 @@ srs_error_t SrsHttpStaticServer::mount_vhost(string vhost, string &pmount)
 
     return err;
 }
-// LCOV_EXCL_STOP

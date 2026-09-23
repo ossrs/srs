@@ -54,6 +54,7 @@ class ISrsRtspSourceManager;
 class ISrsRtmpServer;
 class ISrsRtmpTransport;
 class ISrsSecurity;
+class ISrsContext;
 
 // The simple rtmp client for SRS.
 class SrsSimpleRtmpClient : public SrsBasicRtmpClient
@@ -176,6 +177,7 @@ class SrsRtmpConn : public ISrsConnection, // It's a resource.
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
     ISrsResourceManager *manager_;
     ISrsAppConfig *config_;
     ISrsStreamPublishTokenManager *stream_publish_tokens_;
@@ -235,7 +237,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsRtmpConn(ISrsRtmpTransport *transport, std::string cip, int port);
-    void assemble();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsRtmpConn();
     // Interface ISrsResource.
 public:

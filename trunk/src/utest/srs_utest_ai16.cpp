@@ -10,6 +10,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_http_static.hpp>
 #include <srs_app_http_stream.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_kernel_balance.hpp>
@@ -780,6 +781,7 @@ MockStatisticForLiveStream::MockStatisticForLiveStream()
 {
     on_client_count_ = 0;
     on_client_error_ = srs_success;
+    on_disconnect_count_ = 0;
 }
 
 MockStatisticForLiveStream::~MockStatisticForLiveStream()
@@ -788,6 +790,8 @@ MockStatisticForLiveStream::~MockStatisticForLiveStream()
 
 void MockStatisticForLiveStream::on_disconnect(std::string id, srs_error_t err)
 {
+    on_disconnect_count_++;
+    on_disconnect_ids_.push_back(id);
 }
 
 srs_error_t MockStatisticForLiveStream::on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type)
@@ -899,6 +903,7 @@ MockAppConfigForLiveStreamHooks::MockAppConfigForLiveStreamHooks()
     http_hooks_enabled_ = false;
     on_play_directive_ = NULL;
     on_stop_directive_ = NULL;
+    hls_window_ = 60 * SRS_UTIME_SECONDS;
 }
 
 MockAppConfigForLiveStreamHooks::~MockAppConfigForLiveStreamHooks()
@@ -920,6 +925,11 @@ SrsConfDirective *MockAppConfigForLiveStreamHooks::get_vhost_on_play(std::string
 SrsConfDirective *MockAppConfigForLiveStreamHooks::get_vhost_on_stop(std::string vhost)
 {
     return on_stop_directive_;
+}
+
+srs_utime_t MockAppConfigForLiveStreamHooks::get_hls_window(std::string vhost)
+{
+    return hls_window_;
 }
 
 // Mock HTTP hooks implementation for SrsLiveStream testing
@@ -3535,4 +3545,98 @@ VOID TEST(SrsGoApiMetricsTest, ServeHttpSuccess)
     // Clean up
     api->stat_ = NULL;
     api->config_ = NULL;
+}
+
+// Add a virtual HLS connection to the stream, as SrsHlsStream::alive() does for a new ctx, but with
+// a chosen last request time so the expiry decision in on_timer() is deterministic.
+static void mock_hls_stream_add_ctx(SrsHlsStream *hls, std::string ctx, srs_utime_t request_time)
+{
+    SrsHlsVirtualConn *conn = new SrsHlsVirtualConn();
+    conn->req_ = new MockRequest("test.vhost", "live", "stream1");
+    conn->ctx_ = ctx;
+    conn->request_time_ = request_time;
+    hls->map_ctx_info_.insert(std::make_pair(ctx, conn));
+}
+
+// An HLS session expires when it is idle for more than twice the HLS window of its vhost. The
+// window must come from the injected config, and the stop hook and disconnect statistic must go to
+// the injected collaborators, so a test controls expiry without touching the process globals.
+VOID TEST(HlsStreamTest, TimerExpiresIdleSessionThroughInjectedDependencies)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForLiveStreamHooks config;
+    config.hls_window_ = 1 * SRS_UTIME_SECONDS;
+    config.http_hooks_enabled_ = true;
+    config.on_stop_directive_ = new SrsConfDirective();
+    config.on_stop_directive_->name_ = "on_stop";
+    config.on_stop_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+    MockStatisticForLiveStream stat;
+    MockHttpHooksForLiveStream hooks;
+
+    // The constructor only captures dependencies, and assemble() is not called, so the stream is
+    // never subscribed to the real shared timer.
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    hls->config_ = &config;
+    hls->stat_ = &stat;
+    hls->hooks_ = &hooks;
+    hls->shared_timer_ = NULL;
+
+    // Idle for 3s, beyond 2 * 1s, so it expires. The other one was just requested, so it stays.
+    srs_utime_t now = srs_time_now_cached();
+    mock_hls_stream_add_ctx(hls.get(), "idle", now - 3 * SRS_UTIME_SECONDS);
+    mock_hls_stream_add_ctx(hls.get(), "active", now);
+
+    HELPER_EXPECT_SUCCESS(hls->on_timer(5 * SRS_UTIME_SECONDS));
+
+    EXPECT_EQ(1, (int)hls->map_ctx_info_.size());
+    EXPECT_TRUE(hls->ctx_is_exist("active"));
+    EXPECT_FALSE(hls->ctx_is_exist("idle"));
+
+    EXPECT_EQ(1, hooks.on_stop_count_);
+    if (hooks.on_stop_count_ == 1) {
+        EXPECT_STREQ("http://127.0.0.1:8085/api/v1/sessions", hooks.on_stop_calls_[0].first.c_str());
+    }
+
+    EXPECT_EQ(1, stat.on_disconnect_count_);
+    if (stat.on_disconnect_count_ == 1) {
+        EXPECT_STREQ("idle", stat.on_disconnect_ids_[0].c_str());
+    }
+
+    hls->config_ = NULL;
+    hls->stat_ = NULL;
+    hls->hooks_ = NULL;
+}
+
+// With HTTP hooks disabled, an expired HLS session fires no stop hook, but its disconnect must still
+// reach the injected statistic, so the viewer does not stay in the client list.
+VOID TEST(HlsStreamTest, TimerDisconnectsExpiredSessionWithoutHooks)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForLiveStreamHooks config;
+    config.hls_window_ = 1 * SRS_UTIME_SECONDS;
+    config.http_hooks_enabled_ = false;
+
+    MockStatisticForLiveStream stat;
+    MockHttpHooksForLiveStream hooks;
+
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    hls->config_ = &config;
+    hls->stat_ = &stat;
+    hls->hooks_ = &hooks;
+    hls->shared_timer_ = NULL;
+
+    mock_hls_stream_add_ctx(hls.get(), "idle", srs_time_now_cached() - 3 * SRS_UTIME_SECONDS);
+
+    HELPER_EXPECT_SUCCESS(hls->on_timer(5 * SRS_UTIME_SECONDS));
+
+    EXPECT_TRUE(hls->map_ctx_info_.empty());
+    EXPECT_EQ(0, hooks.on_stop_count_);
+    EXPECT_EQ(1, stat.on_disconnect_count_);
+
+    hls->config_ = NULL;
+    hls->stat_ = NULL;
+    hls->hooks_ = NULL;
 }

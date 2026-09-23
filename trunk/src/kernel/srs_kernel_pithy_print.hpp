@@ -11,7 +11,9 @@
 
 #include <map>
 
+class ISrsClock;
 class ISrsConfig;
+class ISrsKernelFactory;
 
 // The stage info to calc the age.
 class SrsStageInfo
@@ -25,6 +27,7 @@ public:
     // The ratio for interval, 1.0 means no change.
     double interval_ratio_;
     ISrsConfig *config_;
+    ISrsKernelFactory *factory_;
 
 public:
     srs_utime_t age_;
@@ -32,6 +35,7 @@ public:
 public:
     SrsStageInfo(int _stage_id, double ratio = 1.0);
     virtual ~SrsStageInfo();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual void update_print_time();
 
 public:
@@ -39,9 +43,21 @@ public:
     virtual bool can_print();
 };
 
+// The interface for the stage manager, which owns the stages shared by clients.
+class ISrsStageManager
+{
+public:
+    ISrsStageManager();
+    virtual ~ISrsStageManager();
+
+public:
+    // Fetch a stage, create one if not exists.
+    virtual SrsStageInfo *fetch_or_create(int stage_id, bool *pnew = NULL) = 0;
+};
+
 // The manager for stages, it's used for a single client stage.
 // Of course, we can add the multiple user support, which is SrsPithyPrint.
-class SrsStageManager
+class SrsStageManager : public ISrsStageManager
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -53,7 +69,7 @@ public:
 
 public:
     // Fetch a stage, create one if not exists.
-    SrsStageInfo *fetch_or_create(int stage_id, bool *pnew = NULL);
+    virtual SrsStageInfo *fetch_or_create(int stage_id, bool *pnew = NULL);
 };
 
 // The error pithy print is a single client stage manager, each stage only has one client.
@@ -69,6 +85,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     double ratio_;
     SrsStageManager stages_;
     std::map<int, srs_utime_t> ticks_;
+    ISrsClock *clk_;
 
 public:
     SrsErrorPithyPrint(double ratio = 1.0);
@@ -88,10 +105,12 @@ class SrsAlonePithyPrint
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsStageInfo info_;
     srs_utime_t previous_tick_;
+    ISrsClock *clk_;
 
 public:
     SrsAlonePithyPrint();
     virtual ~SrsAlonePithyPrint();
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     virtual void elapse();
@@ -137,10 +156,15 @@ SRS_DECLARE_PRIVATE: // clang-format on
     int stage_id_;
     srs_utime_t age_;
     srs_utime_t previous_tick_;
+    ISrsStageManager *stages_;
+    ISrsClock *clk_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsPithyPrint(int _stage_id);
+    void assemble(); // Construct object, to avoid call function in constructor.
+    // Create a printer for the stage, the only construction site of this class.
+    static SrsPithyPrint *create(int stage_id);
 
 public:
     static SrsPithyPrint *create_rtmp_play();

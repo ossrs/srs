@@ -357,9 +357,50 @@ public:
     virtual void set_cid(const SrsContextId &cid);
 };
 
+// Mock ISrsContext for testing SrsRtmpConn::assemble()
+class MockContextForRtmpConn : public ISrsContext
+{
+public:
+    SrsContextId id_;
+    int generate_id_count_;
+    int set_id_count_;
+
+public:
+    MockContextForRtmpConn();
+    virtual ~MockContextForRtmpConn();
+
+public:
+    virtual SrsContextId generate_id();
+    virtual const SrsContextId &get_id();
+    virtual const SrsContextId &set_id(const SrsContextId &v);
+};
+
+// Mock ISrsAppFactory for testing SrsRtmpConn::assemble()
+class MockAppFactoryForRtmpConn : public SrsAppFactory
+{
+public:
+    // The coroutine returned by the factory, borrowed and not owned by the mock.
+    ISrsCoroutine *coroutine_;
+    // What the factory was asked to create.
+    int create_coroutine_count_;
+    std::string coroutine_name_;
+    ISrsCoroutineHandler *coroutine_handler_;
+    SrsContextId coroutine_cid_;
+
+public:
+    MockAppFactoryForRtmpConn();
+    virtual ~MockAppFactoryForRtmpConn();
+
+public:
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
+};
+
 // Mock ISrsRtmpTransport for testing SrsRtmpConn::do_cycle()
 class MockRtmpTransportForDoCycle : public ISrsRtmpTransport
 {
+public:
+    int io_count_;
+
 public:
     MockRtmpTransportForDoCycle();
     virtual ~MockRtmpTransportForDoCycle();

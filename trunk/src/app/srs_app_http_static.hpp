@@ -90,6 +90,10 @@ class SrsVodStream : public SrsHttpFileServer
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsHlsStream hls_;
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
 public:
     SrsVodStream(std::string root_dir);
     virtual ~SrsVodStream();
@@ -131,6 +135,10 @@ class SrsHttpStaticServer : public ISrsHttpStaticServer
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsHttpServeMux *mux_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
 
 public:
     SrsHttpStaticServer();

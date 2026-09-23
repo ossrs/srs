@@ -709,6 +709,94 @@ ISrsSrtPoller *srs_srt_poller_new()
     return new SrsSrtPoller();
 }
 
+ISrsSrtOptions::ISrsSrtOptions()
+{
+}
+
+ISrsSrtOptions::~ISrsSrtOptions()
+{
+}
+
+// LCOV_EXCL_START
+SrsSrtOptions::SrsSrtOptions()
+{
+}
+
+SrsSrtOptions::~SrsSrtOptions()
+{
+}
+
+srs_error_t SrsSrtOptions::set_maxbw(srs_srt_t srt_fd, int64_t maxbw)
+{
+    return srs_srt_set_maxbw(srt_fd, maxbw);
+}
+
+srs_error_t SrsSrtOptions::set_mss(srs_srt_t srt_fd, int mss)
+{
+    return srs_srt_set_mss(srt_fd, mss);
+}
+
+srs_error_t SrsSrtOptions::set_payload_size(srs_srt_t srt_fd, int payload_size)
+{
+    return srs_srt_set_payload_size(srt_fd, payload_size);
+}
+
+srs_error_t SrsSrtOptions::set_connect_timeout(srs_srt_t srt_fd, int timeout)
+{
+    return srs_srt_set_connect_timeout(srt_fd, timeout);
+}
+
+srs_error_t SrsSrtOptions::set_peer_idle_timeout(srs_srt_t srt_fd, int timeout)
+{
+    return srs_srt_set_peer_idle_timeout(srt_fd, timeout);
+}
+
+srs_error_t SrsSrtOptions::set_tsbpdmode(srs_srt_t srt_fd, bool tsbpdmode)
+{
+    return srs_srt_set_tsbpdmode(srt_fd, tsbpdmode);
+}
+
+srs_error_t SrsSrtOptions::set_sndbuf(srs_srt_t srt_fd, int sndbuf)
+{
+    return srs_srt_set_sndbuf(srt_fd, sndbuf);
+}
+
+srs_error_t SrsSrtOptions::set_rcvbuf(srs_srt_t srt_fd, int rcvbuf)
+{
+    return srs_srt_set_rcvbuf(srt_fd, rcvbuf);
+}
+
+srs_error_t SrsSrtOptions::set_tlpktdrop(srs_srt_t srt_fd, bool tlpktdrop)
+{
+    return srs_srt_set_tlpktdrop(srt_fd, tlpktdrop);
+}
+
+srs_error_t SrsSrtOptions::set_latency(srs_srt_t srt_fd, int latency)
+{
+    return srs_srt_set_latency(srt_fd, latency);
+}
+
+srs_error_t SrsSrtOptions::set_rcv_latency(srs_srt_t srt_fd, int rcv_latency)
+{
+    return srs_srt_set_rcv_latency(srt_fd, rcv_latency);
+}
+
+srs_error_t SrsSrtOptions::set_peer_latency(srs_srt_t srt_fd, int peer_latency)
+{
+    return srs_srt_set_peer_latency(srt_fd, peer_latency);
+}
+
+srs_error_t SrsSrtOptions::set_passphrase(srs_srt_t srt_fd, const std::string &passphrase)
+{
+    return srs_srt_set_passphrase(srt_fd, passphrase);
+}
+
+srs_error_t SrsSrtOptions::set_pbkeylen(srs_srt_t srt_fd, int pbkeylen)
+{
+    return srs_srt_set_pbkeylen(srt_fd, pbkeylen);
+}
+// LCOV_EXCL_STOP
+
 ISrsSrtSocket::ISrsSrtSocket()
 {
 }

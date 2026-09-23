@@ -27,6 +27,7 @@
 #include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_srt_listener.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>
@@ -92,7 +93,9 @@ ISrsOriginHub *SrsAppFactory::create_origin_hub()
 
 ISrsHourGlass *SrsAppFactory::create_hourglass(const std::string &name, ISrsHourGlassHandler *handler, srs_utime_t interval)
 {
-    return new SrsHourGlass(name, handler, interval);
+    SrsHourGlass *timer = new SrsHourGlass(name, handler, interval);
+    timer->assemble();
+    return timer;
 }
 
 ISrsBasicRtmpClient *SrsAppFactory::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
@@ -182,6 +185,11 @@ SrsHlsM4sSegment *SrsAppFactory::create_hls_m4s_segment(ISrsFileWriter *fw)
 ISrsIpListener *SrsAppFactory::create_tcp_listener(ISrsTcpHandler *handler)
 {
     return new SrsTcpListener(handler);
+}
+
+ISrsSrtListener *SrsAppFactory::create_srt_listener(ISrsSrtHandler *handler, std::string ip, int port)
+{
+    return new SrsSrtListener(handler, ip, port);
 }
 
 ISrsRtcConnection *SrsAppFactory::create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid)

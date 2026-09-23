@@ -434,10 +434,12 @@ VOID TEST(KernelResourceTest, SrsSharedResourceBasic)
 
 MockSrsHourGlass::MockSrsHourGlass()
 {
+    notify_error_ = srs_success;
 }
 
 MockSrsHourGlass::~MockSrsHourGlass()
 {
+    srs_freep(notify_error_);
 }
 
 srs_error_t MockSrsHourGlass::notify(int event, srs_utime_t interval, srs_utime_t tick)
@@ -445,7 +447,12 @@ srs_error_t MockSrsHourGlass::notify(int event, srs_utime_t interval, srs_utime_
     events_.push_back(event);
     intervals_.push_back(interval);
     ticks_.push_back(tick);
-    return srs_success;
+
+    // Hand the error over to the caller, which owns it from now on.
+    srs_error_t err = notify_error_;
+    notify_error_ = srs_success;
+
+    return err;
 }
 
 void MockSrsHourGlass::clear()
@@ -457,21 +464,178 @@ void MockSrsHourGlass::clear()
 
 MockSrsFastTimer::MockSrsFastTimer()
 {
+    on_timer_error_ = srs_success;
 }
 
 MockSrsFastTimer::~MockSrsFastTimer()
 {
+    srs_freep(on_timer_error_);
 }
 
 srs_error_t MockSrsFastTimer::on_timer(srs_utime_t interval)
 {
     timer_calls_.push_back(interval);
-    return srs_success;
+
+    // Hand the error over to the caller, which owns it from now on.
+    srs_error_t err = on_timer_error_;
+    on_timer_error_ = srs_success;
+
+    return err;
 }
 
 void MockSrsFastTimer::clear()
 {
     timer_calls_.clear();
+}
+
+MockUnsubscribingFastTimer::MockUnsubscribingFastTimer()
+{
+    timer_ = NULL;
+    target_ = NULL;
+    on_timer_count_ = 0;
+}
+
+MockUnsubscribingFastTimer::~MockUnsubscribingFastTimer()
+{
+}
+
+srs_error_t MockUnsubscribingFastTimer::on_timer(srs_utime_t interval)
+{
+    on_timer_count_++;
+
+    if (timer_ && target_) {
+        timer_->unsubscribe(target_);
+    }
+
+    return srs_success;
+}
+
+MockCoroutineForFastTimer::MockCoroutineForFastTimer()
+{
+    pull_count_ = 0;
+    pull_success_ = 0;
+    start_count_ = 0;
+    stop_count_ = 0;
+    start_error_ = srs_success;
+}
+
+MockCoroutineForFastTimer::~MockCoroutineForFastTimer()
+{
+    srs_freep(start_error_);
+}
+
+srs_error_t MockCoroutineForFastTimer::start()
+{
+    start_count_++;
+
+    srs_error_t err = start_error_;
+    start_error_ = srs_success;
+
+    return err;
+}
+
+void MockCoroutineForFastTimer::stop()
+{
+    stop_count_++;
+}
+
+void MockCoroutineForFastTimer::interrupt()
+{
+}
+
+srs_error_t MockCoroutineForFastTimer::pull()
+{
+    if (++pull_count_ <= pull_success_) {
+        return srs_success;
+    }
+    return srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+}
+
+const SrsContextId &MockCoroutineForFastTimer::cid()
+{
+    return cid_;
+}
+
+void MockCoroutineForFastTimer::set_cid(const SrsContextId &cid)
+{
+    cid_ = cid;
+}
+
+MockTimeForFastTimer::MockTimeForFastTimer()
+{
+}
+
+MockTimeForFastTimer::~MockTimeForFastTimer()
+{
+}
+
+void MockTimeForFastTimer::usleep(srs_utime_t duration)
+{
+    usleep_calls_.push_back(duration);
+}
+
+MockContextForFastTimer::MockContextForFastTimer()
+{
+    get_id_count_ = 0;
+}
+
+MockContextForFastTimer::~MockContextForFastTimer()
+{
+}
+
+SrsContextId MockContextForFastTimer::generate_id()
+{
+    return id_;
+}
+
+const SrsContextId &MockContextForFastTimer::get_id()
+{
+    get_id_count_++;
+    return id_;
+}
+
+const SrsContextId &MockContextForFastTimer::set_id(const SrsContextId &v)
+{
+    id_ = v;
+    return id_;
+}
+
+MockKernelFactoryForFastTimer::MockKernelFactoryForFastTimer()
+{
+    coroutine_ = NULL;
+    time_ = NULL;
+    create_coroutine_count_ = 0;
+    create_time_count_ = 0;
+    coroutine_handler_ = NULL;
+}
+
+MockKernelFactoryForFastTimer::~MockKernelFactoryForFastTimer()
+{
+}
+
+ISrsCoroutine *MockKernelFactoryForFastTimer::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
+{
+    create_coroutine_count_++;
+    coroutine_name_ = name;
+    coroutine_handler_ = handler;
+    coroutine_cid_ = cid;
+    return coroutine_;
+}
+
+ISrsTime *MockKernelFactoryForFastTimer::create_time()
+{
+    create_time_count_++;
+    return time_;
+}
+
+ISrsConfig *MockKernelFactoryForFastTimer::create_config()
+{
+    return NULL;
+}
+
+ISrsCond *MockKernelFactoryForFastTimer::create_cond()
+{
+    return NULL;
 }
 
 // Tests for srs_kernel_hourglass.hpp
@@ -699,6 +863,7 @@ VOID TEST(KernelStreamTest, SimpleStreamAppending)
 VOID TEST(KernelPithyPrintTest, AlonePithyPrint)
 {
     SrsAlonePithyPrint print;
+    print.assemble();
 
     // The behavior depends on internal timing, just verify it doesn't crash
     bool can_print_initial = print.can_print();
@@ -4126,6 +4291,503 @@ VOID TEST(KernelHourglassTest, SrsFastTimer_destructor)
     EXPECT_TRUE(true);
 }
 
+// The shared fast timer is the heartbeat every subscriber depends on, so its construction must stay
+// quiescent and its dispatch loop must be drivable with an injected coroutine and clock.
+VOID TEST(KernelHourglassTest, SrsFastTimerAssembleCreatesCoroutineFromInjectedFactory)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+    context.set_id(SrsContextId().set_value("timer-cid"));
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+
+    // Construction reaches no collaborator, so a test can replace them before any work happens.
+    EXPECT_TRUE(NULL == timer.trd_);
+    EXPECT_TRUE(NULL == timer.time_);
+
+    timer.factory_ = &factory;
+    timer.context_ = &context;
+    timer.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_EQ(1, factory.create_time_count_);
+    EXPECT_STREQ("shared", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(&timer == factory.coroutine_handler_);
+    EXPECT_STREQ("timer-cid", factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&trd == timer.trd_);
+    EXPECT_TRUE(&time == timer.time_);
+
+    // The mocks are borrowed, so the destructor must not free them.
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+    timer.factory_ = NULL;
+    timer.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleTicksEverySubscriberAndSleeps)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    timer.factory_ = &factory;
+    timer.context_ = &context;
+    timer.assemble();
+
+    // Without the injected coroutine and clock, cycle() would run the real timer forever.
+    ASSERT_TRUE(&trd == timer.trd_);
+    ASSERT_TRUE(&time == timer.time_);
+
+    MockSrsFastTimer first;
+    MockSrsFastTimer second;
+    timer.subscribe(&first);
+    timer.subscribe(&second);
+
+    // Two rounds, then the coroutine is interrupted.
+    trd.pull_success_ = 2;
+
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    ASSERT_EQ(2, (int)first.timer_calls_.size());
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, first.timer_calls_[0]);
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, first.timer_calls_[1]);
+    ASSERT_EQ(2, (int)second.timer_calls_.size());
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, second.timer_calls_[0]);
+
+    // One sleep of the configured interval per round, after the handlers ran.
+    ASSERT_EQ(2, (int)time.usleep_calls_.size());
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, time.usleep_calls_[0]);
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, time.usleep_calls_[1]);
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+    timer.factory_ = NULL;
+    timer.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleIgnoresHandlerError)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    SrsFastTimer timer("shared", 100 * SRS_UTIME_MILLISECONDS);
+    timer.factory_ = &factory;
+    timer.context_ = &context;
+    timer.assemble();
+
+    ASSERT_TRUE(&trd == timer.trd_);
+    ASSERT_TRUE(&time == timer.time_);
+
+    MockSrsFastTimer failed;
+    MockSrsFastTimer healthy;
+    timer.subscribe(&failed);
+    timer.subscribe(&healthy);
+
+    // The first handler fails on the first round only.
+    failed.on_timer_error_ = srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "handler");
+    trd.pull_success_ = 2;
+
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // A failing subscriber neither stops the round nor the timer: the shared timer swallows it.
+    EXPECT_EQ(2, (int)failed.timer_calls_.size());
+    EXPECT_EQ(2, (int)healthy.timer_calls_.size());
+    EXPECT_EQ(2, (int)time.usleep_calls_.size());
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+    timer.factory_ = NULL;
+    timer.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleTicksOnlySubscribedHandlers)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    SrsFastTimer timer("shared", 1 * SRS_UTIME_SECONDS);
+    timer.factory_ = &factory;
+    timer.context_ = &context;
+    timer.assemble();
+
+    ASSERT_TRUE(&trd == timer.trd_);
+    ASSERT_TRUE(&time == timer.time_);
+
+    MockSrsFastTimer kept;
+    MockSrsFastTimer removed;
+
+    // Subscribing twice must not tick the handler twice.
+    timer.subscribe(&kept);
+    timer.subscribe(&kept);
+    timer.subscribe(&removed);
+    timer.unsubscribe(&removed);
+
+    trd.pull_success_ = 1;
+
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, (int)kept.timer_calls_.size());
+    EXPECT_EQ(0, (int)removed.timer_calls_.size());
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+    timer.factory_ = NULL;
+    timer.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleNotifiesEveryHandlerWhenOneUnsubscribesItself)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    timer.factory_ = &factory;
+    timer.context_ = &context;
+    timer.assemble();
+
+    ASSERT_TRUE(&trd == timer.trd_);
+    ASSERT_TRUE(&time == timer.time_);
+
+    // The first handler leaves the timer while the round is still running, as a connection torn
+    // down inside its own callback does.
+    MockUnsubscribingFastTimer first;
+    first.timer_ = &timer;
+    first.target_ = &first;
+    MockSrsFastTimer second;
+    MockSrsFastTimer third;
+
+    timer.subscribe(&first);
+    timer.subscribe(&second);
+    timer.subscribe(&third);
+
+    trd.pull_success_ = 1;
+
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // Every handler still subscribed when the round reaches it must be notified.
+    EXPECT_EQ(1, first.on_timer_count_);
+    EXPECT_EQ(1, (int)second.timer_calls_.size());
+    EXPECT_EQ(1, (int)third.timer_calls_.size());
+
+    // The handler that left is gone once the round ends.
+    EXPECT_EQ(2, (int)timer.handlers_.size());
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+    timer.factory_ = NULL;
+    timer.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleSkipsHandlerUnsubscribedDuringTheRound)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    timer.factory_ = &factory;
+    timer.context_ = &context;
+    timer.assemble();
+
+    ASSERT_TRUE(&trd == timer.trd_);
+    ASSERT_TRUE(&time == timer.time_);
+
+    MockSrsFastTimer second;
+    MockSrsFastTimer third;
+
+    // The first handler removes a handler the round has not reached yet.
+    MockUnsubscribingFastTimer first;
+    first.timer_ = &timer;
+    first.target_ = &third;
+
+    timer.subscribe(&first);
+    timer.subscribe(&second);
+    timer.subscribe(&third);
+
+    trd.pull_success_ = 1;
+
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // A handler that unsubscribed during the round must not be notified afterwards: it may already
+    // be destroyed. This holds today too, and the round must keep it that way.
+    EXPECT_EQ(1, first.on_timer_count_);
+    EXPECT_EQ(1, (int)second.timer_calls_.size());
+    EXPECT_EQ(0, (int)third.timer_calls_.size());
+    EXPECT_EQ(2, (int)timer.handlers_.size());
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+    timer.factory_ = NULL;
+    timer.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleNeverNotifiesAFreedHandler)
+{
+    // A subscriber that unsubscribes from its own destructor, as SrsRtcPublishRtcpTimer,
+    // SrsRtcPublishTwccTimer and SrsRtcConnectionNackTimer all do.
+    class SelfRemovingHandler : public ISrsFastTimerHandler
+    {
+    public:
+        ISrsFastTimer *timer_;
+        int calls_;
+        SelfRemovingHandler()
+        {
+            timer_ = NULL;
+            calls_ = 0;
+        }
+        virtual ~SelfRemovingHandler()
+        {
+            if (timer_) {
+                timer_->unsubscribe(this);
+            }
+        }
+        virtual srs_error_t on_timer(srs_utime_t interval)
+        {
+            calls_++;
+            return srs_success;
+        }
+    };
+
+    // A handler that frees another subscriber during the round, as a connection torn down while
+    // this callback yields on I/O does.
+    class DeletingHandler : public ISrsFastTimerHandler
+    {
+    public:
+        SelfRemovingHandler *victim_;
+        DeletingHandler()
+        {
+            victim_ = NULL;
+        }
+        virtual srs_error_t on_timer(srs_utime_t interval)
+        {
+            srs_freep(victim_);
+            return srs_success;
+        }
+    };
+
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+    MockContextForFastTimer context;
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    timer.factory_ = &factory;
+    timer.context_ = &context;
+    timer.assemble();
+
+    SelfRemovingHandler *victim = new SelfRemovingHandler();
+    victim->timer_ = &timer;
+
+    DeletingHandler deleter;
+    deleter.victim_ = victim;
+
+    timer.subscribe(&deleter);
+    timer.subscribe(victim);
+
+    trd.pull_success_ = 1;
+
+    // The freed subscriber must not be notified after the handler that freed it. Walking a copy of
+    // the subscriber list taken before the round would read that freed object here, which the
+    // sanitizer build reports as a heap-use-after-free.
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // Only the handler that did the freeing is left.
+    EXPECT_EQ(1, (int)timer.handlers_.size());
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+    timer.factory_ = NULL;
+    timer.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsHourGlassAssembleCreatesCoroutineFromInjectedFactory)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+    context.set_id(SrsContextId().set_value("hourglass-cid"));
+
+    MockSrsHourGlass handler;
+    SrsHourGlass hourglass("sources", &handler, 1 * SRS_UTIME_SECONDS);
+
+    // Construction reaches no collaborator, so a test can replace them before any work happens.
+    EXPECT_TRUE(NULL == hourglass.trd_);
+    EXPECT_TRUE(NULL == hourglass.time_);
+
+    hourglass.factory_ = &factory;
+    hourglass.context_ = &context;
+    hourglass.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_EQ(1, factory.create_time_count_);
+    // The coroutine is named after the label, which the hourglass now keeps until assemble().
+    EXPECT_STREQ("timer-sources", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(&hourglass == factory.coroutine_handler_);
+    EXPECT_STREQ("hourglass-cid", factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&trd == hourglass.trd_);
+    EXPECT_TRUE(&time == hourglass.time_);
+
+    // The mocks are borrowed, so the destructor must not free them.
+    hourglass.trd_ = NULL;
+    hourglass.time_ = NULL;
+    hourglass.factory_ = NULL;
+    hourglass.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsHourGlassCycleNotifiesDueTicksAndSleepsResolution)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    MockSrsHourGlass handler;
+    SrsHourGlass hourglass("sources", &handler, 100 * SRS_UTIME_MILLISECONDS);
+    hourglass.factory_ = &factory;
+    hourglass.context_ = &context;
+    hourglass.assemble();
+
+    // Without the injected coroutine and clock, cycle() would run the real timer forever.
+    ASSERT_TRUE(&trd == hourglass.trd_);
+    ASSERT_TRUE(&time == hourglass.time_);
+
+    srs_error_t err = srs_success;
+    HELPER_EXPECT_SUCCESS(hourglass.tick(1, 200 * SRS_UTIME_MILLISECONDS));
+    HELPER_EXPECT_SUCCESS(hourglass.tick(2, 300 * SRS_UTIME_MILLISECONDS));
+
+    // Four rounds, then the coroutine is interrupted.
+    trd.pull_success_ = 4;
+
+    err = hourglass.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // An event fires when the elapsed time is a multiple of its interval: at 0ms both are due, at
+    // 100ms neither, at 200ms event 1, at 300ms event 2.
+    ASSERT_EQ(4, (int)handler.events_.size());
+    EXPECT_EQ(1, handler.events_[0]);
+    EXPECT_EQ(2, handler.events_[1]);
+    EXPECT_EQ(1, handler.events_[2]);
+    EXPECT_EQ(2, handler.events_[3]);
+
+    // The handler is told the interval of its own event and the total elapsed time of the round.
+    EXPECT_EQ(200 * SRS_UTIME_MILLISECONDS, handler.intervals_[0]);
+    EXPECT_EQ(300 * SRS_UTIME_MILLISECONDS, handler.intervals_[1]);
+    EXPECT_EQ(0, handler.ticks_[0]);
+    EXPECT_EQ(0, handler.ticks_[1]);
+    EXPECT_EQ(200 * SRS_UTIME_MILLISECONDS, handler.ticks_[2]);
+    EXPECT_EQ(300 * SRS_UTIME_MILLISECONDS, handler.ticks_[3]);
+
+    // One sleep of the resolution per round, whether or not an event was due.
+    ASSERT_EQ(4, (int)time.usleep_calls_.size());
+    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, time.usleep_calls_[0]);
+    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, time.usleep_calls_[3]);
+
+    hourglass.trd_ = NULL;
+    hourglass.time_ = NULL;
+    hourglass.factory_ = NULL;
+    hourglass.context_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsHourGlassCycleStopsWhenHandlerFails)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = &trd;
+    factory.time_ = &time;
+
+    MockContextForFastTimer context;
+
+    MockSrsHourGlass handler;
+    SrsHourGlass hourglass("sources", &handler, 100 * SRS_UTIME_MILLISECONDS);
+    hourglass.factory_ = &factory;
+    hourglass.context_ = &context;
+    hourglass.assemble();
+
+    ASSERT_TRUE(&trd == hourglass.trd_);
+    ASSERT_TRUE(&time == hourglass.time_);
+
+    srs_error_t err = srs_success;
+    HELPER_EXPECT_SUCCESS(hourglass.tick(1, 100 * SRS_UTIME_MILLISECONDS));
+
+    handler.notify_error_ = srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "notify");
+    trd.pull_success_ = 3;
+
+    // Unlike the shared fast timer, which swallows a subscriber error, the hourglass hands it to
+    // the owner of the timer: the round ends at the failed handler and the timer stops.
+    err = hourglass.cycle();
+    EXPECT_EQ(ERROR_SYSTEM_ASSERT_FAILED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, (int)handler.events_.size());
+    EXPECT_EQ(0, (int)time.usleep_calls_.size());
+
+    hourglass.trd_ = NULL;
+    hourglass.time_ = NULL;
+    hourglass.factory_ = NULL;
+    hourglass.context_ = NULL;
+}
+
 VOID TEST(KernelHourglassTest, SrsHourGlass_untick)
 {
     // Test SrsHourGlass::untick method
@@ -4177,6 +4839,8 @@ VOID TEST(KernelHourglassTest, SrsHourGlass_stop)
 
     MockHourGlassHandler handler;
     SrsHourGlass hourglass("test", &handler, 100 * SRS_UTIME_MILLISECONDS);
+    // The coroutine this test starts and stops is created by assemble(), not by construction.
+    hourglass.assemble();
 
     // Add a tick
     srs_error_t err = hourglass.tick(1, 200 * SRS_UTIME_MILLISECONDS);

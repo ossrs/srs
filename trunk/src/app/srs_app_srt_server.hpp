@@ -15,6 +15,8 @@
 class SrsSrtServer;
 class SrsHourGlass;
 class ISrsSrtClientHandler;
+class ISrsAppConfig;
+class ISrsAppFactory;
 
 // Interface for SRT client acceptance
 class ISrsSrtClientHandler
@@ -38,7 +40,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsSrtListener *listener_;
+    ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
+    ISrsSrtOptions *srt_options_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsSrtListener *listener_;
 
 public:
     SrsSrtAcceptor(ISrsSrtClientHandler *srt_handler);

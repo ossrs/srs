@@ -27,6 +27,49 @@
 // reserved for the end of log data, it must be strlen(LOG_TAIL)
 #define LOG_TAIL_SIZE 1
 
+ISrsLogWriter::ISrsLogWriter()
+{
+}
+
+ISrsLogWriter::~ISrsLogWriter()
+{
+}
+
+SrsLogWriter::SrsLogWriter()
+{
+}
+
+SrsLogWriter::~SrsLogWriter()
+{
+}
+
+int SrsLogWriter::open_file(const std::string &path)
+{
+    return ::open(path.c_str(),
+                  O_RDWR | O_CREAT | O_APPEND,
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+}
+
+void SrsLogWriter::close_file(int fd)
+{
+    ::close(fd);
+}
+
+void SrsLogWriter::write_file(int fd, const char *str_log, int size)
+{
+    ::write(fd, str_log, size);
+}
+
+void SrsLogWriter::write_console(const char *color, const char *str_log, int size)
+{
+    if (!color || !*color) {
+        printf("%.*s", size, str_log);
+    } else {
+        printf("%s%.*s\033[0m", color, size, str_log);
+    }
+    fflush(stdout);
+}
+
 SrsFileLog::SrsFileLog()
 {
     level_ = SrsLogLevelTrace;
@@ -35,43 +78,60 @@ SrsFileLog::SrsFileLog()
     fd_ = -1;
     log_to_file_tank_ = false;
     utc_ = false;
+
+    // The config global does not exist yet when the logger is created, so it is captured by initialize().
+    config_ = NULL;
+
+    writer_ = new SrsLogWriter();
 }
 
 SrsFileLog::~SrsFileLog()
 {
     srs_freepa(log_data_);
 
-    if (fd_ > 0) {
-        ::close(fd_);
-        fd_ = -1;
+    if (writer_ && fd_ >= 0) {
+        writer_->close_file(fd_);
+    }
+    fd_ = -1;
+
+    if (config_) {
+        config_->unsubscribe(this);
     }
 
-    if (_srs_config) {
-        _srs_config->unsubscribe(this);
-    }
+    config_ = NULL;
+    srs_freep(writer_);
 }
 
 // LCOV_EXCL_START
 srs_error_t SrsFileLog::initialize()
 {
-    if (_srs_config) {
-        _srs_config->subscribe(this);
+    // Capture the config here rather than in the constructor: the logger is one of the first objects created, before
+    // the config global exists.
+    config_ = _srs_config;
 
-        log_to_file_tank_ = _srs_config->get_log_tank_file();
-        utc_ = _srs_config->get_utc_time();
+    if (config_) {
+        config_->subscribe(this);
 
-        std::string level = _srs_config->get_log_level();
-        std::string level_v2 = _srs_config->get_log_level_v2();
+        log_to_file_tank_ = config_->get_log_tank_file();
+        utc_ = config_->get_utc_time();
+
+        std::string level = config_->get_log_level();
+        std::string level_v2 = config_->get_log_level_v2();
         level_ = level_v2.empty() ? srs_get_log_level(level) : srs_get_log_level_v2(level_v2);
     }
 
     return srs_success;
 }
+// LCOV_EXCL_STOP
 
 void SrsFileLog::reopen()
 {
-    if (fd_ > 0) {
-        ::close(fd_);
+    // Clear the descriptor with the close. Every path below may leave without opening a new file, and write_log()
+    // opens one only when the descriptor is negative, so a closed descriptor left here would be written to after the
+    // number has been handed to another socket or file.
+    if (fd_ >= 0) {
+        writer_->close_file(fd_);
+        fd_ = -1;
     }
 
     if (!log_to_file_tank_) {
@@ -133,13 +193,12 @@ void SrsFileLog::write_log(int &fd, char *str_log, int size, int level)
         // \033[33m : yellow text code in shell
         // \033[0m : normal text code
         if (level <= SrsLogLevelTrace) {
-            printf("%.*s", size, str_log);
+            writer_->write_console("", str_log, size);
         } else if (level == SrsLogLevelWarn) {
-            printf("\033[33m%.*s\033[0m", size, str_log);
+            writer_->write_console("\033[33m", str_log, size);
         } else {
-            printf("\033[31m%.*s\033[0m", size, str_log);
+            writer_->write_console("\033[31m", str_log, size);
         }
-        fflush(stdout);
 
         return;
     }
@@ -149,26 +208,24 @@ void SrsFileLog::write_log(int &fd, char *str_log, int size, int level)
         open_log_file();
     }
 
-    // write log to file.
-    if (fd > 0) {
-        ::write(fd, str_log, size);
+    // write log to file. A descriptor of 0 is a log file like any other: the process may have been started with its
+    // standard input closed, so open() hands out 0. Only the negative sentinel means there is no file.
+    if (fd >= 0) {
+        writer_->write_file(fd, str_log, size);
     }
 }
 
 void SrsFileLog::open_log_file()
 {
-    if (!_srs_config) {
+    if (!config_) {
         return;
     }
 
-    std::string filename = _srs_config->get_log_file();
+    std::string filename = config_->get_log_file();
 
     if (filename.empty()) {
         return;
     }
 
-    fd_ = ::open(filename.c_str(),
-                 O_RDWR | O_CREAT | O_APPEND,
-                 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+    fd_ = writer_->open_file(filename);
 }
-// LCOV_EXCL_STOP

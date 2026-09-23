@@ -1622,7 +1622,9 @@ SrsLiveSourceManager *_srs_sources = NULL;
 SrsLiveSourceManager::SrsLiveSourceManager()
 {
     lock_ = srs_mutex_new();
-    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
+    SrsHourGlass *timer = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
+    timer->assemble();
+    timer_ = timer;
 
     app_factory_ = _srs_app_factory;
 }

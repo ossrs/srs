@@ -1746,11 +1746,169 @@ void MockRtspPlayStream::reset()
     srs_freep(start_error_);
 }
 
+// MockStreamWriterForRtspConn implementation
+MockStreamWriterForRtspConn::MockStreamWriterForRtspConn(bool *destroyed)
+{
+    destroyed_ = destroyed;
+    write_count_ = 0;
+}
+
+MockStreamWriterForRtspConn::~MockStreamWriterForRtspConn()
+{
+    if (destroyed_) {
+        *destroyed_ = true;
+    }
+}
+
+srs_error_t MockStreamWriterForRtspConn::write(void *buf, size_t size, ssize_t *nwrite)
+{
+    write_count_++;
+
+    if (nwrite) {
+        *nwrite = (ssize_t)size;
+    }
+    return srs_success;
+}
+
+// MockResourceManagerForRtspConn implementation
+MockResourceManagerForRtspConn::MockResourceManagerForRtspConn()
+{
+    subscribe_count_ = 0;
+    unsubscribe_count_ = 0;
+    last_subscribed_handler_ = NULL;
+    last_unsubscribed_handler_ = NULL;
+}
+
+MockResourceManagerForRtspConn::~MockResourceManagerForRtspConn()
+{
+}
+
+srs_error_t MockResourceManagerForRtspConn::start()
+{
+    return srs_success;
+}
+
+bool MockResourceManagerForRtspConn::empty()
+{
+    return true;
+}
+
+size_t MockResourceManagerForRtspConn::size()
+{
+    return 0;
+}
+
+void MockResourceManagerForRtspConn::add(ISrsResource *conn, bool *exists)
+{
+}
+
+void MockResourceManagerForRtspConn::add_with_id(const std::string &id, ISrsResource *conn)
+{
+}
+
+void MockResourceManagerForRtspConn::add_with_fast_id(uint64_t id, ISrsResource *conn)
+{
+}
+
+void MockResourceManagerForRtspConn::add_with_name(const std::string &name, ISrsResource *conn)
+{
+}
+
+ISrsResource *MockResourceManagerForRtspConn::at(int index)
+{
+    return NULL;
+}
+
+ISrsResource *MockResourceManagerForRtspConn::find_by_id(std::string id)
+{
+    return NULL;
+}
+
+ISrsResource *MockResourceManagerForRtspConn::find_by_fast_id(uint64_t id)
+{
+    return NULL;
+}
+
+ISrsResource *MockResourceManagerForRtspConn::find_by_name(std::string name)
+{
+    return NULL;
+}
+
+void MockResourceManagerForRtspConn::remove(ISrsResource *c)
+{
+}
+
+void MockResourceManagerForRtspConn::subscribe(ISrsDisposingHandler *h)
+{
+    subscribe_count_++;
+    last_subscribed_handler_ = h;
+}
+
+void MockResourceManagerForRtspConn::unsubscribe(ISrsDisposingHandler *h)
+{
+    unsubscribe_count_++;
+    last_unsubscribed_handler_ = h;
+}
+
 // MockAppFactoryForRtspPlayStream implementation
+MockCoroutineForRtsp::MockCoroutineForRtsp()
+{
+    start_count_ = 0;
+    stop_count_ = 0;
+    start_error_ = srs_success;
+    pull_error_ = srs_success;
+}
+
+MockCoroutineForRtsp::~MockCoroutineForRtsp()
+{
+    srs_freep(start_error_);
+    srs_freep(pull_error_);
+}
+
+srs_error_t MockCoroutineForRtsp::start()
+{
+    start_count_++;
+
+    if (start_error_ != srs_success) {
+        return srs_error_copy(start_error_);
+    }
+    return srs_success;
+}
+
+void MockCoroutineForRtsp::stop()
+{
+    stop_count_++;
+}
+
+void MockCoroutineForRtsp::interrupt()
+{
+}
+
+srs_error_t MockCoroutineForRtsp::pull()
+{
+    if (pull_error_ != srs_success) {
+        return srs_error_copy(pull_error_);
+    }
+    return srs_success;
+}
+
+const SrsContextId &MockCoroutineForRtsp::cid()
+{
+    return cid_;
+}
+
+void MockCoroutineForRtsp::set_cid(const SrsContextId &cid)
+{
+    cid_ = cid;
+}
+
 MockAppFactoryForRtspPlayStream::MockAppFactoryForRtspPlayStream()
 {
     create_rtsp_audio_send_track_count_ = 0;
     create_rtsp_video_send_track_count_ = 0;
+    coroutine_ = NULL;
+    create_coroutine_count_ = 0;
+    coroutine_handler_ = NULL;
 }
 
 MockAppFactoryForRtspPlayStream::~MockAppFactoryForRtspPlayStream()
@@ -1767,6 +1925,15 @@ ISrsRtspSendTrack *MockAppFactoryForRtspPlayStream::create_rtsp_video_send_track
 {
     create_rtsp_video_send_track_count_++;
     return new MockRtspSendTrack("video_track", track_desc);
+}
+
+ISrsCoroutine *MockAppFactoryForRtspPlayStream::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
+{
+    create_coroutine_count_++;
+    coroutine_name_ = name;
+    coroutine_handler_ = handler;
+    coroutine_cid_ = cid;
+    return coroutine_;
 }
 
 void MockAppFactoryForRtspPlayStream::reset()
@@ -1959,6 +2126,83 @@ VOID TEST(RtspPlayStreamTest, OnStreamChange)
     play_stream->on_stream_change(NULL);
     EXPECT_EQ(1, (int)play_stream->audio_tracks_.size());
     EXPECT_EQ(1, (int)play_stream->video_tracks_.size());
+}
+
+// The track maps and SrsRtspConnection::networks_ sit on opposite sides of an SSRC rewrite: the maps are keyed by the
+// publisher SSRC of arriving packets, while SrsRtspSendTrack::on_rtp rewrites each packet to track_desc_->ssrc_ before
+// do_send_packet looks it up in networks_, which SETUP keyed from the same track description. A republish must
+// therefore re-key the maps to the new publisher SSRC without touching track_desc_->ssrc_, or every packet after it
+// would miss in networks_ and the client would also see its negotiated SSRC change mid-session.
+//
+// This test passes from the start: it locks in the current, intended behavior rather than driving a fix. Without it,
+// assigning the new SSRC to track_desc_ inside on_stream_change would leave every existing test green.
+VOID TEST(RtspPlayStreamTest, OnStreamChangeKeepsSubscriberSsrc)
+{
+    srs_error_t err = srs_success;
+
+    MockStatisticForRtspPlayStream mock_stat;
+    MockRtspSourceManager mock_rtsp_sources;
+    MockAppFactoryForRtspPlayStream mock_app_factory;
+    mock_rtsp_sources.mock_source_ = SrsSharedPtr<SrsRtspSource>(new SrsRtspSource());
+
+    SrsUniquePtr<MockEdgeRequest> mock_req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtspPlayStream> play_stream(new SrsRtspPlayStream(NULL, cid));
+    play_stream->stat_ = &mock_stat;
+    play_stream->rtsp_sources_ = &mock_rtsp_sources;
+    play_stream->app_factory_ = &mock_app_factory;
+
+    // SETUP negotiated SSRC 1001 for audio and 2001 for video, which is what networks_ is keyed by.
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "0";
+    audio_desc->ssrc_ = 1001;
+    audio_desc->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    audio_desc->media_->pt_of_publisher_ = 111;
+
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->id_ = "1";
+    video_desc->ssrc_ = 2001;
+    video_desc->media_ = new SrsVideoPayload(102, "H264", 90000);
+    video_desc->media_->pt_of_publisher_ = 102;
+
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+    sub_relations[1001] = audio_desc.get();
+    sub_relations[2001] = video_desc.get();
+    HELPER_EXPECT_SUCCESS(play_stream->initialize(mock_req.get(), sub_relations));
+
+    ISrsRtspSendTrack *audio_track = play_stream->audio_tracks_[1001];
+    ISrsRtspSendTrack *video_track = play_stream->video_tracks_[2001];
+    EXPECT_EQ(1001, (int)audio_track->track_desc()->ssrc_);
+    EXPECT_EQ(2001, (int)video_track->track_desc()->ssrc_);
+
+    // The publisher republishes and comes back with different SSRCs.
+    SrsUniquePtr<SrsRtcSourceDescription> new_desc(new SrsRtcSourceDescription());
+    new_desc->audio_track_desc_ = new SrsRtcTrackDescription();
+    new_desc->audio_track_desc_->type_ = "audio";
+    new_desc->audio_track_desc_->ssrc_ = 1002;
+    new_desc->audio_track_desc_->media_ = new SrsAudioPayload(112, "opus", 48000, 2);
+    new_desc->audio_track_desc_->media_->pt_ = 112;
+
+    SrsRtcTrackDescription *new_video_desc = new SrsRtcTrackDescription();
+    new_video_desc->type_ = "video";
+    new_video_desc->ssrc_ = 2002;
+    new_video_desc->media_ = new SrsVideoPayload(103, "H264", 90000);
+    new_video_desc->media_->pt_ = 103;
+    new_desc->video_track_descs_.push_back(new_video_desc);
+
+    play_stream->on_stream_change(new_desc.get());
+
+    // The input side follows the publisher, so arriving packets still find their track.
+    EXPECT_TRUE(play_stream->audio_tracks_.find(1002) != play_stream->audio_tracks_.end());
+    EXPECT_TRUE(play_stream->video_tracks_.find(2002) != play_stream->video_tracks_.end());
+
+    // GOAL: the output side does not move. These SSRCs are what on_rtp stamps onto every outgoing
+    // packet and what SrsRtspConnection::networks_ is keyed by, so they must survive the republish.
+    EXPECT_EQ(1001, (int)audio_track->track_desc()->ssrc_);
+    EXPECT_EQ(2001, (int)video_track->track_desc()->ssrc_);
 }
 
 // A republish brings new SSRCs: on_stream_change re-keys the track maps, so it must also clear the fast cache, or the
@@ -2193,6 +2437,78 @@ VOID TEST(RtspPlayStreamTest, SendPacketWithCacheAndTrackLookup)
     EXPECT_EQ(1, video_track->on_rtp_count_);
 }
 
+// The sender coroutine is what delivers packets to an RTSP player, so a test must be able to replace
+// it before start() runs. Otherwise the started-twice guard and the start failure are only reachable
+// by creating a real coroutine.
+VOID TEST(RtspPlayStreamTest, StartCreatesSenderCoroutineThroughFactory)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspConnection mock_session;
+    MockStatisticForRtspPlayStream mock_stat;
+    MockAppFactoryForRtspPlayStream mock_factory;
+    MockCoroutineForRtsp mock_trd;
+    mock_factory.coroutine_ = &mock_trd;
+
+    SrsContextId cid = SrsContextId().set_value("rtsp-play");
+    SrsUniquePtr<SrsRtspPlayStream> play_stream(new SrsRtspPlayStream(&mock_session, cid));
+
+    play_stream->stat_ = &mock_stat;
+    play_stream->app_factory_ = &mock_factory;
+
+    // GOAL: start() reaches the sender coroutine through the factory and starts it.
+    HELPER_EXPECT_SUCCESS(play_stream->start());
+    EXPECT_EQ(1, mock_factory.create_coroutine_count_);
+    EXPECT_STREQ("rtsp_sender", mock_factory.coroutine_name_.c_str());
+    EXPECT_TRUE(play_stream.get() == mock_factory.coroutine_handler_);
+    EXPECT_STREQ("rtsp-play", mock_factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&mock_trd == play_stream->trd_);
+    EXPECT_EQ(1, mock_trd.start_count_);
+    EXPECT_TRUE(play_stream->is_started);
+
+    // GOAL: a repeated PLAY cannot start a second coroutine for the same stream.
+    HELPER_EXPECT_SUCCESS(play_stream->start());
+    EXPECT_EQ(1, mock_factory.create_coroutine_count_);
+    EXPECT_EQ(1, mock_trd.start_count_);
+
+    // GOAL: stop() reaches the same coroutine instance the factory handed out.
+    play_stream->stop();
+    EXPECT_EQ(1, mock_trd.stop_count_);
+
+    // The coroutine is borrowed from the mock factory, so the destructor must not free it. The
+    // statistic stays injected because the destructor reports the disconnect through it.
+    play_stream->trd_ = NULL;
+    play_stream->app_factory_ = NULL;
+}
+
+// A failed sender coroutine must leave the play stream unstarted, so that the session is torn down
+// instead of being treated as a playing client.
+VOID TEST(RtspPlayStreamTest, StartFailsWhenSenderCoroutineFails)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspConnection mock_session;
+    MockStatisticForRtspPlayStream mock_stat;
+    MockAppFactoryForRtspPlayStream mock_factory;
+    MockCoroutineForRtsp mock_trd;
+    mock_trd.start_error_ = srs_error_new(ERROR_THREAD_STARTED, "mock start failure");
+    mock_factory.coroutine_ = &mock_trd;
+
+    SrsContextId cid = SrsContextId().set_value("rtsp-play");
+    SrsUniquePtr<SrsRtspPlayStream> play_stream(new SrsRtspPlayStream(&mock_session, cid));
+
+    play_stream->stat_ = &mock_stat;
+    play_stream->app_factory_ = &mock_factory;
+
+    // GOAL: the coroutine failure is reported and the stream is not marked started.
+    HELPER_EXPECT_FAILED(play_stream->start());
+    EXPECT_EQ(1, mock_trd.start_count_);
+    EXPECT_FALSE(play_stream->is_started);
+
+    play_stream->trd_ = NULL;
+    play_stream->app_factory_ = NULL;
+}
+
 VOID TEST(RtspPlayStreamTest, SetAllTracksStatus)
 {
     // Create mock dependencies
@@ -2269,6 +2585,56 @@ VOID TEST(RtspPlayStreamTest, SetAllTracksStatus)
 
     // Note: play_stream will be destroyed before mocks go out of scope
     // The destructor will free the tracks in the maps and call stat_->on_disconnect()
+}
+
+// The RTSP connection is the entry point of every RTSP session, so a test has to be able to replace
+// its context, its coroutine factory and its resource manager before any of them is used.
+// Construction must therefore stay quiescent, and every collaborator call must happen in assemble().
+// The context, coroutine and factory mocks are the generic recorders already defined for SrsRtmpConn.
+VOID TEST(RtspConnectionTest, AssembleWiresCollaboratorsFromInjectedDependencies)
+{
+    MockResourceManagerForRtspConn manager;
+    SrsRtspConnection *conn = new SrsRtspConnection(&manager, NULL, "127.0.0.1", 8554);
+
+    // GOAL: construction reaches no collaborator, so a test can replace them before any work runs.
+    EXPECT_TRUE(NULL == conn->trd_);
+
+    MockCoroutineForRtmpConn trd;
+
+    MockAppFactoryForRtmpConn factory;
+    factory.coroutine_ = &trd;
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("rtsp-cid");
+
+    conn->app_factory_ = &factory;
+    conn->context_ = &context;
+    conn->rtsp_manager_ = &manager;
+    conn->assemble();
+
+    // GOAL: the session identity, the coroutine and the dispose subscription are all established by
+    // assemble(), through the injected dependencies.
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ("rtsp-cid", conn->cid_.c_str());
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("rtsp", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(conn == factory.coroutine_handler_);
+    EXPECT_STREQ("rtsp-cid", factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&trd == conn->trd_);
+    EXPECT_EQ(1, manager.subscribe_count_);
+    EXPECT_TRUE(conn == manager.last_subscribed_handler_);
+
+    // The coroutine is borrowed from the mock factory, so the destructor must not free it.
+    ISrsDisposingHandler *subscribed = conn;
+    conn->trd_ = NULL;
+    conn->app_factory_ = NULL;
+    conn->context_ = NULL;
+    srs_freep(conn);
+
+    // GOAL: the dispose subscription is symmetric on the same injected manager instance.
+    EXPECT_EQ(1, manager.unsubscribe_count_);
+    EXPECT_TRUE(subscribed == manager.last_unsubscribed_handler_);
 }
 
 // Test SrsRtspConnection::on_rtsp_request() - major use scenario
@@ -2409,8 +2775,10 @@ VOID TEST(RtspConnectionTest, OnRtspRequestCompletePlayFlow)
 // through active session management to disposal.
 VOID TEST(RtspConnectionTest, SessionLifecycleAndDisposal)
 {
-    // Create RTSP connection
+    // Create RTSP connection. This test drives the session identity, so it assembles the connection
+    // with the production dependencies captured by the constructor.
     SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->assemble();
 
     // Test 1: Context management
     {
@@ -2708,6 +3076,210 @@ VOID TEST(RtspConnectionTest, DoSetupWithTcpTransport)
     ISrsStreamWriter *network = conn->networks_[12345];
     srs_freep(network);
     conn->networks_.clear();
+}
+
+// SETUP carries its parameters in the Transport header, but that header is optional as far as the
+// parser is concerned: SrsRtspRequest::transport_ stays NULL when it is absent, and is_setup() only
+// looks at the method. A client may therefore reach the SETUP branch with no transport at all, and
+// it must be answered as a bad request rather than asserted on, because srs_assert is plain assert()
+// and no build defines NDEBUG, so the assertion ends the whole process and every session on it.
+VOID TEST(RtspConnectionTest, SetupWithoutTransportIsRejected)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspStack *mock_rtsp = new MockRtspStack();
+
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->rtsp_ = mock_rtsp;
+    conn->session_id_ = "test_session_123";
+
+    // A SETUP with no Transport header at all: transport_ is left NULL by the parser.
+    SrsRtspRequest *req = new SrsRtspRequest();
+    req->method_ = "SETUP";
+    req->uri_ = "rtsp://127.0.0.1:8554/live/stream/trackID=0";
+    req->seq_ = 7;
+    req->stream_id_ = 0;
+    EXPECT_TRUE(NULL == req->transport_);
+
+    // GOAL: the request is refused and the connection survives to serve the next one.
+    HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+    EXPECT_TRUE(mock_rtsp->send_message_called_);
+    EXPECT_EQ(7, mock_rtsp->last_response_seq_);
+    EXPECT_EQ(SRS_CONSTS_RTSP_BadRequest, mock_rtsp->last_response_status_);
+    EXPECT_STREQ("test_session_123", mock_rtsp->last_response_session_.c_str());
+
+    conn->rtsp_ = NULL;
+    srs_freep(mock_rtsp);
+}
+
+// RTSP has no session state machine: on_rtsp_request dispatches each request on its own, so a
+// client may send DESCRIBE more than once. Each DESCRIBE rebuilds the SDP from the source, so the
+// track descriptions it stores must be rebuilt with it, not silently discarded.
+VOID TEST(RtspConnectionTest, RepeatedDescribeReplacesTrackDescriptions)
+{
+    srs_error_t err = srs_success;
+
+    MockEdgeConfig mock_config;
+    MockSecurity mock_security;
+    MockHttpHooks mock_hooks;
+    MockRtspSourceManager mock_rtsp_sources;
+
+    SrsSharedPtr<SrsRtspSource> mock_source(new SrsRtspSource());
+
+    SrsRtcTrackDescription *audio_desc = new SrsRtcTrackDescription();
+    audio_desc->type_ = "audio";
+    audio_desc->ssrc_ = 1001;
+    audio_desc->media_ = new SrsAudioPayload(97, "MPEG4-GENERIC", 48000, 2);
+    mock_source->audio_desc_ = audio_desc;
+
+    mock_rtsp_sources.mock_source_ = mock_source;
+
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->config_ = &mock_config;
+    conn->security_ = &mock_security;
+    conn->hooks_ = &mock_hooks;
+    conn->rtsp_sources_ = &mock_rtsp_sources;
+
+    SrsUniquePtr<SrsRtspRequest> req(new SrsRtspRequest());
+    req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+
+    std::string sdp;
+    HELPER_EXPECT_SUCCESS(conn->do_describe(req.get(), sdp));
+    EXPECT_EQ(1, (int)conn->tracks_.size());
+    EXPECT_EQ(97, conn->tracks_[1001]->media_->pt_);
+
+    // The publisher re-negotiates its payload type, so a second DESCRIBE must report the new one.
+    audio_desc->media_->pt_ = 98;
+
+    sdp = "";
+    HELPER_EXPECT_SUCCESS(conn->do_describe(req.get(), sdp));
+
+    // GOAL: the stored description is the one this DESCRIBE built. std::map::insert keeps the
+    // existing entry and drops the new copy on the floor, which both leaks it and serves stale
+    // payload types to the client.
+    EXPECT_EQ(1, (int)conn->tracks_.size());
+    EXPECT_EQ(98, conn->tracks_[1001]->media_->pt_);
+
+    // Clean up injected mocks to avoid double-free
+    conn->config_ = NULL;
+    conn->security_ = NULL;
+    conn->hooks_ = NULL;
+    conn->rtsp_sources_ = NULL;
+}
+
+// A publisher that republishes between two DESCRIBEs comes back with a new SSRC. The stale track
+// must go, because track ids restart at 0 on every DESCRIBE and SETUP resolves a stream id by
+// scanning for the first matching id.
+VOID TEST(RtspConnectionTest, RepeatedDescribeAfterSsrcChangeDropsStaleTracks)
+{
+    srs_error_t err = srs_success;
+
+    MockEdgeConfig mock_config;
+    MockSecurity mock_security;
+    MockHttpHooks mock_hooks;
+    MockRtspSourceManager mock_rtsp_sources;
+
+    SrsSharedPtr<SrsRtspSource> mock_source(new SrsRtspSource());
+
+    SrsRtcTrackDescription *audio_desc = new SrsRtcTrackDescription();
+    audio_desc->type_ = "audio";
+    audio_desc->ssrc_ = 1001;
+    audio_desc->media_ = new SrsAudioPayload(97, "MPEG4-GENERIC", 48000, 2);
+    mock_source->audio_desc_ = audio_desc;
+
+    mock_rtsp_sources.mock_source_ = mock_source;
+
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->config_ = &mock_config;
+    conn->security_ = &mock_security;
+    conn->hooks_ = &mock_hooks;
+    conn->rtsp_sources_ = &mock_rtsp_sources;
+
+    SrsUniquePtr<SrsRtspRequest> req(new SrsRtspRequest());
+    req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+
+    std::string sdp;
+    HELPER_EXPECT_SUCCESS(conn->do_describe(req.get(), sdp));
+
+    // The publisher restarts and comes back with a different SSRC.
+    audio_desc->ssrc_ = 1002;
+
+    sdp = "";
+    HELPER_EXPECT_SUCCESS(conn->do_describe(req.get(), sdp));
+
+    // GOAL: only the live track survives, so trackID=0 resolves to the SSRC now being published.
+    // Keeping both leaves two tracks carrying id_ "0", and the scan returns whichever sorts first.
+    EXPECT_EQ(1, (int)conn->tracks_.size());
+    EXPECT_TRUE(conn->tracks_.find(1002) != conn->tracks_.end());
+
+    uint32_t ssrc = 0;
+    HELPER_EXPECT_SUCCESS(conn->get_ssrc_by_stream_id(0, &ssrc));
+    EXPECT_EQ(1002, (int)ssrc);
+
+    // Clean up injected mocks to avoid double-free
+    conn->config_ = NULL;
+    conn->security_ = NULL;
+    conn->hooks_ = NULL;
+    conn->rtsp_sources_ = NULL;
+}
+
+// RTSP allows a client to re-SETUP a track, for instance to move it to another interleaved channel.
+// The writer installed by the previous SETUP is owned by the connection, so replacing it must free
+// it; otherwise each repeat leaks one until the connection ends.
+VOID TEST(RtspConnectionTest, RepeatedSetupFreesPreviousNetwork)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+
+    SrsRtcTrackDescription *video_desc = new SrsRtcTrackDescription();
+    video_desc->type_ = "video";
+    video_desc->id_ = "0";
+    video_desc->ssrc_ = 12345;
+    conn->tracks_[12345] = video_desc;
+
+    // Stand in for the writer a previous SETUP installed, so its destruction is observable.
+    bool destroyed = false;
+    conn->networks_[12345] = new MockStreamWriterForRtspConn(&destroyed);
+
+    SrsUniquePtr<SrsRtspRequest> req(new SrsRtspRequest());
+    req->method_ = "SETUP";
+    req->stream_id_ = 0;
+    req->transport_ = new SrsRtspTransport();
+    req->transport_->transport_ = "RTP";
+    req->transport_->profile_ = "AVP";
+    req->transport_->lower_transport_ = "TCP";
+    req->transport_->interleaved_min_ = 2;
+    req->transport_->interleaved_max_ = 3;
+
+    uint32_t ssrc = 0;
+    HELPER_EXPECT_SUCCESS(conn->do_setup(req.get(), &ssrc));
+
+    // GOAL: the replaced writer is freed, and the slot holds exactly one writer.
+    EXPECT_TRUE(destroyed);
+    EXPECT_EQ(1, (int)conn->networks_.size());
+
+    ISrsStreamWriter *network = conn->networks_[12345];
+    srs_freep(network);
+    conn->networks_.clear();
+}
+
+// do_send_packet runs for every RTP packet. A lookup miss must not modify the map: std::map's
+// operator[] default-inserts a NULL entry, which allocates a node on the send path.
+VOID TEST(RtspConnectionTest, SendPacketDoesNotInsertOnLookupMiss)
+{
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+
+    SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+    pkt->header_.set_ssrc(4242);
+
+    // GOAL: an unknown SSRC is reported, and the map is left alone.
+    srs_error_t err = conn->do_send_packet(pkt.get());
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_RTSP_NO_TRACK, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(0, (int)conn->networks_.size());
 }
 
 // Test SrsRtspConnection::http_hooks_on_play() to verify HTTP hooks are called correctly

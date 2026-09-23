@@ -19,7 +19,6 @@ using namespace std;
 #include <srs_app_rtsp_source.hpp>
 #endif
 #include <srs_app_security.hpp>
-#include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
@@ -205,7 +204,7 @@ srs_error_t SrsRtspPlayStream::start()
     }
 
     srs_freep(trd_);
-    trd_ = new SrsFastCoroutine("rtsp_sender", this, cid_);
+    trd_ = app_factory_->create_coroutine("rtsp_sender", this, cid_);
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "rtsp_sender");
@@ -382,8 +381,6 @@ ISrsRtspConnection::~ISrsRtspConnection()
 SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWriter *skt, std::string cip, int port)
 {
     manager_ = cm;
-    cid_ = _srs_context->generate_id();
-    _srs_context->set_id(cid_);
 
     // Initialize timeout management fields from SrsRtspConnection2
     last_stun_time = 0;
@@ -395,7 +392,7 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     ip_ = cip;
     port_ = port;
     rtsp_ = new SrsRtspStack(skt);
-    trd_ = new SrsSTCoroutine("rtsp", this, _srs_context->get_id());
+    trd_ = NULL;
 
     // Initialize merged SrsRtspSession members
     skt_ = skt;
@@ -415,16 +412,26 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     config_ = _srs_config;
     rtsp_sources_ = _srs_rtsp_sources;
     hooks_ = _srs_hooks;
+    app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
 }
 
 void SrsRtspConnection::assemble()
 {
+    // Create a identify for this session.
+    cid_ = context_->generate_id();
+    context_->set_id(cid_);
+
+    trd_ = app_factory_->create_coroutine("rtsp", this, context_->get_id());
+
     rtsp_manager_->subscribe(this);
 }
 
 SrsRtspConnection::~SrsRtspConnection()
 {
-    rtsp_manager_->unsubscribe(this);
+    if (rtsp_manager_) {
+        rtsp_manager_->unsubscribe(this);
+    }
 
     srs_freep(request_);
     srs_freep(rtsp_);
@@ -457,6 +464,8 @@ SrsRtspConnection::~SrsRtspConnection()
     config_ = NULL;
     rtsp_sources_ = NULL;
     hooks_ = NULL;
+    app_factory_ = NULL;
+    context_ = NULL;
 }
 
 // LCOV_EXCL_START
@@ -465,7 +474,10 @@ srs_error_t SrsRtspConnection::do_send_packet(SrsRtpPacket *pkt)
     srs_error_t err = srs_success;
 
     uint32_t ssrc = pkt->header_.get_ssrc();
-    ISrsStreamWriter *network = networks_[ssrc];
+    // Look up without inserting: this runs for every RTP packet, and operator[] would default-insert
+    // a NULL entry on each miss.
+    std::map<uint32_t, ISrsStreamWriter *>::iterator it = networks_.find(ssrc);
+    ISrsStreamWriter *network = (it == networks_.end()) ? NULL : it->second;
     if (!network) {
         return srs_error_new(ERROR_RTSP_NO_TRACK, "network not found for ssrc: %u", ssrc);
     }
@@ -642,7 +654,20 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
         std::string local_sdp_escaped = srs_strings_replace(sdp.c_str(), "\r\n", "\\r\\n");
         srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp: %s", req->seq_, session_id_.c_str(), local_sdp_escaped.c_str());
     } else if (req->is_setup()) {
-        srs_assert(req->transport_);
+        // SETUP carries its parameters in the Transport header, which the parser leaves NULL when the
+        // client omits it, while is_setup() only looks at the method. Refuse such a request here: the
+        // response and do_setup() below both dereference the transport, and asserting on it would end
+        // the process, and every other session with it, on input any client can send.
+        if (!req->transport_) {
+            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+            res->status_ = SRS_CONSTS_RTSP_BadRequest;
+            res->session_ = session_id_;
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
+                return srs_error_wrap(err, "response setup");
+            }
+            srs_warn("RTSP: SETUP cseq=%ld without transport, session=%s", req->seq_, session_id_.c_str());
+            return err;
+        }
 
         SrsUniquePtr<SrsRtspSetupResponse> res(new SrsRtspSetupResponse((int)req->seq_));
         res->session_ = session_id_;
@@ -712,7 +737,7 @@ void SrsRtspConnection::on_before_dispose(ISrsResource *c)
     }
 
     if (session && session == this) {
-        _srs_context->set_id(cid_);
+        context_->set_id(cid_);
         srs_trace("RTSP: session detach from [%s](%s), disposing=%d", c->get_id().c_str(),
                   c->desc().c_str(), disposing_);
     }
@@ -727,7 +752,7 @@ void SrsRtspConnection::on_disposing(ISrsResource *c)
 
 void SrsRtspConnection::switch_to_context()
 {
-    _srs_context->set_id(cid_);
+    context_->set_id(cid_);
 }
 
 const SrsContextId &SrsRtspConnection::context_id()
@@ -784,6 +809,14 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
     local_sdp.session_name_ = "Play";
     local_sdp.control_ = req->uri_;
     local_sdp.ice_lite_ = ""; // Disable this line.
+
+    // A client may DESCRIBE more than once, and each one rebuilds the track set from the source, so
+    // drop the previous one first. The track ids restart at 0 below, so a stale entry would collide
+    // on that id in get_ssrc_by_stream_id() and bind SETUP to an SSRC that is no longer published.
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        srs_freep(it->second);
+    }
+    tracks_.clear();
 
     uint32_t track_id = 0;
     SrsRtcTrackDescription *audio_desc = source_->audio_desc();
@@ -878,7 +911,11 @@ srs_error_t SrsRtspConnection::do_setup(SrsRtspRequest *req, uint32_t *pssrc)
                              "UDP transport not supported, only TCP/interleaved mode is supported");
     }
 
+    // A client may re-SETUP a track, for instance to move it to another interleaved channel. The
+    // writer installed by the previous SETUP is owned here, so free it before taking the new one.
     SrsRtspTcpNetwork *network = new SrsRtspTcpNetwork(skt_, req->transport_->interleaved_min_);
+    ISrsStreamWriter *&slot = networks_[ssrc];
+    srs_freep(slot);
     networks_[ssrc] = network;
 
     *pssrc = ssrc;
