@@ -38,6 +38,7 @@ MockLogWriterForFileLog::MockLogWriterForFileLog()
     open_fd_ = -1;
     closed_fd_ = -1;
     close_file_count_ = 0;
+    closed_fd_out_ = NULL;
     written_fd_ = -1;
     write_file_count_ = 0;
     write_console_count_ = 0;
@@ -58,6 +59,10 @@ void MockLogWriterForFileLog::close_file(int fd)
 {
     close_file_count_++;
     closed_fd_ = fd;
+
+    if (closed_fd_out_) {
+        *closed_fd_out_ = fd;
+    }
 }
 
 void MockLogWriterForFileLog::write_file(int fd, const char *str_log, int size)
@@ -439,4 +444,94 @@ VOID TEST(FileLogTest, LogAppendsTheSystemErrorToAnErrorLine)
     EXPECT_TRUE(writer.console_.find("no error here\n") != string::npos);
 
     log.writer_ = NULL;
+}
+
+// Descriptor 0 is a valid descriptor, and the logger opens its log file with whatever number the system hands out.
+// A process started with its standard input closed gets 0 for the log file, so the logger must treat 0 as a file it
+// holds. The sentinel for "no file" is -1, which is what every guard has to test against.
+
+// A log file that landed on descriptor 0 must still be written to, rather than dropping every line for the life of
+// the process while the file sits there empty.
+VOID TEST(FileLogTest, WriteLogWritesToDescriptorZero)
+{
+    MockAppConfigForFileLog config;
+    MockLogWriterForFileLog writer;
+    SrsFileLog log;
+
+    srs_freep(log.writer_);
+    log.writer_ = &writer;
+    log.config_ = &config;
+    log.log_to_file_tank_ = true;
+    log.fd_ = -1;
+    config.log_file_ = "./objs/srs_utest_ai30_write.log";
+
+    // The process was started with its standard input closed, so the log file is the lowest free descriptor.
+    writer.open_fd_ = 0;
+
+    char str_log[16] = "hello";
+    log.write_log(log.fd_, str_log, 5, SrsLogLevelTrace);
+
+    // GOAL: the line reaches descriptor 0.
+    EXPECT_EQ(1, writer.open_file_count_);
+    EXPECT_EQ(0, log.fd_);
+    EXPECT_EQ(1, writer.write_file_count_);
+    EXPECT_EQ(0, writer.written_fd_);
+    EXPECT_STREQ("hello\n", writer.written_.c_str());
+
+    // GOAL: the descriptor is kept, so the next line does not open the file again.
+    char second[16] = "again";
+    log.write_log(log.fd_, second, 5, SrsLogLevelTrace);
+    EXPECT_EQ(1, writer.open_file_count_);
+    EXPECT_EQ(2, writer.write_file_count_);
+
+    log.fd_ = -1;
+    log.config_ = NULL;
+    log.writer_ = NULL;
+}
+
+// Rotating a log file that landed on descriptor 0 must release it, or the process leaks it and the number is gone
+// for good.
+VOID TEST(FileLogTest, ReopenClosesDescriptorZero)
+{
+    MockAppConfigForFileLog config;
+    MockLogWriterForFileLog writer;
+    SrsFileLog log;
+
+    srs_freep(log.writer_);
+    log.writer_ = &writer;
+    log.config_ = &config;
+    log.log_to_file_tank_ = true;
+    log.fd_ = 0;
+    config.log_file_ = "./objs/srs_utest_ai30_write.log";
+    writer.open_fd_ = 5;
+
+    log.reopen();
+
+    // GOAL: descriptor 0 is closed, and the reopened file replaces it.
+    EXPECT_EQ(1, writer.close_file_count_);
+    EXPECT_EQ(0, writer.closed_fd_);
+    EXPECT_EQ(5, log.fd_);
+
+    log.fd_ = -1;
+    log.config_ = NULL;
+    log.writer_ = NULL;
+}
+
+// Destroying the logger must release a log file that landed on descriptor 0, for the same reason.
+VOID TEST(FileLogTest, DestructorClosesDescriptorZero)
+{
+    // The logger owns this writer, so the close is recorded outside it.
+    int closed = -2;
+    MockLogWriterForFileLog *writer = new MockLogWriterForFileLog();
+    writer->closed_fd_out_ = &closed;
+
+    SrsFileLog *log = new SrsFileLog();
+    srs_freep(log->writer_);
+    log->writer_ = writer;
+    log->fd_ = 0;
+
+    srs_freep(log);
+
+    // GOAL: descriptor 0 was closed on the way out.
+    EXPECT_EQ(0, closed);
 }

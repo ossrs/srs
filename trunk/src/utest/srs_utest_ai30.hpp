@@ -46,6 +46,9 @@ public:
     // The descriptor of the last close_file(), and how many times it was asked to close one.
     int closed_fd_;
     int close_file_count_;
+    // When set, close_file() also records the descriptor here, so a test can observe a close that happens while the
+    // logger is being destroyed and owns this writer.
+    int *closed_fd_out_;
     // The descriptor and bytes of the last write_file(), and how many times it was called.
     int written_fd_;
     std::string written_;

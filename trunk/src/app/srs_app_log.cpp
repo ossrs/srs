@@ -89,7 +89,7 @@ SrsFileLog::~SrsFileLog()
 {
     srs_freepa(log_data_);
 
-    if (writer_ && fd_ > 0) {
+    if (writer_ && fd_ >= 0) {
         writer_->close_file(fd_);
     }
     fd_ = -1;
@@ -129,7 +129,7 @@ void SrsFileLog::reopen()
     // Clear the descriptor with the close. Every path below may leave without opening a new file, and write_log()
     // opens one only when the descriptor is negative, so a closed descriptor left here would be written to after the
     // number has been handed to another socket or file.
-    if (fd_ > 0) {
+    if (fd_ >= 0) {
         writer_->close_file(fd_);
         fd_ = -1;
     }
@@ -208,8 +208,9 @@ void SrsFileLog::write_log(int &fd, char *str_log, int size, int level)
         open_log_file();
     }
 
-    // write log to file.
-    if (fd > 0) {
+    // write log to file. A descriptor of 0 is a log file like any other: the process may have been started with its
+    // standard input closed, so open() hands out 0. Only the negative sentinel means there is no file.
+    if (fd >= 0) {
         writer_->write_file(fd, str_log, size);
     }
 }
