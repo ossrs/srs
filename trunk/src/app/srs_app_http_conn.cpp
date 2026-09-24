@@ -387,24 +387,34 @@ ISrsHttpxConn::~ISrsHttpxConn()
 
 SrsHttpxConn::SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, ISrsCommonHttpHandler *m, string cip, int port, string key, string cert) : manager_(cm), io_(io), enable_stat_(false), ssl_key_file_(key), ssl_cert_file_(cert)
 {
+    ssl_ = NULL;
+    conn_ = NULL;
+
+    http_mux_ = m;
+    ip_ = cip;
+    port_ = port;
+
+    config_ = _srs_config;
+    stat_ = _srs_stat;
+    context_ = _srs_context;
+}
+
+void SrsHttpxConn::assemble()
+{
     // Create a identify for this client.
-    _srs_context->set_id(_srs_context->generate_id());
+    context_->set_id(context_->generate_id());
 
     if (!ssl_key_file_.empty() &&
         !ssl_cert_file_.empty()) {
         ssl_ = new SrsSslConnection(io_);
-        SrsHttpConn *conn = new SrsHttpConn(this, ssl_, m, cip, port);
+        SrsHttpConn *conn = new SrsHttpConn(this, ssl_, http_mux_, ip_, port_);
         conn->assemble();
         conn_ = conn;
     } else {
-        ssl_ = NULL;
-        SrsHttpConn *conn = new SrsHttpConn(this, io_, m, cip, port);
+        SrsHttpConn *conn = new SrsHttpConn(this, io_, http_mux_, ip_, port_);
         conn->assemble();
         conn_ = conn;
     }
-
-    config_ = _srs_config;
-    stat_ = _srs_stat;
 }
 
 SrsHttpxConn::~SrsHttpxConn()
@@ -415,6 +425,7 @@ SrsHttpxConn::~SrsHttpxConn()
 
     config_ = NULL;
     stat_ = NULL;
+    context_ = NULL;
 }
 
 void SrsHttpxConn::set_enable_stat(bool v)

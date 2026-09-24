@@ -1559,12 +1559,96 @@ VOID TEST(HttpConnTest, AssembleWiresInjectedContextAndSocket)
     conn->context_ = NULL;
 }
 
-VOID TEST(HttpxConnTest, ConstructionAssemblesHttpConnUnderNewContext)
+VOID TEST(HttpxConnTest, ConstructionReachesNoCollaborator)
 {
     std::string before = _srs_context->get_id().c_str();
 
     MockProtocolReadWriter *io = new MockProtocolReadWriter();
     SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, io, NULL, "127.0.0.1", 8080, "", ""));
+
+    MockProtocolReadWriter *sio = new MockProtocolReadWriter();
+    SrsUniquePtr<SrsHttpxConn> connxs(new SrsHttpxConn(NULL, sio, NULL, "127.0.0.1", 8443, "/key.pem", "/cert.pem"));
+
+    // GOAL: construction only captures dependencies, so a test can replace them before any work runs:
+    // no client id is switched, and neither the TLS socket nor the HTTP connection exists yet.
+    EXPECT_STREQ(before.c_str(), _srs_context->get_id().c_str());
+
+    EXPECT_TRUE(NULL == connx->conn_);
+    EXPECT_TRUE(NULL == connx->ssl_);
+    EXPECT_TRUE(_srs_context == connx->context_);
+
+    EXPECT_TRUE(NULL == connxs->conn_);
+    EXPECT_TRUE(NULL == connxs->ssl_);
+    EXPECT_TRUE(_srs_context == connxs->context_);
+}
+
+VOID TEST(HttpxConnTest, AssembleSwitchesInjectedContextThenBuildsHttpConn)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    MockProtocolReadWriter *io = new MockProtocolReadWriter();
+    SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, io, NULL, "127.0.0.1", 8080, "", ""));
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("httpx-cid");
+
+    connx->context_ = &context;
+    connx->assemble();
+
+    // GOAL: the client id is created and switched through the injected context, never the global one.
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ(before.c_str(), _srs_context->get_id().c_str());
+
+    // GOAL: without a key and certificate, assemble() builds a plain HTTP connection over the owner's socket.
+    EXPECT_TRUE(NULL == connx->ssl_);
+    SrsHttpConn *conn = dynamic_cast<SrsHttpConn *>(connx->conn_);
+    ASSERT_TRUE(conn != NULL);
+
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(io == delta->in_);
+    EXPECT_TRUE(io == delta->out_);
+
+    connx->context_ = NULL;
+}
+
+VOID TEST(HttpxConnTest, AssembleBuildsHttpsConnOverTlsSocket)
+{
+    MockProtocolReadWriter *io = new MockProtocolReadWriter();
+    SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, io, NULL, "127.0.0.1", 8443, "/key.pem", "/cert.pem"));
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("https-cid");
+
+    connx->context_ = &context;
+    connx->assemble();
+
+    // GOAL: the client id is switched through the injected context for HTTPS too.
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+
+    // GOAL: with a key and certificate, assemble() wraps the owner's socket in TLS, and the HTTP
+    // connection reads, writes and measures the TLS socket rather than the raw one.
+    ASSERT_TRUE(connx->ssl_ != NULL);
+    SrsHttpConn *conn = dynamic_cast<SrsHttpConn *>(connx->conn_);
+    ASSERT_TRUE(conn != NULL);
+    EXPECT_TRUE(connx->ssl_ == conn->skt_);
+
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(connx->ssl_ == delta->in_);
+    EXPECT_TRUE(connx->ssl_ == delta->out_);
+    EXPECT_STREQ("HttpsConn", connx->desc().c_str());
+
+    connx->context_ = NULL;
+}
+
+VOID TEST(HttpxConnTest, AssembleBuildsHttpConnUnderNewContext)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    MockProtocolReadWriter *io = new MockProtocolReadWriter();
+    SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, io, NULL, "127.0.0.1", 8080, "", ""));
+    connx->assemble();
 
     // GOAL: the owner switches to a new client id, then assembles its HTTP connection, so the
     // connection's coroutine runs under that new id and its delta measures the owner's socket.

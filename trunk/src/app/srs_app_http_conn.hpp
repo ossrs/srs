@@ -208,6 +208,7 @@ class SrsHttpxConn : public ISrsHttpxConn
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsStatistic *stat_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -216,6 +217,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsProtocolReadWriter *io_;
     ISrsSslConnection *ssl_;
     ISrsHttpConn *conn_;
+    // The HTTP handler and client address, for the HTTP connection built by assemble().
+    ISrsCommonHttpHandler *http_mux_;
+    std::string ip_;
+    int port_;
     // We should never enable the stat, unless HTTP stream connection requires.
     bool enable_stat_;
     // ssl key & cert file
@@ -224,6 +229,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, ISrsCommonHttpHandler *m, std::string cip, int port, std::string key, std::string cert);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsHttpxConn();
 
 public:

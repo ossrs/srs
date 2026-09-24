@@ -1575,7 +1575,9 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
         } else {
             string key = listener == https_listener_ ? config_->get_https_stream_ssl_key() : "";
             string cert = listener == https_listener_ ? config_->get_https_stream_ssl_cert() : "";
-            resource = new SrsHttpxConn(conn_manager_, io, http_server_, ip, port, key, cert);
+            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, io, http_server_, ip, port, key, cert);
+            conn->assemble();
+            resource = conn;
         }
     }
 
@@ -1594,11 +1596,15 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
         } else if (listener == api_listener_ || listener == apis_listener_) {
             string key = listener == apis_listener_ ? config_->get_https_api_ssl_key() : "";
             string cert = listener == apis_listener_ ? config_->get_https_api_ssl_cert() : "";
-            resource = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, key, cert);
+            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, key, cert);
+            conn->assemble();
+            resource = conn;
         } else if (listener == http_listener_ || listener == https_listener_) {
             string key = listener == https_listener_ ? config_->get_https_stream_ssl_key() : "";
             string cert = listener == https_listener_ ? config_->get_https_stream_ssl_cert() : "";
-            resource = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_server_, ip, port, key, cert);
+            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_server_, ip, port, key, cert);
+            conn->assemble();
+            resource = conn;
         } else if (listener == webrtc_listener_) {
             SrsRtcTcpConn *conn = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
             conn->assemble();
@@ -1611,7 +1617,9 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
 #endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
-            resource = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, "", "");
+            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, "", "");
+            conn->assemble();
+            resource = conn;
         } else {
             srs_close_stfd(stfd2);
             srs_warn("Close for invalid fd=%d, ip=%s:%d", fd, ip.c_str(), port);
