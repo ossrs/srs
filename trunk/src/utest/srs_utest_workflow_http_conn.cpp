@@ -67,6 +67,7 @@ VOID TEST(BasicWorkflowHttpConnTest, ManuallyVerifyForHttpRequest)
 
     // Create SrsHttpConn - it takes ownership of mock_io
     SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(mock_handler.get(), mock_io, mock_http_mux.get(), "192.168.1.100", 8080));
+    conn->assemble();
 
     // Inject mock dependencies into private fields
     conn->config_ = mock_config.get();
@@ -127,6 +128,7 @@ VOID TEST(BasicWorkflowHttpConnTest, ManuallyVerifyForHttpxRequest)
 
     // Access the internal SrsHttpConn through conn_ field (cast from ISrsHttpConn* to SrsHttpConn*)
     SrsHttpConn *conn = new SrsHttpConn(connx.get(), mock_ssl, mock_http_mux.get(), "192.168.1.100", 8080);
+    conn->assemble();
     conn->config_ = mock_config.get();
     conn->app_factory_ = mock_app_factory.get();
     srs_freep(conn->parser_);
@@ -189,6 +191,7 @@ VOID TEST(BasicWorkflowHttpConnTest, ManuallyVerifyForHttpStream)
     MockHttpParser *mock_parser = new MockHttpParser();
     SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(mock_manager.get(), mock_io, mock_http_mux.get(), "192.168.1.100", 8080, "", ""));
     SrsHttpConn *conn = new SrsHttpConn(connx.get(), mock_io, mock_http_mux.get(), "192.168.1.100", 8080);
+    conn->assemble();
 
     // Inject mock dependencies into SrsLiveStream private fields
     live_stream->config_ = mock_config.get();
@@ -357,6 +360,7 @@ VOID TEST(ReproduceIssue4621, PreserveForwardedIpForHttpFlvClient)
     SrsUniquePtr<MockConnectionManager> mock_manager(new MockConnectionManager());
     SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(mock_manager.get(), mock_io, mock_http_mux.get(), "192.168.1.100", 8080, "", ""));
     SrsHttpConn *conn = new SrsHttpConn(connx.get(), mock_io, mock_http_mux.get(), "192.168.1.100", 8080);
+    conn->assemble();
 
     live_stream->config_ = mock_config.get();
     live_stream->live_sources_ = mock_live_sources.get();

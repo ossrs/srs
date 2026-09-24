@@ -1498,6 +1498,109 @@ VOID TEST(HttpConnTest, CycleSuccessWithSingleRequest)
     // Note: mock_parser and mock_trd will be freed by SrsHttpConn destructor
 }
 
+VOID TEST(HttpConnTest, ConstructionReachesNoCollaborator)
+{
+    MockHttpxConn handler;
+    MockProtocolReadWriter skt;
+
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, NULL, "127.0.0.1", 8080));
+
+    // GOAL: construction only captures dependencies, so a test can replace them before any work runs.
+    EXPECT_TRUE(NULL == conn->trd_);
+    EXPECT_EQ(0, conn->create_time_);
+
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(NULL == delta->in_);
+    EXPECT_TRUE(NULL == delta->out_);
+
+    EXPECT_TRUE(_srs_app_factory == conn->app_factory_);
+    EXPECT_TRUE(_srs_context == conn->context_);
+}
+
+VOID TEST(HttpConnTest, AssembleWiresInjectedContextAndSocket)
+{
+    MockHttpxConn handler;
+    MockProtocolReadWriter skt;
+
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, NULL, "127.0.0.1", 8080));
+
+    // The connection owns the coroutine the factory creates, and frees it in its destructor.
+    MockCoroutineForRtmpConn *trd = new MockCoroutineForRtmpConn();
+
+    MockAppFactoryForRtmpConn factory;
+    factory.coroutine_ = trd;
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("http-cid");
+
+    conn->app_factory_ = &factory;
+    conn->context_ = &context;
+    conn->assemble();
+
+    // GOAL: the coroutine is created by assemble(), through the injected factory, and runs under the
+    // id of the injected context.
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("http", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(conn.get() == factory.coroutine_handler_);
+    EXPECT_STREQ("http-cid", factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(trd == conn->trd_);
+
+    // GOAL: the connection runs under the id its owner chose, so it never creates or switches one.
+    EXPECT_EQ(0, context.generate_id_count_);
+    EXPECT_EQ(0, context.set_id_count_);
+
+    // GOAL: the bandwidth delta measures the socket, and the creation time is taken at assemble().
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(&skt == delta->in_);
+    EXPECT_TRUE(&skt == delta->out_);
+    EXPECT_TRUE(conn->create_time_ > 0);
+
+    conn->app_factory_ = NULL;
+    conn->context_ = NULL;
+}
+
+VOID TEST(HttpxConnTest, ConstructionAssemblesHttpConnUnderNewContext)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    MockProtocolReadWriter *io = new MockProtocolReadWriter();
+    SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, io, NULL, "127.0.0.1", 8080, "", ""));
+
+    // GOAL: the owner switches to a new client id, then assembles its HTTP connection, so the
+    // connection's coroutine runs under that new id and its delta measures the owner's socket.
+    EXPECT_STRNE(before.c_str(), _srs_context->get_id().c_str());
+
+    SrsHttpConn *conn = dynamic_cast<SrsHttpConn *>(connx->conn_);
+    ASSERT_TRUE(conn != NULL);
+    ASSERT_TRUE(conn->trd_ != NULL);
+    EXPECT_EQ(0, conn->trd_->cid().compare(_srs_context->get_id()));
+
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(io == delta->in_);
+    EXPECT_TRUE(io == delta->out_);
+}
+
+VOID TEST(DynamicHttpConnTest, ConstructionAssemblesHttpConnUnderNewContext)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
+    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
+
+    // GOAL: the owner switches to a new client id, then assembles its HTTP connection, so the
+    // connection's coroutine runs under that new id and its delta measures the owner's socket.
+    EXPECT_STRNE(before.c_str(), _srs_context->get_id().c_str());
+
+    SrsHttpConn *conn = dynamic_cast<SrsHttpConn *>(dyn_conn->conn_);
+    ASSERT_TRUE(conn != NULL);
+    ASSERT_TRUE(conn->trd_ != NULL);
+    EXPECT_EQ(0, conn->trd_->cid().compare(_srs_context->get_id()));
+
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(dyn_conn->skt_ == delta->in_);
+    EXPECT_TRUE(dyn_conn->skt_ == delta->out_);
+}
+
 // Mock ISrsHttpResponseReader implementation for SrsDynamicHttpConn::do_proxy
 MockHttpResponseReaderForDynamicConn::MockHttpResponseReaderForDynamicConn()
 {

@@ -50,6 +50,7 @@ class ISrsHttpConn;
 class ISrsAppConfig;
 class ISrsStatistic;
 class ISrsAppFactory;
+class ISrsContext;
 
 // The root error handler of HTTP streaming, which converts an error into an HTTP status for the
 // viewer. Without it the connection is simply closed, which the viewer cannot tell apart from a
@@ -115,6 +116,7 @@ class SrsHttpConn : public ISrsHttpConn
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
@@ -144,6 +146,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsHttpConn(ISrsHttpConnOwner *handler, ISrsProtocolReadWriter *fd, ISrsCommonHttpHandler *m, std::string cip, int port);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsHttpConn();
     // Interface ISrsResource.
 public:

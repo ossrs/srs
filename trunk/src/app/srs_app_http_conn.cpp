@@ -104,18 +104,27 @@ SrsHttpConn::SrsHttpConn(ISrsHttpConnOwner *handler, ISrsProtocolReadWriter *fd,
     skt_ = fd;
     ip_ = cip;
     port_ = cport;
-    create_time_ = srs_time_now_cached();
+    create_time_ = 0;
     delta_ = new SrsNetworkDelta();
-    delta_->set_io(skt_, skt_);
-    trd_ = new SrsSTCoroutine("http", this, _srs_context->get_id());
+    trd_ = NULL;
 
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
+}
+
+void SrsHttpConn::assemble()
+{
+    create_time_ = srs_time_now_cached();
+    delta_->set_io(skt_, skt_);
+    trd_ = app_factory_->create_coroutine("http", this, context_->get_id());
 }
 
 SrsHttpConn::~SrsHttpConn()
 {
-    trd_->interrupt();
+    if (trd_) {
+        trd_->interrupt();
+    }
     srs_freep(trd_);
 
     srs_freep(parser_);
@@ -126,6 +135,7 @@ SrsHttpConn::~SrsHttpConn()
 
     config_ = NULL;
     app_factory_ = NULL;
+    context_ = NULL;
 }
 
 // LCOV_EXCL_START
@@ -383,10 +393,14 @@ SrsHttpxConn::SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, 
     if (!ssl_key_file_.empty() &&
         !ssl_cert_file_.empty()) {
         ssl_ = new SrsSslConnection(io_);
-        conn_ = new SrsHttpConn(this, ssl_, m, cip, port);
+        SrsHttpConn *conn = new SrsHttpConn(this, ssl_, m, cip, port);
+        conn->assemble();
+        conn_ = conn;
     } else {
         ssl_ = NULL;
-        conn_ = new SrsHttpConn(this, io_, m, cip, port);
+        SrsHttpConn *conn = new SrsHttpConn(this, io_, m, cip, port);
+        conn->assemble();
+        conn_ = conn;
     }
 
     config_ = _srs_config;

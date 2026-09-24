@@ -684,6 +684,7 @@ void MockHttpxConnForLiveStream::set_enable_stat(bool v)
 
 MockHttpConnForLiveStream::MockHttpConnForLiveStream() : SrsHttpConn(NULL, NULL, NULL, "127.0.0.1", 1935)
 {
+    assemble();
     mock_handler_ = new MockHttpxConnForLiveStream();
 }
 
