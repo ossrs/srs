@@ -52,7 +52,7 @@
     {
       "id": 1,
       "prompt": "I just cloned the SRS repo on my Linux box. How do I build it, push a test stream, and watch it in my browser?",
-      "expected_output": "Should provide build steps, run command with console.conf, FFmpeg publish command using doc/source.flv, browser playback URLs (HTTP-FLV/HLS), correct ports, and mention HTTP API or SRS console for checking streams.",
+      "expected_output": "Should provide build steps, run command with environment variables and -e, FFmpeg publish command using doc/source.flv, browser playback URLs (HTTP-FLV/HLS), correct ports, and mention HTTP API or SRS console for checking streams.",
       "files": [],
       "assertions": [
         {
@@ -61,8 +61,8 @@
           "type": "contains_concept"
         },
         {
-          "name": "run_with_console_conf",
-          "description": "Answer shows running SRS with console.conf (./objs/srs -c conf/console.conf)",
+          "name": "run_with_env_only",
+          "description": "Answer shows running SRS with environment variables and -e (env SRS_RTMP_LISTEN=1935 ... ./objs/srs -e)",
           "type": "contains_concept"
         },
         {

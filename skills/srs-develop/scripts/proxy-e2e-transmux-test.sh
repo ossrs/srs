@@ -28,7 +28,7 @@ PROXY_WEBRTC_PORT=18000
 PROXY_SRT_PORT=20080
 PROXY_SYSTEM_API_PORT=12025
 
-# Origin ports (from origin1-for-proxy.conf).
+# Origin ports (from srs_proxy_origin 1 in proxy-e2e-origin.sh).
 ORIGIN_RTMP_PORT=19351
 ORIGIN_HTTP_PORT=8081
 ORIGIN_API_PORT=19851
@@ -37,6 +37,7 @@ ORIGIN_SRT_PORT=10081
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
+source "$SCRIPT_DIR/proxy-e2e-origin.sh"
 # Randomize per run so each invocation starts from clean origin state (HLS
 # segments, RTMP source, proxy stream registry) and never shares state with
 # sibling E2E tests that publish to "live/livestream".
@@ -183,7 +184,6 @@ if ! command -v go &>/dev/null; then
 fi
 
 # --- Step 0: Clean up stale state ---
-rm -f "$WORKSPACE/trunk/objs/origin1.pid"
 ALL_PORTS="$PROXY_RTMP_PORT $PROXY_HTTP_API_PORT $PROXY_HTTP_SERVER_PORT $PROXY_WEBRTC_PORT $PROXY_SRT_PORT $PROXY_SYSTEM_API_PORT $ORIGIN_RTMP_PORT $ORIGIN_HTTP_PORT $ORIGIN_API_PORT $ORIGIN_RTC_PORT $ORIGIN_SRT_PORT"
 for port in $ALL_PORTS; do
   lsof -ti :"$port" 2>/dev/null | xargs kill 2>/dev/null || true
@@ -234,8 +234,7 @@ ulimit -n 10000 2>/dev/null || true
 cd "$WORKSPACE/trunk"
 # The proxy rewrites only the port of the WebRTC candidate, so the origin must
 # advertise an IP the WHEP player can reach.
-env CANDIDATE="127.0.0.1" \
-    ./objs/srs -c conf/origin1-for-proxy.conf >/tmp/srs-origin-transmux-e2e.log 2>&1 &
+srs_proxy_origin 1 SRS_RTC_SERVER_CANDIDATE=127.0.0.1 >/tmp/srs-origin-transmux-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 

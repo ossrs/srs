@@ -28,8 +28,11 @@ Please refer to [#1147](https://github.com/ossrs/srs/issues/1147) for the detail
 SRS has built-in support for SRT and can be used with [docker](./getting-started.md) or [compiled from source](./getting-started-build.md):
 
 ```bash
-docker run --rm -it -p 1935:1935 -p 8080:8080 -p 10080:10080/udp ossrs/srs:5 \
-  ./objs/srs -c conf/srt.conf
+docker run --rm -it -p 1935:1935 -p 8080:8080 -p 10080:10080/udp \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_SERVER_ENABLED=on --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
+  --env SRS_SRT_SERVER_ENABLED=on --env SRS_VHOST_SRT_ENABLED=on --env SRS_VHOST_SRT_SRT_TO_RTMP=on \
+  --env SRS_SRT_SERVER_LATENCY=0 --env SRS_SRT_SERVER_RECVLATENCY=0 --env SRS_SRT_SERVER_TSBPDMODE=off \
+  ossrs/srs:8 ./objs/srs -e
 ```
 
 Use [FFmpeg(click to download)](https://ffmpeg.org/download.html) or [OBS(click to download)](https://obsproject.com/download) to push the stream:
@@ -591,8 +594,11 @@ Start SRS with this configuration:
 You can also set the default streamid using an environment variable, which is useful for Docker deployments:
 
 ```bash
-env SRS_SRT_SERVER_DEFAULT_STREAMID="#!::r=live/livestream,m=request" \
-    ./objs/srs -c conf/srt.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_SERVER_ENABLED=on SRS_VHOST_HTTP_REMUX_ENABLED=on \
+    SRS_SRT_SERVER_ENABLED=on SRS_VHOST_SRT_ENABLED=on SRS_VHOST_SRT_SRT_TO_RTMP=on \
+    SRS_SRT_SERVER_LATENCY=0 SRS_SRT_SERVER_RECVLATENCY=0 SRS_SRT_SERVER_TSBPDMODE=off \
+    SRS_SRT_SERVER_DEFAULT_STREAMID="#!::r=live/livestream,m=request" \
+    ./objs/srs -e
 ```
 
 Here's a complete workflow example. First, publish a stream with FFmpeg (which explicitly sets streamid 

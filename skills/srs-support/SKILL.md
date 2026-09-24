@@ -96,7 +96,7 @@ Apply these rules to all SRS answers:
 - Reference `trunk/conf/full.conf` as the complete configuration reference.
 - Load feature-specific documentation for detailed examples.
 - Mention environment-variable support for Docker and cloud-native deployments.
-- Recommend `trunk/conf/console.conf` for local testing.
+- Recommend environment variables with `./objs/srs -e` for local testing; `./objs/srs -h` lists every variable.
 
 **Deployment and getting started**
 - Provide the standard build steps: `cd trunk && ./configure && make`.

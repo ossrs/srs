@@ -52,9 +52,7 @@ STREAM_URL="live/$STREAM_NAME"
 WHIP_URL="http://127.0.0.1:$HTTP_API_PORT/rtc/v1/whip/?app=live&stream=$STREAM_NAME"
 API="http://127.0.0.1:$HTTP_API_PORT"
 TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/srs-rtc-plain-publish.XXXXXX")
-SRS_CONF="$TEST_DIR/srs.conf"
 SRS_LOG="$TEST_DIR/srs.log"
-SRS_PID_FILE="$TEST_DIR/srs.pid"
 SOURCE_MP4="$TEST_DIR/source.mp4"
 FFMPEG_LOG="$TEST_DIR/ffmpeg.log"
 TOOL_LOG="$TEST_DIR/pion-whip.log"
@@ -199,37 +197,14 @@ else
 fi
 echo "pion-whip: $TOOL_BIN"
 
-cat >"$SRS_CONF" <<CONF
-listen $RTMP_PORT;
-pid $SRS_PID_FILE;
-max_connections 1000;
-daemon off;
-srs_log_tank console;
-
-http_api {
-  enabled on;
-  listen $HTTP_API_PORT;
-}
-
-rtc_server {
-  enabled on;
-  listen $RTC_PORT;
-  candidate 127.0.0.1;
-}
-
-vhost __defaultVhost__ {
-  rtc {
-    enabled on;
-    nack_prefer_rtx off;
-    rtc_to_rtmp off;
-  }
-}
-CONF
-
 echo "=== Step 4: Starting SRS with nack_prefer_rtx off ==="
 (
   cd "$WORKSPACE/trunk"
-  exec "$SRS_BINARY" -c "$SRS_CONF" >"$SRS_LOG" 2>&1
+  exec env SRS_RTMP_LISTEN=$RTMP_PORT \
+    SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=$HTTP_API_PORT \
+    SRS_RTC_SERVER_ENABLED=on SRS_RTC_SERVER_LISTEN=$RTC_PORT SRS_RTC_SERVER_CANDIDATE=127.0.0.1 \
+    SRS_VHOST_RTC_ENABLED=on SRS_VHOST_RTC_NACK_PREFER_RTX=off SRS_VHOST_RTC_RTC_TO_RTMP=off \
+    "$SRS_BINARY" -e >"$SRS_LOG" 2>&1
 ) &
 SRS_PID=$!
 echo "SRS PID: $SRS_PID"

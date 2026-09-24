@@ -29,8 +29,9 @@ PROXY_SYSTEM_API_PORT=12025
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
+source "$SCRIPT_DIR/proxy-e2e-origin.sh"
 
-# Origin ports from origin1-for-proxy.conf and origin2-for-proxy.conf.
+# Origin ports from srs_proxy_origin 1 and 2 in proxy-e2e-origin.sh.
 ORIGIN1_RTMP_PORT=19351
 ORIGIN1_HTTP_PORT=8081
 ORIGIN1_API_PORT=19851
@@ -172,8 +173,6 @@ if ! command -v curl &>/dev/null; then
 fi
 
 # --- Step 0: Clean up stale state ---
-# Remove stale SRS PID files that prevent restart.
-rm -f "$WORKSPACE/trunk/objs/origin1.pid" "$WORKSPACE/trunk/objs/origin2.pid"
 # Kill any leftover processes on our ports (proxy + origins).
 ALL_PORTS="$PROXY_RTMP_PORT $PROXY_HTTP_API_PORT $PROXY_HTTP_SERVER_PORT $PROXY_WEBRTC_PORT $PROXY_SRT_PORT $PROXY_SYSTEM_API_PORT"
 ALL_PORTS="$ALL_PORTS $ORIGIN1_RTMP_PORT $ORIGIN1_HTTP_PORT $ORIGIN1_API_PORT $ORIGIN1_RTC_PORT $ORIGIN1_SRT_PORT"
@@ -227,11 +226,11 @@ echo "=== Step 4: Starting two SRS origins ==="
 ulimit -n 10000 2>/dev/null || true
 cd "$WORKSPACE/trunk"
 
-./objs/srs -c conf/origin1-for-proxy.conf >/tmp/srs-origin1-cluster-e2e.log 2>&1 &
+srs_proxy_origin 1 >/tmp/srs-origin1-cluster-e2e.log 2>&1 &
 ORIGIN_PIDS+=($!)
 echo "SRS origin1 PID: ${ORIGIN_PIDS[0]}"
 
-./objs/srs -c conf/origin2-for-proxy.conf >/tmp/srs-origin2-cluster-e2e.log 2>&1 &
+srs_proxy_origin 2 >/tmp/srs-origin2-cluster-e2e.log 2>&1 &
 ORIGIN_PIDS+=($!)
 echo "SRS origin2 PID: ${ORIGIN_PIDS[1]}"
 

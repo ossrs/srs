@@ -29,8 +29,8 @@ If you want to ingest stream from a device or publish to a platform, RTMP is the
 SRS supports RTMP by default, please run by [docker](./getting-started.md) or [build from source](./getting-started-build.md):
 
 ```bash
-docker run --rm -it -p 1935:1935 ossrs/srs:5 \
-  ./objs/srs -c conf/rtmp.conf
+docker run --rm -it -p 1935:1935 --env SRS_RTMP_LISTEN=1935 ossrs/srs:8 \
+  ./objs/srs -e
 ```
 
 Publish stream by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/download) :
@@ -269,7 +269,8 @@ SRS (v7.0.56+) supports RTMPS server functionality, allowing publishers and play
 To enable RTMPS, you need to configure SRS with SSL certificates and run it with RTMPS support:
 
 ```bash
-./objs/srs -c conf/rtmps.conf
+env SRS_RTMP_LISTEN=1935 SRS_RTMPS_ENABLED=on SRS_RTMPS_LISTEN=1443 \
+  ./objs/srs -e
 ```
 
 Publish RTMPS stream by [FFmpeg](https://ffmpeg.org/download.html):

@@ -2068,6 +2068,15 @@ void SrsConfig::print_help(char **argv)
         "   Forward:\n"
         "      SRS_VHOST_FORWARD_ENABLED=off                 Forward published streams.\n"
         "      SRS_VHOST_FORWARD_BACKEND=                    HTTP URL that returns the RTMP URLs to forward to.\n"
+        "   Edge, pull and push streams through an origin:\n"
+        "      SRS_VHOST_CLUSTER_MODE=local                  local for an origin, remote for an edge.\n"
+        "      SRS_VHOST_CLUSTER_ORIGIN=                     Space separated origin ip:port of an edge.\n"
+        "   Stream caster, to receive GB28181, FLV or MPEG-TS over UDP as RTMP:\n"
+        "      SRS_STREAM_CASTER_ENABLED=off                 Enable a stream caster, even without one in the config.\n"
+        "      SRS_STREAM_CASTER_CASTER=                     gb28181, flv or mpegts_over_udp.\n"
+        "      SRS_STREAM_CASTER_OUTPUT=                     RTMP URL to output to, such as rtmp://127.0.0.1/live/[stream].\n"
+        "      SRS_STREAM_CASTER_LISTEN=0                    Port to listen on.\n"
+        "      SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT=10    GB28181, seconds to wait for the media connection.\n"
         "   HTTP hooks, each is space separated HTTP URLs to POST to:\n"
         "      SRS_VHOST_HTTP_HOOKS_ENABLED=off              Enable the HTTP hooks.\n"
         "      SRS_VHOST_HTTP_HOOKS_ON_CONNECT=              When a client connects.\n"
@@ -3473,11 +3482,18 @@ vector<SrsConfDirective *> SrsConfig::get_stream_casters()
         stream_casters.push_back(conf);
     }
 
+    // Create a stream caster by env, if the config has none, for example with -e.
+    if (stream_casters.empty() && !srs_getenv("srs.stream_caster.enabled").empty()) { // SRS_STREAM_CASTER_ENABLED
+        stream_casters.push_back(env_cache_->get_or_create("stream_caster"));
+    }
+
     return stream_casters;
 }
 
 bool SrsConfig::get_stream_caster_enabled(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.stream_caster.enabled"); // SRS_STREAM_CASTER_ENABLED
+
     static bool DEFAULT = false;
 
     if (!conf) {
@@ -3494,6 +3510,8 @@ bool SrsConfig::get_stream_caster_enabled(SrsConfDirective *conf)
 
 string SrsConfig::get_stream_caster_engine(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.stream_caster.caster"); // SRS_STREAM_CASTER_CASTER
+
     static string DEFAULT = "";
 
     if (!conf) {
@@ -3510,6 +3528,8 @@ string SrsConfig::get_stream_caster_engine(SrsConfDirective *conf)
 
 string SrsConfig::get_stream_caster_output(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.stream_caster.output"); // SRS_STREAM_CASTER_OUTPUT
+
     static string DEFAULT = "";
 
     if (!conf) {
@@ -3526,6 +3546,8 @@ string SrsConfig::get_stream_caster_output(SrsConfDirective *conf)
 
 int SrsConfig::get_stream_caster_listen(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.stream_caster.listen"); // SRS_STREAM_CASTER_LISTEN
+
     static int DEFAULT = 0;
 
     if (!conf) {
@@ -3542,6 +3564,8 @@ int SrsConfig::get_stream_caster_listen(SrsConfDirective *conf)
 
 srs_utime_t SrsConfig::get_stream_caster_media_connect_timeout(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.stream_caster.media_connect_timeout"); // SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT
+
     static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
 
     if (!conf) {
@@ -5472,6 +5496,10 @@ bool SrsConfig::get_vhost_is_edge(string vhost)
 
 bool SrsConfig::get_vhost_is_edge(SrsConfDirective *vhost)
 {
+    if (!srs_getenv("srs.vhost.cluster.mode").empty()) { // SRS_VHOST_CLUSTER_MODE
+        return "remote" == srs_getenv("srs.vhost.cluster.mode");
+    }
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = vhost;
@@ -5494,6 +5522,8 @@ bool SrsConfig::get_vhost_is_edge(SrsConfDirective *vhost)
 
 SrsConfDirective *SrsConfig::get_vhost_edge_origin(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.cluster.origin"); // SRS_VHOST_CLUSTER_ORIGIN
+
     SrsConfDirective *conf = get_vhost(vhost);
     if (!conf) {
         return NULL;

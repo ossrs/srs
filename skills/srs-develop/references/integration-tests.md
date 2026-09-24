@@ -54,7 +54,7 @@ Run feature-specific bundled tests in addition to this matrix when the routed wo
 - `bash skills/srs-develop/scripts/rtc-plain-whep-play-test.sh` — plain retransmission on the WebRTC play path, the RTX fallback: the same player under `nack_prefer_rtx off` must get an answer without `rtx` and a resend on the media SSRC.
 - `bash skills/srs-develop/scripts/rtc-plain-whip-publish-test.sh` — plain retransmission on the WebRTC publish path, the RTX fallback: `tools/pion-whip` publishes over WHIP under `nack_prefer_rtx off`, offering `rtx` with a FID group, and must get an answer without `rtx` and resend on the media SSRC.
 
-Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, and `setup-ffmpeg-with-whip.sh` are not standalone test cases unless a workflow explicitly invokes them.
+Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, `proxy-e2e-origin.sh`, and `setup-ffmpeg-with-whip.sh` are not standalone test cases unless a workflow explicitly invokes them.
 
 ## Verification Tiers
 
@@ -66,7 +66,7 @@ The trigger picks the tier, never the expected runtime. Report every layer not r
    - C++ unit: configure `trunk/` with the flags in `trunk/Dockerfile.test` (without `--build-cache`), remove stale `trunk/objs/Platform-*/utest/*.o`, then `make utest && ./objs/srs_utest`.
    - The suite above.
    - In `trunk/3rdparty/srs-bench` after `make test`: `./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64`, then `-test.run '^TestSlow' -test.parallel 1`; pass `-srs-ffmpeg "$(command -v ffmpeg)" -srs-ffprobe "$(command -v ffprobe)"` because its lookup ignores `PATH`.
-   - Regression: in `trunk/`, `./objs/srs -c conf/regression-test.conf`, wait 10s, run `./objs/srs_test -test.v` in `3rdparty/srs-bench`, then kill `$(cat objs/srs.pid)`.
+   - Regression, the one layer that starts SRS from a config file while the other scripts use `-e`: in `trunk/`, `./objs/srs -c conf/regression-test.conf`, wait 10s, run `./objs/srs_test -test.v` in `3rdparty/srs-bench`, then kill `$(cat objs/srs.pid)`.
    - Every feature-specific test listed above, with `SRS_GB_SKIP_BUILD=1` for the `gb28181-*-test.sh` scripts (their build reconfigures `trunk/`).
 
    Check each layer's exit code separately, and strip ANSI codes before counting `--- PASS`.

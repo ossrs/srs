@@ -2035,3 +2035,112 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsEdgeCases)
         EXPECT_STREQ("/env/server.crt", conf.get_rtmps_ssl_cert().c_str());
     }
 }
+
+VOID TEST(ConfigEnvTest, CheckEnvValuesVhostCluster)
+{
+    srs_error_t err;
+
+    // SRS_VHOST_CLUSTER_MODE and SRS_VHOST_CLUSTER_ORIGIN make the vhost an edge without a config file.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{}"));
+
+        SrsSetEnvConfig(conf, mode, "SRS_VHOST_CLUSTER_MODE", "remote");
+        SrsSetEnvConfig(conf, origin, "SRS_VHOST_CLUSTER_ORIGIN", "127.0.0.1:19360 127.0.0.1:19361");
+        EXPECT_TRUE(conf.get_vhost_is_edge("__defaultVhost__"));
+
+        SrsConfDirective *origins = conf.get_vhost_edge_origin("__defaultVhost__");
+        ASSERT_TRUE(origins != NULL);
+        EXPECT_EQ(2, (int)origins->args_.size());
+        EXPECT_STREQ("127.0.0.1:19360", origins->arg0().c_str());
+        EXPECT_STREQ("127.0.0.1:19361", origins->arg1().c_str());
+    }
+
+    // The env overwrites the cluster of the config file.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{cluster{mode remote; origin 127.0.0.1:1935;}}"));
+
+        SrsSetEnvConfig(conf, mode, "SRS_VHOST_CLUSTER_MODE", "local");
+        SrsSetEnvConfig(conf, origin, "SRS_VHOST_CLUSTER_ORIGIN", "127.0.0.1:19360");
+        EXPECT_FALSE(conf.get_vhost_is_edge("__defaultVhost__"));
+
+        SrsConfDirective *origins = conf.get_vhost_edge_origin("__defaultVhost__");
+        ASSERT_TRUE(origins != NULL);
+        EXPECT_EQ(1, (int)origins->args_.size());
+        EXPECT_STREQ("127.0.0.1:19360", origins->arg0().c_str());
+    }
+
+    // Without env, the cluster of the config file is used.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{cluster{mode remote; origin 127.0.0.1:1935;}}"));
+
+        EXPECT_TRUE(conf.get_vhost_is_edge("__defaultVhost__"));
+        SrsConfDirective *origins = conf.get_vhost_edge_origin("__defaultVhost__");
+        ASSERT_TRUE(origins != NULL);
+        EXPECT_STREQ("127.0.0.1:1935", origins->arg0().c_str());
+    }
+}
+
+VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
+{
+    srs_error_t err;
+
+    // SRS_STREAM_CASTER_ENABLED creates a stream caster when the config has none.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, enabled, "SRS_STREAM_CASTER_ENABLED", "on");
+        SrsSetEnvConfig(conf, caster, "SRS_STREAM_CASTER_CASTER", "gb28181");
+        SrsSetEnvConfig(conf, output, "SRS_STREAM_CASTER_OUTPUT", "rtmp://127.0.0.1:1935/live/[stream]");
+        SrsSetEnvConfig(conf, listen, "SRS_STREAM_CASTER_LISTEN", "9000");
+        SrsSetEnvConfig(conf, timeout, "SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT", "3");
+
+        vector<SrsConfDirective *> casters = conf.get_stream_casters();
+        ASSERT_EQ(1, (int)casters.size());
+        SrsConfDirective *c = casters.at(0);
+        EXPECT_TRUE(conf.get_stream_caster_enabled(c));
+        EXPECT_STREQ("gb28181", conf.get_stream_caster_engine(c).c_str());
+        EXPECT_STREQ("rtmp://127.0.0.1:1935/live/[stream]", conf.get_stream_caster_output(c).c_str());
+        EXPECT_EQ(9000, conf.get_stream_caster_listen(c));
+        EXPECT_EQ(3 * SRS_UTIME_SECONDS, conf.get_stream_caster_media_connect_timeout(c));
+
+        // The same caster is returned every time, not a new one.
+        EXPECT_EQ(c, conf.get_stream_casters().at(0));
+    }
+
+    // The env overwrites the stream caster of the config file.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled off; caster flv; output rtmp://127.0.0.1/[app]/[stream]; listen 8936;}"));
+
+        SrsSetEnvConfig(conf, enabled, "SRS_STREAM_CASTER_ENABLED", "on");
+        SrsSetEnvConfig(conf, listen, "SRS_STREAM_CASTER_LISTEN", "9000");
+
+        vector<SrsConfDirective *> casters = conf.get_stream_casters();
+        ASSERT_EQ(1, (int)casters.size());
+        SrsConfDirective *c = casters.at(0);
+        EXPECT_TRUE(conf.get_stream_caster_enabled(c));
+        EXPECT_STREQ("flv", conf.get_stream_caster_engine(c).c_str());
+        EXPECT_EQ(9000, conf.get_stream_caster_listen(c));
+    }
+
+    // Without env, there is no stream caster, and the config file is used.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_EQ(0, (int)conf.get_stream_casters().size());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster flv; listen 8936;}"));
+
+        vector<SrsConfDirective *> casters = conf.get_stream_casters();
+        ASSERT_EQ(1, (int)casters.size());
+        EXPECT_TRUE(conf.get_stream_caster_enabled(casters.at(0)));
+        EXPECT_EQ(8936, conf.get_stream_caster_listen(casters.at(0)));
+    }
+}

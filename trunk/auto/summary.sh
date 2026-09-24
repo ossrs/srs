@@ -36,7 +36,7 @@ echo -e "     \${BLACK}+--------------------------------------------------------
 echo -e "     \${GREEN}For SRS benchmark, gperf, gprof and valgrind, please read:\${BLACK}"
 echo -e "     \${GREEN}     https://ossrs.net/lts/zh-cn/docs/v7/doc/performance\${BLACK}"
 echo -e "     \${BLACK}+------------------------------------------------------------------------------------\${BLACK}"
-echo -e "     |\${GREEN}The main server usage: ./objs/srs -c conf/srs.conf, start the srs server\${BLACK}"
+echo -e "     |\${GREEN}The main server usage: env SRS_RTMP_LISTEN=1935 ./objs/srs -e, start the srs server, see ./objs/srs -h\${BLACK}"
 echo -e "     |     ${SrsHlsSummaryColor}About HLS, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/hls\${BLACK}"
 echo -e "     |     ${SrsDvrSummaryColor}About DVR, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/dvr\${BLACK}"
 echo -e "     |     ${SrsSslSummaryColor}About SSL, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/rtmp-handshake\${BLACK}"
@@ -51,7 +51,12 @@ echo -e "     \${BLACK}+--------------------------------------------------------
 echo -e "\${GREEN}binaries, please read https://ossrs.net/lts/zh-cn/docs/v7/doc/install\${BLACK}"
 
 echo "You can:"
+echo "      env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 \\\\"
+echo "          SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=8080 \\\\"
+echo "          SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \\\\"
+echo "          ./objs/srs -e"
+echo "                  to start the srs server by environment variables, see ./objs/srs -h for all of them."
 echo "      ./objs/srs -c conf/srs.conf"
-echo "                  to start the srs server, with config conf/srs.conf."
+echo "                  or to start the srs server with config conf/srs.conf."
 END
 

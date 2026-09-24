@@ -21,7 +21,8 @@ First, compile and start SRS (ensure you're using version `7.0.47+`):
 
 ```bash
 cd srs/trunk && ./configure --rtsp=on && make
-./objs/srs -c conf/rtsp.conf
+env SRS_RTMP_LISTEN=1935 SRS_RTSP_SERVER_ENABLED=on SRS_RTSP_SERVER_LISTEN=8554 \
+  SRS_VHOST_RTSP_ENABLED=on ./objs/srs -e
 ```
 > You must enable RTSP with `--rtsp=on` during compilation (disabled by default).
 

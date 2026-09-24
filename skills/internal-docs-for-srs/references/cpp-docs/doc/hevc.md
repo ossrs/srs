@@ -59,8 +59,10 @@ For WebRTC:
 Please make sure your SRS is `6.0.4+`, build with h265:
 
 ```bash
-docker run --rm -it -p 1935:1935 -p 8080:8080 ossrs/srs:6 \
-  ./objs/srs -c conf/hevc.flv.conf
+docker run --rm -it -p 1935:1935 -p 8080:8080 \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_SERVER_ENABLED=on \
+  --env SRS_VHOST_HTTP_REMUX_ENABLED=on --env SRS_VHOST_HLS_ENABLED=on \
+  ossrs/srs:8 ./objs/srs -e
 ```
 
 > Note: Besides environment variables, you can also use `conf/hevc.flv.conf` or `conf/hevc.ts.conf` config files.

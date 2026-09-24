@@ -23,9 +23,7 @@ MEDIA_PORT="${SRS_GB_MEDIA_PORT:-29000}"
 STREAM_ID="${SRS_GB_STREAM_ID:-gb-lifecycle-$$}"
 SSRC="${SRS_GB_SSRC:-47190001}"
 TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/srs-gb-tcp-disconnect.XXXXXX")
-SRS_CONF="$TEST_DIR/srs.conf"
 SRS_LOG="$TEST_DIR/srs.log"
-SRS_PID_FILE="$TEST_DIR/srs.pid"
 BUILD_LOG="$TEST_DIR/build.log"
 SRS_PID=""
 TEST_PASSED=0
@@ -89,33 +87,15 @@ echo "SRS built: $SRS_BINARY"
 
 # No SIP listener is configured. SRS only exposes its HTTP publish API and the
 # shared GB28181 media TCP listener; signaling belongs to an external service.
-cat >"$SRS_CONF" <<EOF
-listen $RTMP_PORT;
-pid $SRS_PID_FILE;
-max_connections 1000;
-daemon off;
-srs_log_tank console;
-
-stream_caster {
-  enabled on;
-  caster gb28181;
-  output rtmp://127.0.0.1:$RTMP_PORT/live/[stream];
-  listen $MEDIA_PORT;
-}
-
-http_api {
-  enabled on;
-  listen $HTTP_API_PORT;
-}
-
-vhost __defaultVhost__ {
-}
-EOF
-
 echo "=== Step 2: Starting SRS without an embedded SIP server ==="
 (
   cd "$WORKSPACE/trunk"
-  exec "$SRS_BINARY" -c "$SRS_CONF" >"$SRS_LOG" 2>&1
+  exec env SRS_RTMP_LISTEN=$RTMP_PORT \
+    SRS_STREAM_CASTER_ENABLED=on SRS_STREAM_CASTER_CASTER=gb28181 \
+    SRS_STREAM_CASTER_OUTPUT="rtmp://127.0.0.1:$RTMP_PORT/live/[stream]" \
+    SRS_STREAM_CASTER_LISTEN=$MEDIA_PORT \
+    SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=$HTTP_API_PORT \
+    "$SRS_BINARY" -e >"$SRS_LOG" 2>&1
 ) &
 SRS_PID=$!
 echo "SRS PID: $SRS_PID"

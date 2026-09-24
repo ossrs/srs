@@ -48,6 +48,7 @@ fi
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
+source "$SCRIPT_DIR/proxy-e2e-origin.sh"
 # Keep the stream name recognizable in logs. Redis state isolation comes from
 # REDIS_KEY_PREFIX, which is unique per test invocation unless explicitly set.
 STREAM_NAME="redis$(date +%s)"
@@ -194,7 +195,7 @@ if ! redis_cli ping 2>/dev/null | grep -q "PONG"; then
   exit 1
 fi
 
-# Origin ports (from origin1-for-proxy.conf).
+# Origin ports (from srs_proxy_origin 1 in proxy-e2e-origin.sh).
 ORIGIN_RTMP_PORT=19351
 ORIGIN_HTTP_PORT=8081
 ORIGIN_API_PORT=19851
@@ -202,8 +203,6 @@ ORIGIN_RTC_PORT=8001
 ORIGIN_SRT_PORT=10081
 
 # --- Step 0: Clean up stale state ---
-# Remove stale SRS PID file that prevents restart.
-rm -f "$WORKSPACE/trunk/objs/origin1.pid"
 cleanup_redis_state
 # Kill any leftover processes on our ports (proxy A + proxy B + origin).
 ALL_PORTS="$PROXY_A_RTMP_PORT $PROXY_A_HTTP_API_PORT $PROXY_A_HTTP_SERVER_PORT $PROXY_A_WEBRTC_PORT $PROXY_A_SRT_PORT $PROXY_A_SYSTEM_API_PORT $PROXY_B_RTMP_PORT $PROXY_B_HTTP_API_PORT $PROXY_B_HTTP_SERVER_PORT $PROXY_B_WEBRTC_PORT $PROXY_B_SRT_PORT $PROXY_B_SYSTEM_API_PORT $ORIGIN_RTMP_PORT $ORIGIN_HTTP_PORT $ORIGIN_API_PORT $ORIGIN_RTC_PORT $ORIGIN_SRT_PORT"
@@ -286,7 +285,7 @@ echo "Proxy B started."
 echo "=== Step 5: Starting SRS origin ==="
 ulimit -n 10000 2>/dev/null || true
 cd "$WORKSPACE/trunk"
-./objs/srs -c conf/origin1-for-proxy.conf >/tmp/srs-origin-redis-e2e.log 2>&1 &
+srs_proxy_origin 1 >/tmp/srs-origin-redis-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 

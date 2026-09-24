@@ -227,18 +227,24 @@ CANDIDATE="192.168.3.10"
 Pass it to SRS by ENV:
 
 ```bash
-env CANDIDATE="192.168.3.10" \
-  ./objs/srs -c conf/rtc.conf
+env SRS_RTC_SERVER_CANDIDATE="192.168.3.10" \
+  SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_SERVER_ENABLED=on \
+  SRS_RTC_SERVER_ENABLED=on SRS_VHOST_RTC_ENABLED=on SRS_VHOST_HTTP_REMUX_ENABLED=on \
+  ./objs/srs -e
 ```
+
+Or use the config file with `candidate $CANDIDATE;`: `env CANDIDATE="192.168.3.10" ./objs/srs -c conf/rtc.conf`
 
 For example, to run SRS in docker, and setup the CANDIDATE:
 
 ```bash
 export CANDIDATE="192.168.3.10"
-docker run --rm --env CANDIDATE=$CANDIDATE \
+docker run --rm --env SRS_RTC_SERVER_CANDIDATE=$CANDIDATE \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_SERVER_ENABLED=on \
+  --env SRS_RTC_SERVER_ENABLED=on --env SRS_VHOST_RTC_ENABLED=on --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
   -p 1935:1935 -p 8080:8080 -p 1985:1985 -p 8000:8000/udp \
-  ossrs/srs:5 \
-  objs/srs -c conf/rtc.conf
+  ossrs/srs:8 \
+  objs/srs -e
 ```
 
 > Note：About the usage of srs-docker, please read [srs-docker](https://github.com/ossrs/dev-docker/tree/v4#usage).
@@ -349,11 +355,13 @@ is disabled for RTC by default. Enable `http_api.auth`, set its type to
 `bearer`, configure a token, and explicitly enable RTC Bearer authentication:
 
 ```bash
-env SRS_HTTP_API_AUTH_ENABLED=on \
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_SERVER_ENABLED=on \
+    SRS_RTC_SERVER_ENABLED=on SRS_VHOST_RTC_ENABLED=on SRS_VHOST_HTTP_REMUX_ENABLED=on \
+    SRS_HTTP_API_AUTH_ENABLED=on \
     SRS_HTTP_API_AUTH_TYPE=bearer \
     SRS_HTTP_API_AUTH_TOKEN=srs-api-token \
     SRS_HTTP_API_AUTH_RTC_BEARER_ENABLED=on \
-    ./objs/srs -c conf/rtc.conf
+    ./objs/srs -e
 ```
 
 The WHIP or WHEP client must send the token in the HTTP request:
@@ -438,14 +446,17 @@ Success
 
 ## RTMP to RTC
 
-Please use `conf/rtmp2rtc.conf` as config.
+Please enable RTMP to WebRTC, or use `conf/rtmp2rtc.conf` as config.
 
 ```bash
 export CANDIDATE="192.168.1.10"
-docker run --rm --env CANDIDATE=$CANDIDATE \
+docker run --rm --env SRS_RTC_SERVER_CANDIDATE=$CANDIDATE \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_SERVER_ENABLED=on \
+  --env SRS_RTC_SERVER_ENABLED=on --env SRS_VHOST_RTC_ENABLED=on --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
+  --env SRS_VHOST_RTC_RTMP_TO_RTC=on --env SRS_VHOST_RTC_RTC_TO_RTMP=on \
   -p 1935:1935 -p 8080:8080 -p 1985:1985 -p 8000:8000/udp \
-  ossrs/srs:5 \
-  objs/srs -c conf/rtmp2rtc.conf
+  ossrs/srs:8 \
+  objs/srs -e
 ```
 
 > Note: Please set CANDIDATE as the ip of server, please read [CANDIDATE](./webrtc.md#config-candidate).
@@ -464,14 +475,16 @@ Play the stream in browser:
 
 ## RTC to RTC
 
-Please use `conf/rtc.conf` as config.
+Please enable WebRTC, or use `conf/rtc.conf` as config.
 
 ```bash
 export CANDIDATE="192.168.1.10"
-docker run --rm --env CANDIDATE=$CANDIDATE \
+docker run --rm --env SRS_RTC_SERVER_CANDIDATE=$CANDIDATE \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_SERVER_ENABLED=on \
+  --env SRS_RTC_SERVER_ENABLED=on --env SRS_VHOST_RTC_ENABLED=on --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
   -p 1935:1935 -p 8080:8080 -p 1985:1985 -p 8000:8000/udp \
-  ossrs/srs:5 \
-  objs/srs -c conf/rtc.conf
+  ossrs/srs:8 \
+  objs/srs -e
 ```
 
 > Note: Please set CANDIDATE as the ip of server, please read [CANDIDATE](./webrtc.md#config-candidate).
@@ -485,14 +498,17 @@ Play the stream in browser:
 
 ## RTC to RTMP
 
-Please use `conf/rtc2rtmp.conf` as config.
+Please enable WebRTC to RTMP, or use `conf/rtc2rtmp.conf` as config.
 
 ```bash
 export CANDIDATE="192.168.1.10"
-docker run --rm --env CANDIDATE=$CANDIDATE \
+docker run --rm --env SRS_RTC_SERVER_CANDIDATE=$CANDIDATE \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_SERVER_ENABLED=on \
+  --env SRS_RTC_SERVER_ENABLED=on --env SRS_VHOST_RTC_ENABLED=on --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
+  --env SRS_VHOST_RTC_RTMP_TO_RTC=on --env SRS_VHOST_RTC_RTC_TO_RTMP=on \
   -p 1935:1935 -p 8080:8080 -p 1985:1985 -p 8000:8000/udp \
-  ossrs/srs:5 \
-  objs/srs -c conf/rtc2rtmp.conf
+  ossrs/srs:8 \
+  objs/srs -e
 ```
 
 > Note: Please set CANDIDATE as the ip of server, please read [CANDIDATE](./webrtc.md#config-candidate).
@@ -558,14 +574,16 @@ Use Opus if you need RTMP/HLS conversion or DVR recording.
 
 ## SFU: One to One
 
-Please use `conf/rtc.conf` as config.
+Please enable WebRTC, or use `conf/rtc.conf` as config.
 
 ```bash
 export CANDIDATE="192.168.1.10"
-docker run --rm --env CANDIDATE=$CANDIDATE \
+docker run --rm --env SRS_RTC_SERVER_CANDIDATE=$CANDIDATE \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_SERVER_ENABLED=on \
+  --env SRS_RTC_SERVER_ENABLED=on --env SRS_VHOST_RTC_ENABLED=on --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
   -p 1935:1935 -p 8080:8080 -p 1985:1985 -p 8000:8000/udp \
-  ossrs/srs:5 \
-  objs/srs -c conf/rtc.conf
+  ossrs/srs:8 \
+  objs/srs -e
 ```
 
 > Note: Please set CANDIDATE as the ip of server, please read [CANDIDATE](./webrtc.md#config-candidate).
@@ -608,10 +626,13 @@ Please follow [SFU: One to One](./webrtc.md#sfu-one-to-one), and please convert 
 
 ```bash
 export CANDIDATE="192.168.1.10"
-docker run --rm --env CANDIDATE=$CANDIDATE \
+docker run --rm --env SRS_RTC_SERVER_CANDIDATE=$CANDIDATE \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_SERVER_ENABLED=on \
+  --env SRS_RTC_SERVER_ENABLED=on --env SRS_VHOST_RTC_ENABLED=on --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
+  --env SRS_VHOST_RTC_RTMP_TO_RTC=on --env SRS_VHOST_RTC_RTC_TO_RTMP=on \
   -p 1935:1935 -p 8080:8080 -p 1985:1985 -p 8000:8000/udp \
-  ossrs/srs:5 \
-  objs/srs -c conf/rtc2rtmp.conf
+  ossrs/srs:8 \
+  objs/srs -e
 ```
 
 If use FFmpeg to mix streams, there is a FFmpeg CLI on the demo page, for example:

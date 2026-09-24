@@ -22,7 +22,18 @@ The proxy server should start and listen on the configured ports.
 In a new terminal, start the SRS origin server. You may need to increase the file descriptor limit and use bash explicitly:
 
 ```bash
-ulimit -n 10000 && bash -c "cd ~/git/srs/trunk && ./objs/srs -c conf/origin1-for-proxy.conf"
+ulimit -n 10000 && bash -c "cd ~/git/srs/trunk && \
+    env SRS_RTMP_LISTEN=19351 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=19851 \
+        SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=8081 \
+        SRS_RTC_SERVER_ENABLED=on SRS_RTC_SERVER_LISTEN=8001 \
+        SRS_SRT_SERVER_ENABLED=on SRS_SRT_SERVER_LISTEN=10081 \
+        SRS_SRT_SERVER_TSBPDMODE=off SRS_SRT_SERVER_TLPKTDROP=off \
+        SRS_HEARTBEAT_ENABLED=on SRS_HEARTBEAT_INTERVAL=9 SRS_HEARTBEAT_DEVICE_ID=origin1 \
+        SRS_HEARTBEAT_URL=http://127.0.0.1:12025/api/v1/srs/register SRS_HEARTBEAT_PORTS=on \
+        SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \
+        SRS_VHOST_RTC_ENABLED=on SRS_VHOST_RTC_RTMP_TO_RTC=on SRS_VHOST_RTC_RTC_TO_RTMP=on \
+        SRS_VHOST_SRT_ENABLED=on SRS_VHOST_SRT_SRT_TO_RTMP=on \
+        ./objs/srs -e"
 ```
 
 The SRS origin server should start and be ready to receive and serve streams. Check the console output for startup messages.

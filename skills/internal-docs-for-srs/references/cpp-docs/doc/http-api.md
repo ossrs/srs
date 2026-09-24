@@ -565,10 +565,11 @@ http_api {
 The equivalent environment variables are:
 
 ```bash
-env SRS_HTTP_API_AUTH_ENABLED=on \
+env SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 \
+    SRS_HTTP_API_AUTH_ENABLED=on \
     SRS_HTTP_API_AUTH_TYPE=bearer \
     SRS_HTTP_API_AUTH_TOKEN=srs-api-token \
-    ./objs/srs -c conf/srs.conf
+    ./objs/srs -e
 ```
 
 Include the token in each API request:

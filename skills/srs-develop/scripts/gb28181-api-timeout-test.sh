@@ -25,9 +25,7 @@ SSRC="${SRS_GB_SSRC:-47190002}"
 MEDIA_CONNECT_TIMEOUT="${SRS_GB_MEDIA_CONNECT_TIMEOUT:-0.5}"
 WAIT_SECONDS="${SRS_GB_API_WAIT_SECONDS:-1}"
 TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/srs-gb-api-timeout.XXXXXX")
-SRS_CONF="$TEST_DIR/srs.conf"
 SRS_LOG="$TEST_DIR/srs.log"
-SRS_PID_FILE="$TEST_DIR/srs.pid"
 BUILD_LOG="$TEST_DIR/build.log"
 SRS_PID=""
 TEST_PASSED=0
@@ -93,34 +91,15 @@ echo "SRS built: $SRS_BINARY"
 
 # No SIP listener is configured. This test intentionally leaves the media TCP
 # endpoint unused after creating the session through the HTTP publish API.
-cat >"$SRS_CONF" <<EOF
-listen $RTMP_PORT;
-pid $SRS_PID_FILE;
-max_connections 1000;
-daemon off;
-srs_log_tank console;
-
-stream_caster {
-  enabled on;
-  caster gb28181;
-  output rtmp://127.0.0.1:$RTMP_PORT/live/[stream];
-  listen $MEDIA_PORT;
-  media_connect_timeout $MEDIA_CONNECT_TIMEOUT;
-}
-
-http_api {
-  enabled on;
-  listen $HTTP_API_PORT;
-}
-
-vhost __defaultVhost__ {
-}
-EOF
-
 echo "=== Step 2: Starting SRS without an embedded SIP server ==="
 (
   cd "$WORKSPACE/trunk"
-  exec "$SRS_BINARY" -c "$SRS_CONF" >"$SRS_LOG" 2>&1
+  exec env SRS_RTMP_LISTEN=$RTMP_PORT \
+    SRS_STREAM_CASTER_ENABLED=on SRS_STREAM_CASTER_CASTER=gb28181 \
+    SRS_STREAM_CASTER_OUTPUT="rtmp://127.0.0.1:$RTMP_PORT/live/[stream]" \
+    SRS_STREAM_CASTER_LISTEN=$MEDIA_PORT SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT=$MEDIA_CONNECT_TIMEOUT \
+    SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=$HTTP_API_PORT \
+    "$SRS_BINARY" -e >"$SRS_LOG" 2>&1
 ) &
 SRS_PID=$!
 echo "SRS PID: $SRS_PID"

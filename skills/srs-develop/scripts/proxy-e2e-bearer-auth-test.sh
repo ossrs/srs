@@ -22,7 +22,7 @@ PROXY_WEBRTC_PORT=18000
 PROXY_SRT_PORT=20080
 PROXY_SYSTEM_API_PORT=12025
 
-# Ports configured by trunk/conf/origin1-for-proxy.conf.
+# Ports of srs_proxy_origin 1 in proxy-e2e-origin.sh.
 ORIGIN_RTMP_PORT=19351
 ORIGIN_HTTP_PORT=8081
 ORIGIN_API_PORT=19851
@@ -31,6 +31,7 @@ ORIGIN_SRT_PORT=10081
 
 PROXY_BINARY="$WORKSPACE/bin/srs-proxy"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
+source "$SCRIPT_DIR/proxy-e2e-origin.sh"
 PROXY_AUTH_TOKEN="proxy-bearer-e2e-${USER:-user}-$$"
 SRS_AUTH_TOKEN="srs-bearer-e2e-${USER:-user}-$$"
 TEST_ID="$$"
@@ -136,7 +137,6 @@ for command in curl grep lsof make; do
 done
 
 # --- Step 0: Clean up stale state ---
-rm -f "$WORKSPACE/trunk/objs/origin1.pid"
 ALL_PORTS="$PROXY_RTMP_PORT $PROXY_HTTP_API_PORT $PROXY_HTTP_SERVER_PORT $PROXY_WEBRTC_PORT $PROXY_SRT_PORT $PROXY_SYSTEM_API_PORT $ORIGIN_RTMP_PORT $ORIGIN_HTTP_PORT $ORIGIN_API_PORT $ORIGIN_RTC_PORT $ORIGIN_SRT_PORT"
 for port in $ALL_PORTS; do
   lsof -ti :"$port" 2>/dev/null | xargs kill 2>/dev/null || true
@@ -195,7 +195,7 @@ cd "$WORKSPACE/trunk"
 if env SRS_HTTP_API_AUTH_ENABLED=on \
   SRS_HTTP_API_AUTH_TYPE=bearer \
   SRS_HTTP_API_AUTH_TOKEN= \
-  "$SRS_BINARY" -t -c conf/srs.conf >"$SRS_VALIDATION_LOG" 2>&1; then
+  "$SRS_BINARY" -t -e >"$SRS_VALIDATION_LOG" 2>&1; then
   fail_with_logs "SRS accepted Bearer authentication without a token"
 fi
 if ! grep -q 'SRS_HTTP_API_AUTH_TOKEN' "$SRS_VALIDATION_LOG"; then
@@ -206,7 +206,7 @@ echo "PASS: SRS rejects Bearer authentication without a token."
 if env SRS_HEARTBEAT_AUTH_ENABLED=on \
   SRS_HEARTBEAT_AUTH_TYPE=bearer \
   SRS_HEARTBEAT_AUTH_TOKEN= \
-  "$SRS_BINARY" -t -c conf/srs.conf >"$SRS_VALIDATION_LOG" 2>&1; then
+  "$SRS_BINARY" -t -e >"$SRS_VALIDATION_LOG" 2>&1; then
   fail_with_logs "SRS accepted heartbeat Bearer authentication without a token"
 fi
 if ! grep -q 'SRS_HEARTBEAT_AUTH_TOKEN' "$SRS_VALIDATION_LOG"; then
@@ -264,14 +264,14 @@ fi
 # --- Step 6: Start SRS and verify its protected API ---
 echo "=== Step 6: Starting authenticated SRS origin ==="
 cd "$WORKSPACE/trunk"
-env SRS_HTTP_API_AUTH_ENABLED=on \
+srs_proxy_origin 1 SRS_HTTP_API_AUTH_ENABLED=on \
   SRS_HTTP_API_AUTH_TYPE=bearer \
   SRS_HTTP_API_AUTH_TOKEN="$SRS_AUTH_TOKEN" \
   SRS_HTTP_API_AUTH_RTC_BEARER_ENABLED=on \
   SRS_HEARTBEAT_AUTH_ENABLED=on \
   SRS_HEARTBEAT_AUTH_TYPE=bearer \
   SRS_HEARTBEAT_AUTH_TOKEN="$PROXY_AUTH_TOKEN" \
-  "$SRS_BINARY" -c conf/origin1-for-proxy.conf >"$ORIGIN_LOG" 2>&1 &
+  >"$ORIGIN_LOG" 2>&1 &
 ORIGIN_PID=$!
 
 if ! wait_for_origin || ! kill -0 "$ORIGIN_PID" 2>/dev/null; then
