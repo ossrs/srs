@@ -244,75 +244,10 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:latest
     runs-on: ubuntu-22.04
 
-  update:
-    name: update
-    needs:
-      - aliyun-srs
-      - envs
-    steps:
-      ##################################################################################################################
-      - name: Covert output to env
-        run: |
-          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
-          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-      ##################################################################################################################
-      # Git checkout
-      - name: Checkout repository
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-      ##################################################################################################################
-      # Generate variables like:
-      #   SRS_LH_OSSRS_NET=1.2.3.4
-      - name: Build variables for lh.ossrs.net
-        run: |
-          SRS_LH_OSSRS_NET=$(dig +short lh.ossrs.net)
-          SRS_D_OSSRS_NET=$(dig +short d.ossrs.net)
-          echo "SRS_LH_OSSRS_NET=$SRS_LH_OSSRS_NET" >> $GITHUB_ENV
-          echo "SRS_D_OSSRS_NET=$SRS_D_OSSRS_NET" >> $GITHUB_ENV
-      - name: Release to lh.ossrs.net
-        uses: appleboy/ssh-action@c1965ddd2563844fddc1ec01cafc798365706143 # master
-        with:
-          host: ${{ env.SRS_LH_OSSRS_NET }}
-          username: root
-          key: ${{ secrets.DIGITALOCEAN_SSHKEY }}
-          port: 22
-          envs: SRS_MAJOR
-          timeout: 60s
-          command_timeout: 30m
-          script: |
-            docker pull registry.cn-hangzhou.aliyuncs.com/ossrs/srs:$SRS_MAJOR
-            docker rm -f srs-dev
-            #
-            # Cleanup old docker images.
-            for image in $(docker images |grep '<none>' |awk '{print $3}'); do
-              docker rmi -f $image
-              echo "Remove image $image, r0=$?"
-            done
-      - name: Release to d.ossrs.net
-        uses: appleboy/ssh-action@c1965ddd2563844fddc1ec01cafc798365706143 # master
-        with:
-          host: ${{ env.SRS_D_OSSRS_NET }}
-          username: root
-          key: ${{ secrets.DIGITALOCEAN_SSHKEY }}
-          port: 22
-          envs: SRS_MAJOR
-          timeout: 60s
-          command_timeout: 30m
-          script: |
-            docker pull ossrs/srs:$SRS_MAJOR
-            docker rm -f srs-dev
-            #
-            # Cleanup old docker images.
-            for image in $(docker images |grep '<none>' |awk '{print $3}'); do
-              docker rmi -f $image
-              echo "Remove image $image, r0=$?"
-            done
-    runs-on: ubuntu-22.04
-
   release:
     name: release
     needs:
-      - update
+      - aliyun-srs
       - envs
       - draft
       - linux
@@ -383,7 +318,6 @@ jobs:
   release-done:
     runs-on: ubuntu-22.04
     needs:
-      - update
       - release
     steps:
       - run: echo 'All done'
