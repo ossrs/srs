@@ -422,6 +422,11 @@ void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
 
 srs_error_t SrsRtcUdpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
 {
+    return on_stun(NULL, r, data, nb_data);
+}
+
+srs_error_t SrsRtcUdpNetwork::on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, char *data, int nb_data)
+{
     srs_error_t err = srs_success;
 
     // Write STUN messages to blackhole.
@@ -434,6 +439,11 @@ srs_error_t SrsRtcUdpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
     string ice_pwd;
     if ((err = conn_->on_binding_request(r, ice_pwd)) != srs_success) {
         return srs_error_wrap(err, "udp");
+    }
+
+    // Switch to the peer address only after the session accepted the request, so the response goes there too.
+    if (skt) {
+        update_sendonly_socket(skt);
     }
 
     if ((err = on_binding_request(r, ice_pwd)) != srs_success) {

@@ -2637,11 +2637,13 @@ MockRtcConnectionForUdpNetwork::MockRtcConnectionForUdpNetwork()
     on_rtp_plaintext_called_ = false;
     on_rtcp_called_ = false;
     rtp_cipher_dropped_ = false;
+    binding_request_error_ = srs_success;
 }
 
 MockRtcConnectionForUdpNetwork::~MockRtcConnectionForUdpNetwork()
 {
     srs_freep(on_dtls_alert_error_);
+    srs_freep(binding_request_error_);
 }
 
 const SrsContextId &MockRtcConnectionForUdpNetwork::get_id()
@@ -2744,7 +2746,7 @@ srs_error_t MockRtcConnectionForUdpNetwork::on_rtcp(char *data, int nb_data)
 
 srs_error_t MockRtcConnectionForUdpNetwork::on_binding_request(SrsStunPacket *r, std::string &ice_pwd)
 {
-    return srs_success;
+    return srs_error_copy(binding_request_error_);
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::udp()
@@ -2844,6 +2846,7 @@ void MockRtcConnectionForUdpNetwork::reset()
     on_rtp_plaintext_called_ = false;
     on_rtcp_called_ = false;
     rtp_cipher_dropped_ = false;
+    srs_freep(binding_request_error_);
 }
 
 // Test SrsRtcUdpNetwork initialization and DTLS handling
@@ -3523,6 +3526,55 @@ VOID TEST(RtcUdpNetworkTest, OnStunWritesStunAndResponseToInjectedBlackhole)
 
     udp_network.sendonly_skt_ = NULL;
     udp_network.blackhole_ = NULL;
+}
+
+// A binding request switches the session to its peer address only after the connection accepted it, so a request the
+// connection rejects, such as one without a valid MESSAGE-INTEGRITY, neither redirects the session's traffic nor adds
+// an address to it.
+VOID TEST(RtcUdpNetworkTest, OnStunFromPeerSwitchesAddressOnlyWhenAccepted)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockResourceManagerForUdpNetwork manager;
+    MockUdpMuxSocket socket;
+    socket.peer_ip_ = "192.168.1.100";
+    socket.peer_port_ = 5000;
+    socket.peer_id_ = "192.168.1.100:5000";
+
+    SrsRtcUdpNetwork udp_network(&conn, &delta);
+    udp_network.conn_manager_ = &manager;
+
+    SrsStunPacket request;
+    request.set_message_type(BindingRequest);
+    request.set_local_ufrag("local_user");
+    request.set_remote_ufrag("remote_user");
+    request.set_transcation_id("transaction123");
+
+    char data[100];
+    memset(data, 0, sizeof(data));
+
+    srs_error_t rejected = srs_error_new(ERROR_RTC_STUN, "mock integrity error");
+    conn.binding_request_error_ = srs_error_copy(rejected);
+    srs_freep(rejected);
+    HELPER_EXPECT_FAILED(udp_network.on_stun(&socket, &request, data, sizeof(data)));
+    EXPECT_TRUE(udp_network.sendonly_skt_ == NULL);
+    EXPECT_TRUE(udp_network.peer_addresses_.empty());
+    EXPECT_TRUE(manager.id_map_.empty());
+    EXPECT_EQ(0, socket.sendto_called_count_);
+
+    srs_freep(conn.binding_request_error_);
+    HELPER_EXPECT_SUCCESS(udp_network.on_stun(&socket, &request, data, sizeof(data)));
+    EXPECT_EQ((ISrsUdpMuxSocket *)&socket, udp_network.sendonly_skt_);
+    EXPECT_EQ(1u, udp_network.peer_addresses_.size());
+    EXPECT_TRUE(manager.id_map_.find("192.168.1.100:5000") != manager.id_map_.end());
+    EXPECT_EQ(1, socket.sendto_called_count_);
+
+    // The mock socket copies itself as the cached address, so it must not be freed by the network.
+    udp_network.peer_addresses_.clear();
+    udp_network.sendonly_skt_ = NULL;
+    udp_network.conn_manager_ = NULL;
 }
 
 // Test SrsRtcTcpNetwork major use scenario: DTLS handshake and RTP/RTCP protection

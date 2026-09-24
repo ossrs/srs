@@ -117,6 +117,8 @@ public:
     bool on_rtcp_called_;
     // Whether on_rtp_cipher drops the packet.
     bool rtp_cipher_dropped_;
+    // The error on_binding_request returns, to reject the binding request.
+    srs_error_t binding_request_error_;
 
 public:
     MockRtcConnectionForUdpNetwork();

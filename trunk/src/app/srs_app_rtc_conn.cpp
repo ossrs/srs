@@ -3164,6 +3164,12 @@ srs_error_t SrsRtcConnection::on_binding_request(SrsStunPacket *r, string &ice_p
     // If success, return the ice password to verify the STUN response.
     ice_pwd = local_sdp_.get_ice_pwd();
 
+    // Only the peer that got the answer knows the ICE password, so a request not signed with it may be from anyone who
+    // saw the username, and must not switch the session to its address, see RFC 8445 section 7.3.
+    if ((err = r->check_message_integrity(ice_pwd)) != srs_success) {
+        return srs_error_wrap(err, "binding request");
+    }
+
     return err;
 }
 // LCOV_EXCL_STOP

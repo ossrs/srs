@@ -214,6 +214,8 @@ public:
     void update_sendonly_socket(ISrsUdpMuxSocket *skt);
     // When got STUN ping message. The peer address may change, we can identify that by STUN messages.
     srs_error_t on_stun(SrsStunPacket *r, char *data, int nb_data);
+    // When got STUN message from the peer address of skt, which the peer switches to by an authenticated binding request.
+    srs_error_t on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, char *data, int nb_data);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

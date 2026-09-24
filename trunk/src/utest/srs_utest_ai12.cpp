@@ -3175,3 +3175,135 @@ VOID TEST(SrsRtcPlayerNegotiatorTest, TypicalUseScenario)
         EXPECT_TRUE(video_descs[0]->sendrecv_ || video_descs[0]->sendonly_);
     }
 }
+
+// The sample binding request of RFC 5769 section 2.1, signed with the password "VOkJxbRl1RmTxUk/WvJxBt": SOFTWARE,
+// PRIORITY, ICE-CONTROLLED, USERNAME "evtj:h6vY", MESSAGE-INTEGRITY and FINGERPRINT.
+static const char *kRfc5769RequestHex =
+    "000100582112a442b7e7a701bc34d686fa87dfae"
+    "802200105354554e207465737420636c69656e74"
+    "002400046e0001ff"
+    "80290008932ff9b151263b36"
+    "000600096576746a3a68367659202020"
+    "000800149aeaa70cbfd8cb56781ef2b5b2d3f249c1b571a2"
+    "80280004e57a3bcf";
+static const char *kRfc5769RequestPwd = "VOkJxbRl1RmTxUk/WvJxBt";
+
+static std::string stun_hex_to_bytes(const char *hex)
+{
+    std::string bytes;
+    for (size_t i = 0; hex[i] && hex[i + 1]; i += 2) {
+        char pair[3] = {hex[i], hex[i + 1], 0};
+        bytes.push_back((char)strtol(pair, NULL, 16));
+    }
+    return bytes;
+}
+
+// A binding request signed with the ICE password passes the check, as a browser, pion or FFmpeg sends it.
+VOID TEST(StunPacketIntegrityTest, AcceptsRequestSignedWithPassword)
+{
+    srs_error_t err;
+
+    std::string bytes = stun_hex_to_bytes(kRfc5769RequestHex);
+    ASSERT_EQ(108u, bytes.size());
+
+    SrsStunPacket r;
+    HELPER_ASSERT_SUCCESS(r.decode(bytes.data(), bytes.size()));
+    EXPECT_TRUE(r.is_binding_request());
+    EXPECT_STREQ("evtj:h6vY", r.get_username().c_str());
+    EXPECT_TRUE(r.get_ice_controlled());
+    HELPER_EXPECT_SUCCESS(r.check_message_integrity(kRfc5769RequestPwd));
+}
+
+// A request signed with another password, or changed after it was signed, fails the check.
+VOID TEST(StunPacketIntegrityTest, RejectsWrongPasswordOrTamperedRequest)
+{
+    srs_error_t err;
+
+    std::string bytes = stun_hex_to_bytes(kRfc5769RequestHex);
+
+    SrsStunPacket r;
+    HELPER_ASSERT_SUCCESS(r.decode(bytes.data(), bytes.size()));
+    HELPER_EXPECT_FAILED(r.check_message_integrity("wrong-password"));
+    HELPER_EXPECT_FAILED(r.check_message_integrity(""));
+
+    // Change the PRIORITY value, which the signature covers.
+    std::string tampered = bytes;
+    tampered[44] ^= 0x01;
+    SrsStunPacket t;
+    HELPER_ASSERT_SUCCESS(t.decode(tampered.data(), tampered.size()));
+    HELPER_EXPECT_FAILED(t.check_message_integrity(kRfc5769RequestPwd));
+
+    // Change only the last byte of the signature, so a partial comparison would accept it.
+    std::string forged = bytes;
+    forged[99] ^= 0x01;
+    SrsStunPacket f;
+    HELPER_ASSERT_SUCCESS(f.decode(forged.data(), forged.size()));
+    HELPER_EXPECT_FAILED(f.check_message_integrity(kRfc5769RequestPwd));
+}
+
+// A request without MESSAGE-INTEGRITY is not authenticated, whatever username it carries.
+VOID TEST(StunPacketIntegrityTest, RejectsRequestWithoutIntegrity)
+{
+    srs_error_t err;
+
+    // The attributes before MESSAGE-INTEGRITY, with the message length cut to them.
+    std::string bytes = stun_hex_to_bytes(kRfc5769RequestHex).substr(0, 76);
+    bytes[3] = 76 - 20;
+
+    SrsStunPacket r;
+    HELPER_ASSERT_SUCCESS(r.decode(bytes.data(), bytes.size()));
+    EXPECT_STREQ("evtj:h6vY", r.get_username().c_str());
+    HELPER_EXPECT_FAILED(r.check_message_integrity(kRfc5769RequestPwd));
+}
+
+// Only FINGERPRINT may follow MESSAGE-INTEGRITY, so an attribute appended after the signature is ignored rather than
+// trusted, see RFC 5389 section 15.4.
+VOID TEST(StunPacketIntegrityTest, IgnoresAttributesAfterIntegrity)
+{
+    srs_error_t err;
+
+    std::string signed_part = stun_hex_to_bytes(kRfc5769RequestHex).substr(0, 100);
+    std::string bytes = signed_part + stun_hex_to_bytes("00250000") + stun_hex_to_bytes("80280004e57a3bcf");
+    bytes[3] = (char)(bytes.size() - 20);
+
+    SrsStunPacket r;
+    HELPER_ASSERT_SUCCESS(r.decode(bytes.data(), bytes.size()));
+    EXPECT_FALSE(r.get_use_candidate());
+    HELPER_EXPECT_SUCCESS(r.check_message_integrity(kRfc5769RequestPwd));
+}
+
+// The connection accepts a binding request only when it is signed with the local ICE password of the session, which
+// only the peer that got the answer SDP knows, see RFC 8445 section 7.3.
+VOID TEST(SrsRtcConnectionTest, OnBindingRequestRequiresIntegrityWithLocalIcePwd)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-binding-request");
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+
+    SrsRequest *req = new SrsRequest();
+    req->vhost_ = "__defaultVhost__";
+    conn->req_ = req;
+    conn->local_sdp_.session_info_.ice_pwd_ = kRfc5769RequestPwd;
+
+    std::string bytes = stun_hex_to_bytes(kRfc5769RequestHex);
+    SrsStunPacket r;
+    HELPER_ASSERT_SUCCESS(r.decode(bytes.data(), bytes.size()));
+
+    std::string ice_pwd;
+    HELPER_EXPECT_SUCCESS(conn->on_binding_request(&r, ice_pwd));
+    EXPECT_STREQ(kRfc5769RequestPwd, ice_pwd.c_str());
+
+    // Unsigned.
+    std::string unsigned_bytes = bytes.substr(0, 76);
+    unsigned_bytes[3] = 76 - 20;
+    SrsStunPacket u;
+    HELPER_ASSERT_SUCCESS(u.decode(unsigned_bytes.data(), unsigned_bytes.size()));
+    HELPER_EXPECT_FAILED(conn->on_binding_request(&u, ice_pwd));
+
+    // Signed for another session.
+    conn->local_sdp_.session_info_.ice_pwd_ = "another-session-pwd";
+    HELPER_EXPECT_FAILED(conn->on_binding_request(&r, ice_pwd));
+}
