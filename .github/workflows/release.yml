@@ -95,76 +95,6 @@ jobs:
       SRS_RELEASE_ID: ${{ steps.create_draft.outputs.id }}
     runs-on: ubuntu-22.04
 
-  cygwin64:
-    name: cygwin64
-    needs:
-      - envs
-      - draft
-    steps:
-      # See https://github.com/cygwin/cygwin-install-action#parameters
-      # Note that https://github.com/egor-tensin/setup-cygwin fails to install packages.
-      - name: Setup Cygwin
-        uses: cygwin/cygwin-install-action@master
-        with:
-          platform: x86_64
-          packages: bash make gcc-g++ cmake automake patch pkg-config tcl unzip
-          install-dir: C:\cygwin64
-      ##################################################################################################################
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      ##################################################################################################################
-      - name: Covert output to env
-        env:
-          SHELLOPTS: igncr
-        shell: C:\cygwin64\bin\bash.exe --login '{0}'
-        run: |
-          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
-          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-          echo "SRS_RELEASE_ID=${{ needs.draft.outputs.SRS_RELEASE_ID }}" >> $GITHUB_ENV
-      ##################################################################################################################
-      - name: Build SRS
-        env:
-          SHELLOPTS: igncr
-          SRS_WORKSPACE: ${{ github.workspace }}
-        shell: C:\cygwin64\bin\bash.exe --login '{0}'
-        run: |
-          export PATH=/usr/bin:/usr/local/bin &&
-          which make gcc g++ patch cmake pkg-config uname grep sed &&
-          (make --version; gcc --version; patch --version; cmake --version; pkg-config --version) && 
-          (aclocal --version; autoconf --version; automake --version; uname -a) &&
-          cd $(cygpath -u $SRS_WORKSPACE)/trunk && ./configure --gb28181=on && make
-      ##################################################################################################################
-      - name: Package SRS
-        env:
-          SHELLOPTS: igncr
-          SRS_WORKSPACE: ${{ github.workspace }}
-        shell: C:\cygwin64\bin\bash.exe --login '{0}'
-        run: |
-          cd $(cygpath -u $SRS_WORKSPACE) &&
-          if [[ $(echo $SRS_TAG |grep -qE '^v' && echo YES) != YES ]]; then 
-              SRS_VERSION=$(./trunk/objs/srs -v 2>&1); echo "Change version to ${SRS_VERSION}"; 
-          fi &&
-          "/cygdrive/c/Program Files (x86)/NSIS/makensis.exe" /DSRS_VERSION=${SRS_VERSION} \
-              /DCYGWIN_DIR="C:\cygwin64" trunk/packaging/nsis/srs.nsi &&
-          mv trunk/packaging/nsis/SRS-Windows-x86_64-${SRS_VERSION}-setup.exe . && ls -lh *.exe &&
-          echo "SRS_CYGWIN_TAR=SRS-Windows-x86_64-${SRS_VERSION}-setup.exe" >> $GITHUB_ENV &&
-          echo "SRS_CYGWIN_MD5=$(md5sum SRS-Windows-x86_64-${SRS_VERSION}-setup.exe| awk '{print $1}')" >> $GITHUB_ENV
-      ##################################################################################################################
-      - name: Upload Release Assets Cygwin
-        id: upload-release-assets-cygwin
-        uses: dwenegar/upload-release-assets@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          release_id: ${{ env.SRS_RELEASE_ID }}
-          assets_path: ${{ env.SRS_CYGWIN_TAR }}
-    # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
-    outputs:
-      SRS_CYGWIN_TAR: ${{ env.SRS_CYGWIN_TAR }}
-      SRS_CYGWIN_MD5: ${{ env.SRS_CYGWIN_MD5 }}
-    runs-on: windows-latest
-
   linux:
     name: linux
     needs:
@@ -254,14 +184,14 @@ jobs:
       # See https://github.com/crazy-max/ghaction-docker-buildx#moved-to-docker-organization
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
       ##################################################################################################################
       # Create main images for Docker
       - name: Login to docker hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: "${{ secrets.DOCKER_USERNAME }}"
           password: "${{ secrets.DOCKER_PASSWORD }}"
@@ -271,12 +201,12 @@ jobs:
         run: |
           echo "Release ossrs/srs:$SRS_TAG"
           docker buildx build --platform linux/arm/v7,linux/arm64/v8,linux/amd64 \
-            --output "type=image,push=true" \
+            --output "type=image,push=true,oci-artifact=false" \
             -t ossrs/srs:$SRS_TAG --build-arg SRS_AUTO_PACKAGER=$PACKAGER -f Dockerfile .
       # Docker alias images
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Docker alias images for ossrs/srs
-        uses: akhilerm/tag-push-action@v2.1.0
+        uses: akhilerm/tag-push-action@eadeefebd39db8a47e146115649adae1fce576a6 # v2.3.0
         with:
           src: ossrs/srs:${{ env.SRS_TAG }}
           dst: |
@@ -304,13 +234,13 @@ jobs:
       # Aliyun ACR
       # TODO: FIXME: If stable, please set the latest from 4.0 to 5.0
       - name: Login aliyun hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: registry.cn-hangzhou.aliyuncs.com
           username: "${{ secrets.ACR_USERNAME }}"
           password: "${{ secrets.ACR_PASSWORD }}"
       - name: Push to Aliyun registry for ossrs/srs
-        uses: akhilerm/tag-push-action@v2.1.0
+        uses: akhilerm/tag-push-action@eadeefebd39db8a47e146115649adae1fce576a6 # v2.3.0
         with:
           src: ossrs/srs:${{ env.SRS_TAG }}
           dst: |
@@ -322,50 +252,12 @@ jobs:
             registry.cn-hangzhou.aliyuncs.com/ossrs/srs:v${{ env.SRS_XYZ }}
     runs-on: ubuntu-22.04
 
-  update:
-    name: update
-    needs:
-      - aliyun-srs
-      - envs
-    steps:
-      ##################################################################################################################
-      - name: Covert output to env
-        run: |
-          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> $GITHUB_ENV
-          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> $GITHUB_ENV
-          echo "SRS_MAJOR=${{ needs.envs.outputs.SRS_MAJOR }}" >> $GITHUB_ENV
-      ##################################################################################################################
-      # Git checkout
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      ##################################################################################################################
-      # Generate variables like:
-      #   SRS_R_OSSRS_NET=1.2.3.4
-      - name: Build variables for r.ossrs.net
-        run: |
-          SRS_R_OSSRS_NET=$(dig +short r.ossrs.net)
-          echo "SRS_R_OSSRS_NET=$SRS_R_OSSRS_NET" >> $GITHUB_ENV
-      - name: Release to r.ossrs.net
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ env.SRS_R_OSSRS_NET }}
-          username: root
-          key: ${{ secrets.DIGITALOCEAN_SSHKEY }}
-          port: 22
-          envs: SRS_MAJOR
-          timeout: 60s
-          command_timeout: 30m
-          script: |
-            echo "Update r.ossrs.net ok for SRS $SRS_MAJOR"
-    runs-on: ubuntu-22.04
-
   release:
     name: release
     needs:
-      - update
+      - aliyun-srs
       - envs
       - draft
-      - cygwin64
       - linux
     steps:
       ##################################################################################################################
@@ -380,8 +272,6 @@ jobs:
           echo "SRS_PACKAGE_MD5=${{ needs.linux.outputs.SRS_PACKAGE_MD5 }}" >> $GITHUB_ENV
           echo "SRS_SOURCE_TAR=${{ needs.linux.outputs.SRS_SOURCE_TAR }}" >> $GITHUB_ENV
           echo "SRS_SOURCE_MD5=${{ needs.linux.outputs.SRS_SOURCE_MD5 }}" >> $GITHUB_ENV
-          echo "SRS_CYGWIN_TAR=${{ needs.cygwin64.outputs.SRS_CYGWIN_TAR }}" >> $GITHUB_ENV
-          echo "SRS_CYGWIN_MD5=${{ needs.cygwin64.outputs.SRS_CYGWIN_MD5 }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
@@ -403,12 +293,10 @@ jobs:
             ## Resource
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
-            * Binary: ${{ env.SRS_CYGWIN_MD5 }} [${{ env.SRS_CYGWIN_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_CYGWIN_TAR }})
             
             ## Resource Mirror: gitee.com
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://gitee.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://gitee.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
-            * Binary: ${{ env.SRS_CYGWIN_MD5 }} [${{ env.SRS_CYGWIN_TAR }}](https://gitee.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_CYGWIN_TAR }})
             
             ## Docker
             * [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.io/lts/en-us/docs/v5/doc/getting-started)
@@ -438,7 +326,6 @@ jobs:
     name: done
     runs-on: ubuntu-22.04
     needs:
-      - update
       - release
     steps:
       - run: echo 'All done'
