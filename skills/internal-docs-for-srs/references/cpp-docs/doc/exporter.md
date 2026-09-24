@@ -61,7 +61,7 @@ Build and start `SRS 5.0.86+`：
 
 ```bash
 ./configure && make
-env SRS_ENV_ONLY=on SRS_EXPORTER_ENABLED=on SRS_LISTEN=1935 \
+env SRS_ENV_ONLY=on SRS_EXPORTER_ENABLED=on SRS_RTMP_LISTEN=1935 \
   ./objs/srs -e
 ```
 

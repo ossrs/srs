@@ -16,10 +16,12 @@ using namespace std;
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_srt_conn.hpp>
 #include <srs_app_srt_source.hpp>
+#include <srs_app_stream_bridge.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_st.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai15.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <sstream>
@@ -808,6 +810,7 @@ VOID TEST(MpegtsSrtConnTest, BasicConnectionInfo)
 
     // Create SrsMpegtsSrtConn with test parameters
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, dummy_fd, test_ip, test_port));
+    conn->assemble();
 
     // Test desc() - should return "srt-ts-conn"
     EXPECT_EQ(conn->desc(), "srt-ts-conn");
@@ -873,6 +876,7 @@ VOID TEST(MpegtsSrtConnTest, OnSrtPacketValidTsPacket)
 
     // Create SrsMpegtsSrtConn with test parameters
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, dummy_fd, test_ip, test_port));
+    conn->assemble();
 
     // Create mock SRT source
     MockSrtSourceForPacket *mock_source = new MockSrtSourceForPacket();
@@ -1201,6 +1205,7 @@ VOID TEST(MpegtsSrtConnTest, HttpHooksOnConnect)
 
     // Create SrsMpegtsSrtConn with test parameters
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, dummy_fd, test_ip, test_port));
+    conn->assemble();
 
     // Create mock config
     SrsUniquePtr<MockAppConfigForSrtHooks> mock_config(new MockAppConfigForSrtHooks());
@@ -1284,6 +1289,7 @@ VOID TEST(MpegtsSrtConnTest, HttpHooksOnClose)
     conn->hooks_ = mock_hooks.get();
     conn->req_ = mock_req.get();
     conn->srt_conn_ = mock_srt_conn;
+    conn->assemble();
 
     // Test 1: HTTP hooks disabled - should not call hooks
     mock_config->set_http_hooks_enabled(false);
@@ -1880,6 +1886,7 @@ VOID TEST(MpegtsSrtConnTest, HttpHooksOnPublish)
 
     // Create SrsMpegtsSrtConn with test parameters
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, dummy_fd, test_ip, test_port));
+    conn->assemble();
 
     // Create mock config
     SrsUniquePtr<MockAppConfigForSrtHooks> mock_config(new MockAppConfigForSrtHooks());
@@ -1942,6 +1949,7 @@ VOID TEST(MpegtsSrtConnTest, HttpHooksOnUnpublish)
 
     // Create SrsMpegtsSrtConn with test parameters
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, dummy_fd, test_ip, test_port));
+    conn->assemble();
 
     // Create mock config
     SrsUniquePtr<MockAppConfigForSrtHooks> mock_config(new MockAppConfigForSrtHooks());
@@ -2001,6 +2009,7 @@ VOID TEST(MpegtsSrtConnTest, HttpHooksOnPlay)
 
     // Create SrsMpegtsSrtConn with test parameters
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, dummy_fd, test_ip, test_port));
+    conn->assemble();
 
     // Create mock config
     SrsUniquePtr<MockAppConfigForSrtHooks> mock_config(new MockAppConfigForSrtHooks());
@@ -2063,6 +2072,7 @@ VOID TEST(MpegtsSrtConnTest, HttpHooksOnStop)
 
     // Create SrsMpegtsSrtConn with test parameters
     SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, dummy_fd, test_ip, test_port));
+    conn->assemble();
 
     // Create mock config
     SrsUniquePtr<MockAppConfigForSrtHooks> mock_config(new MockAppConfigForSrtHooks());
@@ -3670,4 +3680,214 @@ VOID TEST(SrtSocketTest, SetRecvSendTimeout)
         EXPECT_EQ(mock_socket.get_recv_timeout(), peer_idle_timeout);
         EXPECT_EQ(mock_socket.get_send_timeout(), peer_idle_timeout);
     }
+}
+
+// The SRT connection is created for every SRT client, so a test has to be able to replace its
+// context before anything uses it. Construction must therefore leave the process context id alone,
+// and create no coroutine.
+VOID TEST(MpegtsSrtConnTest, ConstructionLeavesProcessContextAlone)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+
+    // GOAL: construction reaches no collaborator, so a test can replace them before any work runs.
+    EXPECT_STREQ(before.c_str(), _srs_context->get_id().c_str());
+    EXPECT_TRUE(NULL == conn->trd_);
+    EXPECT_TRUE(_srs_app_factory == conn->app_factory_);
+    EXPECT_TRUE(_srs_context == conn->context_);
+}
+
+VOID TEST(MpegtsSrtConnTest, AssembleWiresCollaboratorsFromInjectedDependencies)
+{
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+
+    // The connection owns its SRT connection, so free the default before replacing it.
+    MockSrtConnection *srt_conn = new MockSrtConnection();
+    srs_freep(conn->srt_conn_);
+    conn->srt_conn_ = srt_conn;
+
+    MockCoroutineForRtmpConn trd;
+
+    MockAppFactoryForRtmpConn factory;
+    factory.coroutine_ = &trd;
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("srt-cid");
+
+    conn->app_factory_ = &factory;
+    conn->context_ = &context;
+    conn->assemble();
+
+    // GOAL: the client identity and the coroutine are established by assemble(), through the
+    // injected context and factory.
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("ts-srt", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(conn.get() == factory.coroutine_handler_);
+    EXPECT_STREQ("srt-cid", factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(&trd == conn->trd_);
+
+    // GOAL: the bandwidth counters measure the connection that is present at assemble(), so a
+    // replaced connection is never measured through a freed pointer.
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(srt_conn == delta->in_);
+    EXPECT_TRUE(srt_conn == delta->out_);
+    EXPECT_TRUE(srt_conn == conn->kbps_->delta_->in_);
+    EXPECT_TRUE(srt_conn == conn->kbps_->delta_->out_);
+
+    // The coroutine is borrowed from the mock factory, so the destructor must not free it.
+    conn->trd_ = NULL;
+    conn->app_factory_ = NULL;
+    conn->context_ = NULL;
+}
+
+VOID TEST(MpegtsSrtConnTest, AcquirePublishBridgesThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+    conn->req_->vhost_ = "__defaultVhost__";
+    conn->req_->app_ = "live";
+    conn->req_->stream_ = "livestream";
+
+    MockSrtSource *srt_source = new MockSrtSource();
+    conn->srt_source_ = SrsSharedPtr<SrsSrtSource>(srt_source);
+    HELPER_EXPECT_SUCCESS(srt_source->initialize(conn->req_));
+
+    // The mock config enables SRT to RTMP and disables WebRTC, so only the RTMP bridge is built.
+    MockAppConfig config;
+    MockLiveSourceManager live_sources;
+    MockAppFactoryForRtmpConn factory;
+
+    conn->config_ = &config;
+    conn->live_sources_ = &live_sources;
+    conn->app_factory_ = &factory;
+
+    HELPER_EXPECT_SUCCESS(conn->acquire_publish());
+
+    // GOAL: the SRT bridge is built with the injected factory, not the process-wide one.
+    SrsSrtBridge *bridge = dynamic_cast<SrsSrtBridge *>(srt_source->srt_bridge_);
+    EXPECT_TRUE(NULL != bridge);
+    if (bridge) {
+        EXPECT_TRUE(&factory == bridge->app_factory_);
+    }
+    EXPECT_EQ(1, srt_source->on_publish_count_);
+
+    conn->config_ = NULL;
+    conn->live_sources_ = NULL;
+    conn->app_factory_ = NULL;
+}
+
+MockLiveSourceForSrtPublishFailure::MockLiveSourceForSrtPublishFailure()
+{
+    on_publish_error_ = srs_success;
+    on_publish_count_ = 0;
+    on_unpublish_count_ = 0;
+}
+
+MockLiveSourceForSrtPublishFailure::~MockLiveSourceForSrtPublishFailure()
+{
+    srs_freep(on_publish_error_);
+}
+
+srs_error_t MockLiveSourceForSrtPublishFailure::on_publish()
+{
+    on_publish_count_++;
+    return srs_error_copy(on_publish_error_);
+}
+
+void MockLiveSourceForSrtPublishFailure::on_unpublish()
+{
+    on_unpublish_count_++;
+}
+
+// When the RTMP target of the SRT bridge fails to publish, for example because a forward backend
+// is down, the SRT source has already been marked as publishing. The failed session must release
+// it, otherwise every later publish of the stream is refused as busy until SRS restarts.
+VOID TEST(MpegtsSrtConnTest, PublishingReleasesStateWhenBridgePublishFails)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+    conn->req_->vhost_ = "__defaultVhost__";
+    conn->req_->app_ = "live";
+    conn->req_->stream_ = "livestream";
+
+    SrsSrtSource *srt_source = new SrsSrtSource();
+    conn->srt_source_ = SrsSharedPtr<SrsSrtSource>(srt_source);
+    HELPER_EXPECT_SUCCESS(srt_source->initialize(conn->req_));
+
+    // The mock config enables SRT to RTMP, so the bridge publishes the failing RTMP target.
+    MockAppConfig config;
+    MockAppStatistic stat;
+    MockHttpHooks hooks;
+    MockLiveSourceManager live_sources;
+    MockLiveSourceForSrtPublishFailure *live_source = new MockLiveSourceForSrtPublishFailure();
+    live_source->on_publish_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "forward backend down");
+    live_sources.mock_source_ = SrsSharedPtr<SrsLiveSource>(live_source);
+
+    conn->config_ = &config;
+    conn->stat_ = &stat;
+    conn->hooks_ = &hooks;
+    conn->live_sources_ = &live_sources;
+    srs_freep(conn->security_);
+    conn->security_ = new MockSecurity();
+
+    err = conn->publishing();
+    EXPECT_EQ(ERROR_SOCKET_CONNECT, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, live_source->on_publish_count_);
+
+    // GOAL: the SRT source and the RTMP target are released, so the stream can be published again.
+    EXPECT_TRUE(srt_source->can_publish());
+    EXPECT_EQ(1, live_source->on_unpublish_count_);
+
+    conn->config_ = NULL;
+    conn->stat_ = NULL;
+    conn->hooks_ = NULL;
+    conn->live_sources_ = NULL;
+}
+
+// A session refused because the SRT stream is busy never owned it, so it must not release the
+// publisher that does. This passes from the start and guards the release above from widening.
+VOID TEST(MpegtsSrtConnTest, PublishingKeepsOtherPublisherWhenSrtStreamBusy)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+    conn->req_->vhost_ = "__defaultVhost__";
+    conn->req_->app_ = "live";
+    conn->req_->stream_ = "livestream";
+
+    // Another session is publishing the SRT stream.
+    SrsSrtSource *srt_source = new SrsSrtSource();
+    conn->srt_source_ = SrsSharedPtr<SrsSrtSource>(srt_source);
+    HELPER_EXPECT_SUCCESS(srt_source->initialize(conn->req_));
+    HELPER_EXPECT_SUCCESS(srt_source->on_publish());
+
+    MockAppConfig config;
+    MockAppStatistic stat;
+    MockHttpHooks hooks;
+    MockLiveSourceManager live_sources;
+
+    conn->config_ = &config;
+    conn->stat_ = &stat;
+    conn->hooks_ = &hooks;
+    conn->live_sources_ = &live_sources;
+    srs_freep(conn->security_);
+    conn->security_ = new MockSecurity();
+
+    err = conn->publishing();
+    EXPECT_EQ(ERROR_SRT_SOURCE_BUSY, srs_error_code(err));
+    srs_freep(err);
+
+    // GOAL: the other session still owns the stream.
+    EXPECT_FALSE(srt_source->can_publish());
+
+    conn->config_ = NULL;
+    conn->stat_ = NULL;
+    conn->hooks_ = NULL;
+    conn->live_sources_ = NULL;
 }

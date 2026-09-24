@@ -108,7 +108,9 @@ Now let's use Docker to build an HLS distribution cluster.
 First, start the SRS origin server:
 
 ```bash
-./objs/srs -c conf/hls.origin.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_SERVER_ENABLED=on SRS_VHOST_HLS_ENABLED=on \
+  SRS_VHOST_HLS_HLS_CTX=off SRS_VHOST_HLS_HLS_TS_CTX=off \
+  ./objs/srs -e
 ```
 
 Then, start the NGINX origin server:

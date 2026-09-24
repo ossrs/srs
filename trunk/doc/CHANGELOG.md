@@ -7,6 +7,10 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-09-24, Config: Add SRS_RTMP_LISTEN for the RTMP listen, and keep SRS_LISTEN as an alias. v8.0.48
+* v8.0, 2026-09-24, WebRTC: Verify the MESSAGE-INTEGRITY of STUN binding requests, so only the session's peer can switch its address. v8.0.47
+* v8.0, 2026-09-23, WebRTC: Release the TCP network when a TCP connection closes before DTLS completes, so the client can reconnect over TCP. v8.0.46
+* v8.0, 2026-09-23, SRT: Release the publish state when a publish fails after the source started, so the stream can be republished. v8.0.45
 * v8.0, 2026-09-22, Timer: Notify every subscriber when one unsubscribes during the round. v8.0.44
 * v8.0, 2026-09-22, Log: Clear the log file descriptor when the logger reopens it. v8.0.43
 * v8.0, 2026-09-22, HTTP: Clamp the VOD MP4 range end to the last byte of the file. v8.0.42

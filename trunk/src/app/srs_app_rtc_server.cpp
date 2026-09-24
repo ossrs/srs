@@ -87,6 +87,14 @@ string srs_dns_resolve(string host, int &family)
     return string(shost);
 }
 
+ISrsRtcBlackhole::ISrsRtcBlackhole()
+{
+}
+
+ISrsRtcBlackhole::~ISrsRtcBlackhole()
+{
+}
+
 // LCOV_EXCL_START
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
@@ -555,11 +563,11 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
                                  ping.get_username().c_str(), peer_id.c_str(), fast_id);
         }
 
-        // For each binding request, update the UDP socket.
+        // For each binding request, update the UDP socket, once the session accepted the request.
         if (ping.is_binding_request()) {
             SrsRtcUdpNetwork *udp_network = dynamic_cast<SrsRtcUdpNetwork *>(session->udp());
             srs_assert(udp_network);
-            udp_network->update_sendonly_socket(skt);
+            return udp_network->on_stun(skt, &ping, data, size);
         }
 
         return session->udp()->on_stun(&ping, data, size);

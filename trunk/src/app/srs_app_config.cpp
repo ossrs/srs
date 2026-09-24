@@ -1617,12 +1617,8 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         return srs_error_wrap(err, "transform");
     }
 
-    // If use env only, we set change to daemon(off) and console log.
+    // If use env only, there is no config file, so create the default vhost.
     if (env_only_) {
-        if (!getenv("SRS_DAEMON"))
-            setenv("SRS_DAEMON", "off", 1);
-        if (!getenv("SRS_SRS_LOG_TANK") && !getenv("SRS_LOG_TANK"))
-            setenv("SRS_SRS_LOG_TANK", "console", 1);
         if (root_->directives_.empty())
             root_->get_or_create("vhost", "__defaultVhost__");
     }
@@ -1816,6 +1812,299 @@ void SrsConfig::print_help(char **argv)
         RTMP_SIG_SRS_AUTHORS, SRS_CONSTRIBUTORS,
         argv[0], argv[0], argv[0], SRS_CONF_DEFAULT_COFNIG_FILE,
         argv[0], SRS_CONF_DEFAULT_COFNIG_FILE);
+    printf(
+        "\n"
+        "Are you an AI? Run SRS with environment variables and -e, not a config file, and\n"
+        "check it by the HTTP API and the log.\n"
+        "\n"
+        "   Start SRS with only the features you need, for example RTMP, HTTP-FLV and HLS:\n"
+        "      env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 \\\n"
+        "          SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=8080 \\\n"
+        "          SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \\\n"
+        "          %s -e\n"
+        "   With -e, SRS runs in the foreground, logs to the console, and listens only on what\n"
+        "   you enable. RTMP has no default port with -e, so set SRS_RTMP_LISTEN for RTMP.\n"
+        "   Before you start, make sure the ports are free. Change the ports to run more than\n"
+        "   one SRS on a machine. With -e, keep the defaults of the variables in \"Do not set\"\n"
+        "   below, so SRS has no pid file, no daemon and no log file, and you manage it.\n"
+        "   Check the result by the HTTP API, not by guessing from the log:\n"
+        "      curl http://127.0.0.1:1985/api/v1/versions   Is SRS up, and which version.\n"
+        "      curl http://127.0.0.1:1985/api/v1/streams/   The streams, codecs and publisher.\n"
+        "      curl http://127.0.0.1:1985/api/v1/clients/   The publishers and players.\n"
+        "      curl http://127.0.0.1:1985/api/v1/summaries  CPU, memory and network.\n"
+        "   Then read the log for errors and warnings.\n"
+        "   HLS is ready only after the first segment, about 10s by default after publishing.\n"
+        "   Stop SRS with SIGTERM for a fast quit, or SIGQUIT for a graceful quit.\n"
+        "\n"
+        "   All environment variables, NAME=default. The name is SRS_ plus the config path in\n"
+        "   upper case, with dots as underscores. Booleans are on or off, lists are separated\n"
+        "   by spaces, and SRS_VHOST_* applies to all vhosts. The -e mode has one vhost.\n",
+        argv[0]);
+    fputs(
+        "   Do not set, an AI should keep these defaults with -e:\n"
+        "      SRS_ENV_ONLY=                                 Same as -e if set to any value, even off. Use -e instead.\n"
+        "      SRS_CONFIG_FILE=                              Config file to use instead of -c, ignored with -e.\n"
+        "      SRS_PID=                                      Pid file. Default is empty with -e, and ./objs/srs.pid with -c.\n"
+        "      SRS_DAEMON=off                                Run as daemon. Default is off with -e, and on with -c.\n"
+        "      SRS_ASPROCESS=off                             Quit when the parent process quits.\n"
+        "      SRS_LOG_TANK=console                          console or file. Default is console with -e, and file with -c.\n"
+        "      SRS_LOG_FILE=./objs/srs.log                   Log file, when SRS_LOG_TANK=file.\n"
+        "      SRS_INOTIFY_AUTO_RELOAD=off                   Reload when the config file changes, not for -e.\n"
+        "      SRS_AUTO_RELOAD_FOR_DOCKER=on                 Turn on SRS_INOTIFY_AUTO_RELOAD in docker.\n"
+        "      SRS_DISABLE_DAEMON_FOR_DOCKER=on              Turn daemon off in docker.\n"
+        "   Process:\n"
+        "      SRS_SERVER_ID=                                Server id in the API, random if empty.\n"
+        "      SRS_WORK_DIR=./                               Change to this dir when starting.\n"
+        "      SRS_MAX_CONNECTIONS=1000                      Max connections, drop new ones if exceeded.\n"
+        "      SRS_UTC_TIME=off                              Use UTC time, not local time, for logs and files.\n"
+        "      SRS_PITHY_PRINT_MS=10000                      Interval in ms of the periodic stat log.\n"
+        "      SRS_EMPTY_IP_OK=on                            Accept a client without IP, like a load balancer health check.\n"
+        "      SRS_IN_DOCKER=off                             Treat SRS as in docker, if detection fails.\n"
+        "      SRS_GRACE_START_WAIT=2300                     Graceful quit, ms to wait before closing listeners.\n"
+        "      SRS_GRACE_FINAL_WAIT=3200                     Graceful quit, ms to wait for cleanup.\n"
+        "      SRS_FORCE_GRACE_QUIT=off                      Quit gracefully on SIGTERM too.\n"
+        "      SRS_QUERY_LATEST_VERSION=off                  Query the latest SRS version and log it.\n"
+        "      SRS_FIRST_WAIT_FOR_QLV=300                    Seconds to wait before the first version query.\n"
+        "   Log:\n"
+        "      SRS_LOG_LEVEL_V2=                             trace, debug, info, warn or error, overrides SRS_LOG_LEVEL.\n"
+        "      SRS_LOG_LEVEL=trace                           verbose, info, trace, warn or error.\n"
+        "      SRS_FF_LOG_DIR=./objs                         Log dir of FFmpeg transcoding, /dev/null to disable.\n"
+        "      SRS_FF_LOG_LEVEL=info                         Log level of FFmpeg transcoding.\n"
+        "   Circuit breaker, to drop work when the CPU is busy:\n"
+        "      SRS_CIRCUIT_BREAKER_ENABLED=on                Enable the circuit breaker.\n"
+        "      SRS_CIRCUIT_BREAKER_HIGH_THRESHOLD=90         CPU percent of the high level.\n"
+        "      SRS_CIRCUIT_BREAKER_HIGH_PULSE=2              Seconds below the high threshold to reset it, 0 to disable.\n"
+        "      SRS_CIRCUIT_BREAKER_CRITICAL_THRESHOLD=95     CPU percent of the critical level.\n"
+        "      SRS_CIRCUIT_BREAKER_CRITICAL_PULSE=1          Seconds below the critical threshold to reset it, 0 to disable.\n"
+        "      SRS_CIRCUIT_BREAKER_DYING_THRESHOLD=99        CPU percent of the dying level, drop packets for players.\n"
+        "      SRS_CIRCUIT_BREAKER_DYING_PULSE=5             Seconds above the dying threshold, 0 to disable.\n"
+        "   RTMP:\n"
+        "      SRS_RTMP_LISTEN=                              RTMP listen [ip:]port, no RTMP if empty with -e. Such as 1935.\n"
+        "      SRS_VHOST_CHUNK_SIZE=60000                    RTMP chunk size, 128 to 65536.\n"
+        "      SRS_VHOST_IN_ACK_SIZE=0                       RTMP input ack size, 0 to not set.\n"
+        "      SRS_VHOST_OUT_ACK_SIZE=2500000                RTMP output ack size, 0 to not set.\n"
+        "      SRS_VHOST_TCP_NODELAY=off                     Set TCP_NODELAY on client sockets.\n"
+        "      SRS_RTMPS_ENABLED=off                         Enable RTMPS, RTMP over TLS.\n"
+        "      SRS_RTMPS_LISTEN=                             RTMPS listen [ip:]port, such as 1443.\n"
+        "      SRS_RTMPS_KEY=./conf/server.key               TLS private key of RTMPS.\n"
+        "      SRS_RTMPS_CERT=./conf/server.crt              TLS cert of RTMPS.\n"
+        "   Publish:\n"
+        "      SRS_VHOST_PUBLISH_FIRSTPKT_TIMEOUT=20000      ms to wait for the first packet from a publisher.\n"
+        "      SRS_VHOST_PUBLISH_NORMAL_TIMEOUT=5000         ms to wait for later packets from a publisher.\n"
+        "      SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE=0          Seconds to kick a publisher without players, 0 never.\n"
+        "      SRS_VHOST_PUBLISH_PARSE_SPS=on                Parse SPS for the video size in the API.\n"
+        "      SRS_VHOST_PUBLISH_TRY_ANNEXB_FIRST=on         Try ANNEXB before IBMF when parsing SPS/PPS.\n"
+        "      SRS_VHOST_PUBLISH_MR=off                      Merged read, better performance and more latency.\n"
+        "      SRS_VHOST_PUBLISH_MR_LATENCY=350              ms of the merged read.\n"
+        "   Play:\n"
+        "      SRS_VHOST_PLAY_GOP_CACHE=on                   Cache the last GOP, so players start fast.\n"
+        "      SRS_VHOST_PLAY_GOP_CACHE_MAX_FRAMES=2500      Max frames in the GOP cache.\n"
+        "      SRS_VHOST_PLAY_QUEUE_LENGTH=30                Seconds of the player queue, drop a GOP if exceeded.\n"
+        "      SRS_VHOST_PLAY_TIME_JITTER=full               Timestamp correction: full, zero or off.\n"
+        "      SRS_VHOST_PLAY_MIX_CORRECT=off                Keep audio and video timestamps interleaved.\n"
+        "      SRS_VHOST_PLAY_ATC=off                        Deliver absolute timestamps, for backup streams.\n"
+        "      SRS_VHOST_PLAY_ATC_AUTO=off                   Turn on ATC if the metadata says bravo_atc.\n"
+        "      SRS_VHOST_PLAY_MW_LATENCY=350                 ms of merged write, 0 for WebRTC.\n"
+        "      SRS_VHOST_PLAY_MW_MSGS=8                      Min messages of merged write, 1 for WebRTC, 0 for min latency.\n"
+        "      SRS_VHOST_PLAY_SEND_MIN_INTERVAL=0            Min ms between sent packets, 0 to disable.\n"
+        "      SRS_VHOST_PLAY_REDUCE_SEQUENCE_HEADER=off     Do not send a duplicated sequence header.\n"
+        "      SRS_VHOST_MIN_LATENCY=off                     Low latency mode, always on for WebRTC.\n"
+        "   HTTP API, for status and WebRTC signaling:\n"
+        "      SRS_HTTP_API_ENABLED=off                      Enable the HTTP API.\n"
+        "      SRS_HTTP_API_LISTEN=1985                      HTTP API listen [ip:]port.\n"
+        "      SRS_HTTP_API_RAW_API_ENABLED=off              Enable the raw API, /api/v1/raw.\n"
+        "      SRS_HTTP_API_RAW_API_ALLOW_RELOAD=off         Allow reload by the raw API.\n"
+        "      SRS_HTTP_API_AUTH_ENABLED=off                 Require auth for the HTTP API.\n"
+        "      SRS_HTTP_API_AUTH_TYPE=                       basic or bearer, required with auth.\n"
+        "      SRS_HTTP_API_AUTH_USERNAME=                   Username of basic auth.\n"
+        "      SRS_HTTP_API_AUTH_PASSWORD=                   Password of basic auth.\n"
+        "      SRS_HTTP_API_AUTH_TOKEN=                      Token of bearer auth.\n"
+        "      SRS_HTTP_API_AUTH_RTC_BEARER_ENABLED=off      Bearer auth also for /rtc/, WHIP and WHEP.\n"
+        "      SRS_HTTP_API_HTTPS_ENABLED=off                Enable the HTTPS API.\n"
+        "      SRS_HTTP_API_HTTPS_LISTEN=1990                HTTPS API listen [ip:]port.\n"
+        "      SRS_HTTP_API_HTTPS_KEY=./conf/server.key      TLS private key of the HTTPS API.\n"
+        "      SRS_HTTP_API_HTTPS_CERT=./conf/server.crt     TLS cert of the HTTPS API.\n"
+        "   HTTP server, for HTTP-FLV, HLS, DASH and files:\n"
+        "      SRS_HTTP_SERVER_ENABLED=off                   Enable the HTTP server.\n"
+        "      SRS_HTTP_SERVER_LISTEN=8080                   HTTP server listen [ip:]port.\n"
+        "      SRS_HTTP_SERVER_DIR=./objs/nginx/html         Web root of the HTTP server.\n"
+        "      SRS_HTTP_SERVER_CROSSDOMAIN=on                Allow CORS requests.\n"
+        "      SRS_HTTP_SERVER_HTTPS_ENABLED=off             Enable the HTTPS server.\n"
+        "      SRS_HTTP_SERVER_HTTPS_LISTEN=8088             HTTPS server listen [ip:]port.\n"
+        "      SRS_HTTP_SERVER_HTTPS_KEY=./conf/server.key   TLS private key of the HTTPS server.\n"
+        "      SRS_HTTP_SERVER_HTTPS_CERT=./conf/server.crt  TLS cert of the HTTPS server.\n"
+        "      SRS_VHOST_HTTP_STATIC_ENABLED=off             Serve files of the vhost.\n"
+        "      SRS_VHOST_HTTP_STATIC_MOUNT=[vhost]/          URL path of the vhost files.\n"
+        "      SRS_VHOST_HTTP_STATIC_DIR=./objs/nginx/html   Dir of the vhost files.\n"
+        "   HTTP-FLV, needs the HTTP server:\n"
+        "      SRS_VHOST_HTTP_REMUX_ENABLED=off              Serve streams as HTTP-FLV.\n"
+        "      SRS_VHOST_HTTP_REMUX_MOUNT=[vhost]/[app]/[stream].flv\n"
+        "                                                    URL path of HTTP-FLV.\n"
+        "      SRS_VHOST_HTTP_REMUX_FAST_CACHE=0             Seconds of audio cache for pure audio streams.\n"
+        "      SRS_VHOST_HTTP_REMUX_HAS_AUDIO=on             Default audio flag of the FLV header.\n"
+        "      SRS_VHOST_HTTP_REMUX_HAS_VIDEO=on             Default video flag of the FLV header.\n"
+        "      SRS_VHOST_HTTP_REMUX_GUESS_HAS_AV=on          Guess the audio and video flags from the stream.\n"
+        "      SRS_VHOST_HTTP_REMUX_DROP_IF_NOT_MATCH=on     Drop packets that do not match the FLV header.\n"
+        "   HLS, served by the HTTP server:\n"
+        "      SRS_VHOST_HLS_ENABLED=off                     Write streams as HLS.\n"
+        "      SRS_VHOST_HLS_HLS_FRAGMENT=10                 Seconds of a segment.\n"
+        "      SRS_VHOST_HLS_HLS_WINDOW=60                   Seconds of segments in the m3u8.\n"
+        "      SRS_VHOST_HLS_HLS_TD_RATIO=1.0                EXT-X-TARGETDURATION is this ratio of the fragment.\n"
+        "      SRS_VHOST_HLS_HLS_AOF_RATIO=2.1               Pure audio, reap a segment at this ratio of the fragment.\n"
+        "      SRS_VHOST_HLS_HLS_WAIT_KEYFRAME=on            Reap segments at keyframes.\n"
+        "      SRS_VHOST_HLS_HLS_TS_FLOOR=off                Use floor(timestamp/fragment) for [timestamp] in names.\n"
+        "      SRS_VHOST_HLS_HLS_USE_FMP4=off                Use fMP4 segments, not TS.\n"
+        "      SRS_VHOST_HLS_HLS_PATH=./objs/nginx/html      Dir to write HLS files.\n"
+        "      SRS_VHOST_HLS_HLS_M3U8_FILE=[app]/[stream].m3u8\n"
+        "                                                    Path of the m3u8, under the HLS dir.\n"
+        "      SRS_VHOST_HLS_HLS_TS_FILE=[app]/[stream]-[seq].ts\n"
+        "                                                    Path of TS segments.\n"
+        "      SRS_VHOST_HLS_HLS_FMP4_FILE=[app]/[stream]-[seq].m4s\n"
+        "                                                    Path of fMP4 segments.\n"
+        "      SRS_VHOST_HLS_HLS_INIT_FILE=[app]/[stream]/init.mp4\n"
+        "                                                    Path of the fMP4 init segment.\n"
+        "      SRS_VHOST_HLS_HLS_ENTRY_PREFIX=               Base URL of segments in the m3u8.\n"
+        "      SRS_VHOST_HLS_HLS_ON_ERROR=continue           On error: ignore, disconnect or continue.\n"
+        "      SRS_VHOST_HLS_HLS_CLEANUP=on                  Remove expired segments.\n"
+        "      SRS_VHOST_HLS_HLS_DISPOSE=120                 Seconds without packets to remove all HLS files.\n"
+        "      SRS_VHOST_HLS_HLS_RECOVER=on                  Continue the sequence number on republish.\n"
+        "      SRS_VHOST_HLS_HLS_DTS_DIRECTLY=on             Use the audio DTS directly, not guess it.\n"
+        "      SRS_VHOST_HLS_HLS_CTX=on                      Track HLS players as clients in the API and hooks.\n"
+        "      SRS_VHOST_HLS_HLS_TS_CTX=on                   Track each segment request of an HLS player.\n"
+        "      SRS_VHOST_HLS_HLS_MASTER_M3U8_PATH_RELATIVE=off\n"
+        "                                                    Relative URL in the master playlist.\n"
+        "      SRS_VHOST_HLS_HLS_NB_NOTIFY=64                Max bytes to read from the on_hls_notify URL.\n"
+        "      SRS_VHOST_HLS_HLS_KEYS=off                    Encrypt segments by AES.\n"
+        "      SRS_VHOST_HLS_HLS_FRAGMENTS_PER_KEY=5         Segments encrypted by one key.\n"
+        "      SRS_VHOST_HLS_HLS_KEY_FILE=[app]/[stream]-[seq].key\n"
+        "                                                    Path of key files.\n"
+        "      SRS_VHOST_HLS_HLS_KEY_FILE_PATH=              Dir to write key files, the HLS dir if empty.\n"
+        "      SRS_VHOST_HLS_HLS_KEY_URL=                    Base URL of keys in the m3u8.\n"
+        "   DASH, served by the HTTP server:\n"
+        "      SRS_VHOST_DASH_ENABLED=off                    Write streams as DASH.\n"
+        "      SRS_VHOST_DASH_DASH_FRAGMENT=10               Seconds of a segment.\n"
+        "      SRS_VHOST_DASH_DASH_UPDATE_PERIOD=5           Seconds to update the MPD.\n"
+        "      SRS_VHOST_DASH_DASH_TIMESHIFT=300             Seconds of the timeshift buffer.\n"
+        "      SRS_VHOST_DASH_DASH_WINDOW_SIZE=5             Segments in the MPD.\n"
+        "      SRS_VHOST_DASH_DASH_PATH=./objs/nginx/html    Dir to write DASH files.\n"
+        "      SRS_VHOST_DASH_DASH_MPD_FILE=[app]/[stream].mpd\n"
+        "                                                    Path of the MPD, under the DASH dir.\n"
+        "      SRS_VHOST_DASH_DASH_CLEANUP=on                Remove expired segments.\n"
+        "      SRS_VHOST_DASH_DASH_DISPOSE=120               Seconds without packets to remove all DASH files.\n"
+        "   DVR, record streams to files:\n"
+        "      SRS_VHOST_DVR_ENABLED=off                     Record streams.\n"
+        "      SRS_VHOST_DVR_DVR_PLAN=session                session, a file per publish, or segment, split by duration.\n"
+        "      SRS_VHOST_DVR_DVR_PATH=./objs/nginx/html/[app]/[stream].[timestamp].flv\n"
+        "                                                    File path, .flv or .mp4.\n"
+        "      SRS_VHOST_DVR_DVR_DURATION=30                 Seconds of a file, for the segment plan.\n"
+        "      SRS_VHOST_DVR_DVR_WAIT_KEYFRAME=on            Split files at keyframes.\n"
+        "      SRS_VHOST_DVR_TIME_JITTER=full                Timestamp correction: full, zero or off.\n"
+        "   WebRTC server:\n"
+        "      SRS_RTC_SERVER_ENABLED=off                    Enable the WebRTC server.\n"
+        "      SRS_RTC_SERVER_LISTEN=8000                    WebRTC UDP listen [ip:]port.\n"
+        "      SRS_RTC_SERVER_TCP_ENABLED=off                Enable WebRTC over TCP.\n"
+        "      SRS_RTC_SERVER_TCP_LISTEN=8000                WebRTC TCP listen [ip:]port.\n"
+        "      SRS_RTC_SERVER_PROTOCOL=udp                   Candidates to answer: udp, tcp or all.\n"
+        "      SRS_RTC_SERVER_CANDIDATE=*                    IP for clients to connect, * to detect, $NAME to read env NAME.\n"
+        "      SRS_RTC_SERVER_USE_AUTO_DETECT_NETWORK_IP=on  Detect the IP when the candidate is *.\n"
+        "      SRS_RTC_SERVER_IP_FAMILY=ipv4                 Detected IPs: ipv4, ipv6 or all.\n"
+        "      SRS_RTC_SERVER_API_AS_CANDIDATES=on           Also use the host of the API request as a candidate.\n"
+        "      SRS_RTC_SERVER_RESOLVE_API_DOMAIN=on          Resolve the API host if it is a domain.\n"
+        "      SRS_RTC_SERVER_KEEP_API_DOMAIN=off            Keep the API domain as a candidate.\n"
+        "      SRS_RTC_SERVER_ECDSA=on                       Use an ECDSA cert for DTLS, not RSA.\n"
+        "      SRS_RTC_SERVER_ENCRYPT=on                     Encrypt RTP by SRTP, browsers need it.\n"
+        "      SRS_RTC_SERVER_REUSEPORT=1                    UDP listeners on the same port.\n"
+        "      SRS_RTC_SERVER_MERGE_NALUS=off                Merge NALUs into one packet.\n"
+        "      SRS_RTC_SERVER_BLACK_HOLE_ENABLED=off         Copy RTP packets to an address, for debugging.\n"
+        "      SRS_RTC_SERVER_BLACK_HOLE_ADDR=               The ip:port to copy RTP packets to.\n"
+        "   WebRTC streams:\n"
+        "      SRS_VHOST_RTC_ENABLED=off                     Enable WebRTC for streams.\n"
+        "      SRS_VHOST_RTC_RTMP_TO_RTC=off                 Convert RTMP to WebRTC, AAC to Opus.\n"
+        "      SRS_VHOST_RTC_RTC_TO_RTMP=off                 Convert WebRTC to RTMP, Opus to AAC.\n"
+        "      SRS_VHOST_RTC_OPUS_BITRATE=48000              Opus bitrate, for RTMP to WebRTC.\n"
+        "      SRS_VHOST_RTC_AAC_BITRATE=48000               AAC bitrate, for WebRTC to RTMP.\n"
+        "      SRS_VHOST_RTC_PLI_FOR_RTMP=6.0                Seconds between PLIs, for WebRTC to RTMP, 0.5 to 30.\n"
+        "      SRS_VHOST_RTC_KEEP_BFRAME=off                 Keep B-frames.\n"
+        "      SRS_VHOST_RTC_KEEP_AVC_NALU_SEI=on            Keep H.264 SEI NALUs.\n"
+        "      SRS_VHOST_RTC_NACK=on                         Support NACK.\n"
+        "      SRS_VHOST_RTC_NACK_NO_COPY=on                 Resend NACKed packets without copy.\n"
+        "      SRS_VHOST_RTC_NACK_PREFER_RTX=off             Prefer RTX to answer NACK.\n"
+        "      SRS_VHOST_RTC_TWCC=on                         Support TWCC.\n"
+        "      SRS_VHOST_RTC_STUN_TIMEOUT=30                 Seconds without STUN to close a session.\n"
+        "      SRS_VHOST_RTC_STUN_STRICT_CHECK=off           Strict STUN check.\n"
+        "      SRS_VHOST_RTC_DTLS_ROLE=passive               DTLS role when the peer is actpass: passive or active.\n"
+        "      SRS_VHOST_RTC_DTLS_VERSION=auto               dtls1.0, dtls1.2 or auto.\n"
+        "      SRS_VHOST_RTC_DROP_FOR_PT=0                   Drop packets of this payload type, 0 never.\n"
+        "      SRS_VHOST_RTC_INIT_RATE_FROM_SDP=off          Init the RTP rate from SDP, for fast A/V sync.\n"
+        "      SRS_VHOST_RTC_KEEP_ORIGINAL_SSRC=off          Keep the SSRC and timestamp when forwarding.\n"
+        "   SRT:\n"
+        "      SRS_SRT_SERVER_ENABLED=off                    Enable the SRT server.\n"
+        "      SRS_SRT_SERVER_LISTEN=10080                   SRT UDP listen [ip:]port.\n"
+        "      SRS_VHOST_SRT_ENABLED=off                     Enable SRT for streams.\n"
+        "      SRS_VHOST_SRT_SRT_TO_RTMP=off                 Convert SRT to RTMP, for RTMP, HTTP-FLV, HLS and WebRTC.\n"
+        "      SRS_SRT_SERVER_DEFAULT_APP=live               App for a short streamid without app.\n"
+        "      SRS_SRT_SERVER_DEFAULT_MODE=request           Mode for a short streamid: request or publish.\n"
+        "      SRS_SRT_SERVER_DEFAULT_STREAMID=#!::r=live/livestream,m=request\n"
+        "                                                    Streamid if a client has none.\n"
+        "      SRS_SRT_SERVER_LATENCY=120                    ms, sets both the receive and peer latency.\n"
+        "      SRS_SRT_SERVER_RECVLATENCY=120                ms of the receive latency.\n"
+        "      SRS_SRT_SERVER_PEERLATENCY=0                  ms of the peer latency.\n"
+        "      SRS_SRT_SERVER_TSBPDMODE=on                   Timestamp based packet delivery.\n"
+        "      SRS_SRT_SERVER_TLPKTDROP=on                   Drop too late packets.\n"
+        "      SRS_SRT_SERVER_CONNECT_TIMEOUT=3000           ms to connect.\n"
+        "      SRS_SRT_SERVER_PEER_IDLE_TIMEOUT=10000        ms without data to close.\n"
+        "      SRS_SRT_SERVER_MAXBW=-1                       Max bandwidth in bytes/s, -1 for no limit.\n"
+        "      SRS_SRT_SERVER_MSS=1500                       Max segment size.\n"
+        "      SRS_SRT_SERVER_PAYLOADSIZE=1316               Payload size, a multiple of 188.\n"
+        "      SRS_SRT_SERVER_SENDBUF=12058624               Send buffer bytes.\n"
+        "      SRS_SRT_SERVER_RECVBUF=12058624               Receive buffer bytes.\n"
+        "      SRS_SRT_SERVER_PASSPHRASE=                    Passphrase that clients must use, no encryption if empty.\n"
+        "      SRS_SRT_SERVER_PBKEYLEN=0                     Key length: 0, 16, 24 or 32.\n"
+        "   RTSP, for players only:\n"
+        "      SRS_RTSP_SERVER_ENABLED=off                   Enable the RTSP server.\n"
+        "      SRS_RTSP_SERVER_LISTEN=554                    RTSP listen [ip:]port.\n"
+        "      SRS_VHOST_RTSP_ENABLED=off                    Enable RTSP for streams.\n"
+        "      SRS_VHOST_RTSP_RTMP_TO_RTSP=on                Convert RTMP to RTSP.\n"
+        "   Forward:\n"
+        "      SRS_VHOST_FORWARD_ENABLED=off                 Forward published streams.\n"
+        "      SRS_VHOST_FORWARD_BACKEND=                    HTTP URL that returns the RTMP URLs to forward to.\n"
+        "   Edge, pull and push streams through an origin:\n"
+        "      SRS_VHOST_CLUSTER_MODE=local                  local for an origin, remote for an edge.\n"
+        "      SRS_VHOST_CLUSTER_ORIGIN=                     Space separated origin ip:port of an edge.\n"
+        "   Stream caster, to receive GB28181, FLV or MPEG-TS over UDP as RTMP:\n"
+        "      SRS_STREAM_CASTER_ENABLED=off                 Enable a stream caster, even without one in the config.\n"
+        "      SRS_STREAM_CASTER_CASTER=                     gb28181, flv or mpegts_over_udp.\n"
+        "      SRS_STREAM_CASTER_OUTPUT=                     RTMP URL to output to, such as rtmp://127.0.0.1/live/[stream].\n"
+        "      SRS_STREAM_CASTER_LISTEN=0                    Port to listen on.\n"
+        "      SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT=10    GB28181, seconds to wait for the media connection.\n"
+        "   HTTP hooks, each is space separated HTTP URLs to POST to:\n"
+        "      SRS_VHOST_HTTP_HOOKS_ENABLED=off              Enable the HTTP hooks.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_CONNECT=              When a client connects.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_CLOSE=                When a client closes.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_PUBLISH=              When a stream is published, rejected unless it returns 0.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_UNPUBLISH=            When a stream is unpublished.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_PLAY=                 When a player starts, rejected unless it returns 0.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_STOP=                 When a player stops.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_DVR=                  When a DVR file is done.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_HLS=                  When an HLS segment is done.\n"
+        "      SRS_VHOST_HTTP_HOOKS_ON_HLS_NOTIFY=           GET this URL when an HLS segment is done, for CDN.\n"
+        "   Prometheus exporter:\n"
+        "      SRS_EXPORTER_ENABLED=off                      Enable the exporter.\n"
+        "      SRS_EXPORTER_LISTEN=9972                      Exporter port, metrics at /metrics.\n"
+        "      SRS_EXPORTER_LABEL=                           Label of this server.\n"
+        "      SRS_EXPORTER_TAG=                             Tag of this server.\n"
+        "   Heartbeat, POST server info to a URL periodically:\n"
+        "      SRS_HEARTBEAT_ENABLED=off                     Enable the heartbeat.\n"
+        "      SRS_HEARTBEAT_INTERVAL=10                     Seconds between heartbeats.\n"
+        "      SRS_HEARTBEAT_URL=http://127.0.0.1:8085/api/v1/servers\n"
+        "                                                    URL to POST to.\n"
+        "      SRS_HEARTBEAT_DEVICE_ID=                      Device id in the request.\n"
+        "      SRS_HEARTBEAT_SUMMARIES=off                   Include /api/v1/summaries.\n"
+        "      SRS_HEARTBEAT_PORTS=off                       Include the listen ports.\n"
+        "      SRS_HEARTBEAT_AUTH_ENABLED=off                Send a bearer token.\n"
+        "      SRS_HEARTBEAT_AUTH_TYPE=                      bearer, the only one supported.\n"
+        "      SRS_HEARTBEAT_AUTH_TOKEN=                     The bearer token.\n",
+        stdout);
 }
 
 srs_error_t SrsConfig::parse_file(const char *filename)
@@ -2574,8 +2863,10 @@ bool SrsConfig::get_daemon()
     SRS_OVERWRITE_BY_ENV_BOOL2("srs.daemon"); // SRS_DAEMON
 
     SrsConfDirective *conf = root_->get("daemon");
+
+    // Without a config file, run in the foreground unless SRS_DAEMON sets it.
     if (!conf || conf->arg0().empty()) {
-        return true;
+        return !env_only_;
     }
 
     return SRS_CONF_PREFER_TRUE(conf->arg0());
@@ -2664,9 +2955,12 @@ string SrsConfig::get_server_id()
 {
     static string DEFAULT = "";
 
+    // The server id file is kept next to the pid file, so there is none without a pid file.
+    string pid_file = get_pid_file();
+
     // Try to read DEFAULT from server id file.
-    if (DEFAULT.empty()) {
-        DEFAULT = srs_try_read_file(srs_server_id_path(get_pid_file()));
+    if (DEFAULT.empty() && !pid_file.empty()) {
+        DEFAULT = srs_try_read_file(srs_server_id_path(pid_file));
     }
 
     // Generate a random one if empty.
@@ -2691,7 +2985,9 @@ string SrsConfig::get_server_id()
     }
 
     // Write server id to tmp file.
-    srs_try_write_file(srs_server_id_path(get_pid_file()), server_id);
+    if (!pid_file.empty()) {
+        srs_try_write_file(srs_server_id_path(pid_file), server_id);
+    }
 
     return server_id;
 }
@@ -2714,6 +3010,11 @@ vector<string> SrsConfig::get_listens()
 {
     std::vector<string> ports;
 
+    if (!srs_getenv("srs.rtmp.listen").empty()) { // SRS_RTMP_LISTEN
+        return srs_strings_split(srs_getenv("srs.rtmp.listen"), " ");
+    }
+
+    // SRS_LISTEN is the old name of SRS_RTMP_LISTEN, kept for compatibility.
     if (!srs_getenv("srs.listen").empty()) { // SRS_LISTEN
         return srs_strings_split(srs_getenv("srs.listen"), " ");
     }
@@ -2743,8 +3044,9 @@ string SrsConfig::get_pid_file()
 
     SrsConfDirective *conf = root_->get("pid");
 
+    // Without a config file, there is no pid file unless SRS_PID sets one.
     if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
+        return env_only_ ? "" : DEFAULT;
     }
 
     return conf->arg0();
@@ -3180,11 +3482,18 @@ vector<SrsConfDirective *> SrsConfig::get_stream_casters()
         stream_casters.push_back(conf);
     }
 
+    // Create a stream caster by env, if the config has none, for example with -e.
+    if (stream_casters.empty() && !srs_getenv("srs.stream_caster.enabled").empty()) { // SRS_STREAM_CASTER_ENABLED
+        stream_casters.push_back(env_cache_->get_or_create("stream_caster"));
+    }
+
     return stream_casters;
 }
 
 bool SrsConfig::get_stream_caster_enabled(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.stream_caster.enabled"); // SRS_STREAM_CASTER_ENABLED
+
     static bool DEFAULT = false;
 
     if (!conf) {
@@ -3201,6 +3510,8 @@ bool SrsConfig::get_stream_caster_enabled(SrsConfDirective *conf)
 
 string SrsConfig::get_stream_caster_engine(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.stream_caster.caster"); // SRS_STREAM_CASTER_CASTER
+
     static string DEFAULT = "";
 
     if (!conf) {
@@ -3217,6 +3528,8 @@ string SrsConfig::get_stream_caster_engine(SrsConfDirective *conf)
 
 string SrsConfig::get_stream_caster_output(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.stream_caster.output"); // SRS_STREAM_CASTER_OUTPUT
+
     static string DEFAULT = "";
 
     if (!conf) {
@@ -3233,6 +3546,8 @@ string SrsConfig::get_stream_caster_output(SrsConfDirective *conf)
 
 int SrsConfig::get_stream_caster_listen(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_INT("srs.stream_caster.listen"); // SRS_STREAM_CASTER_LISTEN
+
     static int DEFAULT = 0;
 
     if (!conf) {
@@ -3249,6 +3564,8 @@ int SrsConfig::get_stream_caster_listen(SrsConfDirective *conf)
 
 srs_utime_t SrsConfig::get_stream_caster_media_connect_timeout(SrsConfDirective *conf)
 {
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.stream_caster.media_connect_timeout"); // SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT
+
     static srs_utime_t DEFAULT = 10 * SRS_UTIME_SECONDS;
 
     if (!conf) {
@@ -5179,6 +5496,10 @@ bool SrsConfig::get_vhost_is_edge(string vhost)
 
 bool SrsConfig::get_vhost_is_edge(SrsConfDirective *vhost)
 {
+    if (!srs_getenv("srs.vhost.cluster.mode").empty()) { // SRS_VHOST_CLUSTER_MODE
+        return "remote" == srs_getenv("srs.vhost.cluster.mode");
+    }
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = vhost;
@@ -5201,6 +5522,8 @@ bool SrsConfig::get_vhost_is_edge(SrsConfDirective *vhost)
 
 SrsConfDirective *SrsConfig::get_vhost_edge_origin(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.cluster.origin"); // SRS_VHOST_CLUSTER_ORIGIN
+
     SrsConfDirective *conf = get_vhost(vhost);
     if (!conf) {
         return NULL;
@@ -6015,8 +6338,10 @@ bool SrsConfig::get_log_tank_file()
     }
 
     SrsConfDirective *conf = root_->get("srs_log_tank");
+
+    // Without a config file, log to the console unless SRS_LOG_TANK sets it.
     if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
+        return env_only_ ? false : DEFAULT;
     }
 
     return conf->arg0() != "console";

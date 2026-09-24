@@ -75,16 +75,19 @@ Run SRS using docker:
 
 ```bash
 CANDIDATE="192.168.1.10"
-docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 \
-    --env CANDIDATE=$CANDIDATE -p 8000:8000/udp \
-    ossrs/srs:5 ./objs/srs -c conf/rtmp2rtc.conf
+docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 -p 8000:8000/udp \
+    --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_SERVER_ENABLED=on \
+    --env SRS_RTC_SERVER_ENABLED=on --env SRS_RTC_SERVER_CANDIDATE=$CANDIDATE \
+    --env SRS_VHOST_RTC_ENABLED=on --env SRS_VHOST_RTC_RTMP_TO_RTC=on --env SRS_VHOST_RTC_RTC_TO_RTMP=on \
+    --env SRS_VHOST_HTTP_REMUX_ENABLED=on --env SRS_VHOST_HLS_ENABLED=on \
+    ossrs/srs:8 ./objs/srs -e
 ```
 
 > Note: Please replace the IP with your server IP.
 
 > Note: About CANDIDATE, please read [CANDIDATE](./webrtc.md#config-candidate)
 
-> Note: If convert RTMP to WebRTC, please use [`rtmp2rtc.conf`](https://github.com/ossrs/srs/issues/2728#rtmp2rtc-en-guide)
+> Note: If convert RTMP to WebRTC, you can also use the config file [`rtmp2rtc.conf`](https://github.com/ossrs/srs/issues/2728#rtmp2rtc-en-guide)
 
 Use docker of FFmpeg to publish:
 
@@ -117,9 +120,12 @@ Run SRS using docker:
 
 ```bash
 CANDIDATE="192.168.1.10"
-docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 -p 1990:1990 -p 8088:8088 \
-    --env CANDIDATE=$CANDIDATE -p 8000:8000/udp \
-    ossrs/srs:5 ./objs/srs -c conf/https.docker.conf
+docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 -p 1990:1990 -p 8088:8088 -p 8000:8000/udp \
+    --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_API_HTTPS_ENABLED=on \
+    --env SRS_HTTP_SERVER_ENABLED=on --env SRS_HTTP_SERVER_HTTPS_ENABLED=on \
+    --env SRS_RTC_SERVER_ENABLED=on --env SRS_RTC_SERVER_CANDIDATE=$CANDIDATE --env SRS_VHOST_RTC_ENABLED=on \
+    --env SRS_VHOST_HTTP_REMUX_ENABLED=on --env SRS_VHOST_HLS_ENABLED=on \
+    ossrs/srs:8 ./objs/srs -e
 ```
 
 > Note: Please replace the IP with your server IP.
@@ -148,7 +154,11 @@ First, start SRS with Docker:
 
 ```bash
 docker run --rm -it -p 1935:1935 -p 1985:1985 -p 8080:8080 -p 10080:10080/udp \
-    ossrs/srs:5 ./objs/srs -c conf/srt.conf
+    --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_API_ENABLED=on --env SRS_HTTP_SERVER_ENABLED=on \
+    --env SRS_SRT_SERVER_ENABLED=on --env SRS_VHOST_SRT_ENABLED=on --env SRS_VHOST_SRT_SRT_TO_RTMP=on \
+    --env SRS_SRT_SERVER_LATENCY=0 --env SRS_SRT_SERVER_RECVLATENCY=0 --env SRS_SRT_SERVER_TSBPDMODE=off \
+    --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
+    ossrs/srs:8 ./objs/srs -e
 ```
 
 Publish stream by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/download) :

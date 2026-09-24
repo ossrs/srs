@@ -233,6 +233,7 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
     }
 
     while (stream->left() >= 4) {
+        int attr_pos = stream->pos();
         uint16_t type = stream->read_2bytes();
         uint16_t len = stream->read_2bytes();
 
@@ -246,6 +247,12 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
             stream->read_string(4 - (len % 4));
         }
 
+        // Only FINGERPRINT may follow MESSAGE-INTEGRITY, and the other attributes after it are ignored, see RFC 5389
+        // section 15.4, because the signature does not cover them.
+        if (!message_integrity_.empty()) {
+            continue;
+        }
+
         switch (type) {
         case Username: {
             username_ = val;
@@ -255,6 +262,17 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
                 remote_ufrag_ = val.substr(p + 1);
                 srs_verbose("stun packet local_ufrag=%s, remote_ufrag=%s", local_ufrag_.c_str(), remote_ufrag_.c_str());
             }
+            break;
+        }
+
+        case MessageIntegrity: {
+            // The signature covers the message before this attribute, with the length in the header counting up to the
+            // end of this attribute.
+            message_integrity_ = val;
+            integrity_input_ = string(buf, attr_pos);
+            uint16_t signed_len = attr_pos + 4 + len - 20;
+            integrity_input_[2] = (char)((signed_len >> 8) & 0xFF);
+            integrity_input_[3] = (char)(signed_len & 0xFF);
             break;
         }
 
@@ -286,6 +304,32 @@ srs_error_t SrsStunPacket::decode(const char *buf, const int nb_buf)
             break;
         }
         }
+    }
+
+    return err;
+}
+
+srs_error_t SrsStunPacket::check_message_integrity(const std::string &pwd) const
+{
+    srs_error_t err = srs_success;
+
+    if (message_integrity_.size() != 20) {
+        return srs_error_new(ERROR_RTC_STUN, "no message integrity, size=%d", (int)message_integrity_.size());
+    }
+
+    char hmac_buf[20] = {0};
+    unsigned int hmac_buf_len = 0;
+    if ((err = hmac_encode("sha1", pwd.c_str(), pwd.size(), integrity_input_.data(), integrity_input_.size(), hmac_buf, hmac_buf_len)) != srs_success) {
+        return srs_error_wrap(err, "hmac encode failed");
+    }
+
+    // Compare every byte, so the time taken does not tell how many bytes match.
+    uint8_t diff = (hmac_buf_len == 20) ? 0 : 1;
+    for (int i = 0; i < 20; i++) {
+        diff |= (uint8_t)(hmac_buf[i] ^ message_integrity_[i]);
+    }
+    if (diff) {
+        return srs_error_new(ERROR_RTC_STUN, "message integrity mismatch");
     }
 
     return err;

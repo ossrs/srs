@@ -32,8 +32,9 @@ consider using HLS or WASM. Note that for native iOS apps, the ijkplayer can be 
 SRS supports HTTP-FLV distribution, you can use [docker](./getting-started.md) or [build from source](./getting-started-build.md):
 
 ```bash
-docker run --rm -it -p 1935:1935 -p 8080:8080 ossrs/srs:5 \
-  ./objs/srs -c conf/http.flv.live.conf
+docker run --rm -it -p 1935:1935 -p 8080:8080 \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_SERVER_ENABLED=on --env SRS_VHOST_HTTP_REMUX_ENABLED=on \
+  ossrs/srs:8 ./objs/srs -e
 ```
 
 Use [FFmpeg(click to download)](https://ffmpeg.org/download.html) or [OBS(click to download)](https://obsproject.com/download) to push the stream:

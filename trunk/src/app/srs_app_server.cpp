@@ -1342,7 +1342,9 @@ srs_error_t SrsServer::srt_fd_to_resource(srs_srt_t srt_fd, ISrsResource **pr)
     SrsContextRestore(_srs_context->get_id());
 
     // Convert to SRT connection.
-    *pr = new SrsMpegtsSrtConn(conn_manager_, srt_fd, ip, port);
+    SrsMpegtsSrtConn *conn = new SrsMpegtsSrtConn(conn_manager_, srt_fd, ip, port);
+    conn->assemble();
+    *pr = conn;
 
     return err;
 }
@@ -1567,11 +1569,15 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
         //      21 12 a4 42 # Message Cookie: 0x2112a442
         //      48 32 6c 61 6b 42 35 71 42 35 4a 71 # Message Transaction ID: 12 bytes
         if (nn == 10 && b[0] == 0 && b[2] == 0 && b[3] == 1 && b[1] - b[5] == 20 && b[6] == 0x21 && b[7] == 0x12 && b[8] == 0xa4 && b[9] == 0x42) {
-            resource = new SrsRtcTcpConn(io, ip, port);
+            SrsRtcTcpConn *conn = new SrsRtcTcpConn(io, ip, port);
+            conn->assemble();
+            resource = conn;
         } else {
             string key = listener == https_listener_ ? config_->get_https_stream_ssl_key() : "";
             string cert = listener == https_listener_ ? config_->get_https_stream_ssl_cert() : "";
-            resource = new SrsHttpxConn(conn_manager_, io, http_server_, ip, port, key, cert);
+            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, io, http_server_, ip, port, key, cert);
+            conn->assemble();
+            resource = conn;
         }
     }
 
@@ -1590,13 +1596,19 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
         } else if (listener == api_listener_ || listener == apis_listener_) {
             string key = listener == apis_listener_ ? config_->get_https_api_ssl_key() : "";
             string cert = listener == apis_listener_ ? config_->get_https_api_ssl_cert() : "";
-            resource = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, key, cert);
+            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, key, cert);
+            conn->assemble();
+            resource = conn;
         } else if (listener == http_listener_ || listener == https_listener_) {
             string key = listener == https_listener_ ? config_->get_https_stream_ssl_key() : "";
             string cert = listener == https_listener_ ? config_->get_https_stream_ssl_cert() : "";
-            resource = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_server_, ip, port, key, cert);
+            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_server_, ip, port, key, cert);
+            conn->assemble();
+            resource = conn;
         } else if (listener == webrtc_listener_) {
-            resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
+            SrsRtcTcpConn *conn = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
+            conn->assemble();
+            resource = conn;
 #ifdef SRS_RTSP
         } else if (listener == rtsp_listener_) {
             SrsRtspConnection *conn = new SrsRtspConnection(conn_manager_, new SrsTcpConnection(stfd2), ip, port);
@@ -1605,7 +1617,9 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
 #endif
         } else if (listener == exporter_listener_) {
             // TODO: FIXME: Maybe should support https metrics.
-            resource = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, "", "");
+            SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, "", "");
+            conn->assemble();
+            resource = conn;
         } else {
             srs_close_stfd(stfd2);
             srs_warn("Close for invalid fd=%d, ip=%s:%d", fd, ip.c_str(), port);
@@ -1983,6 +1997,12 @@ srs_error_t SrsPidFileLocker::acquire()
     srs_error_t err = srs_success;
 
     pid_file_ = config_->get_pid_file();
+
+    // No pid file, so nothing stops two SRS from running with the same config.
+    if (pid_file_.empty()) {
+        srs_trace("no pid file, ignore");
+        return err;
+    }
 
     // -rw-r--r--
     // 644

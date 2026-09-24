@@ -300,7 +300,9 @@ SrsDynamicHttpConn::SrsDynamicHttpConn(ISrsResourceManager *cm, srs_netfd_t fd, 
     sdk_ = NULL;
     pprint_ = SrsPithyPrint::create_caster();
     skt_ = new SrsTcpConnection(fd);
-    conn_ = new SrsHttpConn(this, skt_, m, cip, cport);
+    SrsHttpConn *conn = new SrsHttpConn(this, skt_, m, cip, cport);
+    conn->assemble();
+    conn_ = conn;
     ip_ = cip;
     port_ = cport;
 

@@ -134,7 +134,7 @@ Enable leaks detection, see [halt_on_error](https://github.com/google/sanitizers
 and [detect_leaks](https://github.com/google/sanitizers/wiki/SanitizerCommonFlags):
 
 ```bash
-ASAN_OPTIONS=halt_on_error=1:detect_leaks=1 ./objs/srs -c conf/console.conf
+env ASAN_OPTIONS=halt_on_error=1:detect_leaks=1 SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 ./objs/srs -e
 ```
 
 > Note: SRS disable memory leak detection by default, because it will cause daemon to exit with error.
@@ -153,7 +153,7 @@ to your application or manually preload it with LD_PRELOAD.
 You should preload the ASAN library:
 
 ```bash
-LD_PRELOAD=$(find /usr -name libasan.so.5 2>/dev/null) ./objs/srs -c conf/console.conf
+env LD_PRELOAD=$(find /usr -name libasan.so.5 2>/dev/null) SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 ./objs/srs -e
 ```
 
 > Note: Generally, the libasan.so file should be located at `/usr/lib64/libasan.so.5`
@@ -175,7 +175,7 @@ extern "C" const char *__asan_default_options() {
 You can override the options by `ASAN_OPTIONS`:
 
 ```bash
-ASAN_OPTIONS=halt_on_error=1:detect_leaks=1:alloc_dealloc_mismatch=1 ./objs/srs -c conf/console.conf
+env ASAN_OPTIONS=halt_on_error=1:detect_leaks=1:alloc_dealloc_mismatch=1 SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 ./objs/srs -e
 ```
 
 Note that the `ASAN_OPTIONS` will be loaded before the `main()` function, so you can set it in the shell, 
@@ -191,7 +191,7 @@ Usage:
 ./configure --gprof=on && make
 
 # Start SRS with GPROF
-./objs/srs -c conf/console.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 ./objs/srs -e
 
 # Or CTRL+C to stop GPROF
 killall -2 srs
@@ -215,7 +215,7 @@ Usage:
 ./configure --gperf=on --gcp=on && make
 
 # Start SRS with GCP
-./objs/srs -c conf/console.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 ./objs/srs -e
 
 # Or CTRL+C to stop GCP
 killall -2 srs
@@ -248,7 +248,7 @@ Usage:
 ./configure --gperf=on --gmd=on && make
 
 # Start SRS with GMD.
-env TCMALLOC_PAGE_FENCE=1 ./objs/srs -c conf/console.conf
+env TCMALLOC_PAGE_FENCE=1 SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 ./objs/srs -e
 ```
 
 > Note: For more details, please read [heap-defense](https://github.com/ossrs/srs/tree/4.0release/trunk/research/gperftools/heap-defense).
@@ -266,7 +266,7 @@ Usage:
 ./configure --gperf=on --gmc=on && make
 
 # Start SRS with GMC
-env PPROF_PATH=./objs/pprof HEAPCHECK=normal ./objs/srs -c conf/console.conf 2>gmc.log 
+env PPROF_PATH=./objs/pprof HEAPCHECK=normal SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 ./objs/srs -e 2>gmc.log
 
 # Or CTRL+C to stop gmc
 killall -2 srs
@@ -287,7 +287,7 @@ Usage:
 ./configure --gperf=on --gmp=on && make
 
 # Start SRS with GMP
-./objs/srs -c conf/console.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 ./objs/srs -e
 
 # Or CTRL+C to stop gmp
 killall -2 srs 
@@ -307,7 +307,7 @@ Valgrind is a powerful tool for memory leak and other issue.
 SRS3+ also supports valgrind.
 
 ```
-valgrind --leak-check=full --show-leak-kinds=all ./objs/srs -c conf/console.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 valgrind --leak-check=full --show-leak-kinds=all ./objs/srs -e
 ```
 
 > Remark: For ST to support valgrind, see [state-threads](https://github.com/ossrs/state-threads#usage) and [ST#2](https://github.com/ossrs/state-threads/issues/2).
@@ -322,7 +322,7 @@ This way, global and static variables can be avoided, and detection can be achie
 program. Follow these steps:
 
 1. Compile SRS with Valgrind support: `./configure --valgrind=on && make`
-1. Start SRS with memory leak detection enabled: `valgrind --leak-check=full --show-leak-kinds=all ./objs/srs -c conf/console.conf`
+1. Start SRS with memory leak detection enabled: `env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 valgrind --leak-check=full --show-leak-kinds=all ./objs/srs -e`
 1. Trigger memory detection by using curl to access the API and generate calibration data. There will still be many false positives, but these can be ignored: `curl http://127.0.0.1:1985/api/v1/valgrind?check=added`
 1. Retry memory detection, util the valgrind leak summary is stable, no any new lost blocks.
 1. Perform load testing or test the suspected leaking functionality, such as RTMP streaming: `ffmpeg -re -i doc/source.flv -c copy -f flv rtmp://127.0.0.1/live/livestream`
@@ -457,7 +457,7 @@ done
 Then run SRS on other CPUs except CPU0:
 
 ```bash
-taskset -a -p 0xfe $(cat objs/srs.pid)
+taskset -a -p 0xfe $(pidof srs)
 ```
 
 You can improve about 20% performance by bind softirq to CPU0.

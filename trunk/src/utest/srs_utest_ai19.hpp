@@ -488,6 +488,8 @@ public:
     bool kbps_add_delta_called_;
     std::string disconnect_id_;
     std::string kbps_id_;
+    int disconnect_error_code_;
+    ISrsKbpsDelta *kbps_delta_;
 
 public:
     MockStatisticForHttpxConn();

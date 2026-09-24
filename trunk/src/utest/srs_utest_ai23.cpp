@@ -24,6 +24,7 @@ using namespace std;
 #include <srs_protocol_rtc_stun.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_protocol_sdp.hpp>
+#include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -2635,11 +2636,14 @@ MockRtcConnectionForUdpNetwork::MockRtcConnectionForUdpNetwork()
     on_rtp_cipher_called_ = false;
     on_rtp_plaintext_called_ = false;
     on_rtcp_called_ = false;
+    rtp_cipher_dropped_ = false;
+    binding_request_error_ = srs_success;
 }
 
 MockRtcConnectionForUdpNetwork::~MockRtcConnectionForUdpNetwork()
 {
     srs_freep(on_dtls_alert_error_);
+    srs_freep(binding_request_error_);
 }
 
 const SrsContextId &MockRtcConnectionForUdpNetwork::get_id()
@@ -2724,6 +2728,7 @@ srs_error_t MockRtcConnectionForUdpNetwork::on_dtls_alert(std::string type, std:
 srs_error_t MockRtcConnectionForUdpNetwork::on_rtp_cipher(char *data, int nb_data, bool *dropped)
 {
     on_rtp_cipher_called_ = true;
+    *dropped = rtp_cipher_dropped_;
     return srs_success;
 }
 
@@ -2741,7 +2746,7 @@ srs_error_t MockRtcConnectionForUdpNetwork::on_rtcp(char *data, int nb_data)
 
 srs_error_t MockRtcConnectionForUdpNetwork::on_binding_request(SrsStunPacket *r, std::string &ice_pwd)
 {
-    return srs_success;
+    return srs_error_copy(binding_request_error_);
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::udp()
@@ -2840,6 +2845,8 @@ void MockRtcConnectionForUdpNetwork::reset()
     on_rtp_cipher_called_ = false;
     on_rtp_plaintext_called_ = false;
     on_rtcp_called_ = false;
+    rtp_cipher_dropped_ = false;
+    srs_freep(binding_request_error_);
 }
 
 // Test SrsRtcUdpNetwork initialization and DTLS handling
@@ -3351,6 +3358,225 @@ VOID TEST(RtcUdpNetworkTest, UpdateSendonlySocketAndGetPeerInfo)
     srs_freep(mock_socket2);
 }
 
+MockRtcBlackholeForUdpNetwork::MockRtcBlackholeForUdpNetwork()
+{
+    sendto_count_ = 0;
+    last_data_ = NULL;
+    last_len_ = 0;
+}
+
+MockRtcBlackholeForUdpNetwork::~MockRtcBlackholeForUdpNetwork()
+{
+}
+
+void MockRtcBlackholeForUdpNetwork::sendto(void *data, int len)
+{
+    sendto_count_++;
+    last_data_ = data;
+    last_len_ = len;
+}
+
+// The UDP network captures the black hole at construction, so a test can replace it before any packet arrives.
+VOID TEST(RtcUdpNetworkTest, ConstructionCapturesBlackhole)
+{
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    SrsRtcUdpNetwork udp_network(&conn, &delta);
+
+    EXPECT_TRUE(udp_network.blackhole_ != NULL);
+    EXPECT_EQ((ISrsRtcBlackhole *)_srs_blackhole, udp_network.blackhole_);
+}
+
+// A received RTP packet goes to the black hole after it is decrypted, with its plaintext size, and is then delivered.
+// A packet the cipher hook drops, or one that fails to decrypt, never reaches the black hole.
+VOID TEST(RtcUdpNetworkTest, OnRtpWritesPlaintextToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockRtcTransportForUdpNetwork transport;
+    MockRtcBlackholeForUdpNetwork blackhole;
+
+    SrsRtcUdpNetwork udp_network(&conn, &delta);
+    srs_freep(udp_network.transport_);
+    udp_network.transport_ = &transport;
+    udp_network.blackhole_ = &blackhole;
+
+    char data[200];
+    memset(data, 0x80, sizeof(data));
+
+    HELPER_EXPECT_SUCCESS(udp_network.on_rtp(data, sizeof(data)));
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)data, blackhole.last_data_);
+    // The mock transport strips 10 bytes of SRTP overhead.
+    EXPECT_EQ(190, blackhole.last_len_);
+    EXPECT_TRUE(conn.on_rtp_plaintext_called_);
+
+    conn.reset();
+    transport.reset();
+    conn.rtp_cipher_dropped_ = true;
+    HELPER_EXPECT_SUCCESS(udp_network.on_rtp(data, sizeof(data)));
+    EXPECT_FALSE(transport.unprotect_rtp_called_);
+    EXPECT_FALSE(conn.on_rtp_plaintext_called_);
+    EXPECT_EQ(1, blackhole.sendto_count_);
+
+    conn.reset();
+    transport.reset();
+    srs_error_t unprotect_err = srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "mock unprotect error");
+    transport.set_unprotect_rtp_error(unprotect_err);
+    srs_freep(unprotect_err);
+    HELPER_EXPECT_FAILED(udp_network.on_rtp(data, sizeof(data)));
+    EXPECT_FALSE(conn.on_rtp_plaintext_called_);
+    EXPECT_EQ(1, blackhole.sendto_count_);
+
+    transport.reset();
+    udp_network.transport_ = NULL;
+    udp_network.blackhole_ = NULL;
+}
+
+// A received RTCP packet goes to the black hole after it is decrypted, with its plaintext size, and is then delivered.
+// A packet that fails to decrypt never reaches the black hole.
+VOID TEST(RtcUdpNetworkTest, OnRtcpWritesPlaintextToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockRtcTransportForUdpNetwork transport;
+    MockRtcBlackholeForUdpNetwork blackhole;
+
+    SrsRtcUdpNetwork udp_network(&conn, &delta);
+    srs_freep(udp_network.transport_);
+    udp_network.transport_ = &transport;
+    udp_network.blackhole_ = &blackhole;
+
+    char data[100];
+    memset(data, 0xC8, sizeof(data));
+
+    HELPER_EXPECT_SUCCESS(udp_network.on_rtcp(data, sizeof(data)));
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)data, blackhole.last_data_);
+    // The mock transport strips 14 bytes of SRTCP overhead.
+    EXPECT_EQ(86, blackhole.last_len_);
+    EXPECT_TRUE(conn.on_rtcp_called_);
+
+    conn.reset();
+    transport.reset();
+    srs_error_t unprotect_err = srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "mock unprotect error");
+    transport.set_unprotect_rtcp_error(unprotect_err);
+    srs_freep(unprotect_err);
+    HELPER_EXPECT_FAILED(udp_network.on_rtcp(data, sizeof(data)));
+    EXPECT_FALSE(conn.on_rtcp_called_);
+    EXPECT_EQ(1, blackhole.sendto_count_);
+
+    transport.reset();
+    udp_network.transport_ = NULL;
+    udp_network.blackhole_ = NULL;
+}
+
+// Every received STUN packet goes to the black hole as it arrived, and the binding response goes there too, but only
+// after it was sent to the peer.
+VOID TEST(RtcUdpNetworkTest, OnStunWritesStunAndResponseToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockUdpMuxSocket socket;
+    MockRtcBlackholeForUdpNetwork blackhole;
+
+    SrsRtcUdpNetwork udp_network(&conn, &delta);
+    udp_network.sendonly_skt_ = &socket;
+    udp_network.blackhole_ = &blackhole;
+
+    char data[100];
+    memset(data, 0, sizeof(data));
+
+    // Not a binding request, so only the packet itself.
+    SrsStunPacket response;
+    response.set_message_type(BindingResponse);
+    HELPER_EXPECT_SUCCESS(udp_network.on_stun(&response, data, sizeof(data)));
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)data, blackhole.last_data_);
+    EXPECT_EQ(100, blackhole.last_len_);
+    EXPECT_EQ(0, socket.sendto_called_count_);
+
+    // A binding request, then the response that was sent for it.
+    SrsStunPacket request;
+    request.set_message_type(BindingRequest);
+    request.set_local_ufrag("local_user");
+    request.set_remote_ufrag("remote_user");
+    request.set_transcation_id("transaction123");
+    HELPER_EXPECT_SUCCESS(udp_network.on_stun(&request, data, sizeof(data)));
+    EXPECT_EQ(1, socket.sendto_called_count_);
+    EXPECT_EQ(3, blackhole.sendto_count_);
+    EXPECT_EQ(socket.last_sendto_size_, blackhole.last_len_);
+
+    // The response fails to send, so only the request.
+    socket.reset();
+    srs_error_t sendto_err = srs_error_new(ERROR_SOCKET_WRITE, "mock sendto error");
+    socket.set_sendto_error(sendto_err);
+    srs_freep(sendto_err);
+    HELPER_EXPECT_FAILED(udp_network.on_stun(&request, data, sizeof(data)));
+    EXPECT_EQ(1, socket.sendto_called_count_);
+    EXPECT_EQ(4, blackhole.sendto_count_);
+    EXPECT_EQ((void *)data, blackhole.last_data_);
+    EXPECT_EQ(100, blackhole.last_len_);
+
+    udp_network.sendonly_skt_ = NULL;
+    udp_network.blackhole_ = NULL;
+}
+
+// A binding request switches the session to its peer address only after the connection accepted it, so a request the
+// connection rejects, such as one without a valid MESSAGE-INTEGRITY, neither redirects the session's traffic nor adds
+// an address to it.
+VOID TEST(RtcUdpNetworkTest, OnStunFromPeerSwitchesAddressOnlyWhenAccepted)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockResourceManagerForUdpNetwork manager;
+    MockUdpMuxSocket socket;
+    socket.peer_ip_ = "192.168.1.100";
+    socket.peer_port_ = 5000;
+    socket.peer_id_ = "192.168.1.100:5000";
+
+    SrsRtcUdpNetwork udp_network(&conn, &delta);
+    udp_network.conn_manager_ = &manager;
+
+    SrsStunPacket request;
+    request.set_message_type(BindingRequest);
+    request.set_local_ufrag("local_user");
+    request.set_remote_ufrag("remote_user");
+    request.set_transcation_id("transaction123");
+
+    char data[100];
+    memset(data, 0, sizeof(data));
+
+    srs_error_t rejected = srs_error_new(ERROR_RTC_STUN, "mock integrity error");
+    conn.binding_request_error_ = srs_error_copy(rejected);
+    srs_freep(rejected);
+    HELPER_EXPECT_FAILED(udp_network.on_stun(&socket, &request, data, sizeof(data)));
+    EXPECT_TRUE(udp_network.sendonly_skt_ == NULL);
+    EXPECT_TRUE(udp_network.peer_addresses_.empty());
+    EXPECT_TRUE(manager.id_map_.empty());
+    EXPECT_EQ(0, socket.sendto_called_count_);
+
+    srs_freep(conn.binding_request_error_);
+    HELPER_EXPECT_SUCCESS(udp_network.on_stun(&socket, &request, data, sizeof(data)));
+    EXPECT_EQ((ISrsUdpMuxSocket *)&socket, udp_network.sendonly_skt_);
+    EXPECT_EQ(1u, udp_network.peer_addresses_.size());
+    EXPECT_TRUE(manager.id_map_.find("192.168.1.100:5000") != manager.id_map_.end());
+    EXPECT_EQ(1, socket.sendto_called_count_);
+
+    // The mock socket copies itself as the cached address, so it must not be freed by the network.
+    udp_network.peer_addresses_.clear();
+    udp_network.sendonly_skt_ = NULL;
+    udp_network.conn_manager_ = NULL;
+}
+
 // Test SrsRtcTcpNetwork major use scenario: DTLS handshake and RTP/RTCP protection
 VOID TEST(RtcTcpNetworkTest, DtlsHandshakeAndPacketProtection)
 {
@@ -3659,6 +3885,7 @@ VOID TEST(RtcTcpConnTest, SetupOwnerAndBasicMethods)
     std::string test_ip = "192.168.1.100";
     int test_port = 8080;
     SrsUniquePtr<SrsRtcTcpConn> tcp_conn(new SrsRtcTcpConn(NULL, test_ip, test_port));
+    tcp_conn->assemble();
 
     // Test 1: setup_owner - set wrapper, owner_coroutine, and owner_cid
     SrsSharedResource<ISrsRtcTcpConn> *mock_wrapper = NULL;
@@ -4042,6 +4269,7 @@ VOID TEST(RtcTcpConnTest, HandshakeWithStunBindingRequest)
     std::string test_ip = "192.168.1.100";
     int test_port = 8080;
     SrsRtcTcpConn *tcp_conn = new SrsRtcTcpConn(mock_io.get(), test_ip, test_port);
+    tcp_conn->assemble();
 
     // Create wrapper for shared resource
     SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper(new SrsSharedResource<ISrsRtcTcpConn>(tcp_conn));
@@ -4109,7 +4337,9 @@ VOID TEST(ReproduceIssue4642, RejectSecondTcpConnForSameRtcSession)
     io_b->set_read_data(read_data);
 
     SrsRtcTcpConn *raw_a = new SrsRtcTcpConn(io_a.get(), "192.168.1.10", 10000);
+    raw_a->assemble();
     SrsRtcTcpConn *raw_b = new SrsRtcTcpConn(io_b.get(), "192.168.1.11", 10001);
+    raw_b->assemble();
     SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_a(new SrsSharedResource<ISrsRtcTcpConn>(raw_a));
     SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_b(new SrsSharedResource<ISrsRtcTcpConn>(raw_b));
 
@@ -4170,6 +4400,7 @@ VOID TEST(RtcTcpConnTest, ReadPacketSuccess)
     std::string test_ip = "192.168.1.100";
     int test_port = 8000;
     SrsRtcTcpConn *tcp_conn = new SrsRtcTcpConn(mock_io.get(), test_ip, test_port);
+    tcp_conn->assemble();
 
     // Prepare buffer for reading packet
     char pkt[1500];
@@ -4215,6 +4446,7 @@ VOID TEST(RtcTcpConnTest, OnTcpPktRouting)
     std::string test_ip = "192.168.1.100";
     int test_port = 8000;
     SrsRtcTcpConn *tcp_conn = new SrsRtcTcpConn(mock_io.get(), test_ip, test_port);
+    tcp_conn->assemble();
 
     // Inject mock session
     tcp_conn->session_ = mock_session.get();
@@ -4284,4 +4516,338 @@ VOID TEST(RtcTcpConnTest, OnTcpPktRouting)
     tcp_conn->skt_ = NULL;
     tcp_conn->session_ = NULL;
     mock_session->tcp_network_ = NULL;
+}
+
+// The WebRTC over TCP connection is created for every TCP client, so a test has to be able to
+// replace its context and socket before anything uses them. Construction must therefore take no
+// context id and wire no bandwidth counter.
+VOID TEST(RtcTcpConnTest, ConstructionReachesNoCollaborator)
+{
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    SrsUniquePtr<SrsRtcTcpConn> conn(new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000));
+
+    // GOAL: construction only captures the process context, and uses it later.
+    EXPECT_TRUE(_srs_context == conn->context_);
+    EXPECT_TRUE(conn->cid_.empty());
+
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(NULL == delta->in_);
+    EXPECT_TRUE(NULL == delta->out_);
+
+    // The mock socket is owned by the test.
+    conn->skt_ = NULL;
+}
+
+VOID TEST(RtcTcpConnTest, AssembleWiresInjectedContextAndSocket)
+{
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    SrsUniquePtr<SrsRtcTcpConn> conn(new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000));
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("rtc-tcp-cid");
+    conn->context_ = &context;
+
+    // Replace the socket before assemble(), so the counters must measure the replacement.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io2(new MockProtocolReadWriterForTcpNetwork());
+    conn->skt_ = io2.get();
+    conn->assemble();
+
+    // GOAL: the connection takes the id of the injected context, without generating or switching one.
+    EXPECT_STREQ("rtc-tcp-cid", conn->get_id().c_str());
+    EXPECT_EQ(0, context.generate_id_count_);
+    EXPECT_EQ(0, context.set_id_count_);
+
+    // GOAL: the bandwidth counters measure the socket present at assemble().
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(io2.get() == delta->in_);
+    EXPECT_TRUE(io2.get() == delta->out_);
+
+    conn->skt_ = NULL;
+    conn->context_ = NULL;
+}
+
+VOID TEST(RtcTcpConnTest, DoCycleSwitchesInjectedContext)
+{
+    srs_error_t err;
+
+    // No data to read, so the handshake fails right after the context switch.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    SrsUniquePtr<SrsRtcTcpConn> conn(new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000));
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("rtc-tcp-cid");
+    conn->context_ = &context;
+    conn->assemble();
+
+    MockInterruptableForRtcTcpConn coroutine;
+    MockContextIdSetterForRtcTcpConn cid_setter;
+    conn->setup_owner(NULL, &coroutine, &cid_setter);
+
+    // Assemble took the id, so change the mock to observe what do_cycle() switches to.
+    context.id_ = SrsContextId().set_value("other-cid");
+
+    HELPER_EXPECT_FAILED(conn->do_cycle());
+
+    // GOAL: the connection switches the injected context, not the process one, to its own id.
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ("rtc-tcp-cid", context.id_.c_str());
+    EXPECT_TRUE(cid_setter.set_cid_called_);
+    EXPECT_STREQ("rtc-tcp-cid", cid_setter.received_cid_.c_str());
+
+    conn->skt_ = NULL;
+    conn->context_ = NULL;
+}
+
+MockRtcTcpNetworkForTcpConn::MockRtcTcpNetworkForTcpConn()
+{
+    set_owner_count_ = 0;
+    sendonly_skt_ = NULL;
+    peer_port_ = 0;
+    on_stun_count_ = 0;
+}
+
+MockRtcTcpNetworkForTcpConn::~MockRtcTcpNetworkForTcpConn()
+{
+}
+
+void MockRtcTcpNetworkForTcpConn::set_owner(SrsSharedResource<ISrsRtcTcpConn> v)
+{
+    set_owner_count_++;
+    owner_ = v;
+}
+
+SrsSharedResource<ISrsRtcTcpConn> MockRtcTcpNetworkForTcpConn::owner()
+{
+    return owner_;
+}
+
+void MockRtcTcpNetworkForTcpConn::update_sendonly_socket(ISrsProtocolReadWriter *skt)
+{
+    sendonly_skt_ = skt;
+}
+
+void MockRtcTcpNetworkForTcpConn::set_peer_id(const std::string &ip, int port)
+{
+    peer_ip_ = ip;
+    peer_port_ = port;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
+{
+    return srs_success;
+}
+
+void MockRtcTcpNetworkForTcpConn::set_state(SrsRtcNetworkState state)
+{
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_dtls_handshake_done()
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_dtls_alert(std::string type, std::string desc)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_dtls(char *data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::protect_rtp(void *packet, int *nb_cipher)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::protect_rtcp(void *packet, int *nb_cipher)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_stun(SrsStunPacket *r, char *data, int nb_data)
+{
+    on_stun_count_++;
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_rtp(char *data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_rtcp(char *data, int nb_data)
+{
+    return srs_success;
+}
+
+bool MockRtcTcpNetworkForTcpConn::is_establelished()
+{
+    return false;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::write(void *buf, size_t size, ssize_t *nwrite)
+{
+    return srs_success;
+}
+
+// The handshake binds the TCP connection to the session's TCP network, so a test must be able to
+// replace that network to observe the binding.
+VOID TEST(RtcTcpConnTest, HandshakeBindsInjectedTcpNetwork)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    io->set_read_data(build_rtc_tcp_stun_binding_request("test:session"));
+
+    MockRtcTcpNetworkForTcpConn network;
+    MockRtcConnectionForTcpConnHandshake session;
+    session.tcp_network_ = &network;
+    MockResourceManagerForTcpConnHandshake conn_manager;
+    conn_manager.session_to_return_ = &session;
+
+    SrsRtcTcpConn *conn = new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000);
+    conn->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper(new SrsSharedResource<ISrsRtcTcpConn>(conn));
+    conn->conn_manager_ = &conn_manager;
+    conn->wrapper_ = wrapper.get();
+
+    HELPER_EXPECT_SUCCESS(conn->handshake());
+
+    // GOAL: the connection owns the injected network, which sends to its socket and handles the STUN.
+    EXPECT_EQ(1, network.set_owner_count_);
+    EXPECT_TRUE(conn == network.owner().get());
+    EXPECT_TRUE(io.get() == network.sendonly_skt_);
+    EXPECT_STREQ("192.168.1.100", network.peer_ip_.c_str());
+    EXPECT_EQ(8000, network.peer_port_);
+    EXPECT_EQ(1, network.on_stun_count_);
+    EXPECT_TRUE(&session == conn->session_);
+
+    conn->skt_ = NULL;
+    conn->conn_manager_ = NULL;
+    conn->wrapper_ = NULL;
+    session.tcp_network_ = NULL;
+    conn_manager.session_to_return_ = NULL;
+    network.owner_ = SrsSharedResource<ISrsRtcTcpConn>();
+}
+
+VOID TEST(RtcTcpConnTest, HandshakeRejectsInjectedTcpNetworkAlreadyOwned)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    io->set_read_data(build_rtc_tcp_stun_binding_request("test:session"));
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> other_io(new MockProtocolReadWriterForTcpNetwork());
+    SrsRtcTcpConn *other = new SrsRtcTcpConn(other_io.get(), "192.168.1.10", 10000);
+    other->assemble();
+    other->skt_ = NULL;
+
+    MockRtcTcpNetworkForTcpConn network;
+    network.owner_ = SrsSharedResource<ISrsRtcTcpConn>(other);
+    MockRtcConnectionForTcpConnHandshake session;
+    session.tcp_network_ = &network;
+    MockResourceManagerForTcpConnHandshake conn_manager;
+    conn_manager.session_to_return_ = &session;
+
+    SrsRtcTcpConn *conn = new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000);
+    conn->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper(new SrsSharedResource<ISrsRtcTcpConn>(conn));
+    conn->conn_manager_ = &conn_manager;
+    conn->wrapper_ = wrapper.get();
+
+    // GOAL: a network that already has an owner rejects a second TCP connection, and keeps its owner.
+    err = conn->handshake();
+    EXPECT_EQ(ERROR_RTC_TCP_UNIQUE, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(0, network.set_owner_count_);
+    EXPECT_TRUE(other == network.owner().get());
+    EXPECT_TRUE(NULL == network.sendonly_skt_);
+    EXPECT_EQ(0, network.on_stun_count_);
+    EXPECT_TRUE(NULL == conn->session_);
+
+    conn->skt_ = NULL;
+    conn->conn_manager_ = NULL;
+    conn->wrapper_ = NULL;
+    session.tcp_network_ = NULL;
+    conn_manager.session_to_return_ = NULL;
+}
+
+// A client may close its TCP connection after the STUN handshake but before DTLS completes, and then
+// reconnect over TCP for the same session. The closed connection must release the session's TCP
+// network, otherwise the network keeps the closed socket and rejects the reconnection.
+VOID TEST(RtcTcpConnTest, CycleReleasesNetworkWhenClosedBeforeEstablished)
+{
+    srs_error_t err;
+    std::string read_data = build_rtc_tcp_stun_binding_request("test:session");
+
+    MockResourceManagerForTcpConnHandshake conn_manager;
+    MockRtcConnectionForTcpConnHandshake session;
+    MockEphemeralDelta delta;
+    SrsUniquePtr<SrsRtcTcpNetwork> network(new SrsRtcTcpNetwork(&session, &delta));
+    session.tcp_network_ = network.get();
+    conn_manager.session_to_return_ = &session;
+
+    // The first connection completes the STUN handshake, then reads nothing more, so cycle() returns.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io_a(new MockProtocolReadWriterForTcpNetwork());
+    io_a->set_read_data(read_data);
+    SrsRtcTcpConn *raw_a = new SrsRtcTcpConn(io_a.get(), "192.168.1.10", 10000);
+    MockContextForRtmpConn context;
+    raw_a->context_ = &context;
+    raw_a->assemble();
+    SrsSharedResource<ISrsRtcTcpConn> *wrapper_a = new SrsSharedResource<ISrsRtcTcpConn>(raw_a);
+    raw_a->conn_manager_ = &conn_manager;
+    MockInterruptableForRtcTcpConn coroutine;
+    MockContextIdSetterForRtcTcpConn cid_setter;
+    raw_a->setup_owner(wrapper_a, &coroutine, &cid_setter);
+
+    HELPER_EXPECT_SUCCESS(raw_a->cycle());
+    EXPECT_FALSE(network->is_establelished());
+
+    // GOAL: the closed connection no longer owns the network, and its socket is no longer used to send.
+    EXPECT_TRUE(NULL == network->owner().get());
+    EXPECT_TRUE(NULL == network->sendonly_skt_);
+
+    // The executor then frees its wrapper, which frees the connection and its socket.
+    raw_a->on_executor_done(&coroutine);
+    raw_a->skt_ = NULL;
+    raw_a->context_ = NULL;
+    srs_freep(wrapper_a);
+
+    // GOAL: the same client reconnects over TCP for the same session.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io_b(new MockProtocolReadWriterForTcpNetwork());
+    io_b->set_read_data(read_data);
+    SrsRtcTcpConn *raw_b = new SrsRtcTcpConn(io_b.get(), "192.168.1.10", 10001);
+    raw_b->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_b(new SrsSharedResource<ISrsRtcTcpConn>(raw_b));
+    raw_b->conn_manager_ = &conn_manager;
+    raw_b->wrapper_ = wrapper_b.get();
+
+    HELPER_EXPECT_SUCCESS(raw_b->handshake());
+    EXPECT_TRUE(raw_b == network->owner().get());
+    EXPECT_TRUE(io_b.get() == network->sendonly_skt_);
+
+    raw_b->skt_ = NULL;
+    raw_b->conn_manager_ = NULL;
+    raw_b->wrapper_ = NULL;
+    network->sendonly_skt_ = NULL;
+    network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
+    session.tcp_network_ = NULL;
+    conn_manager.session_to_return_ = NULL;
+}
+
+// A released network has no socket, but DTLS may still try to send through it.
+VOID TEST(RtcTcpNetworkTest, WriteWithoutSocketFails)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForTcpConnHandshake session;
+    MockEphemeralDelta delta;
+    SrsUniquePtr<SrsRtcTcpNetwork> network(new SrsRtcTcpNetwork(&session, &delta));
+
+    // GOAL: the write fails with an error instead of crashing.
+    char data[] = "dtls";
+    HELPER_EXPECT_FAILED(network->write(data, sizeof(data), NULL));
 }

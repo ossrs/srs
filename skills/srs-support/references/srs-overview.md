@@ -142,10 +142,13 @@ Step 1: Build and run SRS.
 ```bash
 cd srs/trunk
 ./configure && make
-./objs/srs -c conf/console.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 \
+    SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=8080 \
+    SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \
+    ./objs/srs -e
 ```
 
-Default config `conf/console.conf` listens on RTMP port 1935, HTTP API port 1985, HTTP server port 8080. HLS and HTTP-FLV are enabled by default.
+With `-e`, SRS uses only environment variables: it listens on RTMP port 1935, HTTP API port 1985, HTTP server port 8080, with HLS and HTTP-FLV enabled. Run `./objs/srs -h` for all variables. A config file also works, such as `./objs/srs -c conf/console.conf`.
 
 Step 2: Publish RTMP. Use FFmpeg to push a stream (a test file `doc/source.flv` is included in the repo).
 

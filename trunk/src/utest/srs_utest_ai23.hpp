@@ -15,6 +15,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_factory.hpp>
+#include <srs_app_rtc_server.hpp>
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
@@ -114,6 +115,10 @@ public:
     bool on_rtp_cipher_called_;
     bool on_rtp_plaintext_called_;
     bool on_rtcp_called_;
+    // Whether on_rtp_cipher drops the packet.
+    bool rtp_cipher_dropped_;
+    // The error on_binding_request returns, to reject the binding request.
+    srs_error_t binding_request_error_;
 
 public:
     MockRtcConnectionForUdpNetwork();
@@ -619,6 +624,22 @@ public:
     void set_unprotect_rtcp_error(srs_error_t err);
 };
 
+// Mock ISrsRtcBlackhole for testing which plaintext packets SrsRtcUdpNetwork writes to the black hole.
+class MockRtcBlackholeForUdpNetwork : public ISrsRtcBlackhole
+{
+public:
+    int sendto_count_;
+    void *last_data_;
+    int last_len_;
+
+public:
+    MockRtcBlackholeForUdpNetwork();
+    virtual ~MockRtcBlackholeForUdpNetwork();
+
+public:
+    virtual void sendto(void *data, int len);
+};
+
 // Mock ISrsResourceManager for testing SrsRtcUdpNetwork::update_sendonly_socket
 class MockResourceManagerForUdpNetwork : public ISrsResourceManager
 {
@@ -766,6 +787,42 @@ public:
 
 public:
     void reset();
+};
+
+// Mock ISrsRtcTcpNetwork for testing SrsRtcTcpConn::handshake
+class MockRtcTcpNetworkForTcpConn : public ISrsRtcTcpNetwork
+{
+public:
+    SrsSharedResource<ISrsRtcTcpConn> owner_;
+    int set_owner_count_;
+    ISrsProtocolReadWriter *sendonly_skt_;
+    std::string peer_ip_;
+    int peer_port_;
+    int on_stun_count_;
+
+public:
+    MockRtcTcpNetworkForTcpConn();
+    virtual ~MockRtcTcpNetworkForTcpConn();
+
+public:
+    virtual void set_owner(SrsSharedResource<ISrsRtcTcpConn> v);
+    virtual SrsSharedResource<ISrsRtcTcpConn> owner();
+    virtual void update_sendonly_socket(ISrsProtocolReadWriter *skt);
+    virtual void set_peer_id(const std::string &ip, int port);
+
+public:
+    virtual srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);
+    virtual void set_state(SrsRtcNetworkState state);
+    virtual srs_error_t on_dtls_handshake_done();
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
+    virtual srs_error_t on_dtls(char *data, int nb_data);
+    virtual srs_error_t protect_rtp(void *packet, int *nb_cipher);
+    virtual srs_error_t protect_rtcp(void *packet, int *nb_cipher);
+    virtual srs_error_t on_stun(SrsStunPacket *r, char *data, int nb_data);
+    virtual srs_error_t on_rtp(char *data, int nb_data);
+    virtual srs_error_t on_rtcp(char *data, int nb_data);
+    virtual bool is_establelished();
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 
 #endif

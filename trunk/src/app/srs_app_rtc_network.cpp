@@ -194,6 +194,7 @@ SrsRtcUdpNetwork::SrsRtcUdpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     transport_ = new SrsSecurityTransport(this);
 
     conn_manager_ = _srs_conn_manager;
+    blackhole_ = _srs_blackhole;
 }
 
 SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
@@ -212,6 +213,7 @@ SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
     srs_freep(pp_address_change_);
 
     conn_manager_ = NULL;
+    blackhole_ = NULL;
 }
 
 srs_error_t SrsRtcUdpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
@@ -287,9 +289,7 @@ srs_error_t SrsRtcUdpNetwork::on_rtcp(char *data, int nb_data)
     }
 
     char *unprotected_buf = data;
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
-    }
+    blackhole_->sendto(unprotected_buf, nb_unprotected_buf);
 
     if ((err = conn_->on_rtcp(unprotected_buf, nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "cipher=%d", nb_data);
@@ -336,9 +336,7 @@ srs_error_t SrsRtcUdpNetwork::on_rtp(char *data, int nb_data)
     }
 
     char *unprotected_buf = data;
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
-    }
+    blackhole_->sendto(unprotected_buf, nb_unprotected_buf);
 
     if ((err = conn_->on_rtp_plaintext(unprotected_buf, nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "cipher=%d", nb_data);
@@ -424,12 +422,15 @@ void SrsRtcUdpNetwork::update_sendonly_socket(ISrsUdpMuxSocket *skt)
 
 srs_error_t SrsRtcUdpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
 {
+    return on_stun(NULL, r, data, nb_data);
+}
+
+srs_error_t SrsRtcUdpNetwork::on_stun(ISrsUdpMuxSocket *skt, SrsStunPacket *r, char *data, int nb_data)
+{
     srs_error_t err = srs_success;
 
     // Write STUN messages to blackhole.
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(data, nb_data);
-    }
+    blackhole_->sendto(data, nb_data);
 
     if (!r->is_binding_request()) {
         return err;
@@ -438,6 +439,11 @@ srs_error_t SrsRtcUdpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
     string ice_pwd;
     if ((err = conn_->on_binding_request(r, ice_pwd)) != srs_success) {
         return srs_error_wrap(err, "udp");
+    }
+
+    // Switch to the peer address only after the session accepted the request, so the response goes there too.
+    if (skt) {
+        update_sendonly_socket(skt);
     }
 
     if ((err = on_binding_request(r, ice_pwd)) != srs_success) {
@@ -481,9 +487,7 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pw
         }
     }
 
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(stream->data(), stream->pos());
-    }
+    blackhole_->sendto(stream->data(), stream->pos());
 
     return err;
 }
@@ -496,6 +500,14 @@ srs_error_t SrsRtcUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
     if (nwrite)
         *nwrite = size;
     return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
+}
+
+ISrsRtcTcpNetwork::ISrsRtcTcpNetwork()
+{
+}
+
+ISrsRtcTcpNetwork::~ISrsRtcTcpNetwork()
+{
 }
 
 SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *delta)
@@ -734,6 +746,11 @@ srs_error_t SrsRtcTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 {
     srs_error_t err = srs_success;
 
+    // No socket when no TCP connection owns this network, for example, it closed before DTLS done.
+    if (!sendonly_skt_) {
+        return srs_error_new(ERROR_SOCKET_CLOSED, "rtc tcp no socket");
+    }
+
     // Encode and send 2 bytes size, in network order.
     srs_assert(size <= 65535);
     uint8_t b[2] = {uint8_t(size >> 8), uint8_t(size)};
@@ -768,7 +785,6 @@ void SrsRtcTcpConn::setup()
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
-    cid_ = _srs_context->get_id();
 
     pkt_ = NULL;
     delta_ = NULL;
@@ -776,6 +792,7 @@ void SrsRtcTcpConn::setup()
 
     conn_manager_ = _srs_conn_manager;
     stat_ = _srs_stat;
+    context_ = _srs_context;
 }
 
 ISrsRtcTcpConn::ISrsRtcTcpConn()
@@ -799,9 +816,17 @@ SrsRtcTcpConn::SrsRtcTcpConn(ISrsProtocolReadWriter *skt, std::string cip, int p
     port_ = port;
     skt_ = skt;
     delta_ = new SrsNetworkDelta();
-    delta_->set_io(skt_, skt_);
     session_ = NULL;
     pkt_ = new char[SRS_RTC_TCP_PACKET_MAX];
+}
+
+void SrsRtcTcpConn::assemble()
+{
+    cid_ = context_->get_id();
+
+    if (delta_) {
+        delta_->set_io(skt_, skt_);
+    }
 }
 
 SrsRtcTcpConn::~SrsRtcTcpConn()
@@ -812,6 +837,7 @@ SrsRtcTcpConn::~SrsRtcTcpConn()
 
     conn_manager_ = NULL;
     stat_ = NULL;
+    context_ = NULL;
 }
 
 void SrsRtcTcpConn::setup_owner(SrsSharedResource<ISrsRtcTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid)
@@ -862,10 +888,20 @@ srs_error_t SrsRtcTcpConn::cycle()
     stat_->on_disconnect(get_id().c_str(), err);
     stat_->kbps_add_delta(get_id().c_str(), delta_);
 
-    // Only remove session when network is established, because client might use other UDP network.
-    if (session_ && session_->tcp()->is_establelished()) {
-        session_->tcp()->set_state(SrsRtcNetworkStateClosed);
-        session_->expire();
+    if (session_) {
+        if (session_->tcp()->is_establelished()) {
+            // Only remove session when network is established, because client might use other UDP network.
+            session_->tcp()->set_state(SrsRtcNetworkStateClosed);
+            session_->expire();
+        } else {
+            // Not established, so release the network to allow the client to reconnect over TCP, and never
+            // send by the socket of this connection, which is freed with it.
+            ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(session_->tcp());
+            if (network && network->owner().get() == this) {
+                network->update_sendonly_socket(NULL);
+                network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
+            }
+        }
     }
 
     // For HTTP-API timeout, we think it's done successfully,
@@ -907,7 +943,7 @@ srs_error_t SrsRtcTcpConn::do_cycle()
     srs_error_t err = srs_success;
 
     // Update all context id to cid of session.
-    _srs_context->set_id(cid_);
+    context_->set_id(cid_);
     owner_cid_->set_cid(cid_);
 
     if ((err = handshake()) != srs_success) {
@@ -970,7 +1006,7 @@ srs_error_t SrsRtcTcpConn::handshake()
               ip_.c_str(), port_, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
     // Should support only one TCP candidate.
-    SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session->tcp());
+    ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(session->tcp());
     if (network->owner().get()) {
         return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
     }

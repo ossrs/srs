@@ -2926,6 +2926,24 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
         EXPECT_FALSE(conf.get_daemon());
     }
 
+    // Without a config file, run in the foreground and log to the console by default.
+    if (true) {
+        MockSrsConfig conf;
+        conf.env_only_ = true;
+        EXPECT_FALSE(conf.get_daemon());
+        EXPECT_FALSE(conf.get_log_tank_file());
+    }
+
+    // Without a config file, SRS_DAEMON and SRS_LOG_TANK still set them.
+    if (true) {
+        MockSrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, daemon, "SRS_DAEMON", "on");
+        SrsSetEnvConfig(conf, log_tank, "SRS_LOG_TANK", "file");
+        EXPECT_TRUE(conf.get_daemon());
+        EXPECT_TRUE(conf.get_log_tank_file());
+    }
+
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
@@ -2966,6 +2984,21 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid server.pid;"));
         EXPECT_STREQ("server.pid", conf.get_pid_file().c_str());
+    }
+
+    // Without a config file, there is no pid file by default.
+    if (true) {
+        MockSrsConfig conf;
+        conf.env_only_ = true;
+        EXPECT_STREQ("", conf.get_pid_file().c_str());
+    }
+
+    // Without a config file, SRS_PID still sets the pid file.
+    if (true) {
+        MockSrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, pid, "SRS_PID", "./objs/env.pid");
+        EXPECT_STREQ("./objs/env.pid", conf.get_pid_file().c_str());
     }
 
     if (true) {
@@ -4365,6 +4398,86 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesRtmp)
         EXPECT_STREQ("1935", listens.at(0).c_str());
         EXPECT_STREQ("1936", listens.at(1).c_str());
         EXPECT_STREQ("1937", listens.at(2).c_str());
+    }
+}
+
+VOID TEST(ConfigEnvTest, CheckEnvValuesRtmpListen)
+{
+    srs_error_t err = srs_success;
+
+    // SRS_RTMP_LISTEN follows the config path rtmp.listen.
+    if (true) {
+        MockSrsConfig conf;
+
+        SrsSetEnvConfig(conf, listens, "SRS_RTMP_LISTEN", "1935");
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+
+        SrsSetEnvConfig(conf, listens, "SRS_RTMP_LISTEN", "1935 [::]:1936 127.0.0.1:1937");
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(3, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+        EXPECT_STREQ("[::]:1936", listens.at(1).c_str());
+        EXPECT_STREQ("127.0.0.1:1937", listens.at(2).c_str());
+    }
+
+    // SRS_RTMP_LISTEN wins when both are set.
+    if (true) {
+        MockSrsConfig conf;
+
+        SrsSetEnvConfig(conf, listens, "SRS_RTMP_LISTEN", "1936");
+        SrsSetEnvConfig(conf, legacy, "SRS_LISTEN", "1935");
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1936", listens.at(0).c_str());
+    }
+
+    // An empty SRS_RTMP_LISTEN falls back to SRS_LISTEN.
+    if (true) {
+        MockSrsConfig conf;
+
+        SrsSetEnvConfig(conf, listens, "SRS_RTMP_LISTEN", "");
+        SrsSetEnvConfig(conf, legacy, "SRS_LISTEN", "1935");
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+    }
+
+    // Both env names overwrite rtmp.listen of the config file.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse("rtmp{listen 1935;}"));
+
+        SrsSetEnvConfig(conf, listens, "SRS_RTMP_LISTEN", "1936");
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1936", listens.at(0).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse("rtmp{listen 1935;}"));
+
+        SrsSetEnvConfig(conf, legacy, "SRS_LISTEN", "1937");
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1937", listens.at(0).c_str());
+    }
+
+    // Without env, rtmp.listen of the config file is used.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse("rtmp{listen 1935 1938;}"));
+
+        vector<string> listens = conf.get_listens();
+        EXPECT_EQ(2, (int)listens.size());
+        EXPECT_STREQ("1935", listens.at(0).c_str());
+        EXPECT_STREQ("1938", listens.at(1).c_str());
     }
 }
 

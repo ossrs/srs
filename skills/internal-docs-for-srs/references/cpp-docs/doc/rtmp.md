@@ -29,8 +29,8 @@ If you want to ingest stream from a device or publish to a platform, RTMP is the
 SRS supports RTMP by default, please run by [docker](./getting-started.md) or [build from source](./getting-started-build.md):
 
 ```bash
-docker run --rm -it -p 1935:1935 ossrs/srs:5 \
-  ./objs/srs -c conf/rtmp.conf
+docker run --rm -it -p 1935:1935 --env SRS_RTMP_LISTEN=1935 ossrs/srs:8 \
+  ./objs/srs -e
 ```
 
 Publish stream by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/download) :
@@ -53,7 +53,7 @@ The configuration about RTMP:
 # the rtmp listen ports, split by space, each listen entry is <[ip:]port>
 # for example, 192.168.1.100:1935 10.10.10.100:1935
 # where the ip is optional, default to 0.0.0.0, that is 1935 equals to 0.0.0.0:1935
-# Overwrite by env SRS_LISTEN
+# Overwrite by env SRS_RTMP_LISTEN
 listen 1935;
 # the default chunk size is 128, max is 65536,
 # some client does not support chunk size change,
@@ -269,7 +269,8 @@ SRS (v7.0.56+) supports RTMPS server functionality, allowing publishers and play
 To enable RTMPS, you need to configure SRS with SSL certificates and run it with RTMPS support:
 
 ```bash
-./objs/srs -c conf/rtmps.conf
+env SRS_RTMP_LISTEN=1935 SRS_RTMPS_ENABLED=on SRS_RTMPS_LISTEN=1443 \
+  ./objs/srs -e
 ```
 
 Publish RTMPS stream by [FFmpeg](https://ffmpeg.org/download.html):
@@ -291,7 +292,7 @@ rtmp {
     # the rtmp listen ports, split by space, each listen entry is <[ip:]port>
     # for example, 192.168.1.100:1935 10.10.10.100:1935
     # where the ip is optional, default to 0.0.0.0, that is 1935 equals to 0.0.0.0:1935
-    # Overwrite by env SRS_LISTEN
+    # Overwrite by env SRS_RTMP_LISTEN
     listen 1935;
     # the default chunk size is 128, max is 65536,
     # some client does not support chunk size change,

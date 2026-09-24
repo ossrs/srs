@@ -669,6 +669,7 @@ VOID TEST(BufferWriterTest, WriteToHttpResponse)
 // New mock implementations for SrsLiveStream testing
 MockHttpxConnForLiveStream::MockHttpxConnForLiveStream() : SrsHttpxConn(NULL, NULL, NULL, "127.0.0.1", 1935, "", "")
 {
+    assemble();
     enable_stat_called_ = false;
 }
 
@@ -684,6 +685,7 @@ void MockHttpxConnForLiveStream::set_enable_stat(bool v)
 
 MockHttpConnForLiveStream::MockHttpConnForLiveStream() : SrsHttpConn(NULL, NULL, NULL, "127.0.0.1", 1935)
 {
+    assemble();
     mock_handler_ = new MockHttpxConnForLiveStream();
 }
 

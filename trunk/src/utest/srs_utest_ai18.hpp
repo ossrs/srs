@@ -554,4 +554,22 @@ public:
     void reset();
 };
 
+
+// Mock live source for testing how SrsMpegtsSrtConn releases a failed publish.
+class MockLiveSourceForSrtPublishFailure : public MockLiveSource
+{
+public:
+    srs_error_t on_publish_error_;
+    int on_publish_count_;
+    int on_unpublish_count_;
+
+public:
+    MockLiveSourceForSrtPublishFailure();
+    virtual ~MockLiveSourceForSrtPublishFailure();
+
+public:
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+};
+
 #endif

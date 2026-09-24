@@ -34,8 +34,9 @@ capabilities.
 SRS has built-in HLS support, which you can use with [docker](./getting-started.md) or [compile from source](./getting-started-build.md):
 
 ```bash
-docker run --rm -it -p 1935:1935 -p 8080:8080 ossrs/srs:5 \
-  ./objs/srs -c conf/hls.conf
+docker run --rm -it -p 1935:1935 -p 8080:8080 \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_SERVER_ENABLED=on --env SRS_VHOST_HLS_ENABLED=on \
+  ossrs/srs:8 ./objs/srs -e
 ```
 
 Use [FFmpeg(click to download)](https://ffmpeg.org/download.html) or [OBS(click to download)](https://obsproject.com/download) to stream:
@@ -590,8 +591,10 @@ You can customize the file naming using these configuration options:
 For example, start SRS with fMP4 enabled:
 
 ```bash
-docker run --rm -it -p 1935:1935 -p 8080:8080 ossrs/srs:7 \
-  ./objs/srs -c conf/hls.mp4.conf
+docker run --rm -it -p 1935:1935 -p 8080:8080 \
+  --env SRS_RTMP_LISTEN=1935 --env SRS_HTTP_SERVER_ENABLED=on --env SRS_VHOST_HLS_ENABLED=on \
+  --env SRS_VHOST_HLS_HLS_USE_FMP4=on --env 'SRS_VHOST_HLS_HLS_INIT_FILE=[app]/[stream]-init.mp4' \
+  ossrs/srs:8 ./objs/srs -e
 ```
 
 Publish a stream:

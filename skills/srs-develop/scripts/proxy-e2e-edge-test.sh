@@ -28,21 +28,19 @@ PROXY_WEBRTC_PORT=18000
 PROXY_SRT_PORT=20080
 PROXY_SYSTEM_API_PORT=12025
 
-# Origin ports (from origin-for-edge.conf) — upstream of the edge, NOT
+# Origin ports — upstream of the edge, NOT
 # registered with the proxy. Distinct from origin1/2/3 to avoid collisions
 # when running this test alongside the other proxy E2E tests.
 ORIGIN_RTMP_PORT=19360
 ORIGIN_API_PORT=19860
 
-# Edge ports (from edge-for-proxy.conf) — what the proxy treats as its backend.
+# Edge ports — what the proxy treats as its backend.
 EDGE_RTMP_PORT=19361
 EDGE_HTTP_PORT=8091
 EDGE_API_PORT=19861
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
-ORIGIN_CONF="$WORKSPACE/trunk/conf/origin-for-edge.conf"
-EDGE_CONF="$WORKSPACE/trunk/conf/edge-for-proxy.conf"
 # Randomize per run so each invocation starts from clean state and never
 # shares state with sibling E2E tests publishing to live/livestream.
 STREAM_NAME="edge$(date +%s)"
@@ -132,14 +130,6 @@ if [[ ! -f "$SOURCE_FLV" ]]; then
   echo "Error: test source not found: $SOURCE_FLV" >&2
   exit 1
 fi
-if [[ ! -f "$ORIGIN_CONF" ]]; then
-  echo "Error: origin conf not found: $ORIGIN_CONF" >&2
-  exit 1
-fi
-if [[ ! -f "$EDGE_CONF" ]]; then
-  echo "Error: edge conf not found: $EDGE_CONF" >&2
-  exit 1
-fi
 for tool in ffmpeg ffprobe curl; do
   if ! command -v "$tool" &>/dev/null; then
     echo "Error: $tool not found in PATH" >&2
@@ -148,7 +138,6 @@ for tool in ffmpeg ffprobe curl; do
 done
 
 # --- Step 0: Clean up stale state ---
-rm -f "$WORKSPACE/trunk/objs/origin-for-edge.pid" "$WORKSPACE/trunk/objs/edge-for-proxy.pid"
 ALL_PORTS="$PROXY_RTMP_PORT $PROXY_HTTP_API_PORT $PROXY_HTTP_SERVER_PORT $PROXY_WEBRTC_PORT $PROXY_SRT_PORT $PROXY_SYSTEM_API_PORT"
 ALL_PORTS="$ALL_PORTS $ORIGIN_RTMP_PORT $ORIGIN_API_PORT $EDGE_RTMP_PORT $EDGE_HTTP_PORT $EDGE_API_PORT"
 for port in $ALL_PORTS; do
@@ -199,7 +188,9 @@ echo "Proxy started."
 echo "=== Step 4: Starting upstream SRS origin (RTMP :$ORIGIN_RTMP_PORT) ==="
 ulimit -n 10000 2>/dev/null || true
 cd "$WORKSPACE/trunk"
-./objs/srs -c conf/origin-for-edge.conf >/tmp/srs-origin-edge-e2e.log 2>&1 &
+env SRS_RTMP_LISTEN=$ORIGIN_RTMP_PORT \
+  SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=$ORIGIN_API_PORT \
+  ./objs/srs -e >/tmp/srs-origin-edge-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "Origin PID: $ORIGIN_PID"
 
@@ -214,7 +205,15 @@ echo "Origin started."
 
 # --- Step 5: Start edge (mode remote, registered with proxy) ---
 echo "=== Step 5: Starting SRS edge (RTMP :$EDGE_RTMP_PORT, upstream :$ORIGIN_RTMP_PORT) ==="
-./objs/srs -c conf/edge-for-proxy.conf >/tmp/srs-edge-e2e.log 2>&1 &
+env SRS_RTMP_LISTEN=$EDGE_RTMP_PORT \
+  SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=$EDGE_HTTP_PORT \
+  SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=$EDGE_API_PORT \
+  SRS_HEARTBEAT_ENABLED=on SRS_HEARTBEAT_INTERVAL=9 \
+  SRS_HEARTBEAT_URL=http://127.0.0.1:$PROXY_SYSTEM_API_PORT/api/v1/srs/register \
+  SRS_HEARTBEAT_DEVICE_ID=edge-for-proxy SRS_HEARTBEAT_PORTS=on \
+  SRS_VHOST_CLUSTER_MODE=remote SRS_VHOST_CLUSTER_ORIGIN=127.0.0.1:$ORIGIN_RTMP_PORT \
+  SRS_VHOST_HTTP_REMUX_ENABLED=on \
+  ./objs/srs -e >/tmp/srs-edge-e2e.log 2>&1 &
 EDGE_PID=$!
 echo "Edge PID: $EDGE_PID"
 

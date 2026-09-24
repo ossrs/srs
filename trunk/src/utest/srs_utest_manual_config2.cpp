@@ -2718,6 +2718,20 @@ VOID TEST(ConfigTest, GetServerIdFromEnv)
     }
 }
 
+VOID TEST(ConfigTest, GetServerIdWithoutPidFile)
+{
+    // Without a pid file, the server id is not written next to it.
+    MockSrsConfig conf;
+    conf.env_only_ = true;
+    EXPECT_STREQ("", conf.get_pid_file().c_str());
+
+    string server_id_file = srs_server_id_path("");
+    MockFileRemover _mfr(server_id_file);
+
+    EXPECT_FALSE(conf.get_server_id().empty());
+    EXPECT_STREQ("", srs_try_read_file(server_id_file).c_str());
+}
+
 VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
 {
     srs_error_t err;

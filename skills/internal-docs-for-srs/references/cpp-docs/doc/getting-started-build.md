@@ -30,17 +30,15 @@ make
 Run SRS server:
 
 ```
-./objs/srs -c conf/srs.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_SERVER_ENABLED=on \
+    SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \
+    ./objs/srs -e
 ```
 
-Check SRS by [http://localhost:8080/](http://localhost:8080/) or:
+Check SRS by [http://localhost:8080/](http://localhost:8080/) or by the HTTP API, and the logs are in the console:
 
 ```
-# Check the process status
-./etc/init.d/srs status
-
-# Check the SRS logs
-tail -n 30 -f ./objs/srs.log
+curl http://localhost:1985/api/v1/versions
 ```
 
 Publish stream by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/download) :
@@ -79,21 +77,20 @@ Run SRS server:
 
 ```
 CANDIDATE="192.168.1.10"
-./objs/srs -c conf/srs.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_SERVER_ENABLED=on \
+    SRS_RTC_SERVER_ENABLED=on SRS_RTC_SERVER_CANDIDATE=$CANDIDATE SRS_VHOST_RTC_ENABLED=on \
+    SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \
+    ./objs/srs -e
 ```
 
 > Note: Please replace the IP with your server IP.
 
 > Note: About CANDIDATE, please read [CANDIDATE](./webrtc.md#config-candidate)
 
-Check SRS by [http://localhost:8080/](http://localhost:8080/) or:
+Check SRS by [http://localhost:8080/](http://localhost:8080/) or by the HTTP API, and the logs are in the console:
 
 ```
-# Check the process status
-./etc/init.d/srs status
-
-# Check the SRS logs
-tail -n 30 -f ./objs/srs.log
+curl http://localhost:1985/api/v1/versions
 ```
 
 If SRS runs on localhost, push stream to SRS by [WebRTC: Publish](http://localhost:8080/players/rtc_publisher.html?autostart=true&stream=livestream&port=8080&schema=http)
@@ -126,14 +123,18 @@ Run SRS server:
 
 ```
 CANDIDATE="192.168.1.10"
-./objs/srs -c conf/rtmp2rtc.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_SERVER_ENABLED=on \
+    SRS_RTC_SERVER_ENABLED=on SRS_RTC_SERVER_CANDIDATE=$CANDIDATE SRS_VHOST_RTC_ENABLED=on \
+    SRS_VHOST_RTC_RTMP_TO_RTC=on SRS_VHOST_RTC_RTC_TO_RTMP=on \
+    SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \
+    ./objs/srs -e
 ```
 
 > Note: Please replace the IP with your server IP.
 
 > Note: About CANDIDATE, please read [CANDIDATE](./webrtc.md#config-candidate)
 
-> Note: If convert RTMP to WebRTC, please use [`rtmp2rtc.conf`](https://github.com/ossrs/srs/issues/2728#rtmp2rtc-cn-guide)
+> Note: If convert RTMP to WebRTC, you can also use the config file [`rtmp2rtc.conf`](https://github.com/ossrs/srs/issues/2728#rtmp2rtc-cn-guide)
 
 Publish stream by [FFmpeg](https://ffmpeg.org/download.html) or [OBS](https://obsproject.com/download) :
 
@@ -171,7 +172,11 @@ Run SRS server:
 
 ```
 CANDIDATE="192.168.1.10"
-./objs/srs -c conf/https.rtc.conf
+env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_HTTPS_ENABLED=on \
+    SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_HTTPS_ENABLED=on \
+    SRS_RTC_SERVER_ENABLED=on SRS_RTC_SERVER_CANDIDATE=$CANDIDATE SRS_VHOST_RTC_ENABLED=on \
+    SRS_VHOST_HTTP_REMUX_ENABLED=on \
+    ./objs/srs -e
 ``` 
 
 > Note: Please replace the IP with your server IP.
