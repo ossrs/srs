@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v5-changes"></a>
 
 ## SRS 5.0 Changelog
+* <strong>v5.0, 2026-09-24, [5.0 release4(5.0.225)](https://github.com/ossrs/srs/releases/tag/v5.0-r4) released. 163706 lines.</strong>
 * v5.0, 2026-09-24, Config: Add SRS_RTMP_LISTEN for the RTMP listen, and keep SRS_LISTEN as an alias. v5.0.225
 * v5.0, 2025-07-10, Merge [#4414](https://github.com/ossrs/srs/pull/4414): Fix H.264 B-frame detection logic to comply with specification. v5.0.224 (#4414)
 * v5.0, 2025-03-21, Merge [#4303](https://github.com/ossrs/srs/pull/4303): replace values with enums. v5.0.223 (#4303)
