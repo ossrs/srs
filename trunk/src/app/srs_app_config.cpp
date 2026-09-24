@@ -1617,12 +1617,8 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         return srs_error_wrap(err, "transform");
     }
 
-    // If use env only, we set change to daemon(off) and console log.
+    // If use env only, there is no config file, so create the default vhost.
     if (env_only_) {
-        if (!getenv("SRS_DAEMON"))
-            setenv("SRS_DAEMON", "off", 1);
-        if (!getenv("SRS_SRS_LOG_TANK") && !getenv("SRS_LOG_TANK"))
-            setenv("SRS_SRS_LOG_TANK", "console", 1);
         if (root_->directives_.empty())
             root_->get_or_create("vhost", "__defaultVhost__");
     }
@@ -1848,10 +1844,10 @@ void SrsConfig::print_help(char **argv)
         "   Do not set, an AI should keep these defaults with -e:\n"
         "      SRS_ENV_ONLY=                                 Same as -e if set to any value, even off. Use -e instead.\n"
         "      SRS_CONFIG_FILE=                              Config file to use instead of -c, ignored with -e.\n"
-        "      SRS_PID=                                      Pid file, unique for each SRS. Keep it empty for no pid file.\n"
-        "      SRS_DAEMON=off                                Run as daemon. Default is on without -e.\n"
+        "      SRS_PID=                                      Pid file. Default is empty with -e, and ./objs/srs.pid with -c.\n"
+        "      SRS_DAEMON=off                                Run as daemon. Default is off with -e, and on with -c.\n"
         "      SRS_ASPROCESS=off                             Quit when the parent process quits.\n"
-        "      SRS_LOG_TANK=console                          console or file. Default is file without -e.\n"
+        "      SRS_LOG_TANK=console                          console or file. Default is console with -e, and file with -c.\n"
         "      SRS_LOG_FILE=./objs/srs.log                   Log file, when SRS_LOG_TANK=file.\n"
         "      SRS_INOTIFY_AUTO_RELOAD=off                   Reload when the config file changes, not for -e.\n"
         "      SRS_AUTO_RELOAD_FOR_DOCKER=on                 Turn on SRS_INOTIFY_AUTO_RELOAD in docker.\n"
@@ -2858,8 +2854,10 @@ bool SrsConfig::get_daemon()
     SRS_OVERWRITE_BY_ENV_BOOL2("srs.daemon"); // SRS_DAEMON
 
     SrsConfDirective *conf = root_->get("daemon");
+
+    // Without a config file, run in the foreground unless SRS_DAEMON sets it.
     if (!conf || conf->arg0().empty()) {
-        return true;
+        return !env_only_;
     }
 
     return SRS_CONF_PREFER_TRUE(conf->arg0());
@@ -6305,8 +6303,10 @@ bool SrsConfig::get_log_tank_file()
     }
 
     SrsConfDirective *conf = root_->get("srs_log_tank");
+
+    // Without a config file, log to the console unless SRS_LOG_TANK sets it.
     if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
+        return env_only_ ? false : DEFAULT;
     }
 
     return conf->arg0() != "console";

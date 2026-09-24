@@ -2926,6 +2926,24 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
         EXPECT_FALSE(conf.get_daemon());
     }
 
+    // Without a config file, run in the foreground and log to the console by default.
+    if (true) {
+        MockSrsConfig conf;
+        conf.env_only_ = true;
+        EXPECT_FALSE(conf.get_daemon());
+        EXPECT_FALSE(conf.get_log_tank_file());
+    }
+
+    // Without a config file, SRS_DAEMON and SRS_LOG_TANK still set them.
+    if (true) {
+        MockSrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, daemon, "SRS_DAEMON", "on");
+        SrsSetEnvConfig(conf, log_tank, "SRS_LOG_TANK", "file");
+        EXPECT_TRUE(conf.get_daemon());
+        EXPECT_TRUE(conf.get_log_tank_file());
+    }
+
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
