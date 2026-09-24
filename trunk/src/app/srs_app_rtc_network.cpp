@@ -742,6 +742,11 @@ srs_error_t SrsRtcTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
 {
     srs_error_t err = srs_success;
 
+    // No socket when no TCP connection owns this network, for example, it closed before DTLS done.
+    if (!sendonly_skt_) {
+        return srs_error_new(ERROR_SOCKET_CLOSED, "rtc tcp no socket");
+    }
+
     // Encode and send 2 bytes size, in network order.
     srs_assert(size <= 65535);
     uint8_t b[2] = {uint8_t(size >> 8), uint8_t(size)};
@@ -879,10 +884,20 @@ srs_error_t SrsRtcTcpConn::cycle()
     stat_->on_disconnect(get_id().c_str(), err);
     stat_->kbps_add_delta(get_id().c_str(), delta_);
 
-    // Only remove session when network is established, because client might use other UDP network.
-    if (session_ && session_->tcp()->is_establelished()) {
-        session_->tcp()->set_state(SrsRtcNetworkStateClosed);
-        session_->expire();
+    if (session_) {
+        if (session_->tcp()->is_establelished()) {
+            // Only remove session when network is established, because client might use other UDP network.
+            session_->tcp()->set_state(SrsRtcNetworkStateClosed);
+            session_->expire();
+        } else {
+            // Not established, so release the network to allow the client to reconnect over TCP, and never
+            // send by the socket of this connection, which is freed with it.
+            ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(session_->tcp());
+            if (network && network->owner().get() == this) {
+                network->update_sendonly_socket(NULL);
+                network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
+            }
+        }
     }
 
     // For HTTP-API timeout, we think it's done successfully,

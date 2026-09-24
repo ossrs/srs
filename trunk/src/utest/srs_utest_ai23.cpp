@@ -4549,3 +4549,80 @@ VOID TEST(RtcTcpConnTest, HandshakeRejectsInjectedTcpNetworkAlreadyOwned)
     session.tcp_network_ = NULL;
     conn_manager.session_to_return_ = NULL;
 }
+
+// A client may close its TCP connection after the STUN handshake but before DTLS completes, and then
+// reconnect over TCP for the same session. The closed connection must release the session's TCP
+// network, otherwise the network keeps the closed socket and rejects the reconnection.
+VOID TEST(RtcTcpConnTest, CycleReleasesNetworkWhenClosedBeforeEstablished)
+{
+    srs_error_t err;
+    std::string read_data = build_rtc_tcp_stun_binding_request("test:session");
+
+    MockResourceManagerForTcpConnHandshake conn_manager;
+    MockRtcConnectionForTcpConnHandshake session;
+    MockEphemeralDelta delta;
+    SrsUniquePtr<SrsRtcTcpNetwork> network(new SrsRtcTcpNetwork(&session, &delta));
+    session.tcp_network_ = network.get();
+    conn_manager.session_to_return_ = &session;
+
+    // The first connection completes the STUN handshake, then reads nothing more, so cycle() returns.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io_a(new MockProtocolReadWriterForTcpNetwork());
+    io_a->set_read_data(read_data);
+    SrsRtcTcpConn *raw_a = new SrsRtcTcpConn(io_a.get(), "192.168.1.10", 10000);
+    MockContextForRtmpConn context;
+    raw_a->context_ = &context;
+    raw_a->assemble();
+    SrsSharedResource<ISrsRtcTcpConn> *wrapper_a = new SrsSharedResource<ISrsRtcTcpConn>(raw_a);
+    raw_a->conn_manager_ = &conn_manager;
+    MockInterruptableForRtcTcpConn coroutine;
+    MockContextIdSetterForRtcTcpConn cid_setter;
+    raw_a->setup_owner(wrapper_a, &coroutine, &cid_setter);
+
+    HELPER_EXPECT_SUCCESS(raw_a->cycle());
+    EXPECT_FALSE(network->is_establelished());
+
+    // GOAL: the closed connection no longer owns the network, and its socket is no longer used to send.
+    EXPECT_TRUE(NULL == network->owner().get());
+    EXPECT_TRUE(NULL == network->sendonly_skt_);
+
+    // The executor then frees its wrapper, which frees the connection and its socket.
+    raw_a->on_executor_done(&coroutine);
+    raw_a->skt_ = NULL;
+    raw_a->context_ = NULL;
+    srs_freep(wrapper_a);
+
+    // GOAL: the same client reconnects over TCP for the same session.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io_b(new MockProtocolReadWriterForTcpNetwork());
+    io_b->set_read_data(read_data);
+    SrsRtcTcpConn *raw_b = new SrsRtcTcpConn(io_b.get(), "192.168.1.10", 10001);
+    raw_b->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_b(new SrsSharedResource<ISrsRtcTcpConn>(raw_b));
+    raw_b->conn_manager_ = &conn_manager;
+    raw_b->wrapper_ = wrapper_b.get();
+
+    HELPER_EXPECT_SUCCESS(raw_b->handshake());
+    EXPECT_TRUE(raw_b == network->owner().get());
+    EXPECT_TRUE(io_b.get() == network->sendonly_skt_);
+
+    raw_b->skt_ = NULL;
+    raw_b->conn_manager_ = NULL;
+    raw_b->wrapper_ = NULL;
+    network->sendonly_skt_ = NULL;
+    network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
+    session.tcp_network_ = NULL;
+    conn_manager.session_to_return_ = NULL;
+}
+
+// A released network has no socket, but DTLS may still try to send through it.
+VOID TEST(RtcTcpNetworkTest, WriteWithoutSocketFails)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForTcpConnHandshake session;
+    MockEphemeralDelta delta;
+    SrsUniquePtr<SrsRtcTcpNetwork> network(new SrsRtcTcpNetwork(&session, &delta));
+
+    // GOAL: the write fails with an error instead of crashing.
+    char data[] = "dtls";
+    HELPER_EXPECT_FAILED(network->write(data, sizeof(data), NULL));
+}
