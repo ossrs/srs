@@ -15,6 +15,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_factory.hpp>
+#include <srs_app_rtc_server.hpp>
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
@@ -114,6 +115,8 @@ public:
     bool on_rtp_cipher_called_;
     bool on_rtp_plaintext_called_;
     bool on_rtcp_called_;
+    // Whether on_rtp_cipher drops the packet.
+    bool rtp_cipher_dropped_;
 
 public:
     MockRtcConnectionForUdpNetwork();
@@ -617,6 +620,22 @@ public:
     void reset();
     void set_unprotect_rtp_error(srs_error_t err);
     void set_unprotect_rtcp_error(srs_error_t err);
+};
+
+// Mock ISrsRtcBlackhole for testing which plaintext packets SrsRtcUdpNetwork writes to the black hole.
+class MockRtcBlackholeForUdpNetwork : public ISrsRtcBlackhole
+{
+public:
+    int sendto_count_;
+    void *last_data_;
+    int last_len_;
+
+public:
+    MockRtcBlackholeForUdpNetwork();
+    virtual ~MockRtcBlackholeForUdpNetwork();
+
+public:
+    virtual void sendto(void *data, int len);
 };
 
 // Mock ISrsResourceManager for testing SrsRtcUdpNetwork::update_sendonly_socket

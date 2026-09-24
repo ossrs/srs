@@ -39,6 +39,7 @@ class SrsRtcDummyNetwork;
 class SrsRtcTcpConn;
 class ISrsRtcTcpConn;
 class ISrsContext;
+class ISrsRtcBlackhole;
 
 // The network stat.
 enum SrsRtcNetworkState {
@@ -183,6 +184,7 @@ class SrsRtcUdpNetwork : public ISrsRtcNetwork
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsResourceManager *conn_manager_;
+    ISrsRtcBlackhole *blackhole_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

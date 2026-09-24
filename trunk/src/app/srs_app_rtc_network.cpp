@@ -194,6 +194,7 @@ SrsRtcUdpNetwork::SrsRtcUdpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     transport_ = new SrsSecurityTransport(this);
 
     conn_manager_ = _srs_conn_manager;
+    blackhole_ = _srs_blackhole;
 }
 
 SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
@@ -212,6 +213,7 @@ SrsRtcUdpNetwork::~SrsRtcUdpNetwork()
     srs_freep(pp_address_change_);
 
     conn_manager_ = NULL;
+    blackhole_ = NULL;
 }
 
 srs_error_t SrsRtcUdpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
@@ -287,9 +289,7 @@ srs_error_t SrsRtcUdpNetwork::on_rtcp(char *data, int nb_data)
     }
 
     char *unprotected_buf = data;
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
-    }
+    blackhole_->sendto(unprotected_buf, nb_unprotected_buf);
 
     if ((err = conn_->on_rtcp(unprotected_buf, nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "cipher=%d", nb_data);
@@ -336,9 +336,7 @@ srs_error_t SrsRtcUdpNetwork::on_rtp(char *data, int nb_data)
     }
 
     char *unprotected_buf = data;
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
-    }
+    blackhole_->sendto(unprotected_buf, nb_unprotected_buf);
 
     if ((err = conn_->on_rtp_plaintext(unprotected_buf, nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "cipher=%d", nb_data);
@@ -427,9 +425,7 @@ srs_error_t SrsRtcUdpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
     srs_error_t err = srs_success;
 
     // Write STUN messages to blackhole.
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(data, nb_data);
-    }
+    blackhole_->sendto(data, nb_data);
 
     if (!r->is_binding_request()) {
         return err;
@@ -481,9 +477,7 @@ srs_error_t SrsRtcUdpNetwork::on_binding_request(SrsStunPacket *r, string ice_pw
         }
     }
 
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(stream->data(), stream->pos());
-    }
+    blackhole_->sendto(stream->data(), stream->pos());
 
     return err;
 }

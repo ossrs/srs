@@ -38,10 +38,22 @@ class ISrsAppConfig;
 class ISrsAppFactory;
 class ISrsProtocolUtility;
 
+// The sink of the RTC plaintext packets, see SrsRtcBlackhole.
+class ISrsRtcBlackhole
+{
+public:
+    ISrsRtcBlackhole();
+    virtual ~ISrsRtcBlackhole();
+
+public:
+    // Send the packet to the black hole, ignored when it is disabled.
+    virtual void sendto(void *data, int len) = 0;
+};
+
 // The UDP black hole, for developer to use wireshark to catch plaintext packets.
 // For example, server receive UDP packets at udp://8000, and forward the plaintext packet to black hole,
 // we can use wireshark to capture the plaintext.
-class SrsRtcBlackhole
+class SrsRtcBlackhole : public ISrsRtcBlackhole
 {
 public:
     bool blackhole_;
@@ -57,7 +69,7 @@ public:
 
 public:
     srs_error_t initialize();
-    void sendto(void *data, int len);
+    virtual void sendto(void *data, int len);
 };
 
 extern SrsRtcBlackhole *_srs_blackhole;

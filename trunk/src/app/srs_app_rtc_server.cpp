@@ -87,6 +87,14 @@ string srs_dns_resolve(string host, int &family)
     return string(shost);
 }
 
+ISrsRtcBlackhole::ISrsRtcBlackhole()
+{
+}
+
+ISrsRtcBlackhole::~ISrsRtcBlackhole()
+{
+}
+
 // LCOV_EXCL_START
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
