@@ -2375,6 +2375,8 @@ MockStatisticForHttpxConn::MockStatisticForHttpxConn()
     kbps_add_delta_called_ = false;
     disconnect_id_ = "";
     kbps_id_ = "";
+    disconnect_error_code_ = 0;
+    kbps_delta_ = NULL;
 }
 
 MockStatisticForHttpxConn::~MockStatisticForHttpxConn()
@@ -2385,7 +2387,8 @@ void MockStatisticForHttpxConn::on_disconnect(std::string id, srs_error_t err)
 {
     on_disconnect_called_ = true;
     disconnect_id_ = id;
-    srs_freep(err);
+    // The error is borrowed, as SrsStatistic::on_disconnect does, because the caller still returns it.
+    disconnect_error_code_ = srs_error_code(err);
 }
 
 srs_error_t MockStatisticForHttpxConn::on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type)
@@ -2415,6 +2418,7 @@ void MockStatisticForHttpxConn::kbps_add_delta(std::string id, ISrsKbpsDelta *de
 {
     kbps_add_delta_called_ = true;
     kbps_id_ = id;
+    kbps_delta_ = delta;
 }
 
 void MockStatisticForHttpxConn::kbps_sample()
@@ -2492,6 +2496,8 @@ void MockStatisticForHttpxConn::reset()
     kbps_add_delta_called_ = false;
     disconnect_id_ = "";
     kbps_id_ = "";
+    disconnect_error_code_ = 0;
+    kbps_delta_ = NULL;
 }
 
 // Mock ISrsHttpConn implementation for testing SrsHttpxConn
@@ -2560,179 +2566,104 @@ void MockHttpConnForHttpxConn::expire()
 {
 }
 
-// Test SrsHttpxConn::on_http_message - covers the major use scenario:
-// This test covers the HTTP message handling flow:
-// 1. on_http_message() with HTTPS - sets HTTPS schema and Connection header
-// 2. on_http_message() with HTTP - only sets Connection header
-// 3. on_message_done() - returns success
-// 4. on_conn_done() - handles resource cleanup and ERROR_SOCKET_TIMEOUT conversion
-VOID TEST(HttpxConnTest, HttpMessageHandlingAndCleanup)
+VOID TEST(HttpxConnTest, OnHttpMessageClosesConnectionAndMarksHttps)
 {
     srs_error_t err;
 
-    // Test 1: on_http_message() with HTTPS (ssl_ != NULL)
-    // Create a simple test class that inherits from SrsHttpxConn to test the methods
-    class TestHttpxConn : public SrsHttpxConn
-    {
-    public:
-        TestHttpxConn(ISrsResourceManager *cm, bool is_https)
-            : SrsHttpxConn(cm, NULL, NULL, "192.168.1.100", 8080,
-                           is_https ? "/key.pem" : "",
-                           is_https ? "/cert.pem" : "")
-        {
-            // Override ssl_ to simulate HTTPS without actually creating SSL connection
-            if (is_https) {
-                // ssl_ is already set by constructor when key/cert are non-empty
-            }
-        }
-    };
+    // Plain HTTP: the connection is short-term, and the schema stays http.
+    if (true) {
+        SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, NULL, NULL, "127.0.0.1", 8080, "", ""));
 
-    // Create mock manager
-    MockResourceManagerForHttpxConn *mock_manager = new MockResourceManagerForHttpxConn();
+        SrsHttpMessage msg;
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(connx->on_http_message(&msg, &w));
 
-    // Test HTTPS scenario (ssl_ != NULL)
-    {
-        // Note: We can't easily test this without a real SSL connection being created
-        // So we'll test the HTTP scenario instead which is simpler
+        EXPECT_STREQ("Close", w.header()->get("Connection").c_str());
+        EXPECT_STREQ("http", msg.schema().c_str());
+        HELPER_EXPECT_SUCCESS(connx->on_message_done(&msg, &w));
     }
 
-    // Test 2: on_http_message() with HTTP (ssl_ == NULL)
-    // Test 3: on_message_done()
-    // Test 4: on_conn_done() with ERROR_SOCKET_TIMEOUT
-    {
-        SrsUniquePtr<SrsHttpMessage> mock_message(new SrsHttpMessage());
-        SrsUniquePtr<MockResponseWriter> mock_writer(new MockResponseWriter());
+    // HTTPS: the parsed message is marked as https, so handlers build https URLs for it.
+    if (true) {
+        SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, NULL, NULL, "127.0.0.1", 8443, "/key.pem", "/cert.pem"));
 
-        // Create a minimal mock implementation to test the logic
-        class MockHttpxConnForTest
-        {
-        public:
-            ISrsResourceManager *manager_;
-            ISrsSslConnection *ssl_;
-            bool enable_stat_;
+        // The connection owns and frees its TLS socket.
+        connx->ssl_ = new MockSslConnection();
 
-            MockHttpxConnForTest(ISrsResourceManager *m) : manager_(m), ssl_(NULL), enable_stat_(false) {}
+        SrsHttpMessage msg;
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(connx->on_http_message(&msg, &w));
 
-            srs_error_t on_http_message(ISrsHttpMessage *r, ISrsHttpResponseWriter *w)
-            {
-                // After parsed the message, set the schema to https.
-                if (ssl_) {
-                    SrsHttpMessage *hm = dynamic_cast<SrsHttpMessage *>(r);
-                    hm->set_https(true);
-                }
-
-                // For each session, we use short-term HTTP connection.
-                SrsHttpHeader *hdr = w->header();
-                hdr->set("Connection", "Close");
-
-                return srs_success;
-            }
-
-            srs_error_t on_message_done(ISrsHttpMessage *r, ISrsHttpResponseWriter *w)
-            {
-                return srs_success;
-            }
-
-            srs_error_t on_conn_done(srs_error_t r0)
-            {
-                // Because we use manager to manage this object,
-                // not the http connection object, so we must remove it here.
-                manager_->remove((ISrsResource *)this);
-
-                // For HTTP-API timeout, we think it's done successfully,
-                // because there may be no request or response for HTTP-API.
-                if (srs_error_code(r0) == ERROR_SOCKET_TIMEOUT) {
-                    srs_freep(r0);
-                    return srs_success;
-                }
-
-                return r0;
-            }
-        };
-
-        MockHttpxConnForTest test_conn(mock_manager);
-
-        // Test on_http_message() with HTTP (ssl_ == NULL)
-        HELPER_EXPECT_SUCCESS(test_conn.on_http_message(mock_message.get(), mock_writer.get()));
-
-        // Verify HTTPS schema was NOT set (should remain "http")
-        EXPECT_EQ("http", mock_message->schema());
-
-        // Verify Connection header was set to "Close"
-        EXPECT_EQ("Close", mock_writer->header()->get("Connection"));
-
-        // Test on_message_done() - should return success
-        HELPER_EXPECT_SUCCESS(test_conn.on_message_done(mock_message.get(), mock_writer.get()));
-
-        // Test on_conn_done() with ERROR_SOCKET_TIMEOUT
-        // Should call manager_->remove()
-        // Should convert ERROR_SOCKET_TIMEOUT to success
-        srs_error_t test_error = srs_error_new(ERROR_SOCKET_TIMEOUT, "test timeout");
-        err = test_conn.on_conn_done(test_error);
-
-        // Verify manager->remove() was called
-        EXPECT_TRUE(mock_manager->remove_called_);
-
-        // Verify ERROR_SOCKET_TIMEOUT is converted to success
-        HELPER_EXPECT_SUCCESS(err);
+        EXPECT_STREQ("Close", w.header()->get("Connection").c_str());
+        EXPECT_STREQ("https", msg.schema().c_str());
     }
-
-    // Clean up
-    srs_freep(mock_manager);
 }
 
-// Test SrsHttpxConn::on_conn_done with non-timeout error
-// This test verifies that non-timeout errors are returned as-is
-VOID TEST(HttpxConnTest, OnConnDoneWithNonTimeoutError)
+VOID TEST(HttpxConnTest, OnConnDoneRemovesItselfAndSwallowsTimeout)
 {
     srs_error_t err;
 
-    // Create mock manager
-    MockResourceManagerForHttpxConn *mock_manager = new MockResourceManagerForHttpxConn();
+    MockResourceManagerForHttpxConn manager;
+    MockStatisticForHttpxConn stat;
 
-    // Create a minimal mock implementation to test on_conn_done
-    class MockHttpxConnForTest
-    {
-    public:
-        ISrsResourceManager *manager_;
+    SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(&manager, NULL, NULL, "127.0.0.1", 8080, "", ""));
+    connx->stat_ = &stat;
 
-        MockHttpxConnForTest(ISrsResourceManager *m) : manager_(m) {}
+    // The connection owns and frees its HTTP connection.
+    MockHttpConnForHttpxConn *conn = new MockHttpConnForHttpxConn();
+    connx->conn_ = conn;
 
-        srs_error_t on_conn_done(srs_error_t r0)
-        {
-            // Because we use manager to manage this object,
-            // not the http connection object, so we must remove it here.
-            manager_->remove((ISrsResource *)this);
+    // An HTTP API client may send nothing before the timeout, which is a normal end, not an error.
+    err = connx->on_conn_done(srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout"));
+    HELPER_EXPECT_SUCCESS(err);
 
-            // For HTTP-API timeout, we think it's done successfully,
-            // because there may be no request or response for HTTP-API.
-            if (srs_error_code(r0) == ERROR_SOCKET_TIMEOUT) {
-                srs_freep(r0);
-                return srs_success;
-            }
+    // The owner, not the HTTP connection, is the resource the manager holds, so it removes itself.
+    EXPECT_TRUE(manager.remove_called_);
+    EXPECT_TRUE(connx.get() == manager.removed_resource_);
 
-            return r0;
-        }
-    };
+    // Without stat enabled, as for an HTTP API client, no statistic is touched.
+    EXPECT_FALSE(stat.on_disconnect_called_);
+    EXPECT_FALSE(stat.kbps_add_delta_called_);
 
-    MockHttpxConnForTest test_conn(mock_manager);
+    connx->stat_ = NULL;
+}
 
-    // Test on_conn_done() with non-timeout error
-    // Should call manager_->remove()
-    // Should return the error as-is (not convert to success)
-    srs_error_t test_error = srs_error_new(ERROR_SOCKET_READ, "read error");
-    err = test_conn.on_conn_done(test_error);
+VOID TEST(HttpxConnTest, OnConnDoneStatsStreamingClientAndKeepsError)
+{
+    srs_error_t err;
 
-    // Verify manager->remove() was called
-    EXPECT_TRUE(mock_manager->remove_called_);
+    MockResourceManagerForHttpxConn manager;
+    MockStatisticForHttpxConn stat;
 
-    // Verify error is returned as-is (not converted to success)
-    EXPECT_TRUE(err != srs_success);
+    SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(&manager, NULL, NULL, "127.0.0.1", 8080, "", ""));
+    connx->stat_ = &stat;
+
+    MockHttpConnForHttpxConn *conn = new MockHttpConnForHttpxConn();
+    SrsNetworkDelta delta;
+    conn->delta_ = &delta;
+    connx->conn_ = conn;
+
+    // An HTTP streaming client, such as HTTP-FLV, has its own statistic session.
+    connx->set_enable_stat(true);
+
+    err = connx->on_conn_done(srs_error_new(ERROR_SOCKET_READ, "read"));
+
+    // A real error is returned to the caller, not swallowed.
     EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
-
-    // Clean up
     srs_freep(err);
-    srs_freep(mock_manager);
+
+    // The session is closed with that error, and its bandwidth is counted, under the connection id.
+    EXPECT_TRUE(stat.on_disconnect_called_);
+    EXPECT_STREQ(conn->context_id_.c_str(), stat.disconnect_id_.c_str());
+    EXPECT_EQ(ERROR_SOCKET_READ, stat.disconnect_error_code_);
+    EXPECT_TRUE(stat.kbps_add_delta_called_);
+    EXPECT_STREQ(conn->context_id_.c_str(), stat.kbps_id_.c_str());
+    EXPECT_TRUE(&delta == stat.kbps_delta_);
+
+    EXPECT_TRUE(manager.remove_called_);
+    EXPECT_TRUE(connx.get() == manager.removed_resource_);
+
+    connx->stat_ = NULL;
 }
 
 // Test SrsQueueRecvThread basic queue operations
