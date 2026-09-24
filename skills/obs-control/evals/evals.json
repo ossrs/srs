@@ -1,0 +1,56 @@
+{
+  "skill_name": "obs-control",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have SRS running locally in docker (rtmp on 1935, api on 1985). Use OBS on this Mac to publish a test stream to rtmp://localhost/live/livestream, make sure it actually arrives in SRS, and tell me the codec and bitrate SRS sees. Leave the stream running when you are done.",
+      "expected_output": "Checks OBS/websocket readiness (enables the websocket and restarts OBS only if needed), creates or reuses a test profile/scene collection/scene with moving content, sets rtmp_custom to rtmp://localhost/live + livestream, starts streaming, confirms publish.active on http://localhost:1985/api/v1/streams/ and reports video/audio codec, resolution and kbps from the SRS API plus OBS stream status.",
+      "files": [],
+      "assertions": [
+        "Uses the skill scripts (obsws.py / obs_srs_test.py) rather than installing packages or hand-rolling a client",
+        "Confirms the stream via the SRS HTTP API (/api/v1/streams/ publish.active true), not only via OBS status",
+        "Reports codec (H264), resolution and a bitrate/kbps figure from SRS",
+        "Leaves the stream running at the end",
+        "Does not restart OBS when the websocket is already enabled"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Switch OBS to publish over WebRTC WHIP instead of RTMP to my SRS at http://localhost:1985/rtc/v1/whip/?app=live&stream=livestream, then verify SRS receives it. If it does not connect, figure out why from the OBS and SRS logs.",
+      "expected_output": "Stops any active stream, sets whip_custom service with opus audio, starts streaming, waits for PeerConnection connected; if SRS shows DTLS hang / OBS shows Failed, identifies the unreachable ICE candidate and uses ?eip= (or CANDIDATE) and succeeds; reports SRS API view and OBS status.",
+      "files": [],
+      "assertions": [
+        "Stops the running stream before changing the service (or uses --stop-first)",
+        "Sets whip_custom with Opus audio (via the recipe or SetProfileParameter)",
+        "Handles the Docker ICE candidate problem (eip / CANDIDATE) and gets publish.active true in SRS",
+        "Reports both OBS stream status and the SRS API view"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "OBS is not running. Prepare a fresh OBS profile called 'SRS CI' that streams 720p30 at 1500 kbps to rtmp://192.168.1.50/live/ci, so that I can later start OBS from a script and it begins streaming immediately without clicking anything. Explain which files you wrote and the exact launch command.",
+      "expected_output": "Writes basic/profiles/SRS_CI/basic.ini ([General] Name=SRS CI, Simple mode, VBitrate 1500, 1280x720@30) and service.json (rtmp_custom server rtmp://192.168.1.50/live key ci), ensures obs-websocket config.json is enabled, and gives the launch command with --profile 'SRS CI' --startstreaming plus --disable-updater --disable-missing-files-check; mentions sentinel/dialog caveats and that files are only edited while OBS is stopped.",
+      "files": [],
+      "assertions": [
+        "Checks that OBS is not running before editing files",
+        "Writes basic/profiles/<dir>/basic.ini with [General] Name=SRS CI, Simple mode, VBitrate 1500 and 1280x720@30",
+        "Writes service.json as rtmp_custom with server rtmp://192.168.1.50/live and key ci",
+        "Ensures plugin_config/obs-websocket/config.json has server_enabled true",
+        "Gives a launch command with --profile 'SRS CI' --startstreaming plus the dialog-suppressing flags"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I want to run 3 OBS publishers at the same time against my local SRS (rtmp on 1935, api on 1985), each one its own test, and they must not interfere with each other or with my normal OBS setup. Start them, confirm SRS sees all three, then clean everything up.",
+      "expected_output": "Claims three ids with obsws.py instance new, launches three isolated instances (obsws.py launch --instance <id>), runs obs_srs_test.py setup --instance <id> with a per-instance stream name (e.g. live/{instance}) and --start --verify for each, confirms three distinct streams are publish.active in the SRS API, then removes the instances (obsws.py instance remove). The main OBS config dir gains no profiles or scene collections.",
+      "files": [],
+      "assertions": [
+        "Gets every id from `obsws.py instance new` (no hand-picked ids like t1) and uses --instance on every command",
+        "Gives every publisher its own SRS stream name (not all on livestream)",
+        "Each instance talks to its own websocket port (from obsws.py instance list or the launch output)",
+        "Confirms three distinct streams active via /api/v1/streams/",
+        "Removes the instances at the end and does not create test profiles or scene collections in the main OBS config"
+      ]
+    }
+  ]
+}
