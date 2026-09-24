@@ -2968,6 +2968,21 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
         EXPECT_STREQ("server.pid", conf.get_pid_file().c_str());
     }
 
+    // Without a config file, there is no pid file by default.
+    if (true) {
+        MockSrsConfig conf;
+        conf.env_only_ = true;
+        EXPECT_STREQ("", conf.get_pid_file().c_str());
+    }
+
+    // Without a config file, SRS_PID still sets the pid file.
+    if (true) {
+        MockSrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, pid, "SRS_PID", "./objs/env.pid");
+        EXPECT_STREQ("./objs/env.pid", conf.get_pid_file().c_str());
+    }
+
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));

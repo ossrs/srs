@@ -174,6 +174,19 @@ VOID TEST(SrsServerTest, ConstructorAndDestructor)
     // - PID file locker
 }
 
+VOID TEST(SrsPidFileLockerTest, AcquireWithoutPidFile)
+{
+    srs_error_t err;
+
+    // An empty pid file means no pid file, so acquire succeeds without opening one.
+    MockAppConfig config;
+    SrsPidFileLocker locker;
+    locker.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(locker.acquire());
+    EXPECT_EQ(-1, locker.pid_fd_);
+}
+
 // Test SrsServer::initialize() method to verify proper initialization sequence
 // including PID file locking, SRT event loop, DTLS certificate, DVR async worker,
 // config subscription, HTTP API/server initialization, blackhole, and WebRTC

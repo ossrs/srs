@@ -1998,6 +1998,12 @@ srs_error_t SrsPidFileLocker::acquire()
 
     pid_file_ = config_->get_pid_file();
 
+    // No pid file, so nothing stops two SRS from running with the same config.
+    if (pid_file_.empty()) {
+        srs_trace("no pid file, ignore");
+        return err;
+    }
+
     // -rw-r--r--
     // 644
     int mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
