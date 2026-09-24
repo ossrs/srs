@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-09-24, Config: Add SRS_RTMP_LISTEN for the RTMP listen, and keep SRS_LISTEN as an alias. v7.0.165
 * v7.0, 2026-09-21, RTC: Reset the play track cache when the publisher republishes with new SSRCs. v7.0.164
 * v7.0, 2026-09-21, RTC: Resolve the publish and play tracks once per SSRC through the fast cache. v7.0.163
 * <strong>v7.0, 2026-09-18, [7.0 alpha0(7.0.162)](https://github.com/ossrs/srs/releases/tag/v7.0-a0) released. 314832 lines.</strong>

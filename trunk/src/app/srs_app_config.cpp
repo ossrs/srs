@@ -2663,6 +2663,11 @@ vector<string> SrsConfig::get_listens()
 {
     std::vector<string> ports;
 
+    if (!srs_getenv("srs.rtmp.listen").empty()) { // SRS_RTMP_LISTEN
+        return srs_strings_split(srs_getenv("srs.rtmp.listen"), " ");
+    }
+
+    // SRS_LISTEN is the old name of SRS_RTMP_LISTEN, kept for compatibility.
     if (!srs_getenv("srs.listen").empty()) { // SRS_LISTEN
         return srs_strings_split(srs_getenv("srs.listen"), " ");
     }
