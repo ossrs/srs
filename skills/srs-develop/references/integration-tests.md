@@ -40,8 +40,12 @@ Run focused and component-native tests first, then run every command below seque
    ```bash
    bash skills/srs-develop/scripts/proxy-e2e-bearer-auth-test.sh
    ```
+10. SRS started from a config file, because the scripts above start SRS with environment variables only (`-e`): RTMP publish with RTMP, HTTP-FLV, HLS, and WHEP playback, WHIP publish with WHEP and RTMP playback, and the config pid, log, and HLS paths:
+   ```bash
+   bash skills/srs-develop/scripts/srs-config-file-test.sh
+   ```
 
-The SRT test requires an FFmpeg build with libsrt. The WHIP test requires the `whip` muxer and OpenSSL. Both scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available. If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification. The transmux, SRT, and WHIP tests play WHEP with `tools/pion-whep`, because FFmpeg has no WHEP demuxer; they build it with `go` when the binary is missing or stale.
+The SRT test requires an FFmpeg build with libsrt. The WHIP and config file tests require the `whip` muxer and OpenSSL. These scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available. If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification. The transmux, SRT, WHIP, and config file tests play WHEP with `tools/pion-whep`, because FFmpeg has no WHEP demuxer; they build it with `go` when the binary is missing or stale.
 
 Run feature-specific bundled tests in addition to this matrix when the routed workflow or the touched area requires them:
 
@@ -66,7 +70,7 @@ The trigger picks the tier, never the expected runtime. Report every layer not r
    - C++ unit: configure `trunk/` with the flags in `trunk/Dockerfile.test` (without `--build-cache`), remove stale `trunk/objs/Platform-*/utest/*.o`, then `make utest && ./objs/srs_utest`.
    - The suite above.
    - In `trunk/3rdparty/srs-bench` after `make test`: `./objs/srs_blackbox_test -test.v -test.run '^TestFast' -test.parallel 64`, then `-test.run '^TestSlow' -test.parallel 1`; pass `-srs-ffmpeg "$(command -v ffmpeg)" -srs-ffprobe "$(command -v ffprobe)"` because its lookup ignores `PATH`.
-   - Regression, the one layer that starts SRS from a config file while the other scripts use `-e`: in `trunk/`, `./objs/srs -c conf/regression-test.conf`, wait 10s, run `./objs/srs_test -test.v` in `3rdparty/srs-bench`, then kill `$(cat objs/srs.pid)`.
+   - Regression, which starts SRS from a config file like `srs-config-file-test.sh`: in `trunk/`, `./objs/srs -c conf/regression-test.conf`, wait 10s, run `./objs/srs_test -test.v` in `3rdparty/srs-bench`, then kill `$(cat objs/srs.pid)`.
    - Every feature-specific test listed above, with `SRS_GB_SKIP_BUILD=1` for the `gb28181-*-test.sh` scripts (their build reconfigures `trunk/`).
 
    Check each layer's exit code separately, and strip ANSI codes before counting `--- PASS`.
