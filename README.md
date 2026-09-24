@@ -124,6 +124,7 @@ distributed under their [licenses](https://ossrs.io/lts/en-us/license).
 
 ## Releases
 
+* 2026-09-24, [Release v7.0-a1](https://github.com/ossrs/srs/releases/tag/v7.0-a1), v7.0-a1, 7.0 alpha1, v7.0.165, 315306 lines.
 * 2026-09-18, [Release v7.0-a0](https://github.com/ossrs/srs/releases/tag/v7.0-a0), v7.0-a0, 7.0 alpha0, v7.0.162, 314832 lines.
 * 2026-08-12, [Release v7.0-d0](https://github.com/ossrs/srs/releases/tag/v7.0-d0), v7.0-d0, 7.0 dev0, v7.0.157, 313784 lines.
 * 2025-12-03, [Release v6.0-r0](https://github.com/ossrs/srs/releases/tag/v6.0-r0), v6.0-r0, 6.0 release0, v6.0.184, 170962 lines.
