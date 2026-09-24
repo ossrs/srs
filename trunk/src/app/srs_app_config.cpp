@@ -1818,12 +1818,12 @@ void SrsConfig::print_help(char **argv)
         "check it by the HTTP API and the log.\n"
         "\n"
         "   Start SRS with only the features you need, for example RTMP, HTTP-FLV and HLS:\n"
-        "      env SRS_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 \\\n"
+        "      env SRS_RTMP_LISTEN=1935 SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=1985 \\\n"
         "          SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=8080 \\\n"
         "          SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \\\n"
         "          %s -e\n"
         "   With -e, SRS runs in the foreground, logs to the console, and listens only on what\n"
-        "   you enable. RTMP has no default port with -e, so set SRS_LISTEN for RTMP.\n"
+        "   you enable. RTMP has no default port with -e, so set SRS_RTMP_LISTEN for RTMP.\n"
         "   Before you start, make sure the ports are free. Change the ports to run more than\n"
         "   one SRS on a machine. With -e, keep the defaults of the variables in \"Do not set\"\n"
         "   below, so SRS has no pid file, no daemon and no log file, and you manage it.\n"
@@ -1879,7 +1879,7 @@ void SrsConfig::print_help(char **argv)
         "      SRS_CIRCUIT_BREAKER_DYING_THRESHOLD=99        CPU percent of the dying level, drop packets for players.\n"
         "      SRS_CIRCUIT_BREAKER_DYING_PULSE=5             Seconds above the dying threshold, 0 to disable.\n"
         "   RTMP:\n"
-        "      SRS_LISTEN=                                   RTMP listen [ip:]port, no RTMP if empty with -e. Such as 1935.\n"
+        "      SRS_RTMP_LISTEN=                              RTMP listen [ip:]port, no RTMP if empty with -e. Such as 1935.\n"
         "      SRS_VHOST_CHUNK_SIZE=60000                    RTMP chunk size, 128 to 65536.\n"
         "      SRS_VHOST_IN_ACK_SIZE=0                       RTMP input ack size, 0 to not set.\n"
         "      SRS_VHOST_OUT_ACK_SIZE=2500000                RTMP output ack size, 0 to not set.\n"
@@ -3001,6 +3001,11 @@ vector<string> SrsConfig::get_listens()
 {
     std::vector<string> ports;
 
+    if (!srs_getenv("srs.rtmp.listen").empty()) { // SRS_RTMP_LISTEN
+        return srs_strings_split(srs_getenv("srs.rtmp.listen"), " ");
+    }
+
+    // SRS_LISTEN is the old name of SRS_RTMP_LISTEN, kept for compatibility.
     if (!srs_getenv("srs.listen").empty()) { // SRS_LISTEN
         return srs_strings_split(srs_getenv("srs.listen"), " ");
     }
