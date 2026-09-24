@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* <strong>v8.0, 2026-09-24, [8.0 dev0(8.0.48)](https://github.com/ossrs/srs/releases/tag/v8.0-d0) released. 328208 lines.</strong>
 * v8.0, 2026-09-24, Config: Add SRS_RTMP_LISTEN for the RTMP listen, and keep SRS_LISTEN as an alias. v8.0.48
 * v8.0, 2026-09-24, WebRTC: Verify the MESSAGE-INTEGRITY of STUN binding requests, so only the session's peer can switch its address. v8.0.47
 * v8.0, 2026-09-23, WebRTC: Release the TCP network when a TCP connection closes before DTLS completes, so the client can reconnect over TCP. v8.0.46
