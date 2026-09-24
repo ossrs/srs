@@ -38,6 +38,7 @@ class SrsRtcTcpNetwork;
 class SrsRtcDummyNetwork;
 class SrsRtcTcpConn;
 class ISrsRtcTcpConn;
+class ISrsContext;
 
 // The network stat.
 enum SrsRtcNetworkState {
@@ -240,7 +241,24 @@ public:
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 
-class SrsRtcTcpNetwork : public ISrsRtcNetwork
+// The WebRTC over TCP network, which a TCP connection binds to its session.
+class ISrsRtcTcpNetwork : public ISrsRtcNetwork
+{
+public:
+    ISrsRtcTcpNetwork();
+    virtual ~ISrsRtcTcpNetwork();
+
+public:
+    // The TCP connection which owns this network, only one is allowed.
+    virtual void set_owner(SrsSharedResource<ISrsRtcTcpConn> v) = 0;
+    virtual SrsSharedResource<ISrsRtcTcpConn> owner() = 0;
+    // Update the TCP socket to send packets.
+    virtual void update_sendonly_socket(ISrsProtocolReadWriter *skt) = 0;
+    // Set the address of peer.
+    virtual void set_peer_id(const std::string &ip, int port) = 0;
+};
+
+class SrsRtcTcpNetwork : public ISrsRtcTcpNetwork
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -265,9 +283,9 @@ public:
     virtual ~SrsRtcTcpNetwork();
 
 public:
-    void set_owner(SrsSharedResource<ISrsRtcTcpConn> v) { owner_ = v; }
-    SrsSharedResource<ISrsRtcTcpConn> owner() { return owner_; }
-    void update_sendonly_socket(ISrsProtocolReadWriter *skt);
+    virtual void set_owner(SrsSharedResource<ISrsRtcTcpConn> v) { owner_ = v; }
+    virtual SrsSharedResource<ISrsRtcTcpConn> owner() { return owner_; }
+    virtual void update_sendonly_socket(ISrsProtocolReadWriter *skt);
     // ISrsRtcNetwork
 public:
     // Callback when DTLS connected.
@@ -306,7 +324,7 @@ public:
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 
 public:
-    void set_peer_id(const std::string &ip, int port);
+    virtual void set_peer_id(const std::string &ip, int port);
     void dispose();
 };
 
@@ -329,6 +347,7 @@ class SrsRtcTcpConn : public ISrsRtcTcpConn
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsResourceManager *conn_manager_;
     ISrsStatistic *stat_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -363,6 +382,9 @@ public:
     SrsRtcTcpConn();
     SrsRtcTcpConn(ISrsProtocolReadWriter *skt, std::string cip, int port);
     virtual ~SrsRtcTcpConn();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.

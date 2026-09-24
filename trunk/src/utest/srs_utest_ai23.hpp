@@ -768,4 +768,40 @@ public:
     void reset();
 };
 
+// Mock ISrsRtcTcpNetwork for testing SrsRtcTcpConn::handshake
+class MockRtcTcpNetworkForTcpConn : public ISrsRtcTcpNetwork
+{
+public:
+    SrsSharedResource<ISrsRtcTcpConn> owner_;
+    int set_owner_count_;
+    ISrsProtocolReadWriter *sendonly_skt_;
+    std::string peer_ip_;
+    int peer_port_;
+    int on_stun_count_;
+
+public:
+    MockRtcTcpNetworkForTcpConn();
+    virtual ~MockRtcTcpNetworkForTcpConn();
+
+public:
+    virtual void set_owner(SrsSharedResource<ISrsRtcTcpConn> v);
+    virtual SrsSharedResource<ISrsRtcTcpConn> owner();
+    virtual void update_sendonly_socket(ISrsProtocolReadWriter *skt);
+    virtual void set_peer_id(const std::string &ip, int port);
+
+public:
+    virtual srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);
+    virtual void set_state(SrsRtcNetworkState state);
+    virtual srs_error_t on_dtls_handshake_done();
+    virtual srs_error_t on_dtls_alert(std::string type, std::string desc);
+    virtual srs_error_t on_dtls(char *data, int nb_data);
+    virtual srs_error_t protect_rtp(void *packet, int *nb_cipher);
+    virtual srs_error_t protect_rtcp(void *packet, int *nb_cipher);
+    virtual srs_error_t on_stun(SrsStunPacket *r, char *data, int nb_data);
+    virtual srs_error_t on_rtp(char *data, int nb_data);
+    virtual srs_error_t on_rtcp(char *data, int nb_data);
+    virtual bool is_establelished();
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+};
+
 #endif

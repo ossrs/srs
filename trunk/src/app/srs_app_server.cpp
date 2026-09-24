@@ -1569,7 +1569,9 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
         //      21 12 a4 42 # Message Cookie: 0x2112a442
         //      48 32 6c 61 6b 42 35 71 42 35 4a 71 # Message Transaction ID: 12 bytes
         if (nn == 10 && b[0] == 0 && b[2] == 0 && b[3] == 1 && b[1] - b[5] == 20 && b[6] == 0x21 && b[7] == 0x12 && b[8] == 0xa4 && b[9] == 0x42) {
-            resource = new SrsRtcTcpConn(io, ip, port);
+            SrsRtcTcpConn *conn = new SrsRtcTcpConn(io, ip, port);
+            conn->assemble();
+            resource = conn;
         } else {
             string key = listener == https_listener_ ? config_->get_https_stream_ssl_key() : "";
             string cert = listener == https_listener_ ? config_->get_https_stream_ssl_cert() : "";
@@ -1598,7 +1600,9 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
             string cert = listener == https_listener_ ? config_->get_https_stream_ssl_cert() : "";
             resource = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_server_, ip, port, key, cert);
         } else if (listener == webrtc_listener_) {
-            resource = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
+            SrsRtcTcpConn *conn = new SrsRtcTcpConn(new SrsTcpConnection(stfd2), ip, port);
+            conn->assemble();
+            resource = conn;
 #ifdef SRS_RTSP
         } else if (listener == rtsp_listener_) {
             SrsRtspConnection *conn = new SrsRtspConnection(conn_manager_, new SrsTcpConnection(stfd2), ip, port);

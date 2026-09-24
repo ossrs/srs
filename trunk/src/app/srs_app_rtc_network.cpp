@@ -498,6 +498,14 @@ srs_error_t SrsRtcUdpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
     return sendonly_skt_->sendto(buf, size, SRS_UTIME_NO_TIMEOUT);
 }
 
+ISrsRtcTcpNetwork::ISrsRtcTcpNetwork()
+{
+}
+
+ISrsRtcTcpNetwork::~ISrsRtcTcpNetwork()
+{
+}
+
 SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *delta)
 {
     conn_ = conn;
@@ -768,7 +776,6 @@ void SrsRtcTcpConn::setup()
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
-    cid_ = _srs_context->get_id();
 
     pkt_ = NULL;
     delta_ = NULL;
@@ -776,6 +783,7 @@ void SrsRtcTcpConn::setup()
 
     conn_manager_ = _srs_conn_manager;
     stat_ = _srs_stat;
+    context_ = _srs_context;
 }
 
 ISrsRtcTcpConn::ISrsRtcTcpConn()
@@ -799,9 +807,17 @@ SrsRtcTcpConn::SrsRtcTcpConn(ISrsProtocolReadWriter *skt, std::string cip, int p
     port_ = port;
     skt_ = skt;
     delta_ = new SrsNetworkDelta();
-    delta_->set_io(skt_, skt_);
     session_ = NULL;
     pkt_ = new char[SRS_RTC_TCP_PACKET_MAX];
+}
+
+void SrsRtcTcpConn::assemble()
+{
+    cid_ = context_->get_id();
+
+    if (delta_) {
+        delta_->set_io(skt_, skt_);
+    }
 }
 
 SrsRtcTcpConn::~SrsRtcTcpConn()
@@ -812,6 +828,7 @@ SrsRtcTcpConn::~SrsRtcTcpConn()
 
     conn_manager_ = NULL;
     stat_ = NULL;
+    context_ = NULL;
 }
 
 void SrsRtcTcpConn::setup_owner(SrsSharedResource<ISrsRtcTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid)
@@ -907,7 +924,7 @@ srs_error_t SrsRtcTcpConn::do_cycle()
     srs_error_t err = srs_success;
 
     // Update all context id to cid of session.
-    _srs_context->set_id(cid_);
+    context_->set_id(cid_);
     owner_cid_->set_cid(cid_);
 
     if ((err = handshake()) != srs_success) {
@@ -970,7 +987,7 @@ srs_error_t SrsRtcTcpConn::handshake()
               ip_.c_str(), port_, ping.get_use_candidate(), ping.get_ice_controlled(), ping.get_ice_controlling());
 
     // Should support only one TCP candidate.
-    SrsRtcTcpNetwork *network = dynamic_cast<SrsRtcTcpNetwork *>(session->tcp());
+    ISrsRtcTcpNetwork *network = dynamic_cast<ISrsRtcTcpNetwork *>(session->tcp());
     if (network->owner().get()) {
         return srs_error_new(ERROR_RTC_TCP_UNIQUE, "only support one network");
     }

@@ -24,6 +24,7 @@ using namespace std;
 #include <srs_protocol_rtc_stun.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_protocol_sdp.hpp>
+#include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -3659,6 +3660,7 @@ VOID TEST(RtcTcpConnTest, SetupOwnerAndBasicMethods)
     std::string test_ip = "192.168.1.100";
     int test_port = 8080;
     SrsUniquePtr<SrsRtcTcpConn> tcp_conn(new SrsRtcTcpConn(NULL, test_ip, test_port));
+    tcp_conn->assemble();
 
     // Test 1: setup_owner - set wrapper, owner_coroutine, and owner_cid
     SrsSharedResource<ISrsRtcTcpConn> *mock_wrapper = NULL;
@@ -4042,6 +4044,7 @@ VOID TEST(RtcTcpConnTest, HandshakeWithStunBindingRequest)
     std::string test_ip = "192.168.1.100";
     int test_port = 8080;
     SrsRtcTcpConn *tcp_conn = new SrsRtcTcpConn(mock_io.get(), test_ip, test_port);
+    tcp_conn->assemble();
 
     // Create wrapper for shared resource
     SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper(new SrsSharedResource<ISrsRtcTcpConn>(tcp_conn));
@@ -4109,7 +4112,9 @@ VOID TEST(ReproduceIssue4642, RejectSecondTcpConnForSameRtcSession)
     io_b->set_read_data(read_data);
 
     SrsRtcTcpConn *raw_a = new SrsRtcTcpConn(io_a.get(), "192.168.1.10", 10000);
+    raw_a->assemble();
     SrsRtcTcpConn *raw_b = new SrsRtcTcpConn(io_b.get(), "192.168.1.11", 10001);
+    raw_b->assemble();
     SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_a(new SrsSharedResource<ISrsRtcTcpConn>(raw_a));
     SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_b(new SrsSharedResource<ISrsRtcTcpConn>(raw_b));
 
@@ -4170,6 +4175,7 @@ VOID TEST(RtcTcpConnTest, ReadPacketSuccess)
     std::string test_ip = "192.168.1.100";
     int test_port = 8000;
     SrsRtcTcpConn *tcp_conn = new SrsRtcTcpConn(mock_io.get(), test_ip, test_port);
+    tcp_conn->assemble();
 
     // Prepare buffer for reading packet
     char pkt[1500];
@@ -4215,6 +4221,7 @@ VOID TEST(RtcTcpConnTest, OnTcpPktRouting)
     std::string test_ip = "192.168.1.100";
     int test_port = 8000;
     SrsRtcTcpConn *tcp_conn = new SrsRtcTcpConn(mock_io.get(), test_ip, test_port);
+    tcp_conn->assemble();
 
     // Inject mock session
     tcp_conn->session_ = mock_session.get();
@@ -4284,4 +4291,261 @@ VOID TEST(RtcTcpConnTest, OnTcpPktRouting)
     tcp_conn->skt_ = NULL;
     tcp_conn->session_ = NULL;
     mock_session->tcp_network_ = NULL;
+}
+
+// The WebRTC over TCP connection is created for every TCP client, so a test has to be able to
+// replace its context and socket before anything uses them. Construction must therefore take no
+// context id and wire no bandwidth counter.
+VOID TEST(RtcTcpConnTest, ConstructionReachesNoCollaborator)
+{
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    SrsUniquePtr<SrsRtcTcpConn> conn(new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000));
+
+    // GOAL: construction only captures the process context, and uses it later.
+    EXPECT_TRUE(_srs_context == conn->context_);
+    EXPECT_TRUE(conn->cid_.empty());
+
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(NULL == delta->in_);
+    EXPECT_TRUE(NULL == delta->out_);
+
+    // The mock socket is owned by the test.
+    conn->skt_ = NULL;
+}
+
+VOID TEST(RtcTcpConnTest, AssembleWiresInjectedContextAndSocket)
+{
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    SrsUniquePtr<SrsRtcTcpConn> conn(new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000));
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("rtc-tcp-cid");
+    conn->context_ = &context;
+
+    // Replace the socket before assemble(), so the counters must measure the replacement.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io2(new MockProtocolReadWriterForTcpNetwork());
+    conn->skt_ = io2.get();
+    conn->assemble();
+
+    // GOAL: the connection takes the id of the injected context, without generating or switching one.
+    EXPECT_STREQ("rtc-tcp-cid", conn->get_id().c_str());
+    EXPECT_EQ(0, context.generate_id_count_);
+    EXPECT_EQ(0, context.set_id_count_);
+
+    // GOAL: the bandwidth counters measure the socket present at assemble().
+    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
+    EXPECT_TRUE(io2.get() == delta->in_);
+    EXPECT_TRUE(io2.get() == delta->out_);
+
+    conn->skt_ = NULL;
+    conn->context_ = NULL;
+}
+
+VOID TEST(RtcTcpConnTest, DoCycleSwitchesInjectedContext)
+{
+    srs_error_t err;
+
+    // No data to read, so the handshake fails right after the context switch.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    SrsUniquePtr<SrsRtcTcpConn> conn(new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000));
+
+    MockContextForRtmpConn context;
+    context.id_ = SrsContextId().set_value("rtc-tcp-cid");
+    conn->context_ = &context;
+    conn->assemble();
+
+    MockInterruptableForRtcTcpConn coroutine;
+    MockContextIdSetterForRtcTcpConn cid_setter;
+    conn->setup_owner(NULL, &coroutine, &cid_setter);
+
+    // Assemble took the id, so change the mock to observe what do_cycle() switches to.
+    context.id_ = SrsContextId().set_value("other-cid");
+
+    HELPER_EXPECT_FAILED(conn->do_cycle());
+
+    // GOAL: the connection switches the injected context, not the process one, to its own id.
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ("rtc-tcp-cid", context.id_.c_str());
+    EXPECT_TRUE(cid_setter.set_cid_called_);
+    EXPECT_STREQ("rtc-tcp-cid", cid_setter.received_cid_.c_str());
+
+    conn->skt_ = NULL;
+    conn->context_ = NULL;
+}
+
+MockRtcTcpNetworkForTcpConn::MockRtcTcpNetworkForTcpConn()
+{
+    set_owner_count_ = 0;
+    sendonly_skt_ = NULL;
+    peer_port_ = 0;
+    on_stun_count_ = 0;
+}
+
+MockRtcTcpNetworkForTcpConn::~MockRtcTcpNetworkForTcpConn()
+{
+}
+
+void MockRtcTcpNetworkForTcpConn::set_owner(SrsSharedResource<ISrsRtcTcpConn> v)
+{
+    set_owner_count_++;
+    owner_ = v;
+}
+
+SrsSharedResource<ISrsRtcTcpConn> MockRtcTcpNetworkForTcpConn::owner()
+{
+    return owner_;
+}
+
+void MockRtcTcpNetworkForTcpConn::update_sendonly_socket(ISrsProtocolReadWriter *skt)
+{
+    sendonly_skt_ = skt;
+}
+
+void MockRtcTcpNetworkForTcpConn::set_peer_id(const std::string &ip, int port)
+{
+    peer_ip_ = ip;
+    peer_port_ = port;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
+{
+    return srs_success;
+}
+
+void MockRtcTcpNetworkForTcpConn::set_state(SrsRtcNetworkState state)
+{
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_dtls_handshake_done()
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_dtls_alert(std::string type, std::string desc)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_dtls(char *data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::protect_rtp(void *packet, int *nb_cipher)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::protect_rtcp(void *packet, int *nb_cipher)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_stun(SrsStunPacket *r, char *data, int nb_data)
+{
+    on_stun_count_++;
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_rtp(char *data, int nb_data)
+{
+    return srs_success;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::on_rtcp(char *data, int nb_data)
+{
+    return srs_success;
+}
+
+bool MockRtcTcpNetworkForTcpConn::is_establelished()
+{
+    return false;
+}
+
+srs_error_t MockRtcTcpNetworkForTcpConn::write(void *buf, size_t size, ssize_t *nwrite)
+{
+    return srs_success;
+}
+
+// The handshake binds the TCP connection to the session's TCP network, so a test must be able to
+// replace that network to observe the binding.
+VOID TEST(RtcTcpConnTest, HandshakeBindsInjectedTcpNetwork)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    io->set_read_data(build_rtc_tcp_stun_binding_request("test:session"));
+
+    MockRtcTcpNetworkForTcpConn network;
+    MockRtcConnectionForTcpConnHandshake session;
+    session.tcp_network_ = &network;
+    MockResourceManagerForTcpConnHandshake conn_manager;
+    conn_manager.session_to_return_ = &session;
+
+    SrsRtcTcpConn *conn = new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000);
+    conn->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper(new SrsSharedResource<ISrsRtcTcpConn>(conn));
+    conn->conn_manager_ = &conn_manager;
+    conn->wrapper_ = wrapper.get();
+
+    HELPER_EXPECT_SUCCESS(conn->handshake());
+
+    // GOAL: the connection owns the injected network, which sends to its socket and handles the STUN.
+    EXPECT_EQ(1, network.set_owner_count_);
+    EXPECT_TRUE(conn == network.owner().get());
+    EXPECT_TRUE(io.get() == network.sendonly_skt_);
+    EXPECT_STREQ("192.168.1.100", network.peer_ip_.c_str());
+    EXPECT_EQ(8000, network.peer_port_);
+    EXPECT_EQ(1, network.on_stun_count_);
+    EXPECT_TRUE(&session == conn->session_);
+
+    conn->skt_ = NULL;
+    conn->conn_manager_ = NULL;
+    conn->wrapper_ = NULL;
+    session.tcp_network_ = NULL;
+    conn_manager.session_to_return_ = NULL;
+    network.owner_ = SrsSharedResource<ISrsRtcTcpConn>();
+}
+
+VOID TEST(RtcTcpConnTest, HandshakeRejectsInjectedTcpNetworkAlreadyOwned)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io(new MockProtocolReadWriterForTcpNetwork());
+    io->set_read_data(build_rtc_tcp_stun_binding_request("test:session"));
+
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> other_io(new MockProtocolReadWriterForTcpNetwork());
+    SrsRtcTcpConn *other = new SrsRtcTcpConn(other_io.get(), "192.168.1.10", 10000);
+    other->assemble();
+    other->skt_ = NULL;
+
+    MockRtcTcpNetworkForTcpConn network;
+    network.owner_ = SrsSharedResource<ISrsRtcTcpConn>(other);
+    MockRtcConnectionForTcpConnHandshake session;
+    session.tcp_network_ = &network;
+    MockResourceManagerForTcpConnHandshake conn_manager;
+    conn_manager.session_to_return_ = &session;
+
+    SrsRtcTcpConn *conn = new SrsRtcTcpConn(io.get(), "192.168.1.100", 8000);
+    conn->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper(new SrsSharedResource<ISrsRtcTcpConn>(conn));
+    conn->conn_manager_ = &conn_manager;
+    conn->wrapper_ = wrapper.get();
+
+    // GOAL: a network that already has an owner rejects a second TCP connection, and keeps its owner.
+    err = conn->handshake();
+    EXPECT_EQ(ERROR_RTC_TCP_UNIQUE, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(0, network.set_owner_count_);
+    EXPECT_TRUE(other == network.owner().get());
+    EXPECT_TRUE(NULL == network.sendonly_skt_);
+    EXPECT_EQ(0, network.on_stun_count_);
+    EXPECT_TRUE(NULL == conn->session_);
+
+    conn->skt_ = NULL;
+    conn->conn_manager_ = NULL;
+    conn->wrapper_ = NULL;
+    session.tcp_network_ = NULL;
+    conn_manager.session_to_return_ = NULL;
 }
