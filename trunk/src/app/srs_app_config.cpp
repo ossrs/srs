@@ -1380,6 +1380,55 @@ srs_error_t SrsConfDirective::read_token(SrsConfigBuffer *buffer, vector<string>
     return err;
 }
 
+ISrsReloadStatus::ISrsReloadStatus()
+{
+}
+
+ISrsReloadStatus::~ISrsReloadStatus()
+{
+}
+
+SrsReloadStatus::SrsReloadStatus()
+{
+    state_ = SrsReloadStateInit;
+    err_ = srs_success;
+}
+
+SrsReloadStatus::~SrsReloadStatus()
+{
+    srs_freep(err_);
+}
+
+void SrsReloadStatus::reset()
+{
+    state_ = SrsReloadStateInit;
+    srs_freep(err_);
+    SrsRand rand;
+    id_ = rand.gen_str(7);
+}
+
+void SrsReloadStatus::update(SrsReloadState state, srs_error_t err)
+{
+    state_ = state;
+    srs_freep(err_);
+    err_ = srs_error_copy(err);
+}
+
+SrsReloadState SrsReloadStatus::state()
+{
+    return state_;
+}
+
+srs_error_t SrsReloadStatus::error()
+{
+    return err_;
+}
+
+std::string SrsReloadStatus::id()
+{
+    return id_;
+}
+
 ISrsAppConfig::ISrsAppConfig()
 {
 }

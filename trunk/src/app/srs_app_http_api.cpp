@@ -918,6 +918,7 @@ SrsGoApiRaw::SrsGoApiRaw(ISrsSignalHandler *handler)
 
     stat_ = _srs_stat;
     config_ = _srs_config;
+    reload_status_ = _srs_reload_status;
 }
 
 void SrsGoApiRaw::assemble()
@@ -936,11 +937,8 @@ SrsGoApiRaw::~SrsGoApiRaw()
 
     stat_ = NULL;
     config_ = NULL;
+    reload_status_ = NULL;
 }
-
-extern srs_error_t _srs_reload_err;
-extern SrsReloadState _srs_reload_state;
-extern std::string _srs_reload_id;
 
 srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
@@ -988,10 +986,10 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         SrsJsonObject *data = SrsJsonAny::object();
         obj->set("data", data);
 
-        data->set("err", SrsJsonAny::integer(srs_error_code(_srs_reload_err)));
-        data->set("msg", SrsJsonAny::str(srs_error_summary(_srs_reload_err).c_str()));
-        data->set("state", SrsJsonAny::integer(_srs_reload_state));
-        data->set("rid", SrsJsonAny::str(_srs_reload_id.c_str()));
+        data->set("err", SrsJsonAny::integer(srs_error_code(reload_status_->error())));
+        data->set("msg", SrsJsonAny::str(srs_error_summary(reload_status_->error()).c_str()));
+        data->set("state", SrsJsonAny::integer(reload_status_->state()));
+        data->set("rid", SrsJsonAny::str(reload_status_->id().c_str()));
 
         return srs_api_response(w, r, obj->dumps());
     }

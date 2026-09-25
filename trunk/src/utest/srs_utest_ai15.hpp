@@ -131,6 +131,35 @@ public:
     void reset();
 };
 
+// Mock ISrsReloadStatus for testing SrsServer::do2_cycle() and SrsGoApiRaw::serve_http()
+class MockReloadStatusForServer : public ISrsReloadStatus
+{
+public:
+    // When set, each call records how many reloads the config had done by then.
+    MockAppConfigForDo2Cycle *config_;
+    int reset_count_;
+    int reload_count_at_reset_;
+    int update_count_;
+    int reload_count_at_update_;
+    SrsReloadState update_state_;
+    int update_error_code_;
+    // What the getters answer.
+    SrsReloadState state_;
+    srs_error_t err_;
+    std::string id_;
+
+public:
+    MockReloadStatusForServer();
+    virtual ~MockReloadStatusForServer();
+
+public:
+    virtual void reset();
+    virtual void update(SrsReloadState state, srs_error_t err);
+    virtual SrsReloadState state();
+    virtual srs_error_t error();
+    virtual std::string id();
+};
+
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()
 class MockHourGlassForSetupTicks : public ISrsHourGlass
 {

@@ -30,11 +30,6 @@ extern srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter *w, string call
 extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, int code);
 extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, srs_error_t code);
 
-// External global variables for reload state
-extern srs_error_t _srs_reload_err;
-extern SrsReloadState _srs_reload_state;
-extern std::string _srs_reload_id;
-
 VOID TEST(KernelBalanceTest, RoundRobinBasicSelection)
 {
     // Test the major use scenario: round-robin selection across multiple servers
@@ -3461,6 +3456,51 @@ VOID TEST(HttpApiTest, GoApiRawServeHttp)
     }
 
     // Unsubscribe before cleanup to avoid double unsubscribe in destructor
+    mock_config.unsubscribe(api.get());
+}
+
+VOID TEST(HttpApiTest, GoApiRawConstructionCapturesReloadStatus)
+{
+    // The RAW API reads the same process-wide reload status the server writes.
+    MockSignalHandler mock_handler;
+    SrsUniquePtr<SrsGoApiRaw> api(new SrsGoApiRaw(&mock_handler));
+
+    EXPECT_TRUE(_srs_reload_status != NULL);
+    EXPECT_TRUE(api->reload_status_ == _srs_reload_status);
+}
+
+VOID TEST(HttpApiTest, GoApiRawReloadFetchAnswersFromInjectedStatus)
+{
+    srs_error_t err;
+
+    MockSignalHandler mock_handler;
+    MockAppConfigForRawApi mock_config;
+    mock_config.raw_api_ = true;
+
+    MockReloadStatusForServer status;
+    status.state_ = SrsReloadStateApplying;
+    status.err_ = srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "mock apply");
+    status.id_ = "abc1234";
+
+    SrsUniquePtr<SrsGoApiRaw> api(new SrsGoApiRaw(&mock_handler));
+    api->config_ = &mock_config;
+    api->reload_status_ = &status;
+    api->assemble();
+
+    MockResponseWriter w;
+    SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+    r->query_params_["rpc"] = "reload-fetch";
+    HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+    // Every field of the answer comes from the injected status.
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+    string msg = srs_error_summary(status.err_);
+    EXPECT_TRUE(response.find("\"err\":1023") != string::npos) << response;
+    EXPECT_TRUE(response.find("\"msg\":\"" + msg + "\"") != string::npos) << response;
+    EXPECT_TRUE(response.find("\"state\":30") != string::npos) << response;
+    EXPECT_TRUE(response.find("\"rid\":\"abc1234\"") != string::npos) << response;
+
+    api->reload_status_ = NULL;
     mock_config.unsubscribe(api.get());
 }
 

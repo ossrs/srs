@@ -529,6 +529,135 @@ VOID TEST(ServerTest, Do2CycleReloadSuccess)
     srs_freep(mock_config);
 }
 
+MockReloadStatusForServer::MockReloadStatusForServer()
+{
+    config_ = NULL;
+    reset_count_ = 0;
+    reload_count_at_reset_ = -1;
+    update_count_ = 0;
+    reload_count_at_update_ = -1;
+    update_state_ = SrsReloadStateInit;
+    update_error_code_ = -1;
+    state_ = SrsReloadStateInit;
+    err_ = srs_success;
+}
+
+MockReloadStatusForServer::~MockReloadStatusForServer()
+{
+    srs_freep(err_);
+}
+
+void MockReloadStatusForServer::reset()
+{
+    reset_count_++;
+    reload_count_at_reset_ = config_ ? config_->reload_count_ : -1;
+}
+
+void MockReloadStatusForServer::update(SrsReloadState state, srs_error_t err)
+{
+    // Borrow the error like the real status, which keeps a copy.
+    update_count_++;
+    reload_count_at_update_ = config_ ? config_->reload_count_ : -1;
+    update_state_ = state;
+    update_error_code_ = srs_error_code(err);
+}
+
+SrsReloadState MockReloadStatusForServer::state()
+{
+    return state_;
+}
+
+srs_error_t MockReloadStatusForServer::error()
+{
+    return err_;
+}
+
+std::string MockReloadStatusForServer::id()
+{
+    return id_;
+}
+
+VOID TEST(ReloadStatusTest, UpdateKeepsCopyAndResetStartsNewReload)
+{
+    SrsReloadStatus status;
+
+    // The status keeps its own copy, so the caller still frees the error it passed.
+    srs_error_t err = srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "mock reload");
+    status.update(SrsReloadStateApplying, err);
+    srs_freep(err);
+
+    EXPECT_EQ(SrsReloadStateApplying, status.state());
+    EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, srs_error_code(status.error()));
+
+    // A new reload goes back to init, clears the error, and gets a new 7-character id.
+    status.reset();
+    EXPECT_EQ(SrsReloadStateInit, status.state());
+    EXPECT_TRUE(status.error() == srs_success);
+    EXPECT_EQ(7, (int)status.id().length());
+
+    std::string first_id = status.id();
+    status.reset();
+    EXPECT_EQ(7, (int)status.id().length());
+    EXPECT_STRNE(first_id.c_str(), status.id().c_str());
+}
+
+VOID TEST(ServerTest, ConstructionCapturesReloadStatus)
+{
+    // The process-wide reload status exists once the globals are initialized, and the server writes to it.
+    EXPECT_TRUE(_srs_reload_status != NULL);
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    EXPECT_TRUE(server->reload_status_ == _srs_reload_status);
+}
+
+VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    MockAppConfigForDo2Cycle *mock_config = new MockAppConfigForDo2Cycle();
+    ISrsAppConfig *original_config = server->config_;
+    server->config_ = mock_config;
+
+    MockReloadStatusForServer status;
+    status.config_ = mock_config;
+    server->reload_status_ = &status;
+
+    server->signal_fast_quit_ = false;
+    server->signal_gracefully_quit_ = false;
+
+    // A reload that fails while parsing is tolerated, and its state and error are recorded.
+    server->signal_reload_ = true;
+    mock_config->reload_state_ = SrsReloadStateParsing;
+    mock_config->reload_error_ = srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "mock parse");
+    HELPER_EXPECT_SUCCESS(server->do2_cycle());
+
+    EXPECT_EQ(1, status.reset_count_);
+    EXPECT_EQ(0, status.reload_count_at_reset_);
+    EXPECT_EQ(1, status.update_count_);
+    EXPECT_EQ(1, status.reload_count_at_update_);
+    EXPECT_EQ(SrsReloadStateParsing, status.update_state_);
+    EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, status.update_error_code_);
+
+    // A successful reload starts over and records the finished state with no error.
+    server->signal_reload_ = true;
+    mock_config->reset();
+    mock_config->reload_state_ = SrsReloadStateFinished;
+    HELPER_EXPECT_SUCCESS(server->do2_cycle());
+
+    EXPECT_EQ(2, status.reset_count_);
+    EXPECT_EQ(0, status.reload_count_at_reset_);
+    EXPECT_EQ(2, status.update_count_);
+    EXPECT_EQ(1, status.reload_count_at_update_);
+    EXPECT_EQ(SrsReloadStateFinished, status.update_state_);
+    EXPECT_EQ(ERROR_SUCCESS, status.update_error_code_);
+
+    server->reload_status_ = NULL;
+    server->config_ = original_config;
+    srs_freep(mock_config);
+}
+
 // Mock hourglass implementation for SrsServer::setup_ticks() testing
 MockHourGlassForSetupTicks::MockHourGlassForSetupTicks()
 {

@@ -68,11 +68,9 @@ SrsServer *_srs_server = NULL;
 
 SrsAsyncCallWorker *_srs_dvr_async = NULL;
 
-extern SrsStageManager *_srs_stages;
+SrsReloadStatus *_srs_reload_status = NULL;
 
-extern srs_error_t _srs_reload_err;
-extern SrsReloadState _srs_reload_state;
-extern std::string _srs_reload_id;
+extern SrsStageManager *_srs_stages;
 
 // External WebRTC global variables
 extern SrsRtcBlackhole *_srs_blackhole;
@@ -131,10 +129,8 @@ srs_error_t srs_global_initialize()
     // Create global async worker for DVR.
     _srs_dvr_async = new SrsAsyncCallWorker();
 
-    _srs_reload_err = srs_success;
-    _srs_reload_state = SrsReloadStateInit;
-    SrsRand rand;
-    _srs_reload_id = rand.gen_str(7);
+    _srs_reload_status = new SrsReloadStatus();
+    _srs_reload_status->reset();
 
     // Global initialization done
     _srs_global_initialized = true;
@@ -228,6 +224,7 @@ SrsServer::SrsServer()
     log_ = _srs_log;
     stat_ = _srs_stat;
     app_factory_ = _srs_app_factory;
+    reload_status_ = _srs_reload_status;
 }
 
 SrsServer::~SrsServer()
@@ -296,6 +293,7 @@ SrsServer::~SrsServer()
     log_ = NULL;
     stat_ = NULL;
     app_factory_ = NULL;
+    reload_status_ = NULL;
 }
 
 void SrsServer::dispose()
@@ -994,10 +992,6 @@ void SrsServer::on_signal(int signo)
     }
 }
 
-srs_error_t _srs_reload_err;
-SrsReloadState _srs_reload_state;
-std::string _srs_reload_id;
-
 srs_error_t SrsServer::do2_cycle()
 {
     srs_error_t err = srs_success;
@@ -1037,13 +1031,9 @@ srs_error_t SrsServer::do2_cycle()
         srs_trace("starting reload config.");
 
         SrsReloadState state = SrsReloadStateInit;
-        _srs_reload_state = SrsReloadStateInit;
-        srs_freep(_srs_reload_err);
-        SrsRand rand;
-        _srs_reload_id = rand.gen_str(7);
+        reload_status_->reset();
         err = config_->reload(&state);
-        _srs_reload_state = state;
-        _srs_reload_err = srs_error_copy(err);
+        reload_status_->update(state, err);
         if (err != srs_success) {
             // If the parsing and transformation of the configuration fail, we can tolerate it by simply
             // ignoring the new configuration and continuing to use the current one. However, if the

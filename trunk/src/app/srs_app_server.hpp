@@ -71,9 +71,14 @@ class ISrsHourGlass;
 class ISrsAppFactory;
 class ISrsUdpMuxSocket;
 class ISrsRtcConnection;
+class ISrsReloadStatus;
+class SrsReloadStatus;
 
 // Initialize global shared variables cross all threads.
 extern srs_error_t srs_global_initialize();
+
+// The status of the latest config reload.
+extern SrsReloadStatus *_srs_reload_status;
 
 // The signal handler interface.
 class ISrsSignalHandler
@@ -140,6 +145,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsLog *log_;
     ISrsStatistic *stat_;
     ISrsAppFactory *app_factory_;
+    ISrsReloadStatus *reload_status_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
