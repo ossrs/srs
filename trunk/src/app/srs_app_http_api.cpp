@@ -923,11 +923,6 @@ SrsGoApiRaw::SrsGoApiRaw(ISrsSignalHandler *handler)
 
 void SrsGoApiRaw::assemble()
 {
-    raw_api_ = config_->get_raw_api();
-    allow_reload_ = config_->get_raw_api_allow_reload();
-    allow_query_ = config_->get_raw_api_allow_query();
-    allow_update_ = config_->get_raw_api_allow_update();
-
     config_->subscribe(this);
 }
 
@@ -962,8 +957,8 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         return srs_api_response(w, r, obj->dumps());
     }
 
-    // whether enabled the HTTP RAW API.
-    if (!raw_api_) {
+    // whether enabled the HTTP RAW API, read per request so a reload takes effect.
+    if (!config_->get_raw_api()) {
         return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_DISABLED);
     }
 
@@ -976,7 +971,7 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
 
     // for rpc=reload, trigger the server to reload the config.
     if (rpc == "reload") {
-        if (!allow_reload_) {
+        if (!config_->get_raw_api_allow_reload()) {
             return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW_DISABLED);
         }
 

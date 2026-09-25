@@ -12,6 +12,9 @@
 #     verifies each failure state, that the old config is kept, and that the
 #     server and the stream survive;
 #   - recovers with a valid file;
+#   - reloads a file that turns allow_reload off, and verifies rpc=reload is
+#     then refused, until SIGHUP reloads a file that turns it back on, and
+#     the same for raw_api.enabled and rpc=reload-fetch;
 #   - reloads an SRS started with -e, which has no file to re-read.
 # Every reload is awaited by polling rpc=reload-fetch until its id changes,
 # because the RAW API only signals the server, which reloads in its next cycle.
@@ -101,7 +104,8 @@ probe_has_audio_video() {
 # Write the config file. $1 is http_api.crossdomain, which rpc=raw reports from
 # the live config, so a changed value proves a reload applied the new file.
 # $2 is the vhost chunk_size, whose change is notified to the subscribers.
-# $3 is appended verbatim, to break the file on purpose.
+# $3 is appended verbatim, to break the file on purpose. $4 is
+# raw_api.allow_reload and $5 raw_api.enabled, both on by default.
 write_conf() {
   cat >"$SRS_CONF" <<CONF
 listen $RTMP_PORT;
@@ -116,8 +120,8 @@ http_api {
   listen $HTTP_API_PORT;
   crossdomain $1;
   raw_api {
-    enabled on;
-    allow_reload on;
+    enabled ${5:-on};
+    allow_reload ${4:-on};
   }
 }
 
@@ -383,15 +387,90 @@ expect_crossdomain "recovery" false
 expect_publisher_kept "recovery"
 probe_has_audio_video "RTMP after recovery" "rtmp://127.0.0.1:$RTMP_PORT/$STREAM_URL"
 
+# --- Step 10: A file that turns allow_reload off ---
+echo "=== Step 10: Reload a file that turns allow_reload off ==="
+OLD_RID=$(fetch_field rid)
+write_conf off 60000 "" off
+curl -fsS "$RAW?rpc=reload" >/dev/null
+STATUS=$(wait_reload "$OLD_RID")
+expect_status "$STATUS" "allow_reload off" 90 0
+if [[ "$(curl -fsS "$RAW?rpc=raw" | jq -r .http_api.raw_api.allow_reload)" == "false" ]]; then
+  echo "PASS: allow_reload off: rpc=raw reports allow_reload=false."
+else
+  fail "allow_reload off: rpc=raw does not report allow_reload=false."
+fi
+# The running config now forbids rpc=reload: it is refused with
+# ERROR_SYSTEM_CONFIG_RAW_DISABLED (1061), and no reload follows.
+OLD_RID=$(fetch_field rid)
+RESPONSE=$(curl -fsS "$RAW?rpc=reload")
+if [[ "$(echo "$RESPONSE" | jq -r .code)" == "1061" ]]; then
+  echo "PASS: allow_reload off: rpc=reload refused with 1061."
+else
+  fail "allow_reload off: rpc=reload answered $RESPONSE, want code 1061."
+fi
+sleep 3
+if [[ "$(fetch_field rid)" == "$OLD_RID" ]]; then
+  echo "PASS: allow_reload off: no reload happened."
+else
+  fail "allow_reload off: a reload happened; rid changed from $OLD_RID."
+fi
+# SIGHUP still reloads, and a file that turns allow_reload on restores rpc=reload.
+write_conf off 60000 "" on
+kill -HUP "$SRS_PID"
+STATUS=$(wait_reload "$OLD_RID")
+expect_status "$STATUS" "allow_reload on by SIGHUP" 90 0
+OLD_RID=$(fetch_field rid)
+RESPONSE=$(curl -fsS "$RAW?rpc=reload")
+[[ "$(echo "$RESPONSE" | jq -r .code)" == "0" ]] || fail "allow_reload on: rpc=reload answered $RESPONSE."
+STATUS=$(wait_reload "$OLD_RID")
+expect_status "$STATUS" "allow_reload on: rpc=reload" 90 0
+expect_publisher_kept "allow_reload toggled"
+
+# A file that turns raw_api off: rpc=reload-fetch is then refused with 1061.
+# The reload is awaited through rpc=raw, which is served even when it is off.
+OLD_RID=$(fetch_field rid)
+write_conf off 60000 "" on off
+curl -fsS "$RAW?rpc=reload" >/dev/null
+for ((i = 1; i <= 20; i++)); do
+  if [[ "$(curl -fsS "$RAW?rpc=raw" | jq -r .http_api.raw_api.enabled)" == "false" ]]; then
+    break
+  fi
+  sleep 0.5
+done
+[[ "$(curl -fsS "$RAW?rpc=raw" | jq -r .http_api.raw_api.enabled)" == "false" ]] ||
+  fail "raw_api off: rpc=raw does not report raw_api.enabled=false in 10s."
+RESPONSE=$(curl -fsS "$RAW?rpc=reload-fetch")
+if [[ "$(echo "$RESPONSE" | jq -r .code)" == "1061" ]]; then
+  echo "PASS: raw_api off: rpc=reload-fetch refused with 1061."
+else
+  fail "raw_api off: rpc=reload-fetch answered $RESPONSE, want code 1061."
+fi
+# SIGHUP reloads a file that turns it back on, and rpc=reload-fetch answers again.
+write_conf off 60000 "" on on
+kill -HUP "$SRS_PID"
+STATUS=""
+for ((i = 1; i <= 20; i++)); do
+  RESPONSE=$(curl -fsS "$RAW?rpc=reload-fetch")
+  if [[ "$(echo "$RESPONSE" | jq -r .code)" == "0" ]]; then
+    STATUS="$RESPONSE"
+    break
+  fi
+  sleep 0.5
+done
+[[ -n "$STATUS" ]] || fail "raw_api on by SIGHUP: rpc=reload-fetch still refused after 10s."
+expect_status "$STATUS" "raw_api on by SIGHUP" 90 0
+[[ "$(echo "$STATUS" | jq -r .data.rid)" != "$OLD_RID" ]] || fail "raw_api on by SIGHUP: rid is still $OLD_RID."
+expect_publisher_kept "raw_api toggled"
+
 kill "$FFMPEG_PID" 2>/dev/null || true
 FFMPEG_PID=""
 stop_srs "config file" "$SRS_STDOUT"
 
-# --- Step 10: Reload an SRS started with -e ---
+# --- Step 11: Reload an SRS started with -e ---
 # With -e there is no file to re-read, so a reload fails in the parsing state
 # and the server keeps its config. This passes from the start and locks in
 # accepted behavior.
-echo "=== Step 10: Reload an SRS started with -e ==="
+echo "=== Step 11: Reload an SRS started with -e ==="
 (
   for name in $(env | sed -n 's/^\(SRS_[A-Za-z0-9_]*\)=.*/\1/p'); do
     unset "$name"

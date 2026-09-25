@@ -265,13 +265,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSignalHandler *handler_;
 
-// clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
-    bool raw_api_;
-    bool allow_reload_;
-    bool allow_query_;
-    bool allow_update_;
-
 public:
     SrsGoApiRaw(ISrsSignalHandler *handler);
     void assemble();

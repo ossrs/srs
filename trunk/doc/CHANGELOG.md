@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-09-25, API: Apply raw_api and allow_reload of a reloaded config to the RAW API, instead of the values at startup. v8.0.50
 * v8.0, 2026-09-25, WebRTC: Count each sent RTCP packet once, so the rtcp send rate in the log is no longer doubled. v8.0.49
 * <strong>v8.0, 2026-09-24, [8.0 dev0(8.0.48)](https://github.com/ossrs/srs/releases/tag/v8.0-d0) released. 328208 lines.</strong>
 * v8.0, 2026-09-24, Config: Add SRS_RTMP_LISTEN for the RTMP listen, and keep SRS_LISTEN as an alias. v8.0.48
