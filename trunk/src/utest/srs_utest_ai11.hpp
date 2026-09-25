@@ -17,6 +17,7 @@
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_dtls.hpp>
 #include <srs_app_rtc_network.hpp>
+#include <srs_app_rtc_server.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_srt_source.hpp>
@@ -221,6 +222,22 @@ public:
     void set_protect_rtcp_error(srs_error_t err);
     void set_unprotect_rtp_error(srs_error_t err);
     void set_unprotect_rtcp_error(srs_error_t err);
+};
+
+// Mock ISrsRtcBlackhole for testing which DTLS packets SrsSecurityTransport writes to the black hole.
+class MockRtcBlackholeForSecurityTransport : public ISrsRtcBlackhole
+{
+public:
+    int sendto_count_;
+    void *last_data_;
+    int last_len_;
+
+public:
+    MockRtcBlackholeForSecurityTransport();
+    virtual ~MockRtcBlackholeForSecurityTransport();
+
+public:
+    virtual void sendto(void *data, int len);
 };
 
 // Mock PLI Worker Handler for testing SrsRtcPliWorker

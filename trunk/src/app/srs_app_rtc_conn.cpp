@@ -92,12 +92,15 @@ SrsSecurityTransport::SrsSecurityTransport(ISrsRtcNetwork *s)
     srtp_ = new SrsSRTP();
 
     handshake_done_ = false;
+    blackhole_ = _srs_blackhole;
 }
 
 SrsSecurityTransport::~SrsSecurityTransport()
 {
     srs_freep(dtls_);
     srs_freep(srtp_);
+
+    blackhole_ = NULL;
 }
 
 srs_error_t SrsSecurityTransport::initialize(SrsSessionConfig *cfg)
@@ -124,9 +127,7 @@ srs_error_t SrsSecurityTransport::write_dtls_data(void *data, int size)
         return srs_error_wrap(err, "send dtls packet");
     }
 
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(data, size);
-    }
+    blackhole_->sendto(data, size);
 
     return err;
 }

@@ -75,6 +75,7 @@ class ISrsDtlsCertificate;
 class SrsRtcRecvTrack;
 class ISrsRtcPlayStream;
 class ISrsRtcFormat;
+class ISrsRtcBlackhole;
 
 const uint8_t kSR = 200;
 const uint8_t kRR = 201;
@@ -120,6 +121,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsDtls *dtls_;
     ISrsSRTP *srtp_;
     bool handshake_done_;
+    ISrsRtcBlackhole *blackhole_;
 
 public:
     SrsSecurityTransport(ISrsRtcNetwork *s);
