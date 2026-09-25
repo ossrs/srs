@@ -2716,6 +2716,129 @@ VOID TEST(SrsRtcConnectionTest, OnRtpPlaintextTypicalScenario)
     // 3. Returned success from the publisher's processing
 }
 
+MockRtcNetworksForConnection::MockRtcNetworksForConnection(ISrsRtcNetwork *available)
+{
+    available_ = available;
+}
+
+MockRtcNetworksForConnection::~MockRtcNetworksForConnection()
+{
+    available_ = NULL;
+}
+
+srs_error_t MockRtcNetworksForConnection::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
+{
+    return srs_success;
+}
+
+void MockRtcNetworksForConnection::set_state(SrsRtcNetworkState state)
+{
+}
+
+ISrsRtcNetwork *MockRtcNetworksForConnection::udp()
+{
+    return available_;
+}
+
+ISrsRtcNetwork *MockRtcNetworksForConnection::tcp()
+{
+    return available_;
+}
+
+ISrsRtcNetwork *MockRtcNetworksForConnection::available()
+{
+    return available_;
+}
+
+ISrsKbpsDelta *MockRtcNetworksForConnection::delta()
+{
+    return NULL;
+}
+
+// The connection captures the black hole at construction, so a test can replace it before any RTCP packet is sent.
+VOID TEST(SrsRtcConnectionTest, ConstructionCapturesBlackhole)
+{
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-blackhole");
+
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    EXPECT_TRUE(conn->blackhole_ != NULL);
+    EXPECT_EQ((ISrsRtcBlackhole *)_srs_blackhole, conn->blackhole_);
+}
+
+// An RTCP packet goes to the black hole with its own pointer and size, then is protected and written to the
+// available network.
+VOID TEST(SrsRtcConnectionTest, SendRtcpWritesToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-send-rtcp-blackhole");
+
+    MockRtcNetwork mock_network;
+    MockRtcNetworksForConnection mock_networks(&mock_network);
+    MockRtcBlackholeForSecurityTransport blackhole;
+
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    srs_freep(conn->networks_);
+    conn->networks_ = &mock_networks;
+    conn->blackhole_ = &blackhole;
+
+    char test_data[] = {(char)0x80, (char)0xc8, 0x00, 0x06, 0x12, 0x34, 0x56, 0x78};
+    int nb_data = sizeof(test_data);
+
+    HELPER_EXPECT_SUCCESS(conn->send_rtcp(test_data, nb_data));
+
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)test_data, blackhole.last_data_);
+    EXPECT_EQ(nb_data, blackhole.last_len_);
+    EXPECT_EQ(1, mock_network.protect_rtcp_count_);
+    EXPECT_EQ(1, mock_network.write_count_);
+
+    conn->networks_ = NULL;
+    conn->blackhole_ = NULL;
+}
+
+// The black hole receives the plaintext RTCP packet before it is protected, so it still sees a packet that the
+// network then fails to protect.
+VOID TEST(SrsRtcConnectionTest, SendRtcpWritesBlackholeBeforeProtect)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-send-rtcp-plaintext");
+
+    MockRtcNetwork mock_network;
+    MockRtcNetworksForConnection mock_networks(&mock_network);
+    MockRtcBlackholeForSecurityTransport blackhole;
+
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    srs_freep(conn->networks_);
+    conn->networks_ = &mock_networks;
+    conn->blackhole_ = &blackhole;
+
+    srs_error_t mock_error = srs_error_new(ERROR_RTC_DTLS, "mock protect rtcp error");
+    mock_network.set_protect_rtcp_error(mock_error);
+    srs_freep(mock_error);
+
+    char test_data[] = {(char)0x80, (char)0xc8, 0x00, 0x06, 0x12, 0x34, 0x56, 0x78};
+    int nb_data = sizeof(test_data);
+
+    HELPER_EXPECT_FAILED(conn->send_rtcp(test_data, nb_data));
+
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)test_data, blackhole.last_data_);
+    EXPECT_EQ(nb_data, blackhole.last_len_);
+    EXPECT_EQ(1, mock_network.protect_rtcp_count_);
+    EXPECT_EQ(0, mock_network.write_count_);
+
+    conn->networks_ = NULL;
+    conn->blackhole_ = NULL;
+}
+
 VOID TEST(SrsRtcConnectionTest, SendRtcpTypicalScenario)
 {
     srs_error_t err;

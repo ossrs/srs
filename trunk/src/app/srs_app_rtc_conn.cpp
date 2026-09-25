@@ -2247,6 +2247,7 @@ SrsRtcConnection::SrsRtcConnection(ISrsExecRtcAsyncTask *exec, const SrsContextI
     config_ = _srs_config;
     dtls_certificate_ = _srs_rtc_dtls_certificate;
     app_factory_ = _srs_app_factory;
+    blackhole_ = _srs_blackhole;
 }
 
 void SrsRtcConnection::assemble()
@@ -2299,6 +2300,7 @@ SrsRtcConnection::~SrsRtcConnection()
     config_ = NULL;
     dtls_certificate_ = NULL;
     app_factory_ = NULL;
+    blackhole_ = NULL;
 }
 
 void SrsRtcConnection::on_before_dispose(ISrsResource *c)
@@ -2859,9 +2861,7 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
 
     ++_srs_pps_srtcps->sugar_;
 
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(data, nb_data);
-    }
+    blackhole_->sendto(data, nb_data);
 
     int nb_buf = nb_data;
     if ((err = networks_->available()->protect_rtcp(data, &nb_buf)) != srs_success) {

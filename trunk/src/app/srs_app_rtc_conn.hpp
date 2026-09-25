@@ -806,6 +806,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsDtlsCertificate *dtls_certificate_;
     ISrsAppFactory *app_factory_;
+    ISrsRtcBlackhole *blackhole_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
