@@ -4851,3 +4851,155 @@ VOID TEST(RtcTcpNetworkTest, WriteWithoutSocketFails)
     char data[] = "dtls";
     HELPER_EXPECT_FAILED(network->write(data, sizeof(data), NULL));
 }
+
+// The TCP network captures the black hole at construction, so a test can replace it before any packet arrives.
+VOID TEST(RtcTcpNetworkTest, ConstructionCapturesBlackhole)
+{
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    SrsRtcTcpNetwork tcp_network(&conn, &delta);
+
+    EXPECT_TRUE(tcp_network.blackhole_ != NULL);
+    EXPECT_EQ((ISrsRtcBlackhole *)_srs_blackhole, tcp_network.blackhole_);
+}
+
+// A received RTP packet goes to the black hole after it is decrypted, with its plaintext size, and is then delivered.
+// A packet the cipher hook drops, or one that fails to decrypt, never reaches the black hole.
+VOID TEST(RtcTcpNetworkTest, OnRtpWritesPlaintextToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockRtcTransportForUdpNetwork transport;
+    MockRtcBlackholeForUdpNetwork blackhole;
+
+    SrsRtcTcpNetwork tcp_network(&conn, &delta);
+    srs_freep(tcp_network.transport_);
+    tcp_network.transport_ = &transport;
+    tcp_network.blackhole_ = &blackhole;
+
+    char data[200];
+    memset(data, 0x80, sizeof(data));
+
+    HELPER_EXPECT_SUCCESS(tcp_network.on_rtp(data, sizeof(data)));
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)data, blackhole.last_data_);
+    // The mock transport strips 10 bytes of SRTP overhead.
+    EXPECT_EQ(190, blackhole.last_len_);
+    EXPECT_TRUE(conn.on_rtp_plaintext_called_);
+
+    conn.reset();
+    transport.reset();
+    conn.rtp_cipher_dropped_ = true;
+    HELPER_EXPECT_SUCCESS(tcp_network.on_rtp(data, sizeof(data)));
+    EXPECT_FALSE(transport.unprotect_rtp_called_);
+    EXPECT_FALSE(conn.on_rtp_plaintext_called_);
+    EXPECT_EQ(1, blackhole.sendto_count_);
+
+    conn.reset();
+    transport.reset();
+    srs_error_t unprotect_err = srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "mock unprotect error");
+    transport.set_unprotect_rtp_error(unprotect_err);
+    srs_freep(unprotect_err);
+    HELPER_EXPECT_FAILED(tcp_network.on_rtp(data, sizeof(data)));
+    EXPECT_FALSE(conn.on_rtp_plaintext_called_);
+    EXPECT_EQ(1, blackhole.sendto_count_);
+
+    transport.reset();
+    tcp_network.transport_ = NULL;
+    tcp_network.blackhole_ = NULL;
+}
+
+// A received RTCP packet goes to the black hole after it is decrypted, with its plaintext size, and is then delivered.
+// A packet that fails to decrypt never reaches the black hole.
+VOID TEST(RtcTcpNetworkTest, OnRtcpWritesPlaintextToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockRtcTransportForUdpNetwork transport;
+    MockRtcBlackholeForUdpNetwork blackhole;
+
+    SrsRtcTcpNetwork tcp_network(&conn, &delta);
+    srs_freep(tcp_network.transport_);
+    tcp_network.transport_ = &transport;
+    tcp_network.blackhole_ = &blackhole;
+
+    char data[100];
+    memset(data, 0xC8, sizeof(data));
+
+    HELPER_EXPECT_SUCCESS(tcp_network.on_rtcp(data, sizeof(data)));
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)data, blackhole.last_data_);
+    // The mock transport strips 14 bytes of SRTCP overhead.
+    EXPECT_EQ(86, blackhole.last_len_);
+    EXPECT_TRUE(conn.on_rtcp_called_);
+
+    conn.reset();
+    transport.reset();
+    srs_error_t unprotect_err = srs_error_new(ERROR_RTC_SRTP_UNPROTECT, "mock unprotect error");
+    transport.set_unprotect_rtcp_error(unprotect_err);
+    srs_freep(unprotect_err);
+    HELPER_EXPECT_FAILED(tcp_network.on_rtcp(data, sizeof(data)));
+    EXPECT_FALSE(conn.on_rtcp_called_);
+    EXPECT_EQ(1, blackhole.sendto_count_);
+
+    transport.reset();
+    tcp_network.transport_ = NULL;
+    tcp_network.blackhole_ = NULL;
+}
+
+// Every received STUN packet goes to the black hole as it arrived, and the binding response goes there too, but only
+// after it was sent to the peer.
+VOID TEST(RtcTcpNetworkTest, OnStunWritesStunAndResponseToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockProtocolReadWriterForTcpNetwork io;
+    MockRtcBlackholeForUdpNetwork blackhole;
+
+    SrsRtcTcpNetwork tcp_network(&conn, &delta);
+    tcp_network.update_sendonly_socket(&io);
+    tcp_network.set_peer_id("192.168.1.100", 5000);
+    tcp_network.blackhole_ = &blackhole;
+
+    char data[100];
+    memset(data, 0, sizeof(data));
+
+    // Not a binding request, so only the packet itself.
+    SrsStunPacket response;
+    response.set_message_type(BindingResponse);
+    HELPER_EXPECT_SUCCESS(tcp_network.on_stun(&response, data, sizeof(data)));
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)data, blackhole.last_data_);
+    EXPECT_EQ(100, blackhole.last_len_);
+    EXPECT_TRUE(io.written_data_.empty());
+
+    // A binding request, then the response that was sent for it, without the 2-byte length prefix.
+    SrsStunPacket request;
+    request.set_message_type(BindingRequest);
+    request.set_local_ufrag("local_user");
+    request.set_remote_ufrag("remote_user");
+    request.set_transcation_id("transaction123");
+    HELPER_EXPECT_SUCCESS(tcp_network.on_stun(&request, data, sizeof(data)));
+    EXPECT_EQ(2, (int)io.written_data_.size());
+    EXPECT_EQ(3, blackhole.sendto_count_);
+    EXPECT_EQ((int)io.written_data_[1].size(), blackhole.last_len_);
+
+    // The response fails to send, so only the request.
+    io.reset();
+    srs_error_t write_err = srs_error_new(ERROR_SOCKET_WRITE, "mock write error");
+    io.set_write_error(write_err);
+    srs_freep(write_err);
+    HELPER_EXPECT_FAILED(tcp_network.on_stun(&request, data, sizeof(data)));
+    EXPECT_EQ(4, blackhole.sendto_count_);
+    EXPECT_EQ((void *)data, blackhole.last_data_);
+    EXPECT_EQ(100, blackhole.last_len_);
+
+    tcp_network.sendonly_skt_ = NULL;
+    tcp_network.blackhole_ = NULL;
+}

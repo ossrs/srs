@@ -624,7 +624,8 @@ public:
     void set_unprotect_rtcp_error(srs_error_t err);
 };
 
-// Mock ISrsRtcBlackhole for testing which plaintext packets SrsRtcUdpNetwork writes to the black hole.
+// Mock ISrsRtcBlackhole for testing which plaintext packets SrsRtcUdpNetwork and SrsRtcTcpNetwork write to the black
+// hole.
 class MockRtcBlackholeForUdpNetwork : public ISrsRtcBlackhole
 {
 public:
