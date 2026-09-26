@@ -703,7 +703,10 @@ srs_error_t SrsServer::listen()
 
     // Create exporter server listener.
     if (config_->get_exporter_enabled()) {
-        exporter_listener_->set_endpoint(config_->get_exporter_listen());
+        string exporter_ip;
+        int exporter_port = 0;
+        srs_net_split_for_listener(config_->get_exporter_listen(), exporter_ip, exporter_port);
+        exporter_listener_->set_endpoint(exporter_ip, exporter_port);
         exporter_listener_->set_label("Exporter-Server");
         if ((err = exporter_listener_->listen()) != srs_success) {
             return srs_error_wrap(err, "exporter server listen");

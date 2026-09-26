@@ -709,6 +709,259 @@ VOID TEST(ServerTest, InitializeInitializesInjectedBlackhole)
     server->blackhole_ = NULL;
 }
 
+MockTcpListenersForServer::MockTcpListenersForServer() : SrsMultipleTcpListeners(NULL)
+{
+    add_count_ = 0;
+    listen_count_ = 0;
+    close_count_ = 0;
+    listen_error_ = srs_success;
+}
+
+MockTcpListenersForServer::~MockTcpListenersForServer()
+{
+    srs_freep(listen_error_);
+}
+
+ISrsIpListener *MockTcpListenersForServer::add(const std::vector<std::string> &endpoints)
+{
+    add_count_++;
+    endpoints_ = endpoints;
+    return this;
+}
+
+ISrsListener *MockTcpListenersForServer::set_label(const std::string &label)
+{
+    label_ = label;
+    return this;
+}
+
+srs_error_t MockTcpListenersForServer::listen()
+{
+    listen_count_++;
+
+    srs_error_t err = listen_error_;
+    listen_error_ = srs_success;
+    return err;
+}
+
+void MockTcpListenersForServer::close()
+{
+    close_count_++;
+}
+
+MockTcpListenerForServer::MockTcpListenerForServer() : SrsTcpListener(NULL)
+{
+    endpoint_port_ = 0;
+    listen_count_ = 0;
+    close_count_ = 0;
+}
+
+MockTcpListenerForServer::~MockTcpListenerForServer()
+{
+}
+
+ISrsListener *MockTcpListenerForServer::set_endpoint(const std::string &i, int p)
+{
+    endpoint_ip_ = i;
+    endpoint_port_ = p;
+    return this;
+}
+
+ISrsListener *MockTcpListenerForServer::set_label(const std::string &label)
+{
+    set_label_ = label;
+    return this;
+}
+
+srs_error_t MockTcpListenerForServer::listen()
+{
+    listen_count_++;
+    return srs_success;
+}
+
+void MockTcpListenerForServer::close()
+{
+    close_count_++;
+}
+
+// Replaces the nine TCP listeners of a server with mocks, and puts the originals back before the server is freed.
+class ServerTcpListenersInjector
+{
+public:
+    SrsServer *server_;
+    MockTcpListenersForServer rtmp_;
+    MockTcpListenersForServer rtmps_;
+    MockTcpListenersForServer api_;
+    MockTcpListenersForServer apis_;
+    MockTcpListenersForServer http_;
+    MockTcpListenersForServer https_;
+    MockTcpListenersForServer webrtc_;
+#ifdef SRS_RTSP
+    MockTcpListenersForServer rtsp_;
+#endif
+    MockTcpListenerForServer exporter_;
+
+private:
+    ISrsIpListener *originals_[9];
+
+public:
+    ServerTcpListenersInjector(SrsServer *server)
+    {
+        server_ = server;
+        ISrsIpListener *mocks[9] = {&rtmp_, &rtmps_, &api_, &apis_, &http_, &https_, &webrtc_, NULL, &exporter_};
+#ifdef SRS_RTSP
+        mocks[7] = &rtsp_;
+#endif
+        for (int i = 0; i < 9; i++) {
+            originals_[i] = slot(i);
+            if (mocks[i]) {
+                assign(i, mocks[i]);
+            }
+        }
+    }
+    ~ServerTcpListenersInjector()
+    {
+        for (int i = 0; i < 9; i++) {
+            assign(i, originals_[i]);
+        }
+    }
+
+private:
+    ISrsIpListener *slot(int i)
+    {
+        ISrsIpListener *slots[9] = {server_->rtmp_listener_, server_->rtmps_listener_, server_->api_listener_,
+                                    server_->apis_listener_, server_->http_listener_, server_->https_listener_,
+                                    server_->webrtc_listener_, NULL, server_->exporter_listener_};
+#ifdef SRS_RTSP
+        slots[7] = server_->rtsp_listener_;
+#endif
+        return slots[i];
+    }
+    void assign(int i, ISrsIpListener *l)
+    {
+        if (i == 0) server_->rtmp_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 1) server_->rtmps_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 2) server_->api_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 3) server_->apis_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 4) server_->http_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 5) server_->https_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 6) server_->webrtc_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+#ifdef SRS_RTSP
+        if (i == 7) server_->rtsp_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+#endif
+        if (i == 8) server_->exporter_listener_ = dynamic_cast<SrsTcpListener *>(l);
+    }
+};
+
+VOID TEST(ServerTest, ListenStartsEnabledTcpListenersThroughInjectedListeners)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    MockAppConfigForServerListen config;
+    config.rtmp_listens_.push_back("1935");
+    config.http_api_enabled_ = true;
+    config.http_api_listens_.push_back("1985");
+    config.http_stream_enabled_ = true;
+    config.http_stream_listens_.push_back("8080");
+    config.exporter_enabled_ = true;
+    config.exporter_listen_ = "9972";
+    server->config_ = &config;
+
+    MockResourceManagerForBindSession conn_manager;
+    server->conn_manager_ = &conn_manager;
+
+    ServerTcpListenersInjector listeners(server.get());
+    HELPER_EXPECT_SUCCESS(server->listen());
+
+    // Each enabled listener is given its configured endpoints and label, then started.
+    EXPECT_EQ(1, listeners.rtmp_.add_count_);
+    EXPECT_STREQ("1935", srs_strings_join(listeners.rtmp_.endpoints_, ",").c_str());
+    EXPECT_STREQ("RTMP", listeners.rtmp_.label_.c_str());
+    EXPECT_EQ(1, listeners.rtmp_.listen_count_);
+
+    EXPECT_EQ(1, listeners.api_.add_count_);
+    EXPECT_STREQ("1985", srs_strings_join(listeners.api_.endpoints_, ",").c_str());
+    EXPECT_STREQ("HTTP-API", listeners.api_.label_.c_str());
+    EXPECT_EQ(1, listeners.api_.listen_count_);
+
+    EXPECT_EQ(1, listeners.http_.add_count_);
+    EXPECT_STREQ("8080", srs_strings_join(listeners.http_.endpoints_, ",").c_str());
+    EXPECT_STREQ("HTTP-Server", listeners.http_.label_.c_str());
+    EXPECT_EQ(1, listeners.http_.listen_count_);
+
+    std::string exporter_ip;
+    int exporter_port = 0;
+    srs_net_split_for_listener("9972", exporter_ip, exporter_port);
+    EXPECT_STREQ(exporter_ip.c_str(), listeners.exporter_.endpoint_ip_.c_str());
+    EXPECT_EQ(9972, listeners.exporter_.endpoint_port_);
+    EXPECT_STREQ("Exporter-Server", listeners.exporter_.set_label_.c_str());
+    EXPECT_EQ(1, listeners.exporter_.listen_count_);
+
+    // Disabled listeners are left alone.
+    EXPECT_EQ(0, listeners.rtmps_.add_count_ + listeners.rtmps_.listen_count_);
+    EXPECT_EQ(0, listeners.apis_.add_count_ + listeners.apis_.listen_count_);
+    EXPECT_EQ(0, listeners.https_.add_count_ + listeners.https_.listen_count_);
+    EXPECT_EQ(0, listeners.webrtc_.add_count_ + listeners.webrtc_.listen_count_);
+#ifdef SRS_RTSP
+    EXPECT_EQ(0, listeners.rtsp_.add_count_ + listeners.rtsp_.listen_count_);
+#endif
+
+    server->conn_manager_ = NULL;
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, ListenStopsAtFailedTcpListener)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    MockAppConfigForServerListen config;
+    config.rtmp_listens_.push_back("1935");
+    config.http_api_enabled_ = true;
+    config.http_api_listens_.push_back("1985");
+    server->config_ = &config;
+
+    ServerTcpListenersInjector listeners(server.get());
+    listeners.rtmp_.listen_error_ = srs_error_new(ERROR_SOCKET_BIND, "mock bind");
+
+    // A listener that fails to start fails the server, and no later listener is started.
+    err = server->listen();
+    EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, listeners.rtmp_.add_count_);
+    EXPECT_EQ(1, listeners.rtmp_.listen_count_);
+    EXPECT_EQ(0, listeners.api_.add_count_ + listeners.api_.listen_count_);
+
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, DisposeClosesInjectedTcpListeners)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    ServerTcpListenersInjector listeners(server.get());
+    server->dispose();
+
+    EXPECT_EQ(1, listeners.rtmp_.close_count_);
+    EXPECT_EQ(1, listeners.rtmps_.close_count_);
+    EXPECT_EQ(1, listeners.api_.close_count_);
+    EXPECT_EQ(1, listeners.apis_.close_count_);
+    EXPECT_EQ(1, listeners.http_.close_count_);
+    EXPECT_EQ(1, listeners.https_.close_count_);
+    EXPECT_EQ(1, listeners.webrtc_.close_count_);
+#ifdef SRS_RTSP
+    EXPECT_EQ(1, listeners.rtsp_.close_count_);
+#endif
+    EXPECT_EQ(1, listeners.exporter_.close_count_);
+}
+
 VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
 {
     srs_error_t err;

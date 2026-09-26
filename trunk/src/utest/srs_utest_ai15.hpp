@@ -177,6 +177,50 @@ public:
     virtual void sendto(void *data, int len);
 };
 
+// Mock multiple TCP listeners for testing which listeners SrsServer::listen() starts and dispose() closes.
+class MockTcpListenersForServer : public SrsMultipleTcpListeners
+{
+public:
+    int add_count_;
+    std::vector<std::string> endpoints_;
+    std::string label_;
+    int listen_count_;
+    int close_count_;
+    // The error listen() returns, owned by the caller once returned.
+    srs_error_t listen_error_;
+
+public:
+    MockTcpListenersForServer();
+    virtual ~MockTcpListenersForServer();
+
+public:
+    virtual ISrsIpListener *add(const std::vector<std::string> &endpoints);
+    virtual ISrsListener *set_label(const std::string &label);
+    virtual srs_error_t listen();
+    virtual void close();
+};
+
+// Mock TCP listener for testing how SrsServer::listen() starts the exporter and dispose() closes it.
+class MockTcpListenerForServer : public SrsTcpListener
+{
+public:
+    std::string endpoint_ip_;
+    int endpoint_port_;
+    std::string set_label_;
+    int listen_count_;
+    int close_count_;
+
+public:
+    MockTcpListenerForServer();
+    virtual ~MockTcpListenerForServer();
+
+public:
+    virtual ISrsListener *set_endpoint(const std::string &i, int p);
+    virtual ISrsListener *set_label(const std::string &label);
+    virtual srs_error_t listen();
+    virtual void close();
+};
+
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()
 class MockHourGlassForSetupTicks : public ISrsHourGlass
 {

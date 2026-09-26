@@ -361,6 +361,14 @@ srs_error_t SrsTcpListener::do_cycle()
     return err;
 }
 
+ISrsMultipleTcpListeners::ISrsMultipleTcpListeners()
+{
+}
+
+ISrsMultipleTcpListeners::~ISrsMultipleTcpListeners()
+{
+}
+
 SrsMultipleTcpListeners::SrsMultipleTcpListeners(ISrsTcpHandler *h)
 {
     handler_ = h;
