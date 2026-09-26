@@ -2104,6 +2104,9 @@ srs_error_t SrsTsPayloadPES::decode(SrsBuffer *stream, SrsTsMessage **ppmsg)
     // for the PES_packet_length(0), reap when completed.
     if (!is_fresh_msg && msg->completed(packet_->payload_unit_start_indicator_)) {
         // reap previous PES packet.
+        // The packet that started the message is freed by now, so reference this one, which lives while the
+        // caller handles the message.
+        msg->packet_ = packet_;
         *ppmsg = msg;
         channel->msg_ = NULL;
 
@@ -2151,6 +2154,7 @@ srs_error_t SrsTsPayloadPES::decode(SrsBuffer *stream, SrsTsMessage **ppmsg)
 
     // check msg, reap when completed.
     if (msg->completed(packet_->payload_unit_start_indicator_)) {
+        msg->packet_ = packet_;
         *ppmsg = msg;
         channel->msg_ = NULL;
         srs_info("ts: reap msg for completed.");

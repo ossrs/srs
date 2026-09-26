@@ -5224,3 +5224,64 @@ VOID TEST(KernelTSTest, PmtVersionIncrementsOnCodecChange)
     ASSERT_GE((int)reset_versions.size(), 1);
     EXPECT_EQ(0, reset_versions[0]);
 }
+
+// Encode two video frames of frame_size bytes to TS, then decode them like SrsTsContext::decode, but keep every packet,
+// so the test can tell which packet a reaped message references. A PES that spans several TS packets is started by one
+// packet and reaped by a later one, and the decoder frees each packet once it is decoded, so a reaped message must
+// reference the packet that reaped it, which is still alive while the handler runs, never the one that started it.
+static void ts_expect_reaped_messages_reference_live_packet(int frame_size, int expected_reaped)
+{
+    srs_error_t err;
+
+    MockTsBufferWriter writer;
+    SrsTsContext encoder;
+    for (int i = 0; i < 2; i++) {
+        SrsTsMessage msg;
+        msg.sid_ = SrsTsPESStreamIdVideoCommon;
+        msg.dts_ = msg.pts_ = 90000 * (i + 1);
+        std::string frame(frame_size, (char)(0x10 + i));
+        msg.payload_->append(frame.data(), (int)frame.length());
+        HELPER_ASSERT_SUCCESS(encoder.encode(&writer, &msg, SrsVideoCodecIdAVC, SrsAudioCodecIdAAC));
+    }
+    ASSERT_EQ(0, (int)(writer.data_.size() % SRS_TS_PACKET_SIZE));
+
+    SrsTsContext decoder;
+    std::vector<SrsTsPacket *> packets;
+    int nb_reaped = 0;
+    for (size_t off = 0; off < writer.data_.size(); off += SRS_TS_PACKET_SIZE) {
+        SrsBuffer stream((char *)writer.data_.data() + off, SRS_TS_PACKET_SIZE);
+        while (!stream.empty()) {
+            SrsTsPacket *packet = new SrsTsPacket(&decoder);
+            packets.push_back(packet);
+
+            SrsTsMessage *msg_raw = NULL;
+            HELPER_EXPECT_SUCCESS(packet->decode(&stream, &msg_raw));
+            if (!msg_raw) {
+                continue;
+            }
+
+            SrsUniquePtr<SrsTsMessage> msg(msg_raw);
+            nb_reaped++;
+            EXPECT_TRUE(msg->packet_ == packet);
+            EXPECT_EQ(frame_size, msg->payload_->length());
+        }
+    }
+    EXPECT_EQ(expected_reaped, nb_reaped);
+
+    for (size_t i = 0; i < packets.size(); i++) {
+        srs_freep(packets[i]);
+    }
+}
+
+VOID TEST(KernelTSTest, MessageCompletedByLengthReferencesLivePacket)
+{
+    // Each frame has a PES_packet_length, so each message is reaped by its own last packet.
+    ts_expect_reaped_messages_reference_live_packet(500, 2);
+}
+
+VOID TEST(KernelTSTest, MessageReapedByNextStartReferencesLivePacket)
+{
+    // A frame over 0xFFFF bytes has a PES_packet_length of 0, so its message is reaped by the packet that starts the
+    // next PES; the last frame is never reaped, because no PES follows it.
+    ts_expect_reaped_messages_reference_live_packet(0x10000 + 100, 1);
+}
