@@ -3369,6 +3369,11 @@ MockRtcBlackholeForUdpNetwork::~MockRtcBlackholeForUdpNetwork()
 {
 }
 
+srs_error_t MockRtcBlackholeForUdpNetwork::initialize()
+{
+    return srs_success;
+}
+
 void MockRtcBlackholeForUdpNetwork::sendto(void *data, int len)
 {
     sendto_count_++;

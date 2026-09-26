@@ -1041,6 +1041,7 @@ VOID TEST(ServerTest, InitializeStAsprocessWithPpid1)
 
     // Create server
     SrsServer server;
+    server.assemble();
 
     // Create mock config with asprocess enabled
     MockAppConfig mock_config;

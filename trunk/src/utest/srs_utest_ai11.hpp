@@ -237,6 +237,7 @@ public:
     virtual ~MockRtcBlackholeForSecurityTransport();
 
 public:
+    virtual srs_error_t initialize();
     virtual void sendto(void *data, int len);
 };
 

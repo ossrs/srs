@@ -876,6 +876,11 @@ MockRtcBlackholeForSecurityTransport::~MockRtcBlackholeForSecurityTransport()
 {
 }
 
+srs_error_t MockRtcBlackholeForSecurityTransport::initialize()
+{
+    return srs_success;
+}
+
 void MockRtcBlackholeForSecurityTransport::sendto(void *data, int len)
 {
     sendto_count_++;

@@ -174,7 +174,7 @@ SrsServer::SrsServer()
 
     signal_manager_ = new SrsSignalManager(this);
     latest_version_ = new SrsLatestVersion();
-    ppid_ = ::getppid();
+    ppid_ = 0;
 
     http_api_mux_ = new SrsHttpServeMux();
 
@@ -196,7 +196,6 @@ SrsServer::SrsServer()
 #endif
 
     http_server_ = new SrsHttpServer();
-    http_server_->assemble();
     reuse_api_over_server_ = false;
     reuse_rtc_over_server_ = false;
 
@@ -225,6 +224,13 @@ SrsServer::SrsServer()
     stat_ = _srs_stat;
     app_factory_ = _srs_app_factory;
     reload_status_ = _srs_reload_status;
+    blackhole_ = _srs_blackhole;
+}
+
+void SrsServer::assemble()
+{
+    ppid_ = ::getppid();
+    http_server_->assemble();
 }
 
 SrsServer::~SrsServer()
@@ -294,6 +300,7 @@ SrsServer::~SrsServer()
     stat_ = NULL;
     app_factory_ = NULL;
     reload_status_ = NULL;
+    blackhole_ = NULL;
 }
 
 void SrsServer::dispose()
@@ -462,7 +469,7 @@ srs_error_t SrsServer::initialize()
     }
 
     // Initialize the black hole.
-    if ((err = _srs_blackhole->initialize()) != srs_success) {
+    if ((err = blackhole_->initialize()) != srs_success) {
         return srs_error_wrap(err, "black hole");
     }
 

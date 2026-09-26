@@ -160,6 +160,23 @@ public:
     virtual std::string id();
 };
 
+// Mock ISrsRtcBlackhole for testing SrsServer::initialize()
+class MockRtcBlackholeForServer : public ISrsRtcBlackhole
+{
+public:
+    int initialize_count_;
+    // The error initialize() returns, owned by the caller once returned.
+    srs_error_t initialize_error_;
+
+public:
+    MockRtcBlackholeForServer();
+    virtual ~MockRtcBlackholeForServer();
+
+public:
+    virtual srs_error_t initialize();
+    virtual void sendto(void *data, int len);
+};
+
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()
 class MockHourGlassForSetupTicks : public ISrsHourGlass
 {

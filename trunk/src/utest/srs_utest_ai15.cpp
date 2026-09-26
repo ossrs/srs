@@ -9,7 +9,9 @@ using namespace std;
 
 #include <algorithm>
 #include <srs_app_factory.hpp>
+#include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_http_stream.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
@@ -158,6 +160,7 @@ VOID TEST(SrsServerTest, ConstructorAndDestructor)
 {
     // Create SrsServer instance - tests constructor initialization
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     // Verify that the server object was created successfully
     EXPECT_TRUE(server.get() != NULL);
@@ -197,6 +200,7 @@ VOID TEST(SrsServerTest, InitializeSuccess)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Replace the PID file locker with a mock to avoid conflicts with running SRS server
@@ -245,6 +249,7 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Inject mock config
@@ -290,6 +295,7 @@ VOID TEST(SrsServerTest, HttpHandleSuccess)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Inject mock HTTP API mux
@@ -393,6 +399,7 @@ VOID TEST(ServerTest, OnSignalHandling)
 {
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Create and inject mock config
@@ -507,6 +514,7 @@ VOID TEST(ServerTest, Do2CycleReloadSuccess)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Create and inject mock config
@@ -607,7 +615,98 @@ VOID TEST(ServerTest, ConstructionCapturesReloadStatus)
     EXPECT_TRUE(_srs_reload_status != NULL);
 
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server->reload_status_ == _srs_reload_status);
+}
+
+MockRtcBlackholeForServer::MockRtcBlackholeForServer()
+{
+    initialize_count_ = 0;
+    initialize_error_ = srs_success;
+}
+
+MockRtcBlackholeForServer::~MockRtcBlackholeForServer()
+{
+    srs_freep(initialize_error_);
+}
+
+srs_error_t MockRtcBlackholeForServer::initialize()
+{
+    initialize_count_++;
+
+    srs_error_t err = initialize_error_;
+    initialize_error_ = srs_success;
+    return err;
+}
+
+void MockRtcBlackholeForServer::sendto(void *data, int len)
+{
+}
+
+// The HTTP stream server registers itself with its mux as a dynamic matcher when it is assembled, so the matchers
+// tell whether the server's HTTP server was assembled.
+static std::vector<ISrsHttpDynamicMatcher *> &server_http_stream_matchers(SrsServer *server)
+{
+    SrsHttpStreamServer *stream = dynamic_cast<SrsHttpStreamServer *>(server->http_server_->http_stream_);
+    srs_assert(stream);
+    SrsHttpServeMux *mux = dynamic_cast<SrsHttpServeMux *>(stream->mux_);
+    srs_assert(mux);
+    return mux->dynamic_matchers_;
+}
+
+VOID TEST(ServerTest, ConstructionCallsNoFunction)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    // Neither the parent pid is queried nor the HTTP server assembled before assemble().
+    EXPECT_EQ(0, server->ppid_);
+    EXPECT_TRUE(server_http_stream_matchers(server.get()).empty());
+}
+
+VOID TEST(ServerTest, AssembleQueriesParentAndAssemblesHttpServer)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    EXPECT_EQ(::getppid(), server->ppid_);
+
+    std::vector<ISrsHttpDynamicMatcher *> &matchers = server_http_stream_matchers(server.get());
+    ASSERT_EQ(1, (int)matchers.size());
+    EXPECT_TRUE(matchers[0] == dynamic_cast<ISrsHttpDynamicMatcher *>(server->http_server_->http_stream_));
+}
+
+VOID TEST(ServerTest, ConstructionCapturesBlackhole)
+{
+    // The process-wide black hole exists once the globals are initialized, and the server initializes it.
+    EXPECT_TRUE(_srs_blackhole != NULL);
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    EXPECT_TRUE(server->blackhole_ == _srs_blackhole);
+}
+
+VOID TEST(ServerTest, InitializeInitializesInjectedBlackhole)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Avoid the pid file of a running SRS.
+    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    // A failure of the injected black hole fails the server initialize.
+    MockRtcBlackholeForServer blackhole;
+    blackhole.initialize_error_ = srs_error_new(ERROR_SOCKET_CREATE, "mock black hole");
+    server->blackhole_ = &blackhole;
+
+    err = server->initialize();
+    EXPECT_EQ(ERROR_SOCKET_CREATE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, blackhole.initialize_count_);
+
+    server->blackhole_ = NULL;
 }
 
 VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
@@ -615,6 +714,7 @@ VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
     srs_error_t err;
 
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     MockAppConfigForDo2Cycle *mock_config = new MockAppConfigForDo2Cycle();
     ISrsAppConfig *original_config = server->config_;
@@ -747,6 +847,7 @@ VOID TEST(ServerTest, SetupTicksWithStatsAndHeartbeat)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Create and inject mock config
@@ -1029,6 +1130,7 @@ VOID TEST(SrsServerTest, NotifyEventDispatch)
 
     // Create server instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     // Create mock objects
     MockRtcSessionManagerForNotify *mock_rtc_manager = new MockRtcSessionManagerForNotify();
@@ -1082,6 +1184,7 @@ VOID TEST(SrsServerTest, ResampleKbps)
 {
     // Create server instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     // Create mock objects
     MockConnectionManagerForResampleKbps *mock_conn_manager = new MockConnectionManagerForResampleKbps();
@@ -1518,6 +1621,7 @@ VOID TEST(SrsServerTest, OnBeforeConnectionExceedLimit)
 
     // Create server instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     // Create mock objects
     MockAppConfigForConnectionLimit *mock_config = new MockAppConfigForConnectionLimit();

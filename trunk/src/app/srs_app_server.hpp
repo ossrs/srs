@@ -70,6 +70,7 @@ class ISrsStatistic;
 class ISrsHourGlass;
 class ISrsAppFactory;
 class ISrsUdpMuxSocket;
+class ISrsRtcBlackhole;
 class ISrsRtcConnection;
 class ISrsReloadStatus;
 class SrsReloadStatus;
@@ -146,6 +147,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     ISrsAppFactory *app_factory_;
     ISrsReloadStatus *reload_status_;
+    ISrsRtcBlackhole *blackhole_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -233,6 +235,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsServer();
     virtual ~SrsServer();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
