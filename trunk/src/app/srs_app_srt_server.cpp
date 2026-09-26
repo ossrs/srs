@@ -28,6 +28,14 @@ ISrsSrtClientHandler::~ISrsSrtClientHandler()
 {
 }
 
+ISrsSrtAcceptor::ISrsSrtAcceptor()
+{
+}
+
+ISrsSrtAcceptor::~ISrsSrtAcceptor()
+{
+}
+
 SrsSrtAcceptor::SrsSrtAcceptor(ISrsSrtClientHandler *srt_handler)
 {
     port_ = 0;

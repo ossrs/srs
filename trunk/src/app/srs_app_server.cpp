@@ -1258,7 +1258,7 @@ srs_error_t SrsServer::listen_srt_mpegts()
     // Start listeners for SRT, support multiple addresses including IPv6.
     vector<string> srt_listens = config_->get_srt_listens();
     for (int i = 0; i < (int)srt_listens.size(); i++) {
-        SrsSrtAcceptor *acceptor = new SrsSrtAcceptor(this);
+        ISrsSrtAcceptor *acceptor = app_factory_->create_srt_acceptor(this);
 
         int port;
         string ip;
@@ -1286,9 +1286,9 @@ srs_error_t SrsServer::listen_srt_mpegts()
 // LCOV_EXCL_START
 void SrsServer::close_srt_listeners()
 {
-    std::vector<SrsSrtAcceptor *>::iterator it;
+    std::vector<ISrsSrtAcceptor *>::iterator it;
     for (it = srt_acceptors_.begin(); it != srt_acceptors_.end();) {
-        SrsSrtAcceptor *acceptor = *it;
+        ISrsSrtAcceptor *acceptor = *it;
         srs_freep(acceptor);
 
         it = srt_acceptors_.erase(it);

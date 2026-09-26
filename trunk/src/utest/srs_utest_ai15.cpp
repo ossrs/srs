@@ -164,6 +164,11 @@ int MockAppConfigForServerListen::get_rtc_server_reuseport()
     return rtc_server_reuseport_;
 }
 
+std::vector<std::string> MockAppConfigForServerListen::get_srt_listens()
+{
+    return srt_listens_;
+}
+
 std::vector<SrsConfDirective *> MockAppConfigForServerListen::get_stream_casters()
 {
     return stream_casters_;
@@ -1314,6 +1319,187 @@ VOID TEST(ServerTest, ListenRtcUdpCreatesNoListenerWhenDisabledOrTcpOnly)
 
     EXPECT_EQ(0, (int)factory.listeners_.size());
     EXPECT_TRUE(server->rtc_listeners_.empty());
+
+    server->config_ = NULL;
+    server->app_factory_ = NULL;
+}
+
+MockSrtAcceptorForServer::MockSrtAcceptorForServer(MockAppFactoryForServerSrt *factory, ISrsSrtClientHandler *h)
+{
+    factory_ = factory;
+    handler_ = h;
+    port_ = 0;
+    listen_count_ = 0;
+    listen_error_ = srs_success;
+}
+
+MockSrtAcceptorForServer::~MockSrtAcceptorForServer()
+{
+    srs_freep(listen_error_);
+    factory_->destroyed_count_++;
+}
+
+srs_error_t MockSrtAcceptorForServer::listen(std::string ip, int port)
+{
+    ip_ = ip;
+    port_ = port;
+    listen_count_++;
+
+    srs_error_t err = listen_error_;
+    listen_error_ = srs_success;
+    return err;
+}
+
+MockAppFactoryForServerSrt::MockAppFactoryForServerSrt()
+{
+    destroyed_count_ = 0;
+}
+
+MockAppFactoryForServerSrt::~MockAppFactoryForServerSrt()
+{
+}
+
+ISrsSrtAcceptor *MockAppFactoryForServerSrt::create_srt_acceptor(ISrsSrtClientHandler *handler)
+{
+    MockSrtAcceptorForServer *acceptor = new MockSrtAcceptorForServer(this, handler);
+    if (std::find(fail_at_.begin(), fail_at_.end(), (int)acceptors_.size()) != fail_at_.end()) {
+        acceptor->listen_error_ = srs_error_new(ERROR_SOCKET_BIND, "mock bind");
+    }
+    acceptors_.push_back(acceptor);
+    return acceptor;
+}
+
+VOID TEST(ServerTest, ListenSrtCreatesAcceptorsThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    MockAppFactoryForServerSrt factory;
+    MockAppConfigForServerListen config;
+    config.srt_enabled_ = true;
+    config.srt_listens_.push_back("10080");
+    config.srt_listens_.push_back("127.0.0.1:10081");
+
+    std::string any_ip;
+    int any_port = 0;
+    srs_net_split_for_listener("10080", any_ip, any_port);
+
+    if (true) {
+        SrsUniquePtr<SrsServer> server(new SrsServer());
+        server->assemble();
+        server->config_ = &config;
+        server->app_factory_ = &factory;
+
+        HELPER_EXPECT_SUCCESS(server->listen_srt_mpegts());
+
+        // Each endpoint gets one acceptor, handled by the server, started once at its endpoint and kept.
+        ASSERT_EQ(2, (int)factory.acceptors_.size());
+        ASSERT_EQ(2, (int)server->srt_acceptors_.size());
+        for (int i = 0; i < 2; i++) {
+            MockSrtAcceptorForServer *acceptor = factory.acceptors_[i];
+            EXPECT_TRUE(acceptor->handler_ == static_cast<ISrsSrtClientHandler *>(server.get()));
+            EXPECT_STREQ(i == 0 ? any_ip.c_str() : "127.0.0.1", acceptor->ip_.c_str());
+            EXPECT_EQ(i == 0 ? 10080 : 10081, acceptor->port_);
+            EXPECT_EQ(1, acceptor->listen_count_);
+            EXPECT_TRUE(static_cast<ISrsSrtAcceptor *>(server->srt_acceptors_[i]) == acceptor);
+        }
+        EXPECT_EQ(0, factory.destroyed_count_);
+
+        // Listening again frees the acceptors from before and keeps only the new ones.
+        HELPER_EXPECT_SUCCESS(server->listen_srt_mpegts());
+        EXPECT_EQ(2, factory.destroyed_count_);
+        ASSERT_EQ(4, (int)factory.acceptors_.size());
+        ASSERT_EQ(2, (int)server->srt_acceptors_.size());
+        EXPECT_TRUE(static_cast<ISrsSrtAcceptor *>(server->srt_acceptors_[0]) == factory.acceptors_[2]);
+        EXPECT_TRUE(static_cast<ISrsSrtAcceptor *>(server->srt_acceptors_[1]) == factory.acceptors_[3]);
+
+        server->config_ = NULL;
+        server->app_factory_ = NULL;
+    }
+
+    // The server frees the acceptors it kept.
+    EXPECT_EQ(4, factory.destroyed_count_);
+}
+
+VOID TEST(ServerTest, ListenSrtSkipsFailedAcceptor)
+{
+    srs_error_t err;
+
+    MockAppFactoryForServerSrt factory;
+    factory.fail_at_.push_back(1);
+    MockAppConfigForServerListen config;
+    config.srt_enabled_ = true;
+    config.srt_listens_.push_back("10080");
+    config.srt_listens_.push_back("10081");
+    config.srt_listens_.push_back("10082");
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->config_ = &config;
+    server->app_factory_ = &factory;
+
+    // An acceptor that fails to listen is freed at once and skipped, and the others still start.
+    HELPER_EXPECT_SUCCESS(server->listen_srt_mpegts());
+
+    ASSERT_EQ(3, (int)factory.acceptors_.size());
+    EXPECT_EQ(1, factory.destroyed_count_);
+    EXPECT_EQ(10082, factory.acceptors_[2]->port_);
+    EXPECT_EQ(1, factory.acceptors_[2]->listen_count_);
+    ASSERT_EQ(2, (int)server->srt_acceptors_.size());
+    EXPECT_TRUE(static_cast<ISrsSrtAcceptor *>(server->srt_acceptors_[0]) == factory.acceptors_[0]);
+    EXPECT_TRUE(static_cast<ISrsSrtAcceptor *>(server->srt_acceptors_[1]) == factory.acceptors_[2]);
+
+    server->config_ = NULL;
+    server->app_factory_ = NULL;
+}
+
+VOID TEST(ServerTest, ListenSrtFailsWhenNoAcceptorListens)
+{
+    MockAppFactoryForServerSrt factory;
+    factory.fail_at_.push_back(0);
+    factory.fail_at_.push_back(1);
+    MockAppConfigForServerListen config;
+    config.srt_enabled_ = true;
+    config.srt_listens_.push_back("10080");
+    config.srt_listens_.push_back("10081");
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->config_ = &config;
+    server->app_factory_ = &factory;
+
+    // When every acceptor fails, each is freed and the server fails with no SRT listener.
+    srs_error_t err = server->listen_srt_mpegts();
+    EXPECT_EQ(ERROR_SOCKET_LISTEN, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(2, (int)factory.acceptors_.size());
+    EXPECT_EQ(2, factory.destroyed_count_);
+    EXPECT_TRUE(server->srt_acceptors_.empty());
+
+    server->config_ = NULL;
+    server->app_factory_ = NULL;
+}
+
+// Passes from the start and locks in accepted behavior: no SRT acceptor is created when SRT is disabled, which is
+// how listen_srt_mpegts() behaved before its acceptors came from the factory.
+VOID TEST(ServerTest, ListenSrtCreatesNoAcceptorWhenDisabled)
+{
+    srs_error_t err;
+
+    MockAppFactoryForServerSrt factory;
+    MockAppConfigForServerListen config;
+    config.srt_enabled_ = false;
+    config.srt_listens_.push_back("10080");
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->config_ = &config;
+    server->app_factory_ = &factory;
+
+    HELPER_EXPECT_SUCCESS(server->listen_srt_mpegts());
+
+    EXPECT_EQ(0, (int)factory.acceptors_.size());
+    EXPECT_TRUE(server->srt_acceptors_.empty());
 
     server->config_ = NULL;
     server->app_factory_ = NULL;

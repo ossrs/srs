@@ -20,6 +20,7 @@
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_server.hpp>
+#include <srs_app_srt_server.hpp>
 #include <srs_kernel_hourglass.hpp>
 #include <srs_protocol_http_stack.hpp>
 #include <srs_utest_ai11.hpp>
@@ -48,6 +49,7 @@ public:
     std::string exporter_listen_;
     std::vector<std::string> rtc_server_listens_;
     int rtc_server_reuseport_;
+    std::vector<std::string> srt_listens_;
     // The stream caster directives, not owned.
     std::vector<SrsConfDirective *> stream_casters_;
 
@@ -76,6 +78,7 @@ public:
     virtual std::string get_exporter_listen();
     virtual std::vector<std::string> get_rtc_server_listens();
     virtual int get_rtc_server_reuseport();
+    virtual std::vector<std::string> get_srt_listens();
     virtual std::vector<SrsConfDirective *> get_stream_casters();
     virtual bool get_stream_caster_enabled(SrsConfDirective *conf);
     virtual std::string get_stream_caster_engine(SrsConfDirective *conf);
@@ -315,6 +318,47 @@ public:
 
 public:
     virtual ISrsUdpMuxListener *create_udp_mux_listener(ISrsUdpMuxHandler *handler, std::string ip, int port);
+};
+
+class MockAppFactoryForServerSrt;
+
+// Mock SRT acceptor for testing how SrsServer::listen_srt_mpegts() creates, starts and frees it.
+class MockSrtAcceptorForServer : public ISrsSrtAcceptor
+{
+public:
+    // The factory that created it, which records the destruction.
+    MockAppFactoryForServerSrt *factory_;
+    ISrsSrtClientHandler *handler_;
+    std::string ip_;
+    int port_;
+    int listen_count_;
+    // The error listen() returns, owned by the caller once returned.
+    srs_error_t listen_error_;
+
+public:
+    MockSrtAcceptorForServer(MockAppFactoryForServerSrt *factory, ISrsSrtClientHandler *h);
+    virtual ~MockSrtAcceptorForServer();
+
+public:
+    virtual srs_error_t listen(std::string ip, int port);
+};
+
+// Mock ISrsAppFactory for testing which SRT acceptors SrsServer::listen_srt_mpegts() creates.
+class MockAppFactoryForServerSrt : public SrsAppFactory
+{
+public:
+    // The acceptors created, owned by the server.
+    std::vector<MockSrtAcceptorForServer *> acceptors_;
+    int destroyed_count_;
+    // The indexes of the created acceptors that fail to listen, starting at 0.
+    std::vector<int> fail_at_;
+
+public:
+    MockAppFactoryForServerSrt();
+    virtual ~MockAppFactoryForServerSrt();
+
+public:
+    virtual ISrsSrtAcceptor *create_srt_acceptor(ISrsSrtClientHandler *handler);
 };
 
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()

@@ -54,7 +54,7 @@ class ISrsUdpCasterListener;
 class ISrsGbListener;
 class SrsRtmpTransport;
 class SrsRtmpsTransport;
-class SrsSrtAcceptor;
+class ISrsSrtAcceptor;
 class SrsSrtEventLoop;
 class SrsRtcSessionManager;
 class SrsPidFileLocker;
@@ -208,7 +208,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // SRT acceptors for MPEG-TS over SRT.
-    std::vector<SrsSrtAcceptor *>
+    std::vector<ISrsSrtAcceptor *>
         srt_acceptors_;
 
 // clang-format off

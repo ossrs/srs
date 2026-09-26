@@ -29,8 +29,19 @@ public:
     virtual srs_error_t accept_srt_client(srs_srt_t srt_fd) = 0;
 };
 
+// The SRT acceptor interface, which listens at an endpoint and hands each client to its handler.
+class ISrsSrtAcceptor
+{
+public:
+    ISrsSrtAcceptor();
+    virtual ~ISrsSrtAcceptor();
+
+public:
+    virtual srs_error_t listen(std::string ip, int port) = 0;
+};
+
 // A common srt acceptor, for SRT server.
-class SrsSrtAcceptor : public ISrsSrtHandler
+class SrsSrtAcceptor : public ISrsSrtAcceptor, public ISrsSrtHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
