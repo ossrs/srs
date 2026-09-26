@@ -188,10 +188,17 @@ if ! command -v redis-cli &>/dev/null; then
   echo "Install Redis on macOS with: brew install redis" >&2
   exit 1
 fi
+if ! redis_cli ping 2>/dev/null | grep -q "PONG" && command -v brew &>/dev/null; then
+  echo "Redis is not running, starting it with: brew services start redis"
+  brew services start redis
+  for i in $(seq 1 10); do
+    redis_cli ping 2>/dev/null | grep -q "PONG" && break
+    sleep 1
+  done
+fi
 if ! redis_cli ping 2>/dev/null | grep -q "PONG"; then
   echo "Error: Redis is not available at $REDIS_HOST:$REDIS_PORT db=$REDIS_DB" >&2
   echo "Start Redis on macOS with: brew services start redis" >&2
-  echo "Or run a foreground Redis with: redis-server" >&2
   exit 1
 fi
 

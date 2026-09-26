@@ -45,7 +45,12 @@ Run focused and component-native tests first, then run every command below seque
    bash skills/srs-develop/scripts/srs-config-file-test.sh
    ```
 
-The SRT test requires an FFmpeg build with libsrt. The WHIP and config file tests require the `whip` muxer and OpenSSL. These scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available. If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification. The transmux, SRT, WHIP, and config file tests play WHEP with `tools/pion-whep`, because FFmpeg has no WHEP demuxer; they build it with `go` when the binary is missing or stale.
+- The SRT test requires an FFmpeg build with libsrt.
+- The WHIP and config file tests require the `whip` muxer and OpenSSL.
+- These scripts automatically run `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` on macOS when no suitable FFmpeg is available.
+- The Redis test runs `brew services start redis` when Redis is not running; do not start a temporary `redis-server` instead.
+- If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification.
+- The transmux, SRT, WHIP, and config file tests play WHEP with `tools/pion-whep`, because FFmpeg has no WHEP demuxer; they build it with `go` when the binary is missing or stale.
 
 Run feature-specific bundled tests in addition to this matrix when the routed workflow or the touched area requires them:
 
