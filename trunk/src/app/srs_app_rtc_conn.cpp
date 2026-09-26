@@ -92,12 +92,15 @@ SrsSecurityTransport::SrsSecurityTransport(ISrsRtcNetwork *s)
     srtp_ = new SrsSRTP();
 
     handshake_done_ = false;
+    blackhole_ = _srs_blackhole;
 }
 
 SrsSecurityTransport::~SrsSecurityTransport()
 {
     srs_freep(dtls_);
     srs_freep(srtp_);
+
+    blackhole_ = NULL;
 }
 
 srs_error_t SrsSecurityTransport::initialize(SrsSessionConfig *cfg)
@@ -124,9 +127,7 @@ srs_error_t SrsSecurityTransport::write_dtls_data(void *data, int size)
         return srs_error_wrap(err, "send dtls packet");
     }
 
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(data, size);
-    }
+    blackhole_->sendto(data, size);
 
     return err;
 }
@@ -1937,8 +1938,6 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
         return err;
     }
 
-    ++_srs_pps_srtcps->sugar_;
-
     // limit the max count=1024 to avoid dead loop.
     for (int i = 0; i < 1024 && rtcp_twcc_->need_feedback(); ++i) {
         char pkt[kMaxUDPDataSize];
@@ -2246,6 +2245,7 @@ SrsRtcConnection::SrsRtcConnection(ISrsExecRtcAsyncTask *exec, const SrsContextI
     config_ = _srs_config;
     dtls_certificate_ = _srs_rtc_dtls_certificate;
     app_factory_ = _srs_app_factory;
+    blackhole_ = _srs_blackhole;
 }
 
 void SrsRtcConnection::assemble()
@@ -2298,6 +2298,7 @@ SrsRtcConnection::~SrsRtcConnection()
     config_ = NULL;
     dtls_certificate_ = NULL;
     app_factory_ = NULL;
+    blackhole_ = NULL;
 }
 
 void SrsRtcConnection::on_before_dispose(ISrsResource *c)
@@ -2858,9 +2859,7 @@ srs_error_t SrsRtcConnection::send_rtcp(char *data, int nb_data)
 
     ++_srs_pps_srtcps->sugar_;
 
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(data, nb_data);
-    }
+    blackhole_->sendto(data, nb_data);
 
     int nb_buf = nb_data;
     if ((err = networks_->available()->protect_rtcp(data, &nb_buf)) != srs_success) {
@@ -2903,7 +2902,6 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver *nack, uint32_t ss
 #endif
 
     ++_srs_pps_snack2->sugar_;
-    ++_srs_pps_srtcps->sugar_;
 
     char buf[kRtcpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
@@ -2921,8 +2919,6 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver *nack, uint32_t ss
 
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer *rtp_queue, const uint64_t &last_send_systime, const SrsNtp &last_send_ntp)
 {
-    ++_srs_pps_srtcps->sugar_;
-
     // @see https://tools.ietf.org/html/rfc3550#section-6.4.2
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
@@ -2961,8 +2957,6 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer *rtp_
 
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 {
-    ++_srs_pps_srtcps->sugar_;
-
     /*
      @see: http://www.rfc-editor.org/rfc/rfc3611.html#section-2
 
@@ -3008,8 +3002,6 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId &cid_of_subscriber)
 {
-    ++_srs_pps_srtcps->sugar_;
-
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
     stream.write_1bytes(0x81);

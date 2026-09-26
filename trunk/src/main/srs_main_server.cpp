@@ -467,6 +467,7 @@ srs_error_t run_srs_server()
     _srs_context->set_id(_srs_context->get_id());
 
     _srs_server = new SrsServer();
+    _srs_server->assemble();
 
     // Do some system initialize.
     if ((err = _srs_server->initialize()) != srs_success) {

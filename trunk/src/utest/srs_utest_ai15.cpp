@@ -9,7 +9,9 @@ using namespace std;
 
 #include <algorithm>
 #include <srs_app_factory.hpp>
+#include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_http_stream.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
@@ -151,6 +153,23 @@ std::string MockAppConfigForServerListen::get_exporter_listen()
     return exporter_listen_;
 }
 
+std::vector<SrsConfDirective *> MockAppConfigForServerListen::get_stream_casters()
+{
+    return stream_casters_;
+}
+
+bool MockAppConfigForServerListen::get_stream_caster_enabled(SrsConfDirective *conf)
+{
+    SrsConfDirective *enabled = conf->get("enabled");
+    return enabled && enabled->arg0() == "on";
+}
+
+std::string MockAppConfigForServerListen::get_stream_caster_engine(SrsConfDirective *conf)
+{
+    SrsConfDirective *caster = conf->get("caster");
+    return caster ? caster->arg0() : "";
+}
+
 // Test SrsServer constructor and destructor to ensure proper initialization
 // and cleanup of all server components including listeners, managers, and
 // WebRTC session management.
@@ -158,6 +177,7 @@ VOID TEST(SrsServerTest, ConstructorAndDestructor)
 {
     // Create SrsServer instance - tests constructor initialization
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     // Verify that the server object was created successfully
     EXPECT_TRUE(server.get() != NULL);
@@ -197,6 +217,7 @@ VOID TEST(SrsServerTest, InitializeSuccess)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Replace the PID file locker with a mock to avoid conflicts with running SRS server
@@ -245,6 +266,7 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Inject mock config
@@ -290,6 +312,7 @@ VOID TEST(SrsServerTest, HttpHandleSuccess)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Inject mock HTTP API mux
@@ -393,6 +416,7 @@ VOID TEST(ServerTest, OnSignalHandling)
 {
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Create and inject mock config
@@ -507,6 +531,7 @@ VOID TEST(ServerTest, Do2CycleReloadSuccess)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Create and inject mock config
@@ -525,6 +550,657 @@ VOID TEST(ServerTest, Do2CycleReloadSuccess)
     EXPECT_EQ(1, mock_config->reload_count_); // Config reload should be called once
 
     // Cleanup: restore original config
+    server->config_ = original_config;
+    srs_freep(mock_config);
+}
+
+MockReloadStatusForServer::MockReloadStatusForServer()
+{
+    config_ = NULL;
+    reset_count_ = 0;
+    reload_count_at_reset_ = -1;
+    update_count_ = 0;
+    reload_count_at_update_ = -1;
+    update_state_ = SrsReloadStateInit;
+    update_error_code_ = -1;
+    state_ = SrsReloadStateInit;
+    err_ = srs_success;
+}
+
+MockReloadStatusForServer::~MockReloadStatusForServer()
+{
+    srs_freep(err_);
+}
+
+void MockReloadStatusForServer::reset()
+{
+    reset_count_++;
+    reload_count_at_reset_ = config_ ? config_->reload_count_ : -1;
+}
+
+void MockReloadStatusForServer::update(SrsReloadState state, srs_error_t err)
+{
+    // Borrow the error like the real status, which keeps a copy.
+    update_count_++;
+    reload_count_at_update_ = config_ ? config_->reload_count_ : -1;
+    update_state_ = state;
+    update_error_code_ = srs_error_code(err);
+}
+
+SrsReloadState MockReloadStatusForServer::state()
+{
+    return state_;
+}
+
+srs_error_t MockReloadStatusForServer::error()
+{
+    return err_;
+}
+
+std::string MockReloadStatusForServer::id()
+{
+    return id_;
+}
+
+VOID TEST(ReloadStatusTest, UpdateKeepsCopyAndResetStartsNewReload)
+{
+    SrsReloadStatus status;
+
+    // The status keeps its own copy, so the caller still frees the error it passed.
+    srs_error_t err = srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "mock reload");
+    status.update(SrsReloadStateApplying, err);
+    srs_freep(err);
+
+    EXPECT_EQ(SrsReloadStateApplying, status.state());
+    EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, srs_error_code(status.error()));
+
+    // A new reload goes back to init, clears the error, and gets a new 7-character id.
+    status.reset();
+    EXPECT_EQ(SrsReloadStateInit, status.state());
+    EXPECT_TRUE(status.error() == srs_success);
+    EXPECT_EQ(7, (int)status.id().length());
+
+    std::string first_id = status.id();
+    status.reset();
+    EXPECT_EQ(7, (int)status.id().length());
+    EXPECT_STRNE(first_id.c_str(), status.id().c_str());
+}
+
+VOID TEST(ServerTest, ConstructionCapturesReloadStatus)
+{
+    // The process-wide reload status exists once the globals are initialized, and the server writes to it.
+    EXPECT_TRUE(_srs_reload_status != NULL);
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    EXPECT_TRUE(server->reload_status_ == _srs_reload_status);
+}
+
+MockRtcBlackholeForServer::MockRtcBlackholeForServer()
+{
+    initialize_count_ = 0;
+    initialize_error_ = srs_success;
+}
+
+MockRtcBlackholeForServer::~MockRtcBlackholeForServer()
+{
+    srs_freep(initialize_error_);
+}
+
+srs_error_t MockRtcBlackholeForServer::initialize()
+{
+    initialize_count_++;
+
+    srs_error_t err = initialize_error_;
+    initialize_error_ = srs_success;
+    return err;
+}
+
+void MockRtcBlackholeForServer::sendto(void *data, int len)
+{
+}
+
+// The HTTP stream server registers itself with its mux as a dynamic matcher when it is assembled, so the matchers
+// tell whether the server's HTTP server was assembled.
+static std::vector<ISrsHttpDynamicMatcher *> &server_http_stream_matchers(SrsServer *server)
+{
+    SrsHttpStreamServer *stream = dynamic_cast<SrsHttpStreamServer *>(server->http_server_->http_stream_);
+    srs_assert(stream);
+    SrsHttpServeMux *mux = dynamic_cast<SrsHttpServeMux *>(stream->mux_);
+    srs_assert(mux);
+    return mux->dynamic_matchers_;
+}
+
+VOID TEST(ServerTest, ConstructionCallsNoFunction)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    // Neither the parent pid is queried nor the HTTP server assembled before assemble().
+    EXPECT_EQ(0, server->ppid_);
+    EXPECT_TRUE(server_http_stream_matchers(server.get()).empty());
+}
+
+VOID TEST(ServerTest, AssembleQueriesParentAndAssemblesHttpServer)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    EXPECT_EQ(::getppid(), server->ppid_);
+
+    std::vector<ISrsHttpDynamicMatcher *> &matchers = server_http_stream_matchers(server.get());
+    ASSERT_EQ(1, (int)matchers.size());
+    EXPECT_TRUE(matchers[0] == dynamic_cast<ISrsHttpDynamicMatcher *>(server->http_server_->http_stream_));
+}
+
+VOID TEST(ServerTest, ConstructionCapturesBlackhole)
+{
+    // The process-wide black hole exists once the globals are initialized, and the server initializes it.
+    EXPECT_TRUE(_srs_blackhole != NULL);
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    EXPECT_TRUE(server->blackhole_ == _srs_blackhole);
+}
+
+VOID TEST(ServerTest, InitializeInitializesInjectedBlackhole)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Avoid the pid file of a running SRS.
+    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    // A failure of the injected black hole fails the server initialize.
+    MockRtcBlackholeForServer blackhole;
+    blackhole.initialize_error_ = srs_error_new(ERROR_SOCKET_CREATE, "mock black hole");
+    server->blackhole_ = &blackhole;
+
+    err = server->initialize();
+    EXPECT_EQ(ERROR_SOCKET_CREATE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, blackhole.initialize_count_);
+
+    server->blackhole_ = NULL;
+}
+
+MockTcpListenersForServer::MockTcpListenersForServer() : SrsMultipleTcpListeners(NULL)
+{
+    add_count_ = 0;
+    listen_count_ = 0;
+    close_count_ = 0;
+    listen_error_ = srs_success;
+}
+
+MockTcpListenersForServer::~MockTcpListenersForServer()
+{
+    srs_freep(listen_error_);
+}
+
+ISrsIpListener *MockTcpListenersForServer::add(const std::vector<std::string> &endpoints)
+{
+    add_count_++;
+    endpoints_ = endpoints;
+    return this;
+}
+
+ISrsListener *MockTcpListenersForServer::set_label(const std::string &label)
+{
+    label_ = label;
+    return this;
+}
+
+srs_error_t MockTcpListenersForServer::listen()
+{
+    listen_count_++;
+
+    srs_error_t err = listen_error_;
+    listen_error_ = srs_success;
+    return err;
+}
+
+void MockTcpListenersForServer::close()
+{
+    close_count_++;
+}
+
+MockTcpListenerForServer::MockTcpListenerForServer() : SrsTcpListener(NULL)
+{
+    endpoint_port_ = 0;
+    listen_count_ = 0;
+    close_count_ = 0;
+}
+
+MockTcpListenerForServer::~MockTcpListenerForServer()
+{
+}
+
+ISrsListener *MockTcpListenerForServer::set_endpoint(const std::string &i, int p)
+{
+    endpoint_ip_ = i;
+    endpoint_port_ = p;
+    return this;
+}
+
+ISrsListener *MockTcpListenerForServer::set_label(const std::string &label)
+{
+    set_label_ = label;
+    return this;
+}
+
+srs_error_t MockTcpListenerForServer::listen()
+{
+    listen_count_++;
+    return srs_success;
+}
+
+void MockTcpListenerForServer::close()
+{
+    close_count_++;
+}
+
+// Replaces the nine TCP listeners of a server with mocks, and puts the originals back before the server is freed.
+class ServerTcpListenersInjector
+{
+public:
+    SrsServer *server_;
+    MockTcpListenersForServer rtmp_;
+    MockTcpListenersForServer rtmps_;
+    MockTcpListenersForServer api_;
+    MockTcpListenersForServer apis_;
+    MockTcpListenersForServer http_;
+    MockTcpListenersForServer https_;
+    MockTcpListenersForServer webrtc_;
+#ifdef SRS_RTSP
+    MockTcpListenersForServer rtsp_;
+#endif
+    MockTcpListenerForServer exporter_;
+
+private:
+    ISrsIpListener *originals_[9];
+
+public:
+    ServerTcpListenersInjector(SrsServer *server)
+    {
+        server_ = server;
+        ISrsIpListener *mocks[9] = {&rtmp_, &rtmps_, &api_, &apis_, &http_, &https_, &webrtc_, NULL, &exporter_};
+#ifdef SRS_RTSP
+        mocks[7] = &rtsp_;
+#endif
+        for (int i = 0; i < 9; i++) {
+            originals_[i] = slot(i);
+            if (mocks[i]) {
+                assign(i, mocks[i]);
+            }
+        }
+    }
+    ~ServerTcpListenersInjector()
+    {
+        for (int i = 0; i < 9; i++) {
+            assign(i, originals_[i]);
+        }
+    }
+
+private:
+    ISrsIpListener *slot(int i)
+    {
+        ISrsIpListener *slots[9] = {server_->rtmp_listener_, server_->rtmps_listener_, server_->api_listener_,
+                                    server_->apis_listener_, server_->http_listener_, server_->https_listener_,
+                                    server_->webrtc_listener_, NULL, server_->exporter_listener_};
+#ifdef SRS_RTSP
+        slots[7] = server_->rtsp_listener_;
+#endif
+        return slots[i];
+    }
+    void assign(int i, ISrsIpListener *l)
+    {
+        if (i == 0) server_->rtmp_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 1) server_->rtmps_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 2) server_->api_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 3) server_->apis_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 4) server_->http_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 5) server_->https_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+        if (i == 6) server_->webrtc_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+#ifdef SRS_RTSP
+        if (i == 7) server_->rtsp_listener_ = dynamic_cast<SrsMultipleTcpListeners *>(l);
+#endif
+        if (i == 8) server_->exporter_listener_ = dynamic_cast<SrsTcpListener *>(l);
+    }
+};
+
+VOID TEST(ServerTest, ListenStartsEnabledTcpListenersThroughInjectedListeners)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    MockAppConfigForServerListen config;
+    config.rtmp_listens_.push_back("1935");
+    config.http_api_enabled_ = true;
+    config.http_api_listens_.push_back("1985");
+    config.http_stream_enabled_ = true;
+    config.http_stream_listens_.push_back("8080");
+    config.exporter_enabled_ = true;
+    config.exporter_listen_ = "9972";
+    server->config_ = &config;
+
+    MockResourceManagerForBindSession conn_manager;
+    server->conn_manager_ = &conn_manager;
+
+    ServerTcpListenersInjector listeners(server.get());
+    HELPER_EXPECT_SUCCESS(server->listen());
+
+    // Each enabled listener is given its configured endpoints and label, then started.
+    EXPECT_EQ(1, listeners.rtmp_.add_count_);
+    EXPECT_STREQ("1935", srs_strings_join(listeners.rtmp_.endpoints_, ",").c_str());
+    EXPECT_STREQ("RTMP", listeners.rtmp_.label_.c_str());
+    EXPECT_EQ(1, listeners.rtmp_.listen_count_);
+
+    EXPECT_EQ(1, listeners.api_.add_count_);
+    EXPECT_STREQ("1985", srs_strings_join(listeners.api_.endpoints_, ",").c_str());
+    EXPECT_STREQ("HTTP-API", listeners.api_.label_.c_str());
+    EXPECT_EQ(1, listeners.api_.listen_count_);
+
+    EXPECT_EQ(1, listeners.http_.add_count_);
+    EXPECT_STREQ("8080", srs_strings_join(listeners.http_.endpoints_, ",").c_str());
+    EXPECT_STREQ("HTTP-Server", listeners.http_.label_.c_str());
+    EXPECT_EQ(1, listeners.http_.listen_count_);
+
+    std::string exporter_ip;
+    int exporter_port = 0;
+    srs_net_split_for_listener("9972", exporter_ip, exporter_port);
+    EXPECT_STREQ(exporter_ip.c_str(), listeners.exporter_.endpoint_ip_.c_str());
+    EXPECT_EQ(9972, listeners.exporter_.endpoint_port_);
+    EXPECT_STREQ("Exporter-Server", listeners.exporter_.set_label_.c_str());
+    EXPECT_EQ(1, listeners.exporter_.listen_count_);
+
+    // Disabled listeners are left alone.
+    EXPECT_EQ(0, listeners.rtmps_.add_count_ + listeners.rtmps_.listen_count_);
+    EXPECT_EQ(0, listeners.apis_.add_count_ + listeners.apis_.listen_count_);
+    EXPECT_EQ(0, listeners.https_.add_count_ + listeners.https_.listen_count_);
+    EXPECT_EQ(0, listeners.webrtc_.add_count_ + listeners.webrtc_.listen_count_);
+#ifdef SRS_RTSP
+    EXPECT_EQ(0, listeners.rtsp_.add_count_ + listeners.rtsp_.listen_count_);
+#endif
+
+    server->conn_manager_ = NULL;
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, ListenStopsAtFailedTcpListener)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    MockAppConfigForServerListen config;
+    config.rtmp_listens_.push_back("1935");
+    config.http_api_enabled_ = true;
+    config.http_api_listens_.push_back("1985");
+    server->config_ = &config;
+
+    ServerTcpListenersInjector listeners(server.get());
+    listeners.rtmp_.listen_error_ = srs_error_new(ERROR_SOCKET_BIND, "mock bind");
+
+    // A listener that fails to start fails the server, and no later listener is started.
+    err = server->listen();
+    EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, listeners.rtmp_.add_count_);
+    EXPECT_EQ(1, listeners.rtmp_.listen_count_);
+    EXPECT_EQ(0, listeners.api_.add_count_ + listeners.api_.listen_count_);
+
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, DisposeClosesInjectedTcpListeners)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    ServerTcpListenersInjector listeners(server.get());
+    server->dispose();
+
+    EXPECT_EQ(1, listeners.rtmp_.close_count_);
+    EXPECT_EQ(1, listeners.rtmps_.close_count_);
+    EXPECT_EQ(1, listeners.api_.close_count_);
+    EXPECT_EQ(1, listeners.apis_.close_count_);
+    EXPECT_EQ(1, listeners.http_.close_count_);
+    EXPECT_EQ(1, listeners.https_.close_count_);
+    EXPECT_EQ(1, listeners.webrtc_.close_count_);
+#ifdef SRS_RTSP
+    EXPECT_EQ(1, listeners.rtsp_.close_count_);
+#endif
+    EXPECT_EQ(1, listeners.exporter_.close_count_);
+}
+
+MockHttpFlvListenerForServer::MockHttpFlvListenerForServer()
+{
+    initialize_count_ = 0;
+    initialize_conf_ = NULL;
+    listen_count_ = 0;
+    close_count_ = 0;
+}
+
+MockHttpFlvListenerForServer::~MockHttpFlvListenerForServer()
+{
+}
+
+srs_error_t MockHttpFlvListenerForServer::initialize(SrsConfDirective *c)
+{
+    initialize_count_++;
+    initialize_conf_ = c;
+    return srs_success;
+}
+
+srs_error_t MockHttpFlvListenerForServer::listen()
+{
+    listen_count_++;
+    return srs_success;
+}
+
+void MockHttpFlvListenerForServer::close()
+{
+    close_count_++;
+}
+
+MockUdpCasterListenerForServer::MockUdpCasterListenerForServer()
+{
+    initialize_count_ = 0;
+    initialize_conf_ = NULL;
+    listen_count_ = 0;
+    close_count_ = 0;
+    initialize_error_ = srs_success;
+}
+
+MockUdpCasterListenerForServer::~MockUdpCasterListenerForServer()
+{
+    srs_freep(initialize_error_);
+}
+
+srs_error_t MockUdpCasterListenerForServer::initialize(SrsConfDirective *conf)
+{
+    initialize_count_++;
+    initialize_conf_ = conf;
+
+    srs_error_t err = initialize_error_;
+    initialize_error_ = srs_success;
+    return err;
+}
+
+srs_error_t MockUdpCasterListenerForServer::listen()
+{
+    listen_count_++;
+    return srs_success;
+}
+
+void MockUdpCasterListenerForServer::close()
+{
+    close_count_++;
+}
+
+SrsConfDirective *mock_server_stream_caster_conf(const std::string &engine, bool enabled)
+{
+    SrsConfDirective *conf = new SrsConfDirective();
+    conf->name_ = "stream_caster";
+    conf->get_or_create("enabled", enabled ? "on" : "off");
+    conf->get_or_create("caster", engine);
+    return conf;
+}
+
+// Replaces the HTTP-FLV and MPEG-TS over UDP stream casters of a server with mocks, and puts the originals back
+// before the server is freed.
+class ServerStreamCastersInjector
+{
+public:
+    SrsServer *server_;
+    MockHttpFlvListenerForServer flv_;
+    MockUdpCasterListenerForServer mpegts_;
+
+private:
+    ISrsListener *original_flv_;
+    ISrsListener *original_mpegts_;
+
+public:
+    ServerStreamCastersInjector(SrsServer *server)
+    {
+        server_ = server;
+        original_flv_ = server_->stream_caster_flv_listener_;
+        original_mpegts_ = server_->stream_caster_mpegts_;
+        server_->stream_caster_flv_listener_ = &flv_;
+        server_->stream_caster_mpegts_ = &mpegts_;
+    }
+    ~ServerStreamCastersInjector()
+    {
+        server_->stream_caster_flv_listener_ = dynamic_cast<SrsHttpFlvListener *>(original_flv_);
+        server_->stream_caster_mpegts_ = dynamic_cast<SrsUdpCasterListener *>(original_mpegts_);
+    }
+};
+
+VOID TEST(ServerTest, ListenStartsStreamCastersThroughInjectedListeners)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsUniquePtr<SrsConfDirective> mpegts_conf(mock_server_stream_caster_conf("mpegts_over_udp", true));
+    SrsUniquePtr<SrsConfDirective> flv_conf(mock_server_stream_caster_conf("flv", true));
+    SrsUniquePtr<SrsConfDirective> disabled_conf(mock_server_stream_caster_conf("flv", false));
+
+    MockAppConfigForServerListen config;
+    config.stream_casters_.push_back(mpegts_conf.get());
+    config.stream_casters_.push_back(disabled_conf.get());
+    config.stream_casters_.push_back(flv_conf.get());
+    server->config_ = &config;
+
+    ServerStreamCastersInjector casters(server.get());
+    HELPER_EXPECT_SUCCESS(server->listen());
+
+    // Each enabled caster is initialized with its own directive, then started; the disabled one is skipped.
+    EXPECT_EQ(1, casters.mpegts_.initialize_count_);
+    EXPECT_TRUE(casters.mpegts_.initialize_conf_ == mpegts_conf.get());
+    EXPECT_EQ(1, casters.mpegts_.listen_count_);
+
+    EXPECT_EQ(1, casters.flv_.initialize_count_);
+    EXPECT_TRUE(casters.flv_.initialize_conf_ == flv_conf.get());
+    EXPECT_EQ(1, casters.flv_.listen_count_);
+
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, ListenStopsAtFailedStreamCasterInitialize)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsUniquePtr<SrsConfDirective> mpegts_conf(mock_server_stream_caster_conf("mpegts_over_udp", true));
+    SrsUniquePtr<SrsConfDirective> flv_conf(mock_server_stream_caster_conf("flv", true));
+
+    MockAppConfigForServerListen config;
+    config.stream_casters_.push_back(mpegts_conf.get());
+    config.stream_casters_.push_back(flv_conf.get());
+    server->config_ = &config;
+
+    ServerStreamCastersInjector casters(server.get());
+    casters.mpegts_.initialize_error_ = srs_error_new(ERROR_SOCKET_BIND, "mock initialize");
+
+    // A caster that fails to initialize fails the server; it is not started, nor is any later caster.
+    err = server->listen();
+    EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, casters.mpegts_.initialize_count_);
+    EXPECT_EQ(0, casters.mpegts_.listen_count_);
+    EXPECT_EQ(0, casters.flv_.initialize_count_ + casters.flv_.listen_count_);
+
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, DisposeClosesInjectedStreamCasters)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    ServerStreamCastersInjector casters(server.get());
+    server->dispose();
+
+    EXPECT_EQ(1, casters.flv_.close_count_);
+    EXPECT_EQ(1, casters.mpegts_.close_count_);
+}
+
+VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    MockAppConfigForDo2Cycle *mock_config = new MockAppConfigForDo2Cycle();
+    ISrsAppConfig *original_config = server->config_;
+    server->config_ = mock_config;
+
+    MockReloadStatusForServer status;
+    status.config_ = mock_config;
+    server->reload_status_ = &status;
+
+    server->signal_fast_quit_ = false;
+    server->signal_gracefully_quit_ = false;
+
+    // A reload that fails while parsing is tolerated, and its state and error are recorded.
+    server->signal_reload_ = true;
+    mock_config->reload_state_ = SrsReloadStateParsing;
+    mock_config->reload_error_ = srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "mock parse");
+    HELPER_EXPECT_SUCCESS(server->do2_cycle());
+
+    EXPECT_EQ(1, status.reset_count_);
+    EXPECT_EQ(0, status.reload_count_at_reset_);
+    EXPECT_EQ(1, status.update_count_);
+    EXPECT_EQ(1, status.reload_count_at_update_);
+    EXPECT_EQ(SrsReloadStateParsing, status.update_state_);
+    EXPECT_EQ(ERROR_SYSTEM_CONFIG_INVALID, status.update_error_code_);
+
+    // A successful reload starts over and records the finished state with no error.
+    server->signal_reload_ = true;
+    mock_config->reset();
+    mock_config->reload_state_ = SrsReloadStateFinished;
+    HELPER_EXPECT_SUCCESS(server->do2_cycle());
+
+    EXPECT_EQ(2, status.reset_count_);
+    EXPECT_EQ(0, status.reload_count_at_reset_);
+    EXPECT_EQ(2, status.update_count_);
+    EXPECT_EQ(1, status.reload_count_at_update_);
+    EXPECT_EQ(SrsReloadStateFinished, status.update_state_);
+    EXPECT_EQ(ERROR_SUCCESS, status.update_error_code_);
+
+    server->reload_status_ = NULL;
     server->config_ = original_config;
     srs_freep(mock_config);
 }
@@ -618,6 +1294,7 @@ VOID TEST(ServerTest, SetupTicksWithStatsAndHeartbeat)
 
     // Create SrsServer instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
     EXPECT_TRUE(server.get() != NULL);
 
     // Create and inject mock config
@@ -900,6 +1577,7 @@ VOID TEST(SrsServerTest, NotifyEventDispatch)
 
     // Create server instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     // Create mock objects
     MockRtcSessionManagerForNotify *mock_rtc_manager = new MockRtcSessionManagerForNotify();
@@ -953,6 +1631,7 @@ VOID TEST(SrsServerTest, ResampleKbps)
 {
     // Create server instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     // Create mock objects
     MockConnectionManagerForResampleKbps *mock_conn_manager = new MockConnectionManagerForResampleKbps();
@@ -1389,6 +2068,7 @@ VOID TEST(SrsServerTest, OnBeforeConnectionExceedLimit)
 
     // Create server instance
     SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
 
     // Create mock objects
     MockAppConfigForConnectionLimit *mock_config = new MockAppConfigForConnectionLimit();

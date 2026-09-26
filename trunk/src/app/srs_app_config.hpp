@@ -276,6 +276,45 @@ enum SrsReloadState {
     SrsReloadStateFinished = 90,
 };
 
+// The progress and result of the latest config reload, written by the server and read by the RAW API.
+class ISrsReloadStatus
+{
+public:
+    ISrsReloadStatus();
+    virtual ~ISrsReloadStatus();
+
+public:
+    // Start a new reload: the state goes back to init, the error is cleared, and a new id is generated.
+    virtual void reset() = 0;
+    // Record the state the reload reached, and a copy of its error.
+    virtual void update(SrsReloadState state, srs_error_t err) = 0;
+    virtual SrsReloadState state() = 0;
+    // The error of the latest reload, still owned by the status.
+    virtual srs_error_t error() = 0;
+    virtual std::string id() = 0;
+};
+
+// The reload status of the server, see _srs_reload_status.
+class SrsReloadStatus : public ISrsReloadStatus
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    SrsReloadState state_;
+    srs_error_t err_;
+    std::string id_;
+
+public:
+    SrsReloadStatus();
+    virtual ~SrsReloadStatus();
+
+public:
+    virtual void reset();
+    virtual void update(SrsReloadState state, srs_error_t err);
+    virtual SrsReloadState state();
+    virtual srs_error_t error();
+    virtual std::string id();
+};
+
 // The app level config interface.
 class ISrsAppConfig : public ISrsConfig
 {

@@ -518,6 +518,8 @@ SrsRtcTcpNetwork::SrsRtcTcpNetwork(ISrsRtcConnection *conn, ISrsEphemeralDelta *
     transport_ = new SrsSecurityTransport(this);
     peer_port_ = 0;
     state_ = SrsRtcNetworkStateInit;
+
+    blackhole_ = _srs_blackhole;
 }
 
 SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
@@ -526,6 +528,8 @@ SrsRtcTcpNetwork::~SrsRtcTcpNetwork()
         owner_->interrupt();
     }
     srs_freep(transport_);
+
+    blackhole_ = NULL;
 }
 
 void SrsRtcTcpNetwork::update_sendonly_socket(ISrsProtocolReadWriter *skt)
@@ -570,9 +574,7 @@ srs_error_t SrsRtcTcpNetwork::on_stun(SrsStunPacket *r, char *data, int nb_data)
     srs_error_t err = srs_success;
 
     // Write STUN messages to blackhole.
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(data, nb_data);
-    }
+    blackhole_->sendto(data, nb_data);
 
     if (!r->is_binding_request()) {
         return err;
@@ -624,9 +626,7 @@ srs_error_t SrsRtcTcpNetwork::on_binding_request(SrsStunPacket *r, std::string i
         }
     }
 
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(stream->data(), stream->pos());
-    }
+    blackhole_->sendto(stream->data(), stream->pos());
 
     return err;
 }
@@ -672,9 +672,7 @@ srs_error_t SrsRtcTcpNetwork::on_rtcp(char *data, int nb_data)
     }
 
     char *unprotected_buf = data;
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
-    }
+    blackhole_->sendto(unprotected_buf, nb_unprotected_buf);
 
     if ((err = conn_->on_rtcp(unprotected_buf, nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "cipher=%d", nb_data);
@@ -706,9 +704,7 @@ srs_error_t SrsRtcTcpNetwork::on_rtp(char *data, int nb_data)
     }
 
     char *unprotected_buf = data;
-    if (_srs_blackhole->blackhole_) {
-        _srs_blackhole->sendto(unprotected_buf, nb_unprotected_buf);
-    }
+    blackhole_->sendto(unprotected_buf, nb_unprotected_buf);
 
     if ((err = conn_->on_rtp_plaintext(unprotected_buf, nb_unprotected_buf)) != srs_success) {
         return srs_error_wrap(err, "cipher=%d", nb_data);

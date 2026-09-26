@@ -12,8 +12,10 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_caster_flv.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_security.hpp>
@@ -44,6 +46,8 @@ public:
     std::vector<std::string> rtsp_server_listens_;
     bool exporter_enabled_;
     std::string exporter_listen_;
+    // The stream caster directives, not owned.
+    std::vector<SrsConfDirective *> stream_casters_;
 
 public:
     MockAppConfigForServerListen();
@@ -68,6 +72,9 @@ public:
     virtual std::vector<std::string> get_rtsp_server_listens();
     virtual bool get_exporter_enabled();
     virtual std::string get_exporter_listen();
+    virtual std::vector<SrsConfDirective *> get_stream_casters();
+    virtual bool get_stream_caster_enabled(SrsConfDirective *conf);
+    virtual std::string get_stream_caster_engine(SrsConfDirective *conf);
 };
 
 // Mock PID file locker for testing SrsServer::initialize()
@@ -130,6 +137,139 @@ public:
     virtual srs_error_t persistence();
     void reset();
 };
+
+// Mock ISrsReloadStatus for testing SrsServer::do2_cycle() and SrsGoApiRaw::serve_http()
+class MockReloadStatusForServer : public ISrsReloadStatus
+{
+public:
+    // When set, each call records how many reloads the config had done by then.
+    MockAppConfigForDo2Cycle *config_;
+    int reset_count_;
+    int reload_count_at_reset_;
+    int update_count_;
+    int reload_count_at_update_;
+    SrsReloadState update_state_;
+    int update_error_code_;
+    // What the getters answer.
+    SrsReloadState state_;
+    srs_error_t err_;
+    std::string id_;
+
+public:
+    MockReloadStatusForServer();
+    virtual ~MockReloadStatusForServer();
+
+public:
+    virtual void reset();
+    virtual void update(SrsReloadState state, srs_error_t err);
+    virtual SrsReloadState state();
+    virtual srs_error_t error();
+    virtual std::string id();
+};
+
+// Mock ISrsRtcBlackhole for testing SrsServer::initialize()
+class MockRtcBlackholeForServer : public ISrsRtcBlackhole
+{
+public:
+    int initialize_count_;
+    // The error initialize() returns, owned by the caller once returned.
+    srs_error_t initialize_error_;
+
+public:
+    MockRtcBlackholeForServer();
+    virtual ~MockRtcBlackholeForServer();
+
+public:
+    virtual srs_error_t initialize();
+    virtual void sendto(void *data, int len);
+};
+
+// Mock multiple TCP listeners for testing which listeners SrsServer::listen() starts and dispose() closes.
+class MockTcpListenersForServer : public SrsMultipleTcpListeners
+{
+public:
+    int add_count_;
+    std::vector<std::string> endpoints_;
+    std::string label_;
+    int listen_count_;
+    int close_count_;
+    // The error listen() returns, owned by the caller once returned.
+    srs_error_t listen_error_;
+
+public:
+    MockTcpListenersForServer();
+    virtual ~MockTcpListenersForServer();
+
+public:
+    virtual ISrsIpListener *add(const std::vector<std::string> &endpoints);
+    virtual ISrsListener *set_label(const std::string &label);
+    virtual srs_error_t listen();
+    virtual void close();
+};
+
+// Mock TCP listener for testing how SrsServer::listen() starts the exporter and dispose() closes it.
+class MockTcpListenerForServer : public SrsTcpListener
+{
+public:
+    std::string endpoint_ip_;
+    int endpoint_port_;
+    std::string set_label_;
+    int listen_count_;
+    int close_count_;
+
+public:
+    MockTcpListenerForServer();
+    virtual ~MockTcpListenerForServer();
+
+public:
+    virtual ISrsListener *set_endpoint(const std::string &i, int p);
+    virtual ISrsListener *set_label(const std::string &label);
+    virtual srs_error_t listen();
+    virtual void close();
+};
+
+// Mock HTTP-FLV stream caster for testing how SrsServer::listen() starts it and dispose() closes it.
+class MockHttpFlvListenerForServer : public SrsHttpFlvListener
+{
+public:
+    int initialize_count_;
+    SrsConfDirective *initialize_conf_;
+    int listen_count_;
+    int close_count_;
+
+public:
+    MockHttpFlvListenerForServer();
+    virtual ~MockHttpFlvListenerForServer();
+
+public:
+    virtual srs_error_t initialize(SrsConfDirective *c);
+    virtual srs_error_t listen();
+    virtual void close();
+};
+
+// Mock MPEG-TS over UDP stream caster for testing how SrsServer::listen() starts it and dispose() closes it.
+class MockUdpCasterListenerForServer : public SrsUdpCasterListener
+{
+public:
+    int initialize_count_;
+    SrsConfDirective *initialize_conf_;
+    int listen_count_;
+    int close_count_;
+    // The error initialize() returns, owned by the caller once returned.
+    srs_error_t initialize_error_;
+
+public:
+    MockUdpCasterListenerForServer();
+    virtual ~MockUdpCasterListenerForServer();
+
+public:
+    virtual srs_error_t initialize(SrsConfDirective *conf);
+    virtual srs_error_t listen();
+    virtual void close();
+};
+
+// Build a stream_caster directive with the given engine and enabled switch, owned by the caller.
+extern SrsConfDirective *mock_server_stream_caster_conf(const std::string &engine, bool enabled);
 
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()
 class MockHourGlassForSetupTicks : public ISrsHourGlass

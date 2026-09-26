@@ -46,6 +46,8 @@ public:
     virtual ~ISrsRtcBlackhole();
 
 public:
+    // Open the black hole socket when it is enabled by config.
+    virtual srs_error_t initialize() = 0;
     // Send the packet to the black hole, ignored when it is disabled.
     virtual void sendto(void *data, int len) = 0;
 };
@@ -68,7 +70,7 @@ public:
     virtual ~SrsRtcBlackhole();
 
 public:
-    srs_error_t initialize();
+    virtual srs_error_t initialize();
     virtual void sendto(void *data, int len);
 };
 

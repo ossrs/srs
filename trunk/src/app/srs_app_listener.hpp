@@ -185,8 +185,20 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t do_cycle();
 };
 
+// The TCP listeners of a group of endpoints, which work as one listener.
+class ISrsMultipleTcpListeners : public ISrsIpListener
+{
+public:
+    ISrsMultipleTcpListeners();
+    virtual ~ISrsMultipleTcpListeners();
+
+public:
+    // Create a TCP listener for each endpoint.
+    virtual ISrsIpListener *add(const std::vector<std::string> &endpoints) = 0;
+};
+
 // Bind and listen tcp port, use handler to process the client.
-class SrsMultipleTcpListeners : public ISrsIpListener, public ISrsTcpHandler
+class SrsMultipleTcpListeners : public ISrsMultipleTcpListeners, public ISrsTcpHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -204,7 +216,7 @@ public:
 public:
     ISrsListener *set_label(const std::string &label);
     ISrsListener *set_endpoint(const std::string &i, int p);
-    ISrsIpListener *add(const std::vector<std::string> &endpoints);
+    virtual ISrsIpListener *add(const std::vector<std::string> &endpoints);
 
 public:
     srs_error_t listen();

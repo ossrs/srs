@@ -47,9 +47,11 @@ class SrsAppCasterFlv;
 class SrsResourceManager;
 class SrsLatestVersion;
 class SrsMultipleTcpListeners;
-class SrsHttpFlvListener;
-class SrsUdpCasterListener;
-class SrsGbListener;
+class ISrsMultipleTcpListeners;
+class ISrsIpListener;
+class ISrsHttpFlvListener;
+class ISrsUdpCasterListener;
+class ISrsGbListener;
 class SrsRtmpTransport;
 class SrsRtmpsTransport;
 class SrsSrtAcceptor;
@@ -70,10 +72,16 @@ class ISrsStatistic;
 class ISrsHourGlass;
 class ISrsAppFactory;
 class ISrsUdpMuxSocket;
+class ISrsRtcBlackhole;
 class ISrsRtcConnection;
+class ISrsReloadStatus;
+class SrsReloadStatus;
 
 // Initialize global shared variables cross all threads.
 extern srs_error_t srs_global_initialize();
+
+// The status of the latest config reload.
+extern SrsReloadStatus *_srs_reload_status;
 
 // The signal handler interface.
 class ISrsSignalHandler
@@ -140,6 +148,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsLog *log_;
     ISrsStatistic *stat_;
     ISrsAppFactory *app_factory_;
+    ISrsReloadStatus *reload_status_;
+    ISrsRtcBlackhole *blackhole_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -164,35 +174,35 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // If reusing, WebRTC TCP use the same port of HTTP server.
     bool reuse_rtc_over_server_;
     // RTMP stream listeners, over TCP.
-    SrsMultipleTcpListeners *rtmp_listener_;
+    ISrsMultipleTcpListeners *rtmp_listener_;
     // RTMPS stream listeners, over TCP.
-    SrsMultipleTcpListeners *rtmps_listener_;
+    ISrsMultipleTcpListeners *rtmps_listener_;
     // HTTP API listener, over TCP. Please note that it might reuse with stream listener.
-    SrsMultipleTcpListeners *api_listener_;
+    ISrsMultipleTcpListeners *api_listener_;
     // HTTPS API listener, over TCP. Please note that it might reuse with stream listener.
-    SrsMultipleTcpListeners *apis_listener_;
+    ISrsMultipleTcpListeners *apis_listener_;
     // HTTP server listener, over TCP. Please note that request of both HTTP static and stream are served by this
     // listener, and it might be reused by HTTP API and WebRTC TCP.
-    SrsMultipleTcpListeners *http_listener_;
+    ISrsMultipleTcpListeners *http_listener_;
     // HTTPS server listener, over TCP. Please note that request of both HTTP static and stream are served by this
     // listener, and it might be reused by HTTP API and WebRTC TCP.
-    SrsMultipleTcpListeners *https_listener_;
+    ISrsMultipleTcpListeners *https_listener_;
     // WebRTC over TCP listener. Please note that there is always a UDP listener by RTC server.
-    SrsMultipleTcpListeners *webrtc_listener_;
+    ISrsMultipleTcpListeners *webrtc_listener_;
 #ifdef SRS_RTSP
     // RTSP listener, over TCP.
-    SrsMultipleTcpListeners *rtsp_listener_;
+    ISrsMultipleTcpListeners *rtsp_listener_;
 #endif
     // Stream Caster for push over HTTP-FLV.
-    SrsHttpFlvListener *stream_caster_flv_listener_;
+    ISrsHttpFlvListener *stream_caster_flv_listener_;
     // Stream Caster for push over MPEGTS-UDP
-    SrsUdpCasterListener *stream_caster_mpegts_;
+    ISrsUdpCasterListener *stream_caster_mpegts_;
     // Exporter server listener, over TCP. Please note that metrics request of HTTP is served by this
     // listener, and it might be reused by HTTP API.
-    SrsTcpListener *exporter_listener_;
+    ISrsIpListener *exporter_listener_;
 #ifdef SRS_GB28181
     // Stream Caster for GB28181.
-    SrsGbListener *stream_caster_gb28181_;
+    ISrsGbListener *stream_caster_gb28181_;
 #endif
 
 // clang-format off
@@ -227,6 +237,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsServer();
     virtual ~SrsServer();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

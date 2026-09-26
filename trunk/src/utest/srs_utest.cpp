@@ -88,6 +88,7 @@ srs_error_t prepare_main()
     }
 
     _srs_server = new SrsServer();
+    _srs_server->assemble();
 
     srs_freep(_srs_log);
     _srs_log = new MockEmptyLog(SrsLogLevelError);

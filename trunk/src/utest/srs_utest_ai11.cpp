@@ -865,6 +865,97 @@ VOID TEST(SecurityTransportTest, WriteDtlsDataNetworkError)
     EXPECT_EQ(1, mock_network.write_count_);
 }
 
+MockRtcBlackholeForSecurityTransport::MockRtcBlackholeForSecurityTransport()
+{
+    sendto_count_ = 0;
+    last_data_ = NULL;
+    last_len_ = 0;
+}
+
+MockRtcBlackholeForSecurityTransport::~MockRtcBlackholeForSecurityTransport()
+{
+}
+
+srs_error_t MockRtcBlackholeForSecurityTransport::initialize()
+{
+    return srs_success;
+}
+
+void MockRtcBlackholeForSecurityTransport::sendto(void *data, int len)
+{
+    sendto_count_++;
+    last_data_ = data;
+    last_len_ = len;
+}
+
+// Both security transports capture the black hole at construction, so a test can replace it before any DTLS packet
+// is written.
+VOID TEST(SecurityTransportTest, ConstructionCapturesBlackhole)
+{
+    MockRtcNetwork mock_network;
+
+    SrsSecurityTransport transport(&mock_network);
+    EXPECT_TRUE(transport.blackhole_ != NULL);
+    EXPECT_EQ((ISrsRtcBlackhole *)_srs_blackhole, transport.blackhole_);
+
+    SrsSemiSecurityTransport semi(&mock_network);
+    EXPECT_TRUE(semi.blackhole_ != NULL);
+    EXPECT_EQ((ISrsRtcBlackhole *)_srs_blackhole, semi.blackhole_);
+}
+
+// A DTLS packet goes to the black hole with its own pointer and size, after it was written to the network.
+VOID TEST(SecurityTransportTest, WriteDtlsDataWritesToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcNetwork mock_network;
+    MockDtls mock_dtls;
+    MockRtcBlackholeForSecurityTransport blackhole;
+    SrsUniquePtr<TestableSecurityTransport> transport(new TestableSecurityTransport(&mock_network, &mock_dtls));
+    transport->blackhole_ = &blackhole;
+
+    char test_data[] = "test dtls data";
+    int data_size = strlen(test_data);
+
+    HELPER_EXPECT_SUCCESS(transport->write_dtls_data(test_data, data_size));
+
+    EXPECT_EQ(1, mock_network.write_count_);
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)test_data, blackhole.last_data_);
+    EXPECT_EQ(data_size, blackhole.last_len_);
+
+    transport->blackhole_ = NULL;
+}
+
+// An empty DTLS packet, or one the network failed to write, never reaches the black hole.
+VOID TEST(SecurityTransportTest, WriteDtlsDataSkipsBlackholeWhenNotSent)
+{
+    srs_error_t err;
+
+    MockRtcNetwork mock_network;
+    MockDtls mock_dtls;
+    MockRtcBlackholeForSecurityTransport blackhole;
+    SrsUniquePtr<TestableSecurityTransport> transport(new TestableSecurityTransport(&mock_network, &mock_dtls));
+    transport->blackhole_ = &blackhole;
+
+    char test_data[] = "test dtls data";
+    int data_size = strlen(test_data);
+
+    HELPER_EXPECT_SUCCESS(transport->write_dtls_data(test_data, 0));
+    EXPECT_EQ(0, mock_network.write_count_);
+    EXPECT_EQ(0, blackhole.sendto_count_);
+
+    srs_error_t mock_error = srs_error_new(ERROR_SOCKET_WRITE, "mock network write error");
+    mock_network.set_write_error(mock_error);
+    srs_freep(mock_error);
+
+    HELPER_EXPECT_FAILED(transport->write_dtls_data(test_data, data_size));
+    EXPECT_EQ(1, mock_network.write_count_);
+    EXPECT_EQ(0, blackhole.sendto_count_);
+
+    transport->blackhole_ = NULL;
+}
+
 VOID TEST(SecurityTransportTest, OnDtlsSuccess)
 {
     srs_error_t err;

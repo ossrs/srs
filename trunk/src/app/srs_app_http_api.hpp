@@ -21,6 +21,7 @@ class ISrsHttpResponseWriter;
 class SrsHttpConn;
 class ISrsSignalHandler;
 class ISrsStatistic;
+class ISrsReloadStatus;
 class ISrsAppConfig;
 
 #include <string>
@@ -258,17 +259,11 @@ class SrsGoApiRaw : public ISrsHttpHandler, public ISrsReloadHandler
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     ISrsAppConfig *config_;
+    ISrsReloadStatus *reload_status_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSignalHandler *handler_;
-
-// clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
-    bool raw_api_;
-    bool allow_reload_;
-    bool allow_query_;
-    bool allow_update_;
 
 public:
     SrsGoApiRaw(ISrsSignalHandler *handler);

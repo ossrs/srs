@@ -269,6 +269,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtcConnection *conn_;
     ISrsEphemeralDelta *delta_;
     ISrsProtocolReadWriter *sendonly_skt_;
+    ISrsRtcBlackhole *blackhole_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

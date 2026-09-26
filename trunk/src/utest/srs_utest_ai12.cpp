@@ -650,6 +650,30 @@ VOID TEST(SrsRtcPublishStreamTest, SendPeriodicTwccTypicalScenario)
     HELPER_EXPECT_FAILED(publish_stream->send_periodic_twcc());
 }
 
+// Each TWCC feedback packet is counted in the sent RTCP rate by the receiver's send_rtcp(), so the publish stream
+// adds no count of its own.
+VOID TEST(SrsRtcPublishStreamTest, SendPeriodicTwccLeavesCountingToReceiver)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-send-periodic-twcc-count");
+
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    HELPER_EXPECT_SUCCESS(publish_stream->on_twcc(1000));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_twcc(1001));
+    HELPER_EXPECT_SUCCESS(publish_stream->on_twcc(1002));
+
+    int64_t before = _srs_pps_srtcps->sugar_;
+    HELPER_EXPECT_SUCCESS(publish_stream->send_periodic_twcc());
+    EXPECT_TRUE(mock_receiver.send_rtcp_count_ > 0);
+    EXPECT_EQ(0, _srs_pps_srtcps->sugar_ - before);
+}
+
 VOID TEST(SrsRtcPublishStreamTest, OnRtcpTypicalScenario)
 {
     srs_error_t err;
@@ -2714,6 +2738,193 @@ VOID TEST(SrsRtcConnectionTest, OnRtpPlaintextTypicalScenario)
     // 1. Called find_publisher() to locate the publisher by SSRC
     // 2. Delegated to publisher->on_rtp_plaintext() for actual processing
     // 3. Returned success from the publisher's processing
+}
+
+MockRtcNetworksForConnection::MockRtcNetworksForConnection(ISrsRtcNetwork *available)
+{
+    available_ = available;
+}
+
+MockRtcNetworksForConnection::~MockRtcNetworksForConnection()
+{
+    available_ = NULL;
+}
+
+srs_error_t MockRtcNetworksForConnection::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
+{
+    return srs_success;
+}
+
+void MockRtcNetworksForConnection::set_state(SrsRtcNetworkState state)
+{
+}
+
+ISrsRtcNetwork *MockRtcNetworksForConnection::udp()
+{
+    return available_;
+}
+
+ISrsRtcNetwork *MockRtcNetworksForConnection::tcp()
+{
+    return available_;
+}
+
+ISrsRtcNetwork *MockRtcNetworksForConnection::available()
+{
+    return available_;
+}
+
+ISrsKbpsDelta *MockRtcNetworksForConnection::delta()
+{
+    return NULL;
+}
+
+// The connection captures the black hole at construction, so a test can replace it before any RTCP packet is sent.
+VOID TEST(SrsRtcConnectionTest, ConstructionCapturesBlackhole)
+{
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-blackhole");
+
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    EXPECT_TRUE(conn->blackhole_ != NULL);
+    EXPECT_EQ((ISrsRtcBlackhole *)_srs_blackhole, conn->blackhole_);
+}
+
+// An RTCP packet goes to the black hole with its own pointer and size, then is protected and written to the
+// available network.
+VOID TEST(SrsRtcConnectionTest, SendRtcpWritesToInjectedBlackhole)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-send-rtcp-blackhole");
+
+    MockRtcNetwork mock_network;
+    MockRtcNetworksForConnection mock_networks(&mock_network);
+    MockRtcBlackholeForSecurityTransport blackhole;
+
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    srs_freep(conn->networks_);
+    conn->networks_ = &mock_networks;
+    conn->blackhole_ = &blackhole;
+
+    char test_data[] = {(char)0x80, (char)0xc8, 0x00, 0x06, 0x12, 0x34, 0x56, 0x78};
+    int nb_data = sizeof(test_data);
+
+    HELPER_EXPECT_SUCCESS(conn->send_rtcp(test_data, nb_data));
+
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)test_data, blackhole.last_data_);
+    EXPECT_EQ(nb_data, blackhole.last_len_);
+    EXPECT_EQ(1, mock_network.protect_rtcp_count_);
+    EXPECT_EQ(1, mock_network.write_count_);
+
+    conn->networks_ = NULL;
+    conn->blackhole_ = NULL;
+}
+
+// The black hole receives the plaintext RTCP packet before it is protected, so it still sees a packet that the
+// network then fails to protect.
+VOID TEST(SrsRtcConnectionTest, SendRtcpWritesBlackholeBeforeProtect)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-send-rtcp-plaintext");
+
+    MockRtcNetwork mock_network;
+    MockRtcNetworksForConnection mock_networks(&mock_network);
+    MockRtcBlackholeForSecurityTransport blackhole;
+
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    srs_freep(conn->networks_);
+    conn->networks_ = &mock_networks;
+    conn->blackhole_ = &blackhole;
+
+    srs_error_t mock_error = srs_error_new(ERROR_RTC_DTLS, "mock protect rtcp error");
+    mock_network.set_protect_rtcp_error(mock_error);
+    srs_freep(mock_error);
+
+    char test_data[] = {(char)0x80, (char)0xc8, 0x00, 0x06, 0x12, 0x34, 0x56, 0x78};
+    int nb_data = sizeof(test_data);
+
+    HELPER_EXPECT_FAILED(conn->send_rtcp(test_data, nb_data));
+
+    EXPECT_EQ(1, blackhole.sendto_count_);
+    EXPECT_EQ((void *)test_data, blackhole.last_data_);
+    EXPECT_EQ(nb_data, blackhole.last_len_);
+    EXPECT_EQ(1, mock_network.protect_rtcp_count_);
+    EXPECT_EQ(0, mock_network.write_count_);
+
+    conn->networks_ = NULL;
+    conn->blackhole_ = NULL;
+}
+
+// Every RTCP packet the connection sends is counted once in the sent RTCP rate, by send_rtcp() itself, whichever
+// sender built it.
+VOID TEST(SrsRtcConnectionTest, RtcpSendersCountEachPacketOnce)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-count-rtcp");
+
+    MockRtcNetwork mock_network;
+    MockRtcNetworksForConnection mock_networks(&mock_network);
+    MockRtcBlackholeForSecurityTransport blackhole;
+    MockCircuitBreaker circuit_breaker;
+    circuit_breaker.hybrid_high_water_level_ = false;
+
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    srs_freep(conn->networks_);
+    conn->networks_ = &mock_networks;
+    conn->blackhole_ = &blackhole;
+    conn->circuit_breaker_ = &circuit_breaker;
+
+    uint32_t ssrc = 0x12345678;
+
+    char data[] = {(char)0x80, (char)0xc8, 0x00, 0x06, 0x12, 0x34, 0x56, 0x78};
+    int64_t before = _srs_pps_srtcps->sugar_;
+    HELPER_EXPECT_SUCCESS(conn->send_rtcp(data, sizeof(data)));
+    EXPECT_EQ(1, mock_network.write_count_);
+    EXPECT_EQ(1, _srs_pps_srtcps->sugar_ - before);
+
+    MockRtpRingBuffer rtp_queue;
+    before = _srs_pps_srtcps->sugar_;
+    HELPER_EXPECT_SUCCESS(conn->send_rtcp_rr(ssrc, &rtp_queue, 1000000, SrsNtp::from_time_ms(1000)));
+    EXPECT_EQ(2, mock_network.write_count_);
+    EXPECT_EQ(1, _srs_pps_srtcps->sugar_ - before);
+
+    before = _srs_pps_srtcps->sugar_;
+    HELPER_EXPECT_SUCCESS(conn->send_rtcp_xr_rrtr(ssrc));
+    EXPECT_EQ(3, mock_network.write_count_);
+    EXPECT_EQ(1, _srs_pps_srtcps->sugar_ - before);
+
+    before = _srs_pps_srtcps->sugar_;
+    HELPER_EXPECT_SUCCESS(conn->send_rtcp_fb_pli(ssrc, cid));
+    EXPECT_EQ(4, mock_network.write_count_);
+    EXPECT_EQ(1, _srs_pps_srtcps->sugar_ - before);
+
+    // A real receiver, because get_nack_seqs() is not virtual; zero intervals make the lost packet due at once.
+    SrsRtpNackForReceiver nack(&rtp_queue, 100);
+    nack.opts_.first_nack_interval_ = 0;
+    nack.opts_.nack_interval_ = 0;
+    nack.opts_.min_nack_interval_ = 0;
+    nack.insert(101, 102);
+    uint32_t sent_nacks = 0;
+    uint32_t timeout_nacks = 0;
+    before = _srs_pps_srtcps->sugar_;
+    conn->check_send_nacks(&nack, ssrc, sent_nacks, timeout_nacks);
+    EXPECT_EQ(5, mock_network.write_count_);
+    EXPECT_EQ(1, _srs_pps_srtcps->sugar_ - before);
+
+    conn->networks_ = NULL;
+    conn->blackhole_ = NULL;
+    conn->circuit_breaker_ = NULL;
 }
 
 VOID TEST(SrsRtcConnectionTest, SendRtcpTypicalScenario)

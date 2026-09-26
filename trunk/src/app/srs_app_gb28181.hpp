@@ -251,6 +251,8 @@ public:
     virtual ~ISrsGbListener();
 
 public:
+    virtual srs_error_t initialize(SrsConfDirective *conf) = 0;
+    virtual void close() = 0;
 };
 
 // The Media listener for GB.
@@ -273,9 +275,9 @@ public:
     virtual ~SrsGbListener();
 
 public:
-    srs_error_t initialize(SrsConfDirective *conf);
-    srs_error_t listen();
-    void close();
+    virtual srs_error_t initialize(SrsConfDirective *conf);
+    virtual srs_error_t listen();
+    virtual void close();
     // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
