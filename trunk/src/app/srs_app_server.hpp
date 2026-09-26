@@ -49,9 +49,9 @@ class SrsLatestVersion;
 class SrsMultipleTcpListeners;
 class ISrsMultipleTcpListeners;
 class ISrsIpListener;
-class SrsHttpFlvListener;
-class SrsUdpCasterListener;
-class SrsGbListener;
+class ISrsHttpFlvListener;
+class ISrsUdpCasterListener;
+class ISrsGbListener;
 class SrsRtmpTransport;
 class SrsRtmpsTransport;
 class SrsSrtAcceptor;
@@ -194,15 +194,15 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsMultipleTcpListeners *rtsp_listener_;
 #endif
     // Stream Caster for push over HTTP-FLV.
-    SrsHttpFlvListener *stream_caster_flv_listener_;
+    ISrsHttpFlvListener *stream_caster_flv_listener_;
     // Stream Caster for push over MPEGTS-UDP
-    SrsUdpCasterListener *stream_caster_mpegts_;
+    ISrsUdpCasterListener *stream_caster_mpegts_;
     // Exporter server listener, over TCP. Please note that metrics request of HTTP is served by this
     // listener, and it might be reused by HTTP API.
     ISrsIpListener *exporter_listener_;
 #ifdef SRS_GB28181
     // Stream Caster for GB28181.
-    SrsGbListener *stream_caster_gb28181_;
+    ISrsGbListener *stream_caster_gb28181_;
 #endif
 
 // clang-format off

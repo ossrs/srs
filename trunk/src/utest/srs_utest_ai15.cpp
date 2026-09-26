@@ -153,6 +153,23 @@ std::string MockAppConfigForServerListen::get_exporter_listen()
     return exporter_listen_;
 }
 
+std::vector<SrsConfDirective *> MockAppConfigForServerListen::get_stream_casters()
+{
+    return stream_casters_;
+}
+
+bool MockAppConfigForServerListen::get_stream_caster_enabled(SrsConfDirective *conf)
+{
+    SrsConfDirective *enabled = conf->get("enabled");
+    return enabled && enabled->arg0() == "on";
+}
+
+std::string MockAppConfigForServerListen::get_stream_caster_engine(SrsConfDirective *conf)
+{
+    SrsConfDirective *caster = conf->get("caster");
+    return caster ? caster->arg0() : "";
+}
+
 // Test SrsServer constructor and destructor to ensure proper initialization
 // and cleanup of all server components including listeners, managers, and
 // WebRTC session management.
@@ -960,6 +977,183 @@ VOID TEST(ServerTest, DisposeClosesInjectedTcpListeners)
     EXPECT_EQ(1, listeners.rtsp_.close_count_);
 #endif
     EXPECT_EQ(1, listeners.exporter_.close_count_);
+}
+
+MockHttpFlvListenerForServer::MockHttpFlvListenerForServer()
+{
+    initialize_count_ = 0;
+    initialize_conf_ = NULL;
+    listen_count_ = 0;
+    close_count_ = 0;
+}
+
+MockHttpFlvListenerForServer::~MockHttpFlvListenerForServer()
+{
+}
+
+srs_error_t MockHttpFlvListenerForServer::initialize(SrsConfDirective *c)
+{
+    initialize_count_++;
+    initialize_conf_ = c;
+    return srs_success;
+}
+
+srs_error_t MockHttpFlvListenerForServer::listen()
+{
+    listen_count_++;
+    return srs_success;
+}
+
+void MockHttpFlvListenerForServer::close()
+{
+    close_count_++;
+}
+
+MockUdpCasterListenerForServer::MockUdpCasterListenerForServer()
+{
+    initialize_count_ = 0;
+    initialize_conf_ = NULL;
+    listen_count_ = 0;
+    close_count_ = 0;
+    initialize_error_ = srs_success;
+}
+
+MockUdpCasterListenerForServer::~MockUdpCasterListenerForServer()
+{
+    srs_freep(initialize_error_);
+}
+
+srs_error_t MockUdpCasterListenerForServer::initialize(SrsConfDirective *conf)
+{
+    initialize_count_++;
+    initialize_conf_ = conf;
+
+    srs_error_t err = initialize_error_;
+    initialize_error_ = srs_success;
+    return err;
+}
+
+srs_error_t MockUdpCasterListenerForServer::listen()
+{
+    listen_count_++;
+    return srs_success;
+}
+
+void MockUdpCasterListenerForServer::close()
+{
+    close_count_++;
+}
+
+SrsConfDirective *mock_server_stream_caster_conf(const std::string &engine, bool enabled)
+{
+    SrsConfDirective *conf = new SrsConfDirective();
+    conf->name_ = "stream_caster";
+    conf->get_or_create("enabled", enabled ? "on" : "off");
+    conf->get_or_create("caster", engine);
+    return conf;
+}
+
+// Replaces the HTTP-FLV and MPEG-TS over UDP stream casters of a server with mocks, and puts the originals back
+// before the server is freed.
+class ServerStreamCastersInjector
+{
+public:
+    SrsServer *server_;
+    MockHttpFlvListenerForServer flv_;
+    MockUdpCasterListenerForServer mpegts_;
+
+private:
+    ISrsListener *original_flv_;
+    ISrsListener *original_mpegts_;
+
+public:
+    ServerStreamCastersInjector(SrsServer *server)
+    {
+        server_ = server;
+        original_flv_ = server_->stream_caster_flv_listener_;
+        original_mpegts_ = server_->stream_caster_mpegts_;
+        server_->stream_caster_flv_listener_ = &flv_;
+        server_->stream_caster_mpegts_ = &mpegts_;
+    }
+    ~ServerStreamCastersInjector()
+    {
+        server_->stream_caster_flv_listener_ = dynamic_cast<SrsHttpFlvListener *>(original_flv_);
+        server_->stream_caster_mpegts_ = dynamic_cast<SrsUdpCasterListener *>(original_mpegts_);
+    }
+};
+
+VOID TEST(ServerTest, ListenStartsStreamCastersThroughInjectedListeners)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsUniquePtr<SrsConfDirective> mpegts_conf(mock_server_stream_caster_conf("mpegts_over_udp", true));
+    SrsUniquePtr<SrsConfDirective> flv_conf(mock_server_stream_caster_conf("flv", true));
+    SrsUniquePtr<SrsConfDirective> disabled_conf(mock_server_stream_caster_conf("flv", false));
+
+    MockAppConfigForServerListen config;
+    config.stream_casters_.push_back(mpegts_conf.get());
+    config.stream_casters_.push_back(disabled_conf.get());
+    config.stream_casters_.push_back(flv_conf.get());
+    server->config_ = &config;
+
+    ServerStreamCastersInjector casters(server.get());
+    HELPER_EXPECT_SUCCESS(server->listen());
+
+    // Each enabled caster is initialized with its own directive, then started; the disabled one is skipped.
+    EXPECT_EQ(1, casters.mpegts_.initialize_count_);
+    EXPECT_TRUE(casters.mpegts_.initialize_conf_ == mpegts_conf.get());
+    EXPECT_EQ(1, casters.mpegts_.listen_count_);
+
+    EXPECT_EQ(1, casters.flv_.initialize_count_);
+    EXPECT_TRUE(casters.flv_.initialize_conf_ == flv_conf.get());
+    EXPECT_EQ(1, casters.flv_.listen_count_);
+
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, ListenStopsAtFailedStreamCasterInitialize)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsUniquePtr<SrsConfDirective> mpegts_conf(mock_server_stream_caster_conf("mpegts_over_udp", true));
+    SrsUniquePtr<SrsConfDirective> flv_conf(mock_server_stream_caster_conf("flv", true));
+
+    MockAppConfigForServerListen config;
+    config.stream_casters_.push_back(mpegts_conf.get());
+    config.stream_casters_.push_back(flv_conf.get());
+    server->config_ = &config;
+
+    ServerStreamCastersInjector casters(server.get());
+    casters.mpegts_.initialize_error_ = srs_error_new(ERROR_SOCKET_BIND, "mock initialize");
+
+    // A caster that fails to initialize fails the server; it is not started, nor is any later caster.
+    err = server->listen();
+    EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, casters.mpegts_.initialize_count_);
+    EXPECT_EQ(0, casters.mpegts_.listen_count_);
+    EXPECT_EQ(0, casters.flv_.initialize_count_ + casters.flv_.listen_count_);
+
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, DisposeClosesInjectedStreamCasters)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    ServerStreamCastersInjector casters(server.get());
+    server->dispose();
+
+    EXPECT_EQ(1, casters.flv_.close_count_);
+    EXPECT_EQ(1, casters.mpegts_.close_count_);
 }
 
 VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)

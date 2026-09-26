@@ -552,6 +552,25 @@ public:
 #endif
     void reset();
 };
+
+// Mock GB28181 stream caster for testing how SrsServer::listen() starts it and dispose() closes it.
+class MockGbListenerForServer : public SrsGbListener
+{
+public:
+    int initialize_count_;
+    SrsConfDirective *initialize_conf_;
+    int listen_count_;
+    int close_count_;
+
+public:
+    MockGbListenerForServer();
+    virtual ~MockGbListenerForServer();
+
+public:
+    virtual srs_error_t initialize(SrsConfDirective *conf);
+    virtual srs_error_t listen();
+    virtual void close();
+};
 #endif
 
 // Mock ISrsRtcNetwork for testing SrsRtcNetworks

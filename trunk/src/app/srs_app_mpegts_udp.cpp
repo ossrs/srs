@@ -32,6 +32,14 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
 
+ISrsUdpCasterListener::ISrsUdpCasterListener()
+{
+}
+
+ISrsUdpCasterListener::~ISrsUdpCasterListener()
+{
+}
+
 SrsUdpCasterListener::SrsUdpCasterListener()
 {
     caster_ = new SrsMpegtsOverUdp();

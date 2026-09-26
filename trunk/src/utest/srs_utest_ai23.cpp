@@ -25,6 +25,7 @@ using namespace std;
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -2373,6 +2374,79 @@ VOID TEST(GB28181Test, GoApiGbPublishSuccess)
     api->app_factory_ = NULL;
 
     srs_freep(conf);
+}
+
+MockGbListenerForServer::MockGbListenerForServer()
+{
+    initialize_count_ = 0;
+    initialize_conf_ = NULL;
+    listen_count_ = 0;
+    close_count_ = 0;
+}
+
+MockGbListenerForServer::~MockGbListenerForServer()
+{
+}
+
+srs_error_t MockGbListenerForServer::initialize(SrsConfDirective *conf)
+{
+    initialize_count_++;
+    initialize_conf_ = conf;
+    return srs_success;
+}
+
+srs_error_t MockGbListenerForServer::listen()
+{
+    listen_count_++;
+    return srs_success;
+}
+
+void MockGbListenerForServer::close()
+{
+    close_count_++;
+}
+
+VOID TEST(ServerTest, ListenStartsGbStreamCasterThroughInjectedListener)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsUniquePtr<SrsConfDirective> gb_conf(mock_server_stream_caster_conf("gb28181", true));
+
+    MockAppConfigForServerListen config;
+    config.stream_casters_.push_back(gb_conf.get());
+    server->config_ = &config;
+
+    MockGbListenerForServer gb;
+    ISrsListener *original = server->stream_caster_gb28181_;
+    server->stream_caster_gb28181_ = &gb;
+
+    HELPER_EXPECT_SUCCESS(server->listen());
+
+    // The GB caster is initialized with its own directive, then started.
+    EXPECT_EQ(1, gb.initialize_count_);
+    EXPECT_TRUE(gb.initialize_conf_ == gb_conf.get());
+    EXPECT_EQ(1, gb.listen_count_);
+
+    server->stream_caster_gb28181_ = dynamic_cast<SrsGbListener *>(original);
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, DisposeClosesInjectedGbStreamCaster)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    MockGbListenerForServer gb;
+    ISrsListener *original = server->stream_caster_gb28181_;
+    server->stream_caster_gb28181_ = &gb;
+
+    server->dispose();
+    EXPECT_EQ(1, gb.close_count_);
+
+    server->stream_caster_gb28181_ = dynamic_cast<SrsGbListener *>(original);
 }
 #endif
 

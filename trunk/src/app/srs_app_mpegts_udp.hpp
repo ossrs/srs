@@ -41,8 +41,20 @@ class ISrsAppFactory;
 #include <srs_app_st.hpp>
 #include <srs_kernel_ts.hpp>
 
+// The UDP stream caster listener interface.
+class ISrsUdpCasterListener : public ISrsListener
+{
+public:
+    ISrsUdpCasterListener();
+    virtual ~ISrsUdpCasterListener();
+
+public:
+    virtual srs_error_t initialize(SrsConfDirective *conf) = 0;
+    virtual void close() = 0;
+};
+
 // A UDP listener, for udp stream caster server.
-class SrsUdpCasterListener : public ISrsListener
+class SrsUdpCasterListener : public ISrsUdpCasterListener
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -58,9 +70,9 @@ public:
     virtual ~SrsUdpCasterListener();
 
 public:
-    srs_error_t initialize(SrsConfDirective *conf);
-    srs_error_t listen();
-    void close();
+    virtual srs_error_t initialize(SrsConfDirective *conf);
+    virtual srs_error_t listen();
+    virtual void close();
 };
 
 // The interface for mpegts queue.

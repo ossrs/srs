@@ -44,6 +44,8 @@ public:
     virtual ~ISrsHttpFlvListener();
 
 public:
+    virtual srs_error_t initialize(SrsConfDirective *c) = 0;
+    virtual void close() = 0;
 };
 
 // A TCP listener, for flv stream server.
@@ -63,9 +65,9 @@ public:
     virtual ~SrsHttpFlvListener();
 
 public:
-    srs_error_t initialize(SrsConfDirective *c);
+    virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t listen();
-    void close();
+    virtual void close();
     // Interface ISrsTcpHandler
 public:
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
