@@ -25,7 +25,7 @@
 #include <srs_protocol_st.hpp>
 
 class SrsAsyncCallWorker;
-class SrsUdpMuxListener;
+class ISrsUdpMuxListener;
 class SrsUdpMuxSocket;
 class SrsRtcUserConfig;
 class SrsSdp;
@@ -214,7 +214,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // WebRTC UDP listeners for RTC server functionality.
-    std::vector<SrsUdpMuxListener *>
+    std::vector<ISrsUdpMuxListener *>
         rtc_listeners_;
     // WebRTC session manager.
     SrsRtcSessionManager *rtc_session_manager_;

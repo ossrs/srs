@@ -46,6 +46,8 @@ public:
     std::vector<std::string> rtsp_server_listens_;
     bool exporter_enabled_;
     std::string exporter_listen_;
+    std::vector<std::string> rtc_server_listens_;
+    int rtc_server_reuseport_;
     // The stream caster directives, not owned.
     std::vector<SrsConfDirective *> stream_casters_;
 
@@ -72,6 +74,8 @@ public:
     virtual std::vector<std::string> get_rtsp_server_listens();
     virtual bool get_exporter_enabled();
     virtual std::string get_exporter_listen();
+    virtual std::vector<std::string> get_rtc_server_listens();
+    virtual int get_rtc_server_reuseport();
     virtual std::vector<SrsConfDirective *> get_stream_casters();
     virtual bool get_stream_caster_enabled(SrsConfDirective *conf);
     virtual std::string get_stream_caster_engine(SrsConfDirective *conf);
@@ -270,6 +274,48 @@ public:
 
 // Build a stream_caster directive with the given engine and enabled switch, owned by the caller.
 extern SrsConfDirective *mock_server_stream_caster_conf(const std::string &engine, bool enabled);
+
+class MockAppFactoryForServerRtcUdp;
+
+// Mock WebRTC UDP listener for testing how SrsServer::listen_rtc_udp() creates, starts and frees it.
+class MockUdpMuxListenerForServer : public ISrsUdpMuxListener
+{
+public:
+    // The factory that created it, which records the destruction.
+    MockAppFactoryForServerRtcUdp *factory_;
+    ISrsUdpMuxHandler *handler_;
+    std::string ip_;
+    int port_;
+    int listen_count_;
+    // The error listen() returns, owned by the caller once returned.
+    srs_error_t listen_error_;
+
+public:
+    MockUdpMuxListenerForServer(MockAppFactoryForServerRtcUdp *factory, ISrsUdpMuxHandler *h, std::string i, int p);
+    virtual ~MockUdpMuxListenerForServer();
+
+public:
+    virtual srs_error_t listen();
+    virtual int fd();
+};
+
+// Mock ISrsAppFactory for testing which WebRTC UDP listeners SrsServer::listen_rtc_udp() creates.
+class MockAppFactoryForServerRtcUdp : public SrsAppFactory
+{
+public:
+    // The listeners created, owned by the server.
+    std::vector<MockUdpMuxListenerForServer *> listeners_;
+    int destroyed_count_;
+    // Which created listener fails to listen, starting at 0, or -1 for none.
+    int fail_at_;
+
+public:
+    MockAppFactoryForServerRtcUdp();
+    virtual ~MockAppFactoryForServerRtcUdp();
+
+public:
+    virtual ISrsUdpMuxListener *create_udp_mux_listener(ISrsUdpMuxHandler *handler, std::string ip, int port);
+};
 
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()
 class MockHourGlassForSetupTicks : public ISrsHourGlass

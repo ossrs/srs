@@ -272,9 +272,9 @@ SrsServer::~SrsServer()
 
     // Cleanup WebRTC components
     if (true) {
-        std::vector<SrsUdpMuxListener *>::iterator it;
+        std::vector<ISrsUdpMuxListener *>::iterator it;
         for (it = rtc_listeners_.begin(); it != rtc_listeners_.end(); ++it) {
-            SrsUdpMuxListener *listener = *it;
+            ISrsUdpMuxListener *listener = *it;
             srs_freep(listener);
         }
         rtc_listeners_.clear();
@@ -1386,7 +1386,7 @@ srs_error_t SrsServer::listen_rtc_udp()
         }
 
         for (int i = 0; i < nn_listeners; i++) {
-            SrsUdpMuxListener *listener = new SrsUdpMuxListener(this, ip, port);
+            ISrsUdpMuxListener *listener = app_factory_->create_udp_mux_listener(this, ip, port);
 
             if ((err = listener->listen()) != srs_success) {
                 srs_freep(listener);

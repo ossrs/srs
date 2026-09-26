@@ -664,6 +664,14 @@ ISrsUdpMuxSocket *SrsUdpMuxSocket::copy_sendonly()
 }
 // LCOV_EXCL_STOP
 
+ISrsUdpMuxListener::ISrsUdpMuxListener()
+{
+}
+
+ISrsUdpMuxListener::~ISrsUdpMuxListener()
+{
+}
+
 SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler *h, std::string i, int p)
 {
     handler_ = h;

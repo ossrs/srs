@@ -298,7 +298,18 @@ public:
     ISrsUdpMuxSocket *copy_sendonly();
 };
 
-class SrsUdpMuxListener : public ISrsCoroutineHandler
+// The UDP listener interface, which receives packets for a mux handler.
+class ISrsUdpMuxListener : public ISrsListener
+{
+public:
+    ISrsUdpMuxListener();
+    virtual ~ISrsUdpMuxListener();
+
+public:
+    virtual int fd() = 0;
+};
+
+class SrsUdpMuxListener : public ISrsUdpMuxListener, public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

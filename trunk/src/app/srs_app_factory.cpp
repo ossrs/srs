@@ -192,6 +192,11 @@ ISrsSrtListener *SrsAppFactory::create_srt_listener(ISrsSrtHandler *handler, std
     return new SrsSrtListener(handler, ip, port);
 }
 
+ISrsUdpMuxListener *SrsAppFactory::create_udp_mux_listener(ISrsUdpMuxHandler *handler, std::string ip, int port)
+{
+    return new SrsUdpMuxListener(handler, ip, port);
+}
+
 ISrsRtcConnection *SrsAppFactory::create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid)
 {
     SrsRtcConnection *session = new SrsRtcConnection(exec, cid);

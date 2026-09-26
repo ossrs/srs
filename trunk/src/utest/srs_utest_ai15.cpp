@@ -57,6 +57,7 @@ MockAppConfigForServerListen::MockAppConfigForServerListen()
     rtc_server_protocol_ = "udp";
     rtsp_server_enabled_ = false;
     exporter_enabled_ = false;
+    rtc_server_reuseport_ = 1;
 }
 
 MockAppConfigForServerListen::~MockAppConfigForServerListen()
@@ -151,6 +152,16 @@ bool MockAppConfigForServerListen::get_exporter_enabled()
 std::string MockAppConfigForServerListen::get_exporter_listen()
 {
     return exporter_listen_;
+}
+
+std::vector<std::string> MockAppConfigForServerListen::get_rtc_server_listens()
+{
+    return rtc_server_listens_;
+}
+
+int MockAppConfigForServerListen::get_rtc_server_reuseport()
+{
+    return rtc_server_reuseport_;
 }
 
 std::vector<SrsConfDirective *> MockAppConfigForServerListen::get_stream_casters()
@@ -1154,6 +1165,158 @@ VOID TEST(ServerTest, DisposeClosesInjectedStreamCasters)
 
     EXPECT_EQ(1, casters.flv_.close_count_);
     EXPECT_EQ(1, casters.mpegts_.close_count_);
+}
+
+MockUdpMuxListenerForServer::MockUdpMuxListenerForServer(MockAppFactoryForServerRtcUdp *factory, ISrsUdpMuxHandler *h, std::string i, int p)
+{
+    factory_ = factory;
+    handler_ = h;
+    ip_ = i;
+    port_ = p;
+    listen_count_ = 0;
+    listen_error_ = srs_success;
+}
+
+MockUdpMuxListenerForServer::~MockUdpMuxListenerForServer()
+{
+    srs_freep(listen_error_);
+    factory_->destroyed_count_++;
+}
+
+srs_error_t MockUdpMuxListenerForServer::listen()
+{
+    listen_count_++;
+
+    srs_error_t err = listen_error_;
+    listen_error_ = srs_success;
+    return err;
+}
+
+int MockUdpMuxListenerForServer::fd()
+{
+    return -1;
+}
+
+MockAppFactoryForServerRtcUdp::MockAppFactoryForServerRtcUdp()
+{
+    destroyed_count_ = 0;
+    fail_at_ = -1;
+}
+
+MockAppFactoryForServerRtcUdp::~MockAppFactoryForServerRtcUdp()
+{
+}
+
+ISrsUdpMuxListener *MockAppFactoryForServerRtcUdp::create_udp_mux_listener(ISrsUdpMuxHandler *handler, std::string ip, int port)
+{
+    MockUdpMuxListenerForServer *listener = new MockUdpMuxListenerForServer(this, handler, ip, port);
+    if ((int)listeners_.size() == fail_at_) {
+        listener->listen_error_ = srs_error_new(ERROR_SOCKET_BIND, "mock bind");
+    }
+    listeners_.push_back(listener);
+    return listener;
+}
+
+VOID TEST(ServerTest, ListenRtcUdpCreatesListenersThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    MockAppFactoryForServerRtcUdp factory;
+    MockAppConfigForServerListen config;
+    config.rtc_server_enabled_ = true;
+    config.rtc_server_listens_.push_back("18000");
+    config.rtc_server_listens_.push_back("127.0.0.1:18001");
+    config.rtc_server_reuseport_ = 2;
+
+    std::string any_ip;
+    int any_port = 0;
+    srs_net_split_for_listener("18000", any_ip, any_port);
+
+    if (true) {
+        SrsUniquePtr<SrsServer> server(new SrsServer());
+        server->assemble();
+        server->config_ = &config;
+        server->app_factory_ = &factory;
+
+        HELPER_EXPECT_SUCCESS(server->listen_rtc_udp());
+
+        // Each endpoint gets one listener per reuseport, handled by the server, each started once and kept.
+        ASSERT_EQ(4, (int)factory.listeners_.size());
+        ASSERT_EQ(4, (int)server->rtc_listeners_.size());
+        for (int i = 0; i < 4; i++) {
+            MockUdpMuxListenerForServer *listener = factory.listeners_[i];
+            EXPECT_TRUE(listener->handler_ == static_cast<ISrsUdpMuxHandler *>(server.get()));
+            EXPECT_STREQ(i < 2 ? any_ip.c_str() : "127.0.0.1", listener->ip_.c_str());
+            EXPECT_EQ(i < 2 ? 18000 : 18001, listener->port_);
+            EXPECT_EQ(1, listener->listen_count_);
+            EXPECT_TRUE(static_cast<ISrsUdpMuxListener *>(server->rtc_listeners_[i]) == listener);
+        }
+
+        server->config_ = NULL;
+        server->app_factory_ = NULL;
+    }
+
+    // The server frees the listeners it kept.
+    EXPECT_EQ(4, factory.destroyed_count_);
+}
+
+VOID TEST(ServerTest, ListenRtcUdpStopsAtFailedListener)
+{
+    srs_error_t err;
+
+    MockAppFactoryForServerRtcUdp factory;
+    factory.fail_at_ = 1;
+    MockAppConfigForServerListen config;
+    config.rtc_server_enabled_ = true;
+    config.rtc_server_listens_.push_back("18000");
+    config.rtc_server_reuseport_ = 3;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->config_ = &config;
+    server->app_factory_ = &factory;
+
+    // A listener that fails to start fails the server, is freed at once, and no later listener is created.
+    err = server->listen_rtc_udp();
+    EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(2, (int)factory.listeners_.size());
+    EXPECT_EQ(1, factory.destroyed_count_);
+    ASSERT_EQ(1, (int)server->rtc_listeners_.size());
+    EXPECT_TRUE(static_cast<ISrsUdpMuxListener *>(server->rtc_listeners_[0]) == factory.listeners_[0]);
+
+    server->config_ = NULL;
+    server->app_factory_ = NULL;
+}
+
+// Passes from the start and locks in accepted behavior: no UDP listener is created when WebRTC is disabled or
+// limited to TCP, which is how listen_rtc_udp() behaved before its listeners came from the factory.
+VOID TEST(ServerTest, ListenRtcUdpCreatesNoListenerWhenDisabledOrTcpOnly)
+{
+    srs_error_t err;
+
+    MockAppFactoryForServerRtcUdp factory;
+    MockAppConfigForServerListen config;
+    config.rtc_server_listens_.push_back("18000");
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->config_ = &config;
+    server->app_factory_ = &factory;
+
+    config.rtc_server_enabled_ = false;
+    HELPER_EXPECT_SUCCESS(server->listen_rtc_udp());
+
+    config.rtc_server_enabled_ = true;
+    config.rtc_server_protocol_ = "tcp";
+    HELPER_EXPECT_SUCCESS(server->listen_rtc_udp());
+
+    EXPECT_EQ(0, (int)factory.listeners_.size());
+    EXPECT_TRUE(server->rtc_listeners_.empty());
+
+    server->config_ = NULL;
+    server->app_factory_ = NULL;
 }
 
 VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
