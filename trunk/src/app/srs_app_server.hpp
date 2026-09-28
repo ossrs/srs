@@ -36,7 +36,7 @@ class SrsServer;
 class ISrsCommonHttpHandler;
 class ISrsHttpServer;
 class SrsIngester;
-class SrsHttpHeartbeat;
+class ISrsHttpHeartbeat;
 class SrsKbps;
 class SrsConfDirective;
 class ISrsTcpHandler;
@@ -158,7 +158,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsHttpHeartbeat *http_heartbeat_;
+    ISrsHttpHeartbeat *http_heartbeat_;
     SrsIngester *ingester_;
     ISrsHourGlass *timer_;
 

@@ -2104,7 +2104,7 @@ VOID TEST(SrsServerTest, NotifyEventDispatch)
 
     // Save original pointers
     SrsRtcSessionManager *original_rtc_manager = server->rtc_session_manager_;
-    SrsHttpHeartbeat *original_heartbeat = server->http_heartbeat_;
+    ISrsHttpHeartbeat *original_heartbeat = server->http_heartbeat_;
 
     // Inject mock objects (no cast needed since they inherit from the base classes)
     server->rtc_session_manager_ = mock_rtc_manager;

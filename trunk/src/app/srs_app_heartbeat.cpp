@@ -22,16 +22,26 @@ using namespace std;
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_json.hpp>
 
+ISrsHttpHeartbeat::ISrsHttpHeartbeat()
+{
+}
+
+ISrsHttpHeartbeat::~ISrsHttpHeartbeat()
+{
+}
+
 SrsHttpHeartbeat::SrsHttpHeartbeat()
 {
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
+    stat_ = _srs_stat;
 }
 
 SrsHttpHeartbeat::~SrsHttpHeartbeat()
 {
     config_ = NULL;
     app_factory_ = NULL;
+    stat_ = NULL;
 }
 
 void SrsHttpHeartbeat::heartbeat()
@@ -74,10 +84,9 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
     obj->set("device_id", SrsJsonAny::str(device_id.c_str()));
     obj->set("ip", SrsJsonAny::str(ip.c_str()));
 
-    SrsStatistic *stat = _srs_stat;
-    obj->set("server", SrsJsonAny::str(stat->server_id().c_str()));
-    obj->set("service", SrsJsonAny::str(stat->service_id().c_str()));
-    obj->set("pid", SrsJsonAny::str(stat->service_pid().c_str()));
+    obj->set("server", SrsJsonAny::str(stat_->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat_->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat_->service_pid().c_str()));
 
     if (config_->get_heartbeat_summaries()) {
         SrsJsonObject *summaries = SrsJsonAny::object();

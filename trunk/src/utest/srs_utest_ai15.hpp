@@ -455,8 +455,8 @@ public:
     virtual void srs_update_rtc_sessions();
 };
 
-// Mock SrsHttpHeartbeat for testing SrsServer::notify()
-class MockHttpHeartbeatForNotify : public SrsHttpHeartbeat
+// Mock ISrsHttpHeartbeat for testing SrsServer::notify()
+class MockHttpHeartbeatForNotify : public ISrsHttpHeartbeat
 {
 public:
     int heartbeat_count_;

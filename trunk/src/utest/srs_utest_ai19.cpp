@@ -26,6 +26,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_manual_coworkers.hpp>
@@ -3761,6 +3762,7 @@ MockHttpClientForHeartbeat::MockHttpClientForHeartbeat()
     initialize_error_ = srs_success;
     post_error_ = srs_success;
     should_delete_response_ = true;
+    request_body_out_ = NULL;
 }
 
 MockHttpClientForHeartbeat::~MockHttpClientForHeartbeat()
@@ -3790,6 +3792,9 @@ srs_error_t MockHttpClientForHeartbeat::post(std::string path, std::string req, 
     post_called_ = true;
     path_ = path;
     request_body_ = req;
+    if (request_body_out_) {
+        *request_body_out_ = req;
+    }
     if (ppmsg && mock_response_) {
         *ppmsg = (ISrsHttpMessage *)mock_response_;
     }
@@ -4149,6 +4154,86 @@ VOID TEST(HttpHeartbeatTest, DoHeartbeatWithAllPortsEnabled)
     heartbeat->config_ = NULL;
     heartbeat->app_factory_ = NULL;
     mock_factory->mock_http_client_ = NULL; // Already deleted by do_heartbeat()
+}
+
+MockStatisticForHeartbeat::MockStatisticForHeartbeat()
+{
+}
+
+MockStatisticForHeartbeat::~MockStatisticForHeartbeat()
+{
+}
+
+std::string MockStatisticForHeartbeat::server_id()
+{
+    return "mock-server";
+}
+
+std::string MockStatisticForHeartbeat::service_id()
+{
+    return "mock-service";
+}
+
+std::string MockStatisticForHeartbeat::service_pid()
+{
+    return "mock-pid";
+}
+
+VOID TEST(HttpHeartbeatTest, ConstructionCapturesStatistic)
+{
+    SrsUniquePtr<SrsHttpHeartbeat> heartbeat(new SrsHttpHeartbeat());
+    EXPECT_TRUE(heartbeat->stat_ == _srs_stat);
+}
+
+VOID TEST(HttpHeartbeatTest, DoHeartbeatReportsIdsFromInjectedStatistic)
+{
+    srs_error_t err;
+
+    MockAppConfigForHeartbeat config;
+    config.heartbeat_url_ = "http://127.0.0.1:8085/api/v1/servers";
+    config.heartbeat_device_id_ = "test-device";
+
+    MockHttpMessageForHeartbeat *response = new MockHttpMessageForHeartbeat();
+    response->body_content_ = "{\"code\":0}";
+
+    std::string body;
+    MockHttpClientForHeartbeat *client = new MockHttpClientForHeartbeat();
+    client->mock_response_ = response;
+    client->request_body_out_ = &body;
+
+    MockAppFactoryForHeartbeat factory;
+    factory.mock_http_client_ = client;
+
+    MockStatisticForHeartbeat stat;
+
+    SrsUniquePtr<SrsHttpHeartbeat> heartbeat(new SrsHttpHeartbeat());
+    heartbeat->config_ = &config;
+    heartbeat->app_factory_ = &factory;
+    heartbeat->stat_ = &stat;
+
+    // The client and its response are freed by do_heartbeat().
+    HELPER_EXPECT_SUCCESS(heartbeat->do_heartbeat());
+    factory.mock_http_client_ = NULL;
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(body));
+    ASSERT_TRUE(json.get() && json->is_object());
+    SrsJsonObject *obj = json->to_object();
+
+    SrsJsonAny *prop = obj->get_property("server");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("mock-server", prop->to_str().c_str());
+
+    prop = obj->get_property("service");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("mock-service", prop->to_str().c_str());
+
+    prop = obj->get_property("pid");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("mock-pid", prop->to_str().c_str());
+
+    heartbeat->config_ = NULL;
+    heartbeat->app_factory_ = NULL;
+    heartbeat->stat_ = NULL;
 }
 
 VOID TEST(ReferTest, CheckReferWithMatchingDomain)
