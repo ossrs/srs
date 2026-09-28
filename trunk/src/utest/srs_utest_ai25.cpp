@@ -7,6 +7,8 @@
 
 using namespace std;
 
+#include <set>
+
 #include <srs_app_config.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
@@ -644,4 +646,121 @@ VOID TEST(HookRejectionTest, SrtRejectedViewerIsRefusedWithoutStatusChannel)
     conn->srt_sources_ = NULL;
     conn->live_sources_ = NULL;
     conn->rtc_sources_ = NULL;
+}
+
+// Stands in for the other coroutines that run while a viewer's on_play hook blocks on its HTTP
+// POST: SrsServer::resample_kbps() casts every connection to SrsRtmpConn and samples its delta,
+// and the HTTP API dumps the clients and streams the viewer was just registered with.
+class MockHttpHooksForIssue4754 : public MockHttpHooksForOnPlay
+{
+public:
+    SrsStatistic *stat_;
+    SrsRtmpConn *conn_;
+    std::string stream_id_;
+    int nb_clients_;
+
+public:
+    MockHttpHooksForIssue4754(SrsStatistic *stat)
+    {
+        stat_ = stat;
+        conn_ = NULL;
+        nb_clients_ = 0;
+    }
+
+public:
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req)
+    {
+        SrsRtmpConn *rtmp = dynamic_cast<SrsRtmpConn *>((ISrsResource *)conn_);
+        if (rtmp) {
+            stat_->kbps_add_delta(rtmp->get_id().c_str(), rtmp->delta());
+        }
+
+        SrsUniquePtr<SrsJsonArray> clients(SrsJsonAny::array());
+        srs_error_t err = stat_->dumps_clients(clients.get(), 0, 10);
+        srs_freep(err);
+        SrsUniquePtr<SrsJsonArray> streams(SrsJsonAny::array());
+        err = stat_->dumps_streams(streams.get(), 0, 10);
+        srs_freep(err);
+
+        SrsStatisticStream *stream = stat_->find_stream_by_url(req->get_stream_url());
+        if (stream) {
+            stream_id_ = stream->id_;
+            nb_clients_ = stream->nb_clients_;
+        }
+
+        return MockHttpHooksForOnPlay::on_play(url, req);
+    }
+};
+
+// Issue #4754: an on_play hook that denies RTMP viewers was reported to crash SRS with SIGSEGV,
+// blamed on an uninitialized SrsRtmpConn::consumer_ read while the hook blocks. Replay the
+// reported log: many viewers of one stream, each registered with the statistic, inspected by
+// the concurrent work above during the hook, denied, then cleaned up exactly as cycle() does.
+VOID TEST(ReproduceIssue4754, DeniedRtmpViewersDoNotCrash)
+{
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+
+    MockAppConfigForHttpHooksOnPlay *config = new MockAppConfigForHttpHooksOnPlay();
+    config->default_vhost_ = new SrsConfDirective();
+    config->default_vhost_->name_ = "vhost";
+    config->default_vhost_->args_.push_back("__defaultVhost__");
+    config->http_hooks_enabled_ = true;
+    config->on_play_directive_ = new SrsConfDirective();
+    config->on_play_directive_->name_ = "on_play";
+    config->on_play_directive_->args_.push_back("http://127.0.0.1:3000/api/access_session");
+
+    // The reporter's hook answers 1, which SRS treats as a denial.
+    SrsUniquePtr<MockHttpHooksForIssue4754> hooks(new MockHttpHooksForIssue4754(stat.get()));
+    hooks->on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response number code 1");
+
+    std::set<std::string> stream_ids;
+    for (int i = 0; i < 16; i++) {
+        MockRtmpServer *rtmp = new MockRtmpServer();
+        SrsRtmpConn *conn = new SrsRtmpConn(new MockRtmpTransportForDoCycle(), "192.168.1.22", 1935);
+        conn->config_ = config;
+        conn->assemble();
+
+        srs_freep(conn->rtmp_);
+        conn->rtmp_ = rtmp;
+        srs_freep(conn->security_);
+        conn->security_ = new MockSecurity();
+        conn->hooks_ = hooks.get();
+        conn->stat_ = stat.get();
+        hooks->conn_ = conn;
+
+        rtmp->type_ = SrsRtmpConnPlay;
+        rtmp->stream_ = "issue4754";
+        conn->info_->type_ = SrsRtmpConnPlay;
+        conn->info_->req_->tcUrl_ = "rtmp://192.168.1.100:1935/Live_Now";
+        conn->info_->req_->vhost_ = "__defaultVhost__";
+        conn->info_->req_->app_ = "Live_Now";
+        conn->info_->req_->stream_ = "issue4754";
+
+        srs_error_t err = conn->stream_service_cycle();
+        EXPECT_EQ(ERROR_RESPONSE_CODE, srs_error_code(err));
+        EXPECT_EQ(0, rtmp->start_play_count_);
+
+        // The viewer was registered before the hook, as the reported request body shows.
+        EXPECT_EQ(1, hooks->nb_clients_);
+        stream_ids.insert(hooks->stream_id_);
+
+        // What SrsRtmpConn::cycle() does after do_cycle() returns, then the manager frees it.
+        stat->kbps_add_delta(conn->get_id().c_str(), conn->delta());
+        stat->on_disconnect(conn->get_id().c_str(), err);
+        srs_freep(err);
+
+        conn->hooks_ = NULL;
+        conn->stat_ = NULL;
+        hooks->conn_ = NULL;
+        srs_freep(conn);
+    }
+
+    // As in the reported log, each denied viewer got a fresh statistic stream, and nothing leaks.
+    EXPECT_EQ(16, (int)hooks->on_play_count_);
+    EXPECT_EQ(16, (int)stream_ids.size());
+    EXPECT_TRUE(stat->find_stream_by_url("/Live_Now/issue4754") == NULL);
+    EXPECT_EQ(0, (int)stat->clients_.size());
+    EXPECT_EQ(0, (int)stat->streams_.size());
+
+    srs_freep(config);
 }
