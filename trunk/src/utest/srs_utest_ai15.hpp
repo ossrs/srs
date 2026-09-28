@@ -15,6 +15,7 @@
 #include <srs_app_caster_flv.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_http_conn.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtmp_conn.hpp>
@@ -359,6 +360,32 @@ public:
 
 public:
     virtual ISrsSrtAcceptor *create_srt_acceptor(ISrsSrtClientHandler *handler);
+};
+
+// Mock HTTP server for testing how SrsServer assembles, initializes, mounts and unmounts its HTTP server.
+class MockHttpServerForServer : public SrsHttpServer
+{
+public:
+    int assemble_count_;
+    int initialize_count_;
+    // The error initialize() returns, owned by the caller once returned.
+    srs_error_t initialize_error_;
+    int mount_count_;
+    int unmount_count_;
+    ISrsRequest *mount_request_;
+    ISrsRequest *unmount_request_;
+    // The error http_mount() returns, owned by the caller once returned.
+    srs_error_t mount_error_;
+
+public:
+    MockHttpServerForServer();
+    virtual ~MockHttpServerForServer();
+
+public:
+    virtual void assemble();
+    virtual srs_error_t initialize();
+    virtual srs_error_t http_mount(ISrsRequest *r);
+    virtual void http_unmount(ISrsRequest *r);
 };
 
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()

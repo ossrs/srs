@@ -270,6 +270,10 @@ public:
     virtual ~ISrsHttpServer();
 
 public:
+    virtual void assemble() = 0;
+    virtual srs_error_t initialize() = 0;
+    virtual srs_error_t http_mount(ISrsRequest *r) = 0;
+    virtual void http_unmount(ISrsRequest *r) = 0;
 };
 
 // The http server, use http stream or static server to serve requests.

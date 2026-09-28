@@ -34,7 +34,7 @@ class ISrsAsyncCallTask;
 class SrsSignalManager;
 class SrsServer;
 class ISrsCommonHttpHandler;
-class SrsHttpServer;
+class ISrsHttpServer;
 class SrsIngester;
 class SrsHttpHeartbeat;
 class SrsKbps;
@@ -154,7 +154,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCommonHttpHandler *http_api_mux_;
-    SrsHttpServer *http_server_;
+    ISrsHttpServer *http_server_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

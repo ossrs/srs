@@ -680,7 +680,9 @@ void MockRtcBlackholeForServer::sendto(void *data, int len)
 // tell whether the server's HTTP server was assembled.
 static std::vector<ISrsHttpDynamicMatcher *> &server_http_stream_matchers(SrsServer *server)
 {
-    SrsHttpStreamServer *stream = dynamic_cast<SrsHttpStreamServer *>(server->http_server_->http_stream_);
+    SrsHttpServer *http_server = dynamic_cast<SrsHttpServer *>(server->http_server_);
+    srs_assert(http_server);
+    SrsHttpStreamServer *stream = dynamic_cast<SrsHttpStreamServer *>(http_server->http_stream_);
     srs_assert(stream);
     SrsHttpServeMux *mux = dynamic_cast<SrsHttpServeMux *>(stream->mux_);
     srs_assert(mux);
@@ -705,7 +707,8 @@ VOID TEST(ServerTest, AssembleQueriesParentAndAssemblesHttpServer)
 
     std::vector<ISrsHttpDynamicMatcher *> &matchers = server_http_stream_matchers(server.get());
     ASSERT_EQ(1, (int)matchers.size());
-    EXPECT_TRUE(matchers[0] == dynamic_cast<ISrsHttpDynamicMatcher *>(server->http_server_->http_stream_));
+    SrsHttpServer *http_server = dynamic_cast<SrsHttpServer *>(server->http_server_);
+    EXPECT_TRUE(matchers[0] == dynamic_cast<ISrsHttpDynamicMatcher *>(http_server->http_stream_));
 }
 
 VOID TEST(ServerTest, ConstructionCapturesBlackhole)
@@ -1503,6 +1506,173 @@ VOID TEST(ServerTest, ListenSrtCreatesNoAcceptorWhenDisabled)
 
     server->config_ = NULL;
     server->app_factory_ = NULL;
+}
+
+MockHttpServerForServer::MockHttpServerForServer()
+{
+    assemble_count_ = 0;
+    initialize_count_ = 0;
+    initialize_error_ = srs_success;
+    mount_count_ = 0;
+    unmount_count_ = 0;
+    mount_request_ = NULL;
+    unmount_request_ = NULL;
+    mount_error_ = srs_success;
+}
+
+MockHttpServerForServer::~MockHttpServerForServer()
+{
+    srs_freep(initialize_error_);
+    srs_freep(mount_error_);
+}
+
+void MockHttpServerForServer::assemble()
+{
+    assemble_count_++;
+}
+
+srs_error_t MockHttpServerForServer::initialize()
+{
+    initialize_count_++;
+
+    srs_error_t err = initialize_error_;
+    initialize_error_ = srs_success;
+    return err;
+}
+
+srs_error_t MockHttpServerForServer::http_mount(ISrsRequest *r)
+{
+    mount_count_++;
+    mount_request_ = r;
+
+    srs_error_t err = mount_error_;
+    mount_error_ = srs_success;
+    return err;
+}
+
+void MockHttpServerForServer::http_unmount(ISrsRequest *r)
+{
+    unmount_count_++;
+    unmount_request_ = r;
+}
+
+VOID TEST(ServerTest, AssembleAssemblesInjectedHttpServer)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    MockHttpServerForServer http_server;
+    srs_freep(server->http_server_);
+    server->http_server_ = &http_server;
+
+    server->assemble();
+    EXPECT_EQ(1, http_server.assemble_count_);
+
+    server->http_server_ = NULL;
+}
+
+VOID TEST(ServerTest, InitializeInitializesInjectedHttpServer)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    // Avoid the pid file of a running SRS.
+    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    MockHttpServerForServer http_server;
+    srs_freep(server->http_server_);
+    server->http_server_ = &http_server;
+    server->assemble();
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    // A failure of the injected HTTP server fails the server initialize, before the black hole is initialized.
+    http_server.initialize_error_ = srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "mock http server");
+    err = server->initialize();
+    EXPECT_EQ(ERROR_HTTP_PATTERN_EMPTY, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, http_server.initialize_count_);
+    EXPECT_EQ(0, blackhole.initialize_count_);
+
+    server->http_server_ = NULL;
+    server->blackhole_ = NULL;
+}
+
+VOID TEST(ServerTest, InitializeReusesInjectedHttpServerForApi)
+{
+    srs_error_t err;
+
+    // The HTTP API listens at the same endpoints as the HTTP server, so it reuses the server.
+    MockAppConfigForServerListen config;
+    config.http_stream_enabled_ = true;
+    config.http_stream_listens_.push_back("8080");
+    config.http_api_enabled_ = true;
+    config.http_api_listens_.push_back("8080");
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    // Avoid the pid file of a running SRS.
+    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    MockHttpServerForServer http_server;
+    srs_freep(server->http_server_);
+    server->http_server_ = &http_server;
+    server->assemble();
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+    server->config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(server->initialize());
+    EXPECT_TRUE(server->reuse_api_over_server_);
+    EXPECT_TRUE(server->api_server() == &http_server);
+    EXPECT_EQ(1, http_server.initialize_count_);
+    EXPECT_EQ(1, blackhole.initialize_count_);
+
+    // The API mux is the injected HTTP server now, which the server no longer frees.
+    server->http_api_mux_ = NULL;
+    server->http_server_ = NULL;
+    server->blackhole_ = NULL;
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, PublishMountsAndUnpublishUnmountsThroughInjectedHttpServer)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    MockHttpServerForServer http_server;
+    srs_freep(server->http_server_);
+    server->http_server_ = &http_server;
+    server->assemble();
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "__defaultVhost__";
+    req->app_ = "live";
+    req->stream_ = "livestream";
+
+    // A failed mount fails the publish.
+    http_server.mount_error_ = srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "mock mount");
+    err = server->on_publish(req.get());
+    EXPECT_EQ(ERROR_HTTP_PATTERN_EMPTY, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, http_server.mount_count_);
+    EXPECT_TRUE(http_server.mount_request_ == req.get());
+
+    HELPER_EXPECT_SUCCESS(server->on_publish(req.get()));
+    EXPECT_EQ(2, http_server.mount_count_);
+
+    server->on_unpublish(req.get());
+    EXPECT_EQ(1, http_server.unmount_count_);
+    EXPECT_TRUE(http_server.unmount_request_ == req.get());
+
+    server->http_server_ = NULL;
 }
 
 VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
