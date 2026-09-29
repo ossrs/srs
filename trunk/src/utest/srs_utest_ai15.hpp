@@ -198,6 +198,25 @@ public:
     virtual void sendto(void *data, int len);
 };
 
+// Mock ISrsSrtEventLoop for testing SrsServer::initialize()
+class MockSrtEventLoopForServer : public ISrsSrtEventLoop
+{
+public:
+    // The calls in order, such as "initialize,start".
+    std::string calls_;
+    // The errors initialize() and start() return, owned by the caller once returned.
+    srs_error_t initialize_error_;
+    srs_error_t start_error_;
+
+public:
+    MockSrtEventLoopForServer();
+    virtual ~MockSrtEventLoopForServer();
+
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t start();
+};
+
 // Mock multiple TCP listeners for testing which listeners SrsServer::listen() starts and dispose() closes.
 class MockTcpListenersForServer : public SrsMultipleTcpListeners
 {

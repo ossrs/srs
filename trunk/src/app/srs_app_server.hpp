@@ -73,6 +73,7 @@ class ISrsHourGlass;
 class ISrsAppFactory;
 class ISrsUdpMuxSocket;
 class ISrsRtcBlackhole;
+class ISrsSrtEventLoop;
 class ISrsRtcConnection;
 class ISrsReloadStatus;
 class SrsReloadStatus;
@@ -150,6 +151,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *app_factory_;
     ISrsReloadStatus *reload_status_;
     ISrsRtcBlackhole *blackhole_;
+    ISrsSrtEventLoop *srt_eventloop_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

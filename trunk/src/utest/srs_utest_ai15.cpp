@@ -251,6 +251,10 @@ VOID TEST(SrsServerTest, InitializeSuccess)
     MockPidFileLocker *mock_locker = new MockPidFileLocker();
     server->pid_file_locker_ = mock_locker;
 
+    // Drive a mock SRT event loop, not the process-wide one.
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
+
     // Call initialize() - this is the main test
     // This will initialize all server components in the correct sequence:
     // 1. PID file locker acquisition
@@ -302,6 +306,10 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
     ISrsPidFileLocker *original_locker = server->pid_file_locker_;
     MockPidFileLocker *mock_locker = new MockPidFileLocker();
     server->pid_file_locker_ = mock_locker;
+
+    // Drive a mock SRT event loop, not the process-wide one.
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
 
     // Initialize server first (required before listen)
     HELPER_EXPECT_SUCCESS(server->initialize());
@@ -686,6 +694,36 @@ void MockRtcBlackholeForServer::sendto(void *data, int len)
 {
 }
 
+MockSrtEventLoopForServer::MockSrtEventLoopForServer()
+{
+    initialize_error_ = srs_success;
+    start_error_ = srs_success;
+}
+
+MockSrtEventLoopForServer::~MockSrtEventLoopForServer()
+{
+    srs_freep(initialize_error_);
+    srs_freep(start_error_);
+}
+
+srs_error_t MockSrtEventLoopForServer::initialize()
+{
+    calls_ += calls_.empty() ? "initialize" : ",initialize";
+
+    srs_error_t err = initialize_error_;
+    initialize_error_ = srs_success;
+    return err;
+}
+
+srs_error_t MockSrtEventLoopForServer::start()
+{
+    calls_ += calls_.empty() ? "start" : ",start";
+
+    srs_error_t err = start_error_;
+    start_error_ = srs_success;
+    return err;
+}
+
 // The HTTP stream server registers itself with its mux as a dynamic matcher when it is assembled, so the matchers
 // tell whether the server's HTTP server was assembled.
 static std::vector<ISrsHttpDynamicMatcher *> &server_http_stream_matchers(SrsServer *server)
@@ -747,12 +785,113 @@ VOID TEST(ServerTest, InitializeInitializesInjectedBlackhole)
     blackhole.initialize_error_ = srs_error_new(ERROR_SOCKET_CREATE, "mock black hole");
     server->blackhole_ = &blackhole;
 
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
+
     err = server->initialize();
     EXPECT_EQ(ERROR_SOCKET_CREATE, srs_error_code(err));
     srs_freep(err);
     EXPECT_EQ(1, blackhole.initialize_count_);
 
     server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
+}
+
+VOID TEST(ServerTest, ConstructionCapturesSrtEventLoop)
+{
+    // The process-wide SRT event loop exists once the globals are initialized, and the server initializes it.
+    EXPECT_TRUE(_srt_eventloop != NULL);
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    EXPECT_TRUE(server->srt_eventloop_ == _srt_eventloop);
+}
+
+VOID TEST(ServerTest, InitializeInitializesThenStartsInjectedSrtEventLoop)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Avoid the pid file of a running SRS.
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
+
+    // The server drives the injected event loop, and leaves the process-wide one alone.
+    SrsSrtEventLoop *global_eventloop = _srt_eventloop;
+    HELPER_EXPECT_SUCCESS(server->initialize());
+    EXPECT_STREQ("initialize,start", srt_eventloop.calls_.c_str());
+    EXPECT_TRUE(_srt_eventloop == global_eventloop);
+
+    server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
+}
+
+VOID TEST(ServerTest, InitializeFailsWhenInjectedSrtEventLoopFailsToInitialize)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Avoid the pid file of a running SRS.
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    MockSrtEventLoopForServer srt_eventloop;
+    srt_eventloop.initialize_error_ = srs_error_new(ERROR_SRT_EPOLL, "mock srt event loop");
+    server->srt_eventloop_ = &srt_eventloop;
+
+    // The event loop is not started, and the server initialize fails before the black hole.
+    err = server->initialize();
+    EXPECT_EQ(ERROR_SRT_EPOLL, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_STREQ("initialize", srt_eventloop.calls_.c_str());
+    EXPECT_EQ(0, blackhole.initialize_count_);
+
+    server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
+}
+
+VOID TEST(ServerTest, InitializeFailsWhenInjectedSrtEventLoopFailsToStart)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Avoid the pid file of a running SRS.
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    MockSrtEventLoopForServer srt_eventloop;
+    srt_eventloop.start_error_ = srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "mock srt event loop");
+    server->srt_eventloop_ = &srt_eventloop;
+
+    // A failed start fails the server initialize before the black hole.
+    err = server->initialize();
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_STREQ("initialize,start", srt_eventloop.calls_.c_str());
+    EXPECT_EQ(0, blackhole.initialize_count_);
+
+    server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
 }
 
 MockTcpListenersForServer::MockTcpListenersForServer() : SrsMultipleTcpListeners(NULL)
@@ -1598,6 +1737,8 @@ VOID TEST(ServerTest, InitializeInitializesInjectedHttpServer)
 
     MockRtcBlackholeForServer blackhole;
     server->blackhole_ = &blackhole;
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
 
     // A failure of the injected HTTP server fails the server initialize, before the black hole is initialized.
     http_server.initialize_error_ = srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "mock http server");
@@ -1609,6 +1750,7 @@ VOID TEST(ServerTest, InitializeInitializesInjectedHttpServer)
 
     server->http_server_ = NULL;
     server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
 }
 
 VOID TEST(ServerTest, InitializeReusesInjectedHttpServerForApi)
@@ -1636,6 +1778,8 @@ VOID TEST(ServerTest, InitializeReusesInjectedHttpServerForApi)
 
     MockRtcBlackholeForServer blackhole;
     server->blackhole_ = &blackhole;
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
     server->config_ = &config;
 
     HELPER_EXPECT_SUCCESS(server->initialize());
@@ -1648,6 +1792,7 @@ VOID TEST(ServerTest, InitializeReusesInjectedHttpServerForApi)
     server->http_api_mux_ = NULL;
     server->http_server_ = NULL;
     server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
     server->config_ = NULL;
 }
 
@@ -1887,6 +2032,8 @@ VOID TEST(ServerTest, InitializeInitializesInjectedRtcSessionManager)
 
     MockRtcBlackholeForServer blackhole;
     server->blackhole_ = &blackhole;
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
 
     // Owned by the server, whose destructor frees it.
     MockRtcSessionManagerForNotify *rtc_session_manager = new MockRtcSessionManagerForNotify();
@@ -1898,6 +2045,7 @@ VOID TEST(ServerTest, InitializeInitializesInjectedRtcSessionManager)
     EXPECT_EQ(1, rtc_session_manager->initialize_count_);
 
     server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
 }
 
 VOID TEST(ServerTest, InitializeFailsWhenInjectedRtcSessionManagerFailsToInitialize)
@@ -1914,6 +2062,8 @@ VOID TEST(ServerTest, InitializeFailsWhenInjectedRtcSessionManagerFailsToInitial
 
     MockRtcBlackholeForServer blackhole;
     server->blackhole_ = &blackhole;
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
 
     // Owned by the server, whose destructor frees it.
     MockRtcSessionManagerForNotify *rtc_session_manager = new MockRtcSessionManagerForNotify();
@@ -1929,6 +2079,7 @@ VOID TEST(ServerTest, InitializeFailsWhenInjectedRtcSessionManagerFailsToInitial
     EXPECT_EQ(1, rtc_session_manager->initialize_count_);
 
     server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
 }
 
 VOID TEST(ServerTest, InitializeAcquiresInjectedPidFileLocker)
@@ -1945,12 +2096,15 @@ VOID TEST(ServerTest, InitializeAcquiresInjectedPidFileLocker)
 
     MockRtcBlackholeForServer blackhole;
     server->blackhole_ = &blackhole;
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
 
     HELPER_EXPECT_SUCCESS(server->initialize());
     EXPECT_EQ(1, pid_file_locker->acquire_count_);
     EXPECT_EQ(1, blackhole.initialize_count_);
 
     server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
 }
 
 VOID TEST(ServerTest, InitializeFailsWhenInjectedPidFileLockerFailsToAcquire)
@@ -1968,6 +2122,8 @@ VOID TEST(ServerTest, InitializeFailsWhenInjectedPidFileLockerFailsToAcquire)
 
     MockRtcBlackholeForServer blackhole;
     server->blackhole_ = &blackhole;
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
 
     // The pid file is acquired first, and its failure fails the server initialize before anything else.
     err = server->initialize();
@@ -1977,6 +2133,7 @@ VOID TEST(ServerTest, InitializeFailsWhenInjectedPidFileLockerFailsToAcquire)
     EXPECT_EQ(0, blackhole.initialize_count_);
 
     server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
 }
 
 VOID TEST(ServerTest, OnUdpPacketDispatchesToInjectedRtcSessionManager)

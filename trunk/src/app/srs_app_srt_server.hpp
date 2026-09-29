@@ -74,8 +74,20 @@ public:
     virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
 };
 
+// The SRT event loop, which the server initializes and starts.
+class ISrsSrtEventLoop
+{
+public:
+    ISrsSrtEventLoop();
+    virtual ~ISrsSrtEventLoop();
+
+public:
+    virtual srs_error_t initialize() = 0;
+    virtual srs_error_t start() = 0;
+};
+
 // Start a coroutine to drive the SRT events with state-threads.
-class SrsSrtEventLoop : public ISrsCoroutineHandler
+class SrsSrtEventLoop : public ISrsSrtEventLoop, public ISrsCoroutineHandler
 {
 public:
     SrsSrtEventLoop();
@@ -84,9 +96,10 @@ public:
 public:
     ISrsSrtPoller *poller() { return srt_poller_; }
 
+    // Interface ISrsSrtEventLoop.
 public:
-    srs_error_t initialize();
-    srs_error_t start();
+    virtual srs_error_t initialize();
+    virtual srs_error_t start();
     // Interface ISrsCoroutineHandler.
 public:
     virtual srs_error_t cycle();

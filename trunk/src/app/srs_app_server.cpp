@@ -109,6 +109,7 @@ srs_error_t srs_global_initialize()
     _srs_hooks = new SrsHttpHooks();
 
     _srs_srt_sources = new SrsSrtSourceManager();
+    _srt_eventloop = new SrsSrtEventLoop();
 
     _srs_rtc_sources = new SrsRtcSourceManager();
     _srs_blackhole = new SrsRtcBlackhole();
@@ -225,6 +226,7 @@ SrsServer::SrsServer()
     app_factory_ = _srs_app_factory;
     reload_status_ = _srs_reload_status;
     blackhole_ = _srs_blackhole;
+    srt_eventloop_ = _srt_eventloop;
 }
 
 void SrsServer::assemble()
@@ -301,6 +303,7 @@ SrsServer::~SrsServer()
     app_factory_ = NULL;
     reload_status_ = NULL;
     blackhole_ = NULL;
+    srt_eventloop_ = NULL;
 }
 
 void SrsServer::dispose()
@@ -405,13 +408,11 @@ srs_error_t SrsServer::initialize()
         return srs_error_wrap(err, "srt log initialize");
     }
 
-    _srt_eventloop = new SrsSrtEventLoop();
-
-    if ((err = _srt_eventloop->initialize()) != srs_success) {
+    if ((err = srt_eventloop_->initialize()) != srs_success) {
         return srs_error_wrap(err, "srt poller initialize");
     }
 
-    if ((err = _srt_eventloop->start()) != srs_success) {
+    if ((err = srt_eventloop_->start()) != srs_success) {
         return srs_error_wrap(err, "srt poller start");
     }
 

@@ -168,6 +168,14 @@ srs_error_t SrsSrtAcceptor::on_srt_client(srs_srt_t srt_fd)
 }
 // LCOV_EXCL_STOP
 
+ISrsSrtEventLoop::ISrsSrtEventLoop()
+{
+}
+
+ISrsSrtEventLoop::~ISrsSrtEventLoop()
+{
+}
+
 SrsSrtEventLoop::SrsSrtEventLoop()
 {
     srt_poller_ = NULL;
