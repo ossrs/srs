@@ -100,8 +100,12 @@ srs_error_t prepare_main()
     srs_freep(_srs_context);
     _srs_context = new SrsThreadContext();
 
-    if ((err = srs_srt_log_initialize()) != srs_success) {
-        return srs_error_wrap(err, "srt log initialize");
+    // The SRT event loop sets up the libsrt log, so start it before the utest overrides the log below.
+    if ((err = _srt_eventloop->initialize()) != srs_success) {
+        return srs_error_wrap(err, "srt poller initialize");
+    }
+    if ((err = _srt_eventloop->start()) != srs_success) {
+        return srs_error_wrap(err, "srt poller start");
     }
 
 #ifdef SRS_FFMPEG_FIT
@@ -114,13 +118,6 @@ srs_error_t prepare_main()
     // Set SRT log level to FATAL to suppress ERROR and WARNING logs in unit tests.
     // LOG_CRIT (2) is the highest level that suppresses most logs.
     srt_setloglevel(LOG_CRIT);
-
-    if ((err = _srt_eventloop->initialize()) != srs_success) {
-        return srs_error_wrap(err, "srt poller initialize");
-    }
-    if ((err = _srt_eventloop->start()) != srs_success) {
-        return srs_error_wrap(err, "srt poller start");
-    }
 
     return err;
 }

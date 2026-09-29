@@ -404,10 +404,6 @@ srs_error_t SrsServer::initialize()
         return srs_error_wrap(err, "init server");
     }
 
-    if ((err = srs_srt_log_initialize()) != srs_success) {
-        return srs_error_wrap(err, "srt log initialize");
-    }
-
     if ((err = srt_eventloop_->initialize()) != srs_success) {
         return srs_error_wrap(err, "srt poller initialize");
     }

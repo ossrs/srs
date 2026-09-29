@@ -107,6 +107,9 @@ class MockLogForSignal : public ISrsLog
 {
 public:
     int reopen_count_;
+    // The error logs and the tag of the last one.
+    int error_count_;
+    std::string last_error_tag_;
 
 public:
     MockLogForSignal();

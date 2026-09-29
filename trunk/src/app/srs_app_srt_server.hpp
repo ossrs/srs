@@ -74,7 +74,7 @@ public:
     virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
 };
 
-// The SRT event loop, which the server initializes and starts.
+// The SRT event loop, which the server initializes and starts. Its initialize also sets up the process-wide libsrt log.
 class ISrsSrtEventLoop
 {
 public:

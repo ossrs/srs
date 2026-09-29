@@ -194,6 +194,10 @@ srs_error_t SrsSrtEventLoop::initialize()
 {
     srs_error_t err = srs_success;
 
+    if ((err = srs_srt_log_initialize()) != srs_success) {
+        return srs_error_wrap(err, "srt log initialize");
+    }
+
     srt_poller_ = srs_srt_poller_new();
 
     if ((err = srt_poller_->initialize()) != srs_success) {

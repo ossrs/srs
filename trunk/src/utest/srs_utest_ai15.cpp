@@ -17,6 +17,7 @@ using namespace std;
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_server.hpp>
+#include <srs_app_srt_server.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
@@ -30,6 +31,7 @@ using namespace std;
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai18.hpp>
+#include <srt/srt.h>
 #include <sys/socket.h>
 
 // Mock PID file locker implementation for SrsServer::initialize() testing
@@ -411,6 +413,7 @@ VOID TEST(SrsServerTest, HttpHandleSuccess)
 MockLogForSignal::MockLogForSignal()
 {
     reopen_count_ = 0;
+    error_count_ = 0;
 }
 
 MockLogForSignal::~MockLogForSignal()
@@ -429,7 +432,10 @@ void MockLogForSignal::reopen()
 
 void MockLogForSignal::log(SrsLogLevel level, const char *tag, const SrsContextId &context_id, const char *fmt, va_list args)
 {
-    // Do nothing for mock
+    if (level == SrsLogLevelError) {
+        error_count_++;
+        last_error_tag_ = tag ? tag : "";
+    }
 }
 
 MockAppConfigForSignal::MockAppConfigForSignal()
@@ -892,6 +898,90 @@ VOID TEST(ServerTest, InitializeFailsWhenInjectedSrtEventLoopFailsToStart)
 
     server->blackhole_ = NULL;
     server->srt_eventloop_ = NULL;
+}
+
+// Count the libsrt logs, whose opaque is an int counter.
+static void srs_utest_srt_counting_log_handler(void *opaque, int level, const char *file, int line, const char *area, const char *message)
+{
+    int *count = (int *)opaque;
+    (*count)++;
+}
+
+static void srs_utest_srt_silent_log_handler(void *opaque, int level, const char *file, int line, const char *area, const char *message)
+{
+}
+
+// Make libsrt log an error in the calling thread: a flow window below 32 packets is rejected with a log.
+static void srs_utest_srt_provoke_error_log()
+{
+    SRTSOCKET fd = srt_create_socket();
+    int fc = 1;
+    srt_setsockflag(fd, SRTO_FC, &fc, sizeof(fc));
+    srt_close(fd);
+}
+
+VOID TEST(ServerTest, InitializeLeavesSrtLogSetupToInjectedSrtEventLoop)
+{
+    srs_error_t err;
+
+    int srt_logs = 0;
+    srt_setloglevel(LOG_ERR);
+    srt_setloghandler(&srt_logs, srs_utest_srt_counting_log_handler);
+
+    // The probe reaches the installed handler.
+    srs_utest_srt_provoke_error_log();
+    EXPECT_LT(0, srt_logs);
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Avoid the pid file of a running SRS.
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    MockSrtEventLoopForServer srt_eventloop;
+    server->srt_eventloop_ = &srt_eventloop;
+
+    // The libsrt log is process-wide, set up by the SRT event loop, so the server leaves it alone.
+    HELPER_EXPECT_SUCCESS(server->initialize());
+    srt_logs = 0;
+    srs_utest_srt_provoke_error_log();
+    EXPECT_LT(0, srt_logs);
+
+    srt_setloghandler(NULL, srs_utest_srt_silent_log_handler);
+    srt_setloglevel(LOG_CRIT);
+
+    server->blackhole_ = NULL;
+    server->srt_eventloop_ = NULL;
+}
+
+VOID TEST(SrtEventLoopTest, InitializeRoutesSrtLogsToSrsLog)
+{
+    srs_error_t err;
+
+    int srt_logs = 0;
+    srt_setloglevel(LOG_ERR);
+    srt_setloghandler(&srt_logs, srs_utest_srt_counting_log_handler);
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    // Once the event loop is initialized, a libsrt error goes to the SRS log with the SRT tag.
+    SrsSrtEventLoop eventloop;
+    HELPER_EXPECT_SUCCESS(eventloop.initialize());
+    srs_utest_srt_provoke_error_log();
+    EXPECT_EQ(0, srt_logs);
+    EXPECT_LT(0, log.error_count_);
+    EXPECT_STREQ("SRT", log.last_error_tag_.c_str());
+
+    _srs_log = original_log;
+    srt_setloghandler(NULL, srs_utest_srt_silent_log_handler);
+    srt_setloglevel(LOG_CRIT);
 }
 
 MockTcpListenersForServer::MockTcpListenersForServer() : SrsMultipleTcpListeners(NULL)
