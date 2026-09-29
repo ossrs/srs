@@ -16,6 +16,7 @@
 #include <srs_app_factory.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_app_ingest.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtmp_conn.hpp>
@@ -386,6 +387,26 @@ public:
     virtual srs_error_t initialize();
     virtual srs_error_t http_mount(ISrsRequest *r);
     virtual void http_unmount(ISrsRequest *r);
+};
+
+// Mock ingester for testing how SrsServer starts, stops and disposes its ingester.
+class MockIngesterForServer : public ISrsIngester
+{
+public:
+    int dispose_count_;
+    int start_count_;
+    int stop_count_;
+    // The error start() returns, owned by the caller once returned.
+    srs_error_t start_error_;
+
+public:
+    MockIngesterForServer();
+    virtual ~MockIngesterForServer();
+
+public:
+    virtual void dispose();
+    virtual srs_error_t start();
+    virtual void stop();
 };
 
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()

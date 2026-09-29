@@ -85,6 +85,9 @@ public:
     virtual ~ISrsIngester();
 
 public:
+    virtual void dispose() = 0;
+    virtual srs_error_t start() = 0;
+    virtual void stop() = 0;
 };
 
 // Ingest file/stream/device,

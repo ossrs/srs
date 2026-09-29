@@ -1675,6 +1675,90 @@ VOID TEST(ServerTest, PublishMountsAndUnpublishUnmountsThroughInjectedHttpServer
     server->http_server_ = NULL;
 }
 
+MockIngesterForServer::MockIngesterForServer()
+{
+    dispose_count_ = 0;
+    start_count_ = 0;
+    stop_count_ = 0;
+    start_error_ = srs_success;
+}
+
+MockIngesterForServer::~MockIngesterForServer()
+{
+    srs_freep(start_error_);
+}
+
+void MockIngesterForServer::dispose()
+{
+    dispose_count_++;
+}
+
+srs_error_t MockIngesterForServer::start()
+{
+    start_count_++;
+
+    srs_error_t err = start_error_;
+    start_error_ = srs_success;
+    return err;
+}
+
+void MockIngesterForServer::stop()
+{
+    stop_count_++;
+}
+
+VOID TEST(ServerTest, IngestStartsInjectedIngester)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Owned by the server, whose destructor disposes and frees it.
+    MockIngesterForServer *ingester = new MockIngesterForServer();
+    srs_freep(server->ingester_);
+    server->ingester_ = ingester;
+
+    HELPER_EXPECT_SUCCESS(server->ingest());
+    EXPECT_EQ(1, ingester->start_count_);
+    EXPECT_EQ(0, ingester->stop_count_);
+    EXPECT_EQ(0, ingester->dispose_count_);
+}
+
+VOID TEST(ServerTest, IngestFailsWhenInjectedIngesterFailsToStart)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Owned by the server, whose destructor disposes and frees it.
+    MockIngesterForServer *ingester = new MockIngesterForServer();
+    ingester->start_error_ = srs_error_new(ERROR_SYSTEM_IO_INVALID, "mock ingester start");
+    srs_freep(server->ingester_);
+    server->ingester_ = ingester;
+
+    err = server->ingest();
+    EXPECT_EQ(ERROR_SYSTEM_IO_INVALID, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, ingester->start_count_);
+}
+
+VOID TEST(ServerTest, DisposeDisposesInjectedIngester)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Owned by the server, whose destructor disposes and frees it.
+    MockIngesterForServer *ingester = new MockIngesterForServer();
+    srs_freep(server->ingester_);
+    server->ingester_ = ingester;
+
+    server->dispose();
+    EXPECT_EQ(1, ingester->dispose_count_);
+    EXPECT_EQ(0, ingester->stop_count_);
+}
+
 VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
 {
     srs_error_t err;
