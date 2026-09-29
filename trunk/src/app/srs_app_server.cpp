@@ -1987,6 +1987,14 @@ srs_error_t SrsInotifyWorker::cycle()
 }
 // LCOV_EXCL_STOP
 
+ISrsPidFileLocker::ISrsPidFileLocker()
+{
+}
+
+ISrsPidFileLocker::~ISrsPidFileLocker()
+{
+}
+
 // LCOV_EXCL_START
 SrsPidFileLocker::SrsPidFileLocker()
 {

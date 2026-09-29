@@ -57,7 +57,7 @@ class SrsRtmpsTransport;
 class ISrsSrtAcceptor;
 class SrsSrtEventLoop;
 class ISrsRtcSessionManager;
-class SrsPidFileLocker;
+class ISrsPidFileLocker;
 class ISrsAppConfig;
 class ISrsLiveSourceManager;
 class ISrsResourceManager;
@@ -165,7 +165,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // PID file manager for process identification and locking.
-    SrsPidFileLocker *pid_file_locker_;
+    ISrsPidFileLocker *pid_file_locker_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -434,8 +434,19 @@ public:
     virtual srs_error_t cycle();
 };
 
+// The PID file locker interface.
+class ISrsPidFileLocker
+{
+public:
+    ISrsPidFileLocker();
+    virtual ~ISrsPidFileLocker();
+
+public:
+    virtual srs_error_t acquire() = 0;
+};
+
 // PID file manager for process identification and locking.
-class SrsPidFileLocker
+class SrsPidFileLocker : public ISrsPidFileLocker
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

@@ -35,17 +35,24 @@ using namespace std;
 // Mock PID file locker implementation for SrsServer::initialize() testing
 MockPidFileLocker::MockPidFileLocker()
 {
+    acquire_count_ = 0;
+    acquire_error_ = srs_success;
 }
 
 MockPidFileLocker::~MockPidFileLocker()
 {
+    srs_freep(acquire_error_);
 }
 
 srs_error_t MockPidFileLocker::acquire()
 {
-    // Mock implementation that always succeeds without actually locking a file
+    // Mock implementation that succeeds without actually locking a file, unless an error is set.
     // This allows tests to run even when a real SRS server is running
-    return srs_success;
+    acquire_count_++;
+
+    srs_error_t err = acquire_error_;
+    acquire_error_ = srs_success;
+    return err;
 }
 
 // Mock config implementation for SrsServer::listen() testing
@@ -240,7 +247,7 @@ VOID TEST(SrsServerTest, InitializeSuccess)
     EXPECT_TRUE(server.get() != NULL);
 
     // Replace the PID file locker with a mock to avoid conflicts with running SRS server
-    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
     MockPidFileLocker *mock_locker = new MockPidFileLocker();
     server->pid_file_locker_ = mock_locker;
 
@@ -292,7 +299,7 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
     server->config_ = &mock_config;
 
     // Replace the PID file locker with a mock to avoid conflicts with running SRS server
-    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
     MockPidFileLocker *mock_locker = new MockPidFileLocker();
     server->pid_file_locker_ = mock_locker;
 
@@ -731,7 +738,7 @@ VOID TEST(ServerTest, InitializeInitializesInjectedBlackhole)
     server->assemble();
 
     // Avoid the pid file of a running SRS.
-    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
     server->pid_file_locker_ = new MockPidFileLocker();
     srs_freep(original_locker);
 
@@ -1580,7 +1587,7 @@ VOID TEST(ServerTest, InitializeInitializesInjectedHttpServer)
     SrsUniquePtr<SrsServer> server(new SrsServer());
 
     // Avoid the pid file of a running SRS.
-    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
     server->pid_file_locker_ = new MockPidFileLocker();
     srs_freep(original_locker);
 
@@ -1618,7 +1625,7 @@ VOID TEST(ServerTest, InitializeReusesInjectedHttpServerForApi)
     SrsUniquePtr<SrsServer> server(new SrsServer());
 
     // Avoid the pid file of a running SRS.
-    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
     server->pid_file_locker_ = new MockPidFileLocker();
     srs_freep(original_locker);
 
@@ -1874,7 +1881,7 @@ VOID TEST(ServerTest, InitializeInitializesInjectedRtcSessionManager)
     server->assemble();
 
     // Avoid the pid file of a running SRS.
-    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
     server->pid_file_locker_ = new MockPidFileLocker();
     srs_freep(original_locker);
 
@@ -1901,7 +1908,7 @@ VOID TEST(ServerTest, InitializeFailsWhenInjectedRtcSessionManagerFailsToInitial
     server->assemble();
 
     // Avoid the pid file of a running SRS.
-    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    ISrsPidFileLocker *original_locker = server->pid_file_locker_;
     server->pid_file_locker_ = new MockPidFileLocker();
     srs_freep(original_locker);
 
@@ -1920,6 +1927,54 @@ VOID TEST(ServerTest, InitializeFailsWhenInjectedRtcSessionManagerFailsToInitial
     srs_freep(err);
     EXPECT_EQ(1, blackhole.initialize_count_);
     EXPECT_EQ(1, rtc_session_manager->initialize_count_);
+
+    server->blackhole_ = NULL;
+}
+
+VOID TEST(ServerTest, InitializeAcquiresInjectedPidFileLocker)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Owned by the server, whose destructor frees it.
+    MockPidFileLocker *pid_file_locker = new MockPidFileLocker();
+    srs_freep(server->pid_file_locker_);
+    server->pid_file_locker_ = pid_file_locker;
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    HELPER_EXPECT_SUCCESS(server->initialize());
+    EXPECT_EQ(1, pid_file_locker->acquire_count_);
+    EXPECT_EQ(1, blackhole.initialize_count_);
+
+    server->blackhole_ = NULL;
+}
+
+VOID TEST(ServerTest, InitializeFailsWhenInjectedPidFileLockerFailsToAcquire)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Owned by the server, whose destructor frees it.
+    MockPidFileLocker *pid_file_locker = new MockPidFileLocker();
+    pid_file_locker->acquire_error_ = srs_error_new(ERROR_SYSTEM_PID_ALREADY_RUNNING, "mock pid file locker");
+    srs_freep(server->pid_file_locker_);
+    server->pid_file_locker_ = pid_file_locker;
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    // The pid file is acquired first, and its failure fails the server initialize before anything else.
+    err = server->initialize();
+    EXPECT_EQ(ERROR_SYSTEM_PID_ALREADY_RUNNING, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, pid_file_locker->acquire_count_);
+    EXPECT_EQ(0, blackhole.initialize_count_);
 
     server->blackhole_ = NULL;
 }

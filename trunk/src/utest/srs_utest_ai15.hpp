@@ -87,8 +87,13 @@ public:
 };
 
 // Mock PID file locker for testing SrsServer::initialize()
-class MockPidFileLocker : public SrsPidFileLocker
+class MockPidFileLocker : public ISrsPidFileLocker
 {
+public:
+    int acquire_count_;
+    // The error acquire() returns, owned by the caller once returned.
+    srs_error_t acquire_error_;
+
 public:
     MockPidFileLocker();
     virtual ~MockPidFileLocker();
