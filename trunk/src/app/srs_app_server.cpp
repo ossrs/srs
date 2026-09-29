@@ -1695,6 +1695,14 @@ void SrsServer::on_unpublish(ISrsRequest *r)
     coworkers->on_unpublish(r);
 }
 
+ISrsSignalManager::ISrsSignalManager()
+{
+}
+
+ISrsSignalManager::~ISrsSignalManager()
+{
+}
+
 SrsSignalManager *SrsSignalManager::instance = NULL;
 
 SrsSignalManager::SrsSignalManager(ISrsSignalHandler *s)

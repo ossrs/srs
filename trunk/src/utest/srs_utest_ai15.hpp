@@ -389,6 +389,25 @@ public:
     virtual void http_unmount(ISrsRequest *r);
 };
 
+// Mock signal manager for testing how SrsServer initializes and starts its signal manager.
+class MockSignalManagerForServer : public ISrsSignalManager
+{
+public:
+    int initialize_count_;
+    int start_count_;
+    // The errors initialize() and start() return, owned by the caller once returned.
+    srs_error_t initialize_error_;
+    srs_error_t start_error_;
+
+public:
+    MockSignalManagerForServer();
+    virtual ~MockSignalManagerForServer();
+
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t start();
+};
+
 // Mock ingester for testing how SrsServer starts, stops and disposes its ingester.
 class MockIngesterForServer : public ISrsIngester
 {

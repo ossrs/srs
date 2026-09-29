@@ -31,7 +31,7 @@ class SrsRtcUserConfig;
 class SrsSdp;
 class SrsRtcConnection;
 class ISrsAsyncCallTask;
-class SrsSignalManager;
+class ISrsSignalManager;
 class SrsServer;
 class ISrsCommonHttpHandler;
 class ISrsHttpServer;
@@ -222,7 +222,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // Signal manager which convert gignal to io message.
-    SrsSignalManager *signal_manager_;
+    ISrsSignalManager *signal_manager_;
     // To query the latest available version of SRS.
     SrsLatestVersion *latest_version_;
     // User send the signal, convert to variable.
@@ -361,9 +361,21 @@ public:
 // @global main SRS server, for debugging
 extern SrsServer *_srs_server;
 
+// The signal manager interface.
+class ISrsSignalManager
+{
+public:
+    ISrsSignalManager();
+    virtual ~ISrsSignalManager();
+
+public:
+    virtual srs_error_t initialize() = 0;
+    virtual srs_error_t start() = 0;
+};
+
 // Convert signal to io,
 // @see: st-1.9/docs/notes.html
-class SrsSignalManager : public ISrsCoroutineHandler
+class SrsSignalManager : public ISrsSignalManager, public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
