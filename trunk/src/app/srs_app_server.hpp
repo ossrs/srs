@@ -56,7 +56,7 @@ class SrsRtmpTransport;
 class SrsRtmpsTransport;
 class ISrsSrtAcceptor;
 class SrsSrtEventLoop;
-class SrsRtcSessionManager;
+class ISrsRtcSessionManager;
 class SrsPidFileLocker;
 class ISrsAppConfig;
 class ISrsLiveSourceManager;
@@ -217,7 +217,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::vector<ISrsUdpMuxListener *>
         rtc_listeners_;
     // WebRTC session manager.
-    SrsRtcSessionManager *rtc_session_manager_;
+    ISrsRtcSessionManager *rtc_session_manager_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

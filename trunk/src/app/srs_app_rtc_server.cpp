@@ -324,6 +324,14 @@ SrsRtcUserConfig::~SrsRtcUserConfig()
     srs_freep(req_);
 }
 
+ISrsRtcSessionManager::ISrsRtcSessionManager()
+{
+}
+
+ISrsRtcSessionManager::~ISrsRtcSessionManager()
+{
+}
+
 SrsRtcSessionManager::SrsRtcSessionManager()
 {
     rtc_async_ = new SrsAsyncCallWorker();

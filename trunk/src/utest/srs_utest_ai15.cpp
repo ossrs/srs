@@ -12,6 +12,7 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_http_stream.hpp>
+#include <srs_app_rtc_server.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
@@ -24,9 +25,11 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_sdp.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai14.hpp>
+#include <srs_utest_ai18.hpp>
 #include <sys/socket.h>
 
 // Mock PID file locker implementation for SrsServer::initialize() testing
@@ -1863,6 +1866,163 @@ VOID TEST(ServerTest, DisposeDisposesInjectedIngester)
     EXPECT_EQ(0, ingester->stop_count_);
 }
 
+VOID TEST(ServerTest, InitializeInitializesInjectedRtcSessionManager)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Avoid the pid file of a running SRS.
+    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    // Owned by the server, whose destructor frees it.
+    MockRtcSessionManagerForNotify *rtc_session_manager = new MockRtcSessionManagerForNotify();
+    srs_freep(server->rtc_session_manager_);
+    server->rtc_session_manager_ = rtc_session_manager;
+
+    HELPER_EXPECT_SUCCESS(server->initialize());
+    EXPECT_EQ(1, blackhole.initialize_count_);
+    EXPECT_EQ(1, rtc_session_manager->initialize_count_);
+
+    server->blackhole_ = NULL;
+}
+
+VOID TEST(ServerTest, InitializeFailsWhenInjectedRtcSessionManagerFailsToInitialize)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Avoid the pid file of a running SRS.
+    SrsPidFileLocker *original_locker = server->pid_file_locker_;
+    server->pid_file_locker_ = new MockPidFileLocker();
+    srs_freep(original_locker);
+
+    MockRtcBlackholeForServer blackhole;
+    server->blackhole_ = &blackhole;
+
+    // Owned by the server, whose destructor frees it.
+    MockRtcSessionManagerForNotify *rtc_session_manager = new MockRtcSessionManagerForNotify();
+    rtc_session_manager->initialize_error_ = srs_error_new(ERROR_THREAD_STARTED, "mock rtc session manager");
+    srs_freep(server->rtc_session_manager_);
+    server->rtc_session_manager_ = rtc_session_manager;
+
+    // The session manager is initialized after the black hole, and its failure fails the server initialize.
+    err = server->initialize();
+    EXPECT_EQ(ERROR_THREAD_STARTED, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, blackhole.initialize_count_);
+    EXPECT_EQ(1, rtc_session_manager->initialize_count_);
+
+    server->blackhole_ = NULL;
+}
+
+VOID TEST(ServerTest, OnUdpPacketDispatchesToInjectedRtcSessionManager)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Owned by the server, whose destructor frees it.
+    MockRtcSessionManagerForNotify *rtc_session_manager = new MockRtcSessionManagerForNotify();
+    srs_freep(server->rtc_session_manager_);
+    server->rtc_session_manager_ = rtc_session_manager;
+
+    MockUdpMuxSocket skt;
+    HELPER_EXPECT_SUCCESS(server->on_udp_packet(&skt));
+    EXPECT_EQ(1, rtc_session_manager->on_udp_packet_count_);
+    EXPECT_TRUE(rtc_session_manager->on_udp_packet_skt_ == &skt);
+
+    // The error of the session manager is returned as is.
+    rtc_session_manager->on_udp_packet_error_ = srs_error_new(ERROR_RTC_STUN, "mock on udp packet");
+    err = server->on_udp_packet(&skt);
+    EXPECT_EQ(ERROR_RTC_STUN, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(2, rtc_session_manager->on_udp_packet_count_);
+}
+
+VOID TEST(ServerTest, FindRtcSessionByUsernameAsksInjectedRtcSessionManager)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    // Owned by the server, whose destructor frees it.
+    MockRtcSessionManagerForNotify *rtc_session_manager = new MockRtcSessionManagerForNotify();
+    srs_freep(server->rtc_session_manager_);
+    server->rtc_session_manager_ = rtc_session_manager;
+
+    MockRtcConnectionForUpdateSessions session;
+    rtc_session_manager->find_session_ = &session;
+
+    EXPECT_TRUE(server->find_rtc_session_by_username("ufrag:peer") == &session);
+    EXPECT_EQ(1, rtc_session_manager->find_count_);
+    EXPECT_STREQ("ufrag:peer", rtc_session_manager->find_ufrag_.c_str());
+}
+
+VOID TEST(ServerTest, CreateRtcSessionChecksConnectionLimitThenCreatesThroughInjectedRtcSessionManager)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    MockAppConfigForConnectionLimit config;
+    config.max_connections_ = 2;
+    server->config_ = &config;
+
+    MockConnectionManagerForConnectionLimit conn_manager;
+    server->conn_manager_ = &conn_manager;
+
+    // Owned by the server, whose destructor frees it.
+    MockRtcSessionManagerForNotify *rtc_session_manager = new MockRtcSessionManagerForNotify();
+    srs_freep(server->rtc_session_manager_);
+    server->rtc_session_manager_ = rtc_session_manager;
+
+    MockRtcConnectionForUpdateSessions session;
+    rtc_session_manager->create_session_ = &session;
+
+    SrsRtcUserConfig ruc;
+    ruc.req_->ip_ = "192.168.1.100";
+    SrsSdp local_sdp;
+
+    // Below the limit, the session is created by the session manager.
+    conn_manager.connection_count_ = 1;
+    ISrsRtcConnection *psession = NULL;
+    HELPER_EXPECT_SUCCESS(server->create_rtc_session(&ruc, local_sdp, &psession));
+    EXPECT_TRUE(psession == &session);
+    EXPECT_EQ(1, rtc_session_manager->create_count_);
+    EXPECT_TRUE(rtc_session_manager->create_ruc_ == &ruc);
+    EXPECT_TRUE(rtc_session_manager->create_local_sdp_ == &local_sdp);
+
+    // At the limit, the session is refused before the session manager is asked.
+    conn_manager.connection_count_ = 2;
+    psession = NULL;
+    err = server->create_rtc_session(&ruc, local_sdp, &psession);
+    EXPECT_EQ(ERROR_EXCEED_CONNECTIONS, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(psession == NULL);
+    EXPECT_EQ(1, rtc_session_manager->create_count_);
+
+    // A failure of the session manager fails the create.
+    conn_manager.connection_count_ = 0;
+    rtc_session_manager->create_error_ = srs_error_new(ERROR_RTC_SDP_EXCHANGE, "mock create rtc session");
+    err = server->create_rtc_session(&ruc, local_sdp, &psession);
+    EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(2, rtc_session_manager->create_count_);
+
+    server->config_ = NULL;
+    server->conn_manager_ = NULL;
+}
+
 VOID TEST(ServerTest, Do2CycleRecordsReloadInInjectedStatus)
 {
     srs_error_t err;
@@ -2054,15 +2214,75 @@ VOID TEST(ServerTest, SetupTicksWithStatsAndHeartbeat)
 MockRtcSessionManagerForNotify::MockRtcSessionManagerForNotify()
 {
     update_rtc_sessions_count_ = 0;
+    initialize_count_ = 0;
+    initialize_error_ = srs_success;
+    find_count_ = 0;
+    find_session_ = NULL;
+    create_count_ = 0;
+    create_ruc_ = NULL;
+    create_local_sdp_ = NULL;
+    create_session_ = NULL;
+    create_error_ = srs_success;
+    on_udp_packet_count_ = 0;
+    on_udp_packet_skt_ = NULL;
+    on_udp_packet_error_ = srs_success;
 }
 
 MockRtcSessionManagerForNotify::~MockRtcSessionManagerForNotify()
 {
+    srs_freep(initialize_error_);
+    srs_freep(create_error_);
+    srs_freep(on_udp_packet_error_);
+    find_session_ = NULL;
+    create_ruc_ = NULL;
+    create_local_sdp_ = NULL;
+    create_session_ = NULL;
+    on_udp_packet_skt_ = NULL;
+}
+
+srs_error_t MockRtcSessionManagerForNotify::initialize()
+{
+    initialize_count_++;
+
+    srs_error_t err = initialize_error_;
+    initialize_error_ = srs_success;
+    return err;
+}
+
+ISrsRtcConnection *MockRtcSessionManagerForNotify::find_rtc_session_by_username(const std::string &ufrag)
+{
+    find_count_++;
+    find_ufrag_ = ufrag;
+    return find_session_;
+}
+
+srs_error_t MockRtcSessionManagerForNotify::create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
+{
+    create_count_++;
+    create_ruc_ = ruc;
+    create_local_sdp_ = &local_sdp;
+
+    srs_error_t err = create_error_;
+    create_error_ = srs_success;
+    if (err == srs_success) {
+        *psession = create_session_;
+    }
+    return err;
 }
 
 void MockRtcSessionManagerForNotify::srs_update_rtc_sessions()
 {
     update_rtc_sessions_count_++;
+}
+
+srs_error_t MockRtcSessionManagerForNotify::on_udp_packet(ISrsUdpMuxSocket *skt)
+{
+    on_udp_packet_count_++;
+    on_udp_packet_skt_ = skt;
+
+    srs_error_t err = on_udp_packet_error_;
+    on_udp_packet_error_ = srs_success;
+    return err;
 }
 
 MockHttpHeartbeatForNotify::MockHttpHeartbeatForNotify()
@@ -2291,7 +2511,7 @@ VOID TEST(SrsServerTest, NotifyEventDispatch)
     MockHttpHeartbeatForNotify *mock_heartbeat = new MockHttpHeartbeatForNotify();
 
     // Save original pointers
-    SrsRtcSessionManager *original_rtc_manager = server->rtc_session_manager_;
+    ISrsRtcSessionManager *original_rtc_manager = server->rtc_session_manager_;
     ISrsHttpHeartbeat *original_heartbeat = server->http_heartbeat_;
 
     // Inject mock objects (no cast needed since they inherit from the base classes)

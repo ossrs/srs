@@ -481,18 +481,40 @@ public:
     virtual srs_utime_t get_heartbeat_interval();
 };
 
-// Mock SrsRtcSessionManager for testing SrsServer::notify()
-class MockRtcSessionManagerForNotify : public SrsRtcSessionManager
+// Mock ISrsRtcSessionManager for testing how SrsServer reaches its RTC session manager.
+class MockRtcSessionManagerForNotify : public ISrsRtcSessionManager
 {
 public:
     int update_rtc_sessions_count_;
+    int initialize_count_;
+    // The error initialize() returns, owned by the caller once returned.
+    srs_error_t initialize_error_;
+    int find_count_;
+    std::string find_ufrag_;
+    // The session find_rtc_session_by_username() returns, not owned.
+    ISrsRtcConnection *find_session_;
+    int create_count_;
+    SrsRtcUserConfig *create_ruc_;
+    SrsSdp *create_local_sdp_;
+    // The session create_rtc_session() returns, not owned.
+    ISrsRtcConnection *create_session_;
+    // The error create_rtc_session() returns, owned by the caller once returned.
+    srs_error_t create_error_;
+    int on_udp_packet_count_;
+    ISrsUdpMuxSocket *on_udp_packet_skt_;
+    // The error on_udp_packet() returns, owned by the caller once returned.
+    srs_error_t on_udp_packet_error_;
 
 public:
     MockRtcSessionManagerForNotify();
     virtual ~MockRtcSessionManagerForNotify();
 
 public:
+    virtual srs_error_t initialize();
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag);
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession);
     virtual void srs_update_rtc_sessions();
+    virtual srs_error_t on_udp_packet(ISrsUdpMuxSocket *skt);
 };
 
 // Mock ISrsHttpHeartbeat for testing SrsServer::notify()
