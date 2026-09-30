@@ -114,6 +114,7 @@ srs_error_t srs_global_initialize()
     _srs_hooks = new SrsHttpHooks();
 
     _srs_srt_sources = new SrsSrtSourceManager();
+    _srs_srt_sources->assemble();
     _srt_eventloop = new SrsSrtEventLoop();
 
     // Initialize the SSRC generator before _srs_rtc_sources, whose sources capture it.

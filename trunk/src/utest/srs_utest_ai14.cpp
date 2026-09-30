@@ -2881,6 +2881,56 @@ VOID TEST(RtcSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)
     manager->app_factory_ = NULL;
 }
 
+// The constructor only captures the factory, so a test can inject it before
+// the timer is created.
+VOID TEST(SrtSourceManagerTest, ConstructionCapturesFactoryAndCreatesNoTimer)
+{
+    SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+
+    EXPECT_TRUE(manager->timer_ == NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(manager->app_factory_ != NULL);
+}
+
+// srs_global_initialize() assembles the SRT source manager, so it has its timer.
+VOID TEST(SrtSourceManagerTest, GlobalManagerIsAssembled)
+{
+    SrsSrtSourceManager *manager = _srs_srt_sources;
+    ASSERT_TRUE(manager != NULL);
+
+    EXPECT_TRUE(manager->timer_ != NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+}
+
+// assemble() creates the one-second source timer through the injected factory,
+// with the manager as its handler, and initialize() then ticks and starts it.
+VOID TEST(SrtSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+
+    manager->assemble();
+
+    EXPECT_EQ(1, factory->create_hourglass_count_);
+    EXPECT_STREQ("sources", factory->hourglass_name_.c_str());
+    EXPECT_TRUE(factory->hourglass_handler_ == manager.get());
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory->hourglass_interval_);
+    ASSERT_TRUE(factory->hourglass_ != NULL);
+    EXPECT_TRUE(manager->timer_ == factory->hourglass_);
+
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+    EXPECT_EQ(1, factory->hourglass_->tick_count_);
+    EXPECT_EQ(1, factory->hourglass_->tick_event_);
+    EXPECT_EQ(3 * SRS_UTIME_SECONDS, factory->hourglass_->tick_interval_);
+    EXPECT_EQ(1, factory->hourglass_->start_count_);
+
+    // The manager owns and frees the timer; the factory is borrowed.
+    manager->app_factory_ = NULL;
+}
+
 // Unit test for SrsOriginHub sequence header request methods
 VOID TEST(AppOriginHubTest, SequenceHeaderRequestTypicalScenario)
 {

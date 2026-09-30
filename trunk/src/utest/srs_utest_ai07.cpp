@@ -4705,6 +4705,7 @@ VOID TEST(ReproduceIssue4449, SrtSourceNotifyDeletesNewlyCreatedSource)
 
     // Create a SRT source manager
     SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create a mock request
@@ -5026,6 +5027,7 @@ VOID TEST(SrsSrtSourceTest, ManagerCreatesAssembledSource)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+    manager->assemble();
 
     SrsUniquePtr<SrsRequest> req(new SrsRequest());
     req->vhost_ = "test.vhost";

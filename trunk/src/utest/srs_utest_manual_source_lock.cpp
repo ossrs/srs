@@ -254,6 +254,7 @@ VOID TEST(SourceLockTest, SrtSourceManager_RaceCondition)
     srs_error_t err;
 
     SrsSrtSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     MockAsyncSrsRequest req("/live/test1", true); // Enable context switch
@@ -436,6 +437,7 @@ VOID TEST(SourceLockTest, LiveSourceManager_LockProtection)
     HELPER_EXPECT_SUCCESS(rtc_manager.initialize());
 
     SrsSrtSourceManager srt_manager;
+    srt_manager.assemble();
     HELPER_EXPECT_SUCCESS(srt_manager.initialize());
 
     // Test that managers can handle rapid successive calls
@@ -512,6 +514,7 @@ VOID TEST(SourceLockTest, LiveSourceManager_AtomicSourceCreation)
     HELPER_EXPECT_SUCCESS(rtc_manager.initialize());
 
     SrsSrtSourceManager srt_manager;
+    srt_manager.assemble();
     HELPER_EXPECT_SUCCESS(srt_manager.initialize());
 
     MockAsyncSrsRequest req("/live/atomic_test", true); // Enable context switch
@@ -660,6 +663,7 @@ VOID TEST(SourceLockTest, SrtSourceManager_BasicFunctionality)
     srs_error_t err;
 
     SrsSrtSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     MockAsyncSrsRequest req("/live/test4");
