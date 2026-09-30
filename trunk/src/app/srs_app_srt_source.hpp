@@ -27,6 +27,7 @@ class SrsSrtFrameBuilder;
 class ISrsStatistic;
 class ISrsSrtConsumer;
 class ISrsSrtSource;
+class ISrsClock;
 
 // The SRT packet with shared message.
 class SrsSrtPacket
@@ -284,10 +285,12 @@ class SrsSrtSource : public ISrsSrtSource
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
+    ISrsClock *clk_;
 
 public:
     SrsSrtSource();
     virtual ~SrsSrtSource();
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     virtual srs_error_t initialize(ISrsRequest *r);
