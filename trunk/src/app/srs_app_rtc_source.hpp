@@ -48,6 +48,7 @@ class ISrsAppFactory;
 class ISrsStatistic;
 class ISrsAppConfig;
 class ISrsRtcSSRCGenerator;
+class ISrsClock;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType = 111;
@@ -245,6 +246,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     ISrsSharedTimer *shared_timer_;
     ISrsRtcSSRCGenerator *ssrc_generator_;
+    ISrsClock *clk_;
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
@@ -286,6 +288,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsRtcSource();
     virtual ~SrsRtcSource();
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     virtual srs_error_t initialize(ISrsRequest *r);
@@ -1195,6 +1198,10 @@ public:
     static SrsRtcSSRCGenerator *instance();
     uint32_t generate_ssrc();
 };
+
+// The global SSRC generator, the same object as SrsRtcSSRCGenerator::instance(), so every
+// user draws from one sequence.
+extern SrsRtcSSRCGenerator *_srs_rtc_ssrc_generator;
 
 // The interface for RTC format.
 class ISrsRtcFormat

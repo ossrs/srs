@@ -342,6 +342,7 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<Sr
             pps = source;
         } else {
             SrsSharedPtr<SrsRtcSource> source = SrsSharedPtr<SrsRtcSource>(new SrsRtcSource());
+            source->assemble();
             srs_trace("new rtc source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
@@ -408,15 +409,21 @@ SrsRtcSource::SrsRtcSource()
     config_ = _srs_config;
     stat_ = _srs_stat;
     shared_timer_ = _srs_shared_timer;
-    ssrc_generator_ = SrsRtcSSRCGenerator::instance();
+    ssrc_generator_ = _srs_rtc_ssrc_generator;
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
+    stream_die_at_ = 0;
+
+    app_factory_ = _srs_app_factory;
+    clk_ = _srs_clock;
+}
+
+void SrsRtcSource::assemble()
+{
     // Initialize stream_die_at_ to current time to prevent newly created sources
     // from being immediately considered dead by stream_is_dead() check.
     // @see https://github.com/ossrs/srs/issues/4449
-    stream_die_at_ = srs_time_now_cached();
-
-    app_factory_ = _srs_app_factory;
+    stream_die_at_ = clk_->now();
 }
 
 SrsRtcSource::~SrsRtcSource()
@@ -440,6 +447,7 @@ SrsRtcSource::~SrsRtcSource()
     stat_ = NULL;
     shared_timer_ = NULL;
     ssrc_generator_ = NULL;
+    clk_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -481,7 +489,7 @@ bool SrsRtcSource::stream_is_dead()
     }
 
     // Delay cleanup source.
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_RTC_SOURCE_CLEANUP) {
         return false;
     }
@@ -675,7 +683,7 @@ void SrsRtcSource::on_consumer_destroy(ISrsRtcConsumer *consumer)
 
     // Destroy and cleanup source when no publishers and consumers.
     if (!is_created_ && consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 }
 
@@ -784,7 +792,7 @@ void SrsRtcSource::on_unpublish()
 
     // Destroy and cleanup source when no publishers and consumers.
     if (consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 
     // Should never change the final state before all cleanup is done.
@@ -3944,6 +3952,8 @@ srs_error_t SrsRtcVideoSendTrack::on_rtcp(SrsRtpPacket *pkt)
 }
 
 SrsRtcSSRCGenerator *SrsRtcSSRCGenerator::instance_ = NULL;
+
+SrsRtcSSRCGenerator *_srs_rtc_ssrc_generator = NULL;
 
 SrsRtcSSRCGenerator::SrsRtcSSRCGenerator()
 {
