@@ -119,6 +119,7 @@ srs_error_t srs_global_initialize()
     // Initialize the SSRC generator before _srs_rtc_sources, whose sources capture it.
     _srs_rtc_ssrc_generator = SrsRtcSSRCGenerator::instance();
     _srs_rtc_sources = new SrsRtcSourceManager();
+    _srs_rtc_sources->assemble();
     _srs_blackhole = new SrsRtcBlackhole();
 
     _srs_conn_manager = new SrsResourceManager("RTC", true);

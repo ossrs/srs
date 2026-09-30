@@ -1707,6 +1707,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateNewSource)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create a mock request
@@ -1733,6 +1734,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateInitializeSuccess)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create a mock request
@@ -1830,6 +1832,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateInitializeFailure)
 
     // Create mock source manager
     MockRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Set up the manager to fail initialization
@@ -1902,6 +1905,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateErrorWrapping)
 
     // Create mock source manager
     MockRtcSourceManagerWithErrorWrapping manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create a mock request
@@ -1928,6 +1932,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateMultipleStreams)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create multiple mock requests for different streams
@@ -1967,6 +1972,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateExistingSourceUpdateAuth)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create a mock request
@@ -1996,6 +2002,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateConcurrentAccess)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create mock requests for the same stream
@@ -4732,6 +4739,7 @@ VOID TEST(ReproduceIssue4449, RtcSourceNotifyDeletesNewlyCreatedSource)
 
     // Create a RTC source manager
     SrsUniquePtr<SrsRtcSourceManager> manager(new SrsRtcSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create a mock request
@@ -4901,6 +4909,7 @@ VOID TEST(SrsRtcSourceTest, ManagerCreatesAssembledSource)
     srs_error_t err;
 
     SrsUniquePtr<SrsRtcSourceManager> manager(new SrsRtcSourceManager());
+    manager->assemble();
 
     SrsUniquePtr<SrsRequest> req(new SrsRequest());
     req->vhost_ = "test.vhost";

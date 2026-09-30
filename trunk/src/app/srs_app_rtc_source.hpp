@@ -185,12 +185,17 @@ class SrsRtcSourceManager : public ISrsRtcSourceManager, public ISrsHourGlassHan
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t lock_;
     std::map<std::string, SrsSharedPtr<SrsRtcSource> > pool_;
-    SrsHourGlass *timer_;
+    ISrsHourGlass *timer_;
 
 public:
     SrsRtcSourceManager();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsRtcSourceManager();
 
 public:

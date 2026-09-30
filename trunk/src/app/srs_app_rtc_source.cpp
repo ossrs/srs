@@ -269,14 +269,22 @@ ISrsRtcSourceManager::~ISrsRtcSourceManager()
 SrsRtcSourceManager::SrsRtcSourceManager()
 {
     lock_ = srs_mutex_new();
-    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
-    timer_->assemble();
+    timer_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+}
+
+void SrsRtcSourceManager::assemble()
+{
+    timer_ = app_factory_->create_hourglass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsRtcSourceManager::~SrsRtcSourceManager()
 {
     srs_mutex_destroy(lock_);
     srs_freep(timer_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtcSourceManager::initialize()

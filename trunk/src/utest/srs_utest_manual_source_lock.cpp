@@ -211,6 +211,7 @@ VOID TEST(SourceLockTest, RtcSourceManager_RaceCondition)
     srs_error_t err;
 
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     MockAsyncSrsRequest req("/live/test1", true); // Enable context switch
@@ -431,6 +432,7 @@ VOID TEST(SourceLockTest, LiveSourceManager_LockProtection)
     HELPER_EXPECT_SUCCESS(live_manager.initialize());
 
     SrsRtcSourceManager rtc_manager;
+    rtc_manager.assemble();
     HELPER_EXPECT_SUCCESS(rtc_manager.initialize());
 
     SrsSrtSourceManager srt_manager;
@@ -506,6 +508,7 @@ VOID TEST(SourceLockTest, LiveSourceManager_AtomicSourceCreation)
 
     // Test all source manager types
     SrsRtcSourceManager rtc_manager;
+    rtc_manager.assemble();
     HELPER_EXPECT_SUCCESS(rtc_manager.initialize());
 
     SrsSrtSourceManager srt_manager;
@@ -631,6 +634,7 @@ VOID TEST(SourceLockTest, RtcSourceManager_BasicFunctionality)
     srs_error_t err;
 
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     MockAsyncSrsRequest req("/live/test2");
@@ -677,6 +681,7 @@ VOID TEST(SourceLockTest, RtcSourceManager_ConcurrentAccess)
     srs_error_t err;
 
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     MockAsyncSrsRequest req("/live/rtc_concurrent_test", true); // Enable context switch
@@ -703,6 +708,7 @@ VOID TEST(SourceLockTest, RtcSourceManager_FetchNonExistent)
     srs_error_t err;
 
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     MockAsyncSrsRequest req("/live/nonexistent");
