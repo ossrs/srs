@@ -8,6 +8,7 @@
 
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtsp_conn.hpp>
 #include <srs_app_statistic.hpp>
@@ -123,14 +124,22 @@ ISrsRtspSourceManager::~ISrsRtspSourceManager()
 SrsRtspSourceManager::SrsRtspSourceManager()
 {
     lock_ = srs_mutex_new();
-    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
-    timer_->assemble();
+    timer_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+}
+
+void SrsRtspSourceManager::assemble()
+{
+    timer_ = app_factory_->create_hourglass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsRtspSourceManager::~SrsRtspSourceManager()
 {
     srs_mutex_destroy(lock_);
     srs_freep(timer_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtspSourceManager::initialize()

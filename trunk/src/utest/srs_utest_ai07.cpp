@@ -4776,6 +4776,7 @@ VOID TEST(ReproduceIssue4449, RtspSourceNotifyDeletesNewlyCreatedSource)
 
     // Create a RTSP source manager
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create a mock request
@@ -5145,6 +5146,7 @@ VOID TEST(SrsRtspSourceTest, ManagerCreatesAssembledSource)
     srs_error_t err;
 
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
 
     SrsUniquePtr<SrsRequest> req(new SrsRequest());
     req->vhost_ = "test.vhost";

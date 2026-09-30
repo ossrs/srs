@@ -127,6 +127,7 @@ srs_error_t srs_global_initialize()
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 #ifdef SRS_RTSP
     _srs_rtsp_sources = new SrsRtspSourceManager();
+    _srs_rtsp_sources->assemble();
     _srs_rtsp_manager = new SrsResourceManager("RTSP", true);
 #endif
 #ifdef SRS_GB28181

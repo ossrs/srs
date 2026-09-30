@@ -731,6 +731,7 @@ VOID TEST(SourceLockTest, RtspSourceManager_RaceCondition)
     srs_error_t err;
 
     SrsRtspSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     MockAsyncSrsRequest req("/live/test1", true); // Enable context switch
@@ -774,6 +775,7 @@ VOID TEST(SourceLockTest, LiveSourceManager_LockProtection2)
     // This test verifies that no functions are called during locking
 
     SrsRtspSourceManager rtsp_manager;
+    rtsp_manager.assemble();
     HELPER_EXPECT_SUCCESS(rtsp_manager.initialize());
 
     // Test that managers can handle rapid successive calls
@@ -793,6 +795,7 @@ VOID TEST(SourceLockTest, LiveSourceManager_AtomicSourceCreation2)
 
     // Test all source manager types
     SrsRtspSourceManager rtsp_manager;
+    rtsp_manager.assemble();
     HELPER_EXPECT_SUCCESS(rtsp_manager.initialize());
 
     MockAsyncSrsRequest req("/live/atomic_test", true); // Enable context switch
@@ -815,6 +818,7 @@ VOID TEST(SourceLockTest, RtspSourceManager_BasicFunctionality)
     srs_error_t err;
 
     SrsRtspSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     MockAsyncSrsRequest req("/live/test3");

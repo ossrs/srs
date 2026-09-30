@@ -22,6 +22,7 @@ using namespace std;
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai10.hpp>
 #include <srs_utest_ai11.hpp>
+#include <srs_utest_ai14.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 
@@ -1830,6 +1831,7 @@ VOID TEST(SrsRtspSourceManagerTest, NotifyCleanupDeadSources)
 
     // Create RTSP source manager
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create mock requests for source creation
@@ -1922,6 +1924,7 @@ VOID TEST(SrsRtspSourceManagerTest, FetchOrCreateMajorScenario)
 
     // Create manager
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create request for stream
@@ -1964,6 +1967,7 @@ VOID TEST(SrsRtspSourceManagerTest, FetchMajorScenario)
 
     // Create manager
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create request for stream
@@ -1984,6 +1988,56 @@ VOID TEST(SrsRtspSourceManagerTest, FetchMajorScenario)
     MockSrsRequest req3("test.vhost", "live", "nonexistent");
     SrsSharedPtr<SrsRtspSource> null_source = manager->fetch(&req3);
     EXPECT_TRUE(null_source.get() == NULL);
+}
+
+// The constructor only captures the factory, so a test can inject it before
+// the timer is created.
+VOID TEST(RtspSourceManagerTest, ConstructionCapturesFactoryAndCreatesNoTimer)
+{
+    SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+
+    EXPECT_TRUE(manager->timer_ == NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(manager->app_factory_ != NULL);
+}
+
+// srs_global_initialize() assembles the RTSP source manager, so it has its timer.
+VOID TEST(RtspSourceManagerTest, GlobalManagerIsAssembled)
+{
+    SrsRtspSourceManager *manager = _srs_rtsp_sources;
+    ASSERT_TRUE(manager != NULL);
+
+    EXPECT_TRUE(manager->timer_ != NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+}
+
+// assemble() creates the one-second source timer through the injected factory,
+// with the manager as its handler, and initialize() then ticks and starts it.
+VOID TEST(RtspSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+
+    manager->assemble();
+
+    EXPECT_EQ(1, factory->create_hourglass_count_);
+    EXPECT_STREQ("sources", factory->hourglass_name_.c_str());
+    EXPECT_TRUE(factory->hourglass_handler_ == manager.get());
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory->hourglass_interval_);
+    ASSERT_TRUE(factory->hourglass_ != NULL);
+    EXPECT_TRUE(manager->timer_ == factory->hourglass_);
+
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+    EXPECT_EQ(1, factory->hourglass_->tick_count_);
+    EXPECT_EQ(1, factory->hourglass_->tick_event_);
+    EXPECT_EQ(3 * SRS_UTIME_SECONDS, factory->hourglass_->tick_interval_);
+    EXPECT_EQ(1, factory->hourglass_->start_count_);
+
+    // The manager owns and frees the timer; the factory is borrowed.
+    manager->app_factory_ = NULL;
 }
 
 // Test SrsRtspSource consumer creation - covers the major use scenario:

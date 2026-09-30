@@ -31,6 +31,7 @@ class ISrsCircuitBreaker;
 class ISrsAppConfig;
 class ISrsRtspConnection;
 class ISrsClock;
+class ISrsAppFactory;
 
 // The RTSP stream consumer, consume packets from RTSP stream source.
 class SrsRtspConsumer
@@ -93,12 +94,17 @@ class SrsRtspSourceManager : public ISrsHourGlassHandler, public ISrsRtspSourceM
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t lock_;
     std::map<std::string, SrsSharedPtr<SrsRtspSource> > pool_;
-    SrsHourGlass *timer_;
+    ISrsHourGlass *timer_;
 
 public:
     SrsRtspSourceManager();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsRtspSourceManager();
 
 public:
