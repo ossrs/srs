@@ -974,17 +974,26 @@ srs_error_t SrsC1S1::s1_validate_digest(bool &is_valid)
 
 SrsC2S2::SrsC2S2()
 {
-    rand_.gen_bytes(random_, 1504);
+    rand_ = new SrsRand();
+
+    memset(random_, 0, sizeof(random_));
+    memset(digest_, 0, sizeof(digest_));
+}
+
+SrsC2S2::~SrsC2S2()
+{
+    srs_freep(rand_);
+}
+
+void SrsC2S2::assemble()
+{
+    rand_->gen_bytes(random_, 1504);
 
     int size = snprintf(random_, 1504, "%s", RTMP_SIG_SRS_HANDSHAKE);
     srs_assert(size > 0 && size < 1504);
     snprintf(random_ + 1504 - size, size, "%s", RTMP_SIG_SRS_HANDSHAKE);
 
-    rand_.gen_bytes(digest_, 32);
-}
-
-SrsC2S2::~SrsC2S2()
-{
+    rand_->gen_bytes(digest_, 32);
 }
 
 srs_error_t SrsC2S2::dump(char *_c2s2, int size)
@@ -1219,6 +1228,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
     }
 
     SrsC2S2 s2;
+    s2.assemble();
     if ((err = s2.s2_create(&c1)) != srs_success) {
         return srs_error_wrap(err, "create s2 from c1");
     }
@@ -1247,6 +1257,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
         return srs_error_wrap(err, "read c2");
     }
     SrsC2S2 c2;
+    c2.assemble();
     if ((err = c2.parse(hs_bytes->c2_, 1536)) != srs_success) {
         return srs_error_wrap(err, "parse c2");
     }
@@ -1318,6 +1329,7 @@ srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes *hs_byt
     }
 
     SrsC2S2 c2;
+    c2.assemble();
     if ((err = c2.c2_create(&s1)) != srs_success) {
         return srs_error_wrap(err, "create c2");
     }

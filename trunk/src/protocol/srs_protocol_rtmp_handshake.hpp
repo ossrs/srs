@@ -412,7 +412,7 @@ class SrsC2S2
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsRand rand_;
+    ISrsRand *rand_;
 
 public:
     char random_[1504];
@@ -421,6 +421,10 @@ public:
 public:
     SrsC2S2();
     virtual ~SrsC2S2();
+
+public:
+    // Fill the random data with the server signature, and the digest.
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     // Copy to bytes.

@@ -21,6 +21,7 @@ using namespace std;
 #include <srs_protocol_rtp.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_manual_http.hpp>
+#include <srs_utest_manual_protocol.hpp>
 
 VOID TEST(HTTPClientTest, HTTPClientUtility)
 {
@@ -2651,4 +2652,173 @@ VOID TEST(RtmpHandshakeTest, C1S1CreateAssemblesDigestBlock)
         EXPECT_EQ(764 - 4 - 32, s1.payload_->digest_.random0_size_ + s1.payload_->digest_.random1_size_);
         EXPECT_EQ(s1.payload_->digest_.calc_valid_offset(), s1.payload_->digest_.random0_size_);
     }
+}
+
+// The c2s2 allocates its random generator but generates nothing until assemble().
+VOID TEST(RtmpHandshakeTest, C2S2ConstructionGeneratesNothing)
+{
+    srs_internal::SrsC2S2 c2s2;
+
+    EXPECT_TRUE(c2s2.rand_ != NULL);
+    for (int i = 0; i < 1504; i++) {
+        ASSERT_EQ(0, c2s2.random_[i]);
+    }
+    for (int i = 0; i < 32; i++) {
+        ASSERT_EQ(0, c2s2.digest_[i]);
+    }
+}
+
+// The random data and the digest come from the injected random generator.
+VOID TEST(RtmpHandshakeTest, C2S2AssembleFillsFromInjectedRand)
+{
+    MockRandForHandshake rand;
+
+    srs_internal::SrsC2S2 c2s2;
+    srs_freep(c2s2.rand_);
+    c2s2.rand_ = &rand;
+
+    c2s2.assemble();
+    // Release the mock before any assertion can return early.
+    c2s2.rand_ = NULL;
+
+    EXPECT_EQ(0, rand.integer_count_);
+    ASSERT_EQ(2, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(1504, rand.gen_bytes_sizes_[0]);
+    EXPECT_EQ(32, rand.gen_bytes_sizes_[1]);
+
+    // The random data starts with the server signature and its terminator.
+    EXPECT_EQ(0, strncmp(c2s2.random_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    int size = (int)strlen(c2s2.random_);
+    ASSERT_GT(size, 0);
+    ASSERT_LT(size, 1504);
+
+    // The rest is the random fill, and the last size bytes are the signature
+    // without its last character, then the terminator.
+    EXPECT_EQ(0x10, c2s2.random_[size + 1]);
+    EXPECT_EQ(0x10, c2s2.random_[1504 - size - 1]);
+    EXPECT_EQ(0, strncmp(c2s2.random_ + 1504 - size, c2s2.random_, size - 1));
+    EXPECT_EQ(0, c2s2.random_[1503]);
+
+    for (int i = 0; i < 32; i++) {
+        EXPECT_EQ(0x11, c2s2.digest_[i]);
+    }
+}
+
+// Assemble the c2s2 from fixed bytes.
+static void assemble_fixed_c2s2(srs_internal::SrsC2S2 *c2s2)
+{
+    MockRandForHandshake rand;
+
+    srs_freep(c2s2->rand_);
+    c2s2->rand_ = &rand;
+    c2s2->assemble();
+    c2s2->rand_ = NULL;
+}
+
+// A c2 or s2 built from fixed bytes is the same bytes every time, and its digest
+// validates until any byte of its random data changes.
+VOID TEST(RtmpHandshakeTest, C2S2DigestValidatesFromFixedBytes)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        srs_internal::SrsC1S1 c1s1;
+        HELPER_EXPECT_SUCCESS(create_fixed_c1(&c1s1, schemas[i]));
+
+        // The client creates c2 from s1, and the server creates s2 from c1.
+        for (int j = 0; j < 2; j++) {
+            srs_internal::SrsC2S2 c2s2;
+            assemble_fixed_c2s2(&c2s2);
+            srs_internal::SrsC2S2 other;
+            assemble_fixed_c2s2(&other);
+
+            if (j == 0) {
+                HELPER_EXPECT_SUCCESS(c2s2.c2_create(&c1s1));
+                HELPER_EXPECT_SUCCESS(other.c2_create(&c1s1));
+            } else {
+                HELPER_EXPECT_SUCCESS(c2s2.s2_create(&c1s1));
+                HELPER_EXPECT_SUCCESS(other.s2_create(&c1s1));
+            }
+
+            char bytes[1536];
+            HELPER_EXPECT_SUCCESS(c2s2.dump(bytes, sizeof(bytes)));
+            char other_bytes[1536];
+            HELPER_EXPECT_SUCCESS(other.dump(other_bytes, sizeof(other_bytes)));
+            EXPECT_EQ(0, memcmp(bytes, other_bytes, sizeof(bytes)));
+
+            bool is_valid = false;
+            if (j == 0) {
+                HELPER_EXPECT_SUCCESS(c2s2.c2_validate(&c1s1, is_valid));
+            } else {
+                HELPER_EXPECT_SUCCESS(c2s2.s2_validate(&c1s1, is_valid));
+            }
+            EXPECT_TRUE(is_valid);
+
+            c2s2.random_[1000]++;
+            is_valid = true;
+            if (j == 0) {
+                HELPER_EXPECT_SUCCESS(c2s2.c2_validate(&c1s1, is_valid));
+            } else {
+                HELPER_EXPECT_SUCCESS(c2s2.s2_validate(&c1s1, is_valid));
+            }
+            EXPECT_FALSE(is_valid);
+        }
+    }
+}
+
+// This passes from the start and locks in the production wiring: the s2 that the
+// server sends and the c2 that the client sends are assembled, so each starts with
+// the server signature, and each validates against the peer's c1 or s1.
+VOID TEST(RtmpHandshakeTest, ComplexHandshakeAssemblesC2S2)
+{
+    srs_error_t err = srs_success;
+
+    // The client sends c0c1 from fixed bytes, then any c2, which is never verified.
+    srs_internal::SrsC1S1 c1;
+    HELPER_EXPECT_SUCCESS(create_fixed_c1(&c1, srs_schema1));
+    char c0c1[1537];
+    c0c1[0] = 0x03;
+    HELPER_EXPECT_SUCCESS(c1.dump(c0c1 + 1, 1536));
+    char c2[1536];
+    memset(c2, 0, sizeof(c2));
+
+    MockBufferIO server_io;
+    server_io.append((uint8_t *)c0c1, sizeof(c0c1));
+    server_io.append((uint8_t *)c2, sizeof(c2));
+
+    SrsHandshakeBytes server_bytes;
+    SrsComplexHandshake server;
+    HELPER_ASSERT_SUCCESS(server.handshake_with_client(&server_bytes, &server_io));
+    ASSERT_EQ(3073, server_io.out_length());
+
+    char s0s1s2[3073];
+    memcpy(s0s1s2, server_io.out_buffer.bytes(), sizeof(s0s1s2));
+    EXPECT_EQ(0, strncmp(s0s1s2 + 1537, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+
+    bool is_valid = false;
+    srs_internal::SrsC2S2 s2;
+    HELPER_EXPECT_SUCCESS(s2.parse(s0s1s2 + 1537, 1536));
+    HELPER_EXPECT_SUCCESS(s2.s2_validate(&c1, is_valid));
+    EXPECT_TRUE(is_valid);
+
+    // The client reads that s0s1s2 and sends c0c1 then c2.
+    MockBufferIO client_io;
+    client_io.append((uint8_t *)s0s1s2, sizeof(s0s1s2));
+
+    SrsHandshakeBytes client_bytes;
+    SrsComplexHandshake client;
+    HELPER_ASSERT_SUCCESS(client.handshake_with_server(&client_bytes, &client_io));
+    ASSERT_EQ(1537 + 1536, client_io.out_length());
+
+    char *c2_bytes = client_io.out_buffer.bytes() + 1537;
+    EXPECT_EQ(0, strncmp(c2_bytes, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+
+    srs_internal::SrsC1S1 s1;
+    HELPER_EXPECT_SUCCESS(s1.parse(s0s1s2 + 1, 1536, srs_schema1));
+    srs_internal::SrsC2S2 client_c2;
+    HELPER_EXPECT_SUCCESS(client_c2.parse(c2_bytes, 1536));
+    is_valid = false;
+    HELPER_EXPECT_SUCCESS(client_c2.c2_validate(&s1, is_valid));
+    EXPECT_TRUE(is_valid);
 }
