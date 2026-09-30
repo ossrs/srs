@@ -28,6 +28,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
@@ -1799,10 +1800,7 @@ SrsLiveSource::SrsLiveSource()
     mix_queue_ = new SrsMixQueue();
 
     can_publish_ = true;
-    // Initialize stream_die_at_ to current time to prevent newly created sources
-    // from being immediately considered dead by stream_is_dead() check.
-    // @see https://github.com/ossrs/srs/issues/4449
-    stream_die_at_ = srs_time_now_cached();
+    stream_die_at_ = 0;
     publisher_idle_at_ = 0;
 
     rtmp_bridge_ = NULL;
@@ -1823,11 +1821,17 @@ SrsLiveSource::SrsLiveSource()
     stat_ = _srs_stat;
     handler_ = _srs_server;
     app_factory_ = _srs_app_factory;
+    clk_ = _srs_clock;
 }
 
 void SrsLiveSource::assemble()
 {
     config_->subscribe(this);
+
+    // Initialize stream_die_at_ to current time to prevent newly created sources
+    // from being immediately considered dead by stream_is_dead() check.
+    // @see https://github.com/ossrs/srs/issues/4449
+    stream_die_at_ = clk_->now();
 }
 
 SrsLiveSource::~SrsLiveSource()
@@ -1859,6 +1863,7 @@ SrsLiveSource::~SrsLiveSource()
     stat_ = NULL;
     handler_ = NULL;
     app_factory_ = NULL;
+    clk_ = NULL;
 }
 
 void SrsLiveSource::dispose()
@@ -1894,7 +1899,7 @@ bool SrsLiveSource::stream_is_dead()
     }
 
     // Delay cleanup source.
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_SOURCE_CLEANUP) {
         return false;
     }
@@ -1913,7 +1918,7 @@ bool SrsLiveSource::publisher_is_idle_for(srs_utime_t timeout)
         return false;
     }
 
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now > publisher_idle_at_ + timeout) {
         return true;
     }
@@ -2477,7 +2482,7 @@ srs_error_t SrsLiveSource::on_publish()
 
     // When no players, the publisher is idle now.
     if (consumers_.empty()) {
-        publisher_idle_at_ = srs_time_now_cached();
+        publisher_idle_at_ = clk_->now();
     }
 
     return err;
@@ -2525,7 +2530,7 @@ void SrsLiveSource::on_unpublish()
 
     // no consumer, stream is die.
     if (consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 
     // Note that we should never set to unpublish before any other handler is done, especially the handler
@@ -2616,17 +2621,17 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer *consumer)
 
         // If no publishers, the stream is die.
         if (can_publish_) {
-            stream_die_at_ = srs_time_now_cached();
+            stream_die_at_ = clk_->now();
         }
 
         // For edge server, the stream die when the last player quit, because the edge stream is created by player
         // activities, so it should die when all players quit.
         if (config_->get_vhost_is_edge(req_->vhost_)) {
-            stream_die_at_ = srs_time_now_cached();
+            stream_die_at_ = clk_->now();
         }
 
         // When no players, the publisher is idle now.
-        publisher_idle_at_ = srs_time_now_cached();
+        publisher_idle_at_ = clk_->now();
     }
 }
 

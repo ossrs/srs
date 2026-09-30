@@ -82,7 +82,9 @@ SrsPath *SrsAppFactory::create_path()
 
 SrsLiveSource *SrsAppFactory::create_live_source()
 {
-    return new SrsLiveSource();
+    SrsLiveSource *source = new SrsLiveSource();
+    source->assemble();
+    return source;
 }
 
 ISrsOriginHub *SrsAppFactory::create_origin_hub()

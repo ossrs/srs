@@ -63,6 +63,7 @@ class ISrsForwarder;
 class ISrsAppFactory;
 class ISrsStreamPublishTokenManager;
 class ISrsLiveConsumer;
+class ISrsClock;
 
 // The time jitter algorithm:
 // 1. full, to ensure stream start at zero, and ensure stream monotonically increasing.
@@ -672,6 +673,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     ISrsLiveSourceHandler *handler_;
     ISrsAppFactory *app_factory_;
+    ISrsClock *clk_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -726,7 +728,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsLiveSource();
-    void assemble();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsLiveSource();
 
 public:

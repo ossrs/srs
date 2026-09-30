@@ -88,6 +88,7 @@ VOID TEST(BasicWorkflowForwardTest, ForwardBackendFailureRollsBackPublishState)
     raw_source->config_ = mock_config.get();
     raw_source->stat_ = mock_stat.get();
     raw_source->req_ = req->copy();
+    raw_source->assemble();
     SrsSharedPtr<SrsLiveSource> source(raw_source);
 
     SrsOriginHub *hub = new SrsOriginHub();

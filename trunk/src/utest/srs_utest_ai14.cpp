@@ -17,14 +17,17 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_hourglass.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai08.hpp>
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai22.hpp>
+#include <srs_utest_ai32.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_protocol2.hpp>
@@ -3158,6 +3161,7 @@ VOID TEST(SrsLiveSourceTest, InitializeOriginHubCreation)
         // Inject mock dependencies
         source->config_ = mock_config;
         source->app_factory_ = mock_factory;
+        source->assemble();
 
         // Create mock request
         MockSrsRequest mock_req("test.vhost", "live", "stream1");
@@ -3199,6 +3203,7 @@ VOID TEST(SrsLiveSourceTest, ConsumerDumpsTypicalScenario)
         // Inject mock dependencies
         source->config_ = mock_config;
         source->app_factory_ = mock_factory;
+        source->assemble();
 
         // Create mock request
         MockSrsRequest mock_req("test.vhost", "live", "stream1");
@@ -3247,6 +3252,7 @@ VOID TEST(SrsLiveSourceTest, OnMetaDataTypicalScenario)
         // Inject mock dependencies
         source->config_ = mock_config;
         source->app_factory_ = mock_factory;
+        source->assemble();
 
         // Create mock request
         MockSrsRequest mock_req("test.vhost", "live", "stream1");
@@ -3523,4 +3529,115 @@ VOID TEST(AppOriginHubTest, OnVideoSequenceHeaderWaitingMechanism)
     // 3. AVC path: when c->id_ == SrsVideoCodecIdAVC, calls stat_->on_video_info() with AVC profile/level
     // 4. HEVC path: when c->id_ == SrsVideoCodecIdHEVC, calls stat_->on_video_info() with HEVC profile/level
     // 5. The trace logging: srs_trace() is called with codec-specific information (profile, level, resolution, bitrate, fps, duration)
+}
+
+// The constructor only captures the clock and reads no time, so a test can inject its
+// own clock before assemble() stamps the new source.
+VOID TEST(SrsLiveSourceTest, ConstructionCapturesClockAndReadsNoTime)
+{
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+
+    EXPECT_TRUE(source->clk_ != NULL);
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_EQ((srs_utime_t)0, source->stream_die_at_);
+    EXPECT_EQ((srs_utime_t)0, source->publisher_idle_at_);
+}
+
+// assemble() stamps a new source with the injected clock, so the cleanup timer does not
+// reap it before the cleanup delay passed, see https://github.com/ossrs/srs/issues/4449
+VOID TEST(SrsLiveSourceTest, AssembleStampsNewSourceWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The cleanup delay SRS_SOURCE_CLEANUP is 3s.
+    clock.now_ = 103 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 103 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// The last consumer leaving stamps the death and idle times with the injected clock, and
+// publisher_is_idle_for() measures from that stamp on the same clock.
+VOID TEST(SrsLiveSourceTest, ConsumerDestroyStampsWithInjectedClock)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+    MockAppConfig config;
+
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+    source->config_ = &config;
+    source->clk_ = &clock;
+    source->req_ = new MockSrsRequest("test.vhost", "live", "stream1");
+    source->assemble();
+
+    SrsLiveConsumer *consumer = NULL;
+    HELPER_EXPECT_SUCCESS(source->create_consumer(consumer));
+    EXPECT_EQ((srs_utime_t)0, source->stream_die_at_);
+
+    clock.now_ = 200 * SRS_UTIME_SECONDS;
+    srs_freep(consumer);
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->publisher_idle_at_);
+
+    clock.now_ = 210 * SRS_UTIME_SECONDS;
+    EXPECT_FALSE(source->publisher_is_idle_for(10 * SRS_UTIME_SECONDS));
+    clock.now_ = 210 * SRS_UTIME_SECONDS + 1;
+    EXPECT_TRUE(source->publisher_is_idle_for(10 * SRS_UTIME_SECONDS));
+}
+
+// Publishing with no player stamps the idle time, and unpublishing with no player stamps
+// the death time, both with the injected clock.
+VOID TEST(SrsLiveSourceTest, PublishAndUnpublishStampWithInjectedClock)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+    MockAppStatistic stat;
+    MockLiveSourceHandler handler;
+
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+    source->clk_ = &clock;
+    source->stat_ = &stat;
+    source->handler_ = &handler;
+    source->req_ = new MockSrsRequest("test.vhost", "live", "stream1");
+    source->assemble();
+
+    clock.now_ = 200 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(source->on_publish());
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->publisher_idle_at_);
+    EXPECT_EQ(1, handler.on_publish_count_);
+
+    clock.now_ = 300 * SRS_UTIME_SECONDS;
+    source->on_unpublish();
+    EXPECT_EQ(300 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_EQ(1, handler.on_unpublish_count_);
+
+    source->stat_ = NULL;
+    source->handler_ = NULL;
+}
+
+// The factory hands out an assembled source: stamped, and subscribed to config reloads
+// through the config it captured.
+VOID TEST(SrsLiveSourceTest, FactoryCreatesAssembledSource)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<SrsLiveSource> source(factory.create_live_source());
+
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_TRUE(source->stream_die_at_ > 0);
+
+    std::vector<ISrsReloadHandler *> &subscribes = _srs_config->subscribes_;
+    EXPECT_TRUE(std::find(subscribes.begin(), subscribes.end(), (ISrsReloadHandler *)source.get()) != subscribes.end());
 }
