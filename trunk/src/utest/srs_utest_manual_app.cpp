@@ -45,6 +45,7 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
 
     if (true) {
         SrsUniquePtr<SrsResourceManager> m(new SrsResourceManager("test"));
+        m->assemble();
         HELPER_EXPECT_SUCCESS(m->start());
 
         m->add_with_fast_id(101, new MockIDResource(1));
@@ -57,6 +58,7 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
 
     if (true) {
         SrsResourceManager m("test");
+        m.assemble();
         HELPER_EXPECT_SUCCESS(m.start());
 
         MockIDResource *r1 = new MockIDResource(1);
@@ -76,6 +78,7 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
 
     if (true) {
         SrsResourceManager m("test");
+        m.assemble();
         HELPER_EXPECT_SUCCESS(m.start());
 
         MockIDResource *r1 = new MockIDResource(1);
@@ -103,6 +106,7 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
 
     if (true) {
         SrsResourceManager m("test");
+        m.assemble();
         HELPER_EXPECT_SUCCESS(m.start());
 
         m.add_with_fast_id(101, new MockIDResource(1));
@@ -129,6 +133,7 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
 
     if (true) {
         SrsResourceManager m("test");
+        m.assemble();
         HELPER_EXPECT_SUCCESS(m.start());
 
         m.add_with_fast_id(101, new MockIDResource(1));

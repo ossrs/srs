@@ -54,13 +54,15 @@ SrsResourceManager::SrsResourceManager(const std::string &label, bool verbose)
 {
     verbose_ = verbose;
     label_ = label;
-    cond_ = _srs_kernel_factory->create_cond();
+    cond_ = NULL;
     trd_ = NULL;
     p_disposing_ = NULL;
     removing_ = false;
 
     nn_level0_cache_ = 100000;
     conns_level0_cache_ = new SrsResourceFastIdItem[nn_level0_cache_];
+
+    factory_ = _srs_kernel_factory;
 }
 
 SrsResourceManager::~SrsResourceManager()
@@ -83,6 +85,13 @@ SrsResourceManager::~SrsResourceManager()
     }
 
     srs_freepa(conns_level0_cache_);
+
+    factory_ = NULL;
+}
+
+void SrsResourceManager::assemble()
+{
+    cond_ = factory_->create_cond();
 }
 
 srs_error_t SrsResourceManager::start()
@@ -90,7 +99,7 @@ srs_error_t SrsResourceManager::start()
     srs_error_t err = srs_success;
 
     cid_ = _srs_context->generate_id();
-    trd_ = _srs_kernel_factory->create_coroutine("manager", this, cid_);
+    trd_ = factory_->create_coroutine("manager", this, cid_);
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "conn manager");

@@ -735,6 +735,14 @@ VOID TEST(GB28181Test, ListenerListen)
     srs_freep(mock_media_listener);
 }
 
+VOID TEST(GB28181Test, GlobalResourceManagerIsAssembled)
+{
+    ASSERT_TRUE(_srs_gb_manager != NULL);
+
+    EXPECT_TRUE(_srs_kernel_factory == _srs_gb_manager->factory_);
+    EXPECT_TRUE(NULL != _srs_gb_manager->cond_);
+}
+
 // The listener keeps the API server owner it is constructed with.
 VOID TEST(GB28181Test, ListenerConstructionCapturesApiServerOwner)
 {

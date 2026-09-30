@@ -203,9 +203,11 @@ public:
     // The objects returned by the factory, borrowed and not owned by the mock.
     ISrsCoroutine *coroutine_;
     ISrsTime *time_;
+    ISrsCond *cond_;
     // What the factory was asked to create.
     int create_coroutine_count_;
     int create_time_count_;
+    int create_cond_count_;
     std::string coroutine_name_;
     ISrsCoroutineHandler *coroutine_handler_;
     SrsContextId coroutine_cid_;
@@ -219,6 +221,24 @@ public:
     virtual ISrsTime *create_time();
     virtual ISrsConfig *create_config();
     virtual ISrsCond *create_cond();
+};
+
+// Mock ISrsCond for testing SrsResourceManager
+class MockCondForResourceManager : public ISrsCond
+{
+public:
+    int wait_count_;
+    int signal_count_;
+
+public:
+    MockCondForResourceManager();
+    virtual ~MockCondForResourceManager();
+
+public:
+    virtual int wait();
+    virtual int timedwait(srs_utime_t timeout);
+    virtual int signal();
+    virtual int broadcast();
 };
 
 // Mock RTP ring buffer for testing NACK receiver

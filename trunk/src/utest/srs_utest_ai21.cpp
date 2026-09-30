@@ -2011,6 +2011,14 @@ VOID TEST(RtspSourceManagerTest, GlobalManagerIsAssembled)
     EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
 }
 
+VOID TEST(RtspSourceManagerTest, GlobalResourceManagerIsAssembled)
+{
+    ASSERT_TRUE(_srs_rtsp_manager != NULL);
+
+    EXPECT_TRUE(_srs_kernel_factory == _srs_rtsp_manager->factory_);
+    EXPECT_TRUE(NULL != _srs_rtsp_manager->cond_);
+}
+
 // assemble() creates the one-second source timer through the injected factory,
 // with the manager as its handler, and initialize() then ticks and starts it.
 VOID TEST(RtspSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)

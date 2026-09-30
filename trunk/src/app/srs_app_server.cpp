@@ -124,14 +124,17 @@ srs_error_t srs_global_initialize()
     _srs_blackhole = new SrsRtcBlackhole();
 
     _srs_conn_manager = new SrsResourceManager("RTC", true);
+    _srs_conn_manager->assemble();
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
 #ifdef SRS_RTSP
     _srs_rtsp_sources = new SrsRtspSourceManager();
     _srs_rtsp_sources->assemble();
     _srs_rtsp_manager = new SrsResourceManager("RTSP", true);
+    _srs_rtsp_manager->assemble();
 #endif
 #ifdef SRS_GB28181
     _srs_gb_manager = new SrsResourceManager("GB", true);
+    _srs_gb_manager->assemble();
 #endif
 
     // Create global async worker for DVR.

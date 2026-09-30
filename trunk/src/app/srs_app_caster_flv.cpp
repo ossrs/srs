@@ -109,6 +109,7 @@ SrsAppCasterFlv::SrsAppCasterFlv()
 {
     http_mux_ = new SrsHttpServeMux();
     manager_ = new SrsResourceManager("CFLV");
+    manager_->assemble();
 
     config_ = _srs_config;
 }

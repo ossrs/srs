@@ -499,6 +499,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // When notifying, the handlers changed, disposing event may lost.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -529,6 +530,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // When notifying, the handlers changed, before-dispose event may lost.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -559,6 +561,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // Subscribe or unsubscribe for multiple times.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -581,6 +584,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // Count the event for disposing.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -602,6 +606,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // When hooks disposing, remove itself again.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -619,6 +624,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // When hooks before-dispose, remove itself again.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -636,6 +642,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // Cover all normal scenarios.
     if (true) {
         SrsResourceManager manager("mgr", true);
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -658,6 +665,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // Callback: Remove worker when its master is disposing.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -682,6 +690,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // Normal scenario, free object by manager.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -700,6 +709,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // Resource with id or name.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());
@@ -788,6 +798,7 @@ VOID TEST(KernelRTCTest, ConnectionManagerTest)
     // Coroutine switch context, signal is lost.
     if (true) {
         SrsResourceManager manager("mgr");
+        manager.assemble();
         HELPER_EXPECT_SUCCESS(manager.start());
         EXPECT_EQ(0, (int)manager.size());
         EXPECT_TRUE(manager.empty());

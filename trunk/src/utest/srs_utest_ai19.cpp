@@ -1130,6 +1130,15 @@ void MockResourceManagerForAppCasterFlv::reset()
     srs_freep(start_error_);
 }
 
+// The caster owns its resource manager, so it assembles the manager it creates.
+VOID TEST(AppCasterFlvTest, ConstructionAssemblesResourceManager)
+{
+    SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
+
+    EXPECT_TRUE(_srs_kernel_factory == caster->manager_->factory_);
+    EXPECT_TRUE(NULL != caster->manager_->cond_);
+}
+
 // Test SrsAppCasterFlv::initialize - covers the major use scenario:
 // 1. Create SrsAppCasterFlv
 // 2. Mock dependencies (config_, http_mux_, manager_)
@@ -1147,6 +1156,7 @@ VOID TEST(AppCasterFlvTest, InitializeSuccess)
 
     MockHttpServeMuxForAppCasterFlv *mock_http_mux = new MockHttpServeMuxForAppCasterFlv();
     MockResourceManagerForAppCasterFlv *mock_manager = new MockResourceManagerForAppCasterFlv();
+    mock_manager->assemble();
 
     // Create SrsAppCasterFlv
     SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
@@ -1246,6 +1256,7 @@ VOID TEST(AppCasterFlvTest, ResourceManagerDelegation)
 
     // Use real SrsResourceManager for this test to verify actual delegation behavior
     SrsResourceManager *real_manager = new SrsResourceManager("TEST-CFLV");
+    real_manager->assemble();
 
     // Create SrsAppCasterFlv
     SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());

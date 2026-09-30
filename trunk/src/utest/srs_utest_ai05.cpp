@@ -432,6 +432,114 @@ VOID TEST(KernelResourceTest, SrsSharedResourceBasic)
     EXPECT_EQ("shared test", assigned_resource->desc());
 }
 
+// Every connection manager is a SrsResourceManager, so its construction must stay quiescent, and its
+// disposal and coroutine must be drivable with a condition variable and coroutine from an injected factory.
+VOID TEST(KernelResourceTest, ResourceManagerConstructionCapturesFactoryAndCreatesNoCond)
+{
+    SrsResourceManager manager("test");
+
+    EXPECT_TRUE(_srs_kernel_factory == manager.factory_);
+    EXPECT_TRUE(NULL == manager.cond_);
+    EXPECT_TRUE(NULL == manager.trd_);
+}
+
+VOID TEST(KernelResourceTest, ResourceManagerAssembleCreatesCondThroughInjectedFactory)
+{
+    // Owned by the manager once the factory hands it over.
+    MockCondForResourceManager *cond = new MockCondForResourceManager();
+
+    MockKernelFactoryForFastTimer factory;
+    factory.cond_ = cond;
+
+    SrsResourceManager manager("test");
+    srs_freep(manager.cond_);
+    manager.factory_ = &factory;
+    manager.assemble();
+
+    EXPECT_EQ(1, factory.create_cond_count_);
+    EXPECT_TRUE(cond == manager.cond_);
+
+    manager.factory_ = NULL;
+}
+
+VOID TEST(KernelResourceTest, ResourceManagerStartCreatesCoroutineThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    // Both are owned by the manager, which frees them when it is destroyed.
+    MockCondForResourceManager *cond = new MockCondForResourceManager();
+    MockCoroutineForFastTimer *trd = new MockCoroutineForFastTimer();
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = trd;
+
+    SrsResourceManager manager("test");
+    srs_freep(manager.cond_);
+    manager.cond_ = cond;
+    manager.factory_ = &factory;
+
+    HELPER_EXPECT_SUCCESS(manager.start());
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("manager", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(&manager == factory.coroutine_handler_);
+    EXPECT_STREQ(manager.cid_.c_str(), factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(trd == manager.trd_);
+    EXPECT_EQ(1, trd->start_count_);
+
+    manager.factory_ = NULL;
+}
+
+VOID TEST(KernelResourceTest, ResourceManagerDisposesThroughInjectedCond)
+{
+    // Owned by the manager once the factory hands it over.
+    MockCondForResourceManager *cond = new MockCondForResourceManager();
+
+    MockKernelFactoryForFastTimer factory;
+    factory.cond_ = cond;
+
+    SrsResourceManager manager("test");
+    srs_freep(manager.cond_);
+    manager.factory_ = &factory;
+    manager.assemble();
+    ASSERT_TRUE(cond == manager.cond_);
+
+    MockSrsDisposingHandler handler;
+    manager.subscribe(&handler);
+
+    MockSrsResource *resource = new MockSrsResource();
+    manager.add_with_fast_id(100, resource);
+    manager.add_with_name("mock", resource);
+    EXPECT_TRUE(resource == manager.find_by_fast_id(100));
+
+    // Removing only notifies and wakes the coroutine; the resource stays until the zombies are cleared.
+    manager.remove(resource);
+    EXPECT_EQ(1, cond->signal_count_);
+    ASSERT_EQ(1, (int)handler.before_dispose_calls_.size());
+    EXPECT_TRUE(resource == handler.before_dispose_calls_.at(0));
+    EXPECT_TRUE(handler.disposing_calls_.empty());
+    EXPECT_EQ(1, (int)manager.size());
+
+    // What cycle() does after the cond wakes it. clear() leaves the context at the manager's own id, which
+    // start() creates, so stand in with the current one to keep it for the tests that run after this one.
+    manager.cid_ = _srs_context->get_id();
+    manager.clear();
+    ASSERT_EQ(1, (int)handler.disposing_calls_.size());
+    EXPECT_TRUE(resource == handler.disposing_calls_.at(0));
+    EXPECT_TRUE(manager.empty());
+    EXPECT_TRUE(NULL == manager.find_by_fast_id(100));
+    EXPECT_TRUE(NULL == manager.find_by_name("mock"));
+
+    manager.unsubscribe(&handler);
+    manager.factory_ = NULL;
+}
+
+VOID TEST(KernelResourceTest, GlobalConnManagerIsAssembled)
+{
+    EXPECT_TRUE(_srs_kernel_factory == _srs_conn_manager->factory_);
+    EXPECT_TRUE(NULL != _srs_conn_manager->cond_);
+}
+
 MockSrsHourGlass::MockSrsHourGlass()
 {
     notify_error_ = srs_success;
@@ -604,8 +712,10 @@ MockKernelFactoryForFastTimer::MockKernelFactoryForFastTimer()
 {
     coroutine_ = NULL;
     time_ = NULL;
+    cond_ = NULL;
     create_coroutine_count_ = 0;
     create_time_count_ = 0;
+    create_cond_count_ = 0;
     coroutine_handler_ = NULL;
 }
 
@@ -635,7 +745,40 @@ ISrsConfig *MockKernelFactoryForFastTimer::create_config()
 
 ISrsCond *MockKernelFactoryForFastTimer::create_cond()
 {
-    return NULL;
+    create_cond_count_++;
+    return cond_;
+}
+
+MockCondForResourceManager::MockCondForResourceManager()
+{
+    wait_count_ = 0;
+    signal_count_ = 0;
+}
+
+MockCondForResourceManager::~MockCondForResourceManager()
+{
+}
+
+int MockCondForResourceManager::wait()
+{
+    wait_count_++;
+    return 0;
+}
+
+int MockCondForResourceManager::timedwait(srs_utime_t timeout)
+{
+    return 0;
+}
+
+int MockCondForResourceManager::signal()
+{
+    signal_count_++;
+    return 0;
+}
+
+int MockCondForResourceManager::broadcast()
+{
+    return 0;
 }
 
 // Tests for srs_kernel_hourglass.hpp
