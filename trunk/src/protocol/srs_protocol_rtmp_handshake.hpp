@@ -96,7 +96,7 @@ class SrsKeyBlock
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsRand rand_;
+    ISrsRand *rand_;
 
 public:
     // (offset)bytes
@@ -116,6 +116,10 @@ public:
 public:
     SrsKeyBlock();
     virtual ~SrsKeyBlock();
+
+public:
+    // Fill the offset, the key and the random paddings.
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     // Parse key block from c1s1.
@@ -191,6 +195,9 @@ SRS_DECLARE_PROTECTED: // clang-format on
 public:
     SrsC1S1Strategy();
     virtual ~SrsC1S1Strategy();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     // Get the scema.

@@ -17,6 +17,7 @@ using namespace std;
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
+#include <srs_protocol_rtmp_handshake.hpp>
 #include <srs_protocol_rtp.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_manual_http.hpp>
@@ -2335,5 +2336,144 @@ VOID TEST(RTPVideoBuilderTest, PackageFuAH264)
 
         // Cleanup format
         srs_freep(format.vcodec_);
+    }
+}
+
+MockRandForHandshake::MockRandForHandshake()
+{
+    integer_value_ = 0;
+    integer_count_ = 0;
+}
+
+MockRandForHandshake::~MockRandForHandshake()
+{
+}
+
+void MockRandForHandshake::gen_bytes(char *bytes, int size)
+{
+    memset(bytes, 0x10 + (int)gen_bytes_sizes_.size(), size);
+    gen_bytes_sizes_.push_back(size);
+}
+
+std::string MockRandForHandshake::gen_str(int len)
+{
+    return std::string(len, 'x');
+}
+
+long MockRandForHandshake::integer()
+{
+    integer_count_++;
+    return integer_value_;
+}
+
+long MockRandForHandshake::integer(long min, long max)
+{
+    return min;
+}
+
+// The key block allocates its random generator but generates nothing until assemble().
+VOID TEST(RtmpHandshakeTest, KeyBlockConstructionGeneratesNothing)
+{
+    srs_internal::SrsKeyBlock block;
+
+    EXPECT_TRUE(block.rand_ != NULL);
+    EXPECT_EQ(0, block.offset_);
+    EXPECT_TRUE(block.random0_ == NULL);
+    EXPECT_EQ(0, block.random0_size_);
+    EXPECT_TRUE(block.random1_ == NULL);
+    EXPECT_EQ(0, block.random1_size_);
+}
+
+// The offset, the key and both paddings come from the injected random generator.
+VOID TEST(RtmpHandshakeTest, KeyBlockAssembleFillsFromInjectedRand)
+{
+    MockRandForHandshake rand;
+    // The bytes sum to 400, which is the valid offset.
+    rand.integer_value_ = 0x64646464;
+
+    srs_internal::SrsKeyBlock block;
+    srs_freep(block.rand_);
+    block.rand_ = &rand;
+
+    block.assemble();
+    // Release the mock before any assertion can return early.
+    block.rand_ = NULL;
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x64646464, block.offset_);
+    ASSERT_EQ(400, block.random0_size_);
+    ASSERT_EQ(764 - 400 - 128 - 4, block.random1_size_);
+
+    ASSERT_EQ(3, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(400, rand.gen_bytes_sizes_[0]);
+    EXPECT_EQ(128, rand.gen_bytes_sizes_[1]);
+    EXPECT_EQ(232, rand.gen_bytes_sizes_[2]);
+
+    // Each padding starts with the server signature, the rest is the random fill.
+    ASSERT_TRUE(block.random0_ != NULL);
+    EXPECT_EQ(0, strncmp(block.random0_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x10, block.random0_[399]);
+    for (int i = 0; i < 128; i++) {
+        EXPECT_EQ(0x11, block.key_[i]);
+    }
+    ASSERT_TRUE(block.random1_ != NULL);
+    EXPECT_EQ(0, strncmp(block.random1_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x12, block.random1_[231]);
+}
+
+// The strategy assembles its key block, so a c1s1 can be dumped from fixed bytes.
+VOID TEST(RtmpHandshakeTest, C1S1StrategyAssembleFillsKeyBlock)
+{
+    srs_error_t err = srs_success;
+
+    MockRandForHandshake rand;
+    rand.integer_value_ = 0x64646464;
+
+    srs_internal::SrsC1S1StrategySchema0 payload;
+    srs_freep(payload.key_.rand_);
+    payload.key_.rand_ = &rand;
+
+    payload.assemble();
+    // Release the mock before any assertion can return early.
+    payload.key_.rand_ = NULL;
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x64646464, payload.key_.offset_);
+
+    srs_internal::SrsC1S1 owner;
+    owner.time_ = 0x01020304;
+    owner.version_ = 0x80000702;
+
+    // Schema0 is time, version, the 764 bytes key block, then the digest block.
+    char bytes[1536];
+    HELPER_EXPECT_SUCCESS(payload.dump(&owner, bytes, sizeof(bytes)));
+    EXPECT_EQ(0, strncmp(bytes + 8, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    for (int i = 0; i < 128; i++) {
+        EXPECT_EQ(0x11, bytes[8 + 400 + i]);
+    }
+    EXPECT_EQ(0x12, bytes[8 + 400 + 128 + 231]);
+    EXPECT_EQ(0x64, bytes[8 + 760]);
+    EXPECT_EQ(0x64, bytes[8 + 763]);
+}
+
+// This passes from the start and locks in the production wiring: every payload that
+// c1s1 creates for c1 or s1 has an assembled key block, whose paddings fill the 764 bytes.
+VOID TEST(RtmpHandshakeTest, C1S1CreateAssemblesKeyBlock)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        srs_internal::SrsC1S1 c1;
+        HELPER_EXPECT_SUCCESS(c1.c1_create(schemas[i]));
+        ASSERT_TRUE(c1.payload_ != NULL);
+        EXPECT_EQ(764 - 128 - 4, c1.payload_->key_.random0_size_ + c1.payload_->key_.random1_size_);
+        EXPECT_EQ(c1.payload_->key_.calc_valid_offset(), c1.payload_->key_.random0_size_);
+
+        srs_internal::SrsC1S1 s1;
+        HELPER_EXPECT_SUCCESS(s1.s1_create(&c1));
+        ASSERT_TRUE(s1.payload_ != NULL);
+        EXPECT_EQ(764 - 128 - 4, s1.payload_->key_.random0_size_ + s1.payload_->key_.random1_size_);
+        EXPECT_EQ(s1.payload_->key_.calc_valid_offset(), s1.payload_->key_.random0_size_);
     }
 }
