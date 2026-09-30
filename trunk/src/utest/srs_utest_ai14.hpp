@@ -47,6 +47,11 @@ public:
 class MockLiveSourceForQueue : public SrsLiveSource
 {
 public:
+    int initialize_count_;
+    // The error initialize returns a copy of, owned by the mock.
+    srs_error_t initialize_error_;
+
+public:
     MockLiveSourceForQueue();
     virtual ~MockLiveSourceForQueue();
     virtual void on_consumer_destroy(SrsLiveConsumer *consumer);
@@ -302,6 +307,10 @@ class MockAppFactoryForSourceManager : public SrsAppFactory
 {
 public:
     int create_live_source_count_;
+    // Each created source's initialize fails with a copy of it, owned by the mock.
+    srs_error_t live_source_initialize_error_;
+    // The last source created, owned by the caller once returned.
+    MockLiveSourceForQueue *live_source_;
     int create_hourglass_count_;
     std::string hourglass_name_;
     ISrsHourGlassHandler *hourglass_handler_;

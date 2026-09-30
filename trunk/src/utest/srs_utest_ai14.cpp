@@ -51,10 +51,13 @@ MockMediaPacketForJitter::~MockMediaPacketForJitter()
 
 MockLiveSourceForQueue::MockLiveSourceForQueue()
 {
+    initialize_count_ = 0;
+    initialize_error_ = srs_success;
 }
 
 MockLiveSourceForQueue::~MockLiveSourceForQueue()
 {
+    srs_freep(initialize_error_);
 }
 
 void MockLiveSourceForQueue::on_consumer_destroy(SrsLiveConsumer *consumer)
@@ -64,8 +67,9 @@ void MockLiveSourceForQueue::on_consumer_destroy(SrsLiveConsumer *consumer)
 
 srs_error_t MockLiveSourceForQueue::initialize(SrsSharedPtr<SrsLiveSource> wrapper, ISrsRequest *r)
 {
-    // Mock initialize - do nothing and return success
-    return srs_success;
+    // Mock initialize - do nothing and return the injected result
+    initialize_count_++;
+    return srs_error_copy(initialize_error_);
 }
 
 void MockLiveSourceForQueue::update_auth(ISrsRequest *r)
@@ -170,6 +174,8 @@ void MockHourGlassForSourceManager::untick(int event)
 MockAppFactoryForSourceManager::MockAppFactoryForSourceManager()
 {
     create_live_source_count_ = 0;
+    live_source_initialize_error_ = srs_success;
+    live_source_ = NULL;
     create_hourglass_count_ = 0;
     hourglass_handler_ = NULL;
     hourglass_interval_ = 0;
@@ -178,12 +184,15 @@ MockAppFactoryForSourceManager::MockAppFactoryForSourceManager()
 
 MockAppFactoryForSourceManager::~MockAppFactoryForSourceManager()
 {
+    srs_freep(live_source_initialize_error_);
 }
 
 SrsLiveSource *MockAppFactoryForSourceManager::create_live_source()
 {
     create_live_source_count_++;
-    return new MockLiveSourceForQueue();
+    live_source_ = new MockLiveSourceForQueue();
+    live_source_->initialize_error_ = srs_error_copy(live_source_initialize_error_);
+    return live_source_;
 }
 
 ISrsHourGlass *MockAppFactoryForSourceManager::create_hourglass(const std::string &name, ISrsHourGlassHandler *handler, srs_utime_t interval)
@@ -2700,6 +2709,41 @@ VOID TEST(LiveSourceManagerTest, FetchOrCreate_TypicalScenario)
     EXPECT_TRUE(source3.get() != NULL);
     EXPECT_TRUE(source3.get() != source1.get());
     EXPECT_EQ(2, mock_factory->create_live_source_count_);
+}
+
+// A source whose initialize fails must not stay in the pool: the next client
+// would get it without initialize, half built. For example, an unknown
+// dvr_plan fails the DVR in initialize and leaves its plan NULL, and the next
+// publish crashed in SrsDvr::on_publish.
+VOID TEST(LiveSourceManagerTest, FetchOrCreateDropsSourceWhenInitializeFails)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+    MockHlsRequest req("test.vhost", "live", "stream1");
+
+    factory->live_source_initialize_error_ = srs_error_new(ERROR_DVR_ILLEGAL_PLAN, "illegal plan");
+    SrsSharedPtr<SrsLiveSource> failed;
+    err = manager->fetch_or_create(&req, failed);
+    EXPECT_EQ(ERROR_DVR_ILLEGAL_PLAN, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, factory->create_live_source_count_);
+    EXPECT_EQ(0, (int)manager->pool_.size());
+    EXPECT_TRUE(manager->fetch(&req).get() == NULL);
+
+    // The next client gets a new source, and initializes it.
+    srs_freep(factory->live_source_initialize_error_);
+    SrsSharedPtr<SrsLiveSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(&req, source));
+    EXPECT_EQ(2, factory->create_live_source_count_);
+    EXPECT_TRUE(source.get() == factory->live_source_);
+    EXPECT_TRUE(source.get() != failed.get());
+    EXPECT_EQ(1, factory->live_source_->initialize_count_);
+    EXPECT_EQ(1, (int)manager->pool_.size());
+
+    manager->app_factory_ = NULL;
 }
 
 // The constructor only captures its dependencies, so a test can inject them

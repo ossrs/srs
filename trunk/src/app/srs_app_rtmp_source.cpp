@@ -1680,6 +1680,11 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
 
     // Initialize source with the wrapper of itself.
     if (created && (err = pps->initialize(pps, r)) != srs_success) {
+        // Drop the half built source, or the next client gets it without initialize.
+        std::map<std::string, SrsSharedPtr<SrsLiveSource> >::iterator it = pool_.find(r->get_stream_url());
+        if (it != pool_.end() && it->second.get() == pps.get()) {
+            pool_.erase(it);
+        }
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
 
