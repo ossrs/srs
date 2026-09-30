@@ -2477,3 +2477,178 @@ VOID TEST(RtmpHandshakeTest, C1S1CreateAssemblesKeyBlock)
         EXPECT_EQ(s1.payload_->key_.calc_valid_offset(), s1.payload_->key_.random0_size_);
     }
 }
+
+// The digest block allocates its random generator but generates nothing until assemble().
+VOID TEST(RtmpHandshakeTest, DigestBlockConstructionGeneratesNothing)
+{
+    srs_internal::SrsDigestBlock block;
+
+    EXPECT_TRUE(block.rand_ != NULL);
+    EXPECT_EQ(0, block.offset_);
+    EXPECT_TRUE(block.random0_ == NULL);
+    EXPECT_EQ(0, block.random0_size_);
+    EXPECT_TRUE(block.random1_ == NULL);
+    EXPECT_EQ(0, block.random1_size_);
+}
+
+// The offset, the digest and both paddings come from the injected random generator.
+VOID TEST(RtmpHandshakeTest, DigestBlockAssembleFillsFromInjectedRand)
+{
+    MockRandForHandshake rand;
+    // The bytes sum to 400, which is the valid offset.
+    rand.integer_value_ = 0x64646464;
+
+    srs_internal::SrsDigestBlock block;
+    srs_freep(block.rand_);
+    block.rand_ = &rand;
+
+    block.assemble();
+    // Release the mock before any assertion can return early.
+    block.rand_ = NULL;
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x64646464, block.offset_);
+    ASSERT_EQ(400, block.random0_size_);
+    ASSERT_EQ(764 - 4 - 400 - 32, block.random1_size_);
+
+    ASSERT_EQ(3, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(400, rand.gen_bytes_sizes_[0]);
+    EXPECT_EQ(32, rand.gen_bytes_sizes_[1]);
+    EXPECT_EQ(328, rand.gen_bytes_sizes_[2]);
+
+    // Each padding starts with the server signature, the rest is the random fill.
+    ASSERT_TRUE(block.random0_ != NULL);
+    EXPECT_EQ(0, strncmp(block.random0_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x10, block.random0_[399]);
+    for (int i = 0; i < 32; i++) {
+        EXPECT_EQ(0x11, block.digest_[i]);
+    }
+    ASSERT_TRUE(block.random1_ != NULL);
+    EXPECT_EQ(0, strncmp(block.random1_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x12, block.random1_[327]);
+}
+
+// The strategy assembles its digest block, so a c1s1 can be dumped from fixed bytes.
+VOID TEST(RtmpHandshakeTest, C1S1StrategyAssembleFillsDigestBlock)
+{
+    srs_error_t err = srs_success;
+
+    MockRandForHandshake key_rand;
+    key_rand.integer_value_ = 0x64646464;
+    MockRandForHandshake digest_rand;
+    digest_rand.integer_value_ = 0x64646464;
+
+    srs_internal::SrsC1S1StrategySchema0 payload;
+    srs_freep(payload.key_.rand_);
+    payload.key_.rand_ = &key_rand;
+    srs_freep(payload.digest_.rand_);
+    payload.digest_.rand_ = &digest_rand;
+
+    payload.assemble();
+    // Release the mocks before any assertion can return early.
+    payload.key_.rand_ = NULL;
+    payload.digest_.rand_ = NULL;
+
+    EXPECT_EQ(1, digest_rand.integer_count_);
+    EXPECT_EQ(0x64646464, payload.digest_.offset_);
+
+    srs_internal::SrsC1S1 owner;
+    owner.time_ = 0x01020304;
+    owner.version_ = 0x80000702;
+
+    // Schema0 is time, version, the key block, then the 764 bytes digest block,
+    // which is the offset, the 400 bytes padding, the digest and the 328 bytes padding.
+    char bytes[1536];
+    HELPER_EXPECT_SUCCESS(payload.dump(&owner, bytes, sizeof(bytes)));
+    int base = 8 + 764;
+    EXPECT_EQ(0x64, bytes[base]);
+    EXPECT_EQ(0x64, bytes[base + 3]);
+    EXPECT_EQ(0, strncmp(bytes + base + 4, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x10, bytes[base + 4 + 399]);
+    for (int i = 0; i < 32; i++) {
+        EXPECT_EQ(0x11, bytes[base + 4 + 400 + i]);
+    }
+    EXPECT_EQ(0x12, bytes[base + 4 + 400 + 32 + 327]);
+}
+
+// Create a c1 of the schema whose key and digest blocks are filled from fixed bytes.
+static srs_error_t create_fixed_c1(srs_internal::SrsC1S1 *c1, srs_schema_type schema)
+{
+    MockRandForHandshake key_rand;
+    key_rand.integer_value_ = 0x64646464;
+    MockRandForHandshake digest_rand;
+    digest_rand.integer_value_ = 0x64646464;
+
+    c1->time_ = 0x01020304;
+    c1->version_ = 0x80000702;
+    if (schema == srs_schema0) {
+        c1->payload_ = new srs_internal::SrsC1S1StrategySchema0();
+    } else {
+        c1->payload_ = new srs_internal::SrsC1S1StrategySchema1();
+    }
+
+    srs_freep(c1->payload_->key_.rand_);
+    c1->payload_->key_.rand_ = &key_rand;
+    srs_freep(c1->payload_->digest_.rand_);
+    c1->payload_->digest_.rand_ = &digest_rand;
+
+    c1->payload_->assemble();
+    c1->payload_->key_.rand_ = NULL;
+    c1->payload_->digest_.rand_ = NULL;
+
+    return c1->payload_->c1_create(c1);
+}
+
+// A c1 built from fixed bytes is the same bytes every time, and its digest validates
+// until any byte it covers changes.
+VOID TEST(RtmpHandshakeTest, C1DigestValidatesFromFixedBytes)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        srs_internal::SrsC1S1 c1;
+        HELPER_EXPECT_SUCCESS(create_fixed_c1(&c1, schemas[i]));
+        srs_internal::SrsC1S1 other;
+        HELPER_EXPECT_SUCCESS(create_fixed_c1(&other, schemas[i]));
+
+        char bytes[1536];
+        HELPER_EXPECT_SUCCESS(c1.dump(bytes, sizeof(bytes)));
+        char other_bytes[1536];
+        HELPER_EXPECT_SUCCESS(other.dump(other_bytes, sizeof(other_bytes)));
+        EXPECT_EQ(0, memcmp(bytes, other_bytes, sizeof(bytes)));
+
+        bool is_valid = false;
+        HELPER_EXPECT_SUCCESS(c1.c1_validate_digest(is_valid));
+        EXPECT_TRUE(is_valid);
+
+        // Change one byte of the digest block's padding, which is never empty.
+        ASSERT_GT(c1.payload_->digest_.random1_size_, 0);
+        c1.payload_->digest_.random1_[0]++;
+        is_valid = true;
+        HELPER_EXPECT_SUCCESS(c1.c1_validate_digest(is_valid));
+        EXPECT_FALSE(is_valid);
+    }
+}
+
+// This passes from the start and locks in the production wiring: every payload that
+// c1s1 creates for c1 or s1 has an assembled digest block, whose paddings fill the 764 bytes.
+VOID TEST(RtmpHandshakeTest, C1S1CreateAssemblesDigestBlock)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        srs_internal::SrsC1S1 c1;
+        HELPER_EXPECT_SUCCESS(c1.c1_create(schemas[i]));
+        ASSERT_TRUE(c1.payload_ != NULL);
+        EXPECT_EQ(764 - 4 - 32, c1.payload_->digest_.random0_size_ + c1.payload_->digest_.random1_size_);
+        EXPECT_EQ(c1.payload_->digest_.calc_valid_offset(), c1.payload_->digest_.random0_size_);
+
+        srs_internal::SrsC1S1 s1;
+        HELPER_EXPECT_SUCCESS(s1.s1_create(&c1));
+        ASSERT_TRUE(s1.payload_ != NULL);
+        EXPECT_EQ(764 - 4 - 32, s1.payload_->digest_.random0_size_ + s1.payload_->digest_.random1_size_);
+        EXPECT_EQ(s1.payload_->digest_.calc_valid_offset(), s1.payload_->digest_.random0_size_);
+    }
+}

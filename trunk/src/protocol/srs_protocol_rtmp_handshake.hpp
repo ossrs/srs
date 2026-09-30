@@ -145,7 +145,7 @@ class SrsDigestBlock
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsRand rand_;
+    ISrsRand *rand_;
 
 public:
     // 4bytes
@@ -165,6 +165,10 @@ public:
 public:
     SrsDigestBlock();
     virtual ~SrsDigestBlock();
+
+public:
+    // Fill the offset, the digest and the random paddings.
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     // Parse digest block from c1s1.

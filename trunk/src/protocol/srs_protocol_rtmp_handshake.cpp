@@ -425,10 +425,25 @@ int SrsKeyBlock::calc_valid_offset()
 
 SrsDigestBlock::SrsDigestBlock()
 {
-    SrsRand rand;
-    offset_ = (int32_t)rand.integer();
+    rand_ = new SrsRand();
+
+    offset_ = 0;
     random0_ = NULL;
+    random0_size_ = 0;
     random1_ = NULL;
+    random1_size_ = 0;
+}
+
+SrsDigestBlock::~SrsDigestBlock()
+{
+    srs_freepa(random0_);
+    srs_freepa(random1_);
+    srs_freep(rand_);
+}
+
+void SrsDigestBlock::assemble()
+{
+    offset_ = (int32_t)rand_->integer();
 
     int valid_offset = calc_valid_offset();
     srs_assert(valid_offset >= 0);
@@ -436,24 +451,18 @@ SrsDigestBlock::SrsDigestBlock()
     random0_size_ = valid_offset;
     if (random0_size_ > 0) {
         random0_ = new char[random0_size_];
-        rand_.gen_bytes(random0_, random0_size_);
+        rand_->gen_bytes(random0_, random0_size_);
         snprintf(random0_, random0_size_, "%s", RTMP_SIG_SRS_HANDSHAKE);
     }
 
-    rand_.gen_bytes(digest_, sizeof(digest_));
+    rand_->gen_bytes(digest_, sizeof(digest_));
 
     random1_size_ = 764 - 4 - valid_offset - 32;
     if (random1_size_ > 0) {
         random1_ = new char[random1_size_];
-        rand_.gen_bytes(random1_, random1_size_);
+        rand_->gen_bytes(random1_, random1_size_);
         snprintf(random1_, random1_size_, "%s", RTMP_SIG_SRS_HANDSHAKE);
     }
-}
-
-SrsDigestBlock::~SrsDigestBlock()
-{
-    srs_freepa(random0_);
-    srs_freepa(random1_);
 }
 
 srs_error_t SrsDigestBlock::parse(SrsBuffer *stream)
@@ -512,6 +521,7 @@ SrsC1S1Strategy::~SrsC1S1Strategy()
 void SrsC1S1Strategy::assemble()
 {
     key_.assemble();
+    digest_.assemble();
 }
 
 char *SrsC1S1Strategy::get_digest()
