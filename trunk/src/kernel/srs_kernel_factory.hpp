@@ -14,6 +14,8 @@
 
 #include <string>
 
+class ISrsFastTimer;
+
 // The config for kernel and protocol objects.
 class ISrsConfig
 {
@@ -41,6 +43,7 @@ public:
     virtual ISrsTime *create_time() = 0;
     virtual ISrsConfig *create_config() = 0;
     virtual ISrsCond *create_cond() = 0;
+    virtual ISrsFastTimer *create_fast_timer(const std::string &label, srs_utime_t interval) = 0;
 };
 
 extern ISrsKernelFactory *_srs_kernel_factory;

@@ -280,6 +280,11 @@ ISrsCond *SrsAppFactory::create_cond()
     return kernel_factory_->create_cond();
 }
 
+ISrsFastTimer *SrsAppFactory::create_fast_timer(const std::string &label, srs_utime_t interval)
+{
+    return kernel_factory_->create_fast_timer(label, interval);
+}
+
 SrsFinalFactory::SrsFinalFactory()
 {
 }
@@ -306,6 +311,13 @@ ISrsConfig *SrsFinalFactory::create_config()
 ISrsCond *SrsFinalFactory::create_cond()
 {
     return new SrsCond();
+}
+
+ISrsFastTimer *SrsFinalFactory::create_fast_timer(const std::string &label, srs_utime_t interval)
+{
+    SrsFastTimer *timer = new SrsFastTimer(label, interval);
+    timer->assemble();
+    return timer;
 }
 
 SrsConfigProxy::SrsConfigProxy()

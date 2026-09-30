@@ -316,6 +316,8 @@ SrsSharedTimer::SrsSharedTimer()
     timer1s_ = NULL;
     timer5s_ = NULL;
     clock_monitor_ = NULL;
+
+    factory_ = _srs_kernel_factory;
 }
 
 SrsSharedTimer::~SrsSharedTimer()
@@ -325,6 +327,8 @@ SrsSharedTimer::~SrsSharedTimer()
     srs_freep(timer1s_);
     srs_freep(timer5s_);
     srs_freep(clock_monitor_);
+
+    factory_ = NULL;
 }
 
 srs_error_t SrsSharedTimer::initialize()
@@ -332,14 +336,10 @@ srs_error_t SrsSharedTimer::initialize()
     srs_error_t err = srs_success;
 
     // Initialize global shared timers
-    timer20ms_ = new SrsFastTimer("shared", 20 * SRS_UTIME_MILLISECONDS);
-    timer20ms_->assemble();
-    timer100ms_ = new SrsFastTimer("shared", 100 * SRS_UTIME_MILLISECONDS);
-    timer100ms_->assemble();
-    timer1s_ = new SrsFastTimer("shared", 1 * SRS_UTIME_SECONDS);
-    timer1s_->assemble();
-    timer5s_ = new SrsFastTimer("shared", 5 * SRS_UTIME_SECONDS);
-    timer5s_->assemble();
+    timer20ms_ = factory_->create_fast_timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    timer100ms_ = factory_->create_fast_timer("shared", 100 * SRS_UTIME_MILLISECONDS);
+    timer1s_ = factory_->create_fast_timer("shared", 1 * SRS_UTIME_SECONDS);
+    timer5s_ = factory_->create_fast_timer("shared", 5 * SRS_UTIME_SECONDS);
     clock_monitor_ = new SrsClockWallMonitor();
 
     // Start all timers

@@ -204,10 +204,14 @@ public:
     ISrsCoroutine *coroutine_;
     ISrsTime *time_;
     ISrsCond *cond_;
+    // The fast timers handed out in creation order, borrowed and not owned by the mock.
+    std::vector<ISrsFastTimer *> fast_timers_;
     // What the factory was asked to create.
     int create_coroutine_count_;
     int create_time_count_;
     int create_cond_count_;
+    std::vector<std::string> fast_timer_labels_;
+    std::vector<srs_utime_t> fast_timer_intervals_;
     std::string coroutine_name_;
     ISrsCoroutineHandler *coroutine_handler_;
     SrsContextId coroutine_cid_;
@@ -221,6 +225,26 @@ public:
     virtual ISrsTime *create_time();
     virtual ISrsConfig *create_config();
     virtual ISrsCond *create_cond();
+    virtual ISrsFastTimer *create_fast_timer(const std::string &label, srs_utime_t interval);
+};
+
+// Mock ISrsFastTimer for testing SrsSharedTimer
+class MockFastTimerForSharedTimer : public ISrsFastTimer
+{
+public:
+    int start_count_;
+    // The error to return from the next start, owned by the timer under test.
+    srs_error_t start_error_;
+    std::vector<ISrsFastTimerHandler *> subscribed_;
+
+public:
+    MockFastTimerForSharedTimer();
+    virtual ~MockFastTimerForSharedTimer();
+
+public:
+    virtual srs_error_t start();
+    virtual void subscribe(ISrsFastTimerHandler *timer);
+    virtual void unsubscribe(ISrsFastTimerHandler *timer);
 };
 
 // Mock ISrsCond for testing SrsResourceManager

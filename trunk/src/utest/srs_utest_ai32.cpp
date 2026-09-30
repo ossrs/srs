@@ -104,6 +104,11 @@ ISrsCond *MockKernelFactoryForStageInfo::create_cond()
     return NULL;
 }
 
+ISrsFastTimer *MockKernelFactoryForStageInfo::create_fast_timer(const std::string &label, srs_utime_t interval)
+{
+    return NULL;
+}
+
 MockClockForPithyPrint::MockClockForPithyPrint()
 {
     now_ = 0;
