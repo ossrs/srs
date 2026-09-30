@@ -30,6 +30,7 @@ class ISrsStatistic;
 class ISrsCircuitBreaker;
 class ISrsAppConfig;
 class ISrsRtspConnection;
+class ISrsClock;
 
 // The RTSP stream consumer, consume packets from RTSP stream source.
 class SrsRtspConsumer
@@ -131,6 +132,7 @@ class SrsRtspSource : public ISrsRtpTarget
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     ISrsCircuitBreaker *circuit_breaker_;
+    ISrsClock *clk_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -164,6 +166,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsRtspSource();
     virtual ~SrsRtspSource();
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     virtual srs_error_t initialize(ISrsRequest *r);

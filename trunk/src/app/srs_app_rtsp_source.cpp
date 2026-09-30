@@ -15,6 +15,7 @@
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_rtp.hpp>
@@ -195,6 +196,7 @@ srs_error_t SrsRtspSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
             pps = source;
         } else {
             SrsSharedPtr<SrsRtspSource> source = SrsSharedPtr<SrsRtspSource>(new SrsRtspSource());
+            source->assemble();
             srs_trace("new rtsp source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
@@ -250,13 +252,19 @@ SrsRtspSource::SrsRtspSource()
 
     req_ = NULL;
 
-    // Initialize stream_die_at_ to current time to prevent newly created sources
-    // from being immediately considered dead by stream_is_dead() check.
-    // @see https://github.com/ossrs/srs/issues/4449
-    stream_die_at_ = srs_time_now_cached();
+    stream_die_at_ = 0;
 
     stat_ = _srs_stat;
     circuit_breaker_ = _srs_circuit_breaker;
+    clk_ = _srs_clock;
+}
+
+void SrsRtspSource::assemble()
+{
+    // Initialize stream_die_at_ to current time to prevent newly created sources
+    // from being immediately considered dead by stream_is_dead() check.
+    // @see https://github.com/ossrs/srs/issues/4449
+    stream_die_at_ = clk_->now();
 }
 
 SrsRtspSource::~SrsRtspSource()
@@ -276,6 +284,7 @@ SrsRtspSource::~SrsRtspSource()
 
     stat_ = NULL;
     circuit_breaker_ = NULL;
+    clk_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -312,7 +321,7 @@ bool SrsRtspSource::stream_is_dead()
     }
 
     // Delay cleanup source.
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_RTSP_SOURCE_CLEANUP) {
         return false;
     }
@@ -413,7 +422,7 @@ void SrsRtspSource::on_consumer_destroy(SrsRtspConsumer *consumer)
 
     // Destroy and cleanup source when no publishers and consumers.
     if (!is_created_ && consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 }
 
@@ -470,7 +479,7 @@ void SrsRtspSource::on_unpublish()
 
     // Destroy and cleanup source when no publishers and consumers.
     if (consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 
     // Should never change the final state before all cleanup is done.

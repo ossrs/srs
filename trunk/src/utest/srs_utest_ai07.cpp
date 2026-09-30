@@ -5030,3 +5030,121 @@ VOID TEST(SrsSrtSourceTest, ManagerCreatesAssembledSource)
     EXPECT_TRUE(source->stream_die_at_ > 0);
     EXPECT_FALSE(source->stream_is_dead());
 }
+
+#ifdef SRS_RTSP
+// The constructor only captures the clock and reads no time, so a test can inject its own
+// clock before assemble() stamps the new source.
+VOID TEST(SrsRtspSourceTest, ConstructionCapturesClockAndReadsNoTime)
+{
+    SrsUniquePtr<SrsRtspSource> source(new SrsRtspSource());
+
+    EXPECT_TRUE(source->clk_ != NULL);
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_EQ((srs_utime_t)0, source->stream_die_at_);
+}
+
+// assemble() stamps a new source with the injected clock, so the cleanup timer does not
+// reap it before the cleanup delay passed, see https://github.com/ossrs/srs/issues/4449
+VOID TEST(SrsRtspSourceTest, AssembleStampsNewSourceWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsRtspSource> source(new SrsRtspSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The cleanup delay SRS_RTSP_SOURCE_CLEANUP is 3s.
+    clock.now_ = 103 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 103 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// The last consumer leaving a source with no publisher stamps its death with the injected
+// clock, and stream_is_dead() measures the cleanup delay on the same clock.
+VOID TEST(SrsRtspSourceTest, ConsumerDestroyStampsWithInjectedClock)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsRtspSource> source(new SrsRtspSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    SrsRtspConsumer *consumer = NULL;
+    HELPER_EXPECT_SUCCESS(source->create_consumer(consumer));
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The consumer's destructor removes it from the source.
+    clock.now_ = 200 * SRS_UTIME_SECONDS;
+    srs_freep(consumer);
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->stream_die_at_);
+
+    clock.now_ = 203 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 203 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// Unpublishing a source with no consumer stamps its death with the injected clock.
+VOID TEST(SrsRtspSourceTest, UnpublishStampsWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+    MockAppStatistic stat;
+
+    SrsUniquePtr<SrsRtspSource> source(new SrsRtspSource());
+    source->clk_ = &clock;
+    source->stat_ = &stat;
+    source->assemble();
+
+    SrsRequest *req = new SrsRequest();
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "stream1";
+    source->req_ = req;
+    source->is_created_ = true;
+
+    clock.now_ = 300 * SRS_UTIME_SECONDS;
+    source->on_unpublish();
+    EXPECT_TRUE(source->can_publish());
+    EXPECT_EQ(300 * SRS_UTIME_SECONDS, source->stream_die_at_);
+
+    clock.now_ = 303 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 303 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+
+    source->stat_ = NULL;
+}
+
+// The manager assembles every source it creates, so a new source in the pool has the
+// global clock and is stamped alive before the cleanup timer can see it.
+VOID TEST(SrsRtspSourceTest, ManagerCreatesAssembledSource)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "assembled";
+
+    SrsSharedPtr<SrsRtspSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_TRUE(source->stream_die_at_ > 0);
+    EXPECT_FALSE(source->stream_is_dead());
+}
+#endif
