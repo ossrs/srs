@@ -100,7 +100,12 @@ srs_error_t srs_global_initialize()
     // The global objects which depends on ST.
     // Initialize _srs_stages first as it's needed by SrsServer constructor
     _srs_stages = new SrsStageManager();
+
+    // Initialize stream publish token manager before _srs_sources, which captures it.
+    _srs_stream_publish_tokens = new SrsStreamPublishTokenManager();
+
     _srs_sources = new SrsLiveSourceManager();
+    _srs_sources->assemble();
     _srs_circuit_breaker = new SrsCircuitBreaker();
 
     // Initialize global statistic instance before _srs_hooks, as SrsHttpHooks depends on it.
@@ -113,9 +118,6 @@ srs_error_t srs_global_initialize()
 
     _srs_rtc_sources = new SrsRtcSourceManager();
     _srs_blackhole = new SrsRtcBlackhole();
-
-    // Initialize stream publish token manager
-    _srs_stream_publish_tokens = new SrsStreamPublishTokenManager();
 
     _srs_conn_manager = new SrsResourceManager("RTC", true);
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();

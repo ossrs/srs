@@ -22,9 +22,14 @@
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_stream_token.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai11.hpp>
+
+#include <set>
+#include <string>
+#include <vector>
 #ifdef SRS_HDS
 #include <srs_app_hds.hpp>
 #endif
@@ -297,11 +302,35 @@ class MockAppFactoryForSourceManager : public SrsAppFactory
 {
 public:
     int create_live_source_count_;
+    int create_hourglass_count_;
+    std::string hourglass_name_;
+    ISrsHourGlassHandler *hourglass_handler_;
+    srs_utime_t hourglass_interval_;
+    // The timer returned by create_hourglass, owned by the caller once returned.
+    MockHourGlassForSourceManager *hourglass_;
 
 public:
     MockAppFactoryForSourceManager();
     virtual ~MockAppFactoryForSourceManager();
     virtual SrsLiveSource *create_live_source();
+    virtual ISrsHourGlass *create_hourglass(const std::string &name, ISrsHourGlassHandler *handler, srs_utime_t interval);
+};
+
+// Mock ISrsStreamPublishTokenManager for testing SrsLiveSourceManager::notify
+class MockStreamPublishTokensForSourceManager : public ISrsStreamPublishTokenManager
+{
+public:
+    // The stream URLs reported as acquired.
+    std::set<std::string> acquired_urls_;
+    // Every stream URL asked by is_acquired, in order.
+    std::vector<std::string> is_acquired_urls_;
+
+public:
+    MockStreamPublishTokensForSourceManager();
+    virtual ~MockStreamPublishTokensForSourceManager();
+    virtual srs_error_t acquire_token(ISrsRequest *req, SrsStreamPublishToken *&token);
+    virtual void release_token(const std::string &stream_url);
+    virtual bool is_acquired(const std::string &stream_url);
 };
 
 // Mock ISrsAppFactory for testing SrsLiveSource::initialize

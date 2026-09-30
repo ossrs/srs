@@ -1622,11 +1622,15 @@ SrsLiveSourceManager *_srs_sources = NULL;
 SrsLiveSourceManager::SrsLiveSourceManager()
 {
     lock_ = srs_mutex_new();
-    SrsHourGlass *timer = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
-    timer->assemble();
-    timer_ = timer;
+    timer_ = NULL;
 
     app_factory_ = _srs_app_factory;
+    stream_publish_tokens_ = _srs_stream_publish_tokens;
+}
+
+void SrsLiveSourceManager::assemble()
+{
+    timer_ = app_factory_->create_hourglass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsLiveSourceManager::~SrsLiveSourceManager()
@@ -1635,6 +1639,7 @@ SrsLiveSourceManager::~SrsLiveSourceManager()
     srs_freep(timer_);
 
     app_factory_ = NULL;
+    stream_publish_tokens_ = NULL;
 }
 
 srs_error_t SrsLiveSourceManager::initialize()
@@ -1750,7 +1755,7 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
         // A publisher may yield after fetching the source but before activating it.
         // Keep the source in the pool while its publish token is still acquired.
         const string &stream_url = it->first;
-        bool is_stream_acquired = _srs_stream_publish_tokens->is_acquired(stream_url);
+        bool is_stream_acquired = stream_publish_tokens_->is_acquired(stream_url);
 
         // When source expired, remove it.
         // @see https://github.com/ossrs/srs/issues/713

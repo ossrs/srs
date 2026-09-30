@@ -4617,6 +4617,7 @@ VOID TEST(ReproduceIssue4449, RtmpLiveSourceNotifyDeletesNewlyCreatedSource)
 
     // Create a source manager
     SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create a mock request
@@ -4651,6 +4652,7 @@ VOID TEST(ReproduceIssue4656, PublishTokenKeepsPendingLiveSource)
     srs_error_t err;
 
     SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     SrsUniquePtr<SrsRequest> req(new SrsRequest());
@@ -4667,8 +4669,7 @@ VOID TEST(ReproduceIssue4656, PublishTokenKeepsPendingLiveSource)
     EXPECT_TRUE(source->stream_is_dead());
 
     SrsStreamPublishTokenManager tokens;
-    SrsStreamPublishTokenManager *previous_tokens = _srs_stream_publish_tokens;
-    _srs_stream_publish_tokens = &tokens;
+    manager->stream_publish_tokens_ = &tokens;
 
     SrsStreamPublishToken *token = NULL;
     HELPER_EXPECT_SUCCESS(tokens.acquire_token(req.get(), token));
@@ -4683,7 +4684,7 @@ VOID TEST(ReproduceIssue4656, PublishTokenKeepsPendingLiveSource)
     HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
     EXPECT_EQ(0, (int)manager->pool_.size());
 
-    _srs_stream_publish_tokens = previous_tokens;
+    manager->stream_publish_tokens_ = NULL;
 }
 
 // Test SRT source for the same issue

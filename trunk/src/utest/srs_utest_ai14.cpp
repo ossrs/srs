@@ -170,6 +170,10 @@ void MockHourGlassForSourceManager::untick(int event)
 MockAppFactoryForSourceManager::MockAppFactoryForSourceManager()
 {
     create_live_source_count_ = 0;
+    create_hourglass_count_ = 0;
+    hourglass_handler_ = NULL;
+    hourglass_interval_ = 0;
+    hourglass_ = NULL;
 }
 
 MockAppFactoryForSourceManager::~MockAppFactoryForSourceManager()
@@ -180,6 +184,40 @@ SrsLiveSource *MockAppFactoryForSourceManager::create_live_source()
 {
     create_live_source_count_++;
     return new MockLiveSourceForQueue();
+}
+
+ISrsHourGlass *MockAppFactoryForSourceManager::create_hourglass(const std::string &name, ISrsHourGlassHandler *handler, srs_utime_t interval)
+{
+    create_hourglass_count_++;
+    hourglass_name_ = name;
+    hourglass_handler_ = handler;
+    hourglass_interval_ = interval;
+    hourglass_ = new MockHourGlassForSourceManager();
+    return hourglass_;
+}
+
+MockStreamPublishTokensForSourceManager::MockStreamPublishTokensForSourceManager()
+{
+}
+
+MockStreamPublishTokensForSourceManager::~MockStreamPublishTokensForSourceManager()
+{
+}
+
+srs_error_t MockStreamPublishTokensForSourceManager::acquire_token(ISrsRequest *req, SrsStreamPublishToken *&token)
+{
+    token = NULL;
+    return srs_success;
+}
+
+void MockStreamPublishTokensForSourceManager::release_token(const std::string &stream_url)
+{
+}
+
+bool MockStreamPublishTokensForSourceManager::is_acquired(const std::string &stream_url)
+{
+    is_acquired_urls_.push_back(stream_url);
+    return acquired_urls_.find(stream_url) != acquired_urls_.end();
 }
 
 MockAudioPacket::MockAudioPacket()
@@ -2628,6 +2666,7 @@ VOID TEST(LiveSourceManagerTest, FetchOrCreate_TypicalScenario)
     // Create and inject mock app factory
     MockAppFactoryForSourceManager *mock_factory = new MockAppFactoryForSourceManager();
     manager->app_factory_ = mock_factory;
+    manager->assemble();
 
     // Initialize the manager
     HELPER_EXPECT_SUCCESS(manager->initialize());
@@ -2661,6 +2700,88 @@ VOID TEST(LiveSourceManagerTest, FetchOrCreate_TypicalScenario)
     EXPECT_TRUE(source3.get() != NULL);
     EXPECT_TRUE(source3.get() != source1.get());
     EXPECT_EQ(2, mock_factory->create_live_source_count_);
+}
+
+// The constructor only captures its dependencies, so a test can inject them
+// before the timer is created.
+VOID TEST(LiveSourceManagerTest, ConstructionCapturesTokensAndCreatesNoTimer)
+{
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+
+    EXPECT_TRUE(manager->timer_ == NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(manager->stream_publish_tokens_ == _srs_stream_publish_tokens);
+    EXPECT_TRUE(manager->stream_publish_tokens_ != NULL);
+}
+
+// srs_global_initialize() creates the token manager before the live source
+// manager, which captures it, and assembles the manager so it has its timer.
+VOID TEST(LiveSourceManagerTest, GlobalManagerIsAssembledWithTokens)
+{
+    SrsLiveSourceManager *manager = _srs_sources;
+    ASSERT_TRUE(manager != NULL);
+
+    EXPECT_TRUE(manager->timer_ != NULL);
+    EXPECT_TRUE(manager->stream_publish_tokens_ == _srs_stream_publish_tokens);
+    EXPECT_TRUE(manager->stream_publish_tokens_ != NULL);
+}
+
+// assemble() creates the one-second source timer through the injected factory,
+// with the manager as its handler, and initialize() then ticks and starts it.
+VOID TEST(LiveSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+
+    manager->assemble();
+
+    EXPECT_EQ(1, factory->create_hourglass_count_);
+    EXPECT_STREQ("sources", factory->hourglass_name_.c_str());
+    EXPECT_TRUE(factory->hourglass_handler_ == manager.get());
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory->hourglass_interval_);
+    ASSERT_TRUE(factory->hourglass_ != NULL);
+    EXPECT_TRUE(manager->timer_ == factory->hourglass_);
+
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+    EXPECT_EQ(1, factory->hourglass_->tick_count_);
+    EXPECT_EQ(1, factory->hourglass_->tick_event_);
+    EXPECT_EQ(3 * SRS_UTIME_SECONDS, factory->hourglass_->tick_interval_);
+    EXPECT_EQ(1, factory->hourglass_->start_count_);
+
+    // The manager owns and frees the timer; the factory is borrowed.
+    manager->app_factory_ = NULL;
+}
+
+// notify() keeps a dead source while the injected token manager reports its
+// stream as acquired, and removes it once the token is released.
+VOID TEST(LiveSourceManagerTest, NotifyAsksInjectedTokensBeforeRemovingDeadSource)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    MockStreamPublishTokensForSourceManager tokens;
+    manager->stream_publish_tokens_ = &tokens;
+
+    SrsSharedPtr<SrsLiveSource> source(new MockLiveSourceForQueue());
+    source->stream_die_at_ = srs_time_now_cached() - 10 * SRS_UTIME_MINUTES;
+    EXPECT_TRUE(source->stream_is_dead());
+    manager->pool_["/live/pending"] = source;
+
+    tokens.acquired_urls_.insert("/live/pending");
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    ASSERT_EQ(1, (int)tokens.is_acquired_urls_.size());
+    EXPECT_STREQ("/live/pending", tokens.is_acquired_urls_[0].c_str());
+    EXPECT_EQ(1, (int)manager->pool_.size());
+
+    tokens.acquired_urls_.clear();
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    EXPECT_EQ(2, (int)tokens.is_acquired_urls_.size());
+    EXPECT_EQ(0, (int)manager->pool_.size());
+
+    manager->stream_publish_tokens_ = NULL;
 }
 
 // Unit test for SrsOriginHub sequence header request methods

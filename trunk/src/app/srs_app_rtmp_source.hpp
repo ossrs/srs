@@ -61,6 +61,7 @@ class ISrsHds;
 class ISrsNgExec;
 class ISrsForwarder;
 class ISrsAppFactory;
+class ISrsStreamPublishTokenManager;
 class ISrsLiveConsumer;
 
 // The time jitter algorithm:
@@ -594,6 +595,7 @@ class SrsLiveSourceManager : public ISrsHourGlassHandler, public ISrsLiveSourceM
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *app_factory_;
+    ISrsStreamPublishTokenManager *stream_publish_tokens_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -603,6 +605,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsLiveSourceManager();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsLiveSourceManager();
 
 public:
