@@ -193,7 +193,7 @@ SrsServer::SrsServer()
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
 #ifdef SRS_GB28181
-    stream_caster_gb28181_ = new SrsGbListener();
+    stream_caster_gb28181_ = new SrsGbListener(this);
 #endif
 
     http_server_ = new SrsHttpServer();

@@ -271,7 +271,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsIpListener *media_listener_;
 
 public:
-    SrsGbListener();
+    SrsGbListener(ISrsApiServerOwner *owner);
     virtual ~SrsGbListener();
 
 public:

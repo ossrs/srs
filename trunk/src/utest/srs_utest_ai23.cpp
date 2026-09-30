@@ -568,7 +568,7 @@ VOID TEST(GB28181Test, ListenerInitialize)
     mock_config->stream_caster_listen_port_ = 9000;
 
     // Create listener
-    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener());
+    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener(NULL));
 
     // Inject mock dependencies
     listener->config_ = mock_config.get();
@@ -707,7 +707,7 @@ VOID TEST(GB28181Test, ListenerListen)
     mock_api_owner->mux_ = mock_mux.get();
 
     // Create listener
-    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener());
+    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener(NULL));
 
     // Inject mock dependencies
     listener->media_listener_ = mock_media_listener;
@@ -733,6 +733,50 @@ VOID TEST(GB28181Test, ListenerListen)
     // Clean up - set to NULL to avoid double-free
     listener->media_listener_ = NULL;
     srs_freep(mock_media_listener);
+}
+
+// The listener keeps the API server owner it is constructed with.
+VOID TEST(GB28181Test, ListenerConstructionCapturesApiServerOwner)
+{
+    MockApiServerOwnerForGbListener owner;
+    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener(&owner));
+
+    EXPECT_TRUE(listener->api_server_owner_ == &owner);
+}
+
+// initialize() keeps the injected owner instead of looking up the global server, so listen()
+// registers the GB publish API on the owner's mux.
+VOID TEST(GB28181Test, ListenerInitializeKeepsApiServerOwnerForListen)
+{
+    srs_error_t err;
+
+    MockAppConfigForGbListener config;
+    config.stream_caster_listen_port_ = 9000;
+    MockHttpServeMuxForGbListener mux;
+    MockApiServerOwnerForGbListener owner;
+    owner.mux_ = &mux;
+    MockIpListenerForGbListen *media_listener = new MockIpListenerForGbListen();
+
+    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener(&owner));
+    listener->config_ = &config;
+    srs_freep(listener->media_listener_);
+    listener->media_listener_ = media_listener;
+
+    SrsUniquePtr<SrsConfDirective> conf(new SrsConfDirective());
+    conf->name_ = "stream_caster";
+    conf->args_.push_back("gb28181");
+
+    HELPER_EXPECT_SUCCESS(listener->initialize(conf.get()));
+    // Stop if the owner was replaced, so listen() never registers on the real server's mux.
+    ASSERT_TRUE(listener->api_server_owner_ == &owner);
+
+    HELPER_EXPECT_SUCCESS(listener->listen());
+    EXPECT_TRUE(media_listener->listen_called_);
+    EXPECT_TRUE(mux.handle_called_);
+    EXPECT_STREQ("/gb/v1/publish/", mux.handle_pattern_.c_str());
+
+    srs_freep(mux.handle_handler_);
+    listener->config_ = NULL;
 }
 
 // Mock ISrsInterruptable for testing SrsGbMediaTcpConn::setup_owner
@@ -2376,7 +2420,7 @@ VOID TEST(GB28181Test, GoApiGbPublishSuccess)
     srs_freep(conf);
 }
 
-MockGbListenerForServer::MockGbListenerForServer()
+MockGbListenerForServer::MockGbListenerForServer() : SrsGbListener(NULL)
 {
     initialize_count_ = 0;
     initialize_conf_ = NULL;
@@ -2447,6 +2491,16 @@ VOID TEST(ServerTest, DisposeClosesInjectedGbStreamCaster)
     EXPECT_EQ(1, gb.close_count_);
 
     server->stream_caster_gb28181_ = dynamic_cast<SrsGbListener *>(original);
+}
+
+VOID TEST(ServerTest, ConstructionPassesItselfToGbStreamCaster)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    // The GB caster registers its API on this server's mux, not on the global server's.
+    SrsGbListener *gb = dynamic_cast<SrsGbListener *>(server->stream_caster_gb28181_);
+    ASSERT_TRUE(gb != NULL);
+    EXPECT_TRUE(gb->api_server_owner_ == static_cast<ISrsApiServerOwner *>(server.get()));
 }
 #endif
 

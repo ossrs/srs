@@ -346,13 +346,13 @@ ISrsGbListener::~ISrsGbListener()
 {
 }
 
-SrsGbListener::SrsGbListener()
+SrsGbListener::SrsGbListener(ISrsApiServerOwner *owner)
 {
     conf_ = NULL;
     media_listener_ = new SrsTcpListener(this);
 
     config_ = _srs_config;
-    api_server_owner_ = NULL;
+    api_server_owner_ = owner;
     gb_manager_ = _srs_gb_manager;
     app_factory_ = _srs_app_factory;
 }
@@ -371,12 +371,6 @@ SrsGbListener::~SrsGbListener()
 srs_error_t SrsGbListener::initialize(SrsConfDirective *conf)
 {
     srs_error_t err = srs_success;
-
-    // We should initialize the owner in initialize, because the SRS server
-    // is not ready in the constructor.
-    if (!api_server_owner_) {
-        api_server_owner_ = _srs_server;
-    }
 
     srs_freep(conf_);
     conf_ = conf->copy();
