@@ -3131,6 +3131,7 @@ VOID TEST(HTTPApiTest, ClientsApiGetSpecificClient)
 
     // Create a real SrsStatisticClient with all required dependencies
     SrsUniquePtr<SrsStatisticClient> test_client(new SrsStatisticClient());
+    test_client->assemble();
     test_client->id_ = "test_client_456";
     test_client->type_ = SrsRtmpConnPlay;
 

@@ -18,6 +18,7 @@
 #include <srs_protocol_rtmp_stack.hpp>
 
 class SrsKbps;
+class ISrsClock;
 class ISrsAppConfig;
 class SrsWallClock;
 class ISrsRequest;
@@ -116,6 +117,9 @@ public:
 
 struct SrsStatisticClient {
 public:
+    ISrsClock *clk_;
+
+public:
     // For HTTP-API to kickoff this connection by expiring it.
     ISrsExpire *conn_;
 
@@ -132,6 +136,7 @@ public:
 
 public:
     SrsStatisticClient();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsStatisticClient();
 
 public:

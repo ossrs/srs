@@ -23,6 +23,7 @@ using namespace std;
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_ai23.hpp>
+#include <srs_utest_ai32.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_fmp4.hpp>
 #include <srs_utest_manual_http.hpp>
@@ -3714,6 +3715,81 @@ VOID TEST(StatisticTest, VhostDumpsWithoutHlsFragment)
     EXPECT_TRUE(hls->to_object()->get_property("fragment") == NULL);
 
     vhost.config_ = NULL;
+}
+
+// The client statistic only captures the clock and reads no time, so a test can inject
+// its own clock before assemble() stamps the creation time.
+VOID TEST(StatisticTest, ClientCapturesClockAndReadsNoTime)
+{
+    SrsStatisticClient client;
+    EXPECT_TRUE(client.clk_ != NULL);
+    EXPECT_TRUE(client.clk_ == _srs_clock);
+    EXPECT_EQ((srs_utime_t)0, client.create_);
+}
+
+// assemble() stamps the creation time with the injected clock.
+VOID TEST(StatisticTest, ClientAssembleStampsCreateWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsStatisticClient client;
+    client.clk_ = &clock;
+    client.assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, client.create_);
+
+    client.clk_ = NULL;
+}
+
+// The alive duration in dumps() is measured on the injected clock.
+VOID TEST(StatisticTest, ClientDumpsAliveFromInjectedClock)
+{
+    srs_error_t err = srs_success;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsStatisticVhost vhost;
+    vhost.id_ = "vid-vhost";
+    SrsStatisticStream stream;
+    stream.id_ = "vid-stream";
+    stream.vhost_ = &vhost;
+
+    SrsStatisticClient client;
+    client.clk_ = &clock;
+    client.assemble();
+    client.id_ = "client-1";
+    client.stream_ = &stream;
+    client.req_ = new MockSrsRequest("test.vhost", "live", "stream1");
+    client.type_ = SrsRtmpConnPlay;
+
+    clock.now_ = 102500 * SRS_UTIME_MILLISECONDS;
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(client.dumps(obj.get()));
+
+    SrsJsonAny *alive = obj->get_property("alive");
+    ASSERT_TRUE(alive && alive->is_number());
+    EXPECT_DOUBLE_EQ(2.5, alive->to_number());
+
+    client.clk_ = NULL;
+}
+
+// The statistic assembles every client it creates, so a new client has the global clock
+// and its creation time.
+VOID TEST(StatisticTest, OnClientCreatesAssembledClient)
+{
+    srs_error_t err = srs_success;
+
+    SrsStatistic stat;
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "stream1"));
+    HELPER_EXPECT_SUCCESS(stat.on_client("client-1", req.get(), NULL, SrsRtmpConnPlay));
+
+    SrsStatisticClient *client = stat.find_client("client-1");
+    ASSERT_TRUE(client != NULL);
+    EXPECT_TRUE(client->clk_ == _srs_clock);
+    EXPECT_TRUE(client->create_ > 0);
 }
 
 VOID TEST(ReproduceIssue4609, GracefulDisconnectsDoNotIncrementErrors)

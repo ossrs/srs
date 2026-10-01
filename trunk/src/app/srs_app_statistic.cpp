@@ -226,19 +226,28 @@ void SrsStatisticStream::close()
 
 SrsStatisticClient::SrsStatisticClient()
 {
+    clk_ = _srs_clock;
+
     stream_ = NULL;
     conn_ = NULL;
     req_ = NULL;
     type_ = SrsRtmpConnUnknown;
-    create_ = srs_time_now_cached();
+    create_ = 0;
 
     kbps_ = new SrsKbps();
+}
+
+void SrsStatisticClient::assemble()
+{
+    create_ = clk_->now();
 }
 
 SrsStatisticClient::~SrsStatisticClient()
 {
     srs_freep(kbps_);
     srs_freep(req_);
+
+    clk_ = NULL;
 }
 
 srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
@@ -256,7 +265,7 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
     obj->set("name", SrsJsonAny::str(req_->stream_.c_str()));
     obj->set("type", SrsJsonAny::str(srs_client_type_string(type_).c_str()));
     obj->set("publish", SrsJsonAny::boolean(srs_client_type_is_publish(type_)));
-    obj->set("alive", SrsJsonAny::number(srsu2ms(srs_time_now_cached() - create_) / 1000.0));
+    obj->set("alive", SrsJsonAny::number(srsu2ms(clk_->now() - create_) / 1000.0));
     obj->set("send_bytes", SrsJsonAny::integer(kbps_->get_send_bytes()));
     obj->set("recv_bytes", SrsJsonAny::integer(kbps_->get_recv_bytes()));
 
@@ -465,6 +474,7 @@ srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire
     SrsStatisticClient *client = NULL;
     if (clients_.find(id) == clients_.end()) {
         client = new SrsStatisticClient();
+        client->assemble();
         client->id_ = id;
         client->stream_ = stream;
         clients_[id] = client;
