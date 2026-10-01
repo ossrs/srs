@@ -3390,6 +3390,30 @@ VOID TEST(IngesterFFMPEGTest, FastKill)
     EXPECT_TRUE(mock_ffmpeg->fast_kill_called_);
 }
 
+// The constructor does not create the pithy print, which would enter the ingester
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(IngesterTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+
+    EXPECT_TRUE(ingester->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the ingester stage.
+VOID TEST(IngesterTest, AssembleCreatesIngesterPithyPrint)
+{
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+    srs_freep(ingester->pprint_);
+
+    ingester->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(ingester->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_ingester());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
 VOID TEST(IngesterTest, Dispose)
 {
     // Create SrsIngester
@@ -3587,6 +3611,7 @@ VOID TEST(IngesterTest, Cycle)
 
     // Create SrsIngester
     SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+    ingester->assemble();
 
     // Create mock coroutine that returns error after 2 successful pulls
     // (MockSrtCoroutine is designed to return success for first 2 calls)
@@ -3631,6 +3656,7 @@ VOID TEST(IngesterTest, DoCycle)
 
     // Create SrsIngester
     SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+    ingester->assemble();
 
     // Create mock ingesters
     MockIngesterFFMPEG *mock_ingester1 = new MockIngesterFFMPEG();

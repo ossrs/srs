@@ -85,6 +85,7 @@ public:
     virtual ~ISrsIngester();
 
 public:
+    virtual void assemble() = 0;
     virtual void dispose() = 0;
     virtual srs_error_t start() = 0;
     virtual void stop() = 0;
@@ -116,6 +117,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsIngester();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsIngester();
 
 public:

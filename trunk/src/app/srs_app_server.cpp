@@ -261,6 +261,7 @@ void SrsServer::assemble()
     ppid_ = ::getppid();
     signal_manager_->assemble();
     http_server_->assemble();
+    ingester_->assemble();
 }
 
 SrsServer::~SrsServer()

@@ -109,10 +109,15 @@ SrsIngester::SrsIngester()
     disposed_ = false;
 
     trd_ = new SrsDummyCoroutine();
-    pprint_ = SrsPithyPrint::create_ingester();
+    pprint_ = NULL;
 
     app_factory_ = _srs_app_factory;
     config_ = _srs_config;
+}
+
+void SrsIngester::assemble()
+{
+    pprint_ = SrsPithyPrint::create_ingester();
 }
 
 SrsIngester::~SrsIngester()

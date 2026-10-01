@@ -2097,6 +2097,7 @@ VOID TEST(ExecutorCoroutineTest, AssembleCreatesCoroutineThroughFactory)
 
 MockIngesterForServer::MockIngesterForServer()
 {
+    assemble_count_ = 0;
     dispose_count_ = 0;
     start_count_ = 0;
     stop_count_ = 0;
@@ -2106,6 +2107,11 @@ MockIngesterForServer::MockIngesterForServer()
 MockIngesterForServer::~MockIngesterForServer()
 {
     srs_freep(start_error_);
+}
+
+void MockIngesterForServer::assemble()
+{
+    assemble_count_++;
 }
 
 void MockIngesterForServer::dispose()
@@ -2177,6 +2183,32 @@ VOID TEST(ServerTest, DisposeDisposesInjectedIngester)
     server->dispose();
     EXPECT_EQ(1, ingester->dispose_count_);
     EXPECT_EQ(0, ingester->stop_count_);
+}
+
+VOID TEST(ServerTest, AssembleAssemblesInjectedIngester)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    // Owned by the server, whose destructor disposes and frees it.
+    MockIngesterForServer *ingester = new MockIngesterForServer();
+    srs_freep(server->ingester_);
+    server->ingester_ = ingester;
+
+    server->assemble();
+    EXPECT_EQ(1, ingester->assemble_count_);
+    EXPECT_EQ(0, ingester->start_count_);
+}
+
+// main() constructs the server and calls its assemble(), which leaves the
+// ingester with its pithy print created.
+VOID TEST(ServerTest, AssembleCreatesIngesterPithyPrint)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsIngester *ingester = dynamic_cast<SrsIngester *>(server->ingester_);
+    ASSERT_TRUE(ingester != NULL);
+    EXPECT_TRUE(ingester->pprint_ != NULL);
 }
 
 VOID TEST(ServerTest, InitializeInitializesInjectedRtcSessionManager)

@@ -444,6 +444,7 @@ public:
 class MockIngesterForServer : public ISrsIngester
 {
 public:
+    int assemble_count_;
     int dispose_count_;
     int start_count_;
     int stop_count_;
@@ -455,6 +456,7 @@ public:
     virtual ~MockIngesterForServer();
 
 public:
+    virtual void assemble();
     virtual void dispose();
     virtual srs_error_t start();
     virtual void stop();
