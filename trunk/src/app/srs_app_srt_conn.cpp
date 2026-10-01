@@ -127,14 +127,25 @@ ISrsSrtRecvThread::~ISrsSrtRecvThread()
 SrsSrtRecvThread::SrsSrtRecvThread(ISrsProtocolReadWriter *srt_conn)
 {
     srt_conn_ = srt_conn;
-    trd_ = new SrsSTCoroutine("srt-recv", this, _srs_context->get_id());
+    trd_ = NULL;
     recv_err_ = srs_success;
+
+    app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
+}
+
+void SrsSrtRecvThread::assemble()
+{
+    trd_ = app_factory_->create_coroutine("srt-recv", this, context_->get_id());
 }
 
 SrsSrtRecvThread::~SrsSrtRecvThread()
 {
     srs_freep(trd_);
     srs_freep(recv_err_);
+
+    app_factory_ = NULL;
+    context_ = NULL;
 }
 
 srs_error_t SrsSrtRecvThread::cycle()
@@ -643,6 +654,7 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
     SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_play());
 
     SrsSrtRecvThread srt_recv_trd(srt_conn_);
+    srt_recv_trd.assemble();
     if ((err = srt_recv_trd.start()) != srs_success) {
         return srs_error_wrap(err, "start srt recv trd");
     }

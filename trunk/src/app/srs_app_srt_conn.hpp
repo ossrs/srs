@@ -105,6 +105,7 @@ class SrsSrtRecvThread : public ISrsSrtRecvThread
 {
 public:
     SrsSrtRecvThread(ISrsProtocolReadWriter *srt_conn);
+    void assemble(); // Construct object, to avoid call function in constructor.
     ~SrsSrtRecvThread();
     // Interface ISrsCoroutineHandler
 public:
@@ -117,6 +118,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     srs_error_t start();
     srs_error_t get_recv_err();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
