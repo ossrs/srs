@@ -98,6 +98,8 @@ ISrsRtcBlackhole::~ISrsRtcBlackhole()
 // LCOV_EXCL_START
 SrsRtcBlackhole::SrsRtcBlackhole()
 {
+    config_ = _srs_config;
+
     blackhole_ = false;
     blackhole_addr_ = NULL;
     blackhole_stfd_ = NULL;
@@ -107,18 +109,20 @@ SrsRtcBlackhole::~SrsRtcBlackhole()
 {
     srs_close_stfd(blackhole_stfd_);
     srs_freep(blackhole_addr_);
+
+    config_ = NULL;
 }
 
 srs_error_t SrsRtcBlackhole::initialize()
 {
     srs_error_t err = srs_success;
 
-    blackhole_ = _srs_config->get_rtc_server_black_hole();
+    blackhole_ = config_->get_rtc_server_black_hole();
     if (!blackhole_) {
         return err;
     }
 
-    string blackhole_ep = _srs_config->get_rtc_server_black_hole_addr();
+    string blackhole_ep = config_->get_rtc_server_black_hole_addr();
     if (blackhole_ep.empty()) {
         blackhole_ = false;
         srs_warn("disable black hole for no endpoint");

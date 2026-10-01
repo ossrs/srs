@@ -459,4 +459,22 @@ public:
     virtual bool get_rtc_server_ecdsa();
 };
 
+// Mock ISrsAppConfig for testing SrsRtcBlackhole::initialize()
+class MockAppConfigForRtcBlackhole : public MockAppConfig
+{
+public:
+    bool black_hole_;
+    std::string black_hole_addr_;
+    int get_rtc_server_black_hole_count_;
+    int get_rtc_server_black_hole_addr_count_;
+
+public:
+    MockAppConfigForRtcBlackhole();
+    virtual ~MockAppConfigForRtcBlackhole();
+
+public:
+    virtual bool get_rtc_server_black_hole();
+    virtual std::string get_rtc_server_black_hole_addr();
+};
+
 #endif

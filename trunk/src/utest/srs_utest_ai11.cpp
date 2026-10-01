@@ -17,6 +17,11 @@ using namespace std;
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai07.hpp>
 
+#include <arpa/inet.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 // Mock ISrsResourceManager implementation
 MockResourceManagerForBindSession::MockResourceManagerForBindSession()
 {
@@ -4167,4 +4172,133 @@ VOID TEST(DtlsCertificateTest, InitializeOnceReadsConfigOnce)
     EXPECT_STREQ(fingerprint.c_str(), cert.get_fingerprint().c_str());
 
     cert.config_ = NULL;
+}
+
+MockAppConfigForRtcBlackhole::MockAppConfigForRtcBlackhole()
+{
+    black_hole_ = false;
+    get_rtc_server_black_hole_count_ = 0;
+    get_rtc_server_black_hole_addr_count_ = 0;
+}
+
+MockAppConfigForRtcBlackhole::~MockAppConfigForRtcBlackhole()
+{
+}
+
+bool MockAppConfigForRtcBlackhole::get_rtc_server_black_hole()
+{
+    get_rtc_server_black_hole_count_++;
+    return black_hole_;
+}
+
+std::string MockAppConfigForRtcBlackhole::get_rtc_server_black_hole_addr()
+{
+    get_rtc_server_black_hole_addr_count_++;
+    return black_hole_addr_;
+}
+
+// The black hole captures the config global in the constructor.
+VOID TEST(RtcBlackholeTest, CapturesConfigInConstructor)
+{
+    SrsRtcBlackhole blackhole;
+    EXPECT_TRUE(blackhole.config_ != NULL);
+    EXPECT_TRUE(blackhole.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The injected config disables the black hole, so the endpoint is not read and no socket is opened.
+VOID TEST(RtcBlackholeTest, InitializeDisabledFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForRtcBlackhole config;
+    config.black_hole_ = false;
+    config.black_hole_addr_ = "127.0.0.1:10000";
+
+    SrsRtcBlackhole blackhole;
+    blackhole.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(blackhole.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_count_);
+    EXPECT_EQ(0, config.get_rtc_server_black_hole_addr_count_);
+    EXPECT_FALSE(blackhole.blackhole_);
+    EXPECT_TRUE(blackhole.blackhole_addr_ == NULL);
+    EXPECT_TRUE(blackhole.blackhole_stfd_ == NULL);
+
+    blackhole.config_ = NULL;
+}
+
+// The injected config enables the black hole without an endpoint, so it is turned off again.
+VOID TEST(RtcBlackholeTest, InitializeWithoutEndpointDisables)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForRtcBlackhole config;
+    config.black_hole_ = true;
+
+    SrsRtcBlackhole blackhole;
+    blackhole.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(blackhole.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_count_);
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_addr_count_);
+    EXPECT_FALSE(blackhole.blackhole_);
+    EXPECT_TRUE(blackhole.blackhole_addr_ == NULL);
+    EXPECT_TRUE(blackhole.blackhole_stfd_ == NULL);
+
+    blackhole.config_ = NULL;
+}
+
+// The injected endpoint is where the black hole sends: a UDP receiver bound there gets the packet.
+VOID TEST(RtcBlackholeTest, SendtoReachesInjectedEndpoint)
+{
+    srs_error_t err = srs_success;
+
+    int receiver = socket(AF_INET, SOCK_DGRAM, 0);
+    ASSERT_TRUE(receiver >= 0);
+
+    sockaddr_in local;
+    memset(&local, 0, sizeof(local));
+    local.sin_family = AF_INET;
+    local.sin_addr.s_addr = inet_addr("127.0.0.1");
+    local.sin_port = 0;
+    ASSERT_EQ(0, ::bind(receiver, (sockaddr *)&local, sizeof(local)));
+
+    socklen_t local_len = sizeof(local);
+    ASSERT_EQ(0, getsockname(receiver, (sockaddr *)&local, &local_len));
+    int port = ntohs(local.sin_port);
+
+    MockAppConfigForRtcBlackhole config;
+    config.black_hole_ = true;
+    config.black_hole_addr_ = "127.0.0.1:" + srs_strconv_format_int(port);
+
+    SrsRtcBlackhole blackhole;
+    blackhole.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(blackhole.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_count_);
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_addr_count_);
+    EXPECT_TRUE(blackhole.blackhole_);
+    ASSERT_TRUE(blackhole.blackhole_addr_ != NULL);
+    EXPECT_EQ(inet_addr("127.0.0.1"), blackhole.blackhole_addr_->sin_addr.s_addr);
+    EXPECT_EQ(htons(port), blackhole.blackhole_addr_->sin_port);
+    EXPECT_TRUE(blackhole.blackhole_stfd_ != NULL);
+
+    char data[] = "plaintext";
+    blackhole.sendto(data, sizeof(data));
+
+    pollfd pfd;
+    pfd.fd = receiver;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    EXPECT_EQ(1, poll(&pfd, 1, 1000));
+
+    char buf[64];
+    ssize_t nn = recv(receiver, buf, sizeof(buf), MSG_DONTWAIT);
+    EXPECT_EQ((ssize_t)sizeof(data), nn);
+    if (nn == (ssize_t)sizeof(data)) {
+        EXPECT_STREQ("plaintext", buf);
+    }
+
+    ::close(receiver);
+    blackhole.config_ = NULL;
 }

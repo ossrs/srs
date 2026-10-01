@@ -408,6 +408,8 @@ public:
     virtual int get_rtc_server_reuseport() = 0;
     virtual bool get_rtc_server_encrypt() = 0;
     virtual bool get_rtc_server_ecdsa() = 0;
+    virtual bool get_rtc_server_black_hole() = 0;
+    virtual std::string get_rtc_server_black_hole_addr() = 0;
     virtual bool get_api_as_candidates() = 0;
     virtual bool get_resolve_api_domain() = 0;
     virtual bool get_keep_api_domain() = 0;

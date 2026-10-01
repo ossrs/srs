@@ -62,6 +62,8 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
     sockaddr_in *blackhole_addr_;
     srs_netfd_t blackhole_stfd_;
 
