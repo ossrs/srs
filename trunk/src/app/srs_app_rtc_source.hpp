@@ -596,6 +596,7 @@ class SrsRtcFrameBuilder
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *app_factory_;
+    ISrsAppConfig *config_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

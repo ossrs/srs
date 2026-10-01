@@ -1889,6 +1889,7 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsAppFactory *factory, ISrsFrameTarget 
     obs_whip_vps_ = obs_whip_sps_ = obs_whip_pps_ = NULL;
 
     app_factory_ = factory;
+    config_ = _srs_config;
 }
 
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
@@ -1902,6 +1903,7 @@ SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
     srs_freep(obs_whip_pps_);
 
     app_factory_ = NULL;
+    config_ = NULL;
 }
 
 srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec)
@@ -1914,7 +1916,7 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     SrsAudioCodecId to = SrsAudioCodecIdAAC;                   // The output audio codec.
     int channels = 2;                                          // The output audio channels.
     int sample_rate = 48000;                                   // The output audio sample rate in HZ.
-    int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost_); // The output audio bitrate in bps.
+    int bitrate = config_->get_rtc_aac_bitrate(r->vhost_);     // The output audio bitrate in bps.
 
     // TODO: FIXME:
     // In the future, when we support enhanced-RTMP with Opus format,

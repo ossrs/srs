@@ -555,6 +555,7 @@ public:
     virtual SrsConfDirective *get_vhost_on_unpublish(std::string vhost) = 0;
     virtual int get_rtc_drop_for_pt(std::string vhost) = 0;
     virtual bool get_rtc_twcc_enabled(std::string vhost) = 0;
+    virtual int get_rtc_aac_bitrate(std::string vhost) = 0;
     virtual bool get_rtc_init_rate_from_sdp(std::string vhost) = 0;
     virtual bool get_rtc_keep_original_ssrc(std::string vhost) = 0;
     virtual bool get_srt_enabled() = 0;

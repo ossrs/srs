@@ -48,6 +48,8 @@ public:
     bool should_output_packets_;
     uint8_t *aac_header_data_;
     int aac_header_len_;
+    int initialize_count_;
+    int initialize_bit_rate_;
 
 public:
     MockAudioTranscoderForUtest();

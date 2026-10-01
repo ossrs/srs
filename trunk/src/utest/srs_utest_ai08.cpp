@@ -4582,3 +4582,71 @@ VOID TEST(RtcFrameBuilderTest, PacketVideoKeyFrame_ExactIsLostSnCodePathCoverage
         srs_freep(result);
     }
 }
+
+MockAppConfigForRtcFrameBuilder::MockAppConfigForRtcFrameBuilder()
+{
+    aac_bitrate_ = 48000;
+    get_rtc_aac_bitrate_count_ = 0;
+}
+
+MockAppConfigForRtcFrameBuilder::~MockAppConfigForRtcFrameBuilder()
+{
+}
+
+int MockAppConfigForRtcFrameBuilder::get_rtc_aac_bitrate(std::string vhost)
+{
+    get_rtc_aac_bitrate_count_++;
+    get_rtc_aac_bitrate_vhost_ = vhost;
+    return aac_bitrate_;
+}
+
+MockAppFactoryForRtcFrameBuilder::MockAppFactoryForRtcFrameBuilder()
+{
+    last_transcoder_ = NULL;
+}
+
+MockAppFactoryForRtcFrameBuilder::~MockAppFactoryForRtcFrameBuilder()
+{
+}
+
+ISrsAudioTranscoder *MockAppFactoryForRtcFrameBuilder::create_audio_transcoder()
+{
+    last_transcoder_ = new MockAudioTranscoderForUtest();
+    return last_transcoder_;
+}
+
+// The frame builder captures the config global in the constructor.
+VOID TEST(RtcFrameBuilderTest, CapturesConfigInConstructor)
+{
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+    EXPECT_TRUE(builder.config_ != NULL);
+    EXPECT_TRUE(builder.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The AAC bitrate of the transcoder comes from the injected config, read once for the request's vhost.
+// The global defaults to 48000, so a read of the global is caught.
+VOID TEST(RtcFrameBuilderTest, InitializeAacBitrateFromInjectedConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForRtcFrameBuilder config;
+    config.aac_bitrate_ = 64000;
+    MockAppFactoryForRtcFrameBuilder factory;
+    MockRtcFrameTarget target;
+
+    SrsRtcFrameBuilder builder(&factory, &target);
+    builder.config_ = &config;
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest("test.vhost"));
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdOpus, SrsVideoCodecIdAVC));
+
+    EXPECT_EQ(1, config.get_rtc_aac_bitrate_count_);
+    EXPECT_STREQ("test.vhost", config.get_rtc_aac_bitrate_vhost_.c_str());
+    ASSERT_TRUE(factory.last_transcoder_ != NULL);
+    EXPECT_TRUE(builder.audio_transcoder_ == factory.last_transcoder_);
+    EXPECT_EQ(1, factory.last_transcoder_->initialize_count_);
+    EXPECT_EQ(64000, factory.last_transcoder_->initialize_bit_rate_);
+
+    builder.config_ = NULL;
+}

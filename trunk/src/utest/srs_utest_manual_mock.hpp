@@ -620,6 +620,7 @@ public:
     virtual int get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc) { return mw_msgs_; }
     virtual int get_rtc_drop_for_pt(std::string vhost) { return rtc_drop_for_pt_; }
     virtual bool get_rtc_twcc_enabled(std::string vhost) { return rtc_twcc_enabled_; }
+    virtual int get_rtc_aac_bitrate(std::string vhost) { return 48000; }
     virtual bool get_rtc_init_rate_from_sdp(std::string vhost) { return rtc_init_rate_from_sdp_; }
     virtual bool get_rtc_keep_original_ssrc(std::string vhost) { return false; }
     virtual bool get_srt_enabled() { return srt_enabled_; }

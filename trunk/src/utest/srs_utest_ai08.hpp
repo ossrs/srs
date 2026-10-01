@@ -12,6 +12,7 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_factory.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
@@ -19,6 +20,7 @@
 #include <srs_protocol_rtmp_stack.hpp>
 
 #include <srs_utest_ai09.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 // Forward declarations
 class SrsMediaPacket;
@@ -95,6 +97,36 @@ public:
     virtual ~MockLiveSourceHandler();
     virtual srs_error_t on_publish(ISrsRequest *r);
     virtual void on_unpublish(ISrsRequest *r);
+};
+
+// Mock config for SrsRtcFrameBuilder::initialize, choosing the AAC bitrate and recording the reads.
+class MockAppConfigForRtcFrameBuilder : public MockAppConfig
+{
+public:
+    int aac_bitrate_;
+    int get_rtc_aac_bitrate_count_;
+    std::string get_rtc_aac_bitrate_vhost_;
+
+public:
+    MockAppConfigForRtcFrameBuilder();
+    virtual ~MockAppConfigForRtcFrameBuilder();
+
+public:
+    virtual int get_rtc_aac_bitrate(std::string vhost);
+};
+
+// Mock factory for SrsRtcFrameBuilder::initialize, creating a transcoder that records its bitrate.
+class MockAppFactoryForRtcFrameBuilder : public SrsAppFactory
+{
+public:
+    MockAudioTranscoderForUtest *last_transcoder_;
+
+public:
+    MockAppFactoryForRtcFrameBuilder();
+    virtual ~MockAppFactoryForRtcFrameBuilder();
+
+public:
+    virtual ISrsAudioTranscoder *create_audio_transcoder();
 };
 
 #endif
