@@ -15,6 +15,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_app_encoder.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_forward.hpp>
 #include <srs_app_hds.hpp>
@@ -156,6 +157,21 @@ public:
     virtual srs_error_t on_meta_data(SrsMediaPacket *metadata);
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
+};
+
+// Mock ISrsMediaEncoder for testing SrsOriginHub::assemble
+class MockMediaEncoderForOriginHub : public ISrsMediaEncoder
+{
+public:
+    int assemble_count_;
+
+public:
+    MockMediaEncoderForOriginHub();
+    virtual ~MockMediaEncoderForOriginHub();
+    virtual void assemble();
+    virtual srs_error_t on_publish(ISrsRequest *req);
+    virtual void on_unpublish();
+    virtual srs_error_t cycle();
 };
 
 // Mock ISrsForwarder for testing SrsOriginHub::on_meta_data

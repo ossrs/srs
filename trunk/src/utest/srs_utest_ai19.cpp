@@ -3067,6 +3067,30 @@ void MockAppFactoryForEncoder::reset()
     mock_ffmpeg_ = NULL;
 }
 
+// The constructor does not create the pithy print, which would enter the encoder
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(EncoderTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+
+    EXPECT_TRUE(encoder->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the encoder stage.
+VOID TEST(EncoderTest, AssembleCreatesEncoderPithyPrint)
+{
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+    srs_freep(encoder->pprint_);
+
+    encoder->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(encoder->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_encoder());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
 VOID TEST(EncoderTest, OnPublishMajorScenario)
 {
     srs_error_t err = srs_success;

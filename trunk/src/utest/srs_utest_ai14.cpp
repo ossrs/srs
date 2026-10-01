@@ -1554,6 +1554,35 @@ srs_error_t MockDvrForOriginHub::on_video(SrsMediaPacket *shared_video, SrsForma
     return srs_success;
 }
 
+// Mock ISrsMediaEncoder implementation
+MockMediaEncoderForOriginHub::MockMediaEncoderForOriginHub()
+{
+    assemble_count_ = 0;
+}
+
+MockMediaEncoderForOriginHub::~MockMediaEncoderForOriginHub()
+{
+}
+
+void MockMediaEncoderForOriginHub::assemble()
+{
+    assemble_count_++;
+}
+
+srs_error_t MockMediaEncoderForOriginHub::on_publish(ISrsRequest *req)
+{
+    return srs_success;
+}
+
+void MockMediaEncoderForOriginHub::on_unpublish()
+{
+}
+
+srs_error_t MockMediaEncoderForOriginHub::cycle()
+{
+    return srs_success;
+}
+
 // Mock ISrsForwarder implementation
 MockForwarderForOriginHub::MockForwarderForOriginHub()
 {
@@ -1723,6 +1752,36 @@ VOID TEST(AppOriginHubTest, FactoryCreatesAssembledHub)
     ASSERT_TRUE(dvr_it != subscribes.end());
     ASSERT_TRUE(hub_it != subscribes.end());
     EXPECT_TRUE(dvr_it < hub_it);
+}
+
+// The hub's assemble() assembles the injected encoder.
+VOID TEST(AppOriginHubTest, AssembleAssemblesEncoder)
+{
+    SrsConfig config;
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = &config;
+
+    MockMediaEncoderForOriginHub *mock_encoder = new MockMediaEncoderForOriginHub();
+    srs_freep(hub->encoder_);
+    hub->encoder_ = mock_encoder;
+
+    hub->assemble();
+
+    EXPECT_EQ(1, mock_encoder->assemble_count_);
+}
+
+// The factory is the production construction site: the hub it returns has an
+// encoder with its pithy print created.
+VOID TEST(AppOriginHubTest, FactoryCreatesHubWithAssembledEncoder)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsOriginHub> ihub(factory.create_origin_hub());
+
+    SrsOriginHub *hub = dynamic_cast<SrsOriginHub *>(ihub.get());
+    ASSERT_TRUE(hub != NULL);
+    SrsEncoder *encoder = dynamic_cast<SrsEncoder *>(hub->encoder_);
+    ASSERT_TRUE(encoder != NULL);
+    EXPECT_TRUE(encoder->pprint_ != NULL);
 }
 
 // Unit test for SrsOriginHub::initialize typical scenario

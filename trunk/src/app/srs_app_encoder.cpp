@@ -33,10 +33,15 @@ ISrsMediaEncoder::~ISrsMediaEncoder()
 SrsEncoder::SrsEncoder()
 {
     trd_ = new SrsDummyCoroutine();
-    pprint_ = SrsPithyPrint::create_encoder();
+    pprint_ = NULL;
 
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
+}
+
+void SrsEncoder::assemble()
+{
+    pprint_ = SrsPithyPrint::create_encoder();
 }
 
 SrsEncoder::~SrsEncoder()
