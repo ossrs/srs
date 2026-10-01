@@ -2030,10 +2030,27 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
         if (seq_scaling_matrix_present_flag) {
             int nb_scmpfs = ((chroma_format_idc != 3) ? 8 : 12);
             for (int i = 0; i < nb_scmpfs; i++) {
-                int8_t seq_scaling_matrix_present_flag_i = -1;
-                if ((err = srs_avc_nalu_read_bit(&bs, seq_scaling_matrix_present_flag_i)) != srs_success) {
-                    return srs_error_wrap(err, "read seq_scaling_matrix_present_flag_i");
-                    ;
+                int8_t seq_scaling_list_present_flag_i = -1;
+                if ((err = srs_avc_nalu_read_bit(&bs, seq_scaling_list_present_flag_i)) != srs_success) {
+                    return srs_error_wrap(err, "read seq_scaling_list_present_flag_i");
+                }
+                if (!seq_scaling_list_present_flag_i) {
+                    continue;
+                }
+
+                // Skip the scaling_list(), or the picture size after it is read from the wrong position.
+                // 7.3.2.1.1.1 Scaling list syntax, ISO_IEC_14496-10-AVC-2012.pdf, page 63.
+                int size_of_scaling_list = (i < 6) ? 16 : 64;
+                int32_t last_scale = 8, next_scale = 8;
+                for (int j = 0; j < size_of_scaling_list && next_scale != 0; j++) {
+                    // delta_scale is se(v), codeNum k maps to (-1)^(k+1) * Ceil(k / 2), see Table 9-3.
+                    int32_t code_num = 0;
+                    if ((err = srs_avc_nalu_read_uev(&bs, code_num)) != srs_success) {
+                        return srs_error_wrap(err, "read delta_scale of scaling_list %d", i);
+                    }
+                    int32_t delta_scale = (code_num & 0x01) ? (code_num + 1) / 2 : -(code_num / 2);
+                    next_scale = (last_scale + delta_scale + 256) % 256;
+                    last_scale = (next_scale == 0) ? last_scale : next_scale;
                 }
             }
         }

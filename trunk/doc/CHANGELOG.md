@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-01, Merge [#4757](https://github.com/ossrs/srs/pull/4757): Kernel: Fix the wrong picture size of an H.264 SPS with scaling lists. v7.0.166 (#4757)
 * <strong>v7.0, 2026-09-24, [7.0 alpha1(7.0.165)](https://github.com/ossrs/srs/releases/tag/v7.0-a1) released. 315306 lines.</strong>
 * v7.0, 2026-09-24, Config: Add SRS_RTMP_LISTEN for the RTMP listen, and keep SRS_LISTEN as an alias. v7.0.165
 * v7.0, 2026-09-21, RTC: Reset the play track cache when the publisher republishes with new SSRCs. v7.0.164
