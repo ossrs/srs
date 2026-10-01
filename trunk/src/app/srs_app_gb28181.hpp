@@ -308,6 +308,7 @@ public:
     virtual ~ISrsGbMediaTcpConn();
 
 public:
+    virtual void assemble() = 0;
     // Setup object, to keep empty constructor.
     virtual void setup(srs_netfd_t stfd) = 0;
     // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
@@ -327,6 +328,7 @@ class SrsGbMediaTcpConn : public ISrsGbMediaTcpConn, // It's a resource, corouti
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsResourceManager *gb_manager_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -352,6 +354,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsGbMediaTcpConn();
+    virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsGbMediaTcpConn();
 
 public:

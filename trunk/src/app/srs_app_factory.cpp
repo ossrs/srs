@@ -156,7 +156,9 @@ ISrsDvrSegmenter *SrsAppFactory::create_dvr_mp4_segmenter()
 #ifdef SRS_GB28181
 ISrsGbMediaTcpConn *SrsAppFactory::create_gb_media_tcp_conn()
 {
-    return new SrsGbMediaTcpConn();
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
+    return conn;
 }
 
 ISrsGbSession *SrsAppFactory::create_gb_session()

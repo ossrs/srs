@@ -84,6 +84,7 @@ public:
 class MockGbMediaTcpConn : public ISrsGbMediaTcpConn
 {
 public:
+    int assemble_count_;
     bool set_cid_called_;
     SrsContextId received_cid_;
     bool is_connected_;
@@ -93,6 +94,7 @@ public:
     virtual ~MockGbMediaTcpConn();
 
 public:
+    virtual void assemble();
     virtual void setup(srs_netfd_t stfd);
     virtual void setup_owner(SrsSharedResource<ISrsGbMediaTcpConn> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual bool is_connected();

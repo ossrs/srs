@@ -286,12 +286,18 @@ VOID TEST(GB28181Test, SessionOnPsPack)
 // Mock ISrsGbMediaTcpConn implementation
 MockGbMediaTcpConn::MockGbMediaTcpConn()
 {
+    assemble_count_ = 0;
     set_cid_called_ = false;
     is_connected_ = false;
 }
 
 MockGbMediaTcpConn::~MockGbMediaTcpConn()
 {
+}
+
+void MockGbMediaTcpConn::assemble()
+{
+    assemble_count_++;
 }
 
 void MockGbMediaTcpConn::setup(srs_netfd_t stfd)
@@ -840,6 +846,61 @@ public:
     }
 };
 
+// The constructor only captures the context global; it reads no context id, so a test can
+// inject the context before assemble() runs.
+VOID TEST(GbMediaTcpConnTest, ConstructorCapturesContextWithoutReadingId)
+{
+    SrsUniquePtr<SrsGbMediaTcpConn> conn(new SrsGbMediaTcpConn());
+
+    EXPECT_TRUE(conn->context_ == _srs_context);
+    EXPECT_TRUE(conn->cid_.empty());
+}
+
+// assemble() takes the connection's id from the injected context.
+VOID TEST(GbMediaTcpConnTest, AssembleReadsIdThroughContext)
+{
+    SrsUniquePtr<SrsGbMediaTcpConn> conn(new SrsGbMediaTcpConn());
+
+    MockContextForRtmpConn context;
+    context.id_.set_value("gb-media-cid");
+    conn->context_ = &context;
+    conn->assemble();
+
+    EXPECT_STREQ("gb-media-cid", conn->get_id().c_str());
+
+    conn->context_ = NULL;
+}
+
+// The factory returns an assembled connection, which carries the id of the accepting coroutine.
+VOID TEST(GbMediaTcpConnTest, FactoryCreatesAssembledConn)
+{
+    SrsContextId before = _srs_context->get_id();
+    SrsContextId cid;
+    _srs_context->set_id(cid.set_value("gb-accept-cid"));
+
+    SrsAppFactory factory;
+    ISrsGbMediaTcpConn *conn = factory.create_gb_media_tcp_conn();
+    EXPECT_STREQ("gb-accept-cid", conn->get_id().c_str());
+    srs_freep(conn);
+
+    _srs_context->set_id(before);
+}
+
+// The session assembles its placeholder media connection before it switches to its own id,
+// so the placeholder carries the id of the creating coroutine.
+VOID TEST(GbSessionTest, ConstructionAssemblesMediaWithCreatorId)
+{
+    SrsContextId before = _srs_context->get_id();
+    SrsContextId cid;
+    _srs_context->set_id(cid.set_value("gb-creator-cid"));
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    EXPECT_STREQ("gb-creator-cid", session->media_->get_id().c_str());
+    EXPECT_STRNE("gb-creator-cid", session->get_id().c_str());
+
+    _srs_context->set_id(before);
+}
+
 // Test SrsGbMediaTcpConn::setup_owner, on_executor_done, is_connected, set_cid, get_id, desc
 // This test covers the major use scenario:
 // 1. Create SrsGbMediaTcpConn and setup owner with wrapper, coroutine, and cid setter
@@ -856,6 +917,7 @@ VOID TEST(GbMediaTcpConnTest, SetupOwnerAndLifecycle)
 
     // Create SrsGbMediaTcpConn - wrapper will own it
     SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
 
     // Create a wrapper that owns the conn
     SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
@@ -969,6 +1031,7 @@ VOID TEST(GbMediaTcpConnTest, OnPsPack)
 
     // Create SrsGbMediaTcpConn - wrapper will own it
     SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
 
     // Create a wrapper that owns the conn
     SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
@@ -1039,6 +1102,7 @@ VOID TEST(GbMediaTcpConnTest, BindSession)
 
     // Create SrsGbMediaTcpConn - wrapper will own it
     SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
     SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
 
     // Inject mock dependencies

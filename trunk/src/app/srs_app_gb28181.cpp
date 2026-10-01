@@ -65,6 +65,8 @@ ISrsGbSession::~ISrsGbSession()
 
 SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
 {
+    media_->assemble();
+
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
@@ -475,13 +477,18 @@ SrsGbMediaTcpConn::SrsGbMediaTcpConn()
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
-    cid_ = _srs_context->get_id();
 
     session_ = NULL;
     connected_ = false;
     nn_rtcp_ = 0;
 
     gb_manager_ = _srs_gb_manager;
+    context_ = _srs_context;
+}
+
+void SrsGbMediaTcpConn::assemble()
+{
+    cid_ = context_->get_id();
 }
 
 SrsGbMediaTcpConn::~SrsGbMediaTcpConn()
@@ -491,6 +498,7 @@ SrsGbMediaTcpConn::~SrsGbMediaTcpConn()
     srs_freep(pack_);
 
     gb_manager_ = NULL;
+    context_ = NULL;
 }
 
 void SrsGbMediaTcpConn::setup(srs_netfd_t stfd)
