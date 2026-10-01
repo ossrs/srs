@@ -1140,6 +1140,7 @@ public:
 class MockSrtConnection : public ISrsSrtConnection
 {
 public:
+    int assemble_count_;
     int read_count_;
     bool simulate_timeout_;
     srs_utime_t recv_timeout_;
@@ -1171,6 +1172,7 @@ public:
     virtual int64_t get_send_bytes();
 
 public:
+    virtual void assemble();
     virtual srs_srt_t srtfd();
     virtual srs_error_t get_streamid(std::string &streamid);
     virtual srs_error_t get_stats(SrsSrtStat &stat);

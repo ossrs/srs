@@ -37,12 +37,21 @@ ISrsSrtConnection::~ISrsSrtConnection()
 SrsSrtConnection::SrsSrtConnection(srs_srt_t srt_fd)
 {
     srt_fd_ = srt_fd;
-    srt_skt_ = new SrsSrtSocket(_srt_eventloop->poller(), srt_fd_);
+    srt_skt_ = NULL;
+
+    srt_eventloop_ = _srt_eventloop;
+}
+
+void SrsSrtConnection::assemble()
+{
+    srt_skt_ = new SrsSrtSocket(srt_eventloop_->poller(), srt_fd_);
 }
 
 SrsSrtConnection::~SrsSrtConnection()
 {
     srs_freep(srt_skt_);
+
+    srt_eventloop_ = NULL;
 }
 
 srs_error_t SrsSrtConnection::initialize()
@@ -235,6 +244,8 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
 
 void SrsMpegtsSrtConn::assemble()
 {
+    srt_conn_->assemble();
+
     // Create a identify for this client.
     context_->set_id(context_->generate_id());
 

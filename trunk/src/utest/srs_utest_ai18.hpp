@@ -52,6 +52,25 @@ public:
     virtual int64_t get_recv_bytes();
 };
 
+// Mock ISrsSrtPoller for testing which poller a SrsSrtConnection's socket attaches to
+class MockSrtPollerForSrtConnection : public ISrsSrtPoller
+{
+public:
+    int del_socket_count_;
+
+public:
+    MockSrtPollerForSrtConnection();
+    virtual ~MockSrtPollerForSrtConnection();
+
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t add_socket(SrsSrtSocket *srt_skt);
+    virtual srs_error_t mod_socket(SrsSrtSocket *srt_skt);
+    virtual srs_error_t del_socket(SrsSrtSocket *srt_skt);
+    virtual srs_error_t wait(int timeout_ms, int *pn_fds);
+    virtual int size();
+};
+
 // Mock ISrsUdpHandler for testing SrsUdpListener
 class MockUdpHandler : public ISrsUdpHandler
 {

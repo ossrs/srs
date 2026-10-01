@@ -210,6 +210,8 @@ public:
     // The errors initialize() and start() return, owned by the caller once returned.
     srs_error_t initialize_error_;
     srs_error_t start_error_;
+    // The poller poller() returns, not owned.
+    ISrsSrtPoller *poller_;
 
 public:
     MockSrtEventLoopForServer();
@@ -218,6 +220,7 @@ public:
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t start();
+    virtual ISrsSrtPoller *poller();
 };
 
 // Mock multiple TCP listeners for testing which listeners SrsServer::listen() starts and dispose() closes.

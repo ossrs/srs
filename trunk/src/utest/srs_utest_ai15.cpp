@@ -706,6 +706,7 @@ MockSrtEventLoopForServer::MockSrtEventLoopForServer()
 {
     initialize_error_ = srs_success;
     start_error_ = srs_success;
+    poller_ = NULL;
 }
 
 MockSrtEventLoopForServer::~MockSrtEventLoopForServer()
@@ -730,6 +731,11 @@ srs_error_t MockSrtEventLoopForServer::start()
     srs_error_t err = start_error_;
     start_error_ = srs_success;
     return err;
+}
+
+ISrsSrtPoller *MockSrtEventLoopForServer::poller()
+{
+    return poller_;
 }
 
 // The HTTP stream server registers itself with its mux as a dynamic matcher when it is assembled, so the matchers

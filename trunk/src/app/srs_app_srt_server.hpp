@@ -84,6 +84,7 @@ public:
 public:
     virtual srs_error_t initialize() = 0;
     virtual srs_error_t start() = 0;
+    virtual ISrsSrtPoller *poller() = 0;
 };
 
 // Start a coroutine to drive the SRT events with state-threads.
@@ -93,13 +94,11 @@ public:
     SrsSrtEventLoop();
     virtual ~SrsSrtEventLoop();
 
-public:
-    ISrsSrtPoller *poller() { return srt_poller_; }
-
     // Interface ISrsSrtEventLoop.
 public:
     virtual srs_error_t initialize();
     virtual srs_error_t start();
+    virtual ISrsSrtPoller *poller();
     // Interface ISrsCoroutineHandler.
 public:
     virtual srs_error_t cycle();

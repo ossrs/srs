@@ -219,6 +219,11 @@ srs_error_t SrsSrtEventLoop::start()
     return err;
 }
 
+ISrsSrtPoller *SrsSrtEventLoop::poller()
+{
+    return srt_poller_;
+}
+
 srs_error_t SrsSrtEventLoop::cycle()
 {
     srs_error_t err = srs_success;

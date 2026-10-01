@@ -109,6 +109,47 @@ int64_t MockSrtSocket::get_recv_bytes()
     return recv_bytes_;
 }
 
+MockSrtPollerForSrtConnection::MockSrtPollerForSrtConnection()
+{
+    del_socket_count_ = 0;
+}
+
+MockSrtPollerForSrtConnection::~MockSrtPollerForSrtConnection()
+{
+}
+
+srs_error_t MockSrtPollerForSrtConnection::initialize()
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::add_socket(SrsSrtSocket *srt_skt)
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::mod_socket(SrsSrtSocket *srt_skt)
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::del_socket(SrsSrtSocket *srt_skt)
+{
+    del_socket_count_++;
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::wait(int timeout_ms, int *pn_fds)
+{
+    *pn_fds = 0;
+    return srs_success;
+}
+
+int MockSrtPollerForSrtConnection::size()
+{
+    return 0;
+}
+
 // Mock ISrsUdpHandler implementation
 MockUdpHandler::MockUdpHandler()
 {
@@ -3875,6 +3916,72 @@ VOID TEST(MpegtsSrtConnTest, AssembleWiresCollaboratorsFromInjectedDependencies)
     conn->trd_ = NULL;
     conn->app_factory_ = NULL;
     conn->context_ = NULL;
+}
+
+VOID TEST(MpegtsSrtConnTest, AssembleAssemblesSrtConnection)
+{
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+
+    // The connection owns its SRT connection, so free the default before replacing it.
+    MockSrtConnection *srt_conn = new MockSrtConnection();
+    srs_freep(conn->srt_conn_);
+    conn->srt_conn_ = srt_conn;
+
+    MockCoroutineForRtmpConn trd;
+
+    MockAppFactoryForRtmpConn factory;
+    factory.coroutine_ = &trd;
+
+    MockContextForRtmpConn context;
+
+    conn->app_factory_ = &factory;
+    conn->context_ = &context;
+    conn->assemble();
+
+    // GOAL: the connection assembles the SRT connection it owns, which creates its socket.
+    EXPECT_EQ(1, srt_conn->assemble_count_);
+
+    // The coroutine is borrowed from the mock factory, so the destructor must not free it.
+    conn->trd_ = NULL;
+    conn->app_factory_ = NULL;
+    conn->context_ = NULL;
+}
+
+// The SRT connection is created for every SRT client, so a test has to be able to choose the event
+// loop its socket attaches to. Construction must therefore only capture the event loop, and create
+// no socket.
+VOID TEST(SrtConnectionTest, ConstructorCapturesEventLoopWithoutSocket)
+{
+    SrsUniquePtr<SrsSrtConnection> conn(new SrsSrtConnection(1));
+
+    // GOAL: construction reaches no collaborator; the socket is created by assemble().
+    EXPECT_TRUE(NULL == conn->srt_skt_);
+    EXPECT_TRUE(_srt_eventloop == conn->srt_eventloop_);
+}
+
+VOID TEST(SrtConnectionTest, AssembleCreatesSocketOnInjectedEventLoopPoller)
+{
+    MockSrtPollerForSrtConnection poller;
+
+    MockSrtEventLoopForServer eventloop;
+    eventloop.poller_ = &poller;
+
+    if (true) {
+        SrsUniquePtr<SrsSrtConnection> conn(new SrsSrtConnection(1));
+        conn->srt_eventloop_ = &eventloop;
+        conn->assemble();
+
+        // GOAL: the socket attaches to the poller of the injected event loop.
+        SrsSrtSocket *skt = dynamic_cast<SrsSrtSocket *>(conn->srt_skt_);
+        EXPECT_TRUE(skt != NULL);
+        EXPECT_TRUE(skt && &poller == skt->srt_poller_);
+
+        // The event loop is borrowed from the test, so the destructor must not touch it.
+        conn->srt_eventloop_ = NULL;
+    }
+
+    // The socket detaches from the same poller when the connection is freed.
+    EXPECT_EQ(1, poller.del_socket_count_);
 }
 
 VOID TEST(MpegtsSrtConnTest, AcquirePublishBridgesThroughInjectedFactory)

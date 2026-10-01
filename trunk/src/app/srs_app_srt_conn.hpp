@@ -37,6 +37,7 @@ class ISrsHttpHooks;
 class ISrsAppFactory;
 class ISrsContext;
 class SrsSrtStat;
+class ISrsSrtEventLoop;
 
 // The SRT connection interface.
 class ISrsSrtConnection : public ISrsProtocolReadWriter
@@ -46,6 +47,7 @@ public:
     virtual ~ISrsSrtConnection();
 
 public:
+    virtual void assemble() = 0;
     virtual srs_srt_t srtfd() = 0;
     virtual srs_error_t get_streamid(std::string &streamid) = 0;
     virtual srs_error_t get_stats(SrsSrtStat &stat) = 0;
@@ -65,6 +67,7 @@ public:
 
     // Interface ISrsSrtConnection
 public:
+    virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual srs_srt_t srtfd();
     virtual srs_error_t get_streamid(std::string &streamid);
     virtual srs_error_t get_stats(SrsSrtStat &stat);
@@ -88,6 +91,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_srt_t srt_fd_;
     // The underlayer srt socket.
     ISrsSrtSocket *srt_skt_;
+    // The SRT event loop, whose poller the socket attaches to.
+    ISrsSrtEventLoop *srt_eventloop_;
 };
 
 // The recv thread for SRT connection.
