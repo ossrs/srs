@@ -434,6 +434,7 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener *listener, srs_netfd_t stf
         gb_manager_->add(conn, NULL);
 
         SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(gb_manager_, conn, raw_conn, raw_conn);
+        executor->assemble();
         raw_conn->setup_owner(conn, executor, executor);
 
         if ((err = executor->start()) != srs_success) {
@@ -1783,6 +1784,7 @@ srs_error_t SrsGoApiGbPublish::bind_session(std::string id, uint64_t ssrc)
     gb_manager_->add_with_fast_id(ssrc, session);
 
     SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(gb_manager_, session, raw_session, raw_session);
+    executor->assemble();
     raw_session->setup_owner(session, executor, executor);
     raw_session->device_id_ = id;
 

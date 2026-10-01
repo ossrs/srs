@@ -28,9 +28,11 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_utest_ai05.hpp>
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai18.hpp>
+#include <srs_utest_manual_service.hpp>
 #include <srt/srt.h>
 #include <sys/socket.h>
 
@@ -2043,6 +2045,48 @@ VOID TEST(ServerTest, AssembleAssemblesInjectedSignalManager)
     EXPECT_EQ(1, signal_manager->assemble_count_);
     EXPECT_EQ(0, signal_manager->initialize_count_);
     EXPECT_EQ(0, signal_manager->start_count_);
+}
+
+// The constructor only captures the factory global; it creates no coroutine,
+// so a test can inject the factory before assemble() runs.
+VOID TEST(ExecutorCoroutineTest, ConstructorCapturesFactoryWithoutCoroutine)
+{
+    MockConnectionManager manager;
+    MockSrsResource resource;
+    SrsExecutorCoroutine executor(&manager, &resource, NULL, NULL);
+
+    EXPECT_TRUE(executor.app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(executor.trd_ == NULL);
+}
+
+// assemble() creates the executor coroutine through the injected factory, bound to the
+// context id of the resource it runs.
+VOID TEST(ExecutorCoroutineTest, AssembleCreatesCoroutineThroughFactory)
+{
+    MockConnectionManager manager;
+    MockSrsResource resource;
+    SrsContextId cid;
+    resource.set_id(cid.set_value("executor-cid"));
+    SrsExecutorCoroutine executor(&manager, &resource, NULL, NULL);
+
+    MockAppFactoryForRtmpConn factory;
+    MockCoroutineForRtmpConn *coroutine = new MockCoroutineForRtmpConn();
+    factory.coroutine_ = coroutine;
+
+    executor.app_factory_ = &factory;
+    executor.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("ar", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(factory.coroutine_handler_ == &executor);
+    EXPECT_EQ(0, factory.coroutine_cid_.compare(resource.get_id()));
+    EXPECT_TRUE(executor.trd_ == coroutine);
+
+    // The executor frees trd_ when it holds the mock coroutine; otherwise free it here.
+    if (executor.trd_ != coroutine) {
+        srs_freep(coroutine);
+    }
+    executor.app_factory_ = NULL;
 }
 
 MockIngesterForServer::MockIngesterForServer()

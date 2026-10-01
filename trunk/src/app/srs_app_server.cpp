@@ -1657,6 +1657,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
     if (raw_conn) {
         SrsSharedResource<ISrsRtcTcpConn> *conn = new SrsSharedResource<ISrsRtcTcpConn>(raw_conn);
         SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(conn_manager_, conn, raw_conn, raw_conn);
+        executor->assemble();
         raw_conn->setup_owner(conn, executor, executor);
         if ((err = executor->start()) != srs_success) {
             srs_freep(executor);

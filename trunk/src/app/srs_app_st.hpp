@@ -20,6 +20,7 @@
 
 class SrsFastCoroutine;
 class SrsExecutorCoroutine;
+class ISrsAppFactory;
 
 // An empty coroutine, user can default to this object before create any real coroutine.
 // @see https://github.com/ossrs/srs/pull/908
@@ -222,8 +223,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
 public:
     SrsExecutorCoroutine(ISrsResourceManager *m, ISrsResource *r, ISrsCoroutineHandler *h, ISrsExecutorHandler *cb);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsExecutorCoroutine();
     // Interface ISrsStartable
 public:
