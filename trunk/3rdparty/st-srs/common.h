@@ -354,8 +354,7 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
 #ifdef ST_SWITCH_CB
     #define ST_SWITCH_OUT_CB(_thread)        \
         if (_st_this_vp.switch_out_cb != NULL &&    \
-            _thread != _st_this_vp.idle_thread &&    \
-            _thread->state != _ST_ST_ZOMBIE) {    \
+            _thread != _st_this_vp.idle_thread) {    \
           _st_this_vp.switch_out_cb();        \
         }
     #define ST_SWITCH_IN_CB(_thread)        \

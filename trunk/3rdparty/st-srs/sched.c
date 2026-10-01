@@ -178,8 +178,8 @@ int st_init(void)
     /* We can ignore return value here */
     st_set_eventsys(ST_EVENTSYS_DEFAULT);
     
-    if (_st_io_init() < 0)
-        return -1;
+    if (_st_io_init() < 0) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
 
     // Initialize the thread-local variables.
     st_clist_init(&_st_free_stacks);
@@ -194,8 +194,8 @@ int st_init(void)
     st_clist_init(&_st_this_vp.thread_q);
 #endif
     
-    if ((*_st_eventsys->init)() < 0)
-        return -1;
+    if ((*_st_eventsys->init)() < 0) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
     
     _st_this_vp.pagesize = getpagesize();
     _st_this_vp.last_clock = st_utime();
@@ -204,8 +204,8 @@ int st_init(void)
      * Create idle thread
      */
     _st_this_vp.idle_thread = st_thread_create(_st_idle_thread_start, NULL, 0, 0);
-    if (!_st_this_vp.idle_thread)
-        return -1;
+    if (!_st_this_vp.idle_thread) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
     _st_this_vp.idle_thread->flags = _ST_FL_IDLE_THREAD;
     _st_active_count--;
     st_clist_remove(&_st_this_vp.idle_thread->links);
@@ -214,8 +214,8 @@ int st_init(void)
      * Initialize primordial thread
      */
     thread = (_st_thread_t *) calloc(1, sizeof(_st_thread_t) + (ST_KEYS_MAX * sizeof(void *)));
-    if (!thread)
-        return -1;
+    if (!thread) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
     thread->private_data = (void **) (thread + 1);
     thread->state = _ST_ST_RUNNING;
     thread->flags = _ST_FL_PRIMORDIAL;
@@ -380,7 +380,10 @@ void _st_thread_main(void)
      * to stop unwinding the stack. It's a no-op on most platforms.
      */
     MD_CAP_STACK(&thread);
-    
+
+    /* The first run starts here, not in _st_switch_context, so call the switch-in callback here too. */
+    ST_SWITCH_IN_CB(thread);
+
     /* Run thread main */
     thread->retval = (*thread->start)(thread->arg);
     
@@ -644,8 +647,8 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
         stk_size = ST_DEFAULT_STACK_SIZE;
     stk_size = ((stk_size + _st_this_vp.pagesize - 1) / _st_this_vp.pagesize) * _st_this_vp.pagesize;
     stack = _st_stack_new(stk_size);
-    if (!stack)
-        return NULL;
+    if (!stack) /* GCOVR_EXCL_BR_LINE */
+        return NULL; /* GCOVR_EXCL_LINE */
     
     /* Allocate thread object and per-thread data off the stack */
     sp = stack->stk_top;
@@ -677,10 +680,12 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {
         thread->term = st_cond_new();
+        /* GCOVR_EXCL_START */
         if (thread->term == NULL) {
             _st_stack_free(thread->stack);
             return NULL;
         }
+        /* GCOVR_EXCL_STOP */
     }
     
     /* Make thread runnable */
@@ -708,15 +713,18 @@ _st_thread_t *st_thread_self(void)
 }
 
 #ifdef DEBUG
+/* GCOVR_EXCL_START */
 /* ARGSUSED */
 void _st_show_thread_stack(_st_thread_t *thread, const char *messg)
 {
     
 }
+/* GCOVR_EXCL_STOP */
 
 /* To be set from debugger */
 int _st_iterate_threads_flag = 0;
 
+/* GCOVR_EXCL_START */
 void _st_iterate_threads(void)
 {
     static __thread _st_thread_t *thread = NULL;
@@ -755,5 +763,6 @@ void _st_iterate_threads(void)
     memcpy(save_jb, thread->context, sizeof(_st_jmp_buf_t));
     _st_md_cxt_restore(thread->context, 1);
 }
+/* GCOVR_EXCL_STOP */
 #endif /* DEBUG */
 

@@ -4,7 +4,7 @@
 
 **Scope:** This task covers any planned SRS or Oryx code or documentation change — adding features, modifying functionality, refactoring code, changing packaging, and updating project or skill documentation.
 
-**Important:** The SRS player and Dev Docker have separate supported workflows below.
+**Important:** The SRS player, Dev Docker, State Threads, and the website have separate workflows below.
 
 **Version and changelog:** If the change bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and apply it, whichever service you routed to.
 
@@ -17,6 +17,8 @@
 | **Dev Docker** | → [Dev Docker](#dev-docker) | ✅ Supported |
 | **Oryx** | → [Oryx](#oryx) | ✅ Supported |
 | **C++ media server maintenance** | → [C++ Media Server Maintenance](#c-media-server-maintenance) | ✅ Supported |
+| **State Threads** | → [State Threads](#state-threads) | ✅ Supported |
+| **Website** | → [Website](#website) | 🔒 Private skill |
 | **Origin server** | → [Origin Server](#origin-server) | ❌ Not yet supported |
 | **Edge server** | → [Edge Server](#edge-server) | ❌ Not yet supported |
 
@@ -175,6 +177,43 @@ Accept new features, bug fixes, security fixes, compatibility fixes, tests, and 
 4. For external-SIP GB28181 session cleanup, run the focused regression for the affected terminal event. Use `scripts/gb28181-tcp-disconnect-test.sh` when a bound RTP/PS-over-TCP publisher disconnects, and `scripts/gb28181-api-timeout-test.sh` when an API-created session never receives a TCP connection. Each script builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, then requires the same ID and SSRC to become publishable again.
 5. Run sanitizer verification when the fix changes coroutine interruption, sockets, resource ownership, shared pointers, or object destruction.
 6. Report every test result and any unverified platform or configuration scope. Do not push or stage files.
+
+## State Threads
+
+State Threads is maintained in the separate `ossrs/state-threads` project at `state-threads/`, the only ST code to read or change. `trunk/3rdparty/st-srs/` is a vendored mirror for the SRS build; never edit it directly. Make every ST change in `state-threads/`, then overwrite the mirror with it. When a C++ media-server task traces its root cause into ST, route the ST part here.
+
+### Step 1: Route the Change (MANDATORY)
+
+1. Load `skills/internal-codemap-for-srs/SKILL.md`, route to the State Threads map, and read `skills/internal-codemap-for-srs/references/state-threads.md`.
+2. Load `skills/internal-docs-for-srs/SKILL.md` and select only the State Threads documents relevant to the change.
+3. Check the project-root-relative `state-threads/` path directly. If it is unavailable, stop and ask the user to make the `https://github.com/ossrs/state-threads` checkout available there.
+4. Check the status, branch, and commit of both repositories.
+5. Identify the responsible source files, affected platforms and CPU architectures, build macros, and the SRS wrappers that consume the changed API.
+6. Present that routing and impact to the user and ask for confirmation. Do not edit before confirmation.
+
+### Step 2: Implement in State Threads
+
+1. Add or update a test under `state-threads/utest/` first, following `references/testable-code.md`, and confirm it fails before the fix.
+2. Make the smallest change in `state-threads/`. Keep plain C that builds with the compilers of every supported platform, the public API in `public.h`, and the per-platform assembly in `md_*.S` consistent with `md.h` and the `jmpbuf` layout.
+3. Do not change behavior on a platform you cannot build and test without saying so to the user.
+
+### Step 3: Verify State Threads
+
+1. Run `git -C state-threads/ diff --check` and inspect the complete ST diff.
+2. Run the ST unit tests on macOS and on Linux as the map describes. Add the ASAN or Valgrind build when the change touches stacks, context switching, `st_destroy`, or thread lifetime.
+3. Report every CPU and OS combination touched by the change that was not built and tested.
+
+### Step 4: Sync and Verify SRS
+
+1. Overwrite the mirror `trunk/3rdparty/st-srs/` with `state-threads/` by running `./scripts/copy-from-st.sh` from the project root.
+2. Rebuild SRS so `trunk/auto/depends.sh` rebuilds ST instead of reusing a cached `libst.a`, as the map describes.
+3. Run the SRS unit tests, the SRS wrapper tests the change affects, and every command in `references/integration-tests.md`.
+4. Follow `references/version-and-changelog.md` for the ST version and changelog, and for the SRS version when the sync bumps it.
+5. Stop for user review and staging in each modified repository. Do not push.
+
+## Website
+
+The website is maintained in the separate `website/` repository by a private AI skill, because its development manages cloud resources that cannot be described in this public skill. Do not develop the website with this workflow; stop and tell the user to use the private website skill.
 
 ## Origin Server
 

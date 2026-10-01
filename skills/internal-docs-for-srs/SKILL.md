@@ -1,6 +1,6 @@
 ---
 name: internal-docs-for-srs
-description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, Oryx project documentation, website pages, changelog, executable API examples, and next-generation Go server and performance documentation.
+description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, State Threads documentation, Oryx project documentation, website pages, changelog, executable API examples, and next-generation Go server and performance documentation.
 ---
 
 # SRS Internal Documentation
@@ -22,6 +22,7 @@ Route SRS and Oryx tasks to focused documentation references. The parent skill o
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
 - For Oryx documentation stored in its repository, use the project-root-relative `oryx/` path. The path may be a directory or a symlink to the user's preferred checkout. Do not resolve the symlink or search for alternate Oryx roots. If the path is unavailable, ask the user to make the `https://github.com/ossrs/oryx` checkout available there; do not create it automatically.
+- For State Threads documentation, use the project-root-relative `state-threads/` path under the same rules. If it is unavailable, ask the user to make the `https://github.com/ossrs/state-threads` checkout available there; do not create it automatically.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
 - Before reporting a routed file as missing, check its fully resolved path directly.
 
@@ -101,6 +102,17 @@ For Oryx documentation, select the smallest relevant document:
 - `references/oryx/2024-05-20-OCR-Video-Streams.md` — Live-stream OCR, configurable AI instructions, and callbacks.
 
 For Oryx, prefer the getting-started guide, FAQ, and repository documentation. Treat dated blogs as scenario-specific guidance. If commands, UI labels, tooling, or behavior differ, prefer documentation matching the user's Oryx version.
+
+### State Threads Documentation
+
+For State Threads design and usage, select the smallest relevant document:
+
+- `state-threads/README.md` — Build and usage per OS, supported platforms, GDB and Valgrind notes, unit tests, coverage, and links to the design discussions.
+- `state-threads/CHANGELOG.md` — Versioned changes of the srs branch, including CPU, OS, and feature support history.
+- `state-threads/docs/st.html` — Design paper: definitions, existing server architectures, and how the State Threads model scales Internet applications.
+- `state-threads/docs/reference.html` — API reference: types, errors, initialization, thread control, per-thread data, synchronization, timing, I/O, program structure, and the list of blocking functions.
+- `state-threads/docs/notes.html` — Programming notes: porting, signals, intra- and inter-process synchronization, non-network I/O, and timeouts.
+- `state-threads/docs/timeout_heap.txt` — Design of the timeout heap that holds sleeping threads.
 
 ### RTMP Go API Examples
 

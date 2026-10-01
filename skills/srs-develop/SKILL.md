@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases and the SRS Docker image toolchain. Use for planned changes to the next-generation SRS Go proxy, SRS browser player, ossrs/dev-docker images, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Planned next-generation origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
+description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases, the SRS Docker image toolchain, and the State Threads coroutine library. Use for planned changes to the next-generation SRS Go proxy, SRS browser player, ossrs/dev-docker images, ossrs/state-threads, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Planned next-generation origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
 ---
 
 # SRS and Oryx Development
@@ -47,6 +47,7 @@ Whenever a task bumps a version or adds a changelog entry, load `references/vers
 - Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
 - For Oryx, use the project-root-relative `oryx/` path through `git -C` while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the Oryx checkout available there; do not create it automatically, resolve the symlink, or search for another checkout.
 - For Dev Docker, use the project-root-relative `dev-docker/` path through `git -C` while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the Dev Docker checkout available there; do not create it automatically, resolve the symlink, or search for another checkout.
+- For State Threads, use the project-root-relative `state-threads/` path through `git -C` while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the State Threads checkout available there; do not create it automatically, resolve the symlink, or search for another checkout.
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
@@ -56,7 +57,11 @@ Whenever a task bumps a version or adds a changelog entry, load `references/vers
 
 Apply these rules whenever a task produces a commit:
 
-- Identify the owning repository before inspecting or committing staged changes. Use the current repository for SRS and skills, `git -C oryx/` for Oryx, and `git -C dev-docker/` for Dev Docker.
+- Identify the owning repository before inspecting or committing staged changes. Use the current repository for SRS and skills, and `git -C` with the project-root-relative path for the other repositories:
+  - `git -C oryx/` for Oryx
+  - `git -C dev-docker/` for Dev Docker
+  - `git -C state-threads/` for State Threads
+  - `git -C website/` for the website
 - Never run `git add`; the user stages the files they approve.
 - Never run `git push` unless the user explicitly asks.
 - Commit only when the user explicitly asks.

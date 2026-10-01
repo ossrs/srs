@@ -1,6 +1,6 @@
 Summary:	State Threads Library
 Name:		st
-Version:	1.9
+Version:	1.9.0
 Release:	1
 Copyright:	MPL 1.2 or GPL 2+
 Packager:	Wesley W. Terpstra <wesley@terpstra.ca>

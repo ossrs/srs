@@ -1,6 +1,6 @@
 # Version and Changelog Rules
 
-**Scope:** The single owner of SRS and Oryx version-bump and changelog rules. Every workflow that bumps a version loads this file; do not restate these rules elsewhere.
+**Scope:** The single owner of SRS, State Threads, and Oryx version-bump and changelog rules. Every workflow that bumps a version loads this file; do not restate these rules elsewhere.
 
 Apply these rules whenever a task bumps a version or adds a changelog entry, regardless of which task the router selected. A version bump is not exclusive to the Review a PR workflow — Fix a Bug and Develop Code reach it too.
 
@@ -22,6 +22,28 @@ Add a new top entry to `trunk/doc/CHANGELOG.md` under `## SRS 8.0 Changelog`, ma
 ```
 
 Propose the summary to the user; don't invent one unilaterally.
+
+When the change syncs State Threads into `trunk/3rdparty/st-srs/`, use the `ST:` prefix.
+
+## State Threads
+
+**Bump the patch by one in all three files, and keep them in sync.**
+
+| File | Field | Value |
+|---|---|---|
+| `state-threads/Makefile` | `VERSION` | `1.9.0` |
+| `state-threads/public.h` | `ST_VERSION`, `ST_VERSION_MAJOR`, `ST_VERSION_MINOR`, `ST_VERSION_PATCH` | `"1.9.0"`, `1`, `9`, `0` |
+| `state-threads/st.spec` | `Version:` | `1.9.0` |
+
+Read all three current values first. `Makefile` `VERSION` also names the shared library, whose soname keeps only the major version.
+
+Add a new top entry to `state-threads/CHANGELOG.md` under `## ST 1.9 Changelog`, newest first like SRS:
+
+```
+* YYYY-MM-DD, <Prefix>: <one-line summary>. v1.9.<patch>
+```
+
+Propose the summary to the user; don't invent one unilaterally. Syncing the change into SRS is a separate SRS change with its own SRS version and changelog entry.
 
 ## Oryx
 
@@ -75,7 +97,7 @@ A version bump is not a release. Bumping happens on every merged change; releasi
 - **Oryx** — `cd oryx && ./auto/pub.sh --target vX.Y.Z`. The branch decides the release type: a tag from `main` publishes a prerelease, a tag from `release/X.Y` publishes the stable/latest release. Not every revision is tagged; after publishing, link that changelog entry to its release page.
 - **Proxy** — No release process exists yet. Its version is bumped alongside SRS but never released separately. Do not invent one.
 
-## Both projects
+## All projects
 
 Do not force a version bump for documentation, skill, issue-template, or maintenance-only work when the maintainer does not intend a release. Ask rather than infer.
 
