@@ -7,6 +7,7 @@
 #include <srs_app_recv_thread.hpp>
 
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
@@ -545,12 +546,23 @@ ISrsHttpRecvThread::~ISrsHttpRecvThread()
 SrsHttpRecvThread::SrsHttpRecvThread(SrsHttpxConn *c)
 {
     conn_ = c;
-    trd_ = new SrsSTCoroutine("http-receive", this, _srs_context->get_id());
+    trd_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
+}
+
+void SrsHttpRecvThread::assemble()
+{
+    trd_ = app_factory_->create_coroutine("http-receive", this, context_->get_id());
 }
 
 SrsHttpRecvThread::~SrsHttpRecvThread()
 {
     srs_freep(trd_);
+
+    app_factory_ = NULL;
+    context_ = NULL;
 }
 
 srs_error_t SrsHttpRecvThread::start()

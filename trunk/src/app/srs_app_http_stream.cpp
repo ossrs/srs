@@ -855,6 +855,7 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, ISrsLiveConsumer
 
     // Start a thread to receive all messages from client, then drop them.
     SrsUniquePtr<SrsHttpRecvThread> trd(new SrsHttpRecvThread(hxc));
+    trd->assemble();
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start recv thread");

@@ -1676,6 +1676,47 @@ VOID TEST(HttpxConnTest, AssembleBuildsHttpConnUnderNewContext)
     EXPECT_TRUE(io == delta->out_);
 }
 
+// The constructor only captures the factory and context globals; it creates no coroutine,
+// so a test can inject both before assemble() runs.
+VOID TEST(HttpRecvThreadTest, ConstructorCapturesGlobalsWithoutCoroutine)
+{
+    SrsHttpRecvThread thread(NULL);
+
+    EXPECT_TRUE(thread.app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(thread.context_ == _srs_context);
+    EXPECT_TRUE(thread.trd_ == NULL);
+}
+
+// assemble() creates the receive coroutine through the injected factory, bound to the
+// context id of the injected context.
+VOID TEST(HttpRecvThreadTest, AssembleCreatesCoroutineThroughFactory)
+{
+    SrsHttpRecvThread thread(NULL);
+
+    MockAppFactoryForRtmpConn factory;
+    MockCoroutineForCycle *coroutine = new MockCoroutineForCycle();
+    factory.coroutine_ = coroutine;
+    MockContextForRtmpConn context;
+    context.id_.set_value("http-recv-cid");
+
+    thread.app_factory_ = &factory;
+    thread.context_ = &context;
+    thread.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("http-receive", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(factory.coroutine_handler_ == &thread);
+    EXPECT_EQ(0, factory.coroutine_cid_.compare(context.id_));
+    EXPECT_TRUE(thread.trd_ == coroutine);
+
+    // The thread frees trd_ when it holds the mock coroutine; otherwise free it here.
+    if (thread.trd_ != coroutine) {
+        srs_freep(coroutine);
+    }
+    thread.app_factory_ = NULL;
+    thread.context_ = NULL;
+}
+
 VOID TEST(DynamicHttpConnTest, ConstructionAssemblesHttpConnUnderNewContext)
 {
     std::string before = _srs_context->get_id().c_str();

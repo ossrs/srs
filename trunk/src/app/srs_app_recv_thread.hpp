@@ -30,6 +30,8 @@ class ISrsRtmpServer;
 class SrsRecvThread;
 class ISrsRecvThread;
 class ISrsAppConfig;
+class ISrsAppFactory;
+class ISrsContext;
 
 // The message consumer which consume a message.
 class ISrsMessageConsumer
@@ -265,11 +267,17 @@ class SrsHttpRecvThread : public ISrsHttpRecvThread
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     SrsHttpxConn *conn_;
     ISrsCoroutine *trd_;
 
 public:
     SrsHttpRecvThread(SrsHttpxConn *c);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsHttpRecvThread();
 
 public:
