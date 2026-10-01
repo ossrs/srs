@@ -115,11 +115,13 @@ public:
     virtual int get_rtc_aac_bitrate(std::string vhost);
 };
 
-// Mock factory for SrsRtcFrameBuilder::initialize, creating a transcoder that records its bitrate.
+// Mock factory for SrsRtcFrameBuilder::initialize and SrsRtcRtpBuilder::assemble, creating a transcoder
+// that records its bitrate.
 class MockAppFactoryForRtcFrameBuilder : public SrsAppFactory
 {
 public:
     MockAudioTranscoderForUtest *last_transcoder_;
+    int create_audio_transcoder_count_;
 
 public:
     MockAppFactoryForRtcFrameBuilder();

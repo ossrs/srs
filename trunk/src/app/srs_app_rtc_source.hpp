@@ -415,6 +415,9 @@ public:
     SrsRtcRtpBuilder(ISrsAppFactory *factory, ISrsRtpTarget *target, SrsSharedPtr<SrsRtcSource> source);
     virtual ~SrsRtcRtpBuilder();
 
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
+
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // Lazy initialization methods

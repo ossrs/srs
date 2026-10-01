@@ -976,7 +976,7 @@ SrsRtcRtpBuilder::SrsRtcRtpBuilder(ISrsAppFactory *factory, ISrsRtpTarget *targe
 
     req_ = NULL;
     format_ = new SrsRtmpFormat();
-    codec_ = factory->create_audio_transcoder();
+    codec_ = NULL;
     latest_codec_ = SrsAudioCodecIdForbidden;
     keep_bframe_ = false;
     keep_avc_nalu_sei_ = true;
@@ -1005,6 +1005,11 @@ SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
 
     app_factory_ = NULL;
     config_ = NULL;
+}
+
+void SrsRtcRtpBuilder::assemble()
+{
+    codec_ = app_factory_->create_audio_transcoder();
 }
 
 srs_error_t SrsRtcRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)

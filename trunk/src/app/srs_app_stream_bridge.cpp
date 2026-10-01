@@ -117,6 +117,7 @@ srs_error_t SrsRtmpBridge::initialize(ISrsRequest *r)
     if (rtc_target_.get()) {
         srs_freep(rtp_builder_);
         rtp_builder_ = new SrsRtcRtpBuilder(app_factory_, rtc_target_.get(), rtc_target_);
+        rtp_builder_->assemble();
         if ((err = rtp_builder_->initialize(r)) != srs_success) {
             return srs_error_wrap(err, "rtp builder initialize");
         }
@@ -274,6 +275,7 @@ srs_error_t SrsSrtBridge::initialize(ISrsRequest *r)
     if (rtc_target_.get()) {
         srs_freep(rtp_builder_);
         rtp_builder_ = new SrsRtcRtpBuilder(app_factory_, rtc_target_.get(), rtc_target_);
+        rtp_builder_->assemble();
         if ((err = rtp_builder_->initialize(r)) != srs_success) {
             return srs_error_wrap(err, "rtp builder initialize");
         }

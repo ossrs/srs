@@ -1312,6 +1312,7 @@ public:
         }
 
         builder_ = new SrsRtcRtpBuilder(_srs_app_factory, &rtp_target_, source_);
+        builder_->assemble();
         if ((err = builder_->initialize(&req_)) != srs_success) {
             return srs_error_wrap(err, "initialize builder");
         }
