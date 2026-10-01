@@ -150,6 +150,19 @@ int MockSrtPollerForSrtConnection::size()
     return 0;
 }
 
+MockSrtHandlerForSrtListener::MockSrtHandlerForSrtListener()
+{
+}
+
+MockSrtHandlerForSrtListener::~MockSrtHandlerForSrtListener()
+{
+}
+
+srs_error_t MockSrtHandlerForSrtListener::on_srt_client(srs_srt_t srt_fd)
+{
+    return srs_success;
+}
+
 // Mock ISrsUdpHandler implementation
 MockUdpHandler::MockUdpHandler()
 {
@@ -3982,6 +3995,62 @@ VOID TEST(SrtConnectionTest, AssembleCreatesSocketOnInjectedEventLoopPoller)
 
     // The socket detaches from the same poller when the connection is freed.
     EXPECT_EQ(1, poller.del_socket_count_);
+}
+
+// The SRT listener must let a test choose the event loop its listening socket attaches to and the
+// factory its accept coroutine comes from, so construction captures both globals.
+VOID TEST(SrtListenerTest, ConstructorCapturesEventLoopAndFactory)
+{
+    MockSrtHandlerForSrtListener handler;
+    SrsSrtListener listener(&handler, "127.0.0.1", 0);
+
+    EXPECT_TRUE(_srt_eventloop == listener.srt_eventloop_);
+    EXPECT_TRUE(_srs_app_factory == listener.app_factory_);
+    EXPECT_TRUE(NULL == listener.srt_skt_);
+}
+
+VOID TEST(SrtListenerTest, ListenUsesInjectedEventLoopAndFactory)
+{
+    srs_error_t err;
+
+    MockSrtPollerForSrtConnection poller;
+    MockSrtEventLoopForServer eventloop;
+    eventloop.poller_ = &poller;
+
+    MockAppFactoryForRtmpConn factory;
+    MockSrtCoroutine *coroutine = new MockSrtCoroutine();
+    factory.coroutine_ = coroutine;
+
+    if (true) {
+        MockSrtHandlerForSrtListener handler;
+        SrsSrtListener listener(&handler, "127.0.0.1", 0);
+        listener.srt_eventloop_ = &eventloop;
+        listener.app_factory_ = &factory;
+
+        HELPER_EXPECT_SUCCESS(listener.create_socket());
+        HELPER_EXPECT_SUCCESS(listener.listen());
+
+        // GOAL: the listening socket attaches to the poller of the injected event loop.
+        SrsSrtSocket *skt = dynamic_cast<SrsSrtSocket *>(listener.srt_skt_);
+        EXPECT_TRUE(skt != NULL);
+        EXPECT_TRUE(skt && &poller == skt->srt_poller_);
+
+        // GOAL: the accept coroutine comes from the injected factory and is started. It is given no
+        // context id, so it generates a fresh one when it starts, as before.
+        EXPECT_EQ(1, factory.create_coroutine_count_);
+        EXPECT_STREQ("srt_listener", factory.coroutine_name_.c_str());
+        EXPECT_TRUE(factory.coroutine_handler_ == &listener);
+        EXPECT_TRUE(factory.coroutine_cid_.empty());
+        EXPECT_TRUE(listener.trd_ == coroutine);
+        EXPECT_TRUE(coroutine->started_);
+
+        // The listener frees trd_ when it holds the mock coroutine; otherwise free it here.
+        if (listener.trd_ != coroutine) {
+            srs_freep(coroutine);
+        }
+        listener.srt_eventloop_ = NULL;
+        listener.app_factory_ = NULL;
+    }
 }
 
 VOID TEST(MpegtsSrtConnTest, AcquirePublishBridgesThroughInjectedFactory)

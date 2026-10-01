@@ -16,6 +16,7 @@
 #include <srs_app_ingest.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_srt_listener.hpp>
 #include <srs_app_stream_token.hpp>
 #include <srs_protocol_srt.hpp>
 #include <srs_utest_ai11.hpp>
@@ -69,6 +70,17 @@ public:
     virtual srs_error_t del_socket(SrsSrtSocket *srt_skt);
     virtual srs_error_t wait(int timeout_ms, int *pn_fds);
     virtual int size();
+};
+
+// Mock ISrsSrtHandler for testing SrsSrtListener
+class MockSrtHandlerForSrtListener : public ISrsSrtHandler
+{
+public:
+    MockSrtHandlerForSrtListener();
+    virtual ~MockSrtHandlerForSrtListener();
+
+public:
+    virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
 };
 
 // Mock ISrsUdpHandler for testing SrsUdpListener
