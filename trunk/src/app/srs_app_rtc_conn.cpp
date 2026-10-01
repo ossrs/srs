@@ -3336,7 +3336,7 @@ SrsRtcPlayerNegotiator::SrsRtcPlayerNegotiator()
 {
     config_ = _srs_config;
     rtc_sources_ = _srs_rtc_sources;
-    ssrc_generator_ = SrsRtcSSRCGenerator::instance();
+    ssrc_generator_ = _srs_rtc_ssrc_generator;
 }
 
 SrsRtcPlayerNegotiator::~SrsRtcPlayerNegotiator()

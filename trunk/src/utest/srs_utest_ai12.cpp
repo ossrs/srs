@@ -3518,3 +3518,18 @@ VOID TEST(SrsRtcConnectionTest, OnBindingRequestRequiresIntegrityWithLocalIcePwd
     conn->local_sdp_.session_info_.ice_pwd_ = "another-session-pwd";
     HELPER_EXPECT_FAILED(conn->on_binding_request(&r, ice_pwd));
 }
+
+// The player negotiator captures the SSRC generator global in the constructor, not the singleton. The
+// global is pointed at another generator here, so a call to instance() is caught.
+VOID TEST(RtcPlayerNegotiatorTest, CapturesSsrcGeneratorGlobalInConstructor)
+{
+    SrsRtcSSRCGenerator other;
+    SrsRtcSSRCGenerator *original = _srs_rtc_ssrc_generator;
+    _srs_rtc_ssrc_generator = &other;
+
+    SrsUniquePtr<SrsRtcPlayerNegotiator> negotiator(new SrsRtcPlayerNegotiator());
+    EXPECT_TRUE(negotiator->ssrc_generator_ == &other);
+    EXPECT_TRUE(negotiator->ssrc_generator_ != SrsRtcSSRCGenerator::instance());
+
+    _srs_rtc_ssrc_generator = original;
+}
