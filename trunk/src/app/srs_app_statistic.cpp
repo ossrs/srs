@@ -25,14 +25,18 @@ using namespace std;
 string srs_generate_stat_vid()
 {
     SrsRand rand;
-    return "vid-" + rand.gen_str(7);
+    return srs_generate_stat_vid(&rand);
+}
+
+string srs_generate_stat_vid(ISrsRand *rand)
+{
+    return "vid-" + rand->gen_str(7);
 }
 
 SrsStatisticVhost::SrsStatisticVhost()
 {
     config_ = _srs_config;
-
-    id_ = srs_generate_stat_vid();
+    rand_ = new SrsRand();
 
     kbps_ = new SrsKbps();
 
@@ -40,9 +44,15 @@ SrsStatisticVhost::SrsStatisticVhost()
     nb_streams_ = 0;
 }
 
+void SrsStatisticVhost::assemble()
+{
+    id_ = srs_generate_stat_vid(rand_);
+}
+
 SrsStatisticVhost::~SrsStatisticVhost()
 {
     srs_freep(kbps_);
+    srs_freep(rand_);
 
     config_ = NULL;
 }
@@ -741,6 +751,7 @@ SrsStatisticVhost *SrsStatistic::create_vhost(ISrsRequest *req)
     // create vhost if not exists.
     if (rvhosts_.find(req->vhost_) == rvhosts_.end()) {
         vhost = new SrsStatisticVhost();
+        vhost->assemble();
         vhost->vhost_ = req->vhost_;
         rvhosts_[req->vhost_] = vhost;
         vhosts_[vhost->id_] = vhost;

@@ -20,6 +20,7 @@
 class SrsKbps;
 class ISrsClock;
 class ISrsAppConfig;
+class ISrsRand;
 class SrsWallClock;
 class ISrsRequest;
 class ISrsExpire;
@@ -33,6 +34,7 @@ class SrsPps;
 struct SrsStatisticVhost {
 public:
     ISrsAppConfig *config_;
+    ISrsRand *rand_;
 
 public:
     std::string id_;
@@ -46,6 +48,7 @@ public:
 
 public:
     SrsStatisticVhost();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsStatisticVhost();
 
 public:
@@ -328,6 +331,7 @@ public:
 
 // Generate a random string id, with constant prefix.
 extern std::string srs_generate_stat_vid();
+extern std::string srs_generate_stat_vid(ISrsRand *rand);
 
 // Global statistic instance.
 extern SrsStatistic *_srs_stat;

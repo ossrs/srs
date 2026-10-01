@@ -25,6 +25,7 @@ public:
     long integer_value_;
     int integer_count_;
     std::vector<int> gen_bytes_sizes_;
+    std::vector<int> gen_str_lens_;
 
 public:
     MockRandForHandshake();
