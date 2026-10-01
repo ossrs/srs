@@ -3581,6 +3581,9 @@ VOID TEST(StatisticTest, DumpsMetrics)
 MockAppConfigForStatistic::MockAppConfigForStatistic()
 {
     get_server_id_count_ = 0;
+    vhost_enabled_ = false;
+    hls_enabled_ = false;
+    hls_fragment_ = 0;
 }
 
 MockAppConfigForStatistic::~MockAppConfigForStatistic()
@@ -3591,6 +3594,24 @@ std::string MockAppConfigForStatistic::get_server_id()
 {
     get_server_id_count_++;
     return server_id_;
+}
+
+bool MockAppConfigForStatistic::get_vhost_enabled(std::string vhost)
+{
+    vhost_calls_.push_back("vhost_enabled:" + vhost);
+    return vhost_enabled_;
+}
+
+bool MockAppConfigForStatistic::get_hls_enabled(std::string vhost)
+{
+    vhost_calls_.push_back("hls_enabled:" + vhost);
+    return hls_enabled_;
+}
+
+srs_utime_t MockAppConfigForStatistic::get_hls_fragment(std::string vhost)
+{
+    vhost_calls_.push_back("hls_fragment:" + vhost);
+    return hls_fragment_;
 }
 
 // The statistic captures the config global in its constructor.
@@ -3614,6 +3635,85 @@ VOID TEST(StatisticTest, ServerIdFromInjectedConfig)
     EXPECT_EQ(1, config.get_server_id_count_);
 
     stat.config_ = NULL;
+}
+
+// The vhost statistic captures the config global in its constructor.
+VOID TEST(StatisticTest, VhostCapturesConfigInConstructor)
+{
+    SrsStatisticVhost vhost;
+    EXPECT_TRUE(vhost.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The vhost and HLS switches and the HLS fragment come from the injected config.
+VOID TEST(StatisticTest, VhostDumpsFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForStatistic config;
+    config.vhost_enabled_ = false;
+    config.hls_enabled_ = true;
+    config.hls_fragment_ = 2500 * SRS_UTIME_MILLISECONDS;
+
+    SrsStatisticVhost vhost;
+    vhost.config_ = &config;
+    vhost.vhost_ = "test.vhost";
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(vhost.dumps(obj.get()));
+
+    ASSERT_EQ(3, (int)config.vhost_calls_.size());
+    EXPECT_STREQ("hls_enabled:test.vhost", config.vhost_calls_[0].c_str());
+    EXPECT_STREQ("vhost_enabled:test.vhost", config.vhost_calls_[1].c_str());
+    EXPECT_STREQ("hls_fragment:test.vhost", config.vhost_calls_[2].c_str());
+
+    SrsJsonAny *enabled = obj->get_property("enabled");
+    ASSERT_TRUE(enabled && enabled->is_boolean());
+    EXPECT_FALSE(enabled->to_boolean());
+
+    SrsJsonAny *hls = obj->get_property("hls");
+    ASSERT_TRUE(hls && hls->is_object());
+    SrsJsonAny *hls_enabled = hls->to_object()->get_property("enabled");
+    ASSERT_TRUE(hls_enabled && hls_enabled->is_boolean());
+    EXPECT_TRUE(hls_enabled->to_boolean());
+    SrsJsonAny *fragment = hls->to_object()->get_property("fragment");
+    ASSERT_TRUE(fragment && fragment->is_number());
+    EXPECT_DOUBLE_EQ(2.5, fragment->to_number());
+
+    vhost.config_ = NULL;
+}
+
+// With HLS disabled, the fragment is neither read nor dumped.
+VOID TEST(StatisticTest, VhostDumpsWithoutHlsFragment)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForStatistic config;
+    config.vhost_enabled_ = true;
+    config.hls_enabled_ = false;
+
+    SrsStatisticVhost vhost;
+    vhost.config_ = &config;
+    vhost.vhost_ = "test.vhost";
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(vhost.dumps(obj.get()));
+
+    ASSERT_EQ(2, (int)config.vhost_calls_.size());
+    EXPECT_STREQ("hls_enabled:test.vhost", config.vhost_calls_[0].c_str());
+    EXPECT_STREQ("vhost_enabled:test.vhost", config.vhost_calls_[1].c_str());
+
+    SrsJsonAny *enabled = obj->get_property("enabled");
+    ASSERT_TRUE(enabled && enabled->is_boolean());
+    EXPECT_TRUE(enabled->to_boolean());
+
+    SrsJsonAny *hls = obj->get_property("hls");
+    ASSERT_TRUE(hls && hls->is_object());
+    SrsJsonAny *hls_enabled = hls->to_object()->get_property("enabled");
+    ASSERT_TRUE(hls_enabled && hls_enabled->is_boolean());
+    EXPECT_FALSE(hls_enabled->to_boolean());
+    EXPECT_TRUE(hls->to_object()->get_property("fragment") == NULL);
+
+    vhost.config_ = NULL;
 }
 
 VOID TEST(ReproduceIssue4609, GracefulDisconnectsDoNotIncrementErrors)

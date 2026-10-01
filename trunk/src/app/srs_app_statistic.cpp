@@ -30,6 +30,8 @@ string srs_generate_stat_vid()
 
 SrsStatisticVhost::SrsStatisticVhost()
 {
+    config_ = _srs_config;
+
     id_ = srs_generate_stat_vid();
 
     kbps_ = new SrsKbps();
@@ -41,6 +43,8 @@ SrsStatisticVhost::SrsStatisticVhost()
 SrsStatisticVhost::~SrsStatisticVhost()
 {
     srs_freep(kbps_);
+
+    config_ = NULL;
 }
 
 srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
@@ -48,8 +52,8 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
     srs_error_t err = srs_success;
 
     // dumps the config of vhost.
-    bool hls_enabled = _srs_config->get_hls_enabled(vhost_);
-    bool enabled = _srs_config->get_vhost_enabled(vhost_);
+    bool hls_enabled = config_->get_hls_enabled(vhost_);
+    bool enabled = config_->get_vhost_enabled(vhost_);
 
     obj->set("id", SrsJsonAny::str(id_.c_str()));
     obj->set("name", SrsJsonAny::str(vhost_.c_str()));
@@ -70,7 +74,7 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
 
     hls->set("enabled", SrsJsonAny::boolean(hls_enabled));
     if (hls_enabled) {
-        hls->set("fragment", SrsJsonAny::number(srsu2msi(_srs_config->get_hls_fragment(vhost_)) / 1000.0));
+        hls->set("fragment", SrsJsonAny::number(srsu2msi(config_->get_hls_fragment(vhost_)) / 1000.0));
     }
 
     return err;

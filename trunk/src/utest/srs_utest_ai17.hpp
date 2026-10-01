@@ -582,12 +582,16 @@ public:
     virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
 };
 
-// Mock ISrsAppConfig for testing SrsStatistic::server_id()
+// Mock ISrsAppConfig for testing SrsStatistic::server_id() and SrsStatisticVhost::dumps()
 class MockAppConfigForStatistic : public MockAppConfig
 {
 public:
     std::string server_id_;
     int get_server_id_count_;
+    bool vhost_enabled_;
+    bool hls_enabled_;
+    srs_utime_t hls_fragment_;
+    std::vector<std::string> vhost_calls_;
 
 public:
     MockAppConfigForStatistic();
@@ -595,6 +599,9 @@ public:
 
 public:
     virtual std::string get_server_id();
+    virtual bool get_vhost_enabled(std::string vhost);
+    virtual bool get_hls_enabled(std::string vhost);
+    virtual srs_utime_t get_hls_fragment(std::string vhost);
 };
 
 #endif

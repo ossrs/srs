@@ -31,6 +31,9 @@ class SrsPps;
 
 struct SrsStatisticVhost {
 public:
+    ISrsAppConfig *config_;
+
+public:
     std::string id_;
     std::string vhost_;
     int nb_streams_;
