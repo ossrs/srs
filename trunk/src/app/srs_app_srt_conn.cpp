@@ -531,6 +531,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
 
     // Bridge to RTMP and RTC streaming.
     SrsSrtBridge *bridge = new SrsSrtBridge(app_factory_);
+    bridge->assemble();
 
     bool srt_to_rtmp = config_->get_srt_to_rtmp(req_->vhost_);
     if (srt_to_rtmp && edge) {

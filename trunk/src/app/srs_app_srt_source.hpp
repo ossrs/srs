@@ -213,6 +213,7 @@ class SrsSrtFrameBuilder : public ISrsTsHandler
 public:
     SrsSrtFrameBuilder(ISrsFrameTarget *target);
     virtual ~SrsSrtFrameBuilder();
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     srs_error_t initialize(ISrsRequest *r);

@@ -17,6 +17,7 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_utest_ai32.hpp>
 #ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
 #endif
@@ -514,6 +515,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_BasicFunctionality)
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
 
+    bridge->assemble();
+
     // Test initial state - bridge should be empty
     EXPECT_TRUE(bridge->empty());
 
@@ -525,12 +528,70 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_BasicFunctionality)
     EXPECT_TRUE(bridge->empty());
 }
 
+// The constructor leaves the audio duration printer unassembled: no config created, no tick taken.
+VOID TEST(SrtFrameBuilderTest, ConstructorDoesNotAssembleAudioDurationPrint)
+{
+    MockFrameTarget target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+
+    EXPECT_TRUE(builder->pp_audio_duration_->info_.config_ == NULL);
+    EXPECT_EQ(0, builder->pp_audio_duration_->previous_tick_);
+}
+
+// assemble() assembles the audio duration printer, through the factory and clock injected into it.
+VOID TEST(SrtFrameBuilderTest, AssembleAssemblesAudioDurationPrint)
+{
+    MockKernelFactoryForStageInfo factory;
+    factory.pithy_print_ = 7 * SRS_UTIME_SECONDS;
+    MockClockForPithyPrint clk;
+    clk.now_ = 20 * SRS_UTIME_SECONDS;
+
+    MockFrameTarget target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    builder->pp_audio_duration_->info_.factory_ = &factory;
+    builder->pp_audio_duration_->clk_ = &clk;
+
+    builder->assemble();
+
+    EXPECT_EQ(1, factory.create_config_count_);
+    EXPECT_EQ(7 * SRS_UTIME_SECONDS, builder->pp_audio_duration_->info_.interval_);
+    EXPECT_EQ(20 * SRS_UTIME_SECONDS, builder->pp_audio_duration_->previous_tick_);
+
+    builder->pp_audio_duration_->clk_ = NULL;
+}
+
+// The SRT bridge constructs its frame builder quiescent, and assembles it from its own assemble().
+VOID TEST(StreamBridgeTest, SrsSrtBridge_AssembleAssemblesFrameBuilder)
+{
+    MockKernelFactoryForStageInfo factory;
+    factory.pithy_print_ = 7 * SRS_UTIME_SECONDS;
+    MockClockForPithyPrint clk;
+    clk.now_ = 20 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+    SrsAlonePithyPrint *pprint = bridge->frame_builder_->pp_audio_duration_;
+    EXPECT_TRUE(pprint->info_.config_ == NULL);
+    EXPECT_EQ(0, pprint->previous_tick_);
+
+    pprint->info_.factory_ = &factory;
+    pprint->clk_ = &clk;
+
+    bridge->assemble();
+
+    EXPECT_EQ(1, factory.create_config_count_);
+    EXPECT_EQ(20 * SRS_UTIME_SECONDS, pprint->previous_tick_);
+
+    pprint->clk_ = NULL;
+}
+
 // Test SrsSrtBridge with RTMP target
 VOID TEST(StreamBridgeTest, SrsSrtBridge_WithRtmpTarget)
 {
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -560,6 +621,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_WithRtcTarget)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Create and enable RTC target first
@@ -586,6 +649,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_PacketHandling)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -608,6 +673,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_FrameHandling)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -630,6 +697,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_OnFrameRtmpTarget)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -665,6 +734,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_OnFrameRtpBuilder)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -700,6 +771,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_OnFrameBothTargets)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Enable both RTMP and RTC targets
@@ -894,6 +967,7 @@ VOID TEST(StreamBridgeTest, Bridge_ErrorHandling)
 
     // Test SrsSrtBridge with invalid packet
     SrsUniquePtr<SrsSrtBridge> srt_bridge(new SrsSrtBridge(_srs_app_factory));
+    srt_bridge->assemble();
     HELPER_EXPECT_SUCCESS(srt_bridge->initialize(req.get()));
 
     // Note: Skip NULL packet test as it causes segmentation fault
@@ -938,6 +1012,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_MultipleTargets)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -1010,6 +1086,8 @@ VOID TEST(StreamBridgeTest, Bridge_StateConsistency)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Test empty state consistency
@@ -1058,6 +1136,7 @@ VOID TEST(StreamBridgeTest, Bridge_MemoryManagement)
 
     {
         SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+        bridge->assemble();
         SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
         HELPER_EXPECT_SUCCESS(bridge->initialize(req.get()));

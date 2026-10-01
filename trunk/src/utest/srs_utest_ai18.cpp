@@ -18,6 +18,7 @@ using namespace std;
 #include <srs_app_srt_source.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_st.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
@@ -3907,6 +3908,45 @@ VOID TEST(MpegtsSrtConnTest, AcquirePublishBridgesThroughInjectedFactory)
         EXPECT_TRUE(&factory == bridge->app_factory_);
     }
     EXPECT_EQ(1, srt_source->on_publish_count_);
+
+    conn->config_ = NULL;
+    conn->live_sources_ = NULL;
+    conn->app_factory_ = NULL;
+}
+
+// The SRT bridge that publishing builds is assembled, so its frame builder's audio duration printer
+// has its config and first tick.
+VOID TEST(MpegtsSrtConnTest, AcquirePublishAssemblesBridge)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+    conn->req_->vhost_ = "__defaultVhost__";
+    conn->req_->app_ = "live";
+    conn->req_->stream_ = "livestream";
+
+    MockSrtSource *srt_source = new MockSrtSource();
+    conn->srt_source_ = SrsSharedPtr<SrsSrtSource>(srt_source);
+    HELPER_EXPECT_SUCCESS(srt_source->initialize(conn->req_));
+
+    // The mock config enables SRT to RTMP and disables WebRTC, so only the RTMP bridge is built.
+    MockAppConfig config;
+    MockLiveSourceManager live_sources;
+    MockAppFactoryForRtmpConn factory;
+
+    conn->config_ = &config;
+    conn->live_sources_ = &live_sources;
+    conn->app_factory_ = &factory;
+
+    HELPER_EXPECT_SUCCESS(conn->acquire_publish());
+
+    SrsSrtBridge *bridge = dynamic_cast<SrsSrtBridge *>(srt_source->srt_bridge_);
+    EXPECT_TRUE(NULL != bridge);
+    if (bridge) {
+        SrsAlonePithyPrint *pprint = bridge->frame_builder_->pp_audio_duration_;
+        EXPECT_TRUE(pprint->info_.config_ != NULL);
+        EXPECT_NE(0, pprint->previous_tick_);
+    }
 
     conn->config_ = NULL;
     conn->live_sources_ = NULL;

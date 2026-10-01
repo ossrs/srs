@@ -242,6 +242,11 @@ SrsSrtBridge::~SrsSrtBridge()
     app_factory_ = NULL;
 }
 
+void SrsSrtBridge::assemble()
+{
+    frame_builder_->assemble();
+}
+
 bool SrsSrtBridge::empty()
 {
     return !rtmp_target_.get() && !rtc_target_.get();

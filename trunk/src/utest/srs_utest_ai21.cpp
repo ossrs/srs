@@ -279,6 +279,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsMessageH264Video)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -344,6 +345,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsVideoAvc)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -417,6 +419,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsVideoHevc)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -496,6 +499,7 @@ VOID TEST(SrsSrtFrameBuilderTest, CheckSpsPpsChange)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a TsMessage with valid timestamp
     SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
@@ -543,6 +547,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnH264Frame)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -628,6 +633,7 @@ VOID TEST(SrsSrtFrameBuilderTest, CheckVpsSppsPpsChange)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock TsMessage with valid DTS/PTS (in 90kHz timebase)
     SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
@@ -704,6 +710,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnHevcFrameWithIDR)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -813,6 +820,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsAudioAAC)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -889,6 +897,7 @@ VOID TEST(SrsSrtFrameBuilderTest, CheckAudioShChange)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -965,6 +974,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnAacFrame)
 
     // Create SrsSrtFrameBuilder
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock SrsTsMessage (only used for context, not directly accessed in on_aac_frame)
     SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
