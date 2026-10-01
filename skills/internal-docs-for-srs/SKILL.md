@@ -1,6 +1,6 @@
 ---
 name: internal-docs-for-srs
-description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, Oryx project documentation, website pages, changelog, executable API examples, and next-generation Go server and performance documentation.
+description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, Oryx project documentation, website pages, media streaming standard documents, changelog, executable API examples, and next-generation Go server and performance documentation.
 ---
 
 # SRS Internal Documentation
@@ -22,6 +22,7 @@ Route SRS and Oryx tasks to focused documentation references. The parent skill o
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`, not the current working directory.
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
 - For Oryx documentation stored in its repository, use the project-root-relative `oryx/` path. The path may be a directory or a symlink to the user's preferred checkout. Do not resolve the symlink or search for alternate Oryx roots. If the path is unavailable, ask the user to make the `https://github.com/ossrs/oryx` checkout available there; do not create it automatically.
+- For media streaming standards, use the project-root-relative `website/` path, the `https://github.com/ossrs/srs-docs2` checkout. The path may be a directory or a symlink to the user's preferred checkout. Do not resolve the symlink or search for alternate roots. If the path is unavailable, ask the user to make the checkout available there; do not create it automatically.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
 - Before reporting a routed file as missing, check its fully resolved path directly.
 
@@ -101,6 +102,12 @@ For Oryx documentation, select the smallest relevant document:
 - `references/oryx/2024-05-20-OCR-Video-Streams.md` — Live-stream OCR, configurable AI instructions, and callbacks.
 
 For Oryx, prefer the getting-started guide, FAQ, and repository documentation. Treat dated blogs as scenario-specific guidance. If commands, UI labels, tooling, or behavior differ, prefer documentation matching the user's Oryx version.
+
+### Media Streaming Standards
+
+For media streaming standards and specifications, such as H.264, H.265, AAC, MP3, FLV, MP4, MPEG-TS, HLS, DASH, RTMP, AMF, SRT, RTSP, RTP, WebRTC (ICE, STUN, TURN), SIP, and GB28181, load the matching document before searching the web:
+
+- `website/static/files/` — Local copies of standard documents; list the directory and select the document by its file name.
 
 ### RTMP Go API Examples
 

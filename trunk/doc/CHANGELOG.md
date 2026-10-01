@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-10-01, Merge [#4757](https://github.com/ossrs/srs/pull/4757): Kernel: Fix the wrong picture size of an H.264 SPS with scaling lists. v8.0.53 (#4757)
 * v8.0, 2026-09-25, Caster: Fix the MPEG-TS over UDP caster crash, a use after free of the TS packet that started a PES. v8.0.51
 * v8.0, 2026-09-25, API: Apply raw_api and allow_reload of a reloaded config to the RAW API, instead of the values at startup. v8.0.50
 * v8.0, 2026-09-25, WebRTC: Count each sent RTCP packet once, so the rtcp send rate in the log is no longer doubled. v8.0.49
