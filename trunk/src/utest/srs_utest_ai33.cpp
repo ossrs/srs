@@ -378,6 +378,7 @@ VOID TEST(ReproduceIssue4756, TruncatedScalingListFails)
     HELPER_EXPECT_SUCCESS(format.initialize());
     err = format.avc_demux_sps_rbsp(&rbsp[0], 12);
     EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_AVC_NALU_UEV, srs_error_code(err));
     EXPECT_TRUE(srs_error_desc(err).find("scaling_list") != string::npos) << srs_error_desc(err);
     srs_freep(err);
 }
