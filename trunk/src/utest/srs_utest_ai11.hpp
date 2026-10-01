@@ -477,4 +477,19 @@ public:
     virtual std::string get_rtc_server_black_hole_addr();
 };
 
+// Mock config for SrsRtcPublishStream::initialize, choosing whether the vhost is an edge and counting the reads.
+class MockAppConfigForRtcPublishEdge : public MockAppConfig
+{
+public:
+    bool vhost_is_edge_;
+    int get_vhost_is_edge_count_;
+
+public:
+    MockAppConfigForRtcPublishEdge();
+    virtual ~MockAppConfigForRtcPublishEdge();
+
+public:
+    virtual bool get_vhost_is_edge(std::string vhost);
+};
+
 #endif

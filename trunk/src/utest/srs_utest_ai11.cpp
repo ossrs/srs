@@ -4302,3 +4302,96 @@ VOID TEST(RtcBlackholeTest, SendtoReachesInjectedEndpoint)
     ::close(receiver);
     blackhole.config_ = NULL;
 }
+
+MockAppConfigForRtcPublishEdge::MockAppConfigForRtcPublishEdge()
+{
+    vhost_is_edge_ = false;
+    get_vhost_is_edge_count_ = 0;
+}
+
+MockAppConfigForRtcPublishEdge::~MockAppConfigForRtcPublishEdge()
+{
+}
+
+bool MockAppConfigForRtcPublishEdge::get_vhost_is_edge(std::string vhost)
+{
+    get_vhost_is_edge_count_++;
+    return vhost_is_edge_;
+}
+
+// The injected config marks the vhost as an edge, so WebRTC to RTMP is disabled: no bridge is set and
+// the GOP cache of the live source is kept. The global config has no edge vhost, so a read of the global
+// would create the bridge.
+VOID TEST(RtcPublishStreamTest, InitializeEdgeFromInjectedConfigDisablesRtcToRtmp)
+{
+    srs_error_t err;
+
+    MockAppStatistic mock_stat;
+    MockAppConfigForRtcPublishEdge mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockLiveSourceManager mock_live_sources;
+    MockSrtSourceManager mock_srt_sources;
+    MockRtcPacketReceiver mock_receiver;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockExpire mock_expire;
+
+    SrsContextId cid;
+    cid.set_value("test-publish-stream-edge");
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    publish_stream->stat_ = &mock_stat;
+    publish_stream->config_ = &mock_config;
+    publish_stream->rtc_sources_ = &mock_rtc_sources;
+    publish_stream->live_sources_ = &mock_live_sources;
+    publish_stream->srt_sources_ = &mock_srt_sources;
+
+    mock_config.set_rtc_to_rtmp(true);
+    mock_config.vhost_is_edge_ = true;
+
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    HELPER_EXPECT_SUCCESS(publish_stream->initialize(&mock_request, stream_desc.get()));
+
+    EXPECT_EQ(1, mock_config.get_vhost_is_edge_count_);
+    EXPECT_TRUE(mock_rtc_sources.mock_source_->rtc_bridge_ == NULL);
+    EXPECT_TRUE(mock_live_sources.mock_source_->gop_cache_->enabled());
+}
+
+// The injected config marks the vhost as an origin, so WebRTC to RTMP stays on: the bridge is set and
+// the GOP cache of the live source is disabled, with the edge switch read once from the injected config.
+VOID TEST(RtcPublishStreamTest, InitializeOriginFromInjectedConfigKeepsRtcToRtmp)
+{
+    srs_error_t err;
+
+    MockAppStatistic mock_stat;
+    MockAppConfigForRtcPublishEdge mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockLiveSourceManager mock_live_sources;
+    MockSrtSourceManager mock_srt_sources;
+    MockRtcPacketReceiver mock_receiver;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockExpire mock_expire;
+
+    SrsContextId cid;
+    cid.set_value("test-publish-stream-origin");
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    publish_stream->stat_ = &mock_stat;
+    publish_stream->config_ = &mock_config;
+    publish_stream->rtc_sources_ = &mock_rtc_sources;
+    publish_stream->live_sources_ = &mock_live_sources;
+    publish_stream->srt_sources_ = &mock_srt_sources;
+
+    mock_config.set_rtc_to_rtmp(true);
+    mock_config.vhost_is_edge_ = false;
+
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    HELPER_EXPECT_SUCCESS(publish_stream->initialize(&mock_request, stream_desc.get()));
+
+    EXPECT_EQ(1, mock_config.get_vhost_is_edge_count_);
+    EXPECT_TRUE(mock_rtc_sources.mock_source_->rtc_bridge_ != NULL);
+    EXPECT_FALSE(mock_live_sources.mock_source_->gop_cache_->enabled());
+}

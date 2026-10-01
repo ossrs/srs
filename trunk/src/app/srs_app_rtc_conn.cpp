@@ -1428,7 +1428,7 @@ srs_error_t SrsRtcPublishStream::initialize(ISrsRequest *r, SrsRtcSourceDescript
     // Bridge to RTMP.
     // TODO: Support bridge to RTSP.
     bool rtc_to_rtmp = config_->get_rtc_to_rtmp(req_->vhost_);
-    bool edge = _srs_config->get_vhost_is_edge(req_->vhost_);
+    bool edge = config_->get_vhost_is_edge(req_->vhost_);
 
     if (rtc_to_rtmp && edge) {
         rtc_to_rtmp = false;
