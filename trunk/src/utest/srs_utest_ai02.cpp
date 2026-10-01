@@ -11,8 +11,10 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 VOID TEST(ConfigHttpsStreamTest, CheckHttpsStreamListensDefault)
 {
@@ -2143,4 +2145,40 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
         EXPECT_TRUE(conf.get_stream_caster_enabled(casters.at(0)));
         EXPECT_EQ(8936, conf.get_stream_caster_listen(casters.at(0)));
     }
+}
+
+extern bool _srs_in_docker;
+
+// parse_options() reads in_docker from the config it parsed, not from the global config.
+VOID TEST(ConfigParseOptionsTest, InDockerFromParsedConfig)
+{
+    srs_error_t err;
+
+    string filepath = _srs_tmp_file_prefix + "utest-in-docker.conf";
+    MockFileRemover _mfr(filepath);
+
+    if (true) {
+        SrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open(filepath));
+        string content = _MIN_OK_CONF "in_docker on;";
+        HELPER_ASSERT_SUCCESS(fw.write((void *)content.data(), (int)content.length(), NULL));
+    }
+
+    // The global config leaves in_docker off, so a read of the global is caught.
+    ASSERT_FALSE(_srs_config->get_in_docker());
+
+    SrsConfig conf;
+    // Log to the console through the env, so get_log_tank_file() returns before it changes
+    // its process-wide default for docker.
+    SrsSetEnvConfig(conf, log_tank, "SRS_LOG_TANK", "console");
+
+    bool in_docker = _srs_in_docker;
+    char *argv[] = {(char *)"srs", (char *)"-c", (char *)filepath.c_str()};
+    err = conf.parse_options(3, argv);
+    bool parsed_in_docker = _srs_in_docker;
+    _srs_in_docker = in_docker;
+
+    HELPER_EXPECT_SUCCESS(err);
+    EXPECT_TRUE(conf.get_in_docker());
+    EXPECT_TRUE(parsed_in_docker);
 }

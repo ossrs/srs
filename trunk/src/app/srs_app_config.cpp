@@ -1679,7 +1679,7 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
 
     // Try to load the config if docker detect failed.
     if (!_srs_in_docker) {
-        _srs_in_docker = _srs_config->get_in_docker();
+        _srs_in_docker = get_in_docker();
         if (_srs_in_docker) {
             srs_trace("enable in_docker by config");
         }
