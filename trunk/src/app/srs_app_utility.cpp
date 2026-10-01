@@ -1304,7 +1304,7 @@ bool srs_is_boolean(string str)
     return str == "true" || str == "false";
 }
 
-void srs_api_dump_summaries(SrsJsonObject *obj)
+void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
 {
     SrsRusage *r = srs_get_system_rusage();
     SrsProcSelfStat *u = srs_get_self_proc_stat();
@@ -1370,8 +1370,8 @@ void srs_api_dump_summaries(SrsJsonObject *obj)
     self->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));
     self->set("pid", SrsJsonAny::integer(getpid()));
     self->set("ppid", SrsJsonAny::integer(u->ppid_));
-    self->set("argv", SrsJsonAny::str(_srs_config->argv().c_str()));
-    self->set("cwd", SrsJsonAny::str(_srs_config->cwd().c_str()));
+    self->set("argv", SrsJsonAny::str(config->argv().c_str()));
+    self->set("cwd", SrsJsonAny::str(config->cwd().c_str()));
     self->set("mem_kbyte", SrsJsonAny::integer(r->r_.ru_maxrss));
     self->set("mem_percent", SrsJsonAny::number(self_mem_percent));
     self->set("cpu_percent", SrsJsonAny::number(u->percent_));

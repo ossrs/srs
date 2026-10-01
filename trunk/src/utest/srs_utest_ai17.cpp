@@ -11,6 +11,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_app_dash.hpp>
+#include <srs_app_http_api.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_rtc_api.hpp>
 #include <srs_app_rtc_server.hpp>
@@ -3994,6 +3995,117 @@ VOID TEST(CoWorkersTest, DumpsNullWhenInjectedConfigHasNoVhost)
     EXPECT_EQ(0, config.get_http_api_listens_count_);
 
     workers.config_ = NULL;
+}
+
+MockAppConfigForSummaries::MockAppConfigForSummaries()
+{
+    argv_count_ = 0;
+    cwd_count_ = 0;
+}
+
+MockAppConfigForSummaries::~MockAppConfigForSummaries()
+{
+}
+
+std::string MockAppConfigForSummaries::argv()
+{
+    argv_count_++;
+    return argv_;
+}
+
+std::string MockAppConfigForSummaries::cwd()
+{
+    cwd_count_++;
+    return cwd_;
+}
+
+// Return data.self of a summaries object, or NULL.
+static SrsJsonObject *find_summaries_self(SrsJsonObject *obj)
+{
+    SrsJsonAny *data = obj->get_property("data");
+    if (!data || !data->is_object()) {
+        return NULL;
+    }
+
+    SrsJsonAny *self = data->to_object()->get_property("self");
+    if (!self || !self->is_object()) {
+        return NULL;
+    }
+
+    return self->to_object();
+}
+
+// The command line and work directory in the summaries come from the given config.
+VOID TEST(ApiSummariesTest, DumpsArgvAndCwdFromGivenConfig)
+{
+    MockAppConfigForSummaries config;
+    config.argv_ = "./objs/srs -c conf/summaries.conf";
+    config.cwd_ = "/tmp/srs-summaries";
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    srs_api_dump_summaries(&config, obj.get());
+
+    SrsJsonObject *self = find_summaries_self(obj.get());
+    ASSERT_TRUE(self != NULL);
+
+    SrsJsonAny *prop = self->get_property("argv");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("./objs/srs -c conf/summaries.conf", prop->to_str().c_str());
+
+    prop = self->get_property("cwd");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("/tmp/srs-summaries", prop->to_str().c_str());
+
+    EXPECT_EQ(1, config.argv_count_);
+    EXPECT_EQ(1, config.cwd_count_);
+}
+
+// The summaries API captures the config global in the constructor.
+VOID TEST(ApiSummariesTest, SummariesApiCapturesConfigInConstructor)
+{
+    SrsGoApiSummaries handler;
+    EXPECT_TRUE(handler.config_ != NULL);
+    EXPECT_TRUE(handler.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The summaries API dumps the command line and work directory of its injected config.
+VOID TEST(ApiSummariesTest, SummariesApiDumpsFromInjectedConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForSummaries config;
+    config.argv_ = "./objs/srs -c conf/api.conf";
+    config.cwd_ = "/tmp/srs-api";
+
+    SrsGoApiSummaries handler;
+    handler.config_ = &config;
+
+    MockResponseWriter writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> message(new MockHttpMessageForApiResponse());
+    HELPER_EXPECT_SUCCESS(handler.serve_http(&writer, message.get()));
+
+    string response = string(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    size_t pos = response.find("\r\n\r\n");
+    ASSERT_TRUE(pos != string::npos);
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(response.substr(pos + 4)));
+    ASSERT_TRUE(json.get() && json->is_object());
+
+    SrsJsonObject *self = find_summaries_self(json->to_object());
+    ASSERT_TRUE(self != NULL);
+
+    SrsJsonAny *prop = self->get_property("argv");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("./objs/srs -c conf/api.conf", prop->to_str().c_str());
+
+    prop = self->get_property("cwd");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("/tmp/srs-api", prop->to_str().c_str());
+
+    EXPECT_EQ(1, config.argv_count_);
+    EXPECT_EQ(1, config.cwd_count_);
+
+    handler.config_ = NULL;
 }
 
 VOID TEST(ReproduceIssue4609, GracefulDisconnectsDoNotIncrementErrors)

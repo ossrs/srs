@@ -331,6 +331,8 @@ public:
     virtual SrsConfDirective *get_root() = 0;
     // Get the current work directory.
     virtual std::string cwd() = 0;
+    // Get the cli, the main(argc,argv), program start command.
+    virtual std::string argv() = 0;
 
 public:
     // Global server config

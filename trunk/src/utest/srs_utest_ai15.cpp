@@ -5159,7 +5159,7 @@ VOID TEST(AppUtilityTest, ApiDumpSummaries)
     SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
 
     // Call the function to dump summaries
-    srs_api_dump_summaries(obj.get());
+    srs_api_dump_summaries(_srs_config, obj.get());
 
     // Verify the JSON structure
     // Check that "data" object exists

@@ -3967,6 +3967,16 @@ std::vector<std::string> MockAppConfigForHeartbeat::get_rtc_server_tcp_listens()
     return rtc_server_tcp_listens_;
 }
 
+std::string MockAppConfigForHeartbeat::argv()
+{
+    return argv_;
+}
+
+std::string MockAppConfigForHeartbeat::cwd()
+{
+    return cwd_;
+}
+
 // Mock ISrsAppConfig implementation for SrsCircuitBreaker
 MockAppConfigForCircuitBreaker::MockAppConfigForCircuitBreaker()
 {
@@ -4241,6 +4251,62 @@ VOID TEST(HttpHeartbeatTest, DoHeartbeatReportsIdsFromInjectedStatistic)
     prop = obj->get_property("pid");
     ASSERT_TRUE(prop && prop->is_string());
     EXPECT_STREQ("mock-pid", prop->to_str().c_str());
+
+    heartbeat->config_ = NULL;
+    heartbeat->app_factory_ = NULL;
+    heartbeat->stat_ = NULL;
+}
+
+VOID TEST(HttpHeartbeatTest, DoHeartbeatSummariesFromInjectedConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForHeartbeat config;
+    config.heartbeat_url_ = "http://127.0.0.1:8085/api/v1/servers";
+    config.heartbeat_summaries_ = true;
+    config.argv_ = "./objs/srs -c conf/heartbeat.conf";
+    config.cwd_ = "/tmp/srs-heartbeat";
+
+    MockHttpMessageForHeartbeat *response = new MockHttpMessageForHeartbeat();
+    response->body_content_ = "{\"code\":0}";
+
+    std::string body;
+    MockHttpClientForHeartbeat *client = new MockHttpClientForHeartbeat();
+    client->mock_response_ = response;
+    client->request_body_out_ = &body;
+
+    MockAppFactoryForHeartbeat factory;
+    factory.mock_http_client_ = client;
+
+    MockStatisticForHeartbeat stat;
+
+    SrsUniquePtr<SrsHttpHeartbeat> heartbeat(new SrsHttpHeartbeat());
+    heartbeat->config_ = &config;
+    heartbeat->app_factory_ = &factory;
+    heartbeat->stat_ = &stat;
+
+    // The client and its response are freed by do_heartbeat().
+    HELPER_EXPECT_SUCCESS(heartbeat->do_heartbeat());
+    factory.mock_http_client_ = NULL;
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(body));
+    ASSERT_TRUE(json.get() && json->is_object());
+
+    SrsJsonAny *prop = json->to_object()->get_property("summaries");
+    ASSERT_TRUE(prop && prop->is_object());
+    prop = prop->to_object()->get_property("data");
+    ASSERT_TRUE(prop && prop->is_object());
+    prop = prop->to_object()->get_property("self");
+    ASSERT_TRUE(prop && prop->is_object());
+    SrsJsonObject *self = prop->to_object();
+
+    prop = self->get_property("argv");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("./objs/srs -c conf/heartbeat.conf", prop->to_str().c_str());
+
+    prop = self->get_property("cwd");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("/tmp/srs-heartbeat", prop->to_str().c_str());
 
     heartbeat->config_ = NULL;
     heartbeat->app_factory_ = NULL;

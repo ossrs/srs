@@ -475,6 +475,7 @@ public:
     virtual std::string config() { return ""; }
     virtual SrsConfDirective *get_root() { return NULL; }
     virtual std::string cwd() { return "./"; }
+    virtual std::string argv() { return ""; }
     virtual int get_max_connections() { return 1000; }
     virtual std::string get_pid_file() { return ""; }
     virtual std::string get_server_id() { return ""; }

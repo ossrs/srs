@@ -335,11 +335,13 @@ srs_error_t SrsGoApiVersion::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 SrsGoApiSummaries::SrsGoApiSummaries()
 {
     stat_ = _srs_stat;
+    config_ = _srs_config;
 }
 
 SrsGoApiSummaries::~SrsGoApiSummaries()
 {
     stat_ = NULL;
+    config_ = NULL;
 }
 
 srs_error_t SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
@@ -351,7 +353,7 @@ srs_error_t SrsGoApiSummaries::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
     obj->set("service", SrsJsonAny::str(stat_->service_id().c_str()));
     obj->set("pid", SrsJsonAny::str(stat_->service_pid().c_str()));
 
-    srs_api_dump_summaries(obj.get());
+    srs_api_dump_summaries(config_, obj.get());
 
     return srs_api_response(w, r, obj->dumps());
 }

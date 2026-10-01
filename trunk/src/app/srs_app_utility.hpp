@@ -25,6 +25,7 @@
 class SrsKbps;
 class SrsBuffer;
 class SrsJsonObject;
+class ISrsAppConfig;
 
 // Convert level in string to log level in int.
 // @return the log level defined in SrsLogLevel.
@@ -715,7 +716,7 @@ extern int srs_get_peer_port(int fd);
 extern bool srs_is_boolean(std::string str);
 
 // Dump summaries for /api/v1/summaries.
-extern void srs_api_dump_summaries(SrsJsonObject *obj);
+extern void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj);
 
 // Get ENV variable, which may starts with $.
 //      srs_getenv("EIP") is srs_getenv("$EIP")

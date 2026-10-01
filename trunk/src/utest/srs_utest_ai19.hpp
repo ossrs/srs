@@ -826,6 +826,8 @@ public:
     std::vector<std::string> rtsp_server_listens_;
     std::vector<std::string> rtc_server_listens_;
     std::vector<std::string> rtc_server_tcp_listens_;
+    std::string argv_;
+    std::string cwd_;
 
 public:
     MockAppConfigForHeartbeat();
@@ -850,6 +852,8 @@ public:
     virtual std::vector<std::string> get_rtc_server_listens();
     virtual bool get_rtc_server_tcp_enabled();
     virtual std::vector<std::string> get_rtc_server_tcp_listens();
+    virtual std::string argv();
+    virtual std::string cwd();
 };
 
 // Mock ISrsStatistic for testing the ids SrsHttpHeartbeat reports

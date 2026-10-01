@@ -92,7 +92,7 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
         SrsJsonObject *summaries = SrsJsonAny::object();
         obj->set("summaries", summaries);
 
-        srs_api_dump_summaries(summaries);
+        srs_api_dump_summaries(config_, summaries);
     }
 
     if (config_->get_heartbeat_ports()) {

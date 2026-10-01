@@ -624,4 +624,22 @@ public:
     virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true);
 };
 
+// Mock ISrsAppConfig for the process command line and work directory in the summaries.
+class MockAppConfigForSummaries : public MockAppConfig
+{
+public:
+    std::string argv_;
+    std::string cwd_;
+    int argv_count_;
+    int cwd_count_;
+
+public:
+    MockAppConfigForSummaries();
+    virtual ~MockAppConfigForSummaries();
+
+public:
+    virtual std::string argv();
+    virtual std::string cwd();
+};
+
 #endif
