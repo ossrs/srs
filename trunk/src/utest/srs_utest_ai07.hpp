@@ -113,6 +113,7 @@ public:
     bool hybrid_high_water_level_;
     bool hybrid_critical_water_level_;
     bool hybrid_dying_water_level_;
+    int hybrid_high_water_level_count_;
 
 public:
     MockCircuitBreaker();

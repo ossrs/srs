@@ -3284,6 +3284,8 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDes
     }
 
     last_sender_report_sys_time_ = 0;
+
+    circuit_breaker_ = _srs_circuit_breaker;
 }
 
 SrsRtcRecvTrack::~SrsRtcRecvTrack()
@@ -3291,6 +3293,8 @@ SrsRtcRecvTrack::~SrsRtcRecvTrack()
     srs_freep(rtp_queue_);
     srs_freep(nack_receiver_);
     srs_freep(track_desc_);
+
+    circuit_breaker_ = NULL;
 }
 
 bool SrsRtcRecvTrack::has_ssrc(uint32_t ssrc)
@@ -3445,7 +3449,7 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket **ppkt)
 
         if (srs_rtp_seq_distance(nack_first, nack_last) > 0) {
             // If circuit-breaker is enabled, disable nack.
-            if (_srs_circuit_breaker->hybrid_high_water_level()) {
+            if (circuit_breaker_->hybrid_high_water_level()) {
                 ++_srs_pps_snack4->sugar_;
             } else {
                 srs_trace("NACK: update seq=%u, nack range [%u, %u]", seq, nack_first,

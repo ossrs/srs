@@ -903,6 +903,10 @@ SRS_DECLARE_PROTECTED: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsCircuitBreaker *circuit_breaker_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // By config, whether no copy.
     bool nack_no_copy_;
 

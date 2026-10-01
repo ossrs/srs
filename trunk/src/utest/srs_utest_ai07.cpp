@@ -194,6 +194,7 @@ MockCircuitBreaker::MockCircuitBreaker()
     hybrid_high_water_level_ = false;
     hybrid_critical_water_level_ = false;
     hybrid_dying_water_level_ = false;
+    hybrid_high_water_level_count_ = 0;
 }
 
 MockCircuitBreaker::~MockCircuitBreaker()
@@ -207,6 +208,7 @@ srs_error_t MockCircuitBreaker::initialize()
 
 bool MockCircuitBreaker::hybrid_high_water_level()
 {
+    hybrid_high_water_level_count_++;
     return hybrid_high_water_level_;
 }
 
@@ -5161,3 +5163,85 @@ VOID TEST(SrsRtspSourceTest, ManagerCreatesAssembledSource)
     EXPECT_FALSE(source->stream_is_dead());
 }
 #endif
+
+// The receive track captures the circuit breaker global in the constructor.
+VOID TEST(RtcRecvTrackTest, CapturesCircuitBreakerInConstructor)
+{
+    SrsRtcTrackDescription desc;
+    desc.type_ = "video";
+    desc.ssrc_ = 1000;
+
+    SrsRtcVideoRecvTrack track(NULL, &desc, false);
+    EXPECT_TRUE(track.circuit_breaker_ != NULL);
+    EXPECT_TRUE(track.circuit_breaker_ == _srs_circuit_breaker);
+}
+
+// A sequence gap at high water level is not queued for NACK, by the injected circuit breaker. The global
+// is not at high water level, so a read of the global would queue the gap.
+VOID TEST(RtcRecvTrackTest, OnNackSkipsGapAtHighWaterFromInjectedBreaker)
+{
+    srs_error_t err;
+
+    SrsRtcTrackDescription desc;
+    desc.type_ = "video";
+    desc.ssrc_ = 1000;
+
+    MockCircuitBreaker breaker;
+    breaker.hybrid_high_water_level_ = true;
+
+    SrsRtcVideoRecvTrack track(NULL, &desc, false);
+    track.circuit_breaker_ = &breaker;
+
+    int64_t snack4 = _srs_pps_snack4->sugar_;
+
+    SrsRtpPacket pkt;
+    pkt.header_.set_sequence(100);
+    SrsRtpPacket *ppkt = &pkt;
+    HELPER_EXPECT_SUCCESS(track.on_nack(&ppkt));
+
+    SrsRtpPacket pkt2;
+    pkt2.header_.set_sequence(105);
+    ppkt = &pkt2;
+    HELPER_EXPECT_SUCCESS(track.on_nack(&ppkt));
+
+    EXPECT_EQ(1, breaker.hybrid_high_water_level_count_);
+    EXPECT_TRUE(track.nack_receiver_->find(101) == NULL);
+    EXPECT_TRUE(track.nack_receiver_->find(104) == NULL);
+    EXPECT_EQ(snack4 + 1, _srs_pps_snack4->sugar_);
+
+    track.circuit_breaker_ = NULL;
+}
+
+// A sequence gap below high water level is queued for NACK, with the level read once from the injected
+// circuit breaker.
+VOID TEST(RtcRecvTrackTest, OnNackQueuesGapBelowHighWaterFromInjectedBreaker)
+{
+    srs_error_t err;
+
+    SrsRtcTrackDescription desc;
+    desc.type_ = "video";
+    desc.ssrc_ = 1000;
+
+    MockCircuitBreaker breaker;
+    breaker.hybrid_high_water_level_ = false;
+
+    SrsRtcVideoRecvTrack track(NULL, &desc, false);
+    track.circuit_breaker_ = &breaker;
+
+    SrsRtpPacket pkt;
+    pkt.header_.set_sequence(100);
+    SrsRtpPacket *ppkt = &pkt;
+    HELPER_EXPECT_SUCCESS(track.on_nack(&ppkt));
+
+    SrsRtpPacket pkt2;
+    pkt2.header_.set_sequence(105);
+    ppkt = &pkt2;
+    HELPER_EXPECT_SUCCESS(track.on_nack(&ppkt));
+
+    EXPECT_EQ(1, breaker.hybrid_high_water_level_count_);
+    EXPECT_TRUE(track.nack_receiver_->find(101) != NULL);
+    EXPECT_TRUE(track.nack_receiver_->find(104) != NULL);
+    EXPECT_TRUE(track.nack_receiver_->find(105) == NULL);
+
+    track.circuit_breaker_ = NULL;
+}
