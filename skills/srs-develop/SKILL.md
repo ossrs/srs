@@ -53,6 +53,10 @@ Whenever a task bumps a version or adds a changelog entry, load `references/vers
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
 - Before reporting a routed file as missing, check its fully resolved path directly.
 
+## Git Worktree
+
+Create a git worktree only when the user asks. Put it next to the SRS checkout and name it `srs-<topic>`, for example `~/projects/srs-pr-4757` for `~/projects/srs`, so relative symlinks such as `oryx/` keep working.
+
 ## Git Workflow
 
 Apply these rules whenever a task produces a commit:
