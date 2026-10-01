@@ -139,6 +139,7 @@ public:
 class MockDvrForOriginHub : public ISrsDvr
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     srs_error_t initialize_error_;
     int on_meta_data_count_;

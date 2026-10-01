@@ -858,7 +858,6 @@ SrsOriginHub::SrsOriginHub()
     dash_ = new SrsDash();
 
     dvr_ = new SrsDvr();
-    dvr_->assemble();
 
     encoder_ = new SrsEncoder();
 #ifdef SRS_HDS
@@ -873,6 +872,7 @@ SrsOriginHub::SrsOriginHub()
 
 void SrsOriginHub::assemble()
 {
+    dvr_->assemble();
     config_->subscribe(this);
 }
 

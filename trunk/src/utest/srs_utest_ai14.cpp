@@ -1503,6 +1503,7 @@ srs_utime_t MockDashForOriginHub::cleanup_delay()
 // Mock ISrsDvr implementation
 MockDvrForOriginHub::MockDvrForOriginHub()
 {
+    assemble_count_ = 0;
     initialize_count_ = 0;
     initialize_error_ = srs_success;
     on_meta_data_count_ = 0;
@@ -1512,6 +1513,7 @@ MockDvrForOriginHub::MockDvrForOriginHub()
 
 void MockDvrForOriginHub::assemble()
 {
+    assemble_count_++;
 }
 
 MockDvrForOriginHub::~MockDvrForOriginHub()
@@ -1669,6 +1671,58 @@ srs_error_t MockLiveSourceForOriginHub::on_aggregate(SrsRtmpCommonMessage *msg)
 srs_error_t MockLiveSourceForOriginHub::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata)
 {
     return srs_success;
+}
+
+// The constructor only allocates its children, so the DVR it creates is not yet
+// subscribed to config reload, and a test can replace it before anything subscribes.
+VOID TEST(AppOriginHubTest, ConstructorDoesNotAssembleDvr)
+{
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+
+    SrsDvr *dvr = dynamic_cast<SrsDvr *>(hub->dvr_);
+    ASSERT_TRUE(dvr != NULL);
+
+    std::vector<ISrsReloadHandler *> &subscribes = _srs_config->subscribes_;
+    EXPECT_TRUE(std::find(subscribes.begin(), subscribes.end(), (ISrsReloadHandler *)dvr) == subscribes.end());
+}
+
+// The hub's assemble() assembles the injected DVR, then subscribes the hub itself
+// to the injected config.
+VOID TEST(AppOriginHubTest, AssembleAssemblesDvr)
+{
+    SrsConfig config;
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = &config;
+
+    MockDvrForOriginHub *mock_dvr = new MockDvrForOriginHub();
+    srs_freep(hub->dvr_);
+    hub->dvr_ = mock_dvr;
+
+    hub->assemble();
+
+    EXPECT_EQ(1, mock_dvr->assemble_count_);
+    ASSERT_EQ(1, (int)config.subscribes_.size());
+    EXPECT_EQ((ISrsReloadHandler *)hub.get(), config.subscribes_.at(0));
+}
+
+// The factory is the production construction site: the hub it returns has its DVR
+// subscribed to config reload, before the hub itself.
+VOID TEST(AppOriginHubTest, FactoryCreatesAssembledHub)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsOriginHub> ihub(factory.create_origin_hub());
+
+    SrsOriginHub *hub = dynamic_cast<SrsOriginHub *>(ihub.get());
+    ASSERT_TRUE(hub != NULL);
+    SrsDvr *dvr = dynamic_cast<SrsDvr *>(hub->dvr_);
+    ASSERT_TRUE(dvr != NULL);
+
+    std::vector<ISrsReloadHandler *> &subscribes = _srs_config->subscribes_;
+    std::vector<ISrsReloadHandler *>::iterator dvr_it = std::find(subscribes.begin(), subscribes.end(), (ISrsReloadHandler *)dvr);
+    std::vector<ISrsReloadHandler *>::iterator hub_it = std::find(subscribes.begin(), subscribes.end(), (ISrsReloadHandler *)hub);
+    ASSERT_TRUE(dvr_it != subscribes.end());
+    ASSERT_TRUE(hub_it != subscribes.end());
+    EXPECT_TRUE(dvr_it < hub_it);
 }
 
 // Unit test for SrsOriginHub::initialize typical scenario
