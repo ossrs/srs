@@ -336,6 +336,7 @@ public:
     // Global server config
     virtual int get_max_connections() = 0;
     virtual std::string get_pid_file() = 0;
+    virtual std::string get_server_id() = 0;
     virtual bool empty_ip_ok() = 0;
     virtual bool get_asprocess() = 0;
     virtual srs_utime_t get_grace_start_wait() = 0;

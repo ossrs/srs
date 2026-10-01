@@ -582,4 +582,19 @@ public:
     virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
 };
 
+// Mock ISrsAppConfig for testing SrsStatistic::server_id()
+class MockAppConfigForStatistic : public MockAppConfig
+{
+public:
+    std::string server_id_;
+    int get_server_id_count_;
+
+public:
+    MockAppConfigForStatistic();
+    virtual ~MockAppConfigForStatistic();
+
+public:
+    virtual std::string get_server_id();
+};
+
 #endif

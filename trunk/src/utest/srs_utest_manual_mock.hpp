@@ -477,6 +477,7 @@ public:
     virtual std::string cwd() { return "./"; }
     virtual int get_max_connections() { return 1000; }
     virtual std::string get_pid_file() { return ""; }
+    virtual std::string get_server_id() { return ""; }
     virtual bool empty_ip_ok() { return false; }
     virtual bool get_asprocess() { return asprocess_; }
     virtual srs_utime_t get_grace_start_wait() { return 0; }

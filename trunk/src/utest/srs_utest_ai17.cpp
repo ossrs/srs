@@ -3578,6 +3578,44 @@ VOID TEST(StatisticTest, DumpsMetrics)
     EXPECT_EQ(2, nerrs);
 }
 
+MockAppConfigForStatistic::MockAppConfigForStatistic()
+{
+    get_server_id_count_ = 0;
+}
+
+MockAppConfigForStatistic::~MockAppConfigForStatistic()
+{
+}
+
+std::string MockAppConfigForStatistic::get_server_id()
+{
+    get_server_id_count_++;
+    return server_id_;
+}
+
+// The statistic captures the config global in its constructor.
+VOID TEST(StatisticTest, CapturesConfigInConstructor)
+{
+    SrsStatistic stat;
+    EXPECT_TRUE(stat.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The server id comes from the injected config, read once and then cached.
+VOID TEST(StatisticTest, ServerIdFromInjectedConfig)
+{
+    MockAppConfigForStatistic config;
+    config.server_id_ = "vid-injected";
+
+    SrsStatistic stat;
+    stat.config_ = &config;
+
+    EXPECT_STREQ("vid-injected", stat.server_id().c_str());
+    EXPECT_STREQ("vid-injected", stat.server_id().c_str());
+    EXPECT_EQ(1, config.get_server_id_count_);
+
+    stat.config_ = NULL;
+}
+
 VOID TEST(ReproduceIssue4609, GracefulDisconnectsDoNotIncrementErrors)
 {
     srs_error_t err = srs_success;

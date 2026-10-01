@@ -277,6 +277,8 @@ SrsStatistic *_srs_stat = NULL;
 
 SrsStatistic::SrsStatistic()
 {
+    config_ = _srs_config;
+
     kbps_ = new SrsKbps();
 
     nb_clients_ = 0;
@@ -313,6 +315,8 @@ SrsStatistic::~SrsStatistic()
     rvhosts_.clear();
     streams_.clear();
     rstreams_.clear();
+
+    config_ = NULL;
 }
 
 SrsStatisticVhost *SrsStatistic::find_vhost_by_id(std::string vid)
@@ -593,7 +597,7 @@ void SrsStatistic::kbps_sample()
 std::string SrsStatistic::server_id()
 {
     if (server_id_.empty()) {
-        server_id_ = _srs_config->get_server_id();
+        server_id_ = config_->get_server_id();
     }
     return server_id_;
 }

@@ -18,6 +18,7 @@
 #include <srs_protocol_rtmp_stack.hpp>
 
 class SrsKbps;
+class ISrsAppConfig;
 class SrsWallClock;
 class ISrsRequest;
 class ISrsExpire;
@@ -185,6 +186,8 @@ class SrsStatistic : public ISrsStatistic
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
     // The id to identify the sever.
     std::string server_id_;
     // The id to identify the service.
