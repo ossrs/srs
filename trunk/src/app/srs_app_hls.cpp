@@ -2651,9 +2651,14 @@ SrsHls::SrsHls()
     // TODO: replace NULL by a dummy ISrsHlsController
     controller_ = NULL;
 
-    pprint_ = SrsPithyPrint::create_hls();
+    pprint_ = NULL;
 
     config_ = _srs_config;
+}
+
+void SrsHls::assemble()
+{
+    pprint_ = SrsPithyPrint::create_hls();
 }
 
 SrsHls::~SrsHls()

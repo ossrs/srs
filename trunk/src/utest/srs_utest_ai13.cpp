@@ -13,6 +13,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_file.hpp>
+#include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -1838,6 +1839,30 @@ void MockHlsController::set_on_unpublish_error(srs_error_t err)
     on_unpublish_error_ = srs_error_copy(err);
 }
 
+// The constructor does not create the pithy print, which would enter the HLS
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(HlsTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsHls> hls(new SrsHls());
+
+    EXPECT_TRUE(hls->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the HLS stage.
+VOID TEST(HlsTest, AssembleCreatesHlsPithyPrint)
+{
+    SrsUniquePtr<SrsHls> hls(new SrsHls());
+    srs_freep(hls->pprint_);
+
+    hls->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(hls->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_hls());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
 // Unit test for SrsHls::reload typical scenario
 VOID TEST(AppHlsTest, HlsReloadTypicalScenario)
 {
@@ -1998,6 +2023,7 @@ VOID TEST(HlsTest, OnVideoTypicalScenario)
 
     // Create SrsHls instance
     SrsUniquePtr<SrsHls> hls(new SrsHls());
+    hls->assemble();
     hls->config_ = mock_config.get();
 
     // Create mock request

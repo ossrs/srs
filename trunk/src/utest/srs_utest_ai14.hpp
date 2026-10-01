@@ -94,6 +94,7 @@ public:
 class MockHlsForOriginHub : public ISrsHls
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     srs_error_t initialize_error_;
     srs_utime_t cleanup_delay_;
@@ -103,6 +104,7 @@ public:
 public:
     MockHlsForOriginHub();
     virtual ~MockHlsForOriginHub();
+    virtual void assemble();
     virtual srs_error_t initialize(ISrsOriginHub *h, ISrsRequest *r);
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);

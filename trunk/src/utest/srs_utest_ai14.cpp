@@ -1391,6 +1391,7 @@ VOID TEST(LiveSourceOnAudioImpTest, ReduceSequenceHeaderAndConsumerEnqueue)
 // Mock ISrsHls implementation
 MockHlsForOriginHub::MockHlsForOriginHub()
 {
+    assemble_count_ = 0;
     initialize_count_ = 0;
     initialize_error_ = srs_success;
     cleanup_delay_ = 0;
@@ -1401,6 +1402,11 @@ MockHlsForOriginHub::MockHlsForOriginHub()
 MockHlsForOriginHub::~MockHlsForOriginHub()
 {
     srs_freep(initialize_error_);
+}
+
+void MockHlsForOriginHub::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockHlsForOriginHub::initialize(ISrsOriginHub *h, ISrsRequest *r)
@@ -1782,6 +1788,36 @@ VOID TEST(AppOriginHubTest, FactoryCreatesHubWithAssembledEncoder)
     SrsEncoder *encoder = dynamic_cast<SrsEncoder *>(hub->encoder_);
     ASSERT_TRUE(encoder != NULL);
     EXPECT_TRUE(encoder->pprint_ != NULL);
+}
+
+// The hub's assemble() assembles the injected HLS.
+VOID TEST(AppOriginHubTest, AssembleAssemblesHls)
+{
+    SrsConfig config;
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = &config;
+
+    MockHlsForOriginHub *mock_hls = new MockHlsForOriginHub();
+    srs_freep(hub->hls_);
+    hub->hls_ = mock_hls;
+
+    hub->assemble();
+
+    EXPECT_EQ(1, mock_hls->assemble_count_);
+}
+
+// The factory is the production construction site: the hub it returns has an
+// HLS with its pithy print created.
+VOID TEST(AppOriginHubTest, FactoryCreatesHubWithAssembledHls)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsOriginHub> ihub(factory.create_origin_hub());
+
+    SrsOriginHub *hub = dynamic_cast<SrsOriginHub *>(ihub.get());
+    ASSERT_TRUE(hub != NULL);
+    SrsHls *hls = dynamic_cast<SrsHls *>(hub->hls_);
+    ASSERT_TRUE(hls != NULL);
+    EXPECT_TRUE(hls->pprint_ != NULL);
 }
 
 // Unit test for SrsOriginHub::initialize typical scenario

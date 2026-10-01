@@ -872,6 +872,7 @@ SrsOriginHub::SrsOriginHub()
 
 void SrsOriginHub::assemble()
 {
+    hls_->assemble();
     dvr_->assemble();
     encoder_->assemble();
     config_->subscribe(this);
