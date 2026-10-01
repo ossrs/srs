@@ -1922,6 +1922,7 @@ VOID TEST(ServerTest, PublishMountsAndUnpublishUnmountsThroughInjectedHttpServer
 
 MockSignalManagerForServer::MockSignalManagerForServer()
 {
+    assemble_count_ = 0;
     initialize_count_ = 0;
     start_count_ = 0;
     initialize_error_ = srs_success;
@@ -1932,6 +1933,11 @@ MockSignalManagerForServer::~MockSignalManagerForServer()
 {
     srs_freep(initialize_error_);
     srs_freep(start_error_);
+}
+
+void MockSignalManagerForServer::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockSignalManagerForServer::initialize()
@@ -2022,6 +2028,21 @@ VOID TEST(ServerTest, RegisterSignalFailsWhenInjectedSignalManagerFailsToStart)
     EXPECT_EQ(ERROR_SYSTEM_IO_INVALID, srs_error_code(err));
     srs_freep(err);
     EXPECT_EQ(1, signal_manager->start_count_);
+}
+
+VOID TEST(ServerTest, AssembleAssemblesInjectedSignalManager)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    // Owned by the server, whose destructor frees it.
+    MockSignalManagerForServer *signal_manager = new MockSignalManagerForServer();
+    srs_freep(server->signal_manager_);
+    server->signal_manager_ = signal_manager;
+
+    server->assemble();
+    EXPECT_EQ(1, signal_manager->assemble_count_);
+    EXPECT_EQ(0, signal_manager->initialize_count_);
+    EXPECT_EQ(0, signal_manager->start_count_);
 }
 
 MockIngesterForServer::MockIngesterForServer()

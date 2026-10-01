@@ -12,6 +12,7 @@ using namespace std;
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_utest_ai15.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <unistd.h>
 
@@ -70,6 +71,7 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
 
     // Create SrsSignalManager instance
     SrsUniquePtr<SrsSignalManager> signal_manager(new SrsSignalManager(&mock_handler));
+    signal_manager->assemble();
 
     // Test 1: Initialize the signal manager (creates pipe)
     HELPER_EXPECT_SUCCESS(signal_manager->initialize());
@@ -160,4 +162,47 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
     // Verify the signal was received multiple times (now 3 times total)
     EXPECT_EQ(3, mock_handler.signal_reload_count_);
     EXPECT_EQ(SRS_SIGNAL_RELOAD, mock_handler.last_signo_);
+}
+
+// The constructor only captures the factory and context globals; it creates no coroutine,
+// so a test can inject both before assemble() runs.
+VOID TEST(SignalManagerTest, ConstructorCapturesGlobalsWithoutCoroutine)
+{
+    MockSignalHandlerForManager handler;
+    SrsSignalManager manager(&handler);
+
+    EXPECT_TRUE(manager.app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(manager.context_ == _srs_context);
+    EXPECT_TRUE(manager.trd_ == NULL);
+}
+
+// assemble() creates the signal coroutine through the injected factory, bound to the
+// context id of the injected context.
+VOID TEST(SignalManagerTest, AssembleCreatesCoroutineThroughFactory)
+{
+    MockSignalHandlerForManager handler;
+    SrsSignalManager manager(&handler);
+
+    MockAppFactoryForRtmpConn factory;
+    MockCoroutineForRtmpConn *coroutine = new MockCoroutineForRtmpConn();
+    factory.coroutine_ = coroutine;
+    MockContextForRtmpConn context;
+    context.id_.set_value("signal-cid");
+
+    manager.app_factory_ = &factory;
+    manager.context_ = &context;
+    manager.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("signal", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(factory.coroutine_handler_ == &manager);
+    EXPECT_EQ(0, factory.coroutine_cid_.compare(context.id_));
+    EXPECT_TRUE(manager.trd_ == coroutine);
+
+    // The manager frees trd_ when it holds the mock coroutine; otherwise free it here.
+    if (manager.trd_ != coroutine) {
+        srs_freep(coroutine);
+    }
+    manager.app_factory_ = NULL;
+    manager.context_ = NULL;
 }

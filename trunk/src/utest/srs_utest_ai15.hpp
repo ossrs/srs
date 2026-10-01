@@ -420,6 +420,7 @@ public:
 class MockSignalManagerForServer : public ISrsSignalManager
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     int start_count_;
     // The errors initialize() and start() return, owned by the caller once returned.
@@ -431,6 +432,7 @@ public:
     virtual ~MockSignalManagerForServer();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize();
     virtual srs_error_t start();
 };

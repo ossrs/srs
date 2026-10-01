@@ -259,6 +259,7 @@ SrsServer::SrsServer()
 void SrsServer::assemble()
 {
     ppid_ = ::getppid();
+    signal_manager_->assemble();
     http_server_->assemble();
 }
 
@@ -1735,8 +1736,16 @@ SrsSignalManager::SrsSignalManager(ISrsSignalHandler *s)
 
     server_ = s;
     sig_pipe_[0] = sig_pipe_[1] = -1;
-    trd_ = new SrsSTCoroutine("signal", this, _srs_context->get_id());
+    trd_ = NULL;
     signal_read_stfd_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
+}
+
+void SrsSignalManager::assemble()
+{
+    trd_ = app_factory_->create_coroutine("signal", this, context_->get_id());
 }
 
 SrsSignalManager::~SrsSignalManager()
@@ -1751,6 +1760,9 @@ SrsSignalManager::~SrsSignalManager()
     if (sig_pipe_[1] > 0) {
         ::close(sig_pipe_[1]);
     }
+
+    app_factory_ = NULL;
+    context_ = NULL;
 }
 
 srs_error_t SrsSignalManager::initialize()

@@ -371,6 +371,7 @@ public:
     virtual ~ISrsSignalManager();
 
 public:
+    virtual void assemble() = 0;
     virtual srs_error_t initialize() = 0;
     virtual srs_error_t start() = 0;
 };
@@ -391,8 +392,14 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSignalHandler *server_;
     ISrsCoroutine *trd_;
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
+
 public:
     SrsSignalManager(ISrsSignalHandler *s);
+    virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsSignalManager();
 
 public:
