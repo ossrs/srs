@@ -65,8 +65,6 @@ ISrsGbSession::~ISrsGbSession()
 
 SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
 {
-    media_->assemble();
-
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
@@ -78,9 +76,8 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     reinviting_starttime_ = 0;
 
     ppp_ = new SrsAlonePithyPrint();
-    ppp_->assemble();
-    startime_ = srs_time_now_realtime();
-    connecting_starttime_ = startime_;
+    startime_ = 0;
+    connecting_starttime_ = 0;
     media_connect_timeout_ = 0;
     total_packs_ = 0;
     total_msgs_ = 0;
@@ -91,15 +88,26 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     media_id_ = 0;
     media_msgs_ = 0;
     media_packs_ = 0;
-    media_starttime_ = startime_;
+    media_starttime_ = 0;
     media_recovered_ = 0;
     media_msgs_dropped_ = 0;
     media_reserved_ = 0;
 
-    cid_ = _srs_context->generate_id();
-    _srs_context->set_id(cid_); // Also change current coroutine cid as session's.
-
     config_ = _srs_config;
+    context_ = _srs_context;
+}
+
+void SrsGbSession::assemble()
+{
+    media_->assemble();
+
+    ppp_->assemble();
+    startime_ = srs_time_now_realtime();
+    connecting_starttime_ = startime_;
+    media_starttime_ = startime_;
+
+    cid_ = context_->generate_id();
+    context_->set_id(cid_); // Also change current coroutine cid as session's.
 }
 
 SrsGbSession::~SrsGbSession()
@@ -108,6 +116,7 @@ SrsGbSession::~SrsGbSession()
     srs_freep(ppp_);
 
     config_ = NULL;
+    context_ = NULL;
 }
 
 void SrsGbSession::setup(SrsConfDirective *conf)

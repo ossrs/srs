@@ -147,6 +147,7 @@ class SrsGbSession : public ISrsGbSession
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -205,6 +206,7 @@ public:
 
 public:
     SrsGbSession();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsGbSession();
 
 public:

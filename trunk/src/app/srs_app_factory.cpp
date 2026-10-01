@@ -163,7 +163,9 @@ ISrsGbMediaTcpConn *SrsAppFactory::create_gb_media_tcp_conn()
 
 ISrsGbSession *SrsAppFactory::create_gb_session()
 {
-    return new SrsGbSession();
+    SrsGbSession *session = new SrsGbSession();
+    session->assemble();
+    return session;
 }
 #endif
 

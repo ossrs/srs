@@ -115,6 +115,7 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
 
     // Create session
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     // Inject mock dependencies
     session->config_ = mock_config.get();
@@ -185,6 +186,7 @@ VOID TEST(GB28181Test, SessionOnPsPack)
 
     // Create session
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     // Inject mock dependencies
     session->config_ = mock_config.get();
@@ -360,6 +362,7 @@ VOID TEST(GB28181Test, SessionOnMediaTransport)
 
     // Create session
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     // Inject mock dependencies
     session->config_ = mock_config.get();
@@ -397,6 +400,7 @@ VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
     SrsUniquePtr<MockAppConfigForGbSession> mock_config(new MockAppConfigForGbSession());
     MockGbMuxer *mock_muxer = new MockGbMuxer();
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     session->config_ = mock_config.get();
     session->muxer_ = mock_muxer;
@@ -426,6 +430,7 @@ VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
 VOID TEST(GB28181Test, SessionOnMediaDisconnected)
 {
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
     SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
 
     MockGbMediaTcpConn *current = new MockGbMediaTcpConn();
@@ -458,6 +463,7 @@ VOID TEST(GB28181Test, SessionDriveState)
 
     // Create session
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     // Inject mock dependencies
     session->config_ = mock_config.get();
@@ -886,17 +892,68 @@ VOID TEST(GbMediaTcpConnTest, FactoryCreatesAssembledConn)
     _srs_context->set_id(before);
 }
 
+// The constructor only captures the context global; it neither switches the coroutine's id,
+// nor stamps the start time, nor assembles its media placeholder, so a test can inject first.
+VOID TEST(GbSessionTest, ConstructorCapturesContextWithoutWork)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    EXPECT_STREQ(before.c_str(), _srs_context->get_id().c_str());
+    EXPECT_TRUE(session->context_ == _srs_context);
+    EXPECT_TRUE(session->cid_.empty());
+    EXPECT_EQ(0, session->startime_);
+    EXPECT_TRUE(session->media_->get_id().empty());
+}
+
+// assemble() switches to a new session id through the injected context, and stamps the start times.
+VOID TEST(GbSessionTest, AssembleSetsNewIdThroughContext)
+{
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    MockContextForRtmpConn context;
+    context.id_.set_value("gb-session-cid");
+    session->context_ = &context;
+    session->assemble();
+
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ("gb-session-cid", session->get_id().c_str());
+    EXPECT_GT(session->startime_, 0);
+    EXPECT_EQ(session->startime_, session->connecting_starttime_);
+    EXPECT_EQ(session->startime_, session->media_starttime_);
+
+    session->context_ = NULL;
+}
+
 // The session assembles its placeholder media connection before it switches to its own id,
 // so the placeholder carries the id of the creating coroutine.
-VOID TEST(GbSessionTest, ConstructionAssemblesMediaWithCreatorId)
+VOID TEST(GbSessionTest, AssembleAssemblesMediaWithCreatorId)
 {
     SrsContextId before = _srs_context->get_id();
     SrsContextId cid;
     _srs_context->set_id(cid.set_value("gb-creator-cid"));
 
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
     EXPECT_STREQ("gb-creator-cid", session->media_->get_id().c_str());
     EXPECT_STRNE("gb-creator-cid", session->get_id().c_str());
+    EXPECT_STREQ(session->get_id().c_str(), _srs_context->get_id().c_str());
+
+    _srs_context->set_id(before);
+}
+
+// The factory returns an assembled session, which has switched the creating coroutine to its id.
+VOID TEST(GbSessionTest, FactoryCreatesAssembledSession)
+{
+    SrsContextId before = _srs_context->get_id();
+
+    SrsAppFactory factory;
+    ISrsGbSession *session = factory.create_gb_session();
+    EXPECT_FALSE(session->get_id().empty());
+    EXPECT_STREQ(session->get_id().c_str(), _srs_context->get_id().c_str());
+    srs_freep(session);
 
     _srs_context->set_id(before);
 }
