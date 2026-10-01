@@ -158,7 +158,8 @@ srs_error_t SrsAppCasterFlv::on_tcp_client(ISrsListener *listener, srs_netfd_t s
         srs_warn("empty ip for fd=%d", srs_netfd_fileno(stfd));
     }
 
-    ISrsDynamicHttpConn *conn = new SrsDynamicHttpConn(this, stfd, http_mux_, ip, port);
+    SrsDynamicHttpConn *conn = new SrsDynamicHttpConn(this, stfd, http_mux_, ip, port);
+    conn->assemble();
     conns_.push_back(conn);
 
     if ((err = conn->start()) != srs_success) {
@@ -294,21 +295,31 @@ ISrsDynamicHttpConn::~ISrsDynamicHttpConn()
 
 SrsDynamicHttpConn::SrsDynamicHttpConn(ISrsResourceManager *cm, srs_netfd_t fd, SrsHttpServeMux *m, string cip, int cport)
 {
-    // Create a identify for this client.
-    _srs_context->set_id(_srs_context->generate_id());
-
     manager_ = cm;
+    fd_ = fd;
+    mux_ = m;
     sdk_ = NULL;
-    pprint_ = SrsPithyPrint::create_caster();
-    skt_ = new SrsTcpConnection(fd);
-    SrsHttpConn *conn = new SrsHttpConn(this, skt_, m, cip, cport);
-    conn->assemble();
-    conn_ = conn;
+    pprint_ = NULL;
+    skt_ = NULL;
+    conn_ = NULL;
     ip_ = cip;
     port_ = cport;
 
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
+}
+
+void SrsDynamicHttpConn::assemble()
+{
+    // Create a identify for this client.
+    context_->set_id(context_->generate_id());
+
+    pprint_ = SrsPithyPrint::create_caster();
+    skt_ = new SrsTcpConnection(fd_);
+    SrsHttpConn *conn = new SrsHttpConn(this, skt_, mux_, ip_, port_);
+    conn->assemble();
+    conn_ = conn;
 }
 
 SrsDynamicHttpConn::~SrsDynamicHttpConn()
@@ -320,6 +331,7 @@ SrsDynamicHttpConn::~SrsDynamicHttpConn()
 
     config_ = NULL;
     app_factory_ = NULL;
+    context_ = NULL;
 }
 
 // LCOV_EXCL_START

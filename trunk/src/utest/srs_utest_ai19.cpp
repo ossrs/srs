@@ -1717,12 +1717,49 @@ VOID TEST(HttpRecvThreadTest, AssembleCreatesCoroutineThroughFactory)
     thread.context_ = NULL;
 }
 
-VOID TEST(DynamicHttpConnTest, ConstructionAssemblesHttpConnUnderNewContext)
+// The constructor only stores its arguments and captures the context global; it neither switches
+// the coroutine's id nor creates the HTTP connection, so a test can inject before assemble() runs.
+VOID TEST(DynamicHttpConnTest, ConstructorCapturesContextWithoutWork)
 {
     std::string before = _srs_context->get_id().c_str();
 
     SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
     SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
+
+    EXPECT_STREQ(before.c_str(), _srs_context->get_id().c_str());
+    EXPECT_TRUE(dyn_conn->context_ == _srs_context);
+    EXPECT_TRUE(dyn_conn->mux_ == mux.get());
+    EXPECT_TRUE(dyn_conn->conn_ == NULL);
+    EXPECT_TRUE(dyn_conn->skt_ == NULL);
+    EXPECT_TRUE(dyn_conn->pprint_ == NULL);
+}
+
+// assemble() switches to a new client id through the injected context, then creates the HTTP connection.
+VOID TEST(DynamicHttpConnTest, AssembleSetsNewIdThroughContext)
+{
+    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
+    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
+
+    MockContextForRtmpConn context;
+    context.id_.set_value("dynamic-http-cid");
+    dyn_conn->context_ = &context;
+    dyn_conn->assemble();
+
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ("dynamic-http-cid", context.id_.c_str());
+    EXPECT_TRUE(dyn_conn->conn_ != NULL);
+
+    dyn_conn->context_ = NULL;
+}
+
+VOID TEST(DynamicHttpConnTest, AssembleAssemblesHttpConnUnderNewContext)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
+    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
+    dyn_conn->assemble();
 
     // GOAL: the owner switches to a new client id, then assembles its HTTP connection, so the
     // connection's coroutine runs under that new id and its delta measures the owner's socket.

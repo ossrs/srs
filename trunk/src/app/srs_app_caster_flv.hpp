@@ -145,11 +145,15 @@ class SrsDynamicHttpConn : public ISrsDynamicHttpConn
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // The manager object to manage the connection.
     ISrsResourceManager *manager_;
+    // The client fd and HTTP mux, used by assemble() to create the HTTP connection.
+    srs_netfd_t fd_;
+    SrsHttpServeMux *mux_;
     std::string output_;
     SrsPithyPrint *pprint_;
     ISrsBasicRtmpClient *sdk_;
@@ -164,6 +168,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsDynamicHttpConn(ISrsResourceManager *cm, srs_netfd_t fd, SrsHttpServeMux *m, std::string cip, int port);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsDynamicHttpConn();
 
 public:
