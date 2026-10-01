@@ -201,6 +201,8 @@ ISrsDtlsCertificate::~ISrsDtlsCertificate()
 
 SrsDtlsCertificate::SrsDtlsCertificate()
 {
+    config_ = _srs_config;
+
     ecdsa_mode_ = true;
     dtls_cert_ = NULL;
     dtls_pkey_ = NULL;
@@ -221,6 +223,8 @@ SrsDtlsCertificate::~SrsDtlsCertificate()
     if (dtls_cert_) {
         X509_free(dtls_cert_);
     }
+
+    config_ = NULL;
 }
 // LCOV_EXCL_STOP
 
@@ -233,24 +237,8 @@ srs_error_t SrsDtlsCertificate::initialize()
         return err;
     }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
-    // Initialize SSL library by registering algorithms
-    // The SSL_library_init() and OpenSSL_add_ssl_algorithms() functions were deprecated in OpenSSL 1.1.0 by OPENSSL_init_ssl().
-    // @see https://www.openssl.org/docs/man1.1.0/man3/OpenSSL_add_ssl_algorithms.html
-    // @see https://web.archive.org/web/20150806185102/http://sctp.fh-muenster.de:80/dtls/dtls_udp_echo.c
-    OpenSSL_add_ssl_algorithms();
-#else
-    // As of version 1.1.0 OpenSSL will automatically allocate all resources that it needs so no explicit
-    // initialisation is required. Similarly it will also automatically deinitialise as required.
-    // @see https://www.openssl.org/docs/man1.1.0/man3/OPENSSL_init_ssl.html
-    // OPENSSL_init_ssl();
-#endif
-
-    // Initialize SRTP first.
-    srs_assert(srtp_init() == 0);
-
     // Whether use ECDSA certificate.
-    ecdsa_mode_ = _srs_config->get_rtc_server_ecdsa();
+    ecdsa_mode_ = config_->get_rtc_server_ecdsa();
 
     // Create keys by RSA or ECDSA.
     dtls_pkey_ = EVP_PKEY_new();

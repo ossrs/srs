@@ -534,6 +534,7 @@ public:
     }
     virtual int get_rtc_server_reuseport() { return 1; }
     virtual bool get_rtc_server_encrypt() { return false; }
+    virtual bool get_rtc_server_ecdsa() { return true; }
     virtual bool get_api_as_candidates() { return api_as_candidates_; }
     virtual bool get_resolve_api_domain() { return resolve_api_domain_; }
     virtual bool get_keep_api_domain() { return keep_api_domain_; }

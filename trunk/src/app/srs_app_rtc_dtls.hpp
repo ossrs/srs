@@ -18,6 +18,7 @@
 #include <srs_app_st.hpp>
 
 class ISrsRequest;
+class ISrsAppConfig;
 
 // The interface for DTLS certificate.
 class ISrsDtlsCertificate
@@ -36,6 +37,8 @@ class SrsDtlsCertificate : public ISrsDtlsCertificate
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
     std::string fingerprint_;
     bool ecdsa_mode_;
     X509 *dtls_cert_;

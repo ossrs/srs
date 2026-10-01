@@ -4070,3 +4070,101 @@ VOID TEST(SrsRtcPublishStreamTest, OnTwccSuccess)
     // Test duplicate sequence number should fail
     HELPER_EXPECT_FAILED(publish_stream->on_twcc(12345));
 }
+
+MockAppConfigForDtlsCertificate::MockAppConfigForDtlsCertificate()
+{
+    ecdsa_ = true;
+    get_rtc_server_ecdsa_count_ = 0;
+}
+
+MockAppConfigForDtlsCertificate::~MockAppConfigForDtlsCertificate()
+{
+}
+
+bool MockAppConfigForDtlsCertificate::get_rtc_server_ecdsa()
+{
+    get_rtc_server_ecdsa_count_++;
+    return ecdsa_;
+}
+
+// The certificate captures the config global in the constructor.
+VOID TEST(DtlsCertificateTest, CapturesConfigInConstructor)
+{
+    SrsDtlsCertificate cert;
+    EXPECT_TRUE(cert.config_ != NULL);
+    EXPECT_TRUE(cert.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The injected config selects an ECDSA key, and the certificate and its fingerprint are built.
+VOID TEST(DtlsCertificateTest, InitializeEcdsaFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    config.ecdsa_ = true;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_ecdsa_count_);
+    EXPECT_TRUE(cert.is_ecdsa());
+    EXPECT_TRUE(cert.get_ecdsa_key() != NULL);
+    EXPECT_TRUE(cert.get_cert() != NULL);
+    ASSERT_TRUE(cert.get_public_key() != NULL);
+    EXPECT_EQ(EVP_PKEY_EC, EVP_PKEY_id(cert.get_public_key()));
+
+    // A SHA-256 fingerprint is 32 hex pairs joined by colons.
+    EXPECT_EQ(95, (int)cert.get_fingerprint().size());
+
+    cert.config_ = NULL;
+}
+
+// The injected config turns ECDSA off, so the key is RSA. The global config
+// defaults to ECDSA, so reading it instead would be caught here.
+VOID TEST(DtlsCertificateTest, InitializeRsaFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    config.ecdsa_ = false;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_ecdsa_count_);
+    EXPECT_FALSE(cert.is_ecdsa());
+    EXPECT_TRUE(cert.get_ecdsa_key() == NULL);
+    EXPECT_TRUE(cert.get_cert() != NULL);
+    ASSERT_TRUE(cert.get_public_key() != NULL);
+    EXPECT_EQ(EVP_PKEY_RSA, EVP_PKEY_id(cert.get_public_key()));
+    EXPECT_EQ(95, (int)cert.get_fingerprint().size());
+
+    cert.config_ = NULL;
+}
+
+// A second initialize keeps the first certificate and does not read the config again.
+VOID TEST(DtlsCertificateTest, InitializeOnceReadsConfigOnce)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    config.ecdsa_ = false;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    X509 *first = cert.get_cert();
+    string fingerprint = cert.get_fingerprint();
+
+    config.ecdsa_ = true;
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_ecdsa_count_);
+    EXPECT_FALSE(cert.is_ecdsa());
+    EXPECT_TRUE(cert.get_cert() == first);
+    EXPECT_STREQ(fingerprint.c_str(), cert.get_fingerprint().c_str());
+
+    cert.config_ = NULL;
+}

@@ -444,4 +444,19 @@ public:
     void reset();
 };
 
+// Mock ISrsAppConfig for testing SrsDtlsCertificate::initialize()
+class MockAppConfigForDtlsCertificate : public MockAppConfig
+{
+public:
+    bool ecdsa_;
+    int get_rtc_server_ecdsa_count_;
+
+public:
+    MockAppConfigForDtlsCertificate();
+    virtual ~MockAppConfigForDtlsCertificate();
+
+public:
+    virtual bool get_rtc_server_ecdsa();
+};
+
 #endif

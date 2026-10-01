@@ -126,6 +126,23 @@ srs_error_t srs_global_initialize()
     _srs_conn_manager = new SrsResourceManager("RTC", true);
     _srs_conn_manager->assemble();
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
+    // Initialize SSL library by registering algorithms
+    // The SSL_library_init() and OpenSSL_add_ssl_algorithms() functions were deprecated in OpenSSL 1.1.0 by OPENSSL_init_ssl().
+    // @see https://www.openssl.org/docs/man1.1.0/man3/OpenSSL_add_ssl_algorithms.html
+    // @see https://web.archive.org/web/20150806185102/http://sctp.fh-muenster.de:80/dtls/dtls_udp_echo.c
+    OpenSSL_add_ssl_algorithms();
+#else
+    // As of version 1.1.0 OpenSSL will automatically allocate all resources that it needs so no explicit
+    // initialisation is required. Similarly it will also automatically deinitialise as required.
+    // @see https://www.openssl.org/docs/man1.1.0/man3/OPENSSL_init_ssl.html
+    // OPENSSL_init_ssl();
+#endif
+
+    // Initialize SRTP once per process, before the DTLS certificate initializes; a second srtp_init() fails.
+    srs_assert(srtp_init() == 0);
+
 #ifdef SRS_RTSP
     _srs_rtsp_sources = new SrsRtspSourceManager();
     _srs_rtsp_sources->assemble();
