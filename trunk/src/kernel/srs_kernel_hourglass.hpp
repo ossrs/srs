@@ -191,9 +191,11 @@ class SrsClockWallMonitor : public ISrsFastTimerHandler
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsTime *time_;
+    ISrsKernelFactory *factory_;
 
 public:
     SrsClockWallMonitor();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsClockWallMonitor();
     // interface ISrsFastTimerHandler
 // clang-format off

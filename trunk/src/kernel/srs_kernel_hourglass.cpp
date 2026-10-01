@@ -255,12 +255,20 @@ srs_error_t SrsFastTimer::cycle()
 
 SrsClockWallMonitor::SrsClockWallMonitor()
 {
-    time_ = _srs_kernel_factory->create_time();
+    time_ = NULL;
+    factory_ = _srs_kernel_factory;
+}
+
+void SrsClockWallMonitor::assemble()
+{
+    time_ = factory_->create_time();
 }
 
 SrsClockWallMonitor::~SrsClockWallMonitor()
 {
     srs_freep(time_);
+
+    factory_ = NULL;
 }
 
 srs_error_t SrsClockWallMonitor::on_timer(srs_utime_t interval)
@@ -340,7 +348,9 @@ srs_error_t SrsSharedTimer::initialize()
     timer100ms_ = factory_->create_fast_timer("shared", 100 * SRS_UTIME_MILLISECONDS);
     timer1s_ = factory_->create_fast_timer("shared", 1 * SRS_UTIME_SECONDS);
     timer5s_ = factory_->create_fast_timer("shared", 5 * SRS_UTIME_SECONDS);
-    clock_monitor_ = new SrsClockWallMonitor();
+    SrsClockWallMonitor *clock_monitor = new SrsClockWallMonitor();
+    clock_monitor->assemble();
+    clock_monitor_ = clock_monitor;
 
     // Start all timers
     if ((err = timer20ms_->start()) != srs_success) {

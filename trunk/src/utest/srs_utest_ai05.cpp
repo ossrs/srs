@@ -4594,10 +4594,71 @@ VOID TEST(KernelHourglassTest, GlobalSharedTimerCreatesAssembledTimers)
     EXPECT_TRUE(std::find(handlers.begin(), handlers.end(), _srs_shared_timer->clock_monitor_) != handlers.end());
 }
 
+// The constructor only captures the kernel factory global; it creates no time object, so a
+// test can inject the factory before assemble() runs.
+VOID TEST(KernelHourglassTest, ClockWallMonitorConstructorCapturesFactoryWithoutTime)
+{
+    SrsClockWallMonitor monitor;
+
+    EXPECT_TRUE(monitor.factory_ == _srs_kernel_factory);
+    EXPECT_TRUE(monitor.time_ == NULL);
+}
+
+// assemble() creates the time object through the injected factory; the monitor owns it.
+VOID TEST(KernelHourglassTest, ClockWallMonitorAssembleCreatesTimeThroughFactory)
+{
+    SrsClockWallMonitor monitor;
+
+    MockKernelFactoryForFastTimer factory;
+    ISrsTime *time = new SrsTrueTime();
+    factory.time_ = time;
+
+    monitor.factory_ = &factory;
+    monitor.assemble();
+
+    EXPECT_EQ(1, factory.create_time_count_);
+    EXPECT_TRUE(monitor.time_ == time);
+
+    // The monitor frees time_ when it holds the created time; otherwise free it here.
+    if (monitor.time_ != time) {
+        srs_freep(time);
+    }
+    monitor.factory_ = NULL;
+}
+
+// The shared timer assembles the clock monitor it creates, so the monitor holds its time object.
+VOID TEST(KernelHourglassTest, SharedTimerInitializeAssemblesClockMonitor)
+{
+    srs_error_t err = srs_success;
+
+    MockFastTimerForSharedTimer t20ms, t100ms, t1s, t5s;
+    MockKernelFactoryForFastTimer factory;
+    factory.fast_timers_.push_back(&t20ms);
+    factory.fast_timers_.push_back(&t100ms);
+    factory.fast_timers_.push_back(&t1s);
+    factory.fast_timers_.push_back(&t5s);
+
+    SrsSharedTimer timer;
+    timer.factory_ = &factory;
+    HELPER_EXPECT_SUCCESS(timer.initialize());
+
+    SrsClockWallMonitor *monitor = dynamic_cast<SrsClockWallMonitor *>(timer.clock_monitor_);
+    EXPECT_TRUE(monitor != NULL);
+    EXPECT_TRUE(monitor && monitor->time_ != NULL);
+
+    // The timers are borrowed, so the destructor must not free them.
+    timer.timer20ms_ = NULL;
+    timer.timer100ms_ = NULL;
+    timer.timer1s_ = NULL;
+    timer.timer5s_ = NULL;
+    timer.factory_ = NULL;
+}
+
 VOID TEST(KernelHourglassTest, SrsClockWallMonitor_destructor)
 {
     // Test SrsClockWallMonitor::~SrsClockWallMonitor destructor
     SrsClockWallMonitor *monitor = new SrsClockWallMonitor();
+    monitor->assemble();
 
     // Test destructor - should clean up internal time object
     delete monitor;
