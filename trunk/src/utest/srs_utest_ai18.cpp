@@ -139,10 +139,12 @@ MockUdpMuxHandler::MockUdpMuxHandler()
     last_peer_port_ = 0;
     last_packet_data_ = "";
     last_packet_size_ = 0;
+    on_udp_packet_error_ = srs_success;
 }
 
 MockUdpMuxHandler::~MockUdpMuxHandler()
 {
+    srs_freep(on_udp_packet_error_);
 }
 
 srs_error_t MockUdpMuxHandler::on_udp_packet(ISrsUdpMuxSocket *skt)
@@ -153,7 +155,7 @@ srs_error_t MockUdpMuxHandler::on_udp_packet(ISrsUdpMuxSocket *skt)
     last_peer_port_ = skt->get_peer_port();
     last_packet_data_ = string(skt->data(), skt->size());
     last_packet_size_ = skt->size();
-    return srs_success;
+    return srs_error_copy(on_udp_packet_error_);
 }
 
 VOID TEST(UdpListenerTest, ListenAndReceivePacket)
@@ -413,6 +415,94 @@ VOID TEST(UdpMuxListenerTest, ReceivePacketFromClient)
     EXPECT_EQ(mock_handler->packet_count_, 2);
     EXPECT_EQ(mock_handler->last_packet_size_, (int)test_data2.size());
     EXPECT_EQ(mock_handler->last_packet_data_, test_data2);
+}
+
+// The constructor only captures the context global; the listener's context id is
+// generated in assemble(), so a test can inject the context first.
+VOID TEST(UdpMuxListenerTest, ConstructorCapturesContextWithoutGeneratingId)
+{
+    MockUdpMuxHandler handler;
+    SrsUdpMuxListener listener(&handler, "127.0.0.1", 0);
+
+    EXPECT_TRUE(listener.factory_ == _srs_app_factory);
+    EXPECT_TRUE(listener.context_ == _srs_context);
+    EXPECT_TRUE(listener.cid_.empty());
+}
+
+// assemble() generates the listener's context id through the injected context.
+VOID TEST(UdpMuxListenerTest, AssembleGeneratesIdThroughContext)
+{
+    MockUdpMuxHandler handler;
+    SrsUdpMuxListener listener(&handler, "127.0.0.1", 0);
+
+    MockContextForRtmpConn context;
+    context.id_.set_value("udp-mux-cid");
+    listener.context_ = &context;
+    listener.assemble();
+
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(0, listener.cid_.compare(context.id_));
+
+    listener.context_ = NULL;
+}
+
+// The production factory returns an assembled listener, with its context id generated.
+VOID TEST(UdpMuxListenerTest, FactoryCreatesAssembledListener)
+{
+    MockUdpMuxHandler handler;
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsUdpMuxListener> listener(factory.create_udp_mux_listener(&handler, "127.0.0.1", 0));
+
+    SrsUdpMuxListener *impl = dynamic_cast<SrsUdpMuxListener *>(listener.get());
+    ASSERT_TRUE(impl != NULL);
+    EXPECT_FALSE(impl->cid_.empty());
+}
+
+// When the handler fails a packet, cycle() restores the listener's context id through
+// the injected context before it logs the error.
+VOID TEST(UdpMuxListenerTest, CycleRestoresIdThroughContextOnPacketError)
+{
+    srs_error_t err;
+
+    SrsRand rand;
+    int port = rand.integer(30000, 60000);
+
+    MockUdpMuxHandler handler;
+    handler.on_udp_packet_error_ = srs_error_new(ERROR_RTC_UDP, "mock packet error");
+
+    // Declared before the listener, so both outlive the listener's coroutine.
+    MockContextForRtmpConn context;
+    context.id_.set_value("udp-mux-cid");
+
+    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(&handler, "127.0.0.1", port));
+    listener->context_ = &context;
+    listener->assemble();
+    HELPER_EXPECT_SUCCESS(listener->listen());
+
+    // Yield to allow the listener coroutine to start.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    srs_netfd_t client_fd = NULL;
+    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", 0, &client_fd));
+    SrsUniquePtr<srs_netfd_t> client_fd_ptr(&client_fd, srs_close_stfd_ptr);
+
+    sockaddr_in dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(port);
+    dest_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    string data = "bad packet";
+    int sent = srs_sendto(client_fd, (void *)data.c_str(), data.size(),
+                          (sockaddr *)&dest_addr, sizeof(dest_addr), SRS_UTIME_NO_TIMEOUT);
+    EXPECT_EQ(sent, (int)data.size());
+
+    // Yield to allow the listener coroutine to handle the packet.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_EQ(1, handler.packet_count_);
+    EXPECT_GE(context.set_id_count_, 1);
+    EXPECT_EQ(0, context.id_.compare(listener->cid_));
 }
 
 VOID TEST(UdpMuxSocketTest, SendtoReplyToClient)

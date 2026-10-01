@@ -79,6 +79,8 @@ public:
     int last_peer_port_;
     std::string last_packet_data_;
     int last_packet_size_;
+    // The error returned for every packet, copied per call and owned by the mock.
+    srs_error_t on_udp_packet_error_;
 
 public:
     MockUdpMuxHandler();

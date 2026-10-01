@@ -314,6 +314,7 @@ class SrsUdpMuxListener : public ISrsUdpMuxListener, public ISrsCoroutineHandler
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *factory_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -334,6 +335,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsUdpMuxListener(ISrsUdpMuxHandler *h, std::string i, int p);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsUdpMuxListener();
 
 public:
