@@ -54,6 +54,9 @@ public:
 
 struct SrsStatisticStream {
 public:
+    ISrsClock *clk_;
+
+public:
     std::string id_;
     SrsStatisticVhost *vhost_;
     std::string app_;
@@ -103,6 +106,7 @@ public:
 
 public:
     SrsStatisticStream();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsStatisticStream();
 
 public:

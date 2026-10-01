@@ -2957,6 +2957,7 @@ VOID TEST(HttpApiTest, StreamsApiGetSpecificStream)
 
     // Create a real stream object to return from find_stream
     SrsStatisticStream test_stream;
+    test_stream.assemble();
     test_stream.id_ = "test_stream_id_123";
     test_stream.stream_ = "livestream";
     test_stream.app_ = "live";
@@ -3144,6 +3145,7 @@ VOID TEST(HTTPApiTest, ClientsApiGetSpecificClient)
     test_vhost.id_ = "__defaultVhost__";
 
     SrsStatisticStream test_stream;
+    test_stream.assemble();
     test_stream.id_ = "livestream";
     test_stream.vhost_ = &test_vhost;
 

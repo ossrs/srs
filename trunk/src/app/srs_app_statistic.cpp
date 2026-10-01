@@ -82,10 +82,12 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
 
 SrsStatisticStream::SrsStatisticStream()
 {
+    clk_ = _srs_clock;
+
     id_ = srs_generate_stat_vid();
     vhost_ = NULL;
     active_ = false;
-    create_ = srs_time_now_cached();
+    create_ = 0;
 
     has_video_ = false;
     vcodec_ = SrsVideoCodecIdReserved;
@@ -107,11 +109,18 @@ SrsStatisticStream::SrsStatisticStream()
     audio_frames_ = new SrsPps();
 }
 
+void SrsStatisticStream::assemble()
+{
+    create_ = clk_->now();
+}
+
 SrsStatisticStream::~SrsStatisticStream()
 {
     srs_freep(kbps_);
     srs_freep(video_frames_);
     srs_freep(audio_frames_);
+
+    clk_ = NULL;
 }
 
 srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
@@ -124,8 +133,8 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
     obj->set("app", SrsJsonAny::str(app_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(tcUrl_.c_str()));
     obj->set("url", SrsJsonAny::str(url_.c_str()));
-    obj->set("live_ms", SrsJsonAny::integer(srsu2ms(srs_time_now_cached())));
-    obj->set("alive", SrsJsonAny::number(srsu2ms(srs_time_now_cached() - create_) / 1000.0));
+    obj->set("live_ms", SrsJsonAny::integer(srsu2ms(clk_->now())));
+    obj->set("alive", SrsJsonAny::number(srsu2ms(clk_->now() - create_) / 1000.0));
     obj->set("clients", SrsJsonAny::integer(nb_clients_));
     obj->set("frames", SrsJsonAny::integer(video_frames_->sugar_ + audio_frames_->sugar_));
     obj->set("audio_frames", SrsJsonAny::integer(audio_frames_->sugar_));
@@ -757,6 +766,7 @@ SrsStatisticStream *SrsStatistic::create_stream(SrsStatisticVhost *vhost, ISrsRe
     // create stream if not exists.
     if (rstreams_.find(url) == rstreams_.end()) {
         stream = new SrsStatisticStream();
+        stream->assemble();
         stream->vhost_ = vhost;
         stream->stream_ = req->stream_;
         stream->app_ = req->app_;
