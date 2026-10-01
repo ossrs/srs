@@ -93,8 +93,8 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
 SrsStatisticStream::SrsStatisticStream()
 {
     clk_ = _srs_clock;
+    rand_ = new SrsRand();
 
-    id_ = srs_generate_stat_vid();
     vhost_ = NULL;
     active_ = false;
     create_ = 0;
@@ -121,6 +121,7 @@ SrsStatisticStream::SrsStatisticStream()
 
 void SrsStatisticStream::assemble()
 {
+    id_ = srs_generate_stat_vid(rand_);
     create_ = clk_->now();
 }
 
@@ -129,6 +130,7 @@ SrsStatisticStream::~SrsStatisticStream()
     srs_freep(kbps_);
     srs_freep(video_frames_);
     srs_freep(audio_frames_);
+    srs_freep(rand_);
 
     clk_ = NULL;
 }

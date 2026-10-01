@@ -58,6 +58,7 @@ public:
 struct SrsStatisticStream {
 public:
     ISrsClock *clk_;
+    ISrsRand *rand_;
 
 public:
     std::string id_;
