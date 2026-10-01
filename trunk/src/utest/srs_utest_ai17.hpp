@@ -604,4 +604,24 @@ public:
     virtual srs_utime_t get_hls_fragment(std::string vhost);
 };
 
+// Mock ISrsAppConfig for testing SrsCoWorkers::dumps()
+class MockAppConfigForCoWorkers : public MockAppConfig
+{
+public:
+    std::vector<std::string> listens_;
+    std::vector<std::string> http_api_listens_;
+    int get_listens_count_;
+    int get_http_api_listens_count_;
+    std::vector<std::string> get_vhost_calls_;
+
+public:
+    MockAppConfigForCoWorkers();
+    virtual ~MockAppConfigForCoWorkers();
+
+public:
+    virtual std::vector<std::string> get_listens();
+    virtual std::vector<std::string> get_http_api_listens();
+    virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true);
+};
+
 #endif

@@ -15,6 +15,7 @@
 class SrsJsonAny;
 class ISrsRequest;
 class SrsLiveSource;
+class ISrsAppConfig;
 
 // For origin cluster.
 class SrsCoWorkers
@@ -25,6 +26,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
     std::map<std::string, ISrsRequest *> streams_;
 
 // clang-format off

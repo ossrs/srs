@@ -9,6 +9,7 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_coworkers.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_rtc_api.hpp>
@@ -3866,6 +3867,133 @@ VOID TEST(StatisticTest, OnClientCreatesAssembledStream)
     ASSERT_TRUE(client->stream_ != NULL);
     EXPECT_TRUE(client->stream_->clk_ == _srs_clock);
     EXPECT_TRUE(client->stream_->create_ > 0);
+}
+
+MockAppConfigForCoWorkers::MockAppConfigForCoWorkers()
+{
+    get_listens_count_ = 0;
+    get_http_api_listens_count_ = 0;
+}
+
+MockAppConfigForCoWorkers::~MockAppConfigForCoWorkers()
+{
+}
+
+std::vector<std::string> MockAppConfigForCoWorkers::get_listens()
+{
+    get_listens_count_++;
+    return listens_;
+}
+
+std::vector<std::string> MockAppConfigForCoWorkers::get_http_api_listens()
+{
+    get_http_api_listens_count_++;
+    return http_api_listens_;
+}
+
+SrsConfDirective *MockAppConfigForCoWorkers::get_vhost(std::string vhost, bool try_default_vhost)
+{
+    get_vhost_calls_.push_back(vhost);
+    return default_vhost_;
+}
+
+// The coworkers capture the config global in the constructor.
+VOID TEST(CoWorkersTest, CapturesConfigInConstructor)
+{
+    SrsCoWorkers workers;
+    EXPECT_TRUE(workers.config_ != NULL);
+    EXPECT_TRUE(workers.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The service ip, port, vhost and API endpoint come from the injected config.
+VOID TEST(CoWorkersTest, DumpsFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForCoWorkers config;
+    config.listens_.push_back("192.168.1.5:19350");
+    config.http_api_listens_.push_back("11985");
+    config.default_vhost_ = new SrsConfDirective();
+    config.default_vhost_->name_ = "vhost";
+    config.default_vhost_->args_.push_back("__defaultVhost__");
+
+    SrsCoWorkers workers;
+    workers.config_ = &config;
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(workers.on_publish(&req));
+
+    SrsUniquePtr<SrsJsonAny> data(workers.dumps("__defaultVhost__", "10.0.0.1:1985", "live", "livestream"));
+    ASSERT_TRUE(data->is_object());
+    SrsJsonObject *obj = data->to_object();
+    EXPECT_STREQ("192.168.1.5", obj->get_property("ip")->to_str().c_str());
+    EXPECT_EQ(19350, obj->get_property("port")->to_integer());
+    EXPECT_STREQ("__defaultVhost__", obj->get_property("vhost")->to_str().c_str());
+    EXPECT_STREQ("192.168.1.5:11985", obj->get_property("api")->to_str().c_str());
+
+    ASSERT_EQ(1, (int)config.get_vhost_calls_.size());
+    EXPECT_STREQ("__defaultVhost__", config.get_vhost_calls_.at(0).c_str());
+    EXPECT_EQ(1, config.get_listens_count_);
+    EXPECT_EQ(1, config.get_http_api_listens_count_);
+
+    workers.config_ = NULL;
+}
+
+// A port-only listen takes the service ip from the coworker host, and a stream
+// published on the default vhost is found through the vhost the injected config resolves.
+VOID TEST(CoWorkersTest, DumpsCoworkerHostForPortOnlyListen)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForCoWorkers config;
+    config.listens_.push_back("19350");
+    config.http_api_listens_.push_back("127.0.0.1:11985");
+    config.default_vhost_ = new SrsConfDirective();
+    config.default_vhost_->name_ = "vhost";
+    config.default_vhost_->args_.push_back("__defaultVhost__");
+
+    SrsCoWorkers workers;
+    workers.config_ = &config;
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(workers.on_publish(&req));
+
+    SrsUniquePtr<SrsJsonAny> data(workers.dumps("unknown.vhost", "10.0.0.1:1985", "live", "livestream"));
+    ASSERT_TRUE(data->is_object());
+    SrsJsonObject *obj = data->to_object();
+    EXPECT_STREQ("10.0.0.1", obj->get_property("ip")->to_str().c_str());
+    EXPECT_EQ(19350, obj->get_property("port")->to_integer());
+    EXPECT_STREQ("127.0.0.1:11985", obj->get_property("api")->to_str().c_str());
+
+    ASSERT_EQ(1, (int)config.get_vhost_calls_.size());
+    EXPECT_STREQ("unknown.vhost", config.get_vhost_calls_.at(0).c_str());
+
+    workers.config_ = NULL;
+}
+
+// When the injected config has no such vhost, dumps() returns null without reading the listens.
+VOID TEST(CoWorkersTest, DumpsNullWhenInjectedConfigHasNoVhost)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForCoWorkers config;
+    config.listens_.push_back("19350");
+    config.http_api_listens_.push_back("11985");
+
+    SrsCoWorkers workers;
+    workers.config_ = &config;
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(workers.on_publish(&req));
+
+    SrsUniquePtr<SrsJsonAny> data(workers.dumps("__defaultVhost__", "10.0.0.1:1985", "live", "livestream"));
+    EXPECT_TRUE(data->is_null());
+
+    EXPECT_EQ(1, (int)config.get_vhost_calls_.size());
+    EXPECT_EQ(0, config.get_listens_count_);
+    EXPECT_EQ(0, config.get_http_api_listens_count_);
+
+    workers.config_ = NULL;
 }
 
 VOID TEST(ReproduceIssue4609, GracefulDisconnectsDoNotIncrementErrors)

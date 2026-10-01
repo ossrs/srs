@@ -21,6 +21,7 @@ SrsCoWorkers *SrsCoWorkers::instance_ = NULL;
 // LCOV_EXCL_START
 SrsCoWorkers::SrsCoWorkers()
 {
+    config_ = _srs_config;
 }
 
 SrsCoWorkers::~SrsCoWorkers()
@@ -31,6 +32,8 @@ SrsCoWorkers::~SrsCoWorkers()
         srs_freep(r);
     }
     streams_.clear();
+
+    config_ = NULL;
 }
 
 SrsCoWorkers *SrsCoWorkers::instance()
@@ -52,7 +55,7 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
     // The service port parsing from listen port.
     string listen_host;
     int listen_port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-    vector<string> listen_hostports = _srs_config->get_listens();
+    vector<string> listen_hostports = config_->get_listens();
     if (!listen_hostports.empty()) {
         string list_hostport = listen_hostports.at(0);
 
@@ -86,7 +89,7 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
     }
 
     // The backend API endpoint.
-    string backend = _srs_config->get_http_api_listens().at(0);
+    string backend = config_->get_http_api_listens().at(0);
     if (backend.find(":") == string::npos) {
         backend = service_ip + ":" + backend;
     }
@@ -108,7 +111,7 @@ SrsJsonAny *SrsCoWorkers::dumps(string vhost, string coworker, string app, strin
 ISrsRequest *SrsCoWorkers::find_stream_info(string vhost, string app, string stream)
 {
     // First, we should parse the vhost, if not exists, try default vhost instead.
-    SrsConfDirective *conf = _srs_config->get_vhost(vhost, true);
+    SrsConfDirective *conf = config_->get_vhost(vhost, true);
     if (!conf) {
         return NULL;
     }
