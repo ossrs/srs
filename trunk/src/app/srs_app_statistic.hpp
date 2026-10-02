@@ -208,6 +208,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string server_id_;
     // The id to identify the service.
     std::string service_id_;
+    // The generator of the service id.
+    ISrsRand *rand_;
     // The pid to identify the service process.
     std::string service_pid_;
 

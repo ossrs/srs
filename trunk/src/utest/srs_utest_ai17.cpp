@@ -3641,6 +3641,40 @@ VOID TEST(StatisticTest, ServerIdFromInjectedConfig)
     stat.config_ = NULL;
 }
 
+// The constructor allocates the generator that draws the service id, so a test can replace it
+// before service_id() is called.
+VOID TEST(StatisticTest, ConstructorCreatesRand)
+{
+    SrsStatistic stat;
+    EXPECT_TRUE(stat.rand_ != NULL);
+    EXPECT_TRUE(stat.service_id_.empty());
+}
+
+// The service id is an 8-character string drawn once through the injected generator, then cached.
+VOID TEST(StatisticTest, ServiceIdDrawsThroughInjectedRand)
+{
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("service1");
+    rand.gen_str_values_.push_back("service2");
+
+    SrsStatistic stat;
+    srs_freep(stat.rand_);
+    stat.rand_ = &rand;
+
+    std::string first_id = stat.service_id();
+    std::string second_id = stat.service_id();
+
+    // Restore the stack member before any assertion, so the statistic never frees it.
+    stat.rand_ = NULL;
+
+    EXPECT_EQ(1, (int)rand.gen_str_lens_.size());
+    if (rand.gen_str_lens_.size() == 1) {
+        EXPECT_EQ(8, rand.gen_str_lens_[0]);
+    }
+    EXPECT_STREQ("service1", first_id.c_str());
+    EXPECT_STREQ("service1", second_id.c_str());
+}
+
 // The vhost statistic captures the config global in its constructor.
 VOID TEST(StatisticTest, VhostCapturesConfigInConstructor)
 {

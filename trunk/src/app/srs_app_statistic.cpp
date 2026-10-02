@@ -312,6 +312,7 @@ SrsStatistic *_srs_stat = NULL;
 SrsStatistic::SrsStatistic()
 {
     config_ = _srs_config;
+    rand_ = new SrsRand();
 
     kbps_ = new SrsKbps();
 
@@ -322,6 +323,7 @@ SrsStatistic::SrsStatistic()
 SrsStatistic::~SrsStatistic()
 {
     srs_freep(kbps_);
+    srs_freep(rand_);
 
     if (true) {
         std::map<std::string, SrsStatisticVhost *>::iterator it;
@@ -640,8 +642,7 @@ std::string SrsStatistic::server_id()
 std::string SrsStatistic::service_id()
 {
     if (service_id_.empty()) {
-        SrsRand rand;
-        service_id_ = rand.gen_str(8);
+        service_id_ = rand_->gen_str(8);
     }
 
     return service_id_;
