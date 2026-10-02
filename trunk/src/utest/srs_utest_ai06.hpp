@@ -19,6 +19,7 @@
 
 // Mock random generator, fills each gen_bytes() call with one distinct byte,
 // 0x10 for the first call, 0x11 for the second, and so on.
+// Each gen_str() call returns the next of gen_str_values_, then a string of x.
 class MockRandForHandshake : public ISrsRand
 {
 public:
@@ -26,6 +27,7 @@ public:
     int integer_count_;
     std::vector<int> gen_bytes_sizes_;
     std::vector<int> gen_str_lens_;
+    std::vector<std::string> gen_str_values_;
 
 public:
     MockRandForHandshake();

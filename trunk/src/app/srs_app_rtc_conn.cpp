@@ -2248,6 +2248,7 @@ SrsRtcConnection::SrsRtcConnection(ISrsExecRtcAsyncTask *exec, const SrsContextI
     dtls_certificate_ = _srs_rtc_dtls_certificate;
     app_factory_ = _srs_app_factory;
     blackhole_ = _srs_blackhole;
+    rand_ = new SrsRand();
 }
 
 void SrsRtcConnection::assemble()
@@ -2291,6 +2292,7 @@ SrsRtcConnection::~SrsRtcConnection()
 
     srs_freep(req_);
     srs_freep(pli_epp_);
+    srs_freep(rand_);
 
     // Optional to release the publisher token.
     publish_token_ = NULL;
@@ -2486,9 +2488,8 @@ srs_error_t SrsRtcConnection::generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &
 {
     srs_error_t err = srs_success;
 
-    SrsRand rand;
-    std::string local_pwd = ruc->req_->ice_pwd_.empty() ? rand.gen_str(32) : ruc->req_->ice_pwd_;
-    std::string local_ufrag = ruc->req_->ice_ufrag_.empty() ? rand.gen_str(8) : ruc->req_->ice_ufrag_;
+    std::string local_pwd = ruc->req_->ice_pwd_.empty() ? rand_->gen_str(32) : ruc->req_->ice_pwd_;
+    std::string local_ufrag = ruc->req_->ice_ufrag_.empty() ? rand_->gen_str(8) : ruc->req_->ice_ufrag_;
 
     // TODO: FIXME: Rename for a better name, it's not an username.
     username = "";
@@ -2499,7 +2500,7 @@ srs_error_t SrsRtcConnection::generate_local_sdp(SrsRtcUserConfig *ruc, SrsSdp &
         }
 
         // Username conflict, regenerate a new one.
-        local_ufrag = rand.gen_str(8);
+        local_ufrag = rand_->gen_str(8);
     }
 
     local_sdp.set_ice_ufrag(local_ufrag);
@@ -2576,8 +2577,7 @@ srs_error_t SrsRtcConnection::initialize(ISrsRequest *r, bool dtls, bool srtp, s
     srs_error_t err = srs_success;
 
     username_ = username;
-    SrsRand rand;
-    token_ = rand.gen_str(9);
+    token_ = rand_->gen_str(9);
     req_ = r->copy();
 
     SrsSessionConfig *cfg = &local_sdp_.session_negotiate_;

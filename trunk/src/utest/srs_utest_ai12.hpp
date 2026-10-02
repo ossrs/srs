@@ -95,6 +95,10 @@ class MockConnectionManagerForExpire : public ISrsResourceManager
 public:
     ISrsResource *removed_resource_;
     int remove_count_;
+    // find_by_name() returns existing_resource_ for existing_name_, and records every name.
+    std::string existing_name_;
+    ISrsResource *existing_resource_;
+    std::vector<std::string> find_by_name_names_;
 
 public:
     MockConnectionManagerForExpire();

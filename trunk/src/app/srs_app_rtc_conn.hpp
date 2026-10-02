@@ -76,6 +76,7 @@ class SrsRtcRecvTrack;
 class ISrsRtcPlayStream;
 class ISrsRtcFormat;
 class ISrsRtcBlackhole;
+class ISrsRand;
 
 const uint8_t kSR = 200;
 const uint8_t kRR = 201;
@@ -840,6 +841,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string username_;
     // The random token to verify the WHIP DELETE request etc.
     std::string token_;
+    // The random generator of the ICE credentials and the token.
+    ISrsRand *rand_;
     // A group of networks, each has its own DTLS and SRTP context.
     ISrsRtcNetworks *networks_;
 

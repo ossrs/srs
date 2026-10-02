@@ -2358,7 +2358,11 @@ void MockRandForHandshake::gen_bytes(char *bytes, int size)
 
 std::string MockRandForHandshake::gen_str(int len)
 {
+    size_t index = gen_str_lens_.size();
     gen_str_lens_.push_back(len);
+    if (index < gen_str_values_.size()) {
+        return gen_str_values_[index];
+    }
     return std::string(len, 'x');
 }
 
