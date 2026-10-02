@@ -98,8 +98,10 @@ VOID TEST(SrsBufferCacheTest, ConstructorAndUpdateAuth)
     EXPECT_STREQ("live", cache->req_->app_.c_str());
     EXPECT_STREQ("stream1", cache->req_->stream_.c_str());
 
-    // Verify that queue and thread were created
+    // Verify that the queue was created, and the thread only by assemble()
     EXPECT_TRUE(cache->queue_ != NULL);
+    EXPECT_TRUE(cache->trd_ == NULL);
+    cache->assemble();
     EXPECT_TRUE(cache->trd_ != NULL);
 
     // Verify that fast_cache was initialized to 0

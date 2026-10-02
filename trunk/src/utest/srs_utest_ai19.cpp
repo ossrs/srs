@@ -1805,6 +1805,77 @@ VOID TEST(HttpRecvThreadTest, AssembleCreatesCoroutineThroughFactory)
     thread.context_ = NULL;
 }
 
+// The constructor only copies the request, creates the message queue and captures the
+// globals; it creates no coroutine, so a test can inject the factory before assemble() runs.
+VOID TEST(BufferCacheTest, ConstructorCapturesFactoryWithoutCoroutine)
+{
+    MockRequest req("test.vhost", "live", "stream1");
+    SrsBufferCache cache(&req);
+
+    EXPECT_TRUE(cache.app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(cache.config_ == _srs_config);
+    EXPECT_TRUE(cache.live_sources_ == _srs_sources);
+    EXPECT_TRUE(cache.queue_ != NULL);
+    EXPECT_TRUE(cache.trd_ == NULL);
+}
+
+// assemble() creates the cache coroutine through the injected factory, with no context id,
+// so the coroutine generates a fresh one when it starts.
+VOID TEST(BufferCacheTest, AssembleCreatesCoroutineThroughFactory)
+{
+    MockRequest req("test.vhost", "live", "stream1");
+    SrsBufferCache cache(&req);
+
+    MockAppFactoryForRtmpConn factory;
+    MockCoroutineForCycle *coroutine = new MockCoroutineForCycle();
+    factory.coroutine_ = coroutine;
+
+    cache.app_factory_ = &factory;
+    cache.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("http-stream", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(factory.coroutine_handler_ == &cache);
+    EXPECT_TRUE(factory.coroutine_cid_.empty());
+    EXPECT_TRUE(cache.trd_ == coroutine);
+
+    // The cache frees trd_ when it holds the mock coroutine; otherwise free it here.
+    if (cache.trd_ != coroutine) {
+        srs_freep(coroutine);
+    }
+    cache.app_factory_ = NULL;
+}
+
+// Mounting a stream builds its buffer cache and assembles it before starting it, so the
+// cache holds its coroutine.
+VOID TEST(BufferCacheTest, HttpMountAssemblesBufferCache)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpStreamServer config;
+    MockRequest req("test.vhost", "live", "stream1");
+
+    if (true) {
+        SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
+        MockAsyncCallWorker *async = new MockAsyncCallWorker();
+        srs_freep(server->async_);
+        server->async_ = async;
+        server->config_ = &config;
+
+        server->templateHandlers_["test.vhost"] = new SrsLiveEntry("[vhost]/[app]/[stream].flv");
+
+        HELPER_EXPECT_SUCCESS(server->http_mount(&req));
+
+        SrsLiveEntry *entry = server->streamHandlers_[req.get_stream_url()];
+        ASSERT_TRUE(entry != NULL);
+        SrsBufferCache *cache = dynamic_cast<SrsBufferCache *>(entry->cache_);
+        ASSERT_TRUE(cache != NULL);
+        EXPECT_TRUE(cache->trd_ != NULL);
+
+        server->config_ = NULL;
+    }
+}
+
 // The constructor only stores its arguments and captures the context global; it neither switches
 // the coroutine's id nor creates the HTTP connection, so a test can inject before assemble() runs.
 VOID TEST(DynamicHttpConnTest, ConstructorCapturesContextWithoutWork)
