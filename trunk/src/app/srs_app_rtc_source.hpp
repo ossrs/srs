@@ -253,6 +253,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSharedTimer *shared_timer_;
     ISrsRtcSSRCGenerator *ssrc_generator_;
     ISrsClock *clk_;
+    // The random generator of the track ids for play before publishing.
+    ISrsRand *rand_;
     // For publish, it's the publish client id.
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,

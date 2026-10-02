@@ -23,6 +23,7 @@
 #include <srs_protocol_format.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai32.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -5244,4 +5245,65 @@ VOID TEST(RtcRecvTrackTest, OnNackQueuesGapBelowHighWaterFromInjectedBreaker)
     EXPECT_TRUE(track.nack_receiver_->find(105) == NULL);
 
     track.circuit_breaker_ = NULL;
+}
+
+// The RTC source owns its random generator, so a test can replace it before the track ids
+// for play before publishing are drawn.
+VOID TEST(SrsRtcSourceTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+
+    EXPECT_TRUE(source->rand_ != NULL);
+}
+
+// Initializing a source with no publisher creates the placeholder tracks for play before
+// publishing, and draws the 8-character suffix of every track id through the injected
+// generator: audio, then the H.264, H.265 and AV1 video tracks.
+VOID TEST(SrsRtcSourceTest, InitializeDrawsTrackIdsThroughInjectedRand)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("audio001");
+    rand.gen_str_values_.push_back("h264v002");
+    rand.gen_str_values_.push_back("h265v003");
+    rand.gen_str_values_.push_back("av1vd004");
+    srs_freep(source->rand_);
+    source->rand_ = &rand;
+
+    MockRtcSSRCGenerator ssrc_generator;
+    source->ssrc_generator_ = &ssrc_generator;
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "stream1";
+    err = source->initialize(req.get());
+
+    // Restore before any assertion can return, so the source never frees the stack mock.
+    source->rand_ = NULL;
+    source->ssrc_generator_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+
+    ASSERT_EQ(4, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(8, rand.gen_str_lens_[0]);
+    EXPECT_EQ(8, rand.gen_str_lens_[1]);
+    EXPECT_EQ(8, rand.gen_str_lens_[2]);
+    EXPECT_EQ(8, rand.gen_str_lens_[3]);
+
+    SrsRtcSourceDescription *desc = source->stream_desc_;
+    ASSERT_TRUE(desc != NULL);
+    ASSERT_TRUE(desc->audio_track_desc_ != NULL);
+    EXPECT_EQ("audio-audio001", desc->audio_track_desc_->id_);
+    EXPECT_EQ((uint32_t)500001, desc->audio_track_desc_->ssrc_);
+
+    ASSERT_EQ(3, (int)desc->video_track_descs_.size());
+    EXPECT_EQ("video-h264-h264v002", desc->video_track_descs_[0]->id_);
+    EXPECT_EQ((uint32_t)500002, desc->video_track_descs_[0]->ssrc_);
+    EXPECT_EQ("video-h265-h265v003", desc->video_track_descs_[1]->id_);
+    EXPECT_EQ((uint32_t)500003, desc->video_track_descs_[1]->ssrc_);
+    EXPECT_EQ("video-av1-av1vd004", desc->video_track_descs_[2]->id_);
+    EXPECT_EQ((uint32_t)500004, desc->video_track_descs_[2]->ssrc_);
 }
