@@ -300,9 +300,14 @@ srs_proxy_origin 1 >/tmp/srs-origin-redis-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 
-# Wait for SRS to start and register with proxy A (heartbeat interval is 9s).
+# Wait for SRS to register with proxy A: the first heartbeat is sent at startup, then every 9s.
 echo "Waiting for SRS origin to register with proxy A and Redis (up to 15s)..."
-sleep 12
+for i in $(seq 1 15); do
+  if redis_cli --scan --pattern "$(redis_key "srs-proxy-server:*")" | grep -q 'srs-proxy-server:'; then
+    break
+  fi
+  sleep 1
+done
 
 if ! kill -0 "$ORIGIN_PID" 2>/dev/null; then
   echo "Error: SRS origin failed to start. Logs:" >&2

@@ -336,13 +336,24 @@ echo "Proxy started."
 echo "=== Step 4: Starting SRS origin (CANDIDATE=$ORIGIN_CANDIDATE) ==="
 ulimit -n 10000 2>/dev/null || true
 cd "$WORKSPACE/trunk"
-srs_proxy_origin 1 SRS_RTC_SERVER_CANDIDATE="$ORIGIN_CANDIDATE" >/tmp/srs-origin-whip-e2e.log 2>&1 &
+srs_proxy_origin 1 SRS_RTC_SERVER_CANDIDATE="$ORIGIN_CANDIDATE" SRS_VHOST_HLS_HLS_FRAGMENT=2 >/tmp/srs-origin-whip-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 
-# Wait for SRS to start and register with proxy (heartbeat interval is 9s).
+# Wait for SRS to register with proxy: the first heartbeat is sent at startup, then every 9s.
 echo "Waiting for SRS origin to register with proxy (up to 15s)..."
-sleep 12
+for i in $(seq 1 15); do
+  if grep -q "Register SRS media server" /tmp/srs-proxy-whip-e2e.log 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+
+if ! grep -q "Register SRS media server" /tmp/srs-proxy-whip-e2e.log 2>/dev/null; then
+  echo "Error: SRS origin did not register with proxy after 15s. Proxy logs:" >&2
+  cat /tmp/srs-proxy-whip-e2e.log >&2
+  exit 1
+fi
 
 if ! kill -0 "$ORIGIN_PID" 2>/dev/null; then
   echo "Error: SRS origin failed to start. Logs:" >&2
@@ -355,11 +366,13 @@ echo "SRS origin started and registered."
 # WebRTC requires H.264 (baseline-friendly) + Opus. source.flv is H.264 High
 # profile + AAC, so transcode video to baseline and audio to Opus. Use
 # zerolatency/ultrafast so the encoder keeps up with -re.
+# Use a 1s GOP with the origin's 2s HLS fragments, so the first HLS segment
+# carries video soon and ffprobe finds it without waiting for more segments.
 echo "=== Step 5: Publishing WHIP stream to proxy ==="
 echo "Publish URL: $WHIP_PUBLISH_URL"
 "$FFMPEG_BIN" -stream_loop -1 -re -i "$SOURCE_FLV" \
   -c:v libx264 -profile:v baseline -level 3.1 -pix_fmt yuv420p \
-  -tune zerolatency -preset ultrafast \
+  -tune zerolatency -preset ultrafast -g 25 \
   -c:a libopus -ar 48000 -ac 2 \
   -f whip "$WHIP_PUBLISH_URL" >/tmp/srs-ffmpeg-whip-e2e.log 2>&1 &
 FFMPEG_PID=$!

@@ -213,13 +213,35 @@ srs_error_t MockUdpMuxHandler::on_udp_packet(ISrsUdpMuxSocket *skt)
     return srs_error_copy(on_udp_packet_error_);
 }
 
+// The listener tests bind _srs_tmp_port, so it must be a free port from the kernel, not
+// a fixed one that a server or an E2E script may hold at the same time, such as 11935,
+// the RTMP port of proxy-e2e-test.sh.
+VOID TEST(UtestTmpPortTest, IsNotTheFixedProxyRtmpPort)
+{
+    EXPECT_GT(_srs_tmp_port, 0);
+    EXPECT_NE(11935, _srs_tmp_port);
+}
+
+// The unit tests pick random ports only from their own range, [45000, 48999], so they never take a
+// fixed port of a test script, a black-box port or a kernel ephemeral port in the parallel Full tier.
+VOID TEST(UtestTmpPortTest, RandomPortIsInUtestRange)
+{
+    int outside = 0;
+    for (int i = 0; i < 1000; i++) {
+        int port = srs_utest_random_port();
+        if (port < 45000 || port > 48999) {
+            outside++;
+        }
+    }
+    EXPECT_EQ(0, outside);
+}
+
 VOID TEST(UdpListenerTest, ListenAndReceivePacket)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP handler
     SrsUniquePtr<MockUdpHandler> mock_handler(new MockUdpHandler());
@@ -277,9 +299,8 @@ VOID TEST(UdpListenerTest, SetEndpointAndSocketBuffer)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP handler
     SrsUniquePtr<MockUdpHandler> mock_handler(new MockUdpHandler());
@@ -328,9 +349,8 @@ VOID TEST(UdpMuxListenerTest, ListenAndCreateSocket)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
@@ -363,9 +383,8 @@ VOID TEST(UdpMuxListenerTest, SetSocketBuffer)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
@@ -408,9 +427,8 @@ VOID TEST(UdpMuxListenerTest, ReceivePacketFromClient)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
@@ -519,8 +537,7 @@ VOID TEST(UdpMuxListenerTest, CycleRestoresIdThroughContextOnPacketError)
 {
     srs_error_t err;
 
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    int port = srs_utest_random_port();
 
     MockUdpMuxHandler handler;
     handler.on_udp_packet_error_ = srs_error_new(ERROR_RTC_UDP, "mock packet error");
@@ -564,12 +581,11 @@ VOID TEST(UdpMuxSocketTest, SendtoReplyToClient)
 {
     srs_error_t err;
 
-    // Generate random ports in range [30000, 60000] for server and client
-    SrsRand rand;
-    int server_port = rand.integer(30000, 60000);
-    int client_port = rand.integer(30000, 60000);
+    // Generate random ports from the unit tests' range for server and client
+    int server_port = srs_utest_random_port();
+    int client_port = srs_utest_random_port();
     while (client_port == server_port) {
-        client_port = rand.integer(30000, 60000);
+        client_port = srs_utest_random_port();
     }
 
     // Create a standalone UDP server socket (not using listener to avoid interference)
@@ -660,12 +676,11 @@ VOID TEST(UdpMuxSocketTest, PeerIdGenerationAndCaching)
 {
     srs_error_t err;
 
-    // Generate random ports in range [30000, 60000] for server and client
-    SrsRand rand;
-    int server_port = rand.integer(30000, 60000);
-    int client_port = rand.integer(30000, 60000);
+    // Generate random ports from the unit tests' range for server and client
+    int server_port = srs_utest_random_port();
+    int client_port = srs_utest_random_port();
     while (client_port == server_port) {
-        client_port = rand.integer(30000, 60000);
+        client_port = srs_utest_random_port();
     }
 
     // Create a standalone UDP server socket
@@ -744,9 +759,9 @@ VOID TEST(UdpMuxSocketTest, PeerIdGenerationAndCaching)
     EXPECT_GT(fast_id, 0ULL);
 
     // Verify IP address caching by sending from a different client port
-    int client_port2 = rand.integer(30000, 60000);
+    int client_port2 = srs_utest_random_port();
     while (client_port2 == server_port || client_port2 == client_port) {
-        client_port2 = rand.integer(30000, 60000);
+        client_port2 = srs_utest_random_port();
     }
 
     srs_netfd_t client_fd2 = NULL;

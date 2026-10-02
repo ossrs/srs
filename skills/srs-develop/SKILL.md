@@ -55,7 +55,11 @@ Whenever a task bumps a version or adds a changelog entry, load `references/vers
 
 ## Git Worktree
 
-Create a git worktree only when the user asks. Put it next to the SRS checkout and name it `srs-<topic>`, for example `~/projects/srs-pr-4757` for `~/projects/srs`, so relative symlinks such as `oryx/` keep working.
+Create a git worktree only when the user asks.
+
+Put it next to the SRS checkout and name it `srs-<topic>`, for example `~/projects/srs-pr-4757` for `~/projects/srs`, so relative symlinks such as `oryx/` keep working.
+
+Copy `trunk/objs/Platform-*/3rdparty` from the SRS checkout into the worktree, so `./configure` reuses the built third-party libraries. Do not copy the rest of `objs`, or `make` keeps objects built from the other checkout. Skip the copy when the worktree changes `trunk/3rdparty/`.
 
 ## Git Workflow
 

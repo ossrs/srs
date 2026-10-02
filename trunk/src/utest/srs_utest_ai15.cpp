@@ -289,9 +289,8 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
 {
     srs_error_t err = srs_success;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
     std::string listen_addr = srs_strconv_format_int(port);
 
     // Create mock config with RTMP listening enabled
@@ -5210,9 +5209,9 @@ VOID TEST(UtilityTest, GetLocalPortSuccess)
 {
     srs_error_t err;
 
-    // Test with IPv4 TCP socket - listen on random port in [30000, 60000]
+    // Test with IPv4 TCP socket - listen on random port from the unit tests' range
     if (true) {
-        int port = 30000 + (rand() % 30001);
+        int port = srs_utest_random_port();
         srs_netfd_t fd = NULL;
         HELPER_EXPECT_SUCCESS(srs_tcp_listen("127.0.0.1", port, &fd));
         EXPECT_TRUE(fd != NULL);
@@ -5223,15 +5222,15 @@ VOID TEST(UtilityTest, GetLocalPortSuccess)
 
         int local_port = srs_get_local_port(actual_fd);
         EXPECT_EQ(local_port, port);
-        EXPECT_GE(local_port, 30000);
-        EXPECT_LE(local_port, 60000);
+        EXPECT_GE(local_port, 45000);
+        EXPECT_LE(local_port, 48999);
 
         srs_close_stfd(fd);
     }
 
-    // Test with IPv6 TCP socket - listen on random port in [30000, 60000]
+    // Test with IPv6 TCP socket - listen on random port from the unit tests' range
     if (true) {
-        int port = 30000 + (rand() % 30001);
+        int port = srs_utest_random_port();
         srs_netfd_t fd = NULL;
         HELPER_EXPECT_SUCCESS(srs_tcp_listen("::1", port, &fd));
         EXPECT_TRUE(fd != NULL);
@@ -5242,8 +5241,8 @@ VOID TEST(UtilityTest, GetLocalPortSuccess)
 
         int local_port = srs_get_local_port(actual_fd);
         EXPECT_EQ(local_port, port);
-        EXPECT_GE(local_port, 30000);
-        EXPECT_LE(local_port, 60000);
+        EXPECT_GE(local_port, 45000);
+        EXPECT_LE(local_port, 48999);
 
         srs_close_stfd(fd);
     }

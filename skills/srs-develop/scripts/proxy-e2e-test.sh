@@ -140,9 +140,20 @@ srs_proxy_origin 1 >/tmp/srs-origin-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 
-# Wait for SRS to start and register with proxy (heartbeat interval is 9s).
+# Wait for SRS to register with proxy: the first heartbeat is sent at startup, then every 9s.
 echo "Waiting for SRS origin to register with proxy (up to 15s)..."
-sleep 12
+for i in $(seq 1 15); do
+  if grep -q "Register SRS media server" /tmp/srs-proxy-e2e.log 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+
+if ! grep -q "Register SRS media server" /tmp/srs-proxy-e2e.log 2>/dev/null; then
+  echo "Error: SRS origin did not register with proxy after 15s. Proxy logs:" >&2
+  cat /tmp/srs-proxy-e2e.log >&2
+  exit 1
+fi
 
 if ! kill -0 "$ORIGIN_PID" 2>/dev/null; then
   echo "Error: SRS origin failed to start. Logs:" >&2

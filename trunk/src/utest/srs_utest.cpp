@@ -18,8 +18,12 @@
 #include <string>
 using namespace std;
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/mman.h>
+#include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <srs_app_factory.hpp>
 #include <srs_app_srt_server.hpp>
@@ -39,8 +43,18 @@ using namespace std;
 std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
 // Temporary network config.
 std::string _srs_tmp_host = "127.0.0.1";
-int _srs_tmp_port = 11935;
+// A free port from the kernel, set by prepare_main(), so the listener tests never share a
+// fixed port with a server or an E2E script running at the same time.
+int _srs_tmp_port = 0;
+// A free UDP port from the kernel for the SRT listener tests, set by prepare_main().
+int _srs_tmp_srt_port = 0;
 srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
+
+int srs_utest_random_port()
+{
+    SrsRand rand;
+    return rand.integer(45000, 48999);
+}
 
 // kernel module.
 ISrsLog *_srs_log = NULL;
@@ -70,10 +84,42 @@ static void srs_srt_utest_null_log_handler(void *opaque, int level, const char *
     // srt null log handler, do no print any log.
 }
 
+// Ask the kernel for a free port of the socket type, SOCK_STREAM or SOCK_DGRAM, on the temporary host.
+static srs_error_t srs_utest_free_port(int type, int *port)
+{
+    int fd = ::socket(AF_INET, type, 0);
+    if (fd < 0) {
+        return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
+    }
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = 0;
+    inet_pton(AF_INET, _srs_tmp_host.c_str(), &addr.sin_addr);
+
+    socklen_t len = sizeof(addr);
+    if (::bind(fd, (sockaddr *)&addr, sizeof(addr)) < 0 || ::getsockname(fd, (sockaddr *)&addr, &len) < 0) {
+        ::close(fd);
+        return srs_error_new(ERROR_SOCKET_BIND, "bind %s:0", _srs_tmp_host.c_str());
+    }
+
+    *port = ntohs(addr.sin_port);
+    ::close(fd);
+    return srs_success;
+}
+
 // Initialize global settings.
 srs_error_t prepare_main()
 {
     srs_error_t err = srs_success;
+
+    if ((err = srs_utest_free_port(SOCK_STREAM, &_srs_tmp_port)) != srs_success) {
+        return srs_error_wrap(err, "free port");
+    }
+    if ((err = srs_utest_free_port(SOCK_DGRAM, &_srs_tmp_srt_port)) != srs_success) {
+        return srs_error_wrap(err, "free srt port");
+    }
 
     // Root global objects, should be created before any other global objects.
     _srs_log = new SrsFileLog();
@@ -338,9 +384,8 @@ SrsHttpTestServer::SrsHttpTestServer(string response_body) : response_body_(resp
     trd_ = new SrsSTCoroutine("http-test", this);
     fd_ = NULL;
     ip_ = "127.0.0.1";
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    port_ = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    port_ = srs_utest_random_port();
 }
 
 SrsHttpTestServer::~SrsHttpTestServer()
@@ -363,8 +408,7 @@ srs_error_t SrsHttpTestServer::start()
         // If this is not the last retry, generate a new random port and try again
         if (retry < 2) {
             srs_freep(err);
-            SrsRand rand;
-            port_ = rand.integer(30000, 60000);
+            port_ = srs_utest_random_port();
             srs_trace("HTTP test server listen failed on %s:%d, retry %d with new port %d",
                       ip_.c_str(), port_, retry + 1, port_);
         }
@@ -445,9 +489,8 @@ SrsHttpsTestServer::SrsHttpsTestServer(string response_body, string key_file, st
     trd_ = new SrsFastCoroutine("https-test", this);
     fd_ = NULL;
     ip_ = "127.0.0.1";
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    port_ = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    port_ = srs_utest_random_port();
 }
 
 SrsHttpsTestServer::~SrsHttpsTestServer()
@@ -469,8 +512,7 @@ srs_error_t SrsHttpsTestServer::start()
         // If this is not the last retry, generate a new random port and try again
         if (retry < 2) {
             srs_freep(err);
-            SrsRand rand;
-            port_ = rand.integer(30000, 60000);
+            port_ = srs_utest_random_port();
             srs_trace("HTTPS test server listen failed on %s:%d, retry %d with new port %d",
                       ip_.c_str(), port_, retry + 1, port_);
         }
@@ -570,9 +612,8 @@ SrsRtmpTestServer::SrsRtmpTestServer(string app, string stream) : app_(app), str
     ip_ = "127.0.0.1";
     enable_publish_ = true;
     enable_play_ = true;
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    port_ = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    port_ = srs_utest_random_port();
 }
 
 SrsRtmpTestServer::~SrsRtmpTestServer()
@@ -595,8 +636,7 @@ srs_error_t SrsRtmpTestServer::start()
         // If this is not the last retry, generate a new random port and try again
         if (retry < 2) {
             srs_freep(err);
-            SrsRand rand;
-            port_ = rand.integer(30000, 60000);
+            port_ = srs_utest_random_port();
             srs_trace("RTMP test server listen failed on %s:%d, retry %d with new port %d",
                       ip_.c_str(), port_, retry + 1, port_);
         }
@@ -741,9 +781,8 @@ SrsTestTcpServer::SrsTestTcpServer(string ip)
     listener_ = NULL;
     conn_ = NULL;
     ip_ = ip;
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    port_ = 30000 + (rand.integer() % (60000 - 30000 + 1));
+    // Generate a random port from the unit tests' range
+    port_ = srs_utest_random_port();
 }
 
 SrsTestTcpServer::~SrsTestTcpServer()
@@ -892,9 +931,8 @@ SrsUdpTestServer::SrsUdpTestServer(string host)
     trd_ = NULL;
     socket_ = NULL;
     started_ = false;
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    port_ = 30000 + (rand.integer() % (60000 - 30000 + 1));
+    // Generate a random port from the unit tests' range
+    port_ = srs_utest_random_port();
 }
 
 SrsUdpTestServer::~SrsUdpTestServer()
@@ -921,8 +959,7 @@ srs_error_t SrsUdpTestServer::start()
         // If this is not the last retry, generate a new random port and try again
         if (retry < 2) {
             srs_freep(err);
-            SrsRand rand;
-            port_ = 30000 + (rand.integer() % (60000 - 30000 + 1));
+            port_ = srs_utest_random_port();
             srs_trace("UDP test server listen failed on %s:%d, retry %d with new port %d",
                       host_.c_str(), port_, retry + 1, port_);
         }

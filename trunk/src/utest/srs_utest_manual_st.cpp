@@ -518,11 +518,10 @@ VOID TEST(StSocketTest, RandomPortTcpListenAndConnect)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int random_port = 30000 + (rand.integer() % (60000 - 30000 + 1));
-    EXPECT_GE(random_port, 30000);
-    EXPECT_LE(random_port, 60000);
+    // Generate a random port from the unit tests' range
+    int random_port = srs_utest_random_port();
+    EXPECT_GE(random_port, 45000);
+    EXPECT_LE(random_port, 48999);
 
     // Create TCP listener on the random port
     srs_netfd_t listen_fd = NULL;
@@ -551,11 +550,10 @@ VOID TEST(StSocketTest, RandomPortTcpListenAndConnectIPv6)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int random_port = 30000 + (rand.integer() % (60000 - 30000 + 1));
-    EXPECT_GE(random_port, 30000);
-    EXPECT_LE(random_port, 60000);
+    // Generate a random port from the unit tests' range
+    int random_port = srs_utest_random_port();
+    EXPECT_GE(random_port, 45000);
+    EXPECT_LE(random_port, 48999);
 
     // Create TCP listener on IPv6 loopback with the random port
     srs_netfd_t listen_fd = NULL;
@@ -583,11 +581,10 @@ VOID TEST(StSocketTest, RandomPortUdpListenIPv4)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int random_port = 30000 + (rand.integer() % (60000 - 30000 + 1));
-    EXPECT_GE(random_port, 30000);
-    EXPECT_LE(random_port, 60000);
+    // Generate a random port from the unit tests' range
+    int random_port = srs_utest_random_port();
+    EXPECT_GE(random_port, 45000);
+    EXPECT_LE(random_port, 48999);
 
     // Create UDP listener on IPv4 loopback with the random port
     srs_netfd_t listen_fd = NULL;
@@ -616,11 +613,10 @@ VOID TEST(StSocketTest, RandomPortUdpListenIPv6)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int random_port = 30000 + (rand.integer() % (60000 - 30000 + 1));
-    EXPECT_GE(random_port, 30000);
-    EXPECT_LE(random_port, 60000);
+    // Generate a random port from the unit tests' range
+    int random_port = srs_utest_random_port();
+    EXPECT_GE(random_port, 45000);
+    EXPECT_LE(random_port, 48999);
 
     // Create UDP listener on IPv6 loopback with the random port
     srs_netfd_t listen_fd = NULL;

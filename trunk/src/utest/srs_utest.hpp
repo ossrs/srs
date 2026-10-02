@@ -43,7 +43,10 @@ extern std::string _srs_tmp_file_prefix;
 // Temporary network config.
 extern std::string _srs_tmp_host;
 extern int _srs_tmp_port;
+extern int _srs_tmp_srt_port;
 extern srs_utime_t _srs_tmp_timeout;
+// A random port from the unit tests' range of the port plan in the srs-develop skill's integration-tests.md.
+extern int srs_utest_random_port();
 
 // For errors.
 // @remark we directly delete the err, because we allow user to append message if fail.
