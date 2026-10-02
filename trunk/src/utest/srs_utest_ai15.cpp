@@ -1939,6 +1939,123 @@ VOID TEST(ServerTest, PublishMountsAndUnpublishUnmountsThroughInjectedHttpServer
     server->http_server_ = NULL;
 }
 
+MockCoWorkersForServer::MockCoWorkersForServer()
+{
+    publish_count_ = 0;
+    unpublish_count_ = 0;
+    publish_request_ = NULL;
+    unpublish_request_ = NULL;
+    publish_error_ = srs_success;
+}
+
+MockCoWorkersForServer::~MockCoWorkersForServer()
+{
+    srs_freep(publish_error_);
+}
+
+SrsJsonAny *MockCoWorkersForServer::dumps(std::string vhost, std::string coworker, std::string app, std::string stream)
+{
+    return SrsJsonAny::null();
+}
+
+srs_error_t MockCoWorkersForServer::on_publish(ISrsRequest *r)
+{
+    publish_count_++;
+    publish_request_ = r;
+
+    srs_error_t err = publish_error_;
+    publish_error_ = srs_success;
+    return err;
+}
+
+void MockCoWorkersForServer::on_unpublish(ISrsRequest *r)
+{
+    unpublish_count_++;
+    unpublish_request_ = r;
+}
+
+VOID TEST(ServerTest, ConstructionCapturesCoWorkers)
+{
+    // The global coworkers exists once the globals are initialized, before the server is created.
+    EXPECT_TRUE(_srs_coworkers != NULL);
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    EXPECT_TRUE(server->coworkers_ == _srs_coworkers);
+}
+
+VOID TEST(ServerTest, PublishAndUnpublishReachInjectedCoWorkers)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    MockHttpServerForServer http_server;
+    srs_freep(server->http_server_);
+    server->http_server_ = &http_server;
+    server->assemble();
+
+    MockCoWorkersForServer coworkers;
+    server->coworkers_ = &coworkers;
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "__defaultVhost__";
+    req->app_ = "live";
+    req->stream_ = "livestream";
+
+    // A failed mount fails the publish before the coworkers record the stream.
+    http_server.mount_error_ = srs_error_new(ERROR_HTTP_PATTERN_EMPTY, "mock mount");
+    err = server->on_publish(req.get());
+    EXPECT_EQ(ERROR_HTTP_PATTERN_EMPTY, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, coworkers.publish_count_);
+
+    // After a good mount, the coworkers record the published stream.
+    HELPER_EXPECT_SUCCESS(server->on_publish(req.get()));
+    EXPECT_EQ(2, http_server.mount_count_);
+    EXPECT_EQ(1, coworkers.publish_count_);
+    EXPECT_TRUE(coworkers.publish_request_ == req.get());
+
+    // The unpublish unmounts the stream and removes it from the coworkers.
+    server->on_unpublish(req.get());
+    EXPECT_EQ(1, http_server.unmount_count_);
+    EXPECT_EQ(1, coworkers.unpublish_count_);
+    EXPECT_TRUE(coworkers.unpublish_request_ == req.get());
+
+    server->http_server_ = NULL;
+    server->coworkers_ = NULL;
+}
+
+VOID TEST(ServerTest, PublishFailsWhenInjectedCoWorkersFail)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    MockHttpServerForServer http_server;
+    srs_freep(server->http_server_);
+    server->http_server_ = &http_server;
+    server->assemble();
+
+    MockCoWorkersForServer coworkers;
+    server->coworkers_ = &coworkers;
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "__defaultVhost__";
+    req->app_ = "live";
+    req->stream_ = "livestream";
+
+    // The error of the coworkers fails the publish, after the stream is mounted.
+    coworkers.publish_error_ = srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "mock coworkers");
+    err = server->on_publish(req.get());
+    EXPECT_EQ(ERROR_SYSTEM_STREAM_BUSY, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, http_server.mount_count_);
+    EXPECT_EQ(1, coworkers.publish_count_);
+
+    server->http_server_ = NULL;
+    server->coworkers_ = NULL;
+}
+
 MockSignalManagerForServer::MockSignalManagerForServer()
 {
     assemble_count_ = 0;

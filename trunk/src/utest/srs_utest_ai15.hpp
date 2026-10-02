@@ -13,6 +13,7 @@
 #include <srs_utest.hpp>
 
 #include <srs_app_caster_flv.hpp>
+#include <srs_app_coworkers.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_http_conn.hpp>
@@ -421,6 +422,27 @@ public:
     virtual srs_error_t initialize();
     virtual srs_error_t http_mount(ISrsRequest *r);
     virtual void http_unmount(ISrsRequest *r);
+};
+
+// Mock coworkers for testing how SrsServer records a published stream and removes it on unpublish.
+class MockCoWorkersForServer : public ISrsCoWorkers
+{
+public:
+    int publish_count_;
+    int unpublish_count_;
+    ISrsRequest *publish_request_;
+    ISrsRequest *unpublish_request_;
+    // The error on_publish() returns, owned by the caller once returned.
+    srs_error_t publish_error_;
+
+public:
+    MockCoWorkersForServer();
+    virtual ~MockCoWorkersForServer();
+
+public:
+    virtual SrsJsonAny *dumps(std::string vhost, std::string coworker, std::string app, std::string stream);
+    virtual srs_error_t on_publish(ISrsRequest *r);
+    virtual void on_unpublish(ISrsRequest *r);
 };
 
 // Mock signal manager for testing how SrsServer initializes and starts its signal manager.

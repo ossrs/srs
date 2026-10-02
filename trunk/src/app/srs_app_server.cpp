@@ -257,6 +257,7 @@ SrsServer::SrsServer()
     reload_status_ = _srs_reload_status;
     blackhole_ = _srs_blackhole;
     srt_eventloop_ = _srt_eventloop;
+    coworkers_ = _srs_coworkers;
 }
 
 void SrsServer::assemble()
@@ -338,6 +339,7 @@ SrsServer::~SrsServer()
     reload_status_ = NULL;
     blackhole_ = NULL;
     srt_eventloop_ = NULL;
+    coworkers_ = NULL;
 }
 
 void SrsServer::dispose()
@@ -1711,8 +1713,7 @@ srs_error_t SrsServer::on_publish(ISrsRequest *r)
         return srs_error_wrap(err, "http mount");
     }
 
-    SrsCoWorkers *coworkers = SrsCoWorkers::instance();
-    if ((err = coworkers->on_publish(r)) != srs_success) {
+    if ((err = coworkers_->on_publish(r)) != srs_success) {
         return srs_error_wrap(err, "coworkers");
     }
 
@@ -1723,8 +1724,7 @@ void SrsServer::on_unpublish(ISrsRequest *r)
 {
     http_server_->http_unmount(r);
 
-    SrsCoWorkers *coworkers = SrsCoWorkers::instance();
-    coworkers->on_unpublish(r);
+    coworkers_->on_unpublish(r);
 }
 
 ISrsSignalManager::ISrsSignalManager()

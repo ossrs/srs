@@ -58,6 +58,7 @@ class ISrsSrtAcceptor;
 class SrsSrtEventLoop;
 class ISrsRtcSessionManager;
 class ISrsPidFileLocker;
+class ISrsCoWorkers;
 class ISrsAppConfig;
 class ISrsLiveSourceManager;
 class ISrsResourceManager;
@@ -152,6 +153,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsReloadStatus *reload_status_;
     ISrsRtcBlackhole *blackhole_;
     ISrsSrtEventLoop *srt_eventloop_;
+    ISrsCoWorkers *coworkers_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
