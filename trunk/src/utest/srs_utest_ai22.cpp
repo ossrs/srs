@@ -20,6 +20,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_config.hpp>
@@ -2763,6 +2764,70 @@ VOID TEST(RtspConnectionTest, OnRtspRequestCompletePlayFlow)
     // Clean up: Set to NULL to avoid double-free
     conn->rtsp_ = NULL;
     srs_freep(mock_rtsp);
+}
+
+// The constructor allocates the generator that draws the session id, so a test can replace it
+// before the first DESCRIBE.
+VOID TEST(RtspConnectionTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    EXPECT_TRUE(conn->rand_ != NULL);
+    EXPECT_TRUE(conn->session_id_.empty());
+}
+
+// The session id is an 8-character string drawn once through the injected generator, by the first
+// DESCRIBE, then carried by every later response of the connection.
+VOID TEST(RtspConnectionTest, DescribeDrawsSessionIdThroughInjectedRand)
+{
+    srs_error_t err;
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("session1");
+    rand.gen_str_values_.push_back("session2");
+
+    MockRtspStack *mock_rtsp = new MockRtspStack();
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    srs_freep(conn->rtsp_);
+    conn->rtsp_ = mock_rtsp;
+    srs_freep(conn->rand_);
+    conn->rand_ = &rand;
+
+    // OPTIONS comes before any session and draws nothing.
+    if (true) {
+        SrsRtspRequest *req = new SrsRtspRequest();
+        req->method_ = "OPTIONS";
+        req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+        req->seq_ = 1;
+        mock_rtsp->reset();
+        HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+    }
+    int draws_after_options = (int)rand.gen_str_lens_.size();
+
+    // Two DESCRIBEs, as a client that asks twice sends: only the first creates the session.
+    std::string sessions[2];
+    for (int i = 0; i < 2; i++) {
+        SrsRtspRequest *req = new SrsRtspRequest();
+        req->method_ = "DESCRIBE";
+        req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+        req->seq_ = 2 + i;
+        mock_rtsp->reset();
+        HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+        sessions[i] = mock_rtsp->last_response_session_;
+    }
+
+    // Restore the stack members before any assertion, so the connection never frees them.
+    conn->rand_ = NULL;
+    conn->rtsp_ = NULL;
+    srs_freep(mock_rtsp);
+
+    EXPECT_EQ(0, draws_after_options);
+    EXPECT_EQ(1, (int)rand.gen_str_lens_.size());
+    if (rand.gen_str_lens_.size() == 1) {
+        EXPECT_EQ(8, rand.gen_str_lens_[0]);
+    }
+    EXPECT_STREQ("session1", conn->session_id_.c_str());
+    EXPECT_STREQ("session1", sessions[0].c_str());
+    EXPECT_STREQ("session1", sessions[1].c_str());
 }
 
 // Test SrsRtspConnection lifecycle and session management - major use scenario
