@@ -1276,6 +1276,7 @@ void MockHttpFlvListenerForServer::close()
 
 MockUdpCasterListenerForServer::MockUdpCasterListenerForServer()
 {
+    assemble_count_ = 0;
     initialize_count_ = 0;
     initialize_conf_ = NULL;
     listen_count_ = 0;
@@ -1286,6 +1287,11 @@ MockUdpCasterListenerForServer::MockUdpCasterListenerForServer()
 MockUdpCasterListenerForServer::~MockUdpCasterListenerForServer()
 {
     srs_freep(initialize_error_);
+}
+
+void MockUdpCasterListenerForServer::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockUdpCasterListenerForServer::initialize(SrsConfDirective *conf)
@@ -2208,6 +2214,31 @@ VOID TEST(ServerTest, AssembleCreatesIngesterPithyPrint)
     SrsIngester *ingester = dynamic_cast<SrsIngester *>(server->ingester_);
     ASSERT_TRUE(ingester != NULL);
     EXPECT_TRUE(ingester->pprint_ != NULL);
+}
+
+VOID TEST(ServerTest, AssembleAssemblesInjectedMpegtsCaster)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    ServerStreamCastersInjector casters(server.get());
+    server->assemble();
+
+    EXPECT_EQ(1, casters.mpegts_.assemble_count_);
+    EXPECT_EQ(0, casters.mpegts_.initialize_count_ + casters.mpegts_.listen_count_);
+}
+
+// main() constructs the server and calls its assemble(), which leaves the
+// MPEG-TS over UDP caster with its pithy print created.
+VOID TEST(ServerTest, AssembleCreatesMpegtsCasterPithyPrint)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsUdpCasterListener *listener = dynamic_cast<SrsUdpCasterListener *>(server->stream_caster_mpegts_);
+    ASSERT_TRUE(listener != NULL);
+    SrsMpegtsOverUdp *caster = dynamic_cast<SrsMpegtsOverUdp *>(listener->caster_);
+    ASSERT_TRUE(caster != NULL);
+    EXPECT_TRUE(caster->pprint_ != NULL);
 }
 
 VOID TEST(ServerTest, InitializeInitializesInjectedRtcSessionManager)

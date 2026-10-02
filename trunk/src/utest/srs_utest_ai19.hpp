@@ -71,6 +71,7 @@ public:
 class MockMpegtsOverUdp : public ISrsMpegtsOverUdp
 {
 public:
+    int assemble_count_;
     bool initialize_called_;
     srs_error_t initialize_error_;
 
@@ -79,6 +80,7 @@ public:
     virtual ~MockMpegtsOverUdp();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t on_ts_message(SrsTsMessage *msg);
     virtual srs_error_t on_udp_packet(const sockaddr *from, const int fromlen, char *buf, int nb_buf);

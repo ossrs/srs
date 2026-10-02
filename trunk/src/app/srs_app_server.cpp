@@ -260,6 +260,7 @@ void SrsServer::assemble()
 {
     ppid_ = ::getppid();
     signal_manager_->assemble();
+    stream_caster_mpegts_->assemble();
     http_server_->assemble();
     ingester_->assemble();
 }

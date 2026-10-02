@@ -290,6 +290,7 @@ public:
 class MockUdpCasterListenerForServer : public SrsUdpCasterListener
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     SrsConfDirective *initialize_conf_;
     int listen_count_;
@@ -302,6 +303,7 @@ public:
     virtual ~MockUdpCasterListenerForServer();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize(SrsConfDirective *conf);
     virtual srs_error_t listen();
     virtual void close();

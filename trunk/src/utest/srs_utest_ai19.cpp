@@ -101,6 +101,7 @@ void MockIpListenerForUdpCaster::reset()
 // Mock ISrsMpegtsOverUdp implementation
 MockMpegtsOverUdp::MockMpegtsOverUdp()
 {
+    assemble_count_ = 0;
     initialize_called_ = false;
     initialize_error_ = srs_success;
 }
@@ -108,6 +109,11 @@ MockMpegtsOverUdp::MockMpegtsOverUdp()
 MockMpegtsOverUdp::~MockMpegtsOverUdp()
 {
     srs_freep(initialize_error_);
+}
+
+void MockMpegtsOverUdp::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockMpegtsOverUdp::initialize(SrsConfDirective *c)
@@ -276,6 +282,44 @@ VOID TEST(UdpCasterListenerTest, InitializeWithCasterFailure)
     listener->caster_ = NULL;
 }
 
+// assemble() assembles the caster, which the constructor only allocates.
+VOID TEST(UdpCasterListenerTest, AssembleAssemblesCaster)
+{
+    SrsUniquePtr<SrsUdpCasterListener> listener(new SrsUdpCasterListener());
+
+    // Owned by the listener, whose destructor frees it.
+    MockMpegtsOverUdp *caster = new MockMpegtsOverUdp();
+    srs_freep(listener->caster_);
+    listener->caster_ = caster;
+
+    listener->assemble();
+    EXPECT_EQ(1, caster->assemble_count_);
+}
+
+// The constructor does not create the pithy print, which would enter the caster
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(MpegtsOverUdpTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsMpegtsOverUdp> caster(new SrsMpegtsOverUdp());
+
+    EXPECT_TRUE(caster->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the caster stage.
+VOID TEST(MpegtsOverUdpTest, AssembleCreatesCasterPithyPrint)
+{
+    SrsUniquePtr<SrsMpegtsOverUdp> caster(new SrsMpegtsOverUdp());
+    srs_freep(caster->pprint_);
+
+    caster->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(caster->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_caster());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
 // Test SrsMpegtsQueue push and dequeue - major use scenario
 // This test covers the typical workflow:
 // 1. Push multiple audio and video packets with different timestamps
@@ -363,6 +407,7 @@ VOID TEST(MpegtsOverUdpTest, ProcessUdpPacketWithTsData)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create a valid TS packet (188 bytes) - PAT packet
     // This is a real TS PAT (Program Association Table) packet
@@ -527,6 +572,7 @@ VOID TEST(MpegtsOverUdpTest, OnTsVideoWithSpsPpsIdrFrame)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create mock dependencies
     MockMpegtsRawH264Stream *mock_avc = new MockMpegtsRawH264Stream();
@@ -614,6 +660,7 @@ VOID TEST(MpegtsOverUdpTest, WriteH264SpsPps)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create mock dependencies
     MockMpegtsRawH264Stream *mock_avc = new MockMpegtsRawH264Stream();
@@ -668,6 +715,7 @@ VOID TEST(MpegtsOverUdpTest, WriteH264IpbFrameWithIdrFrame)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create mock dependencies
     MockMpegtsRawH264Stream *mock_avc = new MockMpegtsRawH264Stream();
@@ -912,6 +960,7 @@ VOID TEST(MpegtsOverUdpTest, RtmpWritePacketWithVideoData)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create mock dependencies
     MockRtmpClient *mock_sdk = new MockRtmpClient();
