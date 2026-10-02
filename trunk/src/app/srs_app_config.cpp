@@ -1453,12 +1453,15 @@ SrsConfig::SrsConfig()
 
     env_cache_ = new SrsConfDirective();
     env_cache_->name_ = "env_cache_";
+
+    rand_ = new SrsRand();
 }
 
 SrsConfig::~SrsConfig()
 {
     srs_freep(root_);
     srs_freep(env_cache_);
+    srs_freep(rand_);
 }
 
 void SrsConfig::subscribe(ISrsReloadHandler *handler)
@@ -3003,22 +3006,20 @@ void srs_try_write_file(string path, string content)
 
 string SrsConfig::get_server_id()
 {
-    static string DEFAULT = "";
-
     // The server id file is kept next to the pid file, so there is none without a pid file.
     string pid_file = get_pid_file();
 
-    // Try to read DEFAULT from server id file.
-    if (DEFAULT.empty() && !pid_file.empty()) {
-        DEFAULT = srs_try_read_file(srs_server_id_path(pid_file));
+    // Try to read the default from server id file.
+    if (default_server_id_.empty() && !pid_file.empty()) {
+        default_server_id_ = srs_try_read_file(srs_server_id_path(pid_file));
     }
 
     // Generate a random one if empty.
-    if (DEFAULT.empty()) {
-        DEFAULT = srs_generate_stat_vid();
+    if (default_server_id_.empty()) {
+        default_server_id_ = srs_generate_stat_vid(rand_);
     }
 
-    // Get the server id from env, config or DEFAULT.
+    // Get the server id from env, config or the default.
     string server_id;
 
     if (!srs_getenv("srs.server_id").empty()) { // SRS_SERVER_ID
@@ -3031,7 +3032,7 @@ string SrsConfig::get_server_id()
     }
 
     if (server_id.empty()) {
-        server_id = DEFAULT;
+        server_id = default_server_id_;
     }
 
     // Write server id to tmp file.

@@ -13,6 +13,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
@@ -2181,4 +2182,68 @@ VOID TEST(ConfigParseOptionsTest, InDockerFromParsedConfig)
     HELPER_EXPECT_SUCCESS(err);
     EXPECT_TRUE(conf.get_in_docker());
     EXPECT_TRUE(parsed_in_docker);
+}
+
+// The config owns the generator of its default server id.
+VOID TEST(ConfigServerIdTest, ConstructorCreatesRand)
+{
+    SrsConfig conf;
+    EXPECT_TRUE(conf.rand_ != NULL);
+    EXPECT_TRUE(dynamic_cast<SrsRand *>(conf.rand_) != NULL);
+}
+
+// Without a server id in the env, the config or a server id file, the default is drawn once
+// through the config's generator and kept.
+VOID TEST(ConfigServerIdTest, DefaultDrawsThroughInjectedRand)
+{
+    // Without a pid file, there is no server id file to read the default from.
+    SrsConfig conf;
+    conf.env_only_ = true;
+    ASSERT_STREQ("", conf.get_pid_file().c_str());
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("abc1234");
+    srs_freep(conf.rand_);
+    conf.rand_ = &rand;
+
+    string id1 = conf.get_server_id();
+    string id2 = conf.get_server_id();
+    conf.rand_ = NULL;
+
+    EXPECT_STREQ("vid-abc1234", id1.c_str());
+    EXPECT_STREQ("vid-abc1234", id2.c_str());
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(7, rand.gen_str_lens_.at(0));
+}
+
+// Each config keeps its own default server id, so one drawn by an earlier config is not reused.
+VOID TEST(ConfigServerIdTest, DefaultIsKeptPerConfig)
+{
+    MockRandForHandshake rand1;
+    rand1.gen_str_values_.push_back("first01");
+    MockRandForHandshake rand2;
+    rand2.gen_str_values_.push_back("second2");
+
+    string id1, id2;
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        srs_freep(conf.rand_);
+        conf.rand_ = &rand1;
+        id1 = conf.get_server_id();
+        conf.rand_ = NULL;
+    }
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        srs_freep(conf.rand_);
+        conf.rand_ = &rand2;
+        id2 = conf.get_server_id();
+        conf.rand_ = NULL;
+    }
+
+    EXPECT_STREQ("vid-first01", id1.c_str());
+    EXPECT_STREQ("vid-second2", id2.c_str());
+    EXPECT_EQ(1, (int)rand1.gen_str_lens_.size());
+    EXPECT_EQ(1, (int)rand2.gen_str_lens_.size());
 }

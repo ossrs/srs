@@ -760,6 +760,11 @@ SRS_DECLARE_PROTECTED: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // The cache for parsing the config from environment variables.
     SrsConfDirective *env_cache_;
+    // The generator of the default server id.
+    ISrsRand *rand_;
+    // The default server id, read from the server id file or generated, kept for the life of
+    // this config.
+    std::string default_server_id_;
     // Reload  section
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
