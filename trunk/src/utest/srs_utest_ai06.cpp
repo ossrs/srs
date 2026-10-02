@@ -2827,3 +2827,137 @@ VOID TEST(RtmpHandshakeTest, ComplexHandshakeAssemblesC2S2)
     HELPER_EXPECT_SUCCESS(client_c2.c2_validate(&s1, is_valid));
     EXPECT_TRUE(is_valid);
 }
+
+// The handshake bytes allocate their random generator but create no bytes.
+VOID TEST(RtmpHandshakeTest, HandshakeBytesConstructorCreatesRand)
+{
+    SrsHandshakeBytes bytes;
+
+    EXPECT_TRUE(bytes.rand_ != NULL);
+    EXPECT_TRUE(bytes.c0c1_ == NULL);
+    EXPECT_TRUE(bytes.s0s1s2_ == NULL);
+    EXPECT_TRUE(bytes.c2_ == NULL);
+}
+
+// The c0c1 a client sends is filled from the injected random generator, after
+// the version, the time and a zero; a second create draws nothing.
+VOID TEST(RtmpHandshakeTest, HandshakeBytesC0C1FromInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    MockRandForHandshake rand;
+
+    SrsHandshakeBytes bytes;
+    srs_freep(bytes.rand_);
+    bytes.rand_ = &rand;
+
+    err = bytes.create_c0c1();
+    srs_error_t err2 = bytes.create_c0c1();
+    // Release the mock before any assertion can return early.
+    bytes.rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+    HELPER_EXPECT_SUCCESS(err2);
+
+    ASSERT_EQ(1, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(1537, rand.gen_bytes_sizes_[0]);
+
+    ASSERT_TRUE(bytes.c0c1_ != NULL);
+    EXPECT_EQ(0x03, bytes.c0c1_[0]);
+    for (int i = 5; i < 9; i++) {
+        ASSERT_EQ(0, bytes.c0c1_[i]);
+    }
+    for (int i = 9; i < 1537; i++) {
+        ASSERT_EQ(0x10, bytes.c0c1_[i]);
+    }
+}
+
+// The s0s1s2 a server sends is filled from the injected random generator; s1
+// echoes the time of c1, and s2 is a copy of c1 when one is given.
+VOID TEST(RtmpHandshakeTest, HandshakeBytesS0S1S2FromInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    char c1[1536];
+    memset(c1, 0x7f, sizeof(c1));
+
+    if (true) {
+        MockRandForHandshake rand;
+
+        SrsHandshakeBytes bytes;
+        srs_freep(bytes.rand_);
+        bytes.rand_ = &rand;
+
+        err = bytes.create_c0c1();
+        memcpy(bytes.c0c1_ + 1, "\x01\x02\x03\x04", 4);
+        srs_error_t err2 = bytes.create_s0s1s2(c1);
+        srs_error_t err3 = bytes.create_s0s1s2(c1);
+        bytes.rand_ = NULL;
+        HELPER_EXPECT_SUCCESS(err);
+        HELPER_EXPECT_SUCCESS(err2);
+        HELPER_EXPECT_SUCCESS(err3);
+
+        ASSERT_EQ(2, (int)rand.gen_bytes_sizes_.size());
+        EXPECT_EQ(3073, rand.gen_bytes_sizes_[1]);
+
+        ASSERT_TRUE(bytes.s0s1s2_ != NULL);
+        EXPECT_EQ(0x03, bytes.s0s1s2_[0]);
+        EXPECT_EQ(0, memcmp(bytes.s0s1s2_ + 5, "\x01\x02\x03\x04", 4));
+        for (int i = 9; i < 1537; i++) {
+            ASSERT_EQ(0x11, bytes.s0s1s2_[i]);
+        }
+        EXPECT_EQ(0, memcmp(bytes.s0s1s2_ + 1537, c1, sizeof(c1)));
+    }
+
+    // Without a c1, s2 keeps the random fill.
+    if (true) {
+        MockRandForHandshake rand;
+
+        SrsHandshakeBytes bytes;
+        srs_freep(bytes.rand_);
+        bytes.rand_ = &rand;
+
+        err = bytes.create_s0s1s2();
+        bytes.rand_ = NULL;
+        HELPER_EXPECT_SUCCESS(err);
+
+        ASSERT_EQ(1, (int)rand.gen_bytes_sizes_.size());
+        EXPECT_EQ(3073, rand.gen_bytes_sizes_[0]);
+
+        ASSERT_TRUE(bytes.s0s1s2_ != NULL);
+        EXPECT_EQ(0x03, bytes.s0s1s2_[0]);
+        for (int i = 5; i < 3073; i++) {
+            ASSERT_EQ(0x10, bytes.s0s1s2_[i]);
+        }
+    }
+}
+
+// The c2 a client sends is filled from the injected random generator after the
+// time and the echoed time of s1.
+VOID TEST(RtmpHandshakeTest, HandshakeBytesC2FromInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    MockRandForHandshake rand;
+
+    SrsHandshakeBytes bytes;
+    srs_freep(bytes.rand_);
+    bytes.rand_ = &rand;
+
+    err = bytes.create_s0s1s2();
+    memcpy(bytes.s0s1s2_ + 1, "\x05\x06\x07\x08", 4);
+    srs_error_t err2 = bytes.create_c2();
+    srs_error_t err3 = bytes.create_c2();
+    bytes.rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+    HELPER_EXPECT_SUCCESS(err2);
+    HELPER_EXPECT_SUCCESS(err3);
+
+    ASSERT_EQ(2, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(1536, rand.gen_bytes_sizes_[1]);
+
+    ASSERT_TRUE(bytes.c2_ != NULL);
+    EXPECT_EQ(0, memcmp(bytes.c2_ + 4, "\x05\x06\x07\x08", 4));
+    for (int i = 8; i < 1536; i++) {
+        ASSERT_EQ(0x11, bytes.c2_[i]);
+    }
+}

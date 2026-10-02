@@ -1620,11 +1620,13 @@ SrsHandshakeBytes::SrsHandshakeBytes()
 {
     c0c1_ = s0s1s2_ = c2_ = NULL;
     proxy_real_ip_ = 0;
+    rand_ = new SrsRand();
 }
 
 SrsHandshakeBytes::~SrsHandshakeBytes()
 {
     dispose();
+    srs_freep(rand_);
 }
 
 void SrsHandshakeBytes::dispose()
@@ -1717,7 +1719,7 @@ srs_error_t SrsHandshakeBytes::create_c0c1()
     }
 
     c0c1_ = new char[1537];
-    rand_.gen_bytes(c0c1_, 1537);
+    rand_->gen_bytes(c0c1_, 1537);
 
     // plain text required.
     SrsBuffer stream(c0c1_, 9);
@@ -1738,7 +1740,7 @@ srs_error_t SrsHandshakeBytes::create_s0s1s2(const char *c1)
     }
 
     s0s1s2_ = new char[3073];
-    rand_.gen_bytes(s0s1s2_, 3073);
+    rand_->gen_bytes(s0s1s2_, 3073);
 
     // plain text required.
     SrsBuffer stream(s0s1s2_, 9);
@@ -1768,7 +1770,7 @@ srs_error_t SrsHandshakeBytes::create_c2()
     }
 
     c2_ = new char[1536];
-    rand_.gen_bytes(c2_, 1536);
+    rand_->gen_bytes(c2_, 1536);
 
     // time
     SrsBuffer stream(c2_, 8);

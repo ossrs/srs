@@ -557,7 +557,7 @@ class SrsHandshakeBytes
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsRand rand_;
+    ISrsRand *rand_;
 
 public:
     // For RTMP proxy, the real IP.
