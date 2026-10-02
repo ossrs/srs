@@ -25,17 +25,18 @@ SrsPps *_srs_pps_cids_set = NULL;
 
 SrsThreadContext::SrsThreadContext()
 {
+    rand_ = new SrsRand();
 }
 
 SrsThreadContext::~SrsThreadContext()
 {
+    srs_freep(rand_);
 }
 
 SrsContextId SrsThreadContext::generate_id()
 {
-    SrsRand rand;
     SrsContextId cid;
-    return cid.set_value(rand.gen_str(8));
+    return cid.set_value(rand_->gen_str(8));
 }
 
 static SrsContextId _srs_context_default;

@@ -15,6 +15,8 @@
 #include <srs_kernel_log.hpp>
 #include <srs_protocol_st.hpp>
 
+class ISrsRand;
+
 // The st thread context, get_id will get the st-thread id,
 // which identify the client.
 class SrsThreadContext : public ISrsContext
@@ -22,6 +24,8 @@ class SrsThreadContext : public ISrsContext
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     std::map<srs_thread_t, SrsContextId> cache_;
+    // The generator of the context ids.
+    ISrsRand *rand_;
 
 public:
     SrsThreadContext();
