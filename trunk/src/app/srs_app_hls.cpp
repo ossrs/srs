@@ -874,9 +874,9 @@ std::string SrsHlsFmp4Muxer::generate_m4s_filename()
         m4s_file = srs_strings_replace(m4s_file, "[timestamp]", ts_floor.str());
 
         // TODO: FIMXE: we must use the accept ts floor time to generate the hour variable.
-        m4s_file = srs_path_build_timestamp(m4s_file);
+        m4s_file = srs_path_build_timestamp(config_, m4s_file);
     } else {
-        m4s_file = srs_path_build_timestamp(m4s_file);
+        m4s_file = srs_path_build_timestamp(config_, m4s_file);
     }
 
     if (true) {
@@ -1687,9 +1687,9 @@ string SrsHlsMuxer::generate_ts_filename()
         ts_file = srs_strings_replace(ts_file, "[timestamp]", ts_floor.str());
 
         // TODO: FIMXE: we must use the accept ts floor time to generate the hour variable.
-        ts_file = srs_path_build_timestamp(ts_file);
+        ts_file = srs_path_build_timestamp(config_, ts_file);
     } else {
-        ts_file = srs_path_build_timestamp(ts_file);
+        ts_file = srs_path_build_timestamp(config_, ts_file);
     }
 
     if (true) {

@@ -227,7 +227,7 @@ string SrsDvrSegmenter::generate_path()
     // the flv file path
     std::string flv_path = path_config;
     flv_path = srs_path_build_stream(flv_path, req_->vhost_, req_->app_, req_->stream_);
-    flv_path = srs_path_build_timestamp(flv_path);
+    flv_path = srs_path_build_timestamp(config_, flv_path);
 
     return flv_path;
 }

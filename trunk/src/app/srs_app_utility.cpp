@@ -83,7 +83,7 @@ string srs_path_build_stream(string template_path, string vhost, string app, str
     return path;
 }
 
-string srs_path_build_timestamp(string template_path)
+string srs_path_build_timestamp(ISrsAppConfig *config, string template_path)
 {
     std::string path = template_path;
 
@@ -97,7 +97,7 @@ string srs_path_build_timestamp(string template_path)
     // to calendar time
     struct tm now;
     // Each of these functions returns NULL in case an error was detected. @see https://linux.die.net/man/3/localtime_r
-    if (_srs_config->get_utc_time()) {
+    if (config->get_utc_time()) {
         if (gmtime_r(&tv.tv_sec, &now) == NULL) {
             return path;
         }

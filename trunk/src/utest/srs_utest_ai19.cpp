@@ -10,10 +10,13 @@ using namespace std;
 
 #include <srs_app_caster_flv.hpp>
 #include <srs_app_circuit_breaker.hpp>
+#include <srs_app_dvr.hpp>
 #include <srs_app_encoder.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_hls.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_app_ingest.hpp>
 #include <srs_app_latest_version.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_ng_exec.hpp>
@@ -31,6 +34,8 @@ using namespace std;
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_http.hpp>
+
+#include <sys/time.h>
 
 // Mock ISrsAppConfig implementation
 MockAppConfigForUdpCaster::MockAppConfigForUdpCaster()
@@ -4638,4 +4643,226 @@ VOID TEST(CircuitBreakerTest, InitializeAndWaterLevelTransitions)
     disabled_breaker->shared_timer_ = NULL;
     disabled_breaker->host_ = NULL;
     srs_freep(mock_host);
+}
+
+MockAppConfigForBuildTimestamp::MockAppConfigForBuildTimestamp()
+{
+    utc_time_ = false;
+    get_utc_time_count_ = 0;
+}
+
+MockAppConfigForBuildTimestamp::~MockAppConfigForBuildTimestamp()
+{
+}
+
+bool MockAppConfigForBuildTimestamp::get_utc_time()
+{
+    get_utc_time_count_++;
+    return utc_time_;
+}
+
+std::vector<std::string> MockAppConfigForBuildTimestamp::get_listens()
+{
+    std::vector<std::string> listens;
+    listens.push_back("1935");
+    return listens;
+}
+
+std::string MockAppConfigForBuildTimestamp::get_engine_output(SrsConfDirective *conf)
+{
+    return "rtmp://127.0.0.1:[port]/live/build_timestamp_[2006]";
+}
+
+std::string MockAppConfigForBuildTimestamp::get_ingest_input_type(SrsConfDirective *conf)
+{
+    return "file";
+}
+
+std::string MockAppConfigForBuildTimestamp::get_ingest_input_url(SrsConfDirective *conf)
+{
+    return "./build_timestamp.flv";
+}
+
+// Format the current time as "[2006]-[01]-[02] [15]" would be built, in UTC or local time.
+static std::string build_timestamp_expected(bool utc)
+{
+    timeval tv;
+    gettimeofday(&tv, NULL);
+
+    struct tm now;
+    if (utc) {
+        gmtime_r(&tv.tv_sec, &now);
+    } else {
+        localtime_r(&tv.tv_sec, &now);
+    }
+
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d", 1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour);
+    return buf;
+}
+
+// The UTC switch is read from the config passed in, not from the global config, and selects UTC.
+// Where the local time zone is UTC both results are equal, so only the read count tells them apart.
+VOID TEST(PathBuildTimestampTest, BuildsUtcTimeThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    config.utc_time_ = true;
+
+    std::string before = build_timestamp_expected(true);
+    std::string path = srs_path_build_timestamp(&config, "[2006]-[01]-[02] [15]");
+    std::string after = build_timestamp_expected(true);
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(path == before || path == after) << "path=" << path << ", expect=" << before;
+}
+
+VOID TEST(PathBuildTimestampTest, BuildsLocalTimeThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    config.utc_time_ = false;
+
+    std::string before = build_timestamp_expected(false);
+    std::string path = srs_path_build_timestamp(&config, "[2006]-[01]-[02] [15]");
+    std::string after = build_timestamp_expected(false);
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(path == before || path == after) << "path=" << path << ", expect=" << before;
+}
+
+VOID TEST(HlsMuxerTest, GenerateTsFilenameBuildsTimestampThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    MockRequest req("test_vhost", "live", "stream");
+
+    SrsHlsMuxer muxer;
+    muxer.config_ = &config;
+    muxer.req_ = &req;
+    muxer.hls_ts_file_ = "[stream]-[2006]-[seq].ts";
+    muxer.hls_ts_floor_ = false;
+
+    SrsHlsSegment *segment = new SrsHlsSegment(muxer.context_, SrsAudioCodecIdAAC, SrsVideoCodecIdDisabled, new MockSrsFileWriter());
+    segment->sequence_no_ = 100;
+    muxer.current_ = segment;
+
+    std::string ts_file = muxer.generate_ts_filename();
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(ts_file.find("[2006]") == std::string::npos) << ts_file;
+
+    muxer.config_ = NULL;
+    muxer.req_ = NULL;
+    muxer.current_ = NULL;
+    srs_freep(segment);
+}
+
+VOID TEST(HlsFmp4MuxerTest, GenerateM4sFilenameBuildsTimestampThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    MockRequest req("test_vhost", "live", "stream");
+
+    SrsHlsFmp4Muxer muxer;
+    muxer.config_ = &config;
+    muxer.req_ = &req;
+    muxer.hls_m4s_file_ = "[stream]-[2006]-[seq].m4s";
+    muxer.hls_ts_floor_ = false;
+
+    SrsHlsM4sSegment *segment = new SrsHlsM4sSegment(NULL);
+    segment->sequence_no_ = 100;
+    muxer.current_ = segment;
+
+    std::string m4s_file = muxer.generate_m4s_filename();
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(m4s_file.find("[2006]") == std::string::npos) << m4s_file;
+
+    muxer.config_ = NULL;
+    muxer.req_ = NULL;
+    muxer.current_ = NULL;
+    srs_freep(segment);
+}
+
+VOID TEST(DvrSegmenterTest, GeneratePathBuildsTimestampThroughConfig)
+{
+    // Declared before the segmenter, whose destructor unsubscribes from the config.
+    MockAppConfigForBuildTimestamp config;
+    MockRequest req("test_vhost", "live", "stream");
+
+    SrsDvrFlvSegmenter segmenter;
+    segmenter.config_ = &config;
+    segmenter.req_ = &req;
+
+    std::string path = segmenter.generate_path();
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(path.find("[2006]") == std::string::npos) << path;
+
+    segmenter.req_ = NULL;
+}
+
+VOID TEST(EncoderTest, InitializeFFmpegBuildsTimestampThroughConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForBuildTimestamp config;
+    MockFFMPEGForEncoder ffmpeg;
+    MockSrsRequest req("build.timestamp.vhost", "live", "encoder_stream");
+
+    SrsConfDirective engine;
+    engine.name_ = "engine";
+    engine.args_.push_back("hd");
+
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+    encoder->config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(encoder->initialize_ffmpeg(&ffmpeg, &req, &engine));
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(ffmpeg.output_.find("[2006]") == std::string::npos) << ffmpeg.output_;
+
+    encoder->config_ = NULL;
+}
+
+VOID TEST(IngesterTest, InitializeFFmpegBuildsTimestampThroughConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForBuildTimestamp config;
+    MockFFMPEGForEncoder ffmpeg;
+
+    SrsConfDirective vhost;
+    vhost.name_ = "vhost";
+    vhost.args_.push_back("build.timestamp.vhost");
+
+    SrsConfDirective ingest;
+    ingest.name_ = "ingest";
+    ingest.args_.push_back("livestream");
+
+    SrsConfDirective engine;
+    engine.name_ = "engine";
+
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+    ingester->config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(ingester->initialize_ffmpeg(&ffmpeg, &vhost, &ingest, &engine));
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(ffmpeg.output_.find("[2006]") == std::string::npos) << ffmpeg.output_;
+
+    ingester->config_ = NULL;
+}
+
+VOID TEST(NgExecTest, ParseBuildsTimestampThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    MockSrsRequest req("build.timestamp.vhost", "live", "stream1");
+
+    SrsUniquePtr<SrsNgExec> ng_exec(new SrsNgExec());
+    ng_exec->config_ = &config;
+
+    std::string output = ng_exec->parse(&req, "[stream]-[2006]");
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(output.find("[2006]") == std::string::npos) << output;
+
+    ng_exec->config_ = NULL;
 }

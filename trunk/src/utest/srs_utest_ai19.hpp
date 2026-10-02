@@ -946,4 +946,23 @@ public:
     virtual SrsProcSelfStat *self_proc_stat();
 };
 
+// Mock ISrsAppConfig for testing srs_path_build_timestamp and its callers
+class MockAppConfigForBuildTimestamp : public MockAppConfig
+{
+public:
+    bool utc_time_;
+    int get_utc_time_count_;
+
+public:
+    MockAppConfigForBuildTimestamp();
+    virtual ~MockAppConfigForBuildTimestamp();
+
+public:
+    virtual bool get_utc_time();
+    virtual std::vector<std::string> get_listens();
+    virtual std::string get_engine_output(SrsConfDirective *conf);
+    virtual std::string get_ingest_input_type(SrsConfDirective *conf);
+    virtual std::string get_ingest_input_url(SrsConfDirective *conf);
+};
+
 #endif

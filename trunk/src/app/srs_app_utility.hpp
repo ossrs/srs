@@ -48,8 +48,9 @@ extern std::string srs_path_build_stream(std::string template_path, std::string 
 //       [05], repleace this const to current second.
 //       [999], repleace this const to current millisecond.
 //       [timestamp],replace this const to current UNIX timestamp in ms.
+// The config decides whether the time is UTC or local.
 // @return the replaced path.
-extern std::string srs_path_build_timestamp(std::string template_path);
+extern std::string srs_path_build_timestamp(ISrsAppConfig *config, std::string template_path);
 
 // The app utility.
 class SrsAppUtility

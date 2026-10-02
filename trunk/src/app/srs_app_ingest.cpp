@@ -400,7 +400,7 @@ srs_error_t SrsIngester::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, SrsConfDirective 
     // ie. rtmp://localhost:1935/live/livestream_sd
     output = srs_strings_replace(output, "[vhost]", vhost->arg0());
     output = srs_strings_replace(output, "[port]", srs_strconv_format_int(port));
-    output = srs_path_build_timestamp(output);
+    output = srs_path_build_timestamp(config_, output);
     // Remove the only param with default vhost.
     output = srs_strings_replace(output, "vhost=" SRS_CONSTS_RTMP_DEFAULT_VHOST, "");
     output = srs_strings_replace(output, "?&", "?");

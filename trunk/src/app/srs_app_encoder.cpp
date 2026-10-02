@@ -292,7 +292,7 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     output = srs_strings_replace(output, "[stream]", req->stream_);
     output = srs_strings_replace(output, "[param]", req->param_);
     output = srs_strings_replace(output, "[engine]", engine->arg0());
-    output = srs_path_build_timestamp(output);
+    output = srs_path_build_timestamp(config_, output);
 
     // LCOV_EXCL_START
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
