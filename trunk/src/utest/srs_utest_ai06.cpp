@@ -17,9 +17,11 @@ using namespace std;
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_http_client.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
+#include <srs_protocol_rtmp_handshake.hpp>
 #include <srs_protocol_rtp.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_manual_http.hpp>
+#include <srs_utest_manual_protocol.hpp>
 
 VOID TEST(HTTPClientTest, HTTPClientUtility)
 {
@@ -2335,5 +2337,627 @@ VOID TEST(RTPVideoBuilderTest, PackageFuAH264)
 
         // Cleanup format
         srs_freep(format.vcodec_);
+    }
+}
+
+MockRandForHandshake::MockRandForHandshake()
+{
+    integer_value_ = 0;
+    integer_count_ = 0;
+}
+
+MockRandForHandshake::~MockRandForHandshake()
+{
+}
+
+void MockRandForHandshake::gen_bytes(char *bytes, int size)
+{
+    memset(bytes, 0x10 + (int)gen_bytes_sizes_.size(), size);
+    gen_bytes_sizes_.push_back(size);
+}
+
+std::string MockRandForHandshake::gen_str(int len)
+{
+    size_t index = gen_str_lens_.size();
+    gen_str_lens_.push_back(len);
+    if (index < gen_str_values_.size()) {
+        return gen_str_values_[index];
+    }
+    return std::string(len, 'x');
+}
+
+long MockRandForHandshake::integer()
+{
+    integer_count_++;
+    return integer_value_;
+}
+
+long MockRandForHandshake::integer(long min, long max)
+{
+    return min;
+}
+
+// The key block allocates its random generator but generates nothing until assemble().
+VOID TEST(RtmpHandshakeTest, KeyBlockConstructionGeneratesNothing)
+{
+    srs_internal::SrsKeyBlock block;
+
+    EXPECT_TRUE(block.rand_ != NULL);
+    EXPECT_EQ(0, block.offset_);
+    EXPECT_TRUE(block.random0_ == NULL);
+    EXPECT_EQ(0, block.random0_size_);
+    EXPECT_TRUE(block.random1_ == NULL);
+    EXPECT_EQ(0, block.random1_size_);
+}
+
+// The offset, the key and both paddings come from the injected random generator.
+VOID TEST(RtmpHandshakeTest, KeyBlockAssembleFillsFromInjectedRand)
+{
+    MockRandForHandshake rand;
+    // The bytes sum to 400, which is the valid offset.
+    rand.integer_value_ = 0x64646464;
+
+    srs_internal::SrsKeyBlock block;
+    srs_freep(block.rand_);
+    block.rand_ = &rand;
+
+    block.assemble();
+    // Release the mock before any assertion can return early.
+    block.rand_ = NULL;
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x64646464, block.offset_);
+    ASSERT_EQ(400, block.random0_size_);
+    ASSERT_EQ(764 - 400 - 128 - 4, block.random1_size_);
+
+    ASSERT_EQ(3, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(400, rand.gen_bytes_sizes_[0]);
+    EXPECT_EQ(128, rand.gen_bytes_sizes_[1]);
+    EXPECT_EQ(232, rand.gen_bytes_sizes_[2]);
+
+    // Each padding starts with the server signature, the rest is the random fill.
+    ASSERT_TRUE(block.random0_ != NULL);
+    EXPECT_EQ(0, strncmp(block.random0_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x10, block.random0_[399]);
+    for (int i = 0; i < 128; i++) {
+        EXPECT_EQ(0x11, block.key_[i]);
+    }
+    ASSERT_TRUE(block.random1_ != NULL);
+    EXPECT_EQ(0, strncmp(block.random1_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x12, block.random1_[231]);
+}
+
+// The strategy assembles its key block, so a c1s1 can be dumped from fixed bytes.
+VOID TEST(RtmpHandshakeTest, C1S1StrategyAssembleFillsKeyBlock)
+{
+    srs_error_t err = srs_success;
+
+    MockRandForHandshake rand;
+    rand.integer_value_ = 0x64646464;
+
+    srs_internal::SrsC1S1StrategySchema0 payload;
+    srs_freep(payload.key_.rand_);
+    payload.key_.rand_ = &rand;
+
+    payload.assemble();
+    // Release the mock before any assertion can return early.
+    payload.key_.rand_ = NULL;
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x64646464, payload.key_.offset_);
+
+    srs_internal::SrsC1S1 owner;
+    owner.time_ = 0x01020304;
+    owner.version_ = 0x80000702;
+
+    // Schema0 is time, version, the 764 bytes key block, then the digest block.
+    char bytes[1536];
+    HELPER_EXPECT_SUCCESS(payload.dump(&owner, bytes, sizeof(bytes)));
+    EXPECT_EQ(0, strncmp(bytes + 8, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    for (int i = 0; i < 128; i++) {
+        EXPECT_EQ(0x11, bytes[8 + 400 + i]);
+    }
+    EXPECT_EQ(0x12, bytes[8 + 400 + 128 + 231]);
+    EXPECT_EQ(0x64, bytes[8 + 760]);
+    EXPECT_EQ(0x64, bytes[8 + 763]);
+}
+
+// This passes from the start and locks in the production wiring: every payload that
+// c1s1 creates for c1 or s1 has an assembled key block, whose paddings fill the 764 bytes.
+VOID TEST(RtmpHandshakeTest, C1S1CreateAssemblesKeyBlock)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        srs_internal::SrsC1S1 c1;
+        HELPER_EXPECT_SUCCESS(c1.c1_create(schemas[i]));
+        ASSERT_TRUE(c1.payload_ != NULL);
+        EXPECT_EQ(764 - 128 - 4, c1.payload_->key_.random0_size_ + c1.payload_->key_.random1_size_);
+        EXPECT_EQ(c1.payload_->key_.calc_valid_offset(), c1.payload_->key_.random0_size_);
+
+        srs_internal::SrsC1S1 s1;
+        HELPER_EXPECT_SUCCESS(s1.s1_create(&c1));
+        ASSERT_TRUE(s1.payload_ != NULL);
+        EXPECT_EQ(764 - 128 - 4, s1.payload_->key_.random0_size_ + s1.payload_->key_.random1_size_);
+        EXPECT_EQ(s1.payload_->key_.calc_valid_offset(), s1.payload_->key_.random0_size_);
+    }
+}
+
+// The digest block allocates its random generator but generates nothing until assemble().
+VOID TEST(RtmpHandshakeTest, DigestBlockConstructionGeneratesNothing)
+{
+    srs_internal::SrsDigestBlock block;
+
+    EXPECT_TRUE(block.rand_ != NULL);
+    EXPECT_EQ(0, block.offset_);
+    EXPECT_TRUE(block.random0_ == NULL);
+    EXPECT_EQ(0, block.random0_size_);
+    EXPECT_TRUE(block.random1_ == NULL);
+    EXPECT_EQ(0, block.random1_size_);
+}
+
+// The offset, the digest and both paddings come from the injected random generator.
+VOID TEST(RtmpHandshakeTest, DigestBlockAssembleFillsFromInjectedRand)
+{
+    MockRandForHandshake rand;
+    // The bytes sum to 400, which is the valid offset.
+    rand.integer_value_ = 0x64646464;
+
+    srs_internal::SrsDigestBlock block;
+    srs_freep(block.rand_);
+    block.rand_ = &rand;
+
+    block.assemble();
+    // Release the mock before any assertion can return early.
+    block.rand_ = NULL;
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x64646464, block.offset_);
+    ASSERT_EQ(400, block.random0_size_);
+    ASSERT_EQ(764 - 4 - 400 - 32, block.random1_size_);
+
+    ASSERT_EQ(3, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(400, rand.gen_bytes_sizes_[0]);
+    EXPECT_EQ(32, rand.gen_bytes_sizes_[1]);
+    EXPECT_EQ(328, rand.gen_bytes_sizes_[2]);
+
+    // Each padding starts with the server signature, the rest is the random fill.
+    ASSERT_TRUE(block.random0_ != NULL);
+    EXPECT_EQ(0, strncmp(block.random0_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x10, block.random0_[399]);
+    for (int i = 0; i < 32; i++) {
+        EXPECT_EQ(0x11, block.digest_[i]);
+    }
+    ASSERT_TRUE(block.random1_ != NULL);
+    EXPECT_EQ(0, strncmp(block.random1_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x12, block.random1_[327]);
+}
+
+// The strategy assembles its digest block, so a c1s1 can be dumped from fixed bytes.
+VOID TEST(RtmpHandshakeTest, C1S1StrategyAssembleFillsDigestBlock)
+{
+    srs_error_t err = srs_success;
+
+    MockRandForHandshake key_rand;
+    key_rand.integer_value_ = 0x64646464;
+    MockRandForHandshake digest_rand;
+    digest_rand.integer_value_ = 0x64646464;
+
+    srs_internal::SrsC1S1StrategySchema0 payload;
+    srs_freep(payload.key_.rand_);
+    payload.key_.rand_ = &key_rand;
+    srs_freep(payload.digest_.rand_);
+    payload.digest_.rand_ = &digest_rand;
+
+    payload.assemble();
+    // Release the mocks before any assertion can return early.
+    payload.key_.rand_ = NULL;
+    payload.digest_.rand_ = NULL;
+
+    EXPECT_EQ(1, digest_rand.integer_count_);
+    EXPECT_EQ(0x64646464, payload.digest_.offset_);
+
+    srs_internal::SrsC1S1 owner;
+    owner.time_ = 0x01020304;
+    owner.version_ = 0x80000702;
+
+    // Schema0 is time, version, the key block, then the 764 bytes digest block,
+    // which is the offset, the 400 bytes padding, the digest and the 328 bytes padding.
+    char bytes[1536];
+    HELPER_EXPECT_SUCCESS(payload.dump(&owner, bytes, sizeof(bytes)));
+    int base = 8 + 764;
+    EXPECT_EQ(0x64, bytes[base]);
+    EXPECT_EQ(0x64, bytes[base + 3]);
+    EXPECT_EQ(0, strncmp(bytes + base + 4, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    EXPECT_EQ(0x10, bytes[base + 4 + 399]);
+    for (int i = 0; i < 32; i++) {
+        EXPECT_EQ(0x11, bytes[base + 4 + 400 + i]);
+    }
+    EXPECT_EQ(0x12, bytes[base + 4 + 400 + 32 + 327]);
+}
+
+// Create a c1 of the schema whose key and digest blocks are filled from fixed bytes.
+static srs_error_t create_fixed_c1(srs_internal::SrsC1S1 *c1, srs_schema_type schema)
+{
+    MockRandForHandshake key_rand;
+    key_rand.integer_value_ = 0x64646464;
+    MockRandForHandshake digest_rand;
+    digest_rand.integer_value_ = 0x64646464;
+
+    c1->time_ = 0x01020304;
+    c1->version_ = 0x80000702;
+    if (schema == srs_schema0) {
+        c1->payload_ = new srs_internal::SrsC1S1StrategySchema0();
+    } else {
+        c1->payload_ = new srs_internal::SrsC1S1StrategySchema1();
+    }
+
+    srs_freep(c1->payload_->key_.rand_);
+    c1->payload_->key_.rand_ = &key_rand;
+    srs_freep(c1->payload_->digest_.rand_);
+    c1->payload_->digest_.rand_ = &digest_rand;
+
+    c1->payload_->assemble();
+    c1->payload_->key_.rand_ = NULL;
+    c1->payload_->digest_.rand_ = NULL;
+
+    return c1->payload_->c1_create(c1);
+}
+
+// A c1 built from fixed bytes is the same bytes every time, and its digest validates
+// until any byte it covers changes.
+VOID TEST(RtmpHandshakeTest, C1DigestValidatesFromFixedBytes)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        srs_internal::SrsC1S1 c1;
+        HELPER_EXPECT_SUCCESS(create_fixed_c1(&c1, schemas[i]));
+        srs_internal::SrsC1S1 other;
+        HELPER_EXPECT_SUCCESS(create_fixed_c1(&other, schemas[i]));
+
+        char bytes[1536];
+        HELPER_EXPECT_SUCCESS(c1.dump(bytes, sizeof(bytes)));
+        char other_bytes[1536];
+        HELPER_EXPECT_SUCCESS(other.dump(other_bytes, sizeof(other_bytes)));
+        EXPECT_EQ(0, memcmp(bytes, other_bytes, sizeof(bytes)));
+
+        bool is_valid = false;
+        HELPER_EXPECT_SUCCESS(c1.c1_validate_digest(is_valid));
+        EXPECT_TRUE(is_valid);
+
+        // Change one byte of the digest block's padding, which is never empty.
+        ASSERT_GT(c1.payload_->digest_.random1_size_, 0);
+        c1.payload_->digest_.random1_[0]++;
+        is_valid = true;
+        HELPER_EXPECT_SUCCESS(c1.c1_validate_digest(is_valid));
+        EXPECT_FALSE(is_valid);
+    }
+}
+
+// This passes from the start and locks in the production wiring: every payload that
+// c1s1 creates for c1 or s1 has an assembled digest block, whose paddings fill the 764 bytes.
+VOID TEST(RtmpHandshakeTest, C1S1CreateAssemblesDigestBlock)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        srs_internal::SrsC1S1 c1;
+        HELPER_EXPECT_SUCCESS(c1.c1_create(schemas[i]));
+        ASSERT_TRUE(c1.payload_ != NULL);
+        EXPECT_EQ(764 - 4 - 32, c1.payload_->digest_.random0_size_ + c1.payload_->digest_.random1_size_);
+        EXPECT_EQ(c1.payload_->digest_.calc_valid_offset(), c1.payload_->digest_.random0_size_);
+
+        srs_internal::SrsC1S1 s1;
+        HELPER_EXPECT_SUCCESS(s1.s1_create(&c1));
+        ASSERT_TRUE(s1.payload_ != NULL);
+        EXPECT_EQ(764 - 4 - 32, s1.payload_->digest_.random0_size_ + s1.payload_->digest_.random1_size_);
+        EXPECT_EQ(s1.payload_->digest_.calc_valid_offset(), s1.payload_->digest_.random0_size_);
+    }
+}
+
+// The c2s2 allocates its random generator but generates nothing until assemble().
+VOID TEST(RtmpHandshakeTest, C2S2ConstructionGeneratesNothing)
+{
+    srs_internal::SrsC2S2 c2s2;
+
+    EXPECT_TRUE(c2s2.rand_ != NULL);
+    for (int i = 0; i < 1504; i++) {
+        ASSERT_EQ(0, c2s2.random_[i]);
+    }
+    for (int i = 0; i < 32; i++) {
+        ASSERT_EQ(0, c2s2.digest_[i]);
+    }
+}
+
+// The random data and the digest come from the injected random generator.
+VOID TEST(RtmpHandshakeTest, C2S2AssembleFillsFromInjectedRand)
+{
+    MockRandForHandshake rand;
+
+    srs_internal::SrsC2S2 c2s2;
+    srs_freep(c2s2.rand_);
+    c2s2.rand_ = &rand;
+
+    c2s2.assemble();
+    // Release the mock before any assertion can return early.
+    c2s2.rand_ = NULL;
+
+    EXPECT_EQ(0, rand.integer_count_);
+    ASSERT_EQ(2, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(1504, rand.gen_bytes_sizes_[0]);
+    EXPECT_EQ(32, rand.gen_bytes_sizes_[1]);
+
+    // The random data starts with the server signature and its terminator.
+    EXPECT_EQ(0, strncmp(c2s2.random_, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+    int size = (int)strlen(c2s2.random_);
+    ASSERT_GT(size, 0);
+    ASSERT_LT(size, 1504);
+
+    // The rest is the random fill, and the last size bytes are the signature
+    // without its last character, then the terminator.
+    EXPECT_EQ(0x10, c2s2.random_[size + 1]);
+    EXPECT_EQ(0x10, c2s2.random_[1504 - size - 1]);
+    EXPECT_EQ(0, strncmp(c2s2.random_ + 1504 - size, c2s2.random_, size - 1));
+    EXPECT_EQ(0, c2s2.random_[1503]);
+
+    for (int i = 0; i < 32; i++) {
+        EXPECT_EQ(0x11, c2s2.digest_[i]);
+    }
+}
+
+// Assemble the c2s2 from fixed bytes.
+static void assemble_fixed_c2s2(srs_internal::SrsC2S2 *c2s2)
+{
+    MockRandForHandshake rand;
+
+    srs_freep(c2s2->rand_);
+    c2s2->rand_ = &rand;
+    c2s2->assemble();
+    c2s2->rand_ = NULL;
+}
+
+// A c2 or s2 built from fixed bytes is the same bytes every time, and its digest
+// validates until any byte of its random data changes.
+VOID TEST(RtmpHandshakeTest, C2S2DigestValidatesFromFixedBytes)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        srs_internal::SrsC1S1 c1s1;
+        HELPER_EXPECT_SUCCESS(create_fixed_c1(&c1s1, schemas[i]));
+
+        // The client creates c2 from s1, and the server creates s2 from c1.
+        for (int j = 0; j < 2; j++) {
+            srs_internal::SrsC2S2 c2s2;
+            assemble_fixed_c2s2(&c2s2);
+            srs_internal::SrsC2S2 other;
+            assemble_fixed_c2s2(&other);
+
+            if (j == 0) {
+                HELPER_EXPECT_SUCCESS(c2s2.c2_create(&c1s1));
+                HELPER_EXPECT_SUCCESS(other.c2_create(&c1s1));
+            } else {
+                HELPER_EXPECT_SUCCESS(c2s2.s2_create(&c1s1));
+                HELPER_EXPECT_SUCCESS(other.s2_create(&c1s1));
+            }
+
+            char bytes[1536];
+            HELPER_EXPECT_SUCCESS(c2s2.dump(bytes, sizeof(bytes)));
+            char other_bytes[1536];
+            HELPER_EXPECT_SUCCESS(other.dump(other_bytes, sizeof(other_bytes)));
+            EXPECT_EQ(0, memcmp(bytes, other_bytes, sizeof(bytes)));
+
+            bool is_valid = false;
+            if (j == 0) {
+                HELPER_EXPECT_SUCCESS(c2s2.c2_validate(&c1s1, is_valid));
+            } else {
+                HELPER_EXPECT_SUCCESS(c2s2.s2_validate(&c1s1, is_valid));
+            }
+            EXPECT_TRUE(is_valid);
+
+            c2s2.random_[1000]++;
+            is_valid = true;
+            if (j == 0) {
+                HELPER_EXPECT_SUCCESS(c2s2.c2_validate(&c1s1, is_valid));
+            } else {
+                HELPER_EXPECT_SUCCESS(c2s2.s2_validate(&c1s1, is_valid));
+            }
+            EXPECT_FALSE(is_valid);
+        }
+    }
+}
+
+// This passes from the start and locks in the production wiring: the s2 that the
+// server sends and the c2 that the client sends are assembled, so each starts with
+// the server signature, and each validates against the peer's c1 or s1.
+VOID TEST(RtmpHandshakeTest, ComplexHandshakeAssemblesC2S2)
+{
+    srs_error_t err = srs_success;
+
+    // The client sends c0c1 from fixed bytes, then any c2, which is never verified.
+    srs_internal::SrsC1S1 c1;
+    HELPER_EXPECT_SUCCESS(create_fixed_c1(&c1, srs_schema1));
+    char c0c1[1537];
+    c0c1[0] = 0x03;
+    HELPER_EXPECT_SUCCESS(c1.dump(c0c1 + 1, 1536));
+    char c2[1536];
+    memset(c2, 0, sizeof(c2));
+
+    MockBufferIO server_io;
+    server_io.append((uint8_t *)c0c1, sizeof(c0c1));
+    server_io.append((uint8_t *)c2, sizeof(c2));
+
+    SrsHandshakeBytes server_bytes;
+    SrsComplexHandshake server;
+    HELPER_ASSERT_SUCCESS(server.handshake_with_client(&server_bytes, &server_io));
+    ASSERT_EQ(3073, server_io.out_length());
+
+    char s0s1s2[3073];
+    memcpy(s0s1s2, server_io.out_buffer.bytes(), sizeof(s0s1s2));
+    EXPECT_EQ(0, strncmp(s0s1s2 + 1537, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+
+    bool is_valid = false;
+    srs_internal::SrsC2S2 s2;
+    HELPER_EXPECT_SUCCESS(s2.parse(s0s1s2 + 1537, 1536));
+    HELPER_EXPECT_SUCCESS(s2.s2_validate(&c1, is_valid));
+    EXPECT_TRUE(is_valid);
+
+    // The client reads that s0s1s2 and sends c0c1 then c2.
+    MockBufferIO client_io;
+    client_io.append((uint8_t *)s0s1s2, sizeof(s0s1s2));
+
+    SrsHandshakeBytes client_bytes;
+    SrsComplexHandshake client;
+    HELPER_ASSERT_SUCCESS(client.handshake_with_server(&client_bytes, &client_io));
+    ASSERT_EQ(1537 + 1536, client_io.out_length());
+
+    char *c2_bytes = client_io.out_buffer.bytes() + 1537;
+    EXPECT_EQ(0, strncmp(c2_bytes, RTMP_SIG_SRS_KEY, strlen(RTMP_SIG_SRS_KEY)));
+
+    srs_internal::SrsC1S1 s1;
+    HELPER_EXPECT_SUCCESS(s1.parse(s0s1s2 + 1, 1536, srs_schema1));
+    srs_internal::SrsC2S2 client_c2;
+    HELPER_EXPECT_SUCCESS(client_c2.parse(c2_bytes, 1536));
+    is_valid = false;
+    HELPER_EXPECT_SUCCESS(client_c2.c2_validate(&s1, is_valid));
+    EXPECT_TRUE(is_valid);
+}
+
+// The handshake bytes allocate their random generator but create no bytes.
+VOID TEST(RtmpHandshakeTest, HandshakeBytesConstructorCreatesRand)
+{
+    SrsHandshakeBytes bytes;
+
+    EXPECT_TRUE(bytes.rand_ != NULL);
+    EXPECT_TRUE(bytes.c0c1_ == NULL);
+    EXPECT_TRUE(bytes.s0s1s2_ == NULL);
+    EXPECT_TRUE(bytes.c2_ == NULL);
+}
+
+// The c0c1 a client sends is filled from the injected random generator, after
+// the version, the time and a zero; a second create draws nothing.
+VOID TEST(RtmpHandshakeTest, HandshakeBytesC0C1FromInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    MockRandForHandshake rand;
+
+    SrsHandshakeBytes bytes;
+    srs_freep(bytes.rand_);
+    bytes.rand_ = &rand;
+
+    err = bytes.create_c0c1();
+    srs_error_t err2 = bytes.create_c0c1();
+    // Release the mock before any assertion can return early.
+    bytes.rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+    HELPER_EXPECT_SUCCESS(err2);
+
+    ASSERT_EQ(1, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(1537, rand.gen_bytes_sizes_[0]);
+
+    ASSERT_TRUE(bytes.c0c1_ != NULL);
+    EXPECT_EQ(0x03, bytes.c0c1_[0]);
+    for (int i = 5; i < 9; i++) {
+        ASSERT_EQ(0, bytes.c0c1_[i]);
+    }
+    for (int i = 9; i < 1537; i++) {
+        ASSERT_EQ(0x10, bytes.c0c1_[i]);
+    }
+}
+
+// The s0s1s2 a server sends is filled from the injected random generator; s1
+// echoes the time of c1, and s2 is a copy of c1 when one is given.
+VOID TEST(RtmpHandshakeTest, HandshakeBytesS0S1S2FromInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    char c1[1536];
+    memset(c1, 0x7f, sizeof(c1));
+
+    if (true) {
+        MockRandForHandshake rand;
+
+        SrsHandshakeBytes bytes;
+        srs_freep(bytes.rand_);
+        bytes.rand_ = &rand;
+
+        err = bytes.create_c0c1();
+        memcpy(bytes.c0c1_ + 1, "\x01\x02\x03\x04", 4);
+        srs_error_t err2 = bytes.create_s0s1s2(c1);
+        srs_error_t err3 = bytes.create_s0s1s2(c1);
+        bytes.rand_ = NULL;
+        HELPER_EXPECT_SUCCESS(err);
+        HELPER_EXPECT_SUCCESS(err2);
+        HELPER_EXPECT_SUCCESS(err3);
+
+        ASSERT_EQ(2, (int)rand.gen_bytes_sizes_.size());
+        EXPECT_EQ(3073, rand.gen_bytes_sizes_[1]);
+
+        ASSERT_TRUE(bytes.s0s1s2_ != NULL);
+        EXPECT_EQ(0x03, bytes.s0s1s2_[0]);
+        EXPECT_EQ(0, memcmp(bytes.s0s1s2_ + 5, "\x01\x02\x03\x04", 4));
+        for (int i = 9; i < 1537; i++) {
+            ASSERT_EQ(0x11, bytes.s0s1s2_[i]);
+        }
+        EXPECT_EQ(0, memcmp(bytes.s0s1s2_ + 1537, c1, sizeof(c1)));
+    }
+
+    // Without a c1, s2 keeps the random fill.
+    if (true) {
+        MockRandForHandshake rand;
+
+        SrsHandshakeBytes bytes;
+        srs_freep(bytes.rand_);
+        bytes.rand_ = &rand;
+
+        err = bytes.create_s0s1s2();
+        bytes.rand_ = NULL;
+        HELPER_EXPECT_SUCCESS(err);
+
+        ASSERT_EQ(1, (int)rand.gen_bytes_sizes_.size());
+        EXPECT_EQ(3073, rand.gen_bytes_sizes_[0]);
+
+        ASSERT_TRUE(bytes.s0s1s2_ != NULL);
+        EXPECT_EQ(0x03, bytes.s0s1s2_[0]);
+        for (int i = 5; i < 3073; i++) {
+            ASSERT_EQ(0x10, bytes.s0s1s2_[i]);
+        }
+    }
+}
+
+// The c2 a client sends is filled from the injected random generator after the
+// time and the echoed time of s1.
+VOID TEST(RtmpHandshakeTest, HandshakeBytesC2FromInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    MockRandForHandshake rand;
+
+    SrsHandshakeBytes bytes;
+    srs_freep(bytes.rand_);
+    bytes.rand_ = &rand;
+
+    err = bytes.create_s0s1s2();
+    memcpy(bytes.s0s1s2_ + 1, "\x05\x06\x07\x08", 4);
+    srs_error_t err2 = bytes.create_c2();
+    srs_error_t err3 = bytes.create_c2();
+    bytes.rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+    HELPER_EXPECT_SUCCESS(err2);
+    HELPER_EXPECT_SUCCESS(err3);
+
+    ASSERT_EQ(2, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(1536, rand.gen_bytes_sizes_[1]);
+
+    ASSERT_TRUE(bytes.c2_ != NULL);
+    EXPECT_EQ(0, memcmp(bytes.c2_ + 4, "\x05\x06\x07\x08", 4));
+    for (int i = 8; i < 1536; i++) {
+        ASSERT_EQ(0x11, bytes.c2_[i]);
     }
 }

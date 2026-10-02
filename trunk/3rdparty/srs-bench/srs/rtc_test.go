@@ -3358,3 +3358,15 @@ func TestRtx_PublishWithoutRtxOffer(t *testing.T) {
 		}()
 	}()
 }
+
+// pion calls OnICECandidate with a nil candidate when gathering is done, which can happen
+// before a short test ends.
+func TestRtcBasic_LogICECandidateGatheringDone(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("log a nil candidate, panic %v", r)
+		}
+	}()
+
+	logICECandidate(logger.WithContext(context.Background()), nil)
+}

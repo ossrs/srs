@@ -9,11 +9,13 @@
 #include <algorithm>
 using namespace std;
 
+#include <srs_app_factory.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_ts.hpp>
@@ -108,14 +110,22 @@ ISrsSrtSourceManager::~ISrsSrtSourceManager()
 SrsSrtSourceManager::SrsSrtSourceManager()
 {
     lock_ = srs_mutex_new();
-    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
-    timer_->assemble();
+    timer_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+}
+
+void SrsSrtSourceManager::assemble()
+{
+    timer_ = app_factory_->create_hourglass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsSrtSourceManager::~SrsSrtSourceManager()
 {
     srs_mutex_destroy(lock_);
     srs_freep(timer_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsSrtSourceManager::initialize()
@@ -180,6 +190,7 @@ srs_error_t SrsSrtSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<Sr
             pps = source;
         } else {
             SrsSharedPtr<SrsSrtSource> source(new SrsSrtSource());
+            source->assemble();
             srs_trace("new srt source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
@@ -328,7 +339,6 @@ SrsSrtFrameBuilder::SrsSrtFrameBuilder(ISrsFrameTarget *target)
     audio_streamid_ = 2;
 
     pp_audio_duration_ = new SrsAlonePithyPrint();
-    pp_audio_duration_->assemble();
 }
 
 SrsSrtFrameBuilder::~SrsSrtFrameBuilder()
@@ -337,6 +347,11 @@ SrsSrtFrameBuilder::~SrsSrtFrameBuilder()
     srs_freep(req_);
 
     srs_freep(pp_audio_duration_);
+}
+
+void SrsSrtFrameBuilder::assemble()
+{
+    pp_audio_duration_->assemble();
 }
 
 srs_error_t SrsSrtFrameBuilder::on_publish()
@@ -1235,13 +1250,19 @@ SrsSrtSource::SrsSrtSource()
     req_ = NULL;
     can_publish_ = true;
     srt_bridge_ = NULL;
-    // Initialize stream_die_at_ to current time to prevent newly created sources
-    // from being immediately considered dead by stream_is_dead() check.
-    // @see https://github.com/ossrs/srs/issues/4449
-    stream_die_at_ = srs_time_now_cached();
+    stream_die_at_ = 0;
 
     stat_ = _srs_stat;
     format_ = new SrsSrtFormat();
+    clk_ = _srs_clock;
+}
+
+void SrsSrtSource::assemble()
+{
+    // Initialize stream_die_at_ to current time to prevent newly created sources
+    // from being immediately considered dead by stream_is_dead() check.
+    // @see https://github.com/ossrs/srs/issues/4449
+    stream_die_at_ = clk_->now();
 }
 
 SrsSrtSource::~SrsSrtSource()
@@ -1260,6 +1281,7 @@ SrsSrtSource::~SrsSrtSource()
     srs_trace("free srt source id=[%s]", cid.c_str());
 
     stat_ = NULL;
+    clk_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -1301,7 +1323,7 @@ bool SrsSrtSource::stream_is_dead()
     }
 
     // Delay cleanup source.
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_SRT_SOURCE_CLEANUP) {
         return false;
     }
@@ -1388,7 +1410,7 @@ void SrsSrtSource::on_consumer_destroy(ISrsSrtConsumer *consumer)
 
     // Destroy and cleanup source when no publishers and consumers.
     if (can_publish_ && consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 }
 
@@ -1432,7 +1454,7 @@ void SrsSrtSource::on_unpublish()
 
     // Destroy and cleanup source when no publishers and consumers.
     if (consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 
     // Should never change the final state before all cleanup is done.

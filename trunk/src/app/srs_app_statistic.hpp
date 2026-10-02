@@ -18,6 +18,9 @@
 #include <srs_protocol_rtmp_stack.hpp>
 
 class SrsKbps;
+class ISrsClock;
+class ISrsAppConfig;
+class ISrsRand;
 class SrsWallClock;
 class ISrsRequest;
 class ISrsExpire;
@@ -30,6 +33,10 @@ class SrsPps;
 
 struct SrsStatisticVhost {
 public:
+    ISrsAppConfig *config_;
+    ISrsRand *rand_;
+
+public:
     std::string id_;
     std::string vhost_;
     int nb_streams_;
@@ -41,6 +48,7 @@ public:
 
 public:
     SrsStatisticVhost();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsStatisticVhost();
 
 public:
@@ -48,6 +56,10 @@ public:
 };
 
 struct SrsStatisticStream {
+public:
+    ISrsClock *clk_;
+    ISrsRand *rand_;
+
 public:
     std::string id_;
     SrsStatisticVhost *vhost_;
@@ -98,6 +110,7 @@ public:
 
 public:
     SrsStatisticStream();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsStatisticStream();
 
 public:
@@ -111,6 +124,9 @@ public:
 };
 
 struct SrsStatisticClient {
+public:
+    ISrsClock *clk_;
+
 public:
     // For HTTP-API to kickoff this connection by expiring it.
     ISrsExpire *conn_;
@@ -128,6 +144,7 @@ public:
 
 public:
     SrsStatisticClient();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsStatisticClient();
 
 public:
@@ -185,10 +202,14 @@ class SrsStatistic : public ISrsStatistic
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
     // The id to identify the sever.
     std::string server_id_;
     // The id to identify the service.
     std::string service_id_;
+    // The generator of the service id.
+    ISrsRand *rand_;
     // The pid to identify the service process.
     std::string service_pid_;
 
@@ -313,6 +334,7 @@ public:
 
 // Generate a random string id, with constant prefix.
 extern std::string srs_generate_stat_vid();
+extern std::string srs_generate_stat_vid(ISrsRand *rand);
 
 // Global statistic instance.
 extern SrsStatistic *_srs_stat;

@@ -27,6 +27,8 @@ class SrsSrtFrameBuilder;
 class ISrsStatistic;
 class ISrsSrtConsumer;
 class ISrsSrtSource;
+class ISrsClock;
+class ISrsAppFactory;
 
 // The SRT packet with shared message.
 class SrsSrtPacket
@@ -73,12 +75,17 @@ class SrsSrtSourceManager : public ISrsHourGlassHandler, public ISrsSrtSourceMan
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     srs_mutex_t lock_;
     std::map<std::string, SrsSharedPtr<SrsSrtSource> > pool_;
-    SrsHourGlass *timer_;
+    ISrsHourGlass *timer_;
 
 public:
     SrsSrtSourceManager();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsSrtSourceManager();
 
 public:
@@ -206,6 +213,7 @@ class SrsSrtFrameBuilder : public ISrsTsHandler
 public:
     SrsSrtFrameBuilder(ISrsFrameTarget *target);
     virtual ~SrsSrtFrameBuilder();
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     srs_error_t initialize(ISrsRequest *r);
@@ -284,10 +292,12 @@ class SrsSrtSource : public ISrsSrtSource
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
+    ISrsClock *clk_;
 
 public:
     SrsSrtSource();
     virtual ~SrsSrtSource();
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     virtual srs_error_t initialize(ISrsRequest *r);

@@ -18,10 +18,13 @@ using namespace std;
 #include <srs_app_srt_source.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_st.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai19.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <sstream>
@@ -108,6 +111,60 @@ int64_t MockSrtSocket::get_recv_bytes()
     return recv_bytes_;
 }
 
+MockSrtPollerForSrtConnection::MockSrtPollerForSrtConnection()
+{
+    del_socket_count_ = 0;
+}
+
+MockSrtPollerForSrtConnection::~MockSrtPollerForSrtConnection()
+{
+}
+
+srs_error_t MockSrtPollerForSrtConnection::initialize()
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::add_socket(SrsSrtSocket *srt_skt)
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::mod_socket(SrsSrtSocket *srt_skt)
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::del_socket(SrsSrtSocket *srt_skt)
+{
+    del_socket_count_++;
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::wait(int timeout_ms, int *pn_fds)
+{
+    *pn_fds = 0;
+    return srs_success;
+}
+
+int MockSrtPollerForSrtConnection::size()
+{
+    return 0;
+}
+
+MockSrtHandlerForSrtListener::MockSrtHandlerForSrtListener()
+{
+}
+
+MockSrtHandlerForSrtListener::~MockSrtHandlerForSrtListener()
+{
+}
+
+srs_error_t MockSrtHandlerForSrtListener::on_srt_client(srs_srt_t srt_fd)
+{
+    return srs_success;
+}
+
 // Mock ISrsUdpHandler implementation
 MockUdpHandler::MockUdpHandler()
 {
@@ -139,10 +196,12 @@ MockUdpMuxHandler::MockUdpMuxHandler()
     last_peer_port_ = 0;
     last_packet_data_ = "";
     last_packet_size_ = 0;
+    on_udp_packet_error_ = srs_success;
 }
 
 MockUdpMuxHandler::~MockUdpMuxHandler()
 {
+    srs_freep(on_udp_packet_error_);
 }
 
 srs_error_t MockUdpMuxHandler::on_udp_packet(ISrsUdpMuxSocket *skt)
@@ -153,16 +212,38 @@ srs_error_t MockUdpMuxHandler::on_udp_packet(ISrsUdpMuxSocket *skt)
     last_peer_port_ = skt->get_peer_port();
     last_packet_data_ = string(skt->data(), skt->size());
     last_packet_size_ = skt->size();
-    return srs_success;
+    return srs_error_copy(on_udp_packet_error_);
+}
+
+// The listener tests bind _srs_tmp_port, so it must be a free port from the kernel, not
+// a fixed one that a server or an E2E script may hold at the same time, such as 11935,
+// the RTMP port of proxy-e2e-test.sh.
+VOID TEST(UtestTmpPortTest, IsNotTheFixedProxyRtmpPort)
+{
+    EXPECT_GT(_srs_tmp_port, 0);
+    EXPECT_NE(11935, _srs_tmp_port);
+}
+
+// The unit tests pick random ports only from their own range, [45000, 48999], so they never take a
+// fixed port of a test script, a black-box port or a kernel ephemeral port in the parallel Full tier.
+VOID TEST(UtestTmpPortTest, RandomPortIsInUtestRange)
+{
+    int outside = 0;
+    for (int i = 0; i < 1000; i++) {
+        int port = srs_utest_random_port();
+        if (port < 45000 || port > 48999) {
+            outside++;
+        }
+    }
+    EXPECT_EQ(0, outside);
 }
 
 VOID TEST(UdpListenerTest, ListenAndReceivePacket)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP handler
     SrsUniquePtr<MockUdpHandler> mock_handler(new MockUdpHandler());
@@ -220,9 +301,8 @@ VOID TEST(UdpListenerTest, SetEndpointAndSocketBuffer)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP handler
     SrsUniquePtr<MockUdpHandler> mock_handler(new MockUdpHandler());
@@ -271,9 +351,8 @@ VOID TEST(UdpMuxListenerTest, ListenAndCreateSocket)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
@@ -306,9 +385,8 @@ VOID TEST(UdpMuxListenerTest, SetSocketBuffer)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
@@ -351,9 +429,8 @@ VOID TEST(UdpMuxListenerTest, ReceivePacketFromClient)
 {
     srs_error_t err;
 
-    // Generate random port in range [30000, 60000]
-    SrsRand rand;
-    int port = rand.integer(30000, 60000);
+    // Generate a random port from the unit tests' range
+    int port = srs_utest_random_port();
 
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
@@ -415,16 +492,102 @@ VOID TEST(UdpMuxListenerTest, ReceivePacketFromClient)
     EXPECT_EQ(mock_handler->last_packet_data_, test_data2);
 }
 
+// The constructor only captures the context global; the listener's context id is
+// generated in assemble(), so a test can inject the context first.
+VOID TEST(UdpMuxListenerTest, ConstructorCapturesContextWithoutGeneratingId)
+{
+    MockUdpMuxHandler handler;
+    SrsUdpMuxListener listener(&handler, "127.0.0.1", 0);
+
+    EXPECT_TRUE(listener.factory_ == _srs_app_factory);
+    EXPECT_TRUE(listener.context_ == _srs_context);
+    EXPECT_TRUE(listener.cid_.empty());
+}
+
+// assemble() generates the listener's context id through the injected context.
+VOID TEST(UdpMuxListenerTest, AssembleGeneratesIdThroughContext)
+{
+    MockUdpMuxHandler handler;
+    SrsUdpMuxListener listener(&handler, "127.0.0.1", 0);
+
+    MockContextForRtmpConn context;
+    context.id_.set_value("udp-mux-cid");
+    listener.context_ = &context;
+    listener.assemble();
+
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(0, listener.cid_.compare(context.id_));
+
+    listener.context_ = NULL;
+}
+
+// The production factory returns an assembled listener, with its context id generated.
+VOID TEST(UdpMuxListenerTest, FactoryCreatesAssembledListener)
+{
+    MockUdpMuxHandler handler;
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsUdpMuxListener> listener(factory.create_udp_mux_listener(&handler, "127.0.0.1", 0));
+
+    SrsUdpMuxListener *impl = dynamic_cast<SrsUdpMuxListener *>(listener.get());
+    ASSERT_TRUE(impl != NULL);
+    EXPECT_FALSE(impl->cid_.empty());
+}
+
+// When the handler fails a packet, cycle() restores the listener's context id through
+// the injected context before it logs the error.
+VOID TEST(UdpMuxListenerTest, CycleRestoresIdThroughContextOnPacketError)
+{
+    srs_error_t err;
+
+    int port = srs_utest_random_port();
+
+    MockUdpMuxHandler handler;
+    handler.on_udp_packet_error_ = srs_error_new(ERROR_RTC_UDP, "mock packet error");
+
+    // Declared before the listener, so both outlive the listener's coroutine.
+    MockContextForRtmpConn context;
+    context.id_.set_value("udp-mux-cid");
+
+    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(&handler, "127.0.0.1", port));
+    listener->context_ = &context;
+    listener->assemble();
+    HELPER_EXPECT_SUCCESS(listener->listen());
+
+    // Yield to allow the listener coroutine to start.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    srs_netfd_t client_fd = NULL;
+    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", 0, &client_fd));
+    SrsUniquePtr<srs_netfd_t> client_fd_ptr(&client_fd, srs_close_stfd_ptr);
+
+    sockaddr_in dest_addr;
+    memset(&dest_addr, 0, sizeof(dest_addr));
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(port);
+    dest_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    string data = "bad packet";
+    int sent = srs_sendto(client_fd, (void *)data.c_str(), data.size(),
+                          (sockaddr *)&dest_addr, sizeof(dest_addr), SRS_UTIME_NO_TIMEOUT);
+    EXPECT_EQ(sent, (int)data.size());
+
+    // Yield to allow the listener coroutine to handle the packet.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_EQ(1, handler.packet_count_);
+    EXPECT_GE(context.set_id_count_, 1);
+    EXPECT_EQ(0, context.id_.compare(listener->cid_));
+}
+
 VOID TEST(UdpMuxSocketTest, SendtoReplyToClient)
 {
     srs_error_t err;
 
-    // Generate random ports in range [30000, 60000] for server and client
-    SrsRand rand;
-    int server_port = rand.integer(30000, 60000);
-    int client_port = rand.integer(30000, 60000);
+    // Generate random ports from the unit tests' range for server and client
+    int server_port = srs_utest_random_port();
+    int client_port = srs_utest_random_port();
     while (client_port == server_port) {
-        client_port = rand.integer(30000, 60000);
+        client_port = srs_utest_random_port();
     }
 
     // Create a standalone UDP server socket (not using listener to avoid interference)
@@ -515,12 +678,11 @@ VOID TEST(UdpMuxSocketTest, PeerIdGenerationAndCaching)
 {
     srs_error_t err;
 
-    // Generate random ports in range [30000, 60000] for server and client
-    SrsRand rand;
-    int server_port = rand.integer(30000, 60000);
-    int client_port = rand.integer(30000, 60000);
+    // Generate random ports from the unit tests' range for server and client
+    int server_port = srs_utest_random_port();
+    int client_port = srs_utest_random_port();
     while (client_port == server_port) {
-        client_port = rand.integer(30000, 60000);
+        client_port = srs_utest_random_port();
     }
 
     // Create a standalone UDP server socket
@@ -599,9 +761,9 @@ VOID TEST(UdpMuxSocketTest, PeerIdGenerationAndCaching)
     EXPECT_GT(fast_id, 0ULL);
 
     // Verify IP address caching by sending from a different client port
-    int client_port2 = rand.integer(30000, 60000);
+    int client_port2 = srs_utest_random_port();
     while (client_port2 == server_port || client_port2 == client_port) {
-        client_port2 = rand.integer(30000, 60000);
+        client_port2 = srs_utest_random_port();
     }
 
     srs_netfd_t client_fd2 = NULL;
@@ -799,6 +961,49 @@ VOID TEST(SrtRecvThreadTest, StartAndReadData)
     recv_thread->trd_ = NULL;
     srs_freep(mock_trd);
     srs_freep(mock_conn);
+}
+
+// The constructor only captures the factory and context globals; it creates no coroutine,
+// so a test can inject both before assemble() runs.
+VOID TEST(SrtRecvThreadTest, ConstructorCapturesGlobalsWithoutCoroutine)
+{
+    MockSrtConnection conn;
+    SrsSrtRecvThread thread(&conn);
+
+    EXPECT_TRUE(thread.app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(thread.context_ == _srs_context);
+    EXPECT_TRUE(thread.trd_ == NULL);
+}
+
+// assemble() creates the receive coroutine through the injected factory, bound to the
+// context id of the injected context.
+VOID TEST(SrtRecvThreadTest, AssembleCreatesCoroutineThroughFactory)
+{
+    MockSrtConnection conn;
+    SrsSrtRecvThread thread(&conn);
+
+    MockAppFactoryForRtmpConn factory;
+    MockSrtCoroutine *coroutine = new MockSrtCoroutine();
+    factory.coroutine_ = coroutine;
+    MockContextForRtmpConn context;
+    context.id_.set_value("srt-recv-cid");
+
+    thread.app_factory_ = &factory;
+    thread.context_ = &context;
+    thread.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("srt-recv", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(factory.coroutine_handler_ == &thread);
+    EXPECT_EQ(0, factory.coroutine_cid_.compare(context.id_));
+    EXPECT_TRUE(thread.trd_ == coroutine);
+
+    // The thread frees trd_ when it holds the mock coroutine; otherwise free it here.
+    if (thread.trd_ != coroutine) {
+        srs_freep(coroutine);
+    }
+    thread.app_factory_ = NULL;
+    thread.context_ = NULL;
 }
 
 VOID TEST(MpegtsSrtConnTest, BasicConnectionInfo)
@@ -1333,6 +1538,8 @@ MockIngesterFFMPEG::MockIngesterFFMPEG()
 {
     fast_stop_called_ = false;
     fast_kill_called_ = false;
+    uri_count_ = 0;
+    alive_count_ = 0;
 }
 
 MockIngesterFFMPEG::~MockIngesterFFMPEG()
@@ -1348,11 +1555,13 @@ srs_error_t MockIngesterFFMPEG::initialize(ISrsFFMPEG *ff, std::string v, std::s
 
 std::string MockIngesterFFMPEG::uri()
 {
+    uri_count_++;
     return vhost_ + "/" + id_;
 }
 
 srs_utime_t MockIngesterFFMPEG::alive()
 {
+    alive_count_++;
     return 0;
 }
 
@@ -3202,6 +3411,73 @@ VOID TEST(IngesterFFMPEGTest, FastKill)
     EXPECT_TRUE(mock_ffmpeg->fast_kill_called_);
 }
 
+// The constructor does not create the pithy print, which would enter the ingester
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(IngesterTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+
+    EXPECT_TRUE(ingester->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the ingester stage.
+VOID TEST(IngesterTest, AssembleCreatesIngesterPithyPrint)
+{
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+    srs_freep(ingester->pprint_);
+
+    ingester->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(ingester->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_ingester());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
+// The constructor allocates the random generator that picks the ingester to report.
+VOID TEST(IngesterTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+
+    EXPECT_TRUE(dynamic_cast<SrsRand *>(ingester->rand_) != NULL);
+}
+
+// The pithy print picks the ingester to report through the injected generator: one
+// draw, taken modulo the number of ingesters, selects the ingester whose uri and
+// alive time are printed.
+VOID TEST(IngesterTest, ShowLogMessagePicksIngesterThroughInjectedRand)
+{
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+
+    MockRandForHandshake rand;
+    rand.integer_value_ = 5;
+    srs_freep(ingester->rand_);
+    ingester->rand_ = &rand;
+
+    MockPithyPrintForDynamicConn pprint;
+    pprint.can_print_result_ = true;
+    ingester->pprint_ = &pprint;
+
+    MockIngesterFFMPEG *ffmpegs[3];
+    for (int i = 0; i < 3; i++) {
+        ffmpegs[i] = new MockIngesterFFMPEG();
+        ingester->ingesters_.push_back(ffmpegs[i]);
+    }
+
+    ingester->show_ingest_log_message();
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_TRUE(pprint.elapse_called_);
+    EXPECT_EQ(0, ffmpegs[0]->uri_count_);
+    EXPECT_EQ(0, ffmpegs[1]->uri_count_);
+    EXPECT_EQ(1, ffmpegs[2]->uri_count_);
+    EXPECT_EQ(1, ffmpegs[2]->alive_count_);
+
+    ingester->rand_ = NULL;
+    ingester->pprint_ = NULL;
+}
+
 VOID TEST(IngesterTest, Dispose)
 {
     // Create SrsIngester
@@ -3399,6 +3675,7 @@ VOID TEST(IngesterTest, Cycle)
 
     // Create SrsIngester
     SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+    ingester->assemble();
 
     // Create mock coroutine that returns error after 2 successful pulls
     // (MockSrtCoroutine is designed to return success for first 2 calls)
@@ -3443,6 +3720,7 @@ VOID TEST(IngesterTest, DoCycle)
 
     // Create SrsIngester
     SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+    ingester->assemble();
 
     // Create mock ingesters
     MockIngesterFFMPEG *mock_ingester1 = new MockIngesterFFMPEG();
@@ -3743,6 +4021,128 @@ VOID TEST(MpegtsSrtConnTest, AssembleWiresCollaboratorsFromInjectedDependencies)
     conn->context_ = NULL;
 }
 
+VOID TEST(MpegtsSrtConnTest, AssembleAssemblesSrtConnection)
+{
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+
+    // The connection owns its SRT connection, so free the default before replacing it.
+    MockSrtConnection *srt_conn = new MockSrtConnection();
+    srs_freep(conn->srt_conn_);
+    conn->srt_conn_ = srt_conn;
+
+    MockCoroutineForRtmpConn trd;
+
+    MockAppFactoryForRtmpConn factory;
+    factory.coroutine_ = &trd;
+
+    MockContextForRtmpConn context;
+
+    conn->app_factory_ = &factory;
+    conn->context_ = &context;
+    conn->assemble();
+
+    // GOAL: the connection assembles the SRT connection it owns, which creates its socket.
+    EXPECT_EQ(1, srt_conn->assemble_count_);
+
+    // The coroutine is borrowed from the mock factory, so the destructor must not free it.
+    conn->trd_ = NULL;
+    conn->app_factory_ = NULL;
+    conn->context_ = NULL;
+}
+
+// The SRT connection is created for every SRT client, so a test has to be able to choose the event
+// loop its socket attaches to. Construction must therefore only capture the event loop, and create
+// no socket.
+VOID TEST(SrtConnectionTest, ConstructorCapturesEventLoopWithoutSocket)
+{
+    SrsUniquePtr<SrsSrtConnection> conn(new SrsSrtConnection(1));
+
+    // GOAL: construction reaches no collaborator; the socket is created by assemble().
+    EXPECT_TRUE(NULL == conn->srt_skt_);
+    EXPECT_TRUE(_srt_eventloop == conn->srt_eventloop_);
+}
+
+VOID TEST(SrtConnectionTest, AssembleCreatesSocketOnInjectedEventLoopPoller)
+{
+    MockSrtPollerForSrtConnection poller;
+
+    MockSrtEventLoopForServer eventloop;
+    eventloop.poller_ = &poller;
+
+    if (true) {
+        SrsUniquePtr<SrsSrtConnection> conn(new SrsSrtConnection(1));
+        conn->srt_eventloop_ = &eventloop;
+        conn->assemble();
+
+        // GOAL: the socket attaches to the poller of the injected event loop.
+        SrsSrtSocket *skt = dynamic_cast<SrsSrtSocket *>(conn->srt_skt_);
+        EXPECT_TRUE(skt != NULL);
+        EXPECT_TRUE(skt && &poller == skt->srt_poller_);
+
+        // The event loop is borrowed from the test, so the destructor must not touch it.
+        conn->srt_eventloop_ = NULL;
+    }
+
+    // The socket detaches from the same poller when the connection is freed.
+    EXPECT_EQ(1, poller.del_socket_count_);
+}
+
+// The SRT listener must let a test choose the event loop its listening socket attaches to and the
+// factory its accept coroutine comes from, so construction captures both globals.
+VOID TEST(SrtListenerTest, ConstructorCapturesEventLoopAndFactory)
+{
+    MockSrtHandlerForSrtListener handler;
+    SrsSrtListener listener(&handler, "127.0.0.1", 0);
+
+    EXPECT_TRUE(_srt_eventloop == listener.srt_eventloop_);
+    EXPECT_TRUE(_srs_app_factory == listener.app_factory_);
+    EXPECT_TRUE(NULL == listener.srt_skt_);
+}
+
+VOID TEST(SrtListenerTest, ListenUsesInjectedEventLoopAndFactory)
+{
+    srs_error_t err;
+
+    MockSrtPollerForSrtConnection poller;
+    MockSrtEventLoopForServer eventloop;
+    eventloop.poller_ = &poller;
+
+    MockAppFactoryForRtmpConn factory;
+    MockSrtCoroutine *coroutine = new MockSrtCoroutine();
+    factory.coroutine_ = coroutine;
+
+    if (true) {
+        MockSrtHandlerForSrtListener handler;
+        SrsSrtListener listener(&handler, "127.0.0.1", 0);
+        listener.srt_eventloop_ = &eventloop;
+        listener.app_factory_ = &factory;
+
+        HELPER_EXPECT_SUCCESS(listener.create_socket());
+        HELPER_EXPECT_SUCCESS(listener.listen());
+
+        // GOAL: the listening socket attaches to the poller of the injected event loop.
+        SrsSrtSocket *skt = dynamic_cast<SrsSrtSocket *>(listener.srt_skt_);
+        EXPECT_TRUE(skt != NULL);
+        EXPECT_TRUE(skt && &poller == skt->srt_poller_);
+
+        // GOAL: the accept coroutine comes from the injected factory and is started. It is given no
+        // context id, so it generates a fresh one when it starts, as before.
+        EXPECT_EQ(1, factory.create_coroutine_count_);
+        EXPECT_STREQ("srt_listener", factory.coroutine_name_.c_str());
+        EXPECT_TRUE(factory.coroutine_handler_ == &listener);
+        EXPECT_TRUE(factory.coroutine_cid_.empty());
+        EXPECT_TRUE(listener.trd_ == coroutine);
+        EXPECT_TRUE(coroutine->started_);
+
+        // The listener frees trd_ when it holds the mock coroutine; otherwise free it here.
+        if (listener.trd_ != coroutine) {
+            srs_freep(coroutine);
+        }
+        listener.srt_eventloop_ = NULL;
+        listener.app_factory_ = NULL;
+    }
+}
+
 VOID TEST(MpegtsSrtConnTest, AcquirePublishBridgesThroughInjectedFactory)
 {
     srs_error_t err;
@@ -3774,6 +4174,45 @@ VOID TEST(MpegtsSrtConnTest, AcquirePublishBridgesThroughInjectedFactory)
         EXPECT_TRUE(&factory == bridge->app_factory_);
     }
     EXPECT_EQ(1, srt_source->on_publish_count_);
+
+    conn->config_ = NULL;
+    conn->live_sources_ = NULL;
+    conn->app_factory_ = NULL;
+}
+
+// The SRT bridge that publishing builds is assembled, so its frame builder's audio duration printer
+// has its config and first tick.
+VOID TEST(MpegtsSrtConnTest, AcquirePublishAssemblesBridge)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsSrtConn> conn(new SrsMpegtsSrtConn(NULL, 1, "192.168.1.100", 9000));
+    conn->req_->vhost_ = "__defaultVhost__";
+    conn->req_->app_ = "live";
+    conn->req_->stream_ = "livestream";
+
+    MockSrtSource *srt_source = new MockSrtSource();
+    conn->srt_source_ = SrsSharedPtr<SrsSrtSource>(srt_source);
+    HELPER_EXPECT_SUCCESS(srt_source->initialize(conn->req_));
+
+    // The mock config enables SRT to RTMP and disables WebRTC, so only the RTMP bridge is built.
+    MockAppConfig config;
+    MockLiveSourceManager live_sources;
+    MockAppFactoryForRtmpConn factory;
+
+    conn->config_ = &config;
+    conn->live_sources_ = &live_sources;
+    conn->app_factory_ = &factory;
+
+    HELPER_EXPECT_SUCCESS(conn->acquire_publish());
+
+    SrsSrtBridge *bridge = dynamic_cast<SrsSrtBridge *>(srt_source->srt_bridge_);
+    EXPECT_TRUE(NULL != bridge);
+    if (bridge) {
+        SrsAlonePithyPrint *pprint = bridge->frame_builder_->pp_audio_duration_;
+        EXPECT_TRUE(pprint->info_.config_ != NULL);
+        EXPECT_NE(0, pprint->previous_tick_);
+    }
 
     conn->config_ = NULL;
     conn->live_sources_ = NULL;

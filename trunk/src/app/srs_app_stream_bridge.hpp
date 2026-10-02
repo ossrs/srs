@@ -161,6 +161,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsSrtBridge(ISrsAppFactory *factory);
     virtual ~SrsSrtBridge();
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     bool empty();

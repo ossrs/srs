@@ -8,6 +8,7 @@
 
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtsp_conn.hpp>
 #include <srs_app_statistic.hpp>
@@ -15,6 +16,7 @@
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_rtp.hpp>
@@ -122,14 +124,22 @@ ISrsRtspSourceManager::~ISrsRtspSourceManager()
 SrsRtspSourceManager::SrsRtspSourceManager()
 {
     lock_ = srs_mutex_new();
-    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
-    timer_->assemble();
+    timer_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+}
+
+void SrsRtspSourceManager::assemble()
+{
+    timer_ = app_factory_->create_hourglass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsRtspSourceManager::~SrsRtspSourceManager()
 {
     srs_mutex_destroy(lock_);
     srs_freep(timer_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtspSourceManager::initialize()
@@ -195,6 +205,7 @@ srs_error_t SrsRtspSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
             pps = source;
         } else {
             SrsSharedPtr<SrsRtspSource> source = SrsSharedPtr<SrsRtspSource>(new SrsRtspSource());
+            source->assemble();
             srs_trace("new rtsp source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
@@ -250,13 +261,19 @@ SrsRtspSource::SrsRtspSource()
 
     req_ = NULL;
 
-    // Initialize stream_die_at_ to current time to prevent newly created sources
-    // from being immediately considered dead by stream_is_dead() check.
-    // @see https://github.com/ossrs/srs/issues/4449
-    stream_die_at_ = srs_time_now_cached();
+    stream_die_at_ = 0;
 
     stat_ = _srs_stat;
     circuit_breaker_ = _srs_circuit_breaker;
+    clk_ = _srs_clock;
+}
+
+void SrsRtspSource::assemble()
+{
+    // Initialize stream_die_at_ to current time to prevent newly created sources
+    // from being immediately considered dead by stream_is_dead() check.
+    // @see https://github.com/ossrs/srs/issues/4449
+    stream_die_at_ = clk_->now();
 }
 
 SrsRtspSource::~SrsRtspSource()
@@ -276,6 +293,7 @@ SrsRtspSource::~SrsRtspSource()
 
     stat_ = NULL;
     circuit_breaker_ = NULL;
+    clk_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -312,7 +330,7 @@ bool SrsRtspSource::stream_is_dead()
     }
 
     // Delay cleanup source.
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_RTSP_SOURCE_CLEANUP) {
         return false;
     }
@@ -413,7 +431,7 @@ void SrsRtspSource::on_consumer_destroy(SrsRtspConsumer *consumer)
 
     // Destroy and cleanup source when no publishers and consumers.
     if (!is_created_ && consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 }
 
@@ -470,7 +488,7 @@ void SrsRtspSource::on_unpublish()
 
     // Destroy and cleanup source when no publishers and consumers.
     if (consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 
     // Should never change the final state before all cleanup is done.
@@ -541,6 +559,8 @@ SrsRtspRtpBuilder::SrsRtspRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtsp
     video_initialized_ = false;
 
     config_ = _srs_config;
+    ssrc_generator_ = _srs_rtc_ssrc_generator;
+    rand_ = new SrsRand();
 }
 
 SrsRtspRtpBuilder::~SrsRtspRtpBuilder()
@@ -548,8 +568,10 @@ SrsRtspRtpBuilder::~SrsRtspRtpBuilder()
     srs_freep(format_);
     srs_freep(meta_);
     srs_freep(video_builder_);
+    srs_freep(rand_);
 
     config_ = NULL;
+    ssrc_generator_ = NULL;
 }
 
 srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
@@ -559,16 +581,14 @@ srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
     // RTSP behavior: Build track description from real audio format, not default values
     // This is different from RTC which uses default track descriptions
 
-    SrsRand rand;
-
     // Create audio track description from actual format data
     SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
     audio_desc->type_ = "audio";
-    audio_desc->id_ = "audio-" + rand.gen_str(8);
+    audio_desc->id_ = "audio-" + rand_->gen_str(8);
     audio_desc->direction_ = "recvonly";
 
     // Generate SSRC for this track
-    audio_ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+    audio_ssrc_ = ssrc_generator_->generate_ssrc();
     audio_desc->ssrc_ = audio_ssrc_;
 
     int sample_rate = srs_flv_srates[format_->acodec_->sound_rate_];
@@ -634,16 +654,14 @@ srs_error_t SrsRtspRtpBuilder::initialize_video_track(SrsVideoCodecId codec)
 
     std::string codec_name = srs_video_codec_id2str(codec);
 
-    SrsRand rand;
-
     // Create video track description from actual format data
     SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
     video_desc->type_ = "video";
-    video_desc->id_ = "video-" + codec_name + "-" + rand.gen_str(8);
+    video_desc->id_ = "video-" + codec_name + "-" + rand_->gen_str(8);
     video_desc->direction_ = "recvonly";
 
     // Generate SSRC for this track
-    uint32_t video_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+    uint32_t video_ssrc = ssrc_generator_->generate_ssrc();
     video_desc->ssrc_ = video_ssrc;
 
     // Build payload from actual video format

@@ -10,10 +10,13 @@ using namespace std;
 
 #include <srs_app_caster_flv.hpp>
 #include <srs_app_circuit_breaker.hpp>
+#include <srs_app_dvr.hpp>
 #include <srs_app_encoder.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_hls.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_app_ingest.hpp>
 #include <srs_app_latest_version.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_ng_exec.hpp>
@@ -26,10 +29,13 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_http.hpp>
+
+#include <sys/time.h>
 
 // Mock ISrsAppConfig implementation
 MockAppConfigForUdpCaster::MockAppConfigForUdpCaster()
@@ -100,6 +106,7 @@ void MockIpListenerForUdpCaster::reset()
 // Mock ISrsMpegtsOverUdp implementation
 MockMpegtsOverUdp::MockMpegtsOverUdp()
 {
+    assemble_count_ = 0;
     initialize_called_ = false;
     initialize_error_ = srs_success;
 }
@@ -107,6 +114,11 @@ MockMpegtsOverUdp::MockMpegtsOverUdp()
 MockMpegtsOverUdp::~MockMpegtsOverUdp()
 {
     srs_freep(initialize_error_);
+}
+
+void MockMpegtsOverUdp::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockMpegtsOverUdp::initialize(SrsConfDirective *c)
@@ -275,6 +287,44 @@ VOID TEST(UdpCasterListenerTest, InitializeWithCasterFailure)
     listener->caster_ = NULL;
 }
 
+// assemble() assembles the caster, which the constructor only allocates.
+VOID TEST(UdpCasterListenerTest, AssembleAssemblesCaster)
+{
+    SrsUniquePtr<SrsUdpCasterListener> listener(new SrsUdpCasterListener());
+
+    // Owned by the listener, whose destructor frees it.
+    MockMpegtsOverUdp *caster = new MockMpegtsOverUdp();
+    srs_freep(listener->caster_);
+    listener->caster_ = caster;
+
+    listener->assemble();
+    EXPECT_EQ(1, caster->assemble_count_);
+}
+
+// The constructor does not create the pithy print, which would enter the caster
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(MpegtsOverUdpTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsMpegtsOverUdp> caster(new SrsMpegtsOverUdp());
+
+    EXPECT_TRUE(caster->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the caster stage.
+VOID TEST(MpegtsOverUdpTest, AssembleCreatesCasterPithyPrint)
+{
+    SrsUniquePtr<SrsMpegtsOverUdp> caster(new SrsMpegtsOverUdp());
+    srs_freep(caster->pprint_);
+
+    caster->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(caster->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_caster());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
 // Test SrsMpegtsQueue push and dequeue - major use scenario
 // This test covers the typical workflow:
 // 1. Push multiple audio and video packets with different timestamps
@@ -362,6 +412,7 @@ VOID TEST(MpegtsOverUdpTest, ProcessUdpPacketWithTsData)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create a valid TS packet (188 bytes) - PAT packet
     // This is a real TS PAT (Program Association Table) packet
@@ -526,6 +577,7 @@ VOID TEST(MpegtsOverUdpTest, OnTsVideoWithSpsPpsIdrFrame)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create mock dependencies
     MockMpegtsRawH264Stream *mock_avc = new MockMpegtsRawH264Stream();
@@ -613,6 +665,7 @@ VOID TEST(MpegtsOverUdpTest, WriteH264SpsPps)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create mock dependencies
     MockMpegtsRawH264Stream *mock_avc = new MockMpegtsRawH264Stream();
@@ -667,6 +720,7 @@ VOID TEST(MpegtsOverUdpTest, WriteH264IpbFrameWithIdrFrame)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create mock dependencies
     MockMpegtsRawH264Stream *mock_avc = new MockMpegtsRawH264Stream();
@@ -791,6 +845,7 @@ void MockTcpListenerForHttpFlv::reset()
 // Mock ISrsAppCasterFlv implementation
 MockAppCasterFlv::MockAppCasterFlv()
 {
+    assemble_count_ = 0;
     initialize_called_ = false;
     on_tcp_client_called_ = false;
     initialize_error_ = srs_success;
@@ -801,6 +856,11 @@ MockAppCasterFlv::~MockAppCasterFlv()
 {
     srs_freep(initialize_error_);
     srs_freep(on_tcp_client_error_);
+}
+
+void MockAppCasterFlv::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockAppCasterFlv::initialize(SrsConfDirective *c)
@@ -911,6 +971,7 @@ VOID TEST(MpegtsOverUdpTest, RtmpWritePacketWithVideoData)
 
     // Create SrsMpegtsOverUdp instance
     SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
 
     // Create mock dependencies
     MockRtmpClient *mock_sdk = new MockRtmpClient();
@@ -1054,6 +1115,21 @@ VOID TEST(HttpFlvListenerTest, InitializeAndListen)
     listener->caster_ = NULL;
 }
 
+// assemble() assembles the caster, which the constructor only allocates.
+VOID TEST(HttpFlvListenerTest, AssembleAssemblesCaster)
+{
+    SrsUniquePtr<SrsHttpFlvListener> listener(new SrsHttpFlvListener());
+
+    // Owned by the listener, whose destructor frees it.
+    MockAppCasterFlv *caster = new MockAppCasterFlv();
+    srs_freep(listener->caster_);
+    listener->caster_ = caster;
+
+    listener->assemble();
+    EXPECT_EQ(1, caster->assemble_count_);
+    EXPECT_FALSE(caster->initialize_called_);
+}
+
 // Mock ISrsAppConfig implementation for SrsAppCasterFlv
 MockAppConfigForAppCasterFlv::MockAppConfigForAppCasterFlv()
 {
@@ -1129,6 +1205,28 @@ void MockResourceManagerForAppCasterFlv::reset()
     srs_freep(start_error_);
 }
 
+// The constructor does not assemble the resource manager it owns, which would
+// create its cond through the global kernel factory before a test could inject one.
+VOID TEST(AppCasterFlvTest, ConstructorLeavesResourceManagerUnassembled)
+{
+    SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
+
+    EXPECT_TRUE(_srs_kernel_factory == caster->manager_->factory_);
+    EXPECT_TRUE(NULL == caster->manager_->cond_);
+}
+
+// assemble() assembles the resource manager, which creates its cond through the
+// manager's kernel factory.
+VOID TEST(AppCasterFlvTest, AssembleAssemblesResourceManager)
+{
+    MockKernelFactoryForFastTimer factory;
+    SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
+    caster->manager_->factory_ = &factory;
+
+    caster->assemble();
+    EXPECT_EQ(1, factory.create_cond_count_);
+}
+
 // Test SrsAppCasterFlv::initialize - covers the major use scenario:
 // 1. Create SrsAppCasterFlv
 // 2. Mock dependencies (config_, http_mux_, manager_)
@@ -1146,6 +1244,7 @@ VOID TEST(AppCasterFlvTest, InitializeSuccess)
 
     MockHttpServeMuxForAppCasterFlv *mock_http_mux = new MockHttpServeMuxForAppCasterFlv();
     MockResourceManagerForAppCasterFlv *mock_manager = new MockResourceManagerForAppCasterFlv();
+    mock_manager->assemble();
 
     // Create SrsAppCasterFlv
     SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
@@ -1245,6 +1344,7 @@ VOID TEST(AppCasterFlvTest, ResourceManagerDelegation)
 
     // Use real SrsResourceManager for this test to verify actual delegation behavior
     SrsResourceManager *real_manager = new SrsResourceManager("TEST-CFLV");
+    real_manager->assemble();
 
     // Create SrsAppCasterFlv
     SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
@@ -1664,12 +1764,161 @@ VOID TEST(HttpxConnTest, AssembleBuildsHttpConnUnderNewContext)
     EXPECT_TRUE(io == delta->out_);
 }
 
-VOID TEST(DynamicHttpConnTest, ConstructionAssemblesHttpConnUnderNewContext)
+// The constructor only captures the factory and context globals; it creates no coroutine,
+// so a test can inject both before assemble() runs.
+VOID TEST(HttpRecvThreadTest, ConstructorCapturesGlobalsWithoutCoroutine)
+{
+    SrsHttpRecvThread thread(NULL);
+
+    EXPECT_TRUE(thread.app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(thread.context_ == _srs_context);
+    EXPECT_TRUE(thread.trd_ == NULL);
+}
+
+// assemble() creates the receive coroutine through the injected factory, bound to the
+// context id of the injected context.
+VOID TEST(HttpRecvThreadTest, AssembleCreatesCoroutineThroughFactory)
+{
+    SrsHttpRecvThread thread(NULL);
+
+    MockAppFactoryForRtmpConn factory;
+    MockCoroutineForCycle *coroutine = new MockCoroutineForCycle();
+    factory.coroutine_ = coroutine;
+    MockContextForRtmpConn context;
+    context.id_.set_value("http-recv-cid");
+
+    thread.app_factory_ = &factory;
+    thread.context_ = &context;
+    thread.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("http-receive", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(factory.coroutine_handler_ == &thread);
+    EXPECT_EQ(0, factory.coroutine_cid_.compare(context.id_));
+    EXPECT_TRUE(thread.trd_ == coroutine);
+
+    // The thread frees trd_ when it holds the mock coroutine; otherwise free it here.
+    if (thread.trd_ != coroutine) {
+        srs_freep(coroutine);
+    }
+    thread.app_factory_ = NULL;
+    thread.context_ = NULL;
+}
+
+// The constructor only copies the request, creates the message queue and captures the
+// globals; it creates no coroutine, so a test can inject the factory before assemble() runs.
+VOID TEST(BufferCacheTest, ConstructorCapturesFactoryWithoutCoroutine)
+{
+    MockRequest req("test.vhost", "live", "stream1");
+    SrsBufferCache cache(&req);
+
+    EXPECT_TRUE(cache.app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(cache.config_ == _srs_config);
+    EXPECT_TRUE(cache.live_sources_ == _srs_sources);
+    EXPECT_TRUE(cache.queue_ != NULL);
+    EXPECT_TRUE(cache.trd_ == NULL);
+}
+
+// assemble() creates the cache coroutine through the injected factory, with no context id,
+// so the coroutine generates a fresh one when it starts.
+VOID TEST(BufferCacheTest, AssembleCreatesCoroutineThroughFactory)
+{
+    MockRequest req("test.vhost", "live", "stream1");
+    SrsBufferCache cache(&req);
+
+    MockAppFactoryForRtmpConn factory;
+    MockCoroutineForCycle *coroutine = new MockCoroutineForCycle();
+    factory.coroutine_ = coroutine;
+
+    cache.app_factory_ = &factory;
+    cache.assemble();
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("http-stream", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(factory.coroutine_handler_ == &cache);
+    EXPECT_TRUE(factory.coroutine_cid_.empty());
+    EXPECT_TRUE(cache.trd_ == coroutine);
+
+    // The cache frees trd_ when it holds the mock coroutine; otherwise free it here.
+    if (cache.trd_ != coroutine) {
+        srs_freep(coroutine);
+    }
+    cache.app_factory_ = NULL;
+}
+
+// Mounting a stream builds its buffer cache and assembles it before starting it, so the
+// cache holds its coroutine.
+VOID TEST(BufferCacheTest, HttpMountAssemblesBufferCache)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpStreamServer config;
+    MockRequest req("test.vhost", "live", "stream1");
+
+    if (true) {
+        SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
+        MockAsyncCallWorker *async = new MockAsyncCallWorker();
+        srs_freep(server->async_);
+        server->async_ = async;
+        server->config_ = &config;
+
+        server->templateHandlers_["test.vhost"] = new SrsLiveEntry("[vhost]/[app]/[stream].flv");
+
+        HELPER_EXPECT_SUCCESS(server->http_mount(&req));
+
+        SrsLiveEntry *entry = server->streamHandlers_[req.get_stream_url()];
+        ASSERT_TRUE(entry != NULL);
+        SrsBufferCache *cache = dynamic_cast<SrsBufferCache *>(entry->cache_);
+        ASSERT_TRUE(cache != NULL);
+        EXPECT_TRUE(cache->trd_ != NULL);
+
+        server->config_ = NULL;
+    }
+}
+
+// The constructor only stores its arguments and captures the context global; it neither switches
+// the coroutine's id nor creates the HTTP connection, so a test can inject before assemble() runs.
+VOID TEST(DynamicHttpConnTest, ConstructorCapturesContextWithoutWork)
 {
     std::string before = _srs_context->get_id().c_str();
 
     SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
     SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
+
+    EXPECT_STREQ(before.c_str(), _srs_context->get_id().c_str());
+    EXPECT_TRUE(dyn_conn->context_ == _srs_context);
+    EXPECT_TRUE(dyn_conn->mux_ == mux.get());
+    EXPECT_TRUE(dyn_conn->conn_ == NULL);
+    EXPECT_TRUE(dyn_conn->skt_ == NULL);
+    EXPECT_TRUE(dyn_conn->pprint_ == NULL);
+}
+
+// assemble() switches to a new client id through the injected context, then creates the HTTP connection.
+VOID TEST(DynamicHttpConnTest, AssembleSetsNewIdThroughContext)
+{
+    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
+    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
+
+    MockContextForRtmpConn context;
+    context.id_.set_value("dynamic-http-cid");
+    dyn_conn->context_ = &context;
+    dyn_conn->assemble();
+
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ("dynamic-http-cid", context.id_.c_str());
+    EXPECT_TRUE(dyn_conn->conn_ != NULL);
+
+    dyn_conn->context_ = NULL;
+}
+
+VOID TEST(DynamicHttpConnTest, AssembleAssemblesHttpConnUnderNewContext)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
+    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
+    dyn_conn->assemble();
 
     // GOAL: the owner switches to a new client id, then assembles its HTTP connection, so the
     // connection's coroutine runs under that new id and its delta measures the owner's socket.
@@ -2977,6 +3226,30 @@ void MockAppFactoryForEncoder::reset()
     mock_ffmpeg_ = NULL;
 }
 
+// The constructor does not create the pithy print, which would enter the encoder
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(EncoderTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+
+    EXPECT_TRUE(encoder->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the encoder stage.
+VOID TEST(EncoderTest, AssembleCreatesEncoderPithyPrint)
+{
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+    srs_freep(encoder->pprint_);
+
+    encoder->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(encoder->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_encoder());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
 VOID TEST(EncoderTest, OnPublishMajorScenario)
 {
     srs_error_t err = srs_success;
@@ -3569,6 +3842,29 @@ std::vector<SrsConfDirective *> MockAppConfigForNgExec::get_exec_publishs(std::s
     return exec_publishs_;
 }
 
+// The constructor does not create the pithy print, which would enter the exec
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(NgExecTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsNgExec> ng_exec(new SrsNgExec());
+
+    EXPECT_TRUE(ng_exec->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the exec stage.
+VOID TEST(NgExecTest, AssembleCreatesExecPithyPrint)
+{
+    SrsUniquePtr<SrsNgExec> ng_exec(new SrsNgExec());
+    srs_freep(ng_exec->pprint_);
+
+    ng_exec->assemble();
+
+    ASSERT_TRUE(ng_exec->pprint_ != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_exec());
+    EXPECT_EQ(expected->stage_id_, ng_exec->pprint_->stage_id_);
+}
+
 VOID TEST(NgExecTest, ParseExecPublishWithMultipleArgs)
 {
     srs_error_t err = srs_success;
@@ -3761,6 +4057,7 @@ MockHttpClientForHeartbeat::MockHttpClientForHeartbeat()
     initialize_error_ = srs_success;
     post_error_ = srs_success;
     should_delete_response_ = true;
+    request_body_out_ = NULL;
 }
 
 MockHttpClientForHeartbeat::~MockHttpClientForHeartbeat()
@@ -3790,6 +4087,9 @@ srs_error_t MockHttpClientForHeartbeat::post(std::string path, std::string req, 
     post_called_ = true;
     path_ = path;
     request_body_ = req;
+    if (request_body_out_) {
+        *request_body_out_ = req;
+    }
     if (ppmsg && mock_response_) {
         *ppmsg = (ISrsHttpMessage *)mock_response_;
     }
@@ -3949,6 +4249,16 @@ bool MockAppConfigForHeartbeat::get_rtc_server_tcp_enabled()
 std::vector<std::string> MockAppConfigForHeartbeat::get_rtc_server_tcp_listens()
 {
     return rtc_server_tcp_listens_;
+}
+
+std::string MockAppConfigForHeartbeat::argv()
+{
+    return argv_;
+}
+
+std::string MockAppConfigForHeartbeat::cwd()
+{
+    return cwd_;
 }
 
 // Mock ISrsAppConfig implementation for SrsCircuitBreaker
@@ -4151,6 +4461,142 @@ VOID TEST(HttpHeartbeatTest, DoHeartbeatWithAllPortsEnabled)
     mock_factory->mock_http_client_ = NULL; // Already deleted by do_heartbeat()
 }
 
+MockStatisticForHeartbeat::MockStatisticForHeartbeat()
+{
+}
+
+MockStatisticForHeartbeat::~MockStatisticForHeartbeat()
+{
+}
+
+std::string MockStatisticForHeartbeat::server_id()
+{
+    return "mock-server";
+}
+
+std::string MockStatisticForHeartbeat::service_id()
+{
+    return "mock-service";
+}
+
+std::string MockStatisticForHeartbeat::service_pid()
+{
+    return "mock-pid";
+}
+
+VOID TEST(HttpHeartbeatTest, ConstructionCapturesStatistic)
+{
+    SrsUniquePtr<SrsHttpHeartbeat> heartbeat(new SrsHttpHeartbeat());
+    EXPECT_TRUE(heartbeat->stat_ == _srs_stat);
+}
+
+VOID TEST(HttpHeartbeatTest, DoHeartbeatReportsIdsFromInjectedStatistic)
+{
+    srs_error_t err;
+
+    MockAppConfigForHeartbeat config;
+    config.heartbeat_url_ = "http://127.0.0.1:8085/api/v1/servers";
+    config.heartbeat_device_id_ = "test-device";
+
+    MockHttpMessageForHeartbeat *response = new MockHttpMessageForHeartbeat();
+    response->body_content_ = "{\"code\":0}";
+
+    std::string body;
+    MockHttpClientForHeartbeat *client = new MockHttpClientForHeartbeat();
+    client->mock_response_ = response;
+    client->request_body_out_ = &body;
+
+    MockAppFactoryForHeartbeat factory;
+    factory.mock_http_client_ = client;
+
+    MockStatisticForHeartbeat stat;
+
+    SrsUniquePtr<SrsHttpHeartbeat> heartbeat(new SrsHttpHeartbeat());
+    heartbeat->config_ = &config;
+    heartbeat->app_factory_ = &factory;
+    heartbeat->stat_ = &stat;
+
+    // The client and its response are freed by do_heartbeat().
+    HELPER_EXPECT_SUCCESS(heartbeat->do_heartbeat());
+    factory.mock_http_client_ = NULL;
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(body));
+    ASSERT_TRUE(json.get() && json->is_object());
+    SrsJsonObject *obj = json->to_object();
+
+    SrsJsonAny *prop = obj->get_property("server");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("mock-server", prop->to_str().c_str());
+
+    prop = obj->get_property("service");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("mock-service", prop->to_str().c_str());
+
+    prop = obj->get_property("pid");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("mock-pid", prop->to_str().c_str());
+
+    heartbeat->config_ = NULL;
+    heartbeat->app_factory_ = NULL;
+    heartbeat->stat_ = NULL;
+}
+
+VOID TEST(HttpHeartbeatTest, DoHeartbeatSummariesFromInjectedConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForHeartbeat config;
+    config.heartbeat_url_ = "http://127.0.0.1:8085/api/v1/servers";
+    config.heartbeat_summaries_ = true;
+    config.argv_ = "./objs/srs -c conf/heartbeat.conf";
+    config.cwd_ = "/tmp/srs-heartbeat";
+
+    MockHttpMessageForHeartbeat *response = new MockHttpMessageForHeartbeat();
+    response->body_content_ = "{\"code\":0}";
+
+    std::string body;
+    MockHttpClientForHeartbeat *client = new MockHttpClientForHeartbeat();
+    client->mock_response_ = response;
+    client->request_body_out_ = &body;
+
+    MockAppFactoryForHeartbeat factory;
+    factory.mock_http_client_ = client;
+
+    MockStatisticForHeartbeat stat;
+
+    SrsUniquePtr<SrsHttpHeartbeat> heartbeat(new SrsHttpHeartbeat());
+    heartbeat->config_ = &config;
+    heartbeat->app_factory_ = &factory;
+    heartbeat->stat_ = &stat;
+
+    // The client and its response are freed by do_heartbeat().
+    HELPER_EXPECT_SUCCESS(heartbeat->do_heartbeat());
+    factory.mock_http_client_ = NULL;
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(body));
+    ASSERT_TRUE(json.get() && json->is_object());
+
+    SrsJsonAny *prop = json->to_object()->get_property("summaries");
+    ASSERT_TRUE(prop && prop->is_object());
+    prop = prop->to_object()->get_property("data");
+    ASSERT_TRUE(prop && prop->is_object());
+    prop = prop->to_object()->get_property("self");
+    ASSERT_TRUE(prop && prop->is_object());
+    SrsJsonObject *self = prop->to_object();
+
+    prop = self->get_property("argv");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("./objs/srs -c conf/heartbeat.conf", prop->to_str().c_str());
+
+    prop = self->get_property("cwd");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("/tmp/srs-heartbeat", prop->to_str().c_str());
+
+    heartbeat->config_ = NULL;
+    heartbeat->app_factory_ = NULL;
+    heartbeat->stat_ = NULL;
+}
+
 VOID TEST(ReferTest, CheckReferWithMatchingDomain)
 {
     srs_error_t err;
@@ -4302,4 +4748,226 @@ VOID TEST(CircuitBreakerTest, InitializeAndWaterLevelTransitions)
     disabled_breaker->shared_timer_ = NULL;
     disabled_breaker->host_ = NULL;
     srs_freep(mock_host);
+}
+
+MockAppConfigForBuildTimestamp::MockAppConfigForBuildTimestamp()
+{
+    utc_time_ = false;
+    get_utc_time_count_ = 0;
+}
+
+MockAppConfigForBuildTimestamp::~MockAppConfigForBuildTimestamp()
+{
+}
+
+bool MockAppConfigForBuildTimestamp::get_utc_time()
+{
+    get_utc_time_count_++;
+    return utc_time_;
+}
+
+std::vector<std::string> MockAppConfigForBuildTimestamp::get_listens()
+{
+    std::vector<std::string> listens;
+    listens.push_back("1935");
+    return listens;
+}
+
+std::string MockAppConfigForBuildTimestamp::get_engine_output(SrsConfDirective *conf)
+{
+    return "rtmp://127.0.0.1:[port]/live/build_timestamp_[2006]";
+}
+
+std::string MockAppConfigForBuildTimestamp::get_ingest_input_type(SrsConfDirective *conf)
+{
+    return "file";
+}
+
+std::string MockAppConfigForBuildTimestamp::get_ingest_input_url(SrsConfDirective *conf)
+{
+    return "./build_timestamp.flv";
+}
+
+// Format the current time as "[2006]-[01]-[02] [15]" would be built, in UTC or local time.
+static std::string build_timestamp_expected(bool utc)
+{
+    timeval tv;
+    gettimeofday(&tv, NULL);
+
+    struct tm now;
+    if (utc) {
+        gmtime_r(&tv.tv_sec, &now);
+    } else {
+        localtime_r(&tv.tv_sec, &now);
+    }
+
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%04d-%02d-%02d %02d", 1900 + now.tm_year, 1 + now.tm_mon, now.tm_mday, now.tm_hour);
+    return buf;
+}
+
+// The UTC switch is read from the config passed in, not from the global config, and selects UTC.
+// Where the local time zone is UTC both results are equal, so only the read count tells them apart.
+VOID TEST(PathBuildTimestampTest, BuildsUtcTimeThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    config.utc_time_ = true;
+
+    std::string before = build_timestamp_expected(true);
+    std::string path = srs_path_build_timestamp(&config, "[2006]-[01]-[02] [15]");
+    std::string after = build_timestamp_expected(true);
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(path == before || path == after) << "path=" << path << ", expect=" << before;
+}
+
+VOID TEST(PathBuildTimestampTest, BuildsLocalTimeThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    config.utc_time_ = false;
+
+    std::string before = build_timestamp_expected(false);
+    std::string path = srs_path_build_timestamp(&config, "[2006]-[01]-[02] [15]");
+    std::string after = build_timestamp_expected(false);
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(path == before || path == after) << "path=" << path << ", expect=" << before;
+}
+
+VOID TEST(HlsMuxerTest, GenerateTsFilenameBuildsTimestampThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    MockRequest req("test_vhost", "live", "stream");
+
+    SrsHlsMuxer muxer;
+    muxer.config_ = &config;
+    muxer.req_ = &req;
+    muxer.hls_ts_file_ = "[stream]-[2006]-[seq].ts";
+    muxer.hls_ts_floor_ = false;
+
+    SrsHlsSegment *segment = new SrsHlsSegment(muxer.context_, SrsAudioCodecIdAAC, SrsVideoCodecIdDisabled, new MockSrsFileWriter());
+    segment->sequence_no_ = 100;
+    muxer.current_ = segment;
+
+    std::string ts_file = muxer.generate_ts_filename();
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(ts_file.find("[2006]") == std::string::npos) << ts_file;
+
+    muxer.config_ = NULL;
+    muxer.req_ = NULL;
+    muxer.current_ = NULL;
+    srs_freep(segment);
+}
+
+VOID TEST(HlsFmp4MuxerTest, GenerateM4sFilenameBuildsTimestampThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    MockRequest req("test_vhost", "live", "stream");
+
+    SrsHlsFmp4Muxer muxer;
+    muxer.config_ = &config;
+    muxer.req_ = &req;
+    muxer.hls_m4s_file_ = "[stream]-[2006]-[seq].m4s";
+    muxer.hls_ts_floor_ = false;
+
+    SrsHlsM4sSegment *segment = new SrsHlsM4sSegment(NULL);
+    segment->sequence_no_ = 100;
+    muxer.current_ = segment;
+
+    std::string m4s_file = muxer.generate_m4s_filename();
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(m4s_file.find("[2006]") == std::string::npos) << m4s_file;
+
+    muxer.config_ = NULL;
+    muxer.req_ = NULL;
+    muxer.current_ = NULL;
+    srs_freep(segment);
+}
+
+VOID TEST(DvrSegmenterTest, GeneratePathBuildsTimestampThroughConfig)
+{
+    // Declared before the segmenter, whose destructor unsubscribes from the config.
+    MockAppConfigForBuildTimestamp config;
+    MockRequest req("test_vhost", "live", "stream");
+
+    SrsDvrFlvSegmenter segmenter;
+    segmenter.config_ = &config;
+    segmenter.req_ = &req;
+
+    std::string path = segmenter.generate_path();
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(path.find("[2006]") == std::string::npos) << path;
+
+    segmenter.req_ = NULL;
+}
+
+VOID TEST(EncoderTest, InitializeFFmpegBuildsTimestampThroughConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForBuildTimestamp config;
+    MockFFMPEGForEncoder ffmpeg;
+    MockSrsRequest req("build.timestamp.vhost", "live", "encoder_stream");
+
+    SrsConfDirective engine;
+    engine.name_ = "engine";
+    engine.args_.push_back("hd");
+
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+    encoder->config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(encoder->initialize_ffmpeg(&ffmpeg, &req, &engine));
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(ffmpeg.output_.find("[2006]") == std::string::npos) << ffmpeg.output_;
+
+    encoder->config_ = NULL;
+}
+
+VOID TEST(IngesterTest, InitializeFFmpegBuildsTimestampThroughConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForBuildTimestamp config;
+    MockFFMPEGForEncoder ffmpeg;
+
+    SrsConfDirective vhost;
+    vhost.name_ = "vhost";
+    vhost.args_.push_back("build.timestamp.vhost");
+
+    SrsConfDirective ingest;
+    ingest.name_ = "ingest";
+    ingest.args_.push_back("livestream");
+
+    SrsConfDirective engine;
+    engine.name_ = "engine";
+
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+    ingester->config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(ingester->initialize_ffmpeg(&ffmpeg, &vhost, &ingest, &engine));
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(ffmpeg.output_.find("[2006]") == std::string::npos) << ffmpeg.output_;
+
+    ingester->config_ = NULL;
+}
+
+VOID TEST(NgExecTest, ParseBuildsTimestampThroughConfig)
+{
+    MockAppConfigForBuildTimestamp config;
+    MockSrsRequest req("build.timestamp.vhost", "live", "stream1");
+
+    SrsUniquePtr<SrsNgExec> ng_exec(new SrsNgExec());
+    ng_exec->config_ = &config;
+
+    std::string output = ng_exec->parse(&req, "[stream]-[2006]");
+
+    EXPECT_EQ(1, config.get_utc_time_count_);
+    EXPECT_TRUE(output.find("[2006]") == std::string::npos) << output;
+
+    ng_exec->config_ = NULL;
 }

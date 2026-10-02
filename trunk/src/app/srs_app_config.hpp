@@ -29,6 +29,7 @@ class SrsJsonAny;
 class SrsConfig;
 class SrsJsonArray;
 class SrsConfDirective;
+class ISrsRand;
 
 /**
  * whether the two vector actual equals, for instance,
@@ -302,6 +303,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsReloadState state_;
     srs_error_t err_;
     std::string id_;
+    // The generator of the id of each new reload.
+    ISrsRand *rand_;
 
 public:
     SrsReloadStatus();
@@ -331,11 +334,14 @@ public:
     virtual SrsConfDirective *get_root() = 0;
     // Get the current work directory.
     virtual std::string cwd() = 0;
+    // Get the cli, the main(argc,argv), program start command.
+    virtual std::string argv() = 0;
 
 public:
     // Global server config
     virtual int get_max_connections() = 0;
     virtual std::string get_pid_file() = 0;
+    virtual std::string get_server_id() = 0;
     virtual bool empty_ip_ok() = 0;
     virtual bool get_asprocess() = 0;
     virtual srs_utime_t get_grace_start_wait() = 0;
@@ -404,6 +410,9 @@ public:
     virtual std::vector<std::string> get_rtc_server_listens() = 0;
     virtual int get_rtc_server_reuseport() = 0;
     virtual bool get_rtc_server_encrypt() = 0;
+    virtual bool get_rtc_server_ecdsa() = 0;
+    virtual bool get_rtc_server_black_hole() = 0;
+    virtual std::string get_rtc_server_black_hole_addr() = 0;
     virtual bool get_api_as_candidates() = 0;
     virtual bool get_resolve_api_domain() = 0;
     virtual bool get_keep_api_domain() = 0;
@@ -549,6 +558,7 @@ public:
     virtual SrsConfDirective *get_vhost_on_unpublish(std::string vhost) = 0;
     virtual int get_rtc_drop_for_pt(std::string vhost) = 0;
     virtual bool get_rtc_twcc_enabled(std::string vhost) = 0;
+    virtual int get_rtc_aac_bitrate(std::string vhost) = 0;
     virtual bool get_rtc_init_rate_from_sdp(std::string vhost) = 0;
     virtual bool get_rtc_keep_original_ssrc(std::string vhost) = 0;
     virtual bool get_srt_enabled() = 0;
@@ -750,6 +760,11 @@ SRS_DECLARE_PROTECTED: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // The cache for parsing the config from environment variables.
     SrsConfDirective *env_cache_;
+    // The generator of the default server id.
+    ISrsRand *rand_;
+    // The default server id, read from the server id file or generated, kept for the life of
+    // this config.
+    std::string default_server_id_;
     // Reload  section
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

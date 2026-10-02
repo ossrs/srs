@@ -14,8 +14,10 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_rtc_stun.hpp>
 #include <srs_protocol_sdp.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai10.hpp>
 #include <srs_utest_ai11.hpp>
+#include <srs_utest_workflow_rtc_conn.hpp>
 
 // Forward declarations for H.264 SDP functions (defined in srs_app_rtc_conn.cpp)
 extern bool srs_sdp_has_h264_profile(const SrsMediaPayloadType &payload_type, const string &profile);
@@ -1243,6 +1245,7 @@ MockConnectionManagerForExpire::MockConnectionManagerForExpire()
 {
     removed_resource_ = NULL;
     remove_count_ = 0;
+    existing_resource_ = NULL;
 }
 
 MockConnectionManagerForExpire::~MockConnectionManagerForExpire()
@@ -1295,8 +1298,12 @@ ISrsResource *MockConnectionManagerForExpire::find_by_fast_id(uint64_t /*id*/)
     return NULL;
 }
 
-ISrsResource *MockConnectionManagerForExpire::find_by_name(std::string /*name*/)
+ISrsResource *MockConnectionManagerForExpire::find_by_name(std::string name)
 {
+    find_by_name_names_.push_back(name);
+    if (existing_resource_ && name == existing_name_) {
+        return existing_resource_;
+    }
     return NULL;
 }
 
@@ -3517,4 +3524,232 @@ VOID TEST(SrsRtcConnectionTest, OnBindingRequestRequiresIntegrityWithLocalIcePwd
     // Signed for another session.
     conn->local_sdp_.session_info_.ice_pwd_ = "another-session-pwd";
     HELPER_EXPECT_FAILED(conn->on_binding_request(&r, ice_pwd));
+}
+
+// The player negotiator captures the SSRC generator global in the constructor, not the singleton. The
+// global is pointed at another generator here, so a call to instance() is caught.
+VOID TEST(RtcPlayerNegotiatorTest, CapturesSsrcGeneratorGlobalInConstructor)
+{
+    SrsRtcSSRCGenerator other;
+    SrsRtcSSRCGenerator *original = _srs_rtc_ssrc_generator;
+    _srs_rtc_ssrc_generator = &other;
+
+    SrsUniquePtr<SrsRtcPlayerNegotiator> negotiator(new SrsRtcPlayerNegotiator());
+    EXPECT_TRUE(negotiator->ssrc_generator_ == &other);
+    EXPECT_TRUE(negotiator->ssrc_generator_ != SrsRtcSSRCGenerator::instance());
+
+    _srs_rtc_ssrc_generator = original;
+}
+
+// The connection owns its random generator, so a test can replace it before the ICE credentials
+// or the token are drawn.
+VOID TEST(SrsRtcConnectionTest, ConstructorCreatesRand)
+{
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+
+    EXPECT_TRUE(conn->rand_ != NULL);
+}
+
+// The token that verifies the WHIP DELETE request is drawn through the injected generator.
+VOID TEST(SrsRtcConnectionTest, InitializeDrawsTokenThroughInjectedRand)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("token0001");
+    srs_freep(conn->rand_);
+    conn->rand_ = &rand;
+
+    MockRtcAsyncCallRequest req("test.vhost", "live", "stream1");
+    err = conn->initialize(&req, true, true, "local:remote");
+
+    // Restore before any assertion can return, so the connection never frees the stack mock.
+    conn->rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(9, rand.gen_str_lens_[0]);
+    EXPECT_EQ("token0001", conn->token());
+}
+
+// Build a connection whose local SDP generation reaches only mocks, and inject the generator.
+static void prepare_rtc_connection_for_local_sdp(SrsRtcConnection *conn, MockConnectionManagerForExpire *conn_manager,
+                                                 MockAppConfig *config, MockDtlsCertificate *certificate,
+                                                 MockAppFactoryForRtcConn *app_factory, MockRandForHandshake *rand)
+{
+    certificate->fingerprint_ = "test-fingerprint";
+    app_factory->mock_protocol_utility_ = new MockProtocolUtility("192.168.1.100");
+
+    conn->conn_manager_ = conn_manager;
+    conn->config_ = config;
+    conn->dtls_certificate_ = certificate;
+    conn->app_factory_ = app_factory;
+    srs_freep(conn->rand_);
+    conn->rand_ = rand;
+}
+
+static void restore_rtc_connection_for_local_sdp(SrsRtcConnection *conn)
+{
+    conn->conn_manager_ = _srs_conn_manager;
+    conn->config_ = _srs_config;
+    conn->dtls_certificate_ = _srs_rtc_dtls_certificate;
+    conn->app_factory_ = _srs_app_factory;
+    conn->rand_ = NULL;
+}
+
+// Without credentials from the client, the ICE password and then the ufrag are drawn through the
+// injected generator, and both are set on the local SDP.
+VOID TEST(SrsRtcConnectionTest, GenerateLocalSdpDrawsIceCredentialsThroughInjectedRand)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+
+    MockConnectionManagerForExpire conn_manager;
+    MockAppConfig config;
+    MockDtlsCertificate certificate;
+    MockAppFactoryForRtcConn app_factory;
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("pwd00000000000000000000000000001");
+    rand.gen_str_values_.push_back("ufrag001");
+    prepare_rtc_connection_for_local_sdp(conn.get(), &conn_manager, &config, &certificate, &app_factory, &rand);
+
+    SrsRtcUserConfig ruc;
+    srs_freep(ruc.req_);
+    ruc.req_ = new MockRtcAsyncCallRequest("test.vhost", "live", "stream1");
+    ruc.remote_sdp_.session_info_.ice_ufrag_ = "remote";
+
+    SrsSdp local_sdp;
+    local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
+    std::string username;
+    err = conn->generate_local_sdp(&ruc, local_sdp, username);
+
+    restore_rtc_connection_for_local_sdp(conn.get());
+    HELPER_EXPECT_SUCCESS(err);
+
+    ASSERT_EQ(2, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(32, rand.gen_str_lens_[0]);
+    EXPECT_EQ(8, rand.gen_str_lens_[1]);
+    EXPECT_EQ("ufrag001:remote", username);
+    EXPECT_EQ("ufrag001", local_sdp.media_descs_[0].session_info_.ice_ufrag_);
+    EXPECT_EQ("pwd00000000000000000000000000001", local_sdp.media_descs_[0].session_info_.ice_pwd_);
+}
+
+// When the username is already taken by another session, a new ufrag is drawn through the
+// injected generator until the username is free.
+VOID TEST(SrsRtcConnectionTest, GenerateLocalSdpRedrawsTakenUfragThroughInjectedRand)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+
+    MockConnectionManagerForExpire conn_manager;
+    conn_manager.existing_name_ = "ufrag001:remote";
+    conn_manager.existing_resource_ = conn.get();
+    MockAppConfig config;
+    MockDtlsCertificate certificate;
+    MockAppFactoryForRtcConn app_factory;
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("pwd00000000000000000000000000001");
+    rand.gen_str_values_.push_back("ufrag001");
+    rand.gen_str_values_.push_back("ufrag002");
+    prepare_rtc_connection_for_local_sdp(conn.get(), &conn_manager, &config, &certificate, &app_factory, &rand);
+
+    SrsRtcUserConfig ruc;
+    srs_freep(ruc.req_);
+    ruc.req_ = new MockRtcAsyncCallRequest("test.vhost", "live", "stream1");
+    ruc.remote_sdp_.session_info_.ice_ufrag_ = "remote";
+
+    SrsSdp local_sdp;
+    local_sdp.media_descs_.push_back(SrsMediaDesc("audio"));
+    std::string username;
+    err = conn->generate_local_sdp(&ruc, local_sdp, username);
+
+    restore_rtc_connection_for_local_sdp(conn.get());
+    HELPER_EXPECT_SUCCESS(err);
+
+    ASSERT_EQ(3, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(8, rand.gen_str_lens_[2]);
+    ASSERT_EQ(2, (int)conn_manager.find_by_name_names_.size());
+    EXPECT_EQ("ufrag001:remote", conn_manager.find_by_name_names_[0]);
+    EXPECT_EQ("ufrag002:remote", conn_manager.find_by_name_names_[1]);
+    EXPECT_EQ("ufrag002:remote", username);
+    EXPECT_EQ("ufrag002", local_sdp.media_descs_[0].session_info_.ice_ufrag_);
+}
+
+// The player negotiator owns its random generator, so a test can replace it before the cname is drawn.
+VOID TEST(RtcPlayerNegotiatorTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsRtcPlayerNegotiator> negotiator(new SrsRtcPlayerNegotiator());
+
+    EXPECT_TRUE(negotiator->rand_ != NULL);
+}
+
+// One cname is drawn through the injected generator for the whole play answer, and every SSRC of
+// the audio and video tracks, the RTX SSRC included, carries it.
+VOID TEST(RtcPlayerNegotiatorTest, GeneratePlayLocalSdpDrawsCnameThroughInjectedRand)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtcPlayerNegotiator> negotiator(new SrsRtcPlayerNegotiator());
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("cname00000000001");
+    srs_freep(negotiator->rand_);
+    negotiator->rand_ = &rand;
+
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    SrsRtcTrackDescription *audio_track = new SrsRtcTrackDescription();
+    audio_track->type_ = "audio";
+    audio_track->id_ = "audio_track_id";
+    audio_track->ssrc_ = 12345;
+    audio_track->mid_ = "0";
+    audio_track->msid_ = "test_stream";
+    audio_track->direction_ = "sendonly";
+    audio_track->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    stream_desc->audio_track_desc_ = audio_track;
+
+    SrsRtcTrackDescription *video_track = new SrsRtcTrackDescription();
+    video_track->type_ = "video";
+    video_track->id_ = "video_track_id";
+    video_track->ssrc_ = 67890;
+    video_track->rtx_ssrc_ = 67891;
+    video_track->mid_ = "1";
+    video_track->msid_ = "test_stream";
+    video_track->direction_ = "sendonly";
+    video_track->media_ = new SrsVideoPayload(96, "H264", 90000);
+    video_track->rtx_ = new SrsRtxPayloadDes(97, 96, 90000);
+    stream_desc->video_track_descs_.push_back(video_track);
+
+    MockRtcAsyncCallRequest req("test.vhost", "live", "stream1");
+    SrsSdp local_sdp;
+    err = negotiator->generate_play_local_sdp(&req, local_sdp, stream_desc.get(), true, false);
+
+    // Restore before any assertion can return, so the negotiator never frees the stack mock.
+    negotiator->rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(16, rand.gen_str_lens_[0]);
+
+    // Video comes first, because audio_before_video is false.
+    ASSERT_EQ(2, (int)local_sdp.media_descs_.size());
+    EXPECT_EQ("video", local_sdp.media_descs_[0].type_);
+    ASSERT_EQ(2, (int)local_sdp.media_descs_[0].ssrc_infos_.size());
+    EXPECT_EQ("cname00000000001", local_sdp.media_descs_[0].ssrc_infos_[0].cname_);
+    EXPECT_EQ("cname00000000001", local_sdp.media_descs_[0].ssrc_infos_[1].cname_);
+    EXPECT_EQ("audio", local_sdp.media_descs_[1].type_);
+    ASSERT_EQ(1, (int)local_sdp.media_descs_[1].ssrc_infos_.size());
+    EXPECT_EQ("cname00000000001", local_sdp.media_descs_[1].ssrc_infos_[0].cname_);
 }

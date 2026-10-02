@@ -23,6 +23,7 @@ package blackbox
 import (
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -48,4 +49,54 @@ func TestMain(m *testing.M) {
 	rand.Seed(time.Now().UnixNano())
 
 	os.Exit(m.Run())
+}
+
+// The allocator must skip a port another process already holds, over TCP or UDP, because
+// the fast and slow black-box processes and the other Full-tier lanes run at the same time.
+func TestFast_PortAllocator_SkipsBusyPort(t *testing.T) {
+	tcp, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatalf("listen tcp, err %v", err)
+	}
+	defer tcp.Close()
+
+	udp, err := net.ListenPacket("udp", ":0")
+	if err != nil {
+		t.Fatalf("listen udp, err %v", err)
+	}
+	defer udp.Close()
+
+	busyTCP := tcp.Addr().(*net.TCPAddr).Port
+	busyUDP := udp.LocalAddr().(*net.UDPAddr).Port
+	for _, busy := range []int{busyTCP, busyUDP} {
+		candidates := []int{busy, busy + 1}
+		v := NewSRSPortAllocator()
+		v.pick = func() int {
+			port := candidates[0]
+			if len(candidates) > 1 {
+				candidates = candidates[1:]
+			}
+			return port
+		}
+
+		if port := v.Allocate(); port != busy+1 {
+			t.Errorf("allocate got %v, want %v instead of the busy port %v", port, busy+1, busy)
+		}
+	}
+}
+
+// The allocator picks ports only from the black-box range, [40000, 44999], so it never takes a
+// fixed port of a test script, a unit test port or a kernel ephemeral port in the parallel Full tier.
+func TestFast_PortAllocator_PicksInBlackboxRange(t *testing.T) {
+	v := NewSRSPortAllocator()
+
+	outside := 0
+	for i := 0; i < 1000; i++ {
+		if port := v.pick(); port < 40000 || port > 44999 {
+			outside++
+		}
+	}
+	if outside != 0 {
+		t.Errorf("%v of 1000 picks outside [40000, 44999]", outside)
+	}
 }

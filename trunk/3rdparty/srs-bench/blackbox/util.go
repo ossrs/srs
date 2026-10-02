@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -155,17 +156,25 @@ func filterTestError(errs ...error) error {
 // The SRSPortAllocator is SRS port manager.
 type SRSPortAllocator struct {
 	ports sync.Map
+	// Pick a candidate port, by default a random one from the black-box range, [40000, 44999], of the
+	// port plan in the srs-develop skill's integration-tests.md.
+	pick func() int
 }
 
 func NewSRSPortAllocator() *SRSPortAllocator {
-	return &SRSPortAllocator{}
+	return &SRSPortAllocator{pick: func() int {
+		return 40000 + rand.Int()%5000
+	}}
 }
 
 func (v *SRSPortAllocator) Allocate() int {
 	for i := 0; i < 1024; i++ {
-		port := 10000 + rand.Int()%50000
+		port := v.pick()
 		if _, ok := v.ports.LoadOrStore(port, true); !ok {
-			return port
+			if isPortFree(port) {
+				return port
+			}
+			v.ports.Delete(port)
 		}
 
 		time.Sleep(time.Duration(rand.Int()%1000) * time.Microsecond)
@@ -176,6 +185,24 @@ func (v *SRSPortAllocator) Allocate() int {
 
 func (v *SRSPortAllocator) Free(port int) {
 	v.ports.Delete(port)
+}
+
+// isPortFree reports whether no process holds the port over TCP or UDP, because another
+// black-box process or test lane may use it, unknown to this allocator.
+func isPortFree(port int) bool {
+	tcp, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
+	if err != nil {
+		return false
+	}
+	tcp.Close()
+
+	udp, err := net.ListenPacket("udp", fmt.Sprintf(":%v", port))
+	if err != nil {
+		return false
+	}
+	udp.Close()
+
+	return true
 }
 
 var allocator *SRSPortAllocator

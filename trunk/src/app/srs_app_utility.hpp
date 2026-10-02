@@ -25,6 +25,7 @@
 class SrsKbps;
 class SrsBuffer;
 class SrsJsonObject;
+class ISrsAppConfig;
 
 // Convert level in string to log level in int.
 // @return the log level defined in SrsLogLevel.
@@ -47,8 +48,9 @@ extern std::string srs_path_build_stream(std::string template_path, std::string 
 //       [05], repleace this const to current second.
 //       [999], repleace this const to current millisecond.
 //       [timestamp],replace this const to current UNIX timestamp in ms.
+// The config decides whether the time is UTC or local.
 // @return the replaced path.
-extern std::string srs_path_build_timestamp(std::string template_path);
+extern std::string srs_path_build_timestamp(ISrsAppConfig *config, std::string template_path);
 
 // The app utility.
 class SrsAppUtility
@@ -715,7 +717,7 @@ extern int srs_get_peer_port(int fd);
 extern bool srs_is_boolean(std::string str);
 
 // Dump summaries for /api/v1/summaries.
-extern void srs_api_dump_summaries(SrsJsonObject *obj);
+extern void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj);
 
 // Get ENV variable, which may starts with $.
 //      srs_getenv("EIP") is srs_getenv("$EIP")

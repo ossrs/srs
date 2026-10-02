@@ -443,9 +443,29 @@ srs_error_t MockDtlsCertificate::initialize()
     return srs_success;
 }
 
+X509 *MockDtlsCertificate::get_cert()
+{
+    return NULL;
+}
+
+EVP_PKEY *MockDtlsCertificate::get_public_key()
+{
+    return NULL;
+}
+
+EC_KEY *MockDtlsCertificate::get_ecdsa_key()
+{
+    return NULL;
+}
+
 std::string MockDtlsCertificate::get_fingerprint()
 {
     return fingerprint_;
+}
+
+bool MockDtlsCertificate::is_ecdsa()
+{
+    return false;
 }
 
 // MockRtcTrackDescriptionFactory implementation
@@ -1844,6 +1864,7 @@ srs_error_t MockSslConnection::writev(const iovec *iov, int iov_size, ssize_t *n
 // Mock ISrsProtocolReadWriter implementation for SrsSrtRecvThread
 MockSrtConnection::MockSrtConnection()
 {
+    assemble_count_ = 0;
     read_count_ = 0;
     simulate_timeout_ = false;
     recv_timeout_ = 1 * SRS_UTIME_SECONDS;
@@ -1862,6 +1883,11 @@ MockSrtConnection::~MockSrtConnection()
     srs_freep(read_error_);
     srs_freep(cond_);
     recv_msgs_.clear();
+}
+
+void MockSrtConnection::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockSrtConnection::read(void *buf, size_t size, ssize_t *nread)

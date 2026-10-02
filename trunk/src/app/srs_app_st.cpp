@@ -9,6 +9,7 @@
 #include <string>
 using namespace std;
 
+#include <srs_app_factory.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
@@ -342,13 +343,22 @@ SrsExecutorCoroutine::SrsExecutorCoroutine(ISrsResourceManager *m, ISrsResource 
     handler_ = h;
     manager_ = m;
     callback_ = cb;
-    trd_ = new SrsSTCoroutine("ar", this, resource_->get_id());
+    trd_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+}
+
+void SrsExecutorCoroutine::assemble()
+{
+    trd_ = app_factory_->create_coroutine("ar", this, resource_->get_id());
 }
 
 SrsExecutorCoroutine::~SrsExecutorCoroutine()
 {
     manager_->remove(resource_);
     srs_freep(trd_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsExecutorCoroutine::start()

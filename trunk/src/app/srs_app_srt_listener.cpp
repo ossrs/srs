@@ -8,6 +8,7 @@
 
 using namespace std;
 
+#include <srs_app_factory.hpp>
 #include <srs_app_srt_server.hpp>
 
 ISrsSrtHandler::ISrsSrtHandler()
@@ -36,6 +37,9 @@ SrsSrtListener::SrsSrtListener(ISrsSrtHandler *h, std::string i, int p)
     srt_skt_ = NULL;
 
     trd_ = new SrsDummyCoroutine();
+
+    srt_eventloop_ = _srt_eventloop;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsSrtListener::~SrsSrtListener()
@@ -44,6 +48,9 @@ SrsSrtListener::~SrsSrtListener()
     srs_freep(srt_skt_);
     // TODO: FIXME: Handle error.
     srs_srt_close(lfd_);
+
+    srt_eventloop_ = NULL;
+    app_factory_ = NULL;
 }
 
 int SrsSrtListener::fd()
@@ -68,13 +75,14 @@ srs_error_t SrsSrtListener::listen()
         return srs_error_wrap(err, "srs_srt_listen");
     }
 
-    srt_skt_ = new SrsSrtSocket(_srt_eventloop->poller(), lfd_);
+    srt_skt_ = new SrsSrtSocket(srt_eventloop_->poller(), lfd_);
     // Accept never timeout.
     srt_skt_->set_recv_timeout(SRS_UTIME_NO_TIMEOUT);
     srt_skt_->set_send_timeout(SRS_UTIME_NO_TIMEOUT);
 
     srs_freep(trd_);
-    trd_ = new SrsSTCoroutine("srt_listener", this);
+    // No context id, so the coroutine generates a new one when it starts.
+    trd_ = app_factory_->create_coroutine("srt_listener", this, SrsContextId());
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "start coroutine");
     }

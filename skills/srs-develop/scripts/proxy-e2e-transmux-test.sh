@@ -21,19 +21,21 @@ fi
 
 # Ports — use the same high ports as proxy-e2e-test.sh.
 # The proxy starts ALL servers, so we must assign unique ports for each.
-PROXY_RTMP_PORT=11935
-PROXY_HTTP_API_PORT=11985
-PROXY_HTTP_SERVER_PORT=18080
-PROXY_WEBRTC_PORT=18000
-PROXY_SRT_PORT=20080
-PROXY_SYSTEM_API_PORT=12025
+# SRS_E2E_PORT_OFFSET shifts every port, so the proxy scripts can run in parallel.
+PORT_OFFSET=${SRS_E2E_PORT_OFFSET:-0}
+PROXY_RTMP_PORT=$((11935 + PORT_OFFSET))
+PROXY_HTTP_API_PORT=$((11985 + PORT_OFFSET))
+PROXY_HTTP_SERVER_PORT=$((18080 + PORT_OFFSET))
+PROXY_WEBRTC_PORT=$((18000 + PORT_OFFSET))
+PROXY_SRT_PORT=$((20080 + PORT_OFFSET))
+PROXY_SYSTEM_API_PORT=$((12025 + PORT_OFFSET))
 
 # Origin ports (from srs_proxy_origin 1 in proxy-e2e-origin.sh).
-ORIGIN_RTMP_PORT=19351
-ORIGIN_HTTP_PORT=8081
-ORIGIN_API_PORT=19851
-ORIGIN_RTC_PORT=8001
-ORIGIN_SRT_PORT=10081
+ORIGIN_RTMP_PORT=$((19351 + PORT_OFFSET))
+ORIGIN_HTTP_PORT=$((8081 + PORT_OFFSET))
+ORIGIN_API_PORT=$((19851 + PORT_OFFSET))
+ORIGIN_RTC_PORT=$((8001 + PORT_OFFSET))
+ORIGIN_SRT_PORT=$((10081 + PORT_OFFSET))
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
@@ -186,7 +188,9 @@ fi
 # --- Step 0: Clean up stale state ---
 ALL_PORTS="$PROXY_RTMP_PORT $PROXY_HTTP_API_PORT $PROXY_HTTP_SERVER_PORT $PROXY_WEBRTC_PORT $PROXY_SRT_PORT $PROXY_SYSTEM_API_PORT $ORIGIN_RTMP_PORT $ORIGIN_HTTP_PORT $ORIGIN_API_PORT $ORIGIN_RTC_PORT $ORIGIN_SRT_PORT"
 for port in $ALL_PORTS; do
-  lsof -ti :"$port" 2>/dev/null | xargs kill 2>/dev/null || true
+  # Kill only listeners: a client of the port, such as another test's player, is not ours.
+  lsof -ti TCP:"$port" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true
+  lsof -nP -iUDP:"$port" 2>/dev/null | awk -v p=":$port" 'NR > 1 && $9 !~ /->/ && $9 ~ p "$" {print $2}' | xargs kill 2>/dev/null || true
 done
 sleep 1
 
@@ -238,9 +242,20 @@ srs_proxy_origin 1 SRS_RTC_SERVER_CANDIDATE=127.0.0.1 >/tmp/srs-origin-transmux-
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 
-# Wait for SRS to start and register with proxy (heartbeat interval is 9s).
+# Wait for SRS to register with proxy: the first heartbeat is sent at startup, then every 9s.
 echo "Waiting for SRS origin to register with proxy (up to 15s)..."
-sleep 12
+for i in $(seq 1 15); do
+  if grep -q "Register SRS media server" /tmp/srs-proxy-transmux-e2e.log 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+
+if ! grep -q "Register SRS media server" /tmp/srs-proxy-transmux-e2e.log 2>/dev/null; then
+  echo "Error: SRS origin did not register with proxy after 15s. Proxy logs:" >&2
+  cat /tmp/srs-proxy-transmux-e2e.log >&2
+  exit 1
+fi
 
 if ! kill -0 "$ORIGIN_PID" 2>/dev/null; then
   echo "Error: SRS origin failed to start. Logs:" >&2

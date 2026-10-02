@@ -25,12 +25,18 @@ using namespace std;
 string srs_generate_stat_vid()
 {
     SrsRand rand;
-    return "vid-" + rand.gen_str(7);
+    return srs_generate_stat_vid(&rand);
+}
+
+string srs_generate_stat_vid(ISrsRand *rand)
+{
+    return "vid-" + rand->gen_str(7);
 }
 
 SrsStatisticVhost::SrsStatisticVhost()
 {
-    id_ = srs_generate_stat_vid();
+    config_ = _srs_config;
+    rand_ = new SrsRand();
 
     kbps_ = new SrsKbps();
 
@@ -38,9 +44,17 @@ SrsStatisticVhost::SrsStatisticVhost()
     nb_streams_ = 0;
 }
 
+void SrsStatisticVhost::assemble()
+{
+    id_ = srs_generate_stat_vid(rand_);
+}
+
 SrsStatisticVhost::~SrsStatisticVhost()
 {
     srs_freep(kbps_);
+    srs_freep(rand_);
+
+    config_ = NULL;
 }
 
 srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
@@ -48,8 +62,8 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
     srs_error_t err = srs_success;
 
     // dumps the config of vhost.
-    bool hls_enabled = _srs_config->get_hls_enabled(vhost_);
-    bool enabled = _srs_config->get_vhost_enabled(vhost_);
+    bool hls_enabled = config_->get_hls_enabled(vhost_);
+    bool enabled = config_->get_vhost_enabled(vhost_);
 
     obj->set("id", SrsJsonAny::str(id_.c_str()));
     obj->set("name", SrsJsonAny::str(vhost_.c_str()));
@@ -70,7 +84,7 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
 
     hls->set("enabled", SrsJsonAny::boolean(hls_enabled));
     if (hls_enabled) {
-        hls->set("fragment", SrsJsonAny::number(srsu2msi(_srs_config->get_hls_fragment(vhost_)) / 1000.0));
+        hls->set("fragment", SrsJsonAny::number(srsu2msi(config_->get_hls_fragment(vhost_)) / 1000.0));
     }
 
     return err;
@@ -78,10 +92,12 @@ srs_error_t SrsStatisticVhost::dumps(SrsJsonObject *obj)
 
 SrsStatisticStream::SrsStatisticStream()
 {
-    id_ = srs_generate_stat_vid();
+    clk_ = _srs_clock;
+    rand_ = new SrsRand();
+
     vhost_ = NULL;
     active_ = false;
-    create_ = srs_time_now_cached();
+    create_ = 0;
 
     has_video_ = false;
     vcodec_ = SrsVideoCodecIdReserved;
@@ -103,11 +119,20 @@ SrsStatisticStream::SrsStatisticStream()
     audio_frames_ = new SrsPps();
 }
 
+void SrsStatisticStream::assemble()
+{
+    id_ = srs_generate_stat_vid(rand_);
+    create_ = clk_->now();
+}
+
 SrsStatisticStream::~SrsStatisticStream()
 {
     srs_freep(kbps_);
     srs_freep(video_frames_);
     srs_freep(audio_frames_);
+    srs_freep(rand_);
+
+    clk_ = NULL;
 }
 
 srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
@@ -120,8 +145,8 @@ srs_error_t SrsStatisticStream::dumps(SrsJsonObject *obj)
     obj->set("app", SrsJsonAny::str(app_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(tcUrl_.c_str()));
     obj->set("url", SrsJsonAny::str(url_.c_str()));
-    obj->set("live_ms", SrsJsonAny::integer(srsu2ms(srs_time_now_cached())));
-    obj->set("alive", SrsJsonAny::number(srsu2ms(srs_time_now_cached() - create_) / 1000.0));
+    obj->set("live_ms", SrsJsonAny::integer(srsu2ms(clk_->now())));
+    obj->set("alive", SrsJsonAny::number(srsu2ms(clk_->now() - create_) / 1000.0));
     obj->set("clients", SrsJsonAny::integer(nb_clients_));
     obj->set("frames", SrsJsonAny::integer(video_frames_->sugar_ + audio_frames_->sugar_));
     obj->set("audio_frames", SrsJsonAny::integer(audio_frames_->sugar_));
@@ -222,19 +247,28 @@ void SrsStatisticStream::close()
 
 SrsStatisticClient::SrsStatisticClient()
 {
+    clk_ = _srs_clock;
+
     stream_ = NULL;
     conn_ = NULL;
     req_ = NULL;
     type_ = SrsRtmpConnUnknown;
-    create_ = srs_time_now_cached();
+    create_ = 0;
 
     kbps_ = new SrsKbps();
+}
+
+void SrsStatisticClient::assemble()
+{
+    create_ = clk_->now();
 }
 
 SrsStatisticClient::~SrsStatisticClient()
 {
     srs_freep(kbps_);
     srs_freep(req_);
+
+    clk_ = NULL;
 }
 
 srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
@@ -252,7 +286,7 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
     obj->set("name", SrsJsonAny::str(req_->stream_.c_str()));
     obj->set("type", SrsJsonAny::str(srs_client_type_string(type_).c_str()));
     obj->set("publish", SrsJsonAny::boolean(srs_client_type_is_publish(type_)));
-    obj->set("alive", SrsJsonAny::number(srsu2ms(srs_time_now_cached() - create_) / 1000.0));
+    obj->set("alive", SrsJsonAny::number(srsu2ms(clk_->now() - create_) / 1000.0));
     obj->set("send_bytes", SrsJsonAny::integer(kbps_->get_send_bytes()));
     obj->set("recv_bytes", SrsJsonAny::integer(kbps_->get_recv_bytes()));
 
@@ -277,6 +311,9 @@ SrsStatistic *_srs_stat = NULL;
 
 SrsStatistic::SrsStatistic()
 {
+    config_ = _srs_config;
+    rand_ = new SrsRand();
+
     kbps_ = new SrsKbps();
 
     nb_clients_ = 0;
@@ -286,6 +323,7 @@ SrsStatistic::SrsStatistic()
 SrsStatistic::~SrsStatistic()
 {
     srs_freep(kbps_);
+    srs_freep(rand_);
 
     if (true) {
         std::map<std::string, SrsStatisticVhost *>::iterator it;
@@ -313,6 +351,8 @@ SrsStatistic::~SrsStatistic()
     rvhosts_.clear();
     streams_.clear();
     rstreams_.clear();
+
+    config_ = NULL;
 }
 
 SrsStatisticVhost *SrsStatistic::find_vhost_by_id(std::string vid)
@@ -457,6 +497,7 @@ srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire
     SrsStatisticClient *client = NULL;
     if (clients_.find(id) == clients_.end()) {
         client = new SrsStatisticClient();
+        client->assemble();
         client->id_ = id;
         client->stream_ = stream;
         clients_[id] = client;
@@ -593,7 +634,7 @@ void SrsStatistic::kbps_sample()
 std::string SrsStatistic::server_id()
 {
     if (server_id_.empty()) {
-        server_id_ = _srs_config->get_server_id();
+        server_id_ = config_->get_server_id();
     }
     return server_id_;
 }
@@ -601,8 +642,7 @@ std::string SrsStatistic::server_id()
 std::string SrsStatistic::service_id()
 {
     if (service_id_.empty()) {
-        SrsRand rand;
-        service_id_ = rand.gen_str(8);
+        service_id_ = rand_->gen_str(8);
     }
 
     return service_id_;
@@ -714,6 +754,7 @@ SrsStatisticVhost *SrsStatistic::create_vhost(ISrsRequest *req)
     // create vhost if not exists.
     if (rvhosts_.find(req->vhost_) == rvhosts_.end()) {
         vhost = new SrsStatisticVhost();
+        vhost->assemble();
         vhost->vhost_ = req->vhost_;
         rvhosts_[req->vhost_] = vhost;
         vhosts_[vhost->id_] = vhost;
@@ -739,6 +780,7 @@ SrsStatisticStream *SrsStatistic::create_stream(SrsStatisticVhost *vhost, ISrsRe
     // create stream if not exists.
     if (rstreams_.find(url) == rstreams_.end()) {
         stream = new SrsStatisticStream();
+        stream->assemble();
         stream->vhost_ = vhost;
         stream->stream_ = req->stream_;
         stream->app_ = req->app_;

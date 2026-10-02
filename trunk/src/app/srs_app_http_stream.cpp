@@ -19,6 +19,7 @@ using namespace std;
 
 #include <srs_app_async_call.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_recv_thread.hpp>
 #include <srs_app_rtmp_source.hpp>
@@ -52,11 +53,18 @@ SrsBufferCache::SrsBufferCache(ISrsRequest *r)
 {
     req_ = r->copy()->as_http();
     queue_ = new SrsMessageQueue(true);
-    trd_ = new SrsSTCoroutine("http-stream", this);
+    trd_ = NULL;
     fast_cache_ = 0;
 
     config_ = _srs_config;
     live_sources_ = _srs_sources;
+    app_factory_ = _srs_app_factory;
+}
+
+void SrsBufferCache::assemble()
+{
+    // No context id, so the coroutine generates a new one when it starts.
+    trd_ = app_factory_->create_coroutine("http-stream", this, SrsContextId());
 }
 
 SrsBufferCache::~SrsBufferCache()
@@ -68,6 +76,7 @@ SrsBufferCache::~SrsBufferCache()
 
     config_ = NULL;
     live_sources_ = NULL;
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsBufferCache::update_auth(ISrsRequest *r)
@@ -855,6 +864,7 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, ISrsLiveConsumer
 
     // Start a thread to receive all messages from client, then drop them.
     SrsUniquePtr<SrsHttpRecvThread> trd(new SrsHttpRecvThread(hxc));
+    trd->assemble();
 
     if ((err = trd->start()) != srs_success) {
         return srs_error_wrap(err, "start recv thread");
@@ -1172,7 +1182,9 @@ srs_error_t SrsHttpStreamServer::http_mount(ISrsRequest *r)
         entry = new SrsLiveEntry(mount);
 
         entry->req_ = r->copy()->as_http();
-        entry->cache_ = new SrsBufferCache(r);
+        SrsBufferCache *cache = new SrsBufferCache(r);
+        cache->assemble();
+        entry->cache_ = cache;
         entry->stream_ = new SrsLiveStream(r, entry->cache_);
 
         // TODO: FIXME: maybe refine the logic of http remux service.

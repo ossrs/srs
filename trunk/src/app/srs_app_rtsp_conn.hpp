@@ -176,6 +176,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     int port_;
     ISrsRtspStack *rtsp_;
     std::string session_id_;
+    // The generator of the session id.
+    ISrsRand *rand_;
     SrsSharedPtr<SrsRtspSource> source_;
     ISrsEphemeralDelta *delta_;
     ISrsProtocolReadWriter *skt_;

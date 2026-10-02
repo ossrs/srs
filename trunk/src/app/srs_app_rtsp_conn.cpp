@@ -393,6 +393,7 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     port_ = port;
     rtsp_ = new SrsRtspStack(skt);
     trd_ = NULL;
+    rand_ = new SrsRand();
 
     // Initialize merged SrsRtspSession members
     skt_ = skt;
@@ -436,6 +437,7 @@ SrsRtspConnection::~SrsRtspConnection()
     srs_freep(request_);
     srs_freep(rtsp_);
     srs_freep(trd_);
+    srs_freep(rand_);
 
     // Cleanup merged SrsRtspSession members
     for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
@@ -624,8 +626,7 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
     } else if (req->is_describe()) {
         // create session.
         if (session_id_.empty()) {
-            SrsRand rand;
-            session_id_ = rand.gen_str(8);
+            session_id_ = rand_->gen_str(8);
         }
 
         SrsUniquePtr<SrsRtspDescribeResponse> res(new SrsRtspDescribeResponse((int)req->seq_));

@@ -49,6 +49,7 @@ public:
     virtual ~ISrsUdpCasterListener();
 
 public:
+    virtual void assemble() = 0; // Construct object, to avoid call function in constructor.
     virtual srs_error_t initialize(SrsConfDirective *conf) = 0;
     virtual void close() = 0;
 };
@@ -70,6 +71,7 @@ public:
     virtual ~SrsUdpCasterListener();
 
 public:
+    virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual srs_error_t initialize(SrsConfDirective *conf);
     virtual srs_error_t listen();
     virtual void close();
@@ -117,6 +119,7 @@ public:
     virtual ~ISrsMpegtsOverUdp();
 
 public:
+    virtual void assemble() = 0; // Construct object, to avoid call function in constructor.
     virtual srs_error_t initialize(SrsConfDirective *c) = 0;
 };
 
@@ -162,6 +165,7 @@ public:
     virtual ~SrsMpegtsOverUdp();
 
 public:
+    void assemble(); // Construct object, to avoid call function in constructor.
     srs_error_t initialize(SrsConfDirective *c);
     // Interface ISrsUdpHandler
 public:

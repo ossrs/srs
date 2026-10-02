@@ -21,6 +21,7 @@ class SrsPithyPrint;
 class ISrsPithyPrint;
 class ISrsAppFactory;
 class ISrsAppConfig;
+class ISrsRand;
 
 // The ingest ffmpeg interface.
 class ISrsIngesterFFMPEG
@@ -85,6 +86,10 @@ public:
     virtual ~ISrsIngester();
 
 public:
+    virtual void assemble() = 0;
+    virtual void dispose() = 0;
+    virtual srs_error_t start() = 0;
+    virtual void stop() = 0;
 };
 
 // Ingest file/stream/device,
@@ -105,6 +110,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     ISrsPithyPrint *pprint_;
+    ISrsRand *rand_;
     // Whether the ingesters are expired, for example, the listen port changed,
     // all ingesters must be restart.
     bool expired_;
@@ -113,6 +119,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsIngester();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsIngester();
 
 public:

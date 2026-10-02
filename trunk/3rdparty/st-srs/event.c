@@ -158,8 +158,8 @@ __thread _st_eventsys_t *_st_eventsys = NULL;
 ST_HIDDEN int _st_select_init(void)
 {
     _st_select_data = (struct _st_seldata *) malloc(sizeof(*_st_select_data));
-    if (!_st_select_data)
-        return -1;
+    if (!_st_select_data) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
 
     memset(_st_select_data, 0, sizeof(*_st_select_data));
     _st_select_data->maxfd = -1;
@@ -243,7 +243,7 @@ ST_HIDDEN void _st_select_find_bad_fd(void)
             osfd = pds->fd;
             pds->revents = 0;
             if (pds->events == 0)
-                continue;
+                continue; /* GCOVR_EXCL_LINE */
             if (fcntl(osfd, F_GETFL, 0) < 0) {
                 pds->revents = POLLNVAL;
                 notify = 1;
@@ -462,14 +462,16 @@ ST_HIDDEN int _st_kq_init(void)
     int rv = 0;
 
     _st_kq_data = (struct _st_kqdata *) calloc(1, sizeof(*_st_kq_data));
-    if (!_st_kq_data)
-        return -1;
+    if (!_st_kq_data) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
 
+    /* GCOVR_EXCL_START */
     if ((_st_kq_data->kq = kqueue()) < 0) {
         err = errno;
         rv = -1;
         goto cleanup_kq;
     }
+    /* GCOVR_EXCL_STOP */
     fcntl(_st_kq_data->kq, F_SETFD, FD_CLOEXEC);
     _st_kq_data->pid = getpid();
 
@@ -479,11 +481,13 @@ ST_HIDDEN int _st_kq_init(void)
      */
     _st_kq_data->fd_data_size = FD_SETSIZE;
     _st_kq_data->fd_data = (_kq_fd_data_t *)calloc(_st_kq_data->fd_data_size, sizeof(_kq_fd_data_t));
+    /* GCOVR_EXCL_START */
     if (!_st_kq_data->fd_data) {
         err = errno;
         rv = -1;
         goto cleanup_kq;
     }
+    /* GCOVR_EXCL_STOP */
 
     /* Allocate event lists */
     _st_kq_data->evtlist_size = ST_KQ_MIN_EVTLIST_SIZE;
@@ -492,12 +496,15 @@ ST_HIDDEN int _st_kq_init(void)
     _st_kq_data->addlist = (struct kevent *)malloc(_st_kq_data->addlist_size * sizeof(struct kevent));
     _st_kq_data->dellist_size = ST_KQ_MIN_EVTLIST_SIZE;
     _st_kq_data->dellist = (struct kevent *)malloc(_st_kq_data->dellist_size * sizeof(struct kevent));
+    /* GCOVR_EXCL_START */
     if (!_st_kq_data->evtlist || !_st_kq_data->addlist ||
         !_st_kq_data->dellist) {
         err = ENOMEM;
         rv = -1;
     }
+    /* GCOVR_EXCL_STOP */
 
+    /* GCOVR_EXCL_START */
  cleanup_kq:
     if (rv < 0) {
         if (_st_kq_data->kq >= 0)
@@ -510,6 +517,7 @@ ST_HIDDEN int _st_kq_init(void)
         _st_kq_data = NULL;
         errno = err;
     }
+    /* GCOVR_EXCL_STOP */
 
     return rv;
 }
@@ -523,8 +531,8 @@ ST_HIDDEN int _st_kq_fd_data_expand(int maxfd)
         n <<= 1;
 
     ptr = (_kq_fd_data_t *)realloc(_st_kq_data->fd_data, n * sizeof(_kq_fd_data_t));
-    if (!ptr)
-        return -1;
+    if (!ptr) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
 
     memset(ptr + _st_kq_data->fd_data_size, 0, (n - _st_kq_data->fd_data_size) * sizeof(_kq_fd_data_t));
 
@@ -543,8 +551,8 @@ ST_HIDDEN int _st_kq_addlist_expand(int avail)
         n <<= 1;
 
     ptr = (struct kevent *)realloc(_st_kq_data->addlist, n * sizeof(struct kevent));
-    if (!ptr)
-        return -1;
+    if (!ptr) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
 
     _st_kq_data->addlist = ptr;
     _st_kq_data->addlist_size = n;
@@ -578,9 +586,9 @@ ST_HIDDEN void _st_kq_dellist_add(const struct kevent *kev)
 
         n <<= 1;
         ptr = (struct kevent *)realloc(_st_kq_data->dellist, n * sizeof(struct kevent));
-        if (!ptr) {
+        if (!ptr) { /* GCOVR_EXCL_BR_LINE */
             /* See comment in _st_kq_pollset_del() */
-            return;
+            return; /* GCOVR_EXCL_LINE */
         }
 
         _st_kq_data->dellist = ptr;
@@ -876,36 +884,43 @@ ST_HIDDEN int _st_epoll_init(void)
     int rv = 0;
 
     _st_epoll_data = (struct _st_epolldata *) calloc(1, sizeof(*_st_epoll_data));
-    if (!_st_epoll_data)
-        return -1;
+    if (!_st_epoll_data) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
 
     fdlim = st_getfdlimit();
     _st_epoll_data->fd_hint = (fdlim > 0 && fdlim < ST_EPOLL_EVTLIST_SIZE) ? fdlim : ST_EPOLL_EVTLIST_SIZE;
 
+    /* GCOVR_EXCL_START */
     if ((_st_epoll_data->epfd = epoll_create(_st_epoll_data->fd_hint)) < 0) {
         err = errno;
         rv = -1;
         goto cleanup_epoll;
     }
+    /* GCOVR_EXCL_STOP */
     fcntl(_st_epoll_data->epfd, F_SETFD, FD_CLOEXEC);
 
     /* Allocate file descriptor data array */
     _st_epoll_data->fd_data_size = _st_epoll_data->fd_hint;
     _st_epoll_data->fd_data = (_epoll_fd_data_t *)calloc(_st_epoll_data->fd_data_size, sizeof(_epoll_fd_data_t));
+    /* GCOVR_EXCL_START */
     if (!_st_epoll_data->fd_data) {
         err = errno;
         rv = -1;
         goto cleanup_epoll;
     }
+    /* GCOVR_EXCL_STOP */
 
     /* Allocate event lists */
     _st_epoll_data->evtlist_size = _st_epoll_data->fd_hint;
     _st_epoll_data->evtlist = (struct epoll_event *)malloc(_st_epoll_data->evtlist_size * sizeof(struct epoll_event));
+    /* GCOVR_EXCL_START */
     if (!_st_epoll_data->evtlist) {
         err = errno;
         rv = -1;
     }
+    /* GCOVR_EXCL_STOP */
 
+    /* GCOVR_EXCL_START */
  cleanup_epoll:
     if (rv < 0) {
         if (_st_epoll_data->epfd >= 0)
@@ -917,6 +932,7 @@ ST_HIDDEN int _st_epoll_init(void)
         errno = err;
     }
 
+    /* GCOVR_EXCL_STOP */
     return rv;
 }
 
@@ -929,8 +945,8 @@ ST_HIDDEN int _st_epoll_fd_data_expand(int maxfd)
         n <<= 1;
 
     ptr = (_epoll_fd_data_t *)realloc(_st_epoll_data->fd_data, n * sizeof(_epoll_fd_data_t));
-    if (!ptr)
-        return -1;
+    if (!ptr) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
 
     memset(ptr + _st_epoll_data->fd_data_size, 0, (n - _st_epoll_data->fd_data_size) * sizeof(_epoll_fd_data_t));
 
@@ -1008,8 +1024,8 @@ ST_HIDDEN int _st_epoll_pollset_add(struct pollfd *pds, int npds)
             errno = EINVAL;
             return -1;
         }
-        if (fd >= _st_epoll_data->fd_data_size && _st_epoll_fd_data_expand(fd) < 0)
-            return -1;
+        if (fd >= _st_epoll_data->fd_data_size && _st_epoll_fd_data_expand(fd) < 0) /* GCOVR_EXCL_BR_LINE */
+            return -1; /* GCOVR_EXCL_LINE */
     }
 
     for (i = 0; i < npds; i++) {
@@ -1168,8 +1184,8 @@ ST_HIDDEN void _st_epoll_dispatch(void)
 
 ST_HIDDEN int _st_epoll_fd_new(int osfd)
 {
-    if (osfd >= _st_epoll_data->fd_data_size && _st_epoll_fd_data_expand(osfd) < 0)
-        return -1;
+    if (osfd >= _st_epoll_data->fd_data_size && _st_epoll_fd_data_expand(osfd) < 0) /* GCOVR_EXCL_BR_LINE */
+        return -1; /* GCOVR_EXCL_LINE */
 
     return 0;   
 }

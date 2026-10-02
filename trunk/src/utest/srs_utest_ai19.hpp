@@ -71,6 +71,7 @@ public:
 class MockMpegtsOverUdp : public ISrsMpegtsOverUdp
 {
 public:
+    int assemble_count_;
     bool initialize_called_;
     srs_error_t initialize_error_;
 
@@ -79,6 +80,7 @@ public:
     virtual ~MockMpegtsOverUdp();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t on_ts_message(SrsTsMessage *msg);
     virtual srs_error_t on_udp_packet(const sockaddr *from, const int fromlen, char *buf, int nb_buf);
@@ -196,6 +198,7 @@ public:
 class MockAppCasterFlv : public ISrsAppCasterFlv
 {
 public:
+    int assemble_count_;
     bool initialize_called_;
     bool on_tcp_client_called_;
     srs_error_t initialize_error_;
@@ -206,6 +209,7 @@ public:
     virtual ~MockAppCasterFlv();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
     virtual srs_error_t start();
@@ -771,6 +775,8 @@ public:
     srs_error_t initialize_error_;
     srs_error_t post_error_;
     bool should_delete_response_;
+    // Where post() copies the request body, because do_heartbeat() frees the client.
+    std::string *request_body_out_;
 
 public:
     MockHttpClientForHeartbeat();
@@ -824,6 +830,8 @@ public:
     std::vector<std::string> rtsp_server_listens_;
     std::vector<std::string> rtc_server_listens_;
     std::vector<std::string> rtc_server_tcp_listens_;
+    std::string argv_;
+    std::string cwd_;
 
 public:
     MockAppConfigForHeartbeat();
@@ -848,6 +856,21 @@ public:
     virtual std::vector<std::string> get_rtc_server_listens();
     virtual bool get_rtc_server_tcp_enabled();
     virtual std::vector<std::string> get_rtc_server_tcp_listens();
+    virtual std::string argv();
+    virtual std::string cwd();
+};
+
+// Mock ISrsStatistic for testing the ids SrsHttpHeartbeat reports
+class MockStatisticForHeartbeat : public MockAppStatistic
+{
+public:
+    MockStatisticForHeartbeat();
+    virtual ~MockStatisticForHeartbeat();
+
+public:
+    virtual std::string server_id();
+    virtual std::string service_id();
+    virtual std::string service_pid();
 };
 
 // Mock ISrsAppConfig for testing SrsCircuitBreaker
@@ -923,6 +946,25 @@ public:
 
 public:
     virtual SrsProcSelfStat *self_proc_stat();
+};
+
+// Mock ISrsAppConfig for testing srs_path_build_timestamp and its callers
+class MockAppConfigForBuildTimestamp : public MockAppConfig
+{
+public:
+    bool utc_time_;
+    int get_utc_time_count_;
+
+public:
+    MockAppConfigForBuildTimestamp();
+    virtual ~MockAppConfigForBuildTimestamp();
+
+public:
+    virtual bool get_utc_time();
+    virtual std::vector<std::string> get_listens();
+    virtual std::string get_engine_output(SrsConfDirective *conf);
+    virtual std::string get_ingest_input_type(SrsConfDirective *conf);
+    virtual std::string get_ingest_input_url(SrsConfDirective *conf);
 };
 
 #endif

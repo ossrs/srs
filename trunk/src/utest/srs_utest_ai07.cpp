@@ -23,6 +23,9 @@
 #include <srs_protocol_format.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest.hpp>
+#include <srs_utest_ai06.hpp>
+#include <srs_utest_ai32.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 // External function declaration from srs_app_rtc_source.cpp
 extern srs_error_t aac_raw_append_adts_header(SrsMediaPacket *shared_audio, SrsFormat *format, char **pbuf, int *pnn_buf);
@@ -192,6 +195,7 @@ MockCircuitBreaker::MockCircuitBreaker()
     hybrid_high_water_level_ = false;
     hybrid_critical_water_level_ = false;
     hybrid_dying_water_level_ = false;
+    hybrid_high_water_level_count_ = 0;
 }
 
 MockCircuitBreaker::~MockCircuitBreaker()
@@ -205,6 +209,7 @@ srs_error_t MockCircuitBreaker::initialize()
 
 bool MockCircuitBreaker::hybrid_high_water_level()
 {
+    hybrid_high_water_level_count_++;
     return hybrid_high_water_level_;
 }
 
@@ -1705,6 +1710,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateNewSource)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create a mock request
@@ -1731,6 +1737,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateInitializeSuccess)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create a mock request
@@ -1828,6 +1835,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateInitializeFailure)
 
     // Create mock source manager
     MockRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Set up the manager to fail initialization
@@ -1900,6 +1908,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateErrorWrapping)
 
     // Create mock source manager
     MockRtcSourceManagerWithErrorWrapping manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create a mock request
@@ -1926,6 +1935,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateMultipleStreams)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create multiple mock requests for different streams
@@ -1965,6 +1975,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateExistingSourceUpdateAuth)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create a mock request
@@ -1994,6 +2005,7 @@ VOID TEST(AppTest2, RtcSourceManagerFetchOrCreateConcurrentAccess)
 
     // Create RTC source manager
     SrsRtcSourceManager manager;
+    manager.assemble();
     HELPER_EXPECT_SUCCESS(manager.initialize());
 
     // Create mock requests for the same stream
@@ -2172,6 +2184,7 @@ VOID TEST(AppTest2, RtcSourceOnConsumerDestroyStreamDeath)
 
     // Create RTC source and initialize
     SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+    source->assemble();
     HELPER_EXPECT_SUCCESS(source->initialize(req.get()));
 
     // Create mock consumer
@@ -2210,6 +2223,7 @@ VOID TEST(AppTest2, RtcSourceOnConsumerDestroyStreamAlive)
 
     // Create RTC source and initialize
     SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+    source->assemble();
     HELPER_EXPECT_SUCCESS(source->initialize(req.get()));
 
     // Create mock consumer
@@ -4617,6 +4631,7 @@ VOID TEST(ReproduceIssue4449, RtmpLiveSourceNotifyDeletesNewlyCreatedSource)
 
     // Create a source manager
     SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create a mock request
@@ -4651,6 +4666,7 @@ VOID TEST(ReproduceIssue4656, PublishTokenKeepsPendingLiveSource)
     srs_error_t err;
 
     SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     SrsUniquePtr<SrsRequest> req(new SrsRequest());
@@ -4667,8 +4683,7 @@ VOID TEST(ReproduceIssue4656, PublishTokenKeepsPendingLiveSource)
     EXPECT_TRUE(source->stream_is_dead());
 
     SrsStreamPublishTokenManager tokens;
-    SrsStreamPublishTokenManager *previous_tokens = _srs_stream_publish_tokens;
-    _srs_stream_publish_tokens = &tokens;
+    manager->stream_publish_tokens_ = &tokens;
 
     SrsStreamPublishToken *token = NULL;
     HELPER_EXPECT_SUCCESS(tokens.acquire_token(req.get(), token));
@@ -4683,7 +4698,7 @@ VOID TEST(ReproduceIssue4656, PublishTokenKeepsPendingLiveSource)
     HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
     EXPECT_EQ(0, (int)manager->pool_.size());
 
-    _srs_stream_publish_tokens = previous_tokens;
+    manager->stream_publish_tokens_ = NULL;
 }
 
 // Test SRT source for the same issue
@@ -4693,6 +4708,7 @@ VOID TEST(ReproduceIssue4449, SrtSourceNotifyDeletesNewlyCreatedSource)
 
     // Create a SRT source manager
     SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create a mock request
@@ -4727,6 +4743,7 @@ VOID TEST(ReproduceIssue4449, RtcSourceNotifyDeletesNewlyCreatedSource)
 
     // Create a RTC source manager
     SrsUniquePtr<SrsRtcSourceManager> manager(new SrsRtcSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create a mock request
@@ -4762,6 +4779,7 @@ VOID TEST(ReproduceIssue4449, RtspSourceNotifyDeletesNewlyCreatedSource)
 
     // Create a RTSP source manager
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create a mock request
@@ -4789,3 +4807,503 @@ VOID TEST(ReproduceIssue4449, RtspSourceNotifyDeletesNewlyCreatedSource)
     EXPECT_EQ(1, pool_size_after);
 }
 #endif
+
+// The constructor only captures the clock and the SSRC generator and reads no time, so a
+// test can inject its own clock before assemble() stamps the new source.
+VOID TEST(SrsRtcSourceTest, ConstructionCapturesClockAndReadsNoTime)
+{
+    SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+
+    EXPECT_TRUE(source->clk_ != NULL);
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_TRUE(source->ssrc_generator_ != NULL);
+    EXPECT_TRUE(source->ssrc_generator_ == _srs_rtc_ssrc_generator);
+    EXPECT_EQ((srs_utime_t)0, source->stream_die_at_);
+}
+
+// The global SSRC generator is the singleton the RTC player negotiator and the RTSP source
+// still reach through instance(), so every SSRC comes from one sequence.
+VOID TEST(SrsRtcSourceTest, GlobalSsrcGeneratorIsTheSingleton)
+{
+    EXPECT_TRUE(_srs_rtc_ssrc_generator != NULL);
+    EXPECT_TRUE(_srs_rtc_ssrc_generator == SrsRtcSSRCGenerator::instance());
+}
+
+// assemble() stamps a new source with the injected clock, so the cleanup timer does not
+// reap it before the cleanup delay passed, see https://github.com/ossrs/srs/issues/4449
+VOID TEST(SrsRtcSourceTest, AssembleStampsNewSourceWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The cleanup delay SRS_RTC_SOURCE_CLEANUP is 3s.
+    clock.now_ = 103 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 103 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// The last consumer leaving a source with no publisher stamps its death with the injected
+// clock, and stream_is_dead() measures the cleanup delay on the same clock.
+VOID TEST(SrsRtcSourceTest, ConsumerDestroyStampsWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    MockRtcConsumer consumer;
+    source->consumers_.push_back(&consumer);
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 200 * SRS_UTIME_SECONDS;
+    source->on_consumer_destroy(&consumer);
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->stream_die_at_);
+
+    clock.now_ = 203 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 203 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// Unpublishing a source with no consumer stamps its death with the injected clock.
+VOID TEST(SrsRtcSourceTest, UnpublishStampsWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+    MockAppStatistic stat;
+
+    SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+    source->clk_ = &clock;
+    source->stat_ = &stat;
+    source->assemble();
+
+    SrsRequest *req = new SrsRequest();
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "stream1";
+    source->req_ = req;
+    source->is_created_ = true;
+
+    clock.now_ = 300 * SRS_UTIME_SECONDS;
+    source->on_unpublish();
+    EXPECT_FALSE(source->is_created_);
+    EXPECT_EQ(300 * SRS_UTIME_SECONDS, source->stream_die_at_);
+
+    clock.now_ = 303 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+
+    source->stat_ = NULL;
+}
+
+// The manager assembles every source it creates, so a new source in the pool has the
+// global clock and is stamped alive before the cleanup timer can see it.
+VOID TEST(SrsRtcSourceTest, ManagerCreatesAssembledSource)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtcSourceManager> manager(new SrsRtcSourceManager());
+    manager->assemble();
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "assembled";
+
+    SrsSharedPtr<SrsRtcSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_TRUE(source->stream_die_at_ > 0);
+    EXPECT_FALSE(source->stream_is_dead());
+}
+
+// The constructor only captures the clock and reads no time, so a test can inject its own
+// clock before assemble() stamps the new source.
+VOID TEST(SrsSrtSourceTest, ConstructionCapturesClockAndReadsNoTime)
+{
+    SrsUniquePtr<SrsSrtSource> source(new SrsSrtSource());
+
+    EXPECT_TRUE(source->clk_ != NULL);
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_EQ((srs_utime_t)0, source->stream_die_at_);
+}
+
+// assemble() stamps a new source with the injected clock, so the cleanup timer does not
+// reap it before the cleanup delay passed, see https://github.com/ossrs/srs/issues/4449
+VOID TEST(SrsSrtSourceTest, AssembleStampsNewSourceWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsSrtSource> source(new SrsSrtSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The cleanup delay SRS_SRT_SOURCE_CLEANUP is 3s.
+    clock.now_ = 103 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 103 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// The last consumer leaving a source with no publisher stamps its death with the injected
+// clock, and stream_is_dead() measures the cleanup delay on the same clock.
+VOID TEST(SrsSrtSourceTest, ConsumerDestroyStampsWithInjectedClock)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsSrtSource> source(new SrsSrtSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    ISrsSrtConsumer *consumer = NULL;
+    HELPER_EXPECT_SUCCESS(source->create_consumer(consumer));
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The consumer's destructor removes it from the source.
+    clock.now_ = 200 * SRS_UTIME_SECONDS;
+    srs_freep(consumer);
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->stream_die_at_);
+
+    clock.now_ = 203 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 203 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// Unpublishing a source with no consumer stamps its death with the injected clock.
+VOID TEST(SrsSrtSourceTest, UnpublishStampsWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+    MockAppStatistic stat;
+
+    SrsUniquePtr<SrsSrtSource> source(new SrsSrtSource());
+    source->clk_ = &clock;
+    source->stat_ = &stat;
+    source->assemble();
+
+    SrsRequest *req = new SrsRequest();
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "stream1";
+    source->req_ = req;
+    source->can_publish_ = false;
+
+    clock.now_ = 300 * SRS_UTIME_SECONDS;
+    source->on_unpublish();
+    EXPECT_TRUE(source->can_publish());
+    EXPECT_EQ(300 * SRS_UTIME_SECONDS, source->stream_die_at_);
+
+    clock.now_ = 303 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 303 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+
+    source->stat_ = NULL;
+}
+
+// The manager assembles every source it creates, so a new source in the pool has the
+// global clock and is stamped alive before the cleanup timer can see it.
+VOID TEST(SrsSrtSourceTest, ManagerCreatesAssembledSource)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+    manager->assemble();
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "assembled";
+
+    SrsSharedPtr<SrsSrtSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_TRUE(source->stream_die_at_ > 0);
+    EXPECT_FALSE(source->stream_is_dead());
+}
+
+#ifdef SRS_RTSP
+// The constructor only captures the clock and reads no time, so a test can inject its own
+// clock before assemble() stamps the new source.
+VOID TEST(SrsRtspSourceTest, ConstructionCapturesClockAndReadsNoTime)
+{
+    SrsUniquePtr<SrsRtspSource> source(new SrsRtspSource());
+
+    EXPECT_TRUE(source->clk_ != NULL);
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_EQ((srs_utime_t)0, source->stream_die_at_);
+}
+
+// assemble() stamps a new source with the injected clock, so the cleanup timer does not
+// reap it before the cleanup delay passed, see https://github.com/ossrs/srs/issues/4449
+VOID TEST(SrsRtspSourceTest, AssembleStampsNewSourceWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsRtspSource> source(new SrsRtspSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The cleanup delay SRS_RTSP_SOURCE_CLEANUP is 3s.
+    clock.now_ = 103 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 103 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// The last consumer leaving a source with no publisher stamps its death with the injected
+// clock, and stream_is_dead() measures the cleanup delay on the same clock.
+VOID TEST(SrsRtspSourceTest, ConsumerDestroyStampsWithInjectedClock)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsRtspSource> source(new SrsRtspSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    SrsRtspConsumer *consumer = NULL;
+    HELPER_EXPECT_SUCCESS(source->create_consumer(consumer));
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The consumer's destructor removes it from the source.
+    clock.now_ = 200 * SRS_UTIME_SECONDS;
+    srs_freep(consumer);
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->stream_die_at_);
+
+    clock.now_ = 203 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 203 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// Unpublishing a source with no consumer stamps its death with the injected clock.
+VOID TEST(SrsRtspSourceTest, UnpublishStampsWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+    MockAppStatistic stat;
+
+    SrsUniquePtr<SrsRtspSource> source(new SrsRtspSource());
+    source->clk_ = &clock;
+    source->stat_ = &stat;
+    source->assemble();
+
+    SrsRequest *req = new SrsRequest();
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "stream1";
+    source->req_ = req;
+    source->is_created_ = true;
+
+    clock.now_ = 300 * SRS_UTIME_SECONDS;
+    source->on_unpublish();
+    EXPECT_TRUE(source->can_publish());
+    EXPECT_EQ(300 * SRS_UTIME_SECONDS, source->stream_die_at_);
+
+    clock.now_ = 303 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 303 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+
+    source->stat_ = NULL;
+}
+
+// The manager assembles every source it creates, so a new source in the pool has the
+// global clock and is stamped alive before the cleanup timer can see it.
+VOID TEST(SrsRtspSourceTest, ManagerCreatesAssembledSource)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "assembled";
+
+    SrsSharedPtr<SrsRtspSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(req.get(), source));
+
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_TRUE(source->stream_die_at_ > 0);
+    EXPECT_FALSE(source->stream_is_dead());
+}
+#endif
+
+// The receive track captures the circuit breaker global in the constructor.
+VOID TEST(RtcRecvTrackTest, CapturesCircuitBreakerInConstructor)
+{
+    SrsRtcTrackDescription desc;
+    desc.type_ = "video";
+    desc.ssrc_ = 1000;
+
+    SrsRtcVideoRecvTrack track(NULL, &desc, false);
+    EXPECT_TRUE(track.circuit_breaker_ != NULL);
+    EXPECT_TRUE(track.circuit_breaker_ == _srs_circuit_breaker);
+}
+
+// A sequence gap at high water level is not queued for NACK, by the injected circuit breaker. The global
+// is not at high water level, so a read of the global would queue the gap.
+VOID TEST(RtcRecvTrackTest, OnNackSkipsGapAtHighWaterFromInjectedBreaker)
+{
+    srs_error_t err;
+
+    SrsRtcTrackDescription desc;
+    desc.type_ = "video";
+    desc.ssrc_ = 1000;
+
+    MockCircuitBreaker breaker;
+    breaker.hybrid_high_water_level_ = true;
+
+    SrsRtcVideoRecvTrack track(NULL, &desc, false);
+    track.circuit_breaker_ = &breaker;
+
+    int64_t snack4 = _srs_pps_snack4->sugar_;
+
+    SrsRtpPacket pkt;
+    pkt.header_.set_sequence(100);
+    SrsRtpPacket *ppkt = &pkt;
+    HELPER_EXPECT_SUCCESS(track.on_nack(&ppkt));
+
+    SrsRtpPacket pkt2;
+    pkt2.header_.set_sequence(105);
+    ppkt = &pkt2;
+    HELPER_EXPECT_SUCCESS(track.on_nack(&ppkt));
+
+    EXPECT_EQ(1, breaker.hybrid_high_water_level_count_);
+    EXPECT_TRUE(track.nack_receiver_->find(101) == NULL);
+    EXPECT_TRUE(track.nack_receiver_->find(104) == NULL);
+    EXPECT_EQ(snack4 + 1, _srs_pps_snack4->sugar_);
+
+    track.circuit_breaker_ = NULL;
+}
+
+// A sequence gap below high water level is queued for NACK, with the level read once from the injected
+// circuit breaker.
+VOID TEST(RtcRecvTrackTest, OnNackQueuesGapBelowHighWaterFromInjectedBreaker)
+{
+    srs_error_t err;
+
+    SrsRtcTrackDescription desc;
+    desc.type_ = "video";
+    desc.ssrc_ = 1000;
+
+    MockCircuitBreaker breaker;
+    breaker.hybrid_high_water_level_ = false;
+
+    SrsRtcVideoRecvTrack track(NULL, &desc, false);
+    track.circuit_breaker_ = &breaker;
+
+    SrsRtpPacket pkt;
+    pkt.header_.set_sequence(100);
+    SrsRtpPacket *ppkt = &pkt;
+    HELPER_EXPECT_SUCCESS(track.on_nack(&ppkt));
+
+    SrsRtpPacket pkt2;
+    pkt2.header_.set_sequence(105);
+    ppkt = &pkt2;
+    HELPER_EXPECT_SUCCESS(track.on_nack(&ppkt));
+
+    EXPECT_EQ(1, breaker.hybrid_high_water_level_count_);
+    EXPECT_TRUE(track.nack_receiver_->find(101) != NULL);
+    EXPECT_TRUE(track.nack_receiver_->find(104) != NULL);
+    EXPECT_TRUE(track.nack_receiver_->find(105) == NULL);
+
+    track.circuit_breaker_ = NULL;
+}
+
+// The RTC source owns its random generator, so a test can replace it before the track ids
+// for play before publishing are drawn.
+VOID TEST(SrsRtcSourceTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+
+    EXPECT_TRUE(source->rand_ != NULL);
+}
+
+// Initializing a source with no publisher creates the placeholder tracks for play before
+// publishing, and draws the 8-character suffix of every track id through the injected
+// generator: audio, then the H.264, H.265 and AV1 video tracks.
+VOID TEST(SrsRtcSourceTest, InitializeDrawsTrackIdsThroughInjectedRand)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtcSource> source(new SrsRtcSource());
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("audio001");
+    rand.gen_str_values_.push_back("h264v002");
+    rand.gen_str_values_.push_back("h265v003");
+    rand.gen_str_values_.push_back("av1vd004");
+    srs_freep(source->rand_);
+    source->rand_ = &rand;
+
+    MockRtcSSRCGenerator ssrc_generator;
+    source->ssrc_generator_ = &ssrc_generator;
+
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "test.vhost";
+    req->app_ = "live";
+    req->stream_ = "stream1";
+    err = source->initialize(req.get());
+
+    // Restore before any assertion can return, so the source never frees the stack mock.
+    source->rand_ = NULL;
+    source->ssrc_generator_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+
+    ASSERT_EQ(4, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(8, rand.gen_str_lens_[0]);
+    EXPECT_EQ(8, rand.gen_str_lens_[1]);
+    EXPECT_EQ(8, rand.gen_str_lens_[2]);
+    EXPECT_EQ(8, rand.gen_str_lens_[3]);
+
+    SrsRtcSourceDescription *desc = source->stream_desc_;
+    ASSERT_TRUE(desc != NULL);
+    ASSERT_TRUE(desc->audio_track_desc_ != NULL);
+    EXPECT_EQ("audio-audio001", desc->audio_track_desc_->id_);
+    EXPECT_EQ((uint32_t)500001, desc->audio_track_desc_->ssrc_);
+
+    ASSERT_EQ(3, (int)desc->video_track_descs_.size());
+    EXPECT_EQ("video-h264-h264v002", desc->video_track_descs_[0]->id_);
+    EXPECT_EQ((uint32_t)500002, desc->video_track_descs_[0]->ssrc_);
+    EXPECT_EQ("video-h265-h265v003", desc->video_track_descs_[1]->id_);
+    EXPECT_EQ((uint32_t)500003, desc->video_track_descs_[1]->ssrc_);
+    EXPECT_EQ("video-av1-av1vd004", desc->video_track_descs_[2]->id_);
+    EXPECT_EQ((uint32_t)500004, desc->video_track_descs_[2]->ssrc_);
+}

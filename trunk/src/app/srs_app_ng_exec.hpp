@@ -27,6 +27,7 @@ public:
     virtual ~ISrsNgExec();
 
 public:
+    virtual void assemble() = 0;
     virtual srs_error_t on_publish(ISrsRequest *req) = 0;
     virtual void on_unpublish() = 0;
     virtual srs_error_t cycle() = 0;
@@ -50,6 +51,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsNgExec();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsNgExec();
 
 public:

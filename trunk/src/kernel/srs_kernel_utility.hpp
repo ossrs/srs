@@ -164,8 +164,25 @@ extern char *srs_hex_encode_to_string(char *des, const uint8_t *src, int len);
 // Output in lowercase, such as string("f33f").
 extern char *srs_hex_encode_to_string_lowercase(char *des, const uint8_t *src, int len);
 
+// The random generator interface.
+class ISrsRand
+{
+public:
+    ISrsRand();
+    virtual ~ISrsRand();
+
+public:
+    // Generate ramdom data for handshake.
+    virtual void gen_bytes(char *bytes, int size) = 0;
+    // Generate random string [0-9a-z] in size of len bytes.
+    virtual std::string gen_str(int len) = 0;
+    // Generate random value.
+    virtual long integer() = 0;
+    virtual long integer(long min, long max) = 0;
+};
+
 // The random generator.
-class SrsRand
+class SrsRand : public ISrsRand
 {
 public:
     SrsRand();

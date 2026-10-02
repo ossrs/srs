@@ -18,6 +18,7 @@ class ISrsAppConfig;
 class ISrsStatistic;
 class ISrsHttpHooks;
 class ISrsSharedTimer;
+class ISrsRand;
 
 // HLS virtual connection, build on query string ctx of hls stream.
 class SrsHlsVirtualConn : public ISrsExpire
@@ -81,6 +82,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
     ISrsHttpHooks *hooks_;
     ISrsSharedTimer *shared_timer_;
+    ISrsRand *rand_;
 };
 
 // The Vod streaming, like FLV, MP4 or HLS streaming.

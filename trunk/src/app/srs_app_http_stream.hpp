@@ -21,6 +21,7 @@ class SrsTsTransmuxer;
 class SrsAsyncCallWorker;
 class ISrsAppConfig;
 class ISrsLiveSourceManager;
+class ISrsAppFactory;
 class ISrsStatistic;
 class ISrsHttpHooks;
 class ISrsMessageQueue;
@@ -55,6 +56,7 @@ class SrsBufferCache : public ISrsCoroutineHandler, public ISrsBufferCache
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsLiveSourceManager *live_sources_;
+    ISrsAppFactory *app_factory_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -68,6 +70,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsBufferCache(ISrsRequest *r);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsBufferCache();
     virtual srs_error_t update_auth(ISrsRequest *r);
 

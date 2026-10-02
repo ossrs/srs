@@ -18,12 +18,16 @@ using namespace std;
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_rtp.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai07.hpp>
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai10.hpp>
 #include <srs_utest_ai11.hpp>
+#include <srs_utest_ai14.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 // Mock frame target implementation
 MockSrtFrameTarget::MockSrtFrameTarget()
@@ -278,6 +282,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsMessageH264Video)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -343,6 +348,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsVideoAvc)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -416,6 +422,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsVideoHevc)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -495,6 +502,7 @@ VOID TEST(SrsSrtFrameBuilderTest, CheckSpsPpsChange)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a TsMessage with valid timestamp
     SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
@@ -542,6 +550,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnH264Frame)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -627,6 +636,7 @@ VOID TEST(SrsSrtFrameBuilderTest, CheckVpsSppsPpsChange)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock TsMessage with valid DTS/PTS (in 90kHz timebase)
     SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
@@ -703,6 +713,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnHevcFrameWithIDR)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -812,6 +823,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsAudioAAC)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -888,6 +900,7 @@ VOID TEST(SrsSrtFrameBuilderTest, CheckAudioShChange)
 
     // Create SrsSrtFrameBuilder with mock target
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock request for initialization
     MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
@@ -964,6 +977,7 @@ VOID TEST(SrsSrtFrameBuilderTest, OnAacFrame)
 
     // Create SrsSrtFrameBuilder
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
 
     // Create a mock SrsTsMessage (only used for context, not directly accessed in on_aac_frame)
     SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
@@ -1830,6 +1844,7 @@ VOID TEST(SrsRtspSourceManagerTest, NotifyCleanupDeadSources)
 
     // Create RTSP source manager
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create mock requests for source creation
@@ -1922,6 +1937,7 @@ VOID TEST(SrsRtspSourceManagerTest, FetchOrCreateMajorScenario)
 
     // Create manager
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create request for stream
@@ -1964,6 +1980,7 @@ VOID TEST(SrsRtspSourceManagerTest, FetchMajorScenario)
 
     // Create manager
     SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    manager->assemble();
     HELPER_EXPECT_SUCCESS(manager->initialize());
 
     // Create request for stream
@@ -1984,6 +2001,64 @@ VOID TEST(SrsRtspSourceManagerTest, FetchMajorScenario)
     MockSrsRequest req3("test.vhost", "live", "nonexistent");
     SrsSharedPtr<SrsRtspSource> null_source = manager->fetch(&req3);
     EXPECT_TRUE(null_source.get() == NULL);
+}
+
+// The constructor only captures the factory, so a test can inject it before
+// the timer is created.
+VOID TEST(RtspSourceManagerTest, ConstructionCapturesFactoryAndCreatesNoTimer)
+{
+    SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+
+    EXPECT_TRUE(manager->timer_ == NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(manager->app_factory_ != NULL);
+}
+
+// srs_global_initialize() assembles the RTSP source manager, so it has its timer.
+VOID TEST(RtspSourceManagerTest, GlobalManagerIsAssembled)
+{
+    SrsRtspSourceManager *manager = _srs_rtsp_sources;
+    ASSERT_TRUE(manager != NULL);
+
+    EXPECT_TRUE(manager->timer_ != NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+}
+
+VOID TEST(RtspSourceManagerTest, GlobalResourceManagerIsAssembled)
+{
+    ASSERT_TRUE(_srs_rtsp_manager != NULL);
+
+    EXPECT_TRUE(_srs_kernel_factory == _srs_rtsp_manager->factory_);
+    EXPECT_TRUE(NULL != _srs_rtsp_manager->cond_);
+}
+
+// assemble() creates the one-second source timer through the injected factory,
+// with the manager as its handler, and initialize() then ticks and starts it.
+VOID TEST(RtspSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtspSourceManager> manager(new SrsRtspSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+
+    manager->assemble();
+
+    EXPECT_EQ(1, factory->create_hourglass_count_);
+    EXPECT_STREQ("sources", factory->hourglass_name_.c_str());
+    EXPECT_TRUE(factory->hourglass_handler_ == manager.get());
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory->hourglass_interval_);
+    ASSERT_TRUE(factory->hourglass_ != NULL);
+    EXPECT_TRUE(manager->timer_ == factory->hourglass_);
+
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+    EXPECT_EQ(1, factory->hourglass_->tick_count_);
+    EXPECT_EQ(1, factory->hourglass_->tick_event_);
+    EXPECT_EQ(3 * SRS_UTIME_SECONDS, factory->hourglass_->tick_interval_);
+    EXPECT_EQ(1, factory->hourglass_->start_count_);
+
+    // The manager owns and frees the timer; the factory is borrowed.
+    manager->app_factory_ = NULL;
 }
 
 // Test SrsRtspSource consumer creation - covers the major use scenario:
@@ -3557,5 +3632,109 @@ VOID TEST(SrsRtspVideoSendTrackTest, OnRtpActiveTrackWithPTConversion)
     EXPECT_EQ(500, (int)mock_conn.last_packet_->header_.get_sequence());
     EXPECT_EQ(180000, (int)mock_conn.last_packet_->header_.get_timestamp());
     EXPECT_TRUE(mock_conn.last_packet_->header_.get_marker());
+}
+
+// The builder captures the global SSRC generator and owns its random generator, so a test can
+// replace both before a track is initialized.
+VOID TEST(SrsRtspRtpBuilderTest, ConstructorCapturesSsrcGeneratorAndCreatesRand)
+{
+    SrsRtcSSRCGenerator other;
+    SrsRtcSSRCGenerator *original = _srs_rtc_ssrc_generator;
+    _srs_rtc_ssrc_generator = &other;
+
+    MockRtpTarget mock_target;
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    SrsUniquePtr<SrsRtspRtpBuilder> builder(new SrsRtspRtpBuilder(&mock_target, source));
+
+    _srs_rtc_ssrc_generator = original;
+
+    EXPECT_TRUE(builder->ssrc_generator_ == &other);
+    EXPECT_TRUE(builder->ssrc_generator_ != SrsRtcSSRCGenerator::instance());
+    EXPECT_TRUE(builder->rand_ != NULL);
+}
+
+// The audio track draws its SSRC and its id through the injected generators.
+VOID TEST(SrsRtspRtpBuilderTest, InitializeAudioTrackDrawsThroughInjectedGenerators)
+{
+    srs_error_t err;
+
+    MockRtpTarget mock_target;
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    MockSrsRequest req("test.vhost", "live", "stream1");
+    HELPER_EXPECT_SUCCESS(source->initialize(&req));
+
+    SrsUniquePtr<SrsRtspRtpBuilder> builder(new SrsRtspRtpBuilder(&mock_target, source));
+    HELPER_EXPECT_SUCCESS(builder->initialize(&req));
+
+    MockRtcSSRCGenerator ssrc_generator;
+    MockRandForHandshake rand;
+    builder->ssrc_generator_ = &ssrc_generator;
+    srs_freep(builder->rand_);
+    builder->rand_ = &rand;
+
+    builder->format_->acodec_ = new SrsAudioCodecConfig();
+    builder->format_->acodec_->id_ = SrsAudioCodecIdAAC;
+    builder->format_->acodec_->sound_rate_ = SrsAudioSampleRate44100;
+    builder->format_->acodec_->sound_type_ = SrsAudioChannelsStereo;
+    builder->format_->acodec_->aac_channels_ = 2;
+
+    HELPER_EXPECT_SUCCESS(builder->initialize_audio_track(SrsAudioCodecIdAAC));
+
+    // Restore before any assertion can return, so the builder never frees the stack mock.
+    builder->ssrc_generator_ = NULL;
+    builder->rand_ = NULL;
+
+    EXPECT_EQ(1, ssrc_generator.count_);
+    EXPECT_EQ(500001u, builder->audio_ssrc_);
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(8, rand.gen_str_lens_[0]);
+
+    SrsRtcTrackDescription *audio_desc = source->audio_desc();
+    ASSERT_TRUE(audio_desc != NULL);
+    EXPECT_EQ(500001u, audio_desc->ssrc_);
+    EXPECT_EQ("audio-xxxxxxxx", audio_desc->id_);
+}
+
+// The video track draws its SSRC and its id through the injected generators, and hands the SSRC
+// to the video packetizer.
+VOID TEST(SrsRtspRtpBuilderTest, InitializeVideoTrackDrawsThroughInjectedGenerators)
+{
+    srs_error_t err;
+
+    MockRtpTarget mock_target;
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    MockSrsRequest req("test.vhost", "live", "stream1");
+    HELPER_EXPECT_SUCCESS(source->initialize(&req));
+
+    SrsUniquePtr<SrsRtspRtpBuilder> builder(new SrsRtspRtpBuilder(&mock_target, source));
+    HELPER_EXPECT_SUCCESS(builder->initialize(&req));
+
+    MockRtcSSRCGenerator ssrc_generator;
+    MockRandForHandshake rand;
+    builder->ssrc_generator_ = &ssrc_generator;
+    srs_freep(builder->rand_);
+    builder->rand_ = &rand;
+
+    if (!builder->meta_->vformat_) {
+        builder->meta_->vformat_ = new SrsRtmpFormat();
+    }
+    builder->meta_->vformat_->vcodec_ = new SrsVideoCodecConfig();
+    builder->meta_->vformat_->vcodec_->id_ = SrsVideoCodecIdAVC;
+
+    HELPER_EXPECT_SUCCESS(builder->initialize_video_track(SrsVideoCodecIdAVC));
+
+    // Restore before any assertion can return, so the builder never frees the stack mock.
+    builder->ssrc_generator_ = NULL;
+    builder->rand_ = NULL;
+
+    EXPECT_EQ(1, ssrc_generator.count_);
+    EXPECT_EQ(500001u, builder->video_builder_->video_ssrc_);
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(8, rand.gen_str_lens_[0]);
+
+    SrsRtcTrackDescription *video_desc = source->video_desc();
+    ASSERT_TRUE(video_desc != NULL);
+    EXPECT_EQ(500001u, video_desc->ssrc_);
+    EXPECT_EQ("video-H264-xxxxxxxx", video_desc->id_);
 }
 #endif // SRS_RTSP

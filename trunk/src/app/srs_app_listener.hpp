@@ -298,11 +298,23 @@ public:
     ISrsUdpMuxSocket *copy_sendonly();
 };
 
-class SrsUdpMuxListener : public ISrsCoroutineHandler
+// The UDP listener interface, which receives packets for a mux handler.
+class ISrsUdpMuxListener : public ISrsListener
+{
+public:
+    ISrsUdpMuxListener();
+    virtual ~ISrsUdpMuxListener();
+
+public:
+    virtual int fd() = 0;
+};
+
+class SrsUdpMuxListener : public ISrsUdpMuxListener, public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *factory_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -323,6 +335,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsUdpMuxListener(ISrsUdpMuxHandler *h, std::string i, int p);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsUdpMuxListener();
 
 public:

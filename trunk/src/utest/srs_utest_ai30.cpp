@@ -14,6 +14,8 @@
 #include <srs_app_log.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_protocol_log.hpp>
+#include <srs_utest_ai06.hpp>
 
 using namespace std;
 
@@ -534,4 +536,40 @@ VOID TEST(FileLogTest, DestructorClosesDescriptorZero)
 
     // GOAL: descriptor 0 was closed on the way out.
     EXPECT_EQ(0, closed);
+}
+
+// The constructor allocates the generator that draws context ids, so a test can replace it before
+// generate_id().
+VOID TEST(ThreadContextTest, ConstructorCreatesRand)
+{
+    SrsThreadContext context;
+    EXPECT_TRUE(context.rand_ != NULL);
+}
+
+// A context id is one 8-character string drawn from the injected generator per generate_id(), and
+// generating an id does not change the current id.
+VOID TEST(ThreadContextTest, GenerateIdDrawsThroughInjectedRand)
+{
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("k3x9a0q1");
+    rand.gen_str_values_.push_back("7bz2m4c5");
+
+    SrsThreadContext context;
+    srs_freep(context.rand_);
+    context.rand_ = &rand;
+
+    SrsContextId before = context.get_id();
+    SrsContextId id1 = context.generate_id();
+    SrsContextId id2 = context.generate_id();
+    SrsContextId after = context.get_id();
+
+    // Restore the stack member before any assertion, so the context never frees it.
+    context.rand_ = NULL;
+
+    ASSERT_EQ(2, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(8, rand.gen_str_lens_[0]);
+    EXPECT_EQ(8, rand.gen_str_lens_[1]);
+    EXPECT_STREQ("k3x9a0q1", id1.c_str());
+    EXPECT_STREQ("7bz2m4c5", id2.c_str());
+    EXPECT_EQ(0, before.compare(after));
 }

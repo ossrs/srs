@@ -100,7 +100,12 @@ srs_error_t srs_global_initialize()
     // The global objects which depends on ST.
     // Initialize _srs_stages first as it's needed by SrsServer constructor
     _srs_stages = new SrsStageManager();
+
+    // Initialize stream publish token manager before _srs_sources, which captures it.
+    _srs_stream_publish_tokens = new SrsStreamPublishTokenManager();
+
     _srs_sources = new SrsLiveSourceManager();
+    _srs_sources->assemble();
     _srs_circuit_breaker = new SrsCircuitBreaker();
 
     // Initialize global statistic instance before _srs_hooks, as SrsHttpHooks depends on it.
@@ -109,21 +114,47 @@ srs_error_t srs_global_initialize()
     _srs_hooks = new SrsHttpHooks();
 
     _srs_srt_sources = new SrsSrtSourceManager();
+    _srs_srt_sources->assemble();
+    _srt_eventloop = new SrsSrtEventLoop();
 
+    // Initialize the coworkers singleton before any API handler, which captures it.
+    _srs_coworkers = SrsCoWorkers::instance();
+
+    // Initialize the SSRC generator before _srs_rtc_sources, whose sources capture it.
+    _srs_rtc_ssrc_generator = SrsRtcSSRCGenerator::instance();
     _srs_rtc_sources = new SrsRtcSourceManager();
+    _srs_rtc_sources->assemble();
     _srs_blackhole = new SrsRtcBlackhole();
 
-    // Initialize stream publish token manager
-    _srs_stream_publish_tokens = new SrsStreamPublishTokenManager();
-
     _srs_conn_manager = new SrsResourceManager("RTC", true);
+    _srs_conn_manager->assemble();
     _srs_rtc_dtls_certificate = new SrsDtlsCertificate();
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
+    // Initialize SSL library by registering algorithms
+    // The SSL_library_init() and OpenSSL_add_ssl_algorithms() functions were deprecated in OpenSSL 1.1.0 by OPENSSL_init_ssl().
+    // @see https://www.openssl.org/docs/man1.1.0/man3/OpenSSL_add_ssl_algorithms.html
+    // @see https://web.archive.org/web/20150806185102/http://sctp.fh-muenster.de:80/dtls/dtls_udp_echo.c
+    OpenSSL_add_ssl_algorithms();
+#else
+    // As of version 1.1.0 OpenSSL will automatically allocate all resources that it needs so no explicit
+    // initialisation is required. Similarly it will also automatically deinitialise as required.
+    // @see https://www.openssl.org/docs/man1.1.0/man3/OPENSSL_init_ssl.html
+    // OPENSSL_init_ssl();
+#endif
+
+    // Initialize SRTP once per process, before the DTLS certificate initializes; a second srtp_init() fails.
+    srs_assert(srtp_init() == 0);
+
 #ifdef SRS_RTSP
     _srs_rtsp_sources = new SrsRtspSourceManager();
+    _srs_rtsp_sources->assemble();
     _srs_rtsp_manager = new SrsResourceManager("RTSP", true);
+    _srs_rtsp_manager->assemble();
 #endif
 #ifdef SRS_GB28181
     _srs_gb_manager = new SrsResourceManager("GB", true);
+    _srs_gb_manager->assemble();
 #endif
 
     // Create global async worker for DVR.
@@ -192,7 +223,7 @@ SrsServer::SrsServer()
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
 #ifdef SRS_GB28181
-    stream_caster_gb28181_ = new SrsGbListener();
+    stream_caster_gb28181_ = new SrsGbListener(this);
 #endif
 
     http_server_ = new SrsHttpServer();
@@ -225,12 +256,18 @@ SrsServer::SrsServer()
     app_factory_ = _srs_app_factory;
     reload_status_ = _srs_reload_status;
     blackhole_ = _srs_blackhole;
+    srt_eventloop_ = _srt_eventloop;
+    coworkers_ = _srs_coworkers;
 }
 
 void SrsServer::assemble()
 {
     ppid_ = ::getppid();
+    signal_manager_->assemble();
+    stream_caster_flv_listener_->assemble();
+    stream_caster_mpegts_->assemble();
     http_server_->assemble();
+    ingester_->assemble();
 }
 
 SrsServer::~SrsServer()
@@ -272,9 +309,9 @@ SrsServer::~SrsServer()
 
     // Cleanup WebRTC components
     if (true) {
-        std::vector<SrsUdpMuxListener *>::iterator it;
+        std::vector<ISrsUdpMuxListener *>::iterator it;
         for (it = rtc_listeners_.begin(); it != rtc_listeners_.end(); ++it) {
-            SrsUdpMuxListener *listener = *it;
+            ISrsUdpMuxListener *listener = *it;
             srs_freep(listener);
         }
         rtc_listeners_.clear();
@@ -301,6 +338,8 @@ SrsServer::~SrsServer()
     app_factory_ = NULL;
     reload_status_ = NULL;
     blackhole_ = NULL;
+    srt_eventloop_ = NULL;
+    coworkers_ = NULL;
 }
 
 void SrsServer::dispose()
@@ -401,17 +440,11 @@ srs_error_t SrsServer::initialize()
         return srs_error_wrap(err, "init server");
     }
 
-    if ((err = srs_srt_log_initialize()) != srs_success) {
-        return srs_error_wrap(err, "srt log initialize");
-    }
-
-    _srt_eventloop = new SrsSrtEventLoop();
-
-    if ((err = _srt_eventloop->initialize()) != srs_success) {
+    if ((err = srt_eventloop_->initialize()) != srs_success) {
         return srs_error_wrap(err, "srt poller initialize");
     }
 
-    if ((err = _srt_eventloop->start()) != srs_success) {
+    if ((err = srt_eventloop_->start()) != srs_success) {
         return srs_error_wrap(err, "srt poller start");
     }
 
@@ -1258,7 +1291,7 @@ srs_error_t SrsServer::listen_srt_mpegts()
     // Start listeners for SRT, support multiple addresses including IPv6.
     vector<string> srt_listens = config_->get_srt_listens();
     for (int i = 0; i < (int)srt_listens.size(); i++) {
-        SrsSrtAcceptor *acceptor = new SrsSrtAcceptor(this);
+        ISrsSrtAcceptor *acceptor = app_factory_->create_srt_acceptor(this);
 
         int port;
         string ip;
@@ -1286,9 +1319,9 @@ srs_error_t SrsServer::listen_srt_mpegts()
 // LCOV_EXCL_START
 void SrsServer::close_srt_listeners()
 {
-    std::vector<SrsSrtAcceptor *>::iterator it;
+    std::vector<ISrsSrtAcceptor *>::iterator it;
     for (it = srt_acceptors_.begin(); it != srt_acceptors_.end();) {
-        SrsSrtAcceptor *acceptor = *it;
+        ISrsSrtAcceptor *acceptor = *it;
         srs_freep(acceptor);
 
         it = srt_acceptors_.erase(it);
@@ -1386,7 +1419,7 @@ srs_error_t SrsServer::listen_rtc_udp()
         }
 
         for (int i = 0; i < nn_listeners; i++) {
-            SrsUdpMuxListener *listener = new SrsUdpMuxListener(this, ip, port);
+            ISrsUdpMuxListener *listener = app_factory_->create_udp_mux_listener(this, ip, port);
 
             if ((err = listener->listen()) != srs_success) {
                 srs_freep(listener);
@@ -1632,6 +1665,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
     if (raw_conn) {
         SrsSharedResource<ISrsRtcTcpConn> *conn = new SrsSharedResource<ISrsRtcTcpConn>(raw_conn);
         SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(conn_manager_, conn, raw_conn, raw_conn);
+        executor->assemble();
         raw_conn->setup_owner(conn, executor, executor);
         if ((err = executor->start()) != srs_success) {
             srs_freep(executor);
@@ -1679,8 +1713,7 @@ srs_error_t SrsServer::on_publish(ISrsRequest *r)
         return srs_error_wrap(err, "http mount");
     }
 
-    SrsCoWorkers *coworkers = SrsCoWorkers::instance();
-    if ((err = coworkers->on_publish(r)) != srs_success) {
+    if ((err = coworkers_->on_publish(r)) != srs_success) {
         return srs_error_wrap(err, "coworkers");
     }
 
@@ -1691,8 +1724,15 @@ void SrsServer::on_unpublish(ISrsRequest *r)
 {
     http_server_->http_unmount(r);
 
-    SrsCoWorkers *coworkers = SrsCoWorkers::instance();
-    coworkers->on_unpublish(r);
+    coworkers_->on_unpublish(r);
+}
+
+ISrsSignalManager::ISrsSignalManager()
+{
+}
+
+ISrsSignalManager::~ISrsSignalManager()
+{
 }
 
 SrsSignalManager *SrsSignalManager::instance = NULL;
@@ -1703,8 +1743,16 @@ SrsSignalManager::SrsSignalManager(ISrsSignalHandler *s)
 
     server_ = s;
     sig_pipe_[0] = sig_pipe_[1] = -1;
-    trd_ = new SrsSTCoroutine("signal", this, _srs_context->get_id());
+    trd_ = NULL;
     signal_read_stfd_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
+}
+
+void SrsSignalManager::assemble()
+{
+    trd_ = app_factory_->create_coroutine("signal", this, context_->get_id());
 }
 
 SrsSignalManager::~SrsSignalManager()
@@ -1719,6 +1767,9 @@ SrsSignalManager::~SrsSignalManager()
     if (sig_pipe_[1] > 0) {
         ::close(sig_pipe_[1]);
     }
+
+    app_factory_ = NULL;
+    context_ = NULL;
 }
 
 srs_error_t SrsSignalManager::initialize()
@@ -1978,6 +2029,14 @@ srs_error_t SrsInotifyWorker::cycle()
     return err;
 }
 // LCOV_EXCL_STOP
+
+ISrsPidFileLocker::ISrsPidFileLocker()
+{
+}
+
+ISrsPidFileLocker::~ISrsPidFileLocker()
+{
+}
 
 // LCOV_EXCL_START
 SrsPidFileLocker::SrsPidFileLocker()

@@ -20,29 +20,31 @@ fi
 
 # Ports — use high ports to avoid conflicts with running services.
 # The proxy starts ALL servers, so we must assign unique ports for each.
-PROXY_RTMP_PORT=11935
-PROXY_HTTP_API_PORT=11985
-PROXY_HTTP_SERVER_PORT=18080
-PROXY_WEBRTC_PORT=18000
-PROXY_SRT_PORT=20080
-PROXY_SYSTEM_API_PORT=12025
+# SRS_E2E_PORT_OFFSET shifts every port, so the proxy scripts can run in parallel.
+PORT_OFFSET=${SRS_E2E_PORT_OFFSET:-0}
+PROXY_RTMP_PORT=$((11935 + PORT_OFFSET))
+PROXY_HTTP_API_PORT=$((11985 + PORT_OFFSET))
+PROXY_HTTP_SERVER_PORT=$((18080 + PORT_OFFSET))
+PROXY_WEBRTC_PORT=$((18000 + PORT_OFFSET))
+PROXY_SRT_PORT=$((20080 + PORT_OFFSET))
+PROXY_SYSTEM_API_PORT=$((12025 + PORT_OFFSET))
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
 source "$SCRIPT_DIR/proxy-e2e-origin.sh"
 
 # Origin ports from srs_proxy_origin 1 and 2 in proxy-e2e-origin.sh.
-ORIGIN1_RTMP_PORT=19351
-ORIGIN1_HTTP_PORT=8081
-ORIGIN1_API_PORT=19851
-ORIGIN1_RTC_PORT=8001
-ORIGIN1_SRT_PORT=10081
+ORIGIN1_RTMP_PORT=$((19351 + PORT_OFFSET))
+ORIGIN1_HTTP_PORT=$((8081 + PORT_OFFSET))
+ORIGIN1_API_PORT=$((19851 + PORT_OFFSET))
+ORIGIN1_RTC_PORT=$((8001 + PORT_OFFSET))
+ORIGIN1_SRT_PORT=$((10081 + PORT_OFFSET))
 
-ORIGIN2_RTMP_PORT=19352
-ORIGIN2_HTTP_PORT=8082
-ORIGIN2_API_PORT=19853
-ORIGIN2_RTC_PORT=8002
-ORIGIN2_SRT_PORT=10082
+ORIGIN2_RTMP_PORT=$((19352 + PORT_OFFSET))
+ORIGIN2_HTTP_PORT=$((8082 + PORT_OFFSET))
+ORIGIN2_API_PORT=$((19853 + PORT_OFFSET))
+ORIGIN2_RTC_PORT=$((8002 + PORT_OFFSET))
+ORIGIN2_SRT_PORT=$((10082 + PORT_OFFSET))
 
 # PIDs to clean up on exit.
 PROXY_PID=""
@@ -178,7 +180,9 @@ ALL_PORTS="$PROXY_RTMP_PORT $PROXY_HTTP_API_PORT $PROXY_HTTP_SERVER_PORT $PROXY_
 ALL_PORTS="$ALL_PORTS $ORIGIN1_RTMP_PORT $ORIGIN1_HTTP_PORT $ORIGIN1_API_PORT $ORIGIN1_RTC_PORT $ORIGIN1_SRT_PORT"
 ALL_PORTS="$ALL_PORTS $ORIGIN2_RTMP_PORT $ORIGIN2_HTTP_PORT $ORIGIN2_API_PORT $ORIGIN2_RTC_PORT $ORIGIN2_SRT_PORT"
 for port in $ALL_PORTS; do
-  lsof -ti :"$port" 2>/dev/null | xargs kill 2>/dev/null || true
+  # Kill only listeners: a client of the port, such as another test's player, is not ours.
+  lsof -ti TCP:"$port" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true
+  lsof -nP -iUDP:"$port" 2>/dev/null | awk -v p=":$port" 'NR > 1 && $9 !~ /->/ && $9 ~ p "$" {print $2}' | xargs kill 2>/dev/null || true
 done
 sleep 1
 

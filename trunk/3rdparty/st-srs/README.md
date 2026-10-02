@@ -3,7 +3,6 @@
 ![](http://ossrs.net:8000/gif/v1/sls.gif?site=github.com&path=/srs/srsst)
 [![](https://github.com/ossrs/state-threads/actions/workflows/test.yml/badge.svg?branch=srs)](https://github.com/ossrs/state-threads/actions?query=workflow%3ATest+branch%3Asrs)
 [![](https://codecov.io/gh/ossrs/state-threads/branch/srs/graph/badge.svg)](https://codecov.io/gh/ossrs/state-threads/branch/srs)
-[![](https://cloud.githubusercontent.com/assets/2777660/22814959/c51cbe72-ef92-11e6-81cc-32b657b285d5.png)](https://ossrs.net/lts/zh-cn/contact)
 
 Fork from http://sourceforge.net/projects/state-threads, patched for [SRS](https://github.com/ossrs/srs/tree/2.0release).
 
@@ -97,35 +96,10 @@ make cygwin64-debug
 
 ## Branch SRS
 
-The branch [srs](https://github.com/ossrs/state-threads/tree/srs) was patched and refined:
+The branch [srs](https://github.com/ossrs/state-threads/tree/srs) was patched and refined. See [CHANGELOG.md](CHANGELOG.md) for the changes and versions.
 
-- [x] ARM: Patch [st.arm.patch](https://github.com/ossrs/srs/blob/2.0release/trunk/3rdparty/patches/1.st.arm.patch), for ARM.
-- [x] OSX: Patch [st.osx.kqueue.patch](https://github.com/ossrs/srs/blob/2.0release/trunk/3rdparty/patches/3.st.osx.kqueue.patch), for osx.
-- [x] Linux: Patch [st.disable.examples.patch](https://github.com/ossrs/srs/blob/2.0release/trunk/3rdparty/patches/4.st.disable.examples.patch), for ubuntu.
-- [x] System: [Refine TAB of code](https://github.com/ossrs/state-threads/compare/c2001d30ca58f55d72a6cc6b9b6c70391eaf14db...d2101b26988b0e0db0aabc53ddf452068c1e2cbc).
-- [x] ARM: Merge from [michaeltalyansky](https://github.com/michaeltalyansky/state-threads) and [xzh3836598](https://github.com/ossrs/state-threads/commit/9a17dec8f9c2814d93761665df7c5575a4d2d8a3), support [ARM](https://github.com/ossrs/state-threads/issues/1).
-- [x] Valgrind: Merge from [toffaletti](https://github.com/toffaletti/state-threads), support [valgrind](https://github.com/ossrs/state-threads/issues/2) for ST.
-- [x] OSX: Patch [st.osx10.14.build.patch](https://github.com/ossrs/srs/blob/2.0release/trunk/3rdparty/patches/6.st.osx10.14.build.patch), for osx 10.14 build.
-- [x] ARM: Support macro `MD_ST_NO_ASM` to disable ASM, [#8](https://github.com/ossrs/state-threads/issues/8).
-- [x] AARCH64: Merge patch [srs#1282](https://github.com/ossrs/srs/issues/1282#issuecomment-445539513) to support aarch64, [#9](https://github.com/ossrs/state-threads/issues/9).
-- [x] OSX: Support OSX for Apple Darwin, macOS, [#11](https://github.com/ossrs/state-threads/issues/11).
-- [x] System: Refine performance for sleep or epoll_wait(0), [#17](https://github.com/ossrs/state-threads/issues/17).
-- [x] System: Support utest by gtest and coverage by gcov/gocvr.
-- [x] System: Only support for Linux and Darwin. [#19](https://github.com/ossrs/state-threads/issues/19), [srs#2188](https://github.com/ossrs/srs/issues/2188).
-- [x] System: Improve the performance of timer. [9fe8cfe5b](https://github.com/ossrs/state-threads/commit/9fe8cfe5b1c9741a2e671a46215184f267fba400), [7879c2b](https://github.com/ossrs/state-threads/commit/7879c2b), [387cddb](https://github.com/ossrs/state-threads/commit/387cddb)
-- [x] Windows: Support Windows 64bits. [#20](https://github.com/ossrs/state-threads/issues/20).
-- [x] MIPS: Support Linux/MIPS for OpenWRT, [#21](https://github.com/ossrs/state-threads/issues/21).
-- [x] LOONGARCH: Support loongarch for loongson CPU, [#24](https://github.com/ossrs/state-threads/issues/24). 
-- [x] System: Support Multiple Threads for Linux and Darwin. [#19](https://github.com/ossrs/state-threads/issues/19), [srs#2188](https://github.com/ossrs/srs/issues/2188).
-- [x] RISCV: Support RISCV for RISCV CPU, [#24](https://github.com/ossrs/state-threads/pull/28).
-- [x] MIPS: Support Linux/MIPS64 for loongson 3A4000/3B3000, [#21](https://github.com/ossrs/state-threads/pull/21).
-- [x] AppleM1: Support Apple Silicon M1(aarch64), [#30](https://github.com/ossrs/state-threads/issues/30).
-- [x] IDE: Support CLion for debugging and learning.
-- [x] Define and use a new jmpbuf, because the structure is different.
-- [x] Check capability for backtrack.
-- [x] Support set specifics for any thread.
-- [x] Support st_destroy to free resources for asan.
-- [x] Support free the stack, [#38](https://github.com/ossrs/state-threads/issues/38).
+Planned:
+
 - [ ] System: Support sendmmsg for UDP, [#12](https://github.com/ossrs/state-threads/issues/12).
 
 ## GDB Tools
@@ -240,13 +214,5 @@ bash auto/coverage.sh
 * About the scheduler, read [#13-scheduler](https://github.com/ossrs/state-threads/issues/13#issuecomment-616025527).
 * About the IO event system, read [#13-IO](https://github.com/ossrs/state-threads/issues/13#issuecomment-616096568).
 * Code analysis, please read [#15](https://github.com/ossrs/state-threads/issues/15).
-
-## CLion
-
-Use [CLion](https://www.jetbrains.com/clion/) to open directory state-threads.
-
-Then, open `ide/st_clion/CMakeLists.txt` and click `Load CMake project`.
-
-Finally, select a configuration to run or debug.
 
 Winlin 2016

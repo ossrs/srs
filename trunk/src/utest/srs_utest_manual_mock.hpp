@@ -111,7 +111,11 @@ public:
 
 public:
     virtual srs_error_t initialize();
+    virtual X509 *get_cert();
+    virtual EVP_PKEY *get_public_key();
+    virtual EC_KEY *get_ecdsa_key();
     virtual std::string get_fingerprint();
+    virtual bool is_ecdsa();
 };
 
 // Helper class to create mock track descriptions for testing
@@ -475,8 +479,10 @@ public:
     virtual std::string config() { return ""; }
     virtual SrsConfDirective *get_root() { return NULL; }
     virtual std::string cwd() { return "./"; }
+    virtual std::string argv() { return ""; }
     virtual int get_max_connections() { return 1000; }
     virtual std::string get_pid_file() { return ""; }
+    virtual std::string get_server_id() { return ""; }
     virtual bool empty_ip_ok() { return false; }
     virtual bool get_asprocess() { return asprocess_; }
     virtual srs_utime_t get_grace_start_wait() { return 0; }
@@ -532,6 +538,9 @@ public:
     }
     virtual int get_rtc_server_reuseport() { return 1; }
     virtual bool get_rtc_server_encrypt() { return false; }
+    virtual bool get_rtc_server_ecdsa() { return true; }
+    virtual bool get_rtc_server_black_hole() { return false; }
+    virtual std::string get_rtc_server_black_hole_addr() { return ""; }
     virtual bool get_api_as_candidates() { return api_as_candidates_; }
     virtual bool get_resolve_api_domain() { return resolve_api_domain_; }
     virtual bool get_keep_api_domain() { return keep_api_domain_; }
@@ -615,6 +624,7 @@ public:
     virtual int get_mw_msgs(std::string vhost, bool is_realtime, bool is_rtc) { return mw_msgs_; }
     virtual int get_rtc_drop_for_pt(std::string vhost) { return rtc_drop_for_pt_; }
     virtual bool get_rtc_twcc_enabled(std::string vhost) { return rtc_twcc_enabled_; }
+    virtual int get_rtc_aac_bitrate(std::string vhost) { return 48000; }
     virtual bool get_rtc_init_rate_from_sdp(std::string vhost) { return rtc_init_rate_from_sdp_; }
     virtual bool get_rtc_keep_original_ssrc(std::string vhost) { return false; }
     virtual bool get_srt_enabled() { return srt_enabled_; }
@@ -1134,6 +1144,7 @@ public:
 class MockSrtConnection : public ISrsSrtConnection
 {
 public:
+    int assemble_count_;
     int read_count_;
     bool simulate_timeout_;
     srs_utime_t recv_timeout_;
@@ -1165,6 +1176,7 @@ public:
     virtual int64_t get_send_bytes();
 
 public:
+    virtual void assemble();
     virtual srs_srt_t srtfd();
     virtual srs_error_t get_streamid(std::string &streamid);
     virtual srs_error_t get_stats(SrsSrtStat &stat);

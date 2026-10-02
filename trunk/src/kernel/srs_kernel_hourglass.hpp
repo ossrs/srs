@@ -140,6 +140,7 @@ public:
     virtual ~ISrsFastTimer();
 
 public:
+    virtual srs_error_t start() = 0;
     virtual void subscribe(ISrsFastTimerHandler *timer) = 0;
     virtual void unsubscribe(ISrsFastTimerHandler *timer) = 0;
 };
@@ -190,9 +191,11 @@ class SrsClockWallMonitor : public ISrsFastTimerHandler
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsTime *time_;
+    ISrsKernelFactory *factory_;
 
 public:
     SrsClockWallMonitor();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsClockWallMonitor();
     // interface ISrsFastTimerHandler
 // clang-format off
@@ -219,11 +222,12 @@ class SrsSharedTimer : public ISrsSharedTimer
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsFastTimer *timer20ms_;
-    SrsFastTimer *timer100ms_;
-    SrsFastTimer *timer1s_;
-    SrsFastTimer *timer5s_;
-    SrsClockWallMonitor *clock_monitor_;
+    ISrsFastTimer *timer20ms_;
+    ISrsFastTimer *timer100ms_;
+    ISrsFastTimer *timer1s_;
+    ISrsFastTimer *timer5s_;
+    ISrsFastTimerHandler *clock_monitor_;
+    ISrsKernelFactory *factory_;
 
 public:
     SrsSharedTimer();

@@ -10,7 +10,10 @@ Route SRS and Oryx code work to focused codebase maps. The parent skill owns the
 ## Core Rules
 
 - Use the current working directory as the project root. Do not search parent directories or discover alternate repository roots.
-- The only external-repository exceptions are Dev Docker through the project-root-relative `dev-docker/` path and Oryx through the project-root-relative `oryx/` path. Keep the current working directory unchanged, do not resolve either symlink, and do not search for alternate checkouts.
+- The only external-repository exceptions are these project-root-relative paths. Keep the current working directory unchanged, do not resolve any of these symlinks, and do not search for alternate checkouts.
+  - Dev Docker through `dev-docker/`
+  - Oryx through `oryx/`
+  - State Threads through `state-threads/`
 - Use the Reference Router before reading, searching, or modifying code, configuration, tests, or verification scripts.
 - Treat only files and module directories listed by the selected reference as trusted navigation scope.
 - Never grep a repository root or broad trees such as `trunk/src/`, `cmd/`, `internal/`, `oryx/platform/`, or `oryx/ui/`.
@@ -24,6 +27,7 @@ Route SRS and Oryx code work to focused codebase maps. The parent skill owns the
 - Resolve repository paths such as `trunk/`, `internal/`, `cmd/`, or `skills/` relative to the current working directory.
 - Resolve files selected by `references/dev-docker.md` through the project-root-relative `dev-docker/` path while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the `https://github.com/ossrs/dev-docker` checkout available there; do not create it automatically.
 - Resolve files selected by `references/oryx.md` through the project-root-relative `oryx/` path while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the `https://github.com/ossrs/oryx` checkout available there; do not create it automatically.
+- Resolve files selected by `references/state-threads.md` through the project-root-relative `state-threads/` path while keeping the current working directory unchanged. The path may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the `https://github.com/ossrs/state-threads` checkout available there; do not create it automatically.
 - Use the currently invoked skill directory. Do not search for alternate copies under tool-specific directories such as `.agents/`, `.kiro/`, or `.claude/`.
 - Before reporting a routed file as missing, check its fully resolved path directly.
 
@@ -31,7 +35,8 @@ Route SRS and Oryx code work to focused codebase maps. The parent skill owns the
 
 | Code area | Use when | Load |
 |---|---|---|
-| C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, media processing, or State Threads | `references/cpp-server.md` |
+| C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, or media processing | `references/cpp-server.md` |
+| State Threads | The task concerns `ossrs/state-threads`, `state-threads/`, its vendored mirror `trunk/3rdparty/st-srs/`, coroutine scheduling, stacks, context-switch assembly, or ST tests | `references/state-threads.md` |
 | Next-generation Go server | The task concerns the Go proxy, future Go origin or edge services, `cmd/`, or `internal/` | `references/go-server.md` |
 | Browser publishers and players | The task concerns browser publishing or playback with WHIP, WHEP, HTTP-FLV, or HLS, including code under `trunk/research/players/` | `references/browser-clients.md` |
 | SRS Docker build images | The task concerns `ossrs/dev-docker`, Docker dependency or cache images, packaged FFmpeg and other build tools, image branches, or how the SRS release image receives those tools | `references/dev-docker.md` |
@@ -42,7 +47,7 @@ For a comparison or migration across SRS generations, load both server maps. Add
 
 ## Workflow
 
-1. Classify the request as C++ media server, next-generation Go server, browser publishers and players, SRS Docker build images, SRS testing and verification, Oryx integrated video solution, or an explicit combination.
+1. Classify the request as C++ media server, State Threads, next-generation Go server, browser publishers and players, SRS Docker build images, SRS testing and verification, Oryx integrated video solution, or an explicit combination.
 2. If the product or server generation is unclear and choosing incorrectly could change the result, ask the user to clarify. Do not guess whether the task targets standalone SRS or Oryx.
 3. Resolve the selected path according to [Path Resolution](#path-resolution), then load the reference file or files.
 4. Use their descriptions to identify the responsible module and the smallest relevant file set.

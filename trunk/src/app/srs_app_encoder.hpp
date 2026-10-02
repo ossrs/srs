@@ -31,6 +31,7 @@ public:
     virtual ~ISrsMediaEncoder();
 
 public:
+    virtual void assemble() = 0;
     virtual srs_error_t on_publish(ISrsRequest *req) = 0;
     virtual void on_unpublish() = 0;
     // Interface ISrsReusableThreadHandler.
@@ -59,6 +60,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsEncoder();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsEncoder();
 
 public:

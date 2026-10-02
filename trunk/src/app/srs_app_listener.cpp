@@ -664,6 +664,14 @@ ISrsUdpMuxSocket *SrsUdpMuxSocket::copy_sendonly()
 }
 // LCOV_EXCL_STOP
 
+ISrsUdpMuxListener::ISrsUdpMuxListener()
+{
+}
+
+ISrsUdpMuxListener::~ISrsUdpMuxListener()
+{
+}
+
 SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler *h, std::string i, int p)
 {
     handler_ = h;
@@ -676,9 +684,14 @@ SrsUdpMuxListener::SrsUdpMuxListener(ISrsUdpMuxHandler *h, std::string i, int p)
     buf_ = new char[nb_buf_];
 
     trd_ = new SrsDummyCoroutine();
-    cid_ = _srs_context->generate_id();
 
     factory_ = _srs_app_factory;
+    context_ = _srs_context;
+}
+
+void SrsUdpMuxListener::assemble()
+{
+    cid_ = context_->generate_id();
 }
 
 SrsUdpMuxListener::~SrsUdpMuxListener()
@@ -688,6 +701,7 @@ SrsUdpMuxListener::~SrsUdpMuxListener()
     srs_freepa(buf_);
 
     factory_ = NULL;
+    context_ = NULL;
 }
 
 int SrsUdpMuxListener::fd()
@@ -813,7 +827,7 @@ srs_error_t SrsUdpMuxListener::cycle()
             uint32_t nn = 0;
             if (pp_pkt_handler_err->can_print(err, &nn)) {
                 // For performance, only restore context when output log.
-                _srs_context->set_id(cid_);
+                context_->set_id(cid_);
 
                 // Append more information.
                 err = srs_error_wrap(err, "size=%u, data=[%s]", skt->size(), srs_strings_dumps_hex(skt->data(), skt->size(), 8).c_str());
@@ -827,7 +841,7 @@ srs_error_t SrsUdpMuxListener::cycle()
             // LCOV_EXCL_START
 
             // For performance, only restore context when output log.
-            _srs_context->set_id(cid_);
+            context_->set_id(cid_);
 
             int pps_average = 0;
             int pps_last = 0;

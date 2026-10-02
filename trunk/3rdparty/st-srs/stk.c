@@ -95,7 +95,8 @@ _st_stack_t *_st_stack_new(int stack_size)
 
 #if defined(DEBUG) && !defined(MD_NO_PROTECT)
         mprotect(ts->vaddr, REDZONE, PROT_READ | PROT_WRITE);
-        mprotect(ts->stk_top + extra, REDZONE, PROT_READ | PROT_WRITE);
+        /* The upper red zone ends the segment; stk_top may be randomized, and extra may have changed since. */
+        mprotect(ts->vaddr + ts->vaddr_size - REDZONE, REDZONE, PROT_READ | PROT_WRITE);
 #endif
 
         _st_delete_stk_segment(ts->vaddr, ts->vaddr_size);
@@ -104,13 +105,13 @@ _st_stack_t *_st_stack_new(int stack_size)
 #endif
     
     /* Make a new thread stack object. */
-    if ((ts = (_st_stack_t *)calloc(1, sizeof(_st_stack_t))) == NULL)
-        return NULL;
+    if ((ts = (_st_stack_t *)calloc(1, sizeof(_st_stack_t))) == NULL) /* GCOVR_EXCL_BR_LINE */
+        return NULL; /* GCOVR_EXCL_LINE */
     ts->vaddr_size = stack_size + 2*REDZONE + extra;
     ts->vaddr = _st_new_stk_segment(ts->vaddr_size);
-    if (!ts->vaddr) {
-        free(ts);
-        return NULL;
+    if (!ts->vaddr) { /* GCOVR_EXCL_BR_LINE */
+        free(ts); /* GCOVR_EXCL_LINE */
+        return NULL; /* GCOVR_EXCL_LINE */
     }
     ts->stk_size = stack_size;
     ts->stk_bottom = ts->vaddr + REDZONE;
@@ -139,7 +140,7 @@ _st_stack_t *_st_stack_new(int stack_size)
 void _st_stack_free(_st_stack_t *ts)
 {
     if (!ts)
-        return;
+        return; /* GCOVR_EXCL_LINE */
 
     /* Put the stack on the free list */
     st_clist_insert_before(&ts->links, _st_free_stacks.prev);
@@ -169,8 +170,8 @@ static char *_st_new_stk_segment(int size)
 #endif
     
     vaddr = mmap(NULL, size, PROT_READ | PROT_WRITE, mmap_flags, zero_fd, 0);
-    if (vaddr == (void *)MAP_FAILED)
-        return NULL;
+    if (vaddr == (void *)MAP_FAILED) /* GCOVR_EXCL_BR_LINE */
+        return NULL; /* GCOVR_EXCL_LINE */
     
 #endif /* MALLOC_STACK */
     

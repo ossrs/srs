@@ -187,12 +187,21 @@ public:
     }
 };
 
+// The SRT listener tests bind _srs_tmp_srt_port, so it must be a free UDP port from the kernel,
+// not a fixed one that a server or an E2E script may hold at the same time, such as 19000,
+// the proxy WebRTC port of proxy-e2e-srt-test.sh with SRS_E2E_PORT_OFFSET=1000.
+VOID TEST(UtestTmpPortTest, SrtPortIsNotAFixedPort)
+{
+    EXPECT_GT(_srs_tmp_srt_port, 0);
+    EXPECT_NE(19000, _srs_tmp_srt_port);
+}
+
 VOID TEST(ServiceStSRTTest, ListenConnectAccept)
 {
     srs_error_t err = srs_success;
 
     std::string server_ip = "127.0.0.1";
-    int server_port = 19000;
+    int server_port = _srs_tmp_srt_port;
 
     MockSrtServer srt_server;
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());
@@ -238,7 +247,7 @@ VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
     srs_error_t err = srs_success;
 
     std::string server_ip = "127.0.0.1";
-    int server_port = 19000;
+    int server_port = _srs_tmp_srt_port;
 
     MockSrtServer srt_server;
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());
@@ -265,7 +274,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
     srs_error_t err = srs_success;
 
     std::string server_ip = "127.0.0.1";
-    int server_port = 19000;
+    int server_port = _srs_tmp_srt_port;
 
     MockSrtServer srt_server;
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());
@@ -350,7 +359,7 @@ VOID TEST(SrtServerTest, SrtListener)
 
     if (true) {
         MockSrtHandler h;
-        SrsSrtListener srt_listener(&h, "127.0.0.1", 9000);
+        SrsSrtListener srt_listener(&h, "127.0.0.1", _srs_tmp_srt_port);
         HELPER_EXPECT_SUCCESS(srt_listener.create_socket());
         HELPER_EXPECT_SUCCESS(srt_listener.listen());
         EXPECT_TRUE(srt_listener.fd() > 0);
@@ -626,7 +635,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
     srs_error_t err = srs_success;
 
     std::string server_ip = "127.0.0.1";
-    int server_port = 19000;
+    int server_port = _srs_tmp_srt_port;
 
     MockSrtServer srt_server;
     HELPER_EXPECT_SUCCESS(srt_server.create_socket());

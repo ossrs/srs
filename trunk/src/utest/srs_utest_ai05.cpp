@@ -432,6 +432,114 @@ VOID TEST(KernelResourceTest, SrsSharedResourceBasic)
     EXPECT_EQ("shared test", assigned_resource->desc());
 }
 
+// Every connection manager is a SrsResourceManager, so its construction must stay quiescent, and its
+// disposal and coroutine must be drivable with a condition variable and coroutine from an injected factory.
+VOID TEST(KernelResourceTest, ResourceManagerConstructionCapturesFactoryAndCreatesNoCond)
+{
+    SrsResourceManager manager("test");
+
+    EXPECT_TRUE(_srs_kernel_factory == manager.factory_);
+    EXPECT_TRUE(NULL == manager.cond_);
+    EXPECT_TRUE(NULL == manager.trd_);
+}
+
+VOID TEST(KernelResourceTest, ResourceManagerAssembleCreatesCondThroughInjectedFactory)
+{
+    // Owned by the manager once the factory hands it over.
+    MockCondForResourceManager *cond = new MockCondForResourceManager();
+
+    MockKernelFactoryForFastTimer factory;
+    factory.cond_ = cond;
+
+    SrsResourceManager manager("test");
+    srs_freep(manager.cond_);
+    manager.factory_ = &factory;
+    manager.assemble();
+
+    EXPECT_EQ(1, factory.create_cond_count_);
+    EXPECT_TRUE(cond == manager.cond_);
+
+    manager.factory_ = NULL;
+}
+
+VOID TEST(KernelResourceTest, ResourceManagerStartCreatesCoroutineThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    // Both are owned by the manager, which frees them when it is destroyed.
+    MockCondForResourceManager *cond = new MockCondForResourceManager();
+    MockCoroutineForFastTimer *trd = new MockCoroutineForFastTimer();
+
+    MockKernelFactoryForFastTimer factory;
+    factory.coroutine_ = trd;
+
+    SrsResourceManager manager("test");
+    srs_freep(manager.cond_);
+    manager.cond_ = cond;
+    manager.factory_ = &factory;
+
+    HELPER_EXPECT_SUCCESS(manager.start());
+
+    EXPECT_EQ(1, factory.create_coroutine_count_);
+    EXPECT_STREQ("manager", factory.coroutine_name_.c_str());
+    EXPECT_TRUE(&manager == factory.coroutine_handler_);
+    EXPECT_STREQ(manager.cid_.c_str(), factory.coroutine_cid_.c_str());
+    EXPECT_TRUE(trd == manager.trd_);
+    EXPECT_EQ(1, trd->start_count_);
+
+    manager.factory_ = NULL;
+}
+
+VOID TEST(KernelResourceTest, ResourceManagerDisposesThroughInjectedCond)
+{
+    // Owned by the manager once the factory hands it over.
+    MockCondForResourceManager *cond = new MockCondForResourceManager();
+
+    MockKernelFactoryForFastTimer factory;
+    factory.cond_ = cond;
+
+    SrsResourceManager manager("test");
+    srs_freep(manager.cond_);
+    manager.factory_ = &factory;
+    manager.assemble();
+    ASSERT_TRUE(cond == manager.cond_);
+
+    MockSrsDisposingHandler handler;
+    manager.subscribe(&handler);
+
+    MockSrsResource *resource = new MockSrsResource();
+    manager.add_with_fast_id(100, resource);
+    manager.add_with_name("mock", resource);
+    EXPECT_TRUE(resource == manager.find_by_fast_id(100));
+
+    // Removing only notifies and wakes the coroutine; the resource stays until the zombies are cleared.
+    manager.remove(resource);
+    EXPECT_EQ(1, cond->signal_count_);
+    ASSERT_EQ(1, (int)handler.before_dispose_calls_.size());
+    EXPECT_TRUE(resource == handler.before_dispose_calls_.at(0));
+    EXPECT_TRUE(handler.disposing_calls_.empty());
+    EXPECT_EQ(1, (int)manager.size());
+
+    // What cycle() does after the cond wakes it. clear() leaves the context at the manager's own id, which
+    // start() creates, so stand in with the current one to keep it for the tests that run after this one.
+    manager.cid_ = _srs_context->get_id();
+    manager.clear();
+    ASSERT_EQ(1, (int)handler.disposing_calls_.size());
+    EXPECT_TRUE(resource == handler.disposing_calls_.at(0));
+    EXPECT_TRUE(manager.empty());
+    EXPECT_TRUE(NULL == manager.find_by_fast_id(100));
+    EXPECT_TRUE(NULL == manager.find_by_name("mock"));
+
+    manager.unsubscribe(&handler);
+    manager.factory_ = NULL;
+}
+
+VOID TEST(KernelResourceTest, GlobalConnManagerIsAssembled)
+{
+    EXPECT_TRUE(_srs_kernel_factory == _srs_conn_manager->factory_);
+    EXPECT_TRUE(NULL != _srs_conn_manager->cond_);
+}
+
 MockSrsHourGlass::MockSrsHourGlass()
 {
     notify_error_ = srs_success;
@@ -604,8 +712,10 @@ MockKernelFactoryForFastTimer::MockKernelFactoryForFastTimer()
 {
     coroutine_ = NULL;
     time_ = NULL;
+    cond_ = NULL;
     create_coroutine_count_ = 0;
     create_time_count_ = 0;
+    create_cond_count_ = 0;
     coroutine_handler_ = NULL;
 }
 
@@ -635,7 +745,82 @@ ISrsConfig *MockKernelFactoryForFastTimer::create_config()
 
 ISrsCond *MockKernelFactoryForFastTimer::create_cond()
 {
-    return NULL;
+    create_cond_count_++;
+    return cond_;
+}
+
+ISrsFastTimer *MockKernelFactoryForFastTimer::create_fast_timer(const std::string &label, srs_utime_t interval)
+{
+    size_t index = fast_timer_labels_.size();
+    fast_timer_labels_.push_back(label);
+    fast_timer_intervals_.push_back(interval);
+    return index < fast_timers_.size() ? fast_timers_[index] : NULL;
+}
+
+MockFastTimerForSharedTimer::MockFastTimerForSharedTimer()
+{
+    start_count_ = 0;
+    start_error_ = srs_success;
+}
+
+MockFastTimerForSharedTimer::~MockFastTimerForSharedTimer()
+{
+    srs_freep(start_error_);
+}
+
+srs_error_t MockFastTimerForSharedTimer::start()
+{
+    start_count_++;
+
+    srs_error_t err = start_error_;
+    start_error_ = srs_success;
+
+    return err;
+}
+
+void MockFastTimerForSharedTimer::subscribe(ISrsFastTimerHandler *timer)
+{
+    subscribed_.push_back(timer);
+}
+
+void MockFastTimerForSharedTimer::unsubscribe(ISrsFastTimerHandler *timer)
+{
+    std::vector<ISrsFastTimerHandler *>::iterator it = std::find(subscribed_.begin(), subscribed_.end(), timer);
+    if (it != subscribed_.end()) {
+        subscribed_.erase(it);
+    }
+}
+
+MockCondForResourceManager::MockCondForResourceManager()
+{
+    wait_count_ = 0;
+    signal_count_ = 0;
+}
+
+MockCondForResourceManager::~MockCondForResourceManager()
+{
+}
+
+int MockCondForResourceManager::wait()
+{
+    wait_count_++;
+    return 0;
+}
+
+int MockCondForResourceManager::timedwait(srs_utime_t timeout)
+{
+    return 0;
+}
+
+int MockCondForResourceManager::signal()
+{
+    signal_count_++;
+    return 0;
+}
+
+int MockCondForResourceManager::broadcast()
+{
+    return 0;
 }
 
 // Tests for srs_kernel_hourglass.hpp
@@ -4267,10 +4452,213 @@ VOID TEST(KernelHourglassTest, SrsSharedTimer_destructor)
     EXPECT_TRUE(true);
 }
 
+// Every subscriber registers with one of the shared timers, so the shared timer must build them through an
+// injected factory, which lets a test hand out timers it controls.
+VOID TEST(KernelHourglassTest, SharedTimerConstructionCapturesFactoryAndCreatesNoTimer)
+{
+    SrsSharedTimer timer;
+
+    EXPECT_TRUE(_srs_kernel_factory == timer.factory_);
+    EXPECT_TRUE(NULL == timer.timer20ms_);
+    EXPECT_TRUE(NULL == timer.timer100ms_);
+    EXPECT_TRUE(NULL == timer.timer1s_);
+    EXPECT_TRUE(NULL == timer.timer5s_);
+    EXPECT_TRUE(NULL == timer.clock_monitor_);
+}
+
+VOID TEST(KernelHourglassTest, SharedTimerInitializeCreatesTimersThroughInjectedFactory)
+{
+    srs_error_t err = srs_success;
+
+    MockFastTimerForSharedTimer t20ms, t100ms, t1s, t5s;
+    MockKernelFactoryForFastTimer factory;
+    factory.fast_timers_.push_back(&t20ms);
+    factory.fast_timers_.push_back(&t100ms);
+    factory.fast_timers_.push_back(&t1s);
+    factory.fast_timers_.push_back(&t5s);
+
+    SrsSharedTimer timer;
+    timer.factory_ = &factory;
+    HELPER_EXPECT_SUCCESS(timer.initialize());
+
+    ASSERT_EQ(4, (int)factory.fast_timer_labels_.size());
+    EXPECT_STREQ("shared", factory.fast_timer_labels_[0].c_str());
+    EXPECT_STREQ("shared", factory.fast_timer_labels_[3].c_str());
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, factory.fast_timer_intervals_[0]);
+    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, factory.fast_timer_intervals_[1]);
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory.fast_timer_intervals_[2]);
+    EXPECT_EQ(5 * SRS_UTIME_SECONDS, factory.fast_timer_intervals_[3]);
+
+    EXPECT_TRUE(&t20ms == timer.timer20ms());
+    EXPECT_TRUE(&t100ms == timer.timer100ms());
+    EXPECT_TRUE(&t1s == timer.timer1s());
+    EXPECT_TRUE(&t5s == timer.timer5s());
+
+    EXPECT_EQ(1, t20ms.start_count_);
+    EXPECT_EQ(1, t100ms.start_count_);
+    EXPECT_EQ(1, t1s.start_count_);
+    EXPECT_EQ(1, t5s.start_count_);
+
+    // The clock monitor watches the 20ms timer only.
+    ASSERT_EQ(1, (int)t20ms.subscribed_.size());
+    EXPECT_TRUE(timer.clock_monitor_ == t20ms.subscribed_[0]);
+    EXPECT_TRUE(t100ms.subscribed_.empty());
+    EXPECT_TRUE(t1s.subscribed_.empty());
+    EXPECT_TRUE(t5s.subscribed_.empty());
+
+    // A subscriber reaches the injected timer through the accessor.
+    MockSrsFastTimer handler;
+    timer.timer5s()->subscribe(&handler);
+    ASSERT_EQ(1, (int)t5s.subscribed_.size());
+    EXPECT_TRUE(&handler == t5s.subscribed_[0]);
+
+    // The timers are borrowed, so the destructor must not free them.
+    timer.timer20ms_ = NULL;
+    timer.timer100ms_ = NULL;
+    timer.timer1s_ = NULL;
+    timer.timer5s_ = NULL;
+    timer.factory_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SharedTimerInitializeStopsAtFirstStartError)
+{
+    MockFastTimerForSharedTimer t20ms, t100ms, t1s, t5s;
+    t100ms.start_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "mock start");
+
+    MockKernelFactoryForFastTimer factory;
+    factory.fast_timers_.push_back(&t20ms);
+    factory.fast_timers_.push_back(&t100ms);
+    factory.fast_timers_.push_back(&t1s);
+    factory.fast_timers_.push_back(&t5s);
+
+    SrsSharedTimer timer;
+    timer.factory_ = &factory;
+
+    srs_error_t err = timer.initialize();
+    EXPECT_TRUE(err != srs_success);
+    std::string desc = srs_error_desc(err);
+    EXPECT_TRUE(desc.find("start timer100ms") != std::string::npos);
+    srs_freep(err);
+
+    // Every timer is created before any starts, and starting stops at the first failure.
+    EXPECT_EQ(4, (int)factory.fast_timer_labels_.size());
+    EXPECT_EQ(1, t20ms.start_count_);
+    EXPECT_EQ(1, t100ms.start_count_);
+    EXPECT_EQ(0, t1s.start_count_);
+    EXPECT_EQ(0, t5s.start_count_);
+
+    // The clock monitor subscribes only after every timer started.
+    EXPECT_TRUE(t20ms.subscribed_.empty());
+
+    if (timer.timer20ms() == &t20ms) {
+        timer.timer20ms_ = NULL;
+        timer.timer100ms_ = NULL;
+        timer.timer1s_ = NULL;
+        timer.timer5s_ = NULL;
+    }
+    timer.factory_ = NULL;
+}
+
+// The kernel factory hands out an assembled timer, so the shared timer can start it right away.
+VOID TEST(KernelHourglassTest, KernelFactoryCreatesAssembledFastTimer)
+{
+    ISrsFastTimer *created = _srs_kernel_factory->create_fast_timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    SrsUniquePtr<ISrsFastTimer> guard(created);
+
+    SrsFastTimer *timer = dynamic_cast<SrsFastTimer *>(created);
+    ASSERT_TRUE(timer != NULL);
+    EXPECT_STREQ("shared", timer->label_.c_str());
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, timer->interval_);
+    EXPECT_TRUE(timer->trd_ != NULL);
+    EXPECT_TRUE(timer->time_ != NULL);
+}
+
+// srs_global_initialize() builds the global shared timer through the kernel factory. This locks in the
+// production wiring: four assembled timers, with the clock monitor on the 20ms one.
+VOID TEST(KernelHourglassTest, GlobalSharedTimerCreatesAssembledTimers)
+{
+    SrsFastTimer *t20ms = dynamic_cast<SrsFastTimer *>(_srs_shared_timer->timer20ms());
+    SrsFastTimer *t100ms = dynamic_cast<SrsFastTimer *>(_srs_shared_timer->timer100ms());
+    SrsFastTimer *t1s = dynamic_cast<SrsFastTimer *>(_srs_shared_timer->timer1s());
+    SrsFastTimer *t5s = dynamic_cast<SrsFastTimer *>(_srs_shared_timer->timer5s());
+    ASSERT_TRUE(t20ms && t100ms && t1s && t5s);
+
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, t20ms->interval_);
+    EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, t100ms->interval_);
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, t1s->interval_);
+    EXPECT_EQ(5 * SRS_UTIME_SECONDS, t5s->interval_);
+    EXPECT_TRUE(t20ms->trd_ != NULL);
+    EXPECT_TRUE(t5s->trd_ != NULL);
+
+    std::vector<ISrsFastTimerHandler *> &handlers = t20ms->handlers_;
+    EXPECT_TRUE(std::find(handlers.begin(), handlers.end(), _srs_shared_timer->clock_monitor_) != handlers.end());
+}
+
+// The constructor only captures the kernel factory global; it creates no time object, so a
+// test can inject the factory before assemble() runs.
+VOID TEST(KernelHourglassTest, ClockWallMonitorConstructorCapturesFactoryWithoutTime)
+{
+    SrsClockWallMonitor monitor;
+
+    EXPECT_TRUE(monitor.factory_ == _srs_kernel_factory);
+    EXPECT_TRUE(monitor.time_ == NULL);
+}
+
+// assemble() creates the time object through the injected factory; the monitor owns it.
+VOID TEST(KernelHourglassTest, ClockWallMonitorAssembleCreatesTimeThroughFactory)
+{
+    SrsClockWallMonitor monitor;
+
+    MockKernelFactoryForFastTimer factory;
+    ISrsTime *time = new SrsTrueTime();
+    factory.time_ = time;
+
+    monitor.factory_ = &factory;
+    monitor.assemble();
+
+    EXPECT_EQ(1, factory.create_time_count_);
+    EXPECT_TRUE(monitor.time_ == time);
+
+    // The monitor frees time_ when it holds the created time; otherwise free it here.
+    if (monitor.time_ != time) {
+        srs_freep(time);
+    }
+    monitor.factory_ = NULL;
+}
+
+// The shared timer assembles the clock monitor it creates, so the monitor holds its time object.
+VOID TEST(KernelHourglassTest, SharedTimerInitializeAssemblesClockMonitor)
+{
+    srs_error_t err = srs_success;
+
+    MockFastTimerForSharedTimer t20ms, t100ms, t1s, t5s;
+    MockKernelFactoryForFastTimer factory;
+    factory.fast_timers_.push_back(&t20ms);
+    factory.fast_timers_.push_back(&t100ms);
+    factory.fast_timers_.push_back(&t1s);
+    factory.fast_timers_.push_back(&t5s);
+
+    SrsSharedTimer timer;
+    timer.factory_ = &factory;
+    HELPER_EXPECT_SUCCESS(timer.initialize());
+
+    SrsClockWallMonitor *monitor = dynamic_cast<SrsClockWallMonitor *>(timer.clock_monitor_);
+    EXPECT_TRUE(monitor != NULL);
+    EXPECT_TRUE(monitor && monitor->time_ != NULL);
+
+    // The timers are borrowed, so the destructor must not free them.
+    timer.timer20ms_ = NULL;
+    timer.timer100ms_ = NULL;
+    timer.timer1s_ = NULL;
+    timer.timer5s_ = NULL;
+    timer.factory_ = NULL;
+}
+
 VOID TEST(KernelHourglassTest, SrsClockWallMonitor_destructor)
 {
     // Test SrsClockWallMonitor::~SrsClockWallMonitor destructor
     SrsClockWallMonitor *monitor = new SrsClockWallMonitor();
+    monitor->assemble();
 
     // Test destructor - should clean up internal time object
     delete monitor;

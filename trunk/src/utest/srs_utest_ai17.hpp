@@ -12,6 +12,7 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_coworkers.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_fragment.hpp>
@@ -580,6 +581,86 @@ public:
     virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count);
     virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
     virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
+};
+
+// Mock ISrsAppConfig for testing SrsStatistic::server_id() and SrsStatisticVhost::dumps()
+class MockAppConfigForStatistic : public MockAppConfig
+{
+public:
+    std::string server_id_;
+    int get_server_id_count_;
+    bool vhost_enabled_;
+    bool hls_enabled_;
+    srs_utime_t hls_fragment_;
+    std::vector<std::string> vhost_calls_;
+
+public:
+    MockAppConfigForStatistic();
+    virtual ~MockAppConfigForStatistic();
+
+public:
+    virtual std::string get_server_id();
+    virtual bool get_vhost_enabled(std::string vhost);
+    virtual bool get_hls_enabled(std::string vhost);
+    virtual srs_utime_t get_hls_fragment(std::string vhost);
+};
+
+// Mock ISrsAppConfig for testing SrsCoWorkers::dumps()
+class MockAppConfigForCoWorkers : public MockAppConfig
+{
+public:
+    std::vector<std::string> listens_;
+    std::vector<std::string> http_api_listens_;
+    int get_listens_count_;
+    int get_http_api_listens_count_;
+    std::vector<std::string> get_vhost_calls_;
+
+public:
+    MockAppConfigForCoWorkers();
+    virtual ~MockAppConfigForCoWorkers();
+
+public:
+    virtual std::vector<std::string> get_listens();
+    virtual std::vector<std::string> get_http_api_listens();
+    virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true);
+};
+
+// Mock ISrsCoWorkers for testing SrsGoApiClusters::serve_http()
+class MockCoWorkersForGoApiClusters : public ISrsCoWorkers
+{
+public:
+    int dumps_count_;
+    std::string dumps_vhost_;
+    std::string dumps_coworker_;
+    std::string dumps_app_;
+    std::string dumps_stream_;
+
+public:
+    MockCoWorkersForGoApiClusters();
+    virtual ~MockCoWorkersForGoApiClusters();
+
+public:
+    virtual SrsJsonAny *dumps(std::string vhost, std::string coworker, std::string app, std::string stream);
+    virtual srs_error_t on_publish(ISrsRequest *r);
+    virtual void on_unpublish(ISrsRequest *r);
+};
+
+// Mock ISrsAppConfig for the process command line and work directory in the summaries.
+class MockAppConfigForSummaries : public MockAppConfig
+{
+public:
+    std::string argv_;
+    std::string cwd_;
+    int argv_count_;
+    int cwd_count_;
+
+public:
+    MockAppConfigForSummaries();
+    virtual ~MockAppConfigForSummaries();
+
+public:
+    virtual std::string argv();
+    virtual std::string cwd();
 };
 
 #endif

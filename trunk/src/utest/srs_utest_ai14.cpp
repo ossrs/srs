@@ -17,14 +17,17 @@ using namespace std;
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_hourglass.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai08.hpp>
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai22.hpp>
+#include <srs_utest_ai32.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_protocol2.hpp>
@@ -51,10 +54,13 @@ MockMediaPacketForJitter::~MockMediaPacketForJitter()
 
 MockLiveSourceForQueue::MockLiveSourceForQueue()
 {
+    initialize_count_ = 0;
+    initialize_error_ = srs_success;
 }
 
 MockLiveSourceForQueue::~MockLiveSourceForQueue()
 {
+    srs_freep(initialize_error_);
 }
 
 void MockLiveSourceForQueue::on_consumer_destroy(SrsLiveConsumer *consumer)
@@ -64,8 +70,9 @@ void MockLiveSourceForQueue::on_consumer_destroy(SrsLiveConsumer *consumer)
 
 srs_error_t MockLiveSourceForQueue::initialize(SrsSharedPtr<SrsLiveSource> wrapper, ISrsRequest *r)
 {
-    // Mock initialize - do nothing and return success
-    return srs_success;
+    // Mock initialize - do nothing and return the injected result
+    initialize_count_++;
+    return srs_error_copy(initialize_error_);
 }
 
 void MockLiveSourceForQueue::update_auth(ISrsRequest *r)
@@ -170,16 +177,59 @@ void MockHourGlassForSourceManager::untick(int event)
 MockAppFactoryForSourceManager::MockAppFactoryForSourceManager()
 {
     create_live_source_count_ = 0;
+    live_source_initialize_error_ = srs_success;
+    live_source_ = NULL;
+    create_hourglass_count_ = 0;
+    hourglass_handler_ = NULL;
+    hourglass_interval_ = 0;
+    hourglass_ = NULL;
 }
 
 MockAppFactoryForSourceManager::~MockAppFactoryForSourceManager()
 {
+    srs_freep(live_source_initialize_error_);
 }
 
 SrsLiveSource *MockAppFactoryForSourceManager::create_live_source()
 {
     create_live_source_count_++;
-    return new MockLiveSourceForQueue();
+    live_source_ = new MockLiveSourceForQueue();
+    live_source_->initialize_error_ = srs_error_copy(live_source_initialize_error_);
+    return live_source_;
+}
+
+ISrsHourGlass *MockAppFactoryForSourceManager::create_hourglass(const std::string &name, ISrsHourGlassHandler *handler, srs_utime_t interval)
+{
+    create_hourglass_count_++;
+    hourglass_name_ = name;
+    hourglass_handler_ = handler;
+    hourglass_interval_ = interval;
+    hourglass_ = new MockHourGlassForSourceManager();
+    return hourglass_;
+}
+
+MockStreamPublishTokensForSourceManager::MockStreamPublishTokensForSourceManager()
+{
+}
+
+MockStreamPublishTokensForSourceManager::~MockStreamPublishTokensForSourceManager()
+{
+}
+
+srs_error_t MockStreamPublishTokensForSourceManager::acquire_token(ISrsRequest *req, SrsStreamPublishToken *&token)
+{
+    token = NULL;
+    return srs_success;
+}
+
+void MockStreamPublishTokensForSourceManager::release_token(const std::string &stream_url)
+{
+}
+
+bool MockStreamPublishTokensForSourceManager::is_acquired(const std::string &stream_url)
+{
+    is_acquired_urls_.push_back(stream_url);
+    return acquired_urls_.find(stream_url) != acquired_urls_.end();
 }
 
 MockAudioPacket::MockAudioPacket()
@@ -1341,6 +1391,7 @@ VOID TEST(LiveSourceOnAudioImpTest, ReduceSequenceHeaderAndConsumerEnqueue)
 // Mock ISrsHls implementation
 MockHlsForOriginHub::MockHlsForOriginHub()
 {
+    assemble_count_ = 0;
     initialize_count_ = 0;
     initialize_error_ = srs_success;
     cleanup_delay_ = 0;
@@ -1351,6 +1402,11 @@ MockHlsForOriginHub::MockHlsForOriginHub()
 MockHlsForOriginHub::~MockHlsForOriginHub()
 {
     srs_freep(initialize_error_);
+}
+
+void MockHlsForOriginHub::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockHlsForOriginHub::initialize(ISrsOriginHub *h, ISrsRequest *r)
@@ -1453,6 +1509,7 @@ srs_utime_t MockDashForOriginHub::cleanup_delay()
 // Mock ISrsDvr implementation
 MockDvrForOriginHub::MockDvrForOriginHub()
 {
+    assemble_count_ = 0;
     initialize_count_ = 0;
     initialize_error_ = srs_success;
     on_meta_data_count_ = 0;
@@ -1462,6 +1519,7 @@ MockDvrForOriginHub::MockDvrForOriginHub()
 
 void MockDvrForOriginHub::assemble()
 {
+    assemble_count_++;
 }
 
 MockDvrForOriginHub::~MockDvrForOriginHub()
@@ -1499,6 +1557,35 @@ srs_error_t MockDvrForOriginHub::on_audio(SrsMediaPacket *shared_audio, SrsForma
 srs_error_t MockDvrForOriginHub::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     on_video_count_++;
+    return srs_success;
+}
+
+// Mock ISrsMediaEncoder implementation
+MockMediaEncoderForOriginHub::MockMediaEncoderForOriginHub()
+{
+    assemble_count_ = 0;
+}
+
+MockMediaEncoderForOriginHub::~MockMediaEncoderForOriginHub()
+{
+}
+
+void MockMediaEncoderForOriginHub::assemble()
+{
+    assemble_count_++;
+}
+
+srs_error_t MockMediaEncoderForOriginHub::on_publish(ISrsRequest *req)
+{
+    return srs_success;
+}
+
+void MockMediaEncoderForOriginHub::on_unpublish()
+{
+}
+
+srs_error_t MockMediaEncoderForOriginHub::cycle()
+{
     return srs_success;
 }
 
@@ -1619,6 +1706,148 @@ srs_error_t MockLiveSourceForOriginHub::on_aggregate(SrsRtmpCommonMessage *msg)
 srs_error_t MockLiveSourceForOriginHub::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata)
 {
     return srs_success;
+}
+
+// The constructor only allocates its children, so the DVR it creates is not yet
+// subscribed to config reload, and a test can replace it before anything subscribes.
+VOID TEST(AppOriginHubTest, ConstructorDoesNotAssembleDvr)
+{
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+
+    SrsDvr *dvr = dynamic_cast<SrsDvr *>(hub->dvr_);
+    ASSERT_TRUE(dvr != NULL);
+
+    std::vector<ISrsReloadHandler *> &subscribes = _srs_config->subscribes_;
+    EXPECT_TRUE(std::find(subscribes.begin(), subscribes.end(), (ISrsReloadHandler *)dvr) == subscribes.end());
+}
+
+// The hub's assemble() assembles the injected DVR, then subscribes the hub itself
+// to the injected config.
+VOID TEST(AppOriginHubTest, AssembleAssemblesDvr)
+{
+    SrsConfig config;
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = &config;
+
+    MockDvrForOriginHub *mock_dvr = new MockDvrForOriginHub();
+    srs_freep(hub->dvr_);
+    hub->dvr_ = mock_dvr;
+
+    hub->assemble();
+
+    EXPECT_EQ(1, mock_dvr->assemble_count_);
+    ASSERT_EQ(1, (int)config.subscribes_.size());
+    EXPECT_EQ((ISrsReloadHandler *)hub.get(), config.subscribes_.at(0));
+}
+
+// The factory is the production construction site: the hub it returns has its DVR
+// subscribed to config reload, before the hub itself.
+VOID TEST(AppOriginHubTest, FactoryCreatesAssembledHub)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsOriginHub> ihub(factory.create_origin_hub());
+
+    SrsOriginHub *hub = dynamic_cast<SrsOriginHub *>(ihub.get());
+    ASSERT_TRUE(hub != NULL);
+    SrsDvr *dvr = dynamic_cast<SrsDvr *>(hub->dvr_);
+    ASSERT_TRUE(dvr != NULL);
+
+    std::vector<ISrsReloadHandler *> &subscribes = _srs_config->subscribes_;
+    std::vector<ISrsReloadHandler *>::iterator dvr_it = std::find(subscribes.begin(), subscribes.end(), (ISrsReloadHandler *)dvr);
+    std::vector<ISrsReloadHandler *>::iterator hub_it = std::find(subscribes.begin(), subscribes.end(), (ISrsReloadHandler *)hub);
+    ASSERT_TRUE(dvr_it != subscribes.end());
+    ASSERT_TRUE(hub_it != subscribes.end());
+    EXPECT_TRUE(dvr_it < hub_it);
+}
+
+// The hub's assemble() assembles the injected encoder.
+VOID TEST(AppOriginHubTest, AssembleAssemblesEncoder)
+{
+    SrsConfig config;
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = &config;
+
+    MockMediaEncoderForOriginHub *mock_encoder = new MockMediaEncoderForOriginHub();
+    srs_freep(hub->encoder_);
+    hub->encoder_ = mock_encoder;
+
+    hub->assemble();
+
+    EXPECT_EQ(1, mock_encoder->assemble_count_);
+}
+
+// The factory is the production construction site: the hub it returns has an
+// encoder with its pithy print created.
+VOID TEST(AppOriginHubTest, FactoryCreatesHubWithAssembledEncoder)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsOriginHub> ihub(factory.create_origin_hub());
+
+    SrsOriginHub *hub = dynamic_cast<SrsOriginHub *>(ihub.get());
+    ASSERT_TRUE(hub != NULL);
+    SrsEncoder *encoder = dynamic_cast<SrsEncoder *>(hub->encoder_);
+    ASSERT_TRUE(encoder != NULL);
+    EXPECT_TRUE(encoder->pprint_ != NULL);
+}
+
+// The hub's assemble() assembles the injected HLS.
+VOID TEST(AppOriginHubTest, AssembleAssemblesHls)
+{
+    SrsConfig config;
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = &config;
+
+    MockHlsForOriginHub *mock_hls = new MockHlsForOriginHub();
+    srs_freep(hub->hls_);
+    hub->hls_ = mock_hls;
+
+    hub->assemble();
+
+    EXPECT_EQ(1, mock_hls->assemble_count_);
+}
+
+// The factory is the production construction site: the hub it returns has an
+// HLS with its pithy print created.
+VOID TEST(AppOriginHubTest, FactoryCreatesHubWithAssembledHls)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsOriginHub> ihub(factory.create_origin_hub());
+
+    SrsOriginHub *hub = dynamic_cast<SrsOriginHub *>(ihub.get());
+    ASSERT_TRUE(hub != NULL);
+    SrsHls *hls = dynamic_cast<SrsHls *>(hub->hls_);
+    ASSERT_TRUE(hls != NULL);
+    EXPECT_TRUE(hls->pprint_ != NULL);
+}
+
+// The hub's assemble() assembles the injected ng-exec.
+VOID TEST(AppOriginHubTest, AssembleAssemblesNgExec)
+{
+    SrsConfig config;
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = &config;
+
+    MockNgExecForOriginHub *mock_ng_exec = new MockNgExecForOriginHub();
+    srs_freep(hub->ng_exec_);
+    hub->ng_exec_ = mock_ng_exec;
+
+    hub->assemble();
+
+    EXPECT_EQ(1, mock_ng_exec->assemble_count_);
+}
+
+// The factory is the production construction site: the hub it returns has an
+// ng-exec with its pithy print created.
+VOID TEST(AppOriginHubTest, FactoryCreatesHubWithAssembledNgExec)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsOriginHub> ihub(factory.create_origin_hub());
+
+    SrsOriginHub *hub = dynamic_cast<SrsOriginHub *>(ihub.get());
+    ASSERT_TRUE(hub != NULL);
+    SrsNgExec *ng_exec = dynamic_cast<SrsNgExec *>(hub->ng_exec_);
+    ASSERT_TRUE(ng_exec != NULL);
+    EXPECT_TRUE(ng_exec->pprint_ != NULL);
 }
 
 // Unit test for SrsOriginHub::initialize typical scenario
@@ -2033,10 +2262,16 @@ srs_error_t MockStatisticForOriginHub::dumps_metrics(int64_t &send_bytes, int64_
 MockNgExecForOriginHub::MockNgExecForOriginHub()
 {
     on_publish_count_ = 0;
+    assemble_count_ = 0;
 }
 
 MockNgExecForOriginHub::~MockNgExecForOriginHub()
 {
+}
+
+void MockNgExecForOriginHub::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockNgExecForOriginHub::on_publish(ISrsRequest *req)
@@ -2628,6 +2863,7 @@ VOID TEST(LiveSourceManagerTest, FetchOrCreate_TypicalScenario)
     // Create and inject mock app factory
     MockAppFactoryForSourceManager *mock_factory = new MockAppFactoryForSourceManager();
     manager->app_factory_ = mock_factory;
+    manager->assemble();
 
     // Initialize the manager
     HELPER_EXPECT_SUCCESS(manager->initialize());
@@ -2661,6 +2897,223 @@ VOID TEST(LiveSourceManagerTest, FetchOrCreate_TypicalScenario)
     EXPECT_TRUE(source3.get() != NULL);
     EXPECT_TRUE(source3.get() != source1.get());
     EXPECT_EQ(2, mock_factory->create_live_source_count_);
+}
+
+// A source whose initialize fails must not stay in the pool: the next client
+// would get it without initialize, half built. For example, an unknown
+// dvr_plan fails the DVR in initialize and leaves its plan NULL, and the next
+// publish crashed in SrsDvr::on_publish.
+VOID TEST(LiveSourceManagerTest, FetchOrCreateDropsSourceWhenInitializeFails)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+    MockHlsRequest req("test.vhost", "live", "stream1");
+
+    factory->live_source_initialize_error_ = srs_error_new(ERROR_DVR_ILLEGAL_PLAN, "illegal plan");
+    SrsSharedPtr<SrsLiveSource> failed;
+    err = manager->fetch_or_create(&req, failed);
+    EXPECT_EQ(ERROR_DVR_ILLEGAL_PLAN, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, factory->create_live_source_count_);
+    EXPECT_EQ(0, (int)manager->pool_.size());
+    EXPECT_TRUE(manager->fetch(&req).get() == NULL);
+
+    // The next client gets a new source, and initializes it.
+    srs_freep(factory->live_source_initialize_error_);
+    SrsSharedPtr<SrsLiveSource> source;
+    HELPER_EXPECT_SUCCESS(manager->fetch_or_create(&req, source));
+    EXPECT_EQ(2, factory->create_live_source_count_);
+    EXPECT_TRUE(source.get() == factory->live_source_);
+    EXPECT_TRUE(source.get() != failed.get());
+    EXPECT_EQ(1, factory->live_source_->initialize_count_);
+    EXPECT_EQ(1, (int)manager->pool_.size());
+
+    manager->app_factory_ = NULL;
+}
+
+// The constructor only captures its dependencies, so a test can inject them
+// before the timer is created.
+VOID TEST(LiveSourceManagerTest, ConstructionCapturesTokensAndCreatesNoTimer)
+{
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+
+    EXPECT_TRUE(manager->timer_ == NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(manager->stream_publish_tokens_ == _srs_stream_publish_tokens);
+    EXPECT_TRUE(manager->stream_publish_tokens_ != NULL);
+}
+
+// srs_global_initialize() creates the token manager before the live source
+// manager, which captures it, and assembles the manager so it has its timer.
+VOID TEST(LiveSourceManagerTest, GlobalManagerIsAssembledWithTokens)
+{
+    SrsLiveSourceManager *manager = _srs_sources;
+    ASSERT_TRUE(manager != NULL);
+
+    EXPECT_TRUE(manager->timer_ != NULL);
+    EXPECT_TRUE(manager->stream_publish_tokens_ == _srs_stream_publish_tokens);
+    EXPECT_TRUE(manager->stream_publish_tokens_ != NULL);
+}
+
+// assemble() creates the one-second source timer through the injected factory,
+// with the manager as its handler, and initialize() then ticks and starts it.
+VOID TEST(LiveSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+
+    manager->assemble();
+
+    EXPECT_EQ(1, factory->create_hourglass_count_);
+    EXPECT_STREQ("sources", factory->hourglass_name_.c_str());
+    EXPECT_TRUE(factory->hourglass_handler_ == manager.get());
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory->hourglass_interval_);
+    ASSERT_TRUE(factory->hourglass_ != NULL);
+    EXPECT_TRUE(manager->timer_ == factory->hourglass_);
+
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+    EXPECT_EQ(1, factory->hourglass_->tick_count_);
+    EXPECT_EQ(1, factory->hourglass_->tick_event_);
+    EXPECT_EQ(3 * SRS_UTIME_SECONDS, factory->hourglass_->tick_interval_);
+    EXPECT_EQ(1, factory->hourglass_->start_count_);
+
+    // The manager owns and frees the timer; the factory is borrowed.
+    manager->app_factory_ = NULL;
+}
+
+// notify() keeps a dead source while the injected token manager reports its
+// stream as acquired, and removes it once the token is released.
+VOID TEST(LiveSourceManagerTest, NotifyAsksInjectedTokensBeforeRemovingDeadSource)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsLiveSourceManager> manager(new SrsLiveSourceManager());
+    MockStreamPublishTokensForSourceManager tokens;
+    manager->stream_publish_tokens_ = &tokens;
+
+    SrsSharedPtr<SrsLiveSource> source(new MockLiveSourceForQueue());
+    source->stream_die_at_ = srs_time_now_cached() - 10 * SRS_UTIME_MINUTES;
+    EXPECT_TRUE(source->stream_is_dead());
+    manager->pool_["/live/pending"] = source;
+
+    tokens.acquired_urls_.insert("/live/pending");
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    ASSERT_EQ(1, (int)tokens.is_acquired_urls_.size());
+    EXPECT_STREQ("/live/pending", tokens.is_acquired_urls_[0].c_str());
+    EXPECT_EQ(1, (int)manager->pool_.size());
+
+    tokens.acquired_urls_.clear();
+    HELPER_EXPECT_SUCCESS(manager->notify(0, 0, 0));
+    EXPECT_EQ(2, (int)tokens.is_acquired_urls_.size());
+    EXPECT_EQ(0, (int)manager->pool_.size());
+
+    manager->stream_publish_tokens_ = NULL;
+}
+
+// The constructor only captures the factory, so a test can inject it before
+// the timer is created.
+VOID TEST(RtcSourceManagerTest, ConstructionCapturesFactoryAndCreatesNoTimer)
+{
+    SrsUniquePtr<SrsRtcSourceManager> manager(new SrsRtcSourceManager());
+
+    EXPECT_TRUE(manager->timer_ == NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(manager->app_factory_ != NULL);
+}
+
+// srs_global_initialize() assembles the RTC source manager, so it has its timer.
+VOID TEST(RtcSourceManagerTest, GlobalManagerIsAssembled)
+{
+    SrsRtcSourceManager *manager = _srs_rtc_sources;
+    ASSERT_TRUE(manager != NULL);
+
+    EXPECT_TRUE(manager->timer_ != NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+}
+
+// assemble() creates the one-second source timer through the injected factory,
+// with the manager as its handler, and initialize() then ticks and starts it.
+VOID TEST(RtcSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtcSourceManager> manager(new SrsRtcSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+
+    manager->assemble();
+
+    EXPECT_EQ(1, factory->create_hourglass_count_);
+    EXPECT_STREQ("sources", factory->hourglass_name_.c_str());
+    EXPECT_TRUE(factory->hourglass_handler_ == manager.get());
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory->hourglass_interval_);
+    ASSERT_TRUE(factory->hourglass_ != NULL);
+    EXPECT_TRUE(manager->timer_ == factory->hourglass_);
+
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+    EXPECT_EQ(1, factory->hourglass_->tick_count_);
+    EXPECT_EQ(1, factory->hourglass_->tick_event_);
+    EXPECT_EQ(3 * SRS_UTIME_SECONDS, factory->hourglass_->tick_interval_);
+    EXPECT_EQ(1, factory->hourglass_->start_count_);
+
+    // The manager owns and frees the timer; the factory is borrowed.
+    manager->app_factory_ = NULL;
+}
+
+// The constructor only captures the factory, so a test can inject it before
+// the timer is created.
+VOID TEST(SrtSourceManagerTest, ConstructionCapturesFactoryAndCreatesNoTimer)
+{
+    SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+
+    EXPECT_TRUE(manager->timer_ == NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+    EXPECT_TRUE(manager->app_factory_ != NULL);
+}
+
+// srs_global_initialize() assembles the SRT source manager, so it has its timer.
+VOID TEST(SrtSourceManagerTest, GlobalManagerIsAssembled)
+{
+    SrsSrtSourceManager *manager = _srs_srt_sources;
+    ASSERT_TRUE(manager != NULL);
+
+    EXPECT_TRUE(manager->timer_ != NULL);
+    EXPECT_TRUE(manager->app_factory_ == _srs_app_factory);
+}
+
+// assemble() creates the one-second source timer through the injected factory,
+// with the manager as its handler, and initialize() then ticks and starts it.
+VOID TEST(SrtSourceManagerTest, AssembleCreatesTimerThroughInjectedFactory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsSrtSourceManager> manager(new SrsSrtSourceManager());
+    SrsUniquePtr<MockAppFactoryForSourceManager> factory(new MockAppFactoryForSourceManager());
+    manager->app_factory_ = factory.get();
+
+    manager->assemble();
+
+    EXPECT_EQ(1, factory->create_hourglass_count_);
+    EXPECT_STREQ("sources", factory->hourglass_name_.c_str());
+    EXPECT_TRUE(factory->hourglass_handler_ == manager.get());
+    EXPECT_EQ(1 * SRS_UTIME_SECONDS, factory->hourglass_interval_);
+    ASSERT_TRUE(factory->hourglass_ != NULL);
+    EXPECT_TRUE(manager->timer_ == factory->hourglass_);
+
+    HELPER_EXPECT_SUCCESS(manager->initialize());
+    EXPECT_EQ(1, factory->hourglass_->tick_count_);
+    EXPECT_EQ(1, factory->hourglass_->tick_event_);
+    EXPECT_EQ(3 * SRS_UTIME_SECONDS, factory->hourglass_->tick_interval_);
+    EXPECT_EQ(1, factory->hourglass_->start_count_);
+
+    // The manager owns and frees the timer; the factory is borrowed.
+    manager->app_factory_ = NULL;
 }
 
 // Unit test for SrsOriginHub sequence header request methods
@@ -2993,6 +3446,7 @@ VOID TEST(SrsLiveSourceTest, InitializeOriginHubCreation)
         // Inject mock dependencies
         source->config_ = mock_config;
         source->app_factory_ = mock_factory;
+        source->assemble();
 
         // Create mock request
         MockSrsRequest mock_req("test.vhost", "live", "stream1");
@@ -3034,6 +3488,7 @@ VOID TEST(SrsLiveSourceTest, ConsumerDumpsTypicalScenario)
         // Inject mock dependencies
         source->config_ = mock_config;
         source->app_factory_ = mock_factory;
+        source->assemble();
 
         // Create mock request
         MockSrsRequest mock_req("test.vhost", "live", "stream1");
@@ -3082,6 +3537,7 @@ VOID TEST(SrsLiveSourceTest, OnMetaDataTypicalScenario)
         // Inject mock dependencies
         source->config_ = mock_config;
         source->app_factory_ = mock_factory;
+        source->assemble();
 
         // Create mock request
         MockSrsRequest mock_req("test.vhost", "live", "stream1");
@@ -3358,4 +3814,115 @@ VOID TEST(AppOriginHubTest, OnVideoSequenceHeaderWaitingMechanism)
     // 3. AVC path: when c->id_ == SrsVideoCodecIdAVC, calls stat_->on_video_info() with AVC profile/level
     // 4. HEVC path: when c->id_ == SrsVideoCodecIdHEVC, calls stat_->on_video_info() with HEVC profile/level
     // 5. The trace logging: srs_trace() is called with codec-specific information (profile, level, resolution, bitrate, fps, duration)
+}
+
+// The constructor only captures the clock and reads no time, so a test can inject its
+// own clock before assemble() stamps the new source.
+VOID TEST(SrsLiveSourceTest, ConstructionCapturesClockAndReadsNoTime)
+{
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+
+    EXPECT_TRUE(source->clk_ != NULL);
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_EQ((srs_utime_t)0, source->stream_die_at_);
+    EXPECT_EQ((srs_utime_t)0, source->publisher_idle_at_);
+}
+
+// assemble() stamps a new source with the injected clock, so the cleanup timer does not
+// reap it before the cleanup delay passed, see https://github.com/ossrs/srs/issues/4449
+VOID TEST(SrsLiveSourceTest, AssembleStampsNewSourceWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+    source->clk_ = &clock;
+    source->assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_FALSE(source->stream_is_dead());
+
+    // The cleanup delay SRS_SOURCE_CLEANUP is 3s.
+    clock.now_ = 103 * SRS_UTIME_SECONDS - 1;
+    EXPECT_FALSE(source->stream_is_dead());
+
+    clock.now_ = 103 * SRS_UTIME_SECONDS;
+    EXPECT_TRUE(source->stream_is_dead());
+}
+
+// The last consumer leaving stamps the death and idle times with the injected clock, and
+// publisher_is_idle_for() measures from that stamp on the same clock.
+VOID TEST(SrsLiveSourceTest, ConsumerDestroyStampsWithInjectedClock)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+    MockAppConfig config;
+
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+    source->config_ = &config;
+    source->clk_ = &clock;
+    source->req_ = new MockSrsRequest("test.vhost", "live", "stream1");
+    source->assemble();
+
+    SrsLiveConsumer *consumer = NULL;
+    HELPER_EXPECT_SUCCESS(source->create_consumer(consumer));
+    EXPECT_EQ((srs_utime_t)0, source->stream_die_at_);
+
+    clock.now_ = 200 * SRS_UTIME_SECONDS;
+    srs_freep(consumer);
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->publisher_idle_at_);
+
+    clock.now_ = 210 * SRS_UTIME_SECONDS;
+    EXPECT_FALSE(source->publisher_is_idle_for(10 * SRS_UTIME_SECONDS));
+    clock.now_ = 210 * SRS_UTIME_SECONDS + 1;
+    EXPECT_TRUE(source->publisher_is_idle_for(10 * SRS_UTIME_SECONDS));
+}
+
+// Publishing with no player stamps the idle time, and unpublishing with no player stamps
+// the death time, both with the injected clock.
+VOID TEST(SrsLiveSourceTest, PublishAndUnpublishStampWithInjectedClock)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+    MockAppStatistic stat;
+    MockLiveSourceHandler handler;
+
+    SrsUniquePtr<SrsLiveSource> source(new SrsLiveSource());
+    source->clk_ = &clock;
+    source->stat_ = &stat;
+    source->handler_ = &handler;
+    source->req_ = new MockSrsRequest("test.vhost", "live", "stream1");
+    source->assemble();
+
+    clock.now_ = 200 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(source->on_publish());
+    EXPECT_EQ(200 * SRS_UTIME_SECONDS, source->publisher_idle_at_);
+    EXPECT_EQ(1, handler.on_publish_count_);
+
+    clock.now_ = 300 * SRS_UTIME_SECONDS;
+    source->on_unpublish();
+    EXPECT_EQ(300 * SRS_UTIME_SECONDS, source->stream_die_at_);
+    EXPECT_EQ(1, handler.on_unpublish_count_);
+
+    source->stat_ = NULL;
+    source->handler_ = NULL;
+}
+
+// The factory hands out an assembled source: stamped, and subscribed to config reloads
+// through the config it captured.
+VOID TEST(SrsLiveSourceTest, FactoryCreatesAssembledSource)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<SrsLiveSource> source(factory.create_live_source());
+
+    EXPECT_TRUE(source->clk_ == _srs_clock);
+    EXPECT_TRUE(source->stream_die_at_ > 0);
+
+    std::vector<ISrsReloadHandler *> &subscribes = _srs_config->subscribes_;
+    EXPECT_TRUE(std::find(subscribes.begin(), subscribes.end(), (ISrsReloadHandler *)source.get()) != subscribes.end());
 }

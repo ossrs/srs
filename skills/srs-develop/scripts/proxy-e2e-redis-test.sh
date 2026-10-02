@@ -21,19 +21,21 @@ fi
 
 # Ports — use high ports to avoid conflicts with running services.
 # Each proxy starts ALL servers, so each proxy needs a unique full port set.
-PROXY_A_RTMP_PORT=11935
-PROXY_A_HTTP_API_PORT=11985
-PROXY_A_HTTP_SERVER_PORT=18080
-PROXY_A_WEBRTC_PORT=18000
-PROXY_A_SRT_PORT=20080
-PROXY_A_SYSTEM_API_PORT=12025
+# SRS_E2E_PORT_OFFSET shifts every port, so the proxy scripts can run in parallel.
+PORT_OFFSET=${SRS_E2E_PORT_OFFSET:-0}
+PROXY_A_RTMP_PORT=$((11935 + PORT_OFFSET))
+PROXY_A_HTTP_API_PORT=$((11985 + PORT_OFFSET))
+PROXY_A_HTTP_SERVER_PORT=$((18080 + PORT_OFFSET))
+PROXY_A_WEBRTC_PORT=$((18000 + PORT_OFFSET))
+PROXY_A_SRT_PORT=$((20080 + PORT_OFFSET))
+PROXY_A_SYSTEM_API_PORT=$((12025 + PORT_OFFSET))
 
-PROXY_B_RTMP_PORT=11936
-PROXY_B_HTTP_API_PORT=11986
-PROXY_B_HTTP_SERVER_PORT=18081
-PROXY_B_WEBRTC_PORT=18001
-PROXY_B_SRT_PORT=20081
-PROXY_B_SYSTEM_API_PORT=12026
+PROXY_B_RTMP_PORT=$((11936 + PORT_OFFSET))
+PROXY_B_HTTP_API_PORT=$((11986 + PORT_OFFSET))
+PROXY_B_HTTP_SERVER_PORT=$((18081 + PORT_OFFSET))
+PROXY_B_WEBRTC_PORT=$((18001 + PORT_OFFSET))
+PROXY_B_SRT_PORT=$((20081 + PORT_OFFSET))
+PROXY_B_SYSTEM_API_PORT=$((12026 + PORT_OFFSET))
 
 REDIS_HOST="${PROXY_REDIS_HOST:-127.0.0.1}"
 REDIS_PORT="${PROXY_REDIS_PORT:-6379}"
@@ -112,9 +114,9 @@ cleanup_redis_state() {
     [[ -z "$key" ]] && continue
     value="$(redis_cli get "$key" 2>/dev/null || true)"
     if [[ "$value" == *'"device_id":"origin1"'* && \
-          "$value" == *'"rtmp":["19351"]'* && \
-          "$value" == *'"http":["8081"]'* && \
-          "$value" == *'"api":["19851"]'* ]]; then
+          "$value" == *"\"rtmp\":[\"$ORIGIN_RTMP_PORT\"]"* && \
+          "$value" == *"\"http\":[\"$ORIGIN_HTTP_PORT\"]"* && \
+          "$value" == *"\"api\":[\"$ORIGIN_API_PORT\"]"* ]]; then
       server_keys+=("$key")
       redis_cli del "$key" >/dev/null 2>&1 || true
       count=$((count + 1))
@@ -188,26 +190,35 @@ if ! command -v redis-cli &>/dev/null; then
   echo "Install Redis on macOS with: brew install redis" >&2
   exit 1
 fi
+if ! redis_cli ping 2>/dev/null | grep -q "PONG" && command -v brew &>/dev/null; then
+  echo "Redis is not running, starting it with: brew services start redis"
+  brew services start redis
+  for i in $(seq 1 10); do
+    redis_cli ping 2>/dev/null | grep -q "PONG" && break
+    sleep 1
+  done
+fi
 if ! redis_cli ping 2>/dev/null | grep -q "PONG"; then
   echo "Error: Redis is not available at $REDIS_HOST:$REDIS_PORT db=$REDIS_DB" >&2
   echo "Start Redis on macOS with: brew services start redis" >&2
-  echo "Or run a foreground Redis with: redis-server" >&2
   exit 1
 fi
 
 # Origin ports (from srs_proxy_origin 1 in proxy-e2e-origin.sh).
-ORIGIN_RTMP_PORT=19351
-ORIGIN_HTTP_PORT=8081
-ORIGIN_API_PORT=19851
-ORIGIN_RTC_PORT=8001
-ORIGIN_SRT_PORT=10081
+ORIGIN_RTMP_PORT=$((19351 + PORT_OFFSET))
+ORIGIN_HTTP_PORT=$((8081 + PORT_OFFSET))
+ORIGIN_API_PORT=$((19851 + PORT_OFFSET))
+ORIGIN_RTC_PORT=$((8001 + PORT_OFFSET))
+ORIGIN_SRT_PORT=$((10081 + PORT_OFFSET))
 
 # --- Step 0: Clean up stale state ---
 cleanup_redis_state
 # Kill any leftover processes on our ports (proxy A + proxy B + origin).
 ALL_PORTS="$PROXY_A_RTMP_PORT $PROXY_A_HTTP_API_PORT $PROXY_A_HTTP_SERVER_PORT $PROXY_A_WEBRTC_PORT $PROXY_A_SRT_PORT $PROXY_A_SYSTEM_API_PORT $PROXY_B_RTMP_PORT $PROXY_B_HTTP_API_PORT $PROXY_B_HTTP_SERVER_PORT $PROXY_B_WEBRTC_PORT $PROXY_B_SRT_PORT $PROXY_B_SYSTEM_API_PORT $ORIGIN_RTMP_PORT $ORIGIN_HTTP_PORT $ORIGIN_API_PORT $ORIGIN_RTC_PORT $ORIGIN_SRT_PORT"
 for port in $ALL_PORTS; do
-  lsof -ti :"$port" 2>/dev/null | xargs kill 2>/dev/null || true
+  # Kill only listeners: a client of the port, such as another test's player, is not ours.
+  lsof -ti TCP:"$port" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true
+  lsof -nP -iUDP:"$port" 2>/dev/null | awk -v p=":$port" 'NR > 1 && $9 !~ /->/ && $9 ~ p "$" {print $2}' | xargs kill 2>/dev/null || true
 done
 sleep 1
 
@@ -289,9 +300,14 @@ srs_proxy_origin 1 >/tmp/srs-origin-redis-e2e.log 2>&1 &
 ORIGIN_PID=$!
 echo "SRS origin PID: $ORIGIN_PID"
 
-# Wait for SRS to start and register with proxy A (heartbeat interval is 9s).
+# Wait for SRS to register with proxy A: the first heartbeat is sent at startup, then every 9s.
 echo "Waiting for SRS origin to register with proxy A and Redis (up to 15s)..."
-sleep 12
+for i in $(seq 1 15); do
+  if redis_cli --scan --pattern "$(redis_key "srs-proxy-server:*")" | grep -q 'srs-proxy-server:'; then
+    break
+  fi
+  sleep 1
+done
 
 if ! kill -0 "$ORIGIN_PID" 2>/dev/null; then
   echo "Error: SRS origin failed to start. Logs:" >&2

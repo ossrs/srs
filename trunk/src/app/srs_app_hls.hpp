@@ -734,6 +734,7 @@ public:
     virtual ~ISrsHls();
 
 public:
+    virtual void assemble() = 0;
     virtual srs_error_t initialize(ISrsOriginHub *h, ISrsRequest *r) = 0;
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format) = 0;
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format) = 0;
@@ -781,6 +782,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsHls();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsHls();
 
 public:

@@ -11,8 +11,11 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 VOID TEST(ConfigHttpsStreamTest, CheckHttpsStreamListensDefault)
 {
@@ -2143,4 +2146,104 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
         EXPECT_TRUE(conf.get_stream_caster_enabled(casters.at(0)));
         EXPECT_EQ(8936, conf.get_stream_caster_listen(casters.at(0)));
     }
+}
+
+extern bool _srs_in_docker;
+
+// parse_options() reads in_docker from the config it parsed, not from the global config.
+VOID TEST(ConfigParseOptionsTest, InDockerFromParsedConfig)
+{
+    srs_error_t err;
+
+    string filepath = _srs_tmp_file_prefix + "utest-in-docker.conf";
+    MockFileRemover _mfr(filepath);
+
+    if (true) {
+        SrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open(filepath));
+        string content = _MIN_OK_CONF "in_docker on;";
+        HELPER_ASSERT_SUCCESS(fw.write((void *)content.data(), (int)content.length(), NULL));
+    }
+
+    // The global config leaves in_docker off, so a read of the global is caught.
+    ASSERT_FALSE(_srs_config->get_in_docker());
+
+    SrsConfig conf;
+    // Log to the console through the env, so get_log_tank_file() returns before it changes
+    // its process-wide default for docker.
+    SrsSetEnvConfig(conf, log_tank, "SRS_LOG_TANK", "console");
+
+    bool in_docker = _srs_in_docker;
+    char *argv[] = {(char *)"srs", (char *)"-c", (char *)filepath.c_str()};
+    err = conf.parse_options(3, argv);
+    bool parsed_in_docker = _srs_in_docker;
+    _srs_in_docker = in_docker;
+
+    HELPER_EXPECT_SUCCESS(err);
+    EXPECT_TRUE(conf.get_in_docker());
+    EXPECT_TRUE(parsed_in_docker);
+}
+
+// The config owns the generator of its default server id.
+VOID TEST(ConfigServerIdTest, ConstructorCreatesRand)
+{
+    SrsConfig conf;
+    EXPECT_TRUE(conf.rand_ != NULL);
+    EXPECT_TRUE(dynamic_cast<SrsRand *>(conf.rand_) != NULL);
+}
+
+// Without a server id in the env, the config or a server id file, the default is drawn once
+// through the config's generator and kept.
+VOID TEST(ConfigServerIdTest, DefaultDrawsThroughInjectedRand)
+{
+    // Without a pid file, there is no server id file to read the default from.
+    SrsConfig conf;
+    conf.env_only_ = true;
+    ASSERT_STREQ("", conf.get_pid_file().c_str());
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("abc1234");
+    srs_freep(conf.rand_);
+    conf.rand_ = &rand;
+
+    string id1 = conf.get_server_id();
+    string id2 = conf.get_server_id();
+    conf.rand_ = NULL;
+
+    EXPECT_STREQ("vid-abc1234", id1.c_str());
+    EXPECT_STREQ("vid-abc1234", id2.c_str());
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(7, rand.gen_str_lens_.at(0));
+}
+
+// Each config keeps its own default server id, so one drawn by an earlier config is not reused.
+VOID TEST(ConfigServerIdTest, DefaultIsKeptPerConfig)
+{
+    MockRandForHandshake rand1;
+    rand1.gen_str_values_.push_back("first01");
+    MockRandForHandshake rand2;
+    rand2.gen_str_values_.push_back("second2");
+
+    string id1, id2;
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        srs_freep(conf.rand_);
+        conf.rand_ = &rand1;
+        id1 = conf.get_server_id();
+        conf.rand_ = NULL;
+    }
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        srs_freep(conf.rand_);
+        conf.rand_ = &rand2;
+        id2 = conf.get_server_id();
+        conf.rand_ = NULL;
+    }
+
+    EXPECT_STREQ("vid-first01", id1.c_str());
+    EXPECT_STREQ("vid-second2", id2.c_str());
+    EXPECT_EQ(1, (int)rand1.gen_str_lens_.size());
+    EXPECT_EQ(1, (int)rand2.gen_str_lens_.size());
 }

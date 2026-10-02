@@ -20,6 +20,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_utest_ai14.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -97,8 +98,10 @@ VOID TEST(SrsBufferCacheTest, ConstructorAndUpdateAuth)
     EXPECT_STREQ("live", cache->req_->app_.c_str());
     EXPECT_STREQ("stream1", cache->req_->stream_.c_str());
 
-    // Verify that queue and thread were created
+    // Verify that the queue was created, and the thread only by assemble()
     EXPECT_TRUE(cache->queue_ != NULL);
+    EXPECT_TRUE(cache->trd_ == NULL);
+    cache->assemble();
     EXPECT_TRUE(cache->trd_ != NULL);
 
     // Verify that fast_cache was initialized to 0
@@ -2957,6 +2960,7 @@ VOID TEST(HttpApiTest, StreamsApiGetSpecificStream)
 
     // Create a real stream object to return from find_stream
     SrsStatisticStream test_stream;
+    test_stream.assemble();
     test_stream.id_ = "test_stream_id_123";
     test_stream.stream_ = "livestream";
     test_stream.app_ = "live";
@@ -3131,6 +3135,7 @@ VOID TEST(HTTPApiTest, ClientsApiGetSpecificClient)
 
     // Create a real SrsStatisticClient with all required dependencies
     SrsUniquePtr<SrsStatisticClient> test_client(new SrsStatisticClient());
+    test_client->assemble();
     test_client->id_ = "test_client_456";
     test_client->type_ = SrsRtmpConnPlay;
 
@@ -3143,6 +3148,7 @@ VOID TEST(HTTPApiTest, ClientsApiGetSpecificClient)
     test_vhost.id_ = "__defaultVhost__";
 
     SrsStatisticStream test_stream;
+    test_stream.assemble();
     test_stream.id_ = "livestream";
     test_stream.vhost_ = &test_vhost;
 
@@ -3765,4 +3771,118 @@ VOID TEST(HlsStreamTest, TimerDisconnectsExpiredSessionWithoutHooks)
     hls->config_ = NULL;
     hls->stat_ = NULL;
     hls->hooks_ = NULL;
+}
+
+// The constructor allocates the generator that draws the ctx of each new HLS session, so a test can
+// replace it before a playlist is requested.
+VOID TEST(HlsStreamTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    EXPECT_TRUE(hls->rand_ != NULL);
+}
+
+// Request the playlist of a new HLS session with no hls_ctx in the query, so the stream draws one.
+// Return the raw HTTP response in resp.
+static srs_error_t mock_hls_stream_serve_new_session(SrsHlsStream *hls, std::string &resp)
+{
+    SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+    SrsUniquePtr<MockRequest> request(new MockRequest("test.vhost", "live", "stream1"));
+    MockResponseWriter writer;
+
+    bool served = false;
+    srs_error_t err = hls->serve_m3u8_ctx(&writer, message.get(), NULL, "", request.get(), &served);
+
+    resp = string(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    return err;
+}
+
+// A new HLS session without a client-chosen hls_ctx gets an 8-character ctx drawn through the
+// injected generator. The ctx is kept as the session and written into the master playlist.
+VOID TEST(HlsStreamTest, NewSessionDrawsCtxThroughInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForLiveStreamHooks config;
+    MockStatisticForLiveStream stat;
+    MockHttpHooksForLiveStream hooks;
+    MockSecurity security;
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("ctx00001");
+
+    // assemble() is not called, so the stream is never subscribed to the real shared timer.
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    hls->config_ = &config;
+    hls->stat_ = &stat;
+    hls->hooks_ = &hooks;
+    srs_freep(hls->security_);
+    hls->security_ = &security;
+    srs_freep(hls->rand_);
+    hls->rand_ = &rand;
+    hls->shared_timer_ = NULL;
+
+    string resp;
+    err = mock_hls_stream_serve_new_session(hls.get(), resp);
+
+    // Restore the stack members before any assertion, so an early return never frees them.
+    hls->config_ = NULL;
+    hls->stat_ = NULL;
+    hls->hooks_ = NULL;
+    hls->security_ = NULL;
+    hls->rand_ = NULL;
+
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ(1, (int)rand.gen_str_lens_.size());
+    if (rand.gen_str_lens_.size() == 1) {
+        EXPECT_EQ(8, rand.gen_str_lens_[0]);
+    }
+
+    EXPECT_EQ(1, stat.on_client_count_);
+    EXPECT_EQ(1, (int)hls->map_ctx_info_.size());
+    EXPECT_TRUE(hls->ctx_is_exist("ctx00001"));
+    EXPECT_TRUE(resp.find("?hls_ctx=ctx00001") != string::npos);
+}
+
+// A drawn ctx that is already a live session is drawn again through the injected generator, so two
+// viewers never share a session.
+VOID TEST(HlsStreamTest, NewSessionRedrawsTakenCtxThroughInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForLiveStreamHooks config;
+    MockStatisticForLiveStream stat;
+    MockHttpHooksForLiveStream hooks;
+    MockSecurity security;
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("taken001");
+    rand.gen_str_values_.push_back("fresh002");
+
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    hls->config_ = &config;
+    hls->stat_ = &stat;
+    hls->hooks_ = &hooks;
+    srs_freep(hls->security_);
+    hls->security_ = &security;
+    srs_freep(hls->rand_);
+    hls->rand_ = &rand;
+    hls->shared_timer_ = NULL;
+
+    mock_hls_stream_add_ctx(hls.get(), "taken001", srs_time_now_cached());
+
+    string resp;
+    err = mock_hls_stream_serve_new_session(hls.get(), resp);
+
+    hls->config_ = NULL;
+    hls->stat_ = NULL;
+    hls->hooks_ = NULL;
+    hls->security_ = NULL;
+    hls->rand_ = NULL;
+
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ(2, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(2, (int)hls->map_ctx_info_.size());
+    EXPECT_TRUE(hls->ctx_is_exist("fresh002"));
+    EXPECT_TRUE(resp.find("?hls_ctx=fresh002") != string::npos);
+    EXPECT_EQ(string::npos, resp.find("hls_ctx=taken001"));
 }

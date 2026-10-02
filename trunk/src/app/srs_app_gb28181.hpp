@@ -147,6 +147,7 @@ class SrsGbSession : public ISrsGbSession
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -205,6 +206,7 @@ public:
 
 public:
     SrsGbSession();
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsGbSession();
 
 public:
@@ -271,7 +273,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsIpListener *media_listener_;
 
 public:
-    SrsGbListener();
+    SrsGbListener(ISrsApiServerOwner *owner);
     virtual ~SrsGbListener();
 
 public:
@@ -308,6 +310,7 @@ public:
     virtual ~ISrsGbMediaTcpConn();
 
 public:
+    virtual void assemble() = 0;
     // Setup object, to keep empty constructor.
     virtual void setup(srs_netfd_t stfd) = 0;
     // Setup the owner, the wrapper is the shared ptr, the interruptable object is the coroutine, and the cid is the context id.
@@ -327,6 +330,7 @@ class SrsGbMediaTcpConn : public ISrsGbMediaTcpConn, // It's a resource, corouti
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsResourceManager *gb_manager_;
+    ISrsContext *context_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -352,6 +356,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 public:
     SrsGbMediaTcpConn();
+    virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsGbMediaTcpConn();
 
 public:
@@ -433,6 +438,7 @@ public:
     virtual ~ISrsGbMuxer();
 
 public:
+    virtual void assemble() = 0; // Construct object, to avoid call function in constructor.
     virtual void setup(std::string output) = 0;
     virtual srs_error_t on_ts_message(SrsTsMessage *msg) = 0;
 };
@@ -482,6 +488,7 @@ public:
     virtual ~SrsGbMuxer();
 
 public:
+    void assemble(); // Construct object, to avoid call function in constructor.
     void setup(std::string output);
     srs_error_t on_ts_message(SrsTsMessage *msg);
 

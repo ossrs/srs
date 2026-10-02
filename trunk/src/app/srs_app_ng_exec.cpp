@@ -31,9 +31,14 @@ ISrsNgExec::~ISrsNgExec()
 SrsNgExec::SrsNgExec()
 {
     trd_ = new SrsDummyCoroutine();
-    pprint_ = SrsPithyPrint::create_exec();
+    pprint_ = NULL;
 
     config_ = _srs_config;
+}
+
+void SrsNgExec::assemble()
+{
+    pprint_ = SrsPithyPrint::create_exec();
 }
 
 SrsNgExec::~SrsNgExec()
@@ -222,7 +227,7 @@ string SrsNgExec::parse(ISrsRequest *req, string tmpl)
     output = srs_strings_replace(output, "[swfUrl]", req->swfUrl_);
     output = srs_strings_replace(output, "[pageUrl]", req->pageUrl_);
 
-    output = srs_path_build_timestamp(output);
+    output = srs_path_build_timestamp(config_, output);
 
     if (output.find("[url]") != string::npos) {
         string url = srs_net_url_encode_rtmp_url(req->host_, req->port_, req->host_, req->vhost_, req->app_, req->stream_, req->param_);

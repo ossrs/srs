@@ -115,7 +115,7 @@ void ssl_on_info(const SSL *dtls, int where, int ret)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-SSL_CTX *srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
+SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion version, std::string role)
 {
     SSL_CTX *dtls_ctx;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
@@ -139,7 +139,7 @@ SSL_CTX *srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
     }
 #endif
 
-    if (_srs_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
+    if (certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L        // v1.0.2
         // For ECDSA, we could set the curves list.
         // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
@@ -150,7 +150,7 @@ SSL_CTX *srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
         // @see https://stackoverrun.com/cn/q/10791887
 #if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-        SSL_CTX_set_tmp_ecdh(dtls_ctx, _srs_rtc_dtls_certificate->get_ecdsa_key());
+        SSL_CTX_set_tmp_ecdh(dtls_ctx, certificate->get_ecdsa_key());
 #else
         SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
 #endif
@@ -164,8 +164,8 @@ SSL_CTX *srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
         srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
 
         // Setup the certificate.
-        srs_assert(SSL_CTX_use_certificate(dtls_ctx, _srs_rtc_dtls_certificate->get_cert()) == 1);
-        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, _srs_rtc_dtls_certificate->get_public_key()) == 1);
+        srs_assert(SSL_CTX_use_certificate(dtls_ctx, certificate->get_cert()) == 1);
+        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, certificate->get_public_key()) == 1);
 
         // Server will send Certificate Request.
         // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
@@ -201,6 +201,9 @@ ISrsDtlsCertificate::~ISrsDtlsCertificate()
 
 SrsDtlsCertificate::SrsDtlsCertificate()
 {
+    config_ = _srs_config;
+    rand_ = new SrsRand();
+
     ecdsa_mode_ = true;
     dtls_cert_ = NULL;
     dtls_pkey_ = NULL;
@@ -221,6 +224,9 @@ SrsDtlsCertificate::~SrsDtlsCertificate()
     if (dtls_cert_) {
         X509_free(dtls_cert_);
     }
+
+    srs_freep(rand_);
+    config_ = NULL;
 }
 // LCOV_EXCL_STOP
 
@@ -233,24 +239,8 @@ srs_error_t SrsDtlsCertificate::initialize()
         return err;
     }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
-    // Initialize SSL library by registering algorithms
-    // The SSL_library_init() and OpenSSL_add_ssl_algorithms() functions were deprecated in OpenSSL 1.1.0 by OPENSSL_init_ssl().
-    // @see https://www.openssl.org/docs/man1.1.0/man3/OpenSSL_add_ssl_algorithms.html
-    // @see https://web.archive.org/web/20150806185102/http://sctp.fh-muenster.de:80/dtls/dtls_udp_echo.c
-    OpenSSL_add_ssl_algorithms();
-#else
-    // As of version 1.1.0 OpenSSL will automatically allocate all resources that it needs so no explicit
-    // initialisation is required. Similarly it will also automatically deinitialise as required.
-    // @see https://www.openssl.org/docs/man1.1.0/man3/OPENSSL_init_ssl.html
-    // OPENSSL_init_ssl();
-#endif
-
-    // Initialize SRTP first.
-    srs_assert(srtp_init() == 0);
-
     // Whether use ECDSA certificate.
-    ecdsa_mode_ = _srs_config->get_rtc_server_ecdsa();
+    ecdsa_mode_ = config_->get_rtc_server_ecdsa();
 
     // Create keys by RSA or ECDSA.
     dtls_pkey_ = EVP_PKEY_new();
@@ -316,8 +306,7 @@ srs_error_t SrsDtlsCertificate::initialize()
         X509_NAME *subject = X509_NAME_new();
         srs_assert(subject);
 
-        SrsRand rand;
-        int serial = (int)rand.integer();
+        int serial = (int)rand_->integer();
         ASN1_INTEGER_set(X509_get_serialNumber(dtls_cert_), serial);
 
         const std::string &aor = RTMP_SIG_SRS_DOMAIN;
@@ -418,6 +407,8 @@ SrsDtlsImpl::SrsDtlsImpl(ISrsDtlsCallback *callback)
     last_content_type_ = 0;
 
     version_ = SrsDtlsVersionAuto;
+
+    dtls_certificate_ = _srs_rtc_dtls_certificate;
 }
 
 SrsDtlsImpl::~SrsDtlsImpl()
@@ -437,6 +428,8 @@ SrsDtlsImpl::~SrsDtlsImpl()
         SSL_free(dtls_);
         dtls_ = NULL;
     }
+
+    dtls_certificate_ = NULL;
 }
 
 // LCOV_EXCL_START
@@ -492,7 +485,7 @@ srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
         version_ = SrsDtlsVersionAuto;
     }
 
-    dtls_ctx_ = srs_build_dtls_ctx(version_, role);
+    dtls_ctx_ = srs_build_dtls_ctx(dtls_certificate_, version_, role);
 
     if ((dtls_ = SSL_new(dtls_ctx_)) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");

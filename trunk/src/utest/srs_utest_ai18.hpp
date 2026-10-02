@@ -16,6 +16,7 @@
 #include <srs_app_ingest.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_rtc_conn.hpp>
+#include <srs_app_srt_listener.hpp>
 #include <srs_app_stream_token.hpp>
 #include <srs_protocol_srt.hpp>
 #include <srs_utest_ai11.hpp>
@@ -52,6 +53,36 @@ public:
     virtual int64_t get_recv_bytes();
 };
 
+// Mock ISrsSrtPoller for testing which poller a SrsSrtConnection's socket attaches to
+class MockSrtPollerForSrtConnection : public ISrsSrtPoller
+{
+public:
+    int del_socket_count_;
+
+public:
+    MockSrtPollerForSrtConnection();
+    virtual ~MockSrtPollerForSrtConnection();
+
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t add_socket(SrsSrtSocket *srt_skt);
+    virtual srs_error_t mod_socket(SrsSrtSocket *srt_skt);
+    virtual srs_error_t del_socket(SrsSrtSocket *srt_skt);
+    virtual srs_error_t wait(int timeout_ms, int *pn_fds);
+    virtual int size();
+};
+
+// Mock ISrsSrtHandler for testing SrsSrtListener
+class MockSrtHandlerForSrtListener : public ISrsSrtHandler
+{
+public:
+    MockSrtHandlerForSrtListener();
+    virtual ~MockSrtHandlerForSrtListener();
+
+public:
+    virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
+};
+
 // Mock ISrsUdpHandler for testing SrsUdpListener
 class MockUdpHandler : public ISrsUdpHandler
 {
@@ -79,6 +110,8 @@ public:
     int last_peer_port_;
     std::string last_packet_data_;
     int last_packet_size_;
+    // The error returned for every packet, copied per call and owned by the mock.
+    srs_error_t on_udp_packet_error_;
 
 public:
     MockUdpMuxHandler();
@@ -453,6 +486,8 @@ class MockIngesterFFMPEG : public ISrsIngesterFFMPEG
 public:
     bool fast_stop_called_;
     bool fast_kill_called_;
+    int uri_count_;
+    int alive_count_;
     std::string vhost_;
     std::string id_;
 

@@ -29,8 +29,19 @@ public:
     virtual srs_error_t accept_srt_client(srs_srt_t srt_fd) = 0;
 };
 
+// The SRT acceptor interface, which listens at an endpoint and hands each client to its handler.
+class ISrsSrtAcceptor
+{
+public:
+    ISrsSrtAcceptor();
+    virtual ~ISrsSrtAcceptor();
+
+public:
+    virtual srs_error_t listen(std::string ip, int port) = 0;
+};
+
 // A common srt acceptor, for SRT server.
-class SrsSrtAcceptor : public ISrsSrtHandler
+class SrsSrtAcceptor : public ISrsSrtAcceptor, public ISrsSrtHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -63,19 +74,31 @@ public:
     virtual srs_error_t on_srt_client(srs_srt_t srt_fd);
 };
 
+// The SRT event loop, which the server initializes and starts. Its initialize also sets up the process-wide libsrt log.
+class ISrsSrtEventLoop
+{
+public:
+    ISrsSrtEventLoop();
+    virtual ~ISrsSrtEventLoop();
+
+public:
+    virtual srs_error_t initialize() = 0;
+    virtual srs_error_t start() = 0;
+    virtual ISrsSrtPoller *poller() = 0;
+};
+
 // Start a coroutine to drive the SRT events with state-threads.
-class SrsSrtEventLoop : public ISrsCoroutineHandler
+class SrsSrtEventLoop : public ISrsSrtEventLoop, public ISrsCoroutineHandler
 {
 public:
     SrsSrtEventLoop();
     virtual ~SrsSrtEventLoop();
 
+    // Interface ISrsSrtEventLoop.
 public:
-    ISrsSrtPoller *poller() { return srt_poller_; }
-
-public:
-    srs_error_t initialize();
-    srs_error_t start();
+    virtual srs_error_t initialize();
+    virtual srs_error_t start();
+    virtual ISrsSrtPoller *poller();
     // Interface ISrsCoroutineHandler.
 public:
     virtual srs_error_t cycle();

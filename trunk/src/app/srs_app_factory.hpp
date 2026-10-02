@@ -57,6 +57,10 @@ class ISrsRtcFrameBuilderAudioPacketCache;
 class ISrsAudioTranscoder;
 class ISrsSrtListener;
 class ISrsSrtHandler;
+class ISrsSrtAcceptor;
+class ISrsSrtClientHandler;
+class ISrsUdpMuxListener;
+class ISrsUdpMuxHandler;
 
 // The factory to create app objects.
 class ISrsAppFactory : public ISrsKernelFactory
@@ -95,6 +99,8 @@ public:
     virtual SrsHlsM4sSegment *create_hls_m4s_segment(ISrsFileWriter *fw) = 0;
     virtual ISrsIpListener *create_tcp_listener(ISrsTcpHandler *handler) = 0;
     virtual ISrsSrtListener *create_srt_listener(ISrsSrtHandler *handler, std::string ip, int port) = 0;
+    virtual ISrsSrtAcceptor *create_srt_acceptor(ISrsSrtClientHandler *handler) = 0;
+    virtual ISrsUdpMuxListener *create_udp_mux_listener(ISrsUdpMuxHandler *handler, std::string ip, int port) = 0;
     virtual ISrsRtcConnection *create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid) = 0;
     virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin) = 0;
     virtual ISrsIngesterFFMPEG *create_ingester_ffmpeg() = 0;
@@ -150,6 +156,8 @@ public:
     virtual SrsHlsM4sSegment *create_hls_m4s_segment(ISrsFileWriter *fw);
     virtual ISrsIpListener *create_tcp_listener(ISrsTcpHandler *handler);
     virtual ISrsSrtListener *create_srt_listener(ISrsSrtHandler *handler, std::string ip, int port);
+    virtual ISrsSrtAcceptor *create_srt_acceptor(ISrsSrtClientHandler *handler);
+    virtual ISrsUdpMuxListener *create_udp_mux_listener(ISrsUdpMuxHandler *handler, std::string ip, int port);
     virtual ISrsRtcConnection *create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid);
     virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin);
     virtual ISrsIngesterFFMPEG *create_ingester_ffmpeg();
@@ -168,6 +176,7 @@ public:
     virtual ISrsTime *create_time();
     virtual ISrsConfig *create_config();
     virtual ISrsCond *create_cond();
+    virtual ISrsFastTimer *create_fast_timer(const std::string &label, srs_utime_t interval);
 };
 
 extern ISrsAppFactory *_srs_app_factory;
@@ -184,6 +193,7 @@ public:
     virtual ISrsTime *create_time();
     virtual ISrsConfig *create_config();
     virtual ISrsCond *create_cond();
+    virtual ISrsFastTimer *create_fast_timer(const std::string &label, srs_utime_t interval);
 };
 
 // The proxy for config.

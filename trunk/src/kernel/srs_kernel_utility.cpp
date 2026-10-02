@@ -726,6 +726,14 @@ int srs_hex_decode_string(uint8_t *data, const char *p, int size)
     return size / 2;
 }
 
+ISrsRand::ISrsRand()
+{
+}
+
+ISrsRand::~ISrsRand()
+{
+}
+
 SrsRand::SrsRand()
 {
 }

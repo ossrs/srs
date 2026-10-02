@@ -72,6 +72,7 @@ public:
     virtual ISrsTime *create_time();
     virtual ISrsConfig *create_config();
     virtual ISrsCond *create_cond();
+    virtual ISrsFastTimer *create_fast_timer(const std::string &label, srs_utime_t interval);
 };
 
 // A clock the test moves by hand.

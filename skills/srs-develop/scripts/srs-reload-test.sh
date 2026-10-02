@@ -268,7 +268,9 @@ done
 
 # --- Step 0: Clean up stale state ---
 for port in $RTMP_PORT $HTTP_API_PORT $HTTP_SERVER_PORT; do
-  lsof -ti :"$port" 2>/dev/null | xargs kill 2>/dev/null || true
+  # Kill only listeners: a client of the port, such as another test's player, is not ours.
+  lsof -ti TCP:"$port" -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true
+  lsof -nP -iUDP:"$port" 2>/dev/null | awk -v p=":$port" 'NR > 1 && $9 !~ /->/ && $9 ~ p "$" {print $2}' | xargs kill 2>/dev/null || true
 done
 sleep 1
 

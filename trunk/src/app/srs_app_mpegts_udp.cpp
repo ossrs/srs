@@ -56,6 +56,11 @@ SrsUdpCasterListener::~SrsUdpCasterListener()
     config_ = NULL;
 }
 
+void SrsUdpCasterListener::assemble()
+{
+    caster_->assemble();
+}
+
 srs_error_t SrsUdpCasterListener::initialize(SrsConfDirective *conf)
 {
     srs_error_t err = srs_success;
@@ -196,7 +201,7 @@ SrsMpegtsOverUdp::SrsMpegtsOverUdp()
     h264_pps_changed_ = false;
     h264_sps_pps_sent_ = false;
     queue_ = new SrsMpegtsQueue();
-    pprint_ = SrsPithyPrint::create_caster();
+    pprint_ = NULL;
 
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
@@ -215,6 +220,11 @@ SrsMpegtsOverUdp::~SrsMpegtsOverUdp()
 
     config_ = NULL;
     app_factory_ = NULL;
+}
+
+void SrsMpegtsOverUdp::assemble()
+{
+    pprint_ = SrsPithyPrint::create_caster();
 }
 
 // LCOV_EXCL_START

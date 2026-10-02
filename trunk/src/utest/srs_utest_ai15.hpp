@@ -13,13 +13,17 @@
 #include <srs_utest.hpp>
 
 #include <srs_app_caster_flv.hpp>
+#include <srs_app_coworkers.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_heartbeat.hpp>
+#include <srs_app_http_conn.hpp>
+#include <srs_app_ingest.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtc_server.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_server.hpp>
+#include <srs_app_srt_server.hpp>
 #include <srs_kernel_hourglass.hpp>
 #include <srs_protocol_http_stack.hpp>
 #include <srs_utest_ai11.hpp>
@@ -46,6 +50,9 @@ public:
     std::vector<std::string> rtsp_server_listens_;
     bool exporter_enabled_;
     std::string exporter_listen_;
+    std::vector<std::string> rtc_server_listens_;
+    int rtc_server_reuseport_;
+    std::vector<std::string> srt_listens_;
     // The stream caster directives, not owned.
     std::vector<SrsConfDirective *> stream_casters_;
 
@@ -72,14 +79,22 @@ public:
     virtual std::vector<std::string> get_rtsp_server_listens();
     virtual bool get_exporter_enabled();
     virtual std::string get_exporter_listen();
+    virtual std::vector<std::string> get_rtc_server_listens();
+    virtual int get_rtc_server_reuseport();
+    virtual std::vector<std::string> get_srt_listens();
     virtual std::vector<SrsConfDirective *> get_stream_casters();
     virtual bool get_stream_caster_enabled(SrsConfDirective *conf);
     virtual std::string get_stream_caster_engine(SrsConfDirective *conf);
 };
 
 // Mock PID file locker for testing SrsServer::initialize()
-class MockPidFileLocker : public SrsPidFileLocker
+class MockPidFileLocker : public ISrsPidFileLocker
 {
+public:
+    int acquire_count_;
+    // The error acquire() returns, owned by the caller once returned.
+    srs_error_t acquire_error_;
+
 public:
     MockPidFileLocker();
     virtual ~MockPidFileLocker();
@@ -93,6 +108,9 @@ class MockLogForSignal : public ISrsLog
 {
 public:
     int reopen_count_;
+    // The error logs and the tag of the last one.
+    int error_count_;
+    std::string last_error_tag_;
 
 public:
     MockLogForSignal();
@@ -184,6 +202,28 @@ public:
     virtual void sendto(void *data, int len);
 };
 
+// Mock ISrsSrtEventLoop for testing SrsServer::initialize()
+class MockSrtEventLoopForServer : public ISrsSrtEventLoop
+{
+public:
+    // The calls in order, such as "initialize,start".
+    std::string calls_;
+    // The errors initialize() and start() return, owned by the caller once returned.
+    srs_error_t initialize_error_;
+    srs_error_t start_error_;
+    // The poller poller() returns, not owned.
+    ISrsSrtPoller *poller_;
+
+public:
+    MockSrtEventLoopForServer();
+    virtual ~MockSrtEventLoopForServer();
+
+public:
+    virtual srs_error_t initialize();
+    virtual srs_error_t start();
+    virtual ISrsSrtPoller *poller();
+};
+
 // Mock multiple TCP listeners for testing which listeners SrsServer::listen() starts and dispose() closes.
 class MockTcpListenersForServer : public SrsMultipleTcpListeners
 {
@@ -232,6 +272,7 @@ public:
 class MockHttpFlvListenerForServer : public SrsHttpFlvListener
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     SrsConfDirective *initialize_conf_;
     int listen_count_;
@@ -242,6 +283,7 @@ public:
     virtual ~MockHttpFlvListenerForServer();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t listen();
     virtual void close();
@@ -251,6 +293,7 @@ public:
 class MockUdpCasterListenerForServer : public SrsUdpCasterListener
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     SrsConfDirective *initialize_conf_;
     int listen_count_;
@@ -263,6 +306,7 @@ public:
     virtual ~MockUdpCasterListenerForServer();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize(SrsConfDirective *conf);
     virtual srs_error_t listen();
     virtual void close();
@@ -270,6 +314,179 @@ public:
 
 // Build a stream_caster directive with the given engine and enabled switch, owned by the caller.
 extern SrsConfDirective *mock_server_stream_caster_conf(const std::string &engine, bool enabled);
+
+class MockAppFactoryForServerRtcUdp;
+
+// Mock WebRTC UDP listener for testing how SrsServer::listen_rtc_udp() creates, starts and frees it.
+class MockUdpMuxListenerForServer : public ISrsUdpMuxListener
+{
+public:
+    // The factory that created it, which records the destruction.
+    MockAppFactoryForServerRtcUdp *factory_;
+    ISrsUdpMuxHandler *handler_;
+    std::string ip_;
+    int port_;
+    int listen_count_;
+    // The error listen() returns, owned by the caller once returned.
+    srs_error_t listen_error_;
+
+public:
+    MockUdpMuxListenerForServer(MockAppFactoryForServerRtcUdp *factory, ISrsUdpMuxHandler *h, std::string i, int p);
+    virtual ~MockUdpMuxListenerForServer();
+
+public:
+    virtual srs_error_t listen();
+    virtual int fd();
+};
+
+// Mock ISrsAppFactory for testing which WebRTC UDP listeners SrsServer::listen_rtc_udp() creates.
+class MockAppFactoryForServerRtcUdp : public SrsAppFactory
+{
+public:
+    // The listeners created, owned by the server.
+    std::vector<MockUdpMuxListenerForServer *> listeners_;
+    int destroyed_count_;
+    // Which created listener fails to listen, starting at 0, or -1 for none.
+    int fail_at_;
+
+public:
+    MockAppFactoryForServerRtcUdp();
+    virtual ~MockAppFactoryForServerRtcUdp();
+
+public:
+    virtual ISrsUdpMuxListener *create_udp_mux_listener(ISrsUdpMuxHandler *handler, std::string ip, int port);
+};
+
+class MockAppFactoryForServerSrt;
+
+// Mock SRT acceptor for testing how SrsServer::listen_srt_mpegts() creates, starts and frees it.
+class MockSrtAcceptorForServer : public ISrsSrtAcceptor
+{
+public:
+    // The factory that created it, which records the destruction.
+    MockAppFactoryForServerSrt *factory_;
+    ISrsSrtClientHandler *handler_;
+    std::string ip_;
+    int port_;
+    int listen_count_;
+    // The error listen() returns, owned by the caller once returned.
+    srs_error_t listen_error_;
+
+public:
+    MockSrtAcceptorForServer(MockAppFactoryForServerSrt *factory, ISrsSrtClientHandler *h);
+    virtual ~MockSrtAcceptorForServer();
+
+public:
+    virtual srs_error_t listen(std::string ip, int port);
+};
+
+// Mock ISrsAppFactory for testing which SRT acceptors SrsServer::listen_srt_mpegts() creates.
+class MockAppFactoryForServerSrt : public SrsAppFactory
+{
+public:
+    // The acceptors created, owned by the server.
+    std::vector<MockSrtAcceptorForServer *> acceptors_;
+    int destroyed_count_;
+    // The indexes of the created acceptors that fail to listen, starting at 0.
+    std::vector<int> fail_at_;
+
+public:
+    MockAppFactoryForServerSrt();
+    virtual ~MockAppFactoryForServerSrt();
+
+public:
+    virtual ISrsSrtAcceptor *create_srt_acceptor(ISrsSrtClientHandler *handler);
+};
+
+// Mock HTTP server for testing how SrsServer assembles, initializes, mounts and unmounts its HTTP server.
+class MockHttpServerForServer : public SrsHttpServer
+{
+public:
+    int assemble_count_;
+    int initialize_count_;
+    // The error initialize() returns, owned by the caller once returned.
+    srs_error_t initialize_error_;
+    int mount_count_;
+    int unmount_count_;
+    ISrsRequest *mount_request_;
+    ISrsRequest *unmount_request_;
+    // The error http_mount() returns, owned by the caller once returned.
+    srs_error_t mount_error_;
+
+public:
+    MockHttpServerForServer();
+    virtual ~MockHttpServerForServer();
+
+public:
+    virtual void assemble();
+    virtual srs_error_t initialize();
+    virtual srs_error_t http_mount(ISrsRequest *r);
+    virtual void http_unmount(ISrsRequest *r);
+};
+
+// Mock coworkers for testing how SrsServer records a published stream and removes it on unpublish.
+class MockCoWorkersForServer : public ISrsCoWorkers
+{
+public:
+    int publish_count_;
+    int unpublish_count_;
+    ISrsRequest *publish_request_;
+    ISrsRequest *unpublish_request_;
+    // The error on_publish() returns, owned by the caller once returned.
+    srs_error_t publish_error_;
+
+public:
+    MockCoWorkersForServer();
+    virtual ~MockCoWorkersForServer();
+
+public:
+    virtual SrsJsonAny *dumps(std::string vhost, std::string coworker, std::string app, std::string stream);
+    virtual srs_error_t on_publish(ISrsRequest *r);
+    virtual void on_unpublish(ISrsRequest *r);
+};
+
+// Mock signal manager for testing how SrsServer initializes and starts its signal manager.
+class MockSignalManagerForServer : public ISrsSignalManager
+{
+public:
+    int assemble_count_;
+    int initialize_count_;
+    int start_count_;
+    // The errors initialize() and start() return, owned by the caller once returned.
+    srs_error_t initialize_error_;
+    srs_error_t start_error_;
+
+public:
+    MockSignalManagerForServer();
+    virtual ~MockSignalManagerForServer();
+
+public:
+    virtual void assemble();
+    virtual srs_error_t initialize();
+    virtual srs_error_t start();
+};
+
+// Mock ingester for testing how SrsServer starts, stops and disposes its ingester.
+class MockIngesterForServer : public ISrsIngester
+{
+public:
+    int assemble_count_;
+    int dispose_count_;
+    int start_count_;
+    int stop_count_;
+    // The error start() returns, owned by the caller once returned.
+    srs_error_t start_error_;
+
+public:
+    MockIngesterForServer();
+    virtual ~MockIngesterForServer();
+
+public:
+    virtual void assemble();
+    virtual void dispose();
+    virtual srs_error_t start();
+    virtual void stop();
+};
 
 // Mock ISrsHourGlass for testing SrsServer::setup_ticks()
 class MockHourGlassForSetupTicks : public ISrsHourGlass
@@ -324,22 +541,44 @@ public:
     virtual srs_utime_t get_heartbeat_interval();
 };
 
-// Mock SrsRtcSessionManager for testing SrsServer::notify()
-class MockRtcSessionManagerForNotify : public SrsRtcSessionManager
+// Mock ISrsRtcSessionManager for testing how SrsServer reaches its RTC session manager.
+class MockRtcSessionManagerForNotify : public ISrsRtcSessionManager
 {
 public:
     int update_rtc_sessions_count_;
+    int initialize_count_;
+    // The error initialize() returns, owned by the caller once returned.
+    srs_error_t initialize_error_;
+    int find_count_;
+    std::string find_ufrag_;
+    // The session find_rtc_session_by_username() returns, not owned.
+    ISrsRtcConnection *find_session_;
+    int create_count_;
+    SrsRtcUserConfig *create_ruc_;
+    SrsSdp *create_local_sdp_;
+    // The session create_rtc_session() returns, not owned.
+    ISrsRtcConnection *create_session_;
+    // The error create_rtc_session() returns, owned by the caller once returned.
+    srs_error_t create_error_;
+    int on_udp_packet_count_;
+    ISrsUdpMuxSocket *on_udp_packet_skt_;
+    // The error on_udp_packet() returns, owned by the caller once returned.
+    srs_error_t on_udp_packet_error_;
 
 public:
     MockRtcSessionManagerForNotify();
     virtual ~MockRtcSessionManagerForNotify();
 
 public:
+    virtual srs_error_t initialize();
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag);
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession);
     virtual void srs_update_rtc_sessions();
+    virtual srs_error_t on_udp_packet(ISrsUdpMuxSocket *skt);
 };
 
-// Mock SrsHttpHeartbeat for testing SrsServer::notify()
-class MockHttpHeartbeatForNotify : public SrsHttpHeartbeat
+// Mock ISrsHttpHeartbeat for testing SrsServer::notify()
+class MockHttpHeartbeatForNotify : public ISrsHttpHeartbeat
 {
 public:
     int heartbeat_count_;

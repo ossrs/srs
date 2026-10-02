@@ -62,6 +62,8 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppConfig *config_;
+
     sockaddr_in *blackhole_addr_;
     srs_netfd_t blackhole_stfd_;
 
@@ -114,8 +116,23 @@ extern std::set<std::string> discover_candidates(ISrsProtocolUtility *utility, I
 // The dns resolve utility, return the resolved ip address.
 extern std::string srs_dns_resolve(std::string host, int &family);
 
+// The RTC session manager interface.
+class ISrsRtcSessionManager
+{
+public:
+    ISrsRtcSessionManager();
+    virtual ~ISrsRtcSessionManager();
+
+public:
+    virtual srs_error_t initialize() = 0;
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag) = 0;
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession) = 0;
+    virtual void srs_update_rtc_sessions() = 0;
+    virtual srs_error_t on_udp_packet(ISrsUdpMuxSocket *skt) = 0;
+};
+
 // RTC session manager to handle WebRTC session lifecycle and management.
-class SrsRtcSessionManager : public ISrsExecRtcAsyncTask
+class SrsRtcSessionManager : public ISrsRtcSessionManager, public ISrsExecRtcAsyncTask
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

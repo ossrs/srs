@@ -37,12 +37,21 @@ ISrsSrtConnection::~ISrsSrtConnection()
 SrsSrtConnection::SrsSrtConnection(srs_srt_t srt_fd)
 {
     srt_fd_ = srt_fd;
-    srt_skt_ = new SrsSrtSocket(_srt_eventloop->poller(), srt_fd_);
+    srt_skt_ = NULL;
+
+    srt_eventloop_ = _srt_eventloop;
+}
+
+void SrsSrtConnection::assemble()
+{
+    srt_skt_ = new SrsSrtSocket(srt_eventloop_->poller(), srt_fd_);
 }
 
 SrsSrtConnection::~SrsSrtConnection()
 {
     srs_freep(srt_skt_);
+
+    srt_eventloop_ = NULL;
 }
 
 srs_error_t SrsSrtConnection::initialize()
@@ -127,14 +136,25 @@ ISrsSrtRecvThread::~ISrsSrtRecvThread()
 SrsSrtRecvThread::SrsSrtRecvThread(ISrsProtocolReadWriter *srt_conn)
 {
     srt_conn_ = srt_conn;
-    trd_ = new SrsSTCoroutine("srt-recv", this, _srs_context->get_id());
+    trd_ = NULL;
     recv_err_ = srs_success;
+
+    app_factory_ = _srs_app_factory;
+    context_ = _srs_context;
+}
+
+void SrsSrtRecvThread::assemble()
+{
+    trd_ = app_factory_->create_coroutine("srt-recv", this, context_->get_id());
 }
 
 SrsSrtRecvThread::~SrsSrtRecvThread()
 {
     srs_freep(trd_);
     srs_freep(recv_err_);
+
+    app_factory_ = NULL;
+    context_ = NULL;
 }
 
 srs_error_t SrsSrtRecvThread::cycle()
@@ -224,6 +244,8 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
 
 void SrsMpegtsSrtConn::assemble()
 {
+    srt_conn_->assemble();
+
     // Create a identify for this client.
     context_->set_id(context_->generate_id());
 
@@ -520,6 +542,7 @@ srs_error_t SrsMpegtsSrtConn::acquire_publish()
 
     // Bridge to RTMP and RTC streaming.
     SrsSrtBridge *bridge = new SrsSrtBridge(app_factory_);
+    bridge->assemble();
 
     bool srt_to_rtmp = config_->get_srt_to_rtmp(req_->vhost_);
     if (srt_to_rtmp && edge) {
@@ -643,6 +666,7 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
     SrsUniquePtr<SrsPithyPrint> pprint(SrsPithyPrint::create_srt_play());
 
     SrsSrtRecvThread srt_recv_trd(srt_conn_);
+    srt_recv_trd.assemble();
     if ((err = srt_recv_trd.start()) != srs_success) {
         return srs_error_wrap(err, "start srt recv trd");
     }

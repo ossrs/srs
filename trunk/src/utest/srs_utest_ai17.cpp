@@ -9,7 +9,9 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_coworkers.hpp>
 #include <srs_app_dash.hpp>
+#include <srs_app_http_api.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_rtc_api.hpp>
 #include <srs_app_rtc_server.hpp>
@@ -19,10 +21,12 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_ai23.hpp>
+#include <srs_utest_ai32.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_fmp4.hpp>
 #include <srs_utest_manual_http.hpp>
@@ -3576,6 +3580,722 @@ VOID TEST(StatisticTest, DumpsMetrics)
 
     // nerrs should be 2 (client1 and client2 disconnected with errors)
     EXPECT_EQ(2, nerrs);
+}
+
+MockAppConfigForStatistic::MockAppConfigForStatistic()
+{
+    get_server_id_count_ = 0;
+    vhost_enabled_ = false;
+    hls_enabled_ = false;
+    hls_fragment_ = 0;
+}
+
+MockAppConfigForStatistic::~MockAppConfigForStatistic()
+{
+}
+
+std::string MockAppConfigForStatistic::get_server_id()
+{
+    get_server_id_count_++;
+    return server_id_;
+}
+
+bool MockAppConfigForStatistic::get_vhost_enabled(std::string vhost)
+{
+    vhost_calls_.push_back("vhost_enabled:" + vhost);
+    return vhost_enabled_;
+}
+
+bool MockAppConfigForStatistic::get_hls_enabled(std::string vhost)
+{
+    vhost_calls_.push_back("hls_enabled:" + vhost);
+    return hls_enabled_;
+}
+
+srs_utime_t MockAppConfigForStatistic::get_hls_fragment(std::string vhost)
+{
+    vhost_calls_.push_back("hls_fragment:" + vhost);
+    return hls_fragment_;
+}
+
+// The statistic captures the config global in its constructor.
+VOID TEST(StatisticTest, CapturesConfigInConstructor)
+{
+    SrsStatistic stat;
+    EXPECT_TRUE(stat.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The server id comes from the injected config, read once and then cached.
+VOID TEST(StatisticTest, ServerIdFromInjectedConfig)
+{
+    MockAppConfigForStatistic config;
+    config.server_id_ = "vid-injected";
+
+    SrsStatistic stat;
+    stat.config_ = &config;
+
+    EXPECT_STREQ("vid-injected", stat.server_id().c_str());
+    EXPECT_STREQ("vid-injected", stat.server_id().c_str());
+    EXPECT_EQ(1, config.get_server_id_count_);
+
+    stat.config_ = NULL;
+}
+
+// The constructor allocates the generator that draws the service id, so a test can replace it
+// before service_id() is called.
+VOID TEST(StatisticTest, ConstructorCreatesRand)
+{
+    SrsStatistic stat;
+    EXPECT_TRUE(stat.rand_ != NULL);
+    EXPECT_TRUE(stat.service_id_.empty());
+}
+
+// The service id is an 8-character string drawn once through the injected generator, then cached.
+VOID TEST(StatisticTest, ServiceIdDrawsThroughInjectedRand)
+{
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("service1");
+    rand.gen_str_values_.push_back("service2");
+
+    SrsStatistic stat;
+    srs_freep(stat.rand_);
+    stat.rand_ = &rand;
+
+    std::string first_id = stat.service_id();
+    std::string second_id = stat.service_id();
+
+    // Restore the stack member before any assertion, so the statistic never frees it.
+    stat.rand_ = NULL;
+
+    EXPECT_EQ(1, (int)rand.gen_str_lens_.size());
+    if (rand.gen_str_lens_.size() == 1) {
+        EXPECT_EQ(8, rand.gen_str_lens_[0]);
+    }
+    EXPECT_STREQ("service1", first_id.c_str());
+    EXPECT_STREQ("service1", second_id.c_str());
+}
+
+// The vhost statistic captures the config global in its constructor.
+VOID TEST(StatisticTest, VhostCapturesConfigInConstructor)
+{
+    SrsStatisticVhost vhost;
+    EXPECT_TRUE(vhost.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The vhost and HLS switches and the HLS fragment come from the injected config.
+VOID TEST(StatisticTest, VhostDumpsFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForStatistic config;
+    config.vhost_enabled_ = false;
+    config.hls_enabled_ = true;
+    config.hls_fragment_ = 2500 * SRS_UTIME_MILLISECONDS;
+
+    SrsStatisticVhost vhost;
+    vhost.config_ = &config;
+    vhost.vhost_ = "test.vhost";
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(vhost.dumps(obj.get()));
+
+    ASSERT_EQ(3, (int)config.vhost_calls_.size());
+    EXPECT_STREQ("hls_enabled:test.vhost", config.vhost_calls_[0].c_str());
+    EXPECT_STREQ("vhost_enabled:test.vhost", config.vhost_calls_[1].c_str());
+    EXPECT_STREQ("hls_fragment:test.vhost", config.vhost_calls_[2].c_str());
+
+    SrsJsonAny *enabled = obj->get_property("enabled");
+    ASSERT_TRUE(enabled && enabled->is_boolean());
+    EXPECT_FALSE(enabled->to_boolean());
+
+    SrsJsonAny *hls = obj->get_property("hls");
+    ASSERT_TRUE(hls && hls->is_object());
+    SrsJsonAny *hls_enabled = hls->to_object()->get_property("enabled");
+    ASSERT_TRUE(hls_enabled && hls_enabled->is_boolean());
+    EXPECT_TRUE(hls_enabled->to_boolean());
+    SrsJsonAny *fragment = hls->to_object()->get_property("fragment");
+    ASSERT_TRUE(fragment && fragment->is_number());
+    EXPECT_DOUBLE_EQ(2.5, fragment->to_number());
+
+    vhost.config_ = NULL;
+}
+
+// With HLS disabled, the fragment is neither read nor dumped.
+VOID TEST(StatisticTest, VhostDumpsWithoutHlsFragment)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForStatistic config;
+    config.vhost_enabled_ = true;
+    config.hls_enabled_ = false;
+
+    SrsStatisticVhost vhost;
+    vhost.config_ = &config;
+    vhost.vhost_ = "test.vhost";
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(vhost.dumps(obj.get()));
+
+    ASSERT_EQ(2, (int)config.vhost_calls_.size());
+    EXPECT_STREQ("hls_enabled:test.vhost", config.vhost_calls_[0].c_str());
+    EXPECT_STREQ("vhost_enabled:test.vhost", config.vhost_calls_[1].c_str());
+
+    SrsJsonAny *enabled = obj->get_property("enabled");
+    ASSERT_TRUE(enabled && enabled->is_boolean());
+    EXPECT_TRUE(enabled->to_boolean());
+
+    SrsJsonAny *hls = obj->get_property("hls");
+    ASSERT_TRUE(hls && hls->is_object());
+    SrsJsonAny *hls_enabled = hls->to_object()->get_property("enabled");
+    ASSERT_TRUE(hls_enabled && hls_enabled->is_boolean());
+    EXPECT_FALSE(hls_enabled->to_boolean());
+    EXPECT_TRUE(hls->to_object()->get_property("fragment") == NULL);
+
+    vhost.config_ = NULL;
+}
+
+// The vhost statistic allocates its random generator but generates no id until assemble(),
+// so a test can inject its own generator first.
+VOID TEST(StatisticTest, VhostCreatesRandWithoutGeneratingId)
+{
+    SrsStatisticVhost vhost;
+    EXPECT_TRUE(vhost.rand_ != NULL);
+    EXPECT_TRUE(vhost.id_.empty());
+}
+
+// The vhost id is generated by the injected random generator, with the constant prefix.
+VOID TEST(StatisticTest, VhostAssembleGeneratesIdThroughRand)
+{
+    MockRandForHandshake rand;
+
+    SrsStatisticVhost vhost;
+    srs_freep(vhost.rand_);
+    vhost.rand_ = &rand;
+
+    vhost.assemble();
+
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(7, rand.gen_str_lens_[0]);
+    EXPECT_STREQ("vid-xxxxxxx", vhost.id_.c_str());
+
+    vhost.rand_ = NULL;
+}
+
+// The statistic assembles every vhost it creates, so a new vhost has a generated id and is
+// found by it.
+VOID TEST(StatisticTest, CreateVhostCreatesAssembledVhost)
+{
+    SrsStatistic stat;
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "stream1"));
+
+    SrsStatisticVhost *vhost = stat.create_vhost(req.get());
+    ASSERT_TRUE(vhost != NULL);
+    EXPECT_EQ(11, (int)vhost->id_.size());
+    EXPECT_EQ(0, (int)vhost->id_.find("vid-"));
+    EXPECT_TRUE(stat.find_vhost_by_id(vhost->id_) == vhost);
+}
+
+// The client statistic only captures the clock and reads no time, so a test can inject
+// its own clock before assemble() stamps the creation time.
+VOID TEST(StatisticTest, ClientCapturesClockAndReadsNoTime)
+{
+    SrsStatisticClient client;
+    EXPECT_TRUE(client.clk_ != NULL);
+    EXPECT_TRUE(client.clk_ == _srs_clock);
+    EXPECT_EQ((srs_utime_t)0, client.create_);
+}
+
+// assemble() stamps the creation time with the injected clock.
+VOID TEST(StatisticTest, ClientAssembleStampsCreateWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsStatisticClient client;
+    client.clk_ = &clock;
+    client.assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, client.create_);
+
+    client.clk_ = NULL;
+}
+
+// The alive duration in dumps() is measured on the injected clock.
+VOID TEST(StatisticTest, ClientDumpsAliveFromInjectedClock)
+{
+    srs_error_t err = srs_success;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsStatisticVhost vhost;
+    vhost.id_ = "vid-vhost";
+    SrsStatisticStream stream;
+    stream.assemble();
+    stream.id_ = "vid-stream";
+    stream.vhost_ = &vhost;
+
+    SrsStatisticClient client;
+    client.clk_ = &clock;
+    client.assemble();
+    client.id_ = "client-1";
+    client.stream_ = &stream;
+    client.req_ = new MockSrsRequest("test.vhost", "live", "stream1");
+    client.type_ = SrsRtmpConnPlay;
+
+    clock.now_ = 102500 * SRS_UTIME_MILLISECONDS;
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(client.dumps(obj.get()));
+
+    SrsJsonAny *alive = obj->get_property("alive");
+    ASSERT_TRUE(alive && alive->is_number());
+    EXPECT_DOUBLE_EQ(2.5, alive->to_number());
+
+    client.clk_ = NULL;
+}
+
+// The statistic assembles every client it creates, so a new client has the global clock
+// and its creation time.
+VOID TEST(StatisticTest, OnClientCreatesAssembledClient)
+{
+    srs_error_t err = srs_success;
+
+    SrsStatistic stat;
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "stream1"));
+    HELPER_EXPECT_SUCCESS(stat.on_client("client-1", req.get(), NULL, SrsRtmpConnPlay));
+
+    SrsStatisticClient *client = stat.find_client("client-1");
+    ASSERT_TRUE(client != NULL);
+    EXPECT_TRUE(client->clk_ == _srs_clock);
+    EXPECT_TRUE(client->create_ > 0);
+}
+
+// The stream statistic only captures the clock and reads no time, so a test can inject
+// its own clock before assemble() stamps the creation time.
+VOID TEST(StatisticTest, StreamCapturesClockAndReadsNoTime)
+{
+    SrsStatisticStream stream;
+    EXPECT_TRUE(stream.clk_ != NULL);
+    EXPECT_TRUE(stream.clk_ == _srs_clock);
+    EXPECT_EQ((srs_utime_t)0, stream.create_);
+}
+
+// assemble() stamps the creation time with the injected clock.
+VOID TEST(StatisticTest, StreamAssembleStampsCreateWithInjectedClock)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsStatisticStream stream;
+    stream.clk_ = &clock;
+    stream.assemble();
+
+    EXPECT_EQ(100 * SRS_UTIME_SECONDS, stream.create_);
+
+    stream.clk_ = NULL;
+}
+
+// The live time and the alive duration in dumps() are measured on the injected clock.
+VOID TEST(StatisticTest, StreamDumpsLiveAndAliveFromInjectedClock)
+{
+    srs_error_t err = srs_success;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 100 * SRS_UTIME_SECONDS;
+
+    SrsStatisticVhost vhost;
+    vhost.id_ = "vid-vhost";
+
+    SrsStatisticStream stream;
+    stream.clk_ = &clock;
+    stream.assemble();
+    stream.id_ = "vid-stream";
+    stream.vhost_ = &vhost;
+
+    clock.now_ = 102500 * SRS_UTIME_MILLISECONDS;
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(stream.dumps(obj.get()));
+
+    SrsJsonAny *live_ms = obj->get_property("live_ms");
+    ASSERT_TRUE(live_ms && live_ms->is_integer());
+    EXPECT_EQ(102500, live_ms->to_integer());
+
+    SrsJsonAny *alive = obj->get_property("alive");
+    ASSERT_TRUE(alive && alive->is_number());
+    EXPECT_DOUBLE_EQ(2.5, alive->to_number());
+
+    stream.clk_ = NULL;
+}
+
+// The statistic assembles every stream it creates, so a new stream has the global clock
+// and its creation time.
+VOID TEST(StatisticTest, OnClientCreatesAssembledStream)
+{
+    srs_error_t err = srs_success;
+
+    SrsStatistic stat;
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "stream1"));
+    HELPER_EXPECT_SUCCESS(stat.on_client("client-1", req.get(), NULL, SrsRtmpConnPlay));
+
+    SrsStatisticClient *client = stat.find_client("client-1");
+    ASSERT_TRUE(client != NULL);
+    ASSERT_TRUE(client->stream_ != NULL);
+    EXPECT_TRUE(client->stream_->clk_ == _srs_clock);
+    EXPECT_TRUE(client->stream_->create_ > 0);
+}
+
+// The stream statistic allocates its random generator but generates no id until assemble(),
+// so a test can inject its own generator first.
+VOID TEST(StatisticTest, StreamCreatesRandWithoutGeneratingId)
+{
+    SrsStatisticStream stream;
+    EXPECT_TRUE(stream.rand_ != NULL);
+    EXPECT_TRUE(stream.id_.empty());
+}
+
+// The stream id is generated by the injected random generator, with the constant prefix.
+VOID TEST(StatisticTest, StreamAssembleGeneratesIdThroughRand)
+{
+    MockRandForHandshake rand;
+
+    SrsStatisticStream stream;
+    srs_freep(stream.rand_);
+    stream.rand_ = &rand;
+
+    stream.assemble();
+
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(7, rand.gen_str_lens_[0]);
+    EXPECT_STREQ("vid-xxxxxxx", stream.id_.c_str());
+
+    stream.rand_ = NULL;
+}
+
+// The statistic assembles every stream it creates, so a new stream has a generated id and is
+// found by it.
+VOID TEST(StatisticTest, CreateStreamCreatesStreamFoundById)
+{
+    SrsStatistic stat;
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "stream1"));
+
+    SrsStatisticVhost *vhost = stat.create_vhost(req.get());
+    SrsStatisticStream *stream = stat.create_stream(vhost, req.get());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(11, (int)stream->id_.size());
+    EXPECT_EQ(0, (int)stream->id_.find("vid-"));
+    EXPECT_TRUE(stat.find_stream(stream->id_) == stream);
+}
+
+MockAppConfigForCoWorkers::MockAppConfigForCoWorkers()
+{
+    get_listens_count_ = 0;
+    get_http_api_listens_count_ = 0;
+}
+
+MockAppConfigForCoWorkers::~MockAppConfigForCoWorkers()
+{
+}
+
+std::vector<std::string> MockAppConfigForCoWorkers::get_listens()
+{
+    get_listens_count_++;
+    return listens_;
+}
+
+std::vector<std::string> MockAppConfigForCoWorkers::get_http_api_listens()
+{
+    get_http_api_listens_count_++;
+    return http_api_listens_;
+}
+
+SrsConfDirective *MockAppConfigForCoWorkers::get_vhost(std::string vhost, bool try_default_vhost)
+{
+    get_vhost_calls_.push_back(vhost);
+    return default_vhost_;
+}
+
+// The coworkers capture the config global in the constructor.
+VOID TEST(CoWorkersTest, CapturesConfigInConstructor)
+{
+    SrsCoWorkers workers;
+    EXPECT_TRUE(workers.config_ != NULL);
+    EXPECT_TRUE(workers.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The service ip, port, vhost and API endpoint come from the injected config.
+VOID TEST(CoWorkersTest, DumpsFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForCoWorkers config;
+    config.listens_.push_back("192.168.1.5:19350");
+    config.http_api_listens_.push_back("11985");
+    config.default_vhost_ = new SrsConfDirective();
+    config.default_vhost_->name_ = "vhost";
+    config.default_vhost_->args_.push_back("__defaultVhost__");
+
+    SrsCoWorkers workers;
+    workers.config_ = &config;
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(workers.on_publish(&req));
+
+    SrsUniquePtr<SrsJsonAny> data(workers.dumps("__defaultVhost__", "10.0.0.1:1985", "live", "livestream"));
+    ASSERT_TRUE(data->is_object());
+    SrsJsonObject *obj = data->to_object();
+    EXPECT_STREQ("192.168.1.5", obj->get_property("ip")->to_str().c_str());
+    EXPECT_EQ(19350, obj->get_property("port")->to_integer());
+    EXPECT_STREQ("__defaultVhost__", obj->get_property("vhost")->to_str().c_str());
+    EXPECT_STREQ("192.168.1.5:11985", obj->get_property("api")->to_str().c_str());
+
+    ASSERT_EQ(1, (int)config.get_vhost_calls_.size());
+    EXPECT_STREQ("__defaultVhost__", config.get_vhost_calls_.at(0).c_str());
+    EXPECT_EQ(1, config.get_listens_count_);
+    EXPECT_EQ(1, config.get_http_api_listens_count_);
+
+    workers.config_ = NULL;
+}
+
+// A port-only listen takes the service ip from the coworker host, and a stream
+// published on the default vhost is found through the vhost the injected config resolves.
+VOID TEST(CoWorkersTest, DumpsCoworkerHostForPortOnlyListen)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForCoWorkers config;
+    config.listens_.push_back("19350");
+    config.http_api_listens_.push_back("127.0.0.1:11985");
+    config.default_vhost_ = new SrsConfDirective();
+    config.default_vhost_->name_ = "vhost";
+    config.default_vhost_->args_.push_back("__defaultVhost__");
+
+    SrsCoWorkers workers;
+    workers.config_ = &config;
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(workers.on_publish(&req));
+
+    SrsUniquePtr<SrsJsonAny> data(workers.dumps("unknown.vhost", "10.0.0.1:1985", "live", "livestream"));
+    ASSERT_TRUE(data->is_object());
+    SrsJsonObject *obj = data->to_object();
+    EXPECT_STREQ("10.0.0.1", obj->get_property("ip")->to_str().c_str());
+    EXPECT_EQ(19350, obj->get_property("port")->to_integer());
+    EXPECT_STREQ("127.0.0.1:11985", obj->get_property("api")->to_str().c_str());
+
+    ASSERT_EQ(1, (int)config.get_vhost_calls_.size());
+    EXPECT_STREQ("unknown.vhost", config.get_vhost_calls_.at(0).c_str());
+
+    workers.config_ = NULL;
+}
+
+// When the injected config has no such vhost, dumps() returns null without reading the listens.
+VOID TEST(CoWorkersTest, DumpsNullWhenInjectedConfigHasNoVhost)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForCoWorkers config;
+    config.listens_.push_back("19350");
+    config.http_api_listens_.push_back("11985");
+
+    SrsCoWorkers workers;
+    workers.config_ = &config;
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    HELPER_EXPECT_SUCCESS(workers.on_publish(&req));
+
+    SrsUniquePtr<SrsJsonAny> data(workers.dumps("__defaultVhost__", "10.0.0.1:1985", "live", "livestream"));
+    EXPECT_TRUE(data->is_null());
+
+    EXPECT_EQ(1, (int)config.get_vhost_calls_.size());
+    EXPECT_EQ(0, config.get_listens_count_);
+    EXPECT_EQ(0, config.get_http_api_listens_count_);
+
+    workers.config_ = NULL;
+}
+
+MockCoWorkersForGoApiClusters::MockCoWorkersForGoApiClusters()
+{
+    dumps_count_ = 0;
+}
+
+MockCoWorkersForGoApiClusters::~MockCoWorkersForGoApiClusters()
+{
+}
+
+SrsJsonAny *MockCoWorkersForGoApiClusters::dumps(std::string vhost, std::string coworker, std::string app, std::string stream)
+{
+    dumps_count_++;
+    dumps_vhost_ = vhost;
+    dumps_coworker_ = coworker;
+    dumps_app_ = app;
+    dumps_stream_ = stream;
+    return SrsJsonAny::object()->set("ip", SrsJsonAny::str("10.0.0.9"));
+}
+
+srs_error_t MockCoWorkersForGoApiClusters::on_publish(ISrsRequest *r)
+{
+    return srs_success;
+}
+
+void MockCoWorkersForGoApiClusters::on_unpublish(ISrsRequest *r)
+{
+}
+
+// The global coworkers is the singleton, set by the global initialize before any API handler exists.
+VOID TEST(GoApiClustersTest, GlobalInitializeSetsCoWorkers)
+{
+    EXPECT_TRUE(_srs_coworkers != NULL);
+    EXPECT_TRUE(_srs_coworkers == SrsCoWorkers::instance());
+}
+
+// The clusters API captures the coworkers global in the constructor.
+VOID TEST(GoApiClustersTest, CapturesCoWorkersInConstructor)
+{
+    SrsGoApiClusters api;
+    EXPECT_TRUE(api.coworkers_ != NULL);
+    EXPECT_TRUE(api.coworkers_ == (ISrsCoWorkers *)_srs_coworkers);
+}
+
+// The origin in the response is dumped by the injected coworkers, with the vhost, coworker, app and stream of the query.
+VOID TEST(GoApiClustersTest, ServeHttpDumpsThroughInjectedCoWorkers)
+{
+    srs_error_t err = srs_success;
+
+    MockCoWorkersForGoApiClusters coworkers;
+    SrsGoApiClusters api;
+    api.coworkers_ = &coworkers;
+
+    SrsUniquePtr<SrsHttpMessage> req(new SrsHttpMessage());
+    HELPER_EXPECT_SUCCESS(req->set_url("http://127.0.0.1/api/v1/clusters?ip=192.168.1.100&vhost=test.vhost&app=live&stream=livestream&coworker=127.0.0.1:1985", false));
+
+    MockResponseWriter w;
+    HELPER_EXPECT_SUCCESS(api.serve_http(&w, req.get()));
+
+    EXPECT_EQ(1, coworkers.dumps_count_);
+    EXPECT_STREQ("test.vhost", coworkers.dumps_vhost_.c_str());
+    EXPECT_STREQ("127.0.0.1:1985", coworkers.dumps_coworker_.c_str());
+    EXPECT_STREQ("live", coworkers.dumps_app_.c_str());
+    EXPECT_STREQ("livestream", coworkers.dumps_stream_.c_str());
+
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"origin\":{\"ip\":\"10.0.0.9\"}") != string::npos);
+    EXPECT_TRUE(response.find("\"vhost\":\"test.vhost\"") != string::npos);
+
+    api.coworkers_ = NULL;
+}
+
+MockAppConfigForSummaries::MockAppConfigForSummaries()
+{
+    argv_count_ = 0;
+    cwd_count_ = 0;
+}
+
+MockAppConfigForSummaries::~MockAppConfigForSummaries()
+{
+}
+
+std::string MockAppConfigForSummaries::argv()
+{
+    argv_count_++;
+    return argv_;
+}
+
+std::string MockAppConfigForSummaries::cwd()
+{
+    cwd_count_++;
+    return cwd_;
+}
+
+// Return data.self of a summaries object, or NULL.
+static SrsJsonObject *find_summaries_self(SrsJsonObject *obj)
+{
+    SrsJsonAny *data = obj->get_property("data");
+    if (!data || !data->is_object()) {
+        return NULL;
+    }
+
+    SrsJsonAny *self = data->to_object()->get_property("self");
+    if (!self || !self->is_object()) {
+        return NULL;
+    }
+
+    return self->to_object();
+}
+
+// The command line and work directory in the summaries come from the given config.
+VOID TEST(ApiSummariesTest, DumpsArgvAndCwdFromGivenConfig)
+{
+    MockAppConfigForSummaries config;
+    config.argv_ = "./objs/srs -c conf/summaries.conf";
+    config.cwd_ = "/tmp/srs-summaries";
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    srs_api_dump_summaries(&config, obj.get());
+
+    SrsJsonObject *self = find_summaries_self(obj.get());
+    ASSERT_TRUE(self != NULL);
+
+    SrsJsonAny *prop = self->get_property("argv");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("./objs/srs -c conf/summaries.conf", prop->to_str().c_str());
+
+    prop = self->get_property("cwd");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("/tmp/srs-summaries", prop->to_str().c_str());
+
+    EXPECT_EQ(1, config.argv_count_);
+    EXPECT_EQ(1, config.cwd_count_);
+}
+
+// The summaries API captures the config global in the constructor.
+VOID TEST(ApiSummariesTest, SummariesApiCapturesConfigInConstructor)
+{
+    SrsGoApiSummaries handler;
+    EXPECT_TRUE(handler.config_ != NULL);
+    EXPECT_TRUE(handler.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The summaries API dumps the command line and work directory of its injected config.
+VOID TEST(ApiSummariesTest, SummariesApiDumpsFromInjectedConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForSummaries config;
+    config.argv_ = "./objs/srs -c conf/api.conf";
+    config.cwd_ = "/tmp/srs-api";
+
+    SrsGoApiSummaries handler;
+    handler.config_ = &config;
+
+    MockResponseWriter writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> message(new MockHttpMessageForApiResponse());
+    HELPER_EXPECT_SUCCESS(handler.serve_http(&writer, message.get()));
+
+    string response = string(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    size_t pos = response.find("\r\n\r\n");
+    ASSERT_TRUE(pos != string::npos);
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(response.substr(pos + 4)));
+    ASSERT_TRUE(json.get() && json->is_object());
+
+    SrsJsonObject *self = find_summaries_self(json->to_object());
+    ASSERT_TRUE(self != NULL);
+
+    SrsJsonAny *prop = self->get_property("argv");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("./objs/srs -c conf/api.conf", prop->to_str().c_str());
+
+    prop = self->get_property("cwd");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("/tmp/srs-api", prop->to_str().c_str());
+
+    EXPECT_EQ(1, config.argv_count_);
+    EXPECT_EQ(1, config.cwd_count_);
+
+    handler.config_ = NULL;
 }
 
 VOID TEST(ReproduceIssue4609, GracefulDisconnectsDoNotIncrementErrors)

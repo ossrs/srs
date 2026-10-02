@@ -15,7 +15,13 @@ using namespace std;
 #include <srs_app_srt_source.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_sdp.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai07.hpp>
+
+#include <arpa/inet.h>
+#include <poll.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 // Mock ISrsResourceManager implementation
 MockResourceManagerForBindSession::MockResourceManagerForBindSession()
@@ -2637,6 +2643,57 @@ VOID TEST(RtcPlayStreamTest, InitializeSuccess)
     srs_freep(video_desc);
 }
 
+// The play stream assembles every send track it creates, so each track starts its RTX sequence space at a random
+// point. The generator is reseeded with a fixed seed whose draws are not 0, so an unassembled track, which starts
+// at 0, cannot pass.
+VOID TEST(RtcPlayStreamTest, InitializeAssemblesSendTracks)
+{
+    srs_error_t err;
+
+    MockAppConfig mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockAppStatistic mock_stat;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    MockRtcAsyncTaskExecutor mock_async_executor;
+    MockExpire mock_expire;
+    MockRtcPacketSender mock_packet_sender;
+
+    SrsContextId cid;
+    cid.set_value("test-play-stream-assemble-cid");
+    SrsUniquePtr<SrsRtcPlayStream> play_stream(new SrsRtcPlayStream(&mock_async_executor, &mock_expire, &mock_packet_sender, cid));
+    play_stream->config_ = &mock_config;
+    play_stream->rtc_sources_ = &mock_rtc_sources;
+    play_stream->stat_ = &mock_stat;
+
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "audio-track-id";
+    audio_desc->ssrc_ = 12345;
+    audio_desc->is_active_ = true;
+
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->id_ = "video-track-id";
+    video_desc->ssrc_ = 67890;
+    video_desc->is_active_ = true;
+
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+    sub_relations[12345] = audio_desc.get();
+    sub_relations[67890] = video_desc.get();
+
+    // Seed the generator after its first use, which seeds it from the wall clock once.
+    SrsRand rand;
+    rand.integer();
+    ::srandom(1);
+
+    HELPER_EXPECT_SUCCESS(play_stream->initialize(&mock_request, sub_relations));
+
+    ASSERT_EQ(1, (int)play_stream->audio_tracks_.size());
+    ASSERT_EQ(1, (int)play_stream->video_tracks_.size());
+    EXPECT_NE(0, (int)play_stream->audio_tracks_[12345]->rtx_seq_);
+    EXPECT_NE(0, (int)play_stream->video_tracks_[67890]->rtx_seq_);
+}
+
 VOID TEST(RtcPlayStreamTest, OnStreamChangeSuccess)
 {
     srs_error_t err;
@@ -4069,4 +4126,487 @@ VOID TEST(SrsRtcPublishStreamTest, OnTwccSuccess)
 
     // Test duplicate sequence number should fail
     HELPER_EXPECT_FAILED(publish_stream->on_twcc(12345));
+}
+
+MockAppConfigForDtlsCertificate::MockAppConfigForDtlsCertificate()
+{
+    ecdsa_ = true;
+    get_rtc_server_ecdsa_count_ = 0;
+}
+
+MockAppConfigForDtlsCertificate::~MockAppConfigForDtlsCertificate()
+{
+}
+
+bool MockAppConfigForDtlsCertificate::get_rtc_server_ecdsa()
+{
+    get_rtc_server_ecdsa_count_++;
+    return ecdsa_;
+}
+
+// The certificate captures the config global in the constructor.
+VOID TEST(DtlsCertificateTest, CapturesConfigInConstructor)
+{
+    SrsDtlsCertificate cert;
+    EXPECT_TRUE(cert.config_ != NULL);
+    EXPECT_TRUE(cert.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The injected config selects an ECDSA key, and the certificate and its fingerprint are built.
+VOID TEST(DtlsCertificateTest, InitializeEcdsaFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    config.ecdsa_ = true;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_ecdsa_count_);
+    EXPECT_TRUE(cert.is_ecdsa());
+    EXPECT_TRUE(cert.get_ecdsa_key() != NULL);
+    EXPECT_TRUE(cert.get_cert() != NULL);
+    ASSERT_TRUE(cert.get_public_key() != NULL);
+    EXPECT_EQ(EVP_PKEY_EC, EVP_PKEY_id(cert.get_public_key()));
+
+    // A SHA-256 fingerprint is 32 hex pairs joined by colons.
+    EXPECT_EQ(95, (int)cert.get_fingerprint().size());
+
+    cert.config_ = NULL;
+}
+
+// The injected config turns ECDSA off, so the key is RSA. The global config
+// defaults to ECDSA, so reading it instead would be caught here.
+VOID TEST(DtlsCertificateTest, InitializeRsaFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    config.ecdsa_ = false;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_ecdsa_count_);
+    EXPECT_FALSE(cert.is_ecdsa());
+    EXPECT_TRUE(cert.get_ecdsa_key() == NULL);
+    EXPECT_TRUE(cert.get_cert() != NULL);
+    ASSERT_TRUE(cert.get_public_key() != NULL);
+    EXPECT_EQ(EVP_PKEY_RSA, EVP_PKEY_id(cert.get_public_key()));
+    EXPECT_EQ(95, (int)cert.get_fingerprint().size());
+
+    cert.config_ = NULL;
+}
+
+// A second initialize keeps the first certificate and does not read the config again.
+VOID TEST(DtlsCertificateTest, InitializeOnceReadsConfigOnce)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    config.ecdsa_ = false;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    X509 *first = cert.get_cert();
+    string fingerprint = cert.get_fingerprint();
+
+    config.ecdsa_ = true;
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_ecdsa_count_);
+    EXPECT_FALSE(cert.is_ecdsa());
+    EXPECT_TRUE(cert.get_cert() == first);
+    EXPECT_STREQ(fingerprint.c_str(), cert.get_fingerprint().c_str());
+
+    cert.config_ = NULL;
+}
+
+// The constructor allocates the generator that draws the certificate serial, so a test can
+// replace it before initialize().
+VOID TEST(DtlsCertificateTest, ConstructorCreatesRand)
+{
+    SrsDtlsCertificate cert;
+    EXPECT_TRUE(cert.rand_ != NULL);
+    EXPECT_TRUE(cert.get_cert() == NULL);
+}
+
+// The serial number of the certificate is one draw of the injected generator, taken by the first
+// initialize only; a second initialize keeps the certificate and draws nothing.
+VOID TEST(DtlsCertificateTest, InitializeDrawsSerialThroughInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    MockRandForHandshake rand;
+    rand.integer_value_ = 0x5a17c3e1;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+    srs_freep(cert.rand_);
+    cert.rand_ = &rand;
+
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+
+    long serial = -1;
+    if (cert.get_cert()) {
+        serial = ASN1_INTEGER_get(X509_get_serialNumber(cert.get_cert()));
+    }
+
+    // Restore the stack members before any assertion, so the certificate never frees them.
+    cert.config_ = NULL;
+    cert.rand_ = NULL;
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x5a17c3e1, serial);
+}
+
+MockAppConfigForRtcBlackhole::MockAppConfigForRtcBlackhole()
+{
+    black_hole_ = false;
+    get_rtc_server_black_hole_count_ = 0;
+    get_rtc_server_black_hole_addr_count_ = 0;
+}
+
+MockAppConfigForRtcBlackhole::~MockAppConfigForRtcBlackhole()
+{
+}
+
+bool MockAppConfigForRtcBlackhole::get_rtc_server_black_hole()
+{
+    get_rtc_server_black_hole_count_++;
+    return black_hole_;
+}
+
+std::string MockAppConfigForRtcBlackhole::get_rtc_server_black_hole_addr()
+{
+    get_rtc_server_black_hole_addr_count_++;
+    return black_hole_addr_;
+}
+
+// The black hole captures the config global in the constructor.
+VOID TEST(RtcBlackholeTest, CapturesConfigInConstructor)
+{
+    SrsRtcBlackhole blackhole;
+    EXPECT_TRUE(blackhole.config_ != NULL);
+    EXPECT_TRUE(blackhole.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The injected config disables the black hole, so the endpoint is not read and no socket is opened.
+VOID TEST(RtcBlackholeTest, InitializeDisabledFromInjectedConfig)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForRtcBlackhole config;
+    config.black_hole_ = false;
+    config.black_hole_addr_ = "127.0.0.1:10000";
+
+    SrsRtcBlackhole blackhole;
+    blackhole.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(blackhole.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_count_);
+    EXPECT_EQ(0, config.get_rtc_server_black_hole_addr_count_);
+    EXPECT_FALSE(blackhole.blackhole_);
+    EXPECT_TRUE(blackhole.blackhole_addr_ == NULL);
+    EXPECT_TRUE(blackhole.blackhole_stfd_ == NULL);
+
+    blackhole.config_ = NULL;
+}
+
+// The injected config enables the black hole without an endpoint, so it is turned off again.
+VOID TEST(RtcBlackholeTest, InitializeWithoutEndpointDisables)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForRtcBlackhole config;
+    config.black_hole_ = true;
+
+    SrsRtcBlackhole blackhole;
+    blackhole.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(blackhole.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_count_);
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_addr_count_);
+    EXPECT_FALSE(blackhole.blackhole_);
+    EXPECT_TRUE(blackhole.blackhole_addr_ == NULL);
+    EXPECT_TRUE(blackhole.blackhole_stfd_ == NULL);
+
+    blackhole.config_ = NULL;
+}
+
+// The injected endpoint is where the black hole sends: a UDP receiver bound there gets the packet.
+VOID TEST(RtcBlackholeTest, SendtoReachesInjectedEndpoint)
+{
+    srs_error_t err = srs_success;
+
+    int receiver = socket(AF_INET, SOCK_DGRAM, 0);
+    ASSERT_TRUE(receiver >= 0);
+
+    sockaddr_in local;
+    memset(&local, 0, sizeof(local));
+    local.sin_family = AF_INET;
+    local.sin_addr.s_addr = inet_addr("127.0.0.1");
+    local.sin_port = 0;
+    ASSERT_EQ(0, ::bind(receiver, (sockaddr *)&local, sizeof(local)));
+
+    socklen_t local_len = sizeof(local);
+    ASSERT_EQ(0, getsockname(receiver, (sockaddr *)&local, &local_len));
+    int port = ntohs(local.sin_port);
+
+    MockAppConfigForRtcBlackhole config;
+    config.black_hole_ = true;
+    config.black_hole_addr_ = "127.0.0.1:" + srs_strconv_format_int(port);
+
+    SrsRtcBlackhole blackhole;
+    blackhole.config_ = &config;
+
+    HELPER_EXPECT_SUCCESS(blackhole.initialize());
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_count_);
+    EXPECT_EQ(1, config.get_rtc_server_black_hole_addr_count_);
+    EXPECT_TRUE(blackhole.blackhole_);
+    ASSERT_TRUE(blackhole.blackhole_addr_ != NULL);
+    EXPECT_EQ(inet_addr("127.0.0.1"), blackhole.blackhole_addr_->sin_addr.s_addr);
+    EXPECT_EQ(htons(port), blackhole.blackhole_addr_->sin_port);
+    EXPECT_TRUE(blackhole.blackhole_stfd_ != NULL);
+
+    char data[] = "plaintext";
+    blackhole.sendto(data, sizeof(data));
+
+    pollfd pfd;
+    pfd.fd = receiver;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    EXPECT_EQ(1, poll(&pfd, 1, 1000));
+
+    char buf[64];
+    ssize_t nn = recv(receiver, buf, sizeof(buf), MSG_DONTWAIT);
+    EXPECT_EQ((ssize_t)sizeof(data), nn);
+    if (nn == (ssize_t)sizeof(data)) {
+        EXPECT_STREQ("plaintext", buf);
+    }
+
+    ::close(receiver);
+    blackhole.config_ = NULL;
+}
+
+MockAppConfigForRtcPublishEdge::MockAppConfigForRtcPublishEdge()
+{
+    vhost_is_edge_ = false;
+    get_vhost_is_edge_count_ = 0;
+}
+
+MockAppConfigForRtcPublishEdge::~MockAppConfigForRtcPublishEdge()
+{
+}
+
+bool MockAppConfigForRtcPublishEdge::get_vhost_is_edge(std::string vhost)
+{
+    get_vhost_is_edge_count_++;
+    return vhost_is_edge_;
+}
+
+// The injected config marks the vhost as an edge, so WebRTC to RTMP is disabled: no bridge is set and
+// the GOP cache of the live source is kept. The global config has no edge vhost, so a read of the global
+// would create the bridge.
+VOID TEST(RtcPublishStreamTest, InitializeEdgeFromInjectedConfigDisablesRtcToRtmp)
+{
+    srs_error_t err;
+
+    MockAppStatistic mock_stat;
+    MockAppConfigForRtcPublishEdge mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockLiveSourceManager mock_live_sources;
+    MockSrtSourceManager mock_srt_sources;
+    MockRtcPacketReceiver mock_receiver;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockExpire mock_expire;
+
+    SrsContextId cid;
+    cid.set_value("test-publish-stream-edge");
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    publish_stream->stat_ = &mock_stat;
+    publish_stream->config_ = &mock_config;
+    publish_stream->rtc_sources_ = &mock_rtc_sources;
+    publish_stream->live_sources_ = &mock_live_sources;
+    publish_stream->srt_sources_ = &mock_srt_sources;
+
+    mock_config.set_rtc_to_rtmp(true);
+    mock_config.vhost_is_edge_ = true;
+
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    HELPER_EXPECT_SUCCESS(publish_stream->initialize(&mock_request, stream_desc.get()));
+
+    EXPECT_EQ(1, mock_config.get_vhost_is_edge_count_);
+    EXPECT_TRUE(mock_rtc_sources.mock_source_->rtc_bridge_ == NULL);
+    EXPECT_TRUE(mock_live_sources.mock_source_->gop_cache_->enabled());
+}
+
+// The injected config marks the vhost as an origin, so WebRTC to RTMP stays on: the bridge is set and
+// the GOP cache of the live source is disabled, with the edge switch read once from the injected config.
+VOID TEST(RtcPublishStreamTest, InitializeOriginFromInjectedConfigKeepsRtcToRtmp)
+{
+    srs_error_t err;
+
+    MockAppStatistic mock_stat;
+    MockAppConfigForRtcPublishEdge mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockLiveSourceManager mock_live_sources;
+    MockSrtSourceManager mock_srt_sources;
+    MockRtcPacketReceiver mock_receiver;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockExpire mock_expire;
+
+    SrsContextId cid;
+    cid.set_value("test-publish-stream-origin");
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid));
+
+    publish_stream->stat_ = &mock_stat;
+    publish_stream->config_ = &mock_config;
+    publish_stream->rtc_sources_ = &mock_rtc_sources;
+    publish_stream->live_sources_ = &mock_live_sources;
+    publish_stream->srt_sources_ = &mock_srt_sources;
+
+    mock_config.set_rtc_to_rtmp(true);
+    mock_config.vhost_is_edge_ = false;
+
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    HELPER_EXPECT_SUCCESS(publish_stream->initialize(&mock_request, stream_desc.get()));
+
+    EXPECT_EQ(1, mock_config.get_vhost_is_edge_count_);
+    EXPECT_TRUE(mock_rtc_sources.mock_source_->rtc_bridge_ != NULL);
+    EXPECT_FALSE(mock_live_sources.mock_source_->gop_cache_->enabled());
+}
+
+MockDtlsCertificateForDtlsCtx::MockDtlsCertificateForDtlsCtx(bool ecdsa)
+{
+    config_.ecdsa_ = ecdsa;
+    real_ = new SrsDtlsCertificate();
+    real_->config_ = &config_;
+
+    get_cert_count_ = 0;
+    get_public_key_count_ = 0;
+    get_ecdsa_key_count_ = 0;
+    is_ecdsa_count_ = 0;
+}
+
+MockDtlsCertificateForDtlsCtx::~MockDtlsCertificateForDtlsCtx()
+{
+    real_->config_ = NULL;
+    srs_freep(real_);
+}
+
+srs_error_t MockDtlsCertificateForDtlsCtx::initialize()
+{
+    return real_->initialize();
+}
+
+X509 *MockDtlsCertificateForDtlsCtx::get_cert()
+{
+    get_cert_count_++;
+    return real_->get_cert();
+}
+
+EVP_PKEY *MockDtlsCertificateForDtlsCtx::get_public_key()
+{
+    get_public_key_count_++;
+    return real_->get_public_key();
+}
+
+EC_KEY *MockDtlsCertificateForDtlsCtx::get_ecdsa_key()
+{
+    get_ecdsa_key_count_++;
+    return real_->get_ecdsa_key();
+}
+
+std::string MockDtlsCertificateForDtlsCtx::get_fingerprint()
+{
+    return real_->get_fingerprint();
+}
+
+bool MockDtlsCertificateForDtlsCtx::is_ecdsa()
+{
+    is_ecdsa_count_++;
+    return real_->is_ecdsa();
+}
+
+// The context takes its certificate and key from the given certificate. The global
+// certificate is ECDSA by default, so an RSA one here tells the two apart.
+VOID TEST(DtlsCtxTest, BuildsWithGivenRsaCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(false);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *ctx = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_2, "passive");
+    ASSERT_TRUE(ctx != NULL);
+
+    EXPECT_EQ(1, certificate.is_ecdsa_count_);
+    EXPECT_EQ(1, certificate.get_cert_count_);
+    EXPECT_EQ(1, certificate.get_public_key_count_);
+    EXPECT_TRUE(SSL_CTX_get0_certificate(ctx) == certificate.real_->get_cert());
+    EXPECT_TRUE(SSL_CTX_get0_certificate(ctx) != _srs_rtc_dtls_certificate->get_cert());
+
+    SSL_CTX_free(ctx);
+}
+
+// An ECDSA certificate takes the same path, asked once whether it is ECDSA.
+VOID TEST(DtlsCtxTest, BuildsWithGivenEcdsaCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *ctx = srs_build_dtls_ctx(&certificate, SrsDtlsVersionAuto, "active");
+    ASSERT_TRUE(ctx != NULL);
+
+    EXPECT_EQ(1, certificate.is_ecdsa_count_);
+    EXPECT_EQ(1, certificate.get_cert_count_);
+    EXPECT_EQ(1, certificate.get_public_key_count_);
+    EXPECT_TRUE(SSL_CTX_get0_certificate(ctx) == certificate.real_->get_cert());
+
+    SSL_CTX_free(ctx);
+}
+
+// The DTLS implementation captures the global certificate in the constructor.
+VOID TEST(DtlsImplTest, ConstructorCapturesCertificate)
+{
+    SrsDtlsServerImpl server(NULL);
+    EXPECT_TRUE(server.dtls_certificate_ == (ISrsDtlsCertificate *)_srs_rtc_dtls_certificate);
+
+    SrsDtlsClientImpl client(NULL);
+    EXPECT_TRUE(client.dtls_certificate_ == (ISrsDtlsCertificate *)_srs_rtc_dtls_certificate);
+}
+
+// Initialize builds the context from the injected certificate.
+VOID TEST(DtlsImplTest, InitializeBuildsContextThroughCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(false);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SrsDtlsServerImpl impl(NULL);
+    impl.dtls_certificate_ = &certificate;
+
+    HELPER_EXPECT_SUCCESS(impl.initialize("dtls1.2", "passive"));
+    EXPECT_EQ(1, certificate.is_ecdsa_count_);
+    EXPECT_EQ(1, certificate.get_cert_count_);
+    EXPECT_EQ(1, certificate.get_public_key_count_);
+    ASSERT_TRUE(impl.dtls_ctx_ != NULL);
+    EXPECT_TRUE(SSL_CTX_get0_certificate(impl.dtls_ctx_) == certificate.real_->get_cert());
+
+    impl.dtls_certificate_ = NULL;
 }

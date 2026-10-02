@@ -333,10 +333,25 @@ srs_error_t SrsDH::do_initialize()
 
 SrsKeyBlock::SrsKeyBlock()
 {
-    SrsRand rand;
-    offset_ = (int32_t)rand.integer();
+    rand_ = new SrsRand();
+
+    offset_ = 0;
     random0_ = NULL;
+    random0_size_ = 0;
     random1_ = NULL;
+    random1_size_ = 0;
+}
+
+SrsKeyBlock::~SrsKeyBlock()
+{
+    srs_freepa(random0_);
+    srs_freepa(random1_);
+    srs_freep(rand_);
+}
+
+void SrsKeyBlock::assemble()
+{
+    offset_ = (int32_t)rand_->integer();
 
     int valid_offset = calc_valid_offset();
     srs_assert(valid_offset >= 0);
@@ -344,24 +359,18 @@ SrsKeyBlock::SrsKeyBlock()
     random0_size_ = valid_offset;
     if (random0_size_ > 0) {
         random0_ = new char[random0_size_];
-        rand_.gen_bytes(random0_, random0_size_);
+        rand_->gen_bytes(random0_, random0_size_);
         snprintf(random0_, random0_size_, "%s", RTMP_SIG_SRS_HANDSHAKE);
     }
 
-    rand_.gen_bytes(key_, sizeof(key_));
+    rand_->gen_bytes(key_, sizeof(key_));
 
     random1_size_ = 764 - valid_offset - 128 - 4;
     if (random1_size_ > 0) {
         random1_ = new char[random1_size_];
-        rand_.gen_bytes(random1_, random1_size_);
+        rand_->gen_bytes(random1_, random1_size_);
         snprintf(random1_, random1_size_, "%s", RTMP_SIG_SRS_HANDSHAKE);
     }
-}
-
-SrsKeyBlock::~SrsKeyBlock()
-{
-    srs_freepa(random0_);
-    srs_freepa(random1_);
 }
 
 srs_error_t SrsKeyBlock::parse(SrsBuffer *stream)
@@ -416,10 +425,25 @@ int SrsKeyBlock::calc_valid_offset()
 
 SrsDigestBlock::SrsDigestBlock()
 {
-    SrsRand rand;
-    offset_ = (int32_t)rand.integer();
+    rand_ = new SrsRand();
+
+    offset_ = 0;
     random0_ = NULL;
+    random0_size_ = 0;
     random1_ = NULL;
+    random1_size_ = 0;
+}
+
+SrsDigestBlock::~SrsDigestBlock()
+{
+    srs_freepa(random0_);
+    srs_freepa(random1_);
+    srs_freep(rand_);
+}
+
+void SrsDigestBlock::assemble()
+{
+    offset_ = (int32_t)rand_->integer();
 
     int valid_offset = calc_valid_offset();
     srs_assert(valid_offset >= 0);
@@ -427,24 +451,18 @@ SrsDigestBlock::SrsDigestBlock()
     random0_size_ = valid_offset;
     if (random0_size_ > 0) {
         random0_ = new char[random0_size_];
-        rand_.gen_bytes(random0_, random0_size_);
+        rand_->gen_bytes(random0_, random0_size_);
         snprintf(random0_, random0_size_, "%s", RTMP_SIG_SRS_HANDSHAKE);
     }
 
-    rand_.gen_bytes(digest_, sizeof(digest_));
+    rand_->gen_bytes(digest_, sizeof(digest_));
 
     random1_size_ = 764 - 4 - valid_offset - 32;
     if (random1_size_ > 0) {
         random1_ = new char[random1_size_];
-        rand_.gen_bytes(random1_, random1_size_);
+        rand_->gen_bytes(random1_, random1_size_);
         snprintf(random1_, random1_size_, "%s", RTMP_SIG_SRS_HANDSHAKE);
     }
-}
-
-SrsDigestBlock::~SrsDigestBlock()
-{
-    srs_freepa(random0_);
-    srs_freepa(random1_);
 }
 
 srs_error_t SrsDigestBlock::parse(SrsBuffer *stream)
@@ -498,6 +516,12 @@ SrsC1S1Strategy::SrsC1S1Strategy()
 
 SrsC1S1Strategy::~SrsC1S1Strategy()
 {
+}
+
+void SrsC1S1Strategy::assemble()
+{
+    key_.assemble();
+    digest_.assemble();
 }
 
 char *SrsC1S1Strategy::get_digest()
@@ -887,6 +911,7 @@ srs_error_t SrsC1S1::parse(char *c1s1, int size, srs_schema_type schema)
     } else {
         payload_ = new SrsC1S1StrategySchema1();
     }
+    payload_->assemble();
 
     return payload_->parse(c1s1, size);
 }
@@ -908,6 +933,7 @@ srs_error_t SrsC1S1::c1_create(srs_schema_type schema)
     } else {
         payload_ = new SrsC1S1StrategySchema1();
     }
+    payload_->assemble();
 
     return payload_->c1_create(this);
 }
@@ -934,6 +960,7 @@ srs_error_t SrsC1S1::s1_create(SrsC1S1 *c1)
     } else {
         payload_ = new SrsC1S1StrategySchema1();
     }
+    payload_->assemble();
 
     return payload_->s1_create(this, c1);
 }
@@ -947,17 +974,26 @@ srs_error_t SrsC1S1::s1_validate_digest(bool &is_valid)
 
 SrsC2S2::SrsC2S2()
 {
-    rand_.gen_bytes(random_, 1504);
+    rand_ = new SrsRand();
+
+    memset(random_, 0, sizeof(random_));
+    memset(digest_, 0, sizeof(digest_));
+}
+
+SrsC2S2::~SrsC2S2()
+{
+    srs_freep(rand_);
+}
+
+void SrsC2S2::assemble()
+{
+    rand_->gen_bytes(random_, 1504);
 
     int size = snprintf(random_, 1504, "%s", RTMP_SIG_SRS_HANDSHAKE);
     srs_assert(size > 0 && size < 1504);
     snprintf(random_ + 1504 - size, size, "%s", RTMP_SIG_SRS_HANDSHAKE);
 
-    rand_.gen_bytes(digest_, 32);
-}
-
-SrsC2S2::~SrsC2S2()
-{
+    rand_->gen_bytes(digest_, 32);
 }
 
 srs_error_t SrsC2S2::dump(char *_c2s2, int size)
@@ -1192,6 +1228,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
     }
 
     SrsC2S2 s2;
+    s2.assemble();
     if ((err = s2.s2_create(&c1)) != srs_success) {
         return srs_error_wrap(err, "create s2 from c1");
     }
@@ -1220,6 +1257,7 @@ srs_error_t SrsComplexHandshake::handshake_with_client(SrsHandshakeBytes *hs_byt
         return srs_error_wrap(err, "read c2");
     }
     SrsC2S2 c2;
+    c2.assemble();
     if ((err = c2.parse(hs_bytes->c2_, 1536)) != srs_success) {
         return srs_error_wrap(err, "parse c2");
     }
@@ -1291,6 +1329,7 @@ srs_error_t SrsComplexHandshake::handshake_with_server(SrsHandshakeBytes *hs_byt
     }
 
     SrsC2S2 c2;
+    c2.assemble();
     if ((err = c2.c2_create(&s1)) != srs_success) {
         return srs_error_wrap(err, "create c2");
     }

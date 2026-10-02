@@ -13,6 +13,9 @@
 
 #include <string>
 
+class ISrsSrtEventLoop;
+class ISrsAppFactory;
+
 // The srt connection handler.
 class ISrsSrtHandler
 {
@@ -52,6 +55,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSrtHandler *handler_;
     std::string ip_;
     int port_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // The SRT event loop, whose poller the listening socket attaches to.
+    ISrsSrtEventLoop *srt_eventloop_;
+    ISrsAppFactory *app_factory_;
 
 public:
     SrsSrtListener(ISrsSrtHandler *h, std::string i, int p);

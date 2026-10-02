@@ -18,6 +18,7 @@
 
 class ISrsResource;
 class ISrsCond;
+class ISrsKernelFactory;
 
 // Hooks for connection manager, to handle the event when disposing connections.
 class ISrsDisposingHandler
@@ -133,6 +134,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCoroutine *trd_;
     ISrsCond *cond_;
+    ISrsKernelFactory *factory_;
     // Callback handlers.
     std::vector<ISrsDisposingHandler *> handlers_;
     // Unsubscribing handlers, skip it for notifying.
@@ -161,6 +163,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     SrsResourceManager(const std::string &label, bool verbose = false);
     virtual ~SrsResourceManager();
+
+public:
+    void assemble(); // Construct object, to avoid call function in constructor.
 
 public:
     srs_error_t start();

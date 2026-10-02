@@ -16,6 +16,7 @@ using namespace std;
 #include <srs_app_rtc_network.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_kbps.hpp>
+#include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_ps.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
@@ -39,10 +40,16 @@ MockGbMuxer::MockGbMuxer()
     setup_output_ = "";
     on_ts_message_called_ = false;
     on_ts_message_error_ = srs_success;
+    assemble_count_ = 0;
 }
 
 MockGbMuxer::~MockGbMuxer()
 {
+}
+
+void MockGbMuxer::assemble()
+{
+    assemble_count_++;
 }
 
 void MockGbMuxer::setup(std::string output)
@@ -115,6 +122,7 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
 
     // Create session
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     // Inject mock dependencies
     session->config_ = mock_config.get();
@@ -185,6 +193,7 @@ VOID TEST(GB28181Test, SessionOnPsPack)
 
     // Create session
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     // Inject mock dependencies
     session->config_ = mock_config.get();
@@ -286,12 +295,18 @@ VOID TEST(GB28181Test, SessionOnPsPack)
 // Mock ISrsGbMediaTcpConn implementation
 MockGbMediaTcpConn::MockGbMediaTcpConn()
 {
+    assemble_count_ = 0;
     set_cid_called_ = false;
     is_connected_ = false;
 }
 
 MockGbMediaTcpConn::~MockGbMediaTcpConn()
 {
+}
+
+void MockGbMediaTcpConn::assemble()
+{
+    assemble_count_++;
 }
 
 void MockGbMediaTcpConn::setup(srs_netfd_t stfd)
@@ -354,6 +369,7 @@ VOID TEST(GB28181Test, SessionOnMediaTransport)
 
     // Create session
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     // Inject mock dependencies
     session->config_ = mock_config.get();
@@ -391,6 +407,7 @@ VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
     SrsUniquePtr<MockAppConfigForGbSession> mock_config(new MockAppConfigForGbSession());
     MockGbMuxer *mock_muxer = new MockGbMuxer();
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     session->config_ = mock_config.get();
     session->muxer_ = mock_muxer;
@@ -420,6 +437,7 @@ VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
 VOID TEST(GB28181Test, SessionOnMediaDisconnected)
 {
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
     SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
 
     MockGbMediaTcpConn *current = new MockGbMediaTcpConn();
@@ -452,6 +470,7 @@ VOID TEST(GB28181Test, SessionDriveState)
 
     // Create session
     SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
 
     // Inject mock dependencies
     session->config_ = mock_config.get();
@@ -568,7 +587,7 @@ VOID TEST(GB28181Test, ListenerInitialize)
     mock_config->stream_caster_listen_port_ = 9000;
 
     // Create listener
-    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener());
+    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener(NULL));
 
     // Inject mock dependencies
     listener->config_ = mock_config.get();
@@ -707,7 +726,7 @@ VOID TEST(GB28181Test, ListenerListen)
     mock_api_owner->mux_ = mock_mux.get();
 
     // Create listener
-    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener());
+    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener(NULL));
 
     // Inject mock dependencies
     listener->media_listener_ = mock_media_listener;
@@ -733,6 +752,58 @@ VOID TEST(GB28181Test, ListenerListen)
     // Clean up - set to NULL to avoid double-free
     listener->media_listener_ = NULL;
     srs_freep(mock_media_listener);
+}
+
+VOID TEST(GB28181Test, GlobalResourceManagerIsAssembled)
+{
+    ASSERT_TRUE(_srs_gb_manager != NULL);
+
+    EXPECT_TRUE(_srs_kernel_factory == _srs_gb_manager->factory_);
+    EXPECT_TRUE(NULL != _srs_gb_manager->cond_);
+}
+
+// The listener keeps the API server owner it is constructed with.
+VOID TEST(GB28181Test, ListenerConstructionCapturesApiServerOwner)
+{
+    MockApiServerOwnerForGbListener owner;
+    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener(&owner));
+
+    EXPECT_TRUE(listener->api_server_owner_ == &owner);
+}
+
+// initialize() keeps the injected owner instead of looking up the global server, so listen()
+// registers the GB publish API on the owner's mux.
+VOID TEST(GB28181Test, ListenerInitializeKeepsApiServerOwnerForListen)
+{
+    srs_error_t err;
+
+    MockAppConfigForGbListener config;
+    config.stream_caster_listen_port_ = 9000;
+    MockHttpServeMuxForGbListener mux;
+    MockApiServerOwnerForGbListener owner;
+    owner.mux_ = &mux;
+    MockIpListenerForGbListen *media_listener = new MockIpListenerForGbListen();
+
+    SrsUniquePtr<SrsGbListener> listener(new SrsGbListener(&owner));
+    listener->config_ = &config;
+    srs_freep(listener->media_listener_);
+    listener->media_listener_ = media_listener;
+
+    SrsUniquePtr<SrsConfDirective> conf(new SrsConfDirective());
+    conf->name_ = "stream_caster";
+    conf->args_.push_back("gb28181");
+
+    HELPER_EXPECT_SUCCESS(listener->initialize(conf.get()));
+    // Stop if the owner was replaced, so listen() never registers on the real server's mux.
+    ASSERT_TRUE(listener->api_server_owner_ == &owner);
+
+    HELPER_EXPECT_SUCCESS(listener->listen());
+    EXPECT_TRUE(media_listener->listen_called_);
+    EXPECT_TRUE(mux.handle_called_);
+    EXPECT_STREQ("/gb/v1/publish/", mux.handle_pattern_.c_str());
+
+    srs_freep(mux.handle_handler_);
+    listener->config_ = NULL;
 }
 
 // Mock ISrsInterruptable for testing SrsGbMediaTcpConn::setup_owner
@@ -788,6 +859,147 @@ public:
     }
 };
 
+// The constructor only captures the context global; it reads no context id, so a test can
+// inject the context before assemble() runs.
+VOID TEST(GbMediaTcpConnTest, ConstructorCapturesContextWithoutReadingId)
+{
+    SrsUniquePtr<SrsGbMediaTcpConn> conn(new SrsGbMediaTcpConn());
+
+    EXPECT_TRUE(conn->context_ == _srs_context);
+    EXPECT_TRUE(conn->cid_.empty());
+}
+
+// assemble() takes the connection's id from the injected context.
+VOID TEST(GbMediaTcpConnTest, AssembleReadsIdThroughContext)
+{
+    SrsUniquePtr<SrsGbMediaTcpConn> conn(new SrsGbMediaTcpConn());
+
+    MockContextForRtmpConn context;
+    context.id_.set_value("gb-media-cid");
+    conn->context_ = &context;
+    conn->assemble();
+
+    EXPECT_STREQ("gb-media-cid", conn->get_id().c_str());
+
+    conn->context_ = NULL;
+}
+
+// The factory returns an assembled connection, which carries the id of the accepting coroutine.
+VOID TEST(GbMediaTcpConnTest, FactoryCreatesAssembledConn)
+{
+    SrsContextId before = _srs_context->get_id();
+    SrsContextId cid;
+    _srs_context->set_id(cid.set_value("gb-accept-cid"));
+
+    SrsAppFactory factory;
+    ISrsGbMediaTcpConn *conn = factory.create_gb_media_tcp_conn();
+    EXPECT_STREQ("gb-accept-cid", conn->get_id().c_str());
+    srs_freep(conn);
+
+    _srs_context->set_id(before);
+}
+
+// The constructor only captures the context global; it neither switches the coroutine's id,
+// nor stamps the start time, nor assembles its media placeholder, so a test can inject first.
+VOID TEST(GbSessionTest, ConstructorCapturesContextWithoutWork)
+{
+    std::string before = _srs_context->get_id().c_str();
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    EXPECT_STREQ(before.c_str(), _srs_context->get_id().c_str());
+    EXPECT_TRUE(session->context_ == _srs_context);
+    EXPECT_TRUE(session->cid_.empty());
+    EXPECT_EQ(0, session->startime_);
+    EXPECT_TRUE(session->media_->get_id().empty());
+}
+
+// assemble() switches to a new session id through the injected context, and stamps the start times.
+VOID TEST(GbSessionTest, AssembleSetsNewIdThroughContext)
+{
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    MockContextForRtmpConn context;
+    context.id_.set_value("gb-session-cid");
+    session->context_ = &context;
+    session->assemble();
+
+    EXPECT_EQ(1, context.generate_id_count_);
+    EXPECT_EQ(1, context.set_id_count_);
+    EXPECT_STREQ("gb-session-cid", session->get_id().c_str());
+    EXPECT_GT(session->startime_, 0);
+    EXPECT_EQ(session->startime_, session->connecting_starttime_);
+    EXPECT_EQ(session->startime_, session->media_starttime_);
+
+    session->context_ = NULL;
+}
+
+// The session assembles its placeholder media connection before it switches to its own id,
+// so the placeholder carries the id of the creating coroutine.
+VOID TEST(GbSessionTest, AssembleAssemblesMediaWithCreatorId)
+{
+    SrsContextId before = _srs_context->get_id();
+    SrsContextId cid;
+    _srs_context->set_id(cid.set_value("gb-creator-cid"));
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
+    EXPECT_STREQ("gb-creator-cid", session->media_->get_id().c_str());
+    EXPECT_STRNE("gb-creator-cid", session->get_id().c_str());
+    EXPECT_STREQ(session->get_id().c_str(), _srs_context->get_id().c_str());
+
+    _srs_context->set_id(before);
+}
+
+// The factory returns an assembled session, which has switched the creating coroutine to its id.
+VOID TEST(GbSessionTest, FactoryCreatesAssembledSession)
+{
+    SrsContextId before = _srs_context->get_id();
+
+    SrsAppFactory factory;
+    ISrsGbSession *session = factory.create_gb_session();
+    EXPECT_FALSE(session->get_id().empty());
+    EXPECT_STREQ(session->get_id().c_str(), _srs_context->get_id().c_str());
+    srs_freep(session);
+
+    _srs_context->set_id(before);
+}
+
+// The session's assemble() assembles the injected muxer.
+VOID TEST(GbSessionTest, AssembleAssemblesMuxer)
+{
+    SrsContextId before = _srs_context->get_id();
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    MockGbMuxer *mock_muxer = new MockGbMuxer();
+    srs_freep(session->muxer_);
+    session->muxer_ = mock_muxer;
+
+    session->assemble();
+
+    EXPECT_EQ(1, mock_muxer->assemble_count_);
+
+    _srs_context->set_id(before);
+}
+
+// The factory is the production construction site: the session it returns has a
+// muxer with its pithy print created.
+VOID TEST(GbSessionTest, FactoryCreatesSessionWithAssembledMuxer)
+{
+    SrsContextId before = _srs_context->get_id();
+
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsGbSession> isession(factory.create_gb_session());
+
+    SrsGbSession *session = dynamic_cast<SrsGbSession *>(isession.get());
+    ASSERT_TRUE(session != NULL);
+    SrsGbMuxer *muxer = dynamic_cast<SrsGbMuxer *>(session->muxer_);
+    ASSERT_TRUE(muxer != NULL);
+    EXPECT_TRUE(muxer->pprint_ != NULL);
+
+    _srs_context->set_id(before);
+}
+
 // Test SrsGbMediaTcpConn::setup_owner, on_executor_done, is_connected, set_cid, get_id, desc
 // This test covers the major use scenario:
 // 1. Create SrsGbMediaTcpConn and setup owner with wrapper, coroutine, and cid setter
@@ -804,6 +1016,7 @@ VOID TEST(GbMediaTcpConnTest, SetupOwnerAndLifecycle)
 
     // Create SrsGbMediaTcpConn - wrapper will own it
     SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
 
     // Create a wrapper that owns the conn
     SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
@@ -917,6 +1130,7 @@ VOID TEST(GbMediaTcpConnTest, OnPsPack)
 
     // Create SrsGbMediaTcpConn - wrapper will own it
     SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
 
     // Create a wrapper that owns the conn
     SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
@@ -987,6 +1201,7 @@ VOID TEST(GbMediaTcpConnTest, BindSession)
 
     // Create SrsGbMediaTcpConn - wrapper will own it
     SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
     SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
 
     // Inject mock dependencies
@@ -1688,6 +1903,32 @@ void MockPsPackHandler::reset()
     srs_freep(on_ps_pack_error_);
 }
 
+// The constructor does not create the pithy print, which would enter the caster
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(GbMuxerTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+
+    EXPECT_TRUE(muxer->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the caster stage.
+VOID TEST(GbMuxerTest, AssembleCreatesCasterPithyPrint)
+{
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    srs_freep(muxer->pprint_);
+
+    muxer->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(muxer->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_caster());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
 // Test SrsGbMuxer::on_ts_message - covers the major use scenario:
 // 1. Process audio TS message with AAC ADTS data
 // 2. Connect to RTMP server on first message
@@ -2376,7 +2617,7 @@ VOID TEST(GB28181Test, GoApiGbPublishSuccess)
     srs_freep(conf);
 }
 
-MockGbListenerForServer::MockGbListenerForServer()
+MockGbListenerForServer::MockGbListenerForServer() : SrsGbListener(NULL)
 {
     initialize_count_ = 0;
     initialize_conf_ = NULL;
@@ -2447,6 +2688,16 @@ VOID TEST(ServerTest, DisposeClosesInjectedGbStreamCaster)
     EXPECT_EQ(1, gb.close_count_);
 
     server->stream_caster_gb28181_ = dynamic_cast<SrsGbListener *>(original);
+}
+
+VOID TEST(ServerTest, ConstructionPassesItselfToGbStreamCaster)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    // The GB caster registers its API on this server's mux, not on the global server's.
+    SrsGbListener *gb = dynamic_cast<SrsGbListener *>(server->stream_caster_gb28181_);
+    ASSERT_TRUE(gb != NULL);
+    EXPECT_TRUE(gb->api_server_owner_ == static_cast<ISrsApiServerOwner *>(server.get()));
 }
 #endif
 

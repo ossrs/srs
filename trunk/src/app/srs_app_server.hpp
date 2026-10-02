@@ -25,18 +25,18 @@
 #include <srs_protocol_st.hpp>
 
 class SrsAsyncCallWorker;
-class SrsUdpMuxListener;
+class ISrsUdpMuxListener;
 class SrsUdpMuxSocket;
 class SrsRtcUserConfig;
 class SrsSdp;
 class SrsRtcConnection;
 class ISrsAsyncCallTask;
-class SrsSignalManager;
+class ISrsSignalManager;
 class SrsServer;
 class ISrsCommonHttpHandler;
-class SrsHttpServer;
-class SrsIngester;
-class SrsHttpHeartbeat;
+class ISrsHttpServer;
+class ISrsIngester;
+class ISrsHttpHeartbeat;
 class SrsKbps;
 class SrsConfDirective;
 class ISrsTcpHandler;
@@ -54,10 +54,11 @@ class ISrsUdpCasterListener;
 class ISrsGbListener;
 class SrsRtmpTransport;
 class SrsRtmpsTransport;
-class SrsSrtAcceptor;
+class ISrsSrtAcceptor;
 class SrsSrtEventLoop;
-class SrsRtcSessionManager;
-class SrsPidFileLocker;
+class ISrsRtcSessionManager;
+class ISrsPidFileLocker;
+class ISrsCoWorkers;
 class ISrsAppConfig;
 class ISrsLiveSourceManager;
 class ISrsResourceManager;
@@ -73,6 +74,7 @@ class ISrsHourGlass;
 class ISrsAppFactory;
 class ISrsUdpMuxSocket;
 class ISrsRtcBlackhole;
+class ISrsSrtEventLoop;
 class ISrsRtcConnection;
 class ISrsReloadStatus;
 class SrsReloadStatus;
@@ -150,22 +152,24 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *app_factory_;
     ISrsReloadStatus *reload_status_;
     ISrsRtcBlackhole *blackhole_;
+    ISrsSrtEventLoop *srt_eventloop_;
+    ISrsCoWorkers *coworkers_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsCommonHttpHandler *http_api_mux_;
-    SrsHttpServer *http_server_;
+    ISrsHttpServer *http_server_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsHttpHeartbeat *http_heartbeat_;
-    SrsIngester *ingester_;
+    ISrsHttpHeartbeat *http_heartbeat_;
+    ISrsIngester *ingester_;
     ISrsHourGlass *timer_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // PID file manager for process identification and locking.
-    SrsPidFileLocker *pid_file_locker_;
+    ISrsPidFileLocker *pid_file_locker_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -208,21 +212,21 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // SRT acceptors for MPEG-TS over SRT.
-    std::vector<SrsSrtAcceptor *>
+    std::vector<ISrsSrtAcceptor *>
         srt_acceptors_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // WebRTC UDP listeners for RTC server functionality.
-    std::vector<SrsUdpMuxListener *>
+    std::vector<ISrsUdpMuxListener *>
         rtc_listeners_;
     // WebRTC session manager.
-    SrsRtcSessionManager *rtc_session_manager_;
+    ISrsRtcSessionManager *rtc_session_manager_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // Signal manager which convert gignal to io message.
-    SrsSignalManager *signal_manager_;
+    ISrsSignalManager *signal_manager_;
     // To query the latest available version of SRS.
     SrsLatestVersion *latest_version_;
     // User send the signal, convert to variable.
@@ -361,9 +365,22 @@ public:
 // @global main SRS server, for debugging
 extern SrsServer *_srs_server;
 
+// The signal manager interface.
+class ISrsSignalManager
+{
+public:
+    ISrsSignalManager();
+    virtual ~ISrsSignalManager();
+
+public:
+    virtual void assemble() = 0;
+    virtual srs_error_t initialize() = 0;
+    virtual srs_error_t start() = 0;
+};
+
 // Convert signal to io,
 // @see: st-1.9/docs/notes.html
-class SrsSignalManager : public ISrsCoroutineHandler
+class SrsSignalManager : public ISrsSignalManager, public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -377,8 +394,14 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsSignalHandler *server_;
     ISrsCoroutine *trd_;
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsAppFactory *app_factory_;
+    ISrsContext *context_;
+
 public:
     SrsSignalManager(ISrsSignalHandler *s);
+    virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsSignalManager();
 
 public:
@@ -422,8 +445,19 @@ public:
     virtual srs_error_t cycle();
 };
 
+// The PID file locker interface.
+class ISrsPidFileLocker
+{
+public:
+    ISrsPidFileLocker();
+    virtual ~ISrsPidFileLocker();
+
+public:
+    virtual srs_error_t acquire() = 0;
+};
+
 // PID file manager for process identification and locking.
-class SrsPidFileLocker
+class SrsPidFileLocker : public ISrsPidFileLocker
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

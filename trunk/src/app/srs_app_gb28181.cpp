@@ -76,9 +76,8 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     reinviting_starttime_ = 0;
 
     ppp_ = new SrsAlonePithyPrint();
-    ppp_->assemble();
-    startime_ = srs_time_now_realtime();
-    connecting_starttime_ = startime_;
+    startime_ = 0;
+    connecting_starttime_ = 0;
     media_connect_timeout_ = 0;
     total_packs_ = 0;
     total_msgs_ = 0;
@@ -89,15 +88,27 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     media_id_ = 0;
     media_msgs_ = 0;
     media_packs_ = 0;
-    media_starttime_ = startime_;
+    media_starttime_ = 0;
     media_recovered_ = 0;
     media_msgs_dropped_ = 0;
     media_reserved_ = 0;
 
-    cid_ = _srs_context->generate_id();
-    _srs_context->set_id(cid_); // Also change current coroutine cid as session's.
-
     config_ = _srs_config;
+    context_ = _srs_context;
+}
+
+void SrsGbSession::assemble()
+{
+    media_->assemble();
+    muxer_->assemble();
+
+    ppp_->assemble();
+    startime_ = srs_time_now_realtime();
+    connecting_starttime_ = startime_;
+    media_starttime_ = startime_;
+
+    cid_ = context_->generate_id();
+    context_->set_id(cid_); // Also change current coroutine cid as session's.
 }
 
 SrsGbSession::~SrsGbSession()
@@ -106,6 +117,7 @@ SrsGbSession::~SrsGbSession()
     srs_freep(ppp_);
 
     config_ = NULL;
+    context_ = NULL;
 }
 
 void SrsGbSession::setup(SrsConfDirective *conf)
@@ -346,13 +358,13 @@ ISrsGbListener::~ISrsGbListener()
 {
 }
 
-SrsGbListener::SrsGbListener()
+SrsGbListener::SrsGbListener(ISrsApiServerOwner *owner)
 {
     conf_ = NULL;
     media_listener_ = new SrsTcpListener(this);
 
     config_ = _srs_config;
-    api_server_owner_ = NULL;
+    api_server_owner_ = owner;
     gb_manager_ = _srs_gb_manager;
     app_factory_ = _srs_app_factory;
 }
@@ -371,12 +383,6 @@ SrsGbListener::~SrsGbListener()
 srs_error_t SrsGbListener::initialize(SrsConfDirective *conf)
 {
     srs_error_t err = srs_success;
-
-    // We should initialize the owner in initialize, because the SRS server
-    // is not ready in the constructor.
-    if (!api_server_owner_) {
-        api_server_owner_ = _srs_server;
-    }
 
     srs_freep(conf_);
     conf_ = conf->copy();
@@ -440,6 +446,7 @@ srs_error_t SrsGbListener::on_tcp_client(ISrsListener *listener, srs_netfd_t stf
         gb_manager_->add(conn, NULL);
 
         SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(gb_manager_, conn, raw_conn, raw_conn);
+        executor->assemble();
         raw_conn->setup_owner(conn, executor, executor);
 
         if ((err = executor->start()) != srs_success) {
@@ -480,13 +487,18 @@ SrsGbMediaTcpConn::SrsGbMediaTcpConn()
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
-    cid_ = _srs_context->get_id();
 
     session_ = NULL;
     connected_ = false;
     nn_rtcp_ = 0;
 
     gb_manager_ = _srs_gb_manager;
+    context_ = _srs_context;
+}
+
+void SrsGbMediaTcpConn::assemble()
+{
+    cid_ = context_->get_id();
 }
 
 SrsGbMediaTcpConn::~SrsGbMediaTcpConn()
@@ -496,6 +508,7 @@ SrsGbMediaTcpConn::~SrsGbMediaTcpConn()
     srs_freep(pack_);
 
     gb_manager_ = NULL;
+    context_ = NULL;
 }
 
 void SrsGbMediaTcpConn::setup(srs_netfd_t stfd)
@@ -848,7 +861,7 @@ SrsGbMuxer::SrsGbMuxer(ISrsGbSession *session)
     aac_ = new SrsRawAacStream();
 
     queue_ = new SrsMpegpsQueue();
-    pprint_ = SrsPithyPrint::create_caster();
+    pprint_ = NULL;
 
     app_factory_ = _srs_app_factory;
 }
@@ -864,6 +877,11 @@ SrsGbMuxer::~SrsGbMuxer()
     srs_freep(pprint_);
 
     app_factory_ = NULL;
+}
+
+void SrsGbMuxer::assemble()
+{
+    pprint_ = SrsPithyPrint::create_caster();
 }
 
 void SrsGbMuxer::setup(std::string output)
@@ -1789,6 +1807,7 @@ srs_error_t SrsGoApiGbPublish::bind_session(std::string id, uint64_t ssrc)
     gb_manager_->add_with_fast_id(ssrc, session);
 
     SrsExecutorCoroutine *executor = new SrsExecutorCoroutine(gb_manager_, session, raw_session, raw_session);
+    executor->assemble();
     raw_session->setup_owner(session, executor, executor);
     raw_session->device_id_ = id;
 

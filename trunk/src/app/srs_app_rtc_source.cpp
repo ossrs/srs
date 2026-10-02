@@ -269,14 +269,22 @@ ISrsRtcSourceManager::~ISrsRtcSourceManager()
 SrsRtcSourceManager::SrsRtcSourceManager()
 {
     lock_ = srs_mutex_new();
-    timer_ = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
-    timer_->assemble();
+    timer_ = NULL;
+
+    app_factory_ = _srs_app_factory;
+}
+
+void SrsRtcSourceManager::assemble()
+{
+    timer_ = app_factory_->create_hourglass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsRtcSourceManager::~SrsRtcSourceManager()
 {
     srs_mutex_destroy(lock_);
     srs_freep(timer_);
+
+    app_factory_ = NULL;
 }
 
 srs_error_t SrsRtcSourceManager::initialize()
@@ -342,6 +350,7 @@ srs_error_t SrsRtcSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<Sr
             pps = source;
         } else {
             SrsSharedPtr<SrsRtcSource> source = SrsSharedPtr<SrsRtcSource>(new SrsRtcSource());
+            source->assemble();
             srs_trace("new rtc source, stream_url=%s, dead=%d", stream_url.c_str(), source->stream_is_dead());
             pps = source;
 
@@ -408,15 +417,22 @@ SrsRtcSource::SrsRtcSource()
     config_ = _srs_config;
     stat_ = _srs_stat;
     shared_timer_ = _srs_shared_timer;
-    ssrc_generator_ = SrsRtcSSRCGenerator::instance();
+    ssrc_generator_ = _srs_rtc_ssrc_generator;
 
     pli_for_rtmp_ = pli_elapsed_ = 0;
+    stream_die_at_ = 0;
+
+    app_factory_ = _srs_app_factory;
+    clk_ = _srs_clock;
+    rand_ = new SrsRand();
+}
+
+void SrsRtcSource::assemble()
+{
     // Initialize stream_die_at_ to current time to prevent newly created sources
     // from being immediately considered dead by stream_is_dead() check.
     // @see https://github.com/ossrs/srs/issues/4449
-    stream_die_at_ = srs_time_now_cached();
-
-    app_factory_ = _srs_app_factory;
+    stream_die_at_ = clk_->now();
 }
 
 SrsRtcSource::~SrsRtcSource()
@@ -428,6 +444,7 @@ SrsRtcSource::~SrsRtcSource()
     srs_freep(rtc_bridge_);
     srs_freep(req_);
     srs_freep(stream_desc_);
+    srs_freep(rand_);
 
     SrsContextId cid = _source_id;
     if (cid.empty())
@@ -440,6 +457,7 @@ SrsRtcSource::~SrsRtcSource()
     stat_ = NULL;
     shared_timer_ = NULL;
     ssrc_generator_ = NULL;
+    clk_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -481,7 +499,7 @@ bool SrsRtcSource::stream_is_dead()
     }
 
     // Delay cleanup source.
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_RTC_SOURCE_CLEANUP) {
         return false;
     }
@@ -505,15 +523,13 @@ void SrsRtcSource::init_for_play_before_publishing()
 
     SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
 
-    SrsRand rand;
-
     // audio track description
     if (true) {
         SrsRtcTrackDescription *audio_track_desc = new SrsRtcTrackDescription();
         stream_desc->audio_track_desc_ = audio_track_desc;
 
         audio_track_desc->type_ = "audio";
-        audio_track_desc->id_ = "audio-" + rand.gen_str(8);
+        audio_track_desc->id_ = "audio-" + rand_->gen_str(8);
 
         uint32_t audio_ssrc = ssrc_generator_->generate_ssrc();
         audio_track_desc->ssrc_ = audio_ssrc;
@@ -530,7 +546,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         stream_desc->video_track_descs_.push_back(h264_track_desc);
 
         h264_track_desc->type_ = "video";
-        h264_track_desc->id_ = "video-h264-" + rand.gen_str(8);
+        h264_track_desc->id_ = "video-h264-" + rand_->gen_str(8);
 
         uint32_t h264_ssrc = ssrc_generator_->generate_ssrc();
         h264_track_desc->ssrc_ = h264_ssrc;
@@ -548,7 +564,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         stream_desc->video_track_descs_.push_back(h265_track_desc);
 
         h265_track_desc->type_ = "video";
-        h265_track_desc->id_ = "video-h265-" + rand.gen_str(8);
+        h265_track_desc->id_ = "video-h265-" + rand_->gen_str(8);
 
         uint32_t h265_ssrc = ssrc_generator_->generate_ssrc();
         h265_track_desc->ssrc_ = h265_ssrc;
@@ -567,7 +583,7 @@ void SrsRtcSource::init_for_play_before_publishing()
         stream_desc->video_track_descs_.push_back(av1_track_desc);
 
         av1_track_desc->type_ = "video";
-        av1_track_desc->id_ = "video-av1-" + rand.gen_str(8);
+        av1_track_desc->id_ = "video-av1-" + rand_->gen_str(8);
 
         uint32_t av1_ssrc = ssrc_generator_->generate_ssrc();
         av1_track_desc->ssrc_ = av1_ssrc;
@@ -675,7 +691,7 @@ void SrsRtcSource::on_consumer_destroy(ISrsRtcConsumer *consumer)
 
     // Destroy and cleanup source when no publishers and consumers.
     if (!is_created_ && consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 }
 
@@ -784,7 +800,7 @@ void SrsRtcSource::on_unpublish()
 
     // Destroy and cleanup source when no publishers and consumers.
     if (consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 
     // Should never change the final state before all cleanup is done.
@@ -960,7 +976,7 @@ SrsRtcRtpBuilder::SrsRtcRtpBuilder(ISrsAppFactory *factory, ISrsRtpTarget *targe
 
     req_ = NULL;
     format_ = new SrsRtmpFormat();
-    codec_ = factory->create_audio_transcoder();
+    codec_ = NULL;
     latest_codec_ = SrsAudioCodecIdForbidden;
     keep_bframe_ = false;
     keep_avc_nalu_sei_ = true;
@@ -989,6 +1005,11 @@ SrsRtcRtpBuilder::~SrsRtcRtpBuilder()
 
     app_factory_ = NULL;
     config_ = NULL;
+}
+
+void SrsRtcRtpBuilder::assemble()
+{
+    codec_ = app_factory_->create_audio_transcoder();
 }
 
 srs_error_t SrsRtcRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
@@ -1873,6 +1894,7 @@ SrsRtcFrameBuilder::SrsRtcFrameBuilder(ISrsAppFactory *factory, ISrsFrameTarget 
     obs_whip_vps_ = obs_whip_sps_ = obs_whip_pps_ = NULL;
 
     app_factory_ = factory;
+    config_ = _srs_config;
 }
 
 SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
@@ -1886,6 +1908,7 @@ SrsRtcFrameBuilder::~SrsRtcFrameBuilder()
     srs_freep(obs_whip_pps_);
 
     app_factory_ = NULL;
+    config_ = NULL;
 }
 
 srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio_codec, SrsVideoCodecId video_codec)
@@ -1898,7 +1921,7 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     SrsAudioCodecId to = SrsAudioCodecIdAAC;                   // The output audio codec.
     int channels = 2;                                          // The output audio channels.
     int sample_rate = 48000;                                   // The output audio sample rate in HZ.
-    int bitrate = _srs_config->get_rtc_aac_bitrate(r->vhost_); // The output audio bitrate in bps.
+    int bitrate = config_->get_rtc_aac_bitrate(r->vhost_);     // The output audio bitrate in bps.
 
     // TODO: FIXME:
     // In the future, when we support enhanced-RTMP with Opus format,
@@ -3266,6 +3289,8 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDes
     }
 
     last_sender_report_sys_time_ = 0;
+
+    circuit_breaker_ = _srs_circuit_breaker;
 }
 
 SrsRtcRecvTrack::~SrsRtcRecvTrack()
@@ -3273,6 +3298,8 @@ SrsRtcRecvTrack::~SrsRtcRecvTrack()
     srs_freep(rtp_queue_);
     srs_freep(nack_receiver_);
     srs_freep(track_desc_);
+
+    circuit_breaker_ = NULL;
 }
 
 bool SrsRtcRecvTrack::has_ssrc(uint32_t ssrc)
@@ -3427,7 +3454,7 @@ srs_error_t SrsRtcRecvTrack::on_nack(SrsRtpPacket **ppkt)
 
         if (srs_rtp_seq_distance(nack_first, nack_last) > 0) {
             // If circuit-breaker is enabled, disable nack.
-            if (_srs_circuit_breaker->hybrid_high_water_level()) {
+            if (circuit_breaker_->hybrid_high_water_level()) {
                 ++_srs_pps_snack4->sugar_;
             } else {
                 srs_trace("NACK: update seq=%u, nack range [%u, %u]", seq, nack_first,
@@ -3668,9 +3695,14 @@ SrsRtcSendTrack::SrsRtcSendTrack(ISrsRtcPacketSender *sender, SrsRtcTrackDescrip
 
     nack_epp = new SrsErrorPithyPrint();
     
+    rtx_seq_ = 0;
+    rand_ = new SrsRand();
+}
+
+void SrsRtcSendTrack::assemble()
+{
     // The RTX sequence space starts at a random point, like a fresh RTP stream, RFC 3550 section 5.1.
-    SrsRand rand;
-    rtx_seq_ = (uint16_t)rand.integer();
+    rtx_seq_ = (uint16_t)rand_->integer();
 }
 
 SrsRtcSendTrack::~SrsRtcSendTrack()
@@ -3680,6 +3712,7 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
     srs_freep(nack_epp);
     srs_freep(jitter_ts_);
     srs_freep(jitter_seq_);
+    srs_freep(rand_);
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
@@ -3944,6 +3977,8 @@ srs_error_t SrsRtcVideoSendTrack::on_rtcp(SrsRtpPacket *pkt)
 }
 
 SrsRtcSSRCGenerator *SrsRtcSSRCGenerator::instance_ = NULL;
+
+SrsRtcSSRCGenerator *_srs_rtc_ssrc_generator = NULL;
 
 SrsRtcSSRCGenerator::SrsRtcSSRCGenerator()
 {

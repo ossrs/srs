@@ -1329,8 +1329,7 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 		logger.Tf(ctx, "ICE gather state %v", state)
 	})
 	pc.OnICECandidate(func(candidate *webrtc.ICECandidate) {
-		logger.Tf(ctx, "ICE candidate %v %v:%v", candidate.Protocol, candidate.Address, candidate.Port)
-
+		logICECandidate(ctx, candidate)
 	})
 	pc.OnICEConnectionStateChange(func(state webrtc.ICEConnectionState) {
 		logger.Tf(ctx, "ICE state %v", state)
@@ -2406,4 +2405,14 @@ func demuxRtpSpsPps(payload []byte) ([]byte, []*avc.NALU, error) {
 	}
 
 	return annexb, nalus, nil
+}
+
+// logICECandidate logs a gathered ICE candidate, or the end of gathering, which pion signals with
+// a nil candidate.
+func logICECandidate(ctx context.Context, candidate *webrtc.ICECandidate) {
+	if candidate == nil {
+		logger.Tf(ctx, "ICE gather done")
+		return
+	}
+	logger.Tf(ctx, "ICE candidate %v %v:%v", candidate.Protocol, candidate.Address, candidate.Port)
 }

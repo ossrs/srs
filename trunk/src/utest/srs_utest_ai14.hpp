@@ -15,6 +15,7 @@
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_app_encoder.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_forward.hpp>
 #include <srs_app_hds.hpp>
@@ -22,9 +23,14 @@
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_stream_token.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai11.hpp>
+
+#include <set>
+#include <string>
+#include <vector>
 #ifdef SRS_HDS
 #include <srs_app_hds.hpp>
 #endif
@@ -41,6 +47,11 @@ public:
 // Mock live source for testing message queue dump_packets
 class MockLiveSourceForQueue : public SrsLiveSource
 {
+public:
+    int initialize_count_;
+    // The error initialize returns a copy of, owned by the mock.
+    srs_error_t initialize_error_;
+
 public:
     MockLiveSourceForQueue();
     virtual ~MockLiveSourceForQueue();
@@ -83,6 +94,7 @@ public:
 class MockHlsForOriginHub : public ISrsHls
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     srs_error_t initialize_error_;
     srs_utime_t cleanup_delay_;
@@ -92,6 +104,7 @@ public:
 public:
     MockHlsForOriginHub();
     virtual ~MockHlsForOriginHub();
+    virtual void assemble();
     virtual srs_error_t initialize(ISrsOriginHub *h, ISrsRequest *r);
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
@@ -129,6 +142,7 @@ public:
 class MockDvrForOriginHub : public ISrsDvr
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     srs_error_t initialize_error_;
     int on_meta_data_count_;
@@ -145,6 +159,21 @@ public:
     virtual srs_error_t on_meta_data(SrsMediaPacket *metadata);
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio, SrsFormat *format);
     virtual srs_error_t on_video(SrsMediaPacket *shared_video, SrsFormat *format);
+};
+
+// Mock ISrsMediaEncoder for testing SrsOriginHub::assemble
+class MockMediaEncoderForOriginHub : public ISrsMediaEncoder
+{
+public:
+    int assemble_count_;
+
+public:
+    MockMediaEncoderForOriginHub();
+    virtual ~MockMediaEncoderForOriginHub();
+    virtual void assemble();
+    virtual srs_error_t on_publish(ISrsRequest *req);
+    virtual void on_unpublish();
+    virtual srs_error_t cycle();
 };
 
 // Mock ISrsForwarder for testing SrsOriginHub::on_meta_data
@@ -230,10 +259,12 @@ class MockNgExecForOriginHub : public ISrsNgExec
 {
 public:
     int on_publish_count_;
+    int assemble_count_;
 
 public:
     MockNgExecForOriginHub();
     virtual ~MockNgExecForOriginHub();
+    virtual void assemble();
     virtual srs_error_t on_publish(ISrsRequest *req);
     virtual void on_unpublish();
     virtual srs_error_t cycle();
@@ -297,11 +328,39 @@ class MockAppFactoryForSourceManager : public SrsAppFactory
 {
 public:
     int create_live_source_count_;
+    // Each created source's initialize fails with a copy of it, owned by the mock.
+    srs_error_t live_source_initialize_error_;
+    // The last source created, owned by the caller once returned.
+    MockLiveSourceForQueue *live_source_;
+    int create_hourglass_count_;
+    std::string hourglass_name_;
+    ISrsHourGlassHandler *hourglass_handler_;
+    srs_utime_t hourglass_interval_;
+    // The timer returned by create_hourglass, owned by the caller once returned.
+    MockHourGlassForSourceManager *hourglass_;
 
 public:
     MockAppFactoryForSourceManager();
     virtual ~MockAppFactoryForSourceManager();
     virtual SrsLiveSource *create_live_source();
+    virtual ISrsHourGlass *create_hourglass(const std::string &name, ISrsHourGlassHandler *handler, srs_utime_t interval);
+};
+
+// Mock ISrsStreamPublishTokenManager for testing SrsLiveSourceManager::notify
+class MockStreamPublishTokensForSourceManager : public ISrsStreamPublishTokenManager
+{
+public:
+    // The stream URLs reported as acquired.
+    std::set<std::string> acquired_urls_;
+    // Every stream URL asked by is_acquired, in order.
+    std::vector<std::string> is_acquired_urls_;
+
+public:
+    MockStreamPublishTokensForSourceManager();
+    virtual ~MockStreamPublishTokensForSourceManager();
+    virtual srs_error_t acquire_token(ISrsRequest *req, SrsStreamPublishToken *&token);
+    virtual void release_token(const std::string &stream_url);
+    virtual bool is_acquired(const std::string &stream_url);
 };
 
 // Mock ISrsAppFactory for testing SrsLiveSource::initialize

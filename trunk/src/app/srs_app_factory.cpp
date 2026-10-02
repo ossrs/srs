@@ -28,6 +28,7 @@
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_srt_listener.hpp>
+#include <srs_app_srt_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>
@@ -81,7 +82,9 @@ SrsPath *SrsAppFactory::create_path()
 
 SrsLiveSource *SrsAppFactory::create_live_source()
 {
-    return new SrsLiveSource();
+    SrsLiveSource *source = new SrsLiveSource();
+    source->assemble();
+    return source;
 }
 
 ISrsOriginHub *SrsAppFactory::create_origin_hub()
@@ -153,12 +156,16 @@ ISrsDvrSegmenter *SrsAppFactory::create_dvr_mp4_segmenter()
 #ifdef SRS_GB28181
 ISrsGbMediaTcpConn *SrsAppFactory::create_gb_media_tcp_conn()
 {
-    return new SrsGbMediaTcpConn();
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
+    return conn;
 }
 
 ISrsGbSession *SrsAppFactory::create_gb_session()
 {
-    return new SrsGbSession();
+    SrsGbSession *session = new SrsGbSession();
+    session->assemble();
+    return session;
 }
 #endif
 
@@ -190,6 +197,18 @@ ISrsIpListener *SrsAppFactory::create_tcp_listener(ISrsTcpHandler *handler)
 ISrsSrtListener *SrsAppFactory::create_srt_listener(ISrsSrtHandler *handler, std::string ip, int port)
 {
     return new SrsSrtListener(handler, ip, port);
+}
+
+ISrsSrtAcceptor *SrsAppFactory::create_srt_acceptor(ISrsSrtClientHandler *handler)
+{
+    return new SrsSrtAcceptor(handler);
+}
+
+ISrsUdpMuxListener *SrsAppFactory::create_udp_mux_listener(ISrsUdpMuxHandler *handler, std::string ip, int port)
+{
+    SrsUdpMuxListener *listener = new SrsUdpMuxListener(handler, ip, port);
+    listener->assemble();
+    return listener;
 }
 
 ISrsRtcConnection *SrsAppFactory::create_rtc_connection(ISrsExecRtcAsyncTask *exec, const SrsContextId &cid)
@@ -267,6 +286,11 @@ ISrsCond *SrsAppFactory::create_cond()
     return kernel_factory_->create_cond();
 }
 
+ISrsFastTimer *SrsAppFactory::create_fast_timer(const std::string &label, srs_utime_t interval)
+{
+    return kernel_factory_->create_fast_timer(label, interval);
+}
+
 SrsFinalFactory::SrsFinalFactory()
 {
 }
@@ -293,6 +317,13 @@ ISrsConfig *SrsFinalFactory::create_config()
 ISrsCond *SrsFinalFactory::create_cond()
 {
     return new SrsCond();
+}
+
+ISrsFastTimer *SrsFinalFactory::create_fast_timer(const std::string &label, srs_utime_t interval)
+{
+    SrsFastTimer *timer = new SrsFastTimer(label, interval);
+    timer->assemble();
+    return timer;
 }
 
 SrsConfigProxy::SrsConfigProxy()

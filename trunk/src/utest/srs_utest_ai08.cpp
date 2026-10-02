@@ -17,6 +17,7 @@ using namespace std;
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_utest_ai32.hpp>
 #ifdef SRS_RTSP
 #include <srs_app_rtsp_source.hpp>
 #endif
@@ -514,6 +515,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_BasicFunctionality)
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
 
+    bridge->assemble();
+
     // Test initial state - bridge should be empty
     EXPECT_TRUE(bridge->empty());
 
@@ -525,12 +528,70 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_BasicFunctionality)
     EXPECT_TRUE(bridge->empty());
 }
 
+// The constructor leaves the audio duration printer unassembled: no config created, no tick taken.
+VOID TEST(SrtFrameBuilderTest, ConstructorDoesNotAssembleAudioDurationPrint)
+{
+    MockFrameTarget target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+
+    EXPECT_TRUE(builder->pp_audio_duration_->info_.config_ == NULL);
+    EXPECT_EQ(0, builder->pp_audio_duration_->previous_tick_);
+}
+
+// assemble() assembles the audio duration printer, through the factory and clock injected into it.
+VOID TEST(SrtFrameBuilderTest, AssembleAssemblesAudioDurationPrint)
+{
+    MockKernelFactoryForStageInfo factory;
+    factory.pithy_print_ = 7 * SRS_UTIME_SECONDS;
+    MockClockForPithyPrint clk;
+    clk.now_ = 20 * SRS_UTIME_SECONDS;
+
+    MockFrameTarget target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    builder->pp_audio_duration_->info_.factory_ = &factory;
+    builder->pp_audio_duration_->clk_ = &clk;
+
+    builder->assemble();
+
+    EXPECT_EQ(1, factory.create_config_count_);
+    EXPECT_EQ(7 * SRS_UTIME_SECONDS, builder->pp_audio_duration_->info_.interval_);
+    EXPECT_EQ(20 * SRS_UTIME_SECONDS, builder->pp_audio_duration_->previous_tick_);
+
+    builder->pp_audio_duration_->clk_ = NULL;
+}
+
+// The SRT bridge constructs its frame builder quiescent, and assembles it from its own assemble().
+VOID TEST(StreamBridgeTest, SrsSrtBridge_AssembleAssemblesFrameBuilder)
+{
+    MockKernelFactoryForStageInfo factory;
+    factory.pithy_print_ = 7 * SRS_UTIME_SECONDS;
+    MockClockForPithyPrint clk;
+    clk.now_ = 20 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+    SrsAlonePithyPrint *pprint = bridge->frame_builder_->pp_audio_duration_;
+    EXPECT_TRUE(pprint->info_.config_ == NULL);
+    EXPECT_EQ(0, pprint->previous_tick_);
+
+    pprint->info_.factory_ = &factory;
+    pprint->clk_ = &clk;
+
+    bridge->assemble();
+
+    EXPECT_EQ(1, factory.create_config_count_);
+    EXPECT_EQ(20 * SRS_UTIME_SECONDS, pprint->previous_tick_);
+
+    pprint->clk_ = NULL;
+}
+
 // Test SrsSrtBridge with RTMP target
 VOID TEST(StreamBridgeTest, SrsSrtBridge_WithRtmpTarget)
 {
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -539,6 +600,7 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_WithRtmpTarget)
 
     // Create and enable RTMP target
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
 
     bridge->enable_srt2rtmp(rtmp_source);
@@ -559,6 +621,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_WithRtcTarget)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Create and enable RTC target first
@@ -585,6 +649,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_PacketHandling)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -607,6 +673,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_FrameHandling)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -629,6 +697,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_OnFrameRtmpTarget)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -641,6 +711,7 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_OnFrameRtmpTarget)
 
     // Enable RTMP target
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
     bridge->enable_srt2rtmp(rtmp_source);
 
@@ -663,6 +734,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_OnFrameRtpBuilder)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -698,10 +771,13 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_OnFrameBothTargets)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Enable both RTMP and RTC targets
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
     bridge->enable_srt2rtmp(rtmp_source);
 
@@ -744,6 +820,7 @@ VOID TEST(StreamBridgeTest, SrsRtcBridge_WithRtmpTarget)
 
     // Create a mock RTMP target using shared pointer
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     bridge->enable_rtc2rtmp(rtmp_source);
 
     // Bridge should not be empty with target
@@ -763,6 +840,7 @@ VOID TEST(StreamBridgeTest, SrsRtcBridge_RtpPacketHandling)
 
     // Create RTMP target for the bridge
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
     bridge->enable_rtc2rtmp(rtmp_source);
 
@@ -798,6 +876,7 @@ VOID TEST(StreamBridgeTest, SrsRtcBridge_RtpPacketTypes)
 
     // Create RTMP target for the bridge
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
     bridge->enable_rtc2rtmp(rtmp_source);
 
@@ -849,6 +928,7 @@ VOID TEST(StreamBridgeTest, SrsRtcBridge_RtpLifecycle)
 
     // Create RTMP target
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
     bridge->enable_rtc2rtmp(rtmp_source);
 
@@ -887,6 +967,7 @@ VOID TEST(StreamBridgeTest, Bridge_ErrorHandling)
 
     // Test SrsSrtBridge with invalid packet
     SrsUniquePtr<SrsSrtBridge> srt_bridge(new SrsSrtBridge(_srs_app_factory));
+    srt_bridge->assemble();
     HELPER_EXPECT_SUCCESS(srt_bridge->initialize(req.get()));
 
     // Note: Skip NULL packet test as it causes segmentation fault
@@ -931,6 +1012,8 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_MultipleTargets)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Initialize bridge
@@ -939,6 +1022,7 @@ VOID TEST(StreamBridgeTest, SrsSrtBridge_MultipleTargets)
 
     // Enable both RTMP and RTC targets
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
     bridge->enable_srt2rtmp(rtmp_source);
 
@@ -1002,6 +1086,8 @@ VOID TEST(StreamBridgeTest, Bridge_StateConsistency)
     srs_error_t err;
 
     SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+
+    bridge->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
     // Test empty state consistency
@@ -1013,6 +1099,7 @@ VOID TEST(StreamBridgeTest, Bridge_StateConsistency)
 
     // Adding target should change empty state
     SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+    rtmp_source->assemble();
     HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
     bridge->enable_srt2rtmp(rtmp_source);
     EXPECT_FALSE(bridge->empty());
@@ -1049,11 +1136,13 @@ VOID TEST(StreamBridgeTest, Bridge_MemoryManagement)
 
     {
         SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(_srs_app_factory));
+        bridge->assemble();
         SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
         HELPER_EXPECT_SUCCESS(bridge->initialize(req.get()));
 
         SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+        rtmp_source->assemble();
         HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
         bridge->enable_srt2rtmp(rtmp_source);
 
@@ -1068,6 +1157,7 @@ VOID TEST(StreamBridgeTest, Bridge_MemoryManagement)
         SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
 
         SrsSharedPtr<SrsLiveSource> rtmp_source(new SrsLiveSource());
+        rtmp_source->assemble();
         HELPER_EXPECT_SUCCESS(rtmp_source->initialize(rtmp_source, req.get()));
         bridge->enable_rtc2rtmp(rtmp_source);
 
@@ -1266,6 +1356,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterSEIFiltering)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1345,6 +1436,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterBFrameFilteringAVC)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1426,6 +1518,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterBFrameFilteringHEVC)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1501,6 +1594,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterCombinedSEIAndBFrameFiltering
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1588,6 +1682,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterIDRDetection)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1642,6 +1737,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterErrorHandling)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1688,6 +1784,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterNonAVCCodecSkipsSEIFiltering)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1756,6 +1853,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_FilterZeroSamples)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1798,6 +1896,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusMultipleSamples)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1872,6 +1971,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoLargeNaluPackageFuA)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -1957,6 +2057,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoExtremelyLargeNaluPackageFuA
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2037,6 +2138,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusWithMultipleNalus)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2120,6 +2222,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMultipleLargeNalusPackageFuA
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2200,6 +2303,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoMergeNalusLargePayload)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2287,6 +2391,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioRealAacFrames)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2354,6 +2459,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioAddSampleFailure)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2410,6 +2516,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioTranscodeFailure)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2464,6 +2571,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioMemoryCleanup)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2523,6 +2631,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoComprehensiveCoverage)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2588,6 +2697,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoUnsupportedCodec)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2628,6 +2738,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoNoVcodecParsed)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2667,6 +2778,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoInitializeTrackError)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2731,6 +2843,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoFilterMethod)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2816,6 +2929,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoFormatError)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2879,6 +2993,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnVideoCodecSwitching)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2957,6 +3072,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_BasicInstantiation)
 
     // Test basic instantiation
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -2977,6 +3093,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_InitializeAudioTrack)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder first
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3023,6 +3140,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_InitializeVideoTrack)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder first
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3069,6 +3187,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_TrackInitializationCodecs)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder first
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3167,6 +3286,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_TrackInitializationWithSourceTracks
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3221,6 +3341,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioFormatConsumeSuccess)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3283,6 +3404,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioFormatConsumeError)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3329,6 +3451,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioNoAcodecParsed)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3378,6 +3501,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioUnsupportedCodec)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3457,6 +3581,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioSupportedCodecs)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3544,6 +3669,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioCodecValidationFailure)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3607,6 +3733,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_OnAudioComprehensiveCoverage)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3710,6 +3837,7 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_LazyInitialization)
 
     MockRtpTarget rtp_target;
     SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
 
     // Initialize the builder
     HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
@@ -3784,6 +3912,87 @@ VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_LazyInitialization)
     EXPECT_TRUE(true); // Basic test passed - no crash occurred
 
     // Note: Data is freed by SrsMediaPacket destructors
+}
+
+// The RTP builder only captures the factory in its constructor, and creates no transcoder there.
+VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_ConstructorCapturesFactoryWithoutTranscoder)
+{
+    srs_error_t err;
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(rtc_source->initialize(req.get()));
+
+    MockAppFactoryForRtcFrameBuilder factory;
+    MockRtpTarget rtp_target;
+    SrsRtcRtpBuilder builder(&factory, &rtp_target, rtc_source);
+
+    EXPECT_TRUE(builder.app_factory_ == &factory);
+    EXPECT_EQ(0, factory.create_audio_transcoder_count_);
+    EXPECT_TRUE(builder.codec_ == NULL);
+}
+
+// assemble() creates the transcoder through the captured factory, injected after construction, so
+// a transcoder made in the constructor or by the global factory is caught.
+VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_AssembleCreatesTranscoderThroughFactory)
+{
+    srs_error_t err;
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(rtc_source->initialize(req.get()));
+
+    MockAppFactoryForRtcFrameBuilder factory;
+    MockRtpTarget rtp_target;
+    SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.app_factory_ = &factory;
+
+    builder.assemble();
+
+    EXPECT_EQ(1, factory.create_audio_transcoder_count_);
+    ASSERT_TRUE(factory.last_transcoder_ != NULL);
+    EXPECT_TRUE(builder.codec_ == factory.last_transcoder_);
+}
+
+// The RTMP bridge creates the RTP builder for an RTC target with a transcoder from its factory.
+VOID TEST(StreamBridgeTest, SrsRtmpBridge_InitializeAssemblesRtpBuilder)
+{
+    srs_error_t err;
+
+    MockAppFactoryForRtcFrameBuilder factory;
+    SrsUniquePtr<SrsRtmpBridge> bridge(new SrsRtmpBridge(&factory));
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    HELPER_EXPECT_SUCCESS(rtc_source->initialize(req.get()));
+    bridge->enable_rtmp2rtc(rtc_source);
+
+    HELPER_EXPECT_SUCCESS(bridge->initialize(req.get()));
+
+    ASSERT_TRUE(bridge->rtp_builder_ != NULL);
+    EXPECT_EQ(1, factory.create_audio_transcoder_count_);
+    EXPECT_TRUE(bridge->rtp_builder_->codec_ == factory.last_transcoder_);
+}
+
+// The SRT bridge creates the RTP builder for an RTC target with a transcoder from its factory.
+VOID TEST(StreamBridgeTest, SrsSrtBridge_InitializeAssemblesRtpBuilder)
+{
+    srs_error_t err;
+
+    MockAppFactoryForRtcFrameBuilder factory;
+    SrsUniquePtr<SrsSrtBridge> bridge(new SrsSrtBridge(&factory));
+    bridge->assemble();
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    HELPER_EXPECT_SUCCESS(rtc_source->initialize(req.get()));
+    bridge->enable_srt2rtc(rtc_source);
+
+    HELPER_EXPECT_SUCCESS(bridge->initialize(req.get()));
+
+    ASSERT_TRUE(bridge->rtp_builder_ != NULL);
+    EXPECT_EQ(1, factory.create_audio_transcoder_count_);
+    EXPECT_TRUE(bridge->rtp_builder_->codec_ == factory.last_transcoder_);
 }
 #endif
 
@@ -4570,4 +4779,74 @@ VOID TEST(RtcFrameBuilderTest, PacketVideoKeyFrame_ExactIsLostSnCodePathCoverage
 
         srs_freep(result);
     }
+}
+
+MockAppConfigForRtcFrameBuilder::MockAppConfigForRtcFrameBuilder()
+{
+    aac_bitrate_ = 48000;
+    get_rtc_aac_bitrate_count_ = 0;
+}
+
+MockAppConfigForRtcFrameBuilder::~MockAppConfigForRtcFrameBuilder()
+{
+}
+
+int MockAppConfigForRtcFrameBuilder::get_rtc_aac_bitrate(std::string vhost)
+{
+    get_rtc_aac_bitrate_count_++;
+    get_rtc_aac_bitrate_vhost_ = vhost;
+    return aac_bitrate_;
+}
+
+MockAppFactoryForRtcFrameBuilder::MockAppFactoryForRtcFrameBuilder()
+{
+    last_transcoder_ = NULL;
+    create_audio_transcoder_count_ = 0;
+}
+
+MockAppFactoryForRtcFrameBuilder::~MockAppFactoryForRtcFrameBuilder()
+{
+}
+
+ISrsAudioTranscoder *MockAppFactoryForRtcFrameBuilder::create_audio_transcoder()
+{
+    create_audio_transcoder_count_++;
+    last_transcoder_ = new MockAudioTranscoderForUtest();
+    return last_transcoder_;
+}
+
+// The frame builder captures the config global in the constructor.
+VOID TEST(RtcFrameBuilderTest, CapturesConfigInConstructor)
+{
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+    EXPECT_TRUE(builder.config_ != NULL);
+    EXPECT_TRUE(builder.config_ == (ISrsAppConfig *)_srs_config);
+}
+
+// The AAC bitrate of the transcoder comes from the injected config, read once for the request's vhost.
+// The global defaults to 48000, so a read of the global is caught.
+VOID TEST(RtcFrameBuilderTest, InitializeAacBitrateFromInjectedConfig)
+{
+    srs_error_t err;
+
+    MockAppConfigForRtcFrameBuilder config;
+    config.aac_bitrate_ = 64000;
+    MockAppFactoryForRtcFrameBuilder factory;
+    MockRtcFrameTarget target;
+
+    SrsRtcFrameBuilder builder(&factory, &target);
+    builder.config_ = &config;
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest("test.vhost"));
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdOpus, SrsVideoCodecIdAVC));
+
+    EXPECT_EQ(1, config.get_rtc_aac_bitrate_count_);
+    EXPECT_STREQ("test.vhost", config.get_rtc_aac_bitrate_vhost_.c_str());
+    ASSERT_TRUE(factory.last_transcoder_ != NULL);
+    EXPECT_TRUE(builder.audio_transcoder_ == factory.last_transcoder_);
+    EXPECT_EQ(1, factory.last_transcoder_->initialize_count_);
+    EXPECT_EQ(64000, factory.last_transcoder_->initialize_bit_rate_);
+
+    builder.config_ = NULL;
 }

@@ -188,18 +188,7 @@ Config (`trunk/conf/`) is only for the C++ media server. The next-generation Go 
 
 ## State Threads Code
 
-State Threads (`trunk/3rdparty/st-srs/`) is the coroutine library used by the C++ media server only. The Go server does not use ST.
-
-- `sched.c` — Scheduler (thread creation, context switch, run loop)
-- `io.c` — I/O: poll/epoll/kqueue wrappers, socket operations
-- `event.c` — Event system
-- `stk.c` — Stack allocation and management
-- `sync.c` — Mutex, condition variable
-- `key.c` — Thread-local storage
-- `common.c`/`common.h` — Shared internals
-- `public.h` — Public API
-- `md.h` — Platform detection and context switch macros
-- `md_linux.S`, `md_linux2.S`, `md_darwin.S`, `md_cygwin64.S` — Assembly context switch per platform
+State Threads is the coroutine library used by the C++ media server only. The Go server does not use ST. Its code lives in the separate `state-threads/` project; route every ST task to the [State Threads map](state-threads.md).
 
 ## FFmpeg Integration Paths
 

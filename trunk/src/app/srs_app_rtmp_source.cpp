@@ -28,6 +28,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_codec.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
@@ -857,7 +858,6 @@ SrsOriginHub::SrsOriginHub()
     dash_ = new SrsDash();
 
     dvr_ = new SrsDvr();
-    dvr_->assemble();
 
     encoder_ = new SrsEncoder();
 #ifdef SRS_HDS
@@ -872,6 +872,10 @@ SrsOriginHub::SrsOriginHub()
 
 void SrsOriginHub::assemble()
 {
+    hls_->assemble();
+    dvr_->assemble();
+    encoder_->assemble();
+    ng_exec_->assemble();
     config_->subscribe(this);
 }
 
@@ -1622,11 +1626,15 @@ SrsLiveSourceManager *_srs_sources = NULL;
 SrsLiveSourceManager::SrsLiveSourceManager()
 {
     lock_ = srs_mutex_new();
-    SrsHourGlass *timer = new SrsHourGlass("sources", this, 1 * SRS_UTIME_SECONDS);
-    timer->assemble();
-    timer_ = timer;
+    timer_ = NULL;
 
     app_factory_ = _srs_app_factory;
+    stream_publish_tokens_ = _srs_stream_publish_tokens;
+}
+
+void SrsLiveSourceManager::assemble()
+{
+    timer_ = app_factory_->create_hourglass("sources", this, 1 * SRS_UTIME_SECONDS);
 }
 
 SrsLiveSourceManager::~SrsLiveSourceManager()
@@ -1635,6 +1643,7 @@ SrsLiveSourceManager::~SrsLiveSourceManager()
     srs_freep(timer_);
 
     app_factory_ = NULL;
+    stream_publish_tokens_ = NULL;
 }
 
 srs_error_t SrsLiveSourceManager::initialize()
@@ -1675,6 +1684,11 @@ srs_error_t SrsLiveSourceManager::fetch_or_create(ISrsRequest *r, SrsSharedPtr<S
 
     // Initialize source with the wrapper of itself.
     if (created && (err = pps->initialize(pps, r)) != srs_success) {
+        // Drop the half built source, or the next client gets it without initialize.
+        std::map<std::string, SrsSharedPtr<SrsLiveSource> >::iterator it = pool_.find(r->get_stream_url());
+        if (it != pool_.end() && it->second.get() == pps.get()) {
+            pool_.erase(it);
+        }
         return srs_error_wrap(err, "init source %s", r->get_stream_url().c_str());
     }
 
@@ -1750,7 +1764,7 @@ srs_error_t SrsLiveSourceManager::notify(int event, srs_utime_t interval, srs_ut
         // A publisher may yield after fetching the source but before activating it.
         // Keep the source in the pool while its publish token is still acquired.
         const string &stream_url = it->first;
-        bool is_stream_acquired = _srs_stream_publish_tokens->is_acquired(stream_url);
+        bool is_stream_acquired = stream_publish_tokens_->is_acquired(stream_url);
 
         // When source expired, remove it.
         // @see https://github.com/ossrs/srs/issues/713
@@ -1789,10 +1803,7 @@ SrsLiveSource::SrsLiveSource()
     mix_queue_ = new SrsMixQueue();
 
     can_publish_ = true;
-    // Initialize stream_die_at_ to current time to prevent newly created sources
-    // from being immediately considered dead by stream_is_dead() check.
-    // @see https://github.com/ossrs/srs/issues/4449
-    stream_die_at_ = srs_time_now_cached();
+    stream_die_at_ = 0;
     publisher_idle_at_ = 0;
 
     rtmp_bridge_ = NULL;
@@ -1813,11 +1824,17 @@ SrsLiveSource::SrsLiveSource()
     stat_ = _srs_stat;
     handler_ = _srs_server;
     app_factory_ = _srs_app_factory;
+    clk_ = _srs_clock;
 }
 
 void SrsLiveSource::assemble()
 {
     config_->subscribe(this);
+
+    // Initialize stream_die_at_ to current time to prevent newly created sources
+    // from being immediately considered dead by stream_is_dead() check.
+    // @see https://github.com/ossrs/srs/issues/4449
+    stream_die_at_ = clk_->now();
 }
 
 SrsLiveSource::~SrsLiveSource()
@@ -1849,6 +1866,7 @@ SrsLiveSource::~SrsLiveSource()
     stat_ = NULL;
     handler_ = NULL;
     app_factory_ = NULL;
+    clk_ = NULL;
 }
 
 void SrsLiveSource::dispose()
@@ -1884,7 +1902,7 @@ bool SrsLiveSource::stream_is_dead()
     }
 
     // Delay cleanup source.
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now < stream_die_at_ + SRS_SOURCE_CLEANUP) {
         return false;
     }
@@ -1903,7 +1921,7 @@ bool SrsLiveSource::publisher_is_idle_for(srs_utime_t timeout)
         return false;
     }
 
-    srs_utime_t now = srs_time_now_cached();
+    srs_utime_t now = clk_->now();
     if (now > publisher_idle_at_ + timeout) {
         return true;
     }
@@ -2467,7 +2485,7 @@ srs_error_t SrsLiveSource::on_publish()
 
     // When no players, the publisher is idle now.
     if (consumers_.empty()) {
-        publisher_idle_at_ = srs_time_now_cached();
+        publisher_idle_at_ = clk_->now();
     }
 
     return err;
@@ -2515,7 +2533,7 @@ void SrsLiveSource::on_unpublish()
 
     // no consumer, stream is die.
     if (consumers_.empty()) {
-        stream_die_at_ = srs_time_now_cached();
+        stream_die_at_ = clk_->now();
     }
 
     // Note that we should never set to unpublish before any other handler is done, especially the handler
@@ -2606,17 +2624,17 @@ void SrsLiveSource::on_consumer_destroy(SrsLiveConsumer *consumer)
 
         // If no publishers, the stream is die.
         if (can_publish_) {
-            stream_die_at_ = srs_time_now_cached();
+            stream_die_at_ = clk_->now();
         }
 
         // For edge server, the stream die when the last player quit, because the edge stream is created by player
         // activities, so it should die when all players quit.
         if (config_->get_vhost_is_edge(req_->vhost_)) {
-            stream_die_at_ = srs_time_now_cached();
+            stream_die_at_ = clk_->now();
         }
 
         // When no players, the publisher is idle now.
-        publisher_idle_at_ = srs_time_now_cached();
+        publisher_idle_at_ = clk_->now();
     }
 }
 

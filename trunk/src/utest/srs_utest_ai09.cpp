@@ -54,6 +54,8 @@ MockAudioTranscoderForUtest::MockAudioTranscoderForUtest()
 {
     transcode_error_ = srs_success;
     should_output_packets_ = false;
+    initialize_count_ = 0;
+    initialize_bit_rate_ = 0;
     // Set default AAC header for mock transcoder
     aac_header_len_ = 2;
     aac_header_data_ = new uint8_t[aac_header_len_];
@@ -69,6 +71,9 @@ MockAudioTranscoderForUtest::~MockAudioTranscoderForUtest()
 
 srs_error_t MockAudioTranscoderForUtest::initialize(SrsAudioCodecId from, SrsAudioCodecId to, int channels, int sample_rate, int bit_rate)
 {
+    initialize_count_++;
+    initialize_bit_rate_ = bit_rate;
+
     // Create default AAC header for testing
     if (!aac_header_data_) {
         aac_header_len_ = 2;
