@@ -32,6 +32,8 @@ class ISrsAppConfig;
 class ISrsRtspConnection;
 class ISrsClock;
 class ISrsAppFactory;
+class ISrsRtcSSRCGenerator;
+class ISrsRand;
 
 // The RTSP stream consumer, consume packets from RTSP stream source.
 class SrsRtspConsumer
@@ -232,6 +234,10 @@ class SrsRtspRtpBuilder
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
+    // The generator of the SSRC for each track.
+    ISrsRtcSSRCGenerator *ssrc_generator_;
+    // The random generator of the track ids.
+    ISrsRand *rand_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

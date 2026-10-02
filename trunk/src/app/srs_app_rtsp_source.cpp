@@ -559,6 +559,8 @@ SrsRtspRtpBuilder::SrsRtspRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtsp
     video_initialized_ = false;
 
     config_ = _srs_config;
+    ssrc_generator_ = _srs_rtc_ssrc_generator;
+    rand_ = new SrsRand();
 }
 
 SrsRtspRtpBuilder::~SrsRtspRtpBuilder()
@@ -566,8 +568,10 @@ SrsRtspRtpBuilder::~SrsRtspRtpBuilder()
     srs_freep(format_);
     srs_freep(meta_);
     srs_freep(video_builder_);
+    srs_freep(rand_);
 
     config_ = NULL;
+    ssrc_generator_ = NULL;
 }
 
 srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
@@ -577,16 +581,14 @@ srs_error_t SrsRtspRtpBuilder::initialize_audio_track(SrsAudioCodecId codec)
     // RTSP behavior: Build track description from real audio format, not default values
     // This is different from RTC which uses default track descriptions
 
-    SrsRand rand;
-
     // Create audio track description from actual format data
     SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
     audio_desc->type_ = "audio";
-    audio_desc->id_ = "audio-" + rand.gen_str(8);
+    audio_desc->id_ = "audio-" + rand_->gen_str(8);
     audio_desc->direction_ = "recvonly";
 
     // Generate SSRC for this track
-    audio_ssrc_ = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+    audio_ssrc_ = ssrc_generator_->generate_ssrc();
     audio_desc->ssrc_ = audio_ssrc_;
 
     int sample_rate = srs_flv_srates[format_->acodec_->sound_rate_];
@@ -652,16 +654,14 @@ srs_error_t SrsRtspRtpBuilder::initialize_video_track(SrsVideoCodecId codec)
 
     std::string codec_name = srs_video_codec_id2str(codec);
 
-    SrsRand rand;
-
     // Create video track description from actual format data
     SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
     video_desc->type_ = "video";
-    video_desc->id_ = "video-" + codec_name + "-" + rand.gen_str(8);
+    video_desc->id_ = "video-" + codec_name + "-" + rand_->gen_str(8);
     video_desc->direction_ = "recvonly";
 
     // Generate SSRC for this track
-    uint32_t video_ssrc = SrsRtcSSRCGenerator::instance()->generate_ssrc();
+    uint32_t video_ssrc = ssrc_generator_->generate_ssrc();
     video_desc->ssrc_ = video_ssrc;
 
     // Build payload from actual video format

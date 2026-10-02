@@ -18,6 +18,8 @@ using namespace std;
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_rtp.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai07.hpp>
 #include <srs_utest_ai08.hpp>
 #include <srs_utest_ai10.hpp>
@@ -25,6 +27,7 @@ using namespace std;
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 // Mock frame target implementation
 MockSrtFrameTarget::MockSrtFrameTarget()
@@ -3629,5 +3632,109 @@ VOID TEST(SrsRtspVideoSendTrackTest, OnRtpActiveTrackWithPTConversion)
     EXPECT_EQ(500, (int)mock_conn.last_packet_->header_.get_sequence());
     EXPECT_EQ(180000, (int)mock_conn.last_packet_->header_.get_timestamp());
     EXPECT_TRUE(mock_conn.last_packet_->header_.get_marker());
+}
+
+// The builder captures the global SSRC generator and owns its random generator, so a test can
+// replace both before a track is initialized.
+VOID TEST(SrsRtspRtpBuilderTest, ConstructorCapturesSsrcGeneratorAndCreatesRand)
+{
+    SrsRtcSSRCGenerator other;
+    SrsRtcSSRCGenerator *original = _srs_rtc_ssrc_generator;
+    _srs_rtc_ssrc_generator = &other;
+
+    MockRtpTarget mock_target;
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    SrsUniquePtr<SrsRtspRtpBuilder> builder(new SrsRtspRtpBuilder(&mock_target, source));
+
+    _srs_rtc_ssrc_generator = original;
+
+    EXPECT_TRUE(builder->ssrc_generator_ == &other);
+    EXPECT_TRUE(builder->ssrc_generator_ != SrsRtcSSRCGenerator::instance());
+    EXPECT_TRUE(builder->rand_ != NULL);
+}
+
+// The audio track draws its SSRC and its id through the injected generators.
+VOID TEST(SrsRtspRtpBuilderTest, InitializeAudioTrackDrawsThroughInjectedGenerators)
+{
+    srs_error_t err;
+
+    MockRtpTarget mock_target;
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    MockSrsRequest req("test.vhost", "live", "stream1");
+    HELPER_EXPECT_SUCCESS(source->initialize(&req));
+
+    SrsUniquePtr<SrsRtspRtpBuilder> builder(new SrsRtspRtpBuilder(&mock_target, source));
+    HELPER_EXPECT_SUCCESS(builder->initialize(&req));
+
+    MockRtcSSRCGenerator ssrc_generator;
+    MockRandForHandshake rand;
+    builder->ssrc_generator_ = &ssrc_generator;
+    srs_freep(builder->rand_);
+    builder->rand_ = &rand;
+
+    builder->format_->acodec_ = new SrsAudioCodecConfig();
+    builder->format_->acodec_->id_ = SrsAudioCodecIdAAC;
+    builder->format_->acodec_->sound_rate_ = SrsAudioSampleRate44100;
+    builder->format_->acodec_->sound_type_ = SrsAudioChannelsStereo;
+    builder->format_->acodec_->aac_channels_ = 2;
+
+    HELPER_EXPECT_SUCCESS(builder->initialize_audio_track(SrsAudioCodecIdAAC));
+
+    // Restore before any assertion can return, so the builder never frees the stack mock.
+    builder->ssrc_generator_ = NULL;
+    builder->rand_ = NULL;
+
+    EXPECT_EQ(1, ssrc_generator.count_);
+    EXPECT_EQ(500001u, builder->audio_ssrc_);
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(8, rand.gen_str_lens_[0]);
+
+    SrsRtcTrackDescription *audio_desc = source->audio_desc();
+    ASSERT_TRUE(audio_desc != NULL);
+    EXPECT_EQ(500001u, audio_desc->ssrc_);
+    EXPECT_EQ("audio-xxxxxxxx", audio_desc->id_);
+}
+
+// The video track draws its SSRC and its id through the injected generators, and hands the SSRC
+// to the video packetizer.
+VOID TEST(SrsRtspRtpBuilderTest, InitializeVideoTrackDrawsThroughInjectedGenerators)
+{
+    srs_error_t err;
+
+    MockRtpTarget mock_target;
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    MockSrsRequest req("test.vhost", "live", "stream1");
+    HELPER_EXPECT_SUCCESS(source->initialize(&req));
+
+    SrsUniquePtr<SrsRtspRtpBuilder> builder(new SrsRtspRtpBuilder(&mock_target, source));
+    HELPER_EXPECT_SUCCESS(builder->initialize(&req));
+
+    MockRtcSSRCGenerator ssrc_generator;
+    MockRandForHandshake rand;
+    builder->ssrc_generator_ = &ssrc_generator;
+    srs_freep(builder->rand_);
+    builder->rand_ = &rand;
+
+    if (!builder->meta_->vformat_) {
+        builder->meta_->vformat_ = new SrsRtmpFormat();
+    }
+    builder->meta_->vformat_->vcodec_ = new SrsVideoCodecConfig();
+    builder->meta_->vformat_->vcodec_->id_ = SrsVideoCodecIdAVC;
+
+    HELPER_EXPECT_SUCCESS(builder->initialize_video_track(SrsVideoCodecIdAVC));
+
+    // Restore before any assertion can return, so the builder never frees the stack mock.
+    builder->ssrc_generator_ = NULL;
+    builder->rand_ = NULL;
+
+    EXPECT_EQ(1, ssrc_generator.count_);
+    EXPECT_EQ(500001u, builder->video_builder_->video_ssrc_);
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(8, rand.gen_str_lens_[0]);
+
+    SrsRtcTrackDescription *video_desc = source->video_desc();
+    ASSERT_TRUE(video_desc != NULL);
+    EXPECT_EQ(500001u, video_desc->ssrc_);
+    EXPECT_EQ("video-H264-xxxxxxxx", video_desc->id_);
 }
 #endif // SRS_RTSP
