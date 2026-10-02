@@ -875,6 +875,7 @@ void SrsOriginHub::assemble()
     hls_->assemble();
     dvr_->assemble();
     encoder_->assemble();
+    ng_exec_->assemble();
     config_->subscribe(this);
 }
 

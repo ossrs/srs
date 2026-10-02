@@ -3683,6 +3683,29 @@ std::vector<SrsConfDirective *> MockAppConfigForNgExec::get_exec_publishs(std::s
     return exec_publishs_;
 }
 
+// The constructor does not create the pithy print, which would enter the exec
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(NgExecTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<SrsNgExec> ng_exec(new SrsNgExec());
+
+    EXPECT_TRUE(ng_exec->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the exec stage.
+VOID TEST(NgExecTest, AssembleCreatesExecPithyPrint)
+{
+    SrsUniquePtr<SrsNgExec> ng_exec(new SrsNgExec());
+    srs_freep(ng_exec->pprint_);
+
+    ng_exec->assemble();
+
+    ASSERT_TRUE(ng_exec->pprint_ != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_exec());
+    EXPECT_EQ(expected->stage_id_, ng_exec->pprint_->stage_id_);
+}
+
 VOID TEST(NgExecTest, ParseExecPublishWithMultipleArgs)
 {
     srs_error_t err = srs_success;

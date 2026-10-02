@@ -259,10 +259,12 @@ class MockNgExecForOriginHub : public ISrsNgExec
 {
 public:
     int on_publish_count_;
+    int assemble_count_;
 
 public:
     MockNgExecForOriginHub();
     virtual ~MockNgExecForOriginHub();
+    virtual void assemble();
     virtual srs_error_t on_publish(ISrsRequest *req);
     virtual void on_unpublish();
     virtual srs_error_t cycle();

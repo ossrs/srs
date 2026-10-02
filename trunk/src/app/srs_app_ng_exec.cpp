@@ -31,9 +31,14 @@ ISrsNgExec::~ISrsNgExec()
 SrsNgExec::SrsNgExec()
 {
     trd_ = new SrsDummyCoroutine();
-    pprint_ = SrsPithyPrint::create_exec();
+    pprint_ = NULL;
 
     config_ = _srs_config;
+}
+
+void SrsNgExec::assemble()
+{
+    pprint_ = SrsPithyPrint::create_exec();
 }
 
 SrsNgExec::~SrsNgExec()

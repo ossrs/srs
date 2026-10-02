@@ -1820,6 +1820,36 @@ VOID TEST(AppOriginHubTest, FactoryCreatesHubWithAssembledHls)
     EXPECT_TRUE(hls->pprint_ != NULL);
 }
 
+// The hub's assemble() assembles the injected ng-exec.
+VOID TEST(AppOriginHubTest, AssembleAssemblesNgExec)
+{
+    SrsConfig config;
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = &config;
+
+    MockNgExecForOriginHub *mock_ng_exec = new MockNgExecForOriginHub();
+    srs_freep(hub->ng_exec_);
+    hub->ng_exec_ = mock_ng_exec;
+
+    hub->assemble();
+
+    EXPECT_EQ(1, mock_ng_exec->assemble_count_);
+}
+
+// The factory is the production construction site: the hub it returns has an
+// ng-exec with its pithy print created.
+VOID TEST(AppOriginHubTest, FactoryCreatesHubWithAssembledNgExec)
+{
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsOriginHub> ihub(factory.create_origin_hub());
+
+    SrsOriginHub *hub = dynamic_cast<SrsOriginHub *>(ihub.get());
+    ASSERT_TRUE(hub != NULL);
+    SrsNgExec *ng_exec = dynamic_cast<SrsNgExec *>(hub->ng_exec_);
+    ASSERT_TRUE(ng_exec != NULL);
+    EXPECT_TRUE(ng_exec->pprint_ != NULL);
+}
+
 // Unit test for SrsOriginHub::initialize typical scenario
 VOID TEST(AppOriginHubTest, InitializeTypicalScenario)
 {
@@ -2232,10 +2262,16 @@ srs_error_t MockStatisticForOriginHub::dumps_metrics(int64_t &send_bytes, int64_
 MockNgExecForOriginHub::MockNgExecForOriginHub()
 {
     on_publish_count_ = 0;
+    assemble_count_ = 0;
 }
 
 MockNgExecForOriginHub::~MockNgExecForOriginHub()
 {
+}
+
+void MockNgExecForOriginHub::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockNgExecForOriginHub::on_publish(ISrsRequest *req)
