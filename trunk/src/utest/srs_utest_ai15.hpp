@@ -271,6 +271,7 @@ public:
 class MockHttpFlvListenerForServer : public SrsHttpFlvListener
 {
 public:
+    int assemble_count_;
     int initialize_count_;
     SrsConfDirective *initialize_conf_;
     int listen_count_;
@@ -281,6 +282,7 @@ public:
     virtual ~MockHttpFlvListenerForServer();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t listen();
     virtual void close();

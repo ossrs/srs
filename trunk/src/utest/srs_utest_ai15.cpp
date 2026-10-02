@@ -1246,6 +1246,7 @@ VOID TEST(ServerTest, DisposeClosesInjectedTcpListeners)
 
 MockHttpFlvListenerForServer::MockHttpFlvListenerForServer()
 {
+    assemble_count_ = 0;
     initialize_count_ = 0;
     initialize_conf_ = NULL;
     listen_count_ = 0;
@@ -1254,6 +1255,11 @@ MockHttpFlvListenerForServer::MockHttpFlvListenerForServer()
 
 MockHttpFlvListenerForServer::~MockHttpFlvListenerForServer()
 {
+}
+
+void MockHttpFlvListenerForServer::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockHttpFlvListenerForServer::initialize(SrsConfDirective *c)
@@ -2239,6 +2245,31 @@ VOID TEST(ServerTest, AssembleCreatesMpegtsCasterPithyPrint)
     SrsMpegtsOverUdp *caster = dynamic_cast<SrsMpegtsOverUdp *>(listener->caster_);
     ASSERT_TRUE(caster != NULL);
     EXPECT_TRUE(caster->pprint_ != NULL);
+}
+
+VOID TEST(ServerTest, AssembleAssemblesInjectedFlvCaster)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+
+    ServerStreamCastersInjector casters(server.get());
+    server->assemble();
+
+    EXPECT_EQ(1, casters.flv_.assemble_count_);
+    EXPECT_EQ(0, casters.flv_.initialize_count_ + casters.flv_.listen_count_);
+}
+
+// main() constructs the server and calls its assemble(), which leaves the
+// HTTP-FLV caster with its resource manager assembled.
+VOID TEST(ServerTest, AssembleAssemblesFlvCasterResourceManager)
+{
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsHttpFlvListener *listener = dynamic_cast<SrsHttpFlvListener *>(server->stream_caster_flv_listener_);
+    ASSERT_TRUE(listener != NULL);
+    SrsAppCasterFlv *caster = dynamic_cast<SrsAppCasterFlv *>(listener->caster_);
+    ASSERT_TRUE(caster != NULL);
+    EXPECT_TRUE(caster->manager_->cond_ != NULL);
 }
 
 VOID TEST(ServerTest, InitializeInitializesInjectedRtcSessionManager)

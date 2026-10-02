@@ -845,6 +845,7 @@ void MockTcpListenerForHttpFlv::reset()
 // Mock ISrsAppCasterFlv implementation
 MockAppCasterFlv::MockAppCasterFlv()
 {
+    assemble_count_ = 0;
     initialize_called_ = false;
     on_tcp_client_called_ = false;
     initialize_error_ = srs_success;
@@ -855,6 +856,11 @@ MockAppCasterFlv::~MockAppCasterFlv()
 {
     srs_freep(initialize_error_);
     srs_freep(on_tcp_client_error_);
+}
+
+void MockAppCasterFlv::assemble()
+{
+    assemble_count_++;
 }
 
 srs_error_t MockAppCasterFlv::initialize(SrsConfDirective *c)
@@ -1109,6 +1115,21 @@ VOID TEST(HttpFlvListenerTest, InitializeAndListen)
     listener->caster_ = NULL;
 }
 
+// assemble() assembles the caster, which the constructor only allocates.
+VOID TEST(HttpFlvListenerTest, AssembleAssemblesCaster)
+{
+    SrsUniquePtr<SrsHttpFlvListener> listener(new SrsHttpFlvListener());
+
+    // Owned by the listener, whose destructor frees it.
+    MockAppCasterFlv *caster = new MockAppCasterFlv();
+    srs_freep(listener->caster_);
+    listener->caster_ = caster;
+
+    listener->assemble();
+    EXPECT_EQ(1, caster->assemble_count_);
+    EXPECT_FALSE(caster->initialize_called_);
+}
+
 // Mock ISrsAppConfig implementation for SrsAppCasterFlv
 MockAppConfigForAppCasterFlv::MockAppConfigForAppCasterFlv()
 {
@@ -1184,13 +1205,26 @@ void MockResourceManagerForAppCasterFlv::reset()
     srs_freep(start_error_);
 }
 
-// The caster owns its resource manager, so it assembles the manager it creates.
-VOID TEST(AppCasterFlvTest, ConstructionAssemblesResourceManager)
+// The constructor does not assemble the resource manager it owns, which would
+// create its cond through the global kernel factory before a test could inject one.
+VOID TEST(AppCasterFlvTest, ConstructorLeavesResourceManagerUnassembled)
 {
     SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
 
     EXPECT_TRUE(_srs_kernel_factory == caster->manager_->factory_);
-    EXPECT_TRUE(NULL != caster->manager_->cond_);
+    EXPECT_TRUE(NULL == caster->manager_->cond_);
+}
+
+// assemble() assembles the resource manager, which creates its cond through the
+// manager's kernel factory.
+VOID TEST(AppCasterFlvTest, AssembleAssemblesResourceManager)
+{
+    MockKernelFactoryForFastTimer factory;
+    SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
+    caster->manager_->factory_ = &factory;
+
+    caster->assemble();
+    EXPECT_EQ(1, factory.create_cond_count_);
 }
 
 // Test SrsAppCasterFlv::initialize - covers the major use scenario:

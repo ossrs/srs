@@ -44,6 +44,7 @@ public:
     virtual ~ISrsHttpFlvListener();
 
 public:
+    virtual void assemble() = 0; // Construct object, to avoid call function in constructor.
     virtual srs_error_t initialize(SrsConfDirective *c) = 0;
     virtual void close() = 0;
 };
@@ -65,6 +66,7 @@ public:
     virtual ~SrsHttpFlvListener();
 
 public:
+    virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t listen();
     virtual void close();
@@ -81,6 +83,7 @@ public:
     virtual ~ISrsAppCasterFlv();
 
 public:
+    virtual void assemble() = 0; // Construct object, to avoid call function in constructor.
     virtual srs_error_t initialize(SrsConfDirective *c) = 0;
 };
 
@@ -103,6 +106,7 @@ public:
     virtual ~SrsAppCasterFlv();
 
 public:
+    virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual srs_error_t initialize(SrsConfDirective *c);
     // Interface ISrsTcpHandler
 public:

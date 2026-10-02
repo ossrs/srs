@@ -198,6 +198,7 @@ public:
 class MockAppCasterFlv : public ISrsAppCasterFlv
 {
 public:
+    int assemble_count_;
     bool initialize_called_;
     bool on_tcp_client_called_;
     srs_error_t initialize_error_;
@@ -208,6 +209,7 @@ public:
     virtual ~MockAppCasterFlv();
 
 public:
+    virtual void assemble();
     virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
     virtual srs_error_t start();

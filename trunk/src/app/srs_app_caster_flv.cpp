@@ -51,6 +51,11 @@ SrsHttpFlvListener::~SrsHttpFlvListener()
     config_ = NULL;
 }
 
+void SrsHttpFlvListener::assemble()
+{
+    caster_->assemble();
+}
+
 srs_error_t SrsHttpFlvListener::initialize(SrsConfDirective *c)
 {
     srs_error_t err = srs_success;
@@ -109,7 +114,6 @@ SrsAppCasterFlv::SrsAppCasterFlv()
 {
     http_mux_ = new SrsHttpServeMux();
     manager_ = new SrsResourceManager("CFLV");
-    manager_->assemble();
 
     config_ = _srs_config;
 }
@@ -126,6 +130,11 @@ SrsAppCasterFlv::~SrsAppCasterFlv()
     }
 
     config_ = NULL;
+}
+
+void SrsAppCasterFlv::assemble()
+{
+    manager_->assemble();
 }
 
 srs_error_t SrsAppCasterFlv::initialize(SrsConfDirective *c)
