@@ -19,6 +19,7 @@
 
 class ISrsRequest;
 class ISrsAppConfig;
+class ISrsRand;
 
 // The interface for DTLS certificate.
 class ISrsDtlsCertificate
@@ -42,6 +43,8 @@ class SrsDtlsCertificate : public ISrsDtlsCertificate
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
+    // The generator of the certificate serial number.
+    ISrsRand *rand_;
 
     std::string fingerprint_;
     bool ecdsa_mode_;

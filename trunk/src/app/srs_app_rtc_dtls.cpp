@@ -202,6 +202,7 @@ ISrsDtlsCertificate::~ISrsDtlsCertificate()
 SrsDtlsCertificate::SrsDtlsCertificate()
 {
     config_ = _srs_config;
+    rand_ = new SrsRand();
 
     ecdsa_mode_ = true;
     dtls_cert_ = NULL;
@@ -224,6 +225,7 @@ SrsDtlsCertificate::~SrsDtlsCertificate()
         X509_free(dtls_cert_);
     }
 
+    srs_freep(rand_);
     config_ = NULL;
 }
 // LCOV_EXCL_STOP
@@ -304,8 +306,7 @@ srs_error_t SrsDtlsCertificate::initialize()
         X509_NAME *subject = X509_NAME_new();
         srs_assert(subject);
 
-        SrsRand rand;
-        int serial = (int)rand.integer();
+        int serial = (int)rand_->integer();
         ASN1_INTEGER_set(X509_get_serialNumber(dtls_cert_), serial);
 
         const std::string &aor = RTMP_SIG_SRS_DOMAIN;

@@ -15,6 +15,7 @@ using namespace std;
 #include <srs_app_srt_source.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_sdp.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai07.hpp>
 
 #include <arpa/inet.h>
@@ -4223,6 +4224,46 @@ VOID TEST(DtlsCertificateTest, InitializeOnceReadsConfigOnce)
     EXPECT_STREQ(fingerprint.c_str(), cert.get_fingerprint().c_str());
 
     cert.config_ = NULL;
+}
+
+// The constructor allocates the generator that draws the certificate serial, so a test can
+// replace it before initialize().
+VOID TEST(DtlsCertificateTest, ConstructorCreatesRand)
+{
+    SrsDtlsCertificate cert;
+    EXPECT_TRUE(cert.rand_ != NULL);
+    EXPECT_TRUE(cert.get_cert() == NULL);
+}
+
+// The serial number of the certificate is one draw of the injected generator, taken by the first
+// initialize only; a second initialize keeps the certificate and draws nothing.
+VOID TEST(DtlsCertificateTest, InitializeDrawsSerialThroughInjectedRand)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    MockRandForHandshake rand;
+    rand.integer_value_ = 0x5a17c3e1;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+    srs_freep(cert.rand_);
+    cert.rand_ = &rand;
+
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+    HELPER_EXPECT_SUCCESS(cert.initialize());
+
+    long serial = -1;
+    if (cert.get_cert()) {
+        serial = ASN1_INTEGER_get(X509_get_serialNumber(cert.get_cert()));
+    }
+
+    // Restore the stack members before any assertion, so the certificate never frees them.
+    cert.config_ = NULL;
+    cert.rand_ = NULL;
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x5a17c3e1, serial);
 }
 
 MockAppConfigForRtcBlackhole::MockAppConfigForRtcBlackhole()
