@@ -23,6 +23,7 @@ class ISrsSignalHandler;
 class ISrsStatistic;
 class ISrsReloadStatus;
 class ISrsAppConfig;
+class ISrsCoWorkers;
 
 #include <string>
 
@@ -280,6 +281,7 @@ class SrsGoApiClusters : public ISrsHttpHandler
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsStatistic *stat_;
+    ISrsCoWorkers *coworkers_;
 
 public:
     SrsGoApiClusters();

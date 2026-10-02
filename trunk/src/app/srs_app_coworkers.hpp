@@ -17,8 +17,21 @@ class ISrsRequest;
 class SrsLiveSource;
 class ISrsAppConfig;
 
+// The origin cluster coworkers, which record the published streams and dump the origin of a stream.
+class ISrsCoWorkers
+{
+public:
+    ISrsCoWorkers();
+    virtual ~ISrsCoWorkers();
+
+public:
+    virtual SrsJsonAny *dumps(std::string vhost, std::string coworker, std::string app, std::string stream) = 0;
+    virtual srs_error_t on_publish(ISrsRequest *r) = 0;
+    virtual void on_unpublish(ISrsRequest *r) = 0;
+};
+
 // For origin cluster.
-class SrsCoWorkers
+class SrsCoWorkers : public ISrsCoWorkers
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -48,5 +61,8 @@ public:
     virtual srs_error_t on_publish(ISrsRequest *r);
     virtual void on_unpublish(ISrsRequest *r);
 };
+
+// The global coworkers, the SrsCoWorkers::instance() singleton, set by srs_global_initialize().
+extern SrsCoWorkers *_srs_coworkers;
 
 #endif

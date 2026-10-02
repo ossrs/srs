@@ -16,6 +16,16 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
 
+ISrsCoWorkers::ISrsCoWorkers()
+{
+}
+
+ISrsCoWorkers::~ISrsCoWorkers()
+{
+}
+
+SrsCoWorkers *_srs_coworkers = NULL;
+
 SrsCoWorkers *SrsCoWorkers::instance_ = NULL;
 
 // LCOV_EXCL_START

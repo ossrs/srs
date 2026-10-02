@@ -4081,6 +4081,78 @@ VOID TEST(CoWorkersTest, DumpsNullWhenInjectedConfigHasNoVhost)
     workers.config_ = NULL;
 }
 
+MockCoWorkersForGoApiClusters::MockCoWorkersForGoApiClusters()
+{
+    dumps_count_ = 0;
+}
+
+MockCoWorkersForGoApiClusters::~MockCoWorkersForGoApiClusters()
+{
+}
+
+SrsJsonAny *MockCoWorkersForGoApiClusters::dumps(std::string vhost, std::string coworker, std::string app, std::string stream)
+{
+    dumps_count_++;
+    dumps_vhost_ = vhost;
+    dumps_coworker_ = coworker;
+    dumps_app_ = app;
+    dumps_stream_ = stream;
+    return SrsJsonAny::object()->set("ip", SrsJsonAny::str("10.0.0.9"));
+}
+
+srs_error_t MockCoWorkersForGoApiClusters::on_publish(ISrsRequest *r)
+{
+    return srs_success;
+}
+
+void MockCoWorkersForGoApiClusters::on_unpublish(ISrsRequest *r)
+{
+}
+
+// The global coworkers is the singleton, set by the global initialize before any API handler exists.
+VOID TEST(GoApiClustersTest, GlobalInitializeSetsCoWorkers)
+{
+    EXPECT_TRUE(_srs_coworkers != NULL);
+    EXPECT_TRUE(_srs_coworkers == SrsCoWorkers::instance());
+}
+
+// The clusters API captures the coworkers global in the constructor.
+VOID TEST(GoApiClustersTest, CapturesCoWorkersInConstructor)
+{
+    SrsGoApiClusters api;
+    EXPECT_TRUE(api.coworkers_ != NULL);
+    EXPECT_TRUE(api.coworkers_ == (ISrsCoWorkers *)_srs_coworkers);
+}
+
+// The origin in the response is dumped by the injected coworkers, with the vhost, coworker, app and stream of the query.
+VOID TEST(GoApiClustersTest, ServeHttpDumpsThroughInjectedCoWorkers)
+{
+    srs_error_t err = srs_success;
+
+    MockCoWorkersForGoApiClusters coworkers;
+    SrsGoApiClusters api;
+    api.coworkers_ = &coworkers;
+
+    SrsUniquePtr<SrsHttpMessage> req(new SrsHttpMessage());
+    HELPER_EXPECT_SUCCESS(req->set_url("http://127.0.0.1/api/v1/clusters?ip=192.168.1.100&vhost=test.vhost&app=live&stream=livestream&coworker=127.0.0.1:1985", false));
+
+    MockResponseWriter w;
+    HELPER_EXPECT_SUCCESS(api.serve_http(&w, req.get()));
+
+    EXPECT_EQ(1, coworkers.dumps_count_);
+    EXPECT_STREQ("test.vhost", coworkers.dumps_vhost_.c_str());
+    EXPECT_STREQ("127.0.0.1:1985", coworkers.dumps_coworker_.c_str());
+    EXPECT_STREQ("live", coworkers.dumps_app_.c_str());
+    EXPECT_STREQ("livestream", coworkers.dumps_stream_.c_str());
+
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+    EXPECT_TRUE(response.find("\"code\":0") != string::npos);
+    EXPECT_TRUE(response.find("\"origin\":{\"ip\":\"10.0.0.9\"}") != string::npos);
+    EXPECT_TRUE(response.find("\"vhost\":\"test.vhost\"") != string::npos);
+
+    api.coworkers_ = NULL;
+}
+
 MockAppConfigForSummaries::MockAppConfigForSummaries()
 {
     argv_count_ = 0;

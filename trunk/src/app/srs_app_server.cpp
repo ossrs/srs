@@ -117,6 +117,9 @@ srs_error_t srs_global_initialize()
     _srs_srt_sources->assemble();
     _srt_eventloop = new SrsSrtEventLoop();
 
+    // Initialize the coworkers singleton before any API handler, which captures it.
+    _srs_coworkers = SrsCoWorkers::instance();
+
     // Initialize the SSRC generator before _srs_rtc_sources, whose sources capture it.
     _srs_rtc_ssrc_generator = SrsRtcSSRCGenerator::instance();
     _srs_rtc_sources = new SrsRtcSourceManager();

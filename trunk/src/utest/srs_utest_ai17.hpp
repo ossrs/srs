@@ -12,6 +12,7 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_coworkers.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_fragment.hpp>
@@ -622,6 +623,26 @@ public:
     virtual std::vector<std::string> get_listens();
     virtual std::vector<std::string> get_http_api_listens();
     virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true);
+};
+
+// Mock ISrsCoWorkers for testing SrsGoApiClusters::serve_http()
+class MockCoWorkersForGoApiClusters : public ISrsCoWorkers
+{
+public:
+    int dumps_count_;
+    std::string dumps_vhost_;
+    std::string dumps_coworker_;
+    std::string dumps_app_;
+    std::string dumps_stream_;
+
+public:
+    MockCoWorkersForGoApiClusters();
+    virtual ~MockCoWorkersForGoApiClusters();
+
+public:
+    virtual SrsJsonAny *dumps(std::string vhost, std::string coworker, std::string app, std::string stream);
+    virtual srs_error_t on_publish(ISrsRequest *r);
+    virtual void on_unpublish(ISrsRequest *r);
 };
 
 // Mock ISrsAppConfig for the process command line and work directory in the summaries.

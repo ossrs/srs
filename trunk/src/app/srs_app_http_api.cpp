@@ -997,11 +997,13 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
 SrsGoApiClusters::SrsGoApiClusters()
 {
     stat_ = _srs_stat;
+    coworkers_ = _srs_coworkers;
 }
 
 SrsGoApiClusters::~SrsGoApiClusters()
 {
     stat_ = NULL;
+    coworkers_ = NULL;
 }
 
 srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
@@ -1023,8 +1025,7 @@ srs_error_t SrsGoApiClusters::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
                            ->set("app", SrsJsonAny::str(app.c_str()))
                            ->set("stream", SrsJsonAny::str(stream.c_str())));
 
-    SrsCoWorkers *coworkers = SrsCoWorkers::instance();
-    data->set("origin", coworkers->dumps(vhost, coworker, app, stream));
+    data->set("origin", coworkers_->dumps(vhost, coworker, app, stream));
 
     return srs_api_response(w, r, obj->dumps());
 }
