@@ -29,6 +29,7 @@ class SrsJsonAny;
 class SrsConfig;
 class SrsJsonArray;
 class SrsConfDirective;
+class ISrsRand;
 
 /**
  * whether the two vector actual equals, for instance,
@@ -302,6 +303,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsReloadState state_;
     srs_error_t err_;
     std::string id_;
+    // The generator of the id of each new reload.
+    ISrsRand *rand_;
 
 public:
     SrsReloadStatus();

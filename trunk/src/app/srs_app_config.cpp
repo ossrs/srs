@@ -1392,19 +1392,20 @@ SrsReloadStatus::SrsReloadStatus()
 {
     state_ = SrsReloadStateInit;
     err_ = srs_success;
+    rand_ = new SrsRand();
 }
 
 SrsReloadStatus::~SrsReloadStatus()
 {
     srs_freep(err_);
+    srs_freep(rand_);
 }
 
 void SrsReloadStatus::reset()
 {
     state_ = SrsReloadStateInit;
     srs_freep(err_);
-    SrsRand rand;
-    id_ = rand.gen_str(7);
+    id_ = rand_->gen_str(7);
 }
 
 void SrsReloadStatus::update(SrsReloadState state, srs_error_t err)

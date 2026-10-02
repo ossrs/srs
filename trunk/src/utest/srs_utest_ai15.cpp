@@ -29,6 +29,7 @@ using namespace std;
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_ai05.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai18.hpp>
@@ -665,6 +666,42 @@ VOID TEST(ReloadStatusTest, UpdateKeepsCopyAndResetStartsNewReload)
     status.reset();
     EXPECT_EQ(7, (int)status.id().length());
     EXPECT_STRNE(first_id.c_str(), status.id().c_str());
+}
+
+// The constructor allocates the generator that draws the id of each new reload, so a test can replace
+// it before reset() is called.
+VOID TEST(ReloadStatusTest, ConstructorCreatesRand)
+{
+    SrsReloadStatus status;
+    EXPECT_TRUE(status.rand_ != NULL);
+}
+
+// Each new reload gets a 7-character id drawn through the injected generator, one draw per reset().
+VOID TEST(ReloadStatusTest, ResetDrawsIdThroughInjectedRand)
+{
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("reload1");
+    rand.gen_str_values_.push_back("reload2");
+
+    SrsReloadStatus status;
+    srs_freep(status.rand_);
+    status.rand_ = &rand;
+
+    status.reset();
+    std::string first_id = status.id();
+    status.reset();
+    std::string second_id = status.id();
+
+    // Restore the stack member before any assertion, so the status never frees it.
+    status.rand_ = NULL;
+
+    EXPECT_EQ(2, (int)rand.gen_str_lens_.size());
+    if (rand.gen_str_lens_.size() == 2) {
+        EXPECT_EQ(7, rand.gen_str_lens_[0]);
+        EXPECT_EQ(7, rand.gen_str_lens_[1]);
+    }
+    EXPECT_STREQ("reload1", first_id.c_str());
+    EXPECT_STREQ("reload2", second_id.c_str());
 }
 
 VOID TEST(ServerTest, ConstructionCapturesReloadStatus)
