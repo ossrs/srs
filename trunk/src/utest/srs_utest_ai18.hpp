@@ -486,6 +486,8 @@ class MockIngesterFFMPEG : public ISrsIngesterFFMPEG
 public:
     bool fast_stop_called_;
     bool fast_kill_called_;
+    int uri_count_;
+    int alive_count_;
     std::string vhost_;
     std::string id_;
 

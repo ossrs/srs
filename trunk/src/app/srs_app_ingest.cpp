@@ -110,6 +110,7 @@ SrsIngester::SrsIngester()
 
     trd_ = new SrsDummyCoroutine();
     pprint_ = NULL;
+    rand_ = new SrsRand();
 
     app_factory_ = _srs_app_factory;
     config_ = _srs_config;
@@ -125,6 +126,7 @@ SrsIngester::~SrsIngester()
     srs_freep(trd_);
     clear_engines();
     srs_freep(pprint_);
+    srs_freep(rand_);
 
     app_factory_ = NULL;
     config_ = NULL;
@@ -509,8 +511,7 @@ void SrsIngester::show_ingest_log_message()
     }
 
     // random choose one ingester to report.
-    SrsRand rand;
-    int index = rand.integer() % (int)ingesters_.size();
+    int index = rand_->integer() % (int)ingesters_.size();
     ISrsIngesterFFMPEG *ingester = ingesters_.at(index);
 
     // reportable

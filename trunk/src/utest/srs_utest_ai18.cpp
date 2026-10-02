@@ -22,7 +22,9 @@ using namespace std;
 #include <srs_kernel_st.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai19.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <sstream>
@@ -1536,6 +1538,8 @@ MockIngesterFFMPEG::MockIngesterFFMPEG()
 {
     fast_stop_called_ = false;
     fast_kill_called_ = false;
+    uri_count_ = 0;
+    alive_count_ = 0;
 }
 
 MockIngesterFFMPEG::~MockIngesterFFMPEG()
@@ -1551,11 +1555,13 @@ srs_error_t MockIngesterFFMPEG::initialize(ISrsFFMPEG *ff, std::string v, std::s
 
 std::string MockIngesterFFMPEG::uri()
 {
+    uri_count_++;
     return vhost_ + "/" + id_;
 }
 
 srs_utime_t MockIngesterFFMPEG::alive()
 {
+    alive_count_++;
     return 0;
 }
 
@@ -3427,6 +3433,49 @@ VOID TEST(IngesterTest, AssembleCreatesIngesterPithyPrint)
 
     SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_ingester());
     EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
+}
+
+// The constructor allocates the random generator that picks the ingester to report.
+VOID TEST(IngesterTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+
+    EXPECT_TRUE(dynamic_cast<SrsRand *>(ingester->rand_) != NULL);
+}
+
+// The pithy print picks the ingester to report through the injected generator: one
+// draw, taken modulo the number of ingesters, selects the ingester whose uri and
+// alive time are printed.
+VOID TEST(IngesterTest, ShowLogMessagePicksIngesterThroughInjectedRand)
+{
+    SrsUniquePtr<SrsIngester> ingester(new SrsIngester());
+
+    MockRandForHandshake rand;
+    rand.integer_value_ = 5;
+    srs_freep(ingester->rand_);
+    ingester->rand_ = &rand;
+
+    MockPithyPrintForDynamicConn pprint;
+    pprint.can_print_result_ = true;
+    ingester->pprint_ = &pprint;
+
+    MockIngesterFFMPEG *ffmpegs[3];
+    for (int i = 0; i < 3; i++) {
+        ffmpegs[i] = new MockIngesterFFMPEG();
+        ingester->ingesters_.push_back(ffmpegs[i]);
+    }
+
+    ingester->show_ingest_log_message();
+
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_TRUE(pprint.elapse_called_);
+    EXPECT_EQ(0, ffmpegs[0]->uri_count_);
+    EXPECT_EQ(0, ffmpegs[1]->uri_count_);
+    EXPECT_EQ(1, ffmpegs[2]->uri_count_);
+    EXPECT_EQ(1, ffmpegs[2]->alive_count_);
+
+    ingester->rand_ = NULL;
+    ingester->pprint_ = NULL;
 }
 
 VOID TEST(IngesterTest, Dispose)
