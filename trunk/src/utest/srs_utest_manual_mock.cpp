@@ -443,9 +443,29 @@ srs_error_t MockDtlsCertificate::initialize()
     return srs_success;
 }
 
+X509 *MockDtlsCertificate::get_cert()
+{
+    return NULL;
+}
+
+EVP_PKEY *MockDtlsCertificate::get_public_key()
+{
+    return NULL;
+}
+
+EC_KEY *MockDtlsCertificate::get_ecdsa_key()
+{
+    return NULL;
+}
+
 std::string MockDtlsCertificate::get_fingerprint()
 {
     return fingerprint_;
+}
+
+bool MockDtlsCertificate::is_ecdsa()
+{
+    return false;
 }
 
 // MockRtcTrackDescriptionFactory implementation

@@ -111,7 +111,11 @@ public:
 
 public:
     virtual srs_error_t initialize();
+    virtual X509 *get_cert();
+    virtual EVP_PKEY *get_public_key();
+    virtual EC_KEY *get_ecdsa_key();
     virtual std::string get_fingerprint();
+    virtual bool is_ecdsa();
 };
 
 // Helper class to create mock track descriptions for testing

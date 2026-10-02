@@ -29,7 +29,11 @@ public:
 
 public:
     virtual srs_error_t initialize() = 0;
+    virtual X509 *get_cert() = 0;
+    virtual EVP_PKEY *get_public_key() = 0;
+    virtual EC_KEY *get_ecdsa_key() = 0;
     virtual std::string get_fingerprint() = 0;
+    virtual bool is_ecdsa() = 0;
 };
 
 // The DTLS certificate.
@@ -83,6 +87,9 @@ enum SrsDtlsVersion {
     SrsDtlsVersion1_2
 };
 
+// Build the DTLS context with the certificate and its key.
+extern SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion version, std::string role);
+
 class ISrsDtlsCallback
 {
 public:
@@ -115,6 +122,7 @@ SRS_DECLARE_PROTECTED: // clang-format on
     BIO *bio_in_;
     BIO *bio_out_;
     ISrsDtlsCallback *callback_;
+    ISrsDtlsCertificate *dtls_certificate_;
     // @remark: dtls_version_ default value is SrsDtlsVersionAuto.
     SrsDtlsVersion version_;
 

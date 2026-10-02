@@ -115,7 +115,7 @@ void ssl_on_info(const SSL *dtls, int where, int ret)
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-SSL_CTX *srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
+SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion version, std::string role)
 {
     SSL_CTX *dtls_ctx;
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
@@ -139,7 +139,7 @@ SSL_CTX *srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
     }
 #endif
 
-    if (_srs_rtc_dtls_certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
+    if (certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L        // v1.0.2
         // For ECDSA, we could set the curves list.
         // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set1_curves_list.html
@@ -150,7 +150,7 @@ SSL_CTX *srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
         // @see https://stackoverrun.com/cn/q/10791887
 #if OPENSSL_VERSION_NUMBER < 0x10100000L // v1.1.x
 #if OPENSSL_VERSION_NUMBER < 0x10002000L // v1.0.2
-        SSL_CTX_set_tmp_ecdh(dtls_ctx, _srs_rtc_dtls_certificate->get_ecdsa_key());
+        SSL_CTX_set_tmp_ecdh(dtls_ctx, certificate->get_ecdsa_key());
 #else
         SSL_CTX_set_ecdh_auto(dtls_ctx, 1);
 #endif
@@ -164,8 +164,8 @@ SSL_CTX *srs_build_dtls_ctx(SrsDtlsVersion version, std::string role)
         srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
 
         // Setup the certificate.
-        srs_assert(SSL_CTX_use_certificate(dtls_ctx, _srs_rtc_dtls_certificate->get_cert()) == 1);
-        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, _srs_rtc_dtls_certificate->get_public_key()) == 1);
+        srs_assert(SSL_CTX_use_certificate(dtls_ctx, certificate->get_cert()) == 1);
+        srs_assert(SSL_CTX_use_PrivateKey(dtls_ctx, certificate->get_public_key()) == 1);
 
         // Server will send Certificate Request.
         // @see https://www.openssl.org/docs/man1.0.2/man3/SSL_CTX_set_verify.html
@@ -406,6 +406,8 @@ SrsDtlsImpl::SrsDtlsImpl(ISrsDtlsCallback *callback)
     last_content_type_ = 0;
 
     version_ = SrsDtlsVersionAuto;
+
+    dtls_certificate_ = _srs_rtc_dtls_certificate;
 }
 
 SrsDtlsImpl::~SrsDtlsImpl()
@@ -425,6 +427,8 @@ SrsDtlsImpl::~SrsDtlsImpl()
         SSL_free(dtls_);
         dtls_ = NULL;
     }
+
+    dtls_certificate_ = NULL;
 }
 
 // LCOV_EXCL_START
@@ -480,7 +484,7 @@ srs_error_t SrsDtlsImpl::initialize(std::string version, std::string role)
         version_ = SrsDtlsVersionAuto;
     }
 
-    dtls_ctx_ = srs_build_dtls_ctx(version_, role);
+    dtls_ctx_ = srs_build_dtls_ctx(dtls_certificate_, version_, role);
 
     if ((dtls_ = SSL_new(dtls_ctx_)) == NULL) {
         return srs_error_new(ERROR_OpenSslCreateSSL, "SSL_new dtls");

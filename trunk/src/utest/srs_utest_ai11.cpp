@@ -4446,3 +4446,126 @@ VOID TEST(RtcPublishStreamTest, InitializeOriginFromInjectedConfigKeepsRtcToRtmp
     EXPECT_TRUE(mock_rtc_sources.mock_source_->rtc_bridge_ != NULL);
     EXPECT_FALSE(mock_live_sources.mock_source_->gop_cache_->enabled());
 }
+
+MockDtlsCertificateForDtlsCtx::MockDtlsCertificateForDtlsCtx(bool ecdsa)
+{
+    config_.ecdsa_ = ecdsa;
+    real_ = new SrsDtlsCertificate();
+    real_->config_ = &config_;
+
+    get_cert_count_ = 0;
+    get_public_key_count_ = 0;
+    get_ecdsa_key_count_ = 0;
+    is_ecdsa_count_ = 0;
+}
+
+MockDtlsCertificateForDtlsCtx::~MockDtlsCertificateForDtlsCtx()
+{
+    real_->config_ = NULL;
+    srs_freep(real_);
+}
+
+srs_error_t MockDtlsCertificateForDtlsCtx::initialize()
+{
+    return real_->initialize();
+}
+
+X509 *MockDtlsCertificateForDtlsCtx::get_cert()
+{
+    get_cert_count_++;
+    return real_->get_cert();
+}
+
+EVP_PKEY *MockDtlsCertificateForDtlsCtx::get_public_key()
+{
+    get_public_key_count_++;
+    return real_->get_public_key();
+}
+
+EC_KEY *MockDtlsCertificateForDtlsCtx::get_ecdsa_key()
+{
+    get_ecdsa_key_count_++;
+    return real_->get_ecdsa_key();
+}
+
+std::string MockDtlsCertificateForDtlsCtx::get_fingerprint()
+{
+    return real_->get_fingerprint();
+}
+
+bool MockDtlsCertificateForDtlsCtx::is_ecdsa()
+{
+    is_ecdsa_count_++;
+    return real_->is_ecdsa();
+}
+
+// The context takes its certificate and key from the given certificate. The global
+// certificate is ECDSA by default, so an RSA one here tells the two apart.
+VOID TEST(DtlsCtxTest, BuildsWithGivenRsaCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(false);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *ctx = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_2, "passive");
+    ASSERT_TRUE(ctx != NULL);
+
+    EXPECT_EQ(1, certificate.is_ecdsa_count_);
+    EXPECT_EQ(1, certificate.get_cert_count_);
+    EXPECT_EQ(1, certificate.get_public_key_count_);
+    EXPECT_TRUE(SSL_CTX_get0_certificate(ctx) == certificate.real_->get_cert());
+    EXPECT_TRUE(SSL_CTX_get0_certificate(ctx) != _srs_rtc_dtls_certificate->get_cert());
+
+    SSL_CTX_free(ctx);
+}
+
+// An ECDSA certificate takes the same path, asked once whether it is ECDSA.
+VOID TEST(DtlsCtxTest, BuildsWithGivenEcdsaCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *ctx = srs_build_dtls_ctx(&certificate, SrsDtlsVersionAuto, "active");
+    ASSERT_TRUE(ctx != NULL);
+
+    EXPECT_EQ(1, certificate.is_ecdsa_count_);
+    EXPECT_EQ(1, certificate.get_cert_count_);
+    EXPECT_EQ(1, certificate.get_public_key_count_);
+    EXPECT_TRUE(SSL_CTX_get0_certificate(ctx) == certificate.real_->get_cert());
+
+    SSL_CTX_free(ctx);
+}
+
+// The DTLS implementation captures the global certificate in the constructor.
+VOID TEST(DtlsImplTest, ConstructorCapturesCertificate)
+{
+    SrsDtlsServerImpl server(NULL);
+    EXPECT_TRUE(server.dtls_certificate_ == (ISrsDtlsCertificate *)_srs_rtc_dtls_certificate);
+
+    SrsDtlsClientImpl client(NULL);
+    EXPECT_TRUE(client.dtls_certificate_ == (ISrsDtlsCertificate *)_srs_rtc_dtls_certificate);
+}
+
+// Initialize builds the context from the injected certificate.
+VOID TEST(DtlsImplTest, InitializeBuildsContextThroughCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(false);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SrsDtlsServerImpl impl(NULL);
+    impl.dtls_certificate_ = &certificate;
+
+    HELPER_EXPECT_SUCCESS(impl.initialize("dtls1.2", "passive"));
+    EXPECT_EQ(1, certificate.is_ecdsa_count_);
+    EXPECT_EQ(1, certificate.get_cert_count_);
+    EXPECT_EQ(1, certificate.get_public_key_count_);
+    ASSERT_TRUE(impl.dtls_ctx_ != NULL);
+    EXPECT_TRUE(SSL_CTX_get0_certificate(impl.dtls_ctx_) == certificate.real_->get_cert());
+
+    impl.dtls_certificate_ = NULL;
+}

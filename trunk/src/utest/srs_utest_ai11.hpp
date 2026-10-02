@@ -492,4 +492,30 @@ public:
     virtual bool get_vhost_is_edge(std::string vhost);
 };
 
+
+// Mock ISrsDtlsCertificate for testing srs_build_dtls_ctx() and SrsDtlsImpl::initialize().
+// It hands out a real certificate, made with the key type the test chooses, and counts the reads.
+class MockDtlsCertificateForDtlsCtx : public ISrsDtlsCertificate
+{
+public:
+    MockAppConfigForDtlsCertificate config_;
+    SrsDtlsCertificate *real_;
+    int get_cert_count_;
+    int get_public_key_count_;
+    int get_ecdsa_key_count_;
+    int is_ecdsa_count_;
+
+public:
+    MockDtlsCertificateForDtlsCtx(bool ecdsa);
+    virtual ~MockDtlsCertificateForDtlsCtx();
+
+public:
+    virtual srs_error_t initialize();
+    virtual X509 *get_cert();
+    virtual EVP_PKEY *get_public_key();
+    virtual EC_KEY *get_ecdsa_key();
+    virtual std::string get_fingerprint();
+    virtual bool is_ecdsa();
+};
+
 #endif
