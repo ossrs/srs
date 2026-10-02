@@ -1037,6 +1037,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsRtcSourceManager *rtc_sources_;
     ISrsRtcSSRCGenerator *ssrc_generator_;
+    // The random generator of the cname in the play answer.
+    ISrsRand *rand_;
 
 public:
     SrsRtcPlayerNegotiator();

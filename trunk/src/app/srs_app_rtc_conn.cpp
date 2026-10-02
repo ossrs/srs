@@ -3339,10 +3339,13 @@ SrsRtcPlayerNegotiator::SrsRtcPlayerNegotiator()
     config_ = _srs_config;
     rtc_sources_ = _srs_rtc_sources;
     ssrc_generator_ = _srs_rtc_ssrc_generator;
+    rand_ = new SrsRand();
 }
 
 SrsRtcPlayerNegotiator::~SrsRtcPlayerNegotiator()
 {
+    srs_freep(rand_);
+
     config_ = NULL;
     rtc_sources_ = NULL;
     ssrc_generator_ = NULL;
@@ -4326,8 +4329,7 @@ srs_error_t SrsRtcPlayerNegotiator::generate_play_local_sdp(ISrsRequest *req, Sr
 
     local_sdp.group_policy_ = "BUNDLE";
 
-    SrsRand rand;
-    std::string cname = rand.gen_str(16);
+    std::string cname = rand_->gen_str(16);
 
     if (audio_before_video) {
         if ((err = generate_play_local_sdp_for_audio(local_sdp, stream_desc, cname)) != srs_success) {

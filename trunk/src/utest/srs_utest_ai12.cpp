@@ -3686,3 +3686,70 @@ VOID TEST(SrsRtcConnectionTest, GenerateLocalSdpRedrawsTakenUfragThroughInjected
     EXPECT_EQ("ufrag002:remote", username);
     EXPECT_EQ("ufrag002", local_sdp.media_descs_[0].session_info_.ice_ufrag_);
 }
+
+// The player negotiator owns its random generator, so a test can replace it before the cname is drawn.
+VOID TEST(RtcPlayerNegotiatorTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsRtcPlayerNegotiator> negotiator(new SrsRtcPlayerNegotiator());
+
+    EXPECT_TRUE(negotiator->rand_ != NULL);
+}
+
+// One cname is drawn through the injected generator for the whole play answer, and every SSRC of
+// the audio and video tracks, the RTX SSRC included, carries it.
+VOID TEST(RtcPlayerNegotiatorTest, GeneratePlayLocalSdpDrawsCnameThroughInjectedRand)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtcPlayerNegotiator> negotiator(new SrsRtcPlayerNegotiator());
+
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("cname00000000001");
+    srs_freep(negotiator->rand_);
+    negotiator->rand_ = &rand;
+
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+
+    SrsRtcTrackDescription *audio_track = new SrsRtcTrackDescription();
+    audio_track->type_ = "audio";
+    audio_track->id_ = "audio_track_id";
+    audio_track->ssrc_ = 12345;
+    audio_track->mid_ = "0";
+    audio_track->msid_ = "test_stream";
+    audio_track->direction_ = "sendonly";
+    audio_track->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+    stream_desc->audio_track_desc_ = audio_track;
+
+    SrsRtcTrackDescription *video_track = new SrsRtcTrackDescription();
+    video_track->type_ = "video";
+    video_track->id_ = "video_track_id";
+    video_track->ssrc_ = 67890;
+    video_track->rtx_ssrc_ = 67891;
+    video_track->mid_ = "1";
+    video_track->msid_ = "test_stream";
+    video_track->direction_ = "sendonly";
+    video_track->media_ = new SrsVideoPayload(96, "H264", 90000);
+    video_track->rtx_ = new SrsRtxPayloadDes(97, 96, 90000);
+    stream_desc->video_track_descs_.push_back(video_track);
+
+    MockRtcAsyncCallRequest req("test.vhost", "live", "stream1");
+    SrsSdp local_sdp;
+    err = negotiator->generate_play_local_sdp(&req, local_sdp, stream_desc.get(), true, false);
+
+    // Restore before any assertion can return, so the negotiator never frees the stack mock.
+    negotiator->rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+
+    ASSERT_EQ(1, (int)rand.gen_str_lens_.size());
+    EXPECT_EQ(16, rand.gen_str_lens_[0]);
+
+    // Video comes first, because audio_before_video is false.
+    ASSERT_EQ(2, (int)local_sdp.media_descs_.size());
+    EXPECT_EQ("video", local_sdp.media_descs_[0].type_);
+    ASSERT_EQ(2, (int)local_sdp.media_descs_[0].ssrc_infos_.size());
+    EXPECT_EQ("cname00000000001", local_sdp.media_descs_[0].ssrc_infos_[0].cname_);
+    EXPECT_EQ("cname00000000001", local_sdp.media_descs_[0].ssrc_infos_[1].cname_);
+    EXPECT_EQ("audio", local_sdp.media_descs_[1].type_);
+    ASSERT_EQ(1, (int)local_sdp.media_descs_[1].ssrc_infos_.size());
+    EXPECT_EQ("cname00000000001", local_sdp.media_descs_[1].ssrc_infos_[0].cname_);
+}
