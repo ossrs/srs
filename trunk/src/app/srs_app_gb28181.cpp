@@ -100,6 +100,7 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
 void SrsGbSession::assemble()
 {
     media_->assemble();
+    muxer_->assemble();
 
     ppp_->assemble();
     startime_ = srs_time_now_realtime();
@@ -860,7 +861,7 @@ SrsGbMuxer::SrsGbMuxer(ISrsGbSession *session)
     aac_ = new SrsRawAacStream();
 
     queue_ = new SrsMpegpsQueue();
-    pprint_ = SrsPithyPrint::create_caster();
+    pprint_ = NULL;
 
     app_factory_ = _srs_app_factory;
 }
@@ -876,6 +877,11 @@ SrsGbMuxer::~SrsGbMuxer()
     srs_freep(pprint_);
 
     app_factory_ = NULL;
+}
+
+void SrsGbMuxer::assemble()
+{
+    pprint_ = SrsPithyPrint::create_caster();
 }
 
 void SrsGbMuxer::setup(std::string output)

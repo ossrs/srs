@@ -438,6 +438,7 @@ public:
     virtual ~ISrsGbMuxer();
 
 public:
+    virtual void assemble() = 0; // Construct object, to avoid call function in constructor.
     virtual void setup(std::string output) = 0;
     virtual srs_error_t on_ts_message(SrsTsMessage *msg) = 0;
 };
@@ -487,6 +488,7 @@ public:
     virtual ~SrsGbMuxer();
 
 public:
+    void assemble(); // Construct object, to avoid call function in constructor.
     void setup(std::string output);
     srs_error_t on_ts_message(SrsTsMessage *msg);
 

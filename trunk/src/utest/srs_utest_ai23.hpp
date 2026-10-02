@@ -40,12 +40,14 @@ public:
     std::string setup_output_;
     bool on_ts_message_called_;
     srs_error_t on_ts_message_error_;
+    int assemble_count_;
 
 public:
     MockGbMuxer();
     virtual ~MockGbMuxer();
 
 public:
+    virtual void assemble();
     virtual void setup(std::string output);
     virtual srs_error_t on_ts_message(SrsTsMessage *msg);
     void reset();

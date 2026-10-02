@@ -16,6 +16,7 @@ using namespace std;
 #include <srs_app_rtc_network.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_kbps.hpp>
+#include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_ps.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
@@ -39,10 +40,16 @@ MockGbMuxer::MockGbMuxer()
     setup_output_ = "";
     on_ts_message_called_ = false;
     on_ts_message_error_ = srs_success;
+    assemble_count_ = 0;
 }
 
 MockGbMuxer::~MockGbMuxer()
 {
+}
+
+void MockGbMuxer::assemble()
+{
+    assemble_count_++;
 }
 
 void MockGbMuxer::setup(std::string output)
@@ -958,6 +965,41 @@ VOID TEST(GbSessionTest, FactoryCreatesAssembledSession)
     _srs_context->set_id(before);
 }
 
+// The session's assemble() assembles the injected muxer.
+VOID TEST(GbSessionTest, AssembleAssemblesMuxer)
+{
+    SrsContextId before = _srs_context->get_id();
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    MockGbMuxer *mock_muxer = new MockGbMuxer();
+    srs_freep(session->muxer_);
+    session->muxer_ = mock_muxer;
+
+    session->assemble();
+
+    EXPECT_EQ(1, mock_muxer->assemble_count_);
+
+    _srs_context->set_id(before);
+}
+
+// The factory is the production construction site: the session it returns has a
+// muxer with its pithy print created.
+VOID TEST(GbSessionTest, FactoryCreatesSessionWithAssembledMuxer)
+{
+    SrsContextId before = _srs_context->get_id();
+
+    SrsAppFactory factory;
+    SrsUniquePtr<ISrsGbSession> isession(factory.create_gb_session());
+
+    SrsGbSession *session = dynamic_cast<SrsGbSession *>(isession.get());
+    ASSERT_TRUE(session != NULL);
+    SrsGbMuxer *muxer = dynamic_cast<SrsGbMuxer *>(session->muxer_);
+    ASSERT_TRUE(muxer != NULL);
+    EXPECT_TRUE(muxer->pprint_ != NULL);
+
+    _srs_context->set_id(before);
+}
+
 // Test SrsGbMediaTcpConn::setup_owner, on_executor_done, is_connected, set_cid, get_id, desc
 // This test covers the major use scenario:
 // 1. Create SrsGbMediaTcpConn and setup owner with wrapper, coroutine, and cid setter
@@ -1859,6 +1901,32 @@ void MockPsPackHandler::reset()
     last_pack_id_ = 0;
     last_msgs_count_ = 0;
     srs_freep(on_ps_pack_error_);
+}
+
+// The constructor does not create the pithy print, which would enter the caster
+// stage of the global stage manager before a test could inject anything.
+VOID TEST(GbMuxerTest, ConstructorLeavesPithyPrintUnset)
+{
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+
+    EXPECT_TRUE(muxer->pprint_ == NULL);
+}
+
+// assemble() creates the pithy print for the caster stage.
+VOID TEST(GbMuxerTest, AssembleCreatesCasterPithyPrint)
+{
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    srs_freep(muxer->pprint_);
+
+    muxer->assemble();
+
+    SrsPithyPrint *pprint = dynamic_cast<SrsPithyPrint *>(muxer->pprint_);
+    ASSERT_TRUE(pprint != NULL);
+
+    SrsUniquePtr<SrsPithyPrint> expected(SrsPithyPrint::create_caster());
+    EXPECT_EQ(expected->stage_id_, pprint->stage_id_);
 }
 
 // Test SrsGbMuxer::on_ts_message - covers the major use scenario:
