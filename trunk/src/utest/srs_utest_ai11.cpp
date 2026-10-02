@@ -2642,6 +2642,57 @@ VOID TEST(RtcPlayStreamTest, InitializeSuccess)
     srs_freep(video_desc);
 }
 
+// The play stream assembles every send track it creates, so each track starts its RTX sequence space at a random
+// point. The generator is reseeded with a fixed seed whose draws are not 0, so an unassembled track, which starts
+// at 0, cannot pass.
+VOID TEST(RtcPlayStreamTest, InitializeAssemblesSendTracks)
+{
+    srs_error_t err;
+
+    MockAppConfig mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockAppStatistic mock_stat;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    MockRtcAsyncTaskExecutor mock_async_executor;
+    MockExpire mock_expire;
+    MockRtcPacketSender mock_packet_sender;
+
+    SrsContextId cid;
+    cid.set_value("test-play-stream-assemble-cid");
+    SrsUniquePtr<SrsRtcPlayStream> play_stream(new SrsRtcPlayStream(&mock_async_executor, &mock_expire, &mock_packet_sender, cid));
+    play_stream->config_ = &mock_config;
+    play_stream->rtc_sources_ = &mock_rtc_sources;
+    play_stream->stat_ = &mock_stat;
+
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "audio-track-id";
+    audio_desc->ssrc_ = 12345;
+    audio_desc->is_active_ = true;
+
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->id_ = "video-track-id";
+    video_desc->ssrc_ = 67890;
+    video_desc->is_active_ = true;
+
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+    sub_relations[12345] = audio_desc.get();
+    sub_relations[67890] = video_desc.get();
+
+    // Seed the generator after its first use, which seeds it from the wall clock once.
+    SrsRand rand;
+    rand.integer();
+    ::srandom(1);
+
+    HELPER_EXPECT_SUCCESS(play_stream->initialize(&mock_request, sub_relations));
+
+    ASSERT_EQ(1, (int)play_stream->audio_tracks_.size());
+    ASSERT_EQ(1, (int)play_stream->video_tracks_.size());
+    EXPECT_NE(0, (int)play_stream->audio_tracks_[12345]->rtx_seq_);
+    EXPECT_NE(0, (int)play_stream->video_tracks_[67890]->rtx_seq_);
+}
+
 VOID TEST(RtcPlayStreamTest, OnStreamChangeSuccess)
 {
     srs_error_t err;

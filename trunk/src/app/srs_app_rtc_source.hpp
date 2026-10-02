@@ -49,6 +49,7 @@ class ISrsStatistic;
 class ISrsAppConfig;
 class ISrsRtcSSRCGenerator;
 class ISrsClock;
+class ISrsRand;
 
 // Firefox defaults as 109, Chrome is 111.
 const int kAudioPayloadType = 111;
@@ -1128,9 +1129,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsErrorPithyPrint *nack_epp;
     // The RTX sequence space of this track, RFC 4588 section 4, independent of the media sequence.
     uint16_t rtx_seq_;
+    // The random generator for the start of the RTX sequence space.
+    ISrsRand *rand_;
 
 public:
     SrsRtcSendTrack(ISrsRtcPacketSender *sender, SrsRtcTrackDescription *track_desc, bool is_audio);
+    void assemble(); // Construct object, to avoid call function in constructor.
     virtual ~SrsRtcSendTrack();
 
 public:

@@ -12,6 +12,7 @@
 #include <srs_kernel_kbps.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_sdp.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <sstream>
@@ -505,4 +506,48 @@ VOID TEST(KernelRtcRtxTest, SendTrackAnswersNackPlainWithoutRtx)
         ASSERT_EQ(1, (int)sender.sent_packets_.size());
         EXPECT_EQ(original, sender.sent_packets_[0]) << "mode=" << mode;
     }
+}
+
+// The send track allocates its random generator but draws no RTX sequence start until assemble(), so a test can
+// inject its own generator first.
+VOID TEST(KernelRtcRtxTest, SendTrackConstructorDrawsNoRtxSequence)
+{
+    MockRtcPacketSender sender;
+    SrsUniquePtr<SrsRtcVideoSendTrack> track(mock_video_send_track(&sender, kRtxPt, kRtxSsrc));
+
+    EXPECT_TRUE(track->rand_ != NULL);
+    EXPECT_EQ(0, (int)track->rtx_seq_);
+}
+
+// assemble() draws the start of the RTX sequence space through the injected generator, once, and the first RTX
+// packet answering a NACK carries it.
+VOID TEST(KernelRtcRtxTest, SendTrackAssembleDrawsRtxSequenceThroughRand)
+{
+    srs_error_t err = srs_success;
+    uint8_t payload[] = {0x65, 0x88, 0x84, 0x00};
+
+    MockRandForHandshake rand;
+    rand.integer_value_ = 0x12345;
+
+    MockRtcPacketSender sender;
+    SrsUniquePtr<SrsRtcVideoSendTrack> track(mock_video_send_track(&sender, kRtxPt, kRtxSsrc));
+    srs_freep(track->rand_);
+    track->rand_ = &rand;
+
+    track->assemble();
+    EXPECT_EQ(1, rand.integer_count_);
+    EXPECT_EQ(0x2345, (int)track->rtx_seq_);
+
+    SrsRtpPacket *pkt = mock_cached_video_packet(1000, payload, sizeof(payload));
+    HELPER_ASSERT_SUCCESS(track->on_nack(&pkt));
+    srs_freep(pkt);
+
+    std::vector<uint16_t> seqs;
+    seqs.push_back(1000);
+    HELPER_ASSERT_SUCCESS(track->on_recv_nack(seqs));
+    ASSERT_EQ(1, (int)sender.sent_packets_.size());
+    const std::string &rtx = sender.sent_packets_[0];
+    EXPECT_EQ(0x2345, (int)srs_rtp_fast_parse_seq((char *)rtx.data(), (int)rtx.size()));
+
+    track->rand_ = NULL;
 }

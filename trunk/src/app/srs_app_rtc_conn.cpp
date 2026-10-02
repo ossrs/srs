@@ -545,11 +545,13 @@ srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, Sr
 
         if (desc->type_ == "audio") {
             SrsRtcAudioSendTrack *track = new SrsRtcAudioSendTrack(sender_, desc);
+            track->assemble();
             audio_tracks_.insert(make_pair(ssrc, track));
         }
 
         if (desc->type_ == "video") {
             SrsRtcVideoSendTrack *track = new SrsRtcVideoSendTrack(sender_, desc);
+            track->assemble();
             video_tracks_.insert(make_pair(ssrc, track));
         }
     }

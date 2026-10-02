@@ -3695,9 +3695,14 @@ SrsRtcSendTrack::SrsRtcSendTrack(ISrsRtcPacketSender *sender, SrsRtcTrackDescrip
 
     nack_epp = new SrsErrorPithyPrint();
     
+    rtx_seq_ = 0;
+    rand_ = new SrsRand();
+}
+
+void SrsRtcSendTrack::assemble()
+{
     // The RTX sequence space starts at a random point, like a fresh RTP stream, RFC 3550 section 5.1.
-    SrsRand rand;
-    rtx_seq_ = (uint16_t)rand.integer();
+    rtx_seq_ = (uint16_t)rand_->integer();
 }
 
 SrsRtcSendTrack::~SrsRtcSendTrack()
@@ -3707,6 +3712,7 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
     srs_freep(nack_epp);
     srs_freep(jitter_ts_);
     srs_freep(jitter_seq_);
+    srs_freep(rand_);
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
