@@ -70,6 +70,7 @@ SrsHlsStream::SrsHlsStream()
     stat_ = _srs_stat;
     hooks_ = _srs_hooks;
     shared_timer_ = _srs_shared_timer;
+    rand_ = new SrsRand();
 }
 
 void SrsHlsStream::assemble()
@@ -90,6 +91,7 @@ SrsHlsStream::~SrsHlsStream()
     }
     map_ctx_info_.clear();
     srs_freep(security_);
+    srs_freep(rand_);
 
     config_ = NULL;
     stat_ = NULL;
@@ -188,10 +190,9 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter *w, ISrsHttpM
     srs_assert(hr);
 
     if (ctx.empty()) {
-        SrsRand rand;
         // make sure unique
         do {
-            ctx = rand.gen_str(8); // the same as cid
+            ctx = rand_->gen_str(8); // the same as cid
         } while (ctx_is_exist(ctx));
     }
 
