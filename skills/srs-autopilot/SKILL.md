@@ -39,11 +39,12 @@ The goal is a plan the loop can run as long as possible without the user.
 
 The main agent never reads the task file or implements tasks. It loops:
 
-1. Start one new subagent with the prompt below.
+1. Start one new subagent with the task prompt below.
 2. Check the report and that the repository is clean with a new commit.
-3. Stop and report to the user when the subagent needs the user, is blocked, all tasks are done, or the user asked to pause. Otherwise go to step 1.
+3. Start one new subagent with the summary prompt below, so the totals stay out of the main agent's context. Report its summary to the user.
+4. Stop only when the subagent needs the user, is blocked, all tasks are done, or the user asked to pause. Otherwise go to step 1.
 
-Subagent prompt:
+Task prompt:
 
 ```
 Do exactly one task of tasks/<topic>.md.
@@ -53,5 +54,13 @@ Follow the srs-autopilot skill's git rules and the srs-develop skill for the wor
 Mark the task [~], write tests first, implement, and run the tests until they pass.
 Commit, tick the task [x], update Current state, add a Work log entry, then quit.
 If blocked, do not commit; leave the task [~], log the blocker, and report.
-Report: the task ID, the commit hash, the tests and results, and anything blocked or for the user, or that all tasks are done.
+Report: the task ID, the start and end time, the commit hash, the files changed and lines added and removed, the tests passed and failed by type (such as utest, integration tool, script, or E2E), and anything blocked or for the user, or that all tasks are done.
+```
+
+Summary prompt:
+
+```
+Summarize this run of tasks/<topic>.md so far from the task reports below, and check the numbers against git.
+Report the task just finished, then the totals so far: the start and end time, the tasks finished and left, the commits, the files changed, the lines added and removed, the tests passed and failed by type, and anything blocked or for the user.
+<the task reports>
 ```
