@@ -13,7 +13,7 @@ CFLAGS      += -arch $(CPU_ARCHS)
 endif
 
 ./backtrace: backtrace.c $(LDLIBS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $< $(LDLIBS)
 
 clean:
 	cd ../.. && make clean

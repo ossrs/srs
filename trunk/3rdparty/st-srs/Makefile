@@ -241,7 +241,7 @@ endif
 ifeq ($(OS),)
 ST_ALL      = unknown
 else
-ST_ALL      = $(TARGETDIR) $(LIBRARIES) $(HEADER) $(DESC)
+ST_ALL      = $(TARGETDIR) $(LIBRARIES) $(HEADER) $(DESC) obj-link
 endif
 
 all: $(ST_ALL)
@@ -258,13 +258,17 @@ unknown:
 st.pc:	st.pc.in
 	sed "s/@VERSION@/${VERSION}/g" < $< > $@
 
+# Point obj to this platform on every build, even when the library is up to date.
+.PHONY: obj-link
+obj-link:
+	rm -f obj; $(LN) $(LNFLAGS) $(TARGETDIR) obj
+
 $(TARGETDIR):
 	if [ ! -d $(TARGETDIR) ]; then mkdir $(TARGETDIR); fi
 
 $(SLIBRARY): $(OBJS)
 	$(AR) $(ARFLAGS) $@ $(OBJS)
 	$(RANLIB) $@
-	rm -f obj; $(LN) $(LNFLAGS) $(TARGETDIR) obj
 
 $(DLIBRARY): $(OBJS:%.o=%-pic.o)
 	$(LD) $(LDFLAGS) $^ -o $@

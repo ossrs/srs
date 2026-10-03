@@ -210,7 +210,7 @@ static void* interrupt_reader_coroutine(void* arg)
 VOID TEST(InterruptTest, StopReaderWithQueuedData)
 {
     int fds[2];
-    ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fds));
+    ASSERT_EQ(0, st_utest_stream_pair(fds));
     st_netfd_t reader = st_netfd_open_socket(fds[0]);
     ASSERT_TRUE(reader != NULL);
     StStfdCleanup(reader);
@@ -218,7 +218,7 @@ VOID TEST(InterruptTest, StopReaderWithQueuedData)
     st_netfd_t peer_stfd = NULL;
     StFdCleanup(peer, peer_stfd);
 
-    ASSERT_EQ(5, ::write(peer, "hello", 5));
+    ASSERT_EQ(5, st_utest_send(peer, "hello", 5));
 
     InterruptTestReader r;
     r.stfd_ = reader;
@@ -618,7 +618,7 @@ VOID TEST(TimeoutHeapTest, EarlyWakeKeepsOthersOnTime)
     int fds[nn_waiters][2];
     st_netfd_t readers[nn_waiters];
     for (int i = 0; i < nn_waiters; i++) {
-        ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM, 0, fds[i]));
+        ASSERT_EQ(0, st_utest_stream_pair(fds[i]));
         readers[i] = st_netfd_open_socket(fds[i][0]);
         ASSERT_TRUE(readers[i] != NULL);
     }
@@ -636,7 +636,7 @@ VOID TEST(TimeoutHeapTest, EarlyWakeKeepsOthersOnTime)
 
     st_utime_t starttime = timeout_heap_test_start_waiting();
 
-    ASSERT_EQ(5, ::write(fds[early][1], "hello", 5));
+    ASSERT_EQ(5, st_utest_send(fds[early][1], "hello", 5));
 
     for (int i = 0; i < nn_waiters; i++) {
         EXPECT_EQ(0, st_thread_join(trds[i], NULL));
@@ -658,7 +658,7 @@ VOID TEST(TimeoutHeapTest, EarlyWakeKeepsOthersOnTime)
 
     for (int i = 0; i < nn_waiters; i++) {
         st_netfd_close(readers[i]);
-        ::close(fds[i][1]);
+        st_utest_close(fds[i][1]);
     }
 }
 
@@ -947,31 +947,6 @@ VOID TEST(SwitchCbTest, ExitingCoroutineSwitchedOut)
 // directly to wait on more than one.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// A pipe whose read end is wrapped with st_netfd_open, so ST knows the descriptor, and whose write end stays plain.
-struct PollTestPipe {
-    st_netfd_t reader_;
-    int writer_;
-    PollTestPipe() : reader_(NULL), writer_(-1) {
-    }
-    ~PollTestPipe() {
-        if (reader_) st_netfd_close(reader_);
-        if (writer_ >= 0) ::close(writer_);
-    }
-};
-
-static bool poll_test_pipe(PollTestPipe& p)
-{
-    int fds[2];
-    if (pipe(fds) < 0) return false;
-
-    p.writer_ = fds[1];
-    if ((p.reader_ = st_netfd_open(fds[0])) == NULL) {
-        ::close(fds[0]);
-        return false;
-    }
-    return true;
-}
-
 // What one st_poll returned, with the revents of each descriptor.
 struct PollTestCall {
     int r0_;
@@ -984,8 +959,8 @@ struct PollTestCall {
 };
 
 struct PollTestWorker {
-    PollTestPipe* jobs_;
-    PollTestPipe* stop_;
+    StUtestPair* jobs_;
+    StUtestPair* stop_;
     std::vector<PollTestCall> calls_;
     std::vector<char> done_;
 };
@@ -996,9 +971,9 @@ static void* poll_test_worker_coroutine(void* arg)
 
     // One array for the whole loop, so the revents of the last pass are still in it.
     struct pollfd pds[2];
-    pds[0].fd = st_netfd_fileno(w->jobs_->reader_);
+    pds[0].fd = st_netfd_fileno(w->jobs_->stfd_);
     pds[0].events = POLLIN;
-    pds[1].fd = st_netfd_fileno(w->stop_->reader_);
+    pds[1].fd = st_netfd_fileno(w->stop_->stfd_);
     pds[1].events = POLLIN;
 
     for (;;) {
@@ -1015,7 +990,7 @@ static void* poll_test_worker_coroutine(void* arg)
         }
 
         char job = 0;
-        if (::read(pds[0].fd, &job, 1) == 1) {
+        if (st_utest_recv(pds[0].fd, &job, 1) == 1) {
             w->done_.push_back(job);
         }
     }
@@ -1028,9 +1003,9 @@ static void* poll_test_worker_coroutine(void* arg)
 // again when the stop request wakes the next one. Locks in current behavior.
 VOID TEST(PollTest, WorkerWakesOnJobOrStop)
 {
-    PollTestPipe jobs, stop;
-    ASSERT_TRUE(poll_test_pipe(jobs));
-    ASSERT_TRUE(poll_test_pipe(stop));
+    StUtestPair jobs, stop;
+    ASSERT_TRUE(st_utest_pair_open(jobs));
+    ASSERT_TRUE(st_utest_pair_open(stop));
 
     PollTestWorker w;
     w.jobs_ = &jobs;
@@ -1043,7 +1018,7 @@ VOID TEST(PollTest, WorkerWakesOnJobOrStop)
     EXPECT_EQ(0, (int)w.calls_.size());
 
     // A job arrives; the worker does it and waits again.
-    ASSERT_EQ(1, ::write(jobs.writer_, "a", 1));
+    ASSERT_EQ(1, st_utest_send(jobs.peer_, "a", 1));
     st_usleep(10 * ST_UTIME_MILLISECONDS);
     ASSERT_EQ(1, (int)w.calls_.size());
     EXPECT_EQ(1, w.calls_[0].r0_);
@@ -1053,7 +1028,7 @@ VOID TEST(PollTest, WorkerWakesOnJobOrStop)
     EXPECT_EQ('a', w.done_[0]);
 
     // A stop request arrives; the worker sees no job and quits.
-    ASSERT_EQ(1, ::write(stop.writer_, "q", 1));
+    ASSERT_EQ(1, st_utest_send(stop.peer_, "q", 1));
     EXPECT_EQ(0, st_thread_join(trd, NULL));
     ASSERT_EQ(2, (int)w.calls_.size());
     EXPECT_EQ(1, w.calls_[1].r0_);
@@ -1066,17 +1041,17 @@ VOID TEST(PollTest, WorkerWakesOnJobOrStop)
 // at once and reports both: 2, with POLLIN on the read side and POLLOUT on the write side. Locks in current behavior.
 VOID TEST(PollTest, ReportsEveryReadyDescriptor)
 {
-    PollTestPipe in, out;
-    ASSERT_TRUE(poll_test_pipe(in));
-    ASSERT_TRUE(poll_test_pipe(out));
+    StUtestPair in, out;
+    ASSERT_TRUE(st_utest_pair_open(in));
+    ASSERT_TRUE(st_utest_pair_open(out));
 
     // Data waits on the read side, and the write side has room.
-    ASSERT_EQ(1, ::write(in.writer_, "a", 1));
+    ASSERT_EQ(1, st_utest_send(in.peer_, "a", 1));
 
     struct pollfd pds[2];
-    pds[0].fd = st_netfd_fileno(in.reader_);
+    pds[0].fd = st_netfd_fileno(in.stfd_);
     pds[0].events = POLLIN;
-    pds[1].fd = out.writer_;
+    pds[1].fd = out.peer_;
     pds[1].events = POLLOUT;
 
     st_utime_t starttime = st_utime();
@@ -1090,14 +1065,14 @@ VOID TEST(PollTest, ReportsEveryReadyDescriptor)
 // calls built on it, such as st_read, turn that 0 into -1 with ETIME. Locks in current behavior.
 VOID TEST(PollTest, TimeoutReturnsZero)
 {
-    PollTestPipe a, b;
-    ASSERT_TRUE(poll_test_pipe(a));
-    ASSERT_TRUE(poll_test_pipe(b));
+    StUtestPair a, b;
+    ASSERT_TRUE(st_utest_pair_open(a));
+    ASSERT_TRUE(st_utest_pair_open(b));
 
     struct pollfd pds[2];
-    pds[0].fd = st_netfd_fileno(a.reader_);
+    pds[0].fd = st_netfd_fileno(a.stfd_);
     pds[0].events = POLLIN;
-    pds[1].fd = st_netfd_fileno(b.reader_);
+    pds[1].fd = st_netfd_fileno(b.stfd_);
     pds[1].events = POLLIN;
 
     // The timeout counts from the clock reading this yield takes.
@@ -1109,10 +1084,10 @@ VOID TEST(PollTest, TimeoutReturnsZero)
     EXPECT_GE(st_utime() - starttime, 10 * ST_UTIME_MILLISECONDS);
 
     // Nothing is left registered, so both descriptors close.
-    EXPECT_EQ(0, st_netfd_close(a.reader_));
-    a.reader_ = NULL;
-    EXPECT_EQ(0, st_netfd_close(b.reader_));
-    b.reader_ = NULL;
+    EXPECT_EQ(0, st_netfd_close(a.stfd_));
+    a.stfd_ = NULL;
+    EXPECT_EQ(0, st_netfd_close(b.stfd_));
+    b.stfd_ = NULL;
 }
 
 static void poll_test_rejected(st_netfd_t valid, int fd, short events)
@@ -1136,16 +1111,16 @@ static void poll_test_rejected(st_netfd_t valid, int fd, short events)
 // with EBUSY as if a coroutine still waited on it. Locks in current behavior.
 VOID TEST(PollTest, InvalidPollsetFailsAtOnce)
 {
-    PollTestPipe valid, other;
-    ASSERT_TRUE(poll_test_pipe(valid));
-    ASSERT_TRUE(poll_test_pipe(other));
+    StUtestPair valid, other;
+    ASSERT_TRUE(st_utest_pair_open(valid));
+    ASSERT_TRUE(st_utest_pair_open(other));
 
-    poll_test_rejected(valid.reader_, -1, POLLIN);
-    poll_test_rejected(valid.reader_, st_netfd_fileno(other.reader_), 0);
-    poll_test_rejected(valid.reader_, st_netfd_fileno(other.reader_), POLLRDNORM);
+    poll_test_rejected(valid.stfd_, -1, POLLIN);
+    poll_test_rejected(valid.stfd_, st_netfd_fileno(other.stfd_), 0);
+    poll_test_rejected(valid.stfd_, st_netfd_fileno(other.stfd_), POLLRDNORM);
 
-    EXPECT_EQ(0, st_netfd_close(valid.reader_));
-    valid.reader_ = NULL;
+    EXPECT_EQ(0, st_netfd_close(valid.stfd_));
+    valid.stfd_ = NULL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1203,18 +1178,18 @@ VOID TEST(InitTest, SecondInitFromCoroutineIsNoOp)
 }
 
 struct InitTestReader {
-    PollTestPipe* pipe_;
+    StUtestPair* pair_;
     bool returned_;
     ssize_t nread_;
     char data_;
-    InitTestReader() : pipe_(NULL), returned_(false), nread_(-1), data_(0) {
+    InitTestReader() : pair_(NULL), returned_(false), nread_(-1), data_(0) {
     }
 };
 
 static void* init_test_reader_coroutine(void* arg)
 {
     InitTestReader* r = (InitTestReader*)arg;
-    r->nread_ = st_read(r->pipe_->reader_, &r->data_, 1, ST_UTEST_TIMEOUT);
+    r->nread_ = st_read(r->pair_->stfd_, &r->data_, 1, ST_UTEST_TIMEOUT);
     r->returned_ = true;
     return NULL;
 }
@@ -1230,11 +1205,11 @@ static void* init_test_sleeper_coroutine(void* arg)
 // when its data arrives. Locks in current behavior.
 VOID TEST(InitTest, SecondInitKeepsWaitingCoroutines)
 {
-    PollTestPipe p;
-    ASSERT_TRUE(poll_test_pipe(p));
+    StUtestPair p;
+    ASSERT_TRUE(st_utest_pair_open(p));
 
     InitTestReader r;
-    r.pipe_ = &p;
+    r.pair_ = &p;
     st_thread_t reader = st_thread_create(init_test_reader_coroutine, &r, 1, 0);
     ASSERT_TRUE(reader != NULL);
 
@@ -1257,7 +1232,7 @@ VOID TEST(InitTest, SecondInitKeepsWaitingCoroutines)
 
     // The reader is still waiting, and wakes on its data.
     EXPECT_FALSE(r.returned_);
-    ASSERT_EQ(1, (int)::write(p.writer_, "x", 1));
+    ASSERT_EQ(1, (int)st_utest_send(p.peer_, "x", 1));
     EXPECT_EQ(0, st_thread_join(reader, NULL));
     EXPECT_EQ(1, r.nread_);
     EXPECT_EQ('x', r.data_);
@@ -1270,9 +1245,28 @@ VOID TEST(InitTest, SecondInitKeepsWaitingCoroutines)
 // reads the child's exit status and what it printed.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#if defined(__SANITIZE_ADDRESS__)
+#define EXIT_TEST_ASAN 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define EXIT_TEST_ASAN 1
+#endif
+#endif
+
+#ifdef EXIT_TEST_ASAN
+#include <sanitizer/lsan_interface.h>
+#endif
+
 static void* exit_test_thread(void* arg)
 {
     void (*program)() = (void (*)())arg;
+
+#ifdef EXIT_TEST_ASAN
+    // ST never frees the primordial thread that st_init allocates, and the program's main exits it with st_thread_exit,
+    // so nothing points to it when ST ends the process with exit(). LeakSanitizer would report it and fail the exit
+    // status the tests check.
+    __lsan_disable();
+#endif
 
     if (st_set_eventsys(ST_EVENTSYS_ALT) < 0) _exit(1);
     if (st_init() < 0) _exit(1);

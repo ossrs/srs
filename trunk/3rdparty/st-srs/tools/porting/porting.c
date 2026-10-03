@@ -71,6 +71,28 @@ int main(int argc, char** argv)
 
         // Not reachable code.
         printf("Should never be here.\n");
+        return 1;
+    }
+
+    // The OS and CPU pairs that md.h supports.
+    int supported = 0;
+#if defined(__APPLE__)
+#if defined(__x86_64__) || defined(__aarch64__)
+    supported = 1;
+#endif
+#elif defined(__linux__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__) || defined(__arm__) || defined(__mips__) \
+    || defined(__mips64) || defined(__riscv) || defined(__loongarch64)
+    supported = 1;
+#endif
+#elif defined(__CYGWIN__)
+#if defined(__x86_64__)
+    supported = 1;
+#endif
+#endif
+    if (!supported) {
+        printf("\nUnsupported OS or CPU, port md.h and an md_*.S file first\n");
+        return 1;
     }
 
     printf("\nDone\n");

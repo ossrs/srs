@@ -86,6 +86,12 @@ VOID TEST(TcpTest, TcpConnection)
 {
     // The server listens on a port the OS picks, and runs first, so the port is known before the client connects.
     int port = 0;
+
+    // A timeout counts from ST's last clock reading, which only changes when coroutines switch. An earlier test may
+    // block outside ST for a long time, such as in fork and waitpid, so refresh the clock, or the 100 ms timeouts below
+    // are already due.
+    st_thread_yield();
+
     st_thread_t svr = st_thread_create(tcp_server, &port, 1, 0);
     EXPECT_TRUE(svr != NULL);
 

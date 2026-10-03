@@ -82,4 +82,4 @@ $(ST_DIR)/obj/%.o : %.cpp $(ST_UTEST_DEPS) $(UTEST_DEPS) $(GTEST_DIR)/include/gt
 # Generate the utest binary
 $(ST_DIR)/obj/st_utest : $(OBJECTS) $(ST_DIR)/obj/gtest.a $(ST_UTEST_DEPS)
 	$(CXX) -o $@ $(CXXFLAGS) $(UTEST_FLAGS) \
-        -lpthread -ldl $^
+        $^ -lpthread -ldl

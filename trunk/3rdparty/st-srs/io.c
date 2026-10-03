@@ -114,9 +114,9 @@ int _st_io_init(void)
      * when rlimit max is negative, for example, osx, use cur directly.
      * @see https://github.com/ossrs/srs/issues/336
      */
-    if ((int)rlim.rlim_max < 0) {
-        _st_osfd_limit = (int)(fdlim > 0? fdlim : rlim.rlim_cur);
-        return 0;
+    if ((int)rlim.rlim_max < 0) { /* GCOVR_EXCL_BR_LINE */
+        _st_osfd_limit = (int)(fdlim > 0? fdlim : rlim.rlim_cur); /* GCOVR_EXCL_LINE */
+        return 0; /* GCOVR_EXCL_LINE */
     }
     
     rlim.rlim_cur = rlim.rlim_max;
@@ -179,7 +179,7 @@ static _st_netfd_t *_st_netfd_new(int osfd, int nonblock, int is_socket)
         if (is_socket && ioctl(osfd, FIONBIO, &flags) != -1)
             return fd;
         /* Do it the Posix way */
-        if ((flags = fcntl(osfd, F_GETFL, 0)) < 0 ||
+        if ((flags = fcntl(osfd, F_GETFL, 0)) < 0 || /* GCOVR_EXCL_BR_LINE */
             fcntl(osfd, F_SETFL, flags | O_NONBLOCK) < 0) {
             st_netfd_free(fd);
             return NULL;

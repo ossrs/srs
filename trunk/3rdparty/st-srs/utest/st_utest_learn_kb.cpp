@@ -9,7 +9,6 @@
 #include <string.h>
 
 #include <sys/socket.h>
-#include <fcntl.h>
 #include <unistd.h>
 
 #define ST_UTIME_MILLISECONDS 1000
@@ -311,7 +310,7 @@ static void* waiting_reader(void* arg)
 VOID TEST(EpollWorkflowTest, ReaderSleepsAndWakesOnWriteReady)
 {
     int fds[2] = {-1, -1};
-    int r0 = ::socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+    int r0 = st_utest_stream_pair(fds);
     EXPECT_EQ(0, r0);
 
     st_netfd_t reader = st_netfd_open_socket(fds[0]);
@@ -655,7 +654,7 @@ static void netfd_specific_destructor(void* arg)
 VOID TEST(LearnKB, NetfdSpecificAndDestructorOnClose)
 {
     int fds[2] = {-1, -1};
-    int r0 = ::socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+    int r0 = st_utest_stream_pair(fds);
     ASSERT_EQ(0, r0);
 
     st_netfd_t stfd = st_netfd_open_socket(fds[0]);
@@ -677,13 +676,13 @@ VOID TEST(LearnKB, NetfdSpecificAndDestructorOnClose)
     EXPECT_EQ(0, r0);
     EXPECT_EQ(1, g_netfd_destructor_calls);
 
-    ::close(peer);
+    st_utest_close(peer);
 }
 
 VOID TEST(LearnKB, NetfdFreeKeepsOsfdOpen)
 {
     int fds[2] = {-1, -1};
-    int r0 = ::socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+    int r0 = st_utest_stream_pair(fds);
     ASSERT_EQ(0, r0);
 
     st_netfd_t stfd = st_netfd_open_socket(fds[0]);
@@ -703,22 +702,18 @@ VOID TEST(LearnKB, NetfdFreeKeepsOsfdOpen)
     st_netfd_free(stfd);
     EXPECT_EQ(1, g_netfd_destructor_calls);
 
-    errno = 0;
-    int flags = fcntl(osfd, F_GETFD);
-    EXPECT_NE(-1, flags);
-
-    // Raw fd should still be usable.
+    // Raw fd should still be open and usable.
     char ch = 'N';
-    ssize_t n = ::write(peer, &ch, 1);
+    ssize_t n = st_utest_send(peer, &ch, 1);
     EXPECT_EQ(1, n);
 
     char got = 0;
-    n = ::read(osfd, &got, 1);
+    n = st_utest_recv(osfd, &got, 1);
     EXPECT_EQ(1, n);
     EXPECT_EQ('N', got);
 
-    ::close(osfd);
-    ::close(peer);
+    st_utest_close(osfd);
+    st_utest_close(peer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -728,7 +723,7 @@ VOID TEST(LearnKB, NetfdFreeKeepsOsfdOpen)
 VOID TEST(LearnKB, BasicNetfdWriteThenRead)
 {
     int fds[2] = {-1, -1};
-    int r0 = ::socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+    int r0 = st_utest_stream_pair(fds);
     ASSERT_EQ(0, r0);
 
     st_netfd_t reader = st_netfd_open_socket(fds[0]);
@@ -754,7 +749,7 @@ VOID TEST(LearnKB, BasicNetfdWriteThenRead)
 VOID TEST(LearnKB, BasicNetfdReadTimeout)
 {
     int fds[2] = {-1, -1};
-    int r0 = ::socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+    int r0 = st_utest_stream_pair(fds);
     ASSERT_EQ(0, r0);
 
     st_netfd_t reader = st_netfd_open_socket(fds[0]);

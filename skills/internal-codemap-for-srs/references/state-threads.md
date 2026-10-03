@@ -82,7 +82,19 @@ docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
 
 Use `linux-debug-gcov` or `darwin-debug-gcov`, then `auto/coverage.sh`, for a coverage report. `auto/fast.sh` rebuilds and reruns the utest with coverage.
 
-`tools/` holds standalone programs, each with its own `Makefile`: `helloworld` and `verify` exercise the library; `porting` prints the OS and CPU macros a new port must match; `jmpbuf`, `stack`, and `pcs` study the `jmpbuf`, stack, and calling-convention layout without ST; `backtrace` shows `backtrace()` and `addr2line` symbolization. Use them when changing `md.h` or an `md_*.S` file.
+`tools/` holds the integration tests: standalone programs that link `obj/libst.a` through `st.h` as SRS does, each with its own `Makefile`, and each exits non-zero on failure. `helloworld` sleeps in a loop; `verify` checks a coroutine, sleep, mutex, condition variable, and join; `porting` prints the OS and CPU macros and fails on a pair `md.h` does not support; `backtrace` checks that `backtrace()` unwinds from a coroutine stack. Run them after every utest run, on each platform, against the plain debug `libst.a`; `-W` relinks the tool because the binaries are shared across platforms:
+
+```bash
+# macOS, after make -C state-threads/ darwin-debug-utest
+for t in helloworld verify porting backtrace; do
+    make -C state-threads/tools/$t -W $t.c && (cd state-threads/tools/$t && ./$t) || { echo "FAILED $t"; break; }
+done
+
+# Linux in the SRS development image
+docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
+    bash -c 'make linux-debug-utest && ./obj/st_utest && for t in helloworld verify porting backtrace; do
+        make -C tools/$t -W $t.c && (cd tools/$t && ./$t) || { echo "FAILED $t"; exit 1; }; done'
+```
 
 CI:
 

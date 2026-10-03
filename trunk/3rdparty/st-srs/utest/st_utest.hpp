@@ -14,7 +14,69 @@
 #include <string>
 #include <memory>
 
+#include <errno.h>
+#include <unistd.h>
+#include <sys/socket.h>
+
 #define VOID
+
+// Portable descriptors. A test that only needs a connection ST can wait on uses these, not a pipe or read and write,
+// so it runs unchanged where only sockets can be polled, such as Windows. A test about a POSIX feature itself, such as
+// a pipe, a signal or a chosen descriptor number, keeps the POSIX calls.
+
+// Two connected stream sockets. Returns 0, or -1 with errno set.
+static inline int st_utest_stream_pair(int fds[2])
+{
+    return ::socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+}
+
+static inline ssize_t st_utest_send(int fd, const void* buf, size_t size)
+{
+    return ::send(fd, buf, size, 0);
+}
+
+static inline ssize_t st_utest_recv(int fd, void* buf, size_t size)
+{
+    return ::recv(fd, buf, size, 0);
+}
+
+static inline int st_utest_close(int fd)
+{
+    return ::close(fd);
+}
+
+// Whether the last send or recv failed because the socket wasn't ready.
+static inline bool st_utest_would_block()
+{
+    return errno == EAGAIN || errno == EWOULDBLOCK;
+}
+
+// A connection whose one end ST waits on, wrapped with st_netfd_open_socket, and whose other end, the peer, the test
+// reads and writes directly.
+struct StUtestPair {
+    st_netfd_t stfd_;
+    int peer_;
+    StUtestPair() : stfd_(NULL), peer_(-1) {
+    }
+    ~StUtestPair() {
+        if (stfd_) st_netfd_close(stfd_);
+        if (peer_ >= 0) st_utest_close(peer_);
+    }
+};
+
+// Returns false, with errno set, if the sockets can't be created or wrapped.
+static inline bool st_utest_pair_open(StUtestPair& p)
+{
+    int fds[2];
+    if (st_utest_stream_pair(fds) < 0) return false;
+
+    p.peer_ = fds[1];
+    if ((p.stfd_ = st_netfd_open_socket(fds[0])) == NULL) {
+        st_utest_close(fds[0]);
+        return false;
+    }
+    return true;
+}
 
 // Close the fd automatically.
 #define StFdCleanup(fd, stfd) impl__StFdCleanup _ST_free_##fd(&fd, &stfd)
@@ -29,7 +91,7 @@ public:
         if (stfd_ && *stfd_) {
             st_netfd_close(*stfd_);
         } else if (fd_ && *fd_ > 0) {
-            ::close(*fd_);
+            st_utest_close(*fd_);
         }
     }
 };
