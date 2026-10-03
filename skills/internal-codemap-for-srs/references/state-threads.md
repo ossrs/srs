@@ -82,18 +82,33 @@ docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
 
 Use `linux-debug-gcov` or `darwin-debug-gcov`, then `auto/coverage.sh`, for a coverage report. `auto/fast.sh` rebuilds and reruns the utest with coverage.
 
-`tools/` holds the integration tests: standalone programs that link `obj/libst.a` through `st.h` as SRS does, each with its own `Makefile`, and each exits non-zero on failure. `helloworld` sleeps in a loop; `verify` checks a coroutine, sleep, mutex, condition variable, and join; `porting` prints the OS and CPU macros and fails on a pair `md.h` does not support; `backtrace` checks that `backtrace()` unwinds from a coroutine stack. Run them after every utest run, on each platform, against the plain debug `libst.a`; `-W` relinks the tool because the binaries are shared across platforms:
+`tools/` holds the integration tests: standalone programs that link `obj/libst.a` through `st.h` as SRS does, each in its own folder with a `Makefile`, and each exits non-zero on failure. The new tools share `tools/tool.h`, which has the `CHECK` macro, the event system setup, and loopback helpers. The tools:
+
+- `helloworld` — sleeps in a loop.
+- `verify` — a coroutine, sleep, mutex, condition variable, and join.
+- `porting` — prints the OS and CPU macros, and fails on a pair `md.h` does not support.
+- `backtrace` — `backtrace()` unwinds from a coroutine stack.
+- `lifecycle` — event system choice, primordial stack, `st_init`, descriptor limit, and `st_destroy`.
+- `thread` — create, join, exit, detach, yield, interrupt, stack options, switch callbacks, and the DEBUG functions.
+- `key` — coroutine specific data and its destructors.
+- `sync` — condition variables and mutexes.
+- `time` — the clock, sleeps, the time cache, and a custom clock.
+- `tcp` — a TCP echo with every read and write call, timeouts, and netfd data, over IPv4 and IPv6.
+- `udp` — a UDP echo with `st_recvfrom`, `st_sendto`, `st_recvmsg`, and `st_sendmsg`, over IPv4 and IPv6.
+- `unix` — Unix stream and datagram sockets, and socketpairs.
+- `pipe` — the SRS signal pipe, a full pipe, and `st_open` on a FIFO and a file.
+- `poll` — `st_poll` and `st_netfd_poll`.
+- `stress` — many connections and coroutines at once, stack reuse, and contention.
+
+`auto/tools.sh` rebuilds the library with `EXTRA_CFLAGS` and runs every tool folder under both event systems, select and kqueue or epoll. Run it after every utest run, on each platform, in the ST default build and the SRS build:
 
 ```bash
-# macOS, after make -C state-threads/ darwin-debug-utest
-for t in helloworld verify porting backtrace; do
-    make -C state-threads/tools/$t -W $t.c && (cd state-threads/tools/$t && ./$t) || { echo "FAILED $t"; break; }
-done
+# macOS
+(cd state-threads && ./auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh)
 
 # Linux in the SRS development image
 docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
-    bash -c 'make linux-debug-utest && ./obj/st_utest && for t in helloworld verify porting backtrace; do
-        make -C tools/$t -W $t.c && (cd tools/$t && ./$t) || { echo "FAILED $t"; exit 1; }; done'
+    bash -c './auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh'
 ```
 
 CI:
