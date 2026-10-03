@@ -3,7 +3,7 @@
 
 /*
  * Time, as SRS reads it with st_utime and waits with st_usleep: the clock
- * increases, sleeps last at least the given time and wake in due order, the
+ * increases, sleeps last at least the given time and all wake, the
  * scheduler's last clock moves after a switch, and st_time follows time(NULL)
  * with the time cache on and off. A child process, forked before ST is set
  * up, replaces the clock with st_set_utime_function and checks that sleeps
@@ -140,40 +140,46 @@ static int usleep_at_least(void)
     return 0;
 }
 
-#define NN_ORDER 3
-static int woken[NN_ORDER];
+#define NN_SLEEPERS 3
 static int nn_woken;
 
 typedef struct {
-    int id;
     st_utime_t us;
-} order_arg_t;
+    st_utime_t slept;
+} sleeper_arg_t;
 
-static void *order_sleeper(void *arg)
+static void *due_sleeper(void *arg)
 {
-    order_arg_t *a = (order_arg_t *)arg;
+    sleeper_arg_t *a = (sleeper_arg_t *)arg;
+    /* A sleep is due its time after the scheduler's last clock, which may lag st_utime. */
+    st_utime_t u0 = st_utime_last_clock();
     if (st_usleep(a->us) == 0) {
-        woken[nn_woken++] = a->id;
+        a->slept = st_utime() - u0;
+        nn_woken++;
     }
     return NULL;
 }
 
-/* Coroutines started in one order wake in the order their sleeps end. */
-static int wake_order(void)
+/*
+ * Coroutines sleeping at once each wake, none before its own sleep ends. The
+ * order is not checked: sleeps that end in the same scheduler pass run in
+ * reverse, so a late wake on a slow host reorders them.
+ */
+static int wake_all(void)
 {
-    order_arg_t args[NN_ORDER] = {{2, 15000}, {0, 5000}, {1, 10000}};
-    st_thread_t threads[NN_ORDER];
-    for (int i = 0; i < NN_ORDER; i++) {
-        threads[i] = st_thread_create(order_sleeper, &args[i], 1, 0);
+    sleeper_arg_t args[NN_SLEEPERS] = {{15000, 0}, {5000, 0}, {10000, 0}};
+    st_thread_t threads[NN_SLEEPERS];
+    for (int i = 0; i < NN_SLEEPERS; i++) {
+        threads[i] = st_thread_create(due_sleeper, &args[i], 1, 0);
         CHECK(threads[i] != NULL);
     }
-    for (int i = 0; i < NN_ORDER; i++) {
+    for (int i = 0; i < NN_SLEEPERS; i++) {
         CHECK(st_thread_join(threads[i], NULL) == 0);
     }
 
-    CHECK(nn_woken == NN_ORDER);
-    for (int i = 0; i < NN_ORDER; i++) {
-        CHECK(woken[i] == i);
+    CHECK(nn_woken == NN_SLEEPERS);
+    for (int i = 0; i < NN_SLEEPERS; i++) {
+        CHECK(args[i].slept >= args[i].us);
     }
     return 0;
 }
@@ -243,7 +249,7 @@ int main(int argc, char **argv)
 
     CHECK(utime_increases() == 0);
     CHECK(usleep_at_least() == 0);
-    CHECK(wake_order() == 0);
+    CHECK(wake_all() == 0);
     CHECK(last_clock() == 0);
     CHECK(timecache() == 0);
 

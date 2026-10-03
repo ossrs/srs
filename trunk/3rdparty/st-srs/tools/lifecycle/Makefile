@@ -1,6 +1,6 @@
 .PHONY: clean
 
-LDLIBS=../../obj/libst.a
+LDLIBS=../../obj/libst.a -lpthread
 CFLAGS=-g -O0 -I../../obj -I.. -DDEBUG
 
 OS_NAME 	= $(shell uname -s)

@@ -7,6 +7,10 @@
  * every coroutine blocked in I/O, a condition and a sleep, then st_destroy.
  */
 
+/* For pthread_getattr_np on Linux. */
+#define _GNU_SOURCE
+
+#include <pthread.h>
 #include <sys/resource.h>
 #include <sys/select.h>
 
@@ -53,13 +57,29 @@ static void *do_sleep(void *arg)
     return result(st_usleep(BLOCK_US));
 }
 
-/* Set the primordial stack from the stack limit, as srs_set_primordial_stack does. */
+/*
+ * Set the primordial stack to the main thread's real stack. SRS takes the whole
+ * RLIMIT_STACK below a local, which is mostly unmapped; with leak detection on,
+ * as here and unlike SRS, LeakSanitizer reads that range at exit and crashes.
+ */
 static int set_primordial_stack(void)
 {
-    void *top = NULL;
-    struct rlimit limit;
-    CHECK(getrlimit(RLIMIT_STACK, &limit) == 0);
-    st_set_primordial_stack(&top, (char *)&top - (unsigned long long)limit.rlim_cur);
+    char *top = NULL;
+    size_t size = 0;
+#ifdef __APPLE__
+    pthread_t self = pthread_self();
+    top = (char *)pthread_get_stackaddr_np(self);
+    size = pthread_get_stacksize_np(self);
+#else
+    void *addr = NULL;
+    pthread_attr_t attr;
+    CHECK(pthread_getattr_np(pthread_self(), &attr) == 0);
+    CHECK(pthread_attr_getstack(&attr, &addr, &size) == 0);
+    pthread_attr_destroy(&attr);
+    top = (char *)addr + size;
+#endif
+    CHECK(top && size > 0);
+    st_set_primordial_stack(top, top - size);
     return 0;
 }
 
