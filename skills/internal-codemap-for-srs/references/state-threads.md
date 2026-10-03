@@ -111,9 +111,15 @@ docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
     bash -c './auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh'
 ```
 
+On a Windows host, test both platforms in the same checkout:
+
+- Windows: in Git Bash started from the MSVC environment (`vcvars64.bat`), run `make win64-debug-utest && ./obj/st_utest.exe`, then build and run every tool that builds with MSVC. Report the tools that do not build or run on Windows yet.
+- Linux: run the Linux utest and tools in WSL on the same folder, not in the Docker image. `wsl` starts in the current Windows folder, so run it from `state-threads/`: `(cd state-threads && wsl -e bash -lc 'make linux-debug-utest && ./obj/st_utest && ./auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh')`.
+- Run `make clean` between platforms; both write `obj`.
+
 CI:
 
-- `.github/workflows/test.yml` — Runs the Linux utest and coverage directly on an Ubuntu runner on push and pull request, and uploads the `gcovr` report to Codecov.
+- `.github/workflows/test.yml` — Runs the utest and then `auto/tools.sh` (default, `MALLOC_STACK`, and ASAN on Linux x64) on Linux and macOS runners, plus coverage, on push and pull request, and uploads the `gcovr` report to Codecov.
 - `Dockerfile.test`, `Dockerfile.cov`, `auto/codecov.sh` — The former CentOS 7 CI images and Codecov bash uploader; CI no longer uses them.
 
 ## SRS Consumers
