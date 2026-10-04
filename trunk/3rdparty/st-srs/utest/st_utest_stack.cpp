@@ -44,18 +44,14 @@ static void* stack_test_record_coroutine(void* arg)
     return NULL;
 }
 
-// Whether the byte at p can be read. write reports EFAULT for an unreadable page instead of faulting. On Linux it
-// calls the system call directly, because ASAN checks the buffer of write, and p may be heap memory just past a stack
-// that MALLOC_STACK allocated.
+// Whether the byte at p can be read. write reports EFAULT for an unreadable page instead of faulting. It calls the
+// system call directly, because ASAN checks the buffer of write, and p may be heap memory just past a stack that
+// MALLOC_STACK allocated. macOS deprecates syscall, but it still works.
 static bool stack_test_readable(uintptr_t p)
 {
     int fds[2];
     if (pipe(fds) < 0) return true;
-#if defined(__linux__)
     bool readable = syscall(SYS_write, fds[1], (void*)p, 1) == 1;
-#else
-    bool readable = ::write(fds[1], (void*)p, 1) == 1;
-#endif
     ::close(fds[0]);
     ::close(fds[1]);
     return readable;

@@ -1,6 +1,7 @@
 .PHONY: clean
 
-CFLAGS=-g -O0
+LDLIBS=../../obj/libst.a
+CFLAGS=-g -O0 -I../../obj -I.. -DDEBUG
 
 OS_NAME 	= $(shell uname -s)
 ST_TARGET 	= linux-debug
@@ -11,9 +12,13 @@ CPU_ARCHS 	+= $(shell g++ -dM -E - </dev/null |grep -q '__aarch64' && echo arm64
 CFLAGS      += -arch $(CPU_ARCHS)
 endif
 
-./stack:  stack.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
+./time: time.c ../tool.h $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $< $(LDLIBS)
 
 clean:
-	rm -rf stack stack.dSYM
+	cd ../.. && make clean
+	rm -rf time time.dSYM
+
+$(LDLIBS):
+	cd ../.. && make $(ST_TARGET)
 

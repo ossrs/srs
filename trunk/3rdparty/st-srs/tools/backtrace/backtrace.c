@@ -8,6 +8,7 @@
 #include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <st.h>
 
@@ -142,6 +143,26 @@ void bar2()
 #endif
 
 int always_use_builtin = 0;
+int failed = 0;
+
+// Whether the frame is the function, such as "bar + 48" on macOS or "./backtrace(bar+0x1c)" on Linux.
+int is_frame_of(const char* frame, const char* name)
+{
+    char on_macos[64], on_linux[64];
+    snprintf(on_macos, sizeof(on_macos), " %s + ", name);
+    snprintf(on_linux, sizeof(on_linux), "(%s+", name);
+    return strstr(frame, on_macos) || strstr(frame, on_linux);
+}
+
+// Whether the frames hold the functions in order, from the callee up to the coroutine start.
+int has_frames(char** symbols, int nn_symbols, const char** names, int nn_names)
+{
+    int i, j = 0;
+    for (i = 0; i < nn_symbols && j < nn_names; i++) {
+        if (is_frame_of(symbols[i], names[j])) j++;
+    }
+    return j == nn_names;
+}
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wframe-address"
@@ -186,8 +207,20 @@ void bar() {
     for (int i = 0; i < nn_addresses; i++) {
         printf("%s\n", symbols[i]);
     }
+
+    // The return addresses from __builtin_return_address(0) begin at the caller foo, not bar. Only level 0 is required,
+    // because GCC on aarch64 returns NULL for any level above 0.
+    const char* backtrace_frames[] = {"bar", "foo", "start"};
+    const char* builtin_frames[] = {"foo"};
+    int ok = always_use_builtin ? has_frames(symbols, nn_addresses, builtin_frames, 1)
+        : has_frames(symbols, nn_addresses, backtrace_frames, 3);
     free(symbols);
 
+    if (!ok) {
+        printf("bar FAILED, no frames of the coroutine\n");
+        failed = 1;
+        return;
+    }
     printf("bar OK\n");
     return;
 }
@@ -217,12 +250,18 @@ int main(int argc, char** argv)
         always_use_builtin = 1;
     }
 
-    st_init();
+    if (st_init() != 0) {
+        printf("st_init failed\n");
+        return 1;
+    }
 
-    st_thread_create(start, NULL, 0, 0);
-    st_thread_exit(NULL);
+    st_thread_t trd = st_thread_create(start, NULL, 1, 0);
+    if (!trd || st_thread_join(trd, NULL) != 0) {
+        printf("coroutine failed\n");
+        return 1;
+    }
 
-    printf("main done\n");
-    return 0;
+    printf("main done, failed=%d\n", failed);
+    return failed;
 }
 

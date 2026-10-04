@@ -1,7 +1,7 @@
-.PHONY: default clean
+.PHONY: clean
 
-LDLIBS=
-CFLAGS=-g -O0
+LDLIBS=../../obj/libst.a
+CFLAGS=-g -O0 -I../../obj -I.. -DDEBUG
 
 OS_NAME 	= $(shell uname -s)
 ST_TARGET 	= linux-debug
@@ -12,14 +12,13 @@ CPU_ARCHS 	+= $(shell g++ -dM -E - </dev/null |grep -q '__aarch64' && echo arm64
 CFLAGS      += -arch $(CPU_ARCHS)
 endif
 
-default: ./jmpbuf ./jmpbuf.E.txt
-
-./jmpbuf:  jmpbuf.c $(LDLIBS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
-
-./jmpbuf.E.txt: jmpbuf.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -E -o jmpbuf.E.txt $^ $(LDLIBS)
+./tcp: tcp.c ../tool.h $(LDLIBS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $< $(LDLIBS)
 
 clean:
-	rm -rf jmpbuf jmpbuf.E.txt jmpbuf.dSYM
+	cd ../.. && make clean
+	rm -rf tcp tcp.dSYM
+
+$(LDLIBS):
+	cd ../.. && make $(ST_TARGET)
 

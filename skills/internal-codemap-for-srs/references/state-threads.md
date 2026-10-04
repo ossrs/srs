@@ -82,11 +82,44 @@ docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
 
 Use `linux-debug-gcov` or `darwin-debug-gcov`, then `auto/coverage.sh`, for a coverage report. `auto/fast.sh` rebuilds and reruns the utest with coverage.
 
-`tools/` holds standalone programs, each with its own `Makefile`: `helloworld` and `verify` exercise the library; `porting` prints the OS and CPU macros a new port must match; `jmpbuf`, `stack`, and `pcs` study the `jmpbuf`, stack, and calling-convention layout without ST; `backtrace` shows `backtrace()` and `addr2line` symbolization. Use them when changing `md.h` or an `md_*.S` file.
+`tools/` holds the integration tests: standalone programs that link `obj/libst.a` through `st.h` as SRS does, each in its own folder with a `Makefile`, and each exits non-zero on failure. The new tools share `tools/tool.h`, which has the `CHECK` macro, the event system setup, and loopback helpers. The tools:
+
+- `helloworld` — sleeps in a loop.
+- `verify` — a coroutine, sleep, mutex, condition variable, and join.
+- `porting` — prints the OS and CPU macros, and fails on a pair `md.h` does not support.
+- `backtrace` — `backtrace()` unwinds from a coroutine stack.
+- `lifecycle` — event system choice, primordial stack, `st_init`, descriptor limit, and `st_destroy`.
+- `thread` — create, join, exit, detach, yield, interrupt, stack options, switch callbacks, and the DEBUG functions.
+- `key` — coroutine specific data and its destructors.
+- `sync` — condition variables and mutexes.
+- `time` — the clock, sleeps, the time cache, and a custom clock.
+- `tcp` — a TCP echo with every read and write call, timeouts, and netfd data, over IPv4 and IPv6.
+- `udp` — a UDP echo with `st_recvfrom`, `st_sendto`, `st_recvmsg`, and `st_sendmsg`, over IPv4 and IPv6.
+- `unix` — Unix stream and datagram sockets, and socketpairs.
+- `pipe` — the SRS signal pipe, a full pipe, and `st_open` on a FIFO and a file.
+- `poll` — `st_poll` and `st_netfd_poll`.
+- `stress` — many connections and coroutines at once, stack reuse, and contention.
+
+`auto/tools.sh` rebuilds the library with `EXTRA_CFLAGS` and runs every tool folder under both event systems, select and kqueue or epoll. Run it after every utest run, on each platform, in the ST default build and the SRS build:
+
+```bash
+# macOS
+(cd state-threads && ./auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh)
+
+# Linux in the SRS development image
+docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
+    bash -c './auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh'
+```
+
+On a Windows host, test both platforms in the same checkout:
+
+- Windows: in Git Bash started from the MSVC environment (`vcvars64.bat`), run `make win64-debug-utest && ./obj/st_utest.exe`, then build and run every tool that builds with MSVC. Report the tools that do not build or run on Windows yet.
+- Linux: run the Linux utest and tools in WSL on the same folder, not in the Docker image. `wsl` starts in the current Windows folder, so run it from `state-threads/`: `(cd state-threads && wsl -e bash -lc 'make linux-debug-utest && ./obj/st_utest && ./auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh')`.
+- Run `make clean` between platforms; both write `obj`.
 
 CI:
 
-- `.github/workflows/test.yml` — Runs the Linux utest and coverage directly on an Ubuntu runner on push and pull request, and uploads the `gcovr` report to Codecov.
+- `.github/workflows/test.yml` — Runs the utest and then `auto/tools.sh` (default, `MALLOC_STACK`, and ASAN on Linux x64) on Linux and macOS runners, plus coverage, on push and pull request, and uploads the `gcovr` report to Codecov.
 - `Dockerfile.test`, `Dockerfile.cov`, `auto/codecov.sh` — The former CentOS 7 CI images and Codecov bash uploader; CI no longer uses them.
 
 ## SRS Consumers

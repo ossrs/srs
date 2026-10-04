@@ -28,19 +28,46 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 
 ## Cross-Component Verification
 
-For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md` in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification. Apply this requirement during development, bug fixing, and pull-request review; do not treat the `proxy-*` script names as limiting the suite to proxy changes. Pick the tier in its Verification Tiers by trigger, never by expected runtime; "run all tests" and backports require Full.
+For every standalone SRS runtime code change in either the Go proxy or C++ media server, run the complete bundled suite in `references/integration-tests.md`.
+
+- Run it in addition to module-specific unit, black-box, protocol E2E, sanitizer, or benchmark verification.
+- Apply it during development, bug fixing, and pull-request review.
+- Do not treat the `proxy-*` script names as limiting the suite to proxy changes.
+- Pick the tier in its Verification Tiers by trigger, never by expected runtime; "run all tests" and backports require Full.
 
 ## Test-Driven Development
 
-TDD is the principle for every task that touches code, in every workflow: bug fix, feature, enhancement, refactor, or review. Load `references/testable-code.md` and follow its three steps in order, never skipped or merged: tests first, refactor for testability, then implement and make every test pass. These rules override any default behavior.
+TDD is the principle for every task that touches code, in every workflow: bug fix, feature, enhancement, refactor, or review.
+
+Load `references/testable-code.md` and follow its three steps in order, never skipped or merged:
+
+1. Tests first.
+2. Refactor for testability.
+3. Implement and make every test pass.
+
+These rules override any default behavior.
 
 ## Skill Script Language
 
-Use **Bash** for skill-owned automation and AI test scripts, including regression helpers. Keep them compatible with macOS `/bin/bash` 3.2. Do not create or run Python scripts, inline Python, or Python validation helpers unless the user explicitly requests Python. Use shell utilities such as `curl` and `jq` for HTTP and JSON work; check required commands before running the test.
+Use **Bash** for skill-owned automation and AI test scripts, including regression helpers.
+
+- Keep them compatible with macOS `/bin/bash` 3.2.
+- Do not create or run Python scripts, inline Python, or Python validation helpers unless the user explicitly requests Python.
+- Use shell utilities such as `curl` and `jq` for HTTP and JSON work; check required commands before running the test.
+
+## Build and Test in Place
+
+- Build and run tests in the current checkout with `make` and the test command; `make` rebuilds what changed.
+- Do not copy the tree to a temporary directory, or delete build outputs to force a rebuild.
+- When a test really needs a temporary directory, use a fixed path such as `/tmp/srs-<topic>`.
+- Remove it by that literal path, never by a variable such as `rm -rf "$dir"`.
 
 ## Version and Changelog
 
-Whenever a task bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and follow it. Apply this in every workflow, not only Review a PR: bug fixes and feature work reach a version bump too, and the rules do not change with the routed task.
+Whenever a task bumps a version or adds a changelog entry, load `references/version-and-changelog.md` and follow it.
+
+- Apply this in every workflow, not only Review a PR: bug fixes and feature work reach a version bump too.
+- The rules do not change with the routed task.
 
 ## Path Resolution
 

@@ -94,6 +94,18 @@ Pass `-srs-ffmpeg "$(command -v ffmpeg)" -srs-ffprobe "$(command -v ffprobe)"` t
 
 Check each layer's exit code separately, and strip ANSI codes before counting `--- PASS`.
 
+### Sub-agent
+
+Run a Gate or Full tier in a sub-agent, so the build and test output stays out of the main agent's context. Give it the tier and the tree to test, and wait for its result instead of reading the logs.
+
+The sub-agent runs the tier as in [Parallel Runs](#parallel-runs), keeps every log in a file, and returns only:
+
+- The two lock lines.
+- One row per layer or script: exit code, pass and fail counts, and duration.
+- For each failure: the failing check, the few log lines that show its cause, and the log path.
+
+To look into a failure, ask that sub-agent, or start a new one, rather than reading the logs. If the tool has no sub-agents, run the tier directly and report the same result.
+
 ## Parallel Runs
 
 ### Global Lock

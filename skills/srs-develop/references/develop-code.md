@@ -200,7 +200,11 @@ State Threads is maintained in the separate `ossrs/state-threads` project at `st
 ### Step 3: Verify State Threads
 
 1. Run `git -C state-threads/ diff --check` and inspect the complete ST diff.
-2. Run the ST unit tests on macOS and on Linux as the map describes. Add the ASAN or Valgrind build when the change touches stacks, context switching, `st_destroy`, or thread lifetime.
+2. Run every test on macOS and on Linux as the map describes:
+   - Unit tests: `utest/`.
+   - Integration tests: `tools/`, after the unit tests.
+   - ASAN or Valgrind build: when the change touches stacks, context switching, `st_destroy`, or thread lifetime.
+   - On a Windows host: the Windows unit and integration tests locally, and the Linux ones in WSL on the same checkout.
 3. Report every CPU and OS combination touched by the change that was not built and tested.
 
 ### Step 4: Sync and Verify SRS
