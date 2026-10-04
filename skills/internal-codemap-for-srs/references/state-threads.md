@@ -36,6 +36,7 @@ git -C state-threads/ rev-parse HEAD
 - `md_linux2.S` — Linux context-switch assembly for arm, aarch64, mips, mips64, loongarch64, and riscv.
 - `md_darwin.S` — macOS context switch for x86_64 and Apple Silicon aarch64.
 - `md_cygwin64.S` — Windows (Cygwin64) x86_64 context switch.
+- `md_win64.asm` — Native Windows x64 (MSVC, MASM) context switch, with the TIB stack bounds, and the `_st_md_thread_start` entry of new threads (`MD_INIT_THREAD_ENTRY` in `md.h`), described in `docs/win64_coroutine.md`.
 - `sched.c` — Scheduler: `st_init`, `st_destroy`, thread create, exit, join, interrupt, the idle thread, and the timeout heap described in `docs/timeout_heap.txt`.
 - `stk.c` — Stack allocation, the free-stack list, and `MALLOC_STACK`.
 - `sync.c` — Time functions and the time cache, sleep, condition variables, and mutexes.

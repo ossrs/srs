@@ -114,6 +114,7 @@ For State Threads design and usage, select the smallest relevant document:
 - `state-threads/docs/reference.html` — API reference: types, errors, initialization, thread control, per-thread data, synchronization, timing, I/O, program structure, and the list of blocking functions.
 - `state-threads/docs/notes.html` — Programming notes: porting, signals, intra- and inter-process synchronization, non-network I/O, and timeouts.
 - `state-threads/docs/timeout_heap.txt` — Design of the timeout heap that holds sleeping threads.
+- `state-threads/docs/win64_coroutine.md` — How threads switch and start on native Windows x64 (MSVC): the jmpbuf slots, the save-then-patch-SP start on other platforms, the `_st_md_thread_start` assembly entry, SEH and unwind tables, and the TIB stack bounds.
 
 ### Media Streaming Standards
 
