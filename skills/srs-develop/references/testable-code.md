@@ -1,6 +1,6 @@
 # Testable Code and Test-Driven Development
 
-**Scope:** The single owner of how tests are added to SRS and Oryx — the test-first contract, the definition of mockable, and the C++ patterns that make mocking possible. Every task that touches code loads this file; do not restate these rules elsewhere.
+**Scope:** The single owner of how tests are added to SRS and Oryx and how they are run — the test-first contract, the test platforms, running tests in a subagent, the definition of mockable, and the C++ patterns that make mocking possible. Every task that touches code or runs tests loads this file; do not restate these rules elsewhere.
 
 **The principle behind every rule below:** code that cannot be mocked cannot be unit tested. When a test is hard to write, the test is reporting a defect in the code's structure, not a reason to skip the test.
 
@@ -22,6 +22,23 @@ Rules that hold across the steps:
 A bug fix and a new capability both start red: a bug's regression test fails until the fix lands, and a capability's test fails until the capability exists.
 
 **The one exception:** a test that locks in an accepted limitation passes from the start, because current behavior is the intended final behavior. Say so explicitly in the test's comment so a future reader does not mistake it for a test that should have been red. Example: MPEG-TS over SRT carries no application status channel, so "a rejected viewer is refused with no reason delivered" is the permanent, correct behavior.
+
+## Test platforms
+
+Run the tests on every platform the change can reach, and report the results per OS.
+
+- Detect the platforms, never assume them: the local OS from `uname -s` and `uname -m`, Linux in Docker when `docker info` succeeds, and the remote hosts the routed code map describes.
+- Report a table with one row per OS and CPU, such as macOS arm64, Linux arm64 (Docker), Linux x64 (WSL), and Windows x64, and the passed, failed, and skipped counts of each test type.
+- List every OS that was not tested and why, such as Docker not running or no Windows host set up.
+
+## Run tests in a subagent
+
+Start tests in a subagent, so the main agent's context window stays small.
+
+- The subagent runs the test commands and reads their logs.
+- It returns only a short report: the lock lines the script prints, the table of test platforms above, each failure with its key log lines, and any blocker.
+- For a Gate or Full tier, it returns the report in the Sub-agent section of `references/integration-tests.md`.
+- A subagent that already runs a task, such as an `srs-autopilot` task, runs its tests itself.
 
 ## The testability contract
 
@@ -138,7 +155,7 @@ Reconfiguring overwrites the existing build configuration. Ask the maintainer fo
 
 ## Go
 
-The Go proxy and Oryx get this for free: depend on interfaces and let counterfeiter generate the fakes. After changing or adding an interface carrying a `//go:generate go tool counterfeiter ...` directive, regenerate with `make generate`. The test-first contract above applies unchanged.
+The Go proxy gets this for free: depend on interfaces and let counterfeiter generate the fakes. After changing or adding an interface carrying a `//go:generate go tool counterfeiter ...` directive, regenerate with `make generate`. Oryx has no generated fakes. The test-first contract above applies unchanged to both.
 
 ## Before writing a test
 

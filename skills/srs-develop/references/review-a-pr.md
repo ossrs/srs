@@ -31,7 +31,7 @@
 
 ## Step 3: Verify runtime changes
 
-1. For a standalone SRS runtime PR affecting either the Go proxy or C++ media server, load the applicable testing map and run focused and component-native verification.
+1. For a standalone SRS runtime PR affecting either the Go proxy or C++ media server, load the Tests and Verification section of the routed code map and run focused and component-native verification.
 2. Run every command in `references/integration-tests.md` sequentially. The bundled suite is required cross-component verification even when the PR changes only the C++ media server; its `proxy-*` filenames do not make it proxy-only.
 3. Record every result and exact environmental blocker. Do not claim the PR is fully verified while any required script is skipped or blocked.
 4. For Oryx, documentation-only, skill-only, issue-template, or packaging-only PRs, follow the owning workflow's verification instead of this standalone SRS runtime suite.

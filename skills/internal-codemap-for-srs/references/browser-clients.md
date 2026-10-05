@@ -22,4 +22,4 @@ For other pages or assets in this module, list filenames only within `trunk/rese
 - Use this map for browser-side publisher and player behavior.
 - Use `references/cpp-server.md` for the corresponding server-side WebRTC, HTTP-FLV, or HLS implementation.
 - Use `references/go-server.md` when the browser client is exercising the next-generation Go proxy.
-- Add `references/testing.md` when reproduction or verification requires server, protocol, E2E, or benchmark tests.
+- Add the Tests and Verification section of `references/cpp-server.md` when reproduction or verification requires server, protocol, E2E, or benchmark tests.

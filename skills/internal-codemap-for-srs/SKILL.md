@@ -1,6 +1,6 @@
 ---
 name: internal-codemap-for-srs
-description: Route SRS and Oryx code tasks to the smallest relevant trusted codebase map and verification guidance. Use whenever support, development, debugging, review, or maintenance work requires locating, choosing, reading, modifying, testing, or verifying SRS or Oryx code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, browser publishers and players, the SRS Docker image toolchain, SRS testing, and the Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests. Use as the code-navigation dependency of parent support and development skills; the parent skill remains responsible for the user-facing workflow and result.
+description: Route SRS and Oryx code tasks to the smallest relevant trusted codebase map and verification guidance. Use whenever support, development, debugging, review, or maintenance work requires locating, choosing, reading, modifying, testing, or verifying SRS or Oryx code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, browser publishers and players, the SRS Docker image toolchain, and the Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests. Use as the code-navigation dependency of parent support and development skills; the parent skill remains responsible for the user-facing workflow and result.
 ---
 
 # SRS and Oryx Internal Code Map
@@ -35,19 +35,18 @@ Route SRS and Oryx code work to focused codebase maps. The parent skill owns the
 
 | Code area | Use when | Load |
 |---|---|---|
-| C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, or media processing | `references/cpp-server.md` |
+| C++ media server | The task concerns the first-generation origin or edge server, `trunk/src/`, `trunk/conf/`, protocols, media processing, or its unit, black-box, E2E, or benchmark tests | `references/cpp-server.md` |
 | State Threads | The task concerns `ossrs/state-threads`, `state-threads/`, its vendored mirror `trunk/3rdparty/st-srs/`, coroutine scheduling, stacks, context-switch assembly, or ST tests | `references/state-threads.md` |
 | Next-generation Go server | The task concerns the Go proxy, future Go origin or edge services, `cmd/`, or `internal/` | `references/go-server.md` |
 | Browser publishers and players | The task concerns browser publishing or playback with WHIP, WHEP, HTTP-FLV, or HLS, including code under `trunk/research/players/` | `references/browser-clients.md` |
 | SRS Docker build images | The task concerns `ossrs/dev-docker`, Docker dependency or cache images, packaged FFmpeg and other build tools, image branches, or how the SRS release image receives those tools | `references/dev-docker.md` |
-| Testing and verification | The task requires choosing or running C++ unit, black-box, E2E, reproduction, or benchmark verification | `references/testing.md` |
 | Oryx integrated video solution | The task concerns `ossrs/oryx`, `oryx/`, its Go platform, React dashboard, SRS/Redis runtime integration, Docker image, installers, release service, or integration tests | `references/oryx.md` |
 
-For a comparison or migration across SRS generations, load both server maps. Add the SRS testing reference only when SRS verification is required. For work crossing standalone SRS and Oryx, load the Oryx map and only the smallest responsible SRS map.
+For a comparison or migration across SRS generations, load both server maps. For work crossing standalone SRS and Oryx, load the Oryx map and only the smallest responsible SRS map.
 
 ## Workflow
 
-1. Classify the request as C++ media server, State Threads, next-generation Go server, browser publishers and players, SRS Docker build images, SRS testing and verification, Oryx integrated video solution, or an explicit combination.
+1. Classify the request as C++ media server, State Threads, next-generation Go server, browser publishers and players, SRS Docker build images, Oryx integrated video solution, or an explicit combination.
 2. If the product or server generation is unclear and choosing incorrectly could change the result, ask the user to clarify. Do not guess whether the task targets standalone SRS or Oryx.
 3. Resolve the selected path according to [Path Resolution](#path-resolution), then load the reference file or files.
 4. Use their descriptions to identify the responsible module and the smallest relevant file set.
@@ -59,5 +58,5 @@ For a comparison or migration across SRS generations, load both server maps. Add
 - Add, remove, or rename code modules and trusted files in exactly one server reference.
 - Update the Reference Router when a reference is added, removed, renamed, or changes responsibility.
 - Keep module descriptions concise and focused on ownership, boundaries, and navigation.
-- Keep repository-native C++ server, protocol, E2E, and benchmark verification in `references/testing.md`. Keep verification scripts bundled with a parent skill in that owning skill; do not duplicate them here.
+- Keep repository-native C++ server, protocol, E2E, and benchmark verification in `references/cpp-server.md`. Keep verification scripts bundled with a parent skill in that owning skill; do not duplicate them here.
 - Keep Oryx source navigation and Oryx-native verification in `references/oryx.md`; do not mix it into the standalone SRS maps.

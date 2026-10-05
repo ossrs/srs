@@ -123,7 +123,9 @@ bash skills/srs-develop/scripts/full-tier-lock.sh release "$token"
 ```
 
 - Log both lines in the tier's summary, and tell the user each one as it happens: `waiting, free` or `waiting, held: ...` with the holder, then `acquired after Ns`.
-- The lock is `/tmp/srs-full-tier.lock`.
+- Each product has its own lock, so the runs of different products go in parallel:
+  - SRS: `/tmp/srs-full-tier.lock`, the default, held by the Full tier.
+  - State Threads: `/tmp/srs-full-tier-st.lock`, with `--product st`, held by `st-test.sh`.
 - One older than 300s, or whose script exited, is taken over.
 - `full-tier-lock-test.sh` tests it.
 

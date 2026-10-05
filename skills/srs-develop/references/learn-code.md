@@ -22,7 +22,7 @@
 1. Trace the narrowest useful path from the feature entry point, such as configuration, API, listener, protocol handler, or public interface, through its owning module and required lower-level dependencies.
 2. Separate the common implementation path from protocol-specific or service-specific behavior. Identify defaults, platform-dependent behavior, fallbacks, and limitations when relevant.
 3. Compare documentation with code. Investigate material conflicts instead of silently preferring either source. Clearly separate confirmed behavior, reasonable inference, and unknowns.
-4. Use the testing and verification map only when the user requests runtime verification or static evidence is insufficient for an important claim. Do not change code or tests as part of Learn Code.
+4. Use the Tests and Verification section of the routed code map only when the user requests runtime verification or static evidence is insufficient for an important claim. Do not change code or tests as part of Learn Code.
 
 ## Step 4: Answer the question
 

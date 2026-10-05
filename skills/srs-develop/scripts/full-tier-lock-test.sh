@@ -128,6 +128,26 @@ done
 wait $racers
 check "exactly one of 8 takeovers wins" "$(grep -c won "$WORK/race")" "1"
 
+echo "=== each product has its own lock"
+reset
+rm -rf "$SRS_FULL_TIER_LOCK_DIR-st.lock"
+holder
+token=$(bash "$LOCK" acquire --pid $pid)
+st=$(bash "$LOCK" --product st acquire --pid $pid)
+check "st acquires while srs is held" "$?" "0"
+bash "$LOCK" --product st acquire --pid $pid > /dev/null 2>&1
+check "a second st acquire fails" "$?" "1"
+check "st status names its own lock" "$(bash "$LOCK" --product st status | sed -n 's/.*token=\([^ ]*\).*/\1/p')" "$st"
+bash "$LOCK" --product st release "$token" 2> /dev/null
+check "the srs token does not release st" "$?" "1"
+bash "$LOCK" --product st release "$st"
+check "release st" "$?" "0"
+bash "$LOCK" status > /dev/null
+check "srs is still held" "$?" "0"
+bash "$LOCK" release "$token"
+bash "$LOCK" --product 'a b' status > /dev/null 2>&1
+check "reject a product that is not a plain name" "$?" "2"
+
 echo ""
 echo "full-tier-lock-test: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]]

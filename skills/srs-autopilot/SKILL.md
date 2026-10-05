@@ -16,7 +16,7 @@ A task file is the plan, the state, and the log of one complex task. The main ag
 These override the `srs-develop` git rules for tasks run by this skill:
 
 - When a task's tests pass, the subagent runs `git add` on the files it changed and commits them in the owning repository. One commit per task.
-- Never `git push`.
+- Never `git push`. The one exception is `srs-develop` `scripts/st-windows-test.sh`: to test on another OS, it pushes the commit to its branch's upstream, such as a personal fork, only to sync the branch to the test host. It never pushes to `origin`.
 - Never commit the task file; `tasks/` is outside the repositories.
 - Never touch the review branch or worktree while running tasks; only a review (below) changes them.
 - When unsure, or a change is risky or needs the user's review, do not commit; stop the loop and ask the user.
@@ -29,6 +29,7 @@ The goal is a plan the loop can run as long as possible without the user.
 2. Discuss and confirm with the user, one by one: scope, constraints, special requirements, decisions, and what to test.
 3. Write `tasks/<topic>.md` with these sections:
    - **Goal and scope** — what is in and out.
+   - **Repositories** — a table of every repository the task changes or tests, such as SRS, State Threads, or Oryx, with its branch and its worktree on each machine, as `~/` paths, not absolute paths. The project-root symlinks such as `state-threads/` and `oryx/` point at the main checkouts, so when a task uses its own worktree, record it here and say not to use the symlink.
    - **Background** — what the research found, with links.
    - **Current state** — a short table, and the next task.
    - **Review** — the review setup and a commits table; see [Review Commits](#review-commits).
@@ -56,14 +57,14 @@ Follow the srs-autopilot skill's git rules and the srs-develop skill for the wor
 Mark the task [~], write tests first, implement, and run the tests until they pass.
 Commit, add a todo row for the commit, with its commit time, at the end of the Review commits table, tick the task [x], update Current state, add a Work log entry, then quit.
 If blocked, do not commit; leave the task [~], log the blocker, and report.
-Report: the task ID, the start and end time, the commit hash, the files changed and lines added and removed, the tests passed and failed by type (such as utest, integration tool, script, or E2E), and anything blocked or for the user, or that all tasks are done.
+Report: the task ID, the start and end time, the commit hash, the files changed and lines added and removed, the tests passed and failed by type (such as utest, integration tool, script, or E2E) and by OS and CPU (such as macOS arm64, Linux arm64 in Docker, Windows x64), the OSes not tested and why, and anything blocked or for the user, or that all tasks are done.
 ```
 
 Summary prompt:
 
 ```
 Summarize this run of tasks/<topic>.md so far from the task reports below, and check the numbers against git.
-Report the task just finished, then the totals so far: the start and end time, the tasks finished and left, the commits, the files changed, the lines added and removed, the tests passed and failed by type, and anything blocked or for the user.
+Report the task just finished, then the totals so far: the start and end time, the tasks finished and left, the commits, the files changed, the lines added and removed, the tests passed and failed by type and by OS and CPU, the OSes not tested, and anything blocked or for the user.
 <the task reports>
 ```
 
