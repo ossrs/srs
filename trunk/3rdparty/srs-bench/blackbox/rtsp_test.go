@@ -256,11 +256,14 @@ func TestFast_RtmpPublish_RtspPlay_CustomPort(t *testing.T) {
 		}
 	}(ctx)
 
+	// Free the custom RTSP port after SRS quits, so allocate it before the wait group.
+	customRTSPPort := allocator.Allocate()
+	defer allocator.Free(customRTSPPort)
+
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
 	// Start SRS server with custom RTSP port.
-	customRTSPPort := 15540 + rand.Intn(1000)
 	svr := NewSRSServer(func(v *srsServer) {
 		v.envs = []string{
 			"SRS_RTSP_SERVER_ENABLED=on",

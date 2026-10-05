@@ -24,10 +24,13 @@ if [[ ! -f "$WORKSPACE/go.mod" ]]; then
 fi
 
 # Non-default ports, so a pass proves SRS read them from the config file.
-RTMP_PORT=19370
-HTTP_API_PORT=19870
-HTTP_SERVER_PORT=18070
-RTC_PORT=8070
+# SRS_TEST_PORT_BASE, by default this script's slot in the Port Plan, moves every port,
+# so the scripts can run in parallel.
+PORT_BASE=${SRS_TEST_PORT_BASE:-12100}
+RTMP_PORT=$((PORT_BASE + 0))
+HTTP_API_PORT=$((PORT_BASE + 1))
+HTTP_SERVER_PORT=$((PORT_BASE + 2))
+RTC_PORT=$((PORT_BASE + 3))
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"

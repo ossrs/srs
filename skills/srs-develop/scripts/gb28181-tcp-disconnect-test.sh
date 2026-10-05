@@ -17,9 +17,12 @@ fi
 
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"
 GB_PUBLISH_STREAM="$SCRIPT_DIR/gb28181-publish-stream.sh"
-RTMP_PORT="${SRS_GB_RTMP_PORT:-21935}"
-HTTP_API_PORT="${SRS_GB_HTTP_API_PORT:-21985}"
-MEDIA_PORT="${SRS_GB_MEDIA_PORT:-29000}"
+# SRS_TEST_PORT_BASE, by default this script's slot in the Port Plan, moves every port,
+# so the scripts can run in parallel.
+PORT_BASE=${SRS_TEST_PORT_BASE:-12300}
+RTMP_PORT=$((PORT_BASE + 0))
+HTTP_API_PORT=$((PORT_BASE + 1))
+MEDIA_PORT=$((PORT_BASE + 2))
 STREAM_ID="${SRS_GB_STREAM_ID:-gb-lifecycle-$$}"
 SSRC="${SRS_GB_SSRC:-47190001}"
 TEST_DIR=$(mktemp -d "${TMPDIR:-/tmp}/srs-gb-tcp-disconnect.XXXXXX")

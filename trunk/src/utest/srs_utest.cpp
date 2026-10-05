@@ -43,17 +43,39 @@ using namespace std;
 std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
 // Temporary network config.
 std::string _srs_tmp_host = "127.0.0.1";
-// A free port from the kernel, set by prepare_main(), so the listener tests never share a
-// fixed port with a server or an E2E script running at the same time.
+// A free port from the unit tests' range, set by prepare_main(), so the listener tests never share
+// a fixed port with a server or an E2E script running at the same time.
 int _srs_tmp_port = 0;
-// A free UDP port from the kernel for the SRT listener tests, set by prepare_main().
+// A free UDP port from the unit tests' range for the SRT listener tests, set by prepare_main().
 int _srs_tmp_srt_port = 0;
 srs_utime_t _srs_tmp_timeout = (100 * SRS_UTIME_MILLISECONDS);
+
+int _srs_utest_port_min = 26000;
+int _srs_utest_port_max = 29999;
+
+srs_error_t srs_utest_port_range(const char *v, int *min, int *max)
+{
+    if (!v || !*v) {
+        *min = 26000;
+        *max = 29999;
+        return srs_success;
+    }
+
+    int lo = 0, hi = 0;
+    char extra = 0;
+    if (sscanf(v, "%d-%d%c", &lo, &hi, &extra) != 2 || lo < 1 || hi > 65535 || lo > hi) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid port range %s, like 26000-29999", v);
+    }
+
+    *min = lo;
+    *max = hi;
+    return srs_success;
+}
 
 int srs_utest_random_port()
 {
     SrsRand rand;
-    return rand.integer(45000, 48999);
+    return rand.integer(_srs_utest_port_min, _srs_utest_port_max);
 }
 
 // kernel module.
@@ -84,29 +106,32 @@ static void srs_srt_utest_null_log_handler(void *opaque, int level, const char *
     // srt null log handler, do no print any log.
 }
 
-// Ask the kernel for a free port of the socket type, SOCK_STREAM or SOCK_DGRAM, on the temporary host.
+// Pick a free port of the socket type, SOCK_STREAM or SOCK_DGRAM, on the temporary host, from the
+// unit tests' range, so a client socket never takes it as a kernel ephemeral port after it is picked.
 static srs_error_t srs_utest_free_port(int type, int *port)
 {
-    int fd = ::socket(AF_INET, type, 0);
-    if (fd < 0) {
-        return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
-    }
+    for (int i = 0; i < 1024; i++) {
+        int fd = ::socket(AF_INET, type, 0);
+        if (fd < 0) {
+            return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
+        }
 
-    sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = 0;
-    inet_pton(AF_INET, _srs_tmp_host.c_str(), &addr.sin_addr);
+        int candidate = srs_utest_random_port();
+        sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(candidate);
+        inet_pton(AF_INET, _srs_tmp_host.c_str(), &addr.sin_addr);
 
-    socklen_t len = sizeof(addr);
-    if (::bind(fd, (sockaddr *)&addr, sizeof(addr)) < 0 || ::getsockname(fd, (sockaddr *)&addr, &len) < 0) {
+        int r0 = ::bind(fd, (sockaddr *)&addr, sizeof(addr));
         ::close(fd);
-        return srs_error_new(ERROR_SOCKET_BIND, "bind %s:0", _srs_tmp_host.c_str());
+        if (r0 == 0) {
+            *port = candidate;
+            return srs_success;
+        }
     }
 
-    *port = ntohs(addr.sin_port);
-    ::close(fd);
-    return srs_success;
+    return srs_error_new(ERROR_SOCKET_BIND, "no free port on %s", _srs_tmp_host.c_str());
 }
 
 // Initialize global settings.
@@ -114,6 +139,9 @@ srs_error_t prepare_main()
 {
     srs_error_t err = srs_success;
 
+    if ((err = srs_utest_port_range(getenv("SRS_UTEST_PORTS"), &_srs_utest_port_min, &_srs_utest_port_max)) != srs_success) {
+        return srs_error_wrap(err, "SRS_UTEST_PORTS");
+    }
     if ((err = srs_utest_free_port(SOCK_STREAM, &_srs_tmp_port)) != srs_success) {
         return srs_error_wrap(err, "free port");
     }

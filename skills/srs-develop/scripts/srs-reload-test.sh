@@ -34,9 +34,12 @@ if [[ ! -f "$WORKSPACE/go.mod" ]]; then
   exit 1
 fi
 
-RTMP_PORT=19371
-HTTP_API_PORT=19871
-HTTP_SERVER_PORT=18071
+# SRS_TEST_PORT_BASE, by default this script's slot in the Port Plan, moves every port,
+# so the scripts can run in parallel.
+PORT_BASE=${SRS_TEST_PORT_BASE:-12200}
+RTMP_PORT=$((PORT_BASE + 0))
+HTTP_API_PORT=$((PORT_BASE + 1))
+HTTP_SERVER_PORT=$((PORT_BASE + 2))
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"

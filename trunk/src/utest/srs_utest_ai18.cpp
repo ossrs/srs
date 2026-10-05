@@ -215,27 +215,53 @@ srs_error_t MockUdpMuxHandler::on_udp_packet(ISrsUdpMuxSocket *skt)
     return srs_error_copy(on_udp_packet_error_);
 }
 
-// The listener tests bind _srs_tmp_port, so it must be a free port from the kernel, not
-// a fixed one that a server or an E2E script may hold at the same time, such as 11935,
-// the RTMP port of proxy-e2e-test.sh.
+// The listener tests bind _srs_tmp_port, so it must be a free port from the unit tests' range,
+// by default [26000, 29999], not a fixed one that a server or an E2E script may hold at the same
+// time, such as 11935, the RTMP port of proxy-e2e-test.sh, nor a kernel ephemeral port that a
+// client socket may take after the port is picked.
 VOID TEST(UtestTmpPortTest, IsNotTheFixedProxyRtmpPort)
 {
-    EXPECT_GT(_srs_tmp_port, 0);
-    EXPECT_NE(11935, _srs_tmp_port);
+    EXPECT_GE(_srs_tmp_port, _srs_utest_port_min);
+    EXPECT_LE(_srs_tmp_port, _srs_utest_port_max);
 }
 
-// The unit tests pick random ports only from their own range, [45000, 48999], so they never take a
-// fixed port of a test script, a black-box port or a kernel ephemeral port in the parallel Full tier.
+// The unit tests pick random ports only from their own range, by default [26000, 29999], so they
+// never take a fixed port of a test script, a black-box port or a kernel ephemeral port in the
+// parallel Full tier.
 VOID TEST(UtestTmpPortTest, RandomPortIsInUtestRange)
 {
     int outside = 0;
     for (int i = 0; i < 1000; i++) {
         int port = srs_utest_random_port();
-        if (port < 45000 || port > 48999) {
+        if (port < _srs_utest_port_min || port > _srs_utest_port_max) {
             outside++;
         }
     }
     EXPECT_EQ(0, outside);
+}
+
+// The SRS_UTEST_PORTS env, like 26000-29999, moves the unit tests' range without a code change.
+VOID TEST(UtestTmpPortTest, PortRangeFromEnv)
+{
+    srs_error_t err;
+
+    int min = 0, max = 0;
+    HELPER_EXPECT_SUCCESS(srs_utest_port_range(NULL, &min, &max));
+    EXPECT_EQ(26000, min);
+    EXPECT_EQ(29999, max);
+
+    HELPER_EXPECT_SUCCESS(srs_utest_port_range("", &min, &max));
+    EXPECT_EQ(26000, min);
+    EXPECT_EQ(29999, max);
+
+    HELPER_EXPECT_SUCCESS(srs_utest_port_range("30000-30099", &min, &max));
+    EXPECT_EQ(30000, min);
+    EXPECT_EQ(30099, max);
+
+    const char *invalids[] = {"30000", "30099-30000", "0-100", "60000-65536", "a-b", "1-2-3", "1-2x"};
+    for (int i = 0; i < (int)(sizeof(invalids) / sizeof(invalids[0])); i++) {
+        HELPER_EXPECT_FAILED(srs_utest_port_range(invalids[i], &min, &max));
+    }
 }
 
 VOID TEST(UdpListenerTest, ListenAndReceivePacket)

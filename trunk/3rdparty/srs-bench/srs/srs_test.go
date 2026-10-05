@@ -49,3 +49,34 @@ func TestMain(m *testing.M) {
 
 	os.Exit(m.Run())
 }
+
+// The port flags move each protocol off its default port, so the regression SRS
+// can run on its own ports while another SRS holds the defaults.
+func TestServerHostFlags(t *testing.T) {
+	oServer, oRtmp, oApi, oRtsp := *srsServer, *srsRtmpPort, *srsApiPort, *srsRtspPort
+	defer func() {
+		*srsServer, *srsRtmpPort, *srsApiPort, *srsRtspPort = oServer, oRtmp, oApi, oRtsp
+	}()
+
+	*srsServer, *srsRtmpPort, *srsApiPort, *srsRtspPort = "127.0.0.1", 1935, 1985, 8554
+	if v := srsRtmpHost(); v != "127.0.0.1:1935" {
+		t.Errorf("default rtmp host %v", v)
+	}
+	if v := srsApiHost(); v != "127.0.0.1:1985" {
+		t.Errorf("default api host %v", v)
+	}
+	if v := srsRtspHost(); v != "127.0.0.1:8554" {
+		t.Errorf("default rtsp host %v", v)
+	}
+
+	*srsServer, *srsRtmpPort, *srsApiPort, *srsRtspPort = "10.0.0.1", 25935, 25985, 25554
+	if v := srsRtmpHost(); v != "10.0.0.1:25935" {
+		t.Errorf("rtmp host %v", v)
+	}
+	if v := srsApiHost(); v != "10.0.0.1:25985" {
+		t.Errorf("api host %v", v)
+	}
+	if v := srsRtspHost(); v != "10.0.0.1:25554" {
+		t.Errorf("rtsp host %v", v)
+	}
+}

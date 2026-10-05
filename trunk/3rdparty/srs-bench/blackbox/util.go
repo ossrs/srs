@@ -156,14 +156,14 @@ func filterTestError(errs ...error) error {
 // The SRSPortAllocator is SRS port manager.
 type SRSPortAllocator struct {
 	ports sync.Map
-	// Pick a candidate port, by default a random one from the black-box range, [40000, 44999], of the
-	// port plan in the srs-develop skill's integration-tests.md.
+	// Pick a candidate port, by default a random one from the allocator's range.
 	pick func() int
 }
 
-func NewSRSPortAllocator() *SRSPortAllocator {
+// NewSRSPortAllocator picks ports from [min, max].
+func NewSRSPortAllocator(min, max int) *SRSPortAllocator {
 	return &SRSPortAllocator{pick: func() int {
-		return 40000 + rand.Int()%5000
+		return min + rand.Int()%(max-min+1)
 	}}
 }
 
@@ -207,8 +207,35 @@ func isPortFree(port int) bool {
 
 var allocator *SRSPortAllocator
 
+// blackboxPortRange parses the SRS_BLACKBOX_PORTS env, like 21000-25999, and returns the black-box
+// range of the port plan in the srs-develop skill's integration-tests.md when it is empty.
+func blackboxPortRange(v string) (min, max int, err error) {
+	if v == "" {
+		return 21000, 25999, nil
+	}
+
+	parts := strings.Split(v, "-")
+	if len(parts) != 2 {
+		return 0, 0, errors.Errorf("invalid port range %v, like 21000-25999", v)
+	}
+	if min, err = strconv.Atoi(parts[0]); err != nil {
+		return 0, 0, errors.Wrapf(err, "invalid port range %v", v)
+	}
+	if max, err = strconv.Atoi(parts[1]); err != nil {
+		return 0, 0, errors.Wrapf(err, "invalid port range %v", v)
+	}
+	if min < 1 || max > 65535 || min > max {
+		return 0, 0, errors.Errorf("invalid port range %v, like 21000-25999", v)
+	}
+	return min, max, nil
+}
+
 func init() {
-	allocator = NewSRSPortAllocator()
+	min, max, err := blackboxPortRange(os.Getenv("SRS_BLACKBOX_PORTS"))
+	if err != nil {
+		panic(fmt.Sprintf("SRS_BLACKBOX_PORTS: %+v", err))
+	}
+	allocator = NewSRSPortAllocator(min, max)
 }
 
 type backendService struct {

@@ -187,13 +187,14 @@ public:
     }
 };
 
-// The SRT listener tests bind _srs_tmp_srt_port, so it must be a free UDP port from the kernel,
-// not a fixed one that a server or an E2E script may hold at the same time, such as 19000,
-// the proxy WebRTC port of proxy-e2e-srt-test.sh with SRS_E2E_PORT_OFFSET=1000.
+// The SRT listener tests bind _srs_tmp_srt_port, so it must be a free UDP port from the unit
+// tests' range, by default [26000, 29999], not a fixed one that a server or an E2E script may
+// hold at the same time, such as 19000, nor a kernel ephemeral port that a client socket may take
+// after the port is picked.
 VOID TEST(UtestTmpPortTest, SrtPortIsNotAFixedPort)
 {
-    EXPECT_GT(_srs_tmp_srt_port, 0);
-    EXPECT_NE(19000, _srs_tmp_srt_port);
+    EXPECT_GE(_srs_tmp_srt_port, _srs_utest_port_min);
+    EXPECT_LE(_srs_tmp_srt_port, _srs_utest_port_max);
 }
 
 VOID TEST(ServiceStSRTTest, ListenConnectAccept)

@@ -45,7 +45,13 @@ extern std::string _srs_tmp_host;
 extern int _srs_tmp_port;
 extern int _srs_tmp_srt_port;
 extern srs_utime_t _srs_tmp_timeout;
-// A random port from the unit tests' range of the port plan in the srs-develop skill's integration-tests.md.
+// The unit tests' range of the port plan in the srs-develop skill's integration-tests.md, set by the
+// SRS_UTEST_PORTS env, like 26000-29999.
+extern int _srs_utest_port_min;
+extern int _srs_utest_port_max;
+// Parse a port range like 26000-29999, or the default range when v is NULL or empty.
+extern srs_error_t srs_utest_port_range(const char *v, int *min, int *max);
+// A random port from the unit tests' range.
 extern int srs_utest_random_port();
 
 // For errors.

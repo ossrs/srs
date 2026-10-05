@@ -2270,7 +2270,7 @@ func TestRtcDTLS_ClientActive_Corrupt_Certificate(t *testing.T) {
 }
 
 func TestRTCServerVersion(t *testing.T) {
-	api := fmt.Sprintf("http://%v:1985/api/v1/versions", *srsServer)
+	api := fmt.Sprintf("http://%v/api/v1/versions", srsApiHost())
 	req, err := http.NewRequest("POST", api, nil)
 	if err != nil {
 		t.Errorf("Request %v", api)

@@ -7,28 +7,28 @@
 #   srs_proxy_origin 1 [NAME=value ...] >/tmp/origin.log 2>&1 &
 # Extra NAME=value arguments add or overwrite variables, such as
 # SRS_RTC_SERVER_CANDIDATE=127.0.0.1.
-# SRS_E2E_PORT_OFFSET shifts every port, as in the scripts that source this helper.
+# Every port follows PORT_BASE, the SRS_TEST_PORT_BASE of the script that sources this helper.
 
 srs_proxy_origin() {
   local index="$1"
   shift
-  local offset=${SRS_E2E_PORT_OFFSET:-0}
+  local port_base=$PORT_BASE
 
-  local api_port
+  local base
   case "$index" in
-    1) api_port=$((19851 + offset)) ;;
-    2) api_port=$((19853 + offset)) ;;
+    1) base=$((port_base + 20)) ;;
+    2) base=$((port_base + 30)) ;;
     *) echo "Error: unknown proxy origin $index" >&2; return 1 ;;
   esac
 
-  exec env SRS_RTMP_LISTEN=$((19350 + offset + index)) \
-    SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=$((8080 + offset + index)) \
-    SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=$api_port \
-    SRS_RTC_SERVER_ENABLED=on SRS_RTC_SERVER_LISTEN=$((8000 + offset + index)) \
-    SRS_SRT_SERVER_ENABLED=on SRS_SRT_SERVER_LISTEN=$((10080 + offset + index)) \
+  exec env SRS_RTMP_LISTEN=$base \
+    SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=$((base + 1)) \
+    SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=$((base + 2)) \
+    SRS_RTC_SERVER_ENABLED=on SRS_RTC_SERVER_LISTEN=$((base + 3)) \
+    SRS_SRT_SERVER_ENABLED=on SRS_SRT_SERVER_LISTEN=$((base + 4)) \
     SRS_SRT_SERVER_TSBPDMODE=off SRS_SRT_SERVER_TLPKTDROP=off \
     SRS_HEARTBEAT_ENABLED=on SRS_HEARTBEAT_INTERVAL=9 \
-    SRS_HEARTBEAT_URL=http://127.0.0.1:$((12025 + offset))/api/v1/srs/register \
+    SRS_HEARTBEAT_URL=http://127.0.0.1:$((port_base + 5))/api/v1/srs/register \
     SRS_HEARTBEAT_DEVICE_ID=origin$index SRS_HEARTBEAT_PORTS=on \
     SRS_VHOST_HTTP_REMUX_ENABLED=on SRS_VHOST_HLS_ENABLED=on \
     SRS_VHOST_RTC_ENABLED=on SRS_VHOST_RTC_RTMP_TO_RTC=on SRS_VHOST_RTC_RTC_TO_RTMP=on \

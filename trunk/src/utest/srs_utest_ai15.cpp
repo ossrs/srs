@@ -5438,8 +5438,8 @@ VOID TEST(UtilityTest, GetLocalPortSuccess)
 
         int local_port = srs_get_local_port(actual_fd);
         EXPECT_EQ(local_port, port);
-        EXPECT_GE(local_port, 45000);
-        EXPECT_LE(local_port, 48999);
+        EXPECT_GE(local_port, _srs_utest_port_min);
+        EXPECT_LE(local_port, _srs_utest_port_max);
 
         srs_close_stfd(fd);
     }
@@ -5457,8 +5457,8 @@ VOID TEST(UtilityTest, GetLocalPortSuccess)
 
         int local_port = srs_get_local_port(actual_fd);
         EXPECT_EQ(local_port, port);
-        EXPECT_GE(local_port, 45000);
-        EXPECT_LE(local_port, 48999);
+        EXPECT_GE(local_port, _srs_utest_port_min);
+        EXPECT_LE(local_port, _srs_utest_port_max);
 
         srs_close_stfd(fd);
     }

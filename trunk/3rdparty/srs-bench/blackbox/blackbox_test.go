@@ -70,14 +70,13 @@ func TestFast_PortAllocator_SkipsBusyPort(t *testing.T) {
 	busyUDP := udp.LocalAddr().(*net.UDPAddr).Port
 	for _, busy := range []int{busyTCP, busyUDP} {
 		candidates := []int{busy, busy + 1}
-		v := NewSRSPortAllocator()
-		v.pick = func() int {
+		v := &SRSPortAllocator{pick: func() int {
 			port := candidates[0]
 			if len(candidates) > 1 {
 				candidates = candidates[1:]
 			}
 			return port
-		}
+		}}
 
 		if port := v.Allocate(); port != busy+1 {
 			t.Errorf("allocate got %v, want %v instead of the busy port %v", port, busy+1, busy)
@@ -85,18 +84,33 @@ func TestFast_PortAllocator_SkipsBusyPort(t *testing.T) {
 	}
 }
 
-// The allocator picks ports only from the black-box range, [40000, 44999], so it never takes a
-// fixed port of a test script, a unit test port or a kernel ephemeral port in the parallel Full tier.
+// The allocator picks ports only from its range, the black-box range, so it never takes a fixed
+// port of a test script, a unit test port or a kernel ephemeral port in the parallel Full tier.
 func TestFast_PortAllocator_PicksInBlackboxRange(t *testing.T) {
-	v := NewSRSPortAllocator()
+	v := NewSRSPortAllocator(30000, 30004)
 
 	outside := 0
 	for i := 0; i < 1000; i++ {
-		if port := v.pick(); port < 40000 || port > 44999 {
+		if port := v.pick(); port < 30000 || port > 30004 {
 			outside++
 		}
 	}
 	if outside != 0 {
-		t.Errorf("%v of 1000 picks outside [40000, 44999]", outside)
+		t.Errorf("%v of 1000 picks outside [30000, 30004]", outside)
+	}
+}
+
+// The SRS_BLACKBOX_PORTS env, like 21000-25999, moves the black-box range without a code change.
+func TestFast_PortAllocator_RangeFromEnv(t *testing.T) {
+	if min, max, err := blackboxPortRange(""); err != nil || min != 21000 || max != 25999 {
+		t.Errorf("default range [%v, %v], err %v", min, max, err)
+	}
+	if min, max, err := blackboxPortRange("30000-30099"); err != nil || min != 30000 || max != 30099 {
+		t.Errorf("env range [%v, %v], err %v", min, max, err)
+	}
+	for _, v := range []string{"30000", "30099-30000", "0-100", "60000-65536", "a-b", "1-2-3", " 1-2"} {
+		if min, max, err := blackboxPortRange(v); err == nil {
+			t.Errorf("invalid range %q got [%v, %v]", v, min, max)
+		}
 	}
 }

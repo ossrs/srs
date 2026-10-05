@@ -77,6 +77,9 @@ var srsPlayOKPackets *int
 var srsPublishOKPackets *int
 var srsPublishVideoFps *int
 var srsDTLSDropPackets *int
+var srsRtmpPort *int
+var srsApiPort *int
+var srsRtspPort *int
 
 var srsSchema string
 var srsServer *string
@@ -94,6 +97,9 @@ func prepareTest() (err error) {
 	srsHttps = flag.Bool("srs-https", false, "Whther connect to HTTPS-API")
 	srsServer = flag.String("srs-server", "127.0.0.1", "The RTMP/RTC server to connect to")
 	srsHttpServer = flag.String("srs-http-server", "127.0.0.1:8080", "The HTTP server to connect to")
+	srsRtmpPort = flag.Int("srs-rtmp-port", 1935, "The RTMP port of -srs-server")
+	srsApiPort = flag.Int("srs-api-port", 1985, "The HTTP API port of -srs-server")
+	srsRtspPort = flag.Int("srs-rtsp-port", 8554, "The RTSP port of -srs-server")
 	srsStream = flag.String("srs-stream", "/rtc/regression", "The RTC app/stream to play")
 	srsLiveStream = flag.String("srs-live-stream", "/live/livestream", "The LIVE app/stream to play")
 	srsLog = flag.Bool("srs-log", false, "Whether enable the detail log")
@@ -167,6 +173,21 @@ func prepareTest() (err error) {
 	}
 
 	return nil
+}
+
+// The RTMP server to connect to, like 127.0.0.1:1935.
+func srsRtmpHost() string {
+	return net.JoinHostPort(*srsServer, strconv.Itoa(*srsRtmpPort))
+}
+
+// The HTTP API server to connect to, like 127.0.0.1:1985.
+func srsApiHost() string {
+	return net.JoinHostPort(*srsServer, strconv.Itoa(*srsApiPort))
+}
+
+// The RTSP server to connect to, like 127.0.0.1:8554.
+func srsRtspHost() string {
+	return net.JoinHostPort(*srsServer, strconv.Itoa(*srsRtspPort))
 }
 
 // Request SRS RTC API, the apiPath like "/rtc/v1/play", the r is WebRTC url like
@@ -925,9 +946,9 @@ func (v *testPlayer) Close() error {
 }
 
 func (v *testPlayer) Run(ctx context.Context, cancel context.CancelFunc) error {
-	r := fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, *srsStream)
+	r := fmt.Sprintf("%v://%v%v", srsSchema, srsApiHost(), *srsStream)
 	if v.defaultStream != "" {
-		r = fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, v.defaultStream)
+		r = fmt.Sprintf("%v://%v%v", srsSchema, srsApiHost(), v.defaultStream)
 	}
 	if v.streamSuffix != "" {
 		r = fmt.Sprintf("%v-%v", r, v.streamSuffix)
@@ -1252,7 +1273,7 @@ func (v *testPublisher) Run(ctx context.Context, cancel context.CancelFunc) erro
 	// Save the cancel.
 	v.cancel = cancel
 
-	r := fmt.Sprintf("%v://%v%v", srsSchema, *srsServer, *srsStream)
+	r := fmt.Sprintf("%v://%v%v", srsSchema, srsApiHost(), *srsStream)
 	if v.streamSuffix != "" {
 		r = fmt.Sprintf("%v-%v", r, v.streamSuffix)
 	}
