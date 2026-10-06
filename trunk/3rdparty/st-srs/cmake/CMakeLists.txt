@@ -5,6 +5,10 @@ cmake_minimum_required(VERSION 3.10)
 # Language "C" is required for find_package(Threads).
 if (CMAKE_VERSION VERSION_LESS 3.0)
     project(st CXX C ASM)
+elseif (CMAKE_HOST_WIN32)
+    # Native Windows uses MASM (ASM_MASM) below, not the GNU assembler (ASM).
+    cmake_policy(SET CMP0048 NEW)
+    project(st VERSION 4.0.0 LANGUAGES CXX C)
 else()
     cmake_policy(SET CMP0048 NEW)
     project(st VERSION 4.0.0 LANGUAGES CXX C ASM)
@@ -12,6 +16,58 @@ endif()
 
 # For utest required C++11.
 set (CMAKE_CXX_STANDARD 11)
+
+###########################################################
+# Native Windows x64 with MSVC, the WIN64 platform of ../Makefile, which stays the main build. This gives a Visual
+# Studio project of the utest for debugging, for example:
+#       cmake -S cmake -B build -G "Visual Studio 17 2022" -A x64
+# No bash, and the source tree is not written: st.h is copied to the build directory, so the obj junction made by
+# make is left alone.
+if (CMAKE_HOST_WIN32 AND NOT MSVC)
+    message(FATAL_ERROR "Only MSVC is supported on Windows, for example the Visual Studio generator")
+endif()
+if (MSVC)
+    get_filename_component(ST_DIR ${PROJECT_SOURCE_DIR}/.. ABSOLUTE)
+    message("ST home is ${ST_DIR}")
+
+    # NOMINMAX keeps windows.h, included by winsock2.h, from breaking std::min and std::max.
+    ADD_DEFINITIONS("-DWIN64 -DDEBUG -DNOMINMAX")
+
+    configure_file(${ST_DIR}/public.h ${PROJECT_BINARY_DIR}/st/st.h COPYONLY)
+    INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/st ${ST_DIR}/utest)
+
+    foreach (FILE event.c io.c key.c sched.c stk.c sync.c common.c)
+        list(APPEND SOURCE_FILES ${ST_DIR}/${FILE})
+    endforeach ()
+    # The context switch is MASM assembly.
+    enable_language(ASM_MASM)
+    list(APPEND SOURCE_FILES ${ST_DIR}/md_win64.asm)
+
+    # Google Test with the same DLL runtime (/MD) as the utest.
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    if (NOT TARGET gtest)
+        ADD_SUBDIRECTORY(${ST_DIR}/utest/gtest-fit gtest-fit)
+    endif ()
+    INCLUDE_DIRECTORIES(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+
+    set(ST_UTEST_SOURCE_FILES ${SOURCE_FILES})
+    AUX_SOURCE_DIRECTORY(${ST_DIR}/utest ST_UTEST_SOURCE_FILES)
+
+    ADD_EXECUTABLE(st_utest ${ST_UTEST_SOURCE_FILES})
+    TARGET_LINK_LIBRARIES(st_utest gtest gtest_main ws2_32)
+    set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT st_utest)
+
+    # The tools ported to MSVC so far.
+    foreach (TOOL helloworld porting verify)
+        set(ST_TOOL_SOURCE_FILES ${SOURCE_FILES})
+        AUX_SOURCE_DIRECTORY(${ST_DIR}/tools/${TOOL} ST_TOOL_SOURCE_FILES)
+        ADD_EXECUTABLE(st_${TOOL} ${ST_TOOL_SOURCE_FILES})
+        TARGET_LINK_LIBRARIES(st_${TOOL} ws2_32)
+    endforeach ()
+
+    MESSAGE(STATUS "@see https://github.com/ossrs/state-threads#usage")
+    return()
+endif()
 
 ###########################################################
 execute_process(

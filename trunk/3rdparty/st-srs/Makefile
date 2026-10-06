@@ -33,13 +33,14 @@
 # GPL.
 
 # This is the full version of the libst library - modify carefully
-VERSION     = 1.9.1
+VERSION     = 1.9.2
 
 ##########################
 # Supported OSes:
 #
 #OS         = DARWIN
 #OS         = LINUX
+#OS         = WIN64
 
 # Please see the "Other possible defines" section below for
 # possible compilation options.
@@ -77,6 +78,13 @@ ARFLAGS     = -r
 LNFLAGS     = -s
 DSO_SUFFIX  = so
 
+# The output flags of the compiler and archiver, the debug flags, and the
+# command that points obj at TARGETDIR. WIN64 (MSVC) overrides them.
+CC_OUT      = -o $(EMPTY)
+AR_OUT      =
+DBG_FLAGS   = -g -O0
+LINK_OBJ    = $(LN) $(LNFLAGS) $(TARGETDIR) obj
+
 MAJOR       = $(shell echo $(VERSION) | sed 's/^\([^\.]*\).*/\1/')
 DESC        = st.pc
 
@@ -86,11 +94,13 @@ DESC        = st.pc
 
 TARGETS     = darwin-debug darwin-optimized         \
               linux-debug linux-optimized           \
-              cygwin64-debug
+              cygwin64-debug                        \
+              win64-debug win64-optimized
 
 UTEST_TARGETS = darwin-debug-utest linux-debug-utest \
                 darwin-debug-gcov linux-debug-gcov   \
-                cygwin64-debug-utest
+                cygwin64-debug-utest                 \
+                win64-debug-utest
 
 #
 # Platform specifics
@@ -127,6 +137,23 @@ OTHER_FLAGS = -Wall
 DEFINES     += -DMD_HAVE_SELECT
 endif
 
+# Native Windows x64 with MSVC (cl, lib), not CYGWIN64. Run GNU make from Git
+# Bash or PowerShell with the MSVC environment on PATH. Static library only.
+# Git Bash 'ln -s' copies instead of linking, so obj is a directory junction.
+ifeq ($(OS), WIN64)
+EXTRA_OBJS  = $(TARGETDIR)/md_win64.o
+CC          = cl
+CXX         = cl
+AR          = lib
+RANLIB      = true
+ARFLAGS     = -nologo
+CC_OUT      = -Fo
+AR_OUT      = -OUT:
+DBG_FLAGS   = -Z7 -Od
+LINK_OBJ    = MSYS2_ARG_CONV_EXCL='*' cmd /c mklink /J obj $(TARGETDIR) >/dev/null
+OTHER_FLAGS = -nologo -W4
+endif
+
 #
 # End of platform section.
 ##########################
@@ -135,7 +162,7 @@ endif
 ifeq ($(BUILD), OPT)
 OTHER_FLAGS += -O2
 else
-OTHER_FLAGS += -g -O0
+OTHER_FLAGS += $(DBG_FLAGS)
 DEFINES     += -DDEBUG
 endif
 
@@ -199,6 +226,9 @@ endif
 # or enable support for asan:
 # make EXTRA_CFLAGS="-DMD_ASAN -fsanitize=address -fno-omit-frame-pointer"
 #
+# or enable support for asan on native Windows, where cl has no -fno-omit-frame-pointer:
+# make win64-debug EXTRA_CFLAGS="-DMD_ASAN -fsanitize=address"
+#
 # or to disable the clock_gettime for MacOS before 10.12, see https://github.com/ossrs/srs/issues/3978
 # make EXTRA_CFLAGS=-DMD_OSX_NO_CLOCK_GETTIME
 #
@@ -261,13 +291,13 @@ st.pc:	st.pc.in
 # Point obj to this platform on every build, even when the library is up to date.
 .PHONY: obj-link
 obj-link:
-	rm -f obj; $(LN) $(LNFLAGS) $(TARGETDIR) obj
+	rm -f obj; $(LINK_OBJ)
 
 $(TARGETDIR):
 	if [ ! -d $(TARGETDIR) ]; then mkdir $(TARGETDIR); fi
 
 $(SLIBRARY): $(OBJS)
-	$(AR) $(ARFLAGS) $@ $(OBJS)
+	$(AR) $(ARFLAGS) $(AR_OUT)$@ $(OBJS)
 	$(RANLIB) $@
 
 $(DLIBRARY): $(OBJS:%.o=%-pic.o)
@@ -286,8 +316,14 @@ $(HEADER): public.h
 $(TARGETDIR)/%.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# The WIN64 context switch is MASM assembly, md_win64.asm.
+ifeq ($(OS), WIN64)
+$(TARGETDIR)/%.o: %.asm
+	ml64 -nologo -c -Fo$@ $<
+endif
+
 $(TARGETDIR)/%.o: %.c common.h md.h
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< $(CC_OUT)$@
 
 # Note that we use C++98 standard for the C++ files.
 $(TARGETDIR)/%.o: %.cc common.h md.h
@@ -325,6 +361,11 @@ linux-optimized:
 cygwin64-debug:
 	$(MAKE) OS="CYGWIN64" BUILD="DBG"
 
+win64-debug:
+	$(MAKE) OS="WIN64" BUILD="DBG"
+win64-optimized:
+	$(MAKE) OS="WIN64" BUILD="OPT"
+
 darwin-debug-utest:
 	@echo "Build utest for state-threads"
 	$(MAKE) OS="DARWIN" BUILD="DBG"
@@ -337,6 +378,10 @@ cygwin64-debug-utest:
 	@echo "Build utest for state-threads"
 	$(MAKE) OS="CYGWIN64" BUILD="DBG"
 	cd utest && $(MAKE) UTEST_FLAGS="-std=gnu++0x" # @see https://www.codenong.com/18784112/
+win64-debug-utest:
+	@echo "Build utest for state-threads"
+	$(MAKE) OS="WIN64" BUILD="DBG"
+	cd utest && $(MAKE) OS="WIN64"
 
 darwin-debug-gcov:
 	@echo "Build utest with gcov for state-threads"

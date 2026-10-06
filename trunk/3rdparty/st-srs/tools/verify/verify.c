@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 /* Copyright (c) 2013-2026 The SRS Authors */
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include <st.h>
@@ -37,7 +38,7 @@ void* start(void* arg)
     r0 = st_mutex_unlock(lock);
     printf("ST: thread unlock\n");
 
-    return (void*)(long)r0;
+    return (void*)(intptr_t)r0;
 }
 
 int main(int argc, char** argv)

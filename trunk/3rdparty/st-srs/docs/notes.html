@@ -102,6 +102,74 @@ The current version of the library is ported to:
   <LI>NetBSD on x86, Alpha, SPARC, and VAX</LI>
   <LI>MacOS X (Darwin) on PowerPC (32 bit) and Intel (both 32 and 64 bit) [universal]</LI>
   <LI>Cygwin</LI>
+  <LI>Windows x64 (native, with MSVC; see <A HREF=#windows>Native Windows</A>)</LI>
+</UL>
+<P>
+
+<A NAME="windows">
+<H4>Native Windows</H4>
+The library builds on Windows 10 1809 or Windows Server 2019 and later, x64,
+with the Visual Studio (MSVC) toolchain and no POSIX emulation layer: the
+<TT>win64-debug</TT>, <TT>win64-optimized</TT>, and <TT>win64-debug-utest</TT>
+Makefile targets run <TT>cl</TT>, <TT>ml64</TT>, and <TT>lib</TT> and build a
+static library only. The platform is <TT>WIN64</TT> (<TT>OS=WIN64</TT> in the
+Makefile), separate from <TT>CYGWIN64</TT>. The public API is unchanged, and
+the platform-specific parts are:
+<P>
+<UL>
+<LI><I>Thread context</I>: <TT>md_win64.asm</TT> (MASM) saves every register
+the Win64 ABI calls callee-saved: rbx, rbp, rdi, rsi, r12-r15, and xmm6-xmm15,
+plus MXCSR and the x87 control word. It also switches the stack bounds in the
+thread information block (TIB), without which C++ exceptions, crash dumps, and
+debugger stack walks fail on a thread stack. MSVC <TT>long</TT> is 32 bits, so
+the <TT>jmp_buf</TT> slots are <TT>long long</TT>. A new thread starts in the
+assembly function <TT>_st_md_thread_start</TT>, which does not depend on what
+the compiler keeps in registers. Do not link programs with
+<TT>/CETCOMPAT</TT>: the context switch is not compatible with CET shadow
+stacks.</LI>
+<P>
+<LI><I>Stacks</I>: <TT>VirtualAlloc</TT>, with <TT>PAGE_NOACCESS</TT> red zones
+in <TT>DEBUG</TT> builds. With <TT>MALLOC_STACK</TT> there are no red
+zones.</LI>
+<P>
+<LI><I>Time</I>: <TT>QueryPerformanceCounter</TT>.</LI>
+<P>
+<LI><I>Event system</I>: <TT>WSAPoll</TT>, for <TT>ST_EVENTSYS_DEFAULT</TT>,
+<TT>ST_EVENTSYS_SELECT</TT>, and <TT>ST_EVENTSYS_ALT</TT>. It does not support
+<TT>POLLPRI</TT>, so <TT>st_poll()</TT> fails with <TT>EINVAL</TT> for it, as
+with kqueue. Timeouts have millisecond resolution and follow the system timer
+tick (about 15.6 ms by default).</LI>
+<P>
+<LI><I>I/O</I>: sockets only, through Winsock. <TT>st_init()</TT> calls
+<TT>WSAStartup()</TT>, and <TT>st_destroy()</TT> calls
+<TT>WSACleanup()</TT>, once per OS thread. File descriptors stay <TT>int</TT>
+in the API: a <TT>SOCKET</TT> has only 32 significant bits, so it can be cast
+to <TT>int</TT> and back. Winsock errors are mapped to <TT>errno</TT>, for
+example <TT>WSAEWOULDBLOCK</TT> to <TT>EAGAIN</TT>. Control data of
+<TT>st_sendmsg()</TT> and <TT>st_recvmsg()</TT> uses the Winsock layout
+(<TT>WSA_CMSG_*</TT>).</LI>
+</UL>
+<P>
+Some things are not supported or behave differently on Windows:
+<P>
+<UL>
+<LI><TT>st_open()</TT> fails with <TT>ENOSYS</TT>: there is no polling of
+files or FIFOs. There is no <TT>SIGPIPE</TT> to ignore, and no
+<TT>RLIMIT_NOFILE</TT>: <TT>st_getfdlimit()</TT> returns 2^24, the per-process
+handle limit.</LI>
+<LI>A non-blocking send on a TCP socket is all or nothing: Winsock takes a whole
+buffer while the send buffer is not full, even one larger than
+<TT>SO_SNDBUF</TT>, and never sends part of it. So a large write may complete
+at once, and the next write waits.</LI>
+<LI>A connect to a loopback port with no listener fails with
+<TT>ECONNREFUSED</TT> after about 2 seconds, because Windows retries the
+connection; a shorter timeout gives <TT>ETIME</TT>.</LI>
+<LI>On a UDP socket, an ICMP port unreachable makes the next receive fail with
+<TT>ECONNREFUSED</TT>. A datagram larger than the buffer returns the bytes that
+fit, as on POSIX.</LI>
+<LI>MSVC AddressSanitizer works with <TT>MD_ASAN</TT>, but not with
+<TT>-fsanitize-address-use-after-return</TT>, which gives false reports with
+MSVC 14.44.</LI>
 </UL>
 <P>
 

@@ -7,13 +7,17 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <new>
+#ifndef _WIN32
 #include <poll.h>
 #include <pthread.h>
+#endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
@@ -21,6 +25,7 @@
 #include <malloc.h>
 #endif
 
+#ifndef _WIN32
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/mman.h>
@@ -28,10 +33,12 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#endif
 
 #define ST_UTIME_MILLISECONDS 1000
 #define SELECT_TEST_TIMEOUT (1000 * ST_UTIME_MILLISECONDS)
 
+#ifndef _WIN32 // POSIX only: each test runs its own ST in a forked child, with shared memory, pipes and pthread
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for the select event system, the portable one: the only one on Cygwin, and the one an OS thread gets when
 // it calls st_init without choosing. It watches at most FD_SETSIZE descriptors, so its st_init lowers the descriptor
@@ -1448,3 +1455,4 @@ VOID TEST(SelectTest, DestroyFreesEventSystem)
     EXPECT_GE(r.p_->heap_before_, r.p_->heap_after_ + 3 * sizeof(fd_set));
 #endif
 }
+#endif

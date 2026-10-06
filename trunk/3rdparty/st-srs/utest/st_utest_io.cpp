@@ -6,26 +6,40 @@
 #include <st.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifndef _WIN32
 #include <poll.h>
 #include <pthread.h>
+#endif
 #include <signal.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <string.h>
 #include <string>
 #include <vector>
 #include <algorithm>
 
+#ifndef _WIN32
 #include <sys/socket.h>
+#endif
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <sys/uio.h>
 #include <sys/resource.h>
 #include <sys/un.h>
+#endif
 #include <stddef.h>
+#ifndef _WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#endif
 
 #define ST_UTIME_MILLISECONDS 1000
 #define ST_UTEST_TIMEOUT (100 * ST_UTIME_MILLISECONDS)
+
+#ifdef _MSC_VER // Windows only: some tests skip with GTEST_SKIP, so the rest of their body is unreachable
+#pragma warning(disable: 4702)
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for reading a TCP stream, the way SRS reads every RTMP chunk header and payload with st_read_fully.
@@ -70,7 +84,7 @@ static int io_accept_from(int lfd, int cfd)
         if (sfd < 0 || (peer.sin_port == local.sin_port && peer.sin_addr.s_addr == local.sin_addr.s_addr)) {
             return sfd;
         }
-        ::close(sfd);
+        st_utest_close(sfd);
     }
 }
 
@@ -90,21 +104,21 @@ static bool io_tcp_pair(IoTestTcpPair& pair)
     socklen_t addrlen = sizeof(addr);
     if (::bind(lfd, (sockaddr*)&addr, sizeof(addr)) < 0 || ::listen(lfd, 1) < 0
         || getsockname(lfd, (sockaddr*)&addr, &addrlen) < 0) {
-        ::close(lfd);
+        st_utest_close(lfd);
         return false;
     }
 
     int cfd = socket(AF_INET, SOCK_STREAM, 0);
     if (cfd < 0 || ::connect(cfd, (sockaddr*)&addr, sizeof(addr)) < 0) {
-        if (cfd >= 0) ::close(cfd);
-        ::close(lfd);
+        if (cfd >= 0) st_utest_close(cfd);
+        st_utest_close(lfd);
         return false;
     }
 
     int sfd = io_accept_from(lfd, cfd);
-    ::close(lfd);
+    st_utest_close(lfd);
     if (sfd < 0) {
-        ::close(cfd);
+        st_utest_close(cfd);
         return false;
     }
 
@@ -481,6 +495,7 @@ VOID TEST(IoReadTest, ReadOnResetConnectionFails)
     }
 }
 
+#ifndef _WIN32 // POSIX only: signals, fcntl and pthread
 static volatile sig_atomic_t io_read_signals = 0;
 
 static void io_read_on_signal(int signo)
@@ -657,6 +672,7 @@ VOID TEST(IoReadTest, ReadvResidRetriesWhenSignalInterruptsSystemCall)
     EXPECT_STREQ("hdr", header);
     EXPECT_STREQ("payload", payload);
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for accepting and connecting TCP, the way an SRS listener accepts clients and an SRS edge or forwarder
@@ -677,12 +693,12 @@ static st_netfd_t io_tcp_listen(struct sockaddr_in& addr, int backlog)
     socklen_t addrlen = sizeof(addr);
     if (::bind(lfd, (sockaddr*)&addr, sizeof(addr)) < 0 || ::listen(lfd, backlog) < 0
         || getsockname(lfd, (sockaddr*)&addr, &addrlen) < 0) {
-        ::close(lfd);
+        st_utest_close(lfd);
         return NULL;
     }
 
     st_netfd_t stfd = st_netfd_open_socket(lfd);
-    if (!stfd) ::close(lfd);
+    if (!stfd) st_utest_close(lfd);
     return stfd;
 }
 
@@ -702,7 +718,7 @@ static void* io_connect_coroutine(void* arg)
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     c->stfd_ = (fd < 0) ? NULL : st_netfd_open_socket(fd);
     if (!c->stfd_) {
-        if (fd >= 0) ::close(fd);
+        if (fd >= 0) st_utest_close(fd);
         return NULL;
     }
 
@@ -712,6 +728,7 @@ static void* io_connect_coroutine(void* arg)
     return NULL;
 }
 
+#ifndef _WIN32 // POSIX only: fcntl O_NONBLOCK
 // An SRS listener waits for clients with no timeout. A client connects later: st_accept wakes, reports the client's
 // address, and returns a non-blocking socket that is ready for ST I/O, whether or not the OS lets an accepted socket
 // inherit O_NONBLOCK from the listener. On the client side, st_connect waits for the handshake and succeeds. Locks in
@@ -757,6 +774,7 @@ VOID TEST(IoAcceptTest, AcceptWaitsForClient)
     EXPECT_EQ(5, st_read_fully(client, buf, 5, ST_UTEST_TIMEOUT));
     EXPECT_STREQ("hello", buf);
 }
+#endif
 
 // No client arrives before the timeout, so st_accept fails with ETIME. Locks in current behavior.
 VOID TEST(IoAcceptTest, AcceptTimesOut)
@@ -824,6 +842,7 @@ VOID TEST(IoAcceptTest, AcceptOnSocketNotListeningFails)
     EXPECT_EQ(EINVAL, errno);
 }
 
+#ifndef _WIN32 // POSIX only: signals, fcntl and pthread
 // Another thread of the program signals the accepting thread a few times, then a client connects.
 struct IoTestAcceptSignaler {
     pthread_t target_;
@@ -900,6 +919,7 @@ VOID TEST(IoAcceptTest, AcceptRetriesWhenSignalInterruptsSystemCall)
     EXPECT_EQ(5, st_read_fully(client, buf, 5, ST_UTEST_TIMEOUT));
     EXPECT_STREQ("hello", buf);
 }
+#endif
 
 // Open a TCP socket for st_connect.
 static st_netfd_t io_tcp_socket(int family)
@@ -907,7 +927,7 @@ static st_netfd_t io_tcp_socket(int family)
     int fd = socket(family, SOCK_STREAM, 0);
     if (fd < 0) return NULL;
     st_netfd_t stfd = st_netfd_open_socket(fd);
-    if (!stfd) ::close(fd);
+    if (!stfd) st_utest_close(fd);
     return stfd;
 }
 
@@ -916,6 +936,9 @@ static st_netfd_t io_tcp_socket(int family)
 // report the same error. The test takes a free port by opening a listener and closing it. Locks in current behavior.
 VOID TEST(IoConnectTest, ConnectRefusedWhenNobodyListens)
 {
+#ifdef _WIN32 // Windows only: skipped, Windows retries a refused connect for about 2 s, longer than the timeout
+    GTEST_SKIP() << "Windows retries a refused connect for about 2 seconds";
+#endif
     struct sockaddr_in addr;
     st_netfd_t listener = io_tcp_listen(addr, 8);
     ASSERT_TRUE(listener != NULL);
@@ -1088,6 +1111,25 @@ static bool io_shrink_send_buffer(IoTestTcpPair& pair)
     return setsockopt(st_netfd_fileno(pair.server_), SOL_SOCKET, SO_SNDBUF, &size, sizeof(size)) == 0;
 }
 
+#ifdef _WIN32 // Windows only: a large send does not wait
+// Windows takes a whole non-blocking send, however large, while the send buffer holds less than SO_SNDBUF, so a
+// single large write to a slow player never waits; the wait starts from the next write. So on Windows the tests first
+// fill the send and receive buffers, and the write under test waits, times out, or sees the reset as on POSIX.
+// Winsock never sends part of a non-blocking send: it takes the whole buffer, or fails with WSAEWOULDBLOCK and sends
+// nothing. So the tests that need a partial count are skipped on Windows; the wait and retry after a would-block is
+// covered by the tests that fill the buffers first.
+static bool io_fill_buffers(int fd, std::string& filled);
+
+// Fill the buffers of the server end. The fill sleeps outside ST, so let ST read its clock again after it, or a timeout
+// set right after would start from the old clock and expire early.
+static bool io_fill_send_buffer(IoTestTcpPair& pair, std::string& filled)
+{
+    bool ok = io_fill_buffers(st_netfd_fileno(pair.server_), filled);
+    st_usleep(0);
+    return ok;
+}
+#endif
+
 // Messages as SRS sends them: each one is a 12-byte header iovec and a payload iovec. Both point into one byte
 // pattern that doesn't repeat at buffer boundaries, so the player can compare what it got with data_, and a byte that
 // is lost, sent twice or sent out of order shows up.
@@ -1173,6 +1215,9 @@ VOID TEST(IoWriteTest, WritevSendsMessageInOneCall)
 // byte is sent, in order. The player has to start reading before st_writev can return. Locks in current behavior.
 VOID TEST(IoWriteTest, WritevWaitsForSlowPlayer)
 {
+#ifdef _WIN32 // Windows only: skipped, the test needs a partial send, which Winsock never does
+    GTEST_SKIP() << "Winsock never sends part of a non-blocking send";
+#endif
     IoTestTcpPair pair;
     ASSERT_TRUE(io_tcp_pair(pair));
     ASSERT_TRUE(io_shrink_send_buffer(pair));
@@ -1194,6 +1239,9 @@ VOID TEST(IoWriteTest, WritevWaitsForSlowPlayer)
 // and frees it when done. Every byte still arrives in order. Locks in current behavior.
 VOID TEST(IoWriteTest, WritevWaitsForSlowPlayerWithMergedWrite)
 {
+#ifdef _WIN32 // Windows only: skipped, the test needs a partial send, which Winsock never does
+    GTEST_SKIP() << "Winsock never sends part of a non-blocking send";
+#endif
     IoTestTcpPair pair;
     ASSERT_TRUE(io_tcp_pair(pair));
     ASSERT_TRUE(io_shrink_send_buffer(pair));
@@ -1234,6 +1282,10 @@ VOID TEST(IoWriteTest, WritevFailsWhenPlayerResetsMidStream)
     IoTestTcpPair pair;
     ASSERT_TRUE(io_tcp_pair(pair));
     ASSERT_TRUE(io_shrink_send_buffer(pair));
+#ifdef _WIN32 // Windows only: fill the buffers, or the write does not wait
+    std::string filled;
+    ASSERT_TRUE(io_fill_send_buffer(pair, filled));
+#endif
 
     IoTestMessages msgs(4, 256 * 1024);
     IoTestBlockedWriter w;
@@ -1258,6 +1310,9 @@ VOID TEST(IoWriteTest, WritevFailsWhenPlayerResetsMidStream)
 // behavior.
 VOID TEST(IoWriteTest, WritevTimesOutAndLosesTheSentCount)
 {
+#ifdef _WIN32 // Windows only: skipped, the test needs a partial send, which Winsock never does
+    GTEST_SKIP() << "Winsock never sends part of a non-blocking send";
+#endif
     IoTestTcpPair pair;
     ASSERT_TRUE(io_tcp_pair(pair));
     ASSERT_TRUE(io_shrink_send_buffer(pair));
@@ -1279,6 +1334,10 @@ VOID TEST(IoWriteTest, WritevInterruptedWhenConnectionStops)
     IoTestTcpPair pair;
     ASSERT_TRUE(io_tcp_pair(pair));
     ASSERT_TRUE(io_shrink_send_buffer(pair));
+#ifdef _WIN32 // Windows only: fill the buffers, or the write does not wait
+    std::string filled;
+    ASSERT_TRUE(io_fill_send_buffer(pair, filled));
+#endif
 
     IoTestMessages msgs(4, 256 * 1024);
     IoTestBlockedWriter w;
@@ -1297,6 +1356,7 @@ VOID TEST(IoWriteTest, WritevInterruptedWhenConnectionStops)
     EXPECT_EQ(EINTR, w.errno_);
 }
 
+#ifndef _WIN32 // POSIX only: signals and pthread
 // Another thread of the program signals the writing thread a few times, then reads everything as the player.
 struct IoTestWriteSignaler {
     pthread_t target_;
@@ -1327,6 +1387,7 @@ static void* io_write_signaler_thread(void* arg)
     }
     return NULL;
 }
+#endif
 
 // Write to the non-blocking socket until the send buffer and the player's receive buffer are full and the kernel takes
 // no more, and keep what was written. The kernel moves the send buffer to the player in the background, so the first
@@ -1355,6 +1416,7 @@ static bool io_fill_buffers(int fd, std::string& filled)
     }
 }
 
+#ifndef _WIN32 // POSIX only: signals, fcntl and pthread
 // A signal interrupts writev while it waits in the kernel for a stalled player, and the handler was installed without
 // SA_RESTART, so writev fails with EINTR. st_writev retries it instead of failing, because only st_thread_interrupt
 // means the writer should stop, and every byte arrives once the player reads. A blocking writev fails with EINTR only
@@ -1557,6 +1619,7 @@ VOID TEST(IoWriteTest, SendmsgRetriesWhenSignalInterruptsSystemCall)
     EXPECT_TRUE(s.received_.substr(0, filled.size()) == filled);
     EXPECT_TRUE(s.received_.substr(filled.size()) == msgs.data_);
 }
+#endif
 
 // st_writev_resid keeps the count that st_writev loses. When the stalled player makes it time out, the caller's iovec
 // array points at what is still unsent: the rest of a partly sent buffer, then the untouched ones. When the player
@@ -1564,6 +1627,9 @@ VOID TEST(IoWriteTest, SendmsgRetriesWhenSignalInterruptsSystemCall)
 // order. Locks in current behavior.
 VOID TEST(IoWriteTest, WritevResidResumesAfterTimeout)
 {
+#ifdef _WIN32 // Windows only: skipped, the test needs a partial send, which Winsock never does
+    GTEST_SKIP() << "Winsock never sends part of a non-blocking send";
+#endif
     IoTestTcpPair pair;
     ASSERT_TRUE(io_tcp_pair(pair));
     ASSERT_TRUE(io_shrink_send_buffer(pair));
@@ -1632,6 +1698,9 @@ VOID TEST(IoWriteTest, WritevWithNothingToSendReturnsAtOnce)
 // current behavior.
 VOID TEST(IoWriteTest, WriteWaitsForSlowPlayer)
 {
+#ifdef _WIN32 // Windows only: skipped, the test needs a partial send, which Winsock never does
+    GTEST_SKIP() << "Winsock never sends part of a non-blocking send";
+#endif
     IoTestTcpPair pair;
     ASSERT_TRUE(io_tcp_pair(pair));
     ASSERT_TRUE(io_shrink_send_buffer(pair));
@@ -1665,6 +1734,10 @@ VOID TEST(IoWriteTest, WriteFailsWhenPlayerResetsMidStream)
     IoTestTcpPair pair;
     ASSERT_TRUE(io_tcp_pair(pair));
     ASSERT_TRUE(io_shrink_send_buffer(pair));
+#ifdef _WIN32 // Windows only: fill the buffers, or the write does not wait
+    std::string filled;
+    ASSERT_TRUE(io_fill_send_buffer(pair, filled));
+#endif
 
     IoTestMessages msgs(1, 1024 * 1024);
     IoTestBlockedWriter w;
@@ -1688,6 +1761,7 @@ VOID TEST(IoWriteTest, WriteFailsWhenPlayerResetsMidStream)
 // SRS uses to turn a signal into an event for a coroutine.
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifndef _WIN32 // POSIX only: pipes
 // A pipe whose read end is wrapped with st_netfd_open, the way SRS wraps its signal pipe. The write end stays a plain
 // descriptor, like the one a signal handler writes to.
 struct IoTestPipe {
@@ -1713,6 +1787,7 @@ static bool io_pipe(IoTestPipe& p)
     }
     return true;
 }
+#endif
 
 struct IoTestSignalReader {
     st_netfd_t stfd_;
@@ -1730,6 +1805,7 @@ static void* io_signal_reader_coroutine(void* arg)
     return NULL;
 }
 
+#ifndef _WIN32 // POSIX only: pipes and fcntl
 // SRS turns signals into events with a pipe: the handler writes the signal number to the write end, and a coroutine
 // waits on the read end, wrapped with st_netfd_open. A pipe is not a socket, so ST makes it non-blocking with fcntl,
 // and the coroutine waits instead of blocking the whole process. Locks in current behavior.
@@ -1757,6 +1833,7 @@ VOID TEST(IoNetfdTest, SignalPipeWakesWaitingCoroutine)
     EXPECT_EQ((ssize_t)sizeof(signo), r.nread_);
     EXPECT_EQ(SIGHUP, r.signo_);
 }
+#endif
 
 // Closing a descriptor while another coroutine still waits on it fails with EBUSY, and leaves the descriptor open and
 // the waiter undisturbed, so the event system never holds a stale descriptor. SRS treats this as a bug and asserts
@@ -1826,8 +1903,8 @@ VOID TEST(IoNetfdTest, OpenClosedDescriptorFails)
 
     int closed[2];
     ASSERT_EQ(0, st_utest_stream_pair(closed));
-    ::close(closed[0]);
-    ::close(closed[1]);
+    st_utest_close(closed[0]);
+    st_utest_close(closed[1]);
 
     errno = 0;
     EXPECT_TRUE(st_netfd_open(closed[0]) == NULL);
@@ -1842,7 +1919,7 @@ VOID TEST(IoNetfdTest, OpenClosedDescriptorFails)
     EXPECT_TRUE(reader == first);
 
     EXPECT_EQ(0, st_netfd_close(reader));
-    ::close(fds[1]);
+    st_utest_close(fds[1]);
 }
 
 static std::vector<std::string> _io_freed_specifics;
@@ -1880,6 +1957,7 @@ VOID TEST(IoNetfdTest, DescriptorDataIsFreedWhenReplacedOrClosed)
     EXPECT_EQ("second", _io_freed_specifics[1]);
 }
 
+#ifndef _WIN32 // POSIX only: getrlimit
 // st_init raises the soft limit of open descriptors as far as it may, so a server can hold many connections, and
 // st_getfdlimit reports that limit. On Linux the soft limit becomes the hard limit. On macOS an unlimited hard limit
 // reads as negative, so ST keeps the soft limit. Locks in current behavior.
@@ -1894,6 +1972,7 @@ VOID TEST(IoNetfdTest, FdLimitIsRaisedAtInit)
     EXPECT_EQ(rlim.rlim_max, rlim.rlim_cur);
 #endif
 }
+#endif
 
 // The original ST serialized accept across processes; this fork dropped that, so st_netfd_serialize_accept is a no-op
 // kept for source compatibility. It succeeds and the listener accepts as before. Locks in current behavior.
@@ -1911,10 +1990,11 @@ VOID TEST(IoNetfdTest, SerializeAcceptIsNoOp)
     st_netfd_t client = st_accept(listener, NULL, NULL, ST_UTEST_TIMEOUT);
     EXPECT_TRUE(client != NULL);
     if (client) st_netfd_close(client);
-    ::close(cfd);
+    st_utest_close(cfd);
     EXPECT_EQ(0, st_netfd_close(listener));
 }
 
+#ifndef _WIN32 // POSIX only: FIFOs and regular files with st_open
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for st_open: a FIFO or another special file opened non-blocking, so a coroutine waits on it like on a
 // socket. For example, a server that takes commands from a named pipe, or reads a stream another program writes into
@@ -2171,3 +2251,926 @@ VOID TEST(IoOpenTest, RegularFileNeverWaits)
     EXPECT_EQ(0, st_read(fd, buf, sizeof(buf), ST_UTEST_TIMEOUT));
     EXPECT_LT(st_utime() - starttime, ST_UTEST_TIMEOUT);
 }
+#endif
+
+#ifdef _WIN32 // Windows only: Winsock errors
+// The Winsock error of a failed socket call, mapped to errno; connecting is set for connect.
+extern "C" int _st_win64_errno(int wsaerr, int connecting);
+
+// ST and its callers, such as SRS, check errno, but Winsock reports errors by WSAGetLastError, so ST maps them.
+VOID TEST(WinErrnoTest, MapsWinsockErrors)
+{
+    EXPECT_EQ(0, _st_win64_errno(0, 0));
+    EXPECT_EQ(EAGAIN, _st_win64_errno(WSAEWOULDBLOCK, 0));
+    EXPECT_EQ(EINPROGRESS, _st_win64_errno(WSAEINPROGRESS, 0));
+    EXPECT_EQ(EALREADY, _st_win64_errno(WSAEALREADY, 0));
+    EXPECT_EQ(EINTR, _st_win64_errno(WSAEINTR, 0));
+    EXPECT_EQ(ETIMEDOUT, _st_win64_errno(WSAETIMEDOUT, 0));
+    EXPECT_EQ(EBADF, _st_win64_errno(WSAEBADF, 0));
+    EXPECT_EQ(EACCES, _st_win64_errno(WSAEACCES, 0));
+    EXPECT_EQ(EFAULT, _st_win64_errno(WSAEFAULT, 0));
+    EXPECT_EQ(EINVAL, _st_win64_errno(WSAEINVAL, 0));
+    EXPECT_EQ(EMFILE, _st_win64_errno(WSAEMFILE, 0));
+    EXPECT_EQ(ENOTSOCK, _st_win64_errno(WSAENOTSOCK, 0));
+    EXPECT_EQ(EDESTADDRREQ, _st_win64_errno(WSAEDESTADDRREQ, 0));
+    EXPECT_EQ(EMSGSIZE, _st_win64_errno(WSAEMSGSIZE, 0));
+    EXPECT_EQ(EPROTOTYPE, _st_win64_errno(WSAEPROTOTYPE, 0));
+    EXPECT_EQ(ENOPROTOOPT, _st_win64_errno(WSAENOPROTOOPT, 0));
+    EXPECT_EQ(EPROTONOSUPPORT, _st_win64_errno(WSAEPROTONOSUPPORT, 0));
+    EXPECT_EQ(EPROTONOSUPPORT, _st_win64_errno(WSAESOCKTNOSUPPORT, 0));
+    EXPECT_EQ(EOPNOTSUPP, _st_win64_errno(WSAEOPNOTSUPP, 0));
+    EXPECT_EQ(EAFNOSUPPORT, _st_win64_errno(WSAEPFNOSUPPORT, 0));
+    EXPECT_EQ(EAFNOSUPPORT, _st_win64_errno(WSAEAFNOSUPPORT, 0));
+    EXPECT_EQ(EADDRINUSE, _st_win64_errno(WSAEADDRINUSE, 0));
+    EXPECT_EQ(EADDRNOTAVAIL, _st_win64_errno(WSAEADDRNOTAVAIL, 0));
+    EXPECT_EQ(ENETDOWN, _st_win64_errno(WSAENETDOWN, 0));
+    EXPECT_EQ(ENETUNREACH, _st_win64_errno(WSAENETUNREACH, 0));
+    EXPECT_EQ(ENETRESET, _st_win64_errno(WSAENETRESET, 0));
+    EXPECT_EQ(ECONNABORTED, _st_win64_errno(WSAECONNABORTED, 0));
+    EXPECT_EQ(ECONNRESET, _st_win64_errno(WSAECONNRESET, 0));
+    EXPECT_EQ(ENOBUFS, _st_win64_errno(WSAENOBUFS, 0));
+    EXPECT_EQ(EISCONN, _st_win64_errno(WSAEISCONN, 0));
+    EXPECT_EQ(ENOTCONN, _st_win64_errno(WSAENOTCONN, 0));
+    EXPECT_EQ(EPIPE, _st_win64_errno(WSAESHUTDOWN, 0));
+    EXPECT_EQ(ECONNREFUSED, _st_win64_errno(WSAECONNREFUSED, 0));
+    EXPECT_EQ(ELOOP, _st_win64_errno(WSAELOOP, 0));
+    EXPECT_EQ(ENAMETOOLONG, _st_win64_errno(WSAENAMETOOLONG, 0));
+    EXPECT_EQ(EHOSTUNREACH, _st_win64_errno(WSAEHOSTDOWN, 0));
+    EXPECT_EQ(EHOSTUNREACH, _st_win64_errno(WSAEHOSTUNREACH, 0));
+    EXPECT_EQ(ENOTEMPTY, _st_win64_errno(WSAENOTEMPTY, 0));
+    EXPECT_EQ(EBADF, _st_win64_errno(WSA_INVALID_HANDLE, 0));
+    EXPECT_EQ(ENOMEM, _st_win64_errno(WSA_NOT_ENOUGH_MEMORY, 0));
+    EXPECT_EQ(EINVAL, _st_win64_errno(WSA_INVALID_PARAMETER, 0));
+    EXPECT_EQ(ECANCELED, _st_win64_errno(WSA_OPERATION_ABORTED, 0));
+    EXPECT_EQ(EINVAL, _st_win64_errno(WSANOTINITIALISED, 0));
+}
+
+// A non-blocking connect that has not finished yet fails with WSAEWOULDBLOCK, which is EINPROGRESS on POSIX, so
+// st_connect waits for it. Other calls keep EAGAIN, and connect maps every other error as usual.
+VOID TEST(WinErrnoTest, ConnectWouldBlockIsInProgress)
+{
+    EXPECT_EQ(EINPROGRESS, _st_win64_errno(WSAEWOULDBLOCK, 1));
+    EXPECT_EQ(EINPROGRESS, _st_win64_errno(WSAEINPROGRESS, 1));
+    EXPECT_EQ(EALREADY, _st_win64_errno(WSAEALREADY, 1));
+    EXPECT_EQ(ECONNREFUSED, _st_win64_errno(WSAECONNREFUSED, 1));
+    EXPECT_EQ(ETIMEDOUT, _st_win64_errno(WSAETIMEDOUT, 1));
+    EXPECT_EQ(EAGAIN, _st_win64_errno(WSAEWOULDBLOCK, 0));
+}
+
+// An error with no errno equivalent is EIO, never 0, so the failure is not lost; WSAGetLastError still has it.
+VOID TEST(WinErrnoTest, UnknownErrorIsIo)
+{
+    EXPECT_EQ(EIO, _st_win64_errno(WSASYSNOTREADY, 0));
+    EXPECT_EQ(EIO, _st_win64_errno(WSAHOST_NOT_FOUND, 0));
+    EXPECT_EQ(EIO, _st_win64_errno(-1, 0));
+    EXPECT_EQ(EIO, _st_win64_errno(WSASYSNOTREADY, 1));
+}
+
+// The errors that real non-blocking sockets report map to what ST's I/O loops expect.
+VOID TEST(WinErrnoTest, RealSocketErrors)
+{
+    WSADATA wsa;
+    ASSERT_EQ(0, WSAStartup(MAKEWORD(2, 2), &wsa));
+
+    SOCKET listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    ASSERT_NE(INVALID_SOCKET, listener);
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    int addrlen = sizeof(addr);
+    ASSERT_EQ(0, ::bind(listener, (sockaddr*)&addr, addrlen));
+    ASSERT_EQ(0, ::listen(listener, 8));
+    ASSERT_EQ(0, ::getsockname(listener, (sockaddr*)&addr, &addrlen));
+    u_long nonblock = 1;
+    ASSERT_EQ(0, ioctlsocket(listener, FIONBIO, &nonblock));
+
+    // No client yet: accept would block.
+    EXPECT_EQ(INVALID_SOCKET, ::accept(listener, NULL, NULL));
+    EXPECT_EQ(EAGAIN, _st_win64_errno(WSAGetLastError(), 0));
+
+    // Not connected: send and recv fail with ENOTCONN.
+    SOCKET client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    ASSERT_NE(INVALID_SOCKET, client);
+    char c = 0;
+    EXPECT_EQ(SOCKET_ERROR, ::recv(client, &c, 1, 0));
+    EXPECT_EQ(ENOTCONN, _st_win64_errno(WSAGetLastError(), 0));
+
+    // A non-blocking connect is in progress.
+    ASSERT_EQ(0, ioctlsocket(client, FIONBIO, &nonblock));
+    int r = ::connect(client, (sockaddr*)&addr, addrlen);
+    if (r == SOCKET_ERROR) {
+        EXPECT_EQ(EINPROGRESS, _st_win64_errno(WSAGetLastError(), 1));
+    }
+
+    // Wait for the connection, then a recv with no data would block.
+    fd_set wfds;
+    FD_ZERO(&wfds);
+    FD_SET(client, &wfds);
+    timeval tv = {5, 0};
+    ASSERT_EQ(1, ::select(0, NULL, &wfds, NULL, &tv));
+    EXPECT_EQ(SOCKET_ERROR, ::recv(client, &c, 1, 0));
+    EXPECT_EQ(EAGAIN, _st_win64_errno(WSAGetLastError(), 0));
+
+    // Connecting again: already connected.
+    EXPECT_EQ(SOCKET_ERROR, ::connect(client, (sockaddr*)&addr, addrlen));
+    EXPECT_EQ(EISCONN, _st_win64_errno(WSAGetLastError(), 1));
+
+    // A closed socket is not a socket.
+    closesocket(client);
+    EXPECT_EQ(SOCKET_ERROR, ::send(client, &c, 1, 0));
+    EXPECT_EQ(ENOTSOCK, _st_win64_errno(WSAGetLastError(), 0));
+
+    closesocket(listener);
+    WSACleanup();
+}
+#endif
+
+#ifdef _WIN32 // Windows only: Winsock startup and SOCKET values
+// Whether Winsock is started, so a socket can be created. Sets wsaerr to the error if not.
+static bool winsock_test_usable(int* wsaerr = NULL)
+{
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (wsaerr) *wsaerr = (s == INVALID_SOCKET) ? WSAGetLastError() : 0;
+    if (s == INVALID_SOCKET) return false;
+    closesocket(s);
+    return true;
+}
+
+// Winsock needs WSAStartup before any socket call, and ST's callers, such as SRS, do not call it: st_init does, so the
+// main of the utest, which only calls st_init, can create sockets.
+VOID TEST(WinsockTest, InitStartsWinsock)
+{
+    int wsaerr = 0;
+    EXPECT_TRUE(winsock_test_usable(&wsaerr));
+    EXPECT_EQ(0, wsaerr);
+}
+
+// ST keeps descriptors as int (st_netfd_open, st_netfd_fileno), but a Windows SOCKET is a 64-bit handle. Kernel handles
+// have only 32 significant bits, so a real SOCKET fits in a non-negative int and comes back unchanged, and the int
+// still works as the socket, which is how ST and the tests pass it to Winsock.
+VOID TEST(WinsockTest, SocketRoundTripsThroughInt)
+{
+    // Each socket with its type.
+    std::vector<std::pair<SOCKET, int> > sockets;
+    for (int i = 0; i < 128; i++) {
+        SOCKET tcp = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        ASSERT_NE(INVALID_SOCKET, tcp);
+        sockets.push_back(std::make_pair(tcp, (int)SOCK_STREAM));
+
+        SOCKET udp = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+        ASSERT_NE(INVALID_SOCKET, udp);
+        sockets.push_back(std::make_pair(udp, (int)SOCK_DGRAM));
+
+        // IPv6 may be unavailable on the host.
+        SOCKET tcp6 = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+        if (tcp6 != INVALID_SOCKET) sockets.push_back(std::make_pair(tcp6, (int)SOCK_STREAM));
+    }
+
+    for (size_t i = 0; i < sockets.size(); i++) {
+        SOCKET s = sockets[i].first;
+        int fd = (int)s;
+        EXPECT_GE(fd, 0);
+        EXPECT_EQ(s, (SOCKET)fd);
+
+        // The int is still the socket.
+        int type = 0;
+        socklen_t size = sizeof(type);
+        EXPECT_EQ(0, getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &size));
+        EXPECT_EQ(sockets[i].second, type);
+    }
+
+    for (size_t i = 0; i < sockets.size(); i++) {
+        EXPECT_EQ(0, st_utest_close((int)sockets[i].first));
+    }
+}
+
+#define WINSOCK_TEST_CHILD_OK 42
+
+static DWORD WINAPI winsock_test_thread(LPVOID arg)
+{
+    int* r = (int*)arg;
+    // A new OS thread has its own ST, so st_init starts Winsock again, and st_destroy cleans up only that start.
+    r[0] = st_init();
+    r[1] = winsock_test_usable();
+    st_destroy();
+    return 0;
+}
+
+// Runs the utest again as a child process with only the disabled test, and returns its exit code, or -1.
+static int winsock_test_run_child(const char* test)
+{
+    char exe[MAX_PATH];
+    DWORD n = GetModuleFileNameA(NULL, exe, sizeof(exe));
+    if (n == 0 || n >= sizeof(exe)) return -1;
+
+    std::string cmd = std::string("\"") + exe + "\" --gtest_also_run_disabled_tests --gtest_filter=" + test;
+    std::vector<char> line(cmd.begin(), cmd.end());
+    line.push_back(0);
+
+    fflush(stdout);
+    fflush(stderr);
+
+    STARTUPINFOA si;
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi;
+    if (!CreateProcessA(NULL, &line[0], NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) return -1;
+
+    // A hang kills the child and fails the test, instead of hanging the suite.
+    DWORD code = (DWORD)-1;
+    if (WaitForSingleObject(pi.hProcess, 10000) == WAIT_OBJECT_0) {
+        GetExitCodeProcess(pi.hProcess, &code);
+    } else {
+        TerminateProcess(pi.hProcess, 1);
+        WaitForSingleObject(pi.hProcess, INFINITE);
+    }
+
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return (int)code;
+}
+
+// Runs only in the child process of InitStartsAndDestroyCleansUp, because st_destroy on the main thread stops Winsock
+// for the rest of the process. Exits with WINSOCK_TEST_CHILD_OK if every check passed.
+VOID TEST(WinsockTest, DISABLED_ChildInitAndDestroy)
+{
+    // The main of the utest called st_init, which started Winsock.
+    EXPECT_TRUE(winsock_test_usable());
+
+    // Another OS thread starts and destroys its own ST.
+    int r[2] = {-1, -1};
+    HANDLE trd = CreateThread(NULL, 0, winsock_test_thread, r, 0, NULL);
+    ASSERT_TRUE(trd != NULL);
+    EXPECT_EQ(WAIT_OBJECT_0, WaitForSingleObject(trd, 10000));
+    CloseHandle(trd);
+    EXPECT_EQ(0, r[0]);
+    EXPECT_EQ(1, r[1]);
+
+    // That st_destroy cleaned up only its own start, so Winsock still works here.
+    EXPECT_TRUE(winsock_test_usable());
+
+    // The last st_destroy cleans up the last start, so Winsock stops: st_init and st_destroy are balanced.
+    st_destroy();
+    int wsaerr = 0;
+    EXPECT_FALSE(winsock_test_usable(&wsaerr));
+    EXPECT_EQ(WSANOTINITIALISED, wsaerr);
+
+    if (!::testing::Test::HasFailure()) {
+        fflush(stdout);
+        fflush(stderr);
+        _exit(WINSOCK_TEST_CHILD_OK);
+    }
+}
+
+// st_init starts Winsock and st_destroy cleans it up, once per OS thread's ST, like SRS calling srs_st_destroy at exit.
+VOID TEST(WinsockTest, InitStartsAndDestroyCleansUp)
+{
+    EXPECT_EQ(WINSOCK_TEST_CHILD_OK, winsock_test_run_child("WinsockTest.DISABLED_ChildInitAndDestroy"));
+}
+#endif
+
+#ifdef _WIN32 // Windows only: Winsock under the POSIX calls of io.c
+// The POSIX calls io.c makes, which Windows implements with Winsock. The st_* I/O functions call them, and wait in
+// st_netfd_poll while they fail with EAGAIN.
+extern "C" int _st_win64_ioctl(int fd, unsigned long request, int *arg);
+extern "C" int _st_win64_fcntl(int fd, int cmd, int arg);
+extern "C" int _st_win64_close(int fd);
+extern "C" ssize_t _st_win64_read(int fd, void *buf, size_t nbyte);
+extern "C" ssize_t _st_win64_write(int fd, const void *buf, size_t nbyte);
+extern "C" ssize_t _st_win64_readv(int fd, const struct iovec *iov, int iov_size);
+extern "C" ssize_t _st_win64_writev(int fd, const struct iovec *iov, int iov_size);
+extern "C" int _st_win64_recvmsg(int fd, struct msghdr *msg, int flags);
+extern "C" int _st_win64_sendmsg(int fd, const struct msghdr *msg, int flags);
+extern "C" int _st_win64_recvfrom(int fd, void *buf, int len, int flags, struct sockaddr *from, socklen_t *fromlen);
+
+// The fcntl commands and flag that io.c defines on Windows, which has no fcntl for sockets.
+#define WIN_IO_F_GETFL 3
+#define WIN_IO_F_SETFL 4
+#define WIN_IO_O_NONBLOCK 04000
+
+// A connected loopback TCP pair of blocking sockets, as int descriptors.
+static bool win_io_tcp_pair(int fds[2])
+{
+    fds[0] = fds[1] = -1;
+    SOCKET listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (listener == INVALID_SOCKET) return false;
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    int addrlen = sizeof(addr);
+    SOCKET client = INVALID_SOCKET, server = INVALID_SOCKET;
+    if (::bind(listener, (sockaddr*)&addr, addrlen) == 0 && ::listen(listener, 1) == 0 &&
+        ::getsockname(listener, (sockaddr*)&addr, &addrlen) == 0) {
+        client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (client != INVALID_SOCKET && ::connect(client, (sockaddr*)&addr, addrlen) == 0) {
+            server = ::accept(listener, NULL, NULL);
+        }
+    }
+    closesocket(listener);
+
+    if (server == INVALID_SOCKET) {
+        if (client != INVALID_SOCKET) closesocket(client);
+        return false;
+    }
+    fds[0] = (int)client;
+    fds[1] = (int)server;
+    return true;
+}
+
+// A UDP socket bound to a loopback port, with its address.
+static bool win_io_udp_socket(int& fd, sockaddr_in& addr)
+{
+    SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (s == INVALID_SOCKET) return false;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    int addrlen = sizeof(addr);
+    if (::bind(s, (sockaddr*)&addr, addrlen) != 0 || ::getsockname(s, (sockaddr*)&addr, &addrlen) != 0) {
+        closesocket(s);
+        return false;
+    }
+    fd = (int)s;
+    return true;
+}
+
+// Waits until the socket has data to read.
+static bool win_io_wait_readable(int fd)
+{
+    fd_set rfds;
+    FD_ZERO(&rfds);
+    FD_SET((SOCKET)fd, &rfds);
+    timeval tv = {5, 0};
+    return ::select(0, &rfds, NULL, NULL, &tv) == 1;
+}
+
+// Reads from a stream until it has n bytes, with readv into the vectors, appending what each read returns.
+static std::string win_io_readv_all(int fd, struct iovec* iov, int iov_size, size_t n)
+{
+    std::string got;
+    while (got.size() < n) {
+        ssize_t r = _st_win64_readv(fd, iov, iov_size);
+        if (r <= 0) break;
+        for (int i = 0; i < iov_size && r > 0; i++) {
+            size_t take = std::min((size_t)r, iov[i].iov_len);
+            got.append((char*)iov[i].iov_base, take);
+            r -= (ssize_t)take;
+        }
+    }
+    return got;
+}
+
+// st_netfd_open_socket makes a socket non-blocking with ioctl(FIONBIO), which is ioctlsocket on Windows: a read with
+// nothing queued then fails with EAGAIN at once, so st_read waits in the event system instead of blocking the thread.
+VOID TEST(WinIoTest, IoctlSetsNonBlocking)
+{
+    int fds[2];
+    ASSERT_TRUE(win_io_tcp_pair(fds));
+
+    int on = 1;
+    EXPECT_EQ(0, _st_win64_ioctl(fds[1], FIONBIO, &on));
+    char buf[8];
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_read(fds[1], buf, sizeof(buf)));
+    EXPECT_EQ(EAGAIN, errno);
+
+    // Data queued by the peer is read at once.
+    EXPECT_EQ(2, _st_win64_write(fds[0], "hi", 2));
+    ASSERT_TRUE(win_io_wait_readable(fds[1]));
+    EXPECT_EQ(2, _st_win64_read(fds[1], buf, sizeof(buf)));
+    EXPECT_EQ("hi", std::string(buf, 2));
+
+    EXPECT_EQ(0, _st_win64_close(fds[0]));
+    EXPECT_EQ(0, _st_win64_close(fds[1]));
+
+    // A closed socket is not a socket.
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_ioctl(fds[1], FIONBIO, &on));
+    EXPECT_EQ(ENOTSOCK, errno);
+}
+
+// st_netfd_open makes a descriptor non-blocking the POSIX way, fcntl(F_GETFL) then fcntl(F_SETFL, O_NONBLOCK). On
+// Windows, where only sockets are supported, F_SETFL sets the socket's non-blocking mode.
+VOID TEST(WinIoTest, FcntlSetsNonBlocking)
+{
+    int fds[2];
+    ASSERT_TRUE(win_io_tcp_pair(fds));
+
+    int flags = _st_win64_fcntl(fds[1], WIN_IO_F_GETFL, 0);
+    EXPECT_GE(flags, 0);
+    EXPECT_EQ(0, _st_win64_fcntl(fds[1], WIN_IO_F_SETFL, flags | WIN_IO_O_NONBLOCK));
+    char buf[8];
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_read(fds[1], buf, sizeof(buf)));
+    EXPECT_EQ(EAGAIN, errno);
+
+    // Another command is not supported.
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_fcntl(fds[1], 1, 0));
+    EXPECT_EQ(EINVAL, errno);
+
+    EXPECT_EQ(0, _st_win64_close(fds[0]));
+    EXPECT_EQ(0, _st_win64_close(fds[1]));
+
+    // Only sockets: a closed one fails.
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_fcntl(fds[1], WIN_IO_F_SETFL, WIN_IO_O_NONBLOCK));
+    EXPECT_EQ(ENOTSOCK, errno);
+}
+
+// read and write are recv and send on a socket: the bytes arrive in order, and a read after the peer closes returns 0,
+// the end of stream that st_read reports.
+VOID TEST(WinIoTest, ReadWriteStream)
+{
+    int fds[2];
+    ASSERT_TRUE(win_io_tcp_pair(fds));
+
+    EXPECT_EQ(5, _st_win64_write(fds[0], "hello", 5));
+    EXPECT_EQ(6, _st_win64_write(fds[0], " world", 6));
+
+    std::string got;
+    char buf[64];
+    while (got.size() < 11) {
+        ssize_t n = _st_win64_read(fds[1], buf, sizeof(buf));
+        ASSERT_GT(n, 0);
+        got.append(buf, (size_t)n);
+    }
+    EXPECT_EQ("hello world", got);
+
+    // An empty write sends nothing and succeeds.
+    EXPECT_EQ(0, _st_win64_write(fds[0], "", 0));
+
+    EXPECT_EQ(0, _st_win64_close(fds[0]));
+    EXPECT_EQ(0, _st_win64_read(fds[1], buf, sizeof(buf)));
+    EXPECT_EQ(0, _st_win64_close(fds[1]));
+}
+
+// A socket that is not connected fails with ENOTCONN, which st_read reports instead of waiting.
+VOID TEST(WinIoTest, ReadWriteNotConnected)
+{
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    ASSERT_NE(INVALID_SOCKET, s);
+    int fd = (int)s;
+    char buf[8];
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_read(fd, buf, sizeof(buf)));
+    EXPECT_EQ(ENOTCONN, errno);
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_write(fd, "x", 1));
+    EXPECT_EQ(ENOTCONN, errno);
+    EXPECT_EQ(0, _st_win64_close(fd));
+}
+
+// writev gathers and readv scatters, like SRS sending an RTMP header and payload in one call. iovec is base then
+// length while WSABUF is length then base, so io.c copies each one; a cast would put the data in the wrong place.
+VOID TEST(WinIoTest, ReadvWritevStream)
+{
+    int fds[2];
+    ASSERT_TRUE(win_io_tcp_pair(fds));
+
+    char h[] = "head", p[] = "payload", t[] = "!";
+    struct iovec out[3] = {{h, 4}, {p, 7}, {t, 1}};
+    EXPECT_EQ(12, _st_win64_writev(fds[0], out, 3));
+
+    // The first buffer holds three bytes, the second the rest.
+    char a[3], b[32];
+    struct iovec in[2] = {{a, sizeof(a)}, {b, sizeof(b)}};
+    ASSERT_TRUE(win_io_wait_readable(fds[1]));
+    EXPECT_EQ("headpayload!", win_io_readv_all(fds[1], in, 2, 12));
+
+    // No vectors: nothing to do, and no error.
+    EXPECT_EQ(0, _st_win64_readv(fds[1], in, 0));
+    EXPECT_EQ(0, _st_win64_writev(fds[0], out, 0));
+
+    EXPECT_EQ(0, _st_win64_close(fds[0]));
+    EXPECT_EQ(0, _st_win64_close(fds[1]));
+}
+
+// More vectors than io.c keeps on its stack, as when SRS sends many small frames in one writev: all are sent, in order.
+VOID TEST(WinIoTest, ReadvWritevManyVectors)
+{
+    int fds[2];
+    ASSERT_TRUE(win_io_tcp_pair(fds));
+
+    const int count = 100;
+    std::vector<std::string> parts;
+    std::string want;
+    for (int i = 0; i < count; i++) {
+        parts.push_back(std::string((size_t)(i % 7 + 1), (char)('a' + i % 26)));
+        want += parts.back();
+    }
+    std::vector<struct iovec> out(count);
+    for (int i = 0; i < count; i++) {
+        out[i].iov_base = (void*)parts[i].data();
+        out[i].iov_len = parts[i].size();
+    }
+    EXPECT_EQ((ssize_t)want.size(), _st_win64_writev(fds[0], &out[0], count));
+
+    // Read back into one-byte vectors, also more than the stack holds.
+    std::vector<char> bytes(want.size());
+    std::vector<struct iovec> in(want.size());
+    for (size_t i = 0; i < want.size(); i++) {
+        in[i].iov_base = &bytes[i];
+        in[i].iov_len = 1;
+    }
+    size_t done = 0;
+    while (done < want.size()) {
+        ssize_t n = _st_win64_readv(fds[1], &in[done], (int)(want.size() - done));
+        ASSERT_GT(n, 0);
+        done += (size_t)n;
+    }
+    EXPECT_EQ(want, std::string(bytes.begin(), bytes.end()));
+
+    EXPECT_EQ(0, _st_win64_close(fds[0]));
+    EXPECT_EQ(0, _st_win64_close(fds[1]));
+}
+
+// sendmsg gathers a header and a payload into one datagram to msg_name, as SRS sends RTP; recvmsg scatters it and
+// reports the sender in msg_name, like recvfrom.
+VOID TEST(WinIoTest, SendmsgRecvmsgDatagram)
+{
+    int server, player;
+    sockaddr_in server_addr, player_addr;
+    ASSERT_TRUE(win_io_udp_socket(server, server_addr));
+    ASSERT_TRUE(win_io_udp_socket(player, player_addr));
+
+    char h[12], p[100];
+    memset(h, 'h', sizeof(h));
+    memset(p, 'p', sizeof(p));
+    struct iovec out[2] = {{h, sizeof(h)}, {p, sizeof(p)}};
+    struct msghdr sent;
+    memset(&sent, 0, sizeof(sent));
+    sent.msg_name = &server_addr;
+    sent.msg_namelen = sizeof(server_addr);
+    sent.msg_iov = out;
+    sent.msg_iovlen = 2;
+    EXPECT_EQ(112, _st_win64_sendmsg(player, &sent, 0));
+
+    char rh[12], rp[200];
+    struct iovec in[2] = {{rh, sizeof(rh)}, {rp, sizeof(rp)}};
+    sockaddr_in from;
+    memset(&from, 0, sizeof(from));
+    struct msghdr received;
+    memset(&received, 0, sizeof(received));
+    received.msg_name = &from;
+    received.msg_namelen = sizeof(from);
+    received.msg_iov = in;
+    received.msg_iovlen = 2;
+    ASSERT_TRUE(win_io_wait_readable(server));
+    EXPECT_EQ(112, _st_win64_recvmsg(server, &received, 0));
+    EXPECT_EQ(std::string(12, 'h'), std::string(rh, 12));
+    EXPECT_EQ(std::string(100, 'p'), std::string(rp, 100));
+    EXPECT_EQ((socklen_t)sizeof(from), received.msg_namelen);
+    EXPECT_EQ(player_addr.sin_port, from.sin_port);
+    EXPECT_EQ(htonl(INADDR_LOOPBACK), from.sin_addr.s_addr);
+    EXPECT_EQ(0, received.msg_flags & MSG_TRUNC);
+
+    EXPECT_EQ(0, _st_win64_close(server));
+    EXPECT_EQ(0, _st_win64_close(player));
+}
+
+// recvmsg passes its flags: MSG_PEEK leaves the datagram queued for the next read.
+VOID TEST(WinIoTest, RecvmsgPeekKeepsDatagram)
+{
+    int server, player;
+    sockaddr_in server_addr, player_addr;
+    ASSERT_TRUE(win_io_udp_socket(server, server_addr));
+    ASSERT_TRUE(win_io_udp_socket(player, player_addr));
+    EXPECT_EQ(5, ::sendto((SOCKET)player, "hello", 5, 0, (sockaddr*)&server_addr, sizeof(server_addr)));
+
+    char first = 0;
+    struct iovec iov = {&first, 1};
+    struct msghdr msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    ASSERT_TRUE(win_io_wait_readable(server));
+    EXPECT_EQ(1, _st_win64_recvmsg(server, &msg, MSG_PEEK));
+    EXPECT_EQ('h', first);
+
+    // Non-blocking, so a peek that dropped the datagram fails here instead of hanging.
+    int on = 1;
+    EXPECT_EQ(0, _st_win64_ioctl(server, FIONBIO, &on));
+    char buf[64] = {0};
+    iov.iov_base = buf;
+    iov.iov_len = sizeof(buf);
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    EXPECT_EQ(5, _st_win64_recvmsg(server, &msg, 0));
+    EXPECT_STREQ("hello", buf);
+
+    EXPECT_EQ(0, _st_win64_close(server));
+    EXPECT_EQ(0, _st_win64_close(player));
+}
+
+// A datagram larger than the buffers is truncated as on POSIX, where Winsock fails with WSAEMSGSIZE: recvmsg returns
+// the bytes that fit and sets MSG_TRUNC, and recvfrom and read return the bytes that fit. The rest is dropped, and the
+// next read gets the next datagram.
+VOID TEST(WinIoTest, TruncatedDatagramReturnsWhatFits)
+{
+    int server, player;
+    sockaddr_in server_addr, player_addr;
+    ASSERT_TRUE(win_io_udp_socket(server, server_addr));
+    ASSERT_TRUE(win_io_udp_socket(player, player_addr));
+
+    std::string large(1500, 'x');
+    for (int i = 0; i < 4; i++) {
+        EXPECT_EQ(1500, ::sendto((SOCKET)player, large.data(), 1500, 0, (sockaddr*)&server_addr, sizeof(server_addr)));
+    }
+    EXPECT_EQ(4, ::sendto((SOCKET)player, "next", 4, 0, (sockaddr*)&server_addr, sizeof(server_addr)));
+    ASSERT_TRUE(win_io_wait_readable(server));
+
+    char buf[100];
+    struct iovec iov = {buf, sizeof(buf)};
+    sockaddr_in from;
+    memset(&from, 0, sizeof(from));
+    struct msghdr msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_name = &from;
+    msg.msg_namelen = sizeof(from);
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    EXPECT_EQ(100, _st_win64_recvmsg(server, &msg, 0));
+    EXPECT_TRUE((msg.msg_flags & MSG_TRUNC) != 0);
+    EXPECT_EQ(std::string(100, 'x'), std::string(buf, 100));
+    EXPECT_EQ(player_addr.sin_port, from.sin_port);
+
+    memset(&from, 0, sizeof(from));
+    socklen_t fromlen = sizeof(from);
+    EXPECT_EQ(100, _st_win64_recvfrom(server, buf, sizeof(buf), 0, (sockaddr*)&from, &fromlen));
+    EXPECT_EQ(player_addr.sin_port, from.sin_port);
+
+    EXPECT_EQ(100, _st_win64_read(server, buf, sizeof(buf)));
+
+    char a[10], b[20];
+    struct iovec two[2] = {{a, sizeof(a)}, {b, sizeof(b)}};
+    EXPECT_EQ(30, _st_win64_readv(server, two, 2));
+
+    memset(buf, 0, sizeof(buf));
+    EXPECT_EQ(4, _st_win64_read(server, buf, sizeof(buf)));
+    EXPECT_STREQ("next", buf);
+
+    EXPECT_EQ(0, _st_win64_close(server));
+    EXPECT_EQ(0, _st_win64_close(player));
+}
+
+// A datagram larger than UDP allows fails at once with EMSGSIZE, which st_sendmsg reports instead of waiting.
+VOID TEST(WinIoTest, SendmsgOversizedDatagramFails)
+{
+    int server, player;
+    sockaddr_in server_addr, player_addr;
+    ASSERT_TRUE(win_io_udp_socket(server, server_addr));
+    ASSERT_TRUE(win_io_udp_socket(player, player_addr));
+
+    std::string half(32768, 'x');
+    struct iovec iov[2] = {{(void*)half.data(), half.size()}, {(void*)half.data(), half.size()}};
+    struct msghdr msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_name = &server_addr;
+    msg.msg_namelen = sizeof(server_addr);
+    msg.msg_iov = iov;
+    msg.msg_iovlen = 2;
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_sendmsg(player, &msg, 0));
+    EXPECT_EQ(EMSGSIZE, errno);
+
+    EXPECT_EQ(0, _st_win64_close(server));
+    EXPECT_EQ(0, _st_win64_close(player));
+}
+
+// On POSIX, sendmsg and recvmsg work on a TCP stream too, and st_sendmsg is used that way, while Winsock's WSASendMsg
+// and WSARecvMsg may take only datagrams, so a stream works the same through io.c.
+VOID TEST(WinIoTest, SendmsgRecvmsgStream)
+{
+    int fds[2];
+    ASSERT_TRUE(win_io_tcp_pair(fds));
+
+    char h[] = "head", p[] = "payload";
+    struct iovec out[2] = {{h, 4}, {p, 7}};
+    struct msghdr sent;
+    memset(&sent, 0, sizeof(sent));
+    sent.msg_iov = out;
+    sent.msg_iovlen = 2;
+    EXPECT_EQ(11, _st_win64_sendmsg(fds[0], &sent, 0));
+
+    char buf[64];
+    std::string got;
+    while (got.size() < 11) {
+        struct iovec in = {buf, sizeof(buf)};
+        struct msghdr received;
+        memset(&received, 0, sizeof(received));
+        received.msg_iov = &in;
+        received.msg_iovlen = 1;
+        int n = _st_win64_recvmsg(fds[1], &received, 0);
+        ASSERT_GT(n, 0);
+        got.append(buf, (size_t)n);
+        EXPECT_EQ(0, received.msg_flags);
+    }
+    EXPECT_EQ("headpayload", got);
+
+    // The end of stream is 0.
+    EXPECT_EQ(0, _st_win64_close(fds[0]));
+    struct iovec in = {buf, sizeof(buf)};
+    struct msghdr received;
+    memset(&received, 0, sizeof(received));
+    received.msg_iov = &in;
+    received.msg_iovlen = 1;
+    EXPECT_EQ(0, _st_win64_recvmsg(fds[1], &received, 0));
+    EXPECT_EQ(0, _st_win64_close(fds[1]));
+}
+
+// close is closesocket, which st_netfd_close calls: the socket is gone afterwards, and closing it again fails.
+VOID TEST(WinIoTest, CloseClosesSocket)
+{
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    ASSERT_NE(INVALID_SOCKET, s);
+    int fd = (int)s;
+    EXPECT_EQ(0, _st_win64_close(fd));
+
+    int type = 0;
+    int size = sizeof(type);
+    EXPECT_EQ(SOCKET_ERROR, ::getsockopt(s, SOL_SOCKET, SO_TYPE, (char*)&type, &size));
+    EXPECT_EQ(WSAENOTSOCK, WSAGetLastError());
+
+    errno = 0;
+    EXPECT_EQ(-1, _st_win64_close(fd));
+    EXPECT_EQ(ENOTSOCK, errno);
+}
+#endif
+
+// The test helper st_utest_stream_pair gives two connected stream sockets that ST can wait on: a socketpair on POSIX,
+// and a loopback TCP connection on Windows, which has no socketpair.
+
+// Sends all of the data on a blocking socket.
+static bool utest_pair_send_all(int fd, const std::string& data)
+{
+    size_t sent = 0;
+    while (sent < data.size()) {
+        ssize_t n = st_utest_send(fd, data.data() + sent, data.size() - sent);
+        if (n <= 0) return false;
+        sent += (size_t)n;
+    }
+    return true;
+}
+
+// Receives exactly n bytes from a blocking socket, or less at the end of stream or on error.
+static std::string utest_pair_recv_n(int fd, size_t n)
+{
+    std::string got;
+    char buf[256];
+    while (got.size() < n) {
+        size_t want = std::min(sizeof(buf), n - got.size());
+        ssize_t r = st_utest_recv(fd, buf, want);
+        if (r <= 0) break;
+        got.append(buf, (size_t)r);
+    }
+    return got;
+}
+
+// Data goes both ways between the two ends, and closing one end is the end of stream at the other.
+VOID TEST(UtestPairTest, StreamPairCarriesBothWays)
+{
+    int fds[2] = {-1, -1};
+    ASSERT_EQ(0, st_utest_stream_pair(fds));
+    EXPECT_GE(fds[0], 0);
+    EXPECT_GE(fds[1], 0);
+    EXPECT_NE(fds[0], fds[1]);
+
+    ASSERT_TRUE(utest_pair_send_all(fds[0], "ping"));
+    EXPECT_EQ("ping", utest_pair_recv_n(fds[1], 4));
+    ASSERT_TRUE(utest_pair_send_all(fds[1], "pong!"));
+    EXPECT_EQ("pong!", utest_pair_recv_n(fds[0], 5));
+
+    // More than a socket buffer, in both directions. The ends block and this test is the only reader, so send it in
+    // pieces that each fit in the buffer: a macOS socketpair holds only 8 KB each way.
+    std::string big(64 * 1024, 'x');
+    for (size_t i = 0; i < big.size(); i++) big[i] = (char)('a' + i % 26);
+    for (size_t off = 0; off < big.size(); off += 4096) {
+        std::string piece = big.substr(off, 4096);
+        ASSERT_TRUE(utest_pair_send_all(fds[0], piece));
+        ASSERT_TRUE(piece == utest_pair_recv_n(fds[1], piece.size())) << "offset " << off;
+        ASSERT_TRUE(utest_pair_send_all(fds[1], piece));
+        ASSERT_TRUE(piece == utest_pair_recv_n(fds[0], piece.size())) << "offset " << off;
+    }
+
+    EXPECT_EQ(0, st_utest_close(fds[0]));
+    char c;
+    EXPECT_EQ(0, st_utest_recv(fds[1], &c, 1));
+    EXPECT_EQ(0, st_utest_close(fds[1]));
+}
+
+// Many pairs open at once are each connected to their own other end, never to another pair's.
+VOID TEST(UtestPairTest, ManyPairsAreEachConnectedToTheirOwnEnd)
+{
+    const int n = 64;
+    int fds[n][2];
+    for (int i = 0; i < n; i++) {
+        ASSERT_EQ(0, st_utest_stream_pair(fds[i])) << "pair " << i;
+    }
+
+    std::vector<int> all;
+    for (int i = 0; i < n; i++) {
+        all.push_back(fds[i][0]);
+        all.push_back(fds[i][1]);
+    }
+    std::sort(all.begin(), all.end());
+    EXPECT_TRUE(std::unique(all.begin(), all.end()) == all.end());
+
+    for (int i = 0; i < n; i++) {
+        char tag[16];
+        snprintf(tag, sizeof(tag), "pair-%03d", i);
+        ASSERT_TRUE(utest_pair_send_all(fds[i][0], tag));
+    }
+    for (int i = 0; i < n; i++) {
+        char tag[16];
+        snprintf(tag, sizeof(tag), "pair-%03d", i);
+        EXPECT_EQ(std::string(tag), utest_pair_recv_n(fds[i][1], strlen(tag)));
+    }
+
+    for (int i = 0; i < n; i++) {
+        EXPECT_EQ(0, st_utest_close(fds[i][0]));
+        EXPECT_EQ(0, st_utest_close(fds[i][1]));
+    }
+}
+
+#ifdef _WIN32 // Windows only: the stream pair is a loopback TCP connection
+// The two ends are the two sides of one loopback TCP connection, with Nagle off on both, so small writes are not
+// delayed, as on a Unix-domain socketpair. Both ends are blocking, as socketpair gives them.
+VOID TEST(UtestPairTest, StreamPairIsLoopbackTcpWithoutDelay)
+{
+    int fds[2] = {-1, -1};
+    ASSERT_EQ(0, st_utest_stream_pair(fds));
+
+    for (int i = 0; i < 2; i++) {
+        int type = 0;
+        socklen_t size = sizeof(type);
+        EXPECT_EQ(0, getsockopt(fds[i], SOL_SOCKET, SO_TYPE, &type, &size));
+        EXPECT_EQ(SOCK_STREAM, type);
+
+        int nodelay = 0;
+        size = sizeof(nodelay);
+        EXPECT_EQ(0, getsockopt(fds[i], IPPROTO_TCP, TCP_NODELAY, &nodelay, &size));
+        EXPECT_NE(0, nodelay) << "end " << i;
+    }
+
+    // Each end's peer is the other end, on 127.0.0.1.
+    sockaddr_in local[2], peer[2];
+    for (int i = 0; i < 2; i++) {
+        int size = sizeof(local[i]);
+        ASSERT_EQ(0, ::getsockname((SOCKET)fds[i], (sockaddr*)&local[i], &size));
+        size = sizeof(peer[i]);
+        ASSERT_EQ(0, ::getpeername((SOCKET)fds[i], (sockaddr*)&peer[i], &size));
+        EXPECT_EQ(AF_INET, local[i].sin_family);
+        EXPECT_EQ(htonl(INADDR_LOOPBACK), local[i].sin_addr.s_addr);
+    }
+    EXPECT_EQ(local[0].sin_port, peer[1].sin_port);
+    EXPECT_EQ(local[1].sin_port, peer[0].sin_port);
+    EXPECT_EQ(local[0].sin_addr.s_addr, peer[1].sin_addr.s_addr);
+    EXPECT_EQ(local[1].sin_addr.s_addr, peer[0].sin_addr.s_addr);
+
+    // Blocking: a receive with no data waits instead of failing with WSAEWOULDBLOCK, so it times out.
+    DWORD timeout = 50;
+    EXPECT_EQ(0, setsockopt(fds[1], SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)));
+    char c;
+    EXPECT_EQ(-1, st_utest_recv(fds[1], &c, 1));
+    EXPECT_EQ(WSAETIMEDOUT, WSAGetLastError());
+
+    EXPECT_EQ(0, st_utest_close(fds[0]));
+    EXPECT_EQ(0, st_utest_close(fds[1]));
+}
+#endif
+
+#ifdef _WIN32 // Windows only: the WSAPoll event system
+// Both event system choices use the one WSAPoll backend on Windows.
+VOID TEST(WsaPollTest, EventSystemIsWsaPoll)
+{
+    EXPECT_STREQ("wsapoll", st_get_eventsys_name());
+}
+
+// Windows retries the SYN after a refusal, so a connect to a port where nothing listens fails after about two
+// seconds, longer than ST_UTEST_TIMEOUT of IoConnectTest.ConnectRefusedWhenNobodyListens. WSAPoll did not report a
+// failed connect before Windows 10 2004; here it must wake st_connect before its timeout, and the SO_ERROR it reads
+// is a POSIX errno, ECONNREFUSED, not the Winsock code.
+VOID TEST(WsaPollTest, ConnectRefusedIsReportedBeforeTimeout)
+{
+    struct sockaddr_in addr;
+    st_netfd_t listener = io_tcp_listen(addr, 8);
+    ASSERT_TRUE(listener != NULL);
+    ASSERT_EQ(0, st_netfd_close(listener));
+
+    st_netfd_t stfd = io_tcp_socket(AF_INET);
+    ASSERT_TRUE(stfd != NULL);
+    StStfdCleanup(stfd);
+
+    st_utime_t timeout = 10 * 1000 * ST_UTIME_MILLISECONDS;
+    st_utime_t starttime = st_utime();
+    errno = 0;
+    EXPECT_EQ(-1, st_connect(stfd, (sockaddr*)&addr, sizeof(addr), timeout));
+    EXPECT_EQ(ECONNREFUSED, errno);
+    EXPECT_LT(st_utime() - starttime, timeout);
+}
+#endif

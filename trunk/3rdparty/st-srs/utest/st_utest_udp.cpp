@@ -6,16 +6,22 @@
 #include <st.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifndef _WIN32
 #include <pthread.h>
+#endif
 #include <signal.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <string.h>
 #include <string>
 
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/uio.h>
+#endif
 
 #define ST_UTIME_MILLISECONDS 1000
 #define ST_UTEST_TIMEOUT (100 * ST_UTIME_MILLISECONDS)
@@ -48,12 +54,12 @@ static bool io_udp_socket(IoTestUdpSocket& s)
 
     socklen_t addrlen = sizeof(s.addr_);
     if (::bind(fd, (sockaddr*)&s.addr_, sizeof(s.addr_)) < 0 || getsockname(fd, (sockaddr*)&s.addr_, &addrlen) < 0) {
-        ::close(fd);
+        st_utest_close(fd);
         return false;
     }
 
     s.stfd_ = st_netfd_open_socket(fd);
-    if (!s.stfd_) ::close(fd);
+    if (!s.stfd_) st_utest_close(fd);
     return s.stfd_ != NULL;
 }
 
@@ -240,6 +246,7 @@ VOID TEST(IoUdpTest, RecvfromFailsWhenPeerRefuses)
     EXPECT_EQ(ECONNREFUSED, errno);
 }
 
+#ifndef _WIN32 // POSIX only: signals, fcntl and pthread
 static volatile sig_atomic_t io_udp_signals = 0;
 
 static void io_udp_on_signal(int signo)
@@ -314,6 +321,7 @@ VOID TEST(IoUdpTest, RecvfromRetriesWhenSignalInterruptsSystemCall)
     EXPECT_STREQ("hello", buf);
     EXPECT_EQ(player.addr_.sin_port, from.sin_port);
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for st_recvmsg and st_sendmsg: datagram I/O through a msghdr, which adds what st_recvfrom and st_sendto
@@ -369,6 +377,7 @@ VOID TEST(IoUdpMsgTest, SendmsgGathersAndRecvmsgScatters)
     EXPECT_EQ(player.addr_.sin_addr.s_addr, from.sin_addr.s_addr);
 }
 
+#ifndef _WIN32 // POSIX only: IP_PKTINFO control messages with CMSG
 // A server bound to every interface must answer from the address the client sent to, or a multi-homed host replies
 // from the wrong address. With IP_PKTINFO on, st_recvmsg delivers each datagram's destination address as a control
 // message. Locks in current behavior.
@@ -416,6 +425,7 @@ VOID TEST(IoUdpMsgTest, RecvmsgReportsDestinationAddress)
     memcpy(&info, CMSG_DATA(cmsg), sizeof(info));
     EXPECT_EQ(htonl(INADDR_LOOPBACK), info.ipi_addr.s_addr);
 }
+#endif
 
 // st_recvfrom drops the tail of a datagram larger than the buffer without saying so. st_recvmsg says so: it returns
 // the bytes that fit and sets MSG_TRUNC in msg_flags, so a server can count or reject oversized packets. Locks in
@@ -538,6 +548,7 @@ VOID TEST(IoUdpMsgTest, RecvmsgFailsWhenPeerRefuses)
     EXPECT_EQ(ECONNREFUSED, errno);
 }
 
+#ifndef _WIN32 // POSIX only: signals, fcntl and pthread
 // The same signal interrupts recvmsg. st_recvmsg retries it, and the retry returns the datagram the player sends
 // later, with the player's address in msg_name. The test clears O_NONBLOCK so recvmsg waits in the kernel, as for
 // st_recvfrom. Locks in current behavior.
@@ -587,6 +598,7 @@ VOID TEST(IoUdpMsgTest, RecvmsgRetriesWhenSignalInterruptsSystemCall)
     EXPECT_STREQ("hello", buf);
     EXPECT_EQ(player.addr_.sin_port, from.sin_port);
 }
+#endif
 
 // The buffers of one datagram add up to more than UDP allows: st_sendmsg fails at once with EMSGSIZE instead of
 // waiting for the socket to become writable. Locks in current behavior.
@@ -628,6 +640,7 @@ static void* io_consume_all_coroutine(void* arg)
 }
 #endif
 
+#ifndef _WIN32 // POSIX only: Unix-domain datagram socket pairs
 // Loopback UDP never runs out of send buffer, so this uses a local datagram socket pair, whose sender can't send
 // while its queued datagrams fill the send buffer, like a producer that outruns its consumer. On Linux, the kernel
 // reports the socket as not ready: st_sendmsg fails with ETIME when nobody reads, and waits until the consumer catches
@@ -718,3 +731,4 @@ VOID TEST(IoUdpTest, SendtoWaitsForFullQueue)
     EXPECT_EQ(ENOBUFS, errno);
 #endif
 }
+#endif

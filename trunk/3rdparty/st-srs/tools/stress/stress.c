@@ -15,9 +15,12 @@
 
 #include "tool.h"
 
+/* On native Windows, st.h brings TCP_NODELAY and struct iovec from Winsock 2, and there is no rlimit. */
+#ifndef _WIN32
 #include <netinet/tcp.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
+#endif
 
 /* Long enough that a coroutine still blocked here is a failure, not a slow run. */
 #define BLOCK_US (5 * 1000 * 1000)
@@ -405,12 +408,15 @@ int main(int argc, char **argv)
      * limit for a large count before st_init, which reads it.
      */
     int need = 2 * count + 32;
+#ifndef _WIN32
+    /* Windows does not support this: it has no rlimit, and ST allows 2^24 sockets there. */
     struct rlimit rl;
     CHECK(getrlimit(RLIMIT_NOFILE, &rl) == 0);
     if (rl.rlim_cur < (rlim_t)need) {
         rl.rlim_cur = need;
         setrlimit(RLIMIT_NOFILE, &rl);
     }
+#endif
 
     CHECK(tool_init() == 0);
     if (st_getfdlimit() < need) {

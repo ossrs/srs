@@ -12,8 +12,17 @@
 #include "tool.h"
 
 #include <stddef.h>
+/* On native Windows, st.h brings struct iovec and tool.h struct sockaddr_un from afunix.h. */
+#ifndef _WIN32
 #include <sys/uio.h>
 #include <sys/un.h>
+#else
+#include <io.h>
+/* The POSIX names of the MSVC CRT calls, for the socket paths. */
+#define access _access
+#define unlink _unlink
+#define F_OK 0
+#endif
 
 /* Long enough that a coroutine still blocked here is a failure, not a slow run. */
 #define BLOCK_US (5 * 1000 * 1000)
@@ -21,6 +30,24 @@
 /* A timeout that is expected to expire. */
 #define SHORT_US (5 * 1000)
 
+#ifdef _WIN32
+/*
+ * Windows has no /tmp, so the stream paths are in the temp folder, set by
+ * temp_paths before use. Its AF_UNIX is stream only, with no datagram paths.
+ */
+static char stream_path[MAX_PATH], missing_path[MAX_PATH];
+#define STREAM_PATH stream_path
+#define MISSING_PATH missing_path
+
+static int temp_paths(void)
+{
+    char dir[MAX_PATH];
+    CHECK(GetTempPathA(sizeof(dir), dir) != 0);
+    snprintf(stream_path, sizeof(stream_path), "%sst-tool-unix.sock", dir);
+    snprintf(missing_path, sizeof(missing_path), "%sst-tool-unix-missing.sock", dir);
+    return 0;
+}
+#else
 /* The paths, removed by these literal paths before and after use. */
 #define STREAM_PATH "/tmp/st-tool-unix.sock"
 #define DGRAM_PATH "/tmp/st-tool-unix-dgram.sock"
@@ -32,6 +59,7 @@ static const char *dgram_client_paths[DGRAM_CLIENTS] = {
     "/tmp/st-tool-unix-dgram-2.sock",
     "/tmp/st-tool-unix-dgram-3.sock",
 };
+#endif
 
 /* The stream echo: clients, messages per client, and the largest payload. */
 #define CLIENTS 8
@@ -49,12 +77,14 @@ static const char *dgram_client_paths[DGRAM_CLIENTS] = {
 static void remove_paths(void)
 {
     unlink(STREAM_PATH);
-    unlink(DGRAM_PATH);
     unlink(MISSING_PATH);
+#ifndef _WIN32
+    unlink(DGRAM_PATH);
     unlink("/tmp/st-tool-unix-dgram-0.sock");
     unlink("/tmp/st-tool-unix-dgram-1.sock");
     unlink("/tmp/st-tool-unix-dgram-2.sock");
     unlink("/tmp/st-tool-unix-dgram-3.sock");
+#endif
 }
 
 static socklen_t unix_addr(const char *path, struct sockaddr_un *addr)
@@ -70,7 +100,7 @@ static st_netfd_t unix_bind(int type, const char *path)
 {
     struct sockaddr_un addr;
     socklen_t len = unix_addr(path, &addr);
-    int fd = socket(AF_UNIX, type, 0);
+    int fd = (int)socket(AF_UNIX, type, 0);
     if (fd < 0) {
         return NULL;
     }
@@ -84,7 +114,7 @@ static st_netfd_t unix_bind(int type, const char *path)
     if ((type == SOCK_DGRAM && setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(rcvbuf)) < 0)
         || bind(fd, (struct sockaddr *)&addr, len) < 0 || (type == SOCK_STREAM && listen(fd, CLIENTS) < 0)) {
         int err = errno;
-        close(fd);
+        tool_close_socket(fd);
         errno = err;
         return NULL;
     }
@@ -92,7 +122,7 @@ static st_netfd_t unix_bind(int type, const char *path)
     st_netfd_t stfd = st_netfd_open_socket(fd);
     if (!stfd) {
         int err = errno;
-        close(fd);
+        tool_close_socket(fd);
         errno = err;
     }
     return stfd;
@@ -103,7 +133,7 @@ static st_netfd_t unix_connect(const char *path)
 {
     struct sockaddr_un addr;
     socklen_t len = unix_addr(path, &addr);
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int fd = (int)socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
         return NULL;
     }
@@ -111,7 +141,7 @@ static st_netfd_t unix_connect(const char *path)
     st_netfd_t stfd = st_netfd_open_socket(fd);
     if (!stfd) {
         int err = errno;
-        close(fd);
+        tool_close_socket(fd);
         errno = err;
         return NULL;
     }
@@ -416,8 +446,11 @@ static int stream_echo(void)
     /* A path with no socket, and a path whose listener is gone. */
     st_netfd_t fd;
     unlink(MISSING_PATH);
+#ifndef _WIN32
+    /* Windows does not support this check: a connect to a missing path fails with ECONNREFUSED there. */
     errno = 0;
     CHECK(unix_connect(MISSING_PATH) == NULL && errno == ENOENT);
+#endif
     CHECK((fd = unix_bind(SOCK_STREAM, MISSING_PATH)) != NULL);
     CHECK(st_netfd_close(fd) == 0);
     errno = 0;
@@ -426,6 +459,8 @@ static int stream_echo(void)
     return 0;
 }
 
+#ifndef _WIN32
+/* Windows does not support the datagram echo: its AF_UNIX is stream only, with no datagram paths. */
 static struct {
     st_netfd_t server;
     int server_msgs;
@@ -584,6 +619,7 @@ static int dgram_echo(void)
     CHECK(unlink(DGRAM_PATH) == 0);
     return 0;
 }
+#endif
 
 /* The socketpair bulk transfer: the size and the largest write. */
 #define PAIR_BYTES (512 * 1024)
@@ -621,7 +657,7 @@ static int pair_stream(void)
 {
     int sv[2];
     st_netfd_t a, b;
-    CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
+    CHECK(tool_socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == 0);
     CHECK((a = st_netfd_open_socket(sv[0])) != NULL);
     CHECK((b = st_netfd_open_socket(sv[1])) != NULL);
     CHECK(st_netfd_fileno(a) == sv[0] && st_netfd_fileno(b) == sv[1]);
@@ -676,12 +712,15 @@ static void *pair_read_forever(void *arg)
     return NULL;
 }
 
-/* A datagram socketpair: st_write and st_read keep the boundaries. */
+/*
+ * A datagram socketpair: st_write and st_read keep the boundaries. On native
+ * Windows it is a connected loopback UDP pair (D28).
+ */
 static int pair_dgram(void)
 {
     int sv[2];
     st_netfd_t a, b;
-    CHECK(socketpair(AF_UNIX, SOCK_DGRAM, 0, sv) == 0);
+    CHECK(tool_socketpair(AF_UNIX, SOCK_DGRAM, 0, sv) == 0);
     CHECK((a = st_netfd_open_socket(sv[0])) != NULL);
     CHECK((b = st_netfd_open_socket(sv[1])) != NULL);
 
@@ -711,7 +750,10 @@ static int pair_dgram(void)
 static int run(void)
 {
     CHECK(stream_echo() == 0);
+#ifndef _WIN32
+    /* Windows does not support it: its AF_UNIX is stream only. */
     CHECK(dgram_echo() == 0);
+#endif
     CHECK(pair_stream() == 0);
     CHECK(pair_dgram() == 0);
     return 0;
@@ -721,6 +763,9 @@ int main(int argc, char **argv)
 {
     CHECK(tool_init() == 0);
 
+#ifdef _WIN32
+    CHECK(temp_paths() == 0);
+#endif
     remove_paths();
     int r = run();
     remove_paths();

@@ -42,8 +42,10 @@
  */
 
 #include <stdlib.h>
+#if !defined(WIN64)
 #include <unistd.h>
 #include <fcntl.h>
+#endif
 #include <string.h>
 #include <time.h>
 #include <errno.h>
@@ -235,6 +237,10 @@ int st_init(void)
 void st_destroy(void)
 {
     (*_st_eventsys->destroy)();
+#if defined(WIN64)
+    /* Clean up Winsock, which st_init started. */
+    _st_io_destroy();
+#endif
 }
 
 
@@ -675,7 +681,20 @@ _st_thread_t *st_thread_create(void *(*start)(void *arg), void *arg, int joinabl
     if (_st_md_cxt_save(thread->context)) {
         _st_thread_main();
     }
-    MD_GET_SP(thread) = (long)(stack->sp);
+    MD_GET_SP(thread) = (intptr_t)(stack->sp);
+#ifdef MD_INIT_STACK_BOUNDS
+    /* Set the stack bounds the OS keeps for the new thread, such as the TIB on Windows. */
+    MD_INIT_STACK_BOUNDS(thread, stack->stk_bottom, stack->stk_top);
+#endif
+#ifdef MD_INIT_THREAD_ENTRY
+    /*
+     * Start the new thread in an assembly entry that calls _st_thread_main, not after the save above.
+     * TODO: Refine the thread entry for all platforms and CPUs, so all start new threads the same way,
+     * with an assembly entry, and none depends on the save-then-patch-SP trick; only WIN64 has one now.
+     * See docs/win64_coroutine.md.
+     */
+    MD_INIT_THREAD_ENTRY(thread);
+#endif
 
     /* If thread is joinable, allocate a termination condition variable */
     if (joinable) {

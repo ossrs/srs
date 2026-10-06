@@ -6,14 +6,36 @@ ST_UTEST = .
 # The main dir of gtest.
 GTEST_DIR = $(ST_UTEST)/gtest-fit/googletest
 
+# The output flags of the compiler, archiver and linker, the executable suffix, and the libraries. WIN64 is native
+# Windows x64 with MSVC (cl, lib), as in ../Makefile; NOMINMAX keeps windows.h from defining min and max.
+ifeq ($(OS), WIN64)
+CXX = cl
+AR = lib
+ARFLAGS = -nologo
+CXX_OUT = -Fo
+AR_OUT = -OUT:
+LINK_OUT = -Fe
+EXE = .exe
+LIBS = ws2_32.lib
+CXXFLAGS += -nologo -Z7 -Od -EHsc -DNOMINMAX
+CXXFLAGS += -DGTEST_USE_OWN_TR1_TUPLE=1
+WARNFLAGS += -W4
+else
+CXX_OUT = -o $(EMPTY)
+AR_OUT =
+LINK_OUT = -o $(EMPTY)
+EXE =
+LIBS = -lpthread -ldl
+
 # Flags passed to the C++ compiler.
 CXXFLAGS +=  -g -O0 -std=c++11
 CXXFLAGS += -DGTEST_USE_OWN_TR1_TUPLE=1
 # Flags for warnings.
 WARNFLAGS += -Wall -Wno-deprecated-declarations -Wno-unused-private-field -Wno-unused-command-line-argument
+endif
 
 # House-keeping build targets.
-all : $(ST_DIR)/obj/st_utest
+all : $(ST_DIR)/obj/st_utest$(EXE)
 
 # Auto-setup: symlink gtest-fit from SRS 3rdparty if not present.
 $(GTEST_DIR)/include/gtest/gtest.h:
@@ -39,13 +61,13 @@ GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_DIR)/include/gt
 # conservative and not optimized.  This is fine as Google Test
 # compiles fast and for ordinary users its source rarely changes.
 $(ST_DIR)/obj/gtest-all.o : $(GTEST_DIR)/include/gtest/gtest.h $(GTEST_SRCS_)
-	$(CXX) -c $(GTEST_DIR)/src/gtest-all.cc -o $@ \
+	$(CXX) -c $(GTEST_DIR)/src/gtest-all.cc $(CXX_OUT)$@ \
         $(CXXFLAGS) $(UTEST_FLAGS) \
         $(WARNFLAGS) \
         -I$(GTEST_DIR)/include -I$(GTEST_DIR)
 
 $(ST_DIR)/obj/gtest.a : $(ST_DIR)/obj/gtest-all.o
-	$(AR) $(ARFLAGS) $@ $^
+	$(AR) $(ARFLAGS) $(AR_OUT)$@ $^
 
 #####################################################################################
 #####################################################################################
@@ -74,12 +96,12 @@ OBJECTS = $(addprefix $(ST_DIR)/obj/,$(OBJECTS_FILES))
 
 # Objects, build each object of utest
 $(ST_DIR)/obj/%.o : %.cpp $(ST_UTEST_DEPS) $(UTEST_DEPS) $(GTEST_DIR)/include/gtest/gtest.h
-	$(CXX) -c $< -o $@ \
+	$(CXX) -c $< $(CXX_OUT)$@ \
         $(CXXFLAGS) $(UTEST_FLAGS) \
         $(WARNFLAGS) \
         -I$(GTEST_DIR)/include -I$(ST_UTEST) -I$(ST_DIR) -I$(ST_DIR)/obj
 
 # Generate the utest binary
-$(ST_DIR)/obj/st_utest : $(OBJECTS) $(ST_DIR)/obj/gtest.a $(ST_UTEST_DEPS)
-	$(CXX) -o $@ $(CXXFLAGS) $(UTEST_FLAGS) \
-        $^ -lpthread -ldl
+$(ST_DIR)/obj/st_utest$(EXE) : $(OBJECTS) $(ST_DIR)/obj/gtest.a $(ST_UTEST_DEPS)
+	$(CXX) $(LINK_OUT)$@ $(CXXFLAGS) $(UTEST_FLAGS) \
+        $^ $(LIBS)

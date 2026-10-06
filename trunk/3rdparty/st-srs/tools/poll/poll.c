@@ -10,8 +10,11 @@
 
 #include "tool.h"
 
+/* On native Windows, st.h brings struct pollfd from Winsock 2, and fcntl is only for a check skipped there. */
+#ifndef _WIN32
 #include <fcntl.h>
 #include <poll.h>
+#endif
 #include <sys/types.h>
 
 /* Long enough that a coroutine still blocked here is a failure, not a slow run. */
@@ -33,7 +36,7 @@ static struct channel channels[NB_CHANNELS];
 static int open_pipe(struct channel *c)
 {
     int fds[2];
-    CHECK(pipe(fds) == 0);
+    CHECK(tool_pipe(fds) == 0);
     CHECK((c->rd = st_netfd_open(fds[0])) != NULL);
     CHECK((c->wr = st_netfd_open(fds[1])) != NULL);
     return 0;
@@ -42,7 +45,7 @@ static int open_pipe(struct channel *c)
 static int open_socketpair(struct channel *c)
 {
     int fds[2];
-    CHECK(socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);
+    CHECK(tool_socketpair(AF_UNIX, SOCK_STREAM, 0, fds) == 0);
     CHECK((c->rd = st_netfd_open_socket(fds[0])) != NULL);
     CHECK((c->wr = st_netfd_open_socket(fds[1])) != NULL);
     return 0;
@@ -390,12 +393,15 @@ static int netfd_poll(void)
     struct channel c;
     CHECK(open_pipe(&c) == 0);
     int wfd = st_netfd_fileno(c.wr);
+#ifndef _WIN32
+    /* Windows does not support this check: it cannot read back whether a socket is non-blocking. */
     CHECK(fcntl(wfd, F_GETFL) & O_NONBLOCK);
+#endif
     char buf[4096];
     memset(buf, 'f', sizeof(buf));
     int filled = 0;
     for (;;) {
-        ssize_t n = write(wfd, buf, sizeof(buf));
+        ssize_t n = tool_write(wfd, buf, sizeof(buf));
         if (n < 0) {
             CHECK(errno == EAGAIN || errno == EWOULDBLOCK);
             break;

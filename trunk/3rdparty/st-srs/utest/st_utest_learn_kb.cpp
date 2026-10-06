@@ -8,8 +8,10 @@
 #include <errno.h>
 #include <string.h>
 
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <unistd.h>
+#endif
 
 #define ST_UTIME_MILLISECONDS 1000
 #define ST_UTEST_TIMEOUT (100 * ST_UTIME_MILLISECONDS)

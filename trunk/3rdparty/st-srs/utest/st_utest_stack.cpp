@@ -4,15 +4,23 @@
 #include <st_utest.hpp>
 
 #include <st.h>
+#ifndef _WIN32
 #include <dlfcn.h>
+#endif
 #include <errno.h>
+#ifndef _WIN32
 #include <pthread.h>
+#endif
 #include <stdint.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
+#ifndef _WIN32
 #include <sys/mman.h>
 #include <sys/syscall.h>
+#endif
 #include <vector>
 
 #define ST_UTIME_MILLISECONDS 1000
@@ -44,6 +52,7 @@ static void* stack_test_record_coroutine(void* arg)
     return NULL;
 }
 
+#ifndef _WIN32 // POSIX only: pipes and syscall
 // Whether the byte at p can be read. write reports EFAULT for an unreadable page instead of faulting. It calls the
 // system call directly, because ASAN checks the buffer of write, and p may be heap memory just past a stack that
 // MALLOC_STACK allocated. macOS deprecates syscall, but it still works.
@@ -63,6 +72,7 @@ static uintptr_t stack_test_top(const StackTestCoroutine& c)
     uintptr_t pagesize = (uintptr_t)getpagesize();
     return (c.frame_ & ~(pagesize - 1)) + pagesize;
 }
+#endif
 
 // Randomization is off by default, and each call returns the previous setting. Locks in current behavior.
 VOID TEST(RandomizeStacksTest, SwitchReturnsPrevious)
@@ -110,6 +120,7 @@ VOID TEST(RandomizeStacksTest, StacksStartAtDifferentOffsets)
     EXPECT_GT(moved, 0);
 }
 
+#ifndef _WIN32 // POSIX only: mmap, mprotect interposition with dlsym, pipes
 // A server turns randomization on while it runs, after some coroutines already exist. One of them exits, and the next
 // coroutine created frees its stack. The coroutines still running must keep their guard pages, so an overflow of their
 // stacks still faults. The stacks are mapped next to each other: each new one below the last on Linux, above it on
@@ -273,6 +284,7 @@ VOID TEST(RandomizeStacksTest, FreeingRestoresTheGuardPagesCreationProtected)
         }
     }
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for describing the main thread's stack to AddressSanitizer. ST runs the main thread as its primordial
@@ -291,7 +303,13 @@ extern size_t _st_primordial_stack_size;
 // The stack of the calling OS thread, from its lowest to its highest address.
 static void stack_test_thread_stack(char** bottom, char** top)
 {
-#ifdef __APPLE__
+#if defined(_WIN32)
+    // The whole reserved stack, from the TIB's DeallocationStack up to its StackBase.
+    ULONG_PTR low = 0, high = 0;
+    GetCurrentThreadStackLimits(&low, &high);
+    *bottom = (char*)low;
+    *top = (char*)high;
+#elif defined(__APPLE__)
     pthread_t self = pthread_self();
     *top = (char*)pthread_get_stackaddr_np(self);
     *bottom = *top - pthread_get_stacksize_np(self);

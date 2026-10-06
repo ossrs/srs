@@ -86,13 +86,42 @@ Get code:
 git clone -b srs https://github.com/ossrs/state-threads.git
 ```
 
-For Cygwin(Windows):
+Native Windows x64 builds with the Visual Studio (MSVC) toolchain, `cl`, `ml64`, and `lib`, through GNU make
+and the same Makefile. There is no Cygwin, MinGW, WSL, or POSIX emulation layer: GNU make and Git Bash only
+run the build, and the output is the static library `obj/libst.a` built by MSVC. It needs Windows 10 1809 or
+Windows Server 2019 or later, x64.
+
+Install the build tools:
+
+* Visual Studio 2022, or its Build Tools, with the MSVC x64 tools (the "Desktop development with C++" workload).
+* [Git for Windows](https://git-scm.com/download/win), for Git Bash.
+* GNU make, for example `winget install ezwinports.make` or `choco install make`.
+
+Open the `x64 Native Tools Command Prompt for VS 2022`, which runs `vcvars64.bat` and puts `cl`, `ml64`, and
+`lib` on `PATH`, then start Git Bash in it:
 
 ```
-make cygwin64-debug
+"C:\Program Files\Git\bin\bash.exe"
 ```
 
-> Remark: Windows native build is unsupported right now.
+For Windows, build the debug or the optimized library:
+
+```bash
+make win64-debug
+make win64-optimized
+```
+
+> Note: Programs that include `st.h` must include it before `windows.h`, or define `WIN32_LEAN_AND_MEAN`. The
+> library links `ws2_32.lib` by itself. For what works differently on Windows, read the
+> [porting notes](docs/notes.html#windows).
+
+Windows with ASAN(Google Address Sanitizer), where cl has no `-fno-omit-frame-pointer`:
+
+```bash
+make win64-debug EXTRA_CFLAGS="-DMD_ASAN -fsanitize=address"
+```
+
+> Remark: Cygwin64 is deprecated, do not use it. Use native Windows, as above.
 
 ## Branch SRS
 
@@ -147,6 +176,57 @@ To make ST with utest and run it:
 ```bash
 make darwin-debug-utest && ./obj/st_utest
 ```
+
+## Windows: UTest
+
+> Note: We use [Google test](https://github.com/google/googletest/releases/tag/release-1.11.0) in `utest/gtest-fit`.
+
+To make ST with utest and run it, in Git Bash with the MSVC environment (see [Windows: Usage](#windows-usage)):
+
+```bash
+make win64-debug-utest && ./obj/st_utest.exe
+```
+
+The tests that need POSIX features (fork, signals, pipes, files) are not built on Windows, and a few are
+skipped with a reason, for example the write tests that need a partial send, which Winsock never does.
+
+To debug in Visual Studio, generate a solution with CMake, which comes with Visual Studio, from the
+`x64 Native Tools Command Prompt for VS 2022`, then open `C:\st-build\st.sln`:
+
+```
+cmake -S cmake -B C:\st-build -G "Visual Studio 17 2022" -A x64
+cmake --build C:\st-build --config Debug --target st_utest
+```
+
+> Note: Use a short build directory, because MSBuild fails when its paths are too long. The Makefile stays the
+> main build, and CMake also builds the `helloworld`, `porting`, and `verify` tools.
+
+## Windows: Tools
+
+The integration tools in `tools/` build with MSVC and run with the same runner as on Linux and macOS, in Git
+Bash with the MSVC environment (see [Windows: Usage](#windows-usage)). It builds the library with
+`make -B win64-debug`, then builds each tool and runs `<name>.exe` with `ST_TOOL_EVENTSYS=select` and `alt`
+(both are WSAPoll on Windows), and prints `All tools OK`. Run it in the ST default build and in the SRS
+build, as CI does:
+
+```bash
+./auto/tools.sh
+EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh
+```
+
+The arguments name the tools to run, for example `./auto/tools.sh tcp udp`. The runner leaves the library
+built with `EXTRA_CFLAGS`, so rebuild with `make -B win64-debug-utest` before the utest.
+
+On Windows, ST is sockets only, so the tools make each pipe a loopback TCP pair and each `socketpair` an
+`AF_UNIX` stream pair, or a loopback UDP pair for datagrams. The `pipe` tool, which needs pipes, FIFOs,
+`st_open` files, and signals, prints `SKIP pipe: <why>` instead of `OK`. A few checks that Windows does not
+support are skipped there, each with a comment: the partial writes on timeout in `tcp` (Winsock never sends
+part of a non-blocking send), the `RLIMIT_NOFILE` checks in `lifecycle` and `stress`, reading back
+`O_NONBLOCK` in `poll`, and the `AF_UNIX` datagram echo and the `ENOENT` of a missing path in `unix`.
+
+The `exception` tool is C++: it throws and catches C++ exceptions on coroutine stacks, and on Windows also
+raises and catches SEH exceptions there. Windows builds C++ exceptions on SEH, which rejects frames outside
+the stack bounds in the TIB, so this works only because ST switches those bounds with each coroutine stack.
 
 ## Linux: Coverage
 

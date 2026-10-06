@@ -268,3 +268,80 @@ VOID TEST(ExceptionTest, YieldInDestructorWhileUnwinding)
     EXPECT_EQ(300, u.call_.caught_);
     EXPECT_EQ(301, other.caught_);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// A throw from the bottom of a deep recursion unwinds frames larger than a page across most of a large stack, while
+// other coroutines do the same on their own stacks, so each one runs every destructor of its own frames in order.
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define EXCEPTION_TEST_DEEP_DEPTH 128
+#define EXCEPTION_TEST_DEEP_FRAME 5000
+
+struct ExceptionTestDeep {
+    int id_;
+    int destroyed_;
+    bool ordered_;
+    int caught_;
+    ExceptionTestDeep() : id_(0), destroyed_(0), ordered_(true), caught_(-1) {
+    }
+};
+
+class ExceptionTestDeepGuard {
+    ExceptionTestDeep* deep_;
+    int depth_;
+    volatile char buf_[EXCEPTION_TEST_DEEP_FRAME];
+public:
+    ExceptionTestDeepGuard(ExceptionTestDeep* deep, int depth) : deep_(deep), depth_(depth) {
+        buf_[0] = buf_[EXCEPTION_TEST_DEEP_FRAME - 1] = (char)(deep->id_ + depth);
+    }
+    ~ExceptionTestDeepGuard() {
+        // The deepest frame unwinds first, and its buffer is still the one it wrote.
+        if (depth_ != EXCEPTION_TEST_DEEP_DEPTH - deep_->destroyed_) deep_->ordered_ = false;
+        if (buf_[0] != (char)(deep_->id_ + depth_) || buf_[EXCEPTION_TEST_DEEP_FRAME - 1] != buf_[0]) {
+            deep_->ordered_ = false;
+        }
+        deep_->destroyed_++;
+    }
+};
+
+static void exception_test_deep_recurse(ExceptionTestDeep* deep, int depth)
+{
+    ExceptionTestDeepGuard guard(deep, depth);
+    if (depth == EXCEPTION_TEST_DEEP_DEPTH) {
+        st_usleep(0);
+        exception_test_throw(deep->id_);
+    }
+    exception_test_deep_recurse(deep, depth + 1);
+}
+
+static void* exception_test_deep_coroutine(void* arg)
+{
+    ExceptionTestDeep* deep = (ExceptionTestDeep*)arg;
+    try {
+        exception_test_deep_recurse(deep, 1);
+    } catch (const std::runtime_error& e) {
+        deep->caught_ = std::stoi(e.what());
+    }
+    return NULL;
+}
+
+VOID TEST(ExceptionTest, ThrowFromDeepRecursionWithLargeFrames)
+{
+    ExceptionTestDeep deeps[3];
+    st_thread_t trds[3];
+    for (int i = 0; i < 3; i++) {
+        deeps[i].id_ = 400 + i;
+        // About 640 KB of a 1 MB stack.
+        trds[i] = st_thread_create(exception_test_deep_coroutine, &deeps[i], 1, 1024 * 1024);
+        ASSERT_TRUE(trds[i] != NULL);
+    }
+    for (int i = 0; i < 3; i++) {
+        st_thread_join(trds[i], NULL);
+    }
+
+    for (int i = 0; i < 3; i++) {
+        EXPECT_EQ(400 + i, deeps[i].caught_) << "coroutine " << i;
+        EXPECT_EQ(EXCEPTION_TEST_DEEP_DEPTH, deeps[i].destroyed_) << "coroutine " << i;
+        EXPECT_TRUE(deeps[i].ordered_) << "coroutine " << i;
+    }
+}

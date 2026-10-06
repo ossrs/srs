@@ -7,6 +7,8 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-10-06, ST: Support native Windows x64 with MSVC, MASM, and WSAPoll, built by GNU make, [state-threads#40](https://github.com/ossrs/state-threads/pull/40). v8.0.56
+* v8.0, 2026-10-03, Merge [#4759](https://github.com/ossrs/srs/pull/4759): ST: Add integration tools and exception utests. v8.0.55 (#4759)
 * v8.0, 2026-10-01, Merge [#4758](https://github.com/ossrs/srs/pull/4758): Fix failed live source crash, ST source of truth, testability. v8.0.54 (#4758)
 * v8.0, 2026-10-01, Merge [#4757](https://github.com/ossrs/srs/pull/4757): Kernel: Fix the wrong picture size of an H.264 SPS with scaling lists. v8.0.53 (#4757)
 * v8.0, 2026-09-29, Live: Drop a live source whose initialize failed, so the next publisher gets a new one instead of crashing SRS. v8.0.52

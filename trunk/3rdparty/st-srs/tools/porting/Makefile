@@ -11,9 +11,26 @@ CPU_ARCHS 	+= $(shell g++ -dM -E - </dev/null |grep -q '__aarch64' && echo arm64
 CFLAGS      += -arch $(CPU_ARCHS)
 endif
 
-./porting:  porting.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -Wall -o $@ $^ $(LDLIBS)
+# The warning and output flags, the executable suffix, and the files to clean.
+WARNFLAGS   = -Wall
+LINK_OUT    = -o $(EMPTY)
+EXE         =
+CLEAN_FILES = porting porting.dSYM
+
+# Native Windows x64 with MSVC (cl), the WIN64 platform of ../../Makefile. Run GNU make from Git Bash or
+# PowerShell with the MSVC environment on PATH, where uname -s is MINGW64_NT-* or MSYS_NT-*.
+ifneq ($(filter MINGW% MSYS%,$(OS_NAME)),)
+CC          = cl
+CFLAGS      = -nologo -Z7 -Od
+WARNFLAGS   = -W4
+LINK_OUT    = -Fe
+EXE         = .exe
+CLEAN_FILES += porting.exe porting.obj porting.ilk porting.pdb
+endif
+
+./porting$(EXE):  porting.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(WARNFLAGS) $(LINK_OUT)$@ $^ $(LDLIBS)
 
 clean:
-	rm -rf porting porting.dSYM
+	rm -rf $(CLEAN_FILES)
 

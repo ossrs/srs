@@ -4,6 +4,7 @@ The changelog for the [srs](https://github.com/ossrs/state-threads/tree/srs) bra
 
 ## ST 1.9 Changelog
 
+* 2026-10-03, Windows: Support native Windows x64 with MSVC, MASM, and WSAPoll, built by GNU make. v1.9.2
 * 2026-10-03, Tools: Add integration tools for every public API, run by auto/tools.sh in CI, [#41](https://github.com/ossrs/state-threads/pull/41). v1.9.1
 * 2026-09-30, Changelog: Move the change list from README to CHANGELOG.md, and add the patch version. v1.9.0
 

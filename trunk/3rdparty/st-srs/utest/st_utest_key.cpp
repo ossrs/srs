@@ -5,7 +5,9 @@
 
 #include <st.h>
 #include <errno.h>
+#ifndef _WIN32
 #include <pthread.h>
+#endif
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -216,6 +218,7 @@ VOID TEST(KeyTest, InvalidKeyIsRejected)
     EXPECT_TRUE(st_thread_getspecific(st_key_getlimit()) == NULL);
 }
 
+#ifndef _WIN32 // POSIX only: an OS thread with pthread
 struct KeyTestThread {
     // The keys created, and the one past the limit.
     std::vector<int> keys_;
@@ -263,3 +266,4 @@ VOID TEST(KeyTest, KeyLimitPerThread)
     EXPECT_EQ(-1, r.create_over_limit_);
     EXPECT_EQ(EAGAIN, r.errno_over_limit_);
 }
+#endif

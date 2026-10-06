@@ -42,17 +42,466 @@
  */
 
 #include <stdlib.h>
+#if !defined(WIN64)
 #include <unistd.h>
+#endif
 #include <sys/types.h>
+#if !defined(WIN64)
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#endif
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
 #include "common.h"
+
+#if defined(WIN64)
+/*
+ * Native Windows implements the POSIX calls of this file with Winsock, for sockets
+ * only, so the library brings ws2_32.lib. st_open (files and FIFOs) is not supported.
+ */
+#include <limits.h>
+#include <mswsock.h>
+#pragma comment(lib, "ws2_32.lib")
+
+/*
+ * Map a Winsock error to errno, which ST and its callers such as SRS check. For
+ * connect (connecting is set), WSAEWOULDBLOCK means EINPROGRESS. An error with no
+ * equivalent is EIO; WSAGetLastError() still has the Winsock error.
+ */
+int _st_win64_errno(int wsaerr, int connecting)
+{
+    switch (wsaerr) {
+    case 0:                     return 0;
+    case WSAEWOULDBLOCK:        return connecting ? EINPROGRESS : EAGAIN;
+    case WSAEINPROGRESS:        return EINPROGRESS;
+    case WSAEALREADY:           return EALREADY;
+    case WSAEINTR:              return EINTR;
+    case WSAETIMEDOUT:          return ETIMEDOUT;
+    case WSAEBADF:              return EBADF;
+    case WSAEACCES:             return EACCES;
+    case WSAEFAULT:             return EFAULT;
+    case WSAEINVAL:             return EINVAL;
+    case WSAEMFILE:             return EMFILE;
+    case WSAENOTSOCK:           return ENOTSOCK;
+    case WSAEDESTADDRREQ:       return EDESTADDRREQ;
+    case WSAEMSGSIZE:           return EMSGSIZE;
+    case WSAEPROTOTYPE:         return EPROTOTYPE;
+    case WSAENOPROTOOPT:        return ENOPROTOOPT;
+    case WSAEPROTONOSUPPORT:    return EPROTONOSUPPORT;
+    case WSAESOCKTNOSUPPORT:    return EPROTONOSUPPORT;
+    case WSAEOPNOTSUPP:         return EOPNOTSUPP;
+    case WSAEPFNOSUPPORT:       return EAFNOSUPPORT;
+    case WSAEAFNOSUPPORT:       return EAFNOSUPPORT;
+    case WSAEADDRINUSE:         return EADDRINUSE;
+    case WSAEADDRNOTAVAIL:      return EADDRNOTAVAIL;
+    case WSAENETDOWN:           return ENETDOWN;
+    case WSAENETUNREACH:        return ENETUNREACH;
+    case WSAENETRESET:          return ENETRESET;
+    case WSAECONNABORTED:       return ECONNABORTED;
+    case WSAECONNRESET:         return ECONNRESET;
+    case WSAENOBUFS:            return ENOBUFS;
+    case WSAEISCONN:            return EISCONN;
+    case WSAENOTCONN:           return ENOTCONN;
+    case WSAESHUTDOWN:          return EPIPE;
+    case WSAECONNREFUSED:       return ECONNREFUSED;
+    case WSAELOOP:              return ELOOP;
+    case WSAENAMETOOLONG:       return ENAMETOOLONG;
+    case WSAEHOSTDOWN:          return EHOSTUNREACH;
+    case WSAEHOSTUNREACH:       return EHOSTUNREACH;
+    case WSAENOTEMPTY:          return ENOTEMPTY;
+    case WSA_INVALID_HANDLE:    return EBADF;
+    case WSA_NOT_ENOUGH_MEMORY: return ENOMEM;
+    case WSA_INVALID_PARAMETER: return EINVAL;
+    case WSA_OPERATION_ABORTED: return ECANCELED;
+    case WSANOTINITIALISED:     return EINVAL;
+    default:                    return EIO;
+    }
+}
+
+/* Set errno from the Winsock error of the failed call, and return -1. */
+static int _st_win64_sock_fail(int connecting)
+{
+    errno = _st_win64_errno(WSAGetLastError(), connecting);
+    return -1;
+}
+
+/*
+ * The Winsock calls ST makes, with errno set on failure. A SOCKET fits in an int
+ * (only 32 bits are significant), so it is truncated and sign-extended back.
+ */
+static int _st_win64_accept(int fd, struct sockaddr *addr, socklen_t *addrlen)
+{
+    SOCKET s = accept((SOCKET)fd, addr, addrlen);
+    return (s == INVALID_SOCKET) ? _st_win64_sock_fail(0) : (int)s;
+}
+
+static int _st_win64_connect(int fd, const struct sockaddr *addr, int addrlen)
+{
+    return (connect((SOCKET)fd, addr, addrlen) == SOCKET_ERROR) ? _st_win64_sock_fail(1) : 0;
+}
+
+/* SO_ERROR, which st_connect reads after the wait, is a Winsock error, so it gives the errno instead. */
+static int _st_win64_getsockopt(int fd, int level, int name, char *value, socklen_t *size)
+{
+    if (getsockopt((SOCKET)fd, level, name, value, size) == SOCKET_ERROR)
+        return _st_win64_sock_fail(0);
+    if (level == SOL_SOCKET && name == SO_ERROR && *size == sizeof(int) && *(int *)value)
+        *(int *)value = _st_win64_errno(*(int *)value, 1);
+    return 0;
+}
+
+/*
+ * Set errno from the Winsock error of a failed receive, and return -1. Winsock reports
+ * an ICMP port unreachable on a datagram socket as WSAECONNRESET, where POSIX gives
+ * ECONNREFUSED.
+ */
+static int _st_win64_recv_sock_fail(int fd)
+{
+    int err = WSAGetLastError();
+    int type = 0;
+    socklen_t size = sizeof(type);
+
+    if (err == WSAECONNRESET && getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&type, &size) == 0 &&
+        type == SOCK_DGRAM) {
+        WSASetLastError(err);
+        errno = ECONNREFUSED;
+        return -1;
+    }
+    WSASetLastError(err);
+    errno = _st_win64_errno(err, 0);
+    return -1;
+}
+
+int _st_win64_recvfrom(int fd, void *buf, int len, int flags, struct sockaddr *from, socklen_t *fromlen)
+{
+    int n = recvfrom((SOCKET)fd, (char *)buf, len, flags, from, fromlen);
+    if (n != SOCKET_ERROR)
+        return n;
+    /* A datagram larger than the buffer: POSIX returns the bytes that fit and drops the rest. */
+    if (WSAGetLastError() == WSAEMSGSIZE)
+        return len;
+    return _st_win64_recv_sock_fail(fd);
+}
+
+static int _st_win64_sendto(int fd, const void *msg, int len, int flags, const struct sockaddr *to, int tolen)
+{
+    int n = sendto((SOCKET)fd, (const char *)msg, len, flags, to, tolen);
+    return (n == SOCKET_ERROR) ? _st_win64_sock_fail(0) : n;
+}
+
+/* The fcntl commands and flag ST uses; the CRT has none for sockets. */
+#define F_GETFL     3
+#define F_SETFL     4
+#define O_NONBLOCK  04000
+
+static int _st_win64_enosys(void)
+{
+    errno = ENOSYS;
+    return -1;
+}
+
+/* ioctl is ioctlsocket, for FIONBIO. */
+int _st_win64_ioctl(int fd, unsigned long request, int *arg)
+{
+    u_long v = (u_long)*arg;
+    if (ioctlsocket((SOCKET)fd, (long)request, &v) == SOCKET_ERROR)
+        return _st_win64_sock_fail(0);
+    *arg = (int)v;
+    return 0;
+}
+
+/*
+ * fcntl supports only sockets and only the non-blocking flag. Windows cannot read
+ * the mode of a socket back, so F_GETFL checks that fd is a socket and gives 0.
+ */
+int _st_win64_fcntl(int fd, int cmd, int arg)
+{
+    u_long nonblock;
+    int type;
+    socklen_t size = sizeof(type);
+
+    switch (cmd) {
+    case F_GETFL:
+        if (getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&type, &size) == SOCKET_ERROR)
+            return _st_win64_sock_fail(0);
+        return 0;
+    case F_SETFL:
+        nonblock = (arg & O_NONBLOCK) ? 1 : 0;
+        if (ioctlsocket((SOCKET)fd, FIONBIO, &nonblock) == SOCKET_ERROR)
+            return _st_win64_sock_fail(0);
+        return 0;
+    default:
+        errno = EINVAL;
+        return -1;
+    }
+}
+
+int _st_win64_close(int fd)
+{
+    return (closesocket((SOCKET)fd) == SOCKET_ERROR) ? _st_win64_sock_fail(0) : 0;
+}
+
+/* Winsock takes an int length; a larger request reads or writes less, as POSIX allows. */
+static int _st_win64_len(size_t nbyte)
+{
+    return (nbyte > INT_MAX) ? INT_MAX : (int)nbyte;
+}
+
+ssize_t _st_win64_read(int fd, void *buf, size_t nbyte)
+{
+    int len = _st_win64_len(nbyte);
+    int n = recv((SOCKET)fd, (char *)buf, len, 0);
+    if (n != SOCKET_ERROR)
+        return n;
+    /* A datagram larger than the buffer: POSIX returns the bytes that fit and drops the rest. */
+    if (WSAGetLastError() == WSAEMSGSIZE)
+        return len;
+    return _st_win64_recv_sock_fail(fd);
+}
+
+ssize_t _st_win64_write(int fd, const void *buf, size_t nbyte)
+{
+    int n = send((SOCKET)fd, (const char *)buf, _st_win64_len(nbyte), 0);
+    return (n == SOCKET_ERROR) ? _st_win64_sock_fail(0) : n;
+}
+
+/* The WSABUFs kept on the stack; more are allocated. */
+#define _ST_WIN64_LOCAL_BUFS 16
+
+/*
+ * Copy the iovecs to WSABUFs, which are not the same layout (length first, and a
+ * 32-bit length), so never cast one to the other. Uses local when it is large
+ * enough, or allocates the array, which the caller frees with _st_win64_bufs_free.
+ * A vector longer than a WSABUF holds is cut, with the vectors after it, so the
+ * call sends or receives less, as POSIX allows. Returns NULL with errno on error.
+ */
+static WSABUF *_st_win64_bufs(const struct iovec *iov, int iov_size, WSABUF *local, DWORD *count, size_t *total)
+{
+    WSABUF *bufs = local;
+    int i;
+
+    if (iov_size < 0 || (iov_size > 0 && !iov)) {
+        errno = EINVAL;
+        return NULL;
+    }
+    if (iov_size > _ST_WIN64_LOCAL_BUFS) {
+        if ((bufs = (WSABUF *)malloc(iov_size * sizeof(WSABUF))) == NULL) {
+            errno = ENOMEM;
+            return NULL;
+        }
+    }
+
+    *total = 0;
+    for (i = 0; i < iov_size; i++) {
+        int cut = iov[i].iov_len > ULONG_MAX;
+        bufs[i].len = cut ? ULONG_MAX : (ULONG)iov[i].iov_len;
+        bufs[i].buf = (char *)iov[i].iov_base;
+        *total += bufs[i].len;
+        if (cut) {
+            i++;
+            break;
+        }
+    }
+    *count = (DWORD)i;
+    return bufs;
+}
+
+static void _st_win64_bufs_free(WSABUF *bufs, WSABUF *local)
+{
+    if (bufs != local)
+        free(bufs);
+}
+
+/* The result of a receive that failed: a truncated datagram is the bytes that fit. */
+static ssize_t _st_win64_recv_fail(int fd, size_t total)
+{
+    if (WSAGetLastError() == WSAEMSGSIZE)
+        return (ssize_t)total;
+    return _st_win64_recv_sock_fail(fd);
+}
+
+ssize_t _st_win64_readv(int fd, const struct iovec *iov, int iov_size)
+{
+    WSABUF local[_ST_WIN64_LOCAL_BUFS], *bufs;
+    DWORD count, nbytes = 0, flags = 0;
+    size_t total;
+    ssize_t rv;
+
+    if (iov_size == 0)
+        return 0;
+    if ((bufs = _st_win64_bufs(iov, iov_size, local, &count, &total)) == NULL)
+        return -1;
+    if (WSARecv((SOCKET)fd, bufs, count, &nbytes, &flags, NULL, NULL) == 0)
+        rv = (ssize_t)nbytes;
+    else
+        rv = _st_win64_recv_fail(fd, total);
+    _st_win64_bufs_free(bufs, local);
+    return rv;
+}
+
+ssize_t _st_win64_writev(int fd, const struct iovec *iov, int iov_size)
+{
+    WSABUF local[_ST_WIN64_LOCAL_BUFS], *bufs;
+    DWORD count, nbytes = 0;
+    size_t total;
+    ssize_t rv;
+
+    if (iov_size == 0)
+        return 0;
+    if ((bufs = _st_win64_bufs(iov, iov_size, local, &count, &total)) == NULL)
+        return -1;
+    if (WSASend((SOCKET)fd, bufs, count, &nbytes, 0, NULL, NULL) == 0)
+        rv = (ssize_t)nbytes;
+    else
+        rv = _st_win64_sock_fail(0);
+    _st_win64_bufs_free(bufs, local);
+    return rv;
+}
+
+/*
+ * WSARecvMsg is a Winsock extension, loaded once with WSAIoctl. The Microsoft
+ * providers all return the same function, so one pointer serves every socket.
+ */
+static LPFN_WSARECVMSG _st_win64_wsarecvmsg = NULL;
+
+static LPFN_WSARECVMSG _st_win64_load_wsarecvmsg(int fd)
+{
+    GUID guid = WSAID_WSARECVMSG;
+    LPFN_WSARECVMSG fn = NULL;
+    DWORD n = 0;
+
+    if (_st_win64_wsarecvmsg)
+        return _st_win64_wsarecvmsg;
+    if (WSAIoctl((SOCKET)fd, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid), &fn, sizeof(fn), &n,
+        NULL, NULL) == SOCKET_ERROR) {
+        _st_win64_sock_fail(0);
+        return NULL;
+    }
+    _st_win64_wsarecvmsg = fn;
+    return fn;
+}
+
+/*
+ * WSARecvMsg and WSASendMsg take only datagram and raw sockets, while POSIX recvmsg
+ * and sendmsg take streams too. After such a failure, this tells whether fd is a
+ * stream, which then uses WSARecv or WSASend.
+ */
+static int _st_win64_is_stream(int fd, int wsaerr)
+{
+    int type = 0;
+    socklen_t size = sizeof(type);
+
+    if (wsaerr != WSAEINVAL && wsaerr != WSAEOPNOTSUPP)
+        return 0;
+    if (getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&type, &size) == SOCKET_ERROR)
+        return 0;
+    WSASetLastError(wsaerr);
+    return type == SOCK_STREAM;
+}
+
+/*
+ * recvmsg with WSARecvMsg. The control data is Winsock's (WSA_CMSG_* macros, for
+ * example IP_PKTINFO), not the POSIX layout. A truncated datagram returns the bytes
+ * that fit with MSG_TRUNC, as on POSIX, where Winsock fails with WSAEMSGSIZE.
+ */
+int _st_win64_recvmsg(int fd, struct msghdr *msg, int flags)
+{
+    WSABUF local[_ST_WIN64_LOCAL_BUFS], *bufs;
+    LPFN_WSARECVMSG fn;
+    WSAMSG wmsg;
+    DWORD count, nbytes = 0, dflags;
+    size_t total;
+    int rv, err;
+
+    if ((fn = _st_win64_load_wsarecvmsg(fd)) == NULL)
+        return -1;
+    if ((bufs = _st_win64_bufs(msg->msg_iov, msg->msg_iovlen, local, &count, &total)) == NULL)
+        return -1;
+
+    wmsg.name = (LPSOCKADDR)msg->msg_name;
+    wmsg.namelen = msg->msg_name ? msg->msg_namelen : 0;
+    wmsg.lpBuffers = bufs;
+    wmsg.dwBufferCount = count;
+    wmsg.Control.buf = (char *)msg->msg_control;
+    wmsg.Control.len = msg->msg_control ? (ULONG)msg->msg_controllen : 0;
+    wmsg.dwFlags = (DWORD)flags;
+
+    if ((*fn)((SOCKET)fd, &wmsg, &nbytes, NULL, NULL) == 0) {
+        rv = (int)nbytes;
+    } else if ((err = WSAGetLastError()) == WSAEMSGSIZE) {
+        rv = (int)total;
+        wmsg.dwFlags |= MSG_TRUNC;
+    } else if (_st_win64_is_stream(fd, err)) {
+        /* A stream has no sender address and no control data. */
+        dflags = (DWORD)flags;
+        rv = (WSARecv((SOCKET)fd, bufs, count, &nbytes, &dflags, NULL, NULL) == 0) ?
+            (int)nbytes : _st_win64_sock_fail(0);
+        wmsg.namelen = 0;
+        wmsg.Control.len = 0;
+        wmsg.dwFlags = 0;
+    } else {
+        rv = _st_win64_recv_sock_fail(fd);
+    }
+
+    if (rv >= 0) {
+        msg->msg_namelen = wmsg.namelen;
+        msg->msg_controllen = wmsg.Control.len;
+        msg->msg_flags = (int)wmsg.dwFlags;
+    }
+    _st_win64_bufs_free(bufs, local);
+    return rv;
+}
+
+/* sendmsg with WSASendMsg; the control data is Winsock's, as for recvmsg. */
+int _st_win64_sendmsg(int fd, const struct msghdr *msg, int flags)
+{
+    WSABUF local[_ST_WIN64_LOCAL_BUFS], *bufs;
+    WSAMSG wmsg;
+    DWORD count, nbytes = 0;
+    size_t total;
+    int rv;
+
+    if ((bufs = _st_win64_bufs(msg->msg_iov, msg->msg_iovlen, local, &count, &total)) == NULL)
+        return -1;
+
+    wmsg.name = (LPSOCKADDR)msg->msg_name;
+    wmsg.namelen = msg->msg_name ? msg->msg_namelen : 0;
+    wmsg.lpBuffers = bufs;
+    wmsg.dwBufferCount = count;
+    wmsg.Control.buf = (char *)msg->msg_control;
+    wmsg.Control.len = msg->msg_control ? (ULONG)msg->msg_controllen : 0;
+    wmsg.dwFlags = 0;
+
+    if (WSASendMsg((SOCKET)fd, &wmsg, (DWORD)flags, &nbytes, NULL, NULL) == 0)
+        rv = (int)nbytes;
+    else if (_st_win64_is_stream(fd, WSAGetLastError()))
+        rv = (WSASend((SOCKET)fd, bufs, count, &nbytes, (DWORD)flags, NULL, NULL) == 0) ?
+            (int)nbytes : _st_win64_sock_fail(0);
+    else
+        rv = _st_win64_sock_fail(0);
+    _st_win64_bufs_free(bufs, local);
+    return rv;
+}
+
+#define ioctl       _st_win64_ioctl
+#define fcntl       _st_win64_fcntl
+#define close       _st_win64_close
+#define read        _st_win64_read
+#define write       _st_win64_write
+#define readv       _st_win64_readv
+#define writev      _st_win64_writev
+#define recvmsg     _st_win64_recvmsg
+#define sendmsg     _st_win64_sendmsg
+#define accept      _st_win64_accept
+#define connect     _st_win64_connect
+#define getsockopt  _st_win64_getsockopt
+#define recvfrom    _st_win64_recvfrom
+#define sendto      _st_win64_sendto
+#endif
 
 // Global stat.
 #if defined(DEBUG) && defined(DEBUG_STATS)
@@ -87,6 +536,52 @@ static int _st_osfd_limit = -1;
 
 static void _st_netfd_free_aux_data(_st_netfd_t *fd);
 
+#if defined(WIN64)
+/*
+ * Windows has no SIGPIPE and no rlimit. A process may open up to 2^24 handles, sockets
+ * included, so report that unless the event system has a lower limit.
+ */
+#define _ST_WIN64_OSFD_LIMIT (1 << 24)
+
+/* Whether this thread's st_init started Winsock, which st_destroy cleans up. */
+static __thread int _st_wsa_started = 0;
+
+int _st_io_init(void)
+{
+    int fdlim;
+
+    /*
+     * Winsock needs WSAStartup before any socket call. It counts the starts, so each
+     * thread's ST starts it once and st_destroy cleans up that start.
+     */
+    if (!_st_wsa_started) {
+        WSADATA wsa;
+        int err = WSAStartup(MAKEWORD(2, 2), &wsa);
+        if (err != 0) {
+            errno = _st_win64_errno(err, 0);
+            return -1;
+        }
+        if (LOBYTE(wsa.wVersion) != 2 || HIBYTE(wsa.wVersion) != 2) {
+            WSACleanup();
+            errno = EINVAL;
+            return -1;
+        }
+        _st_wsa_started = 1;
+    }
+
+    fdlim = (*_st_eventsys->fd_getlimit)();
+    _st_osfd_limit = (fdlim > 0 && fdlim < _ST_WIN64_OSFD_LIMIT) ? fdlim : _ST_WIN64_OSFD_LIMIT;
+    return 0;
+}
+
+void _st_io_destroy(void)
+{
+    if (_st_wsa_started) {
+        WSACleanup();
+        _st_wsa_started = 0;
+    }
+}
+#else
 int _st_io_init(void)
 {
     struct sigaction sigact;
@@ -126,6 +621,7 @@ int _st_io_init(void)
 
     return 0;
 }
+#endif
 
 
 int st_getfdlimit(void)
@@ -736,6 +1232,15 @@ int st_sendmsg(_st_netfd_t *fd, const struct msghdr *msg, int flags, st_utime_t 
 /*
  * To open FIFOs or other special files.
  */
+#if defined(WIN64)
+/* Not supported on Windows yet. */
+_st_netfd_t *st_open(const char *path, int oflags, mode_t mode)
+{
+    (void) path; (void) oflags; (void) mode;
+    _st_win64_enosys();
+    return NULL;
+}
+#else
 _st_netfd_t *st_open(const char *path, int oflags, mode_t mode)
 {
     int osfd, err;
@@ -758,3 +1263,4 @@ _st_netfd_t *st_open(const char *path, int oflags, mode_t mode)
     return newfd;
 }
 
+#endif

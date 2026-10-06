@@ -70,8 +70,14 @@ typedef struct _st_jmp_buf {
      * Linux    __riscv                 long[14]
      * Linux    __loongarch64           long[12]
      * Cygwin64 __amd64__/__x86_64__    long[8]
+     * Win64    _M_X64                  long long[36]
      */
-    long __jmpbuf[22];
+    /* Pointer-sized slots, because MSVC long is 32-bit (LLP64). */
+#if defined(WIN64)
+    intptr_t __jmpbuf[36];
+#else
+    intptr_t __jmpbuf[22];
+#endif
 } _st_jmp_buf_t[1];
 
 /* Defined in *.S file and implemented by ASM. */
@@ -182,6 +188,78 @@ extern void _st_md_cxt_restore(_st_jmp_buf_t env, int val);
         struct timeval tv;              \
         (void) gettimeofday(&tv, NULL); \
         return (tv.tv_sec * 1000000LL + tv.tv_usec)
+
+#elif defined (WIN64)
+
+    #define MD_ACCEPT_NB_NOT_INHERITED
+    #define MD_HAVE_SOCKLEN_T
+
+    /*
+     * Stacks come from VirtualAlloc, with VirtualProtect red zones in DEBUG (stk.c). With
+     * MALLOC_STACK there are no red zones: VirtualProtect rounds a heap address down to its
+     * page, so it would protect heap memory next to the stack, where mprotect fails instead.
+     */
+    #if defined(MALLOC_STACK) && !defined(MD_NO_PROTECT)
+        #define MD_NO_PROTECT
+    #endif
+
+    /* The CRT has rand and srand, not random and srandom. */
+    #define random rand
+    #define srandom srand
+
+    /* MSVC has no __thread; use its thread-local storage class. */
+    #define __thread __declspec(thread)
+
+    #if defined(_M_X64) || defined(_M_AMD64)
+        #define MD_GET_SP(_t) *((long long *)&((_t)->context[0].__jmpbuf[8]))
+        /*
+         * The TIB stack bounds of a new thread, restored from slots 10-12 by md_win64.asm:
+         * StackBase is the stack top, StackLimit and DeallocationStack are the stack bottom.
+         * Otherwise the thread runs with its creator's bounds, which breaks C++ exceptions,
+         * stack walks, and __chkstk for frames over a page.
+         */
+        #define MD_INIT_STACK_BOUNDS(_t, _bottom, _top) do {                   \
+            (_t)->context[0].__jmpbuf[10] = (long long)(intptr_t)(_top);    \
+            (_t)->context[0].__jmpbuf[11] = (long long)(intptr_t)(_bottom); \
+            (_t)->context[0].__jmpbuf[12] = (long long)(intptr_t)(_bottom); \
+        } while (0)
+        /*
+         * A new thread starts in _st_md_thread_start (md_win64.asm), which calls _st_thread_main,
+         * instead of after _st_md_cxt_save in st_thread_create, so it does not depend on how the
+         * compiler uses that frame and its registers there. The SP (slot 8) moves 16-byte aligned
+         * minus 8 to a null return address, as at a function entry, and the PC (slot 9) is set.
+         */
+        extern void _st_md_thread_start(void);
+        #define MD_INIT_THREAD_ENTRY(_t) do {                                       \
+            char *_sp = (char *)(intptr_t)MD_GET_SP(_t);                            \
+            _sp = (char *)((intptr_t)_sp & ~(intptr_t)15) - sizeof(void *);         \
+            *(void **)_sp = NULL;                                                   \
+            MD_GET_SP(_t) = (long long)(intptr_t)_sp;                               \
+            (_t)->context[0].__jmpbuf[9] = (long long)(intptr_t)_st_md_thread_start; \
+        } while (0)
+    #else
+        #error Unknown CPU architecture
+    #endif
+
+    /*
+     * Like CLOCK_MONOTONIC on Linux: QueryPerformanceCounter, the clock that MSVC's
+     * std::chrono::steady_clock uses. Convert whole seconds and the leftover ticks
+     * apart, as steady_clock does, because ticks * 1000000 overflows after about
+     * 10 days of uptime at the common 10 MHz frequency.
+     */
+    #define MD_GET_UTIME()                                              \
+        LARGE_INTEGER counter, freq;                                    \
+        QueryPerformanceCounter(&counter);                              \
+        QueryPerformanceFrequency(&freq);                               \
+        return (st_utime_t)((counter.QuadPart / freq.QuadPart) * 1000000LL + \
+            (counter.QuadPart % freq.QuadPart) * 1000000LL / freq.QuadPart)
+
+    static inline int getpagesize(void)
+    {
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        return (int)si.dwPageSize;
+    }
 
 #else
     #error Unknown OS

@@ -3,7 +3,9 @@
 
 #include <stdio.h>
 #include <setjmp.h>
+#ifndef _WIN32
 #include <execinfo.h>
+#endif
 #include <stdlib.h>
 
 void bar()
@@ -30,6 +32,9 @@ int main(int argc, char** argv)
 #ifdef _WIN32
     printf("_WIN32: %d\n", _WIN32);
 #endif
+#ifdef _WIN64
+    printf("_WIN64: %d\n", _WIN64);
+#endif
 
     printf("\nCPU specs:\n");
 #ifdef __mips__
@@ -54,10 +59,19 @@ int main(int argc, char** argv)
 #ifdef __aarch64__
     printf("__aarch64__: %d\n", __aarch64__);
 #endif
+#ifdef _M_X64
+    printf("_M_X64: %d\n", _M_X64);
+#endif
+#ifdef _M_ARM64
+    printf("_M_ARM64: %d\n", _M_ARM64);
+#endif
 
     printf("\nCompiler specs:\n");
 #ifdef __GLIBC__
     printf("__GLIBC__: %d\n", __GLIBC__);
+#endif
+#ifdef _MSC_VER
+    printf("_MSC_VER: %d\n", _MSC_VER);
 #endif
 
     printf("\nCalling conventions:\n");
@@ -87,6 +101,10 @@ int main(int argc, char** argv)
 #endif
 #elif defined(__CYGWIN__)
 #if defined(__x86_64__)
+    supported = 1;
+#endif
+#elif defined(_WIN32)
+#if defined(_M_X64)
     supported = 1;
 #endif
 #endif

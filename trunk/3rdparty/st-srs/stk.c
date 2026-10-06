@@ -45,8 +45,26 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#if !defined(WIN64)
 #include <sys/mman.h>
+#endif
 #include "common.h"
+
+/* Protect the red zones with _st_mprotect, which is the system mprotect by default. */
+#if defined(WIN64)
+/* Windows has no mprotect: the red zones use VirtualProtect, on VirtualAlloc pages only. */
+#define PROT_NONE  0x0
+#define PROT_READ  0x1
+#define PROT_WRITE 0x2
+static int _st_win64_mprotect(void *addr, size_t len, int prot)
+{
+    DWORD old;
+    return VirtualProtect(addr, len, prot ? PAGE_READWRITE : PAGE_NOACCESS, &old) ? 0 : -1;
+}
+#define _st_mprotect _st_win64_mprotect
+#else
+#define _st_mprotect mprotect
+#endif
 
 
 /* How much space to leave between the stacks, at each end */
@@ -94,9 +112,9 @@ _st_stack_t *_st_stack_new(int stack_size)
         _st_num_free_stacks--;
 
 #if defined(DEBUG) && !defined(MD_NO_PROTECT)
-        mprotect(ts->vaddr, REDZONE, PROT_READ | PROT_WRITE);
+        _st_mprotect(ts->vaddr, REDZONE, PROT_READ | PROT_WRITE);
         /* The upper red zone ends the segment; stk_top may be randomized, and extra may have changed since. */
-        mprotect(ts->vaddr + ts->vaddr_size - REDZONE, REDZONE, PROT_READ | PROT_WRITE);
+        _st_mprotect(ts->vaddr + ts->vaddr_size - REDZONE, REDZONE, PROT_READ | PROT_WRITE);
 #endif
 
         _st_delete_stk_segment(ts->vaddr, ts->vaddr_size);
@@ -119,8 +137,8 @@ _st_stack_t *_st_stack_new(int stack_size)
 
     /* For example, in OpenWRT, the memory at the begin minus 16B by mprotect is read-only. */
 #if defined(DEBUG) && !defined(MD_NO_PROTECT)
-    mprotect(ts->vaddr, REDZONE, PROT_NONE);
-    mprotect(ts->stk_top + extra, REDZONE, PROT_NONE);
+    _st_mprotect(ts->vaddr, REDZONE, PROT_NONE);
+    _st_mprotect(ts->stk_top + extra, REDZONE, PROT_NONE);
 #endif
     
     if (extra) {
@@ -152,6 +170,8 @@ static char *_st_new_stk_segment(int size)
 {
 #ifdef MALLOC_STACK
     void *vaddr = malloc(size);
+#elif defined(WIN64)
+    void *vaddr = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 #else
     static int zero_fd = -1;
     int mmap_flags = MAP_PRIVATE;
@@ -183,6 +203,9 @@ void _st_delete_stk_segment(char *vaddr, int size)
 {
 #ifdef MALLOC_STACK
     free(vaddr);
+#elif defined(WIN64)
+    (void) size;
+    (void) VirtualFree(vaddr, 0, MEM_RELEASE);
 #else
     (void) munmap(vaddr, size);
 #endif

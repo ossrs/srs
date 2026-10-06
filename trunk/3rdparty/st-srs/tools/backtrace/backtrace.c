@@ -5,12 +5,65 @@
 #define _GNU_SOURCE
 #endif
 
+#ifndef _WIN32
 #include <execinfo.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include <st.h>
+
+#if defined(_WIN32)
+#include <windows.h>
+#include <dbghelp.h>
+#include <intrin.h>
+#pragma comment(lib, "dbghelp.lib")
+
+/*
+ * Native Windows has no execinfo.h. backtrace walks the stack with CaptureStackBackTrace, which uses the
+ * unwind data and the TIB stack bounds that ST sets for each coroutine, and starts at the caller, as glibc.
+ */
+#define backtrace(buffer, size) ((int)CaptureStackBackTrace(0, (DWORD)(size), (buffer), NULL))
+
+/* MSVC gives only the return address of the current function, level 0, which is all bar requires. */
+#define __builtin_return_address(level) ((level) == 0 ? _ReturnAddress() : NULL)
+
+/*
+ * backtrace_symbols with DbgHelp: each frame as "address (name+0xoffset)", the glibc form, or the address
+ * alone with no symbol. One malloc holds the array and the strings, so the caller frees it once.
+ */
+#define BT_SYMBOL_SIZE 256
+char** backtrace_symbols(void* const* addresses, int nn_addresses)
+{
+    static int initialized = 0;
+    HANDLE process = GetCurrentProcess();
+    if (!initialized) {
+        SymInitialize(process, NULL, TRUE);
+        initialized = 1;
+    }
+
+    char** symbols = (char**)malloc(nn_addresses * (sizeof(char*) + BT_SYMBOL_SIZE) + 1);
+    if (!symbols) return NULL;
+    char* p = (char*)(symbols + nn_addresses);
+
+    char info_buffer[sizeof(SYMBOL_INFO) + BT_SYMBOL_SIZE];
+    SYMBOL_INFO* info = (SYMBOL_INFO*)info_buffer;
+    for (int i = 0; i < nn_addresses; i++, p += BT_SYMBOL_SIZE) {
+        memset(info_buffer, 0, sizeof(info_buffer));
+        info->SizeOfStruct = sizeof(SYMBOL_INFO);
+        info->MaxNameLen = BT_SYMBOL_SIZE - 1;
+        DWORD64 offset = 0;
+        if (SymFromAddr(process, (DWORD64)addresses[i], &offset, info)) {
+            snprintf(p, BT_SYMBOL_SIZE, "%p (%s+0x%llx)", addresses[i], info->Name, (unsigned long long)offset);
+        } else {
+            snprintf(p, BT_SYMBOL_SIZE, "%p", addresses[i]);
+        }
+        symbols[i] = p;
+    }
+    return symbols;
+}
+#endif
 
 #ifdef __linux__
 #include <dlfcn.h>

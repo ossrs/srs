@@ -45,9 +45,13 @@
 #define __ST_COMMON_H__
 
 #include <stddef.h>
+#if !defined(WIN64)
 #include <unistd.h>
+#endif
 #include <sys/types.h>
+#if !defined(WIN64)
 #include <sys/time.h>
+#endif
 #include <setjmp.h>
 
 /* Enable assertions only if DEBUG is defined */
@@ -328,6 +332,21 @@ void _st_del_sleep_q(_st_thread_t *thread);
 _st_stack_t *_st_stack_new(int stack_size);
 void _st_stack_free(_st_stack_t *ts);
 int _st_io_init(void);
+#if defined(WIN64)
+int _st_win64_errno(int wsaerr, int connecting);
+void _st_io_destroy(void);
+/* The POSIX calls of io.c, with Winsock. */
+int _st_win64_ioctl(int fd, unsigned long request, int *arg);
+int _st_win64_fcntl(int fd, int cmd, int arg);
+int _st_win64_close(int fd);
+ssize_t _st_win64_read(int fd, void *buf, size_t nbyte);
+ssize_t _st_win64_write(int fd, const void *buf, size_t nbyte);
+ssize_t _st_win64_readv(int fd, const struct iovec *iov, int iov_size);
+ssize_t _st_win64_writev(int fd, const struct iovec *iov, int iov_size);
+int _st_win64_recvfrom(int fd, void *buf, int len, int flags, struct sockaddr *from, socklen_t *fromlen);
+int _st_win64_recvmsg(int fd, struct msghdr *msg, int flags);
+int _st_win64_sendmsg(int fd, const struct msghdr *msg, int flags);
+#endif
 
 st_utime_t st_utime(void);
 _st_cond_t *st_cond_new(void);

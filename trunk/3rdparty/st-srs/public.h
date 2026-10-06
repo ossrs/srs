@@ -39,6 +39,62 @@
 #ifndef __ST_THREAD_H__
 #define __ST_THREAD_H__
 
+#if defined(_WIN32) || defined(_MSC_VER)
+/*
+ * Native Windows with MSVC, which defines _WIN32 and _MSC_VER. Cygwin GCC
+ * defines neither.
+ */
+
+/*
+ * st.h includes winsock2.h, but windows.h includes the old winsock.h, and the
+ * two cannot be used together. So include st.h before windows.h:
+ *     #include <st.h>
+ *     #include <windows.h>
+ * Or define WIN32_LEAN_AND_MEAN, so windows.h does not include winsock.h:
+ *     #define WIN32_LEAN_AND_MEAN
+ *     #include <windows.h>
+ *     #include <st.h>
+ * In the wrong order, the build fails anyway with many redefinition errors in
+ * the Windows headers, so fail here first with a clear message.
+ */
+#if defined(_WINSOCKAPI_) && !defined(_WINSOCK2API_) && defined(IPPROTO_TCP)
+#error "winsock.h is already included, by windows.h: include st.h before windows.h, or define WIN32_LEAN_AND_MEAN"
+#endif
+
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <time.h>
+#include <errno.h>
+
+#ifndef _SSIZE_T_DEFINED
+#define _SSIZE_T_DEFINED
+typedef intptr_t ssize_t;
+#endif
+
+#ifndef _MODE_T_DEFINED
+#define _MODE_T_DEFINED
+typedef int mode_t;
+#endif
+
+struct iovec {
+    void *iov_base;
+    size_t iov_len;
+};
+
+struct msghdr {
+    void *msg_name;
+    socklen_t msg_namelen;
+    struct iovec *msg_iov;
+    int msg_iovlen;
+    void *msg_control;
+    socklen_t msg_controllen;
+    int msg_flags;
+};
+#else
+/* POSIX: Linux, macOS, and Cygwin. */
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -46,11 +102,12 @@
 #include <time.h>
 #include <errno.h>
 #include <poll.h>
+#endif
 
-#define ST_VERSION	    "1.9.1"
+#define ST_VERSION	    "1.9.2"
 #define ST_VERSION_MAJOR    1
 #define ST_VERSION_MINOR    9
-#define ST_VERSION_PATCH    1
+#define ST_VERSION_PATCH    2
 
 /* Undefine this to remove the context switch callback feature. */
 #define ST_SWITCH_CB

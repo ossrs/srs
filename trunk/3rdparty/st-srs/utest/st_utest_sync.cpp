@@ -6,13 +6,19 @@
 #include <st.h>
 #include <errno.h>
 #include <new>
+#ifndef _WIN32
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <time.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
+#ifndef _WIN32
 #include <sys/mman.h>
 #include <sys/wait.h>
+#endif
 
 #define ST_UTIME_MILLISECONDS 1000
 
@@ -767,6 +773,7 @@ VOID TEST(SleepTest, NegativeSecondsSleepsUntilStopped)
     EXPECT_EQ(EINTR, sleeper.errno_);
 }
 
+#ifndef _WIN32 // POSIX only: fork, shared memory, pipes and pthread
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for a custom clock, such as a simulation or a test tool that drives time itself instead of waiting for it.
 // st_set_utime_function replaces the monotonic clock behind st_utime, and every timeout counts on it: sleeps, condition
@@ -1098,3 +1105,4 @@ VOID TEST(CustomClockTest, RefusedOnceStRuns)
     EXPECT_EQ(EINVAL, r->null_errno_);
     EXPECT_EQ(1000 * ST_UTIME_SECONDS, r->utime_after_);
 }
+#endif

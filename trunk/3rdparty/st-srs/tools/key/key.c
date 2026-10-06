@@ -305,8 +305,9 @@ static int limit(void)
     int limit = st_key_getlimit();
     CHECK(limit > 2);
 
-    /* The keys made so far are key and plain. */
-    int keys[limit];
+    /* The keys made so far are key and plain. On the heap, because MSVC has no variable length arrays. */
+    int *keys = (int *)malloc(limit * sizeof(int));
+    CHECK(keys);
     keys[0] = key;
     keys[1] = plain;
     for (int i = 2; i < limit; i++) {
@@ -332,6 +333,7 @@ static int limit(void)
         CHECK(st_thread_getspecific(keys[i]) == &keys[i]);
         CHECK(st_thread_setspecific(keys[i], NULL) == 0);
     }
+    free(keys);
     return 0;
 }
 

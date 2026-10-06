@@ -5,9 +5,13 @@
 
 #include <st.h>
 #include <errno.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <string.h>
+#ifndef _WIN32
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -15,8 +19,10 @@
 #include <string>
 #include <vector>
 
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/wait.h>
+#endif
 
 #define ST_UTIME_MILLISECONDS 1000
 #define ST_UTEST_TIMEOUT (100 * ST_UTIME_MILLISECONDS)
@@ -1238,6 +1244,7 @@ VOID TEST(InitTest, SecondInitKeepsWaitingCoroutines)
     EXPECT_EQ('x', r.data_);
 }
 
+#ifndef _WIN32 // POSIX only: fork, pipes and pthread
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // The utest for a program that ends when its last coroutine ends, the classic ST server: main starts the workers, then
 // calls st_thread_exit instead of returning, and the process exits with status 0 once the last coroutine terminates.
@@ -1411,3 +1418,4 @@ VOID TEST(ExitTest, WaitingReaderKeepsProcessAlive)
     EXPECT_EQ(0, exit_test_run(exit_test_waiting_reader, out));
     EXPECT_EQ("got a\n", out);
 }
+#endif

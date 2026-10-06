@@ -1,0 +1,2 @@
+# Shell scripts keep LF on every checkout, so bash in WSL can run a Windows checkout.
+*.sh text eol=lf

@@ -14,9 +14,11 @@
 
 #include "tool.h"
 
+#ifndef _WIN32
 #include <fcntl.h>
 #include <netinet/tcp.h>
 #include <sys/uio.h>
+#endif
 
 /* Long enough that a coroutine still blocked here is a failure, not a slow run. */
 #define BLOCK_US (5 * 1000 * 1000)
@@ -447,6 +449,7 @@ static int pair(int family, st_netfd_t *c, st_netfd_t *s)
     return 0;
 }
 
+#ifndef _WIN32
 /* Read exactly n bytes, and then nothing more is there. */
 static int drain(st_netfd_t fd, size_t n)
 {
@@ -462,6 +465,7 @@ static int drain(st_netfd_t fd, size_t n)
     CHECK(more == -1 && err == ETIME);
     return 0;
 }
+#endif
 
 /* The residual counts: short reads at EOF, and partial writes on a timeout. */
 static int resid(int family)
@@ -496,7 +500,12 @@ static int resid(int family)
     CHECK(!memcmp(buf, "0123456789", 10));
     CHECK(st_netfd_close(s) == 0);
 
-    /* The peer does not read, so a big write times out part way. */
+#ifndef _WIN32
+    /*
+     * The peer does not read, so a big write times out part way. Not on native
+     * Windows: Winsock never sends part of a non-blocking send, it takes the whole
+     * buffer or fails with WSAEWOULDBLOCK, so a write never ends part way.
+     */
     size_t big = 1024 * 1024;
     char *data = calloc(1, big);
     CHECK(data != NULL);
@@ -536,6 +545,7 @@ static int resid(int family)
     free(data);
     CHECK(st_netfd_close(c) == 0);
     CHECK(st_netfd_close(s) == 0);
+#endif
     return 0;
 }
 
@@ -564,7 +574,7 @@ static int timeouts(int family)
     for (; n < 16; n++) {
         struct sockaddr_storage addr;
         socklen_t len = tool_loopback(family, port, &addr);
-        int fd = socket(family, SOCK_STREAM, 0);
+        int fd = (int)socket(family, SOCK_STREAM, 0);
         CHECK(fd >= 0);
         CHECK((clients[n] = st_netfd_open_socket(fd)) != NULL);
         errno = 0;
@@ -593,9 +603,24 @@ static void dtor(void *v)
     dtor_last = v;
 }
 
+/*
+ * Whether fd is open; if not, errno is EBADF. On native Windows a socket is
+ * not a file descriptor, so getsockopt asks for its type, and a closed socket
+ * fails with WSAENOTSOCK, the Winsock form of EBADF.
+ */
 static int is_open(int fd)
 {
+#if defined(_WIN32)
+    int type;
+    int len = sizeof(type);
+    if (getsockopt((SOCKET)fd, SOL_SOCKET, SO_TYPE, (char *)&type, &len) == 0) {
+        return 1;
+    }
+    errno = (WSAGetLastError() == WSAENOTSOCK) ? EBADF : EINVAL;
+    return 0;
+#else
     return fcntl(fd, F_GETFD) != -1;
+#endif
 }
 
 /* The netfd specific data, and st_netfd_free against st_netfd_close. */

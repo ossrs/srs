@@ -11,7 +11,9 @@
 
 #include "tool.h"
 
+#ifndef _WIN32
 #include <sys/uio.h>
+#endif
 
 /* Long enough that a coroutine still blocked here is a failure, not a slow run. */
 #define BLOCK_US (5 * 1000 * 1000)
@@ -35,14 +37,14 @@
 static st_netfd_t udp_bind(int family, struct sockaddr_storage *addr, int *addrlen)
 {
     socklen_t len = tool_loopback(family, 0, addr);
-    int fd = socket(family, SOCK_DGRAM, 0);
+    int fd = (int)socket(family, SOCK_DGRAM, 0);
     if (fd < 0) {
         return NULL;
     }
 
     if (bind(fd, (struct sockaddr *)addr, len) < 0 || getsockname(fd, (struct sockaddr *)addr, &len) < 0) {
         int err = errno;
-        close(fd);
+        tool_close_socket(fd);
         errno = err;
         return NULL;
     }
@@ -50,7 +52,7 @@ static st_netfd_t udp_bind(int family, struct sockaddr_storage *addr, int *addrl
     st_netfd_t stfd = st_netfd_open_socket(fd);
     if (!stfd) {
         int err = errno;
-        close(fd);
+        tool_close_socket(fd);
         errno = err;
         return NULL;
     }

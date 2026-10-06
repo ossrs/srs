@@ -15,15 +15,133 @@
 #include <memory>
 
 #include <errno.h>
+#ifndef _WIN32
 #include <unistd.h>
 #include <sys/socket.h>
+#endif
 
+#ifdef _WIN32
+// winnt.h defines VOID as void, which the tests use as an empty prefix.
+#undef VOID
+// For the tests that declare ST's thread-local variables, as md.h maps it for WIN64.
+#define __thread __declspec(thread)
+// MSVC has no frame address builtin; the slot of the return address is in the caller's frame, next to it.
+#include <intrin.h>
+#define __builtin_frame_address(level) _AddressOfReturnAddress()
+static inline int getpagesize()
+{
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    return (int)si.dwPageSize;
+}
+// Sleeps the OS thread, rounded up to milliseconds.
+static inline int usleep(unsigned int us)
+{
+    Sleep((us + 999) / 1000);
+    return 0;
+}
+#endif
 #define VOID
 
 // Portable descriptors. A test that only needs a connection ST can wait on uses these, not a pipe or read and write,
 // so it runs unchanged where only sockets can be polled, such as Windows. A test about a POSIX feature itself, such as
 // a pipe, a signal or a chosen descriptor number, keeps the POSIX calls.
 
+#ifdef _WIN32
+// Maps the last Winsock error to errno, as ST does.
+extern "C" int _st_win64_errno(int wsaerr, int connecting);
+
+// Native Windows (winsock comes from st.h) has no socketpair, so the pair is a loopback TCP connection of two blocking
+// sockets, with Nagle off so small writes are not delayed, as on a Unix-domain socketpair. Descriptors are winsock
+// sockets that fit in an int. Returns 0, or -1 with errno set.
+static inline int st_utest_stream_pair(int fds[2])
+{
+    fds[0] = fds[1] = -1;
+    SOCKET listener = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    SOCKET client = INVALID_SOCKET, server = INVALID_SOCKET;
+    int err = 0;
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    int addrlen = sizeof(addr);
+    if (listener == INVALID_SOCKET || ::bind(listener, (sockaddr*)&addr, addrlen) != 0 ||
+        ::listen(listener, SOMAXCONN) != 0 || ::getsockname(listener, (sockaddr*)&addr, &addrlen) != 0 ||
+        (client = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET ||
+        ::connect(client, (sockaddr*)&addr, addrlen) != 0) {
+        err = ::WSAGetLastError();
+    }
+
+    // Accept the client's own connection: another process may connect to the port first, so check the peer address.
+    sockaddr_in self;
+    memset(&self, 0, sizeof(self));
+    int selflen = sizeof(self);
+    if (!err && ::getsockname(client, (sockaddr*)&self, &selflen) != 0) err = ::WSAGetLastError();
+    for (int i = 0; !err && server == INVALID_SOCKET && i < 16; i++) {
+        sockaddr_in peer;
+        int peerlen = sizeof(peer);
+        SOCKET s = ::accept(listener, (sockaddr*)&peer, &peerlen);
+        if (s == INVALID_SOCKET) {
+            err = ::WSAGetLastError();
+        } else if (peer.sin_port == self.sin_port && peer.sin_addr.s_addr == self.sin_addr.s_addr) {
+            server = s;
+        } else {
+            ::closesocket(s);
+        }
+    }
+    if (!err && server == INVALID_SOCKET) err = WSAECONNREFUSED;
+
+    BOOL nodelay = TRUE;
+    if (!err && (::setsockopt(client, IPPROTO_TCP, TCP_NODELAY, (const char*)&nodelay, sizeof(nodelay)) != 0 ||
+        ::setsockopt(server, IPPROTO_TCP, TCP_NODELAY, (const char*)&nodelay, sizeof(nodelay)) != 0)) {
+        err = ::WSAGetLastError();
+    }
+
+    if (listener != INVALID_SOCKET) ::closesocket(listener);
+    if (err) {
+        if (client != INVALID_SOCKET) ::closesocket(client);
+        if (server != INVALID_SOCKET) ::closesocket(server);
+        errno = _st_win64_errno(err, 0);
+        return -1;
+    }
+    fds[0] = (int)client;
+    fds[1] = (int)server;
+    return 0;
+}
+
+// Winsock takes the option value as char*, so these overloads let tests pass any pointer as on POSIX.
+static inline int setsockopt(int fd, int level, int name, const void* value, socklen_t size)
+{
+    return ::setsockopt((SOCKET)fd, level, name, (const char*)value, size);
+}
+
+static inline int getsockopt(int fd, int level, int name, void* value, socklen_t* size)
+{
+    return ::getsockopt((SOCKET)fd, level, name, (char*)value, size);
+}
+
+static inline ssize_t st_utest_send(int fd, const void* buf, size_t size)
+{
+    return ::send((SOCKET)fd, (const char*)buf, (int)size, 0);
+}
+
+static inline ssize_t st_utest_recv(int fd, void* buf, size_t size)
+{
+    return ::recv((SOCKET)fd, (char*)buf, (int)size, 0);
+}
+
+static inline int st_utest_close(int fd)
+{
+    return ::closesocket((SOCKET)fd);
+}
+
+// Whether the last send or recv failed because the socket wasn't ready.
+static inline bool st_utest_would_block()
+{
+    return ::WSAGetLastError() == WSAEWOULDBLOCK;
+}
+#else
 // Two connected stream sockets. Returns 0, or -1 with errno set.
 static inline int st_utest_stream_pair(int fds[2])
 {
@@ -50,6 +168,7 @@ static inline bool st_utest_would_block()
 {
     return errno == EAGAIN || errno == EWOULDBLOCK;
 }
+#endif
 
 // A connection whose one end ST waits on, wrapped with st_netfd_open_socket, and whose other end, the peer, the test
 // reads and writes directly.

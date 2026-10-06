@@ -10,6 +10,21 @@
 
 #include "tool.h"
 
+#ifdef _WIN32
+/*
+ * Windows does not support this tool: ST on native Windows takes sockets only,
+ * with no pipes, FIFOs, files (st_open), or signals. Its socket fill-then-drain
+ * is covered by the poll and unix tools.
+ */
+int main(int argc, char **argv)
+{
+    (void)argc;
+    (void)argv;
+    printf("SKIP pipe: Windows does not support pipes, FIFOs, st_open files, or signals\n");
+    return 0;
+}
+#else
+
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -392,3 +407,4 @@ int main(int argc, char **argv)
     printf("pipe OK\n");
     return 0;
 }
+#endif /* _WIN32 */

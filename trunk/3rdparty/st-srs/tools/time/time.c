@@ -7,13 +7,18 @@
  * scheduler's last clock moves after a switch, and st_time follows time(NULL)
  * with the time cache on and off. A child process, forked before ST is set
  * up, replaces the clock with st_set_utime_function and checks that sleeps
- * follow it.
+ * follow it. Windows has no fork, so the child is this program run again with
+ * the argument custom-clock.
  */
 
 #include "tool.h"
 
 #include <time.h>
+#ifdef _WIN32
+#include <process.h>
+#else
 #include <sys/wait.h>
+#endif
 
 /* Long enough that a sleep still blocked here is a failure, not a slow run. */
 #define BLOCK_US (5 * 1000 * 1000)
@@ -21,9 +26,18 @@
 /* The real monotonic clock, independent of ST. */
 static st_utime_t real_us(void)
 {
+#ifdef _WIN32
+    /* Windows has no clock_gettime; the performance counter is its monotonic clock. */
+    LARGE_INTEGER freq, now;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&now);
+    return (st_utime_t)(now.QuadPart / freq.QuadPart) * 1000000LL +
+        (st_utime_t)(now.QuadPart % freq.QuadPart) * 1000000LL / freq.QuadPart;
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (st_utime_t)ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+#endif
 }
 
 /*
@@ -90,6 +104,14 @@ static int custom_clock(void)
 static int fork_custom_clock(void)
 {
     fflush(stdout);
+#ifdef _WIN32
+    /* Run this program again as the child, with the same environment, and wait for its exit code. */
+    char path[MAX_PATH];
+    DWORD n = GetModuleFileNameA(NULL, path, sizeof(path));
+    CHECK(n > 0 && n < sizeof(path));
+    CHECK(_spawnl(_P_WAIT, path, "time", "custom-clock", NULL) == 0);
+    return 0;
+#else
     pid_t pid = fork();
     CHECK(pid >= 0);
     if (pid == 0) {
@@ -102,6 +124,7 @@ static int fork_custom_clock(void)
     CHECK(waitpid(pid, &status, 0) == pid);
     CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0);
     return 0;
+#endif
 }
 
 /* The clock never goes back, and moves across a sleep. */
@@ -238,6 +261,14 @@ static int timecache(void)
 
 int main(int argc, char **argv)
 {
+#ifdef _WIN32
+    /* The child of fork_custom_clock. */
+    if (argc == 2 && !strcmp(argv[1], "custom-clock")) {
+        int r = custom_clock();
+        fflush(stdout);
+        return r;
+    }
+#endif
     CHECK(fork_custom_clock() == 0);
 
     CHECK(tool_init() == 0);

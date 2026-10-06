@@ -35,7 +35,11 @@
  */
 
 #include <stdlib.h>
+#if !defined(WIN64)
 #include <unistd.h>
+#else
+#include <limits.h>
+#endif
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
@@ -57,7 +61,7 @@ __thread unsigned long long _st_stat_epoll_shake = 0;
 __thread unsigned long long _st_stat_epoll_spin = 0;
 #endif
 
-#if !defined(MD_HAVE_KQUEUE) && !defined(MD_HAVE_EPOLL) && !defined(MD_HAVE_SELECT)
+#if !defined(MD_HAVE_KQUEUE) && !defined(MD_HAVE_EPOLL) && !defined(MD_HAVE_SELECT) && !defined(WIN64)
     #error Only support epoll(for Linux), kqueue(for Darwin) or select(for Cygwin)
 #endif
 
@@ -1247,6 +1251,279 @@ static _st_eventsys_t _st_epoll_eventsys = {
 #endif  /* MD_HAVE_EPOLL */
 
 
+#if defined (WIN64)
+/*****************************************
+ * Native Windows event system with WSAPoll, for features, not performance.
+ * WSAPoll polls sockets only, has no POLLPRI, and fails instead of sleeping when
+ * given no sockets. Before Windows 10 2004, it does not report a failed connect,
+ * so such a connect waits until its timeout.
+ */
+
+static __thread struct _st_wsapolldata {
+    WSAPOLLFD *fds;
+    int fds_size;
+} *_st_wsapoll_data;
+
+ST_HIDDEN int _st_win64_init(void)
+{
+    _st_wsapoll_data = (struct _st_wsapolldata *) calloc(1, sizeof(*_st_wsapoll_data));
+    if (!_st_wsapoll_data) {
+        errno = ENOMEM;
+        return -1;
+    }
+
+    return 0;
+}
+
+/* The WSAPoll timeout in milliseconds until the earliest sleeper is due, or -1 for none. */
+static int _st_win64_timeout_ms(void)
+{
+    st_utime_t min_timeout;
+
+    if (_st_this_vp.sleep_q == NULL)
+        return -1;
+
+    min_timeout = (_st_this_vp.sleep_q->due <= _st_this_vp.last_clock) ? 0 :
+                  (_st_this_vp.sleep_q->due - _st_this_vp.last_clock);
+    /* Round up to milliseconds, so the sleeper is due when the dispatch returns. */
+    min_timeout = (min_timeout + 999) / 1000;
+    return (min_timeout >= INT_MAX) ? INT_MAX : (int) min_timeout;
+}
+
+/* The ST events of one WSAPoll result, like the epoll backend: an error or hang-up also wakes every waiter. */
+static short _st_win64_revents(short events, short r)
+{
+    short revents = 0;
+
+    if (r & (POLLERR | POLLHUP | POLLNVAL))
+        revents |= events;
+    if ((events & POLLIN) && (r & POLLIN))
+        revents |= POLLIN;
+    if ((events & POLLOUT) && (r & POLLOUT))
+        revents |= POLLOUT;
+    revents |= r & (POLLERR | POLLHUP | POLLNVAL);
+
+    return revents;
+}
+
+/* Wake the thread of a pollset whose descriptors are ready. */
+static void _st_win64_notify(_st_pollq_t *pq)
+{
+    st_clist_remove(&pq->links);
+    pq->on_ioq = 0;
+
+    if (pq->thread->flags & _ST_FL_ON_SLEEPQ)
+        _st_del_sleep_q(pq->thread);
+    pq->thread->state = _ST_ST_RUNNABLE;
+    st_clist_insert_before(&pq->thread->links, &_st_this_vp.run_q);
+}
+
+/* The whole WSAPoll failed, which a closed descriptor may cause: wake the pollsets with one, with POLLNVAL. */
+static void _st_win64_find_bad_fd(void)
+{
+    _st_clist_t *q;
+    _st_pollq_t *pq;
+    struct pollfd *pds, *epds;
+    int notify, type;
+    socklen_t len;
+
+    for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next) {
+        pq = _ST_POLLQUEUE_PTR(q);
+        notify = 0;
+        epds = pq->pds + pq->npds;
+
+        for (pds = pq->pds; pds < epds; pds++) {
+            pds->revents = 0;
+            len = sizeof(type);
+            if (getsockopt((SOCKET)(intptr_t) pds->fd, SOL_SOCKET, SO_TYPE, (char *) &type, &len) != 0) {
+                pds->revents = POLLNVAL;
+                notify = 1;
+            }
+        }
+
+        if (notify)
+            _st_win64_notify(pq);
+    }
+}
+
+ST_HIDDEN void _st_win64_dispatch(void)
+{
+    _st_clist_t *q;
+    _st_pollq_t *pq;
+    struct pollfd *pds, *epds;
+    WSAPOLLFD *fds;
+    int n, i, nfd, notify, ms;
+
+    /* Count the descriptors of every pollset on the I/O queue, and grow the array for them. */
+    n = 0;
+    for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next)
+        n += _ST_POLLQUEUE_PTR(q)->npds;
+
+    if (n > _st_wsapoll_data->fds_size) {
+        fds = (WSAPOLLFD *) realloc(_st_wsapoll_data->fds, n * sizeof(WSAPOLLFD));
+        if (fds) {
+            _st_wsapoll_data->fds = fds;
+            _st_wsapoll_data->fds_size = n;
+        } else {
+            /* Out of memory: wait for the sleepers only, and try again next time. */
+            n = 0;
+        }
+    }
+
+    ms = _st_win64_timeout_ms();
+    if (n == 0) {
+        /* Nothing to poll, so only a timeout can wake a thread, like select() with no descriptors. */
+        Sleep(ms < 0 ? INFINITE : (DWORD) ms);
+        return;
+    }
+
+    fds = _st_wsapoll_data->fds;
+    i = 0;
+    for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next) {
+        pq = _ST_POLLQUEUE_PTR(q);
+        epds = pq->pds + pq->npds;
+        for (pds = pq->pds; pds < epds; pds++, i++) {
+            fds[i].fd = (SOCKET)(intptr_t) pds->fd;
+            fds[i].events = pds->events;
+            fds[i].revents = 0;
+        }
+    }
+
+    /* Check for I/O operations */
+    nfd = WSAPoll(fds, (ULONG) n, ms);
+
+    /* Notify threads that are associated with the selected descriptors, in the order the array was built. */
+    if (nfd > 0) {
+        i = 0;
+        for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; ) {
+            pq = _ST_POLLQUEUE_PTR(q);
+            q = q->next;
+            notify = 0;
+            epds = pq->pds + pq->npds;
+            for (pds = pq->pds; pds < epds; pds++, i++) {
+                pds->revents = _st_win64_revents(pds->events, fds[i].revents);
+                if (pds->revents)
+                    notify = 1;
+            }
+            if (notify)
+                _st_win64_notify(pq);
+        }
+    } else if (nfd < 0) {
+        if (WSAGetLastError() == WSAENOTSOCK)
+            _st_win64_find_bad_fd();
+    }
+}
+
+ST_HIDDEN int _st_win64_pollset_add(struct pollfd *pds, int npds)
+{
+    struct pollfd *pd;
+    struct pollfd *epd = pds + npds;
+
+    /*
+     * Do checks up front, like the select backend. Winsock's pollfd has an unsigned SOCKET, so a negative
+     * descriptor is checked as the int ST keeps. Winsock's POLLIN is POLLRDNORM | POLLRDBAND, so a part of it, such
+     * as POLLRDNORM from a program written for poll(2), is refused too, and so is POLLPRI.
+     */
+    for (pd = pds; pd < epd; pd++) {
+        if ((int) pd->fd < 0 || !pd->events || (pd->events & ~(POLLIN | POLLOUT)) ||
+            ((pd->events & POLLIN) && (pd->events & POLLIN) != POLLIN)) {
+            errno = EINVAL;
+            return -1;
+        }
+    }
+
+    /* Registered by the pollset on the I/O queue. */
+    return 0;
+}
+
+ST_HIDDEN void _st_win64_pollset_del(struct pollfd *pds, int npds)
+{
+    /* Unregistered by removing the pollset from the I/O queue. */
+    (void) pds;
+    (void) npds;
+}
+
+ST_HIDDEN int _st_win64_fd_new(int osfd)
+{
+    int type;
+    socklen_t len = sizeof(type);
+
+    /* WSAPoll polls only sockets, so anything else, such as a closed socket, is a bad descriptor. */
+    if (getsockopt((SOCKET)(intptr_t) osfd, SOL_SOCKET, SO_TYPE, (char *) &type, &len) != 0) {
+        errno = EBADF;
+        return -1;
+    }
+
+    return 0;
+}
+
+ST_HIDDEN int _st_win64_fd_close(int osfd)
+{
+    _st_clist_t *q;
+    _st_pollq_t *pq;
+    struct pollfd *pds, *epds;
+
+    for (q = _st_this_vp.io_q.next; q != &_st_this_vp.io_q; q = q->next) {
+        pq = _ST_POLLQUEUE_PTR(q);
+        epds = pq->pds + pq->npds;
+        for (pds = pq->pds; pds < epds; pds++) {
+            if ((int) pds->fd == osfd) {
+                errno = EBUSY;
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+ST_HIDDEN int _st_win64_fd_getlimit(void)
+{
+    /* No limit of the event system itself. */
+    return 0;
+}
+
+ST_HIDDEN void _st_win64_destroy(void)
+{
+    if (_st_wsapoll_data) {
+        free(_st_wsapoll_data->fds);
+        free(_st_wsapoll_data);
+        _st_wsapoll_data = NULL;
+    }
+}
+
+/*
+ * One backend for both choices (D8): ST_EVENTSYS_DEFAULT and ST_EVENTSYS_SELECT give the
+ * select-like default, and ST_EVENTSYS_ALT is accepted, so callers that ask for it work.
+ */
+static _st_eventsys_t _st_win64_eventsys = {
+    "wsapoll",
+    ST_EVENTSYS_SELECT,
+    _st_win64_init,
+    _st_win64_dispatch,
+    _st_win64_pollset_add,
+    _st_win64_pollset_del,
+    _st_win64_fd_new,
+    _st_win64_fd_close,
+    _st_win64_fd_getlimit,
+    _st_win64_destroy
+};
+
+static _st_eventsys_t _st_win64_alt_eventsys = {
+    "wsapoll",
+    ST_EVENTSYS_ALT,
+    _st_win64_init,
+    _st_win64_dispatch,
+    _st_win64_pollset_add,
+    _st_win64_pollset_del,
+    _st_win64_fd_new,
+    _st_win64_fd_close,
+    _st_win64_fd_getlimit,
+    _st_win64_destroy
+};
+#endif  /* WIN64 */
+
+
 /*****************************************
  * Public functions
  */
@@ -1257,6 +1534,17 @@ int st_set_eventsys(int eventsys)
         errno = EBUSY;
         return -1;
     }
+
+#if defined (WIN64)
+    if (eventsys == ST_EVENTSYS_SELECT || eventsys == ST_EVENTSYS_DEFAULT) {
+        _st_eventsys = &_st_win64_eventsys;
+        return 0;
+    }
+    if (eventsys == ST_EVENTSYS_ALT) {
+        _st_eventsys = &_st_win64_alt_eventsys;
+        return 0;
+    }
+#endif
 
     if (eventsys == ST_EVENTSYS_SELECT || eventsys == ST_EVENTSYS_DEFAULT) {
 #if defined (MD_HAVE_SELECT)
