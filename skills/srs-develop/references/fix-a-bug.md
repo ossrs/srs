@@ -18,12 +18,19 @@ Use an explicit issue URL, product name, or established task context. Ask when a
 Use this format in the selected project's local issue record:
 
 ```markdown
-## #<issue-number> [<CATEGORY>] <concise verified title>
+## #<issue-number> [<CATEGORY>] <Prefix>: <concise verified title>
 ```
 
 ```markdown
-## #4639 [BUG] Missing CRLF after SDP SSRC group
+## #4639 [BUG] SRS: Missing CRLF after SDP SSRC group
 ```
+
+Prefix the title, here and in the Truth Record, with the component that owns the issue:
+
+- `SRS:` — C++ media server.
+- `Proxy:` — Go proxy.
+- `ST:` — State Threads.
+- `Oryx:` — Oryx.
 
 Use one category:
 
