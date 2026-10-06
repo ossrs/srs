@@ -54,7 +54,7 @@ func TestRtmpPublishPlay(t *testing.T) {
 
 		// Connect to RTMP URL.
 		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", srsRtmpHost(), streamSuffix)
 
 		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
 			return err
@@ -111,7 +111,7 @@ func TestRtmpPublish_RtcPlay_AVC(t *testing.T) {
 	var r0, r1 error
 	err := func() (err error) {
 		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("%v://%v%v-%v", srsSchema, *srsServer, *srsStream, streamSuffix)
+		rtmpUrl := fmt.Sprintf("%v://%v%v-%v", srsSchema, srsRtmpHost(), *srsStream, streamSuffix)
 
 		// Publisher connect to a RTMP stream.
 		publisher := NewRTMPPublisher()
@@ -199,10 +199,9 @@ func TestRtmpPublish_RtspPlay(t *testing.T) {
 	var r0, r1 error
 	err := func() (err error) {
 		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", srsRtmpHost(), streamSuffix)
 
-		// TODO: 8554
-		rtspUrl := fmt.Sprintf("rtsp://%v:8554/live/%v", *srsServer, streamSuffix)
+		rtspUrl := fmt.Sprintf("rtsp://%v/live/%v", srsRtspHost(), streamSuffix)
 
 		// Publisher connect to a RTMP stream.
 		publisher := NewRTMPPublisher()
@@ -282,7 +281,7 @@ func TestRtmpPublish_MultipleSequences(t *testing.T) {
 
 		// Connect to RTMP URL.
 		streamSuffix := fmt.Sprintf("rtmp-multi-spspps-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", srsRtmpHost(), streamSuffix)
 
 		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
 			return err
@@ -371,7 +370,7 @@ func TestRtmpPublish_MultipleSequences_RtcPlay(t *testing.T) {
 	var r0, r1, r2 error
 	err := func() (err error) {
 		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("%v://%v%v-%v", srsSchema, *srsServer, *srsStream, streamSuffix)
+		rtmpUrl := fmt.Sprintf("%v://%v%v-%v", srsSchema, srsRtmpHost(), *srsStream, streamSuffix)
 
 		// Publisher connect to a RTMP stream.
 		publisher := NewRTMPPublisher()
@@ -488,7 +487,7 @@ func TestRtmpPublish_HttpFlvPlay(t *testing.T) {
 
 		// Connect to RTMP URL.
 		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", srsRtmpHost(), streamSuffix)
 		flvUrl := fmt.Sprintf("http://%v/live/%v.flv", *srsHttpServer, streamSuffix)
 
 		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
@@ -568,7 +567,7 @@ func TestRtmpPublish_HttpFlvPlayNoAudio(t *testing.T) {
 
 		// Connect to RTMP URL.
 		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", srsRtmpHost(), streamSuffix)
 		flvUrl := fmt.Sprintf("http://%v/live/%v.flv", *srsHttpServer, streamSuffix)
 
 		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
@@ -651,7 +650,7 @@ func TestRtmpPublish_HttpFlvPlayNoVideo(t *testing.T) {
 
 		// Connect to RTMP URL.
 		streamSuffix := fmt.Sprintf("rtmp-regression-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", *srsServer, streamSuffix)
+		rtmpUrl := fmt.Sprintf("rtmp://%v/live/%v", srsRtmpHost(), streamSuffix)
 		flvUrl := fmt.Sprintf("http://%v/live/%v.flv", *srsHttpServer, streamSuffix)
 
 		if err := publisher.Publish(ctx, rtmpUrl); err != nil {
@@ -729,7 +728,7 @@ func TestRtmpPublish_RtcPlay_HEVC(t *testing.T) {
 	var r0, r1 error
 	err := func() (err error) {
 		streamSuffix := fmt.Sprintf("rtmp-hevc-regression-%v-%v", os.Getpid(), rand.Int())
-		rtmpUrl := fmt.Sprintf("%v://%v%v-%v", srsSchema, *srsServer, *srsStream, streamSuffix)
+		rtmpUrl := fmt.Sprintf("%v://%v%v-%v", srsSchema, srsRtmpHost(), *srsStream, streamSuffix)
 
 		// Publisher connect to a RTMP stream.
 		publisher := NewRTMPPublisher()

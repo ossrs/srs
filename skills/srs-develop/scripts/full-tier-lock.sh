@@ -2,21 +2,34 @@
 # Global lock for the Full verification tier, so tiers run by different agents never overlap:
 # their scripts and servers share fixed ports and /tmp logs.
 #
-#   full-tier-lock.sh acquire [--wait SECONDS] [--pid PID]   prints a token
-#   full-tier-lock.sh release TOKEN
-#   full-tier-lock.sh status
+#   full-tier-lock.sh [--product NAME] acquire [--wait SECONDS] [--pid PID]   prints a token
+#   full-tier-lock.sh [--product NAME] release TOKEN
+#   full-tier-lock.sh [--product NAME] status
 #
 # Acquire from the one script that runs the whole tier: the lock's owner is that process, the
 # caller by default or --pid. A lock older than SRS_FULL_TIER_LOCK_TIMEOUT seconds (300), or whose
 # owner has exited, is stale, and the next acquire takes it over.
-
-LOCK_DIR=${SRS_FULL_TIER_LOCK_DIR:-/tmp/srs-full-tier.lock}
-TIMEOUT=${SRS_FULL_TIER_LOCK_TIMEOUT:-300}
+#
+# Each product has its own lock, so the tiers of different products run in parallel: srs by default,
+# /tmp/srs-full-tier.lock, and any other, such as st for State Threads, /tmp/srs-full-tier-st.lock.
 
 usage() {
-  echo "Usage: $0 acquire [--wait SECONDS] [--pid PID] | release TOKEN | status" >&2
+  echo "Usage: $0 [--product NAME] acquire [--wait SECONDS] [--pid PID] | release TOKEN | status" >&2
   exit 2
 }
+
+PRODUCT=srs
+if [[ "$1" == --product ]]; then
+  PRODUCT="$2"
+  shift 2
+fi
+[[ "$PRODUCT" =~ ^[a-z0-9-]+$ ]] || usage
+
+LOCK_DIR=${SRS_FULL_TIER_LOCK_DIR:-/tmp/srs-full-tier.lock}
+if [[ "$PRODUCT" != srs ]]; then
+  LOCK_DIR="${LOCK_DIR%.lock}-$PRODUCT.lock"
+fi
+TIMEOUT=${SRS_FULL_TIER_LOCK_TIMEOUT:-300}
 
 # Print the value of a key in the owner file.
 owner_value() {

@@ -16,8 +16,8 @@ A task file is the plan, the state, and the log of one complex task. The main ag
 These override the `srs-develop` git rules for tasks run by this skill:
 
 - When a task's tests pass, the subagent runs `git add` on the files it changed and commits them in the owning repository. One commit per task.
-- Never `git push`.
-- Never commit the task file; `tasks/` is outside the repositories.
+- Never `git push`. The one exception is `srs-develop` `scripts/st-windows-test.sh`: to test on another OS, it pushes the commit to its branch's upstream, such as a personal fork, only to sync the branch to the test host. It never pushes to `origin`.
+- Never commit the task file or the tracker; `tasks/` is outside the repositories.
 - Never touch the review branch or worktree while running tasks; only a review (below) changes them.
 - When unsure, or a change is risky or needs the user's review, do not commit; stop the loop and ask the user.
 
@@ -29,6 +29,9 @@ The goal is a plan the loop can run as long as possible without the user.
 2. Discuss and confirm with the user, one by one: scope, constraints, special requirements, decisions, and what to test.
 3. Write `tasks/<topic>.md` with these sections:
    - **Goal and scope** — what is in and out.
+   - **Repositories** — a table of every repository the task changes or tests, such as SRS, State Threads, or Oryx, with its branch and its worktree on each machine, as `~/` paths, not absolute paths. The project-root symlinks such as `state-threads/` and `oryx/` point at the main checkouts, so say not to use them.
+     - When planning, create a worktree and branch for the task in each of these repositories, with the same topic suffix: sibling `~/projects/<repo>-<topic>` on branch `<topic>`.
+     - Always create one in SRS too, since the task's docs and skills live there. For example, an ST task gets `state-threads-qemu` and `srs-qemu`; an SRS-only task gets `srs-integ`.
    - **Background** — what the research found, with links.
    - **Current state** — a short table, and the next task.
    - **Review** — the review setup and a commits table; see [Review Commits](#review-commits).
@@ -36,15 +39,27 @@ The goal is a plan the loop can run as long as possible without the user.
    - **Phases and tasks** — small tasks with IDs (`P1.1`), marks `[ ]` / `[~]` / `[x]`, and an exit criterion and tests per phase.
    - **Work log** — dated entries: what changed, commit, verified, next.
 4. Resolve every open question with the user and record it as a decision, so the plan has none before it runs.
+5. Add the task file's row to the tracker, `draft` while questions remain and `ready` once none do; see [Track Task Files](#track-task-files).
+
+## Track Task Files
+
+`tasks/tracker.md` lists every task file in `tasks/` and its state, so the user sees all tasks in one place. Other skills add their task files to it too.
+
+- **Row** — the owner, the task file, the goal in one line, the repositories and worktrees, the status, the progress (tasks done of total, and any `[~]`), the next task, and the date updated.
+- **Owner** — this skill registers its rows with the owner `SRS`. Rows with another owner belong to other skills: leave them alone.
+- **List** — when the user asks for the tasks, such as the active ones, show only the rows owned by `SRS`.
+- **Status** — `draft`, `ready`, `running`, `paused`, `blocked`, `done`, or `dropped`. Finished task files move to the Finished table.
+- **When** — add the row when a task file is created, and update it every time the task file's Current state changes: planning, each task, a blocker, a pause, and the end.
+- **Concurrent edits** — several sessions edit the tracker, so re-read it before each edit and change only the row of your own task file.
 
 ## Run a Task File
 
 The main agent never reads the task file or implements tasks. It loops:
 
-1. Start one new subagent with the task prompt below.
+1. Start one new subagent with the task prompt below. Before the first one, set the task file's tracker row to `running`.
 2. Check the report and that the repository is clean with a new commit.
 3. Start one new subagent with the summary prompt below, so the totals stay out of the main agent's context. Report its summary to the user.
-4. Stop only when the subagent needs the user, is blocked, all tasks are done, or the user asked to pause. Otherwise go to step 1.
+4. Stop only when the subagent needs the user, is blocked, all tasks are done, or the user asked to pause. Otherwise go to step 1. If the user asked to pause, set the tracker row to `paused`; the subagent sets the other states.
 
 Task prompt:
 
@@ -54,16 +69,16 @@ Read the task file in full; it is the plan, the rules, and the state. Pick the f
 If it needs the user (an open decision, installing software, or anything the task says to ask about), do not start it; report the question.
 Follow the srs-autopilot skill's git rules and the srs-develop skill for the work.
 Mark the task [~], write tests first, implement, and run the tests until they pass.
-Commit, add a todo row for the commit, with its commit time, at the end of the Review commits table, tick the task [x], update Current state, add a Work log entry, then quit.
-If blocked, do not commit; leave the task [~], log the blocker, and report.
-Report: the task ID, the start and end time, the commit hash, the files changed and lines added and removed, the tests passed and failed by type (such as utest, integration tool, script, or E2E), and anything blocked or for the user, or that all tasks are done.
+Commit, add a todo row for the commit, with its commit time, at the end of the Review commits table, tick the task [x], update Current state, add a Work log entry, update the task file's row in tasks/tracker.md (progress, next task, date, and `done` if all tasks are done), then quit.
+If blocked, do not commit; leave the task [~], log the blocker, set the tracker row to `blocked` (or `paused` if it needs the user), and report.
+Report: the task ID, the start and end time, the commit hash, the files changed and lines added and removed, the tests passed and failed by type (such as utest, integration tool, script, or E2E) and by OS and CPU (such as macOS arm64, Linux arm64 in Docker, Windows x64), the OSes not tested and why, and anything blocked or for the user, or that all tasks are done.
 ```
 
 Summary prompt:
 
 ```
 Summarize this run of tasks/<topic>.md so far from the task reports below, and check the numbers against git.
-Report the task just finished, then the totals so far: the start and end time, the tasks finished and left, the commits, the files changed, the lines added and removed, the tests passed and failed by type, and anything blocked or for the user.
+Report the task just finished, then the totals so far: the start and end time, the tasks finished and left, the commits, the files changed, the lines added and removed, the tests passed and failed by type and by OS and CPU, the OSes not tested, and anything blocked or for the user.
 <the task reports>
 ```
 

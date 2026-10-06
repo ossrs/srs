@@ -76,7 +76,7 @@ Only after the user confirms the routing do you proceed to Step 2.
    ```bash
    node scripts/browser-page-url-test.js
    ```
-3. If the change also requires server, protocol, E2E, or benchmark verification, use `skills/internal-codemap-for-srs/references/testing.md` to select and run the relevant tests.
+3. If the change also requires server, protocol, E2E, or benchmark verification, use the Tests and Verification section of `skills/internal-codemap-for-srs/references/cpp-server.md` to select and run the relevant tests.
 
 ## Dev Docker
 
@@ -159,7 +159,7 @@ Accept new features, bug fixes, security fixes, compatibility fixes, tests, and 
 
 1. Load `skills/internal-codemap-for-srs/SKILL.md`, route to `references/cpp-server.md`, and select the smallest responsible module and file set.
 2. Load `skills/internal-docs-for-srs/SKILL.md` and select only the documentation relevant to the affected behavior.
-3. When verification is required, load `skills/internal-codemap-for-srs/references/testing.md` and choose the smallest unit, black-box, E2E, or benchmark surface that can reproduce the report.
+3. When verification is required, load the Tests and Verification section of `skills/internal-codemap-for-srs/references/cpp-server.md` and choose the smallest unit, black-box, E2E, or benchmark surface that can reproduce the report.
 4. Reproduce the problem on the relevant branch and version before modifying code. Record the exact command, configuration, input, and observed result.
 
 ### Step 2: Implement the Maintenance Fix
@@ -171,7 +171,7 @@ Accept new features, bug fixes, security fixes, compatibility fixes, tests, and 
 
 ### Step 3: Verify
 
-1. Run the focused regression first, then the complete applicable verification selected from `references/testing.md`.
+1. Run the focused regression first, then the complete applicable verification selected from the Tests and Verification section of `skills/internal-codemap-for-srs/references/cpp-server.md`.
 2. Run every command in `references/integration-tests.md`. These scripts are mandatory cross-component verification for C++ media-server changes, despite their `proxy-*` names, and supplement rather than replace C++ unit, black-box, protocol E2E, and benchmark tests.
 3. Build the C++ server with the affected feature enabled and run `git diff --check`.
 4. For external-SIP GB28181 session cleanup, run the focused regression for the affected terminal event. Use `scripts/gb28181-tcp-disconnect-test.sh` when a bound RTP/PS-over-TCP publisher disconnects, and `scripts/gb28181-api-timeout-test.sh` when an API-created session never receives a TCP connection. Each script builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, then requires the same ID and SSRC to become publishable again.
@@ -204,8 +204,9 @@ State Threads is maintained in the separate `ossrs/state-threads` project at `st
    - Unit tests: `utest/`.
    - Integration tests: `tools/`, after the unit tests.
    - ASAN or Valgrind build: when the change touches stacks, context switching, `st_destroy`, or thread lifetime.
+   - Each platform the map detects, never assumed, with `scripts/st-test.sh`: macOS locally, then Linux in Docker and, for a committed change, Windows in parallel.
    - On a Windows host: the Windows unit and integration tests locally, and the Linux ones in WSL on the same checkout.
-3. Report every CPU and OS combination touched by the change that was not built and tested.
+3. Report the results per OS and CPU, as the test platforms in `references/testable-code.md` describe, and every CPU and OS combination touched by the change that was not built and tested.
 
 ### Step 4: Sync and Verify SRS
 
@@ -214,6 +215,14 @@ State Threads is maintained in the separate `ossrs/state-threads` project at `st
 3. Run the SRS unit tests, the SRS wrapper tests the change affects, and every command in `references/integration-tests.md`.
 4. Follow `references/version-and-changelog.md` for the ST version and changelog, and for the SRS version when the sync bumps it.
 5. Stop for user review and staging in each modified repository. Do not push.
+
+### Step 5: Verify State Threads on Windows
+
+After the ST change is committed, by the user or by a task that may commit, and before the pull request:
+
+1. Run `bash skills/srs-develop/scripts/st-windows-test.sh` from the project root, as the State Threads map describes. It sets up a mirror of the checkout on a remote Windows host and tests native Windows x64 there.
+2. It runs only when `SRS_TEST_WINDOWS_HOST` is set. When the commit is not on the branch's upstream yet, such as a personal fork, it pushes it there only to sync the branch to the test host, never to `origin`; this is the one push the workflow allows. When it skips or setup fails, report Windows as not tested with its reason.
+3. Add its `RESULT` lines to the per-OS report. A failure goes back to Step 2.
 
 ## Website
 

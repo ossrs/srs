@@ -36,6 +36,7 @@ git -C state-threads/ rev-parse HEAD
 - `md_linux2.S` — Linux context-switch assembly for arm, aarch64, mips, mips64, loongarch64, and riscv.
 - `md_darwin.S` — macOS context switch for x86_64 and Apple Silicon aarch64.
 - `md_cygwin64.S` — Windows (Cygwin64) x86_64 context switch.
+- `md_win64.asm` — Native Windows x64 (MSVC, MASM) context switch, with the TIB stack bounds, and the `_st_md_thread_start` entry of new threads (`MD_INIT_THREAD_ENTRY` in `md.h`), described in `docs/win64_coroutine.md`.
 - `sched.c` — Scheduler: `st_init`, `st_destroy`, thread create, exit, join, interrupt, the idle thread, and the timeout heap described in `docs/timeout_heap.txt`.
 - `stk.c` — Stack allocation, the free-stack list, and `MALLOC_STACK`.
 - `sync.c` — Time functions and the time cache, sleep, condition variables, and mutexes.
@@ -57,11 +58,20 @@ SRS builds its copy from `trunk/auto/depends.sh` in the "state-threads" section.
 
 - `st_utest.cpp`, `st_utest.hpp` — Test main and shared helpers.
 - `st_utest_coroutines.cpp` — Coroutine start, parameters, and switching.
+- `st_utest_sched.cpp` — `st_init`, exit, join, interrupt, switch callbacks, `st_poll`, and the timeout heap.
+- `st_utest_stack.cpp` — Randomized stacks and their guard pages, and the primordial stack.
+- `st_utest_sync.cpp` — Clocks, the time cache, sleeps, mutexes, and condition variables.
+- `st_utest_key.cpp` — Thread-specific data, context IDs, and the key limit.
+- `st_utest_event.cpp` — High descriptors, refused and priority polls, many waits, and `st_destroy` of the event system.
+- `st_utest_select.cpp` — The select event system.
+- `st_utest_io.cpp` — Netfd, open, accept, connect, read, and write, and the Windows Winsock, I/O, errno, and WSAPoll paths.
 - `st_utest_tcp.cpp` — TCP connect and I/O.
+- `st_utest_udp.cpp` — UDP `st_recvfrom`, `st_sendto`, `st_recvmsg`, and `st_sendmsg`.
+- `st_utest_exception.cpp` — C++ exceptions thrown and caught on coroutine stacks.
 - `st_utest_learn_kb.cpp` — Behavior tests for stacks and yields, join and exit, mutexes, condition variables, interrupts, netfd I/O and timeouts, and event-system selection.
 - `Makefile` — Builds the library and the utest binary; `UTEST_FLAGS` adds compiler and linker flags.
 
-Run from the SRS project root so paths stay relative. Build outputs are ignored by Git.
+Run from the SRS project root so paths stay relative. Build outputs are ignored by Git. Every build writes `obj/`, so run `make -C state-threads/ clean` before switching builds or platforms.
 
 ```bash
 # macOS
@@ -88,6 +98,7 @@ Use `linux-debug-gcov` or `darwin-debug-gcov`, then `auto/coverage.sh`, for a co
 - `verify` — a coroutine, sleep, mutex, condition variable, and join.
 - `porting` — prints the OS and CPU macros, and fails on a pair `md.h` does not support.
 - `backtrace` — `backtrace()` unwinds from a coroutine stack.
+- `exception` — a C++ program whose exceptions unwind on coroutine stacks, which on Windows needs the TIB stack bounds.
 - `lifecycle` — event system choice, primordial stack, `st_init`, descriptor limit, and `st_destroy`.
 - `thread` — create, join, exit, detach, yield, interrupt, stack options, switch callbacks, and the DEBUG functions.
 - `key` — coroutine specific data and its destructors.
@@ -111,11 +122,26 @@ docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
     bash -c './auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh'
 ```
 
+The commands above run one build by hand. To run every test on every platform, run `bash skills/srs-develop/scripts/st-test.sh` from the project root (`state-threads/` by default, or pass the checkout). It detects the platforms and never assumes them:
+
+1. The local OS, macOS or Linux, from `uname`, including ASAN on macOS.
+2. Once it passes, Linux in the SRS development image, when `docker info` succeeds. Its CPU is the Docker host's, so arm64 on Apple silicon.
+3. In parallel with both, from the start: Windows x64 natively with MSVC, through `st-windows-test.sh`, when `SRS_TEST_WINDOWS_HOST` names an SSH host. Not WSL there, because Docker already tests Linux.
+
+It prints one `RESULT <os> <run> PASS|FAIL` line per OS and run, then a summary per OS, the time of each OS and the total, and the platforms not tested and why.
+
+The whole run holds the global `st` lock, `full-tier-lock.sh --product st`, so the ST runs of other agents never share `obj/`, the Windows checkout, or the logs. SRS tiers hold their own lock and run in parallel. It prints a line while it waits for the lock and one when it gets it.
+
+`st-windows-test.sh` tests only a committed checkout, so Windows shows as not tested before the commit. It mirrors the local checkout on the host, and its header lists the details:
+
+- Setup: the same main repository and path under the host's home, the same remote name and URL, and the same worktree and branch, tracking the same upstream. It adds a missing remote or worktree, and aborts the test when the main repository is missing, a remote differs, or the host's checkout is on another branch or has changes.
+- Sync: when the commit is not on the branch's upstream, it pushes it there, unless the upstream is `origin`. The host then fast-forwards to the commit; it never resets.
+- Exit 2 means skipped (no host, or uncommitted changes), and 3 a setup failure; both print the reason.
+
 On a Windows host, test both platforms in the same checkout:
 
 - Windows: in Git Bash started from the MSVC environment (`vcvars64.bat`), run `make win64-debug-utest && ./obj/st_utest.exe`, then build and run every tool that builds with MSVC. Report the tools that do not build or run on Windows yet.
 - Linux: run the Linux utest and tools in WSL on the same folder, not in the Docker image. `wsl` starts in the current Windows folder, so run it from `state-threads/`: `(cd state-threads && wsl -e bash -lc 'make linux-debug-utest && ./obj/st_utest && ./auto/tools.sh && EXTRA_CFLAGS=-DMALLOC_STACK ./auto/tools.sh')`.
-- Run `make clean` between platforms; both write `obj`.
 
 CI:
 
@@ -129,4 +155,4 @@ Only `trunk/src/protocol/srs_protocol_st.cpp` includes `st.h` and calls ST in th
 - `trunk/src/protocol/srs_protocol_st.hpp`, `.cpp` — ST initialization, `srs_*` thread, sleep, mutex, condition-variable, and netfd wrappers, and TCP and UDP helpers.
 - `trunk/src/kernel/srs_kernel_st.hpp`, `.cpp` — Coroutine interfaces (`ISrsCoroutine`, `ISrsCoroutineHandler`, `ISrsCond`).
 - `trunk/src/app/srs_app_st.hpp`, `.cpp` — Coroutine implementations (`SrsSTCoroutine`, `SrsFastCoroutine`, `SrsDummyCoroutine`).
-- `trunk/src/utest/srs_utest_manual_st.cpp` — Human-maintained SRS tests of the ST wrappers; add AI tests to the `srs_utest_ai*` files instead, as `references/testing.md` describes.
+- `trunk/src/utest/srs_utest_manual_st.cpp` — Human-maintained SRS tests of the ST wrappers; add AI tests to the `srs_utest_ai*` files instead.

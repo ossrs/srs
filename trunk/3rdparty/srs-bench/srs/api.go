@@ -134,7 +134,7 @@ func (v *statAPI) Streams() *statAPI {
 
 	ctx := v.ctx
 	// Add count parameter to get all streams (default is 1 which only returns first stream)
-	if err := apiRequest(ctx, "http://localhost:1985/api/v1/streams/?count=100", nil, &res); err != nil {
+	if err := apiRequest(ctx, fmt.Sprintf("http://%v/api/v1/streams/?count=100", srsApiHost()), nil, &res); err != nil {
 		logger.Tf(ctx, "query streams err %+v", err)
 		return v
 	}

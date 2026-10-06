@@ -47,6 +47,8 @@ Load `references/testable-code.md` and follow its three steps in order, never sk
 
 These rules override any default behavior.
 
+When a task only runs tests and changes no code, such as "run all ST tests", still load `references/testable-code.md` and follow its Test platforms and Run tests in a subagent sections.
+
 ## Skill Script Language
 
 Use **Bash** for skill-owned automation and AI test scripts, including regression helpers.

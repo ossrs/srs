@@ -81,14 +81,23 @@ Pass `-srs-ffmpeg "$(command -v ffmpeg)" -srs-ffprobe "$(command -v ffprobe)"` t
 
 **Regression**, which starts SRS from a config file like `srs-config-file-test.sh`. In `trunk/`:
 
-1. `./objs/srs -c conf/regression-test.conf`.
-2. Wait up to 10s until `curl -fs http://127.0.0.1:1985/api/v1/versions` answers.
-3. In `3rdparty/srs-bench`, run `./objs/srs_test -test.v` as four processes in parallel, one with each of:
+1. Start SRS on the regression ports, from `SRS_TEST_PORT_BASE`, by default 13000, with its pid and log in `/tmp/srs-regression`:
+   ```bash
+   PORT_BASE=${SRS_TEST_PORT_BASE:-13000}
+   mkdir -p /tmp/srs-regression
+   env SRS_RTMP_LISTEN=$PORT_BASE SRS_HTTP_API_LISTEN=$((PORT_BASE + 1)) SRS_HTTP_SERVER_LISTEN=$((PORT_BASE + 2)) \
+       SRS_RTC_SERVER_LISTEN=$((PORT_BASE + 3)) SRS_RTSP_SERVER_LISTEN=$((PORT_BASE + 4)) SRS_STREAM_CASTER_LISTEN=$((PORT_BASE + 5)) \
+       SRS_STREAM_CASTER_OUTPUT="rtmp://127.0.0.1:$PORT_BASE/live/[stream]" \
+       SRS_PID=/tmp/srs-regression/srs.pid SRS_SRS_LOG_FILE=/tmp/srs-regression/srs.log \
+       ./objs/srs -c conf/regression-test.conf
+   ```
+2. Wait up to 10s until `curl -fs http://127.0.0.1:$((PORT_BASE + 1))/api/v1/versions` answers.
+3. In `3rdparty/srs-bench`, run `./objs/srs_test -test.v -srs-rtmp-port $PORT_BASE -srs-api-port $((PORT_BASE + 1)) -srs-rtsp-port $((PORT_BASE + 4)) -srs-http-server 127.0.0.1:$((PORT_BASE + 2))` as four processes in parallel, one with each of:
    - `-test.run '^TestRtcDTLS_ClientPassive'`
    - `-test.run '^TestRtcDTLS_ClientActive'`
    - `-test.run '^TestRtx'`
    - `-test.skip '^(TestRtcDTLS_Client(Passive|Active)|TestRtx)'`
-4. Kill `$(cat objs/srs.pid)`.
+4. Kill `$(cat /tmp/srs-regression/srs.pid)`.
 
 **Feature-specific.** Every feature-specific test listed above, with `SRS_GB_SKIP_BUILD=1` for the `gb28181-*-test.sh` scripts (their build reconfigures `trunk/`).
 
@@ -123,7 +132,9 @@ bash skills/srs-develop/scripts/full-tier-lock.sh release "$token"
 ```
 
 - Log both lines in the tier's summary, and tell the user each one as it happens: `waiting, free` or `waiting, held: ...` with the holder, then `acquired after Ns`.
-- The lock is `/tmp/srs-full-tier.lock`.
+- Each product has its own lock, so the runs of different products go in parallel:
+  - SRS: `/tmp/srs-full-tier.lock`, the default, held by the Full tier.
+  - State Threads: `/tmp/srs-full-tier-st.lock`, with `--product st`, held by `st-test.sh`.
 - One older than 300s, or whose script exited, is taken over.
 - `full-tier-lock-test.sh` tests it.
 
@@ -144,21 +155,39 @@ Run the layers of every tier in this order.
 
 | Lane | Runs |
 |---|---|
-| A | The Go proxy unit tests, then the eight `proxy-e2e-*` scripts in parallel, each with its own `SRS_E2E_PORT_OFFSET` (0, 200, …, 1400) |
+| A | The Go proxy unit tests, then the eight `proxy-e2e-*` scripts in parallel, each on its own default port slot |
 | B | Black-box fast |
 | C | Black-box slow |
 | D | Regression |
-| E | `srs-config-file-test.sh` and the feature-specific tests in parallel, giving the `rtc-*` scripts their own ports through `SRS_RTX_*` and `SRS_PLAIN_*` |
+| E | `srs-config-file-test.sh` and the feature-specific tests in parallel |
 | F | `make utest`, then `./objs/srs_utest`. With `objs/srs` built, `make utest` does not relink it |
 
 ## Port Plan
 
-Each test process binds ports only from its own range, so the parallel lanes never collide. A new script or test takes its ports from its owner's range.
+Each test process binds ports only from its own range, so the parallel lanes never collide.
 
-| Range | Owner |
-|---|---|
-| 1000–29999 | Fixed ports of the regression SRS, Redis, and the bundled scripts other than `rtc-*`, with `SRS_E2E_PORT_OFFSET` up to 1400 |
-| 30000–39999 | The `rtc-*` scripts, through `SRS_RTX_*` and `SRS_PLAIN_*` |
-| 40000–44999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox` |
-| 45000–48999 | C++ unit tests, from `srs_utest_random_port()` |
-| 49152–65535 | The kernel only: port-0 binds such as `_srs_tmp_port`, and client sockets |
+- A new script or test takes its ports from its owner's range, or from the reserved range.
+- Every range is a default that an environment variable moves without a code change, and none has to be set:
+  - `SRS_TEST_PORT_BASE`, the first port of a script's slot or of the regression SRS.
+  - `SRS_BLACKBOX_PORTS` and `SRS_UTEST_PORTS`, the range of an allocator, like `21000-25999`.
+- No test binds a port below 11000, which is kept for human testing and shared services.
+- No test binds a port from 32768, which covers the ephemeral ports of Linux (32768–60999), macOS and Windows (49152–65535): a client socket there makes a later bind fail.
+- No test binds the Go proxy defaults 11935, 11985, 12025, 18000, 18080 and 20080 from `internal/env/env.go`, which are kept for running the proxy by hand.
+- Update this table, including its counts, whenever a test adds, moves or removes a port.
+
+| Range | Owner | Total ports | Bound today | Available for new tests |
+|---|---|---|---|---|
+| 1–10999 | System and shared: the defaults of a human SRS or Oryx, such as 1935, 1985, 8080, 8000, 8554, 9000 and 10080, and Redis on 6379 | 10,999 | 0 | 0, never bound by tests |
+| 11000–11799 | The eight `proxy-e2e-*` scripts, one 100-port slot each at `SRS_TEST_PORT_BASE`, by default 11000 to 11700 in the order of the Suite | 800 | 99 | 701, inside the existing slots |
+| 11800–11899 | Spare `proxy-e2e-*` slot | 100 | 0 | 100 |
+| 11900–11999 | Kept free for the proxy defaults 11935 and 11985 | 100 | 0 | 0 |
+| 12000–12099 | Kept free for the proxy default 12025 | 100 | 0 | 0 |
+| 12100–12899 | The other bundled scripts, one 100-port slot each at `SRS_TEST_PORT_BASE`, by default 12100 `srs-config-file`, 12200 `srs-reload`, 12300 and 12400 `gb28181-*`, 12500 to 12800 `rtc-*` | 800 | 25 | 775, inside the existing slots |
+| 12900–12999 | Spare bundled-script slot | 100 | 0 | 100 |
+| 13000–13999 | The regression SRS at `SRS_TEST_PORT_BASE`, by default 13000, through the `SRS_*_LISTEN` env and the `srs_test` port flags | 1,000 | 6 | 994 |
+| 14000–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 7,000 | 0 | 6,997 |
+| 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |
+| 26000–29999 | C++ unit tests, from `srs_utest_random_port()`, `_srs_tmp_port` and `_srs_tmp_srt_port`, moved by `SRS_UTEST_PORTS` | 4,000 | Random, per test | 0, owned by the allocator |
+| 30000–32767 | Reserved for new test layers | 2,768 | 0 | 2,768 |
+| 32768–65535 | System: the kernel's ephemeral ports for client sockets and port-0 binds | 32,768 | 0 | 0, never bound by tests |
+| **Total** | | **65,535** | | |

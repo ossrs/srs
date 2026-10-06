@@ -21,25 +21,26 @@ if [[ ! -f "$WORKSPACE/go.mod" ]]; then
 fi
 
 # Proxy ports — high range, avoids the SRS port range.
-# SRS_E2E_PORT_OFFSET shifts every port, so the proxy scripts can run in parallel.
-PORT_OFFSET=${SRS_E2E_PORT_OFFSET:-0}
-PROXY_RTMP_PORT=$((11935 + PORT_OFFSET))
-PROXY_HTTP_API_PORT=$((11985 + PORT_OFFSET))
-PROXY_HTTP_SERVER_PORT=$((18080 + PORT_OFFSET))
-PROXY_WEBRTC_PORT=$((18000 + PORT_OFFSET))
-PROXY_SRT_PORT=$((20080 + PORT_OFFSET))
-PROXY_SYSTEM_API_PORT=$((12025 + PORT_OFFSET))
+# SRS_TEST_PORT_BASE, by default this script's slot in the Port Plan, moves every port,
+# so the scripts can run in parallel.
+PORT_BASE=${SRS_TEST_PORT_BASE:-11200}
+PROXY_RTMP_PORT=$((PORT_BASE + 0))
+PROXY_HTTP_API_PORT=$((PORT_BASE + 1))
+PROXY_HTTP_SERVER_PORT=$((PORT_BASE + 2))
+PROXY_WEBRTC_PORT=$((PORT_BASE + 3))
+PROXY_SRT_PORT=$((PORT_BASE + 4))
+PROXY_SYSTEM_API_PORT=$((PORT_BASE + 5))
 
 # Origin ports — upstream of the edge, NOT
 # registered with the proxy. Distinct from origin1/2/3 to avoid collisions
 # when running this test alongside the other proxy E2E tests.
-ORIGIN_RTMP_PORT=$((19360 + PORT_OFFSET))
-ORIGIN_API_PORT=$((19860 + PORT_OFFSET))
+ORIGIN_RTMP_PORT=$((PORT_BASE + 20))
+ORIGIN_API_PORT=$((PORT_BASE + 22))
 
 # Edge ports — what the proxy treats as its backend.
-EDGE_RTMP_PORT=$((19361 + PORT_OFFSET))
-EDGE_HTTP_PORT=$((8091 + PORT_OFFSET))
-EDGE_API_PORT=$((19861 + PORT_OFFSET))
+EDGE_RTMP_PORT=$((PORT_BASE + 40))
+EDGE_HTTP_PORT=$((PORT_BASE + 41))
+EDGE_API_PORT=$((PORT_BASE + 42))
 
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 SRS_BINARY="$WORKSPACE/trunk/objs/srs"

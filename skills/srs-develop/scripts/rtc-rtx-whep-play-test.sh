@@ -43,9 +43,12 @@ SRS_AUTO_HEADERS="$WORKSPACE/trunk/objs/srs_auto_headers.hpp"
 SOURCE_FLV="$WORKSPACE/trunk/doc/source.flv"
 TOOL_DIR="$WORKSPACE/tools/pion-whep"
 TOOL_BIN="$TOOL_DIR/objs/pion-whep"
-RTMP_PORT="${SRS_RTX_RTMP_PORT:-31935}"
-HTTP_API_PORT="${SRS_RTX_HTTP_API_PORT:-31985}"
-RTC_PORT="${SRS_RTX_RTC_PORT:-38000}"
+# SRS_TEST_PORT_BASE, by default this script's slot in the Port Plan, moves every port,
+# so the scripts can run in parallel.
+PORT_BASE=${SRS_TEST_PORT_BASE:-12700}
+RTMP_PORT=$((PORT_BASE + 0))
+HTTP_API_PORT=$((PORT_BASE + 1))
+RTC_PORT=$((PORT_BASE + 2))
 DROP="${SRS_RTX_DROP:-30}"
 WAIT="${SRS_RTX_WAIT:-30}"
 STREAM_NAME="rtx$(date +%s)"
