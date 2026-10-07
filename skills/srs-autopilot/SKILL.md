@@ -39,7 +39,10 @@ The goal is a plan the loop can run as long as possible without the user.
    - **Phases and tasks** — small tasks with IDs (`P1.1`), marks `[ ]` / `[~]` / `[x]`, and an exit criterion and tests per phase.
    - **Work log** — dated entries: what changed, commit, verified, next.
 4. Resolve every open question with the user and record it as a decision, so the plan has none before it runs.
-5. Add the task file's row to the tracker, `draft` while questions remain and `ready` once none do; see [Track Task Files](#track-task-files).
+5. Fix every command each task runs. A multi-line shell blob, such as `bash -c '...'`, needs the user's permission and stalls the loop, so:
+   - Write each check or test that needs more than one plain command as a script in `srs-develop` `scripts/`, in the task's SRS worktree, and run it once.
+   - Name the scripts and commands in each task, so a subagent only runs them.
+6. Add the task file's row to the tracker, `draft` while questions remain and `ready` once none do; see [Track Task Files](#track-task-files).
 
 ## Track Task Files
 
@@ -68,6 +71,7 @@ Do exactly one task of tasks/<topic>.md.
 Read the task file in full; it is the plan, the rules, and the state. Pick the first unfinished task.
 If it needs the user (an open decision, installing software, or anything the task says to ask about), do not start it; report the question.
 Follow the srs-autopilot skill's git rules and the srs-develop skill for the work.
+Run only plain commands and script files; never a multi-line shell blob such as bash -c '...'. If the task needs a new check, write it as a script file.
 Mark the task [~], write tests first, implement, and run the tests until they pass.
 Commit, add a todo row for the commit, with its commit time, at the end of the Review commits table, tick the task [x], update Current state, add a Work log entry, update the task file's row in tasks/tracker.md (progress, next task, date, and `done` if all tasks are done), then quit.
 If blocked, do not commit; leave the task [~], log the blocker, set the tracker row to `blocked` (or `paused` if it needs the user), and report.
