@@ -15,32 +15,25 @@ Do not use the Oryx Docker image for this workflow. Do not use `oryx/platform/bo
 
 ## Repository Layout
 
-Assume the SRS repository is checked out at:
+Run every command from the SRS project root, the current working directory:
 
-```bash
-~/git/srs
-```
+- `trunk/` is the SRS C++ media server.
+- `oryx/` is the Oryx checkout, a directory or a symlink to it.
 
-Assume the Oryx checkout is available at the project-root-relative path:
-
-```bash
-~/git/srs/oryx
-```
-
-When acting from the AI skill, keep the current working directory unchanged and use paths beginning with `oryx/` or `git -C oryx/` according to the normal Oryx path rules.
+Keep the current working directory unchanged. Commands that must run inside a folder use a subshell, `(cd <folder> && ...)`, and use `git -C oryx/` according to the normal Oryx path rules.
 
 ## One-Time SRS Build
 
 Build the local SRS server:
 
 ```bash
-cd ~/git/srs/trunk && ./configure && make
+(cd trunk && ./configure && make)
 ```
 
 After this, the local SRS binary should exist at:
 
 ```bash
-~/git/srs/trunk/objs/srs
+trunk/objs/srs
 ```
 
 ## Start Redis
@@ -71,8 +64,10 @@ Oryx defaults to Redis at `127.0.0.1:6379`, so no Redis environment variables ar
 Run SRS in its own terminal:
 
 ```bash
-cd ~/git/srs/oryx/platform && ~/git/srs/trunk/objs/srs -c containers/conf/srs.release-local.conf
+SRS_BIN="$PWD/trunk/objs/srs"; (cd oryx/platform && exec "$SRS_BIN" -c containers/conf/srs.release-local.conf)
 ```
+
+The binary path is taken from the project root before the `cd`, because `oryx/` may be a symlink, so `../../trunk` from `oryx/platform` may not reach this checkout.
 
 This local Oryx SRS configuration uses:
 
@@ -89,7 +84,7 @@ No `CANDIDATE` variable is needed for the normal localhost development loop. Onl
 Run the Oryx platform backend in another terminal:
 
 ```bash
-cd ~/git/srs/oryx/platform && go run .
+(cd oryx/platform && go run .)
 ```
 
 The backend listens on the default local ports:
@@ -101,7 +96,7 @@ The backend listens on the default local ports:
 For ordinary local debugging, if self-signed certificate generation is not relevant to the change, it is acceptable to run:
 
 ```bash
-cd ~/git/srs/oryx/platform && AUTO_SELF_SIGNED_CERTIFICATE=off go run .
+(cd oryx/platform && AUTO_SELF_SIGNED_CERTIFICATE=off go run .)
 ```
 
 ## Start React Dashboard
@@ -109,13 +104,13 @@ cd ~/git/srs/oryx/platform && AUTO_SELF_SIGNED_CERTIFICATE=off go run .
 Install UI dependencies once or when `package.json` changes:
 
 ```bash
-cd ~/git/srs/oryx/ui && npm install
+(cd oryx/ui && npm install)
 ```
 
 Run the React development server in another terminal:
 
 ```bash
-cd ~/git/srs/oryx/ui && npm start
+(cd oryx/ui && npm start)
 ```
 
 Open:
@@ -132,7 +127,7 @@ Use this loop to show the result of code changes quickly:
 
 - React dashboard change under `oryx/ui/src/`: save the file and let `npm start` hot-reload the browser.
 - Go backend change under `oryx/platform/`: stop and restart `go run .`.
-- SRS C++ media server change under `trunk/`: rebuild SRS with `cd ~/git/srs/trunk && make`, then restart the local SRS process.
+- SRS C++ media server change under `trunk/`: rebuild SRS with `(cd trunk && make)`, then restart the local SRS process.
 - Oryx configuration/template change under `oryx/platform/containers/conf/`: restart the affected SRS or Go backend process.
 
 Keep Redis running across restarts unless the task specifically needs clean persistent state.
