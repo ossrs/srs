@@ -103,8 +103,8 @@ Apply these rules whenever a task produces a commit:
 - Never run `git push` unless the user explicitly asks.
 - Commit only when the user explicitly asks.
 - Before committing, run the owning repository's staged diff, understand every staged change, and write an appropriate title and description. Do not include staged changes from another repository in the same commit.
-- Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, or `Codex:`.
-- If Claude made changes, use this exact commit message format:
+- Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, `Codex:`, or `Kiro:`.
+- If Claude made changes, use this commit message format. End it with the co-author line the Claude Code harness gives; it names the current model, so do not hard-code one:
   ```
   Commit title.
 
@@ -112,7 +112,7 @@ Apply these rules whenever a task produces a commit:
 
   ---------
 
-  Co-authored-by: Claude Fable 5 <noreply@anthropic.com>
+  <co-author line from the harness>
   ```
 - If Codex made changes, use this exact commit message format:
   ```
@@ -124,6 +124,7 @@ Apply these rules whenever a task produces a commit:
 
   Co-authored-by: chatgpt-codex-connector[bot] <199175422+chatgpt-codex-connector[bot]@users.noreply.github.com>
   ```
+- If Kiro made changes, use the same title and description, with no fixed trailer.
 
 ## Task Router
 
