@@ -1,1 +1,0 @@
-../.openclaw/IDENTITY.md
