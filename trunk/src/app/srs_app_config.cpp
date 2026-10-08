@@ -2121,6 +2121,7 @@ void SrsConfig::print_help(char **argv)
         "   Forward:\n"
         "      SRS_VHOST_FORWARD_ENABLED=off                 Forward published streams.\n"
         "      SRS_VHOST_FORWARD_BACKEND=                    HTTP URL that returns the RTMP URLs to forward to.\n"
+        "      SRS_VHOST_FORWARD_API=off                     Add or remove forward destinations by HTTP API.\n"
         "   Edge, pull and push streams through an origin:\n"
         "      SRS_VHOST_CLUSTER_MODE=local                  local for an origin, remote for an edge.\n"
         "      SRS_VHOST_CLUSTER_ORIGIN=                     Space separated origin ip:port of an edge.\n"
@@ -2702,7 +2703,7 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "forward") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
-                    if (m != "enabled" && m != "destination" && m != "backend") {
+                    if (m != "enabled" && m != "destination" && m != "backend" && m != "api") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.forward.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5348,6 +5349,30 @@ bool SrsConfig::get_forward_enabled(SrsConfDirective *vhost)
     }
 
     conf = conf->get("enabled");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return SRS_CONF_PREFER_FALSE(conf->arg0());
+}
+
+bool SrsConfig::get_forward_api(string vhost)
+{
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.forward.api"); // SRS_VHOST_FORWARD_API
+
+    static bool DEFAULT = false;
+
+    SrsConfDirective *conf = get_vhost(vhost);
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("forward");
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("api");
     if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }

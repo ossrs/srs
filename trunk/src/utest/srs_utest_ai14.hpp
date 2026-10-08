@@ -194,6 +194,7 @@ public:
     virtual srs_error_t on_meta_data(SrsMediaPacket *shared_metadata);
     virtual srs_error_t on_audio(SrsMediaPacket *shared_audio);
     virtual srs_error_t on_video(SrsMediaPacket *shared_video);
+    virtual void dumps(SrsJsonObject *obj);
 };
 
 // Mock ISrsLiveSource for testing SrsOriginHub::on_audio

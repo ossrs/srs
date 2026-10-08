@@ -34,6 +34,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
 #include <srs_protocol_format.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_utility.hpp>
@@ -868,6 +869,7 @@ SrsOriginHub::SrsOriginHub()
     config_ = _srs_config;
     stat_ = _srs_stat;
     hooks_ = _srs_hooks;
+    forward_destinations_ = _srs_forward_destinations;
 }
 
 void SrsOriginHub::assemble()
@@ -882,6 +884,9 @@ void SrsOriginHub::assemble()
 SrsOriginHub::~SrsOriginHub()
 {
     config_->unsubscribe(this);
+    if (!forward_destinations_stream_url_.empty()) {
+        forward_destinations_->unsubscribe(forward_destinations_stream_url_, this);
+    }
 
     if (true) {
         std::vector<ISrsForwarder *>::iterator it;
@@ -890,6 +895,7 @@ SrsOriginHub::~SrsOriginHub()
             srs_freep(forwarder);
         }
         forwarders_.clear();
+        dest_forwarders_.clear();
     }
     srs_freep(ng_exec_);
 
@@ -904,6 +910,7 @@ SrsOriginHub::~SrsOriginHub()
     config_ = NULL;
     stat_ = NULL;
     hooks_ = NULL;
+    forward_destinations_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -1268,6 +1275,49 @@ srs_error_t SrsOriginHub::on_forwarder_start(SrsForwarder *forwarder)
     return err;
 }
 
+srs_error_t SrsOriginHub::on_forward_destination_add(SrsForwardDestination *dest)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = create_destination_forwarder(dest)) != srs_success) {
+        return srs_error_wrap(err, "create forwarder id=%s", dest->id_.c_str());
+    }
+
+    return err;
+}
+
+void SrsOriginHub::on_forward_destination_remove(std::string id)
+{
+    std::map<std::string, ISrsForwarder *>::iterator it = dest_forwarders_.find(id);
+    if (it == dest_forwarders_.end()) {
+        return;
+    }
+
+    // Remove the forwarder before stopping it, because stopping switches the coroutine context, and the
+    // forwarders_ may be used to feed packets meanwhile. Never touch this hub after the forwarder stopped.
+    ISrsForwarder *forwarder = it->second;
+    dest_forwarders_.erase(it);
+
+    std::vector<ISrsForwarder *>::iterator fit = std::find(forwarders_.begin(), forwarders_.end(), forwarder);
+    if (fit != forwarders_.end()) {
+        forwarders_.erase(fit);
+    }
+
+    forwarder->on_unpublish();
+    srs_freep(forwarder);
+}
+
+void SrsOriginHub::on_forward_destination_dumps(std::string id, SrsJsonObject *obj)
+{
+    std::map<std::string, ISrsForwarder *>::iterator it = dest_forwarders_.find(id);
+    if (it == dest_forwarders_.end()) {
+        obj->set("state", SrsJsonAny::str("idle"));
+        return;
+    }
+
+    it->second->dumps(obj);
+}
+
 srs_error_t SrsOriginHub::on_dvr_request_sh()
 {
     srs_error_t err = srs_success;
@@ -1325,6 +1375,11 @@ srs_error_t SrsOriginHub::create_forwarders()
 
     if (!config_->get_forward_enabled(req_->vhost_)) {
         return err;
+    }
+
+    // The destinations managed by the HTTP API, which is additional to the destinations of config and backend.
+    if ((err = create_destination_forwarders()) != srs_success) {
+        return srs_error_wrap(err, "create destination forwarders");
     }
 
     // For backend config
@@ -1422,8 +1477,80 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool &applied)
     return err;
 }
 
+srs_error_t SrsOriginHub::create_destination_forwarders()
+{
+    srs_error_t err = srs_success;
+
+    if (!config_->get_forward_api(req_->vhost_)) {
+        return err;
+    }
+
+    // Subscribe to the destinations managed by the HTTP API, to start or stop forwarders at runtime.
+    std::string stream_url = req_->get_stream_url();
+    forward_destinations_->subscribe(stream_url, this);
+    forward_destinations_stream_url_ = stream_url;
+
+    std::vector<SrsForwardDestination *> dests;
+    forward_destinations_->fetch(stream_url, dests);
+
+    // A failed destination should never fail the publisher or other destinations.
+    for (int i = 0; i < (int)dests.size(); i++) {
+        SrsForwardDestination *dest = dests.at(i);
+        if ((err = create_destination_forwarder(dest)) != srs_success) {
+            srs_warn("Forward: Ignore destination id=%s, url=%s, %s", dest->id_.c_str(),
+                     srs_forward_redact_url(dest->url_).c_str(), srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsOriginHub::create_destination_forwarder(SrsForwardDestination *dest)
+{
+    srs_error_t err = srs_success;
+
+    if (dest_forwarders_.find(dest->id_) != dest_forwarders_.end()) {
+        return err;
+    }
+
+    // Parse the request of destination, the same as the backend forwarder.
+    SrsUniquePtr<ISrsRequest> req(new SrsRequest());
+    srs_net_url_parse_rtmp_url(dest->url_, req->tcUrl_, req->stream_);
+    srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
+
+    std::stringstream forward_server;
+    forward_server << req->host_ << ":" << req->port_;
+
+    ISrsForwarder *forwarder = new SrsForwarder(this);
+    if ((err = forwarder->initialize(req.get(), forward_server.str())) != srs_success) {
+        srs_freep(forwarder);
+        return srs_error_wrap(err, "init forwarder");
+    }
+
+    srs_utime_t queue_size = config_->get_queue_length(req_->vhost_);
+    forwarder->set_queue_size(queue_size);
+
+    if ((err = forwarder->on_publish()) != srs_success) {
+        srs_freep(forwarder);
+        return srs_error_wrap(err, "start forwarder");
+    }
+
+    forwarders_.push_back(forwarder);
+    dest_forwarders_[dest->id_] = forwarder;
+
+    return err;
+}
+
 void SrsOriginHub::destroy_forwarders()
 {
+    // Unsubscribe first, so no forwarder is added or removed by the HTTP API while destroying.
+    if (!forward_destinations_stream_url_.empty()) {
+        forward_destinations_->unsubscribe(forward_destinations_stream_url_, this);
+        forward_destinations_stream_url_ = "";
+    }
+    dest_forwarders_.clear();
+
     std::vector<ISrsForwarder *>::iterator it;
     for (it = forwarders_.begin(); it != forwarders_.end(); ++it) {
         ISrsForwarder *forwarder = *it;

@@ -277,7 +277,12 @@
     XX(ERROR_HEVC_DECODE_ERROR, 3099, "HevcDecode", "HEVC decode av stream failed")                         \
     XX(ERROR_MP4_HVCC_CHANGE, 3100, "Mp4HvcCChange", "MP4 does not support video HvcC change")              \
     XX(ERROR_HEVC_API_NO_PREFIXED, 3101, "HevcAnnexbPrefix", "No annexb prefix for HEVC decoder")           \
-    XX(ERROR_NALU_EMPTY, 3102, "NaluEmpty", "NALU is empty")
+    XX(ERROR_NALU_EMPTY, 3102, "NaluEmpty", "NALU is empty")                                                \
+    XX(ERROR_FORWARD_API_DISABLED, 3103, "ForwardApiDisabled", "Forward API is disabled")                   \
+    XX(ERROR_FORWARD_DEST_INVALID, 3104, "ForwardDestInvalid", "Invalid forward destination")               \
+    XX(ERROR_FORWARD_DEST_EXISTS, 3105, "ForwardDestExists", "Forward destination exists")                  \
+    XX(ERROR_FORWARD_DEST_NOT_FOUND, 3106, "ForwardDestNotFound", "Forward destination not found")          \
+    XX(ERROR_FORWARD_DEST_LIMIT, 3107, "ForwardDestLimit", "Too many forward destinations")
 
 /**************************************************/
 /* HTTP/StreamConverter protocol error. */

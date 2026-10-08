@@ -15,6 +15,7 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_app_forward.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_server.hpp>
@@ -280,6 +281,7 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r
     urls->set("vhosts", SrsJsonAny::str("manage all vhosts or specified vhost"));
     urls->set("streams", SrsJsonAny::str("manage all streams or specified stream"));
     urls->set("clients", SrsJsonAny::str("manage all clients or specified client, default query top 10 clients"));
+    urls->set("forwards", SrsJsonAny::str("manage the forward destinations of streams, default query top 10 destinations"));
     urls->set("raw", SrsJsonAny::str("raw api for srs, support CUID srs for instance the config"));
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
     urls->set("perf", SrsJsonAny::str("System performance stat"));
@@ -912,6 +914,180 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     }
 
     return srs_api_response(w, r, obj->dumps());
+}
+
+SrsGoApiForwards::SrsGoApiForwards()
+{
+    stat_ = _srs_stat;
+    config_ = _srs_config;
+    forward_destinations_ = _srs_forward_destinations;
+}
+
+SrsGoApiForwards::~SrsGoApiForwards()
+{
+    stat_ = NULL;
+    config_ = NULL;
+    forward_destinations_ = NULL;
+}
+
+srs_error_t SrsGoApiForwards::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+{
+    srs_error_t err = srs_success;
+
+    if (!r->is_http_get() && !r->is_http_post() && !r->is_http_delete()) {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
+    }
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    obj->set("server", SrsJsonAny::str(stat_->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat_->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat_->service_pid().c_str()));
+
+    if ((err = do_serve_http(w, r, obj.get())) != srs_success) {
+        int code = srs_error_code(err);
+        srs_warn("Forward: API %s %s failed, %s", r->method_str().c_str(), r->path().c_str(), srs_error_desc(err).c_str());
+        srs_freep(err);
+        return srs_api_response_code(w, r, code);
+    }
+
+    return srs_api_response(w, r, obj->dumps());
+}
+
+// Resolve the vhost name to the name of the vhost section in config.
+static std::string srs_forward_api_vhost(ISrsAppConfig *config, std::string vhost)
+{
+    if (vhost.empty()) {
+        vhost = SRS_CONSTS_RTMP_DEFAULT_VHOST;
+    }
+
+    SrsConfDirective *conf = config->get_vhost(vhost);
+    return conf ? conf->arg0() : vhost;
+}
+
+// Get the optional string property of the request body.
+static srs_error_t srs_forward_api_string(SrsJsonObject *req, std::string name, std::string &value)
+{
+    SrsJsonAny *prop = req->get_property(name);
+    if (!prop) {
+        return srs_success;
+    }
+
+    if (!prop->is_string()) {
+        return srs_error_new(ERROR_FORWARD_DEST_INVALID, "%s is not string", name.c_str());
+    }
+
+    value = prop->to_str();
+    return srs_success;
+}
+
+srs_error_t SrsGoApiForwards::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *obj)
+{
+    srs_error_t err = srs_success;
+
+    // path: {pattern}{id}
+    // e.g. /api/v1/forwards/out1     pattern= /api/v1/forwards/, id=out1
+    string id = r->parse_rest_id(entry_->pattern);
+
+    if (r->is_http_post()) {
+        return add(r, obj);
+    }
+
+    if (r->is_http_delete()) {
+        if ((err = forward_destinations_->remove(id)) != srs_success) {
+            return srs_error_wrap(err, "remove id=%s", id.c_str());
+        }
+        return err;
+    }
+
+    if (!id.empty()) {
+        SrsForwardDestination *dest = forward_destinations_->find(id);
+        if (!dest) {
+            return srs_error_new(ERROR_FORWARD_DEST_NOT_FOUND, "id=%s", id.c_str());
+        }
+
+        SrsJsonObject *data = SrsJsonAny::object();
+        obj->set("forward", data);
+        forward_destinations_->dumps(dest, data);
+        return err;
+    }
+
+    // Filter by stream, for example, ?vhost=xxx&app=live&stream=livestream
+    string stream_url;
+    if (!r->query_get("app").empty() || !r->query_get("stream").empty()) {
+        string vhost = srs_forward_api_vhost(config_, r->query_get("vhost"));
+        stream_url = srs_net_url_encode_sid(vhost, r->query_get("app"), r->query_get("stream"));
+    }
+
+    std::vector<SrsForwardDestination *> dests;
+    forward_destinations_->fetch(stream_url, dests);
+    obj->set("total", SrsJsonAny::integer((int)dests.size()));
+
+    SrsJsonArray *data = SrsJsonAny::array();
+    obj->set("forwards", data);
+
+    int start, count;
+    srs_api_parse_pagination(r, start, count);
+    for (int i = start; i < (int)dests.size() && i < start + count; i++) {
+        SrsJsonObject *item = SrsJsonAny::object();
+        data->append(item);
+        forward_destinations_->dumps(dests.at(i), item);
+    }
+
+    return err;
+}
+
+srs_error_t SrsGoApiForwards::add(ISrsHttpMessage *r, SrsJsonObject *obj)
+{
+    srs_error_t err = srs_success;
+
+    string body;
+    if ((err = r->body_read_all(body)) != srs_success) {
+        return srs_error_wrap(err, "read body");
+    }
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(body));
+    if (!json.get() || !json->is_object()) {
+        return srs_error_new(ERROR_FORWARD_DEST_INVALID, "body is not json object");
+    }
+    SrsJsonObject *req = json->to_object();
+
+    SrsForwardDestination dest;
+    string vhost;
+    if ((err = srs_forward_api_string(req, "id", dest.id_)) != srs_success) {
+        return srs_error_wrap(err, "id");
+    }
+    if ((err = srs_forward_api_string(req, "vhost", vhost)) != srs_success) {
+        return srs_error_wrap(err, "vhost");
+    }
+    if ((err = srs_forward_api_string(req, "app", dest.app_)) != srs_success) {
+        return srs_error_wrap(err, "app");
+    }
+    if ((err = srs_forward_api_string(req, "stream", dest.stream_)) != srs_success) {
+        return srs_error_wrap(err, "stream");
+    }
+    if ((err = srs_forward_api_string(req, "url", dest.url_)) != srs_success) {
+        return srs_error_wrap(err, "url");
+    }
+    dest.vhost_ = srs_forward_api_vhost(config_, vhost);
+
+    // The forward API is disabled by default, because it makes SRS connect to any host.
+    if (!config_->get_forward_enabled(dest.vhost_) || !config_->get_forward_api(dest.vhost_)) {
+        return srs_error_new(ERROR_FORWARD_API_DISABLED, "vhost=%s, enable it by forward.api", dest.vhost_.c_str());
+    }
+
+    bool created = false;
+    SrsForwardDestination *stored = NULL;
+    if ((err = forward_destinations_->add(&dest, &created, &stored)) != srs_success) {
+        return srs_error_wrap(err, "add");
+    }
+
+    SrsJsonObject *data = SrsJsonAny::object();
+    obj->set("forward", data);
+    forward_destinations_->dumps(stored, data);
+
+    return err;
 }
 
 SrsGoApiRaw::SrsGoApiRaw(ISrsSignalHandler *handler)

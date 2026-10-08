@@ -613,6 +613,8 @@ public:
     virtual bool get_dash_cleanup(std::string vhost) = 0;
     virtual srs_utime_t get_dash_dispose(std::string vhost) = 0;
     virtual bool get_forward_enabled(std::string vhost) = 0;
+    // Whether the forward destinations of the vhost can be added or removed by the HTTP API.
+    virtual bool get_forward_api(std::string vhost) = 0;
     virtual SrsConfDirective *get_forwards(std::string vhost) = 0;
     virtual srs_utime_t get_queue_length(std::string vhost) = 0;
     virtual SrsConfDirective *get_forward_backend(std::string vhost) = 0;
@@ -1131,6 +1133,8 @@ public:
     // Whether the forwarder enabled.
     virtual bool get_forward_enabled(std::string vhost);
     virtual bool get_forward_enabled(SrsConfDirective *vhost);
+    // Whether the forward destinations of the vhost can be added or removed by the HTTP API.
+    virtual bool get_forward_api(std::string vhost);
     // Get the forward directive of vhost.
     virtual SrsConfDirective *get_forwards(std::string vhost);
     // Get the forward directive of backend.
