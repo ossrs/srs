@@ -46,9 +46,11 @@ Select the product before entering a workflow:
 
 Use the current working directory as the SRS project root. Do not search parent directories or discover alternate repository roots.
 
-Available directories: `trunk/`, `cmd/`, `internal/`, `cmake/`, `memory/`, `skills/`
+Available directories:
+- `trunk/`, `cmd/`, `internal/`, `cmake/`, `skills/` — in the SRS repository.
+- `oryx/`, `state-threads/`, `dev-docker/`, `website/` — symlinks to the sibling repositories.
 
-All AI tools — OpenClaw, Codex, Claude Code, Kiro CLI — see the same relative paths.
+Claude Code, Codex, and Kiro run from the project root and see these paths as listed. OpenClaw runs from `.openclaw/`, which links the same folders except `state-threads/` and `website/`; reach those through `srs/`.
 
 **Path resolution:**
 - Resolve bundled paths beginning with `references/`, `scripts/`, `assets/`, or `agents/` relative to the directory containing this `SKILL.md`.

@@ -11,7 +11,7 @@ SRS provides several ways to use AI: you can chat with the SRS Robot in Telegram
 
 ## Claude Code
 
-You can use Claude Code locally with the SRS codebase. SRS ships with a pre-configured `.claude` directory so Claude Code works out of the box with full context of the project.
+You can use Claude Code locally with the SRS codebase. SRS ships with its skills in the `.claude/skills` directory, so Claude Code works out of the box with full context of the project.
 
 Clone the SRS code, related projects, and start Claude Code:
 
@@ -23,11 +23,11 @@ cd srs
 claude
 ```
 
-Claude Code will automatically load the configuration from `srs/.claude`, giving it deep knowledge of the SRS codebase so you can ask questions, debug issues, write code, and more.
+Claude Code will automatically load the SRS skills from `srs/.claude/skills`, giving it deep knowledge of the SRS codebase so you can ask questions, debug issues, write code, and more.
 
 ## Codex
 
-You can also use Codex locally with the SRS codebase. SRS ships with a pre-configured `.codex` directory so Codex works out of the box.
+You can also use Codex locally with the SRS codebase. SRS ships with its skills in the `.agents/skills` directory, so Codex works out of the box.
 
 Clone the SRS code, related projects, and start Codex:
 
@@ -39,11 +39,11 @@ cd srs
 codex
 ```
 
-Codex will automatically load the configuration from `srs/.codex`.
+Codex will automatically load the SRS skills from `srs/.agents/skills`.
 
 ## Kiro
 
-You can also use Kiro locally with the SRS codebase. SRS ships with a pre-configured `.kiro` directory so Kiro works out of the box.
+You can also use Kiro locally with the SRS codebase. SRS ships with its skills in the `.kiro/skills` directory, so Kiro works out of the box.
 
 Clone the SRS code, related projects, and start Kiro:
 
@@ -55,7 +55,7 @@ cd srs
 kiro-cli
 ```
 
-Kiro will automatically load the configuration from `srs/.kiro`.
+Kiro will automatically load the SRS skills from `srs/.kiro/skills`.
 
 ## OpenClaw
 

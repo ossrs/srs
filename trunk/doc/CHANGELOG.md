@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-10-08, Merge [#4764](https://github.com/ossrs/srs/pull/4764): AI: Cut the agent config to skills only, rewrite OpenClaw for SRSBot. v8.0.58 (#4764)
 * v8.0, 2026-10-06, Merge [#4761](https://github.com/ossrs/srs/pull/4761): Skills: Isolate test ports and test ST on every OS. v8.0.57 (#4761)
 * v8.0, 2026-10-06, ST: Support native Windows x64 with MSVC, MASM, and WSAPoll, built by GNU make, [state-threads#40](https://github.com/ossrs/state-threads/pull/40). v8.0.56
 * v8.0, 2026-10-03, Merge [#4759](https://github.com/ossrs/srs/pull/4759): ST: Add integration tools and exception utests. v8.0.55 (#4759)

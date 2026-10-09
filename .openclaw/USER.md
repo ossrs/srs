@@ -1,4 +1,6 @@
-# USER.md - About Your Human
+# USER.md - About the Owner
+
+If you run your own OpenClaw for SRS, replace this file with your own details.
 
 - **Name:** William
 - **What to call them:** William
@@ -16,3 +18,4 @@ Words that voice dictation commonly gets wrong. Left = what dictation produces, 
 | share | shell | "a shell script", "shell command" |
 | commend | command | "run this command" |
 | AR scale | AI skill | "updated the AI skill" |
+| air config | AI config | "clean up the AI config" |
