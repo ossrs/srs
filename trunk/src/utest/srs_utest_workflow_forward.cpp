@@ -26,6 +26,9 @@
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_protocol_json.hpp>
+#include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_http.hpp>
 
 // Mock ISrsAppFactory implementation
 MockAppFactoryForForwarder::MockAppFactoryForForwarder()
@@ -326,4 +329,763 @@ VOID TEST(BasicWorkflowForwardTest, ManuallyVerifyForwardingWithToken)
 
     // Wait for forwarder to stop
     srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+}
+
+// Expect the error code, and free the error.
+#define HELPER_EXPECT_FAILED_CODE(x, code)              \
+    if (true) {                                         \
+        err = x;                                        \
+        EXPECT_TRUE(err != srs_success);                \
+        EXPECT_EQ((int)code, (int)srs_error_code(err)); \
+        srs_freep(err);                                 \
+    }
+
+MockForwardDestinationHandler::MockForwardDestinationHandler()
+{
+    dumps_count_ = 0;
+    add_error_ = srs_success;
+}
+
+MockForwardDestinationHandler::~MockForwardDestinationHandler()
+{
+    srs_freep(add_error_);
+}
+
+srs_error_t MockForwardDestinationHandler::on_forward_destination_add(SrsForwardDestination *dest)
+{
+    added_.push_back(dest->id_);
+    return srs_error_copy(add_error_);
+}
+
+void MockForwardDestinationHandler::on_forward_destination_remove(std::string id)
+{
+    removed_.push_back(id);
+}
+
+void MockForwardDestinationHandler::on_forward_destination_dumps(std::string id, SrsJsonObject *obj)
+{
+    dumps_count_++;
+    obj->set("state", SrsJsonAny::str("forwarding"));
+}
+
+MockHttpMessageForForwards::MockHttpMessageForForwards(uint8_t method, std::string url, std::string body) : SrsHttpMessage()
+{
+    mock_conn_ = new MockHttpConn();
+    set_connection(mock_conn_);
+    method_ = method;
+    body_ = body;
+    srs_error_t err = set_url(url, false);
+    srs_freep(err);
+}
+
+MockHttpMessageForForwards::~MockHttpMessageForForwards()
+{
+    srs_freep(mock_conn_);
+}
+
+srs_error_t MockHttpMessageForForwards::body_read_all(std::string &body)
+{
+    body = body_;
+    return srs_success;
+}
+
+uint8_t MockHttpMessageForForwards::method()
+{
+    return method_;
+}
+
+// Create a forward destination for the stream /live/stream1 by default.
+static SrsForwardDestination *mock_forward_destination(std::string id, std::string url, std::string stream = "stream1")
+{
+    SrsForwardDestination *dest = new SrsForwardDestination();
+    dest->id_ = id;
+    dest->vhost_ = "__defaultVhost__";
+    dest->app_ = "live";
+    dest->stream_ = stream;
+    dest->url_ = url;
+    return dest;
+}
+
+// Create a H.264 video packet, which is a sequence header, a keyframe or an inter frame.
+static SrsMediaPacket *mock_forward_video(bool keyframe, bool sequence_header)
+{
+    int payload_size = 10;
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(new SrsRtmpCommonMessage());
+    msg->header_.initialize_video(payload_size, 0, 1);
+    msg->create_payload(payload_size);
+
+    SrsBuffer stream(msg->payload(), payload_size);
+    // FrameType 1 is keyframe, 2 is inter frame, and CodecID 7 is H.264.
+    stream.write_1bytes(keyframe ? 0x17 : 0x27);
+    // AVCPacketType 0 is sequence header, 1 is NALU.
+    stream.write_1bytes(sequence_header ? 0x00 : 0x01);
+    stream.write_3bytes(0x000000);
+    for (int i = 0; i < 5; i++) {
+        stream.write_1bytes(0x00);
+    }
+
+    SrsMediaPacket *pkt = new SrsMediaPacket();
+    msg->to_msg(pkt);
+    return pkt;
+}
+
+// The forward destination url carries the stream key of the third-party platform, so it must
+// never be exposed by logs or the HTTP API.
+VOID TEST(ForwardDestinationsTest, RedactUrl)
+{
+    EXPECT_STREQ("rtmp://a.rtmp.youtube.com/live2/***", srs_forward_redact_url("rtmp://a.rtmp.youtube.com/live2/xxxx-yyyy").c_str());
+    EXPECT_STREQ("rtmp://127.0.0.1:19350/live/***", srs_forward_redact_url("rtmp://127.0.0.1:19350/live/key?token=abc").c_str());
+    EXPECT_STREQ("rtmp://127.0.0.1/app/***", srs_forward_redact_url("rtmp://127.0.0.1/app?vhost=v&token=x/key").c_str());
+    EXPECT_STREQ("rtmp://127.0.0.1/***", srs_forward_redact_url("rtmp://127.0.0.1/key").c_str());
+    EXPECT_STREQ("***", srs_forward_redact_url("not-an-url").c_str());
+}
+
+VOID TEST(ForwardDestinationsTest, RedactError)
+{
+    EXPECT_STREQ("publish failed, stream=***, stream_id=1", srs_forward_redact_error("publish failed, stream=key?token=x, stream_id=1").c_str());
+    EXPECT_STREQ("send FMLE publish publish failed. stream=***", srs_forward_redact_error("send FMLE publish publish failed. stream=key").c_str());
+    EXPECT_STREQ("a stream=*** b stream=***", srs_forward_redact_error("a stream=k1 b stream=k2").c_str());
+    // Never change the other parts, even the stream name is short, for example, c.
+    EXPECT_STREQ("code=1011(SocketTimeout) : forward : send messages", srs_forward_redact_error("code=1011(SocketTimeout) : forward : send messages").c_str());
+}
+
+// A destination is keyed by its id. Adding the same destination again is a no-op, so a controller
+// can safely apply its desired state again, for example, after SRS restarts.
+VOID TEST(ForwardDestinationsTest, AddFindFetchRemove)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+
+    SrsUniquePtr<SrsForwardDestination> d1(mock_forward_destination("out1", "rtmp://127.0.0.1:19350/live/s1"));
+    EXPECT_STREQ("/live/stream1", d1->stream_url().c_str());
+
+    bool created = false;
+    HELPER_EXPECT_SUCCESS(dests->add(d1.get(), &created));
+    EXPECT_TRUE(created);
+
+    // The manager copies the destination.
+    SrsForwardDestination *found = dests->find("out1");
+    ASSERT_TRUE(found != NULL);
+    EXPECT_TRUE(found != d1.get());
+    EXPECT_STREQ("rtmp://127.0.0.1:19350/live/s1", found->url_.c_str());
+    EXPECT_TRUE(found->created_at_ > 0);
+
+    // Add the same destination again, it's ignored.
+    HELPER_EXPECT_SUCCESS(dests->add(d1.get(), &created));
+    EXPECT_FALSE(created);
+
+    // The same id with another url is rejected.
+    SrsUniquePtr<SrsForwardDestination> d1b(mock_forward_destination("out1", "rtmp://127.0.0.1:19350/live/other"));
+    HELPER_EXPECT_FAILED_CODE(dests->add(d1b.get(), &created), ERROR_FORWARD_DEST_EXISTS);
+
+    // Destinations of other stream.
+    SrsUniquePtr<SrsForwardDestination> d2(mock_forward_destination("out2", "rtmp://127.0.0.1:19350/live/s2", "stream2"));
+    HELPER_EXPECT_SUCCESS(dests->add(d2.get(), &created));
+
+    std::vector<SrsForwardDestination *> list;
+    dests->fetch("/live/stream1", list);
+    ASSERT_EQ(1, (int)list.size());
+    EXPECT_STREQ("out1", list[0]->id_.c_str());
+
+    list.clear();
+    dests->fetch("", list);
+    EXPECT_EQ(2, (int)list.size());
+
+    HELPER_EXPECT_SUCCESS(dests->remove("out1"));
+    EXPECT_TRUE(dests->find("out1") == NULL);
+    EXPECT_TRUE(dests->find("out2") != NULL);
+
+    HELPER_EXPECT_FAILED_CODE(dests->remove("out1"), ERROR_FORWARD_DEST_NOT_FOUND);
+}
+
+// Reject the destination which SRS can't forward to, and the id which can't be used in API path.
+VOID TEST(ForwardDestinationsTest, RejectInvalid)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+    bool created = false;
+
+    const char *invalid_urls[] = {
+        "",
+        "rtmps://live-api-s.facebook.com:443/rtmp/key",
+        "srt://127.0.0.1:10080",
+        "http://127.0.0.1:8080/live/key",
+        "rtmp://",
+        "rtmp://127.0.0.1",
+        "rtmp://127.0.0.1/",
+        "rtmp://127.0.0.1/live",
+        "rtmp://127.0.0.1/live/",
+    };
+    for (int i = 0; i < (int)(sizeof(invalid_urls) / sizeof(invalid_urls[0])); i++) {
+        SrsUniquePtr<SrsForwardDestination> d(mock_forward_destination("out1", invalid_urls[i]));
+        HELPER_EXPECT_FAILED_CODE(dests->add(d.get(), &created), ERROR_FORWARD_DEST_INVALID);
+    }
+
+    const char *invalid_ids[] = {"a/b", "a b", "a?b", "a.b", "0123456789012345678901234567890123456789012345678901234567890123456789"};
+    for (int i = 0; i < (int)(sizeof(invalid_ids) / sizeof(invalid_ids[0])); i++) {
+        SrsUniquePtr<SrsForwardDestination> d(mock_forward_destination(invalid_ids[i], "rtmp://127.0.0.1/live/key"));
+        HELPER_EXPECT_FAILED_CODE(dests->add(d.get(), &created), ERROR_FORWARD_DEST_INVALID);
+    }
+
+    // The stream to forward is required.
+    SrsUniquePtr<SrsForwardDestination> d(mock_forward_destination("out1", "rtmp://127.0.0.1/live/key", ""));
+    HELPER_EXPECT_FAILED_CODE(dests->add(d.get(), &created), ERROR_FORWARD_DEST_INVALID);
+
+    std::vector<SrsForwardDestination *> list;
+    dests->fetch("", list);
+    EXPECT_EQ(0, (int)list.size());
+}
+
+// Generate an id if not specified by the caller.
+VOID TEST(ForwardDestinationsTest, GenerateId)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+    bool created = false;
+
+    SrsUniquePtr<SrsForwardDestination> d(mock_forward_destination("", "rtmp://127.0.0.1/live/key"));
+    HELPER_EXPECT_SUCCESS(dests->add(d.get(), &created));
+    EXPECT_TRUE(created);
+
+    std::vector<SrsForwardDestination *> list;
+    dests->fetch("", list);
+    ASSERT_EQ(1, (int)list.size());
+    EXPECT_FALSE(list[0]->id_.empty());
+    // The caller's object is not changed, the id is returned by the API response.
+    EXPECT_TRUE(d->id_.empty());
+}
+
+// The number of destinations is limited, to bound the memory and the outbound connections.
+VOID TEST(ForwardDestinationsTest, Limit)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+    bool created = false;
+
+    for (int i = 0; i < SRS_FORWARD_DESTINATIONS_MAX; i++) {
+        SrsUniquePtr<SrsForwardDestination> d(mock_forward_destination(srs_strconv_format_int(i), "rtmp://127.0.0.1/live/key"));
+        HELPER_EXPECT_SUCCESS(dests->add(d.get(), &created));
+    }
+
+    SrsUniquePtr<SrsForwardDestination> d(mock_forward_destination("more", "rtmp://127.0.0.1/live/key"));
+    HELPER_EXPECT_FAILED_CODE(dests->add(d.get(), &created), ERROR_FORWARD_DEST_LIMIT);
+
+    // Adding an existing destination is still ok.
+    SrsUniquePtr<SrsForwardDestination> d0(mock_forward_destination("0", "rtmp://127.0.0.1/live/key"));
+    HELPER_EXPECT_SUCCESS(dests->add(d0.get(), &created));
+    EXPECT_FALSE(created);
+}
+
+// Only the handler of the publishing stream is notified, so adding or removing a destination
+// never touches the other streams.
+VOID TEST(ForwardDestinationsTest, NotifyPublishingStream)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+    MockForwardDestinationHandler h1, h2;
+    bool created = false;
+
+    dests->subscribe("/live/stream1", &h1);
+    dests->subscribe("/live/stream2", &h2);
+
+    SrsUniquePtr<SrsForwardDestination> d1(mock_forward_destination("out1", "rtmp://127.0.0.1/live/k1"));
+    HELPER_EXPECT_SUCCESS(dests->add(d1.get(), &created));
+    ASSERT_EQ(1, (int)h1.added_.size());
+    EXPECT_STREQ("out1", h1.added_[0].c_str());
+    EXPECT_EQ(0, (int)h2.added_.size());
+
+    // Adding the same destination again does not start another forwarder.
+    HELPER_EXPECT_SUCCESS(dests->add(d1.get(), &created));
+    EXPECT_EQ(1, (int)h1.added_.size());
+
+    // The state is dumped by the handler.
+    if (true) {
+        SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+        dests->dumps(dests->find("out1"), obj.get());
+        EXPECT_EQ(1, h1.dumps_count_);
+        std::string json = obj->dumps();
+        EXPECT_TRUE(json.find("\"id\":\"out1\"") != std::string::npos);
+        EXPECT_TRUE(json.find("\"app\":\"live\"") != std::string::npos);
+        EXPECT_TRUE(json.find("\"stream\":\"stream1\"") != std::string::npos);
+        EXPECT_TRUE(json.find("\"url\":\"rtmp://127.0.0.1/live/***\"") != std::string::npos);
+        EXPECT_TRUE(json.find("\"state\":\"forwarding\"") != std::string::npos);
+        EXPECT_TRUE(json.find("k1") == std::string::npos);
+    }
+
+    HELPER_EXPECT_SUCCESS(dests->remove("out1"));
+    ASSERT_EQ(1, (int)h1.removed_.size());
+    EXPECT_STREQ("out1", h1.removed_[0].c_str());
+    EXPECT_EQ(0, (int)h2.removed_.size());
+
+    // A handler only unsubscribes itself.
+    dests->unsubscribe("/live/stream1", &h2);
+    HELPER_EXPECT_SUCCESS(dests->add(d1.get(), &created));
+    EXPECT_EQ(2, (int)h1.added_.size());
+
+    // After unsubscribed, the destination is kept but idle.
+    dests->unsubscribe("/live/stream1", &h1);
+    HELPER_EXPECT_SUCCESS(dests->remove("out1"));
+    EXPECT_EQ(1, (int)h1.removed_.size());
+
+    HELPER_EXPECT_SUCCESS(dests->add(d1.get(), &created));
+    EXPECT_EQ(2, (int)h1.added_.size());
+    if (true) {
+        SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+        dests->dumps(dests->find("out1"), obj.get());
+        EXPECT_TRUE(obj->dumps().find("\"state\":\"idle\"") != std::string::npos);
+    }
+}
+
+// If the publishing stream fails to start forwarding, the destination is not added.
+VOID TEST(ForwardDestinationsTest, RollbackWhenHandlerFails)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+    MockForwardDestinationHandler h1;
+    h1.add_error_ = srs_error_new(ERROR_FORWARD_DEST_INVALID, "mock start forwarder failed");
+    dests->subscribe("/live/stream1", &h1);
+
+    bool created = false;
+    SrsUniquePtr<SrsForwardDestination> d1(mock_forward_destination("out1", "rtmp://127.0.0.1/live/k1"));
+    HELPER_EXPECT_FAILED_CODE(dests->add(d1.get(), &created), ERROR_FORWARD_DEST_INVALID);
+    EXPECT_TRUE(dests->find("out1") == NULL);
+}
+
+// The origin hub starts and stops a forwarder for each destination at runtime, and the other
+// forwarders are not touched, the same object keeps running.
+VOID TEST(ForwardDestinationsTest, HubAddRemoveKeepsOthers)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    mock_config->forward_api_ = true;
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "stream1"));
+
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = mock_config.get();
+    hub->forward_destinations_ = dests.get();
+    hub->req_ = req.get();
+
+    // Start forwarding, subscribed to the destinations of stream.
+    HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+    EXPECT_EQ(0, (int)hub->forwarders_.size());
+
+    // Nobody listens on port 1, so the forwarders keep retrying without connected.
+    bool created = false;
+    SrsUniquePtr<SrsForwardDestination> d1(mock_forward_destination("out1", "rtmp://127.0.0.1:1/live/k1"));
+    SrsUniquePtr<SrsForwardDestination> d2(mock_forward_destination("out2", "rtmp://127.0.0.1:1/live/k2"));
+    SrsUniquePtr<SrsForwardDestination> d3(mock_forward_destination("out3", "rtmp://127.0.0.1:1/live/k3"));
+    HELPER_EXPECT_SUCCESS(dests->add(d1.get(), &created));
+    HELPER_EXPECT_SUCCESS(dests->add(d2.get(), &created));
+    HELPER_EXPECT_SUCCESS(dests->add(d3.get(), &created));
+    ASSERT_EQ(3, (int)hub->forwarders_.size());
+    ASSERT_EQ(3, (int)hub->dest_forwarders_.size());
+
+    ISrsForwarder *f1 = hub->dest_forwarders_["out1"];
+    ISrsForwarder *f3 = hub->dest_forwarders_["out3"];
+
+    // Remove the one in the middle, the others are the same forwarders.
+    HELPER_EXPECT_SUCCESS(dests->remove("out2"));
+    ASSERT_EQ(2, (int)hub->forwarders_.size());
+    EXPECT_TRUE(hub->forwarders_[0] == f1);
+    EXPECT_TRUE(hub->forwarders_[1] == f3);
+    EXPECT_TRUE(hub->dest_forwarders_.find("out2") == hub->dest_forwarders_.end());
+
+    // The hub dumps the state of forwarder.
+    if (true) {
+        SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+        dests->dumps(dests->find("out1"), obj.get());
+        std::string json = obj->dumps();
+        EXPECT_TRUE(json.find("\"state\"") != std::string::npos);
+        EXPECT_TRUE(json.find("\"state\":\"idle\"") == std::string::npos);
+    }
+
+    // Unpublish stops all forwarders, but the destinations are kept for next publish.
+    hub->destroy_forwarders();
+    EXPECT_EQ(0, (int)hub->forwarders_.size());
+    EXPECT_EQ(0, (int)hub->dest_forwarders_.size());
+    std::vector<SrsForwardDestination *> list;
+    dests->fetch("/live/stream1", list);
+    EXPECT_EQ(2, (int)list.size());
+
+    // After unpublish, adding a destination does not start a forwarder.
+    HELPER_EXPECT_SUCCESS(dests->add(d2.get(), &created));
+    EXPECT_EQ(0, (int)hub->forwarders_.size());
+
+    // Publish again, the forwarders of all destinations are started.
+    HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+    EXPECT_EQ(3, (int)hub->forwarders_.size());
+    EXPECT_EQ(3, (int)hub->dest_forwarders_.size());
+    hub->destroy_forwarders();
+}
+
+// The destinations can't be managed by API unless enabled, so the forwarders are not started.
+VOID TEST(ForwardDestinationsTest, HubIgnoresDestinationsIfApiDisabled)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:1");
+    mock_config->set_forward_destinations(destinations);
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "stream1"));
+
+    bool created = false;
+    SrsUniquePtr<SrsForwardDestination> d1(mock_forward_destination("out1", "rtmp://127.0.0.1:1/live/k1"));
+    HELPER_EXPECT_SUCCESS(dests->add(d1.get(), &created));
+
+    SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
+    hub->config_ = mock_config.get();
+    hub->forward_destinations_ = dests.get();
+    hub->req_ = req.get();
+
+    // Only the static destination is forwarded.
+    HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+    EXPECT_EQ(1, (int)hub->forwarders_.size());
+    EXPECT_EQ(0, (int)hub->dest_forwarders_.size());
+    hub->destroy_forwarders();
+}
+
+// When the forwarder starts, or reconnects, it drops the video frames until a keyframe, so
+// the destination is able to decode from the first frame.
+VOID TEST(ForwardDestinationsTest, ForwarderWaitsForKeyframe)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockRequest> req(new MockRequest("test.vhost", "live", "stream1"));
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    SrsUniquePtr<MockAppFactoryForForwarder> mock_factory(new MockAppFactoryForForwarder());
+    mock_factory->mock_rtmp_client_ = mock_sdk;
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(mock_hub.get()));
+    forwarder->app_factory_ = mock_factory.get();
+    forwarder->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+    EXPECT_STREQ("idle", forwarder->state_.c_str());
+
+    // The stream has video, so the forwarder waits for a keyframe.
+    forwarder->sh_video_ = mock_forward_video(true, true);
+
+    HELPER_EXPECT_SUCCESS(forwarder->on_publish());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_STREQ("forwarding", forwarder->state_.c_str());
+    EXPECT_EQ(1, forwarder->connects_);
+    EXPECT_EQ(1, mock_sdk->send_message_count_);
+
+    // An inter frame, a keyframe and an inter frame.
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> p0(mock_forward_video(false, false));
+        SrsUniquePtr<SrsMediaPacket> p1(mock_forward_video(true, false));
+        SrsUniquePtr<SrsMediaPacket> p2(mock_forward_video(false, false));
+        HELPER_EXPECT_SUCCESS(forwarder->on_video(p0.get()));
+        HELPER_EXPECT_SUCCESS(forwarder->on_video(p1.get()));
+        HELPER_EXPECT_SUCCESS(forwarder->on_video(p2.get()));
+    }
+
+    // Wakeup the forwarder coroutine.
+    mock_sdk->recv_msgs_.push_back(new SrsRtmpCommonMessage());
+    mock_sdk->cond_->signal();
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    // The first inter frame is dropped.
+    EXPECT_EQ(2, mock_sdk->send_and_free_messages_count_);
+    EXPECT_EQ(1, forwarder->dropped_frames_);
+    EXPECT_EQ(20, forwarder->send_bytes_);
+
+    if (true) {
+        SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+        forwarder->dumps(obj.get());
+        std::string json = obj->dumps();
+        EXPECT_TRUE(json.find("\"state\":\"forwarding\"") != std::string::npos);
+        EXPECT_TRUE(json.find("\"connects\":1") != std::string::npos);
+        EXPECT_TRUE(json.find("\"failures\":0") != std::string::npos);
+        EXPECT_TRUE(json.find("\"send_bytes\":20") != std::string::npos);
+        EXPECT_TRUE(json.find("\"dropped_frames\":1") != std::string::npos);
+    }
+
+    mock_sdk->recv_err_ = srs_error_new(ERROR_SOCKET_READ, "mock client quit");
+    mock_sdk->cond_->signal();
+    forwarder->on_unpublish();
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+}
+
+// The packets queued while the forwarder is disconnected are stale, so they are dropped when
+// connected, instead of sending them in a burst.
+VOID TEST(ForwardDestinationsTest, ForwarderDropsStaleQueue)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockRequest> req(new MockRequest("test.vhost", "live", "stream1"));
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    SrsUniquePtr<MockAppFactoryForForwarder> mock_factory(new MockAppFactoryForForwarder());
+    mock_factory->mock_rtmp_client_ = mock_sdk;
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(mock_hub.get()));
+    forwarder->app_factory_ = mock_factory.get();
+    forwarder->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+
+    // Queued before connected, for example, while retrying.
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> p0(mock_forward_video(true, false));
+        SrsUniquePtr<SrsMediaPacket> p1(mock_forward_video(false, false));
+        HELPER_EXPECT_SUCCESS(forwarder->on_video(p0.get()));
+        HELPER_EXPECT_SUCCESS(forwarder->on_video(p1.get()));
+    }
+
+    HELPER_EXPECT_SUCCESS(forwarder->on_publish());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_STREQ("forwarding", forwarder->state_.c_str());
+
+    mock_sdk->recv_msgs_.push_back(new SrsRtmpCommonMessage());
+    mock_sdk->cond_->signal();
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(0, mock_sdk->send_and_free_messages_count_);
+
+    mock_sdk->recv_err_ = srs_error_new(ERROR_SOCKET_READ, "mock client quit");
+    mock_sdk->cond_->signal();
+    forwarder->on_unpublish();
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+}
+
+// The forwarder reports the failure and keeps retrying.
+VOID TEST(ForwardDestinationsTest, ForwarderReportsFailure)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockRequest> req(new MockRequest("test.vhost", "live", "stream1"));
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    mock_sdk->connect_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "mock connect refused");
+    SrsUniquePtr<MockAppFactoryForForwarder> mock_factory(new MockAppFactoryForForwarder());
+    mock_factory->mock_rtmp_client_ = mock_sdk;
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(mock_hub.get()));
+    forwarder->app_factory_ = mock_factory.get();
+    forwarder->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+
+    HELPER_EXPECT_SUCCESS(forwarder->on_publish());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_STREQ("retrying", forwarder->state_.c_str());
+    EXPECT_EQ(1, forwarder->failures_);
+    EXPECT_EQ(0, forwarder->connects_);
+    EXPECT_TRUE(forwarder->last_error_.find("mock connect refused") != std::string::npos);
+    EXPECT_TRUE(forwarder->last_error_at_ > 0);
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    forwarder->dumps(obj.get());
+    std::string json = obj->dumps();
+    EXPECT_TRUE(json.find("\"state\":\"retrying\"") != std::string::npos);
+    EXPECT_TRUE(json.find("\"failures\":1") != std::string::npos);
+    EXPECT_TRUE(json.find("mock connect refused") != std::string::npos);
+
+    // Stop while waiting to retry, the mock client must not be reused.
+    forwarder->on_unpublish();
+}
+
+// The error of publishing to the destination carries the stream key, which must be hidden.
+VOID TEST(ForwardDestinationsTest, ForwarderRedactsStreamKeyInError)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockRequest> req(new MockRequest("test.vhost", "live2", "secretkey"));
+    req->param_ = "?token=secrettoken";
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    mock_sdk->publish_error_ = srs_error_new(ERROR_RTMP_ACCESS_DENIED, "publish failed, stream=secretkey?token=secrettoken");
+    SrsUniquePtr<MockAppFactoryForForwarder> mock_factory(new MockAppFactoryForForwarder());
+    mock_factory->mock_rtmp_client_ = mock_sdk;
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(mock_hub.get()));
+    forwarder->app_factory_ = mock_factory.get();
+    forwarder->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+
+    HELPER_EXPECT_SUCCESS(forwarder->on_publish());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_STREQ("retrying", forwarder->state_.c_str());
+    EXPECT_TRUE(forwarder->last_error_.find("publish failed") != std::string::npos);
+    EXPECT_TRUE(forwarder->last_error_.find("secretkey") == std::string::npos) << forwarder->last_error_;
+    EXPECT_TRUE(forwarder->last_error_.find("secrettoken") == std::string::npos) << forwarder->last_error_;
+
+    forwarder->on_unpublish();
+}
+
+VOID TEST(ForwardDestinationsTest, ConfigForwardApi)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v1{forward{enabled on;api on;}} vhost v2{forward{enabled on;destination 127.0.0.1:1936;}}"));
+    EXPECT_TRUE(conf.get_forward_api("v1"));
+    EXPECT_FALSE(conf.get_forward_api("v2"));
+    EXPECT_FALSE(conf.get_forward_api("v3"));
+
+    if (true) {
+        SrsSetEnvConfig(conf, forward_api, "SRS_VHOST_FORWARD_API", "on");
+        EXPECT_TRUE(conf.get_forward_api("v2"));
+    }
+}
+
+// The HTTP API to add, list, get and remove forward destinations.
+VOID TEST(ForwardDestinationsTest, HttpApi)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    mock_config->forward_api_ = true;
+    mock_config->default_vhost_ = new SrsConfDirective();
+    mock_config->default_vhost_->name_ = "vhost";
+    mock_config->default_vhost_->args_.push_back("__defaultVhost__");
+    SrsUniquePtr<MockAppStatistic> mock_stat(new MockAppStatistic());
+    SrsUniquePtr<SrsForwardDestinations> dests(new SrsForwardDestinations());
+
+    SrsUniquePtr<SrsGoApiForwards> api(new SrsGoApiForwards());
+    api->stat_ = mock_stat.get();
+    api->config_ = mock_config.get();
+    api->forward_destinations_ = dests.get();
+    api->entry_ = new SrsHttpMuxEntry();
+    api->entry_->pattern = "/api/v1/forwards/";
+
+    std::string body = "{\"id\":\"out1\",\"app\":\"live\",\"stream\":\"stream1\",\"url\":\"rtmp://127.0.0.1:19350/live2/secretkey?token=abc\"}";
+
+    // Add a destination.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_POST, "http://127.0.0.1/api/v1/forwards/", body);
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        std::string res = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(res.find("\"code\":0") != std::string::npos);
+        EXPECT_TRUE(res.find("\"id\":\"out1\"") != std::string::npos);
+        EXPECT_TRUE(res.find("\"vhost\":\"__defaultVhost__\"") != std::string::npos);
+        EXPECT_TRUE(res.find("\"url\":\"rtmp://127.0.0.1:19350/live2/***\"") != std::string::npos);
+        EXPECT_TRUE(res.find("\"state\":\"idle\"") != std::string::npos);
+        EXPECT_TRUE(res.find("secretkey") == std::string::npos);
+        EXPECT_TRUE(dests->find("out1") != NULL);
+    }
+
+    // Add it again, it's idempotent.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_POST, "http://127.0.0.1/api/v1/forwards/", body);
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("\"code\":0") != std::string::npos);
+    }
+
+    // The same id with another url.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_POST, "http://127.0.0.1/api/v1/forwards/",
+                                     "{\"id\":\"out1\",\"app\":\"live\",\"stream\":\"stream1\",\"url\":\"rtmp://127.0.0.1/live/other\"}");
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("\"code\":3105") != std::string::npos);
+    }
+
+    // List all destinations.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_GET, "http://127.0.0.1/api/v1/forwards/", "");
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        std::string res = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(res.find("\"code\":0") != std::string::npos);
+        EXPECT_TRUE(res.find("\"server\":") != std::string::npos);
+        EXPECT_TRUE(res.find("\"total\":1") != std::string::npos);
+        EXPECT_TRUE(res.find("\"forwards\":[") != std::string::npos);
+        EXPECT_TRUE(res.find("\"id\":\"out1\"") != std::string::npos);
+        EXPECT_TRUE(res.find("secretkey") == std::string::npos);
+    }
+
+    // List the destinations of another stream.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_GET, "http://127.0.0.1/api/v1/forwards/?app=live&stream=other", "");
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("\"total\":0") != std::string::npos);
+    }
+
+    // Get the destination.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_GET, "http://127.0.0.1/api/v1/forwards/out1", "");
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        std::string res = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(res.find("\"forward\":{") != std::string::npos);
+        EXPECT_TRUE(res.find("\"id\":\"out1\"") != std::string::npos);
+    }
+
+    // Remove the destination.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_DELETE, "http://127.0.0.1/api/v1/forwards/out1", "");
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("\"code\":0") != std::string::npos);
+        EXPECT_TRUE(dests->find("out1") == NULL);
+    }
+
+    // Not found.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_DELETE, "http://127.0.0.1/api/v1/forwards/out1", "");
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("\"code\":3106") != std::string::npos);
+    }
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_GET, "http://127.0.0.1/api/v1/forwards/out1", "");
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("\"code\":3106") != std::string::npos);
+    }
+
+    // Invalid body or destination.
+    const char *invalid_bodies[] = {
+        "not json",
+        "[]",
+        "{\"app\":\"live\",\"stream\":\"stream1\"}",
+        "{\"app\":\"live\",\"stream\":\"stream1\",\"url\":\"rtmps://127.0.0.1/live/key\"}",
+        "{\"app\":\"live\",\"url\":\"rtmp://127.0.0.1/live/key\"}",
+        "{\"app\":\"live\",\"stream\":1,\"url\":\"rtmp://127.0.0.1/live/key\"}",
+    };
+    for (int i = 0; i < (int)(sizeof(invalid_bodies) / sizeof(invalid_bodies[0])); i++) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_POST, "http://127.0.0.1/api/v1/forwards/", invalid_bodies[i]);
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("\"code\":3104") != std::string::npos) << invalid_bodies[i];
+    }
+
+    // Not allowed method.
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_PUT, "http://127.0.0.1/api/v1/forwards/out1", "");
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("405") != std::string::npos);
+    }
+
+    // The forward API is disabled for the vhost.
+    mock_config->forward_api_ = false;
+    if (true) {
+        MockResponseWriter w;
+        MockHttpMessageForForwards r(SRS_CONSTS_HTTP_POST, "http://127.0.0.1/api/v1/forwards/", body);
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, &r));
+        EXPECT_TRUE(HELPER_BUFFER2STR(&w.io.out_buffer).find("\"code\":3103") != std::string::npos);
+        EXPECT_TRUE(dests->find("out1") == NULL);
+    }
+
+    srs_freep(api->entry_);
 }

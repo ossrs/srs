@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include <srs_app_forward.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_stream_bridge.hpp>
@@ -424,13 +425,14 @@ public:
 // The hub for origin is a collection of utilities for origin only,
 // For example, DVR, HLS, Forward and Transcode are only available for origin,
 // they are meanless for edge server.
-class SrsOriginHub : public ISrsReloadHandler, public ISrsOriginHub
+class SrsOriginHub : public ISrsReloadHandler, public ISrsOriginHub, public ISrsForwardDestinationHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsStatistic *stat_;
     ISrsHttpHooks *hooks_;
+    ISrsForwardDestinations *forward_destinations_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -460,6 +462,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsNgExec *ng_exec_;
     // To forward stream to other servers
     std::vector<ISrsForwarder *> forwarders_;
+    // The forwarders of destinations managed by the HTTP API, key is the destination id. Each of
+    // them is also in the forwarders_, which feeds them the media packets.
+    std::map<std::string, ISrsForwarder *> dest_forwarders_;
+    // The stream url subscribed to the forward destinations, empty if not subscribed.
+    std::string forward_destinations_stream_url_;
 
 public:
     SrsOriginHub();
@@ -502,11 +509,18 @@ public:
     virtual srs_error_t on_dvr_request_sh();
     // For the SrsHls to callback to request the sequence headers.
     virtual srs_error_t on_hls_request_sh();
+    // Interface ISrsForwardDestinationHandler
+public:
+    virtual srs_error_t on_forward_destination_add(SrsForwardDestination *dest);
+    virtual void on_forward_destination_remove(std::string id);
+    virtual void on_forward_destination_dumps(std::string id, SrsJsonObject *obj);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t create_forwarders();
     virtual srs_error_t create_backend_forwarders(bool &applied);
+    virtual srs_error_t create_destination_forwarders();
+    virtual srs_error_t create_destination_forwarder(SrsForwardDestination *dest);
     virtual void destroy_forwarders();
 };
 

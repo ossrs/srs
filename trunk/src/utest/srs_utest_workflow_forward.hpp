@@ -32,7 +32,9 @@
 #include <srs_app_config.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_forward.hpp>
+#include <srs_app_http_api.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -60,6 +62,38 @@ public:
     virtual ~MockHttpHooksForForwardBackendFailure();
     virtual srs_error_t on_forward_backend(std::string url, ISrsRequest *req, std::vector<std::string> &rtmp_urls);
     void set_on_forward_backend_error(srs_error_t err);
+};
+
+// Mock the origin hub that handles the forward destinations of a publishing stream.
+class MockForwardDestinationHandler : public ISrsForwardDestinationHandler
+{
+public:
+    std::vector<std::string> added_;
+    std::vector<std::string> removed_;
+    int dumps_count_;
+    srs_error_t add_error_;
+
+public:
+    MockForwardDestinationHandler();
+    virtual ~MockForwardDestinationHandler();
+    virtual srs_error_t on_forward_destination_add(SrsForwardDestination *dest);
+    virtual void on_forward_destination_remove(std::string id);
+    virtual void on_forward_destination_dumps(std::string id, SrsJsonObject *obj);
+};
+
+// Mock the HTTP request with method and body, for the forward destinations API.
+class MockHttpMessageForForwards : public SrsHttpMessage
+{
+public:
+    MockHttpConn *mock_conn_;
+    std::string body_;
+    uint8_t method_;
+
+public:
+    MockHttpMessageForForwards(uint8_t method, std::string url, std::string body);
+    virtual ~MockHttpMessageForForwards();
+    virtual srs_error_t body_read_all(std::string &body);
+    virtual uint8_t method();
 };
 
 #endif

@@ -24,6 +24,7 @@ class ISrsStatistic;
 class ISrsReloadStatus;
 class ISrsAppConfig;
 class ISrsCoWorkers;
+class ISrsForwardDestinations;
 
 #include <string>
 
@@ -253,6 +254,32 @@ public:
 
 public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+};
+
+// The HTTP API to add, remove and list the forward destinations of streams at runtime, for example:
+//      GET     /api/v1/forwards/                   List all destinations, filter by ?vhost=&app=&stream=
+//      GET     /api/v1/forwards/{id}               Get the destination
+//      POST    /api/v1/forwards/                   Add a destination, body {"id","vhost","app","stream","url"}
+//      DELETE  /api/v1/forwards/{id}               Remove the destination
+class SrsGoApiForwards : public ISrsHttpHandler
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+    ISrsAppConfig *config_;
+    ISrsForwardDestinations *forward_destinations_;
+
+public:
+    SrsGoApiForwards();
+    virtual ~SrsGoApiForwards();
+
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    virtual srs_error_t do_serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsJsonObject *obj);
+    virtual srs_error_t add(ISrsHttpMessage *r, SrsJsonObject *obj);
 };
 
 class SrsGoApiRaw : public ISrsHttpHandler, public ISrsReloadHandler

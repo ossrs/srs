@@ -63,6 +63,7 @@ using namespace std;
 #include <srs_app_rtsp_source.hpp>
 #endif
 #include <srs_app_factory.hpp>
+#include <srs_app_forward.hpp>
 
 SrsServer *_srs_server = NULL;
 
@@ -103,6 +104,9 @@ srs_error_t srs_global_initialize()
 
     // Initialize stream publish token manager before _srs_sources, which captures it.
     _srs_stream_publish_tokens = new SrsStreamPublishTokenManager();
+
+    // The forward destinations managed by HTTP API, before _srs_sources, whose origin hubs capture it.
+    _srs_forward_destinations = new SrsForwardDestinations();
 
     _srs_sources = new SrsLiveSourceManager();
     _srs_sources->assemble();
@@ -826,6 +830,9 @@ srs_error_t SrsServer::http_handle()
     }
     if ((err = http_api_mux_->handle("/api/v1/clients/", new SrsGoApiClients())) != srs_success) {
         return srs_error_wrap(err, "handle clients");
+    }
+    if ((err = http_api_mux_->handle("/api/v1/forwards/", new SrsGoApiForwards())) != srs_success) {
+        return srs_error_wrap(err, "handle forwards");
     }
 
     SrsGoApiRaw *raw_api = new SrsGoApiRaw(this);

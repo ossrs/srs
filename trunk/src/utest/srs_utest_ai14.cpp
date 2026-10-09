@@ -1637,6 +1637,10 @@ srs_error_t MockForwarderForOriginHub::on_video(SrsMediaPacket *shared_video)
     return srs_success;
 }
 
+void MockForwarderForOriginHub::dumps(SrsJsonObject *obj)
+{
+}
+
 // Mock ISrsLiveSource implementation
 MockLiveSourceForOriginHub::MockLiveSourceForOriginHub()
 {

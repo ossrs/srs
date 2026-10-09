@@ -392,6 +392,7 @@ public:
     bool srt_to_rtmp_;
     bool rtc_from_rtmp_;
     SrsConfDirective *forwards_directive_;
+    bool forward_api_;
     SrsConfDirective *backend_directive_;
     bool rtc_server_enabled_;
     bool rtc_enabled_;
@@ -427,6 +428,7 @@ public:
         rtc_from_rtmp_ = false;
         forwards_directive_ = NULL;
         backend_directive_ = NULL;
+        forward_api_ = false;
         rtc_server_enabled_ = false;
         rtc_enabled_ = false;
         rtc_init_rate_from_sdp_ = false;
@@ -683,7 +685,8 @@ public:
     virtual bool get_hls_ts_ctx_enabled(std::string vhost) { return true; }
     virtual bool get_hls_master_m3u8_path_relative(std::string vhost) { return false; }
     virtual bool get_hls_recover(std::string vhost) { return true; }
-    virtual bool get_forward_enabled(std::string vhost) { return forwards_directive_ != NULL || backend_directive_ != NULL; }
+    virtual bool get_forward_enabled(std::string vhost) { return forwards_directive_ != NULL || backend_directive_ != NULL || forward_api_; }
+    virtual bool get_forward_api(std::string vhost) { return forward_api_; }
     virtual SrsConfDirective *get_forwards(std::string vhost) { return forwards_directive_; }
     virtual srs_utime_t get_queue_length(std::string vhost) { return 30 * SRS_UTIME_SECONDS; }
     virtual SrsConfDirective *get_forward_backend(std::string vhost) { return backend_directive_; }
