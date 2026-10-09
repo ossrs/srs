@@ -6,7 +6,7 @@
 /skills/llm-switcher
 /skills/*workspace*
 
-# For speical folders.
+# For special folders.
 /personal*
 /support*
 /*srs-consults*
