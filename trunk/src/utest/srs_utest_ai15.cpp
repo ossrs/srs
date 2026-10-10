@@ -3106,6 +3106,11 @@ srs_error_t MockStatisticForResampleKbps::dumps_forwards(SrsJsonArray *arr, std:
     return srs_success;
 }
 
+int MockStatisticForResampleKbps::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
 SrsStatisticForward *MockStatisticForResampleKbps::find_forward(std::string forward_id)
 {
     return NULL;

@@ -235,6 +235,8 @@ public:
     virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count) = 0;
     // Dumps the forwards to json array, only of the stream if stream_id is not empty.
     virtual srs_error_t dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count) = 0;
+    // Count the forwards, only of the stream if stream_id is not empty.
+    virtual int count_forwards(std::string stream_id) = 0;
     // Dumps exporter metrics.
     virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs) = 0;
 };
@@ -387,6 +389,9 @@ public:
     // @param start the start index, from 0, after the filter.
     // @param count the max count of forwards to dump.
     virtual srs_error_t dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count);
+    // Count the forwards, the total of dumps_forwards() before start and count.
+    // @param stream_id the stream id to filter by, or empty for all forwards.
+    virtual int count_forwards(std::string stream_id);
     // Dumps the hints about SRS server.
     void dumps_hints_kv(std::stringstream &ss);
 

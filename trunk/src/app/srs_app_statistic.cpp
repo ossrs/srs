@@ -885,6 +885,22 @@ srs_error_t SrsStatistic::dumps_forwards(SrsJsonArray *arr, std::string stream_i
     return err;
 }
 
+int SrsStatistic::count_forwards(std::string stream_id)
+{
+    if (stream_id.empty()) {
+        return (int)forwards_.size();
+    }
+
+    int total = 0;
+    std::map<std::string, SrsStatisticForward *>::iterator it;
+    for (it = forwards_.begin(); it != forwards_.end(); it++) {
+        if (it->second->stream_id_ == stream_id) {
+            total++;
+        }
+    }
+    return total;
+}
+
 void SrsStatistic::dumps_hints_kv(std::stringstream &ss)
 {
     if (!streams_.empty()) {

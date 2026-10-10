@@ -891,6 +891,11 @@ srs_error_t MockStatisticForLiveStream::dumps_forwards(SrsJsonArray *arr, std::s
     return srs_success;
 }
 
+int MockStatisticForLiveStream::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
 SrsStatisticForward *MockStatisticForLiveStream::find_forward(std::string forward_id)
 {
     return NULL;

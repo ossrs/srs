@@ -2252,6 +2252,11 @@ srs_error_t MockStatisticForOriginHub::dumps_forwards(SrsJsonArray *arr, std::st
     return srs_success;
 }
 
+int MockStatisticForOriginHub::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
 SrsStatisticForward *MockStatisticForOriginHub::find_forward(std::string forward_id)
 {
     return NULL;

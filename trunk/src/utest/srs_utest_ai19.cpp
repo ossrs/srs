@@ -2704,6 +2704,11 @@ srs_error_t MockStatisticForHttpxConn::dumps_forwards(SrsJsonArray *arr, std::st
     return srs_success;
 }
 
+int MockStatisticForHttpxConn::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
 SrsStatisticForward *MockStatisticForHttpxConn::find_forward(std::string forward_id)
 {
     return NULL;

@@ -280,6 +280,7 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r
     urls->set("vhosts", SrsJsonAny::str("manage all vhosts or specified vhost"));
     urls->set("streams", SrsJsonAny::str("manage all streams or specified stream"));
     urls->set("clients", SrsJsonAny::str("manage all clients or specified client, default query top 10 clients"));
+    urls->set("forwards", SrsJsonAny::str("query all forwards or specified forward, filter by ?stream=id, default query top 10 forwards"));
     urls->set("raw", SrsJsonAny::str("raw api for srs, support CUID srs for instance the config"));
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
     urls->set("perf", SrsJsonAny::str("System performance stat"));
@@ -926,8 +927,58 @@ SrsGoApiForwards::~SrsGoApiForwards()
 
 srs_error_t SrsGoApiForwards::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
-    // TODO: Implement it.
-    return srs_success;
+    srs_error_t err = srs_success;
+
+    // Read-only: a forward is removed by kicking its publisher, see the forward doc.
+    if (!r->is_http_get()) {
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_MethodNotAllowed);
+    }
+
+    // path: {pattern}{forward_id}
+    // e.g. /api/v1/forwards/fwd-x     pattern= /api/v1/forwards/, forward_id=fwd-x
+    string forward_id = r->parse_rest_id(entry_->pattern);
+
+    SrsStatisticForward *forward = NULL;
+    if (!forward_id.empty() && (forward = stat_->find_forward(forward_id)) == NULL) {
+        return srs_api_response_code(w, r, ERROR_RTMP_FORWARD_NOT_FOUND);
+    }
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+
+    obj->set("code", SrsJsonAny::integer(ERROR_SUCCESS));
+    obj->set("server", SrsJsonAny::str(stat_->server_id().c_str()));
+    obj->set("service", SrsJsonAny::str(stat_->service_id().c_str()));
+    obj->set("pid", SrsJsonAny::str(stat_->service_pid().c_str()));
+
+    if (!forward) {
+        // Filter by the stream id, e.g. ?stream=vid-xxx, empty for all streams.
+        string stream_id = r->query_get("stream");
+
+        // The total after the filter, before start and count, so the client knows how many pages there are.
+        obj->set("total", SrsJsonAny::integer(stat_->count_forwards(stream_id)));
+
+        SrsJsonArray *data = SrsJsonAny::array();
+        obj->set("forwards", data);
+
+        int start, count;
+        srs_api_parse_pagination(r, start, count);
+        if ((err = stat_->dumps_forwards(data, stream_id, start, count)) != srs_success) {
+            int code = srs_error_code(err);
+            srs_freep(err);
+            return srs_api_response_code(w, r, code);
+        }
+    } else {
+        SrsJsonObject *data = SrsJsonAny::object();
+        obj->set("forward", data);
+
+        if ((err = forward->dumps(data)) != srs_success) {
+            int code = srs_error_code(err);
+            srs_freep(err);
+            return srs_api_response_code(w, r, code);
+        }
+    }
+
+    return srs_api_response(w, r, obj->dumps());
 }
 
 SrsGoApiRaw::SrsGoApiRaw(ISrsSignalHandler *handler)

@@ -1415,10 +1415,10 @@ func forwardStatus(t *testing.T, withBackend bool) {
 		r0 = dst1.Run(dst1Ctx, dst1Cancel)
 	}()
 
-	// The origin SRS, which forwards to the destination port. The url the forwarder publishes to adds the vhost of
-	// the backend url's IP host.
+	// The origin SRS, which forwards to the destination port. The url the forwarder publishes to adds a vhost: for a
+	// destination, the publisher's host (localhost, not an IP), and for a backend url, its IP host.
 	var originEnvs []string
-	expectURL := fmt.Sprintf("rtmp://127.0.0.1:%v/%v/%v", dst1.RTMPPort(), dstApp, dstStream)
+	expectURL := fmt.Sprintf("rtmp://127.0.0.1:%v/%v/%v?vhost=localhost", dst1.RTMPPort(), dstApp, dstStream)
 	if withBackend {
 		backendURL := fmt.Sprintf("rtmp://127.0.0.1:%v/%v/%v?token=abc", dst1.RTMPPort(), dstApp, dstStream)
 		expectURL = fmt.Sprintf("%v&vhost=127.0.0.1", backendURL)

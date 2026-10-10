@@ -1850,6 +1850,11 @@ srs_error_t MockStatisticForRtcApi::dumps_forwards(SrsJsonArray *arr, std::strin
     return srs_success;
 }
 
+int MockStatisticForRtcApi::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
 SrsStatisticForward *MockStatisticForRtcApi::find_forward(std::string forward_id)
 {
     return NULL;
@@ -4764,6 +4769,11 @@ srs_error_t MockStatisticForHooks::dumps_forwards(SrsJsonArray *arr, std::string
     return srs_success;
 }
 
+int MockStatisticForHooks::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
 SrsStatisticForward *MockStatisticForHooks::find_forward(std::string forward_id)
 {
     return NULL;
@@ -5507,6 +5517,16 @@ static string utest_forward_api_ids(SrsJsonObject *obj)
     return joined;
 }
 
+// The total of a list response, or -1 if there is none.
+static int utest_forward_api_total(SrsJsonObject *obj)
+{
+    SrsJsonAny *total = obj->get_property("total");
+    if (!total || !total->is_integer()) {
+        return -1;
+    }
+    return (int)total->to_integer();
+}
+
 // GET /api/v1/forwards/ lists every forward, with the code, server, service and pid like the
 // other APIs.
 VOID TEST(ApiForwardsTest, ListsEveryForward)
@@ -5541,6 +5561,7 @@ VOID TEST(ApiForwardsTest, ListsEveryForward)
     EXPECT_STREQ(stat.service_pid().c_str(), prop->to_str().c_str());
 
     EXPECT_STREQ("fwd-a1 fwd-a2 fwd-b1", utest_forward_api_ids(obj).c_str());
+    EXPECT_EQ(3, utest_forward_api_total(obj));
 
     // Each one is the forward's dump.
     SrsJsonArray *forwards = obj->get_property("forwards")->to_array();
@@ -5554,7 +5575,8 @@ VOID TEST(ApiForwardsTest, ListsEveryForward)
 }
 
 // ?stream= lists only the forwards of that stream, with start and count after the filter, and
-// count defaults to 10.
+// count defaults to 10. The total is the number of forwards after the filter, whatever the start
+// and count, so the client knows how many pages there are.
 VOID TEST(ApiForwardsTest, FiltersByStreamAndPaginates)
 {
     srs_error_t err;
@@ -5578,6 +5600,7 @@ VOID TEST(ApiForwardsTest, FiltersByStreamAndPaginates)
         SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
         ASSERT_TRUE(json.get() && json->is_object());
         EXPECT_STREQ("fwd-a1 fwd-a2", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(2, utest_forward_api_total(json->to_object()));
     }
 
     if (true) {
@@ -5586,6 +5609,17 @@ VOID TEST(ApiForwardsTest, FiltersByStreamAndPaginates)
         SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
         ASSERT_TRUE(json.get() && json->is_object());
         EXPECT_STREQ("fwd-a2", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(2, utest_forward_api_total(json->to_object()));
+    }
+
+    // A start past the end lists nothing, and still has the total.
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/?stream=" + sa->id_ + "&start=5", &w));
+        SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+        ASSERT_TRUE(json.get() && json->is_object());
+        EXPECT_STREQ("", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(2, utest_forward_api_total(json->to_object()));
     }
 
     if (true) {
@@ -5594,6 +5628,7 @@ VOID TEST(ApiForwardsTest, FiltersByStreamAndPaginates)
         SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
         ASSERT_TRUE(json.get() && json->is_object());
         EXPECT_STREQ("", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(0, utest_forward_api_total(json->to_object()));
     }
 
     // 14 forwards in all, 10 by default.
@@ -5604,6 +5639,17 @@ VOID TEST(ApiForwardsTest, FiltersByStreamAndPaginates)
         ASSERT_TRUE(json.get() && json->is_object());
         EXPECT_STREQ("fwd-a1 fwd-a2 fwd-b1 fwd-c10 fwd-c11 fwd-c12 fwd-c13 fwd-c14 fwd-c15 fwd-c16",
                      utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(14, utest_forward_api_total(json->to_object()));
+    }
+
+    // The last page of the 14 forwards.
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/?start=10", &w));
+        SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+        ASSERT_TRUE(json.get() && json->is_object());
+        EXPECT_STREQ("fwd-c17 fwd-c18 fwd-c19 fwd-c20", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(14, utest_forward_api_total(json->to_object()));
     }
 }
 

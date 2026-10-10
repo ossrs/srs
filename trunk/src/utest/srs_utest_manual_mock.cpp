@@ -822,6 +822,11 @@ srs_error_t MockAppStatistic::dumps_forwards(SrsJsonArray *arr, std::string stre
     return srs_success;
 }
 
+int MockAppStatistic::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
 SrsStatisticForward *MockAppStatistic::find_forward(std::string forward_id)
 {
     return NULL;
