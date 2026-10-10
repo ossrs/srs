@@ -67,6 +67,8 @@ The trigger picks the tier, never the expected runtime. Report every layer not r
 
 ### Full Tier Layers
 
+Run every layer with `bash skills/srs-develop/scripts/srs-full-tier.sh`, after `full-tier-lock.sh status`. It runs them in the [Order](#order) below, under the [Global Lock](#global-lock), and prints one row per layer.
+
 **C++ unit.** `make utest && ./objs/srs_utest`, configured as in [Parallel Runs](#parallel-runs).
 
 **The suite above.**
