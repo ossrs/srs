@@ -44,7 +44,8 @@ SrsForwarder::SrsForwarder(ISrsOriginHub *h)
     hub_ = h;
 
     req_ = NULL;
-    sh_video_ = sh_audio_ = NULL;
+    metadata_ = sh_video_ = sh_audio_ = NULL;
+    wait_keyframe_ = false;
 
     sdk_ = NULL;
     trd_ = new SrsDummyCoroutine();
@@ -62,6 +63,7 @@ SrsForwarder::~SrsForwarder()
     srs_freep(queue_);
     srs_freep(jitter_);
 
+    srs_freep(metadata_);
     srs_freep(sh_video_);
     srs_freep(sh_audio_);
 
@@ -130,7 +132,10 @@ srs_error_t SrsForwarder::on_meta_data(SrsMediaPacket *shared_metadata)
         return srs_error_wrap(err, "jitter");
     }
 
-    if ((err = queue_->enqueue(metadata)) != srs_success) {
+    srs_freep(metadata_);
+    metadata_ = metadata->copy();
+
+    if ((err = enqueue(metadata)) != srs_success) {
         return srs_error_wrap(err, "enqueue metadata");
     }
 
@@ -153,7 +158,7 @@ srs_error_t SrsForwarder::on_audio(SrsMediaPacket *shared_audio)
         sh_audio_ = msg->copy();
     }
 
-    if ((err = queue_->enqueue(msg)) != srs_success) {
+    if ((err = enqueue(msg)) != srs_success) {
         return srs_error_wrap(err, "enqueue audio");
     }
 
@@ -171,13 +176,40 @@ srs_error_t SrsForwarder::on_video(SrsMediaPacket *shared_video)
         return srs_error_wrap(err, "jitter");
     }
 
-    if (SrsFlvVideo::sh(msg->payload(), msg->size())) {
+    bool is_sh = SrsFlvVideo::sh(msg->payload(), msg->size());
+    if (is_sh) {
         srs_freep(sh_video_);
         sh_video_ = msg->copy();
     }
 
-    if ((err = queue_->enqueue(msg)) != srs_success) {
+    // Drop video until the next keyframe; a sequence header always passes.
+    if (wait_keyframe_ && msg->is_video() && !is_sh) {
+        if (!SrsFlvVideo::keyframe(msg->payload(), msg->size())) {
+            srs_freep(msg);
+            return err;
+        }
+        wait_keyframe_ = false;
+    }
+
+    if ((err = enqueue(msg)) != srs_success) {
         return srs_error_wrap(err, "enqueue video");
+    }
+
+    return err;
+}
+
+srs_error_t SrsForwarder::enqueue(SrsMediaPacket *msg)
+{
+    srs_error_t err = srs_success;
+
+    bool is_overflow = false;
+    if ((err = queue_->enqueue(msg, &is_overflow)) != srs_success) {
+        return srs_error_wrap(err, "enqueue");
+    }
+
+    // The shrink dropped the queued media, so the destination must restart at a keyframe.
+    if (is_overflow) {
+        wait_keyframe_ = true;
     }
 
     return err;
@@ -253,6 +285,11 @@ srs_error_t SrsForwarder::do_cycle()
         return srs_error_wrap(err, "notify hub start");
     }
 
+    // Start fresh from live: drop the media queued before the publish, which forward() replaces
+    // by the cached metadata and sequence headers, and drop video until the next keyframe.
+    queue_->clear();
+    wait_keyframe_ = true;
+
     if ((err = forward()) != srs_success) {
         return srs_error_wrap(err, "forward");
     }
@@ -273,8 +310,13 @@ srs_error_t SrsForwarder::forward()
 
     SrsMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
 
-    // update sequence header
+    // Send the metadata and sequence headers first.
     // TODO: FIXME: maybe need to zero the sequence header timestamp.
+    if (metadata_) {
+        if ((err = sdk_->send_and_free_message(metadata_->copy())) != srs_success) {
+            return srs_error_wrap(err, "send metadata");
+        }
+    }
     if (sh_video_) {
         if ((err = sdk_->send_and_free_message(sh_video_->copy())) != srs_success) {
             return srs_error_wrap(err, "send video sh");

@@ -75,9 +75,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsBasicRtmpClient *sdk_;
     SrsRtmpJitter *jitter_;
     SrsMessageQueue *queue_;
-    // Cache the sequence header for retry when slave is failed.
+    // Cache the metadata and sequence headers, sent first after each publish to the destination.
+    SrsMediaPacket *metadata_;
     SrsMediaPacket *sh_audio_;
     SrsMediaPacket *sh_video_;
+    // Whether to drop video until the next keyframe, after a publish or a queue overflow, so the
+    // destination never starts from the middle of a GOP. Audio and sequence headers pass.
+    bool wait_keyframe_;
 
 public:
     SrsForwarder(ISrsOriginHub *h);
@@ -110,6 +114,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t forward();
+    // Enqueue a packet, and wait for the next keyframe if the queue overflows and shrinks.
+    virtual srs_error_t enqueue(SrsMediaPacket *msg);
 };
 
 #endif
