@@ -5,10 +5,13 @@
 //
 #include <srs_utest_ai34.hpp>
 
+#include <srs_app_http_hooks.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_utest_ai14.hpp>
+#include <srs_utest_ai17.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <string.h>
@@ -1641,4 +1644,331 @@ VOID TEST(OriginHubForwardTest, UnpublishFreesForwardersAndRepublishCreatesThem)
         EXPECT_FALSE(hub->active());
         EXPECT_EQ(0, (int)hub->forwarders_.size()) << "round " << round;
     }
+}
+
+MockForwardBackendExchange::MockForwardBackendExchange()
+{
+    create_count_ = 0;
+    post_count_ = 0;
+    port_ = 0;
+    status_code_ = 200;
+    response_ = "{\"code\":0,\"data\":{\"urls\":[]}}";
+    post_error_ = srs_success;
+}
+
+MockForwardBackendExchange::~MockForwardBackendExchange()
+{
+    srs_freep(post_error_);
+}
+
+MockHttpClientForForwardBackend::MockHttpClientForForwardBackend(MockForwardBackendExchange *exchange)
+{
+    exchange_ = exchange;
+}
+
+MockHttpClientForForwardBackend::~MockHttpClientForForwardBackend()
+{
+}
+
+srs_error_t MockHttpClientForForwardBackend::initialize(std::string schema, std::string h, int p, srs_utime_t tm)
+{
+    exchange_->schema_ = schema;
+    exchange_->host_ = h;
+    exchange_->port_ = p;
+    return srs_success;
+}
+
+srs_error_t MockHttpClientForForwardBackend::get(std::string path, std::string req, ISrsHttpMessage **ppmsg)
+{
+    return srs_error_new(ERROR_NOT_SUPPORTED, "get");
+}
+
+srs_error_t MockHttpClientForForwardBackend::post(std::string path, std::string req, ISrsHttpMessage **ppmsg)
+{
+    exchange_->post_count_++;
+    exchange_->path_ = path;
+    exchange_->body_ = req;
+
+    if (exchange_->post_error_ != srs_success) {
+        return srs_error_copy(exchange_->post_error_);
+    }
+
+    MockHttpMessageForHooks *msg = new MockHttpMessageForHooks();
+    msg->status_code_ = exchange_->status_code_;
+    msg->body_content_ = exchange_->response_;
+    *ppmsg = msg;
+    return srs_success;
+}
+
+void MockHttpClientForForwardBackend::set_recv_timeout(srs_utime_t tm)
+{
+}
+
+void MockHttpClientForForwardBackend::kbps_sample(const char *label, srs_utime_t age)
+{
+}
+
+MockAppFactoryForForwardBackend::MockAppFactoryForForwardBackend()
+{
+}
+
+MockAppFactoryForForwardBackend::~MockAppFactoryForForwardBackend()
+{
+}
+
+ISrsHttpClient *MockAppFactoryForForwardBackend::create_http_client()
+{
+    exchange_.create_count_++;
+    return new MockHttpClientForForwardBackend(&exchange_);
+}
+
+// Hooks that use the mock factory and statistic, and leave the globals alone when freed.
+class UtestForwardBackendHooks
+{
+public:
+    MockAppFactoryForForwardBackend factory_;
+    MockStatisticForHooks stat_;
+    SrsHttpHooks hooks_;
+
+public:
+    UtestForwardBackendHooks()
+    {
+        hooks_.factory_ = &factory_;
+        hooks_.stat_ = &stat_;
+        hooks_.config_ = NULL;
+    }
+    ~UtestForwardBackendHooks()
+    {
+        hooks_.factory_ = NULL;
+        hooks_.stat_ = NULL;
+    }
+
+public:
+    // Call on_forward_backend() for a publisher of live/livestream, with the backend answering
+    // the status and body.
+    srs_error_t call(int status, std::string response, std::vector<std::string> &urls)
+    {
+        factory_.exchange_.status_code_ = status;
+        factory_.exchange_.response_ = response;
+
+        MockRequest req("__defaultVhost__", "live", "livestream");
+        return hooks_.on_forward_backend("http://127.0.0.1:8085/api/v1/forward", &req, urls);
+    }
+};
+
+// The POST to the backend url carries exactly action=on_forward, server_id, service_id, client_id,
+// ip, vhost, app, tcUrl, stream and param, from the statistic, the context id and the request.
+VOID TEST(HttpHooksForwardBackendTest, PostsPublisherRequestFields)
+{
+    srs_error_t err;
+
+    UtestForwardBackendHooks h;
+    h.stat_.server_id_ = "vid-forward";
+    h.stat_.service_id_ = "sid-forward";
+
+    MockRequest req("test.vhost", "live", "stream1");
+    req.ip_ = "192.168.1.100";
+    req.tcUrl_ = "rtmp://test.vhost/live";
+    req.param_ = "?token=abc123";
+
+    SrsContextId before = _srs_context->get_id();
+    SrsContextId cid;
+    _srs_context->set_id(cid.set_value("forward-backend-cid"));
+
+    std::vector<std::string> urls;
+    err = h.hooks_.on_forward_backend("http://127.0.0.1:8085/api/v1/forward?app=x", &req, urls);
+    _srs_context->set_id(before);
+    HELPER_EXPECT_SUCCESS(err);
+
+    MockForwardBackendExchange &ex = h.factory_.exchange_;
+    EXPECT_EQ(1, ex.create_count_);
+    EXPECT_EQ(1, ex.post_count_);
+    EXPECT_STREQ("http", ex.schema_.c_str());
+    EXPECT_STREQ("127.0.0.1", ex.host_.c_str());
+    EXPECT_EQ(8085, ex.port_);
+    EXPECT_STREQ("/api/v1/forward?app=x", ex.path_.c_str());
+
+    SrsUniquePtr<SrsJsonAny> body(SrsJsonAny::loads(ex.body_));
+    ASSERT_TRUE(body.get() != NULL) << ex.body_;
+    ASSERT_TRUE(body->is_object()) << ex.body_;
+    SrsJsonObject *obj = body->to_object();
+
+    const char *fields[][2] = {
+        {"action", "on_forward"},
+        {"server_id", "vid-forward"},
+        {"service_id", "sid-forward"},
+        {"client_id", "forward-backend-cid"},
+        {"ip", "192.168.1.100"},
+        {"vhost", "test.vhost"},
+        {"app", "live"},
+        {"tcUrl", "rtmp://test.vhost/live"},
+        {"stream", "stream1"},
+        {"param", "?token=abc123"},
+    };
+    int nn_fields = (int)(sizeof(fields) / sizeof(fields[0]));
+    ASSERT_EQ(nn_fields, obj->count()) << ex.body_;
+    for (int i = 0; i < nn_fields; i++) {
+        EXPECT_STREQ(fields[i][0], obj->key_at(i).c_str()) << "#" << i;
+        SrsJsonAny *prop = obj->get_property(fields[i][0]);
+        ASSERT_TRUE(prop != NULL && prop->is_string()) << fields[i][0];
+        EXPECT_STREQ(fields[i][1], prop->to_str().c_str()) << fields[i][0];
+    }
+}
+
+// A post that fails, or an HTTP status other than 200 or 201, fails the hook with no urls.
+VOID TEST(HttpHooksForwardBackendTest, PostErrorAndHttpStatusFail)
+{
+    srs_error_t err;
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        h.factory_.exchange_.post_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "refused");
+        std::vector<std::string> urls;
+        HELPER_EXPECT_FAILED(h.call(200, "", urls));
+        EXPECT_EQ(1, h.factory_.exchange_.post_count_);
+        EXPECT_EQ(0, (int)urls.size());
+    }
+
+    int statuses[] = {500, 404, 302, 204};
+    for (int i = 0; i < (int)(sizeof(statuses) / sizeof(statuses[0])); i++) {
+        UtestForwardBackendHooks h;
+        std::vector<std::string> urls;
+        err = h.call(statuses[i], "{\"code\":0,\"data\":{\"urls\":[\"rtmp://127.0.0.1/live/a\"]}}", urls);
+        ASSERT_TRUE(err != srs_success) << statuses[i];
+        EXPECT_EQ(ERROR_HTTP_STATUS_INVALID, srs_error_code(err)) << statuses[i];
+        srs_freep(err);
+        EXPECT_EQ(0, (int)urls.size()) << statuses[i];
+    }
+
+    // 201 Created is accepted like 200.
+    if (true) {
+        UtestForwardBackendHooks h;
+        std::vector<std::string> urls;
+        HELPER_EXPECT_SUCCESS(h.call(201, "{\"code\":0,\"data\":{\"urls\":[\"rtmp://127.0.0.1/live/a\"]}}", urls));
+        ASSERT_EQ(1, (int)urls.size());
+        EXPECT_STREQ("rtmp://127.0.0.1/live/a", urls[0].c_str());
+    }
+}
+
+// The response must be a JSON object with code 0. An empty body, a body that is not JSON, a JSON
+// value that is not an object, and an object without code 0 each fail the hook. The bare "0" that
+// other hooks accept passes the HTTP check but still fails here, because it has no urls.
+VOID TEST(HttpHooksForwardBackendTest, ResponseNotJsonObjectFails)
+{
+    srs_error_t err;
+
+    struct {
+        const char *response;
+        int code;
+    } cases[] = {
+        {"", ERROR_HTTP_DATA_INVALID},
+        {"not json", ERROR_HTTP_DATA_INVALID},
+        {"[\"rtmp://127.0.0.1/live/a\"]", ERROR_HTTP_DATA_INVALID},
+        {"\"rtmp://127.0.0.1/live/a\"", ERROR_HTTP_DATA_INVALID},
+        {"1", ERROR_HTTP_DATA_INVALID},
+        {"0", ERROR_SYSTEM_FORWARD_LOOP},
+        {"{\"data\":{\"urls\":[\"rtmp://127.0.0.1/live/a\"]}}", ERROR_RESPONSE_CODE},
+        {"{\"code\":\"0\",\"data\":{\"urls\":[\"rtmp://127.0.0.1/live/a\"]}}", ERROR_RESPONSE_CODE},
+        {"{\"code\":100,\"data\":{\"urls\":[\"rtmp://127.0.0.1/live/a\"]}}", ERROR_RESPONSE_CODE},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        UtestForwardBackendHooks h;
+        std::vector<std::string> urls;
+        err = h.call(200, cases[i].response, urls);
+        ASSERT_TRUE(err != srs_success) << cases[i].response;
+        EXPECT_EQ(cases[i].code, srs_error_code(err)) << cases[i].response;
+        srs_freep(err);
+        EXPECT_EQ(0, (int)urls.size()) << cases[i].response;
+    }
+}
+
+// A code 0 object without a data object, or whose data has no urls array, fails the hook.
+VOID TEST(HttpHooksForwardBackendTest, MissingDataOrUrlsFails)
+{
+    srs_error_t err;
+
+    const char *cases[] = {
+        "{\"code\":0}",
+        "{\"code\":0,\"urls\":[\"rtmp://127.0.0.1/live/a\"]}",
+        "{\"code\":0,\"data\":\"rtmp://127.0.0.1/live/a\"}",
+        "{\"code\":0,\"data\":[\"rtmp://127.0.0.1/live/a\"]}",
+        "{\"code\":0,\"data\":null}",
+        "{\"code\":0,\"data\":{}}",
+        "{\"code\":0,\"data\":{\"url\":[\"rtmp://127.0.0.1/live/a\"]}}",
+        "{\"code\":0,\"data\":{\"urls\":\"rtmp://127.0.0.1/live/a\"}}",
+        "{\"code\":0,\"data\":{\"urls\":{\"0\":\"rtmp://127.0.0.1/live/a\"}}}",
+        "{\"code\":0,\"data\":{\"urls\":null}}",
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        UtestForwardBackendHooks h;
+        std::vector<std::string> urls;
+        err = h.call(200, cases[i], urls);
+        ASSERT_TRUE(err != srs_success) << cases[i];
+        EXPECT_EQ(ERROR_SYSTEM_FORWARD_LOOP, srs_error_code(err)) << cases[i];
+        srs_freep(err);
+        EXPECT_EQ(0, (int)urls.size()) << cases[i];
+    }
+}
+
+// An empty urls array succeeds with no urls, which means no forward at all.
+VOID TEST(HttpHooksForwardBackendTest, EmptyUrlsSucceedsWithNoUrls)
+{
+    srs_error_t err;
+
+    UtestForwardBackendHooks h;
+    std::vector<std::string> urls;
+    HELPER_EXPECT_SUCCESS(h.call(200, "{\"code\":0,\"data\":{\"urls\":[]}}", urls));
+    EXPECT_EQ(0, (int)urls.size());
+    EXPECT_EQ(1, h.factory_.exchange_.post_count_);
+}
+
+// Every non-empty string is kept, in the backend's order and as is, without checking it is an RTMP
+// url; empty strings are skipped; the urls are appended to what the caller's vector holds.
+VOID TEST(HttpHooksForwardBackendTest, KeepsUrlsInOrderAndSkipsEmptyStrings)
+{
+    srs_error_t err;
+
+    UtestForwardBackendHooks h;
+    std::vector<std::string> urls;
+    urls.push_back("rtmp://kept.before/live/s");
+
+    HELPER_EXPECT_SUCCESS(h.call(200,
+                                 "{\"code\":0,\"data\":{\"urls\":["
+                                 "\"\","
+                                 "\"rtmp://10.0.0.2:19350/app2/stream2?token=t2\","
+                                 "\"\","
+                                 "\"rtmp://10.0.0.1/live/livestream\","
+                                 "\"srt://10.0.0.3:10080\","
+                                 "\"rtmp://10.0.0.2:19350/app2/stream2?token=t2\","
+                                 "\"\"]}}",
+                                 urls));
+
+    const char *expected[] = {
+        "rtmp://kept.before/live/s",
+        "rtmp://10.0.0.2:19350/app2/stream2?token=t2",
+        "rtmp://10.0.0.1/live/livestream",
+        "srt://10.0.0.3:10080",
+        "rtmp://10.0.0.2:19350/app2/stream2?token=t2",
+    };
+    int nn_expected = (int)(sizeof(expected) / sizeof(expected[0]));
+    ASSERT_EQ(nn_expected, (int)urls.size());
+    for (int i = 0; i < nn_expected; i++) {
+        EXPECT_STREQ(expected[i], urls[i].c_str()) << "#" << i;
+    }
+}
+
+// A non-string entry in urls aborts the server: on_forward_backend() calls to_str() on each entry,
+// and SrsJsonAny::to_str() asserts the value is a string. Disabled because the assert kills the
+// test binary; run it with --gtest_also_run_disabled_tests to see the abort. When fixed, the hook
+// should fail or skip the entry, and this test should pin that instead.
+VOID TEST(HttpHooksForwardBackendTest, DISABLED_NonStringUrlAbortsServer)
+{
+    srs_error_t err;
+
+    UtestForwardBackendHooks h;
+    std::vector<std::string> urls;
+    err = h.call(200, "{\"code\":0,\"data\":{\"urls\":[\"rtmp://127.0.0.1/live/a\",123]}}", urls);
+    HELPER_EXPECT_FAILED(err);
 }

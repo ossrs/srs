@@ -16,6 +16,7 @@
 #include <srs_app_forward.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_packet.hpp>
+#include <srs_protocol_http_client.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -197,6 +198,59 @@ public:
 
 private:
     srs_error_t record(SrsMediaPacket *pkt, srs_error_t err);
+};
+
+// What SrsHttpHooks::on_forward_backend() sent to the backend and what the backend answers. It
+// outlives the HTTP client, which the hook frees before it returns.
+struct MockForwardBackendExchange {
+    int create_count_;
+    int post_count_;
+    std::string schema_;
+    std::string host_;
+    int port_;
+    std::string path_;
+    std::string body_;
+    // The answer of the backend: the HTTP status and body, or a post error with no response.
+    int status_code_;
+    std::string response_;
+    srs_error_t post_error_;
+
+    MockForwardBackendExchange();
+    ~MockForwardBackendExchange();
+};
+
+// Mock ISrsHttpClient for SrsHttpHooks::on_forward_backend(): records the request into the shared
+// exchange and answers with its status and body.
+class MockHttpClientForForwardBackend : public ISrsHttpClient
+{
+public:
+    MockForwardBackendExchange *exchange_;
+
+public:
+    MockHttpClientForForwardBackend(MockForwardBackendExchange *exchange);
+    virtual ~MockHttpClientForForwardBackend();
+
+public:
+    virtual srs_error_t initialize(std::string schema, std::string h, int p, srs_utime_t tm);
+    virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage **ppmsg);
+    virtual srs_error_t post(std::string path, std::string req, ISrsHttpMessage **ppmsg);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual void kbps_sample(const char *label, srs_utime_t age);
+};
+
+// Mock ISrsAppFactory for SrsHttpHooks: each create_http_client() makes a new recording client on
+// the same exchange.
+class MockAppFactoryForForwardBackend : public SrsAppFactory
+{
+public:
+    MockForwardBackendExchange exchange_;
+
+public:
+    MockAppFactoryForForwardBackend();
+    virtual ~MockAppFactoryForForwardBackend();
+
+public:
+    virtual ISrsHttpClient *create_http_client();
 };
 
 #endif
