@@ -12,10 +12,12 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_factory.hpp>
 #include <srs_app_forward.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_protocol_rtmp_conn.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 #include <string>
 #include <vector>
@@ -37,6 +39,10 @@ public:
     int publish_count_;
     int close_count_;
     int recv_count_;
+    int send_count_;
+    // The 1-based send call that fails with send_error_; 0 means every send fails with it.
+    int fail_send_at_;
+    srs_utime_t recv_timeout_;
     srs_error_t connect_error_;
     srs_error_t publish_error_;
     srs_error_t send_error_;
@@ -64,6 +70,7 @@ public:
 
 private:
     void record(SrsMediaPacket *msg);
+    srs_error_t send_result();
 };
 
 // Mock ISrsCoroutine for SrsForwarder: pull() succeeds nb_pulls_ times, then fails, so a test
@@ -87,6 +94,44 @@ public:
     virtual srs_error_t pull();
     virtual const SrsContextId &cid();
     virtual void set_cid(const SrsContextId &cid);
+};
+
+// Mock ISrsAppFactory for SrsForwarder::do_cycle(): hands out a recording RTMP client and keeps
+// the url and timeouts of every create_rtmp_client() call.
+class MockAppFactoryForForwarderCycle : public SrsAppFactory
+{
+public:
+    // The client for the next create_rtmp_client(), so a test can set its errors first; a new
+    // one is made when it is NULL. The forwarder owns every client it gets.
+    MockRtmpClientForForwarder *next_;
+    std::vector<MockRtmpClientForForwarder *> clients_;
+    std::vector<std::string> urls_;
+    srs_utime_t cto_;
+    srs_utime_t sto_;
+
+public:
+    MockAppFactoryForForwarderCycle();
+    virtual ~MockAppFactoryForForwarderCycle();
+
+public:
+    virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
+};
+
+// Mock ISrsOriginHub whose on_forwarder_start() feeds its cached metadata, video and audio
+// sequence headers into the forwarder, in the same order as SrsOriginHub.
+class MockOriginHubForForwarderStart : public MockOriginHub
+{
+public:
+    SrsMediaPacket *metadata_;
+    SrsMediaPacket *vsh_;
+    SrsMediaPacket *ash_;
+
+public:
+    MockOriginHubForForwarderStart();
+    virtual ~MockOriginHubForForwarderStart();
+
+public:
+    virtual srs_error_t on_forwarder_start(SrsForwarder *forwarder);
 };
 
 #endif
