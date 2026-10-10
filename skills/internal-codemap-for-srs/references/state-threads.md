@@ -31,12 +31,12 @@ git -C state-threads/ rev-parse HEAD
 - `public.h` — Public API, installed as `st.h`. SRS code includes only this header.
 - `common.h` — Internal types: thread, stack, clist, poll queue, virtual processor, and the per-event-system dispatch table.
 - `common.c` — Shared internals.
-- `md.h` — Platform and CPU detection, the `jmpbuf` layout, and the context-switch macros per architecture.
-- `md_linux.S` — Linux context-switch assembly for i386 and x86_64.
-- `md_linux2.S` — Linux context-switch assembly for arm, aarch64, mips, mips64, loongarch64, and riscv.
-- `md_darwin.S` — macOS context switch for x86_64 and Apple Silicon aarch64.
-- `md_cygwin64.S` — Windows (Cygwin64) x86_64 context switch.
-- `md_win64.asm` — Native Windows x64 (MSVC, MASM) context switch, with the TIB stack bounds, and the `_st_md_thread_start` entry of new threads (`MD_INIT_THREAD_ENTRY` in `md.h`), described in `docs/win64_coroutine.md`.
+- `md.h` — Platform and CPU detection, the `jmpbuf` layout, and the context-switch macros per architecture, including `MD_INIT_THREAD_ENTRY`, which starts a new thread in the `_st_md_thread_start` assembly entry on every platform but Cygwin64, described in `docs/coroutine_entry.md`.
+- `md_linux.S` — Linux context-switch assembly for i386 and x86_64, and the `_st_md_thread_start` entry.
+- `md_linux2.S` — Linux context-switch assembly for arm, aarch64, mips, mips64, loongarch64, and riscv, and the `_st_md_thread_start` entry.
+- `md_darwin.S` — macOS context switch for x86_64 and Apple Silicon aarch64, and the `_st_md_thread_start` entry.
+- `md_cygwin64.S` — Windows (Cygwin64) x86_64 context switch, with no thread entry: a new thread still returns a second time from the save in `sched.c`.
+- `md_win64.asm` — Native Windows x64 (MSVC, MASM) context switch, with the TIB stack bounds, and the `_st_md_thread_start` entry, described in `docs/win64_coroutine.md`.
 - `sched.c` — Scheduler: `st_init`, `st_destroy`, thread create, exit, join, interrupt, the idle thread, and the timeout heap described in `docs/timeout_heap.txt`.
 - `stk.c` — Stack allocation, the free-stack list, and `MALLOC_STACK`.
 - `sync.c` — Time functions and the time cache, sleep, condition variables, and mutexes.
@@ -60,6 +60,7 @@ SRS builds its copy from `trunk/auto/depends.sh` in the "state-threads" section.
 - `st_utest_coroutines.cpp` — Coroutine start, parameters, and switching.
 - `st_utest_sched.cpp` — `st_init`, exit, join, interrupt, switch callbacks, `st_poll`, and the timeout heap.
 - `st_utest_stack.cpp` — Randomized stacks and their guard pages, and the primordial stack.
+- `st_utest_entry.cpp` — The saved SP, PC, and frame pointer of a context, the jmpbuf size, and the `_st_md_thread_start` entry of a new thread.
 - `st_utest_sync.cpp` — Clocks, the time cache, sleeps, mutexes, and condition variables.
 - `st_utest_key.cpp` — Thread-specific data, context IDs, and the key limit.
 - `st_utest_event.cpp` — High descriptors, refused and priority polls, many waits, and `st_destroy` of the event system.
@@ -90,6 +91,11 @@ docker run --rm -v "$(pwd)/state-threads":/st -w /st ossrs/srs:ubuntu20 \
     bash -c 'make linux-debug-utest && ./obj/st_utest'
 ```
 
+To test another CPU, run one of these in `state-threads/`. Each builds in place and takes `utest`, `tools`, `tools-malloc`, or `all` (the default); `st-test.sh` below runs neither:
+
+- `auto/qemu.sh <cpu>` — Cross-builds in Docker and runs with QEMU user mode, for x86_64, aarch64, i386, arm, riscv64, loongarch64, mips, mipsel, mips64, and mips64el.
+- `auto/darwin.sh <cpu>` — macOS arm64 or x86_64; x86_64 runs under Rosetta 2 on Apple silicon.
+
 Use `linux-debug-gcov` or `darwin-debug-gcov`, then `auto/coverage.sh`, for a coverage report. `auto/fast.sh` rebuilds and reruns the utest with coverage.
 
 `tools/` holds the integration tests: standalone programs that link `obj/libst.a` through `st.h` as SRS does, each in its own folder with a `Makefile`, and each exits non-zero on failure. The new tools share `tools/tool.h`, which has the `CHECK` macro, the event system setup, and loopback helpers. The tools:
@@ -97,7 +103,7 @@ Use `linux-debug-gcov` or `darwin-debug-gcov`, then `auto/coverage.sh`, for a co
 - `helloworld` — sleeps in a loop.
 - `verify` — a coroutine, sleep, mutex, condition variable, and join.
 - `porting` — prints the OS and CPU macros, and fails on a pair `md.h` does not support.
-- `backtrace` — `backtrace()` unwinds from a coroutine stack.
+- `backtrace` — `backtrace()` unwinds from a coroutine stack and stops at the thread entry.
 - `exception` — a C++ program whose exceptions unwind on coroutine stacks, which on Windows needs the TIB stack bounds.
 - `lifecycle` — event system choice, primordial stack, `st_init`, descriptor limit, and `st_destroy`.
 - `thread` — create, join, exit, detach, yield, interrupt, stack options, switch callbacks, and the DEBUG functions.

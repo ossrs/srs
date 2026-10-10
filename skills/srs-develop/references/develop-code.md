@@ -228,6 +228,8 @@ After the ST change is committed, by the user or by a task that may commit, and 
 
 The website is maintained in the separate `website/` repository by a private AI skill, because its development manages cloud resources that cannot be described in this public skill. Do not develop the website with this workflow; stop and tell the user to use the private website skill.
 
+Documentation content is not website development. Update the English documents bundled in `skills/internal-docs-for-srs/` with this workflow; translation, framework, and release stay with the private website skill.
+
 ## Origin Server
 
 **Not yet supported.** This refers to the next-generation origin server workflow.
