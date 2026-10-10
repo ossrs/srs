@@ -635,3 +635,384 @@ func TestFast_RtmpPublish_Forward_Backend_Error(t *testing.T) {
 		}
 	}
 }
+
+// forwardDestinationEnvs are the origin envs that forward every stream to the destinations, by forward.destination.
+func forwardDestinationEnvs(dsts ...SRSServer) []string {
+	var eps []string
+	for _, dst := range dsts {
+		eps = append(eps, fmt.Sprintf("127.0.0.1:%v", dst.RTMPPort()))
+	}
+	return []string{
+		"SRS_VHOST_FORWARD_ENABLED=on",
+		fmt.Sprintf("SRS_VHOST_FORWARD_DESTINATION=%v", strings.Join(eps, " ")),
+	}
+}
+
+// One forward.destination: the destination gets the stream with the same app and stream.
+func TestFast_RtmpPublish_Forward_Destination_Basic(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	dst := NewSRSServer()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r0 = dst.Run(ctx, cancel)
+	}()
+
+	origin := NewSRSServer(func(v *srsServer) {
+		v.envs = forwardDestinationEnvs(dst)
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r1 = origin.Run(ctx, cancel)
+	}()
+
+	// Start FFmpeg to publish stream to the origin.
+	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", origin.RTMPPort(), streamID)
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = []string{
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv", streamURL,
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r2 = ffmpeg.Run(ctx, cancel)
+	}()
+
+	// Probe the forwarded stream on the destination, at the same app and stream.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	ffprobe := NewFFprobe(func(v *ffprobeClient) {
+		v.dvrFile = path.Join(dst.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.flv", streamID))
+		v.streamURL = fmt.Sprintf("rtmp://localhost:%v/live/%v", dst.RTMPPort(), streamID)
+		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r3 = ffprobe.Run(ctx, cancel)
+	}()
+
+	select {
+	case <-ctx.Done():
+	case <-ffprobe.ProbeDoneCtx().Done():
+		defer cancel()
+		r4 = forwardCheckProbe(ffprobe, duration)
+	}
+}
+
+// Two forward.destination entries: both destinations get the stream.
+func TestFast_RtmpPublish_Forward_Destination_Two(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4, r5, r6, r7 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4, r5, r6, r7); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	dst1, dst2 := NewSRSServer(), NewSRSServer()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r0 = dst1.Run(ctx, cancel)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r1 = dst2.Run(ctx, cancel)
+	}()
+
+	origin := NewSRSServer(func(v *srsServer) {
+		v.envs = forwardDestinationEnvs(dst1, dst2)
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r2 = origin.Run(ctx, cancel)
+	}()
+
+	allReady := func() {
+		<-dst1.ReadyCtx().Done()
+		<-dst2.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+	}
+
+	// Start FFmpeg to publish stream to the origin.
+	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", origin.RTMPPort(), streamID)
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = []string{
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv", streamURL,
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		allReady()
+		r3 = ffmpeg.Run(ctx, cancel)
+	}()
+
+	// Probe the forwarded stream on each destination.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	newProbe := func(dst SRSServer) FFprobeClient {
+		return NewFFprobe(func(v *ffprobeClient) {
+			v.dvrFile = path.Join(dst.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.flv", streamID))
+			v.streamURL = fmt.Sprintf("rtmp://localhost:%v/live/%v", dst.RTMPPort(), streamID)
+			v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+		})
+	}
+	ffprobe1, ffprobe2 := newProbe(dst1), newProbe(dst2)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		allReady()
+		r4 = ffprobe1.Run(ctx, cancel)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		allReady()
+		r5 = ffprobe2.Run(ctx, cancel)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-ffprobe1.ProbeDoneCtx().Done():
+	}
+	select {
+	case <-ctx.Done():
+	case <-ffprobe2.ProbeDoneCtx().Done():
+		defer cancel()
+
+		r6 = forwardCheckProbe(ffprobe1, duration)
+		r7 = forwardCheckProbe(ffprobe2, duration)
+	}
+}
+
+// The publisher's query reaches the destination: its on_publish has the same app, stream and token.
+func TestFast_RtmpPublish_Forward_Destination_WithQuery(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4, r5 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4, r5); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+
+	// Only the on_publish hook of the destination is used; nothing asks for a forward.
+	hooks := newForwardBackend(ctx, func(r *forwardHookRequest) (int, string) {
+		return http.StatusNotFound, `{"code":404}`
+	})
+	defer hooks.Close()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	dst := NewSRSServer(func(v *srsServer) {
+		v.envs = []string{
+			"SRS_VHOST_HTTP_HOOKS_ENABLED=on",
+			fmt.Sprintf("SRS_VHOST_HTTP_HOOKS_ON_PUBLISH=%v", hooks.PublishURL()),
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r0 = dst.Run(ctx, cancel)
+	}()
+
+	origin := NewSRSServer(func(v *srsServer) {
+		v.envs = forwardDestinationEnvs(dst)
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r1 = origin.Run(ctx, cancel)
+	}()
+
+	// Start FFmpeg to publish stream with a token to the origin.
+	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v?token=abc", origin.RTMPPort(), streamID)
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = []string{
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv", streamURL,
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r2 = ffmpeg.Run(ctx, cancel)
+	}()
+
+	// Probe the forwarded stream on the destination.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	ffprobe := NewFFprobe(func(v *ffprobeClient) {
+		v.dvrFile = path.Join(dst.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.flv", streamID))
+		v.streamURL = fmt.Sprintf("rtmp://localhost:%v/live/%v", dst.RTMPPort(), streamID)
+		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r3 = ffprobe.Run(ctx, cancel)
+	}()
+
+	select {
+	case <-ctx.Done():
+	case <-ffprobe.ProbeDoneCtx().Done():
+		defer cancel()
+
+		r4 = forwardCheckProbe(ffprobe, duration)
+
+		// The forwarder publishes with the publisher's app, stream and query.
+		pubs := hooks.Publishes()
+		if len(pubs) != 1 {
+			r5 = errors.Errorf("on_publish count=%v, expect=1, %+v", len(pubs), pubs)
+		} else if p := pubs[0]; p.App != "live" || p.Stream != streamID || p.Param != "?token=abc" {
+			r5 = errors.Errorf("on_publish app=%v, stream=%v, param=%v, expect live, %v, ?token=abc",
+				p.App, p.Stream, p.Param, streamID)
+		}
+	}
+}
+
+// forward.enabled off with a destination set: the origin stream plays, and nothing is forwarded.
+func TestFast_RtmpPublish_Forward_Disabled(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4, r5 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4, r5); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// A destination SRS that nothing should reach.
+	dst := NewSRSServer()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r0 = dst.Run(ctx, cancel)
+	}()
+
+	origin := NewSRSServer(func(v *srsServer) {
+		v.envs = []string{
+			"SRS_VHOST_FORWARD_ENABLED=off",
+			fmt.Sprintf("SRS_VHOST_FORWARD_DESTINATION=127.0.0.1:%v", dst.RTMPPort()),
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r1 = origin.Run(ctx, cancel)
+	}()
+
+	// Start FFmpeg to publish stream to the origin.
+	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", origin.RTMPPort(), streamID)
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = []string{
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv", streamURL,
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r2 = ffmpeg.Run(ctx, cancel)
+	}()
+
+	// Probe the stream on the origin.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	ffprobe := NewFFprobe(func(v *ffprobeClient) {
+		v.dvrFile = path.Join(origin.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.flv", streamID))
+		v.streamURL, v.duration, v.timeout = streamURL, duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r3 = ffprobe.Run(ctx, cancel)
+	}()
+
+	select {
+	case <-ctx.Done():
+	case <-ffprobe.ProbeDoneCtx().Done():
+		defer cancel()
+
+		r4 = forwardCheckProbe(ffprobe, duration)
+
+		// After the whole probe, the destination still has no stream.
+		if streams, err := forwardActiveStreams(dst.APIPort()); err != nil {
+			r5 = err
+		} else if len(streams) != 0 {
+			r5 = errors.Errorf("destination has streams %+v, expect none", streams)
+		}
+	}
+}
