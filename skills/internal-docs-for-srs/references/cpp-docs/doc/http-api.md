@@ -312,6 +312,7 @@ User can access the `http://192.168.1.102:1985/api/v1`, where:
 | vhosts | /api/v1/vhosts | manage all vhosts or specified vhost |
 | streams | /api/v1/streams | manage all streams or specified stream |
 | clients | /api/v1/clients | manage all clients or specified client, default query top 10 clients |
+| forwards | /api/v1/forwards | query all forwards or specified forward, read-only, default query top 10 forwards |
 | configs | /api/v1/configs | RAW API for CUID the configs |
 | publish | /rtc/v1/publish/ | The push stream API for WebRTC |
 | play | /rtc/v1/play/ | The play stream API for WebRTC |
@@ -411,6 +412,63 @@ Parameters in query string:
 * `?count=N`: The max number of result, default is 10.
 
 To process specified client by id, for instance `http://192.168.1.102:1985/api/v1/clients/3756`
+
+## Forwards
+
+SRS provides a read-only http api to query the forwarders of the publishing streams, see [Forward](./forward.md#forward-status).
+
+The http api forward url: `http://192.168.1.102:1985/api/v1/forwards`
+
+Parameters in query string:
+
+* `?stream=ID`: Only the forwards of this stream, the id from the streams api.
+* `?start=N`: The start index, default is 0.
+* `?count=N`: The max number of result, default is 10.
+
+The response has the array `forwards`, and `total`, the number of forwards after the `stream` filter, regardless of
+`start` and `count`. To query specified forward by id, for instance
+`http://192.168.1.102:1985/api/v1/forwards/fwd-3k9x1zq`, the response has the object `forward`:
+
+```json
+{
+  "code": 0,
+  "server": "vid-0w2w3z5",
+  "service": "x0e5c1u5",
+  "pid": "50234",
+  "forward": {
+    "id": "fwd-3k9x1zq",
+    "stream": "vid-a4r1n2m",
+    "vhost": "vid-7m2c0d1",
+    "app": "live",
+    "name": "livestream",
+    "url": "rtmp://192.168.1.6:1935/live/livestream",
+    "state": "forwarding",
+    "state_at": 1760086530123
+  }
+}
+```
+
+The fields of a forward:
+
+| Field | Description |
+| --- | --- |
+| id | The id of the forward. |
+| stream | The id of the publishing stream, the same as the streams api. |
+| vhost | The id of the vhost, the same as the vhosts api. |
+| app | The app of the publishing stream. |
+| name | The name of the publishing stream. |
+| url | The RTMP url the forwarder publishes to, with the stream key and query. |
+| state | `connecting`, `forwarding` or `retrying`. |
+| state_at | When the forward entered this state, in Unix milliseconds. |
+
+The states of a forward:
+
+* `connecting`: Connecting and publishing to the destination, from the start or a retry.
+* `forwarding`: Published to the destination, and sending the stream.
+* `retrying`: Failed, and waiting 3 seconds to retry.
+
+An unknown forward id returns the error code 2057 (`ForwardNotFound`). Other methods than `GET` return HTTP 405. A
+forward is removed when its stream unpublishes; to remove a forward, kick the publisher, see [Forward](./forward.md#add-or-remove-a-forward).
 
 ## Kickoff Client
 

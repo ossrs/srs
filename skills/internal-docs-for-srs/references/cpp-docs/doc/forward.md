@@ -144,6 +144,110 @@ If your backend server responses with RTMP urls, SRS will start forwarding to th
 
 For more details about dynamic forwarding, please read [#1342](https://github.com/ossrs/srs/issues/1342).
 
+> Note: If both `backend` and `destination` are configured, SRS uses only the `backend`, even if it returns no urls.
+
+## Keyframe Restart
+
+Each forwarder is an RTMP client that publishes to its destination. When the destination is down, the forwarder
+retries every 3 seconds, while the stream keeps coming from the encoder.
+
+After each successful publish to the destination, the first one and every reconnect, the forwarder starts fresh from live:
+
+* It drops the media queued before the publish succeeded, so the destination never gets a burst of stale media.
+* It sends the metadata, then the video and audio sequence headers, once each.
+* It drops video until the next keyframe, so the destination never starts in the middle of a GOP. Audio is never dropped.
+
+The forwarder queue is bounded by `play.queue_length` of the vhost. When the destination is too slow and the queue
+overflows, the forwarder drops the queued media and waits for the next keyframe the same way.
+
+This is always on, with no config.
+
+## Forward Status
+
+SRS lists each forwarder of each publishing stream by the HTTP API `/api/v1/forwards/`, for both `destination`
+and `backend` forwarders. It is read-only:
+
+```bash
+curl http://127.0.0.1:1985/api/v1/forwards/
+```
+
+```json
+{
+  "code": 0,
+  "server": "vid-0w2w3z5",
+  "service": "x0e5c1u5",
+  "pid": "50234",
+  "total": 1,
+  "forwards": [
+    {
+      "id": "fwd-3k9x1zq",
+      "stream": "vid-a4r1n2m",
+      "vhost": "vid-7m2c0d1",
+      "app": "live",
+      "name": "livestream",
+      "url": "rtmp://192.168.1.6:1935/live/livestream",
+      "state": "forwarding",
+      "state_at": 1760086530123
+    }
+  ]
+}
+```
+
+The `total` is the number of forwards, after the `?stream=` filter if any. The list has at most `count` forwards
+from `start` (default 0 and 10), so use `total` to page through them.
+
+The fields of each forward:
+
+* `id`: The id of the forward, for `/api/v1/forwards/{id}`. It stays the same across retries; each publish creates new forwarders with new ids.
+* `stream`: The id of the publishing stream, the same as `/api/v1/streams/`. The `vhost`, `app` and `name` are those of the publishing stream.
+* `url`: The RTMP url the forwarder publishes to, with the stream key and query. For `destination`, it is the destination with the app, stream and query of the publisher; for `backend`, it is the url the backend returned. SRS may append a `vhost` param, for example, `?vhost=localhost` when the publisher used `rtmp://localhost/live/livestream`, or the IP of a backend url without a `vhost` param.
+* `state`: `connecting` until the publish to the destination succeeds, `forwarding` while sending, or `retrying` during the 3 seconds wait after an error.
+* `state_at`: When the forward entered this state, in Unix milliseconds.
+
+A forwarder exists only while its stream is publishing; it is removed when the stream unpublishes. To query the forwards
+of one stream, use `?stream=<stream id>`; to query one forward, use its id:
+
+```bash
+curl http://127.0.0.1:1985/api/v1/forwards/?stream=vid-a4r1n2m
+curl http://127.0.0.1:1985/api/v1/forwards/fwd-3k9x1zq
+```
+
+See [HTTP API: Forwards](./http-api.md#forwards) for details.
+
+> Note: The url contains the stream key, so please protect the HTTP API by `http_api.auth`.
+
+## Add or Remove a Forward
+
+SRS creates the forwarders of a stream only when the stream is published, and deletes them when it unpublishes.
+There is no API to add or remove a forward of a live stream, and `/api/v1/forwards/` is read-only: `DELETE`
+returns HTTP 405. Removing a forwarder is the same as kicking its publisher, so SRS keeps only these primitives:
+
+* For dynamic forward, your backend decides which forwards to create, on each publish.
+* Kicking the publisher deletes every forwarder of the stream.
+
+To stop a forward that is not created yet, your backend returns no url for it in the next `on_forward`.
+
+To stop an active forward, your backend stops returning its url, then kicks the publisher. When the encoder
+republishes, SRS asks your backend again, and creates only the forwards it returns. Adding a forward to a live
+stream works the same way: return the new url, then kick the publisher.
+
+To kick the publisher of a forward, find the stream id of the forward, then the client id of the publisher:
+
+```bash
+# 1. The stream id of the forward, the field `stream`.
+curl http://127.0.0.1:1985/api/v1/forwards/
+# 2. The client id of the publisher, the field `stream.publish.cid`.
+curl http://127.0.0.1:1985/api/v1/streams/vid-a4r1n2m
+# 3. Kick the publisher.
+curl -X DELETE http://127.0.0.1:1985/api/v1/clients/4o3v9172
+```
+
+After the kick, the forwards of the stream are removed from `/api/v1/forwards/`. The encoder must republish by itself,
+for example, by a loop in a script; the new forwarders get new ids.
+
+> Note: For `destination`, kicking the publisher and republishing creates the same forwards again. To change the
+> destinations, change the config and restart SRS.
+
 ## For Small Cluster
 
 Forward can also used to build a small cluster:
