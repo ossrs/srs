@@ -23,6 +23,10 @@
 #include <string>
 #include <vector>
 
+class SrsOriginHub;
+class MockLiveSourceForOriginHub;
+class MockAppConfig;
+
 // One packet the forwarder sent to the destination, kept after the packet is freed.
 struct MockForwarderSentPacket {
     SrsFrameType type_;
@@ -50,6 +54,14 @@ public:
     srs_error_t recv_error_;
     std::vector<MockForwarderSentPacket> sent_;
     std::vector<int> batches_;
+    // A send that carries a packet with this marker fails with send_error_; 0 means none.
+    char fail_marker_;
+    // The packets the publisher sends while this client is connected: the Nth recv_message()
+    // feeds live_[N-1] to live_forwarder_, or through live_hub_ when it is set, then frees them.
+    SrsForwarder *live_forwarder_;
+    SrsOriginHub *live_hub_;
+    std::vector<std::vector<SrsMediaPacket *> > live_;
+    int live_errors_;
 
 public:
     MockRtmpClientForForwarder();
@@ -70,8 +82,9 @@ public:
     virtual void set_recv_timeout(srs_utime_t timeout);
 
 private:
-    void record(SrsMediaPacket *msg);
-    srs_error_t send_result();
+    bool record(SrsMediaPacket *msg);
+    srs_error_t send_result(bool marked);
+    void feed_live();
 };
 
 // Mock ISrsCoroutine for SrsForwarder: pull() succeeds nb_pulls_ times, then fails, so a test
@@ -252,5 +265,29 @@ public:
 public:
     virtual ISrsHttpClient *create_http_client();
 };
+
+// Forward test packets: FLV tags whose last byte is a marker to tell them apart.
+extern SrsMediaPacket *utest_forward_video_sh(int64_t ts, char marker);
+extern SrsMediaPacket *utest_forward_video_keyframe(int64_t ts, char marker);
+extern SrsMediaPacket *utest_forward_video_inter(int64_t ts, char marker);
+extern SrsMediaPacket *utest_forward_audio_sh(int64_t ts, char marker);
+extern SrsMediaPacket *utest_forward_audio_raw(int64_t ts, char marker);
+extern SrsMediaPacket *utest_forward_metadata(int64_t ts, char marker);
+extern char utest_forward_marker(SrsMediaPacket *pkt);
+extern char utest_forward_marker(const MockForwarderSentPacket &sent);
+
+// The non-NULL packets, in order, as one batch of MockRtmpClientForForwarder::live_.
+extern std::vector<SrsMediaPacket *> utest_forward_batch(SrsMediaPacket *p0, SrsMediaPacket *p1 = NULL, SrsMediaPacket *p2 = NULL,
+                                                         SrsMediaPacket *p3 = NULL, SrsMediaPacket *p4 = NULL);
+
+// The markers of the sent packets, in order, as a string.
+extern std::string utest_forward_markers(const std::vector<MockForwarderSentPacket> &sent);
+
+// Wire a forwarder to the mock factory and config, with a coroutine that allows nb_pulls pulls.
+extern MockCoroutineForForwarder *utest_forward_wire(SrsForwarder *forwarder, MockAppFactoryForForwarderCycle *factory,
+                                                     MockAppConfig *config, int nb_pulls);
+
+// An origin hub whose HLS, DASH, DVR, encoder, exec and HDS are mocks, so only its forward parts do real work.
+extern SrsOriginHub *utest_forward_hub(MockLiveSourceForOriginHub *source, ISrsRequest *req, ISrsAppConfig *config, ISrsHttpHooks *hooks);
 
 #endif

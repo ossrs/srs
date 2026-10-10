@@ -26,6 +26,8 @@
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_utest_ai14.hpp>
+#include <srs_utest_ai34.hpp>
 
 // Mock ISrsAppFactory implementation
 MockAppFactoryForForwarder::MockAppFactoryForForwarder()
@@ -326,4 +328,169 @@ VOID TEST(BasicWorkflowForwardTest, ManuallyVerifyForwardingWithToken)
 
     // Wait for forwarder to stop
     srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+}
+
+// The publisher sends one packet through the origin hub, which fans it out to the forwarders.
+static srs_error_t utest_workflow_forward_publish(SrsOriginHub *hub, SrsMediaPacket *pkt)
+{
+    srs_error_t err = pkt->is_audio() ? hub->on_audio(pkt) : hub->on_video(pkt, false);
+    srs_freep(pkt);
+    return err;
+}
+
+// Run the hub's only forwarder through a stream: the publisher streams before the destination is
+// connected; the forwarder connects, then loses the destination mid-stream; the publisher streams on,
+// a keyframe among it; the forwarder reconnects mid-GOP. The packets the first connect sent are in
+// first, the second client is the last of the factory.
+static void utest_workflow_forward_reconnect(SrsOriginHub *hub, MockAppFactoryForForwarderCycle *factory, MockAppConfig *config,
+                                             std::vector<MockForwarderSentPacket> &first)
+{
+    srs_error_t err;
+
+    ASSERT_EQ(1, (int)hub->forwarders_.size());
+    SrsForwarder *forwarder = dynamic_cast<SrsForwarder *>(hub->forwarders_.at(0));
+    ASSERT_TRUE(forwarder != NULL);
+
+    // Stop the coroutine the hub started; the test runs the connects itself.
+    forwarder->on_unpublish();
+
+    HELPER_EXPECT_SUCCESS(utest_workflow_forward_publish(hub, utest_forward_video_keyframe(100, 'k')));
+    HELPER_EXPECT_SUCCESS(utest_workflow_forward_publish(hub, utest_forward_audio_raw(110, 'a')));
+    HELPER_EXPECT_SUCCESS(utest_workflow_forward_publish(hub, utest_forward_video_inter(200, 'p')));
+
+    // Connect; the destination is lost when the send of inter frame x fails.
+    if (true) {
+        utest_forward_wire(forwarder, factory, config, 10);
+        MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
+        sdk->live_hub_ = hub;
+        sdk->send_error_ = srs_error_new(ERROR_SOCKET_WRITE, "mock destination lost");
+        sdk->fail_marker_ = 'x';
+        sdk->live_.push_back(utest_forward_batch(utest_forward_video_keyframe(300, 'K'), utest_forward_audio_raw(310, 'b')));
+        sdk->live_.push_back(utest_forward_batch(utest_forward_video_inter(400, 'x'), utest_forward_audio_raw(410, 'c')));
+        factory->next_ = sdk;
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(0, sdk->live_errors_);
+
+        // The reconnect frees this client.
+        first = sdk->sent_;
+    }
+
+    HELPER_EXPECT_SUCCESS(utest_workflow_forward_publish(hub, utest_forward_video_inter(500, 'q')));
+    HELPER_EXPECT_SUCCESS(utest_workflow_forward_publish(hub, utest_forward_audio_raw(510, 'd')));
+    HELPER_EXPECT_SUCCESS(utest_workflow_forward_publish(hub, utest_forward_video_keyframe(600, 'L')));
+    HELPER_EXPECT_SUCCESS(utest_workflow_forward_publish(hub, utest_forward_video_inter(700, 'r')));
+
+    // Reconnect while the publisher is in the middle of a GOP, then the next keyframe comes.
+    if (true) {
+        utest_forward_wire(forwarder, factory, config, 2);
+        MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
+        sdk->live_hub_ = hub;
+        sdk->live_.push_back(utest_forward_batch(utest_forward_video_inter(800, 's'), utest_forward_audio_raw(810, 'e')));
+        sdk->live_.push_back(utest_forward_batch(utest_forward_video_keyframe(900, 'N'), utest_forward_video_inter(1000, 't'),
+                                                 utest_forward_audio_raw(1010, 'f')));
+        factory->next_ = sdk;
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_THREAD_DUMMY, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(0, sdk->live_errors_);
+    }
+}
+
+// Check what a forward that reconnects mid-stream sent on each connect: the source's metadata and
+// sequence headers once, then live from a keyframe, with no stale burst and no timestamp before the
+// connect except the headers.
+//
+// Each letter is the marker of a packet fed above, and its builder sets the kind, for example
+// utest_forward_video_keyframe() makes a keyframe:
+//   - First connect: metadata M, sequence headers W and B, keyframe K at 300, audio b, inter x
+//     whose send fails, and audio c. The media queued before the connect, k a p, is dropped.
+//   - Second connect: M W B again, audio e at 810, keyframe N at 900, inter t, audio f. The inter
+//     frame s at 800 comes before the keyframe and is dropped, so is the media queued while the
+//     destination was away, q d L r at 500 to 700.
+// So the first video after the headers is a keyframe: K at 300, then N at 900.
+static void utest_workflow_forward_check_restart(const std::vector<MockForwarderSentPacket> &first, MockRtmpClientForForwarder *second)
+{
+    EXPECT_STREQ("MWBKbxc", utest_forward_markers(first).c_str());
+    EXPECT_STREQ("MWBeNtf", utest_forward_markers(second->sent_).c_str());
+
+    // M, W, B, audio e, keyframe N at 900, inter t, audio f.
+    const int64_t timestamps[] = {0, 0, 0, 810, 900, 1000, 1010};
+    ASSERT_EQ(7, (int)second->sent_.size());
+    for (int i = 0; i < 7; i++) {
+        EXPECT_EQ(timestamps[i], second->sent_[i].timestamp_) << "#" << i;
+    }
+}
+
+// A forward.destination forward whose destination is lost mid-stream: after the reconnect, the
+// destination starts again at a keyframe, with no burst of the media queued while it was away.
+VOID TEST(BasicWorkflowForwardTest, DestinationReconnectStartsAtKeyframe)
+{
+    srs_error_t err;
+
+    std::vector<MockForwarderSentPacket> first;
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    // The source has the stream's metadata and sequence headers.
+    source->meta()->meta_ = utest_forward_metadata(0, 'M');
+    source->meta()->video_ = utest_forward_video_sh(0, 'W');
+    source->meta()->audio_ = utest_forward_audio_sh(0, 'B');
+
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:19350");
+    config->set_forward_destinations(destinations);
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_ASSERT_SUCCESS(hub->create_forwarders());
+
+    utest_workflow_forward_reconnect(hub.get(), factory.get(), config.get(), first);
+
+    ASSERT_EQ(2, (int)factory->urls_.size());
+    EXPECT_STREQ("rtmp://127.0.0.1:19350/live/livestream", factory->urls_[0].c_str());
+    EXPECT_STREQ("rtmp://127.0.0.1:19350/live/livestream", factory->urls_[1].c_str());
+    utest_workflow_forward_check_restart(first, factory->clients_[1]);
+}
+
+// A forward.backend forward, to the backend's url with its own app, stream and token, whose
+// destination is lost mid-stream: after the reconnect, the destination starts again at a keyframe,
+// with no burst of the media queued while it was away.
+VOID TEST(BasicWorkflowForwardTest, BackendReconnectStartsAtKeyframe)
+{
+    srs_error_t err;
+
+    std::vector<MockForwarderSentPacket> first;
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    source->meta()->meta_ = utest_forward_metadata(0, 'M');
+    source->meta()->video_ = utest_forward_video_sh(0, 'W');
+    source->meta()->audio_ = utest_forward_audio_sh(0, 'B');
+
+    // The backend decides the destination; the configured destination is ignored.
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:19350");
+    config->set_forward_destinations(destinations);
+    config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+    hooks->urls_.push_back("rtmp://127.0.0.1:19351/fwd/livestream-dst?token=abc");
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_ASSERT_SUCCESS(hub->create_forwarders());
+    EXPECT_EQ(1, hooks->count_);
+
+    utest_workflow_forward_reconnect(hub.get(), factory.get(), config.get(), first);
+
+    ASSERT_EQ(2, (int)factory->urls_.size());
+    EXPECT_STREQ("rtmp://127.0.0.1:19351/fwd/livestream-dst?token=abc&vhost=127.0.0.1", factory->urls_[0].c_str());
+    EXPECT_STREQ("rtmp://127.0.0.1:19351/fwd/livestream-dst?token=abc&vhost=127.0.0.1", factory->urls_[1].c_str());
+    utest_workflow_forward_check_restart(first, factory->clients_[1]);
 }
