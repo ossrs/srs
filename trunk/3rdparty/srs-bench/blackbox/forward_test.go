@@ -1561,3 +1561,405 @@ func TestFast_RtmpPublish_Forward_Backend_Status(t *testing.T) {
 
 	forwardStatus(t, true)
 }
+
+// forwardDeleteAPI sends DELETE to an HTTP API of an SRS, and returns the HTTP status and the body.
+func forwardDeleteAPI(api string) (int, string, error) {
+	req, err := http.NewRequest(http.MethodDelete, api, nil)
+	if err != nil {
+		return 0, "", errors.Wrapf(err, "new request %v", api)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, "", errors.Wrapf(err, "delete %v", api)
+	}
+	defer res.Body.Close()
+
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return 0, "", errors.Wrapf(err, "read %v", api)
+	}
+	return res.StatusCode, string(b), nil
+}
+
+// forwardKick kicks the publisher of a stream, as a user's backend does: it finds publish.cid by
+// GET /api/v1/streams/{id}, then DELETE /api/v1/clients/{cid}.
+func forwardKick(apiPort int, streamID string) error {
+	answer := struct {
+		Stream *forwardStream `json:"stream"`
+	}{}
+	api := fmt.Sprintf("http://localhost:%v/api/v1/streams/%v", apiPort, streamID)
+	if err := forwardGetAPI(api, &answer); err != nil {
+		return err
+	}
+	if answer.Stream == nil || !answer.Stream.Publish.Active || answer.Stream.Publish.Cid == "" {
+		return errors.Errorf("no publisher of %v, %+v", api, answer.Stream)
+	}
+
+	api = fmt.Sprintf("http://localhost:%v/api/v1/clients/%v", apiPort, answer.Stream.Publish.Cid)
+	status, body, err := forwardDeleteAPI(api)
+	if err != nil {
+		return err
+	}
+
+	code := struct {
+		Code int `json:"code"`
+	}{}
+	if err := json.Unmarshal([]byte(body), &code); err != nil || status != http.StatusOK || code.Code != 0 {
+		return errors.Errorf("kick by %v, status=%v, body=%v, err %v", api, status, body, err)
+	}
+	return nil
+}
+
+// forwardWaitURLs waits until the forwards of the stream are exactly the urls, in any order, and all forwarding, and
+// returns them.
+func forwardWaitURLs(ctx context.Context, apiPort int, streamID string, urls []string, timeout time.Duration) ([]forwardInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	match := func(forwards []forwardInfo) bool {
+		if len(forwards) != len(urls) {
+			return false
+		}
+		for _, url := range urls {
+			found := false
+			for _, f := range forwards {
+				if f.URL == url && f.State == "forwarding" {
+					found = true
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+		return true
+	}
+
+	var last []forwardInfo
+	var lastErr error
+	for {
+		if last, lastErr = forwardList(apiPort, streamID); lastErr == nil && match(last) {
+			return last, nil
+		}
+		if !forwardSleep(ctx, 100*time.Millisecond) {
+			return nil, errors.Errorf("forwards of stream %v are not %v forwarding in %v, last %+v, err %v",
+				streamID, urls, timeout, last, lastErr)
+		}
+	}
+}
+
+// forwardWaitNoStream waits until an SRS no longer publishes the stream.
+func forwardWaitNoStream(ctx context.Context, apiPort int, app, name string, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	for {
+		streams, err := forwardActiveStreams(apiPort)
+		if err == nil {
+			found := false
+			for _, s := range streams {
+				if s.App == app && s.Name == name {
+					found = true
+				}
+			}
+			if !found {
+				return nil
+			}
+		}
+		if !forwardSleep(ctx, 100*time.Millisecond) {
+			return errors.Errorf("stream %v/%v on api port %v still publishing after %v, err %v", app, name, apiPort, timeout, err)
+		}
+	}
+}
+
+// forwardKickTarget is a destination SRS of a kick case: the app and stream it gets, the url the backend answers for
+// it (empty for forward.destination), and the url /api/v1/forwards/ lists for it.
+type forwardKickTarget struct {
+	srs        SRSServer
+	app        string
+	stream     string
+	backendURL string
+	listedURL  string
+}
+
+// forwardByKick checks the documented way to change the forwards of a live stream: the origin forwards to the targets
+// of before, then the user's backend changes its answer to after and kicks the publisher. The kick removes every
+// forward of the stream, and when the encoder republishes, the origin creates only the forwards of after. Without a
+// backend, forward.destination has one target, which is created again after the republish.
+func forwardByKick(t *testing.T, withBackend bool, before, after []int) {
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4, r5, r6 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4, r5, r6); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+
+	// Stop every server and FFmpeg when the checks end, before waiting for them.
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	defer cancel()
+
+	// The destination SRS servers. FFmpeg publishes to localhost, so a forward.destination url gets that vhost; a
+	// backend url gets its IP host as the vhost.
+	var targets []*forwardKickTarget
+	for i, name := range []string{"a", "b"} {
+		if !withBackend && i > 0 {
+			break
+		}
+		target := &forwardKickTarget{srs: NewSRSServer(), app: "live", stream: streamID}
+		target.listedURL = fmt.Sprintf("rtmp://127.0.0.1:%v/live/%v?vhost=localhost", target.srs.RTMPPort(), streamID)
+		if withBackend {
+			target.app, target.stream = "fwd", fmt.Sprintf("%v-%v", streamID, name)
+			target.backendURL = fmt.Sprintf("rtmp://127.0.0.1:%v/fwd/%v?token=%v", target.srs.RTMPPort(), target.stream, name)
+			target.listedURL = fmt.Sprintf("%v&vhost=127.0.0.1", target.backendURL)
+		}
+		targets = append(targets, target)
+	}
+	dstErrs := []*error{&r0, &r1}
+	for i, target := range targets {
+		wg.Add(1)
+		go func(target *forwardKickTarget, r *error) {
+			defer wg.Done()
+			*r = target.srs.Run(ctx, cancel)
+		}(target, dstErrs[i])
+	}
+
+	listedURLs := func(indexes []int) []string {
+		var urls []string
+		for _, i := range indexes {
+			urls = append(urls, targets[i].listedURL)
+		}
+		return urls
+	}
+
+	// The backend answers the targets of answer, which the case changes before the kick.
+	var answerLock sync.Mutex
+	answer := before
+	var backend *forwardBackend
+	var originEnvs []string
+	if withBackend {
+		backend = newForwardBackend(ctx, func(r *forwardHookRequest) (int, string) {
+			answerLock.Lock()
+			defer answerLock.Unlock()
+			var urls []string
+			for _, i := range answer {
+				urls = append(urls, targets[i].backendURL)
+			}
+			return http.StatusOK, forwardBackendAnswer(urls...)
+		})
+		defer backend.Close()
+		originEnvs = []string{
+			"SRS_VHOST_FORWARD_ENABLED=on",
+			fmt.Sprintf("SRS_VHOST_FORWARD_BACKEND=%v", backend.ForwardURL()),
+		}
+	} else {
+		originEnvs = forwardDestinationEnvs(targets[0].srs)
+	}
+	origin := NewSRSServer(func(v *srsServer) {
+		v.envs = originEnvs
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r2 = origin.Run(ctx, cancel)
+	}()
+
+	// The first FFmpeg publishes to the origin until it is kicked; its quit does not end the case.
+	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", origin.RTMPPort(), streamID)
+	publishArgs := []string{"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv", streamURL}
+	pubCtx, pubCancel := context.WithCancel(ctx)
+	defer pubCancel()
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = publishArgs
+		v.cancelCaseWhenQuit = false
+	})
+	for _, target := range targets {
+		<-target.srs.ReadyCtx().Done()
+	}
+	<-origin.ReadyCtx().Done()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r3 = ffmpeg.Run(pubCtx, pubCancel)
+	}()
+
+	// Every forward of before is listed and forwarding, and its destination gets the stream.
+	if _, err := forwardWaitStream(ctx, origin.APIPort(), "live", streamID, 15*time.Second); err != nil {
+		r5 = err
+		return
+	}
+	sid, err := forwardStreamID(origin.APIPort(), "live", streamID)
+	if err != nil {
+		r5 = err
+		return
+	}
+	forwards, err := forwardWaitURLs(ctx, origin.APIPort(), sid, listedURLs(before), 15*time.Second)
+	if err != nil {
+		r5 = err
+		return
+	}
+	for _, i := range before {
+		if _, err := forwardWaitStream(ctx, targets[i].srs.APIPort(), targets[i].app, targets[i].stream, 15*time.Second); err != nil {
+			r5 = err
+			return
+		}
+	}
+
+	// A forward cannot be deleted by the API: DELETE is 405, and the forward keeps running.
+	if !withBackend {
+		api := fmt.Sprintf("http://localhost:%v/api/v1/forwards/%v", origin.APIPort(), forwards[0].ID)
+		if status, body, err := forwardDeleteAPI(api); err != nil || status != http.StatusMethodNotAllowed {
+			r5 = errors.Errorf("delete %v, status=%v, body=%v, err %v, expect 405", api, status, body, err)
+			return
+		}
+		if got, err := forwardGet(origin.APIPort(), forwards[0].ID); err != nil {
+			r5 = err
+			return
+		} else if got.State != "forwarding" || got.URL != forwards[0].URL {
+			r5 = errors.Errorf("forward %+v after delete, expect %+v", got, forwards[0])
+			return
+		}
+	}
+
+	// The backend changes its answer, then kicks the publisher.
+	answerLock.Lock()
+	answer = after
+	answerLock.Unlock()
+	if err := forwardKick(origin.APIPort(), sid); err != nil {
+		r5 = err
+		return
+	}
+
+	// The kick removes every forward of the stream: the list is empty, each old id is gone, and no destination gets
+	// the stream any more.
+	if _, err := forwardWaitURLs(ctx, origin.APIPort(), sid, nil, 15*time.Second); err != nil {
+		r5 = err
+		return
+	}
+	for _, f := range forwards {
+		if got, err := forwardGet(origin.APIPort(), f.ID); err == nil {
+			r5 = errors.Errorf("forward %v still exists after the kick, %+v", f.ID, got)
+			return
+		}
+	}
+	if err := forwardWaitNoStream(ctx, origin.APIPort(), "live", streamID, 15*time.Second); err != nil {
+		r5 = err
+		return
+	}
+	for _, i := range before {
+		if err := forwardWaitNoStream(ctx, targets[i].srs.APIPort(), targets[i].app, targets[i].stream, 15*time.Second); err != nil {
+			r5 = err
+			return
+		}
+	}
+
+	// The encoder republishes.
+	pubCancel()
+	ffmpeg2 := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = publishArgs
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r4 = ffmpeg2.Run(ctx, cancel)
+	}()
+
+	if _, err := forwardWaitStream(ctx, origin.APIPort(), "live", streamID, 15*time.Second); err != nil {
+		r5 = err
+		return
+	}
+	sid2, err := forwardStreamID(origin.APIPort(), "live", streamID)
+	if err != nil {
+		r5 = err
+		return
+	}
+
+	// Only the forwards of after are listed, each a new forward, and the backend was asked again.
+	forwards2, err := forwardWaitURLs(ctx, origin.APIPort(), sid2, listedURLs(after), 15*time.Second)
+	if err != nil {
+		r5 = err
+		return
+	}
+	for _, f2 := range forwards2 {
+		for _, f := range forwards {
+			if f2.ID == f.ID {
+				r5 = errors.Errorf("forward %+v after the republish has the old id", f2)
+				return
+			}
+		}
+	}
+	if withBackend {
+		if reqs := backend.Forwards(); len(reqs) != 2 {
+			r5 = errors.Errorf("on_forward count=%v, expect=2, %+v", len(reqs), reqs)
+			return
+		}
+	}
+
+	// Only the destinations of after get the stream again.
+	for _, i := range after {
+		if _, err := forwardWaitStream(ctx, targets[i].srs.APIPort(), targets[i].app, targets[i].stream, 15*time.Second); err != nil {
+			r6 = err
+			return
+		}
+	}
+	if !forwardSleep(ctx, 3*time.Second) {
+		return
+	}
+	for i, target := range targets {
+		wanted := false
+		for _, j := range after {
+			wanted = wanted || i == j
+		}
+		if wanted {
+			continue
+		}
+		streams, err := forwardActiveStreams(target.srs.APIPort())
+		if err != nil {
+			r6 = err
+			return
+		}
+		for _, s := range streams {
+			if s.App == target.app && s.Name == target.stream {
+				r6 = errors.Errorf("removed destination %v still gets %v/%v", target.listedURL, s.App, s.Name)
+				return
+			}
+		}
+	}
+}
+
+// The backend forwards to A and B, then stops returning B and kicks the publisher: the forwards are removed, and after
+// the republish only A is listed and gets the stream.
+func TestFast_RtmpPublish_Forward_Backend_RemoveByKick(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardByKick(t, true, []int{0, 1}, []int{0})
+}
+
+// The backend forwards to A, then also returns B and kicks the publisher: after the republish both are listed and get
+// the stream.
+func TestFast_RtmpPublish_Forward_Backend_AddByKick(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardByKick(t, true, []int{0}, []int{0, 1})
+}
+
+// The origin forwards by forward.destination: DELETE /api/v1/forwards/{id} is 405 and the forward keeps running;
+// kicking the publisher removes its forwards, and the republish creates them again.
+func TestFast_RtmpPublish_Forward_Destination_Kick(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardByKick(t, false, []int{0}, []int{0})
+}
