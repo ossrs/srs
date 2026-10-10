@@ -2120,6 +2120,7 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_RTSP_RTMP_TO_RTSP=on                Convert RTMP to RTSP.\n"
         "   Forward:\n"
         "      SRS_VHOST_FORWARD_ENABLED=off                 Forward published streams.\n"
+        "      SRS_VHOST_FORWARD_DESTINATION=                Space separated ip:port to forward to.\n"
         "      SRS_VHOST_FORWARD_BACKEND=                    HTTP URL that returns the RTMP URLs to forward to.\n"
         "   Edge, pull and push streams through an origin:\n"
         "      SRS_VHOST_CLUSTER_MODE=local                  local for an origin, remote for an edge.\n"
@@ -5357,6 +5358,8 @@ bool SrsConfig::get_forward_enabled(SrsConfDirective *vhost)
 
 SrsConfDirective *SrsConfig::get_forwards(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_DIRECTIVE("srs.vhost.forward.destination"); // SRS_VHOST_FORWARD_DESTINATION
+
     SrsConfDirective *conf = get_vhost(vhost);
     if (!conf) {
         return NULL;
