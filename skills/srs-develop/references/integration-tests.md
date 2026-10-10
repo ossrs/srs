@@ -52,6 +52,7 @@ Run feature-specific bundled tests in addition to this matrix when the routed wo
 | `rtc-rtx-whep-play-test.sh` | RFC 4588 RTX on the WebRTC play path: `tools/pion-whep` plays over WHEP under `nack_prefer_rtx on`, sent packets are dropped, and SRS must answer the NACK on the RTX SSRC. |
 | `rtc-plain-whep-play-test.sh` | Plain retransmission on the WebRTC play path, the RTX fallback: the same player under `nack_prefer_rtx off` must get an answer without `rtx` and a resend on the media SSRC. |
 | `rtc-plain-whip-publish-test.sh` | Plain retransmission on the WebRTC publish path, the RTX fallback: `tools/pion-whip` publishes over WHIP under `nack_prefer_rtx off`, offering `rtx` with a FID group, and must get an answer without `rtx` and resend on the media SSRC. |
+| `forward-status-test.sh` | `forward.destination` and the read-only `/api/v1/forwards/` API: an origin forwards to two destination SRS, and each forward is listed with its url and `forwarding`, `{id}` returns one, an unknown id fails and `DELETE` is 405, a stopped destination shows `retrying`, and after its restart it is `forwarding` again with the same id. |
 
 Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, `proxy-e2e-origin.sh`, and `setup-ffmpeg-with-whip.sh` are not standalone test cases unless a workflow explicitly invokes them.
 
@@ -184,8 +185,7 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | 11800–11899 | Spare `proxy-e2e-*` slot | 100 | 0 | 100 |
 | 11900–11999 | Kept free for the proxy defaults 11935 and 11985 | 100 | 0 | 0 |
 | 12000–12099 | Kept free for the proxy default 12025 | 100 | 0 | 0 |
-| 12100–12899 | The other bundled scripts, one 100-port slot each at `SRS_TEST_PORT_BASE`, by default 12100 `srs-config-file`, 12200 `srs-reload`, 12300 and 12400 `gb28181-*`, 12500 to 12800 `rtc-*` | 800 | 25 | 775, inside the existing slots |
-| 12900–12999 | Spare bundled-script slot | 100 | 0 | 100 |
+| 12100–12999 | The other bundled scripts, one 100-port slot each at `SRS_TEST_PORT_BASE`, by default 12100 `srs-config-file`, 12200 `srs-reload`, 12300 and 12400 `gb28181-*`, 12500 to 12800 `rtc-*`, 12900 `forward-status` | 900 | 31 | 869, inside the existing slots |
 | 13000–13999 | The regression SRS at `SRS_TEST_PORT_BASE`, by default 13000, through the `SRS_*_LISTEN` env and the `srs_test` port flags | 1,000 | 6 | 994 |
 | 14000–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 7,000 | 0 | 6,997 |
 | 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |
