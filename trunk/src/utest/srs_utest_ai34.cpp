@@ -8,6 +8,7 @@
 #include <srs_app_rtmp_source.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_utest_ai14.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <string.h>
@@ -1029,5 +1030,615 @@ VOID TEST(ForwarderTest, UnpublishStopsCoroutineAndClosesClient)
         SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
         forwarder->on_unpublish();
         EXPECT_TRUE(forwarder->sdk_ == NULL);
+    }
+}
+
+MockAppConfigForForwardHub::MockAppConfigForForwardHub()
+{
+    forward_enabled_ = true;
+    queue_length_ = 30 * SRS_UTIME_SECONDS;
+}
+
+MockAppConfigForForwardHub::~MockAppConfigForForwardHub()
+{
+}
+
+bool MockAppConfigForForwardHub::get_forward_enabled(std::string vhost)
+{
+    return forward_enabled_;
+}
+
+srs_utime_t MockAppConfigForForwardHub::get_queue_length(std::string vhost)
+{
+    return queue_length_;
+}
+
+MockHttpHooksForForwardHub::MockHttpHooksForForwardHub()
+{
+    count_ = 0;
+    req_ = NULL;
+    error_ = srs_success;
+}
+
+MockHttpHooksForForwardHub::~MockHttpHooksForForwardHub()
+{
+    srs_freep(error_);
+}
+
+srs_error_t MockHttpHooksForForwardHub::on_forward_backend(std::string url, ISrsRequest *req, std::vector<std::string> &rtmp_urls)
+{
+    count_++;
+    url_ = url;
+    req_ = req;
+    if (error_ != srs_success) {
+        return srs_error_copy(error_);
+    }
+
+    rtmp_urls = urls_;
+    return srs_success;
+}
+
+MockForwarderForFanOut::MockForwarderForFanOut(std::string name, std::vector<std::string> *log)
+{
+    name_ = name;
+    log_ = log;
+    meta_error_ = srs_success;
+    audio_error_ = srs_success;
+    video_error_ = srs_success;
+}
+
+MockForwarderForFanOut::~MockForwarderForFanOut()
+{
+    log_->push_back(name_ + ":freed");
+    srs_freep(meta_error_);
+    srs_freep(audio_error_);
+    srs_freep(video_error_);
+}
+
+srs_error_t MockForwarderForFanOut::initialize(ISrsRequest *r, std::string ep)
+{
+    return srs_success;
+}
+
+void MockForwarderForFanOut::set_queue_size(srs_utime_t queue_size)
+{
+}
+
+srs_error_t MockForwarderForFanOut::on_publish()
+{
+    return srs_success;
+}
+
+void MockForwarderForFanOut::on_unpublish()
+{
+    log_->push_back(name_ + ":unpublish");
+}
+
+srs_error_t MockForwarderForFanOut::on_meta_data(SrsMediaPacket *shared_metadata)
+{
+    return record(shared_metadata, meta_error_);
+}
+
+srs_error_t MockForwarderForFanOut::on_audio(SrsMediaPacket *shared_audio)
+{
+    return record(shared_audio, audio_error_);
+}
+
+srs_error_t MockForwarderForFanOut::on_video(SrsMediaPacket *shared_video)
+{
+    return record(shared_video, video_error_);
+}
+
+srs_error_t MockForwarderForFanOut::record(SrsMediaPacket *pkt, srs_error_t err)
+{
+    packets_.push_back(pkt);
+    log_->push_back(name_ + ":" + std::string(1, utest_forward_marker(pkt)));
+    return srs_error_copy(err);
+}
+
+// An origin hub with mock HLS, DASH, DVR, encoder, exec and HDS, on the given source, request,
+// config and hooks, so only its forward parts do real work.
+static SrsOriginHub *utest_forward_hub(MockLiveSourceForOriginHub *source, ISrsRequest *req, ISrsAppConfig *config, ISrsHttpHooks *hooks)
+{
+    SrsOriginHub *hub = new SrsOriginHub();
+
+    srs_freep(hub->hls_);
+    hub->hls_ = new MockHlsForOriginHub();
+    srs_freep(hub->dash_);
+    hub->dash_ = new MockDashForOriginHub();
+    srs_freep(hub->dvr_);
+    hub->dvr_ = new MockDvrForOriginHub();
+    srs_freep(hub->encoder_);
+    hub->encoder_ = new MockMediaEncoderForOriginHub();
+    srs_freep(hub->ng_exec_);
+    hub->ng_exec_ = new MockNgExecForOriginHub();
+#ifdef SRS_HDS
+    srs_freep(hub->hds_);
+    hub->hds_ = new MockHdsForOriginHub();
+#endif
+
+    hub->source_ = source;
+    hub->req_ = req;
+    hub->config_ = config;
+    hub->hooks_ = hooks;
+    return hub;
+}
+
+static SrsForwarder *utest_forward_at(SrsOriginHub *hub, int i)
+{
+    return dynamic_cast<SrsForwarder *>(hub->forwarders_.at(i));
+}
+
+// Whether the forwarder's coroutine was started by on_publish(), not the dummy one it is built with.
+static bool utest_forward_started(SrsForwarder *forwarder)
+{
+    return dynamic_cast<SrsSTCoroutine *>(forwarder->trd_) != NULL;
+}
+
+// With forward disabled, neither the destinations nor the backend create a forwarder, and the
+// backend is never asked.
+VOID TEST(OriginHubForwardTest, DisabledCreatesNoForwarders)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    config->forward_enabled_ = false;
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:1936");
+    config->set_forward_destinations(destinations);
+    config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+    hooks->urls_.push_back("rtmp://127.0.0.1:1937/live/livestream");
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+
+    EXPECT_EQ(0, (int)hub->forwarders_.size());
+    EXPECT_EQ(0, hooks->count_);
+}
+
+// Each destination gets one started forwarder, in config order, with the entry as its endpoint,
+// its own copy of the publisher's request, and the vhost's queue length.
+VOID TEST(OriginHubForwardTest, DestinationCreatesOneForwarderPerEntry)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("test.vhost", "live", "livestream"));
+    req->param_ = "?token=abc";
+
+    config->queue_length_ = 7 * SRS_UTIME_SECONDS;
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:1936");
+    destinations.push_back("127.0.0.1:1937");
+    destinations.push_back("10.0.0.1");
+    config->set_forward_destinations(destinations);
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+
+    EXPECT_EQ(0, hooks->count_);
+    ASSERT_EQ(3, (int)hub->forwarders_.size());
+    for (int i = 0; i < 3; i++) {
+        SrsForwarder *forwarder = utest_forward_at(hub.get(), i);
+        ASSERT_TRUE(forwarder != NULL);
+        EXPECT_STREQ(destinations[i].c_str(), forwarder->ep_forward_.c_str()) << "#" << i;
+        EXPECT_TRUE(forwarder->req_ != req.get()) << "#" << i;
+        EXPECT_STREQ("test.vhost", forwarder->req_->vhost_.c_str()) << "#" << i;
+        EXPECT_STREQ("live", forwarder->req_->app_.c_str()) << "#" << i;
+        EXPECT_STREQ("livestream", forwarder->req_->stream_.c_str()) << "#" << i;
+        EXPECT_STREQ("?token=abc", forwarder->req_->param_.c_str()) << "#" << i;
+        EXPECT_EQ(7 * SRS_UTIME_SECONDS, forwarder->queue_->max_queue_size_) << "#" << i;
+        EXPECT_TRUE(utest_forward_started(forwarder)) << "#" << i;
+    }
+
+    hub->destroy_forwarders();
+    EXPECT_EQ(0, (int)hub->forwarders_.size());
+}
+
+// An rtmps:// destination fails create_forwarders(): the forwarders before it are started, the
+// failed one is kept in the list but never started, and the ones after it are not created.
+VOID TEST(OriginHubForwardTest, RtmpsDestinationFailsCreate)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:1936");
+    destinations.push_back("rtmps://127.0.0.1:443/live");
+    destinations.push_back("127.0.0.1:1938");
+    config->set_forward_destinations(destinations);
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    err = hub->create_forwarders();
+    EXPECT_EQ(ERROR_NOT_SUPPORTED, srs_error_code(err));
+    srs_freep(err);
+
+    ASSERT_EQ(2, (int)hub->forwarders_.size());
+    EXPECT_TRUE(utest_forward_started(utest_forward_at(hub.get(), 0)));
+    EXPECT_STREQ("rtmps://127.0.0.1:443/live", utest_forward_at(hub.get(), 1)->ep_forward_.c_str());
+    EXPECT_FALSE(utest_forward_started(utest_forward_at(hub.get(), 1)));
+
+    hub->destroy_forwarders();
+    EXPECT_EQ(0, (int)hub->forwarders_.size());
+}
+
+// A backend with urls creates one forwarder per url and ignores the destinations; the backend is
+// asked once, with its url and the publisher's request.
+VOID TEST(OriginHubForwardTest, BackendIgnoresDestination)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    config->queue_length_ = 9 * SRS_UTIME_SECONDS;
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:1936");
+    destinations.push_back("127.0.0.1:1937");
+    destinations.push_back("127.0.0.1:1938");
+    config->set_forward_destinations(destinations);
+    config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+    hooks->urls_.push_back("rtmp://192.168.1.10:1935/live/stream1");
+    hooks->urls_.push_back("rtmp://192.168.1.11:1935/live/stream2");
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+
+    EXPECT_EQ(1, hooks->count_);
+    EXPECT_STREQ("http://127.0.0.1:8085/api/v1/forward", hooks->url_.c_str());
+    EXPECT_TRUE(hooks->req_ == req.get());
+
+    ASSERT_EQ(2, (int)hub->forwarders_.size());
+    EXPECT_STREQ("192.168.1.10:1935", utest_forward_at(hub.get(), 0)->ep_forward_.c_str());
+    EXPECT_STREQ("192.168.1.11:1935", utest_forward_at(hub.get(), 1)->ep_forward_.c_str());
+    for (int i = 0; i < 2; i++) {
+        EXPECT_EQ(9 * SRS_UTIME_SECONDS, utest_forward_at(hub.get(), i)->queue_->max_queue_size_) << "#" << i;
+        EXPECT_TRUE(utest_forward_started(utest_forward_at(hub.get(), i))) << "#" << i;
+    }
+
+    hub->destroy_forwarders();
+}
+
+// A backend that returns no urls means no forward at all: the destinations are still ignored.
+VOID TEST(OriginHubForwardTest, BackendWithNoUrlsIgnoresDestination)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:1936");
+    config->set_forward_destinations(destinations);
+    config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+
+    EXPECT_EQ(1, hooks->count_);
+    EXPECT_EQ(0, (int)hub->forwarders_.size());
+}
+
+// A backend error fails create_forwarders() with the backend's error, and creates nothing.
+VOID TEST(OriginHubForwardTest, BackendErrorFailsCreate)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:1936");
+    config->set_forward_destinations(destinations);
+    config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+    hooks->urls_.push_back("rtmp://192.168.1.10:1935/live/stream1");
+    hooks->error_ = srs_error_new(ERROR_SOCKET_TIMEOUT, "mock backend");
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    err = hub->create_forwarders();
+    EXPECT_EQ(ERROR_SOCKET_TIMEOUT, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, hooks->count_);
+    EXPECT_EQ(0, (int)hub->forwarders_.size());
+}
+
+// A backend directive with no arg, or an empty arg, is not applied: the destinations are used and
+// the backend is never asked.
+VOID TEST(OriginHubForwardTest, EmptyBackendArgUsesDestination)
+{
+    srs_error_t err;
+
+    for (int nb_args = 0; nb_args < 2; nb_args++) {
+        SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+        SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+        SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+        SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+        std::vector<std::string> destinations;
+        destinations.push_back("127.0.0.1:1936");
+        destinations.push_back("127.0.0.1:1937");
+        config->set_forward_destinations(destinations);
+        config->backend_directive_ = new SrsConfDirective();
+        config->backend_directive_->name_ = "backend";
+        if (nb_args) {
+            config->backend_directive_->args_.push_back("");
+        }
+        hooks->urls_.push_back("rtmp://192.168.1.10:1935/live/stream1");
+
+        SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+        HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+
+        EXPECT_EQ(0, hooks->count_) << "args=" << nb_args;
+        ASSERT_EQ(2, (int)hub->forwarders_.size()) << "args=" << nb_args;
+        EXPECT_STREQ("127.0.0.1:1936", utest_forward_at(hub.get(), 0)->ep_forward_.c_str());
+        EXPECT_STREQ("127.0.0.1:1937", utest_forward_at(hub.get(), 1)->ep_forward_.c_str());
+
+        hub->destroy_forwarders();
+    }
+}
+
+// Each backend url decides its forwarder's endpoint and request, not the publisher's request:
+// the host and port (1935 when absent), the app and stream, the query, and a vhost in the query.
+// The url the forwarder then connects to is built from them; with no vhost in the backend url,
+// the vhost is the url's host, so the forwarder adds it as a ?vhost= query.
+VOID TEST(OriginHubForwardTest, BackendUrlDecidesEndpointAndRequest)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("test.vhost", "live", "livestream"));
+    req->param_ = "?pub=1";
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+
+    config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+    hooks->urls_.push_back("rtmp://192.168.1.10:19350/live/stream1");
+    hooks->urls_.push_back("rtmp://192.168.1.11/live/stream2");
+    hooks->urls_.push_back("rtmp://192.168.1.12:1935/live/stream3?token=abc");
+    hooks->urls_.push_back("rtmp://192.168.1.13:1935/live/stream4?vhost=v.example.com");
+    hooks->urls_.push_back("rtmp://192.168.1.14:1935/other/app5");
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_EXPECT_SUCCESS(hub->create_forwarders());
+    ASSERT_EQ(5, (int)hub->forwarders_.size());
+
+    const char *eps[] = {"192.168.1.10:19350", "192.168.1.11:1935", "192.168.1.12:1935", "192.168.1.13:1935", "192.168.1.14:1935"};
+    const char *hosts[] = {"192.168.1.10", "192.168.1.11", "192.168.1.12", "192.168.1.13", "192.168.1.14"};
+    const char *vhosts[] = {"192.168.1.10", "192.168.1.11", "192.168.1.12", "v.example.com", "192.168.1.14"};
+    const char *apps[] = {"live", "live", "live", "live", "other"};
+    const char *streams[] = {"stream1", "stream2", "stream3", "stream4", "app5"};
+    const char *params[] = {"", "", "?token=abc", "?vhost=v.example.com", ""};
+    const char *urls[] = {
+        "rtmp://192.168.1.10:19350/live/stream1?vhost=192.168.1.10",
+        "rtmp://192.168.1.11:1935/live/stream2?vhost=192.168.1.11",
+        "rtmp://192.168.1.12:1935/live/stream3?token=abc&vhost=192.168.1.12",
+        "rtmp://192.168.1.13:1935/live/stream4?vhost=v.example.com",
+        "rtmp://192.168.1.14:1935/other/app5?vhost=192.168.1.14",
+    };
+
+    for (int i = 0; i < 5; i++) {
+        SrsForwarder *forwarder = utest_forward_at(hub.get(), i);
+        EXPECT_STREQ(eps[i], forwarder->ep_forward_.c_str()) << "#" << i;
+        EXPECT_STREQ(hosts[i], forwarder->req_->host_.c_str()) << "#" << i;
+        EXPECT_STREQ(vhosts[i], forwarder->req_->vhost_.c_str()) << "#" << i;
+        EXPECT_STREQ(apps[i], forwarder->req_->app_.c_str()) << "#" << i;
+        EXPECT_STREQ(streams[i], forwarder->req_->stream_.c_str()) << "#" << i;
+        EXPECT_STREQ(params[i], forwarder->req_->param_.c_str()) << "#" << i;
+
+        // Stop the started coroutine, then connect once with a client that fails to connect,
+        // to get the url.
+        forwarder->on_unpublish();
+        MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
+        sdk->connect_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "mock connect");
+        factory->next_ = sdk;
+        utest_forward_wire(forwarder, factory.get(), config.get(), 1);
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_SOCKET_CONNECT, srs_error_code(err)) << "#" << i;
+        srs_freep(err);
+
+        ASSERT_EQ(i + 1, (int)factory->urls_.size());
+        EXPECT_STREQ(urls[i], factory->urls_[i].c_str()) << "#" << i;
+    }
+
+    hub->destroy_forwarders();
+}
+
+// Metadata, audio and video reach every forwarder, in forwarder order, as the same shared packet.
+VOID TEST(OriginHubForwardTest, FanOutReachesEveryForwarderInOrder)
+{
+    srs_error_t err;
+
+    std::vector<std::string> log;
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+    SrsUniquePtr<SrsMediaPacket> metadata(utest_forward_metadata(0, 'M'));
+    SrsUniquePtr<SrsMediaPacket> audio(utest_forward_audio_raw(10, 'A'));
+    SrsUniquePtr<SrsMediaPacket> video(utest_forward_video_keyframe(20, 'K'));
+    SrsUniquePtr<SrsOnMetaDataPacket> packet(new SrsOnMetaDataPacket());
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), _srs_config, _srs_hooks));
+    MockForwarderForFanOut *f1 = new MockForwarderForFanOut("f1", &log);
+    MockForwarderForFanOut *f2 = new MockForwarderForFanOut("f2", &log);
+    hub->forwarders_.push_back(f1);
+    hub->forwarders_.push_back(f2);
+
+    HELPER_EXPECT_SUCCESS(hub->on_meta_data(metadata.get(), packet.get()));
+    HELPER_EXPECT_SUCCESS(hub->on_audio(audio.get()));
+    HELPER_EXPECT_SUCCESS(hub->on_video(video.get(), false));
+
+    const char *expected[] = {"f1:M", "f2:M", "f1:A", "f2:A", "f1:K", "f2:K"};
+    ASSERT_EQ(6, (int)log.size());
+    for (int i = 0; i < 6; i++) {
+        EXPECT_STREQ(expected[i], log[i].c_str()) << "#" << i;
+    }
+
+    ASSERT_EQ(3, (int)f1->packets_.size());
+    ASSERT_EQ(3, (int)f2->packets_.size());
+    EXPECT_TRUE(f1->packets_[0] == metadata.get() && f2->packets_[0] == metadata.get());
+    EXPECT_TRUE(f1->packets_[1] == audio.get() && f2->packets_[1] == audio.get());
+    EXPECT_TRUE(f1->packets_[2] == video.get() && f2->packets_[2] == video.get());
+}
+
+// The first forwarder error returns from the fan-out: the forwarders before it and the failing
+// one got the packet, the ones after it did not. For metadata, the DVR after the fan-out does not
+// get it either; for audio, the DVR before the fan-out already did.
+VOID TEST(OriginHubForwardTest, FanOutStopsAtFirstForwarderError)
+{
+    srs_error_t err;
+
+    std::vector<std::string> log;
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+    SrsUniquePtr<SrsMediaPacket> metadata(utest_forward_metadata(0, 'M'));
+    SrsUniquePtr<SrsMediaPacket> audio(utest_forward_audio_raw(10, 'A'));
+    SrsUniquePtr<SrsMediaPacket> video(utest_forward_video_keyframe(20, 'K'));
+    SrsUniquePtr<SrsOnMetaDataPacket> packet(new SrsOnMetaDataPacket());
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), _srs_config, _srs_hooks));
+    MockDvrForOriginHub *dvr = dynamic_cast<MockDvrForOriginHub *>(hub->dvr_);
+    MockForwarderForFanOut *f1 = new MockForwarderForFanOut("f1", &log);
+    MockForwarderForFanOut *f2 = new MockForwarderForFanOut("f2", &log);
+    MockForwarderForFanOut *f3 = new MockForwarderForFanOut("f3", &log);
+    f2->meta_error_ = srs_error_new(ERROR_SOCKET_WRITE, "mock meta");
+    f2->audio_error_ = srs_error_new(ERROR_SOCKET_READ, "mock audio");
+    f2->video_error_ = srs_error_new(ERROR_SOCKET_TIMEOUT, "mock video");
+    hub->forwarders_.push_back(f1);
+    hub->forwarders_.push_back(f2);
+    hub->forwarders_.push_back(f3);
+
+    err = hub->on_meta_data(metadata.get(), packet.get());
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, dvr->on_meta_data_count_);
+
+    err = hub->on_audio(audio.get());
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, dvr->on_audio_count_);
+
+    err = hub->on_video(video.get(), false);
+    EXPECT_EQ(ERROR_SOCKET_TIMEOUT, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, dvr->on_video_count_);
+
+    const char *expected[] = {"f1:M", "f2:M", "f1:A", "f2:A", "f1:K", "f2:K"};
+    ASSERT_EQ(6, (int)log.size());
+    for (int i = 0; i < 6; i++) {
+        EXPECT_STREQ(expected[i], log[i].c_str()) << "#" << i;
+    }
+    EXPECT_EQ(0, (int)f3->packets_.size());
+}
+
+// on_forwarder_start() enqueues the source's cached metadata, video and audio sequence headers
+// into that forwarder, in that order; with nothing cached it enqueues nothing.
+VOID TEST(OriginHubForwardTest, OnForwarderStartFeedsCachedMetadataAndHeaders)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    if (true) {
+        SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+        source->meta()->meta_ = utest_forward_metadata(0, 'M');
+        source->meta()->video_ = utest_forward_video_sh(0, 'W');
+        source->meta()->audio_ = utest_forward_audio_sh(0, 'B');
+
+        SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), _srs_config, _srs_hooks));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+
+        HELPER_EXPECT_SUCCESS(hub->on_forwarder_start(forwarder.get()));
+        EXPECT_EQ(3, forwarder->queue_->size());
+        EXPECT_EQ('W', utest_forward_marker(forwarder->sh_video_));
+        EXPECT_EQ('B', utest_forward_marker(forwarder->sh_audio_));
+
+        // The forwarder's cached headers first, then the queue.
+        MockRtmpClientForForwarder *sdk = utest_forward_run_once(forwarder.get());
+        const char markers[] = {'W', 'B', 'M', 'W', 'B'};
+        ASSERT_EQ(5, (int)sdk->sent_.size());
+        for (int i = 0; i < 5; i++) {
+            EXPECT_EQ(markers[i], utest_forward_marker(sdk->sent_[i])) << "#" << i;
+        }
+        ASSERT_EQ(1, (int)sdk->batches_.size());
+        EXPECT_EQ(3, sdk->batches_[0]);
+    }
+
+    if (true) {
+        SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+        SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), _srs_config, _srs_hooks));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+
+        HELPER_EXPECT_SUCCESS(hub->on_forwarder_start(forwarder.get()));
+        EXPECT_EQ(0, forwarder->queue_->size());
+        EXPECT_TRUE(forwarder->sh_video_ == NULL);
+        EXPECT_TRUE(forwarder->sh_audio_ == NULL);
+    }
+}
+
+// Unpublish calls on_unpublish() on each forwarder, then frees it, one by one; a republish
+// creates the forwarders again from the config.
+VOID TEST(OriginHubForwardTest, UnpublishFreesForwardersAndRepublishCreatesThem)
+{
+    srs_error_t err;
+
+    std::vector<std::string> log;
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:1936");
+    destinations.push_back("127.0.0.1:1937");
+    config->set_forward_destinations(destinations);
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+
+    if (true) {
+        hub->forwarders_.push_back(new MockForwarderForFanOut("f1", &log));
+        hub->forwarders_.push_back(new MockForwarderForFanOut("f2", &log));
+
+        hub->on_unpublish();
+        EXPECT_FALSE(hub->active());
+        EXPECT_EQ(0, (int)hub->forwarders_.size());
+
+        const char *expected[] = {"f1:unpublish", "f1:freed", "f2:unpublish", "f2:freed"};
+        ASSERT_EQ(4, (int)log.size());
+        for (int i = 0; i < 4; i++) {
+            EXPECT_STREQ(expected[i], log[i].c_str()) << "#" << i;
+        }
+    }
+
+    // Publish, unpublish and publish again: each publish creates and starts both forwarders.
+    for (int round = 0; round < 2; round++) {
+        HELPER_EXPECT_SUCCESS(hub->on_publish());
+        EXPECT_TRUE(hub->active());
+        ASSERT_EQ(2, (int)hub->forwarders_.size()) << "round " << round;
+        for (int i = 0; i < 2; i++) {
+            EXPECT_STREQ(destinations[i].c_str(), utest_forward_at(hub.get(), i)->ep_forward_.c_str()) << "round " << round;
+            EXPECT_TRUE(utest_forward_started(utest_forward_at(hub.get(), i))) << "round " << round;
+        }
+
+        hub->on_unpublish();
+        EXPECT_FALSE(hub->active());
+        EXPECT_EQ(0, (int)hub->forwarders_.size()) << "round " << round;
     }
 }

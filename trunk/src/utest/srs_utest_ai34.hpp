@@ -134,4 +134,69 @@ public:
     virtual srs_error_t on_forwarder_start(SrsForwarder *forwarder);
 };
 
+// Mock config for the forward parts of SrsOriginHub: the test sets whether forward is on and the
+// queue length; the destinations and backend come from MockAppConfig.
+class MockAppConfigForForwardHub : public MockAppConfig
+{
+public:
+    bool forward_enabled_;
+    srs_utime_t queue_length_;
+
+public:
+    MockAppConfigForForwardHub();
+    virtual ~MockAppConfigForForwardHub();
+
+public:
+    virtual bool get_forward_enabled(std::string vhost);
+    virtual srs_utime_t get_queue_length(std::string vhost);
+};
+
+// Mock ISrsHttpHooks for SrsOriginHub::create_backend_forwarders(): returns urls_ or error_, and
+// keeps the backend url and request of each call.
+class MockHttpHooksForForwardHub : public MockHttpHooks
+{
+public:
+    int count_;
+    std::string url_;
+    ISrsRequest *req_;
+    std::vector<std::string> urls_;
+    srs_error_t error_;
+
+public:
+    MockHttpHooksForForwardHub();
+    virtual ~MockHttpHooksForForwardHub();
+
+public:
+    virtual srs_error_t on_forward_backend(std::string url, ISrsRequest *req, std::vector<std::string> &rtmp_urls);
+};
+
+// Mock ISrsForwarder for the SrsOriginHub fan-out: appends "<name>:<event>" to a log shared by
+// every forwarder, where the event is the packet marker, "unpublish" or "freed".
+class MockForwarderForFanOut : public ISrsForwarder
+{
+public:
+    std::string name_;
+    std::vector<std::string> *log_;
+    std::vector<SrsMediaPacket *> packets_;
+    srs_error_t meta_error_;
+    srs_error_t audio_error_;
+    srs_error_t video_error_;
+
+public:
+    MockForwarderForFanOut(std::string name, std::vector<std::string> *log);
+    virtual ~MockForwarderForFanOut();
+
+public:
+    virtual srs_error_t initialize(ISrsRequest *r, std::string ep);
+    virtual void set_queue_size(srs_utime_t queue_size);
+    virtual srs_error_t on_publish();
+    virtual void on_unpublish();
+    virtual srs_error_t on_meta_data(SrsMediaPacket *shared_metadata);
+    virtual srs_error_t on_audio(SrsMediaPacket *shared_audio);
+    virtual srs_error_t on_video(SrsMediaPacket *shared_video);
+
+private:
+    srs_error_t record(SrsMediaPacket *pkt, srs_error_t err);
+};
+
 #endif
