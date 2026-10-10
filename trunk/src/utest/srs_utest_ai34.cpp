@@ -20,6 +20,7 @@
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
 
+#include <sstream>
 #include <string.h>
 
 using namespace std;
@@ -1261,6 +1262,243 @@ VOID TEST(ForwarderTest, StreamStartingWithKeyframeLosesNothing)
     srs_freep(err);
 
     EXPECT_STREQ("mVAKapb", utest_forward_markers(sdk->sent_).c_str());
+    EXPECT_EQ(0, sdk->live_errors_);
+}
+
+// The timestamps of the packets a client sent, in order.
+static std::vector<int64_t> utest_forward_timestamps(MockRtmpClientForForwarder *sdk)
+{
+    std::vector<int64_t> timestamps;
+    for (int i = 0; i < (int)sdk->sent_.size(); i++) {
+        timestamps.push_back(sdk->sent_[i].timestamp_);
+    }
+    return timestamps;
+}
+
+// The timestamps as one string, to compare them at once.
+static std::string utest_forward_join(const std::vector<int64_t> &timestamps)
+{
+    std::stringstream ss;
+    for (int i = 0; i < (int)timestamps.size(); i++) {
+        ss << (i ? "," : "") << timestamps[i];
+    }
+    return ss.str();
+}
+
+// An audio-only stream on the first connect and after a reconnect: the metadata and the audio
+// sequence header once, then live audio. The audio queued while disconnected is not sent, and no
+// live audio is dropped, because only video waits for a keyframe.
+VOID TEST(ForwarderTest, AudioOnlyReconnectSendsLiveAudio)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockOriginHubForForwarderStart> hub(new MockOriginHubForForwarderStart());
+    hub->metadata_ = utest_forward_metadata(0, 'M');
+    hub->ash_ = utest_forward_audio_sh(0, 'B');
+
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+
+    // The stream before the forwarder connects: metadata m, audio sequence header A, raw audio k p.
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_metadata(0, 'm')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_sh(0, 'A')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(100, 'k')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(200, 'p')));
+
+    // The first connect: live raw audio K x arrives, and the send of x fails.
+    if (true) {
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 10);
+        MockRtmpClientForForwarder *sdk = utest_forward_next_client(forwarder.get(), factory.get());
+        sdk->send_error_ = srs_error_new(ERROR_SOCKET_WRITE, "mock send");
+        sdk->fail_marker_ = 'x';
+        sdk->live_.push_back(utest_forward_batch(utest_forward_audio_raw(300, 'K')));
+        sdk->live_.push_back(utest_forward_batch(utest_forward_audio_raw(400, 'x')));
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(0, sdk->live_errors_);
+
+        // The hub's metadata M and audio sequence header B, then live audio from the first packet.
+        EXPECT_STREQ("MBKx", utest_forward_markers(sdk->sent_).c_str());
+        EXPECT_STREQ("0,0,300,400", utest_forward_join(utest_forward_timestamps(sdk)).c_str());
+    }
+
+    // Raw audio q L r arrives while the forwarder waits to retry.
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(500, 'q')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(600, 'L')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(700, 'r')));
+
+    // The reconnect: live raw audio s N t.
+    if (true) {
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 2);
+        MockRtmpClientForForwarder *sdk = utest_forward_next_client(forwarder.get(), factory.get());
+        sdk->live_.push_back(utest_forward_batch(utest_forward_audio_raw(800, 's')));
+        sdk->live_.push_back(utest_forward_batch(utest_forward_audio_raw(900, 'N'), utest_forward_audio_raw(1000, 't')));
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_THREAD_DUMMY, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(0, sdk->live_errors_);
+    }
+
+    EXPECT_EQ(2, hub->on_forwarder_start_count_);
+    ASSERT_EQ(2, (int)factory->clients_.size());
+    MockRtmpClientForForwarder *sdk = factory->clients_[1];
+
+    // No stale burst of q L r, the headers once, and every live audio packet kept, s too.
+    EXPECT_STREQ("MBsNt", utest_forward_markers(sdk->sent_).c_str());
+    EXPECT_STREQ("0,0,800,900,1000", utest_forward_join(utest_forward_timestamps(sdk)).c_str());
+    for (int i = 0; i < (int)sdk->sent_.size(); i++) {
+        EXPECT_NE(SrsFrameTypeVideo, sdk->sent_[i].type_) << "#" << i;
+    }
+}
+
+// A video-only stream on the first connect and after a reconnect: the metadata and the video
+// sequence header once, then inter frames are dropped until the next keyframe, then live video.
+VOID TEST(ForwarderTest, VideoOnlyReconnectStartsAtKeyframe)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockOriginHubForForwarderStart> hub(new MockOriginHubForForwarderStart());
+    hub->metadata_ = utest_forward_metadata(0, 'M');
+    hub->vsh_ = utest_forward_video_sh(0, 'W');
+
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+
+    // The stream before the forwarder connects: metadata m, video sequence header V, keyframe k,
+    // inter frame p.
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_metadata(0, 'm')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_keyframe(100, 'k')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_inter(200, 'p')));
+
+    // The first connect, mid-GOP: inter frame i, keyframe K, inter frame x whose send fails.
+    if (true) {
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 10);
+        MockRtmpClientForForwarder *sdk = utest_forward_next_client(forwarder.get(), factory.get());
+        sdk->send_error_ = srs_error_new(ERROR_SOCKET_WRITE, "mock send");
+        sdk->fail_marker_ = 'x';
+        sdk->live_.push_back(utest_forward_batch(utest_forward_video_inter(250, 'i'), utest_forward_video_keyframe(300, 'K')));
+        sdk->live_.push_back(utest_forward_batch(utest_forward_video_inter(400, 'x')));
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(0, sdk->live_errors_);
+
+        // The hub's metadata M and video sequence header W, then live from the keyframe K; the
+        // inter frame i before it is dropped.
+        EXPECT_STREQ("MWKx", utest_forward_markers(sdk->sent_).c_str());
+        EXPECT_STREQ("0,0,300,400", utest_forward_join(utest_forward_timestamps(sdk)).c_str());
+    }
+
+    // Inter frame q, keyframe L, inter frame r arrive while the forwarder waits to retry.
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_inter(500, 'q')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_keyframe(600, 'L')));
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_inter(700, 'r')));
+
+    // The reconnect, mid-GOP: inter frame s, then keyframe N and inter frame t.
+    if (true) {
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 2);
+        MockRtmpClientForForwarder *sdk = utest_forward_next_client(forwarder.get(), factory.get());
+        sdk->live_.push_back(utest_forward_batch(utest_forward_video_inter(800, 's')));
+        sdk->live_.push_back(utest_forward_batch(utest_forward_video_keyframe(900, 'N'), utest_forward_video_inter(1000, 't')));
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_THREAD_DUMMY, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(0, sdk->live_errors_);
+    }
+
+    EXPECT_EQ(2, hub->on_forwarder_start_count_);
+    ASSERT_EQ(2, (int)factory->clients_.size());
+    MockRtmpClientForForwarder *sdk = factory->clients_[1];
+
+    // No stale burst of q L r, the headers once, s dropped, then live from the keyframe N.
+    EXPECT_STREQ("MWNt", utest_forward_markers(sdk->sent_).c_str());
+    EXPECT_STREQ("0,0,900,1000", utest_forward_join(utest_forward_timestamps(sdk)).c_str());
+    for (int i = 0; i < (int)sdk->sent_.size(); i++) {
+        EXPECT_NE(SrsFrameTypeAudio, sdk->sent_[i].type_) << "#" << i;
+    }
+}
+
+// An audio-only stream whose queue overflows: the shrink drops the queued audio, but no audio after
+// it, because the keyframe wait only holds back video.
+VOID TEST(ForwarderTest, AudioOnlyOverflowKeepsLaterAudio)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+    forwarder->set_queue_size(1 * SRS_UTIME_SECONDS);
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_sh(0, 'A')));
+
+    utest_forward_wire(forwarder.get(), factory.get(), config.get(), 2);
+    MockRtmpClientForForwarder *sdk = utest_forward_next_client(forwarder.get(), factory.get());
+    // Raw audio a b, sent; the queue starts again at b, 200ms.
+    sdk->live_.push_back(utest_forward_batch(utest_forward_audio_raw(100, 'a'), utest_forward_audio_raw(200, 'b')));
+    // The destination is slow: 1.1s piles up since b, so the queue overflows at raw audio x and
+    // shrinks, dropping c and x; the raw audio e f after it is kept.
+    sdk->live_.push_back(utest_forward_batch(utest_forward_audio_raw(300, 'c'), utest_forward_audio_raw(1300, 'x'),
+                                             utest_forward_audio_raw(1350, 'e'), utest_forward_audio_raw(1400, 'f')));
+
+    err = forwarder->do_cycle();
+    EXPECT_EQ(ERROR_THREAD_DUMMY, srs_error_code(err));
+    srs_freep(err);
+
+    // The cached audio sequence header A, then a b, then e f after the shrink.
+    EXPECT_STREQ("Aabef", utest_forward_markers(sdk->sent_).c_str());
+    EXPECT_STREQ("0,100,200,1350,1400", utest_forward_join(utest_forward_timestamps(sdk)).c_str());
+    EXPECT_EQ(0, sdk->live_errors_);
+}
+
+// A video-only stream whose queue overflows: after the shrink, video waits for the next keyframe.
+VOID TEST(ForwarderTest, VideoOnlyOverflowWaitsForNextKeyframe)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+    forwarder->set_queue_size(1 * SRS_UTIME_SECONDS);
+    HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
+
+    utest_forward_wire(forwarder.get(), factory.get(), config.get(), 2);
+    MockRtmpClientForForwarder *sdk = utest_forward_next_client(forwarder.get(), factory.get());
+    // Keyframe K and inter frame p, sent; the queue starts again at p, 200ms.
+    sdk->live_.push_back(utest_forward_batch(utest_forward_video_keyframe(100, 'K'), utest_forward_video_inter(200, 'p')));
+    // The destination is slow: 1.1s piles up since p, so the queue overflows at inter frame x and
+    // shrinks, dropping q and x; inter frame r waits for the keyframe N, then inter frame t.
+    sdk->live_.push_back(utest_forward_batch(utest_forward_video_inter(300, 'q'), utest_forward_video_inter(1300, 'x'),
+                                             utest_forward_video_inter(1350, 'r'), utest_forward_video_keyframe(1400, 'N'),
+                                             utest_forward_video_inter(1500, 't')));
+
+    err = forwarder->do_cycle();
+    EXPECT_EQ(ERROR_THREAD_DUMMY, srs_error_code(err));
+    srs_freep(err);
+
+    // The cached video sequence header V, then K p, then N t after the shrink.
+    EXPECT_STREQ("VKpNt", utest_forward_markers(sdk->sent_).c_str());
+    EXPECT_STREQ("0,100,200,1400,1500", utest_forward_join(utest_forward_timestamps(sdk)).c_str());
     EXPECT_EQ(0, sdk->live_errors_);
 }
 

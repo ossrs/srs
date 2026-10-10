@@ -192,6 +192,19 @@ func forwardCheckProbe(ffprobe FFprobeClient, duration time.Duration) error {
 	return nil
 }
 
+// forwardCheckProbeOnly checks a stream probed by ffprobe has exactly one stream, of the codec type, audio or video,
+// with the expected duration. The recording stops at a frame boundary, so an audio-only one may be some ms shorter.
+func forwardCheckProbeOnly(ffprobe FFprobeClient, duration time.Duration, codecType string) error {
+	str, m := ffprobe.Result()
+	if len(m.Streams) != 1 || m.Streams[0].CodecType != codecType {
+		return errors.Errorf("invalid streams=%v, expect one %v stream, %v, %v", len(m.Streams), codecType, m.String(), str)
+	}
+	if dv := m.Duration(); dv < duration-100*time.Millisecond {
+		return errors.Errorf("short duration=%v < %v, %v, %v", dv, duration, m.String(), str)
+	}
+	return nil
+}
+
 // forwardStream is a stream of /api/v1/streams/.
 type forwardStream struct {
 	ID      string `json:"id"`
@@ -728,6 +741,106 @@ func TestFast_RtmpPublish_Forward_Destination_Basic(t *testing.T) {
 	}
 }
 
+// forwardDropFlag is the FFmpeg flag that drops every track but the codec type, audio or video.
+func forwardDropFlag(codecType string) string {
+	if codecType == "audio" {
+		return "-vn"
+	}
+	return "-an"
+}
+
+// forwardDestinationOnly publishes a stream of one track, audio or video, with one forward.destination, and checks the
+// destination gets exactly that track.
+func forwardDestinationOnly(t *testing.T, codecType string) {
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	dst := NewSRSServer()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r0 = dst.Run(ctx, cancel)
+	}()
+
+	origin := NewSRSServer(func(v *srsServer) {
+		v.envs = forwardDestinationEnvs(dst)
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r1 = origin.Run(ctx, cancel)
+	}()
+
+	// Start FFmpeg to publish the one track to the origin.
+	streamURL := fmt.Sprintf("rtmp://localhost:%v/live/%v", origin.RTMPPort(), streamID)
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = []string{
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, forwardDropFlag(codecType), "-c", "copy", "-f", "flv", streamURL,
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r2 = ffmpeg.Run(ctx, cancel)
+	}()
+
+	// Probe the forwarded stream on the destination, at the same app and stream.
+	duration := time.Duration(*srsFFprobeDuration) * time.Millisecond
+	ffprobe := NewFFprobe(func(v *ffprobeClient) {
+		v.dvrFile = path.Join(dst.WorkDir(), "objs", fmt.Sprintf("srs-ffprobe-%v.flv", streamID))
+		v.streamURL = fmt.Sprintf("rtmp://localhost:%v/live/%v", dst.RTMPPort(), streamID)
+		v.duration, v.timeout = duration, time.Duration(*srsFFprobeTimeout)*time.Millisecond
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r3 = ffprobe.Run(ctx, cancel)
+	}()
+
+	select {
+	case <-ctx.Done():
+	case <-ffprobe.ProbeDoneCtx().Done():
+		defer cancel()
+		r4 = forwardCheckProbeOnly(ffprobe, duration, codecType)
+	}
+}
+
+// An audio-only stream with one forward.destination: the destination gets only the audio.
+func TestFast_RtmpPublish_Forward_Destination_AudioOnly(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardDestinationOnly(t, "audio")
+}
+
+// A video-only stream with one forward.destination: the destination gets only the video.
+func TestFast_RtmpPublish_Forward_Destination_VideoOnly(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardDestinationOnly(t, "video")
+}
+
 // Two forward.destination entries: both destinations get the stream.
 func TestFast_RtmpPublish_Forward_Destination_Two(t *testing.T) {
 	// This case is run in parallel.
@@ -1048,34 +1161,36 @@ func forwardWaitStream(ctx context.Context, apiPort int, app, name string, timeo
 	}
 }
 
-// forwardVideoPacket is a video packet of a file, by ffprobe -show_packets.
-type forwardVideoPacket struct {
+// forwardPacket is an audio or video packet of a file, by ffprobe -show_packets.
+type forwardPacket struct {
 	PtsTime string `json:"pts_time"`
 	Flags   string `json:"flags"`
 }
 
-// forwardVideoPackets returns the video packets of an FLV file in order, by ffprobe. The file may still be written.
-func forwardVideoPackets(ctx context.Context, file string) ([]forwardVideoPacket, error) {
+// forwardPackets returns the packets of an FLV file in order, by ffprobe, of the streams selected by "a" or "v".
+func forwardPackets(ctx context.Context, file, streams string) ([]forwardPacket, error) {
 	b, err := exec.CommandContext(ctx, *srsFFprobe, "-v", "quiet", "-f", "flv", "-print_format", "json",
-		"-select_streams", "v", "-show_entries", "packet=pts_time,flags", file,
+		"-select_streams", streams, "-show_entries", "packet=pts_time,flags", file,
 	).Output()
 
 	answer := struct {
-		Packets []forwardVideoPacket `json:"packets"`
+		Packets []forwardPacket `json:"packets"`
 	}{}
 	if r0 := json.Unmarshal(b, &answer); r0 != nil {
 		return nil, errors.Wrapf(r0, "ffprobe %v, err %v, output %v", file, err, string(b))
 	}
 	if len(answer.Packets) == 0 {
-		return nil, errors.Errorf("ffprobe %v, err %v, no video packet", file, err)
+		return nil, errors.Errorf("ffprobe %v, err %v, no packet of %v", file, err, streams)
 	}
 	return answer.Packets, nil
 }
 
 // forwardKeyframeAfterReconnect restarts the destination SRS on the same port while the origin forwards to it, by
 // forward.destination or by forward.backend, and checks that the second destination starts at a keyframe and gets no
-// stale media queued while it was away. The second destination records by DVR exactly what the forwarder sends.
-func forwardKeyframeAfterReconnect(t *testing.T, withBackend bool) {
+// stale media queued while it was away. The second destination records by DVR exactly what the forwarder sends. The
+// codecType "audio" or "video" publishes only that track, and an empty one publishes both; an audio-only stream is
+// checked for stale audio only, because only video waits for a keyframe.
+func forwardKeyframeAfterReconnect(t *testing.T, withBackend bool, codecType string) {
 	// Setup the max timeout for this case.
 	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
 	defer cancel()
@@ -1148,19 +1263,23 @@ func forwardKeyframeAfterReconnect(t *testing.T, withBackend bool) {
 		r1 = origin.Run(ctx, cancel)
 	}()
 
-	// Start FFmpeg to publish stream to the origin.
+	// Start FFmpeg to publish stream to the origin, until the checks stop it; its quit does not end the case.
+	args := []string{"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar}
+	if codecType != "" {
+		args = append(args, forwardDropFlag(codecType))
+	}
+	pubCtx, pubCancel := context.WithCancel(ctx)
+	defer pubCancel()
 	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
-		v.args = []string{
-			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv",
-			fmt.Sprintf("rtmp://localhost:%v/live/%v", origin.RTMPPort(), streamID),
-		}
+		v.args = append(args, "-c", "copy", "-f", "flv", fmt.Sprintf("rtmp://localhost:%v/live/%v", origin.RTMPPort(), streamID))
+		v.cancelCaseWhenQuit = false
 	})
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		<-dst1.ReadyCtx().Done()
 		<-origin.ReadyCtx().Done()
-		r2 = ffmpeg.Run(ctx, cancel)
+		r2 = ffmpeg.Run(pubCtx, pubCancel)
 	}()
 
 	<-dst1.ReadyCtx().Done()
@@ -1220,9 +1339,20 @@ func forwardKeyframeAfterReconnect(t *testing.T, withBackend bool) {
 		return
 	}
 
-	// The DVR file is a .tmp until the stream unpublishes.
-	dvrFile := path.Join(dst2.WorkDir(), "objs", "nginx", "html", dstApp, fmt.Sprintf("%v.flv.tmp", dstStream))
-	packets, err := forwardVideoPackets(ctx, dvrFile)
+	// Stop publishing, so the second destination's stream unpublishes and its DVR file is flushed and closed. The DVR
+	// writes through a 64KB buffer, which an audio-only stream does not fill in some seconds.
+	pubCancel()
+	if err := forwardWaitNoStream(ctx, dst2.APIPort(), dstApp, dstStream, 15*time.Second); err != nil {
+		r3 = err
+		return
+	}
+
+	dvrFile := path.Join(dst2.WorkDir(), "objs", "nginx", "html", dstApp, fmt.Sprintf("%v.flv", dstStream))
+	streams := "v"
+	if codecType == "audio" {
+		streams = "a"
+	}
+	packets, err := forwardPackets(ctx, dvrFile, streams)
 	if err != nil {
 		r3 = err
 		return
@@ -1235,15 +1365,15 @@ func forwardKeyframeAfterReconnect(t *testing.T, withBackend bool) {
 		return
 	}
 
-	// The first video the second destination gets is a keyframe. It is live media from after the restart, not media
-	// queued while the destination was away, which is at least 4s older; allow 2s for the stream time to differ from
-	// the wall time.
-	keyframe := strings.Contains(first.Flags, "K")
+	// The first video the second destination gets is a keyframe, and the first audio of an audio-only stream any
+	// packet. It is live media from after the restart, not media queued while the destination was away, which is at
+	// least 4s older; allow 2s for the stream time to differ from the wall time.
+	keyframe := streams == "a" || strings.Contains(first.Flags, "K")
 	expect := restarted.Sub(published) - 2*time.Second
 	live := time.Duration(pts*float64(time.Second)) >= expect
 	if !keyframe || !live {
-		r3 = errors.Errorf("first video packet of %v: flags=%v, keyframe=%v; pts=%vs, expect >= %v, live=%v",
-			len(packets), first.Flags, keyframe, pts, expect, live)
+		r3 = errors.Errorf("first %v packet of %v: flags=%v, keyframe=%v; pts=%vs, expect >= %v, live=%v",
+			streams, len(packets), first.Flags, keyframe, pts, expect, live)
 	}
 }
 
@@ -1253,7 +1383,7 @@ func TestFast_RtmpPublish_Forward_KeyframeAfterReconnect(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
-	forwardKeyframeAfterReconnect(t, false)
+	forwardKeyframeAfterReconnect(t, false, "")
 }
 
 // The destination by forward.backend, with its own app, stream and token, restarts on the same port while the origin
@@ -1262,7 +1392,25 @@ func TestFast_RtmpPublish_Forward_Backend_KeyframeAfterReconnect(t *testing.T) {
 	// This case is run in parallel.
 	t.Parallel()
 
-	forwardKeyframeAfterReconnect(t, true)
+	forwardKeyframeAfterReconnect(t, true, "")
+}
+
+// An audio-only stream by forward.destination, whose destination restarts on the same port: after the forwarder
+// reconnects, the destination's audio is live, with no stale audio queued while it was away.
+func TestFast_RtmpPublish_Forward_AudioOnlyAfterReconnect(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardKeyframeAfterReconnect(t, false, "audio")
+}
+
+// A video-only stream by forward.destination, whose destination restarts on the same port: after the forwarder
+// reconnects, the destination's video starts at a keyframe, with no stale video.
+func TestFast_RtmpPublish_Forward_VideoOnlyAfterReconnect(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardKeyframeAfterReconnect(t, false, "video")
 }
 
 // forwardInfo is a forward of /api/v1/forwards/.
