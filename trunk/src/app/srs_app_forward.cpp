@@ -40,11 +40,15 @@ ISrsForwarder::~ISrsForwarder()
 {
 }
 
-SrsForwarder::SrsForwarder(ISrsOriginHub *h)
+SrsForwarder::SrsForwarder(ISrsOriginHub *h, ISrsRequest *req)
 {
     hub_ = h;
 
+    SrsRand rand;
+    id_ = "fwd-" + rand.gen_str(7);
+
     req_ = NULL;
+    stream_req_ = req->copy();
     metadata_ = sh_video_ = sh_audio_ = NULL;
     wait_keyframe_ = false;
 
@@ -70,6 +74,7 @@ SrsForwarder::~SrsForwarder()
     srs_freep(sh_audio_);
 
     srs_freep(req_);
+    srs_freep(stream_req_);
 
     app_factory_ = NULL;
     config_ = NULL;
@@ -108,6 +113,8 @@ srs_error_t SrsForwarder::on_publish()
 {
     srs_error_t err = srs_success;
 
+    stat_->on_forward_start(id_, stream_req_, destination_url());
+
     srs_freep(trd_);
     trd_ = new SrsSTCoroutine("forward", this);
     if ((err = trd_->start()) != srs_success) {
@@ -122,6 +129,8 @@ void SrsForwarder::on_unpublish()
     trd_->stop();
     if (sdk_)
         sdk_->close();
+
+    stat_->on_forward_stop(id_);
 }
 
 srs_error_t SrsForwarder::on_meta_data(SrsMediaPacket *shared_metadata)
@@ -240,6 +249,9 @@ srs_error_t SrsForwarder::cycle()
             srs_freep(err);
         }
 
+        // Wait to retry.
+        stat_->on_forward_state(id_, SrsForwardStateRetrying);
+
         // Never wait if thread error, fast quit.
         // @see https://github.com/ossrs/srs/pull/2284
         if ((err = trd_->pull()) != srs_success) {
@@ -256,17 +268,9 @@ srs_error_t SrsForwarder::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    std::string url;
-    if (true) {
-        std::string server;
-        int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    stat_->on_forward_state(id_, SrsForwardStateConnecting);
 
-        // parse host:port from hostport.
-        srs_net_split_hostport(ep_forward_, server, port);
-
-        // generate url
-        url = srs_net_url_encode_rtmp_url(server, port, req_->host_, req_->vhost_, req_->app_, req_->stream_, req_->param_);
-    }
+    std::string url = destination_url();
 
     srs_freep(sdk_);
     srs_utime_t cto = SRS_FORWARDER_CIMS;
@@ -293,6 +297,8 @@ srs_error_t SrsForwarder::do_cycle()
     queue_->clear();
     wait_keyframe_ = true;
 
+    stat_->on_forward_state(id_, SrsForwardStateForwarding);
+
     if ((err = forward()) != srs_success) {
         return srs_error_wrap(err, "forward");
     }
@@ -300,6 +306,18 @@ srs_error_t SrsForwarder::do_cycle()
     srs_trace("forward publish url %s, stream=%s%s as %s", url.c_str(), req_->stream_.c_str(), req_->param_.c_str(), stream.c_str());
 
     return err;
+}
+
+std::string SrsForwarder::destination_url()
+{
+    std::string server;
+    int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+
+    // parse host:port from hostport.
+    srs_net_split_hostport(ep_forward_, server, port);
+
+    // generate url
+    return srs_net_url_encode_rtmp_url(server, port, req_->host_, req_->vhost_, req_->app_, req_->stream_, req_->param_);
 }
 
 #define SYS_MAX_FORWARD_SEND_MSGS 128

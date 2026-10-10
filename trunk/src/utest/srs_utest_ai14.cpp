@@ -3208,7 +3208,7 @@ VOID TEST(AppOriginHubTest, SequenceHeaderRequestTypicalScenario)
     hub->req_ = &mock_req;
 
     // Create forwarder and add to hub
-    SrsForwarder *forwarder = new SrsForwarder(hub.get());
+    SrsForwarder *forwarder = new SrsForwarder(hub.get(), &mock_req);
     hub->forwarders_.push_back(forwarder);
 
     // Test on_forwarder_start
@@ -3336,11 +3336,11 @@ VOID TEST(AppForwarderTest, RejectRtmpsDestination)
     SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
     hub->source_ = mock_source;
 
-    // Create forwarder
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
-
     // Create mock request
     SrsUniquePtr<MockHlsRequest> req(new MockHlsRequest());
+
+    // Create forwarder
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
     // Test the hostport spliting
     std::string server;

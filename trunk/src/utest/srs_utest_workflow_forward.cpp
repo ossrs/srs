@@ -145,7 +145,7 @@ VOID TEST(BasicWorkflowForwardTest, ManuallyVerifyForwardingHostport)
 
     // Create forwarder
     SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(mock_hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(mock_hub.get(), req.get()));
 
     forwarder->app_factory_ = mock_factory.get();
     forwarder->config_ = mock_config.get();
@@ -302,7 +302,7 @@ VOID TEST(BasicWorkflowForwardTest, ManuallyVerifyForwardingWithToken)
 
     // Create forwarder
     SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(mock_hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(mock_hub.get(), req.get()));
 
     forwarder->app_factory_ = mock_factory.get();
     forwarder->config_ = mock_config.get();

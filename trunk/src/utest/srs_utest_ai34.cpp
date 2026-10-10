@@ -404,7 +404,8 @@ VOID TEST(ForwarderTest, IntakeEnqueuesCopyOfEachPacket)
     srs_error_t err;
 
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<MockRequest> req(new MockRequest());
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
     SrsMediaPacket *metadata = utest_forward_metadata(0, 'm');
     SrsMediaPacket *audio = utest_forward_audio_raw(20, 'a');
@@ -460,7 +461,8 @@ VOID TEST(ForwarderTest, CachesAudioSequenceHeader)
     srs_error_t err;
 
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<MockRequest> req(new MockRequest());
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
     SrsUniquePtr<SrsMediaPacket> sh1(utest_forward_audio_sh(0, '1'));
     HELPER_EXPECT_SUCCESS(forwarder->on_audio(sh1.get()));
@@ -488,7 +490,8 @@ VOID TEST(ForwarderTest, CachesVideoSequenceHeader)
     srs_error_t err;
 
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<MockRequest> req(new MockRequest());
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
     SrsUniquePtr<SrsMediaPacket> sh1(utest_forward_video_sh(0, '1'));
     HELPER_EXPECT_SUCCESS(forwarder->on_video(sh1.get()));
@@ -517,8 +520,8 @@ VOID TEST(ForwarderTest, InitializeCopiesRequestAndKeepsEndpoint)
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
 
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
         MockRequest *req = new MockRequest("test.vhost", "live", "stream1");
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req));
         req->param_ = "?token=abc";
 
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req, "127.0.0.1:19350"));
@@ -543,8 +546,8 @@ VOID TEST(ForwarderTest, InitializeCopiesRequestAndKeepsEndpoint)
 
     // An endpoint without a port is kept as is; the default port is applied when connecting.
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
         SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1"));
         EXPECT_STREQ("127.0.0.1", forwarder->ep_forward_.c_str());
@@ -559,7 +562,8 @@ VOID TEST(ForwarderTest, UnboundedQueueSendsEveryPacket)
     srs_error_t err;
 
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<MockRequest> req(new MockRequest());
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_sh(0, 'A')));
@@ -591,7 +595,8 @@ VOID TEST(ForwarderTest, QueueSizeShrinksToSequenceHeaders)
     srs_error_t err;
 
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<MockRequest> req(new MockRequest());
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     forwarder->set_queue_size(1 * SRS_UTIME_SECONDS);
 
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
@@ -664,8 +669,8 @@ VOID TEST(ForwarderTest, DoCycleUrlFromEndpointAndRequest)
 
     // A host:port endpoint, a vhost that is not the default one, and a query.
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
         SrsUniquePtr<MockRequest> req(new MockRequest("test.vhost", "live", "stream1"));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         req->param_ = "?token=abc";
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "10.0.0.1:19350"));
         utest_forward_wire(forwarder.get(), factory.get(), config.get(), 1);
@@ -688,8 +693,8 @@ VOID TEST(ForwarderTest, DoCycleUrlFromEndpointAndRequest)
 
     // An endpoint without a port uses 1935; the default vhost with an IP host adds no vhost.
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
         SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "10.0.0.2"));
         utest_forward_wire(forwarder.get(), factory.get(), config.get(), 1);
 
@@ -702,8 +707,8 @@ VOID TEST(ForwarderTest, DoCycleUrlFromEndpointAndRequest)
 
     // A vhost in the query is kept and no other vhost is added.
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
         SrsUniquePtr<MockRequest> req(new MockRequest("test.vhost", "live", "stream1"));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         req->param_ = "?vhost=other.vhost&token=abc";
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "10.0.0.3:1936"));
         utest_forward_wire(forwarder.get(), factory.get(), config.get(), 1);
@@ -729,7 +734,7 @@ VOID TEST(ForwarderTest, DoCycleStopsAtFirstFailure)
     // Connect fails.
     if (true) {
         SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
         utest_forward_wire(forwarder.get(), factory.get(), config.get(), 10);
@@ -753,7 +758,7 @@ VOID TEST(ForwarderTest, DoCycleStopsAtFirstFailure)
     // Publish fails.
     if (true) {
         SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
         utest_forward_wire(forwarder.get(), factory.get(), config.get(), 10);
@@ -777,7 +782,7 @@ VOID TEST(ForwarderTest, DoCycleStopsAtFirstFailure)
     if (true) {
         SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
         hub->on_forwarder_start_error_ = srs_error_new(ERROR_SOCKET_WRITE, "mock hub");
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
         utest_forward_wire(forwarder.get(), factory.get(), config.get(), 10);
@@ -804,7 +809,8 @@ VOID TEST(ForwarderTest, ForwardSendsInBatchesOf128)
     srs_error_t err;
 
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<MockRequest> req(new MockRequest());
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_sh(0, 'A')));
@@ -854,7 +860,8 @@ VOID TEST(ForwarderTest, ForwardEndsOnSendFailure)
 
     // The cached video sequence header fails: the audio one is never sent.
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<MockRequest> req(new MockRequest());
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_sh(0, 'A')));
 
@@ -878,7 +885,8 @@ VOID TEST(ForwarderTest, ForwardEndsOnSendFailure)
 
     // The cached audio sequence header fails: the queue is never read.
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<MockRequest> req(new MockRequest());
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_sh(0, 'A')));
 
@@ -900,7 +908,8 @@ VOID TEST(ForwarderTest, ForwardEndsOnSendFailure)
 
     // No cached headers, the first batch fails: the batch is consumed from the queue and lost.
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<MockRequest> req(new MockRequest());
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(10, 'a')));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(20, 'b')));
 
@@ -929,7 +938,8 @@ VOID TEST(ForwarderTest, ForwardEndsOnReceiveError)
     srs_error_t err;
 
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<MockRequest> req(new MockRequest());
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(10, 'a')));
 
@@ -957,7 +967,8 @@ VOID TEST(ForwarderTest, ForwardEndsWhenCoroutineStopped)
     srs_error_t err;
 
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<MockRequest> req(new MockRequest());
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_sh(0, 'A')));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_raw(10, 'a')));
@@ -1019,7 +1030,7 @@ VOID TEST(ForwarderTest, ReconnectDropsStaleQueueAndStartsAtKeyframe)
     SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
     SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
 
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
 
     // The stream as the publisher sends it, before the forwarder connects.
@@ -1107,7 +1118,7 @@ VOID TEST(ForwarderTest, PublishSendsMetadataThenHeadersOnce)
         hub->ash_ = utest_forward_audio_sh(0, 'B');
         SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
 
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_metadata(0, 'm')));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
@@ -1135,7 +1146,7 @@ VOID TEST(ForwarderTest, PublishSendsMetadataThenHeadersOnce)
         SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
         SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
 
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_metadata(0, 'm')));
         HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
@@ -1166,7 +1177,7 @@ VOID TEST(ForwarderTest, VideoBeforeFirstKeyframeDroppedAudioKept)
     SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
     SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
 
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_audio_sh(0, 'A')));
@@ -1198,7 +1209,7 @@ VOID TEST(ForwarderTest, OverflowWaitsForNextKeyframe)
     SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
     SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
 
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
     forwarder->set_queue_size(1 * SRS_UTIME_SECONDS);
     HELPER_EXPECT_SUCCESS(utest_forward_feed(forwarder.get(), utest_forward_video_sh(0, 'V')));
@@ -1235,7 +1246,7 @@ VOID TEST(ForwarderTest, StreamStartingWithKeyframeLosesNothing)
     SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
     SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
 
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
 
     utest_forward_wire(forwarder.get(), factory.get(), config.get(), 2);
@@ -1259,7 +1270,8 @@ VOID TEST(ForwarderTest, UnpublishStopsCoroutineAndClosesClient)
     SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
 
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<MockRequest> req(new MockRequest());
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
         forwarder->sdk_ = sdk;
         MockCoroutineForForwarder *trd = new MockCoroutineForForwarder(10);
@@ -1274,7 +1286,8 @@ VOID TEST(ForwarderTest, UnpublishStopsCoroutineAndClosesClient)
     }
 
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<MockRequest> req(new MockRequest());
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         MockCoroutineForForwarder *trd = new MockCoroutineForForwarder(10);
         srs_freep(forwarder->trd_);
         forwarder->trd_ = trd;
@@ -1286,7 +1299,8 @@ VOID TEST(ForwarderTest, UnpublishStopsCoroutineAndClosesClient)
 
     // A forwarder that never published has the dummy coroutine: unpublish is safe.
     if (true) {
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<MockRequest> req(new MockRequest());
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
         forwarder->on_unpublish();
         EXPECT_TRUE(forwarder->sdk_ == NULL);
     }
@@ -1822,7 +1836,7 @@ VOID TEST(OriginHubForwardTest, OnForwarderStartFeedsCachedMetadataAndHeaders)
         source->meta()->audio_ = utest_forward_audio_sh(0, 'B');
 
         SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), _srs_config, _srs_hooks));
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
         HELPER_EXPECT_SUCCESS(hub->on_forwarder_start(forwarder.get()));
         EXPECT_EQ(3, forwarder->queue_->size());
@@ -1832,7 +1846,7 @@ VOID TEST(OriginHubForwardTest, OnForwarderStartFeedsCachedMetadataAndHeaders)
         // When a forwarder publishes, the destination gets them once each, in that order.
         SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
         SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
-        SrsUniquePtr<SrsForwarder> publisher(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> publisher(new SrsForwarder(hub.get(), req.get()));
         HELPER_EXPECT_SUCCESS(publisher->initialize(req.get(), "127.0.0.1:19350"));
         utest_forward_wire(publisher.get(), factory.get(), config.get(), 1);
         MockRtmpClientForForwarder *sdk = utest_forward_next_client(publisher.get(), factory.get());
@@ -1846,7 +1860,7 @@ VOID TEST(OriginHubForwardTest, OnForwarderStartFeedsCachedMetadataAndHeaders)
     if (true) {
         SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
         SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), _srs_config, _srs_hooks));
-        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
         HELPER_EXPECT_SUCCESS(hub->on_forwarder_start(forwarder.get()));
         EXPECT_EQ(0, forwarder->queue_->size());
@@ -2543,7 +2557,7 @@ VOID TEST(ForwarderStatusTest, StartAndStopOfDestination)
     SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
     req->param_ = "?token=abc";
 
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     forwarder->stat_ = &stat;
     HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
     EXPECT_FALSE(forwarder->id_.empty());
@@ -2569,7 +2583,7 @@ VOID TEST(ForwarderStatusTest, StartAndStopOfDestination)
 
     // Another forwarder of the stream has another id.
     if (true) {
-        SrsUniquePtr<SrsForwarder> other(new SrsForwarder(hub.get()));
+        SrsUniquePtr<SrsForwarder> other(new SrsForwarder(hub.get(), req.get()));
         other->stat_ = &stat;
         HELPER_EXPECT_SUCCESS(other->initialize(req.get(), "127.0.0.1:19351"));
         EXPECT_FALSE(other->id_.empty());
@@ -2596,7 +2610,7 @@ VOID TEST(ForwarderStatusTest, StartOfBackendUrl)
     srs_net_url_parse_rtmp_url("rtmp://192.168.1.12:19350/fwd/stream3-dst?token=abc", req->tcUrl_, req->stream_);
     srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
 
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     forwarder->stat_ = &stat;
     HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "192.168.1.12:19350"));
     HELPER_EXPECT_SUCCESS(forwarder->on_publish());
@@ -2630,7 +2644,7 @@ VOID TEST(ForwarderStatusTest, StatesFollowConnectPublishAndRetry)
     SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
     SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
 
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
     forwarder->stat_ = &stat;
     HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
     HELPER_EXPECT_SUCCESS(forwarder->on_publish());

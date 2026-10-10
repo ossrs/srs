@@ -63,6 +63,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // The ep to forward, server[:port].
     std::string ep_forward_;
     ISrsRequest *req_;
+    // The request of the publishing stream this forwarder belongs to, for the statistic. It differs
+    // from req_ for a forward.backend url, which has its own app and stream.
+    ISrsRequest *stream_req_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -88,7 +91,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool wait_keyframe_;
 
 public:
-    SrsForwarder(ISrsOriginHub *h);
+    // The req is the publishing stream this forwarder belongs to.
+    SrsForwarder(ISrsOriginHub *h, ISrsRequest *req);
     virtual ~SrsForwarder();
 
 public:
@@ -114,6 +118,8 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
+    // The full destination url to publish to, with the stream key and query.
+    virtual std::string destination_url();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

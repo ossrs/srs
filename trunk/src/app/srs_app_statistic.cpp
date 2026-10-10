@@ -301,8 +301,16 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
 
 string srs_forward_state_string(SrsForwardState state)
 {
-    // TODO: Implement it.
-    return "";
+    switch (state) {
+    case SrsForwardStateConnecting:
+        return "connecting";
+    case SrsForwardStateForwarding:
+        return "forwarding";
+    case SrsForwardStateRetrying:
+        return "retrying";
+    default:
+        return "unknown";
+    }
 }
 
 SrsStatisticForward::SrsStatisticForward()
@@ -317,8 +325,18 @@ SrsStatisticForward::~SrsStatisticForward()
 
 srs_error_t SrsStatisticForward::dumps(SrsJsonObject *obj)
 {
-    // TODO: Implement it.
-    return srs_success;
+    srs_error_t err = srs_success;
+
+    obj->set("id", SrsJsonAny::str(id_.c_str()));
+    obj->set("stream", SrsJsonAny::str(stream_id_.c_str()));
+    obj->set("vhost", SrsJsonAny::str(vhost_id_.c_str()));
+    obj->set("app", SrsJsonAny::str(app_.c_str()));
+    obj->set("name", SrsJsonAny::str(name_.c_str()));
+    obj->set("url", SrsJsonAny::str(url_.c_str()));
+    obj->set("state", SrsJsonAny::str(srs_forward_state_string(state_).c_str()));
+    obj->set("state_at", SrsJsonAny::integer(srsu2ms(state_at_)));
+
+    return err;
 }
 
 ISrsStatistic::ISrsStatistic()
@@ -438,7 +456,10 @@ SrsStatisticClient *SrsStatistic::find_client(string client_id)
 
 SrsStatisticForward *SrsStatistic::find_forward(string forward_id)
 {
-    // TODO: Implement it.
+    std::map<std::string, SrsStatisticForward *>::iterator it;
+    if ((it = forwards_.find(forward_id)) != forwards_.end()) {
+        return it->second;
+    }
     return NULL;
 }
 
@@ -522,6 +543,9 @@ void SrsStatistic::on_stream_close(ISrsRequest *req)
     SrsStatisticVhost *vhost = create_vhost(req);
     SrsStatisticStream *stream = create_stream(vhost, req);
     stream->close();
+
+    // The forwarders stop when the stream unpublishes, so remove their forwards.
+    remove_forwards_of(stream);
 }
 
 srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type)
@@ -585,17 +609,75 @@ void SrsStatistic::on_disconnect(std::string id, srs_error_t err)
 
 void SrsStatistic::on_forward_start(std::string id, ISrsRequest *req, std::string url)
 {
-    // TODO: Implement it.
+    SrsStatisticVhost *vhost = create_vhost(req);
+    SrsStatisticStream *stream = create_stream(vhost, req);
+
+    SrsStatisticForward *forward = find_forward(id);
+    if (!forward) {
+        forward = new SrsStatisticForward();
+        forward->id_ = id;
+        forwards_[id] = forward;
+    }
+
+    forward->stream_id_ = stream->id_;
+    forward->vhost_id_ = vhost->id_;
+    forward->app_ = req->app_;
+    forward->name_ = req->stream_;
+    forward->url_ = url;
+    forward->state_ = SrsForwardStateConnecting;
+    forward->state_at_ = clk_->now();
 }
 
 void SrsStatistic::on_forward_state(std::string id, SrsForwardState state)
 {
-    // TODO: Implement it.
+    SrsStatisticForward *forward = find_forward(id);
+    if (!forward) {
+        return;
+    }
+
+    forward->state_ = state;
+    forward->state_at_ = clk_->now();
 }
 
 void SrsStatistic::on_forward_stop(std::string id)
 {
-    // TODO: Implement it.
+    std::map<std::string, SrsStatisticForward *>::iterator it = forwards_.find(id);
+    if (it == forwards_.end()) {
+        return;
+    }
+
+    SrsStatisticForward *forward = it->second;
+    std::string stream_id = forward->stream_id_;
+
+    srs_freep(forward);
+    forwards_.erase(it);
+
+    // Cleanup the stream when the last forward of it stops, in case only the forwards created it.
+    for (it = forwards_.begin(); it != forwards_.end(); ++it) {
+        if (it->second->stream_id_ == stream_id) {
+            return;
+        }
+    }
+
+    SrsStatisticStream *stream = find_stream(stream_id);
+    if (stream) {
+        cleanup_stream(stream);
+    }
+}
+
+void SrsStatistic::remove_forwards_of(SrsStatisticStream *stream)
+{
+    std::map<std::string, SrsStatisticForward *>::iterator it;
+    for (it = forwards_.begin(); it != forwards_.end();) {
+        SrsStatisticForward *forward = it->second;
+        if (forward->stream_id_ != stream->id_) {
+            ++it;
+            continue;
+        }
+
+        srs_freep(forward);
+        forwards_.erase(it++);
+    }
 }
 
 void SrsStatistic::cleanup_stream(SrsStatisticStream *stream)
@@ -777,8 +859,30 @@ srs_error_t SrsStatistic::dumps_clients(SrsJsonArray *arr, int start, int count)
 
 srs_error_t SrsStatistic::dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count)
 {
-    // TODO: Implement it.
-    return srs_success;
+    srs_error_t err = srs_success;
+
+    // The start and count apply after the stream filter.
+    int i = 0;
+    std::map<std::string, SrsStatisticForward *>::iterator it;
+    for (it = forwards_.begin(); i < start + count && it != forwards_.end(); it++) {
+        SrsStatisticForward *forward = it->second;
+        if (!stream_id.empty() && forward->stream_id_ != stream_id) {
+            continue;
+        }
+
+        if (i++ < start) {
+            continue;
+        }
+
+        SrsJsonObject *obj = SrsJsonAny::object();
+        arr->append(obj);
+
+        if ((err = forward->dumps(obj)) != srs_success) {
+            return srs_error_wrap(err, "dump forward");
+        }
+    }
+
+    return err;
 }
 
 void SrsStatistic::dumps_hints_kv(std::stringstream &ss)
