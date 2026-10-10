@@ -12,6 +12,7 @@
 #include <srs_protocol_json.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai17.hpp>
+#include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <string.h>
@@ -1971,4 +1972,257 @@ VOID TEST(HttpHooksForwardBackendTest, DISABLED_NonStringUrlAbortsServer)
     std::vector<std::string> urls;
     err = h.call(200, "{\"code\":0,\"data\":{\"urls\":[\"rtmp://127.0.0.1/live/a\",123]}}", urls);
     HELPER_EXPECT_FAILED(err);
+}
+
+// The forward config getters, read from a config file, overwritten by env, and their defaults.
+// get_forwards() has no env override today: SRS_VHOST_FORWARD_DESTINATION is ignored.
+
+// With no vhost, or a vhost with no forward section, forwarding is off and there is no
+// destination or backend.
+VOID TEST(ConfigForwardTest, DefaultsWithoutForwardSection)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_FALSE(conf.get_forward_enabled("__defaultVhost__"));
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_forwards("__defaultVhost__") == NULL);
+        EXPECT_TRUE(conf.get_forwards("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_forward_backend("__defaultVhost__") == NULL);
+        EXPECT_TRUE(conf.get_forward_backend("ossrs.net") == NULL);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{hls{enabled on;}}"));
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_forwards("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_forward_backend("ossrs.net") == NULL);
+
+        SrsConfDirective *vhost = conf.get_vhost("ossrs.net");
+        ASSERT_TRUE(vhost != NULL);
+        EXPECT_FALSE(conf.get_forward_enabled(vhost));
+    }
+
+    if (true) {
+        // A forward section without enabled, destination or backend.
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{}}"));
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_forwards("ossrs.net") == NULL);
+        EXPECT_TRUE(conf.get_forward_backend("ossrs.net") == NULL);
+    }
+}
+
+// enabled is true only for "on"; any other value is false.
+VOID TEST(ConfigForwardTest, EnabledFromConfigFile)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on;}}"));
+        EXPECT_TRUE(conf.get_forward_enabled("ossrs.net"));
+        SrsConfDirective *vhost = conf.get_vhost("ossrs.net");
+        ASSERT_TRUE(vhost != NULL);
+        EXPECT_TRUE(conf.get_forward_enabled(vhost));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled off;}}"));
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled yes;}}"));
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled;}}"));
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+    }
+}
+
+// An unknown vhost falls back to __defaultVhost__ for every forward getter.
+VOID TEST(ConfigForwardTest, UnknownVhostUsesDefaultVhost)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{forward{enabled on; destination 127.0.0.1:1936; backend http://127.0.0.1:8085/api/v1/forward;}}"
+                                                       "vhost ossrs.net{hls{enabled on;}}"));
+
+    EXPECT_TRUE(conf.get_forward_enabled("unknown.vhost"));
+    SrsConfDirective *dests = conf.get_forwards("unknown.vhost");
+    ASSERT_TRUE(dests != NULL);
+    EXPECT_STREQ("127.0.0.1:1936", dests->arg0().c_str());
+    SrsConfDirective *backend = conf.get_forward_backend("unknown.vhost");
+    ASSERT_TRUE(backend != NULL);
+    EXPECT_STREQ("http://127.0.0.1:8085/api/v1/forward", backend->arg0().c_str());
+
+    // A configured vhost does not inherit the default vhost's forward section.
+    EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+    EXPECT_TRUE(conf.get_forwards("ossrs.net") == NULL);
+    EXPECT_TRUE(conf.get_forward_backend("ossrs.net") == NULL);
+}
+
+// destination and backend keep every arg, in order, as written.
+VOID TEST(ConfigForwardTest, DestinationAndBackendFromConfigFile)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on; destination 127.0.0.1:1936 10.0.0.1:19350 example.com;"
+                                                       " backend http://127.0.0.1:8085/api/v1/forward?token=abc;}}"));
+
+    SrsConfDirective *dests = conf.get_forwards("ossrs.net");
+    ASSERT_TRUE(dests != NULL);
+    EXPECT_STREQ("destination", dests->name_.c_str());
+    ASSERT_EQ(3, (int)dests->args_.size());
+    EXPECT_STREQ("127.0.0.1:1936", dests->args_.at(0).c_str());
+    EXPECT_STREQ("10.0.0.1:19350", dests->args_.at(1).c_str());
+    EXPECT_STREQ("example.com", dests->args_.at(2).c_str());
+
+    SrsConfDirective *backend = conf.get_forward_backend("ossrs.net");
+    ASSERT_TRUE(backend != NULL);
+    EXPECT_STREQ("backend", backend->name_.c_str());
+    ASSERT_EQ(1, (int)backend->args_.size());
+    EXPECT_STREQ("http://127.0.0.1:8085/api/v1/forward?token=abc", backend->arg0().c_str());
+
+    // Destination without backend, and backend without destination.
+    if (true) {
+        MockSrsConfig c2;
+        HELPER_ASSERT_SUCCESS(c2.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on; destination 127.0.0.1:1936;}}"));
+        EXPECT_TRUE(c2.get_forwards("ossrs.net") != NULL);
+        EXPECT_TRUE(c2.get_forward_backend("ossrs.net") == NULL);
+    }
+    if (true) {
+        MockSrsConfig c2;
+        HELPER_ASSERT_SUCCESS(c2.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on; backend http://127.0.0.1:8085/api/v1/forward;}}"));
+        EXPECT_TRUE(c2.get_forwards("ossrs.net") == NULL);
+        EXPECT_TRUE(c2.get_forward_backend("ossrs.net") != NULL);
+    }
+}
+
+// SRS_VHOST_FORWARD_ENABLED overwrites the config file for every vhost, both ways, and also
+// applies with no vhost at all. An empty value does not overwrite.
+VOID TEST(ConfigForwardTest, EnabledFromEnv)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled off;}}"));
+        SrsSetEnvConfig(conf, forward_enabled, "SRS_VHOST_FORWARD_ENABLED", "on");
+        EXPECT_TRUE(conf.get_forward_enabled("ossrs.net"));
+        EXPECT_TRUE(conf.get_forward_enabled("no.such.vhost"));
+        SrsConfDirective *vhost = conf.get_vhost("ossrs.net");
+        ASSERT_TRUE(vhost != NULL);
+        EXPECT_TRUE(conf.get_forward_enabled(vhost));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on;}}"));
+        SrsSetEnvConfig(conf, forward_enabled, "SRS_VHOST_FORWARD_ENABLED", "off");
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        // Any value other than "on" is false, like the config file.
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on;}}"));
+        SrsSetEnvConfig(conf, forward_enabled, "SRS_VHOST_FORWARD_ENABLED", "true");
+        EXPECT_FALSE(conf.get_forward_enabled("ossrs.net"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on;}}"));
+        SrsSetEnvConfig(conf, forward_enabled, "SRS_VHOST_FORWARD_ENABLED", "");
+        EXPECT_TRUE(conf.get_forward_enabled("ossrs.net"));
+    }
+}
+
+// SRS_VHOST_FORWARD_BACKEND overwrites the config file, split on spaces with empty parts dropped.
+// A value of only spaces gives a directive with no args, not NULL; the origin hub then treats the
+// backend as not applied and uses the destinations.
+VOID TEST(ConfigForwardTest, BackendFromEnv)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on; backend http://192.168.1.1:8085/api/v1/forward;}}"));
+        SrsSetEnvConfig(conf, forward_backend, "SRS_VHOST_FORWARD_BACKEND", "http://10.0.0.1:8085/api/v1/forward?token=abc");
+
+        SrsConfDirective *backend = conf.get_forward_backend("ossrs.net");
+        ASSERT_TRUE(backend != NULL);
+        EXPECT_STREQ("srs.vhost.forward.backend", backend->name_.c_str());
+        ASSERT_EQ(1, (int)backend->args_.size());
+        EXPECT_STREQ("http://10.0.0.1:8085/api/v1/forward?token=abc", backend->arg0().c_str());
+
+        // The same env directive for any vhost, configured or not.
+        EXPECT_TRUE(conf.get_forward_backend("no.such.vhost") == backend);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, forward_backend, "SRS_VHOST_FORWARD_BACKEND", "  http://a/x   http://b/y ");
+        SrsConfDirective *backend = conf.get_forward_backend("__defaultVhost__");
+        ASSERT_TRUE(backend != NULL);
+        ASSERT_EQ(2, (int)backend->args_.size());
+        EXPECT_STREQ("http://a/x", backend->args_.at(0).c_str());
+        EXPECT_STREQ("http://b/y", backend->args_.at(1).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on; backend http://192.168.1.1:8085/api/v1/forward;}}"));
+        SrsSetEnvConfig(conf, forward_backend, "SRS_VHOST_FORWARD_BACKEND", "   ");
+        SrsConfDirective *backend = conf.get_forward_backend("ossrs.net");
+        ASSERT_TRUE(backend != NULL);
+        EXPECT_EQ(0, (int)backend->args_.size());
+        EXPECT_TRUE(backend->arg0().empty());
+    }
+
+    if (true) {
+        // An empty value does not overwrite.
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on; backend http://192.168.1.1:8085/api/v1/forward;}}"));
+        SrsSetEnvConfig(conf, forward_backend, "SRS_VHOST_FORWARD_BACKEND", "");
+        SrsConfDirective *backend = conf.get_forward_backend("ossrs.net");
+        ASSERT_TRUE(backend != NULL);
+        EXPECT_STREQ("http://192.168.1.1:8085/api/v1/forward", backend->arg0().c_str());
+    }
+}
+
+// get_forwards() reads only the config file: SRS_VHOST_FORWARD_DESTINATION has no effect today.
+VOID TEST(ConfigForwardTest, DestinationIgnoresEnv)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{forward{enabled on; destination 127.0.0.1:1936;}}"));
+        SrsSetEnvConfig(conf, forward_destination, "SRS_VHOST_FORWARD_DESTINATION", "10.0.0.1:1936 10.0.0.2:1936");
+        SrsConfDirective *dests = conf.get_forwards("ossrs.net");
+        ASSERT_TRUE(dests != NULL);
+        ASSERT_EQ(1, (int)dests->args_.size());
+        EXPECT_STREQ("127.0.0.1:1936", dests->arg0().c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, forward_destination, "SRS_VHOST_FORWARD_DESTINATION", "10.0.0.1:1936");
+        EXPECT_TRUE(conf.get_forwards("__defaultVhost__") == NULL);
+    }
 }
