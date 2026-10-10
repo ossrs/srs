@@ -24,10 +24,15 @@
 #include <srs_utest_workflow_forward.hpp>
 
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai34.hpp>
+
+#include <algorithm>
 
 // Mock ISrsAppFactory implementation
 MockAppFactoryForForwarder::MockAppFactoryForForwarder()
@@ -493,4 +498,196 @@ VOID TEST(BasicWorkflowForwardTest, BackendReconnectStartsAtKeyframe)
     EXPECT_STREQ("rtmp://127.0.0.1:19351/fwd/livestream-dst?token=abc&vhost=127.0.0.1", factory->urls_[0].c_str());
     EXPECT_STREQ("rtmp://127.0.0.1:19351/fwd/livestream-dst?token=abc&vhost=127.0.0.1", factory->urls_[1].c_str());
     utest_workflow_forward_check_restart(first, factory->clients_[1]);
+}
+
+// Use the test's statistic as the global one, which the forwarders capture when the hub creates
+// them, and restore the global one when the test ends.
+class UtestWorkflowForwardStat
+{
+public:
+    SrsStatistic stat_;
+
+private:
+    SrsStatistic *global_;
+
+public:
+    UtestWorkflowForwardStat()
+    {
+        global_ = _srs_stat;
+        _srs_stat = &stat_;
+    }
+    ~UtestWorkflowForwardStat()
+    {
+        _srs_stat = global_;
+    }
+};
+
+// Connect every forwarder of the hub once, so each publishes to its destination; the coroutine
+// quits inside forward().
+static void utest_workflow_forward_connect_all(SrsOriginHub *hub, MockAppFactoryForForwarderCycle *factory, MockAppConfig *config)
+{
+    srs_error_t err;
+
+    for (int i = 0; i < (int)hub->forwarders_.size(); i++) {
+        SrsForwarder *forwarder = dynamic_cast<SrsForwarder *>(hub->forwarders_.at(i));
+        ASSERT_TRUE(forwarder != NULL);
+
+        // Stop the coroutine the hub started; the test runs the connect itself.
+        forwarder->trd_->stop();
+        utest_forward_wire(forwarder, factory, config, 1);
+        factory->next_ = NULL;
+
+        HELPER_EXPECT_FAILED(forwarder->do_cycle());
+    }
+}
+
+// The forwards the statistic lists for the publishing stream, as "<url> <state>", sorted.
+static std::vector<std::string> utest_workflow_forward_list(SrsStatistic *stat, ISrsRequest *req)
+{
+    std::vector<std::string> forwards;
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    if (!stream) {
+        return forwards;
+    }
+
+    SrsUniquePtr<SrsJsonArray> arr(SrsJsonAny::array());
+    srs_error_t err = stat->dumps_forwards(arr.get(), stream->id_, 0, 100);
+    if (err != srs_success) {
+        forwards.push_back("error " + srs_error_desc(err));
+        srs_freep(err);
+        return forwards;
+    }
+
+    for (int i = 0; i < arr->count(); i++) {
+        SrsJsonObject *obj = arr->at(i)->is_object() ? arr->at(i)->to_object() : NULL;
+        SrsJsonAny *url = obj ? obj->get_property("url") : NULL;
+        SrsJsonAny *state = obj ? obj->get_property("state") : NULL;
+        std::string surl = url && url->is_string() ? url->to_str() : "?";
+        std::string sstate = state && state->is_string() ? state->to_str() : "?";
+        forwards.push_back(surl + " " + sstate);
+    }
+
+    std::sort(forwards.begin(), forwards.end());
+    return forwards;
+}
+
+// The forwards joined by "|", to compare them as one string.
+static std::string utest_workflow_forward_join(const std::vector<std::string> &forwards)
+{
+    std::string joined;
+    for (int i = 0; i < (int)forwards.size(); i++) {
+        joined += (i ? "|" : "") + forwards[i];
+    }
+    return joined;
+}
+
+// A stream that publishes with two forward.destination entries: the HTTP API lists both forwards
+// of the stream with their urls, connecting when started, forwarding once each publishes to its
+// destination, and none after the stream unpublishes.
+VOID TEST(BasicWorkflowForwardTest, DestinationStatusListsEveryForward)
+{
+    srs_error_t err;
+
+    UtestWorkflowForwardStat stat;
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+    req->param_ = "?token=abc";
+
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:19350");
+    destinations.push_back("127.0.0.1:19351");
+    config->set_forward_destinations(destinations);
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_ASSERT_SUCCESS(hub->create_forwarders());
+
+    EXPECT_STREQ("rtmp://127.0.0.1:19350/live/livestream?token=abc connecting|"
+                 "rtmp://127.0.0.1:19351/live/livestream?token=abc connecting",
+                 utest_workflow_forward_join(utest_workflow_forward_list(&stat.stat_, req.get())).c_str());
+
+    utest_workflow_forward_connect_all(hub.get(), factory.get(), config.get());
+    EXPECT_STREQ("rtmp://127.0.0.1:19350/live/livestream?token=abc forwarding|"
+                 "rtmp://127.0.0.1:19351/live/livestream?token=abc forwarding",
+                 utest_workflow_forward_join(utest_workflow_forward_list(&stat.stat_, req.get())).c_str());
+
+    hub->destroy_forwarders();
+    EXPECT_STREQ("", utest_workflow_forward_join(utest_workflow_forward_list(&stat.stat_, req.get())).c_str());
+}
+
+// A forward.backend that returns two urls, each with its own app, stream, key and query: the HTTP
+// API lists both under the publishing stream, each with the url the forwarder publishes to, which
+// is the backend url plus the vhost the forwarder adds when the url has none.
+VOID TEST(BasicWorkflowForwardTest, BackendStatusListsBackendUrls)
+{
+    srs_error_t err;
+
+    UtestWorkflowForwardStat stat;
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+    hooks->urls_.push_back("rtmp://127.0.0.1:19352/fwd/key-a?secret=s1");
+    hooks->urls_.push_back("rtmp://127.0.0.1:19353/other/key-b?token=abc&vhost=127.0.0.1");
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_ASSERT_SUCCESS(hub->create_forwarders());
+    EXPECT_EQ(1, hooks->count_);
+
+    utest_workflow_forward_connect_all(hub.get(), factory.get(), config.get());
+    EXPECT_STREQ("rtmp://127.0.0.1:19352/fwd/key-a?secret=s1&vhost=127.0.0.1 forwarding|"
+                 "rtmp://127.0.0.1:19353/other/key-b?token=abc&vhost=127.0.0.1 forwarding",
+                 utest_workflow_forward_join(utest_workflow_forward_list(&stat.stat_, req.get())).c_str());
+
+    // Each forward belongs to the publishing stream, not to the backend's app and stream.
+    SrsUniquePtr<SrsJsonArray> arr(SrsJsonAny::array());
+    HELPER_EXPECT_SUCCESS(stat.stat_.dumps_forwards(arr.get(), "", 0, 100));
+    ASSERT_EQ(2, arr->count());
+    for (int i = 0; i < 2; i++) {
+        ASSERT_TRUE(arr->at(i)->is_object());
+        SrsJsonAny *app = arr->at(i)->to_object()->get_property("app");
+        SrsJsonAny *name = arr->at(i)->to_object()->get_property("name");
+        ASSERT_TRUE(app && app->is_string() && name && name->is_string()) << "#" << i;
+        EXPECT_STREQ("live", app->to_str().c_str()) << "#" << i;
+        EXPECT_STREQ("livestream", name->to_str().c_str()) << "#" << i;
+    }
+
+    hub->destroy_forwarders();
+    EXPECT_STREQ("", utest_workflow_forward_join(utest_workflow_forward_list(&stat.stat_, req.get())).c_str());
+}
+
+// With forward.backend and forward.destination both configured, the backend decides: the HTTP API
+// lists only the backend's forwards.
+VOID TEST(BasicWorkflowForwardTest, BackendAndDestinationListsOnlyBackend)
+{
+    srs_error_t err;
+
+    UtestWorkflowForwardStat stat;
+    SrsUniquePtr<MockAppConfigForForwardHub> config(new MockAppConfigForForwardHub());
+    SrsUniquePtr<MockHttpHooksForForwardHub> hooks(new MockHttpHooksForForwardHub());
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockLiveSourceForOriginHub> source(new MockLiveSourceForOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    std::vector<std::string> destinations;
+    destinations.push_back("127.0.0.1:19350");
+    destinations.push_back("127.0.0.1:19351");
+    config->set_forward_destinations(destinations);
+    config->set_forward_backend("http://127.0.0.1:8085/api/v1/forward");
+    hooks->urls_.push_back("rtmp://127.0.0.1:19352/fwd/key-a?secret=s1");
+
+    SrsUniquePtr<SrsOriginHub> hub(utest_forward_hub(source.get(), req.get(), config.get(), hooks.get()));
+    HELPER_ASSERT_SUCCESS(hub->create_forwarders());
+
+    utest_workflow_forward_connect_all(hub.get(), factory.get(), config.get());
+    EXPECT_STREQ("rtmp://127.0.0.1:19352/fwd/key-a?secret=s1&vhost=127.0.0.1 forwarding",
+                 utest_workflow_forward_join(utest_workflow_forward_list(&stat.stat_, req.get())).c_str());
+
+    hub->destroy_forwarders();
 }

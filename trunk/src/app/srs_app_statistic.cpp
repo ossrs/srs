@@ -299,6 +299,28 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
     return err;
 }
 
+string srs_forward_state_string(SrsForwardState state)
+{
+    // TODO: Implement it.
+    return "";
+}
+
+SrsStatisticForward::SrsStatisticForward()
+{
+    state_ = SrsForwardStateConnecting;
+    state_at_ = 0;
+}
+
+SrsStatisticForward::~SrsStatisticForward()
+{
+}
+
+srs_error_t SrsStatisticForward::dumps(SrsJsonObject *obj)
+{
+    // TODO: Implement it.
+    return srs_success;
+}
+
 ISrsStatistic::ISrsStatistic()
 {
 }
@@ -315,6 +337,7 @@ SrsStatistic::SrsStatistic()
     rand_ = new SrsRand();
 
     kbps_ = new SrsKbps();
+    clk_ = _srs_clock;
 
     nb_clients_ = 0;
     nb_errs_ = 0;
@@ -346,13 +369,22 @@ SrsStatistic::~SrsStatistic()
             srs_freep(client);
         }
     }
+    if (true) {
+        std::map<std::string, SrsStatisticForward *>::iterator it;
+        for (it = forwards_.begin(); it != forwards_.end(); it++) {
+            SrsStatisticForward *forward = it->second;
+            srs_freep(forward);
+        }
+    }
 
     vhosts_.clear();
     rvhosts_.clear();
     streams_.clear();
     rstreams_.clear();
+    forwards_.clear();
 
     config_ = NULL;
+    clk_ = NULL;
 }
 
 SrsStatisticVhost *SrsStatistic::find_vhost_by_id(std::string vid)
@@ -401,6 +433,12 @@ SrsStatisticClient *SrsStatistic::find_client(string client_id)
     if ((it = clients_.find(client_id)) != clients_.end()) {
         return it->second;
     }
+    return NULL;
+}
+
+SrsStatisticForward *SrsStatistic::find_forward(string forward_id)
+{
+    // TODO: Implement it.
     return NULL;
 }
 
@@ -543,6 +581,21 @@ void SrsStatistic::on_disconnect(std::string id, srs_error_t err)
     }
 
     cleanup_stream(stream);
+}
+
+void SrsStatistic::on_forward_start(std::string id, ISrsRequest *req, std::string url)
+{
+    // TODO: Implement it.
+}
+
+void SrsStatistic::on_forward_state(std::string id, SrsForwardState state)
+{
+    // TODO: Implement it.
+}
+
+void SrsStatistic::on_forward_stop(std::string id)
+{
+    // TODO: Implement it.
 }
 
 void SrsStatistic::cleanup_stream(SrsStatisticStream *stream)
@@ -720,6 +773,12 @@ srs_error_t SrsStatistic::dumps_clients(SrsJsonArray *arr, int start, int count)
     }
 
     return err;
+}
+
+srs_error_t SrsStatistic::dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count)
+{
+    // TODO: Implement it.
+    return srs_success;
 }
 
 void SrsStatistic::dumps_hints_kv(std::stringstream &ss)

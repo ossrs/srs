@@ -151,6 +151,41 @@ public:
     virtual srs_error_t dumps(SrsJsonObject *obj);
 };
 
+// The state of a forwarder, which pushes a publishing stream to a destination.
+enum SrsForwardState {
+    // Connecting and publishing to the destination, at start or on a retry.
+    SrsForwardStateConnecting = 0,
+    // Published to the destination, and sending the stream.
+    SrsForwardStateForwarding,
+    // Failed, and waiting to retry.
+    SrsForwardStateRetrying,
+};
+
+// The name of the forward state in the HTTP API, such as forwarding.
+extern std::string srs_forward_state_string(SrsForwardState state);
+
+struct SrsStatisticForward {
+public:
+    std::string id_;
+    // The stream id, vhost id, app and stream name of the publishing stream.
+    std::string stream_id_;
+    std::string vhost_id_;
+    std::string app_;
+    std::string name_;
+    // The full destination url, with the stream key and query.
+    std::string url_;
+    SrsForwardState state_;
+    // The time when it entered the state.
+    srs_utime_t state_at_;
+
+public:
+    SrsStatisticForward();
+    virtual ~SrsStatisticForward();
+
+public:
+    virtual srs_error_t dumps(SrsJsonObject *obj);
+};
+
 // The interface for statistic.
 class ISrsStatistic
 {
@@ -170,6 +205,9 @@ public:
     virtual void kbps_sample() = 0;
     virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames) = 0;
     virtual srs_error_t on_audio_frames(ISrsRequest *req, int nb_frames) = 0;
+    virtual void on_forward_start(std::string id, ISrsRequest *req, std::string url) = 0;
+    virtual void on_forward_state(std::string id, SrsForwardState state) = 0;
+    virtual void on_forward_stop(std::string id) = 0;
 
 public:
     // Get the server id, used to identify the server.
@@ -187,12 +225,16 @@ public:
     virtual SrsStatisticStream *find_stream_by_url(std::string url) = 0;
     // Find client by id.
     virtual SrsStatisticClient *find_client(std::string client_id) = 0;
+    // Find forward by id.
+    virtual SrsStatisticForward *find_forward(std::string forward_id) = 0;
     // Dumps the vhosts to json array.
     virtual srs_error_t dumps_vhosts(SrsJsonArray *arr) = 0;
     // Dumps the streams to json array.
     virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count) = 0;
     // Dumps the clients to json array.
     virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count) = 0;
+    // Dumps the forwards to json array, only of the stream if stream_id is not empty.
+    virtual srs_error_t dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count) = 0;
     // Dumps exporter metrics.
     virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs) = 0;
 };
@@ -241,6 +283,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // The key: forward id, value: forward object.
+    std::map<std::string, SrsStatisticForward *> forwards_;
+    // The clock to stamp the time a forward enters a state.
+    ISrsClock *clk_;
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
     // The total of clients connections.
     int64_t nb_clients_;
     // The total of clients errors.
@@ -256,6 +305,7 @@ public:
     virtual SrsStatisticStream *find_stream(std::string sid);
     virtual SrsStatisticStream *find_stream_by_url(std::string url);
     virtual SrsStatisticClient *find_client(std::string client_id);
+    virtual SrsStatisticForward *find_forward(std::string forward_id);
 
 public:
     // When got video info for stream.
@@ -289,6 +339,17 @@ public:
     //      exists in stat.
     virtual void on_disconnect(std::string id, srs_error_t err);
 
+public:
+    // When a forwarder of a publishing stream starts, in the connecting state.
+    // @param id, the forward id.
+    // @param req, the request object of the publishing stream.
+    // @param url, the full destination url.
+    virtual void on_forward_start(std::string id, ISrsRequest *req, std::string url);
+    // When a forwarder enters a state.
+    virtual void on_forward_state(std::string id, SrsForwardState state);
+    // When a forwarder stops.
+    virtual void on_forward_stop(std::string id);
+
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // Cleanup the stream if stream is not active and for the last client.
@@ -319,6 +380,11 @@ public:
     // @param start the start index, from 0.
     // @param count the max count of clients to dump.
     virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
+    // Dumps the forwards to amf0 array.
+    // @param stream_id the stream id to filter by, or empty for all forwards.
+    // @param start the start index, from 0, after the filter.
+    // @param count the max count of forwards to dump.
+    virtual srs_error_t dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count);
     // Dumps the hints about SRS server.
     void dumps_hints_kv(std::stringstream &ss);
 

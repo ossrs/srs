@@ -7,12 +7,16 @@
 
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_utility.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai17.hpp>
+#include <srs_utest_ai32.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -2512,4 +2516,201 @@ VOID TEST(ConfigForwardTest, DestinationFromEnv)
         EXPECT_STREQ("127.0.0.1:1937", dests->args_.at(1).c_str());
         EXPECT_TRUE(conf.get_forwards("__defaultVhost__") == NULL);
     }
+}
+
+// Check the statistic has the forward in the state, entered at the time.
+static void utest_forward_expect_state(SrsStatistic *stat, string id, SrsForwardState state, srs_utime_t at, const char *step)
+{
+    SrsStatisticForward *forward = stat->find_forward(id);
+    ASSERT_TRUE(forward != NULL) << step;
+    EXPECT_EQ(state, forward->state_) << step;
+    EXPECT_EQ(at, forward->state_at_) << step;
+}
+
+// A forwarder reports its start when it starts: its id, the publishing stream, and the full
+// url of its host:port destination with the publisher's query, in the connecting state. It
+// reports its stop when it stops. Each forwarder has its own id.
+VOID TEST(ForwarderStatusTest, StartAndStopOfDestination)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 1000 * SRS_UTIME_SECONDS;
+    SrsStatistic stat;
+    stat.clk_ = &clock;
+
+    SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+    req->param_ = "?token=abc";
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    forwarder->stat_ = &stat;
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+    EXPECT_FALSE(forwarder->id_.empty());
+
+    // Nothing is reported before it starts.
+    EXPECT_TRUE(stat.find_forward(forwarder->id_) == NULL);
+
+    HELPER_EXPECT_SUCCESS(forwarder->on_publish());
+
+    SrsStatisticStream *stream = stat.find_stream_by_url(req->get_stream_url());
+    SrsStatisticForward *forward = stat.find_forward(forwarder->id_);
+    if (stream && forward) {
+        EXPECT_STREQ(forwarder->id_.c_str(), forward->id_.c_str());
+        EXPECT_STREQ(stream->id_.c_str(), forward->stream_id_.c_str());
+        EXPECT_STREQ("live", forward->app_.c_str());
+        EXPECT_STREQ("livestream", forward->name_.c_str());
+        EXPECT_STREQ("rtmp://127.0.0.1:19350/live/livestream?token=abc", forward->url_.c_str());
+        EXPECT_EQ(SrsForwardStateConnecting, forward->state_);
+        EXPECT_EQ(1000 * SRS_UTIME_SECONDS, forward->state_at_);
+    } else {
+        ADD_FAILURE() << "no stream or forward record, stream=" << (stream != NULL) << ", forward=" << (forward != NULL);
+    }
+
+    // Another forwarder of the stream has another id.
+    if (true) {
+        SrsUniquePtr<SrsForwarder> other(new SrsForwarder(hub.get()));
+        other->stat_ = &stat;
+        HELPER_EXPECT_SUCCESS(other->initialize(req.get(), "127.0.0.1:19351"));
+        EXPECT_FALSE(other->id_.empty());
+        EXPECT_STRNE(forwarder->id_.c_str(), other->id_.c_str());
+    }
+
+    forwarder->on_unpublish();
+    EXPECT_TRUE(stat.find_forward(forwarder->id_) == NULL);
+
+    stat.clk_ = NULL;
+}
+
+// A forwarder made from a backend url, with its own app, stream and query, reports the url it
+// publishes to: the backend url, plus the vhost the forwarder adds for an IP host.
+VOID TEST(ForwarderStatusTest, StartOfBackendUrl)
+{
+    srs_error_t err;
+
+    SrsStatistic stat;
+    SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
+
+    // The request of the backend url, as the origin hub builds it.
+    SrsUniquePtr<ISrsRequest> req(new SrsRequest());
+    srs_net_url_parse_rtmp_url("rtmp://192.168.1.12:19350/fwd/stream3-dst?token=abc", req->tcUrl_, req->stream_);
+    srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    forwarder->stat_ = &stat;
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "192.168.1.12:19350"));
+    HELPER_EXPECT_SUCCESS(forwarder->on_publish());
+
+    SrsStatisticForward *forward = stat.find_forward(forwarder->id_);
+    if (forward) {
+        EXPECT_STREQ("rtmp://192.168.1.12:19350/fwd/stream3-dst?token=abc&vhost=192.168.1.12", forward->url_.c_str());
+        EXPECT_EQ(SrsForwardStateConnecting, forward->state_);
+    } else {
+        ADD_FAILURE() << "no forward record";
+    }
+
+    forwarder->on_unpublish();
+    EXPECT_TRUE(stat.find_forward(forwarder->id_) == NULL);
+}
+
+// A forwarder reports each state with the time it entered it: connecting on each connect,
+// forwarding once published, retrying after an error while it waits to retry, and connecting
+// again on the retry.
+VOID TEST(ForwarderStatusTest, StatesFollowConnectPublishAndRetry)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 1000 * SRS_UTIME_SECONDS;
+    SrsStatistic stat;
+    stat.clk_ = &clock;
+
+    SrsUniquePtr<MockOriginHub> hub(new MockOriginHub());
+    SrsUniquePtr<MockAppFactoryForForwarderCycle> factory(new MockAppFactoryForForwarderCycle());
+    SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
+    SrsUniquePtr<MockRequest> req(new MockRequest("__defaultVhost__", "live", "livestream"));
+
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
+    forwarder->stat_ = &stat;
+    HELPER_EXPECT_SUCCESS(forwarder->initialize(req.get(), "127.0.0.1:19350"));
+    HELPER_EXPECT_SUCCESS(forwarder->on_publish());
+    // Stop the coroutine it started; the test runs the connects itself.
+    forwarder->trd_->stop();
+    string id = forwarder->id_;
+    utest_forward_expect_state(&stat, id, SrsForwardStateConnecting, 1000 * SRS_UTIME_SECONDS, "start");
+
+    // The connect fails: connecting, at the time of this connect.
+    if (true) {
+        clock.now_ = 1001 * SRS_UTIME_SECONDS;
+        MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
+        sdk->connect_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "mock connect");
+        factory->next_ = sdk;
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 1);
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_SOCKET_CONNECT, srs_error_code(err));
+        srs_freep(err);
+        utest_forward_expect_state(&stat, id, SrsForwardStateConnecting, 1001 * SRS_UTIME_SECONDS, "connect fails");
+    }
+
+    // The cycle fails to connect, then waits to retry: retrying. The coroutine quits before the wait.
+    if (true) {
+        clock.now_ = 1002 * SRS_UTIME_SECONDS;
+        MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
+        sdk->connect_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "mock connect");
+        factory->next_ = sdk;
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 1);
+
+        HELPER_EXPECT_FAILED(forwarder->cycle());
+        EXPECT_EQ(1, sdk->connect_count_);
+        utest_forward_expect_state(&stat, id, SrsForwardStateRetrying, 1002 * SRS_UTIME_SECONDS, "cycle retry wait");
+    }
+
+    // The retry connects and publishes: forwarding. The coroutine quits inside forward().
+    if (true) {
+        clock.now_ = 1005 * SRS_UTIME_SECONDS;
+        factory->next_ = NULL;
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 1);
+
+        HELPER_EXPECT_FAILED(forwarder->do_cycle());
+        EXPECT_EQ(1, factory->clients_.back()->publish_count_);
+        utest_forward_expect_state(&stat, id, SrsForwardStateForwarding, 1005 * SRS_UTIME_SECONDS, "published");
+    }
+
+    // The destination is lost while forwarding: the cycle publishes, the receive fails, and it
+    // waits to retry.
+    if (true) {
+        clock.now_ = 1009 * SRS_UTIME_SECONDS;
+        MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
+        sdk->recv_error_ = srs_error_new(ERROR_SOCKET_READ, "mock destination lost");
+        factory->next_ = sdk;
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 2);
+
+        HELPER_EXPECT_FAILED(forwarder->cycle());
+        EXPECT_EQ(1, sdk->publish_count_);
+        EXPECT_EQ(1, sdk->recv_count_);
+        utest_forward_expect_state(&stat, id, SrsForwardStateRetrying, 1009 * SRS_UTIME_SECONDS, "lost while forwarding");
+    }
+
+    // The publish fails on the next retry: connecting.
+    if (true) {
+        clock.now_ = 1012 * SRS_UTIME_SECONDS;
+        MockRtmpClientForForwarder *sdk = new MockRtmpClientForForwarder();
+        sdk->publish_error_ = srs_error_new(ERROR_RTMP_MESSAGE_DECODE, "mock publish");
+        factory->next_ = sdk;
+        utest_forward_wire(forwarder.get(), factory.get(), config.get(), 1);
+
+        err = forwarder->do_cycle();
+        EXPECT_EQ(ERROR_RTMP_MESSAGE_DECODE, srs_error_code(err));
+        srs_freep(err);
+        utest_forward_expect_state(&stat, id, SrsForwardStateConnecting, 1012 * SRS_UTIME_SECONDS, "publish fails");
+    }
+
+    // The id is the same for the whole life of the forwarder.
+    EXPECT_STREQ(id.c_str(), forwarder->id_.c_str());
+
+    forwarder->on_unpublish();
+    EXPECT_TRUE(stat.find_forward(id) == NULL);
+
+    stat.clk_ = NULL;
 }

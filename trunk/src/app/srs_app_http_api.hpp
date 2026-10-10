@@ -255,6 +255,21 @@ public:
     virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
 };
 
+// The read-only API of the forwards of the publishing streams, /api/v1/forwards/[id].
+class SrsGoApiForwards : public ISrsHttpHandler
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsStatistic *stat_;
+
+public:
+    SrsGoApiForwards();
+    virtual ~SrsGoApiForwards();
+
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+};
+
 class SrsGoApiRaw : public ISrsHttpHandler, public ISrsReloadHandler
 {
 // clang-format off

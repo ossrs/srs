@@ -914,6 +914,22 @@ srs_error_t SrsGoApiClients::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     return srs_api_response(w, r, obj->dumps());
 }
 
+SrsGoApiForwards::SrsGoApiForwards()
+{
+    stat_ = _srs_stat;
+}
+
+SrsGoApiForwards::~SrsGoApiForwards()
+{
+    stat_ = NULL;
+}
+
+srs_error_t SrsGoApiForwards::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+{
+    // TODO: Implement it.
+    return srs_success;
+}
+
 SrsGoApiRaw::SrsGoApiRaw(ISrsSignalHandler *handler)
 {
     handler_ = handler;

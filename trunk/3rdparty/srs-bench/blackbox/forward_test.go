@@ -1264,3 +1264,300 @@ func TestFast_RtmpPublish_Forward_Backend_KeyframeAfterReconnect(t *testing.T) {
 
 	forwardKeyframeAfterReconnect(t, true)
 }
+
+// forwardInfo is a forward of /api/v1/forwards/.
+type forwardInfo struct {
+	ID      string `json:"id"`
+	Stream  string `json:"stream"`
+	Vhost   string `json:"vhost"`
+	App     string `json:"app"`
+	Name    string `json:"name"`
+	URL     string `json:"url"`
+	State   string `json:"state"`
+	StateAt int64  `json:"state_at"`
+}
+
+// forwardGetAPI gets an HTTP API of an SRS and parses its JSON answer, which must have code 0.
+func forwardGetAPI(api string, answer interface{}) error {
+	res, err := http.Get(api)
+	if err != nil {
+		return errors.Wrapf(err, "get %v", api)
+	}
+	defer res.Body.Close()
+
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return errors.Wrapf(err, "read %v", api)
+	}
+
+	code := struct {
+		Code int `json:"code"`
+	}{}
+	if err := json.Unmarshal(b, &code); err != nil {
+		return errors.Wrapf(err, "parse status=%v %v of %v", res.StatusCode, string(b), api)
+	}
+	if code.Code != 0 {
+		return errors.Errorf("code=%v of %v, %v", code.Code, api, string(b))
+	}
+	if err := json.Unmarshal(b, answer); err != nil {
+		return errors.Wrapf(err, "parse %v of %v", string(b), api)
+	}
+	return nil
+}
+
+// forwardList returns the forwards of a stream, from /api/v1/forwards/?stream= of the origin.
+func forwardList(apiPort int, streamID string) ([]forwardInfo, error) {
+	answer := struct {
+		Forwards []forwardInfo `json:"forwards"`
+	}{}
+	api := fmt.Sprintf("http://localhost:%v/api/v1/forwards/?stream=%v", apiPort, streamID)
+	if err := forwardGetAPI(api, &answer); err != nil {
+		return nil, err
+	}
+	return answer.Forwards, nil
+}
+
+// forwardGet returns one forward by id, from /api/v1/forwards/{id} of the origin.
+func forwardGet(apiPort int, id string) (*forwardInfo, error) {
+	answer := struct {
+		Forward *forwardInfo `json:"forward"`
+	}{}
+	api := fmt.Sprintf("http://localhost:%v/api/v1/forwards/%v", apiPort, id)
+	if err := forwardGetAPI(api, &answer); err != nil {
+		return nil, err
+	}
+	if answer.Forward == nil {
+		return nil, errors.Errorf("no forward of %v", api)
+	}
+	return answer.Forward, nil
+}
+
+// forwardStreamID returns the id of a publishing stream, from /api/v1/streams/.
+func forwardStreamID(apiPort int, app, name string) (string, error) {
+	streams, err := forwardActiveStreams(apiPort)
+	if err != nil {
+		return "", err
+	}
+	for _, s := range streams {
+		if s.App == app && s.Name == name {
+			return s.ID, nil
+		}
+	}
+	return "", errors.Errorf("no stream %v/%v on api port %v", app, name, apiPort)
+}
+
+// forwardWaitState waits until the stream has exactly one forward and it is in the state, and returns it.
+func forwardWaitState(ctx context.Context, apiPort int, streamID, state string, timeout time.Duration) (*forwardInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	var last []forwardInfo
+	var lastErr error
+	for {
+		if last, lastErr = forwardList(apiPort, streamID); lastErr == nil && len(last) == 1 && last[0].State == state {
+			return &last[0], nil
+		}
+		if !forwardSleep(ctx, 100*time.Millisecond) {
+			return nil, errors.Errorf("no forward of stream %v in state %v in %v, last %+v, err %v",
+				streamID, state, timeout, last, lastErr)
+		}
+	}
+}
+
+// forwardStatus checks the status of a forward in the HTTP API of the origin, which forwards by forward.destination
+// or by forward.backend: it is forwarding with the full destination url, retrying while the destination is stopped,
+// and forwarding again after the destination starts on the same port.
+func forwardStatus(t *testing.T, withBackend bool) {
+	// Setup the max timeout for this case.
+	ctx, cancel := context.WithTimeout(logger.WithContext(context.Background()), time.Duration(*srsTimeout)*time.Millisecond)
+	defer cancel()
+
+	// Check a set of errors.
+	var r0, r1, r2, r3, r4 error
+	defer func(ctx context.Context) {
+		if err := filterTestError(ctx.Err(), r0, r1, r2, r3, r4); err != nil {
+			t.Errorf("Fail for err %+v", err)
+		} else {
+			logger.Tf(ctx, "test done with err %+v", err)
+		}
+	}(ctx)
+
+	streamID := fmt.Sprintf("stream-%v-%v", os.Getpid(), rand.Int())
+	dstApp, dstStream := "live", streamID
+	if withBackend {
+		dstApp, dstStream = "fwd", fmt.Sprintf("%v-dst", streamID)
+	}
+
+	// Stop every server and FFmpeg when the checks end, before waiting for them.
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	defer cancel()
+
+	// The first destination SRS, stopped while the origin forwards to it. Its RTMP port stays allocated after it
+	// quits, for the second destination, which frees it.
+	dst1Ctx, dst1Cancel := context.WithCancel(ctx)
+	defer dst1Cancel()
+	dst1 := NewSRSServer(func(v *srsServer) {
+		v.process.onDispose = func(ctx context.Context, bs *backendService) error {
+			allocator.Free(v.apiListen)
+			allocator.Free(v.httpListen)
+			allocator.Free(v.srtListen)
+			allocator.Free(v.rtspListen)
+			os.RemoveAll(v.workDir)
+			return nil
+		}
+	})
+	dst1Done := make(chan struct{})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(dst1Done)
+		r0 = dst1.Run(dst1Ctx, dst1Cancel)
+	}()
+
+	// The origin SRS, which forwards to the destination port. The url the forwarder publishes to adds the vhost of
+	// the backend url's IP host.
+	var originEnvs []string
+	expectURL := fmt.Sprintf("rtmp://127.0.0.1:%v/%v/%v", dst1.RTMPPort(), dstApp, dstStream)
+	if withBackend {
+		backendURL := fmt.Sprintf("rtmp://127.0.0.1:%v/%v/%v?token=abc", dst1.RTMPPort(), dstApp, dstStream)
+		expectURL = fmt.Sprintf("%v&vhost=127.0.0.1", backendURL)
+		backend := newForwardBackend(ctx, func(r *forwardHookRequest) (int, string) {
+			return http.StatusOK, forwardBackendAnswer(backendURL)
+		})
+		defer backend.Close()
+		originEnvs = []string{
+			"SRS_VHOST_FORWARD_ENABLED=on",
+			fmt.Sprintf("SRS_VHOST_FORWARD_BACKEND=%v", backend.ForwardURL()),
+		}
+	} else {
+		originEnvs = forwardDestinationEnvs(dst1)
+	}
+	origin := NewSRSServer(func(v *srsServer) {
+		v.envs = originEnvs
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r1 = origin.Run(ctx, cancel)
+	}()
+
+	// Start FFmpeg to publish stream to the origin.
+	ffmpeg := NewFFmpeg(func(v *ffmpegClient) {
+		v.args = []string{
+			"-stream_loop", "-1", "-re", "-i", *srsPublishAvatar, "-c", "copy", "-f", "flv",
+			fmt.Sprintf("rtmp://localhost:%v/live/%v", origin.RTMPPort(), streamID),
+		}
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-dst1.ReadyCtx().Done()
+		<-origin.ReadyCtx().Done()
+		r2 = ffmpeg.Run(ctx, cancel)
+	}()
+
+	<-dst1.ReadyCtx().Done()
+	<-origin.ReadyCtx().Done()
+	started := time.Now()
+
+	if _, err := forwardWaitStream(ctx, origin.APIPort(), "live", streamID, 15*time.Second); err != nil {
+		r3 = err
+		return
+	}
+	sid, err := forwardStreamID(origin.APIPort(), "live", streamID)
+	if err != nil {
+		r3 = err
+		return
+	}
+
+	// The forward is listed under the publishing stream, forwarding, with the full destination url.
+	forward, err := forwardWaitState(ctx, origin.APIPort(), sid, "forwarding", 15*time.Second)
+	if err != nil {
+		r3 = err
+		return
+	}
+	if forward.ID == "" || forward.Stream != sid || forward.Vhost == "" || forward.App != "live" || forward.Name != streamID {
+		r3 = errors.Errorf("forward %+v, expect stream=%v, app=live, name=%v", forward, sid, streamID)
+		return
+	}
+	if forward.URL != expectURL {
+		r3 = errors.Errorf("forward url=%v, expect %v", forward.URL, expectURL)
+		return
+	}
+	if at := time.UnixMilli(forward.StateAt); at.Before(started.Add(-time.Second)) || at.After(time.Now().Add(time.Second)) {
+		r3 = errors.Errorf("forward state_at=%v, expect between %v and now", at, started)
+		return
+	}
+
+	// The same forward by its id.
+	if got, err := forwardGet(origin.APIPort(), forward.ID); err != nil {
+		r3 = err
+		return
+	} else if got.ID != forward.ID || got.URL != expectURL || got.State != "forwarding" {
+		r3 = errors.Errorf("forward %+v by id, expect %+v", got, forward)
+		return
+	}
+
+	// Stop the destination: the forwarder fails and waits to retry.
+	dst1Cancel()
+	select {
+	case <-ctx.Done():
+		return
+	case <-dst1Done:
+	}
+	retrying, err := forwardWaitState(ctx, origin.APIPort(), sid, "retrying", 15*time.Second)
+	if err != nil {
+		r3 = err
+		return
+	}
+	if retrying.ID != forward.ID || retrying.URL != expectURL || retrying.StateAt <= forward.StateAt {
+		r3 = errors.Errorf("retrying forward %+v, expect id=%v, url=%v, state_at after %v", retrying, forward.ID, expectURL, forward.StateAt)
+		return
+	}
+
+	// Start the second destination on the same RTMP port: the forwarder retries, and forwards again.
+	dst2 := NewSRSServer(func(v *srsServer) {
+		allocator.Free(v.rtmpListen)
+		v.rtmpListen = dst1.RTMPPort()
+	})
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		r4 = dst2.Run(ctx, cancel)
+	}()
+	<-dst2.ReadyCtx().Done()
+
+	again, err := forwardWaitState(ctx, origin.APIPort(), sid, "forwarding", 15*time.Second)
+	if err != nil {
+		r3 = err
+		return
+	}
+	if again.ID != forward.ID || again.URL != expectURL || again.StateAt <= retrying.StateAt {
+		r3 = errors.Errorf("forward again %+v, expect id=%v, url=%v, state_at after %v", again, forward.ID, expectURL, retrying.StateAt)
+		return
+	}
+	if _, err := forwardWaitStream(ctx, dst2.APIPort(), dstApp, dstStream, 15*time.Second); err != nil {
+		r3 = err
+		return
+	}
+}
+
+// The origin forwards by forward.destination: GET /api/v1/forwards/?stream= shows the destination url and forwarding,
+// retrying while the destination SRS is stopped, and forwarding again after it starts on the same port.
+func TestFast_RtmpPublish_Forward_Status(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardStatus(t, false)
+}
+
+// The origin forwards by forward.backend, to the backend url with its own app, stream and token: GET
+// /api/v1/forwards/?stream= shows that url and forwarding, retrying while the destination SRS is stopped, and forwarding
+// again after it starts on the same port.
+func TestFast_RtmpPublish_Forward_Backend_Status(t *testing.T) {
+	// This case is run in parallel.
+	t.Parallel()
+
+	forwardStatus(t, true)
+}

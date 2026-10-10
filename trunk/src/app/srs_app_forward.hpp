@@ -28,6 +28,7 @@ class SrsSimpleRtmpClient;
 class ISrsBasicRtmpClient;
 class ISrsAppFactory;
 class ISrsAppConfig;
+class ISrsStatistic;
 
 // The forward interface.
 class ISrsForwarder
@@ -53,9 +54,12 @@ class SrsForwarder : public ISrsCoroutineHandler, public ISrsForwarder
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *app_factory_;
     ISrsAppConfig *config_;
+    ISrsStatistic *stat_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // The forward id, which identifies this forwarder in the statistic and the HTTP API.
+    std::string id_;
     // The ep to forward, server[:port].
     std::string ep_forward_;
     ISrsRequest *req_;
