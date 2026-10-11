@@ -84,6 +84,7 @@ func TestCommonConfig(t *testing.T) {
 		"SRS_VHOST_SRT_ENABLED":             "on",
 		"SRS_VHOST_SRT_TO_RTMP":             "on",
 		"SRS_SRT_SERVER_RECVLATENCY":        "0",
+		"SRS_VHOST_RTSP_ENABLED":            "on",
 	}
 	if !reflect.DeepEqual(cfg.Env, want) {
 		t.Errorf("env %v, want %v", cfg.Env, want)
@@ -526,6 +527,54 @@ func TestWithSRT(t *testing.T) {
 	}
 	// A config with SRT on keeps its listeners.
 	if cfg := WithSRT(CommonConfig(), SRTOptions{}); !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
+		t.Errorf("listeners %v, want Common's", cfg.Listeners)
+	}
+}
+
+// TestWithRTSP checks a variant gets the RTSP listener and the vhost's RTSP
+// settings, and that the base config is kept.
+func TestWithRTSP(t *testing.T) {
+	cases := []struct {
+		name string
+		r    RTSPOptions
+		want map[string]string
+	}{
+		{"Defaults", RTSPOptions{}, map[string]string{"SRS_VHOST_RTSP_ENABLED": "on"}},
+		{"NoRTMPToRTSP", RTSPOptions{NoRTMPToRTSP: true},
+			map[string]string{"SRS_VHOST_RTSP_ENABLED": "on", "SRS_VHOST_RTSP_RTMP_TO_RTSP": "off"}},
+		{"VhostOff", RTSPOptions{VhostOff: true}, map[string]string{"SRS_VHOST_RTSP_ENABLED": "off"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := RemuxConfig("flv")
+			cfg := WithRTSP(base, tc.r)
+			if want := append(slices.Clone(base.Listeners), RTSP); !reflect.DeepEqual(cfg.Listeners, want) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+			}
+			want := map[string]string{}
+			for k, v := range base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, ok := base.Env["SRS_VHOST_RTSP_ENABLED"]; ok || len(base.Listeners) != 3 {
+				t.Errorf("the base config changed: %v %v", base.Listeners, base.Env)
+			}
+			ports := map[Listener]int{}
+			for i, l := range cfg.Listeners {
+				ports[l] = 14000 + i
+			}
+			if _, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{}); err != nil {
+				t.Fatalf("build env: %v", err)
+			}
+		})
+	}
+	// A config with RTSP on keeps its listeners.
+	if cfg := WithRTSP(CommonConfig(), RTSPOptions{}); !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
 		t.Errorf("listeners %v, want Common's", cfg.Listeners)
 	}
 }

@@ -23,6 +23,7 @@ import (
 	"srs-integ/internal/mp4"
 	"srs-integ/internal/report"
 	"srs-integ/internal/rtc"
+	"srs-integ/internal/rtsp"
 	"srs-integ/internal/srt"
 	"srs-integ/internal/ts"
 )
@@ -33,7 +34,8 @@ Read a stream and print its stream report: rtmp://host/app/stream,
 rtmps://host:port/app/stream (the certificate is not verified), http://host/app/stream.flv, .ts, .aac, .mp3, .m3u8 (HLS) or .mpd (DASH),
 WebRTC by WHEP, http://host:1985/rtc/v1/whep/?app=live&stream=s (or
 /rtc/v1/whip-play/), SRT, srt://host:port?streamid=#!::r=live/s,m=request
-(also passphrase, pbkeylen and latency in ms), or an FLV, TS, AAC, MP3 or MP4 file. It stops after -duration of media, and fails
+(also passphrase, pbkeylen and latency in ms), RTSP over TCP,
+rtsp://host:port/app/stream, or an FLV, TS, AAC, MP3 or MP4 file. It stops after -duration of media, and fails
 when -timeout passes first. HLS and DASH stop after the segment that reaches
 it.
 
@@ -101,6 +103,8 @@ func probeURL(ctx context.Context, raw string, u report.Until) (*report.Report, 
 	switch parsed.Scheme {
 	case "rtmp", "rtmps":
 		return flv.PlayRTMP(ctx, raw, cliRTMPOptions, u)
+	case "rtsp":
+		return probeRTSP(ctx, raw, u)
 	case "http", "https":
 		switch {
 		case strings.HasSuffix(parsed.Path, ".flv"):
@@ -117,7 +121,7 @@ func probeURL(ctx context.Context, raw string, u report.Until) (*report.Report, 
 			return probeWHEP(ctx, raw, u)
 		}
 	}
-	return nil, fmt.Errorf("unsupported URL %v, want rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd}, a WHEP URL, srt:// or a file", raw)
+	return nil, fmt.Errorf("unsupported URL %v, want rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd}, a WHEP URL, srt://, rtsp:// or a file", raw)
 }
 
 // probeWHEP plays a stream by WHEP, offering every codec, so SRS answers the
@@ -132,6 +136,17 @@ func probeWHEP(ctx context.Context, raw string, u report.Until) (*report.Report,
 	if err := player.RequestKeyframe(); err != nil {
 		return player.Report(), err
 	}
+	return player.Until(ctx, u)
+}
+
+// probeRTSP plays a stream over RTSP. SRS keeps no GOP for RTSP players, so a
+// player that joins a running stream starts at its next keyframe.
+func probeRTSP(ctx context.Context, raw string, u report.Until) (*report.Report, error) {
+	player, err := rtsp.Play(ctx, raw, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer player.Close()
 	return player.Until(ctx, u)
 }
 

@@ -50,6 +50,7 @@ func TestRun(t *testing.T) {
 		{"PublishSRTNotTS", []string{"publish", "/nothing/a.flv", "srt://127.0.0.1:1"}, 1, "", "publish: SRT takes an MPEG-TS file"},
 		{"PublishSRTNoFile", []string{"publish", "/nothing/a.ts", "srt://127.0.0.1:1?streamid=#!::r=live/a,m=publish"}, 1, "", "/nothing/a.ts"},
 		{"PublishSRTBadURL", []string{"publish", "/nothing/a.ts", "srt://127.0.0.1"}, 1, "", "publish: \"srt://127.0.0.1\" has no host and port"},
+		{"ProbeRTSPRefused", []string{"probe", "-timeout", "1s", "rtsp://127.0.0.1:1/live/a"}, 1, "", "connection refused"},
 		{"PrepareExtraArgs", []string{"prepare", "x"}, 2, "", "Usage: srs-integ prepare"},
 		{"PrepareBadFlag", []string{"prepare", "-nothing"}, 2, "", "Usage: srs-integ prepare"},
 		{"PrepareNoSource", []string{"prepare", "-source", "/nothing/source.flv", "-dir", "/tmp/srs-integ-no-dir"}, 1, "", "/nothing/source.flv"},

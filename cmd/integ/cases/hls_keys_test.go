@@ -382,8 +382,9 @@ func hlsPlays(srs *server.Server, name string) []mock.Request {
 // fragments and the MPD in a dir per stream, and WebRTC over UDP only with
 // dtls_role active, stun_strict_check on, api_as_candidates off and
 // nack_prefer_rtx on; TestSrt_LatencyOnly shares it too, for SRT with
-// latency set alone. HLS and DASH write different files, and WebRTC and SRT
-// sessions write none, so none of the groups depends on what the others
+// latency set alone, and TestRtsp_VhostOff, for the RTSP listener with RTSP
+// off on the vhost. HLS and DASH write different files, and WebRTC, SRT and
+// RTSP sessions write none, so none of the groups depends on what the others
 // set.
 func sharedFmp4Keys() server.Config {
 	cfg := server.HLSConfig(server.HLS{
@@ -399,7 +400,8 @@ func sharedFmp4Keys() server.Config {
 		Fragment: 2 * time.Second,
 		MPDFile:  "[app]/[stream]/index.mpd",
 	})
-	return server.WithSRT(server.WithRTC(cfg, sharedFmp4KeysRTC), sharedFmp4KeysSRT)
+	cfg = server.WithSRT(server.WithRTC(cfg, sharedFmp4KeysRTC), sharedFmp4KeysSRT)
+	return server.WithRTSP(cfg, server.RTSPOptions{VhostOff: true})
 }
 
 // TestHls_Fmp4Keys is hls_keys with fmp4 segments: SAMPLE-AES keys in the

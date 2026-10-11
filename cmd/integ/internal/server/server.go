@@ -418,8 +418,8 @@ func (s *Server) logTo(t testing.TB) {
 // own stream, and WebRTC over UDP and TCP with 127.0.0.1 as its candidate,
 // so a session doesn't depend on the host's interfaces; the host of a WHIP or
 // WHEP request is a candidate too, and SRT with its streams converted to RTMP
-// and no receive latency (see srtEnv). A case that tests the default batching
-// needs a variant.
+// and no receive latency (see srtEnv), and RTSP for every RTMP stream. A case
+// that tests the default batching needs a variant.
 func CommonConfig() Config {
 	cfg := Config{
 		Listeners: CommonListeners,
@@ -439,6 +439,8 @@ func CommonConfig() Config {
 			// it is, never resolved, so no case depends on DNS.
 			"SRS_RTC_SERVER_KEEP_API_DOMAIN":    "on",
 			"SRS_RTC_SERVER_RESOLVE_API_DOMAIN": "off",
+			// RTSP plays every RTMP stream, by rtmp_to_rtsp, on by default.
+			"SRS_VHOST_RTSP_ENABLED": "on",
 		},
 	}
 	for k, v := range srtEnv {
@@ -1161,4 +1163,34 @@ var srtEnv = map[string]string{
 	"SRS_VHOST_SRT_ENABLED":      "on",
 	"SRS_VHOST_SRT_TO_RTMP":      "on",
 	"SRS_SRT_SERVER_RECVLATENCY": "0",
+}
+
+// RTSPOptions are an RTSP variant's settings; the zero value is RTSP on, like
+// Common.
+type RTSPOptions struct {
+	// NoRTMPToRTSP turns rtmp_to_rtsp off: RTMP streams are not played over
+	// RTSP.
+	NoRTMPToRTSP bool
+	// VhostOff leaves RTSP off on the vhost, with the listener on.
+	VhostOff bool
+}
+
+// WithRTSP returns a copy of cfg with the RTSP listener and the settings r.
+func WithRTSP(cfg Config, r RTSPOptions) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_RTSP_ENABLED"] = "on"
+	if r.VhostOff {
+		env["SRS_VHOST_RTSP_ENABLED"] = "off"
+	}
+	if r.NoRTMPToRTSP {
+		env["SRS_VHOST_RTSP_RTMP_TO_RTSP"] = "off"
+	}
+	cfg.Env = env
+	if !slices.Contains(cfg.Listeners, RTSP) {
+		cfg.Listeners = append(slices.Clone(cfg.Listeners), RTSP)
+	}
+	return cfg
 }
