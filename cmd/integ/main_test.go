@@ -27,6 +27,9 @@ func TestRun(t *testing.T) {
 		{"PublishNoArgs", []string{"publish"}, 2, "", "Usage: srs-integ publish <file> <url>"},
 		{"PublishNoURL", []string{"publish", "a.flv"}, 2, "", "Usage: srs-integ publish <file> <url>"},
 		{"PublishNotImplemented", []string{"publish", "a.flv", "rtmp://127.0.0.1/live/a"}, 1, "", "publish: not implemented yet"},
+		{"PrepareExtraArgs", []string{"prepare", "x"}, 2, "", "Usage: srs-integ prepare"},
+		{"PrepareBadFlag", []string{"prepare", "-nothing"}, 2, "", "Usage: srs-integ prepare"},
+		{"PrepareNoSource", []string{"prepare", "-source", "/nothing/source.flv", "-dir", "/tmp/srs-integ-no-dir"}, 1, "", "/nothing/source.flv"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

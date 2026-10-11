@@ -13,7 +13,8 @@ modules, and needs no cgo.
 From the repository root:
 
 ```bash
-make integ          # Every case: the timer cases and the others, as two go test processes at once.
+make integ          # The test media, then every case: the timer cases and the others, as two go test processes at once.
+make integ-prepare  # Only the test media.
 make bin/srs-integ  # The CLI, also built by make build.
 ```
 
@@ -53,13 +54,14 @@ The CLI gives the stream tools by hand:
 ```bash
 bin/srs-integ probe <url>            # Read a stream and print its stream report.
 bin/srs-integ publish <file> <url>   # Publish a media file in real time.
+bin/srs-integ prepare -h             # Make the test media; its flags.
 ```
 
 ## Layout
 
 - `main.go`: the CLI.
 - `internal/server/`: the adapter, the only package that knows the SRS binary, its env var names, its ports and its paths.
-- `internal/media/`: the test media.
+- `internal/media/`: the test media: its recipes, the prepare cache, and FLV and MP4 readers.
 - `internal/rtmp/`, `internal/flv/`, `internal/ts/`, `internal/mp4/`, `internal/hls/`, `internal/dash/`, `internal/rtc/`, `internal/srt/`, `internal/rtsp/`, `internal/gb/`: the clients and analyzers.
 - `internal/mock/`: the hook and heartbeat servers.
 - `internal/check/`: the case helper.
@@ -128,6 +130,32 @@ and without its cleanups.
 Streams are published in real time, like ffmpeg `-re`. Segment groups (HLS,
 DASH and DVR) publish without `-re`, because segments follow media timestamps,
 not wall time.
+
+### Test media
+
+The media is made from one source, `doc/source.flv`, never committed.
+`make integ-prepare`, which `make integ` runs first, transcodes a 30s cut of
+it into `testdata/media/` with each recipe of `internal/media`, every video
+with a fixed 1s GOP at 25 fps:
+
+| File | Video | Audio | For |
+|---|---|---|---|
+| `h264-high-aac.flv` | H.264 High with B-frames | AAC 44.1 kHz stereo | RTMP, HTTP, HLS, DASH and SRT, like a real encoder |
+| `h264-baseline-aac.flv` | H.264 Baseline, no B-frames | AAC | RTMP to WebRTC and RTSP |
+| `h264-baseline-opus.mp4` | H.264 Baseline | Opus 48 kHz stereo | WHIP |
+| `hevc-aac.flv` | HEVC Main | AAC | enhanced RTMP |
+| `aac-only.flv` | none | AAC | audio only |
+| `h264-only.flv` | H.264 High | none | video only |
+| `h264-high-mp3.flv` | H.264 High | MP3 44.1 kHz stereo | MP3 |
+| `vp9-opus.mp4` | VP9 profile 0 | Opus | WebRTC |
+| `av1-opus.mp4` | AV1 Main | Opus | WebRTC |
+
+- **ffmpeg:** `$FFMPEG`, then `PATH`, then `~/.local/bin`, the first with libx264, libx265 and an Opus encoder (libopus, or the native `opus`). Cases use the same lookup.
+- **macOS:** when no ffmpeg is found, or it lacks libvpx-vp9 or libsvtav1, prepare runs `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` to build one in `~/.local/bin`. Other tests share that binary, so it first waits until the Full-tier lock is free and no ffmpeg runs.
+- **Unavailable:** a recipe whose encoder the ffmpeg lacks, such as VP9 and AV1 in CI, is recorded as unavailable, and its cases skip with "ffmpeg lacks <encoder>".
+- **Cache:** `testdata/media/manifest.json` records the source's size and SHA-256, each recipe and the ffmpeg version. Only a file whose entry changed is made again.
+- **Missing or stale:** a case gets a file with `media.Path(c, media.H264HighAAC)`, which fails with "run make integ-prepare" when the file is missing or stale. It never skips for that.
+- **Checks:** ffmpeg versions make different bytes, so nothing checks bytes. The unit tests of `internal/media`, which need `make integ-prepare` first, read each file and check its codecs, profile, B-frames, GOP, frame rate, sample rate, duration and frame counts.
 
 ### Known bugs
 

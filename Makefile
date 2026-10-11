@@ -1,4 +1,4 @@
-.PHONY: all build test fmt clean run generate integ integ-main integ-timer
+.PHONY: all build test fmt clean run generate integ integ-prepare integ-main integ-timer
 
 all: build
 
@@ -28,11 +28,17 @@ fmt: ./.go-formarted
 	go fmt ./cmd/... ./internal/...
 	go -C cmd/integ fmt ./...
 
-# Run the timer cases and the other cases as two go test processes at once;
-# it fails if either fails. They run in the cases directory with no package
-# argument, so go test prints the summary of a passing run too.
-integ:
+# Make the test media, then run the timer cases and the other cases as two go
+# test processes at once; it fails if either fails. They run in the cases
+# directory with no package argument, so go test prints the summary of a
+# passing run too.
+integ: integ-prepare
 	@$(MAKE) --no-print-directory -j2 integ-timer integ-main
+
+# Make the test media from doc/source.flv; only changed files are made again.
+# On macOS it builds an ffmpeg with every encoder first, if needed.
+integ-prepare: bin/srs-integ
+	bin/srs-integ prepare -source doc/source.flv -dir cmd/integ/testdata/media -setup skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh
 
 integ-timer:
 	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer

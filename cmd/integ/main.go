@@ -18,6 +18,7 @@ const usage = `Usage: srs-integ <command> [arguments]
 Commands:
   probe <url>            Read a stream and print its stream report.
   publish <file> <url>   Publish a media file in real time.
+  prepare [flags]        Make the test media from doc/source.flv; -h for its flags.
   help                   Print this help.
 `
 
@@ -43,6 +44,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		return fail(stderr, probe(rest[0], stdout))
+	case "prepare":
+		return prepare(rest, stdout, stderr)
 	case "publish":
 		if len(rest) != 2 {
 			fmt.Fprintln(stderr, "Usage: srs-integ publish <file> <url>")

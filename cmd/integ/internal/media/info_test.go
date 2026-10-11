@@ -1,0 +1,92 @@
+// Copyright (c) 2026 Winlin
+//
+// SPDX-License-Identifier: MIT
+package media
+
+import (
+	"bytes"
+	"math"
+	"testing"
+	"time"
+)
+
+func TestProbeFLV(t *testing.T) {
+	// Three frames at 25 fps, the first a keyframe, with B-frame offsets,
+	// and two AAC frames at 44.1 kHz stereo.
+	file := flvBytes(5,
+		FLVTag{TagVideo, 0, []byte{0x17, 0, 0, 0, 0, 1, 100, 0, 30}},
+		FLVTag{TagAudio, 0, []byte{0xaf, 0, 0x12, 0x10}},
+		FLVTag{TagVideo, 0, []byte{0x17, 1, 0, 0, 80, 9}},
+		FLVTag{TagAudio, 0, []byte{0xaf, 1, 9}},
+		FLVTag{TagVideo, 40, []byte{0x27, 1, 0, 0, 0, 9}},
+		FLVTag{TagAudio, 23, []byte{0xaf, 1, 9}},
+		FLVTag{TagVideo, 80, []byte{0x27, 1, 0, 0, 40, 9}},
+	)
+	info, err := probeFLV(bytes.NewReader(file))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := info.Video
+	if v == nil || v.Codec != "h264" || v.Profile != "High" || v.Frames != 3 || !v.BFrames ||
+		len(v.Keyframes) != 1 || v.Duration != 120*time.Millisecond || math.Abs(v.FPS()-25) > 1e-9 {
+		t.Errorf("video %+v", v)
+	}
+	a := info.Audio
+	if a == nil || a.Codec != "aac" || a.SampleRate != 44100 || a.Channels != 2 || a.Frames != 2 {
+		t.Errorf("audio %+v", a)
+	}
+}
+
+func TestProbeMP4(t *testing.T) {
+	file, _ := testMP4()
+	info, err := probeMP4(bytes.NewReader(file), int64(len(file)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := info.Video
+	if v == nil || v.Codec != "h264" || v.Profile != "High" || v.Frames != 5 || !v.BFrames ||
+		len(v.Keyframes) != 2 || v.Keyframes[1] != 120*time.Millisecond || v.Duration != 200*time.Millisecond {
+		t.Errorf("video %+v", v)
+	}
+	if a := info.Audio; a == nil || a.Codec != "aac" || a.SampleRate != 44100 || a.Channels != 2 || a.Frames != 3 {
+		t.Errorf("audio %+v", a)
+	}
+}
+
+func TestCodecConfigs(t *testing.T) {
+	profiles := []struct {
+		codec  string
+		config []byte
+		want   string
+	}{
+		{"h264", []byte{1, 66}, "Baseline"},
+		{"h264", []byte{1, 77}, "Main"},
+		{"h264", []byte{1, 100}, "High"},
+		{"hevc", []byte{1, 0x01}, "Main"},
+		{"hevc", []byte{1, 0x02}, "2"},
+		{"av1", []byte{0x81, 0x08}, "Main"},
+		{"vp9", []byte{0, 10}, "0"},
+		{"h264", []byte{1}, ""},
+	}
+	for _, p := range profiles {
+		if got := profileOf(p.codec, p.config); got != p.want {
+			t.Errorf("%v %x: profile %q, want %q", p.codec, p.config, got, p.want)
+		}
+	}
+
+	if rate, ch := aacConfig([]byte{0x12, 0x10}); rate != 44100 || ch != 2 {
+		t.Errorf("AAC LC 44.1k stereo: %v %v", rate, ch)
+	}
+	if rate, ch := aacConfig([]byte{0x11, 0x88}); rate != 48000 || ch != 1 {
+		t.Errorf("AAC LC 48k mono: %v %v", rate, ch)
+	}
+	if rate, ch := mp3Header([]byte{0xff, 0xfb, 0x90, 0x44}); rate != 44100 || ch != 2 {
+		t.Errorf("MPEG-1 44.1k joint stereo: %v %v", rate, ch)
+	}
+	if rate, ch := mp3Header([]byte{0xff, 0xf3, 0x94, 0xc4}); rate != 24000 || ch != 1 {
+		t.Errorf("MPEG-2 24k mono: %v %v", rate, ch)
+	}
+	if rate, _ := mp3Header([]byte{0, 0, 0, 0}); rate != 0 {
+		t.Errorf("not a frame: %v", rate)
+	}
+}
