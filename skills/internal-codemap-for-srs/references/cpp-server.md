@@ -149,7 +149,7 @@ DVR:
 
 Edge/Forward/Bridge:
 - `app_edge` — Edge mode: pull/push from origin
-- `app_forward` — Forward: push stream to another RTMP server
+- `app_forward` — Forward: push stream to another RTMP server; restarts from live at a keyframe after each connect or queue overflow, and reports its state to `app_statistic`
 - `app_stream_bridge` — Bridge between sources (RTMP↔RTC↔SRT)
 
 Ingest/Transcode:
@@ -160,7 +160,7 @@ Ingest/Transcode:
 Utilities:
 - `app_security` — Security: allow/deny rules for publish/play
 - `app_refer` — Referer check
-- `app_statistic` — Server/stream/client statistics
+- `app_statistic` — Server/stream/client/forward statistics
 - `app_heartbeat` — HTTP heartbeat to API server
 - `app_utility` — System info, disk/CPU/memory stats
 - `app_process` — Child process management
@@ -205,6 +205,7 @@ Config (`trunk/conf/`) is only for the C++ media server. The next-generation Go 
 - `hevc_test.go` — HEVC
 - `dvr_test.go` — DVR
 - `http_api_test.go` — HTTP API
+- `forward_test.go` — Forward (destination and backend)
 - `mp3_test.go` — MP3
 
 `trunk/3rdparty/srs-bench/srs/` — E2E protocol tests against an externally started SRS server. Uses real Pion WebRTC, RTMP, and HTTP API clients.

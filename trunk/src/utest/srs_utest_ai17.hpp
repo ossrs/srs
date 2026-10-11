@@ -330,6 +330,12 @@ public:
     virtual srs_error_t dumps_vhosts(SrsJsonArray *arr);
     virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count);
     virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count);
+    virtual int count_forwards(std::string stream_id);
+    virtual SrsStatisticForward *find_forward(std::string forward_id);
+    virtual void on_forward_start(std::string id, ISrsRequest *req, std::string url);
+    virtual void on_forward_state(std::string id, SrsForwardState state);
+    virtual void on_forward_stop(std::string id);
     virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
 };
 
@@ -580,6 +586,12 @@ public:
     virtual srs_error_t dumps_vhosts(SrsJsonArray *arr);
     virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count);
     virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
+    virtual srs_error_t dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count);
+    virtual int count_forwards(std::string stream_id);
+    virtual SrsStatisticForward *find_forward(std::string forward_id);
+    virtual void on_forward_start(std::string id, ISrsRequest *req, std::string url);
+    virtual void on_forward_state(std::string id, SrsForwardState state);
+    virtual void on_forward_stop(std::string id);
     virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
 };
 

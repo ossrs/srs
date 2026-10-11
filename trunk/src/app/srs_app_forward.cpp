@@ -18,6 +18,7 @@ using namespace std;
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_st.hpp>
+#include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_codec.hpp>
@@ -39,12 +40,17 @@ ISrsForwarder::~ISrsForwarder()
 {
 }
 
-SrsForwarder::SrsForwarder(ISrsOriginHub *h)
+SrsForwarder::SrsForwarder(ISrsOriginHub *h, ISrsRequest *req)
 {
     hub_ = h;
 
+    SrsRand rand;
+    id_ = "fwd-" + rand.gen_str(7);
+
     req_ = NULL;
-    sh_video_ = sh_audio_ = NULL;
+    stream_req_ = req->copy();
+    metadata_ = sh_video_ = sh_audio_ = NULL;
+    wait_keyframe_ = false;
 
     sdk_ = NULL;
     trd_ = new SrsDummyCoroutine();
@@ -53,6 +59,7 @@ SrsForwarder::SrsForwarder(ISrsOriginHub *h)
 
     app_factory_ = _srs_app_factory;
     config_ = _srs_config;
+    stat_ = _srs_stat;
 }
 
 SrsForwarder::~SrsForwarder()
@@ -62,13 +69,16 @@ SrsForwarder::~SrsForwarder()
     srs_freep(queue_);
     srs_freep(jitter_);
 
+    srs_freep(metadata_);
     srs_freep(sh_video_);
     srs_freep(sh_audio_);
 
     srs_freep(req_);
+    srs_freep(stream_req_);
 
     app_factory_ = NULL;
     config_ = NULL;
+    stat_ = NULL;
 }
 
 srs_error_t SrsForwarder::initialize(ISrsRequest *r, string ep)
@@ -103,6 +113,8 @@ srs_error_t SrsForwarder::on_publish()
 {
     srs_error_t err = srs_success;
 
+    stat_->on_forward_start(id_, stream_req_, destination_url());
+
     srs_freep(trd_);
     trd_ = new SrsSTCoroutine("forward", this);
     if ((err = trd_->start()) != srs_success) {
@@ -117,6 +129,8 @@ void SrsForwarder::on_unpublish()
     trd_->stop();
     if (sdk_)
         sdk_->close();
+
+    stat_->on_forward_stop(id_);
 }
 
 srs_error_t SrsForwarder::on_meta_data(SrsMediaPacket *shared_metadata)
@@ -130,7 +144,10 @@ srs_error_t SrsForwarder::on_meta_data(SrsMediaPacket *shared_metadata)
         return srs_error_wrap(err, "jitter");
     }
 
-    if ((err = queue_->enqueue(metadata)) != srs_success) {
+    srs_freep(metadata_);
+    metadata_ = metadata->copy();
+
+    if ((err = enqueue(metadata)) != srs_success) {
         return srs_error_wrap(err, "enqueue metadata");
     }
 
@@ -153,7 +170,7 @@ srs_error_t SrsForwarder::on_audio(SrsMediaPacket *shared_audio)
         sh_audio_ = msg->copy();
     }
 
-    if ((err = queue_->enqueue(msg)) != srs_success) {
+    if ((err = enqueue(msg)) != srs_success) {
         return srs_error_wrap(err, "enqueue audio");
     }
 
@@ -171,13 +188,40 @@ srs_error_t SrsForwarder::on_video(SrsMediaPacket *shared_video)
         return srs_error_wrap(err, "jitter");
     }
 
-    if (SrsFlvVideo::sh(msg->payload(), msg->size())) {
+    bool is_sh = SrsFlvVideo::sh(msg->payload(), msg->size());
+    if (is_sh) {
         srs_freep(sh_video_);
         sh_video_ = msg->copy();
     }
 
-    if ((err = queue_->enqueue(msg)) != srs_success) {
+    // Drop video until the next keyframe; a sequence header always passes.
+    if (wait_keyframe_ && msg->is_video() && !is_sh) {
+        if (!SrsFlvVideo::keyframe(msg->payload(), msg->size())) {
+            srs_freep(msg);
+            return err;
+        }
+        wait_keyframe_ = false;
+    }
+
+    if ((err = enqueue(msg)) != srs_success) {
         return srs_error_wrap(err, "enqueue video");
+    }
+
+    return err;
+}
+
+srs_error_t SrsForwarder::enqueue(SrsMediaPacket *msg)
+{
+    srs_error_t err = srs_success;
+
+    bool is_overflow = false;
+    if ((err = queue_->enqueue(msg, &is_overflow)) != srs_success) {
+        return srs_error_wrap(err, "enqueue");
+    }
+
+    // The shrink dropped the queued media, so the destination must restart at a keyframe.
+    if (is_overflow) {
+        wait_keyframe_ = true;
     }
 
     return err;
@@ -205,6 +249,9 @@ srs_error_t SrsForwarder::cycle()
             srs_freep(err);
         }
 
+        // Wait to retry.
+        stat_->on_forward_state(id_, SrsForwardStateRetrying);
+
         // Never wait if thread error, fast quit.
         // @see https://github.com/ossrs/srs/pull/2284
         if ((err = trd_->pull()) != srs_success) {
@@ -221,17 +268,9 @@ srs_error_t SrsForwarder::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    std::string url;
-    if (true) {
-        std::string server;
-        int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+    stat_->on_forward_state(id_, SrsForwardStateConnecting);
 
-        // parse host:port from hostport.
-        srs_net_split_hostport(ep_forward_, server, port);
-
-        // generate url
-        url = srs_net_url_encode_rtmp_url(server, port, req_->host_, req_->vhost_, req_->app_, req_->stream_, req_->param_);
-    }
+    std::string url = destination_url();
 
     srs_freep(sdk_);
     srs_utime_t cto = SRS_FORWARDER_CIMS;
@@ -253,6 +292,13 @@ srs_error_t SrsForwarder::do_cycle()
         return srs_error_wrap(err, "notify hub start");
     }
 
+    // Start fresh from live: drop the media queued before the publish, which forward() replaces
+    // by the cached metadata and sequence headers, and drop video until the next keyframe.
+    queue_->clear();
+    wait_keyframe_ = true;
+
+    stat_->on_forward_state(id_, SrsForwardStateForwarding);
+
     if ((err = forward()) != srs_success) {
         return srs_error_wrap(err, "forward");
     }
@@ -260,6 +306,18 @@ srs_error_t SrsForwarder::do_cycle()
     srs_trace("forward publish url %s, stream=%s%s as %s", url.c_str(), req_->stream_.c_str(), req_->param_.c_str(), stream.c_str());
 
     return err;
+}
+
+std::string SrsForwarder::destination_url()
+{
+    std::string server;
+    int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+
+    // parse host:port from hostport.
+    srs_net_split_hostport(ep_forward_, server, port);
+
+    // generate url
+    return srs_net_url_encode_rtmp_url(server, port, req_->host_, req_->vhost_, req_->app_, req_->stream_, req_->param_);
 }
 
 #define SYS_MAX_FORWARD_SEND_MSGS 128
@@ -273,8 +331,13 @@ srs_error_t SrsForwarder::forward()
 
     SrsMessageArray msgs(SYS_MAX_FORWARD_SEND_MSGS);
 
-    // update sequence header
+    // Send the metadata and sequence headers first.
     // TODO: FIXME: maybe need to zero the sequence header timestamp.
+    if (metadata_) {
+        if ((err = sdk_->send_and_free_message(metadata_->copy())) != srs_success) {
+            return srs_error_wrap(err, "send metadata");
+        }
+    }
     if (sh_video_) {
         if ((err = sdk_->send_and_free_message(sh_video_->copy())) != srs_success) {
             return srs_error_wrap(err, "send video sh");

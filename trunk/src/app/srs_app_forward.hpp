@@ -28,6 +28,7 @@ class SrsSimpleRtmpClient;
 class ISrsBasicRtmpClient;
 class ISrsAppFactory;
 class ISrsAppConfig;
+class ISrsStatistic;
 
 // The forward interface.
 class ISrsForwarder
@@ -53,12 +54,18 @@ class SrsForwarder : public ISrsCoroutineHandler, public ISrsForwarder
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppFactory *app_factory_;
     ISrsAppConfig *config_;
+    ISrsStatistic *stat_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // The forward id, which identifies this forwarder in the statistic and the HTTP API.
+    std::string id_;
     // The ep to forward, server[:port].
     std::string ep_forward_;
     ISrsRequest *req_;
+    // The request of the publishing stream this forwarder belongs to, for the statistic. It differs
+    // from req_ for a forward.backend url, which has its own app and stream.
+    ISrsRequest *stream_req_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -75,12 +82,17 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsBasicRtmpClient *sdk_;
     SrsRtmpJitter *jitter_;
     SrsMessageQueue *queue_;
-    // Cache the sequence header for retry when slave is failed.
+    // Cache the metadata and sequence headers, sent first after each publish to the destination.
+    SrsMediaPacket *metadata_;
     SrsMediaPacket *sh_audio_;
     SrsMediaPacket *sh_video_;
+    // Whether to drop video until the next keyframe, after a publish or a queue overflow, so the
+    // destination never starts from the middle of a GOP. Audio and sequence headers pass.
+    bool wait_keyframe_;
 
 public:
-    SrsForwarder(ISrsOriginHub *h);
+    // The req is the publishing stream this forwarder belongs to.
+    SrsForwarder(ISrsOriginHub *h, ISrsRequest *req);
     virtual ~SrsForwarder();
 
 public:
@@ -106,10 +118,14 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_cycle();
+    // The full destination url to publish to, with the stream key and query.
+    virtual std::string destination_url();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t forward();
+    // Enqueue a packet, and wait for the next keyframe if the queue overflows and shrinks.
+    virtual srs_error_t enqueue(SrsMediaPacket *msg);
 };
 
 #endif

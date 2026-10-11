@@ -1344,7 +1344,7 @@ srs_error_t SrsOriginHub::create_forwarders()
     for (int i = 0; conf && i < (int)conf->args_.size(); i++) {
         std::string forward_server = conf->args_.at(i);
 
-        ISrsForwarder *forwarder = new SrsForwarder(this);
+        ISrsForwarder *forwarder = new SrsForwarder(this, req_);
         forwarders_.push_back(forwarder);
 
         // initialize the forwarder with request.
@@ -1398,8 +1398,8 @@ srs_error_t SrsOriginHub::create_backend_forwarders(bool &applied)
         srs_net_url_parse_rtmp_url(url, req->tcUrl_, req->stream_);
         srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
 
-        // create forwarder
-        ISrsForwarder *forwarder = new SrsForwarder(this);
+        // create forwarder, which belongs to the publishing stream, not to the app and stream of the url.
+        ISrsForwarder *forwarder = new SrsForwarder(this, req_);
         forwarders_.push_back(forwarder);
 
         std::stringstream forward_server;

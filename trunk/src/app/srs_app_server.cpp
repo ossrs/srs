@@ -827,6 +827,9 @@ srs_error_t SrsServer::http_handle()
     if ((err = http_api_mux_->handle("/api/v1/clients/", new SrsGoApiClients())) != srs_success) {
         return srs_error_wrap(err, "handle clients");
     }
+    if ((err = http_api_mux_->handle("/api/v1/forwards/", new SrsGoApiForwards())) != srs_success) {
+        return srs_error_wrap(err, "handle forwards");
+    }
 
     SrsGoApiRaw *raw_api = new SrsGoApiRaw(this);
     raw_api->assemble();

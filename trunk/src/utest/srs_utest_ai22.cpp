@@ -1538,6 +1538,33 @@ srs_error_t MockStatisticForRtspPlayStream::dumps_clients(SrsJsonArray *arr, int
     return srs_success;
 }
 
+srs_error_t MockStatisticForRtspPlayStream::dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count)
+{
+    return srs_success;
+}
+
+int MockStatisticForRtspPlayStream::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
+SrsStatisticForward *MockStatisticForRtspPlayStream::find_forward(std::string forward_id)
+{
+    return NULL;
+}
+
+void MockStatisticForRtspPlayStream::on_forward_start(std::string id, ISrsRequest *req, std::string url)
+{
+}
+
+void MockStatisticForRtspPlayStream::on_forward_state(std::string id, SrsForwardState state)
+{
+}
+
+void MockStatisticForRtspPlayStream::on_forward_stop(std::string id)
+{
+}
+
 srs_error_t MockStatisticForRtspPlayStream::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
 {
     send_bytes = 0;

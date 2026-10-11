@@ -1845,6 +1845,33 @@ srs_error_t MockStatisticForRtcApi::dumps_clients(SrsJsonArray *arr, int start, 
     return srs_success;
 }
 
+srs_error_t MockStatisticForRtcApi::dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count)
+{
+    return srs_success;
+}
+
+int MockStatisticForRtcApi::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
+SrsStatisticForward *MockStatisticForRtcApi::find_forward(std::string forward_id)
+{
+    return NULL;
+}
+
+void MockStatisticForRtcApi::on_forward_start(std::string id, ISrsRequest *req, std::string url)
+{
+}
+
+void MockStatisticForRtcApi::on_forward_state(std::string id, SrsForwardState state)
+{
+}
+
+void MockStatisticForRtcApi::on_forward_stop(std::string id)
+{
+}
+
 srs_error_t MockStatisticForRtcApi::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
 {
     send_bytes = 0;
@@ -4737,6 +4764,33 @@ srs_error_t MockStatisticForHooks::dumps_clients(SrsJsonArray *arr, int start, i
     return srs_success;
 }
 
+srs_error_t MockStatisticForHooks::dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count)
+{
+    return srs_success;
+}
+
+int MockStatisticForHooks::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
+SrsStatisticForward *MockStatisticForHooks::find_forward(std::string forward_id)
+{
+    return NULL;
+}
+
+void MockStatisticForHooks::on_forward_start(std::string id, ISrsRequest *req, std::string url)
+{
+}
+
+void MockStatisticForHooks::on_forward_state(std::string id, SrsForwardState state)
+{
+}
+
+void MockStatisticForHooks::on_forward_stop(std::string id)
+{
+}
+
 srs_error_t MockStatisticForHooks::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
 {
     return srs_success;
@@ -5200,4 +5254,500 @@ VOID TEST(HttpHooksTest, OnForwardBackendSuccess)
     hooks->factory_ = NULL;
     hooks->stat_ = NULL;
     mock_factory->mock_http_client_ = NULL;
+}
+
+// The ids of the forwards in a dump, in order.
+static vector<string> utest_forward_dump_ids(SrsJsonArray *arr)
+{
+    vector<string> ids;
+    for (int i = 0; i < arr->count(); i++) {
+        SrsJsonAny *any = arr->at(i);
+        SrsJsonAny *id = any->is_object() ? any->to_object()->get_property("id") : NULL;
+        ids.push_back(id && id->is_string() ? id->to_str() : string("?"));
+    }
+    return ids;
+}
+
+// The ids of the forwards the statistic dumps for the stream and page, joined by spaces.
+static string utest_forward_dump(SrsStatistic *stat, string stream_id, int start, int count)
+{
+    SrsUniquePtr<SrsJsonArray> arr(SrsJsonAny::array());
+    srs_error_t err = stat->dumps_forwards(arr.get(), stream_id, start, count);
+    if (err != srs_success) {
+        string desc = "error " + srs_error_desc(err);
+        srs_freep(err);
+        return desc;
+    }
+
+    vector<string> ids = utest_forward_dump_ids(arr.get());
+    string joined;
+    for (int i = 0; i < (int)ids.size(); i++) {
+        joined += (i ? " " : "") + ids[i];
+    }
+    return joined;
+}
+
+// A forward starts connecting, with the id, publishing stream and url the forwarder reports; each
+// state change stamps the time it entered the state; stop removes it. Unknown ids are ignored.
+VOID TEST(StatisticForwardTest, StartStateAndStop)
+{
+    MockClockForPithyPrint clock;
+    clock.now_ = 1000 * SRS_UTIME_SECONDS;
+
+    SrsStatistic stat;
+    stat.clk_ = &clock;
+
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    stat.on_forward_start("fwd-1", &req, "rtmp://127.0.0.1:19350/live/livestream?token=abc&vhost=test.vhost");
+
+    SrsStatisticStream *stream = stat.find_stream_by_url(req.get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+
+    SrsStatisticForward *forward = stat.find_forward("fwd-1");
+    ASSERT_TRUE(forward != NULL);
+    EXPECT_STREQ("fwd-1", forward->id_.c_str());
+    EXPECT_STREQ(stream->id_.c_str(), forward->stream_id_.c_str());
+    EXPECT_STREQ(stream->vhost_->id_.c_str(), forward->vhost_id_.c_str());
+    EXPECT_STREQ("live", forward->app_.c_str());
+    EXPECT_STREQ("livestream", forward->name_.c_str());
+    EXPECT_STREQ("rtmp://127.0.0.1:19350/live/livestream?token=abc&vhost=test.vhost", forward->url_.c_str());
+    EXPECT_EQ(SrsForwardStateConnecting, forward->state_);
+    EXPECT_EQ(1000 * SRS_UTIME_SECONDS, forward->state_at_);
+
+    clock.now_ = 1001 * SRS_UTIME_SECONDS;
+    stat.on_forward_state("fwd-1", SrsForwardStateForwarding);
+    EXPECT_EQ(SrsForwardStateForwarding, forward->state_);
+    EXPECT_EQ(1001 * SRS_UTIME_SECONDS, forward->state_at_);
+
+    clock.now_ = 1004 * SRS_UTIME_SECONDS;
+    stat.on_forward_state("fwd-1", SrsForwardStateRetrying);
+    EXPECT_EQ(SrsForwardStateRetrying, forward->state_);
+    EXPECT_EQ(1004 * SRS_UTIME_SECONDS, forward->state_at_);
+
+    clock.now_ = 1007 * SRS_UTIME_SECONDS;
+    stat.on_forward_state("fwd-1", SrsForwardStateConnecting);
+    EXPECT_EQ(SrsForwardStateConnecting, forward->state_);
+    EXPECT_EQ(1007 * SRS_UTIME_SECONDS, forward->state_at_);
+
+    // An unknown id changes nothing.
+    clock.now_ = 1010 * SRS_UTIME_SECONDS;
+    stat.on_forward_state("fwd-x", SrsForwardStateForwarding);
+    stat.on_forward_stop("fwd-x");
+    EXPECT_TRUE(stat.find_forward("fwd-x") == NULL);
+    ASSERT_TRUE(stat.find_forward("fwd-1") == forward);
+    EXPECT_EQ(SrsForwardStateConnecting, forward->state_);
+    EXPECT_EQ(1007 * SRS_UTIME_SECONDS, forward->state_at_);
+
+    stat.on_forward_stop("fwd-1");
+    EXPECT_TRUE(stat.find_forward("fwd-1") == NULL);
+
+    stat.clk_ = NULL;
+}
+
+// The names of the states in the HTTP API.
+VOID TEST(StatisticForwardTest, StateNames)
+{
+    EXPECT_STREQ("connecting", srs_forward_state_string(SrsForwardStateConnecting).c_str());
+    EXPECT_STREQ("forwarding", srs_forward_state_string(SrsForwardStateForwarding).c_str());
+    EXPECT_STREQ("retrying", srs_forward_state_string(SrsForwardStateRetrying).c_str());
+}
+
+// A forward dumps exactly its id, its stream (the stream id, vhost id, app and name), the full
+// destination url, the state and the Unix time in ms it entered the state.
+VOID TEST(StatisticForwardTest, DumpsExactFields)
+{
+    srs_error_t err;
+
+    MockClockForPithyPrint clock;
+    clock.now_ = 1760000000000LL * SRS_UTIME_MILLISECONDS;
+
+    SrsStatistic stat;
+    stat.clk_ = &clock;
+
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    stat.on_forward_start("fwd-1", &req, "rtmp://127.0.0.1:19350/live/livestream?token=abc");
+    clock.now_ = 1760000000123LL * SRS_UTIME_MILLISECONDS;
+    stat.on_forward_state("fwd-1", SrsForwardStateForwarding);
+
+    SrsStatisticStream *stream = stat.find_stream_by_url(req.get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+
+    SrsUniquePtr<SrsJsonArray> arr(SrsJsonAny::array());
+    HELPER_EXPECT_SUCCESS(stat.dumps_forwards(arr.get(), "", 0, 10));
+    ASSERT_EQ(1, arr->count());
+    ASSERT_TRUE(arr->at(0)->is_object());
+    SrsJsonObject *obj = arr->at(0)->to_object();
+
+    const char *keys[] = {"id", "stream", "vhost", "app", "name", "url", "state", "state_at"};
+    ASSERT_EQ(8, obj->count());
+    for (int i = 0; i < 8; i++) {
+        EXPECT_STREQ(keys[i], obj->key_at(i).c_str()) << "#" << i;
+    }
+
+    string values[] = {"fwd-1", stream->id_, stream->vhost_->id_, "live", "livestream",
+                       "rtmp://127.0.0.1:19350/live/livestream?token=abc", "forwarding"};
+    for (int i = 0; i < 7; i++) {
+        SrsJsonAny *prop = obj->get_property(keys[i]);
+        ASSERT_TRUE(prop && prop->is_string()) << keys[i];
+        EXPECT_STREQ(values[i].c_str(), prop->to_str().c_str()) << keys[i];
+    }
+
+    SrsJsonAny *state_at = obj->get_property("state_at");
+    ASSERT_TRUE(state_at && state_at->is_integer());
+    EXPECT_EQ(1760000000123LL, state_at->to_integer());
+
+    stat.clk_ = NULL;
+}
+
+// The stream filter dumps only the forwards of that stream; an unknown stream dumps none, and no
+// filter dumps all.
+VOID TEST(StatisticForwardTest, DumpsFilterByStream)
+{
+    SrsStatistic stat;
+
+    MockSrsRequest a("__defaultVhost__", "live", "a");
+    MockSrsRequest b("__defaultVhost__", "live", "b");
+    stat.on_forward_start("fwd-a1", &a, "rtmp://127.0.0.1:19350/live/a");
+    stat.on_forward_start("fwd-a2", &a, "rtmp://127.0.0.1:19351/live/a");
+    stat.on_forward_start("fwd-b1", &b, "rtmp://127.0.0.1:19350/live/b");
+
+    SrsStatisticStream *sa = stat.find_stream_by_url(a.get_stream_url());
+    SrsStatisticStream *sb = stat.find_stream_by_url(b.get_stream_url());
+    ASSERT_TRUE(sa != NULL);
+    ASSERT_TRUE(sb != NULL);
+
+    EXPECT_STREQ("fwd-a1 fwd-a2", utest_forward_dump(&stat, sa->id_, 0, 10).c_str());
+    EXPECT_STREQ("fwd-b1", utest_forward_dump(&stat, sb->id_, 0, 10).c_str());
+    EXPECT_STREQ("", utest_forward_dump(&stat, "vid-unknown", 0, 10).c_str());
+    EXPECT_STREQ("fwd-a1 fwd-a2 fwd-b1", utest_forward_dump(&stat, "", 0, 10).c_str());
+}
+
+// Start skips and count limits the forwards, after the stream filter.
+VOID TEST(StatisticForwardTest, DumpsPagination)
+{
+    SrsStatistic stat;
+
+    MockSrsRequest a("__defaultVhost__", "live", "a");
+    MockSrsRequest b("__defaultVhost__", "live", "b");
+    stat.on_forward_start("fwd-1", &a, "rtmp://127.0.0.1:19351/live/a");
+    stat.on_forward_start("fwd-2", &a, "rtmp://127.0.0.1:19352/live/a");
+    stat.on_forward_start("fwd-3", &b, "rtmp://127.0.0.1:19353/live/b");
+    stat.on_forward_start("fwd-4", &a, "rtmp://127.0.0.1:19354/live/a");
+    stat.on_forward_start("fwd-5", &a, "rtmp://127.0.0.1:19355/live/a");
+
+    SrsStatisticStream *sa = stat.find_stream_by_url(a.get_stream_url());
+    ASSERT_TRUE(sa != NULL);
+
+    EXPECT_STREQ("fwd-1 fwd-2", utest_forward_dump(&stat, "", 0, 2).c_str());
+    EXPECT_STREQ("fwd-3 fwd-4", utest_forward_dump(&stat, "", 2, 2).c_str());
+    EXPECT_STREQ("fwd-5", utest_forward_dump(&stat, "", 4, 10).c_str());
+    EXPECT_STREQ("", utest_forward_dump(&stat, "", 5, 10).c_str());
+
+    // The forward of the other stream is neither dumped nor counted.
+    EXPECT_STREQ("fwd-2 fwd-4", utest_forward_dump(&stat, sa->id_, 1, 2).c_str());
+    EXPECT_STREQ("fwd-5", utest_forward_dump(&stat, sa->id_, 3, 10).c_str());
+}
+
+// Closing a stream, on unpublish, removes every forward of it and keeps the other streams' ones.
+VOID TEST(StatisticForwardTest, StreamCloseRemovesItsForwards)
+{
+    SrsStatistic stat;
+
+    MockSrsRequest a("__defaultVhost__", "live", "a");
+    MockSrsRequest b("__defaultVhost__", "live", "b");
+    stat.on_stream_publish(&a, "cid-a");
+    stat.on_stream_publish(&b, "cid-b");
+    stat.on_forward_start("fwd-a1", &a, "rtmp://127.0.0.1:19350/live/a");
+    stat.on_forward_start("fwd-a2", &a, "rtmp://127.0.0.1:19351/live/a");
+    stat.on_forward_start("fwd-b1", &b, "rtmp://127.0.0.1:19350/live/b");
+
+    stat.on_stream_close(&a);
+
+    EXPECT_TRUE(stat.find_forward("fwd-a1") == NULL);
+    EXPECT_TRUE(stat.find_forward("fwd-a2") == NULL);
+    EXPECT_TRUE(stat.find_forward("fwd-b1") != NULL);
+    EXPECT_STREQ("fwd-b1", utest_forward_dump(&stat, "", 0, 10).c_str());
+}
+
+// The JSON body of an HTTP API response, or NULL if it is not JSON.
+static SrsJsonAny *utest_forward_api_body(MockResponseWriter *w)
+{
+    string response = string(w->io.out_buffer.bytes(), w->io.out_buffer.length());
+    size_t pos = response.find("\r\n\r\n");
+    if (pos == string::npos) {
+        return NULL;
+    }
+    return SrsJsonAny::loads(response.substr(pos + 4));
+}
+
+// Serve one request of the method and url by the forwards API, on the statistic.
+static srs_error_t utest_forward_api_serve(SrsStatistic *stat, llhttp_method_t method, string url, MockResponseWriter *w)
+{
+    srs_error_t err = srs_success;
+
+    SrsGoApiForwards api;
+    api.stat_ = stat;
+    api.entry_ = new SrsHttpMuxEntry();
+    api.entry_->pattern = "/api/v1/forwards/";
+
+    SrsUniquePtr<SrsHttpMessage> req(new SrsHttpMessage());
+    if ((err = req->set_url(url, false)) == srs_success) {
+        req->set_basic(HTTP_REQUEST, method, (llhttp_status_t)200, -1);
+        err = api.serve_http(w, req.get());
+    }
+
+    api.stat_ = NULL;
+    srs_freep(api.entry_);
+    return err;
+}
+
+// The ids of the forwards array of a list response, joined by spaces, or "?" if there is none.
+static string utest_forward_api_ids(SrsJsonObject *obj)
+{
+    SrsJsonAny *forwards = obj->get_property("forwards");
+    if (!forwards || !forwards->is_array()) {
+        return "?";
+    }
+
+    vector<string> ids = utest_forward_dump_ids(forwards->to_array());
+    string joined;
+    for (int i = 0; i < (int)ids.size(); i++) {
+        joined += (i ? " " : "") + ids[i];
+    }
+    return joined;
+}
+
+// The total of a list response, or -1 if there is none.
+static int utest_forward_api_total(SrsJsonObject *obj)
+{
+    SrsJsonAny *total = obj->get_property("total");
+    if (!total || !total->is_integer()) {
+        return -1;
+    }
+    return (int)total->to_integer();
+}
+
+// GET /api/v1/forwards/ lists every forward, with the code, server, service and pid like the
+// other APIs.
+VOID TEST(ApiForwardsTest, ListsEveryForward)
+{
+    srs_error_t err;
+
+    SrsStatistic stat;
+    MockSrsRequest a("__defaultVhost__", "live", "a");
+    MockSrsRequest b("__defaultVhost__", "live", "b");
+    stat.on_forward_start("fwd-a1", &a, "rtmp://127.0.0.1:19350/live/a");
+    stat.on_forward_start("fwd-a2", &a, "rtmp://127.0.0.1:19351/live/a?token=abc");
+    stat.on_forward_start("fwd-b1", &b, "rtmp://127.0.0.1:19350/live/b");
+
+    MockResponseWriter w;
+    HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/", &w));
+
+    SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+    ASSERT_TRUE(json.get() && json->is_object());
+    SrsJsonObject *obj = json->to_object();
+
+    SrsJsonAny *prop = obj->get_property("code");
+    ASSERT_TRUE(prop && prop->is_integer());
+    EXPECT_EQ(ERROR_SUCCESS, prop->to_integer());
+    prop = obj->get_property("server");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ(stat.server_id().c_str(), prop->to_str().c_str());
+    prop = obj->get_property("service");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ(stat.service_id().c_str(), prop->to_str().c_str());
+    prop = obj->get_property("pid");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ(stat.service_pid().c_str(), prop->to_str().c_str());
+
+    EXPECT_STREQ("fwd-a1 fwd-a2 fwd-b1", utest_forward_api_ids(obj).c_str());
+    EXPECT_EQ(3, utest_forward_api_total(obj));
+
+    // Each one is the forward's dump.
+    SrsJsonArray *forwards = obj->get_property("forwards")->to_array();
+    ASSERT_TRUE(forwards->at(1)->is_object());
+    prop = forwards->at(1)->to_object()->get_property("url");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("rtmp://127.0.0.1:19351/live/a?token=abc", prop->to_str().c_str());
+    prop = forwards->at(1)->to_object()->get_property("state");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("connecting", prop->to_str().c_str());
+}
+
+// ?stream= lists only the forwards of that stream, with start and count after the filter, and
+// count defaults to 10. The total is the number of forwards after the filter, whatever the start
+// and count, so the client knows how many pages there are.
+VOID TEST(ApiForwardsTest, FiltersByStreamAndPaginates)
+{
+    srs_error_t err;
+
+    SrsStatistic stat;
+    MockSrsRequest a("__defaultVhost__", "live", "a");
+    MockSrsRequest b("__defaultVhost__", "live", "b");
+    stat.on_forward_start("fwd-a1", &a, "rtmp://127.0.0.1:19350/live/a");
+    stat.on_forward_start("fwd-a2", &a, "rtmp://127.0.0.1:19351/live/a");
+    stat.on_forward_start("fwd-b1", &b, "rtmp://127.0.0.1:19350/live/b");
+    for (int i = 0; i < 11; i++) {
+        stat.on_forward_start("fwd-c" + srs_strconv_format_int(10 + i), &b, "rtmp://127.0.0.1:19352/live/b");
+    }
+
+    SrsStatisticStream *sa = stat.find_stream_by_url(a.get_stream_url());
+    ASSERT_TRUE(sa != NULL);
+
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/?stream=" + sa->id_, &w));
+        SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+        ASSERT_TRUE(json.get() && json->is_object());
+        EXPECT_STREQ("fwd-a1 fwd-a2", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(2, utest_forward_api_total(json->to_object()));
+    }
+
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/?stream=" + sa->id_ + "&start=1&count=1", &w));
+        SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+        ASSERT_TRUE(json.get() && json->is_object());
+        EXPECT_STREQ("fwd-a2", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(2, utest_forward_api_total(json->to_object()));
+    }
+
+    // A start past the end lists nothing, and still has the total.
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/?stream=" + sa->id_ + "&start=5", &w));
+        SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+        ASSERT_TRUE(json.get() && json->is_object());
+        EXPECT_STREQ("", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(2, utest_forward_api_total(json->to_object()));
+    }
+
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/?stream=vid-unknown", &w));
+        SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+        ASSERT_TRUE(json.get() && json->is_object());
+        EXPECT_STREQ("", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(0, utest_forward_api_total(json->to_object()));
+    }
+
+    // 14 forwards in all, 10 by default.
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/", &w));
+        SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+        ASSERT_TRUE(json.get() && json->is_object());
+        EXPECT_STREQ("fwd-a1 fwd-a2 fwd-b1 fwd-c10 fwd-c11 fwd-c12 fwd-c13 fwd-c14 fwd-c15 fwd-c16",
+                     utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(14, utest_forward_api_total(json->to_object()));
+    }
+
+    // The last page of the 14 forwards.
+    if (true) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/?start=10", &w));
+        SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+        ASSERT_TRUE(json.get() && json->is_object());
+        EXPECT_STREQ("fwd-c17 fwd-c18 fwd-c19 fwd-c20", utest_forward_api_ids(json->to_object()).c_str());
+        EXPECT_EQ(14, utest_forward_api_total(json->to_object()));
+    }
+}
+
+// GET /api/v1/forwards/{id} returns that forward as forward.
+VOID TEST(ApiForwardsTest, GetsOneById)
+{
+    srs_error_t err;
+
+    SrsStatistic stat;
+    MockSrsRequest a("__defaultVhost__", "live", "a");
+    stat.on_forward_start("fwd-a1", &a, "rtmp://127.0.0.1:19350/live/a");
+    stat.on_forward_start("fwd-a2", &a, "rtmp://127.0.0.1:19351/live/a?token=abc");
+
+    MockResponseWriter w;
+    HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/fwd-a2", &w));
+
+    SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+    ASSERT_TRUE(json.get() && json->is_object());
+    SrsJsonObject *obj = json->to_object();
+
+    SrsJsonAny *prop = obj->get_property("code");
+    ASSERT_TRUE(prop && prop->is_integer());
+    EXPECT_EQ(ERROR_SUCCESS, prop->to_integer());
+    EXPECT_TRUE(obj->get_property("forwards") == NULL);
+
+    SrsJsonAny *forward = obj->get_property("forward");
+    ASSERT_TRUE(forward && forward->is_object());
+    prop = forward->to_object()->get_property("id");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("fwd-a2", prop->to_str().c_str());
+    prop = forward->to_object()->get_property("url");
+    ASSERT_TRUE(prop && prop->is_string());
+    EXPECT_STREQ("rtmp://127.0.0.1:19351/live/a?token=abc", prop->to_str().c_str());
+}
+
+// An unknown id returns the forward-not-found code, like an unknown client.
+VOID TEST(ApiForwardsTest, UnknownIdReturnsErrorCode)
+{
+    srs_error_t err;
+
+    SrsStatistic stat;
+    MockSrsRequest a("__defaultVhost__", "live", "a");
+    stat.on_forward_start("fwd-a1", &a, "rtmp://127.0.0.1:19350/live/a");
+
+    MockResponseWriter w;
+    HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, HTTP_GET, "http://127.0.0.1/api/v1/forwards/fwd-x", &w));
+
+    SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+    ASSERT_TRUE(json.get() && json->is_object());
+    SrsJsonAny *prop = json->to_object()->get_property("code");
+    ASSERT_TRUE(prop && prop->is_integer());
+    EXPECT_EQ(ERROR_RTMP_FORWARD_NOT_FOUND, prop->to_integer());
+}
+
+// The API is read-only: POST, PUT and DELETE return 405, and a DELETE leaves the forward running.
+VOID TEST(ApiForwardsTest, OtherMethodsNotAllowed)
+{
+    srs_error_t err;
+
+    SrsStatistic stat;
+    MockSrsRequest a("__defaultVhost__", "live", "a");
+    stat.on_forward_start("fwd-a1", &a, "rtmp://127.0.0.1:19350/live/a");
+
+    llhttp_method_t methods[] = {HTTP_POST, HTTP_PUT, HTTP_DELETE, HTTP_DELETE};
+    const char *urls[] = {"http://127.0.0.1/api/v1/forwards/", "http://127.0.0.1/api/v1/forwards/fwd-a1",
+                          "http://127.0.0.1/api/v1/forwards/fwd-a1", "http://127.0.0.1/api/v1/forwards/"};
+    for (int i = 0; i < 4; i++) {
+        MockResponseWriter w;
+        HELPER_EXPECT_SUCCESS(utest_forward_api_serve(&stat, methods[i], urls[i], &w));
+
+        string response = string(w.io.out_buffer.bytes(), w.io.out_buffer.length());
+        EXPECT_TRUE(response.find("HTTP/1.1 405") == 0) << "#" << i << " " << response;
+    }
+
+    EXPECT_TRUE(stat.find_forward("fwd-a1") != NULL);
+}
+
+// /api/v1/ lists the forwards API.
+VOID TEST(ApiForwardsTest, V1ListsForwards)
+{
+    srs_error_t err;
+
+    SrsStatistic stat;
+    SrsGoApiV1 v1;
+    v1.stat_ = &stat;
+
+    MockResponseWriter w;
+    SrsUniquePtr<SrsHttpMessage> req(new SrsHttpMessage());
+    HELPER_EXPECT_SUCCESS(req->set_url("http://127.0.0.1/api/v1/", false));
+    HELPER_EXPECT_SUCCESS(v1.serve_http(&w, req.get()));
+
+    SrsUniquePtr<SrsJsonAny> json(utest_forward_api_body(&w));
+    ASSERT_TRUE(json.get() && json->is_object());
+    SrsJsonAny *urls = json->to_object()->get_property("urls");
+    ASSERT_TRUE(urls && urls->is_object());
+    SrsJsonAny *forwards = urls->to_object()->get_property("forwards");
+    ASSERT_TRUE(forwards && forwards->is_string());
+    EXPECT_FALSE(forwards->to_str().empty());
+
+    v1.stat_ = NULL;
 }

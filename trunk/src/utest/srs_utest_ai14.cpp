@@ -2247,6 +2247,33 @@ srs_error_t MockStatisticForOriginHub::dumps_clients(SrsJsonArray *arr, int star
     return srs_success;
 }
 
+srs_error_t MockStatisticForOriginHub::dumps_forwards(SrsJsonArray *arr, std::string stream_id, int start, int count)
+{
+    return srs_success;
+}
+
+int MockStatisticForOriginHub::count_forwards(std::string stream_id)
+{
+    return 0;
+}
+
+SrsStatisticForward *MockStatisticForOriginHub::find_forward(std::string forward_id)
+{
+    return NULL;
+}
+
+void MockStatisticForOriginHub::on_forward_start(std::string id, ISrsRequest *req, std::string url)
+{
+}
+
+void MockStatisticForOriginHub::on_forward_state(std::string id, SrsForwardState state)
+{
+}
+
+void MockStatisticForOriginHub::on_forward_stop(std::string id)
+{
+}
+
 srs_error_t MockStatisticForOriginHub::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
 {
     send_bytes = 0;
@@ -3186,7 +3213,7 @@ VOID TEST(AppOriginHubTest, SequenceHeaderRequestTypicalScenario)
     hub->req_ = &mock_req;
 
     // Create forwarder and add to hub
-    SrsForwarder *forwarder = new SrsForwarder(hub.get());
+    SrsForwarder *forwarder = new SrsForwarder(hub.get(), &mock_req);
     hub->forwarders_.push_back(forwarder);
 
     // Test on_forwarder_start
@@ -3314,11 +3341,11 @@ VOID TEST(AppForwarderTest, RejectRtmpsDestination)
     SrsUniquePtr<SrsOriginHub> hub(new SrsOriginHub());
     hub->source_ = mock_source;
 
-    // Create forwarder
-    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get()));
-
     // Create mock request
     SrsUniquePtr<MockHlsRequest> req(new MockHlsRequest());
+
+    // Create forwarder
+    SrsUniquePtr<SrsForwarder> forwarder(new SrsForwarder(hub.get(), req.get()));
 
     // Test the hostport spliting
     std::string server;
