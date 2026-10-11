@@ -51,3 +51,24 @@ func TestCleanStaleRuns(t *testing.T) {
 		}
 	}
 }
+
+// TestCommonConfig checks the Common server plays with the lowest latency, so
+// a player gets each frame at once rather than in 350ms batches, and that its
+// env builds.
+func TestCommonConfig(t *testing.T) {
+	cfg := CommonConfig()
+	if !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
+		t.Errorf("listeners %v, want %v", cfg.Listeners, CommonListeners)
+	}
+	want := map[string]string{"SRS_VHOST_MIN_LATENCY": "on", "SRS_VHOST_PLAY_MW_LATENCY": "0"}
+	if !reflect.DeepEqual(cfg.Env, want) {
+		t.Errorf("env %v, want %v", cfg.Env, want)
+	}
+	ports := map[Listener]int{}
+	for i, l := range cfg.Listeners {
+		ports[l] = 14000 + i
+	}
+	if _, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{Key: "k", Cert: "c"}); err != nil {
+		t.Errorf("build env: %v", err)
+	}
+}

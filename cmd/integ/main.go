@@ -70,7 +70,3 @@ func fail(stderr io.Writer, err error) int {
 func probe(url string, stdout io.Writer) error {
 	return fmt.Errorf("probe: not implemented yet")
 }
-
-func publish(file, url string, stdout io.Writer) error {
-	return fmt.Errorf("publish: not implemented yet")
-}

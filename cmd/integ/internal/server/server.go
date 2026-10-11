@@ -361,6 +361,20 @@ func (s *Server) logTo(t testing.TB) {
 	t.Logf("SRS log in %s, last lines:\n%s", s.Dir, strings.Join(s.LogTail(), "\n"))
 }
 
+// CommonConfig is the config of the Common server: every Common listener, and
+// the lowest play latency, so a player gets each message at once rather than in
+// batches of 350ms of media, which would put every streaming case near its
+// limit. A case that tests the default batching needs a variant.
+func CommonConfig() Config {
+	return Config{
+		Listeners: CommonListeners,
+		Env: map[string]string{
+			"SRS_VHOST_MIN_LATENCY":     "on",
+			"SRS_VHOST_PLAY_MW_LATENCY": "0",
+		},
+	}
+}
+
 // Common returns the Common server, shared by every top-level test of the
 // process and started by the first case that asks for it. Main stops it.
 func Common(t testing.TB) *Server {
@@ -371,7 +385,7 @@ func Common(t testing.TB) *Server {
 		run.commonMu.Lock()
 		defer run.commonMu.Unlock()
 		if run.common == nil && run.commonErr == nil {
-			run.common, run.commonErr = Start("common", Config{Listeners: CommonListeners})
+			run.common, run.commonErr = Start("common", CommonConfig())
 		}
 		s, err = run.common, run.commonErr
 	})

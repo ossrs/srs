@@ -53,7 +53,7 @@ The CLI gives the stream tools by hand:
 
 ```bash
 bin/srs-integ probe <url>            # Read a stream and print its stream report.
-bin/srs-integ publish <file> <url>   # Publish a media file in real time.
+bin/srs-integ publish <file> <url>   # Publish an FLV file in real time, to rtmp://.
 bin/srs-integ prepare -h             # Make the test media; its flags.
 ```
 
@@ -62,7 +62,8 @@ bin/srs-integ prepare -h             # Make the test media; its flags.
 - `main.go`: the CLI.
 - `internal/server/`: the adapter, the only package that knows the SRS binary, its env var names, its ports and its paths.
 - `internal/media/`: the test media: its recipes, the prepare cache, and FLV and MP4 readers.
-- `internal/rtmp/`, `internal/flv/`, `internal/ts/`, `internal/mp4/`, `internal/hls/`, `internal/dash/`, `internal/rtc/`, `internal/srt/`, `internal/rtsp/`, `internal/gb/`: the clients and analyzers.
+- `internal/rtmp/`: the RTMP client: the simple and complex handshakes, chunk sizes, connect options, FMLE and Flash publish, play, FLV tags in and out including enhanced RTMP, and real-time pacing.
+- `internal/flv/`, `internal/ts/`, `internal/mp4/`, `internal/hls/`, `internal/dash/`, `internal/rtc/`, `internal/srt/`, `internal/rtsp/`, `internal/gb/`: the clients and analyzers.
 - `internal/mock/`: the hook and heartbeat servers.
 - `internal/check/`: the case helper.
 - `cases/`: the cases.
@@ -98,6 +99,7 @@ with `-parallel 64`, at the same time.
 
 - **Common:** one SRS with every feature that doesn't change how other streams behave, started by the first case that uses it and stopped after every test ends. Each case uses its own stream name.
   Its listeners: RTMP, RTMPS, the HTTP API and server, HTTPS for both, WebRTC over UDP and TCP, SRT, RTSP, the exporter, and the GB28181 media port. The MPEG-TS over UDP caster needs a variant, because a server has one stream caster.
+  It plays with the lowest latency (`min_latency on`, `mw_latency 0`), so a player gets each message at once rather than in 350ms batches; a case that tests the default batching needs a variant.
 - **Variant:** a server only when Common can't do it: a value Common can't have, global state, a process change, or a topology. A variant group is one top-level test that starts its SRS, runs its cases as parallel subtests, and stops the SRS.
 
 ### Classes
@@ -181,4 +183,5 @@ utest scenario it ports, if any.
 |---|---|---|---|---|
 | Api | Smoke | Versions, BuildFeatures, OnlyItsListener | Fast | |
 | Api | Common | Versions, ListenersAccept | Fast | |
+| Rtmp | Common | PublishPlay, PublishPlayHevc (enhanced RTMP) | Normal | |
 | Signal | Smoke | TermExitsZero (`TestTimer_Signal_Smoke`) | Timer | |
