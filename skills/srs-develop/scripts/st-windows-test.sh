@@ -5,7 +5,9 @@
 #
 #   st-windows-test.sh [ST_DIR]     ST_DIR is the local ST checkout, state-threads/ by default
 #
-# Opt in with SRS_TEST_WINDOWS_HOST, the SSH host of the Windows machine, such as win in ~/.zshrc.
+# Opt in with SRS_TEST_WINDOWS_HOST, the SSH host of the Windows machine, set in your shell profile
+# such as ~/.zshrc:
+#   export SRS_TEST_WINDOWS_HOST=<srs-test-windows-host>
 #
 # Nothing about the setup is hardcoded; it mirrors the local checkout:
 #   - The local checkout is $HOME/<path>, and its main repository, for a linked worktree, $HOME/<main>.

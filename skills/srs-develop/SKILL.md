@@ -9,6 +9,20 @@ description: Develop, modify, debug, review, maintain, and explain the SRS and O
 
 **Code and documents are the only truth.** Issue descriptions may be inaccurate. Pull requests may be misleading. Feature descriptions may be insufficient. Always ground your understanding in the actual source code and project documentation. Documents capture design intent, architecture rationale, and complex background that code alone cannot express — they are another form of code. When code and documents conflict, investigate rather than assume one is wrong.
 
+## Critical Rule: No Sensitive Information in Public Repositories
+
+🔒 **SECURITY CRITICAL. SRS, Oryx, proxy, State Threads, website, and dev-docker are public repositories.** Anything written there is published permanently, so never write sensitive information into code, comments, docs, skills, scripts, commit messages, or pull request and issue text:
+
+- Secrets, keys, tokens, passwords, and credentials.
+- Personal information, account names, and private repository names.
+- Local paths, host names, and host aliases.
+
+Environment-specific values belong to the user:
+
+- Read them from environment variables or user-configured tools such as `gh` and `ssh` config, and never copy their values into the project.
+- When a value is needed and not set, ask the user to set it up.
+- Document only the variable name, with a placeholder that matches it, such as `<srs-test-windows-host>` for `SRS_TEST_WINDOWS_HOST`.
+
 ## Critical Rule: Never Push
 
 ⚠️ **Never run `git push` unless the user explicitly asks to push.** Committing or picking to a branch means the local branch only.
