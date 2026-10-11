@@ -765,7 +765,7 @@ type Play struct {
 	GopCacheOff bool
 	// GopCacheMaxFrames limits the messages the GOP cache holds.
 	GopCacheMaxFrames int
-	// QueueLength is the most media a player's queue holds, in whole seconds.
+	// QueueLength is the most media a player's queue holds, in seconds.
 	QueueLength time.Duration
 	// ReduceSequenceHeader drops a sequence header equal to the one before.
 	ReduceSequenceHeader bool
@@ -813,7 +813,7 @@ func PlayConfig(p Play) Config {
 		env["SRS_VHOST_PLAY_GOP_CACHE_MAX_FRAMES"] = strconv.Itoa(p.GopCacheMaxFrames)
 	}
 	if p.QueueLength > 0 {
-		env["SRS_VHOST_PLAY_QUEUE_LENGTH"] = strconv.Itoa(int(p.QueueLength / time.Second))
+		env["SRS_VHOST_PLAY_QUEUE_LENGTH"] = strconv.FormatFloat(p.QueueLength.Seconds(), 'f', -1, 64)
 	}
 	if p.ReduceSequenceHeader {
 		env["SRS_VHOST_PLAY_REDUCE_SEQUENCE_HEADER"] = "on"
@@ -932,7 +932,7 @@ type HLS struct {
 	// MasterRelative is hls_master_m3u8_path_relative: the master playlist
 	// links its media playlist by a relative path.
 	MasterRelative bool
-	// Dispose is hls_dispose, in whole seconds: SRS removes the files of a
+	// Dispose is hls_dispose, in seconds: SRS removes the files of a
 	// stream that has sent no media that long. NoCleanup turns hls_cleanup
 	// off: segments that leave the window stay on disk.
 	Dispose   time.Duration
@@ -1018,7 +1018,7 @@ func WithHLS(cfg Config, h HLS) Config {
 		env["SRS_VHOST_HLS_HLS_MASTER_M3U8_PATH_RELATIVE"] = "on"
 	}
 	if h.Dispose > 0 {
-		env["SRS_VHOST_HLS_HLS_DISPOSE"] = strconv.Itoa(int(h.Dispose / time.Second))
+		env["SRS_VHOST_HLS_HLS_DISPOSE"] = seconds(h.Dispose)
 	}
 	if h.NoCleanup {
 		env["SRS_VHOST_HLS_HLS_CLEANUP"] = "off"
@@ -1043,7 +1043,7 @@ type DASH struct {
 	Path string
 	// MPDFile is dash_mpd_file, the template of the MPD under Path.
 	MPDFile string
-	// Dispose is dash_dispose, in whole seconds, and NoCleanup turns
+	// Dispose is dash_dispose, in seconds, and NoCleanup turns
 	// dash_cleanup off, like the HLS settings.
 	Dispose   time.Duration
 	NoCleanup bool
@@ -1071,7 +1071,7 @@ func WithDASH(cfg Config, d DASH) Config {
 		env["SRS_VHOST_DASH_DASH_MPD_FILE"] = d.MPDFile
 	}
 	if d.Dispose > 0 {
-		env["SRS_VHOST_DASH_DASH_DISPOSE"] = strconv.Itoa(int(d.Dispose / time.Second))
+		env["SRS_VHOST_DASH_DASH_DISPOSE"] = strconv.FormatFloat(d.Dispose.Seconds(), 'f', -1, 64)
 	}
 	if d.NoCleanup {
 		env["SRS_VHOST_DASH_DASH_CLEANUP"] = "off"
@@ -1470,7 +1470,7 @@ type DVR struct {
 	// Path is dvr_path, the template of each file, relative to the server's
 	// directory; its extension, .flv or .mp4, is the format.
 	Path string
-	// Duration is dvr_duration, in whole seconds, for the segment plan.
+	// Duration is dvr_duration, in seconds, for the segment plan.
 	Duration time.Duration
 	// NoWaitKeyframe turns dvr_wait_keyframe off: a segment is cut at its
 	// duration, not at the next keyframe.
@@ -1494,7 +1494,7 @@ func WithDVR(cfg Config, d DVR) Config {
 		env["SRS_VHOST_DVR_DVR_PATH"] = d.Path
 	}
 	if d.Duration > 0 {
-		env["SRS_VHOST_DVR_DVR_DURATION"] = strconv.Itoa(int(d.Duration / time.Second))
+		env["SRS_VHOST_DVR_DVR_DURATION"] = strconv.FormatFloat(d.Duration.Seconds(), 'f', -1, 64)
 	}
 	if d.NoWaitKeyframe {
 		env["SRS_VHOST_DVR_DVR_WAIT_KEYFRAME"] = "off"

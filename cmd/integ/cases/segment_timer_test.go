@@ -33,8 +33,9 @@ const (
 	// hls_window.
 	sessionTick = 5 * time.Second
 	// segmentDispose is the hls_dispose and dash_dispose of the dispose
-	// server, the smallest, since SRS reads them as whole seconds.
-	segmentDispose = time.Second
+	// server. SRS reads a fraction of a second, but checks only every
+	// disposeTick, so a smaller value gains little.
+	segmentDispose = 500 * time.Millisecond
 	// sessionWindow is the hls_window of the keep server, so its sessions
 	// end after 1s without a request.
 	sessionWindow = 500 * time.Millisecond
@@ -43,7 +44,7 @@ const (
 // sharedSegmentsDispose is the config of the timer server that
 // TestTimer_Rtmp_QueueDefault, TestTimer_Hls_Dispose and
 // TestTimer_Dash_Dispose share: the default play queue, and HLS and DASH
-// with 1s fragments and hls_dispose and dash_dispose at 1s. The queue case
+// with 1s fragments and hls_dispose and dash_dispose at 0.5s. The queue case
 // only plays over RTMP, and the files of its stream are its own.
 func sharedSegmentsDispose() server.Config {
 	return server.WithDASH(
@@ -78,7 +79,7 @@ func sharedSegmentsKeep() server.Config {
 }
 
 // TestTimer_Hls_Dispose checks hls_dispose: SRS removes the playlist and
-// segments of a stream that has sent no media for 1s, published or not.
+// segments of a stream that has sent no media for 0.5s, published or not.
 func TestTimer_Hls_Dispose(t *testing.T) {
 	t.Parallel()
 	srs := server.Shared(t, "SegmentsDispose", sharedSegmentsDispose())
@@ -95,7 +96,7 @@ func TestTimer_Hls_Dispose(t *testing.T) {
 	}
 
 	// After the unpublish, the playlist and every segment are removed, at
-	// least 1s after the last media and by the next check after it, and the
+	// least 0.5s after the last media and by the next check after it, and the
 	// HTTP server answers 404 for them.
 	check.Case(t, "FilesRemoved", check.Timer, func(c *check.C) {
 		pub, stream, playlist, sent := publish(c)
@@ -147,7 +148,7 @@ func TestTimer_Hls_Dispose(t *testing.T) {
 			time.Sleep(50 * time.Millisecond)
 		}
 		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), func(*hls.Playlist) bool { return true })
-		c.Check(len(pl.Segments) > 0 && pl.Segments[len(pl.Segments)-1].Sequence >= 3, "playlist %+v, want segments past 3s of streaming", pl)
+		c.Check(len(pl.Segments) > 0 && pl.Segments[len(pl.Segments)-1].Sequence >= 2, "playlist %+v, want segments past 2s of streaming", pl)
 	})
 
 	// A republish after the dispose writes a new playlist, which plays.
@@ -164,7 +165,7 @@ func TestTimer_Hls_Dispose(t *testing.T) {
 }
 
 // TestTimer_Dash_Dispose checks dash_dispose: SRS removes the MPD and the
-// segments of a stream that has sent no media for 1s, and dash_cleanup at
+// segments of a stream that has sent no media for 0.5s, and dash_cleanup at
 // its default: segments that leave the window are removed.
 func TestTimer_Dash_Dispose(t *testing.T) {
 	t.Parallel()

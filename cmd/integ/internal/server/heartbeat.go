@@ -17,7 +17,7 @@ const HeartbeatPath = "/api/v1/heartbeat"
 // Heartbeat is the heartbeat a server POSTs to its hooks' mock, at
 // HeartbeatPath.
 type Heartbeat struct {
-	// Interval is the time between heartbeats, whole seconds, as SRS reads
+	// Interval is the time between heartbeats, whole seconds, as SRS beats
 	// it; 0 leaves SRS's default.
 	Interval time.Duration
 	// DeviceID is the device_id of each heartbeat.
@@ -41,7 +41,7 @@ func isHeartbeatEnv(k string) bool {
 }
 
 // heartbeatEnv is the env that turns the heartbeat h on, POSTing to the mock
-// at base, or nil when h is nil. SRS reads the interval as whole seconds.
+// at base, or nil when h is nil. SRS beats on whole seconds.
 func heartbeatEnv(h *Heartbeat, base string) (map[string]string, error) {
 	if h == nil {
 		return nil, nil

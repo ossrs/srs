@@ -2779,6 +2779,55 @@ VOID TEST(ServerTest, SetupTicksWithStatsAndHeartbeat)
     srs_freep(mock_factory);
 }
 
+// The server's timer ticks every 1s, so the heartbeat's interval is rounded
+// down to whole seconds, at least 1s: a fraction of a second, from the config,
+// never makes the tick refused.
+VOID TEST(ServerTest, SetupTicksHeartbeatWholeSeconds)
+{
+    srs_error_t err;
+
+    struct {
+        srs_utime_t interval;
+        srs_utime_t want;
+    } cases[] = {
+        {500 * SRS_UTIME_MILLISECONDS, 1 * SRS_UTIME_SECONDS},
+        {1 * SRS_UTIME_SECONDS, 1 * SRS_UTIME_SECONDS},
+        {1500 * SRS_UTIME_MILLISECONDS, 1 * SRS_UTIME_SECONDS},
+        {9300 * SRS_UTIME_MILLISECONDS, 9 * SRS_UTIME_SECONDS},
+        {10 * SRS_UTIME_SECONDS, 10 * SRS_UTIME_SECONDS},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SrsUniquePtr<SrsServer> server(new SrsServer());
+        server->assemble();
+
+        MockAppConfigForSetupTicks *mock_config = new MockAppConfigForSetupTicks();
+        ISrsAppConfig *original_config = server->config_;
+        server->config_ = mock_config;
+
+        MockAppFactoryForSetupTicks *mock_factory = new MockAppFactoryForSetupTicks();
+        ISrsAppFactory *original_factory = server->app_factory_;
+        server->app_factory_ = mock_factory;
+
+        mock_config->heartbeat_enabled_ = true;
+        mock_config->heartbeat_interval_ = cases[i].interval;
+
+        HELPER_EXPECT_SUCCESS(server->setup_ticks());
+
+        // Only the heartbeat ticks, as the stats are off.
+        EXPECT_EQ(1, mock_factory->mock_hourglass_->tick_count_);
+        if (mock_factory->mock_hourglass_->tick_count_ == 1) {
+            EXPECT_EQ(9, mock_factory->mock_hourglass_->tick_events_[0]);
+            EXPECT_EQ(cases[i].want, mock_factory->mock_hourglass_->tick_intervals_[0]) << srsu2ms(cases[i].interval) << "ms";
+        }
+
+        server->config_ = original_config;
+        server->app_factory_ = original_factory;
+        srs_freep(mock_config);
+        srs_freep(mock_factory);
+    }
+}
+
 MockRtcSessionManagerForNotify::MockRtcSessionManagerForNotify()
 {
     update_rtc_sessions_count_ = 0;

@@ -74,9 +74,6 @@ const char *_srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 #define SRS_OVERWRITE_BY_ENV_FLOAT(key) \
     if (!srs_getenv(key).empty())       \
     return ::atof(srs_getenv(key).c_str())
-#define SRS_OVERWRITE_BY_ENV_SECONDS(key) \
-    if (!srs_getenv(key).empty())         \
-    return srs_utime_t(::atoi(srs_getenv(key).c_str()) * SRS_UTIME_SECONDS)
 #define SRS_OVERWRITE_BY_ENV_MILLISECONDS(key) \
     if (!srs_getenv(key).empty())              \
     return (srs_utime_t)(::atoi(srs_getenv(key).c_str()) * SRS_UTIME_MILLISECONDS)
@@ -3191,7 +3188,7 @@ bool SrsConfig::whether_query_latest_version()
 
 srs_utime_t SrsConfig::first_wait_for_qlv()
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.first_wait_for_qlv"); // SRS_FIRST_WAIT_FOR_QLV
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.first_wait_for_qlv"); // SRS_FIRST_WAIT_FOR_QLV
 
     static srs_utime_t DEFAULT = 5 * 60 * SRS_UTIME_SECONDS;
 
@@ -3200,7 +3197,7 @@ srs_utime_t SrsConfig::first_wait_for_qlv()
         return DEFAULT;
     }
 
-    return ::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS;
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::empty_ip_ok()
@@ -4246,7 +4243,7 @@ bool SrsConfig::get_rtc_from_rtmp(string vhost)
 
 srs_utime_t SrsConfig::get_rtc_stun_timeout(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.rtc.stun_timeout"); // SRS_VHOST_RTC_STUN_TIMEOUT
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.rtc.stun_timeout"); // SRS_VHOST_RTC_STUN_TIMEOUT
 
     static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
 
@@ -4261,7 +4258,7 @@ srs_utime_t SrsConfig::get_rtc_stun_timeout(string vhost)
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_rtc_stun_strict_check(string vhost)
@@ -4804,7 +4801,7 @@ bool SrsConfig::get_mix_correct(string vhost)
 
 srs_utime_t SrsConfig::get_queue_length(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.play.queue_length"); // SRS_VHOST_PLAY_QUEUE_LENGTH
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.play.queue_length"); // SRS_VHOST_PLAY_QUEUE_LENGTH
 
     static srs_utime_t DEFAULT = SRS_PERF_PLAY_QUEUE;
 
@@ -4823,7 +4820,7 @@ srs_utime_t SrsConfig::get_queue_length(string vhost)
         return DEFAULT;
     }
 
-    return srs_utime_t(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_refer_enabled(string vhost)
@@ -6738,7 +6735,7 @@ bool SrsConfig::get_dash_cleanup(std::string vhost)
 
 srs_utime_t SrsConfig::get_dash_dispose(std::string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dash.dash_dispose"); // SRS_VHOST_DASH_DASH_DISPOSE
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_dispose"); // SRS_VHOST_DASH_DASH_DISPOSE
 
     static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
 
@@ -6752,7 +6749,7 @@ srs_utime_t SrsConfig::get_dash_dispose(std::string vhost)
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 SrsConfDirective *SrsConfig::get_hls(string vhost)
@@ -7146,7 +7143,7 @@ bool SrsConfig::get_hls_cleanup(string vhost)
 
 srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.hls.hls_dispose"); // SRS_VHOST_HLS_HLS_DISPOSE
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hls.hls_dispose"); // SRS_VHOST_HLS_HLS_DISPOSE
 
     static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
 
@@ -7160,7 +7157,7 @@ srs_utime_t SrsConfig::get_hls_dispose(string vhost)
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_hls_wait_keyframe(string vhost)
@@ -7435,7 +7432,7 @@ string SrsConfig::get_dvr_plan(string vhost)
 
 srs_utime_t SrsConfig::get_dvr_duration(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dvr.dvr_duration"); // SRS_VHOST_DVR_DVR_DURATION
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dvr.dvr_duration"); // SRS_VHOST_DVR_DVR_DURATION
 
     static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
 
@@ -7449,7 +7446,7 @@ srs_utime_t SrsConfig::get_dvr_duration(string vhost)
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_dvr_wait_keyframe(string vhost)
@@ -8762,7 +8759,7 @@ bool SrsConfig::get_heartbeat_enabled()
 
 srs_utime_t SrsConfig::get_heartbeat_interval()
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.heartbeat.interval"); // SRS_HEARTBEAT_INTERVAL
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.heartbeat.interval"); // SRS_HEARTBEAT_INTERVAL
 
     static srs_utime_t DEFAULT = (srs_utime_t)(10 * SRS_UTIME_SECONDS);
 
@@ -8776,7 +8773,7 @@ srs_utime_t SrsConfig::get_heartbeat_interval()
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_heartbeat_url()

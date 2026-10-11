@@ -52,7 +52,7 @@ func TestHeartbeatEnv(t *testing.T) {
 	}
 
 	if _, err := heartbeatEnv(&Heartbeat{Interval: 1500 * time.Millisecond}, "http://127.0.0.1:14005"); err == nil {
-		t.Errorf("an interval of 1.5s accepted, want an error: SRS reads whole seconds")
+		t.Errorf("an interval of 1.5s accepted, want an error: SRS beats on whole seconds")
 	}
 	if got, err := heartbeatEnv(nil, "http://127.0.0.1:14005"); err != nil || got != nil {
 		t.Errorf("no heartbeat: env %v, error %v, want none", got, err)

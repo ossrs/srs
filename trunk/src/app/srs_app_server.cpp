@@ -1146,7 +1146,10 @@ srs_error_t SrsServer::setup_ticks()
     }
 
     if (config_->get_heartbeat_enabled()) {
-        if ((err = timer_->tick(9, config_->get_heartbeat_interval())) != srs_success) {
+        // The timer ticks every 1s, so round the interval down to whole seconds, at least 1s.
+        srs_utime_t seconds = srsu2s(config_->get_heartbeat_interval());
+        srs_utime_t interval = srs_max(1, seconds) * SRS_UTIME_SECONDS;
+        if ((err = timer_->tick(9, interval)) != srs_success) {
             return srs_error_wrap(err, "tick");
         }
     }

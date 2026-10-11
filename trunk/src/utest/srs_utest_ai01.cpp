@@ -4799,6 +4799,79 @@ VOID TEST(ConfigMainTest, AsprocessEnvRemoved)
     }
 }
 
+// The timers in seconds read a fraction of a second, from the config file and
+// from env, and a whole number still reads as before.
+VOID TEST(ConfigTimerTest, SecondsAcceptFractions)
+{
+    srs_error_t err;
+
+    // Each config sets every timer to the same value, which reads as want.
+    struct {
+        const char *value;
+        srs_utime_t want;
+    } cases[] = {
+        {"0.5", 500 * SRS_UTIME_MILLISECONDS},
+        {"1.25", 1250 * SRS_UTIME_MILLISECONDS},
+        {"10", 10 * SRS_UTIME_SECONDS},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        string v = cases[i].value;
+        srs_utime_t want = cases[i].want;
+
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "first_wait_for_qlv " + v + "; heartbeat{interval " + v + ";} " +
+                                              "vhost test.com{rtc{stun_timeout " + v + ";} play{queue_length " + v + ";} " +
+                                              "dash{dash_dispose " + v + ";} hls{hls_dispose " + v + ";} dvr{dvr_duration " + v + ";}}"));
+        EXPECT_EQ(want, conf.first_wait_for_qlv()) << v;
+        EXPECT_EQ(want, conf.get_heartbeat_interval()) << v;
+        EXPECT_EQ(want, conf.get_rtc_stun_timeout("test.com")) << v;
+        EXPECT_EQ(want, conf.get_queue_length("test.com")) << v;
+        EXPECT_EQ(want, conf.get_dash_dispose("test.com")) << v;
+        EXPECT_EQ(want, conf.get_hls_dispose("test.com")) << v;
+        EXPECT_EQ(want, conf.get_dvr_duration("test.com")) << v;
+    }
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        const char *v = cases[i].value;
+        srs_utime_t want = cases[i].want;
+
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, qlv, "SRS_FIRST_WAIT_FOR_QLV", v);
+        SrsSetEnvConfig(conf, heartbeat, "SRS_HEARTBEAT_INTERVAL", v);
+        SrsSetEnvConfig(conf, stun, "SRS_VHOST_RTC_STUN_TIMEOUT", v);
+        SrsSetEnvConfig(conf, queue, "SRS_VHOST_PLAY_QUEUE_LENGTH", v);
+        SrsSetEnvConfig(conf, dash, "SRS_VHOST_DASH_DASH_DISPOSE", v);
+        SrsSetEnvConfig(conf, hls, "SRS_VHOST_HLS_HLS_DISPOSE", v);
+        SrsSetEnvConfig(conf, dvr, "SRS_VHOST_DVR_DVR_DURATION", v);
+        EXPECT_EQ(want, conf.first_wait_for_qlv()) << v;
+        EXPECT_EQ(want, conf.get_heartbeat_interval()) << v;
+        EXPECT_EQ(want, conf.get_rtc_stun_timeout("test.com")) << v;
+        EXPECT_EQ(want, conf.get_queue_length("test.com")) << v;
+        EXPECT_EQ(want, conf.get_dash_dispose("test.com")) << v;
+        EXPECT_EQ(want, conf.get_hls_dispose("test.com")) << v;
+        EXPECT_EQ(want, conf.get_dvr_duration("test.com")) << v;
+    }
+}
+
+// A heartbeat interval of a fraction of a second is above 0, so it passes the
+// config test, while 0 is still refused.
+VOID TEST(ConfigTimerTest, HeartbeatIntervalFraction)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "heartbeat{enabled on; interval 0.5;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "heartbeat{enabled on; interval 0;}"));
+    }
+}
+
 // DVR Configuration Tests
 VOID TEST(ConfigDvrTest, CheckDvrEnabled)
 {

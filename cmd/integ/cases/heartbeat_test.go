@@ -21,7 +21,7 @@ import (
 
 const (
 	// heartbeatInterval is the heartbeat interval of the heartbeat servers,
-	// the smallest, since SRS reads it as whole seconds.
+	// the smallest, since SRS beats on whole seconds.
 	heartbeatInterval = time.Second
 	// heartbeatSlack is how far from the interval the time between two
 	// heartbeats may be: SRS's timer fires on its own ticks, and the mock

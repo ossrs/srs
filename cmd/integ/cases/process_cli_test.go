@@ -242,6 +242,28 @@ func TestProcess_Cli(t *testing.T) {
 		checkExit(c, cli(c, nil, "-e", "-t", "-c", "/srs-integ-missing.conf"), true)
 	})
 
+	// A heartbeat interval with a fraction of a second passes the config test
+	// and starts: SRS rounds it down to whole seconds, at least 1s.
+	heartbeatEnv := func(c *check.C, interval string) map[string]string {
+		return map[string]string{
+			"SRS_HEARTBEAT_ENABLED":  "on",
+			"SRS_HEARTBEAT_INTERVAL": interval,
+			"SRS_HEARTBEAT_URL":      "http://" + server.DownAddr(c) + "/api/v1/servers",
+		}
+	}
+	check.Case(t, "CheckHeartbeatIntervalFraction", check.Normal, func(c *check.C) {
+		for _, v := range []string{"0.5", "1.5"} {
+			checkExit(c, cli(c, heartbeatEnv(c, v), "-e", "-t"), true)
+		}
+	})
+	// Each start runs until it is killed, so each value is a case.
+	for _, tt := range []struct{ name, interval string }{{"HalfSecond", "0.5"}, {"Fraction", "1.5"}} {
+		check.Case(t, "StartHeartbeatInterval"+tt.name, check.Normal, func(c *check.C) {
+			r := cli(c, heartbeatEnv(c, tt.interval), "-e")
+			c.Check(!r.Exited, "exited with code %d, want it running as a server: %v", r.Code, r.Stderr)
+		})
+	}
+
 	// The settings SRS refuses, by the config test and at a start.
 	for _, tt := range badEnv {
 		check.Case(t, "CheckRejects"+tt.name, check.Normal, func(c *check.C) {

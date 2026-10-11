@@ -153,6 +153,7 @@ func TestPlayConfig(t *testing.T) {
 		{"GopCacheOff", Play{GopCacheOff: true}, with("SRS_VHOST_PLAY_GOP_CACHE", "off")},
 		{"GopCacheMaxFrames", Play{GopCacheMaxFrames: 10}, with("SRS_VHOST_PLAY_GOP_CACHE_MAX_FRAMES", "10")},
 		{"QueueLength", Play{QueueLength: 2 * time.Second}, with("SRS_VHOST_PLAY_QUEUE_LENGTH", "2")},
+		{"QueueLengthFraction", Play{QueueLength: 1500 * time.Millisecond}, with("SRS_VHOST_PLAY_QUEUE_LENGTH", "1.5")},
 		{"ReduceSequenceHeader", Play{ReduceSequenceHeader: true}, with("SRS_VHOST_PLAY_REDUCE_SEQUENCE_HEADER", "on")},
 		{"TimeJitterZero", Play{TimeJitter: "zero"}, with("SRS_VHOST_PLAY_TIME_JITTER", "zero")},
 		{"TimeJitterOff", Play{TimeJitter: "off"}, with("SRS_VHOST_PLAY_TIME_JITTER", "off")},
@@ -315,6 +316,7 @@ func TestHLSConfig(t *testing.T) {
 		{"NoTSCtx", HLS{NoTSCtx: true}, map[string]string{"SRS_VHOST_HLS_HLS_TS_CTX": "off"}},
 		{"MasterRelative", HLS{MasterRelative: true}, map[string]string{"SRS_VHOST_HLS_HLS_MASTER_M3U8_PATH_RELATIVE": "on"}},
 		{"Dispose", HLS{Dispose: time.Second}, map[string]string{"SRS_VHOST_HLS_HLS_DISPOSE": "1"}},
+		{"DisposeFraction", HLS{Dispose: 500 * time.Millisecond}, map[string]string{"SRS_VHOST_HLS_HLS_DISPOSE": "0.5"}},
 		{"NoCleanup", HLS{NoCleanup: true}, map[string]string{"SRS_VHOST_HLS_HLS_CLEANUP": "off"}},
 	}
 	for _, tc := range cases {
@@ -382,6 +384,7 @@ func TestWithDASH(t *testing.T) {
 		{"Path", DASH{Path: "./objs/nginx/html/dash"}, map[string]string{"SRS_VHOST_DASH_DASH_PATH": "./objs/nginx/html/dash"}},
 		{"MPDFile", DASH{MPDFile: "[app]/[stream]/index.mpd"}, map[string]string{"SRS_VHOST_DASH_DASH_MPD_FILE": "[app]/[stream]/index.mpd"}},
 		{"Dispose", DASH{Dispose: 2 * time.Second}, map[string]string{"SRS_VHOST_DASH_DASH_DISPOSE": "2"}},
+		{"DisposeFraction", DASH{Dispose: 500 * time.Millisecond}, map[string]string{"SRS_VHOST_DASH_DASH_DISPOSE": "0.5"}},
 		{"NoCleanup", DASH{NoCleanup: true}, map[string]string{"SRS_VHOST_DASH_DASH_CLEANUP": "off"}},
 	}
 	for _, tc := range cases {
@@ -881,6 +884,12 @@ func TestWithDVR(t *testing.T) {
 			"SRS_VHOST_DVR_DVR_DURATION":      "2",
 			"SRS_VHOST_DVR_DVR_WAIT_KEYFRAME": "off",
 			"SRS_VHOST_DVR_DVR_APPLY":         "live/a live/b",
+		}},
+		{"fraction", DVR{Plan: "segment", Path: "./dvr/[stream].flv", Duration: 1500 * time.Millisecond}, map[string]string{
+			"SRS_VHOST_DVR_ENABLED":      "on",
+			"SRS_VHOST_DVR_DVR_PLAN":     "segment",
+			"SRS_VHOST_DVR_DVR_PATH":     "./dvr/[stream].flv",
+			"SRS_VHOST_DVR_DVR_DURATION": "1.5",
 		}},
 	}
 	for _, tc := range cases {
