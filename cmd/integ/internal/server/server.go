@@ -1194,3 +1194,28 @@ func WithRTSP(cfg Config, r RTSPOptions) Config {
 	}
 	return cfg
 }
+
+// GBOptions are a GB28181 variant's settings; the zero value keeps SRS's
+// defaults.
+type GBOptions struct {
+	// MediaConnectTimeout is media_connect_timeout, in seconds with a
+	// fraction: how long a session from the publish API waits for its media.
+	MediaConnectTimeout time.Duration
+}
+
+// WithGB returns a copy of cfg with the GB28181 caster, whose streams go to
+// the server's own RTMP, and the settings g.
+func WithGB(cfg Config, g GBOptions) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	if g.MediaConnectTimeout > 0 {
+		env["SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT"] = strconv.FormatFloat(g.MediaConnectTimeout.Seconds(), 'f', -1, 64)
+	}
+	cfg.Env = env
+	if !slices.Contains(cfg.Listeners, GB) {
+		cfg.Listeners = append(slices.Clone(cfg.Listeners), GB)
+	}
+	return cfg
+}

@@ -26,6 +26,10 @@ type TagSource interface {
 // An Analyzer adds FLV tags to its report.
 type Analyzer struct {
 	Report report.Report
+	// LegacyHEVC accepts HEVC in legacy tags, codec id 12; without it such a
+	// tag is an error, so a server that sends them instead of enhanced RTMP
+	// fails the cases.
+	LegacyHEVC bool
 }
 
 // Add adds one tag to the report. It fails on a tag it can't parse, such as
@@ -42,6 +46,9 @@ func (a *Analyzer) Add(tag *media.FLVTag) error {
 		v, err := media.ParseVideo(tag.Data)
 		if err != nil {
 			return fmt.Errorf("video at %v: %w", ts, err)
+		}
+		if v.Legacy && !a.LegacyHEVC {
+			return fmt.Errorf("video at %v: HEVC in a legacy tag, codec id 12, not enhanced RTMP", ts)
 		}
 		switch {
 		case v.SequenceHeader:

@@ -578,3 +578,52 @@ func TestWithRTSP(t *testing.T) {
 		t.Errorf("listeners %v, want Common's", cfg.Listeners)
 	}
 }
+
+func TestWithGB(t *testing.T) {
+	cases := []struct {
+		name string
+		g    GBOptions
+		want map[string]string
+	}{
+		{"Defaults", GBOptions{}, map[string]string{}},
+		{"MediaConnectTimeout", GBOptions{MediaConnectTimeout: 1500 * time.Millisecond},
+			map[string]string{"SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT": "1.5"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := PlayConfig(Play{})
+			cfg := WithGB(base, tc.g)
+			if want := append(slices.Clone(base.Listeners), GB); !reflect.DeepEqual(cfg.Listeners, want) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+			}
+			want := map[string]string{}
+			for k, v := range base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if len(base.Listeners) != 2 {
+				t.Errorf("the base config changed: %v", base.Listeners)
+			}
+			ports := map[Listener]int{}
+			for i, l := range cfg.Listeners {
+				ports[l] = 14000 + i
+			}
+			env, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{})
+			if err != nil {
+				t.Fatalf("build env: %v", err)
+			}
+			if !slices.Contains(env, "SRS_STREAM_CASTER_CASTER=gb28181") {
+				t.Errorf("env %v has no GB caster", env)
+			}
+		})
+	}
+	// A config with GB on keeps its listeners.
+	if cfg := WithGB(CommonConfig(), GBOptions{}); !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
+		t.Errorf("listeners %v, want Common's", cfg.Listeners)
+	}
+}

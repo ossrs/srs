@@ -308,3 +308,22 @@ func TestIsMetadata(t *testing.T) {
 		t.Errorf("IsMetadata of a broken message, want false")
 	}
 }
+
+// TestAnalyzerLegacyHEVC checks HEVC in legacy tags, codec id 12: an error by
+// default, so a case sees a server that sends them instead of enhanced RTMP,
+// and HEVC frames when the analyzer accepts them.
+func TestAnalyzerLegacyHEVC(t *testing.T) {
+	frame := &media.FLVTag{Type: media.TagVideo, Timestamp: 40, Data: []byte{0x1c, 1, 0, 0, 0, 0, 0, 0, 1, 0x26}}
+	var strict Analyzer
+	if err := strict.Add(frame); err == nil || !strings.Contains(err.Error(), "codec id 12") {
+		t.Errorf("legacy HEVC: %v, want an error that names codec id 12", err)
+	}
+
+	a := Analyzer{LegacyHEVC: true}
+	if err := a.Add(frame); err != nil {
+		t.Fatal(err)
+	}
+	if r := &a.Report; r.Video == nil || r.Video.Codec != "hevc" || r.Video.Keyframes != 1 {
+		t.Errorf("report %v, want 1 HEVC keyframe", r)
+	}
+}

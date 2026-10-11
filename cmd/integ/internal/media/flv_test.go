@@ -77,14 +77,16 @@ func TestParseVideo(t *testing.T) {
 		data []byte
 		want VideoTag
 	}{
-		{"AVCSequenceHeader", []byte{0x17, 0, 0, 0, 0, 1, 100}, VideoTag{"h264", true, true, 0, []byte{1, 100}, false, false}},
-		{"AVCInterWithCTS", []byte{0x27, 1, 0, 0, 80, 9}, VideoTag{"h264", false, false, 80, []byte{9}, false, false}},
-		{"AVCNegativeCTS", []byte{0x17, 1, 0xff, 0xff, 0xd8, 9}, VideoTag{"h264", true, false, -40, []byte{9}, false, false}},
-		{"HEVCSequenceStart", []byte{0x90, 'h', 'v', 'c', '1', 1, 1}, VideoTag{"hevc", true, true, 0, []byte{1, 1}, false, false}},
-		{"HEVCCodedFrames", []byte{0xa1, 'h', 'v', 'c', '1', 0, 0, 40, 7}, VideoTag{"hevc", false, false, 40, []byte{7}, false, false}},
-		{"HEVCCodedFramesX", []byte{0x93, 'h', 'v', 'c', '1', 7}, VideoTag{"hevc", true, false, 0, []byte{7}, false, false}},
-		{"AV1", []byte{0x91, 'a', 'v', '0', '1', 7}, VideoTag{"av1", true, false, 0, []byte{7}, false, false}},
-		{"VP9", []byte{0xa1, 'v', 'p', '0', '9', 7}, VideoTag{"vp9", false, false, 0, []byte{7}, false, false}},
+		{"AVCSequenceHeader", []byte{0x17, 0, 0, 0, 0, 1, 100}, VideoTag{"h264", true, true, 0, []byte{1, 100}, false, false, false}},
+		{"AVCInterWithCTS", []byte{0x27, 1, 0, 0, 80, 9}, VideoTag{"h264", false, false, 80, []byte{9}, false, false, false}},
+		{"AVCNegativeCTS", []byte{0x17, 1, 0xff, 0xff, 0xd8, 9}, VideoTag{"h264", true, false, -40, []byte{9}, false, false, false}},
+		{"HEVCSequenceStart", []byte{0x90, 'h', 'v', 'c', '1', 1, 1}, VideoTag{"hevc", true, true, 0, []byte{1, 1}, false, false, false}},
+		{"HEVCCodedFrames", []byte{0xa1, 'h', 'v', 'c', '1', 0, 0, 40, 7}, VideoTag{"hevc", false, false, 40, []byte{7}, false, false, false}},
+		{"HEVCCodedFramesX", []byte{0x93, 'h', 'v', 'c', '1', 7}, VideoTag{"hevc", true, false, 0, []byte{7}, false, false, false}},
+		{"AV1", []byte{0x91, 'a', 'v', '0', '1', 7}, VideoTag{"av1", true, false, 0, []byte{7}, false, false, false}},
+		{"VP9", []byte{0xa1, 'v', 'p', '0', '9', 7}, VideoTag{"vp9", false, false, 0, []byte{7}, false, false, false}},
+		{"HEVCLegacy", []byte{0x2c, 1, 0, 0, 40, 7}, VideoTag{"hevc", false, false, 40, []byte{7}, false, false, true}},
+		{"HEVCLegacySequenceHeader", []byte{0x1c, 0, 0, 0, 0, 1, 1}, VideoTag{"hevc", true, true, 0, []byte{1, 1}, false, false, true}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -93,7 +95,7 @@ func TestParseVideo(t *testing.T) {
 				t.Fatal(err)
 			}
 			if got.Codec != tc.want.Codec || got.Key != tc.want.Key || got.SequenceHeader != tc.want.SequenceHeader ||
-				got.CTS != tc.want.CTS || !bytes.Equal(got.Payload, tc.want.Payload) {
+				got.CTS != tc.want.CTS || !bytes.Equal(got.Payload, tc.want.Payload) || got.Legacy != tc.want.Legacy {
 				t.Errorf("got %+v, want %+v", got, tc.want)
 			}
 		})

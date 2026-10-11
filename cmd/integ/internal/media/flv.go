@@ -101,6 +101,9 @@ type VideoTag struct {
 	// Metadata is set for an enhanced RTMP metadata packet, such as the
 	// colour info; it is no frame.
 	Metadata bool
+	// Legacy is set for HEVC in a legacy tag, codec id 12, which servers sent
+	// before enhanced RTMP.
+	Legacy bool
 }
 
 // The enhanced RTMP video packet types.
@@ -122,15 +125,20 @@ func ParseVideo(data []byte) (VideoTag, error) {
 	}
 	var v VideoTag
 	if data[0]&0x80 == 0 {
-		// Legacy: frame type, codec id, then the AVC packet type and CTS.
+		// Legacy: frame type, codec id, then the AVC packet type and CTS, the
+		// same for HEVC.
 		v.Key = data[0]>>4 == 1
-		if codec := data[0] & 0x0f; codec != 7 {
+		switch codec := data[0] & 0x0f; codec {
+		case 7:
+			v.Codec = "h264"
+		case 12:
+			v.Codec, v.Legacy = "hevc", true
+		default:
 			return v, fmt.Errorf("unsupported video codec id %v", codec)
 		}
 		if len(data) < 5 {
-			return v, fmt.Errorf("short AVC video tag of %v bytes", len(data))
+			return v, fmt.Errorf("short legacy video tag of %v bytes", len(data))
 		}
-		v.Codec = "h264"
 		v.SequenceHeader = data[1] == 0
 		v.EndOfSequence = data[1] == 2
 		v.CTS = si24(data[2:5])
