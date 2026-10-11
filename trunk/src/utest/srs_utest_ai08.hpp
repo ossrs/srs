@@ -46,6 +46,7 @@ class MockFrameTarget : public ISrsFrameTarget
 public:
     int on_frame_count_;
     SrsMediaPacket *last_frame_;
+    std::vector<int64_t> timestamps_;
     srs_error_t frame_error_;
 
 public:
