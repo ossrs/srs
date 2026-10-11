@@ -658,6 +658,38 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     features->set("mr", SrsJsonAny::boolean(false));
 #endif
 
+    // The build options, so a client can check the protocols and tools this binary was built with.
+#ifdef SRS_SRT
+    features->set("srt", SrsJsonAny::boolean(true));
+#else
+    features->set("srt", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_RTSP
+    features->set("rtsp", SrsJsonAny::boolean(true));
+#else
+    features->set("rtsp", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_GB28181
+    features->set("gb28181", SrsJsonAny::boolean(true));
+#else
+    features->set("gb28181", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_RTC
+    features->set("rtc", SrsJsonAny::boolean(true));
+#else
+    features->set("rtc", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_SIMULATOR
+    features->set("simulator", SrsJsonAny::boolean(true));
+#else
+    features->set("simulator", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_SANITIZER
+    features->set("sanitizer", SrsJsonAny::boolean(true));
+#else
+    features->set("sanitizer", SrsJsonAny::boolean(false));
+#endif
+
     return srs_api_response(w, r, obj->dumps());
 }
 

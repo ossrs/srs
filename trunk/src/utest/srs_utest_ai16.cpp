@@ -1660,6 +1660,36 @@ VOID TEST(SrsGoApiFeaturesTest, ServeHttpSuccess)
     SrsJsonAny *mr_any = features->get_property("mr");
     ASSERT_TRUE(mr_any != NULL);
     ASSERT_TRUE(mr_any->is_boolean());
+
+    // Verify the build options, each one true exactly when its build macro is defined.
+    bool srt = false, rtsp = false, gb28181 = false, rtc = false, simulator = false, sanitizer = false;
+#ifdef SRS_SRT
+    srt = true;
+#endif
+#ifdef SRS_RTSP
+    rtsp = true;
+#endif
+#ifdef SRS_GB28181
+    gb28181 = true;
+#endif
+#ifdef SRS_RTC
+    rtc = true;
+#endif
+#ifdef SRS_SIMULATOR
+    simulator = true;
+#endif
+#ifdef SRS_SANITIZER
+    sanitizer = true;
+#endif
+
+    const char *names[] = {"srt", "rtsp", "gb28181", "rtc", "simulator", "sanitizer"};
+    bool expects[] = {srt, rtsp, gb28181, rtc, simulator, sanitizer};
+    for (int i = 0; i < (int)(sizeof(names) / sizeof(names[0])); i++) {
+        SrsJsonAny *any = features->get_property(names[i]);
+        ASSERT_TRUE(any != NULL) << names[i];
+        ASSERT_TRUE(any->is_boolean()) << names[i];
+        EXPECT_EQ(expects[i], any->to_boolean()) << names[i];
+    }
 }
 
 VOID TEST(SrsHttpStreamServerTest, DynamicMatchHttpFlv)
