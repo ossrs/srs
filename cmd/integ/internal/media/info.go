@@ -112,7 +112,7 @@ func probeFLV(r io.Reader) (*Info, error) {
 				info.Video = &VideoInfo{Codec: v.Codec}
 			}
 			if v.SequenceHeader {
-				info.Video.Profile = profileOf(v.Codec, v.Payload)
+				info.Video.Profile = Profile(v.Codec, v.Payload)
 				continue
 			}
 			if v.EndOfSequence || v.Metadata {
@@ -140,11 +140,11 @@ func probeFLV(r io.Reader) (*Info, error) {
 				info.Audio = &AudioInfo{Codec: a.Codec}
 			}
 			if a.SequenceHeader {
-				info.Audio.SampleRate, info.Audio.Channels = aacConfig(a.Payload)
+				info.Audio.SampleRate, info.Audio.Channels = AACConfig(a.Payload)
 				continue
 			}
 			if a.Codec == "mp3" && info.Audio.Frames == 0 {
-				info.Audio.SampleRate, info.Audio.Channels = mp3Header(a.Payload)
+				info.Audio.SampleRate, info.Audio.Channels = MP3Header(a.Payload)
 			}
 			if info.Audio.Frames == 0 {
 				aFirst = ts
@@ -181,7 +181,7 @@ func probeMP4(r io.ReaderAt, size int64) (*Info, error) {
 		if codec == "vp9" && len(config) > 4 {
 			config = config[4:] // vpcC is a full box.
 		}
-		v := &VideoInfo{Codec: codec, Profile: profileOf(codec, config), Frames: len(t.Samples)}
+		v := &VideoInfo{Codec: codec, Profile: Profile(codec, config), Frames: len(t.Samples)}
 		for _, s := range t.Samples {
 			if s.Key {
 				v.Keyframes = append(v.Keyframes, at(t, s.DTS))
@@ -210,10 +210,10 @@ func probeMP4(r io.ReaderAt, size int64) (*Info, error) {
 	return info, nil
 }
 
-// profileOf reads the profile from a codec configuration record: avcC,
+// Profile reads the profile from a codec configuration record: avcC,
 // hvcC, av1C, or the VP9 codec configuration record without its full box
 // header.
-func profileOf(codec string, config []byte) string {
+func Profile(codec string, config []byte) string {
 	if len(config) < 2 {
 		return ""
 	}
@@ -246,8 +246,8 @@ func profileOf(codec string, config []byte) string {
 	return ""
 }
 
-// aacConfig reads the sample rate and channels of an AudioSpecificConfig.
-func aacConfig(asc []byte) (rate, channels int) {
+// AACConfig reads the sample rate and channels of an AudioSpecificConfig.
+func AACConfig(asc []byte) (rate, channels int) {
 	if len(asc) < 2 {
 		return 0, 0
 	}
@@ -259,8 +259,8 @@ func aacConfig(asc []byte) (rate, channels int) {
 	return rate, int(asc[1]>>3) & 0x0f
 }
 
-// mp3Header reads the sample rate and channels of an MP3 frame header.
-func mp3Header(b []byte) (rate, channels int) {
+// MP3Header reads the sample rate and channels of an MP3 frame header.
+func MP3Header(b []byte) (rate, channels int) {
 	if len(b) < 4 || b[0] != 0xff || b[1]&0xe0 != 0xe0 {
 		return 0, 0
 	}

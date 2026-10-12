@@ -69,24 +69,24 @@ func TestCodecConfigs(t *testing.T) {
 		{"h264", []byte{1}, ""},
 	}
 	for _, p := range profiles {
-		if got := profileOf(p.codec, p.config); got != p.want {
+		if got := Profile(p.codec, p.config); got != p.want {
 			t.Errorf("%v %x: profile %q, want %q", p.codec, p.config, got, p.want)
 		}
 	}
 
-	if rate, ch := aacConfig([]byte{0x12, 0x10}); rate != 44100 || ch != 2 {
+	if rate, ch := AACConfig([]byte{0x12, 0x10}); rate != 44100 || ch != 2 {
 		t.Errorf("AAC LC 44.1k stereo: %v %v", rate, ch)
 	}
-	if rate, ch := aacConfig([]byte{0x11, 0x88}); rate != 48000 || ch != 1 {
+	if rate, ch := AACConfig([]byte{0x11, 0x88}); rate != 48000 || ch != 1 {
 		t.Errorf("AAC LC 48k mono: %v %v", rate, ch)
 	}
-	if rate, ch := mp3Header([]byte{0xff, 0xfb, 0x90, 0x44}); rate != 44100 || ch != 2 {
+	if rate, ch := MP3Header([]byte{0xff, 0xfb, 0x90, 0x44}); rate != 44100 || ch != 2 {
 		t.Errorf("MPEG-1 44.1k joint stereo: %v %v", rate, ch)
 	}
-	if rate, ch := mp3Header([]byte{0xff, 0xf3, 0x94, 0xc4}); rate != 24000 || ch != 1 {
+	if rate, ch := MP3Header([]byte{0xff, 0xf3, 0x94, 0xc4}); rate != 24000 || ch != 1 {
 		t.Errorf("MPEG-2 24k mono: %v %v", rate, ch)
 	}
-	if rate, _ := mp3Header([]byte{0, 0, 0, 0}); rate != 0 {
+	if rate, _ := MP3Header([]byte{0, 0, 0, 0}); rate != 0 {
 		t.Errorf("not a frame: %v", rate)
 	}
 }

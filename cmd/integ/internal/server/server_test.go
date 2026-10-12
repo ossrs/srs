@@ -53,14 +53,22 @@ func TestCleanStaleRuns(t *testing.T) {
 }
 
 // TestCommonConfig checks the Common server plays with the lowest latency, so
-// a player gets each frame at once rather than in 350ms batches, and that its
-// env builds.
+// a player gets each frame at once rather than in 350ms batches, serves
+// HTTP-FLV, HLS and DASH with 10s segments, and that its env builds.
 func TestCommonConfig(t *testing.T) {
 	cfg := CommonConfig()
 	if !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
 		t.Errorf("listeners %v, want %v", cfg.Listeners, CommonListeners)
 	}
-	want := map[string]string{"SRS_VHOST_MIN_LATENCY": "on", "SRS_VHOST_PLAY_MW_LATENCY": "0"}
+	want := map[string]string{
+		"SRS_VHOST_MIN_LATENCY":        "on",
+		"SRS_VHOST_PLAY_MW_LATENCY":    "0",
+		"SRS_VHOST_HTTP_REMUX_ENABLED": "on",
+		"SRS_VHOST_HTTP_REMUX_MOUNT":   "[vhost]/[app]/[stream].flv",
+		"SRS_VHOST_HLS_ENABLED":        "on",
+		"SRS_VHOST_DASH_ENABLED":       "on",
+		"SRS_VHOST_DASH_DASH_FRAGMENT": "10",
+	}
 	if !reflect.DeepEqual(cfg.Env, want) {
 		t.Errorf("env %v, want %v", cfg.Env, want)
 	}
@@ -68,6 +76,28 @@ func TestCommonConfig(t *testing.T) {
 	for i, l := range cfg.Listeners {
 		ports[l] = 14000 + i
 	}
+	if _, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{Key: "k", Cert: "c"}); err != nil {
+		t.Errorf("build env: %v", err)
+	}
+}
+
+// TestRemuxConfig checks a remux variant serves its extension, plays with
+// Common's latency, has only the listeners it needs, and that its env builds.
+func TestRemuxConfig(t *testing.T) {
+	cfg := RemuxConfig("ts")
+	if want := []Listener{RTMP, HTTPAPI, HTTPServer}; !reflect.DeepEqual(cfg.Listeners, want) {
+		t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+	}
+	want := map[string]string{
+		"SRS_VHOST_MIN_LATENCY":        "on",
+		"SRS_VHOST_PLAY_MW_LATENCY":    "0",
+		"SRS_VHOST_HTTP_REMUX_ENABLED": "on",
+		"SRS_VHOST_HTTP_REMUX_MOUNT":   "[vhost]/[app]/[stream].ts",
+	}
+	if !reflect.DeepEqual(cfg.Env, want) {
+		t.Errorf("env %v, want %v", cfg.Env, want)
+	}
+	ports := map[Listener]int{RTMP: 14000, HTTPAPI: 14001, HTTPServer: 14002}
 	if _, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{Key: "k", Cert: "c"}); err != nil {
 		t.Errorf("build env: %v", err)
 	}

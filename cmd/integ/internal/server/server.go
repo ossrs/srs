@@ -361,16 +361,23 @@ func (s *Server) logTo(t testing.TB) {
 	t.Logf("SRS log in %s, last lines:\n%s", s.Dir, strings.Join(s.LogTail(), "\n"))
 }
 
-// CommonConfig is the config of the Common server: every Common listener, and
-// the lowest play latency, so a player gets each message at once rather than in
+// CommonConfig is the config of the Common server: every Common listener, the
+// lowest play latency, so a player gets each message at once rather than in
 // batches of 350ms of media, which would put every streaming case near its
-// limit. A case that tests the default batching needs a variant.
+// limit, HTTP-FLV for every stream, and HLS and DASH, both with 10s segments
+// (HLS by default; DASH defaults to 30s, the length of a whole test file). A
+// case that tests the default batching needs a variant.
 func CommonConfig() Config {
 	return Config{
 		Listeners: CommonListeners,
 		Env: map[string]string{
-			"SRS_VHOST_MIN_LATENCY":     "on",
-			"SRS_VHOST_PLAY_MW_LATENCY": "0",
+			"SRS_VHOST_MIN_LATENCY":        "on",
+			"SRS_VHOST_PLAY_MW_LATENCY":    "0",
+			"SRS_VHOST_HTTP_REMUX_ENABLED": "on",
+			"SRS_VHOST_HTTP_REMUX_MOUNT":   "[vhost]/[app]/[stream].flv",
+			"SRS_VHOST_HLS_ENABLED":        "on",
+			"SRS_VHOST_DASH_ENABLED":       "on",
+			"SRS_VHOST_DASH_DASH_FRAGMENT": "10",
 		},
 	}
 }
@@ -507,4 +514,20 @@ func untimed(t testing.TB, start func()) {
 		return
 	}
 	start()
+}
+
+// RemuxConfig is the config of a variant that serves every stream over HTTP
+// as ext, "ts", "mp3" or "aac", at /[app]/[stream].<ext>, because a vhost has
+// one HTTP remux mount and Common's is FLV. It has RTMP to publish, the HTTP
+// API and server, and Common's lowest play latency.
+func RemuxConfig(ext string) Config {
+	return Config{
+		Listeners: []Listener{RTMP, HTTPAPI, HTTPServer},
+		Env: map[string]string{
+			"SRS_VHOST_MIN_LATENCY":        "on",
+			"SRS_VHOST_PLAY_MW_LATENCY":    "0",
+			"SRS_VHOST_HTTP_REMUX_ENABLED": "on",
+			"SRS_VHOST_HTTP_REMUX_MOUNT":   "[vhost]/[app]/[stream]." + ext,
+		},
+	}
 }

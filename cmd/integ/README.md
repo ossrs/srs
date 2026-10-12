@@ -52,7 +52,7 @@ earlier runs whose process is gone.
 The CLI gives the stream tools by hand:
 
 ```bash
-bin/srs-integ probe <url>            # Read a stream and print its stream report.
+bin/srs-integ probe <url>            # Print the stream report of rtmp://, http://...{flv,ts,aac,mp3,m3u8,mpd} or an FLV, TS, AAC, MP3 or MP4 file; -duration, -timeout.
 bin/srs-integ publish <file> <url>   # Publish an FLV file in real time, to rtmp://.
 bin/srs-integ prepare -h             # Make the test media; its flags.
 ```
@@ -63,7 +63,14 @@ bin/srs-integ prepare -h             # Make the test media; its flags.
 - `internal/server/`: the adapter, the only package that knows the SRS binary, its env var names, its ports and its paths.
 - `internal/media/`: the test media: its recipes, the prepare cache, and FLV and MP4 readers.
 - `internal/rtmp/`: the RTMP client: the simple and complex handshakes, chunk sizes, connect options, FMLE and Flash publish, play, FLV tags in and out including enhanced RTMP, and real-time pacing.
-- `internal/flv/`, `internal/ts/`, `internal/mp4/`, `internal/hls/`, `internal/dash/`, `internal/rtc/`, `internal/srt/`, `internal/rtsp/`, `internal/gb/`: the clients and analyzers.
+- `internal/report/`: the stream report every analyzer fills, and `Until`, the stop condition a case states.
+- `internal/flv/`: the FLV analyzer, and the RTMP and HTTP-FLV players that feed it.
+- `internal/ts/`: the TS demuxer (PAT, PMT, PES; H.264, HEVC, AAC, MP3 and Opus), its analyzer, and the HTTP-TS player.
+- `internal/audio/`: the ADTS and MP3 frame readers, the raw .aac and .mp3 analyzer, and its HTTP player.
+- `internal/mp4/`: the fragmented MP4 reader (init, moof and mdat) and the analyzer of MP4 samples, for HLS fmp4, DASH and MP4 files, progressive or fragmented.
+- `internal/hls/`: the m3u8 parser (master and media playlists, keys, init maps) and the HLS player: TS or fmp4 segments, AES-128 decryption, live playlists.
+- `internal/dash/`: the MPD parser (segment templates and timelines) and the DASH player, which merges the video and audio representations in time order.
+- `internal/rtc/`, `internal/srt/`, `internal/rtsp/`, `internal/gb/`: the clients and analyzers.
 - `internal/mock/`: the hook and heartbeat servers.
 - `internal/check/`: the case helper.
 - `cases/`: the cases.
@@ -100,6 +107,8 @@ with `-parallel 64`, at the same time.
 - **Common:** one SRS with every feature that doesn't change how other streams behave, started by the first case that uses it and stopped after every test ends. Each case uses its own stream name.
   Its listeners: RTMP, RTMPS, the HTTP API and server, HTTPS for both, WebRTC over UDP and TCP, SRT, RTSP, the exporter, and the GB28181 media port. The MPEG-TS over UDP caster needs a variant, because a server has one stream caster.
   It plays with the lowest latency (`min_latency on`, `mw_latency 0`), so a player gets each message at once rather than in 350ms batches; a case that tests the default batching needs a variant.
+  It serves every stream as HTTP-FLV at `/[app]/[stream].flv`, and as HLS (TS) at `/[app]/[stream].m3u8` and DASH at `/[app]/[stream].mpd`, both with 10s segments.
+- **Remux variants:** a vhost has one HTTP remux mount, so HTTP-TS, MP3 and AAC each have a variant, `TsMount`, `Mp3Mount` and `AacMount` (`server.RemuxConfig`), with RTMP, the HTTP API and server, and Common's latency.
 - **Variant:** a server only when Common can't do it: a value Common can't have, global state, a process change, or a topology. A variant group is one top-level test that starts its SRS, runs its cases as parallel subtests, and stops the SRS.
 
 ### Classes
@@ -131,7 +140,25 @@ and without its cleanups.
 
 Streams are published in real time, like ffmpeg `-re`. Segment groups (HLS,
 DASH and DVR) publish without `-re`, because segments follow media timestamps,
-not wall time.
+not wall time. Their players fetch whole segments, so a report can go a
+little past the stop condition.
+
+### Stream checks
+
+A case checks a stream with the suite's own analyzers, never ffprobe. They
+fill one stream report (`internal/report`): codecs, picture size, sample
+rate, sequence headers, keyframes and frames, timestamps that only go forward
+without gaps, and the A/V sync difference. TS and raw AAC carry the sequence
+headers in band, before each keyframe or in each frame, so their report counts
+one each time they first appear or change. The case states when to stop, as a
+`report.Until` such as "both sequence headers, 1 keyframe, 5 video frames", so
+the analyzer stops as soon as the check can pass:
+
+```go
+r, err := flv.PlayHTTP(ctx, nil, url, report.Until{VideoHeader: true, AudioHeader: true, Keyframes: 1, VideoFrames: 5})
+c.Must(err, "play") // On a timeout, the error has what it waited for and what it got.
+c.CheckNoError(r.CheckTimestamps(100*time.Millisecond), "timestamps")
+```
 
 ### Test media
 
@@ -183,5 +210,11 @@ utest scenario it ports, if any.
 |---|---|---|---|---|
 | Api | Smoke | Versions, BuildFeatures, OnlyItsListener | Fast | |
 | Api | Common | Versions, ListenersAccept | Fast | |
+| Dash | Common | PublishPlay: H.264/AAC published without `-re`, 15s of media from the 10s segments of both representations | Normal | |
+| HttpAudio | AacMount | PublishPlay: the AAC of H.264/AAC as raw ADTS, joining 200ms into the stream | Normal | |
+| HttpAudio | Mp3Mount | PublishPlay: the MP3 of H.264/MP3, joining 200ms into the stream | Normal | |
+| HttpFlv | Common | PublishPlay, PublishPlayHevc (enhanced RTMP), joining 200ms into the stream | Normal | |
+| HttpTs | TsMount | PublishPlay, PublishPlayHevc, joining 200ms into the stream | Normal | |
+| Hls | Common | PublishPlay: H.264/AAC published without `-re`, 15s of media from the 10s TS segments, through the `hls_ctx` master playlist | Normal | |
 | Rtmp | Common | PublishPlay, PublishPlayHevc (enhanced RTMP) | Normal | |
 | Signal | Smoke | TermExitsZero (`TestTimer_Signal_Smoke`) | Timer | |

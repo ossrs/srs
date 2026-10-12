@@ -16,7 +16,7 @@ import (
 const usage = `Usage: srs-integ <command> [arguments]
 
 Commands:
-  probe <url>            Read a stream and print its stream report.
+  probe [flags] <url>    Read a stream or an FLV file and print its stream report; -h for its flags.
   publish <file> <url>   Publish a media file in real time.
   prepare [flags]        Make the test media from doc/source.flv; -h for its flags.
   help                   Print this help.
@@ -39,11 +39,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stdout, usage)
 		return 0
 	case "probe":
-		if len(rest) != 1 {
-			fmt.Fprintln(stderr, "Usage: srs-integ probe <url>")
-			return 2
-		}
-		return fail(stderr, probe(rest[0], stdout))
+		return probe(rest, stdout, stderr)
 	case "prepare":
 		return prepare(rest, stdout, stderr)
 	case "publish":
@@ -65,8 +61,4 @@ func fail(stderr io.Writer, err error) int {
 	}
 	fmt.Fprintln(stderr, err)
 	return 1
-}
-
-func probe(url string, stdout io.Writer) error {
-	return fmt.Errorf("probe: not implemented yet")
 }
