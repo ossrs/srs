@@ -118,7 +118,6 @@ func TestRtmp_JitterZero(t *testing.T) {
 	// BackJumpPlays publishes a stream that jumps 10s forward, then 5s back:
 	// the player gets the media after the jump back too.
 	check.Case(t, "BackJumpPlays", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "without time correction, a player gets nothing after the timestamps jump back, until they pass the old ones")
 		backJumpPlays(c, srs, 0)
 	})
 }
@@ -142,7 +141,6 @@ func TestRtmp_JitterOff(t *testing.T) {
 	// BackJumpPlays is the case of TestRtmp_JitterZero for time_jitter off,
 	// with the stream starting at 100s.
 	check.Case(t, "BackJumpPlays", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "without time correction, a player gets nothing after the timestamps jump back, until they pass the old ones")
 		backJumpPlays(c, srs, absBase)
 	})
 }

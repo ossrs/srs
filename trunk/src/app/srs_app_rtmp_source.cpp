@@ -486,10 +486,11 @@ srs_error_t SrsLiveConsumer::enqueue(SrsMediaPacket *shared_msg, bool atc, SrsRt
         srs_utime_t duration = queue_->duration();
         bool match_min_msgs = queue_->size() > mw_min_msgs_;
 
-        // For ATC, maybe the SH timestamp bigger than A/V packet,
-        // when encoder republish or overflow.
-        // @see https://github.com/ossrs/srs/pull/749
-        if (atc && duration < 0) {
+        // A negative duration never grows to the wait's duration, so flush now. For ATC, maybe the SH
+        // timestamp bigger than A/V packet, when encoder republish or overflow, @see
+        // https://github.com/ossrs/srs/pull/749. With time_jitter zero or off, the publisher's timestamps
+        // may jump back before the last message sent to the player.
+        if (duration < 0) {
             srs_cond_signal(mw_wait_);
             mw_waiting_ = false;
             return err;

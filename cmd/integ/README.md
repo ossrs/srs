@@ -462,8 +462,8 @@ utest scenario it ports, if any.
 | Rtmp | QueueLength | QueueShrinks: with a 1s queue, a paused player loses more than 1s of a 20s burst (`TestTimer_Rtmp_QueueLength`, on the shared timer server `SegmentsKeep`) | Timer | |
 | Rtmp | ReduceSequenceHeader | DuplicateDropped (each header once), ChangedKept (a different video header is kept) | Normal | |
 | Rtmp | Common | Timestamps and latency at the defaults: JitterFullStartsAtZero (a stream from 100s plays from near zero, with the publisher's steps), JitterFullFixesJumps (a 10s jump forward and a 5s jump back play without a gap or a step back), InterleaveKept (audio sent 200ms late reaches the player in the order sent), MinLatencyNoHold (the headers and one keyframe come at once) | Normal | |
-| Rtmp | JitterZero | StartsAtZero (every timestamp 100s earlier), KeepsJumps (a 10s jump forward is kept), BackJumpPlays (known bug) | Normal | |
-| Rtmp | JitterOff | KeepsTimestamps (as published, from 100s), BackJumpPlays (known bug) | Normal | |
+| Rtmp | JitterZero | StartsAtZero (every timestamp 100s earlier), KeepsJumps (a 10s jump forward is kept), BackJumpPlays (after 10s forward, a 5s jump back plays on) | Normal | |
+| Rtmp | JitterOff | KeepsTimestamps (as published, from 100s), BackJumpPlays (the jump back of JitterZero, from 100s) | Normal | |
 | Rtmp | AtcMixCorrect | KeepsTimestamps (each track as published), LateJoinHeadersAtGop (the metadata and headers at the GOP's time), MixCorrectOrders (audio sent 200ms late reaches the player in time order) | Normal | |
 | Rtmp | MergedWrite | HoldsUntilLatency (more than 4 messages held until they span 200ms), HoldsUntilMsgs (240ms held until 5 messages), MergedReadPlays (a real-time stream plays with merged reads) | Normal | |
 | Rtmp | SendMinInterval | PacesMessages (10 messages sent at once reach the player at least 20ms apart, in order) | Normal | |

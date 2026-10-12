@@ -1006,6 +1006,47 @@ VOID TEST(LiveConsumerTest, EnqueueWaitingSignalConditions)
         EXPECT_TRUE(consumer->mw_waiting_);
     }
 }
+
+// Without ATC, a stream whose timestamps jump back, with time_jitter zero or off,
+// must still wake a waiting player. The player has sent everything up to 10s, so
+// the queue's start is 10s, and a message at 5s makes the duration negative.
+VOID TEST(LiveConsumerTest, EnqueueSignalsOnBackJumpWithoutAtc)
+{
+    srs_error_t err;
+
+    SrsRtmpJitterAlgorithm algorithms[] = {SrsRtmpJitterAlgorithmZERO, SrsRtmpJitterAlgorithmOFF};
+    for (int i = 0; i < (int)(sizeof(algorithms) / sizeof(algorithms[0])); i++) {
+        SrsRtmpJitterAlgorithm ag = algorithms[i];
+
+        SrsUniquePtr<MockLiveSourceForQueue> source(new MockLiveSourceForQueue());
+        SrsUniquePtr<SrsLiveConsumer> consumer(new SrsLiveConsumer(source.get()));
+
+        // Publish 1s, then a jump forward to 11s, and send both to the player.
+        SrsUniquePtr<MockMediaPacketForJitter> packet1(new MockMediaPacketForJitter(1000, true));
+        HELPER_EXPECT_SUCCESS(consumer->enqueue(packet1.get(), false, ag));
+        SrsUniquePtr<MockMediaPacketForJitter> packet2(new MockMediaPacketForJitter(11000, true));
+        HELPER_EXPECT_SUCCESS(consumer->enqueue(packet2.get(), false, ag));
+
+        SrsMessageArray msgs(10);
+        int count = 0;
+        HELPER_EXPECT_SUCCESS(consumer->dump_packets(&msgs, count));
+        EXPECT_EQ(2, count);
+        msgs.free(count);
+
+        // The player waits with min_latency, for any message.
+        consumer->mw_waiting_ = true;
+        consumer->mw_min_msgs_ = 0;
+        consumer->mw_duration_ = 0;
+
+        // The publisher jumps 5s back, to 6s.
+        SrsUniquePtr<MockMediaPacketForJitter> packet3(new MockMediaPacketForJitter(6000, true));
+        HELPER_EXPECT_SUCCESS(consumer->enqueue(packet3.get(), false, ag));
+        EXPECT_LT(consumer->queue_->duration(), 0) << "algorithm " << ag;
+
+        // The player is woken up, so it gets the message.
+        EXPECT_FALSE(consumer->mw_waiting_) << "algorithm " << ag;
+    }
+}
 #endif
 
 VOID TEST(GopCacheTest, TypicalUseScenario)
