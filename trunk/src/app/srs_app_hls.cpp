@@ -616,9 +616,15 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
     }
     init_mp4_uri += mp4_path;
 
-    // Convert to relative URI for m3u8 playlist.
-    // TODO: Need to resolve the relative URI from m3u8 and init file.
-    init_mp4_uri_ = path.filepath_base(init_file);
+    // The playlist lists the init file by its path from the playlist's dir, for the default
+    // [app]/[stream]/init.mp4 is in a dir per stream. An init file outside that dir keeps its
+    // file name.
+    std::string m3u8_dir = m3u8_dir_ + "/";
+    if (srs_strings_starts_with(init_mp4->fullpath(), m3u8_dir)) {
+        init_mp4_uri_ = init_mp4->fullpath().substr(m3u8_dir.length());
+    } else {
+        init_mp4_uri_ = path.filepath_base(init_file);
+    }
 
     // use async to call the http hooks, for it will cause thread switch.
     if ((err = async_->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req_, init_mp4->fullpath(),

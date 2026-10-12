@@ -359,7 +359,6 @@ func TestHls_Fmp4Default(t *testing.T) {
 
 	// A player follows #EXT-X-MAP to the init file and plays the segment.
 	check.Case(t, "DefaultInitPlays", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the playlist lists the default init file [app]/[stream]/init.mp4 by its file name, init.mp4, which is not beside the playlist")
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, 11*time.Second)
 		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(0))

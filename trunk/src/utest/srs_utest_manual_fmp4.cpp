@@ -9,6 +9,7 @@
 #include <sstream>
 using namespace std;
 
+#include <srs_app_config.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
@@ -16,6 +17,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
 // Mock class implementations
@@ -307,6 +309,47 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteInitMp4)
 
     // Write init.mp4 with audio only
     HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, false, true));
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_InitUriInStreamDir)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // The default init file [app]/[stream]/init.mp4 is in a dir per stream, not beside the
+    // playlist [app]/[stream].m3u8, so the playlist lists it by that dir.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    EXPECT_STREQ("livestream/init.mp4", muxer.init_mp4_uri_.c_str());
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_InitUriBesidePlaylist)
+{
+    srs_error_t err;
+
+    SrsSetEnvConfig(*_srs_config, init_file, "SRS_VHOST_HLS_HLS_INIT_FILE", "[app]/[stream]-init.mp4");
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // An init file beside the playlist is listed by its file name.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    EXPECT_STREQ("livestream-init.mp4", muxer.init_mp4_uri_.c_str());
 
     muxer.dispose();
 }
