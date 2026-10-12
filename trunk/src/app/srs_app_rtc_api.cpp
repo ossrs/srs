@@ -578,6 +578,11 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
                              server_enabled, rtc_enabled, ruc->req_->vhost_.c_str());
     }
 
+    // The security check needs no session, so a denied publisher never makes one.
+    if ((err = security_->check(SrsRtcConnPublish, ruc->req_->ip_, ruc->req_)) != srs_success) {
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: security check");
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     // We must do stat the client before hooks, because hooks depends on it.
     ISrsRtcConnection *session = NULL;
@@ -585,12 +590,12 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "create session");
     }
 
-    if ((err = security_->check(SrsRtcConnPublish, ruc->req_->ip_, ruc->req_)) != srs_success) {
-        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: security check");
-    }
-
     // We must do hook after stat, because depends on it.
     if ((err = http_hooks_on_publish(ruc->req_)) != srs_success) {
+        // The session holds the stream's publish token, so a refused publisher, which never
+        // connects, must not leave it: the stream would be busy for the next publisher until the
+        // session times out without STUN.
+        session->expire();
         return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_publish");
     }
 

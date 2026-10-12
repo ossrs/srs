@@ -522,6 +522,81 @@ VOID TEST(HookRejectionTest, WhepRejectedViewerReceivesHookStatus)
     srs_freep(hooks);
 }
 
+// A WHIP session that counts how often it is expired, which removes it from the server.
+class MockRtcConnectionForRefusedPublish : public MockRtcConnectionForUpdateSessions
+{
+public:
+    int expire_count_;
+
+public:
+    MockRtcConnectionForRefusedPublish()
+    {
+        username_ = "refused-publisher";
+        expire_count_ = 0;
+    }
+    virtual ~MockRtcConnectionForRefusedPublish()
+    {
+    }
+
+public:
+    virtual void expire()
+    {
+        expire_count_++;
+    }
+};
+
+// An RTC API server that creates one session.
+class MockRtcApiServerForRefusedPublish : public ISrsRtcApiServer
+{
+public:
+    MockRtcConnectionForRefusedPublish session_;
+    int create_count_;
+
+public:
+    MockRtcApiServerForRefusedPublish()
+    {
+        create_count_ = 0;
+    }
+    virtual ~MockRtcApiServerForRefusedPublish()
+    {
+    }
+
+public:
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
+    {
+        create_count_++;
+        *psession = &session_;
+        return srs_success;
+    }
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag)
+    {
+        return NULL;
+    }
+};
+
+// The offer of a WHIP publisher, a raw SDP body that sends Opus.
+static std::string mock_whip_publish_offer()
+{
+    return "v=0\r\n"
+           "o=- 0 0 IN IP4 127.0.0.1\r\n"
+           "s=-\r\n"
+           "t=0 0\r\n"
+           "a=group:BUNDLE 0\r\n"
+           "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+           "a=ice-ufrag:test\r\n"
+           "a=ice-pwd:testpasswordtestpassword\r\n"
+           "a=fingerprint:sha-256 "
+           "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:"
+           "44:55:66:77:88:99\r\n"
+           "a=setup:actpass\r\n"
+           "a=mid:0\r\n"
+           "a=sendonly\r\n"
+           "a=rtcp-mux\r\n"
+           "a=rtpmap:111 opus/48000/2\r\n";
+}
+
 // WHIP: a rejected publisher already receives 401, and must keep receiving it.
 //
 // WHIP is HTTP just as WHEP is, so a rejected publisher deserves the same authorization status as
@@ -536,7 +611,7 @@ VOID TEST(HookRejectionTest, WhipRejectedPublisherReceivesHookStatus)
 {
     srs_error_t err = srs_success;
 
-    SrsUniquePtr<MockRtcApiServer> server(new MockRtcApiServer());
+    SrsUniquePtr<MockRtcApiServerForRefusedPublish> server(new MockRtcApiServerForRefusedPublish());
     SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
     SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
 
@@ -600,6 +675,89 @@ VOID TEST(HookRejectionTest, WhipRejectedPublisherReceivesHookStatus)
     api->publish_->hooks_ = NULL;
     srs_freep(config);
     srs_freep(hooks);
+}
+
+// WHIP: a publisher that on_publish refuses must not hold the stream.
+//
+// The session is made before the hook, for the hook reports the stream the session adds to the
+// stat, and the session holds the stream's publish token until it is removed. A refused publisher
+// never connects, so unless SRS removes its session at once, the stream stays busy (409) for the
+// next publisher until the session times out without STUN.
+VOID TEST(HookRejectionTest, WhipRejectedPublisherFreesSession)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockRtcApiServerForRefusedPublish> server(new MockRtcApiServerForRefusedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
+    HELPER_EXPECT_SUCCESS(message->set_url("http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream", false));
+    message->body_content_ = mock_whip_publish_offer();
+
+    SrsUniquePtr<MockAppConfigForHttpHooksOnPublish> config(new MockAppConfigForHttpHooksOnPublish());
+    config->rtc_server_enabled_ = true;
+    config->rtc_enabled_ = true;
+    config->http_hooks_enabled_ = true;
+    config->on_publish_directive_ = new SrsConfDirective();
+    config->on_publish_directive_->name_ = "on_publish";
+    config->on_publish_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/publish");
+
+    SrsUniquePtr<MockHttpHooksForOnPublish> hooks(new MockHttpHooksForOnPublish());
+    hooks->on_publish_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+
+    SrsUniquePtr<SrsGoApiRtcWhip> api(new SrsGoApiRtcWhip(server.get()));
+    api->config_ = config.get();
+    api->publish_->config_ = config.get();
+    api->publish_->hooks_ = hooks.get();
+
+    HELPER_EXPECT_SUCCESS(api->serve_http(writer.get(), message.get()));
+
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+    EXPECT_EQ(1, hooks->on_publish_count_);
+
+    // The refused session is removed, so it frees the stream.
+    EXPECT_EQ(1, server->session_.expire_count_);
+
+    api->config_ = NULL;
+    api->publish_->config_ = NULL;
+    api->publish_->hooks_ = NULL;
+}
+
+// WHIP: a publisher the security denies must not hold the stream either. The security check needs
+// no session, so it comes first, as for a WHEP player, and a denied publisher makes none.
+VOID TEST(HookRejectionTest, WhipDeniedPublisherMakesNoSession)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockRtcApiServerForRefusedPublish> server(new MockRtcApiServerForRefusedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
+    HELPER_EXPECT_SUCCESS(message->set_url("http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream", false));
+    message->body_content_ = mock_whip_publish_offer();
+
+    SrsUniquePtr<MockAppConfigForHttpHooksOnPublish> config(new MockAppConfigForHttpHooksOnPublish());
+    config->rtc_server_enabled_ = true;
+    config->rtc_enabled_ = true;
+
+    MockSecurity *security = new MockSecurity();
+    security->check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "denied");
+
+    SrsUniquePtr<SrsGoApiRtcWhip> api(new SrsGoApiRtcWhip(server.get()));
+    api->config_ = config.get();
+    api->publish_->config_ = config.get();
+    srs_freep(api->publish_->security_);
+    api->publish_->security_ = security;
+
+    HELPER_EXPECT_SUCCESS(api->serve_http(writer.get(), message.get()));
+
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+    EXPECT_EQ(1, security->check_count_);
+    EXPECT_EQ(0, server->create_count_);
+    EXPECT_EQ(0, server->session_.expire_count_);
+
+    api->config_ = NULL;
+    api->publish_->config_ = NULL;
 }
 
 // SRT: rejection with no reason is the accepted, final behavior.

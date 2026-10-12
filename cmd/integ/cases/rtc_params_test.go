@@ -104,7 +104,6 @@ func rtcErrors(t *testing.T) {
 	// WhipRejectedThenPublish publishes again once the hook server accepts:
 	// the refused publish holds nothing, so it is 201 and plays.
 	check.Case(t, "WhipRejectedThenPublish", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a WHIP publish that on_publish refuses leaves its session, which holds the stream until it times out, so the next publish is 409")
 		srs := server.Common(c)
 		stream := streamName(c)
 		srs.Hooks.Script(mock.Match{Action: "on_publish", Stream: stream}, mock.Reject(403))
