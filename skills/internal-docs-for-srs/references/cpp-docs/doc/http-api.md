@@ -413,6 +413,51 @@ Parameters in query string:
 
 To process specified client by id, for instance `http://192.168.1.102:1985/api/v1/clients/3756`
 
+Each client has `srt`, the SRT stats of its connection from libsrt, or `null` if the client is not SRT. For an SRT
+publisher:
+
+```json
+"srt": {
+  "rtt_ms": 41.53,
+  "bandwidth_mbps": 48.12,
+  "recv_buf_ms": 184,
+  "send_buf_ms": 0,
+  "recv_latency_ms": 200,
+  "send_latency_ms": 200,
+  "recv_packets": 17521,
+  "recv_loss": 347,
+  "recv_retrans": 350,
+  "recv_drop": 1,
+  "recv_undecrypt": 0,
+  "send_packets": 0,
+  "send_loss": 0,
+  "send_retrans": 0,
+  "send_drop": 0
+}
+```
+
+The fields of `srt`, where a publisher receives and a player sends:
+
+| Field | Description |
+| --- | --- |
+| rtt_ms | The smoothed round trip time, in milliseconds. |
+| bandwidth_mbps | The estimated bandwidth of the link, in Mbps. |
+| recv_buf_ms, send_buf_ms | The timespan of the packets in the receiver buffer, not delivered yet, and in the sender buffer, not acknowledged yet, in milliseconds. |
+| recv_latency_ms, send_latency_ms | The negotiated latency (TSBPD delay), in milliseconds. |
+| recv_packets | The received packets, including retransmitted packets. |
+| recv_loss | The packets detected as missing, which are recovered by retransmission or dropped. |
+| recv_retrans | The retransmitted packets received. |
+| recv_drop | The packets dropped because they were lost or arrived too late to play, a glitch in the stream. |
+| recv_undecrypt | The packets that failed to decrypt, for example a wrong passphrase. |
+| send_packets | The sent packets, including retransmitted packets. |
+| send_loss | The packets reported as lost by the receiver. |
+| send_retrans | The retransmitted packets sent. |
+| send_drop | The packets dropped because they were too late to send. |
+
+The packet counts are totals since the client connected, so a monitor gets the rate from two queries. The SRT stats
+are fetched on each query, without changing the stats that SRS logs. The `srt` is `null` too when SRS fails to get
+the stats, for example the client has just disconnected.
+
 ## Forwards
 
 SRS provides a read-only http api to query the forwarders of the publishing streams, see [Forward](./forward.md#forward-status).

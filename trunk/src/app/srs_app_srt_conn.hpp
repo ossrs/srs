@@ -14,6 +14,7 @@
 
 #include <srs_app_security.hpp>
 #include <srs_app_st.hpp>
+#include <srs_app_statistic.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_srt.hpp>
 #include <srs_protocol_utility.hpp>
@@ -50,7 +51,8 @@ public:
     virtual void assemble() = 0;
     virtual srs_srt_t srtfd() = 0;
     virtual srs_error_t get_streamid(std::string &streamid) = 0;
-    virtual srs_error_t get_stats(SrsSrtStat &stat) = 0;
+    // Fetch the SRT stats, and clear the interval counters if clear.
+    virtual srs_error_t get_stats(SrsSrtStat &stat, bool clear) = 0;
 };
 
 // The basic connection of SRS, for SRT based protocols,
@@ -70,7 +72,7 @@ public:
     virtual void assemble(); // Construct object, to avoid call function in constructor.
     virtual srs_srt_t srtfd();
     virtual srs_error_t get_streamid(std::string &streamid);
-    virtual srs_error_t get_stats(SrsSrtStat &stat);
+    virtual srs_error_t get_stats(SrsSrtStat &stat, bool clear);
 
     // Interface ISrsProtocolReadWriter
 public:
@@ -150,7 +152,7 @@ public:
 };
 
 // The SRT connection, for client to publish or play stream.
-class SrsMpegtsSrtConn : public ISrsMpegtsSrtConnection
+class SrsMpegtsSrtConn : public ISrsMpegtsSrtConnection, public ISrsStatisticSrt
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -185,6 +187,9 @@ public:
 public:
     virtual std::string remote_ip();
     virtual const SrsContextId &get_id();
+    // Interface ISrsStatisticSrt
+public:
+    virtual srs_error_t dumps_srt(SrsJsonObject *obj);
     // Interface ISrsCoroutineHandler
 public:
     virtual srs_error_t cycle();
@@ -205,6 +210,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t on_srt_packet(char *buf, int nb_buf);
+    // Fetch the SRT stats for the pithy print, which clears the interval counters.
+    srs_error_t fetch_srt_stats(SrsSrtStat &stat);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -228,6 +235,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRequest *req_;
     SrsSharedPtr<SrsSrtSource> srt_source_;
     ISrsSecurity *security_;
+    // The received retransmits, accumulated as the pithy print clears them, for libsrt has no total.
+    int64_t srt_recv_retrans_;
 };
 
 #endif

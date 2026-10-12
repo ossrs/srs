@@ -123,6 +123,18 @@ public:
     virtual void close();
 };
 
+// The SRT connection of a client, which provides its SRT transport stats for the HTTP API.
+class ISrsStatisticSrt
+{
+public:
+    ISrsStatisticSrt();
+    virtual ~ISrsStatisticSrt();
+
+public:
+    // Dumps the SRT stats, such as RTT, loss and retransmits, to obj.
+    virtual srs_error_t dumps_srt(SrsJsonObject *obj) = 0;
+};
+
 struct SrsStatisticClient {
 public:
     ISrsClock *clk_;
@@ -130,6 +142,8 @@ public:
 public:
     // For HTTP-API to kickoff this connection by expiring it.
     ISrsExpire *conn_;
+    // For HTTP-API to dump the SRT stats, NULL if not SRT.
+    ISrsStatisticSrt *srt_;
 
 public:
     SrsStatisticStream *stream_;
@@ -196,6 +210,7 @@ public:
 public:
     virtual void on_disconnect(std::string id, srs_error_t err) = 0;
     virtual srs_error_t on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type) = 0;
+    virtual void on_srt_stats(std::string id, ISrsStatisticSrt *srt) = 0;
     virtual srs_error_t on_video_info(ISrsRequest *req, SrsVideoCodecId vcodec, int avc_profile, int avc_level, int width, int height) = 0;
     virtual srs_error_t on_audio_info(ISrsRequest *req, SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate,
                                       SrsAudioChannels asound_type, SrsAacObjectType aac_object) = 0;
@@ -335,6 +350,10 @@ public:
     // @param conn, the physical absract connection object.
     // @param type, the type of connection.
     virtual srs_error_t on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type);
+    // When an SRT client is on, to dump the SRT stats of its connection in the HTTP API.
+    // @param id, the client srs id, after on_client.
+    // @param srt, the SRT connection, which must live until on_disconnect.
+    virtual void on_srt_stats(std::string id, ISrsStatisticSrt *srt);
     // Client disconnect
     // @remark the on_disconnect always call, while the on_client is call when
     //      only got the request object, so the client specified by id maybe not
