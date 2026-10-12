@@ -29,10 +29,17 @@ import (
 
 // An MPD is a media presentation description.
 type MPD struct {
-	Type                string   `xml:"type,attr"`
-	MinimumUpdatePeriod string   `xml:"minimumUpdatePeriod,attr"`
-	BaseURL             string   `xml:"BaseURL"`
-	Periods             []Period `xml:"Period"`
+	Profiles string `xml:"profiles,attr"`
+	Type     string `xml:"type,attr"`
+	// The durations are ISO 8601, such as PT5.000S; see Duration.
+	MinimumUpdatePeriod  string `xml:"minimumUpdatePeriod,attr"`
+	TimeShiftBufferDepth string `xml:"timeShiftBufferDepth,attr"`
+	MinBufferTime        string `xml:"minBufferTime,attr"`
+	// The times are UTC, such as 2026-10-10T12:00:00Z.
+	AvailabilityStartTime string   `xml:"availabilityStartTime,attr"`
+	PublishTime           string   `xml:"publishTime,attr"`
+	BaseURL               string   `xml:"BaseURL"`
+	Periods               []Period `xml:"Period"`
 }
 
 // A Period is a period of the presentation.
@@ -45,11 +52,13 @@ type Period struct {
 
 // An AdaptationSet is a set of representations of one content type.
 type AdaptationSet struct {
-	MimeType        string           `xml:"mimeType,attr"`
-	ContentType     string           `xml:"contentType,attr"`
-	BaseURL         string           `xml:"BaseURL"`
-	SegmentTemplate *SegmentTemplate `xml:"SegmentTemplate"`
-	Representations []Representation `xml:"Representation"`
+	MimeType         string           `xml:"mimeType,attr"`
+	ContentType      string           `xml:"contentType,attr"`
+	BaseURL          string           `xml:"BaseURL"`
+	SegmentAlignment bool             `xml:"segmentAlignment,attr"`
+	StartWithSAP     int              `xml:"startWithSAP,attr"`
+	SegmentTemplate  *SegmentTemplate `xml:"SegmentTemplate"`
+	Representations  []Representation `xml:"Representation"`
 }
 
 // A Representation is one encoding of the content.
@@ -473,4 +482,33 @@ func PlayHTTP(ctx context.Context, client *http.Client, raw string, u report.Unt
 		case <-time.After(pollInterval):
 		}
 	}
+}
+
+var isoDuration = regexp.MustCompile(`^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$`)
+
+// Duration parses an ISO 8601 duration of an MPD attribute, such as
+// PT5.000S, with days, hours, minutes and seconds.
+func Duration(s string) (time.Duration, error) {
+	g := isoDuration.FindStringSubmatch(s)
+	if g == nil || s == "P" || strings.HasSuffix(s, "T") {
+		return 0, fmt.Errorf("duration %q: not P[nD][T[nH][nM][nS]]", s)
+	}
+	var d time.Duration
+	for i, unit := range []time.Duration{24 * time.Hour, time.Hour, time.Minute} {
+		if g[i+1] != "" {
+			n, err := strconv.ParseInt(g[i+1], 10, 64)
+			if err != nil {
+				return 0, fmt.Errorf("duration %q: %w", s, err)
+			}
+			d += time.Duration(n) * unit
+		}
+	}
+	if g[4] != "" {
+		f, err := strconv.ParseFloat(g[4], 64)
+		if err != nil {
+			return 0, fmt.Errorf("duration %q: %w", s, err)
+		}
+		d += time.Duration(math.Round(f * float64(time.Second)))
+	}
+	return d, nil
 }

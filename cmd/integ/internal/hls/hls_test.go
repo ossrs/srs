@@ -418,3 +418,83 @@ func TestPlayHTTPErrors(t *testing.T) {
 		t.Errorf("error %v, want the deadline after a 404", err)
 	}
 }
+
+// TestFetch follows a master playlist to its media playlist, and returns it
+// with its URL, query and all.
+func TestFetch(t *testing.T) {
+	master := "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\n/live/s.m3u8?hls_ctx=abc\n"
+	media := "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:4\n#EXT-X-TARGETDURATION:3\n#EXTINF:3.000, no desc\ns-4.ts?hls_ctx=abc\n"
+	s, _ := serve(t, t.TempDir(), map[string]http.HandlerFunc{
+		"/live/s.m3u8": func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("hls_ctx") == "" {
+				w.Write([]byte(master))
+				return
+			}
+			w.Write([]byte(media))
+		},
+	})
+
+	pl, u, err := Fetch(context.Background(), nil, s.URL+"/live/s.m3u8")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := s.URL + "/live/s.m3u8?hls_ctx=abc"; u != want {
+		t.Errorf("URL %v, want %v", u, want)
+	}
+	if pl.Master || pl.MediaSequence != 4 || pl.TargetDuration != 3 || len(pl.Segments) != 1 {
+		t.Fatalf("playlist %+v, want the media playlist", pl)
+	}
+	if want := s.URL + "/live/s-4.ts?hls_ctx=abc"; pl.Segments[0].URI != want || pl.Segments[0].Sequence != 4 {
+		t.Errorf("segment %+v, want %v as 4", pl.Segments[0], want)
+	}
+
+	// A media playlist is returned as it is.
+	pl, u, err = Fetch(context.Background(), nil, s.URL+"/live/s.m3u8?hls_ctx=abc")
+	if err != nil || pl.Master || u != s.URL+"/live/s.m3u8?hls_ctx=abc" {
+		t.Errorf("playlist %+v at %v, %v, want the media playlist", pl, u, err)
+	}
+
+	_, _, err = Fetch(context.Background(), nil, s.URL+"/live/none.m3u8")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("error %v, want ErrNotFound", err)
+	}
+}
+
+// TestDecrypt decrypts AES-128 segment data: with the key's IV, or the media
+// sequence number when the key has none; a wrong key or a partial block is
+// an error.
+func TestDecrypt(t *testing.T) {
+	key := []byte("0123456789abcdef")
+	iv := []byte("ivivivivivivivii")
+	plain := bytes.Repeat([]byte{0x47, 1, 2, 3}, 47)
+
+	got, err := Decrypt(key, Segment{Sequence: 9, Key: &Key{Method: "AES-128", IV: iv}}, encrypt(t, key, iv, plain))
+	if err != nil || !bytes.Equal(got, plain) {
+		t.Errorf("with the key's IV: %v, %x", err, got)
+	}
+
+	seqIV := make([]byte, 16)
+	seqIV[15] = 9
+	got, err = Decrypt(key, Segment{Sequence: 9, Key: &Key{Method: "AES-128"}}, encrypt(t, key, seqIV, plain))
+	if err != nil || !bytes.Equal(got, plain) {
+		t.Errorf("with the sequence as IV: %v, %x", err, got)
+	}
+
+	for _, tc := range []struct {
+		name string
+		key  []byte
+		s    Segment
+		b    []byte
+	}{
+		{"WrongKey", []byte("fedcba9876543210"), Segment{Key: &Key{Method: "AES-128", IV: iv}}, encrypt(t, key, iv, plain)},
+		{"PartialBlock", key, Segment{Key: &Key{Method: "AES-128", IV: iv}}, encrypt(t, key, iv, plain)[1:]},
+		{"Empty", key, Segment{Key: &Key{Method: "AES-128", IV: iv}}, nil},
+		{"SampleAES", key, Segment{Key: &Key{Method: "SAMPLE-AES", IV: iv}}, encrypt(t, key, iv, plain)},
+		{"ShortKey", key[:8], Segment{Key: &Key{Method: "AES-128", IV: iv}}, encrypt(t, key, iv, plain)},
+		{"NoKey", key, Segment{}, encrypt(t, key, iv, plain)},
+	} {
+		if _, err := Decrypt(tc.key, tc.s, tc.b); err == nil {
+			t.Errorf("%v: no error", tc.name)
+		}
+	}
+}

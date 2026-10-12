@@ -31,8 +31,27 @@ type MP4Track struct {
 	Channels      uint16
 	SampleRate    uint32
 	// Config is the codec configuration box body, such as avcC or dOps.
-	Config  []byte
-	Samples []MP4Sample
+	Config []byte
+	// Protection is the sinf of an encrypted sample entry, such as encv or
+	// enca, and nil for a clear one.
+	Protection *Protection
+	Samples    []MP4Sample
+}
+
+// Protection is how a track is encrypted, from the sinf box of its sample
+// entry: the original format from frma, the scheme from schm, and the
+// defaults of tenc.
+type Protection struct {
+	// Format is the sample entry type before encryption, such as avc1.
+	Format string
+	// Scheme is the scheme type, such as cenc or cbcs.
+	Scheme string
+	// CryptBlocks and SkipBlocks are the pattern: of each run of 16-byte
+	// blocks, how many are encrypted and how many are left clear.
+	CryptBlocks, SkipBlocks byte
+	// PerSampleIVSize is 0 when every sample uses ConstantIV.
+	PerSampleIVSize byte
+	KID, ConstantIV []byte
 }
 
 // An MP4Sample is one sample: where it is, its decode time and composition
@@ -293,11 +312,68 @@ func (t *MP4Track) parseStsd(stbl []byte) error {
 	for _, c := range children {
 		switch c.typ {
 		case "avcC", "hvcC", "vpcC", "av1C", "dOps", "esds":
-			t.Config = c.body
-			return nil
+			if t.Config == nil {
+				t.Config = c.body
+			}
+		case "sinf":
+			if t.Protection, err = parseSinf(c.body); err != nil {
+				return fmt.Errorf("%v sinf: %w", entry.typ, err)
+			}
 		}
 	}
 	return nil
+}
+
+// parseSinf reads a protection scheme info box: frma, schm and the tenc of
+// schi.
+func parseSinf(sinf []byte) (*Protection, error) {
+	children, err := parseBoxes(sinf)
+	if err != nil {
+		return nil, err
+	}
+	p := &Protection{}
+	for _, c := range children {
+		switch c.typ {
+		case "frma":
+			if len(c.body) < 4 {
+				return nil, errors.New("short frma")
+			}
+			p.Format = string(c.body[:4])
+		case "schm":
+			_, f := fullBoxFields(c.body)
+			p.Scheme = string(f.take(4))
+			if f.err != nil {
+				return nil, fmt.Errorf("schm: %w", f.err)
+			}
+		case "schi":
+			tenc, err := child(c.body, "tenc")
+			if err != nil {
+				return nil, err
+			}
+			v, f := fullBoxFields(tenc)
+			f.take(1) // reserved
+			if pattern := f.take(1); v > 0 && f.err == nil {
+				p.CryptBlocks, p.SkipBlocks = pattern[0]>>4, pattern[0]&0x0f
+			}
+			head := f.take(2)
+			p.KID = append([]byte(nil), f.take(16)...)
+			if f.err != nil {
+				return nil, fmt.Errorf("tenc: %w", f.err)
+			}
+			protected := head[0]
+			p.PerSampleIVSize = head[1]
+			if protected == 1 && p.PerSampleIVSize == 0 {
+				n := f.take(1)
+				if f.err == nil {
+					p.ConstantIV = append([]byte(nil), f.take(int(n[0]))...)
+				}
+				if f.err != nil {
+					return nil, fmt.Errorf("tenc constant IV: %w", f.err)
+				}
+			}
+		}
+	}
+	return p, nil
 }
 
 // parseSamples expands the sample tables into one entry per sample.

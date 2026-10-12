@@ -323,11 +323,12 @@ func joinLimitedCache(c *check.C, srs *server.Server) (*report.Report, *report.R
 }
 
 // TestTimer_Rtmp_QueueDefault plays on a variant with the default play queue,
-// 30s. Its case pauses a player, and SRS reads an unpause only after the 500ms
-// sleep of a paused player, so it is a timer case.
+// 30s, the shared timer server SegmentsDispose. Its case pauses a player, and
+// SRS reads an unpause only after the 500ms sleep of a paused player, so it
+// is a timer case.
 func TestTimer_Rtmp_QueueDefault(t *testing.T) {
 	t.Parallel()
-	srs := server.Group(t, server.PlayConfig(server.Play{}))
+	srs := server.Shared(t, "SegmentsDispose", sharedSegmentsDispose())
 
 	// QueueKeepsBurst sends 20s at once to a paused player: the queue keeps
 	// all of it.
@@ -338,11 +339,12 @@ func TestTimer_Rtmp_QueueDefault(t *testing.T) {
 	})
 }
 
-// TestTimer_Rtmp_QueueLength plays on a variant whose player queue holds 1s, a
-// timer case for the pause like TestTimer_Rtmp_QueueDefault.
+// TestTimer_Rtmp_QueueLength plays on a variant whose player queue holds 1s,
+// the shared timer server SegmentsKeep, a timer case for the pause like
+// TestTimer_Rtmp_QueueDefault.
 func TestTimer_Rtmp_QueueLength(t *testing.T) {
 	t.Parallel()
-	srs := server.Group(t, server.PlayConfig(server.Play{QueueLength: time.Second}))
+	srs := server.Shared(t, "SegmentsKeep", sharedSegmentsKeep())
 
 	// QueueShrinks sends 20s at once to a paused player: SRS drops what is
 	// over 1s, so the player gets much less.

@@ -266,3 +266,137 @@ func TestRemuxVariant(t *testing.T) {
 		t.Errorf("build env: %v", err)
 	}
 }
+
+// TestHLSConfig checks that the zero HLS turns HLS on with SRS's defaults,
+// that each HLS setting it asks for is set, and that its env builds.
+func TestHLSConfig(t *testing.T) {
+	base := map[string]string{
+		"SRS_VHOST_MIN_LATENCY":     "on",
+		"SRS_VHOST_PLAY_MW_LATENCY": "0",
+		"SRS_VHOST_HLS_ENABLED":     "on",
+	}
+	cases := []struct {
+		name string
+		h    HLS
+		want map[string]string
+	}{
+		{"Defaults", HLS{}, nil},
+		{"Fragment", HLS{Fragment: 2 * time.Second}, map[string]string{"SRS_VHOST_HLS_HLS_FRAGMENT": "2"}},
+		{"Window", HLS{Window: 7500 * time.Millisecond}, map[string]string{"SRS_VHOST_HLS_HLS_WINDOW": "7.5"}},
+		{"TDRatio", HLS{TDRatio: 1.5}, map[string]string{"SRS_VHOST_HLS_HLS_TD_RATIO": "1.5"}},
+		{"AOFRatio", HLS{AOFRatio: 2.5}, map[string]string{"SRS_VHOST_HLS_HLS_AOF_RATIO": "2.5"}},
+		{"Path", HLS{Path: "./hls"}, map[string]string{"SRS_VHOST_HLS_HLS_PATH": "./hls", "SRS_HTTP_SERVER_DIR": "./hls"}},
+		{"M3U8File", HLS{M3U8File: "[app]/[stream]/index.m3u8"}, map[string]string{"SRS_VHOST_HLS_HLS_M3U8_FILE": "[app]/[stream]/index.m3u8"}},
+		{"TSFile", HLS{TSFile: "[app]/[stream]/seg-[seq].ts"}, map[string]string{"SRS_VHOST_HLS_HLS_TS_FILE": "[app]/[stream]/seg-[seq].ts"}},
+		{"EntryPrefix", HLS{EntryPrefix: "http://cdn.example.com"}, map[string]string{"SRS_VHOST_HLS_HLS_ENTRY_PREFIX": "http://cdn.example.com"}},
+		{"TSFloor", HLS{TSFloor: true}, map[string]string{"SRS_VHOST_HLS_HLS_TS_FLOOR": "on"}},
+		{"FMP4", HLS{FMP4: true}, map[string]string{"SRS_VHOST_HLS_HLS_USE_FMP4": "on"}},
+		{"FMP4File", HLS{FMP4File: "[app]/[stream]-seg-[seq].m4s"}, map[string]string{"SRS_VHOST_HLS_HLS_FMP4_FILE": "[app]/[stream]-seg-[seq].m4s"}},
+		{"InitFile", HLS{InitFile: "[app]/[stream]-init.mp4"}, map[string]string{"SRS_VHOST_HLS_HLS_INIT_FILE": "[app]/[stream]-init.mp4"}},
+		{"Keys", HLS{Keys: true}, map[string]string{"SRS_VHOST_HLS_HLS_KEYS": "on"}},
+		{"FragmentsPerKey", HLS{Keys: true, FragmentsPerKey: 2}, map[string]string{"SRS_VHOST_HLS_HLS_KEYS": "on", "SRS_VHOST_HLS_HLS_FRAGMENTS_PER_KEY": "2"}},
+		{"KeyURL", HLS{KeyURL: "http://cdn.example.com/?token=a&sig=b"}, map[string]string{"SRS_VHOST_HLS_HLS_KEY_URL": "http://cdn.example.com/?token=a&sig=b"}},
+		{"NoCtx", HLS{NoCtx: true}, map[string]string{"SRS_VHOST_HLS_HLS_CTX": "off"}},
+		{"NoTSCtx", HLS{NoTSCtx: true}, map[string]string{"SRS_VHOST_HLS_HLS_TS_CTX": "off"}},
+		{"MasterRelative", HLS{MasterRelative: true}, map[string]string{"SRS_VHOST_HLS_HLS_MASTER_M3U8_PATH_RELATIVE": "on"}},
+		{"Dispose", HLS{Dispose: time.Second}, map[string]string{"SRS_VHOST_HLS_HLS_DISPOSE": "1"}},
+		{"NoCleanup", HLS{NoCleanup: true}, map[string]string{"SRS_VHOST_HLS_HLS_CLEANUP": "off"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := HLSConfig(tc.h)
+			if want := []Listener{RTMP, HTTPAPI, HTTPServer}; !reflect.DeepEqual(cfg.Listeners, want) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+			}
+			want := map[string]string{}
+			for k, v := range base {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, err := BuildEnv(cfg, map[Listener]int{RTMP: 14000, HTTPAPI: 14001, HTTPServer: 14002}, "/tmp/x", TLSFiles{}); err != nil {
+				t.Errorf("build env: %v", err)
+			}
+		})
+	}
+}
+
+func TestWithHLS(t *testing.T) {
+	// A play variant gets HLS on with the settings, and the HTTP server to
+	// serve the files; its own env stays.
+	base := PlayConfig(Play{QueueLength: time.Second})
+	cfg := WithHLS(base, HLS{Fragment: time.Second, Dispose: time.Second})
+	if want := []Listener{RTMP, HTTPAPI, HTTPServer}; !reflect.DeepEqual(cfg.Listeners, want) {
+		t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+	}
+	want := map[string]string{
+		"SRS_VHOST_HLS_ENABLED":      "on",
+		"SRS_VHOST_HLS_HLS_FRAGMENT": "1",
+		"SRS_VHOST_HLS_HLS_DISPOSE":  "1",
+	}
+	for k, v := range base.Env {
+		want[k] = v
+	}
+	if !reflect.DeepEqual(cfg.Env, want) {
+		t.Errorf("env %v, want %v", cfg.Env, want)
+	}
+	if _, ok := base.Env["SRS_VHOST_HLS_ENABLED"]; ok || len(base.Listeners) != 2 {
+		t.Errorf("the base config changed: %+v", base)
+	}
+
+	// A config that has the HTTP server keeps its listeners as they are.
+	remux := RemuxConfig("flv")
+	if cfg := WithHLS(remux, HLS{}); !reflect.DeepEqual(cfg.Listeners, remux.Listeners) {
+		t.Errorf("listeners %v, want %v", cfg.Listeners, remux.Listeners)
+	}
+}
+
+func TestWithDASH(t *testing.T) {
+	cases := []struct {
+		name string
+		d    DASH
+		want map[string]string
+	}{
+		{"Defaults", DASH{}, nil},
+		{"Fragment", DASH{Fragment: 2500 * time.Millisecond}, map[string]string{"SRS_VHOST_DASH_DASH_FRAGMENT": "2.5"}},
+		{"WindowSize", DASH{WindowSize: 3}, map[string]string{"SRS_VHOST_DASH_DASH_WINDOW_SIZE": "3"}},
+		{"Path", DASH{Path: "./objs/nginx/html/dash"}, map[string]string{"SRS_VHOST_DASH_DASH_PATH": "./objs/nginx/html/dash"}},
+		{"MPDFile", DASH{MPDFile: "[app]/[stream]/index.mpd"}, map[string]string{"SRS_VHOST_DASH_DASH_MPD_FILE": "[app]/[stream]/index.mpd"}},
+		{"Dispose", DASH{Dispose: 2 * time.Second}, map[string]string{"SRS_VHOST_DASH_DASH_DISPOSE": "2"}},
+		{"NoCleanup", DASH{NoCleanup: true}, map[string]string{"SRS_VHOST_DASH_DASH_CLEANUP": "off"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := RemuxConfig("flv")
+			cfg := WithDASH(base, tc.d)
+			if !reflect.DeepEqual(cfg.Listeners, base.Listeners) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, base.Listeners)
+			}
+			want := map[string]string{"SRS_VHOST_DASH_ENABLED": "on"}
+			for k, v := range base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, ok := base.Env["SRS_VHOST_DASH_ENABLED"]; ok {
+				t.Errorf("the base config changed: %v", base.Env)
+			}
+		})
+	}
+
+	// The HTTP server keeps its dir, which serves the DASH files under it.
+	t.Run("KeepsHTTPDir", func(t *testing.T) {
+		cfg := WithDASH(HLSConfig(HLS{Path: "./hls"}), DASH{Path: "./hls/dash"})
+		if cfg.Env["SRS_HTTP_SERVER_DIR"] != "./hls" || cfg.Env["SRS_VHOST_DASH_DASH_PATH"] != "./hls/dash" {
+			t.Errorf("env %v", cfg.Env)
+		}
+	})
+}

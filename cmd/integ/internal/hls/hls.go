@@ -273,8 +273,8 @@ type player struct {
 	report *report.Report
 }
 
-// errNotFound is a 404, which a playlist that is not there yet answers.
-var errNotFound = errors.New("not found")
+// ErrNotFound is a 404, which a playlist that is not there yet answers.
+var ErrNotFound = errors.New("not found")
 
 func (p *player) get(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -287,7 +287,7 @@ func (p *player) get(ctx context.Context, url string) ([]byte, error) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("GET %v: status %v: %w", url, res.Status, errNotFound)
+		return nil, fmt.Errorf("GET %v: status %v: %w", url, res.Status, ErrNotFound)
 	}
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GET %v: status %v", url, res.Status)
@@ -389,8 +389,8 @@ func (p *player) segment(ctx context.Context, s Segment) error {
 	return nil
 }
 
-// decrypt decrypts an AES-128 segment: CBC with PKCS#7 padding, with the
-// key's IV or, without one, the media sequence number.
+// decrypt decrypts an AES-128 segment with the key of its key URI, fetched
+// once.
 func (p *player) decrypt(ctx context.Context, s Segment, b []byte) ([]byte, error) {
 	if s.Key.Method != "AES-128" {
 		return nil, fmt.Errorf("key method %v is not supported", s.Key.Method)
@@ -402,6 +402,16 @@ func (p *player) decrypt(ctx context.Context, s Segment, b []byte) ([]byte, erro
 			return nil, err
 		}
 		p.keys[s.Key.URI] = key
+	}
+	return Decrypt(key, s, b)
+}
+
+// Decrypt decrypts the data of an AES-128 segment with key: CBC with PKCS#7
+// padding, with the IV of the segment's key or, without one, its media
+// sequence number.
+func Decrypt(key []byte, s Segment, b []byte) ([]byte, error) {
+	if s.Key == nil || s.Key.Method != "AES-128" {
+		return nil, fmt.Errorf("segment %v: key %+v, want AES-128", s.Sequence, s.Key)
 	}
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -453,7 +463,7 @@ func PlayHTTP(ctx context.Context, client *http.Client, raw string, u report.Unt
 	next := -1 // The sequence number of the next segment.
 	for {
 		pl, media, err := p.playlist(ctx, raw)
-		if err != nil && !errors.Is(err, errNotFound) {
+		if err != nil && !errors.Is(err, ErrNotFound) {
 			return fail(err)
 		}
 		if err == nil {
@@ -492,4 +502,15 @@ func PlayHTTP(ctx context.Context, client *http.Client, raw string, u report.Unt
 		case <-time.After(pollInterval):
 		}
 	}
+}
+
+// Fetch fetches a playlist and follows a master playlist to its first
+// variant. It returns the media playlist and its URL. A 404 is ErrNotFound.
+// A nil client is http.DefaultClient.
+func Fetch(ctx context.Context, client *http.Client, raw string) (*Playlist, string, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	p := &player{client: client}
+	return p.playlist(ctx, raw)
 }

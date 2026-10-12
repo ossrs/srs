@@ -490,10 +490,11 @@ func TestHttpFlv_NoVideoKeep(t *testing.T) {
 }
 
 // TestHttpFlv_RemuxOff plays on a variant with the HTTP server on and the
-// HTTP remux off.
+// HTTP remux off, which it shares with TestHls_Fmp4Default and
+// TestDash_Options (see sharedRemuxOff).
 func TestHttpFlv_RemuxOff(t *testing.T) {
 	t.Parallel()
-	srs := server.Group(t, server.RemuxVariant("flv", server.Remux{Off: true}))
+	srs := server.Shared(t, "RemuxOff", sharedRemuxOff())
 
 	// NotServed asks for a published stream over HTTP-FLV: 404, while it
 	// plays over RTMP.

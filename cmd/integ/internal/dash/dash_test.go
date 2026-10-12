@@ -304,3 +304,48 @@ func TestPlayHTTPErrors(t *testing.T) {
 		t.Errorf("error %v, want the 404 of the missing segment", err)
 	}
 }
+
+func TestParseMPDAttributes(t *testing.T) {
+	m, err := ParseMPD([]byte(srsMPD))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.Profiles != "urn:mpeg:dash:profile:isoff-live:2011,http://dashif.org/guidelines/dash-if-simple" {
+		t.Errorf("profiles %q", m.Profiles)
+	}
+	if m.MinimumUpdatePeriod != "PT150.000S" || m.TimeShiftBufferDepth != "PT50.000S" || m.MinBufferTime != "PT20.000S" {
+		t.Errorf("durations %q, %q, %q", m.MinimumUpdatePeriod, m.TimeShiftBufferDepth, m.MinBufferTime)
+	}
+	if m.AvailabilityStartTime != "2026-10-10T12:00:00Z" || m.PublishTime != "2026-10-10T12:00:30Z" {
+		t.Errorf("times %q, %q", m.AvailabilityStartTime, m.PublishTime)
+	}
+	as := m.Periods[0].AdaptationSets[0]
+	if !as.SegmentAlignment || as.StartWithSAP != 1 {
+		t.Errorf("adaptation set %+v", as)
+	}
+}
+
+func TestDuration(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want time.Duration
+	}{
+		{"PT0S", 0},
+		{"PT5S", 5 * time.Second},
+		{"PT150.000S", 150 * time.Second},
+		{"PT0.500S", 500 * time.Millisecond},
+		{"PT1M30S", 90 * time.Second},
+		{"PT1H2M3.5S", time.Hour + 2*time.Minute + 3500*time.Millisecond},
+		{"P1DT1S", 24*time.Hour + time.Second},
+	} {
+		got, err := Duration(tc.in)
+		if err != nil || got != tc.want {
+			t.Errorf("Duration(%q) = %v, %v, want %v", tc.in, got, err, tc.want)
+		}
+	}
+	for _, bad := range []string{"", "5S", "PT", "PTxS", "PT5", "P1Y", "PT-1S"} {
+		if _, err := Duration(bad); err == nil {
+			t.Errorf("Duration(%q): no error", bad)
+		}
+	}
+}

@@ -18,11 +18,11 @@ import (
 // maxShards is the cap of live SRS processes; more shards than that can never run.
 const maxShards = 64
 
-// shards is how many identical Common servers the process starts. Two by
+// shards is how many identical Common servers the process starts. Three by
 // default: the cases start at once, so one single-threaded server is saturated
 // for the first part of a run, and the real-time cases near their limit wait
-// on it.
-var shards = 2
+// on it, more so beside the segment cases that publish whole files at once.
+var shards = 3
 
 func init() {
 	flag.Func("integ.shards", "split the Common server into K identical servers, cases spread by name", func(v string) error {

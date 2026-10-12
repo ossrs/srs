@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -72,6 +73,7 @@ var run struct {
 	commonMu  sync.Mutex
 	common    []*Server
 	commonErr []error
+	shared    sharedSet
 }
 
 func setup() error {
@@ -491,14 +493,17 @@ func Group(t testing.TB, cfg Config) *Server {
 	return s
 }
 
-// Main runs the tests of a TestMain, then stops the Common server, prints the
-// summary of the cases for this process (main or timer), and removes the run's
-// directory when every test passed. It returns the exit code.
+// Main runs the tests of a TestMain, then stops the Common and shared
+// servers, prints the summary of the cases for this process (main or timer),
+// and removes the run's directory when every test passed. It returns the exit
+// code.
 func Main(m *testing.M, summary func(label string) string) int {
 	code := m.Run()
 
-	// The shards stop at once, since each takes about a second to quit.
+	// The servers stop at once, since each takes about a second to quit.
+	shared := run.shared.servers()
 	stopErrs := make([]error, len(run.common))
+	sharedErrs := make([]error, len(shared))
 	var wg sync.WaitGroup
 	for i, s := range run.common {
 		if s != nil {
@@ -506,7 +511,17 @@ func Main(m *testing.M, summary func(label string) string) int {
 			go func() { defer wg.Done(); stopErrs[i] = s.Stop() }()
 		}
 	}
+	for i, s := range shared {
+		wg.Add(1)
+		go func() { defer wg.Done(); sharedErrs[i] = s.Stop() }()
+	}
 	wg.Wait()
+	for i, s := range shared {
+		if err := sharedErrs[i]; err != nil {
+			fmt.Fprintf(os.Stderr, "srs-integ: stop the shared server in %s: %v\n%s\n", s.Dir, err, strings.Join(s.LogTail(), "\n"))
+			code = 1
+		}
+	}
 
 	var cpu []string
 	for i, s := range run.common {
@@ -808,4 +823,190 @@ func ClientTLS() (*tls.Config, error) {
 		return nil, fmt.Errorf("no certificate in %v", cert)
 	}
 	return &tls.Config{RootCAs: pool}, nil
+}
+
+// HLS is an HLS variant's settings of its vhost; the zero value keeps SRS's
+// defaults.
+type HLS struct {
+	// Fragment and Window are hls_fragment and hls_window, in seconds with a
+	// fraction.
+	Fragment, Window time.Duration
+	// TDRatio and AOFRatio are hls_td_ratio, the segment length over
+	// Fragment, and hls_aof_ratio, the same for a stream with no video.
+	TDRatio, AOFRatio float64
+	// Path is hls_path, where SRS writes the files; the HTTP server serves
+	// the same dir.
+	Path string
+	// M3U8File and TSFile are the templates of the playlist and segment
+	// files under Path.
+	M3U8File, TSFile string
+	// EntryPrefix is hls_entry_prefix, put before each segment URI.
+	EntryPrefix string
+	// TSFloor names segments by the wall time over Fragment, [timestamp].
+	TSFloor bool
+	// FMP4 is hls_use_fmp4: fragmented MP4 segments with an init file,
+	// instead of TS.
+	FMP4 bool
+	// FMP4File and InitFile are the templates of the fmp4 segment and init
+	// files under Path.
+	FMP4File, InitFile string
+	// Keys is hls_keys: segments encrypted, AES-128 for TS and SAMPLE-AES
+	// for fmp4, with a new key every FragmentsPerKey segments.
+	Keys            bool
+	FragmentsPerKey int
+	// KeyURL is hls_key_url, the base of the key URIs in the playlist; its
+	// query, if any, goes after each key file.
+	KeyURL string
+	// NoCtx turns hls_ctx off: no master playlist and no session per player.
+	// NoTSCtx turns hls_ts_ctx off: a session's segment URIs get no hls_ctx.
+	NoCtx, NoTSCtx bool
+	// MasterRelative is hls_master_m3u8_path_relative: the master playlist
+	// links its media playlist by a relative path.
+	MasterRelative bool
+	// Dispose is hls_dispose, in whole seconds: SRS removes the files of a
+	// stream that has sent no media that long. NoCleanup turns hls_cleanup
+	// off: segments that leave the window stay on disk.
+	Dispose   time.Duration
+	NoCleanup bool
+}
+
+// HLSConfig is the config of a variant with HLS on and the HLS settings h,
+// RTMP to publish, the HTTP API and server, and Common's lowest play latency.
+func HLSConfig(h HLS) Config {
+	return WithHLS(Config{
+		Listeners: []Listener{RTMP, HTTPAPI, HTTPServer},
+		Env: map[string]string{
+			"SRS_VHOST_MIN_LATENCY":     "on",
+			"SRS_VHOST_PLAY_MW_LATENCY": "0",
+		},
+	}, h)
+}
+
+// WithHLS returns a copy of cfg with HLS on and the HLS settings h, so a
+// variant of another feature can serve HLS too. It turns the HTTP server on
+// to serve the files.
+func WithHLS(cfg Config, h HLS) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_HLS_ENABLED"] = "on"
+	seconds := func(d time.Duration) string { return strconv.FormatFloat(d.Seconds(), 'f', -1, 64) }
+	ratio := func(f float64) string { return strconv.FormatFloat(f, 'f', -1, 64) }
+	if h.Fragment > 0 {
+		env["SRS_VHOST_HLS_HLS_FRAGMENT"] = seconds(h.Fragment)
+	}
+	if h.Window > 0 {
+		env["SRS_VHOST_HLS_HLS_WINDOW"] = seconds(h.Window)
+	}
+	if h.TDRatio > 0 {
+		env["SRS_VHOST_HLS_HLS_TD_RATIO"] = ratio(h.TDRatio)
+	}
+	if h.AOFRatio > 0 {
+		env["SRS_VHOST_HLS_HLS_AOF_RATIO"] = ratio(h.AOFRatio)
+	}
+	if h.Path != "" {
+		env["SRS_VHOST_HLS_HLS_PATH"] = h.Path
+		env["SRS_HTTP_SERVER_DIR"] = h.Path
+	}
+	if h.M3U8File != "" {
+		env["SRS_VHOST_HLS_HLS_M3U8_FILE"] = h.M3U8File
+	}
+	if h.TSFile != "" {
+		env["SRS_VHOST_HLS_HLS_TS_FILE"] = h.TSFile
+	}
+	if h.EntryPrefix != "" {
+		env["SRS_VHOST_HLS_HLS_ENTRY_PREFIX"] = h.EntryPrefix
+	}
+	if h.TSFloor {
+		env["SRS_VHOST_HLS_HLS_TS_FLOOR"] = "on"
+	}
+	if h.FMP4 {
+		env["SRS_VHOST_HLS_HLS_USE_FMP4"] = "on"
+	}
+	if h.FMP4File != "" {
+		env["SRS_VHOST_HLS_HLS_FMP4_FILE"] = h.FMP4File
+	}
+	if h.InitFile != "" {
+		env["SRS_VHOST_HLS_HLS_INIT_FILE"] = h.InitFile
+	}
+	if h.Keys {
+		env["SRS_VHOST_HLS_HLS_KEYS"] = "on"
+	}
+	if h.FragmentsPerKey > 0 {
+		env["SRS_VHOST_HLS_HLS_FRAGMENTS_PER_KEY"] = strconv.Itoa(h.FragmentsPerKey)
+	}
+	if h.KeyURL != "" {
+		env["SRS_VHOST_HLS_HLS_KEY_URL"] = h.KeyURL
+	}
+	if h.NoCtx {
+		env["SRS_VHOST_HLS_HLS_CTX"] = "off"
+	}
+	if h.NoTSCtx {
+		env["SRS_VHOST_HLS_HLS_TS_CTX"] = "off"
+	}
+	if h.MasterRelative {
+		env["SRS_VHOST_HLS_HLS_MASTER_M3U8_PATH_RELATIVE"] = "on"
+	}
+	if h.Dispose > 0 {
+		env["SRS_VHOST_HLS_HLS_DISPOSE"] = strconv.Itoa(int(h.Dispose / time.Second))
+	}
+	if h.NoCleanup {
+		env["SRS_VHOST_HLS_HLS_CLEANUP"] = "off"
+	}
+	cfg.Env = env
+	if !slices.Contains(cfg.Listeners, HTTPServer) {
+		cfg.Listeners = append(slices.Clone(cfg.Listeners), HTTPServer)
+	}
+	return cfg
+}
+
+// DASH is a DASH variant's settings of its vhost; the zero value keeps SRS's
+// defaults.
+type DASH struct {
+	// Fragment is dash_fragment, in seconds with a fraction.
+	Fragment time.Duration
+	// WindowSize is dash_window_size, the number of segments in the MPD.
+	WindowSize int
+	// Path is dash_path, where SRS writes the files. The HTTP server keeps
+	// its dir, so Path must be that dir or under it for the files to be
+	// served.
+	Path string
+	// MPDFile is dash_mpd_file, the template of the MPD under Path.
+	MPDFile string
+	// Dispose is dash_dispose, in whole seconds, and NoCleanup turns
+	// dash_cleanup off, like the HLS settings.
+	Dispose   time.Duration
+	NoCleanup bool
+}
+
+// WithDASH returns a copy of cfg with DASH on and the DASH settings d, so a
+// variant of another feature can serve DASH too. cfg must have the HTTP
+// server on.
+func WithDASH(cfg Config, d DASH) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_DASH_ENABLED"] = "on"
+	if d.Fragment > 0 {
+		env["SRS_VHOST_DASH_DASH_FRAGMENT"] = strconv.FormatFloat(d.Fragment.Seconds(), 'f', -1, 64)
+	}
+	if d.WindowSize > 0 {
+		env["SRS_VHOST_DASH_DASH_WINDOW_SIZE"] = strconv.Itoa(d.WindowSize)
+	}
+	if d.Path != "" {
+		env["SRS_VHOST_DASH_DASH_PATH"] = d.Path
+	}
+	if d.MPDFile != "" {
+		env["SRS_VHOST_DASH_DASH_MPD_FILE"] = d.MPDFile
+	}
+	if d.Dispose > 0 {
+		env["SRS_VHOST_DASH_DASH_DISPOSE"] = strconv.Itoa(int(d.Dispose / time.Second))
+	}
+	if d.NoCleanup {
+		env["SRS_VHOST_DASH_DASH_CLEANUP"] = "off"
+	}
+	cfg.Env = env
+	return cfg
 }

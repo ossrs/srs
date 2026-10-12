@@ -523,17 +523,24 @@ func tagTimes(tags []*media.FLVTag) []string {
 	return out
 }
 
-// backJumpPlays publishes a stream that starts at base, jumps 10s forward,
-// then 5s back, to a player that joined before, and checks the player gets
-// every message as published, within 300ms.
+// backJumpPlays publishes a stream that starts at base and jumps 10s
+// forward, to a player that joined before, waits until the player has it
+// all, then publishes the media 5s back, and checks the player gets every
+// message as published, the ones after the jump back within 300ms. The wait
+// makes SRS send the jump forward before the jump back arrives; when one
+// read took both, the player got them in one batch, past the bug.
 func backJumpPlays(c *check.C, srs *server.Server, base int64) {
 	c.Helper()
 	url := rtmpURL(srs, "live/"+streamName(c))
 	player := playerOf(c, url)
 	tags := shiftTags(jumpTags(c, true), base)
-	publishTags(c, url, tags)
+	forward, back := tags[:len(jumpTags(c, false))], tags[len(jumpTags(c, false)):]
+	pub := publishTags(c, url, forward)
+	got, err := readTagsOf(player, len(forward), time.Second, 0)
+	c.Must(err, "play up to the jump back")
 
-	got, err := readTagsOf(player, len(tags), 300*time.Millisecond, 0)
+	c.Must(writeTags(pub, back), "publish the jump back")
+	more, err := readTagsOf(player, len(back), 300*time.Millisecond, 0)
 	c.CheckNoError(err, "play across the jump back")
-	c.CheckEqual(tagTimes(got), tagTimes(tags), "messages")
+	c.CheckEqual(tagTimes(append(got, more...)), tagTimes(tags), "messages")
 }

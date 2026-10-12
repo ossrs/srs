@@ -179,3 +179,64 @@ func TestReadMP4Errors(t *testing.T) {
 		}
 	}
 }
+
+// tenc is a version 1 track encryption box: the pattern, protected, no
+// per-sample IV, the KID and a constant IV.
+func tenc(crypt, skip byte, kid, iv []byte) []byte {
+	body := append([]byte{1, 0, 0, 0, 0, crypt<<4 | skip, 1, 0}, kid...)
+	body = append(append(body, byte(len(iv))), iv...)
+	return box("tenc", body)
+}
+
+// encrypted turns a sample entry into an encrypted one of type typ, with a
+// sinf after its children, as CENC writes it.
+func encrypted(entry []byte, typ string, sinf []byte) []byte {
+	body := append(append([]byte{}, entry[8:]...), sinf...)
+	return box(typ, body)
+}
+
+// TestReadMP4Protection reads the sinf of encrypted sample entries: the
+// original format, the scheme, and the default pattern, KID and IV of tenc.
+func TestReadMP4Protection(t *testing.T) {
+	empty := [][]byte{fullBox("stts", u32(0)), fullBox("stsz", u32(0, 0)), fullBox("stsc", u32(0)), fullBox("stco", u32(0))}
+	kid := bytes.Repeat([]byte{0xab}, 16)
+	iv := bytes.Repeat([]byte{0xcd}, 16)
+	sinf := func(format string, crypt, skip byte) []byte {
+		return box("sinf", box("frma", []byte(format)), fullBox("schm", []byte("cbcs"), u32(0x10000)), box("schi", tenc(crypt, skip, kid, iv)))
+	}
+	video := trak(1, "vide", 12800, encrypted(avc1(768, 320, []byte{1, 100, 0, 30}), "encv", sinf("avc1", 1, 9)), empty...)
+	audio := trak(2, "soun", 44100, encrypted(mp4a(2, 44100), "enca", sinf("mp4a", 0, 0)), empty...)
+	plain := trak(3, "vide", 90000, avc1(16, 16, []byte{1}), empty...)
+	file := box("moov", fullBox("mvhd", make([]byte, 96)), video, audio, plain)
+
+	f, err := ReadMP4(bytes.NewReader(file), int64(len(file)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Tracks) != 3 {
+		t.Fatalf("%v tracks", len(f.Tracks))
+	}
+	v, a := f.Tracks[0], f.Tracks[1]
+	if v.Codec != "encv" || v.Width != 768 || !bytes.Equal(v.Config, []byte{1, 100, 0, 30}) {
+		t.Errorf("video track %+v", v)
+	}
+	want := Protection{Format: "avc1", Scheme: "cbcs", CryptBlocks: 1, SkipBlocks: 9, KID: kid, ConstantIV: iv}
+	if p := v.Protection; p == nil || p.Format != want.Format || p.Scheme != want.Scheme || p.CryptBlocks != 1 || p.SkipBlocks != 9 ||
+		p.PerSampleIVSize != 0 || !bytes.Equal(p.KID, kid) || !bytes.Equal(p.ConstantIV, iv) {
+		t.Errorf("video protection %+v, want %+v", p, want)
+	}
+	if p := a.Protection; a.Codec != "enca" || a.SampleRate != 44100 || p == nil || p.Format != "mp4a" || p.CryptBlocks != 0 || p.SkipBlocks != 0 {
+		t.Errorf("audio track %+v, protection %+v", a, p)
+	}
+	if f.Tracks[2].Protection != nil {
+		t.Errorf("a clear track has protection %+v", f.Tracks[2].Protection)
+	}
+
+	t.Run("ShortTenc", func(t *testing.T) {
+		bad := box("sinf", box("frma", []byte("avc1")), box("schi", box("tenc", []byte{1, 0, 0, 0, 0})))
+		file := box("moov", trak(1, "vide", 12800, encrypted(avc1(16, 16, []byte{1}), "encv", bad), empty...))
+		if _, err := ReadMP4(bytes.NewReader(file), int64(len(file))); err == nil {
+			t.Error("no error for a short tenc")
+		}
+	})
+}
