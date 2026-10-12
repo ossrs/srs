@@ -111,17 +111,20 @@ srt_server {
     # Overwrite by env SRS_SRT_SERVER_DEFAULT_STREAMID
     # default: #!::r=live/livestream,m=request
     default_streamid "#!::r=live/livestream,m=request";
-    # The peerlatency is set by the sender side and will notify the receiver side.
+    # The peerlatency in ms, set by the sender side and notified to the receiver side, as the minimum
+    # latency the receiver must use. SRS sets it only when configured, otherwise libsrt uses its default 0.
     # Overwrite by env SRS_SRT_SERVER_PEERLATENCY
     # default: 0
     peerlatency 0;
-    # The recvlatency means latency from sender to receiver.
+    # The recvlatency in ms, the latency from sender to receiver. SRS sets it only when configured,
+    # otherwise libsrt uses its default 120.
     # Overwrite by env SRS_SRT_SERVER_RECVLATENCY
     # default: 120
     recvlatency 0;
-    # This latency configuration configures both recvlatency and peerlatency to the same value.
+    # The latency in ms, which sets both recvlatency and peerlatency to the same value. A recvlatency or
+    # peerlatency set itself, by config or env, wins over it. SRS sets it only when configured.
     # Overwrite by env SRS_SRT_SERVER_LATENCY
-    # default: 120
+    # default: not set, so recvlatency and peerlatency keep their defaults
     latency 0;
     # The tsbpd mode means timestamp based packet delivery.
     # SRT sender side will pack timestamp in each packet. If this config is true,
@@ -178,11 +181,11 @@ for example, converting RTMP to [HTTP-FLV](./flv.md#config) or HTTP-TS.
 All SRT configuration parameters can be found in the [libsrt](https://github.com/Haivision/srt/blob/master/docs/API/API-socket-options.md#list-of-options) documentation. Below are the important parameters supported by SRS:
 
 * `tsbpdmode`: Timestamp-based packet delivery mode. Each packet gets a timestamp, and the application reads them at the interval specified by the timestamps.
-* `latency`: In milliseconds (ms). This configures both recvlatency and peerlatency to the same value. If recvlatency is set, it will be used; if peerlatency is set, it will be used.
-* `recvlatency`: In milliseconds (ms). This is the receiver's buffer time length, including the time it takes for a packet to travel from the sender, through the network, to the receiver, and finally to the media application. This buffer time should be greater than RTT and prepared for multiple packet retransmissions.
+* `latency`: In milliseconds (ms). This configures both recvlatency and peerlatency to the same value. If recvlatency or peerlatency is set itself, it wins over latency. SRS sets each of the three only when it is configured, as ffmpeg does, so with none of them set, libsrt uses its defaults: recvlatency 120ms and peerlatency 0.
+* `recvlatency`: In milliseconds (ms). This is the receiver's buffer time length, including the time it takes for a packet to travel from the sender, through the network, to the receiver, and finally to the media application. This buffer time should be greater than RTT and prepared for multiple packet retransmissions. Default 120ms, libsrt's.
     * Low-latency networks: If the application requires low latency, consider setting the parameter to less than 250ms (human perception is not affected by audio/video latency below 250ms).
     * Long-distance, high RTT: If the transmission distance is long and RTT is high, a small latency cannot be set. For important live broadcasts that don't require low latency but need smooth playback without jitter, set latency >= 3*RTT, as this includes packet retransmission and ack/nack cycles.
-* `peerlatency`: In milliseconds (ms). This is the sender's setting for peerlatency, telling the receiver how long the latency buffer should be. If the receiver also sets recvlatency, the receiver will use the larger of the two values as the latency buffer length.
+* `peerlatency`: In milliseconds (ms). This is the sender's setting for peerlatency, telling the receiver how long the latency buffer should be. If the receiver also sets recvlatency, the receiver will use the larger of the two values as the latency buffer length. Default 0, libsrt's.
     * Low-latency networks: Same recommendations as for `recvlatency`.
     * Long-distance, high RTT: Same recommendations as for `recvlatency`.
 * `tlpkdrop`: Whether to drop too-late packets. Since SRT is designed for audio/video transmission, the receiver sends packets to the application based on timestamps or encoding bitrate. If a packet arrives too late at the receiver (after latency timeout), it will be dropped. In live mode, tlpkdrop is true by default, as live broadcasts require low latency.

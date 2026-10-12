@@ -202,9 +202,15 @@ static vector<string> expected_options(MockAppConfigForSrtAcceptor *config)
     opts.push_back("maxbw=" + to_str(config->maxbw_));
     opts.push_back("mss=" + to_str(config->mss_));
     opts.push_back("tsbpdmode=" + to_str(config->tsbpdmode_));
-    opts.push_back("latency=" + to_str(config->latency_));
-    opts.push_back("rcv_latency=" + to_str(config->recv_latency_));
-    opts.push_back("peer_latency=" + to_str(config->peer_latency_));
+    if (config->latency_ >= 0) {
+        opts.push_back("latency=" + to_str(config->latency_));
+    }
+    if (config->recv_latency_ >= 0) {
+        opts.push_back("rcv_latency=" + to_str(config->recv_latency_));
+    }
+    if (config->peer_latency_ >= 0) {
+        opts.push_back("peer_latency=" + to_str(config->peer_latency_));
+    }
     opts.push_back("tlpktdrop=" + to_str(config->tlpktdrop_));
     opts.push_back("connect_timeout=" + to_str(srsu2msi(config->conntimeout_)));
     opts.push_back("peer_idle_timeout=" + to_str(srsu2msi(config->peeridletimeout_)));
@@ -310,6 +316,67 @@ VOID TEST(SrtAcceptorTest, ListenSetsPassphraseAndKeyLengthWhenConfigured)
     EXPECT_STREQ("passphrase=0123456789abcdef", calls[13].c_str());
     EXPECT_STREQ("pbkeylen=16", calls[14].c_str());
     EXPECT_STREQ("listen", calls[15].c_str());
+
+    release_mocks(&acceptor);
+}
+
+// A latency not set, -1, is not set on the listener, so libsrt keeps its default for it.
+VOID TEST(SrtAcceptorTest, ListenSkipsLatenciesNotSet)
+{
+    vector<string> calls;
+    MockAppConfigForSrtAcceptor config;
+    config.latency_ = -1;
+    config.recv_latency_ = -1;
+    config.peer_latency_ = -1;
+    MockSrtOptionsForSrtAcceptor options(&calls);
+    MockAppFactoryForSrtAcceptor factory(new MockSrtListenerForSrtAcceptor(&calls));
+
+    SrsSrtAcceptor acceptor(NULL);
+    inject_mocks(&acceptor, &config, &factory, &options);
+
+    srs_error_t err = acceptor.listen(kAcceptorIp, kAcceptorPort);
+    EXPECT_TRUE(err == srs_success) << srs_error_summary(err);
+    srs_freep(err);
+
+    vector<string> expected;
+    expected.push_back("create_socket");
+    vector<string> opts = expected_options(&config);
+    expected.insert(expected.end(), opts.begin(), opts.end());
+    expected.push_back("listen");
+    EXPECT_EQ(expected, calls);
+    for (int i = 0; i < (int)calls.size(); i++) {
+        EXPECT_EQ(string::npos, calls[i].find("latency")) << calls[i];
+    }
+
+    release_mocks(&acceptor);
+}
+
+// The latency set alone is the only latency set, so the default recv and peer latencies don't undo it.
+VOID TEST(SrtAcceptorTest, ListenSetsLatencyAlone)
+{
+    vector<string> calls;
+    MockAppConfigForSrtAcceptor config;
+    config.latency_ = 300;
+    config.recv_latency_ = -1;
+    config.peer_latency_ = -1;
+    MockSrtOptionsForSrtAcceptor options(&calls);
+    MockAppFactoryForSrtAcceptor factory(new MockSrtListenerForSrtAcceptor(&calls));
+
+    SrsSrtAcceptor acceptor(NULL);
+    inject_mocks(&acceptor, &config, &factory, &options);
+
+    srs_error_t err = acceptor.listen(kAcceptorIp, kAcceptorPort);
+    EXPECT_TRUE(err == srs_success) << srs_error_summary(err);
+    srs_freep(err);
+
+    vector<string> latencies;
+    for (int i = 0; i < (int)calls.size(); i++) {
+        if (calls[i].find("latency") != string::npos) {
+            latencies.push_back(calls[i]);
+        }
+    }
+    ASSERT_EQ(1, (int)latencies.size());
+    EXPECT_STREQ("latency=300", latencies[0].c_str());
 
     release_mocks(&acceptor);
 }

@@ -1119,11 +1119,12 @@ public:
     virtual int get_srto_mss();
     // Get the srt SRTO_TSBPDMODE, timestamp base packet delivery mode, default is false.
     virtual bool get_srto_tsbpdmode();
-    // Get the srt SRTO_LATENCY, latency, default is 0 which means peer/recv latency is 120ms.
+    // Get the srt SRTO_LATENCY, latency, which sets both recv and peer latency. -1 if not set, then libsrt keeps its
+    // defaults, 120ms recv latency and 0 peer latency.
     virtual int get_srto_latency();
-    // Get the srt SRTO_RCVLATENCY, recv latency, default is 120ms.
+    // Get the srt SRTO_RCVLATENCY, recv latency, -1 if not set.
     virtual int get_srto_recv_latency();
-    // Get the srt SRTO_PEERLATENCY, peer latency, default is 0..
+    // Get the srt SRTO_PEERLATENCY, peer latency, -1 if not set.
     virtual int get_srto_peer_latency();
     // Get the srt h264 sei filter, default is on, it will drop h264 sei packet.
     virtual bool get_srt_sei_filter();

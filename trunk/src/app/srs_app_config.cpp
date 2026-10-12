@@ -7854,7 +7854,7 @@ int SrsConfig::get_srto_latency()
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.latency"); // SRS_SRT_SERVER_LATENCY
 
-    static int DEFAULT = 120;
+    static int DEFAULT = -1;
     SrsConfDirective *conf = root_->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -7871,7 +7871,7 @@ int SrsConfig::get_srto_recv_latency()
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.recvlatency"); // SRS_SRT_SERVER_RECVLATENCY
 
-    static int DEFAULT = 120;
+    static int DEFAULT = -1;
     SrsConfDirective *conf = root_->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -7888,7 +7888,7 @@ int SrsConfig::get_srto_peer_latency()
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.peerlatency"); // SRS_SRT_SERVER_PEERLATENCY
 
-    static int DEFAULT = 0;
+    static int DEFAULT = -1;
     SrsConfDirective *conf = root_->get("srt_server");
     if (!conf) {
         return DEFAULT;

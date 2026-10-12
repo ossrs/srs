@@ -102,16 +102,21 @@ srs_error_t SrsSrtAcceptor::set_srt_opt()
         return srs_error_wrap(err, "set opt tsbpdmode=%d failed", config_->get_srto_tsbpdmode());
     }
 
-    if ((err = srt_options_->set_latency(listener_->fd(), config_->get_srto_latency())) != srs_success) {
-        return srs_error_wrap(err, "set opt latency=%d failed", config_->get_srto_latency());
+    // Set only the latencies the user configured, as ffmpeg does, so a default never undoes the latency, which sets
+    // both the recv and peer latency. The latency goes first, so the recv or peer latency set itself wins.
+    int latency = config_->get_srto_latency();
+    if (latency >= 0 && (err = srt_options_->set_latency(listener_->fd(), latency)) != srs_success) {
+        return srs_error_wrap(err, "set opt latency=%d failed", latency);
     }
 
-    if ((err = srt_options_->set_rcv_latency(listener_->fd(), config_->get_srto_recv_latency())) != srs_success) {
-        return srs_error_wrap(err, "set opt recvlatency=%d failed", config_->get_srto_recv_latency());
+    int recv_latency = config_->get_srto_recv_latency();
+    if (recv_latency >= 0 && (err = srt_options_->set_rcv_latency(listener_->fd(), recv_latency)) != srs_success) {
+        return srs_error_wrap(err, "set opt recvlatency=%d failed", recv_latency);
     }
 
-    if ((err = srt_options_->set_peer_latency(listener_->fd(), config_->get_srto_peer_latency())) != srs_success) {
-        return srs_error_wrap(err, "set opt peerlatency=%d failed", config_->get_srto_peer_latency());
+    int peer_latency = config_->get_srto_peer_latency();
+    if (peer_latency >= 0 && (err = srt_options_->set_peer_latency(listener_->fd(), peer_latency)) != srs_success) {
+        return srs_error_wrap(err, "set opt peerlatency=%d failed", peer_latency);
     }
 
     if ((err = srt_options_->set_tlpktdrop(listener_->fd(), config_->get_srto_tlpktdrop())) != srs_success) {

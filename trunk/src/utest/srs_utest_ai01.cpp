@@ -6421,8 +6421,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be 120
-        EXPECT_EQ(120, conf.get_srto_latency());
+        // Not set
+        EXPECT_EQ(-1, conf.get_srto_latency());
     }
 
     // Test default value when srt_server section exists but no latency config
@@ -6430,8 +6430,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{enabled on;}"));
 
-        // Should return default value when no latency config
-        EXPECT_EQ(120, conf.get_srto_latency());
+        // Not set when no latency config
+        EXPECT_EQ(-1, conf.get_srto_latency());
     }
 
     // Test custom latency values
@@ -6447,12 +6447,12 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoLatency)
         EXPECT_EQ(0, conf.get_srto_latency());
     }
 
-    // Test empty latency argument (should use default)
+    // Test empty latency argument (not set)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{latency;}"));
 
-        EXPECT_EQ(120, conf.get_srto_latency()); // Default value
+        EXPECT_EQ(-1, conf.get_srto_latency());
     }
 }
 
@@ -6465,8 +6465,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoRecvLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be 120
-        EXPECT_EQ(120, conf.get_srto_recv_latency());
+        // Not set
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
     }
 
     // Test default value when srt_server section exists but no recvlatency config
@@ -6474,8 +6474,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoRecvLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{enabled on;}"));
 
-        // Should return default value when no recvlatency config
-        EXPECT_EQ(120, conf.get_srto_recv_latency());
+        // Not set when no recvlatency config
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
     }
 
     // Test custom recvlatency values
@@ -6491,12 +6491,12 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoRecvLatency)
         EXPECT_EQ(0, conf.get_srto_recv_latency());
     }
 
-    // Test empty recvlatency argument (should use default)
+    // Test empty recvlatency argument (not set)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{recvlatency;}"));
 
-        EXPECT_EQ(120, conf.get_srto_recv_latency()); // Default value
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
     }
 }
 
@@ -6509,8 +6509,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoPeerLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be 0
-        EXPECT_EQ(0, conf.get_srto_peer_latency());
+        // Not set
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
     }
 
     // Test default value when srt_server section exists but no peerlatency config
@@ -6518,8 +6518,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoPeerLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{enabled on;}"));
 
-        // Should return default value when no peerlatency config
-        EXPECT_EQ(0, conf.get_srto_peer_latency());
+        // Not set when no peerlatency config
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
     }
 
     // Test custom peerlatency values
@@ -6535,12 +6535,51 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoPeerLatency)
         EXPECT_EQ(0, conf.get_srto_peer_latency());
     }
 
-    // Test empty peerlatency argument (should use default)
+    // Test empty peerlatency argument (not set)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{peerlatency;}"));
 
-        EXPECT_EQ(0, conf.get_srto_peer_latency()); // Default value
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
+    }
+}
+
+// Each latency reads only its own setting, by config or env: the latency doesn't set the recvlatency or
+// peerlatency here, libsrt does when the listener sets it.
+VOID TEST(ConfigSrtServerTest, CheckSrtoLatencyReadsOnlyItsOwn)
+{
+    srs_error_t err;
+
+    // The latency alone leaves the recvlatency and peerlatency not set.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{latency 300;}"));
+        EXPECT_EQ(300, conf.get_srto_latency());
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
+    }
+
+    // The latency from env alone, likewise.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, srto_latency, "SRS_SRT_SERVER_LATENCY", "300");
+        EXPECT_EQ(300, conf.get_srto_latency());
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
+    }
+
+    // The recvlatency and peerlatency from env.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, srto_recv_latency, "SRS_SRT_SERVER_RECVLATENCY", "250");
+        SrsSetEnvConfig(conf, srto_peer_latency, "SRS_SRT_SERVER_PEERLATENCY", "150");
+        EXPECT_EQ(-1, conf.get_srto_latency());
+        EXPECT_EQ(250, conf.get_srto_recv_latency());
+        EXPECT_EQ(150, conf.get_srto_peer_latency());
     }
 }
 

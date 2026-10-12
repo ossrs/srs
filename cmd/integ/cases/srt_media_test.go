@@ -214,7 +214,6 @@ func TestSrt_LatencyOnly(t *testing.T) {
 	srs := server.Shared(t, "Fmp4Keys", sharedFmp4Keys())
 
 	check.Case(t, "LatencySetsBoth", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "latency has no effect: SRS sets recvlatency and peerlatency after it, at their defaults 120 and 0")
 		checkTSBPD(c, srs, 0, 300*time.Millisecond, 300*time.Millisecond)
 	})
 }
