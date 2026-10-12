@@ -28,6 +28,21 @@ const (
 // a publisher: the case starts its clock a little after SRS starts its own.
 const timerSlack = 20 * time.Millisecond
 
+// sharedPublishTimeout is the config of the timer server that
+// TestTimer_Rtmp_PublishTimeout and TestTimer_Heartbeat_Defaults share: the
+// short publish timeouts and kickoff_for_idle, every hook on a mock, and the
+// heartbeat every 1s with SRS's defaults, which the publish cases never read.
+func sharedPublishTimeout() server.Config {
+	cfg := server.PublishConfig(server.Publish{
+		FirstPacketTimeout: firstPacketTimeout,
+		NormalTimeout:      normalTimeout,
+		KickoffForIdle:     kickoffForIdle,
+	})
+	cfg.Hooks = true
+	cfg.Heartbeat = &sharedHeartbeatDefaults
+	return cfg
+}
+
 // TestTimer_Rtmp_PublishTimeout publishes on a variant with short publish
 // timeouts and kickoff_for_idle. The timeouts are milliseconds, so their cases
 // are Normal; the kick waits on the publish checks after a player leaves,
@@ -36,13 +51,7 @@ const timerSlack = 20 * time.Millisecond
 // timeouts pace.
 func TestTimer_Rtmp_PublishTimeout(t *testing.T) {
 	t.Parallel()
-	cfg := server.PublishConfig(server.Publish{
-		FirstPacketTimeout: firstPacketTimeout,
-		NormalTimeout:      normalTimeout,
-		KickoffForIdle:     kickoffForIdle,
-	})
-	cfg.Hooks = true
-	srs := server.Group(t, cfg)
+	srs := server.Shared(t, "PublishTimeout", sharedPublishTimeout())
 
 	// FirstPacketTimeout publishes and sends nothing: SRS closes the publisher
 	// after the first-packet timeout, not the longer normal timeout.

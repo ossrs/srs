@@ -28,8 +28,8 @@ import (
 // the first-packet timeout, then after each normal timeout.
 const statsPublishTimeout = 300 * time.Millisecond
 
-// statsConfig is the server of TestApi_Stats: RTMP, HTTP-FLV and the exporter,
-// with every hook on the mock and the mock as the forward backend, and short
+// statsConfig is the server of TestApi_Stats: RTMP, HTTP-FLV and the exporter
+// with a label and a tag, with every hook on the mock and the mock as the forward backend, and short
 // publish timeouts. It plays at the lowest latency, like Common, so SRS sees a
 // player's close at once.
 func statsConfig() server.Config {
@@ -45,6 +45,8 @@ func statsConfig() server.Config {
 			"SRS_VHOST_PLAY_MW_LATENCY":          "0",
 			"SRS_VHOST_HTTP_REMUX_ENABLED":       "on",
 			"SRS_VHOST_HTTP_REMUX_MOUNT":         "[vhost]/[app]/[stream].flv",
+			"SRS_EXPORTER_LABEL":                 statsExporterLabel,
+			"SRS_EXPORTER_TAG":                   statsExporterTag,
 		},
 	}
 }
@@ -266,6 +268,8 @@ func TestApi_Stats(t *testing.T) {
 			c.CheckEqual(codeOf(apiFetch(c, srs, "/api/v1/forwards/"+id)), 2057, "forward "+id+" after the unpublish")
 		}
 	})
+
+	apiStatsMetrics(t, srs, lock)
 }
 
 // checkPagination checks the pages of a list of n items, which the case made

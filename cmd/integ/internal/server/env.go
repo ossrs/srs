@@ -98,6 +98,9 @@ type Config struct {
 	// backend, at /api/v1/forward: every publish asks it for the URLs to
 	// forward to, as an on_forward, and fails unless it answers some or none.
 	ForwardBackend bool
+	// Heartbeat, with Hooks, turns the heartbeat on, POSTing to the mock at
+	// HeartbeatPath; nil leaves it off.
+	Heartbeat *Heartbeat
 	// IPv6 makes RTMP listen on [::] too, on the same port, when the host has
 	// IPv6.
 	IPv6 bool
@@ -129,6 +132,9 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 	}
 	if cfg.ForwardBackend && !cfg.Hooks {
 		return nil, fmt.Errorf("ForwardBackend needs Hooks, whose mock is the backend")
+	}
+	if cfg.Heartbeat != nil && !cfg.Hooks {
+		return nil, fmt.Errorf("Heartbeat needs Hooks, whose mock gets the heartbeats")
 	}
 	if on[GB] && on[UDPTS] {
 		return nil, fmt.Errorf("a server has only one stream caster, not both %v and %v", GB, UDPTS)

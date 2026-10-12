@@ -62,12 +62,15 @@ func sharedSegmentsDispose() server.Config {
 // and TestTimer_Convert_Reports, for WebRTC; the other groups use no SRT, no
 // GB and no WebRTC. TestTimer_Reload_RawApi shares it for the RAW API with
 // reload allowed: a reload of an env-only server fails and changes nothing.
+// TestTimer_Heartbeat_Full shares it for the heartbeat with every setting on,
+// every 1s, which the other groups never read.
 func sharedSegmentsKeep() server.Config {
 	cfg := server.WithDASH(
 		server.WithHLS(server.PlayConfig(server.Play{QueueLength: time.Second}),
 			server.HLS{Fragment: time.Second, Window: sessionWindow, NoCleanup: true}),
 		server.DASH{Fragment: time.Second, NoCleanup: true})
 	cfg.Hooks = true
+	cfg.Heartbeat = &sharedHeartbeatFull
 	cfg = server.WithGB(server.WithSRT(cfg, sharedSegmentsKeepSRT), sharedSegmentsKeepGB)
 	return server.WithRawAPI(server.WithRTC(cfg, server.RTC{}), server.RawAPI{AllowReload: true})
 }

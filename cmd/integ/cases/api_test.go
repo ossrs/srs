@@ -35,6 +35,14 @@ func TestApi_Smoke(t *testing.T) {
 	check.Case(t, "OnlyItsListener", check.Fast, func(c *check.C) {
 		c.Check(len(srs.Ports) == 1 && srs.Ports[server.HTTPAPI] != 0, "ports %v, want only the HTTP API", srs.Ports)
 	})
+
+	// MetricsDisabled: with the exporter off, the API's /metrics answers
+	// code 1090 (ExporterDisabled), not the metrics.
+	check.Case(t, "MetricsDisabled", check.Fast, func(c *check.C) {
+		r := apiFetch(c, srs, "/metrics")
+		c.CheckEqual(r.status, http.StatusOK, "status")
+		c.CheckEqual(string(r.body), `{"code":1090}`, "body")
+	})
 }
 
 // TestApi_Common checks the Common server, with every listener on.
@@ -70,6 +78,8 @@ func TestApi_Common(t *testing.T) {
 	apiStreams(t)
 	apiPorts(t)
 	apiRaw(t)
+	apiExporter(t)
+	apiHTTPS(t)
 }
 
 func checkVersions(c *check.C, srs *server.Server) {

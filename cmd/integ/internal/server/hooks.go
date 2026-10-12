@@ -29,8 +29,9 @@ func HooksEnv(base string) map[string]string {
 }
 
 // withHooks returns cfg with the hooks env of the mock at base added to a copy
-// of its env, and the forward backend env with ForwardBackend. A config may
-// not set a hook or the backend itself.
+// of its env, the forward backend env with ForwardBackend, and the heartbeat
+// env with Heartbeat. A config may not set a hook, the backend or that
+// heartbeat env itself.
 func withHooks(cfg Config, base string) (Config, error) {
 	env := maps.Clone(cfg.Env)
 	if env == nil {
@@ -41,9 +42,19 @@ func withHooks(cfg Config, base string) (Config, error) {
 		add["SRS_VHOST_FORWARD_ENABLED"] = "on"
 		add["SRS_VHOST_FORWARD_BACKEND"] = base + "/api/v1/forward"
 	}
+	beat, err := heartbeatEnv(cfg.Heartbeat, base)
+	if err != nil {
+		return cfg, err
+	}
+	maps.Copy(add, beat)
+	for k := range env {
+		if cfg.Heartbeat != nil && isHeartbeatEnv(k) {
+			return cfg, fmt.Errorf("env %s is set by the adapter's Heartbeat", k)
+		}
+	}
 	for k, v := range add {
 		if _, ok := env[k]; ok {
-			return cfg, fmt.Errorf("env %s is set by the adapter, which points every hook, and the forward backend, at the mock", k)
+			return cfg, fmt.Errorf("env %s is set by the adapter, which points every hook, the forward backend and the heartbeat at the mock", k)
 		}
 		env[k] = v
 	}
