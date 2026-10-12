@@ -2724,6 +2724,7 @@ SrsHls::SrsHls()
     enabled_ = false;
     disposable_ = false;
     unpublishing_ = false;
+    suspended_ = false;
     async_reload_ = reloading_ = false;
     last_update_time_ = 0;
 
@@ -2855,7 +2856,30 @@ srs_error_t SrsHls::cycle()
     disposable_ = false;
 
     srs_trace("hls cycle to dispose hls %s, timeout=%dms", req_->get_stream_url().c_str(), hls_dispose);
+    bool publishing = enabled_;
     dispose();
+
+    // An idle publisher is still published, so suspend HLS for its next media to resume it.
+    suspended_ = publishing;
+
+    return err;
+}
+
+srs_error_t SrsHls::resume()
+{
+    srs_error_t err = srs_success;
+
+    suspended_ = false;
+    srs_trace("hls resume %s, media after the dispose", req_->get_stream_url().c_str());
+
+    if ((err = on_publish()) != srs_success) {
+        return srs_error_wrap(err, "hls publish");
+    }
+
+    // The sequence headers came before the dispose, so feed them again.
+    if ((err = hub_->on_hls_request_sh()) != srs_success) {
+        return srs_error_wrap(err, "hls request sh");
+    }
 
     return err;
 }
@@ -2902,6 +2926,7 @@ srs_error_t SrsHls::on_publish()
 
     // update the hls time, for hls_dispose.
     last_update_time_ = srs_time_now_cached();
+    suspended_ = false;
 
     // support multiple publish.
     if (enabled_) {
@@ -2931,6 +2956,9 @@ void SrsHls::on_unpublish()
 {
     srs_error_t err = srs_success;
 
+    // The stream is unpublished, so no media resumes a suspended HLS.
+    suspended_ = false;
+
     // support multiple unpublish.
     if (!enabled_) {
         return;
@@ -2953,6 +2981,10 @@ void SrsHls::on_unpublish()
 srs_error_t SrsHls::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
+
+    if (suspended_ && (err = resume()) != srs_success) {
+        return srs_error_wrap(err, "hls: resume");
+    }
 
     // If not able to transmux to HLS, ignore.
     if (!enabled_ || unpublishing_)
@@ -3000,6 +3032,10 @@ srs_error_t SrsHls::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 srs_error_t SrsHls::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
+
+    if (suspended_ && (err = resume()) != srs_success) {
+        return srs_error_wrap(err, "hls: resume");
+    }
 
     // If not able to transmux to HLS, ignore.
     if (!enabled_ || unpublishing_)

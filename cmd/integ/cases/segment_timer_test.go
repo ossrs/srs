@@ -123,7 +123,6 @@ func TestTimer_Hls_Dispose(t *testing.T) {
 	// A publisher that sends media again after its stream was disposed gets
 	// HLS again: the next segments are written.
 	check.Case(t, "IdlePublisherResumes", check.Timer, func(c *check.C) {
-		check.KnownBug(c, "a publisher idle past hls_dispose that sends media again gets no HLS until it republishes: the dispose turned HLS off for the publish")
 		pub, stream, _, _ := publish(c)
 		untilNoFiles(c, func() []string { return hlsFiles(srs, stream) })
 		publishTagsOn(c, srs, pub, readTags(c, media.H264HighAAC, 3*time.Second+time.Millisecond, 6*time.Second+time.Millisecond))
