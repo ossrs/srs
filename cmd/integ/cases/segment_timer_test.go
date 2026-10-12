@@ -60,7 +60,8 @@ func sharedSegmentsDispose() server.Config {
 // TestTimer_Srt_PeerIdle shares it too, for SRT with a 1s peer_idle_timeout,
 // TestTimer_Gb_MediaTimeout, for GB28181 with a 1s media_connect_timeout,
 // and TestTimer_Convert_Reports, for WebRTC; the other groups use no SRT, no
-// GB and no WebRTC.
+// GB and no WebRTC. TestTimer_Reload_RawApi shares it for the RAW API with
+// reload allowed: a reload of an env-only server fails and changes nothing.
 func sharedSegmentsKeep() server.Config {
 	cfg := server.WithDASH(
 		server.WithHLS(server.PlayConfig(server.Play{QueueLength: time.Second}),
@@ -68,7 +69,7 @@ func sharedSegmentsKeep() server.Config {
 		server.DASH{Fragment: time.Second, NoCleanup: true})
 	cfg.Hooks = true
 	cfg = server.WithGB(server.WithSRT(cfg, sharedSegmentsKeepSRT), sharedSegmentsKeepGB)
-	return server.WithRTC(cfg, server.RTC{})
+	return server.WithRawAPI(server.WithRTC(cfg, server.RTC{}), server.RawAPI{AllowReload: true})
 }
 
 // TestTimer_Hls_Dispose checks hls_dispose: SRS removes the playlist and

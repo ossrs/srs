@@ -65,6 +65,11 @@ func TestApi_Common(t *testing.T) {
 			}
 		}
 	})
+
+	apiSystem(t)
+	apiStreams(t)
+	apiPorts(t)
+	apiRaw(t)
 }
 
 func checkVersions(c *check.C, srs *server.Server) {

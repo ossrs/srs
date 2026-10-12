@@ -629,3 +629,45 @@ func TestWithGB(t *testing.T) {
 		t.Errorf("listeners %v, want Common's", cfg.Listeners)
 	}
 }
+
+func TestWithRawAPI(t *testing.T) {
+	cases := []struct {
+		name string
+		r    RawAPI
+		want map[string]string
+	}{
+		{"ReloadOff", RawAPI{},
+			map[string]string{"SRS_HTTP_API_RAW_API_ENABLED": "on", "SRS_HTTP_API_RAW_API_ALLOW_RELOAD": "off"}},
+		{"AllowReload", RawAPI{AllowReload: true},
+			map[string]string{"SRS_HTTP_API_RAW_API_ENABLED": "on", "SRS_HTTP_API_RAW_API_ALLOW_RELOAD": "on"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := PlayConfig(Play{})
+			cfg := WithRawAPI(base, tc.r)
+			if !reflect.DeepEqual(cfg.Listeners, base.Listeners) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, base.Listeners)
+			}
+			want := map[string]string{}
+			for k, v := range base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, ok := base.Env["SRS_HTTP_API_RAW_API_ENABLED"]; ok {
+				t.Errorf("the base config changed: %v", base.Env)
+			}
+			ports := map[Listener]int{}
+			for i, l := range cfg.Listeners {
+				ports[l] = 14000 + i
+			}
+			if _, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{}); err != nil {
+				t.Fatalf("build env: %v", err)
+			}
+		})
+	}
+}

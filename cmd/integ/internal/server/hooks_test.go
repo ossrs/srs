@@ -97,3 +97,35 @@ func TestHookURLs(t *testing.T) {
 		t.Errorf("a config without HookDown has a down hook")
 	}
 }
+
+// TestForwardBackend checks a config's ForwardBackend: forward is on with
+// the mock's /api/v1/forward as its backend, which a config may not set
+// itself, and it needs the hooks' mock.
+func TestForwardBackend(t *testing.T) {
+	cfg := Config{Listeners: []Listener{RTMP, HTTPAPI}, Hooks: true, ForwardBackend: true}
+	got, err := withHooks(cfg, "http://127.0.0.1:14005")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range map[string]string{
+		"SRS_VHOST_FORWARD_ENABLED": "on",
+		"SRS_VHOST_FORWARD_BACKEND": "http://127.0.0.1:14005/api/v1/forward",
+	} {
+		if got.Env[k] != v {
+			t.Errorf("%s=%q, want %q", k, got.Env[k], v)
+		}
+	}
+	if _, err := BuildEnv(got, map[Listener]int{RTMP: 14000, HTTPAPI: 14001}, "/w", TLSFiles{}); err != nil {
+		t.Errorf("build env: %v", err)
+	}
+
+	cfg.Env = map[string]string{"SRS_VHOST_FORWARD_BACKEND": "http://x"}
+	if _, err := withHooks(cfg, "http://127.0.0.1:14005"); err == nil || !strings.Contains(err.Error(), "SRS_VHOST_FORWARD_BACKEND") {
+		t.Errorf("error %v, want one naming the backend the config sets", err)
+	}
+
+	cfg = Config{Listeners: []Listener{RTMP, HTTPAPI}, ForwardBackend: true}
+	if _, err := BuildEnv(cfg, map[Listener]int{RTMP: 14000, HTTPAPI: 14001}, "/w", TLSFiles{}); err == nil || !strings.Contains(err.Error(), "Hooks") {
+		t.Errorf("error %v, want one saying ForwardBackend needs Hooks", err)
+	}
+}

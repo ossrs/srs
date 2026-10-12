@@ -151,6 +151,8 @@ type Server struct {
 	start     time.Time
 	cpu, wall time.Duration
 	burst     *slots
+	// auth is the API's authentication, nil when it has none.
+	auth *APIAuth
 }
 
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
@@ -166,16 +168,9 @@ func Start(name string, cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	ports := map[Listener]int{}
-	for _, l := range cfg.Listeners {
-		if _, ok := ports[l]; ok {
-			continue
-		}
-		port, err := run.alloc.Alloc()
-		if err != nil {
-			return nil, err
-		}
-		ports[l] = port
+	ports, err := listenerPorts(cfg, run.alloc.Alloc)
+	if err != nil {
+		return nil, err
 	}
 
 	// The hook mock gets a port of its own; it starts listening just before SRS.
@@ -216,7 +211,7 @@ func Start(name string, cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	s := &Server{Dir: dir, Ports: ports, tail: newLogTail(logFile, tailLines), done: make(chan struct{}), burst: newSlots(burstSlots)}
+	s := &Server{Dir: dir, Ports: ports, tail: newLogTail(logFile, tailLines), done: make(chan struct{}), burst: newSlots(burstSlots), auth: cfg.APIAuth}
 	s.cmd = exec.Command(run.binary, "-e")
 	s.cmd.Dir = dir
 	s.cmd.Env = append(processEnv(), env...)
@@ -284,7 +279,7 @@ func (s *Server) waitReady() error {
 	client := &http.Client{Timeout: time.Second}
 	deadline := time.Now().Add(readyTimeout)
 	for {
-		res, err := client.Get(s.APIURL("/api/v1/versions"))
+		res, err := s.apiGet(client, "/api/v1/versions")
 		if err == nil {
 			io.Copy(io.Discard, res.Body)
 			res.Body.Close()
@@ -295,7 +290,7 @@ func (s *Server) waitReady() error {
 
 		select {
 		case <-s.done:
-			return fmt.Errorf("exited with code %d before it was ready", s.code)
+			return &ExitError{Code: s.code}
 		case <-time.After(readyPoll):
 		}
 		if time.Now().After(deadline) {
@@ -304,8 +299,18 @@ func (s *Server) waitReady() error {
 	}
 }
 
+// apiGet gets an API path with the server's credentials.
+func (s *Server) apiGet(client *http.Client, path string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, s.APIURL(path), nil)
+	if err != nil {
+		return nil, err
+	}
+	s.Authorize(req)
+	return client.Do(req)
+}
+
 func (s *Server) checkFeatures() error {
-	res, err := http.Get(s.APIURL("/api/v1/features"))
+	res, err := s.apiGet(http.DefaultClient, "/api/v1/features")
 	if err != nil {
 		return err
 	}
@@ -330,6 +335,11 @@ func (s *Server) Addr(l Listener) string {
 	return "127.0.0.1:" + strconv.Itoa(s.Ports[l])
 }
 
+// PID returns the process id of the server.
+func (s *Server) PID() int {
+	return s.cmd.Process.Pid
+}
+
 // APIURL returns the URL of an HTTP API path, such as /api/v1/versions.
 func (s *Server) APIURL(path string) string {
 	return "http://" + s.Addr(HTTPAPI) + path
@@ -337,7 +347,7 @@ func (s *Server) APIURL(path string) string {
 
 // Features returns the boolean features of /api/v1/features.
 func (s *Server) Features() (map[string]bool, error) {
-	res, err := http.Get(s.APIURL("/api/v1/features"))
+	res, err := s.apiGet(http.DefaultClient, "/api/v1/features")
 	if err != nil {
 		return nil, err
 	}
@@ -1239,5 +1249,27 @@ func WithGB(cfg Config, g GBOptions) Config {
 	if !slices.Contains(cfg.Listeners, GB) {
 		cfg.Listeners = append(slices.Clone(cfg.Listeners), GB)
 	}
+	return cfg
+}
+
+// RawAPI is the RAW API's settings, /api/v1/raw; the zero value turns it on
+// with reload off.
+type RawAPI struct {
+	// AllowReload lets rpc=reload reload the server.
+	AllowReload bool
+}
+
+// WithRawAPI returns a copy of cfg with the RAW API on and the settings r.
+func WithRawAPI(cfg Config, r RawAPI) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_HTTP_API_RAW_API_ENABLED"] = "on"
+	env["SRS_HTTP_API_RAW_API_ALLOW_RELOAD"] = "off"
+	if r.AllowReload {
+		env["SRS_HTTP_API_RAW_API_ALLOW_RELOAD"] = "on"
+	}
+	cfg.Env = env
 	return cfg
 }

@@ -94,9 +94,19 @@ type Config struct {
 	// base is a path on the mock, such as /hooks or /more, or HookDown. A hook
 	// it doesn't name calls the mock at /hooks.
 	HookURLs map[string][]string
+	// ForwardBackend, with Hooks, turns forward on with the mock as its
+	// backend, at /api/v1/forward: every publish asks it for the URLs to
+	// forward to, as an on_forward, and fails unless it answers some or none.
+	ForwardBackend bool
 	// IPv6 makes RTMP listen on [::] too, on the same port, when the host has
 	// IPv6.
 	IPv6 bool
+	// APIAuth turns the HTTP API's authentication on, nil leaves it off.
+	APIAuth *APIAuth
+	// OneHTTPPort makes the HTTP API and the HTTP server share one port, and
+	// the HTTPS API and the HTTPS server another: SRS then serves the API on
+	// the server's port.
+	OneHTTPPort bool
 }
 
 // TLSFiles are the key and certificate of the TLS listeners.
@@ -117,8 +127,16 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 	if !on[HTTPAPI] {
 		return nil, fmt.Errorf("the HTTP API must be on, the adapter reads it")
 	}
+	if cfg.ForwardBackend && !cfg.Hooks {
+		return nil, fmt.Errorf("ForwardBackend needs Hooks, whose mock is the backend")
+	}
 	if on[GB] && on[UDPTS] {
 		return nil, fmt.Errorf("a server has only one stream caster, not both %v and %v", GB, UDPTS)
+	}
+	if cfg.OneHTTPPort {
+		if err := checkOneHTTPPort(on, ports); err != nil {
+			return nil, err
+		}
 	}
 
 	env := map[string]string{
@@ -182,12 +200,17 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 		env["SRS_STREAM_CASTER_OUTPUT"] = fmt.Sprintf("rtmp://127.0.0.1:%d/live/[stream]", ports[RTMP])
 	}
 
+	// The API's authentication, whose credentials the adapter sends.
+	for k, v := range authEnv(cfg.APIAuth) {
+		env[k] = v
+	}
+
 	// The variant's own settings come last, and may not change the adapter's.
 	for k, v := range cfg.Env {
 		if !strings.HasPrefix(k, "SRS_") {
 			return nil, fmt.Errorf("env %s is not an SRS_ setting", k)
 		}
-		if _, ok := env[k]; ok || isListenerEnv(k) {
+		if _, ok := env[k]; ok || isListenerEnv(k) || isAuthEnv(k) {
 			return nil, fmt.Errorf("env %s is set by the adapter", k)
 		}
 		env[k] = v
