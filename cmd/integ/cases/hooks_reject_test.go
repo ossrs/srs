@@ -357,6 +357,8 @@ func httpResult(p responder, start time.Time, d time.Duration) hookResult {
 		if !r.accepted {
 			r.refusal = fmt.Sprintf("status %d", res.StatusCode)
 		}
+	} else if !isTimeout(err) {
+		r.refusal = "closed"
 	}
 	return r
 }
@@ -386,6 +388,8 @@ func hlsHookTarget() hookTarget {
 				if !r.accepted {
 					r.refusal = fmt.Sprintf("status %d", res.StatusCode)
 				}
+			} else if !isTimeout(err) {
+				r.refusal = "closed"
 			}
 			return r
 		},

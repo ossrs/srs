@@ -9,8 +9,11 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"srs-integ/internal/mock"
 )
 
 func TestMissingFeatures(t *testing.T) {
@@ -669,5 +672,119 @@ func TestWithRawAPI(t *testing.T) {
 				t.Fatalf("build env: %v", err)
 			}
 		})
+	}
+}
+
+func TestWithSecurity(t *testing.T) {
+	cases := []struct {
+		name string
+		s    Security
+		want map[string]string
+	}{
+		{"NoRules", Security{}, map[string]string{"SRS_VHOST_SECURITY_ENABLED": "on"}},
+		{"Rules", Security{
+			AllowPublish: []string{"127.0.0.0/8", "10.0.0.1"}, AllowPlay: []string{"all"},
+			DenyPublish: []string{"127.0.0.1"}, DenyPlay: []string{"192.168.0.0/16"},
+		}, map[string]string{
+			"SRS_VHOST_SECURITY_ENABLED":       "on",
+			"SRS_VHOST_SECURITY_ALLOW_PUBLISH": "127.0.0.0/8 10.0.0.1",
+			"SRS_VHOST_SECURITY_ALLOW_PLAY":    "all",
+			"SRS_VHOST_SECURITY_DENY_PUBLISH":  "127.0.0.1",
+			"SRS_VHOST_SECURITY_DENY_PLAY":     "192.168.0.0/16",
+		}},
+		{"OnlyDenyPlay", Security{DenyPlay: []string{"all"}}, map[string]string{
+			"SRS_VHOST_SECURITY_ENABLED": "on", "SRS_VHOST_SECURITY_DENY_PLAY": "all",
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := PlayConfig(Play{})
+			cfg := WithSecurity(base, tc.s)
+			if !reflect.DeepEqual(cfg.Listeners, base.Listeners) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, base.Listeners)
+			}
+			want := map[string]string{}
+			for k, v := range base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, ok := base.Env["SRS_VHOST_SECURITY_ENABLED"]; ok {
+				t.Errorf("the base config changed: %v", base.Env)
+			}
+		})
+	}
+}
+
+// TestWithForward checks a config's forward to destinations: on with the
+// destinations, off with them kept, and only the destinations with
+// ForwardBackend, which turns forward on itself, so with both set the hooks
+// accept the config.
+func TestWithForward(t *testing.T) {
+	dests := []string{"127.0.0.1:14010", "127.0.0.1:14020"}
+	cases := []struct {
+		name string
+		base Config
+		f    Forward
+		want map[string]string
+	}{
+		{"One", PlayConfig(Play{}), Forward{Destinations: dests[:1]}, map[string]string{
+			"SRS_VHOST_FORWARD_ENABLED": "on", "SRS_VHOST_FORWARD_DESTINATION": "127.0.0.1:14010",
+		}},
+		{"Two", PlayConfig(Play{}), Forward{Destinations: dests}, map[string]string{
+			"SRS_VHOST_FORWARD_ENABLED": "on", "SRS_VHOST_FORWARD_DESTINATION": "127.0.0.1:14010 127.0.0.1:14020",
+		}},
+		{"Off", PlayConfig(Play{}), Forward{Destinations: dests[:1], Off: true}, map[string]string{
+			"SRS_VHOST_FORWARD_ENABLED": "off", "SRS_VHOST_FORWARD_DESTINATION": "127.0.0.1:14010",
+		}},
+		{"WithBackend", Config{Listeners: []Listener{RTMP, HTTPAPI}, Hooks: true, ForwardBackend: true},
+			Forward{Destinations: dests[1:]}, map[string]string{"SRS_VHOST_FORWARD_DESTINATION": "127.0.0.1:14020"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := WithForward(tc.base, tc.f)
+			want := map[string]string{}
+			for k, v := range tc.base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, ok := tc.base.Env["SRS_VHOST_FORWARD_DESTINATION"]; ok {
+				t.Errorf("the base config changed: %v", tc.base.Env)
+			}
+			if !cfg.Hooks {
+				return
+			}
+			got, err := withHooks(cfg, "http://127.0.0.1:14005")
+			if err != nil {
+				t.Fatalf("with hooks: %v", err)
+			}
+			if got.Env["SRS_VHOST_FORWARD_ENABLED"] != "on" || got.Env["SRS_VHOST_FORWARD_DESTINATION"] != tc.want["SRS_VHOST_FORWARD_DESTINATION"] {
+				t.Errorf("env with the backend %v, want forward on and the destinations", got.Env)
+			}
+		})
+	}
+}
+
+// TestRestartNeedsExit checks Restart refuses a server that still runs and
+// one with hooks, whose mock closed with it.
+func TestRestartNeedsExit(t *testing.T) {
+	running := &Server{done: make(chan struct{})}
+	if err := running.Restart(); err == nil || !strings.Contains(err.Error(), "running") {
+		t.Errorf("restart of a running server: %v, want an error saying it runs", err)
+	}
+	done := make(chan struct{})
+	close(done)
+	hooked := &Server{done: done, Hooks: &mock.Server{}}
+	if err := hooked.Restart(); err == nil || !strings.Contains(err.Error(), "hooks") {
+		t.Errorf("restart of a server with hooks: %v, want an error naming the hooks", err)
 	}
 }

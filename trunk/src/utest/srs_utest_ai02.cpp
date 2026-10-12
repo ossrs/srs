@@ -9,10 +9,12 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_security.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai06.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -2246,4 +2248,162 @@ VOID TEST(ConfigServerIdTest, DefaultIsKeptPerConfig)
     EXPECT_STREQ("vid-second2", id2.c_str());
     EXPECT_EQ(1, (int)rand1.gen_str_lens_.size());
     EXPECT_EQ(1, (int)rand2.gen_str_lens_.size());
+}
+
+// Count the rules of a security directive with the name and args.
+static int count_security_rules(SrsConfDirective *rules, string name, string action, string value)
+{
+    int n = 0;
+    for (int i = 0; rules && i < (int)rules->directives_.size(); i++) {
+        SrsConfDirective *rule = rules->at(i);
+        if (rule->name_ == name && rule->arg0() == action && rule->arg1() == value && rule->args_.size() == 2) {
+            n++;
+        }
+    }
+    return n;
+}
+
+// SRS_VHOST_SECURITY_ENABLED turns the security on or off for every vhost, overwriting the config file.
+VOID TEST(ConfigSecurityTest, EnabledFromEnv)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_FALSE(conf.get_security_enabled("__defaultVhost__"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+        EXPECT_TRUE(conf.get_security_enabled("__defaultVhost__"));
+        EXPECT_TRUE(conf.get_security_enabled("no.such.vhost"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{security{enabled on;}}"));
+        EXPECT_TRUE(conf.get_security_enabled("ossrs.net"));
+        SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "off");
+        EXPECT_FALSE(conf.get_security_enabled("ossrs.net"));
+
+        SrsConfDirective *vhost = conf.get_vhost("ossrs.net");
+        ASSERT_TRUE(vhost != NULL);
+        EXPECT_FALSE(conf.get_security_enabled(vhost));
+    }
+}
+
+// SRS_VHOST_SECURITY_ALLOW_PUBLISH, SRS_VHOST_SECURITY_ALLOW_PLAY, SRS_VHOST_SECURITY_DENY_PUBLISH and
+// SRS_VHOST_SECURITY_DENY_PLAY, each a space separated list of all, an ip or a cidr, make one rule per item,
+// like the allow and deny directives of the config file.
+VOID TEST(ConfigSecurityTest, RulesFromEnv)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    EXPECT_TRUE(conf.get_security_rules("__defaultVhost__") == NULL);
+
+    SrsSetEnvConfig(conf, allow_publish, "SRS_VHOST_SECURITY_ALLOW_PUBLISH", "127.0.0.1  10.0.0.0/8");
+    SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "all");
+    SrsSetEnvConfig(conf, deny_publish, "SRS_VHOST_SECURITY_DENY_PUBLISH", "10.1.2.3");
+    SrsSetEnvConfig(conf, deny_play, "SRS_VHOST_SECURITY_DENY_PLAY", "192.168.0.0/16 172.16.0.1");
+
+    SrsConfDirective *rules = conf.get_security_rules("__defaultVhost__");
+    ASSERT_TRUE(rules != NULL);
+    EXPECT_EQ(6, (int)rules->directives_.size());
+    EXPECT_EQ(1, count_security_rules(rules, "allow", "publish", "127.0.0.1"));
+    EXPECT_EQ(1, count_security_rules(rules, "allow", "publish", "10.0.0.0/8"));
+    EXPECT_EQ(1, count_security_rules(rules, "allow", "play", "all"));
+    EXPECT_EQ(1, count_security_rules(rules, "deny", "publish", "10.1.2.3"));
+    EXPECT_EQ(1, count_security_rules(rules, "deny", "play", "192.168.0.0/16"));
+    EXPECT_EQ(1, count_security_rules(rules, "deny", "play", "172.16.0.1"));
+
+    // The same rules for every vhost, and for each call.
+    EXPECT_TRUE(conf.get_security_rules("no.such.vhost") == rules);
+    EXPECT_TRUE(conf.get_security_rules("__defaultVhost__") == rules);
+}
+
+// The env rules replace the rules of the config file, even when only one of them is set; an empty value
+// overwrites nothing.
+VOID TEST(ConfigSecurityTest, EnvRulesReplaceFile)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{security{enabled on; allow publish all; allow play all;}}"));
+        SrsSetEnvConfig(conf, deny_play, "SRS_VHOST_SECURITY_DENY_PLAY", "all");
+        SrsConfDirective *rules = conf.get_security_rules("ossrs.net");
+        ASSERT_TRUE(rules != NULL);
+        EXPECT_EQ(1, (int)rules->directives_.size());
+        EXPECT_EQ(1, count_security_rules(rules, "deny", "play", "all"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{security{enabled on; allow publish all;}}"));
+        SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "");
+        SrsSetEnvConfig(conf, deny_play, "SRS_VHOST_SECURITY_DENY_PLAY", "   ");
+        SrsConfDirective *rules = conf.get_security_rules("ossrs.net");
+        ASSERT_TRUE(rules != NULL);
+        EXPECT_EQ(1, count_security_rules(rules, "allow", "publish", "all"));
+        EXPECT_EQ(0, count_security_rules(rules, "deny", "play", ""));
+    }
+}
+
+// The security check applies the env rules: deny wins over allow, an ip or cidr matches the client, and with
+// the security on but no rule at all, every client is denied.
+VOID TEST(ConfigSecurityTest, CheckWithEnvRules)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+        SrsSetEnvConfig(conf, allow_publish, "SRS_VHOST_SECURITY_ALLOW_PUBLISH", "all");
+        SrsSetEnvConfig(conf, deny_publish, "SRS_VHOST_SECURITY_DENY_PUBLISH", "127.0.0.1");
+        SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "10.0.0.0/8");
+
+        SrsSecurity sec;
+        sec.config_ = &conf;
+        SrsRequest req;
+        req.vhost_ = "__defaultVhost__";
+        HELPER_EXPECT_FAILED(sec.check(SrsRtmpConnFMLEPublish, "127.0.0.1", &req));
+        HELPER_EXPECT_SUCCESS(sec.check(SrsRtcConnPublish, "192.168.1.2", &req));
+        HELPER_EXPECT_SUCCESS(sec.check(SrsRtmpConnPlay, "10.2.3.4", &req));
+        HELPER_EXPECT_FAILED(sec.check(SrsFlvPlay, "127.0.0.1", &req));
+        sec.config_ = NULL;
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+
+        SrsSecurity sec;
+        sec.config_ = &conf;
+        SrsRequest req;
+        req.vhost_ = "__defaultVhost__";
+        HELPER_EXPECT_FAILED(sec.check(SrsSrtConnPublish, "127.0.0.1", &req));
+        HELPER_EXPECT_FAILED(sec.check(SrsSrtConnPlay, "127.0.0.1", &req));
+        sec.config_ = NULL;
+    }
+
+    if (true) {
+        // Rules without the security on change nothing.
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, deny_publish, "SRS_VHOST_SECURITY_DENY_PUBLISH", "all");
+
+        SrsSecurity sec;
+        sec.config_ = &conf;
+        SrsRequest req;
+        req.vhost_ = "__defaultVhost__";
+        HELPER_EXPECT_SUCCESS(sec.check(SrsRtmpConnFMLEPublish, "127.0.0.1", &req));
+        sec.config_ = NULL;
+    }
 }

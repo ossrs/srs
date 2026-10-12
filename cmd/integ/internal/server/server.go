@@ -211,45 +211,18 @@ func Start(name string, cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	s := &Server{Dir: dir, Ports: ports, tail: newLogTail(logFile, tailLines), done: make(chan struct{}), burst: newSlots(burstSlots), auth: cfg.APIAuth}
-	s.cmd = exec.Command(run.binary, "-e")
-	s.cmd.Dir = dir
-	s.cmd.Env = append(processEnv(), env...)
-	s.cmd.Stdout = s.tail
-	s.cmd.Stderr = s.tail
+	s := &Server{Dir: dir, Ports: ports, burst: newSlots(burstSlots), auth: cfg.APIAuth}
 	if hooksAddr != "" {
 		if s.Hooks, err = mock.Start(hooksAddr); err != nil {
 			logFile.Close()
 			return nil, err
 		}
 	}
-	if err := s.cmd.Start(); err != nil {
-		logFile.Close()
+	if err := s.launch(append(processEnv(), env...), logFile); err != nil {
 		if s.Hooks != nil {
 			s.Hooks.Close()
 		}
 		return nil, err
-	}
-	s.start = time.Now()
-	run.procs.started()
-
-	// The mock answers hooks until SRS exits, such as its last on_close.
-	go func() {
-		s.cmd.Wait()
-		s.code = s.cmd.ProcessState.ExitCode()
-		s.cpu = s.cmd.ProcessState.UserTime() + s.cmd.ProcessState.SystemTime()
-		s.wall = time.Since(s.start)
-		run.procs.exited()
-		logFile.Close()
-		if s.Hooks != nil {
-			s.Hooks.Close()
-		}
-		close(s.done)
-	}()
-
-	if err := s.waitReady(); err != nil {
-		s.kill()
-		return nil, fmt.Errorf("start SRS in %s: %w\n%s", dir, err, strings.Join(s.LogTail(), "\n"))
 	}
 
 	run.features.Do(func() {
@@ -260,6 +233,46 @@ func Start(name string, cfg Config) (*Server, error) {
 		return nil, run.featErr
 	}
 	return s, nil
+}
+
+// launch starts the SRS process in the server's directory with env, its
+// output to logFile, which it closes when the process exits, and waits until
+// its API answers.
+func (s *Server) launch(env []string, logFile *os.File) error {
+	s.tail = newLogTail(logFile, tailLines)
+	s.done = make(chan struct{})
+	s.cmd = exec.Command(run.binary, "-e")
+	s.cmd.Dir = s.Dir
+	s.cmd.Env = env
+	s.cmd.Stdout = s.tail
+	s.cmd.Stderr = s.tail
+	if err := s.cmd.Start(); err != nil {
+		logFile.Close()
+		return err
+	}
+	s.start = time.Now()
+	run.procs.started()
+
+	// The mock answers hooks until SRS exits, such as its last on_close.
+	cmd, done := s.cmd, s.done
+	go func() {
+		cmd.Wait()
+		s.code = cmd.ProcessState.ExitCode()
+		s.cpu += cmd.ProcessState.UserTime() + cmd.ProcessState.SystemTime()
+		s.wall += time.Since(s.start)
+		run.procs.exited()
+		logFile.Close()
+		if s.Hooks != nil {
+			s.Hooks.Close()
+		}
+		close(done)
+	}()
+
+	if err := s.waitReady(); err != nil {
+		s.kill()
+		return fmt.Errorf("start SRS in %s: %w\n%s", s.Dir, err, strings.Join(s.LogTail(), "\n"))
+	}
+	return nil
 }
 
 // processEnv is the env of this process without its SRS_* vars, so only the
@@ -1272,4 +1285,82 @@ func WithRawAPI(cfg Config, r RawAPI) Config {
 	}
 	cfg.Env = env
 	return cfg
+}
+
+// Security is the rules that allow or deny clients, each a list of "all", an
+// IP or a CIDR. A deny rule that matches a client refuses it before any allow
+// rule; with rules, a client no allow rule matches is refused, and with the
+// security on and no rule at all, every client is.
+type Security struct {
+	AllowPublish, AllowPlay, DenyPublish, DenyPlay []string
+}
+
+// WithSecurity returns a copy of cfg with the security on and the rules s,
+// for every vhost.
+func WithSecurity(cfg Config, s Security) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_SECURITY_ENABLED"] = "on"
+	for k, v := range map[string][]string{
+		"SRS_VHOST_SECURITY_ALLOW_PUBLISH": s.AllowPublish,
+		"SRS_VHOST_SECURITY_ALLOW_PLAY":    s.AllowPlay,
+		"SRS_VHOST_SECURITY_DENY_PUBLISH":  s.DenyPublish,
+		"SRS_VHOST_SECURITY_DENY_PLAY":     s.DenyPlay,
+	} {
+		if len(v) > 0 {
+			env[k] = strings.Join(v, " ")
+		}
+	}
+	cfg.Env = env
+	return cfg
+}
+
+// Forward is a variant's forward to destinations, for every vhost.
+type Forward struct {
+	// Destinations are the host:port each stream is forwarded to, with its
+	// app and stream name.
+	Destinations []string
+	// Off keeps forward off with the destinations set.
+	Off bool
+}
+
+// WithForward returns a copy of cfg with forward to f's destinations. With
+// ForwardBackend, which turns forward on itself, it sets only the
+// destinations.
+func WithForward(cfg Config, f Forward) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	if !cfg.ForwardBackend {
+		env["SRS_VHOST_FORWARD_ENABLED"] = "on"
+		if f.Off {
+			env["SRS_VHOST_FORWARD_ENABLED"] = "off"
+		}
+	}
+	env["SRS_VHOST_FORWARD_DESTINATION"] = strings.Join(f.Destinations, " ")
+	cfg.Env = env
+	return cfg
+}
+
+// Restart starts a server that stopped again, with the same env, on the same
+// ports and in the same directory, its log appended to the one before, and
+// waits until its API answers. A server with hooks can't restart, since its
+// mock closed when it stopped.
+func (s *Server) Restart() error {
+	select {
+	case <-s.done:
+	default:
+		return fmt.Errorf("SRS in %s is still running", s.Dir)
+	}
+	if s.Hooks != nil {
+		return fmt.Errorf("SRS in %s has hooks, whose mock closed when it stopped", s.Dir)
+	}
+	logFile, err := os.OpenFile(filepath.Join(s.Dir, "console.log"), os.O_WRONLY|os.O_APPEND, 0)
+	if err != nil {
+		return err
+	}
+	return s.launch(s.cmd.Env, logFile)
 }

@@ -2122,6 +2122,12 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_FORWARD_ENABLED=off                 Forward published streams.\n"
         "      SRS_VHOST_FORWARD_DESTINATION=                Space separated ip:port to forward to.\n"
         "      SRS_VHOST_FORWARD_BACKEND=                    HTTP URL that returns the RTMP URLs to forward to.\n"
+        "   Security, each rule is space separated all, ip or cidr, and replaces the config file's rules:\n"
+        "      SRS_VHOST_SECURITY_ENABLED=off                Allow or deny clients by the rules, deny all if none.\n"
+        "      SRS_VHOST_SECURITY_ALLOW_PUBLISH=             Clients allowed to publish.\n"
+        "      SRS_VHOST_SECURITY_ALLOW_PLAY=                Clients allowed to play.\n"
+        "      SRS_VHOST_SECURITY_DENY_PUBLISH=              Clients denied to publish, before any allow.\n"
+        "      SRS_VHOST_SECURITY_DENY_PLAY=                 Clients denied to play, before any allow.\n"
         "   Edge, pull and push streams through an origin:\n"
         "      SRS_VHOST_CLUSTER_MODE=local                  local for an origin, remote for an edge.\n"
         "      SRS_VHOST_CLUSTER_ORIGIN=                     Space separated origin ip:port of an edge.\n"
@@ -5734,6 +5740,8 @@ vector<string> SrsConfig::get_vhost_coworkers(string vhost)
 
 bool SrsConfig::get_security_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.security.enabled"); // SRS_VHOST_SECURITY_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = get_vhost(vhost);
@@ -5746,6 +5754,8 @@ bool SrsConfig::get_security_enabled(string vhost)
 
 bool SrsConfig::get_security_enabled(SrsConfDirective *vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.security.enabled"); // SRS_VHOST_SECURITY_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = vhost->get("security");
@@ -5763,12 +5773,60 @@ bool SrsConfig::get_security_enabled(SrsConfDirective *vhost)
 
 SrsConfDirective *SrsConfig::get_security_rules(string vhost)
 {
+    SrsConfDirective *rules = get_security_rules_from_env();
+    if (rules) {
+        return rules;
+    }
+
     SrsConfDirective *conf = get_vhost(vhost);
     if (!conf) {
         return NULL;
     }
 
     return conf->get("security");
+}
+
+SrsConfDirective *SrsConfig::get_security_rules_from_env()
+{
+    SrsConfDirective *rules = env_cache_->get("srs.vhost.security");
+    if (rules) {
+        return rules;
+    }
+
+    // Each env is a space separated list of all, an ip or a cidr, one rule per item, like the
+    // "allow publish 127.0.0.1;" of the config file.
+    static const char *envs[][3] = {
+        {"srs.vhost.security.allow_publish", "allow", "publish"}, // SRS_VHOST_SECURITY_ALLOW_PUBLISH
+        {"srs.vhost.security.allow_play", "allow", "play"},       // SRS_VHOST_SECURITY_ALLOW_PLAY
+        {"srs.vhost.security.deny_publish", "deny", "publish"},   // SRS_VHOST_SECURITY_DENY_PUBLISH
+        {"srs.vhost.security.deny_play", "deny", "play"},         // SRS_VHOST_SECURITY_DENY_PLAY
+    };
+
+    rules = new SrsConfDirective();
+    rules->name_ = "srs.vhost.security";
+    for (int i = 0; i < (int)(sizeof(envs) / sizeof(envs[0])); i++) {
+        std::vector<string> values = srs_strings_split(srs_getenv(envs[i][0]), " ");
+        for (int j = 0; j < (int)values.size(); j++) {
+            if (values[j].empty()) {
+                continue;
+            }
+
+            SrsConfDirective *rule = new SrsConfDirective();
+            rule->name_ = envs[i][1];
+            rule->args_.push_back(envs[i][2]);
+            rule->args_.push_back(values[j]);
+            rules->directives_.push_back(rule);
+        }
+    }
+
+    // No rule in env, so the rules of the config file apply.
+    if (rules->directives_.empty()) {
+        srs_freep(rules);
+        return NULL;
+    }
+
+    env_cache_->directives_.push_back(rules);
+    return rules;
 }
 
 SrsConfDirective *SrsConfig::get_transcode(string vhost, string scope)

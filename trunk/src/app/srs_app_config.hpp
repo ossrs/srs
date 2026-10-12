@@ -1265,6 +1265,11 @@ public:
     virtual bool get_security_enabled(SrsConfDirective *vhost);
     // Get the security rules.
     virtual SrsConfDirective *get_security_rules(std::string vhost);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Get the security rules of every vhost from env, NULL if no env sets one.
+    virtual SrsConfDirective *get_security_rules_from_env();
     // vhost transcode section
 public:
     // Get the transcode directive of vhost in specified scope.
