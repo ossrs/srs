@@ -20,9 +20,33 @@ make bin/srs-integ  # The CLI, also built by make build.
 One feature or one case:
 
 ```bash
-go -C cmd/integ test ./cases/... -count=1 -run 'Test(Timer_)?Hls_'
-go -C cmd/integ test ./cases/... -count=1 -run 'TestRtmp_Common/PlayBeforePublish'
+go -C cmd/integ/cases test -count=1 -run 'Test(Timer_)?Hls_'
+go -C cmd/integ/cases test -count=1 -run 'TestRtmp_Common/PlayBeforePublish'
 ```
+
+The cases run `trunk/objs/srs`, built with every feature the suite needs, and
+fail with "rebuild it ..." when `/api/v1/features` lacks one:
+
+```bash
+cd trunk && ./configure --srt=on --gb28181=on --rtsp=on --apm=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on && make
+```
+
+Flags, after `-args`:
+
+- `-integ.srs <path>`: another SRS binary.
+- `-integ.timer`: allocate ports from the timer process's part of the range; `make integ` sets it for the timer process.
+- `-integ.known-bugs fail`: known-bug cases fail like normal cases; the default, `pass`, lets a known bug that fails pass.
+
+Each `go test` process ends with its summary: the cases passed, failed and
+skipped with their reasons, the known bugs, and the 10 slowest cases. Run it in
+`cmd/integ/cases` with no package argument, as above, or `go test` hides the
+summary of a passing run.
+
+Each run works in `/tmp/srs-integ/<pid>/`, one directory per server with its
+env, pid file and console log. A group's directory is removed when it passes
+and kept when it fails; a failing case shows the last 30 lines of the log. The
+run removes its directory when every test passed, and the directories of
+earlier runs whose process is gone.
 
 The CLI gives the stream tools by hand:
 
@@ -40,7 +64,7 @@ bin/srs-integ publish <file> <url>   # Publish a media file in real time.
 - `internal/mock/`: the hook and heartbeat servers.
 - `internal/check/`: the case helper.
 - `cases/`: the cases.
-- `testdata/`: the TLS certificates; the generated media goes in `testdata/media/`, which git ignores.
+- `testdata/`: the self-signed TLS key and certificate of the TLS listeners, for localhost and 127.0.0.1, test-only; the generated media goes in `testdata/media/`, which git ignores.
 
 Each internal package has its own unit tests.
 
@@ -71,13 +95,27 @@ with `-parallel 64`, at the same time.
 ### Servers
 
 - **Common:** one SRS with every feature that doesn't change how other streams behave, started by the first case that uses it and stopped after every test ends. Each case uses its own stream name.
+  Its listeners: RTMP, RTMPS, the HTTP API and server, HTTPS for both, WebRTC over UDP and TCP, SRT, RTSP, the exporter, and the GB28181 media port. The MPEG-TS over UDP caster needs a variant, because a server has one stream caster.
 - **Variant:** a server only when Common can't do it: a value Common can't have, global state, a process change, or a topology. A variant group is one top-level test that starts its SRS, runs its cases as parallel subtests, and stops the SRS.
 
 ### Classes
 
-Each case declares its class first. A case over its limit fails with
-`too slow: <ms> > <limit>`. Time is measured inside the case, without the
-group's server start.
+Each case declares its class first, through the case helper in
+`internal/check`, and runs as a parallel subtest of its group:
+
+```go
+check.Case(t, "PlayBeforePublish", check.Normal, func(c *check.C) {
+	srs := server.Common(c)
+	c.Must(err, "connect")              // Fails and stops the case.
+	c.CheckEqual(got, want, "frames")   // Fails and goes on.
+})
+```
+
+A case checks only through `c` (`c.Check...`, `c.Must`, `c.Errorf`,
+`c.Fatalf`), never through the group's `t`, so the helper decides the result.
+A case over its limit fails with `too slow: <ms> > <limit>`. Time is measured
+inside the case, without a server start (`server.Common` and `server.Group`)
+and without its cleanups.
 
 | Class | Limit | Cases |
 |---|---|---|
@@ -113,3 +151,6 @@ utest scenario it ports, if any.
 
 | Feature | Group | Cases | Class | Ports utest scenario |
 |---|---|---|---|---|
+| Api | Smoke | Versions, BuildFeatures, OnlyItsListener | Fast | |
+| Api | Common | Versions, ListenersAccept | Fast | |
+| Signal | Smoke | TermExitsZero (`TestTimer_Signal_Smoke`) | Timer | |

@@ -29,15 +29,16 @@ fmt: ./.go-formarted
 	go -C cmd/integ fmt ./...
 
 # Run the timer cases and the other cases as two go test processes at once;
-# it fails if either fails.
+# it fails if either fails. They run in the cases directory with no package
+# argument, so go test prints the summary of a passing run too.
 integ:
 	@$(MAKE) --no-print-directory -j2 integ-timer integ-main
 
 integ-timer:
-	go -C cmd/integ test ./cases/... -count=1 -run '^TestTimer_' -parallel 256
+	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer
 
 integ-main:
-	go -C cmd/integ test ./cases/... -count=1 -skip '^TestTimer_' -parallel 64
+	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 64
 
 clean:
 	rm -rf bin .go-formarted

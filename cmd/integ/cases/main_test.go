@@ -9,8 +9,11 @@ package cases
 import (
 	"os"
 	"testing"
+
+	"srs-integ/internal/check"
+	"srs-integ/internal/server"
 )
 
 func TestMain(m *testing.M) {
-	os.Exit(m.Run())
+	os.Exit(server.Main(m, check.Summary))
 }
