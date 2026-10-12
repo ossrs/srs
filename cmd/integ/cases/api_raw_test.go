@@ -106,6 +106,13 @@ func reloadFetch(c *check.C, srs *server.Server) reloadStatus {
 func reload(c *check.C, srs *server.Server, old string) reloadStatus {
 	c.Helper()
 	checkRawCode(c, srs, "?rpc=reload", 0)
+	return waitReload(c, srs, old)
+}
+
+// waitReload waits until a reload with another id than old ran, and returns
+// its status. SRS reloads in its main cycle, once a second.
+func waitReload(c *check.C, srs *server.Server, old string) reloadStatus {
+	c.Helper()
 	var st reloadStatus
 	if !until(2*time.Second, func() bool {
 		st = reloadFetch(c, srs)
@@ -189,21 +196,27 @@ func TestApi_RawApi(t *testing.T) {
 	})
 }
 
+// reloadMu makes the reloads of SegmentsKeep, by the RAW API or by SIGHUP,
+// run one at a time, since SRS keeps the status of the last reload only.
+var reloadMu sync.Mutex
+
+// lockReload holds reloadMu, out of the case time, until the case ends.
+func lockReload(c *check.C) {
+	c.Untimed(func() {
+		reloadMu.Lock()
+		c.Cleanup(reloadMu.Unlock)
+	})
+}
+
 // TestTimer_Reload_RawApi reloads by the RAW API, on the shared timer server
 // SegmentsKeep with reload allowed. The server is env-only, so each reload
 // fails to parse a config file and changes nothing for the other groups;
 // SRS keeps the status of the last reload only, so the cases run one at a
-// time.
+// time, with those of TestTimer_Reload_Sighup.
 func TestTimer_Reload_RawApi(t *testing.T) {
 	t.Parallel()
 	srs := server.Shared(t, "SegmentsKeep", sharedSegmentsKeep())
-	var mu sync.Mutex
-	lock := func(c *check.C) {
-		c.Untimed(func() {
-			mu.Lock()
-			c.Cleanup(mu.Unlock)
-		})
-	}
+	lock := lockReload
 
 	check.Case(t, "RawQuery", check.Normal, func(c *check.C) {
 		checkRawConfig(c, srs, true, true)

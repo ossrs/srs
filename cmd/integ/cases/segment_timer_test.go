@@ -61,7 +61,9 @@ func sharedSegmentsDispose() server.Config {
 // TestTimer_Gb_MediaTimeout, for GB28181 with a 1s media_connect_timeout,
 // and TestTimer_Convert_Reports, for WebRTC; the other groups use no SRT, no
 // GB and no WebRTC. TestTimer_Reload_RawApi shares it for the RAW API with
-// reload allowed: a reload of an env-only server fails and changes nothing.
+// reload allowed, and TestTimer_Reload_Sighup for SIGHUP: a reload of an
+// env-only server fails and changes nothing. TestTimer_Signal_Console sends
+// it SIGUSR1, which reopens no log on the console.
 // TestTimer_Heartbeat_Full shares it for the heartbeat with every setting on,
 // every 1s, which the other groups never read.
 func sharedSegmentsKeep() server.Config {

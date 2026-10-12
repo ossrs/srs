@@ -31,6 +31,11 @@ const (
 	RTMPS                       // RTMPS over TCP.
 )
 
+// UDPTSStream is the stream, app and name, the MPEG-TS over UDP caster
+// publishes over RTMP: SRS's caster converts what its port gets to one RTMP
+// URL of its config.
+const UDPTSStream = "live/udpts"
+
 // CommonListeners are the listeners of the Common server: every listener
 // except UDPTS, because a server has only one stream caster.
 var CommonListeners = []Listener{
@@ -114,6 +119,25 @@ type Config struct {
 	// server whose API others must know before it starts, such as an origin
 	// of an origin cluster; 0 allocates one.
 	APIPort int
+	// Process replaces the adapter's process settings, SRS_PID and
+	// SRS_LOG_TANK for example, for a case of those settings; a key the
+	// adapter doesn't set is refused.
+	Process map[string]string
+	// ListenAlias sets RTMP's port by SRS_LISTEN, the alias of
+	// SRS_RTMP_LISTEN.
+	ListenAlias bool
+	// WorkDir is a dir in the server's own dir, which the adapter makes, for
+	// SRS to change to, SRS_WORK_DIR: SRS's relative paths, such as its pid
+	// file, log file and recordings, are then in it. Empty leaves SRS in the
+	// server's own dir.
+	WorkDir string
+	// TZ is the server's time zone, the TZ env var, such as INTEG-5:45 for
+	// UTC+5:45; empty keeps the host's.
+	TZ string
+	// BelowPeak starts the server only once the process runs fewer SRS than
+	// its peak so far, waiting at most 2s as a run of Exec does, so a group
+	// that may start late doesn't raise the peak.
+	BelowPeak bool
 }
 
 // TLSFiles are the key and certificate of the TLS listeners.
@@ -122,7 +146,7 @@ type TLSFiles struct {
 }
 
 // BuildEnv returns the SRS_* env vars, sorted, that start a server in dir
-// with cfg, listening on ports.
+// with cfg, listening on ports, and TZ when cfg sets the time zone.
 func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]string, error) {
 	on := map[Listener]bool{}
 	for _, l := range cfg.Listeners {
@@ -148,6 +172,12 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 			return nil, err
 		}
 	}
+	if cfg.ListenAlias && !on[RTMP] {
+		return nil, fmt.Errorf("ListenAlias needs RTMP, whose port it sets")
+	}
+	if cfg.WorkDir != "" && !filepath.IsLocal(cfg.WorkDir) {
+		return nil, fmt.Errorf("WorkDir %q is not a dir in the server's own dir", cfg.WorkDir)
+	}
 
 	env := map[string]string{
 		// The process: in the foreground, logging to the console the adapter
@@ -158,6 +188,16 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 		"SRS_QUERY_LATEST_VERSION":    "off",
 		"SRS_CIRCUIT_BREAKER_ENABLED": "off",
 		"SRS_STREAM_CASTER_ENABLED":   "off",
+	}
+	// A case of a process setting replaces the adapter's.
+	for k, v := range cfg.Process {
+		if _, ok := env[k]; !ok {
+			return nil, fmt.Errorf("env %s is not a process setting of the adapter", k)
+		}
+		env[k] = v
+	}
+	if cfg.WorkDir != "" {
+		env["SRS_WORK_DIR"] = "./" + filepath.Clean(cfg.WorkDir)
 	}
 
 	// Every listener is set explicitly, on with its port or off, so no default
@@ -181,9 +221,13 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 		if info.enable != "" {
 			env[info.enable] = "on"
 		}
-		env[info.listen] = strconv.Itoa(port)
+		listen := info.listen
+		if l == RTMP && cfg.ListenAlias {
+			listen = "SRS_LISTEN"
+		}
+		env[listen] = strconv.Itoa(port)
 		if l == RTMP && cfg.IPv6 {
-			env[info.listen] += fmt.Sprintf(" [::]:%d", port)
+			env[listen] += fmt.Sprintf(" [::]:%d", port)
 		}
 
 		if info.tls != "" {
@@ -208,6 +252,9 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 		env["SRS_STREAM_CASTER_ENABLED"] = "on"
 		env["SRS_STREAM_CASTER_CASTER"] = map[Listener]string{GB: "gb28181", UDPTS: "mpegts_over_udp"}[l]
 		env["SRS_STREAM_CASTER_OUTPUT"] = fmt.Sprintf("rtmp://127.0.0.1:%d/live/[stream]", ports[RTMP])
+		if l == UDPTS {
+			env["SRS_STREAM_CASTER_OUTPUT"] = fmt.Sprintf("rtmp://127.0.0.1:%d/%s", ports[RTMP], UDPTSStream)
+		}
 	}
 
 	// The API's authentication, whose credentials the adapter sends.
@@ -224,6 +271,9 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 			return nil, fmt.Errorf("env %s is set by the adapter", k)
 		}
 		env[k] = v
+	}
+	if cfg.TZ != "" {
+		env["TZ"] = cfg.TZ
 	}
 
 	out := make([]string, 0, len(env))

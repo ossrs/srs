@@ -153,6 +153,10 @@ type Server struct {
 	burst     *slots
 	// auth is the API's authentication, nil when it has none.
 	auth *APIAuth
+	// workDir is the dir SRS changes to, Dir when the config sets none.
+	workDir string
+	// belowPeak starts the process only below the peak, as Exec does.
+	belowPeak bool
 }
 
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
@@ -211,7 +215,12 @@ func Start(name string, cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	s := &Server{Dir: dir, Ports: ports, burst: newSlots(burstSlots), auth: cfg.APIAuth}
+	s := &Server{Dir: dir, Ports: ports, burst: newSlots(burstSlots), auth: cfg.APIAuth,
+		workDir: filepath.Join(dir, cfg.WorkDir), belowPeak: cfg.BelowPeak}
+	if err := os.MkdirAll(s.workDir, 0o755); err != nil {
+		logFile.Close()
+		return nil, err
+	}
 	if hooksAddr != "" {
 		if s.Hooks, err = mock.Start(hooksAddr); err != nil {
 			logFile.Close()
@@ -246,12 +255,17 @@ func (s *Server) launch(env []string, logFile *os.File) error {
 	s.cmd.Env = env
 	s.cmd.Stdout = s.tail
 	s.cmd.Stderr = s.tail
-	if err := s.cmd.Start(); err != nil {
+	var err error
+	if s.belowPeak {
+		err = run.procs.startGated(&cliStart, cliGateWait, s.cmd.Start)
+	} else if err = s.cmd.Start(); err == nil {
+		run.procs.started()
+	}
+	if err != nil {
 		logFile.Close()
 		return err
 	}
 	s.start = time.Now()
-	run.procs.started()
 
 	// The mock answers hooks until SRS exits, such as its last on_close.
 	cmd, done := s.cmd, s.done
@@ -346,6 +360,12 @@ func (s *Server) checkFeatures() error {
 // Addr returns the 127.0.0.1:port address of a listener that is on.
 func (s *Server) Addr(l Listener) string {
 	return "127.0.0.1:" + strconv.Itoa(s.Ports[l])
+}
+
+// WorkDir is the dir SRS changes to, Config.WorkDir in the server's own dir,
+// or that dir.
+func (s *Server) WorkDir() string {
+	return s.workDir
 }
 
 // PID returns the process id of the server.

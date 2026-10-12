@@ -120,7 +120,7 @@ func TestBuildEnvUDPTS(t *testing.T) {
 	}
 	m := envMap(env)
 	if m["SRS_STREAM_CASTER_CASTER"] != "mpegts_over_udp" || m["SRS_STREAM_CASTER_LISTEN"] != "3" ||
-		m["SRS_STREAM_CASTER_OUTPUT"] != "rtmp://127.0.0.1:1/live/[stream]" {
+		m["SRS_STREAM_CASTER_OUTPUT"] != "rtmp://127.0.0.1:1/"+UDPTSStream || UDPTSStream != "live/udpts" {
 		t.Errorf("caster env %v", env)
 	}
 }
@@ -213,6 +213,92 @@ func TestBuildEnvIPv6(t *testing.T) {
 		}
 		if got := m["SRS_HTTP_API_LISTEN"]; got != "14001" {
 			t.Errorf("IPv6 %v: SRS_HTTP_API_LISTEN=%q, want only the IPv4 port", tc.ipv6, got)
+		}
+	}
+}
+
+// TestBuildEnvProcess checks Process replaces the adapter's process settings,
+// such as the pid file and the log tank, and nothing else.
+func TestBuildEnvProcess(t *testing.T) {
+	env, err := BuildEnv(Config{
+		Listeners: []Listener{HTTPAPI},
+		Process:   map[string]string{"SRS_PID": "./env.pid", "SRS_LOG_TANK": "file"},
+	}, map[Listener]int{HTTPAPI: 1}, "/w", TLSFiles{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := envMap(env)
+	if m["SRS_PID"] != "./env.pid" || m["SRS_LOG_TANK"] != "file" {
+		t.Errorf("SRS_PID=%q SRS_LOG_TANK=%q, want the Process values", m["SRS_PID"], m["SRS_LOG_TANK"])
+	}
+	if m["SRS_DAEMON"] != "off" {
+		t.Errorf("SRS_DAEMON=%q, want the adapter's off", m["SRS_DAEMON"])
+	}
+
+	for _, k := range []string{"SRS_HTTP_API_LISTEN", "SRS_VHOST_PLAY_GOP_CACHE", "SRS_MAX_CONNECTIONS"} {
+		_, err := BuildEnv(Config{Listeners: []Listener{HTTPAPI}, Process: map[string]string{k: "1"}},
+			map[Listener]int{HTTPAPI: 1}, "/w", TLSFiles{})
+		if err == nil || !strings.Contains(err.Error(), "not a process setting") {
+			t.Errorf("Process %s: err=%v, want not a process setting", k, err)
+		}
+	}
+}
+
+// TestBuildEnvListenAlias checks ListenAlias sets RTMP's port by SRS_LISTEN,
+// not SRS_RTMP_LISTEN, and that a variant can't set either.
+func TestBuildEnvListenAlias(t *testing.T) {
+	env, err := BuildEnv(Config{Listeners: []Listener{RTMP, HTTPAPI}, ListenAlias: true},
+		map[Listener]int{RTMP: 14000, HTTPAPI: 14001}, "/w", TLSFiles{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := envMap(env)
+	if m["SRS_LISTEN"] != "14000" {
+		t.Errorf("SRS_LISTEN=%q, want 14000", m["SRS_LISTEN"])
+	}
+	if _, ok := m["SRS_RTMP_LISTEN"]; ok {
+		t.Errorf("SRS_RTMP_LISTEN=%q, want it unset", m["SRS_RTMP_LISTEN"])
+	}
+
+	if _, err := BuildEnv(Config{Listeners: []Listener{HTTPAPI}, ListenAlias: true},
+		map[Listener]int{HTTPAPI: 1}, "/w", TLSFiles{}); err == nil || !strings.Contains(err.Error(), "RTMP") {
+		t.Errorf("ListenAlias without RTMP: err=%v, want it to need RTMP", err)
+	}
+}
+
+// TestBuildEnvWorkDirTZ checks WorkDir sets SRS_WORK_DIR and TZ the server's
+// time zone, and that a variant can't set the work dir apart from WorkDir.
+func TestBuildEnvWorkDirTZ(t *testing.T) {
+	env, err := BuildEnv(Config{Listeners: []Listener{HTTPAPI}, WorkDir: "work", TZ: "INTEG-5:45"},
+		map[Listener]int{HTTPAPI: 1}, "/w", TLSFiles{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := envMap(env)
+	if m["SRS_WORK_DIR"] != "./work" {
+		t.Errorf("SRS_WORK_DIR=%q, want ./work", m["SRS_WORK_DIR"])
+	}
+	if m["TZ"] != "INTEG-5:45" {
+		t.Errorf("TZ=%q, want INTEG-5:45", m["TZ"])
+	}
+
+	env, err = BuildEnv(Config{Listeners: []Listener{HTTPAPI}}, map[Listener]int{HTTPAPI: 1}, "/w", TLSFiles{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"SRS_WORK_DIR", "TZ"} {
+		if _, ok := envMap(env)[k]; ok {
+			t.Errorf("%s set without WorkDir or TZ: %v", k, env)
+		}
+	}
+
+	for _, cfg := range []Config{
+		{Listeners: []Listener{HTTPAPI}, WorkDir: "work", Env: map[string]string{"SRS_WORK_DIR": "./other"}},
+		{Listeners: []Listener{HTTPAPI}, WorkDir: "/abs"},
+		{Listeners: []Listener{HTTPAPI}, WorkDir: "../up"},
+	} {
+		if _, err := BuildEnv(cfg, map[Listener]int{HTTPAPI: 1}, "/w", TLSFiles{}); err == nil {
+			t.Errorf("WorkDir %q with Env %v accepted, want an error", cfg.WorkDir, cfg.Env)
 		}
 	}
 }
