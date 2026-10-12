@@ -5,8 +5,10 @@
 package cases
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,11 +28,11 @@ import (
 // (hls_use_fmp4), and the settings of TestHls_Options that apply to it: 2s
 // fragments with hls_td_ratio 1.5, a 3s target, which makes segments of 4s
 // on the 1s GOP (fmp4Segment); hls_aof_ratio 2.5; a 7s window; the files
-// under ./hls; and an entry prefix. The segment and init files have
-// templates of their own, beside the playlist, which is where SRS links them
-// from (TestHls_Fmp4Default shows the default init file is not). It has the
-// HTTPS server, and RTMPS, SRT, the GB28181 caster and WebRTC with
-// rtc_to_rtmp for TestConvert_Fmp4, which has a server of this config too.
+// under ./hls; and an entry prefix, whose URIs the cases follow as a CDN
+// would (cdnDial). The segment and init files have templates of their own,
+// beside the playlist. It has the HTTPS server, and RTMPS, SRT, the GB28181
+// caster and WebRTC with rtc_to_rtmp for TestConvert_Fmp4, which has a
+// server of this config too, without the entry prefix.
 func sharedFmp4() server.Config {
 	cfg := server.HLSConfig(server.HLS{
 		FMP4:        true,
@@ -53,6 +55,11 @@ func TestHls_Fmp4(t *testing.T) {
 	t.Parallel()
 	srs := server.Shared(t, "Fmp4", sharedFmp4())
 
+	// cdn follows the playlists' URIs under hls_entry_prefix to the server.
+	cdnTransport := &http.Transport{DialContext: cdnDial(srs), MaxIdleConnsPerHost: 256}
+	t.Cleanup(cdnTransport.CloseIdleConnections)
+	cdn := &http.Client{Transport: cdnTransport}
+
 	// play publishes a file through d at once, which closes the 4s segments
 	// before d, and plays its HLS until u.
 	play := func(c *check.C, file string, d time.Duration, client *http.Client, secure bool, u report.Until) *report.Report {
@@ -68,13 +75,13 @@ func TestHls_Fmp4(t *testing.T) {
 	fmp4Until := report.Until{VideoHeader: true, AudioHeader: true, Duration: 5 * time.Second}
 
 	check.Case(t, "PublishPlay", check.Normal, func(c *check.C) {
-		r := play(c, media.H264HighAAC, 2*fmp4Segment, httpClient, false, fmp4Until)
+		r := play(c, media.H264HighAAC, 2*fmp4Segment, cdn, false, fmp4Until)
 		checkPlayed(c, r, "h264", "aac")
 		c.Check(r.Video.Keyframes >= 5, "%v keyframes, want a 1s GOP over 5s", r.Video.Keyframes)
 	})
 
 	check.Case(t, "PublishPlayHevc", check.Normal, func(c *check.C) {
-		r := play(c, media.HEVCAAC, 2*fmp4Segment, httpClient, false, fmp4Until)
+		r := play(c, media.HEVCAAC, 2*fmp4Segment, cdn, false, fmp4Until)
 		checkPlayed(c, r, "hevc", "aac")
 		c.Check(r.Video.Keyframes >= 5, "%v keyframes, want a 1s GOP over 5s", r.Video.Keyframes)
 	})
@@ -84,16 +91,16 @@ func TestHls_Fmp4(t *testing.T) {
 		check.KnownBug(c, "the init file of an MP3 stream has no audio track, while its segments carry the MP3 samples on track 2")
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighMP3, 2*fmp4Segment)
-		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(1))
-		c.CheckEqual(fmt.Sprint(initTracks(c, pl)), "[vide:avc1 soun:mp4a]", "tracks of the init file")
-		r := playHLS(c, httpClient, flvURL(srs, stream+".m3u8"), report.Until{VideoHeader: true, Duration: 5 * time.Second})
+		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(1))
+		c.CheckEqual(fmt.Sprint(initTracks(c, cdn, pl)), "[vide:avc1 soun:mp4a]", "tracks of the init file")
+		r := playHLS(c, cdn, flvURL(srs, stream+".m3u8"), report.Until{VideoHeader: true, Duration: 5 * time.Second})
 		checkVideo(c, r, "h264")
 		checkAudio(c, r, "mp3", 0)
 		c.CheckNoError(r.CheckTimestamps(100*time.Millisecond), "timestamps")
 	})
 
 	check.Case(t, "PublishPlayVideoOnly", check.Normal, func(c *check.C) {
-		r := play(c, media.H264Only, 2*fmp4Segment, httpClient, false, report.Until{VideoHeader: true, Duration: 5 * time.Second})
+		r := play(c, media.H264Only, 2*fmp4Segment, cdn, false, report.Until{VideoHeader: true, Duration: 5 * time.Second})
 		checkVideo(c, r, "h264")
 		c.Check(r.Audio == nil, "audio %v, want none", r.Audio)
 		c.Check(r.Video.Keyframes >= 5, "%v keyframes, want a 1s GOP over 5s", r.Video.Keyframes)
@@ -105,11 +112,11 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "PublishPlayAudioOnly", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.AACOnly, 12*time.Second)
-		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(1))
+		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(1))
 		checkDurations(c, pl, 5*time.Second, 5*time.Second+pureAudioBatch)
 		c.CheckEqual(pl.TargetDuration, 6, "target duration, the longest segment rounded up")
 
-		r := playHLS(c, httpClient, flvURL(srs, stream+".m3u8"), report.Until{AudioHeader: true, Duration: 8 * time.Second})
+		r := playHLS(c, cdn, flvURL(srs, stream+".m3u8"), report.Until{AudioHeader: true, Duration: 8 * time.Second})
 		checkAudio(c, r, "aac", 1)
 		c.Check(r.Video == nil, "video %v, want none", r.Video)
 		c.CheckNoError(r.CheckTimestamps(100*time.Millisecond), "timestamps")
@@ -118,7 +125,9 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "HttpsPublishPlay", check.Normal, func(c *check.C) {
 		cfg, err := server.ClientTLS()
 		c.Must(err, "the client TLS config")
-		tr := &http.Transport{TLSClientConfig: cfg}
+		// The playlist over HTTPS, and the segments under hls_entry_prefix,
+		// over HTTP.
+		tr := &http.Transport{TLSClientConfig: cfg, DialContext: cdnDial(srs)}
 		c.Cleanup(tr.CloseIdleConnections)
 		r := play(c, media.H264HighAAC, 2*fmp4Segment, &http.Client{Transport: tr}, true, fmp4Until)
 		checkPlayed(c, r, "h264", "aac")
@@ -130,9 +139,9 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "PlaylistTags", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, 2*fmp4Segment)
-		pl, mediaURL := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(1))
+		pl, mediaURL := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(1))
 
-		res, body := httpGet(c, httpClient, flvURL(srs, stream+".m3u8"))
+		res, body := httpGet(c, cdn, flvURL(srs, stream+".m3u8"))
 		c.CheckEqual(res.StatusCode, 200, "status of the master playlist")
 		c.CheckEqual(res.Header.Get("Content-Type"), "application/vnd.apple.mpegurl", "content type of the master playlist")
 		base, _ := url.Parse(flvURL(srs, stream+".m3u8"))
@@ -140,7 +149,7 @@ func TestHls_Fmp4(t *testing.T) {
 		c.Must(err, "parse the master playlist")
 		c.Check(master.Master && len(master.Variants) == 1, "master playlist %+v, want one variant", master)
 
-		res, _ = httpGet(c, httpClient, mediaURL)
+		res, _ = httpGet(c, cdn, mediaURL)
 		c.CheckEqual(res.Header.Get("Content-Type"), "application/vnd.apple.mpegurl", "content type of the media playlist")
 		c.CheckEqual(pl.Version, 7, "version")
 		c.CheckEqual(pl.TargetDuration, 4, "target duration, the longest segment")
@@ -166,13 +175,13 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "InitFile", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, fmp4Segment)
-		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(0))
+		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(0))
 		if !c.Check(pl.Segments[0].Map != nil, "no #EXT-X-MAP") {
 			return
 		}
-		res, _ := httpGet(c, httpClient, pl.Segments[0].Map.URI)
+		res, _ := httpGet(c, cdn, pl.Segments[0].Map.URI)
 		c.CheckEqual(res.Header.Get("Content-Type"), "video/mp4", "content type of the init file")
-		c.CheckEqual(fmt.Sprint(initTracks(c, pl)), "[vide:avc1 soun:mp4a]", "tracks of the init file")
+		c.CheckEqual(fmt.Sprint(initTracks(c, cdn, pl)), "[vide:avc1 soun:mp4a]", "tracks of the init file")
 	})
 
 	// Each segment starts with a keyframe and holds 4 GOPs of 1s, and the
@@ -180,13 +189,13 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "SegmentsOnGop", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, 2*fmp4Segment)
-		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(1))
+		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(1))
 
 		var reports []*report.Report
 		for _, s := range pl.Segments {
-			res, _ := httpGet(c, httpClient, s.URI)
+			res, _ := httpGet(c, cdn, s.URI)
 			c.CheckEqual(res.Header.Get("Content-Type"), "video/iso.segment", "content type of "+s.URI)
-			r := fmp4SegmentReport(c, httpClient, s)
+			r := fmp4SegmentReport(c, cdn, s)
 			if !c.Check(r.Video != nil && r.Audio != nil, "segment %v: %v", s.Sequence, r) {
 				return
 			}
@@ -207,7 +216,7 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "WindowAndCleanup", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, 20*time.Second)
-		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(4))
+		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(4))
 		c.CheckEqual(pl.MediaSequence, 3, "media sequence")
 		c.CheckEqual(len(pl.Segments), 2, "segments in the window")
 
@@ -222,7 +231,7 @@ func TestHls_Fmp4(t *testing.T) {
 		}
 		_, err := os.Stat(filepath.Join(dir, stream+"-init.mp4"))
 		c.CheckNoError(err, "the init file")
-		res, _ := httpGet(c, httpClient, flvURL(srs, stream+"-seg-0.m4s"))
+		res, _ := httpGet(c, cdn, flvURL(srs, stream+"-seg-0.m4s"))
 		c.CheckEqual(res.StatusCode, 404, "status of an expired segment")
 	})
 
@@ -231,7 +240,7 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "PathTemplates", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, fmp4Segment)
-		waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(0))
+		waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(0))
 		dir := filepath.Join(srs.Dir, "hls")
 		for _, f := range []string{stream + ".m3u8", stream + "-seg-0.m4s", stream + "-init.mp4"} {
 			_, err := os.Stat(filepath.Join(dir, f))
@@ -245,7 +254,6 @@ func TestHls_Fmp4(t *testing.T) {
 
 	// hls_entry_prefix is the base URL of each segment URI, as with TS.
 	check.Case(t, "EntryPrefix", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "fmp4 playlists list each segment and the init file by its file name, without hls_entry_prefix")
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, fmp4Segment)
 		pl, _ := waitPlaylist(c, cdnClient(c, srs), flvURL(srs, stream+".m3u8"), hasSegment(0))
@@ -263,7 +271,7 @@ func TestHls_Fmp4(t *testing.T) {
 	// play.
 	check.Case(t, "RepublishSequence", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
-		pl := republishFmp4(c, srs, stream)
+		pl := republishFmp4(c, cdn, srs, stream)
 		var seqs []int
 		for _, s := range pl.Segments {
 			seqs = append(seqs, s.Sequence)
@@ -271,7 +279,7 @@ func TestHls_Fmp4(t *testing.T) {
 		c.CheckEqual(fmt.Sprint(seqs), "[0 1 2]", "segment sequences")
 		if len(pl.Segments) == 3 {
 			c.Check(near(pl.Segments[1].Duration, time.Second, 100*time.Millisecond), "segment 1 lasts %v, want the 1s left at the unpublish", pl.Segments[1].Duration)
-			r := fmp4SegmentReport(c, httpClient, pl.Segments[2])
+			r := fmp4SegmentReport(c, cdn, pl.Segments[2])
 			checkPlayed(c, r, "h264", "aac")
 		}
 	})
@@ -281,7 +289,7 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "RepublishDiscontinuity", check.Normal, func(c *check.C) {
 		check.KnownBug(c, "fmp4 playlists have no #EXT-X-DISCONTINUITY, also not after a republish")
 		stream := "live/" + streamName(c)
-		pl := republishFmp4(c, srs, stream)
+		pl := republishFmp4(c, cdn, srs, stream)
 		if c.Check(len(pl.Segments) == 3, "segments %+v, want 3", pl.Segments) {
 			c.Check(pl.Segments[2].Discontinuity, "the segment after the republish has no discontinuity")
 		}
@@ -290,7 +298,7 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "NeverPublished", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		for _, p := range []string{stream + ".m3u8", stream + "-seg-0.m4s", stream + "-init.mp4"} {
-			res, _ := httpGet(c, httpClient, flvURL(srs, p))
+			res, _ := httpGet(c, cdn, flvURL(srs, p))
 			c.CheckEqual(res.StatusCode, 404, p)
 		}
 	})
@@ -298,10 +306,10 @@ func TestHls_Fmp4(t *testing.T) {
 	check.Case(t, "MissingSegment", check.Normal, func(c *check.C) {
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighAAC, fmp4Segment)
-		pl, _ := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(0))
-		res, _ := httpGet(c, httpClient, pl.Segments[0].URI)
+		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(0))
+		res, _ := httpGet(c, cdn, pl.Segments[0].URI)
 		c.CheckEqual(res.StatusCode, 200, "status of a listed segment")
-		res, _ = httpGet(c, httpClient, flvURL(srs, stream+"-seg-99.m4s"))
+		res, _ = httpGet(c, cdn, flvURL(srs, stream+"-seg-99.m4s"))
 		c.CheckEqual(res.StatusCode, 404, "status of a segment that is not there")
 	})
 }
@@ -379,31 +387,43 @@ func TestHls_Fmp4Default(t *testing.T) {
 // with the same settings is cut at 3s.
 const fmp4Segment = 4 * time.Second
 
+// cdnDial dials the server's HTTP server for the host of hls_entry_prefix,
+// as a CDN in front of it would, and every other address as it is.
+func cdnDial(srs *server.Server) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if addr == cdnHost+":80" {
+			addr = srs.Addr(server.HTTPServer)
+		}
+		var d net.Dialer
+		return d.DialContext(ctx, network, addr)
+	}
+}
+
 // republishFmp4 publishes 5s of a stream, unpublishes it, which closes a 1s
 // segment, and publishes 4s again, and returns the playlist with the
 // segment of the second publish.
-func republishFmp4(c *check.C, srs *server.Server, stream string) *hls.Playlist {
+func republishFmp4(c *check.C, client *http.Client, srs *server.Server, stream string) *hls.Playlist {
 	c.Helper()
 	pub := publishThrough(c, srs, stream, media.H264HighAAC, 5*time.Second)
-	_, mediaURL := waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(0))
+	_, mediaURL := waitPlaylist(c, client, flvURL(srs, stream+".m3u8"), hasSegment(0))
 	pub.Close()
-	waitPlaylist(c, httpClient, mediaURL, hasSegment(1))
+	waitPlaylist(c, client, mediaURL, hasSegment(1))
 	pub = republish(c, rtmpURL(srs, stream), 300*time.Millisecond)
 	publishTagsOn(c, srs, pub, readTags(c, media.H264HighAAC, 0, fmp4Segment+time.Millisecond))
-	pl, _ := waitPlaylist(c, httpClient, mediaURL, hasSegment(2))
+	pl, _ := waitPlaylist(c, client, mediaURL, hasSegment(2))
 	return pl
 }
 
 // initTracks fetches the init file of a playlist's first segment, which
 // must be there, checks its tracks have no samples, and returns them as
 // "<handler>:<sample entry>".
-func initTracks(c *check.C, pl *hls.Playlist) []string {
+func initTracks(c *check.C, client *http.Client, pl *hls.Playlist) []string {
 	c.Helper()
 	if !c.Check(len(pl.Segments) > 0 && pl.Segments[0].Map != nil, "no #EXT-X-MAP: %+v", pl) {
 		c.FailNow()
 	}
 	uri := pl.Segments[0].Map.URI
-	res, body := httpGet(c, httpClient, uri)
+	res, body := httpGet(c, client, uri)
 	c.CheckEqual(res.StatusCode, 200, "status of "+uri)
 	init, err := mp4.ParseInit(body)
 	c.Must(err, "parse "+uri)

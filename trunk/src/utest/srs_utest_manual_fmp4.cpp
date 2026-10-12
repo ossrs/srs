@@ -354,6 +354,61 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_InitUriBesidePlaylist)
     muxer.dispose();
 }
 
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_PlaylistEntryPrefix)
+{
+    srs_error_t err;
+
+    SrsSetEnvConfig(*_srs_config, entry_prefix, "SRS_VHOST_HLS_HLS_ENTRY_PREFIX", "http://cdn.example.com");
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // The playlist lists the init file and each segment after hls_entry_prefix and the
+    // playlist's dir, as TS does.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    EXPECT_STREQ("http://cdn.example.com/live/livestream/init.mp4", muxer.init_mp4_uri_.c_str());
+
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+
+    std::stringstream ss;
+    HELPER_ASSERT_SUCCESS(muxer.do_refresh_m3u8_segment(muxer.current_, ss));
+    EXPECT_TRUE(srs_strings_ends_with(ss.str(), "\nhttp://cdn.example.com/live/livestream-0.m4s\n")) << ss.str();
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_PlaylistNoEntryPrefix)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // Without hls_entry_prefix, a segment beside the playlist is listed by its file name.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+
+    std::stringstream ss;
+    HELPER_ASSERT_SUCCESS(muxer.do_refresh_m3u8_segment(muxer.current_, ss));
+    EXPECT_TRUE(srs_strings_ends_with(ss.str(), "\nlivestream-0.m4s\n")) << ss.str();
+
+    muxer.dispose();
+}
+
 VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteMedia)
 {
     srs_error_t err;

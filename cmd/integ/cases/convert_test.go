@@ -576,10 +576,13 @@ func remuxConvert(name, ext string, video, audio map[string]string) convertPlaye
 // TestHls_Fmp4 but its own: on one server the cells' bursts beside
 // TestHls_Fmp4's kept it busy for whole segment requests, and the cells
 // whose players wait for what SRS converts from SRT and GB28181 missed their
-// time.
+// time. It has no hls_entry_prefix: the players read the HLS from the
+// server, not through a CDN.
 func TestConvert_Fmp4(t *testing.T) {
 	t.Parallel()
-	srs := server.Group(t, sharedFmp4())
+	cfg := sharedFmp4()
+	delete(cfg.Env, "SRS_VHOST_HLS_HLS_ENTRY_PREFIX")
+	srs := server.Group(t, cfg)
 	srsOf := func(*check.C) *server.Server { return srs }
 	whipCells(t, srsOf, whipFmp4Player)
 	fmp4 := convertPlayer{
