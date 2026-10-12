@@ -10,6 +10,8 @@ package mp4
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -54,6 +56,16 @@ type Sample struct {
 	// Key is set when the sample flags say it is a sync sample.
 	Key  bool
 	Data []byte
+	// Senc is set when the sample's traf has a senc box, and Subsamples are
+	// the sample's subsamples from it, none when it is encrypted whole.
+	Senc       bool
+	Subsamples []Subsample
+}
+
+// A Subsample is a run of an encrypted sample: clear bytes, then protected
+// ones.
+type Subsample struct {
+	Clear, Protected uint32
 }
 
 // Time is the decode time of the sample.
@@ -120,6 +132,7 @@ func (f *fields) take(n int) []byte {
 	return v
 }
 
+func (f *fields) u16() uint16 { return binary.BigEndian.Uint16(f.take(2)) }
 func (f *fields) u32() uint32 { return binary.BigEndian.Uint32(f.take(4)) }
 func (f *fields) u64() uint64 { return binary.BigEndian.Uint64(f.take(8)) }
 
@@ -258,6 +271,7 @@ func parseTraf(init *Init, file []byte, moof, traf boxAt, implicit int64) ([]Sam
 	var tfhd []byte
 	var baseTime uint64
 	var truns [][]byte
+	var senc []byte
 	for _, c := range children {
 		switch c.typ {
 		case "tfhd":
@@ -274,6 +288,8 @@ func parseTraf(init *Init, file []byte, moof, traf boxAt, implicit int64) ([]Sam
 			}
 		case "trun":
 			truns = append(truns, c.body)
+		case "senc":
+			senc = c.body
 		}
 	}
 	if tfhd == nil {
@@ -358,7 +374,79 @@ func parseTraf(init *Init, file []byte, moof, traf boxAt, implicit int64) ([]Sam
 			dts += uint64(s.Duration)
 		}
 	}
+	if senc != nil {
+		if err := parseSenc(senc, samples); err != nil {
+			return nil, 0, fmt.Errorf("senc of track %v: %w", id, err)
+		}
+	}
 	return samples, pos, nil
+}
+
+// parseSenc reads the senc box of a traf into its samples: the IV of each,
+// which must be the track's constant one, and its subsamples.
+func parseSenc(senc []byte, samples []Sample) error {
+	_, flags, f := fullBox(senc)
+	if count := f.u32(); f.err == nil && int(count) != len(samples) {
+		return fmt.Errorf("%v samples, the trun has %v", count, len(samples))
+	}
+	for i := range samples {
+		s := &samples[i]
+		if p := s.Track.Protection; p == nil || p.PerSampleIVSize != 0 {
+			return errors.New("a sample IV, or a track not protected")
+		}
+		s.Senc = true
+		if flags&0x2 == 0 {
+			continue
+		}
+		for n := f.u16(); n > 0 && f.err == nil; n-- {
+			s.Subsamples = append(s.Subsamples, Subsample{Clear: uint32(f.u16()), Protected: f.u32()})
+		}
+	}
+	return f.err
+}
+
+// DecryptCBCS decrypts a sample of a cbcs track with key: the protected bytes
+// of each subsample, or the whole sample when it has none, take the track's
+// pattern, and the CBC chain starts at the constant IV for each. A partial
+// block at the end is clear.
+func DecryptCBCS(s Sample, key []byte) ([]byte, error) {
+	p := s.Track.Protection
+	if p == nil || p.Scheme != "cbcs" || len(p.ConstantIV) != aes.BlockSize {
+		return nil, fmt.Errorf("the %v track is not cbcs with a constant IV", s.Track.Handler)
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	crypt, skip := int(p.CryptBlocks), int(p.SkipBlocks)
+	if crypt == 0 {
+		crypt, skip = 1, 0
+	}
+	out := bytes.Clone(s.Data)
+	decrypt := func(b []byte) {
+		cbc := cipher.NewCBCDecrypter(block, p.ConstantIV)
+		for i := 0; i+aes.BlockSize <= len(b); i += (crypt + skip) * aes.BlockSize {
+			n := min(crypt*aes.BlockSize, (len(b)-i)/aes.BlockSize*aes.BlockSize)
+			cbc.CryptBlocks(b[i:i+n], b[i:i+n])
+		}
+	}
+	if len(s.Subsamples) == 0 {
+		decrypt(out)
+		return out, nil
+	}
+	pos := 0
+	for _, ss := range s.Subsamples {
+		pos += int(ss.Clear)
+		if pos+int(ss.Protected) > len(out) {
+			return nil, fmt.Errorf("subsamples past the %v bytes of the sample", len(out))
+		}
+		decrypt(out[pos : pos+int(ss.Protected)])
+		pos += int(ss.Protected)
+	}
+	if pos != len(out) {
+		return nil, fmt.Errorf("subsamples of %v bytes, the sample has %v", pos, len(out))
+	}
+	return out, nil
 }
 
 // An Analyzer adds samples to its report. A track's sequence header is its

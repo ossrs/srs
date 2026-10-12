@@ -468,24 +468,42 @@ func TestHls_Fmp4Keys(t *testing.T) {
 	})
 
 	// The samples are encrypted: the first video and audio samples are not
-	// the published frames in clear.
+	// the published frames in clear, have a senc entry, and decrypted by cbcs
+	// with the key of the playlist and the init file's constant IV, which is
+	// the playlist's IV, they are the published frames.
 	check.Case(t, "SamplesEncrypted", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "with hls_use_fmp4, hls_keys marks the tracks encrypted but writes every sample in clear")
-		pl := publish(c, "live/"+streamName(c))
+		stream := "live/" + streamName(c)
+		pl := publish(c, stream)
 		init := fmp4Init(c, pl)
+		key, err := os.ReadFile(filepath.Join(srs.Dir, "objs", "nginx", "html", stream+"-0.key"))
+		c.Must(err, "the key file")
 		res, body := httpGet(c, httpClient, pl.Segments[0].URI)
 		c.CheckEqual(res.StatusCode, 200, "status of segment 0")
 		samples, err := mp4.ParseFragments(init, body)
 		c.Must(err, "parse segment 0")
 
+		for _, t := range init.Tracks {
+			if k := pl.Segments[0].Key; t.Protection != nil && k != nil {
+				c.Check(bytes.Equal(t.Protection.ConstantIV, k.IV), "the constant IV of the %v track is %x, the playlist's IV %x", t.Handler, t.Protection.ConstantIV, k.IV)
+			}
+		}
+
 		video, audio := firstFrames(c)
+		verify := func(s mp4.Sample, frame []byte, name string) {
+			c.Check(!bytes.Equal(s.Data, frame), "the first %v sample, %v bytes, is the published frame in clear", name, len(s.Data))
+			c.Check(s.Senc, "the first %v sample has no senc entry", name)
+			clear, err := mp4.DecryptCBCS(s, key)
+			if c.Check(err == nil, "decrypt the first %v sample: %v", name, err) {
+				c.Check(bytes.Equal(clear, frame), "the first %v sample, decrypted, is not the published frame", name)
+			}
+		}
 		for _, s := range samples {
 			switch {
 			case s.Track.Handler == "vide" && video != nil:
-				c.Check(!bytes.Equal(s.Data, video), "the first video sample, %v bytes, is the published keyframe in clear", len(s.Data))
+				verify(s, video, "video")
 				video = nil
 			case s.Track.Handler == "soun" && audio != nil:
-				c.Check(!bytes.Equal(s.Data, audio), "the first audio sample, %v bytes, is the published frame in clear", len(s.Data))
+				verify(s, audio, "audio")
 				audio = nil
 			}
 		}

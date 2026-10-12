@@ -128,6 +128,8 @@ public:
 public:
     virtual srs_error_t initialize(int64_t time, uint32_t v_tid, uint32_t a_tid, int sequence_number, std::string m4s_path);
     virtual void config_cipher(unsigned char *key, unsigned char *iv);
+    // Configure how cbcs finds the video slices to encrypt, see SrsFmp4SegmentEncoder.
+    virtual void config_video_cipher(SrsVideoCodecId codec, int nalu_length_size);
     virtual srs_error_t write(SrsMediaPacket *shared_msg, SrsFormat *format);
     // Finalizes segment
     virtual srs_error_t reap(uint64_t dts);
@@ -471,6 +473,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     unsigned char key_[16];
     unsigned char kid_[16];
     unsigned char iv_[16];
+    // Whether iv_ is made, which the init file and every segment share.
+    bool iv_ready_;
+    // The video codec and the bytes of each NALU length, from the video sequence header, by
+    // which cbcs finds the slices to encrypt in each segment.
+    SrsVideoCodecId cipher_vcodec_;
+    int cipher_nalu_length_size_;
     // The underlayer file writer.
     ISrsFileWriter *writer_;
 
@@ -574,6 +582,7 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_segment_close(uint64_t dts);
+    virtual srs_error_t make_iv();
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
     virtual srs_error_t do_refresh_m3u8(std::string m3u8_file);

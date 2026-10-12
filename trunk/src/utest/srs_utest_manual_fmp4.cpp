@@ -6,6 +6,7 @@
 
 #include <srs_utest_manual_fmp4.hpp>
 
+#include <openssl/aes.h>
 #include <sstream>
 using namespace std;
 
@@ -374,6 +375,135 @@ VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_WithEncryption)
     EXPECT_TRUE(content.find("senc") != string::npos); // Sample Encryption Box
 }
 
+// Encrypts the whole 16-byte blocks of data in place with AES-128-CBC from iv, crypt blocks of
+// each run of crypt+skip, as the cbcs scheme does; skip 0 encrypts every block.
+static void mock_cbcs_encrypt(const unsigned char *key, const unsigned char *iv, int crypt, int skip, uint8_t *data, int size)
+{
+    AES_KEY k;
+    AES_set_encrypt_key(key, 128, &k);
+    unsigned char chain[16];
+    memcpy(chain, iv, 16);
+    for (int i = 0; i + 16 <= size; i += 16 * (crypt + skip)) {
+        int n = srs_min(crypt, (size - i) / 16);
+        AES_cbc_encrypt(data + i, data + i, n * 16, &k, chain, AES_ENCRYPT);
+    }
+}
+
+VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_CbcsAvcAndAac)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsFmp4SegmentEncoder encoder;
+    HELPER_ASSERT_SUCCESS(encoder.initialize(&fw, 0, 0, 1, 2));
+
+    unsigned char key[16] = {0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48,
+                             0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50};
+    unsigned char iv[16] = {0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
+                            0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x60};
+    HELPER_ASSERT_SUCCESS(encoder.config_cipher(key, iv));
+    encoder.config_video_cipher(SrsVideoCodecIdAVC, 4);
+
+    // An SEI of 10 bytes, then an IDR slice of 100 bytes, each after its 4-byte length.
+    uint8_t video[118];
+    for (int i = 0; i < (int)sizeof(video); i++) {
+        video[i] = (uint8_t)(i * 7 + 3);
+    }
+    uint8_t sei[] = {0x00, 0x00, 0x00, 0x0a, 0x06};
+    memcpy(video, sei, sizeof(sei));
+    uint8_t idr[] = {0x00, 0x00, 0x00, 0x64, 0x65};
+    memcpy(video + 14, idr, sizeof(idr));
+    HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 1000, 1000, video, sizeof(video)));
+
+    uint8_t audio[40];
+    for (int i = 0; i < (int)sizeof(audio); i++) {
+        audio[i] = (uint8_t)(i * 5 + 1);
+    }
+    HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeSOUN, 0x00, 1000, 1000, audio, sizeof(audio)));
+
+    HELPER_ASSERT_SUCCESS(encoder.flush(2000));
+    string content = fw.str();
+    ASSERT_GT(content.size(), sizeof(video) + sizeof(audio));
+
+    // The slice is clear for its first 32 bytes, then its whole blocks take the 1:9 pattern,
+    // and the SEI and the lengths are clear.
+    uint8_t want_video[sizeof(video)];
+    memcpy(want_video, video, sizeof(video));
+    mock_cbcs_encrypt(key, iv, 1, 9, want_video + 50, 68);
+    string got_video = content.substr(content.size() - sizeof(audio) - sizeof(video), sizeof(video));
+    EXPECT_EQ(string((char *)want_video, sizeof(video)), got_video);
+    EXPECT_NE(string((char *)video, sizeof(video)), got_video);
+
+    // Every whole block of the audio sample is encrypted, the last 8 bytes clear.
+    uint8_t want_audio[sizeof(audio)];
+    memcpy(want_audio, audio, sizeof(audio));
+    mock_cbcs_encrypt(key, iv, 1, 0, want_audio, sizeof(audio));
+    string got_audio = content.substr(content.size() - sizeof(audio));
+    EXPECT_EQ(string((char *)want_audio, sizeof(audio)), got_audio);
+    EXPECT_NE(string((char *)audio, sizeof(audio)), got_audio);
+
+    // The video senc has one sample with the subsample of 50 clear and 68 protected bytes; the
+    // audio senc one sample with no subsamples, as the constant IV leaves no IV per sample.
+    size_t pos = content.find("senc");
+    ASSERT_NE(string::npos, pos);
+    uint8_t want_video_senc[] = {0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01,
+                                 0x00, 0x01, 0x00, 0x32, 0x00, 0x00, 0x00, 0x44};
+    EXPECT_EQ(string((char *)want_video_senc, sizeof(want_video_senc)), content.substr(pos + 4, sizeof(want_video_senc)));
+    EXPECT_EQ(0x18, (uint8_t)content.at(pos - 1));
+
+    pos = content.find("senc", pos + 4);
+    ASSERT_NE(string::npos, pos);
+    uint8_t want_audio_senc[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
+    EXPECT_EQ(string((char *)want_audio_senc, sizeof(want_audio_senc)), content.substr(pos + 4, sizeof(want_audio_senc)));
+    EXPECT_EQ(0x10, (uint8_t)content.at(pos - 1));
+}
+
+VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_CbcsHevcSubsamples)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsFmp4SegmentEncoder encoder;
+    HELPER_ASSERT_SUCCESS(encoder.initialize(&fw, 0, 0, 1, 2));
+
+    unsigned char key[16] = {0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68,
+                             0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70};
+    unsigned char iv[16] = {0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,
+                            0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x80};
+    HELPER_ASSERT_SUCCESS(encoder.config_cipher(key, iv));
+    encoder.config_video_cipher(SrsVideoCodecIdHEVC, 4);
+
+    // A VPS of 20 bytes, an IDR_W_RADL slice of 48 bytes, then a length past the end of the
+    // sample with 5 bytes after it, which stay clear.
+    uint8_t video[85];
+    for (int i = 0; i < (int)sizeof(video); i++) {
+        video[i] = (uint8_t)(i * 11 + 2);
+    }
+    uint8_t vps[] = {0x00, 0x00, 0x00, 0x14, 0x40, 0x01};
+    memcpy(video, vps, sizeof(vps));
+    uint8_t idr[] = {0x00, 0x00, 0x00, 0x30, 0x26, 0x01};
+    memcpy(video + 24, idr, sizeof(idr));
+    uint8_t cut[] = {0x00, 0x00, 0x03, 0xe8};
+    memcpy(video + 76, cut, sizeof(cut));
+    HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 1000, 1000, video, sizeof(video)));
+
+    HELPER_ASSERT_SUCCESS(encoder.flush(2000));
+    string content = fw.str();
+    ASSERT_GT(content.size(), sizeof(video));
+
+    uint8_t want_video[sizeof(video)];
+    memcpy(want_video, video, sizeof(video));
+    mock_cbcs_encrypt(key, iv, 1, 9, want_video + 60, 16);
+    EXPECT_EQ(string((char *)want_video, sizeof(video)), content.substr(content.size() - sizeof(video)));
+
+    // Subsamples of 60 clear and 16 protected bytes, then 9 clear bytes.
+    size_t pos = content.find("senc");
+    ASSERT_NE(string::npos, pos);
+    uint8_t want_senc[] = {0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02,
+                           0x00, 0x3c, 0x00, 0x00, 0x00, 0x10, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00};
+    EXPECT_EQ(string((char *)want_senc, sizeof(want_senc)), content.substr(pos + 4, sizeof(want_senc)));
+}
+
 VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_Basic)
 {
     srs_error_t err;
@@ -513,6 +643,78 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_PlaylistNoEntryPrefix)
     std::stringstream ss;
     HELPER_ASSERT_SUCCESS(muxer.do_refresh_m3u8_segment(muxer.current_, ss));
     EXPECT_TRUE(srs_strings_ends_with(ss.str(), "\nlivestream-0.m4s\n")) << ss.str();
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_KeysShareInitIv)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+    muxer.hls_keys_ = true;
+    muxer.hls_fragments_per_key_ = 1;
+
+    // The init file, written at the sequence header before any segment, holds the constant IV.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    unsigned char init_iv[16];
+    memcpy(init_iv, muxer.iv_, 16);
+    unsigned char zeros[16] = {0};
+    EXPECT_NE(0, memcmp(init_iv, zeros, 16));
+
+    // Each segment, also after a new key, encrypts with the IV of the init file.
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_EQ(0, memcmp(init_iv, muxer.current_->iv_, 16));
+    unsigned char first_key[16];
+    memcpy(first_key, muxer.key_, 16);
+
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(2000));
+    MockSrsMediaPacket video_msg2(true, 2000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg2, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_NE(0, memcmp(first_key, muxer.key_, 16));
+    EXPECT_EQ(0, memcmp(init_iv, muxer.current_->iv_, 16));
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_KeysVideoCipherBySequenceHeader)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+    muxer.hls_keys_ = true;
+    muxer.hls_fragments_per_key_ = 1;
+
+    // A sequence header with NALU lengths of 2 bytes, before any segment.
+    MockSrsFormat fmt;
+    fmt.vcodec_->NAL_unit_length_ = 1;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+
+    // The segment opened at the next frame encrypts its video by that sequence header.
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, muxer.current_->enc_.video_codec_);
+    EXPECT_EQ(2, muxer.current_->enc_.nalu_length_size_);
+
+    // A new sequence header while the segment is open changes how it encrypts.
+    fmt.vcodec_->NAL_unit_length_ = 3;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    EXPECT_EQ(4, muxer.current_->enc_.nalu_length_size_);
 
     muxer.dispose();
 }

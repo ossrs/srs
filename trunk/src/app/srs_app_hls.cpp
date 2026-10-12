@@ -236,6 +236,11 @@ void SrsHlsM4sSegment::config_cipher(unsigned char *key, unsigned char *iv)
     memcpy(this->iv_, iv, 16);
 }
 
+void SrsHlsM4sSegment::config_video_cipher(SrsVideoCodecId codec, int nalu_length_size)
+{
+    enc_.config_video_cipher(codec, nalu_length_size);
+}
+
 srs_error_t SrsHlsM4sSegment::write(SrsMediaPacket *shared_msg, SrsFormat *format)
 {
     srs_error_t err = srs_success;
@@ -433,6 +438,9 @@ SrsHlsFmp4Muxer::SrsHlsFmp4Muxer()
 
     memset(key_, 0, 16);
     memset(iv_, 0, 16);
+    iv_ready_ = false;
+    cipher_vcodec_ = SrsVideoCodecIdAVC;
+    cipher_nalu_length_size_ = 4;
 
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
@@ -575,7 +583,20 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
     init_mp4->set_path(filepath);
 
     if (hls_keys_) {
+        if ((err = make_iv()) != srs_success) {
+            return srs_error_wrap(err, "make iv");
+        }
         init_mp4->config_cipher(kid_, iv_, 16);
+
+        // Each segment opened from now on encrypts its video by this sequence header, and so
+        // does the open one, which encrypts its samples when it is reaped.
+        if (has_video && format->vcodec_) {
+            cipher_vcodec_ = format->vcodec_->id_;
+            cipher_nalu_length_size_ = format->vcodec_->NAL_unit_length_ + 1;
+            if (current_) {
+                current_->config_video_cipher(cipher_vcodec_, cipher_nalu_length_size_);
+            }
+        }
     }
 
     if (has_video && has_audio) {
@@ -1022,9 +1043,29 @@ srs_error_t SrsHlsFmp4Muxer::do_segment_close(uint64_t dts)
     return err;
 }
 
+srs_error_t SrsHlsFmp4Muxer::make_iv()
+{
+    srs_error_t err = srs_success;
+
+    // The init file holds the constant IV of cbcs, which every segment encrypts its samples
+    // with, so the IV is made once, before the init file, and kept for each new key.
+    if (!iv_ready_) {
+        if (RAND_bytes(iv_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand iv failed");
+        }
+        iv_ready_ = true;
+    }
+
+    return err;
+}
+
 srs_error_t SrsHlsFmp4Muxer::write_hls_key()
 {
     srs_error_t err = srs_success;
+
+    if (hls_keys_ && (err = make_iv()) != srs_success) {
+        return srs_error_wrap(err, "make iv");
+    }
 
     if (hls_keys_ && current_->sequence_no_ % hls_fragments_per_key_ == 0) {
         if (RAND_bytes(key_, 16) < 0) {
@@ -1032,9 +1073,6 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
         }
         if (RAND_bytes(kid_, 16) < 0) {
             return srs_error_wrap(err, "rand kid failed.");
-        }
-        if (RAND_bytes(iv_, 16) < 0) {
-            return srs_error_wrap(err, "rand iv failed.");
         }
 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
@@ -1056,6 +1094,7 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
 
     if (hls_keys_) {
         current_->config_cipher(key_, iv_);
+        current_->config_video_cipher(cipher_vcodec_, cipher_nalu_length_size_);
     }
 
     return err;
