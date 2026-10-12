@@ -7,6 +7,7 @@ package server
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 )
 
@@ -15,14 +16,15 @@ var hookNames = []string{"on_connect", "on_close", "on_publish", "on_unpublish",
 
 // HooksEnv returns the env that turns every hook on and points it at the mock
 // at base, each at /hooks/<action>. on_hls_notify is a GET with no body, so its
-// action, app, stream and segment go in the query, where the mock routes it.
+// action and every variable SRS fills in, the server ids, app, stream, segment
+// and param, go in the query, where the mock routes it.
 func HooksEnv(base string) map[string]string {
 	env := map[string]string{"SRS_VHOST_HTTP_HOOKS_ENABLED": "on"}
 	for _, name := range hookNames {
 		env["SRS_VHOST_HTTP_HOOKS_"+strings.ToUpper(name)] = base + "/hooks/" + name
 	}
 	env["SRS_VHOST_HTTP_HOOKS_ON_HLS_NOTIFY"] = base + "/hooks/on_hls_notify" +
-		"?action=on_hls_notify&app=[app]&stream=[stream]&ts_url=[ts_url]"
+		"?action=on_hls_notify&server_id=[server_id]&service_id=[service_id]&app=[app]&stream=[stream]&ts_url=[ts_url]&param=[param]"
 	return env
 }
 
@@ -40,5 +42,50 @@ func withHooks(cfg Config, base string) (Config, error) {
 		env[k] = v
 	}
 	cfg.Env = env
+	return cfg, nil
+}
+
+// HookDown is a base of Config.HookURLs: a port of the range that nothing
+// listens on, like a hook server that is down.
+const HookDown = "down"
+
+// downHooks reports whether a hook of the config calls HookDown.
+func (cfg Config) downHooks() bool {
+	for _, bases := range cfg.HookURLs {
+		if slices.Contains(bases, HookDown) {
+			return true
+		}
+	}
+	return false
+}
+
+// withHookURLs is withHooks, with the hooks that cfg.HookURLs names pointed
+// at each of their bases in order: a path on the mock at base, or the server
+// at down for HookDown.
+func withHookURLs(cfg Config, base, down string) (Config, error) {
+	cfg, err := withHooks(cfg, base)
+	if err != nil {
+		return cfg, err
+	}
+	for name, bases := range cfg.HookURLs {
+		if !slices.Contains(hookNames, name) {
+			return cfg, fmt.Errorf("HookURLs: no hook %q", name)
+		}
+		if len(bases) == 0 {
+			return cfg, fmt.Errorf("HookURLs: no URL of %s", name)
+		}
+		var urls []string
+		for _, b := range bases {
+			switch {
+			case b == HookDown:
+				urls = append(urls, down+"/hooks/"+name)
+			case strings.HasPrefix(b, "/"):
+				urls = append(urls, base+b+"/"+name)
+			default:
+				return cfg, fmt.Errorf("HookURLs: %s base %q, want a path or HookDown", name, b)
+			}
+		}
+		cfg.Env["SRS_VHOST_HTTP_HOOKS_"+strings.ToUpper(name)] = strings.Join(urls, " ")
+	}
 	return cfg, nil
 }

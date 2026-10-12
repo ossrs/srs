@@ -89,6 +89,11 @@ type Config struct {
 	Env map[string]string
 	// Hooks starts a mock on a port of its own and points every hook at it.
 	Hooks bool
+	// HookURLs, with Hooks, sets the URLs of the hooks it names, such as
+	// on_publish: each calls every base in order, as <base>/<name>, where a
+	// base is a path on the mock, such as /hooks or /more, or HookDown. A hook
+	// it doesn't name calls the mock at /hooks.
+	HookURLs map[string][]string
 	// IPv6 makes RTMP listen on [::] too, on the same port, when the host has
 	// IPv6.
 	IPv6 bool

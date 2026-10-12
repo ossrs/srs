@@ -18,6 +18,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"srs-integ/internal/media"
@@ -107,6 +108,7 @@ type Client struct {
 	Connected Status
 
 	conn    net.Conn
+	wire    *wireConn
 	timeout time.Duration
 	r       *chunkReader
 	wmu     sync.Mutex
@@ -150,9 +152,12 @@ func Dial(ctx context.Context, raw string, opts *Options) (*Client, error) {
 	dctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	var d net.Dialer
-	if c.conn, err = d.DialContext(dctx, "tcp", u.Addr); err != nil {
+	tcp, err := d.DialContext(dctx, "tcp", u.Addr)
+	if err != nil {
 		return nil, err
 	}
+	c.wire = &wireConn{Conn: tcp}
+	c.conn = c.wire
 	if u.Scheme == "rtmps" {
 		if c.conn, err = dialTLS(dctx, c.conn, u.Addr, opts.TLS); err != nil {
 			return nil, err
@@ -650,4 +655,31 @@ func (c *Client) WriteRaw(b []byte) error {
 	defer c.wmu.Unlock()
 	_, err := c.conn.Write(b)
 	return err
+}
+
+// BytesSent is how many bytes the client wrote on the TCP connection: the
+// handshake included, and the TLS records of an rtmps:// connection.
+func (c *Client) BytesSent() uint64 { return c.wire.tx.Load() }
+
+// BytesReceived is how many bytes the client read from the TCP connection,
+// counted like BytesSent. The client reads ahead, so it may count bytes it
+// hasn't parsed yet.
+func (c *Client) BytesReceived() uint64 { return c.wire.rx.Load() }
+
+// wireConn counts the bytes read and written on the TCP connection.
+type wireConn struct {
+	net.Conn
+	rx, tx atomic.Uint64
+}
+
+func (c *wireConn) Read(b []byte) (int, error) {
+	n, err := c.Conn.Read(b)
+	c.rx.Add(uint64(n))
+	return n, err
+}
+
+func (c *wireConn) Write(b []byte) (int, error) {
+	n, err := c.Conn.Write(b)
+	c.tx.Add(uint64(n))
+	return n, err
 }

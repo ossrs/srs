@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -35,6 +37,10 @@ type fakeServer struct {
 	onPlay func(s *fakeConn)
 	// tls, when set, serves RTMP inside TLS.
 	tls *tls.Config
+
+	// rx and tx count the bytes the server read and wrote on the TCP
+	// connection, under TLS when it serves TLS.
+	rx, tx atomic.Uint64
 
 	mu       sync.Mutex
 	commands []fakeCommand
@@ -75,6 +81,7 @@ func (s *fakeServer) start() {
 			return
 		}
 		defer conn.Close()
+		conn = &countedConn{Conn: conn, rx: &s.rx, tx: &s.tx}
 		if s.tls != nil {
 			conn = tls.Server(conn, s.tls)
 		}
@@ -84,6 +91,24 @@ func (s *fakeServer) start() {
 		c := &fakeConn{s: s, r: newChunkReader(conn), w: newChunkWriter(conn)}
 		c.serve()
 	}()
+}
+
+// countedConn counts the bytes read and written on a connection.
+type countedConn struct {
+	net.Conn
+	rx, tx *atomic.Uint64
+}
+
+func (c *countedConn) Read(b []byte) (int, error) {
+	n, err := c.Conn.Read(b)
+	c.rx.Add(uint64(n))
+	return n, err
+}
+
+func (c *countedConn) Write(b []byte) (int, error) {
+	n, err := c.Conn.Write(b)
+	c.tx.Add(uint64(n))
+	return n, err
 }
 
 func (s *fakeServer) url(stream string) string {
@@ -856,5 +881,45 @@ func TestClientWriteRaw(t *testing.T) {
 	defer s.mu.Unlock()
 	if !reflect.DeepEqual(s.media[0], m) {
 		t.Errorf("the server got %+v, want %+v", s.media[0], m)
+	}
+}
+
+// TestClientCountsBytes checks the client counts every byte it sends and
+// reads on the TCP connection, the handshake included, and the TLS records
+// of rtmps://, as the server does.
+func TestClientCountsBytes(t *testing.T) {
+	for _, scheme := range []string{"rtmp", "rtmps"} {
+		t.Run(scheme, func(t *testing.T) {
+			var s *fakeServer
+			var opts *Options
+			url := ""
+			if scheme == "rtmp" {
+				s = newFakeServer(t)
+				s.start()
+				url = s.url("a")
+			} else {
+				var pool *x509.CertPool
+				s, pool = newTLSFakeServer(t)
+				url = strings.Replace(s.url("a"), "rtmp://", "rtmps://", 1)
+				opts = &Options{TLS: &tls.Config{RootCAs: pool}}
+			}
+			c := dial(t, url, opts)
+			if _, err := c.Publish(context.Background(), FMLE); err != nil {
+				t.Fatalf("publish: %v", err)
+			}
+			if err := c.WriteTag(&media.FLVTag{Type: media.TagVideo, Timestamp: 0, Data: make([]byte, 5000)}); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+			s.waitFor("the tag", func() bool { return len(s.media) == 1 })
+			if got, want := c.BytesReceived(), s.tx.Load(); got != want {
+				t.Errorf("received %d bytes, the server wrote %d", got, want)
+			}
+			if got, want := c.BytesSent(), s.rx.Load(); got != want {
+				t.Errorf("sent %d bytes, the server read %d", got, want)
+			}
+			if c.BytesSent() < 1+1536+1536+5000 {
+				t.Errorf("sent %d bytes, want the handshake and the tag at least", c.BytesSent())
+			}
+		})
 	}
 }

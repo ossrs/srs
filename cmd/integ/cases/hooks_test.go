@@ -23,6 +23,10 @@ import (
 // files at once, Common's one core makes it take up to about 130ms.
 func TestHooks_Common(t *testing.T) {
 	t.Parallel()
+	hooksRtmp(t)
+	hooksHTTP(t)
+	hooksProtocols(t)
+	hooksReject(t)
 
 	check.Case(t, "OnPublish", check.Normal, func(c *check.C) {
 		srs := server.Common(c)

@@ -11,7 +11,8 @@ import (
 )
 
 // TestHooksEnv checks every hook is on and points at the mock, each at its own
-// path, and on_hls_notify, a GET, carries its action and stream in the query.
+// path, and on_hls_notify, a GET, carries its action, the server ids and every
+// variable of the segment in the query.
 func TestHooksEnv(t *testing.T) {
 	env := HooksEnv("http://127.0.0.1:14005")
 	want := map[string]string{
@@ -25,7 +26,7 @@ func TestHooksEnv(t *testing.T) {
 		"SRS_VHOST_HTTP_HOOKS_ON_DVR":       "http://127.0.0.1:14005/hooks/on_dvr",
 		"SRS_VHOST_HTTP_HOOKS_ON_HLS":       "http://127.0.0.1:14005/hooks/on_hls",
 		"SRS_VHOST_HTTP_HOOKS_ON_HLS_NOTIFY": "http://127.0.0.1:14005/hooks/on_hls_notify" +
-			"?action=on_hls_notify&app=[app]&stream=[stream]&ts_url=[ts_url]",
+			"?action=on_hls_notify&server_id=[server_id]&service_id=[service_id]&app=[app]&stream=[stream]&ts_url=[ts_url]&param=[param]",
 	}
 	if !reflect.DeepEqual(env, want) {
 		t.Errorf("env %v\nwant %v", env, want)
@@ -53,5 +54,46 @@ func TestWithHooks(t *testing.T) {
 	cfg.Env = map[string]string{"SRS_VHOST_HTTP_HOOKS_ON_PLAY": "http://x"}
 	if _, err := withHooks(cfg, "http://127.0.0.1:14005"); err == nil || !strings.Contains(err.Error(), "SRS_VHOST_HTTP_HOOKS_ON_PLAY") {
 		t.Errorf("error %v, want one naming the hook the config sets", err)
+	}
+}
+
+// TestHookURLs checks a config's HookURLs: each hook it names calls every
+// base in order, a path on the mock or HookDown, the port nothing listens
+// on; every other hook calls the mock at /hooks.
+func TestHookURLs(t *testing.T) {
+	cfg := Config{Listeners: []Listener{RTMP, HTTPAPI}, Hooks: true, HookURLs: map[string][]string{
+		"on_publish": {"/hooks", "/more"},
+		"on_play":    {HookDown},
+	}}
+	got, err := withHookURLs(cfg, "http://127.0.0.1:14005", "http://127.0.0.1:14009")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, v := range map[string]string{
+		"SRS_VHOST_HTTP_HOOKS_ON_PUBLISH": "http://127.0.0.1:14005/hooks/on_publish http://127.0.0.1:14005/more/on_publish",
+		"SRS_VHOST_HTTP_HOOKS_ON_PLAY":    "http://127.0.0.1:14009/hooks/on_play",
+		"SRS_VHOST_HTTP_HOOKS_ON_STOP":    "http://127.0.0.1:14005/hooks/on_stop",
+	} {
+		if got.Env[k] != v {
+			t.Errorf("%s=%q, want %q", k, got.Env[k], v)
+		}
+	}
+	if !cfg.downHooks() {
+		t.Errorf("a config with HookDown has no down hook")
+	}
+
+	for _, bad := range []map[string][]string{
+		{"on_nothing": {"/hooks"}},
+		{"on_publish": {}},
+		{"on_publish": {"more"}},
+	} {
+		cfg.HookURLs = bad
+		if _, err := withHookURLs(cfg, "http://127.0.0.1:14005", ""); err == nil {
+			t.Errorf("HookURLs %v accepted, want an error", bad)
+		}
+	}
+	cfg.HookURLs = map[string][]string{"on_publish": {"/more"}}
+	if cfg.downHooks() {
+		t.Errorf("a config without HookDown has a down hook")
 	}
 }

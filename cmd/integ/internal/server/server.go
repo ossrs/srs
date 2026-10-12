@@ -186,7 +186,16 @@ func Start(name string, cfg Config) (*Server, error) {
 			return nil, err
 		}
 		hooksAddr = "127.0.0.1:" + strconv.Itoa(port)
-		if cfg, err = withHooks(cfg, "http://"+hooksAddr); err != nil {
+		// A down hook calls a port of the range that is never listened on
+		// nor handed out again.
+		down := ""
+		if cfg.downHooks() {
+			if port, err = run.alloc.Alloc(); err != nil {
+				return nil, err
+			}
+			down = "http://127.0.0.1:" + strconv.Itoa(port)
+		}
+		if cfg, err = withHookURLs(cfg, "http://"+hooksAddr, down); err != nil {
 			return nil, err
 		}
 	}
