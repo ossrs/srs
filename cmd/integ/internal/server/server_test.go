@@ -425,6 +425,8 @@ func TestWithRTC(t *testing.T) {
 		{"NackPreferRTX", RTC{NackPreferRTX: true}, map[string]string{"SRS_VHOST_RTC_NACK_PREFER_RTX": "on"}},
 		{"NoNack", RTC{NoNack: true}, map[string]string{"SRS_VHOST_RTC_NACK": "off"}},
 		{"NoTWCC", RTC{NoTWCC: true}, map[string]string{"SRS_VHOST_RTC_TWCC": "off"}},
+		{"RTMPToRTC", RTC{RTMPToRTC: true}, map[string]string{"SRS_VHOST_RTC_RTMP_TO_RTC": "on"}},
+		{"RTCToRTMP", RTC{RTCToRTMP: true}, map[string]string{"SRS_VHOST_RTC_RTC_TO_RTMP": "on"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

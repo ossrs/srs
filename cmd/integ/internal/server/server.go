@@ -1045,6 +1045,13 @@ type RTC struct {
 	// NoTWCC turns the vhost's twcc off: SRS sends publishers no
 	// transport-wide congestion control feedback.
 	NoTWCC bool
+	// RTMPToRTC turns the vhost's rtmp_to_rtc on: SRS converts each RTMP
+	// stream to WebRTC, with its AAC transcoded to Opus, so WHEP plays it.
+	RTMPToRTC bool
+	// RTCToRTMP turns the vhost's rtc_to_rtmp on: SRS converts each WebRTC
+	// stream to RTMP, with its Opus transcoded to AAC, so the RTMP, HTTP and
+	// segment players play it.
+	RTCToRTMP bool
 }
 
 // WithRTC returns a copy of cfg with WebRTC on, over UDP only, with
@@ -1074,6 +1081,12 @@ func WithRTC(cfg Config, r RTC) Config {
 	}
 	if r.NoTWCC {
 		env["SRS_VHOST_RTC_TWCC"] = "off"
+	}
+	if r.RTMPToRTC {
+		env["SRS_VHOST_RTC_RTMP_TO_RTC"] = "on"
+	}
+	if r.RTCToRTMP {
+		env["SRS_VHOST_RTC_RTC_TO_RTMP"] = "on"
 	}
 	cfg.Env = env
 	if !slices.Contains(cfg.Listeners, RTCUDP) {

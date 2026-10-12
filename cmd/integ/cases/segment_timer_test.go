@@ -58,15 +58,17 @@ func sharedSegmentsDispose() server.Config {
 // off, and every hook on a mock. The dispose times stay at SRS's default,
 // 120s, so a held stream keeps its files for the sessions.
 // TestTimer_Srt_PeerIdle shares it too, for SRT with a 1s peer_idle_timeout,
-// and TestTimer_Gb_MediaTimeout, for GB28181 with a 1s
-// media_connect_timeout; the other groups use no SRT and no GB.
+// TestTimer_Gb_MediaTimeout, for GB28181 with a 1s media_connect_timeout,
+// and TestTimer_Convert_Reports, for WebRTC; the other groups use no SRT, no
+// GB and no WebRTC.
 func sharedSegmentsKeep() server.Config {
 	cfg := server.WithDASH(
 		server.WithHLS(server.PlayConfig(server.Play{QueueLength: time.Second}),
 			server.HLS{Fragment: time.Second, Window: sessionWindow, NoCleanup: true}),
 		server.DASH{Fragment: time.Second, NoCleanup: true})
 	cfg.Hooks = true
-	return server.WithGB(server.WithSRT(cfg, sharedSegmentsKeepSRT), sharedSegmentsKeepGB)
+	cfg = server.WithGB(server.WithSRT(cfg, sharedSegmentsKeepSRT), sharedSegmentsKeepGB)
+	return server.WithRTC(cfg, server.RTC{})
 }
 
 // TestTimer_Hls_Dispose checks hls_dispose: SRS removes the playlist and

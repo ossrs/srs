@@ -260,3 +260,33 @@ func publishPlay(t *testing.T, sfu *fakeSFU, opts *Options) (*Publisher, *Player
 	checkTwoSeconds(t, r)
 	return pub, player
 }
+
+// TestBindTCPWaitsForClose checks a TCP binding returns only once the server
+// has closed the connection after the client: the server has let it go, so
+// the session takes the next connection.
+func TestBindTCPWaitsForClose(t *testing.T) {
+	srv := newFakeRawOn(t, false, true)
+	srv.mu.Lock()
+	srv.closeDelay = 100 * time.Millisecond
+	srv.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	offer, err := Offer(true, []string{"H264"}, []string{"opus"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := Post(ctx, srv.URL+"/rtc/v1/whip/?app=live&stream=s", offer, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Bind(ctx, s.Offer, s.Answer, &Options{TCP: true}); err != nil {
+		t.Fatal(err)
+	}
+	end := time.Now()
+	srv.mu.Lock()
+	closedAt := srv.closedAt
+	srv.mu.Unlock()
+	if closedAt.IsZero() || end.Before(closedAt) {
+		t.Errorf("Bind returned at %v, before the server closed at %v", end, closedAt)
+	}
+}

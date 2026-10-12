@@ -25,6 +25,9 @@ const (
 	HEVCAACTS = "hevc-aac.ts"
 	// H264OpusTS is H.264 High and Opus in MPEG-TS, for SRT.
 	H264OpusTS = "h264-opus.ts"
+	// AACOnlyTS and H264OnlyTS have one track each, in MPEG-TS, for SRT.
+	AACOnlyTS  = "aac-only.ts"
+	H264OnlyTS = "h264-only.ts"
 	// H264BaselineAAC has no B-frames, for RTMP to WebRTC and RTSP.
 	H264BaselineAAC = "h264-baseline-aac.flv"
 	// H264BaselineOpus is for WHIP.
@@ -103,6 +106,8 @@ var Recipes = []Recipe{
 	{H264HighAACTS, "mpegts", []Encoder{x264High}, []Encoder{aac}},
 	{HEVCAACTS, "mpegts", []Encoder{x265}, []Encoder{aac}},
 	{H264OpusTS, "mpegts", []Encoder{x264High}, opus},
+	{AACOnlyTS, "mpegts", nil, []Encoder{aac}},
+	{H264OnlyTS, "mpegts", []Encoder{x264High}, nil},
 	{H264BaselineAAC, "flv", []Encoder{x264Baseline}, []Encoder{aac}},
 	{H264BaselineOpus, "mp4", []Encoder{x264Baseline}, opus},
 	{HEVCAAC, "flv", []Encoder{x265}, []Encoder{aac}},
@@ -116,6 +121,12 @@ var Recipes = []Recipe{
 	{PCMA, "alaw", nil, []Encoder{pcma}},
 }
 
+// muxArgs are the muxer options of a format: MPEG-TS puts each audio frame
+// in a PES of its own, beside the video of the same time, as SRS's SRT docs
+// publish TS; ffmpeg's default packs several into one, sent hundreds of ms
+// after the video.
+var muxArgs = map[string][]string{"mpegts": {"-pes_payload_size", "0"}}
+
 func join(base []string, more ...string) []string {
 	return append(append([]string{}, base...), more...)
 }
@@ -128,7 +139,10 @@ func RecipeOf(name string) (Recipe, bool) {
 // Spec identifies the recipe's definition: it changes whenever the recipe
 // does, so the cache regenerates its file.
 func (r Recipe) Spec() string {
-	b, _ := json.Marshal(r)
+	b, _ := json.Marshal(struct {
+		Recipe
+		Mux []string `json:"mux,omitempty"`
+	}{r, muxArgs[r.Format]})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:8])
 }
@@ -172,5 +186,6 @@ func (r Recipe) Args(ff *FFmpeg, src, out string) (args []string, missing string
 		args = append(args, "-map", "0:a:0", "-c:a", e.Name)
 		args = append(args, e.Args...)
 	}
+	args = append(args, muxArgs[r.Format]...)
 	return append(args, "-f", r.Format, out), ""
 }

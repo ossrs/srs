@@ -122,8 +122,7 @@ func srtLifecycle(t *testing.T) {
 		m := mock.Match{Action: "on_play", Stream: stream}
 		second := dialSRT(c, srs, srt.Options{StreamID: srtID("live/"+stream, "request")})
 		waitHookCount(c, srs, m, 2)
-		startSRTPublisher(c, srs, srt.Options{StreamID: srtID("live/"+stream, "publish")}, media.H264HighAACTS)
-		checkSRTPlayed(c, srtAnalyze(c, second))
+		checkSRTPlayed(c, republishSRT(c, srs, stream, second))
 		c.CheckEqual(len(srs.Hooks.Requests(mock.Match{Action: "on_stop", Stream: stream})), 0, "on_stop requests")
 	})
 
@@ -336,4 +335,53 @@ func checkIdleFor(c *check.C, idle time.Duration, what string) {
 	c.Helper()
 	c.Check(idle >= srtPeerIdle-100*time.Millisecond && idle <= srtPeerIdle+500*time.Millisecond,
 		"the %v closed after %v idle, want about %v", what, idle, srtPeerIdle)
+}
+
+// republishSRT publishes the TS test file to live/stream again, and returns
+// what the player gets of it, for at most 1s. SRS may still be tearing down the
+// HTTP mount of the stream's last publish, on a worker every stream shares,
+// and closes a publisher of the stream as disposing until it is done (the
+// known bug of TestHttpFlv_NoGuess/RepublishAfterOtherStream), so a
+// publisher SRS closes publishes again, for at most 300ms, while the player
+// waits for the media.
+func republishSRT(c *check.C, srs *server.Server, stream string, player *srt.Conn) *report.Report {
+	c.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	type played struct {
+		r   *report.Report
+		err error
+	}
+	done := make(chan played, 1)
+	go func() {
+		r, err := player.Analyze(ctx, srtPlayedUntil)
+		done <- played{r, err}
+	}()
+	deadline := time.Now().Add(300 * time.Millisecond)
+	for tries := 1; ; tries++ {
+		pub, err := trySRTPublisher(c, srs, srt.Options{StreamID: srtID("live/"+stream, "publish")}, media.H264HighAACTS)
+		// The publisher stays until the case ends, when WaitClosed closes it.
+		closed := make(chan struct{})
+		if err != nil {
+			close(closed)
+		} else {
+			alive, stop := context.WithCancel(context.Background())
+			c.Cleanup(stop)
+			go func() {
+				pub.WaitClosed(alive)
+				close(closed)
+			}()
+		}
+		select {
+		case p := <-done:
+			c.Must(p.err, "play")
+			return p.r
+		case <-closed:
+			pub.Close()
+			if time.Now().After(deadline) {
+				c.Fatalf("the publisher closed %d times within %v, the last: %v", tries, 300*time.Millisecond, err)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
 }

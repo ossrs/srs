@@ -128,12 +128,13 @@ func rtmpLifecycle(t *testing.T) {
 
 	// RepublishNewConnection unpublishes by closing the publisher: a player
 	// gets no status and no media, stays connected, and plays the stream again
-	// when a new publisher comes, from its sequence headers.
+	// when a new publisher comes, from its sequence headers. SRS refuses the new
+	// publisher while the old HTTP mount is torn down, so it tries again.
 	check.Case(t, "RepublishNewConnection", check.Normal, func(c *check.C) {
 		republishCase(c, func(c *check.C, pub *rtmp.Client) {
 			pub.Close()
 		}, func(c *check.C, url string, pub *rtmp.Client, tags []*media.FLVTag) {
-			publishTags(c, url, tags)
+			republishTags(c, url, tags, 300*time.Millisecond)
 		})
 	})
 

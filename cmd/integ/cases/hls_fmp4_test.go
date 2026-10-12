@@ -22,15 +22,16 @@ import (
 	"srs-integ/internal/server"
 )
 
-// TestHls_Fmp4 is a variant with HLS in fragmented MP4 (hls_use_fmp4), and
-// the settings of TestHls_Options that apply to it: 2s fragments with
-// hls_td_ratio 1.5, a 3s target, which makes segments of 4s on the 1s GOP
-// (fmp4Segment); hls_aof_ratio 2.5; a 7s window; the files under ./hls; and
-// an entry prefix. The segment and init
-// files have templates of their own, beside the playlist, which is where SRS
-// links them from (TestHls_Fmp4Default shows the default init file is not).
-func TestHls_Fmp4(t *testing.T) {
-	t.Parallel()
+// sharedFmp4 is the config of the shared Fmp4 server: HLS in fragmented MP4
+// (hls_use_fmp4), and the settings of TestHls_Options that apply to it: 2s
+// fragments with hls_td_ratio 1.5, a 3s target, which makes segments of 4s
+// on the 1s GOP (fmp4Segment); hls_aof_ratio 2.5; a 7s window; the files
+// under ./hls; and an entry prefix. The segment and init files have
+// templates of their own, beside the playlist, which is where SRS links them
+// from (TestHls_Fmp4Default shows the default init file is not). It has the
+// HTTPS server, and RTMPS, SRT, the GB28181 caster and WebRTC with
+// rtc_to_rtmp for TestConvert_Fmp4.
+func sharedFmp4() server.Config {
 	cfg := server.HLSConfig(server.HLS{
 		FMP4:        true,
 		Fragment:    2 * time.Second,
@@ -42,8 +43,15 @@ func TestHls_Fmp4(t *testing.T) {
 		InitFile:    "[app]/[stream]-init.mp4",
 		EntryPrefix: "http://" + cdnHost,
 	})
-	cfg.Listeners = append(cfg.Listeners, server.HTTPSServer)
-	srs := server.Group(t, cfg)
+	cfg.Listeners = append(cfg.Listeners, server.HTTPSServer, server.RTMPS)
+	cfg = server.WithGB(server.WithSRT(cfg, server.SRTOptions{}), server.GBOptions{})
+	return server.WithRTC(cfg, server.RTC{RTCToRTMP: true})
+}
+
+// TestHls_Fmp4 plays HLS in fmp4 on the shared Fmp4 server (see sharedFmp4).
+func TestHls_Fmp4(t *testing.T) {
+	t.Parallel()
+	srs := server.Shared(t, "Fmp4", sharedFmp4())
 
 	// play publishes a file through d at once, which closes the 4s segments
 	// before d, and plays its HLS until u.

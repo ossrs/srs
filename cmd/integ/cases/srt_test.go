@@ -319,8 +319,8 @@ func srtID(resource, mode string) string {
 }
 
 // srtLead is the media a publisher sends at once, by its PCR: ffmpeg's TS
-// muxer sends the audio of a moment hundreds of ms after the video, so this
-// much gets a player both sequence headers at once.
+// muxer sends the audio of a moment after the video, so this much gets a
+// player both sequence headers at once.
 const srtLead = 500 * time.Millisecond
 
 // srtPlayedUntil is when an SRT player has seen a stream play.
@@ -352,11 +352,23 @@ func srtPlayer(c *check.C, srs *server.Server, opts srt.Options, stream string) 
 // at once, then the rest in real time.
 func startSRTPublisher(c *check.C, srs *server.Server, opts srt.Options, file string) *srt.Conn {
 	c.Helper()
+	conn, err := trySRTPublisher(c, srs, opts, file)
+	c.Must(err, "publish the lead")
+	return conn
+}
+
+// trySRTPublisher is startSRTPublisher, which returns the error of sending
+// the lead, such as when the server closes the publisher.
+func trySRTPublisher(c *check.C, srs *server.Server, opts srt.Options, file string) (*srt.Conn, error) {
+	c.Helper()
 	conn := dialSRT(c, srs, opts)
 	f, err := os.Open(media.Path(c, file))
 	c.Must(err, "open the media")
 	s := srt.NewSender(f)
-	c.Must(s.SendThrough(conn, srtLead), "publish the lead")
+	if err := s.SendThrough(conn, srtLead); err != nil {
+		f.Close()
+		return conn, err
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
@@ -367,7 +379,7 @@ func startSRTPublisher(c *check.C, srs *server.Server, opts srt.Options, file st
 		<-done
 		f.Close()
 	})
-	return conn
+	return conn, nil
 }
 
 // srtAnalyze plays what a player gets until srtPlayedUntil, for at most 1s.
@@ -388,7 +400,7 @@ func srtAnalyzeUntil(c *check.C, play *srt.Conn, u report.Until, d time.Duration
 
 // checkSRTPlayed checks the report of an SRT player of the TS test file, like
 // checkPlayed, but with ffmpeg's TS muxer, which puts the audio up to about
-// 300ms away from the video of the same time.
+// 200ms away from the video of the same time.
 func checkSRTPlayed(c *check.C, r *report.Report) {
 	c.Helper()
 	checkSRTPlayedAs(c, r, "h264", "aac")

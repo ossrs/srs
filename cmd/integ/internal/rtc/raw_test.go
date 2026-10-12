@@ -299,6 +299,10 @@ type fakeRaw struct {
 	ready      chan struct{}
 	vs         *sender
 	as         *sender
+	// closeDelay is how long the server waits, once the client closed, before
+	// it closes the connection too, at closedAt.
+	closeDelay time.Duration
+	closedAt   time.Time
 }
 
 func newFakeRaw(t *testing.T, withDTLS bool) *fakeRaw {
@@ -378,6 +382,18 @@ func (f *fakeRaw) serve(t *testing.T) {
 	f.mu.Lock()
 	f.peer, f.mux = peer, m
 	f.mu.Unlock()
+	// Like a server, it closes the connection when the client is gone.
+	defer func() {
+		<-m.done
+		f.mu.Lock()
+		d := f.closeDelay
+		f.mu.Unlock()
+		time.Sleep(d)
+		f.mu.Lock()
+		f.closedAt = time.Now()
+		f.mu.Unlock()
+		m.close()
+	}()
 	f.answerSTUN(first)
 	go func() {
 		for {

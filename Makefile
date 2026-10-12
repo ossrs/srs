@@ -45,7 +45,7 @@ integ-timer:
 	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer $(INTEG_ARGS)
 
 integ-main:
-	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 64 -args $(INTEG_ARGS)
+	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 32 -args $(INTEG_ARGS)
 
 clean:
 	rm -rf bin .go-formarted

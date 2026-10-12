@@ -537,7 +537,12 @@ func rtspPort(srs *server.Server) string {
 // real time, until the case ends; it returns the publisher.
 func rtspPublisher(c *check.C, srs *server.Server, path, file string) (start func() *rtmp.Client) {
 	c.Helper()
-	pub := publishOnly(c, rtmpURL(srs, path), rtmp.FMLE)
+	return rtspPublisherOn(c, publishOnly(c, rtmpURL(srs, path), rtmp.FMLE), file)
+}
+
+// rtspPublisherOn is rtspPublisher on a client that publishes.
+func rtspPublisherOn(c *check.C, pub *rtmp.Client, file string) (start func() *rtmp.Client) {
+	c.Helper()
 	f, err := os.Open(media.Path(c, file))
 	c.Must(err, "open the media")
 	c.Cleanup(func() { f.Close() })

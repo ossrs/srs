@@ -270,15 +270,23 @@ type Player struct {
 // Play connects a player by WHEP to url, such as
 // http://host:1985/rtc/v1/whep/?app=live&stream=s, or by the legacy API when
 // opts.Legacy is set, and waits until ICE and DTLS are connected. It offers
-// H.264 and Opus, or the codecs of the options, and analyzes what it gets
+// H.264 and Opus, or the codecs of the options, no section of a kind they
+// have none of, and analyzes what it gets
 // until it closes.
 func Play(ctx context.Context, url string, opts *Options) (*Player, error) {
+	video, audio, err := sessionCodecs(opts)
+	if err != nil {
+		return nil, err
+	}
 	pc, rec, err := newPeerConnection(opts)
 	if err != nil {
 		return nil, err
 	}
 	p := &Player{Session: Session{PC: pc, Recorder: rec, opts: opts}, analysis: newAnalysis()}
 	for _, kind := range []webrtc.RTPCodecType{webrtc.RTPCodecTypeVideo, webrtc.RTPCodecTypeAudio} {
+		if (kind == webrtc.RTPCodecTypeVideo && len(video) == 0) || (kind == webrtc.RTPCodecTypeAudio && len(audio) == 0) {
+			continue
+		}
 		if _, err := pc.AddTransceiverFromKind(kind, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
 			pc.Close()
 			return nil, err

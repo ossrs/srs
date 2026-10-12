@@ -485,7 +485,9 @@ func TestDialHTTP(t *testing.T) {
 
 // TestGeneratedTS checks the MPEG-TS files of the test media, which the media
 // package can't read: the codecs of their FLV and MP4 twins, a keyframe every
-// second for 30s, and 25 fps. TS carries no Opus sequence header.
+// second for 30s, and 25 fps. TS carries no Opus sequence header. A file of
+// one track has no other. A file of both has its audio beside the video of
+// the same time, one frame per PES, as SRS's SRT docs publish TS.
 func TestGeneratedTS(t *testing.T) {
 	cases := []struct {
 		file, video, profile, audio string
@@ -494,6 +496,8 @@ func TestGeneratedTS(t *testing.T) {
 		{media.H264HighAACTS, "h264", "High", "aac", 44100, 1},
 		{media.HEVCAACTS, "hevc", "Main", "aac", 44100, 1},
 		{media.H264OpusTS, "h264", "High", "opus", 48000, 0},
+		{media.AACOnlyTS, "", "", "aac", 44100, 1},
+		{media.H264OnlyTS, "h264", "High", "", 0, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.file, func(t *testing.T) {
@@ -508,21 +512,26 @@ func TestGeneratedTS(t *testing.T) {
 				t.Fatalf("%v: %v", err, r)
 			}
 			v, a := r.Video, r.Audio
-			if v == nil || a == nil {
-				t.Fatalf("report %v, want video and audio", r)
+			if (v == nil) != (tc.video == "") || (a == nil) != (tc.audio == "") {
+				t.Fatalf("report %v, want video %q and audio %q", r, tc.video, tc.audio)
 			}
-			if v.Codec != tc.video || v.Profile != tc.profile || v.Width != 768 || v.Height != 320 || v.SequenceHeaders != 1 {
-				t.Errorf("video %v %v %vx%v with %v sequence headers, want %v %v 768x320 with 1",
-					v.Codec, v.Profile, v.Width, v.Height, v.SequenceHeaders, tc.video, tc.profile)
+			if v != nil {
+				if v.Codec != tc.video || v.Profile != tc.profile || v.Width != 768 || v.Height != 320 || v.SequenceHeaders != 1 {
+					t.Errorf("video %v %v %vx%v with %v sequence headers, want %v %v 768x320 with 1",
+						v.Codec, v.Profile, v.Width, v.Height, v.SequenceHeaders, tc.video, tc.profile)
+				}
+				if v.Frames != media.Duration*media.FPS || v.Keyframes != media.Duration || v.LeadingFrames != 0 {
+					t.Errorf("video %v frames, %v keyframes, %v before the first; want %v, %v, 0",
+						v.Frames, v.Keyframes, v.LeadingFrames, media.Duration*media.FPS, media.Duration)
+				}
+				if d := v.Duration(); d < 29900*time.Millisecond || d > 30*time.Second {
+					t.Errorf("video lasts %v, want 29.96s", d)
+				}
 			}
-			if v.Frames != media.Duration*media.FPS || v.Keyframes != media.Duration || v.LeadingFrames != 0 {
-				t.Errorf("video %v frames, %v keyframes, %v before the first; want %v, %v, 0",
-					v.Frames, v.Keyframes, v.LeadingFrames, media.Duration*media.FPS, media.Duration)
+			if v != nil && a != nil && r.AVSync > 200*time.Millisecond {
+				t.Errorf("A/V sync %v in file order, want at most 200ms", r.AVSync)
 			}
-			if d := v.Duration(); d < 29900*time.Millisecond || d > 30*time.Second {
-				t.Errorf("video lasts %v, want 29.96s", d)
-			}
-			if a.Codec != tc.audio || a.SampleRate != tc.rate || a.Channels != 2 || a.SequenceHeaders != tc.headers || a.Frames == 0 {
+			if a != nil && (a.Codec != tc.audio || a.SampleRate != tc.rate || a.Channels != 2 || a.SequenceHeaders != tc.headers || a.Frames == 0) {
 				t.Errorf("audio %v %vHz %vch with %v sequence headers and %v frames, want %v %vHz 2ch with %v",
 					a.Codec, a.SampleRate, a.Channels, a.SequenceHeaders, a.Frames, tc.audio, tc.rate, tc.headers)
 			}

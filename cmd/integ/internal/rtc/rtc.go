@@ -25,6 +25,7 @@ import (
 	"github.com/pion/ice/v4"
 	"github.com/pion/interceptor"
 	"github.com/pion/interceptor/pkg/nack"
+	"github.com/pion/interceptor/pkg/report"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -40,7 +41,8 @@ type Options struct {
 	Legacy string
 	// Video and Audio are the codecs the session offers, in order, by their
 	// names in SDP: H264, H265, VP9 or AV1, and opus, PCMU or PCMA. Nil
-	// offers H264 or opus.
+	// offers H264 or opus; an empty, non-nil list offers no track of that
+	// kind.
 	Video, Audio []string
 	// TCP makes ICE go only over TCP, to the server's passive TCP candidate,
 	// with each packet framed as RFC 4571 says; otherwise only over UDP.
@@ -58,6 +60,18 @@ type Options struct {
 	// TWCC makes a publisher send the transport-wide sequence number in each
 	// RTP packet, which the server acknowledges in its TWCC feedback.
 	TWCC bool
+	// SenderReports makes a publisher send the Sender Reports of its tracks
+	// itself, in place of pion's, which come once a second of wall time:
+	// two before a track's first packet, a second of media apart, then one
+	// each further second of media. Each has the RTP time of a decode time
+	// and the NTP time of the same decode time from the publisher's start,
+	// so a server that maps the tracks to one clock by their reports, such
+	// as SRS converting WebRTC to RTMP, can map each from its first packet.
+	SenderReports bool
+	// AudioReportShift is added to the NTP time of the audio Sender
+	// Reports, so the audio maps that much later than the video sent with
+	// it.
+	AudioReportShift time.Duration
 }
 
 func (o *Options) client() *http.Client {
@@ -188,8 +202,14 @@ func newPeerConnection(opts *Options) (*webrtc.PeerConnection, *Recorder, error)
 	rec := NewRecorder()
 	ir := &interceptor.Registry{}
 	ir.Add(rec)
-	if err := webrtc.RegisterDefaultInterceptorsWithOptions(m, ir, webrtc.WithNackGeneratorOptions(
-		nack.GeneratorInterval(nackInterval), nack.GeneratorMaxNacksPerPacket(maxNacks))); err != nil {
+	interceptors := []webrtc.InterceptorOption{webrtc.WithNackGeneratorOptions(
+		nack.GeneratorInterval(nackInterval), nack.GeneratorMaxNacksPerPacket(maxNacks))}
+	if opts != nil && opts.SenderReports {
+		// The publisher sends its own; pion's would map the RTP time of its
+		// last packet to the wall clock, which a burst moves off.
+		interceptors = append(interceptors, webrtc.WithReportSenderOptions(report.SenderInterval(time.Hour)))
+	}
+	if err := webrtc.RegisterDefaultInterceptorsWithOptions(m, ir, interceptors...); err != nil {
 		return nil, nil, err
 	}
 	if opts != nil && opts.TWCC {

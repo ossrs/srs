@@ -604,7 +604,7 @@ func gbStartID(c *check.C, srs *server.Server, file, id string, ssrc uint32) *gb
 func gbAttach(c *check.C, srs *server.Server, file, id string, ssrc uint32) *gbStream {
 	c.Helper()
 	s := &gbStream{id: id, ssrc: ssrc}
-	s.frames, s.vcodec = gbFrames(c, file)
+	s.frames, s.vcodec = gbFramesOf(c, file)
 	s.conn = gbConn(c, srs)
 	var err error
 	s.pub, err = gb.NewPublisher(s.conn, ssrc, s.vcodec)
@@ -640,7 +640,14 @@ func (s *gbStream) sendThrough(c *check.C, d time.Duration) {
 // lead sends gbLead at once, then the rest in real time until the case ends.
 func (s *gbStream) lead(c *check.C) {
 	c.Helper()
-	s.sendThrough(c, gbLead)
+	s.leadBy(c, gbLead)
+}
+
+// leadBy sends the frames before media time d at once, then the rest in real
+// time until the case ends.
+func (s *gbStream) leadBy(c *check.C, d time.Duration) {
+	c.Helper()
+	s.sendThrough(c, d)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {

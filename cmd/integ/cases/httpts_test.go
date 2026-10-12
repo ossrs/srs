@@ -15,15 +15,14 @@ import (
 	"srs-integ/internal/server"
 )
 
-// TestHttpTs_TsMount publishes over RTMP and plays HTTP-TS, on a variant that
-// mounts every stream as .ts, because a vhost has one HTTP remux mount and
-// Common's is FLV. It has SRS's defaults, so the PMT comes from the first
-// frames, hooks, and the HTTPS server.
+// TestHttpTs_TsMount publishes over RTMP and plays HTTP-TS, on the shared
+// TsMount server (see sharedTsMountConfig), which mounts every stream as .ts,
+// because a vhost has one HTTP remux mount and Common's is FLV. It has SRS's
+// defaults, so the PMT comes from the first frames, hooks, and the HTTPS
+// server.
 func TestHttpTs_TsMount(t *testing.T) {
 	t.Parallel()
-	cfg := remuxGroup("ts", server.Remux{})
-	cfg.Listeners = append(cfg.Listeners, server.HTTPSServer)
-	srs := server.Group(t, cfg)
+	srs := server.Shared(t, "TsMount", sharedTsMountConfig())
 
 	check.Case(t, "PublishPlay", check.Normal, func(c *check.C) {
 		publishPlayHTTPTS(c, srs, media.H264HighAAC, "h264", "aac")

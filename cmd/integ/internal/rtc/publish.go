@@ -253,11 +253,14 @@ func send(ctx context.Context, write func(Sample) error, samples []Sample, pacer
 }
 
 // A Publisher sends a video and an audio track to the server: H.264 and
-// Opus, or the codecs of its options.
+// Opus, or the codecs of its options; a kind the options offer no codec of
+// has no track.
 type Publisher struct {
 	Session
 	*pliCounter
 	video, audio *localTrack
+	// start is the NTP time of decode time 0 in its own Sender Reports.
+	start time.Time
 }
 
 // Publish connects a publisher by WHIP to url, such as
@@ -273,10 +276,17 @@ func Publish(ctx context.Context, url string, opts *Options) (*Publisher, error)
 	if err != nil {
 		return nil, err
 	}
-	p := &Publisher{Session: Session{PC: pc, Recorder: rec, opts: opts}, pliCounter: newPLICounter()}
+	p := &Publisher{Session: Session{PC: pc, Recorder: rec, opts: opts}, pliCounter: newPLICounter(),
+		start: time.Now().Truncate(time.Millisecond)}
 	p.video = newLocalTrack(webrtc.RTPCodecTypeVideo, video)
 	p.audio = newLocalTrack(webrtc.RTPCodecTypeAudio, audio)
 	for _, t := range []*localTrack{p.video, p.audio} {
+		if len(t.codecs) == 0 {
+			continue
+		}
+		if opts != nil && opts.SenderReports {
+			t.report = p.senderReport
+		}
 		sender, err := pc.AddTransceiverFromTrack(t, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionSendonly})
 		if err != nil {
 			pc.Close()
@@ -301,14 +311,45 @@ func Publish(ctx context.Context, url string, opts *Options) (*Publisher, error)
 
 // Write sends one sample, as the RTP packets of its track. It waits until
 // the track is bound to the connection, so no packet is lost before, and
-// fails on a sample of another codec than the track sends.
+// fails on a sample of another codec than the track sends, or of a kind the
+// publisher has no track of.
 func (p *Publisher) Write(s Sample) error {
 	t := p.audio
 	if s.Video {
 		t = p.video
 	}
+	if len(t.codecs) == 0 {
+		return fmt.Errorf("no %v track to send a %v sample on", t.kind, s.Codec)
+	}
 	return t.write(s)
 }
+
+// senderReport sends the Sender Report of a track at decode time d: its RTP
+// time, and the NTP time of d from the publisher's start, later by the
+// audio shift for audio.
+func (p *Publisher) senderReport(t *localTrack, d time.Duration) error {
+	at := p.start.Add(d)
+	if t.kind == webrtc.RTPCodecTypeAudio {
+		at = at.Add(p.opts.AudioReportShift)
+	}
+	return p.PC.WriteRTCP([]rtcp.Packet{&rtcp.SenderReport{
+		SSRC: uint32(t.ssrc), NTPTime: ntpTime(at), RTPTime: t.sender.timestamp(d),
+		PacketCount: t.packets, OctetCount: t.octets,
+	}})
+}
+
+// ntpTime is a time in the 64-bit NTP format: seconds since 1900, and the
+// fraction of a second in the low 32 bits.
+func ntpTime(t time.Time) uint64 {
+	const epoch = 2208988800 // seconds from 1900 to 1970
+	sec := uint64(t.Unix()) + epoch
+	frac := uint64(t.Nanosecond()) << 32 / uint64(time.Second)
+	return sec<<32 | frac
+}
+
+// reportInterval is the media time between a publisher's own Sender
+// Reports of a track, and between the two it sends before the first packet.
+const reportInterval = time.Second
 
 // Send writes samples in order, paced by pacer like ffmpeg -re, or at once
 // when pacer is nil, until they end or ctx ends.
@@ -331,6 +372,14 @@ type localTrack struct {
 	ssrc   webrtc.SSRC
 	pt     webrtc.PayloadType
 	out    webrtc.TrackLocalWriter
+
+	// report sends the track's Sender Report at a decode time, when the
+	// publisher sends its own; nextReport is the decode time of the next
+	// one, and packets and octets count what the track sent.
+	report          func(t *localTrack, d time.Duration) error
+	reported        bool
+	nextReport      time.Duration
+	packets, octets uint32
 }
 
 // newLocalTrack makes a track that may send any of these codecTable codecs.
@@ -383,12 +432,38 @@ func (t *localTrack) write(s Sample) error {
 	if s.Codec != "" && sdpKey(s.Codec) != t.key {
 		return fmt.Errorf("a %v sample on a %v track that sends %v", s.Codec, t.kind, t.key)
 	}
+	if err := t.sendReports(s.DTS); err != nil {
+		return err
+	}
 	for _, p := range t.sender.packets(s) {
 		p.SSRC, p.PayloadType = uint32(t.ssrc), uint8(t.pt)
 		if _, err := t.out.WriteRTP(&p.Header, p.Payload); err != nil {
 			return err
 		}
+		t.packets++
+		t.octets += uint32(len(p.Payload))
 	}
+	return nil
+}
+
+// sendReports sends the track's own Sender Reports due before a sample at
+// decode time d: before the first, two, at d and a report interval later,
+// since a server needs two to know the clock rate; then one each report
+// interval of media after the second.
+func (t *localTrack) sendReports(d time.Duration) error {
+	if t.report == nil || (t.reported && d < t.nextReport) {
+		return nil
+	}
+	at := []time.Duration{d}
+	if !t.reported {
+		at = append(at, d+reportInterval)
+	}
+	for _, d := range at {
+		if err := t.report(t, d); err != nil {
+			return err
+		}
+	}
+	t.reported, t.nextReport = true, at[len(at)-1]+reportInterval
 	return nil
 }
 
@@ -406,10 +481,15 @@ type sender struct {
 // mtu is the largest RTP payload.
 const mtu = 1200
 
+// timestamp is the RTP timestamp of a decode time.
+func (s *sender) timestamp(d time.Duration) uint32 {
+	return s.base + uint32(int64(d)*int64(s.clock)/int64(time.Second))
+}
+
 // packets returns the RTP packets of a sample. The last packet of a video
 // frame has the marker bit.
 func (s *sender) packets(sample Sample) []*rtp.Packet {
-	ts := s.base + uint32(int64(sample.DTS)*int64(s.clock)/int64(time.Second))
+	ts := s.timestamp(sample.DTS)
 	payloads := s.payloader.Payload(mtu, sample.Data)
 	out := make([]*rtp.Packet, 0, len(payloads))
 	for i, p := range payloads {

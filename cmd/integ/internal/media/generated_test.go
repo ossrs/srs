@@ -35,7 +35,7 @@ func TestGeneratedMedia(t *testing.T) {
 	}
 	// The MPEG-TS files are checked by the TS analyzer, in internal/ts, which
 	// imports this package.
-	elsewhere := []string{H264HighAACTS, HEVCAACTS, H264OpusTS}
+	elsewhere := []string{H264HighAACTS, HEVCAACTS, H264OpusTS, AACOnlyTS, H264OnlyTS}
 	if len(cases)+len(elsewhere) != len(Recipes) {
 		t.Fatalf("%v cases and %v checked elsewhere for %v recipes", len(cases), len(elsewhere), len(Recipes))
 	}

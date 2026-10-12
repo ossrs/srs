@@ -15,10 +15,11 @@ import (
 )
 
 // TestHttpAudio_AacMount publishes over RTMP and plays the audio as raw AAC
-// over HTTP, on a variant that mounts every stream as .aac, with hooks.
+// over HTTP, on the shared AacMount server, which mounts every stream as
+// .aac, with hooks.
 func TestHttpAudio_AacMount(t *testing.T) {
 	t.Parallel()
-	srs := server.Group(t, remuxGroup("aac", server.Remux{}))
+	srs := server.Shared(t, "AacMount", sharedAacMountConfig())
 
 	check.Case(t, "PublishPlay", check.Normal, func(c *check.C) {
 		checkPlayedAudio(c, audioPlay(c, srs, media.H264HighAAC, aacMount), "aac", 1)
@@ -44,10 +45,11 @@ func TestHttpAudio_AacMount(t *testing.T) {
 }
 
 // TestHttpAudio_Mp3Mount publishes over RTMP and plays the audio as MP3 over
-// HTTP, on a variant that mounts every stream as .mp3, with hooks.
+// HTTP, on the shared Mp3Mount server, which mounts every stream as .mp3,
+// with hooks.
 func TestHttpAudio_Mp3Mount(t *testing.T) {
 	t.Parallel()
-	srs := server.Group(t, remuxGroup("mp3", server.Remux{}))
+	srs := server.Shared(t, "Mp3Mount", sharedMp3MountConfig())
 
 	check.Case(t, "PublishPlay", check.Normal, func(c *check.C) {
 		checkPlayedAudio(c, audioPlay(c, srs, media.H264HighMP3, mp3Mount), "mp3", 0)

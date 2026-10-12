@@ -34,7 +34,9 @@ type Binding struct {
 // answer's loopback candidate: over TCP when opts.TCP is set and UDP
 // otherwise, as an ICE-controlled agent when opts.Controlled is set. It
 // returns the binding, ErrClosed when the server closes the connection, or
-// the ctx error when no answer comes. The socket is closed when it returns.
+// the ctx error when no answer comes. The socket is closed when it returns:
+// over TCP, a binding closes its end first and waits, until ctx ends, for
+// the server to close the connection too, so the server has let it go.
 func Bind(ctx context.Context, offer, answer string, opts *Options) (*Binding, error) {
 	s := &RawSession{Session: Session{Offer: offer, Answer: answer, opts: opts}}
 	defer s.Close()
@@ -61,7 +63,25 @@ func Bind(ctx context.Context, offer, answer string, opts *Options) (*Binding, e
 		b.Mapped = netip.AddrPortFrom(ip.Unmap(), uint16(xa.Port))
 	}
 	b.Local, _ = netip.ParseAddrPort(s.conn.LocalAddr().String())
+	s.awaitClose(ctx)
 	return b, nil
+}
+
+// awaitClose closes the write side of a TCP connection and waits, until ctx
+// ends, for the server to close the connection.
+func (s *RawSession) awaitClose(ctx context.Context) {
+	fc, ok := s.conn.(*framedConn)
+	if !ok {
+		return
+	}
+	cw, ok := fc.Conn.(interface{ CloseWrite() error })
+	if !ok || cw.CloseWrite() != nil {
+		return
+	}
+	select {
+	case <-s.mux.done:
+	case <-ctx.Done():
+	}
 }
 
 // dial connects the session's socket to the answer's loopback candidate,

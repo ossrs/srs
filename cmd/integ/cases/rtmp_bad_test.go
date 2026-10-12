@@ -286,7 +286,10 @@ func rtmpBadInput(t *testing.T) {
 
 	// PublisherCloseMidMessage closes a publisher after part of a video
 	// message: SRS unpublishes the stream, removes it from the API, and the
-	// stream can be published again.
+	// stream can be published again. SRS refuses the new publish as
+	// StreamDisposing until its HTTP mount is torn down, on a worker of its
+	// own that may not have run yet, so the publish is tried again as a
+	// client would (see republish).
 	check.Case(t, "PublisherCloseMidMessage", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -299,7 +302,7 @@ func rtmpBadInput(t *testing.T) {
 		pub.Close()
 		waitHook(c, srs, "on_unpublish", stream)
 		c.CheckNoError(untilGone(c, srs, "/api/v1/streams/"+h.Field("stream_id")), "the stream after its publisher closed")
-		publishOnly(c, url, rtmp.FMLE)
+		republish(c, url, 300*time.Millisecond)
 	})
 
 	// ConnectCloseMidMessage closes after part of the connect command: SRS

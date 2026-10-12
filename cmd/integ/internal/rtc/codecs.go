@@ -23,6 +23,7 @@ import (
 	"github.com/pion/webrtc/v4"
 
 	"srs-integ/internal/media"
+	"srs-integ/internal/ts"
 )
 
 // A codec is one the client sends and plays.
@@ -250,4 +251,36 @@ func OptionsOf(samples []Sample) *Options {
 // Every offers every codec the client knows, for a player of any stream.
 func Every() *Options {
 	return &Options{Video: []string{"H264", "H265", "VP9", "AV1"}, Audio: []string{"opus", "PCMU", "PCMA"}}
+}
+
+// WithoutSEI returns the samples with the SEI NALs of their H.264 and HEVC
+// frames left out, each other NAL after a 4-byte start code; the samples
+// given are not changed.
+func WithoutSEI(samples []Sample) []Sample {
+	out := make([]Sample, len(samples))
+	for i, s := range samples {
+		out[i] = s
+		if s.Codec != "h264" && s.Codec != "hevc" {
+			continue
+		}
+		var data []byte
+		for _, nal := range ts.SplitNALs(s.Data) {
+			if len(nal) == 0 || isSEI(s.Codec, nal[0]) {
+				continue
+			}
+			data = append(append(data, startCode...), nal...)
+		}
+		out[i].Data = data
+	}
+	return out
+}
+
+// isSEI is whether a NAL of a codec, by its first byte, is an SEI: type 6
+// for H.264, and 39 or 40, prefix or suffix, for HEVC.
+func isSEI(codec string, b byte) bool {
+	if codec == "h264" {
+		return b&0x1f == 6
+	}
+	t := b >> 1 & 0x3f
+	return t == 39 || t == 40
 }
