@@ -443,6 +443,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     int64_t accept_floor_ts_;
     int64_t previous_floor_ts_;
     bool init_mp4_ready_;
+    // Whether a sequence header came while no segment was open, so the next segment, the
+    // first of a publish, starts with a discontinuity.
+    bool sequence_header_pending_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

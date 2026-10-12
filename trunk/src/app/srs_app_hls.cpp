@@ -429,6 +429,7 @@ SrsHlsFmp4Muxer::SrsHlsFmp4Muxer()
     video_track_id_ = 0;
     audio_track_id_ = 0;
     init_mp4_ready_ = false;
+    sequence_header_pending_ = false;
 
     memset(key_, 0, 16);
     memset(iv_, 0, 16);
@@ -791,6 +792,11 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     current_ = app_factory_->create_hls_m4s_segment(writer_);
     current_->sequence_no_ = sequence_no_++;
 
+    if (sequence_header_pending_) {
+        current_->set_sequence_header(true);
+        sequence_header_pending_ = false;
+    }
+
     if ((err = write_hls_key()) != srs_success) {
         return srs_error_wrap(err, "write hls key");
     }
@@ -904,6 +910,15 @@ std::string SrsHlsFmp4Muxer::playlist_uri(std::string fullpath)
 
 srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 {
+    // As with TS, the segment with a sequence header gets a discontinuity in the playlist.
+    // A segment opens at the first frame, after the sequence headers of a publish, so the
+    // first segment of each publish takes it at its open.
+    if (!is_segment_open()) {
+        sequence_header_pending_ = true;
+        return srs_success;
+    }
+
+    current_->set_sequence_header(true);
     return srs_success;
 }
 

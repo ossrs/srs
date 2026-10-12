@@ -517,6 +517,59 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_PlaylistNoEntryPrefix)
     muxer.dispose();
 }
 
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_DiscontinuityPerPublish)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // The sequence header comes before any segment is open, so the first segment of the
+    // publish gets the discontinuity, as with TS.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    HELPER_ASSERT_SUCCESS(muxer.on_sequence_header());
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_TRUE(muxer.current_->is_sequence_header());
+
+    std::stringstream ss;
+    HELPER_ASSERT_SUCCESS(muxer.do_refresh_m3u8_segment(muxer.current_, ss));
+    EXPECT_TRUE(srs_strings_starts_with(ss.str(), "#EXT-X-DISCONTINUITY\n")) << ss.str();
+
+    // The next segment of the same publish has none.
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(2000));
+    MockSrsMediaPacket video_msg2(true, 2000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg2, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_FALSE(muxer.current_->is_sequence_header());
+
+    // A republish closes the segment and sends the sequence header again, and its first
+    // segment gets the discontinuity.
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(3000));
+    HELPER_ASSERT_SUCCESS(muxer.on_sequence_header());
+    MockSrsMediaPacket video_msg3(true, 0);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg3, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_TRUE(muxer.current_->is_sequence_header());
+
+    // A sequence header while a segment is open marks that segment, as with TS.
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(1000));
+    MockSrsMediaPacket video_msg4(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg4, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_FALSE(muxer.current_->is_sequence_header());
+    HELPER_ASSERT_SUCCESS(muxer.on_sequence_header());
+    EXPECT_TRUE(muxer.current_->is_sequence_header());
+
+    muxer.dispose();
+}
+
 VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteMedia)
 {
     srs_error_t err;

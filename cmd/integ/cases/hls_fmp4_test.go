@@ -284,13 +284,14 @@ func TestHls_Fmp4(t *testing.T) {
 	})
 
 	// The republished stream starts again at timestamp 0, so the segment
-	// after the republish needs a discontinuity, as with TS.
+	// after the republish needs a discontinuity; as with TS, the first
+	// segment of each publish has one, the others none.
 	check.Case(t, "RepublishDiscontinuity", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "fmp4 playlists have no #EXT-X-DISCONTINUITY, also not after a republish")
 		stream := "live/" + streamName(c)
 		pl := republishFmp4(c, cdn, srs, stream)
-		if c.Check(len(pl.Segments) == 3, "segments %+v, want 3", pl.Segments) {
-			c.Check(pl.Segments[2].Discontinuity, "the segment after the republish has no discontinuity")
+		c.CheckEqual(len(pl.Segments), 3, "segments")
+		for _, s := range pl.Segments {
+			c.CheckEqual(s.Discontinuity, s.Sequence != 1, fmt.Sprintf("discontinuity of segment %v", s.Sequence))
 		}
 	})
 
