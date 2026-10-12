@@ -105,7 +105,6 @@ extern bool srs_config_ingest_is_stream(std::string type);
 extern bool srs_config_dvr_is_plan_segment(std::string plan);
 extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
-extern bool srs_stream_caster_is_flv(std::string caster);
 extern bool srs_stream_caster_is_gb28181(std::string caster);
 // Whether the dvr_apply active the stream specified by req.
 extern bool srs_config_apply_filter(SrsConfDirective *dvr_apply, ISrsRequest *req);
@@ -343,7 +342,6 @@ public:
     virtual std::string get_pid_file() = 0;
     virtual std::string get_server_id() = 0;
     virtual bool empty_ip_ok() = 0;
-    virtual bool get_asprocess() = 0;
     virtual srs_utime_t get_grace_start_wait() = 0;
     virtual srs_utime_t get_grace_final_wait() = 0;
     virtual bool is_force_grace_quit() = 0;
@@ -905,8 +903,6 @@ public:
     // Get the configed work dir.
     // ignore if empty string.
     virtual std::string get_work_dir();
-    // Whether use asprocess mode.
-    virtual bool get_asprocess();
     // Whether query the latest available version of SRS.
     virtual bool whether_query_latest_version();
     virtual srs_utime_t first_wait_for_qlv();
@@ -1487,24 +1483,6 @@ public:
     // In this mode HLS sequence number is started from where it stopped last time.
     // Old fragments are kept. Default is on.
     virtual bool get_hls_recover(std::string vhost);
-    // hds section
-// clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
-    // Get the hds directive of vhost.
-    virtual SrsConfDirective *
-    get_hds(const std::string &vhost);
-
-public:
-    // Whether HDS is enabled.
-    virtual bool get_hds_enabled(const std::string &vhost);
-    virtual bool get_hds_enabled(SrsConfDirective *vhost);
-    // Get the HDS file store path.
-    virtual std::string get_hds_path(const std::string &vhost);
-    // Get the hds fragment time, in srs_utime_t.
-    virtual srs_utime_t get_hds_fragment(const std::string &vhost);
-    // Get the hds window time, in srs_utime_t.
-    // a window is a set of hds fragments.
-    virtual srs_utime_t get_hds_window(const std::string &vhost);
     // dvr section
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

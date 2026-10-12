@@ -177,7 +177,7 @@ About the features supported by SRS.
 - **MPEG-DASH** — SRS supports converting RTMP to DASH. DASH is similar to HLS, but not as widely supported by platforms as HLS. v5.0, 2022-11
 - **HTTP-FLV** — SRS supports converting RTMP to HTTP-FLV. FLV is a similar protocol to RTMP. FLV is CDN friendly. However, FLV is not supported by iPhone. v2.0, 2015-01
 - **GB28181** — SRS supports publishing streams using GB28181. SRS only supports TCP transport. SRS requires an external SIP server [srs-sip](https://github.com/ossrs/srs-sip). v5.0, 2022-10
-- **Other Protocols** — Besides the commonly used protocols, SRS also supports converting RTMP to HTTP-TS (v2.0, 2015-01), publishing by MPEG-TS over UDP (v2.0, 2015-01), and publishing via HTTP POST FLV (v2.0, 2015-05). These protocols are not commonly used.
+- **Other Protocols** — Besides the commonly used protocols, SRS also supports converting RTMP to HTTP-TS (v2.0, 2015-01) and publishing by MPEG-TS over UDP (v2.0, 2015-01). These protocols are not commonly used.
 
 **Transmuxing** — SRS supports transmuxing between different protocols.
 

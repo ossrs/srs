@@ -2308,7 +2308,7 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
     // The env overwrites the stream caster of the config file.
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled off; caster flv; output rtmp://127.0.0.1/[app]/[stream]; listen 8936;}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled off; caster mpegts_over_udp; output rtmp://127.0.0.1/live/livestream; listen 8935;}"));
 
         SrsSetEnvConfig(conf, enabled, "SRS_STREAM_CASTER_ENABLED", "on");
         SrsSetEnvConfig(conf, listen, "SRS_STREAM_CASTER_LISTEN", "9000");
@@ -2317,7 +2317,7 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
         ASSERT_EQ(1, (int)casters.size());
         SrsConfDirective *c = casters.at(0);
         EXPECT_TRUE(conf.get_stream_caster_enabled(c));
-        EXPECT_STREQ("flv", conf.get_stream_caster_engine(c).c_str());
+        EXPECT_STREQ("mpegts_over_udp", conf.get_stream_caster_engine(c).c_str());
         EXPECT_EQ(9000, conf.get_stream_caster_listen(c));
     }
 
@@ -2330,12 +2330,12 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster flv; listen 8936;}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster mpegts_over_udp; listen 8935;}"));
 
         vector<SrsConfDirective *> casters = conf.get_stream_casters();
         ASSERT_EQ(1, (int)casters.size());
         EXPECT_TRUE(conf.get_stream_caster_enabled(casters.at(0)));
-        EXPECT_EQ(8936, conf.get_stream_caster_listen(casters.at(0)));
+        EXPECT_EQ(8935, conf.get_stream_caster_listen(casters.at(0)));
     }
 }
 

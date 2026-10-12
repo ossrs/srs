@@ -83,7 +83,6 @@
     XX(ERROR_THREAD_INTERRUPED, 1070, "StThreadInterrupt", "ST thread is interrupted")                                 \
     XX(ERROR_THREAD_TERMINATED, 1071, "StThreadTerminate", "ST thread is terminated")                                  \
     XX(ERROR_THREAD_DUMMY, 1072, "StThreadDummy", "Can not operate ST dummy thread")                                   \
-    XX(ERROR_ASPROCESS_PPID, 1073, "SystemAsProcess", "As-process does not support pid change")                        \
     XX(ERROR_EXCEED_CONNECTIONS, 1074, "ConnectionsExceed", "Failed for exceed system max connections")                \
     XX(ERROR_SOCKET_SETKEEPALIVE, 1075, "SocketKeepAlive", "Failed to set socket option SO_KEEPALIVE")                 \
     XX(ERROR_SOCKET_NO_NODELAY, 1076, "SocketNoDelay", "Failed to set socket option TCP_NODELAY")                      \
@@ -232,12 +231,6 @@
     XX(ERROR_HTTP_DVR_CREATE_REQUEST, 3053, "DvrCreate", "Failed for DVR create request")                   \
     XX(ERROR_HTTP_DVR_NO_TAEGET, 3054, "DvrNoTarget", "Failed for DVR no target")                           \
     XX(ERROR_ADTS_ID_NOT_AAC, 3055, "AacAdtsId", "Failed for ADTS id not AAC")                              \
-    XX(ERROR_HDS_OPEN_F4M_FAILED, 3056, "HdsOpenF4m", "Failed to open F4m file for HDS")                    \
-    XX(ERROR_HDS_WRITE_F4M_FAILED, 3057, "HdsWriteF4m", "Failed to write F4m file for HDS")                 \
-    XX(ERROR_HDS_OPEN_BOOTSTRAP_FAILED, 3058, "HdsOpenBoot", "Failed to open bootstrap for HDS")            \
-    XX(ERROR_HDS_WRITE_BOOTSTRAP_FAILED, 3059, "HdsWriteBoot", "Failed to write bootstrap for HDS")         \
-    XX(ERROR_HDS_OPEN_FRAGMENT_FAILED, 3060, "HdsOpenFragment", "Failed to open fragment file for HDS")     \
-    XX(ERROR_HDS_WRITE_FRAGMENT_FAILED, 3061, "HdsWriteFragment", "Failed to write fragment file for HDS")  \
     XX(ERROR_HLS_NO_STREAM, 3062, "HlsNoStream", "No stream configured for HLS")                            \
     XX(ERROR_JSON_LOADS, 3063, "JsonLoads", "Failed for JSOn loads")                                        \
     XX(ERROR_RESPONSE_CODE, 3064, "HttpResponseCode", "No code in HTTP response json object")               \

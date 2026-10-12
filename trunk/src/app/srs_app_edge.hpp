@@ -11,6 +11,7 @@
 
 #include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_kernel_file.hpp>
 
 #include <string>
 
@@ -31,7 +32,7 @@ class SrsSimpleRtmpClient;
 class SrsRtmpCommand;
 class SrsHttpClient;
 class ISrsHttpMessage;
-class SrsHttpFileReader;
+class ISrsHttpResponseReader;
 class SrsFlvDecoder;
 class ISrsAppConfig;
 class ISrsBasicRtmpClient;
@@ -373,6 +374,46 @@ public:
     virtual srs_error_t on_proxy_publish(SrsRtmpCommonMessage *msg);
     // Proxy unpublish stream to edge.
     virtual void on_proxy_unpublish();
+};
+
+// The http wrapper for file reader, to read an http body, such as the flv stream an edge pulls, like a file.
+class ISrsHttpFileReader : public ISrsFileReader
+{
+public:
+    ISrsHttpFileReader();
+    virtual ~ISrsHttpFileReader();
+
+public:
+};
+
+// The http wrapper for file reader, to read an http body, such as the flv stream an edge pulls, like a file.
+class SrsHttpFileReader : public ISrsHttpFileReader
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsHttpResponseReader *http_;
+    SrsFileReader *file_reader_;
+
+public:
+    SrsHttpFileReader(ISrsHttpResponseReader *h);
+    virtual ~SrsHttpFileReader();
+
+public:
+    // Open file reader, can open then close then open...
+    virtual srs_error_t open(std::string file);
+    virtual void close();
+
+public:
+    // TODO: FIXME: extract interface.
+    virtual bool is_open();
+    virtual int64_t tellg();
+    virtual void skip(int64_t size);
+    virtual int64_t seek2(int64_t offset);
+    virtual int64_t filesize();
+
+public:
+    virtual srs_error_t read(void *buf, size_t count, ssize_t *pnread);
+    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
 };
 
 #endif

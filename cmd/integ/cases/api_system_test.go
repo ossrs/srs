@@ -72,7 +72,7 @@ var (
 	}
 	// The features /api/v1/features reports, each a boolean.
 	featureNames = []string{
-		"ssl", "hls", "hds", "callback", "api", "httpd", "dvr", "transcode", "ingest", "stat",
+		"ssl", "hls", "callback", "api", "httpd", "dvr", "transcode", "ingest", "stat",
 		"caster", "complex_send", "tcp_nodelay", "so_sendbuf", "mr", "srt", "rtsp", "gb28181", "rtc",
 		"simulator", "sanitizer",
 	}
@@ -371,11 +371,16 @@ func apiSystem(t *testing.T) {
 		features := object(c, data, "features")
 		checkFields(c, features, featureNames, "features")
 		options2, _ := data["options2"].(string)
+		// HDS is removed: no feature and no build option.
+		for _, k := range []string{"options", "options2"} {
+			s, _ := data[k].(string)
+			c.Check(!strings.Contains(s, "hds"), "%s %q has hds, which is removed", k, s)
+		}
 		for _, k := range featureNames {
 			b, ok := features[k].(bool)
 			c.Check(ok, "feature %s is %v, want a boolean", k, features[k])
 			// A build option and its feature agree.
-			for _, opt := range []string{"hds", "srt", "rtsp", "gb28181", "rtc", "simulator", "sanitizer"} {
+			for _, opt := range []string{"srt", "rtsp", "gb28181", "rtc", "simulator", "sanitizer"} {
 				if k == opt {
 					c.CheckEqual(b, strings.Contains(options2, "--"+k+"=on"), "feature "+k+" against options2")
 				}

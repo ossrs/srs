@@ -287,7 +287,7 @@ extern std::string utest_forward_markers(const std::vector<MockForwarderSentPack
 extern MockCoroutineForForwarder *utest_forward_wire(SrsForwarder *forwarder, MockAppFactoryForForwarderCycle *factory,
                                                      MockAppConfig *config, int nb_pulls);
 
-// An origin hub whose HLS, DASH, DVR, encoder, exec and HDS are mocks, so only its forward parts do real work.
+// An origin hub whose HLS, DASH, DVR, encoder and exec are mocks, so only its forward parts do real work.
 extern SrsOriginHub *utest_forward_hub(MockLiveSourceForOriginHub *source, ISrsRequest *req, ISrsAppConfig *config, ISrsHttpHooks *hooks);
 
 #endif

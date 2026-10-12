@@ -8,7 +8,6 @@
 
 #include <srs_kernel_rtc_rtp.hpp>
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>

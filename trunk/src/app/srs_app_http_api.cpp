@@ -624,11 +624,6 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
 
     features->set("ssl", SrsJsonAny::boolean(true));
     features->set("hls", SrsJsonAny::boolean(true));
-#ifdef SRS_HDS
-    features->set("hds", SrsJsonAny::boolean(true));
-#else
-    features->set("hds", SrsJsonAny::boolean(false));
-#endif
     features->set("callback", SrsJsonAny::boolean(true));
     features->set("api", SrsJsonAny::boolean(true));
     features->set("httpd", SrsJsonAny::boolean(true));

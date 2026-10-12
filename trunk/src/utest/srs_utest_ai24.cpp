@@ -1034,29 +1034,6 @@ VOID TEST(HlsFmp4MuxerTest, GenerateM4sFilenameWithFloor)
     srs_freep(segment);
 }
 
-// Test: SrsServer::initialize_st with asprocess enabled and ppid == 1 (should fail)
-VOID TEST(ServerTest, InitializeStAsprocessWithPpid1)
-{
-    srs_error_t err;
-
-    // Create server
-    SrsServer server;
-    server.assemble();
-
-    // Create mock config with asprocess enabled
-    MockAppConfig mock_config;
-    mock_config.asprocess_ = true;
-
-    // Replace config with mock
-    server.config_ = &mock_config;
-
-    // Set ppid to 1 (init process)
-    server.ppid_ = 1;
-
-    // Call initialize_st - should fail because asprocess is true and ppid is 1
-    HELPER_EXPECT_FAILED(server.initialize_st());
-}
-
 // Test: srs_hex_encode_to_string_lowercase converts bytes to lowercase hex string
 VOID TEST(KernelUtilityTest, HexEncodeToStringLowercase)
 {

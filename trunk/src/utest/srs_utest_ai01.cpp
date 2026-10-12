@@ -4653,302 +4653,149 @@ VOID TEST(ConfigHlsTest, CheckHlsEntryPrefix)
     }
 }
 
-// HDS Configuration Tests
-VOID TEST(ConfigHdsTest, CheckHdsEnabled)
+// HDS is removed: a config file with the hds section of a vhost is refused, with an error that names it,
+// whatever the section holds.
+VOID TEST(ConfigHdsTest, HdsSectionRemoved)
 {
-    srs_error_t err;
+    const char *confs[] = {
+        "vhost test.com{hds{enabled on;}}",
+        "vhost test.com{hds{enabled off;}}",
+        "vhost test.com{hds{hds_path ./objs/nginx/html; hds_fragment 10; hds_window 60;}}",
+        "vhost test.com{hds{}}",
+        "vhost __defaultVhost__{hls{enabled on;} hds{enabled on;}}",
+    };
 
-    // Test default value when no configuration is provided
-    if (true) {
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be false (SRS_CONF_PREFER_FALSE)
-        EXPECT_FALSE(conf.get_hds_enabled("__defaultVhost__"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test default value when vhost exists but no hds section
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no hds section
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test default value when hds exists but no enabled config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path ./objs/nginx/html;}}"));
-
-        // Should return default value when no enabled config
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test default value when enabled has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test explicit hds enabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled on;}}"));
-
-        EXPECT_TRUE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test explicit hds disabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled off;}}"));
-
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test various boolean values (SRS_CONF_PREFER_FALSE: only "on" is true)
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled true;}}"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com")); // "true" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled false;}}"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com")); // "false" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled yes;}}"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com")); // "yes" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled no;}}"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com")); // "no" != "on", so it's false
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + confs[i]);
+        EXPECT_TRUE(err != srs_success) << confs[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("vhost.hds") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
     }
 }
 
-VOID TEST(ConfigHdsTest, CheckHdsPath)
+// The FLV POST caster is removed: a config file with a stream_caster of caster flv is refused, with an error
+// that names it, enabled or not. The other casters are still accepted.
+VOID TEST(ConfigCasterTest, FlvCasterRemoved)
 {
-    srs_error_t err;
+    const char *confs[] = {
+        "stream_caster{enabled on; caster flv; output rtmp://127.0.0.1/[app]/[stream]; listen 8936;}",
+        "stream_caster{enabled off; caster flv; output rtmp://127.0.0.1/[app]/[stream]; listen 8936;}",
+        "stream_caster{caster flv;}",
+        "stream_caster{enabled on; caster mpegts_over_udp; output rtmp://127.0.0.1/live/s; listen 8935;} "
+        "stream_caster{enabled on; caster flv; listen 8936;}",
+    };
 
-    // Test default value when no configuration is provided
-    if (true) {
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be "./objs/nginx/html"
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("__defaultVhost__").c_str());
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("test.com").c_str());
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + confs[i]);
+        EXPECT_TRUE(err != srs_success) << confs[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("stream_caster.caster flv") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
     }
 
-    // Test default value when vhost exists but no hds section
     if (true) {
+        srs_error_t err;
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no hds section
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("test.com").c_str());
-    }
-
-    // Test default value when hds exists but no hds_path config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled on;}}"));
-
-        // Should return default value when no hds_path config
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("test.com").c_str());
-    }
-
-    // Test default value when hds_path has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("test.com").c_str());
-    }
-
-    // Test valid hds_path values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path /var/www/hds;}}"));
-        EXPECT_STREQ("/var/www/hds", conf.get_hds_path("test.com").c_str());
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path ./custom/hds/path;}}"));
-        EXPECT_STREQ("./custom/hds/path", conf.get_hds_path("test.com").c_str());
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path /tmp/hds;}}"));
-        EXPECT_STREQ("/tmp/hds", conf.get_hds_path("test.com").c_str());
-    }
-
-    // Test multiple vhosts with different hds paths
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF
-                                              "vhost vhost1.com{hds{hds_path /var/www/hds1;}} "
-                                              "vhost vhost2.com{hds{hds_path /var/www/hds2;}} "
-                                              "vhost vhost3.com{hds{enabled on;}}"));
-
-        EXPECT_STREQ("/var/www/hds1", conf.get_hds_path("vhost1.com").c_str());
-        EXPECT_STREQ("/var/www/hds2", conf.get_hds_path("vhost2.com").c_str());
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("vhost3.com").c_str()); // default
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster mpegts_over_udp; output rtmp://127.0.0.1/live/s; listen 8935;}"));
+        EXPECT_STREQ("mpegts_over_udp", conf.get_stream_caster_engine(conf.get_stream_casters().at(0)).c_str());
     }
 }
 
-VOID TEST(ConfigHdsTest, CheckHdsFragment)
+// The FLV POST caster is removed: SRS_STREAM_CASTER_CASTER=flv makes the config refused, with an error that
+// names it, whether the caster is enabled or not. The other casters by env are still accepted.
+VOID TEST(ConfigCasterTest, FlvCasterEnvRemoved)
 {
-    srs_error_t err;
+    const char *enabled[] = {"on", "off", ""};
 
-    // Test default value when no configuration is provided
-    if (true) {
+    for (int i = 0; i < (int)(sizeof(enabled) / sizeof(enabled[0])); i++) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, caster, "SRS_STREAM_CASTER_CASTER", "flv");
+        SrsSetEnvConfig(conf, enabled, "SRS_STREAM_CASTER_ENABLED", enabled[i]);
 
-        // Default should be 10 seconds
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("__defaultVhost__"));
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << "SRS_STREAM_CASTER_ENABLED=" << enabled[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("SRS_STREAM_CASTER_CASTER=flv") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
     }
 
-    // Test default value when vhost exists but no hds section
     if (true) {
+        srs_error_t err;
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no hds section
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-    }
-
-    // Test default value when hds exists but no hds_fragment config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled on;}}"));
-
-        // Should return default value when no hds_fragment config
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-    }
-
-    // Test default value when hds_fragment has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-    }
-
-    // Test valid hds_fragment values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment 5;}}"));
-        EXPECT_EQ(5 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment 2.5;}}"));
-        EXPECT_EQ((srs_utime_t)(2.5 * SRS_UTIME_SECONDS), conf.get_hds_fragment("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment 30;}}"));
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-    }
-
-    // Test zero and negative values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment 0;}}"));
-        EXPECT_EQ(0, conf.get_hds_fragment("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment -5;}}"));
-        EXPECT_EQ((srs_utime_t)(-5 * SRS_UTIME_SECONDS), conf.get_hds_fragment("test.com"));
-    }
-
-    // Test multiple vhosts with different fragment values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF
-                                              "vhost vhost1.com{hds{hds_fragment 5;}} "
-                                              "vhost vhost2.com{hds{hds_fragment 15;}} "
-                                              "vhost vhost3.com{hds{enabled on;}}"));
-
-        EXPECT_EQ(5 * SRS_UTIME_SECONDS, conf.get_hds_fragment("vhost1.com"));
-        EXPECT_EQ(15 * SRS_UTIME_SECONDS, conf.get_hds_fragment("vhost2.com"));
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("vhost3.com")); // default
+        SrsSetEnvConfig(conf, caster, "SRS_STREAM_CASTER_CASTER", "mpegts_over_udp");
+        SrsSetEnvConfig(conf, enabled, "SRS_STREAM_CASTER_ENABLED", "on");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
     }
 }
 
-VOID TEST(ConfigHdsTest, CheckHdsWindow)
+// asprocess is removed: a config file with the asprocess directive is refused, with an error that names it,
+// on or off. daemon alone is still accepted.
+VOID TEST(ConfigMainTest, AsprocessRemoved)
 {
-    srs_error_t err;
+    const char *confs[] = {
+        "asprocess on;",
+        "asprocess off;",
+        "daemon off; asprocess on;",
+        "asprocess;",
+    };
 
-    // Test default value when no configuration is provided
-    if (true) {
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be 60 seconds
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("__defaultVhost__"));
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + confs[i]);
+        EXPECT_TRUE(err != srs_success) << confs[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("asprocess") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
     }
 
-    // Test default value when vhost exists but no hds section
     if (true) {
+        srs_error_t err;
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "daemon off;"));
+        EXPECT_FALSE(conf.get_daemon());
+    }
+}
 
-        // Should return default value when no hds section
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
+// asprocess is removed: SRS_ASPROCESS, on or off, makes the config refused, with an error that names it.
+// An empty SRS_ASPROCESS is unset, as every empty env var is.
+VOID TEST(ConfigMainTest, AsprocessEnvRemoved)
+{
+    const char *values[] = {"on", "off"};
+
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, asprocess, "SRS_ASPROCESS", values[i]);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << "SRS_ASPROCESS=" << values[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("SRS_ASPROCESS") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
     }
 
-    // Test default value when hds exists but no hds_window config
     if (true) {
+        srs_error_t err;
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled on;}}"));
-
-        // Should return default value when no hds_window config
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
-    }
-
-    // Test default value when hds_window has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
-    }
-
-    // Test valid hds_window values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window 30;}}"));
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window 120.5;}}"));
-        EXPECT_EQ((srs_utime_t)(120.5 * SRS_UTIME_SECONDS), conf.get_hds_window("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window 300;}}"));
-        EXPECT_EQ(300 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
-    }
-
-    // Test zero and negative values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window 0;}}"));
-        EXPECT_EQ(0, conf.get_hds_window("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window -10;}}"));
-        EXPECT_EQ((srs_utime_t)(-10 * SRS_UTIME_SECONDS), conf.get_hds_window("test.com"));
-    }
-
-    // Test multiple vhosts with different window values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF
-                                              "vhost vhost1.com{hds{hds_window 30;}} "
-                                              "vhost vhost2.com{hds{hds_window 120;}} "
-                                              "vhost vhost3.com{hds{enabled on;}}"));
-
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("vhost1.com"));
-        EXPECT_EQ(120 * SRS_UTIME_SECONDS, conf.get_hds_window("vhost2.com"));
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("vhost3.com")); // default
+        SrsSetEnvConfig(conf, asprocess, "SRS_ASPROCESS", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
     }
 }
 

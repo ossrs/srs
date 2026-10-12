@@ -274,7 +274,6 @@ void show_macro_features()
         ss << ", rch:" << srs_strconv_format_bool(true);
         ss << ", dash:" << "on";
         ss << ", hls:" << srs_strconv_format_bool(true);
-        ss << ", hds:" << srs_strconv_format_bool(SRS_HDS_BOOL);
         ss << ", srt:" << srs_strconv_format_bool(true);
         // hc(http callback)
         ss << ", hc:" << srs_strconv_format_bool(true);

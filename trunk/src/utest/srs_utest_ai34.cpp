@@ -1647,7 +1647,7 @@ srs_error_t MockForwarderForFanOut::record(SrsMediaPacket *pkt, srs_error_t err)
     return srs_error_copy(err);
 }
 
-// An origin hub with mock HLS, DASH, DVR, encoder, exec and HDS, on the given source, request,
+// An origin hub with mock HLS, DASH, DVR, encoder and exec, on the given source, request,
 // config and hooks, so only its forward parts do real work.
 SrsOriginHub *utest_forward_hub(MockLiveSourceForOriginHub *source, ISrsRequest *req, ISrsAppConfig *config, ISrsHttpHooks *hooks)
 {
@@ -1663,10 +1663,6 @@ SrsOriginHub *utest_forward_hub(MockLiveSourceForOriginHub *source, ISrsRequest 
     hub->encoder_ = new MockMediaEncoderForOriginHub();
     srs_freep(hub->ng_exec_);
     hub->ng_exec_ = new MockNgExecForOriginHub();
-#ifdef SRS_HDS
-    srs_freep(hub->hds_);
-    hub->hds_ = new MockHdsForOriginHub();
-#endif
 
     hub->source_ = source;
     hub->req_ = req;

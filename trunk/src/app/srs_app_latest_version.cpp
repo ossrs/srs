@@ -85,7 +85,7 @@ void srs_build_features(stringstream &ss)
 
     int nn_vhosts = 0;
     bool gb28181 = false, forward = false, ingest = false, edge = false, hls = false, dvr = false, flv = false;
-    bool hooks = false, dash = false, hds = false, exec = false, transcode = false, security = false;
+    bool hooks = false, dash = false, exec = false, transcode = false, security = false;
     bool flv2 = false, oc = false;
 
     SrsConfDirective *root = _srs_config->get_root();
@@ -129,9 +129,6 @@ void srs_build_features(stringstream &ss)
             if (!dash && _srs_config->get_dash_enabled(conf)) {
                 dash = true;
             }
-            if (!hds && _srs_config->get_hds_enabled(conf)) {
-                hds = true;
-            }
             if (!exec && _srs_config->get_exec_enabled(conf)) {
                 exec = true;
             }
@@ -168,7 +165,6 @@ void srs_build_features(stringstream &ss)
     SRS_CHECK_FEATURE(flv, ss);
     SRS_CHECK_FEATURE(hooks, ss);
     SRS_CHECK_FEATURE(dash, ss);
-    SRS_CHECK_FEATURE(hds, ss);
     SRS_CHECK_FEATURE(exec, ss);
     SRS_CHECK_FEATURE(transcode, ss);
     SRS_CHECK_FEATURE(security, ss);

@@ -17,7 +17,6 @@ using namespace std;
 #include <srs_app_encoder.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_forward.hpp>
-#include <srs_app_hds.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_ng_exec.hpp>
@@ -860,9 +859,6 @@ SrsOriginHub::SrsOriginHub()
     dvr_ = new SrsDvr();
 
     encoder_ = new SrsEncoder();
-#ifdef SRS_HDS
-    hds_ = new SrsHds();
-#endif
     ng_exec_ = new SrsNgExec();
 
     config_ = _srs_config;
@@ -897,9 +893,6 @@ SrsOriginHub::~SrsOriginHub()
     srs_freep(dash_);
     srs_freep(dvr_);
     srs_freep(encoder_);
-#ifdef SRS_HDS
-    srs_freep(hds_);
-#endif
 
     config_ = NULL;
     stat_ = NULL;
@@ -1071,14 +1064,6 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
         dvr_->on_unpublish();
     }
 
-#ifdef SRS_HDS
-    if ((err = hds_->on_audio(msg)) != srs_success) {
-        srs_warn("hds: ignore audio error %s", srs_error_desc(err).c_str());
-        srs_freep(err);
-        hds_->on_unpublish();
-    }
-#endif
-
     // copy to all forwarders.
     if (true) {
         std::vector<ISrsForwarder *>::iterator it;
@@ -1160,14 +1145,6 @@ srs_error_t SrsOriginHub::on_video(SrsMediaPacket *shared_video, bool is_sequenc
         dvr_->on_unpublish();
     }
 
-#ifdef SRS_HDS
-    if ((err = hds_->on_video(msg)) != srs_success) {
-        srs_warn("hds: ignore video error %s", srs_error_desc(err).c_str());
-        srs_freep(err);
-        hds_->on_unpublish();
-    }
-#endif
-
     // copy to all forwarders.
     if (!forwarders_.empty()) {
         std::vector<ISrsForwarder *>::iterator it;
@@ -1210,13 +1187,6 @@ srs_error_t SrsOriginHub::on_publish()
     }
 
     // TODO: FIXME: use initialize to set req.
-#ifdef SRS_HDS
-    if ((err = hds_->on_publish(req_)) != srs_success) {
-        return srs_error_wrap(err, "hds publish");
-    }
-#endif
-
-    // TODO: FIXME: use initialize to set req.
     if ((err = ng_exec_->on_publish(req_)) != srs_success) {
         return srs_error_wrap(err, "exec publish");
     }
@@ -1237,10 +1207,6 @@ void SrsOriginHub::on_unpublish()
     hls_->on_unpublish();
     dash_->on_unpublish();
     dvr_->on_unpublish();
-
-#ifdef SRS_HDS
-    hds_->on_unpublish();
-#endif
 
     ng_exec_->on_unpublish();
 }

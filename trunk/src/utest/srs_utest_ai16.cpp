@@ -1600,9 +1600,8 @@ VOID TEST(SrsGoApiFeaturesTest, ServeHttpSuccess)
     ASSERT_TRUE(hls_any->is_boolean());
     EXPECT_TRUE(hls_any->to_boolean());
 
-    SrsJsonAny *hds_any = features->get_property("hds");
-    ASSERT_TRUE(hds_any != NULL);
-    ASSERT_TRUE(hds_any->is_boolean());
+    // HDS is removed, so it is not a feature.
+    EXPECT_TRUE(features->get_property("hds") == NULL);
 
     SrsJsonAny *callback_any = features->get_property("callback");
     ASSERT_TRUE(callback_any != NULL);

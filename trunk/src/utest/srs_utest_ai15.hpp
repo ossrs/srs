@@ -12,7 +12,6 @@
 */
 #include <srs_utest.hpp>
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_heartbeat.hpp>
@@ -264,27 +263,6 @@ public:
 public:
     virtual ISrsListener *set_endpoint(const std::string &i, int p);
     virtual ISrsListener *set_label(const std::string &label);
-    virtual srs_error_t listen();
-    virtual void close();
-};
-
-// Mock HTTP-FLV stream caster for testing how SrsServer::listen() starts it and dispose() closes it.
-class MockHttpFlvListenerForServer : public SrsHttpFlvListener
-{
-public:
-    int assemble_count_;
-    int initialize_count_;
-    SrsConfDirective *initialize_conf_;
-    int listen_count_;
-    int close_count_;
-
-public:
-    MockHttpFlvListenerForServer();
-    virtual ~MockHttpFlvListenerForServer();
-
-public:
-    virtual void assemble();
-    virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t listen();
     virtual void close();
 };

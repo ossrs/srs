@@ -110,6 +110,26 @@ var badEnv = []struct {
 		startBug: "an RTMPS listen that is not a port starts SRS without RTMPS",
 	},
 	{name: "HeartbeatIntervalZero", env: envOf("SRS_HEARTBEAT_INTERVAL", "0")},
+	// HDS is removed, so each of its settings, on or off, is refused.
+	{name: "HdsEnabled", env: envOf("SRS_VHOST_HDS_ENABLED", "on")},
+	{name: "HdsDisabled", env: envOf("SRS_VHOST_HDS_ENABLED", "off")},
+	{name: "HdsPath", env: envOf("SRS_VHOST_HDS_HDS_PATH", "./objs/nginx/html")},
+	{name: "HdsFragment", env: envOf("SRS_VHOST_HDS_HDS_FRAGMENT", "10")},
+	{name: "HdsWindow", env: envOf("SRS_VHOST_HDS_HDS_WINDOW", "60")},
+	// The FLV POST caster is removed, so a caster of type flv, on with a port
+	// to listen on or off, is refused.
+	{name: "FlvCaster", env: func(c *check.C) map[string]string {
+		return map[string]string{
+			"SRS_STREAM_CASTER_ENABLED": "on", "SRS_STREAM_CASTER_CASTER": "flv",
+			"SRS_STREAM_CASTER_OUTPUT": "rtmp://127.0.0.1/[app]/[stream]",
+			"SRS_STREAM_CASTER_LISTEN": strconv.Itoa(server.ReservePort(c)),
+		}
+	}},
+	{name: "FlvCasterDisabled", env: envOf("SRS_STREAM_CASTER_ENABLED", "off", "SRS_STREAM_CASTER_CASTER", "flv")},
+	// asprocess, quitting when the parent process quits, is removed, so it is
+	// refused on or off.
+	{name: "Asprocess", env: envOf("SRS_ASPROCESS", "on")},
+	{name: "AsprocessOff", env: envOf("SRS_ASPROCESS", "off")},
 	{
 		name:    "ForwardWithKickoffForIdle",
 		env:     envOf("SRS_VHOST_FORWARD_ENABLED", "on", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000"),

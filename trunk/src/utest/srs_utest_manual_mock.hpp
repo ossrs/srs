@@ -402,7 +402,6 @@ public:
     bool rtc_server_enabled_;
     bool rtc_enabled_;
     bool rtc_init_rate_from_sdp_;
-    bool asprocess_;
     std::string srt_default_mode_;
 
 public:
@@ -436,7 +435,6 @@ public:
         rtc_server_enabled_ = false;
         rtc_enabled_ = false;
         rtc_init_rate_from_sdp_ = false;
-        asprocess_ = false;
         srt_default_mode_ = "request";
     }
     virtual ~MockAppConfig()
@@ -490,7 +488,6 @@ public:
     virtual std::string get_pid_file() { return ""; }
     virtual std::string get_server_id() { return ""; }
     virtual bool empty_ip_ok() { return false; }
-    virtual bool get_asprocess() { return asprocess_; }
     virtual srs_utime_t get_grace_start_wait() { return 0; }
     virtual srs_utime_t get_grace_final_wait() { return 0; }
     virtual bool is_force_grace_quit() { return false; }

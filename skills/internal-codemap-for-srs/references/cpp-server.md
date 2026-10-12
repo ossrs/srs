@@ -170,11 +170,9 @@ Utilities:
 - `app_factory` — Application-level factory (file I/O, paths)
 - `app_coworkers` — Origin cluster coordination
 - `app_latest_version` — Version check against upstream
-- `app_caster_flv` — HTTP-FLV push ingest (stream caster)
 - `app_mpegts_udp` — MPEG-TS over UDP ingest
 - `app_stream_token` — Stream publish token management
 - `app_circuit_breaker` — Circuit breaker for overload protection
-- `app_hds` — HDS (Adobe HTTP Dynamic Streaming)
 
 **File naming convention:** All C++ source files use `srs_{module}_{topic}.cpp/.hpp` — e.g. `srs_app_rtmp_conn.cpp`, `srs_protocol_amf0.hpp`, `srs_kernel_flv.cpp`.
 

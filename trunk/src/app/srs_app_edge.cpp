@@ -13,7 +13,6 @@
 
 using namespace std;
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_http_client.hpp>
 #include <srs_app_rtmp_conn.hpp>
@@ -1133,4 +1132,95 @@ void SrsPublishEdge::on_proxy_unpublish()
     SrsEdgeState pstate = state_;
     state_ = SrsEdgeStateInit;
     srs_trace("edge change from %d to state %d (init).", pstate, state_);
+}
+
+ISrsHttpFileReader::ISrsHttpFileReader()
+{
+}
+
+ISrsHttpFileReader::~ISrsHttpFileReader()
+{
+}
+
+SrsHttpFileReader::SrsHttpFileReader(ISrsHttpResponseReader *h)
+{
+    http_ = h;
+    file_reader_ = new SrsFileReader();
+}
+
+SrsHttpFileReader::~SrsHttpFileReader()
+{
+    srs_freep(file_reader_);
+}
+
+// LCOV_EXCL_START
+srs_error_t SrsHttpFileReader::open(std::string /*file*/)
+{
+    return srs_success;
+}
+
+void SrsHttpFileReader::close()
+{
+}
+
+bool SrsHttpFileReader::is_open()
+{
+    return true;
+}
+
+int64_t SrsHttpFileReader::tellg()
+{
+    return 0;
+}
+
+void SrsHttpFileReader::skip(int64_t /*size*/)
+{
+}
+
+int64_t SrsHttpFileReader::seek2(int64_t offset)
+{
+    return offset;
+}
+
+int64_t SrsHttpFileReader::filesize()
+{
+    return 0;
+}
+// LCOV_EXCL_STOP
+
+srs_error_t SrsHttpFileReader::read(void *buf, size_t count, ssize_t *pnread)
+{
+    srs_error_t err = srs_success;
+
+    if (http_->eof()) {
+        return srs_error_new(ERROR_HTTP_REQUEST_EOF, "EOF");
+    }
+
+    int total_read = 0;
+    while (total_read < (int)count) {
+        ssize_t nread = 0;
+        if ((err = http_->read((char *)buf + total_read, (int)(count - total_read), &nread)) != srs_success) {
+            return srs_error_wrap(err, "read");
+        }
+
+        if (nread == 0) {
+            err = srs_error_new(ERROR_HTTP_REQUEST_EOF, "EOF");
+            break;
+        }
+
+        srs_assert(nread);
+        total_read += (int)nread;
+    }
+
+    if (pnread) {
+        *pnread = total_read;
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpFileReader::lseek(off_t offset, int whence, off_t *seeked)
+{
+    // TODO: FIXME: Use HTTP range for seek.
+    return srs_success;
 }

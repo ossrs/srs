@@ -3690,16 +3690,6 @@ VOID TEST(ConfigMainTest, CheckStreamCasterEngine)
         EXPECT_STREQ("gb28181", conf.get_stream_caster_engine(stream_caster).c_str());
     }
 
-    // Test get_stream_caster_engine with flv caster
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster flv;}"));
-
-        SrsConfDirective *stream_caster = conf.get_root()->get("stream_caster");
-        ASSERT_TRUE(stream_caster != NULL);
-        EXPECT_STREQ("flv", conf.get_stream_caster_engine(stream_caster).c_str());
-    }
-
     // Test get_stream_caster_engine with mpegts-over-udp caster
     if (true) {
         MockSrsConfig conf;

@@ -20,7 +20,6 @@ For optional stream caster services, to push streams to SRS:
 
 * `udp://8935`, Stream Caster: [Push MPEGTS over UDP](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-mpeg-ts-over-udp) server.
 * `tcp://554`, Stream Caster: [Push RTSP](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-rtsp-to-srs) server.
-* `tcp://8936`, Stream Caster: [Push HTTP-FLV](https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs) server.
 * `udp://10080`, Stream Caster: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
 
 For external services to work with SRS:
@@ -193,12 +192,8 @@ git clone https://github.com/ossrs/srs.git
 [v4_EN_Security]: https://ossrs.io/lts/en-us/docs/v4/doc/security
 [v4_CN_DeliveryHttpStream]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-http-flv
 [v4_EN_DeliveryHttpStream]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-http-flv
-[v4_CN_DeliveryHDS]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hds
-[v4_EN_DeliveryHDS]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hds
 [v4_CN_Streamer]: https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer
 [v4_EN_Streamer]: https://ossrs.io/lts/en-us/docs/v4/doc/streamer
-[v4_CN_Streamer2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs
-[v4_EN_Streamer2]: https://ossrs.io/lts/en-us/docs/v4/doc/streamer#push-http-flv-to-srs
 [v4_CN_SampleHttpFlv]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv
 [v4_EN_SampleHttpFlv]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv
 [v4_CN_SampleHttpFlvCluster]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flvCluster

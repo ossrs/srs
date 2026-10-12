@@ -2263,16 +2263,6 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
 
     if (true) {
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment(""));
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window(""));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{hds{hds_fragment 20;hds_window 30;}}"));
-        EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hds_fragment("v"));
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("v"));
-    }
-
-    if (true) {
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
         EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_queue_length(""));
         EXPECT_EQ(0, (int)conf.get_send_min_interval(""));
 
@@ -2447,9 +2437,6 @@ VOID TEST(ConfigUnitTest, OperatorEquals)
 
     EXPECT_TRUE(srs_stream_caster_is_udp("mpegts_over_udp"));
     EXPECT_FALSE(srs_stream_caster_is_udp("xxx"));
-
-    EXPECT_TRUE(srs_stream_caster_is_flv("flv"));
-    EXPECT_FALSE(srs_stream_caster_is_flv("xxx"));
 
     EXPECT_STREQ("on", srs_config_bool2switch("true").c_str());
     EXPECT_STREQ("off", srs_config_bool2switch("false").c_str());
@@ -3035,29 +3022,6 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "work_dir objs;"));
         EXPECT_STREQ("objs", conf.get_work_dir().c_str());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        EXPECT_FALSE(conf.get_asprocess());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "asprocess off;"));
-        EXPECT_FALSE(conf.get_asprocess());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "daemon off; asprocess on;"));
-        EXPECT_TRUE(conf.get_asprocess());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "daemon on; asprocess on;"));
     }
 }
 
@@ -3914,15 +3878,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{hds{enabled on;hds_path xxx;hds_fragment 10;hds_window 10;}}"));
-        EXPECT_TRUE(conf.get_hds_enabled("ossrs.net"));
-        EXPECT_STREQ("xxx", conf.get_hds_path("ossrs.net").c_str());
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("ossrs.net"));
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_window("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{enabled on;dvr_apply all;dvr_path xxx;dvr_plan xxx2;dvr_duration 10;time_jitter full;}}"));
         EXPECT_TRUE(conf.get_dvr_enabled("ossrs.net"));
         EXPECT_TRUE(conf.get_dvr_apply("ossrs.net") != NULL);
@@ -4314,9 +4269,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesGlobal)
 
         SrsSetEnvConfig(conf, pithy_print, "SRS_PITHY_PRINT_MS", "20000");
         EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_pithy_print());
-
-        SrsSetEnvConfig(conf, asprocess, "SRS_ASPROCESS", "on");
-        EXPECT_TRUE(conf.get_asprocess());
 
         SrsSetEnvConfig(conf, empty_ip_ok, "SRS_EMPTY_IP_OK", "off");
         EXPECT_FALSE(conf.empty_ip_ok());
@@ -5333,28 +5285,34 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesDash)
     }
 }
 
-VOID TEST(ConfigEnvTest, CheckEnvValuesHds)
+// HDS is removed: each of its env vars, with any value, makes the config refused, with an error that names
+// it. An empty env var is not set, as for every other env var.
+VOID TEST(ConfigEnvTest, CheckEnvHdsRemoved)
 {
-    if (true) {
-        MockSrsConfig conf;
+    const char *keys[] = {"SRS_VHOST_HDS_ENABLED", "SRS_VHOST_HDS_HDS_PATH", "SRS_VHOST_HDS_HDS_FRAGMENT", "SRS_VHOST_HDS_HDS_WINDOW"};
+    const char *values[] = {"on", "off", "10"};
 
-        SrsSetEnvConfig(conf, hds_enabled, "SRS_VHOST_HDS_ENABLED", "on");
-        EXPECT_TRUE(conf.get_hds_enabled("__defaultVhost__"));
+    for (int i = 0; i < (int)(sizeof(keys) / sizeof(keys[0])); i++) {
+        for (int j = 0; j < (int)(sizeof(values) / sizeof(values[0])); j++) {
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, hds, keys[i], values[j]);
 
-        SrsSetEnvConfig(conf, hds_fragment, "SRS_VHOST_HDS_HDS_FRAGMENT", "20");
-        EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hds_fragment("__defaultVhost__"));
+            srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+            EXPECT_TRUE(err != srs_success) << keys[i] << "=" << values[j];
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(keys[i]) != string::npos) << desc;
+                EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
 
-        SrsSetEnvConfig(conf, hds_fragment_float, "SRS_VHOST_HDS_HDS_FRAGMENT", "20.1");
-        EXPECT_EQ(20.1 * SRS_UTIME_SECONDS, conf.get_hds_fragment("__defaultVhost__"));
-
-        SrsSetEnvConfig(conf, hds_window, "SRS_VHOST_HDS_HDS_WINDOW", "30");
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("__defaultVhost__"));
-
-        SrsSetEnvConfig(conf, hds_window_float, "SRS_VHOST_HDS_HDS_WINDOW", "30.1");
-        EXPECT_EQ(30.1 * SRS_UTIME_SECONDS, conf.get_hds_window("__defaultVhost__"));
-
-        SrsSetEnvConfig(conf, hds_path, "SRS_VHOST_HDS_HDS_PATH", "xxx");
-        EXPECT_STREQ("xxx", conf.get_hds_path("__defaultVhost__").c_str());
+        if (true) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, hds, keys[i], "");
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
     }
 }
 

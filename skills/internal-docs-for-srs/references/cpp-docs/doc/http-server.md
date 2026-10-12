@@ -33,7 +33,7 @@ Config the HTTP port and root.
 
 ```bash
 # embeded http server in srs.
-# the http streaming config, for HLS/HDS/DASH/HTTPProgressive
+# the http streaming config, for HLS/DASH/HTTPProgressive
 # global config for http streaming, user must config the http section for each vhost.
 # the embed http server used to substitute nginx in ./objs/nginx,
 # for example, srs runing in arm, can provides RTMP and HTTP service, only with srs installed.

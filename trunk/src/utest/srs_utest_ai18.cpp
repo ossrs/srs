@@ -3481,7 +3481,7 @@ VOID TEST(IngesterTest, ShowLogMessagePicksIngesterThroughInjectedRand)
     srs_freep(ingester->rand_);
     ingester->rand_ = &rand;
 
-    MockPithyPrintForDynamicConn pprint;
+    MockPithyPrintForIngester pprint;
     pprint.can_print_result_ = true;
     ingester->pprint_ = &pprint;
 

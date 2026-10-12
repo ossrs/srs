@@ -44,9 +44,6 @@ class SrsDvr;
 class SrsDash;
 class SrsEncoder;
 class SrsBuffer;
-#ifdef SRS_HDS
-class SrsHds;
-#endif
 class ISrsStatistic;
 class ISrsHttpHooks;
 class ISrsAppConfig;
@@ -55,9 +52,6 @@ class ISrsHls;
 class ISrsDash;
 class ISrsDvr;
 class ISrsMediaEncoder;
-#ifdef SRS_HDS
-class ISrsHds;
-#endif
 class ISrsNgExec;
 class ISrsForwarder;
 class ISrsAppFactory;
@@ -452,10 +446,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsDvr *dvr_;
     // transcoding handler.
     ISrsMediaEncoder *encoder_;
-#ifdef SRS_HDS
-    // adobe hds(http dynamic streaming).
-    ISrsHds *hds_;
-#endif
     // nginx-rtmp exec feature.
     ISrsNgExec *ng_exec_;
     // To forward stream to other servers

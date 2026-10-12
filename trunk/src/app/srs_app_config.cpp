@@ -332,11 +332,6 @@ bool srs_stream_caster_is_udp(string caster)
     return caster == "mpegts_over_udp";
 }
 
-bool srs_stream_caster_is_flv(string caster)
-{
-    return caster == "flv";
-}
-
 bool srs_stream_caster_is_gb28181(string caster)
 {
     return caster == "gb28181";
@@ -1899,7 +1894,6 @@ void SrsConfig::print_help(char **argv)
         "      SRS_CONFIG_FILE=                              Config file to use instead of -c, ignored with -e.\n"
         "      SRS_PID=                                      Pid file. Default is empty with -e, and ./objs/srs.pid with -c.\n"
         "      SRS_DAEMON=off                                Run as daemon. Default is off with -e, and on with -c.\n"
-        "      SRS_ASPROCESS=off                             Quit when the parent process quits.\n"
         "      SRS_LOG_TANK=console                          console or file. Default is console with -e, and file with -c.\n"
         "      SRS_LOG_FILE=./objs/srs.log                   Log file, when SRS_LOG_TANK=file.\n"
         "      SRS_INOTIFY_AUTO_RELOAD=off                   Reload when the config file changes, not for -e.\n"
@@ -2136,9 +2130,9 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_CLUSTER_PROTOCOL=rtmp               rtmp, flv or flvs to pull from the origin.\n"
         "      SRS_VHOST_CLUSTER_ORIGIN_CLUSTER=off          Redirect a player of an origin to the coworker with the stream.\n"
         "      SRS_VHOST_CLUSTER_COWORKERS=                  Space separated HTTP API ip:port of the origin cluster.\n"
-        "   Stream caster, to receive GB28181, FLV or MPEG-TS over UDP as RTMP:\n"
+        "   Stream caster, to receive GB28181 or MPEG-TS over UDP as RTMP:\n"
         "      SRS_STREAM_CASTER_ENABLED=off                 Enable a stream caster, even without one in the config.\n"
-        "      SRS_STREAM_CASTER_CASTER=                     gb28181, flv or mpegts_over_udp.\n"
+        "      SRS_STREAM_CASTER_CASTER=                     gb28181 or mpegts_over_udp.\n"
         "      SRS_STREAM_CASTER_OUTPUT=                     RTMP URL to output to, such as rtmp://127.0.0.1/live/[stream].\n"
         "      SRS_STREAM_CASTER_LISTEN=0                    Port to listen on.\n"
         "      SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT=10    GB28181, seconds to wait for the media connection.\n"
@@ -2244,9 +2238,30 @@ srs_error_t SrsConfig::check_normal_config()
     for (int i = 0; i < (int)root_->directives_.size(); i++) {
         SrsConfDirective *conf = root_->at(i);
         std::string n = conf->name_;
-        if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "tencentcloud_apm" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "asprocess" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps") {
+        // asprocess is removed, so refuse it rather than ignore it, on or off.
+        if (n == "asprocess") {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "asprocess is removed, quitting when the parent process quits is not supported");
+        }
+        if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "tencentcloud_apm" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps") {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
+    }
+    // HDS is removed, so refuse its env vars rather than ignore them.
+    if (true) {
+        const char *removed[] = {"SRS_VHOST_HDS_ENABLED", "SRS_VHOST_HDS_HDS_PATH", "SRS_VHOST_HDS_HDS_FRAGMENT", "SRS_VHOST_HDS_HDS_WINDOW"};
+        for (int i = 0; i < (int)(sizeof(removed) / sizeof(removed[0])); i++) {
+            if (!srs_getenv(removed[i]).empty()) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%s is removed, HDS is not supported", removed[i]);
+            }
+        }
+    }
+    // The FLV POST caster is removed, so refuse it by env rather than ignore it, whether it is enabled or not.
+    if (srs_getenv("SRS_STREAM_CASTER_CASTER") == "flv") {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_STREAM_CASTER_CASTER=flv is removed, the FLV POST caster is not supported");
+    }
+    // asprocess is removed, so refuse it by env rather than ignore it, on or off.
+    if (!srs_getenv("SRS_ASPROCESS").empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_ASPROCESS is removed, quitting when the parent process quits is not supported");
     }
     if (true) {
         SrsConfDirective *conf = root_->get("http_api");
@@ -2595,6 +2610,10 @@ srs_error_t SrsConfig::check_normal_config()
             if (n != "enabled" && n != "caster" && n != "output" && n != "listen" && n != "media_connect_timeout" && n != "sip") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", n.c_str());
             }
+            // The FLV POST caster is removed, so refuse it rather than ignore it, whether it is enabled or not.
+            if (n == "caster" && conf->arg0() == "flv") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "stream_caster.caster flv is removed, the FLV POST caster is not supported");
+            }
 
             if (n == "sip") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
@@ -2618,7 +2637,11 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; vhost && i < (int)vhost->directives_.size(); i++) {
             SrsConfDirective *conf = vhost->at(i);
             string n = conf->name_;
-            if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay" && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks" && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck" && n != "play" && n != "publish" && n != "cluster" && n != "security" && n != "http_remux" && n != "dash" && n != "http_static" && n != "hds" && n != "exec" && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt" && n != "rtsp") {
+            // HDS is removed, so refuse its section rather than ignore it.
+            if (n == "hds") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.hds of %s is removed, HDS is not supported", vhost->arg0().c_str());
+            }
+            if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay" && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks" && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck" && n != "play" && n != "publish" && n != "cluster" && n != "security" && n != "http_remux" && n != "dash" && n != "http_static" && n != "exec" && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt" && n != "rtsp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
             // for each sub directives of vhost.
@@ -2862,11 +2885,6 @@ srs_error_t SrsConfig::check_normal_config()
             srs_warn("chunk_size=%s of %s should be in [%d, %d]", get_global_chunk_size(), vhost->arg0().c_str(),
                      SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
         }
-    }
-
-    // asprocess conflict with daemon
-    if (get_asprocess() && get_daemon()) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "daemon conflicts with asprocess");
     }
 
     return err;
@@ -3155,20 +3173,6 @@ string SrsConfig::get_work_dir()
     }
 
     return conf->arg0();
-}
-
-bool SrsConfig::get_asprocess()
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.asprocess"); // SRS_ASPROCESS
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = root_->get("asprocess");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
 }
 
 bool SrsConfig::whether_query_latest_version()
@@ -7311,107 +7315,6 @@ bool SrsConfig::get_hls_recover(string vhost)
     }
 
     return SRS_CONF_PREFER_TRUE(conf->arg0());
-}
-
-SrsConfDirective *SrsConfig::get_hds(const string &vhost)
-{
-    SrsConfDirective *conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-
-    return conf->get("hds");
-}
-
-bool SrsConfig::get_hds_enabled(const string &vhost)
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hds.enabled"); // SRS_VHOST_HDS_ENABLED
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return get_hds_enabled(conf);
-}
-
-bool SrsConfig::get_hds_enabled(SrsConfDirective *vhost)
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hds.enabled"); // SRS_VHOST_HDS_ENABLED
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = vhost->get("hds");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
-string SrsConfig::get_hds_path(const string &vhost)
-{
-    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hds.hds_path"); // SRS_VHOST_HDS_HDS_PATH
-
-    static string DEFAULT = "./objs/nginx/html";
-
-    SrsConfDirective *conf = get_hds(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("hds_path");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return conf->arg0();
-}
-
-srs_utime_t SrsConfig::get_hds_fragment(const string &vhost)
-{
-    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hds.hds_fragment"); // SRS_VHOST_HDS_HDS_FRAGMENT
-
-    static srs_utime_t DEFAULT = (10 * SRS_UTIME_SECONDS);
-
-    SrsConfDirective *conf = get_hds(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("hds_fragment");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
-}
-
-srs_utime_t SrsConfig::get_hds_window(const string &vhost)
-{
-    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hds.hds_window"); // SRS_VHOST_HDS_HDS_WINDOW
-
-    static srs_utime_t DEFAULT = (60 * SRS_UTIME_SECONDS);
-
-    SrsConfDirective *conf = get_hds(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("hds_window");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 SrsConfDirective *SrsConfig::get_dvr(string vhost)

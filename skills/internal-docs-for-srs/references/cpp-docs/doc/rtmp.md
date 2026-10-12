@@ -189,7 +189,7 @@ vhost __defaultVhost__ {
         # Overwrite by env SRS_VHOST_PLAY_TIME_JITTER for all vhosts.
         # default: full
         time_jitter full;
-        # vhost for atc for hls/hds/rtmp backup.
+        # vhost for atc for hls/rtmp backup.
         # generally, atc default to off, server delivery rtmp stream to client(flash) timestamp from 0.
         # when atc is on, server delivery rtmp stream by absolute time.
         # atc is used, for instance, encoder will copy stream to master and slave server,

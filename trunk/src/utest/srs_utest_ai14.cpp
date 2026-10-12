@@ -10,7 +10,6 @@ using namespace std;
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_forward.hpp>
-#include <srs_app_hds.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_rtmp_source.hpp>
@@ -2316,39 +2315,6 @@ srs_error_t MockNgExecForOriginHub::cycle()
     return srs_success;
 }
 
-#ifdef SRS_HDS
-// Mock ISrsHds implementation
-MockHdsForOriginHub::MockHdsForOriginHub()
-{
-    on_publish_count_ = 0;
-}
-
-MockHdsForOriginHub::~MockHdsForOriginHub()
-{
-}
-
-srs_error_t MockHdsForOriginHub::on_publish(ISrsRequest *req)
-{
-    on_publish_count_++;
-    return srs_success;
-}
-
-srs_error_t MockHdsForOriginHub::on_unpublish()
-{
-    return srs_success;
-}
-
-srs_error_t MockHdsForOriginHub::on_video(SrsMediaPacket *msg)
-{
-    return srs_success;
-}
-
-srs_error_t MockHdsForOriginHub::on_audio(SrsMediaPacket *msg)
-{
-    return srs_success;
-}
-#endif
-
 // Unit test for SrsOriginHub::on_publish typical scenario
 VOID TEST(AppOriginHubTest, OnPublishTypicalScenario)
 {
@@ -2369,9 +2335,6 @@ VOID TEST(AppOriginHubTest, OnPublishTypicalScenario)
     MockDashForOriginHub *mock_dash = new MockDashForOriginHub();
     MockDvrForOriginHub *mock_dvr = new MockDvrForOriginHub();
     MockNgExecForOriginHub *mock_ng_exec = new MockNgExecForOriginHub();
-#ifdef SRS_HDS
-    MockHdsForOriginHub *mock_hds = new MockHdsForOriginHub();
-#endif
 
     // Inject mocks by replacing default components
     srs_freep(hub->hls_);
@@ -2382,10 +2345,6 @@ VOID TEST(AppOriginHubTest, OnPublishTypicalScenario)
     hub->dvr_ = mock_dvr;
     srs_freep(hub->ng_exec_);
     hub->ng_exec_ = mock_ng_exec;
-#ifdef SRS_HDS
-    srs_freep(hub->hds_);
-    hub->hds_ = mock_hds;
-#endif
 
     // Initialize the hub
     HELPER_EXPECT_SUCCESS(hub->initialize(source, &mock_req));
@@ -2404,11 +2363,6 @@ VOID TEST(AppOriginHubTest, OnPublishTypicalScenario)
 
     // Verify that ng_exec on_publish was called
     EXPECT_EQ(1, mock_ng_exec->on_publish_count_);
-
-#ifdef SRS_HDS
-    // Verify that hds on_publish was called
-    EXPECT_EQ(1, mock_hds->on_publish_count_);
-#endif
 }
 
 // Unit test for SrsOriginHub::on_video typical scenario
@@ -2514,9 +2468,6 @@ VOID TEST(AppOriginHubTest, CreateForwardersTypicalScenario)
         MockDashForOriginHub *mock_dash = new MockDashForOriginHub();
         MockDvrForOriginHub *mock_dvr = new MockDvrForOriginHub();
         MockNgExecForOriginHub *mock_ng_exec = new MockNgExecForOriginHub();
-#ifdef SRS_HDS
-        MockHdsForOriginHub *mock_hds = new MockHdsForOriginHub();
-#endif
 
         // Inject mocks by replacing default components
         srs_freep(hub->hls_);
@@ -2527,10 +2478,6 @@ VOID TEST(AppOriginHubTest, CreateForwardersTypicalScenario)
         hub->dvr_ = mock_dvr;
         srs_freep(hub->ng_exec_);
         hub->ng_exec_ = mock_ng_exec;
-#ifdef SRS_HDS
-        srs_freep(hub->hds_);
-        hub->hds_ = mock_hds;
-#endif
         hub->stat_ = mock_stat;
         hub->source_ = mock_source;
         hub->config_ = mock_config;
@@ -3269,9 +3216,6 @@ VOID TEST(AppOriginHubTest, CreateBackendForwardersTypicalScenario)
         MockDashForOriginHub *mock_dash = new MockDashForOriginHub();
         MockDvrForOriginHub *mock_dvr = new MockDvrForOriginHub();
         MockNgExecForOriginHub *mock_ng_exec = new MockNgExecForOriginHub();
-#ifdef SRS_HDS
-        MockHdsForOriginHub *mock_hds = new MockHdsForOriginHub();
-#endif
 
         // Inject mocks by replacing default components
         srs_freep(hub->hls_);
@@ -3282,10 +3226,6 @@ VOID TEST(AppOriginHubTest, CreateBackendForwardersTypicalScenario)
         hub->dvr_ = mock_dvr;
         srs_freep(hub->ng_exec_);
         hub->ng_exec_ = mock_ng_exec;
-#ifdef SRS_HDS
-        srs_freep(hub->hds_);
-        hub->hds_ = mock_hds;
-#endif
         hub->stat_ = mock_stat;
         hub->source_ = mock_source;
         hub->config_ = mock_config;

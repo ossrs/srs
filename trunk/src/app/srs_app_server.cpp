@@ -18,7 +18,6 @@
 using namespace std;
 
 #include <srs_app_async_call.hpp>
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_coworkers.hpp>
@@ -205,7 +204,6 @@ SrsServer::SrsServer()
 
     signal_manager_ = new SrsSignalManager(this);
     latest_version_ = new SrsLatestVersion();
-    ppid_ = 0;
 
     http_api_mux_ = new SrsHttpServeMux();
 
@@ -219,7 +217,6 @@ SrsServer::SrsServer()
 #ifdef SRS_RTSP
     rtsp_listener_ = new SrsMultipleTcpListeners(this);
 #endif
-    stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
 #ifdef SRS_GB28181
@@ -262,9 +259,7 @@ SrsServer::SrsServer()
 
 void SrsServer::assemble()
 {
-    ppid_ = ::getppid();
     signal_manager_->assemble();
-    stream_caster_flv_listener_->assemble();
     stream_caster_mpegts_->assemble();
     http_server_->assemble();
     ingester_->assemble();
@@ -299,7 +294,6 @@ SrsServer::~SrsServer()
 #ifdef SRS_RTSP
     srs_freep(rtsp_listener_);
 #endif
-    srs_freep(stream_caster_flv_listener_);
     srs_freep(stream_caster_mpegts_);
     srs_freep(exporter_listener_);
 #ifdef SRS_GB28181
@@ -355,7 +349,6 @@ void SrsServer::dispose()
 #ifdef SRS_RTSP
     rtsp_listener_->close();
 #endif
-    stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
 #ifdef SRS_GB28181
@@ -390,7 +383,6 @@ void SrsServer::gracefully_dispose()
 #ifdef SRS_RTSP
     rtsp_listener_->close();
 #endif
-    stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
 #ifdef SRS_GB28181
@@ -585,14 +577,8 @@ srs_error_t SrsServer::initialize_st()
 {
     srs_error_t err = srs_success;
 
-    // check asprocess.
-    bool asprocess = config_->get_asprocess();
-    if (asprocess && ppid_ == 1) {
-        return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "ppid=%d illegal for asprocess", ppid_);
-    }
-
-    srs_trace("server main cid=%s, pid=%d, ppid=%d, asprocess=%d",
-              _srs_context->get_id().c_str(), ::getpid(), ppid_, asprocess);
+    srs_trace("server main cid=%s, pid=%d, ppid=%d",
+              _srs_context->get_id().c_str(), ::getpid(), ::getppid());
 
     return err;
 }
@@ -708,11 +694,6 @@ srs_error_t SrsServer::listen()
         if (srs_stream_caster_is_udp(caster)) {
             listener = stream_caster_mpegts_;
             if ((err = stream_caster_mpegts_->initialize(conf)) != srs_success) {
-                return srs_error_wrap(err, "initialize");
-            }
-        } else if (srs_stream_caster_is_flv(caster)) {
-            listener = stream_caster_flv_listener_;
-            if ((err = stream_caster_flv_listener_->initialize(conf)) != srs_success) {
                 return srs_error_wrap(err, "initialize");
             }
         } else if (srs_stream_caster_is_gb28181(caster)) {
@@ -1105,15 +1086,7 @@ srs_error_t SrsServer::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // for asprocess.
-    bool asprocess = config_->get_asprocess();
-
     while (true) {
-        // asprocess check.
-        if (asprocess && ::getppid() != ppid_) {
-            return srs_error_new(ERROR_ASPROCESS_PPID, "asprocess ppid changed from %d to %d", ppid_, ::getppid());
-        }
-
         if ((err = do2_cycle()) != srs_success) {
             return srs_error_wrap(err, "cycle");
         }
