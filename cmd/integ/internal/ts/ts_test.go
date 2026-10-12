@@ -482,3 +482,53 @@ func TestDialHTTP(t *testing.T) {
 		t.Errorf("missing stream: %v, want 404", err)
 	}
 }
+
+// TestGeneratedTS checks the MPEG-TS files of the test media, which the media
+// package can't read: the codecs of their FLV and MP4 twins, a keyframe every
+// second for 30s, and 25 fps. TS carries no Opus sequence header.
+func TestGeneratedTS(t *testing.T) {
+	cases := []struct {
+		file, video, profile, audio string
+		rate, headers               int
+	}{
+		{media.H264HighAACTS, "h264", "High", "aac", 44100, 1},
+		{media.HEVCAACTS, "hevc", "Main", "aac", 44100, 1},
+		{media.H264OpusTS, "h264", "High", "opus", 48000, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.file, func(t *testing.T) {
+			f, err := os.Open(media.Path(t, tc.file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+
+			r, err := Analyze(NewDemuxer(f), report.Until{})
+			if err != nil {
+				t.Fatalf("%v: %v", err, r)
+			}
+			v, a := r.Video, r.Audio
+			if v == nil || a == nil {
+				t.Fatalf("report %v, want video and audio", r)
+			}
+			if v.Codec != tc.video || v.Profile != tc.profile || v.Width != 768 || v.Height != 320 || v.SequenceHeaders != 1 {
+				t.Errorf("video %v %v %vx%v with %v sequence headers, want %v %v 768x320 with 1",
+					v.Codec, v.Profile, v.Width, v.Height, v.SequenceHeaders, tc.video, tc.profile)
+			}
+			if v.Frames != media.Duration*media.FPS || v.Keyframes != media.Duration || v.LeadingFrames != 0 {
+				t.Errorf("video %v frames, %v keyframes, %v before the first; want %v, %v, 0",
+					v.Frames, v.Keyframes, v.LeadingFrames, media.Duration*media.FPS, media.Duration)
+			}
+			if d := v.Duration(); d < 29900*time.Millisecond || d > 30*time.Second {
+				t.Errorf("video lasts %v, want 29.96s", d)
+			}
+			if a.Codec != tc.audio || a.SampleRate != tc.rate || a.Channels != 2 || a.SequenceHeaders != tc.headers || a.Frames == 0 {
+				t.Errorf("audio %v %vHz %vch with %v sequence headers and %v frames, want %v %vHz 2ch with %v",
+					a.Codec, a.SampleRate, a.Channels, a.SequenceHeaders, a.Frames, tc.audio, tc.rate, tc.headers)
+			}
+			if err := r.CheckTimestamps(100 * time.Millisecond); err != nil {
+				t.Error(err)
+			}
+		})
+	}
+}

@@ -234,3 +234,47 @@ func TestEnsure(t *testing.T) {
 		}
 	})
 }
+
+func TestParseProtocols(t *testing.T) {
+	out := `Supported file protocols:
+Input:
+  file
+  http
+  srt
+  srtp
+  rtmp
+Output:
+  file
+  http
+  srt
+  icecast
+`
+	got := parseProtocols(out)
+	for _, p := range []string{"file", "http", "srt"} {
+		if !got[p] {
+			t.Errorf("no %v in %v", p, got)
+		}
+	}
+	// Only a protocol ffmpeg can both read and write counts.
+	for _, p := range []string{"srtp", "rtmp", "icecast", "Input:", "Output:"} {
+		if got[p] {
+			t.Errorf("%v counted in %v", p, got)
+		}
+	}
+}
+
+func TestHasProtocol(t *testing.T) {
+	ff, err := FindFFmpeg()
+	if err != nil {
+		t.Skipf("no ffmpeg: %v", err)
+	}
+	if !ff.HasProtocol("file") {
+		t.Errorf("%v has no file protocol", ff.Path)
+	}
+	if ff.HasProtocol("no-such-protocol") {
+		t.Errorf("%v has a protocol that doesn't exist", ff.Path)
+	}
+	if (&FFmpeg{Path: "/no/such/ffmpeg"}).HasProtocol("file") {
+		t.Errorf("a missing ffmpeg has the file protocol")
+	}
+}

@@ -81,6 +81,9 @@ func TestCommonConfig(t *testing.T) {
 		"SRS_RTC_SERVER_CANDIDATE":          "127.0.0.1",
 		"SRS_RTC_SERVER_KEEP_API_DOMAIN":    "on",
 		"SRS_RTC_SERVER_RESOLVE_API_DOMAIN": "off",
+		"SRS_VHOST_SRT_ENABLED":             "on",
+		"SRS_VHOST_SRT_TO_RTMP":             "on",
+		"SRS_SRT_SERVER_RECVLATENCY":        "0",
 	}
 	if !reflect.DeepEqual(cfg.Env, want) {
 		t.Errorf("env %v, want %v", cfg.Env, want)
@@ -457,6 +460,72 @@ func TestWithRTC(t *testing.T) {
 	}
 	// A config with WebRTC on keeps its listeners.
 	if cfg := WithRTC(CommonConfig(), RTC{}); !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
+		t.Errorf("listeners %v, want Common's", cfg.Listeners)
+	}
+}
+
+// TestWithSRT checks an SRT variant: the listener, SRT and its conversion to
+// RTMP on, Common's latency, and its own settings, on a copy of the base.
+func TestWithSRT(t *testing.T) {
+	cases := []struct {
+		name string
+		s    SRTOptions
+		want map[string]string
+	}{
+		{"Defaults", SRTOptions{}, nil},
+		{"DefaultApp", SRTOptions{DefaultApp: "srtapp"}, map[string]string{"SRS_SRT_SERVER_DEFAULT_APP": "srtapp"}},
+		{"DefaultMode", SRTOptions{DefaultMode: "publish"}, map[string]string{"SRS_SRT_SERVER_DEFAULT_MODE": "publish"}},
+		{"DefaultStreamID", SRTOptions{DefaultStreamID: "#!::r=srtapp/default,m=request"},
+			map[string]string{"SRS_SRT_SERVER_DEFAULT_STREAMID": "#!::r=srtapp/default,m=request"}},
+		{"Passphrase", SRTOptions{Passphrase: "srs-integ-passphrase", PBKeyLen: 16},
+			map[string]string{"SRS_SRT_SERVER_PASSPHRASE": "srs-integ-passphrase", "SRS_SRT_SERVER_PBKEYLEN": "16"}},
+		{"Latencies", SRTOptions{RecvLatency: 250 * time.Millisecond, PeerLatency: 150 * time.Millisecond},
+			map[string]string{"SRS_SRT_SERVER_RECVLATENCY": "250", "SRS_SRT_SERVER_PEERLATENCY": "150"}},
+		// An empty value is a variable left out, so SRS's default applies.
+		{"LatencyOnly", SRTOptions{Latency: 300 * time.Millisecond, KeepRecvLatency: true},
+			map[string]string{"SRS_SRT_SERVER_LATENCY": "300", "SRS_SRT_SERVER_RECVLATENCY": ""}},
+		{"PeerIdleTimeout", SRTOptions{PeerIdleTimeout: 1500 * time.Millisecond},
+			map[string]string{"SRS_SRT_SERVER_PEER_IDLE_TIMEOUT": "1500"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := RemuxConfig("flv")
+			cfg := WithSRT(base, tc.s)
+			if want := append(slices.Clone(base.Listeners), SRT); !reflect.DeepEqual(cfg.Listeners, want) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+			}
+			want := map[string]string{
+				"SRS_VHOST_SRT_ENABLED":      "on",
+				"SRS_VHOST_SRT_TO_RTMP":      "on",
+				"SRS_SRT_SERVER_RECVLATENCY": "0",
+			}
+			for k, v := range base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				if v == "" {
+					delete(want, k)
+				} else {
+					want[k] = v
+				}
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, ok := base.Env["SRS_VHOST_SRT_ENABLED"]; ok || len(base.Listeners) != 3 {
+				t.Errorf("the base config changed: %v %v", base.Listeners, base.Env)
+			}
+			ports := map[Listener]int{}
+			for i, l := range cfg.Listeners {
+				ports[l] = 14000 + i
+			}
+			if _, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{}); err != nil {
+				t.Fatalf("build env: %v", err)
+			}
+		})
+	}
+	// A config with SRT on keeps its listeners.
+	if cfg := WithSRT(CommonConfig(), SRTOptions{}); !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
 		t.Errorf("listeners %v, want Common's", cfg.Listeners)
 	}
 }

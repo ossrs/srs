@@ -3,6 +3,7 @@ module srs-integ
 go 1.25.0
 
 require (
+	github.com/datarhei/gosrt v0.11.0
 	github.com/pion/dtls/v3 v3.1.8
 	github.com/pion/ice/v4 v4.4.2
 	github.com/pion/interceptor v0.1.48
@@ -14,6 +15,7 @@ require (
 )
 
 require (
+	github.com/benburkert/openpgp v0.0.0-20160410205803-c2471f86866c // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/pion/datachannel v1.6.2 // indirect
 	github.com/pion/logging v0.2.4 // indirect
@@ -24,8 +26,8 @@ require (
 	github.com/pion/transport/v4 v4.1.0 // indirect
 	github.com/pion/turn/v5 v5.1.0 // indirect
 	github.com/wlynxg/anet v0.0.5 // indirect
-	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
-	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 )

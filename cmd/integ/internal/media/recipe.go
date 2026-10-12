@@ -19,6 +19,12 @@ import (
 const (
 	// H264HighAAC is like a real encoder: H.264 High with B-frames and AAC.
 	H264HighAAC = "h264-high-aac.flv"
+	// H264HighAACTS is the same in MPEG-TS, for SRT.
+	H264HighAACTS = "h264-high-aac.ts"
+	// HEVCAACTS is HEVC with B-frames and AAC in MPEG-TS, for SRT.
+	HEVCAACTS = "hevc-aac.ts"
+	// H264OpusTS is H.264 High and Opus in MPEG-TS, for SRT.
+	H264OpusTS = "h264-opus.ts"
 	// H264BaselineAAC has no B-frames, for RTMP to WebRTC and RTSP.
 	H264BaselineAAC = "h264-baseline-aac.flv"
 	// H264BaselineOpus is for WHIP.
@@ -94,6 +100,9 @@ var (
 // Recipes is the test media set.
 var Recipes = []Recipe{
 	{H264HighAAC, "flv", []Encoder{x264High}, []Encoder{aac}},
+	{H264HighAACTS, "mpegts", []Encoder{x264High}, []Encoder{aac}},
+	{HEVCAACTS, "mpegts", []Encoder{x265}, []Encoder{aac}},
+	{H264OpusTS, "mpegts", []Encoder{x264High}, opus},
 	{H264BaselineAAC, "flv", []Encoder{x264Baseline}, []Encoder{aac}},
 	{H264BaselineOpus, "mp4", []Encoder{x264Baseline}, opus},
 	{HEVCAAC, "flv", []Encoder{x265}, []Encoder{aac}},

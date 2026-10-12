@@ -57,13 +57,15 @@ func sharedSegmentsDispose() server.Config {
 // a 0.5s window and hls_cleanup off, DASH with 1s fragments and dash_cleanup
 // off, and every hook on a mock. The dispose times stay at SRS's default,
 // 120s, so a held stream keeps its files for the sessions.
+// TestTimer_Srt_PeerIdle shares it too, for SRT with a 1s peer_idle_timeout;
+// the other groups use no SRT.
 func sharedSegmentsKeep() server.Config {
 	cfg := server.WithDASH(
 		server.WithHLS(server.PlayConfig(server.Play{QueueLength: time.Second}),
 			server.HLS{Fragment: time.Second, Window: sessionWindow, NoCleanup: true}),
 		server.DASH{Fragment: time.Second, NoCleanup: true})
 	cfg.Hooks = true
-	return cfg
+	return server.WithSRT(cfg, sharedSegmentsKeepSRT)
 }
 
 // TestTimer_Hls_Dispose checks hls_dispose: SRS removes the playlist and

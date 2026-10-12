@@ -18,6 +18,7 @@ import (
 	"srs-integ/internal/media"
 	"srs-integ/internal/rtc"
 	"srs-integ/internal/rtmp"
+	"srs-integ/internal/srt"
 )
 
 // cliRTMPOptions are the client options of probe and publish. An rtmps://
@@ -28,6 +29,9 @@ var cliRTMPOptions = &rtmp.Options{TLS: &tls.Config{InsecureSkipVerify: true}}
 // publish sends an FLV file to an RTMP or RTMPS URL in real time, until the
 // file ends or the process is interrupted.
 func publish(file, url string, stdout io.Writer) error {
+	if strings.HasPrefix(url, "srt://") {
+		return publishSRT(file, url, stdout)
+	}
 	if isWHIP(url) {
 		return publishWHIP(file, url, stdout)
 	}
@@ -145,4 +149,41 @@ func sentMedia(samples []rtc.Sample, wall time.Duration, err error) time.Duratio
 		return last
 	}
 	return wall.Round(time.Millisecond)
+}
+
+// publishSRT sends an MPEG-TS file to an SRT URL in real time, by its PCR,
+// until the file ends or the process is interrupted. The streamid of the URL
+// says what to do, such as #!::r=live/s,m=publish.
+func publishSRT(file, rawURL string, stdout io.Writer) error {
+	addr, opts, err := srt.ParseURL(rawURL)
+	if err != nil {
+		return fmt.Errorf("publish: %w", err)
+	}
+	if !strings.HasSuffix(file, ".ts") {
+		return fmt.Errorf("publish: SRT takes an MPEG-TS file, .ts, not %v", file)
+	}
+	f, err := os.Open(file)
+	if err != nil {
+		return fmt.Errorf("publish: %w", err)
+	}
+	defer f.Close()
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	c, err := srt.Dial(ctx, addr, opts)
+	if err != nil {
+		return fmt.Errorf("publish: %w", err)
+	}
+	defer c.Close()
+	fmt.Fprintf(stdout, "publishing %v to %v, streamid %q\n", file, addr, opts.StreamID)
+
+	start := time.Now()
+	s := srt.NewSender(f)
+	err = s.Stream(ctx, c, nil, nil)
+	msgs, n := s.Sent()
+	fmt.Fprintf(stdout, "sent %v messages, %v bytes in %v\n", msgs, n, time.Since(start).Round(time.Millisecond))
+	if err != nil && ctx.Err() == nil {
+		return fmt.Errorf("publish: %w", err)
+	}
+	return nil
 }

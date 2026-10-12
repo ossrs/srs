@@ -39,7 +39,8 @@ const keyQuery = "token=abc123&sig=xyz789"
 //   - hls_ts_ctx off and hls_master_m3u8_path_relative on, the hls_ctx
 //     session settings Common keeps at their defaults;
 //   - every hook on a mock, for the sessions' on_play;
-//   - WebRTC over UDP with nack and twcc off.
+//   - WebRTC over UDP with nack and twcc off;
+//   - SRT with the server settings of sharedTsFloorSRT.
 func sharedTsFloor() server.Config {
 	cfg := server.HLSConfig(server.HLS{
 		Fragment:        2 * time.Second,
@@ -52,7 +53,7 @@ func sharedTsFloor() server.Config {
 		MasterRelative:  true,
 	})
 	cfg.Hooks = true
-	return server.WithRTC(cfg, sharedTsFloorRTC)
+	return server.WithSRT(server.WithRTC(cfg, sharedTsFloorRTC), sharedTsFloorSRT)
 }
 
 // TestHls_Keys plays the AES-128 encrypted TS segments of hls_keys: a key
@@ -380,9 +381,10 @@ func hlsPlays(srs *server.Server, name string) []mock.Request {
 // default hls_key_url, hls_ctx off, every hook on a mock, DASH with 2s
 // fragments and the MPD in a dir per stream, and WebRTC over UDP only with
 // dtls_role active, stun_strict_check on, api_as_candidates off and
-// nack_prefer_rtx on. HLS and DASH write different files, and
-// WebRTC sessions write none, so none of the groups depends on what the
-// others set.
+// nack_prefer_rtx on; TestSrt_LatencyOnly shares it too, for SRT with
+// latency set alone. HLS and DASH write different files, and WebRTC and SRT
+// sessions write none, so none of the groups depends on what the others
+// set.
 func sharedFmp4Keys() server.Config {
 	cfg := server.HLSConfig(server.HLS{
 		FMP4:            true,
@@ -397,7 +399,7 @@ func sharedFmp4Keys() server.Config {
 		Fragment: 2 * time.Second,
 		MPDFile:  "[app]/[stream]/index.mpd",
 	})
-	return server.WithRTC(cfg, sharedFmp4KeysRTC)
+	return server.WithSRT(server.WithRTC(cfg, sharedFmp4KeysRTC), sharedFmp4KeysSRT)
 }
 
 // TestHls_Fmp4Keys is hls_keys with fmp4 segments: SAMPLE-AES keys in the

@@ -417,10 +417,11 @@ func (s *Server) logTo(t testing.TB) {
 // every hook on one mock, which accepts unless a case scripts a reply for its
 // own stream, and WebRTC over UDP and TCP with 127.0.0.1 as its candidate,
 // so a session doesn't depend on the host's interfaces; the host of a WHIP or
-// WHEP request is a candidate too. A case that tests the default batching
+// WHEP request is a candidate too, and SRT with its streams converted to RTMP
+// and no receive latency (see srtEnv). A case that tests the default batching
 // needs a variant.
 func CommonConfig() Config {
-	return Config{
+	cfg := Config{
 		Listeners: CommonListeners,
 		Hooks:     true,
 		IPv6:      true,
@@ -440,6 +441,10 @@ func CommonConfig() Config {
 			"SRS_RTC_SERVER_RESOLVE_API_DOMAIN": "off",
 		},
 	}
+	for k, v := range srtEnv {
+		cfg.Env[k] = v
+	}
+	return cfg
 }
 
 // Common returns the Common server, shared by every top-level test of the
@@ -1073,4 +1078,87 @@ func WithRTC(cfg Config, r RTC) Config {
 		cfg.Listeners = append(slices.Clone(cfg.Listeners), RTCUDP)
 	}
 	return cfg
+}
+
+// SRTOptions are an SRT variant's server settings; the zero value keeps
+// SRS's defaults.
+type SRTOptions struct {
+	// DefaultApp is the app of a short streamid that names only a stream.
+	DefaultApp string
+	// DefaultMode is what a short streamid, without #!::, does: publish or
+	// request.
+	DefaultMode string
+	// DefaultStreamID is the streamid of a caller that sends none.
+	DefaultStreamID string
+	// Passphrase is the secret every caller must have, and PBKeyLen its key
+	// length.
+	Passphrase string
+	PBKeyLen   int
+	// RecvLatency is recvlatency, SRS's receive latency, 0 like Common's;
+	// KeepRecvLatency leaves it at SRS's default instead.
+	RecvLatency     time.Duration
+	KeepRecvLatency bool
+	// Latency and PeerLatency set latency and peerlatency, in whole
+	// milliseconds, when not zero.
+	Latency, PeerLatency time.Duration
+	// PeerIdleTimeout sets peer_idle_timeout, in whole milliseconds, when
+	// not zero.
+	PeerIdleTimeout time.Duration
+}
+
+// WithSRT returns a copy of cfg with SRT on, like Common: the listener, SRT
+// and its conversion to RTMP on the vhost, and no receive latency; and with
+// the settings s.
+func WithSRT(cfg Config, s SRTOptions) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	for k, v := range srtEnv {
+		env[k] = v
+	}
+	for k, v := range map[string]string{
+		"SRS_SRT_SERVER_DEFAULT_APP":      s.DefaultApp,
+		"SRS_SRT_SERVER_DEFAULT_MODE":     s.DefaultMode,
+		"SRS_SRT_SERVER_DEFAULT_STREAMID": s.DefaultStreamID,
+		"SRS_SRT_SERVER_PASSPHRASE":       s.Passphrase,
+	} {
+		if v != "" {
+			env[k] = v
+		}
+	}
+	if s.PBKeyLen != 0 {
+		env["SRS_SRT_SERVER_PBKEYLEN"] = strconv.Itoa(s.PBKeyLen)
+	}
+	ms := func(d time.Duration) string { return strconv.FormatInt(d.Milliseconds(), 10) }
+	if s.KeepRecvLatency {
+		delete(env, "SRS_SRT_SERVER_RECVLATENCY")
+	} else if s.RecvLatency != 0 {
+		env["SRS_SRT_SERVER_RECVLATENCY"] = ms(s.RecvLatency)
+	}
+	for k, d := range map[string]time.Duration{
+		"SRS_SRT_SERVER_LATENCY":           s.Latency,
+		"SRS_SRT_SERVER_PEERLATENCY":       s.PeerLatency,
+		"SRS_SRT_SERVER_PEER_IDLE_TIMEOUT": s.PeerIdleTimeout,
+	} {
+		if d != 0 {
+			env[k] = ms(d)
+		}
+	}
+	cfg.Env = env
+	if !slices.Contains(cfg.Listeners, SRT) {
+		cfg.Listeners = append(slices.Clone(cfg.Listeners), SRT)
+	}
+	return cfg
+}
+
+// srtEnv turns SRT on for the vhost, with its streams converted to RTMP, so
+// they play over every protocol, and with no receive latency: SRS delivers
+// what a publisher sends at once, not 120ms later, which is SRT's default.
+// recvlatency, not latency, sets it: SRS applies latency first, then
+// recvlatency, whose default 120 overrides it.
+var srtEnv = map[string]string{
+	"SRS_VHOST_SRT_ENABLED":      "on",
+	"SRS_VHOST_SRT_TO_RTMP":      "on",
+	"SRS_SRT_SERVER_RECVLATENCY": "0",
 }

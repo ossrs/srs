@@ -23,6 +23,7 @@ import (
 	"srs-integ/internal/mp4"
 	"srs-integ/internal/report"
 	"srs-integ/internal/rtc"
+	"srs-integ/internal/srt"
 	"srs-integ/internal/ts"
 )
 
@@ -31,7 +32,8 @@ const probeUsage = `Usage: srs-integ probe [flags] <url>
 Read a stream and print its stream report: rtmp://host/app/stream,
 rtmps://host:port/app/stream (the certificate is not verified), http://host/app/stream.flv, .ts, .aac, .mp3, .m3u8 (HLS) or .mpd (DASH),
 WebRTC by WHEP, http://host:1985/rtc/v1/whep/?app=live&stream=s (or
-/rtc/v1/whip-play/), or an FLV, TS, AAC, MP3 or MP4 file. It stops after -duration of media, and fails
+/rtc/v1/whip-play/), SRT, srt://host:port?streamid=#!::r=live/s,m=request
+(also passphrase, pbkeylen and latency in ms), or an FLV, TS, AAC, MP3 or MP4 file. It stops after -duration of media, and fails
 when -timeout passes first. HLS and DASH stop after the segment that reaches
 it.
 
@@ -84,6 +86,13 @@ func probeURL(ctx context.Context, raw string, u report.Until) (*report.Report, 
 	if !strings.Contains(raw, "://") {
 		return probeFile(raw, u)
 	}
+	if strings.HasPrefix(raw, "srt://") {
+		addr, opts, err := srt.ParseURL(raw)
+		if err != nil {
+			return nil, err
+		}
+		return srt.Play(ctx, addr, opts, u)
+	}
 
 	parsed, err := url.Parse(raw)
 	if err != nil {
@@ -108,7 +117,7 @@ func probeURL(ctx context.Context, raw string, u report.Until) (*report.Report, 
 			return probeWHEP(ctx, raw, u)
 		}
 	}
-	return nil, fmt.Errorf("unsupported URL %v, want rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd}, a WHEP URL or a file", raw)
+	return nil, fmt.Errorf("unsupported URL %v, want rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd}, a WHEP URL, srt:// or a file", raw)
 }
 
 // probeWHEP plays a stream by WHEP, offering every codec, so SRS answers the

@@ -33,8 +33,11 @@ func TestGeneratedMedia(t *testing.T) {
 		PCMU:             {"", "", false, "pcmu", 8000, 1},
 		PCMA:             {"", "", false, "pcma", 8000, 1},
 	}
-	if len(cases) != len(Recipes) {
-		t.Fatalf("%v cases for %v recipes", len(cases), len(Recipes))
+	// The MPEG-TS files are checked by the TS analyzer, in internal/ts, which
+	// imports this package.
+	elsewhere := []string{H264HighAACTS, HEVCAACTS, H264OpusTS}
+	if len(cases)+len(elsewhere) != len(Recipes) {
+		t.Fatalf("%v cases and %v checked elsewhere for %v recipes", len(cases), len(elsewhere), len(Recipes))
 	}
 
 	const full = Duration * time.Second

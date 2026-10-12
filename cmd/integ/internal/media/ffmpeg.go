@@ -243,3 +243,40 @@ func lacking(ff *FFmpeg) []string {
 	}
 	return missing
 }
+
+// HasProtocol tells whether the ffmpeg can both read and write a protocol,
+// such as srt, from ffmpeg -protocols.
+func (ff *FFmpeg) HasProtocol(name string) bool {
+	if ff == nil {
+		return false
+	}
+	out, err := exec.Command(ff.Path, "-hide_banner", "-protocols").Output()
+	if err != nil {
+		return false
+	}
+	return parseProtocols(string(out))[name]
+}
+
+// parseProtocols reads the protocols of ffmpeg -protocols that are in both
+// its Input: and Output: lists.
+func parseProtocols(out string) map[string]bool {
+	in, outs := map[string]bool{}, map[string]bool{}
+	var list map[string]bool
+	for _, line := range strings.Split(out, "\n") {
+		switch name := strings.TrimSpace(line); {
+		case name == "Input:":
+			list = in
+		case name == "Output:":
+			list = outs
+		case list != nil && name != "" && strings.HasPrefix(line, " "):
+			list[name] = true
+		}
+	}
+	both := map[string]bool{}
+	for name := range in {
+		if outs[name] {
+			both[name] = true
+		}
+	}
+	return both
+}

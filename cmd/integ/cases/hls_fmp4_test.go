@@ -299,20 +299,21 @@ func TestHls_Fmp4(t *testing.T) {
 }
 
 // sharedRemuxOff is the config of the server that TestHttpFlv_RemuxOff,
-// TestHls_Fmp4Default and TestDash_Options share: RTMP, the HTTP API and
-// server, Common's latency, the HTTP remux off, HLS in fmp4 at SRS's
-// defaults, and DASH with the settings of TestDash_Options under
-// ./objs/nginx/html/dash. HLS and DASH write different files, so none of
-// the groups depends on what the others set.
+// TestHls_Fmp4Default, TestDash_Options and TestSrt_Latencies share: RTMP,
+// the HTTP API and server, Common's latency, the HTTP remux off, HLS in fmp4
+// at SRS's defaults, DASH with the settings of TestDash_Options under
+// ./objs/nginx/html/dash, and SRT with its own receive and peer latencies.
+// HLS and DASH write different files, and the SRT cases only connect, so
+// none of the groups depends on what the others set.
 func sharedRemuxOff() server.Config {
 	cfg := server.HLSConfig(server.HLS{FMP4: true})
 	cfg.Env["SRS_VHOST_HTTP_REMUX_ENABLED"] = "off"
-	return server.WithDASH(cfg, server.DASH{
+	return server.WithSRT(server.WithDASH(cfg, server.DASH{
 		Fragment:   2 * time.Second,
 		WindowSize: 3,
 		Path:       "./objs/nginx/html/" + dashDir,
 		MPDFile:    "[app]/[stream]-manifest.mpd",
-	})
+	}), sharedRemuxOffSRT)
 }
 
 // TestHls_Fmp4Default plays HLS in fmp4 with every file at SRS's default
