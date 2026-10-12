@@ -184,7 +184,6 @@ func TestTimer_Heartbeat_Full(t *testing.T) {
 	// UrlQuery checks the heartbeat goes to its URL with the URL's query, as
 	// the hooks do: a receiver may take a token or an id from it.
 	check.Case(t, "UrlQuery", check.Timer, func(c *check.C) {
-		check.KnownBug(c, "the heartbeat POSTs to the URL's path without its query")
 		beat := nextHeartbeats(c, srs, 1)[0]
 		c.CheckEqual(beat.Query.Encode(), heartbeatQuery, "the query of the heartbeat")
 	})

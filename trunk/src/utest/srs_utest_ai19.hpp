@@ -456,6 +456,8 @@ public:
     bool should_delete_response_;
     // Where post() copies the request body, because do_heartbeat() frees the client.
     std::string *request_body_out_;
+    // Where post() copies the request path, for the same reason.
+    std::string *path_out_;
 
 public:
     MockHttpClientForHeartbeat();
