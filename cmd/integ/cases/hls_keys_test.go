@@ -512,7 +512,6 @@ func TestHls_Fmp4Keys(t *testing.T) {
 
 	// The key URIs of the playlist, at the default hls_key_url, are served.
 	check.Case(t, "DefaultKeyUrl", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the default hls_key_url is hls_path, a dir on disk, which SRS puts before the key file without a slash, so the key URI is not served")
 		pl := publish(c, "live/"+streamName(c))
 		k := pl.Segments[0].Key
 		if !c.Check(k != nil, "segment 0 has no key") {

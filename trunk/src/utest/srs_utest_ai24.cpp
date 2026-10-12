@@ -885,6 +885,40 @@ VOID TEST(HlsFmp4MuxerTest, DoRefreshM3u8SegmentWithEncryption)
     muxer.req_ = NULL;
 }
 
+// Test: with no hls_key_url, the key URI of fmp4 is the key file's path from the playlist's dir
+VOID TEST(HlsFmp4MuxerTest, DoRefreshM3u8SegmentDefaultKeyUrl)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    MockRequest req("test_vhost", "test_app", "test_stream");
+    muxer.req_ = &req;
+
+    muxer.hls_keys_ = true;
+    muxer.hls_fragments_per_key_ = 5;
+    muxer.hls_key_file_ = "[app]/[stream]-[seq].key";
+    muxer.hls_key_file_path_ = "./objs/nginx/html";
+    muxer.hls_key_url_ = "";
+    muxer.m3u8_dir_ = "./objs/nginx/html/test_app";
+
+    MockHlsM4sSegment segment;
+    segment.sequence_no_ = 10;
+    segment.fullpath_ = "./objs/nginx/html/test_app/test_stream-10.m4s";
+
+    // The key is written beside the playlist, so the URI resolves from the playlist to the key.
+    std::stringstream ss;
+    HELPER_EXPECT_SUCCESS(muxer.do_refresh_m3u8_segment(&segment, ss));
+    EXPECT_TRUE(ss.str().find("URI=\"test_stream-10.key\"") != std::string::npos) << ss.str();
+
+    // A key outside the playlist's dir keeps the key file's path.
+    muxer.hls_key_file_path_ = "/data/keys";
+    std::stringstream ss2;
+    HELPER_EXPECT_SUCCESS(muxer.do_refresh_m3u8_segment(&segment, ss2));
+    EXPECT_TRUE(ss2.str().find("URI=\"test_app/test_stream-10.key\"") != std::string::npos) << ss2.str();
+
+    muxer.req_ = NULL;
+}
+
 // Mock HLS segment for testing SrsHlsMuxer::do_refresh_m3u8_segment
 class MockHlsSegmentForRefreshM3u8 : public SrsHlsSegment
 {
@@ -964,6 +998,33 @@ VOID TEST(HlsMuxerTest, DoRefreshM3u8SegmentWithEncryption)
     muxer.req_ = NULL;
 }
 
+
+// Test: with no hls_key_url, the key URI of TS is the key file's path from the playlist's dir
+VOID TEST(HlsMuxerTest, DoRefreshM3u8SegmentDefaultKeyUrl)
+{
+    srs_error_t err;
+
+    SrsHlsMuxer muxer;
+    MockRequest req("test_vhost", "test_app", "test_stream");
+    muxer.req_ = &req;
+
+    muxer.hls_keys_ = true;
+    muxer.hls_fragments_per_key_ = 5;
+    muxer.hls_key_file_ = "[app]/[stream]-[seq].key";
+    muxer.hls_key_file_path_ = "./objs/nginx/html";
+    muxer.hls_key_url_ = "";
+    muxer.m3u8_dir_ = "./objs/nginx/html/test_app";
+
+    MockHlsSegmentForRefreshM3u8 segment;
+    segment.sequence_no_ = 10;
+
+    // The key is written beside the playlist, so the URI resolves from the playlist to the key.
+    std::stringstream ss;
+    HELPER_EXPECT_SUCCESS(muxer.do_refresh_m3u8_segment(&segment, ss));
+    EXPECT_TRUE(ss.str().find("URI=\"test_stream-10.key\"") != std::string::npos) << ss.str();
+
+    muxer.req_ = NULL;
+}
 // Mock segment for testing SrsHlsFmp4Muxer::generate_m4s_filename
 class MockHlsM4sSegmentForFilename : public SrsHlsM4sSegment
 {

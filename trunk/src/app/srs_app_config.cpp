@@ -7124,8 +7124,8 @@ string SrsConfig::get_hls_key_url(std::string vhost)
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_key_url"); // SRS_VHOST_HLS_HLS_KEY_URL
 
-    // put the key in ts path defaultly.
-    static string DEFAULT = get_hls_path(vhost);
+    // No default: the key URI is then relative to the playlist.
+    static string DEFAULT = "";
 
     SrsConfDirective *conf = get_hls(vhost);
     if (!conf) {

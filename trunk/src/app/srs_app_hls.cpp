@@ -73,6 +73,25 @@ string srs_hls_build_key_url(const string &hls_key_url, const string &key_file)
     return hls_key_url + key_file;
 }
 
+// Build the key URI of the playlist. With no hls_key_url, the URI is the key file's path from
+// the playlist's dir, so it resolves to the key wherever the playlist is served; a key outside
+// that dir keeps the key file's path.
+// @param key_file_path The dir on disk the key file is written in, hls_key_file_path.
+// @param m3u8_dir The dir on disk of the playlist.
+string srs_hls_build_key_uri(const string &hls_key_url, const string &key_file_path, const string &key_file, const string &m3u8_dir)
+{
+    if (!hls_key_url.empty()) {
+        return srs_hls_build_key_url(hls_key_url, key_file);
+    }
+
+    string key_fullpath = key_file_path + "/" + key_file;
+    string dir = m3u8_dir + "/";
+    if (srs_strings_starts_with(key_fullpath, dir)) {
+        return key_fullpath.substr(dir.length());
+    }
+    return key_file;
+}
+
 SrsHlsSegment::SrsHlsSegment(SrsTsContext *c, SrsAudioCodecId ac, SrsVideoCodecId vc, ISrsFileWriter *w)
 {
     sequence_no_ = 0;
@@ -1212,7 +1231,7 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
 
-        string key_path = srs_hls_build_key_url(hls_key_url_, key_file);
+        string key_path = srs_hls_build_key_uri(hls_key_url_, hls_key_file_path_, key_file, m3u8_dir_);
 
         ss << "#EXT-X-KEY:METHOD=SAMPLE-AES,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
     }
@@ -2138,7 +2157,7 @@ srs_error_t SrsHlsMuxer::do_refresh_m3u8_segment(SrsHlsSegment *segment, std::st
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
 
-        string key_path = srs_hls_build_key_url(hls_key_url_, key_file);
+        string key_path = srs_hls_build_key_uri(hls_key_url_, hls_key_file_path_, key_file, m3u8_dir_);
 
         ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
     }
