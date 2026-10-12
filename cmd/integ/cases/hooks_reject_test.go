@@ -195,26 +195,35 @@ func rtmpHookTarget(name, hook string, tls, publish bool) hookTarget {
 		if tls {
 			url, opts = rtmpsURL(srs, "live/"+stream), tlsOpts(c)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), d)
-		defer cancel()
-		start := time.Now()
-		cl, err := rtmp.Dial(ctx, url, opts)
-		c.Must(err, "dial")
-		c.Cleanup(func() { cl.Close() })
-		if publish {
-			_, err = cl.Publish(ctx, rtmp.FMLE)
-		} else {
-			_, err = cl.Play(ctx)
-		}
-		r := hookResult{accepted: err == nil, elapsed: time.Since(start)}
-		var se *rtmp.StatusError
-		if errors.As(err, &se) {
-			r.refusal = "status " + se.Code
-		} else if err != nil && !isTimeout(err) {
-			r.refusal = "closed"
-		}
-		return r
+		return tryRTMP(c, url, opts, publish, d)
 	}}
+}
+
+// tryRTMP publishes or plays an RTMP or RTMPS URL, for at most d, and returns
+// whether SRS accepted it, with NetStream.Publish.Start or
+// NetStream.Play.Start, refused it, by closing the connection or with a
+// status of level error, or kept it waiting.
+func tryRTMP(c *check.C, url string, opts *rtmp.Options, publish bool, d time.Duration) hookResult {
+	c.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), d)
+	defer cancel()
+	start := time.Now()
+	cl, err := rtmp.Dial(ctx, url, opts)
+	c.Must(err, "dial")
+	c.Cleanup(func() { cl.Close() })
+	if publish {
+		_, err = cl.Publish(ctx, rtmp.FMLE)
+	} else {
+		_, err = cl.Play(ctx)
+	}
+	r := hookResult{accepted: err == nil, elapsed: time.Since(start)}
+	var se *rtmp.StatusError
+	if errors.As(err, &se) {
+		r.refusal = "status " + se.Code
+	} else if err != nil && !isTimeout(err) {
+		r.refusal = "closed"
+	}
+	return r
 }
 
 // srtResult reads an SRT connection, for at most d from start, until SRS

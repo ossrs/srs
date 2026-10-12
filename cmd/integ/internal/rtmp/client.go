@@ -86,6 +86,17 @@ type Status struct {
 	// onFCUnpublish, or _result for the connect result.
 	Command                  string
 	Level, Code, Description string
+	// Ex is the status's ex object, such as the one of an RTMP 302 redirect;
+	// zero when it has none.
+	Ex StatusEx
+}
+
+// StatusEx is the ex object of a status: an RTMP 302 redirect has the code
+// 302, the tcUrl to connect to as redirect, and the whole RTMP URL, with the
+// stream, as redirect2.
+type StatusEx struct {
+	Code                float64
+	Redirect, Redirect2 string
 }
 
 // StatusError is a status of level error, or a command answered with _error.
@@ -337,7 +348,13 @@ var statusCommands = map[string]bool{"onStatus": true, "onFCPublish": true, "onF
 func statusOf(command string, v any) Status {
 	m, _ := v.(map[string]any)
 	s := func(k string) string { v, _ := m[k].(string); return v }
-	return Status{Command: command, Level: s("level"), Code: s("code"), Description: s("description")}
+	st := Status{Command: command, Level: s("level"), Code: s("code"), Description: s("description")}
+	if ex, ok := m["ex"].(map[string]any); ok {
+		st.Ex.Code, _ = ex["code"].(float64)
+		st.Ex.Redirect, _ = ex["redirect"].(string)
+		st.Ex.Redirect2, _ = ex["redirect2"].(string)
+	}
+	return st
 }
 
 // createStream creates a stream and keeps its id.
@@ -398,6 +415,15 @@ func (c *Client) Play(ctx context.Context) (*Status, error) {
 		return nil, err
 	}
 	return c.waitStatus("NetStream.Play.Start")
+}
+
+// WaitStatus waits for an onStatus with the code, such as a play's
+// NetStream.Play.UnpublishNotify, until ctx's deadline; it drops the media it
+// reads before. A status of level error is a StatusError.
+func (c *Client) WaitStatus(ctx context.Context, code string) (*Status, error) {
+	c.setDeadline(ctx)
+	defer c.conn.SetDeadline(time.Time{})
+	return c.waitStatus(code)
 }
 
 // Statuses is every onStatus, onFCPublish and onFCUnpublish the client has

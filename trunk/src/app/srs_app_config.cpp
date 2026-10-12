@@ -2131,6 +2131,10 @@ void SrsConfig::print_help(char **argv)
         "   Edge, pull and push streams through an origin:\n"
         "      SRS_VHOST_CLUSTER_MODE=local                  local for an origin, remote for an edge.\n"
         "      SRS_VHOST_CLUSTER_ORIGIN=                     Space separated origin ip:port of an edge.\n"
+        "      SRS_VHOST_CLUSTER_TOKEN_TRAVERSE=off          Check each client of an edge by a connect to its origin.\n"
+        "      SRS_VHOST_CLUSTER_PROTOCOL=rtmp               rtmp, flv or flvs to pull from the origin.\n"
+        "      SRS_VHOST_CLUSTER_ORIGIN_CLUSTER=off          Redirect a player of an origin to the coworker with the stream.\n"
+        "      SRS_VHOST_CLUSTER_COWORKERS=                  Space separated HTTP API ip:port of the origin cluster.\n"
         "   Stream caster, to receive GB28181, FLV or MPEG-TS over UDP as RTMP:\n"
         "      SRS_STREAM_CASTER_ENABLED=off                 Enable a stream caster, even without one in the config.\n"
         "      SRS_STREAM_CASTER_CASTER=                     gb28181, flv or mpegts_over_udp.\n"
@@ -5599,6 +5603,8 @@ SrsConfDirective *SrsConfig::get_vhost_edge_origin(string vhost)
 
 string SrsConfig::get_vhost_edge_protocol(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.cluster.protocol"); // SRS_VHOST_CLUSTER_PROTOCOL
+
     static string DEFAULT = "rtmp";
 
     SrsConfDirective *conf = get_vhost(vhost);
@@ -5643,6 +5649,8 @@ bool SrsConfig::get_vhost_edge_follow_client(string vhost)
 
 bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.cluster.token_traverse"); // SRS_VHOST_CLUSTER_TOKEN_TRAVERSE
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = get_vhost(vhost);
@@ -5693,6 +5701,8 @@ bool SrsConfig::get_vhost_origin_cluster(string vhost)
 
 bool SrsConfig::get_vhost_origin_cluster(SrsConfDirective *vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.cluster.origin_cluster"); // SRS_VHOST_CLUSTER_ORIGIN_CLUSTER
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = vhost;
@@ -5716,6 +5726,17 @@ bool SrsConfig::get_vhost_origin_cluster(SrsConfDirective *vhost)
 vector<string> SrsConfig::get_vhost_coworkers(string vhost)
 {
     vector<string> coworkers;
+
+    // SRS_VHOST_CLUSTER_COWORKERS, space separated; a value without any coworker overwrites nothing.
+    vector<string> envs = srs_strings_split(srs_getenv("srs.vhost.cluster.coworkers"), " ");
+    for (int i = 0; i < (int)envs.size(); i++) {
+        if (!envs.at(i).empty()) {
+            coworkers.push_back(envs.at(i));
+        }
+    }
+    if (!coworkers.empty()) {
+        return coworkers;
+    }
 
     SrsConfDirective *conf = get_vhost(vhost);
     if (!conf) {

@@ -7,6 +7,7 @@ package server
 import (
 	"errors"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -177,5 +178,27 @@ func TestExitError(t *testing.T) {
 	var e *ExitError
 	if !errors.As(err, &e) || e.Code != 255 || !strings.Contains(err.Error(), "255") {
 		t.Errorf("error %v, want an ExitError with code 255", err)
+	}
+}
+
+// TestListenerPortsAPIPort checks that a config's APIPort is the HTTP API's
+// port, not one of the allocator's, and that the server shares it in the
+// one-port mode.
+func TestListenerPortsAPIPort(t *testing.T) {
+	cfg := Config{Listeners: []Listener{RTMP, HTTPAPI, HTTPServer}, APIPort: 14500}
+	ports, err := listenerPorts(cfg, counter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (map[Listener]int{RTMP: 14000, HTTPAPI: 14500, HTTPServer: 14001}); !reflect.DeepEqual(ports, want) {
+		t.Errorf("ports %v, want %v", ports, want)
+	}
+
+	cfg.OneHTTPPort = true
+	if ports, err = listenerPorts(cfg, counter()); err != nil {
+		t.Fatal(err)
+	}
+	if ports[HTTPAPI] != 14500 || ports[HTTPServer] != 14500 {
+		t.Errorf("ports %v, want the API and server on 14500", ports)
 	}
 }

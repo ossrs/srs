@@ -89,6 +89,9 @@ func listenerPorts(cfg Config, alloc func() (int, error)) (map[Listener]int, err
 		shares = map[Listener]Listener{HTTPServer: HTTPAPI, HTTPSServer: HTTPSAPI}
 	}
 	ports := map[Listener]int{}
+	if cfg.APIPort > 0 {
+		ports[HTTPAPI] = cfg.APIPort
+	}
 	for _, l := range cfg.Listeners {
 		if _, ok := shares[l]; ok {
 			continue

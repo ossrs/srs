@@ -788,3 +788,74 @@ func TestRestartNeedsExit(t *testing.T) {
 		t.Errorf("restart of a server with hooks: %v, want an error naming the hooks", err)
 	}
 }
+
+// TestWithEdge checks the env of an edge: the cluster mode, its origins in
+// order, the token traverse and the protocol only when set, and the base
+// config unchanged.
+func TestWithEdge(t *testing.T) {
+	origins := []string{"127.0.0.1:14010", "127.0.0.1:14020"}
+	cases := []struct {
+		name string
+		e    Edge
+		want map[string]string
+	}{
+		{"OneOrigin", Edge{Origins: origins[:1]}, map[string]string{
+			"SRS_VHOST_CLUSTER_MODE": "remote", "SRS_VHOST_CLUSTER_ORIGIN": "127.0.0.1:14010",
+		}},
+		{"Failover", Edge{Origins: origins}, map[string]string{
+			"SRS_VHOST_CLUSTER_MODE": "remote", "SRS_VHOST_CLUSTER_ORIGIN": "127.0.0.1:14010 127.0.0.1:14020",
+		}},
+		{"TokenTraverse", Edge{Origins: origins[:1], TokenTraverse: true}, map[string]string{
+			"SRS_VHOST_CLUSTER_MODE": "remote", "SRS_VHOST_CLUSTER_ORIGIN": "127.0.0.1:14010",
+			"SRS_VHOST_CLUSTER_TOKEN_TRAVERSE": "on",
+		}},
+		{"Flv", Edge{Origins: origins[1:], Protocol: "flv"}, map[string]string{
+			"SRS_VHOST_CLUSTER_MODE": "remote", "SRS_VHOST_CLUSTER_ORIGIN": "127.0.0.1:14020",
+			"SRS_VHOST_CLUSTER_PROTOCOL": "flv",
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := PlayConfig(Play{})
+			cfg := WithEdge(base, tc.e)
+			if !reflect.DeepEqual(cfg.Listeners, base.Listeners) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, base.Listeners)
+			}
+			want := map[string]string{}
+			for k, v := range base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, ok := base.Env["SRS_VHOST_CLUSTER_MODE"]; ok {
+				t.Errorf("the base config changed: %v", base.Env)
+			}
+		})
+	}
+}
+
+// TestWithOriginCluster checks the env of an origin of an origin cluster:
+// the cluster on, and the coworkers' APIs space separated.
+func TestWithOriginCluster(t *testing.T) {
+	base := PlayConfig(Play{})
+	cfg := WithOriginCluster(base, OriginCluster{Coworkers: []string{"127.0.0.1:14010", "127.0.0.1:14020"}})
+	if !reflect.DeepEqual(cfg.Listeners, base.Listeners) {
+		t.Errorf("listeners %v, want %v", cfg.Listeners, base.Listeners)
+	}
+	want := map[string]string{}
+	for k, v := range base.Env {
+		want[k] = v
+	}
+	want["SRS_VHOST_CLUSTER_ORIGIN_CLUSTER"] = "on"
+	want["SRS_VHOST_CLUSTER_COWORKERS"] = "127.0.0.1:14010 127.0.0.1:14020"
+	if !reflect.DeepEqual(cfg.Env, want) {
+		t.Errorf("env %v, want %v", cfg.Env, want)
+	}
+	if _, ok := base.Env["SRS_VHOST_CLUSTER_ORIGIN_CLUSTER"]; ok {
+		t.Errorf("the base config changed: %v", base.Env)
+	}
+}

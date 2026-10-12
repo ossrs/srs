@@ -110,6 +110,10 @@ type Config struct {
 	// the HTTPS API and the HTTPS server another: SRS then serves the API on
 	// the server's port.
 	OneHTTPPort bool
+	// APIPort is the HTTP API's port, one ReservePort handed out, for a
+	// server whose API others must know before it starts, such as an origin
+	// of an origin cluster; 0 allocates one.
+	APIPort int
 }
 
 // TLSFiles are the key and certificate of the TLS listeners.

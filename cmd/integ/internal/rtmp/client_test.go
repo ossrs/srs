@@ -923,3 +923,73 @@ func TestClientCountsBytes(t *testing.T) {
 		})
 	}
 }
+
+// TestClientRedirect reads SRS's RTMP 302 redirect after the play starts: a
+// status of level error with its ex object, which WaitStatus returns as a
+// StatusError and Statuses keeps.
+func TestClientRedirect(t *testing.T) {
+	s := newFakeServer(t)
+	s.onPlay = func(c *fakeConn) {
+		c.send(MsgAudio, 0, []byte{0xaf, 1, 2, 3})
+		c.command(1, "onStatus", float64(0), nil, map[string]any{
+			"level": "error", "code": "NetConnection.Connect.Rejected", "description": "RTMP 302 Redirect",
+			"ex": map[string]any{"code": float64(302), "redirect": "rtmp://127.0.0.1:1935/live", "redirect2": "rtmp://127.0.0.1:1935/live/a?k=v"},
+		})
+	}
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	if _, err := c.Play(context.Background()); err != nil {
+		t.Fatalf("play: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := c.WaitStatus(ctx, "NetStream.Play.UnpublishNotify")
+	var se *StatusError
+	if !errors.As(err, &se) {
+		t.Fatalf("wait: %v, want a StatusError", err)
+	}
+	want := Status{
+		Command: "onStatus", Level: "error", Code: "NetConnection.Connect.Rejected", Description: "RTMP 302 Redirect",
+		Ex: StatusEx{Code: 302, Redirect: "rtmp://127.0.0.1:1935/live", Redirect2: "rtmp://127.0.0.1:1935/live/a?k=v"},
+	}
+	if se.Status != want {
+		t.Errorf("status %+v, want %+v", se.Status, want)
+	}
+	sts := c.Statuses()
+	if got := sts[len(sts)-1]; got != want {
+		t.Errorf("last status %+v, want %+v", got, want)
+	}
+	if sts[0].Ex != (StatusEx{}) {
+		t.Errorf("status %+v, want no ex", sts[0])
+	}
+}
+
+// TestClientWaitStatus waits for a status by its code, and fails at the
+// context's deadline when none comes.
+func TestClientWaitStatus(t *testing.T) {
+	s := newFakeServer(t)
+	s.onPlay = func(c *fakeConn) {
+		c.status(1, "status", "NetStream.Play.UnpublishNotify", "stream is now unpublished.")
+	}
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	if _, err := c.Play(context.Background()); err != nil {
+		t.Fatalf("play: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if st, err := c.WaitStatus(ctx, "NetStream.Play.UnpublishNotify"); err != nil || st.Code != "NetStream.Play.UnpublishNotify" {
+		t.Fatalf("wait: %+v, %v", st, err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if _, err := c.WaitStatus(ctx, "NetStream.Play.Stop"); err == nil {
+		t.Fatal("wait: no error, want the deadline")
+	}
+	if d := time.Since(start); d > 500*time.Millisecond {
+		t.Errorf("waited %v, want the 50ms deadline", d)
+	}
+}

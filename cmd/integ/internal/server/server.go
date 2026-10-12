@@ -1364,3 +1364,78 @@ func (s *Server) Restart() error {
 	}
 	return s.launch(s.cmd.Env, logFile)
 }
+
+// Edge is an edge's cluster settings, for every vhost: the edge pulls each
+// stream a player asks for from an origin, and pushes each stream published
+// to it to an origin.
+type Edge struct {
+	// Origins are the host:port of the origins, the RTMP port, or the HTTP
+	// server's with Protocol flv; the edge takes them in turn when one fails.
+	Origins []string
+	// TokenTraverse checks each client by a connect to an origin, with the
+	// client's tcUrl, before the edge serves it.
+	TokenTraverse bool
+	// Protocol is how the edge pulls from an origin, rtmp, flv or flvs;
+	// empty keeps SRS's default, rtmp.
+	Protocol string
+}
+
+// WithEdge returns a copy of cfg as an edge with the settings e.
+func WithEdge(cfg Config, e Edge) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_CLUSTER_MODE"] = "remote"
+	env["SRS_VHOST_CLUSTER_ORIGIN"] = strings.Join(e.Origins, " ")
+	if e.TokenTraverse {
+		env["SRS_VHOST_CLUSTER_TOKEN_TRAVERSE"] = "on"
+	}
+	if e.Protocol != "" {
+		env["SRS_VHOST_CLUSTER_PROTOCOL"] = e.Protocol
+	}
+	cfg.Env = env
+	return cfg
+}
+
+// DownAddr returns the 127.0.0.1:port address of a port of the range that
+// nothing listens on, nor is handed out again, like a server that is down.
+func DownAddr(t testing.TB) string {
+	t.Helper()
+	return "127.0.0.1:" + strconv.Itoa(ReservePort(t))
+}
+
+// ReservePort returns a port of the range that is never handed out again,
+// for a server to listen on later, such as its Config.APIPort.
+func ReservePort(t testing.TB) int {
+	t.Helper()
+	if err := setup(); err != nil {
+		t.Fatal(err)
+	}
+	port, err := run.alloc.Alloc()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return port
+}
+
+// OriginCluster is an origin's origin cluster settings, for every vhost: a
+// player of a stream the origin doesn't publish is redirected over RTMP to the
+// coworker that publishes it.
+type OriginCluster struct {
+	// Coworkers are the host:port of the HTTP APIs of the cluster's origins,
+	// which the origin asks for a stream in order.
+	Coworkers []string
+}
+
+// WithOriginCluster returns a copy of cfg as an origin of the cluster o.
+func WithOriginCluster(cfg Config, o OriginCluster) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_CLUSTER_ORIGIN_CLUSTER"] = "on"
+	env["SRS_VHOST_CLUSTER_COWORKERS"] = strings.Join(o.Coworkers, " ")
+	cfg.Env = env
+	return cfg
+}
