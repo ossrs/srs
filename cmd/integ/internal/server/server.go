@@ -45,7 +45,7 @@ const (
 	// defaultPorts is the suite's port range when SRS_INTEG_PORTS is not set.
 	defaultPorts = "14000-14999"
 	// buildFlags is how to build an SRS that has every feature the suite needs.
-	buildFlags = "./configure --srt=on --gb28181=on --rtsp=on --apm=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
+	buildFlags = "./configure --srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
 
 	readyTimeout = 10 * time.Second
 	readyPoll    = 20 * time.Millisecond
@@ -772,9 +772,8 @@ type Play struct {
 	// TimeJitter is the timestamp correction of the players, "full", "zero" or
 	// "off"; empty keeps SRS's default, full.
 	TimeJitter string
-	// ATC plays the publisher's absolute timestamps, and ATCAuto turns ATC on
-	// for a stream whose metadata has bravo_atc "true".
-	ATC, ATCAuto bool
+	// ATC plays the publisher's absolute timestamps.
+	ATC bool
 	// MixCorrect sends audio and video in decode-time order.
 	MixCorrect bool
 	// SendMinInterval is the least time between two messages SRS sends a
@@ -823,9 +822,6 @@ func PlayConfig(p Play) Config {
 	}
 	if p.ATC {
 		env["SRS_VHOST_PLAY_ATC"] = "on"
-	}
-	if p.ATCAuto {
-		env["SRS_VHOST_PLAY_ATC_AUTO"] = "on"
 	}
 	if p.MixCorrect {
 		env["SRS_VHOST_PLAY_MIX_CORRECT"] = "on"

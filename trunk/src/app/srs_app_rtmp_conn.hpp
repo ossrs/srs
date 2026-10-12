@@ -23,7 +23,6 @@ class SrsRtmpServer;
 class ISrsRequest;
 class SrsResponse;
 class SrsLiveSource;
-class SrsRefer;
 class SrsLiveConsumer;
 class SrsRtmpCommonMessage;
 class SrsStSocket;
@@ -193,7 +192,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtmpServer *rtmp_;
-    SrsRefer *refer_;
     SrsBandwidth *bandwidth_;
     ISrsSecurity *security_;
     // The wakable handler, maybe NULL.

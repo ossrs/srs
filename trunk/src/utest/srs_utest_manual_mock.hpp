@@ -599,10 +599,6 @@ public:
     virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost) { return 20000 * SRS_UTIME_MILLISECONDS; }
     virtual srs_utime_t get_publish_normal_timeout(std::string vhost) { return 5000 * SRS_UTIME_MILLISECONDS; }
     virtual srs_utime_t get_publish_kickoff_for_idle(std::string vhost) { return 0; }
-    virtual bool get_refer_enabled(std::string vhost) { return false; }
-    virtual SrsConfDirective *get_refer_all(std::string vhost) { return NULL; }
-    virtual SrsConfDirective *get_refer_play(std::string vhost) { return NULL; }
-    virtual SrsConfDirective *get_refer_publish(std::string vhost) { return NULL; }
     virtual bool get_vhost_origin_cluster(std::string vhost) { return false; }
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost) { return std::vector<std::string>(); }
     virtual bool get_vhost_edge_token_traverse(std::string vhost) { return false; }
@@ -700,7 +696,6 @@ public:
     virtual srs_utime_t get_rtc_pli_for_rtmp(std::string vhost) { return 6 * SRS_UTIME_SECONDS; }
     virtual int get_rtc_opus_bitrate(std::string vhost) { return 48000; }
     virtual bool get_vhost_is_edge(std::string vhost) { return false; }
-    virtual bool get_atc_auto(std::string vhost) { return false; }
     virtual bool get_reduce_sequence_header(std::string vhost) { return false; }
     virtual bool get_parse_sps(std::string vhost) { return true; }
     // DVR methods

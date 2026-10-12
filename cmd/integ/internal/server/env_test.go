@@ -29,7 +29,6 @@ func TestBuildEnvAPIOnly(t *testing.T) {
 		"SRS_HTTP_SERVER_HTTPS_ENABLED=off",
 		"SRS_LOG_TANK=console",
 		"SRS_PID=/w/srs.pid",
-		"SRS_QUERY_LATEST_VERSION=off",
 		"SRS_RTC_SERVER_ENABLED=off",
 		"SRS_RTC_SERVER_TCP_ENABLED=off",
 		"SRS_RTMPS_ENABLED=off",

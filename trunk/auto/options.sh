@@ -62,8 +62,6 @@ SRS_SHARED_FFMPEG=RESERVED
 SRS_SHARED_SRTP=RESERVED
 # whether enable the gcov
 SRS_GCOV=NO
-# Whether enable cloud logging and APM(Application Performance Monitor).
-SRS_APM=NO
 
 # whether enable the log verbose/info/trace level.
 # always enable the warn/error level.
@@ -264,7 +262,6 @@ Removed:
   --cygwin64                No support cygwin64 anymore.
   --cxx11=off               Always disable C++11, force C++98 compatibility. Default: $(value2switch $SRS_CXX11)
   --cxx14=off               Always disable C++14, force C++98 compatibility. Default: $(value2switch $SRS_CXX14)
-  --apm=off                 No support APM(Application Performance Monitor) anymore.
   --hds=off                 No support HDS(Adobe HTTP Dynamic Streaming) anymore.
 
 For example:
@@ -348,7 +345,6 @@ function parse_user_option() {
         --stream-converter)             SRS_STREAM_CASTER=$(switch2value $value) ;;
         --utest)                        SRS_UTEST=$(switch2value $value) ;;
         --gcov)                         SRS_GCOV=$(switch2value $value) ;;
-        --apm)                          SRS_APM=$(switch2value $value) ;;
         --srt)                          SRS_SRT=$(switch2value $value) ;;
         --rtc)                          SRS_RTC=$(switch2value $value) ;;
         --rtsp)                         SRS_RTSP=$(switch2value $value) ;;
@@ -624,11 +620,6 @@ function apply_auto_options() {
     if [[ $SRS_H265 != RESERVED ]]; then
         echo "Warning: --h265 option is deprecated. H.265/HEVC support is always enabled."
         SRS_H265=ON
-    fi
-
-    if [[ $SRS_APM == YES ]]; then
-        echo "Warning: APM(Application Performance Monitor) is no longer supported."
-        SRS_APM=NO
     fi
 }
 apply_auto_options

@@ -130,6 +130,15 @@ var badEnv = []struct {
 	// refused on or off.
 	{name: "Asprocess", env: envOf("SRS_ASPROCESS", "on")},
 	{name: "AsprocessOff", env: envOf("SRS_ASPROCESS", "off")},
+	// The latest version query is removed, so it is refused on or off, and so
+	// is the wait before its first query.
+	{name: "QueryLatestVersion", env: envOf("SRS_QUERY_LATEST_VERSION", "on")},
+	{name: "QueryLatestVersionOff", env: envOf("SRS_QUERY_LATEST_VERSION", "off")},
+	{name: "FirstWaitForQlv", env: envOf("SRS_FIRST_WAIT_FOR_QLV", "300")},
+	// atc_auto, turning ATC on when the metadata has bravo_atc, is removed,
+	// so it is refused on or off.
+	{name: "AtcAuto", env: envOf("SRS_VHOST_PLAY_ATC_AUTO", "on")},
+	{name: "AtcAutoOff", env: envOf("SRS_VHOST_PLAY_ATC_AUTO", "off")},
 	{
 		name:    "ForwardWithKickoffForIdle",
 		env:     envOf("SRS_VHOST_FORWARD_ENABLED", "on", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000"),

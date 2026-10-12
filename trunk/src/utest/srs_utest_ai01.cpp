@@ -1167,80 +1167,6 @@ VOID TEST(ConfigVhostTest, CheckAtc)
     }
 }
 
-VOID TEST(ConfigVhostTest, CheckAtcAuto)
-{
-    srs_error_t err;
-
-    // Test default value when no configuration is provided
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be false (SRS_CONF_PREFER_FALSE)
-        EXPECT_FALSE(conf.get_atc_auto("__defaultVhost__"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test default value when vhost exists but no play section
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no play section
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test default value when play exists but no atc_auto config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{mw_latency 350;}}"));
-
-        // Should return default value when no atc_auto config
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test default value when atc_auto has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test explicit atc_auto enabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto on;}}"));
-
-        EXPECT_TRUE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test explicit atc_auto disabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto off;}}"));
-
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test various boolean values (SRS_CONF_PREFER_FALSE: only "on" is true)
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto true;}}"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com")); // "true" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto false;}}"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com")); // "false" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto yes;}}"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com")); // "yes" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto no;}}"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com")); // "no" != "on", so it's false
-    }
-}
-
 VOID TEST(ConfigVhostTest, CheckTimeJitter)
 {
     srs_error_t err;
@@ -3179,80 +3105,6 @@ VOID TEST(ConfigVhostTest, CheckQueueLength)
     }
 }
 
-VOID TEST(ConfigVhostTest, CheckReferEnabled)
-{
-    srs_error_t err;
-
-    // Test default value when no configuration is provided
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be false (SRS_CONF_PREFER_FALSE)
-        EXPECT_FALSE(conf.get_refer_enabled("__defaultVhost__"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test default value when vhost exists but no refer config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no refer config
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test default value when refer section exists but no enabled config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{all play.ossrs.net;}}"));
-
-        // Should return default value when no enabled config
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test default value when refer enabled has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test explicit refer enabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled on;}}"));
-
-        EXPECT_TRUE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test explicit refer disabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled off;}}"));
-
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test various boolean values (SRS_CONF_PREFER_FALSE: only "on" is true)
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled true;}}"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com")); // "true" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled false;}}"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com")); // "false" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled yes;}}"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com")); // "yes" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled no;}}"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com")); // "no" != "on", so it's false
-    }
-}
-
 VOID TEST(ConfigVhostTest, CheckChunkSize)
 {
     srs_error_t err;
@@ -4799,6 +4651,191 @@ VOID TEST(ConfigMainTest, AsprocessEnvRemoved)
     }
 }
 
+// The latest version query is removed: a config file with query_latest_version or first_wait_for_qlv is
+// refused, with an error that names the directive, on or off.
+VOID TEST(ConfigMainTest, LatestVersionQueryRemoved)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } cases[] = {
+        {"query_latest_version on;", "query_latest_version"},
+        {"query_latest_version off;", "query_latest_version"},
+        {"query_latest_version;", "query_latest_version"},
+        {"first_wait_for_qlv 300;", "first_wait_for_qlv"},
+        {"first_wait_for_qlv 0.5;", "first_wait_for_qlv"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + cases[i].conf);
+        EXPECT_TRUE(err != srs_success) << cases[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+}
+
+// The latest version query is removed: SRS_QUERY_LATEST_VERSION, on or off, and SRS_FIRST_WAIT_FOR_QLV
+// make the config refused, with an error that names the env var. An empty one is unset, as every empty
+// env var is.
+VOID TEST(ConfigMainTest, LatestVersionQueryEnvRemoved)
+{
+    struct {
+        const char *name;
+        const char *value;
+    } cases[] = {
+        {"SRS_QUERY_LATEST_VERSION", "on"},
+        {"SRS_QUERY_LATEST_VERSION", "off"},
+        {"SRS_FIRST_WAIT_FOR_QLV", "300"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, qlv, cases[i].name, cases[i].value);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << cases[i].name << "=" << cases[i].value;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, qlv, "SRS_QUERY_LATEST_VERSION", "");
+        SrsSetEnvConfig(conf, wait, "SRS_FIRST_WAIT_FOR_QLV", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
+// The bandwidth check is removed: a config file with the bandcheck section of a vhost is refused, with an
+// error that names it, whatever the section holds.
+VOID TEST(ConfigMainTest, BandcheckRemoved)
+{
+    const char *confs[] = {
+        "vhost test.com{bandcheck{enabled on;}}",
+        "vhost test.com{bandcheck{enabled off;}}",
+        "vhost test.com{bandcheck{key \"35c9b402c12a7246868752e2878f7e0e\"; interval 30; limit_kbps 4000;}}",
+        "vhost test.com{bandcheck{}}",
+        "vhost __defaultVhost__{hls{enabled on;} bandcheck{enabled on;}}",
+    };
+
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + confs[i]);
+        EXPECT_TRUE(err != srs_success) << confs[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("vhost.bandcheck") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+}
+
+// The referer check is removed, so its vhost section and the SRS1 style
+// directives are refused by their own names, enabled or not.
+VOID TEST(ConfigMainTest, ReferRemoved)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } cases[] = {
+        {"vhost test.com{refer{enabled on; all github.com;}}", "vhost.refer of"},
+        {"vhost test.com{refer{enabled off;}}", "vhost.refer of"},
+        {"vhost test.com{refer{play github.com; publish github.com;}}", "vhost.refer of"},
+        {"vhost test.com{refer{}}", "vhost.refer of"},
+        {"vhost test.com{refer github.com github.io;}", "vhost.refer of"},
+        {"vhost test.com{refer_play github.com github.io;}", "vhost.refer_play of"},
+        {"vhost test.com{refer_publish github.com github.io;}", "vhost.refer_publish of"},
+        {"vhost __defaultVhost__{hls{enabled on;} refer_play github.com;}", "vhost.refer_play of"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + cases[i].conf);
+        EXPECT_TRUE(err != srs_success) << cases[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+}
+
+// atc_auto is removed: a config file with it in the play section, or in the vhost as SRS1 wrote it, is refused,
+// with an error that names the directive, on or off.
+VOID TEST(ConfigMainTest, AtcAutoRemoved)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } cases[] = {
+        {"vhost test.com{play{atc_auto on;}}", "vhost.play.atc_auto of"},
+        {"vhost test.com{play{atc_auto off;}}", "vhost.play.atc_auto of"},
+        {"vhost test.com{play{atc_auto;}}", "vhost.play.atc_auto of"},
+        {"vhost test.com{play{atc on; atc_auto on;}}", "vhost.play.atc_auto of"},
+        {"vhost test.com{atc_auto on;}", "vhost.atc_auto of"},
+        {"vhost test.com{atc on; atc_auto off;}", "vhost.atc_auto of"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + cases[i].conf);
+        EXPECT_TRUE(err != srs_success) << cases[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    // atc stays, in the play section and as SRS1 wrote it.
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc on;}} vhost v1.com{atc on;}"));
+        EXPECT_TRUE(conf.get_atc("test.com"));
+        EXPECT_TRUE(conf.get_atc("v1.com"));
+    }
+}
+
+// atc_auto is removed: SRS_VHOST_PLAY_ATC_AUTO, on or off, is refused with an error that names it.
+VOID TEST(ConfigMainTest, AtcAutoEnvRemoved)
+{
+    const char *values[] = {"on", "off"};
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, atc_auto, "SRS_VHOST_PLAY_ATC_AUTO", values[i]);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << values[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("SRS_VHOST_PLAY_ATC_AUTO") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, atc_auto, "SRS_VHOST_PLAY_ATC_AUTO", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
 // The timers in seconds read a fraction of a second, from the config file and
 // from env, and a whole number still reads as before.
 VOID TEST(ConfigTimerTest, SecondsAcceptFractions)
@@ -4820,10 +4857,9 @@ VOID TEST(ConfigTimerTest, SecondsAcceptFractions)
         srs_utime_t want = cases[i].want;
 
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "first_wait_for_qlv " + v + "; heartbeat{interval " + v + ";} " +
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "heartbeat{interval " + v + ";} " +
                                               "vhost test.com{rtc{stun_timeout " + v + ";} play{queue_length " + v + ";} " +
                                               "dash{dash_dispose " + v + ";} hls{hls_dispose " + v + ";} dvr{dvr_duration " + v + ";}}"));
-        EXPECT_EQ(want, conf.first_wait_for_qlv()) << v;
         EXPECT_EQ(want, conf.get_heartbeat_interval()) << v;
         EXPECT_EQ(want, conf.get_rtc_stun_timeout("test.com")) << v;
         EXPECT_EQ(want, conf.get_queue_length("test.com")) << v;
@@ -4838,14 +4874,12 @@ VOID TEST(ConfigTimerTest, SecondsAcceptFractions)
 
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        SrsSetEnvConfig(conf, qlv, "SRS_FIRST_WAIT_FOR_QLV", v);
         SrsSetEnvConfig(conf, heartbeat, "SRS_HEARTBEAT_INTERVAL", v);
         SrsSetEnvConfig(conf, stun, "SRS_VHOST_RTC_STUN_TIMEOUT", v);
         SrsSetEnvConfig(conf, queue, "SRS_VHOST_PLAY_QUEUE_LENGTH", v);
         SrsSetEnvConfig(conf, dash, "SRS_VHOST_DASH_DASH_DISPOSE", v);
         SrsSetEnvConfig(conf, hls, "SRS_VHOST_HLS_HLS_DISPOSE", v);
         SrsSetEnvConfig(conf, dvr, "SRS_VHOST_DVR_DVR_DURATION", v);
-        EXPECT_EQ(want, conf.first_wait_for_qlv()) << v;
         EXPECT_EQ(want, conf.get_heartbeat_interval()) << v;
         EXPECT_EQ(want, conf.get_rtc_stun_timeout("test.com")) << v;
         EXPECT_EQ(want, conf.get_queue_length("test.com")) << v;

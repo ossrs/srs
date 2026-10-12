@@ -289,14 +289,14 @@ if [[ $SRS_FFMPEG_FIT == YES ]]; then
     ModuleLibIncs+=("${LibFfmpegRoot[*]}")
 fi
 MODULE_FILES=("srs_app_server" "srs_app_rtmp_conn" "srs_app_rtmp_source"
-        "srs_app_refer" "srs_app_hls" "srs_app_forward" "srs_app_encoder"
+        "srs_app_hls" "srs_app_forward" "srs_app_encoder"
         "srs_app_st" "srs_app_log" "srs_app_config" "srs_app_stream_bridge"
         "srs_app_reload" "srs_app_http_api" "srs_app_http_conn" "srs_app_http_hooks"
         "srs_app_ingest" "srs_app_ffmpeg" "srs_app_utility" "srs_app_edge"
         "srs_app_heartbeat" "srs_app_http_client" "srs_app_http_static"
         "srs_app_recv_thread" "srs_app_security" "srs_app_statistic"
         "srs_app_mpegts_udp" "srs_app_listener" "srs_app_async_call"
-        "srs_app_latest_version" "srs_app_process"
+        "srs_app_process"
         "srs_app_dash" "srs_app_fragment" "srs_app_dvr" "srs_app_ng_exec"
         "srs_app_coworkers" "srs_app_circuit_breaker" "srs_app_factory"
         "srs_app_stream_token" "srs_app_http_stream")

@@ -8,7 +8,7 @@
 #
 # Exit code is 0 only if every layer passes.
 
-FLAGS="--srt=on --gb28181=on --rtsp=on --apm=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
+FLAGS="--srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
 LOGS=/tmp/srs-full-tier
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)

@@ -26,7 +26,6 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_ingest.hpp>
-#include <srs_app_latest_version.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_reload.hpp>
@@ -203,7 +202,6 @@ SrsServer::SrsServer()
     pid_file_locker_ = new SrsPidFileLocker();
 
     signal_manager_ = new SrsSignalManager(this);
-    latest_version_ = new SrsLatestVersion();
 
     http_api_mux_ = new SrsHttpServeMux();
 
@@ -283,7 +281,6 @@ SrsServer::~SrsServer()
     srs_freep(pid_file_locker_);
 
     srs_freep(signal_manager_);
-    srs_freep(latest_version_);
     srs_freep(rtmp_listener_);
     srs_freep(rtmps_listener_);
     srs_freep(api_listener_);
@@ -590,11 +587,6 @@ srs_error_t SrsServer::initialize_signal()
 
     if ((err = signal_manager_->initialize()) != srs_success) {
         return srs_error_wrap(err, "init signal manager");
-    }
-
-    // Start the version query coroutine.
-    if ((err = latest_version_->start()) != srs_success) {
-        return srs_error_wrap(err, "start version query");
     }
 
     return err;

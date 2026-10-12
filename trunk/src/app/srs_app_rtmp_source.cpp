@@ -2029,16 +2029,7 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
         return srs_error_wrap(err, "Format parse metadata");
     }
 
-    // if allow atc_auto and bravo-atc detected, open atc for vhost.
-    SrsAmf0Any *prop = NULL;
     atc_ = config_->get_atc(req_->vhost_);
-    if (config_->get_atc_auto(req_->vhost_)) {
-        if ((prop = metadata->metadata_->get_property("bravo_atc")) != NULL) {
-            if (prop->is_string() && prop->to_str() == "true") {
-                atc_ = true;
-            }
-        }
-    }
 
     // Update the meta cache.
     bool updated = false;

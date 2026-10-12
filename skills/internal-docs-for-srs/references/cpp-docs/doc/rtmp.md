@@ -212,14 +212,6 @@ vhost __defaultVhost__ {
         # default: off
         mix_correct off;
 
-        # whether enable the auto atc,
-        # if enabled, detect the bravo_atc="true" in onMetaData packet,
-        # set atc to on if matched.
-        # always ignore the onMetaData if atc_auto is off.
-        # Overwrite by env SRS_VHOST_PLAY_ATC_AUTO for all vhosts.
-        # default: off
-        atc_auto off;
-
         # set the MW(merged-write) latency in ms.
         # SRS always set mw on, so we just set the latency value.
         # the latency of stream >= mw_latency + mr_latency

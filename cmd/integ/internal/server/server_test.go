@@ -158,7 +158,6 @@ func TestPlayConfig(t *testing.T) {
 		{"TimeJitterZero", Play{TimeJitter: "zero"}, with("SRS_VHOST_PLAY_TIME_JITTER", "zero")},
 		{"TimeJitterOff", Play{TimeJitter: "off"}, with("SRS_VHOST_PLAY_TIME_JITTER", "off")},
 		{"ATC", Play{ATC: true, MixCorrect: true}, with("SRS_VHOST_PLAY_ATC", "on", "SRS_VHOST_PLAY_MIX_CORRECT", "on")},
-		{"ATCAuto", Play{ATCAuto: true}, with("SRS_VHOST_PLAY_ATC_AUTO", "on")},
 		{"SendMinInterval", Play{SendMinInterval: 20 * time.Millisecond}, with("SRS_VHOST_PLAY_SEND_MIN_INTERVAL", "20")},
 		{"MergedWrite", Play{MergedWrite: &Merged{WriteLatency: 200 * time.Millisecond, WriteMsgs: 4, ReadLatency: 100 * time.Millisecond}}, map[string]string{
 			"SRS_VHOST_MIN_LATENCY":        "off",

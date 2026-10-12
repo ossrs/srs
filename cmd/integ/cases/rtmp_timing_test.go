@@ -123,12 +123,10 @@ func TestRtmp_JitterZero(t *testing.T) {
 	})
 }
 
-// TestRtmp_JitterOffAtcAuto plays on a variant with time_jitter off and
-// atc_auto on, merged because atc_auto changes only the timestamps of the
-// headers a late player gets, which time_jitter off leaves as published.
-func TestRtmp_JitterOffAtcAuto(t *testing.T) {
+// TestRtmp_JitterOff plays on a variant with time_jitter off.
+func TestRtmp_JitterOff(t *testing.T) {
 	t.Parallel()
-	srs := server.Group(t, server.PlayConfig(server.Play{TimeJitter: "off", ATCAuto: true}))
+	srs := server.Group(t, server.PlayConfig(server.Play{TimeJitter: "off"}))
 
 	// KeepsTimestamps publishes a stream that starts at 100s and jumps 10s
 	// forward: the player gets every timestamp as published.
@@ -146,22 +144,6 @@ func TestRtmp_JitterOffAtcAuto(t *testing.T) {
 	check.Case(t, "BackJumpPlays", check.Normal, func(c *check.C) {
 		check.KnownBug(c, "without time correction, a player gets nothing after the timestamps jump back, until they pass the old ones")
 		backJumpPlays(c, srs, absBase)
-	})
-
-	// AtcAutoBravo holds a stream that starts at 100s, whose metadata has
-	// bravo_atc "true": ATC is on, so a late player gets the metadata and
-	// headers at the time of the cached GOP.
-	check.Case(t, "AtcAutoBravo", check.Normal, func(c *check.C) {
-		gop, headers := lateJoinHeaders(c, srs, true)
-		c.CheckEqual(headers, []string{"M" + gop, "A" + gop, "V" + gop}, "metadata and headers")
-	})
-
-	// AtcAutoNoBravo holds the same stream without bravo_atc: ATC stays off,
-	// so a late player gets the metadata and headers at their own time.
-	check.Case(t, "AtcAutoNoBravo", check.Normal, func(c *check.C) {
-		_, headers := lateJoinHeaders(c, srs, false)
-		start := fmt.Sprint(absBase)
-		c.CheckEqual(headers, []string{"M" + start, "A" + start, "V" + start}, "metadata and headers")
 	})
 }
 
@@ -191,7 +173,7 @@ func TestRtmp_AtcMixCorrect(t *testing.T) {
 	// gets the metadata and headers at the time of the cached GOP, then the
 	// GOP at its own time.
 	check.Case(t, "LateJoinHeadersAtGop", check.Normal, func(c *check.C) {
-		gop, headers := lateJoinHeaders(c, srs, false)
+		gop, headers := lateJoinHeaders(c, srs)
 		c.CheckEqual(headers, []string{"M" + gop, "A" + gop, "V" + gop}, "metadata and headers")
 	})
 
@@ -298,18 +280,14 @@ func TestRtmp_SendMinInterval(t *testing.T) {
 	})
 }
 
-// lateJoinHeaders holds a stream that starts at 100s, 2.5s long, with
-// bravo_atc "true" in its metadata if bravo, and plays it late. It returns
-// the timestamp of the first frame the player gets, and the metadata (M),
-// audio (A) and video (V) headers it gets with their timestamps, such as
-// "V102000".
-func lateJoinHeaders(c *check.C, srs *server.Server, bravo bool) (string, []string) {
+// lateJoinHeaders holds a stream that starts at 100s, 2.5s long, and plays
+// it late. It returns the timestamp of the first frame the player gets, and
+// the metadata (M), audio (A) and video (V) headers it gets with their
+// timestamps, such as "V102000".
+func lateJoinHeaders(c *check.C, srs *server.Server) (string, []string) {
 	c.Helper()
 	url := rtmpURL(srs, "live/"+streamName(c))
 	tags := shiftTags(readTags(c, media.H264HighAAC, 0, 2500*time.Millisecond), absBase)
-	if bravo {
-		tags = withBravoATC(c, tags)
-	}
 	publishTags(c, url, tags)
 
 	gop := lastGOP(tags)
@@ -412,41 +390,6 @@ func lateAudio(tags []*media.FLVTag, ms uint32) []*media.FLVTag {
 		return int(key(a)) - int(key(b))
 	})
 	return out
-}
-
-// withBravoATC is a copy of tags whose metadata has bravo_atc "true", which
-// an encoder sends for absolute timestamps.
-func withBravoATC(c *check.C, tags []*media.FLVTag) []*media.FLVTag {
-	c.Helper()
-	out := slices.Clone(tags)
-	for i, tag := range out {
-		if tag.Type != media.TagScript || !flv.IsMetadata(tag.Data) {
-			continue
-		}
-		values, err := rtmp.DecodeAMF0(tag.Data)
-		c.Must(err, "decode the metadata")
-		if len(values) < 2 {
-			c.Fatalf("metadata %v has no values", values)
-		}
-		meta := map[string]any{}
-		switch m := values[1].(type) {
-		case rtmp.ECMAArray:
-			for k, v := range m {
-				meta[k] = v
-			}
-		case map[string]any:
-			for k, v := range m {
-				meta[k] = v
-			}
-		}
-		meta["bravo_atc"] = "true"
-		data, err := rtmp.EncodeAMF0(values[0], rtmp.ECMAArray(meta))
-		c.Must(err, "encode the metadata")
-		out[i] = &media.FLVTag{Type: tag.Type, Timestamp: tag.Timestamp, Data: data}
-		return out
-	}
-	c.Fatalf("no metadata in the tags")
-	return nil
 }
 
 // firstKeyframe is the tags of a test file up to its first video keyframe:

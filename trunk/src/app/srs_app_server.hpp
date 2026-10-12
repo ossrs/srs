@@ -44,7 +44,6 @@ class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
 class SrsResourceManager;
-class SrsLatestVersion;
 class SrsMultipleTcpListeners;
 class ISrsMultipleTcpListeners;
 class ISrsIpListener;
@@ -223,8 +222,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // Signal manager which convert gignal to io message.
     ISrsSignalManager *signal_manager_;
-    // To query the latest available version of SRS.
-    SrsLatestVersion *latest_version_;
     // User send the signal, convert to variable.
     bool signal_reload_;
     bool signal_persistence_config_;

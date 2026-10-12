@@ -67,7 +67,7 @@ var (
 	// The v1 index's URLs, each an endpoint under /api/v1/.
 	v1IndexURLs = []string{
 		"versions", "summaries", "rusages", "self_proc_stats", "system_proc_stats", "meminfos",
-		"authors", "features", "requests", "vhosts", "streams", "clients", "forwards", "raw",
+		"authors", "features", "vhosts", "streams", "clients", "forwards", "raw",
 		"clusters",
 	}
 	// The features /api/v1/features reports, each a boolean.
@@ -209,7 +209,6 @@ func apiSystem(t *testing.T) {
 	})
 
 	check.Case(t, "V1IndexUrlsServed", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the v1 index lists perf, tcmalloc and requests, which SRS doesn't serve: each answers the index itself")
 		srs := server.Common(c)
 		urls := object(c, apiObject(c, srs, "/api/v1/"), "urls")
 		var notServed []string

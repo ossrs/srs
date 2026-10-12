@@ -185,7 +185,6 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 		"SRS_DAEMON":                  "off",
 		"SRS_LOG_TANK":                "console",
 		"SRS_PID":                     filepath.Join(dir, "srs.pid"),
-		"SRS_QUERY_LATEST_VERSION":    "off",
 		"SRS_CIRCUIT_BREAKER_ENABLED": "off",
 		"SRS_STREAM_CASTER_ENABLED":   "off",
 	}

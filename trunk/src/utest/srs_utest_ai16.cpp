@@ -2382,6 +2382,53 @@ VOID TEST(HttpApiTest, GoApiV1ServeHttp)
     api->stat_ = NULL;
 }
 
+VOID TEST(HttpApiTest, GoApiV1IndexListsOnlyServedUrls)
+{
+    srs_error_t err;
+
+    // The v1 index lists only the URLs SRS serves: requests is served under tests,
+    // no handler serves perf, and tcmalloc is served only by a gperf build.
+    SrsUniquePtr<SrsGoApiV1> api(new SrsGoApiV1());
+    MockStatisticForLiveStream mock_stat;
+    api->stat_ = &mock_stat;
+
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    MockResponseWriter mock_writer;
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+    api->stat_ = NULL;
+
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+    size_t json_start = response.find("\r\n\r\n");
+    ASSERT_TRUE(json_start != string::npos);
+    SrsJsonAny *json = SrsJsonAny::loads(response.substr(json_start + 4));
+    ASSERT_TRUE(json != NULL);
+    ASSERT_TRUE(json->is_object());
+    SrsUniquePtr<SrsJsonObject> obj((SrsJsonObject *)json);
+
+    SrsJsonAny *urls_any = obj->get_property("urls");
+    ASSERT_TRUE(urls_any != NULL);
+    ASSERT_TRUE(urls_any->is_object());
+    SrsJsonObject *urls = urls_any->to_object();
+    EXPECT_TRUE(urls->get_property("versions") != NULL);
+    EXPECT_TRUE(urls->get_property("clusters") != NULL);
+    EXPECT_TRUE(urls->get_property("requests") == NULL);
+    EXPECT_TRUE(urls->get_property("perf") == NULL);
+#ifdef SRS_GPERF
+    EXPECT_TRUE(urls->get_property("tcmalloc") != NULL);
+#else
+    EXPECT_TRUE(urls->get_property("tcmalloc") == NULL);
+#endif
+
+    // The test endpoints stay, listed under tests.
+    SrsJsonAny *tests_any = obj->get_property("tests");
+    ASSERT_TRUE(tests_any != NULL);
+    ASSERT_TRUE(tests_any->is_object());
+    SrsJsonObject *tests = tests_any->to_object();
+    EXPECT_TRUE(tests->get_property("requests") != NULL);
+    EXPECT_TRUE(tests->get_property("errors") != NULL);
+    EXPECT_TRUE(tests->get_property("redirects") != NULL);
+}
+
 VOID TEST(SrsGoApiVhostsTest, ServeHttpGetAllVhosts)
 {
     srs_error_t err;

@@ -308,7 +308,7 @@ User can access the `http://192.168.1.102:1985/api/v1`, where:
 | meminfos | /api/v1/meminfos | the meminfo of system |
 | authors | /api/v1/authors | the license, copyright, authors and contributors |
 | features | /api/v1/features | the supported features of SRS |
-| requests | /api/v1/requests | the request itself, for http debug |
+| tests | /api/v1/tests/requests | the test helpers `requests`, `errors` and `redirects`, for http debug |
 | vhosts | /api/v1/vhosts | manage all vhosts or specified vhost |
 | streams | /api/v1/streams | manage all streams or specified stream |
 | clients | /api/v1/clients | manage all clients or specified client, default query top 10 clients |
@@ -316,6 +316,8 @@ User can access the `http://192.168.1.102:1985/api/v1`, where:
 | configs | /api/v1/configs | RAW API for CUID the configs |
 | publish | /rtc/v1/publish/ | The push stream API for WebRTC |
 | play | /rtc/v1/play/ | The play stream API for WebRTC |
+
+The index lists only the APIs SRS serves: `tcmalloc` only in a `--gperf` build, `valgrind` only in a `--valgrind` build, and `signal` only in a `--signal-api` build.
 
 ## WebRTC Publish
 

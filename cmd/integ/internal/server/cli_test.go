@@ -32,7 +32,6 @@ func TestCLIEnv(t *testing.T) {
 		"SRS_DAEMON=off",
 		"SRS_LOG_TANK=console",
 		"SRS_PID=/tmp/x/srs.pid",
-		"SRS_QUERY_LATEST_VERSION=off",
 		"SRS_CIRCUIT_BREAKER_ENABLED=off",
 		"SRS_STREAM_CASTER_ENABLED=off",
 		"SRS_HTTP_SERVER_ENABLED=off",

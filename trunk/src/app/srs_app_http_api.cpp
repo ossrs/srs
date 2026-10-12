@@ -276,15 +276,15 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r
     urls->set("meminfos", SrsJsonAny::str("the meminfo of system"));
     urls->set("authors", SrsJsonAny::str("the license, copyright, authors and contributors"));
     urls->set("features", SrsJsonAny::str("the supported features of SRS"));
-    urls->set("requests", SrsJsonAny::str("the request itself, for http debug"));
     urls->set("vhosts", SrsJsonAny::str("manage all vhosts or specified vhost"));
     urls->set("streams", SrsJsonAny::str("manage all streams or specified stream"));
     urls->set("clients", SrsJsonAny::str("manage all clients or specified client, default query top 10 clients"));
     urls->set("forwards", SrsJsonAny::str("query all forwards or specified forward, filter by ?stream=id, default query top 10 forwards"));
     urls->set("raw", SrsJsonAny::str("raw api for srs, support CUID srs for instance the config"));
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
-    urls->set("perf", SrsJsonAny::str("System performance stat"));
+#ifdef SRS_GPERF
     urls->set("tcmalloc", SrsJsonAny::str("tcmalloc api with params ?page=summary|api"));
+#endif
 #ifdef SRS_VALGRIND
     urls->set("valgrind", SrsJsonAny::str("valgrind api with params ?check=full|added|changed|new|quick"));
 #endif

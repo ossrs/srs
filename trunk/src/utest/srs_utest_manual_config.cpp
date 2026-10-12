@@ -1722,41 +1722,6 @@ VOID TEST(ConfigMainTest, CheckConf_debug_srs_upnode)
     }
 }
 
-VOID TEST(ConfigMainTest, CheckConf_refer)
-{
-    srs_error_t err;
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{refer github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{refers github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{refer_publish github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{refer_publishs github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{refer_play github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{refer_plays github.com github.io;}"));
-    }
-}
-
 VOID TEST(ConfigMainTest, CheckConf_forward)
 {
     srs_error_t err;
@@ -2150,7 +2115,7 @@ VOID TEST(ConfigMainTest, CheckConf_atc)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{atc_auto on;}"));
+        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{atc_auto on;}"));
     }
 
     if (true) {
@@ -2521,33 +2486,6 @@ VOID TEST(ConfigUnitTest, TransformForVhost)
         SrsConfDirective root;
         SrsConfDirective *vhost = root.get_or_create("vhost");
         if (true) {
-            vhost->get_or_create("refer", "refer-v");
-            vhost->get_or_create("refer_play", "refer-play-v");
-            vhost->get_or_create("refer_publish", "refer-publish-v");
-        }
-
-        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
-
-        SrsConfDirective *p = vhost->get("refer");
-        ASSERT_TRUE(p != NULL);
-
-        ASSERT_TRUE(p->get("enabled") != NULL);
-        EXPECT_STREQ("on", p->get("enabled")->arg0().c_str());
-
-        ASSERT_TRUE(p->get("all") != NULL);
-        EXPECT_STREQ("refer-v", p->get("all")->arg0().c_str());
-
-        ASSERT_TRUE(p->get("play") != NULL);
-        EXPECT_STREQ("refer-play-v", p->get("play")->arg0().c_str());
-
-        ASSERT_TRUE(p->get("publish") != NULL);
-        EXPECT_STREQ("refer-publish-v", p->get("publish")->arg0().c_str());
-    }
-
-    if (true) {
-        SrsConfDirective root;
-        SrsConfDirective *vhost = root.get_or_create("vhost");
-        if (true) {
             SrsConfDirective *mr = vhost->get_or_create("mr");
             mr->get_or_create("enabled", "on");
             mr->get_or_create("latency", "100");
@@ -2624,7 +2562,9 @@ VOID TEST(ConfigUnitTest, TransformForVhost)
         ASSERT_TRUE(p->get("time_jitter") != NULL);
         ASSERT_TRUE(p->get("mix_correct") != NULL);
         ASSERT_TRUE(p->get("atc") != NULL);
-        ASSERT_TRUE(p->get("atc_auto") != NULL);
+        // atc_auto is removed, so it stays where it is, for the config check to refuse.
+        ASSERT_TRUE(p->get("atc_auto") == NULL);
+        ASSERT_TRUE(vhost->get("atc_auto") != NULL);
         ASSERT_TRUE(p->get("mw_latency") != NULL);
         ASSERT_TRUE(p->get("gop_cache") != NULL);
         ASSERT_TRUE(p->get("queue_length") != NULL);
@@ -3155,14 +3095,9 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
         EXPECT_TRUE(conf.get_gop_cache("ossrs.net"));
         EXPECT_TRUE(conf.get_debug_srs_upnode("ossrs.net"));
         EXPECT_FALSE(conf.get_atc("ossrs.net"));
-        EXPECT_FALSE(conf.get_atc_auto("ossrs.net"));
         EXPECT_EQ(1, (int)conf.get_time_jitter("ossrs.net"));
         EXPECT_FALSE(conf.get_mix_correct("ossrs.net"));
         EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_queue_length("ossrs.net"));
-        EXPECT_FALSE(conf.get_refer_enabled("ossrs.net"));
-        EXPECT_TRUE(conf.get_refer_all("ossrs.net") == NULL);
-        EXPECT_TRUE(conf.get_refer_play("ossrs.net") == NULL);
-        EXPECT_TRUE(conf.get_refer_publish("ossrs.net") == NULL);
         EXPECT_EQ(0, (int)conf.get_in_ack_size("ossrs.net"));
         EXPECT_EQ(2500000, conf.get_out_ack_size("ossrs.net"));
         EXPECT_EQ(60000, conf.get_chunk_size("ossrs.net"));
@@ -3286,30 +3221,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{refer{publish xxx;}}"));
-        EXPECT_TRUE(conf.get_refer_publish("ossrs.net") != NULL);
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{refer{play xxx;}}"));
-        EXPECT_TRUE(conf.get_refer_play("ossrs.net") != NULL);
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{refer{all xxx;}}"));
-        EXPECT_TRUE(conf.get_refer_all("ossrs.net") != NULL);
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{refer{enabled on;}}"));
-        EXPECT_TRUE(conf.get_refer_enabled("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{play{queue_length 10;}}"));
         EXPECT_EQ(10000000, conf.get_queue_length("ossrs.net"));
     }
@@ -3324,12 +3235,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{play{time_jitter zero;}}"));
         EXPECT_EQ(2, (int)conf.get_time_jitter("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{play{atc_auto on;}}"));
-        EXPECT_TRUE(conf.get_gop_cache("ossrs.net"));
     }
 
     if (true) {
@@ -4311,12 +4216,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesGlobal)
 
         SrsSetEnvConfig(conf, tcmalloc_release_rate_low, "SRS_TCMALLOC_RELEASE_RATE", "5.2");
         EXPECT_EQ(5.2, conf.tcmalloc_release_rate());
-
-        SrsSetEnvConfig(conf, whether_query_latest_version, "SRS_QUERY_LATEST_VERSION", "off");
-        EXPECT_FALSE(conf.whether_query_latest_version());
-
-        SrsSetEnvConfig(conf, first_wait_for_qlv, "SRS_FIRST_WAIT_FOR_QLV", "200");
-        EXPECT_EQ(200 * SRS_UTIME_SECONDS, conf.first_wait_for_qlv());
     }
 }
 
@@ -4971,9 +4870,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostPlay)
 
         SrsSetEnvConfig(conf, mix_correct, "SRS_VHOST_PLAY_MIX_CORRECT", "on");
         EXPECT_TRUE(conf.get_mix_correct("__defaultVhost__"));
-
-        SrsSetEnvConfig(conf, atc_auto, "SRS_VHOST_PLAY_ATC_AUTO", "on");
-        EXPECT_TRUE(conf.get_atc_auto("__defaultVhost__"));
 
         SrsSetEnvConfig(conf, send_min_interval, "SRS_VHOST_PLAY_SEND_MIN_INTERVAL", "10");
         EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, conf.get_send_min_interval("__defaultVhost__"));

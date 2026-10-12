@@ -94,11 +94,6 @@
     XX(ERROR_THREAD_CREATE, 1082, "StThreadCreate", "Create ST thread failed")                                         \
     XX(ERROR_THREAD_FINISHED, 1083, "StThreadFinished", "ST thread finished without error")                            \
     XX(ERROR_PB_NO_SPACE, 1084, "ProtobufNoSpace", "Failed to encode protobuf for no buffer space left")               \
-    XX(ERROR_CLS_INVALID_CONFIG, 1085, "ClsConfig", "Invalid configuration for TencentCloud CLS")                      \
-    XX(ERROR_CLS_EXCEED_SIZE, 1086, "ClsExceedSize", "CLS logs exceed max size 5MB")                                   \
-    XX(ERROR_APM_EXCEED_SIZE, 1087, "ApmExceedSize", "APM logs exceed max size 5MB")                                   \
-    XX(ERROR_APM_ENDPOINT, 1088, "ApmEndpoint", "APM endpoint is invalid")                                             \
-    XX(ERROR_APM_AUTH, 1089, "ApmAuth", "APM team or token is invalid")                                                \
     XX(ERROR_EXPORTER_DISABLED, 1090, "ExporterDisable", "Prometheus exporter is disabled")                            \
     XX(ERROR_ST_SET_SELECT, 1091, "StSetSelect", "ST set select failed")                                               \
     XX(ERROR_BACKTRACE_PARSE_NOT_SUPPORT, 1092, "BacktraceParseNotSupport", "Backtrace parse not supported")           \
@@ -131,7 +126,7 @@
     XX(ERROR_RTMP_CH_SCHEMA, 2012, "RtmpSchema", "RTMP handshake failed for schema changed")                           \
     XX(ERROR_RTMP_PACKET_SIZE, 2013, "RtmpPacketSize", "RTMP packet size changed in chunks")                           \
     XX(ERROR_RTMP_VHOST_NOT_FOUND, 2014, "NoVhost", "Request vhost not found")                                         \
-    XX(ERROR_RTMP_ACCESS_DENIED, 2015, "SecurityDenied", "Referer check failed and access denied")                     \
+    XX(ERROR_RTMP_ACCESS_DENIED, 2015, "SecurityDenied", "Access denied")                                              \
     XX(ERROR_RTMP_HANDSHAKE, 2016, "RtmpHandshake", "RTMP handshake failed")                                           \
     XX(ERROR_RTMP_NO_REQUEST, 2017, "RtmpNoRequest", "Invalid RTMP response for no request found")                     \
     XX(ERROR_RTMP_HS_SSL_REQUIRE, 2018, "RtmpSslRequire", "RTMP handshake failed for SSL required")                    \

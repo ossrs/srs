@@ -20,7 +20,6 @@ using namespace std;
 #include <srs_app_hls.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_recv_thread.hpp>
-#include <srs_app_refer.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
@@ -218,7 +217,6 @@ SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
     delta_ = new SrsNetworkDelta();
 
     rtmp_ = NULL;
-    refer_ = new SrsRefer();
     security_ = new SrsSecurity();
     duration_ = 0;
     wakable_ = NULL;
@@ -286,7 +284,6 @@ SrsRtmpConn::~SrsRtmpConn()
 
     srs_freep(info_);
     srs_freep(rtmp_);
-    srs_freep(refer_);
     srs_freep(security_);
 
     app_factory_ = NULL;
@@ -692,12 +689,6 @@ srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
         req->vhost_ = vhost->arg0();
     }
 
-    if (config_->get_refer_enabled(req->vhost_)) {
-        if ((err = refer_->check(req->pageUrl_, config_->get_refer_all(req->vhost_))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: referer check");
-        }
-    }
-
     if ((err = http_hooks_on_connect()) != srs_success) {
         return srs_error_wrap(err, "rtmp: callback on connect");
     }
@@ -714,13 +705,7 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
         return srs_error_wrap(err, "thread");
     }
 
-    // Check page referer of player.
     ISrsRequest *req = info_->req_;
-    if (config_->get_refer_enabled(req->vhost_)) {
-        if ((err = refer_->check(req->pageUrl_, config_->get_refer_play(req->vhost_))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: referer check");
-        }
-    }
 
     // When origin cluster enabled, try to redirect to the origin which is active.
     // A active origin is a server which is delivering stream.
@@ -947,12 +932,6 @@ srs_error_t SrsRtmpConn::authorize_publish()
     }
 
     ISrsRequest *req = info_->req_;
-
-    if (config_->get_refer_enabled(req->vhost_)) {
-        if ((err = refer_->check(req->pageUrl_, config_->get_refer_publish(req->vhost_))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: referer check");
-        }
-    }
 
     // We must do stat the client before hooks, because hooks depends on it.
     if ((err = stat_->on_client(context_->get_id().c_str(), req, this, info_->type_)) != srs_success) {

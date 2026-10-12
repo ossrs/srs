@@ -113,12 +113,15 @@ extern bool srs_config_apply_filter(SrsConfDirective *dvr_apply, ISrsRequest *re
 extern std::string srs_config_bool2switch(std::string sbool);
 
 // Parse loaded vhost directives to compatible mode.
-// For exmaple, SRS1/2 use the follow refer style:
-//          refer   a.domain.com b.domain.com;
-// while SRS3 use the following:
-//          refer {
+// For exmaple, SRS2 use the follow mr style:
+//          mr {
 //              enabled on;
-//              all a.domain.com b.domain.com;
+//              latency 350;
+//          }
+// while SRS3 use the following:
+//          publish {
+//              mr on;
+//              mr_latency 350;
 //          }
 // so we must transform the vhost directive anytime load the config.
 // @param root the root directive to transform, in and out parameter.
@@ -512,13 +515,6 @@ public:
     virtual srs_utime_t get_publish_kickoff_for_idle(std::string vhost) = 0;
 
 public:
-    // Refer config
-    virtual bool get_refer_enabled(std::string vhost) = 0;
-    virtual SrsConfDirective *get_refer_all(std::string vhost) = 0;
-    virtual SrsConfDirective *get_refer_play(std::string vhost) = 0;
-    virtual SrsConfDirective *get_refer_publish(std::string vhost) = 0;
-
-public:
     // Edge config
     virtual bool get_vhost_origin_cluster(std::string vhost) = 0;
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost) = 0;
@@ -624,7 +620,6 @@ public:
     virtual srs_utime_t get_rtc_pli_for_rtmp(std::string vhost) = 0;
     virtual int get_rtc_opus_bitrate(std::string vhost) = 0;
     virtual bool get_vhost_is_edge(std::string vhost) = 0;
-    virtual bool get_atc_auto(std::string vhost) = 0;
     virtual bool get_reduce_sequence_header(std::string vhost) = 0;
     virtual bool get_parse_sps(std::string vhost) = 0;
 
@@ -903,9 +898,6 @@ public:
     // Get the configed work dir.
     // ignore if empty string.
     virtual std::string get_work_dir();
-    // Whether query the latest available version of SRS.
-    virtual bool whether_query_latest_version();
-    virtual srs_utime_t first_wait_for_qlv();
     // Whether empty client IP is ok.
     virtual bool empty_ip_ok();
     // Get the start wait in ms for gracefully quit.
@@ -1044,11 +1036,6 @@ public:
     // @return true when atc is ok; otherwise, false.
     // @remark, default false.
     virtual bool get_atc(std::string vhost);
-    // Whether atc_auto is enabled of vhost.
-    // atc_auto used to auto enable atc, when metadata specified the bravo_atc.
-    // @return true when atc_auto is ok; otherwise, false.
-    // @remark, default true.
-    virtual bool get_atc_auto(std::string vhost);
     // Get the time_jitter algorithm.
     // @return the time_jitter algorithm, defined in SrsRtmpJitterAlgorithm.
     // @remark, default full.
@@ -1060,17 +1047,6 @@ public:
     // when exceed the queue length, drop packet util I frame.
     // @remark, default 10s.
     virtual srs_utime_t get_queue_length(std::string vhost);
-    // Whether the refer hotlink-denial enabled.
-    virtual bool get_refer_enabled(std::string vhost);
-    // Get the refer hotlink-denial for all type.
-    // @return the refer, NULL for not configed.
-    virtual SrsConfDirective *get_refer_all(std::string vhost);
-    // Get the refer hotlink-denial for play.
-    // @return the refer, NULL for not configed.
-    virtual SrsConfDirective *get_refer_play(std::string vhost);
-    // Get the refer hotlink-denial for publish.
-    // @return the refer, NULL for not configed.
-    virtual SrsConfDirective *get_refer_publish(std::string vhost);
     // Get the input default ack size, which is generally set by message from peer.
     virtual int get_in_ack_size(std::string vhost);
     // Get the output default ack size, to notify the peer to send acknowledge to server.

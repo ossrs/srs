@@ -3565,7 +3565,6 @@ VOID TEST(SrsRtmpConnTest, ConstructorAndAssemble)
         EXPECT_EQ(1935, conn->port_);
         EXPECT_TRUE(conn->config_ == mock_config);
         EXPECT_TRUE(conn->rtmp_ != NULL);
-        EXPECT_TRUE(conn->refer_ != NULL);
         EXPECT_TRUE(conn->security_ != NULL);
         EXPECT_TRUE(conn->info_ != NULL);
         EXPECT_TRUE(conn->kbps_ != NULL);

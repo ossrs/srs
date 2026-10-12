@@ -515,36 +515,6 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 srs_freep(hstrs);
             }
 
-            // SRS3.0, change the refer style
-            //  SRS1/2:
-            //      vhost { refer; refer_play; refer_publish; }
-            //  SRS3+:
-            //      vhost { refer { enabled; all; play; publish; } }
-            if ((n == "refer" && conf->directives_.empty()) || n == "refer_play" || n == "refer_publish") {
-                // remove the old one first, for name duplicated.
-                it = dir->directives_.erase(it);
-
-                SrsConfDirective *refer = dir->get_or_create("refer");
-                refer->get_or_create("enabled", "on");
-                if (n == "refer") {
-                    SrsConfDirective *all = refer->get_or_create("all");
-                    all->args_ = conf->args_;
-                    srs_warn("transform: vhost.refer to vhost.refer.all for %s", dir->name_.c_str());
-                } else if (n == "refer_play") {
-                    SrsConfDirective *play = refer->get_or_create("play");
-                    play->args_ = conf->args_;
-                    srs_warn("transform: vhost.refer_play to vhost.refer.play for %s", dir->name_.c_str());
-                } else if (n == "refer_publish") {
-                    SrsConfDirective *publish = refer->get_or_create("publish");
-                    publish->args_ = conf->args_;
-                    srs_warn("transform: vhost.refer_publish to vhost.refer.publish for %s", dir->name_.c_str());
-                }
-
-                // remove the old directive.
-                srs_freep(conf);
-                continue;
-            }
-
             // SRS3.0, change the mr style
             //  SRS2:
             //      vhost { mr { enabled; latency; } }
@@ -610,12 +580,12 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             }
 
             // SRS3.0, change the bellow like a shadow:
-            //      time_jitter, mix_correct, atc, atc_auto, mw_latency, gop_cache, queue_length
+            //      time_jitter, mix_correct, atc, mw_latency, gop_cache, queue_length
             //  SRS1/2:
             //      vhost { shadow; }
             //  SRS3+:
             //      vhost { play { shadow; } }
-            if (n == "time_jitter" || n == "mix_correct" || n == "atc" || n == "atc_auto" || n == "mw_latency" || n == "gop_cache" || n == "gop_cache_max_frames" || n == "queue_length" || n == "send_min_interval" || n == "reduce_sequence_header") {
+            if (n == "time_jitter" || n == "mix_correct" || n == "atc" || n == "mw_latency" || n == "gop_cache" || n == "gop_cache_max_frames" || n == "queue_length" || n == "send_min_interval" || n == "reduce_sequence_header") {
                 it = dir->directives_.erase(it);
 
                 SrsConfDirective *play = dir->get_or_create("play");
@@ -1907,8 +1877,6 @@ void SrsConfig::print_help(char **argv)
         "      SRS_GRACE_START_WAIT=2300                     Graceful quit, ms to wait before closing listeners.\n"
         "      SRS_GRACE_FINAL_WAIT=3200                     Graceful quit, ms to wait for cleanup.\n"
         "      SRS_FORCE_GRACE_QUIT=off                      Quit gracefully on SIGTERM too.\n"
-        "      SRS_QUERY_LATEST_VERSION=off                  Query the latest SRS version and log it.\n"
-        "      SRS_FIRST_WAIT_FOR_QLV=300                    Seconds to wait before the first version query.\n"
         "   Log:\n"
         "      SRS_LOG_LEVEL_V2=                             trace, debug, info, warn or error, overrides SRS_LOG_LEVEL.\n"
         "      SRS_LOG_LEVEL=trace                           verbose, info, trace, warn or error.\n"
@@ -1947,7 +1915,6 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_PLAY_TIME_JITTER=full               Timestamp correction: full, zero or off.\n"
         "      SRS_VHOST_PLAY_MIX_CORRECT=off                Keep audio and video timestamps interleaved.\n"
         "      SRS_VHOST_PLAY_ATC=off                        Deliver absolute timestamps, for backup streams.\n"
-        "      SRS_VHOST_PLAY_ATC_AUTO=off                   Turn on ATC if the metadata says bravo_atc.\n"
         "      SRS_VHOST_PLAY_MW_LATENCY=350                 ms of merged write, 0 for WebRTC.\n"
         "      SRS_VHOST_PLAY_MW_MSGS=8                      Min messages of merged write, 1 for WebRTC, 0 for min latency.\n"
         "      SRS_VHOST_PLAY_SEND_MIN_INTERVAL=0            Min ms between sent packets, 0 to disable.\n"
@@ -2239,7 +2206,11 @@ srs_error_t SrsConfig::check_normal_config()
         if (n == "asprocess") {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "asprocess is removed, quitting when the parent process quits is not supported");
         }
-        if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "tencentcloud_apm" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps") {
+        // The latest version query is removed, so refuse its directives rather than ignore them, on or off.
+        if (n == "query_latest_version" || n == "first_wait_for_qlv") {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%s is removed, the latest version query is not supported", n.c_str());
+        }
+        if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps") {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
     }
@@ -2259,6 +2230,15 @@ srs_error_t SrsConfig::check_normal_config()
     // asprocess is removed, so refuse it by env rather than ignore it, on or off.
     if (!srs_getenv("SRS_ASPROCESS").empty()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_ASPROCESS is removed, quitting when the parent process quits is not supported");
+    }
+    // The latest version query is removed, so refuse its env vars rather than ignore them, on or off.
+    if (true) {
+        const char *removed[] = {"SRS_QUERY_LATEST_VERSION", "SRS_FIRST_WAIT_FOR_QLV"};
+        for (int i = 0; i < (int)(sizeof(removed) / sizeof(removed[0])); i++) {
+            if (!srs_getenv(removed[i]).empty()) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%s is removed, the latest version query is not supported", removed[i]);
+            }
+        }
     }
     if (true) {
         SrsConfDirective *conf = root_->get("http_api");
@@ -2638,7 +2618,19 @@ srs_error_t SrsConfig::check_normal_config()
             if (n == "hds") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.hds of %s is removed, HDS is not supported", vhost->arg0().c_str());
             }
-            if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay" && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks" && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck" && n != "play" && n != "publish" && n != "cluster" && n != "security" && n != "http_remux" && n != "dash" && n != "http_static" && n != "exec" && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt" && n != "rtsp") {
+            // The bandwidth check is removed, so refuse its section rather than ignore it.
+            if (n == "bandcheck") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.bandcheck of %s is removed, the bandwidth check is not supported", vhost->arg0().c_str());
+            }
+            // The referer check is removed, so refuse its section and the SRS1 style directives rather than ignore them.
+            if (n == "refer" || n == "refer_play" || n == "refer_publish") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.%s of %s is removed, the referer check is not supported", n.c_str(), vhost->arg0().c_str());
+            }
+            // atc_auto is removed, so refuse it as SRS1 wrote it, in the vhost, rather than ignore it, on or off.
+            if (n == "atc_auto") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.atc_auto of %s is removed, turning ATC on by the bravo_atc of the metadata is not supported", vhost->arg0().c_str());
+            }
+            if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay" && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks" && n != "forward" && n != "transcode" && n != "play" && n != "publish" && n != "cluster" && n != "security" && n != "http_remux" && n != "dash" && n != "http_static" && n != "exec" && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt" && n != "rtsp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
             // for each sub directives of vhost.
@@ -2647,13 +2639,6 @@ srs_error_t SrsConfig::check_normal_config()
                     string m = conf->at(j)->name_;
                     if (m != "enabled" && m != "dvr_apply" && m != "dvr_path" && m != "dvr_plan" && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.dvr.%s of %s", m.c_str(), vhost->arg0().c_str());
-                    }
-                }
-            } else if (n == "refer") {
-                for (int j = 0; j < (int)conf->directives_.size(); j++) {
-                    string m = conf->at(j)->name_;
-                    if (m != "enabled" && m != "all" && m != "publish" && m != "play") {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.refer.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
             } else if (n == "exec") {
@@ -2666,7 +2651,11 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "play") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
-                    if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "atc_auto" && m != "mw_latency" && m != "gop_cache" && m != "gop_cache_max_frames" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header" && m != "mw_msgs") {
+                    // atc_auto is removed, so refuse it rather than ignore it, on or off.
+                    if (m == "atc_auto") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.play.atc_auto of %s is removed, turning ATC on by the bravo_atc of the metadata is not supported", vhost->arg0().c_str());
+                    }
+                    if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "mw_latency" && m != "gop_cache" && m != "gop_cache_max_frames" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header" && m != "mw_msgs") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.play.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -3170,34 +3159,6 @@ string SrsConfig::get_work_dir()
     }
 
     return conf->arg0();
-}
-
-bool SrsConfig::whether_query_latest_version()
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.query_latest_version"); // SRS_QUERY_LATEST_VERSION
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = root_->get("query_latest_version");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_TRUE(conf->arg0());
-}
-
-srs_utime_t SrsConfig::first_wait_for_qlv()
-{
-    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.first_wait_for_qlv"); // SRS_FIRST_WAIT_FOR_QLV
-
-    static srs_utime_t DEFAULT = 5 * 60 * SRS_UTIME_SECONDS;
-
-    SrsConfDirective *conf = root_->get("first_wait_for_qlv");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::empty_ip_ok()
@@ -4725,30 +4686,6 @@ bool SrsConfig::get_atc(string vhost)
     return SRS_CONF_PREFER_FALSE(conf->arg0());
 }
 
-bool SrsConfig::get_atc_auto(string vhost)
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.play.atc_auto"); // SRS_VHOST_PLAY_ATC_AUTO
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("play");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("atc_auto");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
 int SrsConfig::get_time_jitter(string vhost)
 {
     if (!srs_getenv("srs.vhost.play.time_jitter").empty()) { // SRS_VHOST_PLAY_TIME_JITTER
@@ -4821,79 +4758,6 @@ srs_utime_t SrsConfig::get_queue_length(string vhost)
     }
 
     return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
-}
-
-bool SrsConfig::get_refer_enabled(string vhost)
-{
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("refer");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
-SrsConfDirective *SrsConfig::get_refer_all(string vhost)
-{
-    static SrsConfDirective *DEFAULT = NULL;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("refer");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return conf->get("all");
-}
-
-SrsConfDirective *SrsConfig::get_refer_play(string vhost)
-{
-    static SrsConfDirective *DEFAULT = NULL;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("refer");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return conf->get("play");
-}
-
-SrsConfDirective *SrsConfig::get_refer_publish(string vhost)
-{
-    static SrsConfDirective *DEFAULT = NULL;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("refer");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return conf->get("publish");
 }
 
 int SrsConfig::get_in_ack_size(string vhost)

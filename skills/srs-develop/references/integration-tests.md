@@ -149,7 +149,7 @@ Run the layers of every tier in this order.
 
 1. Configure `trunk/` once with the `Dockerfile.test` flags without `--build-cache`, plus `--simulator=on` for the `rtc-*` scripts and the NACK log unit tests:
    ```bash
-   ./configure --srt=on --gb28181=on --rtsp=on --apm=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on
+   ./configure --srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on
    ```
 2. Build `objs/srs`. Every lane uses it, and none uses `srs_utest`.
 3. Build the proxy (`make`) and `tools/pion-whep`.
