@@ -23,6 +23,7 @@ using namespace std;
 #include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_json.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_srt.hpp>
 
@@ -70,9 +71,9 @@ srs_error_t SrsSrtConnection::get_streamid(std::string &streamid)
     return srs_srt_get_streamid(srt_fd_, streamid);
 }
 
-srs_error_t SrsSrtConnection::get_stats(SrsSrtStat &stat)
+srs_error_t SrsSrtConnection::get_stats(SrsSrtStat &stat, bool clear)
 {
-    return stat.fetch(srt_fd_, true);
+    return stat.fetch(srt_fd_, clear);
 }
 
 void SrsSrtConnection::set_recv_timeout(srs_utime_t tm)
@@ -230,6 +231,7 @@ SrsMpegtsSrtConn::SrsMpegtsSrtConn(ISrsResourceManager *resource_manager, srs_sr
     req_->ip_ = ip;
 
     security_ = new SrsSecurity();
+    srt_recv_retrans_ = 0;
 
     app_factory_ = _srs_app_factory;
     context_ = _srs_context;
@@ -316,6 +318,37 @@ std::string SrsMpegtsSrtConn::remote_ip()
 const SrsContextId &SrsMpegtsSrtConn::get_id()
 {
     return trd_->cid();
+}
+
+srs_error_t SrsMpegtsSrtConn::dumps_srt(SrsJsonObject *obj)
+{
+    srs_error_t err = srs_success;
+
+    // Never clear, for the interval counters belong to the pithy print.
+    SrsSrtStat s;
+    if ((err = srt_conn_->get_stats(s, false)) != srs_success) {
+        return srs_error_wrap(err, "srt stats");
+    }
+
+    obj->set("rtt_ms", SrsJsonAny::number(s.msRTT()));
+    obj->set("bandwidth_mbps", SrsJsonAny::number(s.mbpsBandwidth()));
+    obj->set("recv_buf_ms", SrsJsonAny::integer(s.msRcvBuf()));
+    obj->set("send_buf_ms", SrsJsonAny::integer(s.msSndBuf()));
+    obj->set("recv_latency_ms", SrsJsonAny::integer(s.msRcvTsbPdDelay()));
+    obj->set("send_latency_ms", SrsJsonAny::integer(s.msSndTsbPdDelay()));
+
+    obj->set("recv_packets", SrsJsonAny::integer(s.pktRecvTotal()));
+    obj->set("recv_loss", SrsJsonAny::integer(s.pktRcvLossTotal()));
+    obj->set("recv_retrans", SrsJsonAny::integer(srt_recv_retrans_ + s.pktRcvRetrans()));
+    obj->set("recv_drop", SrsJsonAny::integer(s.pktRcvDropTotal()));
+    obj->set("recv_undecrypt", SrsJsonAny::integer(s.pktRcvUndecryptTotal()));
+
+    obj->set("send_packets", SrsJsonAny::integer(s.pktSentTotal()));
+    obj->set("send_loss", SrsJsonAny::integer(s.pktSndLossTotal()));
+    obj->set("send_retrans", SrsJsonAny::integer(s.pktRetransTotal()));
+    obj->set("send_drop", SrsJsonAny::integer(s.pktSndDropTotal()));
+
+    return err;
 }
 
 srs_error_t SrsMpegtsSrtConn::cycle()
@@ -439,6 +472,9 @@ srs_error_t SrsMpegtsSrtConn::publishing()
         return srs_error_wrap(err, "srt: stat client");
     }
 
+    // Provide the SRT stats of this connection to the HTTP API.
+    stat_->on_srt_stats(context_->get_id().c_str(), this);
+
     if ((err = security_->check(SrsSrtConnPublish, ip_, req_)) != srs_success) {
         return srs_error_wrap(err, "srt: security check");
     }
@@ -473,6 +509,9 @@ srs_error_t SrsMpegtsSrtConn::playing()
     if ((err = stat_->on_client(context_->get_id().c_str(), req_, this, SrsSrtConnPlay)) != srs_success) {
         return srs_error_wrap(err, "srt: stat client");
     }
+
+    // Provide the SRT stats of this connection to the HTTP API.
+    stat_->on_srt_stats(context_->get_id().c_str(), this);
 
     if ((err = security_->check(SrsSrtConnPlay, ip_, req_)) != srs_success) {
         return srs_error_wrap(err, "srt: security check");
@@ -611,7 +650,7 @@ srs_error_t SrsMpegtsSrtConn::do_publishing()
         pprint->elapse();
         if (pprint->can_print()) {
             SrsSrtStat s;
-            if ((err = srt_conn_->get_stats(s)) != srs_success) {
+            if ((err = fetch_srt_stats(s)) != srs_success) {
                 srs_freep(err);
             } else {
                 srs_trace("<- " SRS_CONSTS_LOG_SRT_PUBLISH " Transport Stats # pktRecv=%" PRId64 ", pktRcvLoss=%d, pktRcvRetrans=%d, pktRcvDrop=%d",
@@ -705,7 +744,7 @@ srs_error_t SrsMpegtsSrtConn::do_playing()
         pprint->elapse();
         if (pprint->can_print()) {
             SrsSrtStat s;
-            if ((err = srt_conn_->get_stats(s)) != srs_success) {
+            if ((err = fetch_srt_stats(s)) != srs_success) {
                 srs_freep(err);
             } else {
                 srs_trace("-> " SRS_CONSTS_LOG_SRT_PLAY " Transport Stats # pktSent=%" PRId64 ", pktSndLoss=%d, pktRetrans=%d, pktSndDrop=%d",
@@ -757,6 +796,19 @@ srs_error_t SrsMpegtsSrtConn::on_srt_packet(char *buf, int nb_buf)
     if ((err = srt_source_->on_srt_packet(packet.get())) != srs_success) {
         return srs_error_wrap(err, "on srt packet");
     }
+
+    return err;
+}
+
+srs_error_t SrsMpegtsSrtConn::fetch_srt_stats(SrsSrtStat &stat)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = srt_conn_->get_stats(stat, true)) != srs_success) {
+        return srs_error_wrap(err, "srt stats");
+    }
+
+    srt_recv_retrans_ += stat.pktRcvRetrans();
 
     return err;
 }

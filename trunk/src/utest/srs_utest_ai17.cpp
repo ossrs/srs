@@ -1872,6 +1872,10 @@ void MockStatisticForRtcApi::on_forward_stop(std::string id)
 {
 }
 
+void MockStatisticForRtcApi::on_srt_stats(std::string id, ISrsStatisticSrt *srt)
+{
+}
+
 srs_error_t MockStatisticForRtcApi::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
 {
     send_bytes = 0;
@@ -4788,6 +4792,10 @@ void MockStatisticForHooks::on_forward_state(std::string id, SrsForwardState sta
 }
 
 void MockStatisticForHooks::on_forward_stop(std::string id)
+{
+}
+
+void MockStatisticForHooks::on_srt_stats(std::string id, ISrsStatisticSrt *srt)
 {
 }
 

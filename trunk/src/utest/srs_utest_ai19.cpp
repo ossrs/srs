@@ -2726,6 +2726,10 @@ void MockStatisticForHttpxConn::on_forward_stop(std::string id)
 {
 }
 
+void MockStatisticForHttpxConn::on_srt_stats(std::string id, ISrsStatisticSrt *srt)
+{
+}
+
 srs_error_t MockStatisticForHttpxConn::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
 {
     return srs_success;

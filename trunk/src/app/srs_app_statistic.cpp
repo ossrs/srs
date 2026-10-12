@@ -245,12 +245,21 @@ void SrsStatisticStream::close()
     vhost_->nb_streams_--;
 }
 
+ISrsStatisticSrt::ISrsStatisticSrt()
+{
+}
+
+ISrsStatisticSrt::~ISrsStatisticSrt()
+{
+}
+
 SrsStatisticClient::SrsStatisticClient()
 {
     clk_ = _srs_clock;
 
     stream_ = NULL;
     conn_ = NULL;
+    srt_ = NULL;
     req_ = NULL;
     type_ = SrsRtmpConnUnknown;
     create_ = 0;
@@ -295,6 +304,18 @@ srs_error_t SrsStatisticClient::dumps(SrsJsonObject *obj)
 
     okbps->set("recv_30s", SrsJsonAny::integer(kbps_->get_recv_kbps_30s()));
     okbps->set("send_30s", SrsJsonAny::integer(kbps_->get_send_kbps_30s()));
+
+    // The SRT stats, null if not SRT. They are extra, so ignore the error, such as the socket is closing.
+    SrsJsonObject *srt = NULL;
+    if (srt_) {
+        srt = SrsJsonAny::object();
+        if ((err = srt_->dumps_srt(srt)) != srs_success) {
+            srs_warn("client %s ignore srt stats, %s", id_.c_str(), srs_error_desc(err).c_str());
+            srs_freep(err);
+            srs_freep(srt);
+        }
+    }
+    obj->set("srt", srt ? (SrsJsonAny *)srt : SrsJsonAny::null());
 
     return err;
 }
@@ -581,6 +602,15 @@ srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire
     nb_clients_++;
 
     return err;
+}
+
+void SrsStatistic::on_srt_stats(std::string id, ISrsStatisticSrt *srt)
+{
+    std::map<std::string, SrsStatisticClient *>::iterator it = clients_.find(id);
+    if (it == clients_.end())
+        return;
+
+    it->second->srt_ = srt;
 }
 
 void SrsStatistic::on_disconnect(std::string id, srs_error_t err)

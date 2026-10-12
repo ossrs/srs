@@ -128,7 +128,7 @@ WebRTC:
 
 SRT:
 - `app_srt_server` — SRT server: manages SRT connections
-- `app_srt_conn` — SRT connection lifecycle (publish, play)
+- `app_srt_conn` — SRT connection lifecycle (publish, play), and its SRT stats for `app_statistic`
 - `app_srt_source` — SRT source: manages SRT consumers
 - `app_srt_listener` — SRT listener (bind/accept)
 

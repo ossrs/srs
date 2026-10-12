@@ -233,6 +233,7 @@ public:
     virtual ~MockStatisticForOriginHub();
     virtual void on_disconnect(std::string id, srs_error_t err);
     virtual srs_error_t on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type);
+    virtual void on_srt_stats(std::string id, ISrsStatisticSrt *srt);
     virtual srs_error_t on_video_info(ISrsRequest *req, SrsVideoCodecId vcodec, int avc_profile, int avc_level, int width, int height);
     virtual srs_error_t on_audio_info(ISrsRequest *req, SrsAudioCodecId acodec, SrsAudioSampleRate asample_rate, SrsAudioChannels asound_type, SrsAacObjectType aac_object);
     virtual void on_stream_publish(ISrsRequest *req, std::string publisher_id);

@@ -539,6 +539,76 @@ int SrsSrtStat::pktSndDrop()
     return ((SRT_TRACEBSTATS *)stat_)->pktSndDrop;
 }
 
+int64_t SrsSrtStat::pktRecvTotal()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktRecvTotal;
+}
+
+int SrsSrtStat::pktRcvLossTotal()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktRcvLossTotal;
+}
+
+int SrsSrtStat::pktRcvDropTotal()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktRcvDropTotal;
+}
+
+int SrsSrtStat::pktRcvUndecryptTotal()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktRcvUndecryptTotal;
+}
+
+int64_t SrsSrtStat::pktSentTotal()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktSentTotal;
+}
+
+int SrsSrtStat::pktSndLossTotal()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktSndLossTotal;
+}
+
+int SrsSrtStat::pktRetransTotal()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktRetransTotal;
+}
+
+int SrsSrtStat::pktSndDropTotal()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->pktSndDropTotal;
+}
+
+double SrsSrtStat::msRTT()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->msRTT;
+}
+
+double SrsSrtStat::mbpsBandwidth()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->mbpsBandwidth;
+}
+
+int SrsSrtStat::msRcvBuf()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->msRcvBuf;
+}
+
+int SrsSrtStat::msSndBuf()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->msSndBuf;
+}
+
+int SrsSrtStat::msRcvTsbPdDelay()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->msRcvTsbPdDelay;
+}
+
+int SrsSrtStat::msSndTsbPdDelay()
+{
+    return ((SRT_TRACEBSTATS *)stat_)->msSndTsbPdDelay;
+}
+
 srs_error_t SrsSrtStat::fetch(srs_srt_t srt_fd, bool clear)
 {
     srs_error_t err = srs_success;

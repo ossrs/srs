@@ -95,6 +95,26 @@ public:
     int pktSndDrop();
 
 public:
+    // The totals since the connection started, which fetch() never clears.
+    int64_t pktRecvTotal();
+    int pktRcvLossTotal();
+    int pktRcvDropTotal();
+    int pktRcvUndecryptTotal();
+    int64_t pktSentTotal();
+    int pktSndLossTotal();
+    int pktRetransTotal();
+    int pktSndDropTotal();
+
+public:
+    // The current values, which fetch() never clears.
+    double msRTT();
+    double mbpsBandwidth();
+    int msRcvBuf();
+    int msSndBuf();
+    int msRcvTsbPdDelay();
+    int msSndTsbPdDelay();
+
+public:
     srs_error_t fetch(srs_srt_t srt_fd, bool clear);
 };
 

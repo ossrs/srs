@@ -844,6 +844,10 @@ void MockAppStatistic::on_forward_stop(std::string id)
 {
 }
 
+void MockAppStatistic::on_srt_stats(std::string id, ISrsStatisticSrt *srt)
+{
+}
+
 srs_error_t MockAppStatistic::dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs)
 {
     return srs_success;
@@ -2011,7 +2015,7 @@ srs_error_t MockSrtConnection::get_streamid(std::string &streamid)
     return srs_success;
 }
 
-srs_error_t MockSrtConnection::get_stats(SrsSrtStat &stat)
+srs_error_t MockSrtConnection::get_stats(SrsSrtStat &stat, bool clear)
 {
     return srs_success;
 }
