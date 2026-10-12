@@ -78,3 +78,16 @@ func TestCaseRunsCopies(t *testing.T) {
 		}
 	}
 }
+
+// TestCopyNamesOfScale gives the names of a case's copies at the -integ.scale
+// of the process, for a server that must know them before it starts.
+func TestCopyNamesOfScale(t *testing.T) {
+	defer func(n int) { scale = n }(scale)
+	scale = 2
+	if got, want := CopyNames("Play", Normal), []string{"Play", "Play-2"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("CopyNames(Play, Normal) = %q, want %q", got, want)
+	}
+	if got, want := CopyNames("Play", Timer), []string{"Play"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("CopyNames(Play, Timer) = %q, want %q", got, want)
+	}
+}

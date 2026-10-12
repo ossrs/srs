@@ -37,3 +37,10 @@ func copyNames(name string, class Class, n int) []string {
 	}
 	return names
 }
+
+// CopyNames returns the names of the copies of a case of the class at the
+// -integ.scale of the process, the name itself first, for a server that must
+// know each copy's stream before it starts.
+func CopyNames(name string, class Class) []string {
+	return copyNames(name, class, scale)
+}

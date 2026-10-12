@@ -314,7 +314,9 @@ func TestHls_Fmp4(t *testing.T) {
 // receive and peer latencies, and RTSP with rtmp_to_rtsp off. HLS and DASH
 // write different files, and the SRT and RTSP cases only connect, so none of
 // the groups depends on what the others set. TestApi_RawApi shares it for
-// the RAW API on with reload off, which the other groups never use.
+// the RAW API on with reload off, which the other groups never use, and
+// TestHttpStatic_RemuxOff for FLV files, which the remux off leaves to the
+// static files.
 func sharedRemuxOff() server.Config {
 	cfg := server.HLSConfig(server.HLS{FMP4: true})
 	cfg.Env["SRS_VHOST_HTTP_REMUX_ENABLED"] = "off"

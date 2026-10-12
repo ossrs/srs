@@ -439,6 +439,7 @@ func TestHttpFlv_NoGuess(t *testing.T) {
 func TestHttpFlv_NoAudio(t *testing.T) {
 	t.Parallel()
 	srs := server.Group(t, server.RemuxVariant("flv", server.Remux{GuessOff: true, NoAudio: true, CrossdomainOff: true}))
+	staticCrossdomainOffCases(t, srs)
 
 	// AudioDropped plays an H.264/AAC stream: the header has video only, and
 	// drop_if_not_match drops the audio.

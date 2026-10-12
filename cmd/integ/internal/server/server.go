@@ -450,7 +450,8 @@ func (s *Server) logTo(t testing.TB) {
 // own stream, and WebRTC over UDP and TCP with 127.0.0.1 as its candidate,
 // so a session doesn't depend on the host's interfaces; the host of a WHIP or
 // WHEP request is a candidate too, and SRT with its streams converted to RTMP
-// and no receive latency (see srtEnv), and RTSP for every RTMP stream. A case
+// and no receive latency (see srtEnv), and RTSP for every RTMP stream, and
+// the vhost's static files of CommonStatic beside the HTTP server's. A case
 // that tests the default batching needs a variant.
 func CommonConfig() Config {
 	cfg := Config{
@@ -478,7 +479,7 @@ func CommonConfig() Config {
 	for k, v := range srtEnv {
 		cfg.Env[k] = v
 	}
-	return cfg
+	return WithStatic(cfg, CommonStatic)
 }
 
 // Common returns the Common server, shared by every top-level test of the
@@ -1438,4 +1439,107 @@ func WithOriginCluster(cfg Config, o OriginCluster) Config {
 	env["SRS_VHOST_CLUSTER_COWORKERS"] = strings.Join(o.Coworkers, " ")
 	cfg.Env = env
 	return cfg
+}
+
+// DVR is a variant's DVR settings, for every vhost: SRS records the streams
+// to files.
+type DVR struct {
+	// Plan is dvr_plan: session, a file per publish, or segment, a file per
+	// Duration; empty keeps SRS's default, session.
+	Plan string
+	// Path is dvr_path, the template of each file, relative to the server's
+	// directory; its extension, .flv or .mp4, is the format.
+	Path string
+	// Duration is dvr_duration, in whole seconds, for the segment plan.
+	Duration time.Duration
+	// NoWaitKeyframe turns dvr_wait_keyframe off: a segment is cut at its
+	// duration, not at the next keyframe.
+	NoWaitKeyframe bool
+	// Apply is dvr_apply, the app/stream of each stream to record; empty
+	// records every stream.
+	Apply []string
+}
+
+// WithDVR returns a copy of cfg with DVR on and the settings d.
+func WithDVR(cfg Config, d DVR) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_DVR_ENABLED"] = "on"
+	if d.Plan != "" {
+		env["SRS_VHOST_DVR_DVR_PLAN"] = d.Plan
+	}
+	if d.Path != "" {
+		env["SRS_VHOST_DVR_DVR_PATH"] = d.Path
+	}
+	if d.Duration > 0 {
+		env["SRS_VHOST_DVR_DVR_DURATION"] = strconv.Itoa(int(d.Duration / time.Second))
+	}
+	if d.NoWaitKeyframe {
+		env["SRS_VHOST_DVR_DVR_WAIT_KEYFRAME"] = "off"
+	}
+	if len(d.Apply) > 0 {
+		env["SRS_VHOST_DVR_DVR_APPLY"] = strings.Join(d.Apply, " ")
+	}
+	cfg.Env = env
+	return cfg
+}
+
+// Static is a vhost's static files, http_static: the files of Dir served at
+// Mount. Both may hold [vhost], which SRS replaces with the vhost's name, and
+// a Mount of the default vhost is served at its path with no vhost.
+type Static struct {
+	// Mount is the URL path of the files, such as "[vhost]/static/".
+	Mount string
+	// Dir is the dir of the files, relative to the server's directory.
+	Dir string
+}
+
+// CommonStatic is the static files of Common, beside the HTTP server's own
+// dir, which serves the rest of the paths.
+var CommonStatic = Static{Mount: "[vhost]/static/", Dir: "./static/[vhost]"}
+
+// WithStatic returns a copy of cfg with the vhost's static files st, and the
+// HTTP server on to serve them.
+func WithStatic(cfg Config, st Static) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_HTTP_STATIC_ENABLED"] = "on"
+	env["SRS_VHOST_HTTP_STATIC_MOUNT"] = st.Mount
+	env["SRS_VHOST_HTTP_STATIC_DIR"] = st.Dir
+	cfg.Env = env
+	if !slices.Contains(cfg.Listeners, HTTPServer) {
+		cfg.Listeners = append(slices.Clone(cfg.Listeners), HTTPServer)
+	}
+	return cfg
+}
+
+// URLPath is the URL path the default vhost's files are served at.
+func (st Static) URLPath() string {
+	// SRS serves the default vhost's mount without its name, and a dir
+	// mount always ends with a slash.
+	mount := strings.ReplaceAll(st.Mount, "[vhost]", defaultVhost)
+	mount = strings.Trim(strings.TrimPrefix(mount, defaultVhost), "/")
+	if mount == "" {
+		return "/"
+	}
+	return "/" + mount + "/"
+}
+
+// DirIn is the dir of the default vhost's files in the server s.
+func (st Static) DirIn(s *Server) string {
+	return filepath.Join(s.Dir, strings.ReplaceAll(st.Dir, "[vhost]", defaultVhost))
+}
+
+// defaultVhost is the vhost of every client that names none, the only one
+// an env-only server has.
+const defaultVhost = "__defaultVhost__"
+
+// WebRoot is the dir of the HTTP server, http_server.dir, SRS's default,
+// which serves every path no vhost mounts, and where HLS and DASH write.
+func (s *Server) WebRoot() string {
+	return filepath.Join(s.Dir, "objs", "nginx", "html")
 }

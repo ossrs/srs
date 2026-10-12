@@ -2203,6 +2203,80 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostOriginCluster)
     }
 }
 
+// SRS_VHOST_DVR_DVR_APPLY sets the streams DVR records, for every vhost, overwriting the config file.
+VOID TEST(ConfigEnvTest, CheckEnvValuesVhostDvrApply)
+{
+    srs_error_t err;
+
+    SrsRequest applied;
+    applied.app_ = "live";
+    applied.stream_ = "s2";
+    SrsRequest other;
+    other.app_ = "live";
+    other.stream_ = "s3";
+
+    // The default: no filter, so every stream is recorded.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_TRUE(conf.get_dvr_apply("__defaultVhost__") == NULL);
+    }
+
+    // The env without a dvr section in the config file, space separated.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", " live/s1  live/s2 ");
+        SrsConfDirective *apply = conf.get_dvr_apply("no.such.vhost");
+        ASSERT_TRUE(apply != NULL);
+        ASSERT_EQ(2, (int)apply->args_.size());
+        EXPECT_STREQ("live/s1", apply->args_.at(0).c_str());
+        EXPECT_STREQ("live/s2", apply->args_.at(1).c_str());
+        EXPECT_TRUE(srs_config_apply_filter(apply, &applied));
+        EXPECT_FALSE(srs_config_apply_filter(apply, &other));
+    }
+
+    // The env overwrites the dvr_apply of the config file, with all too.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{dvr_apply live/s3;}}"));
+        EXPECT_TRUE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &other));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", "live/s2");
+        EXPECT_TRUE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &applied));
+        EXPECT_FALSE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &other));
+    }
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{dvr_apply live/s3;}}"));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", "all");
+        SrsConfDirective *apply = conf.get_dvr_apply("ossrs.net");
+        ASSERT_TRUE(apply != NULL);
+        EXPECT_STREQ("all", apply->arg0().c_str());
+        EXPECT_TRUE(srs_config_apply_filter(apply, &applied));
+    }
+
+    // An empty env, or one of spaces only, overwrites nothing.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{dvr_apply live/s3;}}"));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", "");
+        EXPECT_TRUE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &other));
+        EXPECT_FALSE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &applied));
+    }
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{dvr_apply live/s3;}}"));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", "   ");
+        EXPECT_TRUE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &other));
+        EXPECT_FALSE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &applied));
+    }
+}
+
 VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
 {
     srs_error_t err;

@@ -2046,6 +2046,7 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_DASH_DASH_DISPOSE=120               Seconds without packets to remove all DASH files.\n"
         "   DVR, record streams to files:\n"
         "      SRS_VHOST_DVR_ENABLED=off                     Record streams.\n"
+        "      SRS_VHOST_DVR_DVR_APPLY=all                   all, or the space separated app/stream to record.\n"
         "      SRS_VHOST_DVR_DVR_PLAN=session                session, a file per publish, or segment, split by duration.\n"
         "      SRS_VHOST_DVR_DVR_PATH=./objs/nginx/html/[app]/[stream].[timestamp].flv\n"
         "                                                    File path, .flv or .mp4.\n"
@@ -7458,6 +7459,26 @@ bool SrsConfig::get_dvr_enabled(SrsConfDirective *vhost)
 
 SrsConfDirective *SrsConfig::get_dvr_apply(string vhost)
 {
+    // SRS_VHOST_DVR_DVR_APPLY, space separated all or app/stream; a value without any item overwrites nothing.
+    SrsConfDirective *env = env_cache_->get("srs.vhost.dvr.dvr_apply");
+    if (!env) {
+        std::vector<string> values = srs_strings_split(srs_getenv("srs.vhost.dvr.dvr_apply"), " ");
+        for (int i = 0; i < (int)values.size(); i++) {
+            if (values[i].empty()) {
+                continue;
+            }
+            if (!env) {
+                env = new SrsConfDirective();
+                env->name_ = "srs.vhost.dvr.dvr_apply";
+                env_cache_->directives_.push_back(env);
+            }
+            env->args_.push_back(values[i]);
+        }
+    }
+    if (env) {
+        return env;
+    }
+
     SrsConfDirective *conf = get_dvr(vhost);
     if (!conf) {
         return NULL;

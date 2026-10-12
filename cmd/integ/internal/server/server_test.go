@@ -59,8 +59,8 @@ func TestCleanStaleRuns(t *testing.T) {
 
 // TestCommonConfig checks the Common server plays with the lowest latency, so
 // a player gets each frame at once rather than in 350ms batches, serves
-// HTTP-FLV, HLS and DASH with 10s segments, calls every hook, and that its env
-// builds.
+// HTTP-FLV, HLS and DASH with 10s segments, calls every hook, serves the
+// vhost's static files at /static/, and that its env builds.
 func TestCommonConfig(t *testing.T) {
 	cfg := CommonConfig()
 	if !cfg.Hooks {
@@ -88,6 +88,9 @@ func TestCommonConfig(t *testing.T) {
 		"SRS_VHOST_SRT_TO_RTMP":             "on",
 		"SRS_SRT_SERVER_RECVLATENCY":        "0",
 		"SRS_VHOST_RTSP_ENABLED":            "on",
+		"SRS_VHOST_HTTP_STATIC_ENABLED":     "on",
+		"SRS_VHOST_HTTP_STATIC_MOUNT":       "[vhost]/static/",
+		"SRS_VHOST_HTTP_STATIC_DIR":         "./static/[vhost]",
 	}
 	if !reflect.DeepEqual(cfg.Env, want) {
 		t.Errorf("env %v, want %v", cfg.Env, want)
@@ -857,5 +860,92 @@ func TestWithOriginCluster(t *testing.T) {
 	}
 	if _, ok := base.Env["SRS_VHOST_CLUSTER_ORIGIN_CLUSTER"]; ok {
 		t.Errorf("the base config changed: %v", base.Env)
+	}
+}
+
+func TestWithDVR(t *testing.T) {
+	base := PlayConfig(Play{})
+	cases := []struct {
+		name string
+		dvr  DVR
+		want map[string]string
+	}{
+		{"session", DVR{Path: "./dvr/[app]/[stream].[timestamp].flv"}, map[string]string{
+			"SRS_VHOST_DVR_ENABLED":  "on",
+			"SRS_VHOST_DVR_DVR_PATH": "./dvr/[app]/[stream].[timestamp].flv",
+		}},
+		{"segment", DVR{Plan: "segment", Path: "./dvr/[stream].mp4", Duration: 2 * time.Second, NoWaitKeyframe: true, Apply: []string{"live/a", "live/b"}}, map[string]string{
+			"SRS_VHOST_DVR_ENABLED":           "on",
+			"SRS_VHOST_DVR_DVR_PLAN":          "segment",
+			"SRS_VHOST_DVR_DVR_PATH":          "./dvr/[stream].mp4",
+			"SRS_VHOST_DVR_DVR_DURATION":      "2",
+			"SRS_VHOST_DVR_DVR_WAIT_KEYFRAME": "off",
+			"SRS_VHOST_DVR_DVR_APPLY":         "live/a live/b",
+		}},
+	}
+	for _, tc := range cases {
+		cfg := WithDVR(base, tc.dvr)
+		if !reflect.DeepEqual(cfg.Listeners, base.Listeners) {
+			t.Errorf("%v: listeners %v, want %v", tc.name, cfg.Listeners, base.Listeners)
+		}
+		want := map[string]string{}
+		for k, v := range base.Env {
+			want[k] = v
+		}
+		for k, v := range tc.want {
+			want[k] = v
+		}
+		if !reflect.DeepEqual(cfg.Env, want) {
+			t.Errorf("%v: env %v, want %v", tc.name, cfg.Env, want)
+		}
+	}
+	if _, ok := base.Env["SRS_VHOST_DVR_ENABLED"]; ok {
+		t.Errorf("the base config changed: %v", base.Env)
+	}
+}
+
+func TestWithStatic(t *testing.T) {
+	base := Config{Listeners: []Listener{RTMP, HTTPAPI}, Env: map[string]string{"SRS_VHOST_MIN_LATENCY": "on"}}
+	cfg := WithStatic(base, Static{Mount: "[vhost]/files/", Dir: "./files/[vhost]"})
+	want := map[string]string{
+		"SRS_VHOST_MIN_LATENCY":         "on",
+		"SRS_VHOST_HTTP_STATIC_ENABLED": "on",
+		"SRS_VHOST_HTTP_STATIC_MOUNT":   "[vhost]/files/",
+		"SRS_VHOST_HTTP_STATIC_DIR":     "./files/[vhost]",
+	}
+	if !reflect.DeepEqual(cfg.Env, want) {
+		t.Errorf("env %v, want %v", cfg.Env, want)
+	}
+	if !reflect.DeepEqual(cfg.Listeners, []Listener{RTMP, HTTPAPI, HTTPServer}) {
+		t.Errorf("listeners %v, want the HTTP server added", cfg.Listeners)
+	}
+	if len(base.Env) != 1 || len(base.Listeners) != 2 {
+		t.Errorf("the base config changed: %v", base)
+	}
+	if got := CommonConfig().Env["SRS_VHOST_HTTP_STATIC_MOUNT"]; got != CommonStatic.Mount {
+		t.Errorf("Common's static mount %q, want %q", got, CommonStatic.Mount)
+	}
+}
+
+func TestStaticPaths(t *testing.T) {
+	s := &Server{Dir: "/run/common-1"}
+	cases := []struct {
+		st        Static
+		path, dir string
+	}{
+		{CommonStatic, "/static/", "/run/common-1/static/__defaultVhost__"},
+		{Static{Mount: "[vhost]/a/b", Dir: "./www"}, "/a/b/", "/run/common-1/www"},
+		{Static{Mount: "[vhost]/", Dir: "files"}, "/", "/run/common-1/files"},
+	}
+	for _, tc := range cases {
+		if got := tc.st.URLPath(); got != tc.path {
+			t.Errorf("%v: path %q, want %q", tc.st, got, tc.path)
+		}
+		if got := tc.st.DirIn(s); got != tc.dir {
+			t.Errorf("%v: dir %q, want %q", tc.st, got, tc.dir)
+		}
+	}
+	if got := s.WebRoot(); got != "/run/common-1/objs/nginx/html" {
+		t.Errorf("web root %q", got)
 	}
 }
