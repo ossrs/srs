@@ -2417,6 +2417,7 @@ MockOriginHub::MockOriginHub()
     initialize_error_ = srs_success;
     on_hls_request_sh_count_ = 0;
     on_hls_request_sh_error_ = srs_success;
+    on_dash_request_sh_count_ = 0;
     on_forwarder_start_count_ = 0;
     on_forwarder_start_error_ = srs_success;
     on_dvr_request_sh_count_ = 0;
@@ -2496,6 +2497,12 @@ srs_error_t MockOriginHub::on_hls_request_sh()
 {
     on_hls_request_sh_count_++;
     return srs_error_copy(on_hls_request_sh_error_);
+}
+
+srs_error_t MockOriginHub::on_dash_request_sh()
+{
+    on_dash_request_sh_count_++;
+    return srs_success;
 }
 
 void MockOriginHub::set_initialize_error(srs_error_t err)

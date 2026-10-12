@@ -411,6 +411,8 @@ public:
     virtual srs_error_t on_dvr_request_sh() = 0;
     // When HLS requests sequence header.
     virtual srs_error_t on_hls_request_sh() = 0;
+    // When DASH requests sequence header.
+    virtual srs_error_t on_dash_request_sh() = 0;
     // When forwarder requests sequence header.
     virtual srs_error_t on_forwarder_start(SrsForwarder *forwarder) = 0;
 };
@@ -492,6 +494,8 @@ public:
     virtual srs_error_t on_dvr_request_sh();
     // For the SrsHls to callback to request the sequence headers.
     virtual srs_error_t on_hls_request_sh();
+    // For the SrsDash to callback to request the sequence headers.
+    virtual srs_error_t on_dash_request_sh();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

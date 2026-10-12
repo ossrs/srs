@@ -289,7 +289,6 @@ func TestDash_Options(t *testing.T) {
 	// the first segment has the 75 frames of its 3s, and each is an HEVC
 	// access unit.
 	check.Case(t, "HevcInfoFrameSkipped", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an info frame is written as a video sample of 5 stale bytes, the AAC sequence header's, so the first segment doesn't parse")
 		_, streams := publishSegments(c, "live/"+streamName(c), media.HEVCAAC, 3)
 		v := dashStream(streams, "video")
 		if !c.Check(v != nil, "no video stream") {
@@ -309,7 +308,6 @@ func TestDash_Options(t *testing.T) {
 	// The codecs of the video representation name its codec, so a player
 	// can tell whether it can play it before it fetches a segment.
 	check.Case(t, "HevcCodecs", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the MPD names every video codec avc1.64001e, also HEVC")
 		_, streams := publishSegments(c, "live/"+streamName(c), media.HEVCAAC, 3)
 		if v := dashStream(streams, "video"); c.Check(v != nil, "no video stream") {
 			codecs := v.Representation.Codecs
@@ -338,7 +336,6 @@ func TestDash_Options(t *testing.T) {
 	// dash_window_size 3: the MPD lists the last 3 of the 5 segments of
 	// each representation.
 	check.Case(t, "WindowSize", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "SRS_VHOST_DASH_DASH_WINDOW_SIZE is read as seconds in microseconds, so a window of 3 lists every segment")
 		_, streams := publishSegments(c, "live/"+streamName(c), media.H264HighAAC, 5)
 		for _, s := range streams {
 			c.CheckEqual(fmt.Sprint(segmentNumbers(s)), "[2 3 4]", s.Kind+" segments in the window")
@@ -348,7 +345,6 @@ func TestDash_Options(t *testing.T) {
 	// The MPD asks players to fetch it again every dash_update_period, 5s
 	// by default.
 	check.Case(t, "UpdatePeriod", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "minimumUpdatePeriod is always PT0.000S: SRS formats whole seconds, an integer, with %.3f")
 		m, _ := publishSegments(c, "live/"+streamName(c), media.H264HighAAC, 3)
 		d, err := dash.Duration(m.MinimumUpdatePeriod)
 		c.CheckNoError(err, "minimumUpdatePeriod")
@@ -387,7 +383,6 @@ func TestDash_StreamDir(t *testing.T) {
 	// The segments are in the dir of the MPD's BaseURL, and a player looks
 	// for the init files there too.
 	check.Case(t, "InitBesideSegments", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the init files are written to [app]/[stream]/, not to the segments' dir under the MPD's dir, which the MPD points to")
 		name := streamName(c)
 		stream := "live/" + name
 		streams := publishSegments(c, stream, 1)
@@ -515,8 +510,8 @@ func urlPath(c *check.C, raw string) string {
 // publishHevcThrough publishes the HEVC test file at once, from its start
 // through the tags at d, without its info frames, and keeps the stream
 // published until the case ends, like publishThrough. ffmpeg sends one
-// info frame, the colorInfo metadata of enhanced RTMP, which SRS's DASH
-// writes as a broken sample (see TestDash_Options/HevcInfoFrameSkipped).
+// info frame, the colorInfo metadata of enhanced RTMP, which
+// TestDash_Options/HevcInfoFrameSkipped covers on its own.
 func publishHevcThrough(c *check.C, srs *server.Server, stream string, d time.Duration) {
 	c.Helper()
 	var tags []*media.FLVTag

@@ -158,6 +158,8 @@ public:
     bool unlink_tmpfile_called_;
     srs_error_t unlink_tmpfile_error_;
     srs_utime_t duration_;
+    // Counts the unlink_file calls, if set; it outlives the mock, which the controller may free.
+    int *unlink_file_count_;
 
 public:
     MockFragmentedMp4();
@@ -248,6 +250,8 @@ public:
     bool on_publish_called_;
     bool on_unpublish_called_;
     bool dispose_called_;
+    int on_audio_count_;
+    int on_video_count_;
 
 public:
     MockDashController();

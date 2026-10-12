@@ -278,6 +278,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string home_;
     int video_track_id_;
     int audio_track_id_;
+    // The init files refresh_init_mp4 wrote, for the dispose to remove; empty if none.
+    std::string video_init_file_;
+    std::string audio_init_file_;
 
 public:
     SrsDashController();
@@ -330,6 +333,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     bool enabled_;
     bool disposable_;
+    // Whether the DASH was disposed while the stream is still published, so
+    // the next media starts it again.
+    bool disposed_publishing_;
     srs_utime_t last_update_time_;
 
 // clang-format off
@@ -346,6 +352,11 @@ public:
     virtual void dispose();
     virtual srs_error_t cycle();
     srs_utime_t cleanup_delay();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Start the DASH again for the media of a stream disposed while published.
+    srs_error_t resume();
 
 public:
     // Initalize the encoder.

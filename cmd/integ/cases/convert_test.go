@@ -338,7 +338,6 @@ var (
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
 		knownBugs: map[string]string{
-			"HevcAac":  "DASH writes the HEVC info frame of enhanced RTMP, which ffmpeg sends first, as a broken sample, so the first segment does not parse as HEVC",
 			"H264Mp3":  "the MPD of an MP3 stream lists an AAC audio representation whose init file SRS never writes, so a player gets 404",
 			"AacOnly":  "DASH writes no MPD for a stream with no video, so a player gets 404",
 			"H264Only": "DASH writes no MPD for a stream with no audio, so a player gets 404",

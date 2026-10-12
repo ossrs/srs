@@ -6561,7 +6561,7 @@ string SrsConfig::get_dash_mpd_file(string vhost)
 
 int SrsConfig::get_dash_window_size(std::string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_window_size"); // SRS_VHOST_DASH_DASH_WINDOW_SIZE
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.dash.dash_window_size"); // SRS_VHOST_DASH_DASH_WINDOW_SIZE
 
     static int DEFAULT = 5;
 

@@ -207,10 +207,27 @@ func TestTimer_Dash_Dispose(t *testing.T) {
 		c.Check(streamPublishing(c, srs, stream), "%v is not published after the dispose", stream)
 	})
 
+	// A publisher that sends media again after its stream was disposed gets
+	// DASH again: a new MPD whose init files and segments are served.
+	check.Case(t, "IdlePublisherResumes", check.Timer, func(c *check.C) {
+		pub, stream, _, _ := publish(c)
+		untilNoFiles(c, func() []string { return dashFiles(srs, stream) })
+		publishTagsOn(c, srs, pub, readTags(c, media.H264HighAAC, 4960*time.Millisecond+time.Millisecond, 10*time.Second+time.Millisecond))
+		_, streams := waitMPD(c, flvURL(srs, stream+".mpd"), func(streams []dash.Stream) bool {
+			return len(streams) == 2 && len(streams[0].Segments) > 0 && len(streams[1].Segments) > 0
+		})
+		for _, s := range streams {
+			res, _ := httpGet(c, httpClient, s.Init)
+			c.CheckEqual(res.StatusCode, 200, "status of "+s.Init)
+			last := s.Segments[len(s.Segments)-1].URL
+			res, _ = httpGet(c, httpClient, last)
+			c.CheckEqual(res.StatusCode, 200, "status of "+last)
+		}
+	})
+
 	// The dispose removes the init files too, "all DASH files" as full.conf
 	// says.
 	check.Case(t, "InitFilesRemoved", check.Timer, func(c *check.C) {
-		check.KnownBug(c, "the dispose removes the MPD and the segments but leaves video-init.mp4 and audio-init.mp4")
 		pub, stream, streams, _ := publish(c)
 		pub.Close()
 		untilNoFiles(c, func() []string { return dashFiles(srs, stream) })
@@ -219,6 +236,24 @@ func TestTimer_Dash_Dispose(t *testing.T) {
 			_, err := os.Stat(f)
 			c.Check(errors.Is(err, os.ErrNotExist), "%v: %v, want it removed", s.Init, err)
 		}
+	})
+
+	// A publish that ends on a keyframe that cuts a segment leaves no file:
+	// the keyframe at 6s closes the segment from 4s and opens one of that
+	// frame alone, which the MPD never lists.
+	check.Case(t, "KeyframeSegmentRemoved", check.Timer, func(c *check.C) {
+		stream := "live/" + streamName(c)
+		pub := publishThrough(c, srs, stream, media.H264HighAAC, 6*time.Second)
+		waitMPD(c, flvURL(srs, stream+".mpd"), func(streams []dash.Stream) bool {
+			for _, s := range streams {
+				if s.Kind == "video" && len(s.Segments) == 3 {
+					return true
+				}
+			}
+			return false
+		})
+		pub.Close()
+		untilNoFiles(c, func() []string { return dashFiles(srs, stream) })
 	})
 
 	// dash_cleanup on, the default: 17s of 2s segments keep 10s, twice the
