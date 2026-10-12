@@ -48,7 +48,7 @@ func publishPlayHTTPAudio(c *check.C, srs *server.Server, file, ext string, u re
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	r, err := audio.PlayHTTP(ctx, nil, "http://"+srs.Addr(server.HTTPServer)+"/"+stream+"."+ext, u)
+	r, err := audio.PlayHTTP(ctx, httpClient, "http://"+srs.Addr(server.HTTPServer)+"/"+stream+"."+ext, u)
 	c.Must(err, "play")
 	return r
 }

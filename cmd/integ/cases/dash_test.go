@@ -24,11 +24,11 @@ func TestDash_Common(t *testing.T) {
 	check.Case(t, "PublishPlay", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := "live/" + streamName(c)
-		publishAll(c, "rtmp://"+srs.Addr(server.RTMP)+"/"+stream, media.Path(c, media.H264HighAAC))
+		publishAll(c, srs, stream, media.Path(c, media.H264HighAAC))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-		r, err := dash.PlayHTTP(ctx, nil, "http://"+srs.Addr(server.HTTPServer)+"/"+stream+".mpd", segmentsUntil)
+		r, err := dash.PlayHTTP(ctx, httpClient, "http://"+srs.Addr(server.HTTPServer)+"/"+stream+".mpd", segmentsUntil)
 		c.Must(err, "play")
 		checkPlayed(c, r, "h264", "aac")
 		c.Check(r.Video.Keyframes >= 15, "%v keyframes, want a 1s GOP over 15s", r.Video.Keyframes)

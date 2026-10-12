@@ -69,7 +69,7 @@ func TestApi_Common(t *testing.T) {
 
 func checkVersions(c *check.C, srs *server.Server) {
 	c.Helper()
-	res, err := http.Get(srs.APIURL("/api/v1/versions"))
+	res, err := httpClient.Get(srs.APIURL("/api/v1/versions"))
 	c.Must(err, "versions")
 	defer res.Body.Close()
 	c.CheckEqual(res.StatusCode, http.StatusOK, "status")

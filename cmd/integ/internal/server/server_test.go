@@ -54,9 +54,13 @@ func TestCleanStaleRuns(t *testing.T) {
 
 // TestCommonConfig checks the Common server plays with the lowest latency, so
 // a player gets each frame at once rather than in 350ms batches, serves
-// HTTP-FLV, HLS and DASH with 10s segments, and that its env builds.
+// HTTP-FLV, HLS and DASH with 10s segments, calls every hook, and that its env
+// builds.
 func TestCommonConfig(t *testing.T) {
 	cfg := CommonConfig()
+	if !cfg.Hooks {
+		t.Error("hooks are off, want every hook on the mock")
+	}
 	if !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
 		t.Errorf("listeners %v, want %v", cfg.Listeners, CommonListeners)
 	}

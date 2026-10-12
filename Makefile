@@ -31,7 +31,8 @@ fmt: ./.go-formarted
 # Make the test media, then run the timer cases and the other cases as two go
 # test processes at once; it fails if either fails. They run in the cases
 # directory with no package argument, so go test prints the summary of a
-# passing run too.
+# passing run too. INTEG_ARGS passes flags to both, such as
+# INTEG_ARGS="-integ.scale=56 -integ.shards=2" for the scale check.
 integ: integ-prepare
 	@$(MAKE) --no-print-directory -j2 integ-timer integ-main
 
@@ -41,10 +42,10 @@ integ-prepare: bin/srs-integ
 	bin/srs-integ prepare -source doc/source.flv -dir cmd/integ/testdata/media -setup skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh
 
 integ-timer:
-	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer
+	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer $(INTEG_ARGS)
 
 integ-main:
-	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 64
+	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 64 -args $(INTEG_ARGS)
 
 clean:
 	rm -rf bin .go-formarted

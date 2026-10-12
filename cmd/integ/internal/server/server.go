@@ -26,6 +26,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"srs-integ/internal/mock"
 )
 
 var (
@@ -60,13 +62,13 @@ var run struct {
 	dir       string
 	binary    string
 	tls       TLSFiles
-	started   atomic.Int64
+	procs     procCount
 	seq       atomic.Int64
 	features  sync.Once
 	featErr   error
 	commonMu  sync.Mutex
-	common    *Server
-	commonErr error
+	common    []*Server
+	commonErr []error
 }
 
 func setup() error {
@@ -132,11 +134,18 @@ type Server struct {
 	Dir string
 	// Ports maps each listener that is on to its port.
 	Ports map[Listener]int
+	// Hooks is the mock every hook calls, nil when the server has no hooks.
+	Hooks *mock.Server
 
 	cmd  *exec.Cmd
 	tail *logTail
 	done chan struct{}
 	code int
+	// start is when the process started, and cpu and wall what it used once
+	// it exited.
+	start     time.Time
+	cpu, wall time.Duration
+	burst     *slots
 }
 
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
@@ -164,6 +173,19 @@ func Start(name string, cfg Config) (*Server, error) {
 		ports[l] = port
 	}
 
+	// The hook mock gets a port of its own; it starts listening just before SRS.
+	hooksAddr := ""
+	if cfg.Hooks {
+		port, err := run.alloc.Alloc()
+		if err != nil {
+			return nil, err
+		}
+		hooksAddr = "127.0.0.1:" + strconv.Itoa(port)
+		if cfg, err = withHooks(cfg, "http://"+hooksAddr); err != nil {
+			return nil, err
+		}
+	}
+
 	env, err := BuildEnv(cfg, ports, dir, run.tls)
 	if err != nil {
 		return nil, err
@@ -177,22 +199,39 @@ func Start(name string, cfg Config) (*Server, error) {
 		return nil, err
 	}
 
-	s := &Server{Dir: dir, Ports: ports, tail: newLogTail(logFile, tailLines), done: make(chan struct{})}
+	s := &Server{Dir: dir, Ports: ports, tail: newLogTail(logFile, tailLines), done: make(chan struct{}), burst: newSlots(burstSlots)}
 	s.cmd = exec.Command(run.binary, "-e")
 	s.cmd.Dir = dir
 	s.cmd.Env = append(processEnv(), env...)
 	s.cmd.Stdout = s.tail
 	s.cmd.Stderr = s.tail
+	if hooksAddr != "" {
+		if s.Hooks, err = mock.Start(hooksAddr); err != nil {
+			logFile.Close()
+			return nil, err
+		}
+	}
 	if err := s.cmd.Start(); err != nil {
 		logFile.Close()
+		if s.Hooks != nil {
+			s.Hooks.Close()
+		}
 		return nil, err
 	}
-	run.started.Add(1)
+	s.start = time.Now()
+	run.procs.started()
 
+	// The mock answers hooks until SRS exits, such as its last on_close.
 	go func() {
 		s.cmd.Wait()
 		s.code = s.cmd.ProcessState.ExitCode()
+		s.cpu = s.cmd.ProcessState.UserTime() + s.cmd.ProcessState.SystemTime()
+		s.wall = time.Since(s.start)
+		run.procs.exited()
 		logFile.Close()
+		if s.Hooks != nil {
+			s.Hooks.Close()
+		}
 		close(s.done)
 	}()
 
@@ -365,11 +404,13 @@ func (s *Server) logTo(t testing.TB) {
 // lowest play latency, so a player gets each message at once rather than in
 // batches of 350ms of media, which would put every streaming case near its
 // limit, HTTP-FLV for every stream, and HLS and DASH, both with 10s segments
-// (HLS by default; DASH defaults to 30s, the length of a whole test file). A
-// case that tests the default batching needs a variant.
+// (HLS by default; DASH defaults to 30s, the length of a whole test file), and
+// every hook on one mock, which accepts unless a case scripts a reply for its
+// own stream. A case that tests the default batching needs a variant.
 func CommonConfig() Config {
 	return Config{
 		Listeners: CommonListeners,
+		Hooks:     true,
 		Env: map[string]string{
 			"SRS_VHOST_MIN_LATENCY":        "on",
 			"SRS_VHOST_PLAY_MW_LATENCY":    "0",
@@ -383,7 +424,9 @@ func CommonConfig() Config {
 }
 
 // Common returns the Common server, shared by every top-level test of the
-// process and started by the first case that asks for it. Main stops it.
+// process and started by the first case that asks for it. Main stops it. With
+// -integ.shards=K there are K identical Common servers, and a case gets the
+// one its name picks.
 func Common(t testing.TB) *Server {
 	t.Helper()
 	var s *Server
@@ -391,10 +434,18 @@ func Common(t testing.TB) *Server {
 	untimed(t, func() {
 		run.commonMu.Lock()
 		defer run.commonMu.Unlock()
-		if run.common == nil && run.commonErr == nil {
-			run.common, run.commonErr = Start("common", CommonConfig())
+		if run.common == nil {
+			run.common, run.commonErr = make([]*Server, shards), make([]error, shards)
 		}
-		s, err = run.common, run.commonErr
+		i := shardOf(t.Name(), shards)
+		if run.common[i] == nil && run.commonErr[i] == nil {
+			name := "common"
+			if shards > 1 {
+				name = fmt.Sprintf("common-%d", i+1)
+			}
+			run.common[i], run.commonErr[i] = Start(name, CommonConfig())
+		}
+		s, err = run.common[i], run.commonErr[i]
 	})
 
 	if err != nil {
@@ -438,11 +489,31 @@ func Group(t testing.TB, cfg Config) *Server {
 func Main(m *testing.M, summary func(label string) string) int {
 	code := m.Run()
 
-	if s := run.common; s != nil {
-		if err := s.Stop(); err != nil {
-			fmt.Fprintf(os.Stderr, "srs-integ: stop the Common server: %v\n%s\n", err, strings.Join(s.LogTail(), "\n"))
+	// The shards stop at once, since each takes about a second to quit.
+	stopErrs := make([]error, len(run.common))
+	var wg sync.WaitGroup
+	for i, s := range run.common {
+		if s != nil {
+			wg.Add(1)
+			go func() { defer wg.Done(); stopErrs[i] = s.Stop() }()
+		}
+	}
+	wg.Wait()
+
+	var cpu []string
+	for i, s := range run.common {
+		if s == nil {
+			continue
+		}
+		name := "Common"
+		if len(run.common) > 1 {
+			name = fmt.Sprintf("Common shard %d of %d", i+1, len(run.common))
+		}
+		if err := stopErrs[i]; err != nil {
+			fmt.Fprintf(os.Stderr, "srs-integ: stop the %s server: %v\n%s\n", name, err, strings.Join(s.LogTail(), "\n"))
 			code = 1
 		}
+		cpu = append(cpu, cpuLine(name, s.cpu, s.wall))
 	}
 
 	label := "main"
@@ -452,7 +523,11 @@ func Main(m *testing.M, summary func(label string) string) int {
 	fmt.Print(summary(label))
 
 	if run.dir != "" {
-		fmt.Printf("srs-integ: %d SRS processes, %d ports from %v\n", run.started.Load(), run.alloc.Allocated(), run.ports)
+		fmt.Printf("srs-integ: %d SRS processes, at most %d at once, %d ports from %v\n",
+			run.procs.total.Load(), run.procs.peak.Load(), run.alloc.Allocated(), run.ports)
+		for _, line := range cpu {
+			fmt.Println(line)
+		}
 		if code == 0 {
 			os.RemoveAll(run.dir)
 		} else {

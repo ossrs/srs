@@ -242,14 +242,17 @@ func KnownBug(c *C, reason string) {
 	c.mu.Unlock()
 }
 
-// Case runs fn as a parallel subtest of t, of the class it declares.
+// Case runs fn as a parallel subtest of t, of the class it declares. With
+// -integ.scale=N it runs N copies, each a case of its own.
 func Case(t *testing.T, name string, class Class, fn func(*C)) {
 	t.Helper()
-	t.Run(name, func(t *testing.T) {
-		t.Parallel()
-		r := &runner{now: time.Now, knownBugsFail: knownBugsFail, results: results}
-		r.run(t, class, fn)
-	})
+	for _, n := range copyNames(name, class, scale) {
+		t.Run(n, func(t *testing.T) {
+			t.Parallel()
+			r := &runner{now: time.Now, knownBugsFail: knownBugsFail, results: results}
+			r.run(t, class, fn)
+		})
+	}
 }
 
 // runner runs one case on a parent, which is its *testing.T.

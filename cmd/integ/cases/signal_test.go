@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"srs-integ/internal/check"
+	"srs-integ/internal/media"
 	"srs-integ/internal/server"
 )
 
@@ -24,5 +25,14 @@ func TestTimer_Signal_Smoke(t *testing.T) {
 		code, err := srs.Wait(3 * time.Second)
 		c.Must(err, "wait")
 		c.CheckEqual(code, 0, "exit code after SIGTERM")
+	})
+
+	check.Case(t, "TermWithPublisherExitsZero", check.Timer, func(c *check.C) {
+		srs := server.Group(c, server.Config{Listeners: []server.Listener{server.RTMP, server.HTTPAPI}})
+		startPublisher(c, "rtmp://"+srs.Addr(server.RTMP)+"/live/"+streamName(c), media.Path(c, media.H264HighAAC), 200*time.Millisecond)
+		c.Must(srs.Signal(syscall.SIGTERM), "SIGTERM")
+		code, err := srs.Wait(3 * time.Second)
+		c.Must(err, "wait")
+		c.CheckEqual(code, 0, "exit code after SIGTERM with a publisher")
 	})
 }

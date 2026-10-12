@@ -41,7 +41,7 @@ func publishPlayHTTPFLV(c *check.C, file, vcodec, acodec string) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	r, err := flv.PlayHTTP(ctx, nil, "http://"+srs.Addr(server.HTTPServer)+"/"+stream+".flv", playedUntil)
+	r, err := flv.PlayHTTP(ctx, httpClient, "http://"+srs.Addr(server.HTTPServer)+"/"+stream+".flv", playedUntil)
 	c.Must(err, "play")
 	checkPlayed(c, r, vcodec, acodec)
 }

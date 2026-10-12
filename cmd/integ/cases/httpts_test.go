@@ -43,7 +43,7 @@ func publishPlayHTTPTS(c *check.C, srs *server.Server, file, vcodec, acodec stri
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	u := report.Until{VideoHeader: true, AudioHeader: true, Keyframes: 1, VideoFrames: 5}
-	r, err := ts.PlayHTTP(ctx, nil, "http://"+srs.Addr(server.HTTPServer)+"/"+stream+".ts", u)
+	r, err := ts.PlayHTTP(ctx, httpClient, "http://"+srs.Addr(server.HTTPServer)+"/"+stream+".ts", u)
 	c.Must(err, "play")
 	checkPlayed(c, r, vcodec, acodec)
 }

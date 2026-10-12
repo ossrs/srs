@@ -37,9 +37,20 @@ Flags, after `-args`:
 - `-integ.srs <path>`: another SRS binary.
 - `-integ.timer`: allocate ports from the timer process's part of the range; `make integ` sets it for the timer process.
 - `-integ.known-bugs fail`: known-bug cases fail like normal cases; the default, `pass`, lets a known bug that fails pass.
+- `-integ.scale N`: run each case N times as separate cases, named `<Case>`, `<Case>-2` to `<Case>-N`, each with its own stream on its group's server; timer cases run once, since each starts a server of its own. The scale check.
+- `-integ.shards K`: split Common into K identical servers; a case gets the one its name picks.
+
+`make integ`, `make integ-main` and `make integ-timer` pass `INTEG_ARGS` after
+`-args`. The scale check runs about 1,000 cases:
+
+```bash
+make integ-main INTEG_ARGS="-integ.scale=56"
+```
 
 Each `go test` process ends with its summary: the cases passed, failed and
-skipped with their reasons, the known bugs, and the 10 slowest cases. Run it in
+skipped with their reasons, the known bugs, and the 10 slowest cases. Then the
+SRS processes it started and the most that ran at once, the ports it took, and
+the CPU each Common server used, as a share of the one core SRS runs on. Run it in
 `cmd/integ/cases` with no package argument, as above, or `go test` hides the
 summary of a passing run.
 
@@ -71,7 +82,7 @@ bin/srs-integ prepare -h             # Make the test media; its flags.
 - `internal/hls/`: the m3u8 parser (master and media playlists, keys, init maps) and the HLS player: TS or fmp4 segments, AES-128 decryption, live playlists.
 - `internal/dash/`: the MPD parser (segment templates and timelines) and the DASH player, which merges the video and audio representations in time order.
 - `internal/rtc/`, `internal/srt/`, `internal/rtsp/`, `internal/gb/`: the clients and analyzers.
-- `internal/mock/`: the hook and heartbeat servers.
+- `internal/mock/`: the HTTP server SRS calls back, for the hooks, the heartbeat and the forward backend: it records every request (method, path, query, headers, body and its JSON) and answers by script (ok, a reject code, an HTTP error, a delay, no answer, or any JSON), routed by action and stream; `Wait` blocks until a request that matches arrives.
 - `internal/check/`: the case helper.
 - `cases/`: the cases.
 - `testdata/`: the self-signed TLS key and certificate of the TLS listeners, for localhost and 127.0.0.1, test-only; the generated media goes in `testdata/media/`, which git ignores.
@@ -108,8 +119,11 @@ with `-parallel 64`, at the same time.
   Its listeners: RTMP, RTMPS, the HTTP API and server, HTTPS for both, WebRTC over UDP and TCP, SRT, RTSP, the exporter, and the GB28181 media port. The MPEG-TS over UDP caster needs a variant, because a server has one stream caster.
   It plays with the lowest latency (`min_latency on`, `mw_latency 0`), so a player gets each message at once rather than in 350ms batches; a case that tests the default batching needs a variant.
   It serves every stream as HTTP-FLV at `/[app]/[stream].flv`, and as HLS (TS) at `/[app]/[stream].m3u8` and DASH at `/[app]/[stream].mpd`, both with 10s segments.
+  Every hook (`on_connect`, `on_close`, `on_publish`, `on_unpublish`, `on_play`, `on_stop`, `on_dvr`, `on_hls`, `on_hls_notify`) calls one mock at `/hooks/<action>`, `server.Common(c).Hooks`. It accepts every request unless a case scripts a reply, and a case scripts only its own stream, such as `Hooks.Script(mock.Match{Action: "on_publish", Stream: stream}, mock.Reject(403))`. A variant gets its own mock with `Config.Hooks`.
 - **Remux variants:** a vhost has one HTTP remux mount, so HTTP-TS, MP3 and AAC each have a variant, `TsMount`, `Mp3Mount` and `AacMount` (`server.RemuxConfig`), with RTMP, the HTTP API and server, and Common's latency.
 - **Variant:** a server only when Common can't do it: a value Common can't have, global state, a process change, or a topology. A variant group is one top-level test that starts its SRS, runs its cases as parallel subtests, and stops the SRS.
+- **Bursts:** SRS runs on one thread and shares it fairly, so many cases that send a burst at once, such as a whole file without pacing, make each of them, and the real-time cases beside them, as slow as all of them together. A case holds one of a server's 2 burst slots while it sends one (`srs.Burst(c)`); the wait for a slot is not part of its time. `publishAll` does it for the segment groups.
+- **Hook mock:** it closes each connection after its reply, so SRS, which opens one per hook, leaves no socket in TIME_WAIT on an ephemeral port; a run of 1,000 cases would otherwise use them up.
 
 ### Classes
 
@@ -197,9 +211,10 @@ pass fails with "bug fixed, remove the KnownBug mark".
 
 The suite owns ports 14000–14999: the main process allocates from 14000–14799
 and the timer process from 14800–14999. `SRS_INTEG_PORTS` moves or widens the
-range. A server gets a port only for each listener it turns on, never an SRS
-default port, and a port is never handed out twice in a run. When the range
-runs out, the run fails with "port range exhausted, widen SRS_INTEG_PORTS".
+range. A server gets a port only for each listener it turns on, and one for
+its hook mock when it has one, never an SRS default port, and a port is never
+handed out twice in a run. When the range runs out, the run fails with "port
+range exhausted, widen SRS_INTEG_PORTS".
 
 ## Catalog
 
@@ -215,6 +230,7 @@ utest scenario it ports, if any.
 | HttpAudio | Mp3Mount | PublishPlay: the MP3 of H.264/MP3, joining 200ms into the stream | Normal | |
 | HttpFlv | Common | PublishPlay, PublishPlayHevc (enhanced RTMP), joining 200ms into the stream | Normal | |
 | HttpTs | TsMount | PublishPlay, PublishPlayHevc, joining 200ms into the stream | Normal | |
-| Hls | Common | PublishPlay: H.264/AAC published without `-re`, 15s of media from the 10s TS segments, through the `hls_ctx` master playlist | Normal | |
+| Hls | Common | PublishPlay, PublishPlayHevc: H.264/AAC and HEVC/AAC published without `-re`, 15s of media from the 10s TS segments, through the `hls_ctx` master playlist | Normal | |
+| Hooks | Common | OnPublish: the `on_publish` fields, then `on_unpublish` after the publisher closes; OnPublishRejected: a scripted reject code fails the RTMP publish | Normal | |
 | Rtmp | Common | PublishPlay, PublishPlayHevc (enhanced RTMP) | Normal | |
-| Signal | Smoke | TermExitsZero (`TestTimer_Signal_Smoke`) | Timer | |
+| Signal | Smoke | TermExitsZero, TermWithPublisherExitsZero (`TestTimer_Signal_Smoke`) | Timer | |

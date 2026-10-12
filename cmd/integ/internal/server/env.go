@@ -87,6 +87,8 @@ type Config struct {
 	// off. It cannot change what the adapter sets: the ports, the listeners or the
 	// process settings.
 	Env map[string]string
+	// Hooks starts a mock on a port of its own and points every hook at it.
+	Hooks bool
 }
 
 // TLSFiles are the key and certificate of the TLS listeners.

@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"net/http"
 	"os"
 	"path"
 	"regexp"
@@ -17,7 +18,19 @@ import (
 	"srs-integ/internal/media"
 	"srs-integ/internal/report"
 	"srs-integ/internal/rtmp"
+	"srs-integ/internal/server"
 )
+
+// httpClient is the client of every HTTP player and API call. It keeps an idle
+// connection for each parallel case, where the default keeps 2 per host and
+// closes the rest, which leaves a socket in TIME_WAIT on an ephemeral port for
+// each request a busy run makes beyond them.
+var httpClient = func() *http.Client {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.MaxIdleConns = 1024
+	tr.MaxIdleConnsPerHost = 256
+	return &http.Client{Transport: tr}
+}()
 
 var unsafeStreamChars = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
@@ -110,14 +123,19 @@ func checkPlayed(c *check.C, r *report.Report, vcodec, acodec string) {
 // publishAll publishes a whole file at once, without real-time pacing, and
 // keeps the stream published until the case ends. Segment groups (HLS, DASH,
 // DVR) use it, because segments follow the media timestamps, not wall time.
-func publishAll(c *check.C, url, file string) {
+// It holds one of the server's burst slots while it publishes, so a run of
+// many segment cases doesn't make every case on the server slow at once.
+func publishAll(c *check.C, srs *server.Server, stream, file string) {
 	c.Helper()
+	url := "rtmp://" + srs.Addr(server.RTMP) + "/" + stream
 	f, err := os.Open(file)
 	c.Must(err, "open the media")
 	defer f.Close()
 	r, err := media.NewFLVReader(f)
 	c.Must(err, "read the media")
 
+	free := srs.Burst(c)
+	defer free()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	pub, err := rtmp.Dial(ctx, url, nil)
