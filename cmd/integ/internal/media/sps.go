@@ -274,3 +274,56 @@ func hevcSize(r *bitReader) (int, int, error) {
 	}
 	return width, height, nil
 }
+
+// AV1SequenceSize reads the profile, "Main" or a number, and the largest
+// picture size from the payload of an AV1 sequence header OBU.
+func AV1SequenceSize(payload []byte) (profile string, width, height int, err error) {
+	r := &bitReader{b: payload}
+	seqProfile := r.bits(3)
+	r.bits(1) // still_picture
+	if r.flag() {
+		// reduced_still_picture_header: one operating point, its level only.
+		r.bits(5)
+	} else {
+		decoderModel, delayLength := false, 0
+		if r.flag() { // timing_info_present_flag
+			r.bits(32) // num_units_in_display_tick
+			r.bits(32) // time_scale
+			if r.flag() {
+				r.ue() // num_ticks_per_picture_minus_1, uvlc
+			}
+			if decoderModel = r.flag(); decoderModel {
+				delayLength = int(r.bits(5)) + 1
+				r.bits(32) // num_units_in_decoding_tick
+				r.bits(5)  // buffer_removal_time_length_minus_1
+				r.bits(5)  // frame_presentation_time_length_minus_1
+			}
+		}
+		initialDelay := r.flag()
+		points := int(r.bits(5)) + 1
+		for i := 0; i < points && r.err == nil; i++ {
+			r.bits(12) // operating_point_idc
+			if r.bits(5) > 7 {
+				r.bits(1) // seq_tier
+			}
+			if decoderModel && r.flag() {
+				r.bits(delayLength) // decoder_buffer_delay
+				r.bits(delayLength) // encoder_buffer_delay
+				r.bits(1)           // low_delay_mode_flag
+			}
+			if initialDelay && r.flag() {
+				r.bits(4)
+			}
+		}
+	}
+	wbits, hbits := int(r.bits(4))+1, int(r.bits(4))+1
+	width, height = int(r.bits(wbits))+1, int(r.bits(hbits))+1
+	if r.err != nil {
+		return "", 0, 0, errors.New("short AV1 sequence header")
+	}
+	profile = fmt.Sprint(seqProfile)
+	if seqProfile == 0 {
+		profile = "Main"
+	}
+	return profile, width, height, nil
+}

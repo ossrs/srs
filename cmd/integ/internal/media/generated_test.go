@@ -17,18 +17,21 @@ func TestGeneratedMedia(t *testing.T) {
 		video, profile string
 		bframes        bool
 		audio          string
-		rate           int
+		rate, channels int
 	}
 	cases := map[string]want{
-		H264HighAAC:      {"h264", "High", true, "aac", 44100},
-		H264BaselineAAC:  {"h264", "Baseline", false, "aac", 44100},
-		H264BaselineOpus: {"h264", "Baseline", false, "opus", 48000},
-		HEVCAAC:          {"hevc", "Main", true, "aac", 44100},
-		AACOnly:          {"", "", false, "aac", 44100},
-		H264Only:         {"h264", "High", true, "", 0},
-		H264HighMP3:      {"h264", "High", true, "mp3", 44100},
-		VP9Opus:          {"vp9", "0", false, "opus", 48000},
-		AV1Opus:          {"av1", "Main", false, "opus", 48000},
+		H264HighAAC:      {"h264", "High", true, "aac", 44100, 2},
+		H264BaselineAAC:  {"h264", "Baseline", false, "aac", 44100, 2},
+		H264BaselineOpus: {"h264", "Baseline", false, "opus", 48000, 2},
+		HEVCAAC:          {"hevc", "Main", true, "aac", 44100, 2},
+		HEVCOpus:         {"hevc", "Main", false, "opus", 48000, 2},
+		AACOnly:          {"", "", false, "aac", 44100, 2},
+		H264Only:         {"h264", "High", true, "", 0, 0},
+		H264HighMP3:      {"h264", "High", true, "mp3", 44100, 2},
+		VP9Opus:          {"vp9", "0", false, "opus", 48000, 2},
+		AV1Opus:          {"av1", "Main", false, "opus", 48000, 2},
+		PCMU:             {"", "", false, "pcmu", 8000, 1},
+		PCMA:             {"", "", false, "pcma", 8000, 1},
 	}
 	if len(cases) != len(Recipes) {
 		t.Fatalf("%v cases for %v recipes", len(cases), len(Recipes))
@@ -66,8 +69,8 @@ func TestGeneratedMedia(t *testing.T) {
 			} else if a := info.Audio; a == nil {
 				t.Errorf("no audio")
 			} else {
-				if a.Codec != w.audio || a.SampleRate != w.rate || a.Channels != 2 {
-					t.Errorf("audio %v %vHz %vch, want %v %vHz 2ch", a.Codec, a.SampleRate, a.Channels, w.audio, w.rate)
+				if a.Codec != w.audio || a.SampleRate != w.rate || a.Channels != w.channels {
+					t.Errorf("audio %v %vHz %vch, want %v %vHz %vch", a.Codec, a.SampleRate, a.Channels, w.audio, w.rate, w.channels)
 				}
 				if a.Frames == 0 {
 					t.Errorf("no audio frames")

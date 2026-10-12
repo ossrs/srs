@@ -169,8 +169,8 @@ func TestPrepareRegeneratesAllOnANewSourceOrFFmpeg(t *testing.T) {
 
 func TestPrepareRecordsUnavailableRecipes(t *testing.T) {
 	f := newFakePrepare(t)
-	// Like the CI image: native Opus, no VP9 or AV1 encoder.
-	ci := fakeFFmpeg("ci", "libx264", "libx265", "aac", "libmp3lame", "opus")
+	// Like the CI image: native Opus and G.711, no VP9 or AV1 encoder.
+	ci := fakeFFmpeg("ci", "libx264", "libx265", "aac", "libmp3lame", "opus", "pcm_mulaw", "pcm_alaw")
 
 	res := f.mustRun(ci, Recipes)
 	if got := sorted(res.Unavailable); !slices.Equal(got, []string{AV1Opus, VP9Opus}) {

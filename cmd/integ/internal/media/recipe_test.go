@@ -19,7 +19,7 @@ func fakeFFmpeg(version string, encoders ...string) *FFmpeg {
 }
 
 // everyEncoder is an ffmpeg like the one the setup script builds.
-var everyEncoder = []string{"libx264", "libx265", "libvpx-vp9", "libsvtav1", "aac", "libmp3lame", "libopus", "opus"}
+var everyEncoder = []string{"libx264", "libx265", "libvpx-vp9", "libsvtav1", "aac", "libmp3lame", "libopus", "opus", "pcm_mulaw", "pcm_alaw"}
 
 func TestRecipesHaveUniqueNames(t *testing.T) {
 	seen := map[string]bool{}

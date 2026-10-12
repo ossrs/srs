@@ -31,14 +31,15 @@ import (
 const keyQuery = "token=abc123&sig=xyz789"
 
 // sharedTsFloor is the config of the server that TestHls_TsFloor,
-// TestHls_Keys and TestHls_Sessions share. None of them depends on what the
-// others set:
+// TestHls_Keys, TestHls_Sessions and TestRtc_NackTwccOff share. None of
+// them depends on what the others set; WebRTC sessions write no files:
 //   - hls_ts_floor with 2s fragments and [timestamp] in hls_ts_file;
 //   - hls_keys with a new key every 2 segments, and hls_key_url on the CDN
 //     host with a query;
 //   - hls_ts_ctx off and hls_master_m3u8_path_relative on, the hls_ctx
 //     session settings Common keeps at their defaults;
-//   - every hook on a mock, for the sessions' on_play.
+//   - every hook on a mock, for the sessions' on_play;
+//   - WebRTC over UDP with nack and twcc off.
 func sharedTsFloor() server.Config {
 	cfg := server.HLSConfig(server.HLS{
 		Fragment:        2 * time.Second,
@@ -51,7 +52,7 @@ func sharedTsFloor() server.Config {
 		MasterRelative:  true,
 	})
 	cfg.Hooks = true
-	return cfg
+	return server.WithRTC(cfg, sharedTsFloorRTC)
 }
 
 // TestHls_Keys plays the AES-128 encrypted TS segments of hls_keys: a key
@@ -373,11 +374,14 @@ func hlsPlays(srs *server.Server, name string) []mock.Request {
 }
 
 // sharedFmp4Keys is the config of the server that TestHls_Fmp4Keys,
-// TestHls_CtxOff and TestDash_StreamDir share: HLS in fmp4 with 2s
-// fragments and the init file beside the playlist, hls_keys with a new key
-// every 2 segments at the default hls_key_url, hls_ctx off, every hook on a
-// mock, and DASH with 2s fragments and the MPD in a dir per stream. HLS and
-// DASH write different files, so none of the groups depends on what the
+// TestHls_CtxOff, TestDash_StreamDir, TestRtc_Transport and
+// TestRtc_PreferRtx share: HLS in fmp4 with 2s fragments and the init file
+// beside the playlist, hls_keys with a new key every 2 segments at the
+// default hls_key_url, hls_ctx off, every hook on a mock, DASH with 2s
+// fragments and the MPD in a dir per stream, and WebRTC over UDP only with
+// dtls_role active, stun_strict_check on, api_as_candidates off and
+// nack_prefer_rtx on. HLS and DASH write different files, and
+// WebRTC sessions write none, so none of the groups depends on what the
 // others set.
 func sharedFmp4Keys() server.Config {
 	cfg := server.HLSConfig(server.HLS{
@@ -389,10 +393,11 @@ func sharedFmp4Keys() server.Config {
 		NoCtx:           true,
 	})
 	cfg.Hooks = true
-	return server.WithDASH(cfg, server.DASH{
+	cfg = server.WithDASH(cfg, server.DASH{
 		Fragment: 2 * time.Second,
 		MPDFile:  "[app]/[stream]/index.mpd",
 	})
+	return server.WithRTC(cfg, sharedFmp4KeysRTC)
 }
 
 // TestHls_Fmp4Keys is hls_keys with fmp4 segments: SAMPLE-AES keys in the

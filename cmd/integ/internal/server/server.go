@@ -415,7 +415,10 @@ func (s *Server) logTo(t testing.TB) {
 // limit, HTTP-FLV for every stream, and HLS and DASH, both with 10s segments
 // (HLS by default; DASH defaults to 30s, the length of a whole test file), and
 // every hook on one mock, which accepts unless a case scripts a reply for its
-// own stream. A case that tests the default batching needs a variant.
+// own stream, and WebRTC over UDP and TCP with 127.0.0.1 as its candidate,
+// so a session doesn't depend on the host's interfaces; the host of a WHIP or
+// WHEP request is a candidate too. A case that tests the default batching
+// needs a variant.
 func CommonConfig() Config {
 	return Config{
 		Listeners: CommonListeners,
@@ -429,6 +432,12 @@ func CommonConfig() Config {
 			"SRS_VHOST_HLS_ENABLED":        "on",
 			"SRS_VHOST_DASH_ENABLED":       "on",
 			"SRS_VHOST_DASH_DASH_FRAGMENT": "10",
+			"SRS_VHOST_RTC_ENABLED":        "on",
+			"SRS_RTC_SERVER_CANDIDATE":     "127.0.0.1",
+			// A WHIP or WHEP request's host that is a name is a candidate as
+			// it is, never resolved, so no case depends on DNS.
+			"SRS_RTC_SERVER_KEEP_API_DOMAIN":    "on",
+			"SRS_RTC_SERVER_RESOLVE_API_DOMAIN": "off",
 		},
 	}
 }
@@ -1008,5 +1017,60 @@ func WithDASH(cfg Config, d DASH) Config {
 		env["SRS_VHOST_DASH_DASH_CLEANUP"] = "off"
 	}
 	cfg.Env = env
+	return cfg
+}
+
+// RTC is a WebRTC variant's settings; the zero value keeps SRS's defaults.
+type RTC struct {
+	// DTLSRole is the vhost's dtls_role, active or passive: the role SRS
+	// takes when an offer's setup is actpass.
+	DTLSRole string
+	// StunStrictCheck is the vhost's stun_strict_check.
+	StunStrictCheck bool
+	// NoAPICandidates turns api_as_candidates off.
+	NoAPICandidates bool
+	// NackPreferRTX is the vhost's nack_prefer_rtx: SRS sends a packet a
+	// player asks for again on the RTX stream, when the player offers RTX.
+	NackPreferRTX bool
+	// NoNack turns the vhost's nack off: SRS asks no publisher for a lost
+	// packet, and sends no player one again.
+	NoNack bool
+	// NoTWCC turns the vhost's twcc off: SRS sends publishers no
+	// transport-wide congestion control feedback.
+	NoTWCC bool
+}
+
+// WithRTC returns a copy of cfg with WebRTC on, over UDP only, with
+// 127.0.0.1 as its candidate like Common, and the WebRTC settings r, so a
+// variant of another feature can take WebRTC sessions too.
+func WithRTC(cfg Config, r RTC) Config {
+	env := map[string]string{}
+	for k, v := range cfg.Env {
+		env[k] = v
+	}
+	env["SRS_VHOST_RTC_ENABLED"] = "on"
+	env["SRS_RTC_SERVER_CANDIDATE"] = "127.0.0.1"
+	if r.DTLSRole != "" {
+		env["SRS_VHOST_RTC_DTLS_ROLE"] = r.DTLSRole
+	}
+	if r.StunStrictCheck {
+		env["SRS_VHOST_RTC_STUN_STRICT_CHECK"] = "on"
+	}
+	if r.NoAPICandidates {
+		env["SRS_RTC_SERVER_API_AS_CANDIDATES"] = "off"
+	}
+	if r.NackPreferRTX {
+		env["SRS_VHOST_RTC_NACK_PREFER_RTX"] = "on"
+	}
+	if r.NoNack {
+		env["SRS_VHOST_RTC_NACK"] = "off"
+	}
+	if r.NoTWCC {
+		env["SRS_VHOST_RTC_TWCC"] = "off"
+	}
+	cfg.Env = env
+	if !slices.Contains(cfg.Listeners, RTCUDP) {
+		cfg.Listeners = append(slices.Clone(cfg.Listeners), RTCUDP)
+	}
 	return cfg
 }

@@ -151,3 +151,47 @@ func TestVideoSizeOfTheMedia(t *testing.T) {
 		})
 	}
 }
+
+// TestAV1SequenceSize reads the sequence header OBU in the av1C of the AV1
+// test file: Main, 768x320.
+func TestAV1SequenceSize(t *testing.T) {
+	f, err := os.Open(Path(t, AV1Opus))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	st, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mf, err := ReadMP4(f, st.Size())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// av1C: 4 bytes, then the sequence header OBU with its size field.
+	obu := mf.Track("vide").Config[4:]
+	if len(obu) < 2 || (obu[0]>>3)&0xf != 1 || obu[0]&2 == 0 {
+		t.Fatalf("av1C config OBU %x, want a sequence header with a size", obu)
+	}
+	head := 1
+	if obu[0]&4 != 0 {
+		head++
+	}
+	var size, shift int
+	for {
+		b := obu[head]
+		head++
+		size |= int(b&0x7f) << shift
+		shift += 7
+		if b&0x80 == 0 {
+			break
+		}
+	}
+	profile, w, h, err := AV1SequenceSize(obu[head : head+size])
+	if err != nil || profile != "Main" || w != 768 || h != 320 {
+		t.Errorf("AV1 sequence header: %v %vx%v %v, want Main 768x320", profile, w, h, err)
+	}
+	if _, _, _, err := AV1SequenceSize(obu[head : head+2]); err == nil {
+		t.Errorf("a cut sequence header has a size, want an error")
+	}
+}

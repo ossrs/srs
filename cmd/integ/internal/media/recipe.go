@@ -25,6 +25,8 @@ const (
 	H264BaselineOpus = "h264-baseline-opus.mp4"
 	// HEVCAAC is for enhanced RTMP.
 	HEVCAAC = "hevc-aac.flv"
+	// HEVCOpus has no B-frames, for WebRTC.
+	HEVCOpus = "hevc-opus.mp4"
 	// AACOnly has no video.
 	AACOnly = "aac-only.flv"
 	// H264Only has no audio.
@@ -35,6 +37,10 @@ const (
 	VP9Opus = "vp9-opus.mp4"
 	// AV1Opus is for WebRTC.
 	AV1Opus = "av1-opus.mp4"
+	// PCMU and PCMA are raw G.711 at 8 kHz mono, mu-law and A-law, for
+	// WebRTC.
+	PCMU = "pcmu.ul"
+	PCMA = "pcma.al"
 )
 
 // Every file is a cut of this length from the start of the source.
@@ -67,12 +73,16 @@ var (
 	x264High     = Encoder{"libx264", join(gopArgs, "-sc_threshold", "0", "-preset", "veryfast", "-profile:v", "high", "-bf", "3")}
 	x264Baseline = Encoder{"libx264", join(gopArgs, "-sc_threshold", "0", "-preset", "veryfast", "-profile:v", "baseline")}
 	x265         = Encoder{"libx265", join(gopArgs, "-preset", "veryfast", "-x265-params", "keyint=25:min-keyint=25:scenecut=0:open-gop=0:log-level=error")}
+	x265NoB      = Encoder{"libx265", join(gopArgs, "-preset", "veryfast", "-x265-params", "keyint=25:min-keyint=25:scenecut=0:open-gop=0:bframes=0:log-level=error")}
 	// libvpx adds keyframes on scene changes at the realtime deadline, not at good.
 	vp9 = Encoder{"libvpx-vp9", join(gopArgs, "-deadline", "good", "-cpu-used", "8", "-lag-in-frames", "0", "-row-mt", "1", "-b:v", "1M")}
 	av1 = Encoder{"libsvtav1", join(gopArgs, "-preset", "10", "-svtav1-params", "scd=0")}
 
 	aac = Encoder{"aac", []string{"-ar", "44100", "-ac", "2", "-b:a", "128k"}}
 	mp3 = Encoder{"libmp3lame", []string{"-ar", "44100", "-ac", "2", "-b:a", "128k"}}
+	// G.711 encoders are native to ffmpeg.
+	pcmu = Encoder{"pcm_mulaw", []string{"-ar", "8000", "-ac", "1"}}
+	pcma = Encoder{"pcm_alaw", []string{"-ar", "8000", "-ac", "1"}}
 	// Opus prefers libopus and falls back to ffmpeg's native encoder, which
 	// is experimental.
 	opus = []Encoder{
@@ -87,11 +97,14 @@ var Recipes = []Recipe{
 	{H264BaselineAAC, "flv", []Encoder{x264Baseline}, []Encoder{aac}},
 	{H264BaselineOpus, "mp4", []Encoder{x264Baseline}, opus},
 	{HEVCAAC, "flv", []Encoder{x265}, []Encoder{aac}},
+	{HEVCOpus, "mp4", []Encoder{x265NoB}, opus},
 	{AACOnly, "flv", nil, []Encoder{aac}},
 	{H264Only, "flv", []Encoder{x264High}, nil},
 	{H264HighMP3, "flv", []Encoder{x264High}, []Encoder{mp3}},
 	{VP9Opus, "mp4", []Encoder{vp9}, opus},
 	{AV1Opus, "mp4", []Encoder{av1}, opus},
+	{PCMU, "mulaw", nil, []Encoder{pcmu}},
+	{PCMA, "alaw", nil, []Encoder{pcma}},
 }
 
 func join(base []string, more ...string) []string {

@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"srs-integ/internal/rtc"
 )
 
 func TestRun(t *testing.T) {
@@ -39,6 +41,10 @@ func TestRun(t *testing.T) {
 		{"PublishNoURL", []string{"publish", "a.flv"}, 2, "", "Usage: srs-integ publish <file> <url>"},
 		{"PublishBadURL", []string{"publish", "a.flv", "http://127.0.0.1/live/a"}, 1, "", "publish: unsupported URL"},
 		{"PublishNoFile", []string{"publish", "/nothing/a.flv", "rtmp://127.0.0.1:1/live/a"}, 1, "", "/nothing/a.flv"},
+		{"ProbeWHEPRefused", []string{"probe", "-timeout", "1s", "http://127.0.0.1:1/rtc/v1/whep/?app=live&stream=a"}, 1, "", "connection refused"},
+		{"ProbeWhipPlayRefused", []string{"probe", "-timeout", "1s", "http://127.0.0.1:1/rtc/v1/whip-play/?app=live&stream=a"}, 1, "", "connection refused"},
+		{"PublishWHIPNoFile", []string{"publish", "/nothing/a.mp4", "http://127.0.0.1:1/rtc/v1/whip/?app=live&stream=a"}, 1, "", "/nothing/a.mp4"},
+		{"PublishWHIPNotMP4", []string{"publish", "/nothing/a.flv", "http://127.0.0.1:1/rtc/v1/whip/?app=live&stream=a"}, 1, "", "publish: WHIP takes an MP4 file"},
 		{"PrepareExtraArgs", []string{"prepare", "x"}, 2, "", "Usage: srs-integ prepare"},
 		{"PrepareBadFlag", []string{"prepare", "-nothing"}, 2, "", "Usage: srs-integ prepare"},
 		{"PrepareNoSource", []string{"prepare", "-source", "/nothing/source.flv", "-dir", "/tmp/srs-integ-no-dir"}, 1, "", "/nothing/source.flv"},
@@ -67,5 +73,29 @@ func checkOutput(t *testing.T, name, got, want string) {
 	}
 	if !strings.Contains(got, want) {
 		t.Errorf("%v %q, want it to contain %q", name, got, want)
+	}
+}
+
+// TestWithVcodec asks SRS for a WHIP video codec other than H.264, unless
+// the URL already names one.
+func TestWithVcodec(t *testing.T) {
+	const whip = "http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=a"
+	for _, tc := range []struct {
+		url   string
+		video []string
+		want  string
+	}{
+		{whip, []string{"H264"}, whip},
+		{whip, nil, whip},
+		{whip, []string{"H265"}, whip + "&vcodec=h265"},
+		{whip, []string{"AV1"}, whip + "&vcodec=av1"},
+		{whip + "&vcodec=hevc", []string{"H265"}, whip + "&vcodec=hevc"},
+		{whip + "&codec=vp9", []string{"VP9"}, whip + "&codec=vp9"},
+		{"http://127.0.0.1:1985/rtc/v1/whip/", []string{"VP9"}, "http://127.0.0.1:1985/rtc/v1/whip/?vcodec=vp9"},
+	} {
+		got, err := withVcodec(tc.url, &rtc.Options{Video: tc.video})
+		if err != nil || got != tc.want {
+			t.Errorf("withVcodec(%v, %v) = %v, %v, want %v", tc.url, tc.video, got, err, tc.want)
+		}
 	}
 }

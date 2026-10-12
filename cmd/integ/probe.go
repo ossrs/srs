@@ -22,14 +22,16 @@ import (
 	"srs-integ/internal/media"
 	"srs-integ/internal/mp4"
 	"srs-integ/internal/report"
+	"srs-integ/internal/rtc"
 	"srs-integ/internal/ts"
 )
 
 const probeUsage = `Usage: srs-integ probe [flags] <url>
 
 Read a stream and print its stream report: rtmp://host/app/stream,
-rtmps://host:port/app/stream (the certificate is not verified), http://host/app/stream.flv, .ts, .aac, .mp3, .m3u8 (HLS) or .mpd (DASH), or an
-FLV, TS, AAC, MP3 or MP4 file. It stops after -duration of media, and fails
+rtmps://host:port/app/stream (the certificate is not verified), http://host/app/stream.flv, .ts, .aac, .mp3, .m3u8 (HLS) or .mpd (DASH),
+WebRTC by WHEP, http://host:1985/rtc/v1/whep/?app=live&stream=s (or
+/rtc/v1/whip-play/), or an FLV, TS, AAC, MP3 or MP4 file. It stops after -duration of media, and fails
 when -timeout passes first. HLS and DASH stop after the segment that reaches
 it.
 
@@ -102,9 +104,26 @@ func probeURL(ctx context.Context, raw string, u report.Until) (*report.Report, 
 			return dash.PlayHTTP(ctx, nil, raw, u)
 		case audio.CodecOf(parsed.Path) != "":
 			return audio.PlayHTTP(ctx, nil, raw, u)
+		case strings.HasSuffix(parsed.Path, "/rtc/v1/whep/") || strings.HasSuffix(parsed.Path, "/rtc/v1/whip-play/"):
+			return probeWHEP(ctx, raw, u)
 		}
 	}
-	return nil, fmt.Errorf("unsupported URL %v, want rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd} or a file", raw)
+	return nil, fmt.Errorf("unsupported URL %v, want rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd}, a WHEP URL or a file", raw)
+}
+
+// probeWHEP plays a stream by WHEP, offering every codec, so SRS answers the
+// stream's. It asks for a keyframe once connected, so a player that joins a
+// running stream starts without waiting for the publisher's next one.
+func probeWHEP(ctx context.Context, raw string, u report.Until) (*report.Report, error) {
+	player, err := rtc.Play(ctx, raw, rtc.Every())
+	if err != nil {
+		return nil, err
+	}
+	defer player.Close()
+	if err := player.RequestKeyframe(); err != nil {
+		return player.Report(), err
+	}
+	return player.Until(ctx, u)
 }
 
 // probeFile reads a file by its extension.

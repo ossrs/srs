@@ -6,6 +6,8 @@ package media
 import (
 	"bytes"
 	"math"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -50,6 +52,28 @@ func TestProbeMP4(t *testing.T) {
 	}
 	if a := info.Audio; a == nil || a.Codec != "aac" || a.SampleRate != 44100 || a.Channels != 2 || a.Frames != 3 {
 		t.Errorf("audio %+v", a)
+	}
+}
+
+// TestProbeG711 reads raw G.711 files by their extension: 8 kHz mono, one
+// byte a sample, so 1,000 bytes are 125ms in 7 frames of 20ms.
+func TestProbeG711(t *testing.T) {
+	for _, w := range []struct{ name, codec string }{{"a.ul", "pcmu"}, {"a.al", "pcma"}} {
+		path := filepath.Join(t.TempDir(), w.name)
+		if err := os.WriteFile(path, make([]byte, 1000), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		info, err := ProbeFile(path)
+		if err != nil {
+			t.Fatalf("%v: %v", w.name, err)
+		}
+		if info.Video != nil {
+			t.Errorf("%v: video %+v", w.name, info.Video)
+		}
+		a := info.Audio
+		if a == nil || a.Codec != w.codec || a.SampleRate != 8000 || a.Channels != 1 || a.Frames != 7 || a.Duration != 125*time.Millisecond {
+			t.Errorf("%v: audio %+v", w.name, a)
+		}
 	}
 }
 

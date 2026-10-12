@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 )
@@ -69,13 +70,17 @@ func TestCommonConfig(t *testing.T) {
 		t.Errorf("listeners %v, want %v", cfg.Listeners, CommonListeners)
 	}
 	want := map[string]string{
-		"SRS_VHOST_MIN_LATENCY":        "on",
-		"SRS_VHOST_PLAY_MW_LATENCY":    "0",
-		"SRS_VHOST_HTTP_REMUX_ENABLED": "on",
-		"SRS_VHOST_HTTP_REMUX_MOUNT":   "[vhost]/[app]/[stream].flv",
-		"SRS_VHOST_HLS_ENABLED":        "on",
-		"SRS_VHOST_DASH_ENABLED":       "on",
-		"SRS_VHOST_DASH_DASH_FRAGMENT": "10",
+		"SRS_VHOST_MIN_LATENCY":             "on",
+		"SRS_VHOST_PLAY_MW_LATENCY":         "0",
+		"SRS_VHOST_HTTP_REMUX_ENABLED":      "on",
+		"SRS_VHOST_HTTP_REMUX_MOUNT":        "[vhost]/[app]/[stream].flv",
+		"SRS_VHOST_HLS_ENABLED":             "on",
+		"SRS_VHOST_DASH_ENABLED":            "on",
+		"SRS_VHOST_DASH_DASH_FRAGMENT":      "10",
+		"SRS_VHOST_RTC_ENABLED":             "on",
+		"SRS_RTC_SERVER_CANDIDATE":          "127.0.0.1",
+		"SRS_RTC_SERVER_KEEP_API_DOMAIN":    "on",
+		"SRS_RTC_SERVER_RESOLVE_API_DOMAIN": "off",
 	}
 	if !reflect.DeepEqual(cfg.Env, want) {
 		t.Errorf("env %v, want %v", cfg.Env, want)
@@ -399,4 +404,59 @@ func TestWithDASH(t *testing.T) {
 			t.Errorf("env %v", cfg.Env)
 		}
 	})
+}
+
+// TestWithRTC checks a variant with WebRTC on: over UDP only, with
+// 127.0.0.1 as its candidate like Common, and each WebRTC setting.
+func TestWithRTC(t *testing.T) {
+	cases := []struct {
+		name string
+		r    RTC
+		want map[string]string
+	}{
+		{"Defaults", RTC{}, nil},
+		{"DTLSRole", RTC{DTLSRole: "active"}, map[string]string{"SRS_VHOST_RTC_DTLS_ROLE": "active"}},
+		{"StunStrictCheck", RTC{StunStrictCheck: true}, map[string]string{"SRS_VHOST_RTC_STUN_STRICT_CHECK": "on"}},
+		{"NoAPICandidates", RTC{NoAPICandidates: true}, map[string]string{"SRS_RTC_SERVER_API_AS_CANDIDATES": "off"}},
+		{"NackPreferRTX", RTC{NackPreferRTX: true}, map[string]string{"SRS_VHOST_RTC_NACK_PREFER_RTX": "on"}},
+		{"NoNack", RTC{NoNack: true}, map[string]string{"SRS_VHOST_RTC_NACK": "off"}},
+		{"NoTWCC", RTC{NoTWCC: true}, map[string]string{"SRS_VHOST_RTC_TWCC": "off"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base := RemuxConfig("flv")
+			cfg := WithRTC(base, tc.r)
+			if want := append(slices.Clone(base.Listeners), RTCUDP); !reflect.DeepEqual(cfg.Listeners, want) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+			}
+			want := map[string]string{"SRS_VHOST_RTC_ENABLED": "on", "SRS_RTC_SERVER_CANDIDATE": "127.0.0.1"}
+			for k, v := range base.Env {
+				want[k] = v
+			}
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+			if _, ok := base.Env["SRS_VHOST_RTC_ENABLED"]; ok || len(base.Listeners) != 3 {
+				t.Errorf("the base config changed: %v %v", base.Listeners, base.Env)
+			}
+			ports := map[Listener]int{}
+			for i, l := range cfg.Listeners {
+				ports[l] = 14000 + i
+			}
+			env, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{})
+			if err != nil {
+				t.Fatalf("build env: %v", err)
+			}
+			if slices.Contains(env, "SRS_RTC_SERVER_PROTOCOL=all") {
+				t.Errorf("env %v turns on WebRTC over TCP", env)
+			}
+		})
+	}
+	// A config with WebRTC on keeps its listeners.
+	if cfg := WithRTC(CommonConfig(), RTC{}); !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
+		t.Errorf("listeners %v, want Common's", cfg.Listeners)
+	}
 }

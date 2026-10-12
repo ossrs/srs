@@ -44,7 +44,7 @@ func (v *VideoInfo) FPS() float64 {
 
 // AudioInfo describes the audio stream.
 type AudioInfo struct {
-	// Codec is "aac", "mp3" or "opus".
+	// Codec is "aac", "mp3", "opus", "pcmu" or "pcma".
 	Codec      string
 	SampleRate int
 	Channels   int
@@ -52,7 +52,7 @@ type AudioInfo struct {
 	Duration   time.Duration
 }
 
-// ProbeFile reads a test media file, FLV or MP4 by its extension.
+// ProbeFile reads a test media file, FLV, MP4 or raw G.711 by its extension.
 func ProbeFile(path string) (*Info, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -69,9 +69,36 @@ func ProbeFile(path string) (*Info, error) {
 			return nil, err
 		}
 		return probeMP4(f, st.Size())
+	case ".ul", ".al":
+		st, err := f.Stat()
+		if err != nil {
+			return nil, err
+		}
+		return probeG711(filepath.Ext(path), st.Size()), nil
 	default:
 		return nil, fmt.Errorf("unknown media type of %v", path)
 	}
+}
+
+// G.711 is 8 kHz mono, one byte a sample; WebRTC sends it in frames of
+// 20ms.
+const (
+	G711Rate       = 8000
+	G711FrameBytes = G711Rate / 50
+)
+
+// probeG711 describes a raw G.711 file of size bytes: .ul is mu-law (PCMU),
+// .al A-law (PCMA).
+func probeG711(ext string, size int64) *Info {
+	codec := "pcmu"
+	if ext == ".al" {
+		codec = "pcma"
+	}
+	return &Info{Audio: &AudioInfo{
+		Codec: codec, SampleRate: G711Rate, Channels: 1,
+		Frames:   int((size + G711FrameBytes - 1) / G711FrameBytes),
+		Duration: time.Duration(size) * time.Second / G711Rate,
+	}}
 }
 
 // span is the duration of n frames whose first and last decode times are
