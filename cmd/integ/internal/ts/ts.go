@@ -14,9 +14,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"time"
 
 	"srs-integ/internal/audio"
+	"srs-integ/internal/httpplay"
 	"srs-integ/internal/media"
 	"srs-integ/internal/report"
 )
@@ -35,6 +37,9 @@ type PES struct {
 	// 33-bit limit. DTS is PTS when the packet has no DTS.
 	PTS, DTS time.Duration
 	Data     []byte
+	// Program is the codecs of the PMT in force when the packet started,
+	// sorted, such as [aac h264].
+	Program []string
 }
 
 // stream is an elementary stream of the PMT, and the PES it is collecting.
@@ -48,6 +53,8 @@ type stream struct {
 	last  int64
 	wraps int64
 	seen  bool
+	// program is the codecs of the PMT in force when the PES in buf started.
+	program []string
 }
 
 // A Demuxer reads PES packets from a TS stream.
@@ -63,6 +70,8 @@ type Demuxer struct {
 	packets int64
 	pending []*PES
 	eof     bool
+	// program is the codecs of the last PMT, sorted.
+	program []string
 }
 
 // NewDemuxer reads TS packets from r.
@@ -208,6 +217,7 @@ func (d *Demuxer) pmt(pusi bool, b []byte) error {
 	if 12+info > len(s) {
 		return errors.New("PMT program info past its end")
 	}
+	var program []string
 	for p := s[12+info:]; len(p) > 0; {
 		if len(p) < 5 {
 			return errors.New("short PMT stream entry")
@@ -218,6 +228,7 @@ func (d *Demuxer) pmt(pusi bool, b []byte) error {
 			return errors.New("PMT descriptors past its end")
 		}
 		codec := codecOf(typ, p[5:5+n])
+		program = append(program, codec)
 		if s, ok := d.streams[pid]; !ok || s.typ != typ {
 			if !ok {
 				d.order = append(d.order, pid)
@@ -226,6 +237,8 @@ func (d *Demuxer) pmt(pusi bool, b []byte) error {
 		}
 		p = p[5+n:]
 	}
+	sort.Strings(program)
+	d.program = program
 	return nil
 }
 
@@ -269,6 +282,7 @@ func (d *Demuxer) pes(pid uint16, pusi bool, b []byte) error {
 			s.length += 6
 		}
 		s.buf = append([]byte(nil), b...)
+		s.program = d.program
 	} else if s.buf != nil {
 		s.buf = append(s.buf, b...)
 	} else {
@@ -304,7 +318,7 @@ func (d *Demuxer) finish(pid uint16) (*PES, error) {
 		return nil, fmt.Errorf("PID %#x: short PES header", pid)
 	}
 	flags, opt := b[7]>>6, b[9:9+int(b[8])]
-	pes := &PES{PID: pid, StreamType: s.typ, Codec: s.codec, Data: b[9+int(b[8]):]}
+	pes := &PES{PID: pid, StreamType: s.typ, Codec: s.codec, Data: b[9+int(b[8]):], Program: s.program}
 	if flags&0x02 == 0 || len(opt) < 5 {
 		return nil, fmt.Errorf("PID %#x: PES without a PTS", pid)
 	}
@@ -610,4 +624,24 @@ func PlayHTTP(ctx context.Context, client *http.Client, url string, u report.Unt
 		return r, fmt.Errorf("%w before %v: %v", ctx.Err(), u, r)
 	}
 	return r, err
+}
+
+// An HTTPPlayer plays HTTP-TS; its units are the PES packets.
+type HTTPPlayer = httpplay.Player[*PES]
+
+// DialHTTP connects to an HTTP-TS URL and sends the request. It doesn't wait
+// for the answer.
+func DialHTTP(ctx context.Context, url string, opts *httpplay.Options) (*HTTPPlayer, error) {
+	return httpplay.Dial(ctx, url, opts, func(body io.Reader, emit func(*PES) bool) error {
+		d := NewDemuxer(body)
+		for {
+			p, err := d.ReadPES()
+			if err != nil {
+				return err
+			}
+			if !emit(p) {
+				return nil
+			}
+		}
+	})
 }

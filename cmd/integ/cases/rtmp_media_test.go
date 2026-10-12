@@ -555,9 +555,16 @@ func playUntil(c *check.C, url string, u report.Until) *report.Report {
 	return r
 }
 
+// A tagPlayer is a player that reads FLV tags with a deadline: an RTMP
+// client or an HTTP-FLV player.
+type tagPlayer interface {
+	ReadTag() (*media.FLVTag, error)
+	SetDeadline(t time.Time) error
+}
+
 // readUntil adds a player's tags to a until its report meets u, or fails
 // after timeout. The report carries on from the tags a read before.
-func readUntil(player *rtmp.Client, a *flv.Analyzer, u report.Until, timeout time.Duration) error {
+func readUntil(player tagPlayer, a *flv.Analyzer, u report.Until, timeout time.Duration) error {
 	player.SetDeadline(time.Now().Add(timeout))
 	defer player.SetDeadline(time.Time{})
 	for !u.Done(&a.Report) {
@@ -575,7 +582,7 @@ func readUntil(player *rtmp.Client, a *flv.Analyzer, u report.Until, timeout tim
 // readNothing fails when a player gets media or metadata within d. Other
 // data messages, such as the |RtmpSampleAccess SRS sends when play starts,
 // don't count.
-func readNothing(player *rtmp.Client, d time.Duration) error {
+func readNothing(player tagPlayer, d time.Duration) error {
 	player.SetDeadline(time.Now().Add(d))
 	defer player.SetDeadline(time.Time{})
 	for {
@@ -593,7 +600,7 @@ func readNothing(player *rtmp.Client, d time.Duration) error {
 
 // readIdle adds a player's tags to a until its report meets u, or until no
 // tag comes for idle.
-func readIdle(player *rtmp.Client, a *flv.Analyzer, u report.Until, idle time.Duration) error {
+func readIdle(player tagPlayer, a *flv.Analyzer, u report.Until, idle time.Duration) error {
 	defer player.SetDeadline(time.Time{})
 	for !u.Done(&a.Report) {
 		player.SetDeadline(time.Now().Add(idle))

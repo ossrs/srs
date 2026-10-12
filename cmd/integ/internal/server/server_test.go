@@ -167,3 +167,102 @@ func TestPlayConfig(t *testing.T) {
 		})
 	}
 }
+
+// TestPublishConfig checks the env of each publish setting, beside Common's
+// lowest play latency, and that it builds.
+func TestPublishConfig(t *testing.T) {
+	with := func(kv ...string) map[string]string {
+		m := map[string]string{
+			"SRS_VHOST_MIN_LATENCY":     "on",
+			"SRS_VHOST_PLAY_MW_LATENCY": "0",
+		}
+		for i := 0; i < len(kv); i += 2 {
+			m[kv[i]] = kv[i+1]
+		}
+		return m
+	}
+	cases := []struct {
+		name    string
+		publish Publish
+		env     map[string]string
+	}{
+		{"Defaults", Publish{}, with()},
+		{"FirstPacketTimeout", Publish{FirstPacketTimeout: 100 * time.Millisecond}, with("SRS_VHOST_PUBLISH_FIRSTPKT_TIMEOUT", "100")},
+		{"NormalTimeout", Publish{NormalTimeout: 200 * time.Millisecond}, with("SRS_VHOST_PUBLISH_NORMAL_TIMEOUT", "200")},
+		{"KickoffForIdle", Publish{KickoffForIdle: 300 * time.Millisecond}, with("SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "0.3")},
+		{"KickoffWholeSeconds", Publish{KickoffForIdle: 2 * time.Second}, with("SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "2")},
+		{"All", Publish{FirstPacketTimeout: time.Second, NormalTimeout: 1500 * time.Millisecond, KickoffForIdle: 1500 * time.Millisecond}, with(
+			"SRS_VHOST_PUBLISH_FIRSTPKT_TIMEOUT", "1000",
+			"SRS_VHOST_PUBLISH_NORMAL_TIMEOUT", "1500",
+			"SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1.5",
+		)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := PublishConfig(tc.publish)
+			if want := []Listener{RTMP, HTTPAPI}; !reflect.DeepEqual(cfg.Listeners, want) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+			}
+			if !reflect.DeepEqual(cfg.Env, tc.env) {
+				t.Errorf("env %v, want %v", cfg.Env, tc.env)
+			}
+			if _, err := BuildEnv(cfg, map[Listener]int{RTMP: 14000, HTTPAPI: 14001}, "/tmp/x", TLSFiles{}); err != nil {
+				t.Errorf("build env: %v", err)
+			}
+		})
+	}
+}
+
+// TestRemuxVariant checks that the zero Remux is RemuxConfig, and that each
+// remux setting it asks for is set, and that its env builds.
+func TestRemuxVariant(t *testing.T) {
+	if got, want := RemuxVariant("flv", Remux{}), RemuxConfig("flv"); !reflect.DeepEqual(got, want) {
+		t.Errorf("zero Remux %v, want %v", got, want)
+	}
+
+	cases := []struct {
+		name string
+		r    Remux
+		want map[string]string
+	}{
+		{"GuessOff", Remux{GuessOff: true}, map[string]string{"SRS_VHOST_HTTP_REMUX_GUESS_HAS_AV": "off"}},
+		{"NoAudio", Remux{NoAudio: true}, map[string]string{"SRS_VHOST_HTTP_REMUX_HAS_AUDIO": "off"}},
+		{"NoVideo", Remux{NoVideo: true}, map[string]string{"SRS_VHOST_HTTP_REMUX_HAS_VIDEO": "off"}},
+		{"KeepUnmatched", Remux{KeepUnmatched: true}, map[string]string{"SRS_VHOST_HTTP_REMUX_DROP_IF_NOT_MATCH": "off"}},
+		{"FastCache", Remux{FastCache: 1500 * time.Millisecond}, map[string]string{"SRS_VHOST_HTTP_REMUX_FAST_CACHE": "1.5"}},
+		{"CrossdomainOff", Remux{CrossdomainOff: true}, map[string]string{"SRS_HTTP_SERVER_CROSSDOMAIN": "off"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := RemuxVariant("flv", tc.r)
+			want := RemuxConfig("flv").Env
+			for k, v := range tc.want {
+				want[k] = v
+			}
+			if !reflect.DeepEqual(cfg.Env, want) {
+				t.Errorf("env %v, want %v", cfg.Env, want)
+			}
+		})
+	}
+
+	t.Run("Off", func(t *testing.T) {
+		cfg := RemuxVariant("flv", Remux{Off: true})
+		if want := []Listener{RTMP, HTTPAPI, HTTPServer}; !reflect.DeepEqual(cfg.Listeners, want) {
+			t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+		}
+		want := map[string]string{
+			"SRS_VHOST_MIN_LATENCY":        "on",
+			"SRS_VHOST_PLAY_MW_LATENCY":    "0",
+			"SRS_VHOST_HTTP_REMUX_ENABLED": "off",
+		}
+		if !reflect.DeepEqual(cfg.Env, want) {
+			t.Errorf("env %v, want %v", cfg.Env, want)
+		}
+	})
+
+	all := Remux{GuessOff: true, NoAudio: true, KeepUnmatched: true, FastCache: time.Second, CrossdomainOff: true}
+	ports := map[Listener]int{RTMP: 14000, HTTPAPI: 14001, HTTPServer: 14002}
+	if _, err := BuildEnv(RemuxVariant("flv", all), ports, "/tmp/x", TLSFiles{Key: "k", Cert: "c"}); err != nil {
+		t.Errorf("build env: %v", err)
+	}
+}

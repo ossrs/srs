@@ -407,3 +407,78 @@ func TestDemuxPMTUpdate(t *testing.T) {
 		t.Errorf("streams %v, want %v", d.Streams(), want)
 	}
 }
+
+// TestDemuxProgram checks that each PES has the codecs of the PMT in force
+// when it started, sorted: video first under a PMT with video only, then
+// audio and video under the PMT SRS sends when audio comes.
+func TestDemuxProgram(t *testing.T) {
+	d := NewDemuxer(bytes.NewReader(cat(pat(0x1000), pmt(0x1000, es{0x1b, 0x100, nil}),
+		packets(0x100, 0, pes(0xe0, 9000, -1, []byte{1}, false)),
+		pat(0x1000), pmt(0x1000, es{0x1b, 0x100, nil}, es{0x0f, 0x101, nil}),
+		packets(0x101, 0, pes(0xc0, 9000, -1, []byte{2}, true)),
+		packets(0x100, 1, pes(0xe0, 12600, -1, []byte{3}, false)))))
+	// The audio PES has its length, so it comes before the first video PES,
+	// which ends when the next one starts; each is keyed by its one byte.
+	want := map[byte][]string{1: {"h264"}, 2: {"aac", "h264"}, 3: {"aac", "h264"}}
+	got := map[byte][]string{}
+	for {
+		p, err := d.ReadPES()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		got[p.Data[0]] = p.Program
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("programs %v, want %v", got, want)
+	}
+}
+
+// TestDialHTTP plays an HTTP-TS file PES by PES, with the codecs of its
+// program, and fails a missing stream with a status error.
+func TestDialHTTP(t *testing.T) {
+	path := media.Remux(t, media.H264HighAAC, "mpegts")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/live/a.ts" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "video/MP2T")
+		http.ServeFile(w, r, path)
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	p, err := DialHTTP(ctx, srv.URL+"/live/a.ts", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	p.SetDeadline(time.Now().Add(2 * time.Second))
+	var a Analyzer
+	u := report.Until{VideoHeader: true, AudioHeader: true, Keyframes: 1, VideoFrames: 5}
+	for !u.Done(&a.Report) {
+		pes, err := p.Read()
+		if err != nil {
+			t.Fatalf("read: %v, after %v", err, &a.Report)
+		}
+		if want := []string{"aac", "h264"}; !reflect.DeepEqual(pes.Program, want) {
+			t.Fatalf("program %v, want %v", pes.Program, want)
+		}
+		if err := a.Add(pes); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	missing, err := DialHTTP(ctx, srv.URL+"/live/b.ts", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer missing.Close()
+	missing.SetDeadline(time.Now().Add(time.Second))
+	if _, err := missing.Read(); err == nil || !strings.Contains(err.Error(), "404") {
+		t.Errorf("missing stream: %v, want 404", err)
+	}
+}

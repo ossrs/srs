@@ -14,10 +14,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"path"
 	"strings"
 	"time"
 
+	"srs-integ/internal/httpplay"
 	"srs-integ/internal/report"
 )
 
@@ -394,4 +396,32 @@ func PlayHTTP(ctx context.Context, client *http.Client, url string, u report.Unt
 		return r, fmt.Errorf("%w before %v: %v", ctx.Err(), u, r)
 	}
 	return r, err
+}
+
+// An HTTPPlayer plays raw AAC or MP3 over HTTP; its units are the frames.
+type HTTPPlayer = httpplay.Player[*Frame]
+
+// DialHTTP connects to an HTTP .aac or .mp3 URL and sends the request. It
+// doesn't wait for the answer.
+func DialHTTP(ctx context.Context, url string, opts *httpplay.Options) (*HTTPPlayer, error) {
+	u, err := neturl.Parse(url)
+	if err != nil {
+		return nil, err
+	}
+	codec := CodecOf(u.Path)
+	if codec == "" {
+		return nil, fmt.Errorf("GET %v: want an .aac or .mp3 path", url)
+	}
+	return httpplay.Dial(ctx, url, opts, func(body io.Reader, emit func(*Frame) bool) error {
+		r := NewReader(body, codec)
+		for {
+			f, err := r.ReadFrame()
+			if err != nil {
+				return err
+			}
+			if !emit(f) {
+				return nil
+			}
+		}
+	})
 }

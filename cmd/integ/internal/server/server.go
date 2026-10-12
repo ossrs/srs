@@ -615,6 +615,51 @@ func RemuxConfig(ext string) Config {
 	}
 }
 
+// Remux is a remux variant's settings of its vhost and HTTP server; the zero
+// value keeps SRS's defaults.
+type Remux struct {
+	// Off turns the HTTP remux off, so the server serves no stream over HTTP.
+	Off bool
+	// GuessOff stops SRS guessing the FLV header's audio and video flags from
+	// the first messages a player gets; it uses has_audio and has_video.
+	GuessOff bool
+	// NoAudio and NoVideo turn has_audio and has_video off.
+	NoAudio, NoVideo bool
+	// KeepUnmatched turns drop_if_not_match off, so SRS sends the tags of a
+	// track the FLV header doesn't have.
+	KeepUnmatched bool
+	// FastCache is the audio cache of the HTTP audio streams.
+	FastCache time.Duration
+	// CrossdomainOff turns off the CORS headers of the HTTP server.
+	CrossdomainOff bool
+}
+
+// RemuxVariant is RemuxConfig(ext) with the remux settings r.
+func RemuxVariant(ext string, r Remux) Config {
+	cfg := RemuxConfig(ext)
+	env := cfg.Env
+	if r.Off {
+		env["SRS_VHOST_HTTP_REMUX_ENABLED"] = "off"
+		delete(env, "SRS_VHOST_HTTP_REMUX_MOUNT")
+	}
+	off := map[string]bool{
+		"SRS_VHOST_HTTP_REMUX_GUESS_HAS_AV":      r.GuessOff,
+		"SRS_VHOST_HTTP_REMUX_HAS_AUDIO":         r.NoAudio,
+		"SRS_VHOST_HTTP_REMUX_HAS_VIDEO":         r.NoVideo,
+		"SRS_VHOST_HTTP_REMUX_DROP_IF_NOT_MATCH": r.KeepUnmatched,
+		"SRS_HTTP_SERVER_CROSSDOMAIN":            r.CrossdomainOff,
+	}
+	for k, v := range off {
+		if v {
+			env[k] = "off"
+		}
+	}
+	if r.FastCache > 0 {
+		env["SRS_VHOST_HTTP_REMUX_FAST_CACHE"] = strconv.FormatFloat(r.FastCache.Seconds(), 'f', -1, 64)
+	}
+	return cfg
+}
+
 var hasIPv6 = sync.OnceValue(func() bool {
 	ln, err := net.Listen("tcp6", "[::1]:0")
 	if err != nil {
@@ -712,6 +757,40 @@ func PlayConfig(p Play) Config {
 			env["SRS_VHOST_PUBLISH_MR"] = "on"
 			env["SRS_VHOST_PUBLISH_MR_LATENCY"] = strconv.FormatInt(m.ReadLatency.Milliseconds(), 10)
 		}
+	}
+	return Config{Listeners: []Listener{RTMP, HTTPAPI}, Env: env}
+}
+
+// Publish is a publish variant's settings of its vhost; the zero value keeps
+// SRS's defaults.
+type Publish struct {
+	// FirstPacketTimeout is how long SRS waits for a publisher's first
+	// message, in milliseconds.
+	FirstPacketTimeout time.Duration
+	// NormalTimeout is how long SRS waits for a publisher's later messages,
+	// in milliseconds. SRS checks a publisher on this period, so it also sets
+	// how soon KickoffForIdle acts.
+	NormalTimeout time.Duration
+	// KickoffForIdle closes a publisher that has had no player that long,
+	// in seconds with a fraction.
+	KickoffForIdle time.Duration
+}
+
+// PublishConfig is the config of a variant with the publish settings p, RTMP
+// to publish and play, the HTTP API, and Common's lowest play latency.
+func PublishConfig(p Publish) Config {
+	env := map[string]string{
+		"SRS_VHOST_MIN_LATENCY":     "on",
+		"SRS_VHOST_PLAY_MW_LATENCY": "0",
+	}
+	if p.FirstPacketTimeout > 0 {
+		env["SRS_VHOST_PUBLISH_FIRSTPKT_TIMEOUT"] = strconv.FormatInt(p.FirstPacketTimeout.Milliseconds(), 10)
+	}
+	if p.NormalTimeout > 0 {
+		env["SRS_VHOST_PUBLISH_NORMAL_TIMEOUT"] = strconv.FormatInt(p.NormalTimeout.Milliseconds(), 10)
+	}
+	if p.KickoffForIdle > 0 {
+		env["SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE"] = strconv.FormatFloat(p.KickoffForIdle.Seconds(), 'f', -1, 64)
 	}
 	return Config{Listeners: []Listener{RTMP, HTTPAPI}, Env: env}
 }

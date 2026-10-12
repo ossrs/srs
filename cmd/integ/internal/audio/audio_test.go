@@ -323,3 +323,41 @@ func TestPlayHTTP(t *testing.T) {
 		t.Errorf("FLV URL: %v, want an error for the extension", err)
 	}
 }
+
+// TestDialHTTP plays an .mp3 file from an HTTP server frame by frame, past
+// its ID3 tag, and refuses a path that isn't .aac or .mp3.
+func TestDialHTTP(t *testing.T) {
+	path := media.Remux(t, media.H264HighMP3, "mp3", "-vn", "-write_xing", "0")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/live/a.mp3" {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, path)
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	p, err := DialHTTP(ctx, srv.URL+"/live/a.mp3", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+	p.SetDeadline(time.Now().Add(2 * time.Second))
+	var a Analyzer
+	for range 10 {
+		f, err := p.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.Add(f)
+	}
+	if r := a.Report; r.Audio == nil || r.Audio.Codec != "mp3" || r.Audio.Frames != 10 || r.Audio.SampleRate != 44100 {
+		t.Errorf("report %v, want 10 mp3 frames at 44.1 kHz", &r)
+	}
+
+	if _, err := DialHTTP(ctx, srv.URL+"/live/a.flv", nil); err == nil || !strings.Contains(err.Error(), ".aac or .mp3") {
+		t.Errorf("FLV URL: %v, want an error for the extension", err)
+	}
+}

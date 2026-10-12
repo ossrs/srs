@@ -351,7 +351,7 @@ func readMixed(c *check.C, player *rtmp.Client, tags []*media.FLVTag) []*media.F
 // readTagsOf reads a player's metadata, audio and video until it has n of
 // them, and fails after timeout. With idle, it stops early when none comes
 // for that long.
-func readTagsOf(player *rtmp.Client, n int, timeout, idle time.Duration) ([]*media.FLVTag, error) {
+func readTagsOf(player tagPlayer, n int, timeout, idle time.Duration) ([]*media.FLVTag, error) {
 	defer player.SetDeadline(time.Time{})
 	deadline := time.Now().Add(timeout)
 	var got []*media.FLVTag

@@ -54,18 +54,26 @@ func startPublisher(c *check.C, url, file string, lead time.Duration) *rtmp.Clie
 // style.
 func startPublisherWith(c *check.C, url, file string, lead time.Duration, opts *rtmp.Options, mode rtmp.PublishMode) *rtmp.Client {
 	c.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	pub, err := rtmp.Dial(ctx, url, opts)
+	c.Must(err, "dial the publisher")
+	c.Cleanup(func() { pub.Close() })
+	_, err = pub.Publish(ctx, mode)
+	c.Must(err, "publish")
+	streamFile(c, pub, file, lead)
+	return pub
+}
+
+// streamFile publishes a file on a client that publishes, until the case
+// ends, like startPublisher.
+func streamFile(c *check.C, pub *rtmp.Client, file string, lead time.Duration) {
+	c.Helper()
 	f, err := os.Open(file)
 	c.Must(err, "open the media")
 	r, err := media.NewFLVReader(f)
 	c.Must(err, "read the media")
-
 	ctx, cancel := context.WithCancel(context.Background())
-	dctx, dcancel := context.WithTimeout(ctx, 2*time.Second)
-	defer dcancel()
-	pub, err := rtmp.Dial(dctx, url, opts)
-	c.Must(err, "dial the publisher")
-	_, err = pub.Publish(dctx, mode)
-	c.Must(err, "publish")
 
 	// The first tag at or after lead starts the real-time part.
 	var next *media.FLVTag
@@ -101,7 +109,6 @@ func startPublisherWith(c *check.C, url, file string, lead time.Duration, opts *
 		<-done
 		f.Close()
 	})
-	return pub
 }
 
 // playedUntil is when a player of a stream published in real time has seen
