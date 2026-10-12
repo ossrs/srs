@@ -598,17 +598,13 @@ func TestConvert_Fmp4(t *testing.T) {
 			src.through(c, srs, path, file, d)
 			url, u := flvURL(srs, path+".m3u8"), segmentsOf(w, 5*time.Second)
 			if src.srt || src.gb {
-				return playHLSWithin(c, url, u, fmp4PlayWithin(w))
+				return playHLSWithin(c, url, u, fmp4PlayWait)
 			}
 			return playHLS(c, httpClient, url, u)
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
-		knownBugs: map[string]string{
-			"H264Mp3": "the init file of an MP3 stream has no audio track, while its segments carry the MP3 samples on track 2",
-		},
 	}
 	convertCells(t, srsOf, fmp4)
-	fmp4.knownBugs = srtFmp4Bugs
 	srtCells(t, srsOf, fmp4)
 	gbCells(t, srsOf, gbFmp4Player)
 }
@@ -638,16 +634,8 @@ func playDashCell(c *check.C, mpd string, u report.Until) *report.Report {
 	return r
 }
 
-// fmp4PlayWithin is how long a player of the HLS in fmp4 of an SRT or GB28181
-// stream, which SRS converts as it reads it, waits. A cell with video and AAC
-// is the known bug of srtFmp4Bugs and gbFmp4Bugs, whose playlist never comes,
-// so it gives up in srtSegmentsWait. Another cell plays, and may take most of
-// the case's limit: the server, busy with the bursts of the other fmp4
-// cells, may take 300ms to connect a GB session's RTMP output, or to answer
-// a segment.
-func fmp4PlayWithin(w convertWant) time.Duration {
-	if w.video != "" && w.audio != "" {
-		return srtSegmentsWait
-	}
-	return 400 * time.Millisecond
-}
+// fmp4PlayWait is how long a player of the HLS in fmp4 of an SRT or GB28181
+// stream, which SRS converts as it reads it, waits. It may take most of the
+// case's limit: the server, busy with the bursts of the other fmp4 cells, may
+// take 300ms to connect a GB session's RTMP output, or to answer a segment.
+const fmp4PlayWait = 400 * time.Millisecond

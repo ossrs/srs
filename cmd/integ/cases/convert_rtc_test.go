@@ -540,13 +540,8 @@ var (
 	whipTsPlayer   = whipRemux("HttpTs", "ts", same("h264", "hevc"), map[string]string{"opus": "aac"})
 	whipMp3Player  = whipRemux("HttpMp3", "mp3", nil, nil)
 	whipAacPlayer  = whipRemux("HttpAac", "aac", nil, map[string]string{"opus": "aac"})
-	whipFmp4Player = func() whipPlayer {
-		p := whipSegments("HlsFmp4", same("h264", "hevc"), map[string]string{"opus": "aac"},
-			fmp4Segment+200*time.Millisecond, 5500*time.Millisecond, 3*time.Second, playWhipHLS)
-		bug := "HLS in fmp4 writes no playlist when the audio sequence header comes after the first video frame, as the AAC SRS transcodes from Opus does: the init file and the open segment share one file writer"
-		p.knownBugs = map[string]string{"H264Opus": bug, "HevcOpus": bug}
-		return p
-	}()
+	whipFmp4Player = whipSegments("HlsFmp4", same("h264", "hevc"), map[string]string{"opus": "aac"},
+		fmp4Segment+200*time.Millisecond, 5500*time.Millisecond, 3*time.Second, playWhipHLS)
 )
 
 // playWhipHLS plays a stream's HLS until u, for at most 300ms: the segments

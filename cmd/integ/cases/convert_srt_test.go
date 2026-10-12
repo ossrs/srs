@@ -142,14 +142,6 @@ var srtWhepBugs = func() map[string]string {
 	return map[string]string{"H264Aac": bug, "HevcAac": bug, "AacOnly": bug}
 }()
 
-// srtFmp4Bugs are the known bugs of HLS in fmp4 of the SRT source: SRS makes
-// the AAC sequence header of a TS stream from its first audio frame, which
-// comes after the first video frame.
-var srtFmp4Bugs = func() map[string]string {
-	bug := "HLS in fmp4 writes no playlist when the audio sequence header comes after the first video frame, as in the TS test files, whose first audio frame is 57ms after the first video one: the init file and the open segment share one file writer"
-	return map[string]string{"H264Aac": bug, "HevcAac": bug}
-}()
-
 // srtCommonCells adds the SRT source's cells of the Common server, which has
 // srt_to_rtmp: RTMP, HTTP-FLV, HLS in TS, DASH and SRT; RTSP, which SRS
 // doesn't convert SRT to; and WHEP, refused with rtmp_to_rtc off.

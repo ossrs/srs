@@ -131,6 +131,114 @@ VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioVideo)
     EXPECT_TRUE(content.find("moov") != string::npos);
 }
 
+// The H.264 sequence header of MockSrsFormat and an MP3 frame at 44.1kHz, 16 bits, stereo,
+// which SRS takes as the MP3 sequence header, for MP3 has none and it is the first frame.
+class MockSrsFormatMp3 : public SrsFormat
+{
+public:
+    uint8_t mp3_[8];
+
+public:
+    MockSrsFormatMp3()
+    {
+        initialize();
+
+        uint8_t video_raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+        on_video(0, (char *)video_raw, sizeof(video_raw));
+
+        uint8_t mp3[] = {0x2f, 0xff, 0xfb, 0x90, 0x64, 0x00, 0x00, 0x00};
+        memcpy(mp3_, mp3, sizeof(mp3));
+        on_audio(0, (char *)mp3_, sizeof(mp3_));
+    }
+};
+
+// Decodes the boxes of an init file and returns the decoder config of its audio track's
+// esds, or NULL.
+static SrsMp4DecoderConfigDescriptor *fmp4_audio_decoder_config(string content, vector<SrsMp4Box *> &boxes)
+{
+    srs_error_t err = srs_success;
+
+    SrsBuffer b((char *)content.data(), (int)content.size());
+    while (!b.empty()) {
+        SrsMp4Box *box = NULL;
+        if ((err = SrsMp4Box::discovery(&b, &box)) != srs_success) {
+            srs_freep(err);
+            break;
+        }
+        boxes.push_back(box);
+        if ((err = box->decode(&b)) != srs_success) {
+            srs_freep(err);
+            break;
+        }
+    }
+
+    for (int i = 0; i < (int)boxes.size(); i++) {
+        SrsMp4MovieBox *moov = dynamic_cast<SrsMp4MovieBox *>(boxes[i]);
+        SrsMp4TrackBox *trak = moov ? moov->audio() : NULL;
+        SrsMp4AudioSampleEntry *mp4a = trak ? trak->mp4a() : NULL;
+        SrsMp4EsdsBox *esds = mp4a ? mp4a->esds() : NULL;
+        if (esds) {
+            return &esds->es->decConfigDescr_;
+        }
+    }
+    return NULL;
+}
+
+VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioVideoMp3)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsInitMp4Segment segment(&fw);
+
+    segment.set_path("/tmp/init_av_mp3.mp4");
+    MockSrsFormatMp3 fmt;
+    ASSERT_TRUE(fmt.is_mp3_sequence_header());
+
+    HELPER_ASSERT_SUCCESS(segment.write(&fmt, 1, 2));
+
+    // The audio track of an MP3 stream is MPEG-1 audio, with no AAC decoder specific info.
+    vector<SrsMp4Box *> boxes;
+    SrsMp4DecoderConfigDescriptor *desc = fmp4_audio_decoder_config(fw.str(), boxes);
+    EXPECT_TRUE(desc != NULL);
+    if (desc) {
+        EXPECT_EQ(SrsMp4ObjectTypeMp1a, desc->objectTypeIndication);
+        EXPECT_TRUE(desc->decSpecificInfo_ == NULL);
+    }
+    for (int i = 0; i < (int)boxes.size(); i++) {
+        srs_freep(boxes[i]);
+    }
+}
+
+VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioVideoAacEsds)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsInitMp4Segment segment(&fw);
+
+    segment.set_path("/tmp/init_av_aac.mp4");
+    MockSrsFormat fmt;
+
+    HELPER_ASSERT_SUCCESS(segment.write(&fmt, 1, 2));
+
+    // The audio track of an AAC stream is AAC, with the AudioSpecificConfig.
+    vector<SrsMp4Box *> boxes;
+    SrsMp4DecoderConfigDescriptor *desc = fmp4_audio_decoder_config(fw.str(), boxes);
+    EXPECT_TRUE(desc != NULL);
+    if (desc) {
+        EXPECT_EQ(SrsMp4ObjectTypeAac, desc->objectTypeIndication);
+        EXPECT_TRUE(desc->decSpecificInfo_ != NULL);
+    }
+    for (int i = 0; i < (int)boxes.size(); i++) {
+        srs_freep(boxes[i]);
+    }
+}
+
 VOID TEST(Fmp4Test, SrsInitMp4Segment_WithEncryption)
 {
     srs_error_t err;
@@ -447,6 +555,35 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteMedia)
     muxer.dispose();
 }
 
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_InitAfterSegmentOpen)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // The init file of the video, then a keyframe opens a segment.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, false));
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+
+    // An audio sequence header after the first video frame, as an MP3 stream's first frame,
+    // writes the init file again while the segment is open, and the segment still closes.
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    MockSrsMediaPacket audio_msg(false, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_audio(&audio_msg, &fmt));
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(2000));
+    EXPECT_EQ(1, muxer.segments_->size());
+
+    muxer.dispose();
+}
+
 VOID TEST(Fmp4Test, SrsHlsMp4Controller_Basic)
 {
     srs_error_t err;
@@ -496,6 +633,30 @@ VOID TEST(Fmp4Test, SrsHlsMp4Controller_PublishWorkflow)
     // Unpublish
     HELPER_ASSERT_SUCCESS(controller.on_unpublish());
 
+    controller.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsMp4Controller_Mp3SequenceHeader)
+{
+    srs_error_t err;
+
+    SrsHlsMp4Controller controller;
+    HELPER_ASSERT_SUCCESS(controller.initialize());
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(controller.on_publish(&req));
+
+    // The first MP3 frame stands for the sequence header, which has no AAC extra data, and
+    // the init file gets the audio track.
+    MockSrsFormatMp3 fmt;
+    MockSrsMediaPacket video_sh(true, 0);
+    HELPER_ASSERT_SUCCESS(controller.on_sequence_header(&video_sh, &fmt));
+    MockSrsMediaPacket audio_sh(false, 0);
+    HELPER_ASSERT_SUCCESS(controller.on_sequence_header(&audio_sh, &fmt));
+    EXPECT_TRUE(controller.has_video_sh_);
+    EXPECT_TRUE(controller.has_audio_sh_);
+
+    HELPER_ASSERT_SUCCESS(controller.on_unpublish());
     controller.dispose();
 }
 

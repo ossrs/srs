@@ -566,7 +566,10 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
         return srs_error_wrap(err, "Create init mp4 dir failed, dir=%s", init_dir.c_str());
     }
 
-    SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment(writer_));
+    // The init file has a writer of its own: an audio sequence header after the first video
+    // frame, such as an MP3 stream's first frame, writes it again while a segment is open.
+    SrsUniquePtr<ISrsFileWriter> init_writer(app_factory_->create_file_writer());
+    SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment(init_writer.get()));
 
     init_mp4->set_path(filepath);
 
@@ -2591,8 +2594,9 @@ srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsMediaPacket *msg, SrsForm
         has_video_sh_ = true;
     }
 
+    // MP3 has no sequence header: its first frame stands for one, with no AAC extra data.
     if (msg->is_audio()) {
-        if (format->acodec_->aac_extra_data_.size() == 0) {
+        if (format->acodec_->id_ == SrsAudioCodecIdAAC && format->acodec_->aac_extra_data_.size() == 0) {
             srs_trace("the audio codec's aac extra data is empty");
             return err;
         }

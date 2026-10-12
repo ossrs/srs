@@ -88,7 +88,6 @@ func TestHls_Fmp4(t *testing.T) {
 
 	// The init file has the MP3 track, and the segments play.
 	check.Case(t, "PublishPlayMp3", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the init file of an MP3 stream has no audio track, while its segments carry the MP3 samples on track 2")
 		stream := "live/" + streamName(c)
 		publishThrough(c, srs, stream, media.H264HighMP3, 2*fmp4Segment)
 		pl, _ := waitPlaylist(c, cdn, flvURL(srs, stream+".m3u8"), hasSegment(1))

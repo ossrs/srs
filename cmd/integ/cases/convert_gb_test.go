@@ -263,15 +263,6 @@ func gbVideoOnlyCells(t *testing.T) {
 	})
 }
 
-// gbFmp4Bugs are the known bugs of HLS in fmp4 of the GB source: the AAC
-// sequence header of a GB stream comes after its first video frame, as the
-// test files' first audio frame has the time of their first keyframe, which
-// SRS stamps 1ms after the video sequence header.
-var gbFmp4Bugs = func() map[string]string {
-	bug := "HLS in fmp4 writes no playlist when the audio sequence header comes after the first video frame, as in a GB stream: the init file and the open segment share one file writer"
-	return map[string]string{"H264Aac": bug, "HevcAac": bug}
-}()
-
 // The segment players of the GB source play the 1s fragments of the shared
 // GbSegments server, and the fmp4 segments of Fmp4, from the first segment: a
 // GB stream costs SRS more than an RTMP one, as it reads the PS and publishes
@@ -315,10 +306,9 @@ var (
 		play: func(c *check.C, srs *server.Server, src convertSource, file string, w convertWant) *report.Report {
 			path := "live/" + streamName(c)
 			src.through(c, srs, path, file, fmp4Segment)
-			return playHLSWithin(c, flvURL(srs, path+".m3u8"), segmentsOf(w, 3*time.Second), fmp4PlayWithin(w))
+			return playHLSWithin(c, flvURL(srs, path+".m3u8"), segmentsOf(w, 3*time.Second), fmp4PlayWait)
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
-		knownBugs: gbFmp4Bugs,
 	}
 )
 
