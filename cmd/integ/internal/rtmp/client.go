@@ -11,9 +11,11 @@ package rtmp
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -49,6 +51,13 @@ type Options struct {
 	Connect map[string]any
 	// Timeout bounds the dial, the handshake and each command's answer.
 	Timeout time.Duration
+	// BeforeConnect, when set, writes on the connection after the handshake
+	// and the chunk size, before connect; an error stops the dial.
+	BeforeConnect func(w io.Writer) error
+	// TLS is the TLS config of an rtmps:// URL. Nil verifies the server
+	// against the system roots; the server name is the URL's host unless
+	// the config names one.
+	TLS *tls.Config
 }
 
 // PublishMode is the commands a client publishes with.
@@ -69,8 +78,12 @@ func (m PublishMode) String() string {
 	return "FMLE"
 }
 
-// Status is an onStatus, or the information of a connect result.
+// Status is an onStatus, onFCPublish or onFCUnpublish, or the information of
+// a connect result.
 type Status struct {
+	// Command is the command that carried it, such as onStatus, onFCPublish,
+	// onFCUnpublish, or _result for the connect result.
+	Command                  string
 	Level, Code, Description string
 }
 
@@ -101,6 +114,7 @@ type Client struct {
 
 	tx        float64
 	streamID  uint32
+	mode      PublishMode
 	ackWindow uint32
 	lastAck   uint64
 	pending   []*media.FLVTag
@@ -139,6 +153,11 @@ func Dial(ctx context.Context, raw string, opts *Options) (*Client, error) {
 	if c.conn, err = d.DialContext(dctx, "tcp", u.Addr); err != nil {
 		return nil, err
 	}
+	if u.Scheme == "rtmps" {
+		if c.conn, err = dialTLS(dctx, c.conn, u.Addr, opts.TLS); err != nil {
+			return nil, err
+		}
+	}
 	c.r, c.w = newChunkReader(c.conn), newChunkWriter(c.conn)
 
 	if err := c.connect(ctx, opts); err != nil {
@@ -167,6 +186,11 @@ func (c *Client) connect(ctx context.Context, opts *Options) error {
 		}
 		c.w.SetChunkSize(size)
 	}
+	if opts.BeforeConnect != nil {
+		if err := opts.BeforeConnect(c.conn); err != nil {
+			return fmt.Errorf("before connect: %w", err)
+		}
+	}
 
 	obj := map[string]any{
 		"app":            c.URL.App,
@@ -187,7 +211,7 @@ func (c *Client) connect(ctx context.Context, opts *Options) error {
 		return fmt.Errorf("connect: %w", err)
 	}
 	if len(values) > 3 {
-		c.Connected = statusOf(values[3])
+		c.Connected = statusOf("_result", values[3])
 	}
 	return nil
 }
@@ -223,7 +247,7 @@ func (c *Client) call(streamID uint32, name string, args ...any) ([]any, error) 
 		case "_error":
 			var st Status
 			if len(values) > 3 {
-				st = statusOf(values[3])
+				st = statusOf("_error", values[3])
 			}
 			return nil, &StatusError{st}
 		}
@@ -255,7 +279,7 @@ func (c *Client) waitStatus(code string) (*Status, error) {
 		if len(values) < 4 || values[0] != "onStatus" {
 			continue
 		}
-		st := statusOf(values[3])
+		st := statusOf("onStatus", values[3])
 		if st.Level == "error" {
 			return nil, &StatusError{st}
 		}
@@ -265,7 +289,7 @@ func (c *Client) waitStatus(code string) (*Status, error) {
 	}
 }
 
-// readCommand reads messages until a command, and records an onStatus.
+// readCommand reads messages until a command, and records a status.
 func (c *Client) readCommand() ([]any, error) {
 	for {
 		m, err := c.readMessage()
@@ -278,7 +302,7 @@ func (c *Client) readCommand() ([]any, error) {
 	}
 }
 
-// command decodes a command message, and records it if it is an onStatus.
+// command decodes a command message, and records it if it is a status.
 func (c *Client) command(m *Message) ([]any, bool) {
 	payload := m.Payload
 	switch m.Type {
@@ -294,18 +318,21 @@ func (c *Client) command(m *Message) ([]any, bool) {
 	if err != nil || len(values) == 0 {
 		return nil, false
 	}
-	if values[0] == "onStatus" && len(values) > 3 {
+	if name, _ := values[0].(string); statusCommands[name] && len(values) > 3 {
 		c.smu.Lock()
-		c.statuses = append(c.statuses, statusOf(values[3]))
+		c.statuses = append(c.statuses, statusOf(name, values[3]))
 		c.smu.Unlock()
 	}
 	return values, true
 }
 
-func statusOf(v any) Status {
+// statusCommands are the commands Statuses records.
+var statusCommands = map[string]bool{"onStatus": true, "onFCPublish": true, "onFCUnpublish": true}
+
+func statusOf(command string, v any) Status {
 	m, _ := v.(map[string]any)
 	s := func(k string) string { v, _ := m[k].(string); return v }
-	return Status{Level: s("level"), Code: s("code"), Description: s("description")}
+	return Status{Command: command, Level: s("level"), Code: s("code"), Description: s("description")}
 }
 
 // createStream creates a stream and keeps its id.
@@ -328,6 +355,7 @@ func (c *Client) Publish(ctx context.Context, mode PublishMode) (*Status, error)
 	c.setDeadline(ctx)
 	defer c.conn.SetDeadline(time.Time{})
 
+	c.mode = mode
 	if mode == FMLE {
 		if _, err := c.send(0, "releaseStream", c.URL.Stream); err != nil {
 			return nil, err
@@ -367,7 +395,8 @@ func (c *Client) Play(ctx context.Context) (*Status, error) {
 	return c.waitStatus("NetStream.Play.Start")
 }
 
-// Statuses is every onStatus the client has read, in order.
+// Statuses is every onStatus, onFCPublish and onFCUnpublish the client has
+// read, in order.
 func (c *Client) Statuses() []Status {
 	c.smu.Lock()
 	defer c.smu.Unlock()
@@ -508,6 +537,40 @@ func (c *Client) SetDeadline(t time.Time) error {
 	return c.conn.SetDeadline(t)
 }
 
+// dialTLS runs the TLS handshake of an rtmps:// connection, with a copy of
+// cfg whose server name is the host of addr unless cfg names one. It closes
+// conn when the handshake fails.
+func dialTLS(ctx context.Context, conn net.Conn, addr string, cfg *tls.Config) (net.Conn, error) {
+	if cfg == nil {
+		cfg = &tls.Config{}
+	}
+	cfg = cfg.Clone()
+	if cfg.ServerName == "" {
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		cfg.ServerName = host
+	}
+	tc := tls.Client(conn, cfg)
+	if err := tc.HandshakeContext(ctx); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("tls handshake: %w", err)
+	}
+	return tc, nil
+}
+
+// TLS returns the state of an rtmps:// connection, or nil for rtmp://.
+func (c *Client) TLS() *tls.ConnectionState {
+	tc, ok := c.conn.(*tls.Conn)
+	if !ok {
+		return nil
+	}
+	st := tc.ConnectionState()
+	return &st
+}
+
 // Close closes the connection.
 func (c *Client) Close() error {
 	return c.conn.Close()
@@ -515,4 +578,76 @@ func (c *Client) Close() error {
 
 func be32(v uint32) []byte {
 	return binary.BigEndian.AppendUint32(nil, v)
+}
+
+// Unpublish stops publishing in the style the client published with. FMLE
+// sends FCUnpublish, waits for NetStream.Unpublish.Success, which it returns,
+// then sends deleteStream. Flash sends closeStream, which has no answer, so it
+// returns no status.
+func (c *Client) Unpublish(ctx context.Context) (*Status, error) {
+	c.setDeadline(ctx)
+	defer c.conn.SetDeadline(time.Time{})
+
+	if c.mode == Flash {
+		_, err := c.send(c.streamID, "closeStream")
+		return nil, err
+	}
+	if _, err := c.send(0, "FCUnpublish", c.URL.Stream); err != nil {
+		return nil, err
+	}
+	st, err := c.waitStatus("NetStream.Unpublish.Success")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := c.send(0, "deleteStream", float64(c.streamID)); err != nil {
+		return nil, err
+	}
+	return st, nil
+}
+
+// ServerChunkSize is the chunk size the server sends with, the RTMP default
+// of 128 until it sets one.
+func (c *Client) ServerChunkSize() int {
+	return c.r.size
+}
+
+// Pause pauses or unpauses the played stream, and waits for
+// NetStream.Pause.Notify or NetStream.Unpause.Notify, which it returns. It
+// drops the media it reads before the status.
+func (c *Client) Pause(ctx context.Context, pause bool) (*Status, error) {
+	c.setDeadline(ctx)
+	defer c.conn.SetDeadline(time.Time{})
+
+	if _, err := c.send(c.streamID, "pause", pause, float64(0)); err != nil {
+		return nil, err
+	}
+	if pause {
+		return c.waitStatus("NetStream.Pause.Notify")
+	}
+	return c.waitStatus("NetStream.Unpause.Notify")
+}
+
+// Call sends a command on the connection, stream 0, and waits for its
+// _result, which it returns with the command name and the transaction id
+// first; an _error is a StatusError. It drops the media it reads before.
+func (c *Client) Call(ctx context.Context, name string, args ...any) ([]any, error) {
+	c.setDeadline(ctx)
+	defer c.conn.SetDeadline(time.Time{})
+	return c.call(0, name, args...)
+}
+
+// Send sends a command on the client's stream, the one it created or 0
+// before createStream, and doesn't wait for an answer.
+func (c *Client) Send(name string, args ...any) error {
+	_, err := c.send(c.streamID, name, args...)
+	return err
+}
+
+// WriteRaw writes bytes on the connection as they are, such as part of a
+// message or a broken chunk.
+func (c *Client) WriteRaw(b []byte) error {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
+	_, err := c.conn.Write(b)
+	return err
 }

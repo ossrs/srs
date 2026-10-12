@@ -8,11 +8,14 @@
 package server
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -185,6 +188,9 @@ func Start(name string, cfg Config) (*Server, error) {
 			return nil, err
 		}
 	}
+
+	// SRS fails to start on [::] where the host has no IPv6.
+	cfg.IPv6 = cfg.IPv6 && HasIPv6()
 
 	env, err := BuildEnv(cfg, ports, dir, run.tls)
 	if err != nil {
@@ -400,8 +406,9 @@ func (s *Server) logTo(t testing.TB) {
 	t.Logf("SRS log in %s, last lines:\n%s", s.Dir, strings.Join(s.LogTail(), "\n"))
 }
 
-// CommonConfig is the config of the Common server: every Common listener, the
-// lowest play latency, so a player gets each message at once rather than in
+// CommonConfig is the config of the Common server: every Common listener, with
+// RTMP on IPv6 too, the lowest play latency, so a player gets each message at
+// once rather than in
 // batches of 350ms of media, which would put every streaming case near its
 // limit, HTTP-FLV for every stream, and HLS and DASH, both with 10s segments
 // (HLS by default; DASH defaults to 30s, the length of a whole test file), and
@@ -411,6 +418,7 @@ func CommonConfig() Config {
 	return Config{
 		Listeners: CommonListeners,
 		Hooks:     true,
+		IPv6:      true,
 		Env: map[string]string{
 			"SRS_VHOST_MIN_LATENCY":        "on",
 			"SRS_VHOST_PLAY_MW_LATENCY":    "0",
@@ -605,4 +613,120 @@ func RemuxConfig(ext string) Config {
 			"SRS_VHOST_HTTP_REMUX_MOUNT":   "[vhost]/[app]/[stream]." + ext,
 		},
 	}
+}
+
+var hasIPv6 = sync.OnceValue(func() bool {
+	ln, err := net.Listen("tcp6", "[::1]:0")
+	if err != nil {
+		return false
+	}
+	ln.Close()
+	return true
+})
+
+// HasIPv6 reports whether the host can listen on the IPv6 loopback, ::1.
+func HasIPv6() bool {
+	return hasIPv6()
+}
+
+// Play is a play variant's settings of its vhost; the zero value keeps SRS's
+// defaults.
+type Play struct {
+	// GopCacheOff turns the GOP cache off.
+	GopCacheOff bool
+	// GopCacheMaxFrames limits the messages the GOP cache holds.
+	GopCacheMaxFrames int
+	// QueueLength is the most media a player's queue holds, in whole seconds.
+	QueueLength time.Duration
+	// ReduceSequenceHeader drops a sequence header equal to the one before.
+	ReduceSequenceHeader bool
+	// TimeJitter is the timestamp correction of the players, "full", "zero" or
+	// "off"; empty keeps SRS's default, full.
+	TimeJitter string
+	// ATC plays the publisher's absolute timestamps, and ATCAuto turns ATC on
+	// for a stream whose metadata has bravo_atc "true".
+	ATC, ATCAuto bool
+	// MixCorrect sends audio and video in decode-time order.
+	MixCorrect bool
+	// SendMinInterval is the least time between two messages SRS sends a
+	// player.
+	SendMinInterval time.Duration
+	// MergedWrite, when not nil, replaces Common's lowest latency with
+	// min_latency off and the merged write and read it sets.
+	MergedWrite *Merged
+}
+
+// Merged is how SRS merges the messages it writes to a player and reads from
+// a publisher, with min_latency off.
+type Merged struct {
+	// WriteLatency and WriteMsgs are mw_latency and mw_msgs: SRS holds a
+	// player's messages until it has more than WriteMsgs that span at least
+	// WriteLatency.
+	WriteLatency time.Duration
+	WriteMsgs    int
+	// ReadLatency turns merged read on: SRS waits that long after a small
+	// read from a publisher.
+	ReadLatency time.Duration
+}
+
+// PlayConfig is the config of a variant with the play settings p, RTMP to
+// publish and play, the HTTP API, and Common's lowest play latency unless
+// p.MergedWrite replaces it.
+func PlayConfig(p Play) Config {
+	env := map[string]string{
+		"SRS_VHOST_MIN_LATENCY":     "on",
+		"SRS_VHOST_PLAY_MW_LATENCY": "0",
+	}
+	if p.GopCacheOff {
+		env["SRS_VHOST_PLAY_GOP_CACHE"] = "off"
+	}
+	if p.GopCacheMaxFrames > 0 {
+		env["SRS_VHOST_PLAY_GOP_CACHE_MAX_FRAMES"] = strconv.Itoa(p.GopCacheMaxFrames)
+	}
+	if p.QueueLength > 0 {
+		env["SRS_VHOST_PLAY_QUEUE_LENGTH"] = strconv.Itoa(int(p.QueueLength / time.Second))
+	}
+	if p.ReduceSequenceHeader {
+		env["SRS_VHOST_PLAY_REDUCE_SEQUENCE_HEADER"] = "on"
+	}
+	if p.TimeJitter != "" {
+		env["SRS_VHOST_PLAY_TIME_JITTER"] = p.TimeJitter
+	}
+	if p.ATC {
+		env["SRS_VHOST_PLAY_ATC"] = "on"
+	}
+	if p.ATCAuto {
+		env["SRS_VHOST_PLAY_ATC_AUTO"] = "on"
+	}
+	if p.MixCorrect {
+		env["SRS_VHOST_PLAY_MIX_CORRECT"] = "on"
+	}
+	if p.SendMinInterval > 0 {
+		env["SRS_VHOST_PLAY_SEND_MIN_INTERVAL"] = strconv.FormatInt(p.SendMinInterval.Milliseconds(), 10)
+	}
+	if m := p.MergedWrite; m != nil {
+		env["SRS_VHOST_MIN_LATENCY"] = "off"
+		env["SRS_VHOST_PLAY_MW_LATENCY"] = strconv.FormatInt(m.WriteLatency.Milliseconds(), 10)
+		env["SRS_VHOST_PLAY_MW_MSGS"] = strconv.Itoa(m.WriteMsgs)
+		if m.ReadLatency > 0 {
+			env["SRS_VHOST_PUBLISH_MR"] = "on"
+			env["SRS_VHOST_PUBLISH_MR_LATENCY"] = strconv.FormatInt(m.ReadLatency.Milliseconds(), 10)
+		}
+	}
+	return Config{Listeners: []Listener{RTMP, HTTPAPI}, Env: env}
+}
+
+// ClientTLS returns a TLS client config that trusts the test certificate of
+// the servers' TLS listeners, for RTMPS and HTTPS clients.
+func ClientTLS() (*tls.Config, error) {
+	cert := filepath.Join(moduleRoot(), "testdata", "server.crt")
+	pem, err := os.ReadFile(cert)
+	if err != nil {
+		return nil, err
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("no certificate in %v", cert)
+	}
+	return &tls.Config{RootCAs: pool}, nil
 }

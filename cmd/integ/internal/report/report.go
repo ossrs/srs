@@ -78,6 +78,9 @@ type Video struct {
 	Profile       string
 	Width, Height int
 	Keyframes     int
+	// LeadingFrames counts the frames before the first keyframe, which a
+	// player that joins mid-GOP gets and can't decode.
+	LeadingFrames int
 }
 
 // Audio is the audio track.
@@ -93,9 +96,17 @@ type Report struct {
 	// Video and Audio are nil until the stream has a header or a frame of them.
 	Video *Video
 	Audio *Audio
+	// Unordered counts the frames whose decode time is before the latest
+	// decode time of the frames before them, of either track, so it shows
+	// tracks that interleave out of time order.
+	Unordered int
 	// AVSync is the largest distance between the latest video and the latest
 	// audio decode time, once both tracks have frames.
 	AVSync time.Duration
+
+	// last is the latest decode time of the frames so far, of either track.
+	last    time.Duration
+	hasLast bool
 }
 
 // AddMetadata counts a metadata message.
@@ -139,14 +150,27 @@ func (r *Report) AddVideo(codec string, dts time.Duration, key bool) {
 	v.add(codec, dts)
 	if key {
 		v.Keyframes++
+	} else if v.Keyframes == 0 {
+		v.LeadingFrames++
 	}
+	r.order(dts)
 	r.sync()
 }
 
 // AddAudio counts an audio frame at its decode time.
 func (r *Report) AddAudio(codec string, dts time.Duration) {
 	r.audio().add(codec, dts)
+	r.order(dts)
 	r.sync()
+}
+
+// order counts a frame at dts that is before the latest frame of either track.
+func (r *Report) order(dts time.Duration) {
+	if r.hasLast && dts < r.last {
+		r.Unordered++
+	} else {
+		r.last, r.hasLast = dts, true
+	}
 }
 
 func (r *Report) sync() {

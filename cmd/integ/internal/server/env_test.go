@@ -193,3 +193,26 @@ func envMap(env []string) map[string]string {
 	}
 	return m
 }
+
+// TestBuildEnvIPv6 checks IPv6 adds [::] on the same port to the RTMP
+// listener, and leaves it out otherwise.
+func TestBuildEnvIPv6(t *testing.T) {
+	ls := []Listener{RTMP, HTTPAPI}
+	ports := map[Listener]int{RTMP: 14000, HTTPAPI: 14001}
+	for _, tc := range []struct {
+		ipv6 bool
+		want string
+	}{{true, "14000 [::]:14000"}, {false, "14000"}} {
+		env, err := BuildEnv(Config{Listeners: ls, IPv6: tc.ipv6}, ports, "/w", TLSFiles{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := envMap(env)
+		if got := m["SRS_RTMP_LISTEN"]; got != tc.want {
+			t.Errorf("IPv6 %v: SRS_RTMP_LISTEN=%q, want %q", tc.ipv6, got, tc.want)
+		}
+		if got := m["SRS_HTTP_API_LISTEN"]; got != "14001" {
+			t.Errorf("IPv6 %v: SRS_HTTP_API_LISTEN=%q, want only the IPv4 port", tc.ipv6, got)
+		}
+	}
+}

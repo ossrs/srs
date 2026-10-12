@@ -24,6 +24,7 @@ func TestRun(t *testing.T) {
 		{"ProbeNoURL", []string{"probe"}, 2, "", "Usage: srs-integ probe [flags] <url>"},
 		{"ProbeExtraArgs", []string{"probe", "rtmp://a/b", "c"}, 2, "", "Usage: srs-integ probe [flags] <url>"},
 		{"ProbeBadFlag", []string{"probe", "-nothing", "rtmp://a/b"}, 2, "", "Usage: srs-integ probe [flags] <url>"},
+		{"ProbeRTMPSRefused", []string{"probe", "-timeout", "1s", "rtmps://127.0.0.1:1/live/a"}, 1, "", "connection refused"},
 		{"ProbeBadURL", []string{"probe", "ftp://127.0.0.1/live/a.flv"}, 1, "", "probe: unsupported URL"},
 		{"ProbeBadHTTPPath", []string{"probe", "http://127.0.0.1:1/live/a.mp4"}, 1, "", "probe: unsupported URL"},
 		{"ProbeHLSRefused", []string{"probe", "-timeout", "1s", "http://127.0.0.1:1/live/a.m3u8"}, 1, "", "probe:"},

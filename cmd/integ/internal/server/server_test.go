@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestMissingFeatures(t *testing.T) {
@@ -61,6 +62,9 @@ func TestCommonConfig(t *testing.T) {
 	if !cfg.Hooks {
 		t.Error("hooks are off, want every hook on the mock")
 	}
+	if !cfg.IPv6 {
+		t.Error("IPv6 is off, want RTMP on [::] too")
+	}
 	if !reflect.DeepEqual(cfg.Listeners, CommonListeners) {
 		t.Errorf("listeners %v, want %v", cfg.Listeners, CommonListeners)
 	}
@@ -104,5 +108,62 @@ func TestRemuxConfig(t *testing.T) {
 	ports := map[Listener]int{RTMP: 14000, HTTPAPI: 14001, HTTPServer: 14002}
 	if _, err := BuildEnv(cfg, ports, "/tmp/x", TLSFiles{Key: "k", Cert: "c"}); err != nil {
 		t.Errorf("build env: %v", err)
+	}
+}
+
+// TestPlayConfig checks a play variant has RTMP and the HTTP API, Common's
+// latency, SRS's play defaults for the zero Play, and each setting it asks
+// for, and that its env builds.
+func TestPlayConfig(t *testing.T) {
+	latency := map[string]string{
+		"SRS_VHOST_MIN_LATENCY":     "on",
+		"SRS_VHOST_PLAY_MW_LATENCY": "0",
+	}
+	with := func(kv ...string) map[string]string {
+		m := map[string]string{}
+		for k, v := range latency {
+			m[k] = v
+		}
+		for i := 0; i < len(kv); i += 2 {
+			m[kv[i]] = kv[i+1]
+		}
+		return m
+	}
+	cases := []struct {
+		name string
+		play Play
+		env  map[string]string
+	}{
+		{"Defaults", Play{}, with()},
+		{"GopCacheOff", Play{GopCacheOff: true}, with("SRS_VHOST_PLAY_GOP_CACHE", "off")},
+		{"GopCacheMaxFrames", Play{GopCacheMaxFrames: 10}, with("SRS_VHOST_PLAY_GOP_CACHE_MAX_FRAMES", "10")},
+		{"QueueLength", Play{QueueLength: 2 * time.Second}, with("SRS_VHOST_PLAY_QUEUE_LENGTH", "2")},
+		{"ReduceSequenceHeader", Play{ReduceSequenceHeader: true}, with("SRS_VHOST_PLAY_REDUCE_SEQUENCE_HEADER", "on")},
+		{"TimeJitterZero", Play{TimeJitter: "zero"}, with("SRS_VHOST_PLAY_TIME_JITTER", "zero")},
+		{"TimeJitterOff", Play{TimeJitter: "off"}, with("SRS_VHOST_PLAY_TIME_JITTER", "off")},
+		{"ATC", Play{ATC: true, MixCorrect: true}, with("SRS_VHOST_PLAY_ATC", "on", "SRS_VHOST_PLAY_MIX_CORRECT", "on")},
+		{"ATCAuto", Play{ATCAuto: true}, with("SRS_VHOST_PLAY_ATC_AUTO", "on")},
+		{"SendMinInterval", Play{SendMinInterval: 20 * time.Millisecond}, with("SRS_VHOST_PLAY_SEND_MIN_INTERVAL", "20")},
+		{"MergedWrite", Play{MergedWrite: &Merged{WriteLatency: 200 * time.Millisecond, WriteMsgs: 4, ReadLatency: 100 * time.Millisecond}}, map[string]string{
+			"SRS_VHOST_MIN_LATENCY":        "off",
+			"SRS_VHOST_PLAY_MW_LATENCY":    "200",
+			"SRS_VHOST_PLAY_MW_MSGS":       "4",
+			"SRS_VHOST_PUBLISH_MR":         "on",
+			"SRS_VHOST_PUBLISH_MR_LATENCY": "100",
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := PlayConfig(tc.play)
+			if want := []Listener{RTMP, HTTPAPI}; !reflect.DeepEqual(cfg.Listeners, want) {
+				t.Errorf("listeners %v, want %v", cfg.Listeners, want)
+			}
+			if !reflect.DeepEqual(cfg.Env, tc.env) {
+				t.Errorf("env %v, want %v", cfg.Env, tc.env)
+			}
+			if _, err := BuildEnv(cfg, map[Listener]int{RTMP: 14000, HTTPAPI: 14001}, "/tmp/x", TLSFiles{}); err != nil {
+				t.Errorf("build env: %v", err)
+			}
+		})
 	}
 }

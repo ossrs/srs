@@ -5,6 +5,7 @@ package rtmp
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -254,4 +255,15 @@ func appendBasicHeader(b []byte, fmtType uint8, csid uint32) []byte {
 	default:
 		return append(b, fmtType<<6|1, byte((csid-64)&0xff), byte((csid-64)>>8))
 	}
+}
+
+// EncodeChunks is a message as the chunks a client writes at a chunk size:
+// format 0 for the first chunk, format 3 for the rest. Cases cut it short to
+// send part of a message.
+func EncodeChunks(csid uint32, m *Message, chunkSize int) []byte {
+	var b bytes.Buffer
+	w := newChunkWriter(&b)
+	w.SetChunkSize(chunkSize)
+	w.WriteMessage(csid, m)
+	return b.Bytes()
 }

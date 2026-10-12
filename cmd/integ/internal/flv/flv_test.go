@@ -17,6 +17,7 @@ import (
 
 	"srs-integ/internal/media"
 	"srs-integ/internal/report"
+	"srs-integ/internal/rtmp"
 )
 
 const ms = time.Millisecond
@@ -252,5 +253,58 @@ func TestPlayRTMPRefused(t *testing.T) {
 	defer cancel()
 	if _, err := PlayRTMP(ctx, "rtmp://"+addr+"/live/a", nil, report.Until{Keyframes: 1}); err == nil {
 		t.Errorf("no error from a closed port")
+	}
+}
+
+// TestAnalyzerCountsOnlyMetadata counts onMetaData, alone or after
+// @setDataFrame, as metadata, and no other data message, such as the
+// |RtmpSampleAccess an RTMP server sends when play starts.
+func TestAnalyzerCountsOnlyMetadata(t *testing.T) {
+	script := func(values ...any) *media.FLVTag {
+		b, err := rtmp.EncodeAMF0(values...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &media.FLVTag{Type: media.TagScript, Data: b}
+	}
+	var a Analyzer
+	for _, tag := range []*media.FLVTag{
+		script("|RtmpSampleAccess", false, false),
+		script("onMetaData", map[string]any{"width": float64(768)}),
+		script("@setDataFrame", "onMetaData", map[string]any{"width": float64(768)}),
+		script("onCuePoint", map[string]any{}),
+		{Type: media.TagScript, Data: []byte{0xff}},
+	} {
+		if err := a.Add(tag); err != nil {
+			t.Fatalf("add %x: %v", tag.Data, err)
+		}
+	}
+	if a.Report.Metadata != 2 {
+		t.Errorf("metadata %v, want 2: onMetaData and @setDataFrame onMetaData", a.Report.Metadata)
+	}
+}
+
+// TestIsMetadata tells onMetaData, alone or after @setDataFrame, from the
+// other data messages.
+func TestIsMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		values []any
+		want   bool
+	}{
+		{[]any{"onMetaData", map[string]any{}}, true},
+		{[]any{"@setDataFrame", "onMetaData", map[string]any{}}, true},
+		{[]any{"|RtmpSampleAccess", false, false}, false},
+		{[]any{"@setDataFrame", "onCuePoint"}, false},
+	} {
+		b, err := rtmp.EncodeAMF0(tc.values...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := IsMetadata(b); got != tc.want {
+			t.Errorf("IsMetadata(%v) = %v, want %v", tc.values, got, tc.want)
+		}
+	}
+	if IsMetadata([]byte{0xff}) {
+		t.Errorf("IsMetadata of a broken message, want false")
 	}
 }

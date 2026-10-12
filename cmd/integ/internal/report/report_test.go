@@ -197,3 +197,52 @@ func TestUntilString(t *testing.T) {
 		t.Errorf("zero until %q, want the end of the stream", s)
 	}
 }
+
+// TestReportLeadingFrames counts the video frames before the first keyframe,
+// which a player that joins a stream mid-GOP gets and can't decode.
+func TestReportLeadingFrames(t *testing.T) {
+	var r Report
+	r.AddVideo("h264", 0, false)
+	r.AddVideo("h264", 40*ms, false)
+	r.AddVideo("h264", 80*ms, true)
+	r.AddVideo("h264", 120*ms, false)
+	r.AddVideo("h264", 160*ms, true)
+	if r.Video == nil || r.Video.LeadingFrames != 2 {
+		t.Errorf("video %+v, want 2 leading frames", r.Video)
+	}
+
+	var keyFirst Report
+	stream(&keyFirst, 30, 0)
+	if keyFirst.Video.LeadingFrames != 0 {
+		t.Errorf("leading frames %v of a stream that starts at a keyframe, want 0", keyFirst.Video.LeadingFrames)
+	}
+}
+
+// TestReportUnordered counts the frames whose decode time is before the latest
+// decode time of the frames before, of either track: a stream whose tracks
+// interleave out of time order.
+func TestReportUnordered(t *testing.T) {
+	var ordered Report
+	stream(&ordered, 30, 40)
+	if ordered.Unordered != 0 {
+		t.Errorf("unordered %v of an interleaved stream in time order, want 0", ordered.Unordered)
+	}
+
+	// Audio sent 100ms late: each audio frame comes after video up to 100ms
+	// past it.
+	var late Report
+	late.AddVideo("h264", 0, true)
+	late.AddVideo("h264", 40*ms, false)
+	late.AddVideo("h264", 80*ms, false)
+	late.AddAudio("aac", 0)
+	late.AddVideo("h264", 120*ms, false)
+	late.AddAudio("aac", 23*ms)
+	late.AddAudio("aac", 46*ms)
+	late.AddVideo("h264", 160*ms, false)
+	if late.Unordered != 3 {
+		t.Errorf("unordered %v, want 3, the audio frames", late.Unordered)
+	}
+	if late.Video.Backwards != 0 || late.Audio.Backwards != 0 {
+		t.Errorf("backwards video %v audio %v, want 0: each track is in order", late.Video.Backwards, late.Audio.Backwards)
+	}
+}

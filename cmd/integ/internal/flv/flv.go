@@ -35,7 +35,9 @@ func (a *Analyzer) Add(tag *media.FLVTag) error {
 	ts := time.Duration(tag.Timestamp) * time.Millisecond
 	switch tag.Type {
 	case media.TagScript:
-		r.AddMetadata()
+		if IsMetadata(tag.Data) {
+			r.AddMetadata()
+		}
 	case media.TagVideo:
 		v, err := media.ParseVideo(tag.Data)
 		if err != nil {
@@ -148,4 +150,17 @@ func PlayHTTP(ctx context.Context, client *http.Client, url string, u report.Unt
 		return nil, fmt.Errorf("GET %v: %w", url, err)
 	}
 	return analyzeUntilDone(ctx, fr, u, func() { res.Body.Close() })
+}
+
+// IsMetadata reports whether a data message is onMetaData, alone or after
+// @setDataFrame, and not another one, such as |RtmpSampleAccess.
+func IsMetadata(data []byte) bool {
+	values, err := rtmp.DecodeAMF0(data)
+	if err != nil || len(values) == 0 {
+		return false
+	}
+	if values[0] == "@setDataFrame" && len(values) > 1 {
+		return values[1] == "onMetaData"
+	}
+	return values[0] == "onMetaData"
 }

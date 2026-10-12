@@ -89,6 +89,9 @@ type Config struct {
 	Env map[string]string
 	// Hooks starts a mock on a port of its own and points every hook at it.
 	Hooks bool
+	// IPv6 makes RTMP listen on [::] too, on the same port, when the host has
+	// IPv6.
+	IPv6 bool
 }
 
 // TLSFiles are the key and certificate of the TLS listeners.
@@ -146,6 +149,9 @@ func BuildEnv(cfg Config, ports map[Listener]int, dir string, tls TLSFiles) ([]s
 			env[info.enable] = "on"
 		}
 		env[info.listen] = strconv.Itoa(port)
+		if l == RTMP && cfg.IPv6 {
+			env[info.listen] += fmt.Sprintf(" [::]:%d", port)
+		}
 
 		if info.tls != "" {
 			if tls.Key == "" || tls.Cert == "" {

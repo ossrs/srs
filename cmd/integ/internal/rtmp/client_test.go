@@ -6,8 +6,10 @@ package rtmp
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
+	"io"
 	"net"
 	"reflect"
 	"strings"
@@ -31,6 +33,8 @@ type fakeServer struct {
 	window uint32
 	// onPlay runs after the server answers play, to send the stream.
 	onPlay func(s *fakeConn)
+	// tls, when set, serves RTMP inside TLS.
+	tls *tls.Config
 
 	mu       sync.Mutex
 	commands []fakeCommand
@@ -49,6 +53,8 @@ type fakeConn struct {
 	s *fakeServer
 	r *chunkReader
 	w *chunkWriter
+	// fmle is set by FCPublish: publish then answers onFCPublish too.
+	fmle bool
 }
 
 func newFakeServer(t *testing.T) *fakeServer {
@@ -69,6 +75,9 @@ func (s *fakeServer) start() {
 			return
 		}
 		defer conn.Close()
+		if s.tls != nil {
+			conn = tls.Server(conn, s.tls)
+		}
 		if _, _, err := serveHandshake(conn, fakeLikeSRS); err != nil {
 			return
 		}
@@ -122,6 +131,7 @@ func (c *fakeConn) answer(name string, streamID uint32, args []any) {
 		c.command(0, "_result", tx, map[string]any{"fmsVer": "FMS/3,5,3,888"},
 			map[string]any{"level": "status", "code": "NetConnection.Connect.Success", "description": "Connection succeeded"})
 	case "releaseStream", "FCPublish":
+		c.fmle = c.fmle || name == "FCPublish"
 		c.command(0, "_result", tx, nil, Undefined{})
 	case "createStream":
 		c.command(0, "_result", tx, nil, float64(1))
@@ -131,13 +141,37 @@ func (c *fakeConn) answer(name string, streamID uint32, args []any) {
 			c.status(streamID, "error", "NetStream.Publish.BadName", "Stream is busy")
 			return
 		}
+		if c.fmle {
+			c.command(streamID, "onFCPublish", float64(0), nil, map[string]any{"code": "NetStream.Publish.Start", "description": "Started publishing stream."})
+		}
 		c.status(streamID, "status", "NetStream.Publish.Start", "Started publishing stream.")
+	case "FCUnpublish":
+		// Like SRS: onFCUnpublish, the _result, then onStatus, on the
+		// published stream.
+		c.command(1, "onFCUnpublish", float64(0), nil, map[string]any{"code": "NetStream.Unpublish.Success", "description": "Stop publishing stream."})
+		c.command(1, "_result", tx, nil, Undefined{})
+		c.status(1, "status", "NetStream.Unpublish.Success", "Stream is now unpublished")
 	case "play":
 		c.control(MsgUserControl, []byte{0, 0, 0, 0, 0, 1})
 		c.status(streamID, "status", "NetStream.Play.Reset", "Playing and resetting stream.")
 		c.status(streamID, "status", "NetStream.Play.Start", "Started playing stream.")
 		if c.s.onPlay != nil {
 			c.s.onPlay(c)
+		}
+	case "pause":
+		// Like SRS: a status on the played stream, no _result.
+		if pause, _ := args[2].(bool); pause {
+			c.status(streamID, "status", "NetStream.Pause.Notify", "Paused stream.")
+		} else {
+			c.status(streamID, "status", "NetStream.Unpause.Notify", "Unpaused stream.")
+		}
+	case "rejectMe":
+		c.command(0, "_error", tx, nil, map[string]any{"level": "error", "code": "NetConnection.Call.Failed", "description": "rejected"})
+	default:
+		// Like SRS: any other call with a transaction id gets a _result of
+		// nulls.
+		if id, _ := tx.(float64); id > 0 {
+			c.command(0, "_result", tx, nil, nil)
 		}
 	}
 }
@@ -545,5 +579,282 @@ func TestClientDialRefused(t *testing.T) {
 	ln.Close()
 	if _, err := Dial(context.Background(), "rtmp://"+addr+"/live/a", nil); err == nil {
 		t.Errorf("dial to a closed port: no error")
+	}
+}
+
+// TestClientStatusCommands checks Statuses records onFCPublish beside
+// onStatus, with the command each came in, in order.
+func TestClientStatusCommands(t *testing.T) {
+	cases := []struct {
+		mode PublishMode
+		want []Status
+	}{
+		{FMLE, []Status{
+			{Command: "onFCPublish", Code: "NetStream.Publish.Start", Description: "Started publishing stream."},
+			{Command: "onStatus", Level: "status", Code: "NetStream.Publish.Start", Description: "Started publishing stream."},
+		}},
+		{Flash, []Status{
+			{Command: "onStatus", Level: "status", Code: "NetStream.Publish.Start", Description: "Started publishing stream."},
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.mode.String(), func(t *testing.T) {
+			s := newFakeServer(t)
+			s.start()
+			c := dial(t, s.url("a"), nil)
+			st, err := c.Publish(context.Background(), tc.mode)
+			if err != nil {
+				t.Fatalf("publish: %v", err)
+			}
+			if st.Command != "onStatus" {
+				t.Errorf("publish returned %+v, want the onStatus", st)
+			}
+			if got := c.Statuses(); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("statuses %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestClientConnected checks the connect result is kept as a status from the
+// _result.
+func TestClientConnected(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	want := Status{Command: "_result", Level: "status", Code: "NetConnection.Connect.Success", Description: "Connection succeeded"}
+	if c.Connected != want {
+		t.Errorf("connected %+v, want %+v", c.Connected, want)
+	}
+}
+
+// TestClientUnpublish checks the commands each publish style unpublishes
+// with, and the status an FMLE unpublish waits for.
+func TestClientUnpublish(t *testing.T) {
+	t.Run("FMLE", func(t *testing.T) {
+		s := newFakeServer(t)
+		s.start()
+		c := dial(t, s.url("a?k=v"), nil)
+		if _, err := c.Publish(context.Background(), FMLE); err != nil {
+			t.Fatalf("publish: %v", err)
+		}
+		st, err := c.Unpublish(context.Background())
+		if err != nil {
+			t.Fatalf("unpublish: %v", err)
+		}
+		if st == nil || st.Command != "onStatus" || st.Code != "NetStream.Unpublish.Success" {
+			t.Errorf("unpublish returned %+v, want onStatus NetStream.Unpublish.Success", st)
+		}
+		var got []string
+		for _, st := range c.Statuses()[2:] {
+			got = append(got, st.Command+" "+st.Code)
+		}
+		if want := []string{"onFCUnpublish NetStream.Unpublish.Success", "onStatus NetStream.Unpublish.Success"}; !reflect.DeepEqual(got, want) {
+			t.Errorf("statuses after unpublish %v, want %v", got, want)
+		}
+		s.waitFor("deleteStream", func() bool { return len(s.commands) == 7 })
+		if got := s.commandNames()[5:]; !reflect.DeepEqual(got, []string{"FCUnpublish", "deleteStream"}) {
+			t.Errorf("commands %v, want FCUnpublish then deleteStream", got)
+		}
+		if u := s.command("FCUnpublish"); u.args[2] != "a?k=v" {
+			t.Errorf("FCUnpublish %v, want the stream name", u.args)
+		}
+		if d := s.command("deleteStream"); d.args[2] != float64(1) {
+			t.Errorf("deleteStream %v, want stream 1", d.args)
+		}
+	})
+
+	t.Run("Flash", func(t *testing.T) {
+		s := newFakeServer(t)
+		s.start()
+		c := dial(t, s.url("a"), nil)
+		if _, err := c.Publish(context.Background(), Flash); err != nil {
+			t.Fatalf("publish: %v", err)
+		}
+		st, err := c.Unpublish(context.Background())
+		if err != nil || st != nil {
+			t.Errorf("unpublish returned %+v, %v; want no status and no error", st, err)
+		}
+		s.waitFor("closeStream", func() bool { return len(s.commands) == 4 })
+		if c := s.command("closeStream"); c == nil || c.streamID != 1 {
+			t.Errorf("commands %v, want closeStream on stream 1", s.commandNames())
+		}
+	})
+}
+
+// TestClientServerChunkSize checks the client reports the chunk size the
+// server set.
+func TestClientServerChunkSize(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	if got := c.ServerChunkSize(); got != 4096 {
+		t.Errorf("server chunk size %v, want the 4096 the server set", got)
+	}
+}
+
+// TestClientConnectNullProperty checks a nil connect property goes out as
+// AMF0 null, so a case can send a connect without a string tcUrl.
+func TestClientConnectNullProperty(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	dial(t, s.url("a"), &Options{Connect: map[string]any{"tcUrl": nil}})
+	obj, _ := s.command("connect").args[1].(map[string]any)
+	if v, ok := obj["tcUrl"]; !ok || v != nil {
+		t.Errorf("connect tcUrl %v (present %v), want null", v, ok)
+	}
+}
+
+// TestClientPause pauses and unpauses a played stream: the pause command
+// carries the flag and the time, and each waits for its status.
+func TestClientPause(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	if _, err := c.Play(context.Background()); err != nil {
+		t.Fatalf("play: %v", err)
+	}
+	for _, tc := range []struct {
+		pause bool
+		code  string
+	}{{true, "NetStream.Pause.Notify"}, {false, "NetStream.Unpause.Notify"}} {
+		st, err := c.Pause(context.Background(), tc.pause)
+		if err != nil {
+			t.Fatalf("pause %v: %v", tc.pause, err)
+		}
+		if st == nil || st.Code != tc.code {
+			t.Errorf("pause %v returned %+v, want %v", tc.pause, st, tc.code)
+		}
+	}
+	s.waitFor("both pauses", func() bool { return len(s.commands) == 5 })
+	if got := s.commandNames()[3:]; !reflect.DeepEqual(got, []string{"pause", "pause"}) {
+		t.Fatalf("commands %v, want pause twice", got)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i, want := range []bool{true, false} {
+		p := s.commands[3+i]
+		if p.streamID != 1 || len(p.args) != 4 || p.args[2] != want || p.args[3] != float64(0) {
+			t.Errorf("pause %v: stream %v args %v, want stream 1, null, %v, 0", i, p.streamID, p.args, want)
+		}
+	}
+}
+
+// TestClientBeforeConnect writes a message of its own after the handshake and
+// the chunk size, and the server reads it before connect.
+func TestClientBeforeConnect(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	dial(t, s.url("a"), &Options{BeforeConnect: func(w io.Writer) error {
+		_, err := w.Write(EncodeChunks(10, &Message{Type: MsgAck, Payload: be32(7)}, DefaultChunkSize))
+		return err
+	}})
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.controls) < 2 || s.controls[0].Type != MsgSetChunkSize || s.controls[1].Type != MsgAck {
+		t.Fatalf("controls %+v, want SetChunkSize then the Ack", s.controls)
+	}
+	if len(s.commands) == 0 || s.commands[0].name != "connect" {
+		t.Errorf("commands %v, want connect after the Ack", s.commands)
+	}
+}
+
+// TestClientBeforeConnectError stops the dial with the error BeforeConnect
+// returns, before connect.
+func TestClientBeforeConnectError(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	stop := errors.New("stop here")
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	c, err := Dial(ctx, s.url("a"), &Options{BeforeConnect: func(io.Writer) error { return stop }})
+	if err == nil {
+		c.Close()
+	}
+	if !errors.Is(err, stop) {
+		t.Fatalf("dial error %v, want %v", err, stop)
+	}
+	if s.command("connect") != nil {
+		t.Errorf("the server got connect, want none")
+	}
+}
+
+// TestClientCall sends a command the server doesn't know and gets its
+// _result; a rejected one is a StatusError.
+func TestClientCall(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	values, err := c.Call(ctx, "fooBar", "x")
+	if err != nil {
+		t.Fatalf("call: %v", err)
+	}
+	if len(values) < 2 || values[0] != "_result" {
+		t.Fatalf("values %v, want a _result", values)
+	}
+	cmd := s.command("fooBar")
+	if cmd == nil || cmd.streamID != 0 || len(cmd.args) < 3 || cmd.args[0] != values[1] || cmd.args[2] != "x" {
+		t.Errorf("the server got %+v, want fooBar on stream 0 with the result's transaction id and x", cmd)
+	}
+
+	_, err = c.Call(ctx, "rejectMe")
+	var se *StatusError
+	if !errors.As(err, &se) || se.Code != "NetConnection.Call.Failed" {
+		t.Errorf("rejected call error %v, want a StatusError NetConnection.Call.Failed", err)
+	}
+}
+
+// TestClientSend sends a command on the client's stream without waiting:
+// stream 0 before createStream, then the created one.
+func TestClientSend(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	if err := c.Send("early", "x"); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if _, err := c.Publish(ctx, Flash); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if err := c.Send("late"); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	s.waitFor("late", func() bool {
+		for _, cmd := range s.commands {
+			if cmd.name == "late" {
+				return true
+			}
+		}
+		return false
+	})
+	early, late := s.command("early"), s.command("late")
+	if early == nil || early.streamID != 0 || len(early.args) < 3 || early.args[2] != "x" {
+		t.Errorf("early %+v, want on stream 0 with x", early)
+	}
+	if late == nil || late.streamID != 1 {
+		t.Errorf("late %+v, want on stream 1", late)
+	}
+}
+
+// TestClientWriteRaw writes a message's chunks by hand, which the server
+// reads like any message.
+func TestClientWriteRaw(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	m := &Message{Type: MsgVideo, Timestamp: 40, StreamID: 1, Payload: payload(5000)}
+	if err := c.WriteRaw(EncodeChunks(20, m, DefaultChunkSize)); err != nil {
+		t.Fatalf("write raw: %v", err)
+	}
+	s.waitFor("the video", func() bool { return len(s.media) > 0 })
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !reflect.DeepEqual(s.media[0], m) {
+		t.Errorf("the server got %+v, want %+v", s.media[0], m)
 	}
 }

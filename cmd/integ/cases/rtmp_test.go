@@ -12,6 +12,7 @@ import (
 	"srs-integ/internal/check"
 	"srs-integ/internal/flv"
 	"srs-integ/internal/media"
+	"srs-integ/internal/report"
 	"srs-integ/internal/server"
 )
 
@@ -26,10 +27,18 @@ func TestRtmp_Common(t *testing.T) {
 	check.Case(t, "PublishPlayHevc", check.Normal, func(c *check.C) {
 		publishPlayRTMP(c, media.HEVCAAC, "hevc", "aac")
 	})
+
+	rtmpSignaling(t)
+	rtmpMedia(t)
+	rtmpLifecycle(t)
+	rtmpPlayOptions(t)
+	rtmpTimestamps(t)
+	rtmpBadInput(t)
 }
 
-// publishPlayRTMP publishes a file in real time and plays it back over RTMP.
-func publishPlayRTMP(c *check.C, file, vcodec, acodec string) {
+// publishPlayRTMP publishes a file in real time, plays it back over RTMP, checks
+// it, and returns the report.
+func publishPlayRTMP(c *check.C, file, vcodec, acodec string) *report.Report {
 	srs := server.Common(c)
 	url := "rtmp://" + srs.Addr(server.RTMP) + "/live/" + streamName(c)
 
@@ -41,4 +50,5 @@ func publishPlayRTMP(c *check.C, file, vcodec, acodec string) {
 	r, err := flv.PlayRTMP(ctx, url, nil, playedUntil)
 	c.Must(err, "play")
 	checkPlayed(c, r, vcodec, acodec)
+	return r
 }

@@ -157,3 +157,24 @@ func TestChunkReaderCountsBytes(t *testing.T) {
 		t.Errorf("bytes read %v, want %v", r.BytesRead(), n)
 	}
 }
+
+// TestEncodeChunks splits a message like the writer: format 0, then a format
+// 3 header before each chunk after the first.
+func TestEncodeChunks(t *testing.T) {
+	m := &Message{Type: MsgVideo, Timestamp: 40, StreamID: 1, Payload: payload(300)}
+	b := EncodeChunks(6, m, 128)
+	if want := 12 + 300 + 2; len(b) != want {
+		t.Fatalf("%v bytes, want %v", len(b), want)
+	}
+	if b[0] != 0x06 || b[12+128] != 0xc6 || b[12+128+1+128] != 0xc6 {
+		t.Errorf("basic headers %#x %#x %#x, want 0x06 0xc6 0xc6", b[0], b[12+128], b[12+128+1+128])
+	}
+	r := newChunkReader(bytes.NewReader(b))
+	got, err := r.ReadMessage()
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if !reflect.DeepEqual(got, m) {
+		t.Errorf("got %+v, want %+v", got, m)
+	}
+}

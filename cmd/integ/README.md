@@ -38,7 +38,7 @@ Flags, after `-args`:
 - `-integ.timer`: allocate ports from the timer process's part of the range; `make integ` sets it for the timer process.
 - `-integ.known-bugs fail`: known-bug cases fail like normal cases; the default, `pass`, lets a known bug that fails pass.
 - `-integ.scale N`: run each case N times as separate cases, named `<Case>`, `<Case>-2` to `<Case>-N`, each with its own stream on its group's server; timer cases run once, since each starts a server of its own. The scale check.
-- `-integ.shards K`: split Common into K identical servers; a case gets the one its name picks.
+- `-integ.shards K`: split Common into K identical servers; a case gets the one its name picks. The default is 2: every case starts at once, and one single-threaded Common made the slowest real-time cases miss their 500ms limit while it was saturated in the first part of a run.
 
 `make integ`, `make integ-main` and `make integ-timer` pass `INTEG_ARGS` after
 `-args`. The scale check runs about 1,000 cases:
@@ -63,8 +63,8 @@ earlier runs whose process is gone.
 The CLI gives the stream tools by hand:
 
 ```bash
-bin/srs-integ probe <url>            # Print the stream report of rtmp://, http://...{flv,ts,aac,mp3,m3u8,mpd} or an FLV, TS, AAC, MP3 or MP4 file; -duration, -timeout.
-bin/srs-integ publish <file> <url>   # Publish an FLV file in real time, to rtmp://.
+bin/srs-integ probe <url>            # Print the stream report of rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd} or an FLV, TS, AAC, MP3 or MP4 file; -duration, -timeout.
+bin/srs-integ publish <file> <url>   # Publish an FLV file in real time, to rtmp:// or rtmps://. Neither verifies an rtmps:// certificate, like ffmpeg.
 bin/srs-integ prepare -h             # Make the test media; its flags.
 ```
 
@@ -73,7 +73,7 @@ bin/srs-integ prepare -h             # Make the test media; its flags.
 - `main.go`: the CLI.
 - `internal/server/`: the adapter, the only package that knows the SRS binary, its env var names, its ports and its paths.
 - `internal/media/`: the test media: its recipes, the prepare cache, and FLV and MP4 readers.
-- `internal/rtmp/`: the RTMP client: the simple and complex handshakes, chunk sizes, connect options, FMLE and Flash publish, play, FLV tags in and out including enhanced RTMP, and real-time pacing.
+- `internal/rtmp/`: the RTMP client: the simple and complex handshakes, chunk sizes, connect options, FMLE and Flash publish, play, FLV tags in and out including enhanced RTMP, real-time pacing, and RTMPS (`Options.TLS`, `Client.TLS`).
 - `internal/report/`: the stream report every analyzer fills, and `Until`, the stop condition a case states.
 - `internal/flv/`: the FLV analyzer, and the RTMP and HTTP-FLV players that feed it.
 - `internal/ts/`: the TS demuxer (PAT, PMT, PES; H.264, HEVC, AAC, MP3 and Opus), its analyzer, and the HTTP-TS player.
@@ -115,12 +115,14 @@ with `-parallel 64`, at the same time.
 
 ### Servers
 
-- **Common:** one SRS with every feature that doesn't change how other streams behave, started by the first case that uses it and stopped after every test ends. Each case uses its own stream name.
-  Its listeners: RTMP, RTMPS, the HTTP API and server, HTTPS for both, WebRTC over UDP and TCP, SRT, RTSP, the exporter, and the GB28181 media port. The MPEG-TS over UDP caster needs a variant, because a server has one stream caster.
+- **Common:** one SRS with every feature that doesn't change how other streams behave, started by the first case that uses it and stopped after every test ends. Each case uses its own stream name. It runs as 2 identical shards by default (`-integ.shards`), and a case's name picks its shard, so every `server.Common(c)` of a case is the same server.
+  Its listeners: RTMP, RTMPS, the HTTP API and server, HTTPS for both, WebRTC over UDP and TCP, SRT, RTSP, the exporter, and the GB28181 media port. The MPEG-TS over UDP caster needs a variant, because a server has one stream caster. RTMP also listens on `[::]` on the same port (`Config.IPv6`), when the host has IPv6.
+  Its TLS listeners use the self-signed test certificate in `testdata/` for localhost, 127.0.0.1 and ::1; `server.ClientTLS()` is a client config that trusts it.
   It plays with the lowest latency (`min_latency on`, `mw_latency 0`), so a player gets each message at once rather than in 350ms batches; a case that tests the default batching needs a variant.
   It serves every stream as HTTP-FLV at `/[app]/[stream].flv`, and as HLS (TS) at `/[app]/[stream].m3u8` and DASH at `/[app]/[stream].mpd`, both with 10s segments.
   Every hook (`on_connect`, `on_close`, `on_publish`, `on_unpublish`, `on_play`, `on_stop`, `on_dvr`, `on_hls`, `on_hls_notify`) calls one mock at `/hooks/<action>`, `server.Common(c).Hooks`. It accepts every request unless a case scripts a reply, and a case scripts only its own stream, such as `Hooks.Script(mock.Match{Action: "on_publish", Stream: stream}, mock.Reject(403))`. A variant gets its own mock with `Config.Hooks`.
 - **Remux variants:** a vhost has one HTTP remux mount, so HTTP-TS, MP3 and AAC each have a variant, `TsMount`, `Mp3Mount` and `AacMount` (`server.RemuxConfig`), with RTMP, the HTTP API and server, and Common's latency.
+- **Play variants:** `server.PlayConfig` sets the play settings Common keeps at their defaults (`gop_cache`, `gop_cache_max_frames`, `queue_length`, `reduce_sequence_header`, `time_jitter`, `atc`, `atc_auto`, `mix_correct`, `send_min_interval`), or replaces its latency with `min_latency off` and merged writes and reads (`mw_latency`, `mw_msgs`, `mr`), with RTMP and the HTTP API: `GopCacheOff`, `GopCacheMaxFrames`, `ReduceSequenceHeader`, `JitterZero`, `JitterOffAtcAuto`, `AtcMixCorrect`, `MergedWrite`, `SendMinInterval`, and the timer groups `QueueDefault` and `QueueLength`. Settings that don't interfere share one variant, such as `atc` with `mix_correct`.
 - **Variant:** a server only when Common can't do it: a value Common can't have, global state, a process change, or a topology. A variant group is one top-level test that starts its SRS, runs its cases as parallel subtests, and stops the SRS.
 - **Bursts:** SRS runs on one thread and shares it fairly, so many cases that send a burst at once, such as a whole file without pacing, make each of them, and the real-time cases beside them, as slow as all of them together. A case holds one of a server's 2 burst slots while it sends one (`srs.Burst(c)`); the wait for a slot is not part of its time. `publishAll` does it for the segment groups.
 - **Hook mock:** it closes each connection after its reply, so SRS, which opens one per hook, leaves no socket in TIME_WAIT on an ephemeral port; a run of 1,000 cases would otherwise use them up.
@@ -162,7 +164,8 @@ little past the stop condition.
 A case checks a stream with the suite's own analyzers, never ffprobe. They
 fill one stream report (`internal/report`): codecs, picture size, sample
 rate, sequence headers, keyframes and frames, timestamps that only go forward
-without gaps, and the A/V sync difference. TS and raw AAC carry the sequence
+without gaps, the frames out of time order across the two tracks
+(`Unordered`), and the A/V sync difference. TS and raw AAC carry the sequence
 headers in band, before each keyframe or in each frame, so their report counts
 one each time they first appear or change. The case states when to stop, as a
 `report.Until` such as "both sequence headers, 1 keyframe, 5 video frames", so
@@ -233,4 +236,21 @@ utest scenario it ports, if any.
 | Hls | Common | PublishPlay, PublishPlayHevc: H.264/AAC and HEVC/AAC published without `-re`, 15s of media from the 10s TS segments, through the `hls_ctx` master playlist | Normal | |
 | Hooks | Common | OnPublish: the `on_publish` fields, then `on_unpublish` after the publisher closes; OnPublishRejected: a scripted reject code fails the RTMP publish | Normal | |
 | Rtmp | Common | PublishPlay, PublishPlayHevc (enhanced RTMP) | Normal | |
+| Rtmp | Common | Signaling: HandshakeSimple, HandshakeComplex (the server answers in the client's kind); ChunkSize128, ChunkSize4096, ChunkSize60000 (publisher and player); ConnectResult (`NetConnection.Connect.Success`, server chunk size 60000 before it); VhostFromTcUrl, VhostFromQuery, VhostDefaultQueryDropped (an unknown vhost goes to the default one); ParamInStream, ParamInTcUrl, AppFromTcUrl, MultiLevelApp (`live/a/b/<stream>`), Ipv6 (`::1`, skipped on a host without IPv6); PublishFmle, PublishFlash, PlayStatuses, UnpublishFmle, UnpublishFlash (the status replies and `on_unpublish`); ConnectWithoutTcUrl, BadTcUrl (closed, and the server serves the next client) | Normal | `srs_utest_manual_rtmp`, `ai26` (multi-level apps) |
+| Rtmp | Common | Media: PublishPlayBaseline (profile Baseline), PublishPlayAudioOnly, PublishPlayVideoOnly, PublishPlayMp3 (no audio sequence header) | Normal | |
+| Rtmp | Common | Lifecycle: PlayBeforePublish (one `onMetaData`), ManyPlayers (8 at once), SecondPublisherRejected (no `NetStream.Publish.Start`, the first still plays), RepublishNewConnection, RepublishSameConnection (FCUnpublish then publish: the player stays, gets no status or media between, then the new sequence headers), PublisherCloseCleanup, PlayerCloseCleanup (the client and the stream leave `/api/v1/clients/{id}` and `/api/v1/streams/{id}`) | Normal | `ai26` (a viewer before the publisher) |
+| Rtmp | Common | Play defaults: GopCacheLateJoin (a late player gets the last GOP from its keyframe, nothing before), SequenceHeaderRepeated (both kept) | Normal | |
+| Rtmp | GopCacheOff | PlayGetsNoCache: a late player gets the headers, no frame, then live frames from mid-GOP | Normal | |
+| Rtmp | GopCacheMaxFrames | CacheLimited (at most 10 cached messages), CacheStartsAtKeyframe (known bug) | Normal | |
+| Rtmp | QueueDefault | QueueKeepsBurst: 20s at once to a paused player, all kept (`TestTimer_Rtmp_QueueDefault`, SRS reads an unpause only after the 500ms sleep of a paused player) | Timer | |
+| Rtmp | QueueLength | QueueShrinks: with a 1s queue, a paused player loses more than 1s of a 20s burst (`TestTimer_Rtmp_QueueLength`) | Timer | |
+| Rtmp | ReduceSequenceHeader | DuplicateDropped (each header once), ChangedKept (a different video header is kept) | Normal | |
+| Rtmp | Common | Timestamps and latency at the defaults: JitterFullStartsAtZero (a stream from 100s plays from near zero, with the publisher's steps), JitterFullFixesJumps (a 10s jump forward and a 5s jump back play without a gap or a step back), InterleaveKept (audio sent 200ms late reaches the player in the order sent), MinLatencyNoHold (the headers and one keyframe come at once) | Normal | |
+| Rtmp | JitterZero | StartsAtZero (every timestamp 100s earlier), KeepsJumps (a 10s jump forward is kept), BackJumpPlays (known bug) | Normal | |
+| Rtmp | JitterOffAtcAuto | KeepsTimestamps (as published, from 100s), BackJumpPlays (known bug), AtcAutoBravo (metadata with `bravo_atc`: a late player gets the metadata and headers at the GOP's time), AtcAutoNoBravo (at their own time) | Normal | |
+| Rtmp | AtcMixCorrect | KeepsTimestamps (each track as published), LateJoinHeadersAtGop (the metadata and headers at the GOP's time), MixCorrectOrders (audio sent 200ms late reaches the player in time order) | Normal | |
+| Rtmp | MergedWrite | HoldsUntilLatency (more than 4 messages held until they span 200ms), HoldsUntilMsgs (240ms held until 5 messages), MergedReadPlays (a real-time stream plays with merged reads) | Normal | |
+| Rtmp | SendMinInterval | PacesMessages (10 messages sent at once reach the player at least 20ms apart, in order) | Normal | |
+| Rtmp | Common | Bad input: HandshakeBadVersion (C0 version 6: closed without S0), HandshakeShortC0C1, HandshakeShortC2 (a client that closes in the handshake); ChunkFresh1Accepted (a new chunk stream may start with format 1, like librtmp), ChunkFresh2Closed, ChunkFresh3Closed, ChunkFmt0MidMessage, ChunkLengthChanged, ChunkSizeTooSmall (64), MalformedCommand (closed); UnknownCommandAnswered (a `_result`), UnknownCommandWhilePublishing, UnknownCommandWhilePlaying (ignored, the stream goes on), CommandsBeforeConnect (dropped), PublishWithoutCreateStream (ignored, no status or `on_publish`), MediaBeforePublish (dropped); PublishMissingApp, PlayMissingApp (a tcUrl without an app uses `__defaultApp__`); PublisherCloseMidMessage (unpublished, gone from the API, publishable again), ConnectCloseMidMessage. Each closed case checks the server serves the next client | Normal | `srs_utest_manual_rtmp`, `srs_utest_manual_protocol` |
+| Rtmps | Common | PublishPlay (the player verified the test certificate), PublishPlayHevc, ServesTestCertificate; HandshakeSimple, HandshakeComplex, ChunkSize128 inside TLS; StreamNaming (multi-level app and param: the `rtmps://` tcUrl in `on_publish`, an RTMP player finds the stream); PublishStatuses (FMLE publish and play replies); PublishRtmpsPlayRtmp, PublishRtmpPlayRtmps, PlayersOfBoth (3 RTMP and 3 RTMPS players of one stream); PlayBeforePublish, SecondPublisherRejected (RTMPS after RTMP), SecondPublisherRtmpRejected (RTMP after RTMPS), PublisherCloseCleanup; PlainRtmpOnRtmpsPort, BadTlsRecord (closed, at most after a TLS alert), RtmpsOnRtmpPort (the dial fails), CloseInTlsHandshake. Each bad-input case checks the server serves the next client | Normal | |
 | Signal | Smoke | TermExitsZero, TermWithPublisherExitsZero (`TestTimer_Signal_Smoke`) | Timer | |

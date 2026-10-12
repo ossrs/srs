@@ -28,7 +28,7 @@ import (
 const probeUsage = `Usage: srs-integ probe [flags] <url>
 
 Read a stream and print its stream report: rtmp://host/app/stream,
-http://host/app/stream.flv, .ts, .aac, .mp3, .m3u8 (HLS) or .mpd (DASH), or an
+rtmps://host:port/app/stream (the certificate is not verified), http://host/app/stream.flv, .ts, .aac, .mp3, .m3u8 (HLS) or .mpd (DASH), or an
 FLV, TS, AAC, MP3 or MP4 file. It stops after -duration of media, and fails
 when -timeout passes first. HLS and DASH stop after the segment that reaches
 it.
@@ -88,8 +88,8 @@ func probeURL(ctx context.Context, raw string, u report.Until) (*report.Report, 
 		return nil, err
 	}
 	switch parsed.Scheme {
-	case "rtmp":
-		return flv.PlayRTMP(ctx, raw, nil, u)
+	case "rtmp", "rtmps":
+		return flv.PlayRTMP(ctx, raw, cliRTMPOptions, u)
 	case "http", "https":
 		switch {
 		case strings.HasSuffix(parsed.Path, ".flv"):
@@ -104,7 +104,7 @@ func probeURL(ctx context.Context, raw string, u report.Until) (*report.Report, 
 			return audio.PlayHTTP(ctx, nil, raw, u)
 		}
 	}
-	return nil, fmt.Errorf("unsupported URL %v, want rtmp://, http://...{flv,ts,aac,mp3,m3u8,mpd} or a file", raw)
+	return nil, fmt.Errorf("unsupported URL %v, want rtmp://, rtmps://, http://...{flv,ts,aac,mp3,m3u8,mpd} or a file", raw)
 }
 
 // probeFile reads a file by its extension.

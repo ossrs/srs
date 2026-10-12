@@ -47,6 +47,13 @@ func streamName(c *check.C) string {
 // the rest in real time.
 func startPublisher(c *check.C, url, file string, lead time.Duration) *rtmp.Client {
 	c.Helper()
+	return startPublisherWith(c, url, file, lead, nil, rtmp.FMLE)
+}
+
+// startPublisherWith is startPublisher with the client's options and publish
+// style.
+func startPublisherWith(c *check.C, url, file string, lead time.Duration, opts *rtmp.Options, mode rtmp.PublishMode) *rtmp.Client {
+	c.Helper()
 	f, err := os.Open(file)
 	c.Must(err, "open the media")
 	r, err := media.NewFLVReader(f)
@@ -55,9 +62,9 @@ func startPublisher(c *check.C, url, file string, lead time.Duration) *rtmp.Clie
 	ctx, cancel := context.WithCancel(context.Background())
 	dctx, dcancel := context.WithTimeout(ctx, 2*time.Second)
 	defer dcancel()
-	pub, err := rtmp.Dial(dctx, url, nil)
+	pub, err := rtmp.Dial(dctx, url, opts)
 	c.Must(err, "dial the publisher")
-	_, err = pub.Publish(dctx, rtmp.FMLE)
+	_, err = pub.Publish(dctx, mode)
 	c.Must(err, "publish")
 
 	// The first tag at or after lead starts the real-time part.
@@ -109,15 +116,36 @@ func checkPlayed(c *check.C, r *report.Report, vcodec, acodec string) {
 	if !c.Check(r.Video != nil && r.Audio != nil, "no video or audio: %v", r) {
 		return
 	}
-	v, a := r.Video, r.Audio
-	c.CheckEqual(v.Codec, vcodec, "video codec")
-	c.Check(v.Width == 768 && v.Height == 320, "size %vx%v, want 768x320", v.Width, v.Height)
-	c.CheckEqual(v.SequenceHeaders, 1, "video sequence headers")
-	c.CheckEqual(a.Codec, acodec, "audio codec")
-	c.Check(a.SampleRate == 44100 && a.Channels == 2, "audio %vHz %vch, want 44100Hz 2ch", a.SampleRate, a.Channels)
-	c.CheckEqual(a.SequenceHeaders, 1, "audio sequence headers")
+	checkVideo(c, r, vcodec)
+	checkAudio(c, r, acodec, 1)
 	c.CheckNoError(r.CheckTimestamps(100*time.Millisecond), "timestamps")
 	c.Check(r.AVSync <= 100*time.Millisecond, "A/V sync %v, want at most 100ms", r.AVSync)
+}
+
+// checkVideo checks the video of a test file: its codec, the source's 768x320
+// and one sequence header.
+func checkVideo(c *check.C, r *report.Report, codec string) {
+	c.Helper()
+	if !c.Check(r.Video != nil, "no video: %v", r) {
+		return
+	}
+	v := r.Video
+	c.CheckEqual(v.Codec, codec, "video codec")
+	c.Check(v.Width == 768 && v.Height == 320, "size %vx%v, want 768x320", v.Width, v.Height)
+	c.CheckEqual(v.SequenceHeaders, 1, "video sequence headers")
+}
+
+// checkAudio checks the audio of a test file: its codec, the source's 44.1 kHz
+// stereo, and the number of sequence headers, 1 for AAC and 0 for MP3.
+func checkAudio(c *check.C, r *report.Report, codec string, headers int) {
+	c.Helper()
+	if !c.Check(r.Audio != nil, "no audio: %v", r) {
+		return
+	}
+	a := r.Audio
+	c.CheckEqual(a.Codec, codec, "audio codec")
+	c.Check(a.SampleRate == 44100 && a.Channels == 2, "audio %vHz %vch, want 44100Hz 2ch", a.SampleRate, a.Channels)
+	c.CheckEqual(a.SequenceHeaders, headers, "audio sequence headers")
 }
 
 // publishAll publishes a whole file at once, without real-time pacing, and
