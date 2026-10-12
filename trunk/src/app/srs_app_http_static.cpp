@@ -559,7 +559,7 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
 {
     srs_error_t err = srs_success;
 
-    srs_assert(start >= 0);
+    srs_assert(start >= -1);
     srs_assert(end == -1 || end >= 0);
 
     SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
@@ -567,6 +567,12 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
     // open flv file
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "fs open");
+    }
+
+    // start == -1 means the range names the last end bytes of the file.
+    if (start == -1) {
+        start = srs_max((int64_t)0, fs->filesize() - end);
+        end = fs->filesize() - 1;
     }
 
     // parse -1 to whole file.

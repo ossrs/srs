@@ -508,6 +508,33 @@ VOID TEST(VodStreamRangeTest, RangeInsideTheFileIsUnchanged)
     EXPECT_PRED2(is_string_contain, "llo,", resp);
 }
 
+// A suffix range names bytes from the end of the file, including when the requested suffix is longer than the file.
+VOID TEST(VodStreamRangeTest, SuffixRangeServesTheLastBytes)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=-6", resp));
+
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Length: 6", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 7-12/13", resp);
+    EXPECT_PRED2(is_string_contain, "world!", resp);
+}
+
+VOID TEST(VodStreamRangeTest, SuffixRangeLongerThanFileServesTheWholeFile)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=-20", resp));
+
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Length: 13", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 0-12/13", resp);
+    EXPECT_PRED2(is_string_contain, "Hello, world!", resp);
+}
+
 // A range that starts past the last byte has nothing to serve, so it still fails.
 VOID TEST(VodStreamRangeTest, RangeStartBeyondTheLastByteFails)
 {

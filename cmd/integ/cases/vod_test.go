@@ -130,7 +130,6 @@ func vodMp4Cases(t *testing.T) {
 	// Mp4SuffixRange asks for the last 500 bytes, bytes=-500: 206 and those
 	// bytes, as RFC 9110 has it.
 	check.Case(t, "Mp4SuffixRange", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a suffix range bytes=-N is served as the bytes 0 to N, not the last N")
 		srs := server.Common(c)
 		data, path := writeVod(c, srs.WebRoot(), vodMp4)
 		checkRange(c, srs, path, "bytes=-500", data, len(data)-500, len(data)-1)
