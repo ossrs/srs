@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -280,18 +281,29 @@ func TestTimer_Srt_PeerIdle(t *testing.T) {
 		checkSRTClosed(c, play)
 	})
 
-	// When its publisher leaves, a player is closed only after the timeout.
+	// When its publisher leaves, a player is closed only after the timeout,
+	// counted from the last media SRS sent it, not from the unpublish: SRS
+	// drops what the publisher sent within its receive latency, and a busy
+	// publisher may send its last media a while before it closes.
 	check.Case(t, "UnpublishClosesPlayer", check.Timer, func(c *check.C) {
 		stream := streamName(c)
 		play := srtPlayer(c, srs, srt.Options{StreamID: srtID("live/"+stream, "request")}, stream)
 		pub := startSRTPublisher(c, srs, srt.Options{StreamID: srtID("live/"+stream, "publish")}, media.H264HighAACTS)
 		checkSRTPlayed(c, srtAnalyze(c, play))
 
+		drain := drainSRT(play)
 		pub.Close()
 		unpublished := waitHook(c, srs, "on_unpublish", stream)
 		h := waitHookWithin(c, srs, "on_stop", stream, 3*srtPeerIdle)
-		checkIdleFor(c, h.Time.Sub(unpublished.Time), "player after the unpublish")
-		checkSRTClosed(c, play)
+		last := drain.wait(c)
+		c.Check(!h.Time.Before(unpublished.Time), "on_stop of the player before on_unpublish")
+		// The player's last read may come a while after SRS sent it, when
+		// the test process is busy: up to 150ms in a full run, so the
+		// idle time may look that much shorter. A close at the unpublish
+		// would be far shorter still.
+		idle := h.Time.Sub(last)
+		c.Check(idle >= srtPeerIdle*7/10 && idle <= srtPeerIdle+500*time.Millisecond,
+			"the player closed %v after its last read, want about %v", idle, srtPeerIdle)
 	})
 
 	// A publisher and a player that stream for longer than the timeout
@@ -384,4 +396,39 @@ func republishSRT(c *check.C, srs *server.Server, stream string, player *srt.Con
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
+}
+
+// srtDrain reads a player until the server closes it.
+type srtDrain struct {
+	last   atomic.Int64
+	closed chan struct{}
+}
+
+// drainSRT reads play in the background, and keeps the time of its last read.
+func drainSRT(play *srt.Conn) *srtDrain {
+	d := &srtDrain{closed: make(chan struct{})}
+	d.last.Store(time.Now().UnixNano())
+	go func() {
+		defer close(d.closed)
+		b := make([]byte, 2048)
+		for {
+			if _, err := play.Read(b); err != nil {
+				return
+			}
+			d.last.Store(time.Now().UnixNano())
+		}
+	}()
+	return d
+}
+
+// wait checks that the server closes the player within 400ms, and returns
+// the time of the player's last read.
+func (d *srtDrain) wait(c *check.C) time.Time {
+	c.Helper()
+	select {
+	case <-d.closed:
+	case <-time.After(400 * time.Millisecond):
+		c.Errorf("the server didn't close the player")
+	}
+	return time.Unix(0, d.last.Load())
 }

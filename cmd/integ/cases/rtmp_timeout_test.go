@@ -57,13 +57,17 @@ func TestTimer_Rtmp_PublishTimeout(t *testing.T) {
 	// after the first-packet timeout, not the longer normal timeout.
 	check.Case(t, "FirstPacketTimeout", check.Normal, func(c *check.C) {
 		stream := streamName(c)
-		pub := publishOnly(c, rtmpURL(srs, "live/"+stream), rtmp.FMLE)
+		// SRS starts the timeout during the publish, so the lower bound counts
+		// from before the publish and the upper bound from after it.
 		start := time.Now()
+		pub := publishOnly(c, rtmpURL(srs, "live/"+stream), rtmp.FMLE)
+		published := time.Now()
 		closed, err := untilClosed(pub, time.Second)
 		c.Must(err, "the publisher")
 		d := closed.Sub(start)
-		c.Check(d >= firstPacketTimeout-timerSlack, "closed after %v, want at least %v", d, firstPacketTimeout)
-		c.Check(d < normalTimeout-timerSlack, "closed after %v, want before the normal timeout %v", d, normalTimeout)
+		c.Check(d >= firstPacketTimeout-timerSlack, "closed %v after the publish began, want at least %v", d, firstPacketTimeout)
+		d = closed.Sub(published)
+		c.Check(d < normalTimeout-timerSlack, "closed %v after the publish, want before the normal timeout %v", d, normalTimeout)
 		waitHook(c, srs, "on_unpublish", stream)
 	})
 

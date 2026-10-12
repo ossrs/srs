@@ -26,8 +26,8 @@ import (
 
 // hookWait is how long a client waits for SRS to answer it: a refusal comes
 // within a few ms, and a client that gets no answer in this time is left
-// waiting.
-const hookWait = 300 * time.Millisecond
+// waiting. It is longer on a machine with longer class limits.
+func hookWait() time.Duration { return check.Scaled(300 * time.Millisecond) }
 
 // hookDelay is how long a slow hook server takes to accept.
 const hookDelay = 150 * time.Millisecond
@@ -129,7 +129,7 @@ func hookRejectCase(c *check.C, srs *server.Server, target hookTarget, kind hook
 	if target.prepare != nil && (kind.accept || target.always) {
 		target.prepare(c, srs, name)
 	}
-	d := hookWait
+	d := hookWait()
 	if kind.accept {
 		d += hookDelay
 	}
@@ -515,7 +515,7 @@ func TestHooks_Down(t *testing.T) {
 		}
 		check.Case(t, target.name, check.Normal, func(c *check.C) {
 			name := streamName(c)
-			checkRefused(c, target.try(c, srs, name, hookWait), target.refusal)
+			checkRefused(c, target.try(c, srs, name, hookWait()), target.refusal)
 			c.CheckEqual(len(srs.Hooks.Requests(hookOfStream(target.hook, name))), 0, target.hook+" requests on the mock")
 			checkVersions(c, srs)
 		})
@@ -583,7 +583,7 @@ func TestHooks_Several(t *testing.T) {
 		name := streamName(c)
 		srs.Hooks.Script(mock.Match{Path: path + "/" + hook, Stream: name}, reply)
 		target := rtmpHookTarget("", hook, false, publish)
-		checkRefused(c, target.try(c, srs, name, hookWait), "")
+		checkRefused(c, target.try(c, srs, name, hookWait()), "")
 		var got []string
 		for _, h := range srs.Hooks.Requests(mock.Match{Action: hook, Stream: name}) {
 			got = append(got, h.Path)

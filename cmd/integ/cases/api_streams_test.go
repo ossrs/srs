@@ -432,7 +432,7 @@ func apiStreamFields(t *testing.T) {
 		checkClient(c, cl, clientWant{typ: "fmle-publish", name: stream, url: "/live/" + stream, tcURL: rtmpURL(srs, "live"), publish: true})
 		c.CheckEqual(cl["pageUrl"], "http://page.example/live.html", "client pageUrl")
 		c.CheckEqual(cl["swfUrl"], "http://page.example/player.swf", "client swfUrl")
-		st := apiStreamOf(c, srs, h.Field("stream_id"))
+		st := apiStreamWith(c, srs, h.Field("stream_id"), streamWant{h264High, aacLC})
 		checkStream(c, st, stream, streamWant{h264High, aacLC})
 		c.CheckEqual(st["tcUrl"], rtmpURL(srs, "live"), "stream tcUrl")
 		c.CheckEqual(st["clients"], 1.0, "stream clients")
@@ -490,7 +490,7 @@ func apiStreamFields(t *testing.T) {
 			srs := server.Common(c)
 			stream := streamName(c)
 			_, _, streamID := publishRTMP(c, srs, stream, s.file)
-			checkStream(c, apiStreamOf(c, srs, streamID), stream, s.want)
+			checkStream(c, apiStreamWith(c, srs, streamID, s.want), stream, s.want)
 		})
 	}
 
@@ -651,7 +651,7 @@ func apiStreamFields(t *testing.T) {
 		checkClient(c, cl, clientWant{name: s.id, url: "/live/" + s.id, publish: true})
 		typ, _ := cl["type"].(string)
 		c.Check(strings.HasSuffix(typ, "-publish"), "client type %q, want a publish type", typ)
-		checkStream(c, apiStreamOf(c, srs, h.Field("stream_id")), s.id, streamWant{h264High, aacLC})
+		checkStream(c, apiStreamWith(c, srs, h.Field("stream_id"), streamWant{h264High, aacLC}), s.id, streamWant{h264High, aacLC})
 	})
 }
 
@@ -836,6 +836,18 @@ func httpTsPlayerClient(c *check.C, srs *server.Server, stream string) (map[stri
 	p := remuxPlayerOf(c, srs, "live/"+stream+".ts", nil)
 	c.Must(p.readUntil(tsMount.until, time.Second), "play")
 	return apiClientOf(c, srs, waitHook(c, srs, "on_play", stream).Field("client_id")), streamID
+}
+
+// apiStreamWith returns a stream once the API has the codecs w wants, for at
+// most 300ms: SRS announces the publish before it reads the sequence headers.
+func apiStreamWith(c *check.C, srs *server.Server, id string, w streamWant) map[string]any {
+	c.Helper()
+	var st map[string]any
+	until(300*time.Millisecond, func() bool {
+		st = apiStreamOf(c, srs, id)
+		return (w.video == nil || st["video"] != nil) && (w.audio == nil || st["audio"] != nil)
+	})
+	return st
 }
 
 // untilCodecs waits until the API has both codecs of a stream, for at most

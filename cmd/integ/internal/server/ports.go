@@ -7,9 +7,11 @@ package server
 import (
 	"fmt"
 	"net"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -94,6 +96,16 @@ func (a *Allocator) Allocated() int {
 // PortFree reports whether port is free over both TCP and UDP.
 func PortFree(port int) bool {
 	p := strconv.Itoa(port)
+
+	// A child forked while the check's sockets are open holds them until it
+	// execs, so on Linux the caller's listen on 127.0.0.1 could fail beside
+	// the check's wildcard listener; no fork while they are open. Other
+	// systems take the fork lock to make each socket, so they need no lock
+	// here, and a second read lock could wait on a fork forever.
+	if runtime.GOOS == "linux" {
+		syscall.ForkLock.RLock()
+		defer syscall.ForkLock.RUnlock()
+	}
 
 	// Go listens with SO_REUSEADDR, so on macOS a bind of the wildcard address
 	// succeeds beside a TCP listener on 127.0.0.1; a connect finds that one.

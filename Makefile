@@ -42,10 +42,10 @@ integ-prepare: bin/srs-integ
 	bin/srs-integ prepare -source doc/source.flv -dir cmd/integ/testdata/media -setup skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh
 
 integ-timer:
-	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer $(INTEG_ARGS)
+	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer -integ.settle=2s $(INTEG_ARGS)
 
 integ-main:
-	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 32 -args $(INTEG_ARGS)
+	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 24 -args $(INTEG_ARGS)
 
 clean:
 	rm -rf bin .go-formarted

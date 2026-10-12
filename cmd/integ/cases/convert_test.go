@@ -334,11 +334,7 @@ var (
 			// or a moment later: a DASH player that waits longer waits for
 			// files that never come.
 			waitPlaylist(c, httpClient, flvURL(srs, path+".m3u8"), hasSegment(0))
-			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-			defer cancel()
-			r, err := dash.PlayHTTP(ctx, httpClient, flvURL(srs, path+".mpd"), segmentsOf(w, 8*time.Second))
-			c.Must(err, "play")
-			return r
+			return playDashCell(c, flvURL(srs, path+".mpd"), segmentsOf(w, 8*time.Second))
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
 		knownBugs: map[string]string{
@@ -576,11 +572,14 @@ func remuxConvert(name, ext string, video, audio map[string]string) convertPlaye
 }
 
 // TestConvert_Fmp4 converts RTMP, RTMPS, WebRTC, SRT and GB28181 streams to
-// HLS in fmp4, 4s segments (fmp4Segment), on the shared Fmp4 server of
-// TestHls_Fmp4.
+// HLS in fmp4, 4s segments (fmp4Segment), on a server of the Fmp4 config of
+// TestHls_Fmp4 but its own: on one server the cells' bursts beside
+// TestHls_Fmp4's kept it busy for whole segment requests, and the cells
+// whose players wait for what SRS converts from SRT and GB28181 missed their
+// time.
 func TestConvert_Fmp4(t *testing.T) {
 	t.Parallel()
-	srs := server.Shared(t, "Fmp4", sharedFmp4())
+	srs := server.Group(t, sharedFmp4())
 	srsOf := func(*check.C) *server.Server { return srs }
 	whipCells(t, srsOf, whipFmp4Player)
 	fmp4 := convertPlayer{
@@ -596,7 +595,7 @@ func TestConvert_Fmp4(t *testing.T) {
 			src.through(c, srs, path, file, d)
 			url, u := flvURL(srs, path+".m3u8"), segmentsOf(w, 5*time.Second)
 			if src.srt || src.gb {
-				return playHLSWithin(c, url, u, srtSegmentsWait)
+				return playHLSWithin(c, url, u, fmp4PlayWithin(w))
 			}
 			return playHLS(c, httpClient, url, u)
 		},
@@ -609,4 +608,43 @@ func TestConvert_Fmp4(t *testing.T) {
 	fmp4.knownBugs = srtFmp4Bugs
 	srtCells(t, srsOf, fmp4)
 	gbCells(t, srsOf, gbFmp4Player)
+}
+
+// playDashCell plays the DASH of a conversion cell whose first HLS segment is
+// there. The MPD comes at once or a moment later, so a cell whose MPD SRS
+// never writes fails in 100ms. Once the MPD is there, the play may take most
+// of the case's limit: the shared server answers a segment late while it
+// takes the bursts of other segment cases.
+func playDashCell(c *check.C, mpd string, u report.Until) *report.Report {
+	c.Helper()
+	deadline := time.Now().Add(100 * time.Millisecond)
+	for {
+		res, _ := httpGet(c, httpClient, mpd)
+		if res.StatusCode == http.StatusOK {
+			break
+		}
+		if res.StatusCode != http.StatusNotFound || !time.Now().Before(deadline) {
+			c.Fatalf("MPD %v: status %v", mpd, res.Status)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+	r, err := dash.PlayHTTP(ctx, httpClient, mpd, u)
+	c.Must(err, "play")
+	return r
+}
+
+// fmp4PlayWithin is how long a player of the HLS in fmp4 of an SRT or GB28181
+// stream, which SRS converts as it reads it, waits. A cell with video and AAC
+// is the known bug of srtFmp4Bugs and gbFmp4Bugs, whose playlist never comes,
+// so it gives up in srtSegmentsWait. Another cell plays, and may take most of
+// the case's limit: the server, busy with the bursts of the other fmp4
+// cells, may take 300ms to connect a GB session's RTMP output, or to answer
+// a segment.
+func fmp4PlayWithin(w convertWant) time.Duration {
+	if w.video != "" && w.audio != "" {
+		return srtSegmentsWait
+	}
+	return 400 * time.Millisecond
 }

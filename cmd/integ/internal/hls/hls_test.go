@@ -339,6 +339,32 @@ func encrypt(t *testing.T, key, iv, b []byte) []byte {
 	return out
 }
 
+// TestDecryptNoPadding decrypts a segment of whole TS packets that was
+// encrypted without the PKCS#7 padding block: the error says so, apart from
+// a wrong key.
+func TestDecryptNoPadding(t *testing.T) {
+	key := []byte("0123456789abcdef")
+	iv := []byte("ivivivivivivivii")
+	plain := bytes.Repeat(append([]byte{0x47}, bytes.Repeat([]byte{0xff}, 187)...), 4)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := make([]byte, len(plain))
+	cipher.NewCBCEncrypter(block, iv).CryptBlocks(b, plain)
+
+	s := Segment{Key: &Key{Method: "AES-128", IV: iv}}
+	if _, err := Decrypt(key, s, b); !errors.Is(err, ErrNoPadding) {
+		t.Errorf("no padding: %v, want ErrNoPadding", err)
+	}
+	if _, err := Decrypt([]byte("fedcba9876543210"), s, b); err == nil || errors.Is(err, ErrNoPadding) {
+		t.Errorf("wrong key: %v, want an error that is not ErrNoPadding", err)
+	}
+	if _, err := Decrypt(key, s, encrypt(t, key, iv, plain)); err != nil {
+		t.Errorf("with padding: %v", err)
+	}
+}
+
 // TestPlayHTTPLive plays a live playlist through a master playlist, like an
 // SRS session: the media playlist is first missing, then gains a segment at
 // each request, until the condition is met.

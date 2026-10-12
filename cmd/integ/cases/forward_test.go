@@ -381,7 +381,7 @@ func TestTimer_Forward_Backend(t *testing.T) {
 		check.Case(t, tc.name, check.Normal, func(c *check.C) {
 			stream := streamName(c)
 			srs.Hooks.Script(mock.Match{Action: "on_forward", Stream: stream}, tc.reply)
-			r := rtmpHookTarget("rtmp", "on_forward", false, true).try(c, srs, stream, hookWait)
+			r := rtmpHookTarget("rtmp", "on_forward", false, true).try(c, srs, stream, hookWait())
 			checkRefused(c, r, "closed")
 			waitHook(c, srs, "on_forward", stream)
 			published, _ := streamState(c, srs, "live/"+stream)

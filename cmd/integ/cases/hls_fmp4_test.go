@@ -30,7 +30,7 @@ import (
 // templates of their own, beside the playlist, which is where SRS links them
 // from (TestHls_Fmp4Default shows the default init file is not). It has the
 // HTTPS server, and RTMPS, SRT, the GB28181 caster and WebRTC with
-// rtc_to_rtmp for TestConvert_Fmp4.
+// rtc_to_rtmp for TestConvert_Fmp4, which has a server of this config too.
 func sharedFmp4() server.Config {
 	cfg := server.HLSConfig(server.HLS{
 		FMP4:        true,

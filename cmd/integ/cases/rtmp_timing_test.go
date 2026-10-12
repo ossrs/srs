@@ -483,7 +483,7 @@ func backJumpPlays(c *check.C, srs *server.Server, base int64) {
 	c.Must(err, "play up to the jump back")
 
 	c.Must(writeTags(pub, back), "publish the jump back")
-	more, err := readTagsOf(player, len(back), 300*time.Millisecond, 0)
+	more, err := readTagsOf(player, len(back), 200*time.Millisecond, 0)
 	c.CheckNoError(err, "play across the jump back")
 	c.CheckEqual(tagTimes(append(got, more...)), tagTimes(tags), "messages")
 }

@@ -431,15 +431,24 @@ func sendRTC(c *check.C, pub rtcSender, players ...rtcReceiver) (stop func()) {
 // keyframe, and the publisher waits until SRS forwards the request: SRS
 // subscribes a player after its DTLS handshake, on a coroutine of its own,
 // and drops what the publisher sends before, so the request shows the
-// player gets the file from its first keyframe.
+// player gets the file from its first keyframe. A request before the
+// subscription goes nowhere, so the player asks until one comes through.
 func sendRTCSamples(c *check.C, samples []rtc.Sample, pub rtcSender, players ...rtcReceiver) (stop func()) {
 	c.Helper()
 	for i, p := range players {
+		// A request that comes before SRS has subscribed the player goes
+		// nowhere, so the player asks again every 100ms, for at most 1s.
 		n := pub.PLIs()
-		c.Must(p.RequestKeyframe(), fmt.Sprintf("player %d requests a keyframe", i))
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		err := pub.WaitPLI(ctx, n)
-		cancel()
+		var err error
+		for try := 0; try < 10; try++ {
+			c.Must(p.RequestKeyframe(), fmt.Sprintf("player %d requests a keyframe", i))
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			err = pub.WaitPLI(ctx, n)
+			cancel()
+			if err == nil {
+				break
+			}
+		}
 		c.Must(err, fmt.Sprintf("the publisher gets player %d's keyframe request", i))
 	}
 	ctx, cancel := context.WithCancel(context.Background())

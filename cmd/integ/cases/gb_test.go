@@ -384,7 +384,9 @@ func TestGb_Reconnect(t *testing.T) {
 			return
 		}
 		res.Body.Close()
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		// When the race doesn't hit, the session may never play again, so
+		// the play gives up well inside the case's limit.
+		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 		defer cancel()
 		_, err = flv.PlayRTMP(ctx, rtmpURL(srs, "live/"+s.id), nil, report.Until{Keyframes: 1})
 		c.CheckNoError(err, "play")

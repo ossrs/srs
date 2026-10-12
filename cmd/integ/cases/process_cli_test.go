@@ -6,6 +6,7 @@ package cases
 
 import (
 	"encoding/json"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -69,8 +70,9 @@ func commonVersion(c *check.C) (version, signature string) {
 var badEnv = []struct {
 	name string
 	env  func(c *check.C) map[string]string
-	// testBug and startBug are the known bugs of the test and of the start.
-	testBug, startBug string
+	// testBug and startBug are the known bugs of the test and of the start,
+	// and linuxStartBug the known bug of the start on Linux only.
+	testBug, startBug, linuxStartBug string
 }{
 	{name: "MaxConnectionsZero", env: envOf("SRS_MAX_CONNECTIONS", "0")},
 	{name: "MaxConnectionsNegative", env: envOf("SRS_MAX_CONNECTIONS", "-5")},
@@ -89,7 +91,8 @@ var badEnv = []struct {
 		env: func(c *check.C) map[string]string {
 			return map[string]string{"SRS_RTMP_LISTEN": strconv.Itoa(65536 + server.ReservePort(c))}
 		},
-		testBug: "a listen port above 65535 passes the config test",
+		testBug:       "a listen port above 65535 passes the config test",
+		linuxStartBug: "a listen port above 65535 is cut to 16 bits at the start, and SRS listens on another port",
 	},
 	{name: "ListenAliasNotPort", env: envOf("SRS_LISTEN", "abc")},
 	{name: "HttpApiListen", env: envOf("SRS_HTTP_API_ENABLED", "on", "SRS_HTTP_API_LISTEN", "abc")},
@@ -284,6 +287,9 @@ func TestProcess_Cli(t *testing.T) {
 		check.Case(t, "StartRejects"+tt.name, check.Normal, func(c *check.C) {
 			if tt.startBug != "" {
 				check.KnownBug(c, tt.startBug)
+			}
+			if tt.linuxStartBug != "" && runtime.GOOS == "linux" {
+				check.KnownBug(c, tt.linuxStartBug)
 			}
 			checkExit(c, cli(c, tt.env(c), "-e"), false)
 		})

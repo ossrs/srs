@@ -315,7 +315,7 @@ var (
 		play: func(c *check.C, srs *server.Server, src convertSource, file string, w convertWant) *report.Report {
 			path := "live/" + streamName(c)
 			src.through(c, srs, path, file, fmp4Segment)
-			return playHLSWithin(c, flvURL(srs, path+".m3u8"), segmentsOf(w, 3*time.Second), 300*time.Millisecond)
+			return playHLSWithin(c, flvURL(srs, path+".m3u8"), segmentsOf(w, 3*time.Second), fmp4PlayWithin(w))
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
 		knownBugs: gbFmp4Bugs,

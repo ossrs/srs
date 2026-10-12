@@ -249,7 +249,7 @@ func Case(t *testing.T, name string, class Class, fn func(*C)) {
 	for _, n := range copyNames(name, class, scale) {
 		t.Run(n, func(t *testing.T) {
 			t.Parallel()
-			r := &runner{now: time.Now, knownBugsFail: knownBugsFail, results: results}
+			r := &runner{now: time.Now, knownBugsFail: knownBugsFail, results: results, settleUntil: settleDeadline(), sleep: time.Sleep, limitScale: limitScale}
 			r.run(t, class, fn)
 		})
 	}
@@ -260,6 +260,11 @@ type runner struct {
 	now           func() time.Time
 	knownBugsFail bool
 	results       *registry
+	// settleUntil is when a Fast or Normal case may start, zero for at once.
+	settleUntil time.Time
+	sleep       func(time.Duration)
+	// limitScale multiplies the class limits; 1 or less keeps them.
+	limitScale float64
 }
 
 func (r *runner) run(parent testing.TB, class Class, fn func(*C)) Result {
@@ -274,6 +279,7 @@ func (r *runner) run(parent testing.TB, class Class, fn func(*C)) Result {
 	}
 
 	c := &C{TB: parent, now: r.now}
+	r.waitSettle(class)
 	start := r.now()
 	done := make(chan struct{})
 	go func() {
@@ -312,7 +318,7 @@ func (r *runner) run(parent testing.TB, class Class, fn func(*C)) Result {
 		}
 	}
 
-	if limit := class.Limit(); res.Elapsed > limit {
+	if limit := r.limit(class); res.Elapsed > limit {
 		errorf("too slow: %dms > %dms", res.Elapsed.Milliseconds(), limit.Milliseconds())
 	}
 

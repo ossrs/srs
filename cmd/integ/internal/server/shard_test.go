@@ -39,11 +39,11 @@ func TestShardOf(t *testing.T) {
 	}
 }
 
-// TestShardsDefault checks Common is split in two by default: the cases start
-// at once, and one single-threaded server makes the real-time ones wait.
+// TestShardsDefault checks Common is split in four by default: the cases
+// start at once, and one single-threaded server makes the real-time ones wait.
 func TestShardsDefault(t *testing.T) {
-	if shards != 3 {
-		t.Errorf("shards %d by default, want 3", shards)
+	if shards != 4 {
+		t.Errorf("shards %d by default, want 4", shards)
 	}
 }
 

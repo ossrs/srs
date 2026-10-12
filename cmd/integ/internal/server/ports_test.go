@@ -6,8 +6,11 @@ package server
 
 import (
 	"net"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func TestParseRange(t *testing.T) {
@@ -127,5 +130,29 @@ func TestPortFree(t *testing.T) {
 	udp.Close()
 	if !PortFree(port) {
 		t.Errorf("port %d is reported busy after its listener closed", port)
+	}
+}
+
+// TestPortFreeBlocksFork checks no process forks while the check's sockets
+// are open: a child holds a copy of them until it execs, and on Linux the
+// port's later listener on 127.0.0.1 fails beside the check's wildcard one.
+func TestPortFreeBlocksFork(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("only Linux makes sockets without the fork lock")
+	}
+	syscall.ForkLock.Lock()
+	done := make(chan bool)
+	go func() { done <- PortFree(0) }()
+	select {
+	case <-done:
+		syscall.ForkLock.Unlock()
+		t.Fatal("PortFree ran while a fork held the fork lock")
+	case <-time.After(50 * time.Millisecond):
+	}
+	syscall.ForkLock.Unlock()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("PortFree didn't finish after the fork lock was released")
 	}
 }

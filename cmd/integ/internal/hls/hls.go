@@ -406,6 +406,13 @@ func (p *player) decrypt(ctx context.Context, s Segment, b []byte) ([]byte, erro
 	return Decrypt(key, s, b)
 }
 
+// tsPacketSize is the size of a TS packet.
+const tsPacketSize = 188
+
+// ErrNoPadding is a segment of whole TS packets that decrypts with its key
+// but ends without the PKCS#7 padding block.
+var ErrNoPadding = errors.New("TS packets with no PKCS#7 padding")
+
 // Decrypt decrypts the data of an AES-128 segment with key: CBC with PKCS#7
 // padding, with the IV of the segment's key or, without one, its media
 // sequence number.
@@ -429,6 +436,9 @@ func Decrypt(key []byte, s Segment, b []byte) ([]byte, error) {
 	cipher.NewCBCDecrypter(block, iv).CryptBlocks(out, b)
 	pad := int(out[len(out)-1])
 	if pad < 1 || pad > aes.BlockSize || !bytes.Equal(out[len(out)-pad:], bytes.Repeat([]byte{byte(pad)}, pad)) {
+		if len(out)%tsPacketSize == 0 && out[0] == 0x47 && out[len(out)-tsPacketSize] == 0x47 {
+			return nil, fmt.Errorf("%v bytes: %w", len(out), ErrNoPadding)
+		}
 		return nil, errors.New("bad padding, a wrong key or IV")
 	}
 	return out[:len(out)-pad], nil

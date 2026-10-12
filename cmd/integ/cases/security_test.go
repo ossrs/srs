@@ -92,7 +92,7 @@ func securityCase(c *check.C, srs *server.Server, target hookTarget, allowed boo
 	if target.prepare != nil {
 		target.prepare(c, srs, name)
 	}
-	r := target.try(c, srs, name, hookWait)
+	r := target.try(c, srs, name, hookWait())
 	if allowed {
 		c.Check(r.accepted, "%s, want accepted", r)
 	} else {
@@ -181,7 +181,7 @@ func TestSecurity_DenyPlay(t *testing.T) {
 			check.KnownBug(c, reason)
 			name := streamName(c)
 			target.prepare(c, srs, name)
-			r := target.try(c, srs, name, hookWait)
+			r := target.try(c, srs, name, hookWait())
 			c.Check(strings.HasPrefix(r.refusal, "status 4"), "%s, want a status 4xx", r)
 		})
 	}

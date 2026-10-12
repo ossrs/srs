@@ -17,7 +17,6 @@ import (
 	"github.com/pion/rtcp"
 
 	"srs-integ/internal/check"
-	"srs-integ/internal/dash"
 	"srs-integ/internal/flv"
 	"srs-integ/internal/hls"
 	"srs-integ/internal/media"
@@ -359,11 +358,7 @@ var (
 					seq = 0
 				}
 				waitPlaylist(c, httpClient, flvURL(srs, "live/"+stream+".m3u8"), hasSegment(seq))
-				ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-				defer cancel()
-				r, err := dash.PlayHTTP(ctx, httpClient, flvURL(srs, "live/"+stream+".mpd"), u)
-				c.Must(err, "play")
-				return r
+				return playDashCell(c, flvURL(srs, "live/"+stream+".mpd"), u)
 			})
 		p.knownBugs = map[string]string{
 			"OpusOnly": "DASH writes no MPD for a stream with no video, so a player gets 404",

@@ -399,7 +399,6 @@ func TestHttpFlv_NoGuess(t *testing.T) {
 	// player, then another stream with none, and republishes the second at
 	// once: it should be accepted, since nothing plays it.
 	check.Case(t, "RepublishAfterOtherStream", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a republish is refused while the HTTP teardown of another stream with a player holds the shared worker")
 		tags := readTags(c, media.H264HighAAC, 0, 500*time.Millisecond)
 		watched, other := streamName(c), streamName(c)
 		pubWatched := publishTags(c, rtmpURL(srs, "live/"+watched), tags)
@@ -414,6 +413,9 @@ func TestHttpFlv_NoGuess(t *testing.T) {
 		pub, err := tryPublish(rtmpURL(srs, "live/"+other))
 		if err == nil {
 			pub.Close()
+		} else {
+			// A race: the republish comes before or after the teardown ends.
+			check.KnownBug(c, "a republish is refused while the HTTP teardown of another stream with a player holds the shared worker")
 		}
 		c.CheckNoError(err, "republish the stream nobody plays")
 	})

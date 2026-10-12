@@ -189,7 +189,7 @@ func edgePushCases(t *testing.T, origin, edge *server.Server) {
 	check.Case(t, "SecondPublisherRejected", check.Normal, func(c *check.C) {
 		stream := streamName(c)
 		publishRTMP(c, edge, stream, media.H264HighAAC)
-		r := tryRTMP(c, rtmpURL(edge, "live/"+stream), nil, true, hookWait)
+		r := tryRTMP(c, rtmpURL(edge, "live/"+stream), nil, true, hookWait())
 		checkRefused(c, r, "")
 		waitHook(c, origin, "on_publish", stream)
 		c.CheckEqual(len(origin.Hooks.Requests(mock.Match{Action: "on_publish", Stream: stream})), 1, "the origin's publishes of the stream")
@@ -243,7 +243,7 @@ func TestEdge_Token(t *testing.T) {
 			return strings.Contains(r.Field("param"), token) || strings.Contains(r.Field("tcUrl"), token)
 		}}, mock.Reject(100))
 		publishRTMP(c, origin, stream, media.H264HighAAC)
-		r := tryRTMP(c, rtmpURL(edge, "live/"+stream+"?token="+token), nil, false, hookWait)
+		r := tryRTMP(c, rtmpURL(edge, "live/"+stream+"?token="+token), nil, false, hookWait())
 		checkRefused(c, r, "")
 	})
 }
@@ -257,12 +257,12 @@ func TestEdge_TokenOriginDown(t *testing.T) {
 	edge := edgeGroup(t, server.Edge{Origins: []string{server.DownAddr(t)}, TokenTraverse: true})
 
 	check.Case(t, "PlayRefused", check.Normal, func(c *check.C) {
-		r := tryRTMP(c, rtmpURL(edge, "live/"+streamName(c)), nil, false, hookWait)
+		r := tryRTMP(c, rtmpURL(edge, "live/"+streamName(c)), nil, false, hookWait())
 		checkRefused(c, r, "closed")
 	})
 
 	check.Case(t, "PublishRefused", check.Normal, func(c *check.C) {
-		r := tryRTMP(c, rtmpURL(edge, "live/"+streamName(c)), nil, true, hookWait)
+		r := tryRTMP(c, rtmpURL(edge, "live/"+streamName(c)), nil, true, hookWait())
 		checkRefused(c, r, "closed")
 	})
 }
@@ -292,7 +292,7 @@ func TestTimer_Edge_Failover(t *testing.T) {
 	check.Case(t, "PublishFailover", check.Normal, func(c *check.C) {
 		check.KnownBug(c, "a publish to an edge whose next origin is down is refused, not pushed to the origin after it")
 		stream := streamName(c)
-		r := tryRTMP(c, rtmpURL(edge, "live/"+stream), nil, true, hookWait)
+		r := tryRTMP(c, rtmpURL(edge, "live/"+stream), nil, true, hookWait())
 		c.Check(r.accepted, "the publish %v, want accepted", r)
 	})
 
@@ -300,7 +300,7 @@ func TestTimer_Edge_Failover(t *testing.T) {
 	// at most twice: the stream goes to the second origin.
 	check.Case(t, "RepublishTakesNextOrigin", check.Normal, func(c *check.C) {
 		stream := streamName(c)
-		if r := tryRTMP(c, rtmpURL(edge, "live/"+stream), nil, true, hookWait); !r.accepted {
+		if r := tryRTMP(c, rtmpURL(edge, "live/"+stream), nil, true, hookWait()); !r.accepted {
 			checkRefused(c, r, "closed")
 			publishRTMP(c, edge, stream, media.H264HighAAC)
 		}

@@ -62,8 +62,12 @@ func TestCaster_UdpTs(t *testing.T) {
 		checkSRTPlayed(c, r)
 	})
 
-	// The push plays over HTTP-FLV.
+	// The push plays over HTTP-FLV. SRS writes the FLV header from the first
+	// messages a player gets (guess_has_av), so a player that joins while the
+	// GOP cache has the keyframe but not yet the audio PES after it, up to
+	// 255ms later, gets no audio; the player joins once the GOP has audio.
 	check.Case(t, "PushPlaysHttpFlv", check.Normal, func(c *check.C) {
+		rec.gopWithAudio(c)
 		checkSRTPlayed(c, httpFlvPlay(c, srs, server.UDPTSStream+".flv", nil, srtPlayedUntil))
 	})
 
@@ -306,6 +310,10 @@ type rtmpRecorder struct {
 	a  flv.Analyzer
 	// err is why it stopped reading, nil while it reads.
 	err error
+	// keyAt is when the last keyframe came, and gopAudio whether an audio
+	// frame came after it.
+	keyAt    time.Time
+	gopAudio bool
 }
 
 // recordRTMP plays a stream over RTMP until the group ends: it joins at
@@ -332,6 +340,7 @@ func recordRTMP(t *testing.T, url string) *rtmpRecorder {
 			if err == nil {
 				rec.mu.Lock()
 				err = rec.a.Add(tag)
+				rec.track(tag)
 				rec.mu.Unlock()
 			}
 			if err != nil {
@@ -374,4 +383,36 @@ func (r *rtmpRecorder) until(c *check.C, u report.Until) report.Report {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+// track keeps when the last keyframe came, and whether an audio frame came
+// after it, so SRS's GOP cache has audio.
+func (r *rtmpRecorder) track(tag *media.FLVTag) {
+	switch {
+	case tag.Type == 9 && len(tag.Data) > 1 && tag.Data[0]>>4 == 1 && tag.Data[1] != 0:
+		r.keyAt, r.gopAudio = time.Now(), false
+	case tag.Type == 8 && len(tag.Data) > 1 && !(tag.Data[0]>>4 == 10 && tag.Data[1] == 0):
+		r.gopAudio = true
+	}
+}
+
+// gopWithAudio waits, out of the case's time and for at most 2s, until SRS's
+// GOP cache has audio and its next keyframe, which clears it, is at least
+// 300ms away on the stream's 1s GOP, so a player that joins now gets audio
+// in its first messages.
+func (r *rtmpRecorder) gopWithAudio(c *check.C) {
+	c.Helper()
+	c.Untimed(func() {
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			r.mu.Lock()
+			ok := r.gopAudio && time.Since(r.keyAt) < 700*time.Millisecond
+			r.mu.Unlock()
+			if ok {
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		c.Errorf("the recording player got no GOP with audio in 2s")
+	})
 }

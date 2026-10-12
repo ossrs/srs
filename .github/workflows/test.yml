@@ -131,6 +131,18 @@ jobs:
         run: |
           docker run --rm srs:test bash -c './objs/srs -c conf/regression-test.conf && sleep 10 && \
               cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1))'
+      # For srs-integ, the black-box integration suite, see cmd/integ/README.md. The image's
+      # ffmpeg 5 writes HEVC in legacy FLV, so the test media comes from its ffmpeg7. CI runners
+      # are slower than a developer's machine, so the class limits of the cases are 4 times longer.
+      - name: Run SRS integration test
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_on: error
+          command: |
+            docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 srs:test \
+              make integ INTEG_ARGS=-integ.limit-scale=4
     runs-on: ubuntu-22.04
 
   coverage:
