@@ -180,6 +180,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRand *rand_;
     SrsSharedPtr<SrsRtspSource> source_;
     ISrsEphemeralDelta *delta_;
+    // The client's socket, owned: freed by the destructor, which closes the connection.
     ISrsProtocolReadWriter *skt_;
     ISrsSecurity *security_;
     iovec *cache_iov_;
@@ -253,6 +254,8 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t http_hooks_on_play(ISrsRequest *req);
     srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t *ssrc);
+    // Whether a SETUP gave any track of the last DESCRIBE a network to send on.
+    bool has_setup_track();
 };
 
 class SrsRtspTcpNetwork : public ISrsStreamWriter

@@ -251,7 +251,6 @@ func rtspLifecycle(t *testing.T) {
 	// its first keyframe, as the WebRTC and HTTP players do. Each publish
 	// sends its first 120ms at once and holds the stream.
 	check.Case(t, "RepublishPlays", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an RTSP player that stays across a republish gets nothing of the new publish: SRS keys it to the old publisher's SSRCs")
 		srs := server.Common(c)
 		stream := streamName(c)
 		url := rtmpURL(srs, "live/"+stream)
@@ -405,7 +404,6 @@ func rtspBadInput(t *testing.T) {
 	// PLAY before any track is set up is not valid in that state (RFC 2326,
 	// 455), and must not make a player.
 	check.Case(t, "PlayWithoutSetup", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "PLAY without SETUP is answered 200, not 455, and the API lists a player")
 		srs := server.Common(c)
 		stream := streamName(c)
 		rtspPublisher(c, srs, "live/"+stream, media.H264BaselineAAC)
@@ -422,10 +420,10 @@ func rtspBadInput(t *testing.T) {
 	// Every request gets an answer, 501 or 405 for a method the server
 	// doesn't serve, not silence: a client waits for it.
 	check.Case(t, "UnsupportedMethodAnswered", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a request with a method SRS doesn't serve, such as GET_PARAMETER or PAUSE, gets no answer")
 		srs := server.Common(c)
 		url := rtspURL(srs, "live/"+streamName(c))
 		methods := []base.Method{base.GetParameter, base.Pause, base.Record, base.SetParameter}
+		res := make([]*base.Response, len(methods))
 		errs := make([]error, len(methods))
 		var wg sync.WaitGroup
 		for i, m := range methods {
@@ -433,19 +431,22 @@ func rtspBadInput(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				_, errs[i] = conn.Do(m, url, nil, 200*time.Millisecond)
+				res[i], errs[i] = conn.Do(m, url, nil, 200*time.Millisecond)
 			}()
 		}
 		wg.Wait()
 		for i, m := range methods {
-			c.CheckNoError(errs[i], "an answer to "+string(m))
+			if !c.CheckNoError(errs[i], "an answer to "+string(m)) {
+				continue
+			}
+			code := res[i].StatusCode
+			c.Check(code == base.StatusNotImplemented || code == base.StatusMethodNotAllowed, "%v: status %v, want 501 or 405", m, code)
 		}
 	})
 
 	// A request SRS can't parse ends the connection: SRS closes it, and
 	// serves the next client.
 	check.Case(t, "MalformedRequestClosed", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "SRS ends an RTSP session on a request it can't parse, but never closes the connection: the client waits forever")
 		srs := server.Common(c)
 		conn := rtspDial(c, srs)
 		c.Must(conn.Write([]byte("hello\r\n\r\n")), "write")

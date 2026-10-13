@@ -516,6 +516,31 @@ public:
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 
+// Mock ISrsProtocolReadWriter for testing that SrsRtspConnection frees the client's socket, which
+// closes the TCP connection. It reports its own destruction through a flag the test owns.
+class MockSocketForRtspConn : public ISrsProtocolReadWriter
+{
+public:
+    // Set to true by the destructor, so a test can prove the socket was freed. Borrowed, not owned.
+    bool *destroyed_;
+
+public:
+    MockSocketForRtspConn(bool *destroyed);
+    virtual ~MockSocketForRtspConn();
+
+public:
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
+    virtual int64_t get_send_bytes();
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
+};
+
 // Mock ISrsResourceManager for testing SrsRtspConnection::assemble() and its destructor, which must
 // subscribe and unsubscribe the dispose handler on the same injected manager instance.
 class MockResourceManagerForRtspConn : public ISrsResourceManager

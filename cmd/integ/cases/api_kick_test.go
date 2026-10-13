@@ -196,7 +196,6 @@ func apiKicks(t *testing.T) {
 	// DeleteRtspPlayerCloses: SRS closes the player's connection, as it does
 	// a client of every other protocol.
 	check.Case(t, "DeleteRtspPlayerCloses", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "SRS ends an RTSP session, here by a DELETE, but never closes the connection")
 		srs := server.Common(c)
 		id, conn := rtspRawPlayer(c, srs)
 		checkKicked(c, apiKick(c, srs, id))

@@ -461,6 +461,10 @@ SrsRtspConnection::~SrsRtspConnection()
     }
     srs_freep(cache_buffer_);
 
+    // The connection owns the client's socket, which the stack and the TCP networks only borrow, so
+    // free it after them; this closes the TCP connection.
+    srs_freep(skt_);
+
     rtsp_manager_ = NULL;
     stat_ = NULL;
     config_ = NULL;
@@ -702,6 +706,18 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
     } else if (req->is_play()) {
         SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
         res->session_ = session_id_;
+
+        // PLAY is valid only once a track is set up (RFC 2326, 455 Method Not Valid in This State).
+        // Without one, the player would have nothing to send on, yet the API would list it.
+        if (!has_setup_track()) {
+            res->status_ = SRS_CONSTS_RTSP_MethodNotValidInThisState;
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
+                return srs_error_wrap(err, "response play");
+            }
+            srs_warn("RTSP: PLAY cseq=%ld without SETUP, session=%s", req->seq_, session_id_.c_str());
+            return err;
+        }
+
         if ((err = rtsp_->send_message(res.get())) != srs_success) {
             return srs_error_wrap(err, "response record");
         }
@@ -721,6 +737,16 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
             return srs_error_wrap(err, "teardown");
         }
         srs_trace("RTSP: TEARDOWN cseq=%ld, session=%s, streaming stopped", req->seq_, session_id_.c_str());
+    } else {
+        // Answer a method SRS doesn't serve, such as the GET_PARAMETER keep-alive, with 501 Not
+        // Implemented (RFC 2326), or the client waits for an answer until its timeout.
+        SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+        res->status_ = SRS_CONSTS_RTSP_NotImplemented;
+        res->session_ = session_id_;
+        if ((err = rtsp_->send_message(res.get())) != srs_success) {
+            return srs_error_wrap(err, "response %s", req->method_.c_str());
+        }
+        srs_warn("RTSP: %s cseq=%ld not implemented, session=%s", req->method_.c_str(), req->seq_, session_id_.c_str());
     }
 
     return err;
@@ -997,6 +1023,16 @@ srs_error_t SrsRtspConnection::get_ssrc_by_stream_id(uint32_t stream_id, uint32_
         }
     }
     return srs_error_new(ERROR_RTSP_NO_TRACK, "track not found for stream_id: %u", stream_id);
+}
+
+bool SrsRtspConnection::has_setup_track()
+{
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        if (networks_.find(it->first) != networks_.end()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 SrsRtspTcpNetwork::SrsRtspTcpNetwork(ISrsProtocolReadWriter *skt, int ch) : skt_(skt), channel_(ch)
