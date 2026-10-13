@@ -189,6 +189,7 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    void count_ts_frame(char *p);
     void update_ts_message_stats(bool is_audio);
     srs_error_t parse_video_codec(SrsTsMessage *msg);
     srs_error_t parse_audio_codec(SrsTsMessage *msg);

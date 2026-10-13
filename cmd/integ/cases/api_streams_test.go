@@ -749,7 +749,6 @@ func apiCounts(t *testing.T) {
 	// frames of each track, in steps of 289, so at least the first step of
 	// each.
 	check.Case(t, "SrtFrameCounts", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an SRT stream's frame counts stay 0: SRS stops reading its TS for stats once it knows both codecs")
 		srs := server.Common(c)
 		stream := streamName(c)
 		conn := dialSRT(c, srs, srt.Options{StreamID: srtID("live/"+stream, "publish")})

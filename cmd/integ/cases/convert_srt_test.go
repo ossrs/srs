@@ -6,6 +6,8 @@ package cases
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -19,6 +21,7 @@ import (
 	"srs-integ/internal/report"
 	"srs-integ/internal/server"
 	"srs-integ/internal/srt"
+	"srs-integ/internal/ts"
 )
 
 // The SRT source of the conversion matrix: an SRT publisher of an MPEG-TS
@@ -179,9 +182,6 @@ func srtCommonCells(t *testing.T) {
 	// gets one of each track.
 	for _, codec := range srtCodecs[:2] {
 		check.Case(t, "SrtToRtmp_HeaderOnce"+codec.name, check.Normal, func(c *check.C) {
-			if codec.video == "hevc" {
-				check.KnownBug(c, "SRS converts each HEVC keyframe over SRT with a new sequence header, since it takes every PPS as a change, so players get one per keyframe")
-			}
 			srs := server.Common(c)
 			name := streamName(c)
 			read := joinRTMP(c, srs, name)
@@ -190,4 +190,97 @@ func srtCommonCells(t *testing.T) {
 			checkConverted(c, r, rtmpPlayer.want(codec), 100*time.Millisecond, srtSync)
 		})
 	}
+
+	// The TS files have B-frames, so a frame's presentation time is after
+	// its decode time: SRS carries the difference to RTMP as each video
+	// tag's composition time, the same as the file's PTS minus DTS in ms,
+	// frame by frame from the first.
+	for _, v := range []struct{ name, file string }{{"H264", media.H264HighAACTS}, {"Hevc", media.HEVCAACTS}} {
+		check.Case(t, "SrtToRtmp_"+v.name+"Cts", check.Normal, func(c *check.C) {
+			want := tsVideoCTS(c, v.file)
+			srs := server.Common(c)
+			name := streamName(c)
+			player := dialRTMP(c, rtmpURL(srs, "live/"+name), nil)
+			ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(time.Second))
+			defer cancel()
+			_, err := player.Play(ctx)
+			c.Must(err, "play")
+			srtThrough(c, srs, "live/"+name, v.file, 2200*time.Millisecond)
+			rec := &videoCTSRecorder{tagPlayer: player}
+			var a flv.Analyzer
+			c.Must(readUntil(rec, &a, report.Until{VideoHeader: true, Keyframes: 1, VideoFrames: 30}, check.Scaled(time.Second)), "play")
+			c.Check(len(rec.cts) <= len(want), "%v video frames, the file has %v", len(rec.cts), len(want))
+			nonZero := 0
+			for i, cts := range rec.cts {
+				if i < len(want) && cts != want[i] {
+					c.Check(false, "video frame %v of %v: composition time %v, the file's PTS minus DTS %v (got %v, want %v)", i, len(rec.cts), cts, want[i], rec.cts, want[:len(rec.cts)])
+					break
+				}
+				if cts != 0 {
+					nonZero++
+				}
+			}
+			c.Check(nonZero > 0, "%v video frames, none with a composition time", len(rec.cts))
+		})
+	}
+}
+
+// tsVideoCTS is the PTS minus DTS in ms, each cut to whole ms as RTMP takes
+// them, of each video PES of a TS test file, in file order.
+func tsVideoCTS(c *check.C, file string) []int32 {
+	c.Helper()
+	f, err := os.Open(media.Path(c, file))
+	c.Must(err, "open the media")
+	defer f.Close()
+	d := ts.NewDemuxer(f)
+	var cts []int32
+	for {
+		p, err := d.ReadPES()
+		if errors.Is(err, io.EOF) {
+			return cts
+		}
+		c.Must(err, "read the media")
+		if p.Codec == "h264" || p.Codec == "hevc" {
+			cts = append(cts, int32(p.PTS.Milliseconds()-p.DTS.Milliseconds()))
+		}
+	}
+}
+
+// videoCTSRecorder keeps the composition time of each H.264 or HEVC frame a
+// player reads, of a legacy FLV tag or an enhanced-RTMP one.
+type videoCTSRecorder struct {
+	tagPlayer
+	cts []int32
+}
+
+func (r *videoCTSRecorder) ReadTag() (*media.FLVTag, error) {
+	tag, err := r.tagPlayer.ReadTag()
+	if err != nil {
+		return nil, err
+	}
+	d := tag.Data
+	if tag.Type != media.TagVideo || len(d) < 5 {
+		return tag, nil
+	}
+	si24 := func(b []byte) int32 { return int32(uint32(b[0])<<24|uint32(b[1])<<16|uint32(b[2])<<8) >> 8 }
+	if d[0]&0x80 != 0 {
+		// Enhanced RTMP: the packet type in the low 4 bits, then the fourcc;
+		// CodedFrames carries the composition time after it, CodedFramesX
+		// is a frame with none.
+		switch d[0] & 0x0f {
+		case 1:
+			if len(d) >= 8 {
+				r.cts = append(r.cts, si24(d[5:8]))
+			}
+		case 3:
+			r.cts = append(r.cts, 0)
+		}
+		return tag, nil
+	}
+	// A legacy AVC or HEVC tag: the codec id 7 or 12, the packet type 1 for
+	// a frame, then the composition time.
+	if id := d[0] & 0x0f; (id == 7 || id == 12) && d[1] == 1 {
+		r.cts = append(r.cts, si24(d[2:5]))
+	}
+	return tag, nil
 }

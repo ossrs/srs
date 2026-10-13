@@ -10,6 +10,10 @@ using namespace std;
 
 #include <srs_app_factory.hpp>
 #include <srs_app_srt_server.hpp>
+#include <srs_protocol_st.hpp>
+
+// How long the listener waits after an accept that fails, before it accepts again.
+#define SRS_SRT_LISTENER_ERROR_INTERVAL (10 * SRS_UTIME_MILLISECONDS)
 
 ISrsSrtHandler::ISrsSrtHandler()
 {
@@ -99,16 +103,32 @@ srs_error_t SrsSrtListener::cycle()
             return srs_error_wrap(err, "srt listener");
         }
 
-        srs_srt_t client_srt_fd = srs_srt_socket_invalid();
-        if ((err = srt_skt_->accept(&client_srt_fd)) != srs_success) {
-            return srs_error_wrap(err, "srt accept");
+        // An accept that fails, such as of a caller that closed while it was queued, must not end the
+        // listener, or no caller connects to the port again. Wait a little after it, so an error that
+        // repeats doesn't spin.
+        if ((err = do_cycle()) != srs_success) {
+            srs_warn("srt listener: Ignore error, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+            srs_usleep(SRS_SRT_LISTENER_ERROR_INTERVAL);
         }
+    }
 
-        // TODO: FIXME: print some log and client srt options.
+    return err;
+}
 
-        if ((err = handler_->on_srt_client(client_srt_fd)) != srs_success) {
-            return srs_error_wrap(err, "handle srt fd=%d", client_srt_fd);
-        }
+srs_error_t SrsSrtListener::do_cycle()
+{
+    srs_error_t err = srs_success;
+
+    srs_srt_t client_srt_fd = srs_srt_socket_invalid();
+    if ((err = srt_skt_->accept(&client_srt_fd)) != srs_success) {
+        return srs_error_wrap(err, "srt accept");
+    }
+
+    // TODO: FIXME: print some log and client srt options.
+
+    if ((err = handler_->on_srt_client(client_srt_fd)) != srs_success) {
+        return srs_error_wrap(err, "handle srt fd=%d", client_srt_fd);
     }
 
     return err;
