@@ -323,7 +323,8 @@
     XX(ERROR_STREAM_CASTER_HEVC_FORMAT, 4057, "CasterTsHevcFormat", "Invalid ts HEVC Format for stream caster")              \
     XX(ERROR_HTTP_JSONP, 4058, "HttpJsonp", "Invalid callback for JSONP")                                                    \
     XX(ERROR_HEVC_NALU_UEV, 4059, "HevcNaluUev", "Failed to read UEV for HEVC NALU")                                         \
-    XX(ERROR_HEVC_NALU_SEV, 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")
+    XX(ERROR_HEVC_NALU_SEV, 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")                                         \
+    XX(ERROR_GB_RTMP_CONNECTING, 4061, "GbRtmpConnecting", "Drop GB28181 media while connecting its RTMP output")
 
 /**************************************************/
 /* RTC/RTSP protocol error. */

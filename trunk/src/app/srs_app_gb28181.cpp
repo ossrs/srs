@@ -847,6 +847,7 @@ ISrsGbMuxer::~ISrsGbMuxer()
 SrsGbMuxer::SrsGbMuxer(ISrsGbSession *session)
 {
     sdk_ = NULL;
+    connecting_ = false;
     session_ = session;
 
     avc_ = new SrsRawH264Stream();
@@ -892,6 +893,13 @@ void SrsGbMuxer::setup(std::string output)
 srs_error_t SrsGbMuxer::on_ts_message(SrsTsMessage *msg)
 {
     srs_error_t err = srs_success;
+
+    // A second media connection of the session may send while the first one's
+    // coroutine connects the RTMP output. Drop its media before parsing it, so
+    // the muxer's codec state stays as the connecting coroutine expects.
+    if (connecting_) {
+        return srs_error_new(ERROR_GB_RTMP_CONNECTING, "drop while connecting RTMP");
+    }
 
     SrsBuffer avs(msg->payload_->bytes(), msg->payload_->length());
     if (msg->sid_ == SrsTsPESStreamIdVideoCommon) {
@@ -1209,14 +1217,14 @@ srs_error_t SrsGbMuxer::write_h265_vps_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "hevc mux sequence header");
     }
 
-    // h265 packet to flv packet.
+    // h265 packet to flv packet, in enhanced RTMP as from SRT and WebRTC.
     int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
-    int8_t hevc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
+    int8_t hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeSequenceStart;
 
     char *flv = NULL;
     int nb_flv = 0;
 
-    if ((err = hevc_->mux_hevc2flv(sh, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+    if ((err = hevc_->mux_hevc2flv_enhanced(sh, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc to flv");
     }
 
@@ -1256,11 +1264,15 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char *frame, int frame_size, uint32
         return srs_error_wrap(err, "hevc mux ipb frame");
     }
 
-    int8_t hevc_packet_type = SrsVideoAvcFrameTraitNALU;
+    // A frame shown after it is decoded carries its composition time.
+    int8_t hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFramesX;
+    if (pts != dts) {
+        hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFrames;
+    }
     char *flv = NULL;
     int nb_flv = 0;
 
-    if ((err = hevc_->mux_hevc2flv(ipb, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+    if ((err = hevc_->mux_hevc2flv_enhanced(ipb, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc to flv");
     }
 
@@ -1395,6 +1407,11 @@ srs_error_t SrsGbMuxer::connect()
         return err;
     }
 
+    // Connect and publish yield, so another coroutine may come here meanwhile.
+    if (connecting_) {
+        return srs_error_new(ERROR_GB_RTMP_CONNECTING, "RTMP is connecting");
+    }
+
     // Cleanup the data before connect again.
     close();
 
@@ -1403,18 +1420,29 @@ srs_error_t SrsGbMuxer::connect()
 
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
     srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
-    sdk_ = app_factory_->create_rtmp_client(url, cto, sto);
+    ISrsBasicRtmpClient *sdk = app_factory_->create_rtmp_client(url, cto, sto);
 
-    if ((err = sdk_->connect()) != srs_success) {
+    // Set sdk_ only once published, so no one writes through a client whose
+    // socket isn't connected yet.
+    connecting_ = true;
+    err = sdk->connect();
+    if (err == srs_success) {
+        err = sdk->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE);
+        if (err != srs_success) {
+            err = srs_error_wrap(err, "publish");
+        }
+    } else {
+        err = srs_error_wrap(err, "connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
+    }
+    connecting_ = false;
+
+    if (err != srs_success) {
+        srs_freep(sdk);
         close();
-        return srs_error_wrap(err, "connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
+        return err;
     }
 
-    if ((err = sdk_->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
-        close();
-        return srs_error_wrap(err, "publish");
-    }
-
+    sdk_ = sdk;
     return err;
 }
 // LCOV_EXCL_STOP
@@ -1767,7 +1795,20 @@ srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttp
     if ((prop = req->ensure_property_string("ssrc")) == NULL) {
         return srs_error_new(ERROR_HTTP_DATA_INVALID, "ssrc required");
     }
-    uint64_t ssrc = atoi(prop->to_str().c_str());
+    // The SSRC is the decimal number of an RTP SSRC, 32 bits, such as GB28181's
+    // 10 digits with a leading 0 or 1. The media of SSRC 0 never binds a session.
+    string ssrc_str = prop->to_str();
+    uint64_t ssrc = 0;
+    for (size_t i = 0; i < ssrc_str.length() && ssrc <= 0xffffffffULL; i++) {
+        char c = ssrc_str.at(i);
+        if (c < '0' || c > '9') {
+            return srs_error_new(ERROR_HTTP_DATA_INVALID, "ssrc %s not a number", ssrc_str.c_str());
+        }
+        ssrc = ssrc * 10 + (c - '0');
+    }
+    if (ssrc == 0 || ssrc > 0xffffffffULL) {
+        return srs_error_new(ERROR_HTTP_DATA_INVALID, "ssrc %s not in 1 to 4294967295", ssrc_str.c_str());
+    }
 
     if ((err = bind_session(id, ssrc)) != srs_success) {
         return srs_error_wrap(err, "bind session");

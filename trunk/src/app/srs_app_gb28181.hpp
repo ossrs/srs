@@ -455,7 +455,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // The owner session object, note that we use the raw pointer and should never free it.
     ISrsGbSession *session_;
     std::string output_;
+    // The RTMP client, set only once it has connected and published.
     ISrsBasicRtmpClient *sdk_;
+    // Whether a coroutine is connecting the RTMP client.
+    bool connecting_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

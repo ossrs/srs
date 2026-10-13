@@ -7,6 +7,7 @@ package cases
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand/v2"
 	"net"
@@ -106,18 +107,22 @@ func gbSignaling(t *testing.T) {
 		})
 	}
 
-	// An SSRC that is not a number is refused.
+	// An SSRC that is not a decimal number, or is 0 or above 32 bits, which no
+	// media can bind, is refused with code 3008, and the API takes the next
+	// session.
 	check.Case(t, "SsrcNotNumber", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an SSRC that is not a number is accepted as SSRC 0, which no media can bind")
 		srs := server.Common(c)
-		a := gbPost(c, srs, `{"id":"`+streamName(c)+`","ssrc":"camera"}`)
-		c.CheckEqual(a.Code, gbDataInvalid, "code")
+		for _, ssrc := range []string{"camera", "12a", "-1", " 1", "", "0", "4294967296"} {
+			a := gbPost(c, srs, `{"id":"`+streamName(c)+`","ssrc":"`+ssrc+`"}`)
+			c.CheckEqual(a.Code, gbDataInvalid, fmt.Sprintf("code of SSRC %q", ssrc))
+			c.CheckEqual(a.Port, 0, fmt.Sprintf("port of SSRC %q", ssrc))
+		}
+		checkGBServes(c, srs)
 	})
 
 	// An RTP SSRC takes 32 bits: a session of one above 2^31 gets its media.
 	// GB28181 SSRCs, 10 decimal digits that start with 0 or 1, stay below.
 	check.Case(t, "SsrcAbove31Bits", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an SSRC of 2^31 or more is read as a negative int, so its media never binds the session")
 		srs := server.Common(c)
 		s := gbStart(c, srs, media.H264BaselineAAC, 3_000_000_000+gbSSRC())
 		c.CheckEqual(s.answer.Code, 0, "code")
@@ -139,15 +144,13 @@ func gbMedia(t *testing.T) {
 		c.CheckEqual(r.Video.Profile, "Baseline", "profile")
 	})
 
-	// HEVC and AAC in PS play over RTMP. SRS sends the HEVC in legacy FLV
-	// tags, codec id 12, which HevcEnhancedRtmp shows; this case takes them,
-	// to check the media.
+	// HEVC and AAC in PS play over RTMP.
 	check.Case(t, "PublishPlayHevc", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		s := gbStart(c, srs, media.HEVCAAC, gbSSRC())
 		s.lead(c)
 		player := playerOf(c, rtmpURL(srs, "live/"+s.id))
-		a := flv.Analyzer{LegacyHEVC: true}
+		var a flv.Analyzer
 		c.Must(readUntil(player, &a, gbUntil, time.Second), "play")
 		checkGBPlayed(c, &a.Report, "hevc")
 	})
@@ -155,7 +158,6 @@ func gbMedia(t *testing.T) {
 	// HEVC goes to RTMP players in enhanced RTMP, as SRS sends HEVC from SRT
 	// and WebRTC.
 	check.Case(t, "HevcEnhancedRtmp", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "GB HEVC goes to RTMP in legacy FLV tags, codec id 12, not enhanced RTMP")
 		srs := server.Common(c)
 		s := gbStart(c, srs, media.HEVCAAC, gbSSRC())
 		s.lead(c)
@@ -365,7 +367,7 @@ func gbBadInput(t *testing.T) {
 
 // TestGb_Reconnect checks a device that reconnects while SRS still connects
 // the RTMP output of its first media connection. It has a server of its own,
-// since the known bug crashes SRS.
+// so a crash in that race takes down no Common shard.
 func TestGb_Reconnect(t *testing.T) {
 	t.Parallel()
 	srs := crashServer(t, server.WithGB(server.PlayConfig(server.Play{}), server.GBOptions{}))
@@ -373,7 +375,6 @@ func TestGb_Reconnect(t *testing.T) {
 	// The second connection takes the session over, as in
 	// ReconnectTakesOver, and SRS stays up.
 	check.Case(t, "WhileConnecting", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a second media connection of a session while its RTMP output connects crashes SRS")
 		s := gbStart(c, srs, media.H264BaselineAAC, gbSSRC())
 		s.sendThrough(c, gbLead)
 		s.reconnect(c, srs)

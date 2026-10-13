@@ -634,8 +634,10 @@ srs_error_t SrsRawHEVCStream::mux_hevc2flv_enhanced(std::string video, int8_t fr
     //      4bytes, Video FourCC. AV1 = { 'a', 'v', '0', '1' }
     //                            VP9 = { 'v', 'p', '0', '9' }
     //                            HEVC = { 'h', 'v', 'c', '1' }
+    //      3bytes, CompositionTime, the cts, only for PacketTypeCodedFrames.
     // @see: enhanced-rtmp-v1.pdf, page 9
-    int size = (int)video.length() + 5;
+    bool has_cts = (packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFrames);
+    int size = (int)video.length() + 5 + (has_cts ? 3 : 0);
     char *data = new char[size];
     char *p = data;
 
@@ -647,6 +649,14 @@ srs_error_t SrsRawHEVCStream::mux_hevc2flv_enhanced(std::string video, int8_t fr
     *p++ = 'v';
     *p++ = 'c';
     *p++ = '1';
+
+    // CompositionTime, SI24, cts = pts - dts.
+    if (has_cts) {
+        int32_t cts = (int32_t)(pts - dts);
+        *p++ = (char)(cts >> 16);
+        *p++ = (char)(cts >> 8);
+        *p++ = (char)cts;
+    }
 
     // hevc raw data.
     memcpy(p, video.data(), video.length());

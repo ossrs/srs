@@ -137,15 +137,6 @@ func gbCells(t *testing.T, srsOf func(c *check.C) *server.Server, p convertPlaye
 	}
 }
 
-// gbLegacyHevcBug is the known bug of the FLV players of GB HEVC.
-const gbLegacyHevcBug = "GB HEVC goes to RTMP in legacy FLV tags, codec id 12, not enhanced RTMP"
-
-// gbBugs is a player with the known bugs of the GB source.
-func gbBugs(p convertPlayer, bugs map[string]string) convertPlayer {
-	p.knownBugs = bugs
-	return p
-}
-
 // gbRtspPlayer plays RTSP over TCP. SRS keeps no GOP for RTSP, so the
 // player joins while SRS holds a keyframe as the oldest video frame of a GB
 // stream (see gbHold), which it then sends first: the device sends its first
@@ -210,8 +201,7 @@ func gbJoinAt(frames []gb.Frame, held int, ahead time.Duration) ([]gb.Frame, int
 // to; and WHEP, refused with rtmp_to_rtc off.
 func gbCommonCells(t *testing.T) {
 	common := func(c *check.C) *server.Server { return server.Common(c) }
-	flvBugs := map[string]string{"HevcAac": gbLegacyHevcBug}
-	for _, p := range []convertPlayer{gbBugs(rtmpPlayer, flvBugs), gbBugs(httpFlvConvert, flvBugs), gbRtspPlayer} {
+	for _, p := range []convertPlayer{rtmpPlayer, httpFlvConvert, gbRtspPlayer} {
 		gbCells(t, common, p)
 	}
 	gbVideoOnlyCells(t)

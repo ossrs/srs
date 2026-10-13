@@ -204,8 +204,7 @@ func apiKicks(t *testing.T) {
 
 	// DeleteGbPublisher deletes the RTMP client SRS publishes a GB28181
 	// stream with: the stream is unpublished, and the device's media
-	// connection stays. It sends no more media: the RTMP client SRS connects
-	// again for it may crash SRS (TestGb_Reconnect/WhileConnecting).
+	// connection stays. It sends no more media, which SRS would publish again.
 	check.Case(t, "DeleteGbPublisher", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		s := gbStart(c, srs, media.H264HighAAC, gbSSRC())
