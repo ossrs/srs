@@ -997,6 +997,31 @@ VOID TEST(MpdWriterTest, WriteCodecs)
         std::string mpd = mock_write_mpd(&format);
         EXPECT_TRUE(mpd.find("codecs=\"hev1.A2.4.H120.B0.8\"") != std::string::npos) << mpd;
     }
+
+    // MP3 by the object type of its esds: MPEG-1 audio (0x6B) above 24kHz, MPEG-2 audio
+    // (0x69) at 24kHz or below, not AAC.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdMP3;
+        format.acodec_->sound_rate_ = SrsAudioSampleRate44100;
+
+        std::string mpd = mock_write_mpd(&format);
+        EXPECT_TRUE(mpd.find("codecs=\"mp4a.6B\"") != std::string::npos) << mpd;
+    }
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdMP3;
+        format.acodec_->sound_rate_ = SrsAudioSampleRate22050;
+
+        std::string mpd = mock_write_mpd(&format);
+        EXPECT_TRUE(mpd.find("codecs=\"mp4a.69\"") != std::string::npos) << mpd;
+    }
 }
 
 VOID TEST(DashControllerTest, InitializeAndDispose)
@@ -1264,6 +1289,81 @@ VOID TEST(DashControllerTest, OnAudioWritePacket)
     srs_freep(mock_acurrent);
     controller->afragments_ = NULL;
     srs_freep(mock_afragments);
+}
+
+// Test: MP3 has no sequence header, so its first frame, which stands for one, writes the
+// audio init file the MPD points to, as the AAC sequence header does; it is not a sample.
+// The next frames are written to the audio segment.
+VOID TEST(DashControllerTest, OnAudioMp3WritesInit)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    MockMpdWriter *mock_mpd = new MockMpdWriter();
+    SrsUniquePtr<MockDashAppFactory> mock_factory(new MockDashAppFactory());
+    MockFragmentedMp4 *mock_acurrent = new MockFragmentedMp4();
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+    controller->config_ = mock_config.get();
+    srs_freep(controller->mpd_);
+    controller->mpd_ = mock_mpd;
+    controller->app_factory_ = mock_factory.get();
+    controller->acurrent_ = mock_acurrent;
+    controller->home_ = "./dash";
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->acodec_ = new SrsAudioCodecConfig();
+    format->acodec_->id_ = SrsAudioCodecIdMP3;
+    format->acodec_->sound_rate_ = SrsAudioSampleRate44100;
+    format->audio_ = new SrsParsedAudioPacket();
+    format->audio_->aac_packet_type_ = SrsAudioMp3FrameTraitSequenceHeader;
+
+    // The first MP3 frame, a FLV audio tag of MP3 44.1kHz 16bit stereo.
+    SrsUniquePtr<SrsMediaPacket> first(new SrsMediaPacket());
+    first->timestamp_ = 0;
+    first->message_type_ = SrsFrameTypeAudio;
+    char *first_data = new char[5];
+    first_data[0] = (char)0x2f;
+    first_data[1] = (char)0xff;
+    first_data[2] = (char)0xfb;
+    first_data[3] = (char)0x90;
+    first_data[4] = (char)0x64;
+    first->wrap(first_data, 5);
+
+    HELPER_EXPECT_SUCCESS(controller->on_audio(first.get(), format.get()));
+    EXPECT_TRUE(mock_factory->last_write_called_);
+    EXPECT_TRUE(mock_factory->last_rename_called_);
+    EXPECT_FALSE(mock_factory->last_video_);
+    EXPECT_EQ(2, mock_factory->last_tid_);
+    EXPECT_TRUE(mock_factory->last_path_.find("/audio-init.mp4") != std::string::npos) << mock_factory->last_path_;
+    EXPECT_STREQ(mock_factory->last_path_.c_str(), controller->audio_init_file_.c_str());
+    EXPECT_FALSE(mock_acurrent->write_called_);
+
+    // The next frame is a sample of the audio segment.
+    mock_factory->last_write_called_ = false;
+    format->audio_->aac_packet_type_ = SrsAudioMp3FrameTraitRawData;
+    SrsUniquePtr<SrsMediaPacket> next(new SrsMediaPacket());
+    next->timestamp_ = 26;
+    next->message_type_ = SrsFrameTypeAudio;
+    char *next_data = new char[5];
+    memcpy(next_data, first_data, 5);
+    next->wrap(next_data, 5);
+
+    HELPER_EXPECT_SUCCESS(controller->on_audio(next.get(), format.get()));
+    EXPECT_FALSE(mock_factory->last_write_called_);
+    EXPECT_TRUE(mock_acurrent->write_called_);
+    EXPECT_EQ(26, controller->audio_dts_);
+
+    controller->config_ = NULL;
+    controller->mpd_ = NULL;
+    srs_freep(mock_mpd);
+    controller->app_factory_ = NULL;
+    controller->acurrent_ = NULL;
+    srs_freep(mock_acurrent);
 }
 
 VOID TEST(DashControllerTest, OnVideoWriteAndReapFragment)

@@ -321,7 +321,7 @@ var (
 	// GOP (commonDashSegment), of a stream published at once: with no video,
 	// the 23s that make the first HLS segment (hls_aof_ratio 2.1).
 	dashPlayer = convertPlayer{
-		name: "Dash", video: same("h264", "hevc"), audio: same("aac"),
+		name: "Dash", video: same("h264", "hevc"), audio: same("aac", "mp3"),
 		play: func(c *check.C, srs *server.Server, src convertSource, file string, w convertWant) *report.Report {
 			path := "live/" + streamName(c)
 			d := commonDashSegment + time.Second
@@ -338,7 +338,6 @@ var (
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
 		knownBugs: map[string]string{
-			"H264Mp3":  "the MPD of an MP3 stream lists an AAC audio representation whose init file SRS never writes, so a player gets 404",
 			"AacOnly":  "DASH writes no MPD for a stream with no video, so a player gets 404",
 			"H264Only": "DASH writes no MPD for a stream with no audio, so a player gets 404",
 		},

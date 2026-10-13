@@ -1568,6 +1568,10 @@ enum SrsMp4ObjectType {
     SrsMp4ObjectTypeMp1a = 0x6B,
 };
 
+// The object type of the esds for an audio codec: MPEG-1 audio (11172-3) for MP3 above 24kHz,
+// MPEG-2 audio (13818-3) at 24kHz or below.
+extern SrsMp4ObjectType srs_mp4_audio_object_type(SrsAudioCodecId codec, SrsAudioSampleRate sample_rate);
+
 // Table 6 — streamType Values
 // ISO_IEC_14496-1-System-2010.pdf, page 51
 enum SrsMp4StreamType {

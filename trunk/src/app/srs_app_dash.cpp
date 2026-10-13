@@ -348,9 +348,13 @@ static string srs_dash_video_codecs(SrsVideoCodecConfig *vcodec)
     return "avc1.64001e";
 }
 
-// The codecs of the audio representation, RFC 6381: mp4a.40 and the AAC object type.
+// The codecs of the audio representation, RFC 6381: mp4a.40 and the AAC object type, or for
+// MP3 mp4a and the object type of its esds in hex, as the init file writes it.
 static string srs_dash_audio_codecs(SrsAudioCodecConfig *acodec)
 {
+    if (acodec->id_ == SrsAudioCodecIdMP3) {
+        return srs_fmt_sprintf("mp4a.%02X", srs_mp4_audio_object_type(acodec->id_, acodec->sound_rate_));
+    }
     if (acodec->id_ == SrsAudioCodecIdAAC && acodec->aac_object_ != SrsAacObjectTypeReserved) {
         return srs_fmt_sprintf("mp4a.40.%d", acodec->aac_object_);
     }
@@ -762,7 +766,8 @@ srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat 
 
     format_ = format;
 
-    if (format->is_aac_sequence_header()) {
+    // MP3 has no sequence header: its first frame stands for one, and writes the init file.
+    if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
         return refresh_init_mp4(shared_audio, format);
     }
 
@@ -927,7 +932,9 @@ srs_error_t SrsDashController::refresh_init_mp4(SrsMediaPacket *msg, SrsFormat *
 {
     srs_error_t err = srs_success;
 
-    if (msg->size() <= 0 || (msg->is_video() && !format->vcodec_->is_avc_codec_ok()) || (msg->is_audio() && !format->acodec_->is_aac_codec_ok())) {
+    // Only AAC has a config to wait for; MP3 has none.
+    bool audio_ok = msg->is_audio() && (format->acodec_->id_ == SrsAudioCodecIdMP3 || format->acodec_->is_aac_codec_ok());
+    if (msg->size() <= 0 || (msg->is_video() && !format->vcodec_->is_avc_codec_ok()) || (msg->is_audio() && !audio_ok)) {
         srs_warn("DASH: Ignore empty sequence header.");
         return err;
     }

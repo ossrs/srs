@@ -315,6 +315,21 @@ func TestDash_Options(t *testing.T) {
 		}
 	})
 
+	// MP3 has no sequence header, but its audio representation still has
+	// an init file with the MP3 track, and its codecs name MP3 by its
+	// object type, mp4a.6B for the MPEG-1 audio of 44.1 kHz, not AAC.
+	check.Case(t, "PublishPlayMp3", check.Normal, func(c *check.C) {
+		stream := "live/" + streamName(c)
+		_, streams := publishSegments(c, stream, media.H264HighMP3, 3)
+		if a := dashStream(streams, "audio"); c.Check(a != nil, "no audio stream") {
+			c.CheckEqual(a.Representation.Codecs, "mp4a.6B", "audio codecs")
+		}
+		r := playDASH(c, flvURL(srs, dashDir+"/"+stream+"-manifest.mpd"), report.Until{VideoHeader: true, Duration: segmentUntil.Duration})
+		checkVideo(c, r, "h264")
+		checkAudio(c, r, "mp3", 0)
+		c.CheckNoError(r.CheckTimestamps(100*time.Millisecond), "timestamps")
+	})
+
 	// dash_path and dash_mpd_file: the files are where the templates put
 	// them, and nothing is at the default names.
 	check.Case(t, "PathTemplates", check.Normal, func(c *check.C) {
