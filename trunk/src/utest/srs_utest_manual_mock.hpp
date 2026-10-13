@@ -316,6 +316,8 @@ public:
     SrsRtpPacket *last_sent_packet_;
     // Each sent packet encoded at send time, because a retransmission may be a temporary that is freed after the call.
     std::vector<std::string> sent_packets_;
+    // Each RTCP packet sent, as its bytes.
+    std::vector<std::string> sent_rtcps_;
 
 public:
     MockRtcPacketSender();
@@ -323,6 +325,7 @@ public:
 
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket *pkt);
+    virtual srs_error_t send_rtcp(char *data, int nb_data);
     void set_send_packet_error(srs_error_t err);
 };
 
@@ -1320,6 +1323,8 @@ public:
     int on_stop_count_;
     std::vector<std::pair<std::string, ISrsRequest *> > on_unpublish_calls_;
     int on_unpublish_count_;
+    // The stream of the last on_unpublish or on_stop.
+    SrsStatisticStreamSnapshot last_stream_;
 
 public:
     MockHttpHooks();
@@ -1327,9 +1332,9 @@ public:
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
     virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req);
+    virtual void on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);

@@ -1001,9 +1001,10 @@ void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r)
         hooks = conf->args_;
     }
 
+    SrsStatisticStreamSnapshot stream(stat_, nreq.get());
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, nreq.get());
+        hooks_->on_stop(url, nreq.get(), stream);
     }
 
     return;

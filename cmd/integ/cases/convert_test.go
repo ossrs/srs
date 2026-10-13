@@ -488,9 +488,7 @@ func TestConvert_TsMount(t *testing.T) {
 	convertCells(t, srsOf, whepPlayer)
 	whipCells(t, srsOf, whipTsPlayer)
 	srtCells(t, srsOf, ts)
-	whep := whepPlayer
-	whep.knownBugs = srtWhepBugs
-	srtCells(t, srsOf, whep)
+	srtCells(t, srsOf, whepPlayer)
 	gbCells(t, srsOf, ts)
 	gbCells(t, srsOf, whepPlayer)
 	whepCodecCells(t, srsOf)

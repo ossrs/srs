@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -300,19 +299,9 @@ func httpPlayerEvents(c *check.C, srs *server.Server, m httpHookMount, opts *htt
 // vhost and the app.
 func checkHookFields(c *check.C, srs *server.Server, hooks []mock.Request, ip string) {
 	c.Helper()
-	checkHookFieldsExcept(c, srs, hooks, ip, nil)
-}
-
-// checkHookFieldsExcept is checkHookFields, but a hook may lack the fields
-// that skip lists for its action.
-func checkHookFieldsExcept(c *check.C, srs *server.Server, hooks []mock.Request, ip string, skip map[string][]string) {
-	c.Helper()
 	ids := apiIDs(c, srs)
 	for _, h := range hooks {
 		for _, k := range rtmpHookFields[h.Action()] {
-			if slices.Contains(skip[h.Action()], k) {
-				continue
-			}
 			_, ok := h.JSON[k]
 			c.Check(ok, "%s has no %s: %s", h.Action(), k, h.Body)
 		}

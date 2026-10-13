@@ -586,6 +586,7 @@ class MockFastTimerForCircuitBreaker : public ISrsFastTimer
 public:
     bool subscribe_called_;
     ISrsFastTimerHandler *subscribed_handler_;
+    ISrsFastTimerHandler *unsubscribed_handler_;
 
 public:
     MockFastTimerForCircuitBreaker();

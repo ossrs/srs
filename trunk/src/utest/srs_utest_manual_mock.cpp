@@ -906,6 +906,12 @@ srs_error_t MockRtcPacketSender::do_send_packet(SrsRtpPacket *pkt)
     return send_packet_error_;
 }
 
+srs_error_t MockRtcPacketSender::send_rtcp(char *data, int nb_data)
+{
+    sent_rtcps_.push_back(std::string(data, nb_data));
+    return srs_success;
+}
+
 void MockRtcPacketSender::set_send_packet_error(srs_error_t err)
 {
     send_packet_error_ = err;
@@ -2359,8 +2365,9 @@ srs_error_t MockHttpHooks::on_publish(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooks::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooks::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
+    last_stream_ = stream;
     on_unpublish_count_++;
     on_unpublish_calls_.push_back(std::make_pair(url, req));
 }
@@ -2370,8 +2377,9 @@ srs_error_t MockHttpHooks::on_play(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooks::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooks::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
+    last_stream_ = stream;
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));
 }

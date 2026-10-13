@@ -30,6 +30,7 @@ class SrsMessageArray;
 class SrsRtcSource;
 class ISrsAudioTranscoder;
 class SrsRtpPacket;
+class SrsRtcpSR;
 class SrsNaluSample;
 class SrsRtcSourceDescription;
 class SrsRtcTrackDescription;
@@ -1091,6 +1092,34 @@ public:
     uint16_t correct(uint16_t value);
 };
 
+// The sender info of a send track for its Sender Report, see RFC 3550 section 6.4.1: the RTP time of the last packet
+// sent, mapped to the publisher's clock, and the packets and payload octets sent.
+class SrsRtcSenderInfo
+{
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // The RTP time of the last mapped packet, as sent, and its time in ms on the publisher's clock, which the
+    // publisher's Sender Reports map, or -1 when not mapped.
+    uint32_t rtp_time_;
+    int64_t avsync_time_;
+    // The packets and payload octets sent.
+    uint32_t packets_;
+    uint32_t octets_;
+    // Whether a mapped packet was sent since the last Sender Report.
+    bool pending_;
+
+public:
+    SrsRtcSenderInfo();
+    virtual ~SrsRtcSenderInfo();
+
+public:
+    // Count a packet sent to the player, and keep its times when it is on the publisher's clock.
+    void on_packet(SrsRtpPacket *pkt);
+    // Fill the sender info of the Sender Report, and wait for a new mapped packet for the next one. Return false,
+    // with nothing filled, when no mapped packet was sent since the last Sender Report, so none is due.
+    bool fill(SrsRtcpSR *sr);
+};
+
 // The RTC packet sender interface.
 class ISrsRtcPacketSender
 {
@@ -1100,6 +1129,8 @@ public:
 
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket *pkt) = 0;
+    // Send an RTCP packet; the buffer must have room for the SRTP trailer, see kRtpPacketSize.
+    virtual srs_error_t send_rtcp(char *data, int nb_data) = 0;
 };
 
 class SrsRtcSendTrack
@@ -1120,6 +1151,8 @@ SRS_DECLARE_PROTECTED: // clang-format on
     // The jitter to correct ts and sequence number.
     SrsRtcTsJitter *jitter_ts_;
     SrsRtcSeqJitter *jitter_seq_;
+    // The sender info for the Sender Report, of each packet sent to the player.
+    SrsRtcSenderInfo *sender_info_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -1153,6 +1186,11 @@ public:
 // clang-format off
 SRS_DECLARE_PROTECTED: // clang-format on
     void rebuild_packet(SrsRtpPacket *pkt);
+
+public:
+    // Send the Sender Report of the track, which maps its RTP times to the publisher's clock, so a player syncs
+    // the tracks as the publisher's reports do. Nothing is sent before a mapped packet, or without a new one.
+    srs_error_t send_rtcp_sr();
 
 public:
     // Note that we can set the pkt to NULL to avoid copy, for example, if the NACK cache the pkt and

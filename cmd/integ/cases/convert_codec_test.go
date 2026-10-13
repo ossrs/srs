@@ -127,27 +127,28 @@ func whipRelayOnlyCells(t *testing.T, srs *server.Server) {
 		})
 	}
 
-	// SRS can't transcode G.711 to AAC, so with rtc_to_rtmp it must refuse
-	// the publish, or relay the stream to WebRTC players without converting
-	// it.
+	// G.711 is not converted to RTMP, since SRS can't transcode it to AAC: an
+	// RTMP player gets the H.264 and no audio, while a WHEP player plays the
+	// stream as it was sent.
 	for _, w := range []struct {
 		name string
 		rtcCodec
 	}{{"WhipToRtmp_H264Pcmu", rtcPcmu}, {"WhipToRtmp_H264Pcma", rtcPcma}} {
 		check.Case(t, w.name, check.Normal, func(c *check.C) {
-			check.KnownBug(c, "with rtc_to_rtmp, a WHIP publish of G.711 is answered and connects, but SRS fails to start the stream, since it can't transcode G.711 to AAC: a WHEP player's keyframe requests never reach the publisher, and it gets at most one video frame")
 			stream := streamName(c)
+			read := joinRTMP(c, srs, stream)
 			pub := relayPublisher(c, srs, stream, w.rtcCodec)
 			if pub == nil {
-				return
+				c.Fatalf("WHIP publish of %v refused", w.audio)
 			}
 			whep := rtcPlayer(c, whepURL(srs, "live", stream), &rtc.Options{Video: []string{w.video}, Audio: []string{w.audio}})
 			relaySend(c, pub, whep, w.rtcCodec)
-			ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-			defer cancel()
-			r, err := whep.Until(ctx, rtcPlayedUntil)
-			if c.CheckNoError(err, "the WHEP player") {
-				checkCodecPlayed(c, w.rtcCodec, r)
+			checkCodecPlayed(c, w.rtcCodec, waitPlayed(c, whep, rtcPlayedUntil))
+			r := read(report.Until{VideoHeader: true, Keyframes: 1, VideoFrames: 10})
+			c.Check(r.Audio == nil, "audio %v, want none", r.Audio)
+			if c.Check(r.Video != nil, "no video: %v", r) {
+				c.CheckEqual(r.Video.Codec, "h264", "video codec")
+				c.CheckEqual(r.Video.LeadingFrames, 0, "video frames before the first keyframe")
 			}
 		})
 	}

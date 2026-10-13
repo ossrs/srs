@@ -54,6 +54,20 @@ func seqPacket(ssrc uint32, seq uint16, payload ...byte) *rtp.Packet {
 	return &rtp.Packet{Header: rtp.Header{Version: 2, SSRC: ssrc, SequenceNumber: seq}, Payload: payload}
 }
 
+// TestRecorderFirstTimestamp checks a stream logs the RTP time of its first
+// packet, not of a later one.
+func TestRecorderFirstTimestamp(t *testing.T) {
+	r := NewRecorder()
+	first := seqPacket(1, 10, 1)
+	first.Timestamp = 3000
+	next := seqPacket(1, 11, 1)
+	next.Timestamp = 6000
+	readAll(t, r.BindRemoteStream(&interceptor.StreamInfo{SSRC: 1, MimeType: "audio/opus"}, remotePackets(t, first, next)))
+	if s := r.Record().Received("audio/opus"); s == nil || s.FirstTimestamp != 3000 {
+		t.Errorf("stream %+v, want the first RTP time 3000", s)
+	}
+}
+
 func osn(seq uint16) []byte {
 	return binary.BigEndian.AppendUint16(nil, seq)
 }

@@ -8,6 +8,7 @@
 #define SRS_APP_RTC_CONN_HPP
 
 #include <srs_app_async_call.hpp>
+#include <srs_app_http_hooks.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_app_rtc_dtls.hpp>
@@ -254,12 +255,14 @@ class SrsRtcAsyncCallOnStop : public ISrsAsyncCallTask
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
     ISrsRequest *req_;
+    // The stream when the player stopped, which the stats may drop before the hook runs.
+    SrsStatisticStreamSnapshot stream_;
     ISrsHttpHooks *hooks_;
     ISrsContext *context_;
     ISrsAppConfig *config_;
 
 public:
-    SrsRtcAsyncCallOnStop(SrsContextId c, ISrsRequest *r);
+    SrsRtcAsyncCallOnStop(SrsContextId c, ISrsRequest *r, const SrsStatisticStreamSnapshot &stream);
     virtual ~SrsRtcAsyncCallOnStop();
 
 public:
@@ -284,8 +287,14 @@ public:
 };
 
 // A RTC play stream, client pull and play stream from SRS.
-class SrsRtcPlayStream : public ISrsRtcPlayStream
+class SrsRtcPlayStream : public ISrsRtcPlayStream, public ISrsFastTimerHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsSharedTimer *shared_timer_;
+    // Held by the timer while it sends, which may yield, so the stream is not freed meanwhile.
+    srs_mutex_t lock_;
+
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsExecRtcAsyncTask *exec_;
@@ -385,6 +394,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // Interface ISrsRtcPliWorkerHandler
 public:
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
+    // Interface ISrsFastTimerHandler, every second for the Sender Reports.
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 // The RTC RTCP sender interface.
@@ -489,9 +502,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
     ISrsRequest *req_;
+    // The stream when the publisher stopped, which the stats may drop before the hook runs.
+    SrsStatisticStreamSnapshot stream_;
 
 public:
-    SrsRtcAsyncCallOnUnpublish(SrsContextId c, ISrsRequest *r);
+    SrsRtcAsyncCallOnUnpublish(SrsContextId c, ISrsRequest *r, const SrsStatisticStreamSnapshot &stream);
     virtual ~SrsRtcAsyncCallOnUnpublish();
 
 public:

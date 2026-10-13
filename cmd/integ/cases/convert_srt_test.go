@@ -133,15 +133,6 @@ var srtDashBugs = map[string]string{
 	"H264Only": "DASH writes no MPD for a stream with no audio, so a player gets 404",
 }
 
-// srtWhepBugs are the known bugs of WHEP of the SRT source, with rtmp_to_rtc:
-// the Opus SRS transcodes from AAC whose times don't start near 0, as
-// ffmpeg's TS starts at 1.4s, has its first packets stamped more than a
-// second before the rest.
-var srtWhepBugs = func() map[string]string {
-	bug := "SRS stamps the first Opus packets it transcodes from AAC with the AAC's time in ms taken as samples, so they come more than a second before the next ones in RTP time when the AAC doesn't start near 0"
-	return map[string]string{"H264Aac": bug, "HevcAac": bug, "AacOnly": bug}
-}()
-
 // srtCommonCells adds the SRT source's cells of the Common server, which has
 // srt_to_rtmp: RTMP, HTTP-FLV, HLS in TS, DASH and SRT; RTSP, which SRS
 // doesn't convert SRT to; and WHEP, refused with rtmp_to_rtc off.

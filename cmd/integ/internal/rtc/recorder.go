@@ -49,6 +49,9 @@ type Stream struct {
 	// for the RTX stream of a video track.
 	MimeType string
 	Packets  int
+	// FirstTimestamp is the RTP time of the first packet, which maps the
+	// stream to the times of the Sender Reports.
+	FirstTimestamp uint32
 	// Missed are the sequence numbers that a later packet skipped, in
 	// order: the packets that didn't come in order.
 	Missed []uint16
@@ -71,14 +74,15 @@ type Stream struct {
 // logged as missed; a larger one is a new start, not a loss.
 const maxSkip = 1000
 
-// add logs a packet's sequence number, and for an RTX stream the original
-// one at the start of its payload.
-func (s *Stream) add(seq uint16, payload []byte) {
+// add logs a packet's sequence number and, for the first, its RTP time, and
+// for an RTX stream the original one at the start of its payload.
+func (s *Stream) add(seq uint16, ts uint32, payload []byte) {
 	s.Packets++
 	if strings.HasSuffix(strings.ToLower(s.MimeType), "/rtx") && len(payload) >= 2 {
 		s.OSNs = append(s.OSNs, binary.BigEndian.Uint16(payload))
 	}
 	if !s.started {
+		s.FirstTimestamp = ts
 		s.started, s.highest, s.missing = true, int64(seq), map[int64]bool{}
 		return
 	}
@@ -102,7 +106,7 @@ func (s *Stream) add(seq uint16, payload []byte) {
 
 // copy is a copy of the log, without its state.
 func (s *Stream) copy() *Stream {
-	return &Stream{SSRC: s.SSRC, MimeType: s.MimeType, Packets: s.Packets,
+	return &Stream{SSRC: s.SSRC, MimeType: s.MimeType, Packets: s.Packets, FirstTimestamp: s.FirstTimestamp,
 		Missed: slices.Clone(s.Missed), Late: slices.Clone(s.Late), Repeated: slices.Clone(s.Repeated), OSNs: slices.Clone(s.OSNs)}
 }
 
@@ -148,7 +152,7 @@ func (r *Recorder) BindRemoteStream(info *interceptor.StreamInfo, reader interce
 			return n, a, nil
 		}
 		r.update(func(rec *Record) {
-			stream(rec.In, h.SSRC, info.MimeType).add(h.SequenceNumber, b[off:n])
+			stream(rec.In, h.SSRC, info.MimeType).add(h.SequenceNumber, h.Timestamp, b[off:n])
 		})
 		return n, a, nil
 	})
@@ -171,7 +175,7 @@ func (r *Recorder) BindLocalStream(info *interceptor.StreamInfo, writer intercep
 			mime = kind + "/rtx"
 		}
 		r.update(func(rec *Record) {
-			stream(rec.Out, h.SSRC, mime).add(h.SequenceNumber, payload)
+			stream(rec.Out, h.SSRC, mime).add(h.SequenceNumber, h.Timestamp, payload)
 			if twcc == 0 {
 				return
 			}

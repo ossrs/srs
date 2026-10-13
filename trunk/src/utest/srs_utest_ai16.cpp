@@ -986,7 +986,7 @@ srs_error_t MockHttpHooksForLiveStream::on_publish(std::string url, ISrsRequest 
     return srs_success;
 }
 
-void MockHttpHooksForLiveStream::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForLiveStream::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
@@ -997,7 +997,7 @@ srs_error_t MockHttpHooksForLiveStream::on_play(std::string url, ISrsRequest *re
     return srs_error_copy(on_play_error_);
 }
 
-void MockHttpHooksForLiveStream::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForLiveStream::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));

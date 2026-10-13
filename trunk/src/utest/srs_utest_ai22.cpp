@@ -4821,7 +4821,7 @@ srs_error_t MockHttpHooksForDvrAsyncCall::on_publish(std::string url, ISrsReques
     return srs_success;
 }
 
-void MockHttpHooksForDvrAsyncCall::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForDvrAsyncCall::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
@@ -4830,7 +4830,7 @@ srs_error_t MockHttpHooksForDvrAsyncCall::on_play(std::string url, ISrsRequest *
     return srs_success;
 }
 
-void MockHttpHooksForDvrAsyncCall::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForDvrAsyncCall::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 

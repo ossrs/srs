@@ -17,9 +17,11 @@ using namespace std;
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai06.hpp>
 #include <srs_utest_ai07.hpp>
+#include <srs_utest_ai19.hpp>
 
 #include <arpa/inet.h>
 #include <poll.h>
+#include <set>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -2393,7 +2395,7 @@ VOID TEST(RtcAsyncCallOnStopTest, CallWithHttpHooksDisabled)
     SrsContextId cid;
     cid.set_value("test-context-id");
 
-    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks (private members are accessible due to #define private public)
     async_call->hooks_ = &mock_hooks;
@@ -2426,7 +2428,7 @@ VOID TEST(RtcAsyncCallOnStopTest, CallWithNoOnStopConfiguration)
     SrsContextId cid;
     cid.set_value("test-context-id");
 
-    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks
     async_call->hooks_ = &mock_hooks;
@@ -2461,7 +2463,7 @@ VOID TEST(RtcAsyncCallOnStopTest, CallWithSingleOnStopUrl)
     SrsContextId cid;
     cid.set_value("test-context-id");
 
-    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks
     async_call->hooks_ = &mock_hooks;
@@ -2501,7 +2503,7 @@ VOID TEST(RtcAsyncCallOnStopTest, CallWithMultipleOnStopUrls)
     SrsContextId cid;
     cid.set_value("test-context-id");
 
-    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks
     async_call->hooks_ = &mock_hooks;
@@ -2551,7 +2553,7 @@ VOID TEST(RtcAsyncCallOnStopTest, CallWithContextSwitching)
     mock_context.set_current_id(original_cid);
 
     // Create SrsRtcAsyncCallOnStop with the new context ID
-    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(new_cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnStop> async_call(new SrsRtcAsyncCallOnStop(new_cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks
     async_call->hooks_ = &mock_hooks;
@@ -3875,7 +3877,7 @@ VOID TEST(RtcAsyncCallOnUnpublishTest, CallWithHttpHooksDisabled)
     SrsContextId cid;
     cid.set_value("test-context-id");
 
-    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks (private members are accessible due to #define private public)
     async_call->hooks_ = &mock_hooks;
@@ -3906,7 +3908,7 @@ VOID TEST(RtcAsyncCallOnUnpublishTest, CallWithNoOnUnpublishConfiguration)
     SrsContextId cid;
     cid.set_value("test-context-id");
 
-    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks
     async_call->hooks_ = &mock_hooks;
@@ -3939,7 +3941,7 @@ VOID TEST(RtcAsyncCallOnUnpublishTest, CallWithSingleOnUnpublishUrl)
     SrsContextId cid;
     cid.set_value("test-context-id");
 
-    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks
     async_call->hooks_ = &mock_hooks;
@@ -3977,7 +3979,7 @@ VOID TEST(RtcAsyncCallOnUnpublishTest, CallWithMultipleOnUnpublishUrls)
     SrsContextId cid;
     cid.set_value("test-context-id");
 
-    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks
     async_call->hooks_ = &mock_hooks;
@@ -4022,7 +4024,7 @@ VOID TEST(RtcAsyncCallOnUnpublishTest, CallWithContextSwitching)
     new_cid.set_value("new-context-id");
 
     // Create SrsRtcAsyncCallOnUnpublish with the new context ID
-    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(new_cid, &mock_request));
+    SrsUniquePtr<SrsRtcAsyncCallOnUnpublish> async_call(new SrsRtcAsyncCallOnUnpublish(new_cid, &mock_request, SrsStatisticStreamSnapshot()));
 
     // Replace the dependencies with mocks
     async_call->hooks_ = &mock_hooks;
@@ -4037,6 +4039,122 @@ VOID TEST(RtcAsyncCallOnUnpublishTest, CallWithContextSwitching)
 
     // Note: Context switching verification is not as straightforward for SrsRtcAsyncCallOnUnpublish
     // because it uses _srs_context directly instead of a member variable like SrsRtcAsyncCallOnStop
+}
+
+MockStatisticDropsStream::MockStatisticDropsStream()
+{
+    stream_ = new SrsStatisticStream();
+    stream_->id_ = "vid-stopped";
+    stream_->nb_clients_ = 2;
+    dropped_ = false;
+}
+
+MockStatisticDropsStream::~MockStatisticDropsStream()
+{
+    srs_freep(stream_);
+}
+
+SrsStatisticStream *MockStatisticDropsStream::find_stream_by_url(std::string url)
+{
+    return (!dropped_ && url == stream_->url_) ? stream_ : NULL;
+}
+
+void MockStatisticDropsStream::on_disconnect(std::string id, srs_error_t err)
+{
+    MockAppStatistic::on_disconnect(id, err);
+    dropped_ = true;
+}
+
+// The on_unpublish of a WebRTC publisher runs from a queue, after the publisher
+// is gone and the stats may have dropped the stream: it still names the stream
+// as it was when the publisher stopped.
+VOID TEST(RtcAsyncCallOnUnpublishTest, HookKeepsStreamOfStoppedPublisher)
+{
+    srs_error_t err;
+
+    MockStatisticDropsStream mock_stat;
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    SrsContextId cid;
+    cid.set_value("stopped-publisher");
+    mock_stat.stream_->url_ = mock_request.get_stream_url();
+
+    // The publisher stops: it queues its hook, and the stats drop the stream.
+    SrsRtcPublishStream *publish_stream = new SrsRtcPublishStream(&mock_exec, &mock_expire, &mock_receiver, cid);
+    publish_stream->stat_ = &mock_stat;
+    publish_stream->req_ = mock_request.copy();
+    srs_freep(publish_stream);
+
+    EXPECT_EQ(1, mock_stat.on_disconnect_count_);
+    EXPECT_TRUE(mock_stat.find_stream_by_url(mock_request.get_stream_url()) == NULL);
+    ASSERT_EQ(1, mock_exec.exec_count_);
+    SrsUniquePtr<ISrsAsyncCallTask> task(mock_exec.last_task_);
+    SrsRtcAsyncCallOnUnpublish *async_call = dynamic_cast<SrsRtcAsyncCallOnUnpublish *>(task.get());
+    ASSERT_TRUE(async_call != NULL);
+
+    // The queue runs the hook.
+    MockAppConfig mock_config;
+    MockHttpHooks mock_hooks;
+    mock_config.set_http_hooks_enabled(true);
+    std::vector<std::string> urls;
+    urls.push_back("http://callback.server.com/on_unpublish");
+    mock_config.set_on_unpublish_urls(urls);
+    async_call->hooks_ = &mock_hooks;
+    async_call->config_ = &mock_config;
+    HELPER_EXPECT_SUCCESS(async_call->call());
+
+    EXPECT_EQ(1, mock_hooks.on_unpublish_count_);
+    EXPECT_STREQ("vid-stopped", mock_hooks.last_stream_.id_.c_str());
+    EXPECT_EQ(2, mock_hooks.last_stream_.clients_);
+}
+
+// The on_stop of a WebRTC player runs from a queue, after the player is gone
+// and the stats may have dropped the stream: it still names the stream and its
+// clients, the player among them, as they were when the player stopped.
+VOID TEST(RtcAsyncCallOnStopTest, HookKeepsStreamOfStoppedPlayer)
+{
+    srs_error_t err;
+
+    MockStatisticDropsStream mock_stat;
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockExpire mock_expire;
+    MockRtcPacketSender mock_sender;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    SrsContextId cid;
+    cid.set_value("stopped-player");
+    mock_stat.stream_->url_ = mock_request.get_stream_url();
+
+    // The player stops: it queues its hook, and the stats drop the stream.
+    SrsRtcPlayStream *play_stream = new SrsRtcPlayStream(&mock_exec, &mock_expire, &mock_sender, cid);
+    play_stream->stat_ = &mock_stat;
+    play_stream->req_ = mock_request.copy();
+    srs_freep(play_stream);
+
+    EXPECT_EQ(1, mock_stat.on_disconnect_count_);
+    EXPECT_TRUE(mock_stat.find_stream_by_url(mock_request.get_stream_url()) == NULL);
+    ASSERT_EQ(1, mock_exec.exec_count_);
+    SrsUniquePtr<ISrsAsyncCallTask> task(mock_exec.last_task_);
+    SrsRtcAsyncCallOnStop *async_call = dynamic_cast<SrsRtcAsyncCallOnStop *>(task.get());
+    ASSERT_TRUE(async_call != NULL);
+
+    // The queue runs the hook.
+    MockAppConfig mock_config;
+    MockHttpHooks mock_hooks;
+    MockContext mock_context;
+    mock_config.set_http_hooks_enabled(true);
+    std::vector<std::string> urls;
+    urls.push_back("http://callback.server.com/on_stop");
+    mock_config.set_on_stop_urls(urls);
+    async_call->hooks_ = &mock_hooks;
+    async_call->context_ = &mock_context;
+    async_call->config_ = &mock_config;
+    HELPER_EXPECT_SUCCESS(async_call->call());
+
+    EXPECT_EQ(1, mock_hooks.on_stop_count_);
+    EXPECT_STREQ("vid-stopped", mock_hooks.last_stream_.id_.c_str());
+    EXPECT_EQ(2, mock_hooks.last_stream_.clients_);
 }
 
 VOID TEST(RtcPublishStreamTest, Initialize)
@@ -4609,4 +4727,239 @@ VOID TEST(DtlsImplTest, InitializeBuildsContextThroughCertificate)
     EXPECT_TRUE(SSL_CTX_get0_certificate(impl.dtls_ctx_) == certificate.real_->get_cert());
 
     impl.dtls_certificate_ = NULL;
+}
+
+// A packet of n payload bytes, at an RTP time and a time in ms on the publisher's clock, -1 when not mapped.
+static SrsRtpPacket *mock_rtp_packet_for_sr(uint32_t ssrc, uint16_t seq, uint32_t ts, int64_t avsync_time, int n)
+{
+    SrsRtpPacket *pkt = new SrsRtpPacket();
+    pkt->header_.set_ssrc(ssrc);
+    pkt->header_.set_sequence(seq);
+    pkt->header_.set_timestamp(ts);
+    pkt->set_avsync_time(avsync_time);
+
+    SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+    raw->payload_ = pkt->wrap(n);
+    memset(raw->payload_, 0x01, n);
+    raw->nn_payload_ = n;
+    pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+    return pkt;
+}
+
+// Decode the Sender Reports a mock sender got.
+static std::vector<SrsRtcpSR *> mock_decode_srs(MockRtcPacketSender &sender)
+{
+    std::vector<SrsRtcpSR *> srs;
+    for (size_t i = 0; i < sender.sent_rtcps_.size(); i++) {
+        std::string &b = sender.sent_rtcps_[i];
+        SrsBuffer buf((char *)b.data(), (int)b.size());
+        SrsRtcpSR *sr = new SrsRtcpSR();
+        srs_error_t err = sr->decode(&buf);
+        if (err != srs_success || sr->type() != SrsRtcpType_sr) {
+            srs_freep(err);
+            srs_freep(sr);
+            continue;
+        }
+        srs.push_back(sr);
+    }
+    return srs;
+}
+
+// The sender info counts every packet sent, but fills a Sender Report only after a packet on the publisher's clock,
+// with the RTP time and publisher time of the last such packet, and then not again until a new one.
+VOID TEST(RtcSenderInfoTest, FillsLastMappedPacket)
+{
+    SrsRtcSenderInfo info;
+    SrsRtcpSR sr0;
+    EXPECT_FALSE(info.fill(&sr0));
+
+    // A packet the publisher's reports don't map: counted, nothing to fill.
+    SrsUniquePtr<SrsRtpPacket> pkt0(mock_rtp_packet_for_sr(1234, 100, 48000, -1, 50));
+    info.on_packet(pkt0.get());
+    SrsRtcpSR sr1;
+    EXPECT_FALSE(info.fill(&sr1));
+
+    // Two mapped packets: filled with the times of the last.
+    SrsUniquePtr<SrsRtpPacket> pkt1(mock_rtp_packet_for_sr(1234, 101, 48960, 7020, 60));
+    info.on_packet(pkt1.get());
+    SrsUniquePtr<SrsRtpPacket> pkt2(mock_rtp_packet_for_sr(1234, 102, 49920, 7040, 70));
+    info.on_packet(pkt2.get());
+
+    SrsRtcpSR sr2;
+    EXPECT_TRUE(info.fill(&sr2));
+    EXPECT_EQ(SrsNtp::from_time_ms(7040).ntp_, sr2.get_ntp());
+    EXPECT_EQ(49920u, sr2.get_rtp_ts());
+    EXPECT_EQ(3u, sr2.get_rtp_send_packets());
+    EXPECT_EQ(180u, sr2.get_rtp_send_bytes());
+
+    // Filled, so nothing until a new mapped packet.
+    SrsRtcpSR sr3;
+    EXPECT_FALSE(info.fill(&sr3));
+    SrsUniquePtr<SrsRtpPacket> pkt3(mock_rtp_packet_for_sr(1234, 103, 50880, 7060, 80));
+    info.on_packet(pkt3.get());
+    SrsRtcpSR sr4;
+    EXPECT_TRUE(info.fill(&sr4));
+    EXPECT_EQ(4u, sr4.get_rtp_send_packets());
+}
+
+// The Sender Report of a track maps the RTP time of the last packet sent, as the player got it, to that packet's
+// time on the publisher's clock, which the publisher's own Sender Reports map, so the player syncs the tracks as
+// the publisher does; it counts the packets and payload octets sent.
+VOID TEST(RtcSendTrackTest, SenderReportMapsPublisherClock)
+{
+    srs_error_t err;
+
+    MockRtcPacketSender sender;
+    SrsRtcTrackDescription desc;
+    desc.type_ = "video";
+    desc.ssrc_ = 67890;
+    desc.is_active_ = true;
+
+    SrsRtcVideoSendTrack track(&sender, &desc);
+    track.assemble();
+
+    SrsUniquePtr<SrsRtpPacket> pkt0(mock_rtp_packet_for_sr(1234, 100, 90000, 5000, 100));
+    HELPER_EXPECT_SUCCESS(track.on_rtp(pkt0.get()));
+    SrsUniquePtr<SrsRtpPacket> pkt1(mock_rtp_packet_for_sr(1234, 101, 93600, 5040, 200));
+    HELPER_EXPECT_SUCCESS(track.on_rtp(pkt1.get()));
+    ASSERT_EQ(2, sender.send_packet_count_);
+
+    HELPER_EXPECT_SUCCESS(track.send_rtcp_sr());
+
+    std::vector<SrsRtcpSR *> srs = mock_decode_srs(sender);
+    ASSERT_EQ(1, (int)srs.size());
+    SrsUniquePtr<SrsRtcpSR> sr(srs[0]);
+    EXPECT_EQ(67890u, sr->get_ssrc());
+    EXPECT_EQ(SrsNtp::from_time_ms(5040).ntp_, sr->get_ntp());
+    // The RTP time as the player got it, after the track rebuilt it.
+    EXPECT_EQ(pkt1->header_.get_timestamp(), sr->get_rtp_ts());
+    EXPECT_EQ(pkt0->header_.get_timestamp() + 3600, sr->get_rtp_ts());
+    EXPECT_EQ(2u, sr->get_rtp_send_packets());
+    EXPECT_EQ(300u, sr->get_rtp_send_bytes());
+}
+
+// A track sends no Sender Report before it sent a packet on the publisher's clock, such as a stream converted from
+// RTMP, whose packets SRS doesn't map, and none again until it sent a new one.
+VOID TEST(RtcSendTrackTest, SenderReportOnlyAfterMappedPacket)
+{
+    srs_error_t err;
+
+    MockRtcPacketSender sender;
+    SrsRtcTrackDescription desc;
+    desc.type_ = "audio";
+    desc.ssrc_ = 12345;
+    desc.is_active_ = true;
+
+    SrsRtcAudioSendTrack track(&sender, &desc);
+    track.assemble();
+
+    // Nothing sent yet.
+    HELPER_EXPECT_SUCCESS(track.send_rtcp_sr());
+    EXPECT_EQ(0, (int)sender.sent_rtcps_.size());
+
+    // A packet the publisher's reports don't map.
+    SrsUniquePtr<SrsRtpPacket> pkt0(mock_rtp_packet_for_sr(1234, 100, 48000, -1, 50));
+    HELPER_EXPECT_SUCCESS(track.on_rtp(pkt0.get()));
+    HELPER_EXPECT_SUCCESS(track.send_rtcp_sr());
+    EXPECT_EQ(0, (int)sender.sent_rtcps_.size());
+
+    // A mapped packet: a report, which counts every packet sent.
+    SrsUniquePtr<SrsRtpPacket> pkt1(mock_rtp_packet_for_sr(1234, 101, 48960, 7020, 60));
+    HELPER_EXPECT_SUCCESS(track.on_rtp(pkt1.get()));
+    HELPER_EXPECT_SUCCESS(track.send_rtcp_sr());
+    ASSERT_EQ(1, (int)sender.sent_rtcps_.size());
+
+    // No new packet: no new report.
+    HELPER_EXPECT_SUCCESS(track.send_rtcp_sr());
+    EXPECT_EQ(1, (int)sender.sent_rtcps_.size());
+
+    // A new packet: a new report.
+    SrsUniquePtr<SrsRtpPacket> pkt2(mock_rtp_packet_for_sr(1234, 102, 49920, 7040, 70));
+    HELPER_EXPECT_SUCCESS(track.on_rtp(pkt2.get()));
+    HELPER_EXPECT_SUCCESS(track.send_rtcp_sr());
+
+    std::vector<SrsRtcpSR *> srs = mock_decode_srs(sender);
+    ASSERT_EQ(2, (int)srs.size());
+    SrsUniquePtr<SrsRtcpSR> sr0(srs[0]);
+    SrsUniquePtr<SrsRtcpSR> sr1(srs[1]);
+    EXPECT_EQ(SrsNtp::from_time_ms(7020).ntp_, sr0->get_ntp());
+    EXPECT_EQ(pkt1->header_.get_timestamp(), sr0->get_rtp_ts());
+    EXPECT_EQ(2u, sr0->get_rtp_send_packets());
+    EXPECT_EQ(110u, sr0->get_rtp_send_bytes());
+    EXPECT_EQ(SrsNtp::from_time_ms(7040).ntp_, sr1->get_ntp());
+    EXPECT_EQ(pkt2->header_.get_timestamp(), sr1->get_rtp_ts());
+    EXPECT_EQ(3u, sr1->get_rtp_send_packets());
+    EXPECT_EQ(180u, sr1->get_rtp_send_bytes());
+}
+
+// The play stream subscribes to the 1s timer when it initializes, and at each tick after it started sends the
+// Sender Report of each track; it unsubscribes when freed.
+VOID TEST(RtcPlayStreamTest, TimerSendsSenderReports)
+{
+    srs_error_t err;
+
+    MockAppConfig mock_config;
+    MockRtcSourceManager mock_rtc_sources;
+    MockAppStatistic mock_stat;
+    MockRtcAsyncCallRequest mock_request("test.vhost", "live", "stream1");
+    MockRtcAsyncTaskExecutor mock_async_executor;
+    MockExpire mock_expire;
+    MockRtcPacketSender mock_packet_sender;
+    MockSharedTimerForCircuitBreaker mock_timer;
+
+    SrsContextId cid;
+    cid.set_value("test-play-stream-sr-cid");
+    SrsRtcPlayStream *play_stream = new SrsRtcPlayStream(&mock_async_executor, &mock_expire, &mock_packet_sender, cid);
+    play_stream->config_ = &mock_config;
+    play_stream->rtc_sources_ = &mock_rtc_sources;
+    play_stream->stat_ = &mock_stat;
+    play_stream->shared_timer_ = &mock_timer;
+
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "audio-track-id";
+    audio_desc->ssrc_ = 12345;
+    audio_desc->is_active_ = true;
+
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->id_ = "video-track-id";
+    video_desc->ssrc_ = 67890;
+    video_desc->is_active_ = true;
+
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+    sub_relations[12345] = audio_desc.get();
+    sub_relations[67890] = video_desc.get();
+
+    HELPER_EXPECT_SUCCESS(play_stream->initialize(&mock_request, sub_relations));
+    EXPECT_TRUE(mock_timer.timer1s_->subscribed_handler_ == (ISrsFastTimerHandler *)play_stream);
+
+    SrsUniquePtr<SrsRtpPacket> audio(mock_rtp_packet_for_sr(1111, 100, 48000, 5000, 50));
+    HELPER_EXPECT_SUCCESS(play_stream->audio_tracks_[12345]->on_rtp(audio.get()));
+    SrsUniquePtr<SrsRtpPacket> video(mock_rtp_packet_for_sr(2222, 200, 90000, 5000, 100));
+    HELPER_EXPECT_SUCCESS(play_stream->video_tracks_[67890]->on_rtp(video.get()));
+
+    // Not started: no report.
+    HELPER_EXPECT_SUCCESS(play_stream->on_timer(1 * SRS_UTIME_SECONDS));
+    EXPECT_EQ(0, (int)mock_packet_sender.sent_rtcps_.size());
+
+    // Started: a report of each track.
+    play_stream->is_started_ = true;
+    HELPER_EXPECT_SUCCESS(play_stream->on_timer(1 * SRS_UTIME_SECONDS));
+
+    std::vector<SrsRtcpSR *> srs = mock_decode_srs(mock_packet_sender);
+    ASSERT_EQ(2, (int)srs.size());
+    SrsUniquePtr<SrsRtcpSR> sr0(srs[0]);
+    SrsUniquePtr<SrsRtcpSR> sr1(srs[1]);
+    std::set<uint32_t> ssrcs;
+    ssrcs.insert(sr0->get_ssrc());
+    ssrcs.insert(sr1->get_ssrc());
+    EXPECT_TRUE(ssrcs.count(12345) == 1);
+    EXPECT_TRUE(ssrcs.count(67890) == 1);
+    EXPECT_EQ(SrsNtp::from_time_ms(5000).ntp_, sr0->get_ntp());
+    EXPECT_EQ(SrsNtp::from_time_ms(5000).ntp_, sr1->get_ntp());
+
+    ISrsFastTimerHandler *handler = play_stream;
+    srs_freep(play_stream);
+    EXPECT_TRUE(mock_timer.timer1s_->unsubscribed_handler_ == handler);
 }

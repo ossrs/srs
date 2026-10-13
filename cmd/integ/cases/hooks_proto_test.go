@@ -7,7 +7,6 @@ package cases
 import (
 	"context"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -40,7 +39,7 @@ func hooksRtc(t *testing.T) {
 	// WhipPublisherEvents publishes by WHIP with a param, then deletes the
 	// session: on_publish, then on_unpublish, and no other hook of the
 	// client, with every field; the client_id is a client of the API, and
-	// on_publish names the stream_id.
+	// both name the stream_id.
 	check.Case(t, "WhipPublisherEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -53,12 +52,12 @@ func hooksRtc(t *testing.T) {
 
 		hooks := clientHooks(srs, id)
 		c.CheckEqual(hookActions(hooks), []string{"on_publish", "on_unpublish"}, "publisher hooks")
-		checkHookFieldsExcept(c, srs, hooks, "127.0.0.1", rtcAsyncFields)
+		checkHookFields(c, srs, hooks, "127.0.0.1")
 		for _, h := range hooks {
 			c.CheckEqual(h.Field("stream"), stream, h.Action()+" stream")
 			checkParams(c, h.Field("param"), "token=abc")
 			c.CheckEqual(h.Field("stream_url"), "/live/"+stream, h.Action()+" stream_url")
-			checkRtcStreamID(c, h, published.Field("stream_id"))
+			c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), h.Action()+" stream_id, the publisher's")
 		}
 	})
 
@@ -80,12 +79,12 @@ func hooksRtc(t *testing.T) {
 
 		hooks := clientHooks(srs, id)
 		c.CheckEqual(hookActions(hooks), []string{"on_play", "on_stop"}, "player hooks")
-		checkHookFieldsExcept(c, srs, hooks, "127.0.0.1", rtcAsyncFields)
+		checkHookFields(c, srs, hooks, "127.0.0.1")
 		for _, h := range hooks {
 			c.CheckEqual(h.Field("stream"), stream, h.Action()+" stream")
 			checkParams(c, h.Field("param"), "k=v")
 			c.CheckEqual(h.Field("stream_url"), "/live/"+stream, h.Action()+" stream_url")
-			checkRtcStreamID(c, h, published.Field("stream_id"))
+			c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), h.Action()+" stream_id, the publisher's")
 		}
 	})
 
@@ -151,30 +150,104 @@ func hooksRtc(t *testing.T) {
 		} {
 			hooks := clientHooks(srs, s.id)
 			c.CheckEqual(hookActions(hooks), s.actions, "hooks of client "+s.id)
-			checkHookFieldsExcept(c, srs, hooks, "127.0.0.1", rtcAsyncFields)
+			checkHookFields(c, srs, hooks, "127.0.0.1")
 			for _, h := range hooks {
 				c.CheckEqual(h.Field("stream"), stream, h.Action()+" stream")
 				c.CheckEqual(h.Field("tcUrl"), "webrtc://127.0.0.1/live", h.Action()+" tcUrl")
 				checkParams(c, h.Field("param"), s.param)
 				c.CheckEqual(h.Field("stream_url"), "/live/"+stream, h.Action()+" stream_url")
-				checkRtcStreamID(c, h, published.Field("stream_id"))
+				c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), h.Action()+" stream_id, the publisher's")
 			}
 		}
 	})
+
+	// WhipUnpublishQueued deletes a WHIP publisher while SRS still waits on
+	// another stream's slow on_unpublish, so its on_unpublish waits in SRS's
+	// queue of WebRTC hooks until SRS has dropped the client and the stream
+	// from its stats: the hook still names the stream_id of its on_publish.
+	check.Case(t, "WhipUnpublishQueued", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		blocker := newRtcHookBlocker(c, srs, stream+"-block")
+		pub := rtcPublisher(c, whipURL(srs, "live", stream), nil)
+		published := waitHook(c, srs, "on_publish", stream)
+		id := published.Field("client_id")
+		blocker.hold(c, srs)
+		rtcDelete(c, &pub.Session)
+		c.Must(untilGone(c, srs, "/api/v1/clients/"+id), "the publisher in the API")
+		blocker.checkHeld(c)
+
+		h := waitClientHook(c, srs, "on_unpublish", id)
+		c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), "on_unpublish stream_id, the on_publish's")
+	})
+
+	// WhepStopQueued deletes a WHEP player, then its publisher, while SRS
+	// still waits on another stream's slow on_unpublish, so their hooks wait
+	// in SRS's queue of WebRTC hooks until SRS has dropped both clients and
+	// the stream from its stats: on_stop still names the stream_id and counts
+	// the clients when the player stopped, the publisher and the player, as
+	// an RTMP player's on_stop does; on_unpublish names the stream_id.
+	check.Case(t, "WhepStopQueued", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		blocker := newRtcHookBlocker(c, srs, stream+"-block")
+		pub := rtcPublisher(c, whipURL(srs, "live", stream), nil)
+		published := waitHook(c, srs, "on_publish", stream)
+		pubID := published.Field("client_id")
+		player := rtcPlayer(c, whepURL(srs, "live", stream), nil)
+		playID := waitHook(c, srs, "on_play", stream).Field("client_id")
+		blocker.hold(c, srs)
+		rtcDelete(c, &player.Session)
+		c.Must(untilGone(c, srs, "/api/v1/clients/"+playID), "the player in the API")
+		rtcDelete(c, &pub.Session)
+		c.Must(untilGone(c, srs, "/api/v1/clients/"+pubID), "the publisher in the API")
+		blocker.checkHeld(c)
+
+		stop := waitClientHook(c, srs, "on_stop", playID)
+		c.CheckEqual(stop.Field("stream_id"), published.Field("stream_id"), "on_stop stream_id, the publisher's")
+		c.CheckEqual(stop.Field("clients"), "2", "on_stop clients: the publisher and the player")
+		unpublish := waitClientHook(c, srs, "on_unpublish", pubID)
+		c.CheckEqual(unpublish.Field("stream_id"), published.Field("stream_id"), "on_unpublish stream_id, the on_publish's")
+	})
 }
 
-// rtcAsyncFields are the fields a WebRTC client's on_unpublish and on_stop may
-// lack: SRS sends them from a queue after it has dropped the client, and
-// often the stream, from its stats, so a hook that waits in the queue under
-// load has no stream_id, and an on_stop counts the player in clients or not.
-var rtcAsyncFields = map[string][]string{"on_unpublish": {"stream_id"}, "on_stop": {"stream_id", "clients"}}
+// rtcHookQueueHold is how long a hook server holds the on_unpublish of a
+// WebRTC publisher, which keeps SRS's queue of WebRTC hooks busy.
+const rtcHookQueueHold = 200 * time.Millisecond
 
-// checkRtcStreamID checks the stream_id of a WebRTC client's hook: the
-// publisher's, or none in an on_unpublish or on_stop, as rtcAsyncFields says.
-func checkRtcStreamID(c *check.C, h mock.Request, want string) {
+// rtcHookBlocker is a WHIP publisher whose on_unpublish the hook server
+// answers only after rtcHookQueueHold. SRS sends the on_unpublish and on_stop
+// of WebRTC clients from one queue, so the hooks queued while it waits wait
+// too.
+type rtcHookBlocker struct {
+	pub *rtc.Publisher
+	id  string
+	// unpublished is when its on_unpublish came, once hold returns.
+	unpublished time.Time
+}
+
+// newRtcHookBlocker publishes the blocker's stream by WHIP.
+func newRtcHookBlocker(c *check.C, srs *server.Server, name string) *rtcHookBlocker {
 	c.Helper()
-	if got := h.Field("stream_id"); got != "" || !slices.Contains(rtcAsyncFields[h.Action()], "stream_id") {
-		c.CheckEqual(got, want, h.Action()+" stream_id, the publisher's")
+	srs.Hooks.Script(hookOfStream("on_unpublish", name), mock.OK().After(rtcHookQueueHold))
+	pub := rtcPublisher(c, whipURL(srs, "live", name), nil)
+	return &rtcHookBlocker{pub: pub, id: waitHook(c, srs, "on_publish", name).Field("client_id")}
+}
+
+// hold deletes the blocker and waits for its on_unpublish, which then holds
+// the queue for rtcHookQueueHold.
+func (b *rtcHookBlocker) hold(c *check.C, srs *server.Server) {
+	c.Helper()
+	rtcDelete(c, &b.pub.Session)
+	b.unpublished = waitClientHook(c, srs, "on_unpublish", b.id).Time
+}
+
+// checkHeld fails the case if the hook server answered the blocker's
+// on_unpublish already, so a hook queued since hold may not have waited.
+func (b *rtcHookBlocker) checkHeld(c *check.C) {
+	c.Helper()
+	if held := time.Since(b.unpublished); held >= rtcHookQueueHold {
+		c.Fatalf("the queue held for %v only, the clients left %v after the blocking hook came", rtcHookQueueHold, held)
 	}
 }
 

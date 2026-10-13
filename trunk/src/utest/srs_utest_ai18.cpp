@@ -1361,7 +1361,7 @@ srs_error_t MockHttpHooksForSrt::on_publish(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooksForSrt::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForSrt::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
     on_unpublish_count_++;
     on_unpublish_calls_.push_back(std::make_pair(url, req));
@@ -1377,7 +1377,7 @@ srs_error_t MockHttpHooksForSrt::on_play(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooksForSrt::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForSrt::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));

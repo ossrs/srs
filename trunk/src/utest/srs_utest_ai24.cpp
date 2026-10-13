@@ -37,6 +37,8 @@ extern "C" {
 #endif
 #endif
 
+#include <math.h>
+
 using namespace std;
 
 // Mock class to access protected members of SrsRtcRecvTrack
@@ -480,6 +482,131 @@ VOID TEST(FFmpegLogHelperTest, LogCallback)
 
     // If we reach here without crashing, the test passes
     EXPECT_TRUE(true);
+}
+
+// Encode n frames of a 440Hz tone as AAC-LC, 44.1kHz stereo, each frame with
+// its ADTS header, as SRS feeds the transcoder from RTMP.
+static void encode_aac_adts_frames(int n, std::vector<std::string> &frames)
+{
+    const AVCodec *codec = avcodec_find_encoder_by_name("aac");
+    ASSERT_TRUE(codec != NULL);
+
+    AVCodecContext *enc = avcodec_alloc_context3(codec);
+    ASSERT_TRUE(enc != NULL);
+    enc->sample_rate = 44100;
+    enc->channels = 2;
+    enc->channel_layout = av_get_default_channel_layout(2);
+    enc->sample_fmt = AV_SAMPLE_FMT_FLTP;
+    enc->bit_rate = 64000;
+    enc->time_base.num = 1;
+    enc->time_base.den = 44100;
+    ASSERT_GE(avcodec_open2(enc, codec, NULL), 0);
+
+    AVFrame *frame = av_frame_alloc();
+    frame->format = enc->sample_fmt;
+    frame->nb_samples = enc->frame_size;
+    frame->channel_layout = enc->channel_layout;
+    ASSERT_GE(av_frame_get_buffer(frame, 0), 0);
+    AVPacket *pkt = av_packet_alloc();
+
+    int64_t pts = 0;
+    for (int i = 0; (int)frames.size() < n && i < n + 16; i++) {
+        ASSERT_GE(av_frame_make_writable(frame), 0);
+        for (int ch = 0; ch < 2; ch++) {
+            float *samples = (float *)frame->data[ch];
+            for (int s = 0; s < frame->nb_samples; s++) {
+                samples[s] = 0.3f * sinf(2.0f * 3.14159265f * 440.0f * (float)(pts + s) / 44100.0f);
+            }
+        }
+        frame->pts = pts;
+        pts += frame->nb_samples;
+        ASSERT_GE(avcodec_send_frame(enc, frame), 0);
+
+        while (avcodec_receive_packet(enc, pkt) >= 0) {
+            // ADTS header: AAC-LC (object type 2), 44.1kHz (index 4), 2 channels.
+            int len = pkt->size + 7;
+            uint8_t adts[7];
+            adts[0] = 0xff;
+            adts[1] = 0xf1;
+            adts[2] = (uint8_t)(((2 - 1) << 6) | (4 << 2) | (2 >> 2));
+            adts[3] = (uint8_t)(((2 & 3) << 6) | ((len >> 11) & 0x03));
+            adts[4] = (uint8_t)((len >> 3) & 0xff);
+            adts[5] = (uint8_t)(((len & 7) << 5) | 0x1f);
+            adts[6] = 0xfc;
+            frames.push_back(std::string((char *)adts, 7) + std::string((char *)pkt->data, pkt->size));
+            av_packet_unref(pkt);
+        }
+    }
+
+    av_packet_free(&pkt);
+    av_frame_free(&frame);
+    avcodec_free_context(&enc);
+    ASSERT_EQ(n, (int)frames.size());
+}
+
+// Transcode AAC frames, 1024 samples at 44.1kHz each, whose first frame has
+// the time start in ms, to Opus, and collect the time of every Opus frame.
+static void transcode_aac_to_opus(int64_t start, int n, std::vector<int64_t> &opus_dts, int64_t &last_aac_dts)
+{
+    srs_error_t err;
+
+    std::vector<std::string> frames;
+    encode_aac_adts_frames(n, frames);
+    ASSERT_EQ(n, (int)frames.size());
+
+    SrsAudioTranscoder transcoder;
+    HELPER_ASSERT_SUCCESS(transcoder.initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, 2, 48000, 48000));
+
+    for (int i = 0; i < n; i++) {
+        SrsParsedAudioPacket aac;
+        aac.dts_ = start + (int64_t)i * 1024 * 1000 / 44100;
+        aac.cts_ = 0;
+        last_aac_dts = aac.dts_;
+        HELPER_ASSERT_SUCCESS(aac.add_sample((char *)frames[i].data(), (int)frames[i].size()));
+
+        std::vector<SrsParsedAudioPacket *> outs;
+        HELPER_ASSERT_SUCCESS(transcoder.transcode(&aac, outs));
+        for (size_t j = 0; j < outs.size(); j++) {
+            opus_dts.push_back(outs[j]->dts_);
+        }
+        transcoder.free_frames(outs);
+    }
+}
+
+// The Opus transcoded from AAC whose first frame is at 1457ms, as ffmpeg's
+// TS over SRT starts, keeps the AAC's times from its first frame: no frame
+// before the AAC starts, and 20ms between frames, with no jump.
+VOID TEST(AudioTranscoderTest, AacToOpusKeepsLateStartTime)
+{
+    std::vector<int64_t> opus_dts;
+    int64_t last_aac_dts = 0;
+    transcode_aac_to_opus(1457, 50, opus_dts, last_aac_dts);
+    ASSERT_GE(opus_dts.size(), 40u);
+
+    // The Opus encoder's 6.5ms delay moves the frames a little before the AAC.
+    EXPECT_GE(opus_dts[0], 1457 - 20);
+    EXPECT_LE(opus_dts[0], 1457 + 40);
+    for (size_t i = 1; i < opus_dts.size(); i++) {
+        EXPECT_GE(opus_dts[i] - opus_dts[i - 1], 19) << "frame " << i << " at " << opus_dts[i] << " after " << opus_dts[i - 1];
+        EXPECT_LE(opus_dts[i] - opus_dts[i - 1], 21) << "frame " << i << " at " << opus_dts[i] << " after " << opus_dts[i - 1];
+    }
+    EXPECT_LE(opus_dts.back(), last_aac_dts + 40);
+}
+
+// The Opus transcoded from AAC that starts at 0, as RTMP does, starts at 0.
+VOID TEST(AudioTranscoderTest, AacToOpusStartsAtZero)
+{
+    std::vector<int64_t> opus_dts;
+    int64_t last_aac_dts = 0;
+    transcode_aac_to_opus(0, 50, opus_dts, last_aac_dts);
+    ASSERT_GE(opus_dts.size(), 40u);
+
+    EXPECT_GE(opus_dts[0], -20);
+    EXPECT_LE(opus_dts[0], 40);
+    for (size_t i = 1; i < opus_dts.size(); i++) {
+        EXPECT_GE(opus_dts[i] - opus_dts[i - 1], 19) << "frame " << i;
+        EXPECT_LE(opus_dts[i] - opus_dts[i - 1], 21) << "frame " << i;
+    }
 }
 #endif
 

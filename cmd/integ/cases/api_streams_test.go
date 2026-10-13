@@ -543,8 +543,8 @@ func apiStreamFields(t *testing.T) {
 	})
 
 	// WhipPublisherFields checks a WHIP publisher and its H.264 Baseline
-	// and Opus stream, after a second of media. The Opus sample rate and
-	// channels are WhipOpusAudioInfo's, the video size WhipVideoSize's.
+	// and Opus 48 kHz stereo stream, after a second of media. The video size
+	// is WhipVideoSize's.
 	check.Case(t, "WhipPublisherFields", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -554,14 +554,13 @@ func apiStreamFields(t *testing.T) {
 		v := object(c, st, "video")
 		checkStream(c, st, stream, streamWant{
 			&videoWant{"H264", "Baseline", int(num(c, v, "width")), int(num(c, v, "height"))},
-			&audioWant{"Opus", "", int(num(c, object(c, st, "audio"), "sample_rate")), int(num(c, object(c, st, "audio"), "channel"))},
+			&audioWant{"Opus", "", 48000, 2},
 		})
 	})
 
 	// WhipOpusAudioInfo checks the Opus of a WHIP stream: 48 kHz stereo,
 	// as its SDP says.
 	check.Case(t, "WhipOpusAudioInfo", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a WHIP stream's Opus is listed with sample_rate 0 and channel 3, not 48000 and 2")
 		srs := server.Common(c)
 		h, _ := whipStream(c, srs, streamName(c), 200*time.Millisecond)
 		a := object(c, apiStreamOf(c, srs, h.stream), "audio")

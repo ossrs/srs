@@ -415,9 +415,10 @@ void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
         hooks = conf->args_;
     }
 
+    SrsStatisticStreamSnapshot stream(stat_, req);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req);
+        hooks_->on_stop(url, req, stream);
     }
 
     return;

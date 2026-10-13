@@ -54,9 +54,8 @@ var whipCodecs = []whipCodec{
 var whipH264Opus = whipCodecs[0]
 
 // whipMedia holds each WebRTC test file's samples without their SEI NALs,
-// made once: SRS converts a frame whose first NAL, after the parameter sets,
-// is an SEI as an inter frame, a known bug that the cells leave out (see
-// TestConvert_RtcToRtmp's SEI cases).
+// made once. TestConvert_RtcToRtmp's SEI cases send the SEI NALs, which come
+// before the IDR of a keyframe.
 var whipMedia sync.Map
 
 type whipFile struct {
@@ -430,12 +429,11 @@ func TestConvert_RtcToRtmp(t *testing.T) {
 		checkNothingRTMP(c, player, 100*time.Millisecond)
 	})
 
-	// SRS marks the frame it converts by the first NAL after the parameter
-	// sets: a keyframe with an SEI there, as x264 writes in its first frame
-	// and x265 in each keyframe, goes to RTMP as an inter frame.
+	// A keyframe with an SEI before its IDR, as x264 writes in its first
+	// frame and x265 in each keyframe, goes to RTMP as a keyframe: the RTMP
+	// player's first frame is a keyframe.
 	for _, codec := range whipCodecs[:2] {
 		check.Case(t, "WhipToRtmp_SeiKeyframe"+codec.name, check.Normal, func(c *check.C) {
-			check.KnownBug(c, "a WebRTC keyframe whose first NAL after the parameter sets is an SEI is converted to RTMP as an inter frame")
 			stream := streamName(c)
 			read := joinRTMP(c, srs, stream)
 			samples := whipTracks(rtcFileSamples(c, codec.file), codec)
@@ -489,9 +487,10 @@ func checkNothingRTMP(c *check.C, player *rtmp.Client, d time.Duration) {
 // whepWhipPlayer plays WebRTC by WHEP from Common, the stream as WHIP sent
 // it: SRS forwards the packets. The player connects before the publisher,
 // and offers HEVC by vcodec for an HEVC stream. Like whepPlayer, its gap and
-// sync limits are 200ms: SRS sends a player no Sender Report, so the
-// analyzer counts each track's times from its first packet, and reads the
-// tracks on their own goroutines, which take the lead's burst apart.
+// sync limits are 200ms: the analyzer counts each track's times from its
+// first packet, not by SRS's Sender Reports, which TestTimer_Convert_Reports
+// checks, and reads the tracks on their own goroutines, which take the
+// lead's burst apart.
 var whepWhipPlayer = whipPlayer{
 	name: "Whep", video: same("h264", "hevc"), audio: same("opus"),
 	play: func(c *check.C, srs *server.Server, codec whipCodec, w convertWant) *report.Report {
@@ -566,29 +565,102 @@ func TestTimer_Convert_Reports(t *testing.T) {
 	// report of each track within 2.5s, more than the second between the
 	// reports a sender usually sends.
 	check.Case(t, "WhipToWhep_SenderReports", check.Timer, func(c *check.C) {
-		check.KnownBug(c, "SRS sends a WebRTC player no Sender Report, neither the publisher's nor its own, so the player can't sync audio and video")
 		stream := streamName(c)
 		p := rtcPlayer(c, whepURL(srs, "live", stream), nil)
 		whipSend(c, whipPublish(c, srs, stream, whipH264Opus), whipH264Opus.samples(c), whipLead)
 		waitPlayed(c, p, rtcPlayedUntil)
-		ctx, cancel := context.WithTimeout(context.Background(), 2500*time.Millisecond)
-		defer cancel()
-		rec, err := p.Recorder.Until(ctx, func(rec *rtc.Record) bool {
-			reported := map[uint32]bool{}
-			for _, pkt := range rec.RTCPIn {
-				if sr, ok := pkt.(*rtcp.SenderReport); ok {
-					reported[sr.SSRC] = true
-				}
-			}
-			for ssrc := range rec.In {
-				if !reported[ssrc] {
-					return false
-				}
-			}
-			return len(rec.In) == 2
-		})
-		c.CheckNoError(err, fmt.Sprintf("a Sender Report of each of the tracks %v", streamsOf(rec)))
+		rec, ok := waitReports(c, p)
+		c.Check(ok, "a Sender Report of each of the tracks %v", streamsOf(rec))
 	})
+
+	// The reports keep the publisher's sync: with the publisher's audio
+	// reports 150ms later than its video, the player's first audio maps
+	// 150ms after its first video, plus the first samples' own offset, by
+	// SRS's reports; reports of SRS's own clock would map them together.
+	check.Case(t, "WhipToWhep_ReportsKeepSync", check.Timer, func(c *check.C) {
+		const shift = 150 * time.Millisecond
+		stream := streamName(c)
+		p := rtcPlayer(c, whepURL(srs, "live", stream), nil)
+		opts := whipH264Opus.options()
+		opts.AudioReportShift = shift
+		samples := whipH264Opus.samples(c)
+		whipSend(c, rtcPublisher(c, whipH264Opus.url(srs, stream), opts), samples, whipLead)
+		waitPlayed(c, p, rtcPlayedUntil)
+		rec, ok := waitReports(c, p)
+		if !c.Check(ok, "a Sender Report of each of the tracks %v", streamsOf(rec)) {
+			return
+		}
+		video, vok := reportedStart(rec, "video/")
+		audio, aok := reportedStart(rec, "audio/")
+		if c.Check(vok && aok, "no video or audio stream: %v", streamsOf(rec)) {
+			want := shift + firstDTS(samples, false) - firstDTS(samples, true)
+			d := audio - video
+			c.Check(d >= want-20*time.Millisecond && d <= want+40*time.Millisecond,
+				"by the reports the first audio %v after the first video, want %v", d, want)
+		}
+	})
+}
+
+// waitReports waits at most 2.5s, more than the second between the reports
+// a sender usually sends, until a player has a Sender Report of each of its
+// two tracks, and returns its record then, or at the timeout and false.
+func waitReports(c *check.C, p *rtc.Player) (*rtc.Record, bool) {
+	c.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2500*time.Millisecond)
+	defer cancel()
+	rec, err := p.Recorder.Until(ctx, func(rec *rtc.Record) bool {
+		reported := map[uint32]bool{}
+		for _, pkt := range rec.RTCPIn {
+			if sr, ok := pkt.(*rtcp.SenderReport); ok {
+				reported[sr.SSRC] = true
+			}
+		}
+		for ssrc := range rec.In {
+			if !reported[ssrc] {
+				return false
+			}
+		}
+		return len(rec.In) == 2
+	})
+	return rec, err == nil
+}
+
+// reportedStart is the time that the last Sender Report of the received
+// stream of the kind, "video/" or "audio/", maps the stream's first packet
+// to, from its RTP time at the codec's clock rate.
+func reportedStart(rec *rtc.Record, kind string) (time.Duration, bool) {
+	for ssrc, s := range rec.In {
+		if !strings.HasPrefix(strings.ToLower(s.MimeType), kind) {
+			continue
+		}
+		var last *rtcp.SenderReport
+		for _, pkt := range rec.RTCPIn {
+			if sr, ok := pkt.(*rtcp.SenderReport); ok && sr.SSRC == ssrc {
+				last = sr
+			}
+		}
+		if last == nil {
+			return 0, false
+		}
+		rate := 90000.0
+		if kind == "audio/" {
+			rate = 48000
+		}
+		at := time.Duration(float64(last.NTPTime) / (1 << 32) * float64(time.Second))
+		back := time.Duration(float64(last.RTPTime-s.FirstTimestamp) / rate * float64(time.Second))
+		return at - back, true
+	}
+	return 0, false
+}
+
+// firstDTS is the decode time of the first video or audio sample.
+func firstDTS(samples []rtc.Sample, video bool) time.Duration {
+	for _, s := range samples {
+		if s.Video == video {
+			return s.DTS
+		}
+	}
+	return 0
 }
 
 // streamsOf describes the streams a session received, by SSRC.

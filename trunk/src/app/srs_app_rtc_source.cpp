@@ -1916,6 +1916,17 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     srs_error_t err = srs_success;
 
     srs_freep(audio_transcoder_);
+    video_codec_ = video_codec;
+    last_video_sequence_header_.clear();
+
+    // There is no G.711 decoder to transcode it to AAC, so the stream is converted without its audio,
+    // while WebRTC players still get the stream as it was published.
+    // TODO: FIXME: Add a G.711 transcoder to convert PCMU and PCMA to AAC for RTMP.
+    if (audio_codec == SrsAudioCodecIdPCMU || audio_codec == SrsAudioCodecIdPCMA) {
+        srs_trace("RTC: %s audio is not converted to RTMP, only the video", srs_audio_codec_id2str(audio_codec).c_str());
+        return err;
+    }
+
     audio_transcoder_ = app_factory_->create_audio_transcoder();
 
     SrsAudioCodecId to = SrsAudioCodecIdAAC;                   // The output audio codec.
@@ -1929,9 +1940,6 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     if ((err = audio_transcoder_->initialize(audio_codec, to, channels, sample_rate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }
-
-    video_codec_ = video_codec;
-    last_video_sequence_header_.clear();
 
     return err;
 }
@@ -1986,6 +1994,11 @@ srs_error_t SrsRtcFrameBuilder::on_rtp(SrsRtpPacket *pkt)
 srs_error_t SrsRtcFrameBuilder::packet_audio(SrsRtpPacket *src)
 {
     srs_error_t err = srs_success;
+
+    // No transcoder for the audio codec, such as G.711, so the audio is dropped.
+    if (!audio_transcoder_) {
+        return err;
+    }
 
     std::vector<SrsRtpPacket *> ready_packets;
     SrsUniquePtr<vector<SrsRtpPacket *> > pkts_disposer(&ready_packets, free_packets);
@@ -2547,6 +2560,10 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     // The start position packet may be null, so we need to find the actual first packet.
     SrsRtpPacket *first_frame_pkt = NULL;
 
+    // The frame is a keyframe if any of its packets is: an encoder may write an SEI
+    // before the IDR, so the first packet is not always the one with the IDR.
+    bool is_keyframe = false;
+
     // First loop: Calculate total payload size and find first packet
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t sn = start + i;
@@ -2562,6 +2579,10 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
 
         // Calculate payload size using helper function
         nb_payload += calculate_packet_payload_size(pkt);
+
+        if (!is_keyframe && pkt->is_keyframe(video_codec_)) {
+            is_keyframe = true;
+        }
     }
 
     if (0 == nb_payload) {
@@ -2597,12 +2618,12 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     // packet of a video frame, therefore we use the first available packet instead.
     SrsRtpPacket *pkt = first_frame_pkt;
 
-    if (pkt->is_keyframe(video_codec_)) {
+    if (is_keyframe) {
         frame_detector_->on_keyframe_detached();
     }
 
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (pkt->is_keyframe(video_codec_)) {
+    if (is_keyframe) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 
@@ -3668,6 +3689,56 @@ uint16_t SrsRtcSeqJitter::correct(uint16_t value)
     return jitter_->correct(value);
 }
 
+SrsRtcSenderInfo::SrsRtcSenderInfo()
+{
+    rtp_time_ = 0;
+    avsync_time_ = -1;
+    packets_ = 0;
+    octets_ = 0;
+    pending_ = false;
+}
+
+SrsRtcSenderInfo::~SrsRtcSenderInfo()
+{
+}
+
+void SrsRtcSenderInfo::on_packet(SrsRtpPacket *pkt)
+{
+    packets_++;
+
+    ISrsRtpPayloader *payload = pkt->payload();
+    if (payload) {
+        octets_ += (uint32_t)payload->nb_bytes();
+    }
+
+    // Only a packet with a time on the publisher's clock maps the track, which SRS knows from the publisher's own
+    // Sender Reports; a stream converted from RTMP or SRT has none.
+    if (pkt->get_avsync_time() <= 0) {
+        return;
+    }
+
+    rtp_time_ = pkt->header_.get_timestamp();
+    avsync_time_ = pkt->get_avsync_time();
+    pending_ = true;
+}
+
+bool SrsRtcSenderInfo::fill(SrsRtcpSR *sr)
+{
+    if (!pending_) {
+        return false;
+    }
+    pending_ = false;
+
+    // The RTP time of the last packet as sent, and its time on the publisher's clock, so the player maps every track
+    // to that one clock, as the publisher's reports map them.
+    sr->set_ntp(SrsNtp::from_time_ms(avsync_time_).ntp_);
+    sr->set_rtp_ts(rtp_time_);
+    sr->set_rtp_send_packets(packets_);
+    sr->set_rtp_send_bytes(octets_);
+
+    return true;
+}
+
 ISrsRtcPacketSender::ISrsRtcPacketSender()
 {
 }
@@ -3697,6 +3768,8 @@ SrsRtcSendTrack::SrsRtcSendTrack(ISrsRtcPacketSender *sender, SrsRtcTrackDescrip
     
     rtx_seq_ = 0;
     rand_ = new SrsRand();
+
+    sender_info_ = new SrsRtcSenderInfo();
 }
 
 void SrsRtcSendTrack::assemble()
@@ -3713,6 +3786,7 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
     srs_freep(jitter_ts_);
     srs_freep(jitter_seq_);
     srs_freep(rand_);
+    srs_freep(sender_info_);
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
@@ -3781,6 +3855,30 @@ void SrsRtcSendTrack::rebuild_packet(SrsRtpPacket *pkt)
     pkt->header_.set_timestamp(jitter_ts_->correct(ts));
 
     srs_info("RTC: Correct %s seq=%u/%u, ts=%u/%u", track_desc_->type_.c_str(), seq, pkt->header_.get_sequence(), ts, pkt->header_.get_timestamp());
+}
+
+srs_error_t SrsRtcSendTrack::send_rtcp_sr()
+{
+    srs_error_t err = srs_success;
+
+    SrsRtcpSR sr;
+    if (!sender_info_->fill(&sr)) {
+        return err;
+    }
+    sr.set_ssrc(track_desc_->ssrc_);
+
+    // The buffer has room for the SRTP trailer that the sender adds.
+    char buf[kRtpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+    if ((err = sr.encode(&stream)) != srs_success) {
+        return srs_error_wrap(err, "encode sr");
+    }
+
+    if ((err = sender_->send_rtcp(stream.data(), stream.pos())) != srs_success) {
+        return srs_error_wrap(err, "send sr, ssrc=%u", track_desc_->ssrc_);
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket **ppkt)
@@ -3908,6 +4006,8 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket *pkt)
         return srs_error_wrap(err, "raw send");
     }
 
+    sender_info_->on_packet(pkt);
+
     srs_info("RTC: Send audio ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header_.get_ssrc(),
              pkt->header_.get_sequence(), pkt->is_keyframe(), pkt->header_.get_timestamp());
 
@@ -3962,6 +4062,8 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket *pkt)
     if ((err = sender_->do_send_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "raw send");
     }
+
+    sender_info_->on_packet(pkt);
 
     srs_info("RTC: Send video ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header_.get_ssrc(),
              pkt->header_.get_sequence(), pkt->is_keyframe(), pkt->header_.get_timestamp());
@@ -4070,18 +4172,18 @@ srs_error_t SrsRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio)
                 return err;
             }
 
-            // Get sample rate from media payload
-            SrsAudioSampleRate sample_rate = (SrsAudioSampleRate)audio_media->sample_;
+            // The SDP gives the sample rate in Hz, such as 48000 for opus/48000/2.
+            SrsAudioSampleRate sample_rate = srs_audio_sample_rate_from_number(audio_media->sample_);
 
-            // Get channels from audio payload
-            SrsAudioChannels channels = (SrsAudioChannels)audio_media->channel_;
+            // The SDP gives the number of channels, and none means one (RFC 4566).
+            SrsAudioChannels channels = (audio_media->channel_ >= 2) ? SrsAudioChannelsStereo : SrsAudioChannelsMono;
 
             if ((err = stat_->on_audio_info(req_, codec_id, sample_rate, channels,
                                             SrsAacObjectTypeReserved)) != srs_success) {
                 return srs_error_wrap(err, "stat audio info");
             }
             srs_trace("RTC: parsed %s codec, sample_rate=%dHz, channels=%d",
-                      srs_audio_codec_id2str(codec_id).c_str(), sample_rate, channels);
+                      srs_audio_codec_id2str(codec_id).c_str(), audio_media->sample_, audio_media->channel_);
         }
     } else {
         // Only report once

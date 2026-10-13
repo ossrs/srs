@@ -444,6 +444,23 @@ public:
     void reset();
 };
 
+// Mock statistic with one stream, which it drops when a client disconnects, as
+// SrsStatistic drops a stream with no publisher and no player.
+class MockStatisticDropsStream : public MockAppStatistic
+{
+public:
+    SrsStatisticStream *stream_;
+    bool dropped_;
+
+public:
+    MockStatisticDropsStream();
+    virtual ~MockStatisticDropsStream();
+
+public:
+    virtual SrsStatisticStream *find_stream_by_url(std::string url);
+    virtual void on_disconnect(std::string id, srs_error_t err);
+};
+
 // Mock ISrsAppConfig for testing SrsDtlsCertificate::initialize()
 class MockAppConfigForDtlsCertificate : public MockAppConfig
 {

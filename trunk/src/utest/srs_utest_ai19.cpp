@@ -2879,6 +2879,7 @@ MockFastTimerForCircuitBreaker::MockFastTimerForCircuitBreaker()
 {
     subscribe_called_ = false;
     subscribed_handler_ = NULL;
+    unsubscribed_handler_ = NULL;
 }
 
 MockFastTimerForCircuitBreaker::~MockFastTimerForCircuitBreaker()
@@ -2898,12 +2899,14 @@ void MockFastTimerForCircuitBreaker::subscribe(ISrsFastTimerHandler *handler)
 
 void MockFastTimerForCircuitBreaker::unsubscribe(ISrsFastTimerHandler *handler)
 {
+    unsubscribed_handler_ = handler;
 }
 
 void MockFastTimerForCircuitBreaker::reset()
 {
     subscribe_called_ = false;
     subscribed_handler_ = NULL;
+    unsubscribed_handler_ = NULL;
 }
 
 // Mock ISrsSharedTimer implementation for SrsCircuitBreaker
