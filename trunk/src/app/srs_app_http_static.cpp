@@ -626,6 +626,11 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
 
     SrsUniquePtr<ISrsRequest> req(hr->to_request(hr->host())->as_http());
 
+    // The request's tcUrl was parsed as RTMP, with the RTMP default port that as_http() leaves out,
+    // so set the session's own: the URL of its app on the HTTP server it asked, as an HTTP-FLV
+    // player's.
+    req->tcUrl_ = hr->app_url(req->app_);
+
     // discovery vhost, resolve the vhost from config
     SrsConfDirective *parsed_vhost = config_->get_vhost(req->vhost_);
     if (parsed_vhost) {

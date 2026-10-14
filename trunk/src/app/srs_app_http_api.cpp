@@ -723,7 +723,7 @@ srs_error_t SrsGoApiRequests::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
 
     // server informations
     SrsJsonObject *server = SrsJsonAny::object();
-    data->set("headers", server);
+    data->set("server", server);
 
     server->set("sigature", SrsJsonAny::str(RTMP_SIG_SRS_KEY));
     server->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));

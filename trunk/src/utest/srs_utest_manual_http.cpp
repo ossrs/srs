@@ -1633,6 +1633,45 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerBearerAuth)
     }
 }
 
+// Whether the authenticator a protects the request of the URL url.
+static bool srs_utest_auth_match(ISrsHttpAuthenticator *a, string url)
+{
+    srs_error_t err;
+
+    SrsHttpMessage r(NULL, NULL);
+    r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+    HELPER_EXPECT_SUCCESS(r.set_url(url, false));
+
+    bool matched = a->match(&r);
+    srs_freep(a);
+    return matched;
+}
+
+// The API auth protects the paths under /api/ (and /rtc/ for bearer with RTC), not a stream
+// whose app or name has /api/ or /rtc/ in it.
+VOID TEST(ProtocolHTTPTest, HTTPAuthMatchesPathPrefixOnly)
+{
+    const char *api[] = {"/api/", "/api/v1/versions", "/api/v1/summaries?callback=x", "/api/v1/streams/"};
+    for (int i = 0; i < (int)(sizeof(api) / sizeof(api[0])); i++) {
+        EXPECT_TRUE(srs_utest_auth_match(new SrsHttpBasicAuthenticator("admin", "admin"), api[i])) << api[i];
+        EXPECT_TRUE(srs_utest_auth_match(new SrsHttpBearerAuthenticator("token", false), api[i])) << api[i];
+        EXPECT_TRUE(srs_utest_auth_match(new SrsHttpBearerAuthenticator("token", true), api[i])) << api[i];
+    }
+
+    const char *streams[] = {"/live/api/livestream.flv", "/live/api/", "/api.flv", "/apix/v1/versions", "/live/rtc/livestream.flv", "/live/livestream.flv"};
+    for (int i = 0; i < (int)(sizeof(streams) / sizeof(streams[0])); i++) {
+        EXPECT_FALSE(srs_utest_auth_match(new SrsHttpBasicAuthenticator("admin", "admin"), streams[i])) << streams[i];
+        EXPECT_FALSE(srs_utest_auth_match(new SrsHttpBearerAuthenticator("token", false), streams[i])) << streams[i];
+        EXPECT_FALSE(srs_utest_auth_match(new SrsHttpBearerAuthenticator("token", true), streams[i])) << streams[i];
+    }
+
+    // WebRTC signaling under /rtc/ only with bearer and RTC on.
+    EXPECT_FALSE(srs_utest_auth_match(new SrsHttpBasicAuthenticator("admin", "admin"), "/rtc/v1/whip/?app=live&stream=livestream"));
+    EXPECT_FALSE(srs_utest_auth_match(new SrsHttpBearerAuthenticator("token", false), "/rtc/v1/whip/?app=live&stream=livestream"));
+    EXPECT_TRUE(srs_utest_auth_match(new SrsHttpBearerAuthenticator("token", true), "/rtc/v1/whip/?app=live&stream=livestream"));
+    EXPECT_TRUE(srs_utest_auth_match(new SrsHttpBearerAuthenticator("token", true), "/rtc/v1/play/"));
+}
+
 VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
 {
     srs_error_t err;

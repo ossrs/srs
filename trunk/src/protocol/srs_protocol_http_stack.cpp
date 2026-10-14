@@ -1169,8 +1169,9 @@ SrsHttpBasicAuthenticator::~SrsHttpBasicAuthenticator()
 
 bool SrsHttpBasicAuthenticator::match(ISrsHttpMessage *r)
 {
-    // Basic authentication only protects the HTTP API.
-    return r->path().find("/api/") != string::npos;
+    // Basic authentication only protects the HTTP API, the paths under /api/, not a stream whose
+    // app or name has /api/ in it.
+    return srs_strings_starts_with(r->path(), "/api/");
 }
 
 srs_error_t SrsHttpBasicAuthenticator::authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
@@ -1223,9 +1224,10 @@ SrsHttpBearerAuthenticator::~SrsHttpBearerAuthenticator()
 
 bool SrsHttpBearerAuthenticator::match(ISrsHttpMessage *r)
 {
-    // Bearer authentication always protects the HTTP API and optionally protects WebRTC signaling APIs.
+    // Bearer authentication always protects the HTTP API under /api/, and optionally the WebRTC
+    // signaling APIs under /rtc/; not a stream whose app or name has /api/ or /rtc/ in it.
     string path = r->path();
-    return path.find("/api/") != string::npos || (rtc_bearer_enabled_ && path.find("/rtc/") != string::npos);
+    return srs_strings_starts_with(path, "/api/") || (rtc_bearer_enabled_ && srs_strings_starts_with(path, "/rtc/"));
 }
 
 srs_error_t SrsHttpBearerAuthenticator::authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)

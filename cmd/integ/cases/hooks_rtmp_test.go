@@ -196,7 +196,6 @@ func hooksRtmp(t *testing.T) {
 		// the stream name: the hooks' param must hold both, as a query a hook
 		// server can parse.
 		check.Case(t, s.name+"ParamFromTcUrlAndStream", check.Normal, func(c *check.C) {
-			check.KnownBug(c, "a param on both the tcUrl and the stream name is joined with a second '?', so the tcUrl's key is lost in the stream's value")
 			srs := server.Common(c)
 			stream := streamName(c)
 			opts := s.opts(c)

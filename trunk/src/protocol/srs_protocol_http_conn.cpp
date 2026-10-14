@@ -540,16 +540,9 @@ bool SrsHttpMessage::is_keep_alive()
 
 string SrsHttpMessage::uri()
 {
-    std::string uri = _uri->get_schema();
-    if (uri.empty()) {
-        uri += "http";
-    }
-    uri += "://";
-
-    uri += host();
-    uri += path();
-
-    return uri;
+    // The URI the client asked for: the schema, the Host with its port, the
+    // path and the query, not the vhost of a vhost or domain query.
+    return _uri->get_url();
 }
 
 string SrsHttpMessage::url()
@@ -687,6 +680,17 @@ ISrsRequest *SrsHttpMessage::to_request(string vhost)
     req->protocol_ = (schema_ == "http") ? "flv" : "flvs";
 
     return req;
+}
+
+string SrsHttpMessage::app_url(string app)
+{
+    // The Host header keeps the port and IPv6 brackets as asked, which the URI may not: it defaults a
+    // missing port to 80, even for HTTPS.
+    string host = _header.get("Host");
+    if (host.empty()) {
+        host = this->host();
+    }
+    return schema() + "://" + host + "/" + app;
 }
 
 bool SrsHttpMessage::is_jsonp()

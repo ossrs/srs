@@ -508,7 +508,6 @@ func apiStreamFields(t *testing.T) {
 	// with a Referer are its own: the http:// URL of its app on the HTTP
 	// server, and its Referer, as its on_play has.
 	check.Case(t, "HttpFlvPlayerUrls", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an HTTP-FLV player is listed with its publisher's tcUrl, as http:// with the RTMP port, and pageUrl, not its own")
 		srs := server.Common(c)
 		cl, _ := httpFlvPlayerClient(c, srs, streamName(c))
 		c.CheckEqual(cl["tcUrl"], "http://"+srs.Addr(server.HTTPServer)+"/live", "client tcUrl")
@@ -530,6 +529,17 @@ func apiStreamFields(t *testing.T) {
 		c.CheckEqual(cl["id"], ctx, "client id, the hls_ctx")
 		c.CheckEqual(cl["pageUrl"], "http://page.example/hls.html", "client pageUrl")
 		c.CheckEqual(cl["stream"], pub.Field("stream_id"), "client stream")
+	})
+
+	// HlsPlayerUrls checks the tcUrl of an HLS session is the http:// URL
+	// of its app on the HTTP server, with the server's port, as an HTTP-FLV
+	// player's is (HttpFlvPlayerUrls).
+	check.Case(t, "HlsPlayerUrls", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		publishHLSHooked(c, srs, stream, "")
+		cl := apiClientOf(c, srs, hlsSession(c, srs, stream, "", nil))
+		c.CheckEqual(cl["tcUrl"], "http://"+srs.Addr(server.HTTPServer)+"/live", "client tcUrl")
 	})
 
 	// HlsClientName checks an HLS session names its stream like every

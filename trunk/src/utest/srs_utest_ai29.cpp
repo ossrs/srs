@@ -7,6 +7,7 @@
 
 #include <srs_app_http_static.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
 using namespace std;
@@ -376,6 +377,7 @@ VOID TEST(HttpStaticServerTest, InitializeFailsWhenAVhostCannotBeMounted)
 
 MockAppConfigForVodStream::MockAppConfigForVodStream()
 {
+    hls_ctx_enabled_ = false;
 }
 
 MockAppConfigForVodStream::~MockAppConfigForVodStream()
@@ -400,7 +402,7 @@ SrsConfDirective *MockAppConfigForVodStream::get_vhost(string vhost, bool try_de
 bool MockAppConfigForVodStream::get_hls_ctx_enabled(string vhost)
 {
     hls_ctx_vhosts_.push_back(vhost);
-    return false;
+    return hls_ctx_enabled_;
 }
 
 MockFileReaderFactoryForVodStream::MockFileReaderFactoryForVodStream(string content)
@@ -618,3 +620,58 @@ VOID TEST(VodStreamVhostTest, M3u8CtxKeepsTheRequestVhostWhenConfigResolvesNone)
 
     EXPECT_PRED2(is_string_contain, "#EXTM3U", resp);
 }
+// Start an HLS session of the playlist /live/stream.m3u8, asked of the HTTP server by the Host header
+// host, and return the tcUrl the stat got for the session. The stat refuses the client, so the
+// session stops there.
+static string mock_vod_hls_session_tcurl(bool https, string host)
+{
+    MockAppConfigForVodStream config;
+    config.hls_ctx_enabled_ = true;
+
+    MockStatisticForLiveStream stat;
+    stat.on_client_error_ = srs_error_new(ERROR_SYSTEM_AUTH, "refused by the test");
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    SrsVodStream stream("/tmp");
+    stream.set_fs_factory(new MockFileReaderFactoryForVodStream("#EXTM3U\n"));
+    stream.set_path(new MockSrsPathAlwaysExists());
+    stream.entry_ = &entry;
+    stream.config_ = &config;
+    stream.hls_.config_ = &config;
+    stream.hls_.stat_ = &stat;
+
+    MockResponseWriterForVodStream w;
+    SrsHttpMessage r(NULL, NULL);
+    SrsHttpHeader header;
+    header.set("Host", host);
+    r.set_header(&header, false);
+    r.set_https(https);
+    srs_error_t err = r.set_url("/live/stream.m3u8", false);
+    srs_freep(err);
+    err = stream.serve_http(&w, &r);
+    srs_freep(err);
+
+    stream.config_ = NULL;
+    stream.hls_.config_ = NULL;
+    stream.hls_.stat_ = NULL;
+    srs_freep(stat.on_client_error_);
+
+    EXPECT_EQ(1, stat.on_client_count_);
+    return stat.on_client_tc_url_;
+}
+
+// An HLS session is listed with the URL of its app on the HTTP server it asked, with the server's
+// port, as an HTTP-FLV viewer is, not with the RTMP default port left out.
+VOID TEST(VodStreamHlsSessionTest, TcUrlHasTheHttpServerPort)
+{
+    EXPECT_STREQ("http://127.0.0.1:8080/live", mock_vod_hls_session_tcurl(false, "127.0.0.1:8080").c_str());
+}
+
+// An HLS session over HTTPS has an https:// tcUrl, and an IPv6 host keeps its brackets.
+VOID TEST(VodStreamHlsSessionTest, HttpsTcUrlKeepsTheHost)
+{
+    EXPECT_STREQ("https://[::1]:8088/live", mock_vod_hls_session_tcurl(true, "[::1]:8088").c_str());
+}
+

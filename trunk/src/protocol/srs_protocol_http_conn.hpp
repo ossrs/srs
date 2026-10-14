@@ -205,7 +205,7 @@ public:
     virtual bool is_chunked();
     // Whether should keep the connection alive.
     virtual bool is_keep_alive();
-    // The uri contains the host and path.
+    // The uri the client asked for, such as http://host:port/path?query.
     virtual std::string uri();
     // The url maybe the path.
     virtual std::string url();
@@ -236,6 +236,9 @@ public:
     // Convert the http message to a request.
     // @remark user must free the return request.
     virtual ISrsRequest *to_request(std::string vhost);
+    // The URL of the app on the HTTP server the client asked, such as http://127.0.0.1:8080/live: the
+    // schema, the Host header as sent (or host() without one), and app. An HTTP client's tcUrl.
+    std::string app_url(std::string app);
 
 public:
     virtual bool is_jsonp();

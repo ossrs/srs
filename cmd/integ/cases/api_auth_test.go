@@ -277,7 +277,6 @@ func TestApi_BasicOnePort(t *testing.T) {
 	// no credentials: its path is not under /api/. With the credentials it
 	// plays, so the stream is there.
 	check.Case(t, "StreamUnderApiApp", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a stream path with /api/ in it needs the API's credentials")
 		stream := "live/api/" + streamName(c)
 		startPublisher(c, rtmpURL(srs, stream), media.Path(c, media.H264HighAAC), publishLead)
 		checkHTTPStatus(c, srs, stream+".flv", &flv.HTTPOptions{Header: http.Header{"Authorization": {good}}}, http.StatusOK)

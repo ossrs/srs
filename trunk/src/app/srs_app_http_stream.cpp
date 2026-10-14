@@ -707,6 +707,13 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     // remove the extension of stream if have. for instance, test.flv -> test
     req->stream_ = path.filepath_filename(req->stream_);
 
+    // The copy has the publisher's URLs, so set the player's own: the URL of its app on the HTTP
+    // server it asked, and its Referer as the pageUrl, as its on_play reports. An HTTP player has
+    // no swfUrl.
+    req->tcUrl_ = hr->app_url(req->app_);
+    req->pageUrl_ = hr->header()->get("Referer");
+    req->swfUrl_ = "";
+
     // Update client IP, preferring the original address forwarded by a proxy.
     req->ip_ = hc->remote_ip();
     string original_ip = srs_get_original_ip(r);

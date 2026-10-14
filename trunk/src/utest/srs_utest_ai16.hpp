@@ -155,6 +155,10 @@ class MockStatisticForLiveStream : public ISrsStatistic
 public:
     int on_client_count_;
     srs_error_t on_client_error_;
+    // The URLs of the last client's request.
+    std::string on_client_tc_url_;
+    std::string on_client_page_url_;
+    std::string on_client_swf_url_;
     int on_disconnect_count_;
     std::vector<std::string> on_disconnect_ids_;
 

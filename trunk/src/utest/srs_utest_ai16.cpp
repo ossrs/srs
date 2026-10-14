@@ -776,6 +776,74 @@ VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
     srs_freep(live_stream->entry_);
 }
 
+// Serve an HTTP-FLV viewer of a stream published with the given URLs, through a stream whose entry
+// is disabled, so serve_http() stops after the stat, and return the URLs the stat got.
+static void mock_live_stream_viewer_urls(bool https, std::string host, std::string referer, MockStatisticForLiveStream *stat)
+{
+    SrsUniquePtr<MockRequest> publisher(new MockRequest("test.vhost", "live", "stream1"));
+    publisher->tcUrl_ = "rtmp://127.0.0.1:19350/live";
+    publisher->port_ = 19350;
+    publisher->pageUrl_ = "http://publisher.example/live.html";
+    publisher->swfUrl_ = "http://publisher.example/player.swf";
+
+    SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
+    SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
+    MockSecurity security;
+    stream->stat_ = stat;
+    srs_freep(stream->security_);
+    stream->security_ = &security;
+    stream->entry_ = new SrsHttpMuxEntry();
+    stream->entry_->enabled = false;
+    stream->entry_->pattern = "/live/stream1.flv";
+
+    SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+    SrsHttpHeader header;
+    if (!host.empty()) {
+        header.set("Host", host);
+    }
+    if (!referer.empty()) {
+        header.set("Referer", referer);
+    }
+    message->set_header(&header, false);
+    srs_error_t err = message->set_url("/live/stream1.flv", false);
+    srs_freep(err);
+    message->set_https(https);
+
+    MockResponseWriter writer;
+    err = stream->serve_http(&writer, message.get());
+    srs_freep(err);
+
+    stream->stat_ = NULL;
+    stream->security_ = NULL;
+    srs_freep(stream->entry_);
+}
+
+// An HTTP-FLV viewer is listed with its own URLs, not the publisher's: the tcUrl of its app on the
+// HTTP server it asked, by its Host, and its Referer as the pageUrl, as its on_play has them.
+VOID TEST(SrsLiveStreamTest, ViewerListedWithItsOwnUrls)
+{
+    MockStatisticForLiveStream stat;
+    mock_live_stream_viewer_urls(false, "127.0.0.1:8080", "http://page.example/flv.html", &stat);
+
+    EXPECT_EQ(1, stat.on_client_count_);
+    EXPECT_STREQ("http://127.0.0.1:8080/live", stat.on_client_tc_url_.c_str());
+    EXPECT_STREQ("http://page.example/flv.html", stat.on_client_page_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_swf_url_.c_str());
+}
+
+// An HTTPS viewer's tcUrl is https://, and a viewer with no Referer has no pageUrl, not the
+// publisher's.
+VOID TEST(SrsLiveStreamTest, HttpsViewerWithoutReferer)
+{
+    MockStatisticForLiveStream stat;
+    mock_live_stream_viewer_urls(true, "[::1]:8088", "", &stat);
+
+    EXPECT_EQ(1, stat.on_client_count_);
+    EXPECT_STREQ("https://[::1]:8088/live", stat.on_client_tc_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_page_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_swf_url_.c_str());
+}
+
 // Mock ISrsStatistic implementation for SrsLiveStream testing
 MockStatisticForLiveStream::MockStatisticForLiveStream()
 {
@@ -797,6 +865,9 @@ void MockStatisticForLiveStream::on_disconnect(std::string id, srs_error_t err)
 srs_error_t MockStatisticForLiveStream::on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type)
 {
     on_client_count_++;
+    on_client_tc_url_ = req->tcUrl_;
+    on_client_page_url_ = req->pageUrl_;
+    on_client_swf_url_ = req->swfUrl_;
     return srs_error_copy(on_client_error_);
 }
 
@@ -2999,6 +3070,100 @@ VOID TEST(HttpApiTest, GoApiRequestsServeHttp)
     EXPECT_TRUE(response.find("\"version\"") != string::npos);
     EXPECT_TRUE(response.find("\"link\"") != string::npos);
     EXPECT_TRUE(response.find("\"time\"") != string::npos);
+}
+
+VOID TEST(HttpApiTest, GoApiRequestsHeadersAreRequestHeaders)
+{
+    srs_error_t err;
+
+    // The request's headers are in data.headers, and the server's information
+    // is in data.server, so the server object doesn't replace the headers.
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsHttpHeader header;
+    header.set("X-Integ-Case", "hello");
+    mock_msg->set_header(&header, false);
+
+    SrsUniquePtr<SrsGoApiRequests> api(new SrsGoApiRequests());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+    size_t body = response.find("\r\n\r\n");
+    ASSERT_TRUE(body != string::npos);
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(response.substr(body + 4)));
+    ASSERT_TRUE(json.get() && json->is_object());
+    SrsJsonAny *data = json->to_object()->get_property("data");
+    ASSERT_TRUE(data && data->is_object());
+
+    SrsJsonAny *headers = data->to_object()->get_property("headers");
+    ASSERT_TRUE(headers && headers->is_object());
+    SrsJsonAny *value = headers->to_object()->get_property("X-Integ-Case");
+    ASSERT_TRUE(value && value->is_string());
+    EXPECT_STREQ("hello", value->to_str().c_str());
+    EXPECT_TRUE(headers->to_object()->get_property("sigature") == NULL);
+
+    SrsJsonAny *server = data->to_object()->get_property("server");
+    ASSERT_TRUE(server && server->is_object());
+    SrsJsonAny *sig = server->to_object()->get_property("sigature");
+    ASSERT_TRUE(sig && sig->is_string());
+    EXPECT_STREQ(RTMP_SIG_SRS_KEY, sig->to_str().c_str());
+    EXPECT_TRUE(server->to_object()->get_property("version") != NULL);
+    EXPECT_TRUE(server->to_object()->get_property("link") != NULL);
+    EXPECT_TRUE(server->to_object()->get_property("time") != NULL);
+}
+
+// Serve /api/v1/tests/requests for a request of the url and Host, over HTTPS
+// or not, and return its data.uri.
+static string go_api_requests_uri(string host, string url, bool https)
+{
+    srs_error_t err;
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsHttpHeader header;
+    header.set("Host", host);
+    mock_msg->set_header(&header, false);
+    HELPER_EXPECT_SUCCESS(mock_msg->set_url(url, false));
+    mock_msg->set_https(https);
+
+    SrsUniquePtr<SrsGoApiRequests> api(new SrsGoApiRequests());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+    size_t body = response.find("\r\n\r\n");
+    if (body == string::npos) {
+        return "";
+    }
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(response.substr(body + 4)));
+    if (!json.get() || !json->is_object()) {
+        return "";
+    }
+    SrsJsonAny *data = json->to_object()->get_property("data");
+    if (!data || !data->is_object()) {
+        return "";
+    }
+    SrsJsonAny *uri = data->to_object()->get_property("uri");
+    return (uri && uri->is_string()) ? uri->to_str() : "";
+}
+
+VOID TEST(HttpApiTest, GoApiRequestsUriIsTheRequestUri)
+{
+    // The uri is the one the client asked for: the Host's port and the query
+    // are kept, and a vhost in the query doesn't replace the Host.
+    EXPECT_STREQ("http://127.0.0.1:1985/api/v1/tests/requests?k=v&vhost=other.vhost",
+                 go_api_requests_uri("127.0.0.1:1985", "/api/v1/tests/requests?k=v&vhost=other.vhost", false).c_str());
+    EXPECT_STREQ("https://127.0.0.1:1990/api/v1/tests/requests?k=v",
+                 go_api_requests_uri("127.0.0.1:1990", "/api/v1/tests/requests?k=v", true).c_str());
+    EXPECT_STREQ("http://[::1]:1985/api/v1/tests/requests",
+                 go_api_requests_uri("[::1]:1985", "/api/v1/tests/requests", false).c_str());
+    EXPECT_STREQ("http://ossrs.net/api/v1/tests/requests",
+                 go_api_requests_uri("ossrs.net", "/api/v1/tests/requests", false).c_str());
 }
 
 VOID TEST(HttpApiTest, GoApiVhostsServeHttpWithVhostId)

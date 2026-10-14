@@ -81,6 +81,8 @@ public:
     std::vector<std::string> resolved_vhosts_;
     // The vhosts SrsHlsStream was asked about, in order, after the resolution.
     std::vector<std::string> hls_ctx_vhosts_;
+    // Whether the HLS stream serves a playlist as an HLS session; false by default.
+    bool hls_ctx_enabled_;
 
 public:
     MockAppConfigForVodStream();

@@ -693,7 +693,7 @@ public:
 public:
     // Whether should keep the connection alive.
     virtual bool is_keep_alive() = 0;
-    // The uri contains the host and path.
+    // The uri the client asked for, such as http://host:port/path?query.
     virtual std::string uri() = 0;
     // The url maybe the path.
     virtual std::string url() = 0;

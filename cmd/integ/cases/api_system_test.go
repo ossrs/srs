@@ -467,22 +467,44 @@ func apiSystem(t *testing.T) {
 			data := object(c, v, "data")
 			c.CheckEqual(data["METHOD"], m, "METHOD")
 			c.CheckEqual(data["path"], "/api/v1/tests/requests", m+" path")
-			u, _ := data["uri"].(string)
-			c.Check(strings.HasPrefix(u, "http://") && strings.HasSuffix(u, "/api/v1/tests/requests"), "uri %q", u)
+			c.CheckEqual(data["uri"], srs.APIURL("/api/v1/tests/requests?k=v"), m+" uri")
+		}
+	})
+
+	// TestsRequestsUri: data.uri is the URI the client asked for, with the
+	// Host's port and the query, also a vhost in the query, and https:// on
+	// the HTTPS API.
+	check.Case(t, "TestsRequestsUri", check.Fast, func(c *check.C) {
+		srs := server.Common(c)
+		for _, u := range []string{
+			srs.APIURL("/api/v1/tests/requests?k=v&vhost=other.vhost"),
+			httpsAPIURL(srs, "/api/v1/tests/requests?k=v"),
+		} {
+			req, err := http.NewRequest(http.MethodGet, u, nil)
+			c.Must(err, "request")
+			client := httpClient
+			if strings.HasPrefix(u, "https://") {
+				client = httpsAPI(c)
+			}
+			r := apiDo(c, client, req)
+			var v struct{ Data struct{ URI string } }
+			c.Must(json.Unmarshal(r.body, &v), "decode "+string(r.body))
+			c.CheckEqual(v.Data.URI, u, "data.uri")
 		}
 	})
 
 	check.Case(t, "TestsRequestsHeaders", check.Fast, func(c *check.C) {
-		check.KnownBug(c, "tests/requests answers the server's signature and version as headers, not the request's headers")
 		req, err := http.NewRequest(http.MethodGet, server.Common(c).APIURL("/api/v1/tests/requests"), nil)
 		c.Must(err, "request")
 		req.Header.Set("X-Integ-Case", "hello")
 		r := apiDo(c, httpClient, req)
 		var v struct {
-			Data struct{ Headers map[string]any }
+			Data struct{ Headers, Server map[string]any }
 		}
 		c.Must(json.Unmarshal(r.body, &v), "decode")
 		c.CheckEqual(v.Data.Headers["X-Integ-Case"], "hello", "the request header in data.headers")
+		c.CheckEqual(v.Data.Headers["sigature"], nil, "no server signature in data.headers")
+		c.CheckEqual(v.Data.Server["sigature"], "SRS", "the server signature in data.server")
 	})
 
 	check.Case(t, "TestsErrors", check.Fast, func(c *check.C) {
