@@ -399,7 +399,6 @@ func playHLS(c *check.C, client *http.Client, url string, u report.Until) *repor
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	r, err := hls.PlayHTTP(ctx, client, url, u)
-	noPaddingBug(c, err)
 	c.Must(err, "play")
 	return r
 }

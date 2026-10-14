@@ -76,7 +76,6 @@ func hooksHTTP(t *testing.T) {
 	// HlsOnPlayStreamName starts an HLS session: its on_play names the
 	// stream as every other player's does, without the playlist's extension.
 	check.Case(t, "HlsOnPlayStreamName", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the on_play of an HLS session names the stream with the playlist's .m3u8 extension")
 		srs := server.Common(c)
 		name := streamName(c)
 		publishHLSHooked(c, srs, name, "")

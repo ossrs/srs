@@ -147,13 +147,9 @@ func hookRejectCase(c *check.C, srs *server.Server, target hookTarget, kind hook
 	checkVersions(c, srs)
 }
 
-// hookOfStream matches a hook of a stream: the stream SRS names in the hook
-// of an HLS session has the playlist's extension too, the known bug of
-// HlsOnPlayStreamName, which these cases don't check again.
+// hookOfStream matches a hook of a stream.
 func hookOfStream(hook, name string) mock.Match {
-	return mock.Match{Action: hook, Func: func(r mock.Request) bool {
-		return r.Stream() == name || r.Stream() == name+".m3u8"
-	}}
+	return mock.Match{Action: hook, Stream: name}
 }
 
 // checkRefused checks that SRS refused a client, in the way want names, or in

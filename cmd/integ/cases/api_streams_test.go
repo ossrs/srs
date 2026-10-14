@@ -545,7 +545,6 @@ func apiStreamFields(t *testing.T) {
 	// HlsClientName checks an HLS session names its stream like every
 	// other client, without the playlist's extension.
 	check.Case(t, "HlsClientName", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an HLS session names the stream with the .m3u8 extension, as in its on_play")
 		srs := server.Common(c)
 		stream := streamName(c)
 		publishHLSHooked(c, srs, stream, "")

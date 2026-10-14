@@ -360,7 +360,7 @@ func TestTimer_Hls_Sessions(t *testing.T) {
 		c.Check(elapsed >= 2*sessionWindow-50*time.Millisecond, "the session ended %v after its last request, want at least %v", elapsed, 2*sessionWindow)
 		c.Check(elapsed <= 2*sessionWindow+sessionTick+500*time.Millisecond, "the session ended %v after its last request, want by %v", elapsed, 2*sessionWindow+sessionTick)
 		stop := waitSessionHook(c, srs, "on_stop", ctx)
-		c.Check(stop.Stream() == name || stop.Stream() == name+".m3u8", "on_stop stream %q, want %v", stop.Stream(), name)
+		c.CheckEqual(stop.Stream(), name, "on_stop stream")
 	})
 
 	// A session that keeps requesting its playlist lives on, while one

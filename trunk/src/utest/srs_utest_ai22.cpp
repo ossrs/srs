@@ -4754,6 +4754,114 @@ VOID TEST(DvrMp4SegmenterTest, EncodeAudioVideoTypicalScenario)
     // Note: mock_enc is freed when segmenter is destroyed
 }
 
+// Test: a video info frame, such as the colorInfo metadata of enhanced RTMP, holds no
+// picture and doesn't set the sample, so it is not written to the MP4; the keyframe
+// after it is.
+VOID TEST(DvrMp4SegmenterTest, EncodeVideoSkipsInfoFrame)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    SrsUniquePtr<MockDvrPlan> plan(new MockDvrPlan());
+    SrsUniquePtr<MockDvrAppFactory> mock_factory(new MockDvrAppFactory());
+    SrsUniquePtr<SrsDvrMp4Segmenter> segmenter(new SrsDvrMp4Segmenter());
+    segmenter->app_factory_ = mock_factory.get();
+    HELPER_EXPECT_SUCCESS(segmenter->initialize(plan.get(), req.get()));
+
+    MockSrsFileWriter *mock_fs = new MockSrsFileWriter();
+    segmenter->fs_ = mock_fs;
+    HELPER_EXPECT_SUCCESS(segmenter->open_encoder());
+    MockMp4Encoder *mock_enc = mock_factory->mock_mp4_encoder_;
+    EXPECT_TRUE(mock_enc != NULL);
+    mock_enc->reset();
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    format->vcodec_ = new SrsVideoCodecConfig();
+    format->vcodec_->id_ = SrsVideoCodecIdHEVC;
+    format->video_ = new SrsParsedVideoPacket();
+
+    // The info frame leaves the stale sample of the message before it, here 5 bytes.
+    char stale[5] = {0x12, 0x10, 0x56, (char)0xe5, 0x00};
+    format->raw_ = stale;
+    format->nb_raw_ = 5;
+    format->video_->frame_type_ = SrsVideoAvcFrameTypeVideoInfoFrame;
+    format->video_->avc_packet_type_ = SrsVideoAvcFrameTraitNALU;
+    format->video_->cts_ = 0;
+
+    SrsUniquePtr<SrsMediaPacket> info(new SrsMediaPacket());
+    info->timestamp_ = 1000;
+    HELPER_EXPECT_SUCCESS(segmenter->encode_video(info.get(), format.get()));
+    EXPECT_FALSE(mock_enc->write_sample_called_);
+
+    // The keyframe after it is written, at its own time.
+    char picture[8] = {0x00, 0x00, 0x00, 0x04, 0x26, 0x01, 0x00, 0x00};
+    format->raw_ = picture;
+    format->nb_raw_ = 8;
+    format->video_->frame_type_ = SrsVideoAvcFrameTypeKeyFrame;
+
+    SrsUniquePtr<SrsMediaPacket> keyframe(new SrsMediaPacket());
+    keyframe->timestamp_ = 1040;
+    HELPER_EXPECT_SUCCESS(segmenter->encode_video(keyframe.get(), format.get()));
+    EXPECT_TRUE(mock_enc->write_sample_called_);
+    EXPECT_EQ(SrsVideoAvcFrameTypeKeyFrame, (int)mock_enc->last_frame_type_);
+    EXPECT_EQ(1040, (int)mock_enc->last_dts_);
+    EXPECT_EQ(8, (int)mock_enc->last_sample_size_);
+
+    format->raw_ = NULL;
+    format->nb_raw_ = 0;
+    segmenter->fs_ = NULL;
+    segmenter->app_factory_ = NULL;
+    srs_freep(mock_fs);
+    // The segmenter frees mock_enc, its encoder.
+}
+
+// The audio sample entry of the MP4 that DVR writes has its samplerate in
+// 16.16 fixed point, as ISO/IEC 14496-12 has it, and SRS reads it back.
+VOID TEST(DvrMp4SegmenterTest, EncoderSampleEntryRateFixedPoint)
+{
+    srs_error_t err;
+
+    struct {
+        SrsAudioSampleRate rate;
+        uint32_t hz;
+    } cases[] = {
+        {SrsAudioSampleRate44100, 44100},
+        {SrsAudioSampleRate22050, 22050},
+        {SrsAudioSampleRate48000, 48000},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsFileWriter f;
+        if (true) {
+            SrsMp4Encoder enc;
+            HELPER_EXPECT_SUCCESS(enc.initialize(&f));
+            enc.set_audio_codec(SrsAudioCodecIdMP3, cases[i].rate, SrsAudioSampleBits16bit, SrsAudioChannelsStereo);
+
+            // An MP3 stream has no sequence header to give the rate, so the
+            // sample entry is the only place a player finds it.
+            uint8_t frame[4] = {0xff, 0xfb, 0x90, 0x64};
+            HELPER_EXPECT_SUCCESS(enc.write_sample(NULL, SrsMp4HandlerTypeSOUN, 0x00, SrsAudioMp3FrameTraitRawData, 0, 0, frame, sizeof(frame)));
+            HELPER_EXPECT_SUCCESS(enc.write_sample(NULL, SrsMp4HandlerTypeSOUN, 0x00, SrsAudioMp3FrameTraitRawData, 26, 26, frame, sizeof(frame)));
+            HELPER_EXPECT_SUCCESS(enc.flush());
+        }
+
+        // The samplerate is 24 bytes after the mp4a type: 6 reserved, the
+        // data reference index, 8 reserved, channelcount, samplesize,
+        // pre_defined and 2 reserved.
+        string data(f.data(), (size_t)f.filesize());
+        size_t pos = data.find("mp4a");
+        ASSERT_TRUE(pos != string::npos);
+        ASSERT_TRUE(pos + 4 + 28 <= data.size());
+        SrsBuffer b((char *)data.data() + pos + 4 + 24, 4);
+        EXPECT_EQ(cases[i].hz << 16, b.read_4bytes()) << cases[i].hz;
+
+        MockSrsFileReader fr(f.data(), (int)f.filesize());
+        SrsMp4Decoder dec;
+        HELPER_EXPECT_SUCCESS(dec.initialize(&fr));
+        EXPECT_EQ(cases[i].rate, dec.sample_rate_) << cases[i].hz;
+    }
+}
+
 VOID TEST(DvrMp4SegmenterTest, CloseEncoderFlushSuccess)
 {
     srs_error_t err;

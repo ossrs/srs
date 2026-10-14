@@ -183,23 +183,20 @@ func TestDvr_SessionMp4(t *testing.T) {
 
 	// Each codec of the test media, 5s published at once. Mp4Hevc publishes
 	// the HEVC file without ffmpeg's info frame, the colorInfo metadata of
-	// enhanced RTMP, which SRS writes as a broken sample (Mp4HevcInfoFrame).
+	// enhanced RTMP; Mp4HevcInfoFrame with it, which holds no picture, so the
+	// file has only the pictures as samples.
 	for _, tc := range []struct {
 		name, file, vcodec, acodec string
 		noInfoFrames               bool
-		knownBug                   string
 	}{
-		{"Mp4H264Aac", media.H264HighAAC, "h264", "aac", false, ""},
-		{"Mp4Hevc", media.HEVCAAC, "hevc", "aac", true, ""},
-		{"Mp4HevcInfoFrame", media.HEVCAAC, "hevc", "aac", false, "an info frame of HEVC over enhanced RTMP is written as a video sample of stale bytes, so the first sample doesn't parse"},
-		{"Mp4Mp3", media.H264HighMP3, "h264", "mp3", false, "the audio sample entry's samplerate is written as an integer, not 16.16: 44100Hz reads as 0Hz"},
-		{"Mp4AudioOnly", media.AACOnly, "", "aac", false, ""},
-		{"Mp4VideoOnly", media.H264Only, "h264", "", false, ""},
+		{"Mp4H264Aac", media.H264HighAAC, "h264", "aac", false},
+		{"Mp4Hevc", media.HEVCAAC, "hevc", "aac", true},
+		{"Mp4HevcInfoFrame", media.HEVCAAC, "hevc", "aac", false},
+		{"Mp4Mp3", media.H264HighMP3, "h264", "mp3", false},
+		{"Mp4AudioOnly", media.AACOnly, "", "aac", false},
+		{"Mp4VideoOnly", media.H264Only, "h264", "", false},
 	} {
 		check.Case(t, tc.name, check.Normal, func(c *check.C) {
-			if tc.knownBug != "" {
-				check.KnownBug(c, tc.knownBug)
-			}
 			stream := streamName(c)
 			var tags []*media.FLVTag
 			for _, tag := range readTags(c, tc.file, 0, 5*time.Second) {
@@ -218,7 +215,6 @@ func TestDvr_SessionMp4(t *testing.T) {
 	// The audio sample entry has the sample rate in 16.16 fixed point, as
 	// ISO/IEC 14496-12 has it: 44100Hz for the AAC of the test media.
 	check.Case(t, "SampleEntryRate", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the audio sample entry's samplerate is written as an integer, not 16.16: 44100Hz reads as 0Hz")
 		stream := streamName(c)
 		publishDvr(c, srs, "live/"+stream, readTags(c, media.H264HighAAC, 0, time.Second))
 		m := readDvrMP4(c, dvrFiles(c, srs, stream, 1)[0])

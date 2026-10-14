@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -30,16 +29,6 @@ import (
 // keyQuery is the query of the TsFloor server's hls_key_url, which SRS puts
 // after each key file, as a token for a key server.
 const keyQuery = "token=abc123&sig=xyz789"
-
-// noPaddingBug marks the case a known bug when err is an encrypted segment
-// with no padding. SRS pads only a partial last AES block of 4 TS packets, so
-// whether a segment hits it depends on the media: which segment is a whole
-// number of blocks changes with the ffmpeg that made the test media.
-func noPaddingBug(c *check.C, err error) {
-	if errors.Is(err, hls.ErrNoPadding) {
-		check.KnownBug(c, "an encrypted TS segment of whole 4-packet AES blocks has no PKCS#7 padding, so a player can't decrypt it")
-	}
-}
 
 // sharedTsFloor is the config of the server that TestHls_TsFloor,
 // TestHls_Keys, TestHls_Sessions and TestRtc_NackTwccOff share. None of
@@ -162,7 +151,6 @@ func TestHls_Keys(t *testing.T) {
 			c.Check(!isTS(raw), "segment %v is clear TS, want it encrypted", s.Sequence)
 
 			plain, err := hls.Decrypt(keys[s.Key.URI], s, raw)
-			noPaddingBug(c, err)
 			c.Must(err, fmt.Sprintf("decrypt segment %v", s.Sequence))
 			c.Check(isTS(plain), "segment %v decrypted is not TS", s.Sequence)
 			r, err := ts.Analyze(ts.NewDemuxer(bytes.NewReader(plain)), report.Until{})
@@ -374,16 +362,9 @@ func sessionCtx() string {
 	return hex.EncodeToString(b)
 }
 
-// hlsPlays is the on_play requests of a stream's HLS sessions, which SRS
-// names by the playlist's file, so either name matches.
+// hlsPlays is the on_play requests of a stream's HLS sessions.
 func hlsPlays(srs *server.Server, name string) []mock.Request {
-	var out []mock.Request
-	for _, r := range srs.Hooks.Requests(mock.Match{Action: "on_play"}) {
-		if s := r.Stream(); s == name || s == name+".m3u8" {
-			out = append(out, r)
-		}
-	}
-	return out
+	return srs.Hooks.Requests(mock.Match{Action: "on_play", Stream: name})
 }
 
 // sharedFmp4Keys is the config of the server that TestHls_Fmp4Keys,

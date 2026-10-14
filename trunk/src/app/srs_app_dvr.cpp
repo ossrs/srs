@@ -501,6 +501,13 @@ srs_error_t SrsDvrMp4Segmenter::encode_video(SrsMediaPacket *video, SrsFormat *f
     SrsVideoAvcFrameType frame_type = format->video_->frame_type_;
     SrsVideoCodecId codec_id = format->vcodec_->id_;
 
+    // Ignore the info frame, such as the colorInfo metadata of enhanced RTMP: it holds no
+    // picture and does not set the sample, so writing it writes stale bytes. HLS and DASH
+    // skip it too, while FLV keeps it as a tag.
+    if (frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
+        return err;
+    }
+
     SrsVideoAvcFrameTrait ct = format->video_->avc_packet_type_;
     uint32_t cts = (uint32_t)format->video_->cts_;
 

@@ -111,10 +111,8 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
         return srs_success;
     }
 
-    // Correct the app and stream by path, which is created from template.
-    // @remark Be careful that the stream has extension now, might cause identify fail.
-    SrsPath path;
-    req->stream_ = path.filepath_base(r->path());
+    // The stream of req has no extension, as SrsHttpMessage::to_request() removed it, so the hooks
+    // and the API name the stream of an HLS session as they do for every other player.
 
     // Served by us.
     *served = true;

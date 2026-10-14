@@ -4154,3 +4154,71 @@ VOID TEST(HlsStreamTest, NewSessionRedrawsTakenCtxThroughInjectedRand)
     EXPECT_TRUE(resp.find("?hls_ctx=fresh002") != string::npos);
     EXPECT_EQ(string::npos, resp.find("hls_ctx=taken001"));
 }
+
+// A playlist request of an HLS session, whose path is the stream's playlist file.
+class MockHttpMessageForHlsPlaylist : public MockHttpMessageForLiveStream
+{
+public:
+    virtual std::string path()
+    {
+        return "/live/stream1.m3u8";
+    }
+};
+
+// A new HLS session names its stream as every other player does, without the playlist's extension:
+// the request, which SrsHttpMessage::to_request() made without it, reaches the on_play hook and the
+// session, whose on_stop and API client use it, unchanged.
+VOID TEST(HlsStreamTest, NewSessionStreamWithoutPlaylistExtension)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForLiveStreamHooks config;
+    config.http_hooks_enabled_ = true;
+    config.on_play_directive_ = new SrsConfDirective();
+    config.on_play_directive_->name_ = "on_play";
+    config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+    MockStatisticForLiveStream stat;
+    MockHttpHooksForLiveStream hooks;
+    MockSecurity security;
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("ctx00001");
+
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    hls->config_ = &config;
+    hls->stat_ = &stat;
+    hls->hooks_ = &hooks;
+    srs_freep(hls->security_);
+    hls->security_ = &security;
+    srs_freep(hls->rand_);
+    hls->rand_ = &rand;
+    hls->shared_timer_ = NULL;
+
+    SrsUniquePtr<MockHttpMessageForHlsPlaylist> message(new MockHttpMessageForHlsPlaylist());
+    SrsUniquePtr<MockRequest> request(new MockRequest("test.vhost", "live", "stream1"));
+    MockResponseWriter writer;
+
+    bool served = false;
+    err = hls->serve_m3u8_ctx(&writer, message.get(), NULL, "", request.get(), &served);
+
+    hls->config_ = NULL;
+    hls->stat_ = NULL;
+    hls->hooks_ = NULL;
+    hls->security_ = NULL;
+    hls->rand_ = NULL;
+
+    HELPER_EXPECT_SUCCESS(err);
+    EXPECT_TRUE(served);
+
+    EXPECT_STREQ("stream1", request->stream_.c_str());
+    EXPECT_EQ(1, hooks.on_play_count_);
+    if (hooks.on_play_count_ == 1) {
+        EXPECT_STREQ("stream1", hooks.on_play_calls_[0].second->stream_.c_str());
+    }
+
+    // The session keeps a copy of the request for its on_stop.
+    EXPECT_TRUE(hls->ctx_is_exist("ctx00001"));
+    if (hls->ctx_is_exist("ctx00001")) {
+        EXPECT_STREQ("stream1", hls->map_ctx_info_["ctx00001"]->req_->stream_.c_str());
+    }
+}
