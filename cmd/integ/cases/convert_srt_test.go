@@ -206,23 +206,31 @@ func srtCommonCells(t *testing.T) {
 			_, err := player.Play(ctx)
 			c.Must(err, "play")
 			srtThrough(c, srs, "live/"+name, v.file, 2200*time.Millisecond)
-			rec := &videoCTSRecorder{tagPlayer: player}
-			var a flv.Analyzer
-			c.Must(readUntil(rec, &a, report.Until{VideoHeader: true, Keyframes: 1, VideoFrames: 30}, check.Scaled(time.Second)), "play")
-			c.Check(len(rec.cts) <= len(want), "%v video frames, the file has %v", len(rec.cts), len(want))
-			nonZero := 0
-			for i, cts := range rec.cts {
-				if i < len(want) && cts != want[i] {
-					c.Check(false, "video frame %v of %v: composition time %v, the file's PTS minus DTS %v (got %v, want %v)", i, len(rec.cts), cts, want[i], rec.cts, want[:len(rec.cts)])
-					break
-				}
-				if cts != 0 {
-					nonZero++
-				}
-			}
-			c.Check(nonZero > 0, "%v video frames, none with a composition time", len(rec.cts))
+			checkVideoCTS(c, player, want)
 		})
 	}
+}
+
+// checkVideoCTS reads 30 video frames from a player that joined before the
+// publish, and checks each composition time is the file's want, frame by
+// frame from the first, and that some are not 0.
+func checkVideoCTS(c *check.C, player tagPlayer, want []int32) {
+	c.Helper()
+	rec := &videoCTSRecorder{tagPlayer: player}
+	var a flv.Analyzer
+	c.Must(readUntil(rec, &a, report.Until{VideoHeader: true, Keyframes: 1, VideoFrames: 30}, check.Scaled(time.Second)), "play")
+	c.Check(len(rec.cts) <= len(want), "%v video frames, the file has %v", len(rec.cts), len(want))
+	nonZero := 0
+	for i, cts := range rec.cts {
+		if i < len(want) && cts != want[i] {
+			c.Check(false, "video frame %v of %v: composition time %v, the file's PTS minus DTS %v (got %v, want %v)", i, len(rec.cts), cts, want[i], rec.cts, want[:min(len(rec.cts), len(want))])
+			break
+		}
+		if cts != 0 {
+			nonZero++
+		}
+	}
+	c.Check(nonZero > 0, "%v video frames, none with a composition time", len(rec.cts))
 }
 
 // tsVideoCTS is the PTS minus DTS in ms, each cut to whole ms as RTMP takes

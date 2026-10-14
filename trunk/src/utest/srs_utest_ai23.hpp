@@ -90,6 +90,7 @@ public:
     bool set_cid_called_;
     SrsContextId received_cid_;
     bool is_connected_;
+    bool interrupt_called_;
 
 public:
     MockGbMediaTcpConn();
@@ -288,6 +289,9 @@ public:
     std::vector<SrsTsMessage *> received_msgs_;
     bool on_media_transport_called_;
     SrsSharedResource<ISrsGbMediaTcpConn> received_media_;
+    bool on_media_disconnected_called_;
+    // Whether the session's cycle ended.
+    bool ended_;
 
 public:
     MockGbSessionForMediaConn();
@@ -298,6 +302,7 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
     virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
+    virtual bool is_ended();
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
@@ -365,6 +370,7 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
     virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
+    virtual bool is_ended();
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
@@ -571,6 +577,7 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
     virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
+    virtual bool is_ended();
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();

@@ -30,6 +30,8 @@ const (
 	H264OnlyTS = "h264-only.ts"
 	// H264BaselineAAC has no B-frames, for RTMP to WebRTC and RTSP.
 	H264BaselineAAC = "h264-baseline-aac.flv"
+	// H264SlicesAAC has 2 slices in each frame, for GB28181.
+	H264SlicesAAC = "h264-slices-aac.flv"
 	// H264BaselineOpus is for WHIP.
 	H264BaselineOpus = "h264-baseline-opus.mp4"
 	// HEVCAAC is for enhanced RTMP.
@@ -81,6 +83,7 @@ var (
 
 	x264High     = Encoder{"libx264", join(gopArgs, "-sc_threshold", "0", "-preset", "veryfast", "-profile:v", "high", "-bf", "3")}
 	x264Baseline = Encoder{"libx264", join(gopArgs, "-sc_threshold", "0", "-preset", "veryfast", "-profile:v", "baseline")}
+	x264Slices   = Encoder{"libx264", join(gopArgs, "-sc_threshold", "0", "-preset", "veryfast", "-profile:v", "baseline", "-slices", "2")}
 	x265         = Encoder{"libx265", join(gopArgs, "-preset", "veryfast", "-x265-params", "keyint=25:min-keyint=25:scenecut=0:open-gop=0:log-level=error")}
 	x265NoB      = Encoder{"libx265", join(gopArgs, "-preset", "veryfast", "-x265-params", "keyint=25:min-keyint=25:scenecut=0:open-gop=0:bframes=0:log-level=error")}
 	// libvpx adds keyframes on scene changes at the realtime deadline, not at good.
@@ -109,6 +112,7 @@ var Recipes = []Recipe{
 	{AACOnlyTS, "mpegts", nil, []Encoder{aac}},
 	{H264OnlyTS, "mpegts", []Encoder{x264High}, nil},
 	{H264BaselineAAC, "flv", []Encoder{x264Baseline}, []Encoder{aac}},
+	{H264SlicesAAC, "flv", []Encoder{x264Slices}, []Encoder{aac}},
 	{H264BaselineOpus, "mp4", []Encoder{x264Baseline}, opus},
 	{HEVCAAC, "flv", []Encoder{x265}, []Encoder{aac}},
 	{HEVCOpus, "mp4", []Encoder{x265NoB}, opus},

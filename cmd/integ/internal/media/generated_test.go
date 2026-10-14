@@ -22,6 +22,7 @@ func TestGeneratedMedia(t *testing.T) {
 	cases := map[string]want{
 		H264HighAAC:      {"h264", "High", true, "aac", 44100, 2},
 		H264BaselineAAC:  {"h264", "Baseline", false, "aac", 44100, 2},
+		H264SlicesAAC:    {"h264", "Baseline", false, "aac", 44100, 2},
 		H264BaselineOpus: {"h264", "Baseline", false, "opus", 48000, 2},
 		HEVCAAC:          {"hevc", "Main", true, "aac", 44100, 2},
 		HEVCOpus:         {"hevc", "Main", false, "opus", 48000, 2},

@@ -144,6 +144,26 @@ func gbMedia(t *testing.T) {
 		c.CheckEqual(r.Video.Profile, "Baseline", "profile")
 	})
 
+	// An H.264 frame of 2 slices, as an encoder with slices on sends it, goes
+	// to RTMP as one message with both slices, a keyframe when they are IDR:
+	// a player gets each frame whole, not a message per slice.
+	check.Case(t, "SlicedFramesWhole", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		s := gbStart(c, srs, media.H264SlicesAAC, gbSSRC())
+		for _, f := range s.until(gbLead) {
+			if f.Video && annexBSlices(f.Data) != 2 {
+				c.Fatalf("a frame of the test file has %v slices, want 2", annexBSlices(f.Data))
+			}
+		}
+		s.lead(c)
+		rec := &sliceRecorder{tagPlayer: playerOf(c, rtmpURL(srs, "live/"+s.id))}
+		var a flv.Analyzer
+		c.Must(readUntil(rec, &a, gbUntil, time.Second), "play")
+		checkGBPlayed(c, &a.Report, "h264")
+		c.CheckEqual(a.Report.Video.LeadingFrames, 0, "video frames before the first keyframe")
+		c.Check(rec.frames > 0 && rec.whole == rec.frames, "%v of %v video messages with both slices of a frame", rec.whole, rec.frames)
+	})
+
 	// HEVC and AAC in PS play over RTMP.
 	check.Case(t, "PublishPlayHevc", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
@@ -240,10 +260,9 @@ func gbLifecycle(t *testing.T) {
 	// A second media connection with the session's SSRC, once the first one
 	// plays, takes the session over: the stream plays on from it, the first
 	// one's close doesn't end the session, and more media plays. The first
-	// connection closes only once the player has the second one's keyframe:
-	// when SRS reads the close first, it ends the session, and a second
-	// connection that binds the ending session can crash SRS later, a known
-	// bug this case can't make happen on purpose.
+	// connection closes only once the player has the second one's keyframe,
+	// since SRS ends the session when it reads the close first;
+	// CloseWhileReconnecting checks that race.
 	check.Case(t, "ReconnectTakesOver", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		s := gbStart(c, srs, media.H264BaselineAAC, gbSSRC())
@@ -391,6 +410,52 @@ func TestGb_Reconnect(t *testing.T) {
 		defer cancel()
 		_, err = flv.PlayRTMP(ctx, rtmpURL(srs, "live/"+s.id), nil, report.Until{Keyframes: 1})
 		c.CheckNoError(err, "play")
+	})
+
+	// A device whose first media connection closes as its second one comes:
+	// when SRS reads the close first, it ends the session, and the second
+	// connection may come while the session ends. Each try sends the second
+	// connection's media a little later after the close, so one of them comes
+	// in that moment. SRS stays up, and each session either plays on from its
+	// second connection or ends and frees its id and SSRC.
+	check.Case(t, "CloseWhileReconnecting", check.Normal, func(c *check.C) {
+		const tries = 16
+		streams := make([]*gbStream, tries)
+		firsts := make([]net.Conn, tries)
+		for i := range streams {
+			s := gbStart(c, srs, media.H264BaselineAAC, gbSSRC())
+			s.sendThrough(c, gbLead)
+			streams[i], firsts[i] = s, s.conn
+		}
+		for _, s := range streams {
+			if !untilPublishing(c, srs, "live/"+s.id, 300*time.Millisecond) {
+				c.Fatalf("live/%v not published in 300ms", s.id)
+			}
+			s.reconnect(c, srs)
+		}
+
+		var wg sync.WaitGroup
+		for i, s := range streams {
+			frames := s.frames[s.next:len(s.until(gbBurst))]
+			wg.Go(func() {
+				firsts[i].Close()
+				time.Sleep(time.Duration(i) * 100 * time.Microsecond)
+				s.pub.Send(context.Background(), frames, nil)
+			})
+		}
+		wg.Wait()
+
+		time.Sleep(50 * time.Millisecond)
+		res, err := httpClient.Get(srs.APIURL("/api/v1/versions"))
+		if !c.CheckNoError(err, "the API after the second connections") {
+			return
+		}
+		res.Body.Close()
+		for _, s := range streams {
+			if !streamPublishing(c, srs, "live/"+s.id) {
+				c.CheckEqual(untilGBSession(c, srs, s.id, s.ssrc, 100*time.Millisecond), 0, "code of a new session of live/"+s.id)
+			}
+		}
 	})
 }
 
@@ -677,6 +742,51 @@ func checkGBPlayed(c *check.C, r *report.Report, vcodec string) {
 	c.Check(r.Video.Keyframes >= 1, "no keyframe: %v", r)
 	c.CheckNoError(r.CheckTimestamps(100*time.Millisecond), "timestamps")
 	c.Check(r.AVSync <= 100*time.Millisecond, "A/V sync %v, want at most 100ms", r.AVSync)
+}
+
+// annexBSlices counts the slices, IDR or not, of an H.264 frame in Annex B.
+func annexBSlices(b []byte) int {
+	n := 0
+	for i := 0; i+3 < len(b); i++ {
+		if b[i] == 0 && b[i+1] == 0 && b[i+2] == 1 {
+			if t := b[i+3] & 0x1f; t == 1 || t == 5 {
+				n++
+			}
+			i += 2
+		}
+	}
+	return n
+}
+
+// sliceRecorder counts the H.264 frames a player reads, and those whose
+// message has 2 slices, the NALUs of an AVC tag with their 4-byte sizes.
+type sliceRecorder struct {
+	tagPlayer
+	frames, whole int
+}
+
+func (r *sliceRecorder) ReadTag() (*media.FLVTag, error) {
+	tag, err := r.tagPlayer.ReadTag()
+	if err != nil {
+		return nil, err
+	}
+	// A legacy FLV AVC tag: the codec id 7, the packet type 1 for a frame,
+	// the composition time in 24 bits, then the NALUs.
+	if d := tag.Data; tag.Type == media.TagVideo && len(d) >= 5 && d[0]&0x0f == 7 && d[1] == 1 {
+		r.frames++
+		slices := 0
+		for p := 5; p+4 < len(d); {
+			size := int(d[p])<<24 | int(d[p+1])<<16 | int(d[p+2])<<8 | int(d[p+3])
+			if t := d[p+4] & 0x1f; t == 1 || t == 5 {
+				slices++
+			}
+			p += 4 + size
+		}
+		if slices == 2 {
+			r.whole++
+		}
+	}
+	return tag, nil
 }
 
 // checkGBOpen checks that SRS keeps a media connection open: nothing to read

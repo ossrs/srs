@@ -133,15 +133,17 @@ public:
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media) = 0;
     // Notice session that its current media connection is disconnected.
     virtual void on_media_disconnected(ISrsGbMediaTcpConn *media) = 0;
+    // Whether the session's cycle ended, so it takes no media connection.
+    virtual bool is_ended() = 0;
 
 public:
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs) = 0;
 };
 
 // The main logic object for GB, the session.
-// Each session contains a media object, that are managed by session. This means session always
-// lives longer than media, and session will dispose media when session disposed. In another word,
-// media objects use directly pointer to session, while session use shared ptr.
+// Each session holds every media connection that bound it by shared ptr, and a media connection points
+// back at the session by a raw pointer. The session cuts those pointers by interrupt() when its cycle
+// ends and when it is freed, so a connection never points at a freed session.
 class SrsGbSession : public ISrsGbSession
 {
 // clang-format off
@@ -166,6 +168,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsGbSessionState state_;
 
     SrsSharedResource<ISrsGbMediaTcpConn> media_;
+    // The media connections that bound this session and still run, media_ among them; each points at
+    // this session until its interrupt().
+    std::vector<SrsSharedResource<ISrsGbMediaTcpConn> > medias_;
     ISrsGbMuxer *muxer_;
 
 // clang-format off
@@ -226,6 +231,8 @@ public:
     void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
     // When current media transport is disconnected.
     void on_media_disconnected(ISrsGbMediaTcpConn *media);
+    // Whether the session's cycle ended, so it takes no media connection.
+    bool is_ended();
 
     // Interface ISrsCoroutineHandler
 public:
@@ -335,7 +342,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     bool connected_;
-    // The owner session object, note that we use the raw pointer and should never free it.
+    // The session this connection bound. The session sets it to NULL by interrupt() when its cycle ends
+    // or it is freed, so it never points at a freed session.
     ISrsGbSession *session_;
     uint32_t nn_rtcp_;
 
@@ -420,6 +428,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
         msgs_;
     int nb_audios_;
     int nb_videos_;
+    // Whether a message of the track has come. The queue waits only for a
+    // track that has come, so a stream with no audio, as a device with its
+    // audio off sends it, or with no video, is held by one message too.
+    bool has_audio_;
+    bool has_video_;
 
 public:
     SrsMpegpsQueue();
@@ -500,10 +513,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_ts_video(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t mux_h264(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h264_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h264_ipb_frame(const std::string &ibps, bool keyframe, uint32_t dts, uint32_t pts);
     virtual srs_error_t mux_h265(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t write_h265_vps_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h265_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h265_ipb_frame(const std::string &ipbs, bool keyframe, uint32_t dts, uint32_t pts);
     virtual srs_error_t on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t write_audio_raw_frame(char *frame, int frame_size, SrsRawAacStreamCodec *codec, uint32_t dts);
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char *data, int size);

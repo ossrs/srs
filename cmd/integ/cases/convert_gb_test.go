@@ -60,32 +60,18 @@ func gbFramesOf(c *check.C, file string) ([]gb.Frame, string) {
 	return video, vcodec
 }
 
-// gbHold is the media SRS holds of a GB stream of a test file, so a
-// publisher sends that much more at once: it holds the last PS pack until the
-// next one comes, and sends a frame on only while it holds 2 video and 2
-// audio frames, which gbLead covers, or, with no audio, more than 100 video
-// frames, 4s.
-func gbHold(file string) time.Duration {
-	if file == gbH264Only {
-		return gbVideoOnlyHold + gbLead
-	}
-	return gbLead
-}
-
-// gbVideoOnlyHold is the 100 video frames SRS holds of a GB stream with no
-// audio.
-const gbVideoOnlyHold = 4 * time.Second
+// gbHold is the media SRS holds of a GB stream, so a publisher sends that
+// much more at once: it holds the last PS pack until the next one comes, and
+// sends a frame on only while it holds 2 frames of each track the stream has
+// sent, which gbLead covers.
+const gbHold = gbLead
 
 // gbRealTime publishes a file over GB28181 as the stream path, which must be
-// live/<id>, in real time until the case ends, the media before lead at once,
-// and with no audio the 4s SRS holds of it too. SRS holds 2 frames of each
-// track of a stream with audio, which delays each of them alike.
+// live/<id>, in real time until the case ends, the media before lead at once.
+// SRS holds 2 frames of each track, which delays each of them alike.
 func gbRealTime(c *check.C, srs *server.Server, path, file string, lead time.Duration) {
 	c.Helper()
 	s := gbStartID(c, srs, file, gbID(c, path), gbSSRC())
-	if file == gbH264Only {
-		lead += gbVideoOnlyHold
-	}
 	s.leadBy(c, lead)
 }
 
@@ -103,7 +89,7 @@ func gbThrough(c *check.C, srs *server.Server, path, file string, d time.Duratio
 	}
 	free := srs.Burst(c)
 	defer free()
-	s.sendThrough(c, d+gbHold(file))
+	s.sendThrough(c, d+gbHold)
 }
 
 // gbBurstBuffer is the send buffer of a GB publisher that sends a burst.
@@ -140,16 +126,17 @@ func gbCells(t *testing.T, srsOf func(c *check.C) *server.Server, p convertPlaye
 // gbRtspPlayer plays RTSP over TCP. SRS keeps no GOP for RTSP, so the
 // player joins while SRS holds a keyframe as the oldest video frame of a GB
 // stream (see gbHold), which it then sends first: the device sends its first
-// GOP and the keyframe after it at once, with the audio of the next 100ms
-// or, with no audio, the next 100 video frames, the player joins, and the
-// device sends gbLead more at once and the rest in real time.
+// GOP and the keyframe after it at once, with the audio of the next 100ms or,
+// with no audio, the next video frame, whose pack SRS holds until the next
+// one comes, the player joins, and the device sends gbLead more at once and
+// the rest in real time.
 var gbRtspPlayer = convertPlayer{
 	name: "Rtsp", video: same("h264", "hevc"), audio: same("aac"),
 	play: func(c *check.C, srs *server.Server, src convertSource, file string, w convertWant) *report.Report {
 		s := gbStart(c, srs, file, gbSSRC())
 		held := 1
 		if file == gbH264Only {
-			held = 101
+			held = 2
 		}
 		n := 0
 		s.frames, n = gbJoinAt(s.frames, held, 100*time.Millisecond)
@@ -237,15 +224,38 @@ func gbCommonCells(t *testing.T) {
 		c.Must(err, "an RTMP player of the stream")
 		checkWhepDisabled(c, srs, name)
 	})
+
+	// The FLV test files have B-frames, which a device sends with a PES PTS
+	// after its DTS: SRS carries the difference to RTMP as each video tag's
+	// composition time, the file's own, frame by frame from the first.
+	for _, v := range []struct{ name, file string }{{"H264", media.H264HighAAC}, {"Hevc", media.HEVCAAC}} {
+		check.Case(t, "GbToRtmp_"+v.name+"Cts", check.Normal, func(c *check.C) {
+			frames, _ := gbFramesOf(c, v.file)
+			var want []int32
+			for _, f := range frames {
+				if f.Video {
+					want = append(want, int32(f.PTS.Milliseconds()-f.DTS.Milliseconds()))
+				}
+			}
+			srs := server.Common(c)
+			path := "live/" + streamName(c)
+			player := dialRTMP(c, rtmpURL(srs, path), nil)
+			ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(time.Second))
+			defer cancel()
+			_, err := player.Play(ctx)
+			c.Must(err, "play")
+			gbThrough(c, srs, path, v.file, 2200*time.Millisecond)
+			checkVideoCTS(c, player, want)
+		})
+	}
 }
 
 // gbVideoOnlyCells adds the case of the latency of a GB stream with no
-// audio: the other cells of H264Only send the 4s SRS holds of it at once.
+// audio, which SRS holds as one with audio.
 func gbVideoOnlyCells(t *testing.T) {
 	// A player of a real-time GB stream with no audio gets its first frames
 	// as one of a stream with audio does, after the lead.
 	check.Case(t, "GbToRtmp_LatencyH264Only", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "SRS holds a GB stream with no audio until it has more than 100 video frames, 4s, since it sends a frame only while it holds 2 video and 2 audio frames")
 		srs := server.Common(c)
 		s := gbStart(c, srs, gbH264Only, gbSSRC())
 		s.lead(c)
