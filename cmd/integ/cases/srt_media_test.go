@@ -351,11 +351,9 @@ func checkIdleFor(c *check.C, idle time.Duration, what string) {
 
 // republishSRT publishes the TS test file to live/stream again, and returns
 // what the player gets of it, for at most 1s. SRS may still be tearing down the
-// HTTP mount of the stream's last publish, on a worker every stream shares,
-// and closes a publisher of the stream as disposing until it is done (the
-// known bug of TestHttpFlv_NoGuess/RepublishAfterOtherStream), so a
-// publisher SRS closes publishes again, for at most 300ms, while the player
-// waits for the media.
+// HTTP mount of the stream's last publish, and closes a publisher of the
+// stream as disposing until it is done, so a publisher SRS closes publishes
+// again, for at most 300ms, while the player waits for the media.
 func republishSRT(c *check.C, srs *server.Server, stream string, player *srt.Conn) *report.Report {
 	c.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

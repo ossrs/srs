@@ -1040,7 +1040,7 @@ SrsNetworkDevices::SrsNetworkDevices()
 
 #define MAX_NETWORK_DEVICES_COUNT 16
 static SrsNetworkDevices _srs_system_network_devices[MAX_NETWORK_DEVICES_COUNT];
-static int _nb_srs_system_network_devices = -1;
+static int _srs_nb_system_network_devices = -1;
 
 SrsNetworkDevices *srs_get_network_devices()
 {
@@ -1049,7 +1049,7 @@ SrsNetworkDevices *srs_get_network_devices()
 
 int srs_get_network_devices_count()
 {
-    return _nb_srs_system_network_devices;
+    return _srs_nb_system_network_devices;
 }
 
 void srs_update_network_devices()
@@ -1082,8 +1082,8 @@ void srs_update_network_devices()
                    &r.sbytes_, &r.spackets_, &r.serrs_, &r.sdrop_, &r.sfifo_, &r.scolls_, &r.scarrier_, &r.scompressed_);
 
             sscanf(fname, "%s", r.name_);
-            _nb_srs_system_network_devices = i + 1;
-            srs_info("scan network device ifname=%s, total=%d", r.name_, _nb_srs_system_network_devices);
+            _srs_nb_system_network_devices = i + 1;
+            srs_info("scan network device ifname=%s, total=%d", r.name_, _srs_nb_system_network_devices);
 
             r.sample_time_ = srsu2ms(srs_time_now_realtime());
             r.ok_ = true;

@@ -15,9 +15,9 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 
-SrsStageInfo::SrsStageInfo(int _stage_id, double ratio)
+SrsStageInfo::SrsStageInfo(int stage_id, double ratio)
 {
-    stage_id_ = _stage_id;
+    stage_id_ = stage_id;
     nb_clients_ = 0;
     age_ = 0;
     nn_count_ = 0;
@@ -210,9 +210,9 @@ ISrsPithyPrint::~ISrsPithyPrint()
 {
 }
 
-SrsPithyPrint::SrsPithyPrint(int _stage_id)
+SrsPithyPrint::SrsPithyPrint(int stage_id)
 {
-    stage_id_ = _stage_id;
+    stage_id_ = stage_id;
     cache_ = NULL;
     client_id_ = 0;
     previous_tick_ = 0;

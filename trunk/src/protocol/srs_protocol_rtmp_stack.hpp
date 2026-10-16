@@ -417,7 +417,7 @@ public:
     int32_t extended_timestamp_;
 
 public:
-    SrsChunkStream(int _cid);
+    SrsChunkStream(int cid);
     virtual ~SrsChunkStream();
 };
 
@@ -1019,7 +1019,7 @@ public:
     SrsAmf0Any *response_;
 
 public:
-    SrsCallResPacket(double _transaction_id);
+    SrsCallResPacket(double transaction_id);
     virtual ~SrsCallResPacket();
     // Encode functions for concrete packet to override.
 public:
@@ -1081,7 +1081,7 @@ public:
     double stream_id_;
 
 public:
-    SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
+    SrsCreateStreamResPacket(double transaction_id, double stream_id);
     virtual ~SrsCreateStreamResPacket();
     // Decode functions for concrete packet to override.
 public:
@@ -1168,7 +1168,7 @@ public:
     // @remark, never be NULL, an AMF0 undefined instance.
     SrsAmf0Any *args_; // undefined
 public:
-    SrsFMLEStartResPacket(double _transaction_id);
+    SrsFMLEStartResPacket(double transaction_id);
     virtual ~SrsFMLEStartResPacket();
 
 public:

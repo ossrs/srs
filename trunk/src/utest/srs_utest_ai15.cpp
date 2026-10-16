@@ -847,10 +847,10 @@ VOID TEST(ServerTest, InitializeInitializesInjectedBlackhole)
 VOID TEST(ServerTest, ConstructionCapturesSrtEventLoop)
 {
     // The process-wide SRT event loop exists once the globals are initialized, and the server initializes it.
-    EXPECT_TRUE(_srt_eventloop != NULL);
+    EXPECT_TRUE(_srs_srt_eventloop != NULL);
 
     SrsUniquePtr<SrsServer> server(new SrsServer());
-    EXPECT_TRUE(server->srt_eventloop_ == _srt_eventloop);
+    EXPECT_TRUE(server->srt_eventloop_ == _srs_srt_eventloop);
 }
 
 VOID TEST(ServerTest, InitializeInitializesThenStartsInjectedSrtEventLoop)
@@ -872,10 +872,10 @@ VOID TEST(ServerTest, InitializeInitializesThenStartsInjectedSrtEventLoop)
     server->srt_eventloop_ = &srt_eventloop;
 
     // The server drives the injected event loop, and leaves the process-wide one alone.
-    SrsSrtEventLoop *global_eventloop = _srt_eventloop;
+    SrsSrtEventLoop *global_eventloop = _srs_srt_eventloop;
     HELPER_EXPECT_SUCCESS(server->initialize());
     EXPECT_STREQ("initialize,start", srt_eventloop.calls_.c_str());
-    EXPECT_TRUE(_srt_eventloop == global_eventloop);
+    EXPECT_TRUE(_srs_srt_eventloop == global_eventloop);
 
     server->blackhole_ = NULL;
     server->srt_eventloop_ = NULL;

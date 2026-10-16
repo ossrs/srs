@@ -288,7 +288,7 @@ ISrsPublishRecvThread::~ISrsPublishRecvThread()
 {
 }
 
-SrsPublishRecvThread::SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest *_req,
+SrsPublishRecvThread::SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest *req,
                                            int mr_sock_fd, srs_utime_t tm, SrsRtmpConn *conn, SrsSharedPtr<SrsLiveSource> source, SrsContextId parent_cid)
 {
     rtmp_ = rtmp_sdk;
@@ -303,7 +303,7 @@ SrsPublishRecvThread::SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest
     audio_frames_ = 0;
     error_ = srs_cond_new();
 
-    req_ = _req;
+    req_ = req;
     mr_fd_ = mr_sock_fd;
 
     trd_ = new SrsRecvThread(this, rtmp_sdk, tm, parent_cid);

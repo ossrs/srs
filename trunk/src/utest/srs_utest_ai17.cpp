@@ -43,6 +43,7 @@ MockMpdWriter::MockMpdWriter()
     file_name_ = "segment-1.m4s";
     sequence_number_ = 1;
     get_fragment_called_ = false;
+    write_count_ = 0;
 }
 
 MockMpdWriter::~MockMpdWriter()
@@ -901,8 +902,9 @@ VOID TEST(MpdWriterTest, WriteDurations)
     mpd_writer->config_ = NULL;
 }
 
-// Write an MPD of one 2s segment in each window for the format, and return it.
-static std::string mock_write_mpd(SrsFormat *format)
+// Write an MPD of one 2s segment in the audio and the video window, or in the one asked
+// for, for the format, and return it, empty if none was written.
+static std::string mock_write_mpd(SrsFormat *format, bool audio = true, bool video = true)
 {
     srs_error_t err;
 
@@ -916,14 +918,18 @@ static std::string mock_write_mpd(SrsFormat *format)
     mpd_writer->home_ = "/tmp/srs-utest-dash-mpd";
 
     SrsFragmentWindow afragments, vfragments;
-    SrsFragment *afragment = new SrsFragment();
-    afragment->append(0);
-    afragment->append(2000);
-    afragments.append(afragment);
-    SrsFragment *vfragment = new SrsFragment();
-    vfragment->append(0);
-    vfragment->append(2000);
-    vfragments.append(vfragment);
+    if (audio) {
+        SrsFragment *afragment = new SrsFragment();
+        afragment->append(0);
+        afragment->append(2000);
+        afragments.append(afragment);
+    }
+    if (video) {
+        SrsFragment *vfragment = new SrsFragment();
+        vfragment->append(0);
+        vfragment->append(2000);
+        vfragments.append(vfragment);
+    }
 
     HELPER_EXPECT_SUCCESS(mpd_writer->write(format, &afragments, &vfragments));
     mpd_writer->config_ = NULL;
@@ -1021,6 +1027,45 @@ VOID TEST(MpdWriterTest, WriteCodecs)
 
         std::string mpd = mock_write_mpd(&format);
         EXPECT_TRUE(mpd.find("codecs=\"mp4a.69\"") != std::string::npos) << mpd;
+    }
+}
+
+// Test: the MPD of a stream with no video or no audio lists the one track it has.
+VOID TEST(MpdWriterTest, WriteOneTrack)
+{
+    // AAC with no video: the audio adaptation set only.
+    if (true) {
+        SrsFormat format;
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdAAC;
+        format.acodec_->aac_object_ = SrsAacObjectTypeAacLC;
+
+        std::string mpd = mock_write_mpd(&format, true, false);
+        EXPECT_TRUE(mpd.find("mimeType=\"audio/mp4\"") != std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("codecs=\"mp4a.40.2\"") != std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("mimeType=\"video/mp4\"") == std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("minBufferTime=\"PT4.000S\"") != std::string::npos) << mpd;
+    }
+
+    // H.264 with no audio: the video adaptation set only.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+
+        std::string mpd = mock_write_mpd(&format, false, true);
+        EXPECT_TRUE(mpd.find("mimeType=\"video/mp4\"") != std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("mimeType=\"audio/mp4\"") == std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("minBufferTime=\"PT4.000S\"") != std::string::npos) << mpd;
+    }
+
+    // No segment yet: no MPD.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+
+        EXPECT_TRUE(mock_write_mpd(&format, false, false).empty());
     }
 }
 
@@ -1289,6 +1334,109 @@ VOID TEST(DashControllerTest, OnAudioWritePacket)
     srs_freep(mock_acurrent);
     controller->afragments_ = NULL;
     srs_freep(mock_afragments);
+}
+
+// Test: while a publish has sent no video, the audio is cut by dash_fragment, and each cut
+// refreshes the MPD; once it has video, the audio is cut only after the video.
+VOID TEST(DashControllerTest, OnAudioWithoutVideoReapsByDuration)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    MockMpdWriter *mock_mpd = new MockMpdWriter();
+    SrsUniquePtr<MockAppFactory> mock_factory(new MockAppFactory());
+    MockFragmentedMp4 *mock_acurrent1 = new MockFragmentedMp4();
+    MockFragmentedMp4 *mock_acurrent2 = new MockFragmentedMp4();
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    // The controller frees the MPD writer, the segments and its windows, which free the
+    // segments they list.
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+    controller->config_ = mock_config.get();
+    srs_freep(controller->mpd_);
+    controller->mpd_ = mock_mpd;
+    controller->app_factory_ = mock_factory.get();
+    controller->acurrent_ = mock_acurrent1;
+    controller->fragment_ = 2 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->acodec_ = new SrsAudioCodecConfig();
+    format->acodec_->id_ = SrsAudioCodecIdAAC;
+    format->audio_ = new SrsParsedAudioPacket();
+    format->audio_->aac_packet_type_ = SrsAudioAacFrameTraitRawData;
+
+    SrsUniquePtr<SrsMediaPacket> audio(new SrsMediaPacket());
+    audio->message_type_ = SrsFrameTypeAudio;
+
+    // Shorter than the fragment: written to the current segment.
+    audio->timestamp_ = 1000;
+    mock_acurrent1->duration_ = 1 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(controller->on_audio(audio.get(), format.get()));
+    EXPECT_FALSE(mock_acurrent1->reap_called_);
+    EXPECT_TRUE(mock_acurrent1->write_called_);
+    EXPECT_EQ(0, mock_mpd->write_count_);
+
+    // As long as the fragment: cut, a new segment from this frame, and the MPD refreshed.
+    audio->timestamp_ = 3000;
+    mock_acurrent1->duration_ = 2 * SRS_UTIME_SECONDS;
+    mock_factory->real_fragmented_mp4_ = mock_acurrent2;
+    HELPER_EXPECT_SUCCESS(controller->on_audio(audio.get(), format.get()));
+    EXPECT_TRUE(mock_acurrent1->reap_called_);
+    EXPECT_EQ(1, controller->afragments_->size());
+    EXPECT_TRUE(controller->acurrent_ == mock_acurrent2);
+    EXPECT_TRUE(mock_acurrent2->initialize_called_);
+    EXPECT_TRUE(mock_acurrent2->write_called_);
+    EXPECT_EQ(1, mock_mpd->write_count_);
+
+    // Once video comes, the audio waits for the video's cut.
+    controller->vcurrent_ = new MockFragmentedMp4();
+    audio->timestamp_ = 6000;
+    mock_acurrent2->duration_ = 3 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(controller->on_audio(audio.get(), format.get()));
+    EXPECT_FALSE(mock_acurrent2->reap_called_);
+    EXPECT_EQ(1, controller->afragments_->size());
+    EXPECT_EQ(1, mock_mpd->write_count_);
+
+    controller->config_ = NULL;
+    controller->app_factory_ = NULL;
+}
+
+// Test: the MPD lists each track the publish has sent: a stream of one track gets its MPD at
+// its first segment, and a stream of both waits until each has a segment.
+VOID TEST(DashControllerTest, RefreshMpdWaitsForEachTrack)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    MockMpdWriter *mock_mpd = new MockMpdWriter();
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    // The controller frees the MPD writer, the segments and its windows, which free the
+    // segments they list.
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+    srs_freep(controller->mpd_);
+    controller->mpd_ = mock_mpd;
+
+    SrsFormat format;
+
+    // Video only, with a segment.
+    controller->vcurrent_ = new MockFragmentedMp4();
+    controller->vfragments_->append(new MockFragmentedMp4());
+    HELPER_EXPECT_SUCCESS(controller->refresh_mpd(&format));
+    EXPECT_EQ(1, mock_mpd->write_count_);
+
+    // Then audio, with no segment yet: the MPD waits for it.
+    controller->acurrent_ = new MockFragmentedMp4();
+    HELPER_EXPECT_SUCCESS(controller->refresh_mpd(&format));
+    EXPECT_EQ(1, mock_mpd->write_count_);
+
+    controller->afragments_->append(new MockFragmentedMp4());
+    HELPER_EXPECT_SUCCESS(controller->refresh_mpd(&format));
+    EXPECT_EQ(2, mock_mpd->write_count_);
 }
 
 // Test: MP3 has no sequence header, so its first frame, which stands for one, writes the

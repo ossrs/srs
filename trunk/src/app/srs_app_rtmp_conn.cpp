@@ -226,6 +226,7 @@ SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
     realtime_ = SRS_PERF_MIN_LATENCY_ENABLED;
     send_min_interval_ = 0;
     tcp_nodelay_ = false;
+    on_connect_checked_ = false;
     info_ = new SrsClientInfo();
 
     publish_1stpkt_timeout_ = 0;
@@ -433,6 +434,22 @@ srs_error_t SrsRtmpConn::service_cycle()
     int chunk_size = config_->get_chunk_size(req->vhost_);
     if ((err = rtmp_->set_chunk_size(chunk_size)) != srs_success) {
         return srs_error_wrap(err, "rtmp: set chunk size %d", chunk_size);
+    }
+
+    // An edge with token traverse connects with its client's stream and param, to check the client
+    // before it serves it, and closes once answered. So check the client by the on_connect hook
+    // before the answer: a refused client's connect gets none, and the edge refuses the client.
+    SrsAmf0Any *traverse = req->args_ ? req->args_->ensure_property_string("srs_token_traverse") : NULL;
+    if (traverse) {
+        req->stream_ = traverse->to_str();
+        req->param_ = "";
+        string tc_url = req->tcUrl_.substr(0, req->tcUrl_.find('?'));
+        srs_net_url_parse_tcurl(tc_url, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
+        req->strip();
+
+        if ((err = check_vhost(true)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: check token traverse of %s", req->get_stream_url().c_str());
+        }
     }
 
     // response the client connect ok.
@@ -689,6 +706,7 @@ srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
         req->vhost_ = vhost->arg0();
     }
 
+    on_connect_checked_ = true;
     if ((err = http_hooks_on_connect()) != srs_success) {
         return srs_error_wrap(err, "rtmp: callback on connect");
     }
@@ -1430,9 +1448,17 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient *client)
         return srs_error_wrap(err, "rtmp: handshake");
     }
 
+    // Tell the origin the client's stream and param by a property of the connect's args, so the
+    // origin checks the client by its on_connect hook before it answers, and refuses it by no answer.
+    SrsUniquePtr<ISrsRequest> r(req->copy());
+    if (!r->args_) {
+        r->args_ = SrsAmf0Any::object();
+    }
+    r->args_->set("srs_token_traverse", SrsAmf0Any::str((req->stream_ + req->param_).c_str()));
+
     // for token tranverse, always take the debug info(which carries token).
     SrsServerInfo si;
-    if ((err = client->connect_app(req->app_, req->tcUrl_, req, true, &si)) != srs_success) {
+    if ((err = client->connect_app(req->app_, req->tcUrl_, r.get(), true, &si)) != srs_success) {
         return srs_error_wrap(err, "rtmp: connect tcUrl");
     }
 
@@ -1445,7 +1471,9 @@ srs_error_t SrsRtmpConn::on_disconnect()
 {
     srs_error_t err = srs_success;
 
-    http_hooks_on_close();
+    if (on_connect_checked_) {
+        http_hooks_on_close();
+    }
 
     // TODO: FIXME: Implements it.
 

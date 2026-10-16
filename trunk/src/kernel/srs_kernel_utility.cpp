@@ -776,9 +776,9 @@ std::string SrsRand::gen_str(int len)
 
 long SrsRand::integer()
 {
-    static bool _random_initialized = false;
-    if (!_random_initialized) {
-        _random_initialized = true;
+    static bool random_initialized = false;
+    if (!random_initialized) {
+        random_initialized = true;
         ::srandom((unsigned long)(srs_time_now_realtime() | (::getpid() << 13)));
     }
 

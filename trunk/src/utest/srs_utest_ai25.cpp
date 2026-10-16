@@ -22,6 +22,7 @@ using namespace std;
 #include <srs_app_srt_conn.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
@@ -442,6 +443,279 @@ VOID TEST(HookRejectionTest, RtmpRejectedPublisherIsNotToldPublishStarted)
     srs_freep(conn);
     srs_freep(config);
     srs_freep(hooks);
+}
+
+// Counts the connect answers an origin sends, and how many on_connect hooks came before each.
+class MockRtmpServerForTokenTraverse : public MockRtmpServer
+{
+public:
+    MockHttpHooksForOnConnect *hooks_;
+    int response_connect_app_count_;
+    int on_connect_count_at_response_;
+
+public:
+    MockRtmpServerForTokenTraverse(MockHttpHooksForOnConnect *hooks)
+    {
+        hooks_ = hooks;
+        response_connect_app_count_ = 0;
+        on_connect_count_at_response_ = -1;
+    }
+
+public:
+    virtual srs_error_t response_connect_app(ISrsRequest *req, const char *server_ip = NULL)
+    {
+        response_connect_app_count_++;
+        on_connect_count_at_response_ = hooks_->on_connect_count_;
+        return srs_success;
+    }
+};
+
+// Makes an origin's RTMP connection with the on_connect hook on, whose connect has the tcUrl
+// rtmp://127.0.0.1/live and, when traverse is not empty, the token traverse property of an edge.
+static SrsRtmpConn *mock_token_traverse_origin(MockAppConfigForHttpHooksOnConnect *config, MockHttpHooksForOnConnect *hooks,
+                                               MockRtmpServerForTokenTraverse *rtmp, string traverse)
+{
+    config->default_vhost_ = new SrsConfDirective();
+    config->default_vhost_->name_ = "vhost";
+    config->default_vhost_->args_.push_back("__defaultVhost__");
+    config->http_hooks_enabled_ = true;
+    config->on_connect_directive_ = new SrsConfDirective();
+    config->on_connect_directive_->name_ = "on_connect";
+    config->on_connect_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/clients");
+
+    // The service cycle ends at its first pull, after the connect's answer, before any play or publish.
+    MockCoroutineForRtmpConn *trd = new MockCoroutineForRtmpConn();
+    trd->pull_count_ = 1;
+    trd->pull_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "mock thread interrupted");
+
+    SrsRtmpConn *conn = new SrsRtmpConn(new MockRtmpTransportForDoCycle(), "127.0.0.1", 1935);
+    conn->config_ = config;
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = rtmp;
+    srs_freep(conn->trd_);
+    conn->trd_ = trd;
+    conn->hooks_ = hooks;
+
+    ISrsRequest *req = conn->info_->req_;
+    req->tcUrl_ = "rtmp://127.0.0.1/live";
+    req->schema_ = "rtmp";
+    req->host_ = "127.0.0.1";
+    req->vhost_ = "127.0.0.1";
+    req->app_ = "live";
+    req->port_ = 1935;
+    if (!traverse.empty()) {
+        req->args_ = SrsAmf0Any::object();
+        req->args_->set("srs_token_traverse", SrsAmf0Any::str(traverse.c_str()));
+    }
+
+    return conn;
+}
+
+// Edge token traverse: the origin checks the edge's client by on_connect before it answers.
+//
+// With token_traverse on, an edge connects to its origin with its client's tcUrl, stream and param
+// before it serves the client, and refuses the client when the connect fails. The origin answered
+// every connect before any hook, which ran only after a play or publish the edge never sends, so
+// the edge refused no client. The origin must run on_connect with the client's stream and param
+// before it answers such a connect, and answer nothing when the hook refuses.
+VOID TEST(HookRejectionTest, TokenTraverseRefusedBeforeConnectAnswer)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpHooksOnConnect config;
+    MockHttpHooksForOnConnect hooks;
+    hooks.on_connect_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+    MockRtmpServerForTokenTraverse *rtmp = new MockRtmpServerForTokenTraverse(&hooks);
+
+    SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "livestream?token=bad");
+
+    err = conn->service_cycle();
+    HELPER_EXPECT_FAILED(err);
+
+    // The hook checked the client's stream and token.
+    EXPECT_EQ(1, hooks.on_connect_count_);
+    EXPECT_STREQ("__defaultVhost__", conn->info_->req_->vhost_.c_str());
+    EXPECT_STREQ("live", conn->info_->req_->app_.c_str());
+    EXPECT_STREQ("livestream", conn->info_->req_->stream_.c_str());
+    EXPECT_STREQ("?token=bad", conn->info_->req_->param_.c_str());
+
+    // GOAL: a refused client's connect is never answered, so the edge's connect fails.
+    EXPECT_EQ(0, rtmp->response_connect_app_count_);
+
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+}
+
+VOID TEST(HookRejectionTest, TokenTraverseAcceptedAnsweredAfterHook)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpHooksOnConnect config;
+    MockHttpHooksForOnConnect hooks;
+    MockRtmpServerForTokenTraverse *rtmp = new MockRtmpServerForTokenTraverse(&hooks);
+
+    SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "livestream?token=good");
+
+    err = conn->service_cycle();
+    HELPER_EXPECT_FAILED(err);
+
+    // GOAL: the accepted client's connect is answered after its on_connect.
+    EXPECT_EQ(1, hooks.on_connect_count_);
+    EXPECT_EQ(1, rtmp->response_connect_app_count_);
+    EXPECT_EQ(1, rtmp->on_connect_count_at_response_);
+    EXPECT_STREQ("?token=good", conn->info_->req_->param_.c_str());
+
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+}
+
+// A connect without the token traverse property, of any other client, is answered before any hook,
+// as before: its on_connect comes after its play or publish. This guards today's order, so it passes
+// before and after the token traverse check.
+VOID TEST(HookRejectionTest, ConnectWithoutTokenTraverseAnsweredBeforeHook)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpHooksOnConnect config;
+    MockHttpHooksForOnConnect hooks;
+    hooks.on_connect_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+    MockRtmpServerForTokenTraverse *rtmp = new MockRtmpServerForTokenTraverse(&hooks);
+
+    SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "");
+
+    err = conn->service_cycle();
+    HELPER_EXPECT_FAILED(err);
+
+    EXPECT_EQ(0, hooks.on_connect_count_);
+    EXPECT_EQ(1, rtmp->response_connect_app_count_);
+    EXPECT_EQ(0, rtmp->on_connect_count_at_response_);
+
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+}
+
+// The config of the on_connect hook, with the on_close hook on too.
+class MockAppConfigForHttpHooksOnConnectAndClose : public MockAppConfigForHttpHooksOnConnect
+{
+public:
+    SrsConfDirective *on_close_directive_;
+
+public:
+    MockAppConfigForHttpHooksOnConnectAndClose()
+    {
+        on_close_directive_ = new SrsConfDirective();
+        on_close_directive_->name_ = "on_close";
+        on_close_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/clients");
+    }
+    virtual ~MockAppConfigForHttpHooksOnConnectAndClose()
+    {
+        srs_freep(on_close_directive_);
+    }
+
+public:
+    virtual SrsConfDirective *get_vhost_on_close(std::string vhost)
+    {
+        return on_close_directive_;
+    }
+};
+
+// RTMP on_connect and on_close come in pairs.
+//
+// A hook server sees an RTMP client's on_close only after its on_connect, which SRS sends once the
+// client plays or publishes and its vhost is resolved. A client that only connects and closes got
+// an on_close with no on_connect before it, with the tcUrl's host as its vhost, a close of a client
+// the hook server never saw. It must get neither.
+VOID TEST(HookRejectionTest, ConnectOnlyClientGetsNoOnClose)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpHooksOnConnectAndClose config;
+    MockHttpHooksForOnConnect hooks;
+    MockRtmpServerForTokenTraverse *rtmp = new MockRtmpServerForTokenTraverse(&hooks);
+
+    SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "");
+
+    err = conn->service_cycle();
+    HELPER_EXPECT_FAILED(err);
+    HELPER_EXPECT_SUCCESS(conn->on_disconnect());
+
+    // GOAL: no on_close of a client whose on_connect was never sent.
+    EXPECT_EQ(0, hooks.on_connect_count_);
+    EXPECT_EQ(0, hooks.on_close_count_);
+
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+}
+
+VOID TEST(HookRejectionTest, CheckedClientGetsOnCloseAfterOnConnect)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpHooksOnConnectAndClose config;
+    MockHttpHooksForOnConnect hooks;
+    MockRtmpServerForTokenTraverse *rtmp = new MockRtmpServerForTokenTraverse(&hooks);
+
+    SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "");
+
+    // A client that plays or publishes is checked with its vhost resolved.
+    HELPER_EXPECT_SUCCESS(conn->check_vhost(true));
+    EXPECT_EQ(1, hooks.on_connect_count_);
+    EXPECT_EQ(0, hooks.on_close_count_);
+
+    // GOAL: its on_close comes, with the vhost of its on_connect.
+    HELPER_EXPECT_SUCCESS(conn->on_disconnect());
+    EXPECT_EQ(1, hooks.on_close_count_);
+    EXPECT_STREQ("__defaultVhost__", conn->info_->req_->vhost_.c_str());
+
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+}
+
+// A client whose on_connect refused it still gets its on_close, after that on_connect, as before.
+VOID TEST(HookRejectionTest, RefusedClientGetsOnCloseAfterOnConnect)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpHooksOnConnectAndClose config;
+    MockHttpHooksForOnConnect hooks;
+    hooks.on_connect_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+    MockRtmpServerForTokenTraverse *rtmp = new MockRtmpServerForTokenTraverse(&hooks);
+
+    SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "");
+
+    HELPER_EXPECT_FAILED(conn->check_vhost(true));
+    HELPER_EXPECT_SUCCESS(conn->on_disconnect());
+
+    EXPECT_EQ(1, hooks.on_connect_count_);
+    EXPECT_EQ(1, hooks.on_close_count_);
+
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+}
+
+// An edge's token traverse connect, checked by on_connect before its answer, gets its on_close.
+VOID TEST(HookRejectionTest, TokenTraverseGetsOnCloseAfterOnConnect)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpHooksOnConnectAndClose config;
+    MockHttpHooksForOnConnect hooks;
+    MockRtmpServerForTokenTraverse *rtmp = new MockRtmpServerForTokenTraverse(&hooks);
+
+    SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "livestream?token=good");
+
+    err = conn->service_cycle();
+    HELPER_EXPECT_FAILED(err);
+    HELPER_EXPECT_SUCCESS(conn->on_disconnect());
+
+    EXPECT_EQ(1, hooks.on_connect_count_);
+    EXPECT_EQ(1, hooks.on_close_count_);
+    EXPECT_STREQ("__defaultVhost__", conn->info_->req_->vhost_.c_str());
+
+    conn->hooks_ = NULL;
+    srs_freep(conn);
 }
 
 // WebRTC: the hook's status must survive to the WHEP/play response.

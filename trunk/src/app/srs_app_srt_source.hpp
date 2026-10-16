@@ -339,9 +339,9 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // Source id.
-    SrsContextId _source_id;
+    SrsContextId source_id_;
     // previous source id.
-    SrsContextId _pre_source_id;
+    SrsContextId pre_source_id_;
     ISrsRequest *req_;
     // To delivery packets to clients.
     std::vector<ISrsSrtConsumer *> consumers_;

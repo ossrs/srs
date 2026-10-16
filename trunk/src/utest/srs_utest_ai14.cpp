@@ -1257,6 +1257,70 @@ VOID TEST(AppRtmpSourceTest, GopCacheMaxFramesLimit)
     EXPECT_TRUE(gop_cache->pure_audio());
 }
 
+VOID TEST(AppRtmpSourceTest, GopCacheMaxFramesWaitsForKeyframe)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsGopCache> gop_cache(new SrsGopCache());
+    gop_cache->set(true);
+    gop_cache->set_gop_cache_max_frames(3);
+
+    // A keyframe and 3 inter frames overflow the limit, which clears the cache.
+    SrsUniquePtr<MockH264VideoPacket> keyframe1(new MockH264VideoPacket(true));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(keyframe1.get()));
+    for (int i = 0; i < 3; i++) {
+        SrsUniquePtr<MockH264VideoPacket> interframe(new MockH264VideoPacket(false));
+        HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe.get()));
+    }
+    EXPECT_TRUE(gop_cache->empty());
+
+    // The inter frames and audio after the clear are mid-GOP, which a new
+    // player can't decode, so the cache stays empty until the next keyframe.
+    SrsUniquePtr<MockH264VideoPacket> interframe2(new MockH264VideoPacket(false));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe2.get()));
+    SrsUniquePtr<MockAudioPacket> audio1(new MockAudioPacket());
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(audio1.get()));
+    SrsUniquePtr<MockH264VideoPacket> interframe3(new MockH264VideoPacket(false));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe3.get()));
+    EXPECT_TRUE(gop_cache->empty());
+
+    // The next keyframe starts the cache again, and the frames after it are cached.
+    SrsUniquePtr<MockH264VideoPacket> keyframe2(new MockH264VideoPacket(true));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(keyframe2.get()));
+    SrsUniquePtr<MockAudioPacket> audio2(new MockAudioPacket());
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(audio2.get()));
+    SrsUniquePtr<MockH264VideoPacket> interframe4(new MockH264VideoPacket(false));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe4.get()));
+    ASSERT_EQ(3, (int)gop_cache->gop_cache_.size());
+    EXPECT_TRUE(SrsFlvVideo::keyframe(gop_cache->gop_cache_[0]->payload(), gop_cache->gop_cache_[0]->size()));
+}
+
+VOID TEST(AppRtmpSourceTest, GopCacheExplicitClearCachesNextFrame)
+{
+    srs_error_t err;
+
+    // Only the limit's clear waits for a keyframe: after an explicit clear,
+    // such as an unpublish, the cache takes the next video frame as it always
+    // did. A guard that passes before and after the keyframe wait.
+    SrsUniquePtr<SrsGopCache> gop_cache(new SrsGopCache());
+    gop_cache->set(true);
+    gop_cache->set_gop_cache_max_frames(3);
+
+    SrsUniquePtr<MockH264VideoPacket> keyframe(new MockH264VideoPacket(true));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(keyframe.get()));
+    for (int i = 0; i < 3; i++) {
+        SrsUniquePtr<MockH264VideoPacket> interframe(new MockH264VideoPacket(false));
+        HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe.get()));
+    }
+    EXPECT_TRUE(gop_cache->empty());
+
+    gop_cache->clear();
+
+    SrsUniquePtr<MockH264VideoPacket> interframe2(new MockH264VideoPacket(false));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe2.get()));
+    EXPECT_EQ(1, (int)gop_cache->gop_cache_.size());
+}
+
 VOID TEST(AppMixQueueTest, PopMixedAudioVideo)
 {
     SrsMixQueue *mix_queue = new SrsMixQueue();

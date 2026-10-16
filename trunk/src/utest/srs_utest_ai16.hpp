@@ -137,6 +137,8 @@ class MockLiveStreamForDestroy : public ISrsLiveStream
 public:
     bool alive_;
     bool expired_;
+    // Whether a viewer stays after expire, as one still ending its connection.
+    bool expire_keeps_alive_;
 
 public:
     MockLiveStreamForDestroy();

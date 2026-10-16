@@ -446,9 +446,9 @@ SrsRtcSource::~SrsRtcSource()
     srs_freep(stream_desc_);
     srs_freep(rand_);
 
-    SrsContextId cid = _source_id;
+    SrsContextId cid = source_id_;
     if (cid.empty())
-        cid = _pre_source_id;
+        cid = pre_source_id_;
     srs_trace("free rtc source id=[%s]", cid.c_str());
 
     app_factory_ = NULL;
@@ -607,13 +607,13 @@ srs_error_t SrsRtcSource::on_source_changed()
     // Update context id if changed.
     bool id_changed = false;
     const SrsContextId &id = _srs_context->get_id();
-    if (_source_id.compare(id)) {
+    if (source_id_.compare(id)) {
         id_changed = true;
 
-        if (_pre_source_id.empty()) {
-            _pre_source_id = id;
+        if (pre_source_id_.empty()) {
+            pre_source_id_ = id;
         }
-        _source_id = id;
+        source_id_ = id;
     }
 
     // Notify all consumers.
@@ -635,12 +635,12 @@ srs_error_t SrsRtcSource::on_source_changed()
 
 SrsContextId SrsRtcSource::source_id()
 {
-    return _source_id;
+    return source_id_;
 }
 
 SrsContextId SrsRtcSource::pre_source_id()
 {
-    return _pre_source_id;
+    return pre_source_id_;
 }
 
 void SrsRtcSource::set_bridge(ISrsRtcBridge *bridge)
@@ -758,7 +758,7 @@ srs_error_t SrsRtcSource::on_publish()
         shared_timer_->timer100ms()->subscribe(this);
     }
 
-    stat_->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, source_id_.c_str());
 
     return err;
 }
@@ -772,10 +772,10 @@ void SrsRtcSource::on_unpublish()
 
     srs_trace("cleanup when unpublish, created=%u, deliver=%u", is_created_, is_delivering_packets_);
 
-    if (!_source_id.empty()) {
-        _pre_source_id = _source_id;
+    if (!source_id_.empty()) {
+        pre_source_id_ = source_id_;
     }
-    _source_id = SrsContextId();
+    source_id_ = SrsContextId();
 
     // The codec of the stream is unknown again, so the next player may choose any codec.
     bridge_video_codec_ = SrsVideoCodecIdReserved;

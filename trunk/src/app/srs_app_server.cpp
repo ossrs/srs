@@ -113,7 +113,7 @@ srs_error_t srs_global_initialize()
 
     _srs_srt_sources = new SrsSrtSourceManager();
     _srs_srt_sources->assemble();
-    _srt_eventloop = new SrsSrtEventLoop();
+    _srs_srt_eventloop = new SrsSrtEventLoop();
 
     // Initialize the coworkers singleton before any API handler, which captures it.
     _srs_coworkers = SrsCoWorkers::instance();
@@ -251,7 +251,7 @@ SrsServer::SrsServer()
     app_factory_ = _srs_app_factory;
     reload_status_ = _srs_reload_status;
     blackhole_ = _srs_blackhole;
-    srt_eventloop_ = _srt_eventloop;
+    srt_eventloop_ = _srs_srt_eventloop;
     coworkers_ = _srs_coworkers;
 }
 

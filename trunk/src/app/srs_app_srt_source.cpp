@@ -1303,9 +1303,9 @@ SrsSrtSource::~SrsSrtSource()
     srs_freep(req_);
     srs_freep(format_);
 
-    SrsContextId cid = _source_id;
+    SrsContextId cid = source_id_;
     if (cid.empty())
-        cid = _pre_source_id;
+        cid = pre_source_id_;
     srs_trace("free srt source id=[%s]", cid.c_str());
 
     stat_ = NULL;
@@ -1363,14 +1363,14 @@ srs_error_t SrsSrtSource::on_source_id_changed(SrsContextId id)
 {
     srs_error_t err = srs_success;
 
-    if (!_source_id.compare(id)) {
+    if (!source_id_.compare(id)) {
         return err;
     }
 
-    if (_pre_source_id.empty()) {
-        _pre_source_id = id;
+    if (pre_source_id_.empty()) {
+        pre_source_id_ = id;
     }
-    _source_id = id;
+    source_id_ = id;
 
     // notice all consumer
     std::vector<ISrsSrtConsumer *>::iterator it;
@@ -1387,12 +1387,12 @@ srs_error_t SrsSrtSource::on_source_id_changed(SrsContextId id)
 
 SrsContextId SrsSrtSource::source_id()
 {
-    return _source_id;
+    return source_id_;
 }
 
 SrsContextId SrsSrtSource::pre_source_id()
 {
-    return _pre_source_id;
+    return pre_source_id_;
 }
 
 void SrsSrtSource::update_auth(ISrsRequest *r)
@@ -1461,7 +1461,7 @@ srs_error_t SrsSrtSource::on_publish()
         return srs_error_wrap(err, "bridge on publish");
     }
 
-    stat_->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, source_id_.c_str());
 
     return err;
 }

@@ -111,12 +111,18 @@ SrsMpegtsQueue::SrsMpegtsQueue()
 
 SrsMpegtsQueue::~SrsMpegtsQueue()
 {
+    clear();
+}
+
+void SrsMpegtsQueue::clear()
+{
     std::map<int64_t, SrsMediaPacket *>::iterator it;
     for (it = msgs_.begin(); it != msgs_.end(); ++it) {
         SrsMediaPacket *msg = it->second;
         srs_freep(msg);
     }
     msgs_.clear();
+    nb_audios_ = nb_videos_ = 0;
 }
 
 srs_error_t SrsMpegtsQueue::push(SrsMediaPacket *msg)
@@ -748,4 +754,16 @@ srs_error_t SrsMpegtsOverUdp::connect()
 void SrsMpegtsOverUdp::close()
 {
     srs_freep(sdk_);
+
+    // The server has no sequence header of the next publish until the caster
+    // sends it again, from the next SPS, PPS and AAC frame of the TS. The
+    // queued messages, of the closed publish, would come in the next one at
+    // their old times.
+    h264_sps_ = h264_pps_ = "";
+    h264_sps_changed_ = h264_pps_changed_ = false;
+    h264_sps_pps_sent_ = false;
+    aac_specific_config_ = "";
+    if (queue_) {
+        queue_->clear();
+    }
 }

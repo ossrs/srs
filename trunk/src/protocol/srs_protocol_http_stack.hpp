@@ -757,7 +757,7 @@ public:
 
 public:
     // Initialize the http uri.
-    virtual srs_error_t initialize(std::string _url);
+    virtual srs_error_t initialize(std::string url);
     // After parsed the message, set the schema to https.
     virtual void set_schema(std::string v);
 

@@ -182,17 +182,17 @@ void SrsFastVector::clear()
     count_ = 0;
 }
 
-void SrsFastVector::erase(int _begin, int _end)
+void SrsFastVector::erase(int begin, int end)
 {
-    srs_assert(_begin < _end);
+    srs_assert(begin < end);
 
     // move all erased to previous.
-    for (int i = 0; i < count_ - _end; i++) {
-        msgs_[_begin + i] = msgs_[_end + i];
+    for (int i = 0; i < count_ - end; i++) {
+        msgs_[begin + i] = msgs_[end + i];
     }
 
     // update the count.
-    count_ -= _end - _begin;
+    count_ -= end - begin;
 }
 
 void SrsFastVector::push_back(SrsMediaPacket *msg)
@@ -235,7 +235,7 @@ ISrsMessageQueue::~ISrsMessageQueue()
 
 SrsMessageQueue::SrsMessageQueue(bool ignore_shrink)
 {
-    _ignore_shrink = ignore_shrink;
+    ignore_shrink_ = ignore_shrink;
     max_queue_size_ = 0;
     av_start_time_ = av_end_time_ = -1;
 }
@@ -382,7 +382,7 @@ void SrsMessageQueue::shrink()
         msgs_.push_back(audio_sh);
     }
 
-    if (!_ignore_shrink) {
+    if (!ignore_shrink_) {
         srs_trace("shrinking, size=%d, removed=%d, max=%dms", (int)msgs_.size(), msgs_size - (int)msgs_.size(), srsu2msi(max_queue_size_));
     }
 }
@@ -593,6 +593,7 @@ SrsGopCache::SrsGopCache()
     enable_gop_cache_ = true;
     audio_after_last_video_count_ = 0;
     gop_cache_max_frames_ = 0;
+    wait_keyframe_ = false;
 }
 
 SrsGopCache::~SrsGopCache()
@@ -644,6 +645,11 @@ srs_error_t SrsGopCache::cache(SrsMediaPacket *shared_msg)
         if (!codec_ok)
             return err;
 
+        // Skip the frames before the keyframe after the max frames cleared the cache.
+        if (wait_keyframe_ && !SrsFlvVideo::keyframe(msg->payload(), msg->size())) {
+            return err;
+        }
+
         cached_video_count_++;
         audio_after_last_video_count_ = 0;
     }
@@ -681,6 +687,7 @@ srs_error_t SrsGopCache::cache(SrsMediaPacket *shared_msg)
         srs_warn("Gop cache exceed max frames=%d, total=%d, videos=%d, aalvc=%d",
                  gop_cache_max_frames_, (int)gop_cache_.size(), cached_video_count_, audio_after_last_video_count_);
         clear();
+        wait_keyframe_ = true;
     }
 
     return err;
@@ -697,6 +704,7 @@ void SrsGopCache::clear()
 
     cached_video_count_ = 0;
     audio_after_last_video_count_ = 0;
+    wait_keyframe_ = false;
 }
 
 srs_error_t SrsGopCache::dump(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm)
@@ -1845,9 +1853,9 @@ SrsLiveSource::~SrsLiveSource()
     srs_freep(req_);
     srs_freep(rtmp_bridge_);
 
-    SrsContextId cid = _source_id;
+    SrsContextId cid = source_id_;
     if (cid.empty())
-        cid = _pre_source_id;
+        cid = pre_source_id_;
     srs_trace("free live source id=[%s]", cid.c_str());
 
     config_ = NULL;
@@ -1993,14 +2001,14 @@ srs_error_t SrsLiveSource::on_source_id_changed(SrsContextId id)
 {
     srs_error_t err = srs_success;
 
-    if (!_source_id.compare(id)) {
+    if (!source_id_.compare(id)) {
         return err;
     }
 
-    if (_pre_source_id.empty()) {
-        _pre_source_id = id;
+    if (pre_source_id_.empty()) {
+        pre_source_id_ = id;
     }
-    _source_id = id;
+    source_id_ = id;
 
     // notice all consumer
     std::vector<SrsLiveConsumer *>::iterator it;
@@ -2014,12 +2022,12 @@ srs_error_t SrsLiveSource::on_source_id_changed(SrsContextId id)
 
 SrsContextId SrsLiveSource::source_id()
 {
-    return _source_id;
+    return source_id_;
 }
 
 SrsContextId SrsLiveSource::pre_source_id()
 {
-    return _pre_source_id;
+    return pre_source_id_;
 }
 
 bool SrsLiveSource::inactive()
@@ -2460,7 +2468,7 @@ srs_error_t SrsLiveSource::on_publish()
         return srs_error_wrap(err, "bridge publish");
     }
 
-    stat_->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, source_id_.c_str());
 
     // When no players, the publisher is idle now.
     if (consumers_.empty()) {
@@ -2494,10 +2502,10 @@ void SrsLiveSource::on_unpublish()
 
     srs_trace("cleanup when unpublish");
 
-    if (!_source_id.empty()) {
-        _pre_source_id = _source_id;
+    if (!source_id_.empty()) {
+        pre_source_id_ = source_id_;
     }
-    _source_id = SrsContextId();
+    source_id_ = SrsContextId();
 
     // notify the handler.
     stat_->on_stream_close(req_);

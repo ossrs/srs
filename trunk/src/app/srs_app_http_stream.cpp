@@ -1105,7 +1105,6 @@ ISrsHttpStreamServer::~ISrsHttpStreamServer()
 
 SrsHttpStreamServer::SrsHttpStreamServer()
 {
-    async_ = new SrsAsyncCallWorker();
     mux_ = new SrsHttpServeMux();
 
     config_ = _srs_config;
@@ -1126,8 +1125,12 @@ SrsHttpStreamServer::~SrsHttpStreamServer()
         mux->remove_dynamic_matcher(this);
     }
 
-    async_->stop();
-    srs_freep(async_);
+    // Wait for every teardown to end, for they use the stream handlers.
+    for (int i = 0; i < (int)destroyers_.size(); i++) {
+        SrsHttpStreamDestroy *destroyer = destroyers_.at(i);
+        srs_freep(destroyer);
+    }
+    destroyers_.clear();
 
     if (true) {
         std::map<std::string, SrsLiveEntry *>::iterator it;
@@ -1156,10 +1159,6 @@ srs_error_t SrsHttpStreamServer::initialize()
     // remux rtmp to flv live streaming
     if ((err = initialize_flv_streaming()) != srs_success) {
         return srs_error_wrap(err, "http flv stream");
-    }
-
-    if ((err = async_->start()) != srs_success) {
-        return srs_error_wrap(err, "async start");
     }
 
     return err;
@@ -1266,9 +1265,22 @@ void SrsHttpStreamServer::http_unmount(ISrsRequest *r)
     }
     entry->disposing_ = true;
 
-    // Use async worker to execute the task, which will destroy the stream.
+    // Free the teardowns that are done.
+    for (int i = (int)destroyers_.size() - 1; i >= 0; i--) {
+        SrsHttpStreamDestroy *destroyer = destroyers_.at(i);
+        if (destroyer->done()) {
+            srs_freep(destroyer);
+            destroyers_.erase(destroyers_.begin() + i);
+        }
+    }
+
+    // Destroy the stream on a coroutine of its own, not in the caller, which may be a viewer of
+    // the stream, and not after another stream's teardown, which may wait for its viewers.
+    SrsHttpStreamDestroy *destroyer = new SrsHttpStreamDestroy(mux_, &streamHandlers_, sid);
+    destroyers_.push_back(destroyer);
+
     srs_error_t err = srs_success;
-    if ((err = async_->execute(new SrsHttpStreamDestroy(mux_, &streamHandlers_, sid))) != srs_success) {
+    if ((err = destroyer->start()) != srs_success) {
         srs_warn("http: ignore unmount stream failed, sid=%s, err=%s", sid.c_str(), srs_error_desc(err).c_str());
         srs_freep(err);
     }
@@ -1432,10 +1444,39 @@ SrsHttpStreamDestroy::SrsHttpStreamDestroy(ISrsHttpServeMux *mux, map<std::strin
     mux_ = mux;
     sid_ = sid;
     streamHandlers_ = handlers;
+    trd_ = new SrsDummyCoroutine();
+    done_ = false;
 }
 
 SrsHttpStreamDestroy::~SrsHttpStreamDestroy()
 {
+    srs_freep(trd_);
+}
+
+srs_error_t SrsHttpStreamDestroy::start()
+{
+    srs_error_t err = srs_success;
+
+    srs_freep(trd_);
+    trd_ = new SrsSTCoroutine("http-destroy", this, _srs_context->get_id());
+
+    if ((err = trd_->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine");
+    }
+
+    return err;
+}
+
+bool SrsHttpStreamDestroy::done()
+{
+    return done_;
+}
+
+srs_error_t SrsHttpStreamDestroy::cycle()
+{
+    srs_error_t err = call();
+    done_ = true;
+    return err;
 }
 
 srs_error_t SrsHttpStreamDestroy::call()

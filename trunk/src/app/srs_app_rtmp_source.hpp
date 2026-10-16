@@ -111,7 +111,7 @@ public:
     virtual SrsMediaPacket **data();
     virtual SrsMediaPacket *at(int index);
     virtual void clear();
-    virtual void erase(int _begin, int _end);
+    virtual void erase(int begin, int end);
     virtual void push_back(SrsMediaPacket *msg);
     virtual void free();
 };
@@ -147,7 +147,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // Whether do logging when shrinking.
-    bool _ignore_shrink;
+    bool ignore_shrink_;
     // The max queue size, shrink if exceed it.
     srs_utime_t max_queue_size_;
 #ifdef SRS_PERF_QUEUE_FAST_VECTOR
@@ -298,6 +298,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // without this limit, if ingest stream always has no IDR frame
     // it will cause srs run out of memory
     int gop_cache_max_frames_;
+    // Whether the max frames cleared the cache mid-GOP, so it caches nothing
+    // until the next keyframe, since a player can't decode the frames before it.
+    bool wait_keyframe_;
     // The video frame count, avoid cache for pure audio stream.
     int cached_video_count_;
     // when user disabled video when publishing, and gop cache enalbed,
@@ -675,9 +678,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
     // invoke the on_source_id_changed() to let all clients know.
-    SrsContextId _source_id;
+    SrsContextId source_id_;
     // previous source id.
-    SrsContextId _pre_source_id;
+    SrsContextId pre_source_id_;
     // deep copy of client request.
     ISrsRequest *req_;
     // To delivery stream to clients.
@@ -777,7 +780,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     virtual srs_error_t on_aggregate(SrsRtmpCommonMessage *msg);
     // Publish stream event notify.
-    // @param _req the request from client, the source will deep copy it,
+    // @param req the request from client, the source will deep copy it,
     //         for when reload the request of client maybe invalid.
     virtual srs_error_t on_publish();
     virtual void on_unpublish();

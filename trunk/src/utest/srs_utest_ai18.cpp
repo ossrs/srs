@@ -4085,7 +4085,7 @@ VOID TEST(SrtConnectionTest, ConstructorCapturesEventLoopWithoutSocket)
 
     // GOAL: construction reaches no collaborator; the socket is created by assemble().
     EXPECT_TRUE(NULL == conn->srt_skt_);
-    EXPECT_TRUE(_srt_eventloop == conn->srt_eventloop_);
+    EXPECT_TRUE(_srs_srt_eventloop == conn->srt_eventloop_);
 }
 
 VOID TEST(SrtConnectionTest, AssembleCreatesSocketOnInjectedEventLoopPoller)
@@ -4120,7 +4120,7 @@ VOID TEST(SrtListenerTest, ConstructorCapturesEventLoopAndFactory)
     MockSrtHandlerForSrtListener handler;
     SrsSrtListener listener(&handler, "127.0.0.1", 0);
 
-    EXPECT_TRUE(_srt_eventloop == listener.srt_eventloop_);
+    EXPECT_TRUE(_srs_srt_eventloop == listener.srt_eventloop_);
     EXPECT_TRUE(_srs_app_factory == listener.app_factory_);
     EXPECT_TRUE(NULL == listener.srt_skt_);
 }

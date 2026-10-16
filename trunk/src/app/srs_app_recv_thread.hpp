@@ -213,7 +213,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId ncid_;
 
 public:
-    SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest *_req,
+    SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest *req,
                          int mr_sock_fd, srs_utime_t tm, SrsRtmpConn *conn, SrsSharedPtr<SrsLiveSource> source, SrsContextId parent_cid);
     void assemble();
     virtual ~SrsPublishRecvThread();

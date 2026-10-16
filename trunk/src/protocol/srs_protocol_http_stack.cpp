@@ -201,55 +201,55 @@ srs_error_t srs_av_base64_encode(std::string plaintext, std::string &cipher)
 // get the status text of code.
 string srs_generate_http_status_text(int status)
 {
-    static std::map<int, std::string> _status_map;
-    if (_status_map.empty()) {
-        _status_map[SRS_CONSTS_HTTP_Continue] = SRS_CONSTS_HTTP_Continue_str;
-        _status_map[SRS_CONSTS_HTTP_SwitchingProtocols] = SRS_CONSTS_HTTP_SwitchingProtocols_str;
-        _status_map[SRS_CONSTS_HTTP_OK] = SRS_CONSTS_HTTP_OK_str;
-        _status_map[SRS_CONSTS_HTTP_Created] = SRS_CONSTS_HTTP_Created_str;
-        _status_map[SRS_CONSTS_HTTP_Accepted] = SRS_CONSTS_HTTP_Accepted_str;
-        _status_map[SRS_CONSTS_HTTP_NonAuthoritativeInformation] = SRS_CONSTS_HTTP_NonAuthoritativeInformation_str;
-        _status_map[SRS_CONSTS_HTTP_NoContent] = SRS_CONSTS_HTTP_NoContent_str;
-        _status_map[SRS_CONSTS_HTTP_ResetContent] = SRS_CONSTS_HTTP_ResetContent_str;
-        _status_map[SRS_CONSTS_HTTP_PartialContent] = SRS_CONSTS_HTTP_PartialContent_str;
-        _status_map[SRS_CONSTS_HTTP_MultipleChoices] = SRS_CONSTS_HTTP_MultipleChoices_str;
-        _status_map[SRS_CONSTS_HTTP_MovedPermanently] = SRS_CONSTS_HTTP_MovedPermanently_str;
-        _status_map[SRS_CONSTS_HTTP_Found] = SRS_CONSTS_HTTP_Found_str;
-        _status_map[SRS_CONSTS_HTTP_SeeOther] = SRS_CONSTS_HTTP_SeeOther_str;
-        _status_map[SRS_CONSTS_HTTP_NotModified] = SRS_CONSTS_HTTP_NotModified_str;
-        _status_map[SRS_CONSTS_HTTP_UseProxy] = SRS_CONSTS_HTTP_UseProxy_str;
-        _status_map[SRS_CONSTS_HTTP_TemporaryRedirect] = SRS_CONSTS_HTTP_TemporaryRedirect_str;
-        _status_map[SRS_CONSTS_HTTP_BadRequest] = SRS_CONSTS_HTTP_BadRequest_str;
-        _status_map[SRS_CONSTS_HTTP_Unauthorized] = SRS_CONSTS_HTTP_Unauthorized_str;
-        _status_map[SRS_CONSTS_HTTP_PaymentRequired] = SRS_CONSTS_HTTP_PaymentRequired_str;
-        _status_map[SRS_CONSTS_HTTP_Forbidden] = SRS_CONSTS_HTTP_Forbidden_str;
-        _status_map[SRS_CONSTS_HTTP_NotFound] = SRS_CONSTS_HTTP_NotFound_str;
-        _status_map[SRS_CONSTS_HTTP_MethodNotAllowed] = SRS_CONSTS_HTTP_MethodNotAllowed_str;
-        _status_map[SRS_CONSTS_HTTP_NotAcceptable] = SRS_CONSTS_HTTP_NotAcceptable_str;
-        _status_map[SRS_CONSTS_HTTP_ProxyAuthenticationRequired] = SRS_CONSTS_HTTP_ProxyAuthenticationRequired_str;
-        _status_map[SRS_CONSTS_HTTP_RequestTimeout] = SRS_CONSTS_HTTP_RequestTimeout_str;
-        _status_map[SRS_CONSTS_HTTP_Conflict] = SRS_CONSTS_HTTP_Conflict_str;
-        _status_map[SRS_CONSTS_HTTP_Gone] = SRS_CONSTS_HTTP_Gone_str;
-        _status_map[SRS_CONSTS_HTTP_LengthRequired] = SRS_CONSTS_HTTP_LengthRequired_str;
-        _status_map[SRS_CONSTS_HTTP_PreconditionFailed] = SRS_CONSTS_HTTP_PreconditionFailed_str;
-        _status_map[SRS_CONSTS_HTTP_RequestEntityTooLarge] = SRS_CONSTS_HTTP_RequestEntityTooLarge_str;
-        _status_map[SRS_CONSTS_HTTP_RequestURITooLarge] = SRS_CONSTS_HTTP_RequestURITooLarge_str;
-        _status_map[SRS_CONSTS_HTTP_UnsupportedMediaType] = SRS_CONSTS_HTTP_UnsupportedMediaType_str;
-        _status_map[SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable] = SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable_str;
-        _status_map[SRS_CONSTS_HTTP_ExpectationFailed] = SRS_CONSTS_HTTP_ExpectationFailed_str;
-        _status_map[SRS_CONSTS_HTTP_InternalServerError] = SRS_CONSTS_HTTP_InternalServerError_str;
-        _status_map[SRS_CONSTS_HTTP_NotImplemented] = SRS_CONSTS_HTTP_NotImplemented_str;
-        _status_map[SRS_CONSTS_HTTP_BadGateway] = SRS_CONSTS_HTTP_BadGateway_str;
-        _status_map[SRS_CONSTS_HTTP_ServiceUnavailable] = SRS_CONSTS_HTTP_ServiceUnavailable_str;
-        _status_map[SRS_CONSTS_HTTP_GatewayTimeout] = SRS_CONSTS_HTTP_GatewayTimeout_str;
-        _status_map[SRS_CONSTS_HTTP_HTTPVersionNotSupported] = SRS_CONSTS_HTTP_HTTPVersionNotSupported_str;
+    static std::map<int, std::string> status_map;
+    if (status_map.empty()) {
+        status_map[SRS_CONSTS_HTTP_Continue] = SRS_CONSTS_HTTP_Continue_str;
+        status_map[SRS_CONSTS_HTTP_SwitchingProtocols] = SRS_CONSTS_HTTP_SwitchingProtocols_str;
+        status_map[SRS_CONSTS_HTTP_OK] = SRS_CONSTS_HTTP_OK_str;
+        status_map[SRS_CONSTS_HTTP_Created] = SRS_CONSTS_HTTP_Created_str;
+        status_map[SRS_CONSTS_HTTP_Accepted] = SRS_CONSTS_HTTP_Accepted_str;
+        status_map[SRS_CONSTS_HTTP_NonAuthoritativeInformation] = SRS_CONSTS_HTTP_NonAuthoritativeInformation_str;
+        status_map[SRS_CONSTS_HTTP_NoContent] = SRS_CONSTS_HTTP_NoContent_str;
+        status_map[SRS_CONSTS_HTTP_ResetContent] = SRS_CONSTS_HTTP_ResetContent_str;
+        status_map[SRS_CONSTS_HTTP_PartialContent] = SRS_CONSTS_HTTP_PartialContent_str;
+        status_map[SRS_CONSTS_HTTP_MultipleChoices] = SRS_CONSTS_HTTP_MultipleChoices_str;
+        status_map[SRS_CONSTS_HTTP_MovedPermanently] = SRS_CONSTS_HTTP_MovedPermanently_str;
+        status_map[SRS_CONSTS_HTTP_Found] = SRS_CONSTS_HTTP_Found_str;
+        status_map[SRS_CONSTS_HTTP_SeeOther] = SRS_CONSTS_HTTP_SeeOther_str;
+        status_map[SRS_CONSTS_HTTP_NotModified] = SRS_CONSTS_HTTP_NotModified_str;
+        status_map[SRS_CONSTS_HTTP_UseProxy] = SRS_CONSTS_HTTP_UseProxy_str;
+        status_map[SRS_CONSTS_HTTP_TemporaryRedirect] = SRS_CONSTS_HTTP_TemporaryRedirect_str;
+        status_map[SRS_CONSTS_HTTP_BadRequest] = SRS_CONSTS_HTTP_BadRequest_str;
+        status_map[SRS_CONSTS_HTTP_Unauthorized] = SRS_CONSTS_HTTP_Unauthorized_str;
+        status_map[SRS_CONSTS_HTTP_PaymentRequired] = SRS_CONSTS_HTTP_PaymentRequired_str;
+        status_map[SRS_CONSTS_HTTP_Forbidden] = SRS_CONSTS_HTTP_Forbidden_str;
+        status_map[SRS_CONSTS_HTTP_NotFound] = SRS_CONSTS_HTTP_NotFound_str;
+        status_map[SRS_CONSTS_HTTP_MethodNotAllowed] = SRS_CONSTS_HTTP_MethodNotAllowed_str;
+        status_map[SRS_CONSTS_HTTP_NotAcceptable] = SRS_CONSTS_HTTP_NotAcceptable_str;
+        status_map[SRS_CONSTS_HTTP_ProxyAuthenticationRequired] = SRS_CONSTS_HTTP_ProxyAuthenticationRequired_str;
+        status_map[SRS_CONSTS_HTTP_RequestTimeout] = SRS_CONSTS_HTTP_RequestTimeout_str;
+        status_map[SRS_CONSTS_HTTP_Conflict] = SRS_CONSTS_HTTP_Conflict_str;
+        status_map[SRS_CONSTS_HTTP_Gone] = SRS_CONSTS_HTTP_Gone_str;
+        status_map[SRS_CONSTS_HTTP_LengthRequired] = SRS_CONSTS_HTTP_LengthRequired_str;
+        status_map[SRS_CONSTS_HTTP_PreconditionFailed] = SRS_CONSTS_HTTP_PreconditionFailed_str;
+        status_map[SRS_CONSTS_HTTP_RequestEntityTooLarge] = SRS_CONSTS_HTTP_RequestEntityTooLarge_str;
+        status_map[SRS_CONSTS_HTTP_RequestURITooLarge] = SRS_CONSTS_HTTP_RequestURITooLarge_str;
+        status_map[SRS_CONSTS_HTTP_UnsupportedMediaType] = SRS_CONSTS_HTTP_UnsupportedMediaType_str;
+        status_map[SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable] = SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable_str;
+        status_map[SRS_CONSTS_HTTP_ExpectationFailed] = SRS_CONSTS_HTTP_ExpectationFailed_str;
+        status_map[SRS_CONSTS_HTTP_InternalServerError] = SRS_CONSTS_HTTP_InternalServerError_str;
+        status_map[SRS_CONSTS_HTTP_NotImplemented] = SRS_CONSTS_HTTP_NotImplemented_str;
+        status_map[SRS_CONSTS_HTTP_BadGateway] = SRS_CONSTS_HTTP_BadGateway_str;
+        status_map[SRS_CONSTS_HTTP_ServiceUnavailable] = SRS_CONSTS_HTTP_ServiceUnavailable_str;
+        status_map[SRS_CONSTS_HTTP_GatewayTimeout] = SRS_CONSTS_HTTP_GatewayTimeout_str;
+        status_map[SRS_CONSTS_HTTP_HTTPVersionNotSupported] = SRS_CONSTS_HTTP_HTTPVersionNotSupported_str;
     }
 
     std::string status_text;
-    if (_status_map.find(status) == _status_map.end()) {
+    if (status_map.find(status) == status_map.end()) {
         status_text = "Status Unknown";
     } else {
-        status_text = _status_map[status];
+        status_text = status_map[status];
     }
 
     return status_text;
@@ -654,49 +654,49 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter *w, ISrsHttpMes
     // unset the content length to encode in chunked encoding.
     w->header()->set_content_length(length);
 
-    static std::map<std::string, std::string> _mime;
-    if (_mime.empty()) {
-        _mime[".ts"] = "video/MP2T";
-        _mime[".flv"] = "video/x-flv";
-        _mime[".m4v"] = "video/x-m4v";
-        _mime[".3gpp"] = "video/3gpp";
-        _mime[".3gp"] = "video/3gpp";
-        _mime[".mp4"] = "video/mp4";
-        _mime[".aac"] = "audio/x-aac";
-        _mime[".mp3"] = "audio/mpeg";
-        _mime[".m4a"] = "audio/x-m4a";
-        _mime[".ogg"] = "audio/ogg";
+    static std::map<std::string, std::string> mime;
+    if (mime.empty()) {
+        mime[".ts"] = "video/MP2T";
+        mime[".flv"] = "video/x-flv";
+        mime[".m4v"] = "video/x-m4v";
+        mime[".3gpp"] = "video/3gpp";
+        mime[".3gp"] = "video/3gpp";
+        mime[".mp4"] = "video/mp4";
+        mime[".aac"] = "audio/x-aac";
+        mime[".mp3"] = "audio/mpeg";
+        mime[".m4a"] = "audio/x-m4a";
+        mime[".ogg"] = "audio/ogg";
         // @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 5.
-        _mime[".m3u8"] = "application/vnd.apple.mpegurl"; // application/x-mpegURL
-        _mime[".rss"] = "application/rss+xml";
-        _mime[".json"] = "application/json";
-        _mime[".swf"] = "application/x-shockwave-flash";
-        _mime[".doc"] = "application/msword";
-        _mime[".zip"] = "application/zip";
-        _mime[".rar"] = "application/x-rar-compressed";
-        _mime[".xml"] = "text/xml";
-        _mime[".html"] = "text/html";
-        _mime[".js"] = "text/javascript";
-        _mime[".css"] = "text/css";
-        _mime[".ico"] = "image/x-icon";
-        _mime[".png"] = "image/png";
-        _mime[".jpeg"] = "image/jpeg";
-        _mime[".jpg"] = "image/jpeg";
-        _mime[".gif"] = "image/gif";
+        mime[".m3u8"] = "application/vnd.apple.mpegurl"; // application/x-mpegURL
+        mime[".rss"] = "application/rss+xml";
+        mime[".json"] = "application/json";
+        mime[".swf"] = "application/x-shockwave-flash";
+        mime[".doc"] = "application/msword";
+        mime[".zip"] = "application/zip";
+        mime[".rar"] = "application/x-rar-compressed";
+        mime[".xml"] = "text/xml";
+        mime[".html"] = "text/html";
+        mime[".js"] = "text/javascript";
+        mime[".css"] = "text/css";
+        mime[".ico"] = "image/x-icon";
+        mime[".png"] = "image/png";
+        mime[".jpeg"] = "image/jpeg";
+        mime[".jpg"] = "image/jpeg";
+        mime[".gif"] = "image/gif";
         // For MPEG-DASH.
-        _mime[".mpd"] = "application/dash+xml";
-        _mime[".m4s"] = "video/iso.segment";
-        _mime[".mp4v"] = "video/mp4";
+        mime[".mpd"] = "application/dash+xml";
+        mime[".m4s"] = "video/iso.segment";
+        mime[".mp4v"] = "video/mp4";
     }
 
     if (true) {
         SrsPath path;
         std::string ext = path.filepath_ext(fullpath);
 
-        if (_mime.find(ext) == _mime.end()) {
+        if (mime.find(ext) == mime.end()) {
             w->header()->set_content_type("application/octet-stream");
         } else {
-            w->header()->set_content_type(_mime[ext]);
+            w->header()->set_content_type(mime[ext]);
         }
     }
 

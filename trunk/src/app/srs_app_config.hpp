@@ -200,9 +200,9 @@ public:
     // @remark, assert the index<directives.size().
     virtual SrsConfDirective *at(int index);
     // Get the directive by name, return the first match.
-    virtual SrsConfDirective *get(std::string _name);
+    virtual SrsConfDirective *get(std::string name);
     // Get the directive by name and its arg0, return the first match.
-    virtual SrsConfDirective *get(std::string _name, std::string _arg0);
+    virtual SrsConfDirective *get(std::string name, std::string arg0);
     // RAW
 public:
     virtual SrsConfDirective *get_or_create(std::string n);

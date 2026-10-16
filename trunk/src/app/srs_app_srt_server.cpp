@@ -18,7 +18,7 @@ using namespace std;
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_log.hpp>
 
-SrsSrtEventLoop *_srt_eventloop = NULL;
+SrsSrtEventLoop *_srs_srt_eventloop = NULL;
 
 ISrsSrtClientHandler::ISrsSrtClientHandler()
 {

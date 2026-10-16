@@ -207,8 +207,8 @@ func edgePushCases(t *testing.T, origin, edge *server.Server) {
 }
 
 // TestEdge_Token checks an edge with token traverse: before it serves a
-// client, it connects to the origin with the client's tcUrl, so the origin can
-// check the client's token.
+// client, it connects to the origin with the client's tcUrl and stream, so the
+// origin can check the client's token by its on_connect.
 func TestEdge_Token(t *testing.T) {
 	t.Parallel()
 	origin := edgeOrigin(t)
@@ -234,9 +234,9 @@ func TestEdge_Token(t *testing.T) {
 	})
 
 	// OriginRefusesToken plays with a token the origin's hooks refuse: the
-	// edge refuses the player, since the origin refuses its token.
+	// edge closes the player, since the origin refuses its token at the
+	// edge's check.
 	check.Case(t, "OriginRefusesToken", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "token traverse refuses no client the origin's hooks refuse: the origin answers the connect before any hook")
 		stream := streamName(c)
 		token := "bad-" + stream
 		origin.Hooks.Script(mock.Match{Func: func(r mock.Request) bool {
@@ -244,7 +244,7 @@ func TestEdge_Token(t *testing.T) {
 		}}, mock.Reject(100))
 		publishRTMP(c, origin, stream, media.H264HighAAC)
 		r := tryRTMP(c, rtmpURL(edge, "live/"+stream+"?token="+token), nil, false, hookWait())
-		checkRefused(c, r, "")
+		checkRefused(c, r, "closed")
 	})
 }
 

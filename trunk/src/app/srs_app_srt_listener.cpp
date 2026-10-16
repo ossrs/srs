@@ -42,7 +42,7 @@ SrsSrtListener::SrsSrtListener(ISrsSrtHandler *h, std::string i, int p)
 
     trd_ = new SrsDummyCoroutine();
 
-    srt_eventloop_ = _srt_eventloop;
+    srt_eventloop_ = _srs_srt_eventloop;
     app_factory_ = _srs_app_factory;
 }
 

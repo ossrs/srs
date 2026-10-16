@@ -712,12 +712,12 @@ vector<SrsIPAddress *> &SrsProtocolUtility::local_ips()
     return _srs_system_ips;
 }
 
-std::string _public_internet_address;
+std::string _srs_public_internet_address;
 
 string SrsProtocolUtility::public_internet_address(bool ipv4_only)
 {
-    if (!_public_internet_address.empty()) {
-        return _public_internet_address;
+    if (!_srs_public_internet_address.empty()) {
+        return _srs_public_internet_address;
     }
 
     std::vector<SrsIPAddress *> &ips = local_ips();
@@ -733,7 +733,7 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
         }
 
         srs_warn("use public address as ip: %s, ifname=%s", ip->ip_.c_str(), ip->ifname_.c_str());
-        _public_internet_address = ip->ip_;
+        _srs_public_internet_address = ip->ip_;
         return ip->ip_;
     }
 
@@ -748,17 +748,17 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
         }
 
         srs_warn("use private address as ip: %s, ifname=%s", ip->ip_.c_str(), ip->ifname_.c_str());
-        _public_internet_address = ip->ip_;
+        _srs_public_internet_address = ip->ip_;
         return ip->ip_;
     }
 
     // LCOV_EXCL_START
     // Finally, use first whatever kind of address.
-    if (!ips.empty() && _public_internet_address.empty()) {
+    if (!ips.empty() && _srs_public_internet_address.empty()) {
         SrsIPAddress *ip = ips[0];
 
         srs_warn("use first address as ip: %s, ifname=%s", ip->ip_.c_str(), ip->ifname_.c_str());
-        _public_internet_address = ip->ip_;
+        _srs_public_internet_address = ip->ip_;
         return ip->ip_;
     }
     // LCOV_EXCL_STOP

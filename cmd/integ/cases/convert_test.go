@@ -337,10 +337,6 @@ var (
 			return playDashCell(c, flvURL(srs, path+".mpd"), segmentsOf(w, 8*time.Second))
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
-		knownBugs: map[string]string{
-			"AacOnly":  "DASH writes no MPD for a stream with no video, so a player gets 404",
-			"H264Only": "DASH writes no MPD for a stream with no audio, so a player gets 404",
-		},
 	}
 
 	// rtspPlayer plays RTSP over TCP: the publisher holds the stream after

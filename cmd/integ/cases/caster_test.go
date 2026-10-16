@@ -39,8 +39,8 @@ func casterUdpTsConfig() server.Config {
 // TestCaster_UdpTs checks the MPEG-TS over UDP stream caster, basic cases
 // only, since it is no standard protocol: SRS converts the H.264 and AAC of
 // the TS its UDP port gets, from any sender, to one RTMP stream,
-// server.UDPTSStream, and sends each sequence header once in the caster's
-// life. So the group pushes the TS test file once, from its start to its
+// server.UDPTSStream, and sends each sequence header once per publish of
+// that stream. So the group pushes the TS test file once, from its start to its
 // end, in datagrams of 7 TS packets in real time, and every case plays that
 // stream; an RTMP player that joined before the push records all of it. The
 // bad input is datagrams of other senders, which SRS adds to the same
@@ -150,40 +150,136 @@ func TestCaster_UdpTs(t *testing.T) {
 // (AudioFramesTimed).
 const casterLead = 1200 * time.Millisecond
 
+// TestCaster_UdpTsRepush checks a push to the MPEG-TS over UDP caster after
+// its RTMP output closed, as when the server closed the caster's publisher
+// for a stream idle past its timeout, on a server of its own, since that ends
+// the caster's stream: a first push sends casterLead of the TS test file and
+// stops, a DELETE of the caster's RTMP publisher closes the output, then a
+// new sender pushes the file again from its start, which the caster
+// publishes again at its first datagrams after the close.
+func TestCaster_UdpTsRepush(t *testing.T) {
+	t.Parallel()
+	srs := server.Group(t, casterUdpTsConfig())
+
+	// A player of the second publish gets each sequence header again, then
+	// the stream from a keyframe, with times from the second push's start.
+	check.Case(t, "SecondPushPlays", check.Normal, func(c *check.C) {
+		stream := path.Base(server.UDPTSStream)
+		sendUDPTS(c, srs, media.H264HighAACTS, casterLead)
+		pub := waitHook(c, srs, "on_publish", stream)
+		c.Must(kickOK(srs, pub.Field("client_id")), "delete the caster's publisher")
+		waitHook(c, srs, "on_unpublish", stream)
+
+		repushUDPTS(c, srs, media.H264HighAACTS, stream)
+		ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(time.Second))
+		defer cancel()
+		r, err := flv.PlayRTMP(ctx, rtmpURL(srs, server.UDPTSStream), nil, srtPlayedUntil)
+		c.Must(err, "play the second publish")
+		checkSRTPlayed(c, r)
+		c.Check(r.Video.FirstDTS < casterLead+check.Scaled(time.Second), "the first video frame at %v, not from the second push's start", r.Video.FirstDTS)
+	})
+}
+
 // pushUDPTS sends a TS file to the server's MPEG-TS over UDP caster until
 // the group ends, casterLead of it at once, then the rest in real time, and
 // waits for the on_publish of the caster's RTMP stream.
 func pushUDPTS(t *testing.T, srs *server.Server, file string) {
 	t.Helper()
-	conn, err := net.Dial("udp", srs.Addr(server.UDPTS))
-	if err != nil {
-		t.Fatalf("dial the caster: %v", err)
-	}
-	f, err := os.Open(media.Path(t, file))
-	if err != nil {
-		conn.Close()
-		t.Fatalf("open the media: %v", err)
-	}
-	s := srt.NewSender(f)
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	t.Cleanup(func() {
-		cancel()
-		conn.Close()
-		<-done
-		f.Close()
-	})
-	if err := s.SendThrough(conn, casterLead); err != nil {
-		done <- nil
-		t.Fatalf("push the lead: %v", err)
-	}
-	go func() { done <- s.Stream(ctx, conn, nil, nil) }()
+	streamUDPTS(t, srs, file)
 
 	wctx, wcancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer wcancel()
 	if _, err := srs.Hooks.Wait(wctx, mock.Match{Action: "on_publish", Stream: path.Base(server.UDPTSStream)}); err != nil {
 		t.Fatalf("the caster's on_publish: %v", err)
 	}
+}
+
+// streamUDPTS sends a TS file to the server's MPEG-TS over UDP caster from a
+// sender of its own until the test ends, casterLead of it at once, then the
+// rest in real time.
+func streamUDPTS(tb testing.TB, srs *server.Server, file string) {
+	tb.Helper()
+	p := newUDPTSPush(tb, srs, file)
+	if err := p.s.SendThrough(p.conn, casterLead); err != nil {
+		tb.Fatalf("push the lead: %v", err)
+	}
+	p.stream()
+}
+
+// repushUDPTS pushes a TS file to the server's MPEG-TS over UDP caster after
+// its RTMP output closed, casterLead of it at once, then the rest in real
+// time, and waits for the caster to publish stream again. The caster finds
+// its output closed only when a write fails, which a write before the server
+// closed the socket doesn't, so the push sends 40ms of media at a time until
+// the caster publishes again, long before the keyframe at 1s in the lead.
+func repushUDPTS(c *check.C, srs *server.Server, file, stream string) {
+	c.Helper()
+	p := newUDPTSPush(c, srs, file)
+	m := mock.Match{Action: "on_publish", Stream: stream}
+	for at := 40 * time.Millisecond; len(srs.Hooks.Requests(m)) < 2; at += 40 * time.Millisecond {
+		if at > 600*time.Millisecond {
+			c.Fatalf("no new publish of the caster after %v of the push", at-40*time.Millisecond)
+		}
+		c.Must(p.s.SendThrough(p.conn, at), "push")
+		for i := 0; i < 4 && len(srs.Hooks.Requests(m)) < 2; i++ {
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	c.Must(p.s.SendThrough(p.conn, casterLead), "push the lead")
+	p.stream()
+}
+
+// udpTSPush is a sender of a TS file to the server's MPEG-TS over UDP caster,
+// from a UDP socket of its own, which is closed when the test ends.
+type udpTSPush struct {
+	s       *srt.Sender
+	conn    net.Conn
+	ctx     context.Context
+	done    chan error
+	started bool
+}
+
+func newUDPTSPush(tb testing.TB, srs *server.Server, file string) *udpTSPush {
+	tb.Helper()
+	conn, err := net.Dial("udp", srs.Addr(server.UDPTS))
+	if err != nil {
+		tb.Fatalf("dial the caster: %v", err)
+	}
+	f, err := os.Open(media.Path(tb, file))
+	if err != nil {
+		conn.Close()
+		tb.Fatalf("open the media: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	p := &udpTSPush{s: srt.NewSender(f), conn: conn, ctx: ctx, done: make(chan error, 1)}
+	tb.Cleanup(func() {
+		cancel()
+		conn.Close()
+		if p.started {
+			<-p.done
+		}
+		f.Close()
+	})
+	return p
+}
+
+// stream sends the rest of the file in real time until the test ends.
+func (p *udpTSPush) stream() {
+	p.started = true
+	go func() { p.done <- p.s.Stream(p.ctx, p.conn, nil, nil) }()
+}
+
+// sendUDPTS sends the first d of a TS file, by its PCR, to the server's
+// MPEG-TS over UDP caster at once, from a sender of its own that then stops.
+func sendUDPTS(c *check.C, srs *server.Server, file string, d time.Duration) {
+	c.Helper()
+	conn, err := net.Dial("udp", srs.Addr(server.UDPTS))
+	c.Must(err, "dial the caster")
+	defer conn.Close()
+	f, err := os.Open(media.Path(c, file))
+	c.Must(err, "open the media")
+	defer f.Close()
+	c.Must(srt.NewSender(f).SendThrough(conn, d), "push")
 }
 
 // casterLiveAfter is how long after the bad input a frame must come to a

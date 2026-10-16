@@ -298,10 +298,8 @@ func TestRtmp_GopCacheMaxFrames(t *testing.T) {
 
 	// CacheStartsAtKeyframe joins the same held stream: what the cache gives
 	// a late player starts at a keyframe, or is empty. SRS clears an
-	// overflowing cache, then caches again from the next video frame, which
-	// is not a keyframe, so the player starts mid-GOP.
+	// overflowing cache and caches again only from the next keyframe.
 	check.Case(t, "CacheStartsAtKeyframe", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "after gop_cache_max_frames clears the cache, it caches again from a non-keyframe")
 		r, _ := joinLimitedCache(c, srs)
 		c.Check(r.Video == nil || r.Video.LeadingFrames == 0, "the cached frames start before a keyframe: %v", r)
 	})

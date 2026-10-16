@@ -297,7 +297,6 @@ var (
 			return r
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
-		knownBugs: map[string]string{"H264Only": "DASH writes no MPD for a stream with no audio, so a player gets 404"},
 	}
 
 	// gbFmp4Player plays Fmp4's HLS: the first 4s segment (fmp4Segment).

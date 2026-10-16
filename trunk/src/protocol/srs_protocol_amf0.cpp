@@ -1225,11 +1225,11 @@ int SrsAmf0Size::any(SrsAmf0Any *o)
     return o->total_size();
 }
 
-SrsAmf0String::SrsAmf0String(const char *_value)
+SrsAmf0String::SrsAmf0String(const char *value)
 {
     marker_ = RTMP_AMF0_String;
-    if (_value) {
-        value_ = _value;
+    if (value) {
+        value_ = value;
     }
 }
 
@@ -1258,10 +1258,10 @@ SrsAmf0Any *SrsAmf0String::copy()
     return copy;
 }
 
-SrsAmf0Boolean::SrsAmf0Boolean(bool _value)
+SrsAmf0Boolean::SrsAmf0Boolean(bool value)
 {
     marker_ = RTMP_AMF0_Boolean;
-    value_ = _value;
+    value_ = value;
 }
 
 SrsAmf0Boolean::~SrsAmf0Boolean()
@@ -1289,10 +1289,10 @@ SrsAmf0Any *SrsAmf0Boolean::copy()
     return copy;
 }
 
-SrsAmf0Number::SrsAmf0Number(double _value)
+SrsAmf0Number::SrsAmf0Number(double value)
 {
     marker_ = RTMP_AMF0_Number;
-    value_ = _value;
+    value_ = value;
 }
 
 SrsAmf0Number::~SrsAmf0Number()

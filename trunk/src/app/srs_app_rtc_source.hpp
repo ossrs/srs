@@ -260,9 +260,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // For edge, it's the edge ingest id.
     // when source id changed, for example, the edge reconnect,
     // invoke the on_source_changed() to let all clients know.
-    SrsContextId _source_id;
+    SrsContextId source_id_;
     // previous source id.
-    SrsContextId _pre_source_id;
+    SrsContextId pre_source_id_;
     ISrsRequest *req_;
     ISrsRtcPublishStream *publish_stream_;
     // Steam description for this steam.

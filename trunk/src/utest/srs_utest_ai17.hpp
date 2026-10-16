@@ -38,6 +38,7 @@ public:
     std::string file_name_;
     int64_t sequence_number_;
     bool get_fragment_called_;
+    int write_count_;
 
 public:
     MockMpdWriter();
@@ -51,7 +52,11 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r) { return srs_success; }
     virtual srs_error_t on_publish() { return srs_success; }
     virtual void on_unpublish() {}
-    virtual srs_error_t write(SrsFormat *format, ISrsFragmentWindow *afragments, ISrsFragmentWindow *vfragments) { return srs_success; }
+    virtual srs_error_t write(SrsFormat *format, ISrsFragmentWindow *afragments, ISrsFragmentWindow *vfragments)
+    {
+        write_count_++;
+        return srs_success;
+    }
     virtual void set_availability_start_time(srs_utime_t t) {}
     virtual srs_utime_t get_availability_start_time() { return 0; }
 };

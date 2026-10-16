@@ -436,8 +436,6 @@ VOID TEST(StreamUrlRuleTest, HttpFlvViewerBeforePublish)
     config->vhost_directive_->args_.push_back("test.vhost");
 
     SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
-    srs_freep(server->async_);
-    server->async_ = new MockAsyncCallWorker();
     server->config_ = config.get();
     server->templateHandlers_["test.vhost"] = new SrsLiveEntry("[vhost]/[app]/[stream].flv");
 

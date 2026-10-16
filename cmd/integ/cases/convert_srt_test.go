@@ -126,23 +126,12 @@ var srtConvertPlayer = convertPlayer{
 	gap: 100 * time.Millisecond, sync: srtSync,
 }
 
-// srtDashBugs are the known bugs of DASH of the SRT source: DASH writes no
-// MPD for a stream with no video or no audio, as is the one of H.264 with
-// Opus once SRS drops the Opus.
-var srtDashBugs = map[string]string{
-	"H264Opus": "DASH writes no MPD for a stream with no audio, as SRS converts H.264 with Opus over SRT, so a player gets 404",
-	"AacOnly":  "DASH writes no MPD for a stream with no video, so a player gets 404",
-	"H264Only": "DASH writes no MPD for a stream with no audio, so a player gets 404",
-}
-
 // srtCommonCells adds the SRT source's cells of the Common server, which has
 // srt_to_rtmp: RTMP, HTTP-FLV, HLS in TS, DASH and SRT; RTSP, which SRS
 // doesn't convert SRT to; and WHEP, refused with rtmp_to_rtc off.
 func srtCommonCells(t *testing.T) {
 	common := func(c *check.C) *server.Server { return server.Common(c) }
-	dash := dashPlayer
-	dash.knownBugs = srtDashBugs
-	for _, p := range []convertPlayer{rtmpPlayer, httpFlvConvert, hlsTsPlayer, dash, srtConvertPlayer} {
+	for _, p := range []convertPlayer{rtmpPlayer, httpFlvConvert, hlsTsPlayer, dashPlayer, srtConvertPlayer} {
 		srtCells(t, common, p)
 	}
 

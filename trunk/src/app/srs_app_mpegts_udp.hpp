@@ -87,6 +87,8 @@ public:
 public:
     virtual srs_error_t push(SrsMediaPacket *msg) = 0;
     virtual SrsMediaPacket *dequeue() = 0;
+    // Free every queued message.
+    virtual void clear() = 0;
 };
 
 // The queue for mpegts over udp to send packets.
@@ -109,6 +111,7 @@ public:
 public:
     virtual srs_error_t push(SrsMediaPacket *msg);
     virtual SrsMediaPacket *dequeue();
+    virtual void clear();
 };
 
 // The interface for mpegts over udp.
@@ -194,7 +197,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // Connect to RTMP server.
     virtual srs_error_t connect();
-    // Close the connection to RTMP server.
+    // Close the connection to RTMP server. The next connection is a new
+    // publish, so the caster drops what it queued for this one and sends
+    // each sequence header again.
     virtual void close();
 };
 

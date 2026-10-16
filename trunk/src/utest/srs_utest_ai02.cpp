@@ -2347,7 +2347,7 @@ VOID TEST(ConfigParseOptionsTest, InDockerFromParsedConfig)
     srs_error_t err;
 
     string filepath = _srs_tmp_file_prefix + "utest-in-docker.conf";
-    MockFileRemover _mfr(filepath);
+    MockFileRemover mfr(filepath);
 
     if (true) {
         SrsFileWriter fw;
@@ -2428,7 +2428,7 @@ VOID TEST(ConfigParseOptionsTest, FileCheckSeesVhostSettings)
     srs_error_t err;
 
     string filepath = _srs_tmp_file_prefix + "utest-parse-config.conf";
-    MockFileRemover _mfr(filepath);
+    MockFileRemover mfr(filepath);
 
     if (true) {
         SrsFileWriter fw;

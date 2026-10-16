@@ -17,10 +17,10 @@ VOID TEST(ConfigMainTest, CheckIncludeEmptyConfig)
 
     if (true) {
         string filepath = _srs_tmp_file_prefix + "utest-main.conf";
-        MockFileRemover _mfr(filepath);
+        MockFileRemover mfr(filepath);
 
         string included = _srs_tmp_file_prefix + "utest-included-empty.conf";
-        MockFileRemover _mfr2(included);
+        MockFileRemover mfr2(included);
 
         if (true) {
             SrsFileWriter fw;
@@ -2528,7 +2528,7 @@ VOID TEST(ConfigUtilityTest, TryReadWriteFile)
     // Test writing and reading a file
     if (true) {
         string test_file = _srs_tmp_file_prefix + "utest-read-write.txt";
-        MockFileRemover _mfr(test_file);
+        MockFileRemover mfr(test_file);
 
         string test_content = "test server id content";
         srs_try_write_file(test_file, test_content);
@@ -2554,7 +2554,7 @@ VOID TEST(ConfigUtilityTest, TryReadWriteFile)
     // Test writing empty content
     if (true) {
         string test_file = _srs_tmp_file_prefix + "utest-empty.txt";
-        MockFileRemover _mfr(test_file);
+        MockFileRemover mfr(test_file);
 
         srs_try_write_file(test_file, "");
         string content = srs_try_read_file(test_file);
@@ -2564,7 +2564,7 @@ VOID TEST(ConfigUtilityTest, TryReadWriteFile)
     // Test writing and reading large content (up to buffer size)
     if (true) {
         string test_file = _srs_tmp_file_prefix + "utest-large.txt";
-        MockFileRemover _mfr(test_file);
+        MockFileRemover mfr(test_file);
 
         // Create content close to buffer size (1024 bytes)
         string large_content(1000, 'A');
@@ -2577,7 +2577,7 @@ VOID TEST(ConfigUtilityTest, TryReadWriteFile)
     // Test reading file larger than buffer (should only read first 1024 bytes)
     if (true) {
         string test_file = _srs_tmp_file_prefix + "utest-oversized.txt";
-        MockFileRemover _mfr(test_file);
+        MockFileRemover mfr(test_file);
 
         // Create content larger than buffer size (1024 bytes)
         string oversized_content(2000, 'B');
@@ -2726,7 +2726,7 @@ VOID TEST(ConfigTest, GetServerIdWithoutPidFile)
     EXPECT_STREQ("", conf.get_pid_file().c_str());
 
     string server_id_file = srs_server_id_path("");
-    MockFileRemover _mfr(server_id_file);
+    MockFileRemover mfr(server_id_file);
 
     EXPECT_FALSE(conf.get_server_id().empty());
     EXPECT_STREQ("", srs_try_read_file(server_id_file).c_str());
@@ -2743,7 +2743,7 @@ VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
 
         // Clean up any existing server id file
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         // First call should generate a server ID and write to file
         string server_id1 = conf.get_server_id();
@@ -2764,7 +2764,7 @@ VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid ./objs/test-file-write.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         // Call get_server_id which should write to file
         string server_id = conf.get_server_id();
@@ -2781,7 +2781,7 @@ VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid /tmp/custom-srs.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         string server_id = conf.get_server_id();
         EXPECT_FALSE(server_id.empty());
@@ -2805,7 +2805,7 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "server_id config-id; pid ./objs/priority-test.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         // Pre-write a different ID to file
         srs_try_write_file(server_id_file, "file-id");
@@ -2823,7 +2823,7 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "server_id config-file-id; pid ./objs/config-priority.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         string server_id = conf.get_server_id();
         EXPECT_STREQ("config-file-id", server_id.c_str());
@@ -2835,7 +2835,7 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "server_id; pid ./objs/empty-config.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         string server_id = conf.get_server_id();
         EXPECT_FALSE(server_id.empty());
@@ -2849,7 +2849,7 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid ./objs/consistency-test.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         string server_id1 = conf.get_server_id();
         string server_id2 = conf.get_server_id();

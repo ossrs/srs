@@ -879,12 +879,12 @@ SrsConfDirective *SrsConfDirective::at(int index)
     return directives_.at(index);
 }
 
-SrsConfDirective *SrsConfDirective::get(string _name)
+SrsConfDirective *SrsConfDirective::get(string name)
 {
     std::vector<SrsConfDirective *>::iterator it;
     for (it = directives_.begin(); it != directives_.end(); ++it) {
         SrsConfDirective *directive = *it;
-        if (directive->name_ == _name) {
+        if (directive->name_ == name) {
             return directive;
         }
     }
@@ -892,12 +892,12 @@ SrsConfDirective *SrsConfDirective::get(string _name)
     return NULL;
 }
 
-SrsConfDirective *SrsConfDirective::get(string _name, string _arg0)
+SrsConfDirective *SrsConfDirective::get(string name, string arg0)
 {
     std::vector<SrsConfDirective *>::iterator it;
     for (it = directives_.begin(); it != directives_.end(); ++it) {
         SrsConfDirective *directive = *it;
-        if (directive->name_ == _name && directive->arg0() == _arg0) {
+        if (directive->name_ == name && directive->arg0() == arg0) {
             return directive;
         }
     }

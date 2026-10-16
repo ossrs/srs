@@ -348,23 +348,16 @@ var (
 	// whipDashPlayer plays the RtcToRtmp server's DASH, the first 2s
 	// segment, once the HLS segment that ends with it is there (see
 	// dashPlayer).
-	whipDashPlayer = func() whipPlayer {
-		p := whipSegments("Dash", same("h264", "hevc"), map[string]string{"opus": "aac"},
-			rtcToRtmpDashSegment+1200*time.Millisecond, 2500*time.Millisecond, 1500*time.Millisecond,
-			func(c *check.C, srs *server.Server, stream string, u report.Until) *report.Report {
-				seq := 1
-				if !u.VideoHeader {
-					seq = 0
-				}
-				waitPlaylist(c, httpClient, flvURL(srs, "live/"+stream+".m3u8"), hasSegment(seq))
-				return playDashCell(c, flvURL(srs, "live/"+stream+".mpd"), u)
-			})
-		p.knownBugs = map[string]string{
-			"OpusOnly": "DASH writes no MPD for a stream with no video, so a player gets 404",
-			"H264Only": "DASH writes no MPD for a stream with no audio, so a player gets 404",
-		}
-		return p
-	}()
+	whipDashPlayer = whipSegments("Dash", same("h264", "hevc"), map[string]string{"opus": "aac"},
+		rtcToRtmpDashSegment+1200*time.Millisecond, 2500*time.Millisecond, 1500*time.Millisecond,
+		func(c *check.C, srs *server.Server, stream string, u report.Until) *report.Report {
+			seq := 1
+			if !u.VideoHeader {
+				seq = 0
+			}
+			waitPlaylist(c, httpClient, flvURL(srs, "live/"+stream+".m3u8"), hasSegment(seq))
+			return playDashCell(c, flvURL(srs, "live/"+stream+".mpd"), u)
+		})
 )
 
 // TestConvert_RtcToRtmp converts WebRTC streams to RTMP, HTTP-FLV, HLS in TS

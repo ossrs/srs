@@ -313,19 +313,19 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader *reader, SrsFastStream *buffer)
 {
     owner_conn_ = NULL;
     chunked_ = false;
-    _uri = new SrsHttpUri();
-    _body = new SrsHttpResponseReader(this, reader, buffer);
+    uri_ = new SrsHttpUri();
+    body_ = new SrsHttpResponseReader(this, reader, buffer);
 
     jsonp_ = false;
 
     // As 0 is DELETE, so we use GET as default.
-    _method = (llhttp_method_t)SRS_CONSTS_HTTP_GET;
+    method_ = (llhttp_method_t)SRS_CONSTS_HTTP_GET;
     // 200 is ok.
-    _status = (llhttp_status_t)SRS_CONSTS_HTTP_OK;
+    status_ = (llhttp_status_t)SRS_CONSTS_HTTP_OK;
     // -1 means infinity chunked mode.
-    _content_length = -1;
+    content_length_ = -1;
     // From HTTP/1.1, default to keep alive.
-    _keep_alive = true;
+    keep_alive_ = true;
     type_ = 0;
 
     schema_ = "http";
@@ -333,27 +333,27 @@ SrsHttpMessage::SrsHttpMessage(ISrsReader *reader, SrsFastStream *buffer)
 
 SrsHttpMessage::~SrsHttpMessage()
 {
-    srs_freep(_body);
-    srs_freep(_uri);
+    srs_freep(body_);
+    srs_freep(uri_);
 }
 
 void SrsHttpMessage::set_basic(uint8_t type, llhttp_method_t method, llhttp_status_t status, int64_t content_length)
 {
     type_ = type;
-    _method = method;
-    _status = status;
+    method_ = method;
+    status_ = status;
 
     // We use -1 as uninitialized mode, while llhttp use 0, so we should only
     // update it when it's not 0 and the message is not initialized.
-    if (_content_length == -1 && content_length) {
-        _content_length = content_length;
+    if (content_length_ == -1 && content_length) {
+        content_length_ = content_length;
     }
 }
 
 void SrsHttpMessage::set_header(SrsHttpHeader *header, bool keep_alive)
 {
-    _header = *header;
-    _keep_alive = keep_alive;
+    header_ = *header;
+    keep_alive_ = keep_alive;
 
     // whether chunked.
     chunked_ = (header->get("Transfer-Encoding") == "chunked");
@@ -361,15 +361,15 @@ void SrsHttpMessage::set_header(SrsHttpHeader *header, bool keep_alive)
     // Update the content-length in header.
     string clv = header->get("Content-Length");
     if (!clv.empty()) {
-        _content_length = ::atoll(clv.c_str());
+        content_length_ = ::atoll(clv.c_str());
     }
 
     // If no size(content-length or chunked), it's infinite chunked,
     // it means there is no body, so we must close the body reader.
-    if (!chunked_ && _content_length == -1) {
+    if (!chunked_ && content_length_ == -1) {
         // The infinite chunked is only enabled for HTTP_RESPONSE, so we close the body for request.
         if (type_ == HTTP_REQUEST) {
-            _body->close();
+            body_->close();
         }
     }
 }
@@ -392,15 +392,15 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
 {
     srs_error_t err = srs_success;
 
-    _url = url;
+    url_ = url;
 
     // parse uri from schema/server:port/path?query
-    std::string uri = _url;
+    std::string uri = url_;
 
     if (!srs_strings_contains(uri, "://")) {
         // use server public ip when host not specified.
         // to make telnet happy.
-        std::string host = _header.get("Host");
+        std::string host = header_.get("Host");
 
         // If no host in header, we use local discovered IP, IPv4 first.
         if (host.empty()) {
@@ -409,25 +409,25 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
         }
 
         // The url must starts with slash if no schema. For example, SIP request line starts with "sip".
-        if (!host.empty() && !srs_strings_starts_with(_url, "/")) {
+        if (!host.empty() && !srs_strings_starts_with(url_, "/")) {
             host += "/";
         }
 
         if (!host.empty()) {
-            uri = "http://" + host + _url;
+            uri = "http://" + host + url_;
         }
     }
 
-    if ((err = _uri->initialize(uri)) != srs_success) {
+    if ((err = uri_->initialize(uri)) != srs_success) {
         return srs_error_wrap(err, "init uri %s", uri.c_str());
     }
 
     // parse ext.
     SrsPath path;
-    _ext = path.filepath_ext(_uri->get_path());
+    ext_ = path.filepath_ext(uri_->get_path());
 
     // parse query string.
-    srs_net_url_parse_query(_uri->get_query(), _query);
+    srs_net_url_parse_query(uri_->get_query(), query_);
 
     // parse jsonp request message.
     if (allow_jsonp) {
@@ -449,7 +449,7 @@ srs_error_t SrsHttpMessage::set_url(string url, bool allow_jsonp)
 void SrsHttpMessage::set_https(bool v)
 {
     schema_ = v ? "https" : "http";
-    _uri->set_schema(schema_);
+    uri_->set_schema(schema_);
 }
 
 ISrsConnection *SrsHttpMessage::connection()
@@ -486,12 +486,12 @@ uint8_t SrsHttpMessage::method()
         }
     }
 
-    return _method;
+    return method_;
 }
 
 uint16_t SrsHttpMessage::status_code()
 {
-    return _status;
+    return status_;
 }
 
 string SrsHttpMessage::method_str()
@@ -500,7 +500,7 @@ string SrsHttpMessage::method_str()
         return jsonp_method_;
     }
 
-    return llhttp_method_name((llhttp_method_t)_method);
+    return llhttp_method_name((llhttp_method_t)method_);
 }
 
 bool SrsHttpMessage::is_http_get()
@@ -525,7 +525,7 @@ bool SrsHttpMessage::is_http_delete()
 
 bool SrsHttpMessage::is_http_options()
 {
-    return _method == SRS_CONSTS_HTTP_OPTIONS;
+    return method_ == SRS_CONSTS_HTTP_OPTIONS;
 }
 
 bool SrsHttpMessage::is_chunked()
@@ -535,59 +535,59 @@ bool SrsHttpMessage::is_chunked()
 
 bool SrsHttpMessage::is_keep_alive()
 {
-    return _keep_alive;
+    return keep_alive_;
 }
 
 string SrsHttpMessage::uri()
 {
     // The URI the client asked for: the schema, the Host with its port, the
     // path and the query, not the vhost of a vhost or domain query.
-    return _uri->get_url();
+    return uri_->get_url();
 }
 
 string SrsHttpMessage::url()
 {
-    return _uri->get_url();
+    return uri_->get_url();
 }
 
 string SrsHttpMessage::host()
 {
-    std::map<string, string>::iterator it = _query.find("vhost");
-    if (it != _query.end() && !it->second.empty()) {
+    std::map<string, string>::iterator it = query_.find("vhost");
+    if (it != query_.end() && !it->second.empty()) {
         return it->second;
     }
 
-    it = _query.find("domain");
-    if (it != _query.end() && !it->second.empty()) {
+    it = query_.find("domain");
+    if (it != query_.end() && !it->second.empty()) {
         return it->second;
     }
 
-    return _uri->get_host();
+    return uri_->get_host();
 }
 
 int SrsHttpMessage::port()
 {
-    return _uri->get_port();
+    return uri_->get_port();
 }
 
 string SrsHttpMessage::path()
 {
-    return _uri->get_path();
+    return uri_->get_path();
 }
 
 string SrsHttpMessage::query()
 {
-    return _uri->get_query();
+    return uri_->get_query();
 }
 
 string SrsHttpMessage::ext()
 {
-    return _ext;
+    return ext_;
 }
 
 std::string SrsHttpMessage::parse_rest_id(string pattern)
 {
-    string p = _uri->get_path();
+    string p = uri_->get_path();
     if (p.length() <= pattern.length()) {
         return "";
     }
@@ -602,25 +602,25 @@ std::string SrsHttpMessage::parse_rest_id(string pattern)
 
 srs_error_t SrsHttpMessage::body_read_all(string &body)
 {
-    return srs_io_readall(_body, body);
+    return srs_io_readall(body_, body);
 }
 
 ISrsHttpResponseReader *SrsHttpMessage::body_reader()
 {
-    return _body;
+    return body_;
 }
 
 int64_t SrsHttpMessage::content_length()
 {
-    return _content_length;
+    return content_length_;
 }
 
 string SrsHttpMessage::query_get(string key)
 {
     std::string v;
 
-    if (_query.find(key) != _query.end()) {
-        v = _query[key];
+    if (query_.find(key) != query_.end()) {
+        v = query_[key];
     }
 
     return v;
@@ -628,7 +628,7 @@ string SrsHttpMessage::query_get(string key)
 
 SrsHttpHeader *SrsHttpMessage::header()
 {
-    return &_header;
+    return &header_;
 }
 
 ISrsRequest *SrsHttpMessage::to_request(string vhost)
@@ -638,7 +638,7 @@ ISrsRequest *SrsHttpMessage::to_request(string vhost)
     // http path, for instance, /live/livestream.flv, parse to
     //      app: /live
     //      stream: livestream.flv
-    srs_net_url_parse_rtmp_url(_uri->get_path(), req->app_, req->stream_);
+    srs_net_url_parse_rtmp_url(uri_->get_path(), req->app_, req->stream_);
 
     // trim the start slash, for instance, /live to live
     req->app_ = srs_strings_trim_start(req->app_, "/");
@@ -649,10 +649,10 @@ ISrsRequest *SrsHttpMessage::to_request(string vhost)
 
     // generate others.
     req->tcUrl_ = "rtmp://" + vhost + "/" + req->app_;
-    req->pageUrl_ = _header.get("Referer");
+    req->pageUrl_ = header_.get("Referer");
     req->objectEncoding_ = 0;
 
-    std::string query = _uri->get_query();
+    std::string query = uri_->get_query();
     if (!query.empty()) {
         req->param_ = "?" + query;
     }
@@ -662,7 +662,7 @@ ISrsRequest *SrsHttpMessage::to_request(string vhost)
 
     // reset the host to http request host.
     if (req->host_ == SRS_CONSTS_RTMP_DEFAULT_VHOST) {
-        req->host_ = _uri->get_host();
+        req->host_ = uri_->get_host();
     }
 
     // Set ip by remote ip of connection.
@@ -686,7 +686,7 @@ string SrsHttpMessage::app_url(string app)
 {
     // The Host header keeps the port and IPv6 brackets as asked, which the URI may not: it defaults a
     // missing port to 80, even for HTTPS.
-    string host = _header.get("Host");
+    string host = header_.get("Host");
     if (host.empty()) {
         host = this->host();
     }

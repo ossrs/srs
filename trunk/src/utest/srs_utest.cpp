@@ -175,10 +175,10 @@ srs_error_t prepare_main()
     _srs_context = new SrsThreadContext();
 
     // The SRT event loop sets up the libsrt log, so start it before the utest overrides the log below.
-    if ((err = _srt_eventloop->initialize()) != srs_success) {
+    if ((err = _srs_srt_eventloop->initialize()) != srs_success) {
         return srs_error_wrap(err, "srt poller initialize");
     }
-    if ((err = _srt_eventloop->start()) != srs_success) {
+    if ((err = _srs_srt_eventloop->start()) != srs_success) {
         return srs_error_wrap(err, "srt poller start");
     }
 

@@ -922,6 +922,100 @@ VOID TEST(MpegtsOverUdpTest, OnTsVideoKeepsCompositionTime)
     EXPECT_EQ(SrsVideoAvcFrameTraitSequenceHeader, videos[0]->payload()[1]);
 }
 
+// Count the video and audio sequence headers the caster queued, of the
+// times from start to before end in ms.
+static void mock_queued_sequence_headers(SrsMpegtsQueue *queue, int64_t start, int64_t end, int &nb_video, int &nb_audio)
+{
+    nb_video = nb_audio = 0;
+    std::map<int64_t, SrsMediaPacket *>::iterator it;
+    for (it = queue->msgs_.begin(); it != queue->msgs_.end(); ++it) {
+        SrsMediaPacket *msg = it->second;
+        if (it->first < start || it->first >= end || msg->size() < 2 || msg->payload()[1] != 0) {
+            continue;
+        }
+        if (msg->is_video()) {
+            nb_video++;
+        } else if (msg->is_audio()) {
+            nb_audio++;
+        }
+    }
+}
+
+// When the caster's RTMP output closes, as when the server closes the
+// caster's publisher for a stream idle past its timeout, the next push is a
+// new publish: the caster sends each sequence header again, and nothing it
+// queued for the closed publish.
+VOID TEST(MpegtsOverUdpTest, ClosedOutputSendsSequenceHeadersAgain)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
+
+    // The RTMP output is connected; the factory makes the next one.
+    udp_handler->sdk_ = new MockRtmpClient();
+    SrsUniquePtr<MockAppFactoryForMpegtsOverUdp> mock_factory(new MockAppFactoryForMpegtsOverUdp());
+    mock_factory->mock_rtmp_client_ = new MockRtmpClient();
+    udp_handler->app_factory_ = mock_factory.get();
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(udp_handler->queue_);
+    ASSERT_TRUE(queue != NULL);
+
+    const char sps[] = {0x67, 0x64, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+
+    // A push of an AAC frame, then the SPS and PPS, at dts: the queue holds
+    // fewer than 2 frames of each track, so the caster sends nothing yet.
+    struct Push {
+        static void run(SrsMpegtsOverUdp *caster, int64_t dts, const char *sps, int nb_sps, const char *pps, int nb_pps)
+        {
+            srs_error_t err;
+            if (true) {
+                std::string pes;
+                mock_append_adts_frame(pes, 4, 10);
+                SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+                msg->dts_ = msg->pts_ = dts;
+                SrsBuffer avs((char *)pes.data(), (int)pes.size());
+                HELPER_EXPECT_SUCCESS(caster->on_ts_audio(msg.get(), &avs));
+            }
+            if (true) {
+                std::string pes;
+                mock_append_annexb_nalu(pes, sps, nb_sps);
+                mock_append_annexb_nalu(pes, pps, nb_pps);
+                SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+                msg->dts_ = msg->pts_ = dts;
+                SrsBuffer avs((char *)pes.data(), (int)pes.size());
+                HELPER_EXPECT_SUCCESS(caster->on_ts_video(msg.get(), &avs));
+            }
+        }
+    };
+
+    // The first push: both sequence headers.
+    Push::run(udp_handler.get(), 900000, sps, sizeof(sps), pps, sizeof(pps));
+    int nb_video = 0, nb_audio = 0;
+    mock_queued_sequence_headers(queue, 10000, 11000, nb_video, nb_audio);
+    EXPECT_EQ(1, nb_video);
+    EXPECT_EQ(1, nb_audio);
+
+    // The output closes, and what it queued goes with it.
+    udp_handler->close();
+    EXPECT_TRUE(udp_handler->sdk_ == NULL);
+    EXPECT_TRUE(queue->msgs_.empty());
+
+    // The second push, the same codecs from the start: a new output, and both
+    // sequence headers again, at the second push's times.
+    Push::run(udp_handler.get(), 0, sps, sizeof(sps), pps, sizeof(pps));
+    EXPECT_TRUE(mock_factory->create_rtmp_client_called_);
+    EXPECT_TRUE(udp_handler->sdk_ == mock_factory->mock_rtmp_client_);
+    mock_queued_sequence_headers(queue, 0, 1000, nb_video, nb_audio);
+    EXPECT_EQ(1, nb_video);
+    EXPECT_EQ(1, nb_audio);
+    ASSERT_FALSE(queue->msgs_.empty());
+    EXPECT_GT(10000, queue->msgs_.rbegin()->first);
+
+    // The caster frees its queue with the queued messages, and the second mock RTMP client.
+    udp_handler->app_factory_ = NULL;
+}
+
 // Test SrsMpegtsOverUdp::write_h264_sps_pps - major use scenario
 // This test covers the complete SPS/PPS writing flow:
 // 1. Both SPS and PPS have changed (h264_sps_changed_ and h264_pps_changed_ are true)
@@ -1554,9 +1648,6 @@ VOID TEST(BufferCacheTest, HttpMountAssemblesBufferCache)
 
     if (true) {
         SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
-        MockAsyncCallWorker *async = new MockAsyncCallWorker();
-        srs_freep(server->async_);
-        server->async_ = async;
         server->config_ = &config;
 
         server->templateHandlers_["test.vhost"] = new SrsLiveEntry("[vhost]/[app]/[stream].flv");
@@ -2288,7 +2379,7 @@ VOID TEST(PublishRecvThreadTest, BasicOperations)
     video_msg->header_.payload_length_ = 100;
     video_msg->create_payload(100);
 
-    // Note: consume() will try to call _conn->handle_publish_message() which will fail with NULL _conn
+    // Note: consume() will try to call conn_->handle_publish_message() which will fail with NULL conn_
     // So we expect this to fail, but we can still test the counter increment by checking nb_msgs
     // For this basic test, we'll just verify the initial state and error handling
 
@@ -2527,9 +2618,9 @@ VOID TEST(EncoderTest, OnPublishMajorScenario)
 // 2. Configure mock config to return transcode directive for stream scope
 // 3. Call parse_scope_engines() to parse all three scopes (vhost, app, stream) and create FFmpeg engines
 // 4. Verify that FFmpeg engines are created and added to ffmpegs_ vector
-// 5. Verify that output URLs are tracked in _transcoded_url for loop detection
+// 5. Verify that output URLs are tracked in the transcoded URLs for loop detection
 // 6. Call clear_engines() to clean up all engines
-// 7. Verify that engines are properly freed and removed from _transcoded_url
+// 7. Verify that engines are properly freed and removed from the transcoded URLs
 VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
 {
     srs_error_t err;
@@ -2567,8 +2658,10 @@ VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
     SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
 
     // Inject mock dependencies
+    std::vector<std::string> transcoded_urls;
     encoder->config_ = mock_config.get();
     encoder->app_factory_ = mock_factory.get();
+    encoder->transcoded_urls_ = &transcoded_urls;
 
     // Create mock request
     SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "livestream"));
@@ -2590,15 +2683,21 @@ VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
     EXPECT_TRUE(ffmpeg_at_0 != NULL);
     EXPECT_EQ((ISrsFFMPEG *)mock_ffmpeg, ffmpeg_at_0);
 
-    // Test clear_engines() - should free all engines and remove from _transcoded_url
+    // Verify that the output URL is tracked for loop detection
+    ASSERT_EQ(1, (int)transcoded_urls.size());
+    EXPECT_STREQ(mock_ffmpeg->output().c_str(), transcoded_urls.at(0).c_str());
+
+    // Test clear_engines() - should free all engines and remove from the transcoded URLs
     encoder->clear_engines();
 
-    // Verify that ffmpegs_ vector is now empty
+    // Verify that ffmpegs_ vector and the transcoded URLs are now empty
     EXPECT_EQ(0, (int)encoder->ffmpegs_.size());
+    EXPECT_EQ(0, (int)transcoded_urls.size());
 
     // Clean up - set to NULL to avoid double-free
     encoder->config_ = NULL;
     encoder->app_factory_ = NULL;
+    encoder->transcoded_urls_ = NULL;
 
     // Clean up directives
     srs_freep(transcode_conf);
@@ -2635,8 +2734,10 @@ VOID TEST(EncoderTest, InitializeFFmpegMajorScenario)
     mock_config->get_engine_output(engine.get()); // Will return "rtmp://127.0.0.1/live/livestream_hd"
 
     // Create SrsEncoder and inject mock dependencies
+    std::vector<std::string> transcoded_urls;
     SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
     encoder->config_ = mock_config.get();
+    encoder->transcoded_urls_ = &transcoded_urls;
 
     // Test initialize_ffmpeg() - should construct URLs and initialize ffmpeg
     HELPER_EXPECT_SUCCESS(encoder->initialize_ffmpeg(mock_ffmpeg.get(), req.get(), engine.get()));
@@ -2653,6 +2754,41 @@ VOID TEST(EncoderTest, InitializeFFmpegMajorScenario)
 
     // Clean up - set to NULL to avoid double-free
     encoder->config_ = NULL;
+    encoder->transcoded_urls_ = NULL;
+}
+
+// A stream that another encoder transcoded to, published back as an input, is a loop: the encoder
+// refuses it and doesn't track its output, so it transcodes no stream again.
+VOID TEST(EncoderTest, InitializeFFmpegRefusesTranscodedInput)
+{
+    srs_error_t err;
+
+    MockAppConfigForEncoder config;
+    MockFFMPEGForEncoder ffmpeg;
+    MockSrsRequest req("test.vhost", "live", "livestream_hd");
+    req.port_ = 1935;
+
+    SrsConfDirective engine;
+    engine.name_ = "engine";
+    engine.args_.push_back("hd");
+
+    std::vector<std::string> transcoded_urls;
+    transcoded_urls.push_back("rtmp://127.0.0.1:1935/live/livestream_hd?vhost=test.vhost");
+
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+    encoder->config_ = &config;
+    encoder->transcoded_urls_ = &transcoded_urls;
+
+    err = encoder->initialize_ffmpeg(&ffmpeg, &req, &engine);
+    EXPECT_EQ(ERROR_ENCODER_LOOP, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_FALSE(ffmpeg.initialize_called_);
+    ASSERT_EQ(1, (int)transcoded_urls.size());
+    EXPECT_STREQ("rtmp://127.0.0.1:1935/live/livestream_hd?vhost=test.vhost", transcoded_urls.at(0).c_str());
+
+    encoder->config_ = NULL;
+    encoder->transcoded_urls_ = NULL;
 }
 
 VOID TEST(ProcessTest, InitializeWithRedirection)
@@ -3829,8 +3965,10 @@ VOID TEST(EncoderTest, InitializeFFmpegBuildsTimestampThroughConfig)
     engine.name_ = "engine";
     engine.args_.push_back("hd");
 
+    std::vector<std::string> transcoded_urls;
     SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
     encoder->config_ = &config;
+    encoder->transcoded_urls_ = &transcoded_urls;
 
     HELPER_EXPECT_SUCCESS(encoder->initialize_ffmpeg(&ffmpeg, &req, &engine));
 
@@ -3838,6 +3976,7 @@ VOID TEST(EncoderTest, InitializeFFmpegBuildsTimestampThroughConfig)
     EXPECT_TRUE(ffmpeg.output_.find("[2006]") == std::string::npos) << ffmpeg.output_;
 
     encoder->config_ = NULL;
+    encoder->transcoded_urls_ = NULL;
 }
 
 VOID TEST(IngesterTest, InitializeFFmpegBuildsTimestampThroughConfig)

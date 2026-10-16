@@ -447,8 +447,8 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: pure audio/video support.
-    if (afragments->empty() || vfragments->empty()) {
+    // A stream with no video or no audio lists the one track it has.
+    if (afragments->empty() && vfragments->empty()) {
         return err;
     }
 
@@ -463,7 +463,14 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
         return srs_error_wrap(err, "Create MPD home failed, home=%s", full_home.c_str());
     }
 
-    double last_duration = srsu2ms(srs_max(vfragments->at(vfragments->size() - 1)->duration(), afragments->at(afragments->size() - 1)->duration())) / 1000.0;
+    srs_utime_t last_fragment = 0;
+    if (!vfragments->empty()) {
+        last_fragment = vfragments->at(vfragments->size() - 1)->duration();
+    }
+    if (!afragments->empty()) {
+        last_fragment = srs_max(last_fragment, afragments->at(afragments->size() - 1)->duration());
+    }
+    double last_duration = srsu2ms(last_fragment) / 1000.0;
 
     stringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << endl
@@ -786,9 +793,9 @@ srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat 
         mpd_->set_availability_start_time(srs_time_now_cached() - first_dts_ * SRS_UTIME_MILLISECONDS);
     }
 
-    // TODO: FIXME: Support pure audio streaming.
-    if (video_reaped_) {
-        // The video is reaped, audio must be reaped right now to align the timestamp of video.
+    // The video is reaped, audio must be reaped right now to align the timestamp of video; while
+    // the publish has sent no video, the audio is reaped by its own duration.
+    if (video_reaped_ || (!vcurrent_ && vfragments_->empty() && acurrent_->duration() >= fragment_)) {
         video_reaped_ = false;
         // Append current timestamp to calculate right duration.
         acurrent_->append(shared_audio->timestamp_);
@@ -916,8 +923,15 @@ srs_error_t SrsDashController::refresh_mpd(SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: Support pure audio streaming.
-    if (!format || !format->acodec_ || !format->vcodec_) {
+    if (!format) {
+        return err;
+    }
+
+    // A stream of both tracks waits until each has a segment, so that its first MPD lists
+    // both; a track this publish has not sent is not waited for.
+    bool has_video = vcurrent_ || !vfragments_->empty();
+    bool has_audio = acurrent_ || !afragments_->empty();
+    if ((has_video && vfragments_->empty()) || (has_audio && afragments_->empty())) {
         return err;
     }
 

@@ -253,25 +253,23 @@ func hooksRtmp(t *testing.T) {
 		})
 
 		// ConnectOnlyClose connects and closes without publishing or playing.
-		// A hook server must see an on_close only for a client it saw the
-		// on_connect of, both with the same vhost, or neither.
+		// A hook server sees an on_close only for a client it saw the
+		// on_connect of, which comes at the play or publish, so this client
+		// gets neither.
 		check.Case(t, s.name+"ConnectOnlyClose", check.Normal, func(c *check.C) {
-			check.KnownBug(c, "a client that only connects gets on_close, with the tcUrl's host as its vhost, and no on_connect")
 			srs := server.Common(c)
 			// on_close names no stream, so the client connects to an app of
 			// its own, which every hook names.
 			app := "app-" + streamName(c)
 			cl := dialRTMP(c, s.url(srs, app+"/stream"), s.opts(c))
 			cl.Close()
+			ofApp := mock.Match{Func: func(r mock.Request) bool { return r.Field("app") == app }}
 			ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 			defer cancel()
-			closed, err := srs.Hooks.Wait(ctx, mock.Match{Action: "on_close", Func: func(r mock.Request) bool { return r.Field("app") == app }})
-			if err != nil {
-				return
+			h, err := srs.Hooks.Wait(ctx, ofApp)
+			if err == nil {
+				c.Errorf("a client that only connects got %s, want no hook", h.Action())
 			}
-			hooks := clientHooks(srs, closed.Field("client_id"))
-			c.CheckEqual(hookActions(hooks), []string{"on_connect", "on_close"}, "hooks of a client that only connects")
-			c.CheckEqual(closed.Field("vhost"), "__defaultVhost__", "on_close vhost")
 		})
 	}
 

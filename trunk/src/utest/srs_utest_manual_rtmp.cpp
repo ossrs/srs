@@ -432,7 +432,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages)
     }
 }
 
-SrsRtmpCommonMessage *_create_amf0(char *bytes, int size, int stream_id)
+SrsRtmpCommonMessage *mock_create_amf0(char *bytes, int size, int stream_id)
 {
     SrsRtmpCommonMessage *msg = new SrsRtmpCommonMessage();
     msg->header_.initialize_amf0_script(size, stream_id);
@@ -450,7 +450,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages2)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x17, 0x02, 0x00, 0x01, 's', 0x00, 0, 0, 0, 0, 0, 0, 0, 0, 0x03, 0, 0, 9};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         msg->header_.message_type_ = RTMP_MSG_AMF3CommandMessage;
 
@@ -467,7 +467,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages2)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x17, 0x02, 0x00, 0x01, 's'};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         msg->header_.message_type_ = RTMP_MSG_AMF3CommandMessage;
 
@@ -481,7 +481,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages2)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x00};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         msg->header_.message_type_ = 0xff;
 
@@ -495,7 +495,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages2)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 0x01, 's'};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         msg->header_.message_type_ = RTMP_MSG_AMF0DataMessage;
 
@@ -514,7 +514,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't'};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         msg->header_.message_type_ = RTMP_MSG_AMF0DataMessage;
 
@@ -529,7 +529,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x17, 0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't'};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         msg->header_.message_type_ = RTMP_MSG_AMF3DataMessage;
 
@@ -544,7 +544,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x17, 0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
         msg->header_.message_type_ = RTMP_MSG_AMF3CommandMessage;
 
@@ -563,7 +563,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
 
         uint8_t bytes[] = {0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -581,7 +581,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
 
         uint8_t bytes[] = {0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -599,7 +599,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
 
         uint8_t bytes[] = {0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -617,7 +617,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
 
         uint8_t bytes[] = {0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -636,7 +636,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
 
         uint8_t bytes[] = {0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -655,7 +655,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages3)
         HELPER_EXPECT_SUCCESS(p.send_and_free_packet(request, 1));
 
         uint8_t bytes[] = {0x02, 0x00, 0x07, '_', 'r', 'e', 's', 'u', 'l', 't', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -674,7 +674,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 0x07, 'c', 'o', 'n', 'n', 'e', 'c', 't', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -688,7 +688,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 12, 'c', 'r', 'e', 'a', 't', 'e', 'S', 't', 'r', 'e', 'a', 'm', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -702,7 +702,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 4, 'p', 'l', 'a', 'y', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -716,7 +716,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 5, 'p', 'a', 'u', 's', 'e', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -730,7 +730,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 13, 'r', 'e', 'l', 'e', 'a', 's', 'e', 'S', 't', 'r', 'e', 'a', 'm', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -744,7 +744,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 9, 'F', 'C', 'P', 'u', 'b', 'l', 'i', 's', 'h', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -758,7 +758,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 7, 'p', 'u', 'b', 'l', 'i', 's', 'h', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -772,7 +772,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 11, 'F', 'C', 'U', 'n', 'p', 'u', 'b', 'l', 'i', 's', 'h', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -786,7 +786,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 13, '@', 's', 'e', 't', 'D', 'a', 't', 'a', 'F', 'r', 'a', 'm', 'e', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -800,7 +800,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 10, 'o', 'n', 'M', 'e', 't', 'a', 'D', 'a', 't', 'a', 03, 0, 0, 9};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -813,7 +813,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 11, 'c', 'l', 'o', 's', 'e', 'S', 't', 'r', 'e', 'a', 'm', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
         SrsRtmpCommand *pkt;
@@ -827,7 +827,7 @@ VOID TEST(ProtocolRTMPTest, OnDecodeMessages4)
         SrsProtocol p(&io);
 
         uint8_t bytes[] = {0x02, 0x00, 3, 's', 'r', 's', 0x00, 0, 0, 0, 0, 0, 0, 0, 0};
-        SrsRtmpCommonMessage *msg = _create_amf0((char *)bytes, sizeof(bytes), 1);
+        SrsRtmpCommonMessage *msg = mock_create_amf0((char *)bytes, sizeof(bytes), 1);
         msg->header_.message_type_ = RTMP_MSG_AMF0CommandMessage;
         SrsUniquePtr<SrsRtmpCommonMessage> msg_uptr(msg);
 
@@ -2714,7 +2714,7 @@ VOID TEST(ProtocolRTMPTest, AgentMessageCodec)
     }
 }
 
-srs_error_t _mock_packet_to_shared_msg(SrsRtmpCommand *packet, int stream_id, SrsMediaPacket *shared_msg)
+srs_error_t mock_packet_to_shared_msg(SrsRtmpCommand *packet, int stream_id, SrsMediaPacket *shared_msg)
 {
     srs_error_t err = srs_success;
 
@@ -2746,13 +2746,13 @@ VOID TEST(ProtocolRTMPTest, CheckStreamID)
 
             if (true) {
                 SrsMediaPacket *shared_msg = new SrsMediaPacket();
-                HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+                HELPER_ASSERT_SUCCESS(mock_packet_to_shared_msg(res, 1, shared_msg));
                 shared_msgs[0] = shared_msg;
             }
 
             if (true) {
                 SrsMediaPacket *shared_msg = new SrsMediaPacket();
-                HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 2, shared_msg));
+                HELPER_ASSERT_SUCCESS(mock_packet_to_shared_msg(res, 2, shared_msg));
                 shared_msgs[1] = shared_msg;
             }
 
@@ -2787,7 +2787,7 @@ VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
         if (true) {
             SrsMediaPacket *shared_msg = new SrsMediaPacket();
             SrsConnectAppPacket *res = new SrsConnectAppPacket();
-            HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+            HELPER_ASSERT_SUCCESS(mock_packet_to_shared_msg(res, 1, shared_msg));
             srs_freep(res);
 
             HELPER_EXPECT_SUCCESS(p.send_and_free_message(shared_msg, 0));
@@ -2808,7 +2808,7 @@ VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
         if (true) {
             SrsMediaPacket *shared_msg = new SrsMediaPacket();
             SrsConnectAppPacket *res = new SrsConnectAppPacket();
-            HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+            HELPER_ASSERT_SUCCESS(mock_packet_to_shared_msg(res, 1, shared_msg));
             srs_freep(res);
 
             HELPER_EXPECT_SUCCESS(p.send_and_free_messages(&shared_msg, 1, 0));
@@ -2829,7 +2829,7 @@ VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
         if (true) {
             SrsMediaPacket *shared_msg = new SrsMediaPacket();
             SrsConnectAppPacket *res = new SrsConnectAppPacket();
-            HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+            HELPER_ASSERT_SUCCESS(mock_packet_to_shared_msg(res, 1, shared_msg));
             srs_freep(res);
 
             HELPER_EXPECT_SUCCESS(p.send_and_free_message(shared_msg, 0));
@@ -2850,7 +2850,7 @@ VOID TEST(ProtocolRTMPTest, AgentMessageTransform)
         if (true) {
             SrsMediaPacket *shared_msg = new SrsMediaPacket();
             SrsConnectAppPacket *res = new SrsConnectAppPacket();
-            HELPER_ASSERT_SUCCESS(_mock_packet_to_shared_msg(res, 1, shared_msg));
+            HELPER_ASSERT_SUCCESS(mock_packet_to_shared_msg(res, 1, shared_msg));
             srs_freep(res);
 
             HELPER_EXPECT_SUCCESS(p.send_and_free_messages(&shared_msg, 1, 0));
@@ -2899,7 +2899,7 @@ VOID TEST(ProtocolRTMPTest, MergeReadHandler)
     EXPECT_TRUE(h.nn > 0);
 }
 
-char *_strcpy(const char *src)
+char *mock_strcpy(const char *src)
 {
     return strcpy(new char[strlen(src) + 1], src);
 }
@@ -2911,19 +2911,19 @@ VOID TEST(ProtocolRTMPTest, CreateRTMPMessage)
     // Invalid message type.
     if (true) {
         SrsRtmpCommonMessage *msg = NULL;
-        HELPER_EXPECT_FAILED(srs_rtmp_create_msg(SrsFrameTypeForbidden, 0, _strcpy("Hello"), 5, 0, &msg));
+        HELPER_EXPECT_FAILED(srs_rtmp_create_msg(SrsFrameTypeForbidden, 0, mock_strcpy("Hello"), 5, 0, &msg));
         EXPECT_TRUE(NULL == msg);
     }
     if (true) {
         SrsRtmpCommonMessage *msg = NULL;
-        HELPER_EXPECT_FAILED(srs_rtmp_create_msg(SrsFrameTypeForbidden, 0, _strcpy("Hello"), 5, 0, &msg));
+        HELPER_EXPECT_FAILED(srs_rtmp_create_msg(SrsFrameTypeForbidden, 0, mock_strcpy("Hello"), 5, 0, &msg));
         EXPECT_TRUE(NULL == msg);
     }
 
     // Normal script message.
     if (true) {
         SrsRtmpCommonMessage *msg = NULL;
-        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeScript, 0, _strcpy("Hello"), 5, 0, &msg));
+        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeScript, 0, mock_strcpy("Hello"), 5, 0, &msg));
         EXPECT_STREQ("Hello", msg->payload());
         srs_freep(msg);
     }
@@ -2931,7 +2931,7 @@ VOID TEST(ProtocolRTMPTest, CreateRTMPMessage)
     // Normal video message.
     if (true) {
         SrsRtmpCommonMessage *msg = NULL;
-        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeVideo, 0, _strcpy("Hello"), 5, 0, &msg));
+        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeVideo, 0, mock_strcpy("Hello"), 5, 0, &msg));
         EXPECT_STREQ("Hello", msg->payload());
         srs_freep(msg);
     }
@@ -2939,13 +2939,13 @@ VOID TEST(ProtocolRTMPTest, CreateRTMPMessage)
     // Normal audio message.
     if (true) {
         SrsRtmpCommonMessage *msg = NULL;
-        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeAudio, 0, _strcpy("Hello"), 5, 0, &msg));
+        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeAudio, 0, mock_strcpy("Hello"), 5, 0, &msg));
         EXPECT_STREQ("Hello", msg->payload());
         srs_freep(msg);
     }
     if (true) {
         SrsRtmpCommonMessage *msg = NULL;
-        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeAudio, 0, _strcpy("Hello"), 5, 0, &msg));
+        HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(SrsFrameTypeAudio, 0, mock_strcpy("Hello"), 5, 0, &msg));
         EXPECT_STREQ("Hello", msg->payload());
         srs_freep(msg);
     }

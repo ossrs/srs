@@ -230,8 +230,8 @@ func TestEnv_Global(t *testing.T) {
 		c.Check(err != nil, "an API request past %d connections answered", envMaxConnections)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		_, err = held[0].Publish(ctx, rtmp.FMLE)
-		c.CheckNoError(err, "publish on a held connection")
+		_, err = held[0].Unpublish(ctx)
+		c.CheckNoError(err, "unpublish on a held connection")
 	})
 
 	// A connection that closes frees its place: the next client connects,
@@ -359,10 +359,11 @@ func tryDialRTMP(url string) (*rtmp.Client, error) {
 
 // holdConnections connects n RTMP clients while the server has no other
 // connection. A client that SRS refuses, while the connections of the case
-// before are going, is tried again for up to 1s. The clients connect to an
-// app of their own, and when the case ends they close and the case waits for
-// the on_close of each, which SRS sends just before it lets their places go,
-// so the next case finds them free.
+// before are going, is tried again for up to 1s. The clients publish to an
+// app of their own, so SRS sends the on_connect of each, and when the case
+// ends they close and the case waits for the on_close of each, which SRS
+// sends just before it lets their places go, so the next case finds them
+// free.
 func holdConnections(c *check.C, srs *server.Server, n int) []*rtmp.Client {
 	c.Helper()
 	// No idle API connection of this process may count toward the limit.
@@ -387,6 +388,10 @@ func holdConnections(c *check.C, srs *server.Server, n int) []*rtmp.Client {
 			c.Fatalf("connection %d of %d refused for 1s: %v", i+1, n, err)
 		}
 		c.Cleanup(func() { cl.Close() })
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		_, err = cl.Publish(ctx, rtmp.FMLE)
+		cancel()
+		c.Must(err, "publish on a held connection")
 		held = append(held, cl)
 	}
 	return held

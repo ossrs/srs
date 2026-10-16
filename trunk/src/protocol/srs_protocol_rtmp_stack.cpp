@@ -1446,11 +1446,11 @@ void SrsProtocol::print_debug_info()
     }
 }
 
-SrsChunkStream::SrsChunkStream(int _cid)
+SrsChunkStream::SrsChunkStream(int cid)
 {
     fmt_ = 0;
-    cid_ = _cid;
-    header_.prefer_cid_ = _cid;
+    cid_ = cid;
+    header_.prefer_cid_ = cid;
     has_extended_timestamp_ = false;
     msg_ = NULL;
     writing_pos_ = NULL;
@@ -3291,10 +3291,10 @@ srs_error_t SrsCallPacket::encode_packet(SrsBuffer *stream)
     return err;
 }
 
-SrsCallResPacket::SrsCallResPacket(double _transaction_id)
+SrsCallResPacket::SrsCallResPacket(double transaction_id)
 {
     command_name_ = RTMP_AMF0_COMMAND_RESULT;
-    transaction_id_ = _transaction_id;
+    transaction_id_ = transaction_id;
     command_object_ = NULL;
     response_ = NULL;
 }
@@ -3429,12 +3429,12 @@ srs_error_t SrsCreateStreamPacket::encode_packet(SrsBuffer *stream)
     return err;
 }
 
-SrsCreateStreamResPacket::SrsCreateStreamResPacket(double _transaction_id, double _stream_id)
+SrsCreateStreamResPacket::SrsCreateStreamResPacket(double transaction_id, double stream_id)
 {
     command_name_ = RTMP_AMF0_COMMAND_RESULT;
-    transaction_id_ = _transaction_id;
+    transaction_id_ = transaction_id;
     command_object_ = SrsAmf0Any::null();
-    stream_id_ = _stream_id;
+    stream_id_ = stream_id;
 }
 
 SrsCreateStreamResPacket::~SrsCreateStreamResPacket()
@@ -3643,10 +3643,10 @@ SrsFMLEStartPacket *SrsFMLEStartPacket::create_FC_publish(string stream)
     return pkt;
 }
 
-SrsFMLEStartResPacket::SrsFMLEStartResPacket(double _transaction_id)
+SrsFMLEStartResPacket::SrsFMLEStartResPacket(double transaction_id)
 {
     command_name_ = RTMP_AMF0_COMMAND_RESULT;
-    transaction_id_ = _transaction_id;
+    transaction_id_ = transaction_id;
     command_object_ = SrsAmf0Any::null();
     args_ = SrsAmf0Any::undefined();
 }

@@ -39,7 +39,7 @@ SrsSrtConnection::SrsSrtConnection(srs_srt_t srt_fd)
     srt_fd_ = srt_fd;
     srt_skt_ = NULL;
 
-    srt_eventloop_ = _srt_eventloop;
+    srt_eventloop_ = _srs_srt_eventloop;
 }
 
 void SrsSrtConnection::assemble()

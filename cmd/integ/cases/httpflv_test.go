@@ -397,7 +397,8 @@ func TestHttpFlv_NoGuess(t *testing.T) {
 
 	// RepublishAfterOtherStream unpublishes a stream that has an HTTP-FLV
 	// player, then another stream with none, and republishes the second at
-	// once: it should be accepted, since nothing plays it.
+	// once: it is accepted, since nothing plays it, and the first stream's
+	// teardown, which waits for its player, doesn't hold up the second's.
 	check.Case(t, "RepublishAfterOtherStream", check.Normal, func(c *check.C) {
 		tags := readTags(c, media.H264HighAAC, 0, 500*time.Millisecond)
 		watched, other := streamName(c), streamName(c)
@@ -411,13 +412,8 @@ func TestHttpFlv_NoGuess(t *testing.T) {
 		pubOther.Close()
 		waitHook(c, srs, "on_unpublish", other)
 		pub, err := tryPublish(rtmpURL(srs, "live/"+other))
-		if err == nil {
-			pub.Close()
-		} else {
-			// A race: the republish comes before or after the teardown ends.
-			check.KnownBug(c, "a republish is refused while the HTTP teardown of another stream with a player holds the shared worker")
-		}
-		c.CheckNoError(err, "republish the stream nobody plays")
+		c.Must(err, "republish the stream nobody plays")
+		pub.Close()
 	})
 
 	// FastCacheIgnored has a player join a held stream with a fast cache on:
