@@ -302,7 +302,7 @@ func TestDvr_SessionMp4(t *testing.T) {
 }
 
 // TestDvr_Segment records each publish to FLV files of about dvr_duration,
-// 2s, the segment plan, each cut at the first keyframe after it, as
+// 2s, the segment plan, each cut at the first keyframe at or after it, as
 // dvr_wait_keyframe on, SRS's default, asks.
 func TestDvr_Segment(t *testing.T) {
 	t.Parallel()
@@ -318,7 +318,7 @@ func TestDvr_Segment(t *testing.T) {
 		stream := streamName(c)
 		tags := readTags(c, media.H264HighAAC, 0, 7*time.Second)
 		publishDvr(c, srs, "live/"+stream, tags)
-		files := dvrFiles(c, srs, stream, 3)
+		files := dvrFiles(c, srs, stream, 4)
 		checkSegments(c, files, publishedOf(c, tags), true)
 	})
 
@@ -329,11 +329,11 @@ func TestDvr_Segment(t *testing.T) {
 		publisher := publishDvrOpen(c, srs, "live/"+stream, readTags(c, media.H264HighAAC, 0, 7*time.Second))
 		pub := waitHookCountOf(c, srs, mock.Match{Action: "on_publish", Stream: stream}, 1)[0]
 		// The files cut while the stream is published have its stream_id.
-		for _, h := range dvrHooks(c, srs, stream, 2) {
+		for _, h := range dvrHooks(c, srs, stream, 3) {
 			c.CheckEqual(h.Field("stream_id"), pub.Field("stream_id"), "stream_id of an on_dvr")
 		}
 		publisher.Close()
-		dvrFiles(c, srs, stream, 3)
+		dvrFiles(c, srs, stream, 4)
 		hooks := srs.Hooks.Requests(mock.Match{Action: "on_dvr", Stream: stream})
 		seen := map[string]bool{}
 		for _, h := range hooks {
@@ -344,9 +344,9 @@ func TestDvr_Segment(t *testing.T) {
 		}
 	})
 
-	// The media of 7s in files of 2s: the keyframe at 2s cuts the first.
+	// The media of 7s in files of 2s: the keyframe at 2s cuts the first, as
+	// a file spans up to the keyframe that cuts it.
 	check.Case(t, "SegmentSpansDuration", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "with a 1s GOP each file spans 3s, not dvr_duration 2s: the keyframe at 2s doesn't cut, as SRS measures a file without its last frame")
 		stream := streamName(c)
 		publishDvr(c, srs, "live/"+stream, readTags(c, media.H264HighAAC, 0, 7*time.Second))
 		files := dvrAllFiles(c, srs, stream)
@@ -442,7 +442,7 @@ func TestDvr_Apply(t *testing.T) {
 		stream := appliedName(c)
 		tags := readTags(c, media.H264HighAAC, 0, 7*time.Second)
 		publishDvr(c, srs, "live/"+stream, tags)
-		files := dvrFiles(c, srs, stream, 3)
+		files := dvrFiles(c, srs, stream, 4)
 		checkSegments(c, files, publishedOf(c, tags), true)
 	})
 
@@ -694,12 +694,14 @@ func checkSegments(c *check.C, files []string, want *report.Report, atKeyframes 
 		leading += r.Video.LeadingFrames
 		c.Check(r.Video.FirstDTS <= 100*time.Millisecond, "%s starts at %v, want its own timeline from 0", name, r.Video.FirstDTS)
 		if i < len(files)-1 {
-			// A cut at a keyframe comes up to a 1s GOP after dvr_duration.
-			d, most := r.Video.Duration(), dvrSegment+100*time.Millisecond
+			// A file spans up to the frame that cuts it, the first at
+			// dvr_duration, so its last video frame is up to a frame before
+			// it; a cut at a keyframe comes up to a 1s GOP after it.
+			d, least, most := r.Video.Duration(), dvrSegment-100*time.Millisecond, dvrSegment+100*time.Millisecond
 			if atKeyframes {
 				most += time.Second
 			}
-			c.Check(d >= dvrSegment && d <= most, "%s spans %v, want %v to %v", name, d, dvrSegment, most)
+			c.Check(d >= least && d <= most, "%s spans %v, want %v to %v", name, d, least, most)
 		}
 		video += r.Video.Frames
 		audio += r.Audio.Frames

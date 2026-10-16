@@ -1053,7 +1053,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
 
         pprint->elapse();
 
-        // cond wait for timeout.
+        // cond wait for timeout. A message wakes it at most once a second, to report the frames.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
             rtrd->wait(publish_1stpkt_timeout_);

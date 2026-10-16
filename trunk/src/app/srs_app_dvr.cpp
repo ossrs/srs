@@ -805,6 +805,7 @@ SrsDvrSegmentPlan::SrsDvrSegmentPlan()
     cduration_ = 0;
     wait_keyframe_ = false;
     reopening_segment_ = false;
+    last_timestamp_ = -1;
 }
 
 SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
@@ -851,6 +852,7 @@ srs_error_t SrsDvrSegmentPlan::on_publish(ISrsRequest *r)
         return srs_error_wrap(err, "segment open");
     }
 
+    last_timestamp_ = -1;
     dvr_enabled_ = true;
 
     return err;
@@ -914,9 +916,17 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsMediaPacket *msg)
 
     srs_assert(segment_);
 
-    // ignore if duration ok.
+    // The file spans up to this message, which comes after its last message, so
+    // with a GOP that divides the duration the keyframe at the duration cuts it.
     SrsFragment *fragment = segment_->current();
-    if (cduration_ <= 0 || fragment->duration() < cduration_) {
+    srs_utime_t duration = fragment->duration();
+    if (last_timestamp_ >= 0 && msg->timestamp_ > last_timestamp_) {
+        duration += (msg->timestamp_ - last_timestamp_) * SRS_UTIME_MILLISECONDS;
+    }
+    last_timestamp_ = msg->timestamp_;
+
+    // ignore if duration ok.
+    if (cduration_ <= 0 || duration < cduration_) {
         return err;
     }
 

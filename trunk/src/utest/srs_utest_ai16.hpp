@@ -64,6 +64,37 @@ public:
     virtual std::string path();
 };
 
+// Mock ISrsCoroutine of an HTTP connection interrupted by the HTTP API, whose pull fails.
+class MockInterruptedCoroutineForLiveStream : public ISrsCoroutine
+{
+public:
+    int pull_count_;
+
+public:
+    MockInterruptedCoroutineForLiveStream();
+    virtual ~MockInterruptedCoroutineForLiveStream();
+
+public:
+    virtual srs_error_t start();
+    virtual void stop();
+    virtual void interrupt();
+    virtual srs_error_t pull();
+    virtual const SrsContextId &cid();
+    virtual void set_cid(const SrsContextId &cid);
+};
+
+// Mock SrsHttpxConn whose receive thread waits for a request as SrsHttpxConn::pop_message does,
+// which ends only at its read timeout or an interrupt.
+class MockWaitingHttpxConnForLiveStream : public MockHttpxConnForLiveStream
+{
+public:
+    MockWaitingHttpxConnForLiveStream();
+    virtual ~MockWaitingHttpxConnForLiveStream();
+
+public:
+    virtual srs_error_t pop_message(ISrsHttpMessage **preq);
+};
+
 // Mock ISrsAppConfig for testing SrsLiveStream::http_hooks_on_play() and http_hooks_on_stop()
 class MockAppConfigForLiveStreamHooks : public MockAppConfig
 {

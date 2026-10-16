@@ -902,6 +902,12 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, ISrsLiveConsumer
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.
     while (entry_->enabled) {
+        // Whether the connection is interrupted, such as a DELETE by the HTTP API. The recv thread
+        // checks it only at its 3s read timeout.
+        if ((err = hc->pull()) != srs_success) {
+            return srs_error_wrap(err, "http conn");
+        }
+
         // Whether client closed the FD.
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "recv thread");

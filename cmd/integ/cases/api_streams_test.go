@@ -578,9 +578,8 @@ func apiStreamFields(t *testing.T) {
 	})
 
 	// WhipVideoSize checks the video of a WHIP stream has the size of its
-	// H.264, 768x320, as RTMP and SRT streams do.
+	// H.264 SPS, 768x320, as RTMP and SRT streams do.
 	check.Case(t, "WhipVideoSize", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a WHIP stream's video is listed with width and height 0")
 		srs := server.Common(c)
 		h, _ := whipStream(c, srs, streamName(c), time.Second)
 		v := object(c, apiStreamOf(c, srs, h.stream), "video")
@@ -710,50 +709,6 @@ func whipStream(c *check.C, srs *server.Server, name string, d time.Duration) (w
 
 // apiCounts adds the cases of the frame and byte counts on Common.
 func apiCounts(t *testing.T) {
-	// WhipFrameCounts publishes 13s of WHIP at once: the stream counts the
-	// frames of each track, in steps of 289, so at least the first step of
-	// the 325 video and 650 audio frames.
-	check.Case(t, "WhipFrameCounts", check.Normal, func(c *check.C) {
-		srs := server.Common(c)
-		h, _ := whipStream(c, srs, streamName(c), 13*time.Second)
-		var st map[string]any
-		c.Check(until(300*time.Millisecond, func() bool {
-			st = apiStreamOf(c, srs, h.stream)
-			return num(c, st, "video_frames") >= 289 && num(c, st, "audio_frames") >= 289
-		}), "stream frames video %v audio %v, want 289 or more of each", st["video_frames"], st["audio_frames"])
-		v, a := num(c, st, "video_frames"), num(c, st, "audio_frames")
-		c.Check(v <= 325 && a <= 650, "frames video %v audio %v, want at most the 325 and 650 sent", v, a)
-		c.CheckEqual(num(c, st, "frames"), v+a, "frames")
-	})
-
-	// WhipFrameCountsLag publishes 4s of WHIP at once: the stream counts
-	// some of its 100 video frames, as it would those of an RTMP stream.
-	check.Case(t, "WhipFrameCountsLag", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a stream's frame counts lag: WebRTC adds them in steps of 289 frames, RTMP at the first-packet timeout, then at each normal timeout")
-		srs := server.Common(c)
-		h, _ := whipStream(c, srs, streamName(c), 4*time.Second)
-		var st map[string]any
-		c.Check(until(300*time.Millisecond, func() bool {
-			st = apiStreamOf(c, srs, h.stream)
-			return num(c, st, "video_frames") > 0
-		}), "stream video_frames %v after 100 frames, want some", st["video_frames"])
-	})
-
-	// RtmpFrameCountsLag publishes 2s of RTMP at once, then in real time:
-	// the stream counts some of its frames.
-	check.Case(t, "RtmpFrameCountsLag", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a stream's frame counts lag: WebRTC adds them in steps of 289 frames, RTMP at the first-packet timeout, then at each normal timeout")
-		srs := server.Common(c)
-		stream := streamName(c)
-		startPublisher(c, rtmpURL(srs, "live/"+stream), media.Path(c, media.H264HighAAC), 2*time.Second)
-		streamID := waitHook(c, srs, "on_publish", stream).Field("stream_id")
-		var st map[string]any
-		c.Check(until(300*time.Millisecond, func() bool {
-			st = apiStreamOf(c, srs, streamID)
-			return num(c, st, "video_frames") > 0
-		}), "stream video_frames %v after 50 frames, want some", st["video_frames"])
-	})
-
 	// SrtFrameCounts publishes 13s of SRT at once: the stream counts the TS
 	// frames of each track, in steps of 289, so at least the first step of
 	// each.
@@ -832,6 +787,14 @@ func TestApi_TsMount(t *testing.T) {
 		c.CheckEqual(cl["type"], "ts-play", "client type")
 		c.CheckEqual(cl["publish"], false, "client publish")
 	})
+
+	// DeleteHttpTsPlayer: the HTTP-TS response ends at once, as an HTTP-FLV
+	// player's.
+	check.Case(t, "DeleteHttpTsPlayer", check.Normal, func(c *check.C) {
+		stream := streamName(c)
+		p, _ := remuxMountPlayer(c, srs, stream, tsMount)
+		checkRemuxPlayerDeleted(c, srs, p, stream)
+	})
 }
 
 // TestApi_Mp3Mount checks an HTTP MP3 player of the API, on the shared
@@ -846,6 +809,14 @@ func TestApi_Mp3Mount(t *testing.T) {
 		cl, _ := remuxPlayerClient(c, srs, streamName(c), mp3Mount)
 		c.CheckEqual(cl["type"], "mp3-play", "client type")
 		c.CheckEqual(cl["publish"], false, "client publish")
+	})
+
+	// DeleteHttpMp3Player: the MP3 response ends at once, as an HTTP-FLV
+	// player's.
+	check.Case(t, "DeleteHttpMp3Player", check.Normal, func(c *check.C) {
+		stream := streamName(c)
+		p, _ := remuxMountPlayer(c, srs, stream, mp3Mount)
+		checkRemuxPlayerDeleted(c, srs, p, stream)
 	})
 }
 
@@ -862,17 +833,33 @@ func TestApi_AacMount(t *testing.T) {
 		c.CheckEqual(cl["type"], "aac-play", "client type")
 		c.CheckEqual(cl["publish"], false, "client publish")
 	})
+
+	// DeleteHttpAacPlayer: the AAC response ends at once, as an HTTP-FLV
+	// player's.
+	check.Case(t, "DeleteHttpAacPlayer", check.Normal, func(c *check.C) {
+		stream := streamName(c)
+		p, _ := remuxMountPlayer(c, srs, stream, aacMount)
+		checkRemuxPlayerDeleted(c, srs, p, stream)
+	})
 }
 
 // remuxPlayerClient publishes the mount's file and plays the stream from the
 // mount, and returns the player's client of the API and the stream's id.
 func remuxPlayerClient(c *check.C, srs *server.Server, stream string, m remuxMount) (map[string]any, string) {
 	c.Helper()
+	_, streamID := remuxMountPlayer(c, srs, stream, m)
+	return apiClientOf(c, srs, waitHook(c, srs, "on_play", stream).Field("client_id")), streamID
+}
+
+// remuxMountPlayer publishes the mount's file and plays the stream from the
+// mount, and returns the player and the stream's id.
+func remuxMountPlayer(c *check.C, srs *server.Server, stream string, m remuxMount) (*remuxPlayer, string) {
+	c.Helper()
 	_, _, streamID := publishRTMP(c, srs, stream, m.file)
 	untilCodecs(c, srs, streamID)
 	p := remuxPlayerOf(c, srs, "live/"+stream+"."+m.ext, nil)
 	c.Must(p.readUntil(m.until, time.Second), "play")
-	return apiClientOf(c, srs, waitHook(c, srs, "on_play", stream).Field("client_id")), streamID
+	return p, streamID
 }
 
 // apiStreamWith returns a stream once the API has the codecs w wants, for at

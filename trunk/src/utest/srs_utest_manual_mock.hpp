@@ -368,7 +368,7 @@ public:
 
 public:
     virtual srs_error_t initialize(ISrsRequest *req);
-    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio);
+    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, SrsRtpPacket *pkt, bool is_audio);
     void set_initialize_error(srs_error_t err);
     void set_on_rtp_packet_error(srs_error_t err);
 };

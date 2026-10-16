@@ -301,6 +301,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool wait_keyframe_;
     // Whether reopening the DVR file.
     bool reopening_segment_;
+    // The timestamp in ms of the last message of the publish, -1 for none.
+    int64_t last_timestamp_;
 
 public:
     SrsDvrSegmentPlan();

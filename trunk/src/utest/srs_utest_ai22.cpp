@@ -23,6 +23,7 @@ using namespace std;
 #include <srs_utest_ai06.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
+#include <srs_utest_ai34.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_fmp4.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -185,6 +186,37 @@ ISrsBasicRtmpClient *MockEdgeAppFactory::create_rtmp_client(std::string url, srs
 {
     // Return the pre-configured mock client
     return mock_client_;
+}
+
+MockEdgeForwarderFactory::MockEdgeForwarderFactory()
+{
+}
+
+MockEdgeForwarderFactory::~MockEdgeForwarderFactory()
+{
+}
+
+ISrsBasicRtmpClient *MockEdgeForwarderFactory::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
+{
+    MockRtmpClientForForwarder *client = new MockRtmpClientForForwarder();
+    client->url_ = url;
+    urls_.push_back(url);
+
+    for (int i = 0; i < (int)down_.size(); i++) {
+        if (url.find("rtmp://" + down_.at(i) + "/") == 0) {
+            client->connect_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "mock origin %s down", down_.at(i).c_str());
+        }
+    }
+    if (!refuse_.empty() && url.find("rtmp://" + refuse_ + "/") == 0) {
+        client->publish_error_ = srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "mock origin %s refuses", refuse_.c_str());
+    }
+
+    return client;
+}
+
+ISrsCoroutine *MockEdgeForwarderFactory::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
+{
+    return new MockCoroutineForForwarder(0);
 }
 
 // Test SrsEdgeRtmpUpstream::connect() - major use scenario
@@ -1282,6 +1314,113 @@ void MockEdgeForwarder::reset()
     srs_freep(initialize_error_);
     srs_freep(start_error_);
     srs_freep(proxy_error_);
+}
+
+// A publish to an edge pushes to one origin, taken in turn for each publish of the stream. When
+// the origin is down, the push connects to the next origin at once, so the publisher is accepted
+// while any origin is up.
+VOID TEST(EdgeForwarderTest, StartFailsOverFromDownOrigin)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<MockEdgeConfig> config(new MockEdgeConfig());
+    config->edge_origin_directive_ = new SrsConfDirective();
+    config->edge_origin_directive_->name_ = "origin";
+    config->edge_origin_directive_->args_.push_back("192.168.1.10:1935");
+    config->edge_origin_directive_->args_.push_back("192.168.1.11:1935");
+    config->edge_origin_directive_->args_.push_back("192.168.1.12:1935");
+    SrsUniquePtr<MockEdgeForwarderFactory> factory(new MockEdgeForwarderFactory());
+    factory->down_.push_back("192.168.1.10:1935");
+
+    SrsUniquePtr<SrsEdgeForwarder> forwarder(new SrsEdgeForwarder());
+    forwarder->config_ = config.get();
+    forwarder->app_factory_ = factory.get();
+    forwarder->req_ = req.get();
+
+    // The first origin is down: the push goes to the second.
+    HELPER_EXPECT_SUCCESS(forwarder->start());
+    ASSERT_EQ(2, (int)factory->urls_.size());
+    EXPECT_EQ(0, (int)factory->urls_.at(0).find("rtmp://192.168.1.10:1935/live"));
+    EXPECT_EQ(0, (int)factory->urls_.at(1).find("rtmp://192.168.1.11:1935/live"));
+    MockRtmpClientForForwarder *sdk = dynamic_cast<MockRtmpClientForForwarder *>(forwarder->sdk_);
+    ASSERT_TRUE(sdk != NULL);
+    EXPECT_EQ(factory->urls_.at(1), sdk->url_);
+    EXPECT_EQ(1, sdk->publish_count_);
+    forwarder->stop();
+
+    // The next publish takes the next origin, which is up.
+    HELPER_EXPECT_SUCCESS(forwarder->start());
+    ASSERT_EQ(3, (int)factory->urls_.size());
+    EXPECT_EQ(0, (int)factory->urls_.at(2).find("rtmp://192.168.1.12:1935/live"));
+    forwarder->stop();
+
+    // Then the first again, down, and the push goes to the second.
+    HELPER_EXPECT_SUCCESS(forwarder->start());
+    ASSERT_EQ(5, (int)factory->urls_.size());
+    EXPECT_EQ(0, (int)factory->urls_.at(3).find("rtmp://192.168.1.10:1935/live"));
+    EXPECT_EQ(0, (int)factory->urls_.at(4).find("rtmp://192.168.1.11:1935/live"));
+    forwarder->stop();
+
+    forwarder->req_ = NULL;
+}
+
+// When every origin is down, the publish is refused after one connect to each origin.
+VOID TEST(EdgeForwarderTest, StartRefusedWhenEveryOriginDown)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<MockEdgeConfig> config(new MockEdgeConfig());
+    config->edge_origin_directive_ = new SrsConfDirective();
+    config->edge_origin_directive_->name_ = "origin";
+    config->edge_origin_directive_->args_.push_back("192.168.1.10:1935");
+    config->edge_origin_directive_->args_.push_back("192.168.1.11:1935");
+    SrsUniquePtr<MockEdgeForwarderFactory> factory(new MockEdgeForwarderFactory());
+    factory->down_.push_back("192.168.1.10:1935");
+    factory->down_.push_back("192.168.1.11:1935");
+
+    SrsUniquePtr<SrsEdgeForwarder> forwarder(new SrsEdgeForwarder());
+    forwarder->config_ = config.get();
+    forwarder->app_factory_ = factory.get();
+    forwarder->req_ = req.get();
+
+    err = forwarder->start();
+    EXPECT_EQ(ERROR_SOCKET_CONNECT, srs_error_code(err));
+    srs_freep(err);
+    ASSERT_EQ(2, (int)factory->urls_.size());
+    EXPECT_EQ(0, (int)factory->urls_.at(0).find("rtmp://192.168.1.10:1935/live"));
+    EXPECT_EQ(0, (int)factory->urls_.at(1).find("rtmp://192.168.1.11:1935/live"));
+
+    forwarder->req_ = NULL;
+}
+
+// An origin that is up but refuses the publish refuses the publisher: the push doesn't try the
+// next origin, which may serve the stream already.
+VOID TEST(EdgeForwarderTest, StartNoFailoverWhenOriginRefusesPublish)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<MockEdgeConfig> config(new MockEdgeConfig());
+    config->edge_origin_directive_ = new SrsConfDirective();
+    config->edge_origin_directive_->name_ = "origin";
+    config->edge_origin_directive_->args_.push_back("192.168.1.10:1935");
+    config->edge_origin_directive_->args_.push_back("192.168.1.11:1935");
+    SrsUniquePtr<MockEdgeForwarderFactory> factory(new MockEdgeForwarderFactory());
+    factory->refuse_ = "192.168.1.10:1935";
+
+    SrsUniquePtr<SrsEdgeForwarder> forwarder(new SrsEdgeForwarder());
+    forwarder->config_ = config.get();
+    forwarder->app_factory_ = factory.get();
+    forwarder->req_ = req.get();
+
+    err = forwarder->start();
+    EXPECT_EQ(ERROR_SYSTEM_STREAM_BUSY, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, (int)factory->urls_.size());
+
+    forwarder->req_ = NULL;
 }
 
 VOID TEST(PlayEdgeTest, ClientPlayLifecycle)
@@ -5781,6 +5920,121 @@ VOID TEST(DvrSegmentPlanTest, OnVideoReapSegmentWhenDurationExceeds)
 
     // Clean up injected dependencies to avoid double-free
     plan->segment_ = NULL;
+    plan->config_ = NULL;
+}
+
+// A video packet of H.264 at the timestamp in ms, a keyframe or an inter frame.
+static SrsMediaPacket *mock_dvr_h264_frame(int64_t timestamp, bool keyframe)
+{
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    char *data = new char[10];
+    data[0] = keyframe ? 0x17 : 0x27;
+    data[1] = 0x01;
+    memset(data + 2, 0, 8);
+    msg->wrap(data, 10);
+    msg->message_type_ = SrsFrameTypeVideo;
+    msg->timestamp_ = timestamp;
+    return msg;
+}
+
+// With dvr_duration 2s and a keyframe each second, the keyframe at 2s cuts the
+// file: the file then spans 2s, from its first frame to that keyframe, though
+// its last frame written, at 1.96s, is before 2s.
+VOID TEST(DvrSegmentPlanTest, KeyframeAtDurationCutsSegment)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    MockDvrSegmenter *mock_segmenter = new MockDvrSegmenter();
+    mock_segmenter->assemble();
+    SrsFragment *fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsDvrSegmentPlan> plan(new SrsDvrSegmentPlan());
+    plan->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(plan->initialize(mock_hub.get(), mock_segmenter, req.get()));
+    plan->dvr_enabled_ = true;
+    plan->cduration_ = 2 * SRS_UTIME_SECONDS;
+    plan->wait_keyframe_ = true;
+
+    SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+
+    // The frames from 0 to 1.96s are written, each 40ms after the one before.
+    for (int64_t ts = 0; ts <= 1960; ts += 40) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_h264_frame(ts, ts % 1000 == 0));
+        HELPER_EXPECT_SUCCESS(plan->on_video(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+    EXPECT_EQ(1960 * SRS_UTIME_MILLISECONDS, fragment->duration());
+
+    // The keyframe at 2s cuts the file.
+    SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(2000, true));
+    HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+    EXPECT_EQ(1, mock_hub->on_dvr_request_sh_count_);
+
+    plan->config_ = NULL;
+}
+
+// A keyframe before dvr_duration doesn't cut the file, nor one after the
+// timestamps jump back, nor the first keyframe of a new publish whose
+// timestamps are past the last publish's.
+VOID TEST(DvrSegmentPlanTest, KeyframeBeforeDurationKeepsSegment)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    MockDvrSegmenter *mock_segmenter = new MockDvrSegmenter();
+    mock_segmenter->assemble();
+    SrsFragment *fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsDvrSegmentPlan> plan(new SrsDvrSegmentPlan());
+    plan->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(plan->initialize(mock_hub.get(), mock_segmenter, req.get()));
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    plan->cduration_ = 2 * SRS_UTIME_SECONDS;
+    plan->wait_keyframe_ = true;
+
+    SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+
+    // A keyframe at 1.99s, 30ms after the last frame at 1.96s, is before 2s.
+    for (int64_t ts = 0; ts <= 1960; ts += 40) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_h264_frame(ts, ts == 0));
+        HELPER_EXPECT_SUCCESS(plan->on_video(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(1990, true));
+        HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+        fragment->append(1990);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    // The timestamps jump back to 0: no time passed for the file.
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(0, true));
+        HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    // A new publish into a new file, whose first keyframe is at 5s.
+    plan->on_unpublish();
+    srs_freep(fragment);
+    fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(5000, true));
+        HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+        fragment->append(5000);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
     plan->config_ = NULL;
 }
 

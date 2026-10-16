@@ -1450,6 +1450,67 @@ VOID TEST(HttpConnTest, AssembleWiresInjectedContextAndSocket)
     conn->context_ = NULL;
 }
 
+VOID TEST(HttpConnTest, InvalidJsonpCallbackAnsweredBadRequest)
+{
+    srs_error_t err;
+
+    MockHttpxConn handler;
+    MockBufferIO skt;
+    skt.append("GET /api/v1/versions?callback=alert(1) HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, NULL, "127.0.0.1", 8080));
+    conn->trd_ = new MockCoroutineForCycle();
+    HELPER_EXPECT_SUCCESS(conn->parser_->initialize(HTTP_REQUEST));
+    HELPER_EXPECT_SUCCESS(conn->set_jsonp(true));
+
+    // GOAL: the refused callback still ends the connection with its error.
+    ISrsRequest *req = NULL;
+    err = conn->process_requests(&req);
+    EXPECT_EQ(ERROR_HTTP_JSONP, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(req);
+
+    // GOAL: the client is told why by 400, with the error code and its short name, never the callback,
+    // so nothing it sent is echoed back as script.
+    string out(skt.out_buffer.bytes(), skt.out_buffer.length());
+    EXPECT_TRUE(srs_strings_starts_with(out, "HTTP/1.1 400 Bad Request\r\n")) << out;
+    EXPECT_TRUE(srs_strings_contains(out, "Connection: Close\r\n")) << out;
+    EXPECT_TRUE(srs_strings_contains(out, "Content-Type: text/plain; charset=utf-8\r\n")) << out;
+    EXPECT_TRUE(srs_strings_ends_with(out, "\r\n\r\n4058: HttpJsonp")) << out;
+    EXPECT_FALSE(srs_strings_contains(out, "alert")) << out;
+
+    // GOAL: no handler sees the refused request.
+    EXPECT_FALSE(handler.on_http_message_called_);
+}
+
+VOID TEST(HttpConnTest, ValidJsonpCallbackNotRefused)
+{
+    srs_error_t err;
+
+    MockHttpxConn handler;
+    MockBufferIO skt;
+    skt.append("GET /api/v1/versions?callback=cb HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    MockHttpServeMux mux;
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, &mux, "127.0.0.1", 8080));
+    conn->trd_ = new MockCoroutineForCycle();
+    HELPER_EXPECT_SUCCESS(conn->parser_->initialize(HTTP_REQUEST));
+    HELPER_EXPECT_SUCCESS(conn->set_jsonp(true));
+    HELPER_EXPECT_SUCCESS(conn->set_auth_enabled(false));
+
+    // GOAL: a callback of allowed characters is served as before, and the connection ends only when the
+    // client sends nothing more. This passes before and after the refused callback got its answer.
+    ISrsRequest *req = NULL;
+    err = conn->process_requests(&req);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(req);
+
+    EXPECT_TRUE(handler.on_http_message_called_);
+    EXPECT_EQ(1, mux.serve_http_count_);
+    EXPECT_EQ(0, skt.out_length());
+}
+
 VOID TEST(HttpxConnTest, ConstructionReachesNoCollaborator)
 {
     std::string before = _srs_context->get_id().c_str();

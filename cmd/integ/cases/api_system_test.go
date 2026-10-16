@@ -421,18 +421,16 @@ func apiSystem(t *testing.T) {
 	})
 
 	check.Case(t, "JsonpInvalidCallback", check.Fast, func(c *check.C) {
-		check.KnownBug(c, "a JSONP callback with a character SRS refuses gets no answer: SRS closes the connection without a response")
 		srs := server.Common(c)
 		res, err := httpClient.Get(srs.APIURL("/api/v1/authors?callback=alert(1)"))
-		if err == nil {
-			body, _ := io.ReadAll(res.Body)
-			res.Body.Close()
-			c.Check(!strings.Contains(string(body), "alert(1)"), "body %q echoes the callback", body)
-			c.CheckEqual(res.StatusCode, http.StatusBadRequest, "status")
-		}
+		c.Must(err, "an answer to the refused callback")
+		body, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		c.CheckEqual(res.StatusCode, http.StatusBadRequest, "status")
+		c.Check(res.Header.Get("Content-Type") != "text/javascript", "content type %q, want no script", res.Header.Get("Content-Type"))
+		c.Check(!strings.Contains(string(body), "alert(1)"), "body %q echoes the callback", body)
 		// SRS is still up.
 		apiObject(c, srs, "/api/v1/authors")
-		c.CheckNoError(err, "an answer to the refused callback")
 	})
 
 	check.Case(t, "JsonpErrorCode", check.Fast, func(c *check.C) {

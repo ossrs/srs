@@ -9,6 +9,7 @@ using namespace std;
 
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_server.hpp>
+#include <srs_app_statistic.hpp>
 #include <srs_app_stream_token.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
@@ -17,6 +18,7 @@ using namespace std;
 #include <srs_utest_ai06.hpp>
 #include <srs_utest_ai10.hpp>
 #include <srs_utest_ai11.hpp>
+#include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_workflow_rtc_conn.hpp>
 
 // Forward declarations for H.264 SDP functions (defined in srs_app_rtc_conn.cpp)
@@ -898,6 +900,51 @@ VOID TEST(SrsRtcPublishStreamTest, UpdateRttTypicalScenario)
     publish_stream->update_rtt(unknown_ssrc, test_rtt);
 
     // Function should handle unknown SSRC gracefully without error
+}
+
+// A WebRTC publisher counts the frames of each track and reports them all at
+// its 1s timer, however few: a stream of 100 video frames is not listed with
+// none until 289 of a track came.
+VOID TEST(SrsRtcPublishStreamTest, ReportFrameStatsOfFewFrames)
+{
+    MockRtcExpire mock_expire;
+    MockRtcPacketReceiver mock_receiver;
+    SrsContextId cid;
+    cid.set_value("test-report-frame-stats");
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    MockSrsRequest req("__defaultVhost__", "live", "rtc-frames");
+    SrsUniquePtr<SrsRtcPublishStream> publish_stream(new SrsRtcPublishStream(NULL, &mock_expire, &mock_receiver, cid));
+    publish_stream->stat_ = stat.get();
+    publish_stream->req_ = req.copy();
+
+    for (int i = 0; i < 100; i++) {
+        publish_stream->update_rtp_frame_stats(false);
+    }
+    for (int i = 0; i < 200; i++) {
+        publish_stream->update_rtp_frame_stats(true);
+    }
+    EXPECT_TRUE(stat->find_stream_by_url(req.get_stream_url()) == NULL);
+
+    publish_stream->report_frame_stats();
+    SrsStatisticStream *stream = stat->find_stream_by_url(req.get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(100, stream->video_frames_->sugar_);
+    EXPECT_EQ(200, stream->audio_frames_->sugar_);
+
+    // The next report adds only the frames since, and none of a track with none.
+    for (int i = 0; i < 25; i++) {
+        publish_stream->update_rtp_frame_stats(false);
+    }
+    publish_stream->report_frame_stats();
+    EXPECT_EQ(125, stream->video_frames_->sugar_);
+    EXPECT_EQ(200, stream->audio_frames_->sugar_);
+
+    publish_stream->report_frame_stats();
+    EXPECT_EQ(125, stream->video_frames_->sugar_);
+    EXPECT_EQ(200, stream->audio_frames_->sugar_);
+
+    publish_stream->stat_ = NULL;
 }
 
 VOID TEST(SrsRtcPublishStreamTest, UpdateSendReportTimeTypicalScenario)

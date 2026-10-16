@@ -1270,7 +1270,7 @@ public:
 
 public:
     virtual srs_error_t initialize(ISrsRequest *req) = 0;
-    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio) = 0;
+    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, SrsRtpPacket *pkt, bool is_audio) = 0;
 };
 
 // Lightweight format parser for RTC streams to extract codec information
@@ -1283,7 +1283,14 @@ public:
 
 public:
     virtual srs_error_t initialize(ISrsRequest *req);
-    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio);
+    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, SrsRtpPacket *pkt, bool is_audio);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Report the codec, profile and level of the SDP.
+    virtual srs_error_t on_video_codec(SrsCodecPayload *media);
+    // Report the picture size of the SPS in the packet, if any and new.
+    virtual srs_error_t on_video_sps(SrsVideoCodecId codec_id, SrsRtpPacket *pkt);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -1292,6 +1299,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // Track whether we've already reported codec info to avoid duplicate updates
     bool video_codec_reported_;
     bool audio_codec_reported_;
+    // The profile and level of the SDP, reported again with the size of each new SPS.
+    int video_profile_;
+    int video_level_;
+    // The last SPS whose size was reported.
+    std::string video_sps_;
 };
 
 #endif

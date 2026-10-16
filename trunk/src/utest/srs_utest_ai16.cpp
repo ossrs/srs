@@ -717,6 +717,58 @@ std::string MockHttpMessageForLiveStream::path()
     return "/live/stream.flv";
 }
 
+MockInterruptedCoroutineForLiveStream::MockInterruptedCoroutineForLiveStream()
+{
+    pull_count_ = 0;
+}
+
+MockInterruptedCoroutineForLiveStream::~MockInterruptedCoroutineForLiveStream()
+{
+}
+
+srs_error_t MockInterruptedCoroutineForLiveStream::start()
+{
+    return srs_success;
+}
+
+void MockInterruptedCoroutineForLiveStream::stop()
+{
+}
+
+void MockInterruptedCoroutineForLiveStream::interrupt()
+{
+}
+
+srs_error_t MockInterruptedCoroutineForLiveStream::pull()
+{
+    pull_count_++;
+    return srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+}
+
+const SrsContextId &MockInterruptedCoroutineForLiveStream::cid()
+{
+    static SrsContextId cid;
+    return cid;
+}
+
+void MockInterruptedCoroutineForLiveStream::set_cid(const SrsContextId &cid)
+{
+}
+
+MockWaitingHttpxConnForLiveStream::MockWaitingHttpxConnForLiveStream()
+{
+}
+
+MockWaitingHttpxConnForLiveStream::~MockWaitingHttpxConnForLiveStream()
+{
+}
+
+srs_error_t MockWaitingHttpxConnForLiveStream::pop_message(ISrsHttpMessage **preq)
+{
+    srs_usleep(1 * SRS_UTIME_SECONDS);
+    return srs_error_new(ERROR_SOCKET_TIMEOUT, "read timeout");
+}
+
 VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
 {
     srs_error_t err;
@@ -2134,6 +2186,46 @@ VOID TEST(SrsLiveStreamTest, DoServeHttpFlvWithDisabledEntry)
     EXPECT_TRUE(mock_writer.w->writer_->header_wrote());
 
     // Clean up - set entry_ back to NULL before destruction
+    srs_freep(live_stream->entry_);
+}
+
+VOID TEST(SrsLiveStreamTest, DoServeHttpEndsAtOnceWhenConnInterrupted)
+{
+    srs_error_t err;
+
+    // A DELETE of the player by the HTTP API interrupts its HTTP connection, while the receive
+    // thread waits for a request until its read timeout. The play loop must end at once.
+    SrsUniquePtr<MockRequest> mock_request(new MockRequest("test.vhost", "live", "stream1"));
+    SrsUniquePtr<MockBufferCache> mock_cache(new MockBufferCache());
+    SrsUniquePtr<SrsLiveStream> live_stream(new SrsLiveStream(mock_request.get(), mock_cache.get()));
+
+    live_stream->entry_ = new SrsHttpMuxEntry();
+    live_stream->entry_->enabled = true;
+    live_stream->entry_->pattern = "/live/stream.flv";
+
+    SrsUniquePtr<MockHttpMessageForLiveStream> mock_message(new MockHttpMessageForLiveStream());
+    MockHttpConnForLiveStream *conn = mock_message->mock_conn_;
+    srs_freep(conn->trd_);
+    MockInterruptedCoroutineForLiveStream *conn_trd = new MockInterruptedCoroutineForLiveStream();
+    conn->trd_ = conn_trd;
+    srs_freep(conn->mock_handler_);
+    conn->mock_handler_ = new MockWaitingHttpxConnForLiveStream();
+    MockResponseWriter mock_writer;
+
+    SrsUniquePtr<MockLiveSourceForQueue> mock_source(new MockLiveSourceForQueue());
+    SrsUniquePtr<MockLiveConsumerForQueue> mock_consumer(new MockLiveConsumerForQueue(mock_source.get()));
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    err = live_stream->do_serve_http(mock_source.get(), mock_consumer.get(), &mock_writer, mock_message.get());
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_GE(conn_trd->pull_count_, 1);
+    EXPECT_LT(elapsed, 300 * SRS_UTIME_MILLISECONDS);
+
     srs_freep(live_stream->entry_);
 }
 

@@ -992,7 +992,7 @@ srs_error_t MockRtcFormat::initialize(ISrsRequest *req)
     return srs_error_copy(initialize_error_);
 }
 
-srs_error_t MockRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio)
+srs_error_t MockRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, SrsRtpPacket *pkt, bool is_audio)
 {
     on_rtp_packet_count_++;
     return srs_error_copy(on_rtp_packet_error_);

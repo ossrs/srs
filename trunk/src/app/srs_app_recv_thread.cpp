@@ -301,7 +301,8 @@ SrsPublishRecvThread::SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest
     nb_msgs_ = 0;
     video_frames_ = 0;
     audio_frames_ = 0;
-    error_ = srs_cond_new();
+    wake_ = srs_cond_new();
+    frames_wake_time_ = 0;
 
     req_ = req;
     mr_fd_ = mr_sock_fd;
@@ -322,7 +323,7 @@ SrsPublishRecvThread::~SrsPublishRecvThread()
 {
     trd_->stop();
 
-    srs_cond_destroy(error_);
+    srs_cond_destroy(wake_);
     srs_freep(recv_error_);
     srs_freep(trd_);
 
@@ -336,7 +337,7 @@ srs_error_t SrsPublishRecvThread::wait(srs_utime_t tm)
     }
 
     // ignore any return of cond wait.
-    srs_cond_timedwait(error_, tm);
+    srs_cond_timedwait(wake_, tm);
 
     return srs_success;
 }
@@ -407,6 +408,14 @@ srs_error_t SrsPublishRecvThread::consume(SrsRtmpCommonMessage *msg)
         audio_frames_++;
     }
 
+    // Wake the publishing loop at the first message, then at most once a second, so it reports
+    // the frames to the stream stats, not only when its wait times out.
+    srs_utime_t now = srs_time_now_cached();
+    if (now - frames_wake_time_ >= SRS_UTIME_SECONDS) {
+        frames_wake_time_ = now;
+        srs_cond_signal(wake_);
+    }
+
     // log to show the time of recv thread.
     srs_verbose("recv thread now=%" PRId64 "us, got msg time=%" PRId64 "ms, size=%d",
                 srs_time_now_realtime(), msg->header_.timestamp, msg->size);
@@ -444,7 +453,7 @@ void SrsPublishRecvThread::interrupt(srs_error_t err)
     recv_error_ = srs_error_copy(err);
 
     // when recv thread error, signal the conn thread to process it.
-    srs_cond_signal(error_);
+    srs_cond_signal(wake_);
 }
 
 void SrsPublishRecvThread::on_start()
@@ -469,7 +478,7 @@ void SrsPublishRecvThread::on_stop()
     // for we donot set to false yet.
 
     // when thread stop, signal the conn thread which wait.
-    srs_cond_signal(error_);
+    srs_cond_signal(wake_);
 
 #ifdef SRS_PERF_MERGED_READ
     if (mr_) {

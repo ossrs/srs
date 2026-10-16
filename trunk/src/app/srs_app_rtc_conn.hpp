@@ -411,6 +411,8 @@ public:
     virtual bool is_sender_started() = 0;
     virtual srs_error_t send_rtcp_rr() = 0;
     virtual srs_error_t send_rtcp_xr_rrtr() = 0;
+    // Report the frames counted since the last report to the stream stats.
+    virtual void report_frame_stats() = 0;
 
 public:
     virtual bool is_sender_twcc_enabled() = 0;
@@ -644,6 +646,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool is_sender_twcc_enabled();
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
+    void report_frame_stats();
 
 public:
     srs_error_t on_rtp_cipher(char *buf, int nb_buf, bool *dropped);

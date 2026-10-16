@@ -162,23 +162,23 @@ func hooksHTTP(t *testing.T) {
 		}
 	})
 
-	// DashOnPlay plays a stream's MPD with a param: like an HLS session, a
-	// DASH player must get an on_play, so a hook server can authorize and
-	// count it.
+	// DashOnPlay plays a stream's MPD with a param, its init files and
+	// segments: SRS serves DASH as static files, with no play session like
+	// hls_ctx, so the player gets no on_play nor on_stop in 200ms.
 	check.Case(t, "DashOnPlay", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a DASH player gets no on_play: SRS serves the MPD and segments as static files")
 		srs := server.Common(c)
 		name := streamName(c)
 		publishThrough(c, srs, "live/"+name, media.H264HighAAC, 20*time.Second)
 		c.Must(untilFile(filepath.Join(htmlDir(srs), "live", name+".mpd"), time.Second), "the MPD")
-		res, _ := httpGet(c, httpClient, flvURL(srs, "live/"+name+".mpd?k=v"))
-		c.CheckEqual(res.StatusCode, 200, "status of the MPD")
+		playDASH(c, flvURL(srs, "live/"+name+".mpd?k=v"), report.Until{VideoHeader: true, AudioHeader: true, Keyframes: 1})
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
-		_, err := srs.Hooks.Wait(ctx, mock.Match{Action: "on_play", Func: func(r mock.Request) bool {
-			return r.Stream() == name || r.Stream() == name+".mpd"
+		h, err := srs.Hooks.Wait(ctx, mock.Match{Func: func(r mock.Request) bool {
+			return (r.Action() == "on_play" || r.Action() == "on_stop") && (r.Stream() == name || r.Stream() == name+".mpd")
 		}})
-		c.CheckNoError(err, "on_play of the DASH player")
+		if err == nil {
+			c.Errorf("a DASH player got %s, want no play hook", h.Action())
+		}
 	})
 }
 

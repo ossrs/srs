@@ -32,6 +32,7 @@ using namespace std;
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
+#include <srs_utest_manual_service.hpp>
 
 // Goal tests for hook rejection across every protocol, for both players and publishers.
 //
@@ -113,6 +114,57 @@ VOID TEST(HookRejectionTest, HttpFlvRejectedViewerReceivesHookStatus)
     stream.config_ = NULL;
     stream.hooks_ = NULL;
     srs_freep(stream.entry_);
+}
+
+// HTTP-FLV: a viewer the security refuses is answered 403, whichever rule refuses it: a deny rule,
+// no allow rule that matches, or the security on with no rule at all.
+VOID TEST(HookRejectionTest, HttpFlvDeniedViewerReceivesForbidden)
+{
+    int codes[] = {ERROR_SYSTEM_SECURITY_DENY, ERROR_SYSTEM_SECURITY_ALLOW, ERROR_SYSTEM_SECURITY};
+    for (int i = 0; i < (int)(sizeof(codes) / sizeof(codes[0])); i++) {
+        int code = codes[i];
+        srs_error_t err = srs_success;
+
+        SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+        MockResponseWriter writer;
+        MockRequest request("test.vhost", "live", "stream1");
+        MockBufferCache cache;
+        MockStatisticForLiveStream stat;
+        MockAppConfigForLiveStreamHooks config;
+        MockHttpHooksForLiveStream hooks;
+
+        MockSecurity security;
+        security.check_error_ = srs_error_new(code, "deny by rule<127.0.0.1>");
+
+        SrsLiveStream stream(&request, &cache);
+        stream.stat_ = &stat;
+        srs_freep(stream.security_);
+        stream.security_ = &security;
+        stream.config_ = &config;
+        stream.hooks_ = &hooks;
+        stream.entry_ = new SrsHttpMuxEntry();
+        stream.entry_->enabled = false;
+
+        err = stream.serve_http(&writer, message.get());
+        EXPECT_EQ(code, srs_error_code(err));
+        EXPECT_EQ(1, security.check_count_);
+        EXPECT_EQ(0, hooks.on_play_count_);
+
+        // GOAL: the player gets 403 with the error code and name, not an empty reply.
+        string response(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+        EXPECT_EQ(0, (int)response.find("HTTP/1.1 403")) << "code=" << code;
+        EXPECT_NE(string::npos, response.find(srs_fmt_sprintf("%d: ", code))) << "code=" << code;
+
+        // The rule that refused the viewer is the operator's, never told to the viewer.
+        EXPECT_EQ(string::npos, response.find("127.0.0.1")) << "code=" << code;
+
+        srs_freep(err);
+        stream.stat_ = NULL;
+        stream.security_ = NULL;
+        stream.config_ = NULL;
+        stream.hooks_ = NULL;
+        srs_freep(stream.entry_);
+    }
 }
 
 // HLS: a rejected viewer must receive the hook's status on the m3u8 request.
@@ -273,8 +325,7 @@ VOID TEST(HookRejectionTest, HlsRejectedViewerCannotRetryWithSameCtx)
 // HLS: a viewer denied by the security rules must stay denied when it retries with the same hls_ctx.
 //
 // The security check runs in serve_new_session() before the hook, so it is bypassed by the same retry
-// as the on_play hook. A denied viewer has no status mapped yet, so it is refused by closing the
-// connection with an empty response.
+// as the on_play hook. Each denied request is answered 403.
 VOID TEST(HookRejectionTest, HlsDeniedViewerCannotRetryWithSameCtx)
 {
     srs_error_t err = srs_success;
@@ -300,7 +351,7 @@ VOID TEST(HookRejectionTest, HlsDeniedViewerCannotRetryWithSameCtx)
     string resp;
     HELPER_EXPECT_FAILED(mock_hls_serve_m3u8(hls.get(), &factory, "/live/stream1.m3u8?hls_ctx=chosenbyclient", resp));
     EXPECT_EQ(1, security.check_count_);
-    EXPECT_TRUE(resp.empty());
+    EXPECT_EQ(0, (int)resp.find("HTTP/1.1 403"));
 
     // The denied viewer is removed from statistic at once, because it has no session to expire.
     EXPECT_EQ(1, stat.on_disconnect_count_);
@@ -308,7 +359,8 @@ VOID TEST(HookRejectionTest, HlsDeniedViewerCannotRetryWithSameCtx)
     // GOAL: retrying with the same hls_ctx runs the security check again and is denied again.
     HELPER_EXPECT_FAILED(mock_hls_serve_m3u8(hls.get(), &factory, "/live/stream1.m3u8?hls_ctx=chosenbyclient", resp));
     EXPECT_EQ(2, security.check_count_);
-    EXPECT_TRUE(resp.empty());
+    EXPECT_EQ(0, (int)resp.find("HTTP/1.1 403"));
+    EXPECT_EQ(string::npos, resp.find("stream1-0.ts"));
     EXPECT_EQ(0, factory.create_count_);
 
     hls->config_ = NULL;
@@ -1653,4 +1705,132 @@ VOID TEST(HookOnPlayClientsTest, RtspDescribeAgainMovesClient)
 
     HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
     EXPECT_EQ(1, (int)f.stat_.clients_.size());
+}
+
+// The stat of the frames an RTMP publisher reports.
+class MockAppStatisticForFrames : public MockAppStatistic
+{
+public:
+    int video_frames_;
+    int audio_frames_;
+
+public:
+    MockAppStatisticForFrames()
+    {
+        video_frames_ = 0;
+        audio_frames_ = 0;
+    }
+
+public:
+    virtual srs_error_t on_video_frames(ISrsRequest *req, int nb_frames)
+    {
+        video_frames_ += nb_frames;
+        return srs_success;
+    }
+    virtual srs_error_t on_audio_frames(ISrsRequest *req, int nb_frames)
+    {
+        audio_frames_ += nb_frames;
+        return srs_success;
+    }
+};
+
+// Feed an RTMP publisher an AAC raw frame, or an H.264 keyframe.
+static void mock_rtmp_publish_frame(MockRtmpServer *rtmp, bool is_audio)
+{
+    int payload_size = 10;
+    SrsRtmpCommonMessage *msg = new SrsRtmpCommonMessage();
+    if (is_audio) {
+        msg->header_.initialize_audio(payload_size, 0, 1);
+    } else {
+        msg->header_.initialize_video(payload_size, 0, 1);
+    }
+    msg->create_payload(payload_size);
+
+    SrsBuffer stream(msg->payload(), payload_size);
+    if (is_audio) {
+        stream.write_1bytes(0xAF);
+        stream.write_1bytes(0x01);
+    } else {
+        stream.write_1bytes(0x17);
+        stream.write_1bytes(0x01);
+        stream.write_3bytes(0x000000);
+    }
+    while (!stream.empty()) {
+        stream.write_1bytes(0x00);
+    }
+
+    rtmp->recv_msgs_.push_back(msg);
+    rtmp->cond_->signal();
+}
+
+// An RTMP publisher's frames are reported to the stream stats at its first
+// message, not at the first-packet timeout of 20s; then at most once a second,
+// so the frames that follow within the second wait for the next report.
+VOID TEST(RtmpPublishFrameStatsTest, FirstFramesReportedAtOnce)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockConnectionManager> mock_manager(new MockConnectionManager());
+    SrsUniquePtr<MockLiveSourceManager> mock_sources(new MockLiveSourceManager());
+    SrsUniquePtr<MockStreamPublishTokenManager> mock_tokens(new MockStreamPublishTokenManager());
+    SrsUniquePtr<MockAppStatisticForFrames> mock_stat(new MockAppStatisticForFrames());
+    SrsUniquePtr<MockHttpHooks> mock_hooks(new MockHttpHooks());
+    SrsUniquePtr<MockRtcSourceManager> mock_rtc_sources(new MockRtcSourceManager());
+    SrsUniquePtr<MockSrtSourceManager> mock_srt_sources(new MockSrtSourceManager());
+#ifdef SRS_RTSP
+    SrsUniquePtr<MockRtspSourceManager> mock_rtsp_sources(new MockRtspSourceManager());
+#endif
+    MockRtmpServer *mock_rtmp_server = new MockRtmpServer();
+    MockSecurity *mock_security = new MockSecurity();
+
+    mock_config->default_vhost_ = new SrsConfDirective();
+    mock_config->default_vhost_->name_ = "vhost";
+    mock_config->default_vhost_->args_.push_back("__defaultVhost__");
+    mock_config->mw_msgs_ = 0;
+    mock_config->mw_sleep_ = 0;
+
+    mock_rtmp_server->set_request(SrsRtmpConnFMLEPublish, "192.168.1.100", "utest.ossrs.io", "utest", "livestream", "rtmp://127.0.0.1/utest", "rtmp", 1935, "127.0.0.1");
+
+    ISrsRtmpTransport *transport = new MockRtmpTransport();
+    SrsUniquePtr<SrsRtmpConn> conn(new SrsRtmpConn(transport, "192.168.1.100", 1935));
+
+    conn->config_ = mock_config.get();
+    conn->manager_ = mock_manager.get();
+    conn->live_sources_ = mock_sources.get();
+    conn->stream_publish_tokens_ = mock_tokens.get();
+    conn->stat_ = mock_stat.get();
+    conn->hooks_ = mock_hooks.get();
+    conn->rtc_sources_ = mock_rtc_sources.get();
+    conn->srt_sources_ = mock_srt_sources.get();
+#ifdef SRS_RTSP
+    conn->rtsp_sources_ = mock_rtsp_sources.get();
+#endif
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = mock_rtmp_server;
+    srs_freep(conn->security_);
+    conn->security_ = mock_security;
+
+    HELPER_EXPECT_SUCCESS(conn->start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    // GOAL: the first frame is in the stream stats at once.
+    mock_rtmp_publish_frame(mock_rtmp_server, true);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(1, mock_stat->audio_frames_);
+    EXPECT_EQ(0, mock_stat->video_frames_);
+
+    // A frame within the second waits for the next report.
+    mock_rtmp_publish_frame(mock_rtmp_server, false);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(1, mock_stat->audio_frames_);
+    EXPECT_EQ(0, mock_stat->video_frames_);
+
+    mock_rtmp_server->recv_err_ = srs_error_new(ERROR_SOCKET_READ, "mock client quit");
+    mock_rtmp_server->cond_->signal();
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    conn->stop();
 }

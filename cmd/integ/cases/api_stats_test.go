@@ -400,6 +400,57 @@ func TestTimer_Api_Bytes(t *testing.T) {
 	})
 }
 
+// frameCountsWait is how long a case waits for a stream's frame counts: SRS
+// reports a WebRTC or RTMP publisher's frames each second, and a margin.
+const frameCountsWait = 2 * time.Second
+
+// TestTimer_Api_Frames checks the frame counts of WebRTC and RTMP streams,
+// which SRS reports each second, on the shared timer server SegmentsKeep.
+func TestTimer_Api_Frames(t *testing.T) {
+	t.Parallel()
+	srs := server.Shared(t, "SegmentsKeep", sharedSegmentsKeep())
+
+	// WhipFrameCounts publishes 13s of WHIP at once: within a second the
+	// stream counts every one of the 325 video and 650 audio frames, and no
+	// more.
+	check.Case(t, "WhipFrameCounts", check.Timer, func(c *check.C) {
+		h, _ := whipStream(c, srs, streamName(c), 13*time.Second)
+		var st map[string]any
+		c.Check(untilEvery(frameCountsWait, 50*time.Millisecond, func() bool {
+			st = apiStreamOf(c, srs, h.stream)
+			return num(c, st, "video_frames") >= 325 && num(c, st, "audio_frames") >= 650
+		}), "stream frames video %v audio %v, want the 325 and 650 sent", st["video_frames"], st["audio_frames"])
+		v, a := num(c, st, "video_frames"), num(c, st, "audio_frames")
+		c.Check(v <= 325 && a <= 650, "frames video %v audio %v, want at most the 325 and 650 sent", v, a)
+		c.CheckEqual(num(c, st, "frames"), v+a, "frames")
+	})
+
+	// WhipFrameCountsLag publishes 4s of WHIP at once: within a second the
+	// stream counts its 100 video frames, far fewer than a batch of 289.
+	check.Case(t, "WhipFrameCountsLag", check.Timer, func(c *check.C) {
+		h, _ := whipStream(c, srs, streamName(c), 4*time.Second)
+		var st map[string]any
+		c.Check(untilEvery(frameCountsWait, 50*time.Millisecond, func() bool {
+			st = apiStreamOf(c, srs, h.stream)
+			return num(c, st, "video_frames") >= 100
+		}), "stream video_frames %v after 100 frames, want 100", st["video_frames"])
+	})
+
+	// RtmpFrameCountsLag publishes 2s of RTMP at once, then in real time:
+	// within a second the stream counts the 50 video frames of the lead,
+	// long before the first-packet timeout of 20s.
+	check.Case(t, "RtmpFrameCountsLag", check.Timer, func(c *check.C) {
+		stream := streamName(c)
+		startPublisher(c, rtmpURL(srs, "live/"+stream), media.Path(c, media.H264HighAAC), 2*time.Second)
+		streamID := waitHook(c, srs, "on_publish", stream).Field("stream_id")
+		var st map[string]any
+		c.Check(untilEvery(frameCountsWait, 50*time.Millisecond, func() bool {
+			st = apiStreamOf(c, srs, streamID)
+			return num(c, st, "video_frames") >= 50
+		}), "stream video_frames %v after 50 frames, want 50 or more", st["video_frames"])
+	})
+}
+
 // drainRTMP reads an RTMP player until it closes.
 func drainRTMP(cl *rtmp.Client) {
 	cl.SetDeadline(time.Time{})

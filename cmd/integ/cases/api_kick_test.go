@@ -273,6 +273,21 @@ func kickOK(srs *server.Server, id string) error {
 	return nil
 }
 
+// checkRemuxPlayerDeleted deletes a playing HTTP-FLV, HTTP-TS, MP3 or AAC
+// player of a stream by the API, and checks its response ends at once, like
+// the connection of every other protocol's client, then its on_stop comes
+// and it leaves the API.
+func checkRemuxPlayerDeleted(c *check.C, srs *server.Server, p *remuxPlayer, stream string) {
+	c.Helper()
+	id := waitHook(c, srs, "on_play", stream).Field("client_id")
+	checkKicked(c, apiKick(c, srs, id))
+	if !c.CheckNoError(p.untilEnds(kickWithin), "the player's response ends") {
+		return
+	}
+	waitClientHook(c, srs, "on_stop", id)
+	c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+id), "the player leaves the API")
+}
+
 // apiKicks adds the cases of DELETE /api/v1/clients/{id} on the Common server
 // of the clients of every protocol but RTMP, which has TestApi_Kick: SRS
 // answers code 0, ends the client's session, sends its on_unpublish or
@@ -281,20 +296,13 @@ func apiKicks(t *testing.T) {
 	// DeleteHttpFlvPlayer: the HTTP-FLV response ends at once, like the
 	// connection of every other protocol's client.
 	check.Case(t, "DeleteHttpFlvPlayer", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a DELETE of an HTTP-FLV player ends it, with its on_stop and its leaving the API, only up to 3s later")
 		srs := server.Common(c)
 		stream := streamName(c)
 		startPublisher(c, rtmpURL(srs, "live/"+stream), media.Path(c, media.H264HighAAC), 200*time.Millisecond)
 		untilCodecs(c, srs, waitHook(c, srs, "on_publish", stream).Field("stream_id"))
 		p := remuxPlayerOf(c, srs, "live/"+stream+".flv", nil)
 		c.Must(p.readUntil(playedUntil, time.Second), "play")
-		id := waitHook(c, srs, "on_play", stream).Field("client_id")
-		checkKicked(c, apiKick(c, srs, id))
-		if !c.CheckNoError(p.untilEnds(kickWithin), "the player's response ends") {
-			return
-		}
-		waitClientHook(c, srs, "on_stop", id)
-		c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+id), "the player leaves the API")
+		checkRemuxPlayerDeleted(c, srs, p, stream)
 	})
 
 	// DeleteHlsSession: the session leaves the API, and its playlist is 404

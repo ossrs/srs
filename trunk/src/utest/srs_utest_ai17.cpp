@@ -4185,7 +4185,8 @@ static void rtc_format_dump_audio(const char *codec, int sample, int channel, in
     SrsRtcFormat format;
     format.stat_ = stat.get();
     HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
-    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, true));
+    SrsRtpPacket pkt;
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, &pkt, true));
 
     SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
     ASSERT_TRUE(stream != NULL);
@@ -4221,6 +4222,206 @@ VOID TEST(StatisticTest, RtcG711AudioInfoFromSdp)
     rtc_format_dump_audio("PCMA", 8000, 0, &rate, &channel);
     EXPECT_EQ(8000, rate);
     EXPECT_EQ(1, channel);
+}
+
+// An H.264 SPS of 768x320, High profile, and its PPS.
+static uint8_t rtc_format_avc_sps_768x320[] = {
+    0x67, 0x64, 0x00, 0x20, 0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01,
+    0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18, 0x31, 0x96};
+static uint8_t rtc_format_avc_pps_768x320[] = {0x68, 0xeb, 0xec, 0xb2, 0x2c};
+// An H.264 SPS of 640x360, Constrained Baseline, from libx264.
+static uint8_t rtc_format_avc_sps_640x360[] = {
+    0x67, 0x42, 0xc0, 0x1e, 0xd9, 0x00, 0xa0, 0x2f, 0xf9, 0x70, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01,
+    0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x16, 0x2e, 0x48};
+// An HEVC SPS of 768x320, Main profile, from libx265.
+static uint8_t rtc_format_hevc_sps_768x320[] = {
+    0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03,
+    0x00, 0x3f, 0xa0, 0x06, 0x02, 0x01, 0x41, 0x65, 0x95, 0x9a, 0x49, 0x32, 0xbc, 0x05, 0xa0, 0x20,
+    0x00, 0x00, 0x03, 0x00, 0x20, 0x00, 0x00, 0x03, 0x03, 0x21};
+
+// A NALU that refers to the test's bytes, which the payload doesn't free.
+static SrsNaluSample *rtc_format_nalu(uint8_t *bytes, int size)
+{
+    SrsNaluSample *sample = new SrsNaluSample();
+    sample->bytes_ = (char *)bytes;
+    sample->size_ = size;
+    return sample;
+}
+
+// An RTP packet of a STAP-A (H.264) with the SPS and PPS, or an AP (HEVC)
+// with the SPS, as the publish stream decodes it.
+static SrsRtpPacket *rtc_format_stap(SrsVideoCodecId codec, SrsNaluSample *sps, SrsNaluSample *pps)
+{
+    SrsRtpPacket *pkt = new SrsRtpPacket();
+    if (codec == SrsVideoCodecIdAVC) {
+        SrsRtpSTAPPayload *stap = new SrsRtpSTAPPayload();
+        stap->nalus_.push_back(sps);
+        stap->nalus_.push_back(pps);
+        pkt->nalu_type_ = kStapA;
+        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAP);
+    } else {
+        SrsRtpSTAPPayloadHevc *stap = new SrsRtpSTAPPayloadHevc();
+        stap->nalus_.push_back(sps);
+        pkt->nalu_type_ = kStapHevc;
+        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAPHevc);
+    }
+    return pkt;
+}
+
+// A WebRTC video track of the codec, with the profile and level in its SDP.
+static SrsRtcTrackDescription *rtc_format_video_desc(SrsVideoCodecId codec)
+{
+    SrsRtcTrackDescription *desc = new SrsRtcTrackDescription();
+    desc->type_ = "video";
+    desc->ssrc_ = 5678;
+    if (codec == SrsVideoCodecIdAVC) {
+        SrsVideoPayload *media = new SrsVideoPayload(102, "H264", 90000);
+        media->h264_param_.profile_level_id_ = "42e01f";
+        desc->media_ = media;
+    } else {
+        SrsVideoPayload *media = new SrsVideoPayload(49, "H265", 90000);
+        media->h265_param_.profile_id_ = "1";
+        media->h265_param_.level_id_ = "93";
+        desc->media_ = media;
+    }
+    return desc;
+}
+
+// A WHIP stream's H.264 is listed with the size of the SPS in a STAP-A, as
+// an RTMP stream is, and the profile and level of its SDP.
+VOID TEST(StatisticTest, RtcAvcVideoSizeFromStapSps)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "rtc_avc_stap"));
+    SrsUniquePtr<SrsRtcTrackDescription> desc(rtc_format_video_desc(SrsVideoCodecIdAVC));
+    MockRtcPacketReceiver receiver;
+    SrsRtcVideoRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+
+    SrsUniquePtr<SrsRtpPacket> pkt(rtc_format_stap(SrsVideoCodecIdAVC,
+                                                   rtc_format_nalu(rtc_format_avc_sps_768x320, sizeof(rtc_format_avc_sps_768x320)),
+                                                   rtc_format_nalu(rtc_format_avc_pps_768x320, sizeof(rtc_format_avc_pps_768x320))));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, pkt.get(), false));
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, stream->vcodec_);
+    EXPECT_EQ(SrsAvcProfileBaseline, stream->avc_profile_);
+    EXPECT_EQ(SrsAvcLevel_31, stream->avc_level_);
+    EXPECT_EQ(768, stream->width_);
+    EXPECT_EQ(320, stream->height_);
+}
+
+// An H.264 SPS sent in a packet of its own, as OBS does, gives the size too,
+// after a first packet without one listed the codec with no size.
+VOID TEST(StatisticTest, RtcAvcVideoSizeFromSingleSps)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "rtc_avc_single"));
+    SrsUniquePtr<SrsRtcTrackDescription> desc(rtc_format_video_desc(SrsVideoCodecIdAVC));
+    MockRtcPacketReceiver receiver;
+    SrsRtcVideoRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+
+    SrsRtpPacket slice;
+    slice.nalu_type_ = kFuA;
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, &slice, false));
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, stream->vcodec_);
+    EXPECT_EQ(0, stream->width_);
+    EXPECT_EQ(0, stream->height_);
+
+    SrsRtpPacket pkt;
+    SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+    raw->sample_->bytes_ = (char *)rtc_format_avc_sps_768x320;
+    raw->sample_->size_ = sizeof(rtc_format_avc_sps_768x320);
+    pkt.nalu_type_ = SrsAvcNaluTypeSPS;
+    pkt.set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, &pkt, false));
+
+    EXPECT_EQ(SrsAvcProfileBaseline, stream->avc_profile_);
+    EXPECT_EQ(768, stream->width_);
+    EXPECT_EQ(320, stream->height_);
+}
+
+// A WHIP stream's HEVC is listed with the size of the SPS in an AP.
+VOID TEST(StatisticTest, RtcHevcVideoSizeFromStapSps)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "rtc_hevc_stap"));
+    SrsUniquePtr<SrsRtcTrackDescription> desc(rtc_format_video_desc(SrsVideoCodecIdHEVC));
+    MockRtcPacketReceiver receiver;
+    SrsRtcVideoRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+
+    SrsUniquePtr<SrsRtpPacket> pkt(rtc_format_stap(SrsVideoCodecIdHEVC,
+                                                   rtc_format_nalu(rtc_format_hevc_sps_768x320, sizeof(rtc_format_hevc_sps_768x320)), NULL));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, pkt.get(), false));
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(SrsVideoCodecIdHEVC, stream->vcodec_);
+    EXPECT_EQ(SrsHevcProfileMain, stream->hevc_profile_);
+    EXPECT_EQ(768, stream->width_);
+    EXPECT_EQ(320, stream->height_);
+}
+
+// The size follows a new SPS, while the same SPS again is not parsed and
+// leaves the stream as it is.
+VOID TEST(StatisticTest, RtcVideoSizeFollowsChangedSps)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "rtc_avc_change"));
+    SrsUniquePtr<SrsRtcTrackDescription> desc(rtc_format_video_desc(SrsVideoCodecIdAVC));
+    MockRtcPacketReceiver receiver;
+    SrsRtcVideoRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+
+    SrsUniquePtr<SrsRtpPacket> first(rtc_format_stap(SrsVideoCodecIdAVC,
+                                                     rtc_format_nalu(rtc_format_avc_sps_768x320, sizeof(rtc_format_avc_sps_768x320)),
+                                                     rtc_format_nalu(rtc_format_avc_pps_768x320, sizeof(rtc_format_avc_pps_768x320))));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, first.get(), false));
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(768, stream->width_);
+
+    // The same SPS at the next keyframe is not reported again.
+    stream->width_ = 1;
+    SrsUniquePtr<SrsRtpPacket> same(rtc_format_stap(SrsVideoCodecIdAVC,
+                                                    rtc_format_nalu(rtc_format_avc_sps_768x320, sizeof(rtc_format_avc_sps_768x320)),
+                                                    rtc_format_nalu(rtc_format_avc_pps_768x320, sizeof(rtc_format_avc_pps_768x320))));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, same.get(), false));
+    EXPECT_EQ(1, stream->width_);
+
+    // A new SPS is.
+    SrsUniquePtr<SrsRtpPacket> next(rtc_format_stap(SrsVideoCodecIdAVC,
+                                                    rtc_format_nalu(rtc_format_avc_sps_640x360, sizeof(rtc_format_avc_sps_640x360)),
+                                                    rtc_format_nalu(rtc_format_avc_pps_768x320, sizeof(rtc_format_avc_pps_768x320))));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, next.get(), false));
+    EXPECT_EQ(640, stream->width_);
+    EXPECT_EQ(360, stream->height_);
+    EXPECT_EQ(SrsAvcProfileBaseline, stream->avc_profile_);
 }
 
 // Verify that stream statistics expose their age in seconds, matching the

@@ -408,6 +408,7 @@ public:
     int send_rtcp_rr_count_;
     int send_rtcp_xr_rrtr_count_;
     int send_periodic_twcc_count_;
+    int report_frame_stats_count_;
 
 public:
     MockRtcRtcpSender();
@@ -417,6 +418,7 @@ public:
     virtual bool is_sender_started();
     virtual srs_error_t send_rtcp_rr();
     virtual srs_error_t send_rtcp_xr_rrtr();
+    virtual void report_frame_stats();
     virtual bool is_sender_twcc_enabled();
     virtual srs_error_t send_periodic_twcc();
 

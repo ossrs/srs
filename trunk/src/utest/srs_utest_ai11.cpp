@@ -3598,6 +3598,7 @@ MockRtcRtcpSender::MockRtcRtcpSender()
     send_rtcp_rr_count_ = 0;
     send_rtcp_xr_rrtr_count_ = 0;
     send_periodic_twcc_count_ = 0;
+    report_frame_stats_count_ = 0;
 }
 
 MockRtcRtcpSender::~MockRtcRtcpSender()
@@ -3622,6 +3623,11 @@ srs_error_t MockRtcRtcpSender::send_rtcp_xr_rrtr()
 {
     send_rtcp_xr_rrtr_count_++;
     return srs_error_copy(send_rtcp_xr_rrtr_error_);
+}
+
+void MockRtcRtcpSender::report_frame_stats()
+{
+    report_frame_stats_count_++;
 }
 
 bool MockRtcRtcpSender::is_sender_twcc_enabled()
@@ -3676,6 +3682,7 @@ void MockRtcRtcpSender::reset()
     send_rtcp_rr_count_ = 0;
     send_rtcp_xr_rrtr_count_ = 0;
     send_periodic_twcc_count_ = 0;
+    report_frame_stats_count_ = 0;
 }
 
 VOID TEST(SrsRtcPublishRtcpTimerTest, OnTimer)
@@ -3753,6 +3760,29 @@ VOID TEST(SrsRtcPublishRtcpTimerTest, OnTimer)
     }
 
     srs_freep(mock_sender);
+}
+
+// The 1s RTCP timer of a WebRTC publisher reports its frame counts, so the
+// stream stats lag the frames by a second at most; nothing before it starts.
+VOID TEST(SrsRtcPublishRtcpTimerTest, OnTimerReportsFrameStats)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockRtcRtcpSender> mock_sender(new MockRtcRtcpSender());
+    SrsUniquePtr<SrsRtcPublishRtcpTimer> timer(new SrsRtcPublishRtcpTimer(mock_sender.get()));
+
+    mock_sender->set_sender_started(false);
+    HELPER_EXPECT_SUCCESS(timer->on_timer(SRS_UTIME_SECONDS));
+    EXPECT_EQ(0, mock_sender->report_frame_stats_count_);
+
+    mock_sender->set_sender_started(true);
+    HELPER_EXPECT_SUCCESS(timer->on_timer(SRS_UTIME_SECONDS));
+    EXPECT_EQ(1, mock_sender->report_frame_stats_count_);
+
+    // A failed RR doesn't stop the report.
+    mock_sender->set_send_rtcp_rr_error(srs_error_new(ERROR_RTC_RTP_MUXER, "mock rr error"));
+    HELPER_EXPECT_SUCCESS(timer->on_timer(SRS_UTIME_SECONDS));
+    EXPECT_EQ(2, mock_sender->report_frame_stats_count_);
 }
 
 VOID TEST(SrsRtcPublishTwccTimerTest, OnTimer)

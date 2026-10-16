@@ -269,8 +269,8 @@ func TestEdge_TokenOriginDown(t *testing.T) {
 
 // TestTimer_Edge_Failover checks an edge with two origins, the first down,
 // which takes them in turn for each stream: when one fails, it takes the
-// next. Its play case is a timer case: the edge waits 3s before it pulls
-// again.
+// next, the pull at its next try, the push at once. Its play case is a timer
+// case: the edge waits 3s before it pulls again.
 func TestTimer_Edge_Failover(t *testing.T) {
 	t.Parallel()
 	origin := edgeOrigin(t)
@@ -288,22 +288,25 @@ func TestTimer_Edge_Failover(t *testing.T) {
 	})
 
 	// PublishFailover publishes to the edge: its push to the first origin
-	// fails, and the stream goes to the second.
+	// fails, and the edge accepts the publish and pushes the stream to the
+	// second, whose player gets it.
 	check.Case(t, "PublishFailover", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a publish to an edge whose next origin is down is refused, not pushed to the origin after it")
 		stream := streamName(c)
-		r := tryRTMP(c, rtmpURL(edge, "live/"+stream), nil, true, hookWait())
-		c.Check(r.accepted, "the publish %v, want accepted", r)
+		publishRTMP(c, edge, stream, media.H264HighAAC)
+		r := playUntil(c, rtmpURL(origin, "live/"+stream), playedUntil)
+		checkPlayed(c, r, "h264", "aac")
 	})
 
-	// RepublishTakesNextOrigin publishes to the edge until it is accepted,
-	// at most twice: the stream goes to the second origin.
-	check.Case(t, "RepublishTakesNextOrigin", check.Normal, func(c *check.C) {
+	// RepublishFailover publishes to the edge, stops and publishes the stream
+	// again: the edge takes the origins in turn, so each publish starts at the
+	// first origin, down, and goes to the second.
+	check.Case(t, "RepublishFailover", check.Normal, func(c *check.C) {
 		stream := streamName(c)
-		if r := tryRTMP(c, rtmpURL(edge, "live/"+stream), nil, true, hookWait()); !r.accepted {
-			checkRefused(c, r, "closed")
-			publishRTMP(c, edge, stream, media.H264HighAAC)
-		}
+		pub, _, _ := publishRTMP(c, edge, stream, media.H264HighAAC)
 		waitHook(c, origin, "on_publish", stream)
+		pub.Close()
+		waitHook(c, origin, "on_unpublish", stream)
+		startPublisher(c, rtmpURL(edge, "live/"+stream), media.Path(c, media.H264HighAAC), publishLead)
+		waitHookCount(c, origin, mock.Match{Action: "on_publish", Stream: stream}, 2)
 	})
 }

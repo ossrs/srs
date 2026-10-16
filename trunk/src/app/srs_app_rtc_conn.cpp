@@ -1120,6 +1120,9 @@ srs_error_t SrsRtcPublishRtcpTimer::on_timer(srs_utime_t interval)
         return err;
     }
 
+    // The frames counted in the last second, for the stream stats.
+    sender_->report_frame_stats();
+
     // For RR and RRTR.
     ++_srs_pps_rr->sugar_;
 
@@ -1751,8 +1754,8 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
         return err;
     }
 
-    // Report codec information to statistics on first RTP packet.
-    if ((err = format_->on_rtp_packet(track, is_audio)) != srs_success) {
+    // Report codec information to statistics on first RTP packet, and the picture size of each new SPS.
+    if ((err = format_->on_rtp_packet(track, pkt, is_audio)) != srs_success) {
         srs_warn("RTC: format packet err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
@@ -1785,17 +1788,20 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
 
 void SrsRtcPublishStream::update_rtp_frame_stats(bool is_audio)
 {
-    srs_error_t err = srs_success;
-
-    // Count media-frame observations accepted by the receive track.
+    // Count media-frame observations accepted by the receive track; the RTCP
+    // timer reports them each second, so the packet path only counts.
     if (is_audio) {
         ++nn_audio_frames_;
     } else {
         ++nn_video_frames_;
     }
+}
 
-    // Update the stat for video frames periodically.
-    if (nn_video_frames_ > 288) {
+void SrsRtcPublishStream::report_frame_stats()
+{
+    srs_error_t err = srs_success;
+
+    if (nn_video_frames_ > 0) {
         if ((err = stat_->on_video_frames(req_, nn_video_frames_)) != srs_success) {
             srs_warn("RTC: stat video frames err %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -1803,8 +1809,7 @@ void SrsRtcPublishStream::update_rtp_frame_stats(bool is_audio)
         nn_video_frames_ = 0;
     }
 
-    // Update the stat for audio frames periodically.
-    if (nn_audio_frames_ > 288) {
+    if (nn_audio_frames_ > 0) {
         if ((err = stat_->on_audio_frames(req_, nn_audio_frames_)) != srs_success) {
             srs_warn("RTC: stat audio frames err %s", srs_error_desc(err).c_str());
             srs_freep(err);

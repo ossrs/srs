@@ -206,8 +206,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsRtmpConn *conn_;
     // The params for conn callback.
     SrsSharedPtr<SrsLiveSource> source_;
-    // The error timeout cond
-    srs_cond_t error_;
+    // Wakes the publishing loop from its timeout wait: at a receive error, at the thread's stop, and
+    // at a message, at most once a second, so the loop reports the frames.
+    srs_cond_t wake_;
+    // When a message last woke the publishing loop.
+    srs_utime_t frames_wake_time_;
     // The merged context id.
     SrsContextId cid_;
     SrsContextId ncid_;

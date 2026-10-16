@@ -106,13 +106,12 @@ func securityCase(c *check.C, srs *server.Server, target hookTarget, allowed boo
 
 // securityRefusals are how SRS refuses a client the security denies, by the
 // client's name: RTMP and SRT by a close, after the SRT handshake, WHIP and
-// WHEP with 401 and RTSP with 403; a GB28181 stream is never published. A
-// refusal not listed is any refusal: the answer of an HTTP-FLV or HLS player
-// has a known-bug case of its own.
+// WHEP with 401, and RTSP, HTTP-FLV and HLS with 403; a GB28181 stream is
+// never published.
 var securityRefusals = map[string]string{
 	"RtmpPublish": "closed", "RtmpsPublish": "closed", "SrtPublish": "closed", "WhipPublish": "status 401",
 	"GbPublish": "not published", "RtmpPlay": "closed", "RtmpsPlay": "closed", "SrtPlay": "closed",
-	"WhepPlay": "status 401", "RtspPlay": "status 403",
+	"WhepPlay": "status 401", "HttpFlvPlay": "status 403", "HlsPlay": "status 403", "RtspPlay": "status 403",
 }
 
 // TestSecurity_DenyPublish denies publishing from 127.0.0.1 and allows it
@@ -171,16 +170,13 @@ func TestSecurity_DenyPlay(t *testing.T) {
 
 	// The DeniedAnswer cases check that an HTTP player the security denies
 	// is answered with a client error, as RTSP answers 403 and WHIP and WHEP
-	// 401: a refused client is not a server fault.
+	// 401: a refused client is not a server fault, and an empty reply tells
+	// the player nothing.
 	for _, target := range securityPlayers() {
-		reason, ok := securityAnswers[target.name]
-		if !ok {
+		if !securityAnswers[target.name] {
 			continue
 		}
 		check.Case(t, target.name+"DeniedAnswer", check.Normal, func(c *check.C) {
-			if reason != "" {
-				check.KnownBug(c, reason)
-			}
 			name := streamName(c)
 			target.prepare(c, srs, name)
 			r := target.try(c, srs, name, hookWait())
@@ -190,11 +186,11 @@ func TestSecurity_DenyPlay(t *testing.T) {
 }
 
 // securityAnswers are the HTTP players whose answer to a security deny has a
-// case of its own, by name, with the known bug when it isn't a client error.
-var securityAnswers = map[string]string{
-	"WhepPlay":    "",
-	"HttpFlvPlay": "an HTTP-FLV player the security denies gets no HTTP answer, the connection closed",
-	"HlsPlay":     "an HLS player the security denies gets no HTTP answer, the connection closed",
+// case of its own, by name.
+var securityAnswers = map[string]bool{
+	"WhepPlay":    true,
+	"HttpFlvPlay": true,
+	"HlsPlay":     true,
 }
 
 // TestSecurity_AllowOthers allows publishing only from 10.0.0.0/8 and

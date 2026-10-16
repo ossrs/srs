@@ -94,6 +94,26 @@ public:
     virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
 };
 
+// Mock app factory for SrsEdgeForwarder::start(): a recording RTMP client for each origin, whose
+// connect fails for an origin in down_ and whose publish fails for the origin refuse_, and a mock
+// coroutine, so no coroutine runs.
+class MockEdgeForwarderFactory : public SrsAppFactory
+{
+public:
+    std::vector<std::string> down_;
+    std::string refuse_;
+    // The url of each client handed out, in order; the forwarder owns the clients.
+    std::vector<std::string> urls_;
+
+public:
+    MockEdgeForwarderFactory();
+    virtual ~MockEdgeForwarderFactory();
+
+public:
+    virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
+};
+
 // Mock HTTP client for testing edge FLV upstream
 class MockEdgeHttpClient : public ISrsHttpClient
 {
