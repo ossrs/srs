@@ -10,6 +10,7 @@
 using namespace std;
 
 #include <srs_kernel_flv.hpp>
+#include <srs_kernel_codec.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_kernel_buffer.hpp>
 #include <srs_kernel_stream.hpp>
@@ -794,13 +795,11 @@ srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage* msg, SrsBuffer* avs)
 
         // May have more than one aac frame in PES packet, and shared same timestamp,
         // so we must calculate each aac frame's timestamp.
+        // Use the sample rate of ADTS, not the FLV sound rate, which can't represent 48kHz and others,
+        // see https://github.com/ossrs/srs/issues/4762
         int sample_rate = 44100;
-        switch (codec.sound_rate) {
-            case SrsAudioSampleRate5512: sample_rate = 5512; break;
-            case SrsAudioSampleRate11025: sample_rate = 11025; break;
-            case SrsAudioSampleRate22050: sample_rate = 22050; break;
-            case SrsAudioSampleRate44100: 
-            default: sample_rate = 44100; break;
+        if (codec.sampling_frequency_index >= 0 && codec.sampling_frequency_index < SrsAAcSampleRateNumbers && srs_aac_srates[codec.sampling_frequency_index] > 0) {
+            sample_rate = srs_aac_srates[codec.sampling_frequency_index];
         }
         uint32_t frame_pts = (double)pts + (frame_idx * (1024.0 * 1000.0 / sample_rate));
         duration_ms += 1024.0 * 1000.0 / sample_rate;

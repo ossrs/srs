@@ -12,6 +12,11 @@
 #include <srs_app_srt_utility.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_app_srt_source.hpp>
+#include <srs_app_stream_bridge.hpp>
+#include <srs_kernel_codec.hpp>
+#include <srs_kernel_ts.hpp>
+#include <srs_kernel_flv.hpp>
 
 #include <sstream>
 #include <vector>
@@ -552,3 +557,146 @@ VOID TEST(ServiceSRTTest, Encrypt)
 // TODO: FIXME: add mpegts conn test
 // set srt option, recv srt client, get srt client opt and check.
 
+
+// A bridge that records the timestamp of each frame from the SRT frame builder.
+class MockSrtFrameBridge : public ISrsStreamBridge
+{
+public:
+    std::vector<int64_t> timestamps;
+public:
+    MockSrtFrameBridge() {
+    }
+    virtual ~MockSrtFrameBridge() {
+    }
+public:
+    virtual srs_error_t initialize(SrsRequest* r) {
+        return srs_success;
+    }
+    virtual srs_error_t on_publish() {
+        return srs_success;
+    }
+    virtual srs_error_t on_frame(SrsSharedPtrMessage* frame) {
+        timestamps.push_back(frame->timestamp);
+        return srs_success;
+    }
+    virtual void on_unpublish() {
+    }
+};
+
+// Build an AAC-LC stereo ADTS frame of 10 bytes, with 3 bytes payload, at the sampling frequency index.
+static void mock_adts_frame(uint8_t* frame, int sampling_frequency_index)
+{
+    uint8_t adts[] = {
+        0xff, 0xf9, // syncword(0xfff) + ID(1) + layer(0) + protection_absent(1)
+        0x40,       // profile(01=AAC-LC) + sampling_frequency_index(0000) + private_bit(0) + channel_config high bit(0)
+        0x80,       // channel_config low(10=stereo) + original_copy(0) + home(0) + copyright bits(00) + frame_length bits[12-11](00)
+        0x01,       // frame_length bits[10-3] (00000001)
+        0x5f,       // frame_length bits[2-0](010) + adts_buffer_fullness high 5 bits(11111)
+        0xfc,       // adts_buffer_fullness low 6 bits(111111) + number_of_raw_data_blocks(00)
+        0xaa, 0xbb, 0xcc};
+    adts[2] |= (uint8_t)((sampling_frequency_index & 0x0f) << 2);
+    memcpy(frame, adts, sizeof(adts));
+}
+
+// Feed one PES of nb_frames ADTS frames at pts_ms, and return the timestamps of the AAC raw frames, without the sequence header.
+static srs_error_t mock_srt_aac_pes(SrsSrtFrameBuilder* builder, MockSrtFrameBridge* bridge, int sampling_frequency_index, int nb_frames, int64_t pts_ms, std::vector<int64_t>& timestamps)
+{
+    srs_error_t err = srs_success;
+
+    SrsTsChannel channel;
+    channel.apply = SrsTsPidApplyAudio;
+    channel.stream = SrsTsStreamAudioAAC;
+
+    SrsTsMessage msg(&channel, NULL);
+    msg.sid = SrsTsPESStreamIdAudioCommon;
+    msg.dts = msg.pts = pts_ms * 90;
+    for (int i = 0; i < nb_frames; i++) {
+        uint8_t frame[10];
+        mock_adts_frame(frame, sampling_frequency_index);
+        msg.payload->append((char*)frame, sizeof(frame));
+    }
+
+    bridge->timestamps.clear();
+    if ((err = builder->on_ts_message(&msg)) != srs_success) {
+        return srs_error_wrap(err, "on ts message");
+    }
+
+    // The sequence header is sent before the first frame when the audio config changes.
+    timestamps = bridge->timestamps;
+    if ((int)timestamps.size() > nb_frames) {
+        timestamps.erase(timestamps.begin());
+    }
+
+    return err;
+}
+
+// A PES of 48 kHz AAC frames is stamped 1024 samples (21.33 ms) apart, not 23.22 ms as 44.1 kHz, and the
+// next PES continues the timeline without stepping back, see https://github.com/ossrs/srs/issues/4762
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAac48kHzFrameTimestamps)
+{
+    srs_error_t err;
+
+    MockSrtFrameBridge bridge;
+    SrsSrtFrameBuilder builder(&bridge);
+    SrsRequest req;
+    HELPER_EXPECT_SUCCESS(builder.initialize(&req));
+
+    // 8 frames in a PES, as FFmpeg packs 128 kbit/s AAC into MPEG-TS.
+    std::vector<int64_t> timestamps;
+    HELPER_EXPECT_SUCCESS(mock_srt_aac_pes(&builder, &bridge, 3, 8, 1000, timestamps));
+    int64_t expected[] = {1000, 1021, 1042, 1064, 1085, 1106, 1128, 1149};
+    ASSERT_EQ(8, (int)timestamps.size());
+    for (int i = 0; i < 8; i++) {
+        EXPECT_EQ(expected[i], timestamps[i]) << "frame " << i;
+    }
+    int64_t last = timestamps[7];
+
+    // The next PES starts 8 * 1024 samples later, at 1170.67 ms, one frame (21 ms) after the last frame of the
+    // previous PES, not 8 ms as when the frames were stamped 23.22 ms apart.
+    HELPER_EXPECT_SUCCESS(mock_srt_aac_pes(&builder, &bridge, 3, 8, 1170, timestamps));
+    ASSERT_EQ(8, (int)timestamps.size());
+    EXPECT_EQ(1170, timestamps[0]);
+    EXPECT_EQ(21, timestamps[0] - last);
+}
+
+// Each AAC frame in a PES is stamped by the sample rate of its ADTS header, for every AAC sample rate, including
+// those that FLV can not represent, such as 48, 32, 24, 16 and 8 kHz, see https://github.com/ossrs/srs/issues/4762
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAacFrameTimestampsBySampleRate)
+{
+    srs_error_t err;
+
+    for (int index = 0; index <= 12; index++) {
+        int sample_rate = srs_aac_srates[index];
+
+        MockSrtFrameBridge bridge;
+        SrsSrtFrameBuilder builder(&bridge);
+        SrsRequest req;
+        HELPER_EXPECT_SUCCESS(builder.initialize(&req));
+
+        std::vector<int64_t> timestamps;
+        HELPER_EXPECT_SUCCESS(mock_srt_aac_pes(&builder, &bridge, index, 3, 1000, timestamps));
+        ASSERT_EQ(3, (int)timestamps.size()) << "sample rate " << sample_rate;
+        for (int i = 0; i < 3; i++) {
+            EXPECT_EQ(1000 + (int64_t)i * 1024 * 1000 / sample_rate, timestamps[i]) << "sample rate " << sample_rate << ", frame " << i;
+        }
+    }
+}
+
+// A reserved sampling frequency index (13) has no sample rate, so the frames are stamped as 44.1 kHz. This is the
+// behavior before the fix too, so this test passes from the start: it locks it in and guards against a zero sample rate.
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAacReservedSampleRateAs44100)
+{
+    srs_error_t err;
+
+    MockSrtFrameBridge bridge;
+    SrsSrtFrameBuilder builder(&bridge);
+    SrsRequest req;
+    HELPER_EXPECT_SUCCESS(builder.initialize(&req));
+
+    std::vector<int64_t> timestamps;
+    HELPER_EXPECT_SUCCESS(mock_srt_aac_pes(&builder, &bridge, 13, 3, 1000, timestamps));
+    ASSERT_EQ(3, (int)timestamps.size());
+    EXPECT_EQ(1000, timestamps[0]);
+    EXPECT_EQ(1023, timestamps[1]);
+    EXPECT_EQ(1046, timestamps[2]);
+}
