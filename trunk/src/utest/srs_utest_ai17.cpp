@@ -2889,6 +2889,7 @@ MockRtcApiServerForPlay::MockRtcApiServerForPlay()
 {
     create_session_called_ = false;
     mock_connection_ = new MockRtcConnectionForPlay();
+    session_ = NULL;
 }
 
 MockRtcApiServerForPlay::~MockRtcApiServerForPlay()
@@ -2909,12 +2910,16 @@ srs_error_t MockRtcApiServerForPlay::create_rtc_session(SrsRtcUserConfig *ruc, S
     session->username_ = mock_connection_->username_;
     session->token_ = mock_connection_->token_;
 
+    session_ = session;
     *psession = session;
     return srs_success;
 }
 
 ISrsRtcConnection *MockRtcApiServerForPlay::find_rtc_session_by_username(const std::string &ufrag)
 {
+    if (session_ && session_->username() == ufrag) {
+        return session_;
+    }
     return NULL;
 }
 

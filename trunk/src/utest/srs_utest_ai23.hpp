@@ -399,6 +399,81 @@ public:
     virtual srs_error_t connect();
 };
 
+// Mock RTMP client of SrsGbMuxer, whose first send feeds the muxer a message,
+// as the coroutine of a second media connection runs while a real send yields.
+class MockGbSendingRtmpClient : public MockRtmpClient
+{
+public:
+    SrsGbMuxer *muxer_;
+    // The 1-based send that fails, 0 for none.
+    int fail_at_;
+    // The sends, kept by the test, because the muxer frees this client when a send fails.
+    int *sends_;
+    // The result of the message fed to the muxer in the first send, kept by the test.
+    srs_error_t *reentry_error_;
+
+public:
+    MockGbSendingRtmpClient(SrsGbMuxer *muxer, int *sends, srs_error_t *reentry_error);
+    virtual ~MockGbSendingRtmpClient();
+
+public:
+    virtual srs_error_t send_and_free_message(SrsMediaPacket *msg);
+};
+
+// Mock ISrsGbMuxer whose on_ts_message yields, as a real connect or send of the
+// RTMP output does.
+class MockGbYieldingMuxer : public MockGbMuxer
+{
+public:
+    srs_utime_t delay_;
+    // The number of on_ts_message calls.
+    int nn_messages_;
+    // Whether on_ts_message returned.
+    bool left_;
+
+public:
+    MockGbYieldingMuxer(srs_utime_t delay);
+    virtual ~MockGbYieldingMuxer();
+
+public:
+    virtual srs_error_t on_ts_message(SrsTsMessage *msg);
+};
+
+// The coroutine of a media connection, which feeds a pack to its session.
+class MockGbMediaCoroutine : public ISrsCoroutineHandler
+{
+public:
+    SrsGbSession *session_;
+    MockPackContext ctx_;
+    std::vector<SrsTsMessage *> msgs_;
+    // Whether the cycle returned, so the connection quit.
+    bool done_;
+
+public:
+    MockGbMediaCoroutine(SrsGbSession *session, SrsTsMessage *msg);
+    virtual ~MockGbMediaCoroutine();
+
+public:
+    virtual srs_error_t cycle();
+};
+
+// A media connection run by a MockGbMediaCoroutine: connected until its coroutine
+// quits, and its interrupt interrupts the coroutine.
+class MockGbMediaTcpConnInMuxer : public MockGbMediaTcpConn
+{
+public:
+    MockGbMediaCoroutine *media_;
+    SrsSTCoroutine *trd_;
+
+public:
+    MockGbMediaTcpConnInMuxer(MockGbMediaCoroutine *media, SrsSTCoroutine *trd);
+    virtual ~MockGbMediaTcpConnInMuxer();
+
+public:
+    virtual bool is_connected();
+    virtual void interrupt();
+};
+
 // Mock ISrsAppFactory for SrsGbMuxer, which hands out the RTMP clients a test
 // set, then plain mock clients.
 class MockAppFactoryForGbMuxer : public SrsAppFactory

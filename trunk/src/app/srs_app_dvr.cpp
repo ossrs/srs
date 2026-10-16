@@ -806,6 +806,7 @@ SrsDvrSegmentPlan::SrsDvrSegmentPlan()
     wait_keyframe_ = false;
     reopening_segment_ = false;
     last_timestamp_ = -1;
+    has_video_ = false;
 }
 
 SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
@@ -853,6 +854,7 @@ srs_error_t SrsDvrSegmentPlan::on_publish(ISrsRequest *r)
     }
 
     last_timestamp_ = -1;
+    has_video_ = false;
     dvr_enabled_ = true;
 
     return err;
@@ -893,6 +895,8 @@ srs_error_t SrsDvrSegmentPlan::on_video(SrsMediaPacket *shared_video, SrsFormat 
 {
     srs_error_t err = srs_success;
 
+    has_video_ = true;
+
     if ((err = update_duration(shared_video)) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
@@ -930,8 +934,10 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsMediaPacket *msg)
         return err;
     }
 
-    // when wait keyframe, ignore if no frame arrived.
-    if (wait_keyframe_) {
+    // when wait keyframe, ignore if no frame arrived. A publish with no video has no
+    // keyframe to wait for, so any message at the duration cuts it, as HLS and DASH
+    // cut pure audio by their duration.
+    if (wait_keyframe_ && has_video_) {
         if (!msg->is_video()) {
             return err;
         }

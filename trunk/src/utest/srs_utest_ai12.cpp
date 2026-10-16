@@ -1565,6 +1565,110 @@ VOID TEST(SrsRtcConnectionTest, OnDtlsHandshakeDoneTypicalScenario)
     // logic is straightforward, this provides good coverage of the typical use case.
 }
 
+MockRtcSourceForStartFails::MockRtcSourceForStartFails()
+{
+    on_publish_count_ = 0;
+}
+
+MockRtcSourceForStartFails::~MockRtcSourceForStartFails()
+{
+}
+
+srs_error_t MockRtcSourceForStartFails::on_publish()
+{
+    on_publish_count_++;
+    return srs_error_new(ERROR_SYSTEM_CREATE_DIR, "mock dvr dir");
+}
+
+MockAppFactoryForStartFails::MockAppFactoryForStartFails()
+{
+    create_coroutine_count_ = 0;
+}
+
+MockAppFactoryForStartFails::~MockAppFactoryForStartFails()
+{
+}
+
+ISrsCoroutine *MockAppFactoryForStartFails::create_coroutine(const std::string & /*name*/, ISrsCoroutineHandler * /*handler*/, SrsContextId /*cid*/)
+{
+    create_coroutine_count_++;
+    MockCoroutineForFastTimer *trd = new MockCoroutineForFastTimer();
+    trd->start_error_ = srs_error_new(ERROR_THREAD_STARTED, "mock start");
+    return trd;
+}
+
+// A publisher whose source can't publish, such as its bridge to RTMP failing at the DVR, must end
+// the session once DTLS is done: the client would otherwise keep a connected peer that never
+// publishes, holding the stream until the session times out.
+VOID TEST(SrsRtcConnectionTest, PublisherStartFailsEndsSession)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsUniquePtr<MockConnectionManagerForExpire> conn_manager(new MockConnectionManagerForExpire());
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-publisher-start-fails");
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    conn->conn_manager_ = conn_manager.get();
+
+    MockRtcSourceForStartFails *source = new MockRtcSourceForStartFails();
+    SrsRtcPublishStream *publisher = new SrsRtcPublishStream(&mock_exec, conn.get(), conn.get(), cid);
+    publisher->source_ = SrsSharedPtr<SrsRtcSource>(source);
+    conn->publishers_["/live/livestream"] = publisher;
+
+    // The start error is handled by ending the session, not returned to the UDP or TCP network.
+    HELPER_EXPECT_SUCCESS(conn->on_dtls_handshake_done());
+    EXPECT_EQ(1, source->on_publish_count_);
+    EXPECT_FALSE(publisher->is_sender_started_);
+    EXPECT_EQ(1, conn_manager->remove_count_);
+    EXPECT_TRUE(conn_manager->removed_resource_ == conn.get());
+}
+
+// A player that can't start ends its session the same way.
+VOID TEST(SrsRtcConnectionTest, PlayerStartFailsEndsSession)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    MockRtcPacketSender mock_sender;
+    MockAppFactoryForStartFails mock_factory;
+    SrsUniquePtr<MockConnectionManagerForExpire> conn_manager(new MockConnectionManagerForExpire());
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-player-start-fails");
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    conn->conn_manager_ = conn_manager.get();
+
+    SrsRtcPlayStream *player = new SrsRtcPlayStream(&mock_exec, conn.get(), &mock_sender, cid);
+    player->app_factory_ = &mock_factory;
+    conn->players_["/live/livestream"] = player;
+
+    HELPER_EXPECT_SUCCESS(conn->on_dtls_handshake_done());
+    EXPECT_EQ(1, mock_factory.create_coroutine_count_);
+    EXPECT_FALSE(player->is_started_);
+    EXPECT_EQ(1, conn_manager->remove_count_);
+    EXPECT_TRUE(conn_manager->removed_resource_ == conn.get());
+}
+
+// A session that starts ends nothing.
+VOID TEST(SrsRtcConnectionTest, StreamsStartKeepsSession)
+{
+    srs_error_t err;
+
+    MockRtcAsyncTaskExecutor mock_exec;
+    SrsUniquePtr<MockConnectionManagerForExpire> conn_manager(new MockConnectionManagerForExpire());
+    SrsContextId cid;
+    cid.set_value("test-rtc-connection-streams-start");
+    SrsUniquePtr<SrsRtcConnection> conn(new SrsRtcConnection(&mock_exec, cid));
+    conn->conn_manager_ = conn_manager.get();
+
+    SrsRtcPublishStream *publisher = new SrsRtcPublishStream(&mock_exec, conn.get(), conn.get(), cid);
+    publisher->is_sender_started_ = true;
+    conn->publishers_["/live/livestream"] = publisher;
+
+    HELPER_EXPECT_SUCCESS(conn->on_dtls_handshake_done());
+    EXPECT_EQ(0, conn_manager->remove_count_);
+}
+
 VOID TEST(SrsRtcConnectionTest, OnBeforeDisposeTypicalScenario)
 {
 

@@ -435,6 +435,7 @@ func TestWithRTC(t *testing.T) {
 		{"NoTWCC", RTC{NoTWCC: true}, map[string]string{"SRS_VHOST_RTC_TWCC": "off"}},
 		{"RTMPToRTC", RTC{RTMPToRTC: true}, map[string]string{"SRS_VHOST_RTC_RTMP_TO_RTC": "on"}},
 		{"RTCToRTMP", RTC{RTCToRTMP: true}, map[string]string{"SRS_VHOST_RTC_RTC_TO_RTMP": "on"}},
+		{"InitRateFromSDP", RTC{InitRateFromSDP: true}, map[string]string{"SRS_VHOST_RTC_INIT_RATE_FROM_SDP": "on"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

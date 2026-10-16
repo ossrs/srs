@@ -3309,7 +3309,7 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDes
 
     // Initialize rate from SDP sample rate
     // rate_ is RTP units per millisecond (e.g., 90 for video 90kHz, 48 for audio 48kHz)
-    // This allows immediate A/V sync before receiving 2 RTCP SR packets
+    // This allows A/V sync from the 1st RTCP SR, before the 2nd one
     // Will be updated to precise rate after receiving 2nd SR
     rate_ = 0.0;
     if (init_rate_from_sdp && track_desc_->media_) {
@@ -3359,6 +3359,8 @@ void SrsRtcRecvTrack::update_rtt(int rtt)
 
 void SrsRtcRecvTrack::update_send_report_time(const SrsNtp &ntp, uint32_t rtp_time)
 {
+    bool has_last_report = last_sender_report_sys_time_ > 0;
+
     last_sender_report_ntp1_ = last_sender_report_ntp_;
     last_sender_report_rtp_time1_ = last_sender_report_rtp_time_;
 
@@ -3368,7 +3370,7 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp &ntp, uint32_t rtp_ti
     // TODO: FIXME: Use system wall clock.
     last_sender_report_sys_time_ = srs_time_now_realtime();
 
-    if (last_sender_report_rtp_time1_ > 0) {
+    if (has_last_report) {
         // WebRTC using sender report to sync audio/video timestamp, because audio video have different timebase,
         // typical audio opus is 48000Hz, video is 90000Hz.
         // We using two sender report point to calculate avsync timestamp(clock time) with any given rtp timestamp.
@@ -3403,7 +3405,8 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp &ntp, uint32_t rtp_ti
 
 int64_t SrsRtcRecvTrack::cal_avsync_time(uint32_t rtp_time)
 {
-    if (rate_ < 0.001) {
+    // Before the track's first SR, its RTP time is on no clock: each track's starts at a random value.
+    if (last_sender_report_sys_time_ == 0 || rate_ < 0.001) {
         return -1;
     }
 

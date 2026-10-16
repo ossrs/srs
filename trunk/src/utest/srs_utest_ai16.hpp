@@ -192,6 +192,9 @@ public:
     std::string on_client_tc_url_;
     std::string on_client_page_url_;
     std::string on_client_swf_url_;
+    // The names of the last client's stream.
+    std::string on_client_app_;
+    std::string on_client_stream_;
     SrsRtmpConnType on_client_type_;
     int on_disconnect_count_;
     std::vector<std::string> on_disconnect_ids_;

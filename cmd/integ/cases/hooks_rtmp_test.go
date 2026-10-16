@@ -207,6 +207,34 @@ func hooksRtmp(t *testing.T) {
 			c.CheckEqual(q, url.Values{"k1": {"v1"}, "k2": {"v2"}}, "the keys of the param "+h.Field("param"))
 		})
 
+		// RepublishParam unpublishes with FCUnpublish and publishes again on
+		// the same connection, as FMLE does, with a param on the stream name
+		// and with params on both the tcUrl and the stream name: the second
+		// on_publish has the param of the first, not repeated.
+		check.Case(t, s.name+"RepublishParam", check.Normal, func(c *check.C) {
+			srs := server.Common(c)
+			for _, tc := range []struct{ tcURL, want string }{
+				{"live", "?k2=v2"},
+				{"live?k1=v1", "?k1=v1&k2=v2"},
+			} {
+				stream := streamName(c)
+				opts := s.opts(c)
+				opts.TcURL = s.url(srs, tc.tcURL)
+				pub := dialRTMP(c, s.url(srs, "live/"+stream+"?k2=v2"), opts)
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				_, err := pub.Publish(ctx, rtmp.FMLE)
+				c.Must(err, "publish")
+				_, err = pub.Unpublish(ctx)
+				c.Must(err, "unpublish")
+				_, err = pub.Publish(ctx, rtmp.FMLE)
+				cancel()
+				c.Must(err, "publish again")
+				for i, h := range waitHookCountOf(c, srs, mock.Match{Action: "on_publish", Stream: stream}, 2) {
+					c.CheckEqual(h.Field("param"), tc.want, "tcUrl "+tc.tcURL+", on_publish "+strconv.Itoa(i+1)+" param")
+				}
+			}
+		})
+
 		// UnpublishBeforeClose unpublishes, then closes a moment later:
 		// on_unpublish comes at the unpublish, on_close only at the close.
 		check.Case(t, s.name+"UnpublishBeforeClose", check.Normal, func(c *check.C) {

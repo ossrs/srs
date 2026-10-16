@@ -1511,6 +1511,105 @@ VOID TEST(HttpConnTest, ValidJsonpCallbackNotRefused)
     EXPECT_EQ(0, skt.out_length());
 }
 
+VOID TEST(HttpConnTest, UrlNotCleanAnsweredBadRequest)
+{
+    srs_error_t err;
+
+    MockHttpxConn handler;
+    MockBufferIO skt;
+    skt.append("GET /a/../secret.dat HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    SrsHttpServeMux mux;
+    HELPER_EXPECT_SUCCESS(mux.initialize());
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, &mux, "127.0.0.1", 8080));
+    conn->trd_ = new MockCoroutineForCycle();
+    HELPER_EXPECT_SUCCESS(conn->parser_->initialize(HTTP_REQUEST));
+    HELPER_EXPECT_SUCCESS(conn->set_auth_enabled(false));
+
+    // GOAL: the mux still refuses a URL with "..", and the refusal ends the connection with its error.
+    ISrsRequest *req = NULL;
+    err = conn->process_requests(&req);
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(req);
+
+    // GOAL: the client is told why by 400, with the error code and its short name, before the close.
+    string out(skt.out_buffer.bytes(), skt.out_buffer.length());
+    EXPECT_TRUE(srs_strings_starts_with(out, "HTTP/1.1 400 Bad Request\r\n")) << out;
+    EXPECT_TRUE(srs_strings_contains(out, "Connection: Close\r\n")) << out;
+    EXPECT_TRUE(srs_strings_contains(out, "Content-Type: text/plain; charset=utf-8\r\n")) << out;
+    EXPECT_TRUE(srs_strings_ends_with(out, "\r\n\r\n4002: HttpUrlNotClean")) << out;
+}
+
+VOID TEST(HttpConnTest, CleanUrlNotRefused)
+{
+    srs_error_t err;
+
+    MockHttpxConn handler;
+    MockBufferIO skt;
+    skt.append("GET /a/secret.dat HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    SrsHttpServeMux mux;
+    HELPER_EXPECT_SUCCESS(mux.initialize());
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, &mux, "127.0.0.1", 8080));
+    conn->trd_ = new MockCoroutineForCycle();
+    HELPER_EXPECT_SUCCESS(conn->parser_->initialize(HTTP_REQUEST));
+    HELPER_EXPECT_SUCCESS(conn->set_auth_enabled(false));
+
+    // GOAL: a clean URL nothing is mounted at gets the mux's 404 once, and the connection ends only when
+    // the client sends nothing more. This passes before and after the refused URL got its answer.
+    ISrsRequest *req = NULL;
+    err = conn->process_requests(&req);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(req);
+
+    string out(skt.out_buffer.bytes(), skt.out_buffer.length());
+    EXPECT_TRUE(srs_strings_starts_with(out, "HTTP/1.1 404 Not Found\r\n")) << out;
+    EXPECT_FALSE(srs_strings_contains(out, "HTTP/1.1 400")) << out;
+}
+
+// The error code of the lookup of a URL by a mux with nothing mounted.
+static int srs_utest_mux_find_handler_code(string url)
+{
+    SrsHttpServeMux mux;
+    srs_error_t err = mux.initialize();
+    srs_freep(err);
+
+    SrsHttpHeader header;
+    header.set("Host", "127.0.0.1");
+    SrsHttpMessage msg;
+    msg.set_header(&header, false);
+    if ((err = msg.set_url(url, false)) != srs_success) {
+        int code = srs_error_code(err);
+        srs_freep(err);
+        return code;
+    }
+
+    ISrsHttpHandler *h = NULL;
+    err = mux.find_handler(&msg, &h);
+    int code = srs_error_code(err);
+    srs_freep(err);
+    return code;
+}
+
+VOID TEST(HttpServeMuxTest, DotDotSegmentRefused)
+{
+    // GOAL: a path with a ".." segment, in the middle or at the end, is not clean.
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/a/../x"));
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/a/.."));
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/../x.flv?t=1"));
+}
+
+VOID TEST(HttpServeMuxTest, TwoDotsInNameOrQueryNotRefused)
+{
+    // GOAL: two dots in a name or in the query are no traversal, so the lookup goes on to the mux's 404 handler.
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/a..b.dat"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/live/...flv"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/x.flv?t=a..b"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/x.flv?t=/../"));
+}
+
 VOID TEST(HttpxConnTest, ConstructionReachesNoCollaborator)
 {
     std::string before = _srs_context->get_id().c_str();

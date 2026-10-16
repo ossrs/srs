@@ -961,7 +961,15 @@ public:
     srs_error_t on_rtcp_feedback_remb(SrsRtcpFbCommon *rtcp);
 
 public:
+    // Start the publishers and players. A stream that fails to start ends the session, so the
+    // client never keeps a connected peer that doesn't publish or play.
     srs_error_t on_dtls_handshake_done();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    srs_error_t start_streams();
+
+public:
     srs_error_t on_dtls_alert(std::string type, std::string desc);
     bool is_alive();
     bool is_disposing();

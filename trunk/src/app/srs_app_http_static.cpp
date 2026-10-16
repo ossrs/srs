@@ -20,6 +20,7 @@ using namespace std;
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_error.hpp>
@@ -637,16 +638,28 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
 
     SrsUniquePtr<ISrsRequest> req(hr->to_request(hr->host())->as_http());
 
-    // The request's tcUrl was parsed as RTMP, with the RTMP default port that as_http() leaves out,
-    // so set the session's own: the URL of its app on the HTTP server it asked, as an HTTP-FLV
-    // player's.
-    req->tcUrl_ = hr->app_url(req->app_);
-
     // discovery vhost, resolve the vhost from config
     SrsConfDirective *parsed_vhost = config_->get_vhost(req->vhost_);
     if (parsed_vhost) {
         req->vhost_ = parsed_vhost->arg0();
     }
+
+    // The URL's dir and file name are the app and stream only for a playlist of [app]/[stream].m3u8,
+    // so take them from the hls_m3u8_file the playlist was written by, such as the app live and the
+    // stream livestream of /live/livestream/index.m3u8 for [app]/[stream]/index.m3u8. A playlist
+    // not of the template keeps the URL's names.
+    string app, stream;
+    string path = srs_strings_trim_start(hr->path(), "/");
+    if (srs_path_parse_stream(config_->get_hls_m3u8_file(req->vhost_), req->vhost_, path, app, stream)) {
+        req->app_ = app;
+        req->stream_ = stream;
+        req->strip();
+    }
+
+    // The request's tcUrl was parsed as RTMP, with the RTMP default port that as_http() leaves out,
+    // so set the session's own: the URL of its app on the HTTP server it asked, as an HTTP-FLV
+    // player's.
+    req->tcUrl_ = hr->app_url(req->app_);
 
     // Try to serve by HLS streaming.
     bool served = false;

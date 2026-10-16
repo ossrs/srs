@@ -60,11 +60,12 @@ func sharedSegmentsDispose() server.Config {
 // 120s, so a held stream keeps its files for the sessions.
 // TestTimer_Srt_PeerIdle shares it too, for SRT with a 1s peer_idle_timeout,
 // TestTimer_Gb_MediaTimeout, for GB28181 with a 1s media_connect_timeout,
-// and TestTimer_Convert_Reports, for WebRTC; the other groups use no SRT, no
-// GB and no WebRTC. TestTimer_Reload_RawApi shares it for the RAW API with
-// reload allowed, and TestTimer_Reload_Sighup for SIGHUP: a reload of an
-// env-only server fails and changes nothing. TestTimer_Signal_Console sends
-// it SIGUSR1, which reopens no log on the console.
+// and TestTimer_Convert_Reports, for WebRTC with init_rate_from_sdp on; the
+// other groups use no SRT, no GB and no WebRTC. TestTimer_Reload_RawApi
+// shares it for the RAW API with reload allowed, and TestTimer_Reload_Sighup
+// for SIGHUP: a reload of an env-only server fails and changes nothing.
+// TestTimer_Signal_Console sends it SIGUSR1, which reopens no log on the
+// console.
 // TestTimer_Heartbeat_Full shares it for the heartbeat with every setting on,
 // every 1s, which the other groups never read.
 func sharedSegmentsKeep() server.Config {
@@ -75,7 +76,7 @@ func sharedSegmentsKeep() server.Config {
 	cfg.Hooks = true
 	cfg.Heartbeat = &sharedHeartbeatFull
 	cfg = server.WithGB(server.WithSRT(cfg, sharedSegmentsKeepSRT), sharedSegmentsKeepGB)
-	return server.WithRawAPI(server.WithRTC(cfg, server.RTC{}), server.RawAPI{AllowReload: true})
+	return server.WithRawAPI(server.WithRTC(cfg, server.RTC{InitRateFromSDP: true}), server.RawAPI{AllowReload: true})
 }
 
 // TestTimer_Hls_Dispose checks hls_dispose: SRS removes the playlist and

@@ -172,6 +172,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // this session until its interrupt().
     std::vector<SrsSharedResource<ISrsGbMediaTcpConn> > medias_;
     ISrsGbMuxer *muxer_;
+    // Whether the cycle ended, so no media connection binds the session or uses its muxer any more.
+    bool cycle_done_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -472,6 +474,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsBasicRtmpClient *sdk_;
     // Whether a coroutine is connecting the RTMP client.
     bool connecting_;
+    // Whether a coroutine is sending the queued messages through the RTMP client, which yields. Only
+    // that coroutine sends and closes the client, and another one only queues its messages.
+    bool sending_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -523,6 +528,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // Send the queued messages through the RTMP client, and close it on a failure.
+    virtual srs_error_t send_queued_messages();
     // Connect to RTMP server.
     virtual srs_error_t connect();
     // Close the connection to RTMP server.

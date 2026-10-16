@@ -634,6 +634,20 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
             session_id_ = rand_->gen_str(8);
         }
 
+        // DESCRIBE asks on_play again, maybe of another stream, so it is not valid while a player
+        // plays (RFC 2326, 455 Method Not Valid in This State): it would end the play's hooks and
+        // stats while the player sends on. A TEARDOWN ends the play first.
+        if (player_) {
+            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+            res->status_ = SRS_CONSTS_RTSP_MethodNotValidInThisState;
+            res->session_ = session_id_;
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
+                return srs_error_wrap(err, "response describe");
+            }
+            srs_warn("RTSP: DESCRIBE cseq=%ld while playing, session=%s", req->seq_, session_id_.c_str());
+            return err;
+        }
+
         SrsUniquePtr<SrsRtspDescribeResponse> res(new SrsRtspDescribeResponse((int)req->seq_));
         res->session_ = session_id_;
 
@@ -810,6 +824,16 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
         stat_->on_disconnect(cid_.c_str(), srs_success);
     }
 
+    // Each DESCRIBE rebuilds the track set from the source, so drop the previous one first, before
+    // anything can fail: a DESCRIBE that fails, such as one on_play refuses, leaves no track of the
+    // last stream to SETUP or PLAY. The track ids restart at 0 below, so a stale entry would also
+    // collide on that id in get_ssrc_by_stream_id() and bind SETUP to an SSRC no longer published.
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        SrsRtcTrackDescription *track = it->second;
+        srs_freep(track);
+    }
+    tracks_.clear();
+
     srs_net_url_parse_rtmp_url(req->uri_, request_->tcUrl_, request_->stream_);
 
     srs_net_url_parse_tcurl(request_->tcUrl_, request_->schema_, request_->host_, request_->vhost_,
@@ -855,14 +879,6 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
     local_sdp.session_name_ = "Play";
     local_sdp.control_ = req->uri_;
     local_sdp.ice_lite_ = ""; // Disable this line.
-
-    // A client may DESCRIBE more than once, and each one rebuilds the track set from the source, so
-    // drop the previous one first. The track ids restart at 0 below, so a stale entry would collide
-    // on that id in get_ssrc_by_stream_id() and bind SETUP to an SSRC that is no longer published.
-    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
-        srs_freep(it->second);
-    }
-    tracks_.clear();
 
     uint32_t track_id = 0;
     SrsRtcTrackDescription *audio_desc = source_->audio_desc();
@@ -926,6 +942,19 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
 
         local_sdp.media_descs_.push_back(media_video);
         track_id++;
+    }
+
+    // Free the network a SETUP gave a track this DESCRIBE dropped, such as the old SSRC of a
+    // publisher that came back with a new one; a track it still has keeps its network.
+    for (std::map<uint32_t, ISrsStreamWriter *>::iterator it = networks_.begin(); it != networks_.end();) {
+        uint32_t ssrc = it->first;
+        ISrsStreamWriter *network = it->second;
+        if (tracks_.find(ssrc) != tracks_.end()) {
+            ++it;
+            continue;
+        }
+        srs_freep(network);
+        networks_.erase(it++);
     }
 
     if (track_id == 0) {
@@ -1004,6 +1033,20 @@ srs_error_t SrsRtspConnection::do_teardown()
     // The player leaves the stats when freed; a client that never played leaves them here.
     srs_freep(player_);
     stat_->on_disconnect(cid_.c_str(), srs_success);
+
+    // TEARDOWN ends the session (RFC 2326), so its tracks and their networks go with the player: a
+    // PLAY after it is not valid until a new DESCRIBE and SETUP, which ask on_play again.
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        SrsRtcTrackDescription *track = it->second;
+        srs_freep(track);
+    }
+    tracks_.clear();
+
+    for (std::map<uint32_t, ISrsStreamWriter *>::iterator it = networks_.begin(); it != networks_.end(); ++it) {
+        ISrsStreamWriter *network = it->second;
+        srs_freep(network);
+    }
+    networks_.clear();
 
     return srs_success;
 }

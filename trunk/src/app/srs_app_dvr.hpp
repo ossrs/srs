@@ -303,6 +303,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool reopening_segment_;
     // The timestamp in ms of the last message of the publish, -1 for none.
     int64_t last_timestamp_;
+    // Whether the publish has sent video, so a cut waits for its keyframe.
+    bool has_video_;
 
 public:
     SrsDvrSegmentPlan();

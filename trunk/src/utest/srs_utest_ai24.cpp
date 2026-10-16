@@ -287,6 +287,44 @@ VOID TEST(RtcAVSyncTest, ImmediateAVSyncAvailability)
     EXPECT_EQ(1010, avsync_time);                            // Should be 1000 + 10 = 1010
 }
 
+// Test: with the SDP rate, a packet before its track's first SR has no A/V sync time, since its RTP time is on no
+// clock yet and each track's starts at a random value; from the track's first SR on, the SDP rate maps it.
+VOID TEST(RtcAVSyncTest, SDPRateWaitsForFirstSR)
+{
+    MockSrsRtcRecvTrackForAVSync audio("audio", 12345, 48000, true);
+    MockSrsRtcRecvTrackForAVSync video("video", 67890, 90000, false);
+
+    EXPECT_EQ(-1, audio.test_cal_avsync_time(52800));
+    EXPECT_EQ(-1, video.test_cal_avsync_time(189000));
+
+    SrsNtp ntp;
+    ntp.system_ms_ = 1000;
+    audio.test_update_send_report_time(ntp, 48000);
+    EXPECT_EQ(1100, audio.test_cal_avsync_time(52800));
+    EXPECT_EQ(-1, video.test_cal_avsync_time(189000));
+
+    ntp.system_ms_ = 1050;
+    video.test_update_send_report_time(ntp, 180000);
+    EXPECT_EQ(1150, video.test_cal_avsync_time(189000));
+}
+
+// Test: a first SR at RTP time 0 counts as a report, so the 2nd SR gives the precise rate.
+VOID TEST(RtcAVSyncTest, FirstSRAtRtpTimeZero)
+{
+    MockSrsRtcRecvTrackForAVSync track("audio", 12345, 48000, true);
+
+    SrsNtp ntp1;
+    ntp1.system_ms_ = 1000;
+    track.test_update_send_report_time(ntp1, 0);
+    EXPECT_EQ(1010, track.test_cal_avsync_time(480));
+
+    // A sender whose clock runs at 49 units per ms.
+    SrsNtp ntp2;
+    ntp2.system_ms_ = 2000;
+    track.test_update_send_report_time(ntp2, 49000);
+    EXPECT_DOUBLE_EQ(49.0, track.get_rate());
+}
+
 // Test: RTP timestamp wraparound handling
 VOID TEST(RtcAVSyncTest, RTPTimestampWraparound)
 {

@@ -122,6 +122,38 @@ func rtcErrors(t *testing.T) {
 		checkRTCPlayed(c, waitPlayed(c, player, rtcPlayedUntil))
 	})
 
+	// WhipSessionGoneDuringHook deletes the publisher by the API while its
+	// on_publish is still waiting for the hook server, as a session that
+	// times out during a slow hook is gone too: the hook then passes, and
+	// SRS answers 500 RtcInvalidSession without touching the freed session,
+	// stays up, and the stream is free for the next publish.
+	check.Case(t, "WhipSessionGoneDuringHook", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		srs.Hooks.Script(mock.Match{Action: "on_publish", Stream: stream}, mock.OK().After(200*time.Millisecond))
+		offer := rtcOffer(c, true, []string{"H264"}, []string{"opus"})
+		posted := make(chan error, 1)
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			s, err := rtc.Post(ctx, whipURL(srs, "live", stream), offer, rtcOptions(nil))
+			if err == nil {
+				s.Delete(ctx)
+			}
+			posted <- err
+		}()
+		h := waitHook(c, srs, "on_publish", stream)
+		checkKicked(c, apiKick(c, srs, h.Field("client_id")))
+		err := <-posted
+		var se *rtc.StatusError
+		if c.Check(errors.As(err, &se), "post the offer: %v, want status 500", err) {
+			c.CheckEqual(se.Code, http.StatusInternalServerError, fmt.Sprintf("status (body %q)", se.Body))
+			c.Check(strings.Contains(se.Body, "5036"), "body %q, want 5036 RtcInvalidSession", se.Body)
+		}
+		srs.Hooks.Script(mock.Match{Action: "on_publish", Stream: stream}, mock.OK())
+		rtcPublisher(c, whipURL(srs, "live", stream), nil)
+	})
+
 	// WhepMissingStream plays a stream nobody publishes: SRS answers 201 and
 	// connects, as it does for a player that comes before the publisher, and
 	// sends nothing.
@@ -146,6 +178,31 @@ func rtcErrors(t *testing.T) {
 		rtcDeleteLater(c, s, err)
 		var se *rtc.StatusError
 		c.Check(errors.As(err, &se) && se.Code >= 400, "WHEP of an RTMP stream: %v, want it refused", err)
+	})
+}
+
+// TestRtc_StartFails publishes by WHIP a stream that can't start: with
+// rtc_to_rtmp, the RTMP stream SRS converts it to records a DVR file under
+// /dev/null, which no directory can be made in, so the publish fails once
+// DTLS is done. SRS ends the session then, rather than keep a connected peer
+// that never publishes until the session times out.
+func TestRtc_StartFails(t *testing.T) {
+	t.Parallel()
+	cfg := server.WithRTC(server.Config{
+		Listeners: []server.Listener{server.HTTPAPI, server.RTCUDP},
+		Hooks:     true,
+	}, server.RTC{RTCToRTMP: true})
+	srs := server.Group(t, server.WithDVR(cfg, server.DVR{Path: "/dev/null/[app]/[stream].flv"}))
+
+	// PublishEnds: the publisher leaves the API with its on_unpublish, and
+	// the stream is free, so the next WHIP publish is 201, not 409.
+	check.Case(t, "PublishEnds", check.Normal, func(c *check.C) {
+		stream := streamName(c)
+		rtcPublisher(c, whipURL(srs, "live", stream), nil)
+		h := waitHook(c, srs, "on_publish", stream)
+		c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+h.Field("client_id")), "the publisher whose start failed")
+		waitHook(c, srs, "on_unpublish", stream)
+		rtcPublisher(c, whipURL(srs, "live", stream), nil)
 	})
 }
 

@@ -282,6 +282,16 @@ srs_error_t SrsHttpConn::process_requests(ISrsRequest **preq)
 
         // ok, handle http request.
         if ((err = process_request(writer.get(), req.get(), req_id)) != srs_success) {
+            // The mux refuses a URL with "..", before any handler, so tell the client why, then close as for
+            // any request that is not served. Send the error code and its short name only.
+            if (srs_error_code(err) == ERROR_HTTP_URL_NOT_CLEAN && !writer->header_wrote()) {
+                writer->header()->set("Connection", "Close");
+
+                string msg = srs_fmt_sprintf("%d: %s", srs_error_code(err), srs_error_code_str(err).c_str());
+                srs_error_t r0 = srs_go_http_error(writer.get(), SRS_CONSTS_HTTP_BadRequest, msg);
+                srs_freep(r0);
+            }
+
             return srs_error_wrap(err, "process request=%d", req_id);
         }
 

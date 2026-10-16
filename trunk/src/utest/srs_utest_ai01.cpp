@@ -4929,6 +4929,38 @@ VOID TEST(ConfigListenTest, ExporterAndRtmpsListenEnvInvalid)
     }
 }
 
+// RTMPS enabled with no listen, in the file or by env, listens on 1443, as full.conf
+// sets it, like the other listeners that have a default port.
+VOID TEST(ConfigListenTest, RtmpsListenDefault)
+{
+    srs_error_t err;
+
+    const char *confs[] = {
+        "rtmps{enabled on;}",
+        "rtmps{enabled on; listen;}",
+    };
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(string(_MIN_OK_CONF) + confs[i]));
+        EXPECT_TRUE(conf.get_rtmps_enabled()) << confs[i];
+
+        vector<string> listens = conf.get_rtmps_listen();
+        ASSERT_EQ(1, (int)listens.size()) << confs[i];
+        EXPECT_STREQ("1443", listens.at(0).c_str());
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, rtmps_enabled, "SRS_RTMPS_ENABLED", "on");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_TRUE(conf.get_rtmps_enabled());
+
+        vector<string> listens = conf.get_rtmps_listen();
+        ASSERT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
+    }
+}
+
 // A port above 65535, which no socket has, is not an endpoint: alone, after a host,
 // or after an IPv6 host; 65535 and below are.
 VOID TEST(ConfigListenTest, EndpointPortOutOfRange)

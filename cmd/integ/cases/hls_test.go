@@ -199,7 +199,7 @@ const cdnHost = "cdn.example.com"
 // an entry prefix before each segment URI.
 func TestHls_Options(t *testing.T) {
 	t.Parallel()
-	srs := server.Group(t, server.HLSConfig(server.HLS{
+	cfg := server.HLSConfig(server.HLS{
 		Fragment:    2 * time.Second,
 		TDRatio:     1.5,
 		AOFRatio:    2.5,
@@ -208,7 +208,10 @@ func TestHls_Options(t *testing.T) {
 		M3U8File:    "[app]/[stream]/index.m3u8",
 		TSFile:      "[app]/[stream]/seg-[seq].ts",
 		EntryPrefix: "http://" + cdnHost,
-	}))
+	})
+	// Every hook on a mock, for the sessions' on_play.
+	cfg.Hooks = true
+	srs := server.Group(t, cfg)
 
 	// publish30s publishes the 30s test file at once and waits for its last
 	// closed segment, 8: segments of 3s are cut at 3s, 6s, up to 27s.
@@ -314,6 +317,39 @@ func TestHls_Options(t *testing.T) {
 			c.Check(near(pl.Segments[1].Duration, 2*time.Second, 100*time.Millisecond), "segment 1 lasts %v, want the 2s left at the unpublish", pl.Segments[1].Duration)
 			checkPlayed(c, segmentReport(c, client, pl.Segments[2].URI), "h264", "aac")
 		}
+	})
+
+	// With the playlist in a dir per stream, an HLS session is of the stream
+	// it plays: its on_play and its API client name the app and the stream
+	// the playlist was published with, not the playlist's dir and file name.
+	check.Case(t, "SessionNames", check.Normal, func(c *check.C) {
+		name := streamName(c)
+		publishThrough(c, srs, "live/"+name, media.H264HighAAC, 4*time.Second)
+		pub := waitHook(c, srs, "on_publish", name)
+		u := flvURL(srs, "live/"+name+"/index.m3u8")
+		waitPlaylist(c, cdnClient(c, srs), u, hasSegment(0))
+
+		master := sessionMaster(c, u)
+		ctx := query(c, master.Variants[0].URI).Get("hls_ctx")
+		play := waitClientHook(c, srs, "on_play", ctx)
+		c.CheckEqual(play.Field("app"), "live", "on_play app")
+		c.CheckEqual(play.Field("stream"), name, "on_play stream")
+		c.CheckEqual(play.Field("tcUrl"), "http://"+srs.Addr(server.HTTPServer)+"/live", "on_play tcUrl")
+		c.CheckEqual(play.Field("stream_id"), pub.Field("stream_id"), "on_play stream_id, the publisher's")
+
+		var v struct {
+			Code   int `json:"code"`
+			Client struct {
+				Type   string `json:"type"`
+				URL    string `json:"url"`
+				Stream string `json:"stream"`
+			} `json:"client"`
+		}
+		apiGet(c, srs, "/api/v1/clients/"+ctx, &v)
+		c.CheckEqual(v.Code, 0, "code of the session's client")
+		c.CheckEqual(v.Client.Type, "hls-play", "client type")
+		c.CheckEqual(v.Client.URL, "/live/"+name, "client url")
+		c.CheckEqual(v.Client.Stream, pub.Field("stream_id"), "client stream, the publisher's")
 	})
 
 	// With no video, segments are cut at hls_aof_ratio times the fragment,

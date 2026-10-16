@@ -1630,7 +1630,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsListen)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty by default
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
     }
 
     // Test default value when rtmps section exists but no listen directive
@@ -1639,7 +1640,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsListen)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "rtmps{}"));
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty by default
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
     }
 
     // Test default value when listen directive exists but has no arguments
@@ -1648,7 +1650,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsListen)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "rtmps{listen;}"));
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty when no args
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
     }
 
     // Test single listen port
@@ -1939,7 +1942,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsCompleteConfiguration)
         EXPECT_FALSE(conf.get_rtmps_enabled());
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty by default
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
 
         EXPECT_STREQ("./conf/server.key", conf.get_rtmps_ssl_key().c_str());  // Default key
         EXPECT_STREQ("./conf/server.crt", conf.get_rtmps_ssl_cert().c_str()); // Default cert
@@ -2014,7 +2018,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsEdgeCases)
         EXPECT_FALSE(conf.get_rtmps_enabled()); // Default is false
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty by default
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
 
         EXPECT_STREQ("./conf/server.key", conf.get_rtmps_ssl_key().c_str());  // Default key
         EXPECT_STREQ("./conf/server.crt", conf.get_rtmps_ssl_cert().c_str()); // Default cert

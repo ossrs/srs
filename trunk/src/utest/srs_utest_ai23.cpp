@@ -523,6 +523,68 @@ VOID TEST(GB28181Test, SessionForgetsDisconnectedMedia)
     EXPECT_TRUE(second->interrupt_called_);
 }
 
+// Test that a session's cycle ends only after its media connections quit, so the
+// session and its muxer, freed after the cycle, are never freed under a connection
+// in the muxer, where a connect or send of the RTMP output yields. The interrupt
+// ends only the I/O it finds, so the connection must not mux the rest of its pack.
+VOID TEST(GB28181Test, SessionCycleWaitsForMediaInMuxer)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsTsMessage> audio(new SrsTsMessage());
+    audio->sid_ = SrsTsPESStreamIdAudioCommon;
+    audio->payload_->append("audio_data", 10);
+    SrsUniquePtr<SrsTsMessage> audio2(new SrsTsMessage());
+    audio2->sid_ = SrsTsPESStreamIdAudioCommon;
+    audio2->payload_->append("audio_data", 10);
+
+    // The connection's coroutine outlives the session, which interrupts it when freed.
+    MockGbMediaCoroutine media(NULL, audio.get());
+    media.msgs_.push_back(audio2.get());
+    SrsSTCoroutine trd("gb-media", &media);
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
+    MockGbYieldingMuxer *muxer = new MockGbYieldingMuxer(10 * SRS_UTIME_SECONDS);
+    srs_freep(session->muxer_);
+    session->muxer_ = muxer;
+    media.session_ = session.get();
+
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+    owner->pull_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "mock interrupted");
+    SrsUniquePtr<MockContextIdSetterForRtcTcpConn> owner_cid(new MockContextIdSetterForRtcTcpConn());
+    session->setup_owner(NULL, owner.get(), owner_cid.get());
+
+    // A connection that never sent a pack, so it was never in the muxer.
+    MockGbMediaTcpConn *idle = new MockGbMediaTcpConn();
+    session->on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn>(idle));
+    MockGbMediaTcpConnInMuxer *conn = new MockGbMediaTcpConnInMuxer(&media, &trd);
+    session->on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+
+    // The connection's coroutine enters the muxer with the first message of its pack, and yields there.
+    HELPER_EXPECT_SUCCESS(trd.start());
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(1, muxer->nn_messages_);
+    EXPECT_FALSE(muxer->left_);
+    EXPECT_TRUE(conn->is_connected());
+
+    // The session's cycle ends and interrupts its connections. The interrupted one leaves the muxer
+    // without muxing the second message, and quits; the cycle returns only then, and no connection
+    // binds the session after it.
+    EXPECT_FALSE(session->is_ended());
+    srs_utime_t starttime = srs_time_now_realtime();
+    HELPER_EXPECT_SUCCESS(session->cycle());
+    EXPECT_LT(srs_time_now_realtime() - starttime, 1 * SRS_UTIME_SECONDS);
+    EXPECT_TRUE(idle->interrupt_called_);
+    EXPECT_TRUE(conn->interrupt_called_);
+    EXPECT_TRUE(muxer->left_);
+    EXPECT_EQ(1, muxer->nn_messages_);
+    EXPECT_FALSE(conn->is_connected());
+    EXPECT_TRUE(session->is_ended());
+
+    trd.stop();
+}
+
 // Test SrsGbSession::drive_state - covers the major use scenario:
 // 1. Session starts in Init state with media disconnected
 // 2. When media connects, session transitions to Established state
@@ -1931,6 +1993,98 @@ srs_error_t MockGbConnectingRtmpClient::connect()
     return MockRtmpClient::connect();
 }
 
+MockGbSendingRtmpClient::MockGbSendingRtmpClient(SrsGbMuxer *muxer, int *sends, srs_error_t *reentry_error)
+{
+    muxer_ = muxer;
+    fail_at_ = 0;
+    sends_ = sends;
+    reentry_error_ = reentry_error;
+}
+
+MockGbSendingRtmpClient::~MockGbSendingRtmpClient()
+{
+}
+
+srs_error_t MockGbSendingRtmpClient::send_and_free_message(SrsMediaPacket *msg)
+{
+    srs_freep(msg);
+    int nn = ++(*sends_);
+
+    if (nn == 1) {
+        char *data = new char[4];
+        memset(data, 0, 4);
+        *reentry_error_ = muxer_->rtmp_write_packet(SrsFrameTypeVideo, 80, data, 4);
+    }
+
+    // Use this client after the muxer was fed, as a send that yields does.
+    send_message_count_++;
+
+    if (nn == fail_at_) {
+        return srs_error_new(ERROR_SOCKET_WRITE, "mock send failed");
+    }
+    return srs_success;
+}
+
+MockGbYieldingMuxer::MockGbYieldingMuxer(srs_utime_t delay)
+{
+    delay_ = delay;
+    nn_messages_ = 0;
+    left_ = false;
+}
+
+MockGbYieldingMuxer::~MockGbYieldingMuxer()
+{
+}
+
+srs_error_t MockGbYieldingMuxer::on_ts_message(SrsTsMessage *msg)
+{
+    on_ts_message_called_ = true;
+    nn_messages_++;
+    // As a send, the sleep yields, and an interrupt ends it.
+    srs_usleep(delay_);
+    left_ = true;
+    return srs_success;
+}
+
+MockGbMediaCoroutine::MockGbMediaCoroutine(SrsGbSession *session, SrsTsMessage *msg)
+{
+    session_ = session;
+    msgs_.push_back(msg);
+    done_ = false;
+}
+
+MockGbMediaCoroutine::~MockGbMediaCoroutine()
+{
+}
+
+srs_error_t MockGbMediaCoroutine::cycle()
+{
+    session_->on_ps_pack(&ctx_, NULL, msgs_);
+    done_ = true;
+    return srs_success;
+}
+
+MockGbMediaTcpConnInMuxer::MockGbMediaTcpConnInMuxer(MockGbMediaCoroutine *media, SrsSTCoroutine *trd)
+{
+    media_ = media;
+    trd_ = trd;
+}
+
+MockGbMediaTcpConnInMuxer::~MockGbMediaTcpConnInMuxer()
+{
+}
+
+bool MockGbMediaTcpConnInMuxer::is_connected()
+{
+    return !media_->done_;
+}
+
+void MockGbMediaTcpConnInMuxer::interrupt()
+{
+    interrupt_called_ = true;
+    trd_->interrupt();
+}
+
 MockAppFactoryForGbMuxer::MockAppFactoryForGbMuxer()
 {
     created_ = 0;
@@ -2817,6 +2971,45 @@ VOID TEST(GbMuxerTest, ConnectWhileConnectingRefused)
     // Connected: a connect does nothing.
     HELPER_EXPECT_SUCCESS(muxer->connect());
     EXPECT_EQ(2, factory.created_);
+}
+
+// A message that a second media connection of the session writes while the
+// first one's send yields is queued, and the first one sends it in turn, so
+// only one coroutine sends through the RTMP client. When that send fails, the
+// client is freed by the coroutine that used it, never under another one.
+VOID TEST(GbMuxerTest, WriteWhileSendingQueued)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->assemble();
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    int sends = 0;
+    srs_error_t reentry_error = srs_success;
+    MockGbSendingRtmpClient *client = new MockGbSendingRtmpClient(muxer.get(), &sends, &reentry_error);
+    client->fail_at_ = 2;
+    factory.clients_.push_back(client);
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+    EXPECT_TRUE(muxer->sdk_ == client);
+
+    // The queue holds one video frame, and sends a frame once it has two.
+    char *data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeVideo, 0, data, 4));
+    EXPECT_EQ(0, sends);
+
+    // The first send writes the next frame meanwhile, which is queued, not sent,
+    // and the frame after the first is sent next, whose send fails.
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_FAILED(muxer->rtmp_write_packet(SrsFrameTypeVideo, 40, data, 4));
+    HELPER_EXPECT_SUCCESS(reentry_error);
+    EXPECT_EQ(2, sends);
+    EXPECT_TRUE(muxer->sdk_ == NULL);
 }
 
 // Test SrsPackContext::on_ts_message - covers the major use scenario:

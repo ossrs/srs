@@ -360,14 +360,30 @@ func TestDvr_Segment(t *testing.T) {
 	})
 
 	// A stream with no video, 7s: files of 2s too, as there is no keyframe
-	// to wait for.
+	// to wait for, each with the audio sequence header and its own timeline
+	// from 0, together every frame.
 	check.Case(t, "AudioOnlySegments", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a stream with no video is never cut, one file for the whole publish: dvr_wait_keyframe waits for a video keyframe")
 		stream := streamName(c)
 		tags := readTags(c, media.AACOnly, 0, 7*time.Second)
 		publishDvr(c, srs, "live/"+stream, tags)
 		files := dvrAllFiles(c, srs, stream)
-		c.Check(len(files) >= 3, "files of 7s: %d, want one each 2s or so", len(files))
+		c.CheckEqual(len(files), 4, "files of 7s")
+		audio := 0
+		for i, file := range files {
+			r, _ := analyzeDvrFLV(c, file)
+			name := fmt.Sprintf("file %d of %d", i+1, len(files))
+			c.Check(r.Video == nil, "%s has video", name)
+			if !c.Check(r.Audio != nil, "%s has no audio", name) {
+				continue
+			}
+			c.CheckEqual(r.Audio.SequenceHeaders, 1, name+" audio sequence headers")
+			c.Check(r.Audio.FirstDTS <= 100*time.Millisecond, "%s starts at %v, want its own timeline from 0", name, r.Audio.FirstDTS)
+			if i < len(files)-1 {
+				c.Check(near(r.Audio.Duration(), dvrSegment, 100*time.Millisecond), "%s spans %v, want %v", name, r.Audio.Duration(), dvrSegment)
+			}
+			audio += r.Audio.Frames
+		}
+		c.CheckEqual(audio, publishedOf(c, tags).Audio.Frames, "audio frames of the files, as published")
 	})
 
 	// A publisher that starts mid-GOP: the first file starts at the first
@@ -476,22 +492,28 @@ func publishDvr(c *check.C, srs *server.Server, path string, tags []*media.FLVTa
 }
 
 // publishDvrOpen publishes tags at once, and returns the publisher, closed
-// when the case ends. It pauses 2ms before each keyframe after the first, so
-// each segment of a group whose dvr_path has the time to the millisecond gets
-// a name of its own; SRS refuses to write a file that is there.
+// when the case ends. It pauses 2ms before each keyframe after the first, and
+// in a stream with no video before the first audio frame of each second after
+// the first, so each segment of a group whose dvr_path has the time to the
+// millisecond gets a name of its own; SRS refuses to write a file that is there.
 func publishDvrOpen(c *check.C, srs *server.Server, path string, tags []*media.FLVTag) *rtmp.Client {
 	c.Helper()
 	pub := publishOnly(c, rtmpURL(srs, path), rtmp.FMLE)
 	free := srs.Burst(c)
 	defer free()
-	keyframes := 0
+	keyframes, video, second := 0, false, uint32(0)
 	for _, tag := range tags {
 		if tag.Type == media.TagVideo {
+			video = true
 			if v, err := media.ParseVideo(tag.Data); err == nil && v.Key && !v.SequenceHeader {
 				if keyframes++; keyframes > 1 {
 					time.Sleep(2 * time.Millisecond)
 				}
 			}
+		}
+		if tag.Type == media.TagAudio && !video && tag.Timestamp/1000 > second {
+			second = tag.Timestamp / 1000
+			time.Sleep(2 * time.Millisecond)
 		}
 		c.Must(pub.WriteTag(tag), "publish the media")
 	}

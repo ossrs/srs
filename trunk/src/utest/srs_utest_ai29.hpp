@@ -83,6 +83,8 @@ public:
     std::vector<std::string> hls_ctx_vhosts_;
     // Whether the HLS stream serves a playlist as an HLS session; false by default.
     bool hls_ctx_enabled_;
+    // The hls_m3u8_file of every vhost; [app]/[stream].m3u8 by default.
+    std::string hls_m3u8_file_;
 
 public:
     MockAppConfigForVodStream();
@@ -95,6 +97,7 @@ public:
 public:
     virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true);
     virtual bool get_hls_ctx_enabled(std::string vhost);
+    virtual std::string get_hls_m3u8_file(std::string vhost);
 };
 
 // Serves the VOD file from memory, for the range tests of SrsVodStream.

@@ -299,6 +299,65 @@ func rtspLifecycle(t *testing.T) {
 		c.Check(err == nil && res.StatusCode == base.StatusOK, "OPTIONS after TEARDOWN: %v, %v", res, err)
 	})
 
+	// TEARDOWN ends the session (RFC 2326): a PLAY after it is not valid in
+	// that state (455) and plays nothing, with no new on_play. A new
+	// DESCRIBE, SETUP and PLAY on the connection play again, with their own
+	// on_play.
+	check.Case(t, "PlayAfterTeardown", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		url := rtspURL(srs, "live/"+stream)
+		start := rtspPublisher(c, srs, "live/"+stream, media.H264BaselineAAC)
+		conn := rtspRawPlay(c, srs, "live/"+stream)
+		id := waitHook(c, srs, "on_play", stream).Field("client_id")
+		start()
+		n, err := conn.WaitFrames(1, 300*time.Millisecond)
+		c.Check(err == nil && n == 1, "frames %v, %v; want media", n, err)
+
+		res, err := conn.Do(base.Teardown, url, nil, 300*time.Millisecond)
+		c.Must(err, "TEARDOWN")
+		c.CheckEqual(res.StatusCode, base.StatusOK, "TEARDOWN")
+		waitClientHook(c, srs, "on_stop", id)
+		res, err = conn.Do(base.Play, url, nil, 300*time.Millisecond)
+		c.Must(err, "PLAY after TEARDOWN")
+		c.CheckEqual(res.StatusCode, base.StatusMethodNotValidInThisState, "PLAY after TEARDOWN")
+		n, err = conn.ReadFrames(100 * time.Millisecond)
+		c.Check(err == nil && n == 0, "frames after the PLAY %v, %v; want none", n, err)
+		c.Check(apiCode(c, srs, "/api/v1/clients/"+id) != 0, "the connection is a player in the API")
+		c.CheckEqual(hookActions(clientHooks(srs, id)), []string{"on_play", "on_stop"}, "hooks after the PLAY")
+
+		rtspSetupAll(c, conn, url)
+		res, err = conn.Do(base.Play, url, nil, 300*time.Millisecond)
+		c.Must(err, "PLAY again")
+		c.CheckEqual(res.StatusCode, base.StatusOK, "PLAY again")
+		n, err = conn.WaitFrames(1, 300*time.Millisecond)
+		c.Check(err == nil && n == 1, "frames of the new play %v, %v; want media", n, err)
+		c.CheckEqual(hookActions(clientHooks(srs, id)), []string{"on_play", "on_stop", "on_play"}, "hooks of the new play")
+	})
+
+	// A DESCRIBE that on_play refuses leaves no track of the DESCRIBE before
+	// it, so a PLAY after it is not valid in that state (455): it would play
+	// the refused stream.
+	check.Case(t, "PlayAfterRefusedDescribe", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream, refused := streamName(c), streamName(c)+"r"
+		rtspPublisher(c, srs, "live/"+stream, media.H264BaselineAAC)
+		rtspPublisher(c, srs, "live/"+refused, media.H264BaselineAAC)
+		srs.Hooks.Script(mock.Match{Action: "on_play", Stream: refused}, mock.Reject(403))
+		conn := rtspDial(c, srs)
+		rtspSetupAll(c, conn, rtspURL(srs, "live/"+stream))
+		id := waitHook(c, srs, "on_play", stream).Field("client_id")
+
+		url := rtspURL(srs, "live/"+refused)
+		res, err := conn.Do(base.Describe, url, nil, 300*time.Millisecond)
+		c.Must(err, "DESCRIBE of the refused stream")
+		c.CheckEqual(res.StatusCode, base.StatusUnauthorized, "DESCRIBE of the refused stream")
+		res, err = conn.Do(base.Play, url, nil, 300*time.Millisecond)
+		c.Must(err, "PLAY of the refused stream")
+		c.CheckEqual(res.StatusCode, base.StatusMethodNotValidInThisState, "PLAY of the refused stream")
+		c.Check(apiCode(c, srs, "/api/v1/clients/"+id) != 0, "the connection is a player in the API")
+	})
+
 	// A player that closes its connection, without TEARDOWN, leaves the API
 	// and the stream's clients.
 	check.Case(t, "PlayerCloseCleanup", check.Normal, func(c *check.C) {
@@ -313,6 +372,32 @@ func rtspLifecycle(t *testing.T) {
 		c.CheckEqual(apiCode(c, srs, "/api/v1/clients/"+id), 0, "the player in the API")
 		conn.Close()
 		c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+id), "the player leaves the API")
+	})
+
+	// A DESCRIBE on a connection that plays is not valid in that state
+	// (RFC 2326, 455): the player plays on and stays in the API, with no
+	// on_stop until it leaves, then the one of its on_play.
+	check.Case(t, "DescribeWhilePlaying", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		start := rtspPublisher(c, srs, "live/"+stream, media.H264BaselineAAC)
+		conn := rtspRawPlay(c, srs, "live/"+stream)
+		id := waitHook(c, srs, "on_play", stream).Field("client_id")
+		start()
+		n, err := conn.WaitFrames(1, 300*time.Millisecond)
+		c.Check(err == nil && n == 1, "frames %v, %v; want media", n, err)
+
+		res, err := conn.Do(base.Describe, rtspURL(srs, "live/"+stream), nil, 300*time.Millisecond)
+		c.Must(err, "DESCRIBE while playing")
+		c.CheckEqual(res.StatusCode, base.StatusMethodNotValidInThisState, "DESCRIBE while playing")
+		n, err = conn.WaitFrames(1, 300*time.Millisecond)
+		c.Check(err == nil && n == 1, "frames after the DESCRIBE %v, %v; want media", n, err)
+		c.CheckEqual(apiCode(c, srs, "/api/v1/clients/"+id), 0, "the player in the API")
+		c.CheckEqual(hookActions(clientHooks(srs, id)), []string{"on_play"}, "hooks while playing")
+
+		conn.Close()
+		waitClientHook(c, srs, "on_stop", id)
+		c.CheckEqual(hookActions(clientHooks(srs, id)), []string{"on_play", "on_stop"}, "hooks")
 	})
 
 	// A player that on_play refuses gets 401 to DESCRIBE.
@@ -739,16 +824,23 @@ func rtspRawPlay(c *check.C, srs *server.Server, path string) *rtsp.Conn {
 	c.Helper()
 	conn := rtspDial(c, srs)
 	url := rtspURL(srs, path)
+	rtspSetupAll(c, conn, url)
+	res, err := conn.Do(base.Play, url, nil, 300*time.Millisecond)
+	c.Must(err, "PLAY")
+	c.Must(errorIf(res.StatusCode != base.StatusOK, "status %v", res.StatusCode), "PLAY")
+	return conn
+}
+
+// rtspSetupAll sends DESCRIBE of url on a raw connection, then SETUP of each
+// of its tracks over TCP.
+func rtspSetupAll(c *check.C, conn *rtsp.Conn, url string) {
+	c.Helper()
 	res := rtspDescribe(c, conn, url)
 	for i, m := range rtspControl.FindAllStringSubmatch(string(res.Body), -1) {
 		res, err := conn.Do(base.Setup, m[1], rtspTCPTransport(2*i), 300*time.Millisecond)
 		c.Must(err, "SETUP")
 		c.Must(errorIf(res.StatusCode != base.StatusOK, "status %v", res.StatusCode), "SETUP "+m[1])
 	}
-	res, err := conn.Do(base.Play, url, nil, 300*time.Millisecond)
-	c.Must(err, "PLAY")
-	c.Must(errorIf(res.StatusCode != base.StatusOK, "status %v", res.StatusCode), "PLAY")
-	return conn
 }
 
 // checkRTSPServes checks a new connection gets an answer to OPTIONS.

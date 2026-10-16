@@ -186,14 +186,35 @@ func TestHttpStatic_Common(t *testing.T) {
 		checkStaticServes(c, srs)
 	})
 
-	// TraversalAnswered asks for a path with "..": a 400, which tells the
-	// client why.
-	check.Case(t, "TraversalAnswered", check.Fast, func(c *check.C) {
-		check.KnownBug(c, "a path with .. gets no answer, the connection closed")
+	// TraversalAnswered asks for a path with "..": a 400 with the error
+	// code and its name, which tells the client why, and SRS serves the
+	// next request.
+	check.Case(t, "TraversalAnswered", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
-		status, _, err := rawStaticGet(c, srs.Addr(server.HTTPServer), "/a/../"+streamName(c)+".dat")
+		status, body, err := rawStaticGet(c, srs.Addr(server.HTTPServer), "/a/../"+streamName(c)+".dat")
 		if c.CheckNoError(err, "the answer") {
 			c.CheckEqual(status, 400, "status")
+			c.CheckEqual(string(body), "4002: HttpUrlNotClean", "body")
+		}
+		checkStaticServes(c, srs)
+	})
+
+	// TwoDotsServed gets a file whose name has two dots in it, and a file
+	// with two dots in the query: no ".." segment, so each file.
+	check.Case(t, "TwoDotsServed", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		dir := streamName(c)
+		writeStatic(c, filepath.Join(srs.WebRoot(), dir, "a..b.dat"), []byte("two dots"))
+		writeStatic(c, filepath.Join(srs.WebRoot(), dir, "a.dat"), []byte("a"))
+		for _, f := range []struct{ target, body string }{
+			{"/" + dir + "/a..b.dat", "two dots"},
+			{"/" + dir + "/a.dat?t=a..b", "a"},
+		} {
+			status, body, err := rawStaticGet(c, srs.Addr(server.HTTPServer), f.target)
+			if c.CheckNoError(err, f.target+" answer") {
+				c.CheckEqual(status, 200, f.target+" status")
+				c.CheckEqual(string(body), f.body, f.target+" body")
+			}
 		}
 	})
 

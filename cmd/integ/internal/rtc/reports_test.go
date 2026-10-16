@@ -174,6 +174,30 @@ func TestPublishDefaultReports(t *testing.T) {
 	}
 }
 
+// TestPublishNoReports checks a publisher with NoSenderReports sends no
+// Sender Report, not even pion's a second after its first packets.
+func TestPublishNoReports(t *testing.T) {
+	sfu := newFakeSFU(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	pub, err := Publish(ctx, sfu.URL+"/rtc/v1/whip/?app=live&stream=s", &Options{NoSenderReports: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pub.Close()
+	if err := pub.Send(ctx, readSamples(t, 200*time.Millisecond), nil); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1200 * time.Millisecond)
+	rec := pub.Recorder.Record()
+	if len(rec.Out) != 2 {
+		t.Fatalf("streams sent %v, want video and audio", rec.Out)
+	}
+	if reports := senderReports(rec); len(reports) != 0 {
+		t.Errorf("Sender Reports %v, want none", reports)
+	}
+}
+
 // TestPublishOneTrack publishes only audio, or only video, when the options
 // offer no codec of the other kind: the offer has no section for it, a
 // sample of it fails, and a player gets only the track sent.

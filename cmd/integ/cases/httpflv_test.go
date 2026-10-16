@@ -92,6 +92,21 @@ func httpFlvSignaling(t *testing.T) {
 		c.CheckEqual(h.Field("stream"), name, "on_play stream")
 	})
 
+	// ParamWithTwoDots plays with a query that has two dots in a value, no
+	// path segment: the stream plays, and on_play has the query as its
+	// param.
+	check.Case(t, "ParamWithTwoDots", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		name := streamName(c)
+		stream := "live/" + name
+		startPublisher(c, rtmpURL(srs, stream), media.Path(c, media.H264HighAAC), 200*time.Millisecond)
+
+		r := httpFlvPlay(c, srs, stream+".flv?token=a..b", nil, playedUntil)
+		checkPlayed(c, r, "h264", "aac")
+		h := waitHook(c, srs, "on_play", name)
+		c.CheckEqual(h.Field("param"), "?token=a..b", "on_play param")
+	})
+
 	// VhostFromHost plays with a Host header naming a vhost SRS doesn't
 	// have: the request goes to the default vhost, where the stream is.
 	check.Case(t, "VhostFromHost", check.Normal, func(c *check.C) {

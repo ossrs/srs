@@ -4269,6 +4269,165 @@ VOID TEST(RtspConnectionTest, RepeatedDescribeStopsPreviousPlay)
     EXPECT_STREQ("stream2", f.hooks_.on_stop_streams_[1].c_str());
 }
 
+// A DESCRIBE while a player plays is not valid in that state (RFC 2326, 455 Method Not Valid in
+// This State): it would ask on_play again, maybe of another stream, while the player sends on. The
+// player plays on, stays in the stats once, and gets the one on_stop of its on_play when it leaves.
+VOID TEST(RtspConnectionTest, DescribeWhilePlayingIsRefused)
+{
+    srs_error_t err = srs_success;
+
+    SrsStatistic stat;
+    RtspOnStopFixture f;
+    f.conn_->stat_ = &stat;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    ASSERT_EQ(1, (int)f.hooks_.actions_.size());
+
+    // What PLAY makes: the player of the connection, in the stats by the connection's id.
+    MockRtspPlayStream *player = new MockRtspPlayStream();
+    f.conn_->player_ = player;
+    HELPER_EXPECT_SUCCESS(stat.on_client(f.conn_->cid_.c_str(), f.conn_->request_, f.conn_.get(), SrsRtspConnPlay));
+
+    // The same stream, or another one: both refused, with the session.
+    const char *uris[] = {"rtsp://127.0.0.1:8554/live/stream1", "rtsp://127.0.0.1:8554/live/stream2"};
+    for (int i = 0; i < (int)(sizeof(uris) / sizeof(uris[0])); i++) {
+        f.rtsp_->reset();
+        HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", uris[i]));
+        EXPECT_TRUE(f.rtsp_->send_message_called_);
+        EXPECT_EQ(SRS_CONSTS_RTSP_MethodNotValidInThisState, f.rtsp_->last_response_status_);
+        EXPECT_STREQ("session1", f.rtsp_->last_response_session_.c_str());
+    }
+
+    // No hook, and the player plays on, in the stats once, of its stream.
+    EXPECT_EQ(1, (int)f.hooks_.actions_.size());
+    EXPECT_TRUE(f.conn_->player_ == player);
+    EXPECT_FALSE(player->stop_called_);
+    SrsStatisticClient *client = stat.find_client(f.conn_->cid_.c_str());
+    ASSERT_TRUE(client != NULL);
+    EXPECT_STREQ("stream1", client->stream_->stream_.c_str());
+    EXPECT_EQ(1, client->stream_->nb_clients_);
+    EXPECT_TRUE(stat.find_stream_by_url("/live/stream2") == NULL);
+
+    // TEARDOWN ends the play: the on_stop of the first DESCRIBE's on_play, once.
+    HELPER_EXPECT_SUCCESS(f.request("TEARDOWN", "rtsp://127.0.0.1:8554/live/stream1"));
+    ASSERT_EQ(2, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[0].c_str());
+    EXPECT_STREQ("on_stop", f.hooks_.actions_[1].c_str());
+    EXPECT_STREQ("stream1", f.hooks_.on_stop_streams_[0].c_str());
+
+    f.conn_->stat_ = NULL;
+}
+
+// SETUP of the fixture's video track, trackID=0, over TCP.
+static srs_error_t rtsp_setup_video_track(RtspOnStopFixture &f)
+{
+    SrsRtspRequest *req = new SrsRtspRequest();
+    req->method_ = "SETUP";
+    req->uri_ = "rtsp://127.0.0.1:8554/live/stream1/trackID=0";
+    req->seq_ = 2;
+    req->stream_id_ = 0;
+    req->transport_ = new SrsRtspTransport();
+    req->transport_->transport_ = "RTP";
+    req->transport_->profile_ = "AVP";
+    req->transport_->lower_transport_ = "TCP";
+    req->transport_->interleaved_min_ = 0;
+    req->transport_->interleaved_max_ = 1;
+    return f.conn_->on_rtsp_request(req);
+}
+
+// TEARDOWN ends the session (RFC 2326): its tracks and their networks go with the player, so a PLAY
+// after it is not valid in that state (455), as a PLAY without SETUP, and plays nothing without a
+// new on_play. A new DESCRIBE starts a new play, with its own on_play.
+VOID TEST(RtspConnectionTest, PlayAfterTeardownIsRefused)
+{
+    srs_error_t err = srs_success;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    HELPER_EXPECT_SUCCESS(rtsp_setup_video_track(f));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    EXPECT_EQ(1, (int)f.conn_->networks_.size());
+
+    // What PLAY makes.
+    MockRtspPlayStream *player = new MockRtspPlayStream();
+    f.conn_->player_ = player;
+
+    HELPER_EXPECT_SUCCESS(f.request("TEARDOWN", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_TRUE(f.conn_->player_ == NULL);
+    EXPECT_TRUE(f.conn_->tracks_.empty());
+    EXPECT_TRUE(f.conn_->networks_.empty());
+
+    f.rtsp_->reset();
+    HELPER_EXPECT_SUCCESS(f.request("PLAY", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_MethodNotValidInThisState, f.rtsp_->last_response_status_);
+    EXPECT_TRUE(f.conn_->player_ == NULL);
+    ASSERT_EQ(2, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[0].c_str());
+    EXPECT_STREQ("on_stop", f.hooks_.actions_[1].c_str());
+
+    // A new DESCRIBE and SETUP make the session again.
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    HELPER_EXPECT_SUCCESS(rtsp_setup_video_track(f));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    ASSERT_EQ(3, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[2].c_str());
+}
+
+// A DESCRIBE that fails, such as one on_play refuses, leaves no track of the last DESCRIBE, so a
+// PLAY after it is not valid in that state (455): the connection's request names the refused stream
+// now, and a player would play it with no on_play that passed.
+VOID TEST(RtspConnectionTest, PlayAfterRefusedDescribeIsRefused)
+{
+    srs_error_t err = srs_success;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    HELPER_EXPECT_SUCCESS(rtsp_setup_video_track(f));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+
+    f.hooks_.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code 401");
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream2"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_Unauthorized, f.rtsp_->last_response_status_);
+    EXPECT_TRUE(f.conn_->tracks_.empty());
+
+    f.rtsp_->reset();
+    HELPER_EXPECT_SUCCESS(f.request("PLAY", "rtsp://127.0.0.1:8554/live/stream2"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_MethodNotValidInThisState, f.rtsp_->last_response_status_);
+    EXPECT_TRUE(f.conn_->player_ == NULL);
+}
+
+// A DESCRIBE frees the network a SETUP gave a track it no longer has, such as the old SSRC of a
+// publisher that came back with a new one, and keeps the network of a track it still has.
+VOID TEST(RtspConnectionTest, RepeatedDescribeFreesNetworksOfDroppedTracks)
+{
+    srs_error_t err = srs_success;
+
+    // Declared before the connection, which may free the writer that sets it.
+    bool kept_destroyed = false;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    ASSERT_EQ(1, (int)f.conn_->tracks_.size());
+
+    // Stand in for the writer a SETUP of the track installed, so its destruction is observable.
+    f.conn_->networks_[2001] = new MockStreamWriterForRtspConn(&kept_destroyed);
+
+    // The same track: its network stays.
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_FALSE(kept_destroyed);
+    EXPECT_EQ(1, (int)f.conn_->networks_.size());
+
+    // The publisher comes back with another SSRC: the network of the old one is freed.
+    f.sources_.mock_source_->video_desc_->ssrc_ = 2002;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    EXPECT_TRUE(kept_destroyed);
+    EXPECT_TRUE(f.conn_->networks_.empty());
+    EXPECT_TRUE(f.conn_->tracks_.find(2002) != f.conn_->tracks_.end());
+}
+
 // The body of a request, its Content-Length bytes after the headers, is read with it, so the next
 // request parses as a request, not the body: an SDP or parameters, a body longer than one read,
 // and a body whose first byte is the '$' of an interleaved frame.
@@ -6034,6 +6193,110 @@ VOID TEST(DvrSegmentPlanTest, KeyframeBeforeDurationKeepsSegment)
         fragment->append(5000);
     }
     EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    plan->config_ = NULL;
+}
+
+static SrsMediaPacket *mock_dvr_aac_frame(int64_t timestamp)
+{
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    char *data = new char[10];
+    data[0] = (char)0xaf;
+    data[1] = 0x01;
+    memset(data + 2, 0, 8);
+    msg->wrap(data, 10);
+    msg->message_type_ = SrsFrameTypeAudio;
+    msg->timestamp_ = timestamp;
+    return msg;
+}
+
+// A publish with no video has no keyframe to wait for, so with dvr_wait_keyframe
+// on the audio frame at dvr_duration cuts the file.
+VOID TEST(DvrSegmentPlanTest, AudioOnlyStreamCutsAtDuration)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    MockDvrSegmenter *mock_segmenter = new MockDvrSegmenter();
+    mock_segmenter->assemble();
+    SrsFragment *fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsDvrSegmentPlan> plan(new SrsDvrSegmentPlan());
+    plan->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(plan->initialize(mock_hub.get(), mock_segmenter, req.get()));
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    plan->cduration_ = 2 * SRS_UTIME_SECONDS;
+    plan->wait_keyframe_ = true;
+
+    SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+
+    // The audio frames from 0 to 1.98s are written, each 20ms after the one before.
+    for (int64_t ts = 0; ts <= 1980; ts += 20) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_aac_frame(ts));
+        HELPER_EXPECT_SUCCESS(plan->on_audio(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    // The audio frame at 2s cuts the file.
+    SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_aac_frame(2000));
+    HELPER_EXPECT_SUCCESS(plan->on_audio(frame.get(), format.get()));
+    EXPECT_EQ(1, mock_hub->on_dvr_request_sh_count_);
+
+    plan->config_ = NULL;
+}
+
+// The audio of a publish with video doesn't cut the file, which waits for a
+// keyframe; the next publish, with no video, is cut by its audio.
+VOID TEST(DvrSegmentPlanTest, AudioOfVideoStreamWaitsForKeyframe)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    MockDvrSegmenter *mock_segmenter = new MockDvrSegmenter();
+    mock_segmenter->assemble();
+    SrsFragment *fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsDvrSegmentPlan> plan(new SrsDvrSegmentPlan());
+    plan->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(plan->initialize(mock_hub.get(), mock_segmenter, req.get()));
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    plan->cduration_ = 2 * SRS_UTIME_SECONDS;
+    plan->wait_keyframe_ = true;
+
+    SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+
+    // A keyframe at 0, then audio to 2.5s: no keyframe at the duration.
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(0, true));
+        HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+        fragment->append(0);
+    }
+    for (int64_t ts = 0; ts <= 2500; ts += 20) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_aac_frame(ts));
+        HELPER_EXPECT_SUCCESS(plan->on_audio(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    // A new publish into a new file, with only audio.
+    plan->on_unpublish();
+    srs_freep(fragment);
+    fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    for (int64_t ts = 0; ts <= 2000; ts += 20) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_aac_frame(ts));
+        HELPER_EXPECT_SUCCESS(plan->on_audio(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    EXPECT_EQ(1, mock_hub->on_dvr_request_sh_count_);
 
     plan->config_ = NULL;
 }

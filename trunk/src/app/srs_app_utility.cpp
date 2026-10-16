@@ -83,6 +83,83 @@ string srs_path_build_stream(string template_path, string vhost, string app, str
     return path;
 }
 
+// Match path from pos to template_path from tpos, and bind the [app] and [stream] that are empty.
+static bool srs_path_match_stream(const string &template_path, size_t tpos, const string &path, size_t pos, string &app, string &stream)
+{
+    if (tpos == template_path.size()) {
+        return pos == path.size();
+    }
+
+    string *value = NULL;
+    size_t size = 0;
+    if (template_path.compare(tpos, 5, "[app]") == 0) {
+        value = &app;
+        size = 5;
+    } else if (template_path.compare(tpos, 8, "[stream]") == 0) {
+        value = &stream;
+        size = 8;
+    }
+
+    // A literal char must be the same.
+    if (!value) {
+        if (pos < path.size() && template_path.at(tpos) == path.at(pos)) {
+            return srs_path_match_stream(template_path, tpos + 1, path, pos + 1, app, stream);
+        }
+        return false;
+    }
+
+    // A variable already bound must have the same value again.
+    if (!value->empty()) {
+        if (path.compare(pos, value->size(), *value) == 0) {
+            return srs_path_match_stream(template_path, tpos + size, path, pos + value->size(), app, stream);
+        }
+        return false;
+    }
+
+    // Try the longest value first, so the app takes the dirs, and the stream has none.
+    size_t last = path.size();
+    if (value == &stream) {
+        last = srs_min(last, path.find('/', pos));
+    }
+
+    size_t next = tpos + size;
+    for (size_t end = last; end > pos; end--) {
+        // Skip a value that the rest of the template can't follow.
+        if (next == template_path.size() && end != path.size()) {
+            continue;
+        }
+        if (next < template_path.size() && template_path.at(next) != '[' && (end == path.size() || template_path.at(next) != path.at(end))) {
+            continue;
+        }
+
+        value->assign(path, pos, end - pos);
+        if (srs_path_match_stream(template_path, next, path, end, app, stream)) {
+            return true;
+        }
+        value->clear();
+    }
+
+    return false;
+}
+
+bool srs_path_parse_stream(string template_path, string vhost, string path, string &app, string &stream)
+{
+    if (template_path.find("[app]") == string::npos || template_path.find("[stream]") == string::npos) {
+        return false;
+    }
+
+    string t = srs_strings_replace(template_path, "[vhost]", vhost);
+
+    string a, s;
+    if (!srs_path_match_stream(t, 0, path, 0, a, s)) {
+        return false;
+    }
+
+    app = a;
+    stream = s;
+    return true;
+}
+
 string srs_path_build_timestamp(ISrsAppConfig *config, string template_path)
 {
     std::string path = template_path;

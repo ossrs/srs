@@ -70,6 +70,7 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     owner_cid_ = NULL;
 
     muxer_ = new SrsGbMuxer(this);
+    cycle_done_ = false;
     state_ = SrsGbSessionStateInit;
 
     nn_timeout_ = 0;
@@ -187,6 +188,11 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
             continue;
         }
 
+        // The session ended while this connection was in the muxer, so don't connect or send for it again.
+        if (cycle_done_) {
+            return;
+        }
+
         // Directly mux audio message.
         srs_error_t err = muxer_->on_ts_message(msg);
         if (err != srs_success) {
@@ -196,7 +202,7 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
     }
 
     // Send the generated video message.
-    if (video->payload_->length() > 0) {
+    if (!cycle_done_ && video->payload_->length() > 0) {
         srs_error_t err = muxer_->on_ts_message(video.get());
         if (err != srs_success) {
             srs_warn("Muxer: Ignore video err %s", srs_error_desc(err).c_str());
@@ -238,7 +244,7 @@ void SrsGbSession::on_media_disconnected(ISrsGbMediaTcpConn *media)
 
 bool SrsGbSession::is_ended()
 {
-    return !owner_coroutine_;
+    return !owner_coroutine_ || cycle_done_;
 }
 
 // LCOV_EXCL_START
@@ -255,10 +261,22 @@ srs_error_t SrsGbSession::cycle()
     // Drive the session cycle.
     err = do_cycle();
 
+    // No connection binds the session from now, so the interrupt below reaches every one that uses it.
+    cycle_done_ = true;
+
     // Interrupt the media transports when session terminated, which cuts their pointers to it.
     for (int i = 0; i < (int)medias_.size(); i++) {
         SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
         media->interrupt();
+    }
+
+    // The session and its muxer are freed after the cycle, so wait for its media connections to quit. A
+    // connection in the muxer, where a connect or send yields, quits once its interrupted I/O returns.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
+        while (media->is_connected()) {
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        }
     }
 
     // success.
@@ -853,6 +871,9 @@ SrsMediaPacket *SrsMpegpsQueue::dequeue()
 {
     // got 2+ messages of each track that has come, ok to dequeue. A track
     // that never came isn't waited for, so a stream of one track goes on too.
+    // A track that came is waited for until the stream ends. A device that
+    // stops one of its tracks while publishing, such as turning its audio off,
+    // is not supported: the other track is held until the queue overflows.
     bool av_ok = (has_video_ || has_audio_) && (!has_video_ || nb_videos_ >= 2) && (!has_audio_ || nb_audios_ >= 2);
     // 100 videos about 30s, while 300 audios about 30s
     bool av_overflow = nb_videos_ > 100 || nb_audios_ > 300;
@@ -888,6 +909,7 @@ SrsGbMuxer::SrsGbMuxer(ISrsGbSession *session)
 {
     sdk_ = NULL;
     connecting_ = false;
+    sending_ = false;
     session_ = session;
 
     avc_ = new SrsRawH264Stream();
@@ -1435,12 +1457,26 @@ srs_error_t SrsGbMuxer::rtmp_write_packet(char type, uint32_t timestamp, char *d
         return srs_error_wrap(err, "push to queue");
     }
 
-    // for all ready msg, dequeue and send out.
-    for (;;) {
-        if ((msg = queue_->dequeue()) == NULL) {
-            break;
-        }
+    // A send yields. Only the coroutine that sends may send or close the client;
+    // another one only queues its messages, and the sender sends them too.
+    if (sending_) {
+        return err;
+    }
 
+    sending_ = true;
+    err = send_queued_messages();
+    sending_ = false;
+
+    return err;
+}
+
+srs_error_t SrsGbMuxer::send_queued_messages()
+{
+    srs_error_t err = srs_success;
+
+    // for all ready msg, dequeue and send out.
+    SrsMediaPacket *msg = NULL;
+    while ((msg = queue_->dequeue()) != NULL) {
         if (pprint_->can_print()) {
             srs_trace("Muxer: send msg %s age=%d, dts=%" PRId64 ", size=%d",
                       msg->is_audio() ? "A" : msg->is_video() ? "V"

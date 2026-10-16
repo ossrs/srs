@@ -68,6 +68,9 @@ type Options struct {
 	// so a server that maps the tracks to one clock by their reports, such
 	// as SRS converting WebRTC to RTMP, can map each from its first packet.
 	SenderReports bool
+	// NoSenderReports makes a publisher send no Sender Report at all, its
+	// own or pion's, like a sender that hasn't sent one yet.
+	NoSenderReports bool
 	// AudioReportShift is added to the NTP time of the audio Sender
 	// Reports, so the audio maps that much later than the video sent with
 	// it.
@@ -204,9 +207,9 @@ func newPeerConnection(opts *Options) (*webrtc.PeerConnection, *Recorder, error)
 	ir.Add(rec)
 	interceptors := []webrtc.InterceptorOption{webrtc.WithNackGeneratorOptions(
 		nack.GeneratorInterval(nackInterval), nack.GeneratorMaxNacksPerPacket(maxNacks))}
-	if opts != nil && opts.SenderReports {
-		// The publisher sends its own; pion's would map the RTP time of its
-		// last packet to the wall clock, which a burst moves off.
+	if opts != nil && (opts.SenderReports || opts.NoSenderReports) {
+		// The publisher sends its own, or none; pion's would map the RTP time
+		// of its last packet to the wall clock, which a burst moves off.
 		interceptors = append(interceptors, webrtc.WithReportSenderOptions(report.SenderInterval(time.Hour)))
 	}
 	if err := webrtc.RegisterDefaultInterceptorsWithOptions(m, ir, interceptors...); err != nil {

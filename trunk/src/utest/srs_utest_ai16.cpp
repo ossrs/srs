@@ -960,6 +960,8 @@ srs_error_t MockStatisticForLiveStream::on_client(std::string id, ISrsRequest *r
     on_client_tc_url_ = req->tcUrl_;
     on_client_page_url_ = req->pageUrl_;
     on_client_swf_url_ = req->swfUrl_;
+    on_client_app_ = req->app_;
+    on_client_stream_ = req->stream_;
     on_client_type_ = type;
     return srs_error_copy(on_client_error_);
 }

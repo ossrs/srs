@@ -554,7 +554,7 @@ void SrsHttpFileServer::set_path(SrsPath *v)
     path_ = v;
 }
 
-// Whether a decoded path has a ".." segment, which would leave the served dir. A name with two dots in it, such as
+// Whether a path has a ".." segment, which would leave the served dir. A name with two dots in it, such as
 // a..b.dat, is not one.
 static bool srs_http_path_has_dotdot(const string &path)
 {
@@ -584,7 +584,7 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
 
     // The URL carries the path percent-encoded, as a file name with a space, a percent sign or a non-ASCII character
     // must be, so the file is looked up by the decoded path. A malformed escape, or a NUL that would cut the file name
-    // short, is a bad request. The mux refuses a URL with "..", but encoded dots or slashes make a ".." segment only
+    // short, is a bad request. The mux refuses a ".." segment, but encoded dots or slashes make a ".." segment only
     // once decoded, so it is checked here again, and not served.
     string upath = r->path();
     string fpath;
@@ -1028,8 +1028,8 @@ srs_error_t SrsHttpServeMux::find_handler(ISrsHttpMessage *r, ISrsHttpHandler **
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: support the path . and ..
-    if (r->url().find("..") != std::string::npos) {
+    // Only a ".." segment of the path is a traversal; two dots in a name, such as a..b.dat, or in the query are not.
+    if (srs_http_path_has_dotdot(r->path())) {
         return srs_error_new(ERROR_HTTP_URL_NOT_CLEAN, "url %s not canonical", r->url().c_str());
     }
 

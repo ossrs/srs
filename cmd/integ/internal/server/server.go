@@ -1101,6 +1101,10 @@ type RTC struct {
 	// stream to RTMP, with its Opus transcoded to AAC, so the RTMP, HTTP and
 	// segment players play it.
 	RTCToRTMP bool
+	// InitRateFromSDP turns the vhost's init_rate_from_sdp on: SRS maps a
+	// publisher's RTP times by the SDP clock rate from the first Sender
+	// Report of a track, not the second.
+	InitRateFromSDP bool
 }
 
 // WithRTC returns a copy of cfg with WebRTC on, over UDP only, with
@@ -1136,6 +1140,9 @@ func WithRTC(cfg Config, r RTC) Config {
 	}
 	if r.RTCToRTMP {
 		env["SRS_VHOST_RTC_RTC_TO_RTMP"] = "on"
+	}
+	if r.InitRateFromSDP {
+		env["SRS_VHOST_RTC_INIT_RATE_FROM_SDP"] = "on"
 	}
 	cfg.Env = env
 	if !slices.Contains(cfg.Listeners, RTCUDP) {

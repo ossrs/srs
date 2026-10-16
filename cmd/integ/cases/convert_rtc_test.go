@@ -594,6 +594,26 @@ func TestTimer_Convert_Reports(t *testing.T) {
 		}
 	})
 
+	// With init_rate_from_sdp on, as on this server, SRS knows each track's
+	// clock rate from the SDP, but the RTP times of a publisher that has
+	// sent no Sender Report yet map to no clock: its WHEP player gets no
+	// report for 1.2s after it plays, more than SRS's 1s report timer.
+	check.Case(t, "WhipToWhep_NoReportsBeforePublisher", check.Timer, func(c *check.C) {
+		stream := streamName(c)
+		p := rtcPlayer(c, whepURL(srs, "live", stream), nil)
+		opts := whipH264Opus.options()
+		opts.SenderReports, opts.NoSenderReports = false, true
+		whipSend(c, rtcPublisher(c, whipH264Opus.url(srs, stream), opts), whipH264Opus.samples(c), whipLead)
+		waitPlayed(c, p, rtcPlayedUntil)
+		time.Sleep(1200 * time.Millisecond)
+		for _, pkt := range p.Recorder.Record().RTCPIn {
+			if sr, ok := pkt.(*rtcp.SenderReport); ok {
+				c.Check(false, "a Sender Report of %v before the publisher's first, want none", sr.SSRC)
+				break
+			}
+		}
+	})
+
 	// A stream SRS converts to WebRTC, with rtmp_to_rtc, from RTMP, SRT or
 	// GB28181, has no publisher's reports: SRS stamps both tracks by the
 	// RTMP times of its frames, so its reports map them to that clock. These

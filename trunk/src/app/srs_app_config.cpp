@@ -1906,7 +1906,7 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_OUT_ACK_SIZE=2500000                RTMP output ack size, 0 to not set.\n"
         "      SRS_VHOST_TCP_NODELAY=off                     Set TCP_NODELAY on client sockets.\n"
         "      SRS_RTMPS_ENABLED=off                         Enable RTMPS, RTMP over TLS.\n"
-        "      SRS_RTMPS_LISTEN=                             RTMPS listen [ip:]port, such as 1443.\n"
+        "      SRS_RTMPS_LISTEN=1443                         RTMPS listen [ip:]port.\n"
         "      SRS_RTMPS_KEY=./conf/server.key               TLS private key of RTMPS.\n"
         "      SRS_RTMPS_CERT=./conf/server.crt              TLS cert of RTMPS.\n"
         "   Publish:\n"
@@ -8906,18 +8906,26 @@ vector<string> SrsConfig::get_rtmps_listen()
 
     std::vector<string> ports;
 
+    static string DEFAULT = "1443";
+
     SrsConfDirective *conf = get_rtmps();
     if (!conf) {
+        ports.push_back(DEFAULT);
         return ports;
     }
 
     conf = conf->get("listen");
     if (!conf) {
+        ports.push_back(DEFAULT);
         return ports;
     }
 
     for (int i = 0; i < (int)conf->args_.size(); i++) {
         ports.push_back(conf->args_.at(i));
+    }
+
+    if (ports.empty()) {
+        ports.push_back(DEFAULT);
     }
 
     return ports;
