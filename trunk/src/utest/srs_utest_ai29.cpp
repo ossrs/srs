@@ -10,6 +10,9 @@
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
+#include <stdio.h>
+#include <unistd.h>
+
 using namespace std;
 
 // The http static server mounts one directory per vhost, and a root mount for the vhosts that do not claim "/". Every
@@ -439,8 +442,9 @@ srs_error_t MockResponseWriterForVodStream::filter(SrsHttpHeader *h)
     return srs_success;
 }
 
-// Serve fullpath as MP4 with the range of url, and return the raw HTTP response in resp.
-static srs_error_t mock_vod_serve_mp4(string content, string url, string &resp)
+// Serve the file of url, MP4 or FLV, with the range or start of url, and the Range header if range is not empty, and
+// return the raw HTTP response in resp.
+static srs_error_t mock_vod_serve(string content, string url, string &resp, string range = "")
 {
     srs_error_t err = srs_success;
 
@@ -454,6 +458,11 @@ static srs_error_t mock_vod_serve_mp4(string content, string url, string &resp)
 
     MockResponseWriterForVodStream w;
     SrsHttpMessage r(NULL, NULL);
+    if (!range.empty()) {
+        SrsHttpHeader h;
+        h.set("Range", range);
+        r.set_header(&h, false);
+    }
     if ((err = r.set_url(url, false)) != srs_success) {
         return srs_error_wrap(err, "set url");
     }
@@ -474,7 +483,7 @@ VOID TEST(VodStreamRangeTest, RangeEndAtFilesizeServesTheWholeFile)
     srs_error_t err = srs_success;
 
     string resp;
-    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=0-13", resp));
+    HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4?bytes=0-13", resp));
 
     EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
     EXPECT_PRED2(is_string_contain, "Content-Length: 13", resp);
@@ -488,7 +497,7 @@ VOID TEST(VodStreamRangeTest, RangeEndBeyondFilesizeIsClamped)
     srs_error_t err = srs_success;
 
     string resp;
-    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=7-100", resp));
+    HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4?bytes=7-100", resp));
 
     EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
     EXPECT_PRED2(is_string_contain, "Content-Length: 6", resp);
@@ -502,7 +511,7 @@ VOID TEST(VodStreamRangeTest, RangeInsideTheFileIsUnchanged)
     srs_error_t err = srs_success;
 
     string resp;
-    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=2-5", resp));
+    HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4?bytes=2-5", resp));
 
     EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
     EXPECT_PRED2(is_string_contain, "Content-Length: 4", resp);
@@ -516,7 +525,7 @@ VOID TEST(VodStreamRangeTest, SuffixRangeServesTheLastBytes)
     srs_error_t err = srs_success;
 
     string resp;
-    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=-6", resp));
+    HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4?bytes=-6", resp));
 
     EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
     EXPECT_PRED2(is_string_contain, "Content-Length: 6", resp);
@@ -529,7 +538,7 @@ VOID TEST(VodStreamRangeTest, SuffixRangeLongerThanFileServesTheWholeFile)
     srs_error_t err = srs_success;
 
     string resp;
-    HELPER_ASSERT_SUCCESS(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=-20", resp));
+    HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4?bytes=-20", resp));
 
     EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
     EXPECT_PRED2(is_string_contain, "Content-Length: 13", resp);
@@ -537,13 +546,76 @@ VOID TEST(VodStreamRangeTest, SuffixRangeLongerThanFileServesTheWholeFile)
     EXPECT_PRED2(is_string_contain, "Hello, world!", resp);
 }
 
-// A range that starts past the last byte has nothing to serve, so it still fails.
-VOID TEST(VodStreamRangeTest, RangeStartBeyondTheLastByteFails)
+// A range that starts at or past the file size has no byte to serve, so it is refused with 416 and the file size in
+// Content-Range, as RFC 9110 has it, instead of closing the connection with no answer. The request still succeeds, so
+// the connection serves the next request.
+VOID TEST(VodStreamRangeTest, RangeStartBeyondTheLastByteIsUnsatisfiable)
 {
     srs_error_t err = srs_success;
 
+    const char *urls[] = {"/index.mp4?bytes=13-20", "/index.mp4?bytes=13-", "/index.mp4?range=23-33", "/index.mp4?bytes=100-"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", urls[i], resp));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */13", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("Hello", resp)) << urls[i];
+    }
+}
+
+// The Range header is refused the same way as the range in the query.
+VOID TEST(VodStreamRangeTest, RangeHeaderStartBeyondTheLastByteIsUnsatisfiable)
+{
+    srs_error_t err = srs_success;
+
+    const char *ranges[] = {"bytes=13-", "bytes=23-33"};
+    for (int i = 0; i < (int)(sizeof(ranges) / sizeof(ranges[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4", resp, ranges[i]));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << ranges[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */13", resp) << ranges[i];
+    }
+
+    // The last byte is still served.
     string resp;
-    HELPER_EXPECT_FAILED(mock_vod_serve_mp4("Hello, world!", "/index.mp4?bytes=13-20", resp));
+    HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4", resp, "bytes=12-"));
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 12-12/13", resp);
+}
+
+// An empty file has no byte to serve for any range.
+VOID TEST(VodStreamRangeTest, RangeOfEmptyFileIsUnsatisfiable)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {"/index.mp4?bytes=0-", "/index.mp4?bytes=-5"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("", urls[i], resp));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */0", resp) << urls[i];
+    }
+}
+
+// An FLV start at or past the file size has no tag to serve, so it is refused with 416 and the file size in
+// Content-Range, like an MP4 range, instead of closing the connection with no answer, or sending the FLV header and
+// sequence headers and then failing to seek.
+VOID TEST(VodStreamRangeTest, FlvStartBeyondTheLastByteIsUnsatisfiable)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {"/index.flv?start=13", "/index.flv?start=14", "/index.flv?start=1013"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", urls[i], resp));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */13", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("Hello", resp)) << urls[i];
+    }
 }
 
 // Serve the playlist at url, with config deciding the vhost, and return the raw HTTP response in resp.
@@ -675,3 +747,227 @@ VOID TEST(VodStreamHlsSessionTest, HttpsTcUrlKeepsTheHost)
     EXPECT_STREQ("https://[::1]:8088/live", mock_vod_hls_session_tcurl(true, "[::1]:8088").c_str());
 }
 
+MockSrsPathForHttpFileServer::MockSrsPathForHttpFileServer(bool is_dir)
+{
+    is_dir_ = is_dir;
+}
+
+MockSrsPathForHttpFileServer::~MockSrsPathForHttpFileServer()
+{
+}
+
+bool MockSrsPathForHttpFileServer::exists(string /*path*/)
+{
+    return true;
+}
+
+bool MockSrsPathForHttpFileServer::is_dir(string path)
+{
+    dir_paths_.push_back(path);
+    return is_dir_;
+}
+
+// Serve url from the static dir /tmp, whose every path is a directory or a file of content, and return the raw HTTP
+// response in resp.
+static srs_error_t mock_file_server_serve(MockSrsPathForHttpFileServer *path, string content, string url, string &resp, vector<string> *dir_paths = NULL)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    SrsHttpFileServer server("/tmp");
+    server.set_fs_factory(new MockFileReaderFactoryForVodStream(content));
+    server.set_path(path);
+    server.entry_ = &entry;
+
+    MockResponseWriterForVodStream w;
+    SrsHttpMessage r(NULL, NULL);
+    if ((err = r.set_url(url, false)) == srs_success) {
+        err = server.serve_http(&w, &r);
+    }
+
+    resp = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+    // The server owns and frees the path, so copy what it was asked.
+    if (dir_paths) {
+        *dir_paths = path->dir_paths_;
+    }
+
+    return err;
+}
+
+// A directory asked for without its slash is redirected to the path with the slash, as web servers do, so its
+// index.html is served and its relative links resolve. Reading the directory as a file fails and answers nothing.
+VOID TEST(HttpFileServerDirTest, DirWithoutSlashRedirectsToTheSlash)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", "/live/sub", resp));
+
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp);
+    EXPECT_PRED2(is_string_contain, "Location: /live/sub/\r\n", resp);
+}
+
+// The query is kept, and a path whose name looks like a stream or a file, or ends with a dot, is still a directory.
+VOID TEST(HttpFileServerDirTest, DirRedirectKeepsTheQuery)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", "/sub?v=1&k=x", resp));
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp);
+        EXPECT_PRED2(is_string_contain, "Location: /sub/?v=1&k=x\r\n", resp);
+    }
+
+    const char *urls[] = {"/sub.flv", "/sub.mp4", "/sub.m3u8", "/sub.ts", "/sub/."};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", urls[i], resp));
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, string("Location: ") + urls[i] + "/\r\n", resp) << urls[i];
+    }
+}
+
+// A directory at the default page of a path with its slash, such as a dir named index.html, has no page to serve: 404,
+// not a redirect that adds another slash, and not a read of the directory.
+VOID TEST(HttpFileServerDirTest, DirAtTheDefaultPageIsNotFound)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", "/sub/", resp));
+
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 404 Not Found", resp);
+    EXPECT_FALSE(is_string_contain("Location:", resp));
+}
+
+// A file is served as before, and the server asks whether its full path is a directory.
+VOID TEST(HttpFileServerDirTest, FileIsServed)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+    string resp;
+    vector<string> dir_paths;
+    HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "Hello, world!", "/live/a.dat", resp, &dir_paths));
+
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 200 OK", resp);
+    EXPECT_PRED2(is_string_contain, "Hello, world!", resp);
+    ASSERT_EQ(1, (int)dir_paths.size());
+    EXPECT_STREQ("/tmp/live/a.dat", dir_paths[0].c_str());
+}
+
+// SrsPath tells a directory from a file and a missing path.
+VOID TEST(HttpFileServerDirTest, PathIsDir)
+{
+    SrsPath path;
+
+    EXPECT_TRUE(path.is_dir("."));
+    EXPECT_TRUE(path.is_dir("./"));
+    EXPECT_FALSE(path.is_dir("./srs-utest-no-such-path"));
+
+    FILE *f = fopen("/tmp/srs-utest-path-is-dir.txt", "w");
+    ASSERT_TRUE(f != NULL);
+    fclose(f);
+    EXPECT_TRUE(path.exists("/tmp/srs-utest-path-is-dir.txt"));
+    EXPECT_FALSE(path.is_dir("/tmp/srs-utest-path-is-dir.txt"));
+    unlink("/tmp/srs-utest-path-is-dir.txt");
+}
+
+// A file whose name needs escaping is asked for percent-encoded, as a client must send it: the server looks for the
+// decoded name. A plus is a plus in a path, not a space.
+VOID TEST(HttpFileServerEscapeTest, EscapedNameIsDecoded)
+{
+    srs_error_t err = srs_success;
+
+    const char *cases[][2] = {
+        {"/live/a%20b.dat", "/tmp/live/a b.dat"},
+        {"/live/100%25.dat", "/tmp/live/100%.dat"},
+        {"/live/a+b.dat", "/tmp/live/a+b.dat"},
+        {"/live/a%2edat", "/tmp/live/a.dat"},
+        {"/live/a%2e%2eb.dat", "/tmp/live/a..b.dat"},
+        {"/live/%E5%90%8D.dat", "/tmp/live/\xE5\x90\x8D.dat"},
+        {"/live%2fa.dat", "/tmp/live/a.dat"},
+        {"/live/a%20b.dat?v=a%20b", "/tmp/live/a b.dat"},
+    };
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+        string resp;
+        vector<string> dir_paths;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "Hello, world!", cases[i][0], resp, &dir_paths));
+
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 200 OK", resp) << cases[i][0];
+        EXPECT_PRED2(is_string_contain, "Hello, world!", resp) << cases[i][0];
+        ASSERT_EQ(1, (int)dir_paths.size()) << cases[i][0];
+        EXPECT_STREQ(cases[i][1], dir_paths[0].c_str()) << cases[i][0];
+    }
+}
+
+// A directory whose name needs escaping is redirected to its encoded path with the slash, which is a valid URL.
+VOID TEST(HttpFileServerEscapeTest, EscapedDirRedirectsToTheEncodedPath)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+    string resp;
+    vector<string> dir_paths;
+    HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", "/live/a%20b", resp, &dir_paths));
+
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp);
+    EXPECT_PRED2(is_string_contain, "Location: /live/a%20b/\r\n", resp);
+    ASSERT_EQ(1, (int)dir_paths.size());
+    EXPECT_STREQ("/tmp/live/a b", dir_paths[0].c_str());
+}
+
+// A path whose dots or slashes are percent-encoded to make a ".." segment would leave the dir once decoded: 404, and
+// no file is looked up. A name with two dots in it is not a ".." segment, see EscapedNameIsDecoded.
+VOID TEST(HttpFileServerEscapeTest, EncodedDotDotIsNotServed)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {
+        "/%2e%2e/%2e%2e/secret",
+        "/%2E%2E/%2E%2E/secret",
+        "/%2e%2e%2f%2e%2e%2fsecret",
+        "/live/.%2e/secret",
+        "/live/%2e%2e",
+        "/live/%2e%2e/",
+        "/live/..%2fsecret",
+    };
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+        string resp;
+        vector<string> dir_paths;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "secret", urls[i], resp, &dir_paths));
+
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 404 Not Found", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("secret", resp)) << urls[i];
+        EXPECT_TRUE(dir_paths.empty()) << urls[i];
+    }
+}
+
+// A path with a malformed escape, or an escaped NUL that would cut the file name short, is a bad request: 400, and no
+// file is looked up.
+VOID TEST(HttpFileServerEscapeTest, BadEscapeIsBadRequest)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {"/live/a%zz.dat", "/live/a%2", "/live/100%.dat", "/live/a%00.dat", "/live/a.dat%00.flv"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+        string resp;
+        vector<string> dir_paths;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "Hello, world!", urls[i], resp, &dir_paths));
+
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 400 Bad Request", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("Hello, world!", resp)) << urls[i];
+        EXPECT_TRUE(dir_paths.empty()) << urls[i];
+    }
+}

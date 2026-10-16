@@ -100,18 +100,14 @@ var badEnv = []struct {
 	{name: "RtcListen", env: envOf("SRS_RTC_SERVER_ENABLED", "on", "SRS_RTC_SERVER_LISTEN", "abc")},
 	{name: "SrtListen", env: envOf("SRS_SRT_SERVER_ENABLED", "on", "SRS_SRT_SERVER_LISTEN", "abc")},
 	{name: "RtspListen", env: envOf("SRS_RTSP_SERVER_ENABLED", "on", "SRS_RTSP_SERVER_LISTEN", "abc")},
-	{
-		name:     "ExporterListen",
-		env:      envOf("SRS_EXPORTER_ENABLED", "on", "SRS_EXPORTER_LISTEN", "abc"),
-		testBug:  "an exporter listen that is not a port passes the config test",
-		startBug: "an exporter listen that is not a port starts SRS without the exporter",
-	},
-	{
-		name:     "RtmpsListen",
-		env:      envOf("SRS_RTMPS_ENABLED", "on", "SRS_RTMPS_LISTEN", "abc"),
-		testBug:  "an RTMPS listen that is not a port passes the config test",
-		startBug: "an RTMPS listen that is not a port starts SRS without RTMPS",
-	},
+	{name: "ExporterListen", env: envOf("SRS_EXPORTER_ENABLED", "on", "SRS_EXPORTER_LISTEN", "abc")},
+	{name: "RtmpsListen", env: envOf("SRS_RTMPS_ENABLED", "on", "SRS_RTMPS_LISTEN", "abc")},
+	// A second RTMPS listen that is not a port, after a good one.
+	{name: "RtmpsListenSecond", env: func(c *check.C) map[string]string {
+		return map[string]string{
+			"SRS_RTMPS_ENABLED": "on", "SRS_RTMPS_LISTEN": strconv.Itoa(server.ReservePort(c)) + " abc",
+		}
+	}},
 	{name: "HeartbeatIntervalZero", env: envOf("SRS_HEARTBEAT_INTERVAL", "0")},
 	// HDS is removed, so each of its settings, on or off, is refused.
 	{name: "HdsEnabled", env: envOf("SRS_VHOST_HDS_ENABLED", "on")},

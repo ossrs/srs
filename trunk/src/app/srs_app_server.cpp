@@ -1601,6 +1601,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
             string key = listener == apis_listener_ ? config_->get_https_api_ssl_key() : "";
             string cert = listener == apis_listener_ ? config_->get_https_api_ssl_cert() : "";
             SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, key, cert);
+            conn->set_api_listener(true);
             conn->assemble();
             resource = conn;
         } else if (listener == http_listener_ || listener == https_listener_) {

@@ -600,6 +600,9 @@ public:
 public:
     virtual bool match(ISrsHttpMessage *r);
     virtual srs_error_t authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
+private:
+    srs_error_t do_authenticate(ISrsHttpMessage *r);
 };
 
 // Authenticate HTTP requests using a Bearer token.

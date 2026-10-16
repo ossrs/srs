@@ -434,9 +434,9 @@ func apiStatsMetrics(t *testing.T, srs *server.Server, lock func(*check.C)) {
 	})
 
 	// MetricsTagEscaped: a tag with a quote and a backslash is escaped in
-	// srs_build_info, so a scraper reads the tag as it is.
+	// srs_build_info, so a scraper reads the whole scrape and the tag as it
+	// is.
 	check.Case(t, "MetricsTagEscaped", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the exporter's label and tag are not escaped in /metrics")
 		lock(c)
 		text := scrapeText(c, httpClient, "http://"+srs.Addr(server.Exporter)+"/metrics")
 		fams, err := metrics.Parse(bytes.NewReader(text))

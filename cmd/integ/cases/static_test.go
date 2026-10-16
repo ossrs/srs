@@ -147,17 +147,27 @@ func TestHttpStatic_Common(t *testing.T) {
 		}
 	})
 
-	// DirWithoutSlash asks for a dir without its slash: an HTTP answer, a
-	// redirect to the dir or 404.
+	// DirWithoutSlash asks for a dir without its slash, also as "/dir/.": an
+	// HTTP answer, a redirect to the dir or 404. A client that follows the
+	// redirect gets the dir's index.html.
 	check.Case(t, "DirWithoutSlash", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a dir without its slash gets no answer, SRS fails to read the dir as a file")
 		srs := server.Common(c)
 		dir := streamName(c)
-		writeStatic(c, filepath.Join(srs.WebRoot(), dir, "index.html"), []byte("<p>index</p>"))
+		page := "<p>" + dir + "</p>"
+		writeStatic(c, filepath.Join(srs.WebRoot(), dir, "index.html"), []byte(page))
 
-		status, _, err := rawStaticGet(c, srs.Addr(server.HTTPServer), "/"+dir)
-		if c.CheckNoError(err, "the answer") {
-			c.Check(status == 301 || status == 302 || status == 404, "status %d, want a redirect to the dir or 404", status)
+		redirected := false
+		for _, p := range []string{"/" + dir, "/" + dir + "/."} {
+			status, _, err := rawStaticGet(c, srs.Addr(server.HTTPServer), p)
+			if c.CheckNoError(err, p+" answer") {
+				c.Check(status == 301 || status == 302 || status == 404, "%s status %d, want a redirect to the dir or 404", p, status)
+				redirected = redirected || status == 301 || status == 302
+			}
+		}
+		if redirected {
+			res, body := staticGet(c, srs, "/"+dir, nil)
+			c.CheckEqual(res.StatusCode, 200, "status after the redirect")
+			c.CheckEqual(string(body), page, "body after the redirect")
 		}
 		checkStaticServes(c, srs)
 	})
@@ -203,17 +213,25 @@ func TestHttpStatic_Common(t *testing.T) {
 		checkStaticServes(c, srs)
 	})
 
-	// EscapedFileName gets a file whose name has a space, percent-encoded in
-	// the URL as it must be: the file.
-	check.Case(t, "EscapedFileName", check.Fast, func(c *check.C) {
-		check.KnownBug(c, "the URL path is not percent-decoded, so a file whose name needs escaping is 404")
+	// EscapedFileName gets files whose names need escaping, a space, a
+	// percent sign and a non-ASCII name, percent-encoded in the URL as they
+	// must be, and a plain name with its dot encoded: each file.
+	check.Case(t, "EscapedFileName", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		dir := streamName(c)
-		writeStatic(c, filepath.Join(srs.WebRoot(), dir, "a b.dat"), []byte("spaced"))
-
-		res, body := staticGet(c, srs, "/"+dir+"/a%20b.dat", nil)
-		c.CheckEqual(res.StatusCode, 200, "status")
-		c.CheckEqual(string(body), "spaced", "body")
+		for _, f := range []struct{ name, target string }{
+			{"a b.dat", "a%20b.dat"},
+			{"100%.dat", "100%25.dat"},
+			{"名.dat", "%E5%90%8D.dat"},
+			{"a.txt", "a%2etxt"},
+		} {
+			writeStatic(c, filepath.Join(srs.WebRoot(), dir, f.name), []byte("data of "+f.name))
+			status, body, err := rawStaticGet(c, srs.Addr(server.HTTPServer), "/"+dir+"/"+f.target)
+			if c.CheckNoError(err, f.target+" answer") {
+				c.CheckEqual(status, 200, f.target+" status")
+				c.CheckEqual(string(body), "data of "+f.name, f.target+" body")
+			}
+		}
 	})
 
 	// CorsHeaders gets a file with an Origin header: the CORS headers, as

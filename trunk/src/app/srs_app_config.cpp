@@ -2414,6 +2414,24 @@ srs_error_t SrsConfig::check_normal_config()
     }
 
     ////////////////////////////////////////////////////////////////////////
+    // check listen for rtmps and exporter.
+    ////////////////////////////////////////////////////////////////////////
+    if (get_rtmps_enabled()) {
+        vector<string> listens = get_rtmps_listen();
+        for (int i = 0; i < (int)listens.size(); i++) {
+            if (!srs_net_is_valid_endpoint(listens[i])) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "rtmps.listen=%s is invalid", listens[i].c_str());
+            }
+        }
+    }
+    if (get_exporter_enabled()) {
+        string listen = get_exporter_listen();
+        if (!srs_net_is_valid_endpoint(listen)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "exporter.listen=%s is invalid", listen.c_str());
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
     // check heartbeat
     ////////////////////////////////////////////////////////////////////////
     if (get_heartbeat_interval() <= 0) {

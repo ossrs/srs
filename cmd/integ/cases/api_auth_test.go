@@ -230,7 +230,6 @@ func TestApi_BasicOnePort(t *testing.T) {
 	// EveryRefusalChallenges checks those malformed credentials get the Basic
 	// challenge too: a 401 must have a WWW-Authenticate (RFC 9110).
 	check.Case(t, "EveryRefusalChallenges", check.Fast, func(c *check.C) {
-		check.KnownBug(c, "a 401 for credentials that are not basic or don't parse has no WWW-Authenticate")
 		for what, v := range malformed {
 			r := apiRequest(c, httpClient, http.MethodGet, api("/api/v1/summaries"), v, nil)
 			c.CheckEqual(r.header.Get("WWW-Authenticate"), "Basic", what+" WWW-Authenticate")
@@ -240,7 +239,6 @@ func TestApi_BasicOnePort(t *testing.T) {
 	// LowercaseScheme sends the right credentials as "basic": the scheme is
 	// case-insensitive (RFC 9110).
 	check.Case(t, "LowercaseScheme", check.Fast, func(c *check.C) {
-		check.KnownBug(c, "the scheme of the credentials is matched case-sensitively")
 		r := apiRequest(c, httpClient, http.MethodGet, api("/api/v1/summaries"), "basic"+strings.TrimPrefix(good, "Basic"), nil)
 		checkCode0(c, r, "summaries")
 	})
@@ -354,7 +352,6 @@ func TestApi_Bearer(t *testing.T) {
 	})
 
 	check.Case(t, "LowercaseScheme", check.Fast, func(c *check.C) {
-		check.KnownBug(c, "the scheme of the credentials is matched case-sensitively")
 		checkCode0(c, apiRequest(c, httpClient, http.MethodGet, api("/api/v1/summaries"), "bearer "+authToken, nil), "summaries")
 	})
 
@@ -435,7 +432,6 @@ func TestApi_BearerApiOnly(t *testing.T) {
 	// ApiCrossdomainOff sends a preflight and a request with an Origin to the
 	// API, whose crossdomain is off: 405, and no CORS headers.
 	check.Case(t, "ApiCrossdomainOff", check.Fast, func(c *check.C) {
-		check.KnownBug(c, "the API's CORS follows the HTTP server's crossdomain, not its own")
 		r := apiRequest(c, httpClient, http.MethodOptions, srs.APIURL("/api/v1/summaries"), "", originHeader)
 		c.CheckEqual(r.status, http.StatusMethodNotAllowed, "preflight status")
 		c.CheckEqual(r.header.Get("Access-Control-Allow-Origin"), "", "preflight Access-Control-Allow-Origin")

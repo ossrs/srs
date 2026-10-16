@@ -1671,6 +1671,8 @@ MockHttpConnForHttpxConn::MockHttpConnForHttpxConn()
     remote_ip_ = "127.0.0.1";
     context_id_ = _srs_context->generate_id();
     delta_ = NULL;
+    crossdomain_ = false;
+    crossdomain_set_ = false;
 }
 
 MockHttpConnForHttpxConn::~MockHttpConnForHttpxConn()
@@ -1699,6 +1701,8 @@ srs_error_t MockHttpConnForHttpxConn::pull()
 
 srs_error_t MockHttpConnForHttpxConn::set_crossdomain_enabled(bool v)
 {
+    crossdomain_ = v;
+    crossdomain_set_ = true;
     return srs_success;
 }
 
@@ -1829,6 +1833,59 @@ VOID TEST(HttpxConnTest, OnConnDoneStatsStreamingClientAndKeepsError)
     EXPECT_TRUE(connx.get() == manager.removed_resource_);
 
     connx->stat_ = NULL;
+}
+
+MockAppConfigForHttpxConnCors::MockAppConfigForHttpxConnCors()
+{
+    http_api_crossdomain_ = false;
+    http_stream_crossdomain_ = false;
+}
+
+MockAppConfigForHttpxConnCors::~MockAppConfigForHttpxConnCors()
+{
+}
+
+bool MockAppConfigForHttpxConnCors::get_http_api_crossdomain()
+{
+    return http_api_crossdomain_;
+}
+
+bool MockAppConfigForHttpxConnCors::get_http_stream_crossdomain()
+{
+    return http_stream_crossdomain_;
+}
+
+// A connection of an HTTP API listener answers CORS by the API's crossdomain, and a connection of
+// the HTTP server's listener by the server's, whichever of the two is on.
+VOID TEST(HttpxConnTest, StartTakesCrossdomainOfItsListener)
+{
+    srs_error_t err;
+
+    for (int i = 0; i < 4; i++) {
+        bool api_listener = (i & 1) != 0;
+        bool api_on = (i & 2) != 0;
+
+        MockAppConfigForHttpxConnCors config;
+        config.http_api_crossdomain_ = api_on;
+        config.http_stream_crossdomain_ = !api_on;
+
+        SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, NULL, NULL, "127.0.0.1", 8080, "", ""));
+        connx->config_ = &config;
+        if (api_listener) {
+            connx->set_api_listener(true);
+        }
+
+        MockHttpConnForHttpxConn *conn = new MockHttpConnForHttpxConn();
+        connx->conn_ = conn;
+
+        HELPER_EXPECT_SUCCESS(connx->start());
+
+        bool want = api_listener ? api_on : !api_on;
+        EXPECT_TRUE(conn->crossdomain_set_);
+        EXPECT_EQ(want, conn->crossdomain_) << "api_listener=" << api_listener << ", api_on=" << api_on;
+
+        connx->config_ = NULL;
+    }
 }
 
 // Test SrsQueueRecvThread basic queue operations

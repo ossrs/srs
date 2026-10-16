@@ -4835,6 +4835,100 @@ VOID TEST(ConfigMainTest, AtcAutoEnvRemoved)
     }
 }
 
+// An enabled exporter or RTMPS listen that is not an endpoint is refused, as the
+// other listeners' are, with an error that names it. Disabled, it is not checked.
+VOID TEST(ConfigListenTest, ExporterAndRtmpsListenInvalid)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } bad[] = {
+        {"exporter{enabled on; listen abc;}", "exporter.listen"},
+        {"exporter{enabled on; listen 0;}", "exporter.listen"},
+        {"exporter{enabled on; listen 1.2.3:9972;}", "exporter.listen"},
+        {"rtmps{enabled on; listen abc;}", "rtmps.listen"},
+        {"rtmps{enabled on; listen 0;}", "rtmps.listen"},
+        {"rtmps{enabled on; listen 1443 abc;}", "rtmps.listen"},
+    };
+    for (int i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + bad[i].conf);
+        EXPECT_TRUE(err != srs_success) << bad[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(bad[i].name) != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    const char *good[] = {
+        "exporter{enabled on; listen 9972;}",
+        "exporter{enabled on; listen 127.0.0.1:9972;}",
+        "exporter{enabled on;}",
+        "exporter{enabled off; listen abc;}",
+        "rtmps{enabled on; listen 1443;}",
+        "rtmps{enabled on; listen 1443 127.0.0.1:1444;}",
+        "rtmps{enabled off; listen abc;}",
+    };
+    for (int i = 0; i < (int)(sizeof(good) / sizeof(good[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + good[i]);
+        EXPECT_TRUE(err == srs_success) << good[i] << ": " << (err ? srs_error_desc(err) : "");
+        srs_freep(err);
+    }
+}
+
+// The same listens set by env: SRS_EXPORTER_LISTEN and SRS_RTMPS_LISTEN that are not
+// endpoints are refused when their listener is on.
+VOID TEST(ConfigListenTest, ExporterAndRtmpsListenEnvInvalid)
+{
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_EXPORTER_ENABLED", "on");
+        SrsSetEnvConfig(conf, listen, "SRS_EXPORTER_LISTEN", "abc");
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success);
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("exporter.listen=abc") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_RTMPS_ENABLED", "on");
+        SrsSetEnvConfig(conf, listen, "SRS_RTMPS_LISTEN", "abc");
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success);
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("rtmps.listen=abc") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_EXPORTER_ENABLED", "off");
+        SrsSetEnvConfig(conf, listen, "SRS_EXPORTER_LISTEN", "abc");
+        SrsSetEnvConfig(conf, rtmps_enabled, "SRS_RTMPS_ENABLED", "off");
+        SrsSetEnvConfig(conf, rtmps_listen, "SRS_RTMPS_LISTEN", "abc");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_EXPORTER_ENABLED", "on");
+        SrsSetEnvConfig(conf, listen, "SRS_EXPORTER_LISTEN", "9972");
+        SrsSetEnvConfig(conf, rtmps_enabled, "SRS_RTMPS_ENABLED", "on");
+        SrsSetEnvConfig(conf, rtmps_listen, "SRS_RTMPS_LISTEN", "1443 1444");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
 // The timers in seconds read a fraction of a second, from the config file and
 // from env, and a whole number still reads as before.
 VOID TEST(ConfigTimerTest, SecondsAcceptFractions)

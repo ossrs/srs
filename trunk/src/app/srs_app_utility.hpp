@@ -82,6 +82,11 @@ public:
 
 public:
     SrsRusage();
+
+public:
+    // The peak resident set size in kilobytes. The ru_maxrss of getrusage is in
+    // kilobytes on Linux, but in bytes on macOS.
+    int64_t maxrss_kbyte();
 };
 
 // Get system rusage, use cache to avoid performance problem.

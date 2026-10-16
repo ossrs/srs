@@ -539,6 +539,17 @@ bool SrsPath::exists(std::string path)
     return false;
 }
 
+bool SrsPath::is_dir(std::string path)
+{
+    struct stat st;
+
+    if (stat(path.c_str(), &st) == 0) {
+        return S_ISDIR(st.st_mode);
+    }
+
+    return false;
+}
+
 srs_error_t SrsPath::unlink(std::string path)
 {
     // Define the directories that are forbidden to delete.

@@ -505,6 +505,7 @@ public:
     virtual std::vector<std::string> get_https_api_listens() { return std::vector<std::string>(); }
     virtual std::string get_https_api_ssl_key() { return ""; }
     virtual std::string get_https_api_ssl_cert() { return ""; }
+    virtual bool get_http_api_crossdomain() { return false; }
     virtual bool get_raw_api() { return false; }
     virtual bool get_raw_api_allow_reload() { return false; }
     virtual bool get_raw_api_allow_query() { return false; }

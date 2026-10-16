@@ -1672,6 +1672,102 @@ VOID TEST(ProtocolHTTPTest, HTTPAuthMatchesPathPrefixOnly)
     EXPECT_TRUE(srs_utest_auth_match(new SrsHttpBearerAuthenticator("token", true), "/rtc/v1/play/"));
 }
 
+// Serve one API request with the Authorization header auth, through the authenticator a,
+// and return the status the response writer got, and its WWW-Authenticate in challenge.
+static int srs_utest_serve_api_auth(ISrsHttpAuthenticator *a, string auth, string *challenge = NULL)
+{
+    srs_error_t err;
+
+    SrsHttpServeMux s;
+    HELPER_EXPECT_SUCCESS(s.initialize());
+    HELPER_EXPECT_SUCCESS(s.handle("/", new MockHttpHandler("Hello, world!")));
+
+    MockResponseWriter w;
+    SrsHttpMessage r(NULL, NULL);
+    r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+    HELPER_EXPECT_SUCCESS(r.set_url("/api/v1/versions", false));
+
+    SrsHttpHeader h;
+    h.set("Authorization", auth);
+    r.set_header(&h, false);
+
+    SrsHttpAuthMux mux(&s);
+    HELPER_EXPECT_SUCCESS(mux.initialize(a));
+    HELPER_EXPECT_SUCCESS(mux.serve_http(&w, &r));
+    if (challenge) {
+        *challenge = w.header()->get("WWW-Authenticate");
+    }
+    return w.w->status_;
+}
+
+// The auth scheme is case-insensitive (RFC 9110 11.1), and must be the first word of
+// the credentials, followed by one or more spaces.
+VOID TEST(ProtocolHTTPTest, HTTPAuthSchemeCaseInsensitive)
+{
+    // Basic, admin:admin, as the scheme comes in any case.
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "Basic YWRtaW46YWRtaW4="));
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "basic YWRtaW46YWRtaW4="));
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "BASIC YWRtaW46YWRtaW4="));
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "Basic  YWRtaW46YWRtaW4="));
+
+    // Basic is not the scheme when it is not the first word.
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "xBasic YWRtaW46YWRtaW4="));
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "Token Basic YWRtaW46YWRtaW4="));
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "BasicYWRtaW46YWRtaW4="));
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "basic"));
+
+    // Bearer, as the scheme comes in any case.
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "Bearer secret-token"));
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "bearer secret-token"));
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "BEARER secret-token"));
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "Bearer  secret-token"));
+
+    // The token stays case-sensitive, and an empty one or another scheme is refused.
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "bearer SECRET-TOKEN"));
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "bearer "));
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "bearer"));
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "Bearersecret-token"));
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBearerAuthenticator("secret-token", false), "xBearer secret-token"));
+}
+
+// Every 401 of basic authentication challenges the client with Basic (RFC 9110 15.5.2),
+// also for credentials of another scheme or that don't parse.
+VOID TEST(ProtocolHTTPTest, HTTPBasicAuthEveryRefusalChallenges)
+{
+    const char *refused[] = {
+        "",                          // No credentials.
+        "Basic YWRtaW46d3Jvbmc=",    // admin:wrong
+        "Bearer admin",              // Another scheme.
+        "Basic YWRtaW4=",            // admin, no colon.
+        "Basic !!!",                 // Not base64.
+        "Basic ",                    // No token.
+        "basic",                     // No token, nor its space.
+    };
+    for (int i = 0; i < (int)(sizeof(refused) / sizeof(refused[0])); i++) {
+        string challenge;
+        EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), refused[i], &challenge)) << refused[i];
+        EXPECT_STREQ("Basic", challenge.c_str()) << refused[i];
+    }
+
+    string challenge;
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), "Basic YWRtaW46YWRtaW4=", &challenge));
+    EXPECT_TRUE(challenge.empty());
+}
+
+// The user-id of basic credentials ends at the first colon, and the password may have
+// colons (RFC 7617 2).
+VOID TEST(ProtocolHTTPTest, HTTPBasicAuthPasswordWithColon)
+{
+    // admin:se:cret is the user admin with the password se:cret.
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "se:cret"), "Basic YWRtaW46c2U6Y3JldA=="));
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "se"), "Basic YWRtaW46c2U6Y3JldA=="));
+    // admin:se is not the password se:cret.
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "se:cret"), "Basic YWRtaW46c2U="));
+    // ad:min:admin is the user ad, not ad:min, which can't be a user-id.
+    EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("ad:min", "admin"), "Basic YWQ6bWluOmFkbWlu"));
+    EXPECT_EQ(200, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("ad", "min:admin"), "Basic YWQ6bWluOmFkbWlu"));
+}
+
 VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
 {
     srs_error_t err;

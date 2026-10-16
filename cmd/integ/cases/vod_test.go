@@ -114,16 +114,17 @@ func vodMp4Cases(t *testing.T) {
 	})
 
 	// Mp4RangeStartPastEnd asks for a range that starts at the file size, and
-	// one past it: 416 with the file size in Content-Range, and the server
-	// serves the next request.
+	// one past it, by the Range header, ?range= and ?bytes=: 416 with the file
+	// size in Content-Range, and the server serves the next request.
 	check.Case(t, "Mp4RangeStartPastEnd", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a range that starts past the end gets no answer, the connection closed, not 416")
 		srs := server.Common(c)
 		data, path := writeVod(c, srs.WebRoot(), vodMp4)
 		n := len(data)
 		for _, r := range []string{fmt.Sprintf("bytes=%d-", n), fmt.Sprintf("bytes=%d-%d", n+10, n+20)} {
 			checkUnsatisfiable(c, srs, path, "Range: "+r, n)
 		}
+		checkUnsatisfiable(c, srs, path+fmt.Sprintf("?range=%d-", n), "", n)
+		checkUnsatisfiable(c, srs, path+fmt.Sprintf("?bytes=%d-%d", n+10, n+20), "", n)
 		checkStaticServes(c, srs)
 	})
 
@@ -217,13 +218,14 @@ func TestHttpStatic_RemuxOff(t *testing.T) {
 		})
 	}
 
-	// FlvStartPastEnd asks from an offset past the end of the file: 416 with
-	// the file size in Content-Range, and the server serves the next
-	// request.
+	// FlvStartPastEnd asks from an offset at the end of the file, where no
+	// tag is left, and past it: 416 with the file size in Content-Range, and
+	// the server serves the next request.
 	check.Case(t, "FlvStartPastEnd", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "a start past the end gets no answer, the connection closed, not 416")
 		data, path := writeVod(c, srs.WebRoot(), media.H264HighAAC)
-		checkUnsatisfiable(c, srs, path+"?start="+strconv.Itoa(len(data)+1000), "", len(data))
+		for _, start := range []int{len(data), len(data) + 1000} {
+			checkUnsatisfiable(c, srs, path+"?start="+strconv.Itoa(start), "", len(data))
+		}
 		checkStaticServes(c, srs)
 	})
 

@@ -365,6 +365,8 @@ public:
     virtual std::vector<std::string> get_https_api_listens() = 0;
     virtual std::string get_https_api_ssl_key() = 0;
     virtual std::string get_https_api_ssl_cert() = 0;
+    // Whether the HTTP API answers CORS requests.
+    virtual bool get_http_api_crossdomain() = 0;
     // Whether enable the HTTP RAW API.
     virtual bool get_raw_api() = 0;
     // Whether allow rpc reload.

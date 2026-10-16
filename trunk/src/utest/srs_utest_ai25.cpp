@@ -526,6 +526,73 @@ VOID TEST(HookRejectionTest, WhepRejectedViewerReceivesHookStatus)
     srs_freep(hooks);
 }
 
+// WHEP: a viewer the security denies is refused as unauthorized, 401, as a denied WHIP publisher
+// is, not answered 500 as a server fault. The security check comes before the hook, so the hook is
+// not consulted.
+VOID TEST(HookRejectionTest, WhepDeniedViewerReceivesAuthStatus)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockRtcApiServer> server(new MockRtcApiServer());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
+    HELPER_EXPECT_SUCCESS(message->set_url("http://127.0.0.1:1985/rtc/v1/whep/?app=live&stream=livestream", false));
+
+    MockAppConfigForRtcPlay *config = new MockAppConfigForRtcPlay();
+    config->rtc_server_enabled_ = true;
+    config->rtc_enabled_ = true;
+    config->rtc_from_rtmp_ = true;
+    config->http_hooks_enabled_ = true;
+    config->on_play_directive_ = new SrsConfDirective();
+    config->on_play_directive_->name_ = "on_play";
+    config->on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/play");
+
+    MockHttpHooksForOnPlay *hooks = new MockHttpHooksForOnPlay();
+
+    MockSecurity *security = new MockSecurity();
+    security->check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "denied");
+
+    SrsUniquePtr<SrsGoApiRtcWhip> api(new SrsGoApiRtcWhip(server.get()));
+    api->config_ = config;
+    api->play_->config_ = config;
+    api->play_->hooks_ = hooks;
+    srs_freep(api->play_->security_);
+    api->play_->security_ = security;
+
+    message->body_content_ = "v=0\r\n"
+                             "o=- 0 0 IN IP4 127.0.0.1\r\n"
+                             "s=-\r\n"
+                             "t=0 0\r\n"
+                             "a=group:BUNDLE 0\r\n"
+                             "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+                             "c=IN IP4 0.0.0.0\r\n"
+                             "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+                             "a=ice-ufrag:test\r\n"
+                             "a=ice-pwd:testpasswordtestpassword\r\n"
+                             "a=fingerprint:sha-256 "
+                             "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:"
+                             "44:55:66:77:88:99\r\n"
+                             "a=setup:actpass\r\n"
+                             "a=mid:0\r\n"
+                             "a=recvonly\r\n"
+                             "a=rtcp-mux\r\n"
+                             "a=rtpmap:111 opus/48000/2\r\n";
+
+    HELPER_EXPECT_SUCCESS(api->serve_http(writer.get(), message.get()));
+
+    EXPECT_EQ(1, security->check_count_);
+    EXPECT_EQ(0, hooks->on_play_count_);
+
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+
+    api->config_ = NULL;
+    api->play_->config_ = NULL;
+    api->play_->hooks_ = NULL;
+    srs_freep(config);
+    srs_freep(hooks);
+}
+
 // A WHIP session that counts how often it is expired, which removes it from the server.
 class MockRtcConnectionForRefusedPublish : public MockRtcConnectionForUpdateSessions
 {

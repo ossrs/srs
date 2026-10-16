@@ -232,6 +232,15 @@ SrsRusage::SrsRusage()
     memset(&r_, 0, sizeof(rusage));
 }
 
+int64_t SrsRusage::maxrss_kbyte()
+{
+#ifdef SRS_OSX
+    return (int64_t)r_.ru_maxrss / 1024;
+#else
+    return (int64_t)r_.ru_maxrss;
+#endif
+}
+
 SrsRusage *srs_get_system_rusage()
 {
     return &_srs_system_rusage;
@@ -1318,7 +1327,7 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
 
     float self_mem_percent = 0;
     if (m->MemTotal_ > 0) {
-        self_mem_percent = (float)(r->r_.ru_maxrss / (double)m->MemTotal_);
+        self_mem_percent = (float)(r->maxrss_kbyte() / (double)m->MemTotal_);
     }
 
     int64_t now = srsu2ms(srs_time_now_realtime());
@@ -1372,7 +1381,7 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
     self->set("ppid", SrsJsonAny::integer(u->ppid_));
     self->set("argv", SrsJsonAny::str(config->argv().c_str()));
     self->set("cwd", SrsJsonAny::str(config->cwd().c_str()));
-    self->set("mem_kbyte", SrsJsonAny::integer(r->r_.ru_maxrss));
+    self->set("mem_kbyte", SrsJsonAny::integer(r->maxrss_kbyte()));
     self->set("mem_percent", SrsJsonAny::number(self_mem_percent));
     self->set("cpu_percent", SrsJsonAny::number(u->percent_));
     self->set("srs_uptime", SrsJsonAny::integer(srs_uptime));

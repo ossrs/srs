@@ -284,9 +284,6 @@ func apiSystem(t *testing.T) {
 	})
 
 	check.Case(t, "SummariesMemKbyte", check.Fast, func(c *check.C) {
-		if runtime.GOOS == "darwin" {
-			check.KnownBug(c, "on macOS summaries mem_kbyte is ru_maxrss as is, which macOS gives in bytes, not kB")
-		}
 		srs := server.Common(c)
 		self := object(c, object(c, apiObject(c, srs, "/api/v1/summaries"), "data"), "self")
 		kb := num(c, self, "mem_kbyte")

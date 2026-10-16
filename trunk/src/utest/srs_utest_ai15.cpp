@@ -5576,3 +5576,53 @@ VOID TEST(AppUtilityTest, ApiDumpSummaries)
     ASSERT_TRUE(sys->get_property("conn_sys_udp") != NULL);
     ASSERT_TRUE(sys->get_property("conn_srs") != NULL);
 }
+
+VOID TEST(AppUtilityTest, RusageMaxRssKbyte)
+{
+    SrsRusage r;
+    r.r_.ru_maxrss = 8 * 1024 * 1024;
+#ifdef SRS_OSX
+    // The getrusage of macOS gives ru_maxrss in bytes.
+    EXPECT_EQ(8 * 1024, r.maxrss_kbyte());
+#else
+    // The getrusage of Linux gives ru_maxrss in kilobytes.
+    EXPECT_EQ(8 * 1024 * 1024, r.maxrss_kbyte());
+#endif
+}
+
+VOID TEST(AppUtilityTest, ApiDumpSummariesMemKbyte)
+{
+    SrsRusage *r = srs_get_system_rusage();
+    SrsMemInfo *m = srs_get_meminfo();
+    rusage saved_rusage = r->r_;
+    unsigned long saved_mem_total = m->MemTotal_;
+
+    r->r_.ru_maxrss = 8 * 1024 * 1024;
+#ifdef SRS_OSX
+    int64_t want_kbyte = 8 * 1024;
+#else
+    int64_t want_kbyte = 8 * 1024 * 1024;
+#endif
+    m->MemTotal_ = (unsigned long)(want_kbyte * 4);
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    srs_api_dump_summaries(_srs_config, obj.get());
+
+    r->r_ = saved_rusage;
+    m->MemTotal_ = saved_mem_total;
+
+    SrsJsonAny *data_any = obj->get_property("data");
+    ASSERT_TRUE(data_any != NULL && data_any->is_object());
+    SrsJsonAny *self_any = ((SrsJsonObject *)data_any)->get_property("self");
+    ASSERT_TRUE(self_any != NULL && self_any->is_object());
+    SrsJsonObject *self = (SrsJsonObject *)self_any;
+
+    SrsJsonAny *mem_kbyte = self->get_property("mem_kbyte");
+    ASSERT_TRUE(mem_kbyte != NULL && mem_kbyte->is_integer());
+    EXPECT_EQ(want_kbyte, mem_kbyte->to_integer());
+
+    // The memory is a quarter of the total, both in kilobytes.
+    SrsJsonAny *mem_percent = self->get_property("mem_percent");
+    ASSERT_TRUE(mem_percent != NULL && mem_percent->is_number());
+    EXPECT_NEAR(0.25, mem_percent->to_number(), 0.0001);
+}

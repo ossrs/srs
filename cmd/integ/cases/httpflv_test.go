@@ -472,6 +472,18 @@ func TestHttpFlv_NoAudio(t *testing.T) {
 		opts := &flv.HTTPOptions{Method: http.MethodOptions, Header: originHeader}
 		checkHTTPStatus(c, srs, "live/"+streamName(c)+".flv", opts, 405)
 	})
+
+	// ApiCorsKept sends a preflight and a request with an Origin to the API,
+	// whose crossdomain is on by default: the HTTP server's crossdomain off
+	// doesn't turn off the API's CORS.
+	check.Case(t, "ApiCorsKept", check.Fast, func(c *check.C) {
+		r := apiRequest(c, httpClient, http.MethodOptions, srs.APIURL("/api/v1/versions"), "", originHeader)
+		c.CheckEqual(r.status, http.StatusOK, "preflight status")
+		checkCors(c, r, "preflight")
+		r = apiRequest(c, httpClient, http.MethodGet, srs.APIURL("/api/v1/versions"), "", originHeader)
+		c.CheckEqual(r.status, http.StatusOK, "status")
+		checkCors(c, r, "versions")
+	})
 }
 
 // TestHttpFlv_NoVideoKeep plays on a variant with guess_has_av and has_video

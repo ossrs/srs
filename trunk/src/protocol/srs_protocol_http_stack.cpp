@@ -7,6 +7,7 @@
 #include <srs_protocol_http_stack.hpp>
 
 #include <algorithm>
+#include <ctype.h>
 #include <sstream>
 #include <stdlib.h>
 using namespace std;
@@ -25,9 +26,7 @@ using namespace std;
 #define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 #define SRS_HTTP_AUTH_SCHEME_BASIC "Basic"
-#define SRS_HTTP_AUTH_PREFIX_BASIC SRS_HTTP_AUTH_SCHEME_BASIC " "
 #define SRS_HTTP_AUTH_SCHEME_BEARER "Bearer"
-#define SRS_HTTP_AUTH_PREFIX_BEARER SRS_HTTP_AUTH_SCHEME_BEARER " "
 
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x) + 2) / 3 * 4 + 1)
@@ -555,18 +554,54 @@ void SrsHttpFileServer::set_path(SrsPath *v)
     path_ = v;
 }
 
+// Whether a decoded path has a ".." segment, which would leave the served dir. A name with two dots in it, such as
+// a..b.dat, is not one.
+static bool srs_http_path_has_dotdot(const string &path)
+{
+    size_t start = 0;
+    while (start <= path.length()) {
+        size_t end = path.find('/', start);
+        if (end == string::npos) {
+            end = path.length();
+        }
+        if (path.compare(start, end - start, "..") == 0) {
+            return true;
+        }
+        start = end + 1;
+    }
+    return false;
+}
+
 srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
+    srs_error_t err = srs_success;
+
     srs_assert(entry_);
 
     // For each HTTP session, we use short-term HTTP connection.
     SrsHttpHeader *hdr = w->header();
     hdr->set("Connection", "Close");
 
+    // The URL carries the path percent-encoded, as a file name with a space, a percent sign or a non-ASCII character
+    // must be, so the file is looked up by the decoded path. A malformed escape, or a NUL that would cut the file name
+    // short, is a bad request. The mux refuses a URL with "..", but encoded dots or slashes make a ".." segment only
+    // once decoded, so it is checked here again, and not served.
     string upath = r->path();
-    string fullpath = srs_http_fs_fullpath(dir, entry_->pattern, upath);
+    string fpath;
+    if ((err = SrsHttpUri::path_unescape(upath, fpath)) != srs_success || fpath.find('\0') != string::npos) {
+        srs_warn("http bad path=%s, pattern=%s, err=%s", upath.c_str(), entry_->pattern.c_str(),
+                 err ? srs_error_summary(err).c_str() : "NUL");
+        srs_freep(err);
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_BadRequest);
+    }
+    if (srs_http_path_has_dotdot(fpath)) {
+        srs_warn("http path not clean=%s, pattern=%s, upath=%s", fpath.c_str(), entry_->pattern.c_str(), upath.c_str());
+        return SrsHttpNotFoundHandler().serve_http(w, r);
+    }
+
+    string fullpath = srs_http_fs_fullpath(dir, entry_->pattern, fpath);
     SrsPath path;
-    string basename = path.filepath_base(upath);
+    string basename = path.filepath_base(fpath);
 
     // stat current dir, if exists, return error.
     if (!path_->exists(fullpath)) {
@@ -577,15 +612,25 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
     srs_trace("http match file=%s, pattern=%s, upath=%s",
               fullpath.c_str(), entry_->pattern.c_str(), upath.c_str());
 
-    // handle file according to its extension.
+    // A directory is not a file to read. Without its slash, redirect to the path with the slash, as web servers do, so
+    // its index page is served and its relative links resolve; the location is the path as the URL encodes it. With
+    // the slash, the path is its default page, so a directory there has no page to serve.
+    if (path_->is_dir(fullpath)) {
+        if (srs_strings_ends_with(fpath, "/")) {
+            return SrsHttpNotFoundHandler().serve_http(w, r);
+        }
+        return SrsHttpRedirectHandler(upath + "/", SRS_CONSTS_HTTP_MovedPermanently).serve_http(w, r);
+    }
+
+    // handle file according to the extension of its decoded name.
     // use vod stream for .flv/.fhv
-    if (srs_strings_ends_with(upath, ".flv", ".fhv")) {
+    if (srs_strings_ends_with(fpath, ".flv", ".fhv")) {
         return serve_flv_file(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".m3u8")) {
+    } else if (srs_strings_ends_with(fpath, ".m3u8")) {
         return serve_m3u8_ctx(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".ts", ".m4s") || basename == "init.mp4") {
+    } else if (srs_strings_ends_with(fpath, ".ts", ".m4s") || basename == "init.mp4") {
         return serve_ts_ctx(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".mp4")) {
+    } else if (srs_strings_ends_with(fpath, ".mp4")) {
         return serve_mp4_file(w, r, fullpath);
     }
 
@@ -1157,6 +1202,26 @@ ISrsHttpAuthenticator::~ISrsHttpAuthenticator()
 {
 }
 
+// Parse the credentials "<scheme> <token>" of an Authorization header. The scheme is
+// case-insensitive (RFC 9110 11.1) and one or more spaces follow it (11.4). Return false when
+// the credentials are of another scheme; the token is empty when there is none.
+static bool srs_http_auth_parse(const string &auth, const string &scheme, string &token)
+{
+    if (auth.size() <= scheme.size() || auth.at(scheme.size()) != ' ') {
+        return false;
+    }
+
+    for (size_t i = 0; i < scheme.size(); i++) {
+        if (tolower((unsigned char)auth.at(i)) != tolower((unsigned char)scheme.at(i))) {
+            return false;
+        }
+    }
+
+    size_t pos = auth.find_first_not_of(' ', scheme.size());
+    token = (pos == string::npos) ? "" : auth.substr(pos);
+    return true;
+}
+
 SrsHttpBasicAuthenticator::SrsHttpBasicAuthenticator(string username, string password)
 {
     username_ = username;
@@ -1176,19 +1241,31 @@ bool SrsHttpBasicAuthenticator::match(ISrsHttpMessage *r)
 
 srs_error_t SrsHttpBasicAuthenticator::authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
+    srs_error_t err = do_authenticate(r);
+
+    // Every 401 challenges the client (RFC 9110 15.5.2), also for credentials of another
+    // scheme or that don't parse.
+    if (err != srs_success) {
+        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpBasicAuthenticator::do_authenticate(ISrsHttpMessage *r)
+{
     srs_error_t err = srs_success;
 
     string auth = r->header()->get("Authorization");
     if (auth.empty()) {
-        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
     }
 
-    if (!srs_strings_contains(auth, SRS_HTTP_AUTH_PREFIX_BASIC)) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid auth %s, should start with %s", auth.c_str(), SRS_HTTP_AUTH_PREFIX_BASIC);
+    string token;
+    if (!srs_http_auth_parse(auth, SRS_HTTP_AUTH_SCHEME_BASIC, token)) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid auth %s, should start with %s", auth.c_str(), SRS_HTTP_AUTH_SCHEME_BASIC);
     }
 
-    string token = srs_erase_first_substr(auth, SRS_HTTP_AUTH_PREFIX_BASIC);
     if (token.empty()) {
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token from auth %s", auth.c_str());
     }
@@ -1198,15 +1275,17 @@ srs_error_t SrsHttpBasicAuthenticator::authenticate(ISrsHttpResponseWriter *w, I
         return srs_error_wrap(err, "decode token %s", token.c_str());
     }
 
-    // The token format must be username:password
-    vector<string> user_pwd = srs_strings_split(plaintext, ":");
-    if (user_pwd.size() != 2) {
+    // The token format is user-id:password, where the user-id ends at the first colon and
+    // the password may have colons (RFC 7617 2).
+    size_t pos = plaintext.find(':');
+    if (pos == string::npos) {
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s", plaintext.c_str());
     }
 
-    if (username_ != user_pwd[0] || password_ != user_pwd[1]) {
-        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s:%s", user_pwd[0].c_str(), user_pwd[1].c_str());
+    string username = plaintext.substr(0, pos);
+    string password = plaintext.substr(pos + 1);
+    if (username_ != username || password_ != password) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s:%s", username.c_str(), password.c_str());
     }
 
     return err;
@@ -1237,12 +1316,12 @@ srs_error_t SrsHttpBearerAuthenticator::authenticate(ISrsHttpResponseWriter *w, 
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
     }
-    if (!srs_strings_starts_with(auth, SRS_HTTP_AUTH_PREFIX_BEARER)) {
+    string token;
+    if (!srs_http_auth_parse(auth, SRS_HTTP_AUTH_SCHEME_BEARER, token)) {
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid bearer auth");
     }
 
-    string token = auth.substr(sizeof(SRS_HTTP_AUTH_PREFIX_BEARER) - 1);
     if (token.empty() || token != token_) {
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid bearer token");

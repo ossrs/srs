@@ -159,6 +159,25 @@ void srs_api_parse_pagination(ISrsHttpMessage *r, int &start, int &count)
     count = rcount.empty() ? 10 : srs_max(1, atoi(rcount.c_str()));
 }
 
+std::string srs_api_metrics_label_escape(const std::string &v)
+{
+    std::string r;
+    r.reserve(v.length());
+    for (size_t i = 0; i < v.length(); i++) {
+        char c = v.at(i);
+        if (c == '\\') {
+            r.append("\\\\");
+        } else if (c == '"') {
+            r.append("\\\"");
+        } else if (c == '\n') {
+            r.append("\\n");
+        } else {
+            r.push_back(c);
+        }
+    }
+    return r;
+}
+
 // @remark we will free the code.
 srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, srs_error_t code)
 {
@@ -1429,11 +1448,11 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     ss << "# HELP srs_node_uname_info Labeled system information as provided by the uname system call.\n"
        << "# TYPE srs_node_uname_info gauge\n"
        << "srs_node_uname_info{"
-       << "sysname=\"" << system_info->sysname << "\","
-       << "nodename=\"" << system_info->nodename << "\","
-       << "release=\"" << system_info->release << "\","
-       << "version=\"" << system_info->version << "\","
-       << "machine=\"" << system_info->machine << "\""
+       << "sysname=\"" << srs_api_metrics_label_escape(system_info->sysname) << "\","
+       << "nodename=\"" << srs_api_metrics_label_escape(system_info->nodename) << "\","
+       << "release=\"" << srs_api_metrics_label_escape(system_info->release) << "\","
+       << "version=\"" << srs_api_metrics_label_escape(system_info->version) << "\","
+       << "machine=\"" << srs_api_metrics_label_escape(system_info->machine) << "\""
        << "} 1\n";
 #endif
 
@@ -1441,17 +1460,17 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"
        << "# TYPE srs_build_info gauge\n"
        << "srs_build_info{"
-       << "server=\"" << stat_->server_id() << "\","
-       << "service=\"" << stat_->service_id() << "\","
+       << "server=\"" << srs_api_metrics_label_escape(stat_->server_id()) << "\","
+       << "service=\"" << srs_api_metrics_label_escape(stat_->service_id()) << "\","
        << "pid=\"" << stat_->service_pid() << "\","
        << "build_date=\"" << SRS_BUILD_DATE << "\","
        << "major=\"" << VERSION_MAJOR << "\","
        << "version=\"" << RTMP_SIG_SRS_VERSION << "\","
        << "code=\"" << RTMP_SIG_SRS_CODE << "\"";
     if (!label_.empty())
-        ss << ",label=\"" << label_ << "\"";
+        ss << ",label=\"" << srs_api_metrics_label_escape(label_) << "\"";
     if (!tag_.empty())
-        ss << ",tag=\"" << tag_ << "\"";
+        ss << ",tag=\"" << srs_api_metrics_label_escape(tag_) << "\"";
     ss << "} 1\n";
 
     // Get ProcSelfStat

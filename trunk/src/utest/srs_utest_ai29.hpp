@@ -122,4 +122,20 @@ public:
     virtual srs_error_t filter(SrsHttpHeader *h);
 };
 
+// Every path exists, and is a directory or not as the test says, for the directory tests of SrsHttpFileServer.
+class MockSrsPathForHttpFileServer : public SrsPath
+{
+public:
+    bool is_dir_;
+    std::vector<std::string> dir_paths_;
+
+public:
+    MockSrsPathForHttpFileServer(bool is_dir);
+    virtual ~MockSrsPathForHttpFileServer();
+
+public:
+    virtual bool exists(std::string path);
+    virtual bool is_dir(std::string path);
+};
+
 #endif
