@@ -845,6 +845,7 @@ class MockSecurity : public ISrsSecurity
 public:
     srs_error_t check_error_;
     int check_count_;
+    SrsRtmpConnType check_type_;
 
 public:
     MockSecurity();

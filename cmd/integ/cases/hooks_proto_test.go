@@ -91,7 +91,6 @@ func hooksRtc(t *testing.T) {
 	// WhepOnPlayClients plays a published stream by WHEP: like an RTMP, HTTP
 	// or SRT player, the player counts in the clients of its on_play.
 	check.Case(t, "WhepOnPlayClients", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the on_play of a WHEP or RTSP player doesn't count the player in clients")
 		srs := server.Common(c)
 		stream := streamName(c)
 		rtcPublisher(c, whipURL(srs, "live", stream), nil)
@@ -396,7 +395,6 @@ func hooksRtsp(t *testing.T) {
 	// on_stop when it leaves, so a hook server that counts viewers sees it
 	// go.
 	check.Case(t, "RtspPlayerStops", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an RTSP player gets on_play but never on_stop")
 		srs := server.Common(c)
 		stream := streamName(c)
 		rtspPublisher(c, srs, "live/"+stream, media.H264BaselineAAC)
@@ -409,16 +407,36 @@ func hooksRtsp(t *testing.T) {
 		c.CheckNoError(err, "on_stop of the RTSP player")
 	})
 
-	// RtspOnPlayClients plays a published stream over RTSP: like an RTMP,
-	// HTTP or SRT player, the player counts in the clients of its on_play.
+	// RtspOnPlayClients describes a published stream over RTSP and doesn't
+	// PLAY yet: like an RTMP, HTTP or SRT player, the client counts in the
+	// clients of its on_play, and it stays a client of the stream from then
+	// until it leaves. After the DESCRIBE the API lists it as an RTSP player
+	// and the stream counts it, as the hook did; after the close it is gone.
 	check.Case(t, "RtspOnPlayClients", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the on_play of a WHEP or RTSP player doesn't count the player in clients")
+		srs := server.Common(c)
+		stream := streamName(c)
+		rtspPublisher(c, srs, "live/"+stream, media.H264BaselineAAC)
+		waitHook(c, srs, "on_publish", stream)
+		conn := rtspDial(c, srs)
+		rtspDescribe(c, conn, rtspURL(srs, "live/"+stream))
+		h := waitHook(c, srs, "on_play", stream)
+		c.CheckEqual(h.Field("clients"), "2", "on_play clients: the publisher and the player")
+		c.CheckEqual(apiClientOf(c, srs, h.Field("client_id"))["type"], "rtsp-play", "the described client in the API")
+		c.CheckEqual(apiStreamOf(c, srs, h.Field("stream_id"))["clients"], 2.0, "stream clients after the on_play")
+		conn.Close()
+		c.Must(untilGone(c, srs, "/api/v1/clients/"+h.Field("client_id")), "the client in the API after the close")
+	})
+
+	// RtspPlayerCountedOnce plays a published stream over RTSP: the client
+	// DESCRIBE added is the player PLAY makes, so the stream counts it once.
+	check.Case(t, "RtspPlayerCountedOnce", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
 		rtspPublisher(c, srs, "live/"+stream, media.H264BaselineAAC)
 		waitHook(c, srs, "on_publish", stream)
 		rtspPlay(c, srs, "live/"+stream, nil)
-		c.CheckEqual(waitHook(c, srs, "on_play", stream).Field("clients"), "2", "on_play clients: the publisher and the player")
+		h := waitHook(c, srs, "on_play", stream)
+		c.CheckEqual(apiStreamOf(c, srs, h.Field("stream_id"))["clients"], 2.0, "stream clients while it plays")
 	})
 }
 

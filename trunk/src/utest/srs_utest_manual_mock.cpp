@@ -1083,6 +1083,7 @@ MockSecurity::MockSecurity()
 {
     check_error_ = srs_success;
     check_count_ = 0;
+    check_type_ = SrsRtmpConnUnknown;
 }
 
 MockSecurity::~MockSecurity()
@@ -1093,6 +1094,7 @@ MockSecurity::~MockSecurity()
 srs_error_t MockSecurity::check(SrsRtmpConnType type, std::string ip, ISrsRequest *req)
 {
     check_count_++;
+    check_type_ = type;
     return srs_error_copy(check_error_);
 }
 

@@ -637,14 +637,14 @@ func apiStreamFields(t *testing.T) {
 		c.CheckEqual(cl["stream"], streamID, "client stream")
 	})
 
-	// RtspPlayerType checks an RTSP player's type names RTSP, as the type of
-	// every other player names its protocol.
+	// RtspPlayerType checks an RTSP player's type is rtsp-play, not a
+	// WebRTC player's rtc-play, as the type of every other player names its
+	// protocol.
 	check.Case(t, "RtspPlayerType", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an RTSP player is listed with the type rtc-play, a WebRTC player's")
 		srs := server.Common(c)
 		cl, _ := rtspPlayerClient(c, srs, streamName(c))
-		typ, _ := cl["type"].(string)
-		c.Check(strings.HasSuffix(typ, "-play") && typ != "rtc-play", "type %q, want a play type of RTSP's own", typ)
+		c.CheckEqual(cl["type"], "rtsp-play", "client type")
+		c.CheckEqual(cl["publish"], false, "client publish")
 	})
 
 	// GbPublisherFields checks a GB28181 stream: its publisher is the RTMP
@@ -819,29 +819,59 @@ func TestApi_TsMount(t *testing.T) {
 	// HttpTsPlayerType's.
 	check.Case(t, "HttpTsPlayerFields", check.Normal, func(c *check.C) {
 		stream := streamName(c)
-		cl, streamID := httpTsPlayerClient(c, srs, stream)
+		cl, streamID := remuxPlayerClient(c, srs, stream, tsMount)
 		checkClient(c, cl, clientWant{name: stream, url: "/live/" + stream})
 		c.CheckEqual(cl["stream"], streamID, "client stream")
 	})
 
-	// HttpTsPlayerType checks an HTTP-TS player's type names TS, as the type
-	// of every other player names its protocol.
+	// HttpTsPlayerType checks an HTTP-TS player's type is ts-play, not an
+	// HTTP-FLV player's flv-play, as the type of every other player names its
+	// protocol.
 	check.Case(t, "HttpTsPlayerType", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "an HTTP-TS player is listed with the type flv-play, an HTTP-FLV player's")
-		cl, _ := httpTsPlayerClient(c, srs, streamName(c))
-		typ, _ := cl["type"].(string)
-		c.Check(strings.HasSuffix(typ, "-play") && typ != "flv-play", "type %q, want a play type of TS's own", typ)
+		cl, _ := remuxPlayerClient(c, srs, streamName(c), tsMount)
+		c.CheckEqual(cl["type"], "ts-play", "client type")
+		c.CheckEqual(cl["publish"], false, "client publish")
 	})
 }
 
-// httpTsPlayerClient plays a stream over HTTP-TS and returns the player's
-// client of the API and the stream's id.
-func httpTsPlayerClient(c *check.C, srs *server.Server, stream string) (map[string]any, string) {
+// TestApi_Mp3Mount checks an HTTP MP3 player of the API, on the shared
+// Mp3Mount server, whose remux mount is MP3.
+func TestApi_Mp3Mount(t *testing.T) {
+	t.Parallel()
+	srs := server.Shared(t, "Mp3Mount", sharedMp3MountConfig())
+
+	// HttpMp3PlayerType checks an HTTP MP3 player's type is mp3-play, not an
+	// HTTP-FLV player's flv-play.
+	check.Case(t, "HttpMp3PlayerType", check.Normal, func(c *check.C) {
+		cl, _ := remuxPlayerClient(c, srs, streamName(c), mp3Mount)
+		c.CheckEqual(cl["type"], "mp3-play", "client type")
+		c.CheckEqual(cl["publish"], false, "client publish")
+	})
+}
+
+// TestApi_AacMount checks an HTTP AAC player of the API, on the shared
+// AacMount server, whose remux mount is AAC.
+func TestApi_AacMount(t *testing.T) {
+	t.Parallel()
+	srs := server.Shared(t, "AacMount", sharedAacMountConfig())
+
+	// HttpAacPlayerType checks an HTTP AAC player's type is aac-play, not an
+	// HTTP-FLV player's flv-play.
+	check.Case(t, "HttpAacPlayerType", check.Normal, func(c *check.C) {
+		cl, _ := remuxPlayerClient(c, srs, streamName(c), aacMount)
+		c.CheckEqual(cl["type"], "aac-play", "client type")
+		c.CheckEqual(cl["publish"], false, "client publish")
+	})
+}
+
+// remuxPlayerClient publishes the mount's file and plays the stream from the
+// mount, and returns the player's client of the API and the stream's id.
+func remuxPlayerClient(c *check.C, srs *server.Server, stream string, m remuxMount) (map[string]any, string) {
 	c.Helper()
-	_, _, streamID := publishRTMP(c, srs, stream, media.H264HighAAC)
+	_, _, streamID := publishRTMP(c, srs, stream, m.file)
 	untilCodecs(c, srs, streamID)
-	p := remuxPlayerOf(c, srs, "live/"+stream+".ts", nil)
-	c.Must(p.readUntil(tsMount.until, time.Second), "play")
+	p := remuxPlayerOf(c, srs, "live/"+stream+"."+m.ext, nil)
+	c.Must(p.readUntil(m.until, time.Second), "play")
 	return apiClientOf(c, srs, waitHook(c, srs, "on_play", stream).Field("client_id")), streamID
 }
 

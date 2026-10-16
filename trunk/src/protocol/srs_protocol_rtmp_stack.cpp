@@ -1592,6 +1592,12 @@ string srs_client_type_string(SrsRtmpConnType type)
         return "hls-play";
     case SrsFlvPlay:
         return "flv-play";
+    case SrsTsPlay:
+        return "ts-play";
+    case SrsMp3Play:
+        return "mp3-play";
+    case SrsAacPlay:
+        return "aac-play";
     case SrsRtcConnPlay:
         return "rtc-play";
     case SrsRtmpConnFlashPublish:
@@ -1604,6 +1610,8 @@ string srs_client_type_string(SrsRtmpConnType type)
         return "rtc-publish";
     case SrsSrtConnPlay:
         return "srt-play";
+    case SrsRtspConnPlay:
+        return "rtsp-play";
     case SrsSrtConnPublish:
         return "srt-publish";
     default:

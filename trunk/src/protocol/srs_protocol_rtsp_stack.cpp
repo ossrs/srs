@@ -515,6 +515,9 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
                 return srs_error_wrap(err, "cl");
             }
             req->content_length_ = ::atoll(cl.c_str());
+            if (req->content_length_ < 0) {
+                return srs_error_new(ERROR_RTSP_TOKEN_NOT_NORMAL, "invalid content length=%s", cl.c_str());
+            }
         } else if (token == SRS_RTSP_TOKEN_TRANSPORT) {
             // Transport: RTP transport parameters (protocol, ports, etc.)
             std::string transport;
@@ -557,6 +560,12 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
         }
     }
 
+    // The body follows the headers, such as the SDP of an ANNOUNCE. No method SRS serves uses it,
+    // but it must be read with its request, or it is parsed as the next request.
+    if ((err = skip_body(req->content_length_)) != srs_success) {
+        return srs_error_wrap(err, "body size=%ld", req->content_length_);
+    }
+
     // for setup, parse the stream id from uri.
     if (req->is_setup()) {
         SrsPath path;
@@ -567,6 +576,28 @@ srs_error_t SrsRtspStack::do_recv_message(SrsRtspRequest *req)
         }
         req->stream_id_ = ::atoi(stream_id.c_str());
         srs_info("rtsp: setup stream id=%d", req->stream_id_);
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtspStack::skip_body(int64_t size)
+{
+    srs_error_t err = srs_success;
+
+    while (size > 0) {
+        if (buf_->length() == 0) {
+            char buffer[SRS_RTSP_BUFFER];
+            ssize_t nb_read = 0;
+            if ((err = skt_->read(buffer, SRS_RTSP_BUFFER, &nb_read)) != srs_success) {
+                return srs_error_wrap(err, "recv body");
+            }
+            buf_->append(buffer, (int)nb_read);
+        }
+
+        int nb_body = (int)srs_min((int64_t)buf_->length(), size);
+        buf_->erase(nb_body);
+        size -= nb_body;
     }
 
     return err;

@@ -539,8 +539,12 @@ enum SrsRtmpConnType {
     SrsRtmpConnPlay = 0x0100,
     SrsHlsPlay = 0x0101,
     SrsFlvPlay = 0x0102,
+    SrsTsPlay = 0x0103,
+    SrsMp3Play = 0x0104,
+    SrsAacPlay = 0x0105,
     SrsRtcConnPlay = 0x0110,
     SrsSrtConnPlay = 0x0120,
+    SrsRtspConnPlay = 0x0130,
     // All publishers.
     SrsRtmpConnFMLEPublish = 0x0200,
     SrsRtmpConnFlashPublish = 0x0201,

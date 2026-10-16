@@ -325,6 +325,7 @@ class MockStatisticForRtspPlayStream : public ISrsStatistic
 public:
     int on_client_count_;
     srs_error_t on_client_error_;
+    SrsRtmpConnType last_client_type_;
 
 public:
     MockStatisticForRtspPlayStream();

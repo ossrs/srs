@@ -402,7 +402,8 @@ func rtspBadInput(t *testing.T) {
 	})
 
 	// PLAY before any track is set up is not valid in that state (RFC 2326,
-	// 455), and must not make a player.
+	// 455), and must not make a player: the client stays as DESCRIBE made it,
+	// one client of the stream, and no media comes.
 	check.Case(t, "PlayWithoutSetup", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -410,11 +411,15 @@ func rtspBadInput(t *testing.T) {
 		url := rtspURL(srs, "live/"+stream)
 		conn := rtspDial(c, srs)
 		rtspDescribe(c, conn, url)
-		id := waitHook(c, srs, "on_play", stream).Field("client_id")
+		h := waitHook(c, srs, "on_play", stream)
 		res, err := conn.Do(base.Play, url, nil, 300*time.Millisecond)
 		c.Must(err, "PLAY")
-		c.Check(res.StatusCode >= 400, "PLAY without SETUP: status %v, want an error", res.StatusCode)
-		c.Check(apiCode(c, srs, "/api/v1/clients/"+id) != 0, "the connection is a player in the API")
+		c.CheckEqual(res.StatusCode, base.StatusMethodNotValidInThisState, "PLAY without SETUP")
+		c.CheckEqual(apiClientOf(c, srs, h.Field("client_id"))["type"], "rtsp-play", "the described client in the API")
+		c.CheckEqual(apiStreamOf(c, srs, h.Field("stream_id"))["clients"], 2.0, "stream clients: the publisher and the described client")
+		n, err := conn.ReadFrames(200 * time.Millisecond)
+		c.CheckNoError(err, "read after the PLAY")
+		c.CheckEqual(n, 0, "media frames after the refused PLAY")
 	})
 
 	// Every request gets an answer, 501 or 405 for a method the server
@@ -442,6 +447,33 @@ func rtspBadInput(t *testing.T) {
 			code := res[i].StatusCode
 			c.Check(code == base.StatusNotImplemented || code == base.StatusMethodNotAllowed, "%v: status %v, want 501 or 405", m, code)
 		}
+	})
+
+	// The body of a request, its Content-Length bytes after the headers, is
+	// not the next request: an ANNOUNCE with an SDP and a SET_PARAMETER with
+	// parameters are answered, and so is the request after them. The first
+	// body comes in two writes, the second with the next request.
+	check.Case(t, "RequestBodySkipped", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		url := rtspURL(srs, "live/"+streamName(c))
+		sdp := "v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=-\r\nc=IN IP4 127.0.0.1\r\nt=0 0\r\nm=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\n"
+		params := "foo: bar\r\n"
+		conn := rtspDial(c, srs)
+		announce := fmt.Sprintf("ANNOUNCE %s RTSP/1.0\r\nCSeq: 7\r\nContent-Type: application/sdp\r\nContent-Length: %d\r\n\r\n", url, len(sdp))
+		setParameter := fmt.Sprintf("SET_PARAMETER %s RTSP/1.0\r\nCSeq: 8\r\nContent-Type: text/parameters\r\nContent-Length: %d\r\n\r\n", url, len(params))
+		c.Must(conn.Write([]byte(announce+sdp[:10])), "write the ANNOUNCE")
+		time.Sleep(20 * time.Millisecond)
+		c.Must(conn.Write([]byte(sdp[10:]+setParameter+params)), "write the SDP and SET_PARAMETER")
+		for _, cseq := range []string{"7", "8"} {
+			res, err := conn.Read(300 * time.Millisecond)
+			c.Must(err, "the answer of CSeq "+cseq)
+			c.CheckEqual(res.Header["CSeq"], base.HeaderValue{cseq}, "CSeq")
+			c.Check(res.StatusCode == base.StatusNotImplemented || res.StatusCode == base.StatusMethodNotAllowed, "CSeq %v: status %v, want 501 or 405", cseq, res.StatusCode)
+		}
+		res, err := conn.Do(base.Options, url, nil, 300*time.Millisecond)
+		c.Must(err, "OPTIONS after the bodies")
+		c.CheckEqual(res.StatusCode, base.StatusOK, "OPTIONS after the bodies")
+		c.CheckEqual(res.Header["CSeq"], base.HeaderValue{"1"}, "OPTIONS CSeq")
 	})
 
 	// A request SRS can't parse ends the connection: SRS closes it, and

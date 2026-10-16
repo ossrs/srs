@@ -721,12 +721,22 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
         req->ip_ = original_ip;
     }
 
+    // The player's type names the format of its mount, as HLS and HTTP-FLV players have their own.
+    SrsRtmpConnType type = SrsFlvPlay;
+    if (srs_strings_ends_with(entry_->pattern, ".ts")) {
+        type = SrsTsPlay;
+    } else if (srs_strings_ends_with(entry_->pattern, ".mp3")) {
+        type = SrsMp3Play;
+    } else if (srs_strings_ends_with(entry_->pattern, ".aac")) {
+        type = SrsAacPlay;
+    }
+
     // We must do stat the client before hooks, because hooks depends on it.
-    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req.get(), hc, SrsFlvPlay)) != srs_success) {
+    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req.get(), hc, type)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
     }
 
-    if ((err = security_->check(SrsFlvPlay, req->ip_, req.get())) != srs_success) {
+    if ((err = security_->check(type, req->ip_, req.get())) != srs_success) {
         return srs_error_wrap(err, "flv: security check");
     }
 

@@ -106,7 +106,7 @@ srs_error_t SrsRtspPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, S
     req_ = req->copy();
 
     // We must do stat the client before hooks, because hooks depends on it.
-    if ((err = stat_->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
+    if ((err = stat_->on_client(cid_.c_str(), req_, session_, SrsRtspConnPlay)) != srs_success) {
         return srs_error_wrap(err, "RTSP: stat client");
     }
 
@@ -399,6 +399,7 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     skt_ = skt;
     source_ = NULL;
     player_ = NULL;
+    on_play_passed_ = false;
 
     cache_iov_ = new iovec();
     cache_iov_->iov_base = new char[kRtpPacketSize];
@@ -708,7 +709,7 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
         res->session_ = session_id_;
 
         // PLAY is valid only once a track is set up (RFC 2326, 455 Method Not Valid in This State).
-        // Without one, the player would have nothing to send on, yet the API would list it.
+        // Without one, the player would have nothing to send on.
         if (!has_setup_track()) {
             res->status_ = SRS_CONSTS_RTSP_MethodNotValidInThisState;
             if ((err = rtsp_->send_message(res.get())) != srs_success) {
@@ -800,6 +801,15 @@ void SrsRtspConnection::alive()
 srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp)
 {
     srs_error_t err = srs_success;
+
+    // Each DESCRIBE asks on_play again, maybe of another stream, so stop the play of the last one
+    // first: each on_play gets its on_stop, while request_ still names its stream. A client with no
+    // player leaves the stats with it, for this DESCRIBE adds it again, maybe to another stream.
+    http_hooks_on_stop();
+    if (!player_) {
+        stat_->on_disconnect(cid_.c_str(), srs_success);
+    }
+
     srs_net_url_parse_rtmp_url(req->uri_, request_->tcUrl_, request_->stream_);
 
     srs_net_url_parse_tcurl(request_->tcUrl_, request_->schema_, request_->host_, request_->vhost_,
@@ -811,15 +821,24 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
         request_->vhost_ = parsed_vhost->arg0();
     }
 
-    if ((err = security_->check(SrsRtcConnPlay, ip_, request_)) != srs_success) {
+    if ((err = security_->check(SrsRtspConnPlay, ip_, request_)) != srs_success) {
         return srs_error_wrap(err, "RTSP: security check");
     }
 
+    // We must do stat the client before hooks, because hooks depends on it. The client stays until
+    // it leaves, at TEARDOWN or the end of the connection; the player PLAY makes is this client.
+    if ((err = stat_->on_client(cid_.c_str(), request_, this, SrsRtspConnPlay)) != srs_success) {
+        return srs_error_wrap(err, "RTSP: stat client");
+    }
+
     // Transform to ERROR_SYSTEM_AUTH, so that DESCRIBE answers 401 instead of 500, see
-    // on_rtsp_request(). A refused viewer is not a server fault.
+    // on_rtsp_request(). A refused viewer is not a server fault, and it leaves the stats, for it
+    // will not play.
     if ((err = http_hooks_on_play(request_)) != srs_success) {
+        stat_->on_disconnect(cid_.c_str(), err);
         return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTSP: http_hooks_on_play");
     }
+    on_play_passed_ = true;
 
     if ((err = rtsp_sources_->fetch_or_create(request_, source_)) != srs_success) {
         return srs_error_wrap(err, "create source");
@@ -973,10 +992,18 @@ srs_error_t SrsRtspConnection::do_play(SrsRtspRequest *req, SrsRtspConnection *c
 
 srs_error_t SrsRtspConnection::do_teardown()
 {
+    // Stop the player first, so it sends nothing after its on_stop, but free it after, so the
+    // on_stop still counts it in the stream's clients, as every other player's does.
     if (player_) {
         player_->stop();
-        srs_freep(player_);
     }
+
+    // A TEARDOWN, or the end of the connection: the client closed it, or SRS dropped it.
+    http_hooks_on_stop();
+
+    // The player leaves the stats when freed; a client that never played leaves them here.
+    srs_freep(player_);
+    stat_->on_disconnect(cid_.c_str(), srs_success);
 
     return srs_success;
 }
@@ -1012,6 +1039,38 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
     }
 
     return err;
+}
+
+void SrsRtspConnection::http_hooks_on_stop()
+{
+    if (!on_play_passed_) {
+        return;
+    }
+    on_play_passed_ = false;
+
+    ISrsRequest *req = request_;
+    if (!config_->get_vhost_http_hooks_enabled(req->vhost_)) {
+        return;
+    }
+
+    // The hooks switch context, so copy the URLs, for a reload may free the directive.
+    std::vector<std::string> hooks;
+
+    if (true) {
+        SrsConfDirective *conf = config_->get_vhost_on_stop(req->vhost_);
+
+        if (!conf) {
+            return;
+        }
+
+        hooks = conf->args_;
+    }
+
+    SrsStatisticStreamSnapshot stream(stat_, req);
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        hooks_->on_stop(url, req, stream);
+    }
 }
 
 srs_error_t SrsRtspConnection::get_ssrc_by_stream_id(uint32_t stream_id, uint32_t *ssrc)

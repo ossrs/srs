@@ -15,7 +15,10 @@ using namespace std;
 #include <srs_app_http_static.hpp>
 #include <srs_app_http_stream.hpp>
 #include <srs_app_rtc_api.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_app_rtsp_conn.hpp>
+#include <srs_app_rtsp_source.hpp>
 #include <srs_app_srt_conn.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_error.hpp>
@@ -24,6 +27,7 @@ using namespace std;
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_ai17.hpp>
 #include <srs_utest_ai18.hpp>
+#include <srs_utest_ai22.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
@@ -921,4 +925,391 @@ VOID TEST(ReproduceIssue4754, DeniedRtmpViewersDoNotCrash)
     EXPECT_EQ(0, (int)stat->streams_.size());
 
     srs_freep(config);
+}
+
+// The stats add a client once, however often it is added to its stream: a WebRTC player is added
+// before its on_play hook, then again when its session makes its player.
+VOID TEST(HookOnPlayClientsTest, StatCountsClientAddedAgainOnce)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<SrsRequest> req(new SrsRequest());
+    req->vhost_ = "__defaultVhost__";
+    req->app_ = "live";
+    req->stream_ = "livestream";
+
+    HELPER_EXPECT_SUCCESS(stat->on_client("player", req.get(), NULL, SrsRtcConnPlay));
+    HELPER_EXPECT_SUCCESS(stat->on_client("player", req.get(), NULL, SrsRtcConnPlay));
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(1, stream->nb_clients_);
+    EXPECT_EQ(1, stream->vhost_->nb_clients_);
+    EXPECT_EQ(1, (int)stat->nb_clients_);
+
+    // One disconnect removes it, and the stream with it.
+    stat->on_disconnect("player", srs_success);
+    EXPECT_TRUE(stat->find_stream_by_url(req->get_stream_url()) == NULL);
+    EXPECT_EQ(0, (int)stat->clients_.size());
+}
+
+// A WebRTC server that makes a player's session as SrsRtcPlayStream::initialize() does: it adds
+// the player to the stats by the id of the coroutine that asks for the session.
+class MockRtcApiServerForPlayClients : public ISrsRtcApiServer
+{
+public:
+    SrsStatistic *stat_;
+    MockRtcConnectionForRefusedPublish session_;
+    int create_count_;
+
+public:
+    MockRtcApiServerForPlayClients(SrsStatistic *stat)
+    {
+        stat_ = stat;
+        create_count_ = 0;
+    }
+    virtual ~MockRtcApiServerForPlayClients()
+    {
+    }
+
+public:
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
+    {
+        create_count_++;
+        *psession = &session_;
+        return stat_->on_client(_srs_context->get_id().c_str(), ruc->req_, &session_, SrsRtcConnPlay);
+    }
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag)
+    {
+        return NULL;
+    }
+};
+
+// The offer of a WHEP player, a raw SDP body that receives Opus and H.264.
+static std::string mock_whep_play_offer()
+{
+    return "v=0\r\n"
+           "o=- 123456 2 IN IP4 127.0.0.1\r\n"
+           "s=-\r\n"
+           "t=0 0\r\n"
+           "a=group:BUNDLE 0 1\r\n"
+           "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=rtcp-mux\r\n"
+           "a=recvonly\r\n"
+           "a=mid:0\r\n"
+           "a=rtpmap:111 opus/48000/2\r\n"
+           "m=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=rtcp-mux\r\n"
+           "a=recvonly\r\n"
+           "a=mid:1\r\n"
+           "a=rtpmap:96 H264/90000\r\n";
+}
+
+// Plays a published stream by WebRTC with the on_play hook on: returns the error of the play, and
+// the hook's stream clients in hooks->nb_clients_.
+static srs_error_t mock_whep_play_with_hook(SrsStatistic *stat, MockRtcApiServerForPlayClients *server,
+                                            MockHttpHooksForIssue4754 *hooks, ISrsRequest *publisher)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = stat->on_client("publisher", publisher, NULL, SrsRtcConnPublish)) != srs_success) {
+        return err;
+    }
+
+    MockAppConfigForRtcPlay config;
+    config.rtc_from_rtmp_ = true;
+    config.http_hooks_enabled_ = true;
+    config.on_play_directive_ = new SrsConfDirective();
+    config.on_play_directive_->name_ = "on_play";
+    config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+    MockRtcSourceManager rtc_sources;
+    MockLiveSourceManager live_sources;
+
+    SrsUniquePtr<SrsGoApiRtcPlay> api(new SrsGoApiRtcPlay(server));
+    api->config_ = &config;
+    api->stat_ = stat;
+    api->rtc_sources_ = &rtc_sources;
+    api->live_sources_ = &live_sources;
+    api->hooks_ = hooks;
+    srs_freep(api->security_);
+    api->security_ = new MockSecurity();
+
+    SrsUniquePtr<SrsRtcUserConfig> ruc(new SrsRtcUserConfig());
+    ruc->req_->vhost_ = publisher->vhost_;
+    ruc->req_->app_ = publisher->app_;
+    ruc->req_->stream_ = publisher->stream_;
+    ruc->req_->ip_ = "127.0.0.1";
+    ruc->remote_sdp_str_ = mock_whep_play_offer();
+    if ((err = ruc->remote_sdp_.parse(ruc->remote_sdp_str_)) == srs_success) {
+        MockResponseWriter writer;
+        MockHttpMessageForRtcApi message;
+        err = api->serve_http(&writer, &message, ruc.get());
+    }
+
+    api->config_ = NULL;
+    api->stat_ = NULL;
+    api->rtc_sources_ = NULL;
+    api->live_sources_ = NULL;
+    api->hooks_ = NULL;
+    return err;
+}
+
+// WHEP: the on_play of a player counts it in the stream's clients, as an RTMP, HTTP or SRT
+// player's does, and its session counts it no more.
+VOID TEST(HookOnPlayClientsTest, WhepOnPlayCountsPlayer)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockRtcApiServerForPlayClients> server(new MockRtcApiServerForPlayClients(stat.get()));
+    SrsUniquePtr<MockHttpHooksForIssue4754> hooks(new MockHttpHooksForIssue4754(stat.get()));
+    SrsUniquePtr<SrsRequest> publisher(new SrsRequest());
+    publisher->vhost_ = "__defaultVhost__";
+    publisher->app_ = "live";
+    publisher->stream_ = "livestream";
+
+    HELPER_EXPECT_SUCCESS(mock_whep_play_with_hook(stat.get(), server.get(), hooks.get(), publisher.get()));
+
+    EXPECT_EQ(1, hooks->on_play_count_);
+    EXPECT_EQ(2, hooks->nb_clients_);
+    EXPECT_EQ(1, server->create_count_);
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(publisher->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(hooks->stream_id_, stream->id_);
+    EXPECT_EQ(2, stream->nb_clients_);
+    EXPECT_EQ(2, (int)stat->clients_.size());
+}
+
+// WHEP: a player the hook refuses is counted while the hook decides, then leaves the stats, for
+// it gets no session.
+VOID TEST(HookOnPlayClientsTest, WhepRefusedPlayerLeavesStats)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockRtcApiServerForPlayClients> server(new MockRtcApiServerForPlayClients(stat.get()));
+    SrsUniquePtr<MockHttpHooksForIssue4754> hooks(new MockHttpHooksForIssue4754(stat.get()));
+    hooks->on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response number code 1");
+    SrsUniquePtr<SrsRequest> publisher(new SrsRequest());
+    publisher->vhost_ = "__defaultVhost__";
+    publisher->app_ = "live";
+    publisher->stream_ = "livestream";
+
+    HELPER_EXPECT_FAILED(mock_whep_play_with_hook(stat.get(), server.get(), hooks.get(), publisher.get()));
+
+    EXPECT_EQ(1, hooks->on_play_count_);
+    EXPECT_EQ(2, hooks->nb_clients_);
+    EXPECT_EQ(0, server->create_count_);
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(publisher->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(1, stream->nb_clients_);
+    EXPECT_EQ(1, (int)stat->clients_.size());
+}
+
+// An RTSP connection, with its own stats, whose stream has a publisher, for the life of the RTSP
+// client in the stats: it joins when its on_play passes at DESCRIBE, and leaves at TEARDOWN, when
+// the connection ends, or when the on_play hook refuses it.
+class RtspClientLifetimeFixture
+{
+public:
+    SrsStatistic stat_;
+    MockHttpHooksForIssue4754 hooks_;
+    MockAppConfigForHttpHooksOnPlay config_;
+    MockSecurity security_;
+    MockRtspSourceManager sources_;
+    SrsRequest publisher_;
+    SrsRtspConnection *conn_;
+
+public:
+    RtspClientLifetimeFixture() : hooks_(&stat_)
+    {
+        conn_ = new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554);
+        publisher_.vhost_ = "__defaultVhost__";
+        publisher_.app_ = "live";
+        publisher_.stream_ = "livestream";
+        srs_error_t err = stat_.on_client("publisher", &publisher_, NULL, SrsRtcConnPublish);
+        srs_assert(err == srs_success);
+
+        config_.default_vhost_ = new SrsConfDirective();
+        config_.default_vhost_->name_ = "vhost";
+        config_.default_vhost_->args_.push_back("__defaultVhost__");
+        config_.http_hooks_enabled_ = true;
+        config_.on_play_directive_ = new SrsConfDirective();
+        config_.on_play_directive_->name_ = "on_play";
+        config_.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+        SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+        SrsRtcTrackDescription *video = new SrsRtcTrackDescription();
+        video->type_ = "video";
+        video->ssrc_ = 2001;
+        video->media_ = new SrsVideoPayload(96, "H264", 90000);
+        source->video_desc_ = video;
+        sources_.mock_source_ = source;
+
+        conn_->cid_.set_value("rtsp-client");
+        conn_->config_ = &config_;
+        conn_->security_ = &security_;
+        conn_->hooks_ = &hooks_;
+        conn_->stat_ = &stat_;
+        conn_->rtsp_sources_ = &sources_;
+    }
+    ~RtspClientLifetimeFixture()
+    {
+        conn_->config_ = NULL;
+        conn_->security_ = NULL;
+        conn_->hooks_ = NULL;
+        conn_->rtsp_sources_ = NULL;
+        // The connection frees its player, which leaves the stats, so free it while they live.
+        srs_freep(conn_);
+    }
+
+public:
+    srs_error_t describe(std::string stream)
+    {
+        SrsUniquePtr<SrsRtspRequest> req(new SrsRtspRequest());
+        req->uri_ = "rtsp://127.0.0.1:8554/live/" + stream;
+        std::string sdp;
+        return conn_->do_describe(req.get(), sdp);
+    }
+    // What PLAY does to the stats: the player of the connection adds the client by its id.
+    srs_error_t play()
+    {
+        SrsRtspPlayStream *player = new SrsRtspPlayStream(conn_, conn_->cid_);
+        player->stat_ = &stat_;
+        player->rtsp_sources_ = &sources_;
+        conn_->player_ = player;
+        return player->initialize(conn_->request_, std::map<uint32_t, SrsRtcTrackDescription *>());
+    }
+    SrsStatisticStream *stream(std::string name)
+    {
+        return stat_.find_stream_by_url("/live/" + name);
+    }
+    SrsStatisticClient *client()
+    {
+        return stat_.find_client("rtsp-client");
+    }
+};
+
+// RTSP: the on_play at DESCRIBE counts the player in the stream's clients, as an RTMP, HTTP or SRT
+// player's does, and the client stays in the stats after the hook: its connection is open and
+// about to PLAY, so the API lists it and the stream counts it.
+VOID TEST(HookOnPlayClientsTest, RtspOnPlayCountsPlayer)
+{
+    srs_error_t err = srs_success;
+
+    RtspClientLifetimeFixture f;
+    HELPER_EXPECT_SUCCESS(f.describe("livestream"));
+
+    EXPECT_EQ(1, f.hooks_.on_play_count_);
+    EXPECT_EQ(2, f.hooks_.nb_clients_);
+
+    SrsStatisticStream *stream = f.stream("livestream");
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(f.hooks_.stream_id_, stream->id_);
+    EXPECT_EQ(2, stream->nb_clients_);
+    EXPECT_EQ(2, (int)f.stat_.clients_.size());
+
+    SrsStatisticClient *client = f.client();
+    ASSERT_TRUE(client != NULL);
+    EXPECT_EQ(SrsRtspConnPlay, client->type_);
+    EXPECT_EQ(stream, client->stream_);
+}
+
+// RTSP: a player the hook refuses at DESCRIBE is counted while the hook decides, then leaves the
+// stats, for it will not play.
+VOID TEST(HookOnPlayClientsTest, RtspRefusedPlayerLeavesStats)
+{
+    srs_error_t err = srs_success;
+
+    RtspClientLifetimeFixture f;
+    f.hooks_.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response number code 1");
+
+    err = f.describe("livestream");
+    EXPECT_EQ(ERROR_SYSTEM_AUTH, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, f.hooks_.on_play_count_);
+    EXPECT_EQ(2, f.hooks_.nb_clients_);
+
+    SrsStatisticStream *stream = f.stream("livestream");
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(1, stream->nb_clients_);
+    EXPECT_EQ(1, (int)f.stat_.clients_.size());
+    EXPECT_TRUE(f.client() == NULL);
+}
+
+// RTSP: PLAY makes the player of a client DESCRIBE added, the same client by its id, so the stream
+// counts it once, and the client is the player's; TEARDOWN removes it.
+VOID TEST(HookOnPlayClientsTest, RtspPlayCountsDescribedClientOnce)
+{
+    srs_error_t err = srs_success;
+
+    RtspClientLifetimeFixture f;
+    HELPER_EXPECT_SUCCESS(f.describe("livestream"));
+    HELPER_EXPECT_SUCCESS(f.play());
+
+    SrsStatisticStream *stream = f.stream("livestream");
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(2, stream->nb_clients_);
+    EXPECT_EQ(2, (int)f.stat_.clients_.size());
+    ASSERT_TRUE(f.client() != NULL);
+    EXPECT_EQ(SrsRtspConnPlay, f.client()->type_);
+
+    HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
+    EXPECT_EQ(1, stream->nb_clients_);
+    EXPECT_EQ(1, (int)f.stat_.clients_.size());
+    EXPECT_TRUE(f.client() == NULL);
+}
+
+// RTSP: a client that DESCRIBEs but never PLAYs leaves the stats when its connection ends, as
+// cycle() tears it down.
+VOID TEST(HookOnPlayClientsTest, RtspDescribedClientLeavesAtClose)
+{
+    srs_error_t err = srs_success;
+
+    RtspClientLifetimeFixture f;
+    HELPER_EXPECT_SUCCESS(f.describe("livestream"));
+    ASSERT_TRUE(f.client() != NULL);
+
+    HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
+
+    SrsStatisticStream *stream = f.stream("livestream");
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(1, stream->nb_clients_);
+    EXPECT_EQ(1, (int)f.stat_.clients_.size());
+    EXPECT_TRUE(f.client() == NULL);
+}
+
+// RTSP: a second DESCRIBE, of another stream and with no PLAY between, moves the client: the
+// first stream no longer counts it, and the second one counts it once.
+VOID TEST(HookOnPlayClientsTest, RtspDescribeAgainMovesClient)
+{
+    srs_error_t err = srs_success;
+
+    RtspClientLifetimeFixture f;
+    HELPER_EXPECT_SUCCESS(f.describe("livestream"));
+    HELPER_EXPECT_SUCCESS(f.describe("stream2"));
+
+    EXPECT_EQ(2, f.hooks_.on_play_count_);
+    EXPECT_EQ(1, f.hooks_.nb_clients_);
+
+    SrsStatisticStream *first = f.stream("livestream");
+    ASSERT_TRUE(first != NULL);
+    EXPECT_EQ(1, first->nb_clients_);
+
+    SrsStatisticStream *second = f.stream("stream2");
+    ASSERT_TRUE(second != NULL);
+    EXPECT_EQ(1, second->nb_clients_);
+    EXPECT_EQ(2, (int)f.stat_.clients_.size());
+    ASSERT_TRUE(f.client() != NULL);
+    EXPECT_EQ(second, f.client()->stream_);
+
+    HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
+    EXPECT_EQ(1, (int)f.stat_.clients_.size());
 }

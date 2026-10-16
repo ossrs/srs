@@ -844,11 +844,51 @@ VOID TEST(SrsLiveStreamTest, HttpsViewerWithoutReferer)
     EXPECT_STREQ("", stat.on_client_swf_url_.c_str());
 }
 
+// A viewer of each HTTP remux is listed and checked by the security with the type of its own format:
+// an HTTP-TS, MP3 or AAC viewer is not an HTTP-FLV one.
+VOID TEST(SrsLiveStreamTest, ViewerTypeOfEachMount)
+{
+    const char *exts[] = {".flv", ".ts", ".mp3", ".aac"};
+    SrsRtmpConnType types[] = {SrsFlvPlay, SrsTsPlay, SrsMp3Play, SrsAacPlay};
+
+    for (int i = 0; i < 4; i++) {
+        string url = string("/live/stream1") + exts[i];
+        SrsUniquePtr<MockRequest> publisher(new MockRequest("test.vhost", "live", "stream1"));
+        SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
+        SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
+        MockStatisticForLiveStream stat;
+        MockSecurity security;
+        stream->stat_ = &stat;
+        srs_freep(stream->security_);
+        stream->security_ = &security;
+        stream->entry_ = new SrsHttpMuxEntry();
+        stream->entry_->enabled = false;
+        stream->entry_->pattern = url;
+
+        SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+        srs_error_t err = message->set_url(url, false);
+        srs_freep(err);
+
+        MockResponseWriter writer;
+        err = stream->serve_http(&writer, message.get());
+        srs_freep(err);
+
+        EXPECT_EQ(1, stat.on_client_count_) << url;
+        EXPECT_EQ(types[i], stat.on_client_type_) << url;
+        EXPECT_EQ(types[i], security.check_type_) << url;
+
+        stream->stat_ = NULL;
+        stream->security_ = NULL;
+        srs_freep(stream->entry_);
+    }
+}
+
 // Mock ISrsStatistic implementation for SrsLiveStream testing
 MockStatisticForLiveStream::MockStatisticForLiveStream()
 {
     on_client_count_ = 0;
     on_client_error_ = srs_success;
+    on_client_type_ = SrsRtmpConnUnknown;
     on_disconnect_count_ = 0;
 }
 
@@ -868,6 +908,7 @@ srs_error_t MockStatisticForLiveStream::on_client(std::string id, ISrsRequest *r
     on_client_tc_url_ = req->tcUrl_;
     on_client_page_url_ = req->pageUrl_;
     on_client_swf_url_ = req->swfUrl_;
+    on_client_type_ = type;
     return srs_error_copy(on_client_error_);
 }
 

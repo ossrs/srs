@@ -266,21 +266,18 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
         }
     }
 
-    if ((err = security_->check(SrsRtcConnPlay, ruc->req_->ip_, ruc->req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: security check");
+    // We must do stat the client before hooks, because hooks depends on it. The session below takes
+    // this coroutine's id, so its player is this client, counted once. A player that gets no
+    // session leaves the stats now, for nothing else removes it.
+    std::string cid = _srs_context->get_id().c_str();
+    if ((err = stat_->on_client(cid, ruc->req_, NULL, SrsRtcConnPlay)) != srs_success) {
+        return srs_error_wrap(err, "RTC: stat client");
     }
 
-    // Transform to ERROR_SYSTEM_AUTH, so that WHEP answers 401 instead of 500, see
-    // SrsGoApiRtcWhip::serve_http(). A refused viewer is not a server fault. This is the same
-    // treatment the publish path gives to a refused publisher.
-    if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
-        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_play");
-    }
-
-    // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     ISrsRtcConnection *session = NULL;
-    if ((err = server_->create_rtc_session(ruc, local_sdp, &session)) != srs_success) {
-        return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc->dtls_, ruc->srtp_, ruc->eip_.c_str());
+    if ((err = create_session(ruc, local_sdp, &session)) != srs_success) {
+        stat_->on_disconnect(cid, err);
+        return srs_error_wrap(err, "RTC: create session");
     }
 
     ostringstream os;
@@ -300,6 +297,29 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
               ruc->dtls_, ruc->srtp_, ruc->remote_sdp_str_.length(), local_sdp_escaped.length());
     srs_trace("RTC remote offer: %s", srs_strings_replace(ruc->remote_sdp_str_.c_str(), "\r\n", "\\r\\n").c_str());
     srs_trace("RTC local answer: %s", local_sdp_escaped.c_str());
+
+    return err;
+}
+
+srs_error_t SrsGoApiRtcPlay::create_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = security_->check(SrsRtcConnPlay, ruc->req_->ip_, ruc->req_)) != srs_success) {
+        return srs_error_wrap(err, "RTC: security check");
+    }
+
+    // Transform to ERROR_SYSTEM_AUTH, so that WHEP answers 401 instead of 500, see
+    // SrsGoApiRtcWhip::serve_http(). A refused viewer is not a server fault. This is the same
+    // treatment the publish path gives to a refused publisher.
+    if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_play");
+    }
+
+    // TODO: FIXME: When server enabled, but vhost disabled, should report error.
+    if ((err = server_->create_rtc_session(ruc, local_sdp, psession)) != srs_success) {
+        return srs_error_wrap(err, "create session, dtls=%u, srtp=%u, eip=%s", ruc->dtls_, ruc->srtp_, ruc->eip_.c_str());
+    }
 
     return err;
 }

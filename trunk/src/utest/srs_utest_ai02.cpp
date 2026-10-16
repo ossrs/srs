@@ -2596,3 +2596,70 @@ VOID TEST(ConfigSecurityTest, CheckWithEnvRules)
         sec.config_ = NULL;
     }
 }
+
+// An RTSP, HTTP-TS, MP3 or AAC player is a player for the security: the play rules allow and deny it,
+// and the publish rules don't.
+VOID TEST(ConfigSecurityTest, PlayRulesApplyToEveryPlayer)
+{
+    srs_error_t err;
+
+    SrsRtmpConnType types[] = {SrsRtspConnPlay, SrsTsPlay, SrsMp3Play, SrsAacPlay};
+    for (int i = 0; i < 4; i++) {
+        SrsRtmpConnType type = types[i];
+
+        if (true) {
+            MockSrsConfig conf;
+            HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+            SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+            SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "10.0.0.0/8");
+            SrsSetEnvConfig(conf, deny_play, "SRS_VHOST_SECURITY_DENY_PLAY", "10.2.3.4");
+
+            SrsSecurity sec;
+            sec.config_ = &conf;
+            SrsRequest req;
+            req.vhost_ = "__defaultVhost__";
+            HELPER_EXPECT_SUCCESS(sec.check(type, "10.2.3.5", &req));
+            HELPER_EXPECT_FAILED(sec.check(type, "10.2.3.4", &req));
+            HELPER_EXPECT_FAILED(sec.check(type, "192.168.1.2", &req));
+            sec.config_ = NULL;
+        }
+
+        if (true) {
+            MockSrsConfig conf;
+            HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+            SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+            SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "all");
+            SrsSetEnvConfig(conf, deny_publish, "SRS_VHOST_SECURITY_DENY_PUBLISH", "all");
+
+            SrsSecurity sec;
+            sec.config_ = &conf;
+            SrsRequest req;
+            req.vhost_ = "__defaultVhost__";
+            HELPER_EXPECT_SUCCESS(sec.check(type, "127.0.0.1", &req));
+            sec.config_ = NULL;
+        }
+    }
+}
+
+// Each player and publisher type names its protocol in the API, and only publishers publish.
+VOID TEST(ClientTypeTest, EachTypeNamesItsProtocol)
+{
+    EXPECT_STREQ("rtmp-play", srs_client_type_string(SrsRtmpConnPlay).c_str());
+    EXPECT_STREQ("hls-play", srs_client_type_string(SrsHlsPlay).c_str());
+    EXPECT_STREQ("flv-play", srs_client_type_string(SrsFlvPlay).c_str());
+    EXPECT_STREQ("ts-play", srs_client_type_string(SrsTsPlay).c_str());
+    EXPECT_STREQ("mp3-play", srs_client_type_string(SrsMp3Play).c_str());
+    EXPECT_STREQ("aac-play", srs_client_type_string(SrsAacPlay).c_str());
+    EXPECT_STREQ("rtc-play", srs_client_type_string(SrsRtcConnPlay).c_str());
+    EXPECT_STREQ("srt-play", srs_client_type_string(SrsSrtConnPlay).c_str());
+    EXPECT_STREQ("rtsp-play", srs_client_type_string(SrsRtspConnPlay).c_str());
+    EXPECT_STREQ("fmle-publish", srs_client_type_string(SrsRtmpConnFMLEPublish).c_str());
+    EXPECT_STREQ("rtc-publish", srs_client_type_string(SrsRtcConnPublish).c_str());
+    EXPECT_STREQ("srt-publish", srs_client_type_string(SrsSrtConnPublish).c_str());
+
+    EXPECT_FALSE(srs_client_type_is_publish(SrsTsPlay));
+    EXPECT_FALSE(srs_client_type_is_publish(SrsMp3Play));
+    EXPECT_FALSE(srs_client_type_is_publish(SrsAacPlay));
+    EXPECT_FALSE(srs_client_type_is_publish(SrsRtspConnPlay));
+    EXPECT_TRUE(srs_client_type_is_publish(SrsRtcConnPublish));
+}
