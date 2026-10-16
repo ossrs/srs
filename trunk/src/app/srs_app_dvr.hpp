@@ -34,8 +34,10 @@ class ISrsOriginHub;
 class ISrsAppConfig;
 class ISrsAppFactory;
 class ISrsAsyncCallWorker;
+class ISrsStatistic;
 
 #include <srs_app_async_call.hpp>
+#include <srs_app_http_hooks.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_app_rtmp_source.hpp>
 
@@ -210,9 +212,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
     std::string path_;
     ISrsRequest *req_;
+    // The stream when the file was closed, which the stats may drop before the hook runs.
+    SrsStatisticStreamSnapshot stream_;
 
 public:
-    SrsDvrAsyncCallOnDvr(SrsContextId c, ISrsRequest *r, std::string p);
+    SrsDvrAsyncCallOnDvr(SrsContextId c, ISrsRequest *r, std::string p, const SrsStatisticStreamSnapshot &stream);
     virtual ~SrsDvrAsyncCallOnDvr();
 
 public:
@@ -244,6 +248,7 @@ class SrsDvrPlan : public ISrsReloadHandler, public ISrsDvrPlan
 SRS_DECLARE_PROTECTED: // clang-format on
     ISrsAsyncCallWorker *async_;
     ISrsAppConfig *config_;
+    ISrsStatistic *stat_;
 
 public:
     ISrsRequest *req_;

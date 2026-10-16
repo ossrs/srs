@@ -170,6 +170,13 @@ func nearNow(c *check.C, ms float64, d time.Duration, what string) {
 	c.Check(at.After(time.Now().Add(-d)) && at.Before(time.Now().Add(d)), "%s %v, want within %v of now", what, at, d)
 }
 
+// procRead is whether SRS reads the /proc values of self_proc_stats,
+// system_proc_stats and meminfos: only on Linux. Elsewhere those endpoints,
+// and the summaries built on them, answer ok false.
+func procRead() bool {
+	return runtime.GOOS == "linux"
+}
+
 // linuxOnly skips a case that reads /proc values, which SRS has only on Linux.
 func linuxOnly(c *check.C) {
 	c.Helper()
@@ -261,7 +268,7 @@ func apiSystem(t *testing.T) {
 		srs := server.Common(c)
 		data := object(c, apiObject(c, srs, "/api/v1/summaries"), "data")
 		checkFields(c, data, []string{"ok", "now_ms", "self", "system"}, "summaries")
-		c.CheckEqual(data["ok"], true, "ok")
+		c.CheckEqual(data["ok"], procRead(), "ok, true only where SRS reads /proc")
 		nearNow(c, num(c, data, "now_ms"), 2*time.Second, "now_ms")
 
 		self := object(c, data, "self")
@@ -309,6 +316,7 @@ func apiSystem(t *testing.T) {
 	check.Case(t, "SelfProcStats", check.Fast, func(c *check.C) {
 		data := object(c, apiObject(c, server.Common(c), "/api/v1/self_proc_stats"), "data")
 		checkFields(c, data, selfProcFields, "self_proc_stats")
+		c.CheckEqual(data["ok"], procRead(), "ok, true only where SRS reads /proc")
 	})
 
 	check.Case(t, "SelfProcStatsLinux", check.Fast, func(c *check.C) {
@@ -318,9 +326,6 @@ func apiSystem(t *testing.T) {
 		c.CheckEqual(data["ok"], true, "ok")
 		c.CheckEqual(num(c, data, "pid"), float64(srs.PID()), "pid")
 		c.CheckEqual(num(c, data, "ppid"), float64(os.Getpid()), "ppid, this test process")
-		if data["comm"] == "(srs)" {
-			check.KnownBug(c, "self_proc_stats keeps the parentheses of the comm field of /proc/<pid>/stat, (srs), not srs")
-		}
 		c.CheckEqual(data["comm"], "srs", "comm")
 		state, _ := data["state"].(string)
 		c.Check(strings.ContainsAny(state, "RS") && len(state) == 1, "state %q, want R or S", state)
@@ -331,6 +336,7 @@ func apiSystem(t *testing.T) {
 	check.Case(t, "SystemProcStats", check.Fast, func(c *check.C) {
 		data := object(c, apiObject(c, server.Common(c), "/api/v1/system_proc_stats"), "data")
 		checkFields(c, data, systemProcFields, "system_proc_stats")
+		c.CheckEqual(data["ok"], procRead(), "ok, true only where SRS reads /proc")
 	})
 
 	check.Case(t, "SystemProcStatsLinux", check.Fast, func(c *check.C) {
@@ -344,6 +350,7 @@ func apiSystem(t *testing.T) {
 	check.Case(t, "MemInfos", check.Fast, func(c *check.C) {
 		data := object(c, apiObject(c, server.Common(c), "/api/v1/meminfos"), "data")
 		checkFields(c, data, memInfoFields, "meminfos")
+		c.CheckEqual(data["ok"], procRead(), "ok, true only where SRS reads /proc")
 	})
 
 	check.Case(t, "MemInfosLinux", check.Fast, func(c *check.C) {

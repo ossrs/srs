@@ -62,6 +62,9 @@ public:
     int on_rtp_count_;
     SrsRtpPacket *last_rtp_;
     srs_error_t rtp_error_;
+    // The RTP time and the time on the stream's clock of each packet, in order.
+    std::vector<uint32_t> rtp_times_;
+    std::vector<int64_t> avsync_times_;
 
 public:
     MockRtpTarget();

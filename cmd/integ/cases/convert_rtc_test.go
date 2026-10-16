@@ -555,7 +555,8 @@ func playWhipHLS(c *check.C, srs *server.Server, stream string, u report.Until) 
 }
 
 // TestTimer_Convert_Reports checks what a WebRTC player gets to sync its
-// tracks by, on the shared timer server SegmentsKeep: the Sender Reports
+// tracks by, on the shared timer server SegmentsKeep, and for streams
+// converted to WebRTC on a server of the TsMount config: the Sender Reports
 // that map each track's RTP times to one clock.
 func TestTimer_Convert_Reports(t *testing.T) {
 	t.Parallel()
@@ -599,6 +600,59 @@ func TestTimer_Convert_Reports(t *testing.T) {
 				"by the reports the first audio %v after the first video, want %v", d, want)
 		}
 	})
+
+	// A stream SRS converts to WebRTC, with rtmp_to_rtc, from RTMP, SRT or
+	// GB28181, has no publisher's reports: SRS stamps both tracks by the
+	// RTMP times of its frames, so its reports map them to that clock. These
+	// run on a server of the TsMount config, its own in the timer process.
+	conv := server.Shared(t, "TsMount", sharedTsMountConfig())
+	for _, s := range []struct {
+		src  convertSource
+		file string
+	}{{rtmpSource, media.H264BaselineAAC}, {srtSource, media.H264HighAACTS}, {gbSource, media.H264BaselineAAC}} {
+		check.Case(t, s.src.name+"ToWhep_SenderReports", check.Timer, func(c *check.C) {
+			stream := streamName(c)
+			p := rtcPlayer(c, whepURL(conv, "live", stream), nil)
+			s.src.realTime(c, conv, "live/"+stream, s.file, convertLead)
+			waitPlayed(c, p, rtcPlayedUntil)
+			rec, ok := waitReports(c, p)
+			c.Check(ok, "a Sender Report of each of the tracks %v", streamsOf(rec))
+		})
+	}
+
+	// The reports of an RTMP stream map each track to the RTMP times: the
+	// player's first audio maps as far after its first video as the first
+	// AAC frame is after the first video frame in the file.
+	check.Case(t, "RtmpToWhep_ReportsKeepSync", check.Timer, func(c *check.C) {
+		stream := streamName(c)
+		p := rtcPlayer(c, whepURL(conv, "live", stream), nil)
+		rtmpSource.realTime(c, conv, "live/"+stream, media.H264BaselineAAC, convertLead)
+		waitPlayed(c, p, rtcPlayedUntil)
+		rec, ok := waitReports(c, p)
+		if !c.Check(ok, "a Sender Report of each of the tracks %v", streamsOf(rec)) {
+			return
+		}
+		video, vok := reportedStart(rec, "video/")
+		audio, aok := reportedStart(rec, "audio/")
+		if c.Check(vok && aok, "no video or audio stream: %v", streamsOf(rec)) {
+			tags := readTags(c, media.H264BaselineAAC, 0, time.Second)
+			want := firstFrameTime(tags, media.TagAudio) - firstFrameTime(tags, media.TagVideo)
+			d := audio - video
+			c.Check(d >= want-20*time.Millisecond && d <= want+40*time.Millisecond,
+				"by the reports the first audio %v after the first video, want %v", d, want)
+		}
+	})
+}
+
+// firstFrameTime is the time of the first audio or video tag that is not a
+// sequence header.
+func firstFrameTime(tags []*media.FLVTag, typ uint8) time.Duration {
+	for _, tag := range tags {
+		if tag.Type == typ && len(tag.Data) > 1 && tag.Data[1] != 0 {
+			return time.Duration(tag.Timestamp) * time.Millisecond
+		}
+	}
+	return 0
 }
 
 // waitReports waits at most 2.5s, more than the second between the reports

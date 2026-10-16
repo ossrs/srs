@@ -1093,13 +1093,13 @@ public:
 };
 
 // The sender info of a send track for its Sender Report, see RFC 3550 section 6.4.1: the RTP time of the last packet
-// sent, mapped to the publisher's clock, and the packets and payload octets sent.
+// sent, mapped to the stream's clock, and the packets and payload octets sent.
 class SrsRtcSenderInfo
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The RTP time of the last mapped packet, as sent, and its time in ms on the publisher's clock, which the
-    // publisher's Sender Reports map, or -1 when not mapped.
+    // The RTP time of the last mapped packet, as sent, and its time in ms on the stream's clock, which a WebRTC
+    // publisher's Sender Reports map, or a converted stream's RTMP time, or -1 when not mapped.
     uint32_t rtp_time_;
     int64_t avsync_time_;
     // The packets and payload octets sent.
@@ -1113,7 +1113,7 @@ public:
     virtual ~SrsRtcSenderInfo();
 
 public:
-    // Count a packet sent to the player, and keep its times when it is on the publisher's clock.
+    // Count a packet sent to the player, and keep its times when it is on the stream's clock.
     void on_packet(SrsRtpPacket *pkt);
     // Fill the sender info of the Sender Report, and wait for a new mapped packet for the next one. Return false,
     // with nothing filled, when no mapped packet was sent since the last Sender Report, so none is due.
@@ -1188,8 +1188,9 @@ SRS_DECLARE_PROTECTED: // clang-format on
     void rebuild_packet(SrsRtpPacket *pkt);
 
 public:
-    // Send the Sender Report of the track, which maps its RTP times to the publisher's clock, so a player syncs
-    // the tracks as the publisher's reports do. Nothing is sent before a mapped packet, or without a new one.
+    // Send the Sender Report of the track, which maps its RTP times to the stream's clock, the publisher's or the
+    // RTMP times of a converted stream, so a player syncs the tracks by it. Nothing is sent before a mapped packet,
+    // or without a new one.
     srs_error_t send_rtcp_sr();
 
 public:

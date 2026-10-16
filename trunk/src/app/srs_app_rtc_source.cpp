@@ -1266,6 +1266,8 @@ srs_error_t SrsRtcRtpBuilder::package_opus(SrsParsedAudioPacket *audio, SrsRtpPa
     pkt->header_.set_marker(true);
     pkt->header_.set_sequence(audio_sequence_++);
     pkt->header_.set_timestamp(audio->dts_ * 48);
+    // The frame's time on the stream's clock, which the player's Sender Reports map the RTP time to.
+    pkt->set_avsync_time(audio->dts_);
 
     SrsRtpRawPayload *raw = new SrsRtpRawPayload();
     pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
@@ -1336,6 +1338,7 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsMediaPacket *msg)
         if ((err = package_stap_a(msg, pkt.get())) != srs_success) {
             return srs_error_wrap(err, "package stap-a");
         }
+        pkt->set_avsync_time(msg->timestamp_);
 
         if ((err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
             return srs_error_wrap(err, "consume sps/pps");
@@ -1370,6 +1373,12 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsMediaPacket *msg)
 
     if (!pkts.empty()) {
         pkts.back()->header_.set_marker(true);
+    }
+
+    // A converted stream has no publisher's Sender Reports, so each packet carries its frame's time on the stream's
+    // clock, the RTMP time its RTP time counts from, which the player's Sender Reports map the RTP time to.
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        pkts[i]->set_avsync_time(msg->timestamp_);
     }
 
     return consume_packets(pkts);
@@ -3711,8 +3720,8 @@ void SrsRtcSenderInfo::on_packet(SrsRtpPacket *pkt)
         octets_ += (uint32_t)payload->nb_bytes();
     }
 
-    // Only a packet with a time on the publisher's clock maps the track, which SRS knows from the publisher's own
-    // Sender Reports; a stream converted from RTMP or SRT has none.
+    // Only a packet with a time on the stream's clock maps the track: for a WebRTC publisher, SRS knows it from the
+    // publisher's own Sender Reports; for a stream converted to WebRTC, it is the frame's RTMP time.
     if (pkt->get_avsync_time() <= 0) {
         return;
     }
@@ -3729,8 +3738,8 @@ bool SrsRtcSenderInfo::fill(SrsRtcpSR *sr)
     }
     pending_ = false;
 
-    // The RTP time of the last packet as sent, and its time on the publisher's clock, so the player maps every track
-    // to that one clock, as the publisher's reports map them.
+    // The RTP time of the last packet as sent, and its time on the stream's clock, so the player maps every track
+    // to that one clock.
     sr->set_ntp(SrsNtp::from_time_ms(avsync_time_).ntp_);
     sr->set_rtp_ts(rtp_time_);
     sr->set_rtp_send_packets(packets_);

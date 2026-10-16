@@ -1602,15 +1602,13 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file at %s", config_file_.c_str());
     }
 
-    // Parse the matched config file.
-    if (!env_only_) {
-        err = parse_file(config_file_.c_str());
-    }
+    // Parse the matched config file, or the default vhost of env only.
+    err = parse_config();
 
     if (test_conf_) {
         // the parse_file never check the config,
         // we check it when user requires check config file.
-        if (err == srs_success && (err = srs_config_transform_vhost(root_)) == srs_success) {
+        if (err == srs_success) {
             if ((err = check_config()) == srs_success) {
                 srs_trace("the config file %s syntax is ok", config_file_.c_str());
                 srs_trace("config file %s test is successful", config_file_.c_str());
@@ -1625,17 +1623,6 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
 
     if (err != srs_success) {
         return srs_error_wrap(err, "invalid config");
-    }
-
-    // transform config to compatible with previous style of config.
-    if ((err = srs_config_transform_vhost(root_)) != srs_success) {
-        return srs_error_wrap(err, "transform");
-    }
-
-    // If use env only, there is no config file, so create the default vhost.
-    if (env_only_) {
-        if (root_->directives_.empty())
-            root_->get_or_create("vhost", "__defaultVhost__");
     }
 
     // Ignore any error while detecting docker.
@@ -1665,6 +1652,28 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         } else {
             srs_trace("write log to console");
         }
+    }
+
+    return err;
+}
+
+srs_error_t SrsConfig::parse_config()
+{
+    srs_error_t err = srs_success;
+
+    if (!env_only_ && (err = parse_file(config_file_.c_str())) != srs_success) {
+        return err;
+    }
+
+    // If use env only, there is no config file, so create the default vhost, whose settings come
+    // from env. Create it before the config test, so the test checks the vhost settings too.
+    if (env_only_ && root_->directives_.empty()) {
+        root_->get_or_create("vhost", "__defaultVhost__");
+    }
+
+    // transform config to compatible with previous style of config.
+    if ((err = srs_config_transform_vhost(root_)) != srs_success) {
+        return srs_error_wrap(err, "transform");
     }
 
     return err;

@@ -1383,7 +1383,7 @@ void MockHttpHooksForSrt::on_stop(std::string url, ISrsRequest *req, const SrsSt
     on_stop_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooksForSrt::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForSrt::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }

@@ -958,7 +958,9 @@ bool srs_net_is_valid_endpoint(std::string endpoint)
         return false;
     }
 
-    if (port <= 0) {
+    // A port is 16 bits, so a larger one is not refused by every resolver: some
+    // cut it to 16 bits and would listen on another port.
+    if (port <= 0 || port > 65535) {
         return false;
     }
 

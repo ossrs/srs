@@ -649,6 +649,279 @@ VOID TEST(MpegtsOverUdpTest, OnTsVideoWithSpsPpsIdrFrame)
     delete[] annexb_data;
 }
 
+// Append an ADTS frame of AAC LC, stereo, at the sampling frequency index sfi, with size bytes of payload.
+static void mock_append_adts_frame(std::string &pes, int sfi, int size)
+{
+    int frame_length = 7 + size;
+    pes.push_back((char)0xff);
+    pes.push_back((char)0xf1);
+    pes.push_back((char)((1 << 6) | (sfi << 2) | (2 >> 2)));
+    pes.push_back((char)(((2 & 0x03) << 6) | ((frame_length >> 11) & 0x03)));
+    pes.push_back((char)((frame_length >> 3) & 0xff));
+    pes.push_back((char)(((frame_length & 0x07) << 5) | 0x1f));
+    pes.push_back((char)0xfc);
+    for (int i = 0; i < size; i++) {
+        pes.push_back((char)(0x21 + i));
+    }
+}
+
+// Collect the timestamps of the audio messages the caster queued, in order.
+static std::vector<int64_t> mock_queued_audio_times(SrsMpegtsQueue *queue)
+{
+    std::vector<int64_t> times;
+    std::map<int64_t, SrsMediaPacket *>::iterator it;
+    for (it = queue->msgs_.begin(); it != queue->msgs_.end(); ++it) {
+        if (it->second->is_audio()) {
+            times.push_back(it->first);
+        }
+    }
+    return times;
+}
+
+// A PES of several AAC frames, as ffmpeg muxes TS by default, has the time of
+// its first frame only; each frame after it comes 1024 samples later, so the
+// caster must time each frame, not stamp them all with the PES's time.
+VOID TEST(MpegtsOverUdpTest, OnTsAudioTimesEachFrameOfPes)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
+
+    // The RTMP output is connected, and the caster's own queue holds what it writes.
+    udp_handler->sdk_ = new MockRtmpClient();
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(udp_handler->queue_);
+    ASSERT_TRUE(queue != NULL);
+
+    // The first PES, 3 frames at 44.1kHz from 1000ms: the sequence header at
+    // 1000ms, then the frames 23.2ms apart; the queue moves the first frame
+    // 1ms after the header, which holds its time.
+    if (true) {
+        std::string pes;
+        for (int i = 0; i < 3; i++) {
+            mock_append_adts_frame(pes, 4, 10);
+        }
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 90000;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_audio(msg.get(), &avs));
+        EXPECT_TRUE(avs.empty());
+
+        std::vector<int64_t> times = mock_queued_audio_times(queue);
+        ASSERT_EQ(4, (int)times.size());
+        EXPECT_EQ(1000, times[0]);
+        EXPECT_EQ(1001, times[1]);
+        EXPECT_EQ(1023, times[2]);
+        EXPECT_EQ(1046, times[3]);
+    }
+
+    // The next PES, 4 frames at 48kHz from 2000ms: 21.3ms apart, no header.
+    if (true) {
+        std::string pes;
+        for (int i = 0; i < 4; i++) {
+            mock_append_adts_frame(pes, 3, 10);
+        }
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 180000;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_audio(msg.get(), &avs));
+
+        std::vector<int64_t> times = mock_queued_audio_times(queue);
+        ASSERT_EQ(8, (int)times.size());
+        EXPECT_EQ(2000, times[4]);
+        EXPECT_EQ(2021, times[5]);
+        EXPECT_EQ(2042, times[6]);
+        EXPECT_EQ(2064, times[7]);
+    }
+
+    // The caster frees its queue with the queued messages, and the mock RTMP client.
+}
+
+// Append an annexb NALU, its start code then its bytes.
+static void mock_append_annexb_nalu(std::string &pes, const char *nalu, int size)
+{
+    pes.append("\x00\x00\x00\x01", 4);
+    pes.append(nalu, size);
+}
+
+// Collect the video messages the caster queued, in order of time.
+static std::vector<SrsMediaPacket *> mock_queued_videos(SrsMpegtsQueue *queue)
+{
+    std::vector<SrsMediaPacket *> videos;
+    std::map<int64_t, SrsMediaPacket *>::iterator it;
+    for (it = queue->msgs_.begin(); it != queue->msgs_.end(); ++it) {
+        if (it->second->is_video()) {
+            videos.push_back(it->second);
+        }
+    }
+    return videos;
+}
+
+// A PES is one access unit: x264 puts an SEI before the first IDR, and a frame
+// may have several slices. The caster must send the whole access unit as one
+// RTMP message, a keyframe when it has an IDR slice, not each NALU as a message
+// of its own, which makes the SEI an inter frame before the keyframe.
+VOID TEST(MpegtsOverUdpTest, OnTsVideoSendsAccessUnitAsOneMessage)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
+
+    // The RTMP output is connected, and the caster's own queue holds what it
+    // writes: with no audio, it sends nothing.
+    udp_handler->sdk_ = new MockRtmpClient();
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(udp_handler->queue_);
+    ASSERT_TRUE(queue != NULL);
+
+    const char aud[] = {0x09, (char)0xf0};
+    const char sps[] = {0x67, 0x64, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+    const char sei[] = {0x06, 0x05, 0x02, 0x11, 0x22, (char)0x80};
+    const char idr0[] = {0x65, (char)0x88, (char)0x84, 0x01};
+    const char idr1[] = {0x65, 0x00, 0x22, 0x02};
+    const char p0[] = {0x41, (char)0x9a, 0x11, 0x03};
+    const char p1[] = {0x41, 0x00, 0x33, 0x04};
+
+    // The first access unit at 1000ms: AUD, SPS, PPS, SEI and an IDR of 2 slices.
+    if (true) {
+        std::string pes;
+        mock_append_annexb_nalu(pes, aud, sizeof(aud));
+        mock_append_annexb_nalu(pes, sps, sizeof(sps));
+        mock_append_annexb_nalu(pes, pps, sizeof(pps));
+        mock_append_annexb_nalu(pes, sei, sizeof(sei));
+        mock_append_annexb_nalu(pes, idr0, sizeof(idr0));
+        mock_append_annexb_nalu(pes, idr1, sizeof(idr1));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 90000;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_video(msg.get(), &avs));
+        EXPECT_TRUE(avs.empty());
+    }
+
+    // The next access unit at 1040ms: AUD and a P-frame of 2 slices.
+    if (true) {
+        std::string pes;
+        mock_append_annexb_nalu(pes, aud, sizeof(aud));
+        mock_append_annexb_nalu(pes, p0, sizeof(p0));
+        mock_append_annexb_nalu(pes, p1, sizeof(p1));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 93600;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_video(msg.get(), &avs));
+    }
+
+    // The sequence header, then one message for each access unit.
+    std::vector<SrsMediaPacket *> videos = mock_queued_videos(queue);
+    ASSERT_EQ(3, (int)videos.size());
+
+    // The sequence header at 1000ms, a keyframe.
+    EXPECT_EQ(1000, videos[0]->timestamp_);
+    ASSERT_GE(videos[0]->size(), 2);
+    EXPECT_EQ(0x17, (uint8_t)videos[0]->payload()[0]);
+    EXPECT_EQ(SrsVideoAvcFrameTraitSequenceHeader, videos[0]->payload()[1]);
+
+    // The first frame, a keyframe that starts with the SEI, its NALUs in the
+    // order they came, each with its 4-byte size; the queue moves it 1ms after
+    // the header, which holds its time.
+    if (true) {
+        std::string want;
+        want.append("\x17\x01\x00\x00\x00", 5);
+        want.append("\x00\x00\x00\x06", 4);
+        want.append(sei, sizeof(sei));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr0, sizeof(idr0));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr1, sizeof(idr1));
+        EXPECT_EQ(1001, videos[1]->timestamp_);
+        EXPECT_EQ(want, std::string(videos[1]->payload(), videos[1]->size()));
+    }
+
+    // The next frame, an inter frame of its 2 slices.
+    if (true) {
+        std::string want;
+        want.append("\x27\x01\x00\x00\x00", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p0, sizeof(p0));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p1, sizeof(p1));
+        EXPECT_EQ(1040, videos[2]->timestamp_);
+        EXPECT_EQ(want, std::string(videos[2]->payload(), videos[2]->size()));
+    }
+
+    // The caster frees its queue with the queued messages, and the mock RTMP client.
+}
+
+// A frame whose PES has a presentation time after its decode time, as with
+// B-frames, goes with the difference as its composition time; the sequence
+// header has none.
+VOID TEST(MpegtsOverUdpTest, OnTsVideoKeepsCompositionTime)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
+
+    udp_handler->sdk_ = new MockRtmpClient();
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(udp_handler->queue_);
+    ASSERT_TRUE(queue != NULL);
+
+    const char sps[] = {0x67, 0x64, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+    const char idr[] = {0x65, (char)0x88, (char)0x84, 0x01};
+    const char p[] = {0x41, (char)0x9a, 0x11, 0x03};
+    const char b[] = {0x01, (char)0x9e, 0x22, 0x04};
+
+    // Each PES: its NALUs, its dts and its pts, in 90kHz.
+    struct {
+        bool keyframe;
+        int64_t dts;
+        int64_t pts;
+    } frames[] = {
+        {true, 90000, 97200}, // the keyframe at 1000ms, shown at 1080ms
+        {false, 93600, 108000}, // a P-frame at 1040ms, shown at 1200ms
+        {false, 97200, 100800}, // a B-frame at 1080ms, shown at 1120ms
+        {false, 100800, 100800}, // a frame of no B-frame, shown at its dts
+        {false, 104400, 101000}, // a pts before the dts, which no stream has
+    };
+
+    for (int i = 0; i < (int)(sizeof(frames) / sizeof(frames[0])); i++) {
+        std::string pes;
+        if (frames[i].keyframe) {
+            mock_append_annexb_nalu(pes, sps, sizeof(sps));
+            mock_append_annexb_nalu(pes, pps, sizeof(pps));
+            mock_append_annexb_nalu(pes, idr, sizeof(idr));
+        } else if (i == 2) {
+            mock_append_annexb_nalu(pes, b, sizeof(b));
+        } else {
+            mock_append_annexb_nalu(pes, p, sizeof(p));
+        }
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = frames[i].dts;
+        msg->pts_ = frames[i].pts;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_video(msg.get(), &avs));
+    }
+
+    std::vector<SrsMediaPacket *> videos = mock_queued_videos(queue);
+    ASSERT_EQ(6, (int)videos.size());
+
+    // The composition time, 3 bytes after the frame type and packet type.
+    int want_cts[] = {0, 80, 160, 40, 0, 0};
+    uint32_t want_time[] = {1000, 1001, 1040, 1080, 1120, 1160};
+    for (int i = 0; i < 6; i++) {
+        ASSERT_GE(videos[i]->size(), 5);
+        const uint8_t *v = (const uint8_t *)videos[i]->payload();
+        int cts = (v[2] << 16) | (v[3] << 8) | v[4];
+        EXPECT_EQ(want_cts[i], cts) << "video " << i;
+        EXPECT_EQ(want_time[i], (uint32_t)videos[i]->timestamp_) << "video " << i;
+    }
+    EXPECT_EQ(SrsVideoAvcFrameTraitSequenceHeader, videos[0]->payload()[1]);
+}
+
 // Test SrsMpegtsOverUdp::write_h264_sps_pps - major use scenario
 // This test covers the complete SPS/PPS writing flow:
 // 1. Both SPS and PPS have changed (h264_sps_changed_ and h264_pps_changed_ are true)
@@ -707,11 +980,9 @@ VOID TEST(MpegtsOverUdpTest, WriteH264SpsPps)
 // Test SrsMpegtsOverUdp::write_h264_ipb_frame - major use scenario
 // This test covers the complete IPB frame writing flow:
 // 1. SPS/PPS already sent (h264_sps_pps_sent_ = true)
-// 2. Write an IDR frame (keyframe) with valid H.264 NALU data
-// 3. Verify it detects IDR frame type correctly (NALU type 5)
-// 4. Verify it calls avc_->mux_ipb_frame to mux the frame
-// 5. Verify it calls avc_->mux_avc2flv with correct frame type (keyframe)
-// 6. Verify it calls rtmp_write_packet to write the video packet
+// 2. Write an access unit of an IDR frame (keyframe), its NALU with its 4-byte size
+// 3. Verify it calls avc_->mux_avc2flv with correct frame type (keyframe)
+// 4. Verify it calls rtmp_write_packet to write the video packet
 VOID TEST(MpegtsOverUdpTest, WriteH264IpbFrameWithIdrFrame)
 {
     srs_error_t err;
@@ -735,13 +1006,13 @@ VOID TEST(MpegtsOverUdpTest, WriteH264IpbFrameWithIdrFrame)
 
     // Create an IDR frame NALU (type 5)
     // NALU header: 0x65 = 0110 0101 (forbidden_zero_bit=0, nal_ref_idc=3, nal_unit_type=5)
-    char idr_frame[] = {0x65, (char)0x88, (char)0x84, 0x00, 0x01, 0x02, 0x03, 0x04};
-    int frame_size = sizeof(idr_frame);
+    char idr_frame[] = {0x00, 0x00, 0x00, 0x08, 0x65, (char)0x88, (char)0x84, 0x00, 0x01, 0x02, 0x03, 0x04};
+    std::string ibps(idr_frame, sizeof(idr_frame));
 
     // Test write_h264_ipb_frame with IDR frame
     uint32_t dts = 2000;
     uint32_t pts = 2000;
-    HELPER_EXPECT_SUCCESS(udp_handler->write_h264_ipb_frame(idr_frame, frame_size, dts, pts));
+    HELPER_EXPECT_SUCCESS(udp_handler->write_h264_ipb_frame(ibps, true, dts, pts));
 
     // Clean up - set to NULL to avoid double-free
     udp_handler->avc_ = NULL;

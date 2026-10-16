@@ -2375,6 +2375,78 @@ VOID TEST(ConfigParseOptionsTest, InDockerFromParsedConfig)
     EXPECT_TRUE(parsed_in_docker);
 }
 
+// With env only, the parsed config has the default vhost, so the config test, which checks
+// the parsed config, checks the vhost settings set by env.
+VOID TEST(ConfigParseOptionsTest, EnvOnlyCheckSeesVhostSettings)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        HELPER_EXPECT_SUCCESS(conf.parse_config());
+        EXPECT_TRUE(conf.get_vhost("__defaultVhost__", false) != NULL);
+        HELPER_EXPECT_SUCCESS(conf.check_config());
+    }
+
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, forward, "SRS_VHOST_FORWARD_ENABLED", "on");
+        SrsSetEnvConfig(conf, kickoff, "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000");
+        HELPER_EXPECT_SUCCESS(conf.parse_config());
+        err = conf.check_config();
+        EXPECT_TRUE(err != srs_success);
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("vhost.forward conflicts with vhost.publish.kickoff_for_idle") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    // Each setting alone is accepted.
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, forward, "SRS_VHOST_FORWARD_ENABLED", "on");
+        HELPER_EXPECT_SUCCESS(conf.parse_config());
+        HELPER_EXPECT_SUCCESS(conf.check_config());
+    }
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, kickoff, "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000");
+        HELPER_EXPECT_SUCCESS(conf.parse_config());
+        HELPER_EXPECT_SUCCESS(conf.check_config());
+    }
+}
+
+// With a config file, parse_config() parses the file, adds no default vhost, and the check
+// refuses the same conflict of the file.
+VOID TEST(ConfigParseOptionsTest, FileCheckSeesVhostSettings)
+{
+    srs_error_t err;
+
+    string filepath = _srs_tmp_file_prefix + "utest-parse-config.conf";
+    MockFileRemover _mfr(filepath);
+
+    if (true) {
+        SrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open(filepath));
+        string content = _MIN_OK_CONF "vhost v.ossrs.net { forward { enabled on; } publish { kickoff_for_idle 1000; } }";
+        HELPER_ASSERT_SUCCESS(fw.write((void *)content.data(), (int)content.length(), NULL));
+    }
+
+    SrsConfig conf;
+    conf.config_file_ = filepath;
+    HELPER_EXPECT_SUCCESS(conf.parse_config());
+    EXPECT_TRUE(conf.get_vhost("__defaultVhost__", false) == NULL);
+    EXPECT_TRUE(conf.get_vhost("v.ossrs.net", false) != NULL);
+    err = conf.check_config();
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+}
+
 // The config owns the generator of its default server id.
 VOID TEST(ConfigServerIdTest, ConstructorCreatesRand)
 {

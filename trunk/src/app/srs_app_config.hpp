@@ -793,6 +793,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     // Parse the cli, the main(argc,argv) function.
     virtual srs_error_t parse_options(int argc, char **argv);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Parse the config file, or with env only, create the default vhost; then transform it.
+    virtual srs_error_t parse_config();
+
+public:
     // initialize the cwd for server,
     // because we may change the workdir.
     virtual srs_error_t initialize_cwd();

@@ -99,8 +99,10 @@ public:
     // @param url The HTTP callback URL for DVR notification. If empty, hook is ignored.
     // @param req The original stream request information.
     // @param file The completed DVR file path (can be relative or absolute).
+    // @param stream The stream when the file was closed: the hook is sent from a queue,
+    //      when the stats may have dropped the stream of a publish that ended.
     // @return srs_success if processing succeeds, error otherwise (logged but doesn't affect DVR).
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file) = 0;
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream) = 0;
 
 public:
     // HLS segment completion notification hook.
@@ -191,7 +193,7 @@ public:
     void on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
     srs_error_t on_play(std::string url, ISrsRequest *req);
     void on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
-    srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                        std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);

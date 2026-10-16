@@ -323,7 +323,7 @@ void SrsHttpHooks::on_stop(string url, ISrsRequest *req, const SrsStatisticStrea
     return;
 }
 
-srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, ISrsRequest *req, string file)
+srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, ISrsRequest *req, string file, const SrsStatisticStreamSnapshot &stream)
 {
     srs_error_t err = srs_success;
 
@@ -347,9 +347,8 @@ srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, ISrsRequest *req, s
     obj->set("file", SrsJsonAny::str(file.c_str()));
 
     obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
-    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
-    if (stream) {
-        obj->set("stream_id", SrsJsonAny::str(stream->id_.c_str()));
+    if (!stream.id_.empty()) {
+        obj->set("stream_id", SrsJsonAny::str(stream.id_.c_str()));
     }
 
     std::string data = obj->dumps();

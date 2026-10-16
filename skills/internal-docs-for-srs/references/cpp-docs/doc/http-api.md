@@ -319,6 +319,8 @@ User can access the `http://192.168.1.102:1985/api/v1`, where:
 
 The index lists only the APIs SRS serves: `tcmalloc` only in a `--gperf` build, `valgrind` only in a `--valgrind` build, and `signal` only in a `--signal-api` build.
 
+SRS reads `self_proc_stats`, `system_proc_stats` and `meminfos` from `/proc`, so only Linux has their values. On macOS they answer `ok: false`, and so does `summaries`, whose system data is built on them.
+
 ## WebRTC Publish
 
 In order to push stream over WebRTC to SRS, SRS supports [WHIP](https://datatracker.ietf.org/doc/draft-ietf-wish-whip/).

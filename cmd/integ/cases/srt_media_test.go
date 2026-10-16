@@ -229,14 +229,15 @@ func checkTSBPD(c *check.C, srs *server.Server, latency, recv, send time.Duratio
 	c.CheckEqual(gotSend, send, "SRS's receive delay")
 }
 
-// waitHookCount waits up to 1s for n hooks that match m.
+// waitHookCount waits up to 1s, scaled with the limits, for n hooks that match m.
 func waitHookCount(c *check.C, srs *server.Server, m mock.Match, n int) {
 	c.Helper()
 	c.Must(checkHooks(srs), "hooks")
-	deadline := time.Now().Add(time.Second)
+	wait := check.Scaled(time.Second)
+	deadline := time.Now().Add(wait)
 	for len(srs.Hooks.Requests(m)) < n {
 		if time.Now().After(deadline) {
-			c.Fatalf("%v of %v %v after 1s", len(srs.Hooks.Requests(m)), n, m)
+			c.Fatalf("%v of %v %v after %v", len(srs.Hooks.Requests(m)), n, m, wait)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}

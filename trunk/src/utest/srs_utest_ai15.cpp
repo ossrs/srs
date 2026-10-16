@@ -2233,6 +2233,97 @@ VOID TEST(ExecutorCoroutineTest, AssembleCreatesCoroutineThroughFactory)
     executor.app_factory_ = NULL;
 }
 
+// A worker that sleeps until it is interrupted, like a receive thread blocked in a read.
+class MockSleepingCoroutineHandler : public ISrsCoroutineHandler
+{
+public:
+    SrsFastCoroutine *trd_;
+
+public:
+    MockSleepingCoroutineHandler()
+    {
+        trd_ = NULL;
+    }
+    virtual ~MockSleepingCoroutineHandler()
+    {
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        srs_error_t err = srs_success;
+        while ((err = trd_->pull()) == srs_success) {
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        }
+        srs_freep(err);
+        return srs_success;
+    }
+};
+
+// A coroutine that starts a worker, then loops and yields until it is interrupted, as the RTMP
+// play loop does after each send, and stops the worker, as SrsRtmpConn::playing stops its
+// receive thread.
+class MockYieldingCoroutineHandler : public ISrsCoroutineHandler
+{
+public:
+    SrsFastCoroutine *trd_;
+    bool worker_stopped_;
+
+public:
+    MockYieldingCoroutineHandler()
+    {
+        trd_ = NULL;
+        worker_stopped_ = false;
+    }
+    virtual ~MockYieldingCoroutineHandler()
+    {
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        srs_error_t err = srs_success;
+
+        MockSleepingCoroutineHandler sleeper;
+        SrsFastCoroutine worker("worker", &sleeper);
+        sleeper.trd_ = &worker;
+        if ((err = worker.start()) != srs_success) {
+            return srs_error_wrap(err, "start worker");
+        }
+
+        while ((err = trd_->pull()) == srs_success) {
+            srs_thread_yield();
+        }
+        srs_freep(err);
+
+        worker.stop();
+        worker_stopped_ = true;
+
+        return err;
+    }
+};
+
+// A coroutine interrupted while it is runnable, not blocked, such as when it yields, keeps ST's
+// interrupt flag until its next blocking call; when that call is the join of a worker it stops,
+// the join fails with EINTR. The stop must still join the worker, not assert, which crashed SRS
+// at a DELETE of an RTMP player that was sending media.
+VOID TEST(FastCoroutineTest, StopWorkerAfterInterruptedWhileRunnable)
+{
+    srs_error_t err = srs_success;
+
+    MockYieldingCoroutineHandler handler;
+    SrsFastCoroutine trd("yielding", &handler);
+    handler.trd_ = &trd;
+    HELPER_EXPECT_SUCCESS(trd.start());
+
+    // The coroutine yields to this one when the sleep is done, so it is runnable when interrupted.
+    srs_usleep(5 * SRS_UTIME_MILLISECONDS);
+    trd.interrupt();
+
+    trd.stop();
+    EXPECT_TRUE(handler.worker_stopped_);
+}
+
 MockIngesterForServer::MockIngesterForServer()
 {
     assemble_count_ = 0;
@@ -3915,8 +4006,13 @@ VOID TEST(SrsUtilityTest, UpdateDiskStat)
         srs_update_disk_stat();
 
         SrsDiskStat *stat = srs_get_disk_stat();
+#if defined(SRS_OSX)
+        // No /proc on macOS, so the disk stat is not read and stays not ok.
+        EXPECT_FALSE(stat->ok_);
+#else
         EXPECT_TRUE(stat->ok_);
         EXPECT_TRUE(stat->sample_time_ > 0);
+#endif
         // busy_ should be 0 (no delta to calculate)
         EXPECT_EQ(0.0f, stat->busy_);
     }
@@ -4645,7 +4741,7 @@ void MockHttpHooksForOnConnect::on_stop(std::string url, ISrsRequest *req, const
     on_stop_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooksForOnConnect::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnConnect::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -4992,7 +5088,7 @@ void MockHttpHooksForOnPublish::on_stop(std::string url, ISrsRequest *req, const
 {
 }
 
-srs_error_t MockHttpHooksForOnPublish::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnPublish::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -5311,7 +5407,7 @@ void MockHttpHooksForOnPlay::on_stop(std::string url, ISrsRequest *req, const Sr
 {
 }
 
-srs_error_t MockHttpHooksForOnPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -5415,20 +5511,23 @@ VOID TEST(UtilityTest, GetProcSelfStatSuccess)
 
     // Call get_proc_self_stat() - this is the main test
     // On Linux: reads /proc/self/stat and parses all fields
-    // On macOS: skips reading but still sets ok_ to true
+    // On macOS: has no /proc, so fails and leaves ok_ false
     bool result = get_proc_self_stat(stat);
 
+#if defined(SRS_OSX)
+    EXPECT_FALSE(result);
+    EXPECT_FALSE(stat.ok_);
+#else
     // Verify that the function succeeded
     EXPECT_TRUE(result);
     EXPECT_TRUE(stat.ok_);
-
-#if !defined(SRS_OSX)
     // On Linux, verify that key fields were populated correctly
     // pid should be positive
     EXPECT_TRUE(stat.pid_ > 0);
 
-    // comm should not be empty (process name in parentheses)
+    // comm should not be empty, and has no parentheses of /proc/self/stat
     EXPECT_TRUE(stat.comm_[0] != '\0');
+    EXPECT_TRUE(stat.comm_[0] != '(');
 
     // state should be one of the valid process states: R, S, D, Z, T, W
     EXPECT_TRUE(stat.state_ == 'R' || stat.state_ == 'S' || stat.state_ == 'D' ||
@@ -5440,6 +5539,105 @@ VOID TEST(UtilityTest, GetProcSelfStatSuccess)
     // vsize should be positive (virtual memory size)
     EXPECT_TRUE(stat.vsize_ > 0);
 #endif
+}
+
+// Test srs_parse_proc_self_stat() with lines of /proc/[pid]/stat: the comm comes
+// without its parentheses, also when it has spaces or parentheses itself, and the
+// fields after it are read in their places.
+VOID TEST(UtilityTest, ParseProcSelfStatComm)
+{
+    // The fields after the comm, from state to cguest_time.
+    std::string rest = " S 7 1234 1234 0 -1 4194560 2286 0 0 0 11 5 0 0 20 0 3 0 81923 "
+                       "123456789 4567 18446744073709551615 1 2 3 4 5 0 0 4096 17920 0 0 0 17 6 0 0 0 9 10";
+
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("1234 (srs)" + rest + "\n", r));
+        EXPECT_EQ(1234, r.pid_);
+        EXPECT_STREQ("srs", r.comm_);
+        EXPECT_EQ('S', r.state_);
+        EXPECT_EQ(7, r.ppid_);
+        EXPECT_EQ(11UL, r.utime_);
+        EXPECT_EQ(5UL, r.stime_);
+        EXPECT_EQ(3, r.num_threads_);
+        EXPECT_EQ(123456789UL, r.vsize_);
+        EXPECT_EQ(4567, r.rss_);
+        EXPECT_EQ(6, r.processor_);
+        EXPECT_EQ(10, r.cguest_time_);
+    }
+
+    // A comm with a space and parentheses of its own ends at the last ')'.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 (my (s) rs)" + rest, r));
+        EXPECT_EQ(42, r.pid_);
+        EXPECT_STREQ("my (s) rs", r.comm_);
+        EXPECT_EQ('S', r.state_);
+        EXPECT_EQ(7, r.ppid_);
+        EXPECT_EQ(3, r.num_threads_);
+        EXPECT_EQ(4567, r.rss_);
+    }
+
+    // An empty comm.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 ()" + rest, r));
+        EXPECT_STREQ("", r.comm_);
+        EXPECT_EQ(7, r.ppid_);
+    }
+
+    // A comm longer than the field is cut to fit, with its terminator.
+    if (true) {
+        SrsProcSelfStat r;
+        std::string comm(40, 'x');
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 (" + comm + ")" + rest, r));
+        EXPECT_EQ(std::string(sizeof(r.comm_) - 1, 'x'), std::string(r.comm_));
+        EXPECT_EQ(7, r.ppid_);
+    }
+
+    // A line with no comm in parentheses is refused.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_FALSE(srs_parse_proc_self_stat("", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 srs S 7", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 (srs S 7", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 srs) S 7", r));
+    }
+}
+
+// The self and system proc stats and the meminfo are ok only where SRS reads
+// them from /proc. On macOS, which has no /proc, they stay not ok, so the API
+// answers ok false, not ok true with every value 0.
+VOID TEST(UtilityTest, ProcStatsOkOnlyWhenRead)
+{
+#if !defined(SRS_OSX)
+    bool want = true;
+#else
+    bool want = false;
+#endif
+
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_EQ(want, get_proc_self_stat(r));
+        EXPECT_EQ(want, r.ok_);
+    }
+
+    if (true) {
+        srs_update_proc_stat();
+        EXPECT_EQ(want, srs_get_system_proc_stat()->ok_);
+        EXPECT_EQ(want, srs_get_self_proc_stat()->ok_);
+    }
+
+    if (true) {
+        srs_update_meminfo();
+        SrsMemInfo *m = srs_get_meminfo();
+        EXPECT_EQ(want, m->ok_);
+        if (want) {
+            EXPECT_TRUE(m->MemTotal_ > 0);
+        } else {
+            EXPECT_EQ(0UL, m->MemTotal_);
+        }
+    }
 }
 
 // Test srs_get_local_port() function to verify proper retrieval of local port

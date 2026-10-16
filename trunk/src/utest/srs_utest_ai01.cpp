@@ -4929,6 +4929,69 @@ VOID TEST(ConfigListenTest, ExporterAndRtmpsListenEnvInvalid)
     }
 }
 
+// A port above 65535, which no socket has, is not an endpoint: alone, after a host,
+// or after an IPv6 host; 65535 and below are.
+VOID TEST(ConfigListenTest, EndpointPortOutOfRange)
+{
+    EXPECT_TRUE(srs_net_is_valid_endpoint("1"));
+    EXPECT_TRUE(srs_net_is_valid_endpoint("65535"));
+    EXPECT_TRUE(srs_net_is_valid_endpoint("127.0.0.1:65535"));
+    EXPECT_TRUE(srs_net_is_valid_endpoint("[::1]:65535"));
+
+    EXPECT_FALSE(srs_net_is_valid_endpoint("65536"));
+    EXPECT_FALSE(srs_net_is_valid_endpoint("79999"));
+    EXPECT_FALSE(srs_net_is_valid_endpoint("2147483647"));
+    EXPECT_FALSE(srs_net_is_valid_endpoint("127.0.0.1:65536"));
+    EXPECT_FALSE(srs_net_is_valid_endpoint("[::1]:65536"));
+}
+
+// Every listener refuses a port above 65535, by the config file and by env, with an
+// error that names the listen.
+VOID TEST(ConfigListenTest, ListenPortOutOfRange)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } bad[] = {
+        {"rtmp{listen 65536;}", "rtmp.listen=65536"},
+        {"rtmp{listen 1935 127.0.0.1:79999;}", "rtmp.listen=127.0.0.1:79999"},
+        {_MIN_OK_CONF "http_api{enabled on; listen 65536;}", "http_api.listen"},
+        {_MIN_OK_CONF "http_server{enabled on; listen 65536;}", "http_server.listen"},
+        {_MIN_OK_CONF "rtc_server{enabled on; listen 65536;}", "rtc_server.listen"},
+        {_MIN_OK_CONF "srt_server{enabled on; listen 65536;}", "srt_server.listen"},
+        {_MIN_OK_CONF "exporter{enabled on; listen 65536;}", "exporter.listen"},
+        {_MIN_OK_CONF "rtmps{enabled on; listen 65536;}", "rtmps.listen"},
+    };
+    for (int i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(bad[i].conf);
+        EXPECT_TRUE(err != srs_success) << bad[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(bad[i].name) != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse("rtmp{listen 65535 127.0.0.1:65534;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, listen, "SRS_RTMP_LISTEN", "79999");
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success);
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("rtmp.listen=79999") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+}
+
 // The timers in seconds read a fraction of a second, from the config file and
 // from env, and a whole number still reads as before.
 VOID TEST(ConfigTimerTest, SecondsAcceptFractions)

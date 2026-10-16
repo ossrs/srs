@@ -5216,7 +5216,7 @@ void MockHttpHooksForDvrAsyncCall::on_stop(std::string url, ISrsRequest *req, co
 {
 }
 
-srs_error_t MockHttpHooksForDvrAsyncCall::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForDvrAsyncCall::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     on_dvr_count_++;
     OnDvrCall call;
@@ -5224,6 +5224,7 @@ srs_error_t MockHttpHooksForDvrAsyncCall::on_dvr(SrsContextId cid, std::string u
     call.url_ = url;
     call.req_ = req;
     call.file_ = file;
+    call.stream_ = stream;
     on_dvr_calls_.push_back(call);
     return srs_error_copy(on_dvr_error_);
 }
@@ -5283,7 +5284,7 @@ VOID TEST(DvrAsyncCallOnDvrTest, CallWithMultipleHooks)
     // Create SrsDvrAsyncCallOnDvr instance
     SrsContextId cid = _srs_context->get_id();
     std::string dvr_path = "/path/to/dvr/file.flv";
-    SrsUniquePtr<SrsDvrAsyncCallOnDvr> async_call(new SrsDvrAsyncCallOnDvr(cid, req.get(), dvr_path));
+    SrsUniquePtr<SrsDvrAsyncCallOnDvr> async_call(new SrsDvrAsyncCallOnDvr(cid, req.get(), dvr_path, SrsStatisticStreamSnapshot()));
 
     // Inject mock dependencies into member fields
     async_call->hooks_ = mock_hooks.get();
@@ -5509,6 +5510,59 @@ VOID TEST(DvrPlanTest, OnReapSegmentExecutesAsyncTask)
     // Clean up injected dependencies to avoid double-free
     plan->segment_ = NULL;
     plan->async_ = NULL;
+    plan->req_ = NULL;
+}
+
+// The on_dvr of a file that the end of a publish closes runs from a queue, after
+// the stats may have dropped the stream with the publisher: it still names the
+// stream as it was when the file was closed.
+VOID TEST(DvrPlanTest, OnDvrKeepsStreamOfEndedPublish)
+{
+    srs_error_t err;
+
+    MockAsyncCallWorker mock_async;
+    MockStatisticDropsStream mock_stat;
+    MockDvrSegmenter mock_segmenter;
+    SrsFragment *fragment = new SrsFragment();
+    fragment->set_path("/tmp/dvr_segment.flv");
+    mock_segmenter.fragment_ = fragment;
+    MockEdgeRequest req("test.vhost", "live", "stream1");
+    mock_stat.stream_->url_ = req.get_stream_url();
+
+    SrsUniquePtr<SrsDvrPlan> plan(new SrsDvrPlan());
+    plan->req_ = &req;
+    plan->segment_ = &mock_segmenter;
+    plan->async_ = &mock_async;
+    plan->stat_ = &mock_stat;
+
+    // The file is closed and its hook queued, then the publisher leaves and the
+    // stats drop the stream.
+    HELPER_EXPECT_SUCCESS(plan->on_reap_segment());
+    mock_stat.on_disconnect("publisher", srs_success);
+    EXPECT_TRUE(mock_stat.find_stream_by_url(req.get_stream_url()) == NULL);
+    ASSERT_EQ(1, (int)mock_async.tasks_.size());
+
+    // The queue runs the hook.
+    MockHttpHooksForDvrAsyncCall mock_hooks;
+    SrsUniquePtr<MockSrsConfig> mock_config(new MockSrsConfig());
+    HELPER_EXPECT_SUCCESS(mock_config->mock_parse(
+        "rtmp{listen 1935;} "
+        "vhost test.vhost { http_hooks { enabled on; on_dvr http://127.0.0.1:8085/api/v1/dvrs; } }"));
+    SrsDvrAsyncCallOnDvr *async_call = dynamic_cast<SrsDvrAsyncCallOnDvr *>(mock_async.tasks_[0]);
+    ASSERT_TRUE(async_call != NULL);
+    async_call->hooks_ = &mock_hooks;
+    async_call->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(async_call->call());
+
+    ASSERT_EQ(1, mock_hooks.on_dvr_count_);
+    EXPECT_STREQ("/tmp/dvr_segment.flv", mock_hooks.on_dvr_calls_[0].file_.c_str());
+    EXPECT_STREQ("vid-stopped", mock_hooks.on_dvr_calls_[0].stream_.id_.c_str());
+
+    async_call->hooks_ = NULL;
+    async_call->config_ = NULL;
+    plan->segment_ = NULL;
+    plan->async_ = NULL;
+    plan->stat_ = NULL;
     plan->req_ = NULL;
 }
 

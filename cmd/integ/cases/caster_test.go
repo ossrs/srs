@@ -75,7 +75,6 @@ func TestCaster_UdpTs(t *testing.T) {
 	// AAC frame at its own time, 1024 samples after the one before, also
 	// the frames that the TS carries in one PES, as its first PES of 255ms.
 	check.Case(t, "AudioFramesTimed", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the caster stamps every AAC frame of a PES with the PES's time, so the frames of a PES of several come at once and leave a gap after them")
 		r := rec.until(c, report.Until{AudioHeader: true, AudioFrames: 30})
 		checkAudio(c, &r, "aac", 1)
 		c.CheckEqual(r.Audio.Backwards, 0, "audio frames that step back")
@@ -84,7 +83,6 @@ func TestCaster_UdpTs(t *testing.T) {
 
 	// The recording player's first video frame is the first keyframe.
 	check.Case(t, "StartsAtKeyframe", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the caster sends each NALU of a frame as an RTMP message of its own, so the SEI before the first IDR comes as an inter frame before the keyframe")
 		r := rec.until(c, report.Until{VideoHeader: true, Keyframes: 1})
 		checkVideo(c, &r, "h264")
 		c.CheckEqual(r.Video.LeadingFrames, 0, "video frames before the first keyframe")
@@ -94,7 +92,6 @@ func TestCaster_UdpTs(t *testing.T) {
 	// time; the RTMP stream carries the difference as each video tag's
 	// composition time.
 	check.Case(t, "PushKeepsCompositionTime", check.Normal, func(c *check.C) {
-		check.KnownBug(c, "the caster stamps each H.264 frame with its decode time as its presentation time too, so every composition time is 0 and B-frames play out of order")
 		player := dialRTMP(c, rtmpURL(srs, server.UDPTSStream), nil)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()

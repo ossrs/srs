@@ -6,7 +6,12 @@ package cases
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,14 +27,18 @@ import (
 const kickWithin = 300 * time.Millisecond
 
 // TestApi_Kick checks DELETE /api/v1/clients/{id} of RTMP and RTMPS clients,
-// on a server of their own with RTMP, RTMPS and hooks: SRS may crash at a
-// DELETE of an RTMP player whose coroutine is runnable, not blocked, which
-// on Common would fail every case of its shard. No case asserts the crash.
+// on a server of their own with RTMP, RTMPS, hooks and the lowest play
+// latency, as Common's: DeletePlayersSending loads it with players of a
+// stream published faster than real time.
 func TestApi_Kick(t *testing.T) {
 	t.Parallel()
 	srs := server.Group(t, server.Config{
 		Listeners: []server.Listener{server.RTMP, server.HTTPAPI, server.RTMPS},
 		Hooks:     true,
+		Env: map[string]string{
+			"SRS_VHOST_MIN_LATENCY":     "on",
+			"SRS_VHOST_PLAY_MW_LATENCY": "0",
+		},
 	})
 
 	for _, s := range []struct {
@@ -84,6 +93,184 @@ func TestApi_Kick(t *testing.T) {
 		c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+id), "the publisher leaves the API")
 		c.CheckEqual(codeOf(apiKick(c, srs, id)), 2049, "the second DELETE")
 	})
+
+	// DeletePlayersSending deletes RTMP players at once while SRS sends them a
+	// stream published at kickSpeed times real time, so each player's
+	// coroutine is often runnable between its sends, not blocked, when its
+	// DELETE comes, kickRounds times: each DELETE answers code 0, every
+	// player is closed and leaves the API, and SRS stays up.
+	check.Case(t, "DeletePlayersSending", check.Normal, func(c *check.C) {
+		stream := streamName(c)
+		url := rtmpURL(srs, "live/"+stream)
+		pub := publishOnly(c, url, rtmp.FMLE)
+		streamFast(c, pub, media.Path(c, media.H264HighAAC), kickSpeed)
+		streamID := waitHook(c, srs, "on_publish", stream).Field("stream_id")
+		for round := 0; round < kickRounds && !c.Failed(); round++ {
+			kickPlayersSending(c, srs, url, streamID)
+		}
+	})
+}
+
+// kickPlayers players of a stream are deleted at once, kickRounds times, and
+// the stream is published at kickSpeed times real time.
+const (
+	kickPlayers = 20
+	kickRounds  = 4
+	kickSpeed   = 20
+)
+
+// kickPlayersSending plays a stream with kickPlayers RTMP players that read
+// all SRS sends, deletes them at once and checks each DELETE, that SRS is up,
+// and that every player is closed and leaves the API.
+func kickPlayersSending(c *check.C, srs *server.Server, url, streamID string) {
+	c.Helper()
+	clients := make([]*rtmp.Client, kickPlayers)
+	errs := make([]error, kickPlayers)
+	var played sync.WaitGroup
+	for i := range clients {
+		played.Add(1)
+		go func(i int) {
+			defer played.Done()
+			clients[i], errs[i] = playNow(url)
+		}(i)
+	}
+	played.Wait()
+	closed := make([]chan struct{}, kickPlayers)
+	for i, player := range clients {
+		if player != nil {
+			c.Cleanup(func() { player.Close() })
+		}
+		c.Must(errs[i], "play")
+		closed[i] = make(chan struct{})
+		go func(done chan struct{}) {
+			drainRTMP(player)
+			close(done)
+		}(closed[i])
+	}
+	var players []string
+	if !c.Check(until(kickWithin, func() bool {
+		players = streamPlayers(c, srs, streamID)
+		return len(players) == kickPlayers
+	}), "%d players listed, want %d", len(players), kickPlayers) {
+		return
+	}
+
+	replies := make([]error, len(players))
+	var wg sync.WaitGroup
+	for i, id := range players {
+		wg.Add(1)
+		go func(i int, id string) {
+			defer wg.Done()
+			replies[i] = kickOK(srs, id)
+		}(i, id)
+	}
+	wg.Wait()
+	for i, err := range replies {
+		c.CheckNoError(err, "DELETE of player "+players[i])
+	}
+	if code, err := srs.Wait(time.Millisecond); err == nil {
+		c.Fatalf("SRS exited with %d after the DELETEs", code)
+	}
+	for i, done := range closed {
+		select {
+		case <-done:
+		case <-time.After(kickWithin):
+			c.Errorf("player %d not closed within %v", i, kickWithin)
+		}
+	}
+	c.Check(until(kickWithin, func() bool { return len(streamPlayers(c, srs, streamID)) == 0 }), "the players leave the API")
+}
+
+// streamFast publishes a file on a client that publishes, speed times real
+// time and again from its start at its end, until the case ends.
+func streamFast(c *check.C, pub *rtmp.Client, file string, speed int) {
+	c.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for ctx.Err() == nil {
+			f, err := os.Open(file)
+			if err != nil {
+				return
+			}
+			r, err := media.NewFLVReader(f)
+			if err == nil {
+				start := time.Now()
+				p := &rtmp.Pacer{
+					Now: func() time.Time { return start.Add(time.Since(start) * time.Duration(speed)) },
+					Sleep: func(ctx context.Context, d time.Duration) error {
+						select {
+						case <-ctx.Done():
+							return ctx.Err()
+						case <-time.After(d / time.Duration(speed)):
+							return nil
+						}
+					},
+				}
+				_, err = rtmp.PublishFLV(ctx, pub, r, p)
+			}
+			f.Close()
+			if err != nil {
+				return
+			}
+		}
+	}()
+	c.Cleanup(func() {
+		cancel()
+		pub.Close()
+		<-done
+	})
+}
+
+// playNow plays a stream over RTMP, from any goroutine, and returns the
+// player, or the client and the error when the play fails.
+func playNow(url string) (*rtmp.Client, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	player, err := rtmp.Dial(ctx, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := player.Play(ctx); err != nil {
+		return player, err
+	}
+	return player, nil
+}
+
+// streamPlayers is the ids of the players of a stream in the API.
+func streamPlayers(c *check.C, srs *server.Server, streamID string) []string {
+	c.Helper()
+	clients, _ := apiList(c, srs, "clients", "?count=100")
+	var out []string
+	for _, cl := range clients {
+		if cl["stream"] == streamID && cl["publish"] == false {
+			out = append(out, cl["id"].(string))
+		}
+	}
+	return out
+}
+
+// kickOK deletes a client by the API, from any goroutine, and fails unless
+// SRS answers 200 with code 0.
+func kickOK(srs *server.Server, id string) error {
+	req, err := http.NewRequest(http.MethodDelete, srs.APIURL("/api/v1/clients/"+id), nil)
+	if err != nil {
+		return err
+	}
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode != http.StatusOK || !strings.Contains(string(body), `"code":0`) {
+		return fmt.Errorf("status %d, answer %s, want 200 with code 0", res.StatusCode, body)
+	}
+	return nil
 }
 
 // apiKicks adds the cases of DELETE /api/v1/clients/{id} on the Common server

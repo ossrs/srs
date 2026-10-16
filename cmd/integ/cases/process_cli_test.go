@@ -6,7 +6,6 @@ package cases
 
 import (
 	"encoding/json"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -70,9 +69,6 @@ func commonVersion(c *check.C) (version, signature string) {
 var badEnv = []struct {
 	name string
 	env  func(c *check.C) map[string]string
-	// testBug and startBug are the known bugs of the test and of the start,
-	// and linuxStartBug the known bug of the start on Linux only.
-	testBug, startBug, linuxStartBug string
 }{
 	{name: "MaxConnectionsZero", env: envOf("SRS_MAX_CONNECTIONS", "0")},
 	{name: "MaxConnectionsNegative", env: envOf("SRS_MAX_CONNECTIONS", "-5")},
@@ -91,9 +87,17 @@ var badEnv = []struct {
 		env: func(c *check.C) map[string]string {
 			return map[string]string{"SRS_RTMP_LISTEN": strconv.Itoa(65536 + server.ReservePort(c))}
 		},
-		testBug:       "a listen port above 65535 passes the config test",
-		linuxStartBug: "a listen port above 65535 is cut to 16 bits at the start, and SRS listens on another port",
 	},
+	// The same port after a host, and as the second listen of the API, after a good one.
+	{name: "RtmpListenHostPortOutOfRange", env: func(c *check.C) map[string]string {
+		return map[string]string{"SRS_RTMP_LISTEN": "127.0.0.1:" + strconv.Itoa(65536+server.ReservePort(c))}
+	}},
+	{name: "HttpApiListenPortOutOfRange", env: func(c *check.C) map[string]string {
+		return map[string]string{
+			"SRS_HTTP_API_ENABLED": "on",
+			"SRS_HTTP_API_LISTEN":  strconv.Itoa(server.ReservePort(c)) + " " + strconv.Itoa(65536+server.ReservePort(c)),
+		}
+	}},
 	{name: "ListenAliasNotPort", env: envOf("SRS_LISTEN", "abc")},
 	{name: "HttpApiListen", env: envOf("SRS_HTTP_API_ENABLED", "on", "SRS_HTTP_API_LISTEN", "abc")},
 	{name: "HttpServerListen", env: envOf("SRS_HTTP_SERVER_ENABLED", "on", "SRS_HTTP_SERVER_LISTEN", "abc")},
@@ -138,11 +142,8 @@ var badEnv = []struct {
 	// so it is refused on or off.
 	{name: "AtcAuto", env: envOf("SRS_VHOST_PLAY_ATC_AUTO", "on")},
 	{name: "AtcAutoOff", env: envOf("SRS_VHOST_PLAY_ATC_AUTO", "off")},
-	{
-		name:    "ForwardWithKickoffForIdle",
-		env:     envOf("SRS_VHOST_FORWARD_ENABLED", "on", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000"),
-		testBug: "with -e the config test checks no vhost setting",
-	},
+	// A vhost setting by env: forward conflicts with kickoff_for_idle.
+	{name: "ForwardWithKickoffForIdle", env: envOf("SRS_VHOST_FORWARD_ENABLED", "on", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000")},
 }
 
 // envOf returns the env of name and value pairs.
@@ -275,18 +276,9 @@ func TestProcess_Cli(t *testing.T) {
 	// The settings SRS refuses, by the config test and at a start.
 	for _, tt := range badEnv {
 		check.Case(t, "CheckRejects"+tt.name, check.Normal, func(c *check.C) {
-			if tt.testBug != "" {
-				check.KnownBug(c, tt.testBug)
-			}
 			checkExit(c, cli(c, tt.env(c), "-e", "-t"), false)
 		})
 		check.Case(t, "StartRejects"+tt.name, check.Normal, func(c *check.C) {
-			if tt.startBug != "" {
-				check.KnownBug(c, tt.startBug)
-			}
-			if tt.linuxStartBug != "" && runtime.GOOS == "linux" {
-				check.KnownBug(c, tt.linuxStartBug)
-			}
 			checkExit(c, cli(c, tt.env(c), "-e"), false)
 		})
 	}

@@ -153,7 +153,7 @@ func TestTimer_Heartbeat_Full(t *testing.T) {
 		checkFields(c, data, keysOf(api), "heartbeat summaries data")
 		checkFields(c, object(c, data, "self"), keysOf(object(c, api, "self")), "heartbeat summaries self")
 		checkFields(c, object(c, data, "system"), keysOf(object(c, api, "system")), "heartbeat summaries system")
-		c.CheckEqual(data["ok"], true, "summaries ok")
+		c.CheckEqual(data["ok"], procRead(), "summaries ok, true only where SRS reads /proc")
 		c.CheckEqual(num(c, object(c, data, "self"), "pid"), float64(srs.PID()), "summaries self pid")
 		at := time.UnixMilli(int64(num(c, data, "now_ms")))
 		c.Check(at.Sub(beat.Time).Abs() <= 500*time.Millisecond, "summaries now_ms %v, want the time of the heartbeat %v", at, beat.Time)

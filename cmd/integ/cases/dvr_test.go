@@ -33,6 +33,11 @@ import (
 // SRS reads it, 2s, so a segment spans more than one 1s GOP.
 const dvrSegment = 2 * time.Second
 
+// dvrHookQueueHold is how long the hook server holds the on_dvr of a stream
+// that blocks SRS's queue of DVR hooks, which every stream shares; scaled with
+// the limits, since the case must end its publish within it.
+func dvrHookQueueHold() time.Duration { return check.Scaled(200 * time.Millisecond) }
+
 // dvrConfig is the config of a DVR group: RTMP to publish, the HTTP API, the
 // hooks for on_dvr, and DVR with the settings d. The files go under ./dvr in
 // the server's directory, where the cases read them.
@@ -113,27 +118,22 @@ func TestDvr_Session(t *testing.T) {
 
 	// on_dvr has every field: the publisher's ids, IP, vhost, app, stream,
 	// param and tcUrl as on_publish has them, the server's working directory
-	// and the file, relative to it. SRS sends it after the publish ended, and
-	// it lacks the stream_id when the stream has left the API by then, now
-	// and then (not asserted), so stream_id is checked only when it is there;
-	// OnDvrPerSegment checks it on the files cut while the stream is published.
+	// and the file, relative to it, and the stream_id of on_publish, which
+	// OnDvrQueued checks once the stream has left the API.
 	check.Case(t, "OnDvrPayload", check.Normal, func(c *check.C) {
 		stream := streamName(c)
 		publishDvr(c, srs, "live/"+stream+"?k1=v1", readTags(c, media.H264HighAAC, 0, time.Second))
 		h := dvrHooks(c, srs, stream, 1)[0]
 		pub := waitHookCountOf(c, srs, mock.Match{Action: "on_publish", Stream: stream}, 1)[0]
-		for _, k := range []string{"server_id", "service_id", "action", "client_id", "ip", "vhost", "app", "tcUrl", "stream", "param", "cwd", "file", "stream_url"} {
+		for _, k := range []string{"server_id", "service_id", "action", "client_id", "ip", "vhost", "app", "tcUrl", "stream", "param", "cwd", "file", "stream_url", "stream_id"} {
 			_, ok := h.JSON[k]
 			c.Check(ok, "on_dvr has no %s: %s", k, h.Body)
 		}
 		ids := apiIDs(c, srs)
 		c.CheckEqual(h.Field("server_id"), ids.Server, "server_id, the API's server")
 		c.CheckEqual(h.Field("service_id"), ids.Service, "service_id, the API's service")
-		for _, k := range []string{"client_id", "ip", "vhost", "app", "tcUrl", "stream", "param", "stream_url"} {
+		for _, k := range []string{"client_id", "ip", "vhost", "app", "tcUrl", "stream", "param", "stream_url", "stream_id"} {
 			c.CheckEqual(h.Field(k), pub.Field(k), k+", the on_publish's")
-		}
-		if _, ok := h.JSON["stream_id"]; ok {
-			c.CheckEqual(h.Field("stream_id"), pub.Field("stream_id"), "stream_id, the on_publish's")
 		}
 		c.CheckEqual(h.Field("ip"), "127.0.0.1", "ip")
 		c.CheckEqual(h.Field("param"), "?k1=v1", "param")
@@ -141,6 +141,32 @@ func TestDvr_Session(t *testing.T) {
 		c.CheckEqual(sameDir(c, h.Field("cwd"), srs.Dir), true, "cwd "+h.Field("cwd")+", the server's directory "+srs.Dir)
 		c.Check(strings.HasPrefix(h.Field("file"), "./dvr/"), "file %q, want relative to the cwd", h.Field("file"))
 		c.Check(exists(dvrFilePath(c, srs, h)), "no file %v at the on_dvr", h.Field("file"))
+	})
+
+	// OnDvrQueued ends a publish while SRS still waits on another stream's
+	// slow on_dvr, so its on_dvr waits in SRS's queue of DVR hooks until the
+	// publisher and the stream have left the API: the hook still names the
+	// stream_id of on_publish.
+	check.Case(t, "OnDvrQueued", check.Normal, func(c *check.C) {
+		stream := streamName(c)
+		block := stream + "-block"
+		srs.Hooks.Script(hookOfStream("on_dvr", block), mock.OK().After(dvrHookQueueHold()))
+		// Both publish first, so only the end of the case's publish falls in
+		// the hold.
+		blocker := publishDvrOpen(c, srs, "live/"+block, readTags(c, media.H264HighAAC, 0, time.Second))
+		pub := publishDvrOpen(c, srs, "live/"+stream, readTags(c, media.H264HighAAC, 0, time.Second))
+		published := waitHookCountOf(c, srs, mock.Match{Action: "on_publish", Stream: stream}, 1)[0]
+		blocker.Close()
+		held := dvrHooks(c, srs, block, 1)[0].Time
+		pub.Close()
+		c.Must(untilGone(c, srs, "/api/v1/streams/"+published.Field("stream_id")), "the stream in the API")
+		if since := time.Since(held); since >= dvrHookQueueHold() {
+			c.Fatalf("the queue held for %v only, the stream left %v after the blocking hook came", dvrHookQueueHold(), since)
+		}
+
+		h := dvrHooks(c, srs, stream, 1)[0]
+		c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), "on_dvr stream_id, the on_publish's")
+		c.CheckEqual(h.Field("client_id"), published.Field("client_id"), "on_dvr client_id, the on_publish's")
 	})
 
 	// A publish again of the stream is a new session: a new file, with only

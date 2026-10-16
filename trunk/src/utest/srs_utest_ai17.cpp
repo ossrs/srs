@@ -2689,7 +2689,7 @@ void MockHttpHooksForRtcPlay::on_stop(std::string url, ISrsRequest *req, const S
 {
 }
 
-srs_error_t MockHttpHooksForRtcPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForRtcPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -5790,7 +5790,7 @@ VOID TEST(HttpHooksTest, OnDvrSuccess)
     cid.set_value("client-789");
     std::string url = "http://127.0.0.1:8085/api/v1/dvrs";
     std::string file = "/data/dvr/test.vhost/live/stream1/2025-01-15/recording.flv";
-    HELPER_EXPECT_SUCCESS(hooks->on_dvr(cid, url, req.get(), file));
+    HELPER_EXPECT_SUCCESS(hooks->on_dvr(cid, url, req.get(), file, SrsStatisticStreamSnapshot()));
 
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;
