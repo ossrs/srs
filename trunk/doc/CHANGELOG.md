@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-17, Caster: Fix UDP TS frame times, republish and hook wait. v7.0.188
 * v7.0, 2026-10-17, GB28181: Fix RTMP output sender and hook wait. v7.0.187
 * v7.0, 2026-10-17, GB28181: Fix SSRC parse, connect crash and frames. v7.0.186
 * v7.0, 2026-10-17, RTSP: Fix DESCRIBE while playing and TEARDOWN tracks. v7.0.185

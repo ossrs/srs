@@ -144,6 +144,9 @@ class MockAppFactoryForMpegtsOverUdp : public SrsAppFactory
 public:
     MockRtmpClient *mock_rtmp_client_;
     bool create_rtmp_client_called_;
+    // The timeouts of the last client made.
+    srs_utime_t cto_;
+    srs_utime_t sto_;
 
 public:
     MockAppFactoryForMpegtsOverUdp();
