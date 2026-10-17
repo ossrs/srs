@@ -37,6 +37,7 @@ SrsEncoder::SrsEncoder()
 
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
+    transcoded_urls_ = &_transcoded_url;
 }
 
 SrsEncoder::~SrsEncoder()
@@ -48,6 +49,7 @@ SrsEncoder::~SrsEncoder()
 
     config_ = NULL;
     app_factory_ = NULL;
+    transcoded_urls_ = NULL;
 }
 
 srs_error_t SrsEncoder::on_publish(ISrsRequest *req)
@@ -158,9 +160,9 @@ void SrsEncoder::clear_engines()
         std::string output = ffmpeg->output();
 
         std::vector<std::string>::iterator tu_it;
-        tu_it = std::find(_transcoded_url.begin(), _transcoded_url.end(), output);
-        if (tu_it != _transcoded_url.end()) {
-            _transcoded_url.erase(tu_it);
+        tu_it = std::find(transcoded_urls_->begin(), transcoded_urls_->end(), output);
+        if (tu_it != transcoded_urls_->end()) {
+            transcoded_urls_->erase(tu_it);
         }
 
         srs_freep(ffmpeg);
@@ -312,11 +314,10 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
 
     // important: loop check, donot transcode again.
     std::vector<std::string>::iterator it;
-    it = std::find(_transcoded_url.begin(), _transcoded_url.end(), input);
-    if (it != _transcoded_url.end()) {
+    it = std::find(transcoded_urls_->begin(), transcoded_urls_->end(), input);
+    if (it != transcoded_urls_->end()) {
         return srs_error_new(ERROR_ENCODER_LOOP, "detect a loop cycle, input=%s, output=%s", input.c_str(), output.c_str());
     }
-    _transcoded_url.push_back(output);
 
     if ((err = ffmpeg->initialize(input, output, log_file)) != srs_success) {
         return srs_error_wrap(err, "init ffmpeg");
@@ -324,6 +325,10 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     if ((err = ffmpeg->initialize_transcode(engine)) != srs_success) {
         return srs_error_wrap(err, "init transcode");
     }
+
+    // Track the output only once the engine is ready: the caller frees a failed engine, which never
+    // reaches clear_engines, so its output would stay a loop for that stream until restart.
+    transcoded_urls_->push_back(output);
 
     return err;
 }

@@ -46,6 +46,9 @@ class SrsEncoder : public ISrsCoroutineHandler, public ISrsMediaEncoder
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsAppFactory *app_factory_;
+    // The outputs of every encoder, shared by all of them to detect a loop: an input that is one
+    // of them is a stream transcoded already.
+    std::vector<std::string> *transcoded_urls_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

@@ -367,6 +367,9 @@ extern void srs_update_proc_stat();
 // Read process self stat from /proc/self/stat (Linux only).
 // @return true on success, false on failure.
 extern bool get_proc_self_stat(SrsProcSelfStat &r);
+// Parse a line of /proc/[pid]/stat into r, the comm without its parentheses.
+// @return true on success, false when the line has no comm in parentheses.
+extern bool srs_parse_proc_self_stat(const std::string &line, SrsProcSelfStat &r);
 
 // Stat disk iops
 // @see: http://stackoverflow.com/questions/4458183/how-the-util-of-iostat-is-computed

@@ -186,6 +186,37 @@ ISrsBasicRtmpClient *MockEdgeAppFactory::create_rtmp_client(std::string url, srs
     return mock_client_;
 }
 
+MockEdgeForwarderFactory::MockEdgeForwarderFactory()
+{
+}
+
+MockEdgeForwarderFactory::~MockEdgeForwarderFactory()
+{
+}
+
+ISrsBasicRtmpClient *MockEdgeForwarderFactory::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
+{
+    MockRtmpClient *client = new MockRtmpClient();
+    client->url_ = url;
+    urls_.push_back(url);
+
+    for (int i = 0; i < (int)down_.size(); i++) {
+        if (url.find("rtmp://" + down_.at(i) + "/") == 0) {
+            client->connect_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "mock origin %s down", down_.at(i).c_str());
+        }
+    }
+    if (!refuse_.empty() && url.find("rtmp://" + refuse_ + "/") == 0) {
+        client->publish_error_ = srs_error_new(ERROR_SYSTEM_STREAM_BUSY, "mock origin %s refuses", refuse_.c_str());
+    }
+
+    return client;
+}
+
+ISrsCoroutine *MockEdgeForwarderFactory::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
+{
+    return new MockCoroutineForRtmpConn();
+}
+
 // Test SrsEdgeRtmpUpstream::connect() - major use scenario
 // This test covers the typical edge server connecting to origin server scenario:
 // 1. Edge server receives a play request
@@ -1281,6 +1312,113 @@ void MockEdgeForwarder::reset()
     srs_freep(initialize_error_);
     srs_freep(start_error_);
     srs_freep(proxy_error_);
+}
+
+// A publish to an edge pushes to one origin, taken in turn for each publish of the stream. When
+// the origin is down, the push connects to the next origin at once, so the publisher is accepted
+// while any origin is up.
+VOID TEST(EdgeForwarderTest, StartFailsOverFromDownOrigin)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<MockEdgeConfig> config(new MockEdgeConfig());
+    config->edge_origin_directive_ = new SrsConfDirective();
+    config->edge_origin_directive_->name_ = "origin";
+    config->edge_origin_directive_->args_.push_back("192.168.1.10:1935");
+    config->edge_origin_directive_->args_.push_back("192.168.1.11:1935");
+    config->edge_origin_directive_->args_.push_back("192.168.1.12:1935");
+    SrsUniquePtr<MockEdgeForwarderFactory> factory(new MockEdgeForwarderFactory());
+    factory->down_.push_back("192.168.1.10:1935");
+
+    SrsUniquePtr<SrsEdgeForwarder> forwarder(new SrsEdgeForwarder());
+    forwarder->config_ = config.get();
+    forwarder->app_factory_ = factory.get();
+    forwarder->req_ = req.get();
+
+    // The first origin is down: the push goes to the second.
+    HELPER_EXPECT_SUCCESS(forwarder->start());
+    ASSERT_EQ(2, (int)factory->urls_.size());
+    EXPECT_EQ(0, (int)factory->urls_.at(0).find("rtmp://192.168.1.10:1935/live"));
+    EXPECT_EQ(0, (int)factory->urls_.at(1).find("rtmp://192.168.1.11:1935/live"));
+    MockRtmpClient *sdk = dynamic_cast<MockRtmpClient *>(forwarder->sdk_);
+    ASSERT_TRUE(sdk != NULL);
+    EXPECT_EQ(factory->urls_.at(1), sdk->url_);
+    EXPECT_TRUE(sdk->publish_called_);
+    forwarder->stop();
+
+    // The next publish takes the next origin, which is up.
+    HELPER_EXPECT_SUCCESS(forwarder->start());
+    ASSERT_EQ(3, (int)factory->urls_.size());
+    EXPECT_EQ(0, (int)factory->urls_.at(2).find("rtmp://192.168.1.12:1935/live"));
+    forwarder->stop();
+
+    // Then the first again, down, and the push goes to the second.
+    HELPER_EXPECT_SUCCESS(forwarder->start());
+    ASSERT_EQ(5, (int)factory->urls_.size());
+    EXPECT_EQ(0, (int)factory->urls_.at(3).find("rtmp://192.168.1.10:1935/live"));
+    EXPECT_EQ(0, (int)factory->urls_.at(4).find("rtmp://192.168.1.11:1935/live"));
+    forwarder->stop();
+
+    forwarder->req_ = NULL;
+}
+
+// When every origin is down, the publish is refused after one connect to each origin.
+VOID TEST(EdgeForwarderTest, StartRefusedWhenEveryOriginDown)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<MockEdgeConfig> config(new MockEdgeConfig());
+    config->edge_origin_directive_ = new SrsConfDirective();
+    config->edge_origin_directive_->name_ = "origin";
+    config->edge_origin_directive_->args_.push_back("192.168.1.10:1935");
+    config->edge_origin_directive_->args_.push_back("192.168.1.11:1935");
+    SrsUniquePtr<MockEdgeForwarderFactory> factory(new MockEdgeForwarderFactory());
+    factory->down_.push_back("192.168.1.10:1935");
+    factory->down_.push_back("192.168.1.11:1935");
+
+    SrsUniquePtr<SrsEdgeForwarder> forwarder(new SrsEdgeForwarder());
+    forwarder->config_ = config.get();
+    forwarder->app_factory_ = factory.get();
+    forwarder->req_ = req.get();
+
+    err = forwarder->start();
+    EXPECT_EQ(ERROR_SOCKET_CONNECT, srs_error_code(err));
+    srs_freep(err);
+    ASSERT_EQ(2, (int)factory->urls_.size());
+    EXPECT_EQ(0, (int)factory->urls_.at(0).find("rtmp://192.168.1.10:1935/live"));
+    EXPECT_EQ(0, (int)factory->urls_.at(1).find("rtmp://192.168.1.11:1935/live"));
+
+    forwarder->req_ = NULL;
+}
+
+// An origin that is up but refuses the publish refuses the publisher: the push doesn't try the
+// next origin, which may serve the stream already.
+VOID TEST(EdgeForwarderTest, StartNoFailoverWhenOriginRefusesPublish)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<MockEdgeConfig> config(new MockEdgeConfig());
+    config->edge_origin_directive_ = new SrsConfDirective();
+    config->edge_origin_directive_->name_ = "origin";
+    config->edge_origin_directive_->args_.push_back("192.168.1.10:1935");
+    config->edge_origin_directive_->args_.push_back("192.168.1.11:1935");
+    SrsUniquePtr<MockEdgeForwarderFactory> factory(new MockEdgeForwarderFactory());
+    factory->refuse_ = "192.168.1.10:1935";
+
+    SrsUniquePtr<SrsEdgeForwarder> forwarder(new SrsEdgeForwarder());
+    forwarder->config_ = config.get();
+    forwarder->app_factory_ = factory.get();
+    forwarder->req_ = req.get();
+
+    err = forwarder->start();
+    EXPECT_EQ(ERROR_SYSTEM_STREAM_BUSY, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, (int)factory->urls_.size());
+
+    forwarder->req_ = NULL;
 }
 
 VOID TEST(PlayEdgeTest, ClientPlayLifecycle)
@@ -4576,7 +4714,7 @@ void MockHttpHooksForDvrAsyncCall::on_stop(std::string url, ISrsRequest *req)
 {
 }
 
-srs_error_t MockHttpHooksForDvrAsyncCall::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForDvrAsyncCall::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id)
 {
     on_dvr_count_++;
     OnDvrCall call;
@@ -4584,6 +4722,7 @@ srs_error_t MockHttpHooksForDvrAsyncCall::on_dvr(SrsContextId cid, std::string u
     call.url_ = url;
     call.req_ = req;
     call.file_ = file;
+    call.stream_id_ = stream_id;
     on_dvr_calls_.push_back(call);
     return srs_error_copy(on_dvr_error_);
 }
@@ -4643,7 +4782,7 @@ VOID TEST(DvrAsyncCallOnDvrTest, CallWithMultipleHooks)
     // Create SrsDvrAsyncCallOnDvr instance
     SrsContextId cid = _srs_context->get_id();
     std::string dvr_path = "/path/to/dvr/file.flv";
-    SrsUniquePtr<SrsDvrAsyncCallOnDvr> async_call(new SrsDvrAsyncCallOnDvr(cid, req.get(), dvr_path));
+    SrsUniquePtr<SrsDvrAsyncCallOnDvr> async_call(new SrsDvrAsyncCallOnDvr(cid, req.get(), dvr_path, ""));
 
     // Inject mock dependencies into member fields
     async_call->hooks_ = mock_hooks.get();
@@ -4869,6 +5008,83 @@ VOID TEST(DvrPlanTest, OnReapSegmentExecutesAsyncTask)
     // Clean up injected dependencies to avoid double-free
     plan->segment_ = NULL;
     plan->async_ = NULL;
+    plan->req_ = NULL;
+}
+
+MockStatisticDropsStream::MockStatisticDropsStream()
+{
+    stream_ = new SrsStatisticStream();
+    stream_->id_ = "vid-stopped";
+    stream_->nb_clients_ = 2;
+    dropped_ = false;
+}
+
+MockStatisticDropsStream::~MockStatisticDropsStream()
+{
+    srs_freep(stream_);
+}
+
+SrsStatisticStream *MockStatisticDropsStream::find_stream_by_url(std::string url)
+{
+    return (!dropped_ && url == stream_->url_) ? stream_ : NULL;
+}
+
+void MockStatisticDropsStream::on_disconnect(std::string id, srs_error_t err)
+{
+    MockAppStatistic::on_disconnect(id, err);
+    dropped_ = true;
+}
+
+// The on_dvr of a file that the end of a publish closes runs from a queue, after
+// the stats may have dropped the stream with the publisher: it still names the
+// stream as it was when the file was closed.
+VOID TEST(DvrPlanTest, OnDvrKeepsStreamOfEndedPublish)
+{
+    srs_error_t err;
+
+    MockAsyncCallWorker mock_async;
+    MockStatisticDropsStream mock_stat;
+    MockDvrSegmenter mock_segmenter;
+    SrsFragment *fragment = new SrsFragment();
+    fragment->set_path("/tmp/dvr_segment.flv");
+    mock_segmenter.fragment_ = fragment;
+    MockEdgeRequest req("test.vhost", "live", "stream1");
+    mock_stat.stream_->url_ = req.get_stream_url();
+
+    SrsUniquePtr<SrsDvrPlan> plan(new SrsDvrPlan());
+    plan->req_ = &req;
+    plan->segment_ = &mock_segmenter;
+    plan->async_ = &mock_async;
+    plan->stat_ = &mock_stat;
+
+    // The file is closed and its hook queued, then the publisher leaves and the
+    // stats drop the stream.
+    HELPER_EXPECT_SUCCESS(plan->on_reap_segment());
+    mock_stat.on_disconnect("publisher", srs_success);
+    EXPECT_TRUE(mock_stat.find_stream_by_url(req.get_stream_url()) == NULL);
+    ASSERT_EQ(1, (int)mock_async.tasks_.size());
+
+    // The queue runs the hook.
+    MockHttpHooksForDvrAsyncCall mock_hooks;
+    SrsUniquePtr<MockSrsConfig> mock_config(new MockSrsConfig());
+    HELPER_EXPECT_SUCCESS(mock_config->mock_parse(
+        "rtmp{listen 1935;} "
+        "vhost test.vhost { http_hooks { enabled on; on_dvr http://127.0.0.1:8085/api/v1/dvrs; } }"));
+    SrsDvrAsyncCallOnDvr *async_call = dynamic_cast<SrsDvrAsyncCallOnDvr *>(mock_async.tasks_[0]);
+    ASSERT_TRUE(async_call != NULL);
+    async_call->hooks_ = &mock_hooks;
+    async_call->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(async_call->call());
+
+    ASSERT_EQ(1, mock_hooks.on_dvr_count_);
+    EXPECT_STREQ("/tmp/dvr_segment.flv", mock_hooks.on_dvr_calls_[0].file_.c_str());
+    EXPECT_STREQ("vid-stopped", mock_hooks.on_dvr_calls_[0].stream_id_.c_str());
+
+    async_call->hooks_ = NULL;
+    async_call->config_ = NULL;
+    plan->segment_ = NULL;
+    plan->async_ = NULL;
+    plan->stat_ = NULL;
     plan->req_ = NULL;
 }
 

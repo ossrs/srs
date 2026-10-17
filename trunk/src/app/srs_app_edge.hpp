@@ -27,7 +27,6 @@ class ISrsProtocolReadWriter;
 class SrsKbps;
 class ISrsLbRoundRobin;
 class SrsTcpClient;
-class SrsSimpleRtmpClient;
 class SrsRtmpCommand;
 class SrsHttpClient;
 class ISrsHttpMessage;
@@ -256,6 +255,7 @@ class SrsEdgeForwarder : public ISrsCoroutineHandler, public ISrsEdgeForwarder
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -267,7 +267,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsPublishEdge *edge_;
     ISrsRequest *req_;
     ISrsCoroutine *trd_;
-    SrsSimpleRtmpClient *sdk_;
+    ISrsBasicRtmpClient *sdk_;
     ISrsLbRoundRobin *lb_;
     // we must ensure one thread one fd principle,
     // that is, a fd must be write/read by the one thread.

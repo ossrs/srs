@@ -444,7 +444,7 @@ public:
     virtual void on_unpublish(std::string url, ISrsRequest *req);
     virtual srs_error_t on_play(std::string url, ISrsRequest *req);
     virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
@@ -505,7 +505,7 @@ public:
     virtual void on_unpublish(std::string url, ISrsRequest *req);
     virtual srs_error_t on_play(std::string url, ISrsRequest *req);
     virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
@@ -582,7 +582,7 @@ public:
     virtual void on_unpublish(std::string url, ISrsRequest *req);
     virtual srs_error_t on_play(std::string url, ISrsRequest *req);
     virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);

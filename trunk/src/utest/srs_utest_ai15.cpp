@@ -2348,7 +2348,7 @@ void MockHttpHooksForOnConnect::on_stop(std::string url, ISrsRequest *req)
     on_stop_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooksForOnConnect::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnConnect::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id)
 {
     return srs_success;
 }
@@ -2694,7 +2694,7 @@ void MockHttpHooksForOnPublish::on_stop(std::string url, ISrsRequest *req)
 {
 }
 
-srs_error_t MockHttpHooksForOnPublish::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnPublish::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id)
 {
     return srs_success;
 }
@@ -3010,7 +3010,7 @@ void MockHttpHooksForOnPlay::on_stop(std::string url, ISrsRequest *req)
 {
 }
 
-srs_error_t MockHttpHooksForOnPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id)
 {
     return srs_success;
 }
@@ -3125,8 +3125,9 @@ VOID TEST(UtilityTest, GetProcSelfStatSuccess)
     // pid should be positive
     EXPECT_TRUE(stat.pid_ > 0);
 
-    // comm should not be empty (process name in parentheses)
+    // comm should not be empty, and has no parentheses of /proc/self/stat
     EXPECT_TRUE(stat.comm_[0] != '\0');
+    EXPECT_TRUE(stat.comm_[0] != '(');
 
     // state should be one of the valid process states: R, S, D, Z, T, W
     EXPECT_TRUE(stat.state_ == 'R' || stat.state_ == 'S' || stat.state_ == 'D' ||
@@ -3138,6 +3139,70 @@ VOID TEST(UtilityTest, GetProcSelfStatSuccess)
     // vsize should be positive (virtual memory size)
     EXPECT_TRUE(stat.vsize_ > 0);
 #endif
+}
+
+// Test srs_parse_proc_self_stat() with lines of /proc/[pid]/stat: the comm comes
+// without its parentheses, also when it has spaces or parentheses itself, and the
+// fields after it are read in their places.
+VOID TEST(UtilityTest, ParseProcSelfStatComm)
+{
+    // The fields after the comm, from state to cguest_time.
+    std::string rest = " S 7 1234 1234 0 -1 4194560 2286 0 0 0 11 5 0 0 20 0 3 0 81923 "
+                       "123456789 4567 18446744073709551615 1 2 3 4 5 0 0 4096 17920 0 0 0 17 6 0 0 0 9 10";
+
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("1234 (srs)" + rest + "\n", r));
+        EXPECT_EQ(1234, r.pid_);
+        EXPECT_STREQ("srs", r.comm_);
+        EXPECT_EQ('S', r.state_);
+        EXPECT_EQ(7, r.ppid_);
+        EXPECT_EQ(11UL, r.utime_);
+        EXPECT_EQ(5UL, r.stime_);
+        EXPECT_EQ(3, r.num_threads_);
+        EXPECT_EQ(123456789UL, r.vsize_);
+        EXPECT_EQ(4567, r.rss_);
+        EXPECT_EQ(6, r.processor_);
+        EXPECT_EQ(10, r.cguest_time_);
+    }
+
+    // A comm with a space and parentheses of its own ends at the last ')'.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 (my (s) rs)" + rest, r));
+        EXPECT_EQ(42, r.pid_);
+        EXPECT_STREQ("my (s) rs", r.comm_);
+        EXPECT_EQ('S', r.state_);
+        EXPECT_EQ(7, r.ppid_);
+        EXPECT_EQ(3, r.num_threads_);
+        EXPECT_EQ(4567, r.rss_);
+    }
+
+    // An empty comm.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 ()" + rest, r));
+        EXPECT_STREQ("", r.comm_);
+        EXPECT_EQ(7, r.ppid_);
+    }
+
+    // A comm longer than the field is cut to fit, with its terminator.
+    if (true) {
+        SrsProcSelfStat r;
+        std::string comm(40, 'x');
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 (" + comm + ")" + rest, r));
+        EXPECT_EQ(std::string(sizeof(r.comm_) - 1, 'x'), std::string(r.comm_));
+        EXPECT_EQ(7, r.ppid_);
+    }
+
+    // A line with no comm in parentheses is refused.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_FALSE(srs_parse_proc_self_stat("", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 srs S 7", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 (srs S 7", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 srs) S 7", r));
+    }
 }
 
 // Test srs_get_local_port() function to verify proper retrieval of local port

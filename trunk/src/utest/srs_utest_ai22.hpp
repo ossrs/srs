@@ -94,6 +94,26 @@ public:
     virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
 };
 
+// Mock app factory for SrsEdgeForwarder::start(): a recording RTMP client for each origin, whose
+// connect fails for an origin in down_ and whose publish fails for the origin refuse_, and a mock
+// coroutine, so no coroutine runs.
+class MockEdgeForwarderFactory : public SrsAppFactory
+{
+public:
+    std::vector<std::string> down_;
+    std::string refuse_;
+    // The url of each client handed out, in order; the forwarder owns the clients.
+    std::vector<std::string> urls_;
+
+public:
+    MockEdgeForwarderFactory();
+    virtual ~MockEdgeForwarderFactory();
+
+public:
+    virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
+};
+
 // Mock HTTP client for testing edge FLV upstream
 class MockEdgeHttpClient : public ISrsHttpClient
 {
@@ -535,6 +555,7 @@ public:
         std::string url_;
         ISrsRequest *req_;
         std::string file_;
+        std::string stream_id_;
     };
     std::vector<OnDvrCall> on_dvr_calls_;
     int on_dvr_count_;
@@ -551,7 +572,7 @@ public:
     virtual void on_unpublish(std::string url, ISrsRequest *req);
     virtual srs_error_t on_play(std::string url, ISrsRequest *req);
     virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
@@ -636,6 +657,23 @@ public:
 };
 
 // Mock ISrsDvrSegmenter for testing SrsDvrPlan
+// Mock statistic with one stream, which it drops when a client disconnects, as
+// SrsStatistic drops a stream with no publisher and no player.
+class MockStatisticDropsStream : public MockAppStatistic
+{
+public:
+    SrsStatisticStream *stream_;
+    bool dropped_;
+
+public:
+    MockStatisticDropsStream();
+    virtual ~MockStatisticDropsStream();
+
+public:
+    virtual SrsStatisticStream *find_stream_by_url(std::string url);
+    virtual void on_disconnect(std::string id, srs_error_t err);
+};
+
 class MockDvrSegmenter : public ISrsDvrSegmenter
 {
 public:

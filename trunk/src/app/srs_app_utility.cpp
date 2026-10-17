@@ -483,17 +483,44 @@ bool get_proc_self_stat(SrsProcSelfStat &r)
         return false;
     }
 
-    // Note that we must read less than the size of r.comm_, such as %31s for r.comm_ is char[32].
-    fscanf(f, "%d %31s %c %d %d %d %d "
-              "%d %u %lu %lu %lu %lu "
-              "%lu %lu %ld %ld %ld %ld "
-              "%ld %ld %llu %lu %ld "
-              "%lu %lu %lu %lu %lu "
-              "%lu %lu %lu %lu %lu "
-              "%lu %lu %lu %d %d "
-              "%u %u %llu "
-              "%lu %ld",
-           &r.pid_, r.comm_, &r.state_, &r.ppid_, &r.pgrp_, &r.session_, &r.tty_nr_,
+    char buf[4096];
+    char *line = fgets(buf, sizeof(buf), f);
+    fclose(f);
+
+    if (line == NULL || !srs_parse_proc_self_stat(line, r)) {
+        srs_warn("parse self cpu stat failed, ignore");
+        return false;
+    }
+#endif
+
+    r.ok_ = true;
+
+    return true;
+}
+// LCOV_EXCL_STOP
+
+bool srs_parse_proc_self_stat(const std::string &line, SrsProcSelfStat &r)
+{
+    // The comm is in parentheses, and may have spaces and parentheses itself, so it ends at the last ')'.
+    size_t open = line.find('(');
+    size_t close = line.rfind(')');
+    if (open == std::string::npos || close == std::string::npos || close < open) {
+        return false;
+    }
+
+    r.pid_ = ::atoi(line.substr(0, open).c_str());
+    snprintf(r.comm_, sizeof(r.comm_), "%s", line.substr(open + 1, close - open - 1).c_str());
+
+    sscanf(line.c_str() + close + 1, " %c %d %d %d %d "
+                                     "%d %u %lu %lu %lu %lu "
+                                     "%lu %lu %ld %ld %ld %ld "
+                                     "%ld %ld %llu %lu %ld "
+                                     "%lu %lu %lu %lu %lu "
+                                     "%lu %lu %lu %lu %lu "
+                                     "%lu %lu %lu %d %d "
+                                     "%u %u %llu "
+                                     "%lu %ld",
+           &r.state_, &r.ppid_, &r.pgrp_, &r.session_, &r.tty_nr_,
            &r.tpgid_, &r.flags_, &r.minflt_, &r.cminflt_, &r.majflt_, &r.cmajflt_,
            &r.utime_, &r.stime_, &r.cutime_, &r.cstime_, &r.priority_, &r.nice_,
            &r.num_threads_, &r.itrealvalue_, &r.starttime_, &r.vsize_, &r.rss_,
@@ -503,14 +530,8 @@ bool get_proc_self_stat(SrsProcSelfStat &r)
            &r.rt_priority_, &r.policy_, &r.delayacct_blkio_ticks_,
            &r.guest_time_, &r.cguest_time_);
 
-    fclose(f);
-#endif
-
-    r.ok_ = true;
-
     return true;
 }
-// LCOV_EXCL_STOP
 
 void srs_update_proc_stat()
 {

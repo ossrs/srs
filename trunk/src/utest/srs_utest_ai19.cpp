@@ -3158,12 +3158,16 @@ MockFFMPEGForEncoder::MockFFMPEGForEncoder()
 {
     initialize_called_ = false;
     start_called_ = false;
+    initialize_error_ = srs_success;
+    initialize_transcode_error_ = srs_success;
     start_error_ = srs_success;
     output_ = "";
 }
 
 MockFFMPEGForEncoder::~MockFFMPEGForEncoder()
 {
+    srs_freep(initialize_error_);
+    srs_freep(initialize_transcode_error_);
 }
 
 void MockFFMPEGForEncoder::append_iparam(std::string iparam)
@@ -3183,12 +3187,12 @@ srs_error_t MockFFMPEGForEncoder::initialize(std::string in, std::string out, st
 {
     initialize_called_ = true;
     output_ = out;
-    return srs_success;
+    return srs_error_copy(initialize_error_);
 }
 
 srs_error_t MockFFMPEGForEncoder::initialize_transcode(SrsConfDirective *engine)
 {
-    return srs_success;
+    return srs_error_copy(initialize_transcode_error_);
 }
 
 srs_error_t MockFFMPEGForEncoder::initialize_copy()
@@ -3234,6 +3238,7 @@ MockAppConfigForEncoder::MockAppConfigForEncoder()
     transcode_enabled_ = true;
     transcode_ffmpeg_bin_ = "/usr/bin/ffmpeg";
     engine_enabled_ = true;
+    engine_output_ = "rtmp://127.0.0.1/live/livestream_hd";
     target_scope_ = ""; // Default to vhost scope (empty string)
 }
 
@@ -3273,7 +3278,7 @@ bool MockAppConfigForEncoder::get_engine_enabled(SrsConfDirective *conf)
 
 std::string MockAppConfigForEncoder::get_engine_output(SrsConfDirective *conf)
 {
-    return "rtmp://127.0.0.1/live/livestream_hd";
+    return engine_output_;
 }
 
 bool MockAppConfigForEncoder::get_ff_log_enabled()
@@ -3341,9 +3346,9 @@ VOID TEST(EncoderTest, OnPublishMajorScenario)
 // 2. Configure mock config to return transcode directive for stream scope
 // 3. Call parse_scope_engines() to parse all three scopes (vhost, app, stream) and create FFmpeg engines
 // 4. Verify that FFmpeg engines are created and added to ffmpegs_ vector
-// 5. Verify that output URLs are tracked in _transcoded_url for loop detection
+// 5. Verify that output URLs are tracked in the transcoded URLs for loop detection
 // 6. Call clear_engines() to clean up all engines
-// 7. Verify that engines are properly freed and removed from _transcoded_url
+// 7. Verify that engines are properly freed and removed from the transcoded URLs
 VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
 {
     srs_error_t err;
@@ -3381,8 +3386,10 @@ VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
     SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
 
     // Inject mock dependencies
+    std::vector<std::string> transcoded_urls;
     encoder->config_ = mock_config.get();
     encoder->app_factory_ = mock_factory.get();
+    encoder->transcoded_urls_ = &transcoded_urls;
 
     // Create mock request
     SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "livestream"));
@@ -3404,15 +3411,21 @@ VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
     EXPECT_TRUE(ffmpeg_at_0 != NULL);
     EXPECT_EQ((ISrsFFMPEG *)mock_ffmpeg, ffmpeg_at_0);
 
-    // Test clear_engines() - should free all engines and remove from _transcoded_url
+    // Verify that the output URL is tracked for loop detection
+    ASSERT_EQ(1, (int)transcoded_urls.size());
+    EXPECT_STREQ(mock_ffmpeg->output().c_str(), transcoded_urls.at(0).c_str());
+
+    // Test clear_engines() - should free all engines and remove from the transcoded URLs
     encoder->clear_engines();
 
-    // Verify that ffmpegs_ vector is now empty
+    // Verify that ffmpegs_ vector and the transcoded URLs are now empty
     EXPECT_EQ(0, (int)encoder->ffmpegs_.size());
+    EXPECT_EQ(0, (int)transcoded_urls.size());
 
     // Clean up - set to NULL to avoid double-free
     encoder->config_ = NULL;
     encoder->app_factory_ = NULL;
+    encoder->transcoded_urls_ = NULL;
 
     // Clean up directives
     srs_freep(transcode_conf);
@@ -3449,8 +3462,10 @@ VOID TEST(EncoderTest, InitializeFFmpegMajorScenario)
     mock_config->get_engine_output(engine.get()); // Will return "rtmp://127.0.0.1/live/livestream_hd"
 
     // Create SrsEncoder and inject mock dependencies
+    std::vector<std::string> transcoded_urls;
     SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
     encoder->config_ = mock_config.get();
+    encoder->transcoded_urls_ = &transcoded_urls;
 
     // Test initialize_ffmpeg() - should construct URLs and initialize ffmpeg
     HELPER_EXPECT_SUCCESS(encoder->initialize_ffmpeg(mock_ffmpeg.get(), req.get(), engine.get()));
@@ -3467,6 +3482,117 @@ VOID TEST(EncoderTest, InitializeFFmpegMajorScenario)
 
     // Clean up - set to NULL to avoid double-free
     encoder->config_ = NULL;
+    encoder->transcoded_urls_ = NULL;
+}
+
+// A stream that another encoder transcoded to, published back as an input, is a loop: the encoder
+// refuses it and doesn't track its output, so it transcodes no stream again.
+VOID TEST(EncoderTest, InitializeFFmpegRefusesTranscodedInput)
+{
+    srs_error_t err;
+
+    MockAppConfigForEncoder config;
+    MockFFMPEGForEncoder ffmpeg;
+    MockSrsRequest req("test.vhost", "live", "livestream_hd");
+    req.port_ = 1935;
+
+    SrsConfDirective engine;
+    engine.name_ = "engine";
+    engine.args_.push_back("hd");
+
+    std::vector<std::string> transcoded_urls;
+    transcoded_urls.push_back("rtmp://127.0.0.1:1935/live/livestream_hd?vhost=test.vhost");
+
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+    encoder->config_ = &config;
+    encoder->transcoded_urls_ = &transcoded_urls;
+
+    err = encoder->initialize_ffmpeg(&ffmpeg, &req, &engine);
+    EXPECT_EQ(ERROR_ENCODER_LOOP, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_FALSE(ffmpeg.initialize_called_);
+    ASSERT_EQ(1, (int)transcoded_urls.size());
+    EXPECT_STREQ("rtmp://127.0.0.1:1935/live/livestream_hd?vhost=test.vhost", transcoded_urls.at(0).c_str());
+
+    encoder->config_ = NULL;
+    encoder->transcoded_urls_ = NULL;
+}
+
+// An engine that fails to start transcodes nothing, so its output is no transcoded stream: the
+// encoder tracks no URL for it, and a later publish of that output is transcoded, not refused as a loop.
+VOID TEST(EncoderTest, FailedEngineLeavesNoTranscodedUrl)
+{
+    srs_error_t err;
+
+    for (int i = 0; i < 2; i++) {
+        bool transcode_fails = (i == 1);
+
+        SrsConfDirective engine;
+        engine.name_ = "engine";
+        engine.args_.push_back("hd");
+
+        MockAppConfigForEncoder config;
+        config.transcode_directive_ = &engine;
+        config.transcode_engines_.push_back(&engine);
+        config.engine_output_ = "rtmp://127.0.0.1:[port]/[app]/[stream]_[engine]?vhost=[vhost]";
+
+        std::vector<std::string> transcoded_urls;
+        MockAppFactoryForEncoder factory;
+
+        // The engine of live/livestream fails to start, at its initialize or its transcode settings.
+        MockFFMPEGForEncoder *failed = new MockFFMPEGForEncoder();
+        if (transcode_fails) {
+            failed->initialize_transcode_error_ = srs_error_new(ERROR_ENCODER_VCODEC, "mock vcodec");
+        } else {
+            failed->initialize_error_ = srs_error_new(ERROR_ENCODER_VCODEC, "mock ffmpeg");
+        }
+        factory.mock_ffmpeg_ = failed;
+
+        SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+        encoder->config_ = &config;
+        encoder->app_factory_ = &factory;
+        encoder->transcoded_urls_ = &transcoded_urls;
+
+        MockSrsRequest req("test.vhost", "live", "livestream");
+        req.port_ = 1935;
+        err = encoder->parse_scope_engines(&req);
+        EXPECT_EQ(ERROR_ENCODER_VCODEC, srs_error_code(err)) << i;
+        srs_freep(err);
+
+        EXPECT_EQ(0, (int)encoder->ffmpegs_.size()) << i;
+        EXPECT_EQ(0, (int)transcoded_urls.size()) << i;
+
+        // The output it would have published, live/livestream_hd, is published by another client.
+        MockFFMPEGForEncoder *next = new MockFFMPEGForEncoder();
+        factory.mock_ffmpeg_ = next;
+
+        SrsUniquePtr<SrsEncoder> next_encoder(new SrsEncoder());
+        next_encoder->config_ = &config;
+        next_encoder->app_factory_ = &factory;
+        next_encoder->transcoded_urls_ = &transcoded_urls;
+
+        MockSrsRequest next_req("test.vhost", "live", "livestream_hd");
+        next_req.port_ = 1935;
+        HELPER_ASSERT_SUCCESS(next_encoder->parse_scope_engines(&next_req));
+
+        EXPECT_EQ(1, (int)next_encoder->ffmpegs_.size()) << i;
+        EXPECT_TRUE(next->initialize_called_) << i;
+        ASSERT_EQ(1, (int)transcoded_urls.size()) << i;
+        EXPECT_STREQ("rtmp://127.0.0.1:1935/live/livestream_hd_hd?vhost=test.vhost", transcoded_urls.at(0).c_str()) << i;
+
+        // Each encoder stops when its stream unpublishes, and none of the outputs stays tracked.
+        next_encoder->on_unpublish();
+        encoder->on_unpublish();
+        EXPECT_EQ(0, (int)transcoded_urls.size()) << i;
+
+        next_encoder->config_ = NULL;
+        next_encoder->app_factory_ = NULL;
+        next_encoder->transcoded_urls_ = NULL;
+        encoder->config_ = NULL;
+        encoder->app_factory_ = NULL;
+        encoder->transcoded_urls_ = NULL;
+    }
 }
 
 VOID TEST(ProcessTest, InitializeWithRedirection)

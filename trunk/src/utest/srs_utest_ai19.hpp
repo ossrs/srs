@@ -573,6 +573,8 @@ class MockFFMPEGForEncoder : public ISrsFFMPEG
 public:
     bool initialize_called_;
     bool start_called_;
+    srs_error_t initialize_error_;
+    srs_error_t initialize_transcode_error_;
     srs_error_t start_error_;
     std::string output_;
 
@@ -604,6 +606,7 @@ public:
     std::string transcode_ffmpeg_bin_;
     std::vector<SrsConfDirective *> transcode_engines_;
     bool engine_enabled_;
+    std::string engine_output_;
     std::string target_scope_; // The scope for which to return transcode_directive_
 
 public:

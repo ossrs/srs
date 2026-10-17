@@ -2239,7 +2239,7 @@ void MockHttpHooks::on_stop(std::string url, ISrsRequest *req)
     on_stop_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooks::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooks::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string stream_id)
 {
     return srs_success;
 }
