@@ -222,12 +222,11 @@ Description about some fields:
 > Note: An RTMP client gets `on_connect` once it publishes or plays and its vhost is resolved, and `on_close`
 > only after an `on_connect` that accepted it. A client that `on_connect` refused gets no `on_close`, as one
 > that `on_play` refused gets no `on_stop`, and one that `on_publish` refused no `on_unpublish`. A client
-> that connects and closes without publishing or playing gets neither. An edge with `token_traverse on`
-> checks each client by a connect to its origin with the client's stream and param, which the origin checks
-> by `on_connect` before its answer, then sends `on_close` when the edge closes a check it accepted. An
-> older edge's check names no stream, so it is a client that only
-> connects: the origin sends no `on_connect` and no `on_close` for it, where older origins sent `on_close`
-> alone.
+> that connects and closes without publishing or playing gets neither.
+
+> Note: Edge token traverse, where an edge checked each client by a connect to its origin, is removed, and
+> `token_traverse` or `SRS_VHOST_CLUSTER_TOKEN_TRAVERSE` makes SRS refuse to start. Check the clients of an
+> edge by its own HTTP hooks, `on_connect`, `on_publish` and `on_play`, and its security rules.
 
 > Note: You can refer to the hooks.callback.vhost.com example in the conf/full.conf configuration file.
 

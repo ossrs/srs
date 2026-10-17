@@ -1434,9 +1434,6 @@ type Edge struct {
 	// Origins are the host:port of the origins, the RTMP port, or the HTTP
 	// server's with Protocol flv; the edge takes them in turn when one fails.
 	Origins []string
-	// TokenTraverse checks each client by a connect to an origin, with the
-	// client's tcUrl, before the edge serves it.
-	TokenTraverse bool
 	// Protocol is how the edge pulls from an origin, rtmp, flv or flvs;
 	// empty keeps SRS's default, rtmp.
 	Protocol string
@@ -1450,9 +1447,6 @@ func WithEdge(cfg Config, e Edge) Config {
 	}
 	env["SRS_VHOST_CLUSTER_MODE"] = "remote"
 	env["SRS_VHOST_CLUSTER_ORIGIN"] = strings.Join(e.Origins, " ")
-	if e.TokenTraverse {
-		env["SRS_VHOST_CLUSTER_TOKEN_TRAVERSE"] = "on"
-	}
 	if e.Protocol != "" {
 		env["SRS_VHOST_CLUSTER_PROTOCOL"] = e.Protocol
 	}

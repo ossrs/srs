@@ -616,12 +616,12 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             }
 
             // SRS3.0, change the bellow like a shadow:
-            //      mode, origin, token_traverse, vhost, debug_srs_upnode
+            //      mode, origin, vhost, debug_srs_upnode
             //  SRS1/2:
             //      vhost { shadow; }
             //  SRS3+:
             //      vhost { cluster { shadow; } }
-            if (n == "mode" || n == "origin" || n == "token_traverse" || n == "vhost" || n == "debug_srs_upnode") {
+            if (n == "mode" || n == "origin" || n == "vhost" || n == "debug_srs_upnode") {
                 it = dir->directives_.erase(it);
 
                 SrsConfDirective *cluster = dir->get_or_create("cluster");
@@ -2100,7 +2100,6 @@ void SrsConfig::print_help(char **argv)
         "   Edge, pull and push streams through an origin:\n"
         "      SRS_VHOST_CLUSTER_MODE=local                  local for an origin, remote for an edge.\n"
         "      SRS_VHOST_CLUSTER_ORIGIN=                     Space separated origin ip:port of an edge.\n"
-        "      SRS_VHOST_CLUSTER_TOKEN_TRAVERSE=off          Check each client of an edge by a connect to its origin.\n"
         "      SRS_VHOST_CLUSTER_PROTOCOL=rtmp               rtmp, flv or flvs to pull from the origin.\n"
         "      SRS_VHOST_CLUSTER_ORIGIN_CLUSTER=off          Redirect a player of an origin to the coworker with the stream.\n"
         "      SRS_VHOST_CLUSTER_COWORKERS=                  Space separated HTTP API ip:port of the origin cluster.\n"
@@ -2311,6 +2310,10 @@ srs_error_t SrsConfig::check_normal_config()
     // atc_auto is removed, so refuse it by env rather than ignore it, on or off.
     if (!srs_getenv("SRS_VHOST_PLAY_ATC_AUTO").empty()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_VHOST_PLAY_ATC_AUTO is removed, turning ATC on by the bravo_atc of the metadata is not supported");
+    }
+    // Edge token traverse is removed, so refuse it by env rather than ignore it, on or off.
+    if (!srs_getenv("SRS_VHOST_CLUSTER_TOKEN_TRAVERSE").empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE is removed, check the clients of an edge by its HTTP hooks instead");
     }
     // The latest version query is removed, so refuse its env vars rather than ignore them, on or off.
     if (true) {
@@ -2822,6 +2825,10 @@ srs_error_t SrsConfig::check_normal_config()
             if (n == "atc_auto") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.atc_auto of %s is removed, turning ATC on by the bravo_atc of the metadata is not supported", vhost->arg0().c_str());
             }
+            // Edge token traverse is removed, so refuse it as SRS1 wrote it, in the vhost, rather than ignore it, on or off.
+            if (n == "token_traverse") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.token_traverse of %s is removed, check the clients of an edge by its HTTP hooks instead", vhost->arg0().c_str());
+            }
             if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay" && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks" && n != "forward" && n != "transcode" && n != "play" && n != "publish" && n != "cluster" && n != "security" && n != "http_remux" && n != "dash" && n != "http_static" && n != "exec" && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt" && n != "rtsp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
@@ -2854,7 +2861,11 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "cluster") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
-                    if (m != "mode" && m != "origin" && m != "token_traverse" && m != "vhost" && m != "debug_srs_upnode" && m != "coworkers" && m != "origin_cluster" && m != "protocol" && m != "follow_client") {
+                    // Edge token traverse is removed, so refuse it rather than ignore it, on or off.
+                    if (m == "token_traverse") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.cluster.token_traverse of %s is removed, check the clients of an edge by its HTTP hooks instead", vhost->arg0().c_str());
+                    }
+                    if (m != "mode" && m != "origin" && m != "vhost" && m != "debug_srs_upnode" && m != "coworkers" && m != "origin_cluster" && m != "protocol" && m != "follow_client") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.cluster.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -5699,30 +5710,6 @@ bool SrsConfig::get_vhost_edge_follow_client(string vhost)
 
     conf = conf->get("follow_client");
     if (!conf) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
-bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.cluster.token_traverse"); // SRS_VHOST_CLUSTER_TOKEN_TRAVERSE
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("cluster");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("token_traverse");
-    if (!conf || conf->arg0().empty()) {
         return DEFAULT;
     }
 

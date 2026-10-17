@@ -799,8 +799,7 @@ func TestRestartNeedsExit(t *testing.T) {
 }
 
 // TestWithEdge checks the env of an edge: the cluster mode, its origins in
-// order, the token traverse and the protocol only when set, and the base
-// config unchanged.
+// order, the protocol only when set, and the base config unchanged.
 func TestWithEdge(t *testing.T) {
 	origins := []string{"127.0.0.1:14010", "127.0.0.1:14020"}
 	cases := []struct {
@@ -813,10 +812,6 @@ func TestWithEdge(t *testing.T) {
 		}},
 		{"Failover", Edge{Origins: origins}, map[string]string{
 			"SRS_VHOST_CLUSTER_MODE": "remote", "SRS_VHOST_CLUSTER_ORIGIN": "127.0.0.1:14010 127.0.0.1:14020",
-		}},
-		{"TokenTraverse", Edge{Origins: origins[:1], TokenTraverse: true}, map[string]string{
-			"SRS_VHOST_CLUSTER_MODE": "remote", "SRS_VHOST_CLUSTER_ORIGIN": "127.0.0.1:14010",
-			"SRS_VHOST_CLUSTER_TOKEN_TRAVERSE": "on",
 		}},
 		{"Flv", Edge{Origins: origins[1:], Protocol: "flv"}, map[string]string{
 			"SRS_VHOST_CLUSTER_MODE": "remote", "SRS_VHOST_CLUSTER_ORIGIN": "127.0.0.1:14020",

@@ -162,8 +162,6 @@ Supported operating systems and hardware:
 [v4_EN_DVR]: https://ossrs.io/lts/en-us/docs/v4/doc/dvr
 [v4_CN_SrsLog]: https://ossrs.net/lts/zh-cn/docs/v4/doc/log
 [v4_EN_SrsLog]: https://ossrs.io/lts/en-us/docs/v4/doc/log
-[v4_CN_DRM2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/drm#tokentraverse
-[v4_EN_DRM2]: https://ossrs.io/lts/en-us/docs/v4/doc/drm#tokentraverse
 [v4_CN_SampleHTTP]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http
 [v4_EN_SampleHTTP]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http
 [v4_CN_FlvVodStream]: https://ossrs.net/lts/zh-cn/docs/v4/doc/flv-vod-stream

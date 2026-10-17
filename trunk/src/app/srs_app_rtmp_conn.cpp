@@ -65,9 +65,6 @@ ISrsRtmpTransport::~ISrsRtmpTransport()
 // if timeout, close the connection.
 #define SRS_PAUSED_RECV_TIMEOUT (3 * SRS_UTIME_MINUTES)
 
-// when edge timeout, retry next.
-#define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT (3 * SRS_UTIME_SECONDS)
-
 // How long the client may be idle, and the most messages drained, when SRS drains its input before a close.
 #define SRS_DRAIN_INPUT_TIMEOUT (100 * SRS_UTIME_MILLISECONDS)
 #define SRS_DRAIN_INPUT_MESSAGES 10
@@ -440,22 +437,6 @@ srs_error_t SrsRtmpConn::service_cycle()
         return srs_error_wrap(err, "rtmp: set chunk size %d", chunk_size);
     }
 
-    // An edge with token traverse connects with its client's stream and param, to check the client
-    // before it serves it, and closes once answered. So check the client by the on_connect hook
-    // before the answer: a refused client's connect gets none, and the edge refuses the client.
-    SrsAmf0Any *traverse = req->args_ ? req->args_->ensure_property_string("srs_token_traverse") : NULL;
-    if (traverse) {
-        req->stream_ = traverse->to_str();
-        req->param_ = "";
-        string tc_url = req->tcUrl_.substr(0, req->tcUrl_.find('?'));
-        srs_net_url_parse_tcurl(tc_url, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
-        req->strip();
-
-        if ((err = check_vhost(true)) != srs_success) {
-            return srs_error_wrap(err, "rtmp: check token traverse of %s", req->get_stream_url().c_str());
-        }
-    }
-
     // response the client connect ok.
     if ((err = rtmp_->response_connect_app(req, local_ip.c_str())) != srs_success) {
         return srs_error_wrap(err, "rtmp: response connect app");
@@ -566,20 +547,7 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
               req->tcUrl_.c_str(), req->pageUrl_.c_str(), req->swfUrl_.c_str(), req->schema_.c_str(), req->vhost_.c_str(), req->port_,
               req->app_.c_str(), req->stream_.c_str(), req->param_.c_str(), (req->args_ ? "(obj)" : "null"));
 
-    // do token traverse before serve it.
-    // @see https://github.com/ossrs/srs/pull/239
-    if (true) {
-        info_->edge_ = config_->get_vhost_is_edge(req->vhost_);
-        bool edge_traverse = config_->get_vhost_edge_token_traverse(req->vhost_);
-
-        // LCOV_EXCL_START
-        if (info_->edge_ && edge_traverse) {
-            if ((err = check_edge_token_traverse_auth()) != srs_success) {
-                return srs_error_wrap(err, "rtmp: check token traverse");
-            }
-        }
-        // LCOV_EXCL_STOP
-    }
+    info_->edge_ = config_->get_vhost_is_edge(req->vhost_);
 
     // security check
     if ((err = security_->check(info_->type_, ip_, req)) != srs_success) {
@@ -1418,74 +1386,6 @@ void SrsRtmpConn::set_sock_options()
             srs_freep(err);
         }
     }
-}
-// LCOV_EXCL_STOP
-
-// LCOV_EXCL_START
-srs_error_t SrsRtmpConn::check_edge_token_traverse_auth()
-{
-    srs_error_t err = srs_success;
-
-    ISrsRequest *req = info_->req_;
-    srs_assert(req);
-
-    vector<string> args = config_->get_vhost_edge_origin(req->vhost_)->args_;
-    if (args.empty()) {
-        return err;
-    }
-
-    for (int i = 0; i < (int)args.size(); i++) {
-        string hostport = args.at(i);
-
-        // select the origin.
-        string server;
-        int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-        srs_net_split_hostport(hostport, server, port);
-
-        SrsUniquePtr<SrsTcpClient> transport(new SrsTcpClient(server, port, SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT));
-        if ((err = transport->connect()) != srs_success) {
-            srs_warn("Illegal edge token, tcUrl=%s, %s", req->tcUrl_.c_str(), srs_error_desc(err).c_str());
-            srs_freep(err);
-            continue;
-        }
-
-        SrsUniquePtr<SrsRtmpClient> client(new SrsRtmpClient(transport.get()));
-        return do_token_traverse_auth(client.get());
-    }
-
-    return srs_error_new(ERROR_EDGE_PORT_INVALID, "rtmp: Illegal edge token, server=%d", (int)args.size());
-}
-
-srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient *client)
-{
-    srs_error_t err = srs_success;
-
-    ISrsRequest *req = info_->req_;
-    srs_assert(client);
-
-    client->set_recv_timeout(SRS_CONSTS_RTMP_TIMEOUT);
-    client->set_send_timeout(SRS_CONSTS_RTMP_TIMEOUT);
-
-    if ((err = client->handshake()) != srs_success) {
-        return srs_error_wrap(err, "rtmp: handshake");
-    }
-
-    // Tell the origin the client's stream and param by a property of the connect's args, so the
-    // origin checks the client by its on_connect hook before it answers, and refuses it by no answer.
-    SrsUniquePtr<ISrsRequest> r(req->copy());
-    if (!r->args_) {
-        r->args_ = SrsAmf0Any::object();
-    }
-    r->args_->set("srs_token_traverse", SrsAmf0Any::str((req->stream_ + req->param_).c_str()));
-
-    // for token tranverse, always take the debug info(which carries token).
-    SrsServerInfo si;
-    if ((err = client->connect_app(req->app_, req->tcUrl_, r.get(), true, &si)) != srs_success) {
-        return srs_error_wrap(err, "rtmp: connect tcUrl");
-    }
-
-    srs_trace("edge token auth ok, tcUrl=%s", req->tcUrl_.c_str());
-    return err;
 }
 // LCOV_EXCL_STOP
 

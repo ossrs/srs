@@ -1353,7 +1353,7 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_edge)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{token_traverse off;}"));
+        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{token_traverse off;}"));
     }
 
     if (true) {
@@ -2609,7 +2609,9 @@ VOID TEST(ConfigUnitTest, TransformForVhost)
 
         ASSERT_TRUE(p->get("mode") != NULL);
         ASSERT_TRUE(p->get("origin") != NULL);
-        ASSERT_TRUE(p->get("token_traverse") != NULL);
+        // token_traverse is removed, so it stays where it is, for the config check to refuse.
+        ASSERT_TRUE(p->get("token_traverse") == NULL);
+        ASSERT_TRUE(vhost->get("token_traverse") != NULL);
         ASSERT_TRUE(p->get("vhost") != NULL);
         ASSERT_TRUE(p->get("debug_srs_upnode") != NULL);
     }
@@ -3288,7 +3290,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         EXPECT_TRUE(conf.get_vhost_on_hls_notify("ossrs.net") == NULL);
         EXPECT_FALSE(conf.get_vhost_is_edge("ossrs.net"));
         EXPECT_TRUE(conf.get_vhost_edge_origin("ossrs.net") == NULL);
-        EXPECT_FALSE(conf.get_vhost_edge_token_traverse("ossrs.net"));
         EXPECT_STREQ("[vhost]", conf.get_vhost_edge_transform_vhost("ossrs.net").c_str());
         EXPECT_FALSE(conf.get_vhost_origin_cluster("ossrs.net"));
         EXPECT_EQ(0, (int)conf.get_vhost_coworkers("ossrs.net").size());
@@ -3324,12 +3325,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{vhost xxx;}}"));
         EXPECT_FALSE(conf.get_vhost_edge_transform_vhost("ossrs.net").empty());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{token_traverse on;}}"));
-        EXPECT_TRUE(conf.get_vhost_edge_token_traverse("ossrs.net"));
     }
 
     if (true) {

@@ -605,7 +605,6 @@ public:
     virtual srs_utime_t get_publish_kickoff_for_idle(std::string vhost) { return 0; }
     virtual bool get_vhost_origin_cluster(std::string vhost) { return false; }
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost) { return std::vector<std::string>(); }
-    virtual bool get_vhost_edge_token_traverse(std::string vhost) { return false; }
     virtual SrsConfDirective *get_vhost_edge_origin(std::string vhost) { return NULL; }
     virtual SrsConfDirective *get_vhost_on_connect(std::string vhost) { return NULL; }
     virtual SrsConfDirective *get_vhost_on_close(std::string vhost) { return NULL; }

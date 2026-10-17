@@ -520,7 +520,6 @@ public:
     // Edge config
     virtual bool get_vhost_origin_cluster(std::string vhost) = 0;
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost) = 0;
-    virtual bool get_vhost_edge_token_traverse(std::string vhost) = 0;
     virtual SrsConfDirective *get_vhost_edge_origin(std::string vhost) = 0;
 
 public:
@@ -1226,11 +1225,6 @@ public:
     virtual std::string get_vhost_edge_protocol(std::string vhost);
     // Whether follow client protocol to connect to origin.
     virtual bool get_vhost_edge_follow_client(std::string vhost);
-    // Whether edge token tranverse is enabled,
-    // If  true, edge will send connect origin to verfy the token of client.
-    // For example, we verify all clients on the origin FMS by server-side as,
-    // all clients connected to edge must be tranverse to origin to verify.
-    virtual bool get_vhost_edge_token_traverse(std::string vhost);
     // Get the transformed vhost for edge,
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     // Whether enable the origin cluster.

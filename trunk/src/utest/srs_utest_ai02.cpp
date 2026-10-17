@@ -2093,17 +2093,16 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostCluster)
     }
 }
 
-// SRS_VHOST_CLUSTER_TOKEN_TRAVERSE and SRS_VHOST_CLUSTER_PROTOCOL set the token traverse and the protocol of
-// an edge to pull from its origin, for every vhost, overwriting the config file.
+// SRS_VHOST_CLUSTER_PROTOCOL sets the protocol of an edge to pull from its origin, for every vhost,
+// overwriting the config file.
 VOID TEST(ConfigEnvTest, CheckEnvValuesVhostClusterEdge)
 {
     srs_error_t err;
 
-    // The defaults: no token traverse, and RTMP to the origin.
+    // The defaults: RTMP to the origin.
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        EXPECT_FALSE(conf.get_vhost_edge_token_traverse("__defaultVhost__"));
         EXPECT_STREQ("rtmp", conf.get_vhost_edge_protocol("__defaultVhost__").c_str());
     }
 
@@ -2112,10 +2111,7 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostClusterEdge)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        SrsSetEnvConfig(conf, token_traverse, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "on");
         SrsSetEnvConfig(conf, protocol, "SRS_VHOST_CLUSTER_PROTOCOL", "flv");
-        EXPECT_TRUE(conf.get_vhost_edge_token_traverse("__defaultVhost__"));
-        EXPECT_TRUE(conf.get_vhost_edge_token_traverse("no.such.vhost"));
         EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("__defaultVhost__").c_str());
         EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("no.such.vhost").c_str());
     }
@@ -2123,24 +2119,19 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostClusterEdge)
     // The env overwrites the cluster of the config file.
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{mode remote; origin 127.0.0.1:1935; token_traverse on; protocol flv;}}"));
-        EXPECT_TRUE(conf.get_vhost_edge_token_traverse("ossrs.net"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{mode remote; origin 127.0.0.1:1935; protocol flv;}}"));
         EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("ossrs.net").c_str());
 
-        SrsSetEnvConfig(conf, token_traverse, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "off");
         SrsSetEnvConfig(conf, protocol, "SRS_VHOST_CLUSTER_PROTOCOL", "flvs");
-        EXPECT_FALSE(conf.get_vhost_edge_token_traverse("ossrs.net"));
         EXPECT_STREQ("flvs", conf.get_vhost_edge_protocol("ossrs.net").c_str());
     }
 
     // An empty env overwrites nothing.
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{token_traverse on; protocol flv;}}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{protocol flv;}}"));
 
-        SrsSetEnvConfig(conf, token_traverse, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "");
         SrsSetEnvConfig(conf, protocol, "SRS_VHOST_CLUSTER_PROTOCOL", "");
-        EXPECT_TRUE(conf.get_vhost_edge_token_traverse("ossrs.net"));
         EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("ossrs.net").c_str());
     }
 }

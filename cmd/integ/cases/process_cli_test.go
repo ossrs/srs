@@ -142,6 +142,10 @@ var badEnv = []struct {
 	// so it is refused on or off.
 	{name: "AtcAuto", env: envOf("SRS_VHOST_PLAY_ATC_AUTO", "on")},
 	{name: "AtcAutoOff", env: envOf("SRS_VHOST_PLAY_ATC_AUTO", "off")},
+	// Edge token traverse, checking each client by a connect to the origin,
+	// is removed, so it is refused on or off.
+	{name: "TokenTraverse", env: envOf("SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "on")},
+	{name: "TokenTraverseOff", env: envOf("SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "off")},
 	// A vhost setting by env: forward conflicts with kickoff_for_idle.
 	{name: "ForwardWithKickoffForIdle", env: envOf("SRS_VHOST_FORWARD_ENABLED", "on", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000")},
 	// A time setting must be a finite number of seconds that is not negative:

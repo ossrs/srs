@@ -5089,6 +5089,82 @@ VOID TEST(ConfigMainTest, AtcAutoEnvRemoved)
     }
 }
 
+// token_traverse is removed: a config file with it in the cluster section, or in the vhost as SRS1 wrote it,
+// is refused, with an error that names the directive and points to the HTTP hooks, on or off.
+VOID TEST(ConfigMainTest, TokenTraverseRemoved)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } cases[] = {
+        {"vhost test.com{cluster{token_traverse on;}}", "vhost.cluster.token_traverse of"},
+        {"vhost test.com{cluster{token_traverse off;}}", "vhost.cluster.token_traverse of"},
+        {"vhost test.com{cluster{token_traverse;}}", "vhost.cluster.token_traverse of"},
+        {"vhost test.com{cluster{mode remote; origin 127.0.0.1:1935; token_traverse on;}}", "vhost.cluster.token_traverse of"},
+        {"vhost test.com{token_traverse on;}", "vhost.token_traverse of"},
+        {"vhost test.com{mode remote; origin 127.0.0.1:1935; token_traverse off;}", "vhost.token_traverse of"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + cases[i].conf);
+        EXPECT_TRUE(err != srs_success) << cases[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("HTTP hooks") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    // The other cluster directives stay, in the cluster section and as SRS1 wrote them.
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{cluster{mode remote; origin 127.0.0.1:1935; vhost v2.com; debug_srs_upnode off; protocol flv; follow_client on;}} "
+                                                           "vhost v1.com{mode remote; origin 127.0.0.1:1936; vhost v3.com; debug_srs_upnode off;}"));
+        EXPECT_TRUE(conf.get_vhost_is_edge("test.com"));
+        EXPECT_STREQ("127.0.0.1:1935", conf.get_vhost_edge_origin("test.com")->arg0().c_str());
+        EXPECT_STREQ("v2.com", conf.get_vhost_edge_transform_vhost("test.com").c_str());
+        EXPECT_FALSE(conf.get_debug_srs_upnode("test.com"));
+        EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("test.com").c_str());
+        EXPECT_TRUE(conf.get_vhost_edge_follow_client("test.com"));
+        EXPECT_TRUE(conf.get_vhost_is_edge("v1.com"));
+        EXPECT_STREQ("127.0.0.1:1936", conf.get_vhost_edge_origin("v1.com")->arg0().c_str());
+        EXPECT_STREQ("v3.com", conf.get_vhost_edge_transform_vhost("v1.com").c_str());
+        EXPECT_FALSE(conf.get_debug_srs_upnode("v1.com"));
+    }
+}
+
+// token_traverse is removed: SRS_VHOST_CLUSTER_TOKEN_TRAVERSE, on or off, is refused with an error that names it
+// and points to the HTTP hooks.
+VOID TEST(ConfigMainTest, TokenTraverseEnvRemoved)
+{
+    const char *values[] = {"on", "off"};
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, token_traverse, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", values[i]);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << values[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("SRS_VHOST_CLUSTER_TOKEN_TRAVERSE") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("HTTP hooks") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, token_traverse, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
 // An enabled exporter or RTMPS listen that is not an endpoint is refused, as the
 // other listeners' are, with an error that names it. Disabled, it is not checked.
 VOID TEST(ConfigListenTest, ExporterAndRtmpsListenInvalid)

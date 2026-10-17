@@ -29,7 +29,6 @@ class SrsStSocket;
 class SrsHttpHooks;
 class SrsBandwidth;
 class SrsKbps;
-class SrsRtmpClient;
 class SrsMediaPacket;
 class SrsQueueRecvThread;
 class SrsPublishRecvThread;
@@ -280,11 +279,6 @@ public:
     virtual srs_error_t process_publish_message(SrsSharedPtr<SrsLiveSource> &source, SrsRtmpCommonMessage *msg);
     virtual srs_error_t process_play_control_msg(SrsLiveConsumer *consumer, SrsRtmpCommonMessage *msg);
     virtual void set_sock_options();
-
-// clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
-    virtual srs_error_t check_edge_token_traverse_auth();
-    virtual srs_error_t do_token_traverse_auth(SrsRtmpClient *client);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

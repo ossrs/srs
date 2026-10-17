@@ -5,7 +5,6 @@
 package cases
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -203,67 +202,6 @@ func edgePushCases(t *testing.T, origin, edge *server.Server) {
 		waitHook(c, origin, "on_publish", stream)
 		pub.Close()
 		waitHook(c, origin, "on_unpublish", stream)
-	})
-}
-
-// TestEdge_Token checks an edge with token traverse: before it serves a
-// client, it connects to the origin with the client's tcUrl and stream, so the
-// origin can check the client's token by its on_connect.
-func TestEdge_Token(t *testing.T) {
-	t.Parallel()
-	origin := edgeOrigin(t)
-	edge := edgeGroup(t, server.Edge{Origins: []string{origin.Addr(server.RTMP)}, TokenTraverse: true})
-
-	// TokenPlays plays with a token the origin accepts: the player gets the
-	// stream, and the origin's on_play has the token.
-	check.Case(t, "TokenPlays", check.Normal, func(c *check.C) {
-		stream := streamName(c)
-		publishRTMP(c, origin, stream, media.H264HighAAC)
-		edgePlayed(c, edge, "live/"+stream+"?token=good")
-		h := waitHook(c, origin, "on_play", stream)
-		c.CheckEqual(h.Field("param"), "?token=good", "the origin's on_play param")
-	})
-
-	// TokenPublishes publishes with a token the origin accepts: the origin
-	// gets the stream with the token.
-	check.Case(t, "TokenPublishes", check.Normal, func(c *check.C) {
-		stream := streamName(c)
-		startPublisher(c, rtmpURL(edge, "live/"+stream+"?token=good"), media.Path(c, media.H264HighAAC), publishLead)
-		h := waitHook(c, origin, "on_publish", stream)
-		c.CheckEqual(h.Field("param"), "?token=good", "the origin's on_publish param")
-	})
-
-	// OriginRefusesToken plays with a token the origin's hooks refuse: the
-	// edge closes the player, since the origin refuses its token at the
-	// edge's check.
-	check.Case(t, "OriginRefusesToken", check.Normal, func(c *check.C) {
-		stream := streamName(c)
-		token := "bad-" + stream
-		origin.Hooks.Script(mock.Match{Func: func(r mock.Request) bool {
-			return strings.Contains(r.Field("param"), token) || strings.Contains(r.Field("tcUrl"), token)
-		}}, mock.Reject(100))
-		publishRTMP(c, origin, stream, media.H264HighAAC)
-		r := tryRTMP(c, rtmpURL(edge, "live/"+stream+"?token="+token), nil, false, hookWait())
-		checkRefused(c, r, "closed")
-	})
-}
-
-// TestEdge_TokenOriginDown checks an edge with token traverse whose origin is
-// down: the edge refuses each client at once, since no origin can check it.
-// Without token traverse, it would keep a player waiting while it tries to
-// pull; a publisher it refuses either way, since its push fails.
-func TestEdge_TokenOriginDown(t *testing.T) {
-	t.Parallel()
-	edge := edgeGroup(t, server.Edge{Origins: []string{server.DownAddr(t)}, TokenTraverse: true})
-
-	check.Case(t, "PlayRefused", check.Normal, func(c *check.C) {
-		r := tryRTMP(c, rtmpURL(edge, "live/"+streamName(c)), nil, false, hookWait())
-		checkRefused(c, r, "closed")
-	})
-
-	check.Case(t, "PublishRefused", check.Normal, func(c *check.C) {
-		r := tryRTMP(c, rtmpURL(edge, "live/"+streamName(c)), nil, true, hookWait())
-		checkRefused(c, r, "closed")
 	})
 }
 

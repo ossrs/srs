@@ -311,7 +311,7 @@ checks are in the test files under `cases/`.
 | Hooks | Common, TsMount, Mp3Mount, AacMount, Down, Several, HlsSession | Every HTTP hook's payload, the client's type in the publish and play hooks, refusals, a hook that is down, several hook URLs, HLS sessions |
 | Security | DenyPublish, DenyPlay, AllowOthers, NoRules, Common | Allow and deny rules for each protocol, a second publisher over another protocol |
 | Forward | Destination, OneDestination, Off, Backend, Retry | Forward to destinations, by a backend, and its retry |
-| Edge | Rtmp, Flv, Token, TokenOriginDown, Failover | Edge pull over RTMP and HTTP-FLV, edge publish, token traverse, origin failover |
+| Edge | Rtmp, Flv, Failover | Edge pull over RTMP and HTTP-FLV, edge publish, origin failover |
 | Cluster | Origins | The origin cluster and its edge |
 | Dvr | Session, SessionMp4, Segment, SegmentNoWait, Apply | DVR to FLV and MP4, session and segment plans, `dvr_apply`, `on_dvr` |
 | HttpStatic | Common, RemuxOff, CtxOff | Static files, ranges, traversal, MIME types, VOD of FLV, MP4 and HLS |
