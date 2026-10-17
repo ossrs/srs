@@ -38,6 +38,12 @@ func TestHeartbeatEnv(t *testing.T) {
 			"SRS_HEARTBEAT_AUTH_TYPE":    "bearer",
 			"SRS_HEARTBEAT_AUTH_TOKEN":   "t1",
 		}},
+		{"NoPath", Heartbeat{Query: "k=v", NoPath: true}, map[string]string{
+			"SRS_HEARTBEAT_ENABLED":   "on",
+			"SRS_HEARTBEAT_URL":       "http://127.0.0.1:14005?k=v",
+			"SRS_HEARTBEAT_SUMMARIES": "off",
+			"SRS_HEARTBEAT_PORTS":     "off",
+		}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			h := tt.h

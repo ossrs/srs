@@ -53,20 +53,28 @@ var sharedHeartbeatFull = server.Heartbeat{
 // PublishTimeout: every 1s, every other setting left at SRS's default.
 var sharedHeartbeatDefaults = server.Heartbeat{Interval: heartbeatInterval}
 
-// heartbeatOf matches the heartbeats that arrive after a time.
-func heartbeatOf(after time.Time) mock.Match {
-	return mock.Match{Path: server.HeartbeatPath, Func: func(r mock.Request) bool { return r.Time.After(after) }}
+// heartbeatOf matches the heartbeats to a path on the mock that arrive after
+// a time.
+func heartbeatOf(path string, after time.Time) mock.Match {
+	return mock.Match{Path: path, Func: func(r mock.Request) bool { return r.Time.After(after) }}
 }
 
 // nextHeartbeats waits for the next n heartbeats of a server and returns them.
 func nextHeartbeats(c *check.C, srs *server.Server, n int) []mock.Request {
+	c.Helper()
+	return nextHeartbeatsAt(c, srs, server.HeartbeatPath, n)
+}
+
+// nextHeartbeatsAt waits for the next n heartbeats of a server to a path on
+// the mock and returns them.
+func nextHeartbeatsAt(c *check.C, srs *server.Server, path string, n int) []mock.Request {
 	c.Helper()
 	after := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(n)*heartbeatInterval+2*time.Second)
 	defer cancel()
 	var out []mock.Request
 	for len(out) < n {
-		r, err := srs.Hooks.Wait(ctx, heartbeatOf(after))
+		r, err := srs.Hooks.Wait(ctx, heartbeatOf(path, after))
 		c.Must(err, "heartbeat "+strconv.Itoa(len(out)+1))
 		out = append(out, r)
 		after = r.Time
@@ -226,6 +234,29 @@ func TestTimer_Heartbeat_Defaults(t *testing.T) {
 			mock.HTTPError(http.StatusInternalServerError))
 		beats := nextHeartbeats(c, srs, 4)
 		c.Check(n.Load() >= 4, "the mock answered %d heartbeats", n.Load())
+		checkBeats(c, beats)
+	})
+}
+
+// TestTimer_Heartbeat_NoPath checks the heartbeat to a URL with a query and
+// no path, such as http://host:port?k=v, every 1s on a server of its own.
+func TestTimer_Heartbeat_NoPath(t *testing.T) {
+	t.Parallel()
+	srs := server.Group(t, server.Config{
+		Listeners: []server.Listener{server.RTMP, server.HTTPAPI},
+		Hooks:     true,
+		Heartbeat: &server.Heartbeat{Interval: heartbeatInterval, Query: heartbeatQuery, NoPath: true},
+	})
+
+	// RootWithQuery checks each heartbeat is a POST to the root, /, with the
+	// URL's query: a request line's target starts with a slash, so a
+	// receiver answers it.
+	check.Case(t, "RootWithQuery", check.Timer, func(c *check.C) {
+		beats := nextHeartbeatsAt(c, srs, "/", 2)
+		for i, beat := range beats {
+			c.CheckEqual(beat.Method, http.MethodPost, "method of heartbeat "+strconv.Itoa(i+1))
+			c.CheckEqual(beat.Query.Encode(), heartbeatQuery, "the query of heartbeat "+strconv.Itoa(i+1))
+		}
 		checkBeats(c, beats)
 	})
 }

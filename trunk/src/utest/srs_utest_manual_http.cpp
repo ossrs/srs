@@ -1746,7 +1746,7 @@ VOID TEST(ProtocolHTTPTest, HTTPBasicAuthEveryRefusalChallenges)
     for (int i = 0; i < (int)(sizeof(refused) / sizeof(refused[0])); i++) {
         string challenge;
         EXPECT_EQ(401, srs_utest_serve_api_auth(new SrsHttpBasicAuthenticator("admin", "admin"), refused[i], &challenge)) << refused[i];
-        EXPECT_STREQ("Basic", challenge.c_str()) << refused[i];
+        EXPECT_STREQ("Basic realm=\"SRS\"", challenge.c_str()) << refused[i];
     }
 
     string challenge;

@@ -32,6 +32,9 @@ type Heartbeat struct {
 	Token string
 	// Query is added to the heartbeat URL, such as k=v.
 	Query string
+	// NoPath leaves the path out of the heartbeat URL, such as
+	// http://host:port?k=v, so the heartbeat POSTs to the mock's root, /.
+	NoPath bool
 }
 
 // isHeartbeatEnv reports whether k is a setting of the heartbeat, which only
@@ -47,6 +50,9 @@ func heartbeatEnv(h *Heartbeat, base string) (map[string]string, error) {
 		return nil, nil
 	}
 	url := base + HeartbeatPath
+	if h.NoPath {
+		url = base
+	}
 	if h.Query != "" {
 		url += "?" + h.Query
 	}

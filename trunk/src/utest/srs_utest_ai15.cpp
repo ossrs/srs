@@ -416,6 +416,7 @@ MockLogForSignal::MockLogForSignal()
 {
     reopen_count_ = 0;
     error_count_ = 0;
+    warn_count_ = 0;
 }
 
 MockLogForSignal::~MockLogForSignal()
@@ -437,6 +438,8 @@ void MockLogForSignal::log(SrsLogLevel level, const char *tag, const SrsContextI
     if (level == SrsLogLevelError) {
         error_count_++;
         last_error_tag_ = tag ? tag : "";
+    } else if (level == SrsLogLevelWarn) {
+        warn_count_++;
     }
 }
 

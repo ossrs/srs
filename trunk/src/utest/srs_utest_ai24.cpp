@@ -22,6 +22,8 @@
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai16.hpp>
+#include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_fmp4.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -37,7 +39,10 @@ extern "C" {
 #endif
 #endif
 
+#include <fstream>
 #include <math.h>
+#include <new>
+#include <sstream>
 
 using namespace std;
 
@@ -1705,4 +1710,199 @@ VOID TEST(HlsFmp4AudioOnlyBugTest, OnUnpublishUsesVideoDtsZeroForAudioOnly)
 
     // Cleanup
     muxer->req_ = NULL;
+}
+
+// A file writer that counts the writers alive.
+class MockLiveFileWriter : public SrsFileWriter
+{
+public:
+    int *live_;
+
+    MockLiveFileWriter(int *live) : live_(live) { (*live_)++; }
+    virtual ~MockLiveFileWriter() { (*live_)--; }
+};
+
+// An encrypting file writer that counts the writers alive.
+class MockLiveEncFileWriter : public SrsEncFileWriter
+{
+public:
+    int *live_;
+
+    MockLiveEncFileWriter(int *live) : live_(live) { (*live_)++; }
+    virtual ~MockLiveEncFileWriter() { (*live_)--; }
+};
+
+// A factory whose file writers count the writers alive.
+class MockAppFactoryLiveWriters : public SrsAppFactory
+{
+public:
+    int live_;
+
+    MockAppFactoryLiveWriters() : live_(0) {}
+    virtual ~MockAppFactoryLiveWriters() {}
+
+    virtual ISrsFileWriter *create_file_writer() { return new MockLiveFileWriter(&live_); }
+    virtual ISrsFileWriter *create_enc_file_writer() { return new MockLiveEncFileWriter(&live_); }
+};
+
+// Each publish updates the config of the fmp4 muxer: a republish keeps one segment writer.
+VOID TEST(HlsFmp4MuxerWriterTest, RepublishKeepsOneWriter)
+{
+    srs_error_t err;
+
+    MockAppFactoryLiveWriters factory;
+    MockFmp4SrsRequest req;
+
+    if (true) {
+        SrsHlsFmp4Muxer muxer;
+        muxer.app_factory_ = &factory;
+        HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+        HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+        EXPECT_EQ(1, factory.live_);
+
+        HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+        HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+        EXPECT_EQ(1, factory.live_);
+    }
+
+    EXPECT_EQ(0, factory.live_);
+}
+
+// Each publish updates the config of the TS muxer: a republish frees the last segment writer,
+// also when hls_keys changes the kind of writer.
+VOID TEST(HlsMuxerWriterTest, RepublishFreesLastWriter)
+{
+    srs_error_t err;
+
+    MockAppFactoryLiveWriters factory;
+    MockFmp4SrsRequest req;
+
+    if (true) {
+        SrsHlsMuxer muxer;
+        muxer.app_factory_ = &factory;
+
+        HELPER_ASSERT_SUCCESS(muxer.update_config(&req, "", "./objs/nginx/html", "[app]/[stream].m3u8", "[app]/[stream]-[seq].ts",
+                                                  10 * SRS_UTIME_SECONDS, 60 * SRS_UTIME_SECONDS, false, 2.1, true, true, false, 5, "", "", ""));
+        EXPECT_EQ(1, factory.live_);
+
+        HELPER_ASSERT_SUCCESS(muxer.update_config(&req, "", "./objs/nginx/html", "[app]/[stream].m3u8", "[app]/[stream]-[seq].ts",
+                                                  10 * SRS_UTIME_SECONDS, 60 * SRS_UTIME_SECONDS, false, 2.1, true, true, true, 5, "", "", ""));
+        EXPECT_EQ(1, factory.live_);
+        EXPECT_TRUE(dynamic_cast<SrsEncFileWriter *>(muxer.writer_) != NULL);
+    }
+
+    EXPECT_EQ(0, factory.live_);
+}
+
+// The dispose removes the init file the muxer wrote, with the playlist and the segments.
+VOID TEST(HlsFmp4MuxerDisposeTest, RemovesInitFile)
+{
+    srs_error_t err;
+
+    SrsSetEnvConfig(*_srs_config, init_file, "SRS_VHOST_HLS_HLS_INIT_FILE", "[app]/[stream]-dispose-init.mp4");
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+
+    SrsPath path;
+    string init_file = muxer.hls_path_ + "/live/livestream-dispose-init.mp4";
+    EXPECT_TRUE(path.exists(init_file));
+
+    muxer.dispose();
+    EXPECT_FALSE(path.exists(init_file));
+
+    // A second dispose, with no init file written since, removes nothing and doesn't fail.
+    muxer.dispose();
+    EXPECT_FALSE(path.exists(init_file));
+}
+
+// A muxer that wrote no init file removes none at the dispose, even if a file is at the init
+// file's path, such as one of another muxer.
+VOID TEST(HlsFmp4MuxerDisposeTest, NoInitFileWrittenNoneRemoved)
+{
+    srs_error_t err;
+
+    SrsSetEnvConfig(*_srs_config, init_file, "SRS_VHOST_HLS_HLS_INIT_FILE", "[app]/[stream]-dispose-none-init.mp4");
+
+    MockFmp4SrsRequest req;
+    MockSrsFormat fmt;
+
+    SrsHlsFmp4Muxer writer;
+    HELPER_ASSERT_SUCCESS(writer.initialize(1, 2));
+    HELPER_ASSERT_SUCCESS(writer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(writer.update_config(&req));
+    HELPER_ASSERT_SUCCESS(writer.write_init_mp4(&fmt, true, true));
+
+    SrsPath path;
+    string init_file = writer.hls_path_ + "/live/livestream-dispose-none-init.mp4";
+    EXPECT_TRUE(path.exists(init_file));
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+    muxer.dispose();
+    EXPECT_TRUE(path.exists(init_file));
+
+    writer.dispose();
+    EXPECT_FALSE(path.exists(init_file));
+}
+
+// The init file is written before the first key, so the default KID of its tenc box is zero,
+// whatever the memory the muxer was made in held.
+VOID TEST(HlsFmp4MuxerKeysTest, InitFileKidIsZero)
+{
+    srs_error_t err;
+
+    SrsSetEnvConfig(*_srs_config, init_file, "SRS_VHOST_HLS_HLS_INIT_FILE", "[app]/[stream]-kid-init.mp4");
+
+    MockFmp4SrsRequest req;
+    MockSrsFormat fmt;
+    SrsPath path;
+    string init_file;
+
+    // Make the muxer in memory that is not zero, as a heap block reused after another object.
+    union {
+        char bytes[sizeof(SrsHlsFmp4Muxer)];
+        double align;
+    } storage;
+    memset(storage.bytes, 0xab, sizeof(storage.bytes));
+    SrsHlsFmp4Muxer *muxer = new (storage.bytes) SrsHlsFmp4Muxer();
+
+    if (true) {
+        HELPER_ASSERT_SUCCESS(muxer->initialize(1, 2));
+        HELPER_ASSERT_SUCCESS(muxer->on_publish(&req));
+        HELPER_ASSERT_SUCCESS(muxer->update_config(&req));
+        muxer->hls_keys_ = true;
+        HELPER_ASSERT_SUCCESS(muxer->write_init_mp4(&fmt, true, true));
+        init_file = muxer->hls_path_ + "/live/livestream-kid-init.mp4";
+    }
+
+    std::ifstream ifs(init_file.c_str(), std::ios::binary);
+    std::stringstream ss;
+    ss << ifs.rdbuf();
+    std::string data = ss.str();
+
+    muxer->dispose();
+    muxer->~SrsHlsFmp4Muxer();
+    EXPECT_FALSE(path.exists(init_file));
+
+    // The tenc box: type, version and flags, two reserved or pattern bytes, the protected flag
+    // and the IV size, then the 16 bytes of the default KID. One per track.
+    int tencs = 0;
+    for (size_t pos = data.find("tenc"); pos != std::string::npos; pos = data.find("tenc", pos + 4)) {
+        ASSERT_LE(pos + 12 + 16, data.size());
+        std::string kid = data.substr(pos + 12, 16);
+        EXPECT_EQ(std::string(16, '\0'), kid);
+        tencs++;
+    }
+    EXPECT_EQ(2, tencs);
 }

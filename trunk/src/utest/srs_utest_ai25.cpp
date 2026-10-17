@@ -1503,6 +1503,81 @@ VOID TEST(HookOnPlayClientsTest, StatCountsClientAddedAgainOnce)
     EXPECT_EQ(0, (int)stat->clients_.size());
 }
 
+// A client added again to another stream moves to it: the old stream loses it and the new one
+// counts it, so its one disconnect leaves each stream at its old count and frees both.
+VOID TEST(HookOnPlayClientsTest, StatMovesClientAddedToAnotherStream)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<SrsRequest> a(new SrsRequest());
+    a->vhost_ = "__defaultVhost__";
+    a->app_ = "live";
+    a->stream_ = "a";
+    SrsUniquePtr<ISrsRequest> b(a->copy());
+    b->stream_ = "b";
+
+    // Another player holds stream a.
+    HELPER_EXPECT_SUCCESS(stat->on_client("other", a.get(), NULL, SrsRtspConnPlay));
+    HELPER_EXPECT_SUCCESS(stat->on_client("player", a.get(), NULL, SrsRtspConnPlay));
+    HELPER_EXPECT_SUCCESS(stat->on_client("player", b.get(), NULL, SrsRtspConnPlay));
+
+    SrsStatisticStream *sa = stat->find_stream_by_url(a->get_stream_url());
+    SrsStatisticStream *sb = stat->find_stream_by_url(b->get_stream_url());
+    ASSERT_TRUE(sa != NULL);
+    ASSERT_TRUE(sb != NULL);
+    EXPECT_EQ(1, sa->nb_clients_);
+    EXPECT_EQ(1, sb->nb_clients_);
+    EXPECT_EQ(2, sa->vhost_->nb_clients_);
+    EXPECT_EQ(2, (int)stat->nb_clients_);
+    EXPECT_TRUE(stat->find_client("player")->stream_ == sb);
+
+    // The player leaves: stream b is freed, stream a keeps the other player.
+    stat->on_disconnect("player", srs_success);
+    EXPECT_TRUE(stat->find_stream_by_url(b->get_stream_url()) == NULL);
+    sa = stat->find_stream_by_url(a->get_stream_url());
+    ASSERT_TRUE(sa != NULL);
+    EXPECT_EQ(1, sa->nb_clients_);
+    EXPECT_EQ(1, sa->vhost_->nb_clients_);
+
+    stat->on_disconnect("other", srs_success);
+    EXPECT_TRUE(stat->find_stream_by_url(a->get_stream_url()) == NULL);
+    EXPECT_EQ(0, stat->find_vhost_by_name("__defaultVhost__")->nb_clients_);
+    EXPECT_EQ(0, (int)stat->clients_.size());
+}
+
+// A client moved off a stream it held alone frees that stream at once, and a move to another
+// vhost moves the vhost's count too.
+VOID TEST(HookOnPlayClientsTest, StatMoveFreesTheEmptyOldStream)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<SrsRequest> a(new SrsRequest());
+    a->vhost_ = "one.example.com";
+    a->app_ = "live";
+    a->stream_ = "a";
+    SrsUniquePtr<ISrsRequest> b(a->copy());
+    b->vhost_ = "two.example.com";
+    b->stream_ = "b";
+
+    HELPER_EXPECT_SUCCESS(stat->on_client("player", a.get(), NULL, SrsRtspConnPlay));
+    HELPER_EXPECT_SUCCESS(stat->on_client("player", b.get(), NULL, SrsRtspConnPlay));
+
+    EXPECT_TRUE(stat->find_stream_by_url(a->get_stream_url()) == NULL);
+    SrsStatisticStream *sb = stat->find_stream_by_url(b->get_stream_url());
+    ASSERT_TRUE(sb != NULL);
+    EXPECT_EQ(1, sb->nb_clients_);
+    EXPECT_EQ(0, stat->find_vhost_by_name("one.example.com")->nb_clients_);
+    EXPECT_EQ(1, stat->find_vhost_by_name("two.example.com")->nb_clients_);
+    EXPECT_EQ(1, (int)stat->nb_clients_);
+
+    stat->on_disconnect("player", srs_success);
+    EXPECT_TRUE(stat->find_stream_by_url(b->get_stream_url()) == NULL);
+    EXPECT_EQ(0, stat->find_vhost_by_name("two.example.com")->nb_clients_);
+    EXPECT_EQ(0, (int)stat->clients_.size());
+}
+
 // A WebRTC server that makes a player's session as SrsRtcPlayStream::initialize() does: it adds
 // the player to the stats by the id of the coroutine that asks for the session.
 class MockRtcApiServerForPlayClients : public ISrsRtcApiServer

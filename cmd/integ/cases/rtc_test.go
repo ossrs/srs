@@ -200,6 +200,47 @@ func TestRtc_Common(t *testing.T) {
 		checkRTCPlayed(c, waitPlayed(c, player, rtcPlayedUntil))
 	})
 
+	// PlayAnsweredBeforePublish answers a player before the publisher comes,
+	// and lets it connect only once the publisher has started: SRS answered
+	// it with the tracks of a play before publishing, and subscribes it
+	// after the stream changed to the publisher's, so it must take the
+	// publisher's tracks then, or its keyframe requests and the publisher's
+	// packets find no track of it.
+	check.Case(t, "PlayAnsweredBeforePublish", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		held := &heldAnswer{answered: make(chan struct{}), release: make(chan struct{})}
+		release := sync.OnceFunc(func() { close(held.release) })
+		var player *rtc.Player
+		var playErr error
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			player, playErr = rtc.Play(ctx, whepURL(srs, "live", stream), &rtc.Options{Client: &http.Client{Transport: held}})
+		}()
+		c.Cleanup(func() {
+			release()
+			<-done
+			if player != nil {
+				player.Close()
+			}
+		})
+		select {
+		case <-held.answered:
+		case <-done:
+		}
+		pub := rtcPublisher(c, whipURL(srs, "live", stream), nil)
+		// The publisher has started once a player's keyframe request reaches it.
+		requestKeyframe(c, pub, rtcPlayer(c, whepURL(srs, "live", stream), nil), "the player after the publisher")
+		release()
+		<-done
+		c.Must(playErr, "WHEP play")
+		sendRTC(c, pub, player)
+		checkRTCPlayed(c, waitPlayed(c, player, rtcPlayedUntil))
+	})
+
 	check.Case(t, "ManyPlayers", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -436,20 +477,7 @@ func sendRTC(c *check.C, pub rtcSender, players ...rtcReceiver) (stop func()) {
 func sendRTCSamples(c *check.C, samples []rtc.Sample, pub rtcSender, players ...rtcReceiver) (stop func()) {
 	c.Helper()
 	for i, p := range players {
-		// A request that comes before SRS has subscribed the player goes
-		// nowhere, so the player asks again every 100ms, for at most 1s.
-		n := pub.PLIs()
-		var err error
-		for try := 0; try < 10; try++ {
-			c.Must(p.RequestKeyframe(), fmt.Sprintf("player %d requests a keyframe", i))
-			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-			err = pub.WaitPLI(ctx, n)
-			cancel()
-			if err == nil {
-				break
-			}
-		}
-		c.Must(err, fmt.Sprintf("the publisher gets player %d's keyframe request", i))
+		requestKeyframe(c, pub, p, fmt.Sprintf("player %d", i))
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -469,6 +497,39 @@ func sendRTCSamples(c *check.C, samples []rtc.Sample, pub rtcSender, players ...
 	}
 	c.Cleanup(stop)
 	return stop
+}
+
+// requestKeyframe has a player ask for a keyframe until the publisher gets
+// the request. A request that comes before SRS has subscribed the player
+// goes nowhere, so the player asks again every 100ms, for at most 1s.
+func requestKeyframe(c *check.C, pub rtcSender, p rtcReceiver, name string) {
+	c.Helper()
+	n := pub.PLIs()
+	var err error
+	for try := 0; try < 10; try++ {
+		c.Must(p.RequestKeyframe(), name+" requests a keyframe")
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		err = pub.WaitPLI(ctx, n)
+		cancel()
+		if err == nil {
+			break
+		}
+	}
+	c.Must(err, "the publisher gets "+name+"'s keyframe request")
+}
+
+// A heldAnswer is an HTTP transport that holds each answer until release is
+// closed, so a WebRTC session that SRS has answered connects only then.
+type heldAnswer struct {
+	answered, release chan struct{}
+	once              sync.Once
+}
+
+func (h *heldAnswer) RoundTrip(req *http.Request) (*http.Response, error) {
+	res, err := httpClient.Transport.RoundTrip(req)
+	h.once.Do(func() { close(h.answered) })
+	<-h.release
+	return res, err
 }
 
 // An rtcSender is a WebRTC publisher that sendRTC sends the test file with:

@@ -400,6 +400,39 @@ func rtspLifecycle(t *testing.T) {
 		c.CheckEqual(hookActions(clientHooks(srs, id)), []string{"on_play", "on_stop"}, "hooks")
 	})
 
+	// A connection that asks for one stream, then plays another, counts only
+	// in the stream it plays, and leaves each stream with its publisher alone
+	// when it closes.
+	check.Case(t, "PlayAfterDescribeOfAnotherStream", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		first, second := streamName(c)+"-a", streamName(c)+"-b"
+		startFirst := rtspPublisher(c, srs, "live/"+first, media.H264BaselineAAC)
+		firstID := waitHook(c, srs, "on_publish", first).Field("stream_id")
+		startSecond := rtspPublisher(c, srs, "live/"+second, media.H264BaselineAAC)
+		secondID := waitHook(c, srs, "on_publish", second).Field("stream_id")
+
+		conn := rtspDial(c, srs)
+		rtspDescribe(c, conn, rtspURL(srs, "live/"+first))
+		url := rtspURL(srs, "live/"+second)
+		rtspSetupAll(c, conn, url)
+		res, err := conn.Do(base.Play, url, nil, 300*time.Millisecond)
+		c.Must(err, "PLAY")
+		c.Must(errorIf(res.StatusCode != base.StatusOK, "status %v", res.StatusCode), "PLAY")
+		id := waitHook(c, srs, "on_play", second).Field("client_id")
+		startFirst()
+		startSecond()
+		n, err := conn.WaitFrames(1, 300*time.Millisecond)
+		c.Check(err == nil && n == 1, "frames %v, %v; want media", n, err)
+		c.CheckEqual(streamClients(c, srs, "/api/v1/streams/"+firstID), 1, "clients of the stream asked for")
+		c.CheckEqual(streamClients(c, srs, "/api/v1/streams/"+secondID), 2, "clients of the stream played")
+
+		conn.Close()
+		waitClientHook(c, srs, "on_stop", id)
+		c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+id), "the player leaves the API")
+		c.CheckEqual(streamClients(c, srs, "/api/v1/streams/"+firstID), 1, "clients of the stream asked for after the close")
+		c.CheckEqual(streamClients(c, srs, "/api/v1/streams/"+secondID), 1, "clients of the stream played after the close")
+	})
+
 	// A player that on_play refuses gets 401 to DESCRIBE.
 	check.Case(t, "OnPlayRejected", check.Normal, func(c *check.C) {
 		srs := server.Common(c)

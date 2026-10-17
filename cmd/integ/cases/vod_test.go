@@ -136,6 +136,17 @@ func vodMp4Cases(t *testing.T) {
 		checkRange(c, srs, path, "bytes=-500", data, len(data)-500, len(data)-1)
 	})
 
+	// Mp4SuffixRangeZero asks for the last 0 bytes, bytes=-0, by the Range
+	// header and ?bytes=: no byte of the file, so 416 with the file size in
+	// Content-Range, as RFC 9110 has it, and the server serves the next request.
+	check.Case(t, "Mp4SuffixRangeZero", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		data, path := writeVod(c, srs.WebRoot(), vodMp4)
+		checkUnsatisfiable(c, srs, path, "Range: bytes=-0", len(data))
+		checkUnsatisfiable(c, srs, path+"?bytes=-0", "", len(data))
+		checkStaticServes(c, srs)
+	})
+
 	// Mp4RangeVhostMount asks for a range of a file of the vhost's mount,
 	// which SRS serves the same way.
 	check.Case(t, "Mp4RangeVhostMount", check.Normal, func(c *check.C) {
@@ -233,6 +244,24 @@ func TestHttpStatic_RemuxOff(t *testing.T) {
 	check.Case(t, "FlvStartNotFound", check.Fast, func(c *check.C) {
 		res, _ := staticGet(c, srs, "/"+streamName(c)+"/none.flv?start=1000", nil)
 		c.CheckEqual(res.StatusCode, 404, "status")
+	})
+
+	// EscapedMountServes gets files of the static mount whose name has a
+	// space (see escapedMount), at its percent-encoded URL path: each file of
+	// the mount's dir, with a name that needs escaping too.
+	check.Case(t, "EscapedMountServes", check.Normal, func(c *check.C) {
+		dir := streamName(c)
+		for _, name := range []string{"f.dat", "c d.dat"} {
+			writeStatic(c, filepath.Join(escapedMount.DirIn(srs), dir, name), []byte(name+" of "+dir))
+		}
+		for path, want := range map[string]string{
+			escapedMount.URLPath() + dir + "/f.dat":     "f.dat of " + dir,
+			escapedMount.URLPath() + dir + "/c%20d.dat": "c d.dat of " + dir,
+		} {
+			res, body := staticGet(c, srs, path, nil)
+			c.CheckEqual(res.StatusCode, 200, "status of "+path)
+			c.CheckEqual(string(body), want, "body of "+path)
+		}
 	})
 }
 

@@ -394,16 +394,19 @@ SrsMpdWriter::~SrsMpdWriter()
 // LCOV_EXCL_START
 void SrsMpdWriter::dispose()
 {
-    if (req_) {
-        string mpd_path = srs_path_build_stream(mpd_file_, req_->vhost_, req_->app_, req_->stream_);
-        string full_path = home_ + "/" + mpd_path;
-        SrsPath path;
-        srs_error_t err = path.unlink(full_path);
-        if (err != srs_success) {
-            srs_warn("ignore remove mpd failed, %s, %s", full_path.c_str(), srs_error_desc(err).c_str());
-            srs_freep(err);
-        }
+    // The MPD file write wrote, and no other; a stream that never wrote one has no dash_path
+    // to build its path from.
+    if (mpd_path_.empty()) {
+        return;
     }
+
+    SrsPath path;
+    srs_error_t err = path.unlink(mpd_path_);
+    if (err != srs_success) {
+        srs_warn("ignore remove mpd failed, %s, %s", mpd_path_.c_str(), srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+    mpd_path_ = "";
 }
 // LCOV_EXCL_STOP
 
@@ -545,6 +548,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
     if (::rename(full_path_tmp.c_str(), full_path.c_str()) < 0) {
         return srs_error_new(ERROR_DASH_WRITE_FAILED, "Rename %s to %s failed", full_path_tmp.c_str(), full_path.c_str());
     }
+    mpd_path_ = full_path;
 
     srs_trace("DASH: Refresh MPD success, size=%dB, file=%s", content.length(), full_path.c_str());
 

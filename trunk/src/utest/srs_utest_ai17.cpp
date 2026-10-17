@@ -1069,6 +1069,95 @@ VOID TEST(MpdWriterTest, WriteOneTrack)
     }
 }
 
+// Test: the dispose of an MPD writer that wrote no MPD removes nothing and logs no warning.
+// A writer that never published has no dash_path, so a path built from it is the root.
+VOID TEST(MpdWriterTest, DisposeNeverWrittenRemovesNothing)
+{
+    srs_error_t err;
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    // Never published: no dash_path and no MPD file name.
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<SrsMpdWriter> never_published(new SrsMpdWriter());
+    HELPER_EXPECT_SUCCESS(never_published->initialize(mock_req.get()));
+    never_published->dispose();
+    int never_published_warns = log.warn_count_;
+
+    // Published but wrote no MPD: a file at its MPD path is not its own.
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<SrsMpdWriter> no_mpd(new SrsMpdWriter());
+    no_mpd->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(no_mpd->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(no_mpd->on_publish());
+    no_mpd->home_ = "/tmp/srs-utest-dash-mpd-not-written";
+
+    SrsPath path;
+    HELPER_EXPECT_SUCCESS(path.mkdir_all("/tmp/srs-utest-dash-mpd-not-written"));
+    std::ofstream("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd") << "mpd";
+    no_mpd->dispose();
+    bool other_mpd_kept = path.exists("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd");
+    int no_mpd_warns = log.warn_count_ - never_published_warns;
+
+    _srs_log = original_log;
+    ::unlink("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd");
+    ::rmdir("/tmp/srs-utest-dash-mpd-not-written");
+    no_mpd->config_ = NULL;
+
+    EXPECT_EQ(0, never_published_warns);
+    EXPECT_EQ(0, no_mpd_warns);
+    EXPECT_TRUE(other_mpd_kept);
+}
+
+// Test: the dispose removes the MPD the writer wrote, once; a second dispose has nothing
+// left to remove and logs no warning.
+VOID TEST(MpdWriterTest, DisposeRemovesWrittenMpd)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpdWriter> mpd_writer(new SrsMpdWriter());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    mpd_writer->config_ = mock_config.get();
+
+    HELPER_EXPECT_SUCCESS(mpd_writer->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(mpd_writer->on_publish());
+    mpd_writer->home_ = "/tmp/srs-utest-dash-mpd-dispose";
+
+    SrsFragmentWindow afragments, vfragments;
+    SrsFragment *vfragment = new SrsFragment();
+    vfragment->append(0);
+    vfragment->append(2000);
+    vfragments.append(vfragment);
+
+    SrsFormat format;
+    format.vcodec_ = new SrsVideoCodecConfig();
+    format.vcodec_->id_ = SrsVideoCodecIdAVC;
+    HELPER_EXPECT_SUCCESS(mpd_writer->write(&format, &afragments, &vfragments));
+
+    SrsPath path;
+    bool written = path.exists("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    mpd_writer->dispose();
+    bool left = path.exists("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
+    mpd_writer->dispose();
+
+    _srs_log = original_log;
+    ::unlink("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
+    ::rmdir("/tmp/srs-utest-dash-mpd-dispose");
+    mpd_writer->config_ = NULL;
+
+    EXPECT_TRUE(written);
+    EXPECT_FALSE(left);
+    EXPECT_EQ(0, log.warn_count_);
+}
+
 VOID TEST(DashControllerTest, InitializeAndDispose)
 {
     srs_error_t err;
@@ -6337,6 +6426,39 @@ VOID TEST(HttpHooksTest, OnForwardBackendSuccess)
     hooks->factory_ = NULL;
     hooks->stat_ = NULL;
     mock_factory->mock_http_client_ = NULL;
+}
+
+// A hook url with a query and no path posts to the root with its query, since
+// a request line must start its target with a slash; with a path, to the path.
+VOID TEST(HttpHooksTest, DoPostQueryWithoutPath)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsHttpHooks> hooks(new SrsHttpHooks());
+
+    if (true) {
+        MockHttpClientForHooks client;
+        MockHttpMessageForHooks *msg = new MockHttpMessageForHooks();
+        msg->body_content_ = "{\"code\":0}";
+        client.mock_response_ = msg;
+
+        int code = 0;
+        string res;
+        HELPER_EXPECT_SUCCESS(hooks->do_post(&client, "http://127.0.0.1:8085?token=abc", "{}", code, res));
+        EXPECT_STREQ("/?token=abc", client.path_.c_str());
+    }
+
+    if (true) {
+        MockHttpClientForHooks client;
+        MockHttpMessageForHooks *msg = new MockHttpMessageForHooks();
+        msg->body_content_ = "{\"code\":0}";
+        client.mock_response_ = msg;
+
+        int code = 0;
+        string res;
+        HELPER_EXPECT_SUCCESS(hooks->do_post(&client, "http://127.0.0.1:8085/api/v1/streams?token=abc", "{}", code, res));
+        EXPECT_STREQ("/api/v1/streams?token=abc", client.path_.c_str());
+    }
 }
 
 // The ids of the forwards in a dump, in order.

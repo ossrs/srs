@@ -197,6 +197,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // The home for fragment, relative to home.
     std::string fragment_home_;
+    // The path of the MPD file written last, empty if none.
+    std::string mpd_path_;
 
 public:
     SrsMpdWriter();

@@ -324,7 +324,8 @@ func TestHls_Fmp4(t *testing.T) {
 // the groups depends on what the others set. TestApi_RawApi shares it for
 // the RAW API on with reload off, which the other groups never use, and
 // TestHttpStatic_RemuxOff for FLV files, which the remux off leaves to the
-// static files.
+// static files, and for the vhost's static files at escapedMount, a path no
+// other group asks for.
 func sharedRemuxOff() server.Config {
 	cfg := server.HLSConfig(server.HLS{FMP4: true})
 	cfg.Env["SRS_VHOST_HTTP_REMUX_ENABLED"] = "off"
@@ -334,8 +335,14 @@ func sharedRemuxOff() server.Config {
 		Path:       "./objs/nginx/html/" + dashDir,
 		MPDFile:    "[app]/[stream]-manifest.mpd",
 	}), sharedRemuxOffSRT)
+	cfg = server.WithStatic(cfg, escapedMount)
 	return server.WithRawAPI(server.WithRTSP(cfg, server.RTSPOptions{NoRTMPToRTSP: true}), server.RawAPI{})
 }
+
+// escapedMount is the vhost's static files of RemuxOff, mounted at a path
+// with an escape, as a mount of a dir whose name has a space is written: SRS
+// matches the mount to the path as the URL encodes it.
+var escapedMount = server.Static{Mount: "[vhost]/a%20b/", Dir: "./escaped/[vhost]"}
 
 // TestHls_Fmp4Default plays HLS in fmp4 with every file at SRS's default
 // names: the playlist [app]/[stream].m3u8, the segments

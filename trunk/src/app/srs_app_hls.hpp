@@ -489,6 +489,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string m3u8_;
     std::string m3u8_url_;
     std::string init_mp4_uri_; // URI for init.mp4 in m3u8 playlist
+    // The path of the init file written, which the dispose removes.
+    std::string init_mp4_file_;
     int video_track_id_;
     int audio_track_id_;
 

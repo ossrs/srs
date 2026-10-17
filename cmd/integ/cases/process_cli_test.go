@@ -144,6 +144,12 @@ var badEnv = []struct {
 	{name: "AtcAutoOff", env: envOf("SRS_VHOST_PLAY_ATC_AUTO", "off")},
 	// A vhost setting by env: forward conflicts with kickoff_for_idle.
 	{name: "ForwardWithKickoffForIdle", env: envOf("SRS_VHOST_FORWARD_ENABLED", "on", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000")},
+	// A time setting must be a finite number of seconds that is not negative:
+	// not nan, not inf, not below zero, and a number.
+	{name: "HlsDisposeNan", env: envOf("SRS_VHOST_HLS_HLS_DISPOSE", "nan")},
+	{name: "HlsDisposeInf", env: envOf("SRS_VHOST_HLS_HLS_DISPOSE", "inf")},
+	{name: "HlsDisposeNegative", env: envOf("SRS_VHOST_HLS_HLS_DISPOSE", "-1")},
+	{name: "HlsDisposeNotNumber", env: envOf("SRS_VHOST_HLS_HLS_DISPOSE", "abc")},
 }
 
 // envOf returns the env of name and value pairs.

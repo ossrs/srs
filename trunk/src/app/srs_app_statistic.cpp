@@ -557,28 +557,37 @@ srs_error_t SrsStatistic::on_client(std::string id, ISrsRequest *req, ISrsExpire
 
     // create client if not exists
     SrsStatisticClient *client = NULL;
-    bool counted = false;
     if (clients_.find(id) == clients_.end()) {
         client = new SrsStatisticClient();
         client->assemble();
         client->id_ = id;
         client->stream_ = stream;
         clients_[id] = client;
+
+        stream->nb_clients_++;
+        vhost->nb_clients_++;
+        nb_clients_++;
     } else {
         client = clients_[id];
         // A client added again to its stream counts once, such as a WebRTC player, which is added
-        // before its on_play hook, then again when its session makes its player.
-        counted = (client->stream_ == stream);
+        // before its on_play hook, then again when its session makes its player. A client added
+        // to another stream moves to it, so its disconnect leaves the stream it is on.
+        SrsStatisticStream *old = client->stream_;
+        if (old != stream) {
+            old->nb_clients_--;
+            old->vhost_->nb_clients_--;
+
+            client->stream_ = stream;
+            stream->nb_clients_++;
+            vhost->nb_clients_++;
+
+            cleanup_stream(old);
+        }
     }
 
     // got client.
     client->conn_ = conn;
     client->type_ = type;
-    if (!counted) {
-        stream->nb_clients_++;
-        vhost->nb_clients_++;
-        nb_clients_++;
-    }
 
     // The req might be freed, in such as SrsLiveStream::update, so we must copy it.
     // @see https://github.com/ossrs/srs/issues/2311

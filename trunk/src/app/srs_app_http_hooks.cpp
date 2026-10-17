@@ -455,14 +455,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, ISrsReq
         return srs_error_wrap(err, "http: init client for %s", url.c_str());
     }
 
-    std::string path = uri.get_query();
-    if (path.empty()) {
-        path = uri.get_path();
-    } else {
-        path = uri.get_path();
-        path += "?";
-        path += uri.get_query();
-    }
+    std::string path = uri.get_request_target();
     srs_info("GET %s", path.c_str());
 
     ISrsHttpMessage *msg_raw = NULL;
@@ -628,13 +621,8 @@ srs_error_t SrsHttpHooks::do_post(ISrsHttpClient *hc, std::string url, std::stri
         return srs_error_wrap(err, "http: init client");
     }
 
-    string path = uri.get_path();
-    if (!uri.get_query().empty()) {
-        path += "?" + uri.get_query();
-    }
-
     ISrsHttpMessage *msg_raw = NULL;
-    if ((err = hc->post(path, req, &msg_raw)) != srs_success) {
+    if ((err = hc->post(uri.get_request_target(), req, &msg_raw)) != srs_success) {
         return srs_error_wrap(err, "http: client post");
     }
     SrsUniquePtr<ISrsHttpMessage> msg(msg_raw);

@@ -25,7 +25,8 @@ import (
 
 // rtmpBadInput adds the RTMP bad-input cases to TestRtmp_Common: broken
 // handshakes, broken chunk headers, unknown and out-of-order commands, a
-// tcUrl without an app, and clients that close in the middle of a message.
+// tcUrl without an app, an audio codec SRS doesn't take, and clients that
+// close in the middle of a message.
 // SRS answers a broken stream by closing the connection, with no error reply,
 // so each case checks the close, or what SRS ignores, and that the server
 // still serves the next client.
@@ -247,6 +248,26 @@ func rtmpBadInput(t *testing.T) {
 
 		// A frame SRS kept would come first and shift every message after it.
 		checkSameMedia(c, readMedia(c, player, tags), tags)
+	})
+
+	// UnsupportedAudioCloses publishes H.264 with a G.711 A-law audio tag,
+	// FLV sound format 7: SRS takes only AAC and MP3 audio, so it ends the
+	// publish at that tag, with its video, and closes the publisher.
+	check.Case(t, "UnsupportedAudioCloses", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		pub := publishTags(c, rtmpURL(srs, "live/"+stream), ofType(firstKeyframe(c, media.H264HighAAC), media.TagVideo))
+		waitHook(c, srs, "on_publish", stream)
+
+		c.Must(pub.WriteTag(&media.FLVTag{Type: media.TagAudio, Timestamp: 40, Data: []byte{0x72, 0xd5, 0xd5, 0xd5, 0xd5}}), "send a G.711 audio tag")
+		waitHook(c, srs, "on_unpublish", stream)
+		pub.SetDeadline(time.Now().Add(time.Second))
+		var err error
+		for err == nil {
+			_, err = pub.ReadTag()
+		}
+		checkDialClosed(c, err, "read the publisher after its G.711 tag")
+		checkRTMPServes(c, srs)
 	})
 
 	// PublishMissingApp publishes with a tcUrl that has no app: SRS puts

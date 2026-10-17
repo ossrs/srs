@@ -22,6 +22,7 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 using namespace std;
 
@@ -2178,6 +2179,51 @@ srs_error_t SrsConfig::build_buffer(string src, SrsConfigBuffer **pbuffer)
 }
 // LCOV_EXCL_STOP
 
+// Whether a time directive's value, in seconds or milliseconds, is a finite number that is not negative,
+// such as 10, 0.5 or 1e3. The getters read it with atof and cast it to srs_utime_t, which is undefined for
+// nan or inf, and a negative time or a value with no number has no meaning for any of them.
+static bool srs_config_time_valid(const string &value)
+{
+    const char *s = value.c_str();
+    char *end = NULL;
+    double v = ::strtod(s, &end);
+    return end != s && std::isfinite(v) && v >= 0;
+}
+
+// The time directives of a vhost the getters read with atof, by section, name and env var.
+static const char *srs_config_vhost_times[][3] = {
+    {"rtc", "stun_timeout", "SRS_VHOST_RTC_STUN_TIMEOUT"},
+    {"rtc", "pli_for_rtmp", "SRS_VHOST_RTC_PLI_FOR_RTMP"},
+    {"play", "queue_length", "SRS_VHOST_PLAY_QUEUE_LENGTH"},
+    {"play", "send_min_interval", "SRS_VHOST_PLAY_SEND_MIN_INTERVAL"},
+    {"publish", "kickoff_for_idle", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE"},
+    {"dash", "dash_fragment", "SRS_VHOST_DASH_DASH_FRAGMENT"},
+    {"dash", "dash_update_period", "SRS_VHOST_DASH_DASH_UPDATE_PERIOD"},
+    {"dash", "dash_timeshift", "SRS_VHOST_DASH_DASH_TIMESHIFT"},
+    {"dash", "dash_dispose", "SRS_VHOST_DASH_DASH_DISPOSE"},
+    {"hls", "hls_fragment", "SRS_VHOST_HLS_HLS_FRAGMENT"},
+    {"hls", "hls_window", "SRS_VHOST_HLS_HLS_WINDOW"},
+    {"hls", "hls_dispose", "SRS_VHOST_HLS_HLS_DISPOSE"},
+    {"dvr", "dvr_duration", "SRS_VHOST_DVR_DVR_DURATION"},
+    {"http_remux", "fast_cache", "SRS_VHOST_HTTP_REMUX_FAST_CACHE"},
+};
+
+// Check the time directive name of the section, which is fine when the section or the value is not there.
+static srs_error_t srs_config_check_time(SrsConfDirective *section, const string &name, const string &where)
+{
+    SrsConfDirective *conf = section ? section->get(name) : NULL;
+    if (!conf || conf->arg0().empty()) {
+        return srs_success;
+    }
+
+    if (!srs_config_time_valid(conf->arg0())) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid %s %s=%s, not a time that is finite and not negative",
+                             where.c_str(), name.c_str(), conf->arg0().c_str());
+    }
+
+    return srs_success;
+}
+
 srs_error_t SrsConfig::check_config()
 {
     srs_error_t err = srs_success;
@@ -2437,6 +2483,51 @@ srs_error_t SrsConfig::check_normal_config()
         string listen = get_exporter_listen();
         if (!srs_net_is_valid_endpoint(listen)) {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "exporter.listen=%s is invalid", listen.c_str());
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check time directives, from the file and the env, before any getter reads them.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        vector<string> envs;
+        envs.push_back("SRS_HEARTBEAT_INTERVAL");
+        envs.push_back("SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT");
+        for (int i = 0; i < (int)(sizeof(srs_config_vhost_times) / sizeof(srs_config_vhost_times[0])); i++) {
+            envs.push_back(srs_config_vhost_times[i][2]);
+        }
+        for (int i = 0; i < (int)envs.size(); i++) {
+            string env = envs.at(i);
+            string value = srs_getenv(env);
+            if (!value.empty() && !srs_config_time_valid(value)) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid %s=%s, not a time that is finite and not negative",
+                                     env.c_str(), value.c_str());
+            }
+        }
+
+        if ((err = srs_config_check_time(root_->get("heartbeat"), "interval", "heartbeat")) != srs_success) {
+            return err;
+        }
+
+        vector<SrsConfDirective *> casters = get_stream_casters();
+        for (int i = 0; i < (int)casters.size(); i++) {
+            SrsConfDirective *caster = casters.at(i);
+            if ((err = srs_config_check_time(caster, "media_connect_timeout", "stream_caster")) != srs_success) {
+                return err;
+            }
+        }
+
+        vector<SrsConfDirective *> vhosts;
+        get_vhosts(vhosts);
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective *vhost = vhosts.at(i);
+            for (int j = 0; j < (int)(sizeof(srs_config_vhost_times) / sizeof(srs_config_vhost_times[0])); j++) {
+                string section = srs_config_vhost_times[j][0];
+                string where = "vhost " + vhost->arg0() + " " + section;
+                if ((err = srs_config_check_time(vhost->get(section), srs_config_vhost_times[j][1], where)) != srs_success) {
+                    return err;
+                }
+            }
         }
     }
 
@@ -7131,8 +7222,8 @@ string SrsConfig::get_hls_key_file_path(std::string vhost)
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_key_file_path"); // SRS_VHOST_HLS_HLS_KEY_FILE_PATH
 
-    // put the key in ts path defaultly.
-    static string DEFAULT = get_hls_path(vhost);
+    // put the key in the vhost's hls_path defaultly.
+    string DEFAULT = get_hls_path(vhost);
 
     SrsConfDirective *conf = get_hls(vhost);
     if (!conf) {

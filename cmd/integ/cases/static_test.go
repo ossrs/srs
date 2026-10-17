@@ -172,6 +172,31 @@ func TestHttpStatic_Common(t *testing.T) {
 		checkStaticServes(c, srs)
 	})
 
+	// DirRedirectStaysOnTheHost asks for a dir without its slash with two
+	// leading slashes, or a backslash after the first: a redirect to a path
+	// on this host, never to "//dir/" or "/\dir/", which a browser reads as
+	// the host dir.
+	check.Case(t, "DirRedirectStaysOnTheHost", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		dir := streamName(c)
+		writeStatic(c, filepath.Join(srs.WebRoot(), dir, "index.html"), []byte("<p>"+dir+"</p>"))
+		writeStatic(c, filepath.Join(srs.WebRoot(), `\`+dir, "index.html"), []byte("<p>"+dir+"</p>"))
+
+		res, _, err := rawStaticResponse(c, srs.Addr(server.HTTPServer), "//"+dir)
+		if c.CheckNoError(err, "the answer") {
+			c.CheckEqual(res.StatusCode, 301, "status")
+			c.CheckEqual(res.Header.Get("Location"), "/"+dir+"/", "Location")
+		}
+
+		res, _, err = rawStaticResponse(c, srs.Addr(server.HTTPServer), `/\`+dir)
+		if c.CheckNoError(err, "the answer of the backslash") && res.StatusCode/100 == 3 {
+			location := res.Header.Get("Location")
+			c.Check(len(location) > 1 && location[0] == '/' && location[1] != '/' && location[1] != '\\',
+				"the backslash: Location %q, want a path on this host", location)
+		}
+		checkStaticServes(c, srs)
+	})
+
 	// TraversalNotServed asks for a file outside the dir through "..": SRS
 	// doesn't serve it, and serves the next request.
 	check.Case(t, "TraversalNotServed", check.Normal, func(c *check.C) {
@@ -439,18 +464,28 @@ func staticDo(c *check.C, srs *server.Server, method, path string, header http.H
 // when the server closes the connection without one.
 func rawStaticGet(c *check.C, addr, target string) (int, []byte, error) {
 	c.Helper()
+	res, body, err := rawStaticResponse(c, addr, target)
+	if res == nil {
+		return 0, nil, err
+	}
+	return res.StatusCode, body, err
+}
+
+// rawStaticResponse is rawStaticGet with the response's headers.
+func rawStaticResponse(c *check.C, addr, target string) (*http.Response, []byte, error) {
+	c.Helper()
 	conn := rawConnTo(c, addr)
 	conn.SetDeadline(time.Now().Add(time.Second))
 	if _, err := fmt.Fprintf(conn, "GET %s HTTP/1.1\r\nHost: localhost\r\n\r\n", target); err != nil {
-		return 0, nil, err
+		return nil, nil, err
 	}
 	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
 	if err != nil {
-		return 0, nil, err
+		return nil, nil, err
 	}
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
-	return res.StatusCode, body, err
+	return res, body, err
 }
 
 // checkStaticType gets a file of the name and checks its Content-Type.

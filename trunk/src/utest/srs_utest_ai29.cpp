@@ -553,6 +553,29 @@ VOID TEST(VodStreamRangeTest, SuffixRangeLongerThanFileServesTheWholeFile)
     EXPECT_PRED2(is_string_contain, "Hello, world!", resp);
 }
 
+// A suffix range of zero bytes names no byte of the file, so it is refused with 416 and the file size in
+// Content-Range, as RFC 9110 has it, not served as the first byte.
+VOID TEST(VodStreamRangeTest, SuffixRangeOfZeroBytesIsUnsatisfiable)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {"/index.mp4?bytes=-0", "/index.mp4?range=-0"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", urls[i], resp));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */13", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("Hello", resp)) << urls[i];
+    }
+
+    // The Range header is refused the same way.
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4", resp, "bytes=-0"));
+    EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes */13", resp);
+}
+
 // A range that starts at or past the file size has no byte to serve, so it is refused with 416 and the file size in
 // Content-Range, as RFC 9110 has it, instead of closing the connection with no answer. The request still succeeds, so
 // the connection serves the next request.
@@ -872,14 +895,14 @@ bool MockSrsPathForHttpFileServer::is_dir(string path)
     return is_dir_;
 }
 
-// Serve url from the static dir /tmp, whose every path is a directory or a file of content, and return the raw HTTP
-// response in resp.
-static srs_error_t mock_file_server_serve(MockSrsPathForHttpFileServer *path, string content, string url, string &resp, vector<string> *dir_paths = NULL)
+// Serve url from the static dir /tmp mounted at pattern, whose every path is a directory or a file of content, and
+// return the raw HTTP response in resp.
+static srs_error_t mock_file_server_serve(MockSrsPathForHttpFileServer *path, string content, string url, string &resp, vector<string> *dir_paths = NULL, string pattern = "/")
 {
     srs_error_t err = srs_success;
 
     SrsHttpMuxEntry entry;
-    entry.pattern = "/";
+    entry.pattern = pattern;
 
     SrsHttpFileServer server("/tmp");
     server.set_fs_factory(new MockFileReaderFactoryForVodStream(content));
@@ -936,6 +959,28 @@ VOID TEST(HttpFileServerDirTest, DirRedirectKeepsTheQuery)
         HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", urls[i], resp));
         EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp) << urls[i];
         EXPECT_PRED2(is_string_contain, string("Location: ") + urls[i] + "/\r\n", resp) << urls[i];
+    }
+}
+
+// A path that starts with several slashes redirects to a location with one: a browser reads "//sub/" as the host sub,
+// not a path. A backslash is escaped, since a browser reads "/\sub/" as "//sub/" too.
+VOID TEST(HttpFileServerDirTest, DirRedirectStaysOnTheHost)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[][2] = {
+        {"//sub", "/sub/"},
+        {"///live/sub?v=1", "/live/sub/?v=1"},
+        {"//evil.com", "/evil.com/"},
+        {"/\\evil.com", "/%5Cevil.com/"},
+        {"/live/a\\b", "/live/a%5Cb/"},
+    };
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", urls[i][0], resp));
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp) << urls[i][0];
+        EXPECT_PRED2(is_string_contain, string("Location: ") + urls[i][1] + "\r\n", resp) << urls[i][0];
     }
 }
 
@@ -1075,4 +1120,116 @@ VOID TEST(HttpFileServerEscapeTest, BadEscapeIsBadRequest)
         EXPECT_FALSE(is_string_contain("Hello, world!", resp)) << urls[i];
         EXPECT_TRUE(dir_paths.empty()) << urls[i];
     }
+}
+
+// The mux matches a mount to the path as the URL encodes it, so a mount with an escape, such as /a%20b/, serves the
+// file of the rest of the path, decoded, under its dir. A vhost's mount, such as ossrs.net/hls/, takes its path, not
+// its vhost, off the URL path, also for a short file name.
+VOID TEST(HttpFileServerEscapeTest, EscapedMountServesTheFileUnderIt)
+{
+    srs_error_t err = srs_success;
+
+    const char *cases[][3] = {
+        {"/a%20b/", "/a%20b/f.dat", "/tmp/f.dat"},
+        {"/a%20b/", "/a%20b/live/c%20d.dat", "/tmp/live/c d.dat"},
+        {"/a%20b/", "/a%20b/", "/tmp/index.html"},
+        {"/100%25/", "/100%25/f.dat", "/tmp/f.dat"},
+        {"/%E5%90%8D/", "/%E5%90%8D/f.dat", "/tmp/f.dat"},
+        {"/hls/", "/hls/a%20b.dat", "/tmp/a b.dat"},
+        {"ossrs.net/a%20b/", "/a%20b/f.dat", "/tmp/f.dat"},
+        {"ossrs.net/hls/", "/hls/a%20b.dat", "/tmp/a b.dat"},
+        {"ossrs.net/hls/", "/hls/f.dat", "/tmp/f.dat"},
+        {"ossrs.net/hls/", "/hls/live/livestream-0.ts", "/tmp/live/livestream-0.ts"},
+    };
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+        string resp;
+        vector<string> dir_paths;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "Hello, world!", cases[i][1], resp, &dir_paths, cases[i][0]));
+
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 200 OK", resp) << cases[i][0] << " " << cases[i][1];
+        ASSERT_EQ(1, (int)dir_paths.size()) << cases[i][0] << " " << cases[i][1];
+        EXPECT_STREQ(cases[i][2], dir_paths[0].c_str()) << cases[i][0] << " " << cases[i][1];
+    }
+}
+
+// Authenticate a request to the HTTP API with the Authorization header auth, against the user admin and the password
+// real-pass, and return the description of the refusal, which the auth mux writes to the log, and the
+// WWW-Authenticate of the answer in challenge.
+static string mock_basic_auth_refusal(string auth, string *challenge = NULL)
+{
+    SrsHttpBasicAuthenticator a("admin", "real-pass");
+
+    MockResponseWriter w;
+    SrsHttpMessage r(NULL, NULL);
+    r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+    srs_error_t err = r.set_url("/api/v1/versions", false);
+    srs_freep(err);
+
+    SrsHttpHeader h;
+    h.set("Authorization", auth);
+    r.set_header(&h, false);
+
+    err = a.authenticate(&w, &r);
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    if (challenge) {
+        *challenge = w.header()->get("WWW-Authenticate");
+    }
+    return desc;
+}
+
+// A refused password, often a near-miss of the real one, is not logged: the refusal names the user only.
+VOID TEST(HttpBasicAuthLogTest, WrongPasswordLogsTheUserOnly)
+{
+    // admin:guess-pass
+    string desc = mock_basic_auth_refusal("Basic YWRtaW46Z3Vlc3MtcGFzcw==");
+    EXPECT_FALSE(desc.empty());
+    EXPECT_FALSE(is_string_contain("guess-pass", desc)) << desc;
+    EXPECT_FALSE(is_string_contain("YWRtaW46Z3Vlc3MtcGFzcw==", desc)) << desc;
+    EXPECT_PRED2(is_string_contain, "user admin", desc);
+}
+
+// Credentials that don't parse are not logged either: neither the header, nor its token, nor the decoded text.
+VOID TEST(HttpBasicAuthLogTest, MalformedCredentialsAreNotLogged)
+{
+    const char *refused[][2] = {
+        // The decoded token guess-pass has no colon.
+        {"Basic Z3Vlc3MtcGFzcw==", "guess-pass"},
+        // A token that isn't base64.
+        {"Basic guess-pass!", "guess-pass"},
+        // Credentials of another scheme.
+        {"Token guess-pass", "guess-pass"},
+        {"Basicguess-pass", "guess-pass"},
+    };
+    for (int i = 0; i < (int)(sizeof(refused) / sizeof(refused[0])); i++) {
+        string desc = mock_basic_auth_refusal(refused[i][0]);
+        EXPECT_FALSE(desc.empty()) << refused[i][0];
+        EXPECT_FALSE(is_string_contain(refused[i][1], desc)) << refused[i][0] << ": " << desc;
+        EXPECT_FALSE(is_string_contain("Z3Vlc3MtcGFzcw", desc)) << refused[i][0] << ": " << desc;
+    }
+}
+
+// Every refusal challenges with the Basic scheme and the realm it requires (RFC 7617 2), so a strict client prompts
+// for the credentials and retries; an accepted request gets no challenge.
+VOID TEST(HttpBasicAuthChallengeTest, EveryRefusalNamesTheRealm)
+{
+    const char *refused[] = {
+        "",                               // No credentials.
+        "Basic YWRtaW46Z3Vlc3MtcGFzcw==", // admin:guess-pass
+        "Basic Z3Vlc3MtcGFzcw==",         // guess-pass, no colon.
+        "Basic guess-pass!",              // Not base64.
+        "Basic ",                         // No token.
+        "Bearer real-pass",               // Another scheme.
+    };
+    for (int i = 0; i < (int)(sizeof(refused) / sizeof(refused[0])); i++) {
+        string challenge;
+        EXPECT_STRNE("Success", mock_basic_auth_refusal(refused[i], &challenge).c_str()) << refused[i];
+        EXPECT_STREQ("Basic realm=\"SRS\"", challenge.c_str()) << refused[i];
+    }
+
+    // admin:real-pass
+    string challenge;
+    EXPECT_STREQ("Success", mock_basic_auth_refusal("Basic YWRtaW46cmVhbC1wYXNz", &challenge).c_str());
+    EXPECT_TRUE(challenge.empty());
 }

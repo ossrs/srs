@@ -19,6 +19,7 @@ import (
 	"srs-integ/internal/hls"
 	"srs-integ/internal/media"
 	"srs-integ/internal/mock"
+	"srs-integ/internal/report"
 	"srs-integ/internal/rtmp"
 	"srs-integ/internal/server"
 )
@@ -161,6 +162,72 @@ func TestTimer_Hls_Dispose(t *testing.T) {
 		r := segmentReport(c, httpClient, pl.Segments[0].URI)
 		checkVideo(c, r, "h264")
 		checkAudio(c, r, "aac", 1)
+	})
+}
+
+// sharedFmp4Dispose is the config of the timer server of
+// TestTimer_Hls_Fmp4Dispose: HLS in fmp4 at the default file templates, with
+// 1s fragments and hls_dispose at 0.5s.
+func sharedFmp4Dispose() server.Config {
+	return server.HLSConfig(server.HLS{FMP4: true, Fragment: time.Second, Dispose: segmentDispose})
+}
+
+// TestTimer_Hls_Fmp4Dispose checks hls_dispose of HLS in fmp4: SRS removes
+// the playlist, the segments and the init file of a stream that has sent no
+// media for 0.5s.
+func TestTimer_Hls_Fmp4Dispose(t *testing.T) {
+	t.Parallel()
+	srs := server.Shared(t, "Fmp4Dispose", sharedFmp4Dispose())
+
+	// files lists the stream's playlist, segments and init file.
+	files := func(stream string) []string {
+		return globFiles(htmlDir(srs), stream+".m3u8", stream+"-*.m4s", stream+"-*.m4s.tmp", stream+"/init.mp4")
+	}
+	// publish publishes 5s at once, which closes 2 segments of 2s, and waits for
+	// the playlist. It returns the publisher, the stream and when the last
+	// media was sent.
+	publish := func(c *check.C) (*rtmp.Client, string, time.Time) {
+		stream := "live/" + streamName(c)
+		pub := publishThrough(c, srs, stream, media.H264HighAAC, 5*time.Second)
+		sent := time.Now()
+		waitPlaylist(c, httpClient, flvURL(srs, stream+".m3u8"), hasSegment(1))
+		return pub, stream, sent
+	}
+
+	// After the unpublish, the init file goes with the playlist and every
+	// segment, and the HTTP server answers 404 for it.
+	check.Case(t, "FilesRemoved", check.Timer, func(c *check.C) {
+		pub, stream, sent := publish(c)
+		initFile := filepath.Join(htmlDir(srs), stream, "init.mp4")
+		_, err := os.Stat(initFile)
+		c.CheckNoError(err, "the init file before the dispose")
+		c.Check(len(files(stream)) >= 4, "files %v, want the playlist, 2 segments and the init file", files(stream))
+		pub.Close()
+		gone := untilNoFiles(c, func() []string { return files(stream) })
+		checkDisposed(c, gone.Sub(sent))
+		res, _ := httpGet(c, httpClient, flvURL(srs, stream+"/init.mp4"))
+		c.CheckEqual(res.StatusCode, 404, "status of the init file")
+	})
+
+	// A publisher that sends media again after its stream was disposed gets
+	// its init file again, from the sequence headers fed again.
+	check.Case(t, "IdlePublisherResumes", check.Timer, func(c *check.C) {
+		pub, stream, _ := publish(c)
+		untilNoFiles(c, func() []string { return files(stream) })
+		publishTagsOn(c, srs, pub, readTags(c, media.H264HighAAC, 5*time.Second+time.Millisecond, 8*time.Second+time.Millisecond))
+		c.CheckNoError(untilFile(filepath.Join(htmlDir(srs), stream, "init.mp4"), time.Second), "the init file after the media resumed")
+	})
+
+	// A republish after the dispose writes the init file again, and the
+	// stream plays.
+	check.Case(t, "RepublishAfterDispose", check.Timer, func(c *check.C) {
+		pub, stream, _ := publish(c)
+		pub.Close()
+		untilNoFiles(c, func() []string { return files(stream) })
+		publishThrough(c, srs, stream, media.H264HighAAC, 5*time.Second)
+		c.CheckNoError(untilFile(filepath.Join(htmlDir(srs), stream, "init.mp4"), time.Second), "the init file of the republish")
+		r := playHLS(c, httpClient, flvURL(srs, stream+".m3u8"), report.Until{VideoHeader: true, AudioHeader: true, Duration: 2 * time.Second})
+		checkPlayed(c, r, "h264", "aac")
 	})
 }
 

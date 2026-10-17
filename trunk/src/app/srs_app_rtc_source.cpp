@@ -863,6 +863,11 @@ bool SrsRtcSource::has_stream_desc()
     return stream_desc_;
 }
 
+SrsRtcSourceDescription *SrsRtcSource::stream_desc()
+{
+    return stream_desc_;
+}
+
 void SrsRtcSource::set_stream_desc(SrsRtcSourceDescription *stream_desc)
 {
     srs_freep(stream_desc_);

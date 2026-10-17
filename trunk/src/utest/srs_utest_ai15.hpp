@@ -110,6 +110,8 @@ public:
     // The error logs and the tag of the last one.
     int error_count_;
     std::string last_error_tag_;
+    // The warning logs.
+    int warn_count_;
 
 public:
     MockLogForSignal();

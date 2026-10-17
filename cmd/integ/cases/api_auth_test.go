@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -68,8 +70,28 @@ func checkUnauthorized(c *check.C, r apiReply, challenge, what string) {
 	c.CheckEqual(r.status, http.StatusUnauthorized, what+" status")
 	c.CheckEqual(string(r.body), "", what+" body")
 	if challenge != "" {
-		c.CheckEqual(r.header.Get("WWW-Authenticate"), challenge, what+" WWW-Authenticate")
+		checkChallenge(c, r.header.Get("WWW-Authenticate"), challenge, what)
 	}
+}
+
+// checkChallenge checks a WWW-Authenticate is of the scheme, and, for Basic, has
+// the quoted realm RFC 7617 requires, without which a strict client does not
+// prompt for credentials.
+func checkChallenge(c *check.C, got, scheme, what string) {
+	c.Helper()
+	name, params, _ := strings.Cut(got, " ")
+	c.Check(strings.EqualFold(name, scheme), "%s WWW-Authenticate %q, want the scheme %s", what, got, scheme)
+	if !strings.EqualFold(scheme, "Basic") {
+		return
+	}
+	var realm string
+	for _, p := range strings.Split(params, ",") {
+		k, v, ok := strings.Cut(strings.TrimSpace(p), "=")
+		if ok && strings.EqualFold(k, "realm") && len(v) > 2 && strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`) {
+			realm = v[1 : len(v)-1]
+		}
+	}
+	c.Check(realm != "", "%s WWW-Authenticate %q, want a quoted realm", what, got)
 }
 
 // checkCors checks the CORS headers of an answer to a request with an Origin.
@@ -192,7 +214,7 @@ func TestApi_BasicOnePort(t *testing.T) {
 	})
 
 	// NoCredentials asks without credentials: 401 with a Basic challenge and
-	// no body.
+	// its realm, and no body.
 	check.Case(t, "NoCredentials", check.Fast, func(c *check.C) {
 		checkUnauthorized(c, apiRequest(c, httpClient, http.MethodGet, api("/api/v1/summaries"), "", nil), "Basic", "summaries")
 	})
@@ -228,11 +250,39 @@ func TestApi_BasicOnePort(t *testing.T) {
 	})
 
 	// EveryRefusalChallenges checks those malformed credentials get the Basic
-	// challenge too: a 401 must have a WWW-Authenticate (RFC 9110).
+	// challenge with its realm too: a 401 must have a WWW-Authenticate (RFC 9110).
 	check.Case(t, "EveryRefusalChallenges", check.Fast, func(c *check.C) {
 		for what, v := range malformed {
 			r := apiRequest(c, httpClient, http.MethodGet, api("/api/v1/summaries"), v, nil)
-			c.CheckEqual(r.header.Get("WWW-Authenticate"), "Basic", what+" WWW-Authenticate")
+			checkChallenge(c, r.header.Get("WWW-Authenticate"), "Basic", what)
+		}
+	})
+
+	// RefusalLogsNoPassword sends a wrong password and malformed credentials
+	// that carry a guessed password: the log names the user of the wrong
+	// password, and holds neither the guess nor a token of it.
+	check.Case(t, "RefusalLogsNoPassword", check.Fast, func(c *check.C) {
+		user, guess := "user-"+streamName(c), "guess-"+streamName(c)
+		tokens := []string{
+			base64.StdEncoding.EncodeToString([]byte(user + ":" + guess)),
+			base64.StdEncoding.EncodeToString([]byte(guess)),
+		}
+		refused := []string{"Basic " + tokens[0], "Basic " + tokens[1], "Basic " + guess + "!", "Bearer " + guess}
+		for _, v := range refused {
+			checkUnauthorized(c, apiRequest(c, httpClient, http.MethodGet, api("/api/v1/summaries"), v, nil), "Basic", v)
+		}
+
+		console := filepath.Join(srs.Dir, "console.log")
+		var log string
+		c.Check(until(check.Scaled(time.Second), func() bool {
+			b, err := os.ReadFile(console)
+			c.Must(err, "read the console log")
+			log = string(b)
+			return strings.Contains(log, user)
+		}), "the log doesn't name the user %s", user)
+		c.Check(!strings.Contains(log, guess), "the log holds the guessed password %s", guess)
+		for _, token := range tokens {
+			c.Check(!strings.Contains(log, token), "the log holds the token %s", token)
 		}
 	})
 

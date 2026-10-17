@@ -114,13 +114,10 @@ VOID TEST(ConfigRtcTest, CheckRtcPliForRtmpRangeValidation)
         EXPECT_EQ(6 * SRS_UTIME_SECONDS, conf.get_rtc_pli_for_rtmp("test.com"));
     }
 
-    // Test negative value (should reset to default)
+    // Test negative value (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{pli_for_rtmp -1;}}"));
-
-        // Should reset to default (6 seconds) when value is negative
-        EXPECT_EQ(6 * SRS_UTIME_SECONDS, conf.get_rtc_pli_for_rtmp("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{pli_for_rtmp -1;}}"));
     }
 }
 
@@ -227,13 +224,10 @@ VOID TEST(ConfigRtcTest, CheckRtcPliForRtmpEdgeCases)
         EXPECT_EQ(6 * SRS_UTIME_SECONDS, conf.get_rtc_pli_for_rtmp("__defaultVhost__"));
     }
 
-    // Test non-numeric configuration value (should parse as 0 and reset to default)
+    // Test non-numeric configuration value (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{pli_for_rtmp invalid;}}"));
-
-        // Should reset to default when config value is non-numeric
-        EXPECT_EQ(6 * SRS_UTIME_SECONDS, conf.get_rtc_pli_for_rtmp("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{pli_for_rtmp invalid;}}"));
     }
 
     // Test multiple vhosts with different configurations
@@ -2892,6 +2886,19 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyFilePath)
     }
 }
 
+// With no hls_key_file_path, each vhost puts its keys in its own hls_path.
+VOID TEST(ConfigHlsTest, HlsKeyFilePathDefaultPerVhost)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost a.com{hls{hls_path /data/a;}} vhost b.com{hls{hls_path /data/b;}}"));
+
+    EXPECT_STREQ("/data/a", conf.get_hls_key_file_path("a.com").c_str());
+    EXPECT_STREQ("/data/b", conf.get_hls_key_file_path("b.com").c_str());
+    EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_file_path("__defaultVhost__").c_str());
+}
+
 VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
 {
     srs_error_t err;
@@ -3097,11 +3104,10 @@ VOID TEST(ConfigVhostTest, CheckQueueLength)
         EXPECT_EQ(0 * SRS_UTIME_SECONDS, conf.get_queue_length("test.com"));
     }
 
-    // Test negative values (should be parsed as is)
+    // Test negative values (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{queue_length -5;}}"));
-        EXPECT_EQ(-5 * SRS_UTIME_SECONDS, conf.get_queue_length("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{queue_length -5;}}"));
     }
 }
 
@@ -3313,11 +3319,10 @@ VOID TEST(ConfigPublishTest, CheckPublishKickoffForIdle)
         EXPECT_EQ(0, conf.get_publish_kickoff_for_idle("test.com"));
     }
 
-    // Test negative values (should be parsed as is)
+    // Test negative values (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{publish{kickoff_for_idle -10;}}"));
-        EXPECT_EQ((srs_utime_t)(-10 * SRS_UTIME_SECONDS), conf.get_publish_kickoff_for_idle("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{publish{kickoff_for_idle -10;}}"));
     }
 
     // Test multiple vhosts with different configurations
@@ -3704,8 +3709,7 @@ VOID TEST(ConfigDashTest, CheckDashFragment)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment 0;}}"));
         EXPECT_EQ(0, conf.get_dash_fragment("test.com"));
 
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment -5;}}"));
-        EXPECT_EQ((srs_utime_t)(-5 * SRS_UTIME_SECONDS), conf.get_dash_fragment("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment -5;}}"));
     }
 }
 
@@ -3769,8 +3773,7 @@ VOID TEST(ConfigDashTest, CheckDashUpdatePeriod)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_update_period 0;}}"));
         EXPECT_EQ(0, conf.get_dash_update_period("test.com"));
 
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_update_period -10;}}"));
-        EXPECT_EQ((srs_utime_t)(-10 * SRS_UTIME_SECONDS), conf.get_dash_update_period("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_update_period -10;}}"));
     }
 }
 
@@ -3834,8 +3837,7 @@ VOID TEST(ConfigDashTest, CheckDashTimeshift)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_timeshift 0;}}"));
         EXPECT_EQ(0, conf.get_dash_timeshift("test.com"));
 
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_timeshift -30;}}"));
-        EXPECT_EQ((srs_utime_t)(-30 * SRS_UTIME_SECONDS), conf.get_dash_timeshift("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_timeshift -30;}}"));
     }
 }
 
@@ -4256,11 +4258,10 @@ VOID TEST(ConfigDashTest, CheckDashDispose)
         EXPECT_EQ(0, conf.get_dash_dispose("test.com"));
     }
 
-    // Test negative values
+    // Test negative values (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_dispose -60;}}"));
-        EXPECT_EQ(-60 * SRS_UTIME_SECONDS, conf.get_dash_dispose("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_dispose -60;}}"));
     }
 }
 
@@ -4712,6 +4713,107 @@ VOID TEST(ConfigMainTest, LatestVersionQueryEnvRemoved)
         SrsSetEnvConfig(conf, qlv, "SRS_QUERY_LATEST_VERSION", "");
         SrsSetEnvConfig(conf, wait, "SRS_FIRST_WAIT_FOR_QLV", "");
         HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
+// The time directives the getters read with atof, in seconds or in milliseconds, and their env vars.
+struct MockTimeDirective {
+    const char *prefix;
+    const char *suffix;
+    const char *name;
+    const char *env;
+};
+
+static MockTimeDirective mock_time_directives[] = {
+    {"heartbeat{interval ", ";}", "interval", "SRS_HEARTBEAT_INTERVAL"},
+    {"stream_caster{media_connect_timeout ", ";}", "media_connect_timeout", "SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT"},
+    {"vhost test.com{rtc{stun_timeout ", ";}}", "stun_timeout", "SRS_VHOST_RTC_STUN_TIMEOUT"},
+    {"vhost test.com{rtc{pli_for_rtmp ", ";}}", "pli_for_rtmp", "SRS_VHOST_RTC_PLI_FOR_RTMP"},
+    {"vhost test.com{play{queue_length ", ";}}", "queue_length", "SRS_VHOST_PLAY_QUEUE_LENGTH"},
+    {"vhost test.com{play{send_min_interval ", ";}}", "send_min_interval", "SRS_VHOST_PLAY_SEND_MIN_INTERVAL"},
+    {"vhost test.com{publish{kickoff_for_idle ", ";}}", "kickoff_for_idle", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE"},
+    {"vhost test.com{dash{dash_fragment ", ";}}", "dash_fragment", "SRS_VHOST_DASH_DASH_FRAGMENT"},
+    {"vhost test.com{dash{dash_update_period ", ";}}", "dash_update_period", "SRS_VHOST_DASH_DASH_UPDATE_PERIOD"},
+    {"vhost test.com{dash{dash_timeshift ", ";}}", "dash_timeshift", "SRS_VHOST_DASH_DASH_TIMESHIFT"},
+    {"vhost test.com{dash{dash_dispose ", ";}}", "dash_dispose", "SRS_VHOST_DASH_DASH_DISPOSE"},
+    {"vhost test.com{hls{hls_fragment ", ";}}", "hls_fragment", "SRS_VHOST_HLS_HLS_FRAGMENT"},
+    {"vhost test.com{hls{hls_window ", ";}}", "hls_window", "SRS_VHOST_HLS_HLS_WINDOW"},
+    {"vhost test.com{hls{hls_dispose ", ";}}", "hls_dispose", "SRS_VHOST_HLS_HLS_DISPOSE"},
+    {"vhost test.com{dvr{dvr_duration ", ";}}", "dvr_duration", "SRS_VHOST_DVR_DVR_DURATION"},
+    {"vhost test.com{http_remux{fast_cache ", ";}}", "fast_cache", "SRS_VHOST_HTTP_REMUX_FAST_CACHE"},
+};
+
+// A value of a time directive that is not a finite number of seconds or milliseconds that is not negative.
+static const char *mock_bad_times[] = {"nan", "NAN", "-nan", "inf", "-inf", "infinity", "1e400", "-1", "-0.5", "abc"};
+
+// A value of a time directive that every one of them takes.
+static const char *mock_good_times[] = {"10", "0.5", ".5", "1e1"};
+
+// A time directive in a config file must be a finite number that is not negative, so the getter's cast to
+// srs_utime_t is defined: nan, inf, a negative number or no number at all is refused by the config check,
+// with an error that names the directive and the value.
+VOID TEST(ConfigMainTest, TimeDirectiveNotFiniteRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_time_directives) / sizeof(mock_time_directives[0])); i++) {
+        MockTimeDirective &d = mock_time_directives[i];
+
+        for (int j = 0; j < (int)(sizeof(mock_bad_times) / sizeof(mock_bad_times[0])); j++) {
+            string c = string(_MIN_OK_CONF) + d.prefix + mock_bad_times[j] + d.suffix;
+
+            MockSrsConfig conf;
+            srs_error_t err = conf.mock_parse(c);
+            EXPECT_TRUE(err != srs_success) << c;
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(string(d.name) + "=" + mock_bad_times[j]) != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
+
+        for (int j = 0; j < (int)(sizeof(mock_good_times) / sizeof(mock_good_times[0])); j++) {
+            string c = string(_MIN_OK_CONF) + d.prefix + mock_good_times[j] + d.suffix;
+
+            srs_error_t err;
+            MockSrsConfig conf;
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(c));
+        }
+    }
+}
+
+// A time directive's env var must be a finite number that is not negative too: nan, inf, a negative number
+// or no number at all is refused by the config check, with an error that names the env var and the value.
+// An empty one is unset, as every empty env var is.
+VOID TEST(ConfigMainTest, TimeDirectiveEnvNotFiniteRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_time_directives) / sizeof(mock_time_directives[0])); i++) {
+        MockTimeDirective &d = mock_time_directives[i];
+
+        for (int j = 0; j < (int)(sizeof(mock_bad_times) / sizeof(mock_bad_times[0])); j++) {
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, time, d.env, mock_bad_times[j]);
+
+            srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+            EXPECT_TRUE(err != srs_success) << d.env << "=" << mock_bad_times[j];
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(string(d.env) + "=" + mock_bad_times[j]) != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
+
+        for (int j = 0; j < (int)(sizeof(mock_good_times) / sizeof(mock_good_times[0])); j++) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, time, d.env, mock_good_times[j]);
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
+
+        if (true) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, time, d.env, "");
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
     }
 }
 
@@ -5457,8 +5559,7 @@ VOID TEST(ConfigDvrTest, CheckDvrDuration)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dvr{dvr_duration 0;}}"));
         EXPECT_EQ(0, conf.get_dvr_duration("test.com"));
 
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dvr{dvr_duration -60;}}"));
-        EXPECT_EQ((srs_utime_t)(-60 * SRS_UTIME_SECONDS), conf.get_dvr_duration("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dvr{dvr_duration -60;}}"));
     }
 
     // Test multiple vhosts with different duration values

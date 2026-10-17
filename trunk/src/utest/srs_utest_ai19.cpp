@@ -3840,6 +3840,17 @@ VOID TEST(HttpHeartbeatTest, DoHeartbeatPostsPathWithoutQuery)
     EXPECT_STREQ("/api/v1/heartbeat", path.c_str());
 }
 
+// A url with a query and no path is posted to the root with its query, since
+// a request line must start its target with a slash.
+VOID TEST(HttpHeartbeatTest, DoHeartbeatPostsQueryWithoutPath)
+{
+    srs_error_t err;
+
+    std::string path;
+    HELPER_EXPECT_SUCCESS(heartbeat_post_path("http://127.0.0.1:8085?k1=v1&k2=v2", &path));
+    EXPECT_STREQ("/?k1=v1&k2=v2", path.c_str());
+}
+
 // Test SrsCircuitBreaker - covers the major use scenario:
 // This test verifies the complete circuit breaker functionality including:
 // 1. Initialize with configuration (enabled, thresholds, pulses)

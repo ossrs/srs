@@ -456,6 +456,7 @@ SrsHlsFmp4Muxer::SrsHlsFmp4Muxer()
     sequence_header_pending_ = false;
 
     memset(key_, 0, 16);
+    memset(kid_, 0, 16);
     memset(iv_, 0, 16);
     iv_ready_ = false;
     cipher_vcodec_ = SrsVideoCodecIdAVC;
@@ -498,6 +499,15 @@ void SrsHlsFmp4Muxer::dispose()
             srs_freep(err);
         }
     }
+
+    // The init file, by the path write_init_mp4 wrote it to.
+    if (!init_mp4_file_.empty() && path->exists(init_mp4_file_)) {
+        if ((err = path->unlink(init_mp4_file_)) != srs_success) {
+            srs_warn("dispose: ignore remove init mp4 failed, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+    }
+    init_mp4_file_ = "";
 
     srs_trace("gracefully dispose hls %s", req_ ? req_->get_stream_url().c_str() : "");
 }
@@ -637,6 +647,7 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
     if ((err = init_mp4->rename()) != srs_success) {
         return srs_error_wrap(err, "rename hls init.mp4");
     }
+    init_mp4_file_ = init_mp4->fullpath();
 
     // the ts url, relative or absolute url.
     // TODO: FIXME: Use url and path manager.
@@ -790,7 +801,11 @@ srs_error_t SrsHlsFmp4Muxer::update_config(ISrsRequest *r)
         return srs_error_wrap(err, "create dir");
     }
 
-    writer_ = app_factory_->create_file_writer();
+    // One writer for every publish, as a segment left open by a failed close at the unpublish
+    // still writes with it.
+    if (!writer_) {
+        writer_ = app_factory_->create_file_writer();
+    }
 
     return err;
 }
@@ -1087,11 +1102,11 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
     }
 
     if (hls_keys_ && current_->sequence_no_ % hls_fragments_per_key_ == 0) {
-        if (RAND_bytes(key_, 16) < 0) {
-            return srs_error_wrap(err, "rand key failed.");
+        if (RAND_bytes(key_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand key failed");
         }
-        if (RAND_bytes(kid_, 16) < 0) {
-            return srs_error_wrap(err, "rand kid failed.");
+        if (RAND_bytes(kid_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand kid failed");
         }
 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
@@ -1464,6 +1479,9 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
         return srs_error_wrap(err, "create dir");
     }
 
+    // The last publish's writer, which no segment uses: its unpublish closed and freed the
+    // current segment, and a segment in the window writes no more.
+    srs_freep(writer_);
     if (hls_keys_) {
         writer_ = app_factory_->create_enc_file_writer();
     } else {
@@ -2015,11 +2033,11 @@ srs_error_t SrsHlsMuxer::write_hls_key()
     srs_error_t err = srs_success;
 
     if (hls_keys_ && current_->sequence_no_ % hls_fragments_per_key_ == 0) {
-        if (RAND_bytes(key_, 16) < 0) {
-            return srs_error_wrap(err, "rand key failed.");
+        if (RAND_bytes(key_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand key failed");
         }
-        if (RAND_bytes(iv_, 16) < 0) {
-            return srs_error_wrap(err, "rand iv failed.");
+        if (RAND_bytes(iv_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand iv failed");
         }
 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
