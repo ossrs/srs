@@ -439,6 +439,20 @@ SrsVodStream::~SrsVodStream()
 {
 }
 
+// Refuse a range or start that has no byte of the file in it: 416 with the file size in Content-Range, as RFC 9110 has
+// it, so the client knows the size, instead of closing the connection with no answer. Like every file answer, it
+// carries Connection: Close.
+static srs_error_t srs_vod_range_not_satisfiable(ISrsHttpResponseWriter *w, string fullpath, int64_t filesize, int64_t start)
+{
+    srs_warn("http vod %s range not satisfiable, size=%" PRId64 ", start=%" PRId64, fullpath.c_str(), filesize, start);
+
+    std::stringstream content_range;
+    content_range << "bytes */" << filesize;
+    w->header()->set("Content-Range", content_range.str());
+
+    return srs_go_http_error(w, SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable);
+}
+
 srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath, int64_t offset)
 {
     srs_error_t err = srs_success;
@@ -450,9 +464,9 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "open file");
     }
 
-    if (offset > fs->filesize()) {
-        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%" PRId64,
-                             fullpath.c_str(), fs->filesize(), offset);
+    // A start at or past the file size has no tag to serve.
+    if (offset >= fs->filesize()) {
+        return srs_vod_range_not_satisfiable(w, fullpath, fs->filesize(), offset);
     }
 
     SrsFlvVodStreamDecoder ffd;
@@ -521,7 +535,7 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
 {
     srs_error_t err = srs_success;
 
-    srs_assert(start >= 0);
+    srs_assert(start >= -1);
     srs_assert(end == -1 || end >= 0);
 
     SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
@@ -531,12 +545,23 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "fs open");
     }
 
+    // start == -1 means the range names the last end bytes of the file.
+    if (start == -1) {
+        start = srs_max((int64_t)0, fs->filesize() - end);
+        end = fs->filesize() - 1;
+    }
+
     // parse -1 to whole file.
     if (end == -1) {
         end = fs->filesize() - 1;
     }
 
-    if (end > fs->filesize() || start > end || end < 0) {
+    // A start at or past the file size, or any range of an empty file, has no byte to serve.
+    if (start >= fs->filesize() || start > end || end < 0) {
+        return srs_vod_range_not_satisfiable(w, fullpath, fs->filesize(), start);
+    }
+
+    if (end > fs->filesize()) {
         return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
                              fullpath.c_str(), fs->filesize(), start);
     }

@@ -1580,6 +1580,69 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         __MOCK_HTTP_EXPECT_STREQ(206, "llo,", w);
     }
 
+    // A suffix range names bytes from the end of the file, including when the requested suffix is longer than the file.
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path(new MockSrsPathAlwaysExists());
+        h.entry_ = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?bytes=-6", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(206, "world!", w);
+    }
+
+    if (true) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path(new MockSrsPathAlwaysExists());
+        h.entry_ = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?bytes=-20", false));
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STREQ(206, "Hello, world!", w);
+    }
+
+    // A suffix range of zero bytes names no byte of the file, so it is refused with 416 as a start past the end is, not
+    // served as the first byte, whether it comes in the query or in the Range header. VodStreamRangeTest checks the
+    // Content-Range, which this writer drops.
+    for (int i = 0; i < 3; i++) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+
+        SrsVodStream h("/tmp");
+        h.set_fs_factory(new MockFileReaderFactory("Hello, world!"));
+        h.set_path(new MockSrsPathAlwaysExists());
+        h.entry_ = &e;
+
+        MockResponseWriter w;
+        SrsHttpMessage r(NULL, NULL);
+        if (i == 0) {
+            HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?bytes=-0", false));
+        } else if (i == 1) {
+            HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4?range=-0", false));
+        } else {
+            r.header()->set("Range", "bytes=-0");
+            HELPER_ASSERT_SUCCESS(r.set_url("/index.mp4", false));
+        }
+
+        HELPER_ASSERT_SUCCESS(h.serve_http(&w, &r));
+        __MOCK_HTTP_EXPECT_STRHAS(416, "416 Requested Range Not Satisfiable", w) << i;
+        EXPECT_FALSE(is_string_contain("Hello", HELPER_BUFFER2STR(&w.io.out_buffer))) << i;
+    }
+
     // Invalid format of range, use static file handler.
     if (true) {
         SrsHttpMuxEntry e;
@@ -1720,6 +1783,127 @@ VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
         MockResponseWriter w2;
         HELPER_ASSERT_SUCCESS(h.serve_http(&w2, &r));
         __MOCK_HTTP_EXPECT_STREQ(200, "init.mp4?hls_ctx=123456", w2);
+    }
+}
+
+// A response writer that keeps the Content-Range header, which MockResponseWriter drops.
+class MockResponseWriterForVodRange : public MockResponseWriter
+{
+public:
+    virtual srs_error_t filter(SrsHttpHeader *h)
+    {
+        string content_range = h->get("Content-Range");
+        srs_error_t err = MockResponseWriter::filter(h);
+        if (!content_range.empty()) {
+            h->set("Content-Range", content_range);
+        }
+        return err;
+    }
+};
+
+// Serve the file of url, MP4 or FLV, with the range or start of url, and the Range header if range is not empty, and
+// return the raw HTTP response in resp.
+static srs_error_t mock_vod_serve(string content, string url, string &resp, string range = "")
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    SrsVodStream stream("/tmp");
+    stream.set_fs_factory(new MockFileReaderFactory(content));
+    stream.set_path(new MockSrsPathAlwaysExists());
+    stream.entry_ = &entry;
+
+    MockResponseWriterForVodRange w;
+    SrsHttpMessage r(NULL, NULL);
+    if (!range.empty()) {
+        SrsHttpHeader h;
+        h.set("Range", range);
+        r.set_header(&h, false);
+    }
+    if ((err = r.set_url(url, false)) != srs_success) {
+        return srs_error_wrap(err, "set url");
+    }
+
+    if ((err = stream.serve_http(&w, &r)) != srs_success) {
+        return srs_error_wrap(err, "serve http");
+    }
+
+    resp = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+    return err;
+}
+
+// A range that starts at or past the file size has no byte to serve, so it is refused with 416 and the file size in
+// Content-Range, as RFC 9110 has it, instead of closing the connection with no answer. The request still succeeds, and
+// the answer carries Connection: Close like every file answer. A suffix of zero bytes is refused the same way.
+VOID TEST(VodStreamRangeTest, RangeStartBeyondTheLastByteIsUnsatisfiable)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {"/index.mp4?bytes=13-20", "/index.mp4?bytes=13-", "/index.mp4?range=23-33", "/index.mp4?bytes=100-", "/index.mp4?bytes=-0"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", urls[i], resp));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */13", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("Hello", resp)) << urls[i];
+    }
+}
+
+// The Range header is refused the same way as the range in the query.
+VOID TEST(VodStreamRangeTest, RangeHeaderStartBeyondTheLastByteIsUnsatisfiable)
+{
+    srs_error_t err = srs_success;
+
+    const char *ranges[] = {"bytes=13-", "bytes=23-33", "bytes=-0"};
+    for (int i = 0; i < (int)(sizeof(ranges) / sizeof(ranges[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4", resp, ranges[i]));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << ranges[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */13", resp) << ranges[i];
+    }
+
+    // The last byte is still served.
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", "/index.mp4", resp, "bytes=12-"));
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 12-12/13", resp);
+}
+
+// An empty file has no byte to serve for any range.
+VOID TEST(VodStreamRangeTest, RangeOfEmptyFileIsUnsatisfiable)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {"/index.mp4?bytes=0-", "/index.mp4?bytes=-5"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("", urls[i], resp));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */0", resp) << urls[i];
+    }
+}
+
+// An FLV start at or past the file size has no tag to serve, so it is refused with 416 and the file size in
+// Content-Range, like an MP4 range, instead of closing the connection with no answer, or sending the FLV header and
+// sequence headers and then failing to seek.
+VOID TEST(VodStreamRangeTest, FlvStartBeyondTheLastByteIsUnsatisfiable)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {"/index.flv?start=13", "/index.flv?start=14", "/index.flv?start=1013"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_vod_serve("Hello, world!", urls[i], resp));
+
+        EXPECT_PRED2(is_string_contain, "416 Requested Range Not Satisfiable", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, "Content-Range: bytes */13", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("Hello", resp)) << urls[i];
     }
 }
 

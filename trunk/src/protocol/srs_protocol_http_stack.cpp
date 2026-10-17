@@ -720,8 +720,14 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter *w, ISrsHtt
         end = ::atoll(range.substr(pos + 1).c_str());
     }
 
+    // A range with no start is a suffix length, resolved against the file size by the VOD stream. A suffix of zero
+    // bytes names no byte, so the VOD stream refuses it with 416.
+    if (pos == 0 && end >= 0) {
+        start = -1;
+    }
+
     // invalid param, serve as whole mp4 file.
-    if (start < 0 || (end != -1 && start > end)) {
+    if (start < -1 || (start >= 0 && end != -1 && start > end)) {
         return serve_file(w, r, fullpath);
     }
 
