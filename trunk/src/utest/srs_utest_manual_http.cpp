@@ -10,7 +10,9 @@
 #include <unistd.h>
 using namespace std;
 
+#include <srs_app_config.hpp>
 #include <srs_app_http_static.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
@@ -18,6 +20,7 @@ using namespace std;
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_utility.hpp>
+#include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_protocol.hpp>
 
@@ -3305,4 +3308,196 @@ VOID TEST(HttpServeMuxTest, TwoDotsInNameOrQueryNotRefused)
     EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/live/...flv"));
     EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/x.flv?t=a..b"));
     EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/x.flv?t=/../"));
+}
+
+// Serve the playlist url through a VOD stream with the HLS session on, asked of the HTTP server by the
+// Host header host, and return the request of the session the playlist's hls_ctx in the answer names,
+// or NULL if it names none.
+static ISrsRequest *mock_vod_hls_session(SrsVodStream *h, string url, bool https, string host)
+{
+    srs_error_t err = srs_success;
+
+    MockResponseWriter w;
+    SrsHttpMessage r(NULL, NULL);
+    SrsHttpHeader header;
+    header.set("Host", host);
+    r.set_header(&header, false);
+    r.set_https(https);
+    if ((err = r.set_url(url, false)) != srs_success) {
+        srs_freep(err);
+        return NULL;
+    }
+    if ((err = h->serve_http(&w, &r)) != srs_success) {
+        srs_freep(err);
+        return NULL;
+    }
+
+    string resp = HELPER_BUFFER2STR(&w.io.out_buffer);
+    size_t pos = resp.find("hls_ctx=");
+    if (pos == string::npos) {
+        return NULL;
+    }
+    string ctx = resp.substr(pos + 8);
+    ctx = ctx.substr(0, ctx.find_first_of("&\r\n"));
+
+    std::map<std::string, SrsHlsVirtualConn *>::iterator it = h->hls_.map_ctx_info_.find(ctx);
+    if (it == h->hls_.map_ctx_info_.end()) {
+        return NULL;
+    }
+    SrsHlsVirtualConn *conn = it->second;
+    return conn->req_;
+}
+
+// The VOD stream of the HLS session tests, with a playlist of any path.
+#define MOCK_VOD_HLS_STREAM(h, e)                                    \
+    SrsHttpMuxEntry e;                                               \
+    e.pattern = "/";                                                 \
+    SrsVodStream h("/tmp");                                          \
+    h.set_fs_factory(new MockFileReaderFactory("livestream-13.ts")); \
+    h.set_path(new MockSrsPathAlwaysExists());                       \
+    h.entry_ = &e
+
+// An HLS session names its stream as every other player does, without the playlist's extension, and
+// is listed with the URL of its app on the HTTP server it asked, with the server's port and schema.
+VOID TEST(VodStreamHlsSessionTest, StreamAndTcUrlOfTheSession)
+{
+    if (true) {
+        MOCK_VOD_HLS_STREAM(h, e);
+        ISrsRequest *req = mock_vod_hls_session(&h, "/live/stream1.m3u8", false, "127.0.0.1:8080");
+        ASSERT_TRUE(req != NULL);
+        EXPECT_STREQ("live", req->app_.c_str());
+        EXPECT_STREQ("stream1", req->stream_.c_str());
+        EXPECT_STREQ("http://127.0.0.1:8080/live", req->tcUrl_.c_str());
+    }
+
+    // Over HTTPS, the tcUrl is https://, and an IPv6 host keeps its brackets.
+    if (true) {
+        MOCK_VOD_HLS_STREAM(h, e);
+        ISrsRequest *req = mock_vod_hls_session(&h, "/live/stream1.m3u8", true, "[::1]:8088");
+        ASSERT_TRUE(req != NULL);
+        EXPECT_STREQ("https://[::1]:8088/live", req->tcUrl_.c_str());
+    }
+}
+
+// The session of an encoded playlist name takes its names from the decoded path the file server
+// opened, not the encoded one that no publisher has.
+VOID TEST(VodStreamHlsSessionTest, EncodedPlaylistNamesTheDecodedStream)
+{
+    if (true) {
+        MOCK_VOD_HLS_STREAM(h, e);
+        ISrsRequest *req = mock_vod_hls_session(&h, "/live/%6Civestream.m3u8", false, "127.0.0.1:8080");
+        ASSERT_TRUE(req != NULL);
+        EXPECT_STREQ("live", req->app_.c_str());
+        EXPECT_STREQ("livestream", req->stream_.c_str());
+    }
+
+    if (true) {
+        MOCK_VOD_HLS_STREAM(h, e);
+        ISrsRequest *req = mock_vod_hls_session(&h, "/%6Cive/livestream%2Em3u8", false, "127.0.0.1:8080");
+        ASSERT_TRUE(req != NULL);
+        EXPECT_STREQ("live", req->app_.c_str());
+        EXPECT_STREQ("livestream", req->stream_.c_str());
+        EXPECT_STREQ("http://127.0.0.1:8080/live", req->tcUrl_.c_str());
+    }
+}
+
+// With a playlist in a dir per stream, the session takes the app and stream from hls_m3u8_file, the
+// names the playlist was written with, not the URL's dir and file name.
+VOID TEST(VodStreamHlsSessionTest, DirPerStreamNamesTheAppAndStream)
+{
+    SrsSetEnvConfig((*_srs_config), m3u8_file, "SRS_VHOST_HLS_HLS_M3U8_FILE", "[app]/[stream]/index.m3u8");
+
+    if (true) {
+        MOCK_VOD_HLS_STREAM(h, e);
+        ISrsRequest *req = mock_vod_hls_session(&h, "/live/livestream/index.m3u8", false, "127.0.0.1:8080");
+        ASSERT_TRUE(req != NULL);
+        EXPECT_STREQ("live", req->app_.c_str());
+        EXPECT_STREQ("livestream", req->stream_.c_str());
+        EXPECT_STREQ("http://127.0.0.1:8080/live", req->tcUrl_.c_str());
+    }
+
+    // An app with a dir keeps it, and the last dir before the playlist is the stream.
+    if (true) {
+        MOCK_VOD_HLS_STREAM(h, e);
+        ISrsRequest *req = mock_vod_hls_session(&h, "/live/sub/s1/index.m3u8?token=a", false, "127.0.0.1:8080");
+        ASSERT_TRUE(req != NULL);
+        EXPECT_STREQ("live/sub", req->app_.c_str());
+        EXPECT_STREQ("s1", req->stream_.c_str());
+    }
+
+    // A playlist not of the template keeps the URL's names.
+    if (true) {
+        MOCK_VOD_HLS_STREAM(h, e);
+        ISrsRequest *req = mock_vod_hls_session(&h, "/live/stream.m3u8", false, "127.0.0.1:8080");
+        ASSERT_TRUE(req != NULL);
+        EXPECT_STREQ("live", req->app_.c_str());
+        EXPECT_STREQ("stream", req->stream_.c_str());
+    }
+}
+
+// A playlist asked with the hls_ctx of another stream's session starts a new session of the stream
+// asked, with a new ctx, so its security check and on_play run; the session of the ctx goes on.
+VOID TEST(VodStreamHlsSessionTest, CtxOfAnotherStreamStartsItsOwnSession)
+{
+    MOCK_VOD_HLS_STREAM(h, e);
+
+    ISrsRequest *a = mock_vod_hls_session(&h, "/live/a.m3u8?hls_ctx=ctxofa01", false, "127.0.0.1:8080");
+    ASSERT_TRUE(a != NULL);
+    EXPECT_STREQ("a", a->stream_.c_str());
+    EXPECT_TRUE(h.hls_.ctx_is_exist("ctxofa01"));
+
+    // Stream b asked with the ctx of a's session gets a master playlist of a new ctx.
+    ISrsRequest *b = mock_vod_hls_session(&h, "/live/b.m3u8?hls_ctx=ctxofa01", false, "127.0.0.1:8080");
+    ASSERT_TRUE(b != NULL);
+    EXPECT_STREQ("b", b->stream_.c_str());
+    EXPECT_EQ(2, (int)h.hls_.map_ctx_info_.size());
+    EXPECT_STREQ("a", h.hls_.map_ctx_info_["ctxofa01"]->req_->stream_.c_str());
+}
+
+// The app and stream of a path built by srs_path_build_stream from a template.
+VOID TEST(PathParseStreamTest, ParsesTheAppAndStreamOfTheTemplate)
+{
+    string app, stream;
+
+    EXPECT_TRUE(srs_path_parse_stream("[app]/[stream].m3u8", "v", "live/livestream.m3u8", app, stream));
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("livestream", stream.c_str());
+
+    EXPECT_TRUE(srs_path_parse_stream("[app]/[stream]/index.m3u8", "v", "live/livestream/index.m3u8", app, stream));
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("livestream", stream.c_str());
+
+    // The app may have dirs, the stream has none.
+    EXPECT_TRUE(srs_path_parse_stream("[app]/[stream]/index.m3u8", "v", "a/b/c/index.m3u8", app, stream));
+    EXPECT_STREQ("a/b", app.c_str());
+    EXPECT_STREQ("c", stream.c_str());
+
+    // A stream with dots, as a playlist of the default template.
+    EXPECT_TRUE(srs_path_parse_stream("[app]/[stream].m3u8", "v", "live/a.b.m3u8", app, stream));
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("a.b", stream.c_str());
+
+    // The [vhost] is the vhost.
+    EXPECT_TRUE(srs_path_parse_stream("[vhost]/[app]/[stream]/index.m3u8", "ossrs.net", "ossrs.net/live/s/index.m3u8", app, stream));
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("s", stream.c_str());
+
+    // A variable used twice has one value.
+    EXPECT_TRUE(srs_path_parse_stream("[app]/[stream]/[stream].m3u8", "v", "live/s/s.m3u8", app, stream));
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("s", stream.c_str());
+}
+
+// A path the template doesn't build, or a template without both names, parses nothing.
+VOID TEST(PathParseStreamTest, RefusesAPathNotOfTheTemplate)
+{
+    string app, stream;
+
+    EXPECT_FALSE(srs_path_parse_stream("[app]/[stream]/index.m3u8", "v", "live/livestream.m3u8", app, stream));
+    EXPECT_FALSE(srs_path_parse_stream("[app]/[stream]/index.m3u8", "v", "live/s/playlist.m3u8", app, stream));
+    EXPECT_FALSE(srs_path_parse_stream("[vhost]/[app]/[stream].m3u8", "ossrs.net", "srs.io/live/s.m3u8", app, stream));
+    EXPECT_FALSE(srs_path_parse_stream("[app]/[stream]/[stream].m3u8", "v", "live/s/t.m3u8", app, stream));
+    EXPECT_FALSE(srs_path_parse_stream("[app]/[stream].m3u8", "v", "/s.m3u8", app, stream));
+    EXPECT_FALSE(srs_path_parse_stream("[app]/index.m3u8", "v", "live/index.m3u8", app, stream));
+    EXPECT_FALSE(srs_path_parse_stream("hls/[stream].m3u8", "v", "hls/s.m3u8", app, stream));
 }

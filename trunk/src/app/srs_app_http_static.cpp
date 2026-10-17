@@ -20,6 +20,7 @@ using namespace std;
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_error.hpp>
@@ -92,13 +93,22 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
         return srs_success;
     }
 
-    // Correct the app and stream by path, which is created from template.
-    // @remark Be careful that the stream has extension now, might cause identify fail.
-    SrsPath path;
-    req->stream_ = path.filepath_base(r->path());
+    // The stream of req has no extension, as SrsHttpMessage::to_request() removed it, so the hooks
+    // and the API name the stream of an HLS session as they do for every other player.
 
     // Served by us.
     *served = true;
+
+    // A ctx names the session of one stream. The ctx of a session of another stream starts a new session
+    // of this stream with a new ctx, as a request with no ctx does, so the security check and on_play of
+    // this stream run, and the session of the ctx goes on as before.
+    std::map<std::string, SrsHlsVirtualConn *>::iterator it = map_ctx_info_.find(ctx);
+    if (it != map_ctx_info_.end()) {
+        SrsHlsVirtualConn *conn = it->second;
+        if (conn->req_->get_stream_url() != req->get_stream_url()) {
+            ctx = "";
+        }
+    }
 
     // Already exists context, response with rebuilt m3u8 content.
     if (!ctx.empty() && ctx_is_exist(ctx)) {
@@ -605,6 +615,33 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     if (parsed_vhost) {
         req->vhost_ = parsed_vhost->arg0();
     }
+
+    // The file server opened the playlist by its percent-decoded path, so the session takes its names
+    // from that path too, else the security check, the hooks and the stats would name another stream
+    // than the one served, such as %6Civestream for /live/%6Civestream.m3u8. The names are split from
+    // the decoded path, never parsed as a URL again, so a decoded ? or # is in the name, as in the file.
+    string path;
+    if ((err = SrsHttpUri::path_unescape(hr->path(), path)) != srs_success) {
+        return srs_error_wrap(err, "unescape path=%s", hr->path().c_str());
+    }
+    path = srs_strings_trim_start(path, "/");
+
+    // The URL's dir and file name are the app and stream only for a playlist of [app]/[stream].m3u8,
+    // so take them from the hls_m3u8_file the playlist was written by, such as the app live and the
+    // stream livestream of /live/livestream/index.m3u8 for [app]/[stream]/index.m3u8. A playlist
+    // not of the template is split as an HTTP path, as SrsHttpMessage::to_request() does.
+    string app, stream;
+    if (!srs_path_parse_stream(_srs_config->get_hls_m3u8_file(req->vhost_), req->vhost_, path, app, stream)) {
+        srs_net_url_parse_http_path("/" + path, app, stream);
+    }
+    req->app_ = app;
+    req->stream_ = stream;
+    req->strip();
+
+    // The request's tcUrl was parsed as RTMP, with the RTMP default port that as_http() leaves out,
+    // so set the session's own: the URL of its app on the HTTP server it asked, as an HTTP-FLV
+    // player's.
+    req->tcUrl_ = hr->app_url(req->app_);
 
     // Try to serve by HLS streaming.
     bool served = false;

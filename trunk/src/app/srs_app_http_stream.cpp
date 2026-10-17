@@ -696,11 +696,7 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     // The copy has the publisher's URLs, so set the player's own: the URL of its app on the HTTP
     // server it asked, and its Referer as the pageUrl, as its on_play reports. An HTTP player has
     // no swfUrl.
-    string host = hr->header()->get("Host");
-    if (host.empty()) {
-        host = hr->host();
-    }
-    req->tcUrl_ = hr->schema() + "://" + host + "/" + req->app_;
+    req->tcUrl_ = hr->app_url(req->app_);
     req->pageUrl_ = hr->header()->get("Referer");
     req->swfUrl_ = "";
 

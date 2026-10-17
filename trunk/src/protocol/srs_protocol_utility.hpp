@@ -95,6 +95,10 @@ extern std::string srs_net_url_encode_sid(std::string vhost, std::string app, st
 //      stream: livestream
 extern void srs_net_url_parse_rtmp_url(std::string url, std::string &tcUrl, std::string &stream);
 
+// Parse the app and stream of an HTTP path, for example, live and livestream of /live/livestream.flv,
+// the default app for a file at the root.
+extern void srs_net_url_parse_http_path(std::string path, std::string &app, std::string &stream);
+
 // Genereate the rtmp url, for instance, rtmp://server:port/app/stream?param
 // @remark We always put vhost in param, in the query of url.
 extern std::string srs_net_url_encode_rtmp_url(std::string server, int port, std::string host, std::string vhost, std::string app, std::string stream, std::string param);

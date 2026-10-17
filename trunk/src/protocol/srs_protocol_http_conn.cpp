@@ -642,17 +642,8 @@ ISrsRequest *SrsHttpMessage::to_request(string vhost)
 {
     ISrsRequest *req = new SrsRequest();
 
-    // http path, for instance, /live/livestream.flv, parse to
-    //      app: /live
-    //      stream: livestream.flv
-    srs_net_url_parse_rtmp_url(_uri->get_path(), req->app_, req->stream_);
-
-    // trim the start slash, for instance, /live to live
-    req->app_ = srs_strings_trim_start(req->app_, "/");
-
-    // remove the extension, for instance, livestream.flv to livestream
-    SrsPath path;
-    req->stream_ = path.filepath_filename(req->stream_);
+    // http path, for instance, /live/livestream.flv, parse to app live and stream livestream.
+    srs_net_url_parse_http_path(_uri->get_path(), req->app_, req->stream_);
 
     // generate others.
     req->tcUrl_ = "rtmp://" + vhost + "/" + req->app_;
@@ -687,6 +678,17 @@ ISrsRequest *SrsHttpMessage::to_request(string vhost)
     req->protocol_ = (schema_ == "http") ? "flv" : "flvs";
 
     return req;
+}
+
+string SrsHttpMessage::app_url(string app)
+{
+    // The Host header keeps the port and IPv6 brackets as asked, which the URI may not: it defaults a
+    // missing port to 80, even for HTTPS.
+    string host = _header.get("Host");
+    if (host.empty()) {
+        host = this->host();
+    }
+    return schema() + "://" + host + "/" + app;
 }
 
 bool SrsHttpMessage::is_jsonp()

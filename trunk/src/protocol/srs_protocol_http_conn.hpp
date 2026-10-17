@@ -236,6 +236,9 @@ public:
     // Convert the http message to a request.
     // @remark user must free the return request.
     virtual ISrsRequest *to_request(std::string vhost);
+    // The URL of the app on the HTTP server the client asked, such as http://127.0.0.1:8080/live: the
+    // schema, the Host header as sent (or host() without one), and app. An HTTP client's tcUrl.
+    std::string app_url(std::string app);
 
 public:
     virtual bool is_jsonp();

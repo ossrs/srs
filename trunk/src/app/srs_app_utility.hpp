@@ -38,6 +38,12 @@ extern SrsLogLevel srs_get_log_level_v2(std::string level);
 // @return the replaced path.
 extern std::string srs_path_build_stream(std::string template_path, std::string vhost, std::string app, std::string stream);
 
+// Parse the app and stream from a path that srs_path_build_stream built from template_path, for
+// example, live/livestream/index.m3u8 from [app]/[stream]/index.m3u8. The [vhost] must be vhost.
+// The app may have dirs, the stream has none, and a repeated variable must have the same value.
+// @return whether the template has both [app] and [stream], and the path matches it.
+extern bool srs_path_parse_stream(std::string template_path, std::string vhost, std::string path, std::string &app, std::string &stream);
+
 // Build the path according to timestamp, where replace variables:
 //       [2006], replace this const to current year.
 //       [01], replace this const to current month.
