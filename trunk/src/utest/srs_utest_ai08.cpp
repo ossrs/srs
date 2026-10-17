@@ -4571,3 +4571,78 @@ VOID TEST(RtcFrameBuilderTest, PacketVideoKeyFrame_ExactIsLostSnCodePathCoverage
         srs_freep(result);
     }
 }
+
+MockAppFactoryForRtcFrameBuilder::MockAppFactoryForRtcFrameBuilder()
+{
+    last_transcoder_ = NULL;
+    create_audio_transcoder_count_ = 0;
+}
+
+MockAppFactoryForRtcFrameBuilder::~MockAppFactoryForRtcFrameBuilder()
+{
+}
+
+ISrsAudioTranscoder *MockAppFactoryForRtcFrameBuilder::create_audio_transcoder()
+{
+    create_audio_transcoder_count_++;
+    last_transcoder_ = new MockAudioTranscoderForUtest();
+    return last_transcoder_;
+}
+
+// SRS has no G.711 decoder, so a stream of G.711 audio is converted to RTMP without its audio: the
+// builder creates no transcoder for PCMU or PCMA, and still starts. The global factory's transcoder
+// fails to open a G.711 decoder, so the start is checked with it too.
+VOID TEST(RtcFrameBuilderTest, InitializeG711WithoutTranscoder)
+{
+    srs_error_t err;
+
+    SrsAudioCodecId codecs[] = {SrsAudioCodecIdPCMU, SrsAudioCodecIdPCMA};
+    for (int i = 0; i < 2; i++) {
+        MockAppFactoryForRtcFrameBuilder factory;
+        MockRtcFrameTarget target;
+        SrsRtcFrameBuilder builder(&factory, &target);
+
+        SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+        HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), codecs[i], SrsVideoCodecIdAVC));
+        EXPECT_EQ(0, factory.create_audio_transcoder_count_);
+        EXPECT_TRUE(builder.audio_transcoder_ == NULL);
+        EXPECT_EQ(SrsVideoCodecIdAVC, builder.video_codec_);
+
+        SrsRtcFrameBuilder global(_srs_app_factory, &target);
+        HELPER_EXPECT_SUCCESS(global.initialize(req.get(), codecs[i], SrsVideoCodecIdAVC));
+        EXPECT_TRUE(global.audio_transcoder_ == NULL);
+    }
+}
+
+// The G.711 audio of a stream is dropped, with no AAC sequence header and no frame, while its video
+// is still converted.
+VOID TEST(RtcFrameBuilderTest, OnRtpG711AudioDropped)
+{
+    srs_error_t err;
+
+    MockAppFactoryForRtcFrameBuilder factory;
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(&factory, &target);
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdPCMA, SrsVideoCodecIdAVC));
+    HELPER_EXPECT_SUCCESS(builder.on_publish());
+
+    for (int i = 0; i < 5; i++) {
+        SrsUniquePtr<SrsRtpPacket> pkt(create_mock_rtp_packet(true, 1000 + i * 20, 11111, 100 + i, 8000 + i * 160));
+        HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt.get()));
+    }
+    EXPECT_EQ(0, target.on_frame_count_);
+
+    // A keyframe, then a frame of two packets, the last with the marker of the frame's end.
+    SrsUniquePtr<SrsRtpPacket> keyframe(create_video_rtp_packet_for_frame_test(100, 90000, 1000, true));
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(keyframe.get()));
+    SrsUniquePtr<SrsRtpPacket> pkt1(create_video_rtp_packet_for_frame_test(101, 93000, 1100, false));
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt1.get()));
+    SrsUniquePtr<SrsRtpPacket> pkt2(create_video_rtp_packet_for_frame_test(102, 93000, 1100, false));
+    pkt2->header_.set_marker(true);
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt2.get()));
+    EXPECT_GT(target.on_frame_count_, 0);
+    ASSERT_TRUE(target.last_frame_ != NULL);
+    EXPECT_TRUE(target.last_frame_->is_video());
+}

@@ -12,6 +12,7 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_factory.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_stream_bridge.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
@@ -95,6 +96,21 @@ public:
     virtual ~MockLiveSourceHandler();
     virtual srs_error_t on_publish(ISrsRequest *r);
     virtual void on_unpublish(ISrsRequest *r);
+};
+
+// Mock factory for SrsRtcFrameBuilder::initialize, counting the transcoders it creates.
+class MockAppFactoryForRtcFrameBuilder : public SrsAppFactory
+{
+public:
+    MockAudioTranscoderForUtest *last_transcoder_;
+    int create_audio_transcoder_count_;
+
+public:
+    MockAppFactoryForRtcFrameBuilder();
+    virtual ~MockAppFactoryForRtcFrameBuilder();
+
+public:
+    virtual ISrsAudioTranscoder *create_audio_transcoder();
 };
 
 #endif

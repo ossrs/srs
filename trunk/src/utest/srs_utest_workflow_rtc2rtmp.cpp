@@ -162,6 +162,11 @@ VOID TEST(BasicWorkflowRtc2RtmpTest, ManuallyVerifyTypicalScenario)
     // Got a RTP audio packet.
     MockLiveSource *mock_source = dynamic_cast<MockLiveSource *>(mock_sources->mock_source_.get());
     if (true) {
+        // The first SR of the audio track maps its RTP time to the publisher's clock, by the SDP rate.
+        SrsNtp ntp;
+        ntp.system_ms_ = 1000;
+        publish_stream->update_send_report_time(track_factory->audio_ssrc_, ntp, 0);
+
         SrsRtpPacket pkt;
         pkt.header_.set_ssrc(track_factory->audio_ssrc_);
         pkt.header_.set_sequence(100);

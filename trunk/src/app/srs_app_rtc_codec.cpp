@@ -400,8 +400,11 @@ srs_error_t SrsAudioTranscoder::encode(std::vector<SrsParsedAudioPacket *> &pkts
 {
     char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
 
-    if (next_out_pts_ == AV_NOPTS_VALUE) {
-        next_out_pts_ = new_pkt_pts_;
+    // The new_pkt_pts_ is in ms, while next_out_pts_ is in the encoder's time base, samples of 1/sample_rate.
+    if (new_pkt_pts_ == AV_NOPTS_VALUE) {
+        // No packet decoded yet, so no time to start from.
+    } else if (next_out_pts_ == AV_NOPTS_VALUE) {
+        next_out_pts_ = av_rescale(new_pkt_pts_, enc_->time_base.den, 1000);
     } else {
         int64_t diff = llabs(new_pkt_pts_ - av_rescale(next_out_pts_, 1000, enc_->time_base.den));
         if (diff > 1000) {

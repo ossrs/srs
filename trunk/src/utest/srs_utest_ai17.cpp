@@ -4109,6 +4109,64 @@ VOID TEST(StatisticTest, AudioSampleRateAAC48000Hz)
     EXPECT_EQ(48000, sample_rate_any->to_integer());
 }
 
+// Report the audio of a WebRTC track, whose SDP gives its sample rate and
+// channels as numbers, then dump the stream's audio as the API answers it.
+static void rtc_format_dump_audio(const char *codec, int sample, int channel, int *dumped_rate, int *dumped_channel)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", std::string("rtc_") + codec));
+
+    SrsUniquePtr<SrsRtcTrackDescription> desc(new SrsRtcTrackDescription());
+    desc->type_ = "audio";
+    desc->ssrc_ = 1234;
+    desc->media_ = new SrsAudioPayload(111, codec, sample, channel);
+
+    MockRtcPacketReceiver receiver;
+    SrsRtcAudioRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, true));
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(stream->dumps(obj.get()));
+    SrsJsonAny *audio_any = obj->get_property("audio");
+    ASSERT_TRUE(audio_any != NULL && audio_any->is_object());
+    SrsJsonObject *audio = audio_any->to_object();
+    *dumped_rate = (int)audio->get_property("sample_rate")->to_integer();
+    *dumped_channel = (int)audio->get_property("channel")->to_integer();
+}
+
+// A WHIP stream's Opus is listed as the SDP's opus/48000/2: 48000 Hz, 2 channels.
+VOID TEST(StatisticTest, RtcOpusAudioInfoFromSdp)
+{
+    int rate = 0, channel = 0;
+    rtc_format_dump_audio("opus", 48000, 2, &rate, &channel);
+    EXPECT_EQ(48000, rate);
+    EXPECT_EQ(2, channel);
+}
+
+// G.711 is 8000 Hz mono, by the SDP's PCMU/8000/1 or a PCMA/8000 with no
+// channels, whose default is one.
+VOID TEST(StatisticTest, RtcG711AudioInfoFromSdp)
+{
+    int rate = 0, channel = 0;
+    rtc_format_dump_audio("PCMU", 8000, 1, &rate, &channel);
+    EXPECT_EQ(8000, rate);
+    EXPECT_EQ(1, channel);
+
+    rate = channel = 0;
+    rtc_format_dump_audio("PCMA", 8000, 0, &rate, &channel);
+    EXPECT_EQ(8000, rate);
+    EXPECT_EQ(1, channel);
+}
+
 // Test SrsStatistic dumps methods: dumps_streams, dumps_clients, and dumps_hints_kv
 // This test covers the major use scenario for dumping statistics to JSON and hints
 VOID TEST(StatisticTest, DumpsStreamsClientsAndHints)
