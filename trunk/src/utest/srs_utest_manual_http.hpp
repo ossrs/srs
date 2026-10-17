@@ -103,6 +103,22 @@ public:
     virtual bool exists(std::string path);
 };
 
+// Every path exists, and is a directory or not as the test says, for the directory tests of SrsHttpFileServer.
+class MockSrsPathForHttpFileServer : public SrsPath
+{
+public:
+    bool is_dir_;
+    std::vector<std::string> dir_paths_;
+
+public:
+    MockSrsPathForHttpFileServer(bool is_dir);
+    virtual ~MockSrsPathForHttpFileServer();
+
+public:
+    virtual bool exists(std::string path);
+    virtual bool is_dir(std::string path);
+};
+
 #define __MOCK_HTTP_EXPECT_STREQ(status, text, w) \
     EXPECT_STREQ(mock_http_response(status, text).c_str(), HELPER_BUFFER2STR(&w.io.out_buffer).c_str())
 

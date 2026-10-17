@@ -6,6 +6,8 @@
 #include <srs_utest_manual_http.hpp>
 
 #include <sstream>
+#include <stdio.h>
+#include <unistd.h>
 using namespace std;
 
 #include <srs_app_http_static.hpp>
@@ -2910,4 +2912,307 @@ VOID TEST(ProtocolHTTPTest, PathEscape)
         EXPECT_STREQ(d.in.c_str(), value.c_str());
         EXPECT_EQ(0, memcmp(d.in.c_str(), value.c_str(), d.in.length()));
     }
+}
+
+MockSrsPathForHttpFileServer::MockSrsPathForHttpFileServer(bool is_dir)
+{
+    is_dir_ = is_dir;
+}
+
+MockSrsPathForHttpFileServer::~MockSrsPathForHttpFileServer()
+{
+}
+
+bool MockSrsPathForHttpFileServer::exists(string /*path*/)
+{
+    return true;
+}
+
+bool MockSrsPathForHttpFileServer::is_dir(string path)
+{
+    dir_paths_.push_back(path);
+    return is_dir_;
+}
+
+// A response writer that keeps the Location header, for the directory redirects of SrsHttpFileServer.
+class MockResponseWriterForFileServer : public MockResponseWriter
+{
+public:
+    virtual srs_error_t filter(SrsHttpHeader *h)
+    {
+        string location = h->get("Location");
+        srs_error_t err = MockResponseWriter::filter(h);
+        if (!location.empty()) {
+            h->set("Location", location);
+        }
+        return err;
+    }
+};
+
+// Serve url from the static dir /tmp, whose every path is a directory or a file of content, and return the raw HTTP
+// response in resp.
+static srs_error_t mock_file_server_serve(MockSrsPathForHttpFileServer *path, string content, string url, string &resp, vector<string> *dir_paths = NULL)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    SrsHttpFileServer server("/tmp");
+    server.set_fs_factory(new MockFileReaderFactory(content));
+    server.set_path(path);
+    server.entry_ = &entry;
+
+    MockResponseWriterForFileServer w;
+    SrsHttpMessage r(NULL, NULL);
+    if ((err = r.set_url(url, false)) == srs_success) {
+        err = server.serve_http(&w, &r);
+    }
+
+    resp = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+    // The server owns and frees the path, so copy what it was asked.
+    if (dir_paths) {
+        *dir_paths = path->dir_paths_;
+    }
+
+    return err;
+}
+
+// A directory asked for without its slash is redirected to the path with the slash, as web servers do, so its
+// index.html is served and its relative links resolve. Reading the directory as a file fails and answers nothing.
+VOID TEST(HttpFileServerDirTest, DirWithoutSlashRedirectsToTheSlash)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", "/live/sub", resp));
+
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp);
+    EXPECT_PRED2(is_string_contain, "Location: /live/sub/\r\n", resp);
+}
+
+// The query is kept, and a path whose name looks like a stream or a file, or ends with a dot, is still a directory.
+VOID TEST(HttpFileServerDirTest, DirRedirectKeepsTheQuery)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", "/sub?v=1&k=x", resp));
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp);
+        EXPECT_PRED2(is_string_contain, "Location: /sub/?v=1&k=x\r\n", resp);
+    }
+
+    const char *urls[] = {"/sub.flv", "/sub.mp4", "/sub.m3u8", "/sub.ts", "/sub/."};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", urls[i], resp));
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp) << urls[i];
+        EXPECT_PRED2(is_string_contain, string("Location: ") + urls[i] + "/\r\n", resp) << urls[i];
+    }
+}
+
+// A path that starts with several slashes redirects to a location with one: a browser reads "//sub/" as the host sub,
+// not a path. A backslash is escaped, since a browser reads "/\sub/" as "//sub/" too.
+VOID TEST(HttpFileServerDirTest, DirRedirectStaysOnTheHost)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[][2] = {
+        {"//sub", "/sub/"},
+        {"///live/sub?v=1", "/live/sub/?v=1"},
+        {"//evil.com", "/evil.com/"},
+        {"/\\evil.com", "/%5Cevil.com/"},
+        {"/live/a\\b", "/live/a%5Cb/"},
+    };
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+        string resp;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", urls[i][0], resp));
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp) << urls[i][0];
+        EXPECT_PRED2(is_string_contain, string("Location: ") + urls[i][1] + "\r\n", resp) << urls[i][0];
+    }
+}
+
+// A directory at the default page of a path with its slash, such as a dir named index.html, has no page to serve: 404,
+// not a redirect that adds another slash, and not a read of the directory.
+VOID TEST(HttpFileServerDirTest, DirAtTheDefaultPageIsNotFound)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", "/sub/", resp));
+
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 404 Not Found", resp);
+    EXPECT_FALSE(is_string_contain("Location:", resp));
+}
+
+// A file is served as before, and the server asks whether its full path is a directory.
+VOID TEST(HttpFileServerDirTest, FileIsServed)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+    string resp;
+    vector<string> dir_paths;
+    HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "Hello, world!", "/live/a.dat", resp, &dir_paths));
+
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 200 OK", resp);
+    EXPECT_PRED2(is_string_contain, "Hello, world!", resp);
+    ASSERT_EQ(1, (int)dir_paths.size());
+    EXPECT_STREQ("/tmp/live/a.dat", dir_paths[0].c_str());
+}
+
+// SrsPath tells a directory from a file and a missing path.
+VOID TEST(HttpFileServerDirTest, PathIsDir)
+{
+    SrsPath path;
+
+    EXPECT_TRUE(path.is_dir("."));
+    EXPECT_TRUE(path.is_dir("./"));
+    EXPECT_FALSE(path.is_dir("./srs-utest-no-such-path"));
+
+    FILE *f = fopen("/tmp/srs-utest-path-is-dir.txt", "w");
+    ASSERT_TRUE(f != NULL);
+    fclose(f);
+    EXPECT_TRUE(path.exists("/tmp/srs-utest-path-is-dir.txt"));
+    EXPECT_FALSE(path.is_dir("/tmp/srs-utest-path-is-dir.txt"));
+    unlink("/tmp/srs-utest-path-is-dir.txt");
+}
+
+// A file whose name needs escaping is asked for percent-encoded, as a client must send it: the server looks for the
+// decoded name. A plus is a plus in a path, not a space.
+VOID TEST(HttpFileServerEscapeTest, EscapedNameIsDecoded)
+{
+    srs_error_t err = srs_success;
+
+    const char *cases[][2] = {
+        {"/live/a%20b.dat", "/tmp/live/a b.dat"},
+        {"/live/100%25.dat", "/tmp/live/100%.dat"},
+        {"/live/a+b.dat", "/tmp/live/a+b.dat"},
+        {"/live/a%2edat", "/tmp/live/a.dat"},
+        {"/live/a%2e%2eb.dat", "/tmp/live/a..b.dat"},
+        {"/live/%E5%90%8D.dat", "/tmp/live/\xE5\x90\x8D.dat"},
+        {"/live%2fa.dat", "/tmp/live/a.dat"},
+        {"/live/a%20b.dat?v=a%20b", "/tmp/live/a b.dat"},
+    };
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+        string resp;
+        vector<string> dir_paths;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "Hello, world!", cases[i][0], resp, &dir_paths));
+
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 200 OK", resp) << cases[i][0];
+        EXPECT_PRED2(is_string_contain, "Hello, world!", resp) << cases[i][0];
+        ASSERT_EQ(1, (int)dir_paths.size()) << cases[i][0];
+        EXPECT_STREQ(cases[i][1], dir_paths[0].c_str()) << cases[i][0];
+    }
+}
+
+// A directory whose name needs escaping is redirected to its encoded path with the slash, which is a valid URL.
+VOID TEST(HttpFileServerEscapeTest, EscapedDirRedirectsToTheEncodedPath)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(true);
+    string resp;
+    vector<string> dir_paths;
+    HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "dir", "/live/a%20b", resp, &dir_paths));
+
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 301 Moved Permanently", resp);
+    EXPECT_PRED2(is_string_contain, "Location: /live/a%20b/\r\n", resp);
+    ASSERT_EQ(1, (int)dir_paths.size());
+    EXPECT_STREQ("/tmp/live/a b", dir_paths[0].c_str());
+}
+
+// A path whose dots or slashes are percent-encoded to make a ".." segment would leave the dir once decoded: 404, and
+// no file is looked up. A name with two dots in it is not a ".." segment, see EscapedNameIsDecoded.
+VOID TEST(HttpFileServerEscapeTest, EncodedDotDotIsNotServed)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {
+        "/%2e%2e/%2e%2e/secret",
+        "/%2E%2E/%2E%2E/secret",
+        "/%2e%2e%2f%2e%2e%2fsecret",
+        "/live/.%2e/secret",
+        "/live/%2e%2e",
+        "/live/%2e%2e/",
+        "/live/..%2fsecret",
+    };
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+        string resp;
+        vector<string> dir_paths;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "secret", urls[i], resp, &dir_paths));
+
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 404 Not Found", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("secret", resp)) << urls[i];
+        EXPECT_TRUE(dir_paths.empty()) << urls[i];
+    }
+}
+
+// A path with a malformed escape, or an escaped NUL that would cut the file name short, is a bad request: 400, and no
+// file is looked up.
+VOID TEST(HttpFileServerEscapeTest, BadEscapeIsBadRequest)
+{
+    srs_error_t err = srs_success;
+
+    const char *urls[] = {"/live/a%zz.dat", "/live/a%2", "/live/100%.dat", "/live/a%00.dat", "/live/a.dat%00.flv"};
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+        string resp;
+        vector<string> dir_paths;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "Hello, world!", urls[i], resp, &dir_paths));
+
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 400 Bad Request", resp) << urls[i];
+        EXPECT_FALSE(is_string_contain("Hello, world!", resp)) << urls[i];
+        EXPECT_TRUE(dir_paths.empty()) << urls[i];
+    }
+}
+
+// The error code of the lookup of a URL by a mux with nothing mounted.
+static int srs_utest_mux_find_handler_code(string url)
+{
+    SrsHttpServeMux mux;
+    srs_error_t err = mux.initialize();
+    srs_freep(err);
+
+    SrsHttpHeader header;
+    header.set("Host", "127.0.0.1");
+    SrsHttpMessage msg;
+    msg.set_header(&header, false);
+    if ((err = msg.set_url(url, false)) != srs_success) {
+        int code = srs_error_code(err);
+        srs_freep(err);
+        return code;
+    }
+
+    ISrsHttpHandler *h = NULL;
+    err = mux.find_handler(&msg, &h);
+    int code = srs_error_code(err);
+    srs_freep(err);
+    return code;
+}
+
+VOID TEST(HttpServeMuxTest, DotDotSegmentRefused)
+{
+    // GOAL: a path with a ".." segment, in the middle or at the end, is not clean.
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/a/../x"));
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/a/.."));
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/../x.flv?t=1"));
+}
+
+VOID TEST(HttpServeMuxTest, TwoDotsInNameOrQueryNotRefused)
+{
+    // GOAL: two dots in a name or in the query are no traversal, so the lookup goes on to the mux's 404 handler.
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/a..b.dat"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/live/...flv"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/x.flv?t=a..b"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/x.flv?t=/../"));
 }

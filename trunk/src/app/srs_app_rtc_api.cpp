@@ -262,12 +262,15 @@ srs_error_t SrsGoApiRtcPlay::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
         }
     }
 
+    // Transform the security and hook refusals to ERROR_SYSTEM_AUTH, so that WHEP answers 401
+    // instead of 500, see SrsGoApiRtcWhip::serve_http(). A refused viewer is not a server fault.
+    // This is the same treatment the publish path gives to a refused publisher.
     if ((err = security_->check(SrsRtcConnPlay, ruc->req_->ip_, ruc->req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: security check");
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: security check");
     }
 
     if ((err = http_hooks_on_play(ruc->req_)) != srs_success) {
-        return srs_error_wrap(err, "RTC: http_hooks_on_play");
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_play");
     }
 
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.

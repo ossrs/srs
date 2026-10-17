@@ -553,18 +553,54 @@ void SrsHttpFileServer::set_path(SrsPath *v)
     path_ = v;
 }
 
+// Whether a path has a ".." segment, which would leave the served dir. A name with two dots in it, such as
+// a..b.dat, is not one.
+static bool srs_http_path_has_dotdot(const string &path)
+{
+    size_t start = 0;
+    while (start <= path.length()) {
+        size_t end = path.find('/', start);
+        if (end == string::npos) {
+            end = path.length();
+        }
+        if (path.compare(start, end - start, "..") == 0) {
+            return true;
+        }
+        start = end + 1;
+    }
+    return false;
+}
+
 srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
+    srs_error_t err = srs_success;
+
     srs_assert(entry_);
 
     // For each HTTP session, we use short-term HTTP connection.
     SrsHttpHeader *hdr = w->header();
     hdr->set("Connection", "Close");
 
+    // The URL carries the path percent-encoded, as a file name with a space, a percent sign or a non-ASCII character
+    // must be, so the file is looked up by the decoded path. A malformed escape, or a NUL that would cut the file name
+    // short, is a bad request. The mux refuses a ".." segment, but encoded dots or slashes make a ".." segment only
+    // once decoded, so it is checked here again, and not served.
     string upath = r->path();
-    string fullpath = srs_http_fs_fullpath(dir, entry_->pattern, upath);
+    string fpath;
+    if ((err = SrsHttpUri::path_unescape(upath, fpath)) != srs_success || fpath.find('\0') != string::npos) {
+        srs_warn("http bad path=%s, pattern=%s, err=%s", upath.c_str(), entry_->pattern.c_str(),
+                 err ? srs_error_summary(err).c_str() : "NUL");
+        srs_freep(err);
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_BadRequest);
+    }
+    if (srs_http_path_has_dotdot(fpath)) {
+        srs_warn("http path not clean=%s, pattern=%s, upath=%s", fpath.c_str(), entry_->pattern.c_str(), upath.c_str());
+        return SrsHttpNotFoundHandler().serve_http(w, r);
+    }
+
+    string fullpath = srs_http_fs_fullpath(dir, entry_->pattern, fpath);
     SrsPath path;
-    string basename = path.filepath_base(upath);
+    string basename = path.filepath_base(fpath);
 
     // stat current dir, if exists, return error.
     if (!path_->exists(fullpath)) {
@@ -575,15 +611,27 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
     srs_trace("http match file=%s, pattern=%s, upath=%s",
               fullpath.c_str(), entry_->pattern.c_str(), upath.c_str());
 
-    // handle file according to its extension.
+    // A directory is not a file to read. Without its slash, redirect to the path with the slash, as web servers do, so
+    // its index page is served and its relative links resolve; the location is the path as the URL encodes it. With
+    // the slash, the path is its default page, so a directory there has no page to serve. The location has one leading
+    // slash and its backslashes escaped, because a browser reads "//dir/" and "/\dir/" as the host dir.
+    if (path_->is_dir(fullpath)) {
+        if (srs_strings_ends_with(fpath, "/")) {
+            return SrsHttpNotFoundHandler().serve_http(w, r);
+        }
+        string location = srs_strings_replace("/" + srs_strings_trim_start(upath, "/") + "/", "\\", "%5C");
+        return SrsHttpRedirectHandler(location, SRS_CONSTS_HTTP_MovedPermanently).serve_http(w, r);
+    }
+
+    // handle file according to the extension of its decoded name.
     // use vod stream for .flv/.fhv
-    if (srs_strings_ends_with(upath, ".flv", ".fhv")) {
+    if (srs_strings_ends_with(fpath, ".flv", ".fhv")) {
         return serve_flv_file(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".m3u8")) {
+    } else if (srs_strings_ends_with(fpath, ".m3u8")) {
         return serve_m3u8_ctx(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".ts", ".m4s") || basename == "init.mp4") {
+    } else if (srs_strings_ends_with(fpath, ".ts", ".m4s") || basename == "init.mp4") {
         return serve_ts_ctx(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".mp4")) {
+    } else if (srs_strings_ends_with(fpath, ".mp4")) {
         return serve_mp4_file(w, r, fullpath);
     }
 
@@ -982,8 +1030,8 @@ srs_error_t SrsHttpServeMux::find_handler(ISrsHttpMessage *r, ISrsHttpHandler **
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: support the path . and ..
-    if (r->url().find("..") != std::string::npos) {
+    // Only a ".." segment of the path is a traversal; two dots in a name, such as a..b.dat, or in the query are not.
+    if (srs_http_path_has_dotdot(r->path())) {
         return srs_error_new(ERROR_HTTP_URL_NOT_CLEAN, "url %s not canonical", r->url().c_str());
     }
 
