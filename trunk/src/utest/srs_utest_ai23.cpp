@@ -1918,6 +1918,7 @@ void MockGbMpegpsQueue::reset()
 MockGbSessionForMuxer::MockGbSessionForMuxer()
 {
     device_id_ = "34020000001320000001";
+    ended_ = false;
 }
 
 MockGbSessionForMuxer::~MockGbSessionForMuxer()
@@ -1942,7 +1943,7 @@ void MockGbSessionForMuxer::on_media_disconnected(ISrsGbMediaTcpConn *media)
 
 bool MockGbSessionForMuxer::is_ended()
 {
-    return false;
+    return ended_;
 }
 
 void MockGbSessionForMuxer::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
@@ -2025,6 +2026,31 @@ srs_error_t MockGbSendingRtmpClient::send_and_free_message(SrsMediaPacket *msg)
     return srs_success;
 }
 
+MockGbEndingRtmpClient::MockGbEndingRtmpClient(MockGbSessionForMuxer *session, int end_at, int *sends)
+{
+    session_ = session;
+    end_at_ = end_at;
+    sends_ = sends;
+}
+
+MockGbEndingRtmpClient::~MockGbEndingRtmpClient()
+{
+}
+
+srs_error_t MockGbEndingRtmpClient::send_and_free_message(SrsMediaPacket *msg)
+{
+    srs_freep(msg);
+    int nn = ++(*sends_);
+
+    if (nn == end_at_) {
+        session_->ended_ = true;
+        return srs_error_new(ERROR_SOCKET_WRITE, "mock send interrupted");
+    }
+
+    send_message_count_++;
+    return srs_success;
+}
+
 MockGbYieldingMuxer::MockGbYieldingMuxer(srs_utime_t delay)
 {
     delay_ = delay;
@@ -2088,6 +2114,7 @@ void MockGbMediaTcpConnInMuxer::interrupt()
 MockAppFactoryForGbMuxer::MockAppFactoryForGbMuxer()
 {
     created_ = 0;
+    cto_ = sto_ = 0;
 }
 
 MockAppFactoryForGbMuxer::~MockAppFactoryForGbMuxer()
@@ -2101,6 +2128,8 @@ ISrsBasicRtmpClient *MockAppFactoryForGbMuxer::create_rtmp_client(std::string ur
 {
     ISrsBasicRtmpClient *client = created_ < (int)clients_.size() ? clients_[created_] : new MockRtmpClient();
     created_++;
+    cto_ = cto;
+    sto_ = sto;
     return client;
 }
 
@@ -2936,6 +2965,28 @@ VOID TEST(GbMuxerTest, MediaWhileConnectingDropped)
     EXPECT_GE(mock_queue->push_count_, 2);
 }
 
+// The RTMP output waits for its own RTMP server as the forwarder does, not
+// only the pulse: the server reads its media only once the on_publish hook
+// accepts, so a send may wait as long as the hook.
+VOID TEST(GbMuxerTest, RtmpOutputWaitsForHook)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    MockGbConnectingRtmpClient *client = new MockGbConnectingRtmpClient(muxer.get(), NULL);
+    factory.clients_.push_back(client);
+
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+    EXPECT_TRUE(muxer->sdk_ == client);
+    EXPECT_EQ(SRS_CONSTS_RTMP_TIMEOUT, factory.cto_);
+    EXPECT_EQ(SRS_CONSTS_RTMP_TIMEOUT, factory.sto_);
+}
+
 // A connect while another one is in progress is refused and makes no second
 // client. A connect that fails leaves no client, and the next media connects
 // again.
@@ -3010,6 +3061,66 @@ VOID TEST(GbMuxerTest, WriteWhileSendingQueued)
     HELPER_EXPECT_SUCCESS(reentry_error);
     EXPECT_EQ(2, sends);
     EXPECT_TRUE(muxer->sdk_ == NULL);
+}
+
+// A session's end interrupts its media connection in a send of the RTMP
+// output, which fails and frees the client. The rest of that connection's
+// pack, and any media after it, makes no new client: the ended session never
+// publishes again, and its cycle's wait for the connection to leave the muxer
+// ends.
+VOID TEST(GbMuxerTest, NoConnectAfterSessionEnded)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->assemble();
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    int sends = 0;
+    factory.clients_.push_back(new MockGbEndingRtmpClient(mock_session.get(), 2, &sends));
+
+    // While the session lives, the first audio connects, and the queue sends
+    // a frame once it has two.
+    char *data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeAudio, 0, data, 4));
+    EXPECT_EQ(1, factory.created_);
+    EXPECT_TRUE(muxer->sdk_ != NULL);
+    EXPECT_EQ(0, sends);
+
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeAudio, 23, data, 4));
+    EXPECT_EQ(1, sends);
+    EXPECT_FALSE(mock_session->is_ended());
+
+    // The session ends in the next send, which fails and frees the client.
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_FAILED(muxer->rtmp_write_packet(SrsFrameTypeAudio, 46, data, 4));
+    EXPECT_EQ(2, sends);
+    EXPECT_TRUE(mock_session->is_ended());
+    EXPECT_TRUE(muxer->sdk_ == NULL);
+
+    // The video of the same pack, and the media after it, connect no more.
+    data = new char[4];
+    memset(data, 0, 4);
+    err = muxer->rtmp_write_packet(SrsFrameTypeVideo, 50, data, 4);
+    EXPECT_EQ(ERROR_GB_SESSION_ENDED, srs_error_code(err));
+    srs_freep(err);
+
+    data = new char[4];
+    memset(data, 0, 4);
+    err = muxer->rtmp_write_packet(SrsFrameTypeAudio, 69, data, 4);
+    EXPECT_EQ(ERROR_GB_SESSION_ENDED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, factory.created_);
+    EXPECT_TRUE(muxer->sdk_ == NULL);
+    EXPECT_EQ(2, sends);
 }
 
 // Test SrsPackContext::on_ts_message - covers the major use scenario:
@@ -4069,6 +4180,8 @@ MockRtcConnectionForUdpNetwork::MockRtcConnectionForUdpNetwork()
     on_rtcp_called_ = false;
     rtp_cipher_dropped_ = false;
     binding_request_error_ = srs_success;
+    binding_requests_ = 0;
+    udp_network_ = NULL;
 }
 
 MockRtcConnectionForUdpNetwork::~MockRtcConnectionForUdpNetwork()
@@ -4177,12 +4290,13 @@ srs_error_t MockRtcConnectionForUdpNetwork::on_rtcp(char *data, int nb_data)
 
 srs_error_t MockRtcConnectionForUdpNetwork::on_binding_request(SrsStunPacket *r, std::string &ice_pwd)
 {
+    binding_requests_++;
     return srs_error_copy(binding_request_error_);
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::udp()
 {
-    return NULL;
+    return udp_network_;
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::tcp()
@@ -4278,6 +4392,7 @@ void MockRtcConnectionForUdpNetwork::reset()
     on_rtcp_called_ = false;
     rtp_cipher_dropped_ = false;
     srs_freep(binding_request_error_);
+    binding_requests_ = 0;
 }
 
 // Test SrsRtcUdpNetwork initialization and DTLS handling
@@ -4606,6 +4721,10 @@ ISrsResource *MockResourceManagerForUdpNetwork::find_by_fast_id(uint64_t id)
 
 ISrsResource *MockResourceManagerForUdpNetwork::find_by_name(std::string name)
 {
+    std::map<std::string, ISrsResource *>::iterator it = name_map_.find(name);
+    if (it != name_map_.end()) {
+        return it->second;
+    }
     return NULL;
 }
 
@@ -4625,6 +4744,7 @@ void MockResourceManagerForUdpNetwork::reset()
 {
     id_map_.clear();
     fast_id_map_.clear();
+    name_map_.clear();
 }
 
 // Test SrsRtcUdpNetwork STUN binding request handling
@@ -5146,6 +5266,22 @@ int64_t MockProtocolReadWriterForTcpNetwork::get_send_bytes()
 
 srs_error_t MockProtocolReadWriterForTcpNetwork::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
 {
+    if (write_error_ != srs_success) {
+        return srs_error_copy(write_error_);
+    }
+
+    // Store the data of all buffers as one write.
+    std::string data;
+    for (int i = 0; i < iov_size; i++) {
+        data.append((char *)iov[i].iov_base, iov[i].iov_len);
+    }
+    written_data_.push_back(data);
+    send_bytes_ += data.size();
+
+    if (nwrite) {
+        *nwrite = data.size();
+    }
+
     return srs_success;
 }
 
@@ -5295,15 +5431,9 @@ VOID TEST(RtcTcpNetworkTest, HandleStunBindingRequest)
     // Verify state transitioned to Dtls
     EXPECT_EQ(SrsRtcNetworkStateDtls, tcp_network->state_);
 
-    // Verify that data was written (STUN binding response)
-    // The write() method is called with 2-byte length prefix + STUN response data
-    EXPECT_TRUE(mock_io->written_data_.size() >= 2);
-
-    // First write should be 2-byte length prefix
-    EXPECT_EQ(2, (int)mock_io->written_data_[0].size());
-
-    // Second write should be the STUN response data
-    EXPECT_TRUE(mock_io->written_data_[1].size() > 0);
+    // Verify that the STUN binding response was written in one write, after its 2-byte length prefix.
+    EXPECT_EQ(1, (int)mock_io->written_data_.size());
+    EXPECT_TRUE(mock_io->written_data_[0].size() > 2);
 
     // Clean up
     tcp_network->sendonly_skt_ = NULL;
@@ -6422,9 +6552,9 @@ VOID TEST(RtcTcpNetworkTest, OnStunWritesStunAndResponseToInjectedBlackhole)
     request.set_remote_ufrag("remote_user");
     request.set_transcation_id("transaction123");
     HELPER_EXPECT_SUCCESS(tcp_network.on_stun(&request, data, sizeof(data)));
-    EXPECT_EQ(2, (int)io.written_data_.size());
+    EXPECT_EQ(1, (int)io.written_data_.size());
     EXPECT_EQ(3, blackhole.sendto_count_);
-    EXPECT_EQ((int)io.written_data_[1].size(), blackhole.last_len_);
+    EXPECT_EQ((int)io.written_data_[0].size() - 2, blackhole.last_len_);
 
     // The response fails to send, so only the request.
     io.reset();
@@ -6438,4 +6568,67 @@ VOID TEST(RtcTcpNetworkTest, OnStunWritesStunAndResponseToInjectedBlackhole)
 
     tcp_network.sendonly_skt_ = NULL;
     tcp_network.blackhole_ = NULL;
+}
+
+// A client that closed its socket without a DTLS alert leaves its session at its address until the session times out,
+// and a new client may get the same port. Its binding request goes to the session its username names, which binds and
+// takes the address, not to the old session, which would reject it for the other password.
+VOID TEST(RtcSessionManagerTest, BindingRequestFromOldSessionAddressGoesToNamedSession)
+{
+    srs_error_t err;
+
+    MockResourceManagerForUdpNetwork manager;
+    MockEphemeralDelta delta;
+    MockRtcBlackholeForUdpNetwork blackhole;
+
+    MockRtcConnectionForUdpNetwork old_conn;
+    SrsRtcUdpNetwork old_network(&old_conn, &delta);
+    old_network.blackhole_ = &blackhole;
+    old_network.conn_manager_ = &manager;
+    old_conn.udp_network_ = &old_network;
+    old_conn.binding_request_error_ = srs_error_new(ERROR_RTC_STUN, "mock integrity mismatch");
+
+    MockRtcConnectionForUdpNetwork conn;
+    SrsRtcUdpNetwork network(&conn, &delta);
+    network.blackhole_ = &blackhole;
+    network.conn_manager_ = &manager;
+    conn.udp_network_ = &network;
+
+    MockUdpMuxSocket socket;
+    socket.peer_ip_ = "127.0.0.1";
+    socket.peer_port_ = 50000;
+    socket.peer_id_ = "127.0.0.1:50000";
+    socket.fast_id_ = 12345;
+    manager.fast_id_map_[socket.fast_id_] = &old_conn;
+    manager.id_map_[socket.peer_id_] = &old_conn;
+    manager.name_map_["srvufrag:cliufrag"] = &conn;
+
+    // The same STUN packet as over TCP, without the 2-byte length of RFC 4571.
+    std::string stun = build_rtc_tcp_stun_binding_request("srvufrag:cliufrag").substr(2);
+    socket.data_ = (char *)stun.data();
+    socket.size_ = (int)stun.size();
+
+    SrsRtcSessionManager session_manager;
+    session_manager.conn_manager_ = &manager;
+    HELPER_EXPECT_SUCCESS(session_manager.on_udp_packet(&socket));
+
+    EXPECT_EQ(0, old_conn.binding_requests_);
+    EXPECT_EQ(1, conn.binding_requests_);
+    EXPECT_EQ(1, socket.sendto_called_count_);
+    EXPECT_EQ((ISrsUdpMuxSocket *)&socket, network.sendonly_skt_);
+    EXPECT_TRUE(old_network.sendonly_skt_ == NULL);
+
+    // The address is the new session's now, so its next packets, such as DTLS, go there.
+    EXPECT_EQ((ISrsResource *)&conn, manager.fast_id_map_[socket.fast_id_]);
+    EXPECT_EQ((ISrsResource *)&conn, manager.id_map_[socket.peer_id_]);
+
+    // The mock socket copies itself as the cached address, so it must not be freed by the network.
+    session_manager.conn_manager_ = NULL;
+    network.peer_addresses_.clear();
+    network.sendonly_skt_ = NULL;
+    network.conn_manager_ = NULL;
+    network.blackhole_ = NULL;
+    old_network.conn_manager_ = NULL;
+    old_network.blackhole_ = NULL;
+    socket.data_ = NULL;
 }

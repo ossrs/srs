@@ -1479,8 +1479,19 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
         return srs_error_wrap(err, "create dir");
     }
 
-    // The last publish's writer, which no segment uses: its unpublish closed and freed the
-    // current segment, and a segment in the window writes no more.
+    // A segment the last publish left open holds the writer freed below, so drop it and its temp
+    // file. It is left open when the unpublish failed to write it, or when the publish failed to
+    // write its key; its last data may be incomplete, so it is not listed.
+    if (current_) {
+        if ((err = current_->unlink_tmpfile()) != srs_success) {
+            srs_warn("ignore unlink tmp ts failed %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        srs_freep(current_);
+    }
+
+    // The last publish's writer, which no segment uses now: a segment in the window writes no
+    // more.
     srs_freep(writer_);
     if (hls_keys_) {
         writer_ = app_factory_->create_enc_file_writer();

@@ -30,8 +30,8 @@ type Binding struct {
 }
 
 // Bind sends STUN binding requests for the session of an offer and its
-// answer, as the client that made the offer, from a new socket to the
-// answer's loopback candidate: over TCP when opts.TCP is set and UDP
+// answer, as the client that made the offer, from a new socket, on
+// opts.LocalPort when it is set, to the answer's loopback candidate: over TCP when opts.TCP is set and UDP
 // otherwise, as an ICE-controlled agent when opts.Controlled is set. It
 // returns the binding, ErrClosed when the server closes the connection, or
 // the ctx error when no answer comes. The socket is closed when it returns:
@@ -96,6 +96,13 @@ func (s *RawSession) dial(ctx context.Context) error {
 		return fmt.Errorf("the answer has no IPv4 %v candidate", network[:3])
 	}
 	var d net.Dialer
+	if s.opts != nil && s.opts.LocalPort != 0 {
+		if network == "tcp4" {
+			d.LocalAddr = &net.TCPAddr{Port: int(s.opts.LocalPort)}
+		} else {
+			d.LocalAddr = &net.UDPAddr{Port: int(s.opts.LocalPort)}
+		}
+	}
 	conn, err := d.DialContext(ctx, network, to.String())
 	if err != nil {
 		return err

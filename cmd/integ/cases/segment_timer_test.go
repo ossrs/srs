@@ -61,6 +61,7 @@ func sharedSegmentsDispose() server.Config {
 // 120s, so a held stream keeps its files for the sessions.
 // TestTimer_Srt_PeerIdle shares it too, for SRT with a 1s peer_idle_timeout,
 // TestTimer_Gb_MediaTimeout, for GB28181 with a 1s media_connect_timeout,
+// TestTimer_Gb_RtmpOutput, for a GB stream's RTMP publish behind a slow hook,
 // and TestTimer_Convert_Reports, for WebRTC with init_rate_from_sdp on; the
 // other groups use no SRT, no GB and no WebRTC. TestTimer_Reload_RawApi
 // shares it for the RAW API with reload allowed, and TestTimer_Reload_Sighup

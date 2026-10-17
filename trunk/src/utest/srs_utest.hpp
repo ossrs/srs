@@ -412,6 +412,8 @@ public:
     virtual void close();
     virtual int get_port();
     virtual SrsTcpConnection *get_connection();
+    // Hands the accepted connection to the caller, who frees it.
+    virtual SrsTcpConnection *take_connection();
 
     // Interface ISrsCoroutineHandler
 public:

@@ -1509,14 +1509,25 @@ srs_error_t SrsGbMuxer::connect()
         return srs_error_new(ERROR_GB_RTMP_CONNECTING, "RTMP is connecting");
     }
 
+    // The session's end interrupts its media connections once, and a send that the interrupt fails clears
+    // it, so the rest of the pack would connect again, publish for a device that has left, and keep the
+    // cycle waiting for the connection to leave the muxer.
+    if (session_->is_ended()) {
+        return srs_error_new(ERROR_GB_SESSION_ENDED, "session ended");
+    }
+
     // Cleanup the data before connect again.
     close();
 
     string url = srs_strings_replace(output_, "[stream]", session_->device_id_);
     srs_trace("Muxer: Convert GB to RTMP %s", url.c_str());
 
+    // The RTMP server reads what this client sends only once its on_publish hook accepts the publish, and
+    // a burst of the device fills the socket buffers before that, so a send waits for the hook. A stream
+    // timeout as short as the pulse fails the send, closes the client and drops the media until the next
+    // keyframe, so wait as long as the forwarder does.
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
-    srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
+    srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
     ISrsBasicRtmpClient *sdk = app_factory_->create_rtmp_client(url, cto, sto);
 
     // Set sdk_ only once published, so no one writes through a client whose

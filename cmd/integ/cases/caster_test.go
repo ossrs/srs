@@ -180,6 +180,37 @@ func TestCaster_UdpTsRepush(t *testing.T) {
 	})
 }
 
+// casterSlowHook is how long a slow hook server takes to accept the caster's
+// RTMP publish: longer than SRS's 500ms pulse.
+const casterSlowHook = 800 * time.Millisecond
+
+// TestTimer_Caster_UdpTsOutput checks the RTMP publish the MPEG-TS over UDP
+// caster makes to its own server while the hook server takes longer than
+// SRS's 500ms pulse to accept it, on a server of its own, since a server has
+// one caster stream.
+func TestTimer_Caster_UdpTsOutput(t *testing.T) {
+	t.Parallel()
+	srs := server.Group(t, casterUdpTsConfig())
+
+	// A sender pushes the whole file at once while on_publish is slow, more
+	// than the socket buffers between the caster's RTMP output and its RTMP
+	// server hold: the output waits for the publish, and once the hook
+	// accepts, the caster has published its stream once, with no new
+	// connection and no unpublish, and a player gets it.
+	check.Case(t, "SlowOnPublishOnePublish", check.Timer, func(c *check.C) {
+		stream := path.Base(server.UDPTSStream)
+		srs.Hooks.Script(hookOfStream("on_publish", stream), mock.OK().After(casterSlowHook))
+		sendUDPTS(c, srs, media.H264HighAACTS, 30*time.Second)
+		pub := waitHook(c, srs, "on_publish", stream)
+		time.Sleep(time.Until(pub.Time.Add(casterSlowHook + 300*time.Millisecond)))
+		c.CheckEqual(len(srs.Hooks.Requests(mock.Match{Action: "on_connect"})), 1, "on_connect requests")
+		c.CheckEqual(len(srs.Hooks.Requests(hookOfStream("on_publish", stream))), 1, "on_publish requests")
+		c.CheckEqual(len(srs.Hooks.Requests(hookOfStream("on_unpublish", stream))), 0, "on_unpublish requests")
+		r := playUntilWithin(c, rtmpURL(srs, server.UDPTSStream), srtPlayedUntil, 500*time.Millisecond)
+		checkSRTPlayed(c, r)
+	})
+}
+
 // pushUDPTS sends a TS file to the server's MPEG-TS over UDP caster until
 // the group ends, casterLead of it at once, then the rest in real time, and
 // waits for the on_publish of the caster's RTMP stream.

@@ -689,6 +689,7 @@ public:
     int unsubscribe_count_;
     ISrsReloadHandler *last_subscribed_handler_;
     SrsConfDirective *vhost_directive_;
+    bool origin_cluster_;
 
 public:
     MockAppConfigForRtmpConn();
@@ -699,7 +700,26 @@ public:
     virtual void unsubscribe(ISrsReloadHandler *handler);
     virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true);
     virtual bool get_vhost_is_edge(std::string vhost);
+    virtual bool get_vhost_origin_cluster(std::string vhost);
     void reset();
+};
+
+// Mock RTMP server of a player that has sent messages SRS has not read yet.
+class MockRtmpServerForUnreadMessages : public MockRtmpServer
+{
+public:
+    // The messages the player has sent and SRS has not read; -1 for a player that never stops sending.
+    int unread_;
+    int recv_count_;
+    srs_utime_t recv_timeout_;
+
+public:
+    MockRtmpServerForUnreadMessages();
+    virtual ~MockRtmpServerForUnreadMessages();
+
+public:
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_error_t recv_message(SrsRtmpCommonMessage **pmsg);
 };
 
 // Mock ISrsCoroutine for testing SrsRtmpConn::service_cycle()

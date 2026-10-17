@@ -2179,15 +2179,22 @@ srs_error_t SrsConfig::build_buffer(string src, SrsConfigBuffer **pbuffer)
 }
 // LCOV_EXCL_STOP
 
+// Parse the value as a finite number, such as 10, 0.5 or 1e3; false for nan, inf or a value with no number.
+static bool srs_config_parse_finite(const string &value, double *v)
+{
+    const char *s = value.c_str();
+    char *end = NULL;
+    *v = ::strtod(s, &end);
+    return end != s && std::isfinite(*v);
+}
+
 // Whether a time directive's value, in seconds or milliseconds, is a finite number that is not negative,
 // such as 10, 0.5 or 1e3. The getters read it with atof and cast it to srs_utime_t, which is undefined for
 // nan or inf, and a negative time or a value with no number has no meaning for any of them.
 static bool srs_config_time_valid(const string &value)
 {
-    const char *s = value.c_str();
-    char *end = NULL;
-    double v = ::strtod(s, &end);
-    return end != s && std::isfinite(v) && v >= 0;
+    double v;
+    return srs_config_parse_finite(value, &v) && v >= 0;
 }
 
 // The time directives of a vhost the getters read with atof, by section, name and env var.
@@ -2223,6 +2230,21 @@ static srs_error_t srs_config_check_time(SrsConfDirective *section, const string
 
     return srs_success;
 }
+
+// Whether an HLS ratio's value is a finite number above zero, such as 1.5 or 2. The muxer multiplies the
+// fragment by it into a srs_utime_t, which is undefined for nan or inf, and a ratio of zero or below has no
+// meaning for the target duration or the pure audio segment.
+static bool srs_config_ratio_valid(const string &value)
+{
+    double v;
+    return srs_config_parse_finite(value, &v) && v > 0;
+}
+
+// The HLS ratios the getters read with atof, by name and env var.
+static const char *srs_config_hls_ratios[][2] = {
+    {"hls_td_ratio", "SRS_VHOST_HLS_HLS_TD_RATIO"},
+    {"hls_aof_ratio", "SRS_VHOST_HLS_HLS_AOF_RATIO"},
+};
 
 srs_error_t SrsConfig::check_config()
 {
@@ -2528,6 +2550,54 @@ srs_error_t SrsConfig::check_normal_config()
                     return err;
                 }
             }
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check the HLS ratios, from the file and the env, before any getter reads them.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        for (int i = 0; i < (int)(sizeof(srs_config_hls_ratios) / sizeof(srs_config_hls_ratios[0])); i++) {
+            string env = srs_config_hls_ratios[i][1];
+            string value = srs_getenv(env);
+            if (!value.empty() && !srs_config_ratio_valid(value)) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid %s=%s, not a ratio that is finite and above zero",
+                                     env.c_str(), value.c_str());
+            }
+        }
+
+        vector<SrsConfDirective *> vhosts;
+        get_vhosts(vhosts);
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective *vhost = vhosts.at(i);
+            SrsConfDirective *hls = vhost->get("hls");
+            for (int j = 0; hls && j < (int)(sizeof(srs_config_hls_ratios) / sizeof(srs_config_hls_ratios[0])); j++) {
+                SrsConfDirective *conf = hls->get(srs_config_hls_ratios[j][0]);
+                if (conf && !conf->arg0().empty() && !srs_config_ratio_valid(conf->arg0())) {
+                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s hls %s=%s, not a ratio that is finite and above zero",
+                                         vhost->arg0().c_str(), srs_config_hls_ratios[j][0], conf->arg0().c_str());
+                }
+            }
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check the tcmalloc release rate, from the file and the env, before the getter reads it. It must be a
+    // finite number: the getter reads it with atof and clamps it to 0 to 10 with srs_min and srs_max, which
+    // pass nan through to tcmalloc, and a value with no number has no rate.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        double rate;
+        string value = srs_getenv("SRS_TCMALLOC_RELEASE_RATE");
+        if (!value.empty() && !srs_config_parse_finite(value, &rate)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid SRS_TCMALLOC_RELEASE_RATE=%s, not a finite number",
+                                 value.c_str());
+        }
+
+        SrsConfDirective *conf = root_->get("tcmalloc_release_rate");
+        if (conf && !conf->arg0().empty() && !srs_config_parse_finite(conf->arg0(), &rate)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid tcmalloc_release_rate=%s, not a finite number",
+                                 conf->arg0().c_str());
         }
     }
 

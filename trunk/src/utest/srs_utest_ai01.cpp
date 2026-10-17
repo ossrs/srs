@@ -4817,6 +4817,158 @@ VOID TEST(ConfigMainTest, TimeDirectiveEnvNotFiniteRefused)
     }
 }
 
+// The HLS ratios, by config file and env var.
+static MockTimeDirective mock_ratio_directives[] = {
+    {"vhost test.com{hls{hls_td_ratio ", ";}}", "hls_td_ratio", "SRS_VHOST_HLS_HLS_TD_RATIO"},
+    {"vhost test.com{hls{hls_aof_ratio ", ";}}", "hls_aof_ratio", "SRS_VHOST_HLS_HLS_AOF_RATIO"},
+};
+
+// A value of an HLS ratio that is not a finite number above zero.
+static const char *mock_bad_ratios[] = {"nan", "NAN", "-nan", "inf", "-inf", "infinity", "1e400", "-1", "0", "-0.5", "abc"};
+
+// A value of an HLS ratio that both of them take.
+static const char *mock_good_ratios[] = {"1.5", "2.0", "0.8", "3", ".5", "1e1"};
+
+// An HLS ratio in a config file must be a finite number above zero, since the muxer multiplies the fragment
+// by it into a srs_utime_t, undefined for nan or inf, and a ratio of zero or below has no meaning for the
+// target duration or the pure audio segment: it is refused by the config check, with an error that names the
+// directive and the value.
+VOID TEST(ConfigMainTest, HlsRatioNotPositiveRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_ratio_directives) / sizeof(mock_ratio_directives[0])); i++) {
+        MockTimeDirective &d = mock_ratio_directives[i];
+
+        for (int j = 0; j < (int)(sizeof(mock_bad_ratios) / sizeof(mock_bad_ratios[0])); j++) {
+            string c = string(_MIN_OK_CONF) + d.prefix + mock_bad_ratios[j] + d.suffix;
+
+            MockSrsConfig conf;
+            srs_error_t err = conf.mock_parse(c);
+            EXPECT_TRUE(err != srs_success) << c;
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(string(d.name) + "=" + mock_bad_ratios[j]) != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
+
+        for (int j = 0; j < (int)(sizeof(mock_good_ratios) / sizeof(mock_good_ratios[0])); j++) {
+            string c = string(_MIN_OK_CONF) + d.prefix + mock_good_ratios[j] + d.suffix;
+
+            srs_error_t err;
+            MockSrsConfig conf;
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(c));
+        }
+    }
+}
+
+// An HLS ratio's env var must be a finite number above zero too, refused by the config check with an error
+// that names the env var and the value. An empty one is unset, as every empty env var is.
+VOID TEST(ConfigMainTest, HlsRatioEnvNotPositiveRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_ratio_directives) / sizeof(mock_ratio_directives[0])); i++) {
+        MockTimeDirective &d = mock_ratio_directives[i];
+
+        for (int j = 0; j < (int)(sizeof(mock_bad_ratios) / sizeof(mock_bad_ratios[0])); j++) {
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, ratio, d.env, mock_bad_ratios[j]);
+
+            srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+            EXPECT_TRUE(err != srs_success) << d.env << "=" << mock_bad_ratios[j];
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(string(d.env) + "=" + mock_bad_ratios[j]) != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
+
+        for (int j = 0; j < (int)(sizeof(mock_good_ratios) / sizeof(mock_good_ratios[0])); j++) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, ratio, d.env, mock_good_ratios[j]);
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
+
+        if (true) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, ratio, d.env, "");
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
+    }
+}
+
+// A value of tcmalloc_release_rate that is not a finite number.
+static const char *mock_bad_release_rates[] = {"nan", "NAN", "-nan", "inf", "-inf", "infinity", "1e400", "abc"};
+
+// A value of tcmalloc_release_rate that is taken, with the rate the getter clamps it to, from 0 to 10.
+static struct {
+    const char *value;
+    double rate;
+} mock_good_release_rates[] = {{"0", 0}, {"0.5", 0.5}, {"10", 10}, {"1e1", 10}, {"15", 10}, {"-5", 0}};
+
+// The tcmalloc_release_rate in a config file must be a finite number, since the getter clamps it to 0 to 10
+// with srs_min and srs_max, which pass nan through to tcmalloc, and a value with no number has no rate: it is
+// refused by the config check, with an error that names the directive and the value. A finite number out of
+// the range is still clamped.
+VOID TEST(ConfigMainTest, TcmallocReleaseRateNotFiniteRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_bad_release_rates) / sizeof(mock_bad_release_rates[0])); i++) {
+        string c = string(_MIN_OK_CONF) + "tcmalloc_release_rate " + mock_bad_release_rates[i] + ";";
+
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(c);
+        EXPECT_TRUE(err != srs_success) << c;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(string("tcmalloc_release_rate=") + mock_bad_release_rates[i]) != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    for (int i = 0; i < (int)(sizeof(mock_good_release_rates) / sizeof(mock_good_release_rates[0])); i++) {
+        string c = string(_MIN_OK_CONF) + "tcmalloc_release_rate " + mock_good_release_rates[i].value + ";";
+
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(c));
+        EXPECT_EQ(mock_good_release_rates[i].rate, conf.tcmalloc_release_rate()) << c;
+    }
+}
+
+// The SRS_TCMALLOC_RELEASE_RATE env var must be a finite number too, refused by the config check with an
+// error that names the env var and the value. An empty one is unset, as every empty env var is.
+VOID TEST(ConfigMainTest, TcmallocReleaseRateEnvNotFiniteRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_bad_release_rates) / sizeof(mock_bad_release_rates[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, rate, "SRS_TCMALLOC_RELEASE_RATE", mock_bad_release_rates[i]);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << "SRS_TCMALLOC_RELEASE_RATE=" << mock_bad_release_rates[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(string("SRS_TCMALLOC_RELEASE_RATE=") + mock_bad_release_rates[i]) != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    for (int i = 0; i < (int)(sizeof(mock_good_release_rates) / sizeof(mock_good_release_rates[0])); i++) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, rate, "SRS_TCMALLOC_RELEASE_RATE", mock_good_release_rates[i].value);
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_EQ(mock_good_release_rates[i].rate, conf.tcmalloc_release_rate()) << mock_good_release_rates[i].value;
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, rate, "SRS_TCMALLOC_RELEASE_RATE", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_EQ(0.8, conf.tcmalloc_release_rate());
+    }
+}
+
 // The bandwidth check is removed: a config file with the bandcheck section of a vhost is refused, with an
 // error that names it, whatever the section holds.
 VOID TEST(ConfigMainTest, BandcheckRemoved)

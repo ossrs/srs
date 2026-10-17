@@ -14,6 +14,7 @@
 
 #include <srs_app_factory.hpp>
 #include <srs_app_forward.hpp>
+#include <srs_app_listener.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_packet.hpp>
 #include <srs_protocol_http_client.hpp>
@@ -24,6 +25,7 @@
 #include <vector>
 
 class SrsOriginHub;
+class SrsServer;
 class MockLiveSourceForOriginHub;
 class MockAppConfig;
 
@@ -289,5 +291,24 @@ extern MockCoroutineForForwarder *utest_forward_wire(SrsForwarder *forwarder, Mo
 
 // An origin hub whose HLS, DASH, DVR, encoder and exec are mocks, so only its forward parts do real work.
 extern SrsOriginHub *utest_forward_hub(MockLiveSourceForOriginHub *source, ISrsRequest *req, ISrsAppConfig *config, ISrsHttpHooks *hooks);
+
+// Hands each accepted TCP connection to a server as if one of the server's own listeners had accepted it.
+class MockServerTcpAcceptor : public ISrsTcpHandler
+{
+public:
+    SrsServer *server_;
+    // The server's listener the connection comes from.
+    ISrsListener *as_;
+    bool accepted_;
+    // The server's error, empty when it took the connection.
+    std::string error_;
+
+public:
+    MockServerTcpAcceptor(SrsServer *server, ISrsListener *as);
+    virtual ~MockServerTcpAcceptor();
+
+public:
+    virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
+};
 
 #endif

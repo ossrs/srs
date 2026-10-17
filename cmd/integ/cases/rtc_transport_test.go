@@ -183,6 +183,22 @@ func rtcTransport(t *testing.T) {
 		c.Check(errors.Is(err, context.DeadlineExceeded), "unknown username: %v, want no answer", err)
 	})
 
+	// UdpBindingFromClosedSessionPort binds a session from the port of
+	// another session's socket, closed with no DTLS alert, so SRS still has
+	// that session at the address: SRS answers the new session, which its
+	// username names.
+	check.Case(t, "UdpBindingFromClosedSessionPort", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		old := rtcAnswered(c, whipURL(srs, "live", streamName(c)), rtcOffer(c, true, []string{"H264"}, []string{"opus"}))
+		ob, err := rtcBind(c, old.Offer, old.Answer, nil, 300*time.Millisecond)
+		c.Must(err, "the first session's UDP binding")
+		s := rtcAnswered(c, whipURL(srs, "live", streamName(c)), rtcOffer(c, true, []string{"H264"}, []string{"opus"}))
+		b, err := rtcBind(c, s.Offer, s.Answer, &rtc.Options{LocalPort: ob.Local.Port()}, 300*time.Millisecond)
+		if c.CheckNoError(err, "UDP binding from the first session's port") {
+			c.CheckEqual(b.Mapped, ob.Local, "mapped address")
+		}
+	})
+
 	// ControlledAccepted binds as an ICE-controlled agent: with
 	// stun_strict_check off, SRS answers it.
 	check.Case(t, "ControlledAccepted", check.Normal, func(c *check.C) {

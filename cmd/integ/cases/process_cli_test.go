@@ -150,6 +150,16 @@ var badEnv = []struct {
 	{name: "HlsDisposeInf", env: envOf("SRS_VHOST_HLS_HLS_DISPOSE", "inf")},
 	{name: "HlsDisposeNegative", env: envOf("SRS_VHOST_HLS_HLS_DISPOSE", "-1")},
 	{name: "HlsDisposeNotNumber", env: envOf("SRS_VHOST_HLS_HLS_DISPOSE", "abc")},
+	// An HLS ratio must be a finite number above zero.
+	{name: "HlsTdRatioNan", env: envOf("SRS_VHOST_HLS_HLS_TD_RATIO", "nan")},
+	{name: "HlsTdRatioZero", env: envOf("SRS_VHOST_HLS_HLS_TD_RATIO", "0")},
+	{name: "HlsAofRatioInf", env: envOf("SRS_VHOST_HLS_HLS_AOF_RATIO", "inf")},
+	{name: "HlsAofRatioNegative", env: envOf("SRS_VHOST_HLS_HLS_AOF_RATIO", "-1")},
+	// The tcmalloc release rate must be a finite number: not nan, not inf,
+	// and a number.
+	{name: "TcmallocReleaseRateNan", env: envOf("SRS_TCMALLOC_RELEASE_RATE", "nan")},
+	{name: "TcmallocReleaseRateInf", env: envOf("SRS_TCMALLOC_RELEASE_RATE", "inf")},
+	{name: "TcmallocReleaseRateNotNumber", env: envOf("SRS_TCMALLOC_RELEASE_RATE", "abc")},
 }
 
 // envOf returns the env of name and value pairs.

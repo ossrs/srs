@@ -323,7 +323,6 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     if (it != transcoded_urls_->end()) {
         return srs_error_new(ERROR_ENCODER_LOOP, "detect a loop cycle, input=%s, output=%s", input.c_str(), output.c_str());
     }
-    transcoded_urls_->push_back(output);
 
     if ((err = ffmpeg->initialize(input, output, log_file)) != srs_success) {
         return srs_error_wrap(err, "init ffmpeg");
@@ -331,6 +330,10 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     if ((err = ffmpeg->initialize_transcode(engine)) != srs_success) {
         return srs_error_wrap(err, "init transcode");
     }
+
+    // Track the output only once the engine is ready: the caller frees a failed engine, which never
+    // reaches clear_engines, so its output would stay a loop for that stream until restart.
+    transcoded_urls_->push_back(output);
 
     return err;
 }

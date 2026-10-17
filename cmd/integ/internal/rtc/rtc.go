@@ -53,6 +53,9 @@ type Options struct {
 	// Controlled makes a raw session's STUN binding requests those of an
 	// ICE-controlled agent, which doesn't nominate the pair.
 	Controlled bool
+	// LocalPort is the local port of a raw session's socket, such as the
+	// port of an earlier session's closed socket; 0 lets the system pick.
+	LocalPort uint16
 	// RTX offers RTX, RFC 4588, for each video codec: a publisher then sends
 	// the packets the server asks for again on its RTX stream, and a player
 	// takes them on the server's.

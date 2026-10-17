@@ -734,8 +734,12 @@ srs_error_t SrsMpegtsOverUdp::connect()
         return err;
     }
 
+    // The RTMP server reads what this client sends only once its on_publish hook accepts the publish, and
+    // a burst of the sender fills the socket buffers before that, so a send waits for the hook. A stream
+    // timeout as short as the pulse fails the send, closes the client and drops the media until the next
+    // keyframe, so wait as long as the forwarder does.
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
-    srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
+    srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
     sdk_ = app_factory_->create_rtmp_client(output_, cto, sto);
 
     if ((err = sdk_->connect()) != srs_success) {

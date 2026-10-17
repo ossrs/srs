@@ -6,7 +6,9 @@
 #include <srs_utest_ai34.hpp>
 
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_rtc_network.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_app_server.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_codec.hpp>
@@ -16,6 +18,7 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai17.hpp>
+#include <srs_utest_ai23.hpp>
 #include <srs_utest_ai32.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
@@ -2961,4 +2964,157 @@ VOID TEST(ForwarderStatusTest, StatesFollowConnectPublishAndRetry)
     EXPECT_TRUE(stat.find_forward(id) == NULL);
 
     stat.clk_ = NULL;
+}
+
+// A packet over TCP goes out in one write, its 2-byte size in network order then its data, so the data never waits
+// for the peer to acknowledge the size.
+VOID TEST(RtcTcpNetworkTest, WritesSizeAndDataInOneWrite)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockProtocolReadWriterForTcpNetwork io;
+
+    SrsRtcTcpNetwork tcp_network(&conn, &delta);
+    tcp_network.update_sendonly_socket(&io);
+
+    char data[300];
+    for (int i = 0; i < (int)sizeof(data); i++) {
+        data[i] = (char)i;
+    }
+
+    ssize_t nwrite = 0;
+    HELPER_EXPECT_SUCCESS(tcp_network.write(data, sizeof(data), &nwrite));
+    EXPECT_EQ(300, (int)nwrite);
+    ASSERT_EQ(1, (int)io.written_data_.size());
+    EXPECT_TRUE(string("\x01\x2c", 2) + string(data, sizeof(data)) == io.written_data_[0]);
+
+    // The next packet is one more write.
+    HELPER_EXPECT_SUCCESS(tcp_network.write(data, 20, NULL));
+    ASSERT_EQ(2, (int)io.written_data_.size());
+    EXPECT_TRUE(string("\x00\x14", 2) + string(data, 20) == io.written_data_[1]);
+
+    // A failed write fails the packet.
+    srs_error_t write_err = srs_error_new(ERROR_SOCKET_WRITE, "mock write error");
+    io.set_write_error(write_err);
+    srs_freep(write_err);
+    HELPER_EXPECT_FAILED(tcp_network.write(data, sizeof(data), NULL));
+    EXPECT_EQ(2, (int)io.written_data_.size());
+
+    tcp_network.sendonly_skt_ = NULL;
+}
+
+MockServerTcpAcceptor::MockServerTcpAcceptor(SrsServer *server, ISrsListener *as)
+{
+    server_ = server;
+    as_ = as;
+    accepted_ = false;
+}
+
+MockServerTcpAcceptor::~MockServerTcpAcceptor()
+{
+}
+
+srs_error_t MockServerTcpAcceptor::on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
+{
+    srs_error_t err = server_->on_tcp_client(as_, stfd);
+    accepted_ = true;
+    if (err != srs_success) {
+        error_ = srs_error_desc(err);
+    }
+    return err;
+}
+
+// Reads the client's end of a connection until the server closes it or the timeout passes, and drops what it reads.
+// Returns 1 when the server has closed the socket, 0 when it is still open at the timeout, -1 on another error.
+static int utest_server_closed(SrsTcpConnection *client, srs_utime_t timeout)
+{
+    char buf[1024];
+    client->set_recv_timeout(timeout);
+
+    while (true) {
+        ssize_t nread = 0;
+        srs_error_t err = client->read(buf, sizeof(buf), &nread);
+        if (err == srs_success) {
+            continue;
+        }
+
+        int code = srs_error_code(err);
+        srs_freep(err);
+        if (code == ERROR_SOCKET_TIMEOUT) {
+            return 0;
+        }
+        return code == ERROR_SOCKET_READ ? 1 : -1;
+    }
+}
+
+// Connects a client to the server's HTTP port through the acceptor and sends the first bytes. The server keeps the
+// socket open while the client stays; when the client ends its side, the server's connection ends and closes it.
+static void utest_shared_port_closes_socket(SrsResourceManager *manager, MockServerTcpAcceptor *acceptor, const string &first, size_t nn_alive)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsTcpListener> listener(new SrsTcpListener(acceptor));
+    int port = srs_utest_random_port();
+    listener->set_endpoint("127.0.0.1", port);
+    HELPER_ASSERT_SUCCESS(listener->listen());
+
+    srs_netfd_t stfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
+    int fd = srs_netfd_fileno(stfd);
+    SrsUniquePtr<SrsTcpConnection> client(new SrsTcpConnection(stfd));
+    HELPER_ASSERT_SUCCESS(client->write((void *)first.data(), first.size(), NULL));
+    for (int i = 0; i < 100 && !acceptor->accepted_; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+
+    // The server took the client, and holds its connection and socket while the client stays.
+    ASSERT_TRUE(acceptor->accepted_);
+    EXPECT_STREQ("", acceptor->error_.c_str());
+    EXPECT_EQ(0, utest_server_closed(client.get(), 100 * SRS_UTIME_MILLISECONDS));
+    EXPECT_EQ(nn_alive, manager->size());
+
+    // The client ends its side: the server's connection ends and is freed, and its socket is closed with it.
+    ASSERT_EQ(0, shutdown(fd, SHUT_WR));
+    EXPECT_EQ(1, utest_server_closed(client.get(), 1 * SRS_UTIME_SECONDS));
+    for (int i = 0; i < 100 && !manager->empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(manager->empty());
+}
+
+// With WebRTC over TCP on the HTTP server's port, the server wraps each client's socket to peek at its first bytes,
+// then hands the wrapper to a WebRTC or an HTTP connection. When that connection ends, the socket is closed, so a
+// server whose port is shared never runs out of sockets.
+VOID TEST(RtcTcpConnTest, SharedPortClosesSocketWithConnection)
+{
+    srs_error_t err;
+
+    // The server's connections go to a manager of their own, which frees each one when it ends.
+    SrsResourceManager manager("utest-shared-port");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->conn_manager_ = &manager;
+    server->reuse_rtc_over_server_ = true;
+
+    // The frame size and the STUN header of a binding request in an RFC 4571 frame, the start of a WebRTC client.
+    const char stun[] = {0x00, 0x6c, 0x00, 0x01, 0x00, 0x58, 0x21, 0x12, (char)0xa4, 0x42,
+                         0x48, 0x32, 0x6c, 0x61, 0x6b, 0x42, 0x35, 0x71, 0x42, 0x35, 0x4a, 0x71};
+    const char http[] = "GET / HTTP/1.1\r\n";
+
+    // A WebRTC client runs in an executor, which the manager frees when it ends, so the manager lists none.
+    if (true) {
+        MockServerTcpAcceptor acceptor(server.get(), server->http_listener_);
+        utest_shared_port_closes_socket(&manager, &acceptor, string(stun, sizeof(stun)), 0);
+    }
+
+    // An HTTP client's connection is in the manager until it ends.
+    if (true) {
+        MockServerTcpAcceptor acceptor(server.get(), server->http_listener_);
+        utest_shared_port_closes_socket(&manager, &acceptor, http, 1);
+    }
 }

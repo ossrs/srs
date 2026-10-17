@@ -68,6 +68,10 @@ ISrsRtmpTransport::~ISrsRtmpTransport()
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT (3 * SRS_UTIME_SECONDS)
 
+// How long the client may be idle, and the most messages drained, when SRS drains its input before a close.
+#define SRS_DRAIN_INPUT_TIMEOUT (100 * SRS_UTIME_MILLISECONDS)
+#define SRS_DRAIN_INPUT_MESSAGES 10
+
 SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, srs_utime_t ctm, srs_utime_t stm) : SrsBasicRtmpClient(u, ctm, stm)
 {
     config_ = _srs_config;
@@ -733,7 +737,15 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
     // When origin cluster enabled, try to redirect to the origin which is active.
     // A active origin is a server which is delivering stream.
     if (!info_->edge_ && config_->get_vhost_origin_cluster(req->vhost_) && source->inactive()) {
-        return redirect_to_origin_cluster(source);
+        err = redirect_to_origin_cluster(source);
+
+        // A redirect has read the client's answer. With no origin, the connection is closed right
+        // after start_play(), maybe with the client's buffer length unread, and closing a socket
+        // with input unread is a reset that drops NetStream.Play.Start if not sent yet.
+        if (srs_error_code(err) != ERROR_CONTROL_REDIRECT) {
+            drain_client_input(); // void
+        }
+        return err;
     }
 
     // Set the socket options for transport.
@@ -816,6 +828,21 @@ srs_error_t SrsRtmpConn::redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> 
     return srs_error_new(ERROR_OCLUSTER_REDIRECT, "no origin");
 }
 // LCOV_EXCL_STOP
+
+void SrsRtmpConn::drain_client_input()
+{
+    rtmp_->set_recv_timeout(SRS_DRAIN_INPUT_TIMEOUT);
+
+    for (int i = 0; i < SRS_DRAIN_INPUT_MESSAGES; i++) {
+        SrsRtmpCommonMessage *msg = NULL;
+        srs_error_t err = rtmp_->recv_message(&msg);
+        if (err != srs_success) {
+            srs_freep(err);
+            return;
+        }
+        srs_freep(msg);
+    }
+}
 
 srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer *consumer, SrsQueueRecvThread *rtrd)
 {

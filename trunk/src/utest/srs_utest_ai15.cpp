@@ -3423,6 +3423,7 @@ MockAppConfigForRtmpConn::MockAppConfigForRtmpConn()
     vhost_directive_ = new SrsConfDirective();
     vhost_directive_->name_ = "vhost";
     vhost_directive_->args_.push_back("__defaultVhost__");
+    origin_cluster_ = false;
 }
 
 MockAppConfigForRtmpConn::~MockAppConfigForRtmpConn()
@@ -3449,6 +3450,11 @@ SrsConfDirective *MockAppConfigForRtmpConn::get_vhost(std::string vhost, bool tr
 bool MockAppConfigForRtmpConn::get_vhost_is_edge(std::string vhost)
 {
     return false;
+}
+
+bool MockAppConfigForRtmpConn::get_vhost_origin_cluster(std::string vhost)
+{
+    return origin_cluster_;
 }
 
 void MockAppConfigForRtmpConn::reset()
@@ -4178,6 +4184,100 @@ VOID TEST(SrsRtmpConnTest, StreamServiceCycleThreadQuitCheck)
 
     srs_freep(conn);
     srs_freep(mock_config);
+}
+
+MockRtmpServerForUnreadMessages::MockRtmpServerForUnreadMessages()
+{
+    unread_ = 0;
+    recv_count_ = 0;
+    recv_timeout_ = 0;
+}
+
+MockRtmpServerForUnreadMessages::~MockRtmpServerForUnreadMessages()
+{
+}
+
+void MockRtmpServerForUnreadMessages::set_recv_timeout(srs_utime_t tm)
+{
+    recv_timeout_ = tm;
+}
+
+srs_error_t MockRtmpServerForUnreadMessages::recv_message(SrsRtmpCommonMessage **pmsg)
+{
+    recv_count_++;
+
+    if (unread_ == 0) {
+        return srs_error_new(ERROR_SOCKET_TIMEOUT, "mock player sends nothing more");
+    }
+
+    if (unread_ > 0) {
+        unread_--;
+    }
+    *pmsg = new SrsRtmpCommonMessage();
+    return srs_success;
+}
+
+// A player of an origin cluster's stream that no origin publishes is closed after start_play() sent
+// NetStream.Play.Start. Closing a socket with input unread makes the kernel reset the connection and
+// drop what is not sent yet, such as NetStream.Play.Start, so SRS drains what the player sent after
+// the play, such as its buffer length, until the player is idle, before it closes the connection.
+VOID TEST(SrsRtmpConnTest, NoOriginDrainsPlayerInput)
+{
+    srs_error_t err = srs_success;
+
+    // The player sent two messages after the play, then waits for the stream.
+    if (true) {
+        MockAppConfigForRtmpConn config;
+        config.origin_cluster_ = true;
+        MockRtmpServerForUnreadMessages *rtmp = new MockRtmpServerForUnreadMessages();
+        rtmp->unread_ = 2;
+
+        SrsUniquePtr<SrsRtmpConn> conn(new SrsRtmpConn(new MockRtmpTransportForDoCycle(), "127.0.0.1", 1935));
+        conn->config_ = &config;
+        conn->assemble();
+        srs_freep(conn->rtmp_);
+        conn->rtmp_ = rtmp;
+        srs_freep(conn->trd_);
+        conn->trd_ = new MockCoroutineForRtmpConn();
+        conn->info_->req_->vhost_ = "__defaultVhost__";
+        conn->info_->req_->app_ = "live";
+        conn->info_->req_->stream_ = "livestream";
+
+        SrsSharedPtr<SrsLiveSource> source(new SrsLiveSource());
+        err = conn->playing(source);
+        EXPECT_EQ(ERROR_OCLUSTER_REDIRECT, srs_error_code(err));
+        srs_freep(err);
+
+        // Both messages read, then a read that waited for the player and timed out.
+        EXPECT_EQ(0, rtmp->unread_);
+        EXPECT_EQ(3, rtmp->recv_count_);
+        EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, rtmp->recv_timeout_);
+    }
+
+    // A player that never stops sending is closed after SRS read a few of its messages.
+    if (true) {
+        MockAppConfigForRtmpConn config;
+        config.origin_cluster_ = true;
+        MockRtmpServerForUnreadMessages *rtmp = new MockRtmpServerForUnreadMessages();
+        rtmp->unread_ = -1;
+
+        SrsUniquePtr<SrsRtmpConn> conn(new SrsRtmpConn(new MockRtmpTransportForDoCycle(), "127.0.0.1", 1935));
+        conn->config_ = &config;
+        conn->assemble();
+        srs_freep(conn->rtmp_);
+        conn->rtmp_ = rtmp;
+        srs_freep(conn->trd_);
+        conn->trd_ = new MockCoroutineForRtmpConn();
+        conn->info_->req_->vhost_ = "__defaultVhost__";
+        conn->info_->req_->app_ = "live";
+        conn->info_->req_->stream_ = "livestream";
+
+        SrsSharedPtr<SrsLiveSource> source(new SrsLiveSource());
+        err = conn->playing(source);
+        EXPECT_EQ(ERROR_OCLUSTER_REDIRECT, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(10, rtmp->recv_count_);
+    }
 }
 
 // Mock config implementation for SrsRtmpConn::acquire_publish() testing

@@ -52,6 +52,9 @@ type Options struct {
 	Connect map[string]any
 	// Timeout bounds the dial, the handshake and each command's answer.
 	Timeout time.Duration
+	// PlayGap, when set, is how long Play waits between the play command
+	// and the buffer length, so the server reads them apart.
+	PlayGap time.Duration
 	// BeforeConnect, when set, writes on the connection after the handshake
 	// and the chunk size, before connect; an error stops the dial.
 	BeforeConnect func(w io.Writer) error
@@ -121,6 +124,7 @@ type Client struct {
 	conn    net.Conn
 	wire    *wireConn
 	timeout time.Duration
+	playGap time.Duration
 	r       *chunkReader
 	wmu     sync.Mutex
 	w       *chunkWriter
@@ -155,7 +159,7 @@ func Dial(ctx context.Context, raw string, opts *Options) (*Client, error) {
 	if opts.Stream != "" {
 		u.Stream = opts.Stream
 	}
-	c := &Client{URL: u, timeout: opts.Timeout}
+	c := &Client{URL: u, timeout: opts.Timeout, playGap: opts.PlayGap}
 	if c.timeout == 0 {
 		c.timeout = defaultTimeout
 	}
@@ -407,6 +411,7 @@ func (c *Client) Play(ctx context.Context) (*Status, error) {
 	if _, err := c.send(c.streamID, "play", c.URL.Stream); err != nil {
 		return nil, err
 	}
+	time.Sleep(c.playGap)
 	// The buffer length, 3s: user control event 3.
 	b := []byte{0, 3}
 	b = binary.BigEndian.AppendUint32(b, c.streamID)

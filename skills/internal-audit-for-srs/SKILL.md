@@ -78,4 +78,4 @@ The parent reads the report, tells the user the findings and the test gaps befor
 
 ## Smells
 
-`references/smells.md` lists the mistakes this project has seen an agent make, one line each, with the commit that showed it. The auditor reads it in phase 2 only, so the list guides the check and does not replace the blind read. Add a line whenever the user's own read catches something the audit missed.
+`references/smells.md` lists the mistakes this project has seen an agent make, one line each, with an example. The auditor reads it in phase 2 only, so the list guides the check and does not replace the blind read. Add a line whenever the user's own read catches something the audit missed.

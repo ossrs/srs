@@ -263,6 +263,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> source);
+    // Drain what the client sent, until it is idle, so closing the connection is a FIN, not a reset that
+    // drops what SRS has not sent yet.
+    virtual void drain_client_input();
 
 public:
     virtual srs_error_t do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer *consumer, SrsQueueRecvThread *trd);

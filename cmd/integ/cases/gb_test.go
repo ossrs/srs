@@ -522,6 +522,39 @@ func TestTimer_Gb_MediaTimeout(t *testing.T) {
 	})
 }
 
+// gbSlowHook is how long a slow hook server takes to accept the RTMP publish
+// of a GB stream: longer than SRS's 500ms pulse, shorter than the 1s
+// media_connect_timeout of the timer server.
+const gbSlowHook = 800 * time.Millisecond
+
+// TestTimer_Gb_RtmpOutput checks the RTMP publish SRS makes of a GB stream to
+// itself, on the shared timer server SegmentsKeep, while the hook server
+// takes longer than SRS's 500ms pulse to accept it.
+func TestTimer_Gb_RtmpOutput(t *testing.T) {
+	t.Parallel()
+	srs := server.Shared(t, "SegmentsKeep", sharedSegmentsKeep())
+
+	// The device sends the whole file at once while on_publish is slow, more
+	// than the socket buffers between SRS's RTMP output and its RTMP server
+	// hold on macOS (Linux grows them to hold it): the output waits for the
+	// publish, and once the hook accepts, the session
+	// has published the stream once, with no new connection and no
+	// unpublish, and a player gets it.
+	check.Case(t, "SlowOnPublishOnePublish", check.Timer, func(c *check.C) {
+		id := streamName(c)
+		srs.Hooks.Script(hookOfStream("on_publish", id), mock.OK().After(gbSlowHook))
+		s := gbStartID(c, srs, media.H264HighAAC, id, gbSSRC())
+		s.sendThrough(c, 30*time.Second)
+		pub := waitHook(c, srs, "on_publish", id)
+		time.Sleep(time.Until(pub.Time.Add(gbSlowHook + 300*time.Millisecond)))
+		c.CheckEqual(len(srs.Hooks.Requests(hookOfStream("on_connect", id))), 1, "on_connect requests")
+		c.CheckEqual(len(srs.Hooks.Requests(hookOfStream("on_publish", id))), 1, "on_publish requests")
+		c.CheckEqual(len(srs.Hooks.Requests(hookOfStream("on_unpublish", id))), 0, "on_unpublish requests")
+		r := playUntilWithin(c, rtmpURL(srs, "live/"+id), report.Until{VideoHeader: true, AudioHeader: true, Keyframes: 1}, 500*time.Millisecond)
+		checkGBPlayed(c, r, "h264")
+	})
+}
+
 // checkGBReleased checks that a session with no media holds its id and SSRC
 // until the timeout after start, and frees them by the next check after it.
 func checkGBReleased(c *check.C, srs *server.Server, id string, ssrc uint32, start time.Time) {

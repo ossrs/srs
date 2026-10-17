@@ -113,6 +113,38 @@ func TestBind(t *testing.T) {
 	}
 }
 
+// TestBindLocalPort checks two bindings over UDP from the same local port,
+// the second after the first closed its socket.
+func TestBindLocalPort(t *testing.T) {
+	udp, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := uint16(udp.LocalAddr().(*net.UDPAddr).Port)
+	udp.Close()
+
+	srv := newFakeRawOn(t, false, false)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for i := 0; i < 2; i++ {
+		offer, err := Offer(true, []string{"H264"}, []string{"opus"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, err := Post(ctx, srv.URL+"/rtc/v1/whip/?app=live&stream=s", offer, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := Bind(ctx, s.Offer, s.Answer, &Options{LocalPort: port})
+		if err != nil {
+			t.Fatalf("binding %v: %v", i, err)
+		}
+		if b.Local.Port() != port || b.Mapped != b.Local {
+			t.Errorf("binding %v: local %v, mapped %v, want port %v", i, b.Local, b.Mapped, port)
+		}
+	}
+}
+
 // TestBindClosed checks a TCP server that closes the connection without an
 // answer, and a UDP server that never answers.
 func TestBindClosed(t *testing.T) {

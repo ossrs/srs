@@ -31,6 +31,15 @@ Environment-specific values belong to the user:
 
 ⚠️ **Keep every AI skill change as minimal as possible.** The maintainer reviews every line and word, so change only what the task requires.
 
+## Critical Rule: Comments Only for Hidden Context
+
+⚠️ **Write a comment only when it gives background the code cannot show**, such as a protocol quirk, a past bug, a platform limitation, or why the obvious approach was not used.
+
+- Never write a comment that repeats what the code does or names.
+- New, self-explanatory code needs no comment.
+- No plan IDs, task step names, or process history in comments.
+- When unsure, leave the comment out.
+
 ## Independent Implementation from a Reference PR
 
 When reimplementing a fix instead of adopting a specific pull request as-is — most often a "fixes"/"resolves" PR whose implementation is rejected — read only its problem description and discussion to understand what is broken. Do not open, re-read, or pattern-match its diff while designing or writing the fix. Design and implement from the current codebase and the problem statement alone.

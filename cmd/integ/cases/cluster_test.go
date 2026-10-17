@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -151,12 +152,15 @@ func TestCluster_Origins(t *testing.T) {
 	// NoOriginCloses plays on B a stream no origin publishes: B starts the
 	// play, then, with no coworker to redirect to, closes the connection.
 	check.Case(t, "NoOriginCloses", check.Normal, func(c *check.C) {
-		player := playerOf(c, rtmpURL(b, "live/"+streamName(c)))
-		ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
-		defer cancel()
-		_, err := player.WaitStatus(ctx, "NetStream.Play.UnpublishNotify")
-		var se *rtmp.StatusError
-		c.Check(err != nil && !errors.As(err, &se) && !isTimeout(err), "after the play: %v, want closed with no status", err)
+		checkNoOriginCloses(c, rtmpURL(b, "live/"+streamName(c)), nil)
+	})
+
+	// NoOriginClosesAfterBufferLength plays as NoOriginCloses, with the
+	// buffer length 1ms after the play, so it comes after B read the play:
+	// B reads it before the close, which is then no reset that drops
+	// NetStream.Play.Start.
+	check.Case(t, "NoOriginClosesAfterBufferLength", check.Normal, func(c *check.C) {
+		checkNoOriginCloses(c, rtmpURL(b, "live/"+streamName(c)), &rtmp.Options{PlayGap: time.Millisecond})
 	})
 
 	// RepublishOnOtherOrigin publishes a stream on A, then, once it left,
@@ -182,6 +186,20 @@ func TestCluster_Origins(t *testing.T) {
 		checkPlayed(c, &an.Report, "h264", "aac")
 		waitHook(c, a, "on_play", stream)
 	})
+}
+
+// checkNoOriginCloses plays a URL of an origin with no coworker that has the
+// stream: the play starts, then the origin closes the connection, with no
+// status and no reset.
+func checkNoOriginCloses(c *check.C, u string, opts *rtmp.Options) {
+	c.Helper()
+	player := dialRTMP(c, u, opts)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := player.Play(ctx)
+	c.Must(err, "play")
+	_, err = player.WaitStatus(ctx, "NetStream.Play.UnpublishNotify")
+	c.Check(errors.Is(err, io.EOF), "after the play: %v, want closed with no status", err)
 }
 
 // clustersPath is the /api/v1/clusters path that asks a server for the

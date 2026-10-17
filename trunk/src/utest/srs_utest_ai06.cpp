@@ -1013,7 +1013,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterReadFully)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered reader below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);
@@ -1072,7 +1073,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterTimeoutAndStats)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered reader below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);
@@ -1140,7 +1142,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterWriteMethods)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered writer below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);

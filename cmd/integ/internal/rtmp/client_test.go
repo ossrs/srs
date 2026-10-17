@@ -730,6 +730,29 @@ func TestClientConnectNullProperty(t *testing.T) {
 	}
 }
 
+// TestClientPlayGap checks Play waits the gap between the play command and
+// the buffer length, and still sends the buffer length.
+func TestClientPlayGap(t *testing.T) {
+	s := newFakeServer(t)
+	s.start()
+	c := dial(t, s.url("a"), &Options{PlayGap: 100 * time.Millisecond})
+	start := time.Now()
+	if _, err := c.Play(context.Background()); err != nil {
+		t.Fatalf("play: %v", err)
+	}
+	if d := time.Since(start); d < 100*time.Millisecond {
+		t.Errorf("play took %v, want at least the 100ms gap", d)
+	}
+	s.waitFor("the buffer length", func() bool {
+		for _, m := range s.controls {
+			if m.Type == MsgUserControl && len(m.Payload) == 10 && m.Payload[1] == 3 {
+				return true
+			}
+		}
+		return false
+	})
+}
+
 // TestClientPause pauses and unpauses a played stream: the pause command
 // carries the flag and the time, and each waits for its status.
 func TestClientPause(t *testing.T) {

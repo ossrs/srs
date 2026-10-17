@@ -864,6 +864,13 @@ SrsTcpConnection *SrsTestTcpServer::get_connection()
     return conn_;
 }
 
+SrsTcpConnection *SrsTestTcpServer::take_connection()
+{
+    SrsTcpConnection *conn = conn_;
+    conn_ = NULL;
+    return conn;
+}
+
 srs_error_t SrsTestTcpServer::cycle()
 {
     srs_error_t err = srs_success;

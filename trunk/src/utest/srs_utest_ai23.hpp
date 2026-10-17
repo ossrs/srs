@@ -124,6 +124,9 @@ public:
     bool rtp_cipher_dropped_;
     // The error on_binding_request returns, to reject the binding request.
     srs_error_t binding_request_error_;
+    int binding_requests_;
+    // The network udp() returns.
+    ISrsRtcNetwork *udp_network_;
 
 public:
     MockRtcConnectionForUdpNetwork();
@@ -360,6 +363,8 @@ class MockGbSessionForMuxer : public ISrsGbSession
 {
 public:
     std::string device_id_;
+    // Whether the session has ended, as its cycle ends.
+    bool ended_;
 
 public:
     MockGbSessionForMuxer();
@@ -415,6 +420,25 @@ public:
 public:
     MockGbSendingRtmpClient(SrsGbMuxer *muxer, int *sends, srs_error_t *reentry_error);
     virtual ~MockGbSendingRtmpClient();
+
+public:
+    virtual srs_error_t send_and_free_message(SrsMediaPacket *msg);
+};
+
+// Mock RTMP client of SrsGbMuxer whose send fails as the session's end
+// interrupts it: the session has ended when the send returns.
+class MockGbEndingRtmpClient : public MockRtmpClient
+{
+public:
+    MockGbSessionForMuxer *session_;
+    // The 1-based send that the session's end interrupts.
+    int end_at_;
+    // The sends, kept by the test, because the muxer frees this client when a send fails.
+    int *sends_;
+
+public:
+    MockGbEndingRtmpClient(MockGbSessionForMuxer *session, int end_at, int *sends);
+    virtual ~MockGbEndingRtmpClient();
 
 public:
     virtual srs_error_t send_and_free_message(SrsMediaPacket *msg);
@@ -481,6 +505,9 @@ class MockAppFactoryForGbMuxer : public SrsAppFactory
 public:
     std::vector<ISrsBasicRtmpClient *> clients_;
     int created_;
+    // The timeouts of the last client made.
+    srs_utime_t cto_;
+    srs_utime_t sto_;
 
 public:
     MockAppFactoryForGbMuxer();
@@ -792,6 +819,7 @@ class MockResourceManagerForUdpNetwork : public ISrsResourceManager
 public:
     std::map<std::string, ISrsResource *> id_map_;
     std::map<uint64_t, ISrsResource *> fast_id_map_;
+    std::map<std::string, ISrsResource *> name_map_;
 
 public:
     MockResourceManagerForUdpNetwork();
