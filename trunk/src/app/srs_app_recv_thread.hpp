@@ -208,12 +208,16 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsSharedPtr<SrsLiveSource> source_;
     // The error timeout cond
     srs_cond_t error_;
+    // The frames reported to the stream stats, and when a message last reported them.
+    uint64_t reported_video_frames_;
+    uint64_t reported_audio_frames_;
+    srs_utime_t frames_report_time_;
     // The merged context id.
     SrsContextId cid_;
     SrsContextId ncid_;
 
 public:
-    SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest *_req,
+    SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest *req,
                          int mr_sock_fd, srs_utime_t tm, SrsRtmpConn *conn, SrsSharedPtr<SrsLiveSource> source, SrsContextId parent_cid);
     void assemble();
     virtual ~SrsPublishRecvThread();
@@ -224,6 +228,8 @@ public:
     virtual int64_t nb_msgs();
     virtual uint64_t nb_video_frames();
     virtual uint64_t nb_audio_frames();
+    // Report the frames got since the last report to the stream stats.
+    virtual srs_error_t report_frames();
     virtual srs_error_t error_code();
     virtual void set_cid(SrsContextId v);
     virtual SrsContextId get_cid();

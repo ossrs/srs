@@ -105,7 +105,6 @@ extern bool srs_config_ingest_is_stream(std::string type);
 extern bool srs_config_dvr_is_plan_segment(std::string plan);
 extern bool srs_config_dvr_is_plan_session(std::string plan);
 extern bool srs_stream_caster_is_udp(std::string caster);
-extern bool srs_stream_caster_is_flv(std::string caster);
 extern bool srs_stream_caster_is_gb28181(std::string caster);
 // Whether the dvr_apply active the stream specified by req.
 extern bool srs_config_apply_filter(SrsConfDirective *dvr_apply, ISrsRequest *req);
@@ -114,12 +113,15 @@ extern bool srs_config_apply_filter(SrsConfDirective *dvr_apply, ISrsRequest *re
 extern std::string srs_config_bool2switch(std::string sbool);
 
 // Parse loaded vhost directives to compatible mode.
-// For exmaple, SRS1/2 use the follow refer style:
-//          refer   a.domain.com b.domain.com;
-// while SRS3 use the following:
-//          refer {
+// For exmaple, SRS2 use the follow mr style:
+//          mr {
 //              enabled on;
-//              all a.domain.com b.domain.com;
+//              latency 350;
+//          }
+// while SRS3 use the following:
+//          publish {
+//              mr on;
+//              mr_latency 350;
 //          }
 // so we must transform the vhost directive anytime load the config.
 // @param root the root directive to transform, in and out parameter.
@@ -198,9 +200,9 @@ public:
     // @remark, assert the index<directives.size().
     virtual SrsConfDirective *at(int index);
     // Get the directive by name, return the first match.
-    virtual SrsConfDirective *get(std::string _name);
+    virtual SrsConfDirective *get(std::string name);
     // Get the directive by name and its arg0, return the first match.
-    virtual SrsConfDirective *get(std::string _name, std::string _arg0);
+    virtual SrsConfDirective *get(std::string name, std::string arg0);
     // RAW
 public:
     virtual SrsConfDirective *get_or_create(std::string n);
@@ -343,7 +345,6 @@ public:
     virtual std::string get_pid_file() = 0;
     virtual std::string get_server_id() = 0;
     virtual bool empty_ip_ok() = 0;
-    virtual bool get_asprocess() = 0;
     virtual srs_utime_t get_grace_start_wait() = 0;
     virtual srs_utime_t get_grace_final_wait() = 0;
     virtual bool is_force_grace_quit() = 0;
@@ -364,6 +365,8 @@ public:
     virtual std::vector<std::string> get_https_api_listens() = 0;
     virtual std::string get_https_api_ssl_key() = 0;
     virtual std::string get_https_api_ssl_cert() = 0;
+    // Whether the HTTP API answers CORS requests.
+    virtual bool get_http_api_crossdomain() = 0;
     // Whether enable the HTTP RAW API.
     virtual bool get_raw_api() = 0;
     // Whether allow rpc reload.
@@ -514,17 +517,9 @@ public:
     virtual srs_utime_t get_publish_kickoff_for_idle(std::string vhost) = 0;
 
 public:
-    // Refer config
-    virtual bool get_refer_enabled(std::string vhost) = 0;
-    virtual SrsConfDirective *get_refer_all(std::string vhost) = 0;
-    virtual SrsConfDirective *get_refer_play(std::string vhost) = 0;
-    virtual SrsConfDirective *get_refer_publish(std::string vhost) = 0;
-
-public:
     // Edge config
     virtual bool get_vhost_origin_cluster(std::string vhost) = 0;
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost) = 0;
-    virtual bool get_vhost_edge_token_traverse(std::string vhost) = 0;
     virtual SrsConfDirective *get_vhost_edge_origin(std::string vhost) = 0;
 
 public:
@@ -626,7 +621,6 @@ public:
     virtual srs_utime_t get_rtc_pli_for_rtmp(std::string vhost) = 0;
     virtual int get_rtc_opus_bitrate(std::string vhost) = 0;
     virtual bool get_vhost_is_edge(std::string vhost) = 0;
-    virtual bool get_atc_auto(std::string vhost) = 0;
     virtual bool get_reduce_sequence_header(std::string vhost) = 0;
     virtual bool get_parse_sps(std::string vhost) = 0;
 
@@ -798,6 +792,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 public:
     // Parse the cli, the main(argc,argv) function.
     virtual srs_error_t parse_options(int argc, char **argv);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Parse the config file, or with env only, create the default vhost; then transform it.
+    virtual srs_error_t parse_config();
+
+public:
     // initialize the cwd for server,
     // because we may change the workdir.
     virtual srs_error_t initialize_cwd();
@@ -905,11 +906,6 @@ public:
     // Get the configed work dir.
     // ignore if empty string.
     virtual std::string get_work_dir();
-    // Whether use asprocess mode.
-    virtual bool get_asprocess();
-    // Whether query the latest available version of SRS.
-    virtual bool whether_query_latest_version();
-    virtual srs_utime_t first_wait_for_qlv();
     // Whether empty client IP is ok.
     virtual bool empty_ip_ok();
     // Get the start wait in ms for gracefully quit.
@@ -1048,11 +1044,6 @@ public:
     // @return true when atc is ok; otherwise, false.
     // @remark, default false.
     virtual bool get_atc(std::string vhost);
-    // Whether atc_auto is enabled of vhost.
-    // atc_auto used to auto enable atc, when metadata specified the bravo_atc.
-    // @return true when atc_auto is ok; otherwise, false.
-    // @remark, default true.
-    virtual bool get_atc_auto(std::string vhost);
     // Get the time_jitter algorithm.
     // @return the time_jitter algorithm, defined in SrsRtmpJitterAlgorithm.
     // @remark, default full.
@@ -1064,17 +1055,6 @@ public:
     // when exceed the queue length, drop packet util I frame.
     // @remark, default 10s.
     virtual srs_utime_t get_queue_length(std::string vhost);
-    // Whether the refer hotlink-denial enabled.
-    virtual bool get_refer_enabled(std::string vhost);
-    // Get the refer hotlink-denial for all type.
-    // @return the refer, NULL for not configed.
-    virtual SrsConfDirective *get_refer_all(std::string vhost);
-    // Get the refer hotlink-denial for play.
-    // @return the refer, NULL for not configed.
-    virtual SrsConfDirective *get_refer_play(std::string vhost);
-    // Get the refer hotlink-denial for publish.
-    // @return the refer, NULL for not configed.
-    virtual SrsConfDirective *get_refer_publish(std::string vhost);
     // Get the input default ack size, which is generally set by message from peer.
     virtual int get_in_ack_size(std::string vhost);
     // Get the output default ack size, to notify the peer to send acknowledge to server.
@@ -1147,11 +1127,12 @@ public:
     virtual int get_srto_mss();
     // Get the srt SRTO_TSBPDMODE, timestamp base packet delivery mode, default is false.
     virtual bool get_srto_tsbpdmode();
-    // Get the srt SRTO_LATENCY, latency, default is 0 which means peer/recv latency is 120ms.
+    // Get the srt SRTO_LATENCY, latency, which sets both recv and peer latency. -1 if not set, then libsrt keeps its
+    // defaults, 120ms recv latency and 0 peer latency.
     virtual int get_srto_latency();
-    // Get the srt SRTO_RCVLATENCY, recv latency, default is 120ms.
+    // Get the srt SRTO_RCVLATENCY, recv latency, -1 if not set.
     virtual int get_srto_recv_latency();
-    // Get the srt SRTO_PEERLATENCY, peer latency, default is 0..
+    // Get the srt SRTO_PEERLATENCY, peer latency, -1 if not set.
     virtual int get_srto_peer_latency();
     // Get the srt h264 sei filter, default is on, it will drop h264 sei packet.
     virtual bool get_srt_sei_filter();
@@ -1244,11 +1225,6 @@ public:
     virtual std::string get_vhost_edge_protocol(std::string vhost);
     // Whether follow client protocol to connect to origin.
     virtual bool get_vhost_edge_follow_client(std::string vhost);
-    // Whether edge token tranverse is enabled,
-    // If  true, edge will send connect origin to verfy the token of client.
-    // For example, we verify all clients on the origin FMS by server-side as,
-    // all clients connected to edge must be tranverse to origin to verify.
-    virtual bool get_vhost_edge_token_traverse(std::string vhost);
     // Get the transformed vhost for edge,
     virtual std::string get_vhost_edge_transform_vhost(std::string vhost);
     // Whether enable the origin cluster.
@@ -1265,6 +1241,11 @@ public:
     virtual bool get_security_enabled(SrsConfDirective *vhost);
     // Get the security rules.
     virtual SrsConfDirective *get_security_rules(std::string vhost);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Get the security rules of every vhost from env, NULL if no env sets one.
+    virtual SrsConfDirective *get_security_rules_from_env();
     // vhost transcode section
 public:
     // Get the transcode directive of vhost in specified scope.
@@ -1482,24 +1463,6 @@ public:
     // In this mode HLS sequence number is started from where it stopped last time.
     // Old fragments are kept. Default is on.
     virtual bool get_hls_recover(std::string vhost);
-    // hds section
-// clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
-    // Get the hds directive of vhost.
-    virtual SrsConfDirective *
-    get_hds(const std::string &vhost);
-
-public:
-    // Whether HDS is enabled.
-    virtual bool get_hds_enabled(const std::string &vhost);
-    virtual bool get_hds_enabled(SrsConfDirective *vhost);
-    // Get the HDS file store path.
-    virtual std::string get_hds_path(const std::string &vhost);
-    // Get the hds fragment time, in srs_utime_t.
-    virtual srs_utime_t get_hds_fragment(const std::string &vhost);
-    // Get the hds window time, in srs_utime_t.
-    // a window is a set of hds fragments.
-    virtual srs_utime_t get_hds_window(const std::string &vhost);
     // dvr section
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

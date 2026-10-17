@@ -90,6 +90,7 @@ public:
     bool set_cid_called_;
     SrsContextId received_cid_;
     bool is_connected_;
+    bool interrupt_called_;
 
 public:
     MockGbMediaTcpConn();
@@ -123,6 +124,9 @@ public:
     bool rtp_cipher_dropped_;
     // The error on_binding_request returns, to reject the binding request.
     srs_error_t binding_request_error_;
+    int binding_requests_;
+    // The network udp() returns.
+    ISrsRtcNetwork *udp_network_;
 
 public:
     MockRtcConnectionForUdpNetwork();
@@ -288,6 +292,9 @@ public:
     std::vector<SrsTsMessage *> received_msgs_;
     bool on_media_transport_called_;
     SrsSharedResource<ISrsGbMediaTcpConn> received_media_;
+    bool on_media_disconnected_called_;
+    // Whether the session's cycle ended.
+    bool ended_;
 
 public:
     MockGbSessionForMediaConn();
@@ -298,6 +305,7 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
     virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
+    virtual bool is_ended();
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
@@ -337,6 +345,8 @@ public:
     bool push_called_;
     srs_error_t push_error_;
     int push_count_;
+    // The payload of each message pushed, in order.
+    std::vector<std::string> payloads_;
 
 public:
     MockGbMpegpsQueue();
@@ -353,6 +363,8 @@ class MockGbSessionForMuxer : public ISrsGbSession
 {
 public:
     std::string device_id_;
+    // Whether the session has ended, as its cycle ends.
+    bool ended_;
 
 public:
     MockGbSessionForMuxer();
@@ -363,11 +375,146 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
     virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
+    virtual bool is_ended();
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
     virtual srs_error_t cycle();
     virtual void on_executor_done(ISrsInterruptable *executor);
+};
+
+// Mock RTMP client of SrsGbMuxer, whose connect() feeds the muxer, as the
+// coroutine of a second media connection runs while a real connect yields.
+class MockGbConnectingRtmpClient : public MockRtmpClient
+{
+public:
+    SrsGbMuxer *muxer_;
+    // The message fed to the muxer while connecting, or NULL to call connect().
+    SrsTsMessage *msg_;
+    // The result of what was fed while connecting.
+    srs_error_t reentry_error_;
+    // Whether the muxer's client was set while connecting.
+    bool sdk_set_while_connecting_;
+
+public:
+    MockGbConnectingRtmpClient(SrsGbMuxer *muxer, SrsTsMessage *msg);
+    virtual ~MockGbConnectingRtmpClient();
+
+public:
+    virtual srs_error_t connect();
+};
+
+// Mock RTMP client of SrsGbMuxer, whose first send feeds the muxer a message,
+// as the coroutine of a second media connection runs while a real send yields.
+class MockGbSendingRtmpClient : public MockRtmpClient
+{
+public:
+    SrsGbMuxer *muxer_;
+    // The 1-based send that fails, 0 for none.
+    int fail_at_;
+    // The sends, kept by the test, because the muxer frees this client when a send fails.
+    int *sends_;
+    // The result of the message fed to the muxer in the first send, kept by the test.
+    srs_error_t *reentry_error_;
+
+public:
+    MockGbSendingRtmpClient(SrsGbMuxer *muxer, int *sends, srs_error_t *reentry_error);
+    virtual ~MockGbSendingRtmpClient();
+
+public:
+    virtual srs_error_t send_and_free_message(SrsMediaPacket *msg);
+};
+
+// Mock RTMP client of SrsGbMuxer whose send fails as the session's end
+// interrupts it: the session has ended when the send returns.
+class MockGbEndingRtmpClient : public MockRtmpClient
+{
+public:
+    MockGbSessionForMuxer *session_;
+    // The 1-based send that the session's end interrupts.
+    int end_at_;
+    // The sends, kept by the test, because the muxer frees this client when a send fails.
+    int *sends_;
+
+public:
+    MockGbEndingRtmpClient(MockGbSessionForMuxer *session, int end_at, int *sends);
+    virtual ~MockGbEndingRtmpClient();
+
+public:
+    virtual srs_error_t send_and_free_message(SrsMediaPacket *msg);
+};
+
+// Mock ISrsGbMuxer whose on_ts_message yields, as a real connect or send of the
+// RTMP output does.
+class MockGbYieldingMuxer : public MockGbMuxer
+{
+public:
+    srs_utime_t delay_;
+    // The number of on_ts_message calls.
+    int nn_messages_;
+    // Whether on_ts_message returned.
+    bool left_;
+
+public:
+    MockGbYieldingMuxer(srs_utime_t delay);
+    virtual ~MockGbYieldingMuxer();
+
+public:
+    virtual srs_error_t on_ts_message(SrsTsMessage *msg);
+};
+
+// The coroutine of a media connection, which feeds a pack to its session.
+class MockGbMediaCoroutine : public ISrsCoroutineHandler
+{
+public:
+    SrsGbSession *session_;
+    MockPackContext ctx_;
+    std::vector<SrsTsMessage *> msgs_;
+    // Whether the cycle returned, so the connection quit.
+    bool done_;
+
+public:
+    MockGbMediaCoroutine(SrsGbSession *session, SrsTsMessage *msg);
+    virtual ~MockGbMediaCoroutine();
+
+public:
+    virtual srs_error_t cycle();
+};
+
+// A media connection run by a MockGbMediaCoroutine: connected until its coroutine
+// quits, and its interrupt interrupts the coroutine.
+class MockGbMediaTcpConnInMuxer : public MockGbMediaTcpConn
+{
+public:
+    MockGbMediaCoroutine *media_;
+    SrsSTCoroutine *trd_;
+
+public:
+    MockGbMediaTcpConnInMuxer(MockGbMediaCoroutine *media, SrsSTCoroutine *trd);
+    virtual ~MockGbMediaTcpConnInMuxer();
+
+public:
+    virtual bool is_connected();
+    virtual void interrupt();
+};
+
+// Mock ISrsAppFactory for SrsGbMuxer, which hands out the RTMP clients a test
+// set, then plain mock clients.
+class MockAppFactoryForGbMuxer : public SrsAppFactory
+{
+public:
+    std::vector<ISrsBasicRtmpClient *> clients_;
+    int created_;
+    // The timeouts of the last client made.
+    srs_utime_t cto_;
+    srs_utime_t sto_;
+
+public:
+    MockAppFactoryForGbMuxer();
+    virtual ~MockAppFactoryForGbMuxer();
+
+public:
+    virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
 };
 
 // Mock ISrsInterruptable for testing SrsRtcTcpConn
@@ -532,6 +679,7 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid);
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
     virtual void on_media_disconnected(ISrsGbMediaTcpConn *media);
+    virtual bool is_ended();
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs);
     virtual const SrsContextId &get_id();
     virtual std::string desc();
@@ -671,6 +819,7 @@ class MockResourceManagerForUdpNetwork : public ISrsResourceManager
 public:
     std::map<std::string, ISrsResource *> id_map_;
     std::map<uint64_t, ISrsResource *> fast_id_map_;
+    std::map<std::string, ISrsResource *> name_map_;
 
 public:
     MockResourceManagerForUdpNetwork();

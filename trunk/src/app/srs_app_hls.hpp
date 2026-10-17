@@ -128,6 +128,8 @@ public:
 public:
     virtual srs_error_t initialize(int64_t time, uint32_t v_tid, uint32_t a_tid, int sequence_number, std::string m4s_path);
     virtual void config_cipher(unsigned char *key, unsigned char *iv);
+    // Configure how cbcs finds the video slices to encrypt, see SrsFmp4SegmentEncoder.
+    virtual void config_video_cipher(SrsVideoCodecId codec, int nalu_length_size);
     virtual srs_error_t write(SrsMediaPacket *shared_msg, SrsFormat *format);
     // Finalizes segment
     virtual srs_error_t reap(uint64_t dts);
@@ -443,6 +445,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     int64_t accept_floor_ts_;
     int64_t previous_floor_ts_;
     bool init_mp4_ready_;
+    // Whether a sequence header came while no segment was open, so the next segment, the
+    // first of a publish, starts with a discontinuity.
+    bool sequence_header_pending_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -468,6 +473,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
     unsigned char key_[16];
     unsigned char kid_[16];
     unsigned char iv_[16];
+    // Whether iv_ is made, which the init file and every segment share.
+    bool iv_ready_;
+    // The video codec and the bytes of each NALU length, from the video sequence header, by
+    // which cbcs finds the slices to encrypt in each segment.
+    SrsVideoCodecId cipher_vcodec_;
+    int cipher_nalu_length_size_;
     // The underlayer file writer.
     ISrsFileWriter *writer_;
 
@@ -478,6 +489,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string m3u8_;
     std::string m3u8_url_;
     std::string init_mp4_uri_; // URI for init.mp4 in m3u8 playlist
+    // The path of the init file written, which the dispose removes.
+    std::string init_mp4_file_;
     int video_track_id_;
     int audio_track_id_;
 
@@ -542,6 +555,11 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual std::string generate_m4s_filename();
     virtual bool is_segment_open();
+    // The hls_entry_prefix and the playlist's HTTP dir that go before a file's URI, or empty.
+    virtual std::string entry_prefix_uri();
+    // The URI the playlist lists a file by: after the entry prefix, its path from the
+    // playlist's dir, or its file name when it is outside that dir.
+    virtual std::string playlist_uri(std::string fullpath);
 
 public:
     virtual srs_error_t on_sequence_header();
@@ -566,6 +584,7 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t do_segment_close(uint64_t dts);
+    virtual srs_error_t make_iv();
     virtual srs_error_t write_hls_key();
     virtual srs_error_t refresh_m3u8();
     virtual srs_error_t do_refresh_m3u8(std::string m3u8_file);
@@ -768,6 +787,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool disposable_;
     // Whether the HLS stream is unpublishing.
     bool unpublishing_;
+    // Whether the HLS is suspended: hls_dispose disposed it while the stream
+    // is still published, so the next media resumes it.
+    bool suspended_;
     // Whether requires HLS to do reload asynchronously.
     bool async_reload_;
     bool reloading_;
@@ -792,6 +814,8 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t reload();
     srs_error_t do_reload(int *reloading, int *reloaded, int *refreshed);
+    // Start the HLS again for the media of a stream disposed while published.
+    srs_error_t resume();
 
 public:
     virtual void dispose();

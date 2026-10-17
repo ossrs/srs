@@ -138,7 +138,7 @@ VOID TEST(AppResourceManagerTest, FindByFastID)
 
         m.add_with_fast_id(101, new MockIDResource(1));
         m.add_with_fast_id(101, new MockIDResource(4));
-        EXPECT_EQ(1, ((MockIDResource *)m.find_by_fast_id(101))->id);
+        EXPECT_EQ(4, ((MockIDResource *)m.find_by_fast_id(101))->id);
     }
 }
 

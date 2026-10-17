@@ -13,7 +13,6 @@
 
 using namespace std;
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_http_client.hpp>
 #include <srs_app_rtmp_conn.hpp>
@@ -733,6 +732,7 @@ SrsEdgeForwarder::SrsEdgeForwarder()
     queue_ = new SrsMessageQueue();
 
     config_ = _srs_config;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsEdgeForwarder::~SrsEdgeForwarder()
@@ -744,6 +744,7 @@ SrsEdgeForwarder::~SrsEdgeForwarder()
     srs_freep(queue_);
 
     config_ = NULL;
+    app_factory_ = NULL;
 }
 
 void SrsEdgeForwarder::set_queue_size(srs_utime_t queue_size)
@@ -768,7 +769,6 @@ srs_error_t SrsEdgeForwarder::initialize(SrsSharedPtr<SrsLiveSource> s, ISrsPubl
     return srs_success;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsEdgeForwarder::start()
 {
     srs_error_t err = srs_success;
@@ -776,34 +776,49 @@ srs_error_t SrsEdgeForwarder::start()
     // reset the error code.
     send_error_code_ = ERROR_SUCCESS;
 
-    std::string url;
-    if (true) {
-        SrsConfDirective *conf = config_->get_vhost_edge_origin(req_->vhost_);
-        srs_assert(conf);
+    // Copy the origins, for a reload may change the config while we connect.
+    SrsConfDirective *conf = config_->get_vhost_edge_origin(req_->vhost_);
+    srs_assert(conf);
+    std::vector<std::string> origins = conf->args_;
+    srs_assert(!origins.empty());
 
-        // select the origin.
-        std::string server = lb_->select(conf->args_);
-        int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
-        srs_net_split_hostport(server, server, port);
-
-        // support vhost tranform for edge,
-        std::string vhost = config_->get_vhost_edge_transform_vhost(req_->vhost_);
-        vhost = srs_strings_replace(vhost, "[vhost]", req_->vhost_);
-
-        url = srs_net_url_encode_rtmp_url(server, port, req_->host_, vhost, req_->app_, req_->stream_, req_->param_);
-    }
+    // support vhost tranform for edge,
+    std::string vhost = config_->get_vhost_edge_transform_vhost(req_->vhost_);
+    vhost = srs_strings_replace(vhost, "[vhost]", req_->vhost_);
 
     // We must stop the coroutine before disposing the sdk.
     srs_freep(trd_);
-    trd_ = new SrsSTCoroutine("edge-fwr", this, _srs_context->get_id());
+    trd_ = app_factory_->create_coroutine("edge-fwr", this, _srs_context->get_id());
 
-    // open socket.
-    srs_freep(sdk_);
+    // Connect to the origins in turn, each at most once, until one connects, so a publish fails
+    // over from an origin that is down to the next. An origin that refuses the publish is not
+    // failed over, for the next origin may serve the stream already.
+    std::string url;
     srs_utime_t cto = SRS_EDGE_FORWARDER_TIMEOUT;
     srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
-    sdk_ = new SrsSimpleRtmpClient(url, cto, sto);
+    for (int i = 0; i < (int)origins.size(); i++) {
+        if (err != srs_success) {
+            srs_warn("edge-fwr connect %s failed, try the next origin, %s", url.c_str(), srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
 
-    if ((err = sdk_->connect()) != srs_success) {
+        // select the origin.
+        std::string server = lb_->select(origins);
+        int port = SRS_CONSTS_RTMP_DEFAULT_PORT;
+        srs_net_split_hostport(server, server, port);
+
+        url = srs_net_url_encode_rtmp_url(server, port, req_->host_, vhost, req_->app_, req_->stream_, req_->param_);
+
+        // open socket.
+        srs_freep(sdk_);
+        sdk_ = app_factory_->create_rtmp_client(url, cto, sto);
+
+        if ((err = sdk_->connect()) == srs_success) {
+            break;
+        }
+    }
+
+    if (err != srs_success) {
         return srs_error_wrap(err, "sdk connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
     }
 
@@ -823,7 +838,6 @@ srs_error_t SrsEdgeForwarder::start()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 void SrsEdgeForwarder::stop()
 {
@@ -1133,4 +1147,95 @@ void SrsPublishEdge::on_proxy_unpublish()
     SrsEdgeState pstate = state_;
     state_ = SrsEdgeStateInit;
     srs_trace("edge change from %d to state %d (init).", pstate, state_);
+}
+
+ISrsHttpFileReader::ISrsHttpFileReader()
+{
+}
+
+ISrsHttpFileReader::~ISrsHttpFileReader()
+{
+}
+
+SrsHttpFileReader::SrsHttpFileReader(ISrsHttpResponseReader *h)
+{
+    http_ = h;
+    file_reader_ = new SrsFileReader();
+}
+
+SrsHttpFileReader::~SrsHttpFileReader()
+{
+    srs_freep(file_reader_);
+}
+
+// LCOV_EXCL_START
+srs_error_t SrsHttpFileReader::open(std::string /*file*/)
+{
+    return srs_success;
+}
+
+void SrsHttpFileReader::close()
+{
+}
+
+bool SrsHttpFileReader::is_open()
+{
+    return true;
+}
+
+int64_t SrsHttpFileReader::tellg()
+{
+    return 0;
+}
+
+void SrsHttpFileReader::skip(int64_t /*size*/)
+{
+}
+
+int64_t SrsHttpFileReader::seek2(int64_t offset)
+{
+    return offset;
+}
+
+int64_t SrsHttpFileReader::filesize()
+{
+    return 0;
+}
+// LCOV_EXCL_STOP
+
+srs_error_t SrsHttpFileReader::read(void *buf, size_t count, ssize_t *pnread)
+{
+    srs_error_t err = srs_success;
+
+    if (http_->eof()) {
+        return srs_error_new(ERROR_HTTP_REQUEST_EOF, "EOF");
+    }
+
+    int total_read = 0;
+    while (total_read < (int)count) {
+        ssize_t nread = 0;
+        if ((err = http_->read((char *)buf + total_read, (int)(count - total_read), &nread)) != srs_success) {
+            return srs_error_wrap(err, "read");
+        }
+
+        if (nread == 0) {
+            err = srs_error_new(ERROR_HTTP_REQUEST_EOF, "EOF");
+            break;
+        }
+
+        srs_assert(nread);
+        total_read += (int)nread;
+    }
+
+    if (pnread) {
+        *pnread = total_read;
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpFileReader::lseek(off_t offset, int whence, off_t *seeked)
+{
+    // TODO: FIXME: Use HTTP range for seek.
+    return srs_success;
 }

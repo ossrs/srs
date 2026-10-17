@@ -15,6 +15,7 @@ using namespace std;
 #include <srs_app_factory.hpp>
 #include <srs_app_fragment.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_buffer.hpp>
@@ -501,6 +502,13 @@ srs_error_t SrsDvrMp4Segmenter::encode_video(SrsMediaPacket *video, SrsFormat *f
     SrsVideoAvcFrameType frame_type = format->video_->frame_type_;
     SrsVideoCodecId codec_id = format->vcodec_->id_;
 
+    // Ignore the info frame, such as the colorInfo metadata of enhanced RTMP: it holds no
+    // picture and does not set the sample, so writing it writes stale bytes. HLS and DASH
+    // skip it too, while FLV keeps it as a tag.
+    if (frame_type == SrsVideoAvcFrameTypeVideoInfoFrame) {
+        return err;
+    }
+
     SrsVideoAvcFrameTrait ct = format->video_->avc_packet_type_;
     uint32_t cts = (uint32_t)format->video_->cts_;
 
@@ -531,11 +539,12 @@ srs_error_t SrsDvrMp4Segmenter::close_encoder()
     return err;
 }
 
-SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsContextId c, ISrsRequest *r, string p)
+SrsDvrAsyncCallOnDvr::SrsDvrAsyncCallOnDvr(SrsContextId c, ISrsRequest *r, string p, const SrsStatisticStreamSnapshot &stream)
 {
     cid_ = c;
     req_ = r->copy();
     path_ = p;
+    stream_ = stream;
 
     hooks_ = _srs_hooks;
     config_ = _srs_config;
@@ -571,7 +580,7 @@ srs_error_t SrsDvrAsyncCallOnDvr::call()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_dvr(cid_, url, req_, path_)) != srs_success) {
+        if ((err = hooks_->on_dvr(cid_, url, req_, path_, stream_)) != srs_success) {
             return srs_error_wrap(err, "callback on_dvr %s", url.c_str());
         }
     }
@@ -604,6 +613,7 @@ SrsDvrPlan::SrsDvrPlan()
 
     async_ = _srs_dvr_async;
     config_ = _srs_config;
+    stat_ = _srs_stat;
 }
 
 SrsDvrPlan::~SrsDvrPlan()
@@ -613,6 +623,7 @@ SrsDvrPlan::~SrsDvrPlan()
 
     async_ = NULL;
     config_ = NULL;
+    stat_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -699,7 +710,10 @@ srs_error_t SrsDvrPlan::on_reap_segment()
     SrsFragment *fragment = segment_->current();
     string fullpath = fragment->fullpath();
 
-    if ((err = async_->execute(new SrsDvrAsyncCallOnDvr(cid, req_, fullpath))) != srs_success) {
+    // Take the stream now: when the end of a publish closes the file, the stats drop
+    // the stream with the publisher, maybe before the queue runs the hook.
+    SrsStatisticStreamSnapshot stream(stat_, req_);
+    if ((err = async_->execute(new SrsDvrAsyncCallOnDvr(cid, req_, fullpath, stream))) != srs_success) {
         return srs_error_wrap(err, "reap segment");
     }
 
@@ -791,6 +805,8 @@ SrsDvrSegmentPlan::SrsDvrSegmentPlan()
     cduration_ = 0;
     wait_keyframe_ = false;
     reopening_segment_ = false;
+    last_timestamp_ = -1;
+    has_video_ = false;
 }
 
 SrsDvrSegmentPlan::~SrsDvrSegmentPlan()
@@ -837,6 +853,8 @@ srs_error_t SrsDvrSegmentPlan::on_publish(ISrsRequest *r)
         return srs_error_wrap(err, "segment open");
     }
 
+    last_timestamp_ = -1;
+    has_video_ = false;
     dvr_enabled_ = true;
 
     return err;
@@ -877,6 +895,8 @@ srs_error_t SrsDvrSegmentPlan::on_video(SrsMediaPacket *shared_video, SrsFormat 
 {
     srs_error_t err = srs_success;
 
+    has_video_ = true;
+
     if ((err = update_duration(shared_video)) != srs_success) {
         return srs_error_wrap(err, "update duration");
     }
@@ -900,14 +920,24 @@ srs_error_t SrsDvrSegmentPlan::update_duration(SrsMediaPacket *msg)
 
     srs_assert(segment_);
 
-    // ignore if duration ok.
+    // The file spans up to this message, which comes after its last message, so
+    // with a GOP that divides the duration the keyframe at the duration cuts it.
     SrsFragment *fragment = segment_->current();
-    if (cduration_ <= 0 || fragment->duration() < cduration_) {
+    srs_utime_t duration = fragment->duration();
+    if (last_timestamp_ >= 0 && msg->timestamp_ > last_timestamp_) {
+        duration += (msg->timestamp_ - last_timestamp_) * SRS_UTIME_MILLISECONDS;
+    }
+    last_timestamp_ = msg->timestamp_;
+
+    // ignore if duration ok.
+    if (cduration_ <= 0 || duration < cduration_) {
         return err;
     }
 
-    // when wait keyframe, ignore if no frame arrived.
-    if (wait_keyframe_) {
+    // when wait keyframe, ignore if no frame arrived. A publish with no video has no
+    // keyframe to wait for, so any message at the duration cuts it, as HLS and DASH
+    // cut pure audio by their duration.
+    if (wait_keyframe_ && has_video_) {
         if (!msg->is_video()) {
             return err;
         }

@@ -122,6 +122,8 @@ srs_error_t MockRtpTarget::on_rtp(SrsRtpPacket *pkt)
 {
     on_rtp_count_++;
     last_rtp_ = pkt;
+    rtp_times_.push_back(pkt->header_.get_timestamp());
+    avsync_times_.push_back(pkt->get_avsync_time());
     return srs_error_copy(rtp_error_);
 }
 
@@ -4849,4 +4851,117 @@ VOID TEST(RtcFrameBuilderTest, InitializeAacBitrateFromInjectedConfig)
     EXPECT_EQ(64000, factory.last_transcoder_->initialize_bit_rate_);
 
     builder.config_ = NULL;
+}
+
+// SRS has no G.711 decoder, so a stream of G.711 audio is converted to RTMP without its audio: the
+// builder creates no transcoder for PCMU or PCMA, and still starts. The global factory's transcoder
+// fails to open a G.711 decoder, so the start is checked with it too.
+VOID TEST(RtcFrameBuilderTest, InitializeG711WithoutTranscoder)
+{
+    srs_error_t err;
+
+    SrsAudioCodecId codecs[] = {SrsAudioCodecIdPCMU, SrsAudioCodecIdPCMA};
+    for (int i = 0; i < 2; i++) {
+        MockAppFactoryForRtcFrameBuilder factory;
+        MockRtcFrameTarget target;
+        SrsRtcFrameBuilder builder(&factory, &target);
+
+        SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+        HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), codecs[i], SrsVideoCodecIdAVC));
+        EXPECT_EQ(0, factory.create_audio_transcoder_count_);
+        EXPECT_TRUE(builder.audio_transcoder_ == NULL);
+        EXPECT_EQ(SrsVideoCodecIdAVC, builder.video_codec_);
+
+        SrsRtcFrameBuilder global(_srs_app_factory, &target);
+        HELPER_EXPECT_SUCCESS(global.initialize(req.get(), codecs[i], SrsVideoCodecIdAVC));
+        EXPECT_TRUE(global.audio_transcoder_ == NULL);
+    }
+}
+
+// The G.711 audio of a stream is dropped, with no AAC sequence header and no frame, while its video
+// is still converted.
+VOID TEST(RtcFrameBuilderTest, OnRtpG711AudioDropped)
+{
+    srs_error_t err;
+
+    MockAppFactoryForRtcFrameBuilder factory;
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(&factory, &target);
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdPCMA, SrsVideoCodecIdAVC));
+    HELPER_EXPECT_SUCCESS(builder.on_publish());
+
+    for (int i = 0; i < 5; i++) {
+        SrsUniquePtr<SrsRtpPacket> pkt(create_mock_rtp_packet(true, 1000 + i * 20, 11111, 100 + i, 8000 + i * 160));
+        HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt.get()));
+    }
+    EXPECT_EQ(0, target.on_frame_count_);
+
+    // A keyframe, then a frame of two packets, the last with the marker of the frame's end.
+    SrsUniquePtr<SrsRtpPacket> keyframe(create_video_rtp_packet_for_frame_test(100, 90000, 1000, true));
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(keyframe.get()));
+    SrsUniquePtr<SrsRtpPacket> pkt1(create_video_rtp_packet_for_frame_test(101, 93000, 1100, false));
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt1.get()));
+    SrsUniquePtr<SrsRtpPacket> pkt2(create_video_rtp_packet_for_frame_test(102, 93000, 1100, false));
+    pkt2->header_.set_marker(true);
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt2.get()));
+    EXPECT_GT(target.on_frame_count_, 0);
+    ASSERT_TRUE(target.last_frame_ != NULL);
+    EXPECT_TRUE(target.last_frame_->is_video());
+}
+
+// A stream converted to WebRTC has no publisher's Sender Reports, so each packet the builder makes carries the
+// time of its frame on the stream's clock, the RTMP time in ms that its RTP time counts from, for the Sender
+// Reports that SRS sends a player.
+VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_PacketsCarryFrameTime)
+{
+    srs_error_t err;
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(rtc_source->initialize(req.get()));
+
+    MockRtpTarget rtp_target;
+    SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
+
+    // The H.264 sequence header, then an IDR, which the builder sends after a STAP-A of its SPS and PPS.
+    uint8_t sh_raw[] = {
+        0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+        0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+    SrsUniquePtr<SrsMediaPacket> sh(new SrsMediaPacket());
+    sh->message_type_ = SrsFrameTypeVideo;
+    char *sh_data = new char[sizeof(sh_raw)];
+    memcpy(sh_data, sh_raw, sizeof(sh_raw));
+    sh->wrap(sh_data, sizeof(sh_raw));
+    sh->timestamp_ = 1000;
+    HELPER_EXPECT_SUCCESS(builder.on_video(sh.get()));
+
+    uint8_t idr_raw[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x65, 0x88, 0x84, 0x00, 0x10};
+    SrsUniquePtr<SrsMediaPacket> idr(new SrsMediaPacket());
+    idr->message_type_ = SrsFrameTypeVideo;
+    char *idr_data = new char[sizeof(idr_raw)];
+    memcpy(idr_data, idr_raw, sizeof(idr_raw));
+    idr->wrap(idr_data, sizeof(idr_raw));
+    idr->timestamp_ = 2040;
+    HELPER_EXPECT_SUCCESS(builder.on_video(idr.get()));
+
+    ASSERT_EQ(2, (int)rtp_target.avsync_times_.size());
+    for (int i = 0; i < 2; i++) {
+        EXPECT_EQ(2040 * 90, (int64_t)rtp_target.rtp_times_[i]);
+        EXPECT_EQ(2040, rtp_target.avsync_times_[i]);
+    }
+
+    // An Opus frame, at its RTP time of 48 kHz.
+    char opus[] = {0x78, 0x01, 0x02};
+    SrsParsedAudioPacket audio;
+    audio.dts_ = 2060;
+    HELPER_EXPECT_SUCCESS(audio.add_sample(opus, sizeof(opus)));
+    SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+    HELPER_EXPECT_SUCCESS(builder.package_opus(&audio, pkt.get()));
+    EXPECT_EQ(2060u * 48, pkt->header_.get_timestamp());
+    EXPECT_EQ(2060, pkt->get_avsync_time());
 }

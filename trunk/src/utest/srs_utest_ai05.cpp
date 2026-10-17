@@ -26,6 +26,9 @@
 #include <srs_utest_manual_protocol.hpp>
 
 #include <algorithm>
+#include <openssl/aes.h>
+#include <stdio.h>
+#include <vector>
 
 // Forward declarations for functions that are not in headers
 #if defined(SRS_BACKTRACE) && defined(__linux)
@@ -34,6 +37,9 @@ extern void *parse_symbol_offset(char *frame);
 extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf);
 #ifdef SRS_SANITIZER_LOG
 extern void asan_report_callback(const char *str);
+#endif
+#ifdef SRS_SANITIZER
+extern "C" const char *__asan_default_options();
 #endif
 
 // Forward declarations for RTC RTP functions
@@ -532,6 +538,121 @@ VOID TEST(KernelResourceTest, ResourceManagerDisposesThroughInjectedCond)
 
     manager.unsubscribe(&handler);
     manager.factory_ = NULL;
+}
+
+// Find the resource by its fast id, and tell whether the level-0 cache answered, not the map.
+static ISrsResource *find_by_fast_id_level0(SrsResourceManager &manager, uint64_t id, bool *level0)
+{
+    int64_t hits = _srs_pps_fids_level0->sugar_;
+    ISrsResource *resource = manager.find_by_fast_id(id);
+    *level0 = _srs_pps_fids_level0->sugar_ > hits;
+    return resource;
+}
+
+// What cycle() does after the cond wakes it, with the current context kept for the tests that run after.
+static void remove_and_clear(SrsResourceManager &manager, ISrsResource *resource)
+{
+    manager.remove(resource);
+    manager.cid_ = _srs_context->get_id();
+    manager.clear();
+}
+
+// A WebRTC session is added by its name, and a GB session by its id, before their fast ids, so a fast id
+// of a resource already added must take the level-0 slot too.
+VOID TEST(KernelResourceTest, ResourceManagerFastIdOfAddedResourceInLevel0)
+{
+    SrsResourceManager manager("test");
+    manager.assemble();
+
+    MockSrsResource *session = new MockSrsResource();
+    manager.add_with_name("session", session);
+    manager.add_with_fast_id(100, session);
+
+    MockSrsResource *gb = new MockSrsResource();
+    manager.add_with_id("device", gb);
+    manager.add_with_fast_id(200, gb);
+
+    bool level0 = false;
+    EXPECT_TRUE(session == find_by_fast_id_level0(manager, 100, &level0));
+    EXPECT_TRUE(level0);
+    EXPECT_TRUE(gb == find_by_fast_id_level0(manager, 200, &level0));
+    EXPECT_TRUE(level0);
+
+    // A session found at another address has a fast id of each address, all in the level-0 cache.
+    manager.add_with_fast_id(300, session);
+    EXPECT_TRUE(session == find_by_fast_id_level0(manager, 300, &level0));
+    EXPECT_TRUE(level0);
+
+    remove_and_clear(manager, session);
+    EXPECT_TRUE(NULL == find_by_fast_id_level0(manager, 100, &level0));
+    EXPECT_FALSE(level0);
+    EXPECT_TRUE(NULL == find_by_fast_id_level0(manager, 300, &level0));
+    EXPECT_FALSE(level0);
+    EXPECT_TRUE(gb == find_by_fast_id_level0(manager, 200, &level0));
+    EXPECT_TRUE(level0);
+}
+
+// The fast ids 1 and 100001 share a level-0 slot. Removing the resource that does not hold the slot
+// must leave the slot to the resource that holds it.
+VOID TEST(KernelResourceTest, ResourceManagerRemovalLeavesOtherResourceSlot)
+{
+    SrsResourceManager manager("test");
+    manager.assemble();
+
+    MockSrsResource *holder = new MockSrsResource();
+    manager.add_with_fast_id(100001, holder);
+
+    MockSrsResource *other = new MockSrsResource();
+    manager.add_with_name("other", other);
+    manager.add_with_fast_id(1, other);
+
+    bool level0 = false;
+    EXPECT_TRUE(holder == find_by_fast_id_level0(manager, 100001, &level0));
+    EXPECT_TRUE(level0);
+    EXPECT_TRUE(other == find_by_fast_id_level0(manager, 1, &level0));
+    EXPECT_FALSE(level0);
+
+    remove_and_clear(manager, other);
+    EXPECT_TRUE(NULL == manager.find_by_fast_id(1));
+    EXPECT_TRUE(holder == find_by_fast_id_level0(manager, 100001, &level0));
+    EXPECT_TRUE(level0);
+
+    // Once the holder is gone, the slot is free for the next fast id.
+    remove_and_clear(manager, holder);
+    EXPECT_TRUE(NULL == manager.find_by_fast_id(100001));
+
+    MockSrsResource *next = new MockSrsResource();
+    manager.add_with_name("next", next);
+    manager.add_with_fast_id(1, next);
+    EXPECT_TRUE(next == find_by_fast_id_level0(manager, 1, &level0));
+    EXPECT_TRUE(level0);
+}
+
+// A WebRTC client's address can move to a new session, which adds the same fast id again. The level-0 slot
+// must follow it, and the old session's removal must leave it to the new one.
+VOID TEST(KernelResourceTest, ResourceManagerFastIdOfAnotherResourceTakesSlot)
+{
+    SrsResourceManager manager("test");
+    manager.assemble();
+
+    MockSrsResource *old_session = new MockSrsResource();
+    manager.add_with_name("old", old_session);
+    manager.add_with_fast_id(100, old_session);
+
+    MockSrsResource *new_session = new MockSrsResource();
+    manager.add_with_name("new", new_session);
+    manager.add_with_fast_id(100, new_session);
+
+    bool level0 = false;
+    EXPECT_TRUE(new_session == find_by_fast_id_level0(manager, 100, &level0));
+    EXPECT_TRUE(level0);
+
+    remove_and_clear(manager, old_session);
+    EXPECT_TRUE(new_session == find_by_fast_id_level0(manager, 100, &level0));
+    EXPECT_TRUE(level0);
+
+    remove_and_clear(manager, new_session);
+    EXPECT_TRUE(NULL == manager.find_by_fast_id(100));
 }
 
 VOID TEST(KernelResourceTest, GlobalConnManagerIsAssembled)
@@ -1777,6 +1898,19 @@ VOID TEST(KernelErrorTest, AsanReportCallback)
 #else
     // On builds without SRS_SANITIZER_LOG, just pass the test
     EXPECT_TRUE(true);
+#endif
+}
+
+// libsrt is built without ASan, and its inline std::vector code shares the instantiations of SRS's instrumented
+// code, so the container annotations go stale and a valid copy is reported as an overflow.
+VOID TEST(KernelErrorTest, AsanDefaultOptionsDisableContainerOverflow)
+{
+#ifdef SRS_SANITIZER
+    std::string options = __asan_default_options();
+    EXPECT_NE(std::string::npos, options.find("detect_container_overflow=0")) << options;
+    EXPECT_NE(std::string::npos, options.find("halt_on_error=0")) << options;
+    EXPECT_NE(std::string::npos, options.find("detect_leaks=0")) << options;
+    EXPECT_NE(std::string::npos, options.find("alloc_dealloc_mismatch=0")) << options;
 #endif
 }
 
@@ -5368,6 +5502,85 @@ VOID TEST(KernelTSTest, SrsEncFileWriter_close)
     // Clean up
     SrsPath path;
     path.unlink(temp_file);
+}
+
+// Write nb_packets TS packets through an SrsEncFileWriter, close it, and
+// decrypt the file: it must be the packets followed by PKCS#7 padding of 1 to
+// 16 bytes, also when the packets are whole AES blocks or there are none.
+static void srs_utest_check_enc_file_padding(int nb_packets)
+{
+    srs_error_t err = srs_success;
+
+    unsigned char key[16];
+    unsigned char iv[16];
+    for (int i = 0; i < 16; i++) {
+        key[i] = (unsigned char)i;
+        iv[i] = (unsigned char)(0xf0 + i);
+    }
+
+    std::string temp_file = "/tmp/srs_test_enc_pad_" + srs_strconv_format_int(getpid()) + "_" + srs_strconv_format_int(nb_packets) + ".ts";
+
+    std::vector<unsigned char> plain;
+    if (true) {
+        SrsEncFileWriter writer;
+        HELPER_EXPECT_SUCCESS(writer.config_cipher(key, iv));
+        HELPER_EXPECT_SUCCESS(writer.open(temp_file));
+
+        for (int i = 0; i < nb_packets; i++) {
+            unsigned char ts_data[SRS_TS_PACKET_SIZE];
+            memset(ts_data, (unsigned char)i, SRS_TS_PACKET_SIZE);
+            ts_data[0] = 0x47;
+            plain.insert(plain.end(), ts_data, ts_data + SRS_TS_PACKET_SIZE);
+
+            ssize_t nwrite = 0;
+            HELPER_EXPECT_SUCCESS(writer.write(ts_data, SRS_TS_PACKET_SIZE, &nwrite));
+        }
+
+        writer.close();
+        // A second close adds nothing.
+        writer.close();
+    }
+
+    std::vector<unsigned char> cipher;
+    if (true) {
+        FILE *fp = fopen(temp_file.c_str(), "rb");
+        ASSERT_TRUE(fp != NULL);
+        unsigned char b[4096];
+        size_t n;
+        while ((n = fread(b, 1, sizeof(b), fp)) > 0) {
+            cipher.insert(cipher.end(), b, b + n);
+        }
+        fclose(fp);
+
+        SrsPath path;
+        path.unlink(temp_file);
+    }
+
+    int nb_padding = 16 - (int)(plain.size() % 16);
+    ASSERT_EQ(plain.size() + nb_padding, cipher.size()) << "packets=" << nb_packets;
+
+    std::vector<unsigned char> out(cipher.size());
+    AES_KEY k;
+    AES_set_decrypt_key(key, 128, &k);
+    AES_cbc_encrypt(&cipher[0], &out[0], cipher.size(), &k, iv, AES_DECRYPT);
+
+    EXPECT_TRUE(std::equal(plain.begin(), plain.end(), out.begin())) << "packets=" << nb_packets;
+    for (size_t i = plain.size(); i < out.size(); i++) {
+        EXPECT_EQ(nb_padding, out[i]) << "packets=" << nb_packets << ", byte " << i;
+    }
+}
+
+VOID TEST(KernelTSTest, SrsEncFileWriter_closePadsEveryLength)
+{
+    // A partial last block of 4 packets: 188 bytes padded with 4, 940 with 4.
+    srs_utest_check_enc_file_padding(1);
+    srs_utest_check_enc_file_padding(5);
+    // Whole blocks of 4 packets, 752 bytes, written by write(): a block of 16
+    // padding bytes follows, as PKCS#7 wants.
+    srs_utest_check_enc_file_padding(4);
+    srs_utest_check_enc_file_padding(8);
+    // No packet: the padding block alone.
+    srs_utest_check_enc_file_padding(0);
 }
 
 VOID TEST(KernelTSTest, SrsTsMessageCache_do_cache_mp3)

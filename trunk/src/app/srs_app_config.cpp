@@ -22,6 +22,7 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <vector>
 using namespace std;
 
@@ -74,9 +75,6 @@ const char *_srs_version = "XCORE-" RTMP_SIG_SRS_SERVER;
 #define SRS_OVERWRITE_BY_ENV_FLOAT(key) \
     if (!srs_getenv(key).empty())       \
     return ::atof(srs_getenv(key).c_str())
-#define SRS_OVERWRITE_BY_ENV_SECONDS(key) \
-    if (!srs_getenv(key).empty())         \
-    return srs_utime_t(::atoi(srs_getenv(key).c_str()) * SRS_UTIME_SECONDS)
 #define SRS_OVERWRITE_BY_ENV_MILLISECONDS(key) \
     if (!srs_getenv(key).empty())              \
     return (srs_utime_t)(::atoi(srs_getenv(key).c_str()) * SRS_UTIME_MILLISECONDS)
@@ -332,11 +330,6 @@ bool srs_stream_caster_is_udp(string caster)
     return caster == "mpegts_over_udp";
 }
 
-bool srs_stream_caster_is_flv(string caster)
-{
-    return caster == "flv";
-}
-
 bool srs_stream_caster_is_gb28181(string caster)
 {
     return caster == "gb28181";
@@ -523,36 +516,6 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
                 srs_freep(hstrs);
             }
 
-            // SRS3.0, change the refer style
-            //  SRS1/2:
-            //      vhost { refer; refer_play; refer_publish; }
-            //  SRS3+:
-            //      vhost { refer { enabled; all; play; publish; } }
-            if ((n == "refer" && conf->directives_.empty()) || n == "refer_play" || n == "refer_publish") {
-                // remove the old one first, for name duplicated.
-                it = dir->directives_.erase(it);
-
-                SrsConfDirective *refer = dir->get_or_create("refer");
-                refer->get_or_create("enabled", "on");
-                if (n == "refer") {
-                    SrsConfDirective *all = refer->get_or_create("all");
-                    all->args_ = conf->args_;
-                    srs_warn("transform: vhost.refer to vhost.refer.all for %s", dir->name_.c_str());
-                } else if (n == "refer_play") {
-                    SrsConfDirective *play = refer->get_or_create("play");
-                    play->args_ = conf->args_;
-                    srs_warn("transform: vhost.refer_play to vhost.refer.play for %s", dir->name_.c_str());
-                } else if (n == "refer_publish") {
-                    SrsConfDirective *publish = refer->get_or_create("publish");
-                    publish->args_ = conf->args_;
-                    srs_warn("transform: vhost.refer_publish to vhost.refer.publish for %s", dir->name_.c_str());
-                }
-
-                // remove the old directive.
-                srs_freep(conf);
-                continue;
-            }
-
             // SRS3.0, change the mr style
             //  SRS2:
             //      vhost { mr { enabled; latency; } }
@@ -618,12 +581,12 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             }
 
             // SRS3.0, change the bellow like a shadow:
-            //      time_jitter, mix_correct, atc, atc_auto, mw_latency, gop_cache, queue_length
+            //      time_jitter, mix_correct, atc, mw_latency, gop_cache, queue_length
             //  SRS1/2:
             //      vhost { shadow; }
             //  SRS3+:
             //      vhost { play { shadow; } }
-            if (n == "time_jitter" || n == "mix_correct" || n == "atc" || n == "atc_auto" || n == "mw_latency" || n == "gop_cache" || n == "gop_cache_max_frames" || n == "queue_length" || n == "send_min_interval" || n == "reduce_sequence_header") {
+            if (n == "time_jitter" || n == "mix_correct" || n == "atc" || n == "mw_latency" || n == "gop_cache" || n == "gop_cache_max_frames" || n == "queue_length" || n == "send_min_interval" || n == "reduce_sequence_header") {
                 it = dir->directives_.erase(it);
 
                 SrsConfDirective *play = dir->get_or_create("play");
@@ -653,12 +616,12 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
             }
 
             // SRS3.0, change the bellow like a shadow:
-            //      mode, origin, token_traverse, vhost, debug_srs_upnode
+            //      mode, origin, vhost, debug_srs_upnode
             //  SRS1/2:
             //      vhost { shadow; }
             //  SRS3+:
             //      vhost { cluster { shadow; } }
-            if (n == "mode" || n == "origin" || n == "token_traverse" || n == "vhost" || n == "debug_srs_upnode") {
+            if (n == "mode" || n == "origin" || n == "vhost" || n == "debug_srs_upnode") {
                 it = dir->directives_.erase(it);
 
                 SrsConfDirective *cluster = dir->get_or_create("cluster");
@@ -917,12 +880,12 @@ SrsConfDirective *SrsConfDirective::at(int index)
     return directives_.at(index);
 }
 
-SrsConfDirective *SrsConfDirective::get(string _name)
+SrsConfDirective *SrsConfDirective::get(string name)
 {
     std::vector<SrsConfDirective *>::iterator it;
     for (it = directives_.begin(); it != directives_.end(); ++it) {
         SrsConfDirective *directive = *it;
-        if (directive->name_ == _name) {
+        if (directive->name_ == name) {
             return directive;
         }
     }
@@ -930,12 +893,12 @@ SrsConfDirective *SrsConfDirective::get(string _name)
     return NULL;
 }
 
-SrsConfDirective *SrsConfDirective::get(string _name, string _arg0)
+SrsConfDirective *SrsConfDirective::get(string name, string arg0)
 {
     std::vector<SrsConfDirective *>::iterator it;
     for (it = directives_.begin(); it != directives_.end(); ++it) {
         SrsConfDirective *directive = *it;
-        if (directive->name_ == _name && directive->arg0() == _arg0) {
+        if (directive->name_ == name && directive->arg0() == arg0) {
             return directive;
         }
     }
@@ -1640,15 +1603,13 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "no config file at %s", config_file_.c_str());
     }
 
-    // Parse the matched config file.
-    if (!env_only_) {
-        err = parse_file(config_file_.c_str());
-    }
+    // Parse the matched config file, or the default vhost of env only.
+    err = parse_config();
 
     if (test_conf_) {
         // the parse_file never check the config,
         // we check it when user requires check config file.
-        if (err == srs_success && (err = srs_config_transform_vhost(root_)) == srs_success) {
+        if (err == srs_success) {
             if ((err = check_config()) == srs_success) {
                 srs_trace("the config file %s syntax is ok", config_file_.c_str());
                 srs_trace("config file %s test is successful", config_file_.c_str());
@@ -1663,17 +1624,6 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
 
     if (err != srs_success) {
         return srs_error_wrap(err, "invalid config");
-    }
-
-    // transform config to compatible with previous style of config.
-    if ((err = srs_config_transform_vhost(root_)) != srs_success) {
-        return srs_error_wrap(err, "transform");
-    }
-
-    // If use env only, there is no config file, so create the default vhost.
-    if (env_only_) {
-        if (root_->directives_.empty())
-            root_->get_or_create("vhost", "__defaultVhost__");
     }
 
     // Ignore any error while detecting docker.
@@ -1703,6 +1653,28 @@ srs_error_t SrsConfig::parse_options(int argc, char **argv)
         } else {
             srs_trace("write log to console");
         }
+    }
+
+    return err;
+}
+
+srs_error_t SrsConfig::parse_config()
+{
+    srs_error_t err = srs_success;
+
+    if (!env_only_ && (err = parse_file(config_file_.c_str())) != srs_success) {
+        return err;
+    }
+
+    // If use env only, there is no config file, so create the default vhost, whose settings come
+    // from env. Create it before the config test, so the test checks the vhost settings too.
+    if (env_only_ && root_->directives_.empty()) {
+        root_->get_or_create("vhost", "__defaultVhost__");
+    }
+
+    // transform config to compatible with previous style of config.
+    if ((err = srs_config_transform_vhost(root_)) != srs_success) {
+        return srs_error_wrap(err, "transform");
     }
 
     return err;
@@ -1899,7 +1871,6 @@ void SrsConfig::print_help(char **argv)
         "      SRS_CONFIG_FILE=                              Config file to use instead of -c, ignored with -e.\n"
         "      SRS_PID=                                      Pid file. Default is empty with -e, and ./objs/srs.pid with -c.\n"
         "      SRS_DAEMON=off                                Run as daemon. Default is off with -e, and on with -c.\n"
-        "      SRS_ASPROCESS=off                             Quit when the parent process quits.\n"
         "      SRS_LOG_TANK=console                          console or file. Default is console with -e, and file with -c.\n"
         "      SRS_LOG_FILE=./objs/srs.log                   Log file, when SRS_LOG_TANK=file.\n"
         "      SRS_INOTIFY_AUTO_RELOAD=off                   Reload when the config file changes, not for -e.\n"
@@ -1916,8 +1887,6 @@ void SrsConfig::print_help(char **argv)
         "      SRS_GRACE_START_WAIT=2300                     Graceful quit, ms to wait before closing listeners.\n"
         "      SRS_GRACE_FINAL_WAIT=3200                     Graceful quit, ms to wait for cleanup.\n"
         "      SRS_FORCE_GRACE_QUIT=off                      Quit gracefully on SIGTERM too.\n"
-        "      SRS_QUERY_LATEST_VERSION=off                  Query the latest SRS version and log it.\n"
-        "      SRS_FIRST_WAIT_FOR_QLV=300                    Seconds to wait before the first version query.\n"
         "   Log:\n"
         "      SRS_LOG_LEVEL_V2=                             trace, debug, info, warn or error, overrides SRS_LOG_LEVEL.\n"
         "      SRS_LOG_LEVEL=trace                           verbose, info, trace, warn or error.\n"
@@ -1938,7 +1907,7 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_OUT_ACK_SIZE=2500000                RTMP output ack size, 0 to not set.\n"
         "      SRS_VHOST_TCP_NODELAY=off                     Set TCP_NODELAY on client sockets.\n"
         "      SRS_RTMPS_ENABLED=off                         Enable RTMPS, RTMP over TLS.\n"
-        "      SRS_RTMPS_LISTEN=                             RTMPS listen [ip:]port, such as 1443.\n"
+        "      SRS_RTMPS_LISTEN=1443                         RTMPS listen [ip:]port.\n"
         "      SRS_RTMPS_KEY=./conf/server.key               TLS private key of RTMPS.\n"
         "      SRS_RTMPS_CERT=./conf/server.crt              TLS cert of RTMPS.\n"
         "   Publish:\n"
@@ -1956,7 +1925,6 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_PLAY_TIME_JITTER=full               Timestamp correction: full, zero or off.\n"
         "      SRS_VHOST_PLAY_MIX_CORRECT=off                Keep audio and video timestamps interleaved.\n"
         "      SRS_VHOST_PLAY_ATC=off                        Deliver absolute timestamps, for backup streams.\n"
-        "      SRS_VHOST_PLAY_ATC_AUTO=off                   Turn on ATC if the metadata says bravo_atc.\n"
         "      SRS_VHOST_PLAY_MW_LATENCY=350                 ms of merged write, 0 for WebRTC.\n"
         "      SRS_VHOST_PLAY_MW_MSGS=8                      Min messages of merged write, 1 for WebRTC, 0 for min latency.\n"
         "      SRS_VHOST_PLAY_SEND_MIN_INTERVAL=0            Min ms between sent packets, 0 to disable.\n"
@@ -2046,6 +2014,7 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_DASH_DASH_DISPOSE=120               Seconds without packets to remove all DASH files.\n"
         "   DVR, record streams to files:\n"
         "      SRS_VHOST_DVR_ENABLED=off                     Record streams.\n"
+        "      SRS_VHOST_DVR_DVR_APPLY=all                   all, or the space separated app/stream to record.\n"
         "      SRS_VHOST_DVR_DVR_PLAN=session                session, a file per publish, or segment, split by duration.\n"
         "      SRS_VHOST_DVR_DVR_PATH=./objs/nginx/html/[app]/[stream].[timestamp].flv\n"
         "                                                    File path, .flv or .mp4.\n"
@@ -2122,12 +2091,21 @@ void SrsConfig::print_help(char **argv)
         "      SRS_VHOST_FORWARD_ENABLED=off                 Forward published streams.\n"
         "      SRS_VHOST_FORWARD_DESTINATION=                Space separated ip:port to forward to.\n"
         "      SRS_VHOST_FORWARD_BACKEND=                    HTTP URL that returns the RTMP URLs to forward to.\n"
+        "   Security, each rule is space separated all, ip or cidr, and replaces the config file's rules:\n"
+        "      SRS_VHOST_SECURITY_ENABLED=off                Allow or deny clients by the rules, deny all if none.\n"
+        "      SRS_VHOST_SECURITY_ALLOW_PUBLISH=             Clients allowed to publish.\n"
+        "      SRS_VHOST_SECURITY_ALLOW_PLAY=                Clients allowed to play.\n"
+        "      SRS_VHOST_SECURITY_DENY_PUBLISH=              Clients denied to publish, before any allow.\n"
+        "      SRS_VHOST_SECURITY_DENY_PLAY=                 Clients denied to play, before any allow.\n"
         "   Edge, pull and push streams through an origin:\n"
         "      SRS_VHOST_CLUSTER_MODE=local                  local for an origin, remote for an edge.\n"
         "      SRS_VHOST_CLUSTER_ORIGIN=                     Space separated origin ip:port of an edge.\n"
-        "   Stream caster, to receive GB28181, FLV or MPEG-TS over UDP as RTMP:\n"
+        "      SRS_VHOST_CLUSTER_PROTOCOL=rtmp               rtmp, flv or flvs to pull from the origin.\n"
+        "      SRS_VHOST_CLUSTER_ORIGIN_CLUSTER=off          Redirect a player of an origin to the coworker with the stream.\n"
+        "      SRS_VHOST_CLUSTER_COWORKERS=                  Space separated HTTP API ip:port of the origin cluster.\n"
+        "   Stream caster, to receive GB28181 or MPEG-TS over UDP as RTMP:\n"
         "      SRS_STREAM_CASTER_ENABLED=off                 Enable a stream caster, even without one in the config.\n"
-        "      SRS_STREAM_CASTER_CASTER=                     gb28181, flv or mpegts_over_udp.\n"
+        "      SRS_STREAM_CASTER_CASTER=                     gb28181 or mpegts_over_udp.\n"
         "      SRS_STREAM_CASTER_OUTPUT=                     RTMP URL to output to, such as rtmp://127.0.0.1/live/[stream].\n"
         "      SRS_STREAM_CASTER_LISTEN=0                    Port to listen on.\n"
         "      SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT=10    GB28181, seconds to wait for the media connection.\n"
@@ -2200,6 +2178,73 @@ srs_error_t SrsConfig::build_buffer(string src, SrsConfigBuffer **pbuffer)
 }
 // LCOV_EXCL_STOP
 
+// Parse the value as a finite number, such as 10, 0.5 or 1e3; false for nan, inf or a value with no number.
+static bool srs_config_parse_finite(const string &value, double *v)
+{
+    const char *s = value.c_str();
+    char *end = NULL;
+    *v = ::strtod(s, &end);
+    return end != s && std::isfinite(*v);
+}
+
+// Whether a time directive's value, in seconds or milliseconds, is a finite number that is not negative,
+// such as 10, 0.5 or 1e3. The getters read it with atof and cast it to srs_utime_t, which is undefined for
+// nan or inf, and a negative time or a value with no number has no meaning for any of them.
+static bool srs_config_time_valid(const string &value)
+{
+    double v;
+    return srs_config_parse_finite(value, &v) && v >= 0;
+}
+
+// The time directives of a vhost the getters read with atof, by section, name and env var.
+static const char *srs_config_vhost_times[][3] = {
+    {"rtc", "stun_timeout", "SRS_VHOST_RTC_STUN_TIMEOUT"},
+    {"rtc", "pli_for_rtmp", "SRS_VHOST_RTC_PLI_FOR_RTMP"},
+    {"play", "queue_length", "SRS_VHOST_PLAY_QUEUE_LENGTH"},
+    {"play", "send_min_interval", "SRS_VHOST_PLAY_SEND_MIN_INTERVAL"},
+    {"publish", "kickoff_for_idle", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE"},
+    {"dash", "dash_fragment", "SRS_VHOST_DASH_DASH_FRAGMENT"},
+    {"dash", "dash_update_period", "SRS_VHOST_DASH_DASH_UPDATE_PERIOD"},
+    {"dash", "dash_timeshift", "SRS_VHOST_DASH_DASH_TIMESHIFT"},
+    {"dash", "dash_dispose", "SRS_VHOST_DASH_DASH_DISPOSE"},
+    {"hls", "hls_fragment", "SRS_VHOST_HLS_HLS_FRAGMENT"},
+    {"hls", "hls_window", "SRS_VHOST_HLS_HLS_WINDOW"},
+    {"hls", "hls_dispose", "SRS_VHOST_HLS_HLS_DISPOSE"},
+    {"dvr", "dvr_duration", "SRS_VHOST_DVR_DVR_DURATION"},
+    {"http_remux", "fast_cache", "SRS_VHOST_HTTP_REMUX_FAST_CACHE"},
+};
+
+// Check the time directive name of the section, which is fine when the section or the value is not there.
+static srs_error_t srs_config_check_time(SrsConfDirective *section, const string &name, const string &where)
+{
+    SrsConfDirective *conf = section ? section->get(name) : NULL;
+    if (!conf || conf->arg0().empty()) {
+        return srs_success;
+    }
+
+    if (!srs_config_time_valid(conf->arg0())) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid %s %s=%s, not a time that is finite and not negative",
+                             where.c_str(), name.c_str(), conf->arg0().c_str());
+    }
+
+    return srs_success;
+}
+
+// Whether an HLS ratio's value is a finite number above zero, such as 1.5 or 2. The muxer multiplies the
+// fragment by it into a srs_utime_t, which is undefined for nan or inf, and a ratio of zero or below has no
+// meaning for the target duration or the pure audio segment.
+static bool srs_config_ratio_valid(const string &value)
+{
+    double v;
+    return srs_config_parse_finite(value, &v) && v > 0;
+}
+
+// The HLS ratios the getters read with atof, by name and env var.
+static const char *srs_config_hls_ratios[][2] = {
+    {"hls_td_ratio", "SRS_VHOST_HLS_HLS_TD_RATIO"},
+    {"hls_aof_ratio", "SRS_VHOST_HLS_HLS_AOF_RATIO"},
+};
+
 srs_error_t SrsConfig::check_config()
 {
     srs_error_t err = srs_success;
@@ -2233,8 +2278,50 @@ srs_error_t SrsConfig::check_normal_config()
     for (int i = 0; i < (int)root_->directives_.size(); i++) {
         SrsConfDirective *conf = root_->at(i);
         std::string n = conf->name_;
-        if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "tencentcloud_apm" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "asprocess" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "query_latest_version" && n != "first_wait_for_qlv" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "tencentcloud_cls" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps") {
+        // asprocess is removed, so refuse it rather than ignore it, on or off.
+        if (n == "asprocess") {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "asprocess is removed, quitting when the parent process quits is not supported");
+        }
+        // The latest version query is removed, so refuse its directives rather than ignore them, on or off.
+        if (n == "query_latest_version" || n == "first_wait_for_qlv") {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%s is removed, the latest version query is not supported", n.c_str());
+        }
+        if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps") {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
+        }
+    }
+    // HDS is removed, so refuse its env vars rather than ignore them.
+    if (true) {
+        const char *removed[] = {"SRS_VHOST_HDS_ENABLED", "SRS_VHOST_HDS_HDS_PATH", "SRS_VHOST_HDS_HDS_FRAGMENT", "SRS_VHOST_HDS_HDS_WINDOW"};
+        for (int i = 0; i < (int)(sizeof(removed) / sizeof(removed[0])); i++) {
+            if (!srs_getenv(removed[i]).empty()) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%s is removed, HDS is not supported", removed[i]);
+            }
+        }
+    }
+    // The FLV POST caster is removed, so refuse it by env rather than ignore it, whether it is enabled or not.
+    if (srs_getenv("SRS_STREAM_CASTER_CASTER") == "flv") {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_STREAM_CASTER_CASTER=flv is removed, the FLV POST caster is not supported");
+    }
+    // asprocess is removed, so refuse it by env rather than ignore it, on or off.
+    if (!srs_getenv("SRS_ASPROCESS").empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_ASPROCESS is removed, quitting when the parent process quits is not supported");
+    }
+    // atc_auto is removed, so refuse it by env rather than ignore it, on or off.
+    if (!srs_getenv("SRS_VHOST_PLAY_ATC_AUTO").empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_VHOST_PLAY_ATC_AUTO is removed, turning ATC on by the bravo_atc of the metadata is not supported");
+    }
+    // Edge token traverse is removed, so refuse it by env rather than ignore it, on or off.
+    if (!srs_getenv("SRS_VHOST_CLUSTER_TOKEN_TRAVERSE").empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE is removed, check the clients of an edge by its HTTP hooks instead");
+    }
+    // The latest version query is removed, so refuse its env vars rather than ignore them, on or off.
+    if (true) {
+        const char *removed[] = {"SRS_QUERY_LATEST_VERSION", "SRS_FIRST_WAIT_FOR_QLV"};
+        for (int i = 0; i < (int)(sizeof(removed) / sizeof(removed[0])); i++) {
+            if (!srs_getenv(removed[i]).empty()) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%s is removed, the latest version query is not supported", removed[i]);
+            }
         }
     }
     if (true) {
@@ -2407,6 +2494,117 @@ srs_error_t SrsConfig::check_normal_config()
             if (!srs_net_is_valid_endpoint(listens[i])) {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "rtmp.listen=%s is invalid", listens[i].c_str());
             }
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check listen for rtmps and exporter.
+    ////////////////////////////////////////////////////////////////////////
+    if (get_rtmps_enabled()) {
+        vector<string> listens = get_rtmps_listen();
+        for (int i = 0; i < (int)listens.size(); i++) {
+            if (!srs_net_is_valid_endpoint(listens[i])) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "rtmps.listen=%s is invalid", listens[i].c_str());
+            }
+        }
+    }
+    if (get_exporter_enabled()) {
+        string listen = get_exporter_listen();
+        if (!srs_net_is_valid_endpoint(listen)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "exporter.listen=%s is invalid", listen.c_str());
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check time directives, from the file and the env, before any getter reads them.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        vector<string> envs;
+        envs.push_back("SRS_HEARTBEAT_INTERVAL");
+        envs.push_back("SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT");
+        for (int i = 0; i < (int)(sizeof(srs_config_vhost_times) / sizeof(srs_config_vhost_times[0])); i++) {
+            envs.push_back(srs_config_vhost_times[i][2]);
+        }
+        for (int i = 0; i < (int)envs.size(); i++) {
+            string env = envs.at(i);
+            string value = srs_getenv(env);
+            if (!value.empty() && !srs_config_time_valid(value)) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid %s=%s, not a time that is finite and not negative",
+                                     env.c_str(), value.c_str());
+            }
+        }
+
+        if ((err = srs_config_check_time(root_->get("heartbeat"), "interval", "heartbeat")) != srs_success) {
+            return err;
+        }
+
+        vector<SrsConfDirective *> casters = get_stream_casters();
+        for (int i = 0; i < (int)casters.size(); i++) {
+            SrsConfDirective *caster = casters.at(i);
+            if ((err = srs_config_check_time(caster, "media_connect_timeout", "stream_caster")) != srs_success) {
+                return err;
+            }
+        }
+
+        vector<SrsConfDirective *> vhosts;
+        get_vhosts(vhosts);
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective *vhost = vhosts.at(i);
+            for (int j = 0; j < (int)(sizeof(srs_config_vhost_times) / sizeof(srs_config_vhost_times[0])); j++) {
+                string section = srs_config_vhost_times[j][0];
+                string where = "vhost " + vhost->arg0() + " " + section;
+                if ((err = srs_config_check_time(vhost->get(section), srs_config_vhost_times[j][1], where)) != srs_success) {
+                    return err;
+                }
+            }
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check the HLS ratios, from the file and the env, before any getter reads them.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        for (int i = 0; i < (int)(sizeof(srs_config_hls_ratios) / sizeof(srs_config_hls_ratios[0])); i++) {
+            string env = srs_config_hls_ratios[i][1];
+            string value = srs_getenv(env);
+            if (!value.empty() && !srs_config_ratio_valid(value)) {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid %s=%s, not a ratio that is finite and above zero",
+                                     env.c_str(), value.c_str());
+            }
+        }
+
+        vector<SrsConfDirective *> vhosts;
+        get_vhosts(vhosts);
+        for (int i = 0; i < (int)vhosts.size(); i++) {
+            SrsConfDirective *vhost = vhosts.at(i);
+            SrsConfDirective *hls = vhost->get("hls");
+            for (int j = 0; hls && j < (int)(sizeof(srs_config_hls_ratios) / sizeof(srs_config_hls_ratios[0])); j++) {
+                SrsConfDirective *conf = hls->get(srs_config_hls_ratios[j][0]);
+                if (conf && !conf->arg0().empty() && !srs_config_ratio_valid(conf->arg0())) {
+                    return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid vhost %s hls %s=%s, not a ratio that is finite and above zero",
+                                         vhost->arg0().c_str(), srs_config_hls_ratios[j][0], conf->arg0().c_str());
+                }
+            }
+        }
+    }
+
+    ////////////////////////////////////////////////////////////////////////
+    // check the tcmalloc release rate, from the file and the env, before the getter reads it. It must be a
+    // finite number: the getter reads it with atof and clamps it to 0 to 10 with srs_min and srs_max, which
+    // pass nan through to tcmalloc, and a value with no number has no rate.
+    ////////////////////////////////////////////////////////////////////////
+    if (true) {
+        double rate;
+        string value = srs_getenv("SRS_TCMALLOC_RELEASE_RATE");
+        if (!value.empty() && !srs_config_parse_finite(value, &rate)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid SRS_TCMALLOC_RELEASE_RATE=%s, not a finite number",
+                                 value.c_str());
+        }
+
+        SrsConfDirective *conf = root_->get("tcmalloc_release_rate");
+        if (conf && !conf->arg0().empty() && !srs_config_parse_finite(conf->arg0(), &rate)) {
+            return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "invalid tcmalloc_release_rate=%s, not a finite number",
+                                 conf->arg0().c_str());
         }
     }
 
@@ -2584,6 +2782,10 @@ srs_error_t SrsConfig::check_normal_config()
             if (n != "enabled" && n != "caster" && n != "output" && n != "listen" && n != "media_connect_timeout" && n != "sip") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal stream_caster.%s", n.c_str());
             }
+            // The FLV POST caster is removed, so refuse it rather than ignore it, whether it is enabled or not.
+            if (n == "caster" && conf->arg0() == "flv") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "stream_caster.caster flv is removed, the FLV POST caster is not supported");
+            }
 
             if (n == "sip") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
@@ -2607,7 +2809,27 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; vhost && i < (int)vhost->directives_.size(); i++) {
             SrsConfDirective *conf = vhost->at(i);
             string n = conf->name_;
-            if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay" && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks" && n != "refer" && n != "forward" && n != "transcode" && n != "bandcheck" && n != "play" && n != "publish" && n != "cluster" && n != "security" && n != "http_remux" && n != "dash" && n != "http_static" && n != "hds" && n != "exec" && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt" && n != "rtsp") {
+            // HDS is removed, so refuse its section rather than ignore it.
+            if (n == "hds") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.hds of %s is removed, HDS is not supported", vhost->arg0().c_str());
+            }
+            // The bandwidth check is removed, so refuse its section rather than ignore it.
+            if (n == "bandcheck") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.bandcheck of %s is removed, the bandwidth check is not supported", vhost->arg0().c_str());
+            }
+            // The referer check is removed, so refuse its section and the SRS1 style directives rather than ignore them.
+            if (n == "refer" || n == "refer_play" || n == "refer_publish") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.%s of %s is removed, the referer check is not supported", n.c_str(), vhost->arg0().c_str());
+            }
+            // atc_auto is removed, so refuse it as SRS1 wrote it, in the vhost, rather than ignore it, on or off.
+            if (n == "atc_auto") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.atc_auto of %s is removed, turning ATC on by the bravo_atc of the metadata is not supported", vhost->arg0().c_str());
+            }
+            // Edge token traverse is removed, so refuse it as SRS1 wrote it, in the vhost, rather than ignore it, on or off.
+            if (n == "token_traverse") {
+                return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.token_traverse of %s is removed, check the clients of an edge by its HTTP hooks instead", vhost->arg0().c_str());
+            }
+            if (n != "enabled" && n != "chunk_size" && n != "min_latency" && n != "tcp_nodelay" && n != "dvr" && n != "ingest" && n != "hls" && n != "http_hooks" && n != "forward" && n != "transcode" && n != "play" && n != "publish" && n != "cluster" && n != "security" && n != "http_remux" && n != "dash" && n != "http_static" && n != "exec" && n != "in_ack_size" && n != "out_ack_size" && n != "rtc" && n != "srt" && n != "rtsp") {
                 return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.%s", n.c_str());
             }
             // for each sub directives of vhost.
@@ -2616,13 +2838,6 @@ srs_error_t SrsConfig::check_normal_config()
                     string m = conf->at(j)->name_;
                     if (m != "enabled" && m != "dvr_apply" && m != "dvr_path" && m != "dvr_plan" && m != "dvr_duration" && m != "dvr_wait_keyframe" && m != "time_jitter") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.dvr.%s of %s", m.c_str(), vhost->arg0().c_str());
-                    }
-                }
-            } else if (n == "refer") {
-                for (int j = 0; j < (int)conf->directives_.size(); j++) {
-                    string m = conf->at(j)->name_;
-                    if (m != "enabled" && m != "all" && m != "publish" && m != "play") {
-                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.refer.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
             } else if (n == "exec") {
@@ -2635,14 +2850,22 @@ srs_error_t SrsConfig::check_normal_config()
             } else if (n == "play") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
-                    if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "atc_auto" && m != "mw_latency" && m != "gop_cache" && m != "gop_cache_max_frames" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header" && m != "mw_msgs") {
+                    // atc_auto is removed, so refuse it rather than ignore it, on or off.
+                    if (m == "atc_auto") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.play.atc_auto of %s is removed, turning ATC on by the bravo_atc of the metadata is not supported", vhost->arg0().c_str());
+                    }
+                    if (m != "time_jitter" && m != "mix_correct" && m != "atc" && m != "mw_latency" && m != "gop_cache" && m != "gop_cache_max_frames" && m != "queue_length" && m != "send_min_interval" && m != "reduce_sequence_header" && m != "mw_msgs") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.play.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
             } else if (n == "cluster") {
                 for (int j = 0; j < (int)conf->directives_.size(); j++) {
                     string m = conf->at(j)->name_;
-                    if (m != "mode" && m != "origin" && m != "token_traverse" && m != "vhost" && m != "debug_srs_upnode" && m != "coworkers" && m != "origin_cluster" && m != "protocol" && m != "follow_client") {
+                    // Edge token traverse is removed, so refuse it rather than ignore it, on or off.
+                    if (m == "token_traverse") {
+                        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "vhost.cluster.token_traverse of %s is removed, check the clients of an edge by its HTTP hooks instead", vhost->arg0().c_str());
+                    }
+                    if (m != "mode" && m != "origin" && m != "vhost" && m != "debug_srs_upnode" && m != "coworkers" && m != "origin_cluster" && m != "protocol" && m != "follow_client") {
                         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal vhost.cluster.%s of %s", m.c_str(), vhost->arg0().c_str());
                     }
                 }
@@ -2851,11 +3074,6 @@ srs_error_t SrsConfig::check_normal_config()
             srs_warn("chunk_size=%s of %s should be in [%d, %d]", get_global_chunk_size(), vhost->arg0().c_str(),
                      SRS_CONSTS_RTMP_MIN_CHUNK_SIZE, SRS_CONSTS_RTMP_MAX_CHUNK_SIZE);
         }
-    }
-
-    // asprocess conflict with daemon
-    if (get_asprocess() && get_daemon()) {
-        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "daemon conflicts with asprocess");
     }
 
     return err;
@@ -3144,48 +3362,6 @@ string SrsConfig::get_work_dir()
     }
 
     return conf->arg0();
-}
-
-bool SrsConfig::get_asprocess()
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.asprocess"); // SRS_ASPROCESS
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = root_->get("asprocess");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
-bool SrsConfig::whether_query_latest_version()
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.query_latest_version"); // SRS_QUERY_LATEST_VERSION
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = root_->get("query_latest_version");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_TRUE(conf->arg0());
-}
-
-srs_utime_t SrsConfig::first_wait_for_qlv()
-{
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.first_wait_for_qlv"); // SRS_FIRST_WAIT_FOR_QLV
-
-    static srs_utime_t DEFAULT = 5 * 60 * SRS_UTIME_SECONDS;
-
-    SrsConfDirective *conf = root_->get("first_wait_for_qlv");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return ::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS;
 }
 
 bool SrsConfig::empty_ip_ok()
@@ -4231,7 +4407,7 @@ bool SrsConfig::get_rtc_from_rtmp(string vhost)
 
 srs_utime_t SrsConfig::get_rtc_stun_timeout(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.rtc.stun_timeout"); // SRS_VHOST_RTC_STUN_TIMEOUT
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.rtc.stun_timeout"); // SRS_VHOST_RTC_STUN_TIMEOUT
 
     static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
 
@@ -4246,7 +4422,7 @@ srs_utime_t SrsConfig::get_rtc_stun_timeout(string vhost)
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_rtc_stun_strict_check(string vhost)
@@ -4713,30 +4889,6 @@ bool SrsConfig::get_atc(string vhost)
     return SRS_CONF_PREFER_FALSE(conf->arg0());
 }
 
-bool SrsConfig::get_atc_auto(string vhost)
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.play.atc_auto"); // SRS_VHOST_PLAY_ATC_AUTO
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("play");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("atc_auto");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
 int SrsConfig::get_time_jitter(string vhost)
 {
     if (!srs_getenv("srs.vhost.play.time_jitter").empty()) { // SRS_VHOST_PLAY_TIME_JITTER
@@ -4789,7 +4941,7 @@ bool SrsConfig::get_mix_correct(string vhost)
 
 srs_utime_t SrsConfig::get_queue_length(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.play.queue_length"); // SRS_VHOST_PLAY_QUEUE_LENGTH
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.play.queue_length"); // SRS_VHOST_PLAY_QUEUE_LENGTH
 
     static srs_utime_t DEFAULT = SRS_PERF_PLAY_QUEUE;
 
@@ -4808,80 +4960,7 @@ srs_utime_t SrsConfig::get_queue_length(string vhost)
         return DEFAULT;
     }
 
-    return srs_utime_t(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
-}
-
-bool SrsConfig::get_refer_enabled(string vhost)
-{
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("refer");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
-SrsConfDirective *SrsConfig::get_refer_all(string vhost)
-{
-    static SrsConfDirective *DEFAULT = NULL;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("refer");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return conf->get("all");
-}
-
-SrsConfDirective *SrsConfig::get_refer_play(string vhost)
-{
-    static SrsConfDirective *DEFAULT = NULL;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("refer");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return conf->get("play");
-}
-
-SrsConfDirective *SrsConfig::get_refer_publish(string vhost)
-{
-    static SrsConfDirective *DEFAULT = NULL;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("refer");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return conf->get("publish");
+    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_in_ack_size(string vhost)
@@ -5593,6 +5672,8 @@ SrsConfDirective *SrsConfig::get_vhost_edge_origin(string vhost)
 
 string SrsConfig::get_vhost_edge_protocol(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.cluster.protocol"); // SRS_VHOST_CLUSTER_PROTOCOL
+
     static string DEFAULT = "rtmp";
 
     SrsConfDirective *conf = get_vhost(vhost);
@@ -5635,28 +5716,6 @@ bool SrsConfig::get_vhost_edge_follow_client(string vhost)
     return SRS_CONF_PREFER_FALSE(conf->arg0());
 }
 
-bool SrsConfig::get_vhost_edge_token_traverse(string vhost)
-{
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("cluster");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("token_traverse");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
 string SrsConfig::get_vhost_edge_transform_vhost(string vhost)
 {
     static string DEFAULT = "[vhost]";
@@ -5687,6 +5746,8 @@ bool SrsConfig::get_vhost_origin_cluster(string vhost)
 
 bool SrsConfig::get_vhost_origin_cluster(SrsConfDirective *vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.cluster.origin_cluster"); // SRS_VHOST_CLUSTER_ORIGIN_CLUSTER
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = vhost;
@@ -5711,6 +5772,17 @@ vector<string> SrsConfig::get_vhost_coworkers(string vhost)
 {
     vector<string> coworkers;
 
+    // SRS_VHOST_CLUSTER_COWORKERS, space separated; a value without any coworker overwrites nothing.
+    vector<string> envs = srs_strings_split(srs_getenv("srs.vhost.cluster.coworkers"), " ");
+    for (int i = 0; i < (int)envs.size(); i++) {
+        if (!envs.at(i).empty()) {
+            coworkers.push_back(envs.at(i));
+        }
+    }
+    if (!coworkers.empty()) {
+        return coworkers;
+    }
+
     SrsConfDirective *conf = get_vhost(vhost);
     if (!conf) {
         return coworkers;
@@ -5734,6 +5806,8 @@ vector<string> SrsConfig::get_vhost_coworkers(string vhost)
 
 bool SrsConfig::get_security_enabled(string vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.security.enabled"); // SRS_VHOST_SECURITY_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = get_vhost(vhost);
@@ -5746,6 +5820,8 @@ bool SrsConfig::get_security_enabled(string vhost)
 
 bool SrsConfig::get_security_enabled(SrsConfDirective *vhost)
 {
+    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.security.enabled"); // SRS_VHOST_SECURITY_ENABLED
+
     static bool DEFAULT = false;
 
     SrsConfDirective *conf = vhost->get("security");
@@ -5763,12 +5839,60 @@ bool SrsConfig::get_security_enabled(SrsConfDirective *vhost)
 
 SrsConfDirective *SrsConfig::get_security_rules(string vhost)
 {
+    SrsConfDirective *rules = get_security_rules_from_env();
+    if (rules) {
+        return rules;
+    }
+
     SrsConfDirective *conf = get_vhost(vhost);
     if (!conf) {
         return NULL;
     }
 
     return conf->get("security");
+}
+
+SrsConfDirective *SrsConfig::get_security_rules_from_env()
+{
+    SrsConfDirective *rules = env_cache_->get("srs.vhost.security");
+    if (rules) {
+        return rules;
+    }
+
+    // Each env is a space separated list of all, an ip or a cidr, one rule per item, like the
+    // "allow publish 127.0.0.1;" of the config file.
+    static const char *envs[][3] = {
+        {"srs.vhost.security.allow_publish", "allow", "publish"}, // SRS_VHOST_SECURITY_ALLOW_PUBLISH
+        {"srs.vhost.security.allow_play", "allow", "play"},       // SRS_VHOST_SECURITY_ALLOW_PLAY
+        {"srs.vhost.security.deny_publish", "deny", "publish"},   // SRS_VHOST_SECURITY_DENY_PUBLISH
+        {"srs.vhost.security.deny_play", "deny", "play"},         // SRS_VHOST_SECURITY_DENY_PLAY
+    };
+
+    rules = new SrsConfDirective();
+    rules->name_ = "srs.vhost.security";
+    for (int i = 0; i < (int)(sizeof(envs) / sizeof(envs[0])); i++) {
+        std::vector<string> values = srs_strings_split(srs_getenv(envs[i][0]), " ");
+        for (int j = 0; j < (int)values.size(); j++) {
+            if (values[j].empty()) {
+                continue;
+            }
+
+            SrsConfDirective *rule = new SrsConfDirective();
+            rule->name_ = envs[i][1];
+            rule->args_.push_back(envs[i][2]);
+            rule->args_.push_back(values[j]);
+            rules->directives_.push_back(rule);
+        }
+    }
+
+    // No rule in env, so the rules of the config file apply.
+    if (rules->directives_.empty()) {
+        srs_freep(rules);
+        return NULL;
+    }
+
+    env_cache_->directives_.push_back(rules);
+    return rules;
 }
 
 SrsConfDirective *SrsConfig::get_transcode(string vhost, string scope)
@@ -6616,7 +6740,7 @@ string SrsConfig::get_dash_mpd_file(string vhost)
 
 int SrsConfig::get_dash_window_size(std::string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_window_size"); // SRS_VHOST_DASH_DASH_WINDOW_SIZE
+    SRS_OVERWRITE_BY_ENV_INT("srs.vhost.dash.dash_window_size"); // SRS_VHOST_DASH_DASH_WINDOW_SIZE
 
     static int DEFAULT = 5;
 
@@ -6654,7 +6778,7 @@ bool SrsConfig::get_dash_cleanup(std::string vhost)
 
 srs_utime_t SrsConfig::get_dash_dispose(std::string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dash.dash_dispose"); // SRS_VHOST_DASH_DASH_DISPOSE
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dash.dash_dispose"); // SRS_VHOST_DASH_DASH_DISPOSE
 
     static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
 
@@ -6668,7 +6792,7 @@ srs_utime_t SrsConfig::get_dash_dispose(std::string vhost)
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 SrsConfDirective *SrsConfig::get_hls(string vhost)
@@ -7062,7 +7186,7 @@ bool SrsConfig::get_hls_cleanup(string vhost)
 
 srs_utime_t SrsConfig::get_hls_dispose(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.hls.hls_dispose"); // SRS_VHOST_HLS_HLS_DISPOSE
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hls.hls_dispose"); // SRS_VHOST_HLS_HLS_DISPOSE
 
     static srs_utime_t DEFAULT = 120 * SRS_UTIME_SECONDS;
 
@@ -7076,7 +7200,7 @@ srs_utime_t SrsConfig::get_hls_dispose(string vhost)
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_hls_wait_keyframe(string vhost)
@@ -7159,8 +7283,8 @@ string SrsConfig::get_hls_key_file_path(std::string vhost)
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_key_file_path"); // SRS_VHOST_HLS_HLS_KEY_FILE_PATH
 
-    // put the key in ts path defaultly.
-    static string DEFAULT = get_hls_path(vhost);
+    // put the key in the vhost's hls_path defaultly.
+    string DEFAULT = get_hls_path(vhost);
 
     SrsConfDirective *conf = get_hls(vhost);
     if (!conf) {
@@ -7179,8 +7303,8 @@ string SrsConfig::get_hls_key_url(std::string vhost)
 {
     SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hls.hls_key_url"); // SRS_VHOST_HLS_HLS_KEY_URL
 
-    // put the key in ts path defaultly.
-    static string DEFAULT = get_hls_path(vhost);
+    // No default: the key URI is then relative to the playlist.
+    static string DEFAULT = "";
 
     SrsConfDirective *conf = get_hls(vhost);
     if (!conf) {
@@ -7233,107 +7357,6 @@ bool SrsConfig::get_hls_recover(string vhost)
     return SRS_CONF_PREFER_TRUE(conf->arg0());
 }
 
-SrsConfDirective *SrsConfig::get_hds(const string &vhost)
-{
-    SrsConfDirective *conf = get_vhost(vhost);
-
-    if (!conf) {
-        return NULL;
-    }
-
-    return conf->get("hds");
-}
-
-bool SrsConfig::get_hds_enabled(const string &vhost)
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hds.enabled"); // SRS_VHOST_HDS_ENABLED
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = get_vhost(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    return get_hds_enabled(conf);
-}
-
-bool SrsConfig::get_hds_enabled(SrsConfDirective *vhost)
-{
-    SRS_OVERWRITE_BY_ENV_BOOL("srs.vhost.hds.enabled"); // SRS_VHOST_HDS_ENABLED
-
-    static bool DEFAULT = false;
-
-    SrsConfDirective *conf = vhost->get("hds");
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("enabled");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return SRS_CONF_PREFER_FALSE(conf->arg0());
-}
-
-string SrsConfig::get_hds_path(const string &vhost)
-{
-    SRS_OVERWRITE_BY_ENV_STRING("srs.vhost.hds.hds_path"); // SRS_VHOST_HDS_HDS_PATH
-
-    static string DEFAULT = "./objs/nginx/html";
-
-    SrsConfDirective *conf = get_hds(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("hds_path");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return conf->arg0();
-}
-
-srs_utime_t SrsConfig::get_hds_fragment(const string &vhost)
-{
-    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hds.hds_fragment"); // SRS_VHOST_HDS_HDS_FRAGMENT
-
-    static srs_utime_t DEFAULT = (10 * SRS_UTIME_SECONDS);
-
-    SrsConfDirective *conf = get_hds(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("hds_fragment");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
-}
-
-srs_utime_t SrsConfig::get_hds_window(const string &vhost)
-{
-    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.hds.hds_window"); // SRS_VHOST_HDS_HDS_WINDOW
-
-    static srs_utime_t DEFAULT = (60 * SRS_UTIME_SECONDS);
-
-    SrsConfDirective *conf = get_hds(vhost);
-    if (!conf) {
-        return DEFAULT;
-    }
-
-    conf = conf->get("hds_window");
-    if (!conf || conf->arg0().empty()) {
-        return DEFAULT;
-    }
-
-    return srs_utime_t(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
-}
-
 SrsConfDirective *SrsConfig::get_dvr(string vhost)
 {
     SrsConfDirective *conf = get_vhost(vhost);
@@ -7379,6 +7402,26 @@ bool SrsConfig::get_dvr_enabled(SrsConfDirective *vhost)
 
 SrsConfDirective *SrsConfig::get_dvr_apply(string vhost)
 {
+    // SRS_VHOST_DVR_DVR_APPLY, space separated all or app/stream; a value without any item overwrites nothing.
+    SrsConfDirective *env = env_cache_->get("srs.vhost.dvr.dvr_apply");
+    if (!env) {
+        std::vector<string> values = srs_strings_split(srs_getenv("srs.vhost.dvr.dvr_apply"), " ");
+        for (int i = 0; i < (int)values.size(); i++) {
+            if (values[i].empty()) {
+                continue;
+            }
+            if (!env) {
+                env = new SrsConfDirective();
+                env->name_ = "srs.vhost.dvr.dvr_apply";
+                env_cache_->directives_.push_back(env);
+            }
+            env->args_.push_back(values[i]);
+        }
+    }
+    if (env) {
+        return env;
+    }
+
     SrsConfDirective *conf = get_dvr(vhost);
     if (!conf) {
         return NULL;
@@ -7432,7 +7475,7 @@ string SrsConfig::get_dvr_plan(string vhost)
 
 srs_utime_t SrsConfig::get_dvr_duration(string vhost)
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.vhost.dvr.dvr_duration"); // SRS_VHOST_DVR_DVR_DURATION
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.vhost.dvr.dvr_duration"); // SRS_VHOST_DVR_DVR_DURATION
 
     static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
 
@@ -7446,7 +7489,7 @@ srs_utime_t SrsConfig::get_dvr_duration(string vhost)
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 bool SrsConfig::get_dvr_wait_keyframe(string vhost)
@@ -7990,7 +8033,7 @@ int SrsConfig::get_srto_latency()
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.latency"); // SRS_SRT_SERVER_LATENCY
 
-    static int DEFAULT = 120;
+    static int DEFAULT = -1;
     SrsConfDirective *conf = root_->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -8007,7 +8050,7 @@ int SrsConfig::get_srto_recv_latency()
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.recvlatency"); // SRS_SRT_SERVER_RECVLATENCY
 
-    static int DEFAULT = 120;
+    static int DEFAULT = -1;
     SrsConfDirective *conf = root_->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -8024,7 +8067,7 @@ int SrsConfig::get_srto_peer_latency()
 {
     SRS_OVERWRITE_BY_ENV_INT("srs.srt_server.peerlatency"); // SRS_SRT_SERVER_PEERLATENCY
 
-    static int DEFAULT = 0;
+    static int DEFAULT = -1;
     SrsConfDirective *conf = root_->get("srt_server");
     if (!conf) {
         return DEFAULT;
@@ -8759,7 +8802,7 @@ bool SrsConfig::get_heartbeat_enabled()
 
 srs_utime_t SrsConfig::get_heartbeat_interval()
 {
-    SRS_OVERWRITE_BY_ENV_SECONDS("srs.heartbeat.interval"); // SRS_HEARTBEAT_INTERVAL
+    SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS("srs.heartbeat.interval"); // SRS_HEARTBEAT_INTERVAL
 
     static srs_utime_t DEFAULT = (srs_utime_t)(10 * SRS_UTIME_SECONDS);
 
@@ -8773,7 +8816,7 @@ srs_utime_t SrsConfig::get_heartbeat_interval()
         return DEFAULT;
     }
 
-    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
+    return (srs_utime_t)(::atof(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 string SrsConfig::get_heartbeat_url()
@@ -9015,18 +9058,26 @@ vector<string> SrsConfig::get_rtmps_listen()
 
     std::vector<string> ports;
 
+    static string DEFAULT = "1443";
+
     SrsConfDirective *conf = get_rtmps();
     if (!conf) {
+        ports.push_back(DEFAULT);
         return ports;
     }
 
     conf = conf->get("listen");
     if (!conf) {
+        ports.push_back(DEFAULT);
         return ports;
     }
 
     for (int i = 0; i < (int)conf->args_.size(); i++) {
         ports.push_back(conf->args_.at(i));
+    }
+
+    if (ports.empty()) {
+        ports.push_back(DEFAULT);
     }
 
     return ports;

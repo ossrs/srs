@@ -937,10 +937,11 @@ VOID TEST(TCPServerTest, TCPListen)
     // If listen multiple times, should success for we already set the REUSEPORT.
     if (true) {
         srs_netfd_t pfd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_tcp_listen("127.0.0.1", 1935, &pfd));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &pfd));
 
         srs_netfd_t pfd2 = NULL;
-        srs_error_t err2 = srs_tcp_listen("127.0.0.1", 1935, &pfd2);
+        srs_error_t err2 = srs_tcp_listen("127.0.0.1", port, &pfd2);
 
         srs_close_stfd(pfd);
         srs_close_stfd(pfd2);
@@ -955,7 +956,8 @@ VOID TEST(TCPServerTest, TCPListen)
     // Typical listen.
     if (true) {
         srs_netfd_t pfd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_tcp_listen("127.0.0.1", 1935, &pfd));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &pfd));
         srs_close_stfd(pfd);
     }
 }
@@ -974,10 +976,11 @@ VOID TEST(TCPServerTest, UDPListen)
     // If listen multiple times, should success for we already set the REUSEPORT.
     if (true) {
         srs_netfd_t pfd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 1935, &pfd));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &port, &pfd));
 
         srs_netfd_t pfd2 = NULL;
-        srs_error_t err2 = srs_udp_listen("127.0.0.1", 1935, &pfd2);
+        srs_error_t err2 = srs_udp_listen("127.0.0.1", port, &pfd2);
 
         srs_close_stfd(pfd);
         srs_close_stfd(pfd2);
@@ -987,7 +990,8 @@ VOID TEST(TCPServerTest, UDPListen)
     // Typical listen.
     if (true) {
         srs_netfd_t pfd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 1935, &pfd));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &port, &pfd));
         srs_close_stfd(pfd);
     }
 }
@@ -1102,10 +1106,10 @@ MockOnCycleThread3::~MockOnCycleThread3()
     srs_close_stfd(fd);
 }
 
-srs_error_t MockOnCycleThread3::start(std::string ip, int port)
+srs_error_t MockOnCycleThread3::start(std::string ip, int *port)
 {
     srs_error_t err = srs_success;
-    if ((err = srs_tcp_listen(ip, port, &fd)) != srs_success) {
+    if ((err = srs_utest_tcp_listen(ip, port, &fd)) != srs_success) {
         return err;
     }
 
@@ -1163,9 +1167,10 @@ VOID TEST(TCPServerTest, TCPClientServer)
     srs_error_t err;
 
     MockOnCycleThread3 trd;
-    HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 1935));
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", &port));
 
-    SrsTcpClient c("127.0.0.1", 1935, 1 * SRS_UTIME_SECONDS);
+    SrsTcpClient c("127.0.0.1", port, 1 * SRS_UTIME_SECONDS);
     HELPER_ASSERT_SUCCESS(c.connect());
 
     c.set_recv_timeout(1 * SRS_UTIME_SECONDS);

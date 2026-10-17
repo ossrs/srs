@@ -10,7 +10,6 @@ using namespace std;
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>
 #include <srs_app_forward.hpp>
-#include <srs_app_hds.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_rtmp_source.hpp>
@@ -1007,6 +1006,47 @@ VOID TEST(LiveConsumerTest, EnqueueWaitingSignalConditions)
         EXPECT_TRUE(consumer->mw_waiting_);
     }
 }
+
+// Without ATC, a stream whose timestamps jump back, with time_jitter zero or off,
+// must still wake a waiting player. The player has sent everything up to 10s, so
+// the queue's start is 10s, and a message at 5s makes the duration negative.
+VOID TEST(LiveConsumerTest, EnqueueSignalsOnBackJumpWithoutAtc)
+{
+    srs_error_t err;
+
+    SrsRtmpJitterAlgorithm algorithms[] = {SrsRtmpJitterAlgorithmZERO, SrsRtmpJitterAlgorithmOFF};
+    for (int i = 0; i < (int)(sizeof(algorithms) / sizeof(algorithms[0])); i++) {
+        SrsRtmpJitterAlgorithm ag = algorithms[i];
+
+        SrsUniquePtr<MockLiveSourceForQueue> source(new MockLiveSourceForQueue());
+        SrsUniquePtr<SrsLiveConsumer> consumer(new SrsLiveConsumer(source.get()));
+
+        // Publish 1s, then a jump forward to 11s, and send both to the player.
+        SrsUniquePtr<MockMediaPacketForJitter> packet1(new MockMediaPacketForJitter(1000, true));
+        HELPER_EXPECT_SUCCESS(consumer->enqueue(packet1.get(), false, ag));
+        SrsUniquePtr<MockMediaPacketForJitter> packet2(new MockMediaPacketForJitter(11000, true));
+        HELPER_EXPECT_SUCCESS(consumer->enqueue(packet2.get(), false, ag));
+
+        SrsMessageArray msgs(10);
+        int count = 0;
+        HELPER_EXPECT_SUCCESS(consumer->dump_packets(&msgs, count));
+        EXPECT_EQ(2, count);
+        msgs.free(count);
+
+        // The player waits with min_latency, for any message.
+        consumer->mw_waiting_ = true;
+        consumer->mw_min_msgs_ = 0;
+        consumer->mw_duration_ = 0;
+
+        // The publisher jumps 5s back, to 6s.
+        SrsUniquePtr<MockMediaPacketForJitter> packet3(new MockMediaPacketForJitter(6000, true));
+        HELPER_EXPECT_SUCCESS(consumer->enqueue(packet3.get(), false, ag));
+        EXPECT_LT(consumer->queue_->duration(), 0) << "algorithm " << ag;
+
+        // The player is woken up, so it gets the message.
+        EXPECT_FALSE(consumer->mw_waiting_) << "algorithm " << ag;
+    }
+}
 #endif
 
 VOID TEST(GopCacheTest, TypicalUseScenario)
@@ -1215,6 +1255,70 @@ VOID TEST(AppRtmpSourceTest, GopCacheMaxFramesLimit)
 
     // Verify it's pure audio after clear (cached_video_count_ reset to 0)
     EXPECT_TRUE(gop_cache->pure_audio());
+}
+
+VOID TEST(AppRtmpSourceTest, GopCacheMaxFramesWaitsForKeyframe)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsGopCache> gop_cache(new SrsGopCache());
+    gop_cache->set(true);
+    gop_cache->set_gop_cache_max_frames(3);
+
+    // A keyframe and 3 inter frames overflow the limit, which clears the cache.
+    SrsUniquePtr<MockH264VideoPacket> keyframe1(new MockH264VideoPacket(true));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(keyframe1.get()));
+    for (int i = 0; i < 3; i++) {
+        SrsUniquePtr<MockH264VideoPacket> interframe(new MockH264VideoPacket(false));
+        HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe.get()));
+    }
+    EXPECT_TRUE(gop_cache->empty());
+
+    // The inter frames and audio after the clear are mid-GOP, which a new
+    // player can't decode, so the cache stays empty until the next keyframe.
+    SrsUniquePtr<MockH264VideoPacket> interframe2(new MockH264VideoPacket(false));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe2.get()));
+    SrsUniquePtr<MockAudioPacket> audio1(new MockAudioPacket());
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(audio1.get()));
+    SrsUniquePtr<MockH264VideoPacket> interframe3(new MockH264VideoPacket(false));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe3.get()));
+    EXPECT_TRUE(gop_cache->empty());
+
+    // The next keyframe starts the cache again, and the frames after it are cached.
+    SrsUniquePtr<MockH264VideoPacket> keyframe2(new MockH264VideoPacket(true));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(keyframe2.get()));
+    SrsUniquePtr<MockAudioPacket> audio2(new MockAudioPacket());
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(audio2.get()));
+    SrsUniquePtr<MockH264VideoPacket> interframe4(new MockH264VideoPacket(false));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe4.get()));
+    ASSERT_EQ(3, (int)gop_cache->gop_cache_.size());
+    EXPECT_TRUE(SrsFlvVideo::keyframe(gop_cache->gop_cache_[0]->payload(), gop_cache->gop_cache_[0]->size()));
+}
+
+VOID TEST(AppRtmpSourceTest, GopCacheExplicitClearCachesNextFrame)
+{
+    srs_error_t err;
+
+    // Only the limit's clear waits for a keyframe: after an explicit clear,
+    // such as an unpublish, the cache takes the next video frame as it always
+    // did. A guard that passes before and after the keyframe wait.
+    SrsUniquePtr<SrsGopCache> gop_cache(new SrsGopCache());
+    gop_cache->set(true);
+    gop_cache->set_gop_cache_max_frames(3);
+
+    SrsUniquePtr<MockH264VideoPacket> keyframe(new MockH264VideoPacket(true));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(keyframe.get()));
+    for (int i = 0; i < 3; i++) {
+        SrsUniquePtr<MockH264VideoPacket> interframe(new MockH264VideoPacket(false));
+        HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe.get()));
+    }
+    EXPECT_TRUE(gop_cache->empty());
+
+    gop_cache->clear();
+
+    SrsUniquePtr<MockH264VideoPacket> interframe2(new MockH264VideoPacket(false));
+    HELPER_EXPECT_SUCCESS(gop_cache->cache(interframe2.get()));
+    EXPECT_EQ(1, (int)gop_cache->gop_cache_.size());
 }
 
 VOID TEST(AppMixQueueTest, PopMixedAudioVideo)
@@ -2316,39 +2420,6 @@ srs_error_t MockNgExecForOriginHub::cycle()
     return srs_success;
 }
 
-#ifdef SRS_HDS
-// Mock ISrsHds implementation
-MockHdsForOriginHub::MockHdsForOriginHub()
-{
-    on_publish_count_ = 0;
-}
-
-MockHdsForOriginHub::~MockHdsForOriginHub()
-{
-}
-
-srs_error_t MockHdsForOriginHub::on_publish(ISrsRequest *req)
-{
-    on_publish_count_++;
-    return srs_success;
-}
-
-srs_error_t MockHdsForOriginHub::on_unpublish()
-{
-    return srs_success;
-}
-
-srs_error_t MockHdsForOriginHub::on_video(SrsMediaPacket *msg)
-{
-    return srs_success;
-}
-
-srs_error_t MockHdsForOriginHub::on_audio(SrsMediaPacket *msg)
-{
-    return srs_success;
-}
-#endif
-
 // Unit test for SrsOriginHub::on_publish typical scenario
 VOID TEST(AppOriginHubTest, OnPublishTypicalScenario)
 {
@@ -2369,9 +2440,6 @@ VOID TEST(AppOriginHubTest, OnPublishTypicalScenario)
     MockDashForOriginHub *mock_dash = new MockDashForOriginHub();
     MockDvrForOriginHub *mock_dvr = new MockDvrForOriginHub();
     MockNgExecForOriginHub *mock_ng_exec = new MockNgExecForOriginHub();
-#ifdef SRS_HDS
-    MockHdsForOriginHub *mock_hds = new MockHdsForOriginHub();
-#endif
 
     // Inject mocks by replacing default components
     srs_freep(hub->hls_);
@@ -2382,10 +2450,6 @@ VOID TEST(AppOriginHubTest, OnPublishTypicalScenario)
     hub->dvr_ = mock_dvr;
     srs_freep(hub->ng_exec_);
     hub->ng_exec_ = mock_ng_exec;
-#ifdef SRS_HDS
-    srs_freep(hub->hds_);
-    hub->hds_ = mock_hds;
-#endif
 
     // Initialize the hub
     HELPER_EXPECT_SUCCESS(hub->initialize(source, &mock_req));
@@ -2404,11 +2468,6 @@ VOID TEST(AppOriginHubTest, OnPublishTypicalScenario)
 
     // Verify that ng_exec on_publish was called
     EXPECT_EQ(1, mock_ng_exec->on_publish_count_);
-
-#ifdef SRS_HDS
-    // Verify that hds on_publish was called
-    EXPECT_EQ(1, mock_hds->on_publish_count_);
-#endif
 }
 
 // Unit test for SrsOriginHub::on_video typical scenario
@@ -2514,9 +2573,6 @@ VOID TEST(AppOriginHubTest, CreateForwardersTypicalScenario)
         MockDashForOriginHub *mock_dash = new MockDashForOriginHub();
         MockDvrForOriginHub *mock_dvr = new MockDvrForOriginHub();
         MockNgExecForOriginHub *mock_ng_exec = new MockNgExecForOriginHub();
-#ifdef SRS_HDS
-        MockHdsForOriginHub *mock_hds = new MockHdsForOriginHub();
-#endif
 
         // Inject mocks by replacing default components
         srs_freep(hub->hls_);
@@ -2527,10 +2583,6 @@ VOID TEST(AppOriginHubTest, CreateForwardersTypicalScenario)
         hub->dvr_ = mock_dvr;
         srs_freep(hub->ng_exec_);
         hub->ng_exec_ = mock_ng_exec;
-#ifdef SRS_HDS
-        srs_freep(hub->hds_);
-        hub->hds_ = mock_hds;
-#endif
         hub->stat_ = mock_stat;
         hub->source_ = mock_source;
         hub->config_ = mock_config;
@@ -3237,6 +3289,11 @@ VOID TEST(AppOriginHubTest, SequenceHeaderRequestTypicalScenario)
     EXPECT_EQ(1, mock_hls->on_video_count_);
     EXPECT_EQ(1, mock_hls->on_audio_count_);
 
+    // Test on_dash_request_sh: DASH receives the sequence headers, no metadata
+    HELPER_EXPECT_SUCCESS(hub->on_dash_request_sh());
+    EXPECT_EQ(1, mock_dash->on_video_count_);
+    EXPECT_EQ(1, mock_dash->on_audio_count_);
+
     // Cleanup - forwarder will be cleaned up by hub destructor
     srs_freep(mock_source);
 }
@@ -3269,9 +3326,6 @@ VOID TEST(AppOriginHubTest, CreateBackendForwardersTypicalScenario)
         MockDashForOriginHub *mock_dash = new MockDashForOriginHub();
         MockDvrForOriginHub *mock_dvr = new MockDvrForOriginHub();
         MockNgExecForOriginHub *mock_ng_exec = new MockNgExecForOriginHub();
-#ifdef SRS_HDS
-        MockHdsForOriginHub *mock_hds = new MockHdsForOriginHub();
-#endif
 
         // Inject mocks by replacing default components
         srs_freep(hub->hls_);
@@ -3282,10 +3336,6 @@ VOID TEST(AppOriginHubTest, CreateBackendForwardersTypicalScenario)
         hub->dvr_ = mock_dvr;
         srs_freep(hub->ng_exec_);
         hub->ng_exec_ = mock_ng_exec;
-#ifdef SRS_HDS
-        srs_freep(hub->hds_);
-        hub->hds_ = mock_hds;
-#endif
         hub->stat_ = mock_stat;
         hub->source_ = mock_source;
         hub->config_ = mock_config;

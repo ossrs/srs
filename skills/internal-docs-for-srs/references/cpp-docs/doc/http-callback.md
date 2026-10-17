@@ -74,7 +74,7 @@ vhost your_vhost {
         # the request in the POST data string is a object encode by json:
         #       {
         #           "action": "on_publish",
-        #           "client_id": "9308h583",
+        #           "client_id": "9308h583", "type": "fmle-publish",
         #           "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
         #           "stream": "livestream", "param":"?token=xxx&salt=yyy", "server_id": "vid-werty",
         #           "stream_url": "video.test.com/live/livestream", "stream_id": "vid-124q9y3"
@@ -91,7 +91,7 @@ vhost your_vhost {
         # the request in the POST data string is a object encode by json:
         #       {
         #           "action": "on_unpublish",
-        #           "client_id": "9308h583",
+        #           "client_id": "9308h583", "type": "fmle-publish",
         #           "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
         #           "stream": "livestream", "param":"?token=xxx&salt=yyy", "server_id": "vid-werty",
         #           "stream_url": "video.test.com/live/livestream", "stream_id": "vid-124q9y3"
@@ -108,7 +108,7 @@ vhost your_vhost {
         # the request in the POST data string is a object encode by json:
         #       {
         #           "action": "on_play",
-        #           "client_id": "9308h583",
+        #           "client_id": "9308h583", "type": "rtmp-play",
         #           "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
         #           "stream": "livestream", "param":"?token=xxx&salt=yyy",
         #           "pageUrl": "http://www.test.com/live.html", "server_id": "vid-werty",
@@ -126,7 +126,7 @@ vhost your_vhost {
         # the request in the POST data string is a object encode by json:
         #       {
         #           "action": "on_stop",
-        #           "client_id": "9308h583",
+        #           "client_id": "9308h583", "type": "rtmp-play",
         #           "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
         #           "stream": "livestream", "param":"?token=xxx&salt=yyy", "server_id": "vid-werty",
         #           "stream_url": "video.test.com/live/livestream", "stream_id": "vid-124q9y3"
@@ -193,6 +193,20 @@ Description about some fields:
 
 * `stream_url`: The stream identify without extension, such as `/live/livestream`.
 * `stream_id`: The id of stream, by which you can query the stream information.
+* `type`: The client type of `on_publish`, `on_unpublish`, `on_play` and `on_stop`, the same value
+  [/api/v1/clients](./http-api.md) lists, which tells the protocol of the client apart: `fmle-publish` and
+  `flash-publish` for RTMP (a GB28181 stream is published by SRS's own RTMP client, as `flash-publish`),
+  `haivision-publish`, `rtc-publish` for WHIP, `srt-publish`; `rtmp-play`, `flv-play`, `ts-play`, `mp3-play`,
+  `aac-play`, `hls-play` for an HLS session, `rtc-play` for WHEP, `srt-play` and `rtsp-play`. The `on_connect`
+  and `on_close` have no type, because an RTMP client has not said yet whether it publishes or plays.
+* `param`: The client's query with a leading `?`, such as `?token=xxx`, for every protocol: the keys of
+  an SRT streamid other than `r`, `m` and `h`, and the whole query of a WHIP or WHEP URL, such as
+  `?app=live&stream=livestream&token=xxx`. The `[param]` of `on_hls_notify` is the same.
+* `tcUrl`: The URL of the client's app: `rtmp://` or `rtmps://` for RTMP, `srt://<server-ip>/<app>` for SRT,
+  `webrtc://<host>/<app>` for WHIP, WHEP and the legacy WebRTC API, `rtsp://` for RTSP, and for an HTTP-FLV,
+  HTTP-TS, MP3, AAC or HLS player, its own `http://` or `https://` URL of the app, as `/api/v1/clients` lists it.
+  A GB28181 stream's hooks are those of the RTMP client SRS publishes it with, so its `tcUrl`, `param` and
+  `ip` are those of the `output` URL, not of the device.
 
 > Note: The callbacks for streaming are `on_publish` and `on_unpublish`, while the callbacks for playback are `on_play` and `on_stop`.
 
@@ -204,6 +218,15 @@ Description about some fields:
 > authentication before SRS invokes the callback.
 
 > Note: Before SRS 4, there were `on_connect` and `on_close`, which are events defined by RTMP and only applicable to RTMP streams. These events overlap with streaming and playback events, so their use is not recommended.
+
+> Note: An RTMP client gets `on_connect` once it publishes or plays and its vhost is resolved, and `on_close`
+> only after an `on_connect` that accepted it. A client that `on_connect` refused gets no `on_close`, as one
+> that `on_play` refused gets no `on_stop`, and one that `on_publish` refused no `on_unpublish`. A client
+> that connects and closes without publishing or playing gets neither.
+
+> Note: Edge token traverse, where an edge checked each client by a connect to its origin, is removed, and
+> `token_traverse` or `SRS_VHOST_CLUSTER_TOKEN_TRAVERSE` makes SRS refuse to start. Check the clients of an
+> edge by its own HTTP hooks, `on_connect`, `on_publish` and `on_play`, and its security rules.
 
 > Note: You can refer to the hooks.callback.vhost.com example in the conf/full.conf configuration file.
 
@@ -220,6 +243,7 @@ Body:
   "server_id": "vid-0xk989d",
   "action": "on_publish",
   "client_id": "341w361a",
+  "type": "fmle-publish",
   "ip": "127.0.0.1",
   "vhost": "__defaultVhost__",
   "app": "live",
@@ -248,9 +272,9 @@ heartbeat {
     # default: off
     enabled off;
     # the interval seconds for heartbeat,
-    # recommend 0.3,0.6,0.9,1.2,1.5,1.8,2.1,2.4,2.7,3,...,6,9,12,....
+    # a fraction is rounded down to whole seconds, at least 1s.
     # Overwrite by env SRS_HEARTBEAT_INTERVAL
-    # default: 9.9
+    # default: 10
     interval 9.3;
     # when startup, srs will heartbeat to this api.
     # @remark: must be a restful http api url, where SRS will POST with following data:

@@ -1353,7 +1353,7 @@ VOID TEST(ConfigMainTest, CheckConf_vhost_edge)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{token_traverse off;}"));
+        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{token_traverse off;}"));
     }
 
     if (true) {
@@ -1719,41 +1719,6 @@ VOID TEST(ConfigMainTest, CheckConf_debug_srs_upnode)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{debug_srs_upnodes off;}"));
-    }
-}
-
-VOID TEST(ConfigMainTest, CheckConf_refer)
-{
-    srs_error_t err;
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{refer github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{refers github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{refer_publish github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{refer_publishs github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{refer_play github.com github.io;}"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{refer_plays github.com github.io;}"));
     }
 }
 
@@ -2150,7 +2115,7 @@ VOID TEST(ConfigMainTest, CheckConf_atc)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{atc_auto on;}"));
+        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost v{atc_auto on;}"));
     }
 
     if (true) {
@@ -2259,16 +2224,6 @@ VOID TEST(ConfigUnitTest, CheckDefaultValuesVhost)
         EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hls_dispose("v"));
         EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hls_fragment("v"));
         EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hls_window("v"));
-    }
-
-    if (true) {
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment(""));
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window(""));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost v{hds{hds_fragment 20;hds_window 30;}}"));
-        EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hds_fragment("v"));
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("v"));
     }
 
     if (true) {
@@ -2448,9 +2403,6 @@ VOID TEST(ConfigUnitTest, OperatorEquals)
     EXPECT_TRUE(srs_stream_caster_is_udp("mpegts_over_udp"));
     EXPECT_FALSE(srs_stream_caster_is_udp("xxx"));
 
-    EXPECT_TRUE(srs_stream_caster_is_flv("flv"));
-    EXPECT_FALSE(srs_stream_caster_is_flv("xxx"));
-
     EXPECT_STREQ("on", srs_config_bool2switch("true").c_str());
     EXPECT_STREQ("off", srs_config_bool2switch("false").c_str());
     EXPECT_STREQ("off", srs_config_bool2switch("xxx").c_str());
@@ -2534,33 +2486,6 @@ VOID TEST(ConfigUnitTest, TransformForVhost)
         SrsConfDirective root;
         SrsConfDirective *vhost = root.get_or_create("vhost");
         if (true) {
-            vhost->get_or_create("refer", "refer-v");
-            vhost->get_or_create("refer_play", "refer-play-v");
-            vhost->get_or_create("refer_publish", "refer-publish-v");
-        }
-
-        HELPER_ASSERT_SUCCESS(srs_config_transform_vhost(&root));
-
-        SrsConfDirective *p = vhost->get("refer");
-        ASSERT_TRUE(p != NULL);
-
-        ASSERT_TRUE(p->get("enabled") != NULL);
-        EXPECT_STREQ("on", p->get("enabled")->arg0().c_str());
-
-        ASSERT_TRUE(p->get("all") != NULL);
-        EXPECT_STREQ("refer-v", p->get("all")->arg0().c_str());
-
-        ASSERT_TRUE(p->get("play") != NULL);
-        EXPECT_STREQ("refer-play-v", p->get("play")->arg0().c_str());
-
-        ASSERT_TRUE(p->get("publish") != NULL);
-        EXPECT_STREQ("refer-publish-v", p->get("publish")->arg0().c_str());
-    }
-
-    if (true) {
-        SrsConfDirective root;
-        SrsConfDirective *vhost = root.get_or_create("vhost");
-        if (true) {
             SrsConfDirective *mr = vhost->get_or_create("mr");
             mr->get_or_create("enabled", "on");
             mr->get_or_create("latency", "100");
@@ -2637,7 +2562,9 @@ VOID TEST(ConfigUnitTest, TransformForVhost)
         ASSERT_TRUE(p->get("time_jitter") != NULL);
         ASSERT_TRUE(p->get("mix_correct") != NULL);
         ASSERT_TRUE(p->get("atc") != NULL);
-        ASSERT_TRUE(p->get("atc_auto") != NULL);
+        // atc_auto is removed, so it stays where it is, for the config check to refuse.
+        ASSERT_TRUE(p->get("atc_auto") == NULL);
+        ASSERT_TRUE(vhost->get("atc_auto") != NULL);
         ASSERT_TRUE(p->get("mw_latency") != NULL);
         ASSERT_TRUE(p->get("gop_cache") != NULL);
         ASSERT_TRUE(p->get("queue_length") != NULL);
@@ -2682,7 +2609,9 @@ VOID TEST(ConfigUnitTest, TransformForVhost)
 
         ASSERT_TRUE(p->get("mode") != NULL);
         ASSERT_TRUE(p->get("origin") != NULL);
-        ASSERT_TRUE(p->get("token_traverse") != NULL);
+        // token_traverse is removed, so it stays where it is, for the config check to refuse.
+        ASSERT_TRUE(p->get("token_traverse") == NULL);
+        ASSERT_TRUE(vhost->get("token_traverse") != NULL);
         ASSERT_TRUE(p->get("vhost") != NULL);
         ASSERT_TRUE(p->get("debug_srs_upnode") != NULL);
     }
@@ -3036,29 +2965,6 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "work_dir objs;"));
         EXPECT_STREQ("objs", conf.get_work_dir().c_str());
     }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        EXPECT_FALSE(conf.get_asprocess());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "asprocess off;"));
-        EXPECT_FALSE(conf.get_asprocess());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "daemon off; asprocess on;"));
-        EXPECT_TRUE(conf.get_asprocess());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "daemon on; asprocess on;"));
-    }
 }
 
 VOID TEST(ConfigMainTest, CheckStreamConverter)
@@ -3191,14 +3097,9 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
         EXPECT_TRUE(conf.get_gop_cache("ossrs.net"));
         EXPECT_TRUE(conf.get_debug_srs_upnode("ossrs.net"));
         EXPECT_FALSE(conf.get_atc("ossrs.net"));
-        EXPECT_FALSE(conf.get_atc_auto("ossrs.net"));
         EXPECT_EQ(1, (int)conf.get_time_jitter("ossrs.net"));
         EXPECT_FALSE(conf.get_mix_correct("ossrs.net"));
         EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_queue_length("ossrs.net"));
-        EXPECT_FALSE(conf.get_refer_enabled("ossrs.net"));
-        EXPECT_TRUE(conf.get_refer_all("ossrs.net") == NULL);
-        EXPECT_TRUE(conf.get_refer_play("ossrs.net") == NULL);
-        EXPECT_TRUE(conf.get_refer_publish("ossrs.net") == NULL);
         EXPECT_EQ(0, (int)conf.get_in_ack_size("ossrs.net"));
         EXPECT_EQ(2500000, conf.get_out_ack_size("ossrs.net"));
         EXPECT_EQ(60000, conf.get_chunk_size("ossrs.net"));
@@ -3322,30 +3223,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{refer{publish xxx;}}"));
-        EXPECT_TRUE(conf.get_refer_publish("ossrs.net") != NULL);
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{refer{play xxx;}}"));
-        EXPECT_TRUE(conf.get_refer_play("ossrs.net") != NULL);
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{refer{all xxx;}}"));
-        EXPECT_TRUE(conf.get_refer_all("ossrs.net") != NULL);
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{refer{enabled on;}}"));
-        EXPECT_TRUE(conf.get_refer_enabled("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{play{queue_length 10;}}"));
         EXPECT_EQ(10000000, conf.get_queue_length("ossrs.net"));
     }
@@ -3360,12 +3237,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig2)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{play{time_jitter zero;}}"));
         EXPECT_EQ(2, (int)conf.get_time_jitter("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{play{atc_auto on;}}"));
-        EXPECT_TRUE(conf.get_gop_cache("ossrs.net"));
     }
 
     if (true) {
@@ -3419,7 +3290,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         EXPECT_TRUE(conf.get_vhost_on_hls_notify("ossrs.net") == NULL);
         EXPECT_FALSE(conf.get_vhost_is_edge("ossrs.net"));
         EXPECT_TRUE(conf.get_vhost_edge_origin("ossrs.net") == NULL);
-        EXPECT_FALSE(conf.get_vhost_edge_token_traverse("ossrs.net"));
         EXPECT_STREQ("[vhost]", conf.get_vhost_edge_transform_vhost("ossrs.net").c_str());
         EXPECT_FALSE(conf.get_vhost_origin_cluster("ossrs.net"));
         EXPECT_EQ(0, (int)conf.get_vhost_coworkers("ossrs.net").size());
@@ -3455,12 +3325,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig3)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{vhost xxx;}}"));
         EXPECT_FALSE(conf.get_vhost_edge_transform_vhost("ossrs.net").empty());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{token_traverse on;}}"));
-        EXPECT_TRUE(conf.get_vhost_edge_token_traverse("ossrs.net"));
     }
 
     if (true) {
@@ -3914,15 +3778,6 @@ VOID TEST(ConfigMainTest, CheckVhostConfig5)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{hds{enabled on;hds_path xxx;hds_fragment 10;hds_window 10;}}"));
-        EXPECT_TRUE(conf.get_hds_enabled("ossrs.net"));
-        EXPECT_STREQ("xxx", conf.get_hds_path("ossrs.net").c_str());
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("ossrs.net"));
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_window("ossrs.net"));
-    }
-
-    if (true) {
-        MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{enabled on;dvr_apply all;dvr_path xxx;dvr_plan xxx2;dvr_duration 10;time_jitter full;}}"));
         EXPECT_TRUE(conf.get_dvr_enabled("ossrs.net"));
         EXPECT_TRUE(conf.get_dvr_apply("ossrs.net") != NULL);
@@ -4315,9 +4170,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesGlobal)
         SrsSetEnvConfig(conf, pithy_print, "SRS_PITHY_PRINT_MS", "20000");
         EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_pithy_print());
 
-        SrsSetEnvConfig(conf, asprocess, "SRS_ASPROCESS", "on");
-        EXPECT_TRUE(conf.get_asprocess());
-
         SrsSetEnvConfig(conf, empty_ip_ok, "SRS_EMPTY_IP_OK", "off");
         EXPECT_FALSE(conf.empty_ip_ok());
 
@@ -4359,12 +4211,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesGlobal)
 
         SrsSetEnvConfig(conf, tcmalloc_release_rate_low, "SRS_TCMALLOC_RELEASE_RATE", "5.2");
         EXPECT_EQ(5.2, conf.tcmalloc_release_rate());
-
-        SrsSetEnvConfig(conf, whether_query_latest_version, "SRS_QUERY_LATEST_VERSION", "off");
-        EXPECT_FALSE(conf.whether_query_latest_version());
-
-        SrsSetEnvConfig(conf, first_wait_for_qlv, "SRS_FIRST_WAIT_FOR_QLV", "200");
-        EXPECT_EQ(200 * SRS_UTIME_SECONDS, conf.first_wait_for_qlv());
     }
 }
 
@@ -5020,9 +4866,6 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostPlay)
         SrsSetEnvConfig(conf, mix_correct, "SRS_VHOST_PLAY_MIX_CORRECT", "on");
         EXPECT_TRUE(conf.get_mix_correct("__defaultVhost__"));
 
-        SrsSetEnvConfig(conf, atc_auto, "SRS_VHOST_PLAY_ATC_AUTO", "on");
-        EXPECT_TRUE(conf.get_atc_auto("__defaultVhost__"));
-
         SrsSetEnvConfig(conf, send_min_interval, "SRS_VHOST_PLAY_SEND_MIN_INTERVAL", "10");
         EXPECT_EQ(10 * SRS_UTIME_MILLISECONDS, conf.get_send_min_interval("__defaultVhost__"));
 
@@ -5333,28 +5176,34 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesDash)
     }
 }
 
-VOID TEST(ConfigEnvTest, CheckEnvValuesHds)
+// HDS is removed: each of its env vars, with any value, makes the config refused, with an error that names
+// it. An empty env var is not set, as for every other env var.
+VOID TEST(ConfigEnvTest, CheckEnvHdsRemoved)
 {
-    if (true) {
-        MockSrsConfig conf;
+    const char *keys[] = {"SRS_VHOST_HDS_ENABLED", "SRS_VHOST_HDS_HDS_PATH", "SRS_VHOST_HDS_HDS_FRAGMENT", "SRS_VHOST_HDS_HDS_WINDOW"};
+    const char *values[] = {"on", "off", "10"};
 
-        SrsSetEnvConfig(conf, hds_enabled, "SRS_VHOST_HDS_ENABLED", "on");
-        EXPECT_TRUE(conf.get_hds_enabled("__defaultVhost__"));
+    for (int i = 0; i < (int)(sizeof(keys) / sizeof(keys[0])); i++) {
+        for (int j = 0; j < (int)(sizeof(values) / sizeof(values[0])); j++) {
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, hds, keys[i], values[j]);
 
-        SrsSetEnvConfig(conf, hds_fragment, "SRS_VHOST_HDS_HDS_FRAGMENT", "20");
-        EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_hds_fragment("__defaultVhost__"));
+            srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+            EXPECT_TRUE(err != srs_success) << keys[i] << "=" << values[j];
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(keys[i]) != string::npos) << desc;
+                EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
 
-        SrsSetEnvConfig(conf, hds_fragment_float, "SRS_VHOST_HDS_HDS_FRAGMENT", "20.1");
-        EXPECT_EQ(20.1 * SRS_UTIME_SECONDS, conf.get_hds_fragment("__defaultVhost__"));
-
-        SrsSetEnvConfig(conf, hds_window, "SRS_VHOST_HDS_HDS_WINDOW", "30");
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("__defaultVhost__"));
-
-        SrsSetEnvConfig(conf, hds_window_float, "SRS_VHOST_HDS_HDS_WINDOW", "30.1");
-        EXPECT_EQ(30.1 * SRS_UTIME_SECONDS, conf.get_hds_window("__defaultVhost__"));
-
-        SrsSetEnvConfig(conf, hds_path, "SRS_VHOST_HDS_HDS_PATH", "xxx");
-        EXPECT_STREQ("xxx", conf.get_hds_path("__defaultVhost__").c_str());
+        if (true) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, hds, keys[i], "");
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
     }
 }
 

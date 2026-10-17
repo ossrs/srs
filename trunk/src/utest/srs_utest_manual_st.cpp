@@ -286,19 +286,19 @@ VOID TEST(StSocketTest, PortRangeTcpListen)
 {
     srs_error_t err;
 
-    // Test valid port ranges
-    srs_netfd_t fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_tcp_listen("127.0.0.1", 1024, &fd));
-    EXPECT_TRUE(fd != NULL);
-    srs_close_stfd(fd);
-
-    fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_tcp_listen("127.0.0.1", 65535, &fd));
-    EXPECT_TRUE(fd != NULL);
-    srs_close_stfd(fd);
+    // Test valid port ranges, each bound only when no socket holds it: another process may listen on it,
+    // or another utest run check it at the same time.
+    int bounds[] = {1024, 65535};
+    for (int i = 0; i < (int)(sizeof(bounds) / sizeof(bounds[0])); i++) {
+        srs_netfd_t fd = NULL;
+        HELPER_ASSERT_SUCCESS(srs_utest_listen_fixed_port(SOCK_STREAM, "127.0.0.1", bounds[i], &fd));
+        if (fd != NULL) {
+            srs_close_stfd(fd);
+        }
+    }
 
     // Test port 0 (system assigns available port)
-    fd = NULL;
+    srs_netfd_t fd = NULL;
     HELPER_EXPECT_SUCCESS(srs_tcp_listen("127.0.0.1", 0, &fd));
     EXPECT_TRUE(fd != NULL);
     srs_close_stfd(fd);
@@ -308,19 +308,19 @@ VOID TEST(StSocketTest, PortRangeUdpListen)
 {
     srs_error_t err;
 
-    // Test valid port ranges
-    srs_netfd_t fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", 1024, &fd));
-    EXPECT_TRUE(fd != NULL);
-    srs_close_stfd(fd);
-
-    fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", 65535, &fd));
-    EXPECT_TRUE(fd != NULL);
-    srs_close_stfd(fd);
+    // Test valid port ranges, each bound only when no socket holds it: another process may listen on it,
+    // or another utest run check it at the same time.
+    int bounds[] = {1024, 65535};
+    for (int i = 0; i < (int)(sizeof(bounds) / sizeof(bounds[0])); i++) {
+        srs_netfd_t fd = NULL;
+        HELPER_ASSERT_SUCCESS(srs_utest_listen_fixed_port(SOCK_DGRAM, "127.0.0.1", bounds[i], &fd));
+        if (fd != NULL) {
+            srs_close_stfd(fd);
+        }
+    }
 
     // Test port 0 (system assigns available port)
-    fd = NULL;
+    srs_netfd_t fd = NULL;
     HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", 0, &fd));
     EXPECT_TRUE(fd != NULL);
     srs_close_stfd(fd);
@@ -518,15 +518,12 @@ VOID TEST(StSocketTest, RandomPortTcpListenAndConnect)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int random_port = srs_utest_random_port();
+    // Create TCP listener on a free random port from the unit tests' range
+    srs_netfd_t listen_fd = NULL;
+    int random_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &random_port, &listen_fd));
     EXPECT_GE(random_port, _srs_utest_port_min);
     EXPECT_LE(random_port, _srs_utest_port_max);
-
-    // Create TCP listener on the random port
-    srs_netfd_t listen_fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_tcp_listen("127.0.0.1", random_port, &listen_fd));
-    EXPECT_TRUE(listen_fd != NULL);
 
     // Use SrsUniquePtr to automatically close the socket when it goes out of scope.
     SrsUniquePtr<srs_netfd_t> listen_fd_ptr(&listen_fd, srs_close_stfd_ptr);
@@ -550,15 +547,12 @@ VOID TEST(StSocketTest, RandomPortTcpListenAndConnectIPv6)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int random_port = srs_utest_random_port();
+    // Create TCP listener on IPv6 loopback with a free random port from the unit tests' range
+    srs_netfd_t listen_fd = NULL;
+    int random_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("::1", &random_port, &listen_fd));
     EXPECT_GE(random_port, _srs_utest_port_min);
     EXPECT_LE(random_port, _srs_utest_port_max);
-
-    // Create TCP listener on IPv6 loopback with the random port
-    srs_netfd_t listen_fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_tcp_listen("::1", random_port, &listen_fd));
-    EXPECT_TRUE(listen_fd != NULL);
     SrsUniquePtr<srs_netfd_t> listen_fd_ptr(&listen_fd, srs_close_stfd_ptr);
 
     int actual_fd = srs_netfd_fileno(listen_fd);
@@ -581,15 +575,12 @@ VOID TEST(StSocketTest, RandomPortUdpListenIPv4)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int random_port = srs_utest_random_port();
+    // Create UDP listener on IPv4 loopback with a free random port from the unit tests' range
+    srs_netfd_t listen_fd = NULL;
+    int random_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &random_port, &listen_fd));
     EXPECT_GE(random_port, _srs_utest_port_min);
     EXPECT_LE(random_port, _srs_utest_port_max);
-
-    // Create UDP listener on IPv4 loopback with the random port
-    srs_netfd_t listen_fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", random_port, &listen_fd));
-    EXPECT_TRUE(listen_fd != NULL);
     SrsUniquePtr<srs_netfd_t> listen_fd_ptr(&listen_fd, srs_close_stfd_ptr);
 
     int actual_fd = srs_netfd_fileno(listen_fd);
@@ -613,15 +604,12 @@ VOID TEST(StSocketTest, RandomPortUdpListenIPv6)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int random_port = srs_utest_random_port();
+    // Create UDP listener on IPv6 loopback with a free random port from the unit tests' range
+    srs_netfd_t listen_fd = NULL;
+    int random_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("::1", &random_port, &listen_fd));
     EXPECT_GE(random_port, _srs_utest_port_min);
     EXPECT_LE(random_port, _srs_utest_port_max);
-
-    // Create UDP listener on IPv6 loopback with the random port
-    srs_netfd_t listen_fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("::1", random_port, &listen_fd));
-    EXPECT_TRUE(listen_fd != NULL);
     SrsUniquePtr<srs_netfd_t> listen_fd_ptr(&listen_fd, srs_close_stfd_ptr);
 
     int actual_fd = srs_netfd_fileno(listen_fd);

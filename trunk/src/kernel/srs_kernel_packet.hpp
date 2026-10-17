@@ -298,8 +298,11 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     // Parse the H.264 SPS/PPS.
     virtual srs_error_t avc_demux_sps_pps(SrsBuffer *stream);
-    virtual srs_error_t avc_demux_sps();
     virtual srs_error_t avc_demux_sps_rbsp(char *rbsp, int nb_rbsp);
+
+public:
+    // Parse the H.264 SPS in vcodec_->sequenceParameterSetNALUnit_.
+    virtual srs_error_t avc_demux_sps();
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

@@ -9,10 +9,12 @@
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_rtc_dtls.hpp>
+#include <srs_app_rtsp_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_resource.hpp>
 #include <srs_protocol_st.hpp>
 
 #include <string>
@@ -78,6 +80,26 @@ int srs_utest_random_port()
     return rand.integer(_srs_utest_port_min, _srs_utest_port_max);
 }
 
+SrsUtestRandomState::SrsUtestRandomState(unsigned int seed)
+{
+    // SrsRand seeds random() from the clock at its first use; make that use before the first state,
+    // so it seeds the run's sequence, not this one, which would leave the run's at the default seed.
+    // Only then, so a state made inside another draws nothing from it.
+    static bool run_seeded = false;
+    if (!run_seeded) {
+        run_seeded = true;
+        SrsRand rand;
+        rand.integer();
+    }
+
+    previous_ = ::initstate(seed, state_, sizeof(state_));
+}
+
+SrsUtestRandomState::~SrsUtestRandomState()
+{
+    ::setstate(previous_);
+}
+
 // kernel module.
 ISrsLog *_srs_log = NULL;
 ISrsContext *_srs_context = NULL;
@@ -106,32 +128,183 @@ static void srs_srt_utest_null_log_handler(void *opaque, int level, const char *
     // srt null log handler, do no print any log.
 }
 
+bool srs_utest_port_free(int type, std::string ip, int port)
+{
+    sockaddr_storage addr;
+    memset(&addr, 0, sizeof(addr));
+    socklen_t len = 0;
+
+    sockaddr_in *addr4 = (sockaddr_in *)&addr;
+    sockaddr_in6 *addr6 = (sockaddr_in6 *)&addr;
+    if (inet_pton(AF_INET, ip.c_str(), &addr4->sin_addr) == 1) {
+        addr4->sin_family = AF_INET;
+        addr4->sin_port = htons(port);
+        len = sizeof(sockaddr_in);
+    } else if (inet_pton(AF_INET6, ip.c_str(), &addr6->sin6_addr) == 1) {
+        addr6->sin6_family = AF_INET6;
+        addr6->sin6_port = htons(port);
+        len = sizeof(sockaddr_in6);
+    } else {
+        return false;
+    }
+
+    int fd = ::socket(addr.ss_family, type, 0);
+    if (fd < 0) {
+        return false;
+    }
+
+    int r0 = ::bind(fd, (sockaddr *)&addr, len);
+    ::close(fd);
+    return r0 == 0;
+}
+
 // Pick a free port of the socket type, SOCK_STREAM or SOCK_DGRAM, on the temporary host, from the
 // unit tests' range, so a client socket never takes it as a kernel ephemeral port after it is picked.
-static srs_error_t srs_utest_free_port(int type, int *port)
+srs_error_t srs_utest_free_port(int type, int *port)
 {
     for (int i = 0; i < 1024; i++) {
-        int fd = ::socket(AF_INET, type, 0);
-        if (fd < 0) {
-            return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
-        }
-
         int candidate = srs_utest_random_port();
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(candidate);
-        inet_pton(AF_INET, _srs_tmp_host.c_str(), &addr.sin_addr);
-
-        int r0 = ::bind(fd, (sockaddr *)&addr, sizeof(addr));
-        ::close(fd);
-        if (r0 == 0) {
+        if (srs_utest_port_free(type, _srs_tmp_host, candidate)) {
             *port = candidate;
             return srs_success;
         }
     }
 
     return srs_error_new(ERROR_SOCKET_BIND, "no free port on %s", _srs_tmp_host.c_str());
+}
+
+// Each listen helper below tries this many random ports of the unit tests' range, as many as
+// srs_utest_free_port, before it fails.
+#define SRS_UTEST_LISTEN_TRIES 1024
+
+// Fail a port that a socket holds, even one SRS's own SO_REUSEPORT listen would bind and share.
+static srs_error_t utest_port_not_held(int type, std::string ip, int port)
+{
+    if (!srs_utest_port_free(type, ip, port)) {
+        return srs_error_new(ERROR_SOCKET_BIND, "port %s:%d held", ip.c_str(), port);
+    }
+    return srs_success;
+}
+
+srs_error_t srs_utest_tcp_listen(std::string ip, int *port, srs_netfd_t *pfd)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_STREAM, ip, candidate)) == srs_success &&
+            (err = srs_tcp_listen(ip, candidate, pfd)) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free tcp port on %s", ip.c_str());
+}
+
+srs_error_t srs_utest_udp_listen(std::string ip, int *port, srs_netfd_t *pfd)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_DGRAM, ip, candidate)) == srs_success &&
+            (err = srs_udp_listen(ip, candidate, pfd)) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free udp port on %s", ip.c_str());
+}
+
+srs_error_t srs_utest_tcp_listener_listen(SrsTcpListener *listener, std::string ip, int *port)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        listener->set_endpoint(ip, candidate);
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_STREAM, ip, candidate)) == srs_success &&
+            (err = listener->listen()) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free tcp port on %s", ip.c_str());
+}
+
+srs_error_t srs_utest_udp_listener_listen(SrsUdpListener *listener, std::string ip, int *port)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        listener->set_endpoint(ip, candidate);
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_DGRAM, ip, candidate)) == srs_success &&
+            (err = listener->listen()) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free udp port on %s", ip.c_str());
+}
+
+srs_error_t srs_utest_udp_mux_listener_listen(SrsUdpMuxListener *listener, int *port)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        listener->port_ = candidate;
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_DGRAM, listener->ip_, candidate)) == srs_success &&
+            (err = listener->listen()) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free udp port on %s", listener->ip_.c_str());
+}
+
+// Another run's check of the port, a bind with no reuse options, may hold it between this run's check and
+// its listen, so a listen whose bind finds the port in use is skipped too; any other failure is returned.
+srs_error_t srs_utest_listen_fixed_port(int type, std::string ip, int port, srs_netfd_t *pfd)
+{
+    srs_error_t err = srs_success;
+
+    *pfd = NULL;
+    if (!srs_utest_port_free(type, ip, port)) {
+        return err;
+    }
+
+    if (type == SOCK_STREAM) {
+        err = srs_tcp_listen(ip, port, pfd);
+    } else {
+        err = srs_udp_listen(ip, port, pfd);
+    }
+    if (err == srs_success || srs_error_code(err) != ERROR_SOCKET_BIND) {
+        return err;
+    }
+
+    // The bind's errno is kept by the error it made, the first of the chain.
+    SrsCplxError *first = err;
+    while (first->wrapped_) {
+        first = first->wrapped_;
+    }
+    if (first->rerrno_ != EADDRINUSE) {
+        return srs_error_wrap(err, "listen %s:%d", ip.c_str(), port);
+    }
+
+    srs_freep(err);
+    return err;
 }
 
 // Initialize global settings.
@@ -175,10 +348,10 @@ srs_error_t prepare_main()
     _srs_context = new SrsThreadContext();
 
     // The SRT event loop sets up the libsrt log, so start it before the utest overrides the log below.
-    if ((err = _srt_eventloop->initialize()) != srs_success) {
+    if ((err = _srs_srt_eventloop->initialize()) != srs_success) {
         return srs_error_wrap(err, "srt poller initialize");
     }
-    if ((err = _srt_eventloop->start()) != srs_success) {
+    if ((err = _srs_srt_eventloop->start()) != srs_success) {
         return srs_error_wrap(err, "srt poller start");
     }
 
@@ -195,6 +368,32 @@ srs_error_t prepare_main()
 
     return err;
 }
+
+// Fail a test that leaves a handler subscribed to a global resource manager. The handler is usually a
+// connection the test already freed, so a later test whose resource that manager removes would call it.
+class SrsUtestDisposingHandlersChecker : public testing::EmptyTestEventListener
+{
+public:
+    virtual void OnTestEnd(const testing::TestInfo & /*info*/)
+    {
+        check(_srs_conn_manager);
+        check(_srs_rtsp_manager);
+    }
+
+private:
+    void check(SrsResourceManager *manager)
+    {
+        if (!manager) {
+            return;
+        }
+
+        EXPECT_TRUE(manager->handlers_.empty()) << manager->label_ << " manager has " << manager->handlers_.size()
+                                                << " disposing handler(s) left by this test";
+
+        // Report each leak once, at the test that left it.
+        manager->handlers_.clear();
+    }
+};
 
 // We could do something in the main of utest.
 // Copy from gtest-1.6.0/src/gtest_main.cc
@@ -213,6 +412,7 @@ GTEST_API_ int main(int argc, char **argv)
     }
 
     testing::InitGoogleTest(&argc, argv);
+    testing::UnitTest::GetInstance()->listeners().Append(new SrsUtestDisposingHandlersChecker());
     int r0 = RUN_ALL_TESTS();
 
     // Stop libsrt and join its worker threads, before the process destroys the libsrt global objects.
@@ -427,23 +627,8 @@ srs_error_t SrsHttpTestServer::start()
 {
     srs_error_t err = srs_success;
 
-    // Retry up to 3 times with different random ports if listen fails
-    for (int retry = 0; retry < 3; retry++) {
-        if ((err = srs_tcp_listen(ip_, port_, &fd_)) == srs_success) {
-            break;
-        }
-
-        // If this is not the last retry, generate a new random port and try again
-        if (retry < 2) {
-            srs_freep(err);
-            port_ = srs_utest_random_port();
-            srs_trace("HTTP test server listen failed on %s:%d, retry %d with new port %d",
-                      ip_.c_str(), port_, retry + 1, port_);
-        }
-    }
-
-    if (err != srs_success) {
-        return srs_error_wrap(err, "listen %s:%d after 3 retries", ip_.c_str(), port_);
+    if ((err = srs_utest_tcp_listen(ip_, &port_, &fd_)) != srs_success) {
+        return srs_error_wrap(err, "http test server listen");
     }
 
     return trd_->start();
@@ -531,23 +716,8 @@ srs_error_t SrsHttpsTestServer::start()
 {
     srs_error_t err = srs_success;
 
-    // Retry up to 3 times with different random ports if listen fails
-    for (int retry = 0; retry < 3; retry++) {
-        if ((err = srs_tcp_listen(ip_, port_, &fd_)) == srs_success) {
-            break;
-        }
-
-        // If this is not the last retry, generate a new random port and try again
-        if (retry < 2) {
-            srs_freep(err);
-            port_ = srs_utest_random_port();
-            srs_trace("HTTPS test server listen failed on %s:%d, retry %d with new port %d",
-                      ip_.c_str(), port_, retry + 1, port_);
-        }
-    }
-
-    if (err != srs_success) {
-        return srs_error_wrap(err, "listen %s:%d after 3 retries", ip_.c_str(), port_);
+    if ((err = srs_utest_tcp_listen(ip_, &port_, &fd_)) != srs_success) {
+        return srs_error_wrap(err, "https test server listen");
     }
 
     if ((err = trd_->start()) != srs_success) {
@@ -578,6 +748,11 @@ int SrsHttpsTestServer::get_port()
     return port_;
 }
 
+string SrsHttpsTestServer::last_error()
+{
+    return last_error_;
+}
+
 srs_error_t SrsHttpsTestServer::cycle()
 {
     srs_error_t err = srs_success;
@@ -592,8 +767,12 @@ srs_error_t SrsHttpsTestServer::cycle()
             return srs_error_new(ERROR_SOCKET_ACCEPT, "accept failed");
         }
 
-        if ((err = handle_client(client_fd)) != srs_success) {
-            srs_warn("handle client failed, err=%s", srs_error_desc(err).c_str());
+        err = handle_client(client_fd);
+        srs_close_stfd(client_fd);
+
+        if (err != srs_success) {
+            last_error_ = srs_error_desc(err);
+            srs_warn("handle client failed, err=%s", last_error_.c_str());
             srs_freep(err);
         }
     }
@@ -655,23 +834,8 @@ srs_error_t SrsRtmpTestServer::start()
 {
     srs_error_t err = srs_success;
 
-    // Retry up to 3 times with different random ports if listen fails
-    for (int retry = 0; retry < 3; retry++) {
-        if ((err = srs_tcp_listen(ip_, port_, &fd_)) == srs_success) {
-            break;
-        }
-
-        // If this is not the last retry, generate a new random port and try again
-        if (retry < 2) {
-            srs_freep(err);
-            port_ = srs_utest_random_port();
-            srs_trace("RTMP test server listen failed on %s:%d, retry %d with new port %d",
-                      ip_.c_str(), port_, retry + 1, port_);
-        }
-    }
-
-    if (err != srs_success) {
-        return srs_error_wrap(err, "listen %s:%d after 3 retries", ip_.c_str(), port_);
+    if ((err = srs_utest_tcp_listen(ip_, &port_, &fd_)) != srs_success) {
+        return srs_error_wrap(err, "rtmp test server listen");
     }
 
     return trd_->start();
@@ -824,14 +988,9 @@ srs_error_t SrsTestTcpServer::start()
     srs_error_t err = srs_success;
 
     listener_ = new SrsTcpListener(this);
-    listener_->set_endpoint(ip_, port_);
-
-    if ((err = listener_->listen()) != srs_success) {
-        return srs_error_wrap(err, "tcp listen %s:%d", ip_.c_str(), port_);
+    if ((err = srs_utest_tcp_listener_listen(listener_, ip_, &port_)) != srs_success) {
+        return srs_error_wrap(err, "tcp test server listen");
     }
-
-    // Get the actual port that was assigned
-    port_ = listener_->port();
 
     trd_ = new SrsSTCoroutine("tcp-test", this);
     if ((err = trd_->start()) != srs_success) {
@@ -862,6 +1021,13 @@ int SrsTestTcpServer::get_port()
 SrsTcpConnection *SrsTestTcpServer::get_connection()
 {
     return conn_;
+}
+
+SrsTcpConnection *SrsTestTcpServer::take_connection()
+{
+    SrsTcpConnection *conn = conn_;
+    conn_ = NULL;
+    return conn;
 }
 
 srs_error_t SrsTestTcpServer::cycle()
@@ -978,35 +1144,8 @@ srs_error_t SrsUdpTestServer::start()
         return err;
     }
 
-    // Create UDP socket - retry up to 3 times with different random ports if listen fails
-    for (int retry = 0; retry < 3; retry++) {
-        if ((err = srs_udp_listen(host_, port_, &lfd_)) == srs_success) {
-            break;
-        }
-
-        // If this is not the last retry, generate a new random port and try again
-        if (retry < 2) {
-            srs_freep(err);
-            port_ = srs_utest_random_port();
-            srs_trace("UDP test server listen failed on %s:%d, retry %d with new port %d",
-                      host_.c_str(), port_, retry + 1, port_);
-        }
-    }
-
-    if (err != srs_success) {
-        return srs_error_wrap(err, "udp listen %s:%d after 3 retries", host_.c_str(), port_);
-    }
-
-    // Get the actual port that was assigned
-    int actual_fd = srs_netfd_fileno(lfd_);
-    sockaddr_storage addr;
-    socklen_t addrlen = sizeof(addr);
-    if (getsockname(actual_fd, (sockaddr *)&addr, &addrlen) == 0) {
-        if (addr.ss_family == AF_INET) {
-            port_ = ntohs(((sockaddr_in *)&addr)->sin_port);
-        } else if (addr.ss_family == AF_INET6) {
-            port_ = ntohs(((sockaddr_in6 *)&addr)->sin6_port);
-        }
+    if ((err = srs_utest_udp_listen(host_, &port_, &lfd_)) != srs_success) {
+        return srs_error_wrap(err, "udp test server listen");
     }
 
     // Create socket wrapper

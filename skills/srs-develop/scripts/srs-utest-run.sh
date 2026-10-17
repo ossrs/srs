@@ -11,7 +11,7 @@
 #
 # Exit code is the exit code of srs_utest, or 1 if the build fails.
 
-FLAGS="--srt=on --gb28181=on --rtsp=on --apm=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
+FLAGS="--srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 cd "$ROOT/trunk" || exit 1

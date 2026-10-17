@@ -43,10 +43,7 @@ using namespace std;
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_st.hpp>
 
-// Normalize a query parameter so it can be appended directly to a URL.
-// For example, "token=abc" becomes "?token=abc", while "?token=abc" and
-// an empty parameter are returned unchanged.
-static string srs_net_url_normalize_param(const string &param)
+string srs_net_url_normalize_param(const string &param)
 {
     if (param.empty() || param.at(0) == '?') {
         return param;
@@ -165,6 +162,10 @@ void srs_net_url_parse_tcurl(string tcUrl, string &schema, string &host, string 
 //      rtmp://localhost/live?vhost=example.com/livestream
 // This function converts it to:
 //      rtmp://localhost/live/livestream?vhost=example.com
+// A query on the stream too joins the moved one, so
+//      rtmp://localhost/live?vhost=example.com/livestream?token=abc
+// becomes:
+//      rtmp://localhost/live/livestream?vhost=example.com&token=abc
 // A URL whose query is already after the stream path is returned unchanged.
 string srs_net_url_convert_legacy_rtmp_url(const string &url)
 {
@@ -187,6 +188,19 @@ string srs_net_url_convert_legacy_rtmp_url(const string &url)
         string base_url = url.substr(0, query_pos);                            // rtmp://ip/app/app2
         string query_part = url.substr(query_pos, last_slash_pos - query_pos); // ?vhost=xxx
         string stream_part = url.substr(last_slash_pos);                       // /stream
+
+        // The stream may have a query of its own, such as /stream?token=abc, so
+        // join both into one query by &, like ?vhost=xxx&token=abc.
+        size_t stream_query_pos = stream_part.find('?');
+        if (stream_query_pos != string::npos) {
+            string stream_query = stream_part.substr(stream_query_pos + 1);
+            stream_part = stream_part.substr(0, stream_query_pos);
+            if (query_part.size() <= 1) {
+                query_part = "?" + stream_query;
+            } else if (!stream_query.empty()) {
+                query_part += "&" + stream_query;
+            }
+        }
 
         // Reconstruct as standard format: base_url + stream_part + query_part
         return base_url + stream_part + query_part;
@@ -350,6 +364,16 @@ void srs_net_url_parse_rtmp_url(string url, string &tcUrl, string &stream)
         tcUrl = url.substr(0, pos);
     } else {
         tcUrl = url;
+    }
+}
+
+void srs_net_url_parse_http_path(string path, string &app, string &stream)
+{
+    srs_net_url_parse_rtmp_url(path, app, stream);
+    app = srs_strings_trim_start(app, "/");
+    stream = SrsPath().filepath_filename(stream);
+    if (app.empty()) {
+        app = SRS_CONSTS_RTMP_DEFAULT_APP;
     }
 }
 
@@ -695,12 +719,12 @@ vector<SrsIPAddress *> &SrsProtocolUtility::local_ips()
     return _srs_system_ips;
 }
 
-std::string _public_internet_address;
+std::string _srs_public_internet_address;
 
 string SrsProtocolUtility::public_internet_address(bool ipv4_only)
 {
-    if (!_public_internet_address.empty()) {
-        return _public_internet_address;
+    if (!_srs_public_internet_address.empty()) {
+        return _srs_public_internet_address;
     }
 
     std::vector<SrsIPAddress *> &ips = local_ips();
@@ -716,7 +740,7 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
         }
 
         srs_warn("use public address as ip: %s, ifname=%s", ip->ip_.c_str(), ip->ifname_.c_str());
-        _public_internet_address = ip->ip_;
+        _srs_public_internet_address = ip->ip_;
         return ip->ip_;
     }
 
@@ -731,17 +755,17 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
         }
 
         srs_warn("use private address as ip: %s, ifname=%s", ip->ip_.c_str(), ip->ifname_.c_str());
-        _public_internet_address = ip->ip_;
+        _srs_public_internet_address = ip->ip_;
         return ip->ip_;
     }
 
     // LCOV_EXCL_START
     // Finally, use first whatever kind of address.
-    if (!ips.empty() && _public_internet_address.empty()) {
+    if (!ips.empty() && _srs_public_internet_address.empty()) {
         SrsIPAddress *ip = ips[0];
 
         srs_warn("use first address as ip: %s, ifname=%s", ip->ip_.c_str(), ip->ifname_.c_str());
-        _public_internet_address = ip->ip_;
+        _srs_public_internet_address = ip->ip_;
         return ip->ip_;
     }
     // LCOV_EXCL_STOP

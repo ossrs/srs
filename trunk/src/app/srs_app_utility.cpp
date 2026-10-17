@@ -83,6 +83,83 @@ string srs_path_build_stream(string template_path, string vhost, string app, str
     return path;
 }
 
+// Match path from pos to template_path from tpos, and bind the [app] and [stream] that are empty.
+static bool srs_path_match_stream(const string &template_path, size_t tpos, const string &path, size_t pos, string &app, string &stream)
+{
+    if (tpos == template_path.size()) {
+        return pos == path.size();
+    }
+
+    string *value = NULL;
+    size_t size = 0;
+    if (template_path.compare(tpos, 5, "[app]") == 0) {
+        value = &app;
+        size = 5;
+    } else if (template_path.compare(tpos, 8, "[stream]") == 0) {
+        value = &stream;
+        size = 8;
+    }
+
+    // A literal char must be the same.
+    if (!value) {
+        if (pos < path.size() && template_path.at(tpos) == path.at(pos)) {
+            return srs_path_match_stream(template_path, tpos + 1, path, pos + 1, app, stream);
+        }
+        return false;
+    }
+
+    // A variable already bound must have the same value again.
+    if (!value->empty()) {
+        if (path.compare(pos, value->size(), *value) == 0) {
+            return srs_path_match_stream(template_path, tpos + size, path, pos + value->size(), app, stream);
+        }
+        return false;
+    }
+
+    // Try the longest value first, so the app takes the dirs, and the stream has none.
+    size_t last = path.size();
+    if (value == &stream) {
+        last = srs_min(last, path.find('/', pos));
+    }
+
+    size_t next = tpos + size;
+    for (size_t end = last; end > pos; end--) {
+        // Skip a value that the rest of the template can't follow.
+        if (next == template_path.size() && end != path.size()) {
+            continue;
+        }
+        if (next < template_path.size() && template_path.at(next) != '[' && (end == path.size() || template_path.at(next) != path.at(end))) {
+            continue;
+        }
+
+        value->assign(path, pos, end - pos);
+        if (srs_path_match_stream(template_path, next, path, end, app, stream)) {
+            return true;
+        }
+        value->clear();
+    }
+
+    return false;
+}
+
+bool srs_path_parse_stream(string template_path, string vhost, string path, string &app, string &stream)
+{
+    if (template_path.find("[app]") == string::npos || template_path.find("[stream]") == string::npos) {
+        return false;
+    }
+
+    string t = srs_strings_replace(template_path, "[vhost]", vhost);
+
+    string a, s;
+    if (!srs_path_match_stream(t, 0, path, 0, a, s)) {
+        return false;
+    }
+
+    app = a;
+    stream = s;
+    return true;
+}
+
 string srs_path_build_timestamp(ISrsAppConfig *config, string template_path)
 {
     std::string path = template_path;
@@ -232,6 +309,15 @@ SrsRusage::SrsRusage()
     memset(&r_, 0, sizeof(rusage));
 }
 
+int64_t SrsRusage::maxrss_kbyte()
+{
+#ifdef SRS_OSX
+    return (int64_t)r_.ru_maxrss / 1024;
+#else
+    return (int64_t)r_.ru_maxrss;
+#endif
+}
+
 SrsRusage *srs_get_system_rusage()
 {
     return &_srs_system_rusage;
@@ -360,7 +446,10 @@ SrsProcSystemStat *srs_get_system_proc_stat()
 
 bool get_proc_system_stat(SrsProcSystemStat &r)
 {
-#if !defined(SRS_OSX)
+#if defined(SRS_OSX)
+    // No /proc on macOS, so the stat is not read and stays not ok.
+    return false;
+#else
     FILE *f = fopen("/proc/stat", "r");
     if (f == NULL) {
         srs_warn("open system cpu stat failed, ignore");
@@ -390,33 +479,63 @@ bool get_proc_system_stat(SrsProcSystemStat &r)
     }
 
     fclose(f);
-#endif
 
     r.ok_ = true;
 
     return true;
+#endif
 }
 
 bool get_proc_self_stat(SrsProcSelfStat &r)
 {
-#if !defined(SRS_OSX)
+#if defined(SRS_OSX)
+    // No /proc on macOS, so the stat is not read and stays not ok.
+    return false;
+#else
     FILE *f = fopen("/proc/self/stat", "r");
     if (f == NULL) {
         srs_warn("open self cpu stat failed, ignore");
         return false;
     }
 
-    // Note that we must read less than the size of r.comm_, such as %31s for r.comm_ is char[32].
-    fscanf(f, "%d %31s %c %d %d %d %d "
-              "%d %u %lu %lu %lu %lu "
-              "%lu %lu %ld %ld %ld %ld "
-              "%ld %ld %llu %lu %ld "
-              "%lu %lu %lu %lu %lu "
-              "%lu %lu %lu %lu %lu "
-              "%lu %lu %lu %d %d "
-              "%u %u %llu "
-              "%lu %ld",
-           &r.pid_, r.comm_, &r.state_, &r.ppid_, &r.pgrp_, &r.session_, &r.tty_nr_,
+    char buf[4096];
+    char *line = fgets(buf, sizeof(buf), f);
+    fclose(f);
+
+    if (line == NULL || !srs_parse_proc_self_stat(line, r)) {
+        srs_warn("parse self cpu stat failed, ignore");
+        return false;
+    }
+
+    r.ok_ = true;
+
+    return true;
+#endif
+}
+// LCOV_EXCL_STOP
+
+bool srs_parse_proc_self_stat(const std::string &line, SrsProcSelfStat &r)
+{
+    // The comm is in parentheses, and may have spaces and parentheses itself, so it ends at the last ')'.
+    size_t open = line.find('(');
+    size_t close = line.rfind(')');
+    if (open == std::string::npos || close == std::string::npos || close < open) {
+        return false;
+    }
+
+    r.pid_ = ::atoi(line.substr(0, open).c_str());
+    snprintf(r.comm_, sizeof(r.comm_), "%s", line.substr(open + 1, close - open - 1).c_str());
+
+    sscanf(line.c_str() + close + 1, " %c %d %d %d %d "
+                                     "%d %u %lu %lu %lu %lu "
+                                     "%lu %lu %ld %ld %ld %ld "
+                                     "%ld %ld %llu %lu %ld "
+                                     "%lu %lu %lu %lu %lu "
+                                     "%lu %lu %lu %lu %lu "
+                                     "%lu %lu %lu %d %d "
+                                     "%u %u %llu "
+                                     "%lu %ld",
+           &r.state_, &r.ppid_, &r.pgrp_, &r.session_, &r.tty_nr_,
            &r.tpgid_, &r.flags_, &r.minflt_, &r.cminflt_, &r.majflt_, &r.cmajflt_,
            &r.utime_, &r.stime_, &r.cutime_, &r.cstime_, &r.priority_, &r.nice_,
            &r.num_threads_, &r.itrealvalue_, &r.starttime_, &r.vsize_, &r.rss_,
@@ -426,14 +545,8 @@ bool get_proc_self_stat(SrsProcSelfStat &r)
            &r.rt_priority_, &r.policy_, &r.delayacct_blkio_ticks_,
            &r.guest_time_, &r.cguest_time_);
 
-    fclose(f);
-#endif
-
-    r.ok_ = true;
-
     return true;
 }
-// LCOV_EXCL_STOP
 
 void srs_update_proc_stat()
 {
@@ -719,9 +832,12 @@ SrsMemInfo *srs_get_meminfo()
 
 void srs_update_meminfo()
 {
+#if defined(SRS_OSX)
+    // No /proc on macOS, so the meminfo is not read and stays not ok.
+    return;
+#else
     SrsMemInfo &r = _srs_system_meminfo;
 
-#if !defined(SRS_OSX)
     FILE *f = fopen("/proc/meminfo", "r");
     if (f == NULL) {
         srs_warn("open meminfo failed, ignore");
@@ -747,7 +863,6 @@ void srs_update_meminfo()
     }
 
     fclose(f);
-#endif
 
     r.sample_time_ = srsu2ms(srs_time_now_realtime());
     r.MemActive_ = r.MemTotal_ - r.MemFree_;
@@ -762,6 +877,7 @@ void srs_update_meminfo()
     }
 
     r.ok_ = true;
+#endif
 }
 
 SrsCpuInfo::SrsCpuInfo()
@@ -1001,7 +1117,7 @@ SrsNetworkDevices::SrsNetworkDevices()
 
 #define MAX_NETWORK_DEVICES_COUNT 16
 static SrsNetworkDevices _srs_system_network_devices[MAX_NETWORK_DEVICES_COUNT];
-static int _nb_srs_system_network_devices = -1;
+static int _srs_nb_system_network_devices = -1;
 
 SrsNetworkDevices *srs_get_network_devices()
 {
@@ -1010,7 +1126,7 @@ SrsNetworkDevices *srs_get_network_devices()
 
 int srs_get_network_devices_count()
 {
-    return _nb_srs_system_network_devices;
+    return _srs_nb_system_network_devices;
 }
 
 void srs_update_network_devices()
@@ -1043,8 +1159,8 @@ void srs_update_network_devices()
                    &r.sbytes_, &r.spackets_, &r.serrs_, &r.sdrop_, &r.sfifo_, &r.scolls_, &r.scarrier_, &r.scompressed_);
 
             sscanf(fname, "%s", r.name_);
-            _nb_srs_system_network_devices = i + 1;
-            srs_info("scan network device ifname=%s, total=%d", r.name_, _nb_srs_system_network_devices);
+            _srs_nb_system_network_devices = i + 1;
+            srs_info("scan network device ifname=%s, total=%d", r.name_, _srs_nb_system_network_devices);
 
             r.sample_time_ = srsu2ms(srs_time_now_realtime());
             r.ok_ = true;
@@ -1318,7 +1434,7 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
 
     float self_mem_percent = 0;
     if (m->MemTotal_ > 0) {
-        self_mem_percent = (float)(r->r_.ru_maxrss / (double)m->MemTotal_);
+        self_mem_percent = (float)(r->maxrss_kbyte() / (double)m->MemTotal_);
     }
 
     int64_t now = srsu2ms(srs_time_now_realtime());
@@ -1372,7 +1488,7 @@ void srs_api_dump_summaries(ISrsAppConfig *config, SrsJsonObject *obj)
     self->set("ppid", SrsJsonAny::integer(u->ppid_));
     self->set("argv", SrsJsonAny::str(config->argv().c_str()));
     self->set("cwd", SrsJsonAny::str(config->cwd().c_str()));
-    self->set("mem_kbyte", SrsJsonAny::integer(r->r_.ru_maxrss));
+    self->set("mem_kbyte", SrsJsonAny::integer(r->maxrss_kbyte()));
     self->set("mem_percent", SrsJsonAny::number(self_mem_percent));
     self->set("cpu_percent", SrsJsonAny::number(u->percent_));
     self->set("srs_uptime", SrsJsonAny::integer(srs_uptime));

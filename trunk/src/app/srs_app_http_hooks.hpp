@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include <srs_protocol_rtmp_stack.hpp>
+
 class SrsHttpUri;
 class SrsStSocket;
 class ISrsRequest;
@@ -21,6 +23,25 @@ class ISrsAppFactory;
 class ISrsHttpClient;
 class ISrsStatistic;
 class ISrsAppConfig;
+
+// A stream's id and client count, copied from the stats at one moment.
+// A hook that runs later from a queue, such as the on_unpublish and on_stop
+// of a WebRTC client, needs this copy: by the time it is sent, the stats may
+// have dropped the client and the stream, so the hook would send no stream_id.
+class SrsStatisticStreamSnapshot
+{
+public:
+    // The id of the stream, empty when the stats had no such stream.
+    std::string id_;
+    // The clients of the stream, the client that stopped among them.
+    int clients_;
+
+public:
+    SrsStatisticStreamSnapshot();
+    // Take the stream of the request from the stats, if they have it.
+    SrsStatisticStreamSnapshot(ISrsStatistic *stat, ISrsRequest *req);
+    virtual ~SrsStatisticStreamSnapshot();
+};
 
 // HTTP hooks interface for SRS server event callbacks.
 //
@@ -32,6 +53,9 @@ class ISrsAppConfig;
 // All hook methods that return srs_error_t are used for validation and
 // can reject the operation by returning an error. Methods that return void
 // are notification-only and cannot prevent the operation.
+//
+// The param of every hook is the client's query with a leading ?, such as ?token=abc, for every
+// protocol, though an SRT streamid or a WHIP URL gives SRS its query without one.
 class ISrsHttpHooks
 {
 public:
@@ -44,30 +68,36 @@ public:
     // This hook can be used to authorize stream publishing or apply publishing policies.
     // @param url The HTTP callback URL for publish validation. If empty, hook is ignored.
     // @param req The publish request information including stream details.
+    // @param type The client type, sent as the type field, the value /api/v1/clients lists.
     // @return srs_success if publishing is allowed, error otherwise to reject publishing.
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req) = 0;
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type) = 0;
 
     // Stream stop publishing notification hook.
     // Called when a client (encoder) stops publishing a stream.
     // This is a notification-only hook that cannot prevent the unpublishing.
     // @param url The HTTP callback URL for unpublish notification. If empty, hook is ignored.
     // @param req The unpublish request information.
-    virtual void on_unpublish(std::string url, ISrsRequest *req) = 0;
+    // @param type The client type, sent as the type field, the value /api/v1/clients lists.
+    // @param stream The stream of the client, as the stats had it when the client stopped.
+    virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream) = 0;
 
     // Stream start playing validation hook.
     // Called when a client attempts to start playing/subscribing to a stream.
     // This hook can be used to authorize stream access or apply viewing policies.
     // @param url The HTTP callback URL for play validation. If empty, hook is ignored.
     // @param req The play request information including stream details.
+    // @param type The client type, sent as the type field, the value /api/v1/clients lists.
     // @return srs_success if playing is allowed, error otherwise to reject playing.
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req) = 0;
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type) = 0;
 
     // Stream stop playing notification hook.
     // Called when a client stops playing/subscribing to a stream.
     // This is a notification-only hook that cannot prevent the stop operation.
     // @param url The HTTP callback URL for stop notification. If empty, hook is ignored.
     // @param req The stop request information.
-    virtual void on_stop(std::string url, ISrsRequest *req) = 0;
+    // @param type The client type, sent as the type field, the value /api/v1/clients lists.
+    // @param stream The stream of the client, as the stats had it when the client stopped.
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream) = 0;
 
 public:
     // DVR file completion notification hook.
@@ -78,8 +108,10 @@ public:
     // @param url The HTTP callback URL for DVR notification. If empty, hook is ignored.
     // @param req The original stream request information.
     // @param file The completed DVR file path (can be relative or absolute).
+    // @param stream The stream when the file was closed: the hook is sent from a queue,
+    //      when the stats may have dropped the stream of a publish that ended.
     // @return srs_success if processing succeeds, error otherwise (logged but doesn't affect DVR).
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file) = 0;
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream) = 0;
 
 public:
     // HLS segment completion notification hook.
@@ -166,11 +198,11 @@ public:
 public:
     srs_error_t on_connect(std::string url, ISrsRequest *req);
     void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
-    srs_error_t on_publish(std::string url, ISrsRequest *req);
-    void on_unpublish(std::string url, ISrsRequest *req);
-    srs_error_t on_play(std::string url, ISrsRequest *req);
-    void on_stop(std::string url, ISrsRequest *req);
-    srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                        std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);

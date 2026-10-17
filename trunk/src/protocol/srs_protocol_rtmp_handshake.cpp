@@ -534,10 +534,10 @@ char *SrsC1S1Strategy::get_key()
     return key_.key_;
 }
 
-srs_error_t SrsC1S1Strategy::dump(SrsC1S1 *owner, char *_c1s1, int size)
+srs_error_t SrsC1S1Strategy::dump(SrsC1S1 *owner, char *c1s1, int size)
 {
     srs_assert(size == 1536);
-    return copy_to(owner, _c1s1, size, true);
+    return copy_to(owner, c1s1, size, true);
 }
 
 srs_error_t SrsC1S1Strategy::c1_create(SrsC1S1 *owner)
@@ -751,14 +751,14 @@ srs_schema_type SrsC1S1StrategySchema0::schema()
     return srs_schema0;
 }
 
-srs_error_t SrsC1S1StrategySchema0::parse(char *_c1s1, int size)
+srs_error_t SrsC1S1StrategySchema0::parse(char *c1s1, int size)
 {
     srs_error_t err = srs_success;
 
     srs_assert(size == 1536);
 
     if (true) {
-        SrsBuffer stream(_c1s1 + 8, 764);
+        SrsBuffer stream(c1s1 + 8, 764);
 
         if ((err = key_.parse(&stream)) != srs_success) {
             return srs_error_wrap(err, "parse the c1 key");
@@ -766,7 +766,7 @@ srs_error_t SrsC1S1StrategySchema0::parse(char *_c1s1, int size)
     }
 
     if (true) {
-        SrsBuffer stream(_c1s1 + 8 + 764, 764);
+        SrsBuffer stream(c1s1 + 8 + 764, 764);
 
         if ((err = digest_.parse(&stream)) != srs_success) {
             return srs_error_wrap(err, "parse the c1 digest");
@@ -810,14 +810,14 @@ srs_schema_type SrsC1S1StrategySchema1::schema()
     return srs_schema1;
 }
 
-srs_error_t SrsC1S1StrategySchema1::parse(char *_c1s1, int size)
+srs_error_t SrsC1S1StrategySchema1::parse(char *c1s1, int size)
 {
     srs_error_t err = srs_success;
 
     srs_assert(size == 1536);
 
     if (true) {
-        SrsBuffer stream(_c1s1 + 8, 764);
+        SrsBuffer stream(c1s1 + 8, 764);
 
         if ((err = digest_.parse(&stream)) != srs_success) {
             return srs_error_wrap(err, "parse c1 digest");
@@ -825,7 +825,7 @@ srs_error_t SrsC1S1StrategySchema1::parse(char *_c1s1, int size)
     }
 
     if (true) {
-        SrsBuffer stream(_c1s1 + 8 + 764, 764);
+        SrsBuffer stream(c1s1 + 8 + 764, 764);
 
         if ((err = key_.parse(&stream)) != srs_success) {
             return srs_error_wrap(err, "parse c1 key");
@@ -996,22 +996,22 @@ void SrsC2S2::assemble()
     rand_->gen_bytes(digest_, 32);
 }
 
-srs_error_t SrsC2S2::dump(char *_c2s2, int size)
+srs_error_t SrsC2S2::dump(char *c2s2, int size)
 {
     srs_assert(size == 1536);
 
-    memcpy(_c2s2, random_, 1504);
-    memcpy(_c2s2 + 1504, digest_, 32);
+    memcpy(c2s2, random_, 1504);
+    memcpy(c2s2 + 1504, digest_, 32);
 
     return srs_success;
 }
 
-srs_error_t SrsC2S2::parse(char *_c2s2, int size)
+srs_error_t SrsC2S2::parse(char *c2s2, int size)
 {
     srs_assert(size == 1536);
 
-    memcpy(random_, _c2s2, 1504);
-    memcpy(digest_, _c2s2 + 1504, 32);
+    memcpy(random_, c2s2, 1504);
+    memcpy(digest_, c2s2 + 1504, 32);
 
     return srs_success;
 }
@@ -1025,12 +1025,12 @@ srs_error_t SrsC2S2::c2_create(SrsC1S1 *s1)
         return srs_error_wrap(err, "create c2 temp key");
     }
 
-    char _digest[SRS_OpensslHashSize];
-    if ((err = openssl_HMACsha256(temp_key, 32, random_, 1504, _digest)) != srs_success) {
+    char digest[SRS_OpensslHashSize];
+    if ((err = openssl_HMACsha256(temp_key, 32, random_, 1504, digest)) != srs_success) {
         return srs_error_wrap(err, "create c2 digest");
     }
 
-    memcpy(digest_, _digest, 32);
+    memcpy(digest_, digest, 32);
 
     return err;
 }
@@ -1045,12 +1045,12 @@ srs_error_t SrsC2S2::c2_validate(SrsC1S1 *s1, bool &is_valid)
         return srs_error_wrap(err, "create c2 temp key");
     }
 
-    char _digest[SRS_OpensslHashSize];
-    if ((err = openssl_HMACsha256(temp_key, 32, random_, 1504, _digest)) != srs_success) {
+    char digest[SRS_OpensslHashSize];
+    if ((err = openssl_HMACsha256(temp_key, 32, random_, 1504, digest)) != srs_success) {
         return srs_error_wrap(err, "create c2 digest");
     }
 
-    is_valid = srs_bytes_equal(digest_, _digest, 32);
+    is_valid = srs_bytes_equal(digest_, digest, 32);
 
     return err;
 }
@@ -1064,12 +1064,12 @@ srs_error_t SrsC2S2::s2_create(SrsC1S1 *c1)
         return srs_error_wrap(err, "create s2 temp key");
     }
 
-    char _digest[SRS_OpensslHashSize];
-    if ((err = openssl_HMACsha256(temp_key, 32, random_, 1504, _digest)) != srs_success) {
+    char digest[SRS_OpensslHashSize];
+    if ((err = openssl_HMACsha256(temp_key, 32, random_, 1504, digest)) != srs_success) {
         return srs_error_wrap(err, "create s2 digest");
     }
 
-    memcpy(digest_, _digest, 32);
+    memcpy(digest_, digest, 32);
 
     return err;
 }
@@ -1084,12 +1084,12 @@ srs_error_t SrsC2S2::s2_validate(SrsC1S1 *c1, bool &is_valid)
         return srs_error_wrap(err, "create s2 temp key");
     }
 
-    char _digest[SRS_OpensslHashSize];
-    if ((err = openssl_HMACsha256(temp_key, 32, random_, 1504, _digest)) != srs_success) {
+    char digest[SRS_OpensslHashSize];
+    if ((err = openssl_HMACsha256(temp_key, 32, random_, 1504, digest)) != srs_success) {
         return srs_error_wrap(err, "create s2 digest");
     }
 
-    is_valid = srs_bytes_equal(digest_, _digest, 32);
+    is_valid = srs_bytes_equal(digest_, digest, 32);
 
     return err;
 }

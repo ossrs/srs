@@ -491,6 +491,120 @@ VOID TEST(SrsSrtFrameBuilderTest, OnTsVideoHevc)
     delete[] payload;
 }
 
+// Build an HEVC access unit in annexb: VPS, SPS, the given PPS, then an IDR slice.
+static std::string mock_hevc_keyframe_annexb(const uint8_t *pps, int pps_size)
+{
+    uint8_t vps[] = {0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3d, 0x95, 0x98, 0x09};
+    uint8_t sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x3d, 0xa0, 0x02, 0x80, 0x80, 0x2d, 0x16, 0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x40, 0x40, 0x00, 0x00, 0xfa, 0x40, 0x00, 0x17, 0x70, 0x02};
+    uint8_t idr[] = {0x26, 0x01, 0xaf, 0x06, 0xb8, 0x63, 0xef, 0x3a, 0x7f, 0x3c, 0x00, 0x01, 0x00, 0x80};
+    std::string start_code("\x00\x00\x00\x01", 4);
+
+    std::string au;
+    au += start_code + std::string((char *)vps, sizeof(vps));
+    au += start_code + std::string((char *)sps, sizeof(sps));
+    au += start_code + std::string((char *)pps, pps_size);
+    au += start_code + std::string((char *)idr, sizeof(idr));
+    return au;
+}
+
+// Count the video sequence headers among the frames the builder delivered.
+class MockSrtHeaderCounter : public ISrsFrameTarget
+{
+public:
+    int frames_;
+    int video_headers_;
+
+public:
+    MockSrtHeaderCounter() : frames_(0), video_headers_(0) {}
+    virtual ~MockSrtHeaderCounter() {}
+
+public:
+    virtual srs_error_t on_frame(SrsMediaPacket *frame)
+    {
+        frames_++;
+        if (frame->is_video() && frame->size() > 0) {
+            // Enhanced RTMP: IsExHeader set and packet type SequenceStart (0).
+            uint8_t b0 = (uint8_t)frame->payload()[0];
+            if ((b0 & 0x80) && (b0 & 0x0f) == 0) {
+                video_headers_++;
+            }
+        }
+        return srs_success;
+    }
+};
+
+// TS repeats the parameter sets before each keyframe; a PPS that is the same as
+// before is no change, so the builder sends the sequence header once.
+VOID TEST(SrsSrtFrameBuilderTest, OnTsVideoHevcRepeatedPpsOneHeader)
+{
+    srs_error_t err;
+
+    MockSrtHeaderCounter target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    builder->assemble();
+    MockRtcAsyncCallRequest req("test.vhost", "live", "stream1");
+    HELPER_EXPECT_SUCCESS(builder->initialize(&req));
+
+    SrsUniquePtr<SrsTsChannel> channel(new SrsTsChannel());
+    channel->apply_ = SrsTsPidApplyVideo;
+    channel->stream_ = SrsTsStreamVideoHEVC;
+
+    uint8_t pps[] = {0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40};
+    std::string au = mock_hevc_keyframe_annexb(pps, sizeof(pps));
+
+    for (int i = 0; i < 3; i++) {
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage(channel.get(), NULL));
+        msg->sid_ = SrsTsPESStreamIdVideoCommon;
+        msg->dts_ = msg->pts_ = 90000 * (i + 1);
+
+        SrsBuffer avs((char *)au.data(), (int)au.size());
+        HELPER_EXPECT_SUCCESS(builder->on_ts_video_hevc(msg.get(), &avs));
+    }
+
+    // One sequence header and three keyframes.
+    EXPECT_EQ(1, target.video_headers_);
+    EXPECT_EQ(4, target.frames_);
+}
+
+// A PPS that differs from the last one is a change, so the builder sends a new
+// sequence header.
+VOID TEST(SrsSrtFrameBuilderTest, OnTsVideoHevcChangedPpsNewHeader)
+{
+    srs_error_t err;
+
+    MockSrtHeaderCounter target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    builder->assemble();
+    MockRtcAsyncCallRequest req("test.vhost", "live", "stream1");
+    HELPER_EXPECT_SUCCESS(builder->initialize(&req));
+
+    SrsUniquePtr<SrsTsChannel> channel(new SrsTsChannel());
+    channel->apply_ = SrsTsPidApplyVideo;
+    channel->stream_ = SrsTsStreamVideoHEVC;
+
+    uint8_t pps0[] = {0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40};
+    uint8_t pps1[] = {0x44, 0x01, 0xc1, 0x73, 0xb4, 0x62, 0x40};
+    std::string aus[] = {
+        mock_hevc_keyframe_annexb(pps0, sizeof(pps0)),
+        mock_hevc_keyframe_annexb(pps0, sizeof(pps0)),
+        mock_hevc_keyframe_annexb(pps1, sizeof(pps1)),
+        mock_hevc_keyframe_annexb(pps1, sizeof(pps1)),
+    };
+
+    for (int i = 0; i < 4; i++) {
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage(channel.get(), NULL));
+        msg->sid_ = SrsTsPESStreamIdVideoCommon;
+        msg->dts_ = msg->pts_ = 90000 * (i + 1);
+
+        SrsBuffer avs((char *)aus[i].data(), (int)aus[i].size());
+        HELPER_EXPECT_SUCCESS(builder->on_ts_video_hevc(msg.get(), &avs));
+    }
+
+    // A header at the first keyframe and at the PPS change, and four keyframes.
+    EXPECT_EQ(2, target.video_headers_);
+    EXPECT_EQ(6, target.frames_);
+}
+
 // Test SrsSrtFrameBuilder::check_sps_pps_change functionality
 // This test covers the major use scenario: generating video sequence header when SPS/PPS change
 VOID TEST(SrsSrtFrameBuilderTest, CheckSpsPpsChange)
@@ -810,6 +924,81 @@ VOID TEST(SrsSrtFrameBuilderTest, OnHevcFrameWithIDR)
     uint32_t idr_length = buffer->read_4bytes();
     EXPECT_EQ(sizeof(idr_data), idr_length);
     EXPECT_EQ(0, memcmp(buffer->data() + buffer->pos(), idr_data, sizeof(idr_data)));
+}
+
+// An HEVC frame of a TS with B-frames, whose PTS is after its DTS, goes to RTMP
+// as an enhanced-RTMP CodedFrames tag with its composition time, as an H.264
+// frame carries it; a frame with its PTS at its DTS stays CodedFramesX.
+VOID TEST(SrsSrtFrameBuilderTest, OnHevcFrameKeepsCompositionTime)
+{
+    srs_error_t err;
+
+    MockSrtFrameTarget mock_target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&mock_target));
+    builder->assemble();
+
+    MockRtcAsyncCallRequest mock_req("test.vhost", "live", "stream1");
+    HELPER_EXPECT_SUCCESS(builder->initialize(&mock_req));
+
+    SrsUniquePtr<SrsTsChannel> channel(new SrsTsChannel());
+    channel->apply_ = SrsTsPidApplyVideo;
+    channel->stream_ = SrsTsStreamVideoHEVC;
+
+    // An IDR at 1000ms shown at 1080ms, then a B-frame at 1040ms shown at 1040ms.
+    uint8_t idr_data[] = {0x26, 0x01, 0xaf, 0x08, 0x40, 0x00, 0x00, 0x10};
+    uint8_t trail_data[] = {0x02, 0x01, 0xd0, 0x10, 0x20};
+
+    if (true) {
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage(channel.get(), NULL));
+        msg->sid_ = SrsTsPESStreamIdVideoCommon;
+        msg->dts_ = 90000;
+        msg->pts_ = 90000 + 80 * 90;
+
+        std::vector<std::pair<char *, int> > ipb_frames;
+        ipb_frames.push_back(std::make_pair((char *)idr_data, sizeof(idr_data)));
+        HELPER_EXPECT_SUCCESS(builder->on_hevc_frame(msg.get(), ipb_frames));
+
+        SrsMediaPacket *frame = mock_target.last_frame_;
+        ASSERT_TRUE(frame != NULL);
+        EXPECT_EQ(1000, frame->timestamp_);
+        // The header, fourcc, 3 bytes of composition time, then the NALU.
+        ASSERT_EQ(5 + 3 + 4 + (int)sizeof(idr_data), frame->size());
+
+        SrsBuffer buffer(frame->payload(), frame->size());
+        uint8_t header_byte = buffer.read_1bytes();
+        EXPECT_TRUE((header_byte & 0x80) != 0);
+        EXPECT_EQ(SrsVideoAvcFrameTypeKeyFrame, (header_byte >> 4) & 0x07);
+        EXPECT_EQ(SrsVideoHEVCFrameTraitPacketTypeCodedFrames, header_byte & 0x0f);
+        EXPECT_EQ(0x68766331, buffer.read_4bytes());
+        EXPECT_EQ(80, buffer.read_3bytes());
+        EXPECT_EQ((int)sizeof(idr_data), buffer.read_4bytes());
+        EXPECT_EQ(0, memcmp(buffer.data() + buffer.pos(), idr_data, sizeof(idr_data)));
+    }
+
+    if (true) {
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage(channel.get(), NULL));
+        msg->sid_ = SrsTsPESStreamIdVideoCommon;
+        msg->dts_ = 90000 + 40 * 90;
+        msg->pts_ = 90000 + 40 * 90;
+
+        std::vector<std::pair<char *, int> > ipb_frames;
+        ipb_frames.push_back(std::make_pair((char *)trail_data, sizeof(trail_data)));
+        HELPER_EXPECT_SUCCESS(builder->on_hevc_frame(msg.get(), ipb_frames));
+
+        SrsMediaPacket *frame = mock_target.last_frame_;
+        ASSERT_TRUE(frame != NULL);
+        EXPECT_EQ(1040, frame->timestamp_);
+        ASSERT_EQ(5 + 4 + (int)sizeof(trail_data), frame->size());
+
+        SrsBuffer buffer(frame->payload(), frame->size());
+        uint8_t header_byte = buffer.read_1bytes();
+        EXPECT_EQ(SrsVideoAvcFrameTypeInterFrame, (header_byte >> 4) & 0x07);
+        EXPECT_EQ(SrsVideoHEVCFrameTraitPacketTypeCodedFramesX, header_byte & 0x0f);
+        EXPECT_EQ(0x68766331, buffer.read_4bytes());
+        EXPECT_EQ((int)sizeof(trail_data), buffer.read_4bytes());
+    }
+
+    EXPECT_EQ(2, mock_target.on_frame_count_);
 }
 
 // Test SrsSrtFrameBuilder::on_ts_audio functionality
@@ -1660,6 +1849,151 @@ VOID TEST(SrsSrtSourceTest, OnPacketDistribution)
     srs_freep(consumer2);
 
     // Note: mock_bridge will be freed by source destructor
+}
+
+// A TS writer that keeps what it is given, to feed an SRT stream's TS packets.
+class MockSrtFormatTsWriter : public ISrsStreamWriter
+{
+public:
+    std::string data_;
+
+public:
+    MockSrtFormatTsWriter() {}
+    virtual ~MockSrtFormatTsWriter() {}
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        data_.append((const char *)buf, size);
+        if (nwrite) {
+            *nwrite = (ssize_t)size;
+        }
+        return srs_success;
+    }
+};
+
+// Mux nb_frames H.264 frames, the first a keyframe with its SPS and PPS
+// (320x240 baseline), and, when nb_audio_frames is not 0, that many AAC
+// frames in ADTS (LC, 44.1 kHz, stereo), one PES each, into TS.
+static srs_error_t srt_format_mux_ts(MockSrtFormatTsWriter *writer, int nb_frames, int nb_audio_frames)
+{
+    srs_error_t err = srs_success;
+
+    const uint8_t sps[] = {0x67, 0x42, 0xc0, 0x0d, 0xd9, 0x01, 0x41, 0xfb, 0x01, 0x10, 0x00, 0x00, 0x03, 0x00, 0x10, 0x00, 0x00, 0x03, 0x03, 0x20, 0xf1, 0x42, 0xa4, 0x80};
+    const uint8_t pps[] = {0x68, 0xcb, 0x83, 0xcb, 0x20};
+    const uint8_t start_code[] = {0x00, 0x00, 0x00, 0x01};
+    // An ADTS header of a 15-byte frame (7 header bytes, 8 payload bytes): LC, 44.1 kHz, 2 channels.
+    const uint8_t adts[] = {0xff, 0xf1, 0x50, 0x80, 0x01, 0xff, 0xfc, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    SrsTsContext encoder;
+    int nb = srs_max(nb_frames, nb_audio_frames);
+    for (int i = 0; i < nb; i++) {
+        int64_t dts = 90000 + i * 3600;
+        if (i < nb_frames) {
+            SrsTsMessage msg;
+            msg.sid_ = SrsTsPESStreamIdVideoCommon;
+            msg.dts_ = msg.pts_ = dts;
+            if (i == 0) {
+                msg.payload_->append((const char *)start_code, sizeof(start_code));
+                msg.payload_->append((const char *)sps, sizeof(sps));
+                msg.payload_->append((const char *)start_code, sizeof(start_code));
+                msg.payload_->append((const char *)pps, sizeof(pps));
+            }
+            msg.payload_->append((const char *)start_code, sizeof(start_code));
+            std::string slice(64, (char)0x11);
+            slice[0] = (i == 0) ? 0x65 : 0x41;
+            msg.payload_->append(slice.data(), (int)slice.length());
+            if ((err = encoder.encode(writer, &msg, SrsVideoCodecIdAVC, SrsAudioCodecIdAAC)) != srs_success) {
+                return srs_error_wrap(err, "video");
+            }
+        }
+        if (i < nb_audio_frames) {
+            SrsTsMessage msg;
+            msg.sid_ = SrsTsPESStreamIdAudioCommon;
+            msg.dts_ = msg.pts_ = dts;
+            msg.payload_->append((const char *)adts, sizeof(adts));
+            if ((err = encoder.encode(writer, &msg, SrsVideoCodecIdAVC, SrsAudioCodecIdAAC)) != srs_success) {
+                return srs_error_wrap(err, "audio");
+            }
+        }
+    }
+
+    return err;
+}
+
+// Feed the TS to the format in SRT packets of 7 TS packets, as an SRT publisher sends it.
+static srs_error_t srt_format_feed(SrsSrtFormat *format, const std::string &ts)
+{
+    srs_error_t err = srs_success;
+
+    const int nb_srt = 7 * SRS_TS_PACKET_SIZE;
+    for (size_t off = 0; off < ts.size(); off += nb_srt) {
+        int size = (int)srs_min((size_t)nb_srt, ts.size() - off);
+        SrsUniquePtr<SrsSrtPacket> pkt(new SrsSrtPacket());
+        pkt->wrap((char *)ts.data() + off, size);
+        if ((err = format->on_srt_packet(pkt.get())) != srs_success) {
+            return srs_error_wrap(err, "srt packet");
+        }
+    }
+
+    return err;
+}
+
+// An SRT stream keeps counting its frames after both codecs are known: 300
+// video and 300 audio frames report the first 289 of each to the stream.
+VOID TEST(SrsSrtFormatTest, FramesCountedAfterCodecsReported)
+{
+    srs_error_t err = srs_success;
+
+    MockSrtFormatTsWriter writer;
+    HELPER_ASSERT_SUCCESS(srt_format_mux_ts(&writer, 300, 300));
+    ASSERT_EQ(0, (int)(writer.data_.size() % SRS_TS_PACKET_SIZE));
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    MockSrsRequest req("__defaultVhost__", "live", "srt-frames");
+    SrsUniquePtr<SrsSrtFormat> format(new SrsSrtFormat());
+    format->stat_ = stat.get();
+    HELPER_ASSERT_SUCCESS(format->initialize(&req));
+
+    HELPER_ASSERT_SUCCESS(srt_format_feed(format.get(), writer.data_));
+    EXPECT_TRUE(format->video_codec_reported_);
+    EXPECT_TRUE(format->audio_codec_reported_);
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req.get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(320, stream->width_);
+    EXPECT_EQ(240, stream->height_);
+    EXPECT_EQ(289, stream->video_frames_->sugar_);
+    EXPECT_EQ(289, stream->audio_frames_->sugar_);
+
+    format->stat_ = NULL;
+}
+
+// A video-only SRT stream, whose audio codec is never known, counts its video
+// frames and no audio frames.
+VOID TEST(SrsSrtFormatTest, VideoOnlyFramesCounted)
+{
+    srs_error_t err = srs_success;
+
+    MockSrtFormatTsWriter writer;
+    HELPER_ASSERT_SUCCESS(srt_format_mux_ts(&writer, 300, 0));
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    MockSrsRequest req("__defaultVhost__", "live", "srt-video-only");
+    SrsUniquePtr<SrsSrtFormat> format(new SrsSrtFormat());
+    format->stat_ = stat.get();
+    HELPER_ASSERT_SUCCESS(format->initialize(&req));
+
+    HELPER_ASSERT_SUCCESS(srt_format_feed(format.get(), writer.data_));
+    EXPECT_TRUE(format->video_codec_reported_);
+    EXPECT_FALSE(format->audio_codec_reported_);
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req.get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(289, stream->video_frames_->sugar_);
+    EXPECT_EQ(0, stream->audio_frames_->sugar_);
+
+    format->stat_ = NULL;
 }
 
 #ifdef SRS_RTSP

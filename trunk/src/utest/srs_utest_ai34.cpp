@@ -6,7 +6,9 @@
 #include <srs_utest_ai34.hpp>
 
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_rtc_network.hpp>
 #include <srs_app_rtmp_source.hpp>
+#include <srs_app_server.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_codec.hpp>
@@ -16,6 +18,7 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai17.hpp>
+#include <srs_utest_ai23.hpp>
 #include <srs_utest_ai32.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
@@ -1647,7 +1650,7 @@ srs_error_t MockForwarderForFanOut::record(SrsMediaPacket *pkt, srs_error_t err)
     return srs_error_copy(err);
 }
 
-// An origin hub with mock HLS, DASH, DVR, encoder, exec and HDS, on the given source, request,
+// An origin hub with mock HLS, DASH, DVR, encoder and exec, on the given source, request,
 // config and hooks, so only its forward parts do real work.
 SrsOriginHub *utest_forward_hub(MockLiveSourceForOriginHub *source, ISrsRequest *req, ISrsAppConfig *config, ISrsHttpHooks *hooks)
 {
@@ -1663,10 +1666,6 @@ SrsOriginHub *utest_forward_hub(MockLiveSourceForOriginHub *source, ISrsRequest 
     hub->encoder_ = new MockMediaEncoderForOriginHub();
     srs_freep(hub->ng_exec_);
     hub->ng_exec_ = new MockNgExecForOriginHub();
-#ifdef SRS_HDS
-    srs_freep(hub->hds_);
-    hub->hds_ = new MockHdsForOriginHub();
-#endif
 
     hub->source_ = source;
     hub->req_ = req;
@@ -2191,6 +2190,7 @@ srs_error_t MockHttpClientForForwardBackend::initialize(std::string schema, std:
 
 srs_error_t MockHttpClientForForwardBackend::get(std::string path, std::string req, ISrsHttpMessage **ppmsg)
 {
+    exchange_->path_ = path;
     return srs_error_new(ERROR_NOT_SUPPORTED, "get");
 }
 
@@ -2965,4 +2965,403 @@ VOID TEST(ForwarderStatusTest, StatesFollowConnectPublishAndRetry)
     EXPECT_TRUE(stat.find_forward(id) == NULL);
 
     stat.clk_ = NULL;
+}
+
+// A packet over TCP goes out in one write, its 2-byte size in network order then its data, so the data never waits
+// for the peer to acknowledge the size.
+VOID TEST(RtcTcpNetworkTest, WritesSizeAndDataInOneWrite)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockProtocolReadWriterForTcpNetwork io;
+
+    SrsRtcTcpNetwork tcp_network(&conn, &delta);
+    tcp_network.update_sendonly_socket(&io);
+
+    char data[300];
+    for (int i = 0; i < (int)sizeof(data); i++) {
+        data[i] = (char)i;
+    }
+
+    ssize_t nwrite = 0;
+    HELPER_EXPECT_SUCCESS(tcp_network.write(data, sizeof(data), &nwrite));
+    EXPECT_EQ(300, (int)nwrite);
+    ASSERT_EQ(1, (int)io.written_data_.size());
+    EXPECT_TRUE(string("\x01\x2c", 2) + string(data, sizeof(data)) == io.written_data_[0]);
+
+    // The next packet is one more write.
+    HELPER_EXPECT_SUCCESS(tcp_network.write(data, 20, NULL));
+    ASSERT_EQ(2, (int)io.written_data_.size());
+    EXPECT_TRUE(string("\x00\x14", 2) + string(data, 20) == io.written_data_[1]);
+
+    // A failed write fails the packet.
+    srs_error_t write_err = srs_error_new(ERROR_SOCKET_WRITE, "mock write error");
+    io.set_write_error(write_err);
+    srs_freep(write_err);
+    HELPER_EXPECT_FAILED(tcp_network.write(data, sizeof(data), NULL));
+    EXPECT_EQ(2, (int)io.written_data_.size());
+
+    tcp_network.sendonly_skt_ = NULL;
+}
+
+MockServerTcpAcceptor::MockServerTcpAcceptor(SrsServer *server, ISrsListener *as)
+{
+    server_ = server;
+    as_ = as;
+    accepted_ = false;
+}
+
+MockServerTcpAcceptor::~MockServerTcpAcceptor()
+{
+}
+
+srs_error_t MockServerTcpAcceptor::on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
+{
+    srs_error_t err = server_->on_tcp_client(as_, stfd);
+    accepted_ = true;
+    if (err != srs_success) {
+        error_ = srs_error_desc(err);
+    }
+    return err;
+}
+
+// Reads the client's end of a connection until the server closes it or the timeout passes, and drops what it reads.
+// Returns 1 when the server has closed the socket, 0 when it is still open at the timeout, -1 on another error.
+static int utest_server_closed(SrsTcpConnection *client, srs_utime_t timeout)
+{
+    char buf[1024];
+    client->set_recv_timeout(timeout);
+
+    while (true) {
+        ssize_t nread = 0;
+        srs_error_t err = client->read(buf, sizeof(buf), &nread);
+        if (err == srs_success) {
+            continue;
+        }
+
+        int code = srs_error_code(err);
+        srs_freep(err);
+        if (code == ERROR_SOCKET_TIMEOUT) {
+            return 0;
+        }
+        return code == ERROR_SOCKET_READ ? 1 : -1;
+    }
+}
+
+// Connects a client to the server's HTTP port through the acceptor and sends the first bytes. The server keeps the
+// socket open while the client stays; when the client ends its side, the server's connection ends and closes it.
+static void utest_shared_port_closes_socket(SrsResourceManager *manager, MockServerTcpAcceptor *acceptor, const string &first, size_t nn_alive)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsTcpListener> listener(new SrsTcpListener(acceptor));
+    int port = srs_utest_random_port();
+    listener->set_endpoint("127.0.0.1", port);
+    HELPER_ASSERT_SUCCESS(listener->listen());
+
+    srs_netfd_t stfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 1 * SRS_UTIME_SECONDS, &stfd));
+    int fd = srs_netfd_fileno(stfd);
+    SrsUniquePtr<SrsTcpConnection> client(new SrsTcpConnection(stfd));
+    HELPER_ASSERT_SUCCESS(client->write((void *)first.data(), first.size(), NULL));
+    for (int i = 0; i < 100 && !acceptor->accepted_; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+
+    // The server took the client, and holds its connection and socket while the client stays.
+    ASSERT_TRUE(acceptor->accepted_);
+    EXPECT_STREQ("", acceptor->error_.c_str());
+    EXPECT_EQ(0, utest_server_closed(client.get(), 100 * SRS_UTIME_MILLISECONDS));
+    EXPECT_EQ(nn_alive, manager->size());
+
+    // The client ends its side: the server's connection ends and is freed, and its socket is closed with it.
+    ASSERT_EQ(0, shutdown(fd, SHUT_WR));
+    EXPECT_EQ(1, utest_server_closed(client.get(), 1 * SRS_UTIME_SECONDS));
+    for (int i = 0; i < 100 && !manager->empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    EXPECT_TRUE(manager->empty());
+}
+
+// With WebRTC over TCP on the HTTP server's port, the server wraps each client's socket to peek at its first bytes,
+// then hands the wrapper to a WebRTC or an HTTP connection. When that connection ends, the socket is closed, so a
+// server whose port is shared never runs out of sockets.
+VOID TEST(RtcTcpConnTest, SharedPortClosesSocketWithConnection)
+{
+    srs_error_t err;
+
+    // The server's connections go to a manager of their own, which frees each one when it ends.
+    SrsResourceManager manager("utest-shared-port");
+    manager.assemble();
+    HELPER_ASSERT_SUCCESS(manager.start());
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+    server->conn_manager_ = &manager;
+    server->reuse_rtc_over_server_ = true;
+
+    // The frame size and the STUN header of a binding request in an RFC 4571 frame, the start of a WebRTC client.
+    const char stun[] = {0x00, 0x6c, 0x00, 0x01, 0x00, 0x58, 0x21, 0x12, (char)0xa4, 0x42,
+                         0x48, 0x32, 0x6c, 0x61, 0x6b, 0x42, 0x35, 0x71, 0x42, 0x35, 0x4a, 0x71};
+    const char http[] = "GET / HTTP/1.1\r\n";
+
+    // A WebRTC client runs in an executor, which the manager frees when it ends, so the manager lists none.
+    if (true) {
+        MockServerTcpAcceptor acceptor(server.get(), server->http_listener_);
+        utest_shared_port_closes_socket(&manager, &acceptor, string(stun, sizeof(stun)), 0);
+    }
+
+    // An HTTP client's connection is in the manager until it ends.
+    if (true) {
+        MockServerTcpAcceptor acceptor(server.get(), server->http_listener_);
+        utest_shared_port_closes_socket(&manager, &acceptor, http, 1);
+    }
+}
+
+// The keys of the JSON body the hook posted, in order, joined by commas, and its type field, or
+// "(none)" when it has none.
+static void utest_hook_body(MockForwardBackendExchange &ex, std::string &keys, std::string &type)
+{
+    keys = "";
+    type = "(none)";
+
+    SrsUniquePtr<SrsJsonAny> body(SrsJsonAny::loads(ex.body_));
+    if (!body.get() || !body->is_object()) {
+        return;
+    }
+
+    SrsJsonObject *obj = body->to_object();
+    for (int i = 0; i < obj->count(); i++) {
+        keys += (i ? "," : "") + obj->key_at(i);
+    }
+
+    SrsJsonAny *prop = obj->get_property("type");
+    if (prop && prop->is_string()) {
+        type = prop->to_str();
+    }
+}
+
+// Each play hook names the player's type, the value /api/v1/clients lists, so a hook server tells
+// the protocols apart, such as an HLS session from an HTTP-FLV player of the same stream.
+VOID TEST(HttpHooksClientTypeTest, PlayHooksNameThePlayerType)
+{
+    srs_error_t err;
+
+    struct {
+        SrsRtmpConnType type;
+        const char *name;
+    } cases[] = {
+        {SrsRtmpConnPlay, "rtmp-play"},
+        {SrsFlvPlay, "flv-play"},
+        {SrsHlsPlay, "hls-play"},
+        {SrsTsPlay, "ts-play"},
+        {SrsMp3Play, "mp3-play"},
+        {SrsAacPlay, "aac-play"},
+        {SrsRtcConnPlay, "rtc-play"},
+        {SrsSrtConnPlay, "srt-play"},
+        {SrsRtspConnPlay, "rtsp-play"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockRequest req("__defaultVhost__", "live", "livestream");
+        std::string keys, type;
+
+        if (true) {
+            UtestForwardBackendHooks h;
+            HELPER_EXPECT_SUCCESS(h.hooks_.on_play("http://127.0.0.1:8085/api/v1/sessions", &req, cases[i].type));
+            utest_hook_body(h.factory_.exchange_, keys, type);
+            EXPECT_STREQ(cases[i].name, type.c_str()) << "on_play " << h.factory_.exchange_.body_;
+        }
+
+        if (true) {
+            UtestForwardBackendHooks h;
+            h.hooks_.on_stop("http://127.0.0.1:8085/api/v1/sessions", &req, cases[i].type, SrsStatisticStreamSnapshot());
+            utest_hook_body(h.factory_.exchange_, keys, type);
+            EXPECT_STREQ(cases[i].name, type.c_str()) << "on_stop " << h.factory_.exchange_.body_;
+        }
+
+    }
+}
+
+// Each publish hook names the publisher's type, the value /api/v1/clients lists.
+VOID TEST(HttpHooksClientTypeTest, PublishHooksNameThePublisherType)
+{
+    srs_error_t err;
+
+    struct {
+        SrsRtmpConnType type;
+        const char *name;
+    } cases[] = {
+        {SrsRtmpConnFMLEPublish, "fmle-publish"},
+        {SrsRtmpConnFlashPublish, "flash-publish"},
+        {SrsRtmpConnHaivisionPublish, "haivision-publish"},
+        {SrsRtcConnPublish, "rtc-publish"},
+        {SrsSrtConnPublish, "srt-publish"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockRequest req("__defaultVhost__", "live", "livestream");
+        std::string keys, type;
+
+        if (true) {
+            UtestForwardBackendHooks h;
+            HELPER_EXPECT_SUCCESS(h.hooks_.on_publish("http://127.0.0.1:8085/api/v1/streams", &req, cases[i].type));
+            utest_hook_body(h.factory_.exchange_, keys, type);
+            EXPECT_STREQ(cases[i].name, type.c_str()) << "on_publish " << h.factory_.exchange_.body_;
+        }
+
+        if (true) {
+            UtestForwardBackendHooks h;
+            h.hooks_.on_unpublish("http://127.0.0.1:8085/api/v1/streams", &req, cases[i].type, SrsStatisticStreamSnapshot());
+            utest_hook_body(h.factory_.exchange_, keys, type);
+            EXPECT_STREQ(cases[i].name, type.c_str()) << "on_unpublish " << h.factory_.exchange_.body_;
+        }
+
+    }
+}
+
+// The type is a new field after the client_id: every other field stays, in its order, so a hook
+// server that reads them works unchanged. The on_connect and on_close, sent before an RTMP client
+// says whether it publishes or plays, have no type.
+VOID TEST(HttpHooksClientTypeTest, TypeAddedToTheFields)
+{
+    srs_error_t err;
+
+    MockRequest req("__defaultVhost__", "live", "livestream");
+    std::string keys, type;
+    std::string url = "http://127.0.0.1:8085/api/v1/clients";
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        HELPER_EXPECT_SUCCESS(h.hooks_.on_publish(url, &req, SrsRtmpConnFMLEPublish));
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("server_id,service_id,action,client_id,type,ip,vhost,app,tcUrl,stream,param,stream_url", keys.c_str());
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        h.hooks_.on_unpublish(url, &req, SrsRtmpConnFMLEPublish, SrsStatisticStreamSnapshot());
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("server_id,service_id,action,client_id,type,ip,vhost,app,tcUrl,stream,param,stream_url", keys.c_str());
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        HELPER_EXPECT_SUCCESS(h.hooks_.on_play(url, &req, SrsRtmpConnPlay));
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("server_id,service_id,action,client_id,type,ip,vhost,app,stream,tcUrl,param,pageUrl,stream_url", keys.c_str());
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        h.hooks_.on_stop(url, &req, SrsRtmpConnPlay, SrsStatisticStreamSnapshot());
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("server_id,service_id,action,client_id,type,ip,vhost,app,tcUrl,stream,param,stream_url", keys.c_str());
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        HELPER_EXPECT_SUCCESS(h.hooks_.on_connect(url, &req));
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("(none)", type.c_str()) << "on_connect " << h.factory_.exchange_.body_;
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        h.hooks_.on_close(url, &req, 0, 0);
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("(none)", type.c_str()) << "on_close " << h.factory_.exchange_.body_;
+    }
+}
+
+// The param of the JSON body the hook posted, or "(none)" when it has none.
+static std::string utest_hook_param(MockForwardBackendExchange &ex)
+{
+    SrsUniquePtr<SrsJsonAny> body(SrsJsonAny::loads(ex.body_));
+    if (!body.get() || !body->is_object()) {
+        return "(none)";
+    }
+
+    SrsJsonAny *prop = body->to_object()->get_property("param");
+    if (!prop || !prop->is_string()) {
+        return "(none)";
+    }
+    return prop->to_str();
+}
+
+// Every hook's param is the client's query with its leading ?, as an RTMP or HTTP client's is,
+// whatever the protocol: SRS keeps the query of an SRT streamid or a WHIP URL with none, so a
+// hook server that strips the ? reads every protocol's param the same way. The keys and values
+// stay as they were, and on_hls_notify fills [param] with the same text, so a URL ending in
+// [ts_url][param] gets a query.
+VOID TEST(HttpHooksParamTest, ParamHasLeadingQuestionMark)
+{
+    srs_error_t err;
+
+    struct {
+        const char *param;
+        const char *want;
+    } cases[] = {
+        {"token=abc", "?token=abc"},
+        {"app=live&stream=livestream&token=abc", "?app=live&stream=livestream&token=abc"},
+        {"upstream=rtc", "?upstream=rtc"},
+        {"?token=abc", "?token=abc"},
+        {"?token=abc&upstream=rtc", "?token=abc&upstream=rtc"},
+        {"", ""},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockRequest req("__defaultVhost__", "live", "livestream");
+        req.param_ = cases[i].param;
+        std::string url = "http://127.0.0.1:8085/api/v1/hooks";
+        std::string want = cases[i].want;
+
+        UtestForwardBackendHooks h;
+        MockAppConfig config;
+        h.hooks_.config_ = &config;
+        MockForwardBackendExchange &ex = h.factory_.exchange_;
+
+        err = h.hooks_.on_connect(url, &req);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_connect " << ex.body_;
+
+        h.hooks_.on_close(url, &req, 0, 0);
+        EXPECT_STREQ("(none)", utest_hook_param(ex).c_str()) << "on_close has no param " << ex.body_;
+
+        err = h.hooks_.on_publish(url, &req, SrsSrtConnPublish);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_publish " << ex.body_;
+
+        h.hooks_.on_unpublish(url, &req, SrsSrtConnPublish, SrsStatisticStreamSnapshot());
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_unpublish " << ex.body_;
+
+        err = h.hooks_.on_play(url, &req, SrsRtcConnPlay);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_play " << ex.body_;
+
+        h.hooks_.on_stop(url, &req, SrsSrtConnPlay, SrsStatisticStreamSnapshot());
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_stop " << ex.body_;
+
+        err = h.hooks_.on_dvr(SrsContextId(), url, &req, "./objs/livestream.flv", SrsStatisticStreamSnapshot());
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_dvr " << ex.body_;
+
+        err = h.hooks_.on_hls(SrsContextId(), url, &req, "./objs/livestream-0.ts", "livestream-0.ts",
+                              "./objs/livestream.m3u8", "live/livestream.m3u8", 0, 10 * SRS_UTIME_SECONDS);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_hls " << ex.body_;
+
+        std::vector<std::string> urls;
+        err = h.hooks_.on_forward_backend(url, &req, urls);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_forward " << ex.body_;
+
+        err = h.hooks_.on_hls_notify(SrsContextId(), "http://127.0.0.1:8085/api/v1/hls/[app]/[ts_url][param]", &req, "livestream-0.ts", 0);
+        srs_freep(err);
+        EXPECT_STREQ(("/api/v1/hls/live/livestream-0.ts" + want).c_str(), ex.path_.c_str()) << "on_hls_notify";
+
+        h.hooks_.config_ = NULL;
+    }
 }

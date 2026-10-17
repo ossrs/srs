@@ -12,7 +12,6 @@
 */
 #include <srs_utest.hpp>
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_coworkers.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_heartbeat.hpp>
@@ -111,6 +110,8 @@ public:
     // The error logs and the tag of the last one.
     int error_count_;
     std::string last_error_tag_;
+    // The warning logs.
+    int warn_count_;
 
 public:
     MockLogForSignal();
@@ -264,27 +265,6 @@ public:
 public:
     virtual ISrsListener *set_endpoint(const std::string &i, int p);
     virtual ISrsListener *set_label(const std::string &label);
-    virtual srs_error_t listen();
-    virtual void close();
-};
-
-// Mock HTTP-FLV stream caster for testing how SrsServer::listen() starts it and dispose() closes it.
-class MockHttpFlvListenerForServer : public SrsHttpFlvListener
-{
-public:
-    int assemble_count_;
-    int initialize_count_;
-    SrsConfDirective *initialize_conf_;
-    int listen_count_;
-    int close_count_;
-
-public:
-    MockHttpFlvListenerForServer();
-    virtual ~MockHttpFlvListenerForServer();
-
-public:
-    virtual void assemble();
-    virtual srs_error_t initialize(SrsConfDirective *c);
     virtual srs_error_t listen();
     virtual void close();
 };
@@ -709,6 +689,7 @@ public:
     int unsubscribe_count_;
     ISrsReloadHandler *last_subscribed_handler_;
     SrsConfDirective *vhost_directive_;
+    bool origin_cluster_;
 
 public:
     MockAppConfigForRtmpConn();
@@ -719,7 +700,26 @@ public:
     virtual void unsubscribe(ISrsReloadHandler *handler);
     virtual SrsConfDirective *get_vhost(std::string vhost, bool try_default_vhost = true);
     virtual bool get_vhost_is_edge(std::string vhost);
+    virtual bool get_vhost_origin_cluster(std::string vhost);
     void reset();
+};
+
+// Mock RTMP server of a player that has sent messages SRS has not read yet.
+class MockRtmpServerForUnreadMessages : public MockRtmpServer
+{
+public:
+    // The messages the player has sent and SRS has not read; -1 for a player that never stops sending.
+    int unread_;
+    int recv_count_;
+    srs_utime_t recv_timeout_;
+
+public:
+    MockRtmpServerForUnreadMessages();
+    virtual ~MockRtmpServerForUnreadMessages();
+
+public:
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_error_t recv_message(SrsRtmpCommonMessage **pmsg);
 };
 
 // Mock ISrsCoroutine for testing SrsRtmpConn::service_cycle()
@@ -866,11 +866,11 @@ public:
 public:
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
@@ -927,11 +927,11 @@ public:
 public:
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
@@ -1004,11 +1004,11 @@ public:
 public:
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);

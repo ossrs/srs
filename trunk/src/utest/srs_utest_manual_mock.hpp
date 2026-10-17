@@ -316,6 +316,8 @@ public:
     SrsRtpPacket *last_sent_packet_;
     // Each sent packet encoded at send time, because a retransmission may be a temporary that is freed after the call.
     std::vector<std::string> sent_packets_;
+    // Each RTCP packet sent, as its bytes.
+    std::vector<std::string> sent_rtcps_;
 
 public:
     MockRtcPacketSender();
@@ -323,6 +325,7 @@ public:
 
 public:
     virtual srs_error_t do_send_packet(SrsRtpPacket *pkt);
+    virtual srs_error_t send_rtcp(char *data, int nb_data);
     void set_send_packet_error(srs_error_t err);
 };
 
@@ -365,7 +368,7 @@ public:
 
 public:
     virtual srs_error_t initialize(ISrsRequest *req);
-    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio);
+    virtual srs_error_t on_rtp_packet(SrsRtcRecvTrack *track, SrsRtpPacket *pkt, bool is_audio);
     void set_initialize_error(srs_error_t err);
     void set_on_rtp_packet_error(srs_error_t err);
 };
@@ -402,7 +405,6 @@ public:
     bool rtc_server_enabled_;
     bool rtc_enabled_;
     bool rtc_init_rate_from_sdp_;
-    bool asprocess_;
     std::string srt_default_mode_;
 
 public:
@@ -436,7 +438,6 @@ public:
         rtc_server_enabled_ = false;
         rtc_enabled_ = false;
         rtc_init_rate_from_sdp_ = false;
-        asprocess_ = false;
         srt_default_mode_ = "request";
     }
     virtual ~MockAppConfig()
@@ -490,7 +491,6 @@ public:
     virtual std::string get_pid_file() { return ""; }
     virtual std::string get_server_id() { return ""; }
     virtual bool empty_ip_ok() { return false; }
-    virtual bool get_asprocess() { return asprocess_; }
     virtual srs_utime_t get_grace_start_wait() { return 0; }
     virtual srs_utime_t get_grace_final_wait() { return 0; }
     virtual bool is_force_grace_quit() { return false; }
@@ -505,6 +505,7 @@ public:
     virtual std::vector<std::string> get_https_api_listens() { return std::vector<std::string>(); }
     virtual std::string get_https_api_ssl_key() { return ""; }
     virtual std::string get_https_api_ssl_cert() { return ""; }
+    virtual bool get_http_api_crossdomain() { return false; }
     virtual bool get_raw_api() { return false; }
     virtual bool get_raw_api_allow_reload() { return false; }
     virtual bool get_raw_api_allow_query() { return false; }
@@ -602,13 +603,8 @@ public:
     virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost) { return 20000 * SRS_UTIME_MILLISECONDS; }
     virtual srs_utime_t get_publish_normal_timeout(std::string vhost) { return 5000 * SRS_UTIME_MILLISECONDS; }
     virtual srs_utime_t get_publish_kickoff_for_idle(std::string vhost) { return 0; }
-    virtual bool get_refer_enabled(std::string vhost) { return false; }
-    virtual SrsConfDirective *get_refer_all(std::string vhost) { return NULL; }
-    virtual SrsConfDirective *get_refer_play(std::string vhost) { return NULL; }
-    virtual SrsConfDirective *get_refer_publish(std::string vhost) { return NULL; }
     virtual bool get_vhost_origin_cluster(std::string vhost) { return false; }
     virtual std::vector<std::string> get_vhost_coworkers(std::string vhost) { return std::vector<std::string>(); }
-    virtual bool get_vhost_edge_token_traverse(std::string vhost) { return false; }
     virtual SrsConfDirective *get_vhost_edge_origin(std::string vhost) { return NULL; }
     virtual SrsConfDirective *get_vhost_on_connect(std::string vhost) { return NULL; }
     virtual SrsConfDirective *get_vhost_on_close(std::string vhost) { return NULL; }
@@ -703,7 +699,6 @@ public:
     virtual srs_utime_t get_rtc_pli_for_rtmp(std::string vhost) { return 6 * SRS_UTIME_SECONDS; }
     virtual int get_rtc_opus_bitrate(std::string vhost) { return 48000; }
     virtual bool get_vhost_is_edge(std::string vhost) { return false; }
-    virtual bool get_atc_auto(std::string vhost) { return false; }
     virtual bool get_reduce_sequence_header(std::string vhost) { return false; }
     virtual bool get_parse_sps(std::string vhost) { return true; }
     // DVR methods
@@ -850,6 +845,7 @@ class MockSecurity : public ISrsSecurity
 public:
     srs_error_t check_error_;
     int check_count_;
+    SrsRtmpConnType check_type_;
 
 public:
     MockSecurity();
@@ -1328,17 +1324,19 @@ public:
     int on_stop_count_;
     std::vector<std::pair<std::string, ISrsRequest *> > on_unpublish_calls_;
     int on_unpublish_count_;
+    // The stream of the last on_unpublish or on_stop.
+    SrsStatisticStreamSnapshot last_stream_;
 
 public:
     MockHttpHooks();
     virtual ~MockHttpHooks();
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
@@ -1355,6 +1353,7 @@ public:
     srs_error_t initialize_error_;
     int on_hls_request_sh_count_;
     srs_error_t on_hls_request_sh_error_;
+    int on_dash_request_sh_count_;
     int on_forwarder_start_count_;
     srs_error_t on_forwarder_start_error_;
     int on_dvr_request_sh_count_;
@@ -1375,6 +1374,7 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_dvr_request_sh();
     virtual srs_error_t on_hls_request_sh();
+    virtual srs_error_t on_dash_request_sh();
     virtual srs_error_t on_forwarder_start(SrsForwarder *forwarder);
     void set_initialize_error(srs_error_t err);
     void set_on_hls_request_sh_error(srs_error_t err);

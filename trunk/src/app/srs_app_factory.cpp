@@ -6,10 +6,10 @@
 
 #include <srs_app_factory.hpp>
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_app_edge.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_fragment.hpp>
 #ifdef SRS_GB28181

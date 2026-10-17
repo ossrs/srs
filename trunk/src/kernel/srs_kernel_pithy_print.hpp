@@ -33,7 +33,7 @@ public:
     srs_utime_t age_;
 
 public:
-    SrsStageInfo(int _stage_id, double ratio = 1.0);
+    SrsStageInfo(int stage_id, double ratio = 1.0);
     virtual ~SrsStageInfo();
     void assemble(); // Construct object, to avoid call function in constructor.
     virtual void update_print_time();
@@ -161,7 +161,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsPithyPrint(int _stage_id);
+    SrsPithyPrint(int stage_id);
     void assemble(); // Construct object, to avoid call function in constructor.
     // Create a printer for the stage, the only construction site of this class.
     static SrsPithyPrint *create(int stage_id);

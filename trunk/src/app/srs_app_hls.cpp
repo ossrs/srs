@@ -73,6 +73,25 @@ string srs_hls_build_key_url(const string &hls_key_url, const string &key_file)
     return hls_key_url + key_file;
 }
 
+// Build the key URI of the playlist. With no hls_key_url, the URI is the key file's path from
+// the playlist's dir, so it resolves to the key wherever the playlist is served; a key outside
+// that dir keeps the key file's path.
+// @param key_file_path The dir on disk the key file is written in, hls_key_file_path.
+// @param m3u8_dir The dir on disk of the playlist.
+string srs_hls_build_key_uri(const string &hls_key_url, const string &key_file_path, const string &key_file, const string &m3u8_dir)
+{
+    if (!hls_key_url.empty()) {
+        return srs_hls_build_key_url(hls_key_url, key_file);
+    }
+
+    string key_fullpath = key_file_path + "/" + key_file;
+    string dir = m3u8_dir + "/";
+    if (srs_strings_starts_with(key_fullpath, dir)) {
+        return key_fullpath.substr(dir.length());
+    }
+    return key_file;
+}
+
 SrsHlsSegment::SrsHlsSegment(SrsTsContext *c, SrsAudioCodecId ac, SrsVideoCodecId vc, ISrsFileWriter *w)
 {
     sequence_no_ = 0;
@@ -234,6 +253,11 @@ void SrsHlsM4sSegment::config_cipher(unsigned char *key, unsigned char *iv)
     // TODO: set key and iv to mp4 box
     enc_.config_cipher(key, iv);
     memcpy(this->iv_, iv, 16);
+}
+
+void SrsHlsM4sSegment::config_video_cipher(SrsVideoCodecId codec, int nalu_length_size)
+{
+    enc_.config_video_cipher(codec, nalu_length_size);
 }
 
 srs_error_t SrsHlsM4sSegment::write(SrsMediaPacket *shared_msg, SrsFormat *format)
@@ -429,9 +453,14 @@ SrsHlsFmp4Muxer::SrsHlsFmp4Muxer()
     video_track_id_ = 0;
     audio_track_id_ = 0;
     init_mp4_ready_ = false;
+    sequence_header_pending_ = false;
 
     memset(key_, 0, 16);
+    memset(kid_, 0, 16);
     memset(iv_, 0, 16);
+    iv_ready_ = false;
+    cipher_vcodec_ = SrsVideoCodecIdAVC;
+    cipher_nalu_length_size_ = 4;
 
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
@@ -470,6 +499,15 @@ void SrsHlsFmp4Muxer::dispose()
             srs_freep(err);
         }
     }
+
+    // The init file, by the path write_init_mp4 wrote it to.
+    if (!init_mp4_file_.empty() && path->exists(init_mp4_file_)) {
+        if ((err = path->unlink(init_mp4_file_)) != srs_success) {
+            srs_warn("dispose: ignore remove init mp4 failed, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+    }
+    init_mp4_file_ = "";
 
     srs_trace("gracefully dispose hls %s", req_ ? req_->get_stream_url().c_str() : "");
 }
@@ -566,12 +604,28 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
         return srs_error_wrap(err, "Create init mp4 dir failed, dir=%s", init_dir.c_str());
     }
 
-    SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment(writer_));
+    // The init file has a writer of its own: an audio sequence header after the first video
+    // frame, such as an MP3 stream's first frame, writes it again while a segment is open.
+    SrsUniquePtr<ISrsFileWriter> init_writer(app_factory_->create_file_writer());
+    SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment(init_writer.get()));
 
     init_mp4->set_path(filepath);
 
     if (hls_keys_) {
+        if ((err = make_iv()) != srs_success) {
+            return srs_error_wrap(err, "make iv");
+        }
         init_mp4->config_cipher(kid_, iv_, 16);
+
+        // Each segment opened from now on encrypts its video by this sequence header, and so
+        // does the open one, which encrypts its samples when it is reaped.
+        if (has_video && format->vcodec_) {
+            cipher_vcodec_ = format->vcodec_->id_;
+            cipher_nalu_length_size_ = format->vcodec_->NAL_unit_length_ + 1;
+            if (current_) {
+                current_->config_video_cipher(cipher_vcodec_, cipher_nalu_length_size_);
+            }
+        }
     }
 
     if (has_video && has_audio) {
@@ -593,6 +647,7 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
     if ((err = init_mp4->rename()) != srs_success) {
         return srs_error_wrap(err, "rename hls init.mp4");
     }
+    init_mp4_file_ = init_mp4->fullpath();
 
     // the ts url, relative or absolute url.
     // TODO: FIXME: Use url and path manager.
@@ -604,21 +659,11 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
         mp4_path = mp4_path.substr(1);
     }
 
-    string init_mp4_uri = hls_entry_prefix_;
-    if (!hls_entry_prefix_.empty() && !srs_strings_ends_with(hls_entry_prefix_, "/")) {
-        init_mp4_uri += "/";
+    string init_mp4_uri = entry_prefix_uri() + mp4_path;
 
-        // add the http dir to uri.
-        string http_dir = path.filepath_dir(m3u8_url_);
-        if (!http_dir.empty()) {
-            init_mp4_uri += http_dir + "/";
-        }
-    }
-    init_mp4_uri += mp4_path;
-
-    // Convert to relative URI for m3u8 playlist.
-    // TODO: Need to resolve the relative URI from m3u8 and init file.
-    init_mp4_uri_ = path.filepath_base(init_file);
+    // The playlist lists the init file after hls_entry_prefix, by its path from the playlist's
+    // dir, for the default [app]/[stream]/init.mp4 is in a dir per stream.
+    init_mp4_uri_ = playlist_uri(init_mp4->fullpath());
 
     // use async to call the http hooks, for it will cause thread switch.
     if ((err = async_->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req_, init_mp4->fullpath(),
@@ -756,7 +801,11 @@ srs_error_t SrsHlsFmp4Muxer::update_config(ISrsRequest *r)
         return srs_error_wrap(err, "create dir");
     }
 
-    writer_ = app_factory_->create_file_writer();
+    // One writer for every publish, as a segment left open by a failed close at the unpublish
+    // still writes with it.
+    if (!writer_) {
+        writer_ = app_factory_->create_file_writer();
+    }
 
     return err;
 }
@@ -798,7 +847,10 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     current_ = app_factory_->create_hls_m4s_segment(writer_);
     current_->sequence_no_ = sequence_no_++;
 
+    // A segment that fails to open has no file to write, so it's dropped, and the next frame
+    // opens a new one.
     if ((err = write_hls_key()) != srs_success) {
+        srs_freep(current_);
         return srs_error_wrap(err, "write hls key");
     }
 
@@ -818,20 +870,17 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
         m4s_url = m4s_url.substr(1);
     }
 
-    current_->uri_ += hls_entry_prefix_;
-    if (!hls_entry_prefix_.empty() && !srs_strings_ends_with(hls_entry_prefix_, "/")) {
-        current_->uri_ += "/";
+    current_->uri_ += entry_prefix_uri() + m4s_url;
 
-        // add the http dir to uri.
-        SrsPath path;
-        string http_dir = path.filepath_dir(m3u8_url_);
-        if (!http_dir.empty()) {
-            current_->uri_ += http_dir + "/";
-        }
+    if ((err = current_->initialize(basetime, video_track_id_, audio_track_id_, sequence_no_, m4s_path)) != srs_success) {
+        srs_freep(current_);
+        return srs_error_wrap(err, "initialize segment");
     }
-    current_->uri_ += m4s_url;
 
-    current_->initialize(basetime, video_track_id_, audio_track_id_, sequence_no_, m4s_path);
+    if (sequence_header_pending_) {
+        current_->set_sequence_header(true);
+        sequence_header_pending_ = false;
+    }
 
     return err;
 }
@@ -893,8 +942,44 @@ bool SrsHlsFmp4Muxer::is_segment_open()
     return current_ != NULL;
 }
 
+std::string SrsHlsFmp4Muxer::entry_prefix_uri()
+{
+    std::string uri = hls_entry_prefix_;
+    if (!hls_entry_prefix_.empty() && !srs_strings_ends_with(hls_entry_prefix_, "/")) {
+        uri += "/";
+
+        // add the http dir to uri.
+        SrsPath path;
+        string http_dir = path.filepath_dir(m3u8_url_);
+        if (!http_dir.empty()) {
+            uri += http_dir + "/";
+        }
+    }
+    return uri;
+}
+
+std::string SrsHlsFmp4Muxer::playlist_uri(std::string fullpath)
+{
+    std::string m3u8_dir = m3u8_dir_ + "/";
+    if (srs_strings_starts_with(fullpath, m3u8_dir)) {
+        return entry_prefix_uri() + fullpath.substr(m3u8_dir.length());
+    }
+
+    SrsPath path;
+    return entry_prefix_uri() + path.filepath_base(fullpath);
+}
+
 srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 {
+    // As with TS, the segment with a sequence header gets a discontinuity in the playlist.
+    // A segment opens at the first frame, after the sequence headers of a publish, so the
+    // first segment of each publish takes it at its open.
+    if (!is_segment_open()) {
+        sequence_header_pending_ = true;
+        return srs_success;
+    }
+
+    current_->set_sequence_header(true);
     return srs_success;
 }
 
@@ -998,19 +1083,36 @@ srs_error_t SrsHlsFmp4Muxer::do_segment_close(uint64_t dts)
     return err;
 }
 
+srs_error_t SrsHlsFmp4Muxer::make_iv()
+{
+    srs_error_t err = srs_success;
+
+    // The init file holds the constant IV of cbcs, which every segment encrypts its samples
+    // with, so the IV is made once, before the init file, and kept for each new key.
+    if (!iv_ready_) {
+        if (RAND_bytes(iv_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand iv failed");
+        }
+        iv_ready_ = true;
+    }
+
+    return err;
+}
+
 srs_error_t SrsHlsFmp4Muxer::write_hls_key()
 {
     srs_error_t err = srs_success;
 
+    if (hls_keys_ && (err = make_iv()) != srs_success) {
+        return srs_error_wrap(err, "make iv");
+    }
+
     if (hls_keys_ && current_->sequence_no_ % hls_fragments_per_key_ == 0) {
-        if (RAND_bytes(key_, 16) < 0) {
-            return srs_error_wrap(err, "rand key failed.");
+        if (RAND_bytes(key_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand key failed");
         }
-        if (RAND_bytes(kid_, 16) < 0) {
-            return srs_error_wrap(err, "rand kid failed.");
-        }
-        if (RAND_bytes(iv_, 16) < 0) {
-            return srs_error_wrap(err, "rand iv failed.");
+        if (RAND_bytes(kid_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand kid failed");
         }
 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
@@ -1032,6 +1134,7 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
 
     if (hls_keys_) {
         current_->config_cipher(key_, iv_);
+        current_->config_video_cipher(cipher_vcodec_, cipher_nalu_length_size_);
     }
 
     return err;
@@ -1149,7 +1252,7 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
 
-        string key_path = srs_hls_build_key_url(hls_key_url_, key_file);
+        string key_path = srs_hls_build_key_uri(hls_key_url_, hls_key_file_path_, key_file, m3u8_dir_);
 
         ss << "#EXT-X-KEY:METHOD=SAMPLE-AES,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
     }
@@ -1160,16 +1263,13 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
     ss << "#EXTINF:" << srsu2msi(segment->duration()) / 1000.0 << ", no desc" << SRS_CONSTS_LF;
 
     // {file name}\n
-    // TODO get segment name in relative path.
-    SrsPath path;
     std::string seg_uri = segment->fullpath();
     if (true) {
         std::stringstream stemp;
         stemp << srsu2msi(segment->duration());
         seg_uri = srs_strings_replace(seg_uri, "[duration]", stemp.str());
     }
-    // ss << segment->uri << SRS_CONSTS_LF;
-    ss << path.filepath_base(seg_uri) << SRS_CONSTS_LF;
+    ss << playlist_uri(seg_uri) << SRS_CONSTS_LF;
 
     return err;
 }
@@ -1385,6 +1485,20 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
         return srs_error_wrap(err, "create dir");
     }
 
+    // A segment the last publish left open holds the writer freed below, so drop it and its temp
+    // file. It is left open when the unpublish failed to write it, or when the publish failed to
+    // write its key; its last data may be incomplete, so it is not listed.
+    if (current_) {
+        if ((err = current_->unlink_tmpfile()) != srs_success) {
+            srs_warn("ignore unlink tmp ts failed %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        srs_freep(current_);
+    }
+
+    // The last publish's writer, which no segment uses now: a segment in the window writes no
+    // more.
+    srs_freep(writer_);
     if (hls_keys_) {
         writer_ = app_factory_->create_enc_file_writer();
     } else {
@@ -1936,11 +2050,11 @@ srs_error_t SrsHlsMuxer::write_hls_key()
     srs_error_t err = srs_success;
 
     if (hls_keys_ && current_->sequence_no_ % hls_fragments_per_key_ == 0) {
-        if (RAND_bytes(key_, 16) < 0) {
-            return srs_error_wrap(err, "rand key failed.");
+        if (RAND_bytes(key_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand key failed");
         }
-        if (RAND_bytes(iv_, 16) < 0) {
-            return srs_error_wrap(err, "rand iv failed.");
+        if (RAND_bytes(iv_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand iv failed");
         }
 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
@@ -2078,7 +2192,7 @@ srs_error_t SrsHlsMuxer::do_refresh_m3u8_segment(SrsHlsSegment *segment, std::st
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
 
-        string key_path = srs_hls_build_key_url(hls_key_url_, key_file);
+        string key_path = srs_hls_build_key_uri(hls_key_url_, hls_key_file_path_, key_file, m3u8_dir_);
 
         ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
     }
@@ -2588,8 +2702,9 @@ srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsMediaPacket *msg, SrsForm
         has_video_sh_ = true;
     }
 
+    // MP3 has no sequence header: its first frame stands for one, with no AAC extra data.
     if (msg->is_audio()) {
-        if (format->acodec_->aac_extra_data_.size() == 0) {
+        if (format->acodec_->id_ == SrsAudioCodecIdAAC && format->acodec_->aac_extra_data_.size() == 0) {
             srs_trace("the audio codec's aac extra data is empty");
             return err;
         }
@@ -2644,6 +2759,7 @@ SrsHls::SrsHls()
     enabled_ = false;
     disposable_ = false;
     unpublishing_ = false;
+    suspended_ = false;
     async_reload_ = reloading_ = false;
     last_update_time_ = 0;
 
@@ -2774,8 +2890,31 @@ srs_error_t SrsHls::cycle()
     }
     disposable_ = false;
 
-    srs_trace("hls cycle to dispose hls %s, timeout=%dms", req_->get_stream_url().c_str(), hls_dispose);
+    srs_trace("hls cycle to dispose hls %s, timeout=%dms", req_->get_stream_url().c_str(), srsu2msi(hls_dispose));
+    bool publishing = enabled_;
     dispose();
+
+    // An idle publisher is still published, so suspend HLS for its next media to resume it.
+    suspended_ = publishing;
+
+    return err;
+}
+
+srs_error_t SrsHls::resume()
+{
+    srs_error_t err = srs_success;
+
+    suspended_ = false;
+    srs_trace("hls resume %s, media after the dispose", req_->get_stream_url().c_str());
+
+    if ((err = on_publish()) != srs_success) {
+        return srs_error_wrap(err, "hls publish");
+    }
+
+    // The sequence headers came before the dispose, so feed them again.
+    if ((err = hub_->on_hls_request_sh()) != srs_success) {
+        return srs_error_wrap(err, "hls request sh");
+    }
 
     return err;
 }
@@ -2822,6 +2961,7 @@ srs_error_t SrsHls::on_publish()
 
     // update the hls time, for hls_dispose.
     last_update_time_ = srs_time_now_cached();
+    suspended_ = false;
 
     // support multiple publish.
     if (enabled_) {
@@ -2851,6 +2991,9 @@ void SrsHls::on_unpublish()
 {
     srs_error_t err = srs_success;
 
+    // The stream is unpublished, so no media resumes a suspended HLS.
+    suspended_ = false;
+
     // support multiple unpublish.
     if (!enabled_) {
         return;
@@ -2873,6 +3016,10 @@ void SrsHls::on_unpublish()
 srs_error_t SrsHls::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
+
+    if (suspended_ && (err = resume()) != srs_success) {
+        return srs_error_wrap(err, "hls: resume");
+    }
 
     // If not able to transmux to HLS, ignore.
     if (!enabled_ || unpublishing_)
@@ -2920,6 +3067,10 @@ srs_error_t SrsHls::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 srs_error_t SrsHls::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
+
+    if (suspended_ && (err = resume()) != srs_success) {
+        return srs_error_wrap(err, "hls: resume");
+    }
 
     // If not able to transmux to HLS, ignore.
     if (!enabled_ || unpublishing_)

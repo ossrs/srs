@@ -10,6 +10,7 @@ A task file is the plan, the state, and the log of one complex task. The main ag
 ## Skill Dependencies
 
 - `skills/srs-develop/SKILL.md` — product background when planning, and every subagent follows it for its one task (Task Router, TDD, tests, commit format).
+- `skills/internal-audit-for-srs/SKILL.md` — the review's audit of each pick before the user reads it: a fresh subagent reads the code before the message and the tests, and reports findings with a scenario each. It never fixes.
 
 ## Git Rules
 

@@ -26,8 +26,8 @@
 class MockSrsFile
 {
 public:
-    SrsBuffer *_buf;
-    SrsSimpleStream _data;
+    SrsBuffer *buf_;
+    SrsSimpleStream data_;
 
 public:
     MockSrsFile();
@@ -119,7 +119,7 @@ public:
     // for mock
 public:
     // append data to current offset, modify the offset and size.
-    void mock_append_data(const char *_data, int _size);
+    void mock_append_data(const char *data, int size);
     void mock_reset_offset();
 };
 

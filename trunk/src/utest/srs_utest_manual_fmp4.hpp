@@ -26,6 +26,11 @@ public:
 class MockSrsFormat : public SrsFormat
 {
 public:
+    // The format's raw_ points into the last tag it parsed, so the tags live as long as it.
+    uint8_t video_raw_[46];
+    uint8_t audio_raw_[4];
+
+public:
     MockSrsFormat();
     virtual ~MockSrsFormat();
 };

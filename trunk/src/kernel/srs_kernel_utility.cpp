@@ -539,6 +539,17 @@ bool SrsPath::exists(std::string path)
     return false;
 }
 
+bool SrsPath::is_dir(std::string path)
+{
+    struct stat st;
+
+    if (stat(path.c_str(), &st) == 0) {
+        return S_ISDIR(st.st_mode);
+    }
+
+    return false;
+}
+
 srs_error_t SrsPath::unlink(std::string path)
 {
     // Define the directories that are forbidden to delete.
@@ -765,9 +776,9 @@ std::string SrsRand::gen_str(int len)
 
 long SrsRand::integer()
 {
-    static bool _random_initialized = false;
-    if (!_random_initialized) {
-        _random_initialized = true;
+    static bool random_initialized = false;
+    if (!random_initialized) {
+        random_initialized = true;
         ::srandom((unsigned long)(srs_time_now_realtime() | (::getpid() << 13)));
     }
 
@@ -947,7 +958,9 @@ bool srs_net_is_valid_endpoint(std::string endpoint)
         return false;
     }
 
-    if (port <= 0) {
+    // A port is 16 bits, so a larger one is not refused by every resolver: some
+    // cut it to 16 bits and would listen on another port.
+    if (port <= 0 || port > 65535) {
         return false;
     }
 

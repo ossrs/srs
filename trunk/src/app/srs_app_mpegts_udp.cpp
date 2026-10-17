@@ -111,12 +111,18 @@ SrsMpegtsQueue::SrsMpegtsQueue()
 
 SrsMpegtsQueue::~SrsMpegtsQueue()
 {
+    clear();
+}
+
+void SrsMpegtsQueue::clear()
+{
     std::map<int64_t, SrsMediaPacket *>::iterator it;
     for (it = msgs_.begin(); it != msgs_.end(); ++it) {
         SrsMediaPacket *msg = it->second;
         srs_freep(msg);
     }
     msgs_.clear();
+    nb_audios_ = nb_videos_ = 0;
 }
 
 srs_error_t SrsMpegtsQueue::push(SrsMediaPacket *msg)
@@ -434,11 +440,19 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
         return srs_error_wrap(err, "connect");
     }
 
-    // ts tbn to flv tbn.
+    // ts tbn to flv tbn. A frame shown after its decode time, as with
+    // B-frames, keeps the difference as its composition time; a pts before
+    // the dts, which no valid stream has, gets none. The sequence header has
+    // no composition time.
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
-    uint32_t pts = (uint32_t)(msg->dts_ / 90);
+    uint32_t cts = (msg->pts_ > msg->dts_) ? (uint32_t)((msg->pts_ - msg->dts_) / 90) : 0;
+    uint32_t pts = dts + cts;
 
-    // send each frame.
+    // A PES is one access unit: its NALUs, such as the SEI before an IDR and
+    // every slice of a frame, go as one message, a keyframe when it has an IDR.
+    std::string ibps;
+    bool keyframe = false;
+
     while (!avs->empty()) {
         char *frame = NULL;
         int frame_size = 0;
@@ -469,7 +483,7 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
             h264_sps_changed_ = true;
             h264_sps_ = sps;
 
-            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+            if ((err = write_h264_sps_pps(dts, dts)) != srs_success) {
                 return srs_error_wrap(err, "write sps/pps");
             }
             continue;
@@ -488,18 +502,31 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
             h264_pps_changed_ = true;
             h264_pps_ = pps;
 
-            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+            if ((err = write_h264_sps_pps(dts, dts)) != srs_success) {
                 return srs_error_wrap(err, "write sps/pps");
             }
             continue;
         }
 
-        // ibp frame.
-        // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
+        // ibp frame, joined to the other NALUs of the access unit.
         srs_info("mpegts: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
-            return srs_error_wrap(err, "write frame");
+        std::string ibp;
+        if ((err = avc_->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
+            return srs_error_wrap(err, "mux frame");
         }
+        ibps.append(ibp);
+
+        if (nal_unit_type == SrsAvcNaluTypeIDR) {
+            keyframe = true;
+        }
+    }
+
+    if (ibps.empty()) {
+        return err;
+    }
+
+    if ((err = write_h264_ipb_frame(ibps, keyframe, dts, pts)) != srs_success) {
+        return srs_error_wrap(err, "write frame");
     }
 
     return err;
@@ -547,7 +574,7 @@ srs_error_t SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     return err;
 }
 
-srs_error_t SrsMpegtsOverUdp::write_h264_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts)
+srs_error_t SrsMpegtsOverUdp::write_h264_ipb_frame(const std::string &ibps, bool keyframe, uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
 
@@ -556,26 +583,13 @@ srs_error_t SrsMpegtsOverUdp::write_h264_ipb_frame(char *frame, int frame_size, 
         return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop sps/pps");
     }
 
-    // 5bits, 7.3.1 NAL unit syntax,
-    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
-
-    // for IDR frame, the frame is keyframe.
-    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (nal_unit_type == SrsAvcNaluTypeIDR) {
-        frame_type = SrsVideoAvcFrameTypeKeyFrame;
-    }
-
-    std::string ibp;
-    if ((err = avc_->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
-        return srs_error_wrap(err, "mux frame");
-    }
+    // An access unit with an IDR slice is a keyframe.
+    SrsVideoAvcFrameType frame_type = keyframe ? SrsVideoAvcFrameTypeKeyFrame : SrsVideoAvcFrameTypeInterFrame;
 
     int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char *flv = NULL;
     int nb_flv = 0;
-    if ((err = avc_->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+    if ((err = avc_->mux_avc2flv(ibps, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "mux avc to flv");
     }
 
@@ -594,8 +608,9 @@ srs_error_t SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
         return srs_error_wrap(err, "connect");
     }
 
-    // ts tbn to flv tbn.
-    uint32_t dts = (uint32_t)(msg->dts_ / 90);
+    // A PES may carry several AAC frames, and its time is the first frame's; each
+    // frame holds 1024 samples, so time each frame by the samples before it.
+    int frame_idx = 0;
 
     // send each frame.
     while (!avs->empty()) {
@@ -611,6 +626,16 @@ srs_error_t SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
         if (frame_size <= 0) {
             continue;
         }
+
+        // ts tbn to flv tbn, at the frame's sample rate, or 44.1kHz when the index is invalid.
+        int sample_rate = 44100;
+        if (codec.sampling_frequency_index_ < SrsAAcSampleRateNumbers && srs_aac_srates[codec.sampling_frequency_index_] > 0) {
+            sample_rate = srs_aac_srates[codec.sampling_frequency_index_];
+        }
+
+        int64_t frame_dts = msg->dts_ + (int64_t)frame_idx * 1024 * 90000 / sample_rate;
+        uint32_t dts = (uint32_t)(frame_dts / 90);
+        frame_idx++;
         srs_info("mpegts: demux aac frame size=%d, dts=%d", frame_size, dts);
 
         // generate sh.
@@ -709,8 +734,12 @@ srs_error_t SrsMpegtsOverUdp::connect()
         return err;
     }
 
+    // The RTMP server reads what this client sends only once its on_publish hook accepts the publish, and
+    // a burst of the sender fills the socket buffers before that, so a send waits for the hook. A stream
+    // timeout as short as the pulse fails the send, closes the client and drops the media until the next
+    // keyframe, so wait as long as the forwarder does.
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
-    srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
+    srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
     sdk_ = app_factory_->create_rtmp_client(output_, cto, sto);
 
     if ((err = sdk_->connect()) != srs_success) {
@@ -729,4 +758,16 @@ srs_error_t SrsMpegtsOverUdp::connect()
 void SrsMpegtsOverUdp::close()
 {
     srs_freep(sdk_);
+
+    // The server has no sequence header of the next publish until the caster
+    // sends it again, from the next SPS, PPS and AAC frame of the TS. The
+    // queued messages, of the closed publish, would come in the next one at
+    // their old times.
+    h264_sps_ = h264_pps_ = "";
+    h264_sps_changed_ = h264_pps_changed_ = false;
+    h264_sps_pps_sent_ = false;
+    aac_specific_config_ = "";
+    if (queue_) {
+        queue_->clear();
+    }
 }

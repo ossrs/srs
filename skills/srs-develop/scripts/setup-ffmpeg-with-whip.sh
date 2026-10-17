@@ -38,6 +38,8 @@ REQUIRED_BREW_PKGS=(
   srt
   # video codecs (matches Dockerfile.base / .base2)
   x264 x265 libvpx
+  # AV1 encoder, for the WebRTC AV1 media of the srs-integ suite
+  svt-av1
   # audio codecs (fdk-aac requires --enable-nonfree below)
   fdk-aac lame opus
   # subtitle / font stack (matches Dockerfile.base3)
@@ -147,6 +149,7 @@ echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
   --enable-libx264 \
   --enable-libx265 \
   --enable-libvpx \
+  --enable-libsvtav1 \
   --enable-libfdk-aac \
   --enable-libmp3lame \
   --enable-libopus \
@@ -205,6 +208,13 @@ if "$FFMPEG_BIN" -hide_banner -codecs 2>/dev/null | grep -q libx265; then
   echo "PASS: libx265 encoder is available."
 else
   echo "FAIL: libx265 encoder missing." >&2
+  exit 1
+fi
+
+if "$FFMPEG_BIN" -hide_banner -encoders 2>/dev/null | grep -qw libsvtav1; then
+  echo "PASS: libsvtav1 encoder is available."
+else
+  echo "FAIL: libsvtav1 encoder missing." >&2
   exit 1
 fi
 

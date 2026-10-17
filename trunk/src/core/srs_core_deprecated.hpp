@@ -63,8 +63,8 @@
 // SRS_DECLARE_PRIVATE:
 //    T** ptr;
 //    bool is_array;
-//    bool _use_free;
-//    void (*_hook)(T*);
+//    bool use_free_;
+//    void (*hook_)(T*);
 // public:
 //    // If use_free, use free(void*) to release the p.
 //    // If specified hook, use hook(p) to release it.
@@ -72,8 +72,8 @@
 //    impl_SrsAutoFree(T** p, bool array, bool use_free, void (*hook)(T*)) {
 //        ptr = p;
 //        is_array = array;
-//        _use_free = use_free;
-//        _hook = hook;
+//        use_free_ = use_free;
+//        hook_ = hook;
 //    }
 //
 //    virtual ~impl_SrsAutoFree() {
@@ -81,10 +81,10 @@
 //            return;
 //        }
 //
-//        if (_use_free) {
+//        if (use_free_) {
 //            free(*ptr);
-//        } else if (_hook) {
-//            _hook(*ptr);
+//        } else if (hook_) {
+//            hook_(*ptr);
 //        } else {
 //            if (is_array) {
 //                delete[] *ptr;

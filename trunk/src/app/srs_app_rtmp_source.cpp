@@ -17,7 +17,6 @@ using namespace std;
 #include <srs_app_encoder.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_forward.hpp>
-#include <srs_app_hds.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_ng_exec.hpp>
@@ -183,17 +182,17 @@ void SrsFastVector::clear()
     count_ = 0;
 }
 
-void SrsFastVector::erase(int _begin, int _end)
+void SrsFastVector::erase(int begin, int end)
 {
-    srs_assert(_begin < _end);
+    srs_assert(begin < end);
 
     // move all erased to previous.
-    for (int i = 0; i < count_ - _end; i++) {
-        msgs_[_begin + i] = msgs_[_end + i];
+    for (int i = 0; i < count_ - end; i++) {
+        msgs_[begin + i] = msgs_[end + i];
     }
 
     // update the count.
-    count_ -= _end - _begin;
+    count_ -= end - begin;
 }
 
 void SrsFastVector::push_back(SrsMediaPacket *msg)
@@ -236,7 +235,7 @@ ISrsMessageQueue::~ISrsMessageQueue()
 
 SrsMessageQueue::SrsMessageQueue(bool ignore_shrink)
 {
-    _ignore_shrink = ignore_shrink;
+    ignore_shrink_ = ignore_shrink;
     max_queue_size_ = 0;
     av_start_time_ = av_end_time_ = -1;
 }
@@ -383,7 +382,7 @@ void SrsMessageQueue::shrink()
         msgs_.push_back(audio_sh);
     }
 
-    if (!_ignore_shrink) {
+    if (!ignore_shrink_) {
         srs_trace("shrinking, size=%d, removed=%d, max=%dms", (int)msgs_.size(), msgs_size - (int)msgs_.size(), srsu2msi(max_queue_size_));
     }
 }
@@ -487,10 +486,11 @@ srs_error_t SrsLiveConsumer::enqueue(SrsMediaPacket *shared_msg, bool atc, SrsRt
         srs_utime_t duration = queue_->duration();
         bool match_min_msgs = queue_->size() > mw_min_msgs_;
 
-        // For ATC, maybe the SH timestamp bigger than A/V packet,
-        // when encoder republish or overflow.
-        // @see https://github.com/ossrs/srs/pull/749
-        if (atc && duration < 0) {
+        // A negative duration never grows to the wait's duration, so flush now. For ATC, maybe the SH
+        // timestamp bigger than A/V packet, when encoder republish or overflow, @see
+        // https://github.com/ossrs/srs/pull/749. With time_jitter zero or off, the publisher's timestamps
+        // may jump back before the last message sent to the player.
+        if (duration < 0) {
             srs_cond_signal(mw_wait_);
             mw_waiting_ = false;
             return err;
@@ -593,6 +593,7 @@ SrsGopCache::SrsGopCache()
     enable_gop_cache_ = true;
     audio_after_last_video_count_ = 0;
     gop_cache_max_frames_ = 0;
+    wait_keyframe_ = false;
 }
 
 SrsGopCache::~SrsGopCache()
@@ -644,6 +645,11 @@ srs_error_t SrsGopCache::cache(SrsMediaPacket *shared_msg)
         if (!codec_ok)
             return err;
 
+        // Skip the frames before the keyframe after the max frames cleared the cache.
+        if (wait_keyframe_ && !SrsFlvVideo::keyframe(msg->payload(), msg->size())) {
+            return err;
+        }
+
         cached_video_count_++;
         audio_after_last_video_count_ = 0;
     }
@@ -681,6 +687,7 @@ srs_error_t SrsGopCache::cache(SrsMediaPacket *shared_msg)
         srs_warn("Gop cache exceed max frames=%d, total=%d, videos=%d, aalvc=%d",
                  gop_cache_max_frames_, (int)gop_cache_.size(), cached_video_count_, audio_after_last_video_count_);
         clear();
+        wait_keyframe_ = true;
     }
 
     return err;
@@ -697,6 +704,7 @@ void SrsGopCache::clear()
 
     cached_video_count_ = 0;
     audio_after_last_video_count_ = 0;
+    wait_keyframe_ = false;
 }
 
 srs_error_t SrsGopCache::dump(ISrsLiveConsumer *consumer, bool atc, SrsRtmpJitterAlgorithm jitter_algorithm)
@@ -860,9 +868,6 @@ SrsOriginHub::SrsOriginHub()
     dvr_ = new SrsDvr();
 
     encoder_ = new SrsEncoder();
-#ifdef SRS_HDS
-    hds_ = new SrsHds();
-#endif
     ng_exec_ = new SrsNgExec();
 
     config_ = _srs_config;
@@ -897,9 +902,6 @@ SrsOriginHub::~SrsOriginHub()
     srs_freep(dash_);
     srs_freep(dvr_);
     srs_freep(encoder_);
-#ifdef SRS_HDS
-    srs_freep(hds_);
-#endif
 
     config_ = NULL;
     stat_ = NULL;
@@ -1071,14 +1073,6 @@ srs_error_t SrsOriginHub::on_audio(SrsMediaPacket *shared_audio)
         dvr_->on_unpublish();
     }
 
-#ifdef SRS_HDS
-    if ((err = hds_->on_audio(msg)) != srs_success) {
-        srs_warn("hds: ignore audio error %s", srs_error_desc(err).c_str());
-        srs_freep(err);
-        hds_->on_unpublish();
-    }
-#endif
-
     // copy to all forwarders.
     if (true) {
         std::vector<ISrsForwarder *>::iterator it;
@@ -1160,14 +1154,6 @@ srs_error_t SrsOriginHub::on_video(SrsMediaPacket *shared_video, bool is_sequenc
         dvr_->on_unpublish();
     }
 
-#ifdef SRS_HDS
-    if ((err = hds_->on_video(msg)) != srs_success) {
-        srs_warn("hds: ignore video error %s", srs_error_desc(err).c_str());
-        srs_freep(err);
-        hds_->on_unpublish();
-    }
-#endif
-
     // copy to all forwarders.
     if (!forwarders_.empty()) {
         std::vector<ISrsForwarder *>::iterator it;
@@ -1210,13 +1196,6 @@ srs_error_t SrsOriginHub::on_publish()
     }
 
     // TODO: FIXME: use initialize to set req.
-#ifdef SRS_HDS
-    if ((err = hds_->on_publish(req_)) != srs_success) {
-        return srs_error_wrap(err, "hds publish");
-    }
-#endif
-
-    // TODO: FIXME: use initialize to set req.
     if ((err = ng_exec_->on_publish(req_)) != srs_success) {
         return srs_error_wrap(err, "exec publish");
     }
@@ -1237,10 +1216,6 @@ void SrsOriginHub::on_unpublish()
     hls_->on_unpublish();
     dash_->on_unpublish();
     dvr_->on_unpublish();
-
-#ifdef SRS_HDS
-    hds_->on_unpublish();
-#endif
 
     ng_exec_->on_unpublish();
 }
@@ -1313,6 +1288,27 @@ srs_error_t SrsOriginHub::on_hls_request_sh()
     if (cache_sh_audio) {
         if ((err = hls_->on_audio(cache_sh_audio, source_->meta()->ash_format())) != srs_success) {
             return srs_error_wrap(err, "hls audio");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsOriginHub::on_dash_request_sh()
+{
+    srs_error_t err = srs_success;
+
+    SrsMediaPacket *cache_sh_video = source_->meta()->vsh();
+    if (cache_sh_video) {
+        if ((err = dash_->on_video(cache_sh_video, source_->meta()->vsh_format())) != srs_success) {
+            return srs_error_wrap(err, "dash video");
+        }
+    }
+
+    SrsMediaPacket *cache_sh_audio = source_->meta()->ash();
+    if (cache_sh_audio) {
+        if ((err = dash_->on_audio(cache_sh_audio, source_->meta()->ash_format())) != srs_success) {
+            return srs_error_wrap(err, "dash audio");
         }
     }
 
@@ -1857,9 +1853,9 @@ SrsLiveSource::~SrsLiveSource()
     srs_freep(req_);
     srs_freep(rtmp_bridge_);
 
-    SrsContextId cid = _source_id;
+    SrsContextId cid = source_id_;
     if (cid.empty())
-        cid = _pre_source_id;
+        cid = pre_source_id_;
     srs_trace("free live source id=[%s]", cid.c_str());
 
     config_ = NULL;
@@ -2005,14 +2001,14 @@ srs_error_t SrsLiveSource::on_source_id_changed(SrsContextId id)
 {
     srs_error_t err = srs_success;
 
-    if (!_source_id.compare(id)) {
+    if (!source_id_.compare(id)) {
         return err;
     }
 
-    if (_pre_source_id.empty()) {
-        _pre_source_id = id;
+    if (pre_source_id_.empty()) {
+        pre_source_id_ = id;
     }
-    _source_id = id;
+    source_id_ = id;
 
     // notice all consumer
     std::vector<SrsLiveConsumer *>::iterator it;
@@ -2026,12 +2022,12 @@ srs_error_t SrsLiveSource::on_source_id_changed(SrsContextId id)
 
 SrsContextId SrsLiveSource::source_id()
 {
-    return _source_id;
+    return source_id_;
 }
 
 SrsContextId SrsLiveSource::pre_source_id()
 {
-    return _pre_source_id;
+    return pre_source_id_;
 }
 
 bool SrsLiveSource::inactive()
@@ -2063,16 +2059,7 @@ srs_error_t SrsLiveSource::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaData
         return srs_error_wrap(err, "Format parse metadata");
     }
 
-    // if allow atc_auto and bravo-atc detected, open atc for vhost.
-    SrsAmf0Any *prop = NULL;
     atc_ = config_->get_atc(req_->vhost_);
-    if (config_->get_atc_auto(req_->vhost_)) {
-        if ((prop = metadata->metadata_->get_property("bravo_atc")) != NULL) {
-            if (prop->is_string() && prop->to_str() == "true") {
-                atc_ = true;
-            }
-        }
-    }
 
     // Update the meta cache.
     bool updated = false;
@@ -2481,7 +2468,7 @@ srs_error_t SrsLiveSource::on_publish()
         return srs_error_wrap(err, "bridge publish");
     }
 
-    stat_->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, source_id_.c_str());
 
     // When no players, the publisher is idle now.
     if (consumers_.empty()) {
@@ -2515,10 +2502,10 @@ void SrsLiveSource::on_unpublish()
 
     srs_trace("cleanup when unpublish");
 
-    if (!_source_id.empty()) {
-        _pre_source_id = _source_id;
+    if (!source_id_.empty()) {
+        pre_source_id_ = source_id_;
     }
-    _source_id = SrsContextId();
+    source_id_ = SrsContextId();
 
     // notify the handler.
     stat_->on_stream_close(req_);

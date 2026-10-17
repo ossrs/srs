@@ -48,3 +48,6 @@ cmake-build-debug
 # For AI
 /tasks
 /objs
+
+# srs-integ test media, made by make integ-prepare
+/cmd/integ/testdata/media/

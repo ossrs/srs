@@ -73,14 +73,6 @@ vhost __defaultVhost__ {
         # for example, 192.168.1.100:1935 192.168.1.101:1935 192.168.1.102:1935
         origin          127.0.0.1:1935 localhost:1935;
 
-        # For edge(mode remote), whether open the token traverse mode,
-        # if token traverse on, all connections of edge will forward to origin to check(auth),
-        # it's very important for the edge to do the token auth.
-        # the better way is use http callback to do the token auth by the edge,
-        # but if user prefer origin check(auth), the token_traverse if better solution.
-        # default: off
-        token_traverse  off;
-
         # For edge(mode remote), the vhost to transform for edge,
         # to fetch from the specified vhost at origin,
         # if not specified, use the current vhost of edge in origin, the variable [vhost].

@@ -25,3 +25,4 @@ Curated facts. Keep them current, and remove what is no longer true.
 - The skills are in `skills/`, one folder per skill with a `SKILL.md`.
 - `srs-support` answers questions; `srs-develop` covers code and maintenance; `srs-autopilot` runs long multi-step tasks.
 - `internal-docs-for-srs` and `internal-codemap-for-srs` route to the docs and the code; the other skills use them.
+- `internal-audit-for-srs` audits a commit before the user reads it, blind to its message and tests; `srs-autopilot`'s review uses it.

@@ -106,7 +106,7 @@ srs_error_t SrsRtspPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, S
     req_ = req->copy();
 
     // We must do stat the client before hooks, because hooks depends on it.
-    if ((err = stat_->on_client(cid_.c_str(), req_, session_, SrsRtcConnPlay)) != srs_success) {
+    if ((err = stat_->on_client(cid_.c_str(), req_, session_, SrsRtspConnPlay)) != srs_success) {
         return srs_error_wrap(err, "RTSP: stat client");
     }
 
@@ -399,6 +399,7 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     skt_ = skt;
     source_ = NULL;
     player_ = NULL;
+    on_play_passed_ = false;
 
     cache_iov_ = new iovec();
     cache_iov_->iov_base = new char[kRtpPacketSize];
@@ -460,6 +461,10 @@ SrsRtspConnection::~SrsRtspConnection()
         srs_freep(cache_iov_);
     }
     srs_freep(cache_buffer_);
+
+    // The connection owns the client's socket, which the stack and the TCP networks only borrow, so
+    // free it after them; this closes the TCP connection.
+    srs_freep(skt_);
 
     rtsp_manager_ = NULL;
     stat_ = NULL;
@@ -629,6 +634,20 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
             session_id_ = rand_->gen_str(8);
         }
 
+        // DESCRIBE asks on_play again, maybe of another stream, so it is not valid while a player
+        // plays (RFC 2326, 455 Method Not Valid in This State): it would end the play's hooks and
+        // stats while the player sends on. A TEARDOWN ends the play first.
+        if (player_) {
+            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+            res->status_ = SRS_CONSTS_RTSP_MethodNotValidInThisState;
+            res->session_ = session_id_;
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
+                return srs_error_wrap(err, "response describe");
+            }
+            srs_warn("RTSP: DESCRIBE cseq=%ld while playing, session=%s", req->seq_, session_id_.c_str());
+            return err;
+        }
+
         SrsUniquePtr<SrsRtspDescribeResponse> res(new SrsRtspDescribeResponse((int)req->seq_));
         res->session_ = session_id_;
 
@@ -702,6 +721,18 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
     } else if (req->is_play()) {
         SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
         res->session_ = session_id_;
+
+        // PLAY is valid only once a track is set up (RFC 2326, 455 Method Not Valid in This State).
+        // Without one, the player would have nothing to send on.
+        if (!has_setup_track()) {
+            res->status_ = SRS_CONSTS_RTSP_MethodNotValidInThisState;
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
+                return srs_error_wrap(err, "response play");
+            }
+            srs_warn("RTSP: PLAY cseq=%ld without SETUP, session=%s", req->seq_, session_id_.c_str());
+            return err;
+        }
+
         if ((err = rtsp_->send_message(res.get())) != srs_success) {
             return srs_error_wrap(err, "response record");
         }
@@ -721,6 +752,16 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
             return srs_error_wrap(err, "teardown");
         }
         srs_trace("RTSP: TEARDOWN cseq=%ld, session=%s, streaming stopped", req->seq_, session_id_.c_str());
+    } else {
+        // Answer a method SRS doesn't serve, such as the GET_PARAMETER keep-alive, with 501 Not
+        // Implemented (RFC 2326), or the client waits for an answer until its timeout.
+        SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+        res->status_ = SRS_CONSTS_RTSP_NotImplemented;
+        res->session_ = session_id_;
+        if ((err = rtsp_->send_message(res.get())) != srs_success) {
+            return srs_error_wrap(err, "response %s", req->method_.c_str());
+        }
+        srs_warn("RTSP: %s cseq=%ld not implemented, session=%s", req->method_.c_str(), req->seq_, session_id_.c_str());
     }
 
     return err;
@@ -774,6 +815,25 @@ void SrsRtspConnection::alive()
 srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp)
 {
     srs_error_t err = srs_success;
+
+    // Each DESCRIBE asks on_play again, maybe of another stream, so stop the play of the last one
+    // first: each on_play gets its on_stop, while request_ still names its stream. A client with no
+    // player leaves the stats with it, for this DESCRIBE adds it again, maybe to another stream.
+    http_hooks_on_stop();
+    if (!player_) {
+        stat_->on_disconnect(cid_.c_str(), srs_success);
+    }
+
+    // Each DESCRIBE rebuilds the track set from the source, so drop the previous one first, before
+    // anything can fail: a DESCRIBE that fails, such as one on_play refuses, leaves no track of the
+    // last stream to SETUP or PLAY. The track ids restart at 0 below, so a stale entry would also
+    // collide on that id in get_ssrc_by_stream_id() and bind SETUP to an SSRC no longer published.
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        SrsRtcTrackDescription *track = it->second;
+        srs_freep(track);
+    }
+    tracks_.clear();
+
     srs_net_url_parse_rtmp_url(req->uri_, request_->tcUrl_, request_->stream_);
 
     srs_net_url_parse_tcurl(request_->tcUrl_, request_->schema_, request_->host_, request_->vhost_,
@@ -785,15 +845,24 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
         request_->vhost_ = parsed_vhost->arg0();
     }
 
-    if ((err = security_->check(SrsRtcConnPlay, ip_, request_)) != srs_success) {
+    if ((err = security_->check(SrsRtspConnPlay, ip_, request_)) != srs_success) {
         return srs_error_wrap(err, "RTSP: security check");
     }
 
+    // We must do stat the client before hooks, because hooks depends on it. The client stays until
+    // it leaves, at TEARDOWN or the end of the connection; the player PLAY makes is this client.
+    if ((err = stat_->on_client(cid_.c_str(), request_, this, SrsRtspConnPlay)) != srs_success) {
+        return srs_error_wrap(err, "RTSP: stat client");
+    }
+
     // Transform to ERROR_SYSTEM_AUTH, so that DESCRIBE answers 401 instead of 500, see
-    // on_rtsp_request(). A refused viewer is not a server fault.
+    // on_rtsp_request(). A refused viewer is not a server fault, and it leaves the stats, for it
+    // will not play.
     if ((err = http_hooks_on_play(request_)) != srs_success) {
+        stat_->on_disconnect(cid_.c_str(), err);
         return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTSP: http_hooks_on_play");
     }
+    on_play_passed_ = true;
 
     if ((err = rtsp_sources_->fetch_or_create(request_, source_)) != srs_success) {
         return srs_error_wrap(err, "create source");
@@ -810,14 +879,6 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
     local_sdp.session_name_ = "Play";
     local_sdp.control_ = req->uri_;
     local_sdp.ice_lite_ = ""; // Disable this line.
-
-    // A client may DESCRIBE more than once, and each one rebuilds the track set from the source, so
-    // drop the previous one first. The track ids restart at 0 below, so a stale entry would collide
-    // on that id in get_ssrc_by_stream_id() and bind SETUP to an SSRC that is no longer published.
-    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
-        srs_freep(it->second);
-    }
-    tracks_.clear();
 
     uint32_t track_id = 0;
     SrsRtcTrackDescription *audio_desc = source_->audio_desc();
@@ -881,6 +942,19 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
 
         local_sdp.media_descs_.push_back(media_video);
         track_id++;
+    }
+
+    // Free the network a SETUP gave a track this DESCRIBE dropped, such as the old SSRC of a
+    // publisher that came back with a new one; a track it still has keeps its network.
+    for (std::map<uint32_t, ISrsStreamWriter *>::iterator it = networks_.begin(); it != networks_.end();) {
+        uint32_t ssrc = it->first;
+        ISrsStreamWriter *network = it->second;
+        if (tracks_.find(ssrc) != tracks_.end()) {
+            ++it;
+            continue;
+        }
+        srs_freep(network);
+        networks_.erase(it++);
     }
 
     if (track_id == 0) {
@@ -947,10 +1021,32 @@ srs_error_t SrsRtspConnection::do_play(SrsRtspRequest *req, SrsRtspConnection *c
 
 srs_error_t SrsRtspConnection::do_teardown()
 {
+    // Stop the player first, so it sends nothing after its on_stop, but free it after, so the
+    // on_stop still counts it in the stream's clients, as every other player's does.
     if (player_) {
         player_->stop();
-        srs_freep(player_);
     }
+
+    // A TEARDOWN, or the end of the connection: the client closed it, or SRS dropped it.
+    http_hooks_on_stop();
+
+    // The player leaves the stats when freed; a client that never played leaves them here.
+    srs_freep(player_);
+    stat_->on_disconnect(cid_.c_str(), srs_success);
+
+    // TEARDOWN ends the session (RFC 2326), so its tracks and their networks go with the player: a
+    // PLAY after it is not valid until a new DESCRIBE and SETUP, which ask on_play again.
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        SrsRtcTrackDescription *track = it->second;
+        srs_freep(track);
+    }
+    tracks_.clear();
+
+    for (std::map<uint32_t, ISrsStreamWriter *>::iterator it = networks_.begin(); it != networks_.end(); ++it) {
+        ISrsStreamWriter *network = it->second;
+        srs_freep(network);
+    }
+    networks_.clear();
 
     return srs_success;
 }
@@ -980,12 +1076,44 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_play(url, req)) != srs_success) {
+        if ((err = hooks_->on_play(url, req, SrsRtspConnPlay)) != srs_success) {
             return srs_error_wrap(err, "on_play %s", url.c_str());
         }
     }
 
     return err;
+}
+
+void SrsRtspConnection::http_hooks_on_stop()
+{
+    if (!on_play_passed_) {
+        return;
+    }
+    on_play_passed_ = false;
+
+    ISrsRequest *req = request_;
+    if (!config_->get_vhost_http_hooks_enabled(req->vhost_)) {
+        return;
+    }
+
+    // The hooks switch context, so copy the URLs, for a reload may free the directive.
+    std::vector<std::string> hooks;
+
+    if (true) {
+        SrsConfDirective *conf = config_->get_vhost_on_stop(req->vhost_);
+
+        if (!conf) {
+            return;
+        }
+
+        hooks = conf->args_;
+    }
+
+    SrsStatisticStreamSnapshot stream(stat_, req);
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        hooks_->on_stop(url, req, SrsRtspConnPlay, stream);
+    }
 }
 
 srs_error_t SrsRtspConnection::get_ssrc_by_stream_id(uint32_t stream_id, uint32_t *ssrc)
@@ -997,6 +1125,16 @@ srs_error_t SrsRtspConnection::get_ssrc_by_stream_id(uint32_t stream_id, uint32_
         }
     }
     return srs_error_new(ERROR_RTSP_NO_TRACK, "track not found for stream_id: %u", stream_id);
+}
+
+bool SrsRtspConnection::has_setup_track()
+{
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = tracks_.begin(); it != tracks_.end(); ++it) {
+        if (networks_.find(it->first) != networks_.end()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 SrsRtspTcpNetwork::SrsRtspTcpNetwork(ISrsProtocolReadWriter *skt, int ch) : skt_(skt), channel_(ch)

@@ -13,7 +13,7 @@ The `proxy-*` filenames describe the test entry point, not a proxy-only scope: t
 
 ## Suite
 
-Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-develop/scripts/<script>`.
+Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-develop/scripts/<script>`. Run `make integ` and `make integ-unit` from the repository root.
 
 | # | Script | Covers |
 |---|---|---|
@@ -27,6 +27,8 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 | 8 | `proxy-e2e-whip-test.sh` | WHIP publish with RTMP, HTTP-FLV, HLS, and WHEP playback verification |
 | 9 | `proxy-e2e-bearer-auth-test.sh` | Bearer authentication startup validation, protected SRS, WHIP/WHEP, and proxy APIs, and authenticated origin registration |
 | 10 | `srs-config-file-test.sh` | SRS started from a config file, because the scripts above start SRS with environment variables only (`-e`): RTMP publish with RTMP, HTTP-FLV, HLS, and WHEP playback, WHIP publish with WHEP and RTMP playback, and the config pid, log, and HLS paths |
+| 11 | `make integ` | The black-box `srs-integ` suite in `cmd/integ`: every SRS protocol and feature from outside the process, as a client, an operator or a callback server sees it, against `trunk/objs/srs` |
+| 12 | `make integ-unit` | The unit tests of `srs-integ` itself, every test in `cmd/integ` outside `cases/`: its media clients, stream analyzers, test media, hook mock and server adapter |
 
 ### Dependencies
 
@@ -36,6 +38,7 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 - The Redis test runs `brew services start redis` when Redis is not running; do not start a temporary `redis-server` instead.
 - If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification.
 - The transmux, SRT, WHIP, and config file tests play WHEP with `tools/pion-whep`, because FFmpeg has no WHEP demuxer; they build it with `go` when the binary is missing or stale.
+- `make integ` and `make integ-unit` first make the test media with FFmpeg (`make integ-prepare`), which needs libx264, libx265 and an Opus encoder.
 
 ## Feature-Specific Tests
 
@@ -55,6 +58,21 @@ Run feature-specific bundled tests in addition to this matrix when the routed wo
 | `forward-status-test.sh` | `forward.destination` and the read-only `/api/v1/forwards/` API: an origin forwards to two destination SRS, and each forward is listed with its url and `forwarding`, `{id}` returns one, an unknown id fails and `DELETE` is 405, a stopped destination shows `retrying`, and after its restart it is `forwarding` again with the same id. |
 
 Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, `proxy-e2e-origin.sh`, and `setup-ffmpeg-with-whip.sh` are not standalone test cases unless a workflow explicitly invokes them.
+
+## Adding srs-integ Cases
+
+`cmd/integ/README.md` has the full rules and the catalog. A new case follows them:
+
+- **Black box:** it observes SRS only through the network, the HTTP API, the callbacks, the files SRS writes, its exit code and the signals it gets, never its source or log text.
+- **Name:** `Test<Feature>_<Group>/<Case>`, or `TestTimer_<Feature>_<Group>/<Case>` when it waits on an SRS timer. Reuse a feature name from the catalog.
+- **Group:** `Common`, the shared server with every feature on, with a stream name of its own. A variant server only when Common can't do it: a value Common can't have, global state, a process change, or a topology.
+- **Class:** declared first, with `check.Case`: Fast ≤100ms, Normal ≤500ms, or Timer ≤10s in `TestTimer_*` groups only. It checks only through `c`.
+- **Publish:** in real time, like FFmpeg `-re`, except HLS, DASH and DVR cases, which publish without `-re`.
+- **Env only:** SRS starts with `-e` and `SRS_*` env vars, never a config file. A feature that needs a file gets no case.
+- **Known bugs:** a case that finds an SRS bug is marked `KnownBug(c, "<reason>")`, not fixed or skipped.
+- **Protocols:** a new protocol gets the whole checklist: signaling, every codec, lifecycle, bad input and its options.
+- **Catalog:** a new feature or group gets its row in the catalog in `cmd/integ/README.md`.
+- **Run:** the case alone with `go -C cmd/integ/cases test -count=3 -run '<name>'`, then `make integ`, which stays within 60s.
 
 ## Verification Tiers
 
@@ -147,12 +165,12 @@ Run the layers of every tier in this order.
 
 **Step 1: build**, alone and one after another, because `./configure` rewrites `trunk/objs`, which every lane runs from:
 
-1. Configure `trunk/` once with the `Dockerfile.test` flags without `--build-cache`, plus `--simulator=on` for the `rtc-*` scripts and the NACK log unit tests:
+1. Configure `trunk/` once with the `Dockerfile.test` flags without `--build-cache`; they include `--simulator=on`, which the `rtc-*` scripts and the NACK log unit tests need:
    ```bash
-   ./configure --srt=on --gb28181=on --rtsp=on --apm=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on
+   ./configure --srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on
    ```
 2. Build `objs/srs`. Every lane uses it, and none uses `srs_utest`.
-3. Build the proxy (`make`) and `tools/pion-whep`.
+3. Build the proxy and `bin/srs-integ` (`make`), and `tools/pion-whep`.
 
 **Step 2: test**, these lanes in parallel, each lane in its own order:
 
@@ -164,6 +182,8 @@ Run the layers of every tier in this order.
 | D | Regression |
 | E | `srs-config-file-test.sh` and the feature-specific tests in parallel |
 | F | `make utest`, then `./objs/srs_utest`. With `objs/srs` built, `make utest` does not relink it |
+
+**Step 3: lane H**, alone after Step 2: `make integ-unit`, then `make integ`. Its cases have time limits, and its timer cases measure SRS timers, which the load of the other lanes delays.
 
 ## Port Plan
 
@@ -187,7 +207,8 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | 12000–12099 | Kept free for the proxy default 12025 | 100 | 0 | 0 |
 | 12100–12999 | The other bundled scripts, one 100-port slot each at `SRS_TEST_PORT_BASE`, by default 12100 `srs-config-file`, 12200 `srs-reload`, 12300 and 12400 `gb28181-*`, 12500 to 12800 `rtc-*`, 12900 `forward-status` | 900 | 31 | 869, inside the existing slots |
 | 13000–13999 | The regression SRS at `SRS_TEST_PORT_BASE`, by default 13000, through the `SRS_*_LISTEN` env and the `srs_test` port flags | 1,000 | 6 | 994 |
-| 14000–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 7,000 | 0 | 6,997 |
+| 14000–14999 | The `srs-integ` suite in `cmd/integ`, the main process from 14000–14799 and the timer process from 14800–14999, moved by `SRS_INTEG_PORTS` | 1,000 | Allocated per server | 0, owned by the allocator |
+| 15000–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 6,000 | 0 | 5,997 |
 | 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |
 | 26000–29999 | C++ unit tests, from `srs_utest_random_port()`, `_srs_tmp_port` and `_srs_tmp_srt_port`, moved by `SRS_UTEST_PORTS` | 4,000 | Random, per test | 0, owned by the allocator |
 | 30000–32767 | Reserved for new test layers | 2,768 | 0 | 2,768 |

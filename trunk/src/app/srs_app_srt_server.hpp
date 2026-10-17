@@ -110,6 +110,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 };
 
 // SrsSrtEventLoop is global singleton instance.
-extern SrsSrtEventLoop *_srt_eventloop;
+extern SrsSrtEventLoop *_srs_srt_eventloop;
 
 #endif

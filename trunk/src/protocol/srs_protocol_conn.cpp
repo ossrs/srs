@@ -187,6 +187,7 @@ SrsBufferedReadWriter::SrsBufferedReadWriter(ISrsProtocolReadWriter *io)
 SrsBufferedReadWriter::~SrsBufferedReadWriter()
 {
     srs_freep(buf_);
+    srs_freep(io_);
 }
 
 srs_error_t SrsBufferedReadWriter::peek(char *buf, int *size)

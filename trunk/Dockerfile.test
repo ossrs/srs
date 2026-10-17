@@ -19,9 +19,12 @@ WORKDIR /srs/trunk
 # Please note that we must disable the ffmpeg-opus, as it negatively impacts performance. We may consider
 # enabling it in the future when support for multi-threading transcoding is available.
 # Enable sanitizer explicitly for CI/CD testing to catch memory issues.
-RUN ./configure --srt=on --gb28181=on --srt=on --rtsp=on --apm=on --utest=on --sanitizer=on --ffmpeg-opus=off --build-cache=on
+RUN ./configure --srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on --build-cache=on
 RUN make utest ${MAKEARGS}
 
 # Build benchmark tool.
 RUN cd 3rdparty/srs-bench && make ${MAKEARGS}
+
+# Build the srs-integ black-box suite, which also fetches its Go toolchain and modules.
+RUN cd /srs && make bin/srs-integ
 

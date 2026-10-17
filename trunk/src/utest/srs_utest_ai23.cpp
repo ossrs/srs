@@ -298,6 +298,7 @@ MockGbMediaTcpConn::MockGbMediaTcpConn()
     assemble_count_ = 0;
     set_cid_called_ = false;
     is_connected_ = false;
+    interrupt_called_ = false;
 }
 
 MockGbMediaTcpConn::~MockGbMediaTcpConn()
@@ -324,6 +325,7 @@ bool MockGbMediaTcpConn::is_connected()
 
 void MockGbMediaTcpConn::interrupt()
 {
+    interrupt_called_ = true;
 }
 
 void MockGbMediaTcpConn::set_cid(const SrsContextId &cid)
@@ -355,6 +357,7 @@ void MockGbMediaTcpConn::reset()
 {
     set_cid_called_ = false;
     received_cid_ = SrsContextId();
+    interrupt_called_ = false;
 }
 
 // Test SrsGbSession::on_media_transport - covers the major use scenario:
@@ -453,6 +456,133 @@ VOID TEST(GB28181Test, SessionOnMediaDisconnected)
 
     session->on_media_disconnected(current);
     EXPECT_TRUE(owner->interrupt_called_);
+}
+
+// Test SrsGbSession::is_ended - a session ends with its cycle, when its executor is done.
+VOID TEST(GB28181Test, SessionEndsWithItsCycle)
+{
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+
+    session->setup_owner(NULL, owner.get(), NULL);
+    EXPECT_FALSE(session->is_ended());
+
+    session->on_executor_done(owner.get());
+    EXPECT_TRUE(session->is_ended());
+}
+
+// Test that a session interrupts every media connection that bound it when it is freed, which cuts
+// their pointers to the session, so no connection points at the freed session.
+VOID TEST(GB28181Test, SessionFreedInterruptsEveryMedia)
+{
+    SrsGbSession *session = new SrsGbSession();
+    session->assemble();
+
+    MockGbMediaTcpConn *first = new MockGbMediaTcpConn();
+    MockGbMediaTcpConn *second = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> first_resource(first);
+    SrsSharedResource<ISrsGbMediaTcpConn> second_resource(second);
+
+    session->on_media_transport(first_resource);
+    session->on_media_transport(second_resource);
+    EXPECT_EQ(second, session->media_.get());
+    EXPECT_FALSE(first->interrupt_called_);
+    EXPECT_FALSE(second->interrupt_called_);
+
+    srs_freep(session);
+    EXPECT_TRUE(first->interrupt_called_);
+    EXPECT_TRUE(second->interrupt_called_);
+}
+
+// Test that a session forgets a media connection that ended, so it holds and interrupts only the
+// connections that still run.
+VOID TEST(GB28181Test, SessionForgetsDisconnectedMedia)
+{
+    SrsGbSession *session = new SrsGbSession();
+    session->assemble();
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+    session->setup_owner(NULL, owner.get(), NULL);
+
+    MockGbMediaTcpConn *first = new MockGbMediaTcpConn();
+    MockGbMediaTcpConn *second = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> first_resource(first);
+    SrsSharedResource<ISrsGbMediaTcpConn> second_resource(second);
+
+    session->on_media_transport(first_resource);
+    session->on_media_transport(second_resource);
+    EXPECT_EQ(2u, session->medias_.size());
+
+    // The stale connection ends: forgotten, and the session goes on.
+    session->on_media_disconnected(first);
+    EXPECT_EQ(1u, session->medias_.size());
+    EXPECT_FALSE(owner->interrupt_called_);
+
+    srs_freep(session);
+    EXPECT_FALSE(first->interrupt_called_);
+    EXPECT_TRUE(second->interrupt_called_);
+}
+
+// Test that a session's cycle ends only after its media connections quit, so the
+// session and its muxer, freed after the cycle, are never freed under a connection
+// in the muxer, where a connect or send of the RTMP output yields. The interrupt
+// ends only the I/O it finds, so the connection must not mux the rest of its pack.
+VOID TEST(GB28181Test, SessionCycleWaitsForMediaInMuxer)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsTsMessage> audio(new SrsTsMessage());
+    audio->sid_ = SrsTsPESStreamIdAudioCommon;
+    audio->payload_->append("audio_data", 10);
+    SrsUniquePtr<SrsTsMessage> audio2(new SrsTsMessage());
+    audio2->sid_ = SrsTsPESStreamIdAudioCommon;
+    audio2->payload_->append("audio_data", 10);
+
+    // The connection's coroutine outlives the session, which interrupts it when freed.
+    MockGbMediaCoroutine media(NULL, audio.get());
+    media.msgs_.push_back(audio2.get());
+    SrsSTCoroutine trd("gb-media", &media);
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    session->assemble();
+    MockGbYieldingMuxer *muxer = new MockGbYieldingMuxer(10 * SRS_UTIME_SECONDS);
+    srs_freep(session->muxer_);
+    session->muxer_ = muxer;
+    media.session_ = session.get();
+
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+    owner->pull_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "mock interrupted");
+    SrsUniquePtr<MockContextIdSetterForRtcTcpConn> owner_cid(new MockContextIdSetterForRtcTcpConn());
+    session->setup_owner(NULL, owner.get(), owner_cid.get());
+
+    // A connection that never sent a pack, so it was never in the muxer.
+    MockGbMediaTcpConn *idle = new MockGbMediaTcpConn();
+    session->on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn>(idle));
+    MockGbMediaTcpConnInMuxer *conn = new MockGbMediaTcpConnInMuxer(&media, &trd);
+    session->on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+
+    // The connection's coroutine enters the muxer with the first message of its pack, and yields there.
+    HELPER_EXPECT_SUCCESS(trd.start());
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(1, muxer->nn_messages_);
+    EXPECT_FALSE(muxer->left_);
+    EXPECT_TRUE(conn->is_connected());
+
+    // The session's cycle ends and interrupts its connections. The interrupted one leaves the muxer
+    // without muxing the second message, and quits; the cycle returns only then, and no connection
+    // binds the session after it.
+    EXPECT_FALSE(session->is_ended());
+    srs_utime_t starttime = srs_time_now_realtime();
+    HELPER_EXPECT_SUCCESS(session->cycle());
+    EXPECT_LT(srs_time_now_realtime() - starttime, 1 * SRS_UTIME_SECONDS);
+    EXPECT_TRUE(idle->interrupt_called_);
+    EXPECT_TRUE(conn->interrupt_called_);
+    EXPECT_TRUE(muxer->left_);
+    EXPECT_EQ(1, muxer->nn_messages_);
+    EXPECT_FALSE(conn->is_connected());
+    EXPECT_TRUE(session->is_ended());
+
+    trd.stop();
 }
 
 // Test SrsGbSession::drive_state - covers the major use scenario:
@@ -1057,6 +1187,8 @@ MockGbSessionForMediaConn::MockGbSessionForMediaConn()
     received_pack_ = NULL;
     received_ps_ = NULL;
     on_media_transport_called_ = false;
+    on_media_disconnected_called_ = false;
+    ended_ = false;
 }
 
 MockGbSessionForMediaConn::~MockGbSessionForMediaConn()
@@ -1079,6 +1211,12 @@ void MockGbSessionForMediaConn::on_media_transport(SrsSharedResource<ISrsGbMedia
 
 void MockGbSessionForMediaConn::on_media_disconnected(ISrsGbMediaTcpConn *media)
 {
+    on_media_disconnected_called_ = true;
+}
+
+bool MockGbSessionForMediaConn::is_ended()
+{
+    return ended_;
 }
 
 void MockGbSessionForMediaConn::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
@@ -1116,6 +1254,7 @@ void MockGbSessionForMediaConn::reset()
     received_ps_ = NULL;
     received_msgs_.clear();
     on_media_transport_called_ = false;
+    on_media_disconnected_called_ = false;
 }
 
 // Test SrsGbMediaTcpConn::on_ps_pack - covers the major use scenario:
@@ -1175,7 +1314,7 @@ VOID TEST(GbMediaTcpConnTest, OnPsPack)
     EXPECT_EQ(2u, mock_session->received_msgs_.size());
 
     // Clean up - set to NULL to avoid double-free
-    // Note: conn destructor will free pack_ and session_, so we set them to NULL
+    // Note: conn destructor will free pack_, so we set it to NULL; the session is the test's to free.
     conn->session_ = NULL;
     conn->pack_ = NULL;
     srs_freep(mock_session);
@@ -1240,6 +1379,90 @@ VOID TEST(GbMediaTcpConnTest, BindSession)
     EXPECT_FALSE(mock_session->on_media_transport_called_);
 
     // Clean up - set to NULL to avoid double-free
+    conn->gb_manager_ = NULL;
+    conn->wrapper_ = NULL;
+}
+
+// Test that the session cuts a media connection's pointer to it by interrupt(), before the
+// connection's coroutine is interrupted, so the connection never uses the session again, not even
+// to tell it that the connection closed.
+VOID TEST(GbMediaTcpConnTest, InterruptDetachesSession)
+{
+    srs_error_t err = srs_success;
+
+    MockGbSessionForMediaConn *mock_session = new MockGbSessionForMediaConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbSession> > session_wrapper(new SrsSharedResource<ISrsGbSession>(mock_session));
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+    conn->setup_owner(wrapper.get(), owner.get(), NULL);
+    conn->session_ = mock_session;
+
+    conn->interrupt();
+    EXPECT_TRUE(conn->session_ == NULL);
+    EXPECT_TRUE(owner->interrupt_called_);
+
+    // The cycle ends at once with no owner coroutine, and leaves the session alone.
+    conn->owner_coroutine_ = NULL;
+    HELPER_EXPECT_SUCCESS(conn->cycle());
+    EXPECT_FALSE(mock_session->on_media_disconnected_called_);
+}
+
+// Test that a media connection the session dropped while it was in the muxer drops the packs left
+// in its buffer, rather than use the session; its coroutine ends at its next pull.
+VOID TEST(GbMediaTcpConnTest, OnPsPackDroppedWhenDetached)
+{
+    srs_error_t err = srs_success;
+
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+
+    SrsUniquePtr<SrsTsMessage> video(new SrsTsMessage());
+    video->sid_ = SrsTsPESStreamIdVideoCommon;
+    video->payload_->append("video_data", 10);
+    std::vector<SrsTsMessage *> msgs;
+    msgs.push_back(video.get());
+
+    HELPER_EXPECT_SUCCESS(conn->on_ps_pack(NULL, msgs));
+    EXPECT_FALSE(conn->is_connected());
+}
+
+// Test that a media connection doesn't bind a session whose cycle ended, which the manager still
+// finds by SSRC until it frees it, and binds the next session of the SSRC.
+VOID TEST(GbMediaTcpConnTest, BindSessionRefusesEndedSession)
+{
+    srs_error_t err = srs_success;
+
+    MockGbSessionForMediaConn *ended = new MockGbSessionForMediaConn();
+    ended->ended_ = true;
+    SrsUniquePtr<SrsSharedResource<ISrsGbSession> > ended_wrapper(new SrsSharedResource<ISrsGbSession>(ended));
+
+    SrsUniquePtr<MockResourceManagerForBindSession> mock_manager(new MockResourceManagerForBindSession());
+    mock_manager->session_to_return_ = ended_wrapper.get();
+
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    conn->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+    conn->gb_manager_ = mock_manager.get();
+    conn->wrapper_ = wrapper.get();
+
+    HELPER_EXPECT_SUCCESS(conn->bind_session(12345, &conn->session_));
+    EXPECT_TRUE(conn->session_ == NULL);
+    EXPECT_FALSE(ended->on_media_transport_called_);
+
+    // The next session of the SSRC, created after the manager freed the ended one.
+    MockGbSessionForMediaConn *next = new MockGbSessionForMediaConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbSession> > next_wrapper(new SrsSharedResource<ISrsGbSession>(next));
+    mock_manager->session_to_return_ = next_wrapper.get();
+
+    HELPER_EXPECT_SUCCESS(conn->bind_session(12345, &conn->session_));
+    EXPECT_EQ(next, conn->session_);
+    EXPECT_TRUE(next->on_media_transport_called_);
+
+    conn->session_ = NULL;
     conn->gb_manager_ = NULL;
     conn->wrapper_ = NULL;
 }
@@ -1452,6 +1675,113 @@ VOID TEST(MpegpsQueueTest, DequeueMediaPackets)
     srs_freep(msg);
 }
 
+static SrsMediaPacket *mock_mpegps_queue_packet(SrsFrameType type, int64_t timestamp)
+{
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    msg->timestamp_ = timestamp;
+    msg->message_type_ = type;
+    char *data = new char[4];
+    memset(data, 0, 4);
+    msg->wrap(data, 4);
+    return msg;
+}
+
+// A GB stream with no audio, as a device with its audio off sends it, is held
+// like one with audio, by one frame: the queue doesn't wait for a track that
+// never came.
+VOID TEST(MpegpsQueueTest, DequeueVideoOnlyHoldsOneFrame)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsMpegpsQueue> queue(new SrsMpegpsQueue());
+
+    // The first video message alone is held.
+    HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeVideo, 0)));
+    EXPECT_TRUE(queue->dequeue() == NULL);
+
+    // Each next video message sends the one before it, in time order.
+    for (int i = 1; i <= 10; i++) {
+        HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeVideo, i * 40)));
+
+        SrsUniquePtr<SrsMediaPacket> msg(queue->dequeue());
+        ASSERT_TRUE(msg.get() != NULL);
+        EXPECT_EQ((i - 1) * 40, msg->timestamp_);
+        EXPECT_TRUE(msg->is_video());
+
+        EXPECT_TRUE(queue->dequeue() == NULL);
+        EXPECT_EQ(1, queue->nb_videos_);
+        EXPECT_EQ(1u, queue->msgs_.size());
+    }
+}
+
+// A GB stream with no video is held by one frame too.
+VOID TEST(MpegpsQueueTest, DequeueAudioOnlyHoldsOneFrame)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsMpegpsQueue> queue(new SrsMpegpsQueue());
+
+    HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeAudio, 0)));
+    EXPECT_TRUE(queue->dequeue() == NULL);
+
+    for (int i = 1; i <= 10; i++) {
+        HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeAudio, i * 23)));
+
+        SrsUniquePtr<SrsMediaPacket> msg(queue->dequeue());
+        ASSERT_TRUE(msg.get() != NULL);
+        EXPECT_EQ((i - 1) * 23, msg->timestamp_);
+        EXPECT_TRUE(msg->is_audio());
+
+        EXPECT_TRUE(queue->dequeue() == NULL);
+        EXPECT_EQ(1, queue->nb_audios_);
+    }
+}
+
+// Once the other track has come, the queue waits for 2 messages of each again,
+// so the tracks go out in time order.
+VOID TEST(MpegpsQueueTest, DequeueWaitsForTrackOnceItCame)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsMpegpsQueue> queue(new SrsMpegpsQueue());
+
+    // Two video messages before any audio: the first goes.
+    HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeVideo, 0)));
+    EXPECT_TRUE(queue->dequeue() == NULL);
+    HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeVideo, 1)));
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> msg(queue->dequeue());
+        ASSERT_TRUE(msg.get() != NULL);
+        EXPECT_EQ(0, msg->timestamp_);
+    }
+    EXPECT_TRUE(queue->dequeue() == NULL);
+
+    // The audio comes: the queue now holds 1 video and 1 audio, and waits.
+    HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeAudio, 20)));
+    EXPECT_TRUE(queue->dequeue() == NULL);
+
+    // A second video isn't enough without a second audio.
+    HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeVideo, 40)));
+    EXPECT_TRUE(queue->dequeue() == NULL);
+    HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeVideo, 80)));
+    EXPECT_TRUE(queue->dequeue() == NULL);
+    EXPECT_EQ(3, queue->nb_videos_);
+    EXPECT_EQ(1, queue->nb_audios_);
+
+    // A second audio sends the oldest ones in time order, while 2 of each are
+    // held.
+    HELPER_EXPECT_SUCCESS(queue->push(mock_mpegps_queue_packet(SrsFrameTypeAudio, 60)));
+    int64_t want[] = {1, 20};
+    for (int i = 0; i < 2; i++) {
+        SrsUniquePtr<SrsMediaPacket> msg(queue->dequeue());
+        ASSERT_TRUE(msg.get() != NULL);
+        EXPECT_EQ(want[i], msg->timestamp_);
+    }
+    EXPECT_TRUE(queue->dequeue() == NULL);
+    EXPECT_EQ(2, queue->nb_videos_);
+    EXPECT_EQ(1, queue->nb_audios_);
+}
+
 // Mock ISrsRawAacStream implementation
 MockGbRawAacStream::MockGbRawAacStream()
 {
@@ -1561,6 +1891,8 @@ srs_error_t MockGbMpegpsQueue::push(SrsMediaPacket *msg)
 {
     push_called_ = true;
     push_count_++;
+    payloads_.push_back(std::string(msg->payload(), msg->size()));
+    srs_freep(msg);
 
     if (push_error_ != srs_success) {
         return srs_error_copy(push_error_);
@@ -1578,6 +1910,7 @@ void MockGbMpegpsQueue::reset()
 {
     push_called_ = false;
     push_count_ = 0;
+    payloads_.clear();
     srs_freep(push_error_);
 }
 
@@ -1585,6 +1918,7 @@ void MockGbMpegpsQueue::reset()
 MockGbSessionForMuxer::MockGbSessionForMuxer()
 {
     device_id_ = "34020000001320000001";
+    ended_ = false;
 }
 
 MockGbSessionForMuxer::~MockGbSessionForMuxer()
@@ -1605,6 +1939,11 @@ void MockGbSessionForMuxer::on_media_transport(SrsSharedResource<ISrsGbMediaTcpC
 
 void MockGbSessionForMuxer::on_media_disconnected(ISrsGbMediaTcpConn *media)
 {
+}
+
+bool MockGbSessionForMuxer::is_ended()
+{
+    return ended_;
 }
 
 void MockGbSessionForMuxer::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
@@ -1629,6 +1968,169 @@ srs_error_t MockGbSessionForMuxer::cycle()
 
 void MockGbSessionForMuxer::on_executor_done(ISrsInterruptable *executor)
 {
+}
+
+MockGbConnectingRtmpClient::MockGbConnectingRtmpClient(SrsGbMuxer *muxer, SrsTsMessage *msg)
+{
+    muxer_ = muxer;
+    msg_ = msg;
+    reentry_error_ = srs_success;
+    sdk_set_while_connecting_ = false;
+}
+
+MockGbConnectingRtmpClient::~MockGbConnectingRtmpClient()
+{
+    srs_freep(reentry_error_);
+}
+
+srs_error_t MockGbConnectingRtmpClient::connect()
+{
+    sdk_set_while_connecting_ = (muxer_->sdk_ != NULL);
+    if (msg_) {
+        reentry_error_ = muxer_->on_ts_message(msg_);
+    } else {
+        reentry_error_ = muxer_->connect();
+    }
+    return MockRtmpClient::connect();
+}
+
+MockGbSendingRtmpClient::MockGbSendingRtmpClient(SrsGbMuxer *muxer, int *sends, srs_error_t *reentry_error)
+{
+    muxer_ = muxer;
+    fail_at_ = 0;
+    sends_ = sends;
+    reentry_error_ = reentry_error;
+}
+
+MockGbSendingRtmpClient::~MockGbSendingRtmpClient()
+{
+}
+
+srs_error_t MockGbSendingRtmpClient::send_and_free_message(SrsMediaPacket *msg)
+{
+    srs_freep(msg);
+    int nn = ++(*sends_);
+
+    if (nn == 1) {
+        char *data = new char[4];
+        memset(data, 0, 4);
+        *reentry_error_ = muxer_->rtmp_write_packet(SrsFrameTypeVideo, 80, data, 4);
+    }
+
+    // Use this client after the muxer was fed, as a send that yields does.
+    send_message_count_++;
+
+    if (nn == fail_at_) {
+        return srs_error_new(ERROR_SOCKET_WRITE, "mock send failed");
+    }
+    return srs_success;
+}
+
+MockGbEndingRtmpClient::MockGbEndingRtmpClient(MockGbSessionForMuxer *session, int end_at, int *sends)
+{
+    session_ = session;
+    end_at_ = end_at;
+    sends_ = sends;
+}
+
+MockGbEndingRtmpClient::~MockGbEndingRtmpClient()
+{
+}
+
+srs_error_t MockGbEndingRtmpClient::send_and_free_message(SrsMediaPacket *msg)
+{
+    srs_freep(msg);
+    int nn = ++(*sends_);
+
+    if (nn == end_at_) {
+        session_->ended_ = true;
+        return srs_error_new(ERROR_SOCKET_WRITE, "mock send interrupted");
+    }
+
+    send_message_count_++;
+    return srs_success;
+}
+
+MockGbYieldingMuxer::MockGbYieldingMuxer(srs_utime_t delay)
+{
+    delay_ = delay;
+    nn_messages_ = 0;
+    left_ = false;
+}
+
+MockGbYieldingMuxer::~MockGbYieldingMuxer()
+{
+}
+
+srs_error_t MockGbYieldingMuxer::on_ts_message(SrsTsMessage *msg)
+{
+    on_ts_message_called_ = true;
+    nn_messages_++;
+    // As a send, the sleep yields, and an interrupt ends it.
+    srs_usleep(delay_);
+    left_ = true;
+    return srs_success;
+}
+
+MockGbMediaCoroutine::MockGbMediaCoroutine(SrsGbSession *session, SrsTsMessage *msg)
+{
+    session_ = session;
+    msgs_.push_back(msg);
+    done_ = false;
+}
+
+MockGbMediaCoroutine::~MockGbMediaCoroutine()
+{
+}
+
+srs_error_t MockGbMediaCoroutine::cycle()
+{
+    session_->on_ps_pack(&ctx_, NULL, msgs_);
+    done_ = true;
+    return srs_success;
+}
+
+MockGbMediaTcpConnInMuxer::MockGbMediaTcpConnInMuxer(MockGbMediaCoroutine *media, SrsSTCoroutine *trd)
+{
+    media_ = media;
+    trd_ = trd;
+}
+
+MockGbMediaTcpConnInMuxer::~MockGbMediaTcpConnInMuxer()
+{
+}
+
+bool MockGbMediaTcpConnInMuxer::is_connected()
+{
+    return !media_->done_;
+}
+
+void MockGbMediaTcpConnInMuxer::interrupt()
+{
+    interrupt_called_ = true;
+    trd_->interrupt();
+}
+
+MockAppFactoryForGbMuxer::MockAppFactoryForGbMuxer()
+{
+    created_ = 0;
+    cto_ = sto_ = 0;
+}
+
+MockAppFactoryForGbMuxer::~MockAppFactoryForGbMuxer()
+{
+    for (int i = created_; i < (int)clients_.size(); i++) {
+        srs_freep(clients_[i]);
+    }
+}
+
+ISrsBasicRtmpClient *MockAppFactoryForGbMuxer::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
+{
+    ISrsBasicRtmpClient *client = created_ < (int)clients_.size() ? clients_[created_] : new MockRtmpClient();
+    created_++;
+    cto_ = cto;
+    sto_ = sto;
+    return client;
 }
 
 MockInterruptableForRtcTcpConn::MockInterruptableForRtcTcpConn()
@@ -2009,6 +2511,616 @@ VOID TEST(GbMuxerTest, OnTsMessageAudio)
     srs_freep(mock_sdk);
     srs_freep(mock_aac);
     srs_freep(mock_queue);
+}
+
+// HEVC goes to RTMP in enhanced RTMP, as from SRT and WebRTC: the sequence
+// header as SequenceStart, a frame without a composition time as
+// CodedFramesX, and one with it as CodedFrames with the composition time.
+VOID TEST(GbMuxerTest, HevcInEnhancedRtmp)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    unsigned char vps[] = {0x40, 0x01, 0x0C, 0x01, 0xFF, 0xFF, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5D, 0xAC, 0x09};
+    unsigned char sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5D,
+                           0xA0, 0x02, 0x80, 0x80, 0x2D, 0x16, 0x59, 0x59, 0xA4, 0x93, 0x2B, 0xC0, 0x5A, 0x70, 0x80};
+    unsigned char pps[] = {0x44, 0x01, 0xC1, 0x73, 0xD1, 0x89, 0x00};
+    muxer->h265_vps_ = std::string((char *)vps, sizeof(vps));
+    muxer->h265_sps_ = std::string((char *)sps, sizeof(sps));
+    muxer->h265_pps_ = std::string((char *)pps, sizeof(pps));
+    muxer->vps_sps_pps_change_ = true;
+    HELPER_EXPECT_SUCCESS(muxer->write_h265_vps_sps_pps(1000, 1000));
+
+    // An IDR (type 19) with pts equal to dts, then a frame (type 1) shown 80ms
+    // after it is decoded.
+    char idr[] = {0x26, 0x01, (char)0xaf, 0x06};
+    std::string idr_ipb;
+    HELPER_EXPECT_SUCCESS(muxer->hevc_->mux_ipb_frame(idr, sizeof(idr), idr_ipb));
+    HELPER_EXPECT_SUCCESS(muxer->write_h265_ipb_frame(idr_ipb, true, 1000, 1000));
+    char b[] = {0x02, 0x01, (char)0xd0, (char)0x80};
+    std::string b_ipb;
+    HELPER_EXPECT_SUCCESS(muxer->hevc_->mux_ipb_frame(b, sizeof(b), b_ipb));
+    HELPER_EXPECT_SUCCESS(muxer->write_h265_ipb_frame(b_ipb, false, 1040, 1120));
+
+    ASSERT_EQ(3, (int)mock_queue->payloads_.size());
+
+    // The sequence header: ex header, keyframe, SequenceStart, then 'hvc1'.
+    std::string sh = mock_queue->payloads_[0];
+    ASSERT_GT((int)sh.size(), 5);
+    EXPECT_EQ(0x90, (uint8_t)sh[0]);
+    EXPECT_EQ("hvc1", sh.substr(1, 4));
+
+    // The IDR: keyframe, CodedFramesX, 'hvc1', then the NALU with its size.
+    std::string key = mock_queue->payloads_[1];
+    ASSERT_EQ(5 + 4 + (int)sizeof(idr), (int)key.size());
+    EXPECT_EQ(0x93, (uint8_t)key[0]);
+    EXPECT_EQ("hvc1", key.substr(1, 4));
+    EXPECT_EQ(std::string("\x00\x00\x00\x04", 4), key.substr(5, 4));
+    EXPECT_EQ(std::string(idr, sizeof(idr)), key.substr(9));
+
+    // The other frame: inter frame, CodedFrames, 'hvc1', the composition time
+    // of 80ms as SI24, then the NALU with its size.
+    std::string inter = mock_queue->payloads_[2];
+    ASSERT_EQ(5 + 3 + 4 + (int)sizeof(b), (int)inter.size());
+    EXPECT_EQ(0xa1, (uint8_t)inter[0]);
+    EXPECT_EQ("hvc1", inter.substr(1, 4));
+    EXPECT_EQ(std::string("\x00\x00\x50", 3), inter.substr(5, 3));
+    EXPECT_EQ(std::string(b, sizeof(b)), inter.substr(12));
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
+// Appends a NALU to an Annex B video frame, after a 4-byte start code.
+static void mock_gb_append_annexb(std::string &frame, const char *nalu, int size)
+{
+    frame.append("\x00\x00\x00\x01", 4);
+    frame.append(nalu, size);
+}
+
+// A GB28181 PS pack's video is one access unit: every slice of an H.264 frame
+// goes in one RTMP message, a keyframe when its slices are IDR. The AUD and
+// SEI are left out, and the SPS and PPS go as the sequence header.
+VOID TEST(GbMuxerTest, H264AccessUnitAsOneMessage)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    const char aud[] = {0x09, (char)0xf0};
+    const char sps[] = {0x67, 0x42, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+    const char sei[] = {0x06, 0x05, 0x02, 0x11, 0x22, (char)0x80};
+    const char idr0[] = {0x65, (char)0x88, (char)0x84, 0x01};
+    const char idr1[] = {0x65, 0x00, 0x22, 0x02};
+    const char p0[] = {0x41, (char)0x9a, 0x11, 0x03};
+    const char p1[] = {0x41, 0x00, 0x33, 0x04};
+
+    // The first frame at 1000ms: AUD, SPS, PPS, SEI and an IDR of 2 slices.
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, aud, sizeof(aud));
+        mock_gb_append_annexb(frame, sps, sizeof(sps));
+        mock_gb_append_annexb(frame, pps, sizeof(pps));
+        mock_gb_append_annexb(frame, sei, sizeof(sei));
+        mock_gb_append_annexb(frame, idr0, sizeof(idr0));
+        mock_gb_append_annexb(frame, idr1, sizeof(idr1));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 90000;
+        SrsBuffer avs((char *)frame.data(), (int)frame.size());
+        HELPER_EXPECT_SUCCESS(muxer->mux_h264(msg.get(), &avs));
+        EXPECT_TRUE(avs.empty());
+    }
+
+    // The next frame at 1040ms: AUD and a P-frame of 2 slices.
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, aud, sizeof(aud));
+        mock_gb_append_annexb(frame, p0, sizeof(p0));
+        mock_gb_append_annexb(frame, p1, sizeof(p1));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 93600;
+        SrsBuffer avs((char *)frame.data(), (int)frame.size());
+        HELPER_EXPECT_SUCCESS(muxer->mux_h264(msg.get(), &avs));
+    }
+
+    // The sequence header, then one message for each frame.
+    ASSERT_EQ(3, (int)mock_queue->payloads_.size());
+
+    std::string sh = mock_queue->payloads_[0];
+    ASSERT_GE((int)sh.size(), 2);
+    EXPECT_EQ(0x17, (uint8_t)sh[0]);
+    EXPECT_EQ(SrsVideoAvcFrameTraitSequenceHeader, sh[1]);
+
+    // The keyframe: its 2 slices in the order they came, each with its 4-byte
+    // size.
+    if (true) {
+        std::string want;
+        want.append("\x17\x01\x00\x00\x00", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr0, sizeof(idr0));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr1, sizeof(idr1));
+        EXPECT_EQ(want, mock_queue->payloads_[1]);
+    }
+
+    // The inter frame of its 2 slices.
+    if (true) {
+        std::string want;
+        want.append("\x27\x01\x00\x00\x00", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p0, sizeof(p0));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p1, sizeof(p1));
+        EXPECT_EQ(want, mock_queue->payloads_[2]);
+    }
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
+// Every slice of an HEVC frame goes in one RTMP message too, a keyframe when
+// its slices are IRAP. The AUD and SEI are left out, and the VPS, SPS and PPS
+// go as the sequence header.
+VOID TEST(GbMuxerTest, HevcAccessUnitAsOneMessage)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    const char aud[] = {0x46, 0x01, 0x50};
+    const char vps[] = {0x40, 0x01, 0x0C, 0x01, (char)0xFF, (char)0xFF, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, (char)0x90, 0x00,
+                        0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5D, (char)0xAC, 0x09};
+    const char sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, (char)0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00,
+                        0x5D, (char)0xA0, 0x02, (char)0x80, (char)0x80, 0x2D, 0x16, 0x59, 0x59, (char)0xA4, (char)0x93, 0x2B,
+                        (char)0xC0, 0x5A, 0x70, (char)0x80};
+    const char pps[] = {0x44, 0x01, (char)0xC1, 0x73, (char)0xD1, (char)0x89, 0x00};
+    const char sei[] = {0x4e, 0x01, 0x05, 0x02, 0x11, 0x22, (char)0x80};
+    const char idr0[] = {0x26, 0x01, (char)0xaf, 0x06};
+    const char idr1[] = {0x26, 0x01, 0x22, 0x07};
+    const char p0[] = {0x02, 0x01, (char)0xd0, 0x08};
+    const char p1[] = {0x02, 0x01, 0x33, 0x09};
+
+    // The first frame at 1000ms: AUD, VPS, SPS, PPS, SEI and an IDR of 2
+    // slices.
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, aud, sizeof(aud));
+        mock_gb_append_annexb(frame, vps, sizeof(vps));
+        mock_gb_append_annexb(frame, sps, sizeof(sps));
+        mock_gb_append_annexb(frame, pps, sizeof(pps));
+        mock_gb_append_annexb(frame, sei, sizeof(sei));
+        mock_gb_append_annexb(frame, idr0, sizeof(idr0));
+        mock_gb_append_annexb(frame, idr1, sizeof(idr1));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 90000;
+        SrsBuffer avs((char *)frame.data(), (int)frame.size());
+        HELPER_EXPECT_SUCCESS(muxer->mux_h265(msg.get(), &avs));
+        EXPECT_TRUE(avs.empty());
+    }
+
+    // The next frame at 1040ms: AUD and a trailing frame of 2 slices.
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, aud, sizeof(aud));
+        mock_gb_append_annexb(frame, p0, sizeof(p0));
+        mock_gb_append_annexb(frame, p1, sizeof(p1));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 93600;
+        SrsBuffer avs((char *)frame.data(), (int)frame.size());
+        HELPER_EXPECT_SUCCESS(muxer->mux_h265(msg.get(), &avs));
+    }
+
+    // The sequence header, then one message for each frame.
+    ASSERT_EQ(3, (int)mock_queue->payloads_.size());
+
+    std::string sh = mock_queue->payloads_[0];
+    ASSERT_GT((int)sh.size(), 5);
+    EXPECT_EQ(0x90, (uint8_t)sh[0]);
+    EXPECT_EQ("hvc1", sh.substr(1, 4));
+
+    // The keyframe, CodedFramesX: its 2 slices in the order they came, each
+    // with its 4-byte size.
+    if (true) {
+        std::string want;
+        want.append("\x93hvc1", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr0, sizeof(idr0));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr1, sizeof(idr1));
+        EXPECT_EQ(want, mock_queue->payloads_[1]);
+    }
+
+    // The inter frame of its 2 slices.
+    if (true) {
+        std::string want;
+        want.append("\xa3hvc1", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p0, sizeof(p0));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p1, sizeof(p1));
+        EXPECT_EQ(want, mock_queue->payloads_[2]);
+    }
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
+// A GB28181 H.264 frame shown after it is decoded, as a B-frame or a frame
+// before one, keeps its PES's pts minus dts as its composition time; a frame
+// whose pts is its dts, or before it, has none, and so has the sequence header.
+VOID TEST(GbMuxerTest, H264KeepsCompositionTime)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    const char sps[] = {0x67, 0x64, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+    const char idr[] = {0x65, (char)0x88, (char)0x84, 0x01};
+    const char p[] = {0x41, (char)0x9a, 0x11, 0x03};
+    const char b[] = {0x01, (char)0x9e, 0x22, 0x04};
+
+    // The keyframe decoded at 1000ms, shown at 1080ms; a P-frame decoded at
+    // 1040ms, shown at 1160ms; a B-frame decoded and shown at 1080ms; a frame
+    // whose pts is 40ms before its dts.
+    struct {
+        const char *nalu;
+        int size;
+        int64_t dts;
+        int64_t pts;
+    } frames[] = {
+        {idr, (int)sizeof(idr), 90000, 97200},
+        {p, (int)sizeof(p), 93600, 104400},
+        {b, (int)sizeof(b), 97200, 97200},
+        {p, (int)sizeof(p), 100800, 97200},
+    };
+    for (int i = 0; i < (int)(sizeof(frames) / sizeof(frames[0])); i++) {
+        std::string frame;
+        if (i == 0) {
+            mock_gb_append_annexb(frame, sps, sizeof(sps));
+            mock_gb_append_annexb(frame, pps, sizeof(pps));
+        }
+        mock_gb_append_annexb(frame, frames[i].nalu, frames[i].size);
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = frames[i].dts;
+        msg->pts_ = frames[i].pts;
+        SrsBuffer avs((char *)frame.data(), (int)frame.size());
+        HELPER_EXPECT_SUCCESS(muxer->mux_h264(msg.get(), &avs));
+    }
+
+    // The sequence header, then each frame: the frame type, the AVC packet
+    // type and the 24-bit composition time.
+    ASSERT_EQ(5, (int)mock_queue->payloads_.size());
+    EXPECT_EQ(std::string("\x17\x00\x00\x00\x00", 5), mock_queue->payloads_[0].substr(0, 5));
+    EXPECT_EQ(std::string("\x17\x01\x00\x00\x50", 5), mock_queue->payloads_[1].substr(0, 5));
+    EXPECT_EQ(std::string("\x27\x01\x00\x00\x78", 5), mock_queue->payloads_[2].substr(0, 5));
+    EXPECT_EQ(std::string("\x27\x01\x00\x00\x00", 5), mock_queue->payloads_[3].substr(0, 5));
+    EXPECT_EQ(std::string("\x27\x01\x00\x00\x00", 5), mock_queue->payloads_[4].substr(0, 5));
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
+// A GB28181 HEVC frame shown after it is decoded goes as an enhanced-RTMP
+// CodedFrames tag with its composition time after the fourcc; a frame whose
+// pts is its dts goes as CodedFramesX, with none.
+VOID TEST(GbMuxerTest, HevcKeepsCompositionTime)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+    MockRtmpClient *mock_sdk = new MockRtmpClient();
+    muxer->sdk_ = mock_sdk;
+
+    const char vps[] = {0x40, 0x01, 0x0C, 0x01, (char)0xFF, (char)0xFF, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, (char)0x90, 0x00,
+                        0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x5D, (char)0xAC, 0x09};
+    const char sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, (char)0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00,
+                        0x5D, (char)0xA0, 0x02, (char)0x80, (char)0x80, 0x2D, 0x16, 0x59, 0x59, (char)0xA4, (char)0x93, 0x2B,
+                        (char)0xC0, 0x5A, 0x70, (char)0x80};
+    const char pps[] = {0x44, 0x01, (char)0xC1, 0x73, (char)0xD1, (char)0x89, 0x00};
+    const char idr[] = {0x26, 0x01, (char)0xaf, 0x06};
+    const char p[] = {0x02, 0x01, (char)0xd0, 0x08};
+
+    // The keyframe decoded at 1000ms, shown at 1080ms; then a frame decoded
+    // and shown at 1040ms.
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, vps, sizeof(vps));
+        mock_gb_append_annexb(frame, sps, sizeof(sps));
+        mock_gb_append_annexb(frame, pps, sizeof(pps));
+        mock_gb_append_annexb(frame, idr, sizeof(idr));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = 90000;
+        msg->pts_ = 97200;
+        SrsBuffer avs((char *)frame.data(), (int)frame.size());
+        HELPER_EXPECT_SUCCESS(muxer->mux_h265(msg.get(), &avs));
+    }
+    if (true) {
+        std::string frame;
+        mock_gb_append_annexb(frame, p, sizeof(p));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 93600;
+        SrsBuffer avs((char *)frame.data(), (int)frame.size());
+        HELPER_EXPECT_SUCCESS(muxer->mux_h265(msg.get(), &avs));
+    }
+
+    // The sequence header, SequenceStart, then the frames.
+    ASSERT_EQ(3, (int)mock_queue->payloads_.size());
+    EXPECT_EQ(std::string("\x90hvc1", 5), mock_queue->payloads_[0].substr(0, 5));
+
+    if (true) {
+        std::string want;
+        want.append("\x91hvc1", 5);
+        want.append("\x00\x00\x50", 3);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr, sizeof(idr));
+        EXPECT_EQ(want, mock_queue->payloads_[1]);
+    }
+
+    if (true) {
+        std::string want;
+        want.append("\xa3hvc1", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p, sizeof(p));
+        EXPECT_EQ(want, mock_queue->payloads_[2]);
+    }
+
+    muxer->sdk_ = NULL;
+    srs_freep(mock_sdk);
+}
+
+// Media that comes while the RTMP output connects, from a second media
+// connection of the session, is dropped before the muxer parses it: it isn't
+// written through the client that hasn't connected, and leaves the muxer's
+// state as it was. Once connected, the next media is written.
+VOID TEST(GbMuxerTest, MediaWhileConnectingDropped)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    MockGbRawAacStream *mock_aac = new MockGbRawAacStream();
+    srs_freep(muxer->aac_);
+    muxer->aac_ = mock_aac;
+    MockGbMpegpsQueue *mock_queue = new MockGbMpegpsQueue();
+    srs_freep(muxer->queue_);
+    muxer->queue_ = mock_queue;
+
+    SrsUniquePtr<SrsTsMessage> audio(new SrsTsMessage());
+    audio->sid_ = SrsTsPESStreamIdAudioCommon;
+    audio->dts_ = 90000;
+    char adts[100];
+    memset(adts, 0, sizeof(adts));
+    audio->payload_->append(adts, sizeof(adts));
+
+    MockGbConnectingRtmpClient *client = new MockGbConnectingRtmpClient(muxer.get(), audio.get());
+    factory.clients_.push_back(client);
+
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+
+    // While connecting: the client isn't the muxer's yet, and the media is
+    // dropped untouched.
+    EXPECT_FALSE(client->sdk_set_while_connecting_);
+    EXPECT_EQ(ERROR_GB_RTMP_CONNECTING, srs_error_code(client->reentry_error_));
+    EXPECT_FALSE(mock_aac->adts_demux_called_);
+    EXPECT_TRUE(muxer->aac_specific_config_.empty());
+    EXPECT_EQ(0, mock_queue->push_count_);
+
+    // Connected: the client is the muxer's, and media is written.
+    EXPECT_TRUE(muxer->sdk_ == client);
+    EXPECT_EQ(1, factory.created_);
+    HELPER_EXPECT_SUCCESS(muxer->on_ts_message(audio.get()));
+    EXPECT_TRUE(mock_aac->adts_demux_called_);
+    EXPECT_GE(mock_queue->push_count_, 2);
+}
+
+// The RTMP output waits for its own RTMP server as the forwarder does, not
+// only the pulse: the server reads its media only once the on_publish hook
+// accepts, so a send may wait as long as the hook.
+VOID TEST(GbMuxerTest, RtmpOutputWaitsForHook)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    MockGbConnectingRtmpClient *client = new MockGbConnectingRtmpClient(muxer.get(), NULL);
+    factory.clients_.push_back(client);
+
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+    EXPECT_TRUE(muxer->sdk_ == client);
+    EXPECT_EQ(SRS_CONSTS_RTMP_TIMEOUT, factory.cto_);
+    EXPECT_EQ(SRS_CONSTS_RTMP_TIMEOUT, factory.sto_);
+}
+
+// A connect while another one is in progress is refused and makes no second
+// client. A connect that fails leaves no client, and the next media connects
+// again.
+VOID TEST(GbMuxerTest, ConnectWhileConnectingRefused)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    MockGbConnectingRtmpClient *failing = new MockGbConnectingRtmpClient(muxer.get(), NULL);
+    failing->connect_error_ = srs_error_new(ERROR_SOCKET_CONNECT, "mock connect failed");
+    MockGbConnectingRtmpClient *client = new MockGbConnectingRtmpClient(muxer.get(), NULL);
+    factory.clients_.push_back(failing);
+    factory.clients_.push_back(client);
+
+    // The first connect fails; the one tried while it connects is refused.
+    // The failed client is freed by the muxer, so read it before the next.
+    HELPER_EXPECT_FAILED(muxer->connect());
+    EXPECT_TRUE(muxer->sdk_ == NULL);
+    EXPECT_EQ(1, factory.created_);
+
+    // The next connect makes a new client.
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+    EXPECT_EQ(ERROR_GB_RTMP_CONNECTING, srs_error_code(client->reentry_error_));
+    EXPECT_FALSE(client->sdk_set_while_connecting_);
+    EXPECT_EQ(2, factory.created_);
+    EXPECT_TRUE(muxer->sdk_ == client);
+
+    // Connected: a connect does nothing.
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+    EXPECT_EQ(2, factory.created_);
+}
+
+// A message that a second media connection of the session writes while the
+// first one's send yields is queued, and the first one sends it in turn, so
+// only one coroutine sends through the RTMP client. When that send fails, the
+// client is freed by the coroutine that used it, never under another one.
+VOID TEST(GbMuxerTest, WriteWhileSendingQueued)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->assemble();
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    int sends = 0;
+    srs_error_t reentry_error = srs_success;
+    MockGbSendingRtmpClient *client = new MockGbSendingRtmpClient(muxer.get(), &sends, &reentry_error);
+    client->fail_at_ = 2;
+    factory.clients_.push_back(client);
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+    EXPECT_TRUE(muxer->sdk_ == client);
+
+    // The queue holds one video frame, and sends a frame once it has two.
+    char *data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeVideo, 0, data, 4));
+    EXPECT_EQ(0, sends);
+
+    // The first send writes the next frame meanwhile, which is queued, not sent,
+    // and the frame after the first is sent next, whose send fails.
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_FAILED(muxer->rtmp_write_packet(SrsFrameTypeVideo, 40, data, 4));
+    HELPER_EXPECT_SUCCESS(reentry_error);
+    EXPECT_EQ(2, sends);
+    EXPECT_TRUE(muxer->sdk_ == NULL);
+}
+
+// A session's end interrupts its media connection in a send of the RTMP
+// output, which fails and frees the client. The rest of that connection's
+// pack, and any media after it, makes no new client: the ended session never
+// publishes again, and its cycle's wait for the connection to leave the muxer
+// ends.
+VOID TEST(GbMuxerTest, NoConnectAfterSessionEnded)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->assemble();
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    int sends = 0;
+    factory.clients_.push_back(new MockGbEndingRtmpClient(mock_session.get(), 2, &sends));
+
+    // While the session lives, the first audio connects, and the queue sends
+    // a frame once it has two.
+    char *data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeAudio, 0, data, 4));
+    EXPECT_EQ(1, factory.created_);
+    EXPECT_TRUE(muxer->sdk_ != NULL);
+    EXPECT_EQ(0, sends);
+
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeAudio, 23, data, 4));
+    EXPECT_EQ(1, sends);
+    EXPECT_FALSE(mock_session->is_ended());
+
+    // The session ends in the next send, which fails and frees the client.
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_FAILED(muxer->rtmp_write_packet(SrsFrameTypeAudio, 46, data, 4));
+    EXPECT_EQ(2, sends);
+    EXPECT_TRUE(mock_session->is_ended());
+    EXPECT_TRUE(muxer->sdk_ == NULL);
+
+    // The video of the same pack, and the media after it, connect no more.
+    data = new char[4];
+    memset(data, 0, 4);
+    err = muxer->rtmp_write_packet(SrsFrameTypeVideo, 50, data, 4);
+    EXPECT_EQ(ERROR_GB_SESSION_ENDED, srs_error_code(err));
+    srs_freep(err);
+
+    data = new char[4];
+    memset(data, 0, 4);
+    err = muxer->rtmp_write_packet(SrsFrameTypeAudio, 69, data, 4);
+    EXPECT_EQ(ERROR_GB_SESSION_ENDED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, factory.created_);
+    EXPECT_TRUE(muxer->sdk_ == NULL);
+    EXPECT_EQ(2, sends);
 }
 
 // Test SrsPackContext::on_ts_message - covers the major use scenario:
@@ -2454,6 +3566,11 @@ void MockGbSessionForApiPublish::on_media_disconnected(ISrsGbMediaTcpConn *media
 {
 }
 
+bool MockGbSessionForApiPublish::is_ended()
+{
+    return false;
+}
+
 void MockGbSessionForApiPublish::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
 {
 }
@@ -2615,6 +3732,106 @@ VOID TEST(GB28181Test, GoApiGbPublishSuccess)
     api->app_factory_ = NULL;
 
     srs_freep(conf);
+}
+
+// Test SrsGoApiGbPublish::do_serve_http - an SSRC that is not a decimal number
+// of 1 to 2^32-1 is refused, and makes no session
+VOID TEST(GB28181Test, GoApiGbPublishRefusesBadSsrc)
+{
+    srs_error_t err;
+
+    const char *ssrcs[] = {
+        "camera", "", "12a", "a12", "-1", "+1", " 1", "1 ", "0x10", "1.5",
+        "0", "0000000000", "4294967296", "99999999999999999999999",
+    };
+
+    for (size_t i = 0; i < sizeof(ssrcs) / sizeof(ssrcs[0]); i++) {
+        SrsUniquePtr<MockResponseWriter> mock_writer(new MockResponseWriter());
+        SrsUniquePtr<MockHttpMessageForGbPublish> mock_request(new MockHttpMessageForGbPublish());
+        SrsUniquePtr<MockResourceManagerForGbPublish> mock_manager(new MockResourceManagerForGbPublish());
+        SrsUniquePtr<MockAppFactoryForGbPublish> mock_factory(new MockAppFactoryForGbPublish());
+        SrsUniquePtr<MockAppConfigForGbListener> mock_config(new MockAppConfigForGbListener());
+
+        SrsConfDirective *conf = new SrsConfDirective();
+        conf->name_ = "stream_caster";
+        SrsUniquePtr<SrsGoApiGbPublish> api(new SrsGoApiGbPublish(conf));
+        api->config_ = mock_config.get();
+        api->gb_manager_ = mock_manager.get();
+        api->app_factory_ = mock_factory.get();
+
+        mock_request->body_content_ = std::string("{\"id\":\"34020000001320000001\",\"ssrc\":\"") + ssrcs[i] + "\"}";
+
+        SrsUniquePtr<SrsJsonObject> res(SrsJsonAny::object());
+        err = api->do_serve_http(mock_writer.get(), mock_request.get(), res.get());
+        EXPECT_TRUE(err != srs_success) << "ssrc=" << ssrcs[i];
+        EXPECT_EQ(ERROR_HTTP_DATA_INVALID, srs_error_code(err)) << "ssrc=" << ssrcs[i];
+        srs_freep(err);
+
+        EXPECT_TRUE(mock_manager->empty()) << "ssrc=" << ssrcs[i];
+        EXPECT_TRUE(res->get_property("port") == NULL) << "ssrc=" << ssrcs[i];
+
+        api->config_ = NULL;
+        api->gb_manager_ = NULL;
+        api->app_factory_ = NULL;
+        srs_freep(conf);
+    }
+}
+
+// Test SrsGoApiGbPublish::do_serve_http - an SSRC takes the whole 32 bits of an
+// RTP SSRC, with leading zeros as GB28181 writes it
+VOID TEST(GB28181Test, GoApiGbPublishSsrcOf32Bits)
+{
+    srs_error_t err;
+
+    struct {
+        const char *str;
+        uint64_t value;
+    } ssrcs[] = {
+        {"0100000001", 100000001},
+        {"1", 1},
+        {"2147483648", 2147483648ULL},
+        {"3000000000", 3000000000ULL},
+        {"4294967295", 4294967295ULL},
+        {"00004294967295", 4294967295ULL},
+    };
+
+    for (size_t i = 0; i < sizeof(ssrcs) / sizeof(ssrcs[0]); i++) {
+        SrsUniquePtr<MockResponseWriter> mock_writer(new MockResponseWriter());
+        SrsUniquePtr<MockHttpMessageForGbPublish> mock_request(new MockHttpMessageForGbPublish());
+        SrsUniquePtr<MockResourceManagerForGbPublish> mock_manager(new MockResourceManagerForGbPublish());
+        SrsUniquePtr<MockAppFactoryForGbPublish> mock_factory(new MockAppFactoryForGbPublish());
+        SrsUniquePtr<MockAppConfigForGbListener> mock_config(new MockAppConfigForGbListener());
+
+        SrsConfDirective *conf = new SrsConfDirective();
+        conf->name_ = "stream_caster";
+        SrsUniquePtr<SrsGoApiGbPublish> api(new SrsGoApiGbPublish(conf));
+        api->config_ = mock_config.get();
+        api->gb_manager_ = mock_manager.get();
+        api->app_factory_ = mock_factory.get();
+
+        mock_request->body_content_ = std::string("{\"id\":\"34020000001320000001\",\"ssrc\":\"") + ssrcs[i].str + "\"}";
+
+        SrsUniquePtr<SrsJsonObject> res(SrsJsonAny::object());
+        err = api->do_serve_http(mock_writer.get(), mock_request.get(), res.get());
+        HELPER_EXPECT_SUCCESS(err);
+
+        ISrsResource *session = mock_manager->find_by_id("34020000001320000001");
+        EXPECT_TRUE(session != NULL) << "ssrc=" << ssrcs[i].str;
+        EXPECT_EQ(session, mock_manager->find_by_fast_id(ssrcs[i].value)) << "ssrc=" << ssrcs[i].str;
+
+        // Stop the session's coroutine, as the success test does.
+        SrsSharedResource<ISrsGbSession> *wrapper = dynamic_cast<SrsSharedResource<ISrsGbSession> *>(session);
+        MockGbSessionForApiPublish *mock_session = wrapper ? dynamic_cast<MockGbSessionForApiPublish *>(wrapper->get()) : NULL;
+        if (mock_session && mock_session->owner_coroutine_) {
+            mock_session->owner_coroutine_->interrupt();
+        }
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+        api->config_ = NULL;
+        api->gb_manager_ = NULL;
+        api->app_factory_ = NULL;
+        srs_freep(conf);
+    }
 }
 
 MockGbListenerForServer::MockGbListenerForServer() : SrsGbListener(NULL)
@@ -2963,6 +4180,8 @@ MockRtcConnectionForUdpNetwork::MockRtcConnectionForUdpNetwork()
     on_rtcp_called_ = false;
     rtp_cipher_dropped_ = false;
     binding_request_error_ = srs_success;
+    binding_requests_ = 0;
+    udp_network_ = NULL;
 }
 
 MockRtcConnectionForUdpNetwork::~MockRtcConnectionForUdpNetwork()
@@ -3071,12 +4290,13 @@ srs_error_t MockRtcConnectionForUdpNetwork::on_rtcp(char *data, int nb_data)
 
 srs_error_t MockRtcConnectionForUdpNetwork::on_binding_request(SrsStunPacket *r, std::string &ice_pwd)
 {
+    binding_requests_++;
     return srs_error_copy(binding_request_error_);
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::udp()
 {
-    return NULL;
+    return udp_network_;
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::tcp()
@@ -3172,6 +4392,7 @@ void MockRtcConnectionForUdpNetwork::reset()
     on_rtcp_called_ = false;
     rtp_cipher_dropped_ = false;
     srs_freep(binding_request_error_);
+    binding_requests_ = 0;
 }
 
 // Test SrsRtcUdpNetwork initialization and DTLS handling
@@ -3500,6 +4721,10 @@ ISrsResource *MockResourceManagerForUdpNetwork::find_by_fast_id(uint64_t id)
 
 ISrsResource *MockResourceManagerForUdpNetwork::find_by_name(std::string name)
 {
+    std::map<std::string, ISrsResource *>::iterator it = name_map_.find(name);
+    if (it != name_map_.end()) {
+        return it->second;
+    }
     return NULL;
 }
 
@@ -3519,6 +4744,7 @@ void MockResourceManagerForUdpNetwork::reset()
 {
     id_map_.clear();
     fast_id_map_.clear();
+    name_map_.clear();
 }
 
 // Test SrsRtcUdpNetwork STUN binding request handling
@@ -4040,6 +5266,22 @@ int64_t MockProtocolReadWriterForTcpNetwork::get_send_bytes()
 
 srs_error_t MockProtocolReadWriterForTcpNetwork::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
 {
+    if (write_error_ != srs_success) {
+        return srs_error_copy(write_error_);
+    }
+
+    // Store the data of all buffers as one write.
+    std::string data;
+    for (int i = 0; i < iov_size; i++) {
+        data.append((char *)iov[i].iov_base, iov[i].iov_len);
+    }
+    written_data_.push_back(data);
+    send_bytes_ += data.size();
+
+    if (nwrite) {
+        *nwrite = data.size();
+    }
+
     return srs_success;
 }
 
@@ -4189,15 +5431,9 @@ VOID TEST(RtcTcpNetworkTest, HandleStunBindingRequest)
     // Verify state transitioned to Dtls
     EXPECT_EQ(SrsRtcNetworkStateDtls, tcp_network->state_);
 
-    // Verify that data was written (STUN binding response)
-    // The write() method is called with 2-byte length prefix + STUN response data
-    EXPECT_TRUE(mock_io->written_data_.size() >= 2);
-
-    // First write should be 2-byte length prefix
-    EXPECT_EQ(2, (int)mock_io->written_data_[0].size());
-
-    // Second write should be the STUN response data
-    EXPECT_TRUE(mock_io->written_data_[1].size() > 0);
+    // Verify that the STUN binding response was written in one write, after its 2-byte length prefix.
+    EXPECT_EQ(1, (int)mock_io->written_data_.size());
+    EXPECT_TRUE(mock_io->written_data_[0].size() > 2);
 
     // Clean up
     tcp_network->sendonly_skt_ = NULL;
@@ -5316,9 +6552,9 @@ VOID TEST(RtcTcpNetworkTest, OnStunWritesStunAndResponseToInjectedBlackhole)
     request.set_remote_ufrag("remote_user");
     request.set_transcation_id("transaction123");
     HELPER_EXPECT_SUCCESS(tcp_network.on_stun(&request, data, sizeof(data)));
-    EXPECT_EQ(2, (int)io.written_data_.size());
+    EXPECT_EQ(1, (int)io.written_data_.size());
     EXPECT_EQ(3, blackhole.sendto_count_);
-    EXPECT_EQ((int)io.written_data_[1].size(), blackhole.last_len_);
+    EXPECT_EQ((int)io.written_data_[0].size() - 2, blackhole.last_len_);
 
     // The response fails to send, so only the request.
     io.reset();
@@ -5332,4 +6568,67 @@ VOID TEST(RtcTcpNetworkTest, OnStunWritesStunAndResponseToInjectedBlackhole)
 
     tcp_network.sendonly_skt_ = NULL;
     tcp_network.blackhole_ = NULL;
+}
+
+// A client that closed its socket without a DTLS alert leaves its session at its address until the session times out,
+// and a new client may get the same port. Its binding request goes to the session its username names, which binds and
+// takes the address, not to the old session, which would reject it for the other password.
+VOID TEST(RtcSessionManagerTest, BindingRequestFromOldSessionAddressGoesToNamedSession)
+{
+    srs_error_t err;
+
+    MockResourceManagerForUdpNetwork manager;
+    MockEphemeralDelta delta;
+    MockRtcBlackholeForUdpNetwork blackhole;
+
+    MockRtcConnectionForUdpNetwork old_conn;
+    SrsRtcUdpNetwork old_network(&old_conn, &delta);
+    old_network.blackhole_ = &blackhole;
+    old_network.conn_manager_ = &manager;
+    old_conn.udp_network_ = &old_network;
+    old_conn.binding_request_error_ = srs_error_new(ERROR_RTC_STUN, "mock integrity mismatch");
+
+    MockRtcConnectionForUdpNetwork conn;
+    SrsRtcUdpNetwork network(&conn, &delta);
+    network.blackhole_ = &blackhole;
+    network.conn_manager_ = &manager;
+    conn.udp_network_ = &network;
+
+    MockUdpMuxSocket socket;
+    socket.peer_ip_ = "127.0.0.1";
+    socket.peer_port_ = 50000;
+    socket.peer_id_ = "127.0.0.1:50000";
+    socket.fast_id_ = 12345;
+    manager.fast_id_map_[socket.fast_id_] = &old_conn;
+    manager.id_map_[socket.peer_id_] = &old_conn;
+    manager.name_map_["srvufrag:cliufrag"] = &conn;
+
+    // The same STUN packet as over TCP, without the 2-byte length of RFC 4571.
+    std::string stun = build_rtc_tcp_stun_binding_request("srvufrag:cliufrag").substr(2);
+    socket.data_ = (char *)stun.data();
+    socket.size_ = (int)stun.size();
+
+    SrsRtcSessionManager session_manager;
+    session_manager.conn_manager_ = &manager;
+    HELPER_EXPECT_SUCCESS(session_manager.on_udp_packet(&socket));
+
+    EXPECT_EQ(0, old_conn.binding_requests_);
+    EXPECT_EQ(1, conn.binding_requests_);
+    EXPECT_EQ(1, socket.sendto_called_count_);
+    EXPECT_EQ((ISrsUdpMuxSocket *)&socket, network.sendonly_skt_);
+    EXPECT_TRUE(old_network.sendonly_skt_ == NULL);
+
+    // The address is the new session's now, so its next packets, such as DTLS, go there.
+    EXPECT_EQ((ISrsResource *)&conn, manager.fast_id_map_[socket.fast_id_]);
+    EXPECT_EQ((ISrsResource *)&conn, manager.id_map_[socket.peer_id_]);
+
+    // The mock socket copies itself as the cached address, so it must not be freed by the network.
+    session_manager.conn_manager_ = NULL;
+    network.peer_addresses_.clear();
+    network.sendonly_skt_ = NULL;
+    network.conn_manager_ = NULL;
+    network.blackhole_ = NULL;
+    old_network.conn_manager_ = NULL;
+    old_network.blackhole_ = NULL;
+    socket.data_ = NULL;
 }

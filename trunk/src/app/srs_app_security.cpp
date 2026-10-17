@@ -87,8 +87,12 @@ srs_error_t SrsSecurity::allow_check(SrsConfDirective *rules, SrsRtmpConnType ty
         case SrsRtmpConnPlay:
         case SrsHlsPlay:
         case SrsFlvPlay:
+        case SrsTsPlay:
+        case SrsMp3Play:
+        case SrsAacPlay:
         case SrsRtcConnPlay:
         case SrsSrtConnPlay:
+        case SrsRtspConnPlay:
             if (rule->arg0() != "play") {
                 break;
             }
@@ -142,8 +146,12 @@ srs_error_t SrsSecurity::deny_check(SrsConfDirective *rules, SrsRtmpConnType typ
         case SrsRtmpConnPlay:
         case SrsHlsPlay:
         case SrsFlvPlay:
+        case SrsTsPlay:
+        case SrsMp3Play:
+        case SrsAacPlay:
         case SrsRtcConnPlay:
         case SrsSrtConnPlay:
+        case SrsRtspConnPlay:
             if (rule->arg0() != "play") {
                 break;
             }

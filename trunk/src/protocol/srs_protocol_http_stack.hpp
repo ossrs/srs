@@ -600,6 +600,9 @@ public:
 public:
     virtual bool match(ISrsHttpMessage *r);
     virtual srs_error_t authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
+
+private:
+    srs_error_t do_authenticate(ISrsHttpMessage *r);
 };
 
 // Authenticate HTTP requests using a Bearer token.
@@ -693,7 +696,7 @@ public:
 public:
     // Whether should keep the connection alive.
     virtual bool is_keep_alive() = 0;
-    // The uri contains the host and path.
+    // The uri the client asked for, such as http://host:port/path?query.
     virtual std::string uri() = 0;
     // The url maybe the path.
     virtual std::string url() = 0;
@@ -754,7 +757,7 @@ public:
 
 public:
     // Initialize the http uri.
-    virtual srs_error_t initialize(std::string _url);
+    virtual srs_error_t initialize(std::string url);
     // After parsed the message, set the schema to https.
     virtual void set_schema(std::string v);
 
@@ -765,6 +768,9 @@ public:
     virtual int get_port();
     virtual std::string get_path();
     virtual std::string get_query();
+    // The path and the query to request the url with, such as /api?k=v; the
+    // path is / when the url has none.
+    virtual std::string get_request_target();
     virtual std::string get_query_by_key(std::string key);
     virtual std::string get_fragment();
     virtual std::string username();

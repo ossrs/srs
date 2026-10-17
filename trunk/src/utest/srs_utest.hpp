@@ -53,6 +53,39 @@ extern int _srs_utest_port_max;
 extern srs_error_t srs_utest_port_range(const char *v, int *min, int *max);
 // A random port from the unit tests' range.
 extern int srs_utest_random_port();
+// Whether no socket of the type, SOCK_STREAM or SOCK_DGRAM, holds the port of the ip, checked by a bind
+// with no SO_REUSEADDR or SO_REUSEPORT, so a port another SRS or utest run shares is not free either.
+extern bool srs_utest_port_free(int type, std::string ip, int port);
+// A port of the socket type, SOCK_STREAM or SOCK_DGRAM, from the unit tests' range that no socket
+// holds on the temporary host when it returns, for a server the test does not bind itself.
+extern srs_error_t srs_utest_free_port(int type, int *port);
+// Listen on a random port from the unit tests' range that no socket holds, and on another one while the
+// port is taken or shared, so a port that another process holds, or shares by SO_REUSEPORT, fails no test
+// and gets none of its connections; the port listened on is set to *port.
+extern srs_error_t srs_utest_tcp_listen(std::string ip, int *port, srs_netfd_t *pfd);
+extern srs_error_t srs_utest_udp_listen(std::string ip, int *port, srs_netfd_t *pfd);
+extern srs_error_t srs_utest_tcp_listener_listen(SrsTcpListener *listener, std::string ip, int *port);
+extern srs_error_t srs_utest_udp_listener_listen(SrsUdpListener *listener, std::string ip, int *port);
+extern srs_error_t srs_utest_udp_mux_listener_listen(SrsUdpMuxListener *listener, int *port);
+// Listen by srs_tcp_listen or srs_udp_listen, by the socket type, on a fixed port, such as a bound of the
+// port range, that every utest run may check at once. *pfd is NULL when a socket holds the port, so the
+// caller skips it, not fails.
+extern srs_error_t srs_utest_listen_fixed_port(int type, std::string ip, int port, srs_netfd_t *pfd);
+
+// While it lives, random() draws from a sequence of its own, seeded by seed, and when it goes, random()
+// goes on with the sequence it had before. A test that needs fixed random values, like RTX sequence
+// numbers, seeds by it, never by srandom(), which would give every later test of the run, and every
+// run, the same values, such as the random ports of srs_utest_random_port.
+class SrsUtestRandomState
+{
+private:
+    char state_[128];
+    char *previous_;
+
+public:
+    SrsUtestRandomState(unsigned int seed);
+    virtual ~SrsUtestRandomState();
+};
 
 // For errors.
 // @remark we directly delete the err, because we allow user to append message if fail.
@@ -336,6 +369,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     string ssl_cert_file_;
     string ip_;
     int port_;
+    // The error of the last client the server failed to serve, empty if none.
+    string last_error_;
 
 public:
     SrsHttpsTestServer(string response_body, string key_file = "./conf/server.key", string cert_file = "./conf/server.crt");
@@ -344,6 +379,7 @@ public:
     virtual void close();
     virtual string url();
     virtual int get_port();
+    virtual string last_error();
 
     // Interface ISrsCoroutineHandler
 // clang-format off
@@ -412,6 +448,8 @@ public:
     virtual void close();
     virtual int get_port();
     virtual SrsTcpConnection *get_connection();
+    // Hands the accepted connection to the caller, who frees it.
+    virtual SrsTcpConnection *take_connection();
 
     // Interface ISrsCoroutineHandler
 public:
