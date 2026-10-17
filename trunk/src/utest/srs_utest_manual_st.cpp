@@ -286,17 +286,15 @@ VOID TEST(StSocketTest, PortRangeTcpListen)
 {
     srs_error_t err;
 
-    // Test valid port ranges, each bound only when no socket holds it: another process may listen on it.
+    // Test valid port ranges, each bound only when no socket holds it: another process may listen on it,
+    // or another utest run check it at the same time.
     int bounds[] = {1024, 65535};
     for (int i = 0; i < (int)(sizeof(bounds) / sizeof(bounds[0])); i++) {
-        if (!srs_utest_port_free(SOCK_STREAM, "127.0.0.1", bounds[i])) {
-            continue;
-        }
-
         srs_netfd_t fd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_tcp_listen("127.0.0.1", bounds[i], &fd));
-        EXPECT_TRUE(fd != NULL);
-        srs_close_stfd(fd);
+        HELPER_ASSERT_SUCCESS(srs_utest_listen_fixed_port(SOCK_STREAM, "127.0.0.1", bounds[i], &fd));
+        if (fd != NULL) {
+            srs_close_stfd(fd);
+        }
     }
 
     // Test port 0 (system assigns available port)
@@ -310,17 +308,15 @@ VOID TEST(StSocketTest, PortRangeUdpListen)
 {
     srs_error_t err;
 
-    // Test valid port ranges, each bound only when no socket holds it: another process may listen on it.
+    // Test valid port ranges, each bound only when no socket holds it: another process may listen on it,
+    // or another utest run check it at the same time.
     int bounds[] = {1024, 65535};
     for (int i = 0; i < (int)(sizeof(bounds) / sizeof(bounds[0])); i++) {
-        if (!srs_utest_port_free(SOCK_DGRAM, "127.0.0.1", bounds[i])) {
-            continue;
-        }
-
         srs_netfd_t fd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", bounds[i], &fd));
-        EXPECT_TRUE(fd != NULL);
-        srs_close_stfd(fd);
+        HELPER_ASSERT_SUCCESS(srs_utest_listen_fixed_port(SOCK_DGRAM, "127.0.0.1", bounds[i], &fd));
+        if (fd != NULL) {
+            srs_close_stfd(fd);
+        }
     }
 
     // Test port 0 (system assigns available port)

@@ -143,12 +143,20 @@ func whipSend(c *check.C, pub *rtc.Publisher, samples []rtc.Sample, lead time.Du
 // Sender Reports, not from when the packets come.
 func whipThrough(c *check.C, srs *server.Server, pub *rtc.Publisher, samples []rtc.Sample, d time.Duration) {
 	c.Helper()
+	free := srs.Burst(c)
+	defer free()
+	whipSendThrough(c, pub, samples, d)
+}
+
+// whipSendThrough sends samples from their start through those before d at
+// once. It returns once the packets are sent, before SRS has read them: they
+// wait in the socket of SRS's UDP listener.
+func whipSendThrough(c *check.C, pub *rtc.Publisher, samples []rtc.Sample, d time.Duration) {
+	c.Helper()
 	n := 0
 	for n < len(samples) && samples[n].DTS < d {
 		n++
 	}
-	free := srs.Burst(c)
-	defer free()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	c.Must(pub.Send(ctx, samples[:n], nil), "publish the media")
@@ -288,6 +296,11 @@ func whipRemux(name, ext string, video, audio map[string]string) whipPlayer {
 // publisher sends the media at once through d, or through audioOnly for a
 // stream with no video, which SRS cuts by hls_aof_ratio, and play reads the
 // segments until the report has the sequence headers and least of media.
+//
+// The packets of a WebRTC burst are sent before SRS reads them, and SRS reads
+// them after the bursts of the cases before, so the case keeps its burst slot
+// until the HLS playlist lists least of media: SRS has then read the burst
+// and written its segments, and the next burst starts.
 func whipSegments(name string, video, audio map[string]string, d, audioOnly, least time.Duration,
 	play func(c *check.C, srs *server.Server, stream string, u report.Until) *report.Report) whipPlayer {
 	return whipPlayer{
@@ -298,10 +311,26 @@ func whipSegments(name string, video, audio map[string]string, d, audioOnly, lea
 			if codec.video == "" {
 				through = audioOnly
 			}
-			whipThrough(c, srs, whipPublish(c, srs, stream, codec), codec.samples(c), through)
+			pub := whipPublish(c, srs, stream, codec)
+			free := srs.Burst(c)
+			defer free()
+			whipSendThrough(c, pub, codec.samples(c), through)
+			waitPlaylist(c, httpClient, flvURL(srs, "live/"+stream+".m3u8"), listsMedia(least))
+			free()
 			return play(c, srs, stream, segmentsOf(w, least))
 		},
 		gap: 100 * time.Millisecond, sync: 100 * time.Millisecond,
+	}
+}
+
+// listsMedia is a playlist whose segments last d or more in all.
+func listsMedia(d time.Duration) func(*hls.Playlist) bool {
+	return func(pl *hls.Playlist) bool {
+		var all time.Duration
+		for _, s := range pl.Segments {
+			all += s.Duration
+		}
+		return all >= d
 	}
 }
 
@@ -347,15 +376,11 @@ var (
 
 	// whipDashPlayer plays the RtcToRtmp server's DASH, the first 2s
 	// segment, once the HLS segment that ends with it is there (see
-	// dashPlayer).
+	// dashPlayer): the HLS of 1.5s of media ends at 2s, or with no video,
+	// at 2.1s.
 	whipDashPlayer = whipSegments("Dash", same("h264", "hevc"), map[string]string{"opus": "aac"},
 		rtcToRtmpDashSegment+1200*time.Millisecond, 2500*time.Millisecond, 1500*time.Millisecond,
 		func(c *check.C, srs *server.Server, stream string, u report.Until) *report.Report {
-			seq := 1
-			if !u.VideoHeader {
-				seq = 0
-			}
-			waitPlaylist(c, httpClient, flvURL(srs, "live/"+stream+".m3u8"), hasSegment(seq))
 			return playDashCell(c, flvURL(srs, "live/"+stream+".mpd"), u)
 		})
 )
@@ -537,7 +562,7 @@ var (
 )
 
 // playWhipHLS plays a stream's HLS until u, for at most 300ms: the segments
-// are on disk once the publisher has sent them.
+// are on disk once the playlist lists them, which whipSegments waits for.
 func playWhipHLS(c *check.C, srs *server.Server, stream string, u report.Until) *report.Report {
 	c.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)

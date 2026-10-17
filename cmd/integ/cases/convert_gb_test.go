@@ -85,15 +85,12 @@ func gbThrough(c *check.C, srs *server.Server, path, file string, d time.Duratio
 	// A small send buffer keeps the burst slot until SRS has read most of the
 	// burst, not only until the kernel has it.
 	if tc, ok := s.conn.(*net.TCPConn); ok {
-		c.Must(tc.SetWriteBuffer(gbBurstBuffer), "set the send buffer")
+		c.Must(tc.SetWriteBuffer(burstBuffer), "set the send buffer")
 	}
 	free := srs.Burst(c)
 	defer free()
 	s.sendThrough(c, d+gbHold)
 }
-
-// gbBurstBuffer is the send buffer of a GB publisher that sends a burst.
-const gbBurstBuffer = 32 << 10
 
 // gbID is the id of a GB stream path: SRS publishes a session as live/<id>.
 func gbID(c *check.C, path string) string {

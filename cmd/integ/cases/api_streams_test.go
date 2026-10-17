@@ -781,13 +781,15 @@ func apiCounts(t *testing.T) {
 
 // sendSRTThrough sends a TS file on an SRT publisher through d at once, in a
 // burst slot of the server, and keeps the publisher until the case ends.
+//
+// The case keeps the slot until it ends, as srtThrough does: an SRT send
+// returns once gosrt has queued the packets, so SRS reads the burst after it.
 func sendSRTThrough(c *check.C, srs *server.Server, conn *srt.Conn, file string, d time.Duration) {
 	c.Helper()
 	f, err := os.Open(media.Path(c, file))
 	c.Must(err, "open the media")
 	c.Cleanup(func() { f.Close() })
-	free := srs.Burst(c)
-	defer free()
+	c.Cleanup(srs.Burst(c))
 	c.Must(srt.NewSender(f).SendThrough(conn, d), "publish the media")
 }
 

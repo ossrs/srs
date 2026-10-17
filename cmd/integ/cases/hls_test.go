@@ -456,7 +456,7 @@ func publishThrough(c *check.C, srs *server.Server, stream, file string, d time.
 // burst slot of the server.
 func publishTagsOn(c *check.C, srs *server.Server, pub *rtmp.Client, tags []*media.FLVTag) {
 	c.Helper()
-	free := srs.Burst(c)
+	free := burstOn(c, srs, pub)
 	defer free()
 	c.Must(writeTags(pub, tags), "publish the media")
 }

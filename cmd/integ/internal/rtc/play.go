@@ -188,29 +188,147 @@ func (a *Analyzer) Report() *report.Report {
 	return &a.ts.Report
 }
 
+// burstGap is how long no packet comes before a player has a burst of them
+// in full. The packets of one burst arrive within about 1ms; between bursts,
+// real-time media leaves gaps of 10ms or more, since an Opus packet comes
+// every 20ms.
+const burstGap = 10 * time.Millisecond
+
+// A burst is the decode times of the frames each track added since the
+// player last waited for the network, after the latest frame of each track
+// before them.
+type burst struct {
+	video, audio         []time.Duration
+	lastVideo, lastAudio time.Duration
+	hasVideo, hasAudio   bool
+}
+
+// sync is the largest distance between the latest video and the latest
+// audio decode time, once both tracks have a frame, as the frames of the
+// burst come in the order that makes it smallest: each track's frames come
+// in their own order, and nothing tells how the tracks interleaved. With
+// B-frames, a video track's times are not in order, so no merge by time
+// fits.
+func (b *burst) sync() time.Duration {
+	// best[j] is, for the i video frames so far, the smallest largest
+	// distance of an order that has taken them and j audio frames.
+	best := make([]time.Duration, len(b.audio)+1)
+	for i := range len(b.video) + 1 {
+		for j := range best {
+			d := b.distance(i, j)
+			switch {
+			case i == 0 && j == 0:
+				best[j] = d
+			case i == 0:
+				best[j] = max(d, best[j-1])
+			case j == 0:
+				best[j] = max(d, best[j])
+			default:
+				best[j] = max(d, min(best[j], best[j-1]))
+			}
+		}
+	}
+	return best[len(b.audio)]
+}
+
+// distance is the distance between the latest video and the latest audio
+// decode time after i video and j audio frames of the burst, or 0 while a
+// track has no frame.
+func (b *burst) distance(i, j int) time.Duration {
+	v, hasV := b.lastVideo, b.hasVideo
+	if i > 0 {
+		v, hasV = b.video[i-1], true
+	}
+	a, hasA := b.lastAudio, b.hasAudio
+	if j > 0 {
+		a, hasA = b.audio[j-1], true
+	}
+	if !hasV || !hasA {
+		return 0
+	}
+	return (v - a).Abs()
+}
+
+// next starts the next burst.
+func (b *burst) next() {
+	if n := len(b.video); n > 0 {
+		b.lastVideo, b.hasVideo = b.video[n-1], true
+	}
+	if n := len(b.audio); n > 0 {
+		b.lastAudio, b.hasAudio = b.audio[n-1], true
+	}
+	b.video, b.audio = b.video[:0], b.audio[:0]
+}
+
 // An analysis is the analyzer of a player, shared with its waiters.
+//
+// Each track's reader adds its packets in its own goroutine, so the packets
+// of a burst, such as the media a stall held, reach the analyzer in no set
+// order across the tracks: one track may be added in full before the other.
+// So its A/V sync measures each burst as a whole, once it is over, burstGap
+// after its last packet, by the order of its frames that makes the sync
+// smallest; a burst of one track, or one frame, has only the order it came
+// in.
 type analysis struct {
 	mu       sync.Mutex
 	analyzer Analyzer
 	err      error
 	changed  chan struct{}
 	packets  int
+	now      func() time.Time
+	// last is when the latest packet was added; settled is whether its burst
+	// has been measured since.
+	last    time.Time
+	settled bool
+	burst   burst
+	sync    time.Duration
 }
 
 func newAnalysis() *analysis {
-	return &analysis{changed: make(chan struct{})}
+	return &analysis{changed: make(chan struct{}), now: time.Now}
 }
 
 // add analyzes a packet; the first error stops the analysis.
 func (a *analysis) add(codec string, rate uint32, pkt *rtp.Packet) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.settle()
 	a.packets++
 	if a.err == nil {
+		r := a.analyzer.Report()
+		var videos, audios int
+		if r.Video != nil {
+			videos = r.Video.Frames
+		}
+		if r.Audio != nil {
+			audios = r.Audio.Frames
+		}
 		a.err = a.analyzer.Add(codec, rate, pkt)
+		if r.Video != nil && r.Video.Frames > videos {
+			a.burst.video = append(a.burst.video, r.Video.LastDTS)
+		}
+		if r.Audio != nil && r.Audio.Frames > audios {
+			a.burst.audio = append(a.burst.audio, r.Audio.LastDTS)
+		}
 	}
+	a.last, a.settled = a.now(), false
 	close(a.changed)
 	a.changed = make(chan struct{})
+}
+
+// settle measures the A/V sync of the burst once no packet has come for
+// burstGap, and returns how long until then, or 0 when it is measured.
+func (a *analysis) settle() time.Duration {
+	if a.settled {
+		return 0
+	}
+	if left := burstGap - a.now().Sub(a.last); left > 0 {
+		return left
+	}
+	a.sync = max(a.sync, a.burst.sync())
+	a.burst.next()
+	a.settled = true
+	return 0
 }
 
 // Packets is how many RTP packets the player got.
@@ -220,15 +338,18 @@ func (a *analysis) Packets() int {
 	return a.packets
 }
 
-// Report returns a copy of the report so far.
+// Report returns a copy of the report so far, with the A/V sync of the
+// bursts that are over.
 func (a *analysis) Report() *report.Report {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.settle()
 	return a.copyReport()
 }
 
 func (a *analysis) copyReport() *report.Report {
 	r := *a.analyzer.Report()
+	r.AVSync = a.sync
 	if r.Video != nil {
 		v := *r.Video
 		r.Video = &v
@@ -240,22 +361,33 @@ func (a *analysis) copyReport() *report.Report {
 	return &r
 }
 
-// Until waits until the report meets u, and returns a copy of it, partial
-// with an error when ctx ends first or a packet can't be analyzed.
+// Until waits until the report meets u and the burst that met it is over,
+// and returns a copy of it, partial with an error when ctx ends before it
+// meets u or a packet can't be analyzed.
 func (a *analysis) Until(ctx context.Context, u report.Until) (*report.Report, error) {
 	for {
 		a.mu.Lock()
+		left := a.settle()
 		r, err, changed := a.copyReport(), a.err, a.changed
 		a.mu.Unlock()
 		if err != nil {
 			return r, err
 		}
-		if u.Done(r) {
+		done := u.Done(r)
+		if done && left == 0 {
 			return r, nil
+		}
+		var settled <-chan time.Time
+		if done {
+			settled = time.After(left)
 		}
 		select {
 		case <-changed:
+		case <-settled:
 		case <-ctx.Done():
+			if done {
+				return r, nil
+			}
 			return r, fmt.Errorf("%w before %v: %v", ctx.Err(), u, r)
 		}
 	}

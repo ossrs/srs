@@ -76,9 +76,7 @@ func srtCells(t *testing.T, srsOf func(c *check.C) *server.Server, p convertPlay
 
 // srtRealTime publishes a TS file over SRT to a stream path, such as live/s,
 // in real time until the case ends, lead of it at once. A WebRTC player that
-// joined before needs no lead, and must get none: it reads each track in its
-// own goroutine, so the frames of a burst reach its report in no set order
-// across the tracks, and its A/V sync is that order, not the stream's.
+// joined before needs no lead.
 func srtRealTime(c *check.C, srs *server.Server, path, file string, lead time.Duration) {
 	c.Helper()
 	startSRTPublisherLead(c, srs, srt.Options{StreamID: srtID(path, "publish")}, file, lead)
@@ -89,14 +87,19 @@ func srtRealTime(c *check.C, srs *server.Server, path, file string, lead time.Du
 // ends. It sends through the packets at d+srtLead by their PCR: ffmpeg's TS
 // muxer sends a frame before its PCR reaches the frame's time, and the audio
 // after the video, so this sends the frames at d of both tracks.
+//
+// The case keeps the slot until it ends, when its player has had the media:
+// an SRT send returns once gosrt has queued the packets, before it sends
+// them, so SRS reads and converts the burst after the send. A slot freed at
+// the send let every SRT burst of the server in at once, and the real-time
+// cases beside them waited for all of them.
 func srtThrough(c *check.C, srs *server.Server, path, file string, d time.Duration) {
 	c.Helper()
 	conn := dialSRT(c, srs, srt.Options{StreamID: srtID(path, "publish")})
 	f, err := os.Open(media.Path(c, file))
 	c.Must(err, "open the media")
 	defer f.Close()
-	free := srs.Burst(c)
-	defer free()
+	c.Cleanup(srs.Burst(c))
 	c.Must(srt.NewSender(f).SendThrough(conn, d+srtLead), "publish the media")
 }
 

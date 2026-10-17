@@ -499,7 +499,7 @@ func publishDvr(c *check.C, srs *server.Server, path string, tags []*media.FLVTa
 func publishDvrOpen(c *check.C, srs *server.Server, path string, tags []*media.FLVTag) *rtmp.Client {
 	c.Helper()
 	pub := publishOnly(c, rtmpURL(srs, path), rtmp.FMLE)
-	free := srs.Burst(c)
+	free := burstOn(c, srs, pub)
 	defer free()
 	keyframes, video, second := 0, false, uint32(0)
 	for _, tag := range tags {

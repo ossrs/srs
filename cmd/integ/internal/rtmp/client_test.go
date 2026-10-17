@@ -37,6 +37,9 @@ type fakeServer struct {
 	onPlay func(s *fakeConn)
 	// tls, when set, serves RTMP inside TLS.
 	tls *tls.Config
+	// hold, when set, stops the server reading after the first media
+	// message, until it is closed.
+	hold chan struct{}
 
 	// rx and tx count the bytes the server read and wrote on the TCP
 	// connection, under TLS when it serves TLS.
@@ -127,6 +130,9 @@ func (c *fakeConn) serve() {
 			c.s.record(nil, nil, m)
 		case MsgAudio, MsgVideo, MsgDataAMF0:
 			c.s.record(nil, m, nil)
+			if c.s.hold != nil {
+				<-c.s.hold
+			}
 		case MsgCommandAMF0:
 			values, err := DecodeAMF0(m.Payload)
 			if err != nil || len(values) < 2 {
@@ -945,6 +951,51 @@ func TestClientCountsBytes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestClientSetWriteBuffer writes a 4MB burst with a 32KB send buffer to a
+// server that stops reading: the writes wait for the server, with no more
+// than 1MB of it in the kernel, and finish once the server reads again.
+func TestClientSetWriteBuffer(t *testing.T) {
+	s := newFakeServer(t)
+	s.hold = make(chan struct{})
+	release := sync.OnceFunc(func() { close(s.hold) })
+	t.Cleanup(release)
+	s.start()
+	c := dial(t, s.url("a"), nil)
+	if _, err := c.Publish(context.Background(), FMLE); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if err := c.SetWriteBuffer(32 << 10); err != nil {
+		t.Fatalf("set the send buffer: %v", err)
+	}
+
+	const tags, size = 64, 64 << 10
+	done := make(chan error, 1)
+	go func() {
+		for i := 0; i < tags; i++ {
+			if err := c.WriteTag(&media.FLVTag{Type: media.TagVideo, Timestamp: uint32(i * 40), Data: make([]byte, size)}); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+	s.waitFor("the first tag", func() bool { return len(s.media) == 1 })
+	select {
+	case err := <-done:
+		t.Fatalf("the burst was written while the server read nothing, err %v", err)
+	case <-time.After(200 * time.Millisecond):
+	}
+	if held := c.BytesSent() - s.rx.Load(); held > 1<<20 {
+		t.Errorf("%d bytes written that the server hasn't read, want 1MB at most", held)
+	}
+
+	release()
+	if err := <-done; err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	s.waitFor("every tag", func() bool { return len(s.media) == tags })
 }
 
 // TestClientRedirect reads SRS's RTMP 302 redirect after the play starts: a

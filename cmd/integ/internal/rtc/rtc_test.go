@@ -6,6 +6,7 @@ package rtc
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -15,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -132,6 +134,144 @@ func TestAnalyzerLostMarker(t *testing.T) {
 	add(2, 3600, true)
 	if v := a.Report().Video; v == nil || v.Frames != 2 || v.LastDTS != 40*time.Millisecond {
 		t.Fatalf("video %+v, want 2 frames, the last at 40ms", v)
+	}
+}
+
+// An arrival is an RTP packet of a track and when it reaches a player.
+type arrival struct {
+	at    time.Duration
+	codec string
+	rate  uint32
+	pkt   *rtp.Packet
+}
+
+// arrivals packetizes the samples of the test file before d as a publisher
+// does, each packet arriving at its sample's decode time plus the lag of its
+// track.
+func arrivals(t *testing.T, d, videoLag, audioLag time.Duration) (video, audio []arrival) {
+	t.Helper()
+	vs, as := newVideoSender(), newAudioSender()
+	for _, s := range readSamples(t, d) {
+		if s.Video {
+			for _, p := range vs.packets(s) {
+				video = append(video, arrival{s.DTS + videoLag, "h264", 90000, p})
+			}
+		} else {
+			for _, p := range as.packets(s) {
+				audio = append(audio, arrival{s.DTS + audioLag, "opus", 48000, p})
+			}
+		}
+	}
+	return video, audio
+}
+
+// addAt adds the packets to an analysis whose clock reads start plus each
+// packet's arrival.
+func addAt(a *analysis, clock *time.Time, start time.Time, pkts []arrival) {
+	for _, p := range pkts {
+		*clock = start.Add(p.at)
+		a.add(p.codec, p.rate, p.pkt)
+	}
+}
+
+// TestAnalysisSyncOfBurst checks the A/V sync of 400ms of media that reaches
+// a player at once, as after a stall: its two track readers may add their
+// packets in either order, and the sync is the same, within a video frame,
+// as for the packets in the order the publisher sent them.
+func TestAnalysisSyncOfBurst(t *testing.T) {
+	video, audio := arrivals(t, 400*time.Millisecond, 0, 0)
+	inOrder := slices.Concat(video, audio)
+	slices.SortStableFunc(inOrder, func(x, y arrival) int { return cmp.Compare(x.at, y.at) })
+	start := time.Unix(1000, 0)
+	for _, order := range []struct {
+		name string
+		pkts []arrival
+	}{
+		{"in order", inOrder},
+		{"audio first", slices.Concat(audio, video)},
+		{"video first", slices.Concat(video, audio)},
+	} {
+		a := newAnalysis()
+		clock := start
+		a.now = func() time.Time { return clock }
+		for _, p := range order.pkts {
+			a.add(p.codec, p.rate, p.pkt)
+		}
+		clock = start.Add(time.Second)
+		r := a.Report()
+		if r.Video == nil || r.Audio == nil || r.Video.Frames != 10 || r.Audio.Frames != 20 {
+			t.Fatalf("%v: report %v, want 10 video and 20 audio frames", order.name, r)
+		}
+		if r.AVSync > 40*time.Millisecond {
+			t.Errorf("%v: A/V sync %v, want at most one video frame", order.name, r.AVSync)
+		}
+	}
+}
+
+// TestAnalysisSyncOfLateAudio checks a stream whose audio reaches the player
+// 300ms after the video of the same moment, in real time: the A/V sync is
+// that lag.
+func TestAnalysisSyncOfLateAudio(t *testing.T) {
+	video, audio := arrivals(t, time.Second, 0, 300*time.Millisecond)
+	pkts := slices.Concat(video, audio)
+	slices.SortStableFunc(pkts, func(x, y arrival) int { return cmp.Compare(x.at, y.at) })
+	a := newAnalysis()
+	start := time.Unix(1000, 0)
+	clock := start
+	a.now = func() time.Time { return clock }
+	addAt(a, &clock, start, pkts)
+	clock = clock.Add(time.Second)
+	if r := a.Report(); r.AVSync < 280*time.Millisecond || r.AVSync > 340*time.Millisecond {
+		t.Errorf("A/V sync %v, want about 300ms: %v", r.AVSync, r)
+	}
+}
+
+// TestAnalysisSyncOfLateAudioBurst checks a stream whose audio starts 300ms
+// after its video, the first 300ms of it at once with the video of that
+// moment: in either order of the track readers, the A/V sync is the video
+// the player had before the first audio.
+func TestAnalysisSyncOfLateAudioBurst(t *testing.T) {
+	video, audio := arrivals(t, time.Second, 0, 0)
+	for i := range audio {
+		audio[i].at = max(audio[i].at, 300*time.Millisecond)
+	}
+	for _, order := range []struct {
+		name string
+		pkts []arrival
+	}{
+		{"video first", slices.Concat(video, audio)},
+		{"audio first", slices.Concat(audio, video)},
+	} {
+		slices.SortStableFunc(order.pkts, func(x, y arrival) int { return cmp.Compare(x.at, y.at) })
+		a := newAnalysis()
+		start := time.Unix(1000, 0)
+		clock := start
+		a.now = func() time.Time { return clock }
+		addAt(a, &clock, start, order.pkts)
+		clock = clock.Add(time.Second)
+		if r := a.Report(); r.AVSync < 260*time.Millisecond || r.AVSync > 320*time.Millisecond {
+			t.Errorf("%v: A/V sync %v, want about 300ms: %v", order.name, r.AVSync, r)
+		}
+	}
+}
+
+// TestAnalysisUntilSettles checks Until returns a report of a burst only
+// once the burst is over, with the sync of all of it, not of the part its
+// condition saw first.
+func TestAnalysisUntilSettles(t *testing.T) {
+	video, audio := arrivals(t, 400*time.Millisecond, 0, 0)
+	a := newAnalysis()
+	for _, p := range slices.Concat(audio, video) {
+		a.add(p.codec, p.rate, p.pkt)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r, err := a.Until(ctx, report.Until{VideoFrames: 1, AudioFrames: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.AVSync > 40*time.Millisecond {
+		t.Errorf("A/V sync %v, want at most one video frame: %v", r.AVSync, r)
 	}
 }
 

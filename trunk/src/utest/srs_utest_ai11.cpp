@@ -19,6 +19,7 @@ using namespace std;
 #include <srs_utest_ai07.hpp>
 #include <srs_utest_ai19.hpp>
 
+#include <algorithm>
 #include <arpa/inet.h>
 #include <poll.h>
 #include <set>
@@ -2683,10 +2684,8 @@ VOID TEST(RtcPlayStreamTest, InitializeAssemblesSendTracks)
     sub_relations[12345] = audio_desc.get();
     sub_relations[67890] = video_desc.get();
 
-    // Seed the generator after its first use, which seeds it from the wall clock once.
-    SrsRand rand;
-    rand.integer();
-    ::srandom(1);
+    // Fix the RTX sequence numbers by a seed of the test's own, which lasts until the test returns.
+    SrsUtestRandomState seeded(1);
 
     HELPER_EXPECT_SUCCESS(play_stream->initialize(&mock_request, sub_relations));
 
@@ -2694,6 +2693,31 @@ VOID TEST(RtcPlayStreamTest, InitializeAssemblesSendTracks)
     ASSERT_EQ(1, (int)play_stream->video_tracks_.size());
     EXPECT_NE(0, (int)play_stream->audio_tracks_[12345]->rtx_seq_);
     EXPECT_NE(0, (int)play_stream->video_tracks_[67890]->rtx_seq_);
+}
+
+// The test above, defined before this one of its suite so it runs before it, fixes its RTX sequence
+// numbers by its own seed. The run's random() must not go on with that seed's sequence: every run would
+// then draw the same values after it, and two runs at once would listen on the same random ports.
+VOID TEST(RtcPlayStreamTest, InitializeSeedLeavesRunSequence)
+{
+    std::vector<long> seeded;
+    if (true) {
+        SrsUtestRandomState state(1);
+        for (int i = 0; i < 1024; i++) {
+            seeded.push_back(random());
+        }
+    }
+
+    std::vector<long> run;
+    for (int i = 0; i < 4; i++) {
+        run.push_back(random());
+    }
+
+    bool found = false;
+    for (int i = 0; i + (int)run.size() <= (int)seeded.size() && !found; i++) {
+        found = std::equal(run.begin(), run.end(), seeded.begin() + i);
+    }
+    EXPECT_FALSE(found);
 }
 
 VOID TEST(RtcPlayStreamTest, OnStreamChangeSuccess)

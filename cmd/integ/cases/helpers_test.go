@@ -169,18 +169,28 @@ func publishAll(c *check.C, srs *server.Server, stream, file string) {
 	r, err := media.NewFLVReader(f)
 	c.Must(err, "read the media")
 
-	free := srs.Burst(c)
+	pub := publishOnly(c, url, rtmp.FMLE)
+	free := burstOn(c, srs, pub)
 	defer free()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	pub, err := rtmp.Dial(ctx, url, nil)
-	c.Must(err, "dial the publisher")
-	c.Cleanup(func() { pub.Close() })
-	_, err = pub.Publish(ctx, rtmp.FMLE)
-	c.Must(err, "publish")
 	_, err = rtmp.PublishFLV(ctx, pub, r, nil)
 	c.Must(err, "publish the file")
 }
+
+// burstOn gives an RTMP publisher a small send buffer and waits for one of
+// the server's burst slots, out of the case time, and returns the func that
+// frees it. With the small buffer the publisher's writes return once SRS has
+// read most of the burst, so the slot is held until then, not only until the
+// kernel has the burst: Linux takes megabytes of it at once.
+func burstOn(c *check.C, srs *server.Server, pub *rtmp.Client) func() {
+	c.Helper()
+	c.Must(pub.SetWriteBuffer(burstBuffer), "set the send buffer")
+	return srs.Burst(c)
+}
+
+// burstBuffer is the send buffer of a publisher that sends a burst.
+const burstBuffer = 32 << 10
 
 // segmentsUntil is when a player of a segment group has seen it play: both
 // sequence headers and 15s of media, which takes two 10s segments.

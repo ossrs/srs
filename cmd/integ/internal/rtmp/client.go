@@ -688,6 +688,17 @@ func (c *Client) WriteRaw(b []byte) error {
 	return err
 }
 
+// SetWriteBuffer sets the size of the TCP connection's send buffer. A burst
+// sent with a small one returns once the server has read most of it, not
+// once the kernel has taken it.
+func (c *Client) SetWriteBuffer(n int) error {
+	tcp, ok := c.wire.Conn.(*net.TCPConn)
+	if !ok {
+		return fmt.Errorf("set the send buffer of a %T, not a TCP connection", c.wire.Conn)
+	}
+	return tcp.SetWriteBuffer(n)
+}
+
 // BytesSent is how many bytes the client wrote on the TCP connection: the
 // handshake included, and the TLS records of an rtmps:// connection.
 func (c *Client) BytesSent() uint64 { return c.wire.tx.Load() }

@@ -8,6 +8,7 @@
 
 using namespace std;
 
+#include <pthread.h>
 #include <srs_app_factory.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_ingest.hpp>
@@ -250,6 +251,30 @@ VOID TEST(UtestTmpPortTest, RandomPortIsInUtestRange)
     EXPECT_EQ(0, outside);
 }
 
+// A test's own seed lasts only while its SrsUtestRandomState lives: random() then goes on with the
+// sequence it had before, as if the test had drawn nothing.
+VOID TEST(UtestTmpPortTest, RandomStateRestoresTheSequence)
+{
+    std::vector<long> want;
+    if (true) {
+        SrsUtestRandomState state(7);
+        want.push_back(random());
+        want.push_back(random());
+    }
+
+    std::vector<long> got;
+    SrsUtestRandomState state(7);
+    got.push_back(random());
+    if (true) {
+        SrsUtestRandomState seeded(1);
+        random();
+        random();
+    }
+    got.push_back(random());
+
+    EXPECT_EQ(want, got);
+}
+
 // The SRS_UTEST_PORTS env, like 26000-29999, moves the unit tests' range without a code change.
 VOID TEST(UtestTmpPortTest, PortRangeFromEnv)
 {
@@ -485,6 +510,53 @@ VOID TEST(UtestTmpPortTest, ListenTakesAnotherPortWhenShared)
     }
 }
 
+// The test servers listen on a random port too, so one that another utest run shares by SO_REUSEPORT
+// would give a test's connection to the other run's server: each server takes the other port, each time.
+VOID TEST(UtestTmpPortTest, TestServersTakeAnotherPortWhenShared)
+{
+    srs_error_t err;
+
+    if (true) {
+        UtestHeldPortRange held(SOCK_STREAM, true);
+        HELPER_ASSERT_SUCCESS(held.hold());
+
+        for (int i = 0; i < 20; i++) {
+            SrsUniquePtr<SrsHttpTestServer> server(new SrsHttpTestServer("ok"));
+            HELPER_ASSERT_SUCCESS(server->start());
+            EXPECT_EQ(held.held_ + 1, server->get_port());
+        }
+
+        for (int i = 0; i < 20; i++) {
+            SrsUniquePtr<SrsHttpsTestServer> server(new SrsHttpsTestServer("ok", "server.key", "server.crt"));
+            HELPER_ASSERT_SUCCESS(server->start());
+            EXPECT_EQ(held.held_ + 1, server->get_port());
+        }
+
+        for (int i = 0; i < 20; i++) {
+            SrsUniquePtr<SrsRtmpTestServer> server(new SrsRtmpTestServer("live", "livestream"));
+            HELPER_ASSERT_SUCCESS(server->start());
+            EXPECT_EQ(held.held_ + 1, server->get_port());
+        }
+
+        for (int i = 0; i < 20; i++) {
+            SrsUniquePtr<SrsTestTcpServer> server(new SrsTestTcpServer("127.0.0.1"));
+            HELPER_ASSERT_SUCCESS(server->start());
+            EXPECT_EQ(held.held_ + 1, server->get_port());
+        }
+    }
+
+    if (true) {
+        UtestHeldPortRange held(SOCK_DGRAM, true);
+        HELPER_ASSERT_SUCCESS(held.hold());
+
+        for (int i = 0; i < 20; i++) {
+            SrsUniquePtr<SrsUdpTestServer> server(new SrsUdpTestServer("127.0.0.1"));
+            HELPER_ASSERT_SUCCESS(server->start());
+            EXPECT_EQ(held.held_ + 1, server->get_port());
+        }
+    }
+}
+
 // A port is free only when no socket holds it, shared or not, on IPv4 and IPv6; a port a test listens on
 // is free again once it closes.
 VOID TEST(UtestTmpPortTest, PortFreeWhenNoSocketHoldsIt)
@@ -549,6 +621,92 @@ VOID TEST(UtestTmpPortTest, ListenFailsWhenEveryPortIsTaken)
     }
     EXPECT_EQ(min, _srs_utest_port_min);
     EXPECT_EQ(max, _srs_utest_port_max);
+}
+
+// Checks a port by srs_utest_port_free over and over in a thread of its own, as another utest run checks
+// a fixed port at the same time, so the port is held for a moment again and again until it is destroyed.
+class UtestFixedPortProber
+{
+public:
+    int type_;
+    int port_;
+    int stop_;
+    int nn_probes_;
+    bool started_;
+    pthread_t thread_;
+
+public:
+    UtestFixedPortProber(int type, int port)
+    {
+        type_ = type;
+        port_ = port;
+        stop_ = 0;
+        nn_probes_ = 0;
+        started_ = false;
+    }
+    ~UtestFixedPortProber()
+    {
+        if (started_) {
+            __atomic_store_n(&stop_, 1, __ATOMIC_SEQ_CST);
+            pthread_join(thread_, NULL);
+        }
+    }
+
+public:
+    srs_error_t start()
+    {
+        if (pthread_create(&thread_, NULL, cycle, this) != 0) {
+            return srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "create prober");
+        }
+        started_ = true;
+        return srs_success;
+    }
+    int probes()
+    {
+        return __atomic_load_n(&nn_probes_, __ATOMIC_SEQ_CST);
+    }
+
+private:
+    static void *cycle(void *arg)
+    {
+        UtestFixedPortProber *prober = (UtestFixedPortProber *)arg;
+        while (!__atomic_load_n(&prober->stop_, __ATOMIC_SEQ_CST)) {
+            srs_utest_port_free(prober->type_, "127.0.0.1", prober->port_);
+            __atomic_add_fetch(&prober->nn_probes_, 1, __ATOMIC_SEQ_CST);
+        }
+        return NULL;
+    }
+};
+
+// A fixed port that another utest run's check holds for a moment, between this run's check and its listen,
+// fails no listen: the listen is skipped while the port is held, and binds once it is not.
+VOID TEST(UtestTmpPortTest, FixedPortListenSkipsAnotherRunsCheck)
+{
+    srs_error_t err;
+
+    int types[] = {SOCK_STREAM, SOCK_DGRAM};
+    for (int i = 0; i < 2; i++) {
+        int type = types[i];
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_free_port(type, &port));
+
+        UtestFixedPortProber prober(type, port);
+        HELPER_ASSERT_SUCCESS(prober.start());
+        while (prober.probes() < 100) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+
+        int nn_listened = 0;
+        for (int j = 0; j < 200; j++) {
+            srs_netfd_t fd = NULL;
+            HELPER_ASSERT_SUCCESS(srs_utest_listen_fixed_port(type, "127.0.0.1", port, &fd));
+            if (fd != NULL) {
+                nn_listened++;
+                srs_close_stfd(fd);
+            }
+        }
+        EXPECT_GT(nn_listened, 0);
+    }
 }
 
 VOID TEST(UdpListenerTest, ListenAndReceivePacket)

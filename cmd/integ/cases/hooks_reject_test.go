@@ -457,17 +457,19 @@ func gbHookTarget() hookTarget {
 		// SRS lists the stream before it asks the hook, so a stream it no
 		// longer lists once the mock was asked is refused; a hook that is
 		// down never reaches the mock, so a stream not listed for a while is
-		// refused too.
+		// refused too. Both are taken before the API read, so its answer
+		// comes after them, never from before SRS made the stream.
 		asked := func() bool {
 			return len(srs.Hooks.Requests(mock.Match{Action: "on_publish", Stream: stream})) > 0
 		}
 		deadline := start.Add(d)
 		for {
+			wasAsked, waited := asked(), time.Since(start)
 			published, listed := streamState(c, srs, "live/"+stream)
 			switch {
 			case published:
 				return hookResult{accepted: true, elapsed: time.Since(start)}
-			case !listed && (asked() || time.Since(start) > d/2):
+			case !listed && (wasAsked || waited > d/2):
 				return hookResult{refusal: "not published", elapsed: time.Since(start)}
 			case time.Now().After(deadline):
 				return hookResult{}
