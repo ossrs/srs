@@ -2308,6 +2308,10 @@ srs_error_t SrsConfig::check_normal_config()
     if (!srs_getenv("SRS_ASPROCESS").empty()) {
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_ASPROCESS is removed, quitting when the parent process quits is not supported");
     }
+    // atc_auto is removed, so refuse it by env rather than ignore it, on or off.
+    if (!srs_getenv("SRS_VHOST_PLAY_ATC_AUTO").empty()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "SRS_VHOST_PLAY_ATC_AUTO is removed, turning ATC on by the bravo_atc of the metadata is not supported");
+    }
     // The latest version query is removed, so refuse its env vars rather than ignore them, on or off.
     if (true) {
         const char *removed[] = {"SRS_QUERY_LATEST_VERSION", "SRS_FIRST_WAIT_FOR_QLV"};
