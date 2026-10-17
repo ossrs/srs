@@ -91,6 +91,7 @@ public:
     virtual srs_error_t mux_sequence_header(std::string vps, std::string sps, std::vector<std::string> &pps, std::string &sh) = 0;
     virtual srs_error_t mux_ipb_frame(char *frame, int nb_frame, std::string &ibp) = 0;
     virtual srs_error_t mux_hevc2flv(std::string video, int8_t frame_type, int8_t avc_packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv) = 0;
+    virtual srs_error_t mux_hevc2flv_enhanced(std::string video, int8_t frame_type, int8_t packet_type, uint32_t dts, uint32_t pts, char **flv, int *nb_flv) = 0;
 };
 
 // The raw h.265 stream, in annexb.
@@ -143,7 +144,8 @@ public:
     // and standardized approach for HEVC support in FLV/RTMP streams.
     // Enhanced-rtmp uses fourcc 'hvc1' for HEVC codec identification instead of codec ID.
     // @see https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf
-    // @param packet_type, SrsVideoHEVCFrameTraitPacketTypeSequenceStart or SrsVideoHEVCFrameTraitPacketTypeCodedFrames.
+    // @param packet_type, SrsVideoHEVCFrameTraitPacketTypeSequenceStart, SrsVideoHEVCFrameTraitPacketTypeCodedFrames
+    //      with the composition time pts - dts, or SrsVideoHEVCFrameTraitPacketTypeCodedFramesX without it.
     // @param frame_type, SrsVideoAvcFrameTypeKeyFrame or SrsVideoAvcFrameTypeInterFrame.
     // @param video the hevc raw data.
     // @param flv output the muxed flv packet.

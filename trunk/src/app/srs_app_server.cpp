@@ -18,7 +18,6 @@
 using namespace std;
 
 #include <srs_app_async_call.hpp>
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_coworkers.hpp>
@@ -27,7 +26,6 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_ingest.hpp>
-#include <srs_app_latest_version.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_reload.hpp>
@@ -115,7 +113,7 @@ srs_error_t srs_global_initialize()
 
     _srs_srt_sources = new SrsSrtSourceManager();
     _srs_srt_sources->assemble();
-    _srt_eventloop = new SrsSrtEventLoop();
+    _srs_srt_eventloop = new SrsSrtEventLoop();
 
     // Initialize the coworkers singleton before any API handler, which captures it.
     _srs_coworkers = SrsCoWorkers::instance();
@@ -204,8 +202,6 @@ SrsServer::SrsServer()
     pid_file_locker_ = new SrsPidFileLocker();
 
     signal_manager_ = new SrsSignalManager(this);
-    latest_version_ = new SrsLatestVersion();
-    ppid_ = 0;
 
     http_api_mux_ = new SrsHttpServeMux();
 
@@ -219,7 +215,6 @@ SrsServer::SrsServer()
 #ifdef SRS_RTSP
     rtsp_listener_ = new SrsMultipleTcpListeners(this);
 #endif
-    stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
 #ifdef SRS_GB28181
@@ -256,15 +251,13 @@ SrsServer::SrsServer()
     app_factory_ = _srs_app_factory;
     reload_status_ = _srs_reload_status;
     blackhole_ = _srs_blackhole;
-    srt_eventloop_ = _srt_eventloop;
+    srt_eventloop_ = _srs_srt_eventloop;
     coworkers_ = _srs_coworkers;
 }
 
 void SrsServer::assemble()
 {
-    ppid_ = ::getppid();
     signal_manager_->assemble();
-    stream_caster_flv_listener_->assemble();
     stream_caster_mpegts_->assemble();
     http_server_->assemble();
     ingester_->assemble();
@@ -288,7 +281,6 @@ SrsServer::~SrsServer()
     srs_freep(pid_file_locker_);
 
     srs_freep(signal_manager_);
-    srs_freep(latest_version_);
     srs_freep(rtmp_listener_);
     srs_freep(rtmps_listener_);
     srs_freep(api_listener_);
@@ -299,7 +291,6 @@ SrsServer::~SrsServer()
 #ifdef SRS_RTSP
     srs_freep(rtsp_listener_);
 #endif
-    srs_freep(stream_caster_flv_listener_);
     srs_freep(stream_caster_mpegts_);
     srs_freep(exporter_listener_);
 #ifdef SRS_GB28181
@@ -355,7 +346,6 @@ void SrsServer::dispose()
 #ifdef SRS_RTSP
     rtsp_listener_->close();
 #endif
-    stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
 #ifdef SRS_GB28181
@@ -390,7 +380,6 @@ void SrsServer::gracefully_dispose()
 #ifdef SRS_RTSP
     rtsp_listener_->close();
 #endif
-    stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
 #ifdef SRS_GB28181
@@ -585,14 +574,8 @@ srs_error_t SrsServer::initialize_st()
 {
     srs_error_t err = srs_success;
 
-    // check asprocess.
-    bool asprocess = config_->get_asprocess();
-    if (asprocess && ppid_ == 1) {
-        return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "ppid=%d illegal for asprocess", ppid_);
-    }
-
-    srs_trace("server main cid=%s, pid=%d, ppid=%d, asprocess=%d",
-              _srs_context->get_id().c_str(), ::getpid(), ppid_, asprocess);
+    srs_trace("server main cid=%s, pid=%d, ppid=%d",
+              _srs_context->get_id().c_str(), ::getpid(), ::getppid());
 
     return err;
 }
@@ -604,11 +587,6 @@ srs_error_t SrsServer::initialize_signal()
 
     if ((err = signal_manager_->initialize()) != srs_success) {
         return srs_error_wrap(err, "init signal manager");
-    }
-
-    // Start the version query coroutine.
-    if ((err = latest_version_->start()) != srs_success) {
-        return srs_error_wrap(err, "start version query");
     }
 
     return err;
@@ -708,11 +686,6 @@ srs_error_t SrsServer::listen()
         if (srs_stream_caster_is_udp(caster)) {
             listener = stream_caster_mpegts_;
             if ((err = stream_caster_mpegts_->initialize(conf)) != srs_success) {
-                return srs_error_wrap(err, "initialize");
-            }
-        } else if (srs_stream_caster_is_flv(caster)) {
-            listener = stream_caster_flv_listener_;
-            if ((err = stream_caster_flv_listener_->initialize(conf)) != srs_success) {
                 return srs_error_wrap(err, "initialize");
             }
         } else if (srs_stream_caster_is_gb28181(caster)) {
@@ -1105,15 +1078,7 @@ srs_error_t SrsServer::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // for asprocess.
-    bool asprocess = config_->get_asprocess();
-
     while (true) {
-        // asprocess check.
-        if (asprocess && ::getppid() != ppid_) {
-            return srs_error_new(ERROR_ASPROCESS_PPID, "asprocess ppid changed from %d to %d", ppid_, ::getppid());
-        }
-
         if ((err = do2_cycle()) != srs_success) {
             return srs_error_wrap(err, "cycle");
         }
@@ -1173,7 +1138,10 @@ srs_error_t SrsServer::setup_ticks()
     }
 
     if (config_->get_heartbeat_enabled()) {
-        if ((err = timer_->tick(9, config_->get_heartbeat_interval())) != srs_success) {
+        // The timer ticks every 1s, so round the interval down to whole seconds, at least 1s.
+        srs_utime_t seconds = srsu2s(config_->get_heartbeat_interval());
+        srs_utime_t interval = srs_max(1, seconds) * SRS_UTIME_SECONDS;
+        if ((err = timer_->tick(9, interval)) != srs_success) {
             return srs_error_wrap(err, "tick");
         }
     }
@@ -1593,7 +1561,6 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
         int nn = sizeof(b);
         if ((err = io->peek((char *)b, &nn)) != srs_success) {
             srs_freep(io);
-            srs_freep(skt);
             return srs_error_wrap(err, "peek");
         }
 
@@ -1633,6 +1600,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
             string key = listener == apis_listener_ ? config_->get_https_api_ssl_key() : "";
             string cert = listener == apis_listener_ ? config_->get_https_api_ssl_cert() : "";
             SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, key, cert);
+            conn->set_api_listener(true);
             conn->assemble();
             resource = conn;
         } else if (listener == http_listener_ || listener == https_listener_) {

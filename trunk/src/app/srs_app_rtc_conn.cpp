@@ -391,10 +391,11 @@ srs_error_t SrsRtcPliWorker::cycle()
     return err;
 }
 
-SrsRtcAsyncCallOnStop::SrsRtcAsyncCallOnStop(SrsContextId c, ISrsRequest *r)
+SrsRtcAsyncCallOnStop::SrsRtcAsyncCallOnStop(SrsContextId c, ISrsRequest *r, const SrsStatisticStreamSnapshot &stream)
 {
     cid_ = c;
     req_ = r->copy();
+    stream_ = stream;
     hooks_ = _srs_hooks;
     context_ = _srs_context;
     config_ = _srs_config;
@@ -437,7 +438,7 @@ srs_error_t SrsRtcAsyncCallOnStop::call()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req_);
+        hooks_->on_stop(url, req_, stream_);
     }
 
     return err;
@@ -458,6 +459,8 @@ ISrsRtcPlayStream::~ISrsRtcPlayStream()
 
 SrsRtcPlayStream::SrsRtcPlayStream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketSender *sender, const SrsContextId &cid) : source_(new SrsRtcSource())
 {
+    lock_ = srs_mutex_new();
+
     exec_ = exec;
     expire_ = expire;
     sender_ = sender;
@@ -485,12 +488,20 @@ SrsRtcPlayStream::SrsRtcPlayStream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expir
     rtc_sources_ = _srs_rtc_sources;
     stat_ = _srs_stat;
     app_factory_ = _srs_app_factory;
+    shared_timer_ = _srs_shared_timer;
 }
 
 SrsRtcPlayStream::~SrsRtcPlayStream()
 {
+    if (shared_timer_) {
+        SrsLocker(&lock_);
+        shared_timer_->timer1s()->unsubscribe(this);
+    }
+
+    // Take the stream now, before the stats drop the player and maybe the stream,
+    // since the hook runs later from the queue.
     if (req_ && exec_) {
-        exec_->exec_rtc_async_work(new SrsRtcAsyncCallOnStop(cid_, req_));
+        exec_->exec_rtc_async_work(new SrsRtcAsyncCallOnStop(cid_, req_, SrsStatisticStreamSnapshot(stat_, req_)));
     }
 
     srs_freep(nack_epp_);
@@ -522,6 +533,9 @@ SrsRtcPlayStream::~SrsRtcPlayStream()
     rtc_sources_ = NULL;
     stat_ = NULL;
     app_factory_ = NULL;
+    shared_timer_ = NULL;
+
+    srs_mutex_destroy(lock_);
 }
 
 srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, SrsRtcTrackDescription *> sub_relations)
@@ -573,6 +587,11 @@ srs_error_t SrsRtcPlayStream::initialize(ISrsRequest *req, std::map<uint32_t, Sr
         SrsRtcVideoSendTrack *track = it->second;
         track->set_nack_no_copy(nack_no_copy_);
         track->set_keep_original_ssrc(keep_original_ssrc);
+    }
+
+    // Send the Sender Report of each track every second, once the player started.
+    if (shared_timer_) {
+        shared_timer_->timer1s()->subscribe(this);
     }
 
     return err;
@@ -641,6 +660,27 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
     }
 }
 
+bool SrsRtcPlayStream::is_stream_changed(SrsRtcSourceDescription *desc)
+{
+    if (!desc) {
+        return false;
+    }
+
+    SrsRtcTrackDescription *adesc = desc->audio_track_desc_;
+    if (adesc && audio_tracks_.size() == 1 && audio_tracks_.begin()->first != adesc->ssrc_) {
+        return true;
+    }
+
+    if (desc->video_track_descs_.size() == 1 && video_tracks_.size() == 1) {
+        SrsRtcTrackDescription *vdesc = desc->video_track_descs_.at(0);
+        if (video_tracks_.begin()->first != vdesc->ssrc_) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // LCOV_EXCL_START
 const SrsContextId &SrsRtcPlayStream::context_id()
 {
@@ -698,6 +738,15 @@ srs_error_t SrsRtcPlayStream::cycle()
     SrsUniquePtr<SrsRtcConsumer> consumer(dynamic_cast<SrsRtcConsumer *>(consumer_raw));
 
     consumer->set_handler(this);
+
+    // A publisher that came after this player was answered, but before the consumer above was
+    // made, changed the stream with no consumer to tell, so the tracks may still be keyed by the
+    // SSRCs of the answer, such as those of a play before publishing, which no packet or keyframe
+    // request of the publisher has.
+    SrsRtcSourceDescription *desc = source->stream_desc();
+    if (source->publish_stream() && is_stream_changed(desc)) {
+        on_stream_change(desc);
+    }
 
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = source->consumer_dumps(consumer.get())) != srs_success) {
@@ -1011,6 +1060,39 @@ srs_error_t SrsRtcPlayStream::do_request_keyframe(uint32_t ssrc, SrsContextId ci
     return err;
 }
 
+srs_error_t SrsRtcPlayStream::on_timer(srs_utime_t interval)
+{
+    srs_error_t err = srs_success;
+
+    // Sending may yield, so lock the stream to keep it from being freed meanwhile, as the publish RTCP timer does.
+    SrsLocker(&lock_);
+
+    if (!is_started_) {
+        return err;
+    }
+
+    // Take the tracks first, since a stream change may re-key the maps while a send yields; it keeps the tracks.
+    vector<SrsRtcSendTrack *> tracks;
+    for (map<uint32_t, SrsRtcAudioSendTrack *>::iterator it = audio_tracks_.begin(); it != audio_tracks_.end(); ++it) {
+        SrsRtcAudioSendTrack *track = it->second;
+        tracks.push_back(track);
+    }
+    for (map<uint32_t, SrsRtcVideoSendTrack *>::iterator it = video_tracks_.begin(); it != video_tracks_.end(); ++it) {
+        SrsRtcVideoSendTrack *track = it->second;
+        tracks.push_back(track);
+    }
+
+    for (int i = 0; i < (int)tracks.size(); ++i) {
+        SrsRtcSendTrack *track = tracks.at(i);
+        if ((err = track->send_rtcp_sr()) != srs_success) {
+            srs_warn("SR err %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+    }
+
+    return err;
+}
+
 ISrsRtcRtcpSender::ISrsRtcRtcpSender()
 {
 }
@@ -1067,6 +1149,9 @@ srs_error_t SrsRtcPublishRtcpTimer::on_timer(srs_utime_t interval)
     if (!sender_->is_sender_started()) {
         return err;
     }
+
+    // The frames counted in the last second, for the stream stats.
+    sender_->report_frame_stats();
 
     // For RR and RRTR.
     ++_srs_pps_rr->sugar_;
@@ -1158,10 +1243,11 @@ srs_error_t SrsRtcPublishTwccTimer::on_timer(srs_utime_t interval)
     return err;
 }
 
-SrsRtcAsyncCallOnUnpublish::SrsRtcAsyncCallOnUnpublish(SrsContextId c, ISrsRequest *r)
+SrsRtcAsyncCallOnUnpublish::SrsRtcAsyncCallOnUnpublish(SrsContextId c, ISrsRequest *r, const SrsStatisticStreamSnapshot &stream)
 {
     cid_ = c;
     req_ = r->copy();
+    stream_ = stream;
 
     hooks_ = _srs_hooks;
     config_ = _srs_config;
@@ -1203,7 +1289,7 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_unpublish(url, req_);
+        hooks_->on_unpublish(url, req_, stream_);
     }
 
     return err;
@@ -1273,8 +1359,10 @@ SrsRtcPublishStream::SrsRtcPublishStream(ISrsExecRtcAsyncTask *exec, ISrsExpire 
 
 SrsRtcPublishStream::~SrsRtcPublishStream()
 {
+    // Take the stream now, before the unpublish and the stats drop the publisher and
+    // the stream, since the hook runs later from the queue.
     if (req_ && exec_) {
-        exec_->exec_rtc_async_work(new SrsRtcAsyncCallOnUnpublish(cid_, req_));
+        exec_->exec_rtc_async_work(new SrsRtcAsyncCallOnUnpublish(cid_, req_, SrsStatisticStreamSnapshot(stat_, req_)));
     }
 
     srs_freep(timer_rtcp_);
@@ -1696,8 +1784,8 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
         return err;
     }
 
-    // Report codec information to statistics on first RTP packet.
-    if ((err = format_->on_rtp_packet(track, is_audio)) != srs_success) {
+    // Report codec information to statistics on first RTP packet, and the picture size of each new SPS.
+    if ((err = format_->on_rtp_packet(track, pkt, is_audio)) != srs_success) {
         srs_warn("RTC: format packet err %s", srs_error_desc(err).c_str());
         srs_freep(err);
     }
@@ -1730,17 +1818,20 @@ srs_error_t SrsRtcPublishStream::do_on_rtp_plaintext(SrsRtpPacket *&pkt, SrsBuff
 
 void SrsRtcPublishStream::update_rtp_frame_stats(bool is_audio)
 {
-    srs_error_t err = srs_success;
-
-    // Count media-frame observations accepted by the receive track.
+    // Count media-frame observations accepted by the receive track; the RTCP
+    // timer reports them each second, so the packet path only counts.
     if (is_audio) {
         ++nn_audio_frames_;
     } else {
         ++nn_video_frames_;
     }
+}
 
-    // Update the stat for video frames periodically.
-    if (nn_video_frames_ > 288) {
+void SrsRtcPublishStream::report_frame_stats()
+{
+    srs_error_t err = srs_success;
+
+    if (nn_video_frames_ > 0) {
         if ((err = stat_->on_video_frames(req_, nn_video_frames_)) != srs_success) {
             srs_warn("RTC: stat video frames err %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -1748,8 +1839,7 @@ void SrsRtcPublishStream::update_rtp_frame_stats(bool is_audio)
         nn_video_frames_ = 0;
     }
 
-    // Update the stat for audio frames periodically.
-    if (nn_audio_frames_ > 288) {
+    if (nn_audio_frames_ > 0) {
         if ((err = stat_->on_audio_frames(req_, nn_audio_frames_)) != srs_success) {
             srs_warn("RTC: stat audio frames err %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -2784,6 +2874,27 @@ srs_error_t SrsRtcConnection::on_dtls_handshake_done()
 
     srs_trace("RTC: session pub=%u, sub=%u, to=%dms connection established", publishers_.size(), players_.size(),
               srsu2msi(session_timeout_));
+
+    if ((err = start_streams()) != srs_success) {
+        // A stream that can't start leaves the client a connected peer that never publishes or plays,
+        // holding the stream until the session times out, so end the session now, which frees its stream.
+        //
+        // The error is handled here and not returned. Ending the session is all the callers could do with
+        // it: freeing the session also closes its UDP or TCP network. Returned, it would only be logged by
+        // the UDP listener, rate-limited and with a dump of the DTLS packet, so log it here, with the
+        // username. The network then marks the session established, which does no harm, because the
+        // session is already being removed.
+        srs_warn("RTC: session destroy by start failed, username=%s, err=%s", username_.c_str(), srs_error_desc(err).c_str());
+        srs_freep(err);
+        expire();
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::start_streams()
+{
+    srs_error_t err = srs_success;
 
     // start all publisher
     for (map<string, ISrsRtcPublishStream *>::iterator it = publishers_.begin(); it != publishers_.end(); ++it) {

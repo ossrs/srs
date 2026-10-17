@@ -401,6 +401,8 @@ public:
 private:
     // Recv the rtsp message.
     virtual srs_error_t do_recv_message(SrsRtspRequest *req);
+    // Read and drop the size bytes of a request body, from the cached bytes then the io.
+    virtual srs_error_t skip_body(int64_t size);
     // Read a normal token from io, error when token state is not normal.
     virtual srs_error_t recv_token_normal(std::string &token);
     // Read a normal token from io, error when token state is not eof.

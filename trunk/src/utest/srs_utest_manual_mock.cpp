@@ -8,7 +8,6 @@
 
 #include <srs_kernel_rtc_rtp.hpp>
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_dvr.hpp>
@@ -907,6 +906,12 @@ srs_error_t MockRtcPacketSender::do_send_packet(SrsRtpPacket *pkt)
     return send_packet_error_;
 }
 
+srs_error_t MockRtcPacketSender::send_rtcp(char *data, int nb_data)
+{
+    sent_rtcps_.push_back(std::string(data, nb_data));
+    return srs_success;
+}
+
 void MockRtcPacketSender::set_send_packet_error(srs_error_t err)
 {
     send_packet_error_ = err;
@@ -987,7 +992,7 @@ srs_error_t MockRtcFormat::initialize(ISrsRequest *req)
     return srs_error_copy(initialize_error_);
 }
 
-srs_error_t MockRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio)
+srs_error_t MockRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, SrsRtpPacket *pkt, bool is_audio)
 {
     on_rtp_packet_count_++;
     return srs_error_copy(on_rtp_packet_error_);
@@ -1078,6 +1083,7 @@ MockSecurity::MockSecurity()
 {
     check_error_ = srs_success;
     check_count_ = 0;
+    check_type_ = SrsRtmpConnUnknown;
 }
 
 MockSecurity::~MockSecurity()
@@ -1088,6 +1094,7 @@ MockSecurity::~MockSecurity()
 srs_error_t MockSecurity::check(SrsRtmpConnType type, std::string ip, ISrsRequest *req)
 {
     check_count_++;
+    check_type_ = type;
     return srs_error_copy(check_error_);
 }
 
@@ -2360,8 +2367,9 @@ srs_error_t MockHttpHooks::on_publish(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooks::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooks::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
+    last_stream_ = stream;
     on_unpublish_count_++;
     on_unpublish_calls_.push_back(std::make_pair(url, req));
 }
@@ -2371,13 +2379,14 @@ srs_error_t MockHttpHooks::on_play(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooks::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooks::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
+    last_stream_ = stream;
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooks::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooks::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -2418,6 +2427,7 @@ MockOriginHub::MockOriginHub()
     initialize_error_ = srs_success;
     on_hls_request_sh_count_ = 0;
     on_hls_request_sh_error_ = srs_success;
+    on_dash_request_sh_count_ = 0;
     on_forwarder_start_count_ = 0;
     on_forwarder_start_error_ = srs_success;
     on_dvr_request_sh_count_ = 0;
@@ -2497,6 +2507,12 @@ srs_error_t MockOriginHub::on_hls_request_sh()
 {
     on_hls_request_sh_count_++;
     return srs_error_copy(on_hls_request_sh_error_);
+}
+
+srs_error_t MockOriginHub::on_dash_request_sh()
+{
+    on_dash_request_sh_count_++;
+    return srs_success;
 }
 
 void MockOriginHub::set_initialize_error(srs_error_t err)

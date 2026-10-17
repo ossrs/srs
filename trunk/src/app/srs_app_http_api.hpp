@@ -43,6 +43,10 @@ extern srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMess
 // @param count Output parameter for count, defaults to 10, minimum 1.
 extern void srs_api_parse_pagination(ISrsHttpMessage *r, int &start, int &count);
 
+// Escape a label value of the Prometheus text format: a backslash, a double quote and a
+// line feed become \\, \" and \n, so the value can be written between double quotes.
+extern std::string srs_api_metrics_label_escape(const std::string &v);
+
 // For http root.
 class SrsGoApiRoot : public ISrsHttpHandler
 {

@@ -1568,6 +1568,10 @@ enum SrsMp4ObjectType {
     SrsMp4ObjectTypeMp1a = 0x6B,
 };
 
+// The object type of the esds for an audio codec: MPEG-1 audio (11172-3) for MP3 above 24kHz,
+// MPEG-2 audio (13818-3) at 24kHz or below.
+extern SrsMp4ObjectType srs_mp4_audio_object_type(SrsAudioCodecId codec, SrsAudioSampleRate sample_rate);
+
 // Table 6 — streamType Values
 // ISO_IEC_14496-1-System-2010.pdf, page 51
 enum SrsMp4StreamType {
@@ -2981,6 +2985,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     unsigned char *key_;
     unsigned char iv_[16];
     bool do_sample_encryption_;
+    // The video codec and the bytes of each NALU length, to find the slices to encrypt.
+    SrsVideoCodecId video_codec_;
+    int nalu_length_size_;
 
 public:
     SrsFmp4SegmentEncoder();
@@ -2991,6 +2998,9 @@ public:
     virtual srs_error_t initialize(ISrsWriter *w, uint32_t sequence, srs_utime_t basetime, uint32_t v_tid, uint32_t a_tid);
     // config cipher
     virtual srs_error_t config_cipher(unsigned char *key, unsigned char *iv);
+    // Configure how cbcs finds the video slices to encrypt: the codec, H.264 or HEVC, and the
+    // bytes of each NALU length, 4 if not 1 to 4. Only used with a cipher.
+    virtual void config_video_cipher(SrsVideoCodecId codec, int nalu_length_size);
     // Cache a sample.
     // @param ht, The sample handler type, audio/soun or video/vide.
     // @param ft, The frame type. For video, it's SrsVideoAvcFrameType.
@@ -3003,6 +3013,12 @@ public:
                                      uint32_t dts, uint32_t pts, uint8_t *sample, uint32_t nb_sample);
     // Flush the encoder, to write the moof and mdat.
     virtual srs_error_t flush(uint64_t dts);
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Encrypt a sample in place by cbcs, and add its entry to senc.
+    virtual void encrypt_video(SrsMp4Sample *sample, SrsMp4SampleEncryptionBox *senc);
+    virtual void encrypt_audio(SrsMp4Sample *sample, SrsMp4SampleEncryptionBox *senc);
 };
 
 // LCOV_EXCL_START

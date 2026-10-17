@@ -64,6 +64,37 @@ public:
     virtual std::string path();
 };
 
+// Mock ISrsCoroutine of an HTTP connection interrupted by the HTTP API, whose pull fails.
+class MockInterruptedCoroutineForLiveStream : public ISrsCoroutine
+{
+public:
+    int pull_count_;
+
+public:
+    MockInterruptedCoroutineForLiveStream();
+    virtual ~MockInterruptedCoroutineForLiveStream();
+
+public:
+    virtual srs_error_t start();
+    virtual void stop();
+    virtual void interrupt();
+    virtual srs_error_t pull();
+    virtual const SrsContextId &cid();
+    virtual void set_cid(const SrsContextId &cid);
+};
+
+// Mock SrsHttpxConn whose receive thread waits for a request as SrsHttpxConn::pop_message does,
+// which ends only at its read timeout or an interrupt.
+class MockWaitingHttpxConnForLiveStream : public MockHttpxConnForLiveStream
+{
+public:
+    MockWaitingHttpxConnForLiveStream();
+    virtual ~MockWaitingHttpxConnForLiveStream();
+
+public:
+    virtual srs_error_t pop_message(ISrsHttpMessage **preq);
+};
+
 // Mock ISrsAppConfig for testing SrsLiveStream::http_hooks_on_play() and http_hooks_on_stop()
 class MockAppConfigForLiveStreamHooks : public MockAppConfig
 {
@@ -102,10 +133,10 @@ public:
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
     virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual void on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
@@ -137,6 +168,8 @@ class MockLiveStreamForDestroy : public ISrsLiveStream
 public:
     bool alive_;
     bool expired_;
+    // Whether a viewer stays after expire, as one still ending its connection.
+    bool expire_keeps_alive_;
 
 public:
     MockLiveStreamForDestroy();
@@ -155,6 +188,14 @@ class MockStatisticForLiveStream : public ISrsStatistic
 public:
     int on_client_count_;
     srs_error_t on_client_error_;
+    // The URLs of the last client's request.
+    std::string on_client_tc_url_;
+    std::string on_client_page_url_;
+    std::string on_client_swf_url_;
+    // The names of the last client's stream.
+    std::string on_client_app_;
+    std::string on_client_stream_;
+    SrsRtmpConnType on_client_type_;
     int on_disconnect_count_;
     std::vector<std::string> on_disconnect_ids_;
 

@@ -20,6 +20,7 @@ using namespace std;
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_error.hpp>
@@ -111,10 +112,8 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
         return srs_success;
     }
 
-    // Correct the app and stream by path, which is created from template.
-    // @remark Be careful that the stream has extension now, might cause identify fail.
-    SrsPath path;
-    req->stream_ = path.filepath_base(r->path());
+    // The stream of req has no extension, as SrsHttpMessage::to_request() removed it, so the hooks
+    // and the API name the stream of an HLS session as they do for every other player.
 
     // Served by us.
     *served = true;
@@ -415,9 +414,10 @@ void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
         hooks = conf->args_;
     }
 
+    SrsStatisticStreamSnapshot stream(stat_, req);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req);
+        hooks_->on_stop(url, req, stream);
     }
 
     return;
@@ -477,6 +477,19 @@ SrsVodStream::~SrsVodStream()
     config_ = NULL;
 }
 
+// Refuse a range or start that has no byte of the file in it: 416 with the file size in Content-Range, as RFC 9110 has
+// it, so the client knows the size and the connection serves the next request.
+static srs_error_t srs_vod_range_not_satisfiable(ISrsHttpResponseWriter *w, string fullpath, int64_t filesize, int64_t start)
+{
+    srs_warn("http vod %s range not satisfiable, size=%" PRId64 ", start=%" PRId64, fullpath.c_str(), filesize, start);
+
+    std::stringstream content_range;
+    content_range << "bytes */" << filesize;
+    w->header()->set("Content-Range", content_range.str());
+
+    return srs_go_http_error(w, SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable);
+}
+
 srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, string fullpath, int64_t offset)
 {
     srs_error_t err = srs_success;
@@ -488,9 +501,9 @@ srs_error_t SrsVodStream::serve_flv_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "open file");
     }
 
-    if (offset > fs->filesize()) {
-        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http flv streaming %s overflow. size=%" PRId64 ", offset=%" PRId64,
-                             fullpath.c_str(), fs->filesize(), offset);
+    // A start at or past the file size has no tag to serve.
+    if (offset >= fs->filesize()) {
+        return srs_vod_range_not_satisfiable(w, fullpath, fs->filesize(), offset);
     }
 
     SrsFlvVodStreamDecoder ffd;
@@ -559,7 +572,7 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
 {
     srs_error_t err = srs_success;
 
-    srs_assert(start >= 0);
+    srs_assert(start >= -1);
     srs_assert(end == -1 || end >= 0);
 
     SrsUniquePtr<SrsFileReader> fs(fs_factory->create_file_reader());
@@ -567,6 +580,12 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
     // open flv file
     if ((err = fs->open(fullpath)) != srs_success) {
         return srs_error_wrap(err, "fs open");
+    }
+
+    // start == -1 means the range names the last end bytes of the file.
+    if (start == -1) {
+        start = srs_max((int64_t)0, fs->filesize() - end);
+        end = fs->filesize() - 1;
     }
 
     // parse -1 to whole file.
@@ -580,9 +599,9 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
         end = fs->filesize() - 1;
     }
 
+    // A start at or past the file size, or any range of an empty file, has no byte to serve.
     if (start > end || end < 0) {
-        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
-                             fullpath.c_str(), fs->filesize(), start);
+        return srs_vod_range_not_satisfiable(w, fullpath, fs->filesize(), start);
     }
 
     // seek to data offset, [start, end] for range.
@@ -624,6 +643,33 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     if (parsed_vhost) {
         req->vhost_ = parsed_vhost->arg0();
     }
+
+    // The file server opened the playlist by its percent-decoded path, so the session takes its names
+    // from that path too, else the security check, the hooks and the stats would name another stream
+    // than the one served, such as %6Civestream for /live/%6Civestream.m3u8. The names are split from
+    // the decoded path, never parsed as a URL again, so a decoded ? or # is in the name, as in the file.
+    string path;
+    if ((err = SrsHttpUri::path_unescape(hr->path(), path)) != srs_success) {
+        return srs_error_wrap(err, "unescape path=%s", hr->path().c_str());
+    }
+    path = srs_strings_trim_start(path, "/");
+
+    // The URL's dir and file name are the app and stream only for a playlist of [app]/[stream].m3u8,
+    // so take them from the hls_m3u8_file the playlist was written by, such as the app live and the
+    // stream livestream of /live/livestream/index.m3u8 for [app]/[stream]/index.m3u8. A playlist
+    // not of the template is split as an HTTP path, as SrsHttpMessage::to_request() does.
+    string app, stream;
+    if (!srs_path_parse_stream(config_->get_hls_m3u8_file(req->vhost_), req->vhost_, path, app, stream)) {
+        srs_net_url_parse_http_path("/" + path, app, stream);
+    }
+    req->app_ = app;
+    req->stream_ = stream;
+    req->strip();
+
+    // The request's tcUrl was parsed as RTMP, with the RTMP default port that as_http() leaves out,
+    // so set the session's own: the URL of its app on the HTTP server it asked, as an HTTP-FLV
+    // player's.
+    req->tcUrl_ = hr->app_url(req->app_);
 
     // Try to serve by HLS streaming.
     bool served = false;

@@ -165,7 +165,7 @@ Accept new features, bug fixes, security fixes, compatibility fixes, tests, and 
 ### Step 2: Implement the Maintenance Fix
 
 1. Identify the verified root cause and implement the smallest compatible fix.
-2. Preserve C++98 compatibility and the existing coroutine, resource-ownership, protocol, configuration, and error-handling conventions.
+2. Preserve C++98 compatibility and the existing coroutine, resource-ownership, protocol, configuration, and error-handling conventions. Follow `references/cpp-code-style.md`.
 3. Add focused regression coverage following `references/testable-code.md`: write the test first, run it, and confirm it fails before implementing the fix. When the code under test is not mockable, refactor it for testability first; that refactor is behavior-preserving and is accepted in maintenance mode.
 4. Update user documentation only when the behavior or maintenance result changes what operators need to know.
 

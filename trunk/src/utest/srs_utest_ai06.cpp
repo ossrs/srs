@@ -544,6 +544,32 @@ VOID TEST(HTTPSClientTest, HTTPSClientLargeData)
     }
 }
 
+// The request target of a url is its path and query, and starts with a slash
+// even when the url has no path, as a request line needs.
+VOID TEST(HTTPClientTest, UriRequestTarget)
+{
+    srs_error_t err;
+
+    struct {
+        const char *url;
+        const char *target;
+    } cases[] = {
+        {"http://127.0.0.1:8085/api/v1/heartbeat?k1=v1&k2=v2", "/api/v1/heartbeat?k1=v1&k2=v2"},
+        {"http://127.0.0.1:8085/api/v1/heartbeat", "/api/v1/heartbeat"},
+        {"http://127.0.0.1:8085/?token=abc", "/?token=abc"},
+        {"http://127.0.0.1:8085?token=abc", "/?token=abc"},
+        {"http://127.0.0.1:8085", "/"},
+        {"http://127.0.0.1:8085#frag", "/"},
+        {"http://127.0.0.1:8085?token=abc#frag", "/?token=abc"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SrsHttpUri uri;
+        HELPER_EXPECT_SUCCESS(uri.initialize(cases[i].url));
+        EXPECT_STREQ(cases[i].target, uri.get_request_target().c_str()) << cases[i].url;
+    }
+}
+
 VOID TEST(RTMPClientTest, RTMPClientConnect)
 {
     srs_error_t err;
@@ -987,7 +1013,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterReadFully)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered reader below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);
@@ -1046,7 +1073,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterTimeoutAndStats)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered reader below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);
@@ -1114,7 +1142,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterWriteMethods)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered writer below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);

@@ -12,7 +12,6 @@
 */
 #include <srs_utest.hpp>
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_factory.hpp>
@@ -146,6 +145,9 @@ class MockAppFactoryForMpegtsOverUdp : public SrsAppFactory
 public:
     MockRtmpClient *mock_rtmp_client_;
     bool create_rtmp_client_called_;
+    // The timeouts of the last client made.
+    srs_utime_t cto_;
+    srs_utime_t sto_;
 
 public:
     MockAppFactoryForMpegtsOverUdp();
@@ -156,130 +158,8 @@ public:
     void reset();
 };
 
-// Mock ISrsAppConfig for testing SrsHttpFlvListener
-class MockAppConfigForHttpFlvListener : public MockAppConfig
-{
-public:
-    int stream_caster_listen_port_;
-
-public:
-    MockAppConfigForHttpFlvListener();
-    virtual ~MockAppConfigForHttpFlvListener();
-
-public:
-    virtual int get_stream_caster_listen(SrsConfDirective *conf);
-};
-
-// Mock SrsTcpListener for testing SrsHttpFlvListener
-class MockTcpListenerForHttpFlv : public SrsTcpListener
-{
-public:
-    std::string endpoint_ip_;
-    int endpoint_port_;
-    std::string label_;
-    bool set_endpoint_called_;
-    bool set_label_called_;
-    bool listen_called_;
-    bool close_called_;
-
-public:
-    MockTcpListenerForHttpFlv(ISrsTcpHandler *h);
-    virtual ~MockTcpListenerForHttpFlv();
-
-public:
-    virtual ISrsListener *set_endpoint(const std::string &i, int p);
-    virtual ISrsListener *set_label(const std::string &label);
-    virtual srs_error_t listen();
-    void close();
-    void reset();
-};
-
-// Mock ISrsAppCasterFlv for testing SrsHttpFlvListener
-class MockAppCasterFlv : public ISrsAppCasterFlv
-{
-public:
-    int assemble_count_;
-    bool initialize_called_;
-    bool on_tcp_client_called_;
-    srs_error_t initialize_error_;
-    srs_error_t on_tcp_client_error_;
-
-public:
-    MockAppCasterFlv();
-    virtual ~MockAppCasterFlv();
-
-public:
-    virtual void assemble();
-    virtual srs_error_t initialize(SrsConfDirective *c);
-    virtual srs_error_t on_tcp_client(ISrsListener *listener, srs_netfd_t stfd);
-    virtual srs_error_t start();
-    virtual bool empty();
-    virtual size_t size();
-    virtual void add(ISrsResource *conn, bool *exists);
-    virtual void add_with_id(const std::string &id, ISrsResource *conn);
-    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn);
-    virtual void add_with_name(const std::string &name, ISrsResource *conn);
-    virtual ISrsResource *at(int index);
-    virtual ISrsResource *find_by_id(std::string id);
-    virtual ISrsResource *find_by_fast_id(uint64_t id);
-    virtual ISrsResource *find_by_name(std::string name);
-    virtual void remove(ISrsResource *c);
-    virtual void subscribe(ISrsDisposingHandler *h);
-    virtual void unsubscribe(ISrsDisposingHandler *h);
-    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r);
-    void reset();
-};
-
-// Mock ISrsAppConfig for testing SrsAppCasterFlv
-class MockAppConfigForAppCasterFlv : public MockAppConfig
-{
-public:
-    std::string stream_caster_output_;
-
-public:
-    MockAppConfigForAppCasterFlv();
-    virtual ~MockAppConfigForAppCasterFlv();
-
-public:
-    virtual std::string get_stream_caster_output(SrsConfDirective *conf);
-};
-
-// Mock SrsHttpServeMux for testing SrsAppCasterFlv
-class MockHttpServeMuxForAppCasterFlv : public SrsHttpServeMux
-{
-public:
-    bool handle_called_;
-    std::string handle_pattern_;
-    ISrsHttpHandler *handle_handler_;
-    srs_error_t handle_error_;
-
-public:
-    MockHttpServeMuxForAppCasterFlv();
-    virtual ~MockHttpServeMuxForAppCasterFlv();
-
-public:
-    virtual srs_error_t handle(std::string pattern, ISrsHttpHandler *handler);
-    void reset();
-};
-
-// Mock SrsResourceManager for testing SrsAppCasterFlv
-class MockResourceManagerForAppCasterFlv : public SrsResourceManager
-{
-public:
-    bool start_called_;
-    srs_error_t start_error_;
-
-public:
-    MockResourceManagerForAppCasterFlv();
-    virtual ~MockResourceManagerForAppCasterFlv();
-
-public:
-    virtual srs_error_t start();
-    void reset();
-};
-
-// Mock ISrsHttpResponseReader for testing SrsDynamicHttpConn::do_proxy
-class MockHttpResponseReaderForDynamicConn : public ISrsHttpResponseReader
+// Mock ISrsHttpResponseReader for testing SrsHttpFileReader
+class MockHttpResponseReaderForHttpFileReader : public ISrsHttpResponseReader
 {
 public:
     std::string content_;
@@ -287,8 +167,8 @@ public:
     bool eof_;
 
 public:
-    MockHttpResponseReaderForDynamicConn();
-    virtual ~MockHttpResponseReaderForDynamicConn();
+    MockHttpResponseReaderForHttpFileReader();
+    virtual ~MockHttpResponseReaderForHttpFileReader();
 
 public:
     virtual bool eof();
@@ -296,57 +176,8 @@ public:
     void reset();
 };
 
-// Mock ISrsFlvDecoder for testing SrsDynamicHttpConn::do_proxy
-class MockFlvDecoderForDynamicConn : public ISrsFlvDecoder
-{
-public:
-    bool read_tag_header_called_;
-    bool read_tag_data_called_;
-    bool read_previous_tag_size_called_;
-    srs_error_t read_tag_header_error_;
-    srs_error_t read_tag_data_error_;
-    srs_error_t read_previous_tag_size_error_;
-
-    // Mock return values for read_tag_header
-    char tag_type_;
-    int32_t tag_size_;
-    uint32_t tag_time_;
-
-    // Mock tag data to return
-    char *tag_data_;
-    int tag_data_size_;
-
-public:
-    MockFlvDecoderForDynamicConn();
-    virtual ~MockFlvDecoderForDynamicConn();
-
-public:
-    virtual srs_error_t initialize(ISrsReader *fr);
-    virtual srs_error_t read_header(char header[9]);
-    virtual srs_error_t read_tag_header(char *ptype, int32_t *pdata_size, uint32_t *ptime);
-    virtual srs_error_t read_tag_data(char *data, int32_t size);
-    virtual srs_error_t read_previous_tag_size(char previous_tag_size[4]);
-    void reset();
-};
-
-// Mock ISrsAppFactory for testing SrsDynamicHttpConn::do_proxy
-class MockAppFactoryForDynamicConn : public SrsAppFactory
-{
-public:
-    MockRtmpClient *mock_rtmp_client_;
-    bool create_rtmp_client_called_;
-
-public:
-    MockAppFactoryForDynamicConn();
-    virtual ~MockAppFactoryForDynamicConn();
-
-public:
-    virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
-    void reset();
-};
-
-// Mock ISrsPithyPrint for testing SrsDynamicHttpConn::do_proxy
-class MockPithyPrintForDynamicConn : public ISrsPithyPrint
+// Mock ISrsPithyPrint for testing SrsIngester
+class MockPithyPrintForIngester : public ISrsPithyPrint
 {
 public:
     bool elapse_called_;
@@ -355,68 +186,14 @@ public:
     srs_utime_t age_value_;
 
 public:
-    MockPithyPrintForDynamicConn();
-    virtual ~MockPithyPrintForDynamicConn();
+    MockPithyPrintForIngester();
+    virtual ~MockPithyPrintForIngester();
 
 public:
     virtual void elapse();
     virtual bool can_print();
     virtual srs_utime_t age();
     void reset();
-};
-
-// Mock ISrsResourceManager for testing SrsDynamicHttpConn
-class MockResourceManagerForDynamicConn : public ISrsResourceManager
-{
-public:
-    bool remove_called_;
-    ISrsResource *removed_resource_;
-
-public:
-    MockResourceManagerForDynamicConn();
-    virtual ~MockResourceManagerForDynamicConn();
-
-public:
-    virtual srs_error_t start();
-    virtual bool empty();
-    virtual size_t size();
-    virtual void add(ISrsResource *conn, bool *exists = NULL);
-    virtual void add_with_id(const std::string &id, ISrsResource *conn);
-    virtual void add_with_fast_id(uint64_t id, ISrsResource *conn);
-    virtual void add_with_name(const std::string &name, ISrsResource *conn);
-    virtual ISrsResource *at(int index);
-    virtual ISrsResource *find_by_id(std::string id);
-    virtual ISrsResource *find_by_fast_id(uint64_t id);
-    virtual ISrsResource *find_by_name(std::string name);
-    virtual void remove(ISrsResource *c);
-    virtual void subscribe(ISrsDisposingHandler *h);
-    virtual void unsubscribe(ISrsDisposingHandler *h);
-    void reset();
-};
-
-// Mock ISrsHttpConn for testing SrsDynamicHttpConn
-class MockHttpConnForDynamicConn : public ISrsHttpConn
-{
-public:
-    std::string remote_ip_;
-    SrsContextId context_id_;
-
-public:
-    MockHttpConnForDynamicConn();
-    virtual ~MockHttpConnForDynamicConn();
-
-public:
-    virtual ISrsKbpsDelta *delta();
-    virtual srs_error_t start();
-    virtual srs_error_t cycle();
-    virtual srs_error_t pull();
-    virtual srs_error_t set_crossdomain_enabled(bool v);
-    virtual srs_error_t set_auth_enabled(bool auth_enabled);
-    virtual srs_error_t set_jsonp(bool v);
-    virtual std::string remote_ip();
-    virtual const SrsContextId &get_id();
-    virtual std::string desc();
-    virtual void expire();
 };
 
 // Mock ISrsCoroutine for testing SrsHttpConn::cycle()
@@ -537,6 +314,9 @@ public:
     std::string remote_ip_;
     SrsContextId context_id_;
     ISrsKbpsDelta *delta_;
+    // The CORS setting the owner gave, and whether it gave one.
+    bool crossdomain_;
+    bool crossdomain_set_;
 
 public:
     MockHttpConnForHttpxConn();
@@ -556,12 +336,31 @@ public:
     virtual void expire();
 };
 
+// Mock ISrsAppConfig for the CORS setting of SrsHttpxConn, with the HTTP API's and the HTTP server's
+// crossdomain set apart.
+class MockAppConfigForHttpxConnCors : public MockAppConfig
+{
+public:
+    bool http_api_crossdomain_;
+    bool http_stream_crossdomain_;
+
+public:
+    MockAppConfigForHttpxConnCors();
+    virtual ~MockAppConfigForHttpxConnCors();
+
+public:
+    virtual bool get_http_api_crossdomain();
+    virtual bool get_http_stream_crossdomain();
+};
+
 // Mock ISrsFFMPEG for testing SrsEncoder
 class MockFFMPEGForEncoder : public ISrsFFMPEG
 {
 public:
     bool initialize_called_;
     bool start_called_;
+    srs_error_t initialize_error_;
+    srs_error_t initialize_transcode_error_;
     srs_error_t start_error_;
     std::string output_;
 
@@ -593,6 +392,7 @@ public:
     std::string transcode_ffmpeg_bin_;
     std::vector<SrsConfDirective *> transcode_engines_;
     bool engine_enabled_;
+    std::string engine_output_;
     std::string target_scope_; // The scope for which to return transcode_directive_
 
 public:
@@ -622,107 +422,6 @@ public:
 
 public:
     virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin);
-    void reset();
-};
-
-// Mock ISrsHttpResponseReader for testing SrsLatestVersion
-class MockHttpResponseReaderForLatestVersion : public ISrsHttpResponseReader
-{
-public:
-    std::string content_;
-    size_t read_pos_;
-    bool eof_;
-
-public:
-    MockHttpResponseReaderForLatestVersion();
-    virtual ~MockHttpResponseReaderForLatestVersion();
-
-public:
-    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
-    virtual bool eof();
-    void reset();
-};
-
-// Mock ISrsHttpMessage for testing SrsLatestVersion
-class MockHttpMessageForLatestVersion : public ISrsHttpMessage
-{
-public:
-    int status_code_;
-    std::string body_content_;
-    MockHttpResponseReaderForLatestVersion *body_reader_;
-
-public:
-    MockHttpMessageForLatestVersion();
-    virtual ~MockHttpMessageForLatestVersion();
-
-public:
-    virtual uint8_t message_type();
-    virtual uint8_t method();
-    virtual uint16_t status_code();
-    virtual std::string method_str();
-    virtual bool is_http_get();
-    virtual bool is_http_put();
-    virtual bool is_http_post();
-    virtual bool is_http_delete();
-    virtual bool is_http_options();
-    virtual std::string uri();
-    virtual std::string url();
-    virtual std::string host();
-    virtual std::string path();
-    virtual std::string query();
-    virtual std::string ext();
-    virtual srs_error_t body_read_all(std::string &body);
-    virtual ISrsHttpResponseReader *body_reader();
-    virtual int64_t content_length();
-    virtual std::string query_get(std::string key);
-    virtual SrsHttpHeader *header();
-    virtual bool is_jsonp();
-    virtual bool is_keep_alive();
-    virtual ISrsRequest *to_request(std::string vhost);
-    virtual std::string parse_rest_id(std::string pattern);
-    void reset();
-};
-
-// Mock ISrsHttpClient for testing SrsLatestVersion
-class MockHttpClientForLatestVersion : public ISrsHttpClient
-{
-public:
-    bool initialize_called_;
-    bool get_called_;
-    std::string schema_;
-    std::string host_;
-    int port_;
-    std::string path_;
-    MockHttpMessageForLatestVersion *mock_response_;
-    srs_error_t initialize_error_;
-    srs_error_t get_error_;
-
-public:
-    MockHttpClientForLatestVersion();
-    virtual ~MockHttpClientForLatestVersion();
-
-public:
-    virtual srs_error_t initialize(std::string schema, std::string h, int p, srs_utime_t tm = SRS_HTTP_CLIENT_TIMEOUT);
-    virtual srs_error_t get(std::string path, std::string req, ISrsHttpMessage **ppmsg);
-    virtual srs_error_t post(std::string path, std::string req, ISrsHttpMessage **ppmsg);
-    virtual void set_recv_timeout(srs_utime_t tm);
-    virtual void kbps_sample(const char *label, srs_utime_t age);
-    void reset();
-};
-
-// Mock ISrsAppFactory for testing SrsLatestVersion
-class MockAppFactoryForLatestVersion : public SrsAppFactory
-{
-public:
-    MockHttpClientForLatestVersion *mock_http_client_;
-    bool create_http_client_called_;
-
-public:
-    MockAppFactoryForLatestVersion();
-    virtual ~MockAppFactoryForLatestVersion();
-
-public:
-    virtual ISrsHttpClient *create_http_client();
     void reset();
 };
 
@@ -783,6 +482,8 @@ public:
     bool should_delete_response_;
     // Where post() copies the request body, because do_heartbeat() frees the client.
     std::string *request_body_out_;
+    // Where post() copies the request path, for the same reason.
+    std::string *path_out_;
 
 public:
     MockHttpClientForHeartbeat();
@@ -911,6 +612,7 @@ class MockFastTimerForCircuitBreaker : public ISrsFastTimer
 public:
     bool subscribe_called_;
     ISrsFastTimerHandler *subscribed_handler_;
+    ISrsFastTimerHandler *unsubscribed_handler_;
 
 public:
     MockFastTimerForCircuitBreaker();

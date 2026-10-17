@@ -136,6 +136,8 @@ public:
 public:
     // Whether path exists.
     virtual bool exists(std::string path);
+    // Whether path is a directory, following symbolic links.
+    virtual bool is_dir(std::string path);
     // Remove or unlink file.
     virtual srs_error_t unlink(std::string path);
     // Get the dirname of path, for instance, dirname("/live/livestream")="/live"

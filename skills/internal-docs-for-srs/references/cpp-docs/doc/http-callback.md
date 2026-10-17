@@ -248,7 +248,7 @@ heartbeat {
     # default: off
     enabled off;
     # the interval seconds for heartbeat,
-    # recommend 0.3,0.6,0.9,1.2,1.5,1.8,2.1,2.4,2.7,3,...,6,9,12,....
+    # a fraction is rounded down to whole seconds, at least 1s.
     # Overwrite by env SRS_HEARTBEAT_INTERVAL
     # default: 9.9
     interval 9.3;

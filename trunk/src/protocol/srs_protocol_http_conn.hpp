@@ -124,7 +124,7 @@ class SrsHttpMessage : public ISrsHttpMessageOwnerSetter
 SRS_DECLARE_PRIVATE: // clang-format on
     // The body object, reader object.
     // @remark, user can get body in string by get_body().
-    SrsHttpResponseReader *_body;
+    SrsHttpResponseReader *body_;
     // Use a buffer to read and send ts file.
     // The transport connection, can be NULL.
     ISrsConnection *owner_conn_;
@@ -135,16 +135,16 @@ SRS_DECLARE_PRIVATE: // clang-format on
     //      enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
     uint8_t type_;
     // The HTTP method defined by HTTP_METHOD_MAP
-    llhttp_method_t _method;
-    llhttp_status_t _status;
-    int64_t _content_length;
+    llhttp_method_t method_;
+    llhttp_status_t status_;
+    int64_t content_length_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // The http headers
-    SrsHttpHeader _header;
+    SrsHttpHeader header_;
     // Whether the request indicates should keep alive for the http connection.
-    bool _keep_alive;
+    bool keep_alive_;
     // Whether the body is chunked.
     bool chunked_;
 
@@ -152,13 +152,13 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     std::string schema_;
     // The parsed url.
-    std::string _url;
+    std::string url_;
     // The extension of file, for example, .flv
-    std::string _ext;
+    std::string ext_;
     // The uri parser
-    SrsHttpUri *_uri;
+    SrsHttpUri *uri_;
     // The query map
-    std::map<std::string, std::string> _query;
+    std::map<std::string, std::string> query_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -205,7 +205,7 @@ public:
     virtual bool is_chunked();
     // Whether should keep the connection alive.
     virtual bool is_keep_alive();
-    // The uri contains the host and path.
+    // The uri the client asked for, such as http://host:port/path?query.
     virtual std::string uri();
     // The url maybe the path.
     virtual std::string url();
@@ -236,6 +236,9 @@ public:
     // Convert the http message to a request.
     // @remark user must free the return request.
     virtual ISrsRequest *to_request(std::string vhost);
+    // The URL of the app on the HTTP server the client asked, such as http://127.0.0.1:8080/live: the
+    // schema, the Host header as sent (or host() without one), and app. An HTTP client's tcUrl.
+    std::string app_url(std::string app);
 
 public:
     virtual bool is_jsonp();

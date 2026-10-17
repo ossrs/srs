@@ -18,7 +18,6 @@
 #include <srs_app_encoder.hpp>
 #include <srs_app_factory.hpp>
 #include <srs_app_forward.hpp>
-#include <srs_app_hds.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_rtmp_source.hpp>
@@ -31,9 +30,6 @@
 #include <set>
 #include <string>
 #include <vector>
-#ifdef SRS_HDS
-#include <srs_app_hds.hpp>
-#endif
 #include <srs_app_factory.hpp>
 
 // Mock media packet for testing jitter correction
@@ -275,23 +271,6 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t cycle();
 };
-
-#ifdef SRS_HDS
-// Mock ISrsHds for testing SrsOriginHub::on_publish
-class MockHdsForOriginHub : public ISrsHds
-{
-public:
-    int on_publish_count_;
-
-public:
-    MockHdsForOriginHub();
-    virtual ~MockHdsForOriginHub();
-    virtual srs_error_t on_publish(ISrsRequest *req);
-    virtual srs_error_t on_unpublish();
-    virtual srs_error_t on_video(SrsMediaPacket *msg);
-    virtual srs_error_t on_audio(SrsMediaPacket *msg);
-};
-#endif
 
 // Mock config for testing SrsOriginHub::create_forwarders
 // Mock HTTP hooks for testing SrsOriginHub::create_backend_forwarders

@@ -707,6 +707,13 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     // remove the extension of stream if have. for instance, test.flv -> test
     req->stream_ = path.filepath_filename(req->stream_);
 
+    // The copy has the publisher's URLs, so set the player's own: the URL of its app on the HTTP
+    // server it asked, and its Referer as the pageUrl, as its on_play reports. An HTTP player has
+    // no swfUrl.
+    req->tcUrl_ = hr->app_url(req->app_);
+    req->pageUrl_ = hr->header()->get("Referer");
+    req->swfUrl_ = "";
+
     // Update client IP, preferring the original address forwarded by a proxy.
     req->ip_ = hc->remote_ip();
     string original_ip = srs_get_original_ip(r);
@@ -714,12 +721,22 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
         req->ip_ = original_ip;
     }
 
+    // The player's type names the format of its mount, as HLS and HTTP-FLV players have their own.
+    SrsRtmpConnType type = SrsFlvPlay;
+    if (srs_strings_ends_with(entry_->pattern, ".ts")) {
+        type = SrsTsPlay;
+    } else if (srs_strings_ends_with(entry_->pattern, ".mp3")) {
+        type = SrsMp3Play;
+    } else if (srs_strings_ends_with(entry_->pattern, ".aac")) {
+        type = SrsAacPlay;
+    }
+
     // We must do stat the client before hooks, because hooks depends on it.
-    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req.get(), hc, SrsFlvPlay)) != srs_success) {
+    if ((err = stat_->on_client(_srs_context->get_id().c_str(), req.get(), hc, type)) != srs_success) {
         return srs_error_wrap(err, "stat on client");
     }
 
-    if ((err = security_->check(SrsFlvPlay, req->ip_, req.get())) != srs_success) {
+    if ((err = security_->check(type, req->ip_, req.get())) != srs_success) {
         return srs_error_wrap(err, "flv: security check");
     }
 
@@ -885,6 +902,12 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, ISrsLiveConsumer
     // TODO: free and erase the disabled entry after all related connections is closed.
     // TODO: FXIME: Support timeout for player, quit infinite-loop.
     while (entry_->enabled) {
+        // Whether the connection is interrupted, such as a DELETE by the HTTP API. The recv thread
+        // checks it only at its 3s read timeout.
+        if ((err = hc->pull()) != srs_success) {
+            return srs_error_wrap(err, "http conn");
+        }
+
         // Whether client closed the FD.
         if ((err = trd->pull()) != srs_success) {
             return srs_error_wrap(err, "recv thread");
@@ -1001,9 +1024,10 @@ void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r)
         hooks = conf->args_;
     }
 
+    SrsStatisticStreamSnapshot stream(stat_, nreq.get());
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, nreq.get());
+        hooks_->on_stop(url, nreq.get(), stream);
     }
 
     return;
@@ -1087,7 +1111,6 @@ ISrsHttpStreamServer::~ISrsHttpStreamServer()
 
 SrsHttpStreamServer::SrsHttpStreamServer()
 {
-    async_ = new SrsAsyncCallWorker();
     mux_ = new SrsHttpServeMux();
 
     config_ = _srs_config;
@@ -1108,8 +1131,12 @@ SrsHttpStreamServer::~SrsHttpStreamServer()
         mux->remove_dynamic_matcher(this);
     }
 
-    async_->stop();
-    srs_freep(async_);
+    // Wait for every teardown to end, for they use the stream handlers.
+    for (int i = 0; i < (int)destroyers_.size(); i++) {
+        SrsHttpStreamDestroy *destroyer = destroyers_.at(i);
+        srs_freep(destroyer);
+    }
+    destroyers_.clear();
 
     if (true) {
         std::map<std::string, SrsLiveEntry *>::iterator it;
@@ -1138,10 +1165,6 @@ srs_error_t SrsHttpStreamServer::initialize()
     // remux rtmp to flv live streaming
     if ((err = initialize_flv_streaming()) != srs_success) {
         return srs_error_wrap(err, "http flv stream");
-    }
-
-    if ((err = async_->start()) != srs_success) {
-        return srs_error_wrap(err, "async start");
     }
 
     return err;
@@ -1248,9 +1271,22 @@ void SrsHttpStreamServer::http_unmount(ISrsRequest *r)
     }
     entry->disposing_ = true;
 
-    // Use async worker to execute the task, which will destroy the stream.
+    // Free the teardowns that are done.
+    for (int i = (int)destroyers_.size() - 1; i >= 0; i--) {
+        SrsHttpStreamDestroy *destroyer = destroyers_.at(i);
+        if (destroyer->done()) {
+            srs_freep(destroyer);
+            destroyers_.erase(destroyers_.begin() + i);
+        }
+    }
+
+    // Destroy the stream on a coroutine of its own, not in the caller, which may be a viewer of
+    // the stream, and not after another stream's teardown, which may wait for its viewers.
+    SrsHttpStreamDestroy *destroyer = new SrsHttpStreamDestroy(mux_, &streamHandlers_, sid);
+    destroyers_.push_back(destroyer);
+
     srs_error_t err = srs_success;
-    if ((err = async_->execute(new SrsHttpStreamDestroy(mux_, &streamHandlers_, sid))) != srs_success) {
+    if ((err = destroyer->start()) != srs_success) {
         srs_warn("http: ignore unmount stream failed, sid=%s, err=%s", sid.c_str(), srs_error_desc(err).c_str());
         srs_freep(err);
     }
@@ -1414,10 +1450,39 @@ SrsHttpStreamDestroy::SrsHttpStreamDestroy(ISrsHttpServeMux *mux, map<std::strin
     mux_ = mux;
     sid_ = sid;
     streamHandlers_ = handlers;
+    trd_ = new SrsDummyCoroutine();
+    done_ = false;
 }
 
 SrsHttpStreamDestroy::~SrsHttpStreamDestroy()
 {
+    srs_freep(trd_);
+}
+
+srs_error_t SrsHttpStreamDestroy::start()
+{
+    srs_error_t err = srs_success;
+
+    srs_freep(trd_);
+    trd_ = new SrsSTCoroutine("http-destroy", this, _srs_context->get_id());
+
+    if ((err = trd_->start()) != srs_success) {
+        return srs_error_wrap(err, "coroutine");
+    }
+
+    return err;
+}
+
+bool SrsHttpStreamDestroy::done()
+{
+    return done_;
+}
+
+srs_error_t SrsHttpStreamDestroy::cycle()
+{
+    srs_error_t err = call();
+    done_ = true;
+    return err;
 }
 
 srs_error_t SrsHttpStreamDestroy::call()

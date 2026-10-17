@@ -20,7 +20,6 @@ using namespace std;
 #include <srs_app_hls.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_recv_thread.hpp>
-#include <srs_app_refer.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
@@ -68,6 +67,10 @@ ISrsRtmpTransport::~ISrsRtmpTransport()
 
 // when edge timeout, retry next.
 #define SRS_EDGE_TOKEN_TRAVERSE_TIMEOUT (3 * SRS_UTIME_SECONDS)
+
+// How long the client may be idle, and the most messages drained, when SRS drains its input before a close.
+#define SRS_DRAIN_INPUT_TIMEOUT (100 * SRS_UTIME_MILLISECONDS)
+#define SRS_DRAIN_INPUT_MESSAGES 10
 
 SrsSimpleRtmpClient::SrsSimpleRtmpClient(string u, srs_utime_t ctm, srs_utime_t stm) : SrsBasicRtmpClient(u, ctm, stm)
 {
@@ -218,7 +221,6 @@ SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
     delta_ = new SrsNetworkDelta();
 
     rtmp_ = NULL;
-    refer_ = new SrsRefer();
     security_ = new SrsSecurity();
     duration_ = 0;
     wakable_ = NULL;
@@ -228,6 +230,7 @@ SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
     realtime_ = SRS_PERF_MIN_LATENCY_ENABLED;
     send_min_interval_ = 0;
     tcp_nodelay_ = false;
+    on_connect_checked_ = false;
     info_ = new SrsClientInfo();
 
     publish_1stpkt_timeout_ = 0;
@@ -286,7 +289,6 @@ SrsRtmpConn::~SrsRtmpConn()
 
     srs_freep(info_);
     srs_freep(rtmp_);
-    srs_freep(refer_);
     srs_freep(security_);
 
     app_factory_ = NULL;
@@ -438,6 +440,22 @@ srs_error_t SrsRtmpConn::service_cycle()
         return srs_error_wrap(err, "rtmp: set chunk size %d", chunk_size);
     }
 
+    // An edge with token traverse connects with its client's stream and param, to check the client
+    // before it serves it, and closes once answered. So check the client by the on_connect hook
+    // before the answer: a refused client's connect gets none, and the edge refuses the client.
+    SrsAmf0Any *traverse = req->args_ ? req->args_->ensure_property_string("srs_token_traverse") : NULL;
+    if (traverse) {
+        req->stream_ = traverse->to_str();
+        req->param_ = "";
+        string tc_url = req->tcUrl_.substr(0, req->tcUrl_.find('?'));
+        srs_net_url_parse_tcurl(tc_url, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
+        req->strip();
+
+        if ((err = check_vhost(true)) != srs_success) {
+            return srs_error_wrap(err, "rtmp: check token traverse of %s", req->get_stream_url().c_str());
+        }
+    }
+
     // response the client connect ok.
     if ((err = rtmp_->response_connect_app(req, local_ip.c_str())) != srs_success) {
         return srs_error_wrap(err, "rtmp: response connect app");
@@ -507,6 +525,11 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
     if ((err = rtmp_->identify_client(info_->res_->stream_id_, info_->type_, req->stream_, req->duration_)) != srs_success) {
         return srs_error_wrap(err, "rtmp: identify client");
     }
+
+    // A publish or play again on this connection, such as an FMLE republish, finds the param of the
+    // last one here, which is in neither the tcUrl nor the new stream name, so the parse would append
+    // it again.
+    req->param_ = "";
 
     srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
 
@@ -692,12 +715,7 @@ srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
         req->vhost_ = vhost->arg0();
     }
 
-    if (config_->get_refer_enabled(req->vhost_)) {
-        if ((err = refer_->check(req->pageUrl_, config_->get_refer_all(req->vhost_))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: referer check");
-        }
-    }
-
+    on_connect_checked_ = true;
     if ((err = http_hooks_on_connect()) != srs_success) {
         return srs_error_wrap(err, "rtmp: callback on connect");
     }
@@ -714,18 +732,20 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
         return srs_error_wrap(err, "thread");
     }
 
-    // Check page referer of player.
     ISrsRequest *req = info_->req_;
-    if (config_->get_refer_enabled(req->vhost_)) {
-        if ((err = refer_->check(req->pageUrl_, config_->get_refer_play(req->vhost_))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: referer check");
-        }
-    }
 
     // When origin cluster enabled, try to redirect to the origin which is active.
     // A active origin is a server which is delivering stream.
     if (!info_->edge_ && config_->get_vhost_origin_cluster(req->vhost_) && source->inactive()) {
-        return redirect_to_origin_cluster(source);
+        err = redirect_to_origin_cluster(source);
+
+        // A redirect has read the client's answer. With no origin, the connection is closed right
+        // after start_play(), maybe with the client's buffer length unread, and closing a socket
+        // with input unread is a reset that drops NetStream.Play.Start if not sent yet.
+        if (srs_error_code(err) != ERROR_CONTROL_REDIRECT) {
+            drain_client_input(); // void
+        }
+        return err;
     }
 
     // Set the socket options for transport.
@@ -808,6 +828,21 @@ srs_error_t SrsRtmpConn::redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> 
     return srs_error_new(ERROR_OCLUSTER_REDIRECT, "no origin");
 }
 // LCOV_EXCL_STOP
+
+void SrsRtmpConn::drain_client_input()
+{
+    rtmp_->set_recv_timeout(SRS_DRAIN_INPUT_TIMEOUT);
+
+    for (int i = 0; i < SRS_DRAIN_INPUT_MESSAGES; i++) {
+        SrsRtmpCommonMessage *msg = NULL;
+        srs_error_t err = rtmp_->recv_message(&msg);
+        if (err != srs_success) {
+            srs_freep(err);
+            return;
+        }
+        srs_freep(msg);
+    }
+}
 
 srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer *consumer, SrsQueueRecvThread *rtrd)
 {
@@ -948,12 +983,6 @@ srs_error_t SrsRtmpConn::authorize_publish()
 
     ISrsRequest *req = info_->req_;
 
-    if (config_->get_refer_enabled(req->vhost_)) {
-        if ((err = refer_->check(req->pageUrl_, config_->get_refer_publish(req->vhost_))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: referer check");
-        }
-    }
-
     // We must do stat the client before hooks, because hooks depends on it.
     if ((err = stat_->on_client(context_->get_id().c_str(), req, this, info_->type_)) != srs_success) {
         return srs_error_wrap(err, "rtmp: stat client");
@@ -1042,8 +1071,6 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
     }
 
     int64_t nb_msgs = 0;
-    uint64_t nb_frames = 0;
-    uint64_t nb_audio_frames = 0;
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
@@ -1078,18 +1105,10 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
         }
         nb_msgs = rtrd->nb_msgs();
 
-        // Update the stat for video fps.
-        // @remark https://github.com/ossrs/srs/issues/851
-        if ((err = stat_->on_video_frames(req, (int)(rtrd->nb_video_frames() - nb_frames))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: stat video frames");
+        // Update the stat for the frames the receive thread has not reported yet.
+        if ((err = rtrd->report_frames()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: stat frames");
         }
-        nb_frames = rtrd->nb_video_frames();
-
-        // Update the stat for audio frames.
-        if ((err = stat_->on_audio_frames(req, (int)(rtrd->nb_audio_frames() - nb_audio_frames))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: stat audio frames");
-        }
-        nb_audio_frames = rtrd->nb_audio_frames();
 
         // reportable
         if (pprint->can_print()) {
@@ -1451,9 +1470,17 @@ srs_error_t SrsRtmpConn::do_token_traverse_auth(SrsRtmpClient *client)
         return srs_error_wrap(err, "rtmp: handshake");
     }
 
+    // Tell the origin the client's stream and param by a property of the connect's args, so the
+    // origin checks the client by its on_connect hook before it answers, and refuses it by no answer.
+    SrsUniquePtr<ISrsRequest> r(req->copy());
+    if (!r->args_) {
+        r->args_ = SrsAmf0Any::object();
+    }
+    r->args_->set("srs_token_traverse", SrsAmf0Any::str((req->stream_ + req->param_).c_str()));
+
     // for token tranverse, always take the debug info(which carries token).
     SrsServerInfo si;
-    if ((err = client->connect_app(req->app_, req->tcUrl_, req, true, &si)) != srs_success) {
+    if ((err = client->connect_app(req->app_, req->tcUrl_, r.get(), true, &si)) != srs_success) {
         return srs_error_wrap(err, "rtmp: connect tcUrl");
     }
 
@@ -1466,7 +1493,9 @@ srs_error_t SrsRtmpConn::on_disconnect()
 {
     srs_error_t err = srs_success;
 
-    http_hooks_on_close();
+    if (on_connect_checked_) {
+        http_hooks_on_close();
+    }
 
     // TODO: FIXME: Implements it.
 
@@ -1595,9 +1624,10 @@ void SrsRtmpConn::http_hooks_on_unpublish()
         hooks = conf->args_;
     }
 
+    SrsStatisticStreamSnapshot stream(stat_, req);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_unpublish(url, req);
+        hooks_->on_unpublish(url, req, stream);
     }
 }
 
@@ -1659,9 +1689,10 @@ void SrsRtmpConn::http_hooks_on_stop()
         hooks = conf->args_;
     }
 
+    SrsStatisticStreamSnapshot stream(stat_, req);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req);
+        hooks_->on_stop(url, req, stream);
     }
 
     return;

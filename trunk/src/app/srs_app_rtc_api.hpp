@@ -16,6 +16,7 @@ class ISrsRequest;
 class SrsSdp;
 class SrsRtcUserConfig;
 class ISrsRtcApiServer;
+class ISrsRtcConnection;
 class ISrsSecurity;
 class ISrsAppConfig;
 class ISrsStatistic;
@@ -60,6 +61,8 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    // Check the security, ask the on_play hook, then make the session of the player.
+    srs_error_t create_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession);
     srs_error_t check_remote_sdp(const SrsSdp &remote_sdp);
 
 // clang-format off

@@ -416,6 +416,7 @@ MockLogForSignal::MockLogForSignal()
 {
     reopen_count_ = 0;
     error_count_ = 0;
+    warn_count_ = 0;
 }
 
 MockLogForSignal::~MockLogForSignal()
@@ -437,6 +438,8 @@ void MockLogForSignal::log(SrsLogLevel level, const char *tag, const SrsContextI
     if (level == SrsLogLevelError) {
         error_count_++;
         last_error_tag_ = tag ? tag : "";
+    } else if (level == SrsLogLevelWarn) {
+        warn_count_++;
     }
 }
 
@@ -791,17 +794,14 @@ VOID TEST(ServerTest, ConstructionCallsNoFunction)
 {
     SrsUniquePtr<SrsServer> server(new SrsServer());
 
-    // Neither the parent pid is queried nor the HTTP server assembled before assemble().
-    EXPECT_EQ(0, server->ppid_);
+    // The HTTP server is not assembled before assemble().
     EXPECT_TRUE(server_http_stream_matchers(server.get()).empty());
 }
 
-VOID TEST(ServerTest, AssembleQueriesParentAndAssemblesHttpServer)
+VOID TEST(ServerTest, AssembleAssemblesHttpServer)
 {
     SrsUniquePtr<SrsServer> server(new SrsServer());
     server->assemble();
-
-    EXPECT_EQ(::getppid(), server->ppid_);
 
     std::vector<ISrsHttpDynamicMatcher *> &matchers = server_http_stream_matchers(server.get());
     ASSERT_EQ(1, (int)matchers.size());
@@ -850,10 +850,10 @@ VOID TEST(ServerTest, InitializeInitializesInjectedBlackhole)
 VOID TEST(ServerTest, ConstructionCapturesSrtEventLoop)
 {
     // The process-wide SRT event loop exists once the globals are initialized, and the server initializes it.
-    EXPECT_TRUE(_srt_eventloop != NULL);
+    EXPECT_TRUE(_srs_srt_eventloop != NULL);
 
     SrsUniquePtr<SrsServer> server(new SrsServer());
-    EXPECT_TRUE(server->srt_eventloop_ == _srt_eventloop);
+    EXPECT_TRUE(server->srt_eventloop_ == _srs_srt_eventloop);
 }
 
 VOID TEST(ServerTest, InitializeInitializesThenStartsInjectedSrtEventLoop)
@@ -875,10 +875,10 @@ VOID TEST(ServerTest, InitializeInitializesThenStartsInjectedSrtEventLoop)
     server->srt_eventloop_ = &srt_eventloop;
 
     // The server drives the injected event loop, and leaves the process-wide one alone.
-    SrsSrtEventLoop *global_eventloop = _srt_eventloop;
+    SrsSrtEventLoop *global_eventloop = _srs_srt_eventloop;
     HELPER_EXPECT_SUCCESS(server->initialize());
     EXPECT_STREQ("initialize,start", srt_eventloop.calls_.c_str());
-    EXPECT_TRUE(_srt_eventloop == global_eventloop);
+    EXPECT_TRUE(_srs_srt_eventloop == global_eventloop);
 
     server->blackhole_ = NULL;
     server->srt_eventloop_ = NULL;
@@ -1281,42 +1281,6 @@ VOID TEST(ServerTest, DisposeClosesInjectedTcpListeners)
     EXPECT_EQ(1, listeners.exporter_.close_count_);
 }
 
-MockHttpFlvListenerForServer::MockHttpFlvListenerForServer()
-{
-    assemble_count_ = 0;
-    initialize_count_ = 0;
-    initialize_conf_ = NULL;
-    listen_count_ = 0;
-    close_count_ = 0;
-}
-
-MockHttpFlvListenerForServer::~MockHttpFlvListenerForServer()
-{
-}
-
-void MockHttpFlvListenerForServer::assemble()
-{
-    assemble_count_++;
-}
-
-srs_error_t MockHttpFlvListenerForServer::initialize(SrsConfDirective *c)
-{
-    initialize_count_++;
-    initialize_conf_ = c;
-    return srs_success;
-}
-
-srs_error_t MockHttpFlvListenerForServer::listen()
-{
-    listen_count_++;
-    return srs_success;
-}
-
-void MockHttpFlvListenerForServer::close()
-{
-    close_count_++;
-}
-
 MockUdpCasterListenerForServer::MockUdpCasterListenerForServer()
 {
     assemble_count_ = 0;
@@ -1367,31 +1331,26 @@ SrsConfDirective *mock_server_stream_caster_conf(const std::string &engine, bool
     return conf;
 }
 
-// Replaces the HTTP-FLV and MPEG-TS over UDP stream casters of a server with mocks, and puts the originals back
-// before the server is freed.
+// Replaces the MPEG-TS over UDP stream caster of a server with a mock, and puts the original back before the
+// server is freed.
 class ServerStreamCastersInjector
 {
 public:
     SrsServer *server_;
-    MockHttpFlvListenerForServer flv_;
     MockUdpCasterListenerForServer mpegts_;
 
 private:
-    ISrsListener *original_flv_;
     ISrsListener *original_mpegts_;
 
 public:
     ServerStreamCastersInjector(SrsServer *server)
     {
         server_ = server;
-        original_flv_ = server_->stream_caster_flv_listener_;
         original_mpegts_ = server_->stream_caster_mpegts_;
-        server_->stream_caster_flv_listener_ = &flv_;
         server_->stream_caster_mpegts_ = &mpegts_;
     }
     ~ServerStreamCastersInjector()
     {
-        server_->stream_caster_flv_listener_ = dynamic_cast<SrsHttpFlvListener *>(original_flv_);
         server_->stream_caster_mpegts_ = dynamic_cast<SrsUdpCasterListener *>(original_mpegts_);
     }
 };
@@ -1404,13 +1363,11 @@ VOID TEST(ServerTest, ListenStartsStreamCastersThroughInjectedListeners)
     server->assemble();
 
     SrsUniquePtr<SrsConfDirective> mpegts_conf(mock_server_stream_caster_conf("mpegts_over_udp", true));
-    SrsUniquePtr<SrsConfDirective> flv_conf(mock_server_stream_caster_conf("flv", true));
-    SrsUniquePtr<SrsConfDirective> disabled_conf(mock_server_stream_caster_conf("flv", false));
+    SrsUniquePtr<SrsConfDirective> disabled_conf(mock_server_stream_caster_conf("mpegts_over_udp", false));
 
     MockAppConfigForServerListen config;
     config.stream_casters_.push_back(mpegts_conf.get());
     config.stream_casters_.push_back(disabled_conf.get());
-    config.stream_casters_.push_back(flv_conf.get());
     server->config_ = &config;
 
     ServerStreamCastersInjector casters(server.get());
@@ -1421,9 +1378,29 @@ VOID TEST(ServerTest, ListenStartsStreamCastersThroughInjectedListeners)
     EXPECT_TRUE(casters.mpegts_.initialize_conf_ == mpegts_conf.get());
     EXPECT_EQ(1, casters.mpegts_.listen_count_);
 
-    EXPECT_EQ(1, casters.flv_.initialize_count_);
-    EXPECT_TRUE(casters.flv_.initialize_conf_ == flv_conf.get());
-    EXPECT_EQ(1, casters.flv_.listen_count_);
+    server->config_ = NULL;
+}
+
+VOID TEST(ServerTest, ListenRefusesRemovedFlvCaster)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsServer> server(new SrsServer());
+    server->assemble();
+
+    SrsUniquePtr<SrsConfDirective> flv_conf(mock_server_stream_caster_conf("flv", true));
+
+    MockAppConfigForServerListen config;
+    config.stream_casters_.push_back(flv_conf.get());
+    server->config_ = &config;
+
+    // The FLV POST caster is removed, so an enabled caster of type flv is an invalid caster.
+    ServerStreamCastersInjector casters(server.get());
+    err = server->listen();
+    EXPECT_EQ(ERROR_STREAM_CASTER_ENGINE, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(0, casters.mpegts_.initialize_count_ + casters.mpegts_.listen_count_);
 
     server->config_ = NULL;
 }
@@ -1436,11 +1413,11 @@ VOID TEST(ServerTest, ListenStopsAtFailedStreamCasterInitialize)
     server->assemble();
 
     SrsUniquePtr<SrsConfDirective> mpegts_conf(mock_server_stream_caster_conf("mpegts_over_udp", true));
-    SrsUniquePtr<SrsConfDirective> flv_conf(mock_server_stream_caster_conf("flv", true));
+    SrsUniquePtr<SrsConfDirective> later_conf(mock_server_stream_caster_conf("mpegts_over_udp", true));
 
     MockAppConfigForServerListen config;
     config.stream_casters_.push_back(mpegts_conf.get());
-    config.stream_casters_.push_back(flv_conf.get());
+    config.stream_casters_.push_back(later_conf.get());
     server->config_ = &config;
 
     ServerStreamCastersInjector casters(server.get());
@@ -1452,8 +1429,8 @@ VOID TEST(ServerTest, ListenStopsAtFailedStreamCasterInitialize)
     srs_freep(err);
 
     EXPECT_EQ(1, casters.mpegts_.initialize_count_);
+    EXPECT_TRUE(casters.mpegts_.initialize_conf_ == mpegts_conf.get());
     EXPECT_EQ(0, casters.mpegts_.listen_count_);
-    EXPECT_EQ(0, casters.flv_.initialize_count_ + casters.flv_.listen_count_);
 
     server->config_ = NULL;
 }
@@ -1466,7 +1443,6 @@ VOID TEST(ServerTest, DisposeClosesInjectedStreamCasters)
     ServerStreamCastersInjector casters(server.get());
     server->dispose();
 
-    EXPECT_EQ(1, casters.flv_.close_count_);
     EXPECT_EQ(1, casters.mpegts_.close_count_);
 }
 
@@ -2260,6 +2236,97 @@ VOID TEST(ExecutorCoroutineTest, AssembleCreatesCoroutineThroughFactory)
     executor.app_factory_ = NULL;
 }
 
+// A worker that sleeps until it is interrupted, like a receive thread blocked in a read.
+class MockSleepingCoroutineHandler : public ISrsCoroutineHandler
+{
+public:
+    SrsFastCoroutine *trd_;
+
+public:
+    MockSleepingCoroutineHandler()
+    {
+        trd_ = NULL;
+    }
+    virtual ~MockSleepingCoroutineHandler()
+    {
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        srs_error_t err = srs_success;
+        while ((err = trd_->pull()) == srs_success) {
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        }
+        srs_freep(err);
+        return srs_success;
+    }
+};
+
+// A coroutine that starts a worker, then loops and yields until it is interrupted, as the RTMP
+// play loop does after each send, and stops the worker, as SrsRtmpConn::playing stops its
+// receive thread.
+class MockYieldingCoroutineHandler : public ISrsCoroutineHandler
+{
+public:
+    SrsFastCoroutine *trd_;
+    bool worker_stopped_;
+
+public:
+    MockYieldingCoroutineHandler()
+    {
+        trd_ = NULL;
+        worker_stopped_ = false;
+    }
+    virtual ~MockYieldingCoroutineHandler()
+    {
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        srs_error_t err = srs_success;
+
+        MockSleepingCoroutineHandler sleeper;
+        SrsFastCoroutine worker("worker", &sleeper);
+        sleeper.trd_ = &worker;
+        if ((err = worker.start()) != srs_success) {
+            return srs_error_wrap(err, "start worker");
+        }
+
+        while ((err = trd_->pull()) == srs_success) {
+            srs_thread_yield();
+        }
+        srs_freep(err);
+
+        worker.stop();
+        worker_stopped_ = true;
+
+        return err;
+    }
+};
+
+// A coroutine interrupted while it is runnable, not blocked, such as when it yields, keeps ST's
+// interrupt flag until its next blocking call; when that call is the join of a worker it stops,
+// the join fails with EINTR. The stop must still join the worker, not assert, which crashed SRS
+// at a DELETE of an RTMP player that was sending media.
+VOID TEST(FastCoroutineTest, StopWorkerAfterInterruptedWhileRunnable)
+{
+    srs_error_t err = srs_success;
+
+    MockYieldingCoroutineHandler handler;
+    SrsFastCoroutine trd("yielding", &handler);
+    handler.trd_ = &trd;
+    HELPER_EXPECT_SUCCESS(trd.start());
+
+    // The coroutine yields to this one when the sleep is done, so it is runnable when interrupted.
+    srs_usleep(5 * SRS_UTIME_MILLISECONDS);
+    trd.interrupt();
+
+    trd.stop();
+    EXPECT_TRUE(handler.worker_stopped_);
+}
+
 MockIngesterForServer::MockIngesterForServer()
 {
     assemble_count_ = 0;
@@ -2399,31 +2466,6 @@ VOID TEST(ServerTest, AssembleCreatesMpegtsCasterPithyPrint)
     SrsMpegtsOverUdp *caster = dynamic_cast<SrsMpegtsOverUdp *>(listener->caster_);
     ASSERT_TRUE(caster != NULL);
     EXPECT_TRUE(caster->pprint_ != NULL);
-}
-
-VOID TEST(ServerTest, AssembleAssemblesInjectedFlvCaster)
-{
-    SrsUniquePtr<SrsServer> server(new SrsServer());
-
-    ServerStreamCastersInjector casters(server.get());
-    server->assemble();
-
-    EXPECT_EQ(1, casters.flv_.assemble_count_);
-    EXPECT_EQ(0, casters.flv_.initialize_count_ + casters.flv_.listen_count_);
-}
-
-// main() constructs the server and calls its assemble(), which leaves the
-// HTTP-FLV caster with its resource manager assembled.
-VOID TEST(ServerTest, AssembleAssemblesFlvCasterResourceManager)
-{
-    SrsUniquePtr<SrsServer> server(new SrsServer());
-    server->assemble();
-
-    SrsHttpFlvListener *listener = dynamic_cast<SrsHttpFlvListener *>(server->stream_caster_flv_listener_);
-    ASSERT_TRUE(listener != NULL);
-    SrsAppCasterFlv *caster = dynamic_cast<SrsAppCasterFlv *>(listener->caster_);
-    ASSERT_TRUE(caster != NULL);
-    EXPECT_TRUE(caster->manager_->cond_ != NULL);
 }
 
 VOID TEST(ServerTest, InitializeInitializesInjectedRtcSessionManager)
@@ -2829,6 +2871,55 @@ VOID TEST(ServerTest, SetupTicksWithStatsAndHeartbeat)
     server->app_factory_ = original_factory;
     srs_freep(mock_config);
     srs_freep(mock_factory);
+}
+
+// The server's timer ticks every 1s, so the heartbeat's interval is rounded
+// down to whole seconds, at least 1s: a fraction of a second, from the config,
+// never makes the tick refused.
+VOID TEST(ServerTest, SetupTicksHeartbeatWholeSeconds)
+{
+    srs_error_t err;
+
+    struct {
+        srs_utime_t interval;
+        srs_utime_t want;
+    } cases[] = {
+        {500 * SRS_UTIME_MILLISECONDS, 1 * SRS_UTIME_SECONDS},
+        {1 * SRS_UTIME_SECONDS, 1 * SRS_UTIME_SECONDS},
+        {1500 * SRS_UTIME_MILLISECONDS, 1 * SRS_UTIME_SECONDS},
+        {9300 * SRS_UTIME_MILLISECONDS, 9 * SRS_UTIME_SECONDS},
+        {10 * SRS_UTIME_SECONDS, 10 * SRS_UTIME_SECONDS},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SrsUniquePtr<SrsServer> server(new SrsServer());
+        server->assemble();
+
+        MockAppConfigForSetupTicks *mock_config = new MockAppConfigForSetupTicks();
+        ISrsAppConfig *original_config = server->config_;
+        server->config_ = mock_config;
+
+        MockAppFactoryForSetupTicks *mock_factory = new MockAppFactoryForSetupTicks();
+        ISrsAppFactory *original_factory = server->app_factory_;
+        server->app_factory_ = mock_factory;
+
+        mock_config->heartbeat_enabled_ = true;
+        mock_config->heartbeat_interval_ = cases[i].interval;
+
+        HELPER_EXPECT_SUCCESS(server->setup_ticks());
+
+        // Only the heartbeat ticks, as the stats are off.
+        EXPECT_EQ(1, mock_factory->mock_hourglass_->tick_count_);
+        if (mock_factory->mock_hourglass_->tick_count_ == 1) {
+            EXPECT_EQ(9, mock_factory->mock_hourglass_->tick_events_[0]);
+            EXPECT_EQ(cases[i].want, mock_factory->mock_hourglass_->tick_intervals_[0]) << srsu2ms(cases[i].interval) << "ms";
+        }
+
+        server->config_ = original_config;
+        server->app_factory_ = original_factory;
+        srs_freep(mock_config);
+        srs_freep(mock_factory);
+    }
 }
 
 MockRtcSessionManagerForNotify::MockRtcSessionManagerForNotify()
@@ -3332,6 +3423,7 @@ MockAppConfigForRtmpConn::MockAppConfigForRtmpConn()
     vhost_directive_ = new SrsConfDirective();
     vhost_directive_->name_ = "vhost";
     vhost_directive_->args_.push_back("__defaultVhost__");
+    origin_cluster_ = false;
 }
 
 MockAppConfigForRtmpConn::~MockAppConfigForRtmpConn()
@@ -3358,6 +3450,11 @@ SrsConfDirective *MockAppConfigForRtmpConn::get_vhost(std::string vhost, bool tr
 bool MockAppConfigForRtmpConn::get_vhost_is_edge(std::string vhost)
 {
     return false;
+}
+
+bool MockAppConfigForRtmpConn::get_vhost_origin_cluster(std::string vhost)
+{
+    return origin_cluster_;
 }
 
 void MockAppConfigForRtmpConn::reset()
@@ -3568,7 +3665,6 @@ VOID TEST(SrsRtmpConnTest, ConstructorAndAssemble)
         EXPECT_EQ(1935, conn->port_);
         EXPECT_TRUE(conn->config_ == mock_config);
         EXPECT_TRUE(conn->rtmp_ != NULL);
-        EXPECT_TRUE(conn->refer_ != NULL);
         EXPECT_TRUE(conn->security_ != NULL);
         EXPECT_TRUE(conn->info_ != NULL);
         EXPECT_TRUE(conn->kbps_ != NULL);
@@ -3919,8 +4015,13 @@ VOID TEST(SrsUtilityTest, UpdateDiskStat)
         srs_update_disk_stat();
 
         SrsDiskStat *stat = srs_get_disk_stat();
+#if defined(SRS_OSX)
+        // No /proc on macOS, so the disk stat is not read and stays not ok.
+        EXPECT_FALSE(stat->ok_);
+#else
         EXPECT_TRUE(stat->ok_);
         EXPECT_TRUE(stat->sample_time_ > 0);
+#endif
         // busy_ should be 0 (no delta to calculate)
         EXPECT_EQ(0.0f, stat->busy_);
     }
@@ -4083,6 +4184,100 @@ VOID TEST(SrsRtmpConnTest, StreamServiceCycleThreadQuitCheck)
 
     srs_freep(conn);
     srs_freep(mock_config);
+}
+
+MockRtmpServerForUnreadMessages::MockRtmpServerForUnreadMessages()
+{
+    unread_ = 0;
+    recv_count_ = 0;
+    recv_timeout_ = 0;
+}
+
+MockRtmpServerForUnreadMessages::~MockRtmpServerForUnreadMessages()
+{
+}
+
+void MockRtmpServerForUnreadMessages::set_recv_timeout(srs_utime_t tm)
+{
+    recv_timeout_ = tm;
+}
+
+srs_error_t MockRtmpServerForUnreadMessages::recv_message(SrsRtmpCommonMessage **pmsg)
+{
+    recv_count_++;
+
+    if (unread_ == 0) {
+        return srs_error_new(ERROR_SOCKET_TIMEOUT, "mock player sends nothing more");
+    }
+
+    if (unread_ > 0) {
+        unread_--;
+    }
+    *pmsg = new SrsRtmpCommonMessage();
+    return srs_success;
+}
+
+// A player of an origin cluster's stream that no origin publishes is closed after start_play() sent
+// NetStream.Play.Start. Closing a socket with input unread makes the kernel reset the connection and
+// drop what is not sent yet, such as NetStream.Play.Start, so SRS drains what the player sent after
+// the play, such as its buffer length, until the player is idle, before it closes the connection.
+VOID TEST(SrsRtmpConnTest, NoOriginDrainsPlayerInput)
+{
+    srs_error_t err = srs_success;
+
+    // The player sent two messages after the play, then waits for the stream.
+    if (true) {
+        MockAppConfigForRtmpConn config;
+        config.origin_cluster_ = true;
+        MockRtmpServerForUnreadMessages *rtmp = new MockRtmpServerForUnreadMessages();
+        rtmp->unread_ = 2;
+
+        SrsUniquePtr<SrsRtmpConn> conn(new SrsRtmpConn(new MockRtmpTransportForDoCycle(), "127.0.0.1", 1935));
+        conn->config_ = &config;
+        conn->assemble();
+        srs_freep(conn->rtmp_);
+        conn->rtmp_ = rtmp;
+        srs_freep(conn->trd_);
+        conn->trd_ = new MockCoroutineForRtmpConn();
+        conn->info_->req_->vhost_ = "__defaultVhost__";
+        conn->info_->req_->app_ = "live";
+        conn->info_->req_->stream_ = "livestream";
+
+        SrsSharedPtr<SrsLiveSource> source(new SrsLiveSource());
+        err = conn->playing(source);
+        EXPECT_EQ(ERROR_OCLUSTER_REDIRECT, srs_error_code(err));
+        srs_freep(err);
+
+        // Both messages read, then a read that waited for the player and timed out.
+        EXPECT_EQ(0, rtmp->unread_);
+        EXPECT_EQ(3, rtmp->recv_count_);
+        EXPECT_EQ(100 * SRS_UTIME_MILLISECONDS, rtmp->recv_timeout_);
+    }
+
+    // A player that never stops sending is closed after SRS read a few of its messages.
+    if (true) {
+        MockAppConfigForRtmpConn config;
+        config.origin_cluster_ = true;
+        MockRtmpServerForUnreadMessages *rtmp = new MockRtmpServerForUnreadMessages();
+        rtmp->unread_ = -1;
+
+        SrsUniquePtr<SrsRtmpConn> conn(new SrsRtmpConn(new MockRtmpTransportForDoCycle(), "127.0.0.1", 1935));
+        conn->config_ = &config;
+        conn->assemble();
+        srs_freep(conn->rtmp_);
+        conn->rtmp_ = rtmp;
+        srs_freep(conn->trd_);
+        conn->trd_ = new MockCoroutineForRtmpConn();
+        conn->info_->req_->vhost_ = "__defaultVhost__";
+        conn->info_->req_->app_ = "live";
+        conn->info_->req_->stream_ = "livestream";
+
+        SrsSharedPtr<SrsLiveSource> source(new SrsLiveSource());
+        err = conn->playing(source);
+        EXPECT_EQ(ERROR_OCLUSTER_REDIRECT, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_EQ(10, rtmp->recv_count_);
+    }
 }
 
 // Mock config implementation for SrsRtmpConn::acquire_publish() testing
@@ -4632,7 +4827,7 @@ srs_error_t MockHttpHooksForOnConnect::on_publish(std::string url, ISrsRequest *
     return srs_success;
 }
 
-void MockHttpHooksForOnConnect::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForOnConnect::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
     on_unpublish_count_++;
     on_unpublish_calls_.push_back(std::make_pair(url, req));
@@ -4643,13 +4838,13 @@ srs_error_t MockHttpHooksForOnConnect::on_play(std::string url, ISrsRequest *req
     return srs_success;
 }
 
-void MockHttpHooksForOnConnect::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForOnConnect::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooksForOnConnect::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnConnect::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -4983,7 +5178,7 @@ srs_error_t MockHttpHooksForOnPublish::on_publish(std::string url, ISrsRequest *
     return srs_error_copy(on_publish_error_);
 }
 
-void MockHttpHooksForOnPublish::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForOnPublish::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
@@ -4992,11 +5187,11 @@ srs_error_t MockHttpHooksForOnPublish::on_play(std::string url, ISrsRequest *req
     return srs_success;
 }
 
-void MockHttpHooksForOnPublish::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForOnPublish::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForOnPublish::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnPublish::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -5300,7 +5495,7 @@ srs_error_t MockHttpHooksForOnPlay::on_publish(std::string url, ISrsRequest *req
     return srs_success;
 }
 
-void MockHttpHooksForOnPlay::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForOnPlay::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
@@ -5311,11 +5506,11 @@ srs_error_t MockHttpHooksForOnPlay::on_play(std::string url, ISrsRequest *req)
     return srs_error_copy(on_play_error_);
 }
 
-void MockHttpHooksForOnPlay::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForOnPlay::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForOnPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForOnPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -5419,20 +5614,23 @@ VOID TEST(UtilityTest, GetProcSelfStatSuccess)
 
     // Call get_proc_self_stat() - this is the main test
     // On Linux: reads /proc/self/stat and parses all fields
-    // On macOS: skips reading but still sets ok_ to true
+    // On macOS: has no /proc, so fails and leaves ok_ false
     bool result = get_proc_self_stat(stat);
 
+#if defined(SRS_OSX)
+    EXPECT_FALSE(result);
+    EXPECT_FALSE(stat.ok_);
+#else
     // Verify that the function succeeded
     EXPECT_TRUE(result);
     EXPECT_TRUE(stat.ok_);
-
-#if !defined(SRS_OSX)
     // On Linux, verify that key fields were populated correctly
     // pid should be positive
     EXPECT_TRUE(stat.pid_ > 0);
 
-    // comm should not be empty (process name in parentheses)
+    // comm should not be empty, and has no parentheses of /proc/self/stat
     EXPECT_TRUE(stat.comm_[0] != '\0');
+    EXPECT_TRUE(stat.comm_[0] != '(');
 
     // state should be one of the valid process states: R, S, D, Z, T, W
     EXPECT_TRUE(stat.state_ == 'R' || stat.state_ == 'S' || stat.state_ == 'D' ||
@@ -5444,6 +5642,105 @@ VOID TEST(UtilityTest, GetProcSelfStatSuccess)
     // vsize should be positive (virtual memory size)
     EXPECT_TRUE(stat.vsize_ > 0);
 #endif
+}
+
+// Test srs_parse_proc_self_stat() with lines of /proc/[pid]/stat: the comm comes
+// without its parentheses, also when it has spaces or parentheses itself, and the
+// fields after it are read in their places.
+VOID TEST(UtilityTest, ParseProcSelfStatComm)
+{
+    // The fields after the comm, from state to cguest_time.
+    std::string rest = " S 7 1234 1234 0 -1 4194560 2286 0 0 0 11 5 0 0 20 0 3 0 81923 "
+                       "123456789 4567 18446744073709551615 1 2 3 4 5 0 0 4096 17920 0 0 0 17 6 0 0 0 9 10";
+
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("1234 (srs)" + rest + "\n", r));
+        EXPECT_EQ(1234, r.pid_);
+        EXPECT_STREQ("srs", r.comm_);
+        EXPECT_EQ('S', r.state_);
+        EXPECT_EQ(7, r.ppid_);
+        EXPECT_EQ(11UL, r.utime_);
+        EXPECT_EQ(5UL, r.stime_);
+        EXPECT_EQ(3, r.num_threads_);
+        EXPECT_EQ(123456789UL, r.vsize_);
+        EXPECT_EQ(4567, r.rss_);
+        EXPECT_EQ(6, r.processor_);
+        EXPECT_EQ(10, r.cguest_time_);
+    }
+
+    // A comm with a space and parentheses of its own ends at the last ')'.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 (my (s) rs)" + rest, r));
+        EXPECT_EQ(42, r.pid_);
+        EXPECT_STREQ("my (s) rs", r.comm_);
+        EXPECT_EQ('S', r.state_);
+        EXPECT_EQ(7, r.ppid_);
+        EXPECT_EQ(3, r.num_threads_);
+        EXPECT_EQ(4567, r.rss_);
+    }
+
+    // An empty comm.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 ()" + rest, r));
+        EXPECT_STREQ("", r.comm_);
+        EXPECT_EQ(7, r.ppid_);
+    }
+
+    // A comm longer than the field is cut to fit, with its terminator.
+    if (true) {
+        SrsProcSelfStat r;
+        std::string comm(40, 'x');
+        EXPECT_TRUE(srs_parse_proc_self_stat("42 (" + comm + ")" + rest, r));
+        EXPECT_EQ(std::string(sizeof(r.comm_) - 1, 'x'), std::string(r.comm_));
+        EXPECT_EQ(7, r.ppid_);
+    }
+
+    // A line with no comm in parentheses is refused.
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_FALSE(srs_parse_proc_self_stat("", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 srs S 7", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 (srs S 7", r));
+        EXPECT_FALSE(srs_parse_proc_self_stat("42 srs) S 7", r));
+    }
+}
+
+// The self and system proc stats and the meminfo are ok only where SRS reads
+// them from /proc. On macOS, which has no /proc, they stay not ok, so the API
+// answers ok false, not ok true with every value 0.
+VOID TEST(UtilityTest, ProcStatsOkOnlyWhenRead)
+{
+#if !defined(SRS_OSX)
+    bool want = true;
+#else
+    bool want = false;
+#endif
+
+    if (true) {
+        SrsProcSelfStat r;
+        EXPECT_EQ(want, get_proc_self_stat(r));
+        EXPECT_EQ(want, r.ok_);
+    }
+
+    if (true) {
+        srs_update_proc_stat();
+        EXPECT_EQ(want, srs_get_system_proc_stat()->ok_);
+        EXPECT_EQ(want, srs_get_self_proc_stat()->ok_);
+    }
+
+    if (true) {
+        srs_update_meminfo();
+        SrsMemInfo *m = srs_get_meminfo();
+        EXPECT_EQ(want, m->ok_);
+        if (want) {
+            EXPECT_TRUE(m->MemTotal_ > 0);
+        } else {
+            EXPECT_EQ(0UL, m->MemTotal_);
+        }
+    }
 }
 
 // Test srs_get_local_port() function to verify proper retrieval of local port
@@ -5579,4 +5876,54 @@ VOID TEST(AppUtilityTest, ApiDumpSummaries)
     ASSERT_TRUE(sys->get_property("conn_sys_tw") != NULL);
     ASSERT_TRUE(sys->get_property("conn_sys_udp") != NULL);
     ASSERT_TRUE(sys->get_property("conn_srs") != NULL);
+}
+
+VOID TEST(AppUtilityTest, RusageMaxRssKbyte)
+{
+    SrsRusage r;
+    r.r_.ru_maxrss = 8 * 1024 * 1024;
+#ifdef SRS_OSX
+    // The getrusage of macOS gives ru_maxrss in bytes.
+    EXPECT_EQ(8 * 1024, r.maxrss_kbyte());
+#else
+    // The getrusage of Linux gives ru_maxrss in kilobytes.
+    EXPECT_EQ(8 * 1024 * 1024, r.maxrss_kbyte());
+#endif
+}
+
+VOID TEST(AppUtilityTest, ApiDumpSummariesMemKbyte)
+{
+    SrsRusage *r = srs_get_system_rusage();
+    SrsMemInfo *m = srs_get_meminfo();
+    rusage saved_rusage = r->r_;
+    unsigned long saved_mem_total = m->MemTotal_;
+
+    r->r_.ru_maxrss = 8 * 1024 * 1024;
+#ifdef SRS_OSX
+    int64_t want_kbyte = 8 * 1024;
+#else
+    int64_t want_kbyte = 8 * 1024 * 1024;
+#endif
+    m->MemTotal_ = (unsigned long)(want_kbyte * 4);
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    srs_api_dump_summaries(_srs_config, obj.get());
+
+    r->r_ = saved_rusage;
+    m->MemTotal_ = saved_mem_total;
+
+    SrsJsonAny *data_any = obj->get_property("data");
+    ASSERT_TRUE(data_any != NULL && data_any->is_object());
+    SrsJsonAny *self_any = ((SrsJsonObject *)data_any)->get_property("self");
+    ASSERT_TRUE(self_any != NULL && self_any->is_object());
+    SrsJsonObject *self = (SrsJsonObject *)self_any;
+
+    SrsJsonAny *mem_kbyte = self->get_property("mem_kbyte");
+    ASSERT_TRUE(mem_kbyte != NULL && mem_kbyte->is_integer());
+    EXPECT_EQ(want_kbyte, mem_kbyte->to_integer());
+
+    // The memory is a quarter of the total, both in kilobytes.
+    SrsJsonAny *mem_percent = self->get_property("mem_percent");
+    ASSERT_TRUE(mem_percent != NULL && mem_percent->is_number());
+    EXPECT_NEAR(0.25, mem_percent->to_number(), 0.0001);
 }

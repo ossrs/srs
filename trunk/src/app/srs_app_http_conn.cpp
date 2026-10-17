@@ -58,6 +58,9 @@ void srs_http_stream_serve_error(ISrsHttpResponseWriter *w, srs_error_t err)
     if (code == ERROR_SYSTEM_AUTH) {
         // Refused by the on_play HTTP callback, see the http_hooks_on_play of each streaming handler.
         status = SRS_CONSTS_HTTP_Unauthorized;
+    } else if (code == ERROR_SYSTEM_SECURITY_DENY || code == ERROR_SYSTEM_SECURITY_ALLOW || code == ERROR_SYSTEM_SECURITY) {
+        // Refused by the security rules of the vhost, as RTSP answers its DESCRIBE.
+        status = SRS_CONSTS_HTTP_Forbidden;
     }
 
     // Keep closing the connection for an error we have no status for yet, which is what SRS has
@@ -240,6 +243,18 @@ srs_error_t SrsHttpConn::process_requests(ISrsRequest **preq)
         // get a http message
         ISrsHttpMessage *req_raw = NULL;
         if ((err = parser_->parse_message(skt_, &req_raw)) != srs_success) {
+            // Tell the client why a JSONP callback is refused, then close as for any request that is not
+            // served. Send the error code and its short name only, never the callback, which must not be
+            // echoed back as script.
+            if (srs_error_code(err) == ERROR_HTTP_JSONP) {
+                SrsUniquePtr<ISrsHttpResponseWriter> writer(app_factory_->create_http_response_writer(skt_));
+                writer->header()->set("Connection", "Close");
+
+                string msg = srs_fmt_sprintf("%d: %s", srs_error_code(err), srs_error_code_str(err).c_str());
+                srs_error_t r0 = srs_go_http_error(writer.get(), SRS_CONSTS_HTTP_BadRequest, msg);
+                srs_freep(r0);
+            }
+
             return srs_error_wrap(err, "parse message");
         }
 
@@ -267,6 +282,16 @@ srs_error_t SrsHttpConn::process_requests(ISrsRequest **preq)
 
         // ok, handle http request.
         if ((err = process_request(writer.get(), req.get(), req_id)) != srs_success) {
+            // The mux refuses a URL with "..", before any handler, so tell the client why, then close as for
+            // any request that is not served. Send the error code and its short name only.
+            if (srs_error_code(err) == ERROR_HTTP_URL_NOT_CLEAN && !writer->header_wrote()) {
+                writer->header()->set("Connection", "Close");
+
+                string msg = srs_fmt_sprintf("%d: %s", srs_error_code(err), srs_error_code_str(err).c_str());
+                srs_error_t r0 = srs_go_http_error(writer.get(), SRS_CONSTS_HTTP_BadRequest, msg);
+                srs_freep(r0);
+            }
+
             return srs_error_wrap(err, "process request=%d", req_id);
         }
 
@@ -385,7 +410,7 @@ ISrsHttpxConn::~ISrsHttpxConn()
 {
 }
 
-SrsHttpxConn::SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, ISrsCommonHttpHandler *m, string cip, int port, string key, string cert) : manager_(cm), io_(io), enable_stat_(false), ssl_key_file_(key), ssl_cert_file_(cert)
+SrsHttpxConn::SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, ISrsCommonHttpHandler *m, string cip, int port, string key, string cert) : manager_(cm), io_(io), enable_stat_(false), is_api_listener_(false), ssl_key_file_(key), ssl_cert_file_(cert)
 {
     ssl_ = NULL;
     conn_ = NULL;
@@ -431,6 +456,11 @@ SrsHttpxConn::~SrsHttpxConn()
 void SrsHttpxConn::set_enable_stat(bool v)
 {
     enable_stat_ = v;
+}
+
+void SrsHttpxConn::set_api_listener(bool v)
+{
+    is_api_listener_ = v;
 }
 
 srs_error_t SrsHttpxConn::pop_message(ISrsHttpMessage **preq)
@@ -562,7 +592,9 @@ srs_error_t SrsHttpxConn::start()
 {
     srs_error_t err = srs_success;
 
-    bool v = config_->get_http_stream_crossdomain();
+    // The HTTP API's listeners answer CORS by the API's crossdomain, every other HTTP listener by the
+    // HTTP server's, which also covers the API when it shares the HTTP server's port.
+    bool v = is_api_listener_ ? config_->get_http_api_crossdomain() : config_->get_http_stream_crossdomain();
     if ((err = conn_->set_crossdomain_enabled(v)) != srs_success) {
         return srs_error_wrap(err, "set cors=%d", v);
     }

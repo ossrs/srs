@@ -43,13 +43,10 @@ class ISrsTcpHandler;
 class ISrsUdpHandler;
 class SrsUdpListener;
 class SrsTcpListener;
-class SrsAppCasterFlv;
 class SrsResourceManager;
-class SrsLatestVersion;
 class SrsMultipleTcpListeners;
 class ISrsMultipleTcpListeners;
 class ISrsIpListener;
-class ISrsHttpFlvListener;
 class ISrsUdpCasterListener;
 class ISrsGbListener;
 class SrsRtmpTransport;
@@ -197,8 +194,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // RTSP listener, over TCP.
     ISrsMultipleTcpListeners *rtsp_listener_;
 #endif
-    // Stream Caster for push over HTTP-FLV.
-    ISrsHttpFlvListener *stream_caster_flv_listener_;
     // Stream Caster for push over MPEGTS-UDP
     ISrsUdpCasterListener *stream_caster_mpegts_;
     // Exporter server listener, over TCP. Please note that metrics request of HTTP is served by this
@@ -227,16 +222,12 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     // Signal manager which convert gignal to io message.
     ISrsSignalManager *signal_manager_;
-    // To query the latest available version of SRS.
-    SrsLatestVersion *latest_version_;
     // User send the signal, convert to variable.
     bool signal_reload_;
     bool signal_persistence_config_;
     bool signal_gmc_stop_;
     bool signal_fast_quit_;
     bool signal_gracefully_quit_;
-    // Parent pid for asprocess.
-    int ppid_;
 
 public:
     SrsServer();

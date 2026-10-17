@@ -923,26 +923,54 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxHevc2flvEnhanced)
         }
     }
 
-    // Test mux_hevc2flv_enhanced with coded frames
+    // Test mux_hevc2flv_enhanced with coded frames, which carry the 3 bytes
+    // composition time after the fourcc.
     if (true) {
         std::string video_data = std::string("\x00\x00\x00\x0e\x26\x01\xaf\x06\xb8\x63\xef\x3a\x7f\x3c\x00\x01\x00\x80", 18);
         int8_t frame_type = 1;  // keyframe
         int8_t packet_type = 1; // coded frames
         uint32_t dts = 2000;
-        uint32_t pts = 2000;
+        uint32_t pts = 2080;
         char *flv_data = NULL;
         int nb_flv = 0;
 
         HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv_enhanced(video_data, frame_type, packet_type, dts, pts, &flv_data, &nb_flv));
 
         EXPECT_TRUE(flv_data != NULL);
-        EXPECT_EQ(5 + video_data.length(), nb_flv);
+        EXPECT_EQ(8 + video_data.length(), nb_flv);
 
         if (flv_data) {
             // Check enhanced header with coded frames packet type
             uint8_t header_byte = flv_data[0];
             EXPECT_EQ(packet_type, header_byte & 0x0f); // coded frames packet type
+            EXPECT_EQ('h', flv_data[1]);
+            EXPECT_EQ('1', flv_data[4]);
 
+            // The composition time, pts - dts, as SI24.
+            EXPECT_EQ(0x00, (uint8_t)flv_data[5]);
+            EXPECT_EQ(0x00, (uint8_t)flv_data[6]);
+            EXPECT_EQ(0x50, (uint8_t)flv_data[7]);
+            EXPECT_EQ(0, memcmp(video_data.data(), flv_data + 8, video_data.length()));
+
+            delete[] flv_data;
+        }
+    }
+
+    // Test mux_hevc2flv_enhanced with coded frames X, which have no
+    // composition time.
+    if (true) {
+        std::string video_data = std::string("\x00\x00\x00\x02\x26\x01", 6);
+        int8_t frame_type = 1;  // keyframe
+        int8_t packet_type = 3; // coded frames X
+        char *flv_data = NULL;
+        int nb_flv = 0;
+
+        HELPER_EXPECT_SUCCESS(hevc.mux_hevc2flv_enhanced(video_data, frame_type, packet_type, 2000, 2000, &flv_data, &nb_flv));
+
+        EXPECT_EQ(5 + video_data.length(), nb_flv);
+        if (flv_data) {
+            EXPECT_EQ(packet_type, flv_data[0] & 0x0f);
+            EXPECT_EQ(0, memcmp(video_data.data(), flv_data + 5, video_data.length()));
             delete[] flv_data;
         }
     }
@@ -1803,11 +1831,11 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterPeek)
 {
     srs_error_t err = srs_success;
 
-    // Create mock IO with test data
-    MockBufferIO mock_io;
-    mock_io.append("Hello World Test Data");
+    // Create mock IO with test data, owned by the buffered reader
+    MockBufferIO *mock_io = new MockBufferIO();
+    mock_io->append("Hello World Test Data");
 
-    SrsBufferedReadWriter buffered(&mock_io);
+    SrsBufferedReadWriter buffered(mock_io);
 
     // Test peek functionality
     char peek_buf[10];
@@ -1832,11 +1860,11 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterRead)
 {
     srs_error_t err = srs_success;
 
-    // Create mock IO with test data
-    MockBufferIO mock_io;
-    mock_io.append("Hello World");
+    // Create mock IO with test data, owned by the buffered reader
+    MockBufferIO *mock_io = new MockBufferIO();
+    mock_io->append("Hello World");
 
-    SrsBufferedReadWriter buffered(&mock_io);
+    SrsBufferedReadWriter buffered(mock_io);
 
     // Test read functionality
     char read_buf[20];
@@ -1849,7 +1877,7 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterRead)
     EXPECT_LE(nread, (ssize_t)sizeof(read_buf));
 
     // Test read with smaller buffer
-    mock_io.append("More Data");
+    mock_io->append("More Data");
     char small_buf[5];
     ssize_t small_nread = 0;
 
@@ -1862,11 +1890,11 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterReadFully)
 {
     srs_error_t err = srs_success;
 
-    // Create mock IO with sufficient test data
-    MockBufferIO mock_io;
-    mock_io.append("Hello World Test Data For Read Fully");
+    // Create mock IO with sufficient test data, owned by the buffered reader
+    MockBufferIO *mock_io = new MockBufferIO();
+    mock_io->append("Hello World Test Data For Read Fully");
 
-    SrsBufferedReadWriter buffered(&mock_io);
+    SrsBufferedReadWriter buffered(mock_io);
 
     // Test read_fully functionality
     char read_buf[10];
@@ -1890,10 +1918,10 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterReloadBuffer)
     // Test that reload_buffer method exists and is accessible through peek
     // Since reload_buffer is private, we test it indirectly through peek
 
-    MockBufferIO mock_io;
-    mock_io.append("Test Data For Buffer Reload");
+    MockBufferIO *mock_io = new MockBufferIO();
+    mock_io->append("Test Data For Buffer Reload");
 
-    SrsBufferedReadWriter buffered(&mock_io);
+    SrsBufferedReadWriter buffered(mock_io);
 
     // First peek should trigger reload_buffer
     char peek_buf[10];

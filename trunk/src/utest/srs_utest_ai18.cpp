@@ -1361,7 +1361,7 @@ srs_error_t MockHttpHooksForSrt::on_publish(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooksForSrt::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForSrt::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
     on_unpublish_count_++;
     on_unpublish_calls_.push_back(std::make_pair(url, req));
@@ -1377,13 +1377,13 @@ srs_error_t MockHttpHooksForSrt::on_play(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooksForSrt::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForSrt::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooksForSrt::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForSrt::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -3481,7 +3481,7 @@ VOID TEST(IngesterTest, ShowLogMessagePicksIngesterThroughInjectedRand)
     srs_freep(ingester->rand_);
     ingester->rand_ = &rand;
 
-    MockPithyPrintForDynamicConn pprint;
+    MockPithyPrintForIngester pprint;
     pprint.can_print_result_ = true;
     ingester->pprint_ = &pprint;
 
@@ -4085,7 +4085,7 @@ VOID TEST(SrtConnectionTest, ConstructorCapturesEventLoopWithoutSocket)
 
     // GOAL: construction reaches no collaborator; the socket is created by assemble().
     EXPECT_TRUE(NULL == conn->srt_skt_);
-    EXPECT_TRUE(_srt_eventloop == conn->srt_eventloop_);
+    EXPECT_TRUE(_srs_srt_eventloop == conn->srt_eventloop_);
 }
 
 VOID TEST(SrtConnectionTest, AssembleCreatesSocketOnInjectedEventLoopPoller)
@@ -4120,7 +4120,7 @@ VOID TEST(SrtListenerTest, ConstructorCapturesEventLoopAndFactory)
     MockSrtHandlerForSrtListener handler;
     SrsSrtListener listener(&handler, "127.0.0.1", 0);
 
-    EXPECT_TRUE(_srt_eventloop == listener.srt_eventloop_);
+    EXPECT_TRUE(_srs_srt_eventloop == listener.srt_eventloop_);
     EXPECT_TRUE(_srs_app_factory == listener.app_factory_);
     EXPECT_TRUE(NULL == listener.srt_skt_);
 }
@@ -4167,6 +4167,36 @@ VOID TEST(SrtListenerTest, ListenUsesInjectedEventLoopAndFactory)
         listener.srt_eventloop_ = NULL;
         listener.app_factory_ = NULL;
     }
+}
+
+// An accept that fails, such as of a caller that closed while it was queued ("srt_accept: pending
+// connection has unexpectedly closed"), must not end the listener's coroutine, or no caller connects
+// to the port again while the server runs.
+VOID TEST(SrtListenerTest, FailedAcceptKeepsListening)
+{
+    srs_error_t err;
+
+    MockSrtPollerForSrtConnection poller;
+    MockSrtHandlerForSrtListener handler;
+    SrsSrtListener listener(&handler, "127.0.0.1", 0);
+
+    // A socket that does not listen, so every accept fails at once.
+    HELPER_EXPECT_SUCCESS(listener.create_socket());
+    listener.srt_skt_ = new SrsSrtSocket(&poller, listener.lfd_);
+
+    // The coroutine lets the listener run two rounds, then is interrupted.
+    MockSrtCoroutine *coroutine = new MockSrtCoroutine();
+    coroutine->pull_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+    srs_freep(listener.trd_);
+    listener.trd_ = coroutine;
+
+    err = listener.cycle();
+
+    // GOAL: the listener accepts again after a failed accept, and ends only when its coroutine is
+    // interrupted.
+    EXPECT_EQ(3, coroutine->pull_count_);
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
 }
 
 VOID TEST(MpegtsSrtConnTest, AcquirePublishBridgesThroughInjectedFactory)

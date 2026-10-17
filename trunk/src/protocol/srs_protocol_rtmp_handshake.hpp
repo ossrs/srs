@@ -212,10 +212,10 @@ public:
     virtual char *get_key();
     // Copy to bytes.
     // @param size must be 1536.
-    virtual srs_error_t dump(SrsC1S1 *owner, char *_c1s1, int size);
+    virtual srs_error_t dump(SrsC1S1 *owner, char *c1s1, int size);
     // For server: parse the c1s1, discovery the key and digest by schema.
     // use the c1_validate_digest() to valid the digest of c1.
-    virtual srs_error_t parse(char *_c1s1, int size) = 0;
+    virtual srs_error_t parse(char *c1s1, int size) = 0;
 
 public:
     // For client: create and sign c1 by schema.
@@ -290,7 +290,7 @@ public:
 
 public:
     virtual srs_schema_type schema();
-    virtual srs_error_t parse(char *_c1s1, int size);
+    virtual srs_error_t parse(char *c1s1, int size);
 
 public:
     virtual srs_error_t copy_to(SrsC1S1 *owner, char *bytes, int size, bool with_digest);
@@ -307,7 +307,7 @@ public:
 
 public:
     virtual srs_schema_type schema();
-    virtual srs_error_t parse(char *_c1s1, int size);
+    virtual srs_error_t parse(char *c1s1, int size);
 
 public:
     virtual srs_error_t copy_to(SrsC1S1 *owner, char *bytes, int size, bool with_digest);
@@ -349,7 +349,7 @@ public:
 public:
     // Copy to bytes.
     // @param size, must always be 1536.
-    virtual srs_error_t dump(char *_c1s1, int size);
+    virtual srs_error_t dump(char *c1s1, int size);
     // For server:  parse the c1s1, discovery the key and digest by schema.
     // @param size, must always be 1536.
     // use the c1_validate_digest() to valid the digest of c1.
@@ -429,10 +429,10 @@ public:
 public:
     // Copy to bytes.
     // @param size, must always be 1536.
-    virtual srs_error_t dump(char *_c2s2, int size);
+    virtual srs_error_t dump(char *c2s2, int size);
     // Parse the c2s2
     // @param size, must always be 1536.
-    virtual srs_error_t parse(char *_c2s2, int size);
+    virtual srs_error_t parse(char *c2s2, int size);
 
 public:
     // Create c2.

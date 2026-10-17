@@ -23,7 +23,6 @@ class SrsRtmpServer;
 class ISrsRequest;
 class SrsResponse;
 class SrsLiveSource;
-class SrsRefer;
 class SrsLiveConsumer;
 class SrsRtmpCommonMessage;
 class SrsStSocket;
@@ -193,7 +192,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtmpServer *rtmp_;
-    SrsRefer *refer_;
     SrsBandwidth *bandwidth_;
     ISrsSecurity *security_;
     // The wakable handler, maybe NULL.
@@ -216,6 +214,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_utime_t publish_normal_timeout_;
     // Whether enable the tcp_nodelay.
     bool tcp_nodelay_;
+    // Whether the client was checked by the on_connect hook, so it gets the on_close hook when it
+    // closes. A client that only connects, never playing or publishing, gets neither.
+    bool on_connect_checked_;
     // About the rtmp client.
     SrsClientInfo *info_;
 
@@ -262,6 +263,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> source);
+    // Drain what the client sent, until it is idle, so closing the connection is a FIN, not a reset that
+    // drops what SRS has not sent yet.
+    virtual void drain_client_input();
 
 public:
     virtual srs_error_t do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer *consumer, SrsQueueRecvThread *trd);

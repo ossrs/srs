@@ -643,7 +643,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
      * make amf0 string to private,
      * use should never declare it, use SrsAmf0Any::str() to create it.
      */
-    SrsAmf0String(const char *_value);
+    SrsAmf0String(const char *value);
 
 public:
     virtual ~SrsAmf0String();
@@ -674,7 +674,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
      * make amf0 boolean to private,
      * use should never declare it, use SrsAmf0Any::boolean() to create it.
      */
-    SrsAmf0Boolean(bool _value);
+    SrsAmf0Boolean(bool value);
 
 public:
     virtual ~SrsAmf0Boolean();
@@ -704,7 +704,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
      * make amf0 number to private,
      * use should never declare it, use SrsAmf0Any::number() to create it.
      */
-    SrsAmf0Number(double _value);
+    SrsAmf0Number(double value);
 
 public:
     virtual ~SrsAmf0Number();

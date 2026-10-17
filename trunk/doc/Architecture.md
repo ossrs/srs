@@ -14,7 +14,7 @@ The stream architecture of SRS.
 |     Input            | SRS(Simple RTMP Server)    |     Output     |
 +----------------------+----------------------------+----------------+
 |                      |   +-> DASH ----------------+-> DASH player  |
-|    Encoder(1)        |   +-> RTMP/HDS  -----------+-> Flash player |
+|    Encoder(1)        |   +-> RTMP  ---------------+-> Flash player |
 |  (FMLE,OBS,   --RTMP-+->-+-> HLS/HTTP ------------+-> M3U8 player  |
 |  FFmpeg,XSPLIT,      |   +-> FLV/MP3/Aac/Ts ------+-> HTTP player  |
 |  ......)             |   +-> Fowarder ------------+-> RTMP server  |
@@ -172,12 +172,8 @@ Supported operating systems and hardware:
 [v4_EN_Security]: https://ossrs.io/lts/en-us/docs/v4/doc/security
 [v4_CN_DeliveryHttpStream]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-http-flv
 [v4_EN_DeliveryHttpStream]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-http-flv
-[v4_CN_DeliveryHDS]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hds
-[v4_EN_DeliveryHDS]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hds
 [v4_CN_Streamer]: https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer
 [v4_EN_Streamer]: https://ossrs.io/lts/en-us/docs/v4/doc/streamer
-[v4_CN_Streamer2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs
-[v4_EN_Streamer2]: https://ossrs.io/lts/en-us/docs/v4/doc/streamer#push-http-flv-to-srs
 [v4_CN_SampleHttpFlv]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv
 [v4_EN_SampleHttpFlv]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv
 [v4_CN_SampleHttpFlvCluster]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flvCluster

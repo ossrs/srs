@@ -70,6 +70,7 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     owner_cid_ = NULL;
 
     muxer_ = new SrsGbMuxer(this);
+    cycle_done_ = false;
     state_ = SrsGbSessionStateInit;
 
     nn_timeout_ = 0;
@@ -113,6 +114,12 @@ void SrsGbSession::assemble()
 
 SrsGbSession::~SrsGbSession()
 {
+    // Cut the media connections' pointers to this session before it is freed.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
+        media->interrupt();
+    }
+
     srs_freep(muxer_);
     srs_freep(ppp_);
 
@@ -181,6 +188,11 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
             continue;
         }
 
+        // The session ended while this connection was in the muxer, so don't connect or send for it again.
+        if (cycle_done_) {
+            return;
+        }
+
         // Directly mux audio message.
         srs_error_t err = muxer_->on_ts_message(msg);
         if (err != srs_success) {
@@ -190,7 +202,7 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
     }
 
     // Send the generated video message.
-    if (video->payload_->length() > 0) {
+    if (!cycle_done_ && video->payload_->length() > 0) {
         srs_error_t err = muxer_->on_ts_message(video.get());
         if (err != srs_success) {
             srs_warn("Muxer: Ignore video err %s", srs_error_desc(err).c_str());
@@ -201,6 +213,7 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
 
 void SrsGbSession::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
 {
+    medias_.push_back(media);
     media_ = media;
     connecting_starttime_ = 0;
 
@@ -210,6 +223,15 @@ void SrsGbSession::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> medi
 
 void SrsGbSession::on_media_disconnected(ISrsGbMediaTcpConn *media)
 {
+    // The connection ended, so it points at this session no more.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &conn = medias_.at(i);
+        if (conn.get() == media) {
+            medias_.erase(medias_.begin() + i);
+            break;
+        }
+    }
+
     // Ignore a stale transport after the session has switched to a new one.
     if (media_.get() != media) {
         return;
@@ -218,6 +240,11 @@ void SrsGbSession::on_media_disconnected(ISrsGbMediaTcpConn *media)
     if (owner_coroutine_) {
         owner_coroutine_->interrupt();
     }
+}
+
+bool SrsGbSession::is_ended()
+{
+    return !owner_coroutine_ || cycle_done_;
 }
 
 // LCOV_EXCL_START
@@ -234,8 +261,23 @@ srs_error_t SrsGbSession::cycle()
     // Drive the session cycle.
     err = do_cycle();
 
-    // Interrupt the media transport when session terminated.
-    media_->interrupt();
+    // No connection binds the session from now, so the interrupt below reaches every one that uses it.
+    cycle_done_ = true;
+
+    // Interrupt the media transports when session terminated, which cuts their pointers to it.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
+        media->interrupt();
+    }
+
+    // The session and its muxer are freed after the cycle, so wait for its media connections to quit. A
+    // connection in the muxer, where a connect or send yields, quits once its interrupted I/O returns.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
+        while (media->is_connected()) {
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        }
+    }
 
     // success.
     if (err == srs_success) {
@@ -483,12 +525,12 @@ SrsGbMediaTcpConn::SrsGbMediaTcpConn()
     pack_ = new SrsPackContext(this);
     buffer_ = new uint8_t[65535];
     conn_ = NULL;
+    session_ = NULL;
 
     wrapper_ = NULL;
     owner_coroutine_ = NULL;
     owner_cid_ = NULL;
 
-    session_ = NULL;
     connected_ = false;
     nn_rtcp_ = 0;
 
@@ -536,6 +578,8 @@ bool SrsGbMediaTcpConn::is_connected()
 
 void SrsGbMediaTcpConn::interrupt()
 {
+    // The session ended or is freed: never use it again.
+    session_ = NULL;
     if (owner_coroutine_)
         owner_coroutine_->interrupt();
 }
@@ -712,6 +756,12 @@ srs_error_t SrsGbMediaTcpConn::on_ps_pack(SrsPsPacket *ps, const std::vector<Srs
 {
     srs_error_t err = srs_success;
 
+    // The session interrupted this connection while it was in the muxer, so drop the packs left in the
+    // buffer; the coroutine ends at its next pull.
+    if (!session_) {
+        return err;
+    }
+
     // Change state to connected.
     if (!connected_) {
         connected_ = true;
@@ -747,6 +797,10 @@ srs_error_t SrsGbMediaTcpConn::bind_session(uint32_t ssrc, ISrsGbSession **psess
     ISrsGbSession *raw_session = (*session).get();
     srs_assert(raw_session);
 
+    // A session whose cycle ended may still be found, until the manager frees it.
+    if (raw_session->is_ended())
+        return err;
+
     // Notice session to use current media connection.
     raw_session->on_media_transport(*wrapper_);
     *psession = raw_session;
@@ -765,6 +819,7 @@ ISrsMpegpsQueue::~ISrsMpegpsQueue()
 SrsMpegpsQueue::SrsMpegpsQueue()
 {
     nb_audios_ = nb_videos_ = 0;
+    has_audio_ = has_video_ = false;
 }
 
 SrsMpegpsQueue::~SrsMpegpsQueue()
@@ -799,10 +854,12 @@ srs_error_t SrsMpegpsQueue::push(SrsMediaPacket *msg)
 
     if (msg->is_audio()) {
         nb_audios_++;
+        has_audio_ = true;
     }
 
     if (msg->is_video()) {
         nb_videos_++;
+        has_video_ = true;
     }
 
     msgs_[msg->timestamp_] = msg;
@@ -812,8 +869,12 @@ srs_error_t SrsMpegpsQueue::push(SrsMediaPacket *msg)
 
 SrsMediaPacket *SrsMpegpsQueue::dequeue()
 {
-    // got 2+ videos and audios, ok to dequeue.
-    bool av_ok = nb_videos_ >= 2 && nb_audios_ >= 2;
+    // got 2+ messages of each track that has come, ok to dequeue. A track
+    // that never came isn't waited for, so a stream of one track goes on too.
+    // A track that came is waited for until the stream ends. A device that
+    // stops one of its tracks while publishing, such as turning its audio off,
+    // is not supported: the other track is held until the queue overflows.
+    bool av_ok = (has_video_ || has_audio_) && (!has_video_ || nb_videos_ >= 2) && (!has_audio_ || nb_audios_ >= 2);
     // 100 videos about 30s, while 300 audios about 30s
     bool av_overflow = nb_videos_ > 100 || nb_audios_ > 300;
 
@@ -847,6 +908,8 @@ ISrsGbMuxer::~ISrsGbMuxer()
 SrsGbMuxer::SrsGbMuxer(ISrsGbSession *session)
 {
     sdk_ = NULL;
+    connecting_ = false;
+    sending_ = false;
     session_ = session;
 
     avc_ = new SrsRawH264Stream();
@@ -892,6 +955,13 @@ void SrsGbMuxer::setup(std::string output)
 srs_error_t SrsGbMuxer::on_ts_message(SrsTsMessage *msg)
 {
     srs_error_t err = srs_success;
+
+    // A second media connection of the session may send while the first one's
+    // coroutine connects the RTMP output. Drop its media before parsing it, so
+    // the muxer's codec state stays as the connecting coroutine expects.
+    if (connecting_) {
+        return srs_error_new(ERROR_GB_RTMP_CONNECTING, "drop while connecting RTMP");
+    }
 
     SrsBuffer avs(msg->payload_->bytes(), msg->payload_->length());
     if (msg->sid_ == SrsTsPESStreamIdVideoCommon) {
@@ -939,11 +1009,19 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
-    // ts tbn to flv tbn.
+    // ts tbn to flv tbn. A frame shown after its decode time, as with
+    // B-frames, keeps the difference as its composition time; a pts before
+    // the dts, which no valid stream has, gets none. The sequence header has
+    // no composition time.
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
-    uint32_t pts = (uint32_t)(msg->dts_ / 90);
+    uint32_t cts = (msg->pts_ > msg->dts_) ? (uint32_t)((msg->pts_ - msg->dts_) / 90) : 0;
+    uint32_t pts = dts + cts;
 
-    // send each frame.
+    // The video of a PS pack is one access unit: every slice of the frame goes
+    // as one message, a keyframe when it has an IDR slice.
+    std::string ibps;
+    bool keyframe = false;
+
     while (!avs->empty()) {
         char *frame = NULL;
         int frame_size = 0;
@@ -958,12 +1036,13 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
 
         // Ignore the nalu except video frames:
         //      7: SPS, 8: PPS, 5: I Frame, 1: P Frame, 6: SEI, 9: AUD
+        // The rest of the pack is dropped; the slices before it still go.
         if (
             nt != SrsAvcNaluTypeSPS && nt != SrsAvcNaluTypePPS && nt != SrsAvcNaluTypeIDR &&
             nt != SrsAvcNaluTypeNonIDR && nt != SrsAvcNaluTypeSEI && nt != SrsAvcNaluTypeAccessUnitDelimiter) {
             string bytes = srs_strings_dumps_hex(frame, frame_size, 4);
             srs_warn("GB: Ignore NALU nt=%d, frame=[%s]", nt, bytes.c_str());
-            return err;
+            break;
         }
         if (nt == SrsAvcNaluTypeSEI || nt == SrsAvcNaluTypeAccessUnitDelimiter) {
             continue;
@@ -982,7 +1061,7 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
             h264_sps_changed_ = true;
             h264_sps_ = sps;
 
-            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+            if ((err = write_h264_sps_pps(dts, dts)) != srs_success) {
                 return srs_error_wrap(err, "write sps/pps");
             }
             continue;
@@ -1001,18 +1080,31 @@ srs_error_t SrsGbMuxer::mux_h264(SrsTsMessage *msg, SrsBuffer *avs)
             h264_pps_changed_ = true;
             h264_pps_ = pps;
 
-            if ((err = write_h264_sps_pps(dts, pts)) != srs_success) {
+            if ((err = write_h264_sps_pps(dts, dts)) != srs_success) {
                 return srs_error_wrap(err, "write sps/pps");
             }
             continue;
         }
 
-        // ibp frame.
-        // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
+        // ibp frame, joined to the other slices of the access unit.
         srs_info("Muxer: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((err = write_h264_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
-            return srs_error_wrap(err, "write frame");
+        std::string ibp;
+        if ((err = avc_->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
+            return srs_error_wrap(err, "mux frame");
         }
+        ibps.append(ibp);
+
+        if (nt == SrsAvcNaluTypeIDR) {
+            keyframe = true;
+        }
+    }
+
+    if (ibps.empty()) {
+        return err;
+    }
+
+    if ((err = write_h264_ipb_frame(ibps, keyframe, dts, pts)) != srs_success) {
+        return srs_error_wrap(err, "write frame");
     }
 
     return err;
@@ -1059,7 +1151,7 @@ srs_error_t SrsGbMuxer::write_h264_sps_pps(uint32_t dts, uint32_t pts)
     return err;
 }
 
-srs_error_t SrsGbMuxer::write_h264_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts)
+srs_error_t SrsGbMuxer::write_h264_ipb_frame(const std::string &ibps, bool keyframe, uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
 
@@ -1068,26 +1160,13 @@ srs_error_t SrsGbMuxer::write_h264_ipb_frame(char *frame, int frame_size, uint32
         return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop for no sps/pps");
     }
 
-    // 5bits, 7.3.1 NAL unit syntax,
-    // ISO_IEC_14496-10-AVC-2003.pdf, page 44.
-    //  7: SPS, 8: PPS, 5: I Frame, 1: P Frame
-    SrsAvcNaluType nal_unit_type = (SrsAvcNaluType)(frame[0] & 0x1f);
-
-    // for IDR frame, the frame is keyframe.
-    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (nal_unit_type == SrsAvcNaluTypeIDR) {
-        frame_type = SrsVideoAvcFrameTypeKeyFrame;
-    }
-
-    std::string ibp;
-    if ((err = avc_->mux_ipb_frame(frame, frame_size, ibp)) != srs_success) {
-        return srs_error_wrap(err, "mux frame");
-    }
+    // An access unit with an IDR slice is a keyframe.
+    SrsVideoAvcFrameType frame_type = keyframe ? SrsVideoAvcFrameTypeKeyFrame : SrsVideoAvcFrameTypeInterFrame;
 
     int8_t avc_packet_type = SrsVideoAvcFrameTraitNALU;
     char *flv = NULL;
     int nb_flv = 0;
-    if ((err = avc_->mux_avc2flv(ibp, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+    if ((err = avc_->mux_avc2flv(ibps, frame_type, avc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "mux avc to flv");
     }
 
@@ -1100,11 +1179,19 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
 
-    // ts tbn to flv tbn.
+    // ts tbn to flv tbn. A frame shown after its decode time, as with
+    // B-frames, keeps the difference as its composition time; a pts before
+    // the dts, which no valid stream has, gets none. The sequence header has
+    // no composition time.
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
-    uint32_t pts = (uint32_t)(msg->dts_ / 90);
+    uint32_t cts = (msg->pts_ > msg->dts_) ? (uint32_t)((msg->pts_ - msg->dts_) / 90) : 0;
+    uint32_t pts = dts + cts;
 
-    // send each frame.
+    // The video of a PS pack is one access unit: every slice of the frame goes
+    // as one message, a keyframe when it has an IRAP slice.
+    std::string ipbs;
+    bool keyframe = false;
+
     while (!avs->empty()) {
         char *frame = NULL;
         int frame_size = 0;
@@ -1134,7 +1221,7 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
             vps_sps_pps_change_ = true;
             h265_vps_ = vps;
 
-            if ((err = write_h265_vps_sps_pps(dts, pts)) != srs_success) {
+            if ((err = write_h265_vps_sps_pps(dts, dts)) != srs_success) {
                 return srs_error_wrap(err, "write vps");
             }
             continue;
@@ -1153,7 +1240,7 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
             vps_sps_pps_change_ = true;
             h265_sps_ = sps;
 
-            if ((err = write_h265_vps_sps_pps(dts, pts)) != srs_success) {
+            if ((err = write_h265_vps_sps_pps(dts, dts)) != srs_success) {
                 return srs_error_wrap(err, "write sps");
             }
             continue;
@@ -1172,18 +1259,33 @@ srs_error_t SrsGbMuxer::mux_h265(SrsTsMessage *msg, SrsBuffer *avs)
             vps_sps_pps_change_ = true;
             h265_pps_ = pps;
 
-            if ((err = write_h265_vps_sps_pps(dts, pts)) != srs_success) {
+            if ((err = write_h265_vps_sps_pps(dts, dts)) != srs_success) {
                 return srs_error_wrap(err, "write pps");
             }
             continue;
         }
 
-        // ibp frame.
-        // TODO: FIXME: we should group all frames to a rtmp/flv message from one ts message.
-        srs_info("Muxer: demux avc ibp frame size=%d, dts=%d", frame_size, dts);
-        if ((err = write_h265_ipb_frame(frame, frame_size, dts, pts)) != srs_success) {
-            return srs_error_wrap(err, "write frame");
+        // ibp frame, joined to the other slices of the access unit.
+        srs_info("Muxer: demux hevc ibp frame size=%d, dts=%d", frame_size, dts);
+        string ipb;
+        if ((err = hevc_->mux_ipb_frame(frame, frame_size, ipb)) != srs_success) {
+            return srs_error_wrap(err, "hevc mux ipb frame");
         }
+        ipbs.append(ipb);
+
+        // F.3.29 intra random access point (IRAP) picture
+        // ITU-T-H.265-2021.pdf, page 462.
+        if (SrsIsIRAP(nt)) {
+            keyframe = true;
+        }
+    }
+
+    if (ipbs.empty()) {
+        return err;
+    }
+
+    if ((err = write_h265_ipb_frame(ipbs, keyframe, dts, pts)) != srs_success) {
+        return srs_error_wrap(err, "write frame");
     }
 
     return err;
@@ -1209,14 +1311,14 @@ srs_error_t SrsGbMuxer::write_h265_vps_sps_pps(uint32_t dts, uint32_t pts)
         return srs_error_wrap(err, "hevc mux sequence header");
     }
 
-    // h265 packet to flv packet.
+    // h265 packet to flv packet, in enhanced RTMP as from SRT and WebRTC.
     int8_t frame_type = SrsVideoAvcFrameTypeKeyFrame;
-    int8_t hevc_packet_type = SrsVideoAvcFrameTraitSequenceHeader;
+    int8_t hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeSequenceStart;
 
     char *flv = NULL;
     int nb_flv = 0;
 
-    if ((err = hevc_->mux_hevc2flv(sh, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+    if ((err = hevc_->mux_hevc2flv_enhanced(sh, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc to flv");
     }
 
@@ -1233,7 +1335,7 @@ srs_error_t SrsGbMuxer::write_h265_vps_sps_pps(uint32_t dts, uint32_t pts)
     return err;
 }
 
-srs_error_t SrsGbMuxer::write_h265_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts)
+srs_error_t SrsGbMuxer::write_h265_ipb_frame(const std::string &ipbs, bool keyframe, uint32_t dts, uint32_t pts)
 {
     srs_error_t err = srs_success;
 
@@ -1242,25 +1344,18 @@ srs_error_t SrsGbMuxer::write_h265_ipb_frame(char *frame, int frame_size, uint32
         return srs_error_new(ERROR_H264_DROP_BEFORE_SPS_PPS, "drop for no vps/sps/pps");
     }
 
-    SrsHevcNaluType nt = SrsHevcNaluTypeParse(frame[0]);
+    // An access unit with an IRAP slice is a keyframe.
+    SrsVideoAvcFrameType frame_type = keyframe ? SrsVideoAvcFrameTypeKeyFrame : SrsVideoAvcFrameTypeInterFrame;
 
-    // F.3.29 intra random access point (IRAP) picture
-    // ITU-T-H.265-2021.pdf, page 462.
-    SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (SrsIsIRAP(nt)) {
-        frame_type = SrsVideoAvcFrameTypeKeyFrame;
+    // A frame shown after it is decoded carries its composition time.
+    int8_t hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFramesX;
+    if (pts != dts) {
+        hevc_packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFrames;
     }
-
-    string ipb;
-    if ((err = hevc_->mux_ipb_frame(frame, frame_size, ipb)) != srs_success) {
-        return srs_error_wrap(err, "hevc mux ipb frame");
-    }
-
-    int8_t hevc_packet_type = SrsVideoAvcFrameTraitNALU;
     char *flv = NULL;
     int nb_flv = 0;
 
-    if ((err = hevc_->mux_hevc2flv(ipb, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
+    if ((err = hevc_->mux_hevc2flv_enhanced(ipbs, frame_type, hevc_packet_type, dts, pts, &flv, &nb_flv)) != srs_success) {
         return srs_error_wrap(err, "hevc to flv");
     }
 
@@ -1362,12 +1457,26 @@ srs_error_t SrsGbMuxer::rtmp_write_packet(char type, uint32_t timestamp, char *d
         return srs_error_wrap(err, "push to queue");
     }
 
-    // for all ready msg, dequeue and send out.
-    for (;;) {
-        if ((msg = queue_->dequeue()) == NULL) {
-            break;
-        }
+    // A send yields. Only the coroutine that sends may send or close the client;
+    // another one only queues its messages, and the sender sends them too.
+    if (sending_) {
+        return err;
+    }
 
+    sending_ = true;
+    err = send_queued_messages();
+    sending_ = false;
+
+    return err;
+}
+
+srs_error_t SrsGbMuxer::send_queued_messages()
+{
+    srs_error_t err = srs_success;
+
+    // for all ready msg, dequeue and send out.
+    SrsMediaPacket *msg = NULL;
+    while ((msg = queue_->dequeue()) != NULL) {
         if (pprint_->can_print()) {
             srs_trace("Muxer: send msg %s age=%d, dts=%" PRId64 ", size=%d",
                       msg->is_audio() ? "A" : msg->is_video() ? "V"
@@ -1395,26 +1504,53 @@ srs_error_t SrsGbMuxer::connect()
         return err;
     }
 
+    // Connect and publish yield, so another coroutine may come here meanwhile.
+    if (connecting_) {
+        return srs_error_new(ERROR_GB_RTMP_CONNECTING, "RTMP is connecting");
+    }
+
+    // The session's end interrupts its media connections once, and a send that the interrupt fails clears
+    // it, so the rest of the pack would connect again, publish for a device that has left, and keep the
+    // cycle waiting for the connection to leave the muxer.
+    if (session_->is_ended()) {
+        return srs_error_new(ERROR_GB_SESSION_ENDED, "session ended");
+    }
+
     // Cleanup the data before connect again.
     close();
 
     string url = srs_strings_replace(output_, "[stream]", session_->device_id_);
     srs_trace("Muxer: Convert GB to RTMP %s", url.c_str());
 
+    // The RTMP server reads what this client sends only once its on_publish hook accepts the publish, and
+    // a burst of the device fills the socket buffers before that, so a send waits for the hook. A stream
+    // timeout as short as the pulse fails the send, closes the client and drops the media until the next
+    // keyframe, so wait as long as the forwarder does.
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
-    srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
-    sdk_ = app_factory_->create_rtmp_client(url, cto, sto);
+    srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
+    ISrsBasicRtmpClient *sdk = app_factory_->create_rtmp_client(url, cto, sto);
 
-    if ((err = sdk_->connect()) != srs_success) {
+    // Set sdk_ only once published, so no one writes through a client whose
+    // socket isn't connected yet.
+    connecting_ = true;
+    err = sdk->connect();
+    if (err == srs_success) {
+        err = sdk->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE);
+        if (err != srs_success) {
+            err = srs_error_wrap(err, "publish");
+        }
+    } else {
+        err = srs_error_wrap(err, "connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
+    }
+    connecting_ = false;
+
+    if (err != srs_success) {
+        srs_freep(sdk);
         close();
-        return srs_error_wrap(err, "connect %s failed, cto=%dms, sto=%dms.", url.c_str(), srsu2msi(cto), srsu2msi(sto));
+        return err;
     }
 
-    if ((err = sdk_->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE)) != srs_success) {
-        close();
-        return srs_error_wrap(err, "publish");
-    }
-
+    sdk_ = sdk;
     return err;
 }
 // LCOV_EXCL_STOP
@@ -1767,7 +1903,20 @@ srs_error_t SrsGoApiGbPublish::do_serve_http(ISrsHttpResponseWriter *w, ISrsHttp
     if ((prop = req->ensure_property_string("ssrc")) == NULL) {
         return srs_error_new(ERROR_HTTP_DATA_INVALID, "ssrc required");
     }
-    uint64_t ssrc = atoi(prop->to_str().c_str());
+    // The SSRC is the decimal number of an RTP SSRC, 32 bits, such as GB28181's
+    // 10 digits with a leading 0 or 1. The media of SSRC 0 never binds a session.
+    string ssrc_str = prop->to_str();
+    uint64_t ssrc = 0;
+    for (size_t i = 0; i < ssrc_str.length() && ssrc <= 0xffffffffULL; i++) {
+        char c = ssrc_str.at(i);
+        if (c < '0' || c > '9') {
+            return srs_error_new(ERROR_HTTP_DATA_INVALID, "ssrc %s not a number", ssrc_str.c_str());
+        }
+        ssrc = ssrc * 10 + (c - '0');
+    }
+    if (ssrc == 0 || ssrc > 0xffffffffULL) {
+        return srs_error_new(ERROR_HTTP_DATA_INVALID, "ssrc %s not in 1 to 4294967295", ssrc_str.c_str());
+    }
 
     if ((err = bind_session(id, ssrc)) != srs_success) {
         return srs_error_wrap(err, "bind session");

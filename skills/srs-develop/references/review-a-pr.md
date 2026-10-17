@@ -20,8 +20,9 @@
 
 1. Run the selected repository's diff-stat and log relative to the confirmed base. Use `git -C oryx/` for Oryx.
 2. Drill into non-test source diffs relative to that base to understand what actually changed.
-3. Summarize back to the user: refactors, new files, and anything that could break downstream consumers (log format, public API, wire format, etc.).
-4. Pause and let the user redirect or ask for more detail.
+3. Audit the change with `skills/internal-audit-for-srs/SKILL.md` on `<base>..<tip>`, and give the user its findings and test gaps before the summary.
+4. Summarize back to the user: refactors, new files, and anything that could break downstream consumers (log format, public API, wire format, etc.).
+5. Pause and let the user redirect or ask for more detail.
 
 ## Step 2: Correct stale navigation docs
 

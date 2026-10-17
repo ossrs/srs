@@ -32,6 +32,10 @@ using namespace std;
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
+#include <fstream>
+#include <sstream>
+#include <unistd.h>
+
 // Mock ISrsMpdWriter implementation
 MockMpdWriter::MockMpdWriter()
 {
@@ -39,6 +43,7 @@ MockMpdWriter::MockMpdWriter()
     file_name_ = "segment-1.m4s";
     sequence_number_ = 1;
     get_fragment_called_ = false;
+    write_count_ = 0;
 }
 
 MockMpdWriter::~MockMpdWriter()
@@ -260,6 +265,7 @@ MockFragmentedMp4::MockFragmentedMp4()
     unlink_tmpfile_called_ = false;
     unlink_tmpfile_error_ = srs_success;
     duration_ = 0;
+    unlink_file_count_ = NULL;
 }
 
 MockFragmentedMp4::~MockFragmentedMp4()
@@ -334,6 +340,9 @@ srs_utime_t MockFragmentedMp4::get_start_dts()
 
 srs_error_t MockFragmentedMp4::unlink_file()
 {
+    if (unlink_file_count_) {
+        (*unlink_file_count_)++;
+    }
     return srs_success;
 }
 
@@ -457,6 +466,8 @@ MockDashController::MockDashController()
     on_publish_called_ = false;
     on_unpublish_called_ = false;
     dispose_called_ = false;
+    on_audio_count_ = 0;
+    on_video_count_ = 0;
 }
 
 MockDashController::~MockDashController()
@@ -487,11 +498,13 @@ void MockDashController::on_unpublish()
 
 srs_error_t MockDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
+    on_audio_count_++;
     return srs_success;
 }
 
 srs_error_t MockDashController::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
+    on_video_count_++;
     return srs_success;
 }
 
@@ -844,6 +857,307 @@ VOID TEST(MpdWriterTest, GetFragmentAndAvailabilityStartTime)
     mpd_writer->config_ = NULL;
 }
 
+// Test: the MPD's durations keep their fractions of a second, from dash_update_period
+// and the last segment's duration.
+VOID TEST(MpdWriterTest, WriteDurations)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpdWriter> mpd_writer(new SrsMpdWriter());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    mpd_writer->config_ = mock_config.get();
+
+    HELPER_EXPECT_SUCCESS(mpd_writer->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(mpd_writer->on_publish());
+    mpd_writer->home_ = "/tmp/srs-utest-dash-mpd";
+    mpd_writer->update_period_ = 5500 * SRS_UTIME_MILLISECONDS;
+    mpd_writer->window_size_ = 3;
+
+    // One segment of 2.9s in each window.
+    SrsFragmentWindow afragments, vfragments;
+    SrsFragment *afragment = new SrsFragment();
+    afragment->append(0);
+    afragment->append(2900);
+    afragments.append(afragment);
+    SrsFragment *vfragment = new SrsFragment();
+    vfragment->append(0);
+    vfragment->append(2900);
+    vfragments.append(vfragment);
+
+    SrsFormat format;
+    HELPER_EXPECT_SUCCESS(mpd_writer->write(&format, &afragments, &vfragments));
+
+    std::ifstream ifs("/tmp/srs-utest-dash-mpd/livestream.mpd");
+    std::stringstream ss;
+    ss << ifs.rdbuf();
+    std::string mpd = ss.str();
+    ::unlink("/tmp/srs-utest-dash-mpd/livestream.mpd");
+    ::rmdir("/tmp/srs-utest-dash-mpd");
+
+    EXPECT_TRUE(mpd.find("minimumUpdatePeriod=\"PT5.500S\"") != std::string::npos) << mpd;
+    EXPECT_TRUE(mpd.find("timeShiftBufferDepth=\"PT8.700S\"") != std::string::npos) << mpd;
+    EXPECT_TRUE(mpd.find("minBufferTime=\"PT5.800S\"") != std::string::npos) << mpd;
+
+    mpd_writer->config_ = NULL;
+}
+
+// Write an MPD of one 2s segment in the audio and the video window, or in the one asked
+// for, for the format, and return it, empty if none was written.
+static std::string mock_write_mpd(SrsFormat *format, bool audio = true, bool video = true)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpdWriter> mpd_writer(new SrsMpdWriter());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    mpd_writer->config_ = mock_config.get();
+
+    HELPER_EXPECT_SUCCESS(mpd_writer->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(mpd_writer->on_publish());
+    mpd_writer->home_ = "/tmp/srs-utest-dash-mpd";
+
+    SrsFragmentWindow afragments, vfragments;
+    if (audio) {
+        SrsFragment *afragment = new SrsFragment();
+        afragment->append(0);
+        afragment->append(2000);
+        afragments.append(afragment);
+    }
+    if (video) {
+        SrsFragment *vfragment = new SrsFragment();
+        vfragment->append(0);
+        vfragment->append(2000);
+        vfragments.append(vfragment);
+    }
+
+    HELPER_EXPECT_SUCCESS(mpd_writer->write(format, &afragments, &vfragments));
+    mpd_writer->config_ = NULL;
+
+    std::ifstream ifs("/tmp/srs-utest-dash-mpd/livestream.mpd");
+    std::stringstream ss;
+    ss << ifs.rdbuf();
+    ::unlink("/tmp/srs-utest-dash-mpd/livestream.mpd");
+    ::rmdir("/tmp/srs-utest-dash-mpd");
+    return ss.str();
+}
+
+// Test: the MPD's codecs come from the stream's codecs, as RFC 6381 and ISO/IEC 14496-15
+// Annex E write them, not a fixed H.264 and AAC-LC.
+VOID TEST(MpdWriterTest, WriteCodecs)
+{
+    // H.264 High 3.1 with the compatibility byte from the avcC, AAC-LC.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+        uint8_t avcc[] = {0x01, 0x64, 0x00, 0x1f, 0xff};
+        format.vcodec_->avc_extra_data_ = std::vector<char>((char *)avcc, (char *)avcc + sizeof(avcc));
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdAAC;
+        format.acodec_->aac_object_ = SrsAacObjectTypeAacLC;
+
+        std::string mpd = mock_write_mpd(&format);
+        EXPECT_TRUE(mpd.find("codecs=\"avc1.64001f\"") != std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("codecs=\"mp4a.40.2\"") != std::string::npos) << mpd;
+    }
+
+    // HEVC Main 3.1, main tier, the profile_compatibility_flags 0x60000000 in reverse
+    // bit order, and the constraint bytes without the trailing zero bytes; HE-AAC.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdHEVC;
+        SrsHevcDecoderConfigurationRecord *r = &format.vcodec_->hevc_dec_conf_record_;
+        r->general_profile_space_ = 0;
+        r->general_tier_flag_ = 0;
+        r->general_profile_idc_ = 1;
+        r->general_profile_compatibility_flags_ = 0x60000000;
+        r->general_constraint_indicator_flags_ = 0x900000000000ULL;
+        r->general_level_idc_ = 93;
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdAAC;
+        format.acodec_->aac_object_ = SrsAacObjectTypeAacHE;
+
+        std::string mpd = mock_write_mpd(&format);
+        EXPECT_TRUE(mpd.find("codecs=\"hev1.1.6.L93.90\"") != std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("codecs=\"mp4a.40.5\"") != std::string::npos) << mpd;
+    }
+
+    // HEVC Main 10 in high tier, profile space 1, two constraint bytes.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdHEVC;
+        SrsHevcDecoderConfigurationRecord *r = &format.vcodec_->hevc_dec_conf_record_;
+        r->general_profile_space_ = 1;
+        r->general_tier_flag_ = 1;
+        r->general_profile_idc_ = 2;
+        r->general_profile_compatibility_flags_ = 0x20000000;
+        r->general_constraint_indicator_flags_ = 0xb00800000000ULL;
+        r->general_level_idc_ = 120;
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdAAC;
+        format.acodec_->aac_object_ = SrsAacObjectTypeAacLC;
+
+        std::string mpd = mock_write_mpd(&format);
+        EXPECT_TRUE(mpd.find("codecs=\"hev1.A2.4.H120.B0.8\"") != std::string::npos) << mpd;
+    }
+
+    // MP3 by the object type of its esds: MPEG-1 audio (0x6B) above 24kHz, MPEG-2 audio
+    // (0x69) at 24kHz or below, not AAC.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdMP3;
+        format.acodec_->sound_rate_ = SrsAudioSampleRate44100;
+
+        std::string mpd = mock_write_mpd(&format);
+        EXPECT_TRUE(mpd.find("codecs=\"mp4a.6B\"") != std::string::npos) << mpd;
+    }
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdMP3;
+        format.acodec_->sound_rate_ = SrsAudioSampleRate22050;
+
+        std::string mpd = mock_write_mpd(&format);
+        EXPECT_TRUE(mpd.find("codecs=\"mp4a.69\"") != std::string::npos) << mpd;
+    }
+}
+
+// Test: the MPD of a stream with no video or no audio lists the one track it has.
+VOID TEST(MpdWriterTest, WriteOneTrack)
+{
+    // AAC with no video: the audio adaptation set only.
+    if (true) {
+        SrsFormat format;
+        format.acodec_ = new SrsAudioCodecConfig();
+        format.acodec_->id_ = SrsAudioCodecIdAAC;
+        format.acodec_->aac_object_ = SrsAacObjectTypeAacLC;
+
+        std::string mpd = mock_write_mpd(&format, true, false);
+        EXPECT_TRUE(mpd.find("mimeType=\"audio/mp4\"") != std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("codecs=\"mp4a.40.2\"") != std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("mimeType=\"video/mp4\"") == std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("minBufferTime=\"PT4.000S\"") != std::string::npos) << mpd;
+    }
+
+    // H.264 with no audio: the video adaptation set only.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+
+        std::string mpd = mock_write_mpd(&format, false, true);
+        EXPECT_TRUE(mpd.find("mimeType=\"video/mp4\"") != std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("mimeType=\"audio/mp4\"") == std::string::npos) << mpd;
+        EXPECT_TRUE(mpd.find("minBufferTime=\"PT4.000S\"") != std::string::npos) << mpd;
+    }
+
+    // No segment yet: no MPD.
+    if (true) {
+        SrsFormat format;
+        format.vcodec_ = new SrsVideoCodecConfig();
+        format.vcodec_->id_ = SrsVideoCodecIdAVC;
+
+        EXPECT_TRUE(mock_write_mpd(&format, false, false).empty());
+    }
+}
+
+// Test: the dispose of an MPD writer that wrote no MPD removes nothing and logs no warning.
+// A writer that never published has no dash_path, so a path built from it is the root.
+VOID TEST(MpdWriterTest, DisposeNeverWrittenRemovesNothing)
+{
+    srs_error_t err;
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    // Never published: no dash_path and no MPD file name.
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<SrsMpdWriter> never_published(new SrsMpdWriter());
+    HELPER_EXPECT_SUCCESS(never_published->initialize(mock_req.get()));
+    never_published->dispose();
+    int never_published_warns = log.warn_count_;
+
+    // Published but wrote no MPD: a file at its MPD path is not its own.
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<SrsMpdWriter> no_mpd(new SrsMpdWriter());
+    no_mpd->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(no_mpd->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(no_mpd->on_publish());
+    no_mpd->home_ = "/tmp/srs-utest-dash-mpd-not-written";
+
+    SrsPath path;
+    HELPER_EXPECT_SUCCESS(path.mkdir_all("/tmp/srs-utest-dash-mpd-not-written"));
+    std::ofstream("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd") << "mpd";
+    no_mpd->dispose();
+    bool other_mpd_kept = path.exists("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd");
+    int no_mpd_warns = log.warn_count_ - never_published_warns;
+
+    _srs_log = original_log;
+    ::unlink("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd");
+    ::rmdir("/tmp/srs-utest-dash-mpd-not-written");
+    no_mpd->config_ = NULL;
+
+    EXPECT_EQ(0, never_published_warns);
+    EXPECT_EQ(0, no_mpd_warns);
+    EXPECT_TRUE(other_mpd_kept);
+}
+
+// Test: the dispose removes the MPD the writer wrote, once; a second dispose has nothing
+// left to remove and logs no warning.
+VOID TEST(MpdWriterTest, DisposeRemovesWrittenMpd)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpdWriter> mpd_writer(new SrsMpdWriter());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    mpd_writer->config_ = mock_config.get();
+
+    HELPER_EXPECT_SUCCESS(mpd_writer->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(mpd_writer->on_publish());
+    mpd_writer->home_ = "/tmp/srs-utest-dash-mpd-dispose";
+
+    SrsFragmentWindow afragments, vfragments;
+    SrsFragment *vfragment = new SrsFragment();
+    vfragment->append(0);
+    vfragment->append(2000);
+    vfragments.append(vfragment);
+
+    SrsFormat format;
+    format.vcodec_ = new SrsVideoCodecConfig();
+    format.vcodec_->id_ = SrsVideoCodecIdAVC;
+    HELPER_EXPECT_SUCCESS(mpd_writer->write(&format, &afragments, &vfragments));
+
+    SrsPath path;
+    bool written = path.exists("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    mpd_writer->dispose();
+    bool left = path.exists("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
+    mpd_writer->dispose();
+
+    _srs_log = original_log;
+    ::unlink("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
+    ::rmdir("/tmp/srs-utest-dash-mpd-dispose");
+    mpd_writer->config_ = NULL;
+
+    EXPECT_TRUE(written);
+    EXPECT_FALSE(left);
+    EXPECT_EQ(0, log.warn_count_);
+}
+
 VOID TEST(DashControllerTest, InitializeAndDispose)
 {
     srs_error_t err;
@@ -946,9 +1260,11 @@ VOID TEST(DashControllerTest, OnPublishAndUnpublish)
     EXPECT_EQ(-1, controller->first_dts_);
     EXPECT_FALSE(controller->video_reaped_);
 
-    // Create mock fragments for unpublish test
+    // Create mock fragments for unpublish test, with a duration, so they are appended to the windows
     MockFragmentedMp4 *mock_vcurrent = new MockFragmentedMp4();
     MockFragmentedMp4 *mock_acurrent = new MockFragmentedMp4();
+    mock_vcurrent->duration_ = 1 * SRS_UTIME_SECONDS;
+    mock_acurrent->duration_ = 1 * SRS_UTIME_SECONDS;
     controller->vcurrent_ = mock_vcurrent;
     controller->acurrent_ = mock_acurrent;
 
@@ -963,9 +1279,11 @@ VOID TEST(DashControllerTest, OnPublishAndUnpublish)
     EXPECT_TRUE(mock_vcurrent->reap_called_);
     EXPECT_TRUE(mock_acurrent->reap_called_);
 
-    // Verify on_unpublish() appended fragments to windows
-    // Note: In the real implementation, fragments are only appended if duration() > 0
-    // Our mock returns 0, so they won't be appended, but we verified reap was called
+    // Verify on_unpublish() appended fragments to windows, which own them now
+    EXPECT_EQ(1, controller->vfragments_->size());
+    EXPECT_EQ(1, controller->afragments_->size());
+    EXPECT_TRUE(controller->vcurrent_ == NULL);
+    EXPECT_TRUE(controller->acurrent_ == NULL);
 
     // Clean up - set to NULL to avoid double-free
     controller->config_ = NULL;
@@ -973,6 +1291,65 @@ VOID TEST(DashControllerTest, OnPublishAndUnpublish)
     srs_freep(mock_mpd);
     controller->app_factory_ = NULL;
     // vcurrent_ and acurrent_ are already freed by on_unpublish or set to NULL
+    controller->vcurrent_ = NULL;
+    controller->acurrent_ = NULL;
+}
+
+// Test: a publish that ends right after a keyframe leaves a segment of that frame alone,
+// with no duration, which the MPD never lists; the unpublish removes the file its reap
+// renamed it to, so the dispose leaves no segment behind.
+VOID TEST(DashControllerTest, UnpublishRemovesSegmentWithoutDuration)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    MockMpdWriter *mock_mpd = new MockMpdWriter();
+    SrsUniquePtr<MockAppFactory> mock_factory(new MockAppFactory());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    controller->config_ = mock_config.get();
+    srs_freep(controller->mpd_);
+    controller->mpd_ = mock_mpd;
+    controller->app_factory_ = mock_factory.get();
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+
+    // A video and an audio segment of one frame each.
+    int unlinked = 0;
+    MockFragmentedMp4 *mock_vcurrent = new MockFragmentedMp4();
+    MockFragmentedMp4 *mock_acurrent = new MockFragmentedMp4();
+    mock_vcurrent->unlink_file_count_ = &unlinked;
+    mock_acurrent->unlink_file_count_ = &unlinked;
+    controller->vcurrent_ = mock_vcurrent;
+    controller->acurrent_ = mock_acurrent;
+
+    controller->on_unpublish();
+
+    // Both files removed, and not appended to the windows.
+    EXPECT_EQ(2, unlinked);
+    EXPECT_TRUE(controller->vcurrent_ == NULL);
+    EXPECT_TRUE(controller->acurrent_ == NULL);
+    EXPECT_EQ(0, controller->vfragments_->size());
+    EXPECT_EQ(0, controller->afragments_->size());
+
+    // A segment with a duration is appended to the window and kept.
+    unlinked = 0;
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+    mock_vcurrent = new MockFragmentedMp4();
+    mock_vcurrent->unlink_file_count_ = &unlinked;
+    mock_vcurrent->duration_ = 1 * SRS_UTIME_SECONDS;
+    controller->vcurrent_ = mock_vcurrent;
+
+    controller->on_unpublish();
+
+    EXPECT_EQ(0, unlinked);
+    EXPECT_EQ(1, controller->vfragments_->size());
+
+    controller->config_ = NULL;
+    controller->mpd_ = NULL;
+    srs_freep(mock_mpd);
+    controller->app_factory_ = NULL;
     controller->vcurrent_ = NULL;
     controller->acurrent_ = NULL;
 }
@@ -1046,6 +1423,184 @@ VOID TEST(DashControllerTest, OnAudioWritePacket)
     srs_freep(mock_acurrent);
     controller->afragments_ = NULL;
     srs_freep(mock_afragments);
+}
+
+// Test: while a publish has sent no video, the audio is cut by dash_fragment, and each cut
+// refreshes the MPD; once it has video, the audio is cut only after the video.
+VOID TEST(DashControllerTest, OnAudioWithoutVideoReapsByDuration)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    MockMpdWriter *mock_mpd = new MockMpdWriter();
+    SrsUniquePtr<MockAppFactory> mock_factory(new MockAppFactory());
+    MockFragmentedMp4 *mock_acurrent1 = new MockFragmentedMp4();
+    MockFragmentedMp4 *mock_acurrent2 = new MockFragmentedMp4();
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    // The controller frees the MPD writer, the segments and its windows, which free the
+    // segments they list.
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+    controller->config_ = mock_config.get();
+    srs_freep(controller->mpd_);
+    controller->mpd_ = mock_mpd;
+    controller->app_factory_ = mock_factory.get();
+    controller->acurrent_ = mock_acurrent1;
+    controller->fragment_ = 2 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->acodec_ = new SrsAudioCodecConfig();
+    format->acodec_->id_ = SrsAudioCodecIdAAC;
+    format->audio_ = new SrsParsedAudioPacket();
+    format->audio_->aac_packet_type_ = SrsAudioAacFrameTraitRawData;
+
+    SrsUniquePtr<SrsMediaPacket> audio(new SrsMediaPacket());
+    audio->message_type_ = SrsFrameTypeAudio;
+
+    // Shorter than the fragment: written to the current segment.
+    audio->timestamp_ = 1000;
+    mock_acurrent1->duration_ = 1 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(controller->on_audio(audio.get(), format.get()));
+    EXPECT_FALSE(mock_acurrent1->reap_called_);
+    EXPECT_TRUE(mock_acurrent1->write_called_);
+    EXPECT_EQ(0, mock_mpd->write_count_);
+
+    // As long as the fragment: cut, a new segment from this frame, and the MPD refreshed.
+    audio->timestamp_ = 3000;
+    mock_acurrent1->duration_ = 2 * SRS_UTIME_SECONDS;
+    mock_factory->real_fragmented_mp4_ = mock_acurrent2;
+    HELPER_EXPECT_SUCCESS(controller->on_audio(audio.get(), format.get()));
+    EXPECT_TRUE(mock_acurrent1->reap_called_);
+    EXPECT_EQ(1, controller->afragments_->size());
+    EXPECT_TRUE(controller->acurrent_ == mock_acurrent2);
+    EXPECT_TRUE(mock_acurrent2->initialize_called_);
+    EXPECT_TRUE(mock_acurrent2->write_called_);
+    EXPECT_EQ(1, mock_mpd->write_count_);
+
+    // Once video comes, the audio waits for the video's cut.
+    controller->vcurrent_ = new MockFragmentedMp4();
+    audio->timestamp_ = 6000;
+    mock_acurrent2->duration_ = 3 * SRS_UTIME_SECONDS;
+    HELPER_EXPECT_SUCCESS(controller->on_audio(audio.get(), format.get()));
+    EXPECT_FALSE(mock_acurrent2->reap_called_);
+    EXPECT_EQ(1, controller->afragments_->size());
+    EXPECT_EQ(1, mock_mpd->write_count_);
+
+    controller->config_ = NULL;
+    controller->app_factory_ = NULL;
+}
+
+// Test: the MPD lists each track the publish has sent: a stream of one track gets its MPD at
+// its first segment, and a stream of both waits until each has a segment.
+VOID TEST(DashControllerTest, RefreshMpdWaitsForEachTrack)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    MockMpdWriter *mock_mpd = new MockMpdWriter();
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    // The controller frees the MPD writer, the segments and its windows, which free the
+    // segments they list.
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+    srs_freep(controller->mpd_);
+    controller->mpd_ = mock_mpd;
+
+    SrsFormat format;
+
+    // Video only, with a segment.
+    controller->vcurrent_ = new MockFragmentedMp4();
+    controller->vfragments_->append(new MockFragmentedMp4());
+    HELPER_EXPECT_SUCCESS(controller->refresh_mpd(&format));
+    EXPECT_EQ(1, mock_mpd->write_count_);
+
+    // Then audio, with no segment yet: the MPD waits for it.
+    controller->acurrent_ = new MockFragmentedMp4();
+    HELPER_EXPECT_SUCCESS(controller->refresh_mpd(&format));
+    EXPECT_EQ(1, mock_mpd->write_count_);
+
+    controller->afragments_->append(new MockFragmentedMp4());
+    HELPER_EXPECT_SUCCESS(controller->refresh_mpd(&format));
+    EXPECT_EQ(2, mock_mpd->write_count_);
+}
+
+// Test: MP3 has no sequence header, so its first frame, which stands for one, writes the
+// audio init file the MPD points to, as the AAC sequence header does; it is not a sample.
+// The next frames are written to the audio segment.
+VOID TEST(DashControllerTest, OnAudioMp3WritesInit)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    MockMpdWriter *mock_mpd = new MockMpdWriter();
+    SrsUniquePtr<MockDashAppFactory> mock_factory(new MockDashAppFactory());
+    MockFragmentedMp4 *mock_acurrent = new MockFragmentedMp4();
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+    controller->config_ = mock_config.get();
+    srs_freep(controller->mpd_);
+    controller->mpd_ = mock_mpd;
+    controller->app_factory_ = mock_factory.get();
+    controller->acurrent_ = mock_acurrent;
+    controller->home_ = "./dash";
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->acodec_ = new SrsAudioCodecConfig();
+    format->acodec_->id_ = SrsAudioCodecIdMP3;
+    format->acodec_->sound_rate_ = SrsAudioSampleRate44100;
+    format->audio_ = new SrsParsedAudioPacket();
+    format->audio_->aac_packet_type_ = SrsAudioMp3FrameTraitSequenceHeader;
+
+    // The first MP3 frame, a FLV audio tag of MP3 44.1kHz 16bit stereo.
+    SrsUniquePtr<SrsMediaPacket> first(new SrsMediaPacket());
+    first->timestamp_ = 0;
+    first->message_type_ = SrsFrameTypeAudio;
+    char *first_data = new char[5];
+    first_data[0] = (char)0x2f;
+    first_data[1] = (char)0xff;
+    first_data[2] = (char)0xfb;
+    first_data[3] = (char)0x90;
+    first_data[4] = (char)0x64;
+    first->wrap(first_data, 5);
+
+    HELPER_EXPECT_SUCCESS(controller->on_audio(first.get(), format.get()));
+    EXPECT_TRUE(mock_factory->last_write_called_);
+    EXPECT_TRUE(mock_factory->last_rename_called_);
+    EXPECT_FALSE(mock_factory->last_video_);
+    EXPECT_EQ(2, mock_factory->last_tid_);
+    EXPECT_TRUE(mock_factory->last_path_.find("/audio-init.mp4") != std::string::npos) << mock_factory->last_path_;
+    EXPECT_STREQ(mock_factory->last_path_.c_str(), controller->audio_init_file_.c_str());
+    EXPECT_FALSE(mock_acurrent->write_called_);
+
+    // The next frame is a sample of the audio segment.
+    mock_factory->last_write_called_ = false;
+    format->audio_->aac_packet_type_ = SrsAudioMp3FrameTraitRawData;
+    SrsUniquePtr<SrsMediaPacket> next(new SrsMediaPacket());
+    next->timestamp_ = 26;
+    next->message_type_ = SrsFrameTypeAudio;
+    char *next_data = new char[5];
+    memcpy(next_data, first_data, 5);
+    next->wrap(next_data, 5);
+
+    HELPER_EXPECT_SUCCESS(controller->on_audio(next.get(), format.get()));
+    EXPECT_FALSE(mock_factory->last_write_called_);
+    EXPECT_TRUE(mock_acurrent->write_called_);
+    EXPECT_EQ(26, controller->audio_dts_);
+
+    controller->config_ = NULL;
+    controller->mpd_ = NULL;
+    srs_freep(mock_mpd);
+    controller->app_factory_ = NULL;
+    controller->acurrent_ = NULL;
+    srs_freep(mock_acurrent);
 }
 
 VOID TEST(DashControllerTest, OnVideoWriteAndReapFragment)
@@ -1165,6 +1720,241 @@ VOID TEST(DashControllerTest, OnVideoWriteAndReapFragment)
     srs_freep(mock_vfragments);
     // mock_vcurrent1 was already freed by controller when reaping
     srs_freep(mock_vcurrent1);
+}
+
+// Test: a video info frame, such as the colorInfo metadata of enhanced RTMP, carries no
+// picture, so it is not written to the fragment and does not start the timeline.
+VOID TEST(DashControllerTest, OnVideoSkipsInfoFrame)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    MockMpdWriter *mock_mpd = new MockMpdWriter();
+    SrsUniquePtr<MockAppFactory> mock_factory(new MockAppFactory());
+    MockFragmentedMp4 *mock_vcurrent = new MockFragmentedMp4();
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+
+    controller->config_ = mock_config.get();
+    srs_freep(controller->mpd_);
+    controller->mpd_ = mock_mpd;
+    controller->app_factory_ = mock_factory.get();
+    controller->vcurrent_ = mock_vcurrent;
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->vcodec_ = new SrsVideoCodecConfig();
+    format->vcodec_->id_ = SrsVideoCodecIdHEVC;
+    format->video_ = new SrsParsedVideoPacket();
+
+    // The info frame before the first picture is skipped.
+    SrsUniquePtr<SrsMediaPacket> info(new SrsMediaPacket());
+    info->timestamp_ = 1000;
+    info->message_type_ = SrsFrameTypeVideo;
+    format->video_->avc_packet_type_ = SrsVideoAvcFrameTraitNALU;
+    format->video_->frame_type_ = SrsVideoAvcFrameTypeVideoInfoFrame;
+    HELPER_EXPECT_SUCCESS(controller->on_video(info.get(), format.get()));
+    EXPECT_FALSE(mock_vcurrent->write_called_);
+    EXPECT_EQ(-1, controller->first_dts_);
+
+    // The keyframe after it is written, and starts the timeline at its own time.
+    SrsUniquePtr<SrsMediaPacket> keyframe(new SrsMediaPacket());
+    keyframe->timestamp_ = 1040;
+    keyframe->message_type_ = SrsFrameTypeVideo;
+    format->video_->frame_type_ = SrsVideoAvcFrameTypeKeyFrame;
+    HELPER_EXPECT_SUCCESS(controller->on_video(keyframe.get(), format.get()));
+    EXPECT_TRUE(mock_vcurrent->write_called_);
+    EXPECT_EQ(1040, controller->first_dts_);
+    EXPECT_EQ(1040, controller->video_dts_);
+
+    controller->config_ = NULL;
+    controller->mpd_ = NULL;
+    srs_freep(mock_mpd);
+    controller->app_factory_ = NULL;
+    controller->vcurrent_ = NULL;
+    srs_freep(mock_vcurrent);
+}
+
+// The MPD in a dir per stream, so the dir of the MPD is not [app].
+class MockAppConfigForDashMpdDir : public MockAppConfig
+{
+public:
+    virtual std::string get_dash_mpd_file(std::string vhost) { return "[app]/[stream]/index.mpd"; }
+};
+
+// Test: the init files are written beside the segments, in the dir of the MPD's BaseURL,
+// also when the MPD is not at [app]/[stream].mpd.
+VOID TEST(DashControllerTest, InitBesideSegments)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForDashMpdDir> mock_config(new MockAppConfigForDashMpdDir());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    // The dir of the segments, relative to dash_path.
+    SrsUniquePtr<SrsMpdWriter> mpd(new SrsMpdWriter());
+    mpd->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(mpd->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(mpd->on_publish());
+    std::string segment_home, file_name;
+    int64_t sn = 0;
+    HELPER_EXPECT_SUCCESS(mpd->get_fragment(true, segment_home, file_name, 0, sn));
+    EXPECT_STREQ("live/livestream/livestream", segment_home.c_str());
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    SrsUniquePtr<MockDashAppFactory> mock_factory(new MockDashAppFactory());
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(controller->on_publish());
+    controller->config_ = mock_config.get();
+    controller->app_factory_ = mock_factory.get();
+    controller->home_ = "./dash";
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->vcodec_ = new SrsVideoCodecConfig();
+    format->vcodec_->id_ = SrsVideoCodecIdAVC;
+    format->vcodec_->avc_extra_data_.push_back(0x01);
+    format->acodec_ = new SrsAudioCodecConfig();
+    format->acodec_->id_ = SrsAudioCodecIdAAC;
+    format->acodec_->aac_extra_data_.push_back(0x12);
+
+    SrsUniquePtr<SrsMediaPacket> video_sh(new SrsMediaPacket());
+    video_sh->message_type_ = SrsFrameTypeVideo;
+    char *video_data = new char[5];
+    memset(video_data, 0, 5);
+    video_data[0] = 0x17;
+    video_sh->wrap(video_data, 5);
+    HELPER_EXPECT_SUCCESS(controller->refresh_init_mp4(video_sh.get(), format.get()));
+    EXPECT_STREQ(("./dash/" + segment_home + "/video-init.mp4").c_str(), mock_factory->last_path_.c_str());
+
+    SrsUniquePtr<SrsMediaPacket> audio_sh(new SrsMediaPacket());
+    audio_sh->message_type_ = SrsFrameTypeAudio;
+    char *audio_data = new char[4];
+    audio_data[0] = (char)0xaf;
+    audio_data[1] = 0x00;
+    audio_data[2] = 0x12;
+    audio_data[3] = 0x10;
+    audio_sh->wrap(audio_data, 4);
+    HELPER_EXPECT_SUCCESS(controller->refresh_init_mp4(audio_sh.get(), format.get()));
+    EXPECT_STREQ(("./dash/" + segment_home + "/audio-init.mp4").c_str(), mock_factory->last_path_.c_str());
+
+    controller->config_ = NULL;
+    controller->app_factory_ = NULL;
+    mpd->config_ = NULL;
+}
+
+// Test: the dispose removes the init files with the MPD and the segments, from the dir
+// beside the segments where refresh_init_mp4 writes them.
+VOID TEST(DashControllerTest, DisposeRemovesInitFiles)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForDashMpdDir> mock_config(new MockAppConfigForDashMpdDir());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    SrsUniquePtr<MockDashAppFactory> mock_factory(new MockDashAppFactory());
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    controller->config_ = mock_config.get();
+    controller->app_factory_ = mock_factory.get();
+    controller->home_ = "/tmp/srs-utest-dash-dispose";
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->vcodec_ = new SrsVideoCodecConfig();
+    format->vcodec_->id_ = SrsVideoCodecIdAVC;
+    format->vcodec_->avc_extra_data_.push_back(0x01);
+    format->acodec_ = new SrsAudioCodecConfig();
+    format->acodec_->id_ = SrsAudioCodecIdAAC;
+    format->acodec_->aac_extra_data_.push_back(0x12);
+
+    SrsUniquePtr<SrsMediaPacket> video_sh(new SrsMediaPacket());
+    video_sh->message_type_ = SrsFrameTypeVideo;
+    char *video_data = new char[5];
+    memset(video_data, 0, 5);
+    video_data[0] = 0x17;
+    video_sh->wrap(video_data, 5);
+
+    SrsUniquePtr<SrsMediaPacket> audio_sh(new SrsMediaPacket());
+    audio_sh->message_type_ = SrsFrameTypeAudio;
+    char *audio_data = new char[4];
+    audio_data[0] = (char)0xaf;
+    audio_data[1] = 0x00;
+    audio_data[2] = 0x12;
+    audio_data[3] = 0x10;
+    audio_sh->wrap(audio_data, 4);
+
+    // The init files, where refresh_init_mp4 writes them for this MPD; the mock init mp4
+    // writes nothing, so the test makes the files.
+    SrsPath path;
+    std::string dir = "/tmp/srs-utest-dash-dispose/live/livestream/livestream";
+    HELPER_EXPECT_SUCCESS(controller->refresh_init_mp4(video_sh.get(), format.get()));
+    HELPER_EXPECT_SUCCESS(controller->refresh_init_mp4(audio_sh.get(), format.get()));
+    std::ofstream(std::string(dir + "/video-init.mp4").c_str()) << "init";
+    std::ofstream(std::string(dir + "/audio-init.mp4").c_str()) << "init";
+    EXPECT_TRUE(path.exists(dir + "/video-init.mp4"));
+    EXPECT_TRUE(path.exists(dir + "/audio-init.mp4"));
+
+    controller->dispose();
+    bool video_left = path.exists(dir + "/video-init.mp4");
+    bool audio_left = path.exists(dir + "/audio-init.mp4");
+
+    // A stream with no audio has no audio init file; the dispose ignores the missing file.
+    HELPER_EXPECT_SUCCESS(controller->refresh_init_mp4(video_sh.get(), format.get()));
+    std::ofstream(std::string(dir + "/video-init.mp4").c_str()) << "init";
+    controller->dispose();
+    bool video_only_left = path.exists(dir + "/video-init.mp4");
+
+    ::unlink(std::string(dir + "/video-init.mp4").c_str());
+    ::unlink(std::string(dir + "/audio-init.mp4").c_str());
+    ::rmdir("/tmp/srs-utest-dash-dispose/live/livestream/livestream");
+    ::rmdir("/tmp/srs-utest-dash-dispose/live/livestream");
+    ::rmdir("/tmp/srs-utest-dash-dispose/live");
+    ::rmdir("/tmp/srs-utest-dash-dispose");
+    controller->config_ = NULL;
+    controller->app_factory_ = NULL;
+
+    EXPECT_FALSE(video_left);
+    EXPECT_FALSE(audio_left);
+    EXPECT_FALSE(video_only_left);
+}
+
+// Test: the dispose of a stream that never published DASH removes no init file. The
+// stream has no dash_path then, so its init dir would be relative to the root; the app
+// here makes that root-relative dir /tmp/srs-utest-dash-root, where the test can look.
+VOID TEST(DashControllerTest, DisposeNeverPublishedKeepsRootFiles)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForDashMpdDir> mock_config(new MockAppConfigForDashMpdDir());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "tmp/srs-utest-dash-root", "livestream"));
+
+    SrsUniquePtr<SrsDashController> controller(new SrsDashController());
+    HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
+    controller->config_ = mock_config.get();
+
+    SrsPath path;
+    std::string dir = "/tmp/srs-utest-dash-root/livestream/livestream";
+    HELPER_EXPECT_SUCCESS(path.mkdir_all(dir));
+    std::ofstream(std::string(dir + "/video-init.mp4").c_str()) << "init";
+    std::ofstream(std::string(dir + "/audio-init.mp4").c_str()) << "init";
+
+    controller->dispose();
+    bool video_kept = path.exists(dir + "/video-init.mp4");
+    bool audio_kept = path.exists(dir + "/audio-init.mp4");
+
+    ::unlink(std::string(dir + "/video-init.mp4").c_str());
+    ::unlink(std::string(dir + "/audio-init.mp4").c_str());
+    ::rmdir("/tmp/srs-utest-dash-root/livestream/livestream");
+    ::rmdir("/tmp/srs-utest-dash-root/livestream");
+    ::rmdir("/tmp/srs-utest-dash-root");
+    controller->config_ = NULL;
+
+    EXPECT_TRUE(video_kept);
+    EXPECT_TRUE(audio_kept);
 }
 
 VOID TEST(DashControllerTest, RefreshInitMp4AndMpd)
@@ -1535,6 +2325,124 @@ VOID TEST(DashTest, PublishLifecycleWithAudioVideo)
     dash->controller_ = NULL;
     srs_freep(mock_controller);
     srs_freep(mock_hub);
+}
+
+// A publisher idle past dash_dispose has its DASH disposed while it stays
+// published. When it sends media again, DASH starts again, fed with the
+// sequence headers, and writes the media.
+VOID TEST(DashTest, DisposedIdlePublisherResumesOnMedia)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    mock_config->dash_enabled_ = true;
+    mock_config->dash_dispose_ = 1 * SRS_UTIME_SECONDS;
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    MockOriginHub mock_hub;
+
+    SrsUniquePtr<SrsDash> dash(new SrsDash());
+    dash->config_ = mock_config.get();
+    srs_freep(dash->controller_);
+    MockDashController *mock_controller = new MockDashController();
+    dash->controller_ = mock_controller;
+    HELPER_EXPECT_SUCCESS(dash->initialize(&mock_hub, mock_req.get()));
+
+    HELPER_EXPECT_SUCCESS(dash->on_publish());
+
+    // The publisher sends nothing past dash_dispose, and the cycle disposes
+    // its DASH.
+    dash->last_update_time_ = 1;
+    HELPER_EXPECT_SUCCESS(dash->cycle());
+    EXPECT_FALSE(dash->enabled_);
+    EXPECT_TRUE(mock_controller->on_unpublish_called_);
+    EXPECT_TRUE(mock_controller->dispose_called_);
+
+    SrsUniquePtr<SrsMediaPacket> video_packet(new SrsMediaPacket());
+    video_packet->timestamp_ = 2000;
+    video_packet->message_type_ = SrsFrameTypeVideo;
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->vcodec_ = new SrsVideoCodecConfig();
+    format->vcodec_->id_ = SrsVideoCodecIdAVC;
+
+    // The publisher sends media again.
+    mock_controller->on_publish_called_ = false;
+    HELPER_EXPECT_SUCCESS(dash->on_video(video_packet.get(), format.get()));
+    EXPECT_TRUE(dash->enabled_);
+    EXPECT_TRUE(dash->disposable_);
+    EXPECT_TRUE(mock_controller->on_publish_called_);
+    EXPECT_EQ(1, mock_hub.on_dash_request_sh_count_);
+    EXPECT_EQ(1, mock_controller->on_video_count_);
+
+    // The next media goes on, with no more sequence headers.
+    HELPER_EXPECT_SUCCESS(dash->on_video(video_packet.get(), format.get()));
+    EXPECT_EQ(1, mock_hub.on_dash_request_sh_count_);
+    EXPECT_EQ(2, mock_controller->on_video_count_);
+
+    dash->on_unpublish();
+    dash->config_ = NULL;
+}
+
+// DASH turned off by an unpublish, by an error of its media, or by the
+// dispose at the server's quit stays off: only the cycle's dispose of an idle
+// publisher resumes on media.
+VOID TEST(DashTest, DisposedThenUnpublishedStaysOff)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    mock_config->dash_enabled_ = true;
+    mock_config->dash_dispose_ = 1 * SRS_UTIME_SECONDS;
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    MockOriginHub mock_hub;
+
+    SrsUniquePtr<SrsDash> dash(new SrsDash());
+    dash->config_ = mock_config.get();
+    srs_freep(dash->controller_);
+    MockDashController *mock_controller = new MockDashController();
+    dash->controller_ = mock_controller;
+    HELPER_EXPECT_SUCCESS(dash->initialize(&mock_hub, mock_req.get()));
+
+    SrsUniquePtr<SrsMediaPacket> audio_packet(new SrsMediaPacket());
+    audio_packet->timestamp_ = 1000;
+    audio_packet->message_type_ = SrsFrameTypeAudio;
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    HELPER_EXPECT_SUCCESS(format->initialize());
+    format->acodec_ = new SrsAudioCodecConfig();
+    format->acodec_->id_ = SrsAudioCodecIdAAC;
+
+    // Disposed while idle, then the publisher leaves.
+    HELPER_EXPECT_SUCCESS(dash->on_publish());
+    dash->last_update_time_ = 1;
+    HELPER_EXPECT_SUCCESS(dash->cycle());
+    EXPECT_TRUE(mock_controller->dispose_called_);
+    dash->on_unpublish();
+    mock_controller->on_publish_called_ = false;
+    HELPER_EXPECT_SUCCESS(dash->on_audio(audio_packet.get(), format.get()));
+    EXPECT_FALSE(dash->enabled_);
+    EXPECT_FALSE(mock_controller->on_publish_called_);
+    EXPECT_EQ(0, mock_controller->on_audio_count_);
+
+    // Turned off without a dispose, as the hub does for an error of its media.
+    HELPER_EXPECT_SUCCESS(dash->on_publish());
+    dash->on_unpublish();
+    mock_controller->on_publish_called_ = false;
+    HELPER_EXPECT_SUCCESS(dash->on_audio(audio_packet.get(), format.get()));
+    EXPECT_FALSE(dash->enabled_);
+    EXPECT_FALSE(mock_controller->on_publish_called_);
+    EXPECT_EQ(0, mock_controller->on_audio_count_);
+
+    // Disposed while published, as the server does when it quits.
+    HELPER_EXPECT_SUCCESS(dash->on_publish());
+    dash->dispose();
+    mock_controller->on_publish_called_ = false;
+    HELPER_EXPECT_SUCCESS(dash->on_audio(audio_packet.get(), format.get()));
+    EXPECT_FALSE(dash->enabled_);
+    EXPECT_FALSE(mock_controller->on_publish_called_);
+    EXPECT_EQ(0, mock_controller->on_audio_count_);
+    EXPECT_EQ(0, mock_hub.on_dash_request_sh_count_);
+
+    dash->config_ = NULL;
 }
 
 // Test SrsHls dispose behavior after disabled
@@ -2003,7 +2911,7 @@ srs_error_t MockHttpHooksForRtcPlay::on_publish(std::string url, ISrsRequest *re
     return srs_success;
 }
 
-void MockHttpHooksForRtcPlay::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForRtcPlay::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
@@ -2014,11 +2922,11 @@ srs_error_t MockHttpHooksForRtcPlay::on_play(std::string url, ISrsRequest *req)
     return srs_success;
 }
 
-void MockHttpHooksForRtcPlay::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForRtcPlay::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForRtcPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForRtcPlay::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -2070,6 +2978,7 @@ MockRtcApiServerForPlay::MockRtcApiServerForPlay()
 {
     create_session_called_ = false;
     mock_connection_ = new MockRtcConnectionForPlay();
+    session_ = NULL;
 }
 
 MockRtcApiServerForPlay::~MockRtcApiServerForPlay()
@@ -2090,12 +2999,16 @@ srs_error_t MockRtcApiServerForPlay::create_rtc_session(SrsRtcUserConfig *ruc, S
     session->username_ = mock_connection_->username_;
     session->token_ = mock_connection_->token_;
 
+    session_ = session;
     *psession = session;
     return srs_success;
 }
 
 ISrsRtcConnection *MockRtcApiServerForPlay::find_rtc_session_by_username(const std::string &ufrag)
 {
+    if (session_ && session_->username() == ufrag) {
+        return session_;
+    }
     return NULL;
 }
 
@@ -3344,6 +4257,265 @@ VOID TEST(StatisticTest, AudioSampleRateAAC48000Hz)
     SrsJsonAny *sample_rate_any = audio->get_property("sample_rate");
     EXPECT_TRUE(sample_rate_any != NULL);
     EXPECT_EQ(48000, sample_rate_any->to_integer());
+}
+
+// Report the audio of a WebRTC track, whose SDP gives its sample rate and
+// channels as numbers, then dump the stream's audio as the API answers it.
+static void rtc_format_dump_audio(const char *codec, int sample, int channel, int *dumped_rate, int *dumped_channel)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", std::string("rtc_") + codec));
+
+    SrsUniquePtr<SrsRtcTrackDescription> desc(new SrsRtcTrackDescription());
+    desc->type_ = "audio";
+    desc->ssrc_ = 1234;
+    desc->media_ = new SrsAudioPayload(111, codec, sample, channel);
+
+    MockRtcPacketReceiver receiver;
+    SrsRtcAudioRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+    SrsRtpPacket pkt;
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, &pkt, true));
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+
+    SrsUniquePtr<SrsJsonObject> obj(SrsJsonAny::object());
+    HELPER_EXPECT_SUCCESS(stream->dumps(obj.get()));
+    SrsJsonAny *audio_any = obj->get_property("audio");
+    ASSERT_TRUE(audio_any != NULL && audio_any->is_object());
+    SrsJsonObject *audio = audio_any->to_object();
+    *dumped_rate = (int)audio->get_property("sample_rate")->to_integer();
+    *dumped_channel = (int)audio->get_property("channel")->to_integer();
+}
+
+// A WHIP stream's Opus is listed as the SDP's opus/48000/2: 48000 Hz, 2 channels.
+VOID TEST(StatisticTest, RtcOpusAudioInfoFromSdp)
+{
+    int rate = 0, channel = 0;
+    rtc_format_dump_audio("opus", 48000, 2, &rate, &channel);
+    EXPECT_EQ(48000, rate);
+    EXPECT_EQ(2, channel);
+}
+
+// G.711 is 8000 Hz mono, by the SDP's PCMU/8000/1 or a PCMA/8000 with no
+// channels, whose default is one.
+VOID TEST(StatisticTest, RtcG711AudioInfoFromSdp)
+{
+    int rate = 0, channel = 0;
+    rtc_format_dump_audio("PCMU", 8000, 1, &rate, &channel);
+    EXPECT_EQ(8000, rate);
+    EXPECT_EQ(1, channel);
+
+    rate = channel = 0;
+    rtc_format_dump_audio("PCMA", 8000, 0, &rate, &channel);
+    EXPECT_EQ(8000, rate);
+    EXPECT_EQ(1, channel);
+}
+
+// An H.264 SPS of 768x320, High profile, and its PPS.
+static uint8_t rtc_format_avc_sps_768x320[] = {
+    0x67, 0x64, 0x00, 0x20, 0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01,
+    0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18, 0x31, 0x96};
+static uint8_t rtc_format_avc_pps_768x320[] = {0x68, 0xeb, 0xec, 0xb2, 0x2c};
+// An H.264 SPS of 640x360, Constrained Baseline, from libx264.
+static uint8_t rtc_format_avc_sps_640x360[] = {
+    0x67, 0x42, 0xc0, 0x1e, 0xd9, 0x00, 0xa0, 0x2f, 0xf9, 0x70, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01,
+    0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x16, 0x2e, 0x48};
+// An HEVC SPS of 768x320, Main profile, from libx265.
+static uint8_t rtc_format_hevc_sps_768x320[] = {
+    0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03,
+    0x00, 0x3f, 0xa0, 0x06, 0x02, 0x01, 0x41, 0x65, 0x95, 0x9a, 0x49, 0x32, 0xbc, 0x05, 0xa0, 0x20,
+    0x00, 0x00, 0x03, 0x00, 0x20, 0x00, 0x00, 0x03, 0x03, 0x21};
+
+// A NALU that refers to the test's bytes, which the payload doesn't free.
+static SrsNaluSample *rtc_format_nalu(uint8_t *bytes, int size)
+{
+    SrsNaluSample *sample = new SrsNaluSample();
+    sample->bytes_ = (char *)bytes;
+    sample->size_ = size;
+    return sample;
+}
+
+// An RTP packet of a STAP-A (H.264) with the SPS and PPS, or an AP (HEVC)
+// with the SPS, as the publish stream decodes it.
+static SrsRtpPacket *rtc_format_stap(SrsVideoCodecId codec, SrsNaluSample *sps, SrsNaluSample *pps)
+{
+    SrsRtpPacket *pkt = new SrsRtpPacket();
+    if (codec == SrsVideoCodecIdAVC) {
+        SrsRtpSTAPPayload *stap = new SrsRtpSTAPPayload();
+        stap->nalus_.push_back(sps);
+        stap->nalus_.push_back(pps);
+        pkt->nalu_type_ = kStapA;
+        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAP);
+    } else {
+        SrsRtpSTAPPayloadHevc *stap = new SrsRtpSTAPPayloadHevc();
+        stap->nalus_.push_back(sps);
+        pkt->nalu_type_ = kStapHevc;
+        pkt->set_payload(stap, SrsRtpPacketPayloadTypeSTAPHevc);
+    }
+    return pkt;
+}
+
+// A WebRTC video track of the codec, with the profile and level in its SDP.
+static SrsRtcTrackDescription *rtc_format_video_desc(SrsVideoCodecId codec)
+{
+    SrsRtcTrackDescription *desc = new SrsRtcTrackDescription();
+    desc->type_ = "video";
+    desc->ssrc_ = 5678;
+    if (codec == SrsVideoCodecIdAVC) {
+        SrsVideoPayload *media = new SrsVideoPayload(102, "H264", 90000);
+        media->h264_param_.profile_level_id_ = "42e01f";
+        desc->media_ = media;
+    } else {
+        SrsVideoPayload *media = new SrsVideoPayload(49, "H265", 90000);
+        media->h265_param_.profile_id_ = "1";
+        media->h265_param_.level_id_ = "93";
+        desc->media_ = media;
+    }
+    return desc;
+}
+
+// A WHIP stream's H.264 is listed with the size of the SPS in a STAP-A, as
+// an RTMP stream is, and the profile and level of its SDP.
+VOID TEST(StatisticTest, RtcAvcVideoSizeFromStapSps)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "rtc_avc_stap"));
+    SrsUniquePtr<SrsRtcTrackDescription> desc(rtc_format_video_desc(SrsVideoCodecIdAVC));
+    MockRtcPacketReceiver receiver;
+    SrsRtcVideoRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+
+    SrsUniquePtr<SrsRtpPacket> pkt(rtc_format_stap(SrsVideoCodecIdAVC,
+                                                   rtc_format_nalu(rtc_format_avc_sps_768x320, sizeof(rtc_format_avc_sps_768x320)),
+                                                   rtc_format_nalu(rtc_format_avc_pps_768x320, sizeof(rtc_format_avc_pps_768x320))));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, pkt.get(), false));
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, stream->vcodec_);
+    EXPECT_EQ(SrsAvcProfileBaseline, stream->avc_profile_);
+    EXPECT_EQ(SrsAvcLevel_31, stream->avc_level_);
+    EXPECT_EQ(768, stream->width_);
+    EXPECT_EQ(320, stream->height_);
+}
+
+// An H.264 SPS sent in a packet of its own, as OBS does, gives the size too,
+// after a first packet without one listed the codec with no size.
+VOID TEST(StatisticTest, RtcAvcVideoSizeFromSingleSps)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "rtc_avc_single"));
+    SrsUniquePtr<SrsRtcTrackDescription> desc(rtc_format_video_desc(SrsVideoCodecIdAVC));
+    MockRtcPacketReceiver receiver;
+    SrsRtcVideoRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+
+    SrsRtpPacket slice;
+    slice.nalu_type_ = kFuA;
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, &slice, false));
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, stream->vcodec_);
+    EXPECT_EQ(0, stream->width_);
+    EXPECT_EQ(0, stream->height_);
+
+    SrsRtpPacket pkt;
+    SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+    raw->sample_->bytes_ = (char *)rtc_format_avc_sps_768x320;
+    raw->sample_->size_ = sizeof(rtc_format_avc_sps_768x320);
+    pkt.nalu_type_ = SrsAvcNaluTypeSPS;
+    pkt.set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, &pkt, false));
+
+    EXPECT_EQ(SrsAvcProfileBaseline, stream->avc_profile_);
+    EXPECT_EQ(768, stream->width_);
+    EXPECT_EQ(320, stream->height_);
+}
+
+// A WHIP stream's HEVC is listed with the size of the SPS in an AP.
+VOID TEST(StatisticTest, RtcHevcVideoSizeFromStapSps)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "rtc_hevc_stap"));
+    SrsUniquePtr<SrsRtcTrackDescription> desc(rtc_format_video_desc(SrsVideoCodecIdHEVC));
+    MockRtcPacketReceiver receiver;
+    SrsRtcVideoRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+
+    SrsUniquePtr<SrsRtpPacket> pkt(rtc_format_stap(SrsVideoCodecIdHEVC,
+                                                   rtc_format_nalu(rtc_format_hevc_sps_768x320, sizeof(rtc_format_hevc_sps_768x320)), NULL));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, pkt.get(), false));
+
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(SrsVideoCodecIdHEVC, stream->vcodec_);
+    EXPECT_EQ(SrsHevcProfileMain, stream->hevc_profile_);
+    EXPECT_EQ(768, stream->width_);
+    EXPECT_EQ(320, stream->height_);
+}
+
+// The size follows a new SPS, while the same SPS again is not parsed and
+// leaves the stream as it is.
+VOID TEST(StatisticTest, RtcVideoSizeFollowsChangedSps)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsStatistic> stat(new SrsStatistic());
+    SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "rtc_avc_change"));
+    SrsUniquePtr<SrsRtcTrackDescription> desc(rtc_format_video_desc(SrsVideoCodecIdAVC));
+    MockRtcPacketReceiver receiver;
+    SrsRtcVideoRecvTrack track(&receiver, desc.get(), false);
+
+    SrsRtcFormat format;
+    format.stat_ = stat.get();
+    HELPER_EXPECT_SUCCESS(format.initialize(req.get()));
+
+    SrsUniquePtr<SrsRtpPacket> first(rtc_format_stap(SrsVideoCodecIdAVC,
+                                                     rtc_format_nalu(rtc_format_avc_sps_768x320, sizeof(rtc_format_avc_sps_768x320)),
+                                                     rtc_format_nalu(rtc_format_avc_pps_768x320, sizeof(rtc_format_avc_pps_768x320))));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, first.get(), false));
+    SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    EXPECT_EQ(768, stream->width_);
+
+    // The same SPS at the next keyframe is not reported again.
+    stream->width_ = 1;
+    SrsUniquePtr<SrsRtpPacket> same(rtc_format_stap(SrsVideoCodecIdAVC,
+                                                    rtc_format_nalu(rtc_format_avc_sps_768x320, sizeof(rtc_format_avc_sps_768x320)),
+                                                    rtc_format_nalu(rtc_format_avc_pps_768x320, sizeof(rtc_format_avc_pps_768x320))));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, same.get(), false));
+    EXPECT_EQ(1, stream->width_);
+
+    // A new SPS is.
+    SrsUniquePtr<SrsRtpPacket> next(rtc_format_stap(SrsVideoCodecIdAVC,
+                                                    rtc_format_nalu(rtc_format_avc_sps_640x360, sizeof(rtc_format_avc_sps_640x360)),
+                                                    rtc_format_nalu(rtc_format_avc_pps_768x320, sizeof(rtc_format_avc_pps_768x320))));
+    HELPER_EXPECT_SUCCESS(format.on_rtp_packet(&track, next.get(), false));
+    EXPECT_EQ(640, stream->width_);
+    EXPECT_EQ(360, stream->height_);
+    EXPECT_EQ(SrsAvcProfileBaseline, stream->avc_profile_);
 }
 
 // Verify that stream statistics expose their age in seconds, matching the
@@ -4960,7 +6132,7 @@ VOID TEST(HttpHooksTest, OnUnpublishSuccess)
 
     // Test on_unpublish with successful response - major use scenario
     std::string url = "http://127.0.0.1:8085/api/v1/streams";
-    hooks->on_unpublish(url, req.get());
+    hooks->on_unpublish(url, req.get(), SrsStatisticStreamSnapshot(mock_stat.get(), req.get()));
 
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;
@@ -5021,7 +6193,7 @@ VOID TEST(HttpHooksTest, OnStopSuccess)
 
     // Test on_stop with successful response - major use scenario
     std::string url = "http://127.0.0.1:8085/api/v1/sessions";
-    hooks->on_stop(url, req.get());
+    hooks->on_stop(url, req.get(), SrsStatisticStreamSnapshot(mock_stat.get(), req.get()));
 
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;
@@ -5061,7 +6233,7 @@ VOID TEST(HttpHooksTest, OnDvrSuccess)
     cid.set_value("client-789");
     std::string url = "http://127.0.0.1:8085/api/v1/dvrs";
     std::string file = "/data/dvr/test.vhost/live/stream1/2025-01-15/recording.flv";
-    HELPER_EXPECT_SUCCESS(hooks->on_dvr(cid, url, req.get(), file));
+    HELPER_EXPECT_SUCCESS(hooks->on_dvr(cid, url, req.get(), file, SrsStatisticStreamSnapshot()));
 
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;
@@ -5254,6 +6426,39 @@ VOID TEST(HttpHooksTest, OnForwardBackendSuccess)
     hooks->factory_ = NULL;
     hooks->stat_ = NULL;
     mock_factory->mock_http_client_ = NULL;
+}
+
+// A hook url with a query and no path posts to the root with its query, since
+// a request line must start its target with a slash; with a path, to the path.
+VOID TEST(HttpHooksTest, DoPostQueryWithoutPath)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsHttpHooks> hooks(new SrsHttpHooks());
+
+    if (true) {
+        MockHttpClientForHooks client;
+        MockHttpMessageForHooks *msg = new MockHttpMessageForHooks();
+        msg->body_content_ = "{\"code\":0}";
+        client.mock_response_ = msg;
+
+        int code = 0;
+        string res;
+        HELPER_EXPECT_SUCCESS(hooks->do_post(&client, "http://127.0.0.1:8085?token=abc", "{}", code, res));
+        EXPECT_STREQ("/?token=abc", client.path_.c_str());
+    }
+
+    if (true) {
+        MockHttpClientForHooks client;
+        MockHttpMessageForHooks *msg = new MockHttpMessageForHooks();
+        msg->body_content_ = "{\"code\":0}";
+        client.mock_response_ = msg;
+
+        int code = 0;
+        string res;
+        HELPER_EXPECT_SUCCESS(hooks->do_post(&client, "http://127.0.0.1:8085/api/v1/streams?token=abc", "{}", code, res));
+        EXPECT_STREQ("/api/v1/streams?token=abc", client.path_.c_str());
+    }
 }
 
 // The ids of the forwards in a dump, in order.

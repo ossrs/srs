@@ -39,7 +39,7 @@ SrsSrtConnection::SrsSrtConnection(srs_srt_t srt_fd)
     srt_fd_ = srt_fd;
     srt_skt_ = NULL;
 
-    srt_eventloop_ = _srt_eventloop;
+    srt_eventloop_ = _srs_srt_eventloop;
 }
 
 void SrsSrtConnection::assemble()
@@ -875,9 +875,10 @@ void SrsMpegtsSrtConn::http_hooks_on_unpublish()
         hooks = conf->args_;
     }
 
+    SrsStatisticStreamSnapshot stream(stat_, req_);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_unpublish(url, req_);
+        hooks_->on_unpublish(url, req_, stream);
     }
 }
 
@@ -935,9 +936,10 @@ void SrsMpegtsSrtConn::http_hooks_on_stop()
         hooks = conf->args_;
     }
 
+    SrsStatisticStreamSnapshot stream(stat_, req_);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req_);
+        hooks_->on_stop(url, req_, stream);
     }
 
     return;

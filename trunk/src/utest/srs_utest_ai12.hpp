@@ -12,6 +12,7 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_app_factory.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_source.hpp>
 #include <srs_kernel_rtc_queue.hpp>
@@ -189,6 +190,34 @@ public:
     virtual ISrsRtcNetwork *tcp();
     virtual ISrsRtcNetwork *available();
     virtual ISrsKbpsDelta *delta();
+};
+
+// Mock RTC source whose publish fails, as when its bridge to RTMP can't start.
+class MockRtcSourceForStartFails : public SrsRtcSource
+{
+public:
+    int on_publish_count_;
+
+public:
+    MockRtcSourceForStartFails();
+    virtual ~MockRtcSourceForStartFails();
+
+public:
+    virtual srs_error_t on_publish();
+};
+
+// Mock app factory whose coroutines fail to start, for a play stream that can't start.
+class MockAppFactoryForStartFails : public SrsAppFactory
+{
+public:
+    int create_coroutine_count_;
+
+public:
+    MockAppFactoryForStartFails();
+    virtual ~MockAppFactoryForStartFails();
+
+public:
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
 };
 
 #endif

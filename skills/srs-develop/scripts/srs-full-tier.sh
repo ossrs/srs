@@ -1,14 +1,15 @@
 #!/bin/bash
 #
 # Run the Full tier of references/integration-tests.md on this checkout: Step 1 builds alone, then lanes A-F in
-# parallel, under the SRS global lock. Every log is in /tmp/srs-full-tier; the summary is one row per layer.
+# parallel, then lane H alone, under the SRS global lock. Every log is in /tmp/srs-full-tier; the summary is one
+# row per layer.
 #
 # Usage:
 #   bash skills/srs-develop/scripts/srs-full-tier.sh
 #
 # Exit code is 0 only if every layer passes.
 
-FLAGS="--srt=on --gb28181=on --rtsp=on --apm=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
+FLAGS="--srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
 LOGS=/tmp/srs-full-tier
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
@@ -106,6 +107,8 @@ lane_e() {
     wait
 }
 lane_f() { (cd trunk && layer utest-build make -j10 utest && layer utest ./objs/srs_utest); }
+# Alone: its cases have time limits, and its timer cases measure SRS timers, which the other lanes delay.
+lane_h() { layer integ make integ; }
 
 echo "step 2: lanes A-F"
 START=$(date +%s)
@@ -116,8 +119,15 @@ lane_d & PD=$!
 lane_e & PE=$!
 lane_f & PF=$!
 wait $PA $PB $PC $PD $PE $PF
+echo "step 3: lane H"
+lane_h
 
-# Summary: exit code, pass and fail counts, duration. Go tests count --- PASS/FAIL, gtest counts [ OK ]/[ FAILED ].
+# Summary: exit code, pass and fail counts, duration. Go tests count --- PASS/FAIL, gtest counts [ OK ]/[ FAILED ],
+# srs-integ the passed cases and known bugs of its own summary, since it runs without -v.
+integ_passes() {
+    sed -nE 's/^srs-integ [a-z]+: [0-9]+ cases, ([0-9]+) passed, [0-9]+ failed, [0-9]+ skipped, ([0-9]+) known bugs$/\1 \2/p' |
+        awk '{ s += $1 + $2 } END { print s + 0 }'
+}
 FAILED=0
 printf '%-32s %5s %6s %6s %6s\n' layer exit pass fail secs
 for r in $LOGS/*.result; do
@@ -125,6 +135,7 @@ for r in $LOGS/*.result; do
     read code secs <$r
     clean=$(sed 's/\x1b\[[0-9;]*m//g' $LOGS/$name.log)
     pass=$(echo "$clean" | grep -cE -e '--- PASS|^\[       OK \]')
+    pass=$(( pass + $(echo "$clean" | integ_passes) ))
     fail=$(echo "$clean" | grep -cE -e '--- FAIL|^\[  FAILED  \] [A-Za-z]')
     printf '%-32s %5s %6s %6s %6s\n' $name $code $pass $fail $secs
     if [[ $code != 0 ]]; then FAILED=1; fi
