@@ -3675,6 +3675,114 @@ VOID TEST(DvrMp4SegmenterTest, EncodeAudioVideoTypicalScenario)
     // Note: mock_enc is freed when segmenter is destroyed
 }
 
+// Test: a video info frame, such as the colorInfo metadata of enhanced RTMP, holds no
+// picture and doesn't set the sample, so it is not written to the MP4; the keyframe
+// after it is.
+VOID TEST(DvrMp4SegmenterTest, EncodeVideoSkipsInfoFrame)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    SrsUniquePtr<MockDvrPlan> plan(new MockDvrPlan());
+    SrsUniquePtr<MockDvrAppFactory> mock_factory(new MockDvrAppFactory());
+    SrsUniquePtr<SrsDvrMp4Segmenter> segmenter(new SrsDvrMp4Segmenter());
+    segmenter->app_factory_ = mock_factory.get();
+    HELPER_EXPECT_SUCCESS(segmenter->initialize(plan.get(), req.get()));
+
+    MockSrsFileWriter *mock_fs = new MockSrsFileWriter();
+    segmenter->fs_ = mock_fs;
+    HELPER_EXPECT_SUCCESS(segmenter->open_encoder());
+    MockMp4Encoder *mock_enc = mock_factory->mock_mp4_encoder_;
+    EXPECT_TRUE(mock_enc != NULL);
+    mock_enc->reset();
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    format->vcodec_ = new SrsVideoCodecConfig();
+    format->vcodec_->id_ = SrsVideoCodecIdHEVC;
+    format->video_ = new SrsParsedVideoPacket();
+
+    // The info frame leaves the stale sample of the message before it, here 5 bytes.
+    char stale[5] = {0x12, 0x10, 0x56, (char)0xe5, 0x00};
+    format->raw_ = stale;
+    format->nb_raw_ = 5;
+    format->video_->frame_type_ = SrsVideoAvcFrameTypeVideoInfoFrame;
+    format->video_->avc_packet_type_ = SrsVideoAvcFrameTraitNALU;
+    format->video_->cts_ = 0;
+
+    SrsUniquePtr<SrsMediaPacket> info(new SrsMediaPacket());
+    info->timestamp_ = 1000;
+    HELPER_EXPECT_SUCCESS(segmenter->encode_video(info.get(), format.get()));
+    EXPECT_FALSE(mock_enc->write_sample_called_);
+
+    // The keyframe after it is written, at its own time.
+    char picture[8] = {0x00, 0x00, 0x00, 0x04, 0x26, 0x01, 0x00, 0x00};
+    format->raw_ = picture;
+    format->nb_raw_ = 8;
+    format->video_->frame_type_ = SrsVideoAvcFrameTypeKeyFrame;
+
+    SrsUniquePtr<SrsMediaPacket> keyframe(new SrsMediaPacket());
+    keyframe->timestamp_ = 1040;
+    HELPER_EXPECT_SUCCESS(segmenter->encode_video(keyframe.get(), format.get()));
+    EXPECT_TRUE(mock_enc->write_sample_called_);
+    EXPECT_EQ(SrsVideoAvcFrameTypeKeyFrame, (int)mock_enc->last_frame_type_);
+    EXPECT_EQ(1040, (int)mock_enc->last_dts_);
+    EXPECT_EQ(8, (int)mock_enc->last_sample_size_);
+
+    format->raw_ = NULL;
+    format->nb_raw_ = 0;
+    segmenter->fs_ = NULL;
+    segmenter->app_factory_ = NULL;
+    srs_freep(mock_fs);
+    // The segmenter frees mock_enc, its encoder.
+}
+
+// The audio sample entry of the MP4 that DVR writes has its samplerate in
+// 16.16 fixed point, as ISO/IEC 14496-12 has it, and SRS reads it back.
+VOID TEST(DvrMp4SegmenterTest, EncoderSampleEntryRateFixedPoint)
+{
+    srs_error_t err;
+
+    struct {
+        SrsAudioSampleRate rate;
+        uint32_t hz;
+    } cases[] = {
+        {SrsAudioSampleRate44100, 44100},
+        {SrsAudioSampleRate22050, 22050},
+        {SrsAudioSampleRate48000, 48000},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsFileWriter f;
+        if (true) {
+            SrsMp4Encoder enc;
+            HELPER_EXPECT_SUCCESS(enc.initialize(&f));
+            enc.set_audio_codec(SrsAudioCodecIdMP3, cases[i].rate, SrsAudioSampleBits16bit, SrsAudioChannelsStereo);
+
+            // An MP3 stream has no sequence header to give the rate, so the
+            // sample entry is the only place a player finds it.
+            uint8_t frame[4] = {0xff, 0xfb, 0x90, 0x64};
+            HELPER_EXPECT_SUCCESS(enc.write_sample(NULL, SrsMp4HandlerTypeSOUN, 0x00, SrsAudioMp3FrameTraitRawData, 0, 0, frame, sizeof(frame)));
+            HELPER_EXPECT_SUCCESS(enc.write_sample(NULL, SrsMp4HandlerTypeSOUN, 0x00, SrsAudioMp3FrameTraitRawData, 26, 26, frame, sizeof(frame)));
+            HELPER_EXPECT_SUCCESS(enc.flush());
+        }
+
+        // The samplerate is 24 bytes after the mp4a type: 6 reserved, the
+        // data reference index, 8 reserved, channelcount, samplesize,
+        // pre_defined and 2 reserved.
+        string data(f.data(), (size_t)f.filesize());
+        size_t pos = data.find("mp4a");
+        ASSERT_TRUE(pos != string::npos);
+        ASSERT_TRUE(pos + 4 + 28 <= data.size());
+        SrsBuffer b((char *)data.data() + pos + 4 + 24, 4);
+        EXPECT_EQ(cases[i].hz << 16, b.read_4bytes()) << cases[i].hz;
+
+        MockSrsFileReader fr(f.data(), (int)f.filesize());
+        SrsMp4Decoder dec;
+        HELPER_EXPECT_SUCCESS(dec.initialize(&fr));
+        EXPECT_EQ(cases[i].rate, dec.sample_rate_) << cases[i].hz;
+    }
+}
+
 VOID TEST(DvrMp4SegmenterTest, CloseEncoderFlushSuccess)
 {
     srs_error_t err;
@@ -4266,6 +4374,225 @@ VOID TEST(DvrSegmentPlanTest, OnVideoReapSegmentWhenDurationExceeds)
 
     // Clean up injected dependencies to avoid double-free
     plan->segment_ = NULL;
+    plan->config_ = NULL;
+}
+
+// A video packet of H.264 at the timestamp in ms, a keyframe or an inter frame.
+static SrsMediaPacket *mock_dvr_h264_frame(int64_t timestamp, bool keyframe)
+{
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    char *data = new char[10];
+    data[0] = keyframe ? 0x17 : 0x27;
+    data[1] = 0x01;
+    memset(data + 2, 0, 8);
+    msg->wrap(data, 10);
+    msg->message_type_ = SrsFrameTypeVideo;
+    msg->timestamp_ = timestamp;
+    return msg;
+}
+
+// With dvr_duration 2s and a keyframe each second, the keyframe at 2s cuts the
+// file: the file then spans 2s, from its first frame to that keyframe, though
+// its last frame written, at 1.96s, is before 2s.
+VOID TEST(DvrSegmentPlanTest, KeyframeAtDurationCutsSegment)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    MockDvrSegmenter *mock_segmenter = new MockDvrSegmenter();
+    mock_segmenter->assemble();
+    SrsFragment *fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsDvrSegmentPlan> plan(new SrsDvrSegmentPlan());
+    plan->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(plan->initialize(mock_hub.get(), mock_segmenter, req.get()));
+    plan->dvr_enabled_ = true;
+    plan->cduration_ = 2 * SRS_UTIME_SECONDS;
+    plan->wait_keyframe_ = true;
+
+    SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+
+    // The frames from 0 to 1.96s are written, each 40ms after the one before.
+    for (int64_t ts = 0; ts <= 1960; ts += 40) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_h264_frame(ts, ts % 1000 == 0));
+        HELPER_EXPECT_SUCCESS(plan->on_video(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+    EXPECT_EQ(1960 * SRS_UTIME_MILLISECONDS, fragment->duration());
+
+    // The keyframe at 2s cuts the file.
+    SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(2000, true));
+    HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+    EXPECT_EQ(1, mock_hub->on_dvr_request_sh_count_);
+
+    plan->config_ = NULL;
+}
+
+// A keyframe before dvr_duration doesn't cut the file, nor one after the
+// timestamps jump back, nor the first keyframe of a new publish whose
+// timestamps are past the last publish's.
+VOID TEST(DvrSegmentPlanTest, KeyframeBeforeDurationKeepsSegment)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    MockDvrSegmenter *mock_segmenter = new MockDvrSegmenter();
+    mock_segmenter->assemble();
+    SrsFragment *fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsDvrSegmentPlan> plan(new SrsDvrSegmentPlan());
+    plan->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(plan->initialize(mock_hub.get(), mock_segmenter, req.get()));
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    plan->cduration_ = 2 * SRS_UTIME_SECONDS;
+    plan->wait_keyframe_ = true;
+
+    SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+
+    // A keyframe at 1.99s, 30ms after the last frame at 1.96s, is before 2s.
+    for (int64_t ts = 0; ts <= 1960; ts += 40) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_h264_frame(ts, ts == 0));
+        HELPER_EXPECT_SUCCESS(plan->on_video(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(1990, true));
+        HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+        fragment->append(1990);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    // The timestamps jump back to 0: no time passed for the file.
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(0, true));
+        HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    // A new publish into a new file, whose first keyframe is at 5s.
+    plan->on_unpublish();
+    srs_freep(fragment);
+    fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(5000, true));
+        HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+        fragment->append(5000);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    plan->config_ = NULL;
+}
+
+static SrsMediaPacket *mock_dvr_aac_frame(int64_t timestamp)
+{
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    char *data = new char[10];
+    data[0] = (char)0xaf;
+    data[1] = 0x01;
+    memset(data + 2, 0, 8);
+    msg->wrap(data, 10);
+    msg->message_type_ = SrsFrameTypeAudio;
+    msg->timestamp_ = timestamp;
+    return msg;
+}
+
+// A publish with no video has no keyframe to wait for, so with dvr_wait_keyframe
+// on the audio frame at dvr_duration cuts the file.
+VOID TEST(DvrSegmentPlanTest, AudioOnlyStreamCutsAtDuration)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    MockDvrSegmenter *mock_segmenter = new MockDvrSegmenter();
+    mock_segmenter->assemble();
+    SrsFragment *fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsDvrSegmentPlan> plan(new SrsDvrSegmentPlan());
+    plan->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(plan->initialize(mock_hub.get(), mock_segmenter, req.get()));
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    plan->cduration_ = 2 * SRS_UTIME_SECONDS;
+    plan->wait_keyframe_ = true;
+
+    SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+
+    // The audio frames from 0 to 1.98s are written, each 20ms after the one before.
+    for (int64_t ts = 0; ts <= 1980; ts += 20) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_aac_frame(ts));
+        HELPER_EXPECT_SUCCESS(plan->on_audio(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    // The audio frame at 2s cuts the file.
+    SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_aac_frame(2000));
+    HELPER_EXPECT_SUCCESS(plan->on_audio(frame.get(), format.get()));
+    EXPECT_EQ(1, mock_hub->on_dvr_request_sh_count_);
+
+    plan->config_ = NULL;
+}
+
+// The audio of a publish with video doesn't cut the file, which waits for a
+// keyframe; the next publish, with no video, is cut by its audio.
+VOID TEST(DvrSegmentPlanTest, AudioOfVideoStreamWaitsForKeyframe)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockEdgeConfig> mock_config(new MockEdgeConfig());
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    MockDvrSegmenter *mock_segmenter = new MockDvrSegmenter();
+    mock_segmenter->assemble();
+    SrsFragment *fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    SrsUniquePtr<MockOriginHub> mock_hub(new MockOriginHub());
+
+    SrsUniquePtr<SrsDvrSegmentPlan> plan(new SrsDvrSegmentPlan());
+    plan->config_ = mock_config.get();
+    HELPER_EXPECT_SUCCESS(plan->initialize(mock_hub.get(), mock_segmenter, req.get()));
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    plan->cduration_ = 2 * SRS_UTIME_SECONDS;
+    plan->wait_keyframe_ = true;
+
+    SrsUniquePtr<MockSrsFormat> format(new MockSrsFormat());
+
+    // A keyframe at 0, then audio to 2.5s: no keyframe at the duration.
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> keyframe(mock_dvr_h264_frame(0, true));
+        HELPER_EXPECT_SUCCESS(plan->on_video(keyframe.get(), format.get()));
+        fragment->append(0);
+    }
+    for (int64_t ts = 0; ts <= 2500; ts += 20) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_aac_frame(ts));
+        HELPER_EXPECT_SUCCESS(plan->on_audio(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    EXPECT_EQ(0, mock_hub->on_dvr_request_sh_count_);
+
+    // A new publish into a new file, with only audio.
+    plan->on_unpublish();
+    srs_freep(fragment);
+    fragment = new SrsFragment();
+    mock_segmenter->fragment_ = fragment;
+    HELPER_EXPECT_SUCCESS(plan->on_publish(req.get()));
+    for (int64_t ts = 0; ts <= 2000; ts += 20) {
+        SrsUniquePtr<SrsMediaPacket> frame(mock_dvr_aac_frame(ts));
+        HELPER_EXPECT_SUCCESS(plan->on_audio(frame.get(), format.get()));
+        fragment->append(ts);
+    }
+    EXPECT_EQ(1, mock_hub->on_dvr_request_sh_count_);
+
     plan->config_ = NULL;
 }
 

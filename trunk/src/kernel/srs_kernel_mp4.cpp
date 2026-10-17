@@ -6822,7 +6822,8 @@ srs_error_t SrsMp4Encoder::flush()
 
             SrsMp4AudioSampleEntry *mp4a = new SrsMp4AudioSampleEntry();
             mp4a->data_reference_index_ = 1;
-            mp4a->samplerate_ = srs_audio_sample_rate2number(sample_rate_);
+            // The samplerate is 16.16 fixed point, as the fragmented MP4 writers set it.
+            mp4a->samplerate_ = uint32_t(srs_audio_sample_rate2number(sample_rate_)) << 16;
             if (sound_bits_ == SrsAudioSampleBits16bit) {
                 mp4a->samplesize_ = 16;
             } else {
