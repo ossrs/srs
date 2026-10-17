@@ -7,7 +7,6 @@
 #ifndef SRS_APP_HTTP_STREAM_HPP
 #define SRS_APP_HTTP_STREAM_HPP
 
-#include <srs_app_async_call.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_security.hpp>
 #include <srs_core.hpp>
@@ -18,7 +17,6 @@ class SrsAacTransmuxer;
 class SrsMp3Transmuxer;
 class ISrsFlvTransmuxer;
 class SrsTsTransmuxer;
-class SrsAsyncCallWorker;
 class ISrsAppConfig;
 class ISrsLiveSourceManager;
 class ISrsStatistic;
@@ -30,6 +28,7 @@ class ISrsAacTransmuxer;
 class ISrsBufferCache;
 class ISrsMp3Transmuxer;
 class ISrsCommonHttpHandler;
+class SrsHttpStreamDestroy;
 
 // The cache for HTTP Live Streaming encoder.
 class ISrsBufferCache
@@ -363,7 +362,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    ISrsAsyncCallWorker *async_;
+    // The teardowns of unmounted streams, each on its own coroutine, so one waiting for its
+    // viewers never delays another.
+    std::vector<SrsHttpStreamDestroy *> destroyers_;
 
 public:
     // The http live streaming template, to create streams.
@@ -395,21 +396,32 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t initialize_flv_entry(std::string vhost);
 };
 
-class SrsHttpStreamDestroy : public ISrsAsyncCallTask
+class SrsHttpStreamDestroy : public ISrsCoroutineHandler
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     std::string sid_;
     std::map<std::string, SrsLiveEntry *> *streamHandlers_;
     ISrsHttpServeMux *mux_;
+    ISrsCoroutine *trd_;
+    bool done_;
 
 public:
     SrsHttpStreamDestroy(ISrsHttpServeMux *mux, std::map<std::string, SrsLiveEntry *> *handlers, std::string sid);
+    // Free it after the call is done, or it waits for the call to end.
     virtual ~SrsHttpStreamDestroy();
 
 public:
-    virtual srs_error_t call();
-    virtual std::string to_string();
+    // Make the call on a coroutine of its own.
+    virtual srs_error_t start();
+    virtual bool done();
+    // Interface ISrsCoroutineHandler
+public:
+    virtual srs_error_t cycle();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    srs_error_t call();
 };
 
 #endif

@@ -192,7 +192,17 @@ void SrsFastCoroutine::stop()
     // When not started, the trd is NULL.
     if (trd_) {
         void *res = NULL;
-        int r0 = srs_thread_join(trd_, &res);
+        // The join fails with EINTR when the caller is interrupted while it joins, or was interrupted
+        // before while it was runnable, not blocked, such as after a yield, since ST keeps the interrupt
+        // until the next blocking call. That interrupt is for the caller, while this coroutine is already
+        // interrupted and ends, so join it again.
+        int r0 = 0;
+        for (int i = 0; i < 1024; i++) {
+            r0 = srs_thread_join(trd_, &res);
+            if (!r0 || errno != EINTR) {
+                break;
+            }
+        }
         if (r0) {
             // By st_thread_join
             if (errno == EINVAL)
@@ -200,8 +210,6 @@ void SrsFastCoroutine::stop()
             if (errno == EDEADLK)
                 srs_assert(!r0);
             // By st_cond_timedwait
-            if (errno == EINTR)
-                srs_assert(!r0);
             if (errno == ETIME)
                 srs_assert(!r0);
             // Others
@@ -238,8 +246,8 @@ void SrsFastCoroutine::interrupt()
         trd_err_ = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
     }
 
-    // Note that if another thread is stopping thread and waiting in st_thread_join,
-    // the interrupt will make the st_thread_join fail.
+    // Note that if this thread is stopping another thread and waiting in st_thread_join,
+    // the interrupt makes the st_thread_join fail with EINTR, and stop joins it again.
     srs_thread_interrupt(trd_);
 }
 

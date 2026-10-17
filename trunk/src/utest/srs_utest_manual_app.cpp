@@ -461,6 +461,98 @@ VOID TEST(AppCoroutineTest, StartThread)
     srs_freep(err);
 }
 
+// A worker that sleeps until it is interrupted, like a receive thread blocked in a read.
+class MockSleepingCoroutineHandler : public ISrsCoroutineHandler
+{
+public:
+    SrsFastCoroutine *trd_;
+
+public:
+    MockSleepingCoroutineHandler()
+    {
+        trd_ = NULL;
+    }
+    virtual ~MockSleepingCoroutineHandler()
+    {
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        srs_error_t err = srs_success;
+        while ((err = trd_->pull()) == srs_success) {
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        }
+        srs_freep(err);
+        return srs_success;
+    }
+};
+
+// A coroutine that starts a worker, then loops and yields until it is interrupted, as the RTMP
+// play loop does after each send, and stops the worker, as SrsRtmpConn::playing stops its
+// receive thread.
+class MockYieldingCoroutineHandler : public ISrsCoroutineHandler
+{
+public:
+    SrsFastCoroutine *trd_;
+    bool worker_stopped_;
+
+public:
+    MockYieldingCoroutineHandler()
+    {
+        trd_ = NULL;
+        worker_stopped_ = false;
+    }
+    virtual ~MockYieldingCoroutineHandler()
+    {
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        srs_error_t err = srs_success;
+
+        MockSleepingCoroutineHandler sleeper;
+        SrsFastCoroutine worker("worker", &sleeper);
+        sleeper.trd_ = &worker;
+        if ((err = worker.start()) != srs_success) {
+            return srs_error_wrap(err, "start worker");
+        }
+
+        while ((err = trd_->pull()) == srs_success) {
+            srs_thread_yield();
+        }
+        srs_freep(err);
+
+        worker.stop();
+        worker_stopped_ = true;
+
+        return err;
+    }
+};
+
+// A coroutine interrupted while it is runnable, not blocked, such as when it yields, keeps ST's
+// interrupt flag until its next blocking call; when that call is the join of a worker it stops,
+// the join fails with EINTR. The stop must still join the worker, not assert, which crashed SRS
+// at a DELETE of an RTMP player that was sending media.
+VOID TEST(FastCoroutineTest, StopWorkerAfterInterruptedWhileRunnable)
+{
+    srs_error_t err = srs_success;
+
+    MockYieldingCoroutineHandler handler;
+    SrsFastCoroutine trd("yielding", &handler);
+    handler.trd_ = &trd;
+    HELPER_EXPECT_SUCCESS(trd.start());
+
+    // The coroutine yields to this one when the sleep is done, so it is runnable when interrupted.
+    srs_usleep(5 * SRS_UTIME_MILLISECONDS);
+    trd.interrupt();
+
+    trd.stop();
+    EXPECT_TRUE(handler.worker_stopped_);
+}
+
+
 VOID TEST(AppFragmentTest, CheckDuration)
 {
     if (true) {

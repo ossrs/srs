@@ -716,6 +716,58 @@ std::string MockHttpMessageForLiveStream::path()
     return "/live/stream.flv";
 }
 
+MockInterruptedCoroutineForLiveStream::MockInterruptedCoroutineForLiveStream()
+{
+    pull_count_ = 0;
+}
+
+MockInterruptedCoroutineForLiveStream::~MockInterruptedCoroutineForLiveStream()
+{
+}
+
+srs_error_t MockInterruptedCoroutineForLiveStream::start()
+{
+    return srs_success;
+}
+
+void MockInterruptedCoroutineForLiveStream::stop()
+{
+}
+
+void MockInterruptedCoroutineForLiveStream::interrupt()
+{
+}
+
+srs_error_t MockInterruptedCoroutineForLiveStream::pull()
+{
+    pull_count_++;
+    return srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+}
+
+const SrsContextId &MockInterruptedCoroutineForLiveStream::cid()
+{
+    static SrsContextId cid;
+    return cid;
+}
+
+void MockInterruptedCoroutineForLiveStream::set_cid(const SrsContextId &cid)
+{
+}
+
+MockWaitingHttpxConnForLiveStream::MockWaitingHttpxConnForLiveStream()
+{
+}
+
+MockWaitingHttpxConnForLiveStream::~MockWaitingHttpxConnForLiveStream()
+{
+}
+
+srs_error_t MockWaitingHttpxConnForLiveStream::pop_message(ISrsHttpMessage **preq)
+{
+    srs_usleep(1 * SRS_UTIME_SECONDS);
+    return srs_error_new(ERROR_SOCKET_TIMEOUT, "read timeout");
+}
+
 VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
 {
     srs_error_t err;
@@ -1272,11 +1324,6 @@ VOID TEST(SrsHttpStreamServerTest, HttpMountAndUnmount)
     {
         // Create SrsHttpStreamServer
         SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
-
-        // Replace the async worker created in constructor with our mock
-        MockAsyncCallWorker *mock_async = new MockAsyncCallWorker();
-        srs_freep(server->async_);
-        server->async_ = mock_async;
         server->config_ = mock_config;
 
         // Setup template handler for vhost
@@ -1316,9 +1363,8 @@ VOID TEST(SrsHttpStreamServerTest, HttpMountAndUnmount)
         // Verify entry is marked as disposing
         EXPECT_TRUE(entry->disposing_);
 
-        // Verify async task was scheduled
-        EXPECT_EQ(1, mock_async->execute_count_);
-        EXPECT_EQ(1, (int)mock_async->tasks_.size());
+        // Verify the teardown was started
+        EXPECT_EQ(1, (int)server->destroyers_.size());
 
         // Test http_mount after unmount - should fail with ERROR_STREAM_DISPOSING
         err = server->http_mount(mock_request.get());
@@ -1327,7 +1373,7 @@ VOID TEST(SrsHttpStreamServerTest, HttpMountAndUnmount)
         srs_freep(err);
 
         // Server destructor will be called here when exiting scope
-        // It will call async_->stop() and free async_, so we don't need to do it manually
+        // It waits for the teardown, which frees the stream entry
     }
 
     // Now we can safely free the mock config
@@ -1648,11 +1694,6 @@ VOID TEST(SrsHttpStreamServerTest, DynamicMatchHttpFlv)
     {
         // Create SrsHttpStreamServer
         SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
-
-        // Replace the async worker created in constructor with our mock
-        MockAsyncCallWorker *mock_async = new MockAsyncCallWorker();
-        srs_freep(server->async_);
-        server->async_ = mock_async;
         server->config_ = mock_config;
 
         // Setup template handler for vhost
@@ -1709,6 +1750,7 @@ MockLiveStreamForDestroy::MockLiveStreamForDestroy()
 {
     alive_ = true;
     expired_ = false;
+    expire_keeps_alive_ = false;
 }
 
 MockLiveStreamForDestroy::~MockLiveStreamForDestroy()
@@ -1733,7 +1775,9 @@ bool MockLiveStreamForDestroy::alive()
 void MockLiveStreamForDestroy::expire()
 {
     expired_ = true;
-    alive_ = false;
+    if (!expire_keeps_alive_) {
+        alive_ = false;
+    }
 }
 
 MockBufferCacheForDestroy::MockBufferCacheForDestroy()
@@ -1967,6 +2011,46 @@ VOID TEST(SrsLiveStreamTest, DoServeHttpFlvWithDisabledEntry)
     srs_freep(live_stream->entry_);
 }
 
+VOID TEST(SrsLiveStreamTest, DoServeHttpEndsAtOnceWhenConnInterrupted)
+{
+    srs_error_t err;
+
+    // A DELETE of the player by the HTTP API interrupts its HTTP connection, while the receive
+    // thread waits for a request until its read timeout. The play loop must end at once.
+    SrsUniquePtr<MockRequest> mock_request(new MockRequest("test.vhost", "live", "stream1"));
+    SrsUniquePtr<MockBufferCache> mock_cache(new MockBufferCache());
+    SrsUniquePtr<SrsLiveStream> live_stream(new SrsLiveStream(mock_request.get(), mock_cache.get()));
+
+    live_stream->entry_ = new SrsHttpMuxEntry();
+    live_stream->entry_->enabled = true;
+    live_stream->entry_->pattern = "/live/stream.flv";
+
+    SrsUniquePtr<MockHttpMessageForLiveStream> mock_message(new MockHttpMessageForLiveStream());
+    MockHttpConnForLiveStream *conn = mock_message->mock_conn_;
+    srs_freep(conn->trd_);
+    MockInterruptedCoroutineForLiveStream *conn_trd = new MockInterruptedCoroutineForLiveStream();
+    conn->trd_ = conn_trd;
+    srs_freep(conn->mock_handler_);
+    conn->mock_handler_ = new MockWaitingHttpxConnForLiveStream();
+    MockResponseWriter mock_writer;
+
+    SrsUniquePtr<MockLiveSourceForQueue> mock_source(new MockLiveSourceForQueue());
+    SrsUniquePtr<MockLiveConsumerForQueue> mock_consumer(new MockLiveConsumerForQueue(mock_source.get()));
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    err = live_stream->do_serve_http(mock_source.get(), mock_consumer.get(), &mock_writer, mock_message.get());
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_GE(conn_trd->pull_count_, 1);
+    EXPECT_LT(elapsed, 300 * SRS_UTIME_MILLISECONDS);
+
+    srs_freep(live_stream->entry_);
+}
+
 VOID TEST(SrsLiveStreamTest, AliveAndExpireWithViewers)
 {
     // Test the major use scenario: alive() and expire() with multiple viewers
@@ -2066,6 +2150,54 @@ VOID TEST(HttpStreamDestroyTest, DestroyStreamSuccess)
     // After call(), the stream and cache objects are freed by SrsUniquePtr
     // We can only verify that the entry was removed from handlers
     EXPECT_EQ(0, (int)streamHandlers.size());
+}
+
+// Mount a stream entry with a mock stream and cache, as http_mount does from a template.
+static MockLiveStreamForDestroy *mount_entry_for_destroy(SrsHttpStreamServer *server, MockRequest *req)
+{
+    MockLiveStreamForDestroy *stream = new MockLiveStreamForDestroy();
+    SrsLiveEntry *entry = new SrsLiveEntry(req->get_stream_url() + ".flv");
+    entry->stream_ = stream;
+    entry->cache_ = new MockBufferCacheForDestroy();
+    entry->req_ = req->copy();
+    server->streamHandlers_[req->get_stream_url()] = entry;
+    return stream;
+}
+
+VOID TEST(SrsHttpStreamServerTest, UnmountNotHeldByOtherStreamViewer)
+{
+    srs_error_t err = srs_success;
+
+    // A stream unmounted while its HTTP-FLV viewer still ends its connection waits for that viewer,
+    // but another stream unmounted after it, with no viewer, is torn down at once, so it can be
+    // published again, not refused as disposing until the first stream's viewer has gone.
+    SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
+
+    SrsUniquePtr<MockRequest> watched_req(new MockRequest("test.vhost", "live", "watched"));
+    SrsUniquePtr<MockRequest> other_req(new MockRequest("test.vhost", "live", "other"));
+    MockLiveStreamForDestroy *watched = mount_entry_for_destroy(server.get(), watched_req.get());
+    watched->expire_keeps_alive_ = true;
+    MockLiveStreamForDestroy *other = mount_entry_for_destroy(server.get(), other_req.get());
+    other->alive_ = false;
+
+    server->http_unmount(watched_req.get());
+    server->http_unmount(other_req.get());
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+
+    // The other stream is gone, and publishes again; the watched one waits for its viewer.
+    EXPECT_TRUE(server->streamHandlers_.find(other_req->get_stream_url()) == server->streamHandlers_.end());
+    EXPECT_EQ(1, (int)server->streamHandlers_.size());
+    EXPECT_TRUE(watched->expired_);
+    HELPER_EXPECT_SUCCESS(server->http_mount(other_req.get()));
+
+    err = server->http_mount(watched_req.get());
+    EXPECT_EQ(ERROR_STREAM_DISPOSING, srs_error_code(err));
+    srs_freep(err);
+
+    // The viewer ends, so the watched stream is torn down at the next check.
+    watched->alive_ = false;
+    srs_usleep(150 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(server->streamHandlers_.find(watched_req->get_stream_url()) == server->streamHandlers_.end());
 }
 
 VOID TEST(SrsBufferCacheTest, StopAndAlive)

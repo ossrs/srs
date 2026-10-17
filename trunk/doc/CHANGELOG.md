@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-17, Live: Fix player wakeup, coroutine join and HTTP stream teardown. v7.0.169
 * v7.0, 2026-10-17, Hooks: Fix heartbeat and hook URLs, and the RTMP stream param. v7.0.168
 * v7.0, 2026-10-17, VOD: Fix MP4 suffix byte ranges and answer 416 past the end. v7.0.167
 * v7.0, 2026-10-01, Merge [#4757](https://github.com/ossrs/srs/pull/4757): Kernel: Fix the wrong picture size of an H.264 SPS with scaling lists. v7.0.166 (#4757)
