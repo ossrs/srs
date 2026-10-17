@@ -118,6 +118,17 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     // Served by us.
     *served = true;
 
+    // A ctx names the session of one stream. The ctx of a session of another stream starts a new session
+    // of this stream with a new ctx, as a request with no ctx does, so the security check and on_play of
+    // this stream run, and the session of the ctx goes on as before.
+    std::map<std::string, SrsHlsVirtualConn *>::iterator it = map_ctx_info_.find(ctx);
+    if (it != map_ctx_info_.end()) {
+        SrsHlsVirtualConn *conn = it->second;
+        if (conn->req_->get_stream_url() != req->get_stream_url()) {
+            ctx = "";
+        }
+    }
+
     // Already exists context, response with rebuilt m3u8 content.
     if (!ctx.empty() && ctx_is_exist(ctx)) {
         // If HLS stream is disabled, use SrsHttpFileServer to serve HLS, which is normal file server.

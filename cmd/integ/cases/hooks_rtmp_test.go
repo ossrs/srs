@@ -301,6 +301,26 @@ func hooksRtmp(t *testing.T) {
 				c.Errorf("a client that only connects got %s, want no hook", h.Action())
 			}
 		})
+
+		// ConnectRefusedNoClose publishes a stream whose on_connect refuses
+		// the client: SRS closes it, and sends no on_close, as a client whose
+		// on_publish refused it gets no on_unpublish.
+		check.Case(t, s.name+"ConnectRefusedNoClose", check.Normal, func(c *check.C) {
+			srs := server.Common(c)
+			stream := streamName(c)
+			srs.Hooks.Script(hookOfStream("on_connect", stream), mock.Reject(403))
+			r := tryRTMP(c, s.url(srs, "live/"+stream), s.opts(c), true, hookWait())
+			checkRefused(c, r, "")
+
+			id := waitHook(c, srs, "on_connect", stream).Field("client_id")
+			ofClient := mock.Match{Action: "on_close", Func: func(r mock.Request) bool { return r.Field("client_id") == id }}
+			ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+			defer cancel()
+			if _, err := srs.Hooks.Wait(ctx, ofClient); err == nil {
+				c.Errorf("a client refused by on_connect got on_close, want none")
+			}
+			c.CheckEqual(hookActions(clientHooks(srs, id)), []string{"on_connect"}, "hooks")
+		})
 	}
 
 	// RtmpClientIpv6 publishes over IPv6: every hook of the session has the

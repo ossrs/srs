@@ -794,8 +794,10 @@ VOID TEST(HookRejectionTest, CheckedClientGetsOnCloseAfterOnConnect)
     srs_freep(conn);
 }
 
-// A client whose on_connect refused it still gets its on_close, after that on_connect, as before.
-VOID TEST(HookRejectionTest, RefusedClientGetsOnCloseAfterOnConnect)
+// A client whose on_connect refused it gets no on_close, as a client whose on_play refused it gets
+// no on_stop, and one whose on_publish refused it no on_unpublish: the hook server never accepted
+// it, so it has nothing to close.
+VOID TEST(HookRejectionTest, RefusedClientGetsNoOnClose)
 {
     srs_error_t err = srs_success;
 
@@ -806,11 +808,42 @@ VOID TEST(HookRejectionTest, RefusedClientGetsOnCloseAfterOnConnect)
 
     SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "");
 
+    // A client that plays or publishes is checked, and refused.
     HELPER_EXPECT_FAILED(conn->check_vhost(true));
-    HELPER_EXPECT_SUCCESS(conn->on_disconnect());
-
     EXPECT_EQ(1, hooks.on_connect_count_);
-    EXPECT_EQ(1, hooks.on_close_count_);
+    EXPECT_EQ(0, hooks.on_close_count_);
+
+    // GOAL: its close sends no on_close.
+    HELPER_EXPECT_SUCCESS(conn->on_disconnect());
+    EXPECT_EQ(1, hooks.on_connect_count_);
+    EXPECT_EQ(0, hooks.on_close_count_);
+
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+}
+
+// An edge's token traverse connect that on_connect refused is not answered, and gets no on_close.
+VOID TEST(HookRejectionTest, RefusedTokenTraverseGetsNoOnClose)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForHttpHooksOnConnectAndClose config;
+    MockHttpHooksForOnConnect hooks;
+    hooks.on_connect_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+    MockRtmpServerForTokenTraverse *rtmp = new MockRtmpServerForTokenTraverse(&hooks);
+
+    SrsRtmpConn *conn = mock_token_traverse_origin(&config, &hooks, rtmp, "livestream?token=bad");
+
+    err = conn->service_cycle();
+    HELPER_EXPECT_FAILED(err);
+    EXPECT_EQ(1, hooks.on_connect_count_);
+    EXPECT_EQ(0, rtmp->response_connect_app_count_);
+    EXPECT_EQ(0, hooks.on_close_count_);
+
+    // GOAL: its close sends no on_close.
+    HELPER_EXPECT_SUCCESS(conn->on_disconnect());
+    EXPECT_EQ(1, hooks.on_connect_count_);
+    EXPECT_EQ(0, hooks.on_close_count_);
 
     conn->hooks_ = NULL;
     srs_freep(conn);

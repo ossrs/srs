@@ -220,10 +220,12 @@ Description about some fields:
 > Note: Before SRS 4, there were `on_connect` and `on_close`, which are events defined by RTMP and only applicable to RTMP streams. These events overlap with streaming and playback events, so their use is not recommended.
 
 > Note: An RTMP client gets `on_connect` once it publishes or plays and its vhost is resolved, and `on_close`
-> only after an `on_connect`, also one that refused it. A client that connects and closes without publishing
-> or playing gets neither. An edge with `token_traverse on` checks each client by a connect to its origin
-> with the client's stream and param, which the origin checks by `on_connect` before its answer, then sends
-> `on_close` when the edge closes it. An older edge's check names no stream, so it is a client that only
+> only after an `on_connect` that accepted it. A client that `on_connect` refused gets no `on_close`, as one
+> that `on_play` refused gets no `on_stop`, and one that `on_publish` refused no `on_unpublish`. A client
+> that connects and closes without publishing or playing gets neither. An edge with `token_traverse on`
+> checks each client by a connect to its origin with the client's stream and param, which the origin checks
+> by `on_connect` before its answer, then sends `on_close` when the edge closes a check it accepted. An
+> older edge's check names no stream, so it is a client that only
 > connects: the origin sends no `on_connect` and no `on_close` for it, where older origins sent `on_close`
 > alone.
 

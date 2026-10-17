@@ -847,12 +847,10 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     current_ = app_factory_->create_hls_m4s_segment(writer_);
     current_->sequence_no_ = sequence_no_++;
 
-    if (sequence_header_pending_) {
-        current_->set_sequence_header(true);
-        sequence_header_pending_ = false;
-    }
-
+    // A segment that fails to open has no file to write, so it's dropped, and the next frame
+    // opens a new one.
     if ((err = write_hls_key()) != srs_success) {
+        srs_freep(current_);
         return srs_error_wrap(err, "write hls key");
     }
 
@@ -874,7 +872,15 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
 
     current_->uri_ += entry_prefix_uri() + m4s_url;
 
-    current_->initialize(basetime, video_track_id_, audio_track_id_, sequence_no_, m4s_path);
+    if ((err = current_->initialize(basetime, video_track_id_, audio_track_id_, sequence_no_, m4s_path)) != srs_success) {
+        srs_freep(current_);
+        return srs_error_wrap(err, "initialize segment");
+    }
+
+    if (sequence_header_pending_) {
+        current_->set_sequence_header(true);
+        sequence_header_pending_ = false;
+    }
 
     return err;
 }

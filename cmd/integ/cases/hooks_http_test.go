@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -133,6 +134,32 @@ func hooksHTTP(t *testing.T) {
 		for _, h := range plays {
 			c.CheckEqual(h.Field("app"), "live", "on_play app")
 		}
+	})
+
+	// HlsCtxOfAnotherStream refuses a stream in its on_play, then asks for
+	// its playlist with the hls_ctx of a session of another stream: refused
+	// with 401 by its own on_play, never the playlist, and the session goes
+	// on, its own playlist served with its hls_ctx.
+	check.Case(t, "HlsCtxOfAnotherStream", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		name, refused := streamName(c), streamName(c)+"-refused"
+		publishHLSHooked(c, srs, name, "")
+		publishHLSHooked(c, srs, refused, "")
+		srs.Hooks.Script(mock.Match{Action: "on_play", Stream: refused}, mock.Reject(403))
+		ctx := hlsSession(c, srs, name, "", nil)
+
+		status, body := hlsGet(c, srs, "live/"+refused+".m3u8?hls_ctx="+ctx)
+		c.CheckEqual(status, http.StatusUnauthorized, "status of the refused stream's playlist with the session's hls_ctx")
+		c.Check(!strings.Contains(body, "#EXTINF"), "the refused stream's playlist served: %q", body)
+		plays := srs.Hooks.Requests(mock.Match{Action: "on_play", Stream: refused})
+		if c.CheckEqual(len(plays), 1, "on_play of the refused stream") {
+			c.Check(plays[0].Field("client_id") != ctx, "on_play of the refused stream has the session's client_id %v", ctx)
+		}
+
+		status, body = hlsGet(c, srs, "live/"+name+".m3u8?hls_ctx="+ctx)
+		c.CheckEqual(status, http.StatusOK, "status of the session's own playlist")
+		c.Check(strings.Contains(body, "#EXTINF") && strings.Contains(body, "hls_ctx="+ctx), "the session's own playlist: %q", body)
+		c.CheckEqual(apiCode(c, srs, "/api/v1/clients/"+ctx), 0, "the API code of the session's client")
 	})
 
 	// HlsAndFlvPlayTypes starts an HLS session and an HTTP-FLV player of one
@@ -446,6 +473,22 @@ func publishHLSHooked(c *check.C, srs *server.Server, name, param string) mock.R
 func hlsSession(c *check.C, srs *server.Server, name, q string, header http.Header) string {
 	c.Helper()
 	return hlsSessionAt(c, srs, "live/"+name+".m3u8", q, header)
+}
+
+// hlsGet asks for the path, sent as it is, and returns the status and body.
+func hlsGet(c *check.C, srs *server.Server, path string) (int, string) {
+	c.Helper()
+	raw := flvURL(srs, path)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
+	c.Must(err, "request "+raw)
+	res, err := httpClient.Do(req)
+	c.Must(err, "GET "+raw)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	c.Must(err, "read "+raw)
+	return res.StatusCode, string(body)
 }
 
 // hlsEncodedPaths are the paths of the playlist live/name.m3u8 with a byte

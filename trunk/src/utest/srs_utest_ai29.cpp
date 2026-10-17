@@ -1066,6 +1066,101 @@ VOID TEST(VodStreamHlsSessionTest, EncodedPlaylistOfARefusedStreamIsRefused)
     }
 }
 
+// The ctx of a session of livestream doesn't serve the playlist of another stream, which the hook
+// refuses: that playlist asked for with the ctx is a new session of the other stream, refused with 401
+// by its own on_play, and the session of livestream goes on as before, until it ends with its on_stop.
+VOID TEST(VodStreamHlsSessionTest, CtxOfAnotherStreamIsCheckedAsANewSession)
+{
+    MockVodHlsSessions s("[app]/[stream].m3u8");
+    s.rand_.gen_str_values_.push_back("ctx00002");
+    s.hooks_.refuse_stream_ = "other";
+
+    // The session of livestream starts.
+    string resp = s.get("/live/livestream.m3u8");
+    EXPECT_PRED2(is_string_contain, "hls_ctx=ctx00001", resp);
+    ASSERT_EQ(1, (int)s.hooks_.on_play_streams_.size());
+    EXPECT_EQ(1, s.stat_.on_client_count_);
+
+    // The playlist of other with the ctx of livestream: checked, counted and hooked as live/other,
+    // refused, and the refused viewer dropped by a ctx of its own.
+    resp = s.get("/live/other.m3u8?hls_ctx=ctx00001");
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 401", resp);
+    EXPECT_EQ(string::npos, resp.find("#EXTM3U"));
+    ASSERT_EQ(2, (int)s.security_.checked_streams_.size());
+    EXPECT_STREQ("live/other", s.security_.checked_streams_[1].c_str());
+    EXPECT_EQ(2, s.stat_.on_client_count_);
+    EXPECT_STREQ("other", s.stat_.on_client_stream_.c_str());
+    ASSERT_EQ(2, (int)s.hooks_.on_play_streams_.size());
+    EXPECT_STREQ("live/other", s.hooks_.on_play_streams_[1].c_str());
+    ASSERT_EQ(1, s.stat_.on_disconnect_count_);
+    EXPECT_STREQ("ctx00002", s.stat_.on_disconnect_ids_[0].c_str());
+    EXPECT_FALSE(s.stream_.hls_.ctx_is_exist("ctx00002"));
+
+    // The session of livestream is unchanged, and still serves its own playlist.
+    ASSERT_TRUE(s.stream_.hls_.ctx_is_exist("ctx00001"));
+    SrsHlsVirtualConn *conn = s.stream_.hls_.map_ctx_info_["ctx00001"];
+    EXPECT_STREQ("livestream", conn->req_->stream_.c_str());
+    EXPECT_FALSE(conn->interrupt_);
+    resp = s.get("/live/livestream.m3u8?hls_ctx=ctx00001");
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 200", resp);
+    EXPECT_PRED2(is_string_contain, "#EXTM3U", resp);
+    EXPECT_EQ(2, (int)s.hooks_.on_play_streams_.size());
+    EXPECT_EQ(2, s.stat_.on_client_count_);
+
+    // The session of livestream ends with its own on_stop; other had no session to end.
+    s.expire();
+    ASSERT_EQ(1, (int)s.hooks_.on_stop_streams_.size());
+    EXPECT_STREQ("live/livestream", s.hooks_.on_stop_streams_[0].c_str());
+    ASSERT_EQ(2, s.stat_.on_disconnect_count_);
+    EXPECT_STREQ("ctx00001", s.stat_.on_disconnect_ids_[1].c_str());
+}
+
+// A player that asks for the playlist of another stream with the ctx of its session, which that
+// stream's hook allows, gets a new session of that stream with a new ctx, as a player with no ctx
+// does. Each session ends with the on_stop of its own stream.
+VOID TEST(VodStreamHlsSessionTest, CtxOfAnotherStreamStartsItsOwnSession)
+{
+    MockVodHlsSessions s("[app]/[stream].m3u8");
+    s.rand_.gen_str_values_.push_back("ctx00002");
+
+    string resp = s.get("/live/livestream.m3u8");
+    EXPECT_PRED2(is_string_contain, "hls_ctx=ctx00001", resp);
+
+    // A new session of other, with the new ctx in its master playlist.
+    resp = s.get("/live/other.m3u8?hls_ctx=ctx00001");
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 200", resp);
+    EXPECT_PRED2(is_string_contain, "/live/other.m3u8?hls_ctx=ctx00002", resp);
+    EXPECT_EQ(string::npos, resp.find("hls_ctx=ctx00001"));
+    ASSERT_EQ(2, (int)s.security_.checked_streams_.size());
+    EXPECT_STREQ("live/other", s.security_.checked_streams_[1].c_str());
+    ASSERT_EQ(2, (int)s.hooks_.on_play_streams_.size());
+    EXPECT_STREQ("live/other", s.hooks_.on_play_streams_[1].c_str());
+    EXPECT_EQ(2, s.stat_.on_client_count_);
+    EXPECT_EQ(0, s.stat_.on_disconnect_count_);
+
+    // Each session keeps its own stream.
+    ASSERT_TRUE(s.stream_.hls_.ctx_is_exist("ctx00001"));
+    ASSERT_TRUE(s.stream_.hls_.ctx_is_exist("ctx00002"));
+    SrsHlsVirtualConn *a = s.stream_.hls_.map_ctx_info_["ctx00001"];
+    EXPECT_STREQ("livestream", a->req_->stream_.c_str());
+    SrsHlsVirtualConn *b = s.stream_.hls_.map_ctx_info_["ctx00002"];
+    EXPECT_STREQ("other", b->req_->stream_.c_str());
+
+    // The playlist of other with its own ctx is of its session: no second check or hook.
+    resp = s.get("/live/other.m3u8?hls_ctx=ctx00002");
+    EXPECT_PRED2(is_string_contain, "HTTP/1.1 200", resp);
+    EXPECT_PRED2(is_string_contain, "#EXTM3U", resp);
+    EXPECT_EQ(2, (int)s.hooks_.on_play_streams_.size());
+    EXPECT_EQ(2, s.stat_.on_client_count_);
+
+    s.expire();
+    ASSERT_EQ(2, (int)s.hooks_.on_stop_streams_.size());
+    std::set<std::string> stopped(s.hooks_.on_stop_streams_.begin(), s.hooks_.on_stop_streams_.end());
+    EXPECT_TRUE(stopped.count("live/livestream"));
+    EXPECT_TRUE(stopped.count("live/other"));
+    EXPECT_EQ(2, s.stat_.on_disconnect_count_);
+}
+
 // The app and stream of a path built by srs_path_build_stream from a template.
 VOID TEST(PathParseStreamTest, ParsesTheAppAndStreamOfTheTemplate)
 {

@@ -214,8 +214,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_utime_t publish_normal_timeout_;
     // Whether enable the tcp_nodelay.
     bool tcp_nodelay_;
-    // Whether the client was checked by the on_connect hook, so it gets the on_close hook when it
-    // closes. A client that only connects, never playing or publishing, gets neither.
+    // Whether the on_connect hook accepted the client, so it gets the on_close hook when it closes.
+    // A client that only connects, never playing or publishing, gets neither, and one the on_connect
+    // hook refused gets no on_close, as one refused by on_play gets no on_stop.
     bool on_connect_checked_;
     // About the rtmp client.
     SrsClientInfo *info_;

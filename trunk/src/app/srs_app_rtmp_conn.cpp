@@ -715,10 +715,10 @@ srs_error_t SrsRtmpConn::check_vhost(bool try_default_vhost)
         req->vhost_ = vhost->arg0();
     }
 
-    on_connect_checked_ = true;
     if ((err = http_hooks_on_connect()) != srs_success) {
         return srs_error_wrap(err, "rtmp: callback on connect");
     }
+    on_connect_checked_ = true;
 
     return err;
 }
