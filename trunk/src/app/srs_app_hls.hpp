@@ -443,6 +443,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     int64_t accept_floor_ts_;
     int64_t previous_floor_ts_;
     bool init_mp4_ready_;
+    // Whether a sequence header came while no segment was open, so the next segment, the
+    // first of a publish, starts with a discontinuity.
+    bool sequence_header_pending_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -542,6 +545,11 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual std::string generate_m4s_filename();
     virtual bool is_segment_open();
+    // The hls_entry_prefix and the playlist's HTTP dir that go before a file's URI, or empty.
+    virtual std::string entry_prefix_uri();
+    // The URI the playlist lists a file by: after the entry prefix, its path from the
+    // playlist's dir, or its file name when it is outside that dir.
+    virtual std::string playlist_uri(std::string fullpath);
 
 public:
     virtual srs_error_t on_sequence_header();

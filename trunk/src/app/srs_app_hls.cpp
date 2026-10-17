@@ -429,6 +429,7 @@ SrsHlsFmp4Muxer::SrsHlsFmp4Muxer()
     video_track_id_ = 0;
     audio_track_id_ = 0;
     init_mp4_ready_ = false;
+    sequence_header_pending_ = false;
 
     memset(key_, 0, 16);
     memset(iv_, 0, 16);
@@ -566,7 +567,10 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
         return srs_error_wrap(err, "Create init mp4 dir failed, dir=%s", init_dir.c_str());
     }
 
-    SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment(writer_));
+    // The init file has a writer of its own: an audio sequence header after the first video
+    // frame, such as an MP3 stream's first frame, writes it again while a segment is open.
+    SrsUniquePtr<ISrsFileWriter> init_writer(app_factory_->create_file_writer());
+    SrsUniquePtr<SrsInitMp4Segment> init_mp4(new SrsInitMp4Segment(init_writer.get()));
 
     init_mp4->set_path(filepath);
 
@@ -604,21 +608,11 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
         mp4_path = mp4_path.substr(1);
     }
 
-    string init_mp4_uri = hls_entry_prefix_;
-    if (!hls_entry_prefix_.empty() && !srs_strings_ends_with(hls_entry_prefix_, "/")) {
-        init_mp4_uri += "/";
+    string init_mp4_uri = entry_prefix_uri() + mp4_path;
 
-        // add the http dir to uri.
-        string http_dir = path.filepath_dir(m3u8_url_);
-        if (!http_dir.empty()) {
-            init_mp4_uri += http_dir + "/";
-        }
-    }
-    init_mp4_uri += mp4_path;
-
-    // Convert to relative URI for m3u8 playlist.
-    // TODO: Need to resolve the relative URI from m3u8 and init file.
-    init_mp4_uri_ = path.filepath_base(init_file);
+    // The playlist lists the init file after hls_entry_prefix, by its path from the playlist's
+    // dir, for the default [app]/[stream]/init.mp4 is in a dir per stream.
+    init_mp4_uri_ = playlist_uri(init_mp4->fullpath());
 
     // use async to call the http hooks, for it will cause thread switch.
     if ((err = async_->execute(new SrsDvrAsyncCallOnHls(_srs_context->get_id(), req_, init_mp4->fullpath(),
@@ -798,6 +792,11 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
     current_ = app_factory_->create_hls_m4s_segment(writer_);
     current_->sequence_no_ = sequence_no_++;
 
+    if (sequence_header_pending_) {
+        current_->set_sequence_header(true);
+        sequence_header_pending_ = false;
+    }
+
     if ((err = write_hls_key()) != srs_success) {
         return srs_error_wrap(err, "write hls key");
     }
@@ -818,18 +817,7 @@ srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
         m4s_url = m4s_url.substr(1);
     }
 
-    current_->uri_ += hls_entry_prefix_;
-    if (!hls_entry_prefix_.empty() && !srs_strings_ends_with(hls_entry_prefix_, "/")) {
-        current_->uri_ += "/";
-
-        // add the http dir to uri.
-        SrsPath path;
-        string http_dir = path.filepath_dir(m3u8_url_);
-        if (!http_dir.empty()) {
-            current_->uri_ += http_dir + "/";
-        }
-    }
-    current_->uri_ += m4s_url;
+    current_->uri_ += entry_prefix_uri() + m4s_url;
 
     current_->initialize(basetime, video_track_id_, audio_track_id_, sequence_no_, m4s_path);
 
@@ -893,8 +881,44 @@ bool SrsHlsFmp4Muxer::is_segment_open()
     return current_ != NULL;
 }
 
+std::string SrsHlsFmp4Muxer::entry_prefix_uri()
+{
+    std::string uri = hls_entry_prefix_;
+    if (!hls_entry_prefix_.empty() && !srs_strings_ends_with(hls_entry_prefix_, "/")) {
+        uri += "/";
+
+        // add the http dir to uri.
+        SrsPath path;
+        string http_dir = path.filepath_dir(m3u8_url_);
+        if (!http_dir.empty()) {
+            uri += http_dir + "/";
+        }
+    }
+    return uri;
+}
+
+std::string SrsHlsFmp4Muxer::playlist_uri(std::string fullpath)
+{
+    std::string m3u8_dir = m3u8_dir_ + "/";
+    if (srs_strings_starts_with(fullpath, m3u8_dir)) {
+        return entry_prefix_uri() + fullpath.substr(m3u8_dir.length());
+    }
+
+    SrsPath path;
+    return entry_prefix_uri() + path.filepath_base(fullpath);
+}
+
 srs_error_t SrsHlsFmp4Muxer::on_sequence_header()
 {
+    // As with TS, the segment with a sequence header gets a discontinuity in the playlist.
+    // A segment opens at the first frame, after the sequence headers of a publish, so the
+    // first segment of each publish takes it at its open.
+    if (!is_segment_open()) {
+        sequence_header_pending_ = true;
+        return srs_success;
+    }
+
+    current_->set_sequence_header(true);
     return srs_success;
 }
 
@@ -1160,16 +1184,13 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
     ss << "#EXTINF:" << srsu2msi(segment->duration()) / 1000.0 << ", no desc" << SRS_CONSTS_LF;
 
     // {file name}\n
-    // TODO get segment name in relative path.
-    SrsPath path;
     std::string seg_uri = segment->fullpath();
     if (true) {
         std::stringstream stemp;
         stemp << srsu2msi(segment->duration());
         seg_uri = srs_strings_replace(seg_uri, "[duration]", stemp.str());
     }
-    // ss << segment->uri << SRS_CONSTS_LF;
-    ss << path.filepath_base(seg_uri) << SRS_CONSTS_LF;
+    ss << playlist_uri(seg_uri) << SRS_CONSTS_LF;
 
     return err;
 }
@@ -2588,8 +2609,9 @@ srs_error_t SrsHlsMp4Controller::on_sequence_header(SrsMediaPacket *msg, SrsForm
         has_video_sh_ = true;
     }
 
+    // MP3 has no sequence header: its first frame stands for one, with no AAC extra data.
     if (msg->is_audio()) {
-        if (format->acodec_->aac_extra_data_.size() == 0) {
+        if (format->acodec_->id_ == SrsAudioCodecIdAAC && format->acodec_->aac_extra_data_.size() == 0) {
             srs_trace("the audio codec's aac extra data is empty");
             return err;
         }

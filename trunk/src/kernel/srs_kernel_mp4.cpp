@@ -6996,16 +6996,23 @@ srs_error_t SrsMp4Encoder::do_write_sample(SrsMp4Sample *ps, uint8_t *sample, ui
     return err;
 }
 
-SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
+// The object type of the esds for an audio codec: MPEG-1 audio (11172-3) for MP3 above 24kHz,
+// MPEG-2 audio (13818-3) at 24kHz or below.
+static SrsMp4ObjectType srs_mp4_audio_object_type(SrsAudioCodecId codec, SrsAudioSampleRate sample_rate)
 {
-    switch (acodec_) {
+    switch (codec) {
     case SrsAudioCodecIdAAC:
         return SrsMp4ObjectTypeAac;
     case SrsAudioCodecIdMP3:
-        return (srs_audio_sample_rate2number(sample_rate_) > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3; // 11172 - 3
+        return (srs_audio_sample_rate2number(sample_rate) > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3; // 11172 - 3
     default:
         return SrsMp4ObjectTypeForbidden;
     }
+}
+
+SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
+{
+    return srs_mp4_audio_object_type(acodec_, sample_rate_);
 }
 
 ISrsMp4M2tsInitEncoder::ISrsMp4M2tsInitEncoder()
@@ -7257,13 +7264,16 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat *format, bool video, int tid)
             es->ES_ID_ = 0x02;
 
             SrsMp4DecoderConfigDescriptor &desc = es->decConfigDescr_;
-            desc.objectTypeIndication = SrsMp4ObjectTypeAac;
+            desc.objectTypeIndication = srs_mp4_audio_object_type(format->acodec_->id_, format->acodec_->sound_rate_);
             desc.streamType = SrsMp4StreamTypeAudioStream;
             srs_freep(desc.decSpecificInfo_);
 
-            SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
-            desc.decSpecificInfo_ = asc;
-            asc->asc_ = format->acodec_->aac_extra_data_;
+            // Only AAC has the decoder specific info, its AudioSpecificConfig; MP3 has none.
+            if (desc.objectTypeIndication == SrsMp4ObjectTypeAac) {
+                SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
+                desc.decSpecificInfo_ = asc;
+                asc->asc_ = format->acodec_->aac_extra_data_;
+            }
 
             SrsMp4DecodingTime2SampleBox *stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
@@ -7500,13 +7510,16 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat *format, int v_tid, int a_tid
             es->ES_ID_ = 0x02;
 
             SrsMp4DecoderConfigDescriptor &desc = es->decConfigDescr_;
-            desc.objectTypeIndication = SrsMp4ObjectTypeAac;
+            desc.objectTypeIndication = srs_mp4_audio_object_type(format->acodec_->id_, format->acodec_->sound_rate_);
             desc.streamType = SrsMp4StreamTypeAudioStream;
             srs_freep(desc.decSpecificInfo_);
 
-            SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
-            desc.decSpecificInfo_ = asc;
-            asc->asc_ = format->acodec_->aac_extra_data_;
+            // Only AAC has the decoder specific info, its AudioSpecificConfig; MP3 has none.
+            if (desc.objectTypeIndication == SrsMp4ObjectTypeAac) {
+                SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
+                desc.decSpecificInfo_ = asc;
+                asc->asc_ = format->acodec_->aac_extra_data_;
+            }
 
             SrsMp4DecodingTime2SampleBox *stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
