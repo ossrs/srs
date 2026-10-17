@@ -701,6 +701,58 @@ VOID TEST(SrtConnectionTest, ReadWriteAndTimeouts)
     srs_freep(mock_socket);
 }
 
+MockSrtPollerForSrtConnection::MockSrtPollerForSrtConnection()
+{
+}
+
+MockSrtPollerForSrtConnection::~MockSrtPollerForSrtConnection()
+{
+}
+
+srs_error_t MockSrtPollerForSrtConnection::initialize()
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::add_socket(SrsSrtSocket *srt_skt)
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::mod_socket(SrsSrtSocket *srt_skt)
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::del_socket(SrsSrtSocket *srt_skt)
+{
+    return srs_success;
+}
+
+srs_error_t MockSrtPollerForSrtConnection::wait(int timeout_ms, int *pn_fds)
+{
+    *pn_fds = 0;
+    return srs_success;
+}
+
+int MockSrtPollerForSrtConnection::size()
+{
+    return 0;
+}
+
+MockSrtHandlerForSrtListener::MockSrtHandlerForSrtListener()
+{
+}
+
+MockSrtHandlerForSrtListener::~MockSrtHandlerForSrtListener()
+{
+}
+
+srs_error_t MockSrtHandlerForSrtListener::on_srt_client(srs_srt_t srt_fd)
+{
+    return srs_success;
+}
+
 // Mock ISrsCoroutine implementation for SrsSrtRecvThread
 MockSrtCoroutine::MockSrtCoroutine()
 {
@@ -3665,4 +3717,34 @@ VOID TEST(SrtSocketTest, SetRecvSendTimeout)
         EXPECT_EQ(mock_socket.get_recv_timeout(), peer_idle_timeout);
         EXPECT_EQ(mock_socket.get_send_timeout(), peer_idle_timeout);
     }
+}
+
+// An accept that fails, such as of a caller that closed while it was queued ("srt_accept: pending
+// connection has unexpectedly closed"), must not end the listener's coroutine, or no caller connects
+// to the port again while the server runs.
+VOID TEST(SrtListenerTest, FailedAcceptKeepsListening)
+{
+    srs_error_t err;
+
+    MockSrtPollerForSrtConnection poller;
+    MockSrtHandlerForSrtListener handler;
+    SrsSrtListener listener(&handler, "127.0.0.1", 0);
+
+    // A socket that does not listen, so every accept fails at once.
+    HELPER_EXPECT_SUCCESS(listener.create_socket());
+    listener.srt_skt_ = new SrsSrtSocket(&poller, listener.lfd_);
+
+    // The coroutine lets the listener run two rounds, then is interrupted.
+    MockSrtCoroutine *coroutine = new MockSrtCoroutine();
+    coroutine->pull_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+    srs_freep(listener.trd_);
+    listener.trd_ = coroutine;
+
+    err = listener.cycle();
+
+    // GOAL: the listener accepts again after a failed accept, and ends only when its coroutine is
+    // interrupted.
+    EXPECT_EQ(3, coroutine->pull_count_);
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
 }
