@@ -16,6 +16,7 @@ using namespace std;
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai07.hpp>
+#include <srs_utest_ai19.hpp>
 
 // Mock ISrsResourceManager implementation
 MockResourceManagerForBindSession::MockResourceManagerForBindSession()
@@ -3978,4 +3979,150 @@ VOID TEST(SrsRtcPublishStreamTest, OnTwccSuccess)
 
     // Test duplicate sequence number should fail
     HELPER_EXPECT_FAILED(publish_stream->on_twcc(12345));
+}
+
+// A track description of a play stream test, with its payload type as the publisher's too.
+static SrsRtcTrackDescription *play_subscribe_track_desc(std::string type, uint32_t ssrc, uint8_t pt)
+{
+    SrsRtcTrackDescription *desc = new SrsRtcTrackDescription();
+    desc->type_ = type;
+    desc->id_ = type + "-track-id";
+    desc->ssrc_ = ssrc;
+    desc->is_active_ = true;
+    desc->media_ = new SrsCodecPayload();
+    desc->media_->pt_ = pt;
+    desc->media_->pt_of_publisher_ = pt;
+    return desc;
+}
+
+// The play stream of a subscribe test: answered with audio 12345 and video 67890, its PLI worker
+// a mock, and its coroutine one that ends the cycle right after the consumer is made.
+class PlaySubscribeFixture
+{
+public:
+    MockAppConfig config_;
+    MockRtcSourceManager rtc_sources_;
+    MockAppStatistic stat_;
+    MockRtcAsyncCallRequest request_;
+    MockRtcAsyncTaskExecutor exec_;
+    MockExpire expire_;
+    MockRtcPacketSender sender_;
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc_;
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc_;
+    MockRtcPublishStream publisher_;
+    SrsRtcPlayStream *play_stream_;
+    MockRtcPliWorker *pli_worker_;
+    SrsContextId cid_;
+
+public:
+    PlaySubscribeFixture()
+        : request_("test.vhost", "live", "stream1"),
+          audio_desc_(play_subscribe_track_desc("audio", 12345, 111)),
+          video_desc_(play_subscribe_track_desc("video", 67890, 96))
+    {
+        cid_.set_value("test-subscribe-cid");
+        play_stream_ = new SrsRtcPlayStream(&exec_, &expire_, &sender_, cid_);
+        play_stream_->config_ = &config_;
+        play_stream_->rtc_sources_ = &rtc_sources_;
+        play_stream_->stat_ = &stat_;
+
+        pli_worker_ = new MockRtcPliWorker(play_stream_);
+        srs_freep(play_stream_->pli_worker_);
+        play_stream_->pli_worker_ = pli_worker_;
+
+        MockCoroutineForCycle *trd = new MockCoroutineForCycle();
+        trd->pull_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+        srs_freep(play_stream_->trd_);
+        play_stream_->trd_ = trd;
+    }
+    virtual ~PlaySubscribeFixture()
+    {
+        rtc_sources_.mock_source_->set_publish_stream(NULL);
+        srs_freep(play_stream_);
+    }
+
+public:
+    srs_error_t initialize()
+    {
+        std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+        sub_relations[12345] = audio_desc_.get();
+        sub_relations[67890] = video_desc_.get();
+        return play_stream_->initialize(&request_, sub_relations);
+    }
+};
+
+// A publisher that starts after the player is answered, but before the player's consumer is made,
+// changes the stream with no consumer to tell. The player must take the publisher's SSRCs when it
+// subscribes, and ask for a keyframe as a stream change does, or its keyframe requests and the
+// publisher's packets find no track.
+VOID TEST(RtcPlayStreamTest, SubscribeAfterPublishTakesPublisherTracks)
+{
+    srs_error_t err;
+
+    PlaySubscribeFixture f;
+    HELPER_EXPECT_SUCCESS(f.initialize());
+    f.pli_worker_->reset();
+
+    SrsUniquePtr<SrsRtcSourceDescription> publisher(new SrsRtcSourceDescription());
+    publisher->audio_track_desc_ = play_subscribe_track_desc("audio", 54321, 111);
+    publisher->video_track_descs_.push_back(play_subscribe_track_desc("video", 98765, 96));
+    f.rtc_sources_.mock_source_->set_stream_desc(publisher.get());
+    f.rtc_sources_.mock_source_->set_publish_stream(&f.publisher_);
+
+    HELPER_EXPECT_FAILED(f.play_stream_->cycle());
+
+    EXPECT_EQ(1, (int)f.play_stream_->audio_tracks_.size());
+    EXPECT_TRUE(f.play_stream_->audio_tracks_.find(54321) != f.play_stream_->audio_tracks_.end());
+    EXPECT_EQ(1, (int)f.play_stream_->video_tracks_.size());
+    EXPECT_TRUE(f.play_stream_->video_tracks_.find(98765) != f.play_stream_->video_tracks_.end());
+    EXPECT_EQ(98765u, f.play_stream_->get_video_publish_ssrc(67890));
+
+    EXPECT_EQ(2, f.pli_worker_->get_keyframe_request_count());
+    EXPECT_TRUE(f.pli_worker_->has_keyframe_request(54321, f.cid_));
+    EXPECT_TRUE(f.pli_worker_->has_keyframe_request(98765, f.cid_));
+}
+
+// A player answered with the publisher's tracks subscribes to the same stream: nothing changes,
+// and it asks for no keyframe.
+VOID TEST(RtcPlayStreamTest, SubscribeToTheSameStreamKeepsTracks)
+{
+    srs_error_t err;
+
+    PlaySubscribeFixture f;
+    HELPER_EXPECT_SUCCESS(f.initialize());
+    f.pli_worker_->reset();
+
+    SrsUniquePtr<SrsRtcSourceDescription> publisher(new SrsRtcSourceDescription());
+    publisher->audio_track_desc_ = play_subscribe_track_desc("audio", 12345, 111);
+    publisher->video_track_descs_.push_back(play_subscribe_track_desc("video", 67890, 96));
+    f.rtc_sources_.mock_source_->set_stream_desc(publisher.get());
+    f.rtc_sources_.mock_source_->set_publish_stream(&f.publisher_);
+
+    HELPER_EXPECT_FAILED(f.play_stream_->cycle());
+
+    EXPECT_TRUE(f.play_stream_->audio_tracks_.find(12345) != f.play_stream_->audio_tracks_.end());
+    EXPECT_TRUE(f.play_stream_->video_tracks_.find(67890) != f.play_stream_->video_tracks_.end());
+    EXPECT_EQ(0, f.pli_worker_->get_keyframe_request_count());
+}
+
+// With no WebRTC publisher, such as a play before publishing or a stream from RTMP, no publisher
+// changed the stream, so the tracks stay as answered, whatever the source describes.
+VOID TEST(RtcPlayStreamTest, SubscribeWithNoPublisherKeepsTracks)
+{
+    srs_error_t err;
+
+    PlaySubscribeFixture f;
+    HELPER_EXPECT_SUCCESS(f.initialize());
+    f.pli_worker_->reset();
+
+    SrsUniquePtr<SrsRtcSourceDescription> other(new SrsRtcSourceDescription());
+    other->audio_track_desc_ = play_subscribe_track_desc("audio", 54321, 111);
+    other->video_track_descs_.push_back(play_subscribe_track_desc("video", 98765, 96));
+    f.rtc_sources_.mock_source_->set_stream_desc(other.get());
+
+    HELPER_EXPECT_FAILED(f.play_stream_->cycle());
+
+    EXPECT_TRUE(f.play_stream_->audio_tracks_.find(12345) != f.play_stream_->audio_tracks_.end());
+    EXPECT_TRUE(f.play_stream_->video_tracks_.find(67890) != f.play_stream_->video_tracks_.end());
+    EXPECT_EQ(0, f.pli_worker_->get_keyframe_request_count());
 }

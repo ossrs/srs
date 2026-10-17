@@ -1803,11 +1803,11 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterPeek)
 {
     srs_error_t err = srs_success;
 
-    // Create mock IO with test data
-    MockBufferIO mock_io;
-    mock_io.append("Hello World Test Data");
+    // Create mock IO with test data, owned by the buffered reader
+    MockBufferIO *mock_io = new MockBufferIO();
+    mock_io->append("Hello World Test Data");
 
-    SrsBufferedReadWriter buffered(&mock_io);
+    SrsBufferedReadWriter buffered(mock_io);
 
     // Test peek functionality
     char peek_buf[10];
@@ -1832,11 +1832,11 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterRead)
 {
     srs_error_t err = srs_success;
 
-    // Create mock IO with test data
-    MockBufferIO mock_io;
-    mock_io.append("Hello World");
+    // Create mock IO with test data, owned by the buffered reader
+    MockBufferIO *mock_io = new MockBufferIO();
+    mock_io->append("Hello World");
 
-    SrsBufferedReadWriter buffered(&mock_io);
+    SrsBufferedReadWriter buffered(mock_io);
 
     // Test read functionality
     char read_buf[20];
@@ -1849,7 +1849,7 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterRead)
     EXPECT_LE(nread, (ssize_t)sizeof(read_buf));
 
     // Test read with smaller buffer
-    mock_io.append("More Data");
+    mock_io->append("More Data");
     char small_buf[5];
     ssize_t small_nread = 0;
 
@@ -1862,11 +1862,11 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterReadFully)
 {
     srs_error_t err = srs_success;
 
-    // Create mock IO with sufficient test data
-    MockBufferIO mock_io;
-    mock_io.append("Hello World Test Data For Read Fully");
+    // Create mock IO with sufficient test data, owned by the buffered reader
+    MockBufferIO *mock_io = new MockBufferIO();
+    mock_io->append("Hello World Test Data For Read Fully");
 
-    SrsBufferedReadWriter buffered(&mock_io);
+    SrsBufferedReadWriter buffered(mock_io);
 
     // Test read_fully functionality
     char read_buf[10];
@@ -1890,10 +1890,10 @@ VOID TEST(ProtocolConnTest, SrsBufferedReadWriterReloadBuffer)
     // Test that reload_buffer method exists and is accessible through peek
     // Since reload_buffer is private, we test it indirectly through peek
 
-    MockBufferIO mock_io;
-    mock_io.append("Test Data For Buffer Reload");
+    MockBufferIO *mock_io = new MockBufferIO();
+    mock_io->append("Test Data For Buffer Reload");
 
-    SrsBufferedReadWriter buffered(&mock_io);
+    SrsBufferedReadWriter buffered(mock_io);
 
     // First peek should trigger reload_buffer
     char peek_buf[10];

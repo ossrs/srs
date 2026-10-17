@@ -346,6 +346,11 @@ public:
 public:
     void on_stream_change(SrsRtcSourceDescription *desc);
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Whether on_stream_change would key a track by another publisher SSRC than it has now.
+    bool is_stream_changed(SrsRtcSourceDescription *desc);
+
 public:
     virtual const SrsContextId &context_id();
 

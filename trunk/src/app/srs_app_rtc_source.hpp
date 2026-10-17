@@ -348,6 +348,7 @@ public:
     virtual srs_error_t on_rtp(SrsRtpPacket *pkt);
     // Set and get stream description for source
     virtual bool has_stream_desc();
+    virtual SrsRtcSourceDescription *stream_desc();
     virtual void set_stream_desc(SrsRtcSourceDescription *stream_desc);
     virtual std::vector<SrsRtcTrackDescription *> get_track_desc(std::string type, std::string media_type);
     // Set the video codec detected by the bridge, which is the codec of the stream it publishes.

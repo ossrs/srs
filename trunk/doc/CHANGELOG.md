@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-17, RTC: Fix player SSRC rekey and TCP socket leak. v7.0.182
 * v7.0, 2026-10-17, RTC: Fix keyframes, audio transcode and A/V sync to RTMP. v7.0.181
 * v7.0, 2026-10-17, RTC: Fix WHIP session lifetime and STUN binding. v7.0.180
 * v7.0, 2026-10-17, DVR: Fix MP4 info frame, audio rate and segment cuts. v7.0.179

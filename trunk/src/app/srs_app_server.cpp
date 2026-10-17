@@ -1554,7 +1554,6 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
         int nn = sizeof(b);
         if ((err = io->peek((char *)b, &nn)) != srs_success) {
             srs_freep(io);
-            srs_freep(skt);
             return srs_error_wrap(err, "peek");
         }
 

@@ -87,7 +87,7 @@ class SrsBufferedReadWriter : public ISrsProtocolReadWriter
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    // The under-layer transport.
+    // The under-layer transport, owned and freed with this object.
     ISrsProtocolReadWriter *io_;
     // Fixed, small and fast buffer. Note that it must be very small piece of cache, make sure matches all protocols,
     // because we will full fill it when peeking.

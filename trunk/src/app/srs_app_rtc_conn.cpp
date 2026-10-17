@@ -635,6 +635,27 @@ void SrsRtcPlayStream::on_stream_change(SrsRtcSourceDescription *desc)
     }
 }
 
+bool SrsRtcPlayStream::is_stream_changed(SrsRtcSourceDescription *desc)
+{
+    if (!desc) {
+        return false;
+    }
+
+    SrsRtcTrackDescription *adesc = desc->audio_track_desc_;
+    if (adesc && audio_tracks_.size() == 1 && audio_tracks_.begin()->first != adesc->ssrc_) {
+        return true;
+    }
+
+    if (desc->video_track_descs_.size() == 1 && video_tracks_.size() == 1) {
+        SrsRtcTrackDescription *vdesc = desc->video_track_descs_.at(0);
+        if (video_tracks_.begin()->first != vdesc->ssrc_) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // LCOV_EXCL_START
 const SrsContextId &SrsRtcPlayStream::context_id()
 {
@@ -692,6 +713,15 @@ srs_error_t SrsRtcPlayStream::cycle()
     SrsUniquePtr<SrsRtcConsumer> consumer(dynamic_cast<SrsRtcConsumer *>(consumer_raw));
 
     consumer->set_handler(this);
+
+    // A publisher that came after this player was answered, but before the consumer above was
+    // made, changed the stream with no consumer to tell, so the tracks may still be keyed by the
+    // SSRCs of the answer, such as those of a play before publishing, which no packet or keyframe
+    // request of the publisher has.
+    SrsRtcSourceDescription *desc = source->stream_desc();
+    if (source->publish_stream() && is_stream_changed(desc)) {
+        on_stream_change(desc);
+    }
 
     // TODO: FIXME: Dumps the SPS/PPS from gop cache, without other frames.
     if ((err = source->consumer_dumps(consumer.get())) != srs_success) {
