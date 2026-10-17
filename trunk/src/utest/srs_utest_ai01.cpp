@@ -4145,9 +4145,8 @@ VOID TEST(ConfigDashTest, CheckDashWindowSizeEnvironment)
 
         SrsSetEnvConfig(conf, dash_window_size1, "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "20");
 
-        // Environment should override config value
-        // Note: Due to SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS bug, env values are converted to microseconds
-        EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_dash_window_size("test.com"));
+        // Environment should override config value, as a count of segments like the directive
+        EXPECT_EQ(20, conf.get_dash_window_size("test.com"));
     }
 
     // Test environment variable with valid values
@@ -4156,10 +4155,10 @@ VOID TEST(ConfigDashTest, CheckDashWindowSizeEnvironment)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
         SrsSetEnvConfig(conf, dash_window_size2, "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "15");
-        EXPECT_EQ(15 * SRS_UTIME_SECONDS, conf.get_dash_window_size("test.com"));
+        EXPECT_EQ(15, conf.get_dash_window_size("test.com"));
 
         SrsSetEnvConfig(conf, dash_window_size3, "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "1");
-        EXPECT_EQ(1 * SRS_UTIME_SECONDS, conf.get_dash_window_size("test.com"));
+        EXPECT_EQ(1, conf.get_dash_window_size("test.com"));
     }
 
     // Test environment variable with zero and negative values
@@ -4171,7 +4170,7 @@ VOID TEST(ConfigDashTest, CheckDashWindowSizeEnvironment)
         EXPECT_EQ(0, conf.get_dash_window_size("test.com"));
 
         SrsSetEnvConfig(conf, dash_window_size5, "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "-10");
-        EXPECT_EQ(-10 * SRS_UTIME_SECONDS, conf.get_dash_window_size("test.com"));
+        EXPECT_EQ(-10, conf.get_dash_window_size("test.com"));
     }
 }
 

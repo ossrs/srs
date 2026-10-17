@@ -301,6 +301,71 @@ ISrsMpdWriter::~ISrsMpdWriter()
 {
 }
 
+// The codecs of the video representation, RFC 6381 for H.264, ISO/IEC 14496-15 Annex E
+// for HEVC, whose sample entry in the init file is hev1.
+static string srs_dash_video_codecs(SrsVideoCodecConfig *vcodec)
+{
+    if (vcodec->id_ == SrsVideoCodecIdHEVC) {
+        SrsHevcDecoderConfigurationRecord *r = &vcodec->hevc_dec_conf_record_;
+
+        string space;
+        if (r->general_profile_space_ > 0) {
+            space = string(1, (char)('A' + r->general_profile_space_ - 1));
+        }
+
+        // The 32 compatibility flags in reverse bit order.
+        uint32_t flags = 0;
+        for (int i = 0; i < 32; i++) {
+            if (r->general_profile_compatibility_flags_ & (1u << i)) {
+                flags |= 1u << (31 - i);
+            }
+        }
+
+        string codecs = srs_fmt_sprintf("hev1.%s%d.%X.%c%d", space.c_str(), r->general_profile_idc_, flags,
+                                        r->general_tier_flag_ ? 'H' : 'L', r->general_level_idc_);
+
+        // The 6 constraint bytes, without the trailing zero bytes.
+        uint8_t bytes[6];
+        int nn_bytes = 0;
+        for (int i = 0; i < 6; i++) {
+            bytes[i] = (uint8_t)(r->general_constraint_indicator_flags_ >> (8 * (5 - i)));
+            if (bytes[i]) {
+                nn_bytes = i + 1;
+            }
+        }
+        for (int i = 0; i < nn_bytes; i++) {
+            codecs += srs_fmt_sprintf(".%X", bytes[i]);
+        }
+        return codecs;
+    }
+
+    // The profile, compatibility and level bytes of the avcC.
+    if (vcodec->id_ == SrsVideoCodecIdAVC && vcodec->avc_extra_data_.size() >= 4) {
+        uint8_t *p = (uint8_t *)&vcodec->avc_extra_data_[0];
+        return srs_fmt_sprintf("avc1.%02x%02x%02x", p[1], p[2], p[3]);
+    }
+
+    return "avc1.64001e";
+}
+
+// The codecs of the audio representation, RFC 6381: mp4a.40 and the AAC object type.
+static string srs_dash_audio_codecs(SrsAudioCodecConfig *acodec)
+{
+    if (acodec->id_ == SrsAudioCodecIdAAC && acodec->aac_object_ != SrsAacObjectTypeReserved) {
+        return srs_fmt_sprintf("mp4a.40.%d", acodec->aac_object_);
+    }
+    return "mp4a.40.2";
+}
+
+// The dir of a stream's segments and init files, relative to dash_path: the stream's
+// name under the dir of the MPD, which the MPD's BaseURL points to.
+static string srs_dash_fragment_home(const string &mpd_file, ISrsRequest *r)
+{
+    SrsPath path;
+    string mpd_path = srs_path_build_stream(mpd_file, r->vhost_, r->app_, r->stream_);
+    return path.filepath_dir(mpd_path) + "/" + r->stream_;
+}
+
 SrsMpdWriter::SrsMpdWriter()
 {
     req_ = NULL;
@@ -360,9 +425,7 @@ srs_error_t SrsMpdWriter::on_publish()
     home_ = config_->get_dash_path(r->vhost_);
     mpd_file_ = config_->get_dash_mpd_file(r->vhost_);
 
-    SrsPath path;
-    string mpd_path = srs_path_build_stream(mpd_file_, req_->vhost_, req_->app_, req_->stream_);
-    fragment_home_ = path.filepath_dir(mpd_path) + "/" + req_->stream_;
+    fragment_home_ = srs_dash_fragment_home(mpd_file_, req_);
     window_size_ = config_->get_dash_window_size(r->vhost_);
 
     srs_trace("DASH: Config fragment=%dms, period=%dms, window=%d, timeshit=%dms, home=%s, mpd=%s",
@@ -390,13 +453,13 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
     string full_path = home_ + "/" + mpd_path;
     string full_home = path.filepath_dir(full_path);
 
-    fragment_home_ = path.filepath_dir(mpd_path) + "/" + req_->stream_;
+    fragment_home_ = srs_dash_fragment_home(mpd_file_, req_);
 
     if ((err = path.mkdir_all(full_home)) != srs_success) {
         return srs_error_wrap(err, "Create MPD home failed, home=%s", full_home.c_str());
     }
 
-    double last_duration = srsu2s(srs_max(vfragments->at(vfragments->size() - 1)->duration(), afragments->at(afragments->size() - 1)->duration()));
+    double last_duration = srsu2ms(srs_max(vfragments->at(vfragments->size() - 1)->duration(), afragments->at(afragments->size() - 1)->duration())) / 1000.0;
 
     stringstream ss;
     ss << "<?xml version=\"1.0\" encoding=\"utf-8\"?>" << endl
@@ -404,7 +467,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
        << "    ns1:schemaLocation=\"urn:mpeg:dash:schema:mpd:2011 DASH-MPD.xsd\" " << endl
        << "    xmlns=\"urn:mpeg:dash:schema:mpd:2011\" xmlns:ns1=\"http://www.w3.org/2001/XMLSchema-instance\" " << endl
        << "    type=\"dynamic\" " << endl
-       << "    minimumUpdatePeriod=\"PT" << srs_fmt_sprintf("%.3f", srsu2s(update_period_)) << "S\" " << endl
+       << "    minimumUpdatePeriod=\"PT" << srs_fmt_sprintf("%.3f", srsu2ms(update_period_) / 1000.0) << "S\" " << endl
        << "    timeShiftBufferDepth=\"PT" << srs_fmt_sprintf("%.3f", last_duration * window_size_) << "S\" " << endl
        << "    availabilityStartTime=\"" << srs_time_to_utc_format_str(availability_start_time_) << "\" " << endl
        << "    publishTime=\"" << srs_time_to_utc_format_str(srs_time_now_cached()) << "\" " << endl
@@ -417,7 +480,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
     if (format->acodec_ && !afragments->empty()) {
         int start_index = srs_max(0, afragments->size() - window_size_);
         ss << "        <AdaptationSet mimeType=\"audio/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
-        ss << "            <Representation id=\"audio\" bandwidth=\"48000\" codecs=\"mp4a.40.2\">" << endl;
+        ss << "            <Representation id=\"audio\" bandwidth=\"48000\" codecs=\"" << srs_dash_audio_codecs(format->acodec_) << "\">" << endl;
         ss << "                <SegmentTemplate initialization=\"$RepresentationID$-init.mp4\" "
            << "media=\"$RepresentationID$-$Number$.m4s\" "
            << "startNumber=\"" << afragments->at(start_index)->number() << "\" "
@@ -438,7 +501,7 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
         int w = format->vcodec_->width_;
         int h = format->vcodec_->height_;
         ss << "        <AdaptationSet mimeType=\"video/mp4\" segmentAlignment=\"true\" startWithSAP=\"1\">" << endl;
-        ss << "            <Representation id=\"video\" bandwidth=\"800000\" codecs=\"avc1.64001e\" " << "width=\"" << w << "\" height=\"" << h << "\">" << endl;
+        ss << "            <Representation id=\"video\" bandwidth=\"800000\" codecs=\"" << srs_dash_video_codecs(format->vcodec_) << "\" " << "width=\"" << w << "\" height=\"" << h << "\">" << endl;
         ss << "                <SegmentTemplate initialization=\"$RepresentationID$-init.mp4\" "
            << "media=\"$RepresentationID$-$Number$.m4s\" "
            << "startNumber=\"" << vfragments->at(start_index)->number() << "\" "
@@ -733,6 +796,12 @@ srs_error_t SrsDashController::on_video(SrsMediaPacket *shared_video, SrsFormat 
 
     format_ = format;
 
+    // Ignore the info frame, such as the colorInfo metadata of enhanced RTMP: it holds no
+    // picture and does not set the sample, so writing it writes stale bytes. HLS skips it too.
+    if (format->video_ && format->video_->frame_type_ == SrsVideoAvcFrameTypeVideoInfoFrame) {
+        return err;
+    }
+
     if (format->is_avc_sequence_header()) {
         return refresh_init_mp4(shared_video, format);
     }
@@ -826,7 +895,8 @@ srs_error_t SrsDashController::refresh_init_mp4(SrsMediaPacket *msg, SrsFormat *
     }
 
     SrsPath path_util;
-    string full_home = home_ + "/" + req_->app_ + "/" + req_->stream_;
+    // Beside the segments, where the MPD's BaseURL points the player.
+    string full_home = home_ + "/" + srs_dash_fragment_home(config_->get_dash_mpd_file(req_->vhost_), req_);
     if ((err = path_util.mkdir_all(full_home)) != srs_success) {
         return srs_error_wrap(err, "Create media home failed, home=%s", full_home.c_str());
     }
