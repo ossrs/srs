@@ -340,6 +340,21 @@ srs_error_t SrsRtspSource::on_source_changed()
         _source_id = id;
     }
 
+    // Notify if context id changed.
+    if (id_changed) {
+        std::vector<SrsRtspConsumer *>::iterator it;
+        for (it = consumers_.begin(); it != consumers_.end(); ++it) {
+            (*it)->update_source_id();
+        }
+    }
+
+    notify_stream_change();
+
+    return err;
+}
+
+void SrsRtspSource::notify_stream_change()
+{
     // Build stream description.
     SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
     if (audio_desc_) {
@@ -349,21 +364,11 @@ srs_error_t SrsRtspSource::on_source_changed()
         stream_desc->video_track_descs_.push_back(video_desc_->copy());
     }
 
-    // Notify all consumers.
+    // Notify all consumers about stream description.
     std::vector<SrsRtspConsumer *>::iterator it;
     for (it = consumers_.begin(); it != consumers_.end(); ++it) {
-        SrsRtspConsumer *consumer = *it;
-
-        // Notify if context id changed.
-        if (id_changed) {
-            consumer->update_source_id();
-        }
-
-        // Notify about stream description.
-        consumer->on_stream_change(stream_desc.get());
+        (*it)->on_stream_change(stream_desc.get());
     }
-
-    return err;
 }
 
 SrsContextId SrsRtspSource::source_id()
@@ -506,6 +511,9 @@ void SrsRtspSource::set_audio_desc(SrsRtcTrackDescription *audio_desc)
 {
     srs_freep(audio_desc_);
     audio_desc_ = audio_desc->copy();
+
+    // The players that stay across a republish follow its new SSRC.
+    notify_stream_change();
 }
 
 SrsRtcTrackDescription *SrsRtspSource::video_desc()
@@ -517,6 +525,9 @@ void SrsRtspSource::set_video_desc(SrsRtcTrackDescription *video_desc)
 {
     srs_freep(video_desc_);
     video_desc_ = video_desc->copy();
+
+    // The players that stay across a republish follow its new SSRC.
+    notify_stream_change();
 }
 
 SrsRtspRtpBuilder::SrsRtspRtpBuilder(ISrsRtpTarget *target, SrsSharedPtr<SrsRtspSource> source)

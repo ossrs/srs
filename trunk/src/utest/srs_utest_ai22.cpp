@@ -1647,6 +1647,7 @@ MockRtspStack::MockRtspStack()
 {
     send_message_called_ = false;
     last_response_seq_ = 0;
+    last_response_status_ = 0;
     last_response_session_ = "";
     last_response_type_ = "";
     send_message_error_ = srs_success;
@@ -1666,6 +1667,7 @@ srs_error_t MockRtspStack::send_message(SrsRtspResponse *res)
 {
     send_message_called_ = true;
     last_response_seq_ = (int)res->seq_;
+    last_response_status_ = res->status_;
     last_response_session_ = res->session_;
 
     // Determine response type by dynamic_cast
@@ -1686,9 +1688,73 @@ void MockRtspStack::reset()
 {
     send_message_called_ = false;
     last_response_seq_ = 0;
+    last_response_status_ = 0;
     last_response_session_ = "";
     last_response_type_ = "";
     srs_freep(send_message_error_);
+}
+
+MockSocketForRtspConn::MockSocketForRtspConn(bool *destroyed)
+{
+    destroyed_ = destroyed;
+}
+
+MockSocketForRtspConn::~MockSocketForRtspConn()
+{
+    if (destroyed_) {
+        *destroyed_ = true;
+    }
+}
+
+srs_error_t MockSocketForRtspConn::read_fully(void *buf, size_t size, ssize_t *nread)
+{
+    return srs_error_new(ERROR_SOCKET_READ, "mock");
+}
+
+srs_error_t MockSocketForRtspConn::read(void *buf, size_t size, ssize_t *nread)
+{
+    return srs_error_new(ERROR_SOCKET_READ, "mock");
+}
+
+void MockSocketForRtspConn::set_recv_timeout(srs_utime_t tm)
+{
+}
+
+srs_utime_t MockSocketForRtspConn::get_recv_timeout()
+{
+    return SRS_UTIME_NO_TIMEOUT;
+}
+
+int64_t MockSocketForRtspConn::get_recv_bytes()
+{
+    return 0;
+}
+
+srs_error_t MockSocketForRtspConn::write(void *buf, size_t size, ssize_t *nwrite)
+{
+    if (nwrite) {
+        *nwrite = (ssize_t)size;
+    }
+    return srs_success;
+}
+
+void MockSocketForRtspConn::set_send_timeout(srs_utime_t tm)
+{
+}
+
+srs_utime_t MockSocketForRtspConn::get_send_timeout()
+{
+    return SRS_UTIME_NO_TIMEOUT;
+}
+
+int64_t MockSocketForRtspConn::get_send_bytes()
+{
+    return 0;
+}
+
+srs_error_t MockSocketForRtspConn::writev(const iovec *iov, int iov_size, ssize_t *nwrite)
+{
+    return srs_success;
 }
 
 // MockRtspPlayStream implementation
@@ -2048,6 +2114,117 @@ VOID TEST(RtspPlayStreamTest, OnStreamChangeResetsTrackCache)
     EXPECT_EQ(2002u, play_stream->cache_ssrc0_);
     EXPECT_EQ(video_track, play_stream->cache_track0_);
     EXPECT_EQ(0u, play_stream->cache_ssrc1_);
+}
+
+// A republish makes a new RTP builder, which sets each track of the source with a new SSRC from the stream's first
+// audio and video, after the source's on_publish. A player that stays across the republish must follow those SSRCs,
+// or it drops every packet of the new publish.
+VOID TEST(RtspPlayStreamTest, RepublishTracksRekeyPlayer)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspConnection mock_session;
+    MockStatisticForRtspPlayStream mock_stat;
+    MockRtspSourceManager mock_rtsp_sources;
+    MockAppFactoryForRtspPlayStream mock_app_factory;
+    mock_rtsp_sources.mock_source_ = SrsSharedPtr<SrsRtspSource>(new SrsRtspSource());
+    SrsUniquePtr<MockEdgeRequest> mock_req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    HELPER_EXPECT_SUCCESS(source->initialize(mock_req.get()));
+
+    // The first publish sets audio 1001 and video 2001, before the player comes.
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->id_ = "audio_track";
+    audio_desc->ssrc_ = 1001;
+    audio_desc->media_ = new SrsAudioPayload(97, "MPEG4-GENERIC", 44100, 2);
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->id_ = "video_track";
+    video_desc->ssrc_ = 2001;
+    video_desc->media_ = new SrsVideoPayload(96, "H264", 90000);
+    source->set_audio_desc(audio_desc.get());
+    source->set_video_desc(video_desc.get());
+
+    // The player sets up both tracks and consumes the source.
+    SrsContextId cid;
+    SrsUniquePtr<SrsRtspPlayStream> play_stream(new SrsRtspPlayStream(&mock_session, cid));
+    play_stream->stat_ = &mock_stat;
+    play_stream->rtsp_sources_ = &mock_rtsp_sources;
+    play_stream->app_factory_ = &mock_app_factory;
+
+    std::map<uint32_t, SrsRtcTrackDescription *> sub_relations;
+    sub_relations[1001] = audio_desc.get();
+    sub_relations[2001] = video_desc.get();
+    HELPER_EXPECT_SUCCESS(play_stream->initialize(mock_req.get(), sub_relations));
+
+    SrsRtspConsumer *consumer_raw = NULL;
+    HELPER_EXPECT_SUCCESS(source->create_consumer(consumer_raw));
+    SrsUniquePtr<SrsRtspConsumer> consumer(consumer_raw);
+    consumer->set_handler(play_stream.get());
+
+    // The republish's builder sets the tracks with audio 1002 and video 2002.
+    SrsUniquePtr<SrsRtcTrackDescription> new_audio_desc(audio_desc->copy());
+    new_audio_desc->ssrc_ = 1002;
+    SrsUniquePtr<SrsRtcTrackDescription> new_video_desc(video_desc->copy());
+    new_video_desc->ssrc_ = 2002;
+    source->set_audio_desc(new_audio_desc.get());
+    source->set_video_desc(new_video_desc.get());
+
+    // The player plays the new publish's packets.
+    MockRtspSendTrack *audio_track = dynamic_cast<MockRtspSendTrack *>(play_stream->audio_tracks_[1002]);
+    MockRtspSendTrack *video_track = dynamic_cast<MockRtspSendTrack *>(play_stream->video_tracks_[2002]);
+    ASSERT_TRUE(audio_track != NULL);
+    ASSERT_TRUE(video_track != NULL);
+    EXPECT_EQ(1, (int)play_stream->audio_tracks_.size());
+    EXPECT_EQ(1, (int)play_stream->video_tracks_.size());
+
+    SrsUniquePtr<SrsRtpPacket> audio_pkt(new SrsRtpPacket());
+    audio_pkt->header_.set_ssrc(1002);
+    audio_pkt->frame_type_ = SrsFrameTypeAudio;
+    SrsRtpPacket *audio_pkt_ptr = audio_pkt.get();
+    HELPER_EXPECT_SUCCESS(play_stream->send_packet(audio_pkt_ptr));
+    EXPECT_EQ(1, audio_track->on_rtp_count_);
+
+    SrsUniquePtr<SrsRtpPacket> video_pkt(new SrsRtpPacket());
+    video_pkt->header_.set_ssrc(2002);
+    video_pkt->frame_type_ = SrsFrameTypeVideo;
+    SrsRtpPacket *video_pkt_ptr = video_pkt.get();
+    HELPER_EXPECT_SUCCESS(play_stream->send_packet(video_pkt_ptr));
+    EXPECT_EQ(1, video_track->on_rtp_count_);
+}
+
+// A track set on a source with no consumer, or with a consumer that has no handler yet, as when the
+// player has not started, is only kept.
+VOID TEST(RtspPlayStreamTest, TrackSetWithoutPlayerKept)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockEdgeRequest> req(new MockEdgeRequest("test.vhost", "live", "stream1"));
+    SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+    HELPER_EXPECT_SUCCESS(source->initialize(req.get()));
+
+    SrsUniquePtr<SrsRtcTrackDescription> audio_desc(new SrsRtcTrackDescription());
+    audio_desc->type_ = "audio";
+    audio_desc->ssrc_ = 1001;
+    audio_desc->media_ = new SrsAudioPayload(97, "MPEG4-GENERIC", 44100, 2);
+    source->set_audio_desc(audio_desc.get());
+
+    SrsRtspConsumer *consumer_raw = NULL;
+    HELPER_EXPECT_SUCCESS(source->create_consumer(consumer_raw));
+    SrsUniquePtr<SrsRtspConsumer> consumer(consumer_raw);
+
+    SrsUniquePtr<SrsRtcTrackDescription> video_desc(new SrsRtcTrackDescription());
+    video_desc->type_ = "video";
+    video_desc->ssrc_ = 2001;
+    video_desc->media_ = new SrsVideoPayload(96, "H264", 90000);
+    source->set_video_desc(video_desc.get());
+
+    ASSERT_TRUE(source->audio_desc() != NULL);
+    ASSERT_TRUE(source->video_desc() != NULL);
+    EXPECT_EQ(1001u, source->audio_desc()->ssrc_);
+    EXPECT_EQ(2001u, source->video_desc()->ssrc_);
 }
 
 VOID TEST(RtspPlayStreamTest, SendPacketWithCacheAndTrackLookup)
@@ -2847,6 +3024,373 @@ VOID TEST(RtspTcpNetworkTest, WriteRtpPacket)
 
     // Verify the payload data (starts at offset 4)
     EXPECT_EQ(0, memcmp(rtp_packet, output + 4, kRtpPacketSize));
+}
+
+// A method SRS doesn't serve, such as the GET_PARAMETER keep-alive, is answered 501 Not Implemented
+// (RFC 2326), so the client doesn't wait for an answer until its timeout. The connection serves the
+// next request, and a player it has plays on.
+VOID TEST(RtspConnectionTest, UnsupportedMethodIsAnswered)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspStack *mock_rtsp = new MockRtspStack();
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    conn->rtsp_ = mock_rtsp;
+
+    // Before any DESCRIBE, there is no session to name.
+    if (true) {
+        SrsRtspRequest *req = new SrsRtspRequest();
+        req->method_ = "GET_PARAMETER";
+        req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+        req->seq_ = 1;
+        mock_rtsp->reset();
+        HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+        EXPECT_TRUE(mock_rtsp->send_message_called_);
+        EXPECT_EQ(1, mock_rtsp->last_response_seq_);
+        EXPECT_EQ(SRS_CONSTS_RTSP_NotImplemented, mock_rtsp->last_response_status_);
+        EXPECT_TRUE(mock_rtsp->last_response_session_.empty());
+    }
+
+    // While playing: the answer names the session, and the player isn't stopped.
+    conn->session_id_ = "test_session_123";
+    MockRtspPlayStream *player = new MockRtspPlayStream();
+    conn->player_ = player;
+
+    const char *methods[] = {"GET_PARAMETER", "SET_PARAMETER", "PAUSE", "RECORD", "ANNOUNCE", "REDIRECT", "FOO"};
+    for (int i = 0; i < (int)(sizeof(methods) / sizeof(methods[0])); i++) {
+        SrsRtspRequest *req = new SrsRtspRequest();
+        req->method_ = methods[i];
+        req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+        req->seq_ = 10 + i;
+        mock_rtsp->reset();
+        HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+        EXPECT_TRUE(mock_rtsp->send_message_called_) << methods[i];
+        EXPECT_EQ(10 + i, mock_rtsp->last_response_seq_) << methods[i];
+        EXPECT_EQ(SRS_CONSTS_RTSP_NotImplemented, mock_rtsp->last_response_status_) << methods[i];
+        EXPECT_STREQ("test_session_123", mock_rtsp->last_response_session_.c_str()) << methods[i];
+        EXPECT_TRUE(player == conn->player_) << methods[i];
+        EXPECT_FALSE(player->stop_called_) << methods[i];
+    }
+
+    // The connection serves the next request.
+    if (true) {
+        SrsRtspRequest *req = new SrsRtspRequest();
+        req->method_ = "OPTIONS";
+        req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+        req->seq_ = 20;
+        mock_rtsp->reset();
+        HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+        EXPECT_EQ(20, mock_rtsp->last_response_seq_);
+        EXPECT_EQ(SRS_CONSTS_RTSP_OK, mock_rtsp->last_response_status_);
+    }
+
+    // An answer that can't be sent ends the connection, as for the other methods.
+    if (true) {
+        SrsRtspRequest *req = new SrsRtspRequest();
+        req->method_ = "GET_PARAMETER";
+        req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+        req->seq_ = 21;
+        mock_rtsp->reset();
+        mock_rtsp->send_message_error_ = srs_error_new(ERROR_SOCKET_WRITE, "write");
+        HELPER_EXPECT_FAILED(conn->on_rtsp_request(req));
+        EXPECT_FALSE(player->stop_called_);
+    }
+
+    conn->rtsp_ = NULL;
+    srs_freep(mock_rtsp);
+}
+
+// The listener hands the connection the client's socket, and nothing else frees it, so the
+// connection must: freeing it closes the TCP connection. Otherwise a client whose session SRS ended,
+// on a request it can't parse or a DELETE through the API, waits for the close forever, and SRS
+// keeps the socket. The TCP network a SETUP made writes to the same socket and doesn't own it.
+VOID TEST(RtspConnectionTest, DestructorFreesSocket)
+{
+    // A connection that served no request.
+    if (true) {
+        bool destroyed = false;
+        SrsRtspConnection *conn = new SrsRtspConnection(NULL, new MockSocketForRtspConn(&destroyed), "127.0.0.1", 8554);
+        EXPECT_FALSE(destroyed);
+        srs_freep(conn);
+        EXPECT_TRUE(destroyed);
+    }
+
+    // A connection with a TCP network on the socket: the socket is freed once, after the network.
+    if (true) {
+        bool destroyed = false;
+        SrsRtspConnection *conn = new SrsRtspConnection(NULL, new MockSocketForRtspConn(&destroyed), "127.0.0.1", 8554);
+        conn->networks_[1001] = new SrsRtspTcpNetwork(conn->skt_, 0);
+        srs_freep(conn);
+        EXPECT_TRUE(destroyed);
+    }
+}
+
+// Mock ISrsAppConfig with an on_play and an on_stop hook, for the RTSP player's hook pairs.
+class MockAppConfigForRtspOnStop : public MockAppConfigForHttpHooksOnPlay
+{
+public:
+    SrsConfDirective *on_stop_directive_;
+
+public:
+    MockAppConfigForRtspOnStop()
+    {
+        http_hooks_enabled_ = true;
+        on_play_directive_ = new SrsConfDirective();
+        on_play_directive_->name_ = "on_play";
+        on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/play");
+        on_stop_directive_ = new SrsConfDirective();
+        on_stop_directive_->name_ = "on_stop";
+        on_stop_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/stop");
+    }
+    virtual ~MockAppConfigForRtspOnStop()
+    {
+        srs_freep(on_stop_directive_);
+    }
+
+public:
+    virtual SrsConfDirective *get_vhost_on_stop(std::string vhost)
+    {
+        return on_stop_directive_;
+    }
+};
+
+// Mock ISrsHttpHooks that records the order of on_play and on_stop, and what each on_stop names.
+class MockHttpHooksForRtspOnStop : public MockHttpHooksForOnPlay
+{
+public:
+    // The hooks in the order they came, such as "on_play" and "on_stop".
+    std::vector<std::string> actions_;
+    std::vector<std::string> on_stop_urls_;
+    std::vector<std::string> on_stop_streams_;
+    std::vector<std::string> on_stop_params_;
+
+public:
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req)
+    {
+        actions_.push_back("on_play");
+        return MockHttpHooksForOnPlay::on_play(url, req);
+    }
+    virtual void on_stop(std::string url, ISrsRequest *req)
+    {
+        actions_.push_back("on_stop");
+        on_stop_urls_.push_back(url);
+        on_stop_streams_.push_back(req->stream_);
+        on_stop_params_.push_back(req->param_);
+    }
+};
+
+// An RTSP connection with the mocks for its hooks, and a source with a video track so DESCRIBE
+// answers 200.
+class RtspOnStopFixture
+{
+public:
+    MockAppConfigForRtspOnStop config_;
+    MockHttpHooksForRtspOnStop hooks_;
+    MockSecurity security_;
+    MockRtspSourceManager sources_;
+    MockRtspStack *rtsp_;
+    SrsUniquePtr<SrsRtspConnection> conn_;
+
+public:
+    RtspOnStopFixture() : conn_(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554))
+    {
+        SrsSharedPtr<SrsRtspSource> source(new SrsRtspSource());
+        SrsRtcTrackDescription *video_desc = new SrsRtcTrackDescription();
+        video_desc->type_ = "video";
+        video_desc->ssrc_ = 2001;
+        video_desc->media_ = new SrsVideoPayload(96, "H264", 90000);
+        source->video_desc_ = video_desc;
+        sources_.mock_source_ = source;
+
+        rtsp_ = new MockRtspStack();
+        srs_freep(conn_->rtsp_);
+        conn_->rtsp_ = rtsp_;
+        conn_->config_ = &config_;
+        conn_->security_ = &security_;
+        conn_->hooks_ = &hooks_;
+        conn_->rtsp_sources_ = &sources_;
+        conn_->session_id_ = "session1";
+    }
+    ~RtspOnStopFixture()
+    {
+        conn_->config_ = NULL;
+        conn_->security_ = NULL;
+        conn_->hooks_ = NULL;
+        conn_->rtsp_sources_ = NULL;
+    }
+
+public:
+    srs_error_t request(std::string method, std::string uri)
+    {
+        SrsRtspRequest *req = new SrsRtspRequest();
+        req->method_ = method;
+        req->uri_ = uri;
+        req->seq_ = 1;
+        return conn_->on_rtsp_request(req);
+    }
+};
+
+// An RTSP player gets on_play at DESCRIBE, so it must get on_stop when it leaves, as every other
+// player does, or a hook server that counts viewers never sees it go. TEARDOWN ends the play: its
+// on_stop names the stream and param of the on_play, and the connection's end sends no second one.
+VOID TEST(RtspConnectionTest, OnStopAtTeardownAfterOnPlay)
+{
+    srs_error_t err = srs_success;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1?k=v"));
+    EXPECT_EQ(200, f.rtsp_->last_response_status_);
+    ASSERT_EQ(1, (int)f.hooks_.actions_.size());
+
+    HELPER_EXPECT_SUCCESS(f.request("TEARDOWN", "rtsp://127.0.0.1:8554/live/stream1?k=v"));
+    ASSERT_EQ(2, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[0].c_str());
+    EXPECT_STREQ("on_stop", f.hooks_.actions_[1].c_str());
+    EXPECT_STREQ("http://127.0.0.1:8085/api/v1/stop", f.hooks_.on_stop_urls_[0].c_str());
+    EXPECT_STREQ("stream1", f.hooks_.on_stop_streams_[0].c_str());
+    EXPECT_STREQ("?k=v", f.hooks_.on_stop_params_[0].c_str());
+
+    // The connection ends after the TEARDOWN: cycle() tears down again, with no second on_stop.
+    HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
+    EXPECT_EQ(2, (int)f.hooks_.actions_.size());
+}
+
+// A player that closes its connection without TEARDOWN, or that SRS drops, gets on_stop when the
+// connection ends, with its player stopped first.
+VOID TEST(RtspConnectionTest, OnStopAtCloseWithoutTeardown)
+{
+    srs_error_t err = srs_success;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+
+    MockRtspPlayStream *player = new MockRtspPlayStream();
+    f.conn_->player_ = player;
+
+    // What cycle() calls when the client has closed.
+    HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
+    EXPECT_TRUE(f.conn_->player_ == NULL);
+    ASSERT_EQ(2, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_stop", f.hooks_.actions_[1].c_str());
+    EXPECT_STREQ("stream1", f.hooks_.on_stop_streams_[0].c_str());
+}
+
+// No on_stop without an on_play that passed: a connection that never DESCRIBEs, and a player the
+// on_play hook refuses, which a hook server never counted.
+VOID TEST(RtspConnectionTest, NoOnStopWithoutOnPlay)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        RtspOnStopFixture f;
+        HELPER_EXPECT_SUCCESS(f.request("OPTIONS", "rtsp://127.0.0.1:8554/live/stream1"));
+        HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
+        EXPECT_EQ(0, (int)f.hooks_.actions_.size());
+    }
+
+    if (true) {
+        RtspOnStopFixture f;
+        f.hooks_.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code 401");
+        HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+        EXPECT_EQ(SRS_CONSTS_RTSP_InternalServerError, f.rtsp_->last_response_status_);
+
+        HELPER_EXPECT_SUCCESS(f.request("TEARDOWN", "rtsp://127.0.0.1:8554/live/stream1"));
+        HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
+        ASSERT_EQ(1, (int)f.hooks_.actions_.size());
+        EXPECT_STREQ("on_play", f.hooks_.actions_[0].c_str());
+    }
+}
+
+// Each DESCRIBE asks on_play again, maybe of another stream, so each on_play gets its on_stop: a
+// second DESCRIBE stops the first one's play before it asks for its own.
+VOID TEST(RtspConnectionTest, RepeatedDescribeStopsPreviousPlay)
+{
+    srs_error_t err = srs_success;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream2"));
+    HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
+
+    ASSERT_EQ(4, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[0].c_str());
+    EXPECT_STREQ("on_stop", f.hooks_.actions_[1].c_str());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[2].c_str());
+    EXPECT_STREQ("on_stop", f.hooks_.actions_[3].c_str());
+    EXPECT_STREQ("stream1", f.hooks_.on_stop_streams_[0].c_str());
+    EXPECT_STREQ("stream2", f.hooks_.on_stop_streams_[1].c_str());
+}
+
+// The body of a request, its Content-Length bytes after the headers, is read with it, so the next
+// request parses as a request, not the body: an SDP or parameters, a body longer than one read,
+// and a body whose first byte is the '$' of an interleaved frame.
+VOID TEST(RtspStackTest, RequestBodyIsNotTheNextRequest)
+{
+    srs_error_t err = srs_success;
+
+    std::string sdp = "v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=-\r\nm=video 0 RTP/AVP 96\r\na=rtpmap:96 H264/90000\r\n";
+    std::string params = "foo: bar\r\n";
+    std::string large(5000, 'x');
+    std::string interleaved("$\x01\x00\x04"
+                            "abcd",
+                            8);
+    std::string bodies[] = {sdp, params, large, interleaved};
+    const char *methods[] = {"ANNOUNCE", "SET_PARAMETER", "SET_PARAMETER", "GET_PARAMETER"};
+
+    for (int i = 0; i < 4; i++) {
+        MockBufferIO bio;
+        SrsRtspStack stack(&bio);
+
+        std::stringstream ss;
+        ss << methods[i] << " rtsp://127.0.0.1/live/stream RTSP/1.0\r\n"
+           << "CSeq: 2\r\n"
+           << "Content-Length: " << bodies[i].length() << "\r\n\r\n"
+           << bodies[i]
+           << "OPTIONS rtsp://127.0.0.1/live/stream RTSP/1.0\r\n"
+           << "CSeq: 3\r\n\r\n";
+        std::string data = ss.str();
+        bio.in_buffer.append(data.data(), (int)data.length());
+
+        SrsRtspRequest *req = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&req));
+        SrsUniquePtr<SrsRtspRequest> req_uptr(req);
+        EXPECT_STREQ(methods[i], req->method_.c_str()) << i;
+        EXPECT_EQ(2, req->seq_) << i;
+        EXPECT_EQ((long)bodies[i].length(), req->content_length_) << i;
+
+        SrsRtspRequest *next = NULL;
+        HELPER_ASSERT_SUCCESS(stack.recv_message(&next));
+        SrsUniquePtr<SrsRtspRequest> next_uptr(next);
+        EXPECT_TRUE(next->is_options()) << i;
+        EXPECT_EQ(3, next->seq_) << i;
+        EXPECT_EQ(0, next->content_length_) << i;
+        EXPECT_EQ(0, bio.in_buffer.length()) << i;
+    }
+
+    // A connection that ends inside the body fails the request.
+    if (true) {
+        MockBufferIO bio;
+        SrsRtspStack stack(&bio);
+        const char *data = "SET_PARAMETER rtsp://127.0.0.1/live/stream RTSP/1.0\r\nCSeq: 2\r\nContent-Length: 20\r\n\r\nfoo: bar\r\n";
+        bio.in_buffer.append(data, strlen(data));
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_FAILED(stack.recv_message(&req));
+        EXPECT_TRUE(req == NULL);
+    }
+
+    // A Content-Length that is not a length fails the request.
+    if (true) {
+        MockBufferIO bio;
+        SrsRtspStack stack(&bio);
+        const char *data = "SET_PARAMETER rtsp://127.0.0.1/live/stream RTSP/1.0\r\nCSeq: 2\r\nContent-Length: -1\r\n\r\n"
+                           "OPTIONS rtsp://127.0.0.1/live/stream RTSP/1.0\r\nCSeq: 3\r\n\r\n";
+        bio.in_buffer.append(data, strlen(data));
+
+        SrsRtspRequest *req = NULL;
+        HELPER_EXPECT_FAILED(stack.recv_message(&req));
+        EXPECT_TRUE(req == NULL);
+    }
 }
 #endif
 

@@ -180,6 +180,8 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     // The stream source changed.
     virtual srs_error_t on_source_changed();
+    // Tell the consumers the tracks of the stream, with their SSRCs.
+    virtual void notify_stream_change();
 
 public:
     // Get current source id.
@@ -212,6 +214,8 @@ public:
 
 public:
     SrsRtcTrackDescription *audio_desc();
+    // Set a track and tell the consumers: a publish sets its tracks from its first frames, after
+    // on_publish, with new SSRCs.
     void set_audio_desc(SrsRtcTrackDescription *audio_desc);
     SrsRtcTrackDescription *video_desc();
     void set_video_desc(SrsRtcTrackDescription *video_desc);

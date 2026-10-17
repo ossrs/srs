@@ -175,6 +175,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     std::string session_id_;
     SrsSharedPtr<SrsRtspSource> source_;
     ISrsEphemeralDelta *delta_;
+    // The client's socket, owned: freed by the destructor, which closes the connection.
     ISrsProtocolReadWriter *skt_;
     ISrsSecurity *security_;
     iovec *cache_iov_;
@@ -184,6 +185,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // key: ssrc
     std::map<uint32_t, ISrsStreamWriter *> networks_;
     ISrsRtspPlayStream *player_;
+    // Whether an on_play passed for request_, so the play owes the hook server its on_stop.
+    bool on_play_passed_;
 
 public:
     SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWriter *skt, std::string cip, int port);
@@ -247,6 +250,8 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t http_hooks_on_play(ISrsRequest *req);
+    // Send the on_stop of the last on_play that passed, once.
+    void http_hooks_on_stop();
     srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t *ssrc);
 };
 

@@ -401,6 +401,7 @@ SrsRtspConnection::SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWr
     skt_ = skt;
     source_ = NULL;
     player_ = NULL;
+    on_play_passed_ = false;
 
     cache_iov_ = new iovec();
     cache_iov_->iov_base = new char[kRtpPacketSize];
@@ -451,6 +452,10 @@ SrsRtspConnection::~SrsRtspConnection()
         srs_freep(cache_iov_);
     }
     srs_freep(cache_buffer_);
+
+    // The connection owns the client's socket, which the stack and the TCP networks only borrow, so
+    // free it after them; this closes the TCP connection.
+    srs_freep(skt_);
 
     rtsp_manager_ = NULL;
     stat_ = NULL;
@@ -693,6 +698,16 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
             return srs_error_wrap(err, "teardown");
         }
         srs_trace("RTSP: TEARDOWN cseq=%ld, session=%s, streaming stopped", req->seq_, session_id_.c_str());
+    } else {
+        // Answer a method SRS doesn't serve, such as the GET_PARAMETER keep-alive, with 501 Not
+        // Implemented (RFC 2326), or the client waits for an answer until its timeout.
+        SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+        res->status_ = SRS_CONSTS_RTSP_NotImplemented;
+        res->session_ = session_id_;
+        if ((err = rtsp_->send_message(res.get())) != srs_success) {
+            return srs_error_wrap(err, "response %s", req->method_.c_str());
+        }
+        srs_warn("RTSP: %s cseq=%ld not implemented, session=%s", req->method_.c_str(), req->seq_, session_id_.c_str());
     }
 
     return err;
@@ -746,6 +761,11 @@ void SrsRtspConnection::alive()
 srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp)
 {
     srs_error_t err = srs_success;
+
+    // Each DESCRIBE asks on_play again, maybe of another stream, so stop the play of the last one
+    // first: each on_play gets its on_stop, while request_ still names its stream.
+    http_hooks_on_stop();
+
     srs_net_url_parse_rtmp_url(req->uri_, request_->tcUrl_, request_->stream_);
 
     srs_net_url_parse_tcurl(request_->tcUrl_, request_->schema_, request_->host_, request_->vhost_,
@@ -764,6 +784,7 @@ srs_error_t SrsRtspConnection::do_describe(SrsRtspRequest *req, std::string &sdp
     if ((err = http_hooks_on_play(request_)) != srs_success) {
         return srs_error_wrap(err, "RTSP: http_hooks_on_play");
     }
+    on_play_passed_ = true;
 
     if ((err = rtsp_sources_->fetch_or_create(request_, source_)) != srs_success) {
         return srs_error_wrap(err, "create source");
@@ -905,10 +926,16 @@ srs_error_t SrsRtspConnection::do_play(SrsRtspRequest *req, SrsRtspConnection *c
 
 srs_error_t SrsRtspConnection::do_teardown()
 {
+    // Stop the player first, so it sends nothing after its on_stop, but free it after, so the
+    // on_stop still counts it in the stream's clients, as every other player's does.
     if (player_) {
         player_->stop();
-        srs_freep(player_);
     }
+
+    // A TEARDOWN, or the end of the connection: the client closed it, or SRS dropped it.
+    http_hooks_on_stop();
+
+    srs_freep(player_);
 
     return srs_success;
 }
@@ -944,6 +971,37 @@ srs_error_t SrsRtspConnection::http_hooks_on_play(ISrsRequest *req)
     }
 
     return err;
+}
+
+void SrsRtspConnection::http_hooks_on_stop()
+{
+    if (!on_play_passed_) {
+        return;
+    }
+    on_play_passed_ = false;
+
+    ISrsRequest *req = request_;
+    if (!config_->get_vhost_http_hooks_enabled(req->vhost_)) {
+        return;
+    }
+
+    // The hooks switch context, so copy the URLs, for a reload may free the directive.
+    std::vector<std::string> hooks;
+
+    if (true) {
+        SrsConfDirective *conf = config_->get_vhost_on_stop(req->vhost_);
+
+        if (!conf) {
+            return;
+        }
+
+        hooks = conf->args_;
+    }
+
+    for (int i = 0; i < (int)hooks.size(); i++) {
+        std::string url = hooks.at(i);
+        hooks_->on_stop(url, req);
+    }
 }
 
 srs_error_t SrsRtspConnection::get_ssrc_by_stream_id(uint32_t stream_id, uint32_t *ssrc)

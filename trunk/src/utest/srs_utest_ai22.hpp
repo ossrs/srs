@@ -421,6 +421,7 @@ class MockRtspStack : public ISrsRtspStack
 public:
     bool send_message_called_;
     int last_response_seq_;
+    int last_response_status_;
     std::string last_response_session_;
     std::string last_response_type_; // "OPTIONS", "DESCRIBE", "SETUP", "PLAY", "TEARDOWN"
     srs_error_t send_message_error_;
@@ -457,6 +458,31 @@ public:
     virtual void stop();
     virtual void set_all_tracks_status(bool status);
     void reset();
+};
+
+// Mock ISrsProtocolReadWriter for testing that SrsRtspConnection frees the client's socket, which
+// closes the TCP connection. It reports its own destruction through a flag the test owns.
+class MockSocketForRtspConn : public ISrsProtocolReadWriter
+{
+public:
+    // Set to true by the destructor, so a test can prove the socket was freed. Borrowed, not owned.
+    bool *destroyed_;
+
+public:
+    MockSocketForRtspConn(bool *destroyed);
+    virtual ~MockSocketForRtspConn();
+
+public:
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
+    virtual int64_t get_send_bytes();
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
 };
 #endif
 
