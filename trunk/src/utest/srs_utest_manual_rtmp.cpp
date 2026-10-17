@@ -3154,6 +3154,31 @@ VOID TEST(ProtocolRTMPTest, ConvertLegacyRtmpUrl)
     }
 }
 
+VOID TEST(ProtocolRTMPTest, ConvertLegacyRtmpUrlJoinsStreamQuery)
+{
+    // The stream has a query of its own: both queries join into one, by &.
+    if (true) {
+        string url = "rtmp://127.0.0.1/live?k1=v1/livestream?k2=v2";
+        EXPECT_STREQ("rtmp://127.0.0.1/live/livestream?k1=v1&k2=v2", srs_net_url_convert_legacy_rtmp_url(url).c_str());
+    }
+
+    // Several keys in each query.
+    if (true) {
+        string url = "rtmp://127.0.0.1/live/sub?vhost=demo.com&a=1/livestream?b=2&c=3";
+        EXPECT_STREQ("rtmp://127.0.0.1/live/sub/livestream?vhost=demo.com&a=1&b=2&c=3", srs_net_url_convert_legacy_rtmp_url(url).c_str());
+    }
+
+    // An empty query on either side adds no empty key.
+    if (true) {
+        string url = "rtmp://127.0.0.1/live?/livestream?k2=v2";
+        EXPECT_STREQ("rtmp://127.0.0.1/live/livestream?k2=v2", srs_net_url_convert_legacy_rtmp_url(url).c_str());
+    }
+    if (true) {
+        string url = "rtmp://127.0.0.1/live?k1=v1/livestream?";
+        EXPECT_STREQ("rtmp://127.0.0.1/live/livestream?k1=v1", srs_net_url_convert_legacy_rtmp_url(url).c_str());
+    }
+}
+
 VOID TEST(ProtocolRTMPTest, GenerateURL)
 {
     if (true) {
@@ -3831,4 +3856,31 @@ VOID TEST(ReproduceIssue4622, SameParamInTcUrlAndPublishStream)
     EXPECT_STREQ("live", app.c_str());
     EXPECT_STREQ("livestream2", stream.c_str());
     EXPECT_STREQ("?token=tokenGoesHere", param.c_str());
+}
+
+VOID TEST(ProtocolRTMPTest, ParamsInTcUrlAndPublishStreamJoined)
+{
+    // A param on the tcUrl and another on the publish stream: the request's
+    // param has both keys, in one query.
+    if (true) {
+        string app, stream, param;
+        srs_utest_issue4622_discover("rtmp://localhost:1935/live?k1=v1", "livestream?k2=v2", app, stream, param);
+
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
+        EXPECT_STREQ("?k1=v1&k2=v2", param.c_str());
+    }
+
+    // The vhost on the tcUrl is kept when the stream has a param.
+    if (true) {
+        string tcUrl = "rtmp://127.0.0.1/live?vhost=demo.com", stream = "livestream?token=abc";
+        string schema, host, vhost, app, param;
+        int port = 0;
+        srs_net_url_parse_tcurl(tcUrl, schema, host, vhost, app, stream, port, param);
+
+        EXPECT_STREQ("demo.com", vhost.c_str());
+        EXPECT_STREQ("live", app.c_str());
+        EXPECT_STREQ("livestream", stream.c_str());
+        EXPECT_STREQ("?vhost=demo.com&token=abc", param.c_str());
+    }
 }

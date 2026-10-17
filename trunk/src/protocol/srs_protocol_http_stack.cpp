@@ -1326,6 +1326,15 @@ string SrsHttpUri::get_query()
     return query_;
 }
 
+string SrsHttpUri::get_request_target()
+{
+    string target = path_.empty() ? "/" : path_;
+    if (!query_.empty()) {
+        target += "?" + query_;
+    }
+    return target;
+}
+
 string SrsHttpUri::get_query_by_key(std::string key)
 {
     map<string, string>::iterator it = query_values_.find(key);

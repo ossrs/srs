@@ -769,6 +769,8 @@ public:
     srs_error_t initialize_error_;
     srs_error_t post_error_;
     bool should_delete_response_;
+    // Where post() copies the request path, because do_heartbeat() frees the client.
+    std::string *path_out_;
 
 public:
     MockHttpClientForHeartbeat();

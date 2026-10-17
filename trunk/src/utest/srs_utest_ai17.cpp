@@ -4456,3 +4456,36 @@ VOID TEST(HttpHooksTest, OnForwardBackendSuccess)
     hooks->stat_ = NULL;
     mock_factory->mock_http_client_ = NULL;
 }
+
+// A hook url with a query and no path posts to the root with its query, since
+// a request line must start its target with a slash; with a path, to the path.
+VOID TEST(HttpHooksTest, DoPostQueryWithoutPath)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsHttpHooks> hooks(new SrsHttpHooks());
+
+    if (true) {
+        MockHttpClientForHooks client;
+        MockHttpMessageForHooks *msg = new MockHttpMessageForHooks();
+        msg->body_content_ = "{\"code\":0}";
+        client.mock_response_ = msg;
+
+        int code = 0;
+        string res;
+        HELPER_EXPECT_SUCCESS(hooks->do_post(&client, "http://127.0.0.1:8085?token=abc", "{}", code, res));
+        EXPECT_STREQ("/?token=abc", client.path_.c_str());
+    }
+
+    if (true) {
+        MockHttpClientForHooks client;
+        MockHttpMessageForHooks *msg = new MockHttpMessageForHooks();
+        msg->body_content_ = "{\"code\":0}";
+        client.mock_response_ = msg;
+
+        int code = 0;
+        string res;
+        HELPER_EXPECT_SUCCESS(hooks->do_post(&client, "http://127.0.0.1:8085/api/v1/streams?token=abc", "{}", code, res));
+        EXPECT_STREQ("/api/v1/streams?token=abc", client.path_.c_str());
+    }
+}

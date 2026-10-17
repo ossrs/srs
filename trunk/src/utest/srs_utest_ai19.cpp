@@ -3643,6 +3643,7 @@ MockHttpClientForHeartbeat::MockHttpClientForHeartbeat()
     initialize_error_ = srs_success;
     post_error_ = srs_success;
     should_delete_response_ = true;
+    path_out_ = NULL;
 }
 
 MockHttpClientForHeartbeat::~MockHttpClientForHeartbeat()
@@ -3672,6 +3673,9 @@ srs_error_t MockHttpClientForHeartbeat::post(std::string path, std::string req, 
     post_called_ = true;
     path_ = path;
     request_body_ = req;
+    if (path_out_) {
+        *path_out_ = path;
+    }
     if (ppmsg && mock_response_) {
         *ppmsg = (ISrsHttpMessage *)mock_response_;
     }
@@ -4031,6 +4035,67 @@ VOID TEST(HttpHeartbeatTest, DoHeartbeatWithAllPortsEnabled)
     heartbeat->config_ = NULL;
     heartbeat->app_factory_ = NULL;
     mock_factory->mock_http_client_ = NULL; // Already deleted by do_heartbeat()
+}
+
+// Run one heartbeat to the url, and return the path it was posted to.
+static srs_error_t heartbeat_post_path(std::string url, std::string *path)
+{
+    MockAppConfigForHeartbeat config;
+    config.heartbeat_url_ = url;
+
+    MockHttpMessageForHeartbeat *response = new MockHttpMessageForHeartbeat();
+    response->body_content_ = "{\"code\":0}";
+
+    MockHttpClientForHeartbeat *client = new MockHttpClientForHeartbeat();
+    client->mock_response_ = response;
+    client->path_out_ = path;
+
+    MockAppFactoryForHeartbeat factory;
+    factory.mock_http_client_ = client;
+
+    SrsUniquePtr<SrsHttpHeartbeat> heartbeat(new SrsHttpHeartbeat());
+    heartbeat->config_ = &config;
+    heartbeat->app_factory_ = &factory;
+
+    // The client and its response are freed by do_heartbeat().
+    srs_error_t err = heartbeat->do_heartbeat();
+    factory.mock_http_client_ = NULL;
+
+    heartbeat->config_ = NULL;
+    heartbeat->app_factory_ = NULL;
+    return err;
+}
+
+// The heartbeat keeps its url's query, as the hooks do, since a receiver may
+// take a token or an id from it.
+VOID TEST(HttpHeartbeatTest, DoHeartbeatPostsUrlQuery)
+{
+    srs_error_t err;
+
+    std::string path;
+    HELPER_EXPECT_SUCCESS(heartbeat_post_path("http://127.0.0.1:8085/api/v1/heartbeat?k1=v1&k2=v2", &path));
+    EXPECT_STREQ("/api/v1/heartbeat?k1=v1&k2=v2", path.c_str());
+}
+
+// A url without a query is posted to its path alone, with no "?".
+VOID TEST(HttpHeartbeatTest, DoHeartbeatPostsPathWithoutQuery)
+{
+    srs_error_t err;
+
+    std::string path;
+    HELPER_EXPECT_SUCCESS(heartbeat_post_path("http://127.0.0.1:8085/api/v1/heartbeat", &path));
+    EXPECT_STREQ("/api/v1/heartbeat", path.c_str());
+}
+
+// A url with a query and no path is posted to the root with its query, since
+// a request line must start its target with a slash.
+VOID TEST(HttpHeartbeatTest, DoHeartbeatPostsQueryWithoutPath)
+{
+    srs_error_t err;
+
+    std::string path;
+    HELPER_EXPECT_SUCCESS(heartbeat_post_path("http://127.0.0.1:8085?k1=v1&k2=v2", &path));
+    EXPECT_STREQ("/?k1=v1&k2=v2", path.c_str());
 }
 
 VOID TEST(ReferTest, CheckReferWithMatchingDomain)

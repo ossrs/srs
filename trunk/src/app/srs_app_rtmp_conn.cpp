@@ -497,6 +497,11 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
         return srs_error_wrap(err, "rtmp: identify client");
     }
 
+    // A publish or play again on this connection, such as an FMLE republish, finds the param of the
+    // last one here, which is in neither the tcUrl nor the new stream name, so the parse would append
+    // it again.
+    req->param_ = "";
+
     srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
 
     // LCOV_EXCL_START

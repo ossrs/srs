@@ -715,6 +715,9 @@ public:
     virtual int get_port();
     virtual std::string get_path();
     virtual std::string get_query();
+    // The path and the query to request the url with, such as /api?k=v; the
+    // path is / when the url has none.
+    virtual std::string get_request_target();
     virtual std::string get_query_by_key(std::string key);
     virtual std::string get_fragment();
     virtual std::string username();
