@@ -103,10 +103,10 @@ func srtThrough(c *check.C, srs *server.Server, path, file string, d time.Durati
 	c.Must(srt.NewSender(f).SendThrough(conn, d+srtLead), "publish the media")
 }
 
-// playHLSWithin plays HLS until u, for at most d.
+// playHLSWithin plays HLS until u, for at most d scaled by the limit scale.
 func playHLSWithin(c *check.C, url string, u report.Until, d time.Duration) *report.Report {
 	c.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), d)
+	ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(d))
 	defer cancel()
 	r, err := hls.PlayHTTP(ctx, httpClient, url, u)
 	c.Must(err, "play")

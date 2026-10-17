@@ -280,14 +280,14 @@ var (
 
 	// gbDashPlayer plays GbSegments' DASH: the first 2s segment, once the
 	// second HLS segment, which ends at 3s, is there: SRS has written the MPD
-	// at 2s.
+	// at 2s, so the play waits 100ms scaled by the limit scale.
 	gbDashPlayer = convertPlayer{
 		name: "Dash", video: same("h264", "hevc"), audio: same("aac"),
 		play: func(c *check.C, srs *server.Server, src convertSource, file string, w convertWant) *report.Report {
 			path := "live/" + streamName(c)
 			src.through(c, srs, path, file, rtcToRtmpDashSegment+time.Second)
 			waitPlaylist(c, httpClient, flvURL(srs, path+".m3u8"), hasSegment(1))
-			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(100*time.Millisecond))
 			defer cancel()
 			r, err := dash.PlayHTTP(ctx, httpClient, flvURL(srs, path+".mpd"), segmentsOf(w, 1500*time.Millisecond))
 			c.Must(err, "play")

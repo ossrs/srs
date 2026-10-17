@@ -760,13 +760,16 @@ func apiCounts(t *testing.T) {
 		defer cancel()
 		_, err := pub.Unpublish(ctx)
 		c.Must(err, "unpublish")
-		// SRS answers the deleteStream after the unpublish, and sends the
-		// player what it had, so both read until SRS is idle: their counts
-		// then have every byte SRS sent them.
-		c.Must(readUntilIdle(pub, rtmpIdle, time.Second), "read the publisher")
+		// SRS answers the deleteStream, a 33-byte _result, after its
+		// on_unpublish hook, and sends the player what it had, so both read
+		// until SRS is idle: their counts then have every byte SRS sent them.
+		// The idle is scaled: on a busy runner the answer came after 100ms,
+		// and the publisher, closed by then, never counted it.
+		idle, wait := check.Scaled(rtmpIdle), check.Scaled(time.Second)
+		c.Must(readUntilIdle(pub, idle, wait), "read the publisher")
 		pub.Close()
 		c.Must(untilGone(c, srs, "/api/v1/clients/"+pubID), "the publisher leaves")
-		c.Must(readUntilIdle(player, rtmpIdle, time.Second), "read the player")
+		c.Must(readUntilIdle(player, idle, wait), "read the player")
 		sent, got := pub.BytesSent(), pub.BytesReceived()
 
 		st := apiStreamOf(c, srs, streamID)

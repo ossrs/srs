@@ -474,12 +474,12 @@ func hasSegment(seq int) func(*hls.Playlist) bool {
 }
 
 // waitPlaylist fetches an HLS URL, a master playlist or a media one, every
-// 10ms until its media playlist is ok, for at most 1s, and returns it with
-// its URL. Once it has the media playlist's URL, it fetches only that, so
-// it stays in one hls_ctx session.
+// 10ms until its media playlist is ok, for at most 1s scaled by the limit
+// scale, and returns it with its URL. Once it has the media playlist's URL,
+// it fetches only that, so it stays in one hls_ctx session.
 func waitPlaylist(c *check.C, client *http.Client, raw string, ok func(*hls.Playlist) bool) (*hls.Playlist, string) {
 	c.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(time.Second))
 	defer cancel()
 	var last *hls.Playlist
 	var err error

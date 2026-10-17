@@ -749,11 +749,13 @@ func rtspPlay(c *check.C, srs *server.Server, path string, opts *rtsp.Options) *
 
 // rtspPlayURL plays an RTSP URL until the case ends. SRS has the stream's
 // tracks once it has read the publisher's sequence headers, so a DESCRIBE
-// that comes first, and gets 404, is sent again, for at most 300ms, as a
-// player that waits for a stream does.
+// that comes first, and gets 404, is sent again, for at most 300ms scaled by
+// the limit scale, as a player that waits for a stream does. A GB stream's
+// tracks come later: SRS first connects the session's RTMP output, after its
+// on_connect hook.
 func rtspPlayURL(c *check.C, url string, opts *rtsp.Options) *rtsp.Player {
 	c.Helper()
-	deadline := time.Now().Add(300 * time.Millisecond)
+	deadline := time.Now().Add(check.Scaled(300 * time.Millisecond))
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		p, err := rtsp.Play(ctx, url, opts)
@@ -769,10 +771,11 @@ func rtspPlayURL(c *check.C, url string, opts *rtsp.Options) *rtsp.Player {
 	}
 }
 
-// rtspUntil waits until a player's report meets u, for at most 1s.
+// rtspUntil waits until a player's report meets u, for at most 1s scaled by
+// the limit scale.
 func rtspUntil(c *check.C, p *rtsp.Player, u report.Until) *report.Report {
 	c.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(time.Second))
 	defer cancel()
 	r, err := p.Until(ctx, u)
 	c.Must(err, "play")

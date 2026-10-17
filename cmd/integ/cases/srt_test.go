@@ -400,10 +400,11 @@ func srtAnalyze(c *check.C, play *srt.Conn) *report.Report {
 	return srtAnalyzeUntil(c, play, srtPlayedUntil, time.Second)
 }
 
-// srtAnalyzeUntil plays what a player gets until u, for at most d.
+// srtAnalyzeUntil plays what a player gets until u, for at most d scaled by
+// the limit scale.
 func srtAnalyzeUntil(c *check.C, play *srt.Conn, u report.Until, d time.Duration) *report.Report {
 	c.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), d)
+	ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(d))
 	defer cancel()
 	r, err := play.Analyze(ctx, u)
 	c.Must(err, "play")

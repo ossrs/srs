@@ -610,10 +610,11 @@ func TestConvert_Fmp4(t *testing.T) {
 // there. The MPD comes at once or a moment later, so a cell whose MPD SRS
 // never writes fails in 100ms. Once the MPD is there, the play may take most
 // of the case's limit: the shared server answers a segment late while it
-// takes the bursts of other segment cases.
+// takes the bursts of other segment cases. Both waits are scaled by the
+// limit scale.
 func playDashCell(c *check.C, mpd string, u report.Until) *report.Report {
 	c.Helper()
-	deadline := time.Now().Add(100 * time.Millisecond)
+	deadline := time.Now().Add(check.Scaled(100 * time.Millisecond))
 	for {
 		res, _ := httpGet(c, httpClient, mpd)
 		if res.StatusCode == http.StatusOK {
@@ -624,7 +625,7 @@ func playDashCell(c *check.C, mpd string, u report.Until) *report.Report {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(400*time.Millisecond))
 	defer cancel()
 	r, err := dash.PlayHTTP(ctx, httpClient, mpd, u)
 	c.Must(err, "play")
@@ -632,7 +633,8 @@ func playDashCell(c *check.C, mpd string, u report.Until) *report.Report {
 }
 
 // fmp4PlayWait is how long a player of the HLS in fmp4 of an SRT or GB28181
-// stream, which SRS converts as it reads it, waits. It may take most of the
-// case's limit: the server, busy with the bursts of the other fmp4 cells, may
-// take 300ms to connect a GB session's RTMP output, or to answer a segment.
+// stream, which SRS converts as it reads it, waits, before playHLSWithin
+// scales it. It may take most of the case's limit: the server, busy with the
+// bursts of the other fmp4 cells, may take 300ms to connect a GB session's
+// RTMP output, or to answer a segment.
 const fmp4PlayWait = 400 * time.Millisecond

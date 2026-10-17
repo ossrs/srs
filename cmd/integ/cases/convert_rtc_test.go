@@ -561,11 +561,12 @@ var (
 		fmp4Segment+200*time.Millisecond, 5500*time.Millisecond, 3*time.Second, playWhipHLS)
 )
 
-// playWhipHLS plays a stream's HLS until u, for at most 300ms: the segments
-// are on disk once the playlist lists them, which whipSegments waits for.
+// playWhipHLS plays a stream's HLS until u, for at most 300ms scaled by the
+// limit scale: the segments are on disk once the playlist lists them, which
+// whipSegments waits for.
 func playWhipHLS(c *check.C, srs *server.Server, stream string, u report.Until) *report.Report {
 	c.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(300*time.Millisecond))
 	defer cancel()
 	r, err := hls.PlayHTTP(ctx, httpClient, flvURL(srs, "live/"+stream+".m3u8"), u)
 	c.Must(err, "play")

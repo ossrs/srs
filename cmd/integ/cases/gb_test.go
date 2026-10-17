@@ -868,10 +868,11 @@ func untilUnpublished(c *check.C, srs *server.Server, stream string, d time.Dura
 	return true
 }
 
-// playUntilWithin plays a stream until u, for at most d.
+// playUntilWithin plays a stream until u, for at most d scaled by the limit
+// scale.
 func playUntilWithin(c *check.C, url string, u report.Until, d time.Duration) *report.Report {
 	c.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), d)
+	ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(d))
 	defer cancel()
 	r, err := flv.PlayRTMP(ctx, url, nil, u)
 	c.Must(err, "play")
