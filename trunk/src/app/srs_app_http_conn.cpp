@@ -328,7 +328,7 @@ ISrsHttpxConn::~ISrsHttpxConn()
 {
 }
 
-SrsHttpxConn::SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, ISrsCommonHttpHandler *m, string cip, int port, string key, string cert) : manager_(cm), io_(io), enable_stat_(false), ssl_key_file_(key), ssl_cert_file_(cert)
+SrsHttpxConn::SrsHttpxConn(ISrsResourceManager *cm, ISrsProtocolReadWriter *io, ISrsCommonHttpHandler *m, string cip, int port, string key, string cert) : manager_(cm), io_(io), enable_stat_(false), is_api_listener_(false), ssl_key_file_(key), ssl_cert_file_(cert)
 {
     // Create a identify for this client.
     _srs_context->set_id(_srs_context->generate_id());
@@ -359,6 +359,11 @@ SrsHttpxConn::~SrsHttpxConn()
 void SrsHttpxConn::set_enable_stat(bool v)
 {
     enable_stat_ = v;
+}
+
+void SrsHttpxConn::set_api_listener(bool v)
+{
+    is_api_listener_ = v;
 }
 
 srs_error_t SrsHttpxConn::pop_message(ISrsHttpMessage **preq)
@@ -490,7 +495,9 @@ srs_error_t SrsHttpxConn::start()
 {
     srs_error_t err = srs_success;
 
-    bool v = config_->get_http_stream_crossdomain();
+    // The HTTP API's listeners answer CORS by the API's crossdomain, every other HTTP listener by the
+    // HTTP server's, which also covers the API when it shares the HTTP server's port.
+    bool v = is_api_listener_ ? config_->get_http_api_crossdomain() : config_->get_http_stream_crossdomain();
     if ((err = conn_->set_crossdomain_enabled(v)) != srs_success) {
         return srs_error_wrap(err, "set cors=%d", v);
     }

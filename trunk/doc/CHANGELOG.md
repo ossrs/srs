@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-17, HTTP: Fix HTTP-FLV client tcUrl, basic auth and API CORS. v7.0.170
 * v7.0, 2026-10-17, Live: Fix player wakeup, coroutine join and HTTP stream teardown. v7.0.169
 * v7.0, 2026-10-17, Hooks: Fix heartbeat and hook URLs, and the RTMP stream param. v7.0.168
 * v7.0, 2026-10-17, VOD: Fix MP4 suffix byte ranges and answer 416 past the end. v7.0.167

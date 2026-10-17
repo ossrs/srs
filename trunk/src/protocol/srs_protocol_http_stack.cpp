@@ -7,6 +7,7 @@
 #include <srs_protocol_http_stack.hpp>
 
 #include <algorithm>
+#include <ctype.h>
 #include <sstream>
 #include <stdlib.h>
 using namespace std;
@@ -25,7 +26,6 @@ using namespace std;
 #define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 #define SRS_HTTP_AUTH_SCHEME_BASIC "Basic"
-#define SRS_HTTP_AUTH_PREFIX_BASIC SRS_HTTP_AUTH_SCHEME_BASIC " "
 
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x) + 2) / 3 * 4 + 1)
@@ -1148,6 +1148,26 @@ ISrsHttpAuthMux::~ISrsHttpAuthMux()
 {
 }
 
+// Parse the credentials "<scheme> <token>" of an Authorization header. The scheme is
+// case-insensitive (RFC 9110 11.1) and one or more spaces follow it (11.4). Return false when
+// the credentials are of another scheme; the token is empty when there is none.
+static bool srs_http_auth_parse(const string &auth, const string &scheme, string &token)
+{
+    if (auth.size() <= scheme.size() || auth.at(scheme.size()) != ' ') {
+        return false;
+    }
+
+    for (size_t i = 0; i < scheme.size(); i++) {
+        if (tolower((unsigned char)auth.at(i)) != tolower((unsigned char)scheme.at(i))) {
+            return false;
+        }
+    }
+
+    size_t pos = auth.find_first_not_of(' ', scheme.size());
+    token = (pos == string::npos) ? "" : auth.substr(pos);
+    return true;
+}
+
 SrsHttpAuthMux::SrsHttpAuthMux(ISrsHttpHandler *h)
 {
     next_ = h;
@@ -1171,6 +1191,9 @@ srs_error_t SrsHttpAuthMux::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessag
 {
     srs_error_t err;
     if ((err = do_auth(w, r)) != srs_success) {
+        // Every 401 challenges the client (RFC 9110 15.5.2), also for credentials of another
+        // scheme or that don't parse.
+        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
         srs_warn("do_auth %s", srs_error_desc(err).c_str());
         srs_freep(err);
         w->write_header(SRS_CONSTS_HTTP_Unauthorized);
@@ -1189,23 +1212,22 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         return err;
     }
 
-    // We only apply for api starts with /api/ for HTTP API.
-    // We don't apply for other apis such as /rtc/, for which we use http callback.
-    if (r->path().find("/api/") == std::string::npos) {
+    // We only apply for the HTTP API, the paths under /api/, not a stream whose app or name has
+    // /api/ in it. We don't apply for other apis such as /rtc/, for which we use http callback.
+    if (!srs_strings_starts_with(r->path(), "/api/")) {
         return err;
     }
 
     std::string auth = r->header()->get("Authorization");
     if (auth.empty()) {
-        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
     }
 
-    if (!srs_strings_contains(auth, SRS_HTTP_AUTH_PREFIX_BASIC)) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid auth %s, should start with %s", auth.c_str(), SRS_HTTP_AUTH_PREFIX_BASIC);
+    std::string token;
+    if (!srs_http_auth_parse(auth, SRS_HTTP_AUTH_SCHEME_BASIC, token)) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid auth %s, should start with %s", auth.c_str(), SRS_HTTP_AUTH_SCHEME_BASIC);
     }
 
-    std::string token = srs_erase_first_substr(auth, SRS_HTTP_AUTH_PREFIX_BASIC);
     if (token.empty()) {
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token from auth %s", auth.c_str());
     }
@@ -1215,15 +1237,17 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         return srs_error_wrap(err, "decode token %s", token.c_str());
     }
 
-    // The token format must be username:password
-    std::vector<std::string> user_pwd = srs_strings_split(plaintext, ":");
-    if (user_pwd.size() != 2) {
+    // The token format is user-id:password, where the user-id ends at the first colon and
+    // the password may have colons (RFC 7617 2).
+    size_t pos = plaintext.find(':');
+    if (pos == std::string::npos) {
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s", plaintext.c_str());
     }
 
-    if (username_ != user_pwd[0] || password_ != user_pwd[1]) {
-        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s:%s", user_pwd[0].c_str(), user_pwd[1].c_str());
+    std::string username = plaintext.substr(0, pos);
+    std::string password = plaintext.substr(pos + 1);
+    if (username_ != username || password_ != password) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s:%s", username.c_str(), password.c_str());
     }
 
     return err;

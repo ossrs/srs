@@ -1496,6 +1496,108 @@ VOID TEST(ProtocolHTTPTest, HTTPServerMuxerAuth)
     }
 }
 
+// Serve one request of the URL url with the Authorization header auth, through the basic auth
+// of username and password, and return the status the response writer got, and its
+// WWW-Authenticate in challenge.
+static int srs_utest_serve_api_auth(string username, string password, string auth, string *challenge = NULL, string url = "/api/v1/versions")
+{
+    srs_error_t err;
+
+    SrsHttpServeMux s;
+    HELPER_EXPECT_SUCCESS(s.initialize());
+    HELPER_EXPECT_SUCCESS(s.handle("/", new MockHttpHandler("Hello, world!")));
+
+    MockResponseWriter w;
+    SrsHttpMessage r(NULL, NULL);
+    r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+    HELPER_EXPECT_SUCCESS(r.set_url(url, false));
+
+    SrsHttpHeader h;
+    if (!auth.empty()) {
+        h.set("Authorization", auth);
+    }
+    r.set_header(&h, false);
+
+    SrsHttpAuthMux mux(&s);
+    HELPER_EXPECT_SUCCESS(mux.initialize(true, username, password));
+    HELPER_EXPECT_SUCCESS(mux.serve_http(&w, &r));
+    if (challenge) {
+        *challenge = w.header()->get("WWW-Authenticate");
+    }
+    return w.w->status_;
+}
+
+// The auth scheme is case-insensitive (RFC 9110 11.1), and must be the first word of
+// the credentials, followed by one or more spaces.
+VOID TEST(ProtocolHTTPTest, HTTPAuthSchemeCaseInsensitive)
+{
+    // Basic, admin:admin, as the scheme comes in any case.
+    EXPECT_EQ(200, srs_utest_serve_api_auth("admin", "admin", "Basic YWRtaW46YWRtaW4="));
+    EXPECT_EQ(200, srs_utest_serve_api_auth("admin", "admin", "basic YWRtaW46YWRtaW4="));
+    EXPECT_EQ(200, srs_utest_serve_api_auth("admin", "admin", "BASIC YWRtaW46YWRtaW4="));
+    EXPECT_EQ(200, srs_utest_serve_api_auth("admin", "admin", "Basic  YWRtaW46YWRtaW4="));
+
+    // Basic is not the scheme when it is not the first word.
+    EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "admin", "xBasic YWRtaW46YWRtaW4="));
+    EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "admin", "Token Basic YWRtaW46YWRtaW4="));
+    EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "admin", "BasicYWRtaW46YWRtaW4="));
+    EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "admin", "basic"));
+}
+
+// Every 401 of basic authentication challenges the client with Basic (RFC 9110 15.5.2),
+// also for credentials of another scheme or that don't parse.
+VOID TEST(ProtocolHTTPTest, HTTPBasicAuthEveryRefusalChallenges)
+{
+    const char *refused[] = {
+        "",                       // No credentials.
+        "Basic YWRtaW46d3Jvbmc=", // admin:wrong
+        "Bearer admin",           // Another scheme.
+        "Basic YWRtaW4=",         // admin, no colon.
+        "Basic !!!",              // Not base64.
+        "Basic ",                 // No token.
+        "basic",                  // No token, nor its space.
+    };
+    for (int i = 0; i < (int)(sizeof(refused) / sizeof(refused[0])); i++) {
+        string challenge;
+        EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "admin", refused[i], &challenge)) << refused[i];
+        EXPECT_STREQ("Basic", challenge.c_str()) << refused[i];
+    }
+
+    string challenge;
+    EXPECT_EQ(200, srs_utest_serve_api_auth("admin", "admin", "Basic YWRtaW46YWRtaW4=", &challenge));
+    EXPECT_TRUE(challenge.empty());
+}
+
+// The user-id of basic credentials ends at the first colon, and the password may have
+// colons (RFC 7617 2).
+VOID TEST(ProtocolHTTPTest, HTTPBasicAuthPasswordWithColon)
+{
+    // admin:se:cret is the user admin with the password se:cret.
+    EXPECT_EQ(200, srs_utest_serve_api_auth("admin", "se:cret", "Basic YWRtaW46c2U6Y3JldA=="));
+    EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "se", "Basic YWRtaW46c2U6Y3JldA=="));
+    // admin:se is not the password se:cret.
+    EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "se:cret", "Basic YWRtaW46c2U="));
+    // ad:min:admin is the user ad, not ad:min, which can't be a user-id.
+    EXPECT_EQ(401, srs_utest_serve_api_auth("ad:min", "admin", "Basic YWQ6bWluOmFkbWlu"));
+    EXPECT_EQ(200, srs_utest_serve_api_auth("ad", "min:admin", "Basic YWQ6bWluOmFkbWlu"));
+}
+
+// The API auth protects the paths under /api/, not a stream whose app or name has /api/ or
+// /rtc/ in it, nor the WebRTC signaling under /rtc/.
+VOID TEST(ProtocolHTTPTest, HTTPAuthMatchesPathPrefixOnly)
+{
+    const char *api[] = {"/api/", "/api/v1/versions", "/api/v1/summaries?callback=x", "/api/v1/streams/"};
+    for (int i = 0; i < (int)(sizeof(api) / sizeof(api[0])); i++) {
+        EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "admin", "", NULL, api[i])) << api[i];
+    }
+
+    const char *others[] = {"/live/api/livestream.flv", "/live/api/", "/api.flv", "/apix/v1/versions", "/live/rtc/livestream.flv",
+                            "/live/livestream.flv", "/rtc/v1/whip/?app=live&stream=livestream"};
+    for (int i = 0; i < (int)(sizeof(others) / sizeof(others[0])); i++) {
+        EXPECT_EQ(200, srs_utest_serve_api_auth("admin", "admin", "", NULL, others[i])) << others[i];
+    }
+}
+
 VOID TEST(ProtocolHTTPTest, VodStreamHandlers)
 {
     srs_error_t err;

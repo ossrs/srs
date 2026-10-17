@@ -827,6 +827,74 @@ VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
     srs_freep(live_stream->entry_);
 }
 
+// Serve an HTTP-FLV viewer of a stream published with the given URLs, through a stream whose entry
+// is disabled, so serve_http() stops after the stat, and return the URLs the stat got.
+static void mock_live_stream_viewer_urls(bool https, std::string host, std::string referer, MockStatisticForLiveStream *stat)
+{
+    SrsUniquePtr<MockRequest> publisher(new MockRequest("test.vhost", "live", "stream1"));
+    publisher->tcUrl_ = "rtmp://127.0.0.1:19350/live";
+    publisher->port_ = 19350;
+    publisher->pageUrl_ = "http://publisher.example/live.html";
+    publisher->swfUrl_ = "http://publisher.example/player.swf";
+
+    SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
+    SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
+    MockSecurity security;
+    stream->stat_ = stat;
+    srs_freep(stream->security_);
+    stream->security_ = &security;
+    stream->entry_ = new SrsHttpMuxEntry();
+    stream->entry_->enabled = false;
+    stream->entry_->pattern = "/live/stream1.flv";
+
+    SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+    SrsHttpHeader header;
+    if (!host.empty()) {
+        header.set("Host", host);
+    }
+    if (!referer.empty()) {
+        header.set("Referer", referer);
+    }
+    message->set_header(&header, false);
+    srs_error_t err = message->set_url("/live/stream1.flv", false);
+    srs_freep(err);
+    message->set_https(https);
+
+    MockResponseWriter writer;
+    err = stream->serve_http(&writer, message.get());
+    srs_freep(err);
+
+    stream->stat_ = NULL;
+    stream->security_ = NULL;
+    srs_freep(stream->entry_);
+}
+
+// An HTTP-FLV viewer is listed with its own URLs, not the publisher's: the tcUrl of its app on the
+// HTTP server it asked, by its Host, and its Referer as the pageUrl, as its on_play has them.
+VOID TEST(SrsLiveStreamTest, ViewerListedWithItsOwnUrls)
+{
+    MockStatisticForLiveStream stat;
+    mock_live_stream_viewer_urls(false, "127.0.0.1:8080", "http://page.example/flv.html", &stat);
+
+    EXPECT_EQ(1, stat.on_client_count_);
+    EXPECT_STREQ("http://127.0.0.1:8080/live", stat.on_client_tc_url_.c_str());
+    EXPECT_STREQ("http://page.example/flv.html", stat.on_client_page_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_swf_url_.c_str());
+}
+
+// An HTTPS viewer's tcUrl is https://, and a viewer with no Referer has no pageUrl, not the
+// publisher's.
+VOID TEST(SrsLiveStreamTest, HttpsViewerWithoutReferer)
+{
+    MockStatisticForLiveStream stat;
+    mock_live_stream_viewer_urls(true, "[::1]:8088", "", &stat);
+
+    EXPECT_EQ(1, stat.on_client_count_);
+    EXPECT_STREQ("https://[::1]:8088/live", stat.on_client_tc_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_page_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_swf_url_.c_str());
+}
+
 // Mock ISrsStatistic implementation for SrsLiveStream testing
 MockStatisticForLiveStream::MockStatisticForLiveStream()
 {
@@ -845,6 +913,9 @@ void MockStatisticForLiveStream::on_disconnect(std::string id, srs_error_t err)
 srs_error_t MockStatisticForLiveStream::on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type)
 {
     on_client_count_++;
+    on_client_tc_url_ = req->tcUrl_;
+    on_client_page_url_ = req->pageUrl_;
+    on_client_swf_url_ = req->swfUrl_;
     return srs_error_copy(on_client_error_);
 }
 

@@ -525,6 +525,9 @@ public:
     std::string remote_ip_;
     SrsContextId context_id_;
     ISrsKbpsDelta *delta_;
+    // The CORS setting the owner gave, and whether it gave one.
+    bool crossdomain_;
+    bool crossdomain_set_;
 
 public:
     MockHttpConnForHttpxConn();
@@ -542,6 +545,23 @@ public:
     virtual const SrsContextId &get_id();
     virtual std::string desc();
     virtual void expire();
+};
+
+// Mock ISrsAppConfig for the CORS setting of SrsHttpxConn, with the HTTP API's and the HTTP server's
+// crossdomain set apart.
+class MockAppConfigForHttpxConnCors : public MockAppConfig
+{
+public:
+    bool http_api_crossdomain_;
+    bool http_stream_crossdomain_;
+
+public:
+    MockAppConfigForHttpxConnCors();
+    virtual ~MockAppConfigForHttpxConnCors();
+
+public:
+    virtual bool get_http_api_crossdomain();
+    virtual bool get_http_stream_crossdomain();
 };
 
 // Mock ISrsFFMPEG for testing SrsEncoder

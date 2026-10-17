@@ -200,6 +200,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsHttpConn *conn_;
     // We should never enable the stat, unless HTTP stream connection requires.
     bool enable_stat_;
+    // Whether the connection is of an HTTP API listener, whose CORS follows the API's crossdomain,
+    // not the HTTP server's.
+    bool is_api_listener_;
     // ssl key & cert file
     const std::string ssl_key_file_;
     const std::string ssl_cert_file_;
@@ -211,6 +214,8 @@ public:
 public:
     // Require statistic about HTTP connection, for HTTP streaming clients only.
     void set_enable_stat(bool v);
+    // Mark the connection as one of an HTTP API listener, so its CORS follows the API's crossdomain.
+    void set_api_listener(bool v);
     // Directly read a HTTP request message.
     // It's exported for HTTP stream, such as HTTP FLV, only need to write to client when
     // serving it, but we need to start a thread to read message to detect whether FD is closed.
