@@ -8,6 +8,7 @@
 #include <srs_app_http_static.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_utest_ai06.hpp>
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
@@ -413,6 +414,84 @@ bool MockAppConfigForVodStream::get_hls_ctx_enabled(string vhost)
 string MockAppConfigForVodStream::get_hls_m3u8_file(string /*vhost*/)
 {
     return hls_m3u8_file_;
+}
+
+MockAppConfigForVodStreamHooks::MockAppConfigForVodStreamHooks()
+{
+    hls_ctx_enabled_ = true;
+
+    on_play_directive_ = new SrsConfDirective();
+    on_play_directive_->name_ = "on_play";
+    on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+    on_stop_directive_ = new SrsConfDirective();
+    on_stop_directive_->name_ = "on_stop";
+    on_stop_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+    hls_window_ = 1 * SRS_UTIME_SECONDS;
+}
+
+MockAppConfigForVodStreamHooks::~MockAppConfigForVodStreamHooks()
+{
+    srs_freep(on_play_directive_);
+    srs_freep(on_stop_directive_);
+}
+
+bool MockAppConfigForVodStreamHooks::get_vhost_http_hooks_enabled(string /*vhost*/)
+{
+    return true;
+}
+
+SrsConfDirective *MockAppConfigForVodStreamHooks::get_vhost_on_play(string /*vhost*/)
+{
+    return on_play_directive_;
+}
+
+SrsConfDirective *MockAppConfigForVodStreamHooks::get_vhost_on_stop(string /*vhost*/)
+{
+    return on_stop_directive_;
+}
+
+srs_utime_t MockAppConfigForVodStreamHooks::get_hls_window(string /*vhost*/)
+{
+    return hls_window_;
+}
+
+MockHttpHooksForVodStream::MockHttpHooksForVodStream()
+{
+}
+
+MockHttpHooksForVodStream::~MockHttpHooksForVodStream()
+{
+}
+
+srs_error_t MockHttpHooksForVodStream::on_play(string url, ISrsRequest *req)
+{
+    on_play_streams_.push_back(req->app_ + "/" + req->stream_);
+    if (!refuse_stream_.empty() && req->stream_ == refuse_stream_) {
+        return srs_error_new(ERROR_SYSTEM_AUTH, "refuse stream %s", req->stream_.c_str());
+    }
+    return MockHttpHooksForLiveStream::on_play(url, req);
+}
+
+void MockHttpHooksForVodStream::on_stop(string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+{
+    on_stop_streams_.push_back(req->app_ + "/" + req->stream_);
+    MockHttpHooksForLiveStream::on_stop(url, req, stream);
+}
+
+MockSecurityForVodStream::MockSecurityForVodStream()
+{
+}
+
+MockSecurityForVodStream::~MockSecurityForVodStream()
+{
+}
+
+srs_error_t MockSecurityForVodStream::check(SrsRtmpConnType /*type*/, string /*ip*/, ISrsRequest *req)
+{
+    checked_streams_.push_back(req->app_ + "/" + req->stream_);
+    return srs_success;
 }
 
 MockFileReaderFactoryForVodStream::MockFileReaderFactoryForVodStream(string content)
@@ -824,6 +903,166 @@ VOID TEST(VodStreamHlsSessionTest, PlaylistNotOfTheTemplateKeepsTheUrlNames)
         mock_vod_hls_session(&stat, "[app]/[stream].m3u8", false, "127.0.0.1:8080", "/live/sub/stream.m3u8");
         EXPECT_STREQ("live/sub", stat.on_client_app_.c_str());
         EXPECT_STREQ("stream", stat.on_client_stream_.c_str());
+    }
+}
+
+// An SrsVodStream that serves HLS sessions with on_play and on_stop hooks, a security check and a
+// stat, which all record the names they get. Each new session's ctx is ctx00001.
+class MockVodHlsSessions
+{
+public:
+    MockAppConfigForVodStreamHooks config_;
+    MockStatisticForLiveStream stat_;
+    MockHttpHooksForVodStream hooks_;
+    MockSecurityForVodStream security_;
+    MockRandForHandshake rand_;
+    SrsHttpMuxEntry entry_;
+    SrsVodStream stream_;
+
+public:
+    MockVodHlsSessions(string m3u8_file) : stream_("/tmp")
+    {
+        config_.hls_m3u8_file_ = m3u8_file;
+        rand_.gen_str_values_.push_back("ctx00001");
+        entry_.pattern = "/";
+
+        stream_.set_fs_factory(new MockFileReaderFactoryForVodStream("#EXTM3U\n"));
+        stream_.set_path(new MockSrsPathAlwaysExists());
+        stream_.entry_ = &entry_;
+        stream_.config_ = &config_;
+        stream_.hls_.config_ = &config_;
+        stream_.hls_.stat_ = &stat_;
+        stream_.hls_.hooks_ = &hooks_;
+        srs_freep(stream_.hls_.security_);
+        stream_.hls_.security_ = &security_;
+        srs_freep(stream_.hls_.rand_);
+        stream_.hls_.rand_ = &rand_;
+        stream_.hls_.shared_timer_ = NULL;
+    }
+    virtual ~MockVodHlsSessions()
+    {
+        stream_.config_ = NULL;
+        stream_.hls_.config_ = NULL;
+        stream_.hls_.stat_ = NULL;
+        stream_.hls_.hooks_ = NULL;
+        stream_.hls_.security_ = NULL;
+        stream_.hls_.rand_ = NULL;
+    }
+
+public:
+    // Ask for url, and return the raw HTTP response.
+    string get(string url)
+    {
+        MockResponseWriterForVodStream w;
+        SrsHttpMessage r(NULL, NULL);
+        SrsHttpHeader header;
+        header.set("Host", "127.0.0.1:8080");
+        r.set_header(&header, false);
+        srs_error_t err = r.set_url(url, false);
+        srs_freep(err);
+        err = stream_.serve_http(&w, &r);
+        srs_freep(err);
+        return HELPER_BUFFER2STR(&w.io.out_buffer);
+    }
+
+    // End every session, as the HLS timer does once its viewer has been gone for twice the window.
+    void expire()
+    {
+        std::map<std::string, SrsHlsVirtualConn *>::iterator it;
+        for (it = stream_.hls_.map_ctx_info_.begin(); it != stream_.hls_.map_ctx_info_.end(); ++it) {
+            SrsHlsVirtualConn *conn = it->second;
+            conn->request_time_ -= 3 * config_.hls_window_;
+        }
+        srs_error_t err = stream_.hls_.on_timer(5 * SRS_UTIME_SECONDS);
+        srs_freep(err);
+    }
+};
+
+// A playlist asked for by a percent-encoded name is the file of its decoded name, so the session is of
+// that stream at every step: the security check, the stat and on_play when it starts, the playlist
+// of the session, then on_stop and the stat's disconnect when it ends. None of them names the
+// encoded stream, which no publisher has. With a playlist in a dir per stream too.
+VOID TEST(VodStreamHlsSessionTest, EncodedPlaylistNamesTheDecodedStream)
+{
+    struct {
+        string m3u8_file;
+        string url;
+    } cases[] = {
+        {"[app]/[stream].m3u8", "/live/%6Civestream.m3u8"},
+        {"[app]/[stream].m3u8", "/%6Cive/livestream.m3u8"},
+        {"[app]/[stream].m3u8", "/live/livestream%2Em3u8"},
+        {"[app]/[stream]/index.m3u8", "/live/%6Civestream/index.m3u8"},
+        {"[app]/[stream]/index.m3u8", "/live/livestream/%69ndex.m3u8"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        string url = cases[i].url;
+        MockVodHlsSessions s(cases[i].m3u8_file);
+
+        // The session starts: checked, counted and hooked as live/livestream.
+        string resp = s.get(url);
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 200", resp) << url;
+        EXPECT_PRED2(is_string_contain, "hls_ctx=ctx00001", resp) << url;
+        ASSERT_EQ(1, (int)s.security_.checked_streams_.size()) << url;
+        EXPECT_STREQ("live/livestream", s.security_.checked_streams_[0].c_str()) << url;
+        EXPECT_EQ(1, s.stat_.on_client_count_) << url;
+        EXPECT_STREQ("live", s.stat_.on_client_app_.c_str()) << url;
+        EXPECT_STREQ("livestream", s.stat_.on_client_stream_.c_str()) << url;
+        EXPECT_STREQ("http://127.0.0.1:8080/live", s.stat_.on_client_tc_url_.c_str()) << url;
+        ASSERT_EQ(1, (int)s.hooks_.on_play_streams_.size()) << url;
+        EXPECT_STREQ("live/livestream", s.hooks_.on_play_streams_[0].c_str()) << url;
+        EXPECT_EQ(0, (int)s.hooks_.on_stop_streams_.size()) << url;
+        EXPECT_EQ(0, s.stat_.on_disconnect_count_) << url;
+        ASSERT_TRUE(s.stream_.hls_.ctx_is_exist("ctx00001")) << url;
+
+        // The player asks for the playlist of its session: no second check, count or hook.
+        resp = s.get(url + "?hls_ctx=ctx00001");
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 200", resp) << url;
+        EXPECT_PRED2(is_string_contain, "#EXTM3U", resp) << url;
+        EXPECT_EQ(1, (int)s.security_.checked_streams_.size()) << url;
+        EXPECT_EQ(1, s.stat_.on_client_count_) << url;
+        EXPECT_EQ(1, (int)s.hooks_.on_play_streams_.size()) << url;
+        EXPECT_EQ(0, (int)s.hooks_.on_stop_streams_.size()) << url;
+        EXPECT_EQ(0, s.stat_.on_disconnect_count_) << url;
+
+        // The session ends: on_stop of live/livestream, and the stat drops the client.
+        s.expire();
+        EXPECT_FALSE(s.stream_.hls_.ctx_is_exist("ctx00001")) << url;
+        ASSERT_EQ(1, (int)s.hooks_.on_stop_streams_.size()) << url;
+        EXPECT_STREQ("live/livestream", s.hooks_.on_stop_streams_[0].c_str()) << url;
+        ASSERT_EQ(1, s.stat_.on_disconnect_count_) << url;
+        EXPECT_STREQ("ctx00001", s.stat_.on_disconnect_ids_[0].c_str()) << url;
+        EXPECT_EQ(1, (int)s.hooks_.on_play_streams_.size()) << url;
+        EXPECT_EQ(1, s.stat_.on_client_count_) << url;
+    }
+}
+
+// A hook that refuses the stream livestream refuses its playlist asked for by a percent-encoded name,
+// with 401, as it does by the plain name: the viewer is counted and dropped, and no session is left
+// to end with an on_stop.
+VOID TEST(VodStreamHlsSessionTest, EncodedPlaylistOfARefusedStreamIsRefused)
+{
+    string urls[] = {"/live/livestream.m3u8", "/live/%6Civestream.m3u8", "/live/livestream%2Em3u8"};
+
+    for (int i = 0; i < (int)(sizeof(urls) / sizeof(urls[0])); i++) {
+        string url = urls[i];
+        MockVodHlsSessions s("[app]/[stream].m3u8");
+        s.hooks_.refuse_stream_ = "livestream";
+
+        string resp = s.get(url);
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 401", resp) << url;
+        EXPECT_EQ(string::npos, resp.find("hls_ctx=")) << url;
+        ASSERT_EQ(1, (int)s.hooks_.on_play_streams_.size()) << url;
+        EXPECT_STREQ("live/livestream", s.hooks_.on_play_streams_[0].c_str()) << url;
+        EXPECT_EQ(1, s.stat_.on_client_count_) << url;
+        EXPECT_STREQ("livestream", s.stat_.on_client_stream_.c_str()) << url;
+        ASSERT_EQ(1, s.stat_.on_disconnect_count_) << url;
+        EXPECT_STREQ("ctx00001", s.stat_.on_disconnect_ids_[0].c_str()) << url;
+        EXPECT_FALSE(s.stream_.hls_.ctx_is_exist("ctx00001")) << url;
+
+        s.expire();
+        EXPECT_EQ(0, (int)s.hooks_.on_stop_streams_.size()) << url;
+        EXPECT_EQ(1, s.stat_.on_disconnect_count_) << url;
     }
 }
 

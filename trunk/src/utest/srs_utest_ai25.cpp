@@ -1313,6 +1313,161 @@ VOID TEST(HookRejectionTest, WhipPublisherSessionDisposingAfterHook)
     EXPECT_EQ(0, server->session_.expire_count_);
 }
 
+// A WHIP session on the heap, which counts its expires in the server that owns it.
+class MockRtcConnectionForFreedPublish : public MockRtcConnectionForUpdateSessions
+{
+public:
+    int *expire_count_;
+
+public:
+    MockRtcConnectionForFreedPublish(int *expire_count)
+    {
+        username_ = "freed-publisher";
+        expire_count_ = expire_count;
+    }
+    virtual ~MockRtcConnectionForFreedPublish()
+    {
+    }
+
+public:
+    virtual void expire()
+    {
+        (*expire_count_)++;
+    }
+};
+
+// An RTC API server that owns its one session and frees it when it times out without STUN, so a
+// freed session is never found again.
+class MockRtcApiServerForFreedPublish : public ISrsRtcApiServer
+{
+public:
+    MockRtcConnectionForFreedPublish *session_;
+    int create_count_;
+    int expire_count_;
+    std::string find_username_;
+
+public:
+    MockRtcApiServerForFreedPublish()
+    {
+        session_ = NULL;
+        create_count_ = 0;
+        expire_count_ = 0;
+    }
+    virtual ~MockRtcApiServerForFreedPublish()
+    {
+        srs_freep(session_);
+    }
+
+public:
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
+    {
+        create_count_++;
+        session_ = new MockRtcConnectionForFreedPublish(&expire_count_);
+        *psession = session_;
+        return srs_success;
+    }
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag)
+    {
+        find_username_ = ufrag;
+        if (!session_ || ufrag != session_->username_) {
+            return NULL;
+        }
+        return session_;
+    }
+    void stun_timeout()
+    {
+        srs_freep(session_);
+    }
+};
+
+// An on_publish hook that is slower than the STUN timeout, so the server frees the session while the
+// hook runs, and then refuses the publisher.
+class MockHttpHooksForSlowRefusal : public MockHttpHooksForOnPublish
+{
+public:
+    MockRtcApiServerForFreedPublish *server_;
+    bool found_before_timeout_;
+    int expires_before_timeout_;
+    bool found_after_timeout_;
+
+public:
+    MockHttpHooksForSlowRefusal(MockRtcApiServerForFreedPublish *server)
+    {
+        server_ = server;
+        found_before_timeout_ = false;
+        expires_before_timeout_ = -1;
+        found_after_timeout_ = true;
+    }
+    virtual ~MockHttpHooksForSlowRefusal()
+    {
+    }
+
+public:
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req)
+    {
+        found_before_timeout_ = (server_->find_rtc_session_by_username("freed-publisher") != NULL);
+        expires_before_timeout_ = server_->expire_count_;
+
+        server_->stun_timeout();
+        found_after_timeout_ = (server_->find_rtc_session_by_username("freed-publisher") != NULL);
+
+        return MockHttpHooksForOnPublish::on_publish(url, req);
+    }
+};
+
+// WHIP: a hook slower than the STUN timeout refuses a publisher whose session is already freed. The
+// refusal still answers 401, and never expires the freed session.
+VOID TEST(HookRejectionTest, WhipRejectedPublisherSessionFreedDuringHook)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockRtcApiServerForFreedPublish> server(new MockRtcApiServerForFreedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
+    HELPER_EXPECT_SUCCESS(message->set_url("http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream", false));
+    message->body_content_ = mock_whip_publish_offer();
+
+    SrsUniquePtr<MockAppConfigForHttpHooksOnPublish> config(new MockAppConfigForHttpHooksOnPublish());
+    config->rtc_server_enabled_ = true;
+    config->rtc_enabled_ = true;
+    config->http_hooks_enabled_ = true;
+    config->on_publish_directive_ = new SrsConfDirective();
+    config->on_publish_directive_->name_ = "on_publish";
+    config->on_publish_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/publish");
+
+    SrsUniquePtr<MockHttpHooksForSlowRefusal> hooks(new MockHttpHooksForSlowRefusal(server.get()));
+    hooks->on_publish_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+
+    SrsUniquePtr<SrsGoApiRtcWhip> api(new SrsGoApiRtcWhip(server.get()));
+    api->config_ = config.get();
+    api->publish_->config_ = config.get();
+    api->publish_->hooks_ = hooks.get();
+
+    // No session before the publisher asks.
+    EXPECT_EQ(0, server->create_count_);
+    EXPECT_TRUE(server->session_ == NULL);
+
+    HELPER_EXPECT_SUCCESS(api->serve_http(writer.get(), message.get()));
+
+    // The session was made before the hook, alive and not expired when the hook started, and freed
+    // by the STUN timeout while the hook ran.
+    EXPECT_EQ(1, server->create_count_);
+    EXPECT_EQ(1, hooks->on_publish_count_);
+    EXPECT_TRUE(hooks->found_before_timeout_);
+    EXPECT_EQ(0, hooks->expires_before_timeout_);
+    EXPECT_FALSE(hooks->found_after_timeout_);
+
+    // The publisher is refused as unauthorized, and the freed session is never expired again.
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+    EXPECT_TRUE(server->session_ == NULL);
+    EXPECT_EQ(0, server->expire_count_);
+
+    api->config_ = NULL;
+    api->publish_->config_ = NULL;
+    api->publish_->hooks_ = NULL;
+}
+
 // SRT: rejection with no reason is the accepted, final behavior.
 //
 // MPEG-TS over SRT carries no application-level status or response channel, so there is nothing to
@@ -2062,6 +2217,142 @@ VOID TEST(RtmpPublishFrameStatsTest, FirstFramesReportedAtOnce)
     mock_rtmp_server->recv_err_ = srs_error_new(ERROR_SOCKET_READ, "mock client quit");
     mock_rtmp_server->cond_->signal();
     srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    conn->stop();
+}
+
+// The publish timeouts of an RTMP publisher.
+class MockAppConfigForPublishTimeout : public MockAppConfig
+{
+public:
+    srs_utime_t publish_1stpkt_timeout_;
+    srs_utime_t publish_normal_timeout_;
+
+public:
+    MockAppConfigForPublishTimeout()
+    {
+        publish_1stpkt_timeout_ = 200 * SRS_UTIME_MILLISECONDS;
+        publish_normal_timeout_ = 400 * SRS_UTIME_MILLISECONDS;
+    }
+
+public:
+    virtual srs_utime_t get_publish_1stpkt_timeout(std::string vhost) { return publish_1stpkt_timeout_; }
+    virtual srs_utime_t get_publish_normal_timeout(std::string vhost) { return publish_normal_timeout_; }
+};
+
+// The frames an RTMP publisher reports, and the error it ends with.
+class MockAppStatisticForPublishTimeout : public MockAppStatisticForFrames
+{
+public:
+    int disconnect_code_;
+
+public:
+    MockAppStatisticForPublishTimeout()
+    {
+        disconnect_code_ = ERROR_SUCCESS;
+    }
+
+public:
+    virtual void on_disconnect(std::string id, srs_error_t err)
+    {
+        MockAppStatisticForFrames::on_disconnect(id, err);
+        disconnect_code_ = srs_error_code(err);
+    }
+};
+
+// An RTMP publisher is checked once per wait: the first wait is the first-packet timeout of 200ms,
+// each later one the normal timeout of 400ms, from the end of the last. A burst at the start, then
+// a pause of 500ms, ends in the window from 200ms to 600ms, so the publisher is kept: its messages
+// don't restart the window. The frames are reported at the first message and at each check.
+VOID TEST(RtmpPublishFrameStatsTest, PauseAfterBurstKeepsPublisher)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForPublishTimeout> mock_config(new MockAppConfigForPublishTimeout());
+    SrsUniquePtr<MockConnectionManager> mock_manager(new MockConnectionManager());
+    SrsUniquePtr<MockLiveSourceManager> mock_sources(new MockLiveSourceManager());
+    SrsUniquePtr<MockStreamPublishTokenManager> mock_tokens(new MockStreamPublishTokenManager());
+    SrsUniquePtr<MockAppStatisticForPublishTimeout> mock_stat(new MockAppStatisticForPublishTimeout());
+    SrsUniquePtr<MockHttpHooks> mock_hooks(new MockHttpHooks());
+    SrsUniquePtr<MockRtcSourceManager> mock_rtc_sources(new MockRtcSourceManager());
+    SrsUniquePtr<MockSrtSourceManager> mock_srt_sources(new MockSrtSourceManager());
+#ifdef SRS_RTSP
+    SrsUniquePtr<MockRtspSourceManager> mock_rtsp_sources(new MockRtspSourceManager());
+#endif
+    MockRtmpServer *mock_rtmp_server = new MockRtmpServer();
+    MockSecurity *mock_security = new MockSecurity();
+
+    mock_config->default_vhost_ = new SrsConfDirective();
+    mock_config->default_vhost_->name_ = "vhost";
+    mock_config->default_vhost_->args_.push_back("__defaultVhost__");
+    mock_config->mw_msgs_ = 0;
+    mock_config->mw_sleep_ = 0;
+
+    mock_rtmp_server->set_request(SrsRtmpConnFMLEPublish, "192.168.1.100", "utest.ossrs.io", "utest", "livestream", "rtmp://127.0.0.1/utest", "rtmp", 1935, "127.0.0.1");
+
+    ISrsRtmpTransport *transport = new MockRtmpTransport();
+    SrsUniquePtr<SrsRtmpConn> conn(new SrsRtmpConn(transport, "192.168.1.100", 1935));
+
+    conn->config_ = mock_config.get();
+    conn->manager_ = mock_manager.get();
+    conn->live_sources_ = mock_sources.get();
+    conn->stream_publish_tokens_ = mock_tokens.get();
+    conn->stat_ = mock_stat.get();
+    conn->hooks_ = mock_hooks.get();
+    conn->rtc_sources_ = mock_rtc_sources.get();
+    conn->srt_sources_ = mock_srt_sources.get();
+#ifdef SRS_RTSP
+    conn->rtsp_sources_ = mock_rtsp_sources.get();
+#endif
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = mock_rtmp_server;
+    srs_freep(conn->security_);
+    conn->security_ = mock_security;
+
+    HELPER_EXPECT_SUCCESS(conn->start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(0, mock_stat->on_disconnect_count_);
+
+    // The burst at the start: the first frame is reported at once, the others at the first check.
+    mock_rtmp_publish_frame(mock_rtmp_server, true);
+    mock_rtmp_publish_frame(mock_rtmp_server, false);
+    mock_rtmp_publish_frame(mock_rtmp_server, true);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(0, mock_stat->on_disconnect_count_);
+    EXPECT_EQ(1, mock_stat->audio_frames_);
+    EXPECT_EQ(0, mock_stat->video_frames_);
+
+    // GOAL: at 500ms, past the normal timeout after the burst, the publisher is kept, and the first
+    // check at 200ms reported the burst.
+    srs_usleep(500 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(0, mock_stat->on_disconnect_count_);
+    EXPECT_EQ(2, mock_stat->audio_frames_);
+    EXPECT_EQ(1, mock_stat->video_frames_);
+
+    // The frames after the pause, within the second of the first report, wait for the next check.
+    mock_rtmp_publish_frame(mock_rtmp_server, false);
+    mock_rtmp_publish_frame(mock_rtmp_server, true);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(0, mock_stat->on_disconnect_count_);
+    EXPECT_EQ(2, mock_stat->audio_frames_);
+    EXPECT_EQ(1, mock_stat->video_frames_);
+
+    // The check at 600ms finds the frames after the pause, keeps the publisher and reports them.
+    srs_usleep(200 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(0, mock_stat->on_disconnect_count_);
+    EXPECT_EQ(3, mock_stat->audio_frames_);
+    EXPECT_EQ(2, mock_stat->video_frames_);
+
+    // The publisher ends when the client quits, not by a timeout.
+    mock_rtmp_server->recv_err_ = srs_error_new(ERROR_SOCKET_READ, "mock client quit");
+    mock_rtmp_server->cond_->signal();
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(1, mock_stat->on_disconnect_count_);
+    EXPECT_EQ(ERROR_SOCKET_READ, mock_stat->disconnect_code_);
+    EXPECT_EQ(3, mock_stat->audio_frames_);
+    EXPECT_EQ(2, mock_stat->video_frames_);
 
     conn->stop();
 }

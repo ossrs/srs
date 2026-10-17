@@ -615,16 +615,21 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     string token = session->token();
 
     // We must do hook after stat, because depends on it.
-    if ((err = http_hooks_on_publish(ruc->req_)) != srs_success) {
-        // The session holds the stream's publish token, so a refused publisher, which never
-        // connects, must not leave it: the stream would be busy for the next publisher until the
-        // session times out without STUN.
-        session->expire();
-        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_publish");
-    }
+    err = http_hooks_on_publish(ruc->req_);
 
     // The session may be gone after the hook, by the STUN timeout or an API DELETE of the client.
     session = server_->find_rtc_session_by_username(username);
+
+    if (err != srs_success) {
+        // The session holds the stream's publish token, so a refused publisher, which never
+        // connects, must not leave it: the stream would be busy for the next publisher until the
+        // session times out without STUN.
+        if (session) {
+            session->expire();
+        }
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_publish");
+    }
+
     if (!session || session->is_disposing()) {
         return srs_error_new(ERROR_RTC_INVALID_SESSION, "session gone during hook, username=%s", username.c_str());
     }

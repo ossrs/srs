@@ -6,6 +6,7 @@ package cases
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -81,6 +82,55 @@ func hooksHTTP(t *testing.T) {
 		publishHLSHooked(c, srs, name, "")
 		ctx := hlsSession(c, srs, name, "", nil)
 		c.CheckEqual(waitClientHook(c, srs, "on_play", ctx).Field("stream"), name, "on_play stream")
+	})
+
+	// HlsEncodedName starts an HLS session of a playlist asked for by a
+	// name with a percent-encoded byte, in the stream, the app or the
+	// extension, as a client may encode a byte that needs no escape: SRS
+	// serves the stream's playlist, and the session is of that stream, in
+	// on_play, on the publisher's stream with it, and in the API.
+	check.Case(t, "HlsEncodedName", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		name := streamName(c)
+		pub := publishHLSHooked(c, srs, name, "")
+		for i, p := range hlsEncodedPaths(name) {
+			ctx := hlsSessionAt(c, srs, p, "", nil)
+			play := waitClientHook(c, srs, "on_play", ctx)
+			c.CheckEqual(play.Field("app"), "live", p+" on_play app")
+			c.CheckEqual(play.Field("stream"), name, p+" on_play stream")
+			c.CheckEqual(play.Field("tcUrl"), "http://"+srs.Addr(server.HTTPServer)+"/live", p+" on_play tcUrl")
+			c.CheckEqual(play.Field("stream_id"), pub.Field("stream_id"), p+" on_play stream_id, the publisher's")
+			c.CheckEqual(play.Field("clients"), strconv.Itoa(i+2), p+" on_play clients: the publisher and the sessions")
+			client := apiClientOf(c, srs, ctx)
+			c.CheckEqual(client["url"], "/live/"+name, p+" the API's url of the session")
+			c.CheckEqual(client["stream"], pub.Field("stream_id"), p+" the API's stream of the session, the publisher's")
+		}
+	})
+
+	// HlsEncodedNameRefused refuses a stream in its on_play, then asks for
+	// its playlist by each name with a percent-encoded byte: each is refused
+	// with 401, as the plain name is, and its on_play names the stream.
+	check.Case(t, "HlsEncodedNameRefused", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		name := streamName(c)
+		publishHLSHooked(c, srs, name, "")
+		srs.Hooks.Script(mock.Match{Action: "on_play", Stream: name}, mock.Reject(403))
+		paths := append([]string{"live/" + name + ".m3u8"}, hlsEncodedPaths(name)...)
+		for _, p := range paths {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, flvURL(srs, p), nil)
+			c.Must(err, "request "+p)
+			res, err := httpClient.Do(req)
+			c.Must(err, "GET "+p)
+			res.Body.Close()
+			cancel()
+			c.CheckEqual(res.StatusCode, http.StatusUnauthorized, "status of "+p)
+		}
+		plays := srs.Hooks.Requests(mock.Match{Action: "on_play", Stream: name})
+		c.CheckEqual(len(plays), len(paths), "on_play of the stream, one for each playlist")
+		for _, h := range plays {
+			c.CheckEqual(h.Field("app"), "live", "on_play app")
+		}
 	})
 
 	// HlsForwardedFor starts an HLS session through a proxy that sets
@@ -354,7 +404,26 @@ func publishHLSHooked(c *check.C, srs *server.Server, name, param string) mock.R
 // returns its hls_ctx, from the master playlist.
 func hlsSession(c *check.C, srs *server.Server, name, q string, header http.Header) string {
 	c.Helper()
-	raw := flvURL(srs, "live/"+name+".m3u8"+q)
+	return hlsSessionAt(c, srs, "live/"+name+".m3u8", q, header)
+}
+
+// hlsEncodedPaths are the paths of the playlist live/name.m3u8 with a byte
+// percent-encoded that needs no escape: the stream's first, the app's
+// first, and the extension's dot.
+func hlsEncodedPaths(name string) []string {
+	return []string{
+		"live/" + fmt.Sprintf("%%%02X", name[0]) + name[1:] + ".m3u8",
+		"%6Cive/" + name + ".m3u8",
+		"live/" + name + "%2Em3u8",
+	}
+}
+
+// hlsSessionAt starts an HLS session of the playlist at path, sent as it is,
+// with a query q and headers, and returns its hls_ctx, from the master
+// playlist.
+func hlsSessionAt(c *check.C, srs *server.Server, path, q string, header http.Header) string {
+	c.Helper()
+	raw := flvURL(srs, path+q)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, raw, nil)
@@ -407,5 +476,31 @@ func TestTimer_Hooks_HlsSession(t *testing.T) {
 		c.CheckEqual(stop.Field("stream_url"), "/live/"+name, "on_stop stream_url")
 		c.CheckEqual(stop.Field("stream_id"), pub.Field("stream_id"), "on_stop stream_id, the publisher's")
 		c.CheckEqual(stop.Field("clients"), "2", "on_stop clients: the publisher and the session")
+	})
+
+	// EncodedNameOnStop starts a session of the playlist asked for by a
+	// name with a percent-encoded byte, and waits for it to end: its on_play
+	// and on_stop, and its API client while it lasts, are of the stream,
+	// on the publisher's stream with it.
+	check.Case(t, "EncodedNameOnStop", check.Timer, func(c *check.C) {
+		name := streamName(c)
+		publishThrough(c, srs, "live/"+name, media.H264HighAAC, 2*time.Second)
+		pub := waitHook(c, srs, "on_publish", name)
+		c.Must(untilFile(filepath.Join(htmlDir(srs), "live", name+".m3u8"), time.Second), "the playlist")
+		ctx := hlsSessionAt(c, srs, hlsEncodedPaths(name)[0], "", nil)
+		play := waitClientHook(c, srs, "on_play", ctx)
+		client := apiClientOf(c, srs, ctx)
+		c.CheckEqual(client["url"], "/live/"+name, "the API's url of the session")
+		c.CheckEqual(client["stream"], pub.Field("stream_id"), "the API's stream of the session, the publisher's")
+		untilClientGone(c, srs, ctx)
+		stop := waitSessionHook(c, srs, "on_stop", ctx)
+
+		c.CheckEqual(hookActions(clientHooks(srs, ctx)), []string{"on_play", "on_stop"}, "session hooks")
+		for _, h := range []mock.Request{play, stop} {
+			c.CheckEqual(h.Field("app"), "live", h.Action()+" app")
+			c.CheckEqual(h.Field("stream"), name, h.Action()+" stream")
+			c.CheckEqual(h.Field("stream_id"), pub.Field("stream_id"), h.Action()+" stream_id, the publisher's")
+			c.CheckEqual(h.Field("clients"), "2", h.Action()+" clients: the publisher and the session")
+		}
 	})
 }

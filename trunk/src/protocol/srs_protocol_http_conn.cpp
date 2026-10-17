@@ -635,17 +635,8 @@ ISrsRequest *SrsHttpMessage::to_request(string vhost)
 {
     ISrsRequest *req = new SrsRequest();
 
-    // http path, for instance, /live/livestream.flv, parse to
-    //      app: /live
-    //      stream: livestream.flv
-    srs_net_url_parse_rtmp_url(uri_->get_path(), req->app_, req->stream_);
-
-    // trim the start slash, for instance, /live to live
-    req->app_ = srs_strings_trim_start(req->app_, "/");
-
-    // remove the extension, for instance, livestream.flv to livestream
-    SrsPath path;
-    req->stream_ = path.filepath_filename(req->stream_);
+    // http path, for instance, /live/livestream.flv, parse to app live and stream livestream.
+    srs_net_url_parse_http_path(uri_->get_path(), req->app_, req->stream_);
 
     // generate others.
     req->tcUrl_ = "rtmp://" + vhost + "/" + req->app_;

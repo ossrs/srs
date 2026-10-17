@@ -370,6 +370,16 @@ void srs_net_url_parse_rtmp_url(string url, string &tcUrl, string &stream)
     }
 }
 
+void srs_net_url_parse_http_path(string path, string &app, string &stream)
+{
+    srs_net_url_parse_rtmp_url(path, app, stream);
+    app = srs_strings_trim_start(app, "/");
+    stream = SrsPath().filepath_filename(stream);
+    if (app.empty()) {
+        app = SRS_CONSTS_RTMP_DEFAULT_APP;
+    }
+}
+
 string srs_net_url_encode_rtmp_url(string server, int port, string host, string vhost, string app, string stream, string param)
 {
     string tcUrl = "rtmp://" + server + ":" + srs_strconv_format_int(port) + "/" + app;

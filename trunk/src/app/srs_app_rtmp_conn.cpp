@@ -1071,8 +1071,6 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
     }
 
     int64_t nb_msgs = 0;
-    uint64_t nb_frames = 0;
-    uint64_t nb_audio_frames = 0;
     while (true) {
         if ((err = trd_->pull()) != srs_success) {
             return srs_error_wrap(err, "rtmp: thread quit");
@@ -1085,7 +1083,7 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
 
         pprint->elapse();
 
-        // cond wait for timeout. A message wakes it at most once a second, to report the frames.
+        // cond wait for timeout.
         if (nb_msgs == 0) {
             // when not got msgs, wait for a larger timeout.
             rtrd->wait(publish_1stpkt_timeout_);
@@ -1107,18 +1105,10 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
         }
         nb_msgs = rtrd->nb_msgs();
 
-        // Update the stat for video fps.
-        // @remark https://github.com/ossrs/srs/issues/851
-        if ((err = stat_->on_video_frames(req, (int)(rtrd->nb_video_frames() - nb_frames))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: stat video frames");
+        // Update the stat for the frames the receive thread has not reported yet.
+        if ((err = rtrd->report_frames()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: stat frames");
         }
-        nb_frames = rtrd->nb_video_frames();
-
-        // Update the stat for audio frames.
-        if ((err = stat_->on_audio_frames(req, (int)(rtrd->nb_audio_frames() - nb_audio_frames))) != srs_success) {
-            return srs_error_wrap(err, "rtmp: stat audio frames");
-        }
-        nb_audio_frames = rtrd->nb_audio_frames();
 
         // reportable
         if (pprint->can_print()) {

@@ -644,17 +644,27 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
         req->vhost_ = parsed_vhost->arg0();
     }
 
+    // The file server opened the playlist by its percent-decoded path, so the session takes its names
+    // from that path too, else the security check, the hooks and the stats would name another stream
+    // than the one served, such as %6Civestream for /live/%6Civestream.m3u8. The names are split from
+    // the decoded path, never parsed as a URL again, so a decoded ? or # is in the name, as in the file.
+    string path;
+    if ((err = SrsHttpUri::path_unescape(hr->path(), path)) != srs_success) {
+        return srs_error_wrap(err, "unescape path=%s", hr->path().c_str());
+    }
+    path = srs_strings_trim_start(path, "/");
+
     // The URL's dir and file name are the app and stream only for a playlist of [app]/[stream].m3u8,
     // so take them from the hls_m3u8_file the playlist was written by, such as the app live and the
     // stream livestream of /live/livestream/index.m3u8 for [app]/[stream]/index.m3u8. A playlist
-    // not of the template keeps the URL's names.
+    // not of the template is split as an HTTP path, as SrsHttpMessage::to_request() does.
     string app, stream;
-    string path = srs_strings_trim_start(hr->path(), "/");
-    if (srs_path_parse_stream(config_->get_hls_m3u8_file(req->vhost_), req->vhost_, path, app, stream)) {
-        req->app_ = app;
-        req->stream_ = stream;
-        req->strip();
+    if (!srs_path_parse_stream(config_->get_hls_m3u8_file(req->vhost_), req->vhost_, path, app, stream)) {
+        srs_net_url_parse_http_path("/" + path, app, stream);
     }
+    req->app_ = app;
+    req->stream_ = stream;
+    req->strip();
 
     // The request's tcUrl was parsed as RTMP, with the RTMP default port that as_http() leaves out,
     // so set the session's own: the URL of its app on the HTTP server it asked, as an HTTP-FLV
