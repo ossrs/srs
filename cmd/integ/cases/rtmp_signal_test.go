@@ -344,11 +344,12 @@ func playChecked(c *check.C, url string) {
 	checkPlayed(c, r, "h264", "aac")
 }
 
-// waitHook waits for a hook of a stream on the server's mock.
+// waitHook waits for a hook of a stream on the server's mock, a second
+// scaled by the limit scale.
 func waitHook(c *check.C, srs *server.Server, action, stream string) mock.Request {
 	c.Helper()
 	c.Must(checkHooks(srs), "hooks")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(time.Second))
 	defer cancel()
 	h, err := srs.Hooks.Wait(ctx, mock.Match{Action: action, Stream: stream})
 	c.Must(err, action)

@@ -41,7 +41,7 @@ Flags, after `-args`:
 - `-integ.scale N`: run each case N times as separate cases, named `<Case>`, `<Case>-2` to `<Case>-N`, each with its own stream on its group's server; timer cases run once, since each starts a server of its own. The scale check.
 - `-integ.shards K`: split Common into K identical servers; a case gets the one its name picks. The default is 4: every case starts at once, and one single-threaded Common made the slowest real-time cases miss their 500ms limit while it was saturated in the first part of a run; 2 held until the HLS cases added their bursts, 3 until the suite had about 1,300 cases (Common cases at 570-600ms in a fast run).
 - `-integ.settle D`: start the Fast and Normal cases no earlier than D after the process starts; timer cases start at once. `make integ` sets 2s for the timer process: it starts every case at once, beside the main process's first cases, and its few short cases missed their limit in that burst (up to 670ms for cases of 110ms alone). Its 5s timer cases set its run time, so the wait costs nothing.
-- `-integ.limit-scale F`: multiply every class limit by F, at least 1, and the time the hook, security, edge and forward cases wait for SRS to accept or refuse a client. CI runs with 4: its runners are slower and have fewer cores, and a case that hangs still fails.
+- `-integ.limit-scale F`: multiply every class limit by F, at least 1, and the time the hook, security, edge and forward cases wait for SRS to accept or refuse a client, and the stats cases for its frame counts. CI runs with 4: its runners are slower and have fewer cores, and a case that hangs still fails.
 
 `make integ`, `make integ-main` and `make integ-timer` pass `INTEG_ARGS` after
 `-args`. The scale check runs about 1,000 cases:
@@ -50,17 +50,22 @@ Flags, after `-args`:
 make integ-main INTEG_ARGS="-integ.scale=56"
 ```
 
-CI runs the suite in the `trunk/Dockerfile.test` image, as the `test` job of
-`.github/workflows/test.yml` does:
+CI runs the suite in the `trunk/Dockerfile.test` image, as the `integ` job of
+`.github/workflows/test.yml` does, with the media directory mounted so the
+media is made once, and the main and timer cases one after the other, since a
+runner has few cores:
 
 ```bash
 docker build --tag srs:test -f trunk/Dockerfile.test .
-docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 srs:test make integ-unit
-docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 srs:test make integ INTEG_ARGS=-integ.limit-scale=4
+M="-v $PWD/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media"
+docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M srs:test make integ-prepare
+docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M srs:test make integ-unit
+docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M srs:test make integ-main INTEG_ARGS=-integ.limit-scale=4
+docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 $M srs:test make integ-timer INTEG_ARGS=-integ.limit-scale=4
 ```
 
 The image's `ffmpeg` is 5.0, which writes HEVC in FLV the legacy way, so the
-test media comes from its `ffmpeg7`; it has no VP9 or AV1 encoder, so those
+test media, and the cases that run ffmpeg, use its `ffmpeg7`; it has no VP9 or AV1 encoder, so those
 cases skip. The Linux-only cases, such as the `/proc` values of the API, run
 there.
 
