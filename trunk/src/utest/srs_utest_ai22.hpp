@@ -460,6 +460,24 @@ public:
     void reset();
 };
 
+// Mock ISrsStreamWriter for testing that SrsRtspConnection frees the TCP network of a track. It
+// reports its own destruction through a flag the test owns, because the leak is otherwise only
+// visible to a leak checker, which macOS does not provide.
+class MockStreamWriterForRtspConn : public ISrsStreamWriter
+{
+public:
+    // Set to true by the destructor, so a test can prove the writer was freed. Borrowed, not owned.
+    bool *destroyed_;
+    int write_count_;
+
+public:
+    MockStreamWriterForRtspConn(bool *destroyed);
+    virtual ~MockStreamWriterForRtspConn();
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+};
+
 // Mock ISrsProtocolReadWriter for testing that SrsRtspConnection frees the client's socket, which
 // closes the TCP connection. It reports its own destruction through a flag the test owns.
 class MockSocketForRtspConn : public ISrsProtocolReadWriter

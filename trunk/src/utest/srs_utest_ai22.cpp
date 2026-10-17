@@ -1694,6 +1694,29 @@ void MockRtspStack::reset()
     srs_freep(send_message_error_);
 }
 
+MockStreamWriterForRtspConn::MockStreamWriterForRtspConn(bool *destroyed)
+{
+    destroyed_ = destroyed;
+    write_count_ = 0;
+}
+
+MockStreamWriterForRtspConn::~MockStreamWriterForRtspConn()
+{
+    if (destroyed_) {
+        *destroyed_ = true;
+    }
+}
+
+srs_error_t MockStreamWriterForRtspConn::write(void *buf, size_t size, ssize_t *nwrite)
+{
+    write_count_++;
+
+    if (nwrite) {
+        *nwrite = (ssize_t)size;
+    }
+    return srs_success;
+}
+
 MockSocketForRtspConn::MockSocketForRtspConn(bool *destroyed)
 {
     destroyed_ = destroyed;
@@ -3319,6 +3342,152 @@ VOID TEST(RtspConnectionTest, RepeatedDescribeStopsPreviousPlay)
     EXPECT_STREQ("on_stop", f.hooks_.actions_[3].c_str());
     EXPECT_STREQ("stream1", f.hooks_.on_stop_streams_[0].c_str());
     EXPECT_STREQ("stream2", f.hooks_.on_stop_streams_[1].c_str());
+}
+
+// A DESCRIBE while a player plays is not valid in that state (RFC 2326, 455 Method Not Valid in
+// This State): it would ask on_play again, maybe of another stream, while the player sends on. The
+// player plays on, and gets the one on_stop of its on_play when it leaves.
+VOID TEST(RtspConnectionTest, DescribeWhilePlayingIsRefused)
+{
+    srs_error_t err = srs_success;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    ASSERT_EQ(1, (int)f.hooks_.actions_.size());
+
+    // What PLAY makes.
+    MockRtspPlayStream *player = new MockRtspPlayStream();
+    f.conn_->player_ = player;
+
+    // The same stream, or another one: both refused, with the session.
+    const char *uris[] = {"rtsp://127.0.0.1:8554/live/stream1", "rtsp://127.0.0.1:8554/live/stream2"};
+    for (int i = 0; i < (int)(sizeof(uris) / sizeof(uris[0])); i++) {
+        f.rtsp_->reset();
+        HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", uris[i]));
+        EXPECT_TRUE(f.rtsp_->send_message_called_);
+        EXPECT_EQ(SRS_CONSTS_RTSP_MethodNotValidInThisState, f.rtsp_->last_response_status_);
+        EXPECT_STREQ("session1", f.rtsp_->last_response_session_.c_str());
+    }
+
+    // No hook, and the player plays on, with the tracks of its DESCRIBE.
+    EXPECT_EQ(1, (int)f.hooks_.actions_.size());
+    EXPECT_TRUE(f.conn_->player_ == player);
+    EXPECT_FALSE(player->stop_called_);
+    EXPECT_EQ(1, (int)f.conn_->tracks_.size());
+    EXPECT_STREQ("stream1", f.conn_->request_->stream_.c_str());
+
+    // TEARDOWN ends the play: the on_stop of the first DESCRIBE's on_play, once.
+    HELPER_EXPECT_SUCCESS(f.request("TEARDOWN", "rtsp://127.0.0.1:8554/live/stream1"));
+    ASSERT_EQ(2, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[0].c_str());
+    EXPECT_STREQ("on_stop", f.hooks_.actions_[1].c_str());
+    EXPECT_STREQ("stream1", f.hooks_.on_stop_streams_[0].c_str());
+}
+
+// SETUP of the fixture's video track, trackID=0, over TCP.
+static srs_error_t rtsp_setup_video_track(RtspOnStopFixture &f)
+{
+    SrsRtspRequest *req = new SrsRtspRequest();
+    req->method_ = "SETUP";
+    req->uri_ = "rtsp://127.0.0.1:8554/live/stream1/trackID=0";
+    req->seq_ = 2;
+    req->stream_id_ = 0;
+    req->transport_ = new SrsRtspTransport();
+    req->transport_->transport_ = "RTP";
+    req->transport_->profile_ = "AVP";
+    req->transport_->lower_transport_ = "TCP";
+    req->transport_->interleaved_min_ = 0;
+    req->transport_->interleaved_max_ = 1;
+    return f.conn_->on_rtsp_request(req);
+}
+
+// TEARDOWN ends the session (RFC 2326): its tracks and their networks go with the player, so a PLAY
+// after it has nothing to play without a new on_play. A new DESCRIBE starts a new play, with its own
+// on_play.
+VOID TEST(RtspConnectionTest, TeardownFreesTracksAndNetworks)
+{
+    srs_error_t err = srs_success;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    HELPER_EXPECT_SUCCESS(rtsp_setup_video_track(f));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    EXPECT_EQ(1, (int)f.conn_->networks_.size());
+
+    // What PLAY makes.
+    MockRtspPlayStream *player = new MockRtspPlayStream();
+    f.conn_->player_ = player;
+
+    HELPER_EXPECT_SUCCESS(f.request("TEARDOWN", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_TRUE(f.conn_->player_ == NULL);
+    EXPECT_TRUE(f.conn_->tracks_.empty());
+    EXPECT_TRUE(f.conn_->networks_.empty());
+    ASSERT_EQ(2, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[0].c_str());
+    EXPECT_STREQ("on_stop", f.hooks_.actions_[1].c_str());
+
+    // A new DESCRIBE and SETUP make the session again.
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    HELPER_EXPECT_SUCCESS(rtsp_setup_video_track(f));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    EXPECT_EQ(1, (int)f.conn_->networks_.size());
+    ASSERT_EQ(3, (int)f.hooks_.actions_.size());
+    EXPECT_STREQ("on_play", f.hooks_.actions_[2].c_str());
+}
+
+// A DESCRIBE that fails, such as one on_play refuses, leaves no track of the last DESCRIBE, so a
+// PLAY after it has no track of the stream it set up before: the connection's request names the
+// refused stream now, and a player would play it with no on_play that passed.
+VOID TEST(RtspConnectionTest, RefusedDescribeDropsTracks)
+{
+    srs_error_t err = srs_success;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    HELPER_EXPECT_SUCCESS(rtsp_setup_video_track(f));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+
+    f.hooks_.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code 401");
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream2"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_InternalServerError, f.rtsp_->last_response_status_);
+    EXPECT_TRUE(f.conn_->tracks_.empty());
+
+    // A SETUP of the old track finds none.
+    HELPER_EXPECT_SUCCESS(rtsp_setup_video_track(f));
+    EXPECT_EQ(SRS_CONSTS_RTSP_InternalServerError, f.rtsp_->last_response_status_);
+}
+
+// A DESCRIBE frees the network a SETUP gave a track it no longer has, such as the old SSRC of a
+// publisher that came back with a new one, and keeps the network of a track it still has.
+VOID TEST(RtspConnectionTest, RepeatedDescribeFreesNetworksOfDroppedTracks)
+{
+    srs_error_t err = srs_success;
+
+    // Declared before the connection, which may free the writer that sets it.
+    bool kept_destroyed = false;
+
+    RtspOnStopFixture f;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    ASSERT_EQ(1, (int)f.conn_->tracks_.size());
+
+    // Stand in for the writer a SETUP of the track installed, so its destruction is observable.
+    f.conn_->networks_[2001] = new MockStreamWriterForRtspConn(&kept_destroyed);
+
+    // The same track: its network stays.
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_FALSE(kept_destroyed);
+    EXPECT_EQ(1, (int)f.conn_->networks_.size());
+
+    // The publisher comes back with another SSRC: the network of the old one is freed.
+    f.sources_.mock_source_->video_desc_->ssrc_ = 2002;
+    HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, f.rtsp_->last_response_status_);
+    EXPECT_TRUE(kept_destroyed);
+    EXPECT_TRUE(f.conn_->networks_.empty());
+    EXPECT_TRUE(f.conn_->tracks_.find(2002) != f.conn_->tracks_.end());
 }
 
 // The body of a request, its Content-Length bytes after the headers, is read with it, so the next
