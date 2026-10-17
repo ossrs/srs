@@ -3739,3 +3739,39 @@ VOID TEST(SrsGoApiMetricsTest, ServeHttpSuccess)
     api->stat_ = NULL;
     api->config_ = NULL;
 }
+
+VOID TEST(SrsGoApiMetricsTest, LabelEscape)
+{
+    EXPECT_STREQ("", srs_api_metrics_label_escape("").c_str());
+    EXPECT_STREQ("cn-beijing", srs_api_metrics_label_escape("cn-beijing").c_str());
+    EXPECT_STREQ("edge \\\"a\\\\b\\\"", srs_api_metrics_label_escape("edge \"a\\b\"").c_str());
+    EXPECT_STREQ("a\\nb", srs_api_metrics_label_escape("a\nb").c_str());
+    EXPECT_STREQ("\\\\\\\\\\n\\\"", srs_api_metrics_label_escape("\\\\\n\"").c_str());
+    // Other characters, a tab and a carriage return too, stay as they are.
+    EXPECT_STREQ("a\tb\rc", srs_api_metrics_label_escape("a\tb\rc").c_str());
+}
+
+VOID TEST(SrsGoApiMetricsTest, LabelAndTagEscaped)
+{
+    srs_error_t err = srs_success;
+
+    MockStatisticForResampleKbps mock_stat;
+    MockAppConfig mock_config;
+
+    SrsUniquePtr<SrsGoApiMetrics> api(new SrsGoApiMetrics());
+    api->stat_ = &mock_stat;
+    api->config_ = &mock_config;
+    api->enabled_ = true;
+    api->label_ = "cn \"beijing\"";
+    api->tag_ = "edge \"a\\b\"\nc";
+
+    MockResponseWriter w;
+    SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+    EXPECT_TRUE(response.find(",label=\"cn \\\"beijing\\\"\",tag=\"edge \\\"a\\\\b\\\"\\nc\"} 1\n") != string::npos) << response;
+
+    api->stat_ = NULL;
+    api->config_ = NULL;
+}

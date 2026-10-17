@@ -513,10 +513,24 @@ string srs_http_fs_fullpath(string dir, string pattern, string upath)
     // The vhost prefix is ignored, for example:
     //      pattern=ossrs.net/api, the vhost is ossrs.net, the pattern equals to /api under this vhost,
     //      so the virtual directory is also api
+    // The mux matches the pattern to the path as the URL encodes it, but upath is decoded, so the virtual directory is
+    // decoded too, to remove as many bytes as it has in upath, for example:
+    //      pattern=/a%20b/, the virtual directory is "a b", upath=/a b/index.html, fullpath={dir}/index.html
+    // A virtual directory that doesn't decode matches no path that does, so it is kept as is.
     size_t pos = pattern.find("/");
     string filename = upath;
-    if (upath.length() > pattern.length() && pos != string::npos) {
-        filename = upath.substr(pattern.length() - pos);
+    if (pos != string::npos) {
+        string vdir = pattern.substr(pos);
+        string decoded;
+        srs_error_t err = SrsHttpUri::path_unescape(vdir, decoded);
+        if (err == srs_success) {
+            vdir = decoded;
+        }
+        srs_freep(err);
+
+        if (upath.length() > vdir.length()) {
+            filename = upath.substr(vdir.length());
+        }
     }
 
     string fullpath = srs_strings_trim_end(dir, "/");
@@ -1240,8 +1254,9 @@ srs_error_t SrsHttpAuthMux::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessag
     srs_error_t err;
     if ((err = do_auth(w, r)) != srs_success) {
         // Every 401 challenges the client (RFC 9110 15.5.2), also for credentials of another
-        // scheme or that don't parse.
-        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
+        // scheme or that don't parse. The Basic challenge requires a realm (RFC 7617 2), without
+        // which a strict client doesn't prompt for the credentials.
+        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC " realm=\"SRS\"");
         srs_warn("do_auth %s", srs_error_desc(err).c_str());
         srs_freep(err);
         w->write_header(SRS_CONSTS_HTTP_Unauthorized);
@@ -1271,31 +1286,33 @@ srs_error_t SrsHttpAuthMux::do_auth(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
     }
 
+    // The refusals go to the log, so they never hold the header, the token or the password,
+    // which is often a near-miss of the real one; only the user is named.
     std::string token;
     if (!srs_http_auth_parse(auth, SRS_HTTP_AUTH_SCHEME_BASIC, token)) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid auth %s, should start with %s", auth.c_str(), SRS_HTTP_AUTH_SCHEME_BASIC);
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid auth, should start with %s", SRS_HTTP_AUTH_SCHEME_BASIC);
     }
 
     if (token.empty()) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token from auth %s", auth.c_str());
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token");
     }
 
     std::string plaintext;
     if ((err = srs_av_base64_decode(token, plaintext)) != srs_success) {
-        return srs_error_wrap(err, "decode token %s", token.c_str());
+        return srs_error_wrap(err, "decode token");
     }
 
     // The token format is user-id:password, where the user-id ends at the first colon and
     // the password may have colons (RFC 7617 2).
     size_t pos = plaintext.find(':');
     if (pos == std::string::npos) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s", plaintext.c_str());
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token, no colon");
     }
 
     std::string username = plaintext.substr(0, pos);
     std::string password = plaintext.substr(pos + 1);
     if (username_ != username || password_ != password) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s:%s", username.c_str(), password.c_str());
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid credentials of user %s", username.c_str());
     }
 
     return err;

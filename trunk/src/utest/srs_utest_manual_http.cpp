@@ -1562,7 +1562,7 @@ VOID TEST(ProtocolHTTPTest, HTTPBasicAuthEveryRefusalChallenges)
     for (int i = 0; i < (int)(sizeof(refused) / sizeof(refused[0])); i++) {
         string challenge;
         EXPECT_EQ(401, srs_utest_serve_api_auth("admin", "admin", refused[i], &challenge)) << refused[i];
-        EXPECT_STREQ("Basic", challenge.c_str()) << refused[i];
+        EXPECT_STREQ("Basic realm=\"SRS\"", challenge.c_str()) << refused[i];
     }
 
     string challenge;
@@ -1582,6 +1582,65 @@ VOID TEST(ProtocolHTTPTest, HTTPBasicAuthPasswordWithColon)
     // ad:min:admin is the user ad, not ad:min, which can't be a user-id.
     EXPECT_EQ(401, srs_utest_serve_api_auth("ad:min", "admin", "Basic YWQ6bWluOmFkbWlu"));
     EXPECT_EQ(200, srs_utest_serve_api_auth("ad", "min:admin", "Basic YWQ6bWluOmFkbWlu"));
+}
+
+// Authenticate a request to the HTTP API with the Authorization header auth, against the user admin and the password
+// real-pass, and return the description of the refusal, which the auth mux writes to the log.
+static string mock_basic_auth_refusal(string auth)
+{
+    SrsHttpServeMux s;
+    srs_error_t err = s.initialize();
+    srs_freep(err);
+
+    SrsHttpAuthMux mux(&s);
+    err = mux.initialize(true, "admin", "real-pass");
+    srs_freep(err);
+
+    MockResponseWriter w;
+    SrsHttpMessage r(NULL, NULL);
+    r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+    err = r.set_url("/api/v1/versions", false);
+    srs_freep(err);
+
+    SrsHttpHeader h;
+    h.set("Authorization", auth);
+    r.set_header(&h, false);
+
+    err = mux.do_auth(&w, &r);
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    return desc;
+}
+
+// A refused password, often a near-miss of the real one, is not logged: the refusal names the user only.
+VOID TEST(HttpBasicAuthLogTest, WrongPasswordLogsTheUserOnly)
+{
+    // admin:guess-pass
+    string desc = mock_basic_auth_refusal("Basic YWRtaW46Z3Vlc3MtcGFzcw==");
+    EXPECT_FALSE(desc.empty());
+    EXPECT_FALSE(is_string_contain("guess-pass", desc)) << desc;
+    EXPECT_FALSE(is_string_contain("YWRtaW46Z3Vlc3MtcGFzcw==", desc)) << desc;
+    EXPECT_PRED2(is_string_contain, "user admin", desc);
+}
+
+// Credentials that don't parse are not logged either: neither the header, nor its token, nor the decoded text.
+VOID TEST(HttpBasicAuthLogTest, MalformedCredentialsAreNotLogged)
+{
+    const char *refused[][2] = {
+        // The decoded token guess-pass has no colon.
+        {"Basic Z3Vlc3MtcGFzcw==", "guess-pass"},
+        // A token that isn't base64.
+        {"Basic guess-pass!", "guess-pass"},
+        // Credentials of another scheme.
+        {"Token guess-pass", "guess-pass"},
+        {"Basicguess-pass", "guess-pass"},
+    };
+    for (int i = 0; i < (int)(sizeof(refused) / sizeof(refused[0])); i++) {
+        string desc = mock_basic_auth_refusal(refused[i][0]);
+        EXPECT_FALSE(desc.empty()) << refused[i][0];
+        EXPECT_FALSE(is_string_contain(refused[i][1], desc)) << refused[i][0] << ": " << desc;
+        EXPECT_FALSE(is_string_contain("Z3Vlc3MtcGFzcw", desc)) << refused[i][0] << ": " << desc;
+    }
 }
 
 // The API auth protects the paths under /api/, not a stream whose app or name has /api/ or
@@ -2949,14 +3008,14 @@ public:
     }
 };
 
-// Serve url from the static dir /tmp, whose every path is a directory or a file of content, and return the raw HTTP
-// response in resp.
-static srs_error_t mock_file_server_serve(MockSrsPathForHttpFileServer *path, string content, string url, string &resp, vector<string> *dir_paths = NULL)
+// Serve url from the static dir /tmp mounted at pattern, whose every path is a directory or a file of content, and
+// return the raw HTTP response in resp.
+static srs_error_t mock_file_server_serve(MockSrsPathForHttpFileServer *path, string content, string url, string &resp, vector<string> *dir_paths = NULL, string pattern = "/")
 {
     srs_error_t err = srs_success;
 
     SrsHttpMuxEntry entry;
-    entry.pattern = "/";
+    entry.pattern = pattern;
 
     SrsHttpFileServer server("/tmp");
     server.set_fs_factory(new MockFileReaderFactory(content));
@@ -3173,6 +3232,37 @@ VOID TEST(HttpFileServerEscapeTest, BadEscapeIsBadRequest)
         EXPECT_PRED2(is_string_contain, "HTTP/1.1 400 Bad Request", resp) << urls[i];
         EXPECT_FALSE(is_string_contain("Hello, world!", resp)) << urls[i];
         EXPECT_TRUE(dir_paths.empty()) << urls[i];
+    }
+}
+
+// The mux matches a mount to the path as the URL encodes it, so a mount with an escape, such as /a%20b/, serves the
+// file of the rest of the path, decoded, under its dir. A vhost's mount, such as ossrs.net/hls/, takes its path, not
+// its vhost, off the URL path, also for a short file name.
+VOID TEST(HttpFileServerEscapeTest, EscapedMountServesTheFileUnderIt)
+{
+    srs_error_t err = srs_success;
+
+    const char *cases[][3] = {
+        {"/a%20b/", "/a%20b/f.dat", "/tmp/f.dat"},
+        {"/a%20b/", "/a%20b/live/c%20d.dat", "/tmp/live/c d.dat"},
+        {"/a%20b/", "/a%20b/", "/tmp/index.html"},
+        {"/100%25/", "/100%25/f.dat", "/tmp/f.dat"},
+        {"/%E5%90%8D/", "/%E5%90%8D/f.dat", "/tmp/f.dat"},
+        {"/hls/", "/hls/a%20b.dat", "/tmp/a b.dat"},
+        {"ossrs.net/a%20b/", "/a%20b/f.dat", "/tmp/f.dat"},
+        {"ossrs.net/hls/", "/hls/a%20b.dat", "/tmp/a b.dat"},
+        {"ossrs.net/hls/", "/hls/f.dat", "/tmp/f.dat"},
+        {"ossrs.net/hls/", "/hls/live/livestream-0.ts", "/tmp/live/livestream-0.ts"},
+    };
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsPathForHttpFileServer *path = new MockSrsPathForHttpFileServer(false);
+        string resp;
+        vector<string> dir_paths;
+        HELPER_ASSERT_SUCCESS(mock_file_server_serve(path, "Hello, world!", cases[i][1], resp, &dir_paths, cases[i][0]));
+
+        EXPECT_PRED2(is_string_contain, "HTTP/1.1 200 OK", resp) << cases[i][0] << " " << cases[i][1];
+        ASSERT_EQ(1, (int)dir_paths.size()) << cases[i][0] << " " << cases[i][1];
+        EXPECT_STREQ(cases[i][2], dir_paths[0].c_str()) << cases[i][0] << " " << cases[i][1];
     }
 }
 
