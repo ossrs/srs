@@ -407,6 +407,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
         msgs_;
     int nb_audios_;
     int nb_videos_;
+    // Whether a message of the track has come. The queue waits only for a
+    // track that has come, so a stream with no audio, as a device with its
+    // audio off sends it, or with no video, is held by one message too.
+    bool has_audio_;
+    bool has_video_;
 
 public:
     SrsMpegpsQueue();
@@ -441,7 +446,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // The owner session object, note that we use the raw pointer and should never free it.
     ISrsGbSession *session_;
     std::string output_;
+    // The RTMP client, set only once it has connected and published.
     ISrsBasicRtmpClient *sdk_;
+    // Whether a coroutine is connecting the RTMP client.
+    bool connecting_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
@@ -482,10 +490,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t on_ts_video(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t mux_h264(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t write_h264_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h264_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h264_ipb_frame(const std::string &ibps, bool keyframe, uint32_t dts, uint32_t pts);
     virtual srs_error_t mux_h265(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t write_h265_vps_sps_pps(uint32_t dts, uint32_t pts);
-    virtual srs_error_t write_h265_ipb_frame(char *frame, int frame_size, uint32_t dts, uint32_t pts);
+    virtual srs_error_t write_h265_ipb_frame(const std::string &ipbs, bool keyframe, uint32_t dts, uint32_t pts);
     virtual srs_error_t on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs);
     virtual srs_error_t write_audio_raw_frame(char *frame, int frame_size, SrsRawAacStreamCodec *codec, uint32_t dts);
     virtual srs_error_t rtmp_write_packet(char type, uint32_t timestamp, char *data, int size);

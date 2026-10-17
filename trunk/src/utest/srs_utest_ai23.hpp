@@ -328,6 +328,8 @@ public:
     bool push_called_;
     srs_error_t push_error_;
     int push_count_;
+    // The payload of each message pushed, in order.
+    std::vector<std::string> payloads_;
 
 public:
     MockGbMpegpsQueue();
@@ -358,6 +360,43 @@ public:
     virtual std::string desc();
     virtual srs_error_t cycle();
     virtual void on_executor_done(ISrsInterruptable *executor);
+};
+
+// Mock RTMP client of SrsGbMuxer, whose connect() feeds the muxer, as the
+// coroutine of a second media connection runs while a real connect yields.
+class MockGbConnectingRtmpClient : public MockRtmpClient
+{
+public:
+    SrsGbMuxer *muxer_;
+    // The message fed to the muxer while connecting, or NULL to call connect().
+    SrsTsMessage *msg_;
+    // The result of what was fed while connecting.
+    srs_error_t reentry_error_;
+    // Whether the muxer's client was set while connecting.
+    bool sdk_set_while_connecting_;
+
+public:
+    MockGbConnectingRtmpClient(SrsGbMuxer *muxer, SrsTsMessage *msg);
+    virtual ~MockGbConnectingRtmpClient();
+
+public:
+    virtual srs_error_t connect();
+};
+
+// Mock ISrsAppFactory for SrsGbMuxer, which hands out the RTMP clients a test
+// set, then plain mock clients.
+class MockAppFactoryForGbMuxer : public SrsAppFactory
+{
+public:
+    std::vector<ISrsBasicRtmpClient *> clients_;
+    int created_;
+
+public:
+    MockAppFactoryForGbMuxer();
+    virtual ~MockAppFactoryForGbMuxer();
+
+public:
+    virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
 };
 
 // Mock ISrsInterruptable for testing SrsRtcTcpConn
