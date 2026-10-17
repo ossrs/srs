@@ -22,6 +22,7 @@ using namespace std;
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
+#include <srs_utest_ai18.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_fmp4.hpp>
@@ -2710,6 +2711,7 @@ MockRtcApiServerForPlay::MockRtcApiServerForPlay()
 {
     create_session_called_ = false;
     mock_connection_ = new MockRtcConnectionForPlay();
+    session_ = NULL;
 }
 
 MockRtcApiServerForPlay::~MockRtcApiServerForPlay()
@@ -2730,12 +2732,16 @@ srs_error_t MockRtcApiServerForPlay::create_rtc_session(SrsRtcUserConfig *ruc, S
     session->username_ = mock_connection_->username_;
     session->token_ = mock_connection_->token_;
 
+    session_ = session;
     *psession = session;
     return srs_success;
 }
 
 ISrsRtcConnection *MockRtcApiServerForPlay::find_rtc_session_by_username(const std::string &ufrag)
 {
+    if (session_ && session_->username() == ufrag) {
+        return session_;
+    }
     return NULL;
 }
 
@@ -5276,4 +5282,404 @@ VOID TEST(HttpHooksTest, DoPostQueryWithoutPath)
         HELPER_EXPECT_SUCCESS(hooks->do_post(&client, "http://127.0.0.1:8085/api/v1/streams?token=abc", "{}", code, res));
         EXPECT_STREQ("/api/v1/streams?token=abc", client.path_.c_str());
     }
+}
+
+// A WHIP session that counts how often it is expired, which removes it from the server.
+class MockRtcConnectionForRefusedPublish : public MockRtcConnectionForUpdateSessions
+{
+public:
+    int expire_count_;
+
+public:
+    MockRtcConnectionForRefusedPublish()
+    {
+        username_ = "refused-publisher";
+        expire_count_ = 0;
+    }
+    virtual ~MockRtcConnectionForRefusedPublish()
+    {
+    }
+
+public:
+    virtual void expire()
+    {
+        expire_count_++;
+    }
+};
+
+// An RTC API server that creates one session and finds it by its username, until the session is
+// gone, as the server's STUN timeout removes it.
+class MockRtcApiServerForRefusedPublish : public ISrsRtcApiServer
+{
+public:
+    MockRtcConnectionForRefusedPublish session_;
+    int create_count_;
+    bool session_gone_;
+    std::string find_username_;
+
+public:
+    MockRtcApiServerForRefusedPublish()
+    {
+        create_count_ = 0;
+        session_gone_ = false;
+    }
+    virtual ~MockRtcApiServerForRefusedPublish()
+    {
+    }
+
+public:
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
+    {
+        create_count_++;
+        *psession = &session_;
+        return srs_success;
+    }
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag)
+    {
+        find_username_ = ufrag;
+        if (session_gone_ || ufrag != session_.username_) {
+            return NULL;
+        }
+        return &session_;
+    }
+};
+
+// The offer of a WHIP publisher, a raw SDP body that sends Opus.
+static std::string mock_whip_publish_offer()
+{
+    return "v=0\r\n"
+           "o=- 0 0 IN IP4 127.0.0.1\r\n"
+           "s=-\r\n"
+           "t=0 0\r\n"
+           "a=group:BUNDLE 0\r\n"
+           "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\n"
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+           "a=ice-ufrag:test\r\n"
+           "a=ice-pwd:testpasswordtestpassword\r\n"
+           "a=fingerprint:sha-256 "
+           "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:"
+           "44:55:66:77:88:99\r\n"
+           "a=setup:actpass\r\n"
+           "a=mid:0\r\n"
+           "a=sendonly\r\n"
+           "a=rtcp-mux\r\n"
+           "a=rtpmap:111 opus/48000/2\r\n";
+}
+
+// WHIP: a publisher that on_publish refuses must not hold the stream.
+//
+// The session is made before the hook, for the hook reports the stream the session adds to the
+// stat, and the session holds the stream's publish token until it is removed. A refused publisher
+// never connects, so unless SRS removes its session at once, the stream stays busy (409) for the
+// next publisher until the session times out without STUN.
+VOID TEST(HookRejectionTest, WhipRejectedPublisherFreesSession)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockRtcApiServerForRefusedPublish> server(new MockRtcApiServerForRefusedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
+    HELPER_EXPECT_SUCCESS(message->set_url("http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream", false));
+    message->body_content_ = mock_whip_publish_offer();
+
+    SrsUniquePtr<MockAppConfigForHttpHooksOnPublish> config(new MockAppConfigForHttpHooksOnPublish());
+    config->rtc_server_enabled_ = true;
+    config->rtc_enabled_ = true;
+    config->http_hooks_enabled_ = true;
+    config->on_publish_directive_ = new SrsConfDirective();
+    config->on_publish_directive_->name_ = "on_publish";
+    config->on_publish_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/publish");
+
+    SrsUniquePtr<MockHttpHooksForOnPublish> hooks(new MockHttpHooksForOnPublish());
+    hooks->on_publish_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", 401);
+
+    SrsUniquePtr<SrsGoApiRtcWhip> api(new SrsGoApiRtcWhip(server.get()));
+    api->config_ = config.get();
+    api->publish_->config_ = config.get();
+    api->publish_->hooks_ = hooks.get();
+
+    HELPER_EXPECT_SUCCESS(api->serve_http(writer.get(), message.get()));
+
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+    EXPECT_EQ(1, hooks->on_publish_count_);
+
+    // The refused session is removed, so it frees the stream.
+    EXPECT_EQ(1, server->session_.expire_count_);
+
+    api->config_ = NULL;
+    api->publish_->config_ = NULL;
+    api->publish_->hooks_ = NULL;
+}
+
+// WHIP: a publisher the security denies must not hold the stream either. The security check needs
+// no session, so it comes first, as for a WHEP player, and a denied publisher makes none.
+VOID TEST(HookRejectionTest, WhipDeniedPublisherMakesNoSession)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockRtcApiServerForRefusedPublish> server(new MockRtcApiServerForRefusedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
+    HELPER_EXPECT_SUCCESS(message->set_url("http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream", false));
+    message->body_content_ = mock_whip_publish_offer();
+
+    SrsUniquePtr<MockAppConfigForHttpHooksOnPublish> config(new MockAppConfigForHttpHooksOnPublish());
+    config->rtc_server_enabled_ = true;
+    config->rtc_enabled_ = true;
+
+    MockSecurity *security = new MockSecurity();
+    security->check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "denied");
+
+    SrsUniquePtr<SrsGoApiRtcWhip> api(new SrsGoApiRtcWhip(server.get()));
+    api->config_ = config.get();
+    api->publish_->config_ = config.get();
+    srs_freep(api->publish_->security_);
+    api->publish_->security_ = security;
+
+    HELPER_EXPECT_SUCCESS(api->serve_http(writer.get(), message.get()));
+
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+    EXPECT_EQ(1, security->check_count_);
+    EXPECT_EQ(0, server->create_count_);
+    EXPECT_EQ(0, server->session_.expire_count_);
+
+    api->config_ = NULL;
+    api->publish_->config_ = NULL;
+}
+
+// Serve a WHIP publish whose on_publish hook passes, on a server whose session is gone or
+// disposing by the time the hook answers, as is_gone and is_disposing say.
+static void mock_whip_publish_hook_passed(MockRtcApiServerForRefusedPublish *server, MockResponseWriter *writer,
+                                          bool is_gone, bool is_disposing)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
+    HELPER_EXPECT_SUCCESS(message->set_url("http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream", false));
+    message->body_content_ = mock_whip_publish_offer();
+
+    SrsUniquePtr<MockAppConfigForHttpHooksOnPublish> config(new MockAppConfigForHttpHooksOnPublish());
+    config->rtc_server_enabled_ = true;
+    config->rtc_enabled_ = true;
+    config->http_hooks_enabled_ = true;
+    config->on_publish_directive_ = new SrsConfDirective();
+    config->on_publish_directive_->name_ = "on_publish";
+    config->on_publish_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/publish");
+
+    SrsUniquePtr<MockHttpHooksForOnPublish> hooks(new MockHttpHooksForOnPublish());
+
+    server->session_gone_ = is_gone;
+    server->session_.is_disposing_ = is_disposing;
+
+    SrsUniquePtr<SrsGoApiRtcWhip> api(new SrsGoApiRtcWhip(server));
+    api->config_ = config.get();
+    api->publish_->config_ = config.get();
+    api->publish_->hooks_ = hooks.get();
+
+    HELPER_EXPECT_SUCCESS(api->serve_http(writer, message.get()));
+    EXPECT_EQ(1, hooks->on_publish_count_);
+
+    api->config_ = NULL;
+    api->publish_->config_ = NULL;
+    api->publish_->hooks_ = NULL;
+}
+
+// WHIP: a publisher whose hook passes gets its answer, for its session is still there after the hook.
+VOID TEST(HookRejectionTest, WhipPublisherAnsweredAfterHook)
+{
+    SrsUniquePtr<MockRtcApiServerForRefusedPublish> server(new MockRtcApiServerForRefusedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    mock_whip_publish_hook_passed(server.get(), writer.get(), false, false);
+
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 201"));
+    EXPECT_STREQ("refused-publisher", server->find_username_.c_str());
+    EXPECT_EQ(0, server->session_.expire_count_);
+}
+
+// WHIP: a hook that passes after the STUN timeout, or after an API DELETE of the client, answers
+// when the session is already freed. SRS finds the session again by its username after the hook,
+// and answers an error for a session that is gone, never touching the freed one.
+VOID TEST(HookRejectionTest, WhipPublisherSessionGoneAfterHook)
+{
+    SrsUniquePtr<MockRtcApiServerForRefusedPublish> server(new MockRtcApiServerForRefusedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    mock_whip_publish_hook_passed(server.get(), writer.get(), true, false);
+
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 500"));
+    EXPECT_NE(string::npos, response.find("5036: RtcInvalidSession"));
+    EXPECT_STREQ("refused-publisher", server->find_username_.c_str());
+    EXPECT_EQ(0, server->session_.expire_count_);
+}
+
+// WHIP: a session removed during the hook but not yet freed is disposing, so it gets the same error.
+VOID TEST(HookRejectionTest, WhipPublisherSessionDisposingAfterHook)
+{
+    SrsUniquePtr<MockRtcApiServerForRefusedPublish> server(new MockRtcApiServerForRefusedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    mock_whip_publish_hook_passed(server.get(), writer.get(), false, true);
+
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 500"));
+    EXPECT_NE(string::npos, response.find("5036: RtcInvalidSession"));
+    EXPECT_EQ(0, server->session_.expire_count_);
+}
+
+// A WHIP session on the heap, which counts its expires in the server that owns it.
+class MockRtcConnectionForFreedPublish : public MockRtcConnectionForUpdateSessions
+{
+public:
+    int *expire_count_;
+
+public:
+    MockRtcConnectionForFreedPublish(int *expire_count)
+    {
+        username_ = "freed-publisher";
+        expire_count_ = expire_count;
+    }
+    virtual ~MockRtcConnectionForFreedPublish()
+    {
+    }
+
+public:
+    virtual void expire()
+    {
+        (*expire_count_)++;
+    }
+};
+
+// An RTC API server that owns its one session and frees it when it times out without STUN, so a
+// freed session is never found again.
+class MockRtcApiServerForFreedPublish : public ISrsRtcApiServer
+{
+public:
+    MockRtcConnectionForFreedPublish *session_;
+    int create_count_;
+    int expire_count_;
+    std::string find_username_;
+
+public:
+    MockRtcApiServerForFreedPublish()
+    {
+        session_ = NULL;
+        create_count_ = 0;
+        expire_count_ = 0;
+    }
+    virtual ~MockRtcApiServerForFreedPublish()
+    {
+        srs_freep(session_);
+    }
+
+public:
+    virtual srs_error_t create_rtc_session(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, ISrsRtcConnection **psession)
+    {
+        create_count_++;
+        session_ = new MockRtcConnectionForFreedPublish(&expire_count_);
+        *psession = session_;
+        return srs_success;
+    }
+    virtual ISrsRtcConnection *find_rtc_session_by_username(const std::string &ufrag)
+    {
+        find_username_ = ufrag;
+        if (!session_ || ufrag != session_->username_) {
+            return NULL;
+        }
+        return session_;
+    }
+    void stun_timeout()
+    {
+        srs_freep(session_);
+    }
+};
+
+// An on_publish hook that is slower than the STUN timeout, so the server frees the session while the
+// hook runs, and then refuses the publisher.
+class MockHttpHooksForSlowRefusal : public MockHttpHooksForOnPublish
+{
+public:
+    MockRtcApiServerForFreedPublish *server_;
+    bool found_before_timeout_;
+    int expires_before_timeout_;
+    bool found_after_timeout_;
+
+public:
+    MockHttpHooksForSlowRefusal(MockRtcApiServerForFreedPublish *server)
+    {
+        server_ = server;
+        found_before_timeout_ = false;
+        expires_before_timeout_ = -1;
+        found_after_timeout_ = true;
+    }
+    virtual ~MockHttpHooksForSlowRefusal()
+    {
+    }
+
+public:
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req)
+    {
+        found_before_timeout_ = (server_->find_rtc_session_by_username("freed-publisher") != NULL);
+        expires_before_timeout_ = server_->expire_count_;
+
+        server_->stun_timeout();
+        found_after_timeout_ = (server_->find_rtc_session_by_username("freed-publisher") != NULL);
+
+        return MockHttpHooksForOnPublish::on_publish(url, req);
+    }
+};
+
+// WHIP: a hook slower than the STUN timeout refuses a publisher whose session is already freed. The
+// refusal still answers 401, and never expires the freed session.
+VOID TEST(HookRejectionTest, WhipRejectedPublisherSessionFreedDuringHook)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockRtcApiServerForFreedPublish> server(new MockRtcApiServerForFreedPublish());
+    SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+    SrsUniquePtr<MockHttpMessageForRtcApi> message(new MockHttpMessageForRtcApi());
+    HELPER_EXPECT_SUCCESS(message->set_url("http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream", false));
+    message->body_content_ = mock_whip_publish_offer();
+
+    SrsUniquePtr<MockAppConfigForHttpHooksOnPublish> config(new MockAppConfigForHttpHooksOnPublish());
+    config->rtc_server_enabled_ = true;
+    config->rtc_enabled_ = true;
+    config->http_hooks_enabled_ = true;
+    config->on_publish_directive_ = new SrsConfDirective();
+    config->on_publish_directive_->name_ = "on_publish";
+    config->on_publish_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/publish");
+
+    SrsUniquePtr<MockHttpHooksForSlowRefusal> hooks(new MockHttpHooksForSlowRefusal(server.get()));
+    hooks->on_publish_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", 401);
+
+    SrsUniquePtr<SrsGoApiRtcWhip> api(new SrsGoApiRtcWhip(server.get()));
+    api->config_ = config.get();
+    api->publish_->config_ = config.get();
+    api->publish_->hooks_ = hooks.get();
+
+    // No session before the publisher asks.
+    EXPECT_EQ(0, server->create_count_);
+    EXPECT_TRUE(server->session_ == NULL);
+
+    HELPER_EXPECT_SUCCESS(api->serve_http(writer.get(), message.get()));
+
+    // The session was made before the hook, alive and not expired when the hook started, and freed
+    // by the STUN timeout while the hook ran.
+    EXPECT_EQ(1, server->create_count_);
+    EXPECT_EQ(1, hooks->on_publish_count_);
+    EXPECT_TRUE(hooks->found_before_timeout_);
+    EXPECT_EQ(0, hooks->expires_before_timeout_);
+    EXPECT_FALSE(hooks->found_after_timeout_);
+
+    // The publisher is refused as unauthorized, and the freed session is never expired again.
+    string response(writer->io.out_buffer.bytes(), writer->io.out_buffer.length());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+    EXPECT_TRUE(server->session_ == NULL);
+    EXPECT_EQ(0, server->expire_count_);
+
+    api->config_ = NULL;
+    api->publish_->config_ = NULL;
+    api->publish_->hooks_ = NULL;
 }

@@ -112,6 +112,9 @@ public:
     bool on_rtp_cipher_called_;
     bool on_rtp_plaintext_called_;
     bool on_rtcp_called_;
+    int binding_requests_;
+    // The network udp() returns.
+    ISrsRtcNetwork *udp_network_;
 
 public:
     MockRtcConnectionForUdpNetwork();
@@ -620,6 +623,7 @@ class MockResourceManagerForUdpNetwork : public ISrsResourceManager
 public:
     std::map<std::string, ISrsResource *> id_map_;
     std::map<uint64_t, ISrsResource *> fast_id_map_;
+    std::map<std::string, ISrsResource *> name_map_;
 
 public:
     MockResourceManagerForUdpNetwork();

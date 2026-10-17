@@ -14,6 +14,7 @@ using namespace std;
 #include <srs_app_listener.hpp>
 #include <srs_app_rtc_conn.hpp>
 #include <srs_app_rtc_network.hpp>
+#include <srs_app_rtc_server.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_kbps.hpp>
 #include <srs_kernel_ps.hpp>
@@ -2557,6 +2558,8 @@ MockRtcConnectionForUdpNetwork::MockRtcConnectionForUdpNetwork()
     on_rtp_cipher_called_ = false;
     on_rtp_plaintext_called_ = false;
     on_rtcp_called_ = false;
+    binding_requests_ = 0;
+    udp_network_ = NULL;
 }
 
 MockRtcConnectionForUdpNetwork::~MockRtcConnectionForUdpNetwork()
@@ -2663,12 +2666,13 @@ srs_error_t MockRtcConnectionForUdpNetwork::on_rtcp(char *data, int nb_data)
 
 srs_error_t MockRtcConnectionForUdpNetwork::on_binding_request(SrsStunPacket *r, std::string &ice_pwd)
 {
+    binding_requests_++;
     return srs_success;
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::udp()
 {
-    return NULL;
+    return udp_network_;
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::tcp()
@@ -2762,6 +2766,7 @@ void MockRtcConnectionForUdpNetwork::reset()
     on_rtp_cipher_called_ = false;
     on_rtp_plaintext_called_ = false;
     on_rtcp_called_ = false;
+    binding_requests_ = 0;
 }
 
 // Test SrsRtcUdpNetwork initialization and DTLS handling
@@ -3090,6 +3095,10 @@ ISrsResource *MockResourceManagerForUdpNetwork::find_by_fast_id(uint64_t id)
 
 ISrsResource *MockResourceManagerForUdpNetwork::find_by_name(std::string name)
 {
+    std::map<std::string, ISrsResource *>::iterator it = name_map_.find(name);
+    if (it != name_map_.end()) {
+        return it->second;
+    }
     return NULL;
 }
 
@@ -3109,6 +3118,7 @@ void MockResourceManagerForUdpNetwork::reset()
 {
     id_map_.clear();
     fast_id_map_.clear();
+    name_map_.clear();
 }
 
 // Test SrsRtcUdpNetwork STUN binding request handling
@@ -4148,4 +4158,94 @@ VOID TEST(RtcTcpConnTest, OnTcpPktRouting)
     tcp_conn->skt_ = NULL;
     tcp_conn->session_ = NULL;
     mock_session->tcp_network_ = NULL;
+}
+
+// A STUN binding request with only the USERNAME attribute, as a UDP packet.
+static std::string build_rtc_udp_stun_binding_request(std::string username)
+{
+    char stun_buf[128];
+    memset(stun_buf, 0, sizeof(stun_buf));
+
+    int username_len = (int)username.size();
+    int username_padded = (username_len + 3) / 4 * 4;
+    int message_size = 4 + username_padded;
+    int stun_size = 20 + message_size;
+
+    // STUN header: BindingRequest, message length, magic cookie and transaction ID.
+    stun_buf[0] = 0x00;
+    stun_buf[1] = 0x01;
+    stun_buf[2] = (message_size >> 8) & 0xff;
+    stun_buf[3] = message_size & 0xff;
+    stun_buf[4] = 0x21;
+    stun_buf[5] = 0x12;
+    stun_buf[6] = 0xa4;
+    stun_buf[7] = 0x42;
+    for (int i = 8; i < 20; ++i) {
+        stun_buf[i] = i - 8;
+    }
+
+    // USERNAME attribute.
+    stun_buf[20] = 0x00;
+    stun_buf[21] = 0x06;
+    stun_buf[22] = (username_len >> 8) & 0xff;
+    stun_buf[23] = username_len & 0xff;
+    memcpy(stun_buf + 24, username.data(), username_len);
+
+    return std::string(stun_buf, stun_size);
+}
+
+// A client that closed its socket without a DTLS alert leaves its session at its address until the session times out,
+// and a new client may get the same port. Its binding request goes to the session its username names, which binds and
+// takes the address, not to the old session, which would reject it for the other password.
+VOID TEST(RtcSessionManagerTest, BindingRequestFromOldSessionAddressGoesToNamedSession)
+{
+    srs_error_t err;
+
+    MockResourceManagerForUdpNetwork manager;
+    MockEphemeralDelta delta;
+
+    MockRtcConnectionForUdpNetwork old_conn;
+    SrsRtcUdpNetwork old_network(&old_conn, &delta);
+    old_network.conn_manager_ = &manager;
+    old_conn.udp_network_ = &old_network;
+
+    MockRtcConnectionForUdpNetwork conn;
+    SrsRtcUdpNetwork network(&conn, &delta);
+    network.conn_manager_ = &manager;
+    conn.udp_network_ = &network;
+
+    MockUdpMuxSocket socket;
+    socket.peer_ip_ = "127.0.0.1";
+    socket.peer_port_ = 50000;
+    socket.peer_id_ = "127.0.0.1:50000";
+    socket.fast_id_ = 12345;
+    manager.fast_id_map_[socket.fast_id_] = &old_conn;
+    manager.id_map_[socket.peer_id_] = &old_conn;
+    manager.name_map_["srvufrag:cliufrag"] = &conn;
+
+    std::string stun = build_rtc_udp_stun_binding_request("srvufrag:cliufrag");
+    socket.data_ = (char *)stun.data();
+    socket.size_ = (int)stun.size();
+
+    SrsRtcSessionManager session_manager;
+    session_manager.conn_manager_ = &manager;
+    HELPER_EXPECT_SUCCESS(session_manager.on_udp_packet(&socket));
+
+    EXPECT_EQ(0, old_conn.binding_requests_);
+    EXPECT_EQ(1, conn.binding_requests_);
+    EXPECT_EQ(1, socket.sendto_called_count_);
+    EXPECT_EQ((ISrsUdpMuxSocket *)&socket, network.sendonly_skt_);
+    EXPECT_TRUE(old_network.sendonly_skt_ == NULL);
+
+    // The address is the new session's now, so its next packets, such as DTLS, go there.
+    EXPECT_EQ((ISrsResource *)&conn, manager.fast_id_map_[socket.fast_id_]);
+    EXPECT_EQ((ISrsResource *)&conn, manager.id_map_[socket.peer_id_]);
+
+    // The mock socket copies itself as the cached address, so it must not be freed by the network.
+    session_manager.conn_manager_ = NULL;
+    network.peer_addresses_.clear();
+    network.sendonly_skt_ = NULL;
+    network.conn_manager_ = NULL;
+    old_network.conn_manager_ = NULL;
+    socket.data_ = NULL;
 }

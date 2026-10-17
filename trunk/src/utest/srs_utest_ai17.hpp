@@ -432,6 +432,8 @@ class MockRtcApiServerForPlay : public ISrsRtcApiServer
 public:
     bool create_session_called_;
     MockRtcConnectionForPlay *mock_connection_;
+    // The session create_rtc_session made, which find_rtc_session_by_username finds by its username.
+    ISrsRtcConnection *session_;
 
 public:
     MockRtcApiServerForPlay();

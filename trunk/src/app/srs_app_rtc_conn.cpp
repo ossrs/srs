@@ -2671,6 +2671,27 @@ srs_error_t SrsRtcConnection::on_dtls_handshake_done()
     srs_trace("RTC: session pub=%u, sub=%u, to=%dms connection established", publishers_.size(), players_.size(),
               srsu2msi(session_timeout_));
 
+    if ((err = start_streams()) != srs_success) {
+        // A stream that can't start leaves the client a connected peer that never publishes or plays,
+        // holding the stream until the session times out, so end the session now, which frees its stream.
+        //
+        // The error is handled here and not returned. Ending the session is all the callers could do with
+        // it: freeing the session also closes its UDP or TCP network. Returned, it would only be logged by
+        // the UDP listener, rate-limited and with a dump of the DTLS packet, so log it here, with the
+        // username. The network then marks the session established, which does no harm, because the
+        // session is already being removed.
+        srs_warn("RTC: session destroy by start failed, username=%s, err=%s", username_.c_str(), srs_error_desc(err).c_str());
+        srs_freep(err);
+        expire();
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::start_streams()
+{
+    srs_error_t err = srs_success;
+
     // start all publisher
     for (map<string, ISrsRtcPublishStream *>::iterator it = publishers_.begin(); it != publishers_.end(); ++it) {
         string url = it->first;

@@ -571,6 +571,11 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
                              server_enabled, rtc_enabled, ruc->req_->vhost_.c_str());
     }
 
+    // The security check needs no session, so a denied publisher never makes one.
+    if ((err = security_->check(SrsRtcConnPublish, ruc->req_->ip_, ruc->req_)) != srs_success) {
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: security check");
+    }
+
     // TODO: FIXME: When server enabled, but vhost disabled, should report error.
     // We must do stat the client before hooks, because hooks depends on it.
     ISrsRtcConnection *session = NULL;
@@ -578,13 +583,28 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_error_wrap(err, "create session");
     }
 
-    if ((err = security_->check(SrsRtcConnPublish, ruc->req_->ip_, ruc->req_)) != srs_success) {
-        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: security check");
-    }
+    // The hook yields, and the session may be freed meanwhile, so keep what the answer needs.
+    string username = session->username();
+    string token = session->token();
 
     // We must do hook after stat, because depends on it.
-    if ((err = http_hooks_on_publish(ruc->req_)) != srs_success) {
+    err = http_hooks_on_publish(ruc->req_);
+
+    // The session may be gone after the hook, by the STUN timeout or an API DELETE of the client.
+    session = server_->find_rtc_session_by_username(username);
+
+    if (err != srs_success) {
+        // The session holds the stream's publish token, so a refused publisher, which never
+        // connects, must not leave it: the stream would be busy for the next publisher until the
+        // session times out without STUN.
+        if (session) {
+            session->expire();
+        }
         return srs_error_transform(ERROR_SYSTEM_AUTH, err, "RTC: http_hooks_on_publish");
+    }
+
+    if (!session || session->is_disposing()) {
+        return srs_error_new(ERROR_RTC_INVALID_SESSION, "session gone during hook, username=%s", username.c_str());
     }
 
     ostringstream os;
@@ -597,10 +617,10 @@ srs_error_t SrsGoApiRtcPublish::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMe
     string local_sdp_escaped = srs_strings_replace(local_sdp_str.c_str(), "\r\n", "\\r\\n");
 
     ruc->local_sdp_str_ = local_sdp_str;
-    ruc->session_id_ = session->username();
-    ruc->token_ = session->token();
+    ruc->session_id_ = username;
+    ruc->token_ = token;
 
-    srs_trace("RTC username=%s, offer=%dB, answer=%dB", session->username().c_str(),
+    srs_trace("RTC username=%s, offer=%dB, answer=%dB", username.c_str(),
               ruc->remote_sdp_str_.length(), local_sdp_escaped.length());
     srs_trace("RTC remote offer: %s", srs_strings_replace(ruc->remote_sdp_str_.c_str(), "\r\n", "\\r\\n").c_str());
     srs_trace("RTC local answer: %s", local_sdp_escaped.c_str());
