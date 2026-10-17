@@ -132,7 +132,7 @@ void SrsHttpHooks::on_close(string url, ISrsRequest *req, int64_t send_bytes, in
     return;
 }
 
-srs_error_t SrsHttpHooks::on_publish(string url, ISrsRequest *req)
+srs_error_t SrsHttpHooks::on_publish(string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
 
@@ -144,6 +144,7 @@ srs_error_t SrsHttpHooks::on_publish(string url, ISrsRequest *req)
     obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_publish"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
+    obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip_.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost_.c_str()));
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
@@ -193,7 +194,7 @@ SrsStatisticStreamSnapshot::~SrsStatisticStreamSnapshot()
 {
 }
 
-void SrsHttpHooks::on_unpublish(string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void SrsHttpHooks::on_unpublish(string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     srs_error_t err = srs_success;
 
@@ -205,6 +206,7 @@ void SrsHttpHooks::on_unpublish(string url, ISrsRequest *req, const SrsStatistic
     obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_unpublish"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
+    obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip_.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost_.c_str()));
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
@@ -236,7 +238,7 @@ void SrsHttpHooks::on_unpublish(string url, ISrsRequest *req, const SrsStatistic
     return;
 }
 
-srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req)
+srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
 
@@ -248,6 +250,7 @@ srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req)
     obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_play"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
+    obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip_.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost_.c_str()));
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
@@ -279,7 +282,7 @@ srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req)
     return err;
 }
 
-void SrsHttpHooks::on_stop(string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void SrsHttpHooks::on_stop(string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     srs_error_t err = srs_success;
 
@@ -291,6 +294,7 @@ void SrsHttpHooks::on_stop(string url, ISrsRequest *req, const SrsStatisticStrea
     obj->set("service_id", SrsJsonAny::str(stat->service_id().c_str()));
     obj->set("action", SrsJsonAny::str("on_stop"));
     obj->set("client_id", SrsJsonAny::str(cid.c_str()));
+    obj->set("type", SrsJsonAny::str(srs_client_type_string(type).c_str()));
     obj->set("ip", SrsJsonAny::str(req->ip_.c_str()));
     obj->set("vhost", SrsJsonAny::str(req->vhost_.c_str()));
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));

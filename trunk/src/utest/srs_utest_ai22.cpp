@@ -4113,12 +4113,12 @@ public:
     std::vector<std::string> on_stop_params_;
 
 public:
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req)
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
     {
         actions_.push_back("on_play");
-        return MockHttpHooksForOnPlay::on_play(url, req);
+        return MockHttpHooksForOnPlay::on_play(url, req, type);
     }
-    virtual void on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
     {
         actions_.push_back("on_stop");
         on_stop_urls_.push_back(url);
@@ -5496,21 +5496,21 @@ void MockHttpHooksForDvrAsyncCall::on_close(std::string url, ISrsRequest *req, i
 {
 }
 
-srs_error_t MockHttpHooksForDvrAsyncCall::on_publish(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForDvrAsyncCall::on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForDvrAsyncCall::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForDvrAsyncCall::on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForDvrAsyncCall::on_play(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForDvrAsyncCall::on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForDvrAsyncCall::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForDvrAsyncCall::on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 

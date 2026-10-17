@@ -1403,7 +1403,7 @@ public:
     }
 
 public:
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req)
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
     {
         found_before_timeout_ = (server_->find_rtc_session_by_username("freed-publisher") != NULL);
         expires_before_timeout_ = server_->expire_count_;
@@ -1411,7 +1411,7 @@ public:
         server_->stun_timeout();
         found_after_timeout_ = (server_->find_rtc_session_by_username("freed-publisher") != NULL);
 
-        return MockHttpHooksForOnPublish::on_publish(url, req);
+        return MockHttpHooksForOnPublish::on_publish(url, req, type);
     }
 };
 
@@ -1534,7 +1534,7 @@ public:
     }
 
 public:
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req)
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
     {
         SrsRtmpConn *rtmp = dynamic_cast<SrsRtmpConn *>((ISrsResource *)conn_);
         if (rtmp) {
@@ -1554,7 +1554,7 @@ public:
             nb_clients_ = stream->nb_clients_;
         }
 
-        return MockHttpHooksForOnPlay::on_play(url, req);
+        return MockHttpHooksForOnPlay::on_play(url, req, type);
     }
 };
 

@@ -27,18 +27,19 @@ import (
 
 // An httpHookMount is an HTTP remux mount whose players the hook cases check:
 // the prefix of its case names, its extension, the test file that has its
-// codecs, and when a player has seen it play.
+// codecs, when a player has seen it play, and the client type of its players.
 type httpHookMount struct {
 	name, ext string
 	file      string
 	until     report.Until
+	typ       string
 }
 
 var (
-	flvHookMount = httpHookMount{"HttpFlv", "flv", media.H264HighAAC, report.Until{VideoHeader: true, AudioHeader: true, Keyframes: 1}}
-	tsHookMount  = httpHookMount{"HttpTs", "ts", tsMount.file, tsMount.until}
-	mp3HookMount = httpHookMount{"HttpMp3", "mp3", mp3Mount.file, mp3Mount.until}
-	aacHookMount = httpHookMount{"HttpAac", "aac", aacMount.file, aacMount.until}
+	flvHookMount = httpHookMount{"HttpFlv", "flv", media.H264HighAAC, report.Until{VideoHeader: true, AudioHeader: true, Keyframes: 1}, "flv-play"}
+	tsHookMount  = httpHookMount{"HttpTs", "ts", tsMount.file, tsMount.until, "ts-play"}
+	mp3HookMount = httpHookMount{"HttpMp3", "mp3", mp3Mount.file, mp3Mount.until, "mp3-play"}
+	aacHookMount = httpHookMount{"HttpAac", "aac", aacMount.file, aacMount.until, "aac-play"}
 )
 
 // forwardedFor is the header of a proxy in front of SRS; its first address
@@ -57,15 +58,16 @@ func hooksHTTP(t *testing.T) {
 	httpPlayerHooks(t, func(c *check.C) *server.Server { return server.Common(c) }, flvHookMount, true)
 
 	// HlsOnPlay starts an HLS session with a param and a Referer: one
-	// on_play, with every field; the session's hls_ctx is its client_id and a
-	// client of the API, stream_id the publisher's, clients 2.
+	// on_play, with every field, of the type hls-play; the session's hls_ctx
+	// is its client_id and a client of the API, stream_id the publisher's,
+	// clients 2.
 	check.Case(t, "HlsOnPlay", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		name := streamName(c)
 		pub := publishHLSHooked(c, srs, name, "")
 		ctx := hlsSession(c, srs, name, "?k=v", http.Header{"Referer": {playerReferer}})
 		play := waitClientHook(c, srs, "on_play", ctx)
-		checkHookFields(c, srs, []mock.Request{play}, "127.0.0.1")
+		checkHookFields(c, srs, []mock.Request{play}, "127.0.0.1", "hls-play")
 		c.CheckEqual(play.Field("param"), "?k=v", "on_play param")
 		c.CheckEqual(play.Field("pageUrl"), playerReferer, "on_play pageUrl")
 		c.CheckEqual(play.Field("stream_url"), "/live/"+name, "on_play stream_url")
@@ -130,6 +132,32 @@ func hooksHTTP(t *testing.T) {
 		c.CheckEqual(len(plays), len(paths), "on_play of the stream, one for each playlist")
 		for _, h := range plays {
 			c.CheckEqual(h.Field("app"), "live", "on_play app")
+		}
+	})
+
+	// HlsAndFlvPlayTypes starts an HLS session and an HTTP-FLV player of one
+	// stream: their on_play have the same stream, and the type tells them
+	// apart, hls-play and flv-play, each the type the API lists for the
+	// client.
+	check.Case(t, "HlsAndFlvPlayTypes", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		name := streamName(c)
+		publishHLSHooked(c, srs, name, "")
+		ctx := hlsSession(c, srs, name, "", nil)
+		hlsPlay := waitClientHook(c, srs, "on_play", ctx)
+		remuxPlayerOf(c, srs, "live/"+name+".flv", nil)
+		wait, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		flvPlay, err := srs.Hooks.Wait(wait, mock.Match{Action: "on_play", Stream: name, Func: func(r mock.Request) bool { return r.Field("client_id") != ctx }})
+		c.Must(err, "on_play of the HTTP-FLV player")
+
+		for _, s := range []struct {
+			h   mock.Request
+			typ string
+		}{{hlsPlay, "hls-play"}, {flvPlay, "flv-play"}} {
+			c.CheckEqual(s.h.Field("stream"), name, s.typ+" on_play stream")
+			c.CheckEqual(s.h.Field("type"), s.typ, "on_play type")
+			c.CheckEqual(apiClientOf(c, srs, s.h.Field("client_id"))["type"], s.typ, "the API's type of the client")
 		}
 	})
 
@@ -269,7 +297,7 @@ func httpPlayerHooks(t *testing.T, srsOf func(*check.C) *server.Server, m httpHo
 	// stream goes on: on_play, then on_stop, and no other hook of the
 	// client, with every field; the client_id is a client of the API, the
 	// pageUrl the Referer, stream_id the publisher's, and clients 2 in both,
-	// as for an RTMP player.
+	// as for an RTMP player; the type is the mount's, such as flv-play.
 	check.Case(t, m.name+"PlayerEvents", check.Normal, func(c *check.C) {
 		httpPlayerEvents(c, srsOf(c), m, &httpplay.Options{Header: http.Header{"Referer": {playerReferer}}})
 	})
@@ -332,7 +360,7 @@ func httpPlayerEvents(c *check.C, srs *server.Server, m httpHookMount, opts *htt
 
 	hooks := clientHooks(srs, id)
 	c.CheckEqual(hookActions(hooks), []string{"on_play", "on_stop"}, "player hooks")
-	checkHookFields(c, srs, hooks, "127.0.0.1")
+	checkHookFields(c, srs, hooks, "127.0.0.1", m.typ)
 	for _, h := range hooks {
 		c.CheckEqual(h.Field("stream"), name, h.Action()+" stream")
 		c.CheckEqual(h.Field("param"), "?k=v", h.Action()+" param")
@@ -345,14 +373,22 @@ func httpPlayerEvents(c *check.C, srs *server.Server, m httpHookMount, opts *htt
 
 // checkHookFields checks every hook of a client has its fields, and the
 // fields they share: the server's ids, the client's id and IP, the default
-// vhost and the app.
-func checkHookFields(c *check.C, srs *server.Server, hooks []mock.Request, ip string) {
+// vhost and the app. The publish and play hooks have the client's type typ,
+// the type the API lists; on_connect and on_close have none, for an RTMP
+// client has not said yet whether it publishes or plays.
+func checkHookFields(c *check.C, srs *server.Server, hooks []mock.Request, ip, typ string) {
 	c.Helper()
 	ids := apiIDs(c, srs)
 	for _, h := range hooks {
 		for _, k := range rtmpHookFields[h.Action()] {
 			_, ok := h.JSON[k]
 			c.Check(ok, "%s has no %s: %s", h.Action(), k, h.Body)
+		}
+		if h.Action() == "on_connect" || h.Action() == "on_close" {
+			_, ok := h.JSON["type"]
+			c.Check(!ok, "%s has a type: %s", h.Action(), h.Body)
+		} else {
+			c.CheckEqual(h.Field("type"), typ, h.Action()+" type")
 		}
 		c.CheckEqual(h.Field("server_id"), ids.Server, h.Action()+" server_id, the API's server")
 		c.CheckEqual(h.Field("service_id"), ids.Service, h.Action()+" service_id, the API's service")
@@ -457,9 +493,9 @@ func TestTimer_Hooks_HlsSession(t *testing.T) {
 
 	// OnStopPayload starts a session with a param through a proxy, fetches
 	// its media playlist once, and waits for it to end: on_play, then
-	// on_stop, with every field; the hls_ctx as client_id, the proxy's
-	// client IP, the param, stream_id the publisher's, and clients 2 while
-	// the session still counts.
+	// on_stop, with every field; the hls_ctx as client_id, the type
+	// hls-play, the proxy's client IP, the param, stream_id the publisher's,
+	// and clients 2 while the session still counts.
 	check.Case(t, "OnStopPayload", check.Timer, func(c *check.C) {
 		name := streamName(c)
 		publishThrough(c, srs, "live/"+name, media.H264HighAAC, 2*time.Second)
@@ -471,7 +507,7 @@ func TestTimer_Hooks_HlsSession(t *testing.T) {
 
 		hooks := clientHooks(srs, ctx)
 		c.CheckEqual(hookActions(hooks), []string{"on_play", "on_stop"}, "session hooks")
-		checkHookFields(c, srs, hooks, "10.1.2.3")
+		checkHookFields(c, srs, hooks, "10.1.2.3", "hls-play")
 		c.CheckEqual(stop.Field("param"), "?k=v", "on_stop param")
 		c.CheckEqual(stop.Field("stream_url"), "/live/"+name, "on_stop stream_url")
 		c.CheckEqual(stop.Field("stream_id"), pub.Field("stream_id"), "on_stop stream_id, the publisher's")

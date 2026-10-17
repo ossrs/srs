@@ -74,7 +74,7 @@ vhost your_vhost {
         # the request in the POST data string is a object encode by json:
         #       {
         #           "action": "on_publish",
-        #           "client_id": "9308h583",
+        #           "client_id": "9308h583", "type": "fmle-publish",
         #           "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
         #           "stream": "livestream", "param":"?token=xxx&salt=yyy", "server_id": "vid-werty",
         #           "stream_url": "video.test.com/live/livestream", "stream_id": "vid-124q9y3"
@@ -91,7 +91,7 @@ vhost your_vhost {
         # the request in the POST data string is a object encode by json:
         #       {
         #           "action": "on_unpublish",
-        #           "client_id": "9308h583",
+        #           "client_id": "9308h583", "type": "fmle-publish",
         #           "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
         #           "stream": "livestream", "param":"?token=xxx&salt=yyy", "server_id": "vid-werty",
         #           "stream_url": "video.test.com/live/livestream", "stream_id": "vid-124q9y3"
@@ -108,7 +108,7 @@ vhost your_vhost {
         # the request in the POST data string is a object encode by json:
         #       {
         #           "action": "on_play",
-        #           "client_id": "9308h583",
+        #           "client_id": "9308h583", "type": "rtmp-play",
         #           "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
         #           "stream": "livestream", "param":"?token=xxx&salt=yyy",
         #           "pageUrl": "http://www.test.com/live.html", "server_id": "vid-werty",
@@ -126,7 +126,7 @@ vhost your_vhost {
         # the request in the POST data string is a object encode by json:
         #       {
         #           "action": "on_stop",
-        #           "client_id": "9308h583",
+        #           "client_id": "9308h583", "type": "rtmp-play",
         #           "ip": "192.168.1.10", "vhost": "video.test.com", "app": "live",
         #           "stream": "livestream", "param":"?token=xxx&salt=yyy", "server_id": "vid-werty",
         #           "stream_url": "video.test.com/live/livestream", "stream_id": "vid-124q9y3"
@@ -193,6 +193,12 @@ Description about some fields:
 
 * `stream_url`: The stream identify without extension, such as `/live/livestream`.
 * `stream_id`: The id of stream, by which you can query the stream information.
+* `type`: The client type of `on_publish`, `on_unpublish`, `on_play` and `on_stop`, the same value
+  [/api/v1/clients](./http-api.md) lists, which tells the protocol of the client apart: `fmle-publish` and
+  `flash-publish` for RTMP (a GB28181 stream is published by SRS's own RTMP client, as `flash-publish`),
+  `haivision-publish`, `rtc-publish` for WHIP, `srt-publish`; `rtmp-play`, `flv-play`, `ts-play`, `mp3-play`,
+  `aac-play`, `hls-play` for an HLS session, `rtc-play` for WHEP, `srt-play` and `rtsp-play`. The `on_connect`
+  and `on_close` have no type, because an RTMP client has not said yet whether it publishes or plays.
 
 > Note: The callbacks for streaming are `on_publish` and `on_unpublish`, while the callbacks for playback are `on_play` and `on_stop`.
 
@@ -220,6 +226,7 @@ Body:
   "server_id": "vid-0xk989d",
   "action": "on_publish",
   "client_id": "341w361a",
+  "type": "fmle-publish",
   "ip": "127.0.0.1",
   "vhost": "__defaultVhost__",
   "app": "live",

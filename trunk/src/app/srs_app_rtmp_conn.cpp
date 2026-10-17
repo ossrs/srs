@@ -1593,7 +1593,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_publish()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_publish(url, req)) != srs_success) {
+        if ((err = hooks_->on_publish(url, req, info_->type_)) != srs_success) {
             return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
         }
     }
@@ -1627,7 +1627,7 @@ void SrsRtmpConn::http_hooks_on_unpublish()
     SrsStatisticStreamSnapshot stream(stat_, req);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_unpublish(url, req, stream);
+        hooks_->on_unpublish(url, req, info_->type_, stream);
     }
 }
 
@@ -1658,7 +1658,7 @@ srs_error_t SrsRtmpConn::http_hooks_on_play()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_play(url, req)) != srs_success) {
+        if ((err = hooks_->on_play(url, req, info_->type_)) != srs_success) {
             return srs_error_wrap(err, "rtmp on_play %s", url.c_str());
         }
     }
@@ -1692,7 +1692,7 @@ void SrsRtmpConn::http_hooks_on_stop()
     SrsStatisticStreamSnapshot stream(stat_, req);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req, stream);
+        hooks_->on_stop(url, req, info_->type_, stream);
     }
 
     return;

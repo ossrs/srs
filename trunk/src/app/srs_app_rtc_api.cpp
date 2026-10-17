@@ -378,7 +378,7 @@ srs_error_t SrsGoApiRtcPlay::http_hooks_on_play(ISrsRequest *req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_play(url, req)) != srs_success) {
+        if ((err = hooks_->on_play(url, req, SrsRtcConnPlay)) != srs_success) {
             return srs_error_wrap(err, "on_play %s", url.c_str());
         }
     }
@@ -707,7 +707,7 @@ srs_error_t SrsGoApiRtcPublish::http_hooks_on_publish(ISrsRequest *req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_publish(url, req)) != srs_success) {
+        if ((err = hooks_->on_publish(url, req, SrsRtcConnPublish)) != srs_success) {
             return srs_error_wrap(err, "rtmp on_publish %s", url.c_str());
         }
     }

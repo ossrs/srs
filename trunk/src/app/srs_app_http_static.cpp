@@ -382,7 +382,7 @@ srs_error_t SrsHlsStream::http_hooks_on_play(ISrsRequest *req)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_play(url, req)) != srs_success) {
+        if ((err = hooks_->on_play(url, req, SrsHlsPlay)) != srs_success) {
             return srs_error_wrap(err, "http on_play %s", url.c_str());
         }
     }
@@ -417,7 +417,7 @@ void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
     SrsStatisticStreamSnapshot stream(stat_, req);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req, stream);
+        hooks_->on_stop(url, req, SrsHlsPlay, stream);
     }
 
     return;

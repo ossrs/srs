@@ -465,19 +465,19 @@ MockHttpHooksForVodStream::~MockHttpHooksForVodStream()
 {
 }
 
-srs_error_t MockHttpHooksForVodStream::on_play(string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForVodStream::on_play(string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     on_play_streams_.push_back(req->app_ + "/" + req->stream_);
     if (!refuse_stream_.empty() && req->stream_ == refuse_stream_) {
         return srs_error_new(ERROR_SYSTEM_AUTH, "refuse stream %s", req->stream_.c_str());
     }
-    return MockHttpHooksForLiveStream::on_play(url, req);
+    return MockHttpHooksForLiveStream::on_play(url, req, type);
 }
 
-void MockHttpHooksForVodStream::on_stop(string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForVodStream::on_stop(string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     on_stop_streams_.push_back(req->app_ + "/" + req->stream_);
-    MockHttpHooksForLiveStream::on_stop(url, req, stream);
+    MockHttpHooksForLiveStream::on_stop(url, req, type, stream);
 }
 
 MockSecurityForVodStream::MockSecurityForVodStream()

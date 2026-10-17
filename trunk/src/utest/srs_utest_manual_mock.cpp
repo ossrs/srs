@@ -2362,24 +2362,24 @@ void MockHttpHooks::on_close(std::string url, ISrsRequest *req, int64_t send_byt
 {
 }
 
-srs_error_t MockHttpHooks::on_publish(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooks::on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooks::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooks::on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     last_stream_ = stream;
     on_unpublish_count_++;
     on_unpublish_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooks::on_play(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooks::on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooks::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooks::on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     last_stream_ = stream;
     on_stop_count_++;

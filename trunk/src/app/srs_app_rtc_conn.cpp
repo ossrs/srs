@@ -438,7 +438,7 @@ srs_error_t SrsRtcAsyncCallOnStop::call()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req_, stream_);
+        hooks_->on_stop(url, req_, SrsRtcConnPlay, stream_);
     }
 
     return err;
@@ -1289,7 +1289,7 @@ srs_error_t SrsRtcAsyncCallOnUnpublish::call()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_unpublish(url, req_, stream_);
+        hooks_->on_unpublish(url, req_, SrsRtcConnPublish, stream_);
     }
 
     return err;

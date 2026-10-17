@@ -124,6 +124,9 @@ public:
     srs_error_t on_play_error_;
     std::vector<std::pair<std::string, ISrsRequest *> > on_stop_calls_;
     int on_stop_count_;
+    // The client type of each on_play and on_stop, in order.
+    std::vector<SrsRtmpConnType> on_play_types_;
+    std::vector<SrsRtmpConnType> on_stop_types_;
 
 public:
     MockHttpHooksForLiveStream();
@@ -132,10 +135,10 @@ public:
 public:
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);

@@ -2906,23 +2906,23 @@ void MockHttpHooksForRtcPlay::on_close(std::string url, ISrsRequest *req, int64_
 {
 }
 
-srs_error_t MockHttpHooksForRtcPlay::on_publish(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForRtcPlay::on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForRtcPlay::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForRtcPlay::on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForRtcPlay::on_play(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForRtcPlay::on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     on_play_count_++;
     on_play_calls_.push_back(std::make_pair(url, req));
     return srs_success;
 }
 
-void MockHttpHooksForRtcPlay::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForRtcPlay::on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
@@ -6104,7 +6104,7 @@ VOID TEST(HttpHooksTest, OnPublishSuccess)
 
     // Test on_publish with successful response - major use scenario
     std::string url = "http://127.0.0.1:8085/api/v1/streams";
-    HELPER_EXPECT_SUCCESS(hooks->on_publish(url, req.get()));
+    HELPER_EXPECT_SUCCESS(hooks->on_publish(url, req.get(), SrsRtmpConnFMLEPublish));
 
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;
@@ -6132,7 +6132,7 @@ VOID TEST(HttpHooksTest, OnUnpublishSuccess)
 
     // Test on_unpublish with successful response - major use scenario
     std::string url = "http://127.0.0.1:8085/api/v1/streams";
-    hooks->on_unpublish(url, req.get(), SrsStatisticStreamSnapshot(mock_stat.get(), req.get()));
+    hooks->on_unpublish(url, req.get(), SrsRtmpConnFMLEPublish, SrsStatisticStreamSnapshot(mock_stat.get(), req.get()));
 
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;
@@ -6163,7 +6163,7 @@ VOID TEST(HttpHooksTest, OnPlaySuccess)
 
     // Test on_play with successful response - major use scenario
     std::string url = "http://127.0.0.1:8085/api/v1/sessions";
-    HELPER_EXPECT_SUCCESS(hooks->on_play(url, req.get()));
+    HELPER_EXPECT_SUCCESS(hooks->on_play(url, req.get(), SrsRtmpConnPlay));
 
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;
@@ -6193,7 +6193,7 @@ VOID TEST(HttpHooksTest, OnStopSuccess)
 
     // Test on_stop with successful response - major use scenario
     std::string url = "http://127.0.0.1:8085/api/v1/sessions";
-    hooks->on_stop(url, req.get(), SrsStatisticStreamSnapshot(mock_stat.get(), req.get()));
+    hooks->on_stop(url, req.get(), SrsRtmpConnPlay, SrsStatisticStreamSnapshot(mock_stat.get(), req.get()));
 
     // Clean up - set injected fields to NULL to avoid double-free
     hooks->factory_ = NULL;

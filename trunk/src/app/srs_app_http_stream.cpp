@@ -743,7 +743,7 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     // We must do hook after stat, because depends on it. Transform to ERROR_SYSTEM_AUTH, so that
     // the root error handler in serve_http() answers 401 rather than 500; a refused viewer is not a
     // server fault.
-    if ((err = http_hooks_on_play(r)) != srs_success) {
+    if ((err = http_hooks_on_play(r, type)) != srs_success) {
         return srs_error_transform(ERROR_SYSTEM_AUTH, err, "http hook");
     }
 
@@ -783,7 +783,7 @@ srs_error_t SrsLiveStream::serve_http_impl(ISrsHttpResponseWriter *w, ISrsHttpMe
     err = do_serve_http(live_source.get(), consumer.get(), w, r);
 
     // Do hook after serving.
-    http_hooks_on_stop(r);
+    http_hooks_on_stop(r, type);
 
     return err;
 }
@@ -961,7 +961,7 @@ srs_error_t SrsLiveStream::do_serve_http(SrsLiveSource *source, ISrsLiveConsumer
     return srs_error_new(ERROR_HTTP_STREAM_EOF, "Stream EOF");
 }
 
-srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r)
+srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r, SrsRtmpConnType type)
 {
     srs_error_t err = srs_success;
 
@@ -990,7 +990,7 @@ srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r)
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_play(url, nreq.get())) != srs_success) {
+        if ((err = hooks_->on_play(url, nreq.get(), type)) != srs_success) {
             return srs_error_wrap(err, "http on_play %s", url.c_str());
         }
     }
@@ -998,7 +998,7 @@ srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r)
     return err;
 }
 
-void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r)
+void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r, SrsRtmpConnType type)
 {
     if (!config_->get_vhost_http_hooks_enabled(req_->vhost_)) {
         return;
@@ -1027,7 +1027,7 @@ void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r)
     SrsStatisticStreamSnapshot stream(stat_, nreq.get());
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, nreq.get(), stream);
+        hooks_->on_stop(url, nreq.get(), type, stream);
     }
 
     return;

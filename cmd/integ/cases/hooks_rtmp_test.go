@@ -42,10 +42,10 @@ var rtmpHookActions = []string{"on_connect", "on_close", "on_publish", "on_unpub
 var rtmpHookFields = map[string][]string{
 	"on_connect":   {"server_id", "service_id", "action", "client_id", "ip", "vhost", "app", "stream", "param", "tcUrl", "pageUrl"},
 	"on_close":     {"server_id", "service_id", "action", "client_id", "ip", "vhost", "app", "send_bytes", "recv_bytes"},
-	"on_publish":   {"server_id", "service_id", "action", "client_id", "ip", "vhost", "app", "tcUrl", "stream", "param", "stream_url", "stream_id"},
-	"on_unpublish": {"server_id", "service_id", "action", "client_id", "ip", "vhost", "app", "tcUrl", "stream", "param", "stream_url", "stream_id"},
-	"on_play":      {"server_id", "service_id", "action", "client_id", "ip", "vhost", "app", "tcUrl", "stream", "param", "pageUrl", "stream_url", "stream_id", "clients"},
-	"on_stop":      {"server_id", "service_id", "action", "client_id", "ip", "vhost", "app", "tcUrl", "stream", "param", "stream_url", "stream_id", "clients"},
+	"on_publish":   {"server_id", "service_id", "action", "client_id", "type", "ip", "vhost", "app", "tcUrl", "stream", "param", "stream_url", "stream_id"},
+	"on_unpublish": {"server_id", "service_id", "action", "client_id", "type", "ip", "vhost", "app", "tcUrl", "stream", "param", "stream_url", "stream_id"},
+	"on_play":      {"server_id", "service_id", "action", "client_id", "type", "ip", "vhost", "app", "tcUrl", "stream", "param", "pageUrl", "stream_url", "stream_id", "clients"},
+	"on_stop":      {"server_id", "service_id", "action", "client_id", "type", "ip", "vhost", "app", "tcUrl", "stream", "param", "stream_url", "stream_id", "clients"},
 }
 
 // hooksRtmp adds the hook payload cases of RTMP and RTMPS clients to
@@ -59,21 +59,23 @@ func hooksRtmp(t *testing.T) {
 		// PublisherEvents publishes 1s of media at once with a param and a
 		// pageUrl, then closes: on_connect, on_publish, on_unpublish and
 		// on_close, each once and in that order, with every field; the ids are
-		// those of the API, and on_close counts each byte of the connection.
+		// those of the API, the type of on_publish and on_unpublish is
+		// fmle-publish, and on_close counts each byte of the connection.
 		check.Case(t, s.name+"PublisherEvents", check.Normal, func(c *check.C) {
-			publisherEventsCase(c, s, rtmp.FMLE)
+			publisherEventsCase(c, s, rtmp.FMLE, "fmle-publish")
 		})
 
 		// PublisherEventsFlash is PublisherEvents with the Flash-style publish
-		// commands: the same events and fields.
+		// commands: the same events and fields, of the type flash-publish.
 		check.Case(t, s.name+"PublisherEventsFlash", check.Normal, func(c *check.C) {
-			publisherEventsCase(c, s, rtmp.Flash)
+			publisherEventsCase(c, s, rtmp.Flash, "flash-publish")
 		})
 
 		// PlayerEvents plays a stream with a param and a pageUrl, then closes
 		// while the stream goes on: on_connect, on_play, on_stop and on_close,
-		// each once and in that order, with every field. The player counts in
-		// the clients of on_play and still in those of on_stop.
+		// each once and in that order, with every field, on_play and on_stop of
+		// the type rtmp-play. The player counts in the clients of on_play and
+		// still in those of on_stop.
 		check.Case(t, s.name+"PlayerEvents", check.Normal, func(c *check.C) {
 			srs := server.Common(c)
 			stream := streamName(c)
@@ -92,7 +94,7 @@ func hooksRtmp(t *testing.T) {
 
 			hooks := clientHooks(srs, id)
 			c.CheckEqual(hookActions(hooks), []string{"on_connect", "on_play", "on_stop", "on_close"}, "player hooks")
-			checkCommonFields(c, srs, hooks)
+			checkCommonFields(c, srs, hooks, "rtmp-play")
 			tcURL := player.URL.TcURL
 			for _, h := range hooks {
 				if h.Action() == "on_close" {
@@ -322,8 +324,9 @@ func hooksRtmp(t *testing.T) {
 }
 
 // publisherEventsCase publishes 1s of media at once in a publish style, then
-// closes, and checks every hook of the session.
-func publisherEventsCase(c *check.C, s hookScheme, mode rtmp.PublishMode) {
+// closes, and checks every hook of the session, its publish hooks of the
+// client type typ.
+func publisherEventsCase(c *check.C, s hookScheme, mode rtmp.PublishMode, typ string) {
 	srs := server.Common(c)
 	stream := streamName(c)
 	opts := s.opts(c)
@@ -336,7 +339,7 @@ func publisherEventsCase(c *check.C, s hookScheme, mode rtmp.PublishMode) {
 
 	hooks := clientHooks(srs, id)
 	c.CheckEqual(hookActions(hooks), []string{"on_connect", "on_publish", "on_unpublish", "on_close"}, "publisher hooks")
-	checkCommonFields(c, srs, hooks)
+	checkCommonFields(c, srs, hooks, typ)
 	for _, h := range hooks {
 		if h.Action() == "on_close" {
 			continue
@@ -424,10 +427,10 @@ func hookOf(hooks []mock.Request, actions ...string) []mock.Request {
 
 // checkCommonFields checks every hook has its fields, and the fields every
 // hook of an RTMP session shares: the server's ids, the client's id and IP,
-// the default vhost and the app.
-func checkCommonFields(c *check.C, srs *server.Server, hooks []mock.Request) {
+// the default vhost and the app, and the client's type.
+func checkCommonFields(c *check.C, srs *server.Server, hooks []mock.Request, typ string) {
 	c.Helper()
-	checkHookFields(c, srs, hooks, "127.0.0.1")
+	checkHookFields(c, srs, hooks, "127.0.0.1", typ)
 }
 
 // checkAPIClient checks the API lists a client by the id of its hooks, as a

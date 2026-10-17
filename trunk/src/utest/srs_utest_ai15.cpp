@@ -4822,23 +4822,23 @@ void MockHttpHooksForOnConnect::on_close(std::string url, ISrsRequest *req, int6
     on_close_calls_.push_back(call);
 }
 
-srs_error_t MockHttpHooksForOnConnect::on_publish(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForOnConnect::on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForOnConnect::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForOnConnect::on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     on_unpublish_count_++;
     on_unpublish_calls_.push_back(std::make_pair(url, req));
 }
 
-srs_error_t MockHttpHooksForOnConnect::on_play(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForOnConnect::on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForOnConnect::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForOnConnect::on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));
@@ -5171,23 +5171,23 @@ void MockHttpHooksForOnPublish::on_close(std::string url, ISrsRequest *req, int6
 {
 }
 
-srs_error_t MockHttpHooksForOnPublish::on_publish(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForOnPublish::on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     on_publish_count_++;
     on_publish_calls_.push_back(std::make_pair(url, req));
     return srs_error_copy(on_publish_error_);
 }
 
-void MockHttpHooksForOnPublish::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForOnPublish::on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForOnPublish::on_play(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForOnPublish::on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForOnPublish::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForOnPublish::on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
@@ -5490,23 +5490,23 @@ void MockHttpHooksForOnPlay::on_close(std::string url, ISrsRequest *req, int64_t
 {
 }
 
-srs_error_t MockHttpHooksForOnPlay::on_publish(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForOnPlay::on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForOnPlay::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForOnPlay::on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForOnPlay::on_play(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForOnPlay::on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     on_play_count_++;
     on_play_calls_.push_back(std::make_pair(url, req));
     return srs_error_copy(on_play_error_);
 }
 
-void MockHttpHooksForOnPlay::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForOnPlay::on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 

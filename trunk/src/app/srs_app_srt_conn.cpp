@@ -846,7 +846,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_publish()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_publish(url, req_)) != srs_success) {
+        if ((err = hooks_->on_publish(url, req_, SrsSrtConnPublish)) != srs_success) {
             return srs_error_wrap(err, "srt on_publish %s", url.c_str());
         }
     }
@@ -878,7 +878,7 @@ void SrsMpegtsSrtConn::http_hooks_on_unpublish()
     SrsStatisticStreamSnapshot stream(stat_, req_);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_unpublish(url, req_, stream);
+        hooks_->on_unpublish(url, req_, SrsSrtConnPublish, stream);
     }
 }
 
@@ -907,7 +907,7 @@ srs_error_t SrsMpegtsSrtConn::http_hooks_on_play()
 
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        if ((err = hooks_->on_play(url, req_)) != srs_success) {
+        if ((err = hooks_->on_play(url, req_, SrsSrtConnPlay)) != srs_success) {
             return srs_error_wrap(err, "srt on_play %s", url.c_str());
         }
     }
@@ -939,7 +939,7 @@ void SrsMpegtsSrtConn::http_hooks_on_stop()
     SrsStatisticStreamSnapshot stream(stat_, req_);
     for (int i = 0; i < (int)hooks.size(); i++) {
         std::string url = hooks.at(i);
-        hooks_->on_stop(url, req_, stream);
+        hooks_->on_stop(url, req_, SrsSrtConnPlay, stream);
     }
 
     return;

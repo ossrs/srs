@@ -135,8 +135,8 @@ public:
     virtual ~MockHttpHooksForVodStream();
 
 public:
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
 };
 
 // Records the app/stream each security check names.

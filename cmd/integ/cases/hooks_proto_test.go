@@ -38,8 +38,8 @@ func hooksProtocols(t *testing.T) {
 func hooksRtc(t *testing.T) {
 	// WhipPublisherEvents publishes by WHIP with a param, then deletes the
 	// session: on_publish, then on_unpublish, and no other hook of the
-	// client, with every field; the client_id is a client of the API, and
-	// both name the stream_id.
+	// client, with every field; the client_id is a client of the API, the
+	// type rtc-publish, and both name the stream_id.
 	check.Case(t, "WhipPublisherEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -52,7 +52,7 @@ func hooksRtc(t *testing.T) {
 
 		hooks := clientHooks(srs, id)
 		c.CheckEqual(hookActions(hooks), []string{"on_publish", "on_unpublish"}, "publisher hooks")
-		checkHookFields(c, srs, hooks, "127.0.0.1")
+		checkHookFields(c, srs, hooks, "127.0.0.1", "rtc-publish")
 		for _, h := range hooks {
 			c.CheckEqual(h.Field("stream"), stream, h.Action()+" stream")
 			checkParams(c, h.Field("param"), "token=abc")
@@ -63,7 +63,8 @@ func hooksRtc(t *testing.T) {
 
 	// WhepPlayerEvents plays by WHEP with a param, then closes the peer
 	// connection without a DELETE: on_play, then on_stop, and no other hook
-	// of the client, with every field; stream_id is the publisher's.
+	// of the client, with every field; the type is rtc-play, stream_id the
+	// publisher's.
 	check.Case(t, "WhepPlayerEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -79,7 +80,7 @@ func hooksRtc(t *testing.T) {
 
 		hooks := clientHooks(srs, id)
 		c.CheckEqual(hookActions(hooks), []string{"on_play", "on_stop"}, "player hooks")
-		checkHookFields(c, srs, hooks, "127.0.0.1")
+		checkHookFields(c, srs, hooks, "127.0.0.1", "rtc-play")
 		for _, h := range hooks {
 			c.CheckEqual(h.Field("stream"), stream, h.Action()+" stream")
 			checkParams(c, h.Field("param"), "k=v")
@@ -124,7 +125,8 @@ func hooksRtc(t *testing.T) {
 
 	// LegacyEvents publishes and plays by the legacy API, each with a param
 	// on its stream URL, then closes both: on_publish and on_unpublish, and
-	// on_play and on_stop, with every field; the tcUrl is the stream URL's.
+	// on_play and on_stop, with every field; the tcUrl is the stream URL's,
+	// the types rtc-publish and rtc-play, as by WHIP and WHEP.
 	check.Case(t, "LegacyEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -141,15 +143,15 @@ func hooksRtc(t *testing.T) {
 		waitClientHook(c, srs, "on_unpublish", published.Field("client_id"))
 
 		for _, s := range []struct {
-			id, param string
-			actions   []string
+			id, param, typ string
+			actions        []string
 		}{
-			{published.Field("client_id"), "token=abc", []string{"on_publish", "on_unpublish"}},
-			{playID, "k=v", []string{"on_play", "on_stop"}},
+			{published.Field("client_id"), "token=abc", "rtc-publish", []string{"on_publish", "on_unpublish"}},
+			{playID, "k=v", "rtc-play", []string{"on_play", "on_stop"}},
 		} {
 			hooks := clientHooks(srs, s.id)
 			c.CheckEqual(hookActions(hooks), s.actions, "hooks of client "+s.id)
-			checkHookFields(c, srs, hooks, "127.0.0.1")
+			checkHookFields(c, srs, hooks, "127.0.0.1", s.typ)
 			for _, h := range hooks {
 				c.CheckEqual(h.Field("stream"), stream, h.Action()+" stream")
 				c.CheckEqual(h.Field("tcUrl"), "webrtc://127.0.0.1/live", h.Action()+" tcUrl")
@@ -163,7 +165,8 @@ func hooksRtc(t *testing.T) {
 	// WhipUnpublishQueued deletes a WHIP publisher while SRS still waits on
 	// another stream's slow on_unpublish, so its on_unpublish waits in SRS's
 	// queue of WebRTC hooks until SRS has dropped the client and the stream
-	// from its stats: the hook still names the stream_id of its on_publish.
+	// from its stats: the hook still names the stream_id of its on_publish,
+	// and the type rtc-publish.
 	check.Case(t, "WhipUnpublishQueued", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -178,6 +181,7 @@ func hooksRtc(t *testing.T) {
 
 		h := waitClientHook(c, srs, "on_unpublish", id)
 		c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), "on_unpublish stream_id, the on_publish's")
+		c.CheckEqual(h.Field("type"), "rtc-publish", "on_unpublish type")
 	})
 
 	// WhepStopQueued deletes a WHEP player, then its publisher, while SRS
@@ -185,7 +189,8 @@ func hooksRtc(t *testing.T) {
 	// in SRS's queue of WebRTC hooks until SRS has dropped both clients and
 	// the stream from its stats: on_stop still names the stream_id and counts
 	// the clients when the player stopped, the publisher and the player, as
-	// an RTMP player's on_stop does; on_unpublish names the stream_id.
+	// an RTMP player's on_stop does; on_unpublish names the stream_id. Each
+	// has its client's type, rtc-play and rtc-publish.
 	check.Case(t, "WhepStopQueued", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -205,8 +210,10 @@ func hooksRtc(t *testing.T) {
 		stop := waitClientHook(c, srs, "on_stop", playID)
 		c.CheckEqual(stop.Field("stream_id"), published.Field("stream_id"), "on_stop stream_id, the publisher's")
 		c.CheckEqual(stop.Field("clients"), "2", "on_stop clients: the publisher and the player")
+		c.CheckEqual(stop.Field("type"), "rtc-play", "on_stop type")
 		unpublish := waitClientHook(c, srs, "on_unpublish", pubID)
 		c.CheckEqual(unpublish.Field("stream_id"), published.Field("stream_id"), "on_unpublish stream_id, the on_publish's")
+		c.CheckEqual(unpublish.Field("type"), "rtc-publish", "on_unpublish type")
 	})
 }
 
@@ -255,7 +262,7 @@ func hooksSrt(t *testing.T) {
 	// SrtPublisherEvents publishes with a param in the streamid, then
 	// closes: on_connect, on_publish, on_unpublish and on_close, each once
 	// and in that order, with every field; the client_id is a client of the
-	// API, and on_close counts the bytes it got.
+	// API, the type srt-publish, and on_close counts the bytes it got.
 	check.Case(t, "SrtPublisherEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -270,7 +277,7 @@ func hooksSrt(t *testing.T) {
 
 		hooks := clientHooks(srs, id)
 		c.CheckEqual(hookActions(hooks), []string{"on_connect", "on_publish", "on_unpublish", "on_close"}, "publisher hooks")
-		checkHookFields(c, srs, hooks, "127.0.0.1")
+		checkHookFields(c, srs, hooks, "127.0.0.1", "srt-publish")
 		checkSrtHooks(c, hooks, stream, "token=abc", published.Field("stream_id"))
 		recv, err := strconv.ParseUint(closed.Field("recv_bytes"), 10, 64)
 		c.CheckNoError(err, "on_close recv_bytes")
@@ -279,9 +286,9 @@ func hooksSrt(t *testing.T) {
 
 	// SrtPlayerEvents plays a published stream with a param, then closes
 	// while the stream goes on: on_connect, on_play, on_stop and on_close,
-	// each once and in that order, with every field; the player counts in
-	// the clients of on_play and still in those of on_stop, and on_close
-	// counts at least the bytes it read.
+	// each once and in that order, with every field, of the type srt-play;
+	// the player counts in the clients of on_play and still in those of
+	// on_stop, and on_close counts at least the bytes it read.
 	check.Case(t, "SrtPlayerEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -296,7 +303,7 @@ func hooksSrt(t *testing.T) {
 
 		hooks := clientHooks(srs, id)
 		c.CheckEqual(hookActions(hooks), []string{"on_connect", "on_play", "on_stop", "on_close"}, "player hooks")
-		checkHookFields(c, srs, hooks, "127.0.0.1")
+		checkHookFields(c, srs, hooks, "127.0.0.1", "srt-play")
 		checkSrtHooks(c, hooks, stream, "k=v", published.Field("stream_id"))
 		for _, h := range hookOf(hooks, "on_play", "on_stop") {
 			c.CheckEqual(h.Field("clients"), "2", h.Action()+" clients: the publisher and the player")
@@ -367,7 +374,8 @@ func checkSrtHooks(c *check.C, hooks []mock.Request, stream, param, streamID str
 func hooksRtsp(t *testing.T) {
 	// RtspPlayerEvents plays with a param: one on_play at DESCRIBE, with
 	// every field, and no on_connect; the client_id is a client of the API,
-	// the tcUrl the rtsp:// URL of the app, stream_id the publisher's.
+	// the type rtsp-play, the tcUrl the rtsp:// URL of the app, stream_id the
+	// publisher's.
 	check.Case(t, "RtspPlayerEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -382,7 +390,7 @@ func hooksRtsp(t *testing.T) {
 
 		hooks := clientHooks(srs, id)
 		c.CheckEqual(hookActions(hooks), []string{"on_play"}, "player hooks while it plays")
-		checkHookFields(c, srs, hooks, "127.0.0.1")
+		checkHookFields(c, srs, hooks, "127.0.0.1", "rtsp-play")
 		c.CheckEqual(play.Field("stream"), stream, "on_play stream")
 		c.CheckEqual(play.Field("param"), "?k=v", "on_play param")
 		c.CheckEqual(play.Field("tcUrl"), rtspURL(srs, "live"), "on_play tcUrl")
@@ -393,7 +401,7 @@ func hooksRtsp(t *testing.T) {
 	// RtspPlayerStops plays a stream held at its sequence headers, then
 	// tears down and closes: like every other player, an RTSP player gets
 	// on_stop when it leaves, so a hook server that counts viewers sees it
-	// go.
+	// go; the on_stop has the type rtsp-play, as the on_play.
 	check.Case(t, "RtspPlayerStops", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -403,8 +411,11 @@ func hooksRtsp(t *testing.T) {
 		p.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		defer cancel()
-		_, err := srs.Hooks.Wait(ctx, mock.Match{Action: "on_stop", Func: func(r mock.Request) bool { return r.Field("client_id") == id }})
+		stop, err := srs.Hooks.Wait(ctx, mock.Match{Action: "on_stop", Func: func(r mock.Request) bool { return r.Field("client_id") == id }})
 		c.CheckNoError(err, "on_stop of the RTSP player")
+		if err == nil {
+			c.CheckEqual(stop.Field("type"), "rtsp-play", "on_stop type")
+		}
 	})
 
 	// RtspOnPlayClients describes a published stream over RTSP and doesn't
@@ -446,7 +457,8 @@ func hooksGb(t *testing.T) {
 	// media connection: the stream's hooks are those of the RTMP client SRS
 	// publishes it with, on_connect, on_publish, on_unpublish and on_close,
 	// each once and in that order, with every field; the stream is the
-	// session's id in app live, the client_id a client of the API.
+	// session's id in app live, the client_id a client of the API, the type
+	// that of the RTMP client, flash-publish.
 	check.Case(t, "GbPublisherEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		s := gbStart(c, srs, media.H264BaselineAAC, gbSSRC())
@@ -459,7 +471,7 @@ func hooksGb(t *testing.T) {
 
 		hooks := clientHooks(srs, id)
 		c.CheckEqual(hookActions(hooks), []string{"on_connect", "on_publish", "on_unpublish", "on_close"}, "stream hooks")
-		checkHookFields(c, srs, hooks, "127.0.0.1")
+		checkHookFields(c, srs, hooks, "127.0.0.1", "flash-publish")
 		for _, h := range hookOf(hooks, "on_connect", "on_publish", "on_unpublish") {
 			c.CheckEqual(h.Field("stream"), s.id, h.Action()+" stream")
 		}

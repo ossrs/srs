@@ -3118,3 +3118,159 @@ VOID TEST(RtcTcpConnTest, SharedPortClosesSocketWithConnection)
         utest_shared_port_closes_socket(&manager, &acceptor, http, 1);
     }
 }
+
+// The keys of the JSON body the hook posted, in order, joined by commas, and its type field, or
+// "(none)" when it has none.
+static void utest_hook_body(MockForwardBackendExchange &ex, std::string &keys, std::string &type)
+{
+    keys = "";
+    type = "(none)";
+
+    SrsUniquePtr<SrsJsonAny> body(SrsJsonAny::loads(ex.body_));
+    if (!body.get() || !body->is_object()) {
+        return;
+    }
+
+    SrsJsonObject *obj = body->to_object();
+    for (int i = 0; i < obj->count(); i++) {
+        keys += (i ? "," : "") + obj->key_at(i);
+    }
+
+    SrsJsonAny *prop = obj->get_property("type");
+    if (prop && prop->is_string()) {
+        type = prop->to_str();
+    }
+}
+
+// Each play hook names the player's type, the value /api/v1/clients lists, so a hook server tells
+// the protocols apart, such as an HLS session from an HTTP-FLV player of the same stream.
+VOID TEST(HttpHooksClientTypeTest, PlayHooksNameThePlayerType)
+{
+    srs_error_t err;
+
+    struct {
+        SrsRtmpConnType type;
+        const char *name;
+    } cases[] = {
+        {SrsRtmpConnPlay, "rtmp-play"},
+        {SrsFlvPlay, "flv-play"},
+        {SrsHlsPlay, "hls-play"},
+        {SrsTsPlay, "ts-play"},
+        {SrsMp3Play, "mp3-play"},
+        {SrsAacPlay, "aac-play"},
+        {SrsRtcConnPlay, "rtc-play"},
+        {SrsSrtConnPlay, "srt-play"},
+        {SrsRtspConnPlay, "rtsp-play"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockRequest req("__defaultVhost__", "live", "livestream");
+        std::string keys, type;
+
+        if (true) {
+            UtestForwardBackendHooks h;
+            HELPER_EXPECT_SUCCESS(h.hooks_.on_play("http://127.0.0.1:8085/api/v1/sessions", &req, cases[i].type));
+            utest_hook_body(h.factory_.exchange_, keys, type);
+            EXPECT_STREQ(cases[i].name, type.c_str()) << "on_play " << h.factory_.exchange_.body_;
+        }
+
+        if (true) {
+            UtestForwardBackendHooks h;
+            h.hooks_.on_stop("http://127.0.0.1:8085/api/v1/sessions", &req, cases[i].type, SrsStatisticStreamSnapshot());
+            utest_hook_body(h.factory_.exchange_, keys, type);
+            EXPECT_STREQ(cases[i].name, type.c_str()) << "on_stop " << h.factory_.exchange_.body_;
+        }
+
+    }
+}
+
+// Each publish hook names the publisher's type, the value /api/v1/clients lists.
+VOID TEST(HttpHooksClientTypeTest, PublishHooksNameThePublisherType)
+{
+    srs_error_t err;
+
+    struct {
+        SrsRtmpConnType type;
+        const char *name;
+    } cases[] = {
+        {SrsRtmpConnFMLEPublish, "fmle-publish"},
+        {SrsRtmpConnFlashPublish, "flash-publish"},
+        {SrsRtmpConnHaivisionPublish, "haivision-publish"},
+        {SrsRtcConnPublish, "rtc-publish"},
+        {SrsSrtConnPublish, "srt-publish"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockRequest req("__defaultVhost__", "live", "livestream");
+        std::string keys, type;
+
+        if (true) {
+            UtestForwardBackendHooks h;
+            HELPER_EXPECT_SUCCESS(h.hooks_.on_publish("http://127.0.0.1:8085/api/v1/streams", &req, cases[i].type));
+            utest_hook_body(h.factory_.exchange_, keys, type);
+            EXPECT_STREQ(cases[i].name, type.c_str()) << "on_publish " << h.factory_.exchange_.body_;
+        }
+
+        if (true) {
+            UtestForwardBackendHooks h;
+            h.hooks_.on_unpublish("http://127.0.0.1:8085/api/v1/streams", &req, cases[i].type, SrsStatisticStreamSnapshot());
+            utest_hook_body(h.factory_.exchange_, keys, type);
+            EXPECT_STREQ(cases[i].name, type.c_str()) << "on_unpublish " << h.factory_.exchange_.body_;
+        }
+
+    }
+}
+
+// The type is a new field after the client_id: every other field stays, in its order, so a hook
+// server that reads them works unchanged. The on_connect and on_close, sent before an RTMP client
+// says whether it publishes or plays, have no type.
+VOID TEST(HttpHooksClientTypeTest, TypeAddedToTheFields)
+{
+    srs_error_t err;
+
+    MockRequest req("__defaultVhost__", "live", "livestream");
+    std::string keys, type;
+    std::string url = "http://127.0.0.1:8085/api/v1/clients";
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        HELPER_EXPECT_SUCCESS(h.hooks_.on_publish(url, &req, SrsRtmpConnFMLEPublish));
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("server_id,service_id,action,client_id,type,ip,vhost,app,tcUrl,stream,param,stream_url", keys.c_str());
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        h.hooks_.on_unpublish(url, &req, SrsRtmpConnFMLEPublish, SrsStatisticStreamSnapshot());
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("server_id,service_id,action,client_id,type,ip,vhost,app,tcUrl,stream,param,stream_url", keys.c_str());
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        HELPER_EXPECT_SUCCESS(h.hooks_.on_play(url, &req, SrsRtmpConnPlay));
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("server_id,service_id,action,client_id,type,ip,vhost,app,stream,tcUrl,param,pageUrl,stream_url", keys.c_str());
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        h.hooks_.on_stop(url, &req, SrsRtmpConnPlay, SrsStatisticStreamSnapshot());
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("server_id,service_id,action,client_id,type,ip,vhost,app,tcUrl,stream,param,stream_url", keys.c_str());
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        HELPER_EXPECT_SUCCESS(h.hooks_.on_connect(url, &req));
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("(none)", type.c_str()) << "on_connect " << h.factory_.exchange_.body_;
+    }
+
+    if (true) {
+        UtestForwardBackendHooks h;
+        h.hooks_.on_close(url, &req, 0, 0);
+        utest_hook_body(h.factory_.exchange_, keys, type);
+        EXPECT_STREQ("(none)", type.c_str()) << "on_close " << h.factory_.exchange_.body_;
+    }
+}

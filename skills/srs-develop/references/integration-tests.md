@@ -70,7 +70,7 @@ Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`,
 - **Env only:** SRS starts with `-e` and `SRS_*` env vars, never a config file. A feature that needs a file gets no case.
 - **Known bugs:** a case that finds an SRS bug is marked `KnownBug(c, "<reason>")`, not fixed or skipped.
 - **Protocols:** a new protocol gets the whole checklist: signaling, every codec, lifecycle, bad input and its options.
-- **Catalog:** the case is added to the catalog in `cmd/integ/README.md`.
+- **Catalog:** a new feature or group gets its row in the catalog in `cmd/integ/README.md`.
 - **Run:** the case alone with `go -C cmd/integ/cases test -count=3 -run '<name>'`, then `make integ`, which stays within 60s.
 
 ## Verification Tiers

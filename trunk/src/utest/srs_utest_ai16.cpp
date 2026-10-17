@@ -1147,26 +1147,28 @@ void MockHttpHooksForLiveStream::on_close(std::string url, ISrsRequest *req, int
 {
 }
 
-srs_error_t MockHttpHooksForLiveStream::on_publish(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForLiveStream::on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForLiveStream::on_unpublish(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForLiveStream::on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForLiveStream::on_play(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForLiveStream::on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     on_play_count_++;
     on_play_calls_.push_back(std::make_pair(url, req));
+    on_play_types_.push_back(type);
     return srs_error_copy(on_play_error_);
 }
 
-void MockHttpHooksForLiveStream::on_stop(std::string url, ISrsRequest *req, const SrsStatisticStreamSnapshot &stream)
+void MockHttpHooksForLiveStream::on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));
+    on_stop_types_.push_back(type);
 }
 
 srs_error_t MockHttpHooksForLiveStream::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
@@ -1248,22 +1250,28 @@ VOID TEST(SrsLiveStreamTest, HttpHooksOnPlayAndStop)
     SrsUniquePtr<MockHttpMessage> mock_http_msg(new MockHttpMessage());
 
     // Test http_hooks_on_play - should call hooks for all URLs
-    HELPER_EXPECT_SUCCESS(live_stream->http_hooks_on_play(mock_http_msg.get()));
+    HELPER_EXPECT_SUCCESS(live_stream->http_hooks_on_play(mock_http_msg.get(), SrsTsPlay));
 
-    // Verify on_play was called twice (once for each URL)
+    // Verify on_play was called twice (once for each URL), each with the player's type
     EXPECT_EQ(2, mock_hooks->on_play_count_);
     EXPECT_EQ(2, (int)mock_hooks->on_play_calls_.size());
     EXPECT_STREQ("http://localhost:8080/api/on_play", mock_hooks->on_play_calls_[0].first.c_str());
     EXPECT_STREQ("http://localhost:8080/api/on_play2", mock_hooks->on_play_calls_[1].first.c_str());
+    ASSERT_EQ(2, (int)mock_hooks->on_play_types_.size());
+    EXPECT_EQ(SrsTsPlay, mock_hooks->on_play_types_[0]);
+    EXPECT_EQ(SrsTsPlay, mock_hooks->on_play_types_[1]);
 
     // Test http_hooks_on_stop - should call hooks for all URLs
-    live_stream->http_hooks_on_stop(mock_http_msg.get());
+    live_stream->http_hooks_on_stop(mock_http_msg.get(), SrsTsPlay);
 
-    // Verify on_stop was called twice (once for each URL)
+    // Verify on_stop was called twice (once for each URL), each with the player's type
     EXPECT_EQ(2, mock_hooks->on_stop_count_);
     EXPECT_EQ(2, (int)mock_hooks->on_stop_calls_.size());
     EXPECT_STREQ("http://localhost:8080/api/on_stop", mock_hooks->on_stop_calls_[0].first.c_str());
     EXPECT_STREQ("http://localhost:8080/api/on_stop2", mock_hooks->on_stop_calls_[1].first.c_str());
+    ASSERT_EQ(2, (int)mock_hooks->on_stop_types_.size());
+    EXPECT_EQ(SrsTsPlay, mock_hooks->on_stop_types_[0]);
+    EXPECT_EQ(SrsTsPlay, mock_hooks->on_stop_types_[1]);
 
     // Clean up - set to NULL to avoid double free (mocks will be freed automatically)
     live_stream->config_ = NULL;
