@@ -2885,6 +2885,19 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyFilePath)
     }
 }
 
+// With no hls_key_file_path, each vhost puts its keys in its own hls_path.
+VOID TEST(ConfigHlsTest, HlsKeyFilePathDefaultPerVhost)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost a.com{hls{hls_path /data/a;}} vhost b.com{hls{hls_path /data/b;}}"));
+
+    EXPECT_STREQ("/data/a", conf.get_hls_key_file_path("a.com").c_str());
+    EXPECT_STREQ("/data/b", conf.get_hls_key_file_path("b.com").c_str());
+    EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_file_path("__defaultVhost__").c_str());
+}
+
 VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
 {
     srs_error_t err;
@@ -2894,9 +2907,9 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be the same as get_hls_path() which is "./objs/nginx/html"
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("__defaultVhost__").c_str());
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("test.com").c_str());
+        // No default: an empty hls_key_url makes the key URI relative to the playlist.
+        EXPECT_STREQ("", conf.get_hls_key_url("__defaultVhost__").c_str());
+        EXPECT_STREQ("", conf.get_hls_key_url("test.com").c_str());
     }
 
     // Test default value when vhost exists but no hls section
@@ -2905,7 +2918,7 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{mw_latency 350;}}"));
 
         // Should return default value when no hls section
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("test.com").c_str());
+        EXPECT_STREQ("", conf.get_hls_key_url("test.com").c_str());
     }
 
     // Test default value when hls section exists but no hls_key_url config
@@ -2914,7 +2927,7 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
 
         // Should return default value when no hls_key_url config
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("test.com").c_str());
+        EXPECT_STREQ("", conf.get_hls_key_url("test.com").c_str());
     }
 
     // Test default value when hls_key_url has empty argument
@@ -2923,7 +2936,7 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{hls_key_url;}}"));
 
         // Should return default value when empty argument
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("test.com").c_str());
+        EXPECT_STREQ("", conf.get_hls_key_url("test.com").c_str());
     }
 
     // Test custom hls_key_url values

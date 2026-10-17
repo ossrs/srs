@@ -73,6 +73,25 @@ string srs_hls_build_key_url(const string &hls_key_url, const string &key_file)
     return hls_key_url + key_file;
 }
 
+// Build the key URI of the playlist. With no hls_key_url, the URI is the key file's path from
+// the playlist's dir, so it resolves to the key wherever the playlist is served; a key outside
+// that dir keeps the key file's path.
+// @param key_file_path The dir on disk the key file is written in, hls_key_file_path.
+// @param m3u8_dir The dir on disk of the playlist.
+string srs_hls_build_key_uri(const string &hls_key_url, const string &key_file_path, const string &key_file, const string &m3u8_dir)
+{
+    if (!hls_key_url.empty()) {
+        return srs_hls_build_key_url(hls_key_url, key_file);
+    }
+
+    string key_fullpath = key_file_path + "/" + key_file;
+    string dir = m3u8_dir + "/";
+    if (srs_strings_starts_with(key_fullpath, dir)) {
+        return key_fullpath.substr(dir.length());
+    }
+    return key_file;
+}
+
 SrsHlsSegment::SrsHlsSegment(SrsTsContext *c, SrsAudioCodecId ac, SrsVideoCodecId vc, ISrsFileWriter *w)
 {
     sequence_no_ = 0;
@@ -234,6 +253,11 @@ void SrsHlsM4sSegment::config_cipher(unsigned char *key, unsigned char *iv)
     // TODO: set key and iv to mp4 box
     enc_.config_cipher(key, iv);
     memcpy(this->iv_, iv, 16);
+}
+
+void SrsHlsM4sSegment::config_video_cipher(SrsVideoCodecId codec, int nalu_length_size)
+{
+    enc_.config_video_cipher(codec, nalu_length_size);
 }
 
 srs_error_t SrsHlsM4sSegment::write(SrsMediaPacket *shared_msg, SrsFormat *format)
@@ -432,7 +456,11 @@ SrsHlsFmp4Muxer::SrsHlsFmp4Muxer()
     sequence_header_pending_ = false;
 
     memset(key_, 0, 16);
+    memset(kid_, 0, 16);
     memset(iv_, 0, 16);
+    iv_ready_ = false;
+    cipher_vcodec_ = SrsVideoCodecIdAVC;
+    cipher_nalu_length_size_ = 4;
 
     config_ = _srs_config;
     app_factory_ = _srs_app_factory;
@@ -471,6 +499,15 @@ void SrsHlsFmp4Muxer::dispose()
             srs_freep(err);
         }
     }
+
+    // The init file, by the path write_init_mp4 wrote it to.
+    if (!init_mp4_file_.empty() && path->exists(init_mp4_file_)) {
+        if ((err = path->unlink(init_mp4_file_)) != srs_success) {
+            srs_warn("dispose: ignore remove init mp4 failed, %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+    }
+    init_mp4_file_ = "";
 
     srs_trace("gracefully dispose hls %s", req_ ? req_->get_stream_url().c_str() : "");
 }
@@ -575,7 +612,20 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
     init_mp4->set_path(filepath);
 
     if (hls_keys_) {
+        if ((err = make_iv()) != srs_success) {
+            return srs_error_wrap(err, "make iv");
+        }
         init_mp4->config_cipher(kid_, iv_, 16);
+
+        // Each segment opened from now on encrypts its video by this sequence header, and so
+        // does the open one, which encrypts its samples when it is reaped.
+        if (has_video && format->vcodec_) {
+            cipher_vcodec_ = format->vcodec_->id_;
+            cipher_nalu_length_size_ = format->vcodec_->NAL_unit_length_ + 1;
+            if (current_) {
+                current_->config_video_cipher(cipher_vcodec_, cipher_nalu_length_size_);
+            }
+        }
     }
 
     if (has_video && has_audio) {
@@ -597,6 +647,7 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
     if ((err = init_mp4->rename()) != srs_success) {
         return srs_error_wrap(err, "rename hls init.mp4");
     }
+    init_mp4_file_ = init_mp4->fullpath();
 
     // the ts url, relative or absolute url.
     // TODO: FIXME: Use url and path manager.
@@ -750,7 +801,11 @@ srs_error_t SrsHlsFmp4Muxer::update_config(ISrsRequest *r)
         return srs_error_wrap(err, "create dir");
     }
 
-    writer_ = app_factory_->create_file_writer();
+    // One writer for every publish, as a segment left open by a failed close at the unpublish
+    // still writes with it.
+    if (!writer_) {
+        writer_ = app_factory_->create_file_writer();
+    }
 
     return err;
 }
@@ -1022,19 +1077,36 @@ srs_error_t SrsHlsFmp4Muxer::do_segment_close(uint64_t dts)
     return err;
 }
 
+srs_error_t SrsHlsFmp4Muxer::make_iv()
+{
+    srs_error_t err = srs_success;
+
+    // The init file holds the constant IV of cbcs, which every segment encrypts its samples
+    // with, so the IV is made once, before the init file, and kept for each new key.
+    if (!iv_ready_) {
+        if (RAND_bytes(iv_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand iv failed");
+        }
+        iv_ready_ = true;
+    }
+
+    return err;
+}
+
 srs_error_t SrsHlsFmp4Muxer::write_hls_key()
 {
     srs_error_t err = srs_success;
 
+    if (hls_keys_ && (err = make_iv()) != srs_success) {
+        return srs_error_wrap(err, "make iv");
+    }
+
     if (hls_keys_ && current_->sequence_no_ % hls_fragments_per_key_ == 0) {
-        if (RAND_bytes(key_, 16) < 0) {
-            return srs_error_wrap(err, "rand key failed.");
+        if (RAND_bytes(key_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand key failed");
         }
-        if (RAND_bytes(kid_, 16) < 0) {
-            return srs_error_wrap(err, "rand kid failed.");
-        }
-        if (RAND_bytes(iv_, 16) < 0) {
-            return srs_error_wrap(err, "rand iv failed.");
+        if (RAND_bytes(kid_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand kid failed");
         }
 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
@@ -1056,6 +1128,7 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
 
     if (hls_keys_) {
         current_->config_cipher(key_, iv_);
+        current_->config_video_cipher(cipher_vcodec_, cipher_nalu_length_size_);
     }
 
     return err;
@@ -1173,7 +1246,7 @@ srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8_segment(SrsHlsM4sSegment *segment, 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
 
-        string key_path = srs_hls_build_key_url(hls_key_url_, key_file);
+        string key_path = srs_hls_build_key_uri(hls_key_url_, hls_key_file_path_, key_file, m3u8_dir_);
 
         ss << "#EXT-X-KEY:METHOD=SAMPLE-AES,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
     }
@@ -1406,6 +1479,20 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
         return srs_error_wrap(err, "create dir");
     }
 
+    // A segment the last publish left open holds the writer freed below, so drop it and its temp
+    // file. It is left open when the unpublish failed to write it, or when the publish failed to
+    // write its key; its last data may be incomplete, so it is not listed.
+    if (current_) {
+        if ((err = current_->unlink_tmpfile()) != srs_success) {
+            srs_warn("ignore unlink tmp ts failed %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        srs_freep(current_);
+    }
+
+    // The last publish's writer, which no segment uses now: a segment in the window writes no
+    // more.
+    srs_freep(writer_);
     if (hls_keys_) {
         writer_ = app_factory_->create_enc_file_writer();
     } else {
@@ -1957,11 +2044,11 @@ srs_error_t SrsHlsMuxer::write_hls_key()
     srs_error_t err = srs_success;
 
     if (hls_keys_ && current_->sequence_no_ % hls_fragments_per_key_ == 0) {
-        if (RAND_bytes(key_, 16) < 0) {
-            return srs_error_wrap(err, "rand key failed.");
+        if (RAND_bytes(key_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand key failed");
         }
-        if (RAND_bytes(iv_, 16) < 0) {
-            return srs_error_wrap(err, "rand iv failed.");
+        if (RAND_bytes(iv_, 16) != 1) {
+            return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "rand iv failed");
         }
 
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
@@ -2099,7 +2186,7 @@ srs_error_t SrsHlsMuxer::do_refresh_m3u8_segment(SrsHlsSegment *segment, std::st
         string key_file = srs_path_build_stream(hls_key_file_, req_->vhost_, req_->app_, req_->stream_);
         key_file = srs_strings_replace(key_file, "[seq]", srs_strconv_format_int(segment->sequence_no_));
 
-        string key_path = srs_hls_build_key_url(hls_key_url_, key_file);
+        string key_path = srs_hls_build_key_uri(hls_key_url_, hls_key_file_path_, key_file, m3u8_dir_);
 
         ss << "#EXT-X-KEY:METHOD=AES-128,URI=" << "\"" << key_path << "\",IV=0x" << hexiv << SRS_CONSTS_LF;
     }
