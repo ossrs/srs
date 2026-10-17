@@ -812,6 +812,7 @@ SrsGbMuxer::SrsGbMuxer(ISrsGbSession *session)
 {
     sdk_ = NULL;
     connecting_ = false;
+    sending_ = false;
     session_ = session;
 
     avc_ = new SrsRawH264Stream();
@@ -1350,12 +1351,26 @@ srs_error_t SrsGbMuxer::rtmp_write_packet(char type, uint32_t timestamp, char *d
         return srs_error_wrap(err, "push to queue");
     }
 
-    // for all ready msg, dequeue and send out.
-    for (;;) {
-        if ((msg = queue_->dequeue()) == NULL) {
-            break;
-        }
+    // A send yields. Only the coroutine that sends may send or close the client;
+    // another one only queues its messages, and the sender sends them too.
+    if (sending_) {
+        return err;
+    }
 
+    sending_ = true;
+    err = send_queued_messages();
+    sending_ = false;
+
+    return err;
+}
+
+srs_error_t SrsGbMuxer::send_queued_messages()
+{
+    srs_error_t err = srs_success;
+
+    // for all ready msg, dequeue and send out.
+    SrsMediaPacket *msg = NULL;
+    while ((msg = queue_->dequeue()) != NULL) {
         if (pprint_->can_print()) {
             srs_trace("Muxer: send msg %s age=%d, dts=%" PRId64 ", size=%d",
                       msg->is_audio() ? "A" : msg->is_video() ? "V"
@@ -1394,8 +1409,12 @@ srs_error_t SrsGbMuxer::connect()
     string url = srs_strings_replace(output_, "[stream]", session_->device_id_);
     srs_trace("Muxer: Convert GB to RTMP %s", url.c_str());
 
+    // The RTMP server reads what this client sends only once its on_publish hook accepts the publish, and
+    // a burst of the device fills the socket buffers before that, so a send waits for the hook. A stream
+    // timeout as short as the pulse fails the send, closes the client and drops the media until the next
+    // keyframe, so wait as long as the forwarder does.
     srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
-    srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
+    srs_utime_t sto = SRS_CONSTS_RTMP_TIMEOUT;
     ISrsBasicRtmpClient *sdk = app_factory_->create_rtmp_client(url, cto, sto);
 
     // Set sdk_ only once published, so no one writes through a client whose

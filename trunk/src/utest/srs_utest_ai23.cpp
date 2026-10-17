@@ -1475,9 +1475,42 @@ srs_error_t MockGbConnectingRtmpClient::connect()
     return MockRtmpClient::connect();
 }
 
+MockGbSendingRtmpClient::MockGbSendingRtmpClient(SrsGbMuxer *muxer, int *sends, srs_error_t *reentry_error)
+{
+    muxer_ = muxer;
+    fail_at_ = 0;
+    sends_ = sends;
+    reentry_error_ = reentry_error;
+}
+
+MockGbSendingRtmpClient::~MockGbSendingRtmpClient()
+{
+}
+
+srs_error_t MockGbSendingRtmpClient::send_and_free_message(SrsMediaPacket *msg)
+{
+    srs_freep(msg);
+    int nn = ++(*sends_);
+
+    if (nn == 1) {
+        char *data = new char[4];
+        memset(data, 0, 4);
+        *reentry_error_ = muxer_->rtmp_write_packet(SrsFrameTypeVideo, 80, data, 4);
+    }
+
+    // Use this client after the muxer was fed, as a send that yields does.
+    send_message_count_++;
+
+    if (nn == fail_at_) {
+        return srs_error_new(ERROR_SOCKET_WRITE, "mock send failed");
+    }
+    return srs_success;
+}
+
 MockAppFactoryForGbMuxer::MockAppFactoryForGbMuxer()
 {
     created_ = 0;
+    cto_ = sto_ = 0;
 }
 
 MockAppFactoryForGbMuxer::~MockAppFactoryForGbMuxer()
@@ -1491,6 +1524,8 @@ ISrsBasicRtmpClient *MockAppFactoryForGbMuxer::create_rtmp_client(std::string ur
 {
     ISrsBasicRtmpClient *client = created_ < (int)clients_.size() ? clients_[created_] : new MockRtmpClient();
     created_++;
+    cto_ = cto;
+    sto_ = sto;
     return client;
 }
 
@@ -2234,6 +2269,28 @@ VOID TEST(GbMuxerTest, MediaWhileConnectingDropped)
     EXPECT_GE(mock_queue->push_count_, 2);
 }
 
+// The RTMP output waits for its own RTMP server as the forwarder does, not
+// only the pulse: the server reads its media only once the on_publish hook
+// accepts, so a send may wait as long as the hook.
+VOID TEST(GbMuxerTest, RtmpOutputWaitsForHook)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    MockGbConnectingRtmpClient *client = new MockGbConnectingRtmpClient(muxer.get(), NULL);
+    factory.clients_.push_back(client);
+
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+    EXPECT_TRUE(muxer->sdk_ == client);
+    EXPECT_EQ(SRS_CONSTS_RTMP_TIMEOUT, factory.cto_);
+    EXPECT_EQ(SRS_CONSTS_RTMP_TIMEOUT, factory.sto_);
+}
+
 // A connect while another one is in progress is refused and makes no second
 // client. A connect that fails leaves no client, and the next media connects
 // again.
@@ -2269,6 +2326,44 @@ VOID TEST(GbMuxerTest, ConnectWhileConnectingRefused)
     // Connected: a connect does nothing.
     HELPER_EXPECT_SUCCESS(muxer->connect());
     EXPECT_EQ(2, factory.created_);
+}
+
+// A message that a second media connection of the session writes while the
+// first one's send yields is queued, and the first one sends it in turn, so
+// only one coroutine sends through the RTMP client. When that send fails, the
+// client is freed by the coroutine that used it, never under another one.
+VOID TEST(GbMuxerTest, WriteWhileSendingQueued)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    int sends = 0;
+    srs_error_t reentry_error = srs_success;
+    MockGbSendingRtmpClient *client = new MockGbSendingRtmpClient(muxer.get(), &sends, &reentry_error);
+    client->fail_at_ = 2;
+    factory.clients_.push_back(client);
+    HELPER_EXPECT_SUCCESS(muxer->connect());
+    EXPECT_TRUE(muxer->sdk_ == client);
+
+    // The queue holds one video frame, and sends a frame once it has two.
+    char *data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeVideo, 0, data, 4));
+    EXPECT_EQ(0, sends);
+
+    // The first send writes the next frame meanwhile, which is queued, not sent,
+    // and the frame after the first is sent next, whose send fails.
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_FAILED(muxer->rtmp_write_packet(SrsFrameTypeVideo, 40, data, 4));
+    HELPER_EXPECT_SUCCESS(reentry_error);
+    EXPECT_EQ(2, sends);
+    EXPECT_TRUE(muxer->sdk_ == NULL);
 }
 
 // Test SrsPackContext::on_ts_message - covers the major use scenario:
