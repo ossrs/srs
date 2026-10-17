@@ -2798,6 +2798,11 @@ VOID TEST(AppOriginHubTest, SequenceHeaderRequestTypicalScenario)
     EXPECT_EQ(1, mock_hls->on_video_count_);
     EXPECT_EQ(1, mock_hls->on_audio_count_);
 
+    // Test on_dash_request_sh: DASH receives the sequence headers, no metadata
+    HELPER_EXPECT_SUCCESS(hub->on_dash_request_sh());
+    EXPECT_EQ(1, mock_dash->on_video_count_);
+    EXPECT_EQ(1, mock_dash->on_audio_count_);
+
     // Cleanup - forwarder will be cleaned up by hub destructor
     srs_freep(mock_source);
 }

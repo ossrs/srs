@@ -1316,6 +1316,27 @@ srs_error_t SrsOriginHub::on_hls_request_sh()
     return err;
 }
 
+srs_error_t SrsOriginHub::on_dash_request_sh()
+{
+    srs_error_t err = srs_success;
+
+    SrsMediaPacket *cache_sh_video = source_->meta()->vsh();
+    if (cache_sh_video) {
+        if ((err = dash_->on_video(cache_sh_video, source_->meta()->vsh_format())) != srs_success) {
+            return srs_error_wrap(err, "dash video");
+        }
+    }
+
+    SrsMediaPacket *cache_sh_audio = source_->meta()->ash();
+    if (cache_sh_audio) {
+        if ((err = dash_->on_audio(cache_sh_audio, source_->meta()->ash_format())) != srs_success) {
+            return srs_error_wrap(err, "dash audio");
+        }
+    }
+
+    return err;
+}
+
 srs_error_t SrsOriginHub::create_forwarders()
 {
     srs_error_t err = srs_success;

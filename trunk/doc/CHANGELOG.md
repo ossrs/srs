@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-17, DASH: Fix dispose resume, init file cleanup and MP3. v7.0.178
 * v7.0, 2026-10-17, DASH: Fix MPD times and codecs, and init file paths. v7.0.177
 * v7.0, 2026-10-17, HLS: Fix session stream names, tcUrl and hls_ctx. v7.0.176
 * v7.0, 2026-10-17, HLS: Fix dispose resume, AES padding and fmp4 segment open. v7.0.175

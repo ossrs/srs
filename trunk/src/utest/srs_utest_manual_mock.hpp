@@ -1248,6 +1248,7 @@ public:
     srs_error_t initialize_error_;
     int on_hls_request_sh_count_;
     srs_error_t on_hls_request_sh_error_;
+    int on_dash_request_sh_count_;
     int on_forwarder_start_count_;
     srs_error_t on_forwarder_start_error_;
     int on_dvr_request_sh_count_;
@@ -1268,6 +1269,7 @@ public:
     virtual void on_unpublish();
     virtual srs_error_t on_dvr_request_sh();
     virtual srs_error_t on_hls_request_sh();
+    virtual srs_error_t on_dash_request_sh();
     virtual srs_error_t on_forwarder_start(SrsForwarder *forwarder);
     void set_initialize_error(srs_error_t err);
     void set_on_hls_request_sh_error(srs_error_t err);

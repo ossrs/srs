@@ -348,9 +348,13 @@ static string srs_dash_video_codecs(SrsVideoCodecConfig *vcodec)
     return "avc1.64001e";
 }
 
-// The codecs of the audio representation, RFC 6381: mp4a.40 and the AAC object type.
+// The codecs of the audio representation, RFC 6381: mp4a.40 and the AAC object type, or for
+// MP3 mp4a and the object type of its esds in hex, as the init file writes it.
 static string srs_dash_audio_codecs(SrsAudioCodecConfig *acodec)
 {
+    if (acodec->id_ == SrsAudioCodecIdMP3) {
+        return srs_fmt_sprintf("mp4a.%02X", srs_mp4_audio_object_type(acodec->id_, acodec->sound_rate_));
+    }
     if (acodec->id_ == SrsAudioCodecIdAAC && acodec->aac_object_ != SrsAacObjectTypeReserved) {
         return srs_fmt_sprintf("mp4a.40.%d", acodec->aac_object_);
     }
@@ -632,6 +636,19 @@ void SrsDashController::dispose()
 
     mpd_->dispose();
 
+    // The init files refresh_init_mp4 wrote, and no other; a stream that never wrote one has
+    // no dash_path to build its path from.
+    SrsPath path;
+    string *init_files[] = {&video_init_file_, &audio_init_file_};
+    for (int i = 0; i < 2; i++) {
+        string &init_file = *init_files[i];
+        if (!init_file.empty() && path.exists(init_file) && (err = path.unlink(init_file)) != srs_success) {
+            srs_warn("Unlink init mp4 failed %s", srs_error_desc(err).c_str());
+            srs_freep(err);
+        }
+        init_file = "";
+    }
+
     srs_trace("gracefully dispose dash %s", req_ ? req_->get_stream_url().c_str() : "");
 }
 // LCOV_EXCL_STOP
@@ -684,6 +701,19 @@ srs_error_t SrsDashController::on_publish()
     return err;
 }
 
+// Remove the file of a reaped segment that no window lists, and free the segment.
+static void srs_dash_unlink_unlisted(ISrsFragmentedMp4 *&fragment)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = fragment->unlink_file()) != srs_success) {
+        srs_warn("Unlink unlisted m4s failed %s", srs_error_desc(err).c_str());
+        srs_freep(err);
+    }
+
+    srs_freep(fragment);
+}
+
 // LCOV_EXCL_START
 void SrsDashController::on_unpublish()
 {
@@ -691,24 +721,36 @@ void SrsDashController::on_unpublish()
 
     srs_error_t err = srs_success;
 
+    bool video_reaped = false;
     if (vcurrent_ && (err = vcurrent_->reap(video_dts_)) != srs_success) {
         srs_warn("reap video dts=%" PRId64 " err %s", video_dts_, srs_error_desc(err).c_str());
         srs_freep(err);
+    } else if (vcurrent_) {
+        video_reaped = true;
     }
 
     if (vcurrent_ && vcurrent_->duration()) {
         vfragments_->append(vcurrent_);
         vcurrent_ = NULL;
+    } else if (video_reaped) {
+        // A segment of one frame, such as a keyframe that ends the publish, has no duration,
+        // so the MPD never lists it; remove the file the reap renamed it to.
+        srs_dash_unlink_unlisted(vcurrent_);
     }
 
+    bool audio_reaped = false;
     if (acurrent_ && (err = acurrent_->reap(audio_dts_)) != srs_success) {
         srs_warn("reap audio dts=%" PRId64 " err %s", audio_dts_, srs_error_desc(err).c_str());
         srs_freep(err);
+    } else if (acurrent_) {
+        audio_reaped = true;
     }
 
     if (acurrent_ && acurrent_->duration() > 0) {
         afragments_->append(acurrent_);
         acurrent_ = NULL;
+    } else if (audio_reaped) {
+        srs_dash_unlink_unlisted(acurrent_);
     }
 
     if ((err = refresh_mpd(format_)) != srs_success) {
@@ -724,7 +766,8 @@ srs_error_t SrsDashController::on_audio(SrsMediaPacket *shared_audio, SrsFormat 
 
     format_ = format;
 
-    if (format->is_aac_sequence_header()) {
+    // MP3 has no sequence header: its first frame stands for one, and writes the init file.
+    if (format->is_aac_sequence_header() || format->is_mp3_sequence_header()) {
         return refresh_init_mp4(shared_audio, format);
     }
 
@@ -889,7 +932,9 @@ srs_error_t SrsDashController::refresh_init_mp4(SrsMediaPacket *msg, SrsFormat *
 {
     srs_error_t err = srs_success;
 
-    if (msg->size() <= 0 || (msg->is_video() && !format->vcodec_->is_avc_codec_ok()) || (msg->is_audio() && !format->acodec_->is_aac_codec_ok())) {
+    // Only AAC has a config to wait for; MP3 has none.
+    bool audio_ok = msg->is_audio() && (format->acodec_->id_ == SrsAudioCodecIdMP3 || format->acodec_->is_aac_codec_ok());
+    if (msg->size() <= 0 || (msg->is_video() && !format->vcodec_->is_avc_codec_ok()) || (msg->is_audio() && !audio_ok)) {
         srs_warn("DASH: Ignore empty sequence header.");
         return err;
     }
@@ -921,6 +966,12 @@ srs_error_t SrsDashController::refresh_init_mp4(SrsMediaPacket *msg, SrsFormat *
         return srs_error_wrap(err, "rename init");
     }
 
+    if (msg->is_video()) {
+        video_init_file_ = path;
+    } else {
+        audio_init_file_ = path;
+    }
+
     srs_trace("DASH: Refresh media type=%s, file=%s", (msg->is_video() ? "video" : "audio"), path.c_str());
 
     return err;
@@ -942,6 +993,7 @@ SrsDash::SrsDash()
 
     enabled_ = false;
     disposable_ = false;
+    disposed_publishing_ = false;
     last_update_time_ = 0;
 
     config_ = _srs_config;
@@ -998,7 +1050,30 @@ srs_error_t SrsDash::cycle()
     disposable_ = false;
 
     srs_trace("dash cycle to dispose dash %s, timeout=%dms", req_->get_stream_url().c_str(), dash_dispose);
+    bool publishing = enabled_;
     dispose();
+
+    // An idle publisher is still published, so its next media starts DASH again.
+    disposed_publishing_ = publishing;
+
+    return err;
+}
+
+srs_error_t SrsDash::resume()
+{
+    srs_error_t err = srs_success;
+
+    disposed_publishing_ = false;
+    srs_trace("dash resume %s, media after the dispose", req_->get_stream_url().c_str());
+
+    if ((err = on_publish()) != srs_success) {
+        return srs_error_wrap(err, "dash publish");
+    }
+
+    // The sequence headers came before the dispose, so feed them again.
+    if ((err = hub_->on_dash_request_sh()) != srs_success) {
+        return srs_error_wrap(err, "dash request sh");
+    }
 
     return err;
 }
@@ -1045,6 +1120,7 @@ srs_error_t SrsDash::on_publish()
 
     // update the dash time, for dash_dispose.
     last_update_time_ = srs_time_now_cached();
+    disposed_publishing_ = false;
 
     if ((err = controller_->on_publish()) != srs_success) {
         return srs_error_wrap(err, "controller");
@@ -1059,6 +1135,10 @@ srs_error_t SrsDash::on_publish()
 srs_error_t SrsDash::on_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
     srs_error_t err = srs_success;
+
+    if (disposed_publishing_ && (err = resume()) != srs_success) {
+        return srs_error_wrap(err, "dash: resume");
+    }
 
     if (!enabled_) {
         return err;
@@ -1082,6 +1162,10 @@ srs_error_t SrsDash::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 {
     srs_error_t err = srs_success;
 
+    if (disposed_publishing_ && (err = resume()) != srs_success) {
+        return srs_error_wrap(err, "dash: resume");
+    }
+
     if (!enabled_) {
         return err;
     }
@@ -1102,6 +1186,9 @@ srs_error_t SrsDash::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
 
 void SrsDash::on_unpublish()
 {
+    // The stream is unpublished, so no media resumes a disposed DASH.
+    disposed_publishing_ = false;
+
     // Prevent duplicated unpublish.
     if (!enabled_) {
         return;
