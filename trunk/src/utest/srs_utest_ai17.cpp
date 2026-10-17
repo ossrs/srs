@@ -3494,6 +3494,84 @@ VOID TEST(SrsGoApiRtcWhipTest, DoServeHttpPublishSuccess)
     whip->config_ = NULL;
 }
 
+// A WHIP publisher and a WHEP player have the tcUrl webrtc://<host>/<app>, as a client of the
+// legacy WebRTC API has, which its hooks and /api/v1/clients report; their param is the query of
+// the API URL, kept as it is.
+VOID TEST(SrsGoApiRtcWhipTest, RequestTcUrlIsWebrtcUrlOfApp)
+{
+    srs_error_t err = srs_success;
+
+    class TestableWhipForTcUrl : public SrsGoApiRtcWhip
+    {
+    public:
+        class MockHandler : public SrsGoApiRtcPublish
+        {
+        public:
+            MockHandler() : SrsGoApiRtcPublish(NULL) {}
+            virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc)
+            {
+                return srs_success;
+            }
+        };
+        class MockPlayHandler : public SrsGoApiRtcPlay
+        {
+        public:
+            MockPlayHandler() : SrsGoApiRtcPlay(NULL) {}
+            virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, SrsRtcUserConfig *ruc)
+            {
+                return srs_success;
+            }
+        };
+
+        TestableWhipForTcUrl(ISrsRtcApiServer *server) : SrsGoApiRtcWhip(server)
+        {
+            srs_freep(publish_);
+            srs_freep(play_);
+            publish_ = new MockHandler();
+            play_ = new MockPlayHandler();
+        }
+    };
+
+    struct {
+        const char *url;
+        const char *app;
+        const char *stream;
+        const char *want_tc_url;
+        const char *want_param;
+    } cases[] = {
+        {"http://127.0.0.1:1985/rtc/v1/whip/?app=live&stream=livestream&token=abc", "live", "livestream",
+         "webrtc://127.0.0.1/live", "app=live&stream=livestream&token=abc"},
+        {"http://example.com:1985/rtc/v1/whep/?app=tenant&stream=live/livestream", "tenant", "live/livestream",
+         "webrtc://example.com/tenant/live", "app=tenant&stream=live/livestream"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SrsUniquePtr<MockAppConfig> config(new MockAppConfig());
+        SrsUniquePtr<MockRtcApiServerForPlay> server(new MockRtcApiServerForPlay());
+        SrsUniquePtr<TestableWhipForTcUrl> whip(new TestableWhipForTcUrl(server.get()));
+        whip->config_ = config.get();
+
+        SrsUniquePtr<MockResponseWriter> writer(new MockResponseWriter());
+        SrsUniquePtr<MockHttpMessageForRtcApi> r(new MockHttpMessageForRtcApi());
+        HELPER_EXPECT_SUCCESS(r->set_url(cases[i].url, false));
+        r->set_method(SRS_CONSTS_HTTP_POST);
+        r->body_content_ = "v=0\r\no=- 123456 2 IN IP4 192.168.1.100\r\ns=WebRTC\r\nt=0 0\r\n"
+                           "a=group:BUNDLE 0\r\n"
+                           "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=rtpmap:96 H264/90000\r\n"
+                           "a=mid:0\r\n";
+        r->query_params_["app"] = cases[i].app;
+        r->query_params_["stream"] = cases[i].stream;
+
+        SrsUniquePtr<SrsRtcUserConfig> ruc(new SrsRtcUserConfig());
+        HELPER_EXPECT_SUCCESS(whip->do_serve_http_with(writer.get(), r.get(), ruc.get()));
+
+        EXPECT_STREQ(cases[i].want_tc_url, ruc->req_->tcUrl_.c_str()) << cases[i].url;
+        EXPECT_STREQ(cases[i].want_param, ruc->req_->param_.c_str()) << cases[i].url;
+
+        whip->config_ = NULL;
+    }
+}
+
 // Test SrsGoApiRtcWhip::serve_http() error handling for invalid SDP.
 // This test verifies that WHIP returns HTTP 400 Bad Request when SDP parsing fails.
 VOID TEST(SrsGoApiRtcWhipTest, ServeHttpErrorInvalidSdp)

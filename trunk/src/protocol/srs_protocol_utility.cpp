@@ -43,10 +43,7 @@ using namespace std;
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_st.hpp>
 
-// Normalize a query parameter so it can be appended directly to a URL.
-// For example, "token=abc" becomes "?token=abc", while "?token=abc" and
-// an empty parameter are returned unchanged.
-static string srs_net_url_normalize_param(const string &param)
+string srs_net_url_normalize_param(const string &param)
 {
     if (param.empty() || param.at(0) == '?') {
         return param;

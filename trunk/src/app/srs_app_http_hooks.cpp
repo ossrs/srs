@@ -75,7 +75,7 @@ srs_error_t SrsHttpHooks::on_connect(string url, ISrsRequest *req)
     obj->set("vhost", SrsJsonAny::str(req->vhost_.c_str()));
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream_.c_str()));
-    obj->set("param", SrsJsonAny::str(req->param_.c_str()));
+    obj->set("param", SrsJsonAny::str(srs_net_url_normalize_param(req->param_).c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl_.c_str()));
 
@@ -150,7 +150,7 @@ srs_error_t SrsHttpHooks::on_publish(string url, ISrsRequest *req, SrsRtmpConnTy
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream_.c_str()));
-    obj->set("param", SrsJsonAny::str(req->param_.c_str()));
+    obj->set("param", SrsJsonAny::str(srs_net_url_normalize_param(req->param_).c_str()));
 
     obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
     SrsStatisticStream *stream = stat->find_stream_by_url(req->get_stream_url());
@@ -212,7 +212,7 @@ void SrsHttpHooks::on_unpublish(string url, ISrsRequest *req, SrsRtmpConnType ty
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream_.c_str()));
-    obj->set("param", SrsJsonAny::str(req->param_.c_str()));
+    obj->set("param", SrsJsonAny::str(srs_net_url_normalize_param(req->param_).c_str()));
 
     obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
     if (!stream.id_.empty()) {
@@ -256,7 +256,7 @@ srs_error_t SrsHttpHooks::on_play(string url, ISrsRequest *req, SrsRtmpConnType 
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
-    obj->set("param", SrsJsonAny::str(req->param_.c_str()));
+    obj->set("param", SrsJsonAny::str(srs_net_url_normalize_param(req->param_).c_str()));
     obj->set("pageUrl", SrsJsonAny::str(req->pageUrl_.c_str()));
 
     obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
@@ -300,7 +300,7 @@ void SrsHttpHooks::on_stop(string url, ISrsRequest *req, SrsRtmpConnType type, c
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream_.c_str()));
-    obj->set("param", SrsJsonAny::str(req->param_.c_str()));
+    obj->set("param", SrsJsonAny::str(srs_net_url_normalize_param(req->param_).c_str()));
 
     obj->set("stream_url", SrsJsonAny::str(req->get_stream_url().c_str()));
     if (!stream.id_.empty()) {
@@ -346,7 +346,7 @@ srs_error_t SrsHttpHooks::on_dvr(SrsContextId c, string url, ISrsRequest *req, s
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream_.c_str()));
-    obj->set("param", SrsJsonAny::str(req->param_.c_str()));
+    obj->set("param", SrsJsonAny::str(srs_net_url_normalize_param(req->param_).c_str()));
     obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
     obj->set("file", SrsJsonAny::str(file.c_str()));
 
@@ -397,7 +397,7 @@ srs_error_t SrsHttpHooks::on_hls(SrsContextId c, string url, ISrsRequest *req, s
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream_.c_str()));
-    obj->set("param", SrsJsonAny::str(req->param_.c_str()));
+    obj->set("param", SrsJsonAny::str(srs_net_url_normalize_param(req->param_).c_str()));
     obj->set("duration", SrsJsonAny::number(srsu2ms(duration) / 1000.0));
     obj->set("cwd", SrsJsonAny::str(cwd.c_str()));
     obj->set("file", SrsJsonAny::str(file.c_str()));
@@ -445,7 +445,7 @@ srs_error_t SrsHttpHooks::on_hls_notify(SrsContextId c, std::string url, ISrsReq
     url = srs_strings_replace(url, "[app]", req->app_);
     url = srs_strings_replace(url, "[stream]", req->stream_);
     url = srs_strings_replace(url, "[ts_url]", ts_url);
-    url = srs_strings_replace(url, "[param]", req->param_);
+    url = srs_strings_replace(url, "[param]", srs_net_url_normalize_param(req->param_));
 
     int64_t starttime = srsu2ms(srs_time_now_realtime());
 
@@ -562,7 +562,7 @@ srs_error_t SrsHttpHooks::on_forward_backend(string url, ISrsRequest *req, std::
     obj->set("app", SrsJsonAny::str(req->app_.c_str()));
     obj->set("tcUrl", SrsJsonAny::str(req->tcUrl_.c_str()));
     obj->set("stream", SrsJsonAny::str(req->stream_.c_str()));
-    obj->set("param", SrsJsonAny::str(req->param_.c_str()));
+    obj->set("param", SrsJsonAny::str(srs_net_url_normalize_param(req->param_).c_str()));
 
     std::string data = obj->dumps();
     std::string res;

@@ -38,6 +38,9 @@ extern int srs_parse_asan_backtrace_symbols(char *symbol, char *out_buf);
 #ifdef SRS_SANITIZER_LOG
 extern void asan_report_callback(const char *str);
 #endif
+#ifdef SRS_SANITIZER
+extern "C" const char *__asan_default_options();
+#endif
 
 // Forward declarations for RTC RTP functions
 extern bool srs_rtp_packet_h264_is_keyframe(uint8_t nalu_type, ISrsRtpPayloader *payload);
@@ -535,6 +538,121 @@ VOID TEST(KernelResourceTest, ResourceManagerDisposesThroughInjectedCond)
 
     manager.unsubscribe(&handler);
     manager.factory_ = NULL;
+}
+
+// Find the resource by its fast id, and tell whether the level-0 cache answered, not the map.
+static ISrsResource *find_by_fast_id_level0(SrsResourceManager &manager, uint64_t id, bool *level0)
+{
+    int64_t hits = _srs_pps_fids_level0->sugar_;
+    ISrsResource *resource = manager.find_by_fast_id(id);
+    *level0 = _srs_pps_fids_level0->sugar_ > hits;
+    return resource;
+}
+
+// What cycle() does after the cond wakes it, with the current context kept for the tests that run after.
+static void remove_and_clear(SrsResourceManager &manager, ISrsResource *resource)
+{
+    manager.remove(resource);
+    manager.cid_ = _srs_context->get_id();
+    manager.clear();
+}
+
+// A WebRTC session is added by its name, and a GB session by its id, before their fast ids, so a fast id
+// of a resource already added must take the level-0 slot too.
+VOID TEST(KernelResourceTest, ResourceManagerFastIdOfAddedResourceInLevel0)
+{
+    SrsResourceManager manager("test");
+    manager.assemble();
+
+    MockSrsResource *session = new MockSrsResource();
+    manager.add_with_name("session", session);
+    manager.add_with_fast_id(100, session);
+
+    MockSrsResource *gb = new MockSrsResource();
+    manager.add_with_id("device", gb);
+    manager.add_with_fast_id(200, gb);
+
+    bool level0 = false;
+    EXPECT_TRUE(session == find_by_fast_id_level0(manager, 100, &level0));
+    EXPECT_TRUE(level0);
+    EXPECT_TRUE(gb == find_by_fast_id_level0(manager, 200, &level0));
+    EXPECT_TRUE(level0);
+
+    // A session found at another address has a fast id of each address, all in the level-0 cache.
+    manager.add_with_fast_id(300, session);
+    EXPECT_TRUE(session == find_by_fast_id_level0(manager, 300, &level0));
+    EXPECT_TRUE(level0);
+
+    remove_and_clear(manager, session);
+    EXPECT_TRUE(NULL == find_by_fast_id_level0(manager, 100, &level0));
+    EXPECT_FALSE(level0);
+    EXPECT_TRUE(NULL == find_by_fast_id_level0(manager, 300, &level0));
+    EXPECT_FALSE(level0);
+    EXPECT_TRUE(gb == find_by_fast_id_level0(manager, 200, &level0));
+    EXPECT_TRUE(level0);
+}
+
+// The fast ids 1 and 100001 share a level-0 slot. Removing the resource that does not hold the slot
+// must leave the slot to the resource that holds it.
+VOID TEST(KernelResourceTest, ResourceManagerRemovalLeavesOtherResourceSlot)
+{
+    SrsResourceManager manager("test");
+    manager.assemble();
+
+    MockSrsResource *holder = new MockSrsResource();
+    manager.add_with_fast_id(100001, holder);
+
+    MockSrsResource *other = new MockSrsResource();
+    manager.add_with_name("other", other);
+    manager.add_with_fast_id(1, other);
+
+    bool level0 = false;
+    EXPECT_TRUE(holder == find_by_fast_id_level0(manager, 100001, &level0));
+    EXPECT_TRUE(level0);
+    EXPECT_TRUE(other == find_by_fast_id_level0(manager, 1, &level0));
+    EXPECT_FALSE(level0);
+
+    remove_and_clear(manager, other);
+    EXPECT_TRUE(NULL == manager.find_by_fast_id(1));
+    EXPECT_TRUE(holder == find_by_fast_id_level0(manager, 100001, &level0));
+    EXPECT_TRUE(level0);
+
+    // Once the holder is gone, the slot is free for the next fast id.
+    remove_and_clear(manager, holder);
+    EXPECT_TRUE(NULL == manager.find_by_fast_id(100001));
+
+    MockSrsResource *next = new MockSrsResource();
+    manager.add_with_name("next", next);
+    manager.add_with_fast_id(1, next);
+    EXPECT_TRUE(next == find_by_fast_id_level0(manager, 1, &level0));
+    EXPECT_TRUE(level0);
+}
+
+// A WebRTC client's address can move to a new session, which adds the same fast id again. The level-0 slot
+// must follow it, and the old session's removal must leave it to the new one.
+VOID TEST(KernelResourceTest, ResourceManagerFastIdOfAnotherResourceTakesSlot)
+{
+    SrsResourceManager manager("test");
+    manager.assemble();
+
+    MockSrsResource *old_session = new MockSrsResource();
+    manager.add_with_name("old", old_session);
+    manager.add_with_fast_id(100, old_session);
+
+    MockSrsResource *new_session = new MockSrsResource();
+    manager.add_with_name("new", new_session);
+    manager.add_with_fast_id(100, new_session);
+
+    bool level0 = false;
+    EXPECT_TRUE(new_session == find_by_fast_id_level0(manager, 100, &level0));
+    EXPECT_TRUE(level0);
+
+    remove_and_clear(manager, old_session);
+    EXPECT_TRUE(new_session == find_by_fast_id_level0(manager, 100, &level0));
+    EXPECT_TRUE(level0);
+
+    remove_and_clear(manager, new_session);
+    EXPECT_TRUE(NULL == manager.find_by_fast_id(100));
 }
 
 VOID TEST(KernelResourceTest, GlobalConnManagerIsAssembled)
@@ -1780,6 +1898,19 @@ VOID TEST(KernelErrorTest, AsanReportCallback)
 #else
     // On builds without SRS_SANITIZER_LOG, just pass the test
     EXPECT_TRUE(true);
+#endif
+}
+
+// libsrt is built without ASan, and its inline std::vector code shares the instantiations of SRS's instrumented
+// code, so the container annotations go stale and a valid copy is reported as an overflow.
+VOID TEST(KernelErrorTest, AsanDefaultOptionsDisableContainerOverflow)
+{
+#ifdef SRS_SANITIZER
+    std::string options = __asan_default_options();
+    EXPECT_NE(std::string::npos, options.find("detect_container_overflow=0")) << options;
+    EXPECT_NE(std::string::npos, options.find("halt_on_error=0")) << options;
+    EXPECT_NE(std::string::npos, options.find("detect_leaks=0")) << options;
+    EXPECT_NE(std::string::npos, options.find("alloc_dealloc_mismatch=0")) << options;
 #endif
 }
 

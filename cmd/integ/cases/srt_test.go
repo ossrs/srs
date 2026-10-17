@@ -352,7 +352,13 @@ func srtPlayer(c *check.C, srs *server.Server, opts srt.Options, stream string) 
 // at once, then the rest in real time.
 func startSRTPublisher(c *check.C, srs *server.Server, opts srt.Options, file string) *srt.Conn {
 	c.Helper()
-	conn, err := trySRTPublisher(c, srs, opts, file)
+	return startSRTPublisherLead(c, srs, opts, file, srtLead)
+}
+
+// startSRTPublisherLead is startSRTPublisher with lead of the file at once.
+func startSRTPublisherLead(c *check.C, srs *server.Server, opts srt.Options, file string, lead time.Duration) *srt.Conn {
+	c.Helper()
+	conn, err := trySRTPublisherLead(c, srs, opts, file, lead)
 	c.Must(err, "publish the lead")
 	return conn
 }
@@ -361,11 +367,17 @@ func startSRTPublisher(c *check.C, srs *server.Server, opts srt.Options, file st
 // the lead, such as when the server closes the publisher.
 func trySRTPublisher(c *check.C, srs *server.Server, opts srt.Options, file string) (*srt.Conn, error) {
 	c.Helper()
+	return trySRTPublisherLead(c, srs, opts, file, srtLead)
+}
+
+// trySRTPublisherLead is trySRTPublisher with lead of the file at once.
+func trySRTPublisherLead(c *check.C, srs *server.Server, opts srt.Options, file string, lead time.Duration) (*srt.Conn, error) {
+	c.Helper()
 	conn := dialSRT(c, srs, opts)
 	f, err := os.Open(media.Path(c, file))
 	c.Must(err, "open the media")
 	s := srt.NewSender(f)
-	if err := s.SendThrough(conn, srtLead); err != nil {
+	if err := s.SendThrough(conn, lead); err != nil {
 		f.Close()
 		return conn, err
 	}
@@ -427,9 +439,12 @@ func checkSRTPlayedAs(c *check.C, r *report.Report, vcodec, acodec string) {
 	c.Check(r.AVSync <= 400*time.Millisecond, "A/V sync %v, want at most 400ms", r.AVSync)
 }
 
-// checkParams checks that a param, a=1&b=2, has each of want, in any order.
+// checkParams checks that a hook's param, ?a=1&b=2, has each of want, in any
+// order, after its leading ?, which every protocol's param has, as an RTMP
+// client's.
 func checkParams(c *check.C, param string, want ...string) {
 	c.Helper()
+	c.Check(strings.HasPrefix(param, "?"), "param %q, want a leading ?", param)
 	got := map[string]bool{}
 	for _, kv := range strings.Split(strings.TrimPrefix(param, "?"), "&") {
 		got[kv] = true

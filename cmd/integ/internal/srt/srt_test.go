@@ -452,8 +452,10 @@ func TestTSBPD(t *testing.T) {
 
 // relay forwards UDP between callers and the listener at addr until mute is
 // called, after which it drops everything, like a peer that is gone
-// without a word. It returns its own address.
-func relay(t *testing.T, addr string) (string, func()) {
+// without a word. With dropShutdown it never forwards the listener's
+// shutdown, as gosrt's dialer loses one that comes while Dial returns. It
+// returns its own address.
+func relay(t *testing.T, addr string, dropShutdown bool) (string, func()) {
 	t.Helper()
 	front, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
@@ -488,6 +490,11 @@ func relay(t *testing.T, addr string) (string, func()) {
 			if err != nil {
 				return
 			}
+			// A control packet has the top bit set, then its type: 5 is
+			// the shutdown.
+			if dropShutdown && n >= 2 && b[0] == 0x80 && b[1] == 0x05 {
+				continue
+			}
 			if to, ok := caller.Load().(net.Addr); ok && !muted.Load() {
 				front.WriteTo(b[:n], to)
 			}
@@ -517,7 +524,7 @@ func TestWaitClosedProbing(t *testing.T) {
 	opts := Options{PeerIdleTimeout: 250 * time.Millisecond}
 
 	t.Run("Gone", func(t *testing.T) {
-		front, mute := relay(t, addr)
+		front, mute := relay(t, addr, false)
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		c, err := Dial(ctx, front, opts)
@@ -547,6 +554,76 @@ func TestWaitClosedProbing(t *testing.T) {
 		defer cancel2()
 		if err := c.WaitClosedProbing(short, 50*time.Millisecond); !errors.Is(err, context.DeadlineExceeded) {
 			t.Errorf("WaitClosedProbing of a live peer: %v, want the deadline", err)
+		}
+	})
+}
+
+// TestProbe checks a read while the client probes the peer: it ends soon
+// when the peer closed and its shutdown was lost, and goes on while a live
+// peer sends nothing.
+func TestProbe(t *testing.T) {
+	opts := Options{PeerIdleTimeout: 250 * time.Millisecond}
+	// readFor reads c while probing it, for at most d: whether the read
+	// ended, and how soon.
+	readFor := func(c *Conn, d time.Duration) (bool, time.Duration) {
+		ctx, cancel := context.WithTimeout(context.Background(), d)
+		defer cancel()
+		go c.Probe(ctx, 50*time.Millisecond)
+		start, ended := time.Now(), make(chan struct{})
+		go func() {
+			c.Read(make([]byte, 2048))
+			close(ended)
+		}()
+		select {
+		case <-ended:
+			return true, time.Since(start)
+		case <-ctx.Done():
+			return false, d
+		}
+	}
+
+	t.Run("ShutdownLost", func(t *testing.T) {
+		addr := listen(t, gosrt.DefaultConfig(), func(req gosrt.ConnRequest) {
+			if c, err := req.Accept(); err == nil {
+				c.Close()
+			}
+		})
+		front, _ := relay(t, addr, true)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		c, err := Dial(ctx, front, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		if ended, d := readFor(c, 2*time.Second); !ended || d > time.Second {
+			t.Errorf("read ended %v after %v, want it ended in about 250ms", ended, d)
+		}
+	})
+
+	t.Run("Alive", func(t *testing.T) {
+		addr := listen(t, gosrt.DefaultConfig(), func(req gosrt.ConnRequest) {
+			c, err := req.Accept()
+			if err != nil {
+				return
+			}
+			defer c.Close()
+			b := make([]byte, 2048)
+			for {
+				if _, err := c.Read(b); err != nil {
+					return
+				}
+			}
+		})
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		c, err := Dial(ctx, addr, opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close()
+		if ended, d := readFor(c, 700*time.Millisecond); ended {
+			t.Errorf("read of a live peer ended after %v, want it still reading", d)
 		}
 	})
 }

@@ -478,7 +478,8 @@ SrsVodStream::~SrsVodStream()
 }
 
 // Refuse a range or start that has no byte of the file in it: 416 with the file size in Content-Range, as RFC 9110 has
-// it, so the client knows the size and the connection serves the next request.
+// it, so the client knows the size, instead of closing the connection with no answer. Like every file answer, it
+// carries Connection: Close.
 static srs_error_t srs_vod_range_not_satisfiable(ISrsHttpResponseWriter *w, string fullpath, int64_t filesize, int64_t start)
 {
     srs_warn("http vod %s range not satisfiable, size=%" PRId64 ", start=%" PRId64, fullpath.c_str(), filesize, start);

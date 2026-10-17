@@ -76,6 +76,10 @@ vhost __defaultVhost__ {
         # For edge(mode remote), whether open the token traverse mode,
         # if token traverse on, all connections of edge will forward to origin to check(auth),
         # it's very important for the edge to do the token auth.
+        # The origin checks each client by its on_connect, with the client's stream and param, and
+        # the edge refuses a client the origin refuses; an older origin accepts every client.
+        # An older edge's check names no stream, so the origin answers it with no on_connect, and
+        # sends no on_close for it either.
         # the better way is use http callback to do the token auth by the edge,
         # but if user prefer origin check(auth), the token_traverse if better solution.
         # default: off

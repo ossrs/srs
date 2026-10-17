@@ -224,8 +224,14 @@ func tryRTMP(c *check.C, url string, opts *rtmp.Options, publish bool, d time.Du
 
 // srtResult reads an SRT connection, for at most d from start, until SRS
 // closes it, or accepts it: a player once it reads media, a publisher, which
-// reads nothing, once published reports it is.
+// reads nothing, once published reports it is. SRS refuses a client right
+// after the handshake, and gosrt drops a shutdown that comes while its Dial
+// returns, so the client probes SRS meanwhile and takes its silence, after
+// the idle timeout of srtDial, for the close.
 func srtResult(conn *srt.Conn, start time.Time, d time.Duration, published func() bool) hookResult {
+	probe, stop := context.WithDeadline(context.Background(), start.Add(d))
+	defer stop()
+	go conn.Probe(probe, srtHookProbe)
 	read, closed := make(chan struct{}), make(chan struct{})
 	go func() {
 		b := make([]byte, 1500)
@@ -252,10 +258,20 @@ func srtResult(conn *srt.Conn, start time.Time, d time.Duration, published func(
 	return hookResult{}
 }
 
-// srtDial calls the SRT listener for at most d: a handshake SRS refuses is a
-// refusal; nil when the call timed out.
+// srtHookIdle is the idle timeout of an SRT client of the hook cases: a live
+// SRS answers its probes well within it, and a client whose shutdown was lost
+// still sees the close within hookWait.
+func srtHookIdle() time.Duration { return hookWait() * 2 / 3 }
+
+// srtHookProbe is how often an SRT client of the hook cases probes SRS.
+const srtHookProbe = 30 * time.Millisecond
+
+// srtDial calls the SRT listener for at most d, with the idle timeout of
+// srtHookIdle: a handshake SRS refuses is a refusal; nil when the call timed
+// out.
 func srtDial(c *check.C, srs *server.Server, opts srt.Options, start time.Time, d time.Duration) (*srt.Conn, *hookResult) {
 	c.Helper()
+	opts.PeerIdleTimeout = srtHookIdle()
 	ctx, cancel := context.WithTimeout(context.Background(), d)
 	defer cancel()
 	conn, err := srt.Dial(ctx, srs.Addr(server.SRT), opts)

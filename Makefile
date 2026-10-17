@@ -1,4 +1,4 @@
-.PHONY: all build test fmt clean run generate integ integ-prepare integ-main integ-timer
+.PHONY: all build test fmt clean run generate integ integ-prepare integ-main integ-timer integ-unit
 
 all: build
 
@@ -46,6 +46,12 @@ integ-timer:
 
 integ-main:
 	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 24 -args $(INTEG_ARGS)
+
+# The unit tests of the suite's own packages, every test outside the cases
+# directory. The media tests read the test media, so it is made first.
+# INTEG_UNIT_ARGS passes go test flags, such as -v.
+integ-unit: integ-prepare
+	go -C cmd/integ test -count=1 $(INTEG_UNIT_ARGS) ./internal/... .
 
 clean:
 	rm -rf bin .go-formarted

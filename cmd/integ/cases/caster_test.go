@@ -241,18 +241,21 @@ func streamUDPTS(tb testing.TB, srs *server.Server, file string) {
 // its RTMP output closed, casterLead of it at once, then the rest in real
 // time, and waits for the caster to publish stream again. The caster finds
 // its output closed only when a write fails, which a write before the server
-// closed the socket doesn't, so the push sends 40ms of media at a time until
-// the caster publishes again, long before the keyframe at 1s in the lead.
+// closed the socket doesn't, so the push sends 40ms of media each 40ms until
+// the caster publishes again, which takes the caster's RTMP connect and
+// publish with their hooks: on an idle host long before the keyframe at 1s
+// in the lead, under load in up to 600ms scaled by -integ.limit-scale.
 func repushUDPTS(c *check.C, srs *server.Server, file, stream string) {
 	c.Helper()
 	p := newUDPTSPush(c, srs, file)
 	m := mock.Match{Action: "on_publish", Stream: stream}
+	start, wait := time.Now(), check.Scaled(600*time.Millisecond)
 	for at := 40 * time.Millisecond; len(srs.Hooks.Requests(m)) < 2; at += 40 * time.Millisecond {
-		if at > 600*time.Millisecond {
-			c.Fatalf("no new publish of the caster after %v of the push", at-40*time.Millisecond)
+		if time.Since(start) > wait {
+			c.Fatalf("no new publish of the caster %v after the push started, %v of it sent", time.Since(start), at-40*time.Millisecond)
 		}
 		c.Must(p.s.SendThrough(p.conn, at), "push")
-		for i := 0; i < 4 && len(srs.Hooks.Requests(m)) < 2; i++ {
+		for i := 0; i < 8 && len(srs.Hooks.Requests(m)) < 2; i++ {
 			time.Sleep(5 * time.Millisecond)
 		}
 	}

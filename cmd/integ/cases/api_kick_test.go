@@ -17,6 +17,7 @@ import (
 
 	"srs-integ/internal/check"
 	"srs-integ/internal/media"
+	"srs-integ/internal/mock"
 	"srs-integ/internal/rtmp"
 	"srs-integ/internal/rtsp"
 	"srs-integ/internal/server"
@@ -351,16 +352,38 @@ func apiKicks(t *testing.T) {
 	})
 
 	// DeleteSrtPublisher: the publisher's connection is closed and the
-	// stream is gone.
+	// stream is gone. The DELETE comes once the publish has started, after
+	// SRS has the on_publish answer: the SRT handshake is done before the
+	// hook, and a DELETE during it is DeleteSrtPublisherDuringOnPublish.
 	check.Case(t, "DeleteSrtPublisher", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
 		pub := startSRTPublisher(c, srs, srt.Options{StreamID: srtID("live/"+stream, "publish")}, media.H264HighAACTS)
 		h := waitHook(c, srs, "on_publish", stream)
+		untilPublishStarted(c, srs, h.Field("stream_id"))
 		checkKicked(c, apiKick(c, srs, h.Field("client_id")))
 		c.CheckNoError(srtClosedWithin(pub, kickWithin), "the publisher's connection closed")
 		waitClientHook(c, srs, "on_unpublish", h.Field("client_id"))
 		c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+h.Field("client_id")), "the publisher leaves the API")
+		c.CheckNoError(untilGone(c, srs, "/api/v1/streams/"+h.Field("stream_id")), "the stream leaves the API")
+	})
+
+	// DeleteSrtPublisherDuringOnPublish: a DELETE while SRS waits for the
+	// publisher's on_publish answer ends the client before its publish
+	// starts, as a refused one: the connection is closed, on_close comes and
+	// no on_unpublish, and the client and the stream leave the API.
+	check.Case(t, "DeleteSrtPublisherDuringOnPublish", check.Normal, func(c *check.C) {
+		srs := server.Common(c)
+		stream := streamName(c)
+		srs.Hooks.Script(mock.Match{Action: "on_publish", Stream: stream}, mock.NoAnswer())
+		pub := startSRTPublisher(c, srs, srt.Options{StreamID: srtID("live/"+stream, "publish")}, media.H264HighAACTS)
+		h := waitHook(c, srs, "on_publish", stream)
+		id := h.Field("client_id")
+		checkKicked(c, apiKick(c, srs, id))
+		c.CheckNoError(srtClosedWithin(pub, kickWithin), "the publisher's connection closed")
+		waitClientHook(c, srs, "on_close", id)
+		c.CheckEqual(hookActions(clientHooks(srs, id)), []string{"on_connect", "on_publish", "on_close"}, "the client's hooks")
+		c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+id), "the publisher leaves the API")
 		c.CheckNoError(untilGone(c, srs, "/api/v1/streams/"+h.Field("stream_id")), "the stream leaves the API")
 	})
 
@@ -400,11 +423,14 @@ func apiKicks(t *testing.T) {
 	// DeleteGbPublisher deletes the RTMP client SRS publishes a GB28181
 	// stream with: the stream is unpublished, and the device's media
 	// connection stays. It sends no more media, which SRS would publish again.
+	// The DELETE comes once the publish has started, after SRS's RTMP client
+	// has the on_publish answer.
 	check.Case(t, "DeleteGbPublisher", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		s := gbStart(c, srs, media.H264HighAAC, gbSSRC())
 		s.sendThrough(c, time.Second)
 		h := waitHook(c, srs, "on_publish", s.id)
+		untilPublishStarted(c, srs, h.Field("stream_id"))
 		checkKicked(c, apiKick(c, srs, h.Field("client_id")))
 		waitClientHook(c, srs, "on_unpublish", h.Field("client_id"))
 		c.CheckNoError(untilGone(c, srs, "/api/v1/clients/"+h.Field("client_id")), "the publisher leaves the API")
@@ -413,6 +439,21 @@ func apiKicks(t *testing.T) {
 		_, err := s.conn.Read(make([]byte, 1))
 		c.Check(isTimeout(err), "the device's media connection: %v, want it open", err)
 	})
+}
+
+// untilPublishStarted waits until the API lists a stream's publish as active,
+// for at most 300ms on a fast machine: SRS has had the publisher's on_publish
+// answer and started its publish.
+func untilPublishStarted(c *check.C, srs *server.Server, streamID string) {
+	c.Helper()
+	var pub any
+	if !until(check.Scaled(300*time.Millisecond), func() bool {
+		pub = apiStreamOf(c, srs, streamID)["publish"]
+		p, _ := pub.(map[string]any)
+		return p["active"] == true
+	}) {
+		c.Fatalf("stream publish %v, want active", pub)
+	}
 }
 
 // srtClosedWithin waits until the server closes an SRT connection, for at

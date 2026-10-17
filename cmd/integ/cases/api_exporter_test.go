@@ -375,7 +375,7 @@ func apiStatsMetrics(t *testing.T, srs *server.Server, lock func(*check.C)) {
 		checkGauges := func(what string, streams, clients int) {
 			c.Helper()
 			var s, cl float64
-			ok := until(300*time.Millisecond, func() bool {
+			ok := until(statsWait(), func() bool {
 				s, cl = metric(c, srs, "srs_streams"), metric(c, srs, "srs_clients")
 				return s == float64(streams) && cl == float64(clients)
 			})

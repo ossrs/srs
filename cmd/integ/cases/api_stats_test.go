@@ -25,15 +25,21 @@ import (
 
 // The publish timeouts of TestApi_Stats: SRS adds an RTMP publisher's frames to
 // its stream's counts each time it checks the publisher, the first time after
-// the first-packet timeout, then after each normal timeout.
-const statsPublishTimeout = 300 * time.Millisecond
+// the first-packet timeout, then after each normal timeout. SRS closes a
+// publisher that sends nothing for as long, so a runner with its limits scaled
+// gets them scaled too.
+func statsPublishTimeout() time.Duration { return check.Scaled(300 * time.Millisecond) }
+
+// statsWait is how long a TestApi_Stats case waits for the counts to follow a
+// client that came or left: SRS updates them after the client's hooks.
+func statsWait() time.Duration { return check.Scaled(300 * time.Millisecond) }
 
 // statsConfig is the server of TestApi_Stats: RTMP, HTTP-FLV and the exporter
 // with a label and a tag, with every hook on the mock and the mock as the forward backend, and short
 // publish timeouts. It plays at the lowest latency, like Common, so SRS sees a
 // player's close at once.
 func statsConfig() server.Config {
-	ms := strconv.FormatInt(statsPublishTimeout.Milliseconds(), 10)
+	ms := strconv.FormatInt(statsPublishTimeout().Milliseconds(), 10)
 	return server.Config{
 		Listeners:      []server.Listener{server.RTMP, server.HTTPAPI, server.HTTPServer, server.Exporter},
 		Hooks:          true,
@@ -94,16 +100,16 @@ func TestApi_Stats(t *testing.T) {
 		checkCounts(c, srs, streamID, 3, 1)
 
 		rtmpPlayer.Close()
-		c.Check(until(300*time.Millisecond, func() bool { return countsAre(c, srs, streamID, 2, 1) }), "the counts after the RTMP player closed")
+		c.Check(until(statsWait(), func() bool { return countsAre(c, srs, streamID, 2, 1) }), "the counts after the RTMP player closed")
 		flvPlayer.Close()
-		c.Check(until(300*time.Millisecond, func() bool { return countsAre(c, srs, streamID, 1, 1) }), "the counts after the HTTP-FLV player closed")
+		c.Check(until(statsWait(), func() bool { return countsAre(c, srs, streamID, 1, 1) }), "the counts after the HTTP-FLV player closed")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		_, err := pub.Unpublish(ctx)
 		c.Must(err, "unpublish")
 		pub.Close()
 		c.CheckNoError(untilGone(c, srs, "/api/v1/streams/"+streamID), "the stream after its last client")
-		c.Check(until(300*time.Millisecond, func() bool { return countsAre(c, srs, "", 0, 0) }), "the counts after every client closed")
+		c.Check(until(statsWait(), func() bool { return countsAre(c, srs, "", 0, 0) }), "the counts after every client closed")
 		c.CheckEqual(metric(c, srs, "srs_clients_errs_total"), errs, "srs_clients_errs_total")
 		c.CheckEqual(metric(c, srs, "srs_clients_total"), total+3, "srs_clients_total")
 	})
@@ -134,7 +140,7 @@ func TestApi_Stats(t *testing.T) {
 		start := time.Now()
 		_, _, streamID := publishRTMP(c, srs, stream, media.H264HighAAC)
 		var st map[string]any
-		c.Check(until(statsPublishTimeout+100*time.Millisecond, func() bool {
+		c.Check(until(statsPublishTimeout()+check.Scaled(100*time.Millisecond), func() bool {
 			st = apiStreamOf(c, srs, streamID)
 			return num(c, st, "video_frames") >= 12 && num(c, st, "audio_frames") >= 21
 		}), "stream frames video %v audio %v, want the lead's 12 and 21", st["video_frames"], st["audio_frames"])
@@ -188,7 +194,7 @@ func TestApi_Stats(t *testing.T) {
 		vid := defaultVhost(c, srs)["id"]
 
 		var fwds []map[string]any
-		c.Check(until(300*time.Millisecond, func() bool {
+		c.Check(until(statsWait(), func() bool {
 			fwds, _ = apiList(c, srs, "forwards", "?stream="+streamID)
 			return len(fwds) == 2 && fwds[0]["state"] == "forwarding" && fwds[1]["state"] == "forwarding"
 		}), "forwards %v, want 2 forwarding", fwds)
@@ -301,28 +307,30 @@ func checkPagination(c *check.C, srs *server.Server, kind string, n int) {
 
 func itoa(n int) string { return strconv.Itoa(n) }
 
-// waitTotal waits until a list has a total of n, for at most 1s.
+// waitTotal waits until a list has a total of n, for at most 1s, scaled.
 func waitTotal(c *check.C, srs *server.Server, kind string, n int) error {
 	c.Helper()
 	var total int
-	if !until(time.Second, func() bool { _, total = apiList(c, srs, kind, "?count=1"); return total == n }) {
-		return errorIf(true, "%s total %d after 1s, want %d", kind, total, n)
+	wait := check.Scaled(time.Second)
+	if !until(wait, func() bool { _, total = apiList(c, srs, kind, "?count=1"); return total == n }) {
+		return errorIf(true, "%s total %d after %v, want %d", kind, total, wait, n)
 	}
 	return nil
 }
 
 // untilIdle waits until the server has no stream, client or forward, for at
-// most 2s.
+// most 2s, scaled.
 func untilIdle(c *check.C, srs *server.Server) error {
 	c.Helper()
 	var s, cl, f int
-	if !until(2*time.Second, func() bool {
+	wait := check.Scaled(2 * time.Second)
+	if !until(wait, func() bool {
 		_, s = apiList(c, srs, "streams", "?count=1")
 		_, cl = apiList(c, srs, "clients", "?count=1")
 		_, f = apiList(c, srs, "forwards", "?count=1")
 		return s == 0 && cl == 0 && f == 0
 	}) {
-		return errorIf(true, "%d streams, %d clients and %d forwards after 2s", s, cl, f)
+		return errorIf(true, "%d streams, %d clients and %d forwards after %v", s, cl, f, wait)
 	}
 	return nil
 }

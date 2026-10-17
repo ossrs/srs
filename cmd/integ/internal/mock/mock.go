@@ -15,6 +15,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -166,10 +167,10 @@ type script struct {
 	reply Reply
 }
 
-// Server is a running mock.
+// Server is a running mock, an httptest server on the address it was started
+// with.
 type Server struct {
-	ln     net.Listener
-	srv    *http.Server
+	ts     *httptest.Server
 	closed chan struct{}
 	once   sync.Once
 
@@ -186,35 +187,41 @@ func Start(addr string) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("mock: %w", err)
 	}
-	s := &Server{ln: ln, closed: make(chan struct{}), changed: make(chan struct{})}
-	s.srv = &http.Server{Handler: http.HandlerFunc(s.serve), ReadHeaderTimeout: 10 * time.Second}
-	go s.srv.Serve(ln)
+	s := &Server{closed: make(chan struct{}), changed: make(chan struct{})}
+	s.ts = httptest.NewUnstartedServer(http.HandlerFunc(s.serve))
+	s.ts.Listener.Close()
+	s.ts.Listener = ln
+	s.ts.Config.ReadHeaderTimeout = 10 * time.Second
+	s.ts.Start()
 	return s, nil
 }
 
 // Addr is the host:port the mock listens on.
 func (s *Server) Addr() string {
-	return s.ln.Addr().String()
+	return s.ts.Listener.Addr().String()
 }
 
 // URL returns the mock's URL of a path, such as /hooks/on_publish.
 func (s *Server) URL(path string) string {
-	return "http://" + s.Addr() + path
+	return s.ts.URL + path
 }
 
-// Close stops the mock. Requests that hang are answered by closing their
-// connections.
+// Close stops the mock. Requests that hang or wait for a delayed reply are
+// answered by closing their connections, never by a reply.
 func (s *Server) Close() error {
-	var err error
 	s.once.Do(func() {
 		close(s.closed)
-		err = s.srv.Close()
+		// The httptest server's Close waits for every request, so the
+		// connections close first, or a request that is never answered, or
+		// whose body never ends, blocks it.
+		s.ts.CloseClientConnections()
+		s.ts.Close()
 		s.mu.Lock()
 		close(s.changed)
 		s.changed = make(chan struct{})
 		s.mu.Unlock()
 	})
-	return err
+	return nil
 }
 
 // Script answers the requests that match with reply. The newest script that
@@ -290,20 +297,22 @@ func (s *Server) serve(w http.ResponseWriter, req *http.Request) {
 	}
 	s.mu.Unlock()
 
+	// A request the mock never answers ends with its connection closed: a
+	// handler that returns without a reply would send an empty 200.
 	if reply.Hang {
 		select {
 		case <-req.Context().Done():
 		case <-s.closed:
 		}
-		return
+		panic(http.ErrAbortHandler)
 	}
 	if reply.Delay > 0 {
 		select {
 		case <-time.After(reply.Delay):
 		case <-req.Context().Done():
-			return
+			panic(http.ErrAbortHandler)
 		case <-s.closed:
-			return
+			panic(http.ErrAbortHandler)
 		}
 	}
 

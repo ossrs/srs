@@ -39,7 +39,9 @@ func hooksRtc(t *testing.T) {
 	// WhipPublisherEvents publishes by WHIP with a param, then deletes the
 	// session: on_publish, then on_unpublish, and no other hook of the
 	// client, with every field; the client_id is a client of the API, the
-	// type rtc-publish, and both name the stream_id.
+	// type rtc-publish, the tcUrl the webrtc:// URL of the app, as a legacy
+	// client's, the param the API URL's query with a leading ?, and both
+	// name the stream_id.
 	check.Case(t, "WhipPublisherEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -55,6 +57,7 @@ func hooksRtc(t *testing.T) {
 		checkHookFields(c, srs, hooks, "127.0.0.1", "rtc-publish")
 		for _, h := range hooks {
 			c.CheckEqual(h.Field("stream"), stream, h.Action()+" stream")
+			c.CheckEqual(h.Field("tcUrl"), "webrtc://127.0.0.1/live", h.Action()+" tcUrl")
 			checkParams(c, h.Field("param"), "token=abc")
 			c.CheckEqual(h.Field("stream_url"), "/live/"+stream, h.Action()+" stream_url")
 			c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), h.Action()+" stream_id, the publisher's")
@@ -63,8 +66,8 @@ func hooksRtc(t *testing.T) {
 
 	// WhepPlayerEvents plays by WHEP with a param, then closes the peer
 	// connection without a DELETE: on_play, then on_stop, and no other hook
-	// of the client, with every field; the type is rtc-play, stream_id the
-	// publisher's.
+	// of the client, with every field; the type is rtc-play, the tcUrl and
+	// param as WhipPublisherEvents', stream_id the publisher's.
 	check.Case(t, "WhepPlayerEvents", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
@@ -83,6 +86,7 @@ func hooksRtc(t *testing.T) {
 		checkHookFields(c, srs, hooks, "127.0.0.1", "rtc-play")
 		for _, h := range hooks {
 			c.CheckEqual(h.Field("stream"), stream, h.Action()+" stream")
+			c.CheckEqual(h.Field("tcUrl"), "webrtc://127.0.0.1/live", h.Action()+" tcUrl")
 			checkParams(c, h.Field("param"), "k=v")
 			c.CheckEqual(h.Field("stream_url"), "/live/"+stream, h.Action()+" stream_url")
 			c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), h.Action()+" stream_id, the publisher's")

@@ -5,11 +5,14 @@
 package server
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -956,5 +959,96 @@ func TestStaticPaths(t *testing.T) {
 	}
 	if got := s.WebRoot(); got != "/run/common-1/objs/nginx/html" {
 		t.Errorf("web root %q", got)
+	}
+}
+
+// TestProcessEnv checks the env a server or a command run gets from this
+// process: no SRS_* var, so only the adapter configures SRS, and the sanitizer
+// quarantine bounded, before the user's own ASAN_OPTIONS, so theirs win where
+// they overlap.
+func TestProcessEnv(t *testing.T) {
+	t.Setenv("SRS_LISTEN", "1935")
+	t.Setenv("ASAN_OPTIONS", "")
+	os.Unsetenv("ASAN_OPTIONS")
+
+	want := fmt.Sprintf("ASAN_OPTIONS=quarantine_size_mb=%d", asanQuarantineMB)
+	env := processEnv()
+	if got := withPrefix(env, "ASAN_OPTIONS="); !reflect.DeepEqual(got, []string{want}) {
+		t.Errorf("ASAN_OPTIONS %v, want %q", got, want)
+	}
+	if got := withPrefix(env, "SRS_"); len(got) != 0 {
+		t.Errorf("SRS_ vars %v, want none", got)
+	}
+	if !slices.Contains(env, "MallocNanoZone=0") {
+		t.Error("no MallocNanoZone=0")
+	}
+
+	t.Setenv("ASAN_OPTIONS", "detect_container_overflow=1")
+	env = processEnv()
+	if got, want := withPrefix(env, "ASAN_OPTIONS="), want+":detect_container_overflow=1"; !reflect.DeepEqual(got, []string{want}) {
+		t.Errorf("ASAN_OPTIONS %v, want %q, the suite's then the user's", got, want)
+	}
+}
+
+// withPrefix returns the vars of env that start with prefix.
+func withPrefix(env []string, prefix string) []string {
+	var out []string
+	for _, kv := range env {
+		if strings.HasPrefix(kv, prefix) {
+			out = append(out, kv)
+		}
+	}
+	return out
+}
+
+// TestExitSignal checks the signal that ended a process: SIGKILL for a killed
+// one, none for one that exited.
+func TestExitSignal(t *testing.T) {
+	killed := exec.Command("sleep", "30")
+	if err := killed.Start(); err != nil {
+		t.Fatal(err)
+	}
+	killed.Process.Kill()
+	killed.Wait()
+	if got := exitSignal(killed.ProcessState); got != syscall.SIGKILL {
+		t.Errorf("a killed process: signal %v, want SIGKILL", got)
+	}
+	if code := killed.ProcessState.ExitCode(); code != -1 {
+		t.Errorf("a killed process: exit code %d, want -1", code)
+	}
+
+	exited := exec.Command("true")
+	exited.Run()
+	if got := exitSignal(exited.ProcessState); got != 0 {
+		t.Errorf("an exited process: signal %v, want none", got)
+	}
+}
+
+// TestStopNamesTheSignal checks what Stop says of a server that already
+// ended: a SIGKILL names the signal and the OOM killer, the one thing that
+// sends it to a server the suite runs, so a run on a host short of memory is
+// not taken for a flake; an exit code is reported as before.
+func TestStopNamesTheSignal(t *testing.T) {
+	done := make(chan struct{})
+	close(done)
+
+	killed := &Server{done: done, code: -1, signal: syscall.SIGKILL}
+	err := killed.Stop()
+	if err == nil || !strings.Contains(err.Error(), "SIGKILL") || !strings.Contains(err.Error(), "OOM") || !strings.Contains(err.Error(), "dmesg") {
+		t.Errorf("a killed server: %v, want SIGKILL, the OOM killer and dmesg named", err)
+	}
+
+	crashed := &Server{done: done, code: -1, signal: syscall.SIGSEGV}
+	err = crashed.Stop()
+	if err == nil || !strings.Contains(err.Error(), "signal 11") || strings.Contains(err.Error(), "OOM") {
+		t.Errorf("a crashed server: %v, want signal 11 and no OOM killer", err)
+	}
+
+	failed := &Server{done: done, code: 1}
+	if err := failed.Stop(); err == nil || err.Error() != "SRS exited with code 1" {
+		t.Errorf("a server that exited 1: %v", err)
+	}
+	if err := (&Server{done: done}).Stop(); err != nil {
+		t.Errorf("a server that exited 0: %v", err)
 	}
 }

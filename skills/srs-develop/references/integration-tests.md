@@ -13,7 +13,7 @@ The `proxy-*` filenames describe the test entry point, not a proxy-only scope: t
 
 ## Suite
 
-Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-develop/scripts/<script>`. Run `make integ` from the repository root.
+Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-develop/scripts/<script>`. Run `make integ` and `make integ-unit` from the repository root.
 
 | # | Script | Covers |
 |---|---|---|
@@ -28,6 +28,7 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 | 9 | `proxy-e2e-bearer-auth-test.sh` | Bearer authentication startup validation, protected SRS, WHIP/WHEP, and proxy APIs, and authenticated origin registration |
 | 10 | `srs-config-file-test.sh` | SRS started from a config file, because the scripts above start SRS with environment variables only (`-e`): RTMP publish with RTMP, HTTP-FLV, HLS, and WHEP playback, WHIP publish with WHEP and RTMP playback, and the config pid, log, and HLS paths |
 | 11 | `make integ` | The black-box `srs-integ` suite in `cmd/integ`: every SRS protocol and feature from outside the process, as a client, an operator or a callback server sees it, against `trunk/objs/srs` |
+| 12 | `make integ-unit` | The unit tests of `srs-integ` itself, every test in `cmd/integ` outside `cases/`: its media clients, stream analyzers, test media, hook mock and server adapter |
 
 ### Dependencies
 
@@ -37,7 +38,7 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 - The Redis test runs `brew services start redis` when Redis is not running; do not start a temporary `redis-server` instead.
 - If an environmental dependency is unavailable, run the script, preserve its exact result, and report the blocked coverage instead of claiming full verification.
 - The transmux, SRT, WHIP, and config file tests play WHEP with `tools/pion-whep`, because FFmpeg has no WHEP demuxer; they build it with `go` when the binary is missing or stale.
-- `make integ` first makes its test media with FFmpeg (`make integ-prepare`), which needs libx264, libx265 and an Opus encoder.
+- `make integ` and `make integ-unit` first make the test media with FFmpeg (`make integ-prepare`), which needs libx264, libx265 and an Opus encoder.
 
 ## Feature-Specific Tests
 
@@ -164,7 +165,7 @@ Run the layers of every tier in this order.
 
 **Step 1: build**, alone and one after another, because `./configure` rewrites `trunk/objs`, which every lane runs from:
 
-1. Configure `trunk/` once with the `Dockerfile.test` flags without `--build-cache`, plus `--simulator=on` for the `rtc-*` scripts and the NACK log unit tests:
+1. Configure `trunk/` once with the `Dockerfile.test` flags without `--build-cache`; they include `--simulator=on`, which the `rtc-*` scripts and the NACK log unit tests need:
    ```bash
    ./configure --srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on
    ```
@@ -182,7 +183,7 @@ Run the layers of every tier in this order.
 | E | `srs-config-file-test.sh` and the feature-specific tests in parallel |
 | F | `make utest`, then `./objs/srs_utest`. With `objs/srs` built, `make utest` does not relink it |
 
-**Step 3: lane H**, alone after Step 2: `make integ`. Its cases have time limits, and its timer cases measure SRS timers, which the load of the other lanes delays.
+**Step 3: lane H**, alone after Step 2: `make integ-unit`, then `make integ`. Its cases have time limits, and its timer cases measure SRS timers, which the load of the other lanes delays.
 
 ## Port Plan
 

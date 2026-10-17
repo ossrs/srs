@@ -402,7 +402,8 @@ func checkRange(c *check.C, srs *server.Server, path, rangeHeader string, data [
 }
 
 // checkUnsatisfiable sends a GET of the path, with a raw header line when not
-// empty, and checks the answer is 416 with Content-Range bytes */<size>.
+// empty, and checks the answer is 416 with Content-Range bytes */<size> and,
+// like every file answer, Connection: close.
 func checkUnsatisfiable(c *check.C, srs *server.Server, path, header string, size int) {
 	c.Helper()
 	conn := rawConnTo(c, srs.Addr(server.HTTPServer))
@@ -420,6 +421,7 @@ func checkUnsatisfiable(c *check.C, srs *server.Server, path, header string, siz
 	res.Body.Close()
 	c.CheckEqual(res.StatusCode, 416, path+" "+header+": status")
 	c.CheckEqual(res.Header.Get("Content-Range"), fmt.Sprintf("bytes */%d", size), path+" "+header+": Content-Range")
+	c.Check(res.Close, "%s %s: no Connection: close", path, header)
 }
 
 // flvTag is a tag of an FLV file: where it starts, its type, its time and

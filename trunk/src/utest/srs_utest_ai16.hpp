@@ -127,6 +127,9 @@ public:
     // The client type of each on_play and on_stop, in order.
     std::vector<SrsRtmpConnType> on_play_types_;
     std::vector<SrsRtmpConnType> on_stop_types_;
+    // The tcUrl of each on_play and on_stop, in order.
+    std::vector<std::string> on_play_tc_urls_;
+    std::vector<std::string> on_stop_tc_urls_;
 
 public:
     MockHttpHooksForLiveStream();

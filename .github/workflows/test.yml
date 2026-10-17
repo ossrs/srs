@@ -134,6 +134,18 @@ jobs:
       # For srs-integ, the black-box integration suite, see cmd/integ/README.md. The image's
       # ffmpeg 5 writes HEVC in legacy FLV, so the test media comes from its ffmpeg7. CI runners
       # are slower than a developer's machine, so the class limits of the cases are 4 times longer.
+      # Its unit tests run first; they test its clients and analyzers, and its media tests read
+      # the test media. Some send media over UDP to a local fake server, which a busy runner can
+      # drop, so they are retried like the cases.
+      - name: Run SRS integration unit test
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 srs:test \
+              make integ-unit
       - name: Run SRS integration test
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:

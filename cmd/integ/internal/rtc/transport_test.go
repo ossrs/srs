@@ -282,7 +282,7 @@ func publishPlay(t *testing.T, sfu *fakeSFU, opts *Options) (*Publisher, *Player
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { pub.Close() })
-	if err := pub.Send(ctx, readSamples(t, 2*time.Second), nil); err != nil {
+	if err := pub.Send(ctx, readSamples(t, 2*time.Second), burstPacer(opts != nil && opts.TCP)); err != nil {
 		t.Fatal(err)
 	}
 	r, err := player.Until(ctx, report.Until{VideoHeader: true, Keyframes: 2, VideoFrames: 50, AudioFrames: 100})

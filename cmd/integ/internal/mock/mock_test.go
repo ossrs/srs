@@ -191,6 +191,50 @@ func TestNoAnswer(t *testing.T) {
 	}
 }
 
+// TestCloseAnswersNothing checks that Close ends the requests it cuts short
+// without an answer: a request that hangs or waits for a delayed reply gets
+// its connection closed, never a reply, so SRS sees the mock go away.
+func TestCloseAnswersNothing(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		reply Reply
+	}{
+		{"NoAnswer", NoAnswer()},
+		{"Delay", Reject(7).After(10 * time.Second)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := start(t)
+			s.Script(Match{Stream: "a"}, tc.reply)
+
+			done := make(chan error, 1)
+			go func() {
+				res, err := http.Post(s.URL("/h"), "application/json", strings.NewReader(`{"action":"on_publish","stream":"a"}`))
+				if err == nil {
+					res.Body.Close()
+				}
+				done <- err
+			}()
+			if _, err := s.Wait(ctxTimeout(t, time.Second), Match{Stream: "a"}); err != nil {
+				t.Fatal(err)
+			}
+
+			begin := time.Now()
+			s.Close()
+			if d := time.Since(begin); d > 500*time.Millisecond {
+				t.Errorf("Close took %v", d)
+			}
+			select {
+			case err := <-done:
+				if err == nil {
+					t.Error("got a reply, want the connection closed")
+				}
+			case <-time.After(time.Second):
+				t.Error("the request is still waiting after Close")
+			}
+		})
+	}
+}
+
 func TestQueryRouting(t *testing.T) {
 	s := start(t)
 	s.Script(Match{Action: "on_hls_notify", Stream: "a"}, HTTPError(404))

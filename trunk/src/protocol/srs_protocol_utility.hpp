@@ -70,6 +70,11 @@ extern std::string srs_net_url_convert_legacy_rtmp_url(const std::string &url);
 //      rtmp://ip/live?secret=xxx/livestream
 extern void srs_net_url_guess_stream(std::string &app, std::string &param, std::string &stream);
 
+// Normalize a query parameter so it can be appended directly to a URL.
+// For example, "token=abc" becomes "?token=abc", while "?token=abc" and
+// an empty parameter are returned unchanged.
+extern std::string srs_net_url_normalize_param(const std::string &param);
+
 // parse query string to map(k,v).
 // must format as key=value&...&keyN=valueN
 extern void srs_net_url_parse_query(std::string q, std::map<std::string, std::string> &query);

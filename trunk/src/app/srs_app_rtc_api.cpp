@@ -880,6 +880,8 @@ srs_error_t SrsGoApiRtcWhip::do_serve_http_with(ISrsHttpResponseWriter *w, ISrsH
         ruc->req_->stream_ = ruc->req_->stream_.substr(pos + 1);
     }
     ruc->req_->param_ = r->query();
+    // The webrtc:// URL of the app, as a client of the legacy API has, which the hooks and the API report.
+    ruc->req_->tcUrl_ = "webrtc://" + ruc->req_->host_ + "/" + ruc->req_->app_;
 
     ruc->req_->ice_ufrag_ = r->query_get("ice-ufrag");
     ruc->req_->ice_pwd_ = r->query_get("ice-pwd");

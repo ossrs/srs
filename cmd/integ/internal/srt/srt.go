@@ -186,29 +186,34 @@ func (c *Conn) WaitClosed(ctx context.Context) error {
 }
 
 // WaitClosedProbing is WaitClosed for a peer whose shutdown the client may
-// miss: gosrt drops one that arrives while Dial is still returning. It sends
-// a null TS packet every interval, which a live peer acknowledges, so with a
-// PeerIdleTimeout a peer that closed ends the connection by its silence.
+// miss: gosrt drops one that arrives while Dial is still returning. It probes
+// the peer every interval, as Probe does.
 func (c *Conn) WaitClosedProbing(ctx context.Context, every time.Duration) error {
 	probe, stop := context.WithCancel(ctx)
 	defer stop()
-	go func() {
-		null := make([]byte, ts.PacketSize)
-		null[0], null[1], null[2], null[3] = 0x47, 0x1f, 0xff, 0x10
-		t := time.NewTicker(every)
-		defer t.Stop()
-		for {
-			if _, err := c.c.Write(null); err != nil {
-				return
-			}
-			select {
-			case <-probe.Done():
-				return
-			case <-t.C:
-			}
-		}
-	}()
+	go c.Probe(probe, every)
 	return c.WaitClosed(ctx)
+}
+
+// Probe sends a null TS packet every interval until ctx ends or a write
+// fails. A live peer acknowledges it, so with a PeerIdleTimeout the
+// connection stays while the peer is there, even if it sends nothing, and a
+// peer that closed, whose shutdown the client missed, ends it by its silence.
+func (c *Conn) Probe(ctx context.Context, every time.Duration) {
+	null := make([]byte, ts.PacketSize)
+	null[0], null[1], null[2], null[3] = 0x47, 0x1f, 0xff, 0x10
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		if _, err := c.c.Write(null); err != nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
 }
 
 // Analyze reads the TS stream the peer sends and fills the report until u, or

@@ -245,6 +245,7 @@ func TestPublishPlayCodecs(t *testing.T) {
 		{"pcma", media.PCMA, capabilityOf(t, "H264"), capabilityOf(t, "PCMA"), &Options{Audio: []string{"PCMA"}}},
 	} {
 		t.Run(w.name, func(t *testing.T) {
+			t.Parallel()
 			sfu := newFakeSFUWith(t, w.video, w.audio)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -293,7 +294,7 @@ func TestPublishPlayCodecs(t *testing.T) {
 				samples = video
 			}
 			sortSamples(samples)
-			if err := pub.Send(ctx, samples, nil); err != nil {
+			if err := pub.Send(ctx, samples, burstPacer(false)); err != nil {
 				t.Fatal(err)
 			}
 			f := codecFiles[0]

@@ -15,6 +15,7 @@ From the repository root:
 ```bash
 make integ          # The test media, then every case: the timer cases and the others, as two go test processes at once.
 make integ-prepare  # Only the test media.
+make integ-unit     # The test media, then the unit tests of the clients, analyzers and harness, every test outside cases/.
 make bin/srs-integ  # The CLI, also built by make build.
 ```
 
@@ -54,6 +55,7 @@ CI runs the suite in the `trunk/Dockerfile.test` image, as the `test` job of
 
 ```bash
 docker build --tag srs:test -f trunk/Dockerfile.test .
+docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 srs:test make integ-unit
 docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 srs:test make integ INTEG_ARGS=-integ.limit-scale=4
 ```
 
@@ -61,6 +63,18 @@ The image's `ffmpeg` is 5.0, which writes HEVC in FLV the legacy way, so the
 test media comes from its `ffmpeg7`; it has no VP9 or AV1 encoder, so those
 cases skip. The Linux-only cases, such as the `/proc` values of the API, run
 there.
+
+A full run has about 75 SRS at once, each a sanitizer build, so the adapter
+bounds ASan's quarantine, the freed memory it holds before it reuses it, to
+16 MB per server (`ASAN_OPTIONS`, set before the user's own, so theirs win
+where they overlap); with the default 256 MB the servers' memory reached
+3.4 GB in a Linux run, and the Docker VM's OOM killer ended a Common shard.
+With the bound a run takes about 2.5 GB, so Docker Desktop's default 4 GB VM
+holds it. A server the OOM killer ended fails its group with "SRS was killed
+by SIGKILL", which the suite never sends to a running server; on Linux,
+confirm it in the kernel log (`dmesg`, in a privileged container for the
+Docker VM: `docker run --rm --privileged srs:test dmesg | grep -i 'killed
+process'`) before taking the group's failures for flakes.
 
 Each `go test` process ends with its summary: the cases passed, failed and
 skipped with their reasons, the known bugs, and the 10 slowest cases. Then the

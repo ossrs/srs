@@ -75,10 +75,13 @@ func srtCells(t *testing.T, srsOf func(c *check.C) *server.Server, p convertPlay
 }
 
 // srtRealTime publishes a TS file over SRT to a stream path, such as live/s,
-// in real time until the case ends, srtLead of it at once.
-func srtRealTime(c *check.C, srs *server.Server, path, file string) {
+// in real time until the case ends, lead of it at once. A WebRTC player that
+// joined before needs no lead, and must get none: it reads each track in its
+// own goroutine, so the frames of a burst reach its report in no set order
+// across the tracks, and its A/V sync is that order, not the stream's.
+func srtRealTime(c *check.C, srs *server.Server, path, file string, lead time.Duration) {
 	c.Helper()
-	startSRTPublisher(c, srs, srt.Options{StreamID: srtID(path, "publish")}, file)
+	startSRTPublisherLead(c, srs, srt.Options{StreamID: srtID(path, "publish")}, file, lead)
 }
 
 // srtThrough publishes a TS file over SRT to a stream path at once, in a
@@ -96,11 +99,6 @@ func srtThrough(c *check.C, srs *server.Server, path, file string, d time.Durati
 	defer free()
 	c.Must(srt.NewSender(f).SendThrough(conn, d+srtLead), "publish the media")
 }
-
-// srtSegmentsWait is how long a segment player of a stream sent at once over
-// SRT waits for its files: SRS has written them a moment after the send, and
-// a known bug's player, which gets none, must not wait past the Normal limit.
-const srtSegmentsWait = 300 * time.Millisecond
 
 // playHLSWithin plays HLS until u, for at most d.
 func playHLSWithin(c *check.C, url string, u report.Until, d time.Duration) *report.Report {
@@ -140,7 +138,7 @@ func srtCommonCells(t *testing.T) {
 	check.Case(t, "SrtToRtsp_NotConverted", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		path := "live/" + streamName(c)
-		srtRealTime(c, srs, path, media.H264HighAACTS)
+		srtRealTime(c, srs, path, media.H264HighAACTS, srtLead)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		_, err := flv.PlayRTMP(ctx, rtmpURL(srs, path), nil, playedRTMPUntil)
@@ -157,7 +155,7 @@ func srtCommonCells(t *testing.T) {
 		srs := server.Common(c)
 		name := streamName(c)
 		path := "live/" + name
-		srtRealTime(c, srs, path, media.H264HighAACTS)
+		srtRealTime(c, srs, path, media.H264HighAACTS, srtLead)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		_, err := flv.PlayRTMP(ctx, rtmpURL(srs, path), nil, playedRTMPUntil)

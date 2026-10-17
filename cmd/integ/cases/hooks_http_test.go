@@ -297,7 +297,9 @@ func httpPlayerHooks(t *testing.T, srsOf func(*check.C) *server.Server, m httpHo
 	// stream goes on: on_play, then on_stop, and no other hook of the
 	// client, with every field; the client_id is a client of the API, the
 	// pageUrl the Referer, stream_id the publisher's, and clients 2 in both,
-	// as for an RTMP player; the type is the mount's, such as flv-play.
+	// as for an RTMP player; the type is the mount's, such as flv-play, and
+	// the tcUrl the player's http:// or https:// URL of the app, as the API
+	// lists it, not an rtmp:// URL.
 	check.Case(t, m.name+"PlayerEvents", check.Normal, func(c *check.C) {
 		httpPlayerEvents(c, srsOf(c), m, &httpplay.Options{Header: http.Header{"Referer": {playerReferer}}})
 	})
@@ -355,6 +357,8 @@ func httpPlayerEvents(c *check.C, srs *server.Server, m httpHookMount, opts *htt
 	c.Must(p.readUntil(m.until, time.Second), "play")
 	id := waitHook(c, srs, "on_play", name).Field("client_id")
 	checkAPIClient(c, srs, id, name)
+	tcURL := streamURL(srs, "live", opts)
+	c.CheckEqual(apiClientOf(c, srs, id)["tcUrl"], tcURL, "the API's tcUrl of the player")
 	p.close()
 	waitClientHook(c, srs, "on_stop", id)
 
@@ -364,6 +368,7 @@ func httpPlayerEvents(c *check.C, srs *server.Server, m httpHookMount, opts *htt
 	for _, h := range hooks {
 		c.CheckEqual(h.Field("stream"), name, h.Action()+" stream")
 		c.CheckEqual(h.Field("param"), "?k=v", h.Action()+" param")
+		c.CheckEqual(h.Field("tcUrl"), tcURL, h.Action()+" tcUrl, the player's URL of the app")
 		c.CheckEqual(h.Field("stream_url"), "/live/"+name, h.Action()+" stream_url")
 		c.CheckEqual(h.Field("stream_id"), pub.Field("stream_id"), h.Action()+" stream_id, the publisher's")
 		c.CheckEqual(h.Field("clients"), "2", h.Action()+" clients: the publisher and the player")

@@ -972,6 +972,8 @@ srs_error_t SrsLiveStream::http_hooks_on_play(ISrsHttpMessage *r, SrsRtmpConnTyp
     // Create request to report for the specified connection.
     SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
     SrsUniquePtr<ISrsRequest> nreq(hr->to_request(req_->vhost_));
+    // The player's own tcUrl, the URL of its app on the HTTP server it asked, as the API lists it.
+    nreq->tcUrl_ = hr->app_url(nreq->app_);
 
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.
@@ -1007,6 +1009,8 @@ void SrsLiveStream::http_hooks_on_stop(ISrsHttpMessage *r, SrsRtmpConnType type)
     // Create request to report for the specified connection.
     SrsHttpMessage *hr = dynamic_cast<SrsHttpMessage *>(r);
     SrsUniquePtr<ISrsRequest> nreq(hr->to_request(req_->vhost_));
+    // The player's own tcUrl, the URL of its app on the HTTP server it asked, as the API lists it.
+    nreq->tcUrl_ = hr->app_url(nreq->app_);
 
     // the http hooks will cause context switch,
     // so we must copy all hooks for the on_connect may freed.

@@ -656,8 +656,8 @@ VOID TEST(VodStreamRangeTest, SuffixRangeOfZeroBytesIsUnsatisfiable)
 }
 
 // A range that starts at or past the file size has no byte to serve, so it is refused with 416 and the file size in
-// Content-Range, as RFC 9110 has it, instead of closing the connection with no answer. The request still succeeds, so
-// the connection serves the next request.
+// Content-Range, as RFC 9110 has it, instead of closing the connection with no answer. The request still succeeds, and
+// the answer carries Connection: Close like every file answer.
 VOID TEST(VodStreamRangeTest, RangeStartBeyondTheLastByteIsUnsatisfiable)
 {
     srs_error_t err = srs_success;

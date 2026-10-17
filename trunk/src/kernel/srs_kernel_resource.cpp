@@ -160,34 +160,16 @@ void SrsResourceManager::add_with_id(const std::string &id, ISrsResource *conn)
 
 void SrsResourceManager::add_with_fast_id(uint64_t id, ISrsResource *conn)
 {
-    bool exists = false;
-    add(conn, &exists);
+    add(conn);
     conns_fast_id_[id] = conn;
 
-    if (exists) {
-        return;
-    }
-
-    // For new resource, build the level-0 cache for fast-id.
+    // Take a free slot, or update the slot of this id, which may move to another resource, such as a
+    // WebRTC address to a new session. The resource may have been added by another id or name already.
     SrsResourceFastIdItem *item = &conns_level0_cache_[(id | id >> 32) % nn_level0_cache_];
-
-    // Ignore if exits item.
-    if (item->fast_id_ && item->fast_id_ == id) {
-        return;
-    }
-
-    // Fresh one, create the item.
-    if (!item->fast_id_) {
+    if (!item->available_ || item->fast_id_ == id) {
         item->fast_id_ = id;
         item->impl_ = conn;
-        item->nn_collisions_ = 1;
         item->available_ = true;
-    }
-
-    // Collision, increase the collisions.
-    if (item->fast_id_ != id) {
-        item->nn_collisions_++;
-        item->available_ = false;
     }
 }
 
@@ -401,13 +383,13 @@ void SrsResourceManager::dispose(ISrsResource *c)
         if (c != it->second) {
             ++it;
         } else {
-            // Update the level-0 cache for fast-id.
+            // Free the level-0 slot only when this id holds it, never another id's slot.
             uint64_t id = it->first;
             SrsResourceFastIdItem *item = &conns_level0_cache_[(id | id >> 32) % nn_level0_cache_];
-            item->nn_collisions_--;
-            if (!item->nn_collisions_) {
-                item->fast_id_ = 0;
+            if (item->available_ && item->fast_id_ == id) {
                 item->available_ = false;
+                item->fast_id_ = 0;
+                item->impl_ = NULL;
             }
 
             // Use C++98 style: https://stackoverflow.com/a/4636230

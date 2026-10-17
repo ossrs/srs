@@ -199,6 +199,14 @@ Description about some fields:
   `haivision-publish`, `rtc-publish` for WHIP, `srt-publish`; `rtmp-play`, `flv-play`, `ts-play`, `mp3-play`,
   `aac-play`, `hls-play` for an HLS session, `rtc-play` for WHEP, `srt-play` and `rtsp-play`. The `on_connect`
   and `on_close` have no type, because an RTMP client has not said yet whether it publishes or plays.
+* `param`: The client's query with a leading `?`, such as `?token=xxx`, for every protocol: the keys of
+  an SRT streamid other than `r`, `m` and `h`, and the whole query of a WHIP or WHEP URL, such as
+  `?app=live&stream=livestream&token=xxx`. The `[param]` of `on_hls_notify` is the same.
+* `tcUrl`: The URL of the client's app: `rtmp://` or `rtmps://` for RTMP, `srt://<server-ip>/<app>` for SRT,
+  `webrtc://<host>/<app>` for WHIP, WHEP and the legacy WebRTC API, `rtsp://` for RTSP, and for an HTTP-FLV,
+  HTTP-TS, MP3, AAC or HLS player, its own `http://` or `https://` URL of the app, as `/api/v1/clients` lists it.
+  A GB28181 stream's hooks are those of the RTMP client SRS publishes it with, so its `tcUrl`, `param` and
+  `ip` are those of the `output` URL, not of the device.
 
 > Note: The callbacks for streaming are `on_publish` and `on_unpublish`, while the callbacks for playback are `on_play` and `on_stop`.
 
@@ -210,6 +218,14 @@ Description about some fields:
 > authentication before SRS invokes the callback.
 
 > Note: Before SRS 4, there were `on_connect` and `on_close`, which are events defined by RTMP and only applicable to RTMP streams. These events overlap with streaming and playback events, so their use is not recommended.
+
+> Note: An RTMP client gets `on_connect` once it publishes or plays and its vhost is resolved, and `on_close`
+> only after an `on_connect`, also one that refused it. A client that connects and closes without publishing
+> or playing gets neither. An edge with `token_traverse on` checks each client by a connect to its origin
+> with the client's stream and param, which the origin checks by `on_connect` before its answer, then sends
+> `on_close` when the edge closes it. An older edge's check names no stream, so it is a client that only
+> connects: the origin sends no `on_connect` and no `on_close` for it, where older origins sent `on_close`
+> alone.
 
 > Note: You can refer to the hooks.callback.vhost.com example in the conf/full.conf configuration file.
 
@@ -257,7 +273,7 @@ heartbeat {
     # the interval seconds for heartbeat,
     # a fraction is rounded down to whole seconds, at least 1s.
     # Overwrite by env SRS_HEARTBEAT_INTERVAL
-    # default: 9.9
+    # default: 10
     interval 9.3;
     # when startup, srs will heartbeat to this api.
     # @remark: must be a restful http api url, where SRS will POST with following data:

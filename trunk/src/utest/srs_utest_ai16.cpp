@@ -1161,6 +1161,7 @@ srs_error_t MockHttpHooksForLiveStream::on_play(std::string url, ISrsRequest *re
     on_play_count_++;
     on_play_calls_.push_back(std::make_pair(url, req));
     on_play_types_.push_back(type);
+    on_play_tc_urls_.push_back(req->tcUrl_);
     return srs_error_copy(on_play_error_);
 }
 
@@ -1169,6 +1170,7 @@ void MockHttpHooksForLiveStream::on_stop(std::string url, ISrsRequest *req, SrsR
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));
     on_stop_types_.push_back(type);
+    on_stop_tc_urls_.push_back(req->tcUrl_);
 }
 
 srs_error_t MockHttpHooksForLiveStream::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
@@ -1278,6 +1280,57 @@ VOID TEST(SrsLiveStreamTest, HttpHooksOnPlayAndStop)
     live_stream->hooks_ = NULL;
     srs_freep(mock_config);
     srs_freep(mock_hooks);
+}
+
+// An HTTP player's on_play and on_stop have its own tcUrl, the URL of its app on the HTTP server
+// it asked, by its schema and Host, as /api/v1/clients lists it; not an rtmp:// URL of the vhost.
+VOID TEST(SrsLiveStreamTest, HttpHooksTcUrlIsThePlayers)
+{
+    srs_error_t err = srs_success;
+
+    struct {
+        bool https;
+        const char *host;
+        const char *want;
+    } cases[] = {
+        {false, "127.0.0.1:8080", "http://127.0.0.1:8080/live"},
+        {true, "[::1]:8088", "https://[::1]:8088/live"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SrsUniquePtr<MockRequest> publisher(new MockRequest("test.vhost", "live", "stream1"));
+        publisher->tcUrl_ = "rtmp://127.0.0.1:19350/live";
+        SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
+        SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
+
+        MockAppConfigForLiveStreamHooks config;
+        MockHttpHooksForLiveStream hooks;
+        stream->config_ = &config;
+        stream->hooks_ = &hooks;
+        config.http_hooks_enabled_ = true;
+        config.on_play_directive_ = new SrsConfDirective();
+        config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+        config.on_stop_directive_ = new SrsConfDirective();
+        config.on_stop_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+        SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+        SrsHttpHeader header;
+        header.set("Host", cases[i].host);
+        message->set_header(&header, false);
+        HELPER_EXPECT_SUCCESS(message->set_url("/live/stream1.flv?k=v", false));
+        message->set_https(cases[i].https);
+
+        HELPER_EXPECT_SUCCESS(stream->http_hooks_on_play(message.get(), SrsFlvPlay));
+        stream->http_hooks_on_stop(message.get(), SrsFlvPlay);
+
+        ASSERT_EQ(1, (int)hooks.on_play_tc_urls_.size());
+        ASSERT_EQ(1, (int)hooks.on_stop_tc_urls_.size());
+        EXPECT_STREQ(cases[i].want, hooks.on_play_tc_urls_[0].c_str());
+        EXPECT_STREQ(cases[i].want, hooks.on_stop_tc_urls_[0].c_str());
+
+        stream->config_ = NULL;
+        stream->hooks_ = NULL;
+    }
 }
 
 VOID TEST(SrsLiveEntryTest, FormatDetection)

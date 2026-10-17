@@ -81,12 +81,16 @@ func (s convertSource) opts(c *check.C) *rtmp.Options {
 }
 
 // realTime publishes a file in real time until the case ends, the media
-// before lead at once, like startPublisher; over SRT, srtLead at once; over
-// GB28181, at least gbLead at once.
+// before lead at once, like startPublisher; over SRT, srtLead at once, or
+// nothing with no lead, for a player that joined before; over GB28181, at
+// least gbLead at once.
 func (s convertSource) realTime(c *check.C, srs *server.Server, path, file string, lead time.Duration) {
 	c.Helper()
 	if s.srt {
-		srtRealTime(c, srs, path, file)
+		if lead > 0 {
+			lead = srtLead
+		}
+		srtRealTime(c, srs, path, file, lead)
 		return
 	}
 	if s.gb {
@@ -449,9 +453,10 @@ func sharedTsMountConfig() server.Config {
 // publisher's RTMP handshake, and it gets the stream from its first
 // keyframe. Before the stream is published, SRS makes the tracks a WHEP
 // player asks for by vcodec, H.264 by default. SRS drops B-frames
-// (keep_bframe off), so a player of H.264 High waits for fewer frames.
+// (keep_bframe off), so a player of H.264 High waits for fewer frames. SRS
+// transcodes AAC and MP3 to Opus.
 var whepPlayer = convertPlayer{
-	name: "Whep", video: same("h264", "hevc"), audio: map[string]string{"aac": "opus"},
+	name: "Whep", video: same("h264", "hevc"), audio: map[string]string{"aac": "opus", "mp3": "opus"},
 	file: baselineH264,
 	play: func(c *check.C, srs *server.Server, src convertSource, file string, w convertWant) *report.Report {
 		name := streamName(c)

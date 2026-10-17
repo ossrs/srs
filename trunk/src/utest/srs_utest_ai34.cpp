@@ -2190,6 +2190,7 @@ srs_error_t MockHttpClientForForwardBackend::initialize(std::string schema, std:
 
 srs_error_t MockHttpClientForForwardBackend::get(std::string path, std::string req, ISrsHttpMessage **ppmsg)
 {
+    exchange_->path_ = path;
     return srs_error_new(ERROR_NOT_SUPPORTED, "get");
 }
 
@@ -3272,5 +3273,95 @@ VOID TEST(HttpHooksClientTypeTest, TypeAddedToTheFields)
         h.hooks_.on_close(url, &req, 0, 0);
         utest_hook_body(h.factory_.exchange_, keys, type);
         EXPECT_STREQ("(none)", type.c_str()) << "on_close " << h.factory_.exchange_.body_;
+    }
+}
+
+// The param of the JSON body the hook posted, or "(none)" when it has none.
+static std::string utest_hook_param(MockForwardBackendExchange &ex)
+{
+    SrsUniquePtr<SrsJsonAny> body(SrsJsonAny::loads(ex.body_));
+    if (!body.get() || !body->is_object()) {
+        return "(none)";
+    }
+
+    SrsJsonAny *prop = body->to_object()->get_property("param");
+    if (!prop || !prop->is_string()) {
+        return "(none)";
+    }
+    return prop->to_str();
+}
+
+// Every hook's param is the client's query with its leading ?, as an RTMP or HTTP client's is,
+// whatever the protocol: SRS keeps the query of an SRT streamid or a WHIP URL with none, so a
+// hook server that strips the ? reads every protocol's param the same way. The keys and values
+// stay as they were, and on_hls_notify fills [param] with the same text, so a URL ending in
+// [ts_url][param] gets a query.
+VOID TEST(HttpHooksParamTest, ParamHasLeadingQuestionMark)
+{
+    srs_error_t err;
+
+    struct {
+        const char *param;
+        const char *want;
+    } cases[] = {
+        {"token=abc", "?token=abc"},
+        {"app=live&stream=livestream&token=abc", "?app=live&stream=livestream&token=abc"},
+        {"upstream=rtc", "?upstream=rtc"},
+        {"?token=abc", "?token=abc"},
+        {"?token=abc&upstream=rtc", "?token=abc&upstream=rtc"},
+        {"", ""},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockRequest req("__defaultVhost__", "live", "livestream");
+        req.param_ = cases[i].param;
+        std::string url = "http://127.0.0.1:8085/api/v1/hooks";
+        std::string want = cases[i].want;
+
+        UtestForwardBackendHooks h;
+        MockAppConfig config;
+        h.hooks_.config_ = &config;
+        MockForwardBackendExchange &ex = h.factory_.exchange_;
+
+        err = h.hooks_.on_connect(url, &req);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_connect " << ex.body_;
+
+        h.hooks_.on_close(url, &req, 0, 0);
+        EXPECT_STREQ("(none)", utest_hook_param(ex).c_str()) << "on_close has no param " << ex.body_;
+
+        err = h.hooks_.on_publish(url, &req, SrsSrtConnPublish);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_publish " << ex.body_;
+
+        h.hooks_.on_unpublish(url, &req, SrsSrtConnPublish, SrsStatisticStreamSnapshot());
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_unpublish " << ex.body_;
+
+        err = h.hooks_.on_play(url, &req, SrsRtcConnPlay);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_play " << ex.body_;
+
+        h.hooks_.on_stop(url, &req, SrsSrtConnPlay, SrsStatisticStreamSnapshot());
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_stop " << ex.body_;
+
+        err = h.hooks_.on_dvr(SrsContextId(), url, &req, "./objs/livestream.flv", SrsStatisticStreamSnapshot());
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_dvr " << ex.body_;
+
+        err = h.hooks_.on_hls(SrsContextId(), url, &req, "./objs/livestream-0.ts", "livestream-0.ts",
+                              "./objs/livestream.m3u8", "live/livestream.m3u8", 0, 10 * SRS_UTIME_SECONDS);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_hls " << ex.body_;
+
+        std::vector<std::string> urls;
+        err = h.hooks_.on_forward_backend(url, &req, urls);
+        srs_freep(err);
+        EXPECT_STREQ(want.c_str(), utest_hook_param(ex).c_str()) << "on_forward " << ex.body_;
+
+        err = h.hooks_.on_hls_notify(SrsContextId(), "http://127.0.0.1:8085/api/v1/hls/[app]/[ts_url][param]", &req, "livestream-0.ts", 0);
+        srs_freep(err);
+        EXPECT_STREQ(("/api/v1/hls/live/livestream-0.ts" + want).c_str(), ex.path_.c_str()) << "on_hls_notify";
+
+        h.hooks_.config_ = NULL;
     }
 }

@@ -106,32 +106,132 @@ static void srs_srt_utest_null_log_handler(void *opaque, int level, const char *
     // srt null log handler, do no print any log.
 }
 
+bool srs_utest_port_free(int type, std::string ip, int port)
+{
+    sockaddr_storage addr;
+    memset(&addr, 0, sizeof(addr));
+    socklen_t len = 0;
+
+    sockaddr_in *addr4 = (sockaddr_in *)&addr;
+    sockaddr_in6 *addr6 = (sockaddr_in6 *)&addr;
+    if (inet_pton(AF_INET, ip.c_str(), &addr4->sin_addr) == 1) {
+        addr4->sin_family = AF_INET;
+        addr4->sin_port = htons(port);
+        len = sizeof(sockaddr_in);
+    } else if (inet_pton(AF_INET6, ip.c_str(), &addr6->sin6_addr) == 1) {
+        addr6->sin6_family = AF_INET6;
+        addr6->sin6_port = htons(port);
+        len = sizeof(sockaddr_in6);
+    } else {
+        return false;
+    }
+
+    int fd = ::socket(addr.ss_family, type, 0);
+    if (fd < 0) {
+        return false;
+    }
+
+    int r0 = ::bind(fd, (sockaddr *)&addr, len);
+    ::close(fd);
+    return r0 == 0;
+}
+
 // Pick a free port of the socket type, SOCK_STREAM or SOCK_DGRAM, on the temporary host, from the
 // unit tests' range, so a client socket never takes it as a kernel ephemeral port after it is picked.
-static srs_error_t srs_utest_free_port(int type, int *port)
+srs_error_t srs_utest_free_port(int type, int *port)
 {
     for (int i = 0; i < 1024; i++) {
-        int fd = ::socket(AF_INET, type, 0);
-        if (fd < 0) {
-            return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
-        }
-
         int candidate = srs_utest_random_port();
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(candidate);
-        inet_pton(AF_INET, _srs_tmp_host.c_str(), &addr.sin_addr);
-
-        int r0 = ::bind(fd, (sockaddr *)&addr, sizeof(addr));
-        ::close(fd);
-        if (r0 == 0) {
+        if (srs_utest_port_free(type, _srs_tmp_host, candidate)) {
             *port = candidate;
             return srs_success;
         }
     }
 
     return srs_error_new(ERROR_SOCKET_BIND, "no free port on %s", _srs_tmp_host.c_str());
+}
+
+// Each listen helper below tries this many random ports of the unit tests' range, as many as
+// srs_utest_free_port, before it fails.
+#define SRS_UTEST_LISTEN_TRIES 1024
+
+// Fail a port that a socket holds, even one SRS's own SO_REUSEPORT listen would bind and share.
+static srs_error_t utest_port_not_held(int type, std::string ip, int port)
+{
+    if (!srs_utest_port_free(type, ip, port)) {
+        return srs_error_new(ERROR_SOCKET_BIND, "port %s:%d held", ip.c_str(), port);
+    }
+    return srs_success;
+}
+
+srs_error_t srs_utest_tcp_listen(std::string ip, int *port, srs_netfd_t *pfd)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_STREAM, ip, candidate)) == srs_success &&
+            (err = srs_tcp_listen(ip, candidate, pfd)) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free tcp port on %s", ip.c_str());
+}
+
+srs_error_t srs_utest_udp_listen(std::string ip, int *port, srs_netfd_t *pfd)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_DGRAM, ip, candidate)) == srs_success &&
+            (err = srs_udp_listen(ip, candidate, pfd)) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free udp port on %s", ip.c_str());
+}
+
+srs_error_t srs_utest_udp_listener_listen(SrsUdpListener *listener, std::string ip, int *port)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        listener->set_endpoint(ip, candidate);
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_DGRAM, ip, candidate)) == srs_success &&
+            (err = listener->listen()) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free udp port on %s", ip.c_str());
+}
+
+srs_error_t srs_utest_udp_mux_listener_listen(SrsUdpMuxListener *listener, int *port)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < SRS_UTEST_LISTEN_TRIES; i++) {
+        int candidate = srs_utest_random_port();
+        listener->port_ = candidate;
+        srs_freep(err);
+        if ((err = utest_port_not_held(SOCK_DGRAM, listener->ip_, candidate)) == srs_success &&
+            (err = listener->listen()) == srs_success) {
+            *port = candidate;
+            return err;
+        }
+    }
+
+    return srs_error_wrap(err, "no free udp port on %s", listener->ip_.c_str());
 }
 
 // Initialize global settings.

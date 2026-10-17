@@ -207,6 +207,7 @@ func TestRawPlay(t *testing.T) {
 	for _, tcp := range []bool{false, true} {
 		for _, withDTLS := range []bool{false, true} {
 			t.Run(fmt.Sprintf("TCP=%v/DTLS=%v", tcp, withDTLS), func(t *testing.T) {
+				t.Parallel()
 				srv := newFakeRawOn(t, withDTLS, tcp)
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
@@ -250,6 +251,7 @@ func TestRawPublish(t *testing.T) {
 	for _, tcp := range []bool{false, true} {
 		for _, withDTLS := range []bool{false, true} {
 			t.Run(fmt.Sprintf("TCP=%v/DTLS=%v", tcp, withDTLS), func(t *testing.T) {
+				t.Parallel()
 				srv := newFakeRawOn(t, withDTLS, tcp)
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
@@ -265,7 +267,7 @@ func TestRawPublish(t *testing.T) {
 				if err := p.WaitPLI(ctx, 0); err != nil {
 					t.Fatal(err)
 				}
-				if err := p.Send(ctx, readSamples(t, 2*time.Second), nil); err != nil {
+				if err := p.Send(ctx, readSamples(t, 2*time.Second), burstPacer(tcp)); err != nil {
 					t.Fatal(err)
 				}
 				r, err := srv.analysis.Until(ctx, report.Until{VideoHeader: true, Keyframes: 2, VideoFrames: 50, AudioFrames: 99})
@@ -539,11 +541,17 @@ func (f *fakeRaw) waitReady(t *testing.T) net.Conn {
 }
 
 // sendSamples sends samples as clear RTP with the answer's payload types
-// and SSRCs.
+// and SSRCs, paced by burstPacer.
 func (f *fakeRaw) sendSamples(t *testing.T, samples []Sample) {
 	t.Helper()
 	peer := f.waitReady(t)
+	pacer := burstPacer(f.tcp)
 	for _, s := range samples {
+		if pacer != nil {
+			if err := pacer.Wait(context.Background(), uint32(s.DTS/time.Millisecond)); err != nil {
+				t.Fatal(err)
+			}
+		}
 		sd, pt, ssrc := f.as, uint8(111), uint32(2222)
 		if s.Video {
 			sd, pt, ssrc = f.vs, 106, 1111

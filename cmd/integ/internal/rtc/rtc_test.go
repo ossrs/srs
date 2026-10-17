@@ -154,7 +154,7 @@ func TestPublishPlay(t *testing.T) {
 	defer pub.Close()
 
 	samples := readSamples(t, 2*time.Second)
-	if err := pub.Send(ctx, samples, nil); err != nil {
+	if err := pub.Send(ctx, samples, burstPacer(false)); err != nil {
 		t.Fatal(err)
 	}
 	r, err := player.Until(ctx, report.Until{VideoHeader: true, Keyframes: 2, VideoFrames: 50, AudioFrames: 100})
@@ -366,6 +366,32 @@ func checkTwoSeconds(t *testing.T, r *report.Report) {
 	}
 	if err := r.CheckTimestamps(25 * time.Millisecond * 2); err != nil {
 		t.Error(err)
+	}
+}
+
+// burstSpeed is how many times real time a test sends its samples over UDP.
+const burstSpeed = 4
+
+// burstPacer paces the samples a test sends over UDP at burstSpeed times
+// real time, or returns nil over TCP, whose flow control lets them go at
+// once. Sent at once, 2s of media outruns the receiving socket's buffer
+// (about 200 KB on Linux) while the receiver waits for a CPU, and the kernel
+// drops the end of the burst.
+func burstPacer(tcp bool) *rtmp.Pacer {
+	if tcp {
+		return nil
+	}
+	start := time.Now()
+	return &rtmp.Pacer{
+		Now: func() time.Time { return start.Add(time.Since(start) * burstSpeed) },
+		Sleep: func(ctx context.Context, d time.Duration) error {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(d / burstSpeed):
+				return nil
+			}
+		},
 	}
 }
 

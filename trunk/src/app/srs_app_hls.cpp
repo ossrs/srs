@@ -2884,7 +2884,7 @@ srs_error_t SrsHls::cycle()
     }
     disposable_ = false;
 
-    srs_trace("hls cycle to dispose hls %s, timeout=%dms", req_->get_stream_url().c_str(), hls_dispose);
+    srs_trace("hls cycle to dispose hls %s, timeout=%dms", req_->get_stream_url().c_str(), srsu2msi(hls_dispose));
     bool publishing = enabled_;
     dispose();
 

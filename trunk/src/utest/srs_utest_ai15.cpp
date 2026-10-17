@@ -290,8 +290,9 @@ VOID TEST(SrsServerTest, ListenRtmpSuccess)
 {
     srs_error_t err = srs_success;
 
-    // Generate a random port from the unit tests' range
-    int port = srs_utest_random_port();
+    // A free random port from the unit tests' range
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_STREAM, &port));
     std::string listen_addr = srs_strconv_format_int(port);
 
     // Create mock config with RTMP listening enabled
@@ -5749,12 +5750,11 @@ VOID TEST(UtilityTest, GetLocalPortSuccess)
 {
     srs_error_t err;
 
-    // Test with IPv4 TCP socket - listen on random port from the unit tests' range
+    // Test with IPv4 TCP socket - listen on a free random port from the unit tests' range
     if (true) {
-        int port = srs_utest_random_port();
+        int port = 0;
         srs_netfd_t fd = NULL;
-        HELPER_EXPECT_SUCCESS(srs_tcp_listen("127.0.0.1", port, &fd));
-        EXPECT_TRUE(fd != NULL);
+        HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &fd));
 
         // Get the actual port using srs_get_local_port
         int actual_fd = srs_netfd_fileno(fd);
@@ -5768,12 +5768,11 @@ VOID TEST(UtilityTest, GetLocalPortSuccess)
         srs_close_stfd(fd);
     }
 
-    // Test with IPv6 TCP socket - listen on random port from the unit tests' range
+    // Test with IPv6 TCP socket - listen on a free random port from the unit tests' range
     if (true) {
-        int port = srs_utest_random_port();
+        int port = 0;
         srs_netfd_t fd = NULL;
-        HELPER_EXPECT_SUCCESS(srs_tcp_listen("::1", port, &fd));
-        EXPECT_TRUE(fd != NULL);
+        HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("::1", &port, &fd));
 
         // Get the actual port using srs_get_local_port
         int actual_fd = srs_netfd_fileno(fd);

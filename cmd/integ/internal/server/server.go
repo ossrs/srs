@@ -51,6 +51,15 @@ const (
 	readyPoll    = 20 * time.Millisecond
 	stopTimeout  = 5 * time.Second
 	tailLines    = 30
+
+	// asanQuarantineMB bounds the sanitizer's quarantine, the freed memory
+	// ASan holds before it reuses it, 256 MB by default, which every busy
+	// server of a run grows by. A full run has about 75 SRS at once, and with
+	// the default their anonymous memory reached 3.4 GB on Linux, where the
+	// 4 GB Docker VM's OOM killer ended a Common shard; with 16 MB it is
+	// 2.4 GB, a shard 180 MB rather than 360, and a use after free is still
+	// caught within a few seconds of media on the busiest server.
+	asanQuarantineMB = 16
 )
 
 // requiredFeatures are the build features of /api/v1/features the suite needs.
@@ -146,6 +155,8 @@ type Server struct {
 	tail *logTail
 	done chan struct{}
 	code int
+	// signal is what killed the process, 0 when it exited.
+	signal syscall.Signal
 	// start is when the process started, and cpu and wall what it used once
 	// it exited.
 	start     time.Time
@@ -272,6 +283,7 @@ func (s *Server) launch(env []string, logFile *os.File) error {
 	go func() {
 		cmd.Wait()
 		s.code = cmd.ProcessState.ExitCode()
+		s.signal = exitSignal(cmd.ProcessState)
 		s.cpu += cmd.ProcessState.UserTime() + cmd.ProcessState.SystemTime()
 		s.wall += time.Since(s.start)
 		run.procs.exited()
@@ -290,16 +302,26 @@ func (s *Server) launch(env []string, logFile *os.File) error {
 }
 
 // processEnv is the env of this process without its SRS_* vars, so only the
-// adapter configures the server.
+// adapter configures the server, and with the sanitizer's quarantine bounded
+// (see asanQuarantineMB), before the user's own ASAN_OPTIONS, so theirs win
+// where the two overlap.
 func processEnv() []string {
 	var out []string
+	asan := fmt.Sprintf("quarantine_size_mb=%d", asanQuarantineMB)
 	for _, kv := range os.Environ() {
-		if !strings.HasPrefix(kv, "SRS_") {
-			out = append(out, kv)
+		if strings.HasPrefix(kv, "SRS_") {
+			continue
 		}
+		if own, ok := strings.CutPrefix(kv, "ASAN_OPTIONS="); ok {
+			if own != "" {
+				asan += ":" + own
+			}
+			continue
+		}
+		out = append(out, kv)
 	}
 	// The macOS sanitizer warns about the nano zone without it.
-	return append(out, "MallocNanoZone=0")
+	return append(out, "ASAN_OPTIONS="+asan, "MallocNanoZone=0")
 }
 
 func (s *Server) waitReady() error {
@@ -429,7 +451,9 @@ func (s *Server) Wait(timeout time.Duration) (int, error) {
 }
 
 // Stop stops the process with SIGTERM, or SIGKILL when it does not exit in
-// time. It fails when the process had to be killed or did not exit with 0.
+// time. It fails when the process had to be killed or did not exit with 0. A
+// process that a signal killed before is reported by the signal: the suite
+// never sends SIGKILL to a server that runs, the kernel's OOM killer does.
 func (s *Server) Stop() error {
 	select {
 	case <-s.done:
@@ -440,6 +464,12 @@ func (s *Server) Stop() error {
 			return fmt.Errorf("SRS did not exit in %v after SIGTERM, killed it", stopTimeout)
 		}
 	}
+	if s.signal == syscall.SIGKILL {
+		return errors.New("SRS was killed by SIGKILL, which the suite never sends to a running server: on Linux the kernel's OOM killer does when the host runs out of memory, so check dmesg for \"Killed process\"")
+	}
+	if s.signal != 0 {
+		return fmt.Errorf("SRS was killed by signal %d (%v)", s.signal, s.signal)
+	}
 	if s.code != 0 {
 		return fmt.Errorf("SRS exited with code %d", s.code)
 	}
@@ -449,6 +479,14 @@ func (s *Server) Stop() error {
 func (s *Server) kill() {
 	s.cmd.Process.Kill()
 	<-s.done
+}
+
+// exitSignal returns the signal that killed a process, 0 when it exited.
+func exitSignal(ps *os.ProcessState) syscall.Signal {
+	if ws, ok := ps.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+		return ws.Signal()
+	}
+	return 0
 }
 
 // LogTail returns the last lines of the server's console log.

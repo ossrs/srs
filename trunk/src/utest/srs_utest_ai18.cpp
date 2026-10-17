@@ -17,6 +17,7 @@ using namespace std;
 #include <srs_app_srt_conn.hpp>
 #include <srs_app_srt_source.hpp>
 #include <srs_app_stream_bridge.hpp>
+#include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_st.hpp>
@@ -215,6 +216,15 @@ srs_error_t MockUdpMuxHandler::on_udp_packet(ISrsUdpMuxSocket *skt)
     return srs_error_copy(on_udp_packet_error_);
 }
 
+// Waits for the listener's coroutine to handle the packets, at most about 1s, so a loaded host
+// doesn't fail a test that an idle one passes with a single yield.
+static void mock_udp_mux_wait_packets(MockUdpMuxHandler *handler, int count)
+{
+    for (int i = 0; i < 1000 && handler->packet_count_ < count; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+}
+
 // The listener tests bind _srs_tmp_port, so it must be a free port from the unit tests' range,
 // by default [26000, 29999], not a fixed one that a server or an E2E script may hold at the same
 // time, such as 11935, the RTMP port of proxy-e2e-test.sh, nor a kernel ephemeral port that a
@@ -264,12 +274,286 @@ VOID TEST(UtestTmpPortTest, PortRangeFromEnv)
     }
 }
 
-VOID TEST(UdpListenerTest, ListenAndReceivePacket)
+// Bind a socket of the type to the port of 127.0.0.1; a TCP one listens. A plain socket, with no
+// SO_REUSEADDR or SO_REUSEPORT, is a process that shares its port with no socket; a shared one sets both,
+// as another SRS or utest run does, so a listen of SRS on that port still binds. Returns the fd, or -1 if
+// the port is taken.
+static int utest_hold_port(int type, int port, bool shared = false)
+{
+    int fd = ::socket(AF_INET, type, 0);
+    if (fd < 0) {
+        return -1;
+    }
+
+    int v = 1;
+    if (shared && (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v)) != 0 ||
+                   ::setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &v, sizeof(v)) != 0)) {
+        ::close(fd);
+        return -1;
+    }
+
+    sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    if (::bind(fd, (sockaddr *)&addr, sizeof(addr)) != 0 || (type == SOCK_STREAM && ::listen(fd, 1) != 0)) {
+        ::close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+// Holds a port of the unit tests' range by a plain socket, which no socket may share, or by a shared one,
+// and narrows the range to that port and the next one, which is free, until it is destroyed.
+class UtestHeldPortRange
+{
+public:
+    int type_;
+    bool shared_;
+    int fd_;
+    int held_;
+    int min_;
+    int max_;
+
+public:
+    UtestHeldPortRange(int type, bool shared = false)
+    {
+        type_ = type;
+        shared_ = shared;
+        fd_ = -1;
+        held_ = 0;
+        min_ = _srs_utest_port_min;
+        max_ = _srs_utest_port_max;
+    }
+    ~UtestHeldPortRange()
+    {
+        _srs_utest_port_min = min_;
+        _srs_utest_port_max = max_;
+        if (fd_ >= 0) {
+            ::close(fd_);
+        }
+    }
+
+public:
+    srs_error_t hold()
+    {
+        srs_error_t err = srs_success;
+
+        for (int i = 0; i < 1024; i++) {
+            int port = 0;
+            if ((err = srs_utest_free_port(type_, &port)) != srs_success) {
+                return srs_error_wrap(err, "free port");
+            }
+            if (port >= max_) {
+                continue;
+            }
+
+            int fd = utest_hold_port(type_, port, shared_);
+            if (fd < 0) {
+                continue;
+            }
+            int next = utest_hold_port(type_, port + 1);
+            if (next < 0) {
+                ::close(fd);
+                continue;
+            }
+            ::close(next);
+
+            fd_ = fd;
+            held_ = port;
+            _srs_utest_port_min = port;
+            _srs_utest_port_max = port + 1;
+            return err;
+        }
+
+        return srs_error_new(ERROR_SOCKET_BIND, "no two free ports");
+    }
+};
+
+// A random port another process holds is not a failed listen: the UDP listen of a test, raw or by a
+// listener, takes the other port of the range, each time.
+VOID TEST(UtestTmpPortTest, UdpListenTakesAnotherPortWhenTaken)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int port = srs_utest_random_port();
+    UtestHeldPortRange held(SOCK_DGRAM);
+    HELPER_ASSERT_SUCCESS(held.hold());
+
+    for (int i = 0; i < 20; i++) {
+        srs_netfd_t fd = NULL;
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &port, &fd));
+        SrsUniquePtr<srs_netfd_t> fd_ptr(&fd, srs_close_stfd_ptr);
+        EXPECT_EQ(held.held_ + 1, port);
+        EXPECT_EQ(held.held_ + 1, srs_get_local_port(srs_netfd_fileno(fd)));
+    }
+
+    for (int i = 0; i < 20; i++) {
+        MockUdpHandler handler;
+        SrsUniquePtr<SrsUdpListener> listener(new SrsUdpListener(&handler));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_udp_listener_listen(listener.get(), "127.0.0.1", &port));
+        EXPECT_EQ(held.held_ + 1, port);
+        EXPECT_EQ(held.held_ + 1, srs_get_local_port(listener->fd()));
+    }
+
+    for (int i = 0; i < 20; i++) {
+        MockUdpMuxHandler handler;
+        SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(&handler, "127.0.0.1", 0));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_udp_mux_listener_listen(listener.get(), &port));
+        EXPECT_EQ(held.held_ + 1, port);
+        EXPECT_EQ(held.held_ + 1, srs_get_local_port(listener->fd()));
+    }
+}
+
+// A random port another process holds is not a failed listen: the TCP listen of a test takes the other
+// port of the range, each time.
+VOID TEST(UtestTmpPortTest, TcpListenTakesAnotherPortWhenTaken)
+{
+    srs_error_t err;
+
+    UtestHeldPortRange held(SOCK_STREAM);
+    HELPER_ASSERT_SUCCESS(held.hold());
+
+    for (int i = 0; i < 20; i++) {
+        srs_netfd_t fd = NULL;
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &fd));
+        SrsUniquePtr<srs_netfd_t> fd_ptr(&fd, srs_close_stfd_ptr);
+        EXPECT_EQ(held.held_ + 1, port);
+        EXPECT_EQ(held.held_ + 1, srs_get_local_port(srs_netfd_fileno(fd)));
+    }
+
+    // A server the test does not bind itself gets a port no socket holds.
+    for (int i = 0; i < 20; i++) {
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_STREAM, &port));
+        EXPECT_EQ(held.held_ + 1, port);
+    }
+}
+
+// A port another SRS or utest run listens on with SO_REUSEPORT binds again, and the system then gives a
+// connection or datagram to either socket, so a test that took it might talk to the other process: every
+// listen of a test takes the other port of the range, each time.
+VOID TEST(UtestTmpPortTest, ListenTakesAnotherPortWhenShared)
+{
+    srs_error_t err;
+
+    if (true) {
+        UtestHeldPortRange held(SOCK_STREAM, true);
+        HELPER_ASSERT_SUCCESS(held.hold());
+
+        for (int i = 0; i < 20; i++) {
+            srs_netfd_t fd = NULL;
+            int port = 0;
+            HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &fd));
+            SrsUniquePtr<srs_netfd_t> fd_ptr(&fd, srs_close_stfd_ptr);
+            EXPECT_EQ(held.held_ + 1, port);
+        }
+    }
+
+    if (true) {
+        UtestHeldPortRange held(SOCK_DGRAM, true);
+        HELPER_ASSERT_SUCCESS(held.hold());
+
+        for (int i = 0; i < 20; i++) {
+            srs_netfd_t fd = NULL;
+            int port = 0;
+            HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &port, &fd));
+            SrsUniquePtr<srs_netfd_t> fd_ptr(&fd, srs_close_stfd_ptr);
+            EXPECT_EQ(held.held_ + 1, port);
+        }
+
+        for (int i = 0; i < 20; i++) {
+            MockUdpHandler handler;
+            SrsUniquePtr<SrsUdpListener> listener(new SrsUdpListener(&handler));
+            int port = 0;
+            HELPER_ASSERT_SUCCESS(srs_utest_udp_listener_listen(listener.get(), "127.0.0.1", &port));
+            EXPECT_EQ(held.held_ + 1, port);
+        }
+
+        for (int i = 0; i < 20; i++) {
+            MockUdpMuxHandler handler;
+            SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(&handler, "127.0.0.1", 0));
+            int port = 0;
+            HELPER_ASSERT_SUCCESS(srs_utest_udp_mux_listener_listen(listener.get(), &port));
+            EXPECT_EQ(held.held_ + 1, port);
+        }
+    }
+}
+
+// A port is free only when no socket holds it, shared or not, on IPv4 and IPv6; a port a test listens on
+// is free again once it closes.
+VOID TEST(UtestTmpPortTest, PortFreeWhenNoSocketHoldsIt)
+{
+    srs_error_t err;
+
+    int types[] = {SOCK_STREAM, SOCK_DGRAM};
+    for (int i = 0; i < 2; i++) {
+        int type = types[i];
+        for (int shared = 0; shared < 2; shared++) {
+            UtestHeldPortRange held(type, shared == 1);
+            HELPER_ASSERT_SUCCESS(held.hold());
+            EXPECT_FALSE(srs_utest_port_free(type, "127.0.0.1", held.held_));
+            EXPECT_TRUE(srs_utest_port_free(type, "127.0.0.1", held.held_ + 1));
+        }
+    }
+
+    srs_netfd_t fd = NULL;
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("::1", &port, &fd));
+    EXPECT_FALSE(srs_utest_port_free(SOCK_STREAM, "::1", port));
+    srs_close_stfd(fd);
+    EXPECT_TRUE(srs_utest_port_free(SOCK_STREAM, "::1", port));
+
+    EXPECT_FALSE(srs_utest_port_free(SOCK_STREAM, "10.0.0.abc", port));
+}
+
+// With every port of the range taken, the listen fails with no socket, so the test fails alone; once the
+// holder is gone, the range is the unit tests' again.
+VOID TEST(UtestTmpPortTest, ListenFailsWhenEveryPortIsTaken)
+{
+    srs_error_t err;
+
+    int min = _srs_utest_port_min, max = _srs_utest_port_max;
+    if (true) {
+        UtestHeldPortRange udp(SOCK_DGRAM);
+        HELPER_ASSERT_SUCCESS(udp.hold());
+        _srs_utest_port_max = udp.held_;
+
+        srs_netfd_t fd = NULL;
+        int port = 0;
+        HELPER_EXPECT_FAILED(srs_utest_udp_listen("127.0.0.1", &port, &fd));
+        EXPECT_TRUE(fd == NULL);
+        EXPECT_EQ(0, port);
+
+        MockUdpMuxHandler handler;
+        SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(&handler, "127.0.0.1", 0));
+        HELPER_EXPECT_FAILED(srs_utest_udp_mux_listener_listen(listener.get(), &port));
+        EXPECT_TRUE(listener->stfd() == NULL);
+        EXPECT_EQ(0, port);
+    }
+    if (true) {
+        UtestHeldPortRange tcp(SOCK_STREAM);
+        HELPER_ASSERT_SUCCESS(tcp.hold());
+        _srs_utest_port_max = tcp.held_;
+
+        srs_netfd_t fd = NULL;
+        int port = 0;
+        HELPER_EXPECT_FAILED(srs_utest_tcp_listen("127.0.0.1", &port, &fd));
+        EXPECT_TRUE(fd == NULL);
+        EXPECT_EQ(0, port);
+    }
+    EXPECT_EQ(min, _srs_utest_port_min);
+    EXPECT_EQ(max, _srs_utest_port_max);
+}
+
+VOID TEST(UdpListenerTest, ListenAndReceivePacket)
+{
+    srs_error_t err;
 
     // Create mock UDP handler
     SrsUniquePtr<MockUdpHandler> mock_handler(new MockUdpHandler());
@@ -277,12 +561,12 @@ VOID TEST(UdpListenerTest, ListenAndReceivePacket)
     // Create UDP listener with mock handler
     SrsUniquePtr<SrsUdpListener> listener(new SrsUdpListener(mock_handler.get()));
 
-    // Set endpoint and label
-    listener->set_endpoint("127.0.0.1", port);
+    // Set label
     listener->set_label("TEST-UDP");
 
-    // Start listening - this should create UDP socket and start coroutine
-    HELPER_EXPECT_SUCCESS(listener->listen());
+    // Start listening on a free port of the unit tests' range - this should create UDP socket and start coroutine
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_listener_listen(listener.get(), "127.0.0.1", &port));
 
     // Verify that the listener has a valid file descriptor
     EXPECT_TRUE(listener->stfd() != NULL);
@@ -327,9 +611,6 @@ VOID TEST(UdpListenerTest, SetEndpointAndSocketBuffer)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int port = srs_utest_random_port();
-
     // Create mock UDP handler
     SrsUniquePtr<MockUdpHandler> mock_handler(new MockUdpHandler());
 
@@ -341,11 +622,12 @@ VOID TEST(UdpListenerTest, SetEndpointAndSocketBuffer)
     EXPECT_EQ(result, listener.get());
 
     // Test set_endpoint - should return this for chaining
-    result = listener->set_endpoint("127.0.0.1", port);
+    result = listener->set_endpoint("127.0.0.1", srs_utest_random_port());
     EXPECT_EQ(result, listener.get());
 
-    // Start listening to create the socket
-    HELPER_EXPECT_SUCCESS(listener->listen());
+    // Start listening on a free port of the unit tests' range to create the socket
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_listener_listen(listener.get(), "127.0.0.1", &port));
 
     // Test fd() - should return valid file descriptor
     int fd = listener->fd();
@@ -377,18 +659,16 @@ VOID TEST(UdpMuxListenerTest, ListenAndCreateSocket)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int port = srs_utest_random_port();
-
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
 
     // Create UDP mux listener with mock handler
-    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(mock_handler.get(), "127.0.0.1", port));
+    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(mock_handler.get(), "127.0.0.1", 0));
 
-    // Start listening - this should create UDP socket and start coroutine
+    // Start listening on a free port of the unit tests' range - this should create UDP socket and start coroutine
     // Note: factory_ is already set to _srs_app_factory in constructor
-    HELPER_EXPECT_SUCCESS(listener->listen());
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_mux_listener_listen(listener.get(), &port));
 
     // Verify that the listener has a valid file descriptor
     EXPECT_TRUE(listener->stfd() != NULL);
@@ -411,17 +691,15 @@ VOID TEST(UdpMuxListenerTest, SetSocketBuffer)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int port = srs_utest_random_port();
-
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
 
     // Create UDP mux listener with mock handler
-    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(mock_handler.get(), "127.0.0.1", port));
+    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(mock_handler.get(), "127.0.0.1", 0));
 
-    // Start listening - this should create UDP socket
-    HELPER_EXPECT_SUCCESS(listener->listen());
+    // Start listening on a free port of the unit tests' range - this should create UDP socket
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_mux_listener_listen(listener.get(), &port));
 
     // Get the file descriptor
     int fd = listener->fd();
@@ -455,17 +733,15 @@ VOID TEST(UdpMuxListenerTest, ReceivePacketFromClient)
 {
     srs_error_t err;
 
-    // Generate a random port from the unit tests' range
-    int port = srs_utest_random_port();
-
     // Create mock UDP mux handler
     SrsUniquePtr<MockUdpMuxHandler> mock_handler(new MockUdpMuxHandler());
 
     // Create UDP mux listener with mock handler - this is the UDP server
-    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(mock_handler.get(), "127.0.0.1", port));
+    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(mock_handler.get(), "127.0.0.1", 0));
 
-    // Start listening - this creates the UDP socket and starts the coroutine
-    HELPER_EXPECT_SUCCESS(listener->listen());
+    // Start listening on a free port of the unit tests' range - this creates the UDP socket and starts the coroutine
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_mux_listener_listen(listener.get(), &port));
 
     // Verify that the listener has a valid file descriptor
     EXPECT_TRUE(listener->stfd() != NULL);
@@ -494,8 +770,8 @@ VOID TEST(UdpMuxListenerTest, ReceivePacketFromClient)
                           (sockaddr *)&dest_addr, sizeof(dest_addr), SRS_UTIME_NO_TIMEOUT);
     EXPECT_EQ(sent, (int)test_data.size());
 
-    // Yield to allow the listener coroutine to start and initialize
-    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    // Wait for the listener coroutine to handle the packet
+    mock_udp_mux_wait_packets(mock_handler.get(), 1);
 
     // Verify that the mock handler received the packet via SrsUdpMuxSocket
     EXPECT_TRUE(mock_handler->on_udp_packet_called_);
@@ -509,8 +785,8 @@ VOID TEST(UdpMuxListenerTest, ReceivePacketFromClient)
                       (sockaddr *)&dest_addr, sizeof(dest_addr), SRS_UTIME_NO_TIMEOUT);
     EXPECT_EQ(sent, (int)test_data2.size());
 
-    // Yield to allow the listener coroutine to start and initialize
-    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    // Wait for the listener coroutine to handle the second packet
+    mock_udp_mux_wait_packets(mock_handler.get(), 2);
 
     // Verify the second packet was received
     EXPECT_EQ(mock_handler->packet_count_, 2);
@@ -565,8 +841,6 @@ VOID TEST(UdpMuxListenerTest, CycleRestoresIdThroughContextOnPacketError)
 {
     srs_error_t err;
 
-    int port = srs_utest_random_port();
-
     MockUdpMuxHandler handler;
     handler.on_udp_packet_error_ = srs_error_new(ERROR_RTC_UDP, "mock packet error");
 
@@ -574,10 +848,11 @@ VOID TEST(UdpMuxListenerTest, CycleRestoresIdThroughContextOnPacketError)
     MockContextForRtmpConn context;
     context.id_.set_value("udp-mux-cid");
 
-    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(&handler, "127.0.0.1", port));
+    SrsUniquePtr<SrsUdpMuxListener> listener(new SrsUdpMuxListener(&handler, "127.0.0.1", 0));
     listener->context_ = &context;
     listener->assemble();
-    HELPER_EXPECT_SUCCESS(listener->listen());
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_mux_listener_listen(listener.get(), &port));
 
     // Yield to allow the listener coroutine to start.
     srs_usleep(1 * SRS_UTIME_MILLISECONDS);
@@ -597,8 +872,8 @@ VOID TEST(UdpMuxListenerTest, CycleRestoresIdThroughContextOnPacketError)
                           (sockaddr *)&dest_addr, sizeof(dest_addr), SRS_UTIME_NO_TIMEOUT);
     EXPECT_EQ(sent, (int)data.size());
 
-    // Yield to allow the listener coroutine to handle the packet.
-    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    // Wait for the listener coroutine to handle the packet.
+    mock_udp_mux_wait_packets(&handler, 1);
 
     EXPECT_EQ(1, handler.packet_count_);
     EXPECT_GE(context.set_id_count_, 1);
@@ -609,24 +884,18 @@ VOID TEST(UdpMuxSocketTest, SendtoReplyToClient)
 {
     srs_error_t err;
 
-    // Generate random ports from the unit tests' range for server and client
-    int server_port = srs_utest_random_port();
-    int client_port = srs_utest_random_port();
-    while (client_port == server_port) {
-        client_port = srs_utest_random_port();
-    }
-
-    // Create a standalone UDP server socket (not using listener to avoid interference)
+    // Create a standalone UDP server socket (not using listener to avoid interference), on a free port
+    // of the unit tests' range
     srs_netfd_t server_fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", server_port, &server_fd));
-    EXPECT_TRUE(server_fd != NULL);
+    int server_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &server_port, &server_fd));
     SrsUniquePtr<srs_netfd_t> server_fd_ptr(&server_fd, srs_close_stfd_ptr);
 
-    // Create a UDP client socket
+    // Create a UDP client socket, on a port the system assigns, never the server's
     srs_netfd_t client_fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", client_port, &client_fd));
-    EXPECT_TRUE(client_fd != NULL);
+    HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 0, &client_fd));
     SrsUniquePtr<srs_netfd_t> client_fd_ptr(&client_fd, srs_close_stfd_ptr);
+    int client_port = srs_get_local_port(srs_netfd_fileno(client_fd));
 
     // Create SrsUdpMuxSocket wrapping the server socket
     SrsUniquePtr<SrsUdpMuxSocket> server_socket(new SrsUdpMuxSocket(server_fd));
@@ -704,24 +973,17 @@ VOID TEST(UdpMuxSocketTest, PeerIdGenerationAndCaching)
 {
     srs_error_t err;
 
-    // Generate random ports from the unit tests' range for server and client
-    int server_port = srs_utest_random_port();
-    int client_port = srs_utest_random_port();
-    while (client_port == server_port) {
-        client_port = srs_utest_random_port();
-    }
-
-    // Create a standalone UDP server socket
+    // Create a standalone UDP server socket, on a free port of the unit tests' range
     srs_netfd_t server_fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", server_port, &server_fd));
-    EXPECT_TRUE(server_fd != NULL);
+    int server_port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &server_port, &server_fd));
     SrsUniquePtr<srs_netfd_t> server_fd_ptr(&server_fd, srs_close_stfd_ptr);
 
-    // Create a UDP client socket
+    // Create a UDP client socket, on a port the system assigns, never the server's
     srs_netfd_t client_fd = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", client_port, &client_fd));
-    EXPECT_TRUE(client_fd != NULL);
+    HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 0, &client_fd));
     SrsUniquePtr<srs_netfd_t> client_fd_ptr(&client_fd, srs_close_stfd_ptr);
+    int client_port = srs_get_local_port(srs_netfd_fileno(client_fd));
 
     // Create SrsUdpMuxSocket wrapping the server socket
     SrsUniquePtr<SrsUdpMuxSocket> server_socket(new SrsUdpMuxSocket(server_fd));
@@ -786,16 +1048,12 @@ VOID TEST(UdpMuxSocketTest, PeerIdGenerationAndCaching)
     uint64_t fast_id = server_socket->fast_id();
     EXPECT_GT(fast_id, 0ULL);
 
-    // Verify IP address caching by sending from a different client port
-    int client_port2 = srs_utest_random_port();
-    while (client_port2 == server_port || client_port2 == client_port) {
-        client_port2 = srs_utest_random_port();
-    }
-
+    // Verify IP address caching by sending from a different client port, which the system assigns
     srs_netfd_t client_fd2 = NULL;
-    HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", client_port2, &client_fd2));
-    EXPECT_TRUE(client_fd2 != NULL);
+    HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 0, &client_fd2));
     SrsUniquePtr<srs_netfd_t> client_fd2_ptr(&client_fd2, srs_close_stfd_ptr);
+    int client_port2 = srs_get_local_port(srs_netfd_fileno(client_fd2));
+    EXPECT_NE(client_port2, client_port);
 
     // Send packet from second client
     string test_data3 = "Third packet from different client";

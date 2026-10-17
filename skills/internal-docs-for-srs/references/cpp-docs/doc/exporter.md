@@ -7,7 +7,7 @@ hide_table_of_contents: false
 
 # Prometheus Exporter
 
-The observability of SRS is about metrics(Prometheus Exporter), tracing(APM) and logging(Cloud Logging). 
+The observability of SRS is about metrics, which SRS exports to Prometheus.
 
 ## Introduction
 

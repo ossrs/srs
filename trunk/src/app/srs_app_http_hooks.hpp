@@ -53,6 +53,9 @@ public:
 // All hook methods that return srs_error_t are used for validation and
 // can reject the operation by returning an error. Methods that return void
 // are notification-only and cannot prevent the operation.
+//
+// The param of every hook is the client's query with a leading ?, such as ?token=abc, for every
+// protocol, though an SRT streamid or a WHIP URL gives SRS its query without one.
 class ISrsHttpHooks
 {
 public:

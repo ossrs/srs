@@ -53,6 +53,19 @@ extern int _srs_utest_port_max;
 extern srs_error_t srs_utest_port_range(const char *v, int *min, int *max);
 // A random port from the unit tests' range.
 extern int srs_utest_random_port();
+// Whether no socket of the type, SOCK_STREAM or SOCK_DGRAM, holds the port of the ip, checked by a bind
+// with no SO_REUSEADDR or SO_REUSEPORT, so a port another SRS or utest run shares is not free either.
+extern bool srs_utest_port_free(int type, std::string ip, int port);
+// A port of the socket type, SOCK_STREAM or SOCK_DGRAM, from the unit tests' range that no socket
+// holds on the temporary host when it returns, for a server the test does not bind itself.
+extern srs_error_t srs_utest_free_port(int type, int *port);
+// Listen on a random port from the unit tests' range that no socket holds, and on another one while the
+// port is taken or shared, so a port that another process holds, or shares by SO_REUSEPORT, fails no test
+// and gets none of its connections; the port listened on is set to *port.
+extern srs_error_t srs_utest_tcp_listen(std::string ip, int *port, srs_netfd_t *pfd);
+extern srs_error_t srs_utest_udp_listen(std::string ip, int *port, srs_netfd_t *pfd);
+extern srs_error_t srs_utest_udp_listener_listen(SrsUdpListener *listener, std::string ip, int *port);
+extern srs_error_t srs_utest_udp_mux_listener_listen(SrsUdpMuxListener *listener, int *port);
 
 // For errors.
 // @remark we directly delete the err, because we allow user to append message if fail.

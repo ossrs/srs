@@ -107,8 +107,12 @@ lane_e() {
     wait
 }
 lane_f() { (cd trunk && layer utest-build make -j10 utest && layer utest ./objs/srs_utest); }
-# Alone: its cases have time limits, and its timer cases measure SRS timers, which the other lanes delay.
-lane_h() { layer integ make integ; }
+# Alone: its cases have time limits, and its timer cases measure SRS timers, which the other lanes delay. Its unit
+# tests run first, with -v so the summary counts them.
+lane_h() {
+    layer integ-unit make integ-unit INTEG_UNIT_ARGS=-v
+    layer integ make integ
+}
 
 echo "step 2: lanes A-F"
 START=$(date +%s)

@@ -286,6 +286,27 @@ func untilEOF(cl *rtmp.Client, d time.Duration) error {
 	}
 }
 
+// rtmpIdle is how long an RTMP client gets nothing before readUntilIdle
+// takes the server as idle.
+const rtmpIdle = 100 * time.Millisecond
+
+// readUntilIdle reads an RTMP client until the server sends nothing for
+// idle or closes it, for at most d.
+func readUntilIdle(cl *rtmp.Client, idle, d time.Duration) error {
+	defer cl.SetDeadline(time.Time{})
+	end := time.Now().Add(d)
+	for {
+		deadline := time.Now().Add(idle)
+		if deadline.After(end) {
+			return fmt.Errorf("still sending after %v", d)
+		}
+		cl.SetDeadline(deadline)
+		if _, err := cl.ReadTag(); err != nil {
+			return nil
+		}
+	}
+}
+
 // untilPCLeaves waits until a peer connection is no longer connected, for at
 // most d.
 func untilPCLeaves(pc *webrtc.PeerConnection, d time.Duration) error {
@@ -552,13 +573,14 @@ func apiStreamFields(t *testing.T) {
 	})
 
 	// WhipPublisherFields checks a WHIP publisher and its H.264 Baseline
-	// and Opus 48 kHz stereo stream, after a second of media. The video size
-	// is WhipVideoSize's.
+	// and Opus 48 kHz stereo stream, after a second of media, with the
+	// webrtc:// tcUrl of its app, as a legacy WebRTC client has. The video
+	// size is WhipVideoSize's.
 	check.Case(t, "WhipPublisherFields", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
 		h, _ := whipStream(c, srs, stream, time.Second)
-		checkClient(c, apiClientOf(c, srs, h.client), clientWant{typ: "rtc-publish", name: stream, url: "/live/" + stream, publish: true})
+		checkClient(c, apiClientOf(c, srs, h.client), clientWant{typ: "rtc-publish", name: stream, url: "/live/" + stream, tcURL: "webrtc://127.0.0.1/live", publish: true})
 		st := apiStreamOf(c, srs, h.stream)
 		v := object(c, st, "video")
 		checkStream(c, st, stream, streamWant{
@@ -586,14 +608,14 @@ func apiStreamFields(t *testing.T) {
 		c.Check(v["width"] == 768.0 && v["height"] == 320.0, "video %vx%v, want 768x320", v["width"], v["height"])
 	})
 
-	// WhepPlayerFields checks a WHEP player.
+	// WhepPlayerFields checks a WHEP player, with the webrtc:// tcUrl of its app.
 	check.Case(t, "WhepPlayerFields", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
 		stream := streamName(c)
 		h, _ := whipStream(c, srs, stream, 200*time.Millisecond)
 		rtcPlayer(c, whepURL(srs, "live", stream), nil)
 		cl := apiClientOf(c, srs, waitHook(c, srs, "on_play", stream).Field("client_id"))
-		checkClient(c, cl, clientWant{typ: "rtc-play", name: stream, url: "/live/" + stream})
+		checkClient(c, cl, clientWant{typ: "rtc-play", name: stream, url: "/live/" + stream, tcURL: "webrtc://127.0.0.1/live"})
 		c.CheckEqual(cl["stream"], h.stream, "client stream")
 	})
 
@@ -738,8 +760,13 @@ func apiCounts(t *testing.T) {
 		defer cancel()
 		_, err := pub.Unpublish(ctx)
 		c.Must(err, "unpublish")
+		// SRS answers the deleteStream after the unpublish, and sends the
+		// player what it had, so both read until SRS is idle: their counts
+		// then have every byte SRS sent them.
+		c.Must(readUntilIdle(pub, rtmpIdle, time.Second), "read the publisher")
 		pub.Close()
 		c.Must(untilGone(c, srs, "/api/v1/clients/"+pubID), "the publisher leaves")
+		c.Must(readUntilIdle(player, rtmpIdle, time.Second), "read the player")
 		sent, got := pub.BytesSent(), pub.BytesReceived()
 
 		st := apiStreamOf(c, srs, streamID)

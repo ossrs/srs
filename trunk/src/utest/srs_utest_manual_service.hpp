@@ -79,7 +79,8 @@ public:
     MockOnCycleThread3();
     virtual ~MockOnCycleThread3();
     virtual srs_error_t cycle();
-    virtual srs_error_t start(std::string ip, int port);
+    // Listen on a port of the unit tests' range that no socket holds, set to *port.
+    virtual srs_error_t start(std::string ip, int *port);
     virtual srs_error_t do_cycle(srs_netfd_t cfd);
     void stop();
 };
