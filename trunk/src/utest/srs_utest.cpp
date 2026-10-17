@@ -9,10 +9,12 @@
 #include <srs_app_config.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_rtc_dtls.hpp>
+#include <srs_app_rtsp_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_resource.hpp>
 #include <srs_protocol_st.hpp>
 
 #include <string>
@@ -367,6 +369,32 @@ srs_error_t prepare_main()
     return err;
 }
 
+// Fail a test that leaves a handler subscribed to a global resource manager. The handler is usually a
+// connection the test already freed, so a later test whose resource that manager removes would call it.
+class SrsUtestDisposingHandlersChecker : public testing::EmptyTestEventListener
+{
+public:
+    virtual void OnTestEnd(const testing::TestInfo & /*info*/)
+    {
+        check(_srs_conn_manager);
+        check(_srs_rtsp_manager);
+    }
+
+private:
+    void check(SrsResourceManager *manager)
+    {
+        if (!manager) {
+            return;
+        }
+
+        EXPECT_TRUE(manager->handlers_.empty()) << manager->label_ << " manager has " << manager->handlers_.size()
+                                                << " disposing handler(s) left by this test";
+
+        // Report each leak once, at the test that left it.
+        manager->handlers_.clear();
+    }
+};
+
 // We could do something in the main of utest.
 // Copy from gtest-1.6.0/src/gtest_main.cc
 GTEST_API_ int main(int argc, char **argv)
@@ -384,6 +412,7 @@ GTEST_API_ int main(int argc, char **argv)
     }
 
     testing::InitGoogleTest(&argc, argv);
+    testing::UnitTest::GetInstance()->listeners().Append(new SrsUtestDisposingHandlersChecker());
     int r0 = RUN_ALL_TESTS();
 
     // Stop libsrt and join its worker threads, before the process destroys the libsrt global objects.
