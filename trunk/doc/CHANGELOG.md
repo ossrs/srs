@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-17, HLS: Fix dispose resume, AES padding and fmp4 segment open. v7.0.175
 * v7.0, 2026-10-17, HLS: Fix fmp4 encryption, key URI and segment writer. v7.0.174
 * v7.0, 2026-10-17, HLS: Fix fmp4 paths, MP3 init file and discontinuity. v7.0.173
 * v7.0, 2026-10-17, HTTP: Fix auth realm and logging, metrics labels and escaped mounts. v7.0.172

@@ -1884,6 +1884,78 @@ VOID TEST(HlsFmp4MuxerWriterTest, RepublishKeepsWriterOfSegmentLeftOpen)
     EXPECT_EQ(0, factory.live_);
 }
 
+// The fmp4 publish fails to write the key of its first segment at the first frame. No segment is
+// left open with no file, so the next frame opens a new segment, which writes its key and its
+// file, and closes.
+VOID TEST(HlsFmp4MuxerWriterTest, KeyWriteFailedNextFrameOpensNewSegment)
+{
+    srs_error_t err;
+
+    // A dir at the path of the first segment's key, so that key can't be written.
+    SrsPath path;
+    string key_dir = "./objs/nginx/html/fmp4-key-retry-keys";
+    HELPER_ASSERT_SUCCESS(path.mkdir_all(key_dir + "/live-fmp4-key-retry-0.key"));
+    string key_file = key_dir + "/live-fmp4-key-retry-1.key";
+    if (path.exists(key_file)) {
+        HELPER_ASSERT_SUCCESS(path.unlink(key_file));
+    }
+
+    SrsSetEnvConfig(*_srs_config, hls_keys, "SRS_VHOST_HLS_HLS_KEYS", "on");
+    SrsSetEnvConfig(*_srs_config, hls_fragments_per_key, "SRS_VHOST_HLS_HLS_FRAGMENTS_PER_KEY", "1");
+    SrsSetEnvConfig(*_srs_config, hls_key_file, "SRS_VHOST_HLS_HLS_KEY_FILE", "[app]-[stream]-[seq].key");
+    SrsSetEnvConfig(*_srs_config, hls_key_file_path, "SRS_VHOST_HLS_HLS_KEY_FILE_PATH", key_dir);
+
+    MockAppFactoryLiveWriters factory;
+    MockFmp4SrsRequest req;
+    req.stream_ = "fmp4-key-retry";
+
+    if (true) {
+        SrsHlsFmp4Muxer muxer;
+        muxer.app_factory_ = &factory;
+        HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+        HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+        HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+        EXPECT_EQ(1, factory.live_);
+
+        // The first frame can't open its segment, so no segment is open, and the sequence
+        // header still waits for the segment that opens.
+        HELPER_ASSERT_SUCCESS(muxer.on_sequence_header());
+        MockSrsFormat fmt;
+        MockSrsMediaPacket first(false, 0);
+        HELPER_EXPECT_FAILED(muxer.write_audio(&first, &fmt));
+        EXPECT_FALSE(muxer.is_segment_open());
+        EXPECT_FALSE(muxer.writer_->is_open());
+        EXPECT_TRUE(muxer.sequence_header_pending_);
+        EXPECT_EQ(1, factory.live_);
+
+        // The next frame opens a new segment, which writes its key and its file.
+        MockSrsMediaPacket next(false, 20);
+        HELPER_ASSERT_SUCCESS(muxer.write_audio(&next, &fmt));
+        ASSERT_TRUE(muxer.is_segment_open());
+        EXPECT_EQ(1, muxer.current_->sequence_no_);
+        EXPECT_TRUE(muxer.current_->is_sequence_header());
+        EXPECT_FALSE(muxer.sequence_header_pending_);
+        EXPECT_TRUE(muxer.writer_->is_open());
+        EXPECT_TRUE(path.exists(key_file));
+        string tmp = muxer.current_->tmppath();
+        string m4s = muxer.current_->fullpath();
+        EXPECT_TRUE(path.exists(tmp));
+
+        HELPER_EXPECT_SUCCESS(muxer.segment_close(100));
+        EXPECT_FALSE(muxer.is_segment_open());
+        EXPECT_FALSE(muxer.writer_->is_open());
+        EXPECT_FALSE(path.exists(tmp));
+        EXPECT_TRUE(path.exists(m4s));
+        EXPECT_EQ(1, factory.live_);
+
+        muxer.dispose();
+    }
+
+    EXPECT_EQ(0, factory.live_);
+
+    HELPER_EXPECT_SUCCESS(path.unlink(key_file));
+}
+
 // The dispose removes the init file the muxer wrote, with the playlist and the segments.
 VOID TEST(HlsFmp4MuxerDisposeTest, RemovesInitFile)
 {

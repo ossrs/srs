@@ -26,6 +26,9 @@
 #include <srs_utest_manual_protocol.hpp>
 
 #include <algorithm>
+#include <openssl/aes.h>
+#include <stdio.h>
+#include <vector>
 
 // Forward declarations for functions that are not in headers
 #if defined(SRS_BACKTRACE) && defined(__linux)
@@ -4262,6 +4265,85 @@ VOID TEST(KernelTSTest, SrsEncFileWriter_close)
     // Clean up
     SrsPath path;
     path.unlink(temp_file);
+}
+
+// Write nb_packets TS packets through an SrsEncFileWriter, close it, and
+// decrypt the file: it must be the packets followed by PKCS#7 padding of 1 to
+// 16 bytes, also when the packets are whole AES blocks or there are none.
+static void srs_utest_check_enc_file_padding(int nb_packets)
+{
+    srs_error_t err = srs_success;
+
+    unsigned char key[16];
+    unsigned char iv[16];
+    for (int i = 0; i < 16; i++) {
+        key[i] = (unsigned char)i;
+        iv[i] = (unsigned char)(0xf0 + i);
+    }
+
+    std::string temp_file = "/tmp/srs_test_enc_pad_" + srs_strconv_format_int(getpid()) + "_" + srs_strconv_format_int(nb_packets) + ".ts";
+
+    std::vector<unsigned char> plain;
+    if (true) {
+        SrsEncFileWriter writer;
+        HELPER_EXPECT_SUCCESS(writer.config_cipher(key, iv));
+        HELPER_EXPECT_SUCCESS(writer.open(temp_file));
+
+        for (int i = 0; i < nb_packets; i++) {
+            unsigned char ts_data[SRS_TS_PACKET_SIZE];
+            memset(ts_data, (unsigned char)i, SRS_TS_PACKET_SIZE);
+            ts_data[0] = 0x47;
+            plain.insert(plain.end(), ts_data, ts_data + SRS_TS_PACKET_SIZE);
+
+            ssize_t nwrite = 0;
+            HELPER_EXPECT_SUCCESS(writer.write(ts_data, SRS_TS_PACKET_SIZE, &nwrite));
+        }
+
+        writer.close();
+        // A second close adds nothing.
+        writer.close();
+    }
+
+    std::vector<unsigned char> cipher;
+    if (true) {
+        FILE *fp = fopen(temp_file.c_str(), "rb");
+        ASSERT_TRUE(fp != NULL);
+        unsigned char b[4096];
+        size_t n;
+        while ((n = fread(b, 1, sizeof(b), fp)) > 0) {
+            cipher.insert(cipher.end(), b, b + n);
+        }
+        fclose(fp);
+
+        SrsPath path;
+        path.unlink(temp_file);
+    }
+
+    int nb_padding = 16 - (int)(plain.size() % 16);
+    ASSERT_EQ(plain.size() + nb_padding, cipher.size()) << "packets=" << nb_packets;
+
+    std::vector<unsigned char> out(cipher.size());
+    AES_KEY k;
+    AES_set_decrypt_key(key, 128, &k);
+    AES_cbc_encrypt(&cipher[0], &out[0], cipher.size(), &k, iv, AES_DECRYPT);
+
+    EXPECT_TRUE(std::equal(plain.begin(), plain.end(), out.begin())) << "packets=" << nb_packets;
+    for (size_t i = plain.size(); i < out.size(); i++) {
+        EXPECT_EQ(nb_padding, out[i]) << "packets=" << nb_packets << ", byte " << i;
+    }
+}
+
+VOID TEST(KernelTSTest, SrsEncFileWriter_closePadsEveryLength)
+{
+    // A partial last block of 4 packets: 188 bytes padded with 4, 940 with 4.
+    srs_utest_check_enc_file_padding(1);
+    srs_utest_check_enc_file_padding(5);
+    // Whole blocks of 4 packets, 752 bytes, written by write(): a block of 16
+    // padding bytes follows, as PKCS#7 wants.
+    srs_utest_check_enc_file_padding(4);
+    srs_utest_check_enc_file_padding(8);
+    // No packet: the padding block alone.
+    srs_utest_check_enc_file_padding(0);
 }
 
 VOID TEST(KernelTSTest, SrsTsMessageCache_do_cache_mp3)

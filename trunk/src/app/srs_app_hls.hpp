@@ -786,6 +786,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool disposable_;
     // Whether the HLS stream is unpublishing.
     bool unpublishing_;
+    // Whether the HLS is suspended: hls_dispose disposed it while the stream
+    // is still published, so the next media resumes it.
+    bool suspended_;
     // Whether requires HLS to do reload asynchronously.
     bool async_reload_;
     bool reloading_;
@@ -809,6 +812,8 @@ public:
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t reload();
     srs_error_t do_reload(int *reloading, int *reloaded, int *refreshed);
+    // Start the HLS again for the media of a stream disposed while published.
+    srs_error_t resume();
 
 public:
     virtual void dispose();
