@@ -7,7 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
-* v8.0, 2026-10-17, Merge [#4780](https://github.com/ossrs/srs/pull/4780): OBS: Add the internal-obs-control skill and OBS tests in the Full tier. v8.0.62 (#4780)
+* v8.0, 2026-10-17, Merge [#4780](https://github.com/ossrs/srs/pull/4780): OBS: Control skill and OBS tests in the Full tier. v8.0.62 (#4780)
 * v8.0, 2026-10-17, Merge [#4772](https://github.com/ossrs/srs/pull/4772): Integ: Add the srs-integ black-box suite, and fix the 120+ SRS bugs it found. v8.0.61 (#4772)
 * v8.0, 2026-10-10, Merge [#4767](https://github.com/ossrs/srs/pull/4767): Forward: Forwarder status API and keyframe restart. v8.0.60 (#4767)
 * v8.0, 2026-10-10, Merge [#4766](https://github.com/ossrs/srs/pull/4766): Skills: ST coroutine entry on every CPU and QEMU tests. v8.0.59 (#4766)
