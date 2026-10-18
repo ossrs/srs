@@ -174,7 +174,8 @@ obs_test_start() {
   done
   if ! wait "$OBS_LAUNCH_PID"; then
     OBS_LAUNCH_PID=
-    obs_test_skip 'OBS not available (isolated launch failed; see launch.log)'
+    obs_test_fail 'isolated OBS launch failed; see launch.log'
+    return 1
   fi
   OBS_LAUNCH_PID=
 }

@@ -143,6 +143,17 @@ remote_srs_start() (
   [[ $OBS_INSTANCE_ID == t12345 && -z $OBS_SRS_PID && ! -f /tmp/srs-obs-lib-regression/spawned ]]
 )
 check remote_srs_start
+# OBS was found by the probe, so a failed isolated launch is a failure, not a skip.
+launch_failure() (
+  OBS_WS=unused OBS_PYTHON=python OBS_SRS_HOST=172.24.0.5 OBS_SRS_PID=
+  obs_test_ports 15900
+  python() { [[ $2 != launch ]] || return 1; [[ $3 != new ]] || echo t12345; }
+  curl() { [[ $* == *http://172.24.0.5:15902/api/v1/versions ]]; }
+  local output status=0
+  output=$(obs_test_start 2>&1) || status=$?
+  [[ $status -ne 0 && $output == 'FAIL isolated OBS launch failed; see launch.log' ]]
+)
+check launch_failure
 # The Windows run: gates and arguments, checked without a host.
 WIN="$SCRIPT_DIR/obs-windows-test.sh"
 check test "$(SRS_TEST_OBS=0 bash "$WIN")" = 'SKIP SRS_TEST_OBS=0'
