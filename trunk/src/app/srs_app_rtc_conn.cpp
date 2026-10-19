@@ -14,6 +14,7 @@ using namespace std;
 
 #include <fcntl.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <queue>
@@ -50,6 +51,9 @@ using namespace std;
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_utility.hpp>
+
+// Session id counter to distinguish sessions created in the same second, see #4781.
+static uint64_t _srs_sdp_session_id = 0;
 
 SrsPps *_srs_pps_sstuns = NULL;
 SrsPps *_srs_pps_srtcps = NULL;
@@ -3974,7 +3978,13 @@ srs_error_t SrsRtcPublisherNegotiator::generate_publish_local_sdp(ISrsRequest *r
     local_sdp.version_ = "0";
 
     local_sdp.username_ = RTMP_SIG_SRS_SERVER;
-    local_sdp.session_id_ = srs_strconv_format_int((int64_t)this);
+    // The sess-id must be a non-negative numeric string(RFC8866 5.1), and NTP
+    // timestamp is recommended. Never use the object pointer: on Android the
+    // SCUDO allocator tags the top byte of heap pointers, which makes
+    // (int64_t)this negative, and Firefox/Edge reject the answer. See #4781.
+    uint64_t ntp_seconds = (uint64_t)::time(NULL) + 2208988800ULL;
+    uint64_t sess_id = ntp_seconds * 1000 + (_srs_sdp_session_id++ % 1000);
+    local_sdp.session_id_ = srs_strconv_format_int((int64_t)sess_id);
     local_sdp.session_version_ = "2";
     local_sdp.nettype_ = "IN";
     local_sdp.addrtype_ = "IP4";
@@ -4426,7 +4436,13 @@ srs_error_t SrsRtcPlayerNegotiator::generate_play_local_sdp(ISrsRequest *req, Sr
     local_sdp.version_ = "0";
 
     local_sdp.username_ = RTMP_SIG_SRS_SERVER;
-    local_sdp.session_id_ = srs_strconv_format_int((int64_t)this);
+    // The sess-id must be a non-negative numeric string(RFC8866 5.1), and NTP
+    // timestamp is recommended. Never use the object pointer: on Android the
+    // SCUDO allocator tags the top byte of heap pointers, which makes
+    // (int64_t)this negative, and Firefox/Edge reject the answer. See #4781.
+    uint64_t ntp_seconds = (uint64_t)::time(NULL) + 2208988800ULL;
+    uint64_t sess_id = ntp_seconds * 1000 + (_srs_sdp_session_id++ % 1000);
+    local_sdp.session_id_ = srs_strconv_format_int((int64_t)sess_id);
     local_sdp.session_version_ = "2";
     local_sdp.nettype_ = "IN";
     local_sdp.addrtype_ = "IP4";
