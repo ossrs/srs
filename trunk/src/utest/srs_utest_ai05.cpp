@@ -349,6 +349,62 @@ VOID TEST(KernelPacketTest, SrsMediaPacketTypeChecking)
     EXPECT_FALSE(packet.is_video());
 }
 
+// The live source copies each message once per player, so an empty shared ptr must not allocate.
+VOID TEST(KernelPacketTest, SharedPtrNullHoldsNoCount)
+{
+    SrsSharedPtr<int> empty(NULL);
+    EXPECT_TRUE(empty.ref_count_ == NULL);
+
+    SrsSharedPtr<int> copied = empty;
+    EXPECT_TRUE(copied.ref_count_ == NULL);
+    EXPECT_TRUE(copied.get() == NULL);
+
+    SrsSharedPtr<int> assigned(new int(100));
+    assigned = empty;
+    EXPECT_TRUE(assigned.ref_count_ == NULL);
+    EXPECT_TRUE(assigned.get() == NULL);
+
+    SrsSharedPtr<int> object(new int(100));
+    SrsSharedPtr<int> filled;
+    filled = object;
+    EXPECT_EQ(object.get(), filled.get());
+    EXPECT_EQ(object.ref_count_, filled.ref_count_);
+    EXPECT_EQ(2u, *object.ref_count_);
+    EXPECT_EQ(100, *filled);
+
+    filled = empty;
+    EXPECT_TRUE(filled.ref_count_ == NULL);
+    EXPECT_EQ(1u, *object.ref_count_);
+}
+
+VOID TEST(KernelPacketTest, SrsMediaPacketCopySharesPayload)
+{
+    SrsMediaPacket empty;
+    EXPECT_TRUE(empty.payload_.ref_count_ == NULL);
+
+    SrsMediaPacket packet;
+    packet.timestamp_ = 1000;
+    packet.stream_id_ = 1;
+    packet.message_type_ = SrsFrameTypeVideo;
+    packet.wrap(new char[4], 4);
+    EXPECT_EQ(1u, *packet.payload_.ref_count_);
+
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> copy(packet.copy());
+        EXPECT_EQ(packet.payload(), copy->payload());
+        EXPECT_EQ(packet.payload_.ref_count_, copy->payload_.ref_count_);
+        EXPECT_EQ(2u, *packet.payload_.ref_count_);
+        EXPECT_EQ(1000, copy->timestamp_);
+        EXPECT_EQ(1, copy->stream_id_);
+        EXPECT_TRUE(copy->is_video());
+    }
+    EXPECT_EQ(1u, *packet.payload_.ref_count_);
+
+    SrsUniquePtr<SrsMediaPacket> copy(empty.copy());
+    EXPECT_TRUE(copy->payload_.ref_count_ == NULL);
+    EXPECT_TRUE(copy->payload() == NULL);
+}
+
 MockSrsResource::MockSrsResource()
 {
     desc_ = "mock resource";

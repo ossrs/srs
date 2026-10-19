@@ -25,6 +25,12 @@ Propose the summary to the user; don't invent one unilaterally.
 
 When the change syncs State Threads into `trunk/3rdparty/st-srs/`, use the `ST:` prefix.
 
+**Offer a performance round.** A version bump is the time to check SRS performance against the previous version. Once the version files and the changelog entry are ready, ask the user whether to run a performance round for the new version:
+
+- Ask every time; never decide for the user, and never start a round without a yes.
+- On a yes, follow [internal-perf-for-srs](../../internal-perf-for-srs/SKILL.md). A round needs the machine alone and takes minutes per run.
+- On a no, go on with the bump.
+
 ## State Threads
 
 **Bump the patch by one in all three files, and keep them in sync.**

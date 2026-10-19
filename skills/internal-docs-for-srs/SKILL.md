@@ -1,6 +1,6 @@
 ---
 name: internal-docs-for-srs
-description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, State Threads documentation, Oryx project documentation, website pages, media streaming standard documents, changelog, executable API examples, and next-generation Go server and performance documentation.
+description: Use whenever support or development work needs SRS or Oryx project documentation, or when that documentation must be created, updated, or reviewed. Covers the C++ media server, State Threads, Oryx (deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, development), website pages, media streaming standards, the changelog, API examples, and the next-generation Go server and performance docs.
 ---
 
 # SRS Internal Documentation

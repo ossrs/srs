@@ -1,6 +1,6 @@
 ---
 name: internal-codemap-for-srs
-description: Route SRS and Oryx code tasks to the smallest relevant trusted codebase map and verification guidance. Use whenever support, development, debugging, review, or maintenance work requires locating, choosing, reading, modifying, testing, or verifying SRS or Oryx code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, browser publishers and players, the SRS Docker image toolchain, and the Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests. Use as the code-navigation dependency of parent support and development skills; the parent skill remains responsible for the user-facing workflow and result.
+description: Use whenever support, development, debugging, review, or maintenance work needs to locate, read, modify, test, or verify SRS or Oryx code. Covers the first-generation C++ origin and edge media server, its State Threads dependency, the next-generation Go server, browser publishers and players, the SRS Docker image toolchain, and the Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests. Used by the support and development skills, which own the user-facing result.
 ---
 
 # SRS and Oryx Internal Code Map

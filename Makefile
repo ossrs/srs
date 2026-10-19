@@ -1,6 +1,37 @@
-.PHONY: all build test fmt clean run generate integ integ-prepare integ-main integ-timer integ-unit
+.PHONY: all build test fmt clean run generate
+.PHONY: integ integ-prepare integ-main integ-timer integ-unit
+.PHONY: perf perf-image perf-unit perf-smoke perf-source-test perf-env-check perf-up perf-down
 
 all: build
+
+perf-image:
+	docker build -f cmd/perf/Dockerfile -t srs-perf:local .
+
+PERF_GO_FILES := $(shell find cmd/perf -name '*.go')
+
+bin/srs-perf: cmd/perf/go.mod $(PERF_GO_FILES)
+	@mkdir -p bin
+	go -C cmd/perf build -o ../../bin/srs-perf .
+
+perf: perf-image bin/srs-perf
+
+perf-unit:
+	go -C cmd/perf test -count=1 ./...
+
+perf-smoke: bin/srs-perf
+	bash skills/internal-perf-for-srs/scripts/perf-smoke.sh "$(SCENARIO)"
+
+perf-up:
+	bash skills/internal-perf-for-srs/scripts/perf-up.sh
+
+perf-down:
+	bash skills/internal-perf-for-srs/scripts/perf-down.sh
+
+perf-env-check:
+	bash skills/internal-perf-for-srs/scripts/perf-env-check.sh
+
+perf-source-test: perf-image
+	bash skills/internal-perf-for-srs/scripts/perf-source-test.sh
 
 build: fmt bin/srs-proxy bin/srs-integ
 
