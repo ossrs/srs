@@ -1,12 +1,14 @@
 # Reading the Profiles
 
-Each hold in `cmd/perf/out/<run>/repeat-<n>/hold-<50|50-noise|90>/` has three files from `scripts/perf-profile.sh`:
+Each profile hold in `cmd/perf/out/<run>/repeat-<n>/profile-<50|90>/` has three files from `scripts/perf-profile.sh`. A profile hold runs after the measuring holds at the same client count, and perf starts once its clients have settled 30s:
 
 - **`flamegraph.svg`:** the stacks of the 60s `perf record -g` of the SRS process.
 - **`top-symbols.txt`:** `perf report --no-children --sort symbol`, every symbol with its self share and its callers.
-- **`syscalls.txt`:** 10s of syscall counts, taken right after the record while the hold still runs, from `perf trace -s`, or `strace -c -f` when `perf trace` does not work. The tracer adds SRS CPU in the last 20s of the hold, as `perf record` does, so compare holds only with holds.
+- **`syscalls.txt`:** 10s of syscall counts, taken right after the record, inside the same profile hold, from `perf trace -s`, or `strace -c -f` when `perf trace` does not work. The tracer and `perf record` add SRS CPU, so a profile hold's CPU is never a measurement; compare syscall counts only between profile holds.
 
-The share of a sample is a share of SRS's own CPU time. With the SRS CPU% of the same hold, from its `result.json`, it becomes an absolute cost: a symbol with 10% self share at 80% SRS CPU costs 8% of a core.
+The profile hold's own `result.json` has no CPU per client and no result window, and stays out of `run.json`: perf's CPU counts in SRS's cgroup, so take SRS CPU only from a measuring hold.
+
+The share of a sample is a share of SRS's own CPU time. With the window mean of SRS CPU in the measuring hold at the same client count, from its `result.json` in `run.json`, it becomes an absolute cost: a symbol with 10% self share at 80% SRS CPU costs 8% of a core.
 
 ## Flame graph
 
@@ -36,14 +38,14 @@ The share of a sample is a share of SRS's own CPU time. With the SRS CPU% of the
 A change can be real without raising the capacity, so compare the profiles at the **same client count**, not only the numbers:
 
 - **Moved:** the target symbol's self share drops, and the shares of other symbols rise to fill the gap.
-- **Cheaper:** the SRS CPU% at the same hold drops, so the same clients cost less.
+- **Cheaper:** the SRS CPU window mean at the same client count drops, measured in measuring holds or an A/B, never in the profile holds; its 95% CI says whether the drop is more than noise.
 - **Flat:** neither. The change may still help once the rest of a bottleneck spread over several functions is fixed, so it is kept when its tests pass and no scenario loses 10% or more; the review decides.
 - Record both symbol tables with their shares and the SRS CPU% before and after; no threshold decides whether a hotspot moved.
 
 ## Ranking
 
-1. Take the 90% hold of the latest run; use the 50% hold to confirm the cost grows with the load.
+1. Take the 90% profile hold of the latest run; use the 50% profile hold to confirm the cost grows with the load.
 2. Charge each libc and kernel symbol to its SRS caller from the caller tree, and group symbols into the SRS code path that owns them, such as packet copying in `SrsLiveConsumer::enqueue` or message sending in `SrsRtmpConn::do_playing`.
-3. Rank the code paths by absolute cost: their total self share times the SRS CPU%.
+3. Rank the code paths by absolute cost: their total self share times the window mean of SRS CPU in the 90% measuring hold.
 4. Name the SRS files and functions of each code path, and the syscalls it makes.
 5. The top bottleneck is the #1 code path that SRS can reasonably change. The kernel, syscalls already batched, and crypto in RTC are not.

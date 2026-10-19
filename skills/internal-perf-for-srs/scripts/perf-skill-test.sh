@@ -24,6 +24,43 @@ for text in "**Flat CBR source:**" "/srs/perf/cbr.flv" "make perf-source-test" \
     "](scripts/perf-source.sh)" "](scripts/perf-source-check.sh)" "](scripts/perf-source-test.sh)"; do
     has SKILL.md "$text"
 done
+# Runs, the smoke and the env check use the CBR source in the image, never doc/source.flv.
+has SKILL.md '`-media <flv>`'
+has scripts/perf-env-check.sh "-i /srs/perf/cbr.flv"
+for script in scripts/perf-up.sh scripts/perf-env-check.sh scripts/perf-smoke.sh scripts/perf-run.sh; do
+    if grep -qF "doc/source.flv" "$script"; then fail "$script: no doc/source.flv"; else pass "$script: no doc/source.flv"; fi
+done
+# SRS CPU is sampled each second from its container's cgroup, and every sample is kept.
+for text in "**Per-second samples:**" "usage_usec" "--cgroupns host" '`window`'; do
+    has SKILL.md "$text"
+done
+has scripts/perf-up.sh "--cgroupns host"
+# Lag is in publisher time, since SRS starts each player's timestamps near zero.
+for text in "**Lag in publisher time:**" '`time_jitter full`' "unique payload"; do
+    has SKILL.md "$text"
+done
+# The A/B run: the baseline SRS from a git tree, never touching the worktree, and its image removed.
+for text in "](scripts/perf-ab.sh)" "](scripts/perf-ab-test.sh)" '`-baseline <rev>`' \
+    '`-revert <commit>`' '`-keep`' '`srs-perf-ab:<task>-<rev>`' "ab.json" "verdict.txt"; do
+    has SKILL.md "$text"
+done
+has SKILL.md "that commit's trunk change taken out"
+has scripts/perf-ab.sh "git archive"
+has scripts/perf-ab.sh "acquire --wait"
+has scripts/perf-ab.sh "docker rmi"
+if grep -qE 'git (checkout|stash|reset|revert)' scripts/perf-ab.sh; then
+    fail "perf-ab.sh: the worktree untouched"
+else
+    pass "perf-ab.sh: the worktree untouched"
+fi
+for file in scripts/perf-run.sh SKILL.md; do
+    if grep -qF "integ-prepare" "$file"; then fail "$file: no integ-prepare"; else pass "$file: no integ-prepare"; fi
+done
+if grep -rqF --include='*.go' --exclude='*_test.go' '"doc/source.flv"' ../../cmd/perf; then
+    fail "cmd/perf: no doc/source.flv"
+else
+    pass "cmd/perf: no doc/source.flv"
+fi
 
 for section in "## Setup" "## Caveats" "## Method" "## Results" "## Bottlenecks" \
     "## Syscalls" "## Before and after" "## Re-run and compare"; do
@@ -58,7 +95,7 @@ if grep -F 'srs-autopilot' SKILL.md | grep -vqF 'not an srs-autopilot'; then
 else
     pass "SKILL.md does not depend on srs-autopilot"
 fi
-has "$round" "| Step | Change | Commit | Capacity | CPU per client | SRS CPU at 50% and 90% | Top symbols before → after | Result |"
+has "$round" "| Step | Change | Commit | Method and window | SRS CPU before → after, mean ± sd | Difference, 95% CI | Capacity | Top symbols before → after | Result |"
 for candidate in "--gperf=on" "--gprof=on" "--valgrind=on" "SRS_PERF_MW_SLEEP" \
     "SRS_CONSTS_RTMP_PULSE" "3s source check" "hls_ctx"; do
     has "$round" "$candidate"
@@ -134,6 +171,50 @@ else
     pass "$profile: perf trace not under timeout"
 fi
 
+# No profiler in a measuring window: the measuring holds settle 30s and count a
+# -window with nothing else in the SRS container; perf runs afterwards in its
+# own profile hold per count, whose CPU is never a measurement.
+run=scripts/perf-run.sh
+has "$run" "window=60"
+has "$run" '-mode hold'
+has "$run" '-window "$window"'
+has "$run" '-mode profile'
+last_hold=$(grep -n -- '-mode hold' "$run" | tail -1 | cut -d: -f1)
+first_profile=$(grep -n 'perf-profile.sh' "$run" | head -1 | cut -d: -f1)
+first_profile_hold=$(grep -n -- '-mode profile' "$run" | head -1 | cut -d: -f1)
+if [[ -n "$last_hold" && -n "$first_profile" && -n "$first_profile_hold" \
+    && "$last_hold" -lt "$first_profile_hold" && "$last_hold" -lt "$first_profile" ]]; then
+    pass "$run: profile holds after the measuring holds"
+else
+    fail "$run: profile holds after the measuring holds"
+fi
+if grep -qE 'perf-profile\.sh.*&[[:space:]]*$' "$run"; then
+    fail "$run: no profiler beside a measuring hold"
+else
+    pass "$run: no profiler beside a measuring hold"
+fi
+if grep -qE -- '-seconds 75|-seconds "' "$run"; then
+    fail "$run: holds use -settle and -window, not -seconds"
+else
+    pass "$run: holds use -settle and -window, not -seconds"
+fi
+for text in "**No profiler in the window:**" "profile hold" '`-window <seconds>`' "180s" "settle 30s" "profile-<50|90>"; do
+    has SKILL.md "$text"
+done
+has references/reading-profiles.md "profile-<50|90>"
+# compare gives each side's mean and sd and the 95% CI of the difference:
+# paired per second for the two sides of an A/B run, unpaired otherwise.
+for text in "each side's mean and sd" "95% CI" "paired per second" '`-ab-run <id>`' "unpaired" "noisier" "mean difference"; do
+    has SKILL.md "$text"
+done
+for doc in SKILL.md references/reading-profiles.md references/report-template.md; do
+    if grep -qE '75s hold|75s at 50%|last 20 counted|inside the 75s|while the hold still runs' "$doc"; then
+        fail "$doc: no profiler in the measuring hold"
+    else
+        pass "$doc: no profiler in the measuring hold"
+    fi
+done
+
 # Every local report follows the template, and its JSON has results.
 reports=$(ls ../../cmd/perf/out/reports/*-docker.md 2>/dev/null)
 for report in $reports; do
@@ -142,7 +223,7 @@ for report in $reports; do
         "## Syscalls" "## Re-run and compare"; do
         has "$report" "$section"
     done
-    if grep -qE '<(version|YYYY-MM-DD|commit|scenario|gap|noise|kernel)>' "$report"; then
+    if grep -qE '<(version|YYYY-MM-DD|commit|scenario|gap|noise|kernel|window)>' "$report"; then
         fail "$name: placeholders filled"
     else
         pass "$name: placeholders filled"
@@ -184,10 +265,73 @@ for report in $afters; do
         if grep -qF -- "$text" <<< "$after"; then pass "$name: $text"; else fail "$name: $text"; fi
     done
     if grep -qE '^\| `[0-9a-f]{9}` \|' <<< "$after"; then pass "$name: commit rows"; else fail "$name: commit rows"; fi
+    # A change's verdict is an A/B, paired per second, with its 95% CI.
+    for text in "**Method:**" \
+        "| Scenario | Hold clients | Method and window | SRS CPU before, mean ± sd | SRS CPU after, mean ± sd | Difference, 95% CI |" \
+        "paired per second"; do
+        if grep -qF -- "$text" <<< "$after"; then pass "$name: $text"; else fail "$name: $text"; fi
+    done
+    json="../../cmd/perf/out/reports/$name.json"
+    if [[ -f "$json" ]]; then
+        if jq -e '.ab | length > 0 and all(.[]; .ab_run != null and .difference.ci95 != null)' "$json" >/dev/null 2>&1; then
+            pass "$name: JSON has the A/B"
+        else
+            fail "$name: JSON has the A/B"
+        fi
+    fi
     if grep -qE '\(([0-9]{4}-[0-9]{2}-[0-9]{2}-v[^)]*-docker)\.md\)' <<< "$after"; then
         pass "$name: links its baseline"
     else
         fail "$name: links its baseline"
+    fi
+done
+
+# A report measured before the flat CBR source, whose results record no source,
+# says it was VBR, so nobody compares it with a CBR run.
+for report in $reports; do
+    name=$(basename "$report" .md)
+    json="../../cmd/perf/out/reports/$name.json"
+    [[ -f "$json" ]] || continue
+    if jq -e 'all(.results[]; .setup.source == null)' "$json" >/dev/null 2>&1; then
+        has "$report" "VBR"
+    fi
+done
+
+# A report on the flat CBR source records the source and its flatness, gives each
+# hold's SRS CPU as mean ± sd over its window, and the noise with its 95% CI; its
+# JSON holds only measuring holds with a window, no profile hold.
+for report in $reports; do
+    name=$(basename "$report" .md)
+    json="../../cmd/perf/out/reports/$name.json"
+    [[ -f "$json" ]] || continue
+    jq -e '.results | length > 0 and all(.[]; .setup.source != null)' "$json" >/dev/null 2>&1 || continue
+    source=$(jq -r '.results[0].setup.source' "$json")
+    has "$report" "| Source | \`$source\`"
+    mean=$(printf '%.1f' "$(jq -r '.results[0].setup.source_flatness.second.mean' "$json")")
+    ffmpeg=$(jq -r '.results[0].setup.source_flatness.ffmpeg' "$json" | awk '{print $3}')
+    setup=$(sed -n '/^## Setup/,/^## /p' "$report")
+    for text in "$mean kbps" "$ffmpeg"; do
+        if grep -qF -- "$text" <<< "$setup"; then pass "$name: Source $text"; else fail "$name: Source $text"; fi
+    done
+    results=$(sed -n '/^## Results/,/^## /p' "$report")
+    if grep -qF "mean ± sd" <<< "$results"; then pass "$name: holds mean ± sd"; else fail "$name: holds mean ± sd"; fi
+    noise=$(grep -F '**Noise:**' "$report")
+    if grep -qF "95% CI" <<< "$noise"; then pass "$name: noise 95% CI"; else fail "$name: noise 95% CI"; fi
+    if grep -qE 'VBR source, profiler in the hold' "$report"; then
+        fail "$name: no VBR caveat on a CBR report"
+    else
+        pass "$name: no VBR caveat on a CBR report"
+    fi
+    if jq -e '[.results[] | select(.scenario.parameters.mode == "hold")] | length > 0 and all(.[]; .window.srs_cpu_percent.sd != null)' \
+        "$json" >/dev/null 2>&1; then
+        pass "$name: JSON holds have a window"
+    else
+        fail "$name: JSON holds have a window"
+    fi
+    if jq -e 'all(.results[]; .scenario.parameters.mode != "profile")' "$json" >/dev/null 2>&1; then
+        pass "$name: JSON has no profile hold"
+    else
+        fail "$name: JSON has no profile hold"
     fi
 done
 
@@ -218,6 +362,53 @@ if grep -qE -- '-repeat 3' references/round-template.md; then
     fail "round template: one run by default"
 else
     pass "round template: one run by default"
+fi
+
+# The measurement rules in every place a round reads them: a flat CBR source, per-second
+# samples, no profiler in the window, A/B preferred and sequential accepted, and temporary
+# images removed.
+for text in "**A/B preferred, sequential accepted:**" "**Temporary images:**" \
+    '`srs-perf-build:<flag>`' "docker builder prune" "images left"; do
+    has SKILL.md "$text"
+done
+section() { sed -n "/^### $1/,/^### /p" SKILL.md; }
+in_section() {
+    if grep -qF -- "$3" <<< "$(section "$1")"; then pass "$2: $3"; else fail "$2: $3"; fi
+}
+in_section "Run the Load and Profile" "Run the Load" "mean and sd"
+in_section "Run the Load and Profile" "Run the Load" "95% CI"
+in_section "Fix the Top Bottleneck" "Fix" "perf-ab.sh"
+in_section "Fix the Top Bottleneck" "Fix" "180s"
+in_section "Fix the Top Bottleneck" "Fix" "95% CI"
+in_section "Commit" "Commit" "95% CI"
+in_section "Commit" "Commit" "method"
+in_section "Write the Report" "Write the Report" "flatness"
+has SKILL.md "one 20s hold"
+if grep -qF "one 10s hold" SKILL.md; then fail "SKILL.md: cap check is 20s"; else pass "SKILL.md: cap check is 20s"; fi
+template=references/report-template.md
+for text in "| Source |" "<flatness>" "usage_usec" "mean ± sd" "95% CI" "paired per second" \
+    "sequential" "noisier" "perf-ab.sh" "<method>"; do
+    has "$template" "$text"
+done
+if grep -qF "within the noise of the 10% line" "$template"; then
+    fail "$template: rerun by the CI, not the noise"
+else
+    pass "$template: rerun by the CI, not the noise"
+fi
+decisions=$(sed -n '/^## Decisions/,/^## /p' references/round-template.md)
+for text in "**Flat CBR source:**" "**Per-second samples:**" "**No profiler in the window:**" \
+    "**A/B preferred, sequential accepted:**" "**Temporary images:**"; do
+    if grep -qF -- "$text" <<< "$decisions"; then pass "round Decisions: $text"; else fail "round Decisions: $text"; fi
+done
+has references/round-template.md "**Source:**"
+has references/round-template.md "perf-ab.sh"
+for text in "window mean" "90% profile hold" "no CPU per client"; do
+    has references/reading-profiles.md "$text"
+done
+if grep -rqF "doc/performance" SKILL.md references; then
+    fail "no doc/performance in the skill text"
+else
+    pass "no doc/performance in the skill text"
 fi
 
 if [[ "$failed" == 0 ]]; then echo "Skill test passed"; else echo "Skill test failed"; fi

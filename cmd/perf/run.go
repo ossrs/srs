@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,29 +18,24 @@ import (
 // the TCP protocols; each scenario's config admits it plus its publisher.
 const defaultClientCap = 40000
 
-const (
-	// A ramp step lasts this long when no -seconds is given.
-	defaultRampSeconds = 5
-	// A hold lasts this long when no -seconds is given.
-	defaultHoldSeconds = 30
-	// The first seconds of a step let new clients connect and settle.
-	settleSeconds = 2
-	// At most this many of the last samples count in a long step or hold.
-	maxSteadySamples = 20
-)
-
-func stepSeconds(mode string, seconds int) int {
-	if seconds > 0 {
-		return seconds
+// stepTiming gives a mode's default settle and window, in seconds. A step
+// lasts both; only the window's samples count.
+//   - ramp: a 5s step, 2s for new clients to connect, then 3 counted.
+//   - hold: a measuring hold, 30s to settle, then a 60s window (180s for a verdict).
+//   - profile: a hold for perf after the measuring holds, 30s to settle, then
+//     75s for the 60s record and the 10s syscall count.
+func stepTiming(mode string) (settle, window int) {
+	switch mode {
+	case "hold":
+		return 30, 60
+	case "profile":
+		return 30, 75
 	}
-	if mode == "hold" {
-		return defaultHoldSeconds
-	}
-	return defaultRampSeconds
+	return 2, 3
 }
 
-func evaluateRampStep(clients int, samples []sample, cap int) (step, bool) {
-	s := step{Mode: "ramp", Clients: clients, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}
+func evaluateRampStep(clients, settle int, samples []sample, cap int) (step, bool) {
+	s := step{Mode: "ramp", Clients: clients, SettleSeconds: settle, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}
 	if len(samples) == 0 {
 		s.Health = health{Reason: "no samples"}
 		return s, true
@@ -62,7 +58,7 @@ func evaluateRampStep(clients int, samples []sample, cap int) (step, bool) {
 			s.Health = health{Reason: "no frames for 5s"}
 		}
 	}
-	cpu = steadyCPU(samples)
+	cpu = steadyCPU(samples, settle)
 	for _, sample := range samples {
 		if v := classifyWorkerLoad(!s.Health.Healthy, sample.WorkerCPUPercent); !v.Valid {
 			s.Validity = v
@@ -73,20 +69,18 @@ func evaluateRampStep(clients int, samples []sample, cap int) (step, bool) {
 	return s, stop
 }
 
-// steadySamples skips the settle seconds and keeps at most the last
-// maxSteadySamples: the last 3 of a 5s ramp step, the last 20 of a hold.
-func steadySamples(samples []sample) []sample {
-	if len(samples) > settleSeconds {
-		samples = samples[settleSeconds:]
-	}
-	if len(samples) > maxSteadySamples {
-		return samples[len(samples)-maxSteadySamples:]
+// steadySamples skips the settle seconds and keeps every sample after them:
+// the last 3 of a 5s ramp step, the whole window of a hold. A step no longer
+// than its settle keeps all of its samples.
+func steadySamples(samples []sample, settle int) []sample {
+	if len(samples) > settle {
+		return samples[settle:]
 	}
 	return samples
 }
 
-func steadyCPU(samples []sample) float64 {
-	steady := steadySamples(samples)
+func steadyCPU(samples []sample, settle int) float64 {
+	steady := steadySamples(samples, settle)
 	if len(steady) == 0 {
 		return 0
 	}
@@ -97,13 +91,78 @@ func steadyCPU(samples []sample) float64 {
 	return cpu / float64(len(steady))
 }
 
+func statOf(values []float64) stat {
+	if len(values) == 0 {
+		return stat{}
+	}
+	var sum float64
+	for _, v := range values {
+		sum += v
+	}
+	mean := sum / float64(len(values))
+	if len(values) == 1 {
+		return stat{Mean: mean}
+	}
+	var squares float64
+	for _, v := range values {
+		squares += (v - mean) * (v - mean)
+	}
+	return stat{Mean: mean, SD: math.Sqrt(squares / float64(len(values)-1))}
+}
+
+// windowOf gives the mean and sd of each metric over a step's counted
+// samples, the same ones its CPU decisions use.
+func windowOf(samples []sample, settle int) window {
+	steady := steadySamples(samples, settle)
+	metrics := make([][]float64, 7)
+	for _, s := range steady {
+		var workers float64
+		for _, cpu := range s.WorkerCPUPercent {
+			workers += cpu
+		}
+		if len(s.WorkerCPUPercent) > 0 {
+			workers /= float64(len(s.WorkerCPUPercent))
+		}
+		for i, v := range []float64{s.SRSCPUPercent, float64(s.SRSRSSBytes), workers, float64(s.Frames), float64(s.Bytes), float64(s.LagMillis), float64(s.Failures)} {
+			metrics[i] = append(metrics[i], v)
+		}
+	}
+	return window{
+		Samples:          len(steady),
+		SRSCPUPercent:    statOf(metrics[0]),
+		SRSRSSBytes:      statOf(metrics[1]),
+		WorkerCPUPercent: statOf(metrics[2]),
+		Frames:           statOf(metrics[3]),
+		Bytes:            statOf(metrics[4]),
+		LagMillis:        statOf(metrics[5]),
+		Failures:         statOf(metrics[6]),
+	}
+}
+
+// summarizeResult gives every step its window, and the result its capacity
+// and CPU per client; a hold's result carries its one step's window. A profile
+// hold's CPU includes perf, so its result has neither.
+func summarizeResult(r result, mode string) result {
+	for i := range r.Steps {
+		w := windowOf(r.Steps[i].Samples, r.Steps[i].SettleSeconds)
+		r.Steps[i].Window = &w
+	}
+	if mode == "ramp" {
+		r.Capacity, r.CPUPerClient = rampSummary(r.Steps)
+	} else if len(r.Steps) > 0 && mode != "profile" {
+		r.CPUPerClient = holdCPUPerClient(r.Steps[0])
+		r.Window = r.Steps[0].Window
+	}
+	return r
+}
+
 // holdCPUPerClient is the SRS CPU per client of a hold, so two holds at the
 // same client count show the noise between identical runs.
 func holdCPUPerClient(s step) float64 {
 	if s.Clients <= 0 || len(s.Samples) == 0 {
 		return 0
 	}
-	return steadyCPU(s.Samples) / float64(s.Clients)
+	return steadyCPU(s.Samples, s.SettleSeconds) / float64(s.Clients)
 }
 
 func rampSummary(steps []step) (int, float64) {
@@ -114,7 +173,7 @@ func rampSummary(steps []step) (int, float64) {
 		if !s.Health.Healthy || !s.Validity.Valid || len(s.Samples) == 0 {
 			break
 		}
-		cpu := steadyCPU(s.Samples)
+		cpu := steadyCPU(s.Samples, s.SettleSeconds)
 		if cpu >= 90 {
 			break
 		}
@@ -198,9 +257,14 @@ func clockTicks() (float64, error) {
 }
 
 func runPerformance(output *os.File, cmd command) error {
-	tags, err := loadFLV("doc/source.flv")
-	if err != nil {
-		return err
+	// Players with no publisher need no media, so the cap check needs no source.
+	var tags []rtmpMessage
+	var flatness json.RawMessage
+	if !cmd.noPublisher {
+		var err error
+		if tags, flatness, err = loadSource(cmd.media); err != nil {
+			return err
+		}
 	}
 	mode := cmd.mode
 	if mode == "" {
@@ -210,7 +274,10 @@ func runPerformance(output *os.File, cmd command) error {
 	if cores == 0 {
 		cores = runtime.NumCPU()
 	}
-	seconds := stepSeconds(mode, cmd.seconds)
+	settle, window := cmd.settle, cmd.window
+	if window == 0 {
+		settle, window = stepTiming(mode)
+	}
 	cap := cmd.cap
 	if cap == 0 {
 		cap = defaultClientCap
@@ -221,17 +288,19 @@ func runPerformance(output *os.File, cmd command) error {
 	}
 	for repeat := 1; repeat <= cmd.repeat; repeat++ {
 		runName := fmt.Sprintf("%s-%s-%02d", time.Now().UTC().Format("20060102T150405Z"), cmd.scenario, repeat)
-		r := result{Setup: captureSetup(cmd), Scenario: scenarios[cmd.scenario], Health: health{Healthy: true}, Validity: validity{Valid: true}}
+		r := result{Setup: captureSetup(cmd), ABRun: cmd.abRun, Scenario: scenarios[cmd.scenario], Health: health{Healthy: true}, Validity: validity{Valid: true}}
 		clients := cmd.clients
 		if clients == 0 {
 			clients = 100
 		}
-		r.Scenario.Parameters = map[string]string{"seconds": fmt.Sprint(seconds), "mode": mode, "clients": fmt.Sprint(clients), "cap": fmt.Sprint(cap), "workers": fmt.Sprint(cores), "media": "doc/source.flv"}
+		r.Scenario.Parameters = map[string]string{"settle": fmt.Sprint(settle), "window": fmt.Sprint(window), "mode": mode, "clients": fmt.Sprint(clients), "cap": fmt.Sprint(cap), "workers": fmt.Sprint(cores), "media": cmd.media}
 		if cmd.noPublisher {
 			r.Scenario.Parameters["media"] = "none"
+		} else {
+			r.Setup = withSource(r.Setup, cmd.media, flatness)
 		}
 		for {
-			s, err := measureStep(mode, clients, seconds, cores, cmd.srsPID, tags, cmd.noPublisher)
+			s, err := measureStep(mode, clients, settle, window, cores, cmd.srsPID, tags, cmd.media, cmd.noPublisher)
 			if err != nil {
 				return err
 			}
@@ -242,10 +311,10 @@ func runPerformance(output *os.File, cmd command) error {
 			if !s.Validity.Valid {
 				r.Validity = s.Validity
 			}
-			if mode == "hold" || !s.Health.Healthy || !s.Validity.Valid || clients >= cap {
+			if mode != "ramp" || !s.Health.Healthy || !s.Validity.Valid || clients >= cap {
 				break
 			}
-			if steadyCPU(s.Samples) >= 90 {
+			if steadyCPU(s.Samples, settle) >= 90 {
 				break
 			}
 			clients *= 2
@@ -253,11 +322,7 @@ func runPerformance(output *os.File, cmd command) error {
 				clients = cap
 			}
 		}
-		if mode == "ramp" {
-			r.Capacity, r.CPUPerClient = rampSummary(r.Steps)
-		} else if len(r.Steps) > 0 {
-			r.CPUPerClient = holdCPUPerClient(r.Steps[0])
-		}
+		r = summarizeResult(r, mode)
 		path, err := writeRunJSON(base, runName, r)
 		if err != nil {
 			return err
@@ -267,7 +332,8 @@ func runPerformance(output *os.File, cmd command) error {
 	return nil
 }
 
-func measureStep(mode string, clients, seconds, cores, srsPID int, tags []rtmpMessage, noPublisher bool) (step, error) {
+func measureStep(mode string, clients, settle, window, cores, srsPID int, tags []rtmpMessage, media string, noPublisher bool) (step, error) {
+	seconds := settle + window
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clock := &mediaClock{}
@@ -288,7 +354,10 @@ func measureStep(mode string, clients, seconds, cores, srsPID int, tags []rtmpMe
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
-	group, err := startWorkers(ctx, nil, "rtmp-rtmp", clients, cores)
+	if noPublisher {
+		media = ""
+	}
+	group, err := startWorkers(ctx, nil, "rtmp-rtmp", media, clients, cores)
 	if err != nil {
 		return step{}, err
 	}
@@ -300,7 +369,7 @@ func measureStep(mode string, clients, seconds, cores, srsPID int, tags []rtmpMe
 	if err != nil {
 		return step{}, err
 	}
-	sampler := newProcSampler("/proc", srsPID, group.pids(), ticks)
+	sampler := newProcSampler("/proc", "/sys/fs/cgroup", srsPID, group.pids(), ticks)
 	if _, err := sampler.sampleAt(time.Now()); err != nil {
 		return step{}, err
 	}
@@ -313,13 +382,14 @@ func measureStep(mode string, clients, seconds, cores, srsPID int, tags []rtmpMe
 		if err != nil {
 			return step{}, err
 		}
-		usage, err := sampler.sampleAt(time.Now())
+		now := time.Now()
+		usage, err := sampler.sampleAt(now)
 		if err != nil {
 			return step{}, err
 		}
-		all = append(all, sample{Second: second, SRSCPUPercent: usage.srsCPUPercent, SRSRSSBytes: usage.srsRSSBytes, WorkerCPUPercent: usage.workerCPUPercent, Frames: counters.Frames, Bytes: counters.Bytes, LagMillis: counters.LagMillis, Failures: counters.Failures})
+		all = append(all, sample{Second: second, UnixMillis: now.UnixMilli(), SRSCPUPercent: usage.srsCPUPercent, SRSCPUUsageUsec: usage.srsCPUUsageUsec, SRSRSSBytes: usage.srsRSSBytes, WorkerCPUPercent: usage.workerCPUPercent, Frames: counters.Frames, Bytes: counters.Bytes, LagMillis: counters.LagMillis, Failures: counters.Failures})
 	}
-	evaluated, _ := evaluateRampStep(clients, all, defaultClientCap)
+	evaluated, _ := evaluateRampStep(clients, settle, all, defaultClientCap)
 	evaluated.Mode = mode
 	evaluated.Samples = all
 	return evaluated, nil

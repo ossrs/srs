@@ -34,6 +34,13 @@ done
 # 32768-60999 range has only 28232 ports.
 test "$(docker exec srs-perf-load sysctl -n net.ipv4.ip_local_port_range | awk '{print $1, $2}')" = "10000 65535"
 
+# SRS CPU is its container's cgroup usage_usec: the load container shares the
+# host cgroup namespace, so it finds SRS's cgroup from /proc/1/cgroup.
+test "$(docker inspect -f '{{.HostConfig.CgroupnsMode}}' srs-perf-load)" = host
+srs_cgroup=$(docker exec srs-perf-load cat /proc/1/cgroup | sed -n 's/^0:://p')
+test "$srs_cgroup" = "/docker/$srs_id"
+docker exec srs-perf-load grep -qE '^usage_usec [0-9]+$' "/sys/fs/cgroup$srs_cgroup/cpu.stat"
+
 make perf-down
 test "$(docker inspect -f '{{.State.Running}}' srs-perf-srs 2>/dev/null || true)" = ''
 test "$(docker inspect -f '{{.State.Running}}' srs-perf-load 2>/dev/null || true)" = ''

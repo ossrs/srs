@@ -16,9 +16,11 @@ import (
 )
 
 type workerRequest struct {
-	Kind            string `json:"kind"`
-	Scenario        string `json:"scenario,omitempty"`
-	Clients         int    `json:"clients,omitempty"`
+	Kind     string `json:"kind"`
+	Scenario string `json:"scenario,omitempty"`
+	Clients  int    `json:"clients,omitempty"`
+	// Media is the source the publisher loops; players measure lag by it.
+	Media           string `json:"media,omitempty"`
 	Second          int    `json:"second,omitempty"`
 	LatestTimestamp uint32 `json:"latest_timestamp,omitempty"`
 	// Final marks the step's last sample: a player with no frame yet fails.
@@ -57,7 +59,7 @@ func splitClients(clients, cores int) []int {
 	return shares
 }
 
-func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario string, clients, cores int) (*workerGroup, error) {
+func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario, media string, clients, cores int) (*workerGroup, error) {
 	shares := splitClients(clients, cores)
 	if shares == nil {
 		return nil, fmt.Errorf("clients must be nonnegative and cores positive")
@@ -96,7 +98,7 @@ func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario str
 		}
 		worker := &workerClient{cmd: cmd, input: input, enc: json.NewEncoder(input), dec: json.NewDecoder(output)}
 		group.workers = append(group.workers, worker)
-		if err := worker.enc.Encode(workerRequest{Kind: "start", Scenario: scenario, Clients: share}); err != nil {
+		if err := worker.enc.Encode(workerRequest{Kind: "start", Scenario: scenario, Media: media, Clients: share}); err != nil {
 			group.close()
 			return nil, fmt.Errorf("configure worker %d: %w", id, err)
 		}
@@ -217,7 +219,17 @@ func serveWorker(input io.Reader, output io.Writer) error {
 	if _, ok := scenarioByName(start.Scenario); !ok {
 		return fmt.Errorf("unknown scenario %q", start.Scenario)
 	}
-	runtime := startRTMPPlayers(start.Clients)
+	var timeline *sourceTimeline
+	if start.Media != "" {
+		tags, err := loadFLV(start.Media)
+		if err != nil {
+			return err
+		}
+		if timeline, err = lagTimeline(start.Media, tags); err != nil {
+			return err
+		}
+	}
+	runtime := startRTMPPlayers(start.Clients, timeline)
 	defer runtime.close()
 	if err := enc.Encode(workerResponse{}); err != nil {
 		return err
@@ -252,10 +264,59 @@ type workerPlayers struct {
 	failures atomic.Int64
 	last     []atomic.Int64
 	latest   []atomic.Uint32
+	timeline *sourceTimeline
+	// anchor is 1 + the time in the source loop of a player's first video frame
+	// with a unique payload, 0 until it has one; anchorTS is that frame's
+	// timestamp as the player got it.
+	anchor   []atomic.Int64
+	anchorTS []atomic.Uint32
+	// offset turns a player's timestamps into publisher time; only sample uses
+	// it, once the player has an anchor.
+	offset   []int64
+	resolved []bool
 }
 
-func startRTMPPlayers(clients int) *workerPlayers {
-	w := &workerPlayers{stop: make(chan struct{}), started: time.Now(), last: make([]atomic.Int64, clients), latest: make([]atomic.Uint32, clients)}
+func newWorkerPlayers(clients int, timeline *sourceTimeline) *workerPlayers {
+	return &workerPlayers{
+		stop: make(chan struct{}), started: time.Now(), timeline: timeline,
+		last: make([]atomic.Int64, clients), latest: make([]atomic.Uint32, clients),
+		anchor: make([]atomic.Int64, clients), anchorTS: make([]atomic.Uint32, clients),
+		offset: make([]int64, clients), resolved: make([]bool, clients),
+	}
+}
+
+// received counts a player's message, keeps its newest timestamp, and anchors
+// the player to the source at its first video frame with a unique payload.
+func (w *workerPlayers) received(id int, m rtmpMessage) {
+	w.frames.Add(1)
+	w.bytes.Add(int64(len(m.payload)))
+	w.latest[id].Store(m.timestamp)
+	if w.anchor[id].Load() == 0 {
+		if at, ok := w.timeline.inLoop(m); ok {
+			w.anchorTS[id].Store(m.timestamp)
+			w.anchor[id].Store(int64(at) + 1)
+		}
+	}
+	w.last[id].Store(time.Now().UnixNano())
+}
+
+// lag is how far a player's newest message is behind the publisher's newest
+// one, both in publisher time; false until the player has an anchor.
+func (w *workerPlayers) lag(id int, publisherTimestamp uint32) (int64, bool) {
+	if !w.resolved[id] {
+		anchor := w.anchor[id].Load()
+		if anchor == 0 || publisherTimestamp == 0 {
+			return 0, false
+		}
+		at := w.timeline.publisherTime(uint32(anchor-1), publisherTimestamp)
+		w.offset[id] = at - int64(w.anchorTS[id].Load())
+		w.resolved[id] = true
+	}
+	return int64(publisherTimestamp) - (int64(w.latest[id].Load()) + w.offset[id]), true
+}
+
+func startRTMPPlayers(clients int, timeline *sourceTimeline) *workerPlayers {
+	w := newWorkerPlayers(clients, timeline)
 	// The first dial error of a worker names a load-side limit, such as no
 	// free ephemeral port or too many open files.
 	var logged atomic.Bool
@@ -275,10 +336,7 @@ func startRTMPPlayers(clients int) *workerPlayers {
 			readDone := make(chan error, 1)
 			go func() { readDone <- playRTMP(c, "perf-run", w.stop, report); close(report) }()
 			for m := range report {
-				w.frames.Add(1)
-				w.bytes.Add(int64(len(m.payload)))
-				w.latest[id].Store(m.timestamp)
-				w.last[id].Store(time.Now().UnixNano())
+				w.received(id, m)
 			}
 			if err := <-readDone; err != nil {
 				w.failures.Add(1)
@@ -320,8 +378,7 @@ func (w *workerPlayers) sample(publisherTimestamp uint32, final bool) workerResp
 		if now.Sub(time.Unix(0, last)) > 5*time.Second {
 			r.Failures++
 		}
-		lag := int64(publisherTimestamp) - int64(w.latest[id].Load())
-		if lag > r.LagMillis {
+		if lag, ok := w.lag(id, publisherTimestamp); ok && lag > r.LagMillis {
 			r.LagMillis = lag
 		}
 	}

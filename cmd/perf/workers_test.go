@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -45,7 +44,7 @@ func TestWorkersCollectAndStop(t *testing.T) {
 		cmd.Env = append(os.Environ(), "SRS_PERF_FAKE_WORKER=1")
 		return cmd
 	}
-	group, err := startWorkers(ctx, factory, "rtmp-rtmp", 10, 3)
+	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", 10, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +73,7 @@ func TestWorkersCollectEverySecond(t *testing.T) {
 		cmd.Env = append(os.Environ(), "SRS_PERF_FAKE_WORKER=1")
 		return cmd
 	}
-	group, err := startWorkers(ctx, factory, "rtmp-rtmp", 4, 2)
+	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", 4, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +153,7 @@ func TestWorkerHelperProcess(t *testing.T) {
 // A player that gets no frame in the whole step fails at the step's last
 // sample, even when the step is shorter than the 5s gap rule.
 func TestPlayerWithoutFramesFailsAtStepEnd(t *testing.T) {
-	w := &workerPlayers{started: time.Now(), last: make([]atomic.Int64, 2), latest: make([]atomic.Uint32, 2)}
+	w := newWorkerPlayers(2, nil)
 	w.last[1].Store(time.Now().UnixNano())
 	if got := w.sample(0, false); got.Failures != 0 {
 		t.Fatalf("mid-step failures=%d, want 0", got.Failures)

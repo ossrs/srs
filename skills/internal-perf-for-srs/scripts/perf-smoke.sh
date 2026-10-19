@@ -25,5 +25,7 @@ trap cleanup EXIT
 SRS_PERF_SCENARIO="$scenario" SRS_PERF_OUT="$out" make perf-up
 docker cp cmd/perf/out/srs-perf-linux srs-perf-load:/usr/local/bin/srs-perf
 docker exec srs-perf-load srs-perf smoke -scenario "$scenario" > "$out/result.json"
-jq -e '.health.healthy == true and .steps[0].clients == 100 and .steps[0].samples[0].frames > 0' "$out/result.json" >/dev/null
+jq -e '.health.healthy == true and .setup.source_flatness.flat == true and .steps[0].clients == 100 and .steps[0].samples[0].frames > 0' "$out/result.json" >/dev/null
+# One sample a second, SRS CPU from its cgroup, and the window's mean and sd.
+jq -e '(.steps[0].samples | length) == 10 and all(.steps[0].samples[]; .srs_cpu_usage_usec > 0 and .srs_rss_bytes > 0 and .frames > 0) and .steps[0].window.samples >= 3 and .steps[0].window.srs_cpu_percent.mean > 0 and .steps[0].window.srs_cpu_percent.mean < 100 and .steps[0].window.srs_cpu_percent.sd >= 0' "$out/result.json" >/dev/null
 echo "RTMP smoke passed: $out/result.json"

@@ -13,21 +13,70 @@ import (
 
 type procUsage struct {
 	srsCPUPercent    float64
+	srsCPUUsageUsec  uint64
 	srsRSSBytes      int64
 	workerCPUPercent []float64
 }
 
+// procSampler takes SRS CPU from its container's cgroup usage_usec, which
+// counts every thread and child of the container to the microsecond, and RSS
+// and each worker's CPU from /proc.
 type procSampler struct {
 	root           string
+	cgroupRoot     string
 	srsPID         int
+	srsCgroup      string
 	workerPIDs     []int
 	ticksPerSecond float64
 	previous       map[int]uint64
+	previousUsage  uint64
 	previousTime   time.Time
 }
 
-func newProcSampler(root string, srsPID int, workerPIDs []int, ticksPerSecond float64) *procSampler {
-	return &procSampler{root: root, srsPID: srsPID, workerPIDs: append([]int(nil), workerPIDs...), ticksPerSecond: ticksPerSecond}
+func newProcSampler(root, cgroupRoot string, srsPID int, workerPIDs []int, ticksPerSecond float64) *procSampler {
+	return &procSampler{root: root, cgroupRoot: cgroupRoot, srsPID: srsPID, workerPIDs: append([]int(nil), workerPIDs...), ticksPerSecond: ticksPerSecond}
+}
+
+// readCgroupPath reads the cgroup v2 path of a process. The load container
+// must share the host cgroup namespace (docker run --cgroupns host): from a
+// private namespace the path of another container starts with "/..".
+func readCgroupPath(root string, pid int) (string, error) {
+	path := filepath.Join(root, strconv.Itoa(pid), "cgroup")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read %s: %w", path, err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.HasPrefix(line, "0::") {
+			continue
+		}
+		cgroup := strings.TrimPrefix(line, "0::")
+		if cgroup == "" || !strings.HasPrefix(cgroup, "/") || strings.HasPrefix(cgroup, "/..") {
+			return "", fmt.Errorf("cgroup %q of pid %d is outside this cgroup namespace; run the load container with --cgroupns host", cgroup, pid)
+		}
+		return cgroup, nil
+	}
+	return "", fmt.Errorf("no cgroup v2 entry in %s", path)
+}
+
+func readCgroupUsage(cgroupRoot, cgroup string) (uint64, error) {
+	path := filepath.Join(cgroupRoot, cgroup, "cpu.stat")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("read %s: %w", path, err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 || fields[0] != "usage_usec" {
+			continue
+		}
+		usage, err := strconv.ParseUint(fields[1], 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid usage_usec in %s: %w", path, err)
+		}
+		return usage, nil
+	}
+	return 0, fmt.Errorf("usage_usec missing in %s", path)
 }
 
 func readProcTicks(root string, pid int) (uint64, error) {
@@ -88,9 +137,19 @@ func (s *procSampler) sampleAt(now time.Time) (procUsage, error) {
 	if s.ticksPerSecond <= 0 {
 		return procUsage{}, fmt.Errorf("ticks per second must be positive")
 	}
-	pids := append([]int{s.srsPID}, s.workerPIDs...)
-	current := make(map[int]uint64, len(pids))
-	for _, pid := range pids {
+	if s.srsCgroup == "" {
+		cgroup, err := readCgroupPath(s.root, s.srsPID)
+		if err != nil {
+			return procUsage{}, err
+		}
+		s.srsCgroup = cgroup
+	}
+	srsUsage, err := readCgroupUsage(s.cgroupRoot, s.srsCgroup)
+	if err != nil {
+		return procUsage{}, err
+	}
+	current := make(map[int]uint64, len(s.workerPIDs))
+	for _, pid := range s.workerPIDs {
 		ticks, err := readProcTicks(s.root, pid)
 		if err != nil {
 			return procUsage{}, err
@@ -104,22 +163,22 @@ func (s *procSampler) sampleAt(now time.Time) (procUsage, error) {
 	if !s.previousTime.IsZero() && !now.After(s.previousTime) {
 		return procUsage{}, fmt.Errorf("sample time must advance")
 	}
-	usage := procUsage{srsRSSBytes: rss, workerCPUPercent: make([]float64, len(s.workerPIDs))}
+	usage := procUsage{srsCPUUsageUsec: srsUsage, srsRSSBytes: rss, workerCPUPercent: make([]float64, len(s.workerPIDs))}
 	if !s.previousTime.IsZero() {
 		elapsed := now.Sub(s.previousTime).Seconds()
-		for i, pid := range pids {
+		if srsUsage < s.previousUsage {
+			return procUsage{}, fmt.Errorf("cgroup usage_usec went backwards for %s", s.srsCgroup)
+		}
+		usage.srsCPUPercent = float64(srsUsage-s.previousUsage) / (elapsed * 1e6) * 100
+		for i, pid := range s.workerPIDs {
 			if current[pid] < s.previous[pid] {
 				return procUsage{}, fmt.Errorf("CPU ticks went backwards for pid %d", pid)
 			}
-			cpu := float64(current[pid]-s.previous[pid]) / (elapsed * s.ticksPerSecond) * 100
-			if i == 0 {
-				usage.srsCPUPercent = cpu
-			} else {
-				usage.workerCPUPercent[i-1] = cpu
-			}
+			usage.workerCPUPercent[i] = float64(current[pid]-s.previous[pid]) / (elapsed * s.ticksPerSecond) * 100
 		}
 	}
 	s.previous = current
+	s.previousUsage = srsUsage
 	s.previousTime = now
 	return usage, nil
 }

@@ -20,6 +20,7 @@ Measure SRS v<version> under many simulated clients, fix the top bottleneck agai
 - **Last round:** <the last round's after-report in `cmd/perf/out/reports/`, or none>.
 - **Baseline:** <`cmd/perf/out/reports/<YYYY-MM-DD>-v<version>-docker.md` and its JSON, written by the baseline report step>.
 - **Setup:** <machine model, cores, memory, Docker version and VM CPUs and memory, kernel>.
+- **Source:** `/srs/perf/cbr.flv` in `srs-perf:local`, flat per its `cbr-flatness.json`: <per-second mean, min and max in kbps, per-frame sd>.
 
 ## Current state
 
@@ -37,6 +38,11 @@ Measure SRS v<version> under many simulated clients, fix the top bottleneck agai
 
 These come from the skill and hold for every round:
 
+- **Flat CBR source:** every measurement uses the flat CBR source in `srs-perf:local`, never a VBR file, since SRS CPU follows the bitrate.
+- **Per-second samples:** SRS CPU from its container's cgroup, RSS and every other metric once a second, every sample kept; each hold gives the mean and sd over its window.
+- **No profiler in the window:** a measuring hold settles 30s and counts its window with nothing else in the SRS container; `perf record` and `perf trace` run in a separate profile hold, whose CPU is never a measurement.
+- **A/B preferred, sequential accepted:** a change's verdict is an A/B by `perf-ab.sh`, both builds at once, paired per second over 180s, with the difference's 95% CI. A sequential comparison with a run recorded earlier under the same conditions is accepted, unpaired and noisier, and marked so.
+- **Temporary images:** only `srs-perf:local` is kept. Each `srs-perf-ab:<task>-<rev>` or `srs-perf-build:<flag>` image is removed when its comparison or check ends, and each step logs the images left.
 - **Keep by default:** a change on the top bottleneck is kept when its tests pass and no measured scenario loses 10% or more in capacity or CPU per client, even when the numbers are flat. The review drops what did not help.
 - **Drop:** only when a test fails or a scenario loses 10% or more. Restore the files, commit nothing, and log the numbers and both symbol tables.
 - **Always the top bottleneck:** re-rank after each kept change; the next try fixes the new #1. No fixed candidate list.
@@ -58,11 +64,15 @@ The current ranking, replaced after each re-rank, from the 90% hold of the lates
 
 One chain per bottleneck: a step per change, kept or dropped, with the numbers before and after at the same hold client counts. Step 0 is the baseline the chain starts from. The Commit column is the round's list of commits for the user's review.
 
+- **Method and window:** an A/B paired per second, or sequential and unpaired, and the window, such as `A/B 180s at 11520`.
+- **SRS CPU:** before → after as mean ± sd over the window; the difference in points and percent with its 95% CI, and whether the CI contains 0.
+- **Capacity:** from the step's ramp; the CPU per client of a ramp is a note only.
+
 ### Chain 1: <code path>
 
-| Step | Change | Commit | Capacity | CPU per client | SRS CPU at 50% and 90% | Top symbols before → after | Result |
-|---|---|---|---|---|---|---|---|
-| 0 | Baseline, no change | <baseline commit> | <capacity> | <CPU per client> | <SRS CPU> | <top symbols with shares> | baseline |
+| Step | Change | Commit | Method and window | SRS CPU before → after, mean ± sd | Difference, 95% CI | Capacity | Top symbols before → after | Result |
+|---|---|---|---|---|---|---|---|---|
+| 0 | Baseline, no change | <baseline commit> | <sequential, window and hold counts> | <SRS CPU mean ± sd at 50% and 90%> | — | <capacity> | <top symbols with shares> | baseline |
 
 ## Steps
 
@@ -75,7 +85,7 @@ The round's progress. Tick a step when it is done, and log it in the Work log.
 - [ ] **Baseline report:** the skill's Write the Report, and its JSON, with every section except Before and after. No SRS code changes. Link it from Background.
 - [ ] **Rank:** the skill's Rank Bottlenecks; fill the Ranking and start Chain 1 for the top bottleneck.
 
-**Bottlenecks:** each try is the skill's Fix the Top Bottleneck, Check and Commit on the current #1, and adds a step to its chain. The work goes on until the limit or the end in Decisions.
+**Bottlenecks:** each try is the skill's Fix the Top Bottleneck, Check and Commit on the current #1, and adds a step to its chain. Its verdict is an A/B by `perf-ab.sh` at the 90% hold count. The work goes on until the limit or the end in Decisions.
 
 **Final:**
 

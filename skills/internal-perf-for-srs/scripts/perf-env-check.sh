@@ -25,7 +25,7 @@ for key in rmem_max wmem_max rmem_default wmem_default; do
 done
 
 docker exec -d srs-perf-load ffmpeg -nostdin -hide_banner -loglevel error \
-    -re -stream_loop -1 -i doc/source.flv -t 20 -c copy -f flv \
+    -re -stream_loop -1 -i /srs/perf/cbr.flv -t 20 -c copy -f flv \
     rtmp://127.0.0.1/live/env-check >/dev/null
 sleep 2
 docker exec srs-perf-load pgrep -x ffmpeg >/dev/null
@@ -33,7 +33,7 @@ docker exec srs-perf-srs bash /perf-scripts/perf-capture.sh
 test -s "$out/perf.data"
 test -s "$out/flamegraph.svg"
 test -s "$out/top-symbols.txt"
-rg -q 'Srs[A-Za-z_]+|srs_' "$out/top-symbols.txt"
+grep -Eq 'Srs[A-Za-z_]+|srs_' "$out/top-symbols.txt"
 
 idle=$(docker exec srs-perf-srs bash /perf-scripts/perf-cpu-loop.sh)
 docker exec -d srs-perf-load bash /perf-scripts/perf-cpu-busy.sh >/dev/null

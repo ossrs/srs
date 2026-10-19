@@ -169,7 +169,7 @@ func publishRTMP(c *rtmpClient, stream string, tags []rtmpMessage, clock *mediaC
 	}
 	c.conn.SetDeadline(time.Time{})
 	start := time.Now()
-	duration := tags[len(tags)-1].timestamp + 40
+	duration := loopDuration(tags)
 	for loop := uint32(0); ; loop++ {
 		for _, original := range tags {
 			tag := original

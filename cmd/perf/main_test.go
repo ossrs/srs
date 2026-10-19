@@ -18,11 +18,28 @@ func TestParseCommand(t *testing.T) {
 		want command
 		err  string
 	}{
-		{[]string{"run", "-scenario", "rtmp-rtmp", "-repeat", "3"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 3}, ""},
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-repeat", "3"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 3, settle: 2, window: 3, media: defaultMedia}, ""},
 		// One run by default; the noise is measured by a second identical hold.
-		{[]string{"run", "-scenario", "rtmp-rtmp"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1}, ""},
+		{[]string{"run", "-scenario", "rtmp-rtmp"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, settle: 2, window: 3, media: defaultMedia}, ""},
+		// Runs read the flat CBR source in the image unless told otherwise.
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-media", "/tmp/other.flv"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, settle: 2, window: 3, media: "/tmp/other.flv"}, ""},
+		// A measuring hold settles 30s and counts a 60s window, 180s for a verdict.
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "hold"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, mode: "hold", settle: 30, window: 60, media: defaultMedia}, ""},
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "hold", "-window", "180"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, mode: "hold", settle: 30, window: 180, media: defaultMedia}, ""},
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "hold", "-settle", "0", "-window", "20"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, mode: "hold", settle: 0, window: 20, media: defaultMedia}, ""},
+		// A profile hold runs perf after its settle; its CPU is not a measurement.
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "profile"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, mode: "profile", settle: 30, window: 75, media: defaultMedia}, ""},
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "hold", "-window", "0"}, command{}, "invalid run options"},
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "hold", "-settle", "-2"}, command{}, "invalid run options"},
+		// -settle and -window replace -seconds, so a step's counted seconds are explicit.
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-seconds", "75"}, command{}, "seconds"},
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-media", ""}, command{}, "media is required"},
+		{[]string{"smoke", "-scenario", "rtmp-rtmp"}, command{kind: "smoke", scenario: "rtmp-rtmp", media: defaultMedia}, ""},
+		{[]string{"smoke", "-scenario", "rtmp-rtmp", "-media", "/tmp/other.flv"}, command{kind: "smoke", scenario: "rtmp-rtmp", media: "/tmp/other.flv"}, ""},
 		// perf-cap-check.sh connects players with no media, so only connection limits show.
-		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "hold", "-no-publisher"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, mode: "hold", noPublisher: true}, ""},
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "hold", "-no-publisher"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, mode: "hold", settle: 30, window: 60, noPublisher: true, media: defaultMedia}, ""},
+		// The two sides of an A/B run share an id, so compare pairs their seconds.
+		{[]string{"run", "-scenario", "rtmp-rtmp", "-mode", "hold", "-ab-run", "ab-1"}, command{kind: "run", scenario: "rtmp-rtmp", repeat: 1, mode: "hold", settle: 30, window: 60, media: defaultMedia, abRun: "ab-1"}, ""},
 		{[]string{"run", "-scenario", "unknown"}, command{}, "unknown scenario"},
 		{[]string{"run", "-scenario", "rtmp-rtmp", "-repeat", "0"}, command{}, "repeat must be positive"},
 		{[]string{"run"}, command{}, "scenario is required"},

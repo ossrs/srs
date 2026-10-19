@@ -37,7 +37,7 @@ containers_started=1
 docker cp cmd/perf/out/srs-perf-linux srs-perf-load:/usr/local/bin/srs-perf
 
 docker exec srs-perf-load srs-perf run -scenario "$scenario" -mode hold \
-    -clients "$clients" -seconds "$seconds" -no-publisher -output /out \
+    -clients "$clients" -settle 0 -window "$seconds" -no-publisher -output /out \
     > "$out/path.txt" 2> "$out/stderr.txt" &
 run_pid=$!
 peak=0

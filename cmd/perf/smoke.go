@@ -8,14 +8,9 @@ import (
 	"time"
 )
 
-type playerFrame struct {
-	id      int
-	message rtmpMessage
-}
-
-func runRTMPSmoke(output io.Writer) error {
+func runRTMPSmoke(output io.Writer, cmd command) error {
 	const clients = 100
-	tags, err := loadFLV("doc/source.flv")
+	tags, flatness, err := loadSource(cmd.media)
 	if err != nil {
 		return err
 	}
@@ -40,7 +35,11 @@ func runRTMPSmoke(output io.Writer) error {
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
-	frames := make(chan playerFrame, clients*100)
+	timeline, err := lagTimeline(cmd.media, tags)
+	if err != nil {
+		return err
+	}
+	players := newWorkerPlayers(clients, timeline)
 	errors := make(chan error, clients)
 	var wg sync.WaitGroup
 	for i := 0; i < clients; i++ {
@@ -55,11 +54,7 @@ func runRTMPSmoke(output io.Writer) error {
 			report := make(chan rtmpMessage, 128)
 			go func() {
 				for m := range report {
-					select {
-					case frames <- playerFrame{id, m}:
-					case <-stop:
-						return
-					}
+					players.received(id, m)
 				}
 			}()
 			if err := playRTMP(c, "perf-smoke", stop, report); err != nil {
@@ -72,27 +67,40 @@ func runRTMPSmoke(output io.Writer) error {
 			close(report)
 		}(i)
 	}
-	start := time.Now()
-	last := make([]time.Time, clients)
-	var frameCount, byteCount int64
+	// SRS shares the load container's pid namespace as pid 1.
+	ticks, err := clockTicks()
+	if err != nil {
+		return err
+	}
+	sampler := newProcSampler("/proc", "/sys/fs/cgroup", 1, nil, ticks)
+	if _, err := sampler.sampleAt(time.Now()); err != nil {
+		return err
+	}
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	var samples []sample
 	var maxLag int64
-	for time.Since(start) < 10*time.Second {
+	for len(samples) < 10 {
 		select {
-		case f := <-frames:
-			frameCount++
-			byteCount += int64(len(f.message.payload))
-			last[f.id] = time.Now()
-			lag := int64(clock.get()) - int64(f.message.timestamp)
-			if lag > maxLag {
-				maxLag = lag
-			}
 		case err := <-errors:
 			return err
-		case <-time.After(100 * time.Millisecond):
+		case now := <-ticker.C:
+			counters := players.sample(clock.get(), false)
+			usage, err := sampler.sampleAt(now)
+			if err != nil {
+				return err
+			}
+			second := sample{Second: len(samples) + 1, Frames: counters.Frames, Bytes: counters.Bytes, LagMillis: counters.LagMillis}
+			second.SRSCPUPercent, second.SRSCPUUsageUsec, second.SRSRSSBytes = usage.srsCPUPercent, usage.srsCPUUsageUsec, usage.srsRSSBytes
+			samples = append(samples, second)
+			if counters.LagMillis > maxLag {
+				maxLag = counters.LagMillis
+			}
 		}
 	}
-	for i, at := range last {
-		if at.IsZero() || time.Since(at) > 5*time.Second {
+	for i := range players.last {
+		at := players.last[i].Load()
+		if at == 0 || time.Since(time.Unix(0, at)) > 5*time.Second {
 			return fmt.Errorf("player %d has no recent frame", i)
 		}
 	}
@@ -115,6 +123,6 @@ func runRTMPSmoke(output io.Writer) error {
 		return fmt.Errorf("players did not stop")
 	case <-done:
 	}
-	r := result{Scenario: scenarios["rtmp-rtmp"], Steps: []step{{Mode: "smoke", Clients: clients, Samples: []sample{{Second: 10, Frames: frameCount, Bytes: byteCount, LagMillis: maxLag}}, Health: health{Healthy: true}, Validity: validity{Valid: true}}}, Health: health{Healthy: true}, Validity: validity{Valid: true}}
-	return json.NewEncoder(output).Encode(r)
+	r := result{Setup: withSource(setup{}, cmd.media, flatness), Scenario: scenarios["rtmp-rtmp"], Steps: []step{{Mode: "smoke", Clients: clients, SettleSeconds: 2, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}}, Health: health{Healthy: true}, Validity: validity{Valid: true}}
+	return json.NewEncoder(output).Encode(summarizeResult(r, "smoke"))
 }

@@ -6,17 +6,20 @@ lock="$PWD/skills/srs-develop/scripts/full-tier-lock.sh"
 scenario=rtmp-rtmp
 repeat=1
 hold_clients=
+# A measuring hold settles 30s, then counts this many seconds; 180 for a verdict.
+window=60
 pass_args=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -scenario) scenario="$2"; shift 2 ;;
         -repeat) repeat="$2"; shift 2 ;;
         -hold-clients) hold_clients="$2"; shift 2 ;;
+        -window) window="$2"; shift 2 ;;
         *) pass_args+=("$1"); shift ;;
     esac
 done
-[[ "$scenario" == rtmp-rtmp && "$repeat" =~ ^[1-9][0-9]*$ ]] || {
-    echo "Invalid scenario or repeat" >&2
+[[ "$scenario" == rtmp-rtmp && "$repeat" =~ ^[1-9][0-9]*$ && "$window" =~ ^[1-9][0-9]*$ ]] || {
+    echo "Invalid scenario, repeat or window" >&2
     exit 2
 }
 # A fix is measured at the baseline's hold counts, "<50%>,<90%>", since its own capacity may differ.
@@ -26,7 +29,7 @@ done
 }
 for arg in "${pass_args[@]}"; do
     case "$arg" in
-        -mode|-output|-srs-pid|-repeat|-scenario) echo "The run script controls $arg" >&2; exit 2 ;;
+        -mode|-output|-srs-pid|-repeat|-scenario|-settle) echo "The run script controls $arg" >&2; exit 2 ;;
     esac
 done
 
@@ -56,7 +59,6 @@ for port in 1935 1985 8080; do
         exit 1
     fi
 done
-make integ-prepare
 bash "$lock" refresh "$token"
 
 out="$PWD/cmd/perf/out"
@@ -76,6 +78,16 @@ SRS_PERF_SCENARIO="$scenario" SRS_PERF_OUT="$out" make perf-up
 containers_started=1
 docker cp cmd/perf/out/srs-perf-linux srs-perf-load:/usr/local/bin/srs-perf
 
+# hold_count CAPACITY PERCENT gives a hold's clients: PERCENT of the ramp's
+# capacity, or the baseline's count from -hold-clients.
+hold_count() {
+    local clients=$(($1 * $2 / 100))
+    if [[ -n "$hold_clients" && "$2" == 50 ]]; then clients="${hold_clients%,*}"; fi
+    if [[ -n "$hold_clients" && "$2" == 90 ]]; then clients="${hold_clients#*,}"; fi
+    if [[ "$clients" -lt 1 ]]; then clients=1; fi
+    echo "$clients"
+}
+
 for ((i=1; i<=repeat; i++)); do
     repeat_out="$out/$run/repeat-$i"
     mkdir -p "$repeat_out"
@@ -88,21 +100,31 @@ for ((i=1; i<=repeat; i++)); do
     [[ "$capacity" =~ ^[1-9][0-9]*$ ]] || { echo "Ramp has no healthy capacity" >&2; exit 1; }
 
     # hold-50-noise repeats hold-50 at the same client count, so the change in
-    # CPU per client between the two shows the noise of one run.
+    # CPU per client between the two shows the noise of one run. Nothing else
+    # runs in the SRS container: its cgroup is the CPU measured.
     for hold in 50 50-noise 90; do
-        percent="${hold%-noise}"
-        clients=$((capacity * percent / 100))
-        if [[ -n "$hold_clients" && "$percent" == 50 ]]; then clients="${hold_clients%,*}"; fi
-        if [[ -n "$hold_clients" && "$percent" == 90 ]]; then clients="${hold_clients#*,}"; fi
-        if [[ "$clients" -lt 1 ]]; then clients=1; fi
-        profile="/out/$run/repeat-$i/hold-$hold"
-        docker exec srs-perf-srs bash /perf-scripts/perf-profile.sh "$profile" &
-        profile_pid=$!
+        clients="$(hold_count "$capacity" "${hold%-noise}")"
         docker exec srs-perf-load srs-perf run -scenario "$scenario" -mode hold \
-            -clients "$clients" -seconds 75 -output "/out/$run/repeat-$i" \
+            -clients "$clients" -window "$window" -output "/out/$run/repeat-$i" \
             -machine "$machine" -docker-version "$docker_version" \
             > "$repeat_out/hold-$hold-path.txt"
-        wait "$profile_pid"
+    done
+
+    # Then one profile hold per count: perf starts when the hold has settled
+    # and records 60s, then counts syscalls for 10s. perf counts in SRS's cgroup,
+    # so the profile hold's CPU is never a measurement, and its result stays out
+    # of run.json.
+    for hold in 50 90; do
+        clients="$(hold_count "$capacity" "$hold")"
+        profile="/out/$run/repeat-$i/profile-$hold"
+        docker exec srs-perf-load srs-perf run -scenario "$scenario" -mode profile \
+            -clients "$clients" -output "$profile" \
+            -machine "$machine" -docker-version "$docker_version" \
+            > "$repeat_out/profile-$hold-path.txt" &
+        hold_pid=$!
+        sleep 30
+        docker exec srs-perf-srs bash /perf-scripts/perf-profile.sh "$profile"
+        wait "$hold_pid"
     done
     first="$out$(sed 's|^/out||' "$repeat_out/hold-50-path.txt")"
     second="$out$(sed 's|^/out||' "$repeat_out/hold-50-noise-path.txt")"
