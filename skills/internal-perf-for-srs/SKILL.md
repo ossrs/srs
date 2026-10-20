@@ -17,6 +17,7 @@ A round measures SRS under many simulated clients, finds the bottlenecks, improv
 
 ## Rules
 
+- **Paths:** `scripts/` and `references/` resolve relative to the directory containing this `SKILL.md`, not the current working directory; repository paths such as `cmd/perf/` and `bin/` resolve relative to the repository root.
 - **By hand:** a round starts only when the user asks. An SRS version bump in `srs-develop` asks the user whether to run one for the new version; start it only on a yes. Never from a commit, a PR, CI or a schedule. Nothing here is a pass or fail gate.
 - **One at a time:** one scenario, one step, one profile. A run takes minutes, about 10 for RTMP, and a round as long as its tries need. Keep the ramp steps and holds at their usual length, so a run compares with the baseline.
 - **Alone on the machine:** load skews other jobs and they skew the numbers. `perf-run.sh` waits for and holds the `srs-develop` Full-tier lock for the whole run, so it never runs beside a Full tier.
@@ -75,11 +76,11 @@ Scenarios. Each has its SRS env in `cmd/perf/env/<scenario>.env`. Unless noted, 
 - **Cross-protocol scenarios:** publish in one protocol and play in another, through an SRS bridge:
   - `srt-rtmp`: SRT to RTMP.
   - `srt-whep`: SRT to WHEP.
-  - `whip-rtmp`: WHIP to RTMP. SRS starts the stream only after two sender reports of each track.
+  - `whip-rtmp`: WHIP to RTMP. SRS starts the stream only after two sender reports of each track, and takes each track's rate from the last two, so the WHIP publisher sends its own sender reports on the pace's clock, none from pion.
   - `whip-flv`: WHIP to HTTP-FLV, with `guess_has_av` off, or players get an audio-only FLV header.
   - SRS has no other bridge.
 - `rtmp-pub`: N RTMP publishers, no player.
-- `whip-pub`: N WHIP publishers, no player.
+- `whip-pub`: N WHIP publishers, no player. Each publisher holds about 2.5 MB of SRS RSS and as much in the load tool, so at its 2,000 cap the holds run the 8 GB Docker VM out of memory: run it as `perf-run.sh -scenario whip-pub -cap 1000`.
 - `many-streams`: N streams, each with one RTMP publisher and two RTMP players.
 - `delays`: the delay probes of C7, not capacity. It measures the RTMP pause and unpause time (until `NetStream.Pause.Notify`), and the lag added by a forward target (`delays-forward.env`) and an edge (`delays-edge.env`).
 
@@ -96,6 +97,8 @@ Scripts, called by the workflows below:
 - [scripts/perf-build-check.sh](scripts/perf-build-check.sh): the check behind `make perf-build-check`, each build in its own image from `cmd/perf/Dockerfile.build`.
 - [scripts/perf-build-check-test.sh](scripts/perf-build-check-test.sh): tests the build check.
 - [scripts/perf-cap-check.sh](scripts/perf-cap-check.sh): one 20s hold at the client cap, to check that every player connects.
+- [scripts/perf-verify.sh](scripts/perf-verify.sh) `<run dir>`: checks a run before ranking, and prints its top SRS symbols and noise.
+- [scripts/perf-verify-test.sh](scripts/perf-verify-test.sh): tests the run check.
 - [scripts/perf-skill-test.sh](scripts/perf-skill-test.sh): checks this skill's text and scripts.
 
 Outputs go to the git-ignored `cmd/perf/out/<run>/`: `run.json`, each result's `result.json` and noise, and the profiles in `profile-<50|90>/`.
@@ -110,7 +113,12 @@ Outputs go to the git-ignored `cmd/perf/out/<run>/`: `run.json`, each result's `
    - Point Background's Baseline at the report and its JSON, and tick the Baseline steps with the run and report they came from.
    - Fill the Ranking from the report's Bottlenecks, and Chain 1 for the top one, with its baseline row: capacity, CPU per client and SRS CPU at both holds, and the top symbols with their shares.
    - Name the hold client counts of the baseline in Chain 1, since every fix is measured at the same counts.
-4. The round file is in the git-ignored `cmd/perf/out/reports/`, so it is never committed.
+4. **All protocols:** a round on every protocol takes every scenario of the registry in `cmd/perf/main.go`, and keeps every row of the template's Scenarios table:
+   - The baseline is one `perf-run.sh` per scenario, about 10 minutes each, so about 3 hours for all of them. Run `whip-pub` with `-cap 1000`; `delays` is a probe for the fixed-delay candidates, with no capacity or profile.
+   - Rank across the scenarios by the SRS code path, one chain per code path, and name in the chain every scenario the path serves, such as SRTP protect for `rtmp-whep`, `whip-whep` and `srt-whep`.
+   - A fix measures each scenario its chain names, so a gain on one protocol is never a loss on another.
+   - For one protocol, keep only its rows of the Scenarios table and delete the rest.
+5. The round file is in the git-ignored `cmd/perf/out/reports/`, so it is never committed.
 
 ### Build the Tools
 
@@ -119,7 +127,7 @@ Outputs go to the git-ignored `cmd/perf/out/<run>/`: `run.json`, each result's `
 
 ### Run the Load and Profile
 
-1. Run `bash skills/internal-perf-for-srs/scripts/perf-run.sh -scenario <s>`:
+1. Run `bash scripts/perf-run.sh -scenario <s>`:
    - One run, `-repeat 1`, is the default for a baseline and for a fix; about 10 minutes for RTMP.
    - The holds follow the run's own ramp. For a fix, `-hold-clients <50%>,<90%>` holds at the baseline's counts instead, such as `-hold-clients 6400,11520`, so the holds compare at the same load.
    - `-window <seconds>` sets the measuring holds' window: 60 by default, 180 for a fix's verdict. A comparison needs the same window on both sides.
@@ -129,10 +137,11 @@ Outputs go to the git-ignored `cmd/perf/out/<run>/`: `run.json`, each result's `
 
 ### Rank Bottlenecks
 
-1. Read each profile hold's `top-symbols.txt`, `syscalls.txt` and flame graph per [references/reading-profiles.md](references/reading-profiles.md).
-2. Rank by cost at the 90% profile hold, grouped into the SRS code path that owns it.
-3. Write the ranking table in the round file: the rank, the code path, its self share at both holds, the syscall counts, and the SRS files and functions.
-4. Start a chain for the new top bottleneck if it has none.
+1. Run `bash scripts/perf-verify.sh <run dir>`. Fix or rerun a run it fails before ranking it. It prints each profile hold's top SRS symbols and the noise between the two 50% holds; a noise of 10% or more is noted, so compare that scenario by an A/B or a 180s rerun. A delays run has no capacity or profile: the check needs each probe healthy with samples of every delay, and prints the delays.
+2. Read each profile hold's `top-symbols.txt`, `syscalls.txt` and flame graph per [references/reading-profiles.md](references/reading-profiles.md).
+3. Rank by cost at the 90% profile hold, grouped into the SRS code path that owns it.
+4. Write the ranking table in the round file: the rank, the code path, its self share at both holds, the syscall counts, and the SRS files and functions.
+5. Start a chain for the new top bottleneck if it has none.
 
 ### Fix the Top Bottleneck
 

@@ -14,6 +14,8 @@ import (
 
 	"github.com/bluenviron/gortsplib/v5/pkg/format"
 	"github.com/pion/ice/v4"
+	"github.com/pion/interceptor"
+	"github.com/pion/interceptor/pkg/report"
 	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v4"
@@ -54,8 +56,39 @@ var rtcAPI = sync.OnceValues(func() (*webrtc.API, error) {
 	se.SetIncludeLoopbackCandidate(true)
 	se.SetIPFilter(func(ip net.IP) bool { return ip.IsLoopback() })
 	se.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
-	return webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithSettingEngine(se)), nil
+	ir, err := rtcInterceptors(m)
+	if err != nil {
+		return nil, err
+	}
+	return webrtc.NewAPI(webrtc.WithMediaEngine(m), webrtc.WithSettingEngine(se), webrtc.WithInterceptorRegistry(ir)), nil
 })
+
+// rtcInterceptors are pion's default interceptors without its sender reports:
+// NACK, receiver reports, the simulcast header extensions, stats and TWCC. The
+// WHIP publisher sends its own sender reports on the pace's clock; pion's
+// would be a second series from its own estimate of the RTP time, and SRS
+// takes each track's rate from the last two reports of either.
+func rtcInterceptors(m *webrtc.MediaEngine) (*interceptor.Registry, error) {
+	ir := &interceptor.Registry{}
+	if err := webrtc.ConfigureNack(m, ir); err != nil {
+		return nil, err
+	}
+	receiver, err := report.NewReceiverInterceptor()
+	if err != nil {
+		return nil, err
+	}
+	ir.Add(receiver)
+	if err := webrtc.ConfigureSimulcastExtensionHeaders(m); err != nil {
+		return nil, err
+	}
+	if err := webrtc.ConfigureStatsInterceptor(ir); err != nil {
+		return nil, err
+	}
+	if err := webrtc.ConfigureTWCCSender(m, ir); err != nil {
+		return nil, err
+	}
+	return ir, nil
+}
 
 // rtcHTTP posts the offers; its timeout is a net.Error, so a player dials
 // again while SRS's API is slow in a connect burst.
@@ -502,14 +535,18 @@ func ntpTime(t time.Time) uint64 {
 	return secs<<32 | frac
 }
 
-// senderReports are the video and audio sender reports at wall time now, when
-// the publisher sends publisher time ts in ms: RTP time 90 per ms for H.264
-// and 48 for Opus, the clocks the publisher stamps its packets with.
-func senderReports(now time.Time, ts uint32, video, audio rtpCount) []rtcp.Packet {
+// senderReports are the video and audio sender reports at wall time now, with
+// the publisher time at now, since the pace began at begun: RTP time 90 per
+// ms for H.264 and 48 for Opus, the clocks the publisher stamps its packets
+// with. It is not the newest tag's time, which a late send puts behind now:
+// SRS takes each track's rate from its last two reports, so one late report
+// would change the rate and shift the stream's timestamps.
+func senderReports(now, begun time.Time, video, audio rtpCount) []rtcp.Packet {
 	ntp := ntpTime(now)
+	us := now.Sub(begun).Microseconds()
 	return []rtcp.Packet{
-		&rtcp.SenderReport{SSRC: video.ssrc, NTPTime: ntp, RTPTime: ts * 90, PacketCount: video.packets, OctetCount: video.octets},
-		&rtcp.SenderReport{SSRC: audio.ssrc, NTPTime: ntp, RTPTime: ts * 48, PacketCount: audio.packets, OctetCount: audio.octets},
+		&rtcp.SenderReport{SSRC: video.ssrc, NTPTime: ntp, RTPTime: uint32(us * 90 / 1000), PacketCount: video.packets, OctetCount: video.octets},
+		&rtcp.SenderReport{SSRC: audio.ssrc, NTPTime: ntp, RTPTime: uint32(us * 48 / 1000), PacketCount: audio.packets, OctetCount: audio.octets},
 	}
 }
 
@@ -609,7 +646,7 @@ func publishWHIP(apiAddr, app, stream, media string, tags []rtmpMessage, clock *
 			return err
 		}
 		if now := time.Now(); reports.due(now) {
-			if err := s.pc.WriteRTCP(senderReports(now, tag.timestamp, videoCount, audioCount)); err != nil {
+			if err := s.pc.WriteRTCP(senderReports(now, clock.begunAt(), videoCount, audioCount)); err != nil {
 				return err
 			}
 		}

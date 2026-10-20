@@ -8,7 +8,7 @@ A round file of the `internal-perf-for-srs` skill.
 
 Measure SRS v<version> under many simulated clients, fix the top bottleneck again and again, and report what improved. Started by hand on <date>.
 
-- **Scenarios:** <scenarios, such as rtmp-rtmp, or every scenario in the registry>.
+- **Scenarios:** <scenarios, such as rtmp-rtmp, or every scenario of the Scenarios table below>.
 - **Limit:** <none: until the top bottleneck is something SRS cannot reasonably fix; or a limit, such as one kept change in at most <n> tries>.
 - **Code:** `<checkout>` on `<branch>`, from `<base commit>` on <date>. The round measures and commits there; it needs no separate checkout.
 - **In scope:** the baseline run and report, the bottleneck chains, the final run and the after-report.
@@ -21,6 +21,30 @@ Measure SRS v<version> under many simulated clients, fix the top bottleneck agai
 - **Baseline:** <`cmd/perf/out/reports/<YYYY-MM-DD>-v<version>-docker.md` and its JSON, written by the baseline report step>.
 - **Setup:** <machine model, cores, memory, Docker version and VM CPUs and memory, kernel>.
 - **Source:** `/srs/perf/cbr.flv` in `srs-perf:local`, flat per its `cbr-flatness.json`: <per-second mean, min and max in kbps, per-frame sd>.
+
+## Scenarios
+
+Every scenario of the registry in `cmd/perf/main.go`. Keep the rows of the round's scenarios and delete the rest; fill each kept row from its baseline run.
+
+| Scenario | Publish and play | Baseline run | Capacity | Noise | Top bottleneck | Chain |
+|---|---|---|---|---|---|---|
+| `rtmp-rtmp` | RTMP to RTMP | | | | | |
+| `rtmp-flv` | RTMP to HTTP-FLV | | | | | |
+| `rtmp-ts` | RTMP to HTTP-TS | | | | | |
+| `rtmp-rtsp` | RTMP to RTSP | | | | | |
+| `rtmp-hls` | RTMP to HLS | | | | | |
+| `rtmp-dash` | RTMP to DASH | | | | | |
+| `rtmp-whep` | RTMP to WHEP | | | | | |
+| `srt-srt` | SRT to SRT | | | | | |
+| `whip-whep` | WHIP to WHEP | | | | | |
+| `srt-rtmp` | SRT to RTMP | | | | | |
+| `srt-whep` | SRT to WHEP | | | | | |
+| `whip-rtmp` | WHIP to RTMP | | | | | |
+| `whip-flv` | WHIP to HTTP-FLV | | | | | |
+| `rtmp-pub` | RTMP publishers only | | | | | |
+| `whip-pub` | WHIP publishers only, `-cap 1000` | | | | | |
+| `many-streams` | RTMP streams, two players each | | | | | |
+| `delays` | The delay probes, no capacity | | — | — | — | — |
 
 ## Current state
 
@@ -103,7 +127,7 @@ Candidates a round may try after its bottleneck chains end. Each is judged like 
 - [ ] gprof: `--gprof=on` (`-pg -lc_p`).
 - [ ] valgrind: `--valgrind=on` and `/api/v1/valgrind`.
 
-**Fixed delays:** kept when the delay drops and CPU per client in its scenarios does not rise by 10% or more, measured with the delay probes.
+**Fixed delays:** kept when the delay drops and CPU per client in its scenarios does not rise by 10% or more, measured with the `delays` scenario: the RTMP pause and unpause, and the lag added by a forward and an edge.
 
 - [ ] The RTMP player's receive thread sleeps 350ms (`SRS_PERF_MW_SLEEP`), which delays a command sent while playing.
 - [ ] Forwarders and edges dump their queue once per 500ms receive timeout (`SRS_CONSTS_RTMP_PULSE`), adding up to 500ms to a forwarded stream.

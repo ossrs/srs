@@ -53,9 +53,20 @@ has SKILL.md 'With no `SCENARIO`, `make perf-smoke` smokes every scenario'
 # A stream smoke fails when no player got video, which only lag shows; the
 # skill says which bridges SRS has and why whip-flv turns off guess_has_av.
 has scripts/perf-smoke.sh "([.steps[0].samples[].lag_millis] | max) > 0"
-for text in "**Cross-protocol scenarios:**" "SRS has no other bridge" '`guess_has_av` off' "two sender reports"; do
+for text in "**Cross-protocol scenarios:**" "SRS has no other bridge" '`guess_has_av` off' "two sender reports" "sender reports on the pace's clock, none from pion"; do
     has SKILL.md "$text"
 done
+# The hand-over: SKILL.md says how to start a round on every protocol; the round template
+# has a row for every scenario, so a round on all protocols starts from the whole registry.
+scenarios=$(sed -n '/^## Scenarios/,/^## /p' references/round-template.md)
+for s in $(sed -nE 's/^	"([a-z0-9-]+)": +\{Name:.*/\1/p' ../../cmd/perf/main.go); do
+    if grep -qF "| \`$s\` |" <<< "$scenarios"; then pass "round template scenario $s"; else fail "round template scenario $s"; fi
+done
+start=$(sed -n '/^### Start a Round/,/^### /p' SKILL.md)
+for text in "**All protocols:**" "registry in \`cmd/perf/main.go\`" "-cap 1000" "one chain per code path"; do
+    if grep -qF -- "$text" <<< "$start"; then pass "Start a Round: $text"; else fail "Start a Round: $text"; fi
+done
+has references/round-template.md "measured with the \`delays\` scenario"
 # The run refuses to start while another server listens on any scenario port.
 ports=$(grep -m1 -E '^for port in ' scripts/perf-run.sh)
 for port in $(sed -nE 's/^SRS_[A-Z_]*LISTEN=([0-9]+)$/\1/p' ../../cmd/perf/env/*.env | sort -u); do
@@ -129,7 +140,7 @@ mkdir -p /tmp/srs-perf-round-test
 round=/tmp/srs-perf-round-test/srs-perf-v0.0.0-dryrun.md
 sed -e 's/<version>/0.0.0-dryrun/g' -e 's/<date>/2000-01-01/g' \
     references/round-template.md > "$round"
-for section in "## Goal and scope" "## Background" "## Current state" "## Decisions" \
+for section in "## Goal and scope" "## Background" "## Scenarios" "## Current state" "## Decisions" \
     "## Ranking" "## Chains" "## Steps" "## Later-round candidates" "## Work log"; do
     has "$round" "$section"
 done
@@ -432,6 +443,17 @@ in_section "Fix the Top Bottleneck" "Fix" "95% CI"
 in_section "Commit" "Commit" "95% CI"
 in_section "Commit" "Commit" "method"
 in_section "Write the Report" "Write the Report" "flatness"
+# A run is verified, and its top SRS symbols listed, before it is ranked.
+for text in "](scripts/perf-verify.sh)" "](scripts/perf-verify-test.sh)"; do
+    has SKILL.md "$text"
+done
+in_section "Rank Bottlenecks" "Rank" "perf-verify.sh"
+# It notes a noise of 10% or more, which a later comparison must handle.
+in_section "Rank Bottlenecks" "Rank" "noise"
+# A delays run is checked too: its probes and delays, with no capacity.
+in_section "Rank Bottlenecks" "Rank" "delays run"
+# whip-pub at its 2,000 cap runs the Docker VM out of memory in the holds.
+has SKILL.md "perf-run.sh -scenario whip-pub -cap 1000"
 has SKILL.md "one 20s hold"
 if grep -qF "one 10s hold" SKILL.md; then fail "SKILL.md: cap check is 20s"; else pass "SKILL.md: cap check is 20s"; fi
 template=references/report-template.md

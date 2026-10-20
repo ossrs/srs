@@ -190,6 +190,9 @@ type rtcTestSFU struct {
 	// videoReports and audioReports count the publisher's RTCP sender reports
 	// of each track's SSRC.
 	videoReports, audioReports atomic.Int32
+	// reports are the publisher's sender reports of each track's SSRC, by
+	// kind, "video" or "audio", in the order received.
+	reports map[string][]rtcp.SenderReport
 }
 
 func startRTCTestSFU(t *testing.T, stream string) *httptest.Server {
@@ -207,7 +210,7 @@ func startRTCTestSFUWith(t *testing.T, stream string) (*httptest.Server, *rtcTes
 	if err != nil {
 		t.Fatal(err)
 	}
-	sfu := &rtcTestSFU{stream: stream, video: video, audio: audio}
+	sfu := &rtcTestSFU{stream: stream, video: video, audio: audio, reports: map[string][]rtcp.SenderReport{}}
 	server := httptest.NewServer(sfu)
 	t.Cleanup(func() {
 		server.Close()
@@ -248,9 +251,9 @@ func (s *rtcTestSFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	if publish {
 		pc.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-			out, reports := s.audio, &s.audioReports
+			out, reports, kind := s.audio, &s.audioReports, "audio"
 			if track.Kind() == webrtc.RTPCodecTypeVideo {
-				out, reports = s.video, &s.videoReports
+				out, reports, kind = s.video, &s.videoReports, "video"
 			}
 			go func() {
 				for {
@@ -261,6 +264,9 @@ func (s *rtcTestSFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					for _, p := range pkts {
 						if sr, ok := p.(*rtcp.SenderReport); ok && sr.SSRC == uint32(track.SSRC()) {
 							reports.Add(1)
+							s.mu.Lock()
+							s.reports[kind] = append(s.reports[kind], *sr)
+							s.mu.Unlock()
 						}
 					}
 				}
@@ -389,27 +395,84 @@ func TestWHIPPublisherAndWHEPPlayer(t *testing.T) {
 	}
 }
 
-// A sender report pairs the wall time with the RTP time of the publisher time
-// sent then: 90 per ms for H.264 and 48 for Opus, the clocks the publisher
-// stamps its packets with, and the NTP time of the wall clock.
+// A sender report pairs the wall time with the publisher time at that wall
+// time, as a browser's does: the time since the pace began, in RTP units of 90
+// per ms for H.264 and 48 for Opus, the clocks the publisher stamps its
+// packets with. It does not use the newest tag's time, which a late send puts
+// behind the wall clock: SRS takes each track's rate from two reports, so a
+// late report would change the rate and shift the stream's timestamps.
 func TestSenderReports(t *testing.T) {
-	now := time.Date(2026, 10, 19, 12, 0, 0, 500_000_000, time.UTC)
-	pkts := senderReports(now, 2000, rtpCount{ssrc: 11, packets: 3, octets: 3000}, rtpCount{ssrc: 22, packets: 100, octets: 8000})
+	begun := time.Date(2026, 10, 19, 11, 59, 58, 500_000_000, time.UTC)
+	now := begun.Add(2000*time.Millisecond + 500*time.Microsecond)
+	pkts := senderReports(now, begun, rtpCount{ssrc: 11, packets: 3, octets: 3000}, rtpCount{ssrc: 22, packets: 100, octets: 8000})
 	if len(pkts) != 2 {
 		t.Fatalf("got %d packets, want 2", len(pkts))
 	}
 	video, audio := pkts[0].(*rtcp.SenderReport), pkts[1].(*rtcp.SenderReport)
-	if video.SSRC != 11 || video.RTPTime != 180000 || video.PacketCount != 3 || video.OctetCount != 3000 {
+	if video.SSRC != 11 || video.RTPTime != 180045 || video.PacketCount != 3 || video.OctetCount != 3000 {
 		t.Errorf("video report = %+v", video)
 	}
-	if audio.SSRC != 22 || audio.RTPTime != 96000 || audio.PacketCount != 100 || audio.OctetCount != 8000 {
+	if audio.SSRC != 22 || audio.RTPTime != 96024 || audio.PacketCount != 100 || audio.OctetCount != 8000 {
 		t.Errorf("audio report = %+v", audio)
 	}
-	// 2026-10-19 12:00:00.5 UTC is 4,001,400,000 s after 1900, and half a
-	// second is half of the 32-bit fraction.
-	want := uint64(4001400000)<<32 | 1<<31
+	// 2026-10-19 12:00:00.5005 UTC is 4,001,400,000 s after 1900, and the
+	// fraction is 0.5005 of 2^32.
+	want := uint64(4001400000)<<32 | uint64(500_500_000)<<32/1_000_000_000
 	if video.NTPTime != want || audio.NTPTime != want {
 		t.Errorf("NTP times %x and %x, want %x", video.NTPTime, audio.NTPTime, want)
+	}
+}
+
+// The WHIP publisher's sender reports are its own, one of each track per
+// interval, all on one clock: each maps its RTP time to the same wall time of
+// publisher time 0. pion's default sender report interceptor would send a
+// second series a fraction of a second apart, from its own estimate of the RTP
+// time; SRS takes each track's rate from the last two reports of either
+// series, so the rate would swing from 87 to 93 per ms for video, and the
+// stream's timestamps with it.
+func TestWHIPPublisherReportsOnOneClock(t *testing.T) {
+	server, sfu := startRTCTestSFUWith(t, "perf-run")
+	apiAddr := strings.TrimPrefix(server.URL, "http://")
+	dir := t.TempDir()
+	media := filepath.Join(dir, "cbr.flv")
+	writeOpus(t, dir, cbrOpus(3))
+	clock := &mediaClock{}
+	stop := make(chan struct{})
+	pubDone := make(chan error, 1)
+	go func() { pubDone <- publishWHIP(apiAddr, "live", "perf-run", media, tsTestTags(), clock, stop) }()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) && (clock.begunAt().IsZero() || time.Since(clock.begunAt()) < 2*rtcReportInterval+600*time.Millisecond) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	close(stop)
+	select {
+	case err := <-pubDone:
+		if err != nil {
+			t.Fatalf("stopped publisher returned %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("publisher did not stop")
+	}
+	begun := clock.begunAt()
+	if begun.IsZero() {
+		t.Fatal("publisher never began")
+	}
+	sfu.mu.Lock()
+	defer sfu.mu.Unlock()
+	for kind, rate := range map[string]float64{"video": 90, "audio": 48} {
+		reports := sfu.reports[kind]
+		// At 0, 1 and 2 intervals, and a third may not have arrived yet.
+		if n := len(reports); n < 2 || n > 3 {
+			t.Errorf("%s: %d sender reports in %v, want 2 or 3, one per interval", kind, n, 2*rtcReportInterval+600*time.Millisecond)
+		}
+		for i, sr := range reports {
+			secs, frac := int64(sr.NTPTime>>32)-2208988800, sr.NTPTime&0xffffffff
+			wall := time.Unix(secs, int64(frac*1_000_000_000>>32))
+			zero := wall.Add(-time.Duration(float64(sr.RTPTime) / rate * float64(time.Millisecond)))
+			if d := zero.Sub(begun); d < -time.Millisecond || d > time.Millisecond {
+				t.Errorf("%s report %d: RTP %d at %v puts publisher time 0 %v from the pace's start", kind, i, sr.RTPTime, wall, d)
+			}
+		}
 	}
 }
 
