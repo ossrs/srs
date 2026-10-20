@@ -20,7 +20,11 @@ type workerRequest struct {
 	Scenario string `json:"scenario,omitempty"`
 	Clients  int    `json:"clients,omitempty"`
 	// Media is the source the publisher loops; players measure lag by it.
-	Media           string `json:"media,omitempty"`
+	Media string `json:"media,omitempty"`
+	// Stream is the stream players play, or the prefix of the publishers'
+	// streams; First is the index in the step of the worker's first client.
+	Stream          string `json:"stream,omitempty"`
+	First           int    `json:"first,omitempty"`
 	Second          int    `json:"second,omitempty"`
 	LatestTimestamp uint32 `json:"latest_timestamp,omitempty"`
 	// Final marks the step's last sample: a player with no frame yet fails.
@@ -29,6 +33,7 @@ type workerRequest struct {
 
 type workerResponse struct {
 	Frames    int64 `json:"frames"`
+	Segments  int64 `json:"segments,omitempty"`
 	Bytes     int64 `json:"bytes"`
 	LagMillis int64 `json:"lag_millis"`
 	Failures  int64 `json:"failures"`
@@ -59,11 +64,12 @@ func splitClients(clients, cores int) []int {
 	return shares
 }
 
-func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario, media string, clients, cores int) (*workerGroup, error) {
+func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario, media, stream string, clients, cores int) (*workerGroup, error) {
 	shares := splitClients(clients, cores)
 	if shares == nil {
 		return nil, fmt.Errorf("clients must be nonnegative and cores positive")
 	}
+	offsets := clientOffsets(shares)
 	if _, ok := scenarioByName(scenario); !ok {
 		return nil, fmt.Errorf("unknown scenario %q", scenario)
 	}
@@ -98,7 +104,7 @@ func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario, me
 		}
 		worker := &workerClient{cmd: cmd, input: input, enc: json.NewEncoder(input), dec: json.NewDecoder(output)}
 		group.workers = append(group.workers, worker)
-		if err := worker.enc.Encode(workerRequest{Kind: "start", Scenario: scenario, Media: media, Clients: share}); err != nil {
+		if err := worker.enc.Encode(workerRequest{Kind: "start", Scenario: scenario, Media: media, Stream: stream, First: offsets[id], Clients: share}); err != nil {
 			group.close()
 			return nil, fmt.Errorf("configure worker %d: %w", id, err)
 		}
@@ -139,6 +145,7 @@ func (g *workerGroup) collectWithTimestamp(second int, timestamp uint32, final b
 			return workerResponse{}, fmt.Errorf("read worker %d: %w", i, err)
 		}
 		total.Frames += response.Frames
+		total.Segments += response.Segments
 		total.Bytes += response.Bytes
 		total.Failures += response.Failures
 		if response.LagMillis > total.LagMillis {
@@ -216,20 +223,29 @@ func serveWorker(input io.Reader, output io.Writer) error {
 	if start.Kind != "start" || start.Clients < 0 {
 		return fmt.Errorf("invalid worker start request")
 	}
-	if _, ok := scenarioByName(start.Scenario); !ok {
+	s, ok := scenarioByName(start.Scenario)
+	if !ok {
 		return fmt.Errorf("unknown scenario %q", start.Scenario)
 	}
+	var tags []rtmpMessage
 	var timeline *sourceTimeline
 	if start.Media != "" {
-		tags, err := loadFLV(start.Media)
-		if err != nil {
+		var err error
+		if tags, err = loadFLV(start.Media); err != nil {
 			return err
 		}
 		if timeline, err = lagTimeline(start.Media, tags); err != nil {
 			return err
 		}
 	}
-	runtime := startRTMPPlayers(start.Clients, timeline)
+	stream := start.Stream
+	if stream == "" {
+		stream = "perf-run"
+	}
+	runtime, err := startClients(s, start.Clients, stream, start.First, start.Media, tags, timeline)
+	if err != nil {
+		return err
+	}
 	defer runtime.close()
 	if err := enc.Encode(workerResponse{}); err != nil {
 		return err
@@ -256,10 +272,14 @@ func serveWorker(input io.Reader, output io.Writer) error {
 }
 
 type workerPlayers struct {
-	stop     chan struct{}
-	started  time.Time
+	stop    chan struct{}
+	started time.Time
+	// gap is how long a player may get nothing before it fails, its
+	// scenario's gap.
+	gap      time.Duration
 	wg       sync.WaitGroup
 	frames   atomic.Int64
+	segments atomic.Int64
 	bytes    atomic.Int64
 	failures atomic.Int64
 	last     []atomic.Int64
@@ -274,20 +294,31 @@ type workerPlayers struct {
 	// it, once the player has an anchor.
 	offset   []int64
 	resolved []bool
+	// clocks is each player's own publisher, in a many-streams step; nil
+	// when every player plays the one publisher whose time sample gets.
+	clocks []*mediaClock
 }
 
 func newWorkerPlayers(clients int, timeline *sourceTimeline) *workerPlayers {
 	return &workerPlayers{
-		stop: make(chan struct{}), started: time.Now(), timeline: timeline,
+		stop: make(chan struct{}), started: time.Now(), gap: 5 * time.Second, timeline: timeline,
 		last: make([]atomic.Int64, clients), latest: make([]atomic.Uint32, clients),
 		anchor: make([]atomic.Int64, clients), anchorTS: make([]atomic.Uint32, clients),
 		offset: make([]int64, clients), resolved: make([]bool, clients),
 	}
 }
 
+// segmentMessage is the type of a player's report that a whole segment came,
+// after its frames; it is not media.
+const segmentMessage byte = 0xff
+
 // received counts a player's message, keeps its newest timestamp, and anchors
 // the player to the source at its first video frame with a unique payload.
 func (w *workerPlayers) received(id int, m rtmpMessage) {
+	if m.typeID == segmentMessage {
+		w.segments.Add(1)
+		return
+	}
 	w.frames.Add(1)
 	w.bytes.Add(int64(len(m.payload)))
 	w.latest[id].Store(m.timestamp)
@@ -315,8 +346,93 @@ func (w *workerPlayers) lag(id int, publisherTimestamp uint32) (int64, bool) {
 	return int64(publisherTimestamp) - (int64(w.latest[id].Load()) + w.offset[id]), true
 }
 
-func startRTMPPlayers(clients int, timeline *sourceTimeline) *workerPlayers {
+// player is one connected player of a scenario's protocol; play reports its
+// audio and video messages until stop.
+type player interface {
+	play(stream string, stop <-chan struct{}, report chan<- rtmpMessage) error
+}
+
+func (c *rtmpClient) play(stream string, stop <-chan struct{}, report chan<- rtmpMessage) error {
+	return playRTMP(c, stream, stop, report)
+}
+
+// playerDialer connects one player of a scenario's player protocol to SRS in
+// the shared network namespace.
+func playerDialer(kind string) (func() (player, error), error) {
+	switch kind {
+	case "rtmp":
+		return func() (player, error) {
+			c, err := dialRTMP("127.0.0.1:1935", "live")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		}, nil
+	case "flv":
+		return func() (player, error) {
+			c, err := dialFLV("127.0.0.1:8080", "live")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		}, nil
+	case "ts":
+		return func() (player, error) {
+			c, err := dialHTTPTS("127.0.0.1:"+httpTSPort, "live")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		}, nil
+	case "rtsp":
+		return func() (player, error) {
+			c, err := dialRTSP("127.0.0.1:"+rtspPort, "live")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		}, nil
+	case "srt":
+		return func() (player, error) {
+			c, err := dialSRT("127.0.0.1:"+srtPort, "live")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		}, nil
+	case "hls":
+		return func() (player, error) {
+			c, err := dialHLS("127.0.0.1:"+hlsPort, "live")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		}, nil
+	case "dash":
+		return func() (player, error) {
+			c, err := dialDASH("127.0.0.1:"+dashPort, "live")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		}, nil
+	case "whep":
+		return func() (player, error) {
+			c, err := dialWHEP("127.0.0.1:"+rtcAPIPort, "live")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		}, nil
+	}
+	return nil, fmt.Errorf("no player for protocol %q", kind)
+}
+
+// startPlayersOn starts the players, player id on stream streamOf(id) once
+// wait, if any, lets it; wait returns false at stop.
+func startPlayersOn(dial func() (player, error), clients int, timeline *sourceTimeline, gap time.Duration, streamOf func(int) string, wait func(id int, stop <-chan struct{}) bool) *workerPlayers {
 	w := newWorkerPlayers(clients, timeline)
+	w.gap = gap
 	// The first dial error of a worker names a load-side limit, such as no
 	// free ephemeral port or too many open files.
 	var logged atomic.Bool
@@ -324,7 +440,10 @@ func startRTMPPlayers(clients int, timeline *sourceTimeline) *workerPlayers {
 		w.wg.Add(1)
 		go func(id int) {
 			defer w.wg.Done()
-			c, err := dialPlayer(func() (*rtmpClient, error) { return dialRTMP("127.0.0.1:1935", "live") }, w.stop)
+			if wait != nil && !wait(id, w.stop) {
+				return
+			}
+			c, err := dialPlayer(dial, w.stop)
 			if err != nil {
 				w.failures.Add(1)
 				if logged.CompareAndSwap(false, true) {
@@ -334,7 +453,7 @@ func startRTMPPlayers(clients int, timeline *sourceTimeline) *workerPlayers {
 			}
 			report := make(chan rtmpMessage, 128)
 			readDone := make(chan error, 1)
-			go func() { readDone <- playRTMP(c, "perf-run", w.stop, report); close(report) }()
+			go func() { readDone <- c.play(streamOf(id), w.stop, report); close(report) }()
 			for m := range report {
 				w.received(id, m)
 			}
@@ -349,7 +468,7 @@ func startRTMPPlayers(clients int, timeline *sourceTimeline) *workerPlayers {
 // dialPlayer dials again while a dial times out, as when a step adds thousands
 // of players at once and SRS's listen backlog overflows. A player that never
 // connects fails the frame rule; any other dial error ends it.
-func dialPlayer(dial func() (*rtmpClient, error), stop <-chan struct{}) (*rtmpClient, error) {
+func dialPlayer[T any](dial func() (T, error), stop <-chan struct{}) (T, error) {
 	for {
 		c, err := dial()
 		var netErr net.Error
@@ -358,27 +477,32 @@ func dialPlayer(dial func() (*rtmpClient, error), stop <-chan struct{}) (*rtmpCl
 		}
 		select {
 		case <-stop:
-			return nil, err
+			var none T
+			return none, err
 		default:
 		}
 	}
 }
 
 func (w *workerPlayers) sample(publisherTimestamp uint32, final bool) workerResponse {
-	r := workerResponse{Frames: w.frames.Swap(0), Bytes: w.bytes.Swap(0), Failures: w.failures.Swap(0)}
+	r := workerResponse{Frames: w.frames.Swap(0), Segments: w.segments.Swap(0), Bytes: w.bytes.Swap(0), Failures: w.failures.Swap(0)}
 	now := time.Now()
 	for id := range w.last {
 		last := w.last[id].Load()
 		if last == 0 {
-			if final || now.Sub(w.started) > 5*time.Second {
+			if final || now.Sub(w.started) > w.gap {
 				r.Failures++
 			}
 			continue
 		}
-		if now.Sub(time.Unix(0, last)) > 5*time.Second {
+		if now.Sub(time.Unix(0, last)) > w.gap {
 			r.Failures++
 		}
-		if lag, ok := w.lag(id, publisherTimestamp); ok && lag > r.LagMillis {
+		newest := publisherTimestamp
+		if w.clocks != nil {
+			newest = w.clocks[id].get()
+		}
+		if lag, ok := w.lag(id, newest); ok && lag > r.LagMillis {
 			r.LagMillis = lag
 		}
 	}

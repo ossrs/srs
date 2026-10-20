@@ -1,6 +1,6 @@
 .PHONY: all build test fmt clean run generate
 .PHONY: integ integ-prepare integ-main integ-timer integ-unit
-.PHONY: perf perf-image perf-unit perf-smoke perf-source-test perf-env-check perf-up perf-down
+.PHONY: perf perf-image perf-unit perf-smoke perf-source-test perf-env-check perf-up perf-down perf-build-check
 
 all: build
 
@@ -32,6 +32,9 @@ perf-env-check:
 
 perf-source-test: perf-image
 	bash skills/internal-perf-for-srs/scripts/perf-source-test.sh
+
+perf-build-check:
+	bash skills/internal-perf-for-srs/scripts/perf-build-check.sh
 
 build: fmt bin/srs-proxy bin/srs-integ
 

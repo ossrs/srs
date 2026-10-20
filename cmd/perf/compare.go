@@ -80,6 +80,9 @@ func compareResults(output io.Writer, old, newer result) error {
 		_, err := fmt.Fprintln(output, "different setup, no comparison; new report is a new baseline")
 		return err
 	}
+	if old.Scenario.Parameters["mode"] == "probe" {
+		return compareDelays(output, old, newer)
+	}
 	ramp := old.Scenario.Parameters["mode"] == "ramp"
 	cpuLabel := "cpu per client"
 	if ramp {

@@ -1,0 +1,21 @@
+# One profiling build of the build check (C6), made by perf-build-check.sh:
+# srs-perf:local with SRS configured again from the worktree's trunk with the
+# build's FLAGS, and the PACKAGES its configure requires. Configure and make
+# record their exit status and log instead of failing the image, so the script
+# reads which step failed from the image.
+FROM srs-perf:local
+
+ARG FLAGS
+ARG PACKAGES=
+RUN if [ -n "$PACKAGES" ]; then apt-get update && apt-get install -y --no-install-recommends $PACKAGES \
+    && rm -rf /var/lib/apt/lists/*; fi
+
+RUN rm -rf /srs/trunk /srs/build && mkdir -p /srs/build
+COPY trunk/ /srs/trunk/
+WORKDIR /srs/trunk
+RUN ./configure --srt=on --rtsp=on --sanitizer=off --utest=off \
+    --extra-flags="-g -fno-omit-frame-pointer -O2" $FLAGS > /srs/build/configure.log 2>&1; \
+    echo $? > /srs/build/configure.status
+RUN if [ "$(cat /srs/build/configure.status)" = 0 ]; then \
+    make -j8 > /srs/build/make.log 2>&1; echo $? > /srs/build/make.status; \
+    else echo skipped > /srs/build/make.status; fi

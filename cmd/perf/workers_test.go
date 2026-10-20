@@ -44,7 +44,7 @@ func TestWorkersCollectAndStop(t *testing.T) {
 		cmd.Env = append(os.Environ(), "SRS_PERF_FAKE_WORKER=1")
 		return cmd
 	}
-	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", 10, 3)
+	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", "perf-run", 10, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestWorkersCollectEverySecond(t *testing.T) {
 		cmd.Env = append(os.Environ(), "SRS_PERF_FAKE_WORKER=1")
 		return cmd
 	}
-	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", 4, 2)
+	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", "perf-run", 4, 2)
 	if err != nil {
 		t.Fatal(err)
 	}

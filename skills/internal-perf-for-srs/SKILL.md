@@ -51,43 +51,54 @@ A round measures SRS under many simulated clients, finds the bottlenecks, improv
 
 ## Tools
 
-- **`make perf`:** builds the profiling image `srs-perf:local` and `bin/srs-perf`, nothing else; minutes.
-- **`make perf-unit`:** the load tool's Go unit tests; run before each commit of `cmd/perf`.
-- **`make perf-smoke SCENARIO=<s>`:** about 10s at the first ramp step, in the containers.
-- **`make perf-source-test`:** builds the image, then checks its CBR source is flat and that the flatness check rejects a VBR file and a CBR encode with a large buffer.
-- **`make perf-env-check`:** checks the containers, `perf` samples with SRS symbols, and the core calibration.
+- **`make perf`:** builds the image `srs-perf:local` and `bin/srs-perf`.
+- **`make perf-unit`:** runs the load tool's Go unit tests.
+- **`make perf-smoke SCENARIO=<s>`:** a short run of 100 clients of one scenario, to check that it works.
+- **`make perf-smoke`:** With no `SCENARIO`, `make perf-smoke` smokes every scenario in turn and fails if any failed; about 5 minutes.
+- **`make perf-source-test`:** checks that the CBR source in the image is flat.
+- **`make perf-build-check`:** checks that the gperftools (`--gperf=on --gcp=on --gmp=on`), gprof (`--gprof=on`) and valgrind (`--valgrind=on`) builds still configure, build and start SRS; writes `build-check.json`.
+- **`make perf-env-check`:** checks the containers, `perf` symbols and the core calibration.
 - **`make perf-up` and `make perf-down`:** start and stop the SRS and load containers.
-- **`bin/srs-perf compare <old.json> <new.json>`:** compares two results on the same setup and flags a 10% change in capacity, or in a hold's CPU per client; the ramp's CPU per client is a note. Given a combined `run.json` or a report's JSON, it pairs the results by mode and client count. For two holds it also gives:
-  - SRS CPU, each side's mean and sd over its window.
-  - The difference of SRS CPU in points and percent, with its 95% CI and whether the CI contains 0.
-  - The difference is paired per second when both holds are the two sides of one A/B run: `bin/srs-perf run` with `-ab-run <id>` gives both the same id, and each sample keeps its wall-clock time, so a second pairs with the other side's nearest sample within half a second.
-  - Otherwise unpaired, a sequential comparison with Welch's degrees of freedom, marked noisier than a paired A/B.
-  - The 10% flag of CPU per client uses the mean difference.
+- **`bin/srs-perf compare <old.json> <new.json>`:** compares two results and flags a 10% change. For two holds, it gives each side's mean and sd and the 95% CI of the difference: paired per second for the two sides of one A/B run (`-ab-run <id>`), otherwise unpaired, which is noisier. The 10% flag uses the mean difference.
 
-The scripts, called by the workflows below:
+Scenarios. Each has its SRS env in `cmd/perf/env/<scenario>.env`. Unless noted, it is one RTMP publisher of the CBR source and N players:
 
-- [scripts/perf-run.sh](scripts/perf-run.sh): the load run. It builds with `make perf`, takes and refreshes the lock, checks the scenario ports are free, then per repeat:
-  - A `ramp` to capacity. Each step lasts 5s: the first 2s let the new clients settle, and only the last 3 one-second samples count. The ramp stops at 90% SRS CPU, a failed health check, or the cap of 40,000 clients for the TCP protocols.
-  - Three measuring holds, `-mode hold`: at 50% of that capacity, again at 50% to measure the noise, and at 90%. Each lets its clients settle 30s, then counts a `-window <seconds>`, 60 by default, with no profiler.
-  - Two profile holds, `-mode profile`, at the 50% and 90% counts, after the measuring holds: each settles 30s, then [scripts/perf-profile.sh](scripts/perf-profile.sh) takes a 60s `perf record`, 10s syscall counts, a flame graph and a symbol table.
-  - The noise: `bin/srs-perf compare` of the two 50% holds, which shows how much CPU per client moves between two identical holds.
-  - It prints the path of `run.json`.
-- [scripts/perf-ab.sh](scripts/perf-ab.sh): the A/B run, the preferred comparison of two SRS builds, paired per second:
-  - `-baseline <rev>` builds the baseline SRS from a commit's `trunk/`; `-revert <commit>` from HEAD's `trunk/` with that commit's trunk change taken out, so a commit that also changed the tools, which later commits changed again, still reverts. The candidate is `srs-perf:local`, built from the worktree, so a change can be measured before it is committed.
-  - The baseline's tree is streamed from `git archive` into `cmd/perf/Dockerfile.ab`, which rebuilds only SRS on `srs-perf:local`: the worktree is never touched, and both sides share the source and the load tool. Its image is `srs-perf-ab:<task>-<rev>`, named by `-task`, such as the round step.
-  - Holding the lock, it starts the baseline SRS on core 1 and the candidate on core 2, each with its own load container on cores 3–9, and runs one hold of `-clients <n>` on both at once with one `-ab-run` id: a 30s settle, then a 180s `-window` by default.
-  - It writes `ab.json` (both results, the baseline's rev, tree and image, and the candidate's `git describe`) and `verdict.txt` (the paired `compare`) to `cmd/perf/out/<run>-ab/`, and prints the verdict.
-  - It removes its containers, and the baseline image unless `-keep`; remove a kept image with `docker rmi` once its comparison is done. `-dry-run` prints the baseline's tree and image and builds nothing.
-- [scripts/perf-ab-test.sh](scripts/perf-ab-test.sh): its test, with a short A/B of HEAD against itself whose CI must contain 0.
-- [scripts/perf-profile.sh](scripts/perf-profile.sh): the profile of one hold, run inside the SRS container.
-- [scripts/perf-source.sh](scripts/perf-source.sh): encodes the CBR source with its fixed parameters and writes its flatness JSON; the image build runs it.
-- [scripts/perf-source-check.sh](scripts/perf-source-check.sh) `<flv> <target kbps>`: prints a source's flatness JSON, and fails when a whole second after the first leaves ±3% of the target or the per-frame sd is over 3% of the mean. The first second and the first IDR are reported, not judged.
+- `rtmp-rtmp`: RTMP players.
+- `rtmp-flv`: HTTP-FLV players.
+- `rtmp-ts`: HTTP-TS players.
+- `rtmp-rtsp`: RTSP players.
+- `rtmp-hls`: HLS players.
+- `rtmp-dash`: DASH players.
+- `rtmp-whep`: WHEP players.
+- `srt-srt`: an SRT publisher and SRT players.
+- `whip-whep`: a WHIP publisher and WHEP players.
+- **Cross-protocol scenarios:** publish in one protocol and play in another, through an SRS bridge:
+  - `srt-rtmp`: SRT to RTMP.
+  - `srt-whep`: SRT to WHEP.
+  - `whip-rtmp`: WHIP to RTMP. SRS starts the stream only after two sender reports of each track.
+  - `whip-flv`: WHIP to HTTP-FLV, with `guess_has_av` off, or players get an audio-only FLV header.
+  - SRS has no other bridge.
+- `rtmp-pub`: N RTMP publishers, no player.
+- `whip-pub`: N WHIP publishers, no player.
+- `many-streams`: N streams, each with one RTMP publisher and two RTMP players.
+- `delays`: the delay probes of C7, not capacity. It measures the RTMP pause and unpause time (until `NetStream.Pause.Notify`), and the lag added by a forward target (`delays-forward.env`) and an edge (`delays-edge.env`).
+
+Scripts, called by the workflows below:
+
+- [scripts/perf-run.sh](scripts/perf-run.sh): the load run. A ramp to capacity in 5s steps, up to 40,000 clients (2,000 for SRT and WebRTC), three measuring holds (50%, 50% again for the noise, 90%), each a 30s settle and a `-window <seconds>`, then two profile holds into `profile-<50|90>/`. It prints the path of `run.json`.
+- [scripts/perf-ab.sh](scripts/perf-ab.sh): the A/B run of two SRS builds at once, the preferred comparison. The baseline is `-baseline <rev>`, or HEAD with `-revert <commit>`, that commit's trunk change taken out; the candidate is the worktree. It builds `srs-perf-ab:<task>-<rev>`, removed unless `-keep`, and writes `ab.json` and `verdict.txt`.
+- [scripts/perf-ab-test.sh](scripts/perf-ab-test.sh): tests the A/B run with HEAD against itself.
+- [scripts/perf-profile.sh](scripts/perf-profile.sh): profiles one hold.
+- [scripts/perf-source.sh](scripts/perf-source.sh): encodes the CBR source.
+- [scripts/perf-source-check.sh](scripts/perf-source-check.sh) `<flv> <target kbps>`: checks that a source is flat.
 - [scripts/perf-source-test.sh](scripts/perf-source-test.sh): the test behind `make perf-source-test`.
 - [scripts/perf-env-check.sh](scripts/perf-env-check.sh): the environment check.
-- [scripts/perf-cap-check.sh](scripts/perf-cap-check.sh): one 20s hold at the client cap, without a publisher, which checks that all of its players connect (file limits, ephemeral ports, `max_connections`). Run it after changing the cap or the containers.
-- [scripts/perf-skill-test.sh](scripts/perf-skill-test.sh): checks this skill's text, a dry run of [Start a Round](#start-a-round), the `srs-develop` route, and the reports in `cmd/perf/out/reports/` where they exist.
+- [scripts/perf-build-check.sh](scripts/perf-build-check.sh): the check behind `make perf-build-check`, each build in its own image from `cmd/perf/Dockerfile.build`.
+- [scripts/perf-build-check-test.sh](scripts/perf-build-check-test.sh): tests the build check.
+- [scripts/perf-cap-check.sh](scripts/perf-cap-check.sh): one 20s hold at the client cap, to check that every player connects.
+- [scripts/perf-skill-test.sh](scripts/perf-skill-test.sh): checks this skill's text and scripts.
 
-Outputs go to the git-ignored `cmd/perf/out/<run>/`: `run.json` with the results and the noise, and per repeat each result's `result.json`, `noise.txt` and `noise.json`, and each profile hold's `profile-<50|90>/` with `flamegraph.svg`, `top-symbols.txt`, `syscalls.txt`, `perf.data` and its own `result.json`, which is not in `run.json`.
+Outputs go to the git-ignored `cmd/perf/out/<run>/`: `run.json`, each result's `result.json` and noise, and the profiles in `profile-<50|90>/`.
 
 ## Workflows
 

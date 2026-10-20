@@ -35,6 +35,47 @@ for text in "**Per-second samples:**" "usage_usec" "--cgroupns host" '`window`';
     has SKILL.md "$text"
 done
 has scripts/perf-up.sh "--cgroupns host"
+# Every scenario in the registry has its SRS env, is listed in the skill, and
+# the smoke and the run accept it.
+for s in $(sed -nE 's/^	"([a-z0-9-]+)": +\{Name:.*/\1/p' ../../cmd/perf/main.go); do
+    if [[ -f "../../cmd/perf/env/$s.env" ]]; then pass "env $s"; else fail "env $s"; fi
+    has SKILL.md "\`$s\`"
+    has scripts/perf-smoke.sh "$s"
+    has scripts/perf-run.sh "$s"
+done
+# With no scenario, the smoke runs every scenario of the registry, and only those.
+registry=$(sed -nE 's/^	"([a-z0-9-]+)": +\{Name:.*/\1/p' ../../cmd/perf/main.go | sort | tr '\n' ' ')
+listed=$(sed -nE 's/^scenarios=\((.*)\)$/\1/p' scripts/perf-smoke.sh | tr ' ' '\n' | sort | tr '\n' ' ')
+if [[ -n "$registry" && "$registry" == "$listed" ]]; then pass "perf-smoke.sh lists the registry"; else fail "perf-smoke.sh lists the registry: [$listed] != [$registry]"; fi
+has scripts/perf-smoke.sh 'for s in "${scenarios[@]}"; do'
+has scripts/perf-smoke.sh 'bash "$0" "$s"'
+has SKILL.md 'With no `SCENARIO`, `make perf-smoke` smokes every scenario'
+# A stream smoke fails when no player got video, which only lag shows; the
+# skill says which bridges SRS has and why whip-flv turns off guess_has_av.
+has scripts/perf-smoke.sh "([.steps[0].samples[].lag_millis] | max) > 0"
+for text in "**Cross-protocol scenarios:**" "SRS has no other bridge" '`guess_has_av` off' "two sender reports"; do
+    has SKILL.md "$text"
+done
+# The run refuses to start while another server listens on any scenario port.
+ports=$(grep -m1 -E '^for port in ' scripts/perf-run.sh)
+for port in $(sed -nE 's/^SRS_[A-Z_]*LISTEN=([0-9]+)$/\1/p' ../../cmd/perf/env/*.env | sort -u); do
+    if grep -qw -- "$port" <<< "$ports"; then pass "perf-run.sh checks port $port"; else fail "perf-run.sh checks port $port"; fi
+done
+# SRT and WebRTC media listen on UDP, so their ports are checked as UDP ones.
+for port in $(sed -nE 's/^SRS_(SRT|RTC)_SERVER_LISTEN=([0-9]+)$/\2/p' ../../cmd/perf/env/*.env | sort -u); do
+    if grep -qF -- "$port/udp" <<< "$ports"; then pass "perf-run.sh checks UDP port $port"; else fail "perf-run.sh checks UDP port $port"; fi
+done
+# The delay probes run a forward target and an edge SRS beside the origin, in its
+# network namespace, each from its own env; perf-down removes them, and the run
+# measures only the delays, with no ramp, holds or profiles.
+has scripts/perf-up.sh '"$PWD/cmd/perf/env/$scenario-$role.env"'
+has scripts/perf-up.sh '--network "container:$name-srs"'
+has scripts/perf-down.sh '"$name-forward" "$name-edge"'
+has scripts/perf-run.sh '-mode probe'
+has scripts/perf-smoke.sh '.delays.pause_millis.samples'
+for text in "C7" "NetStream.Pause.Notify" '`delays-forward.env`' '`delays-edge.env`'; do
+    has SKILL.md "$text"
+done
 # Lag is in publisher time, since SRS starts each player's timestamps near zero.
 for text in "**Lag in publisher time:**" '`time_jitter full`' "unique payload"; do
     has SKILL.md "$text"
@@ -53,6 +94,14 @@ if grep -qE 'git (checkout|stash|reset|revert)' scripts/perf-ab.sh; then
 else
     pass "perf-ab.sh: the worktree untouched"
 fi
+# The build check of the profiling builds: each in its own image, removed at the end.
+for text in '`make perf-build-check`' "](scripts/perf-build-check.sh)" "](scripts/perf-build-check-test.sh)" \
+    '`--gperf=on --gcp=on --gmp=on`' '`--gprof=on`' '`--valgrind=on`' "build-check.json" "cmd/perf/Dockerfile.build"; do
+    has SKILL.md "$text"
+done
+has scripts/perf-build-check.sh "acquire --wait"
+has scripts/perf-build-check.sh "docker rmi"
+has references/round-template.md "build-check.json"
 for file in scripts/perf-run.sh SKILL.md; do
     if grep -qF "integ-prepare" "$file"; then fail "$file: no integ-prepare"; else pass "$file: no integ-prepare"; fi
 done

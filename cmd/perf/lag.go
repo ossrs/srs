@@ -21,6 +21,40 @@ type sourceTimeline struct {
 	at map[uint64]int64
 	// frames counts the video frames with a unique payload.
 	frames int
+	// slice maps the hash of a frame's first slice NALU to its time in the
+	// loop, or -1 when more than one frame has that slice. A player that
+	// rebuilds a frame from RTP, as RTSP does, may drop or add NALUs around
+	// the slice, such as an SEI or an AUD.
+	slice map[uint64]int64
+}
+
+// firstSlice is the first coded slice NALU of an FLV AVC frame with 4-byte
+// NALU lengths, or false when the payload has none.
+func firstSlice(payload []byte) ([]byte, bool) {
+	if len(payload) < 5 || payload[0]&0x80 != 0 || payload[0]&0x0f != 7 || payload[1] != 1 {
+		return nil, false
+	}
+	for b := payload[5:]; len(b) >= 4; {
+		size := int(b[0])<<24 | int(b[1])<<16 | int(b[2])<<8 | int(b[3])
+		if size <= 0 || size > len(b)-4 {
+			return nil, false
+		}
+		nalu := b[4 : 4+size]
+		if t := nalu[0] & 0x1f; t >= 1 && t <= 5 {
+			return nalu, true
+		}
+		b = b[4+size:]
+	}
+	return nil, false
+}
+
+// addUnique maps h to at, or to -1 once a second frame has it.
+func addUnique(m map[uint64]int64, h uint64, at int64) {
+	if _, seen := m[h]; seen {
+		m[h] = -1
+		return
+	}
+	m[h] = at
 }
 
 func loopDuration(tags []rtmpMessage) uint32 { return tags[len(tags)-1].timestamp + 40 }
@@ -48,17 +82,15 @@ func newSourceTimeline(tags []rtmpMessage) *sourceTimeline {
 	if len(tags) == 0 {
 		return nil
 	}
-	s := &sourceTimeline{duration: loopDuration(tags), at: make(map[uint64]int64)}
+	s := &sourceTimeline{duration: loopDuration(tags), at: make(map[uint64]int64), slice: make(map[uint64]int64)}
 	for _, tag := range tags {
 		if !isVideoFrame(tag) {
 			continue
 		}
-		h := payloadHash(tag.payload)
-		if _, seen := s.at[h]; seen {
-			s.at[h] = -1
-			continue
+		addUnique(s.at, payloadHash(tag.payload), int64(tag.timestamp))
+		if nalu, ok := firstSlice(tag.payload); ok {
+			addUnique(s.slice, payloadHash(nalu), int64(tag.timestamp))
 		}
-		s.at[h] = int64(tag.timestamp)
 	}
 	for _, at := range s.at {
 		if at >= 0 {
@@ -78,12 +110,20 @@ func lagTimeline(media string, tags []rtmpMessage) (*sourceTimeline, error) {
 	return s, nil
 }
 
-// inLoop is the time in the loop of a video frame with a unique payload.
+// inLoop is the time in the loop of a video frame with a unique payload, or
+// else with a unique first slice.
 func (s *sourceTimeline) inLoop(m rtmpMessage) (uint32, bool) {
 	if s == nil || !isVideoFrame(m) {
 		return 0, false
 	}
 	at, ok := s.at[payloadHash(m.payload)]
+	if !ok {
+		nalu, isAVC := firstSlice(m.payload)
+		if !isAVC {
+			return 0, false
+		}
+		at, ok = s.slice[payloadHash(nalu)]
+	}
 	if !ok || at < 0 {
 		return 0, false
 	}

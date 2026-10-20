@@ -15,7 +15,8 @@ import (
 )
 
 // The ramp stops at this many clients when no -cap is given. It is the cap of
-// the TCP protocols; each scenario's config admits it plus its publisher.
+// the TCP protocols; each scenario's config admits it plus its publisher. A
+// scenario may set a lower cap, as SRT does.
 const defaultClientCap = 40000
 
 // stepTiming gives a mode's default settle and window, in seconds. A step
@@ -24,38 +25,45 @@ const defaultClientCap = 40000
 //   - hold: a measuring hold, 30s to settle, then a 60s window (180s for a verdict).
 //   - profile: a hold for perf after the measuring holds, 30s to settle, then
 //     75s for the 60s record and the 10s syscall count.
+//   - probe: the delay probes, 10s for the forward and the edge to start, then
+//     a 60s window.
 func stepTiming(mode string) (settle, window int) {
 	switch mode {
 	case "hold":
 		return 30, 60
 	case "profile":
 		return 30, 75
+	case "probe":
+		return 10, 60
 	}
 	return 2, 3
 }
 
-func evaluateRampStep(clients, settle int, samples []sample, cap int) (step, bool) {
+// evaluateRampStep judges a step by its scenario's rules: a failed player,
+// lag over the scenario's limit, or no frame from any player for its gap.
+func evaluateRampStep(sc scenario, clients, settle int, samples []sample, cap int) (step, bool) {
 	s := step{Mode: "ramp", Clients: clients, SettleSeconds: settle, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}
 	if len(samples) == 0 {
 		s.Health = health{Reason: "no samples"}
 		return s, true
 	}
 	var cpu float64
+	lagLimit, gap := sc.lagLimit(), int(sc.gap()/time.Second)
 	noFrames := 0
 	for _, sample := range samples {
 		if sample.Failures > 0 {
 			s.Health = health{Reason: "player failure"}
 		}
-		if sample.LagMillis > 2000 {
-			s.Health = health{Reason: "player lag exceeds 2s"}
+		if lagLimit > 0 && sample.LagMillis > lagLimit {
+			s.Health = health{Reason: fmt.Sprintf("player lag exceeds %ds", lagLimit/1000)}
 		}
 		if sample.Frames == 0 {
 			noFrames++
 		} else {
 			noFrames = 0
 		}
-		if noFrames >= 5 {
-			s.Health = health{Reason: "no frames for 5s"}
+		if noFrames >= gap {
+			s.Health = health{Reason: fmt.Sprintf("no frames for %ds", gap)}
 		}
 	}
 	cpu = steadyCPU(samples, settle)
@@ -141,7 +149,8 @@ func windowOf(samples []sample, settle int) window {
 
 // summarizeResult gives every step its window, and the result its capacity
 // and CPU per client; a hold's result carries its one step's window. A profile
-// hold's CPU includes perf, so its result has neither.
+// hold's CPU includes perf, and a delay probe measures delays, so their
+// results have neither.
 func summarizeResult(r result, mode string) result {
 	for i := range r.Steps {
 		w := windowOf(r.Steps[i].Samples, r.Steps[i].SettleSeconds)
@@ -149,7 +158,7 @@ func summarizeResult(r result, mode string) result {
 	}
 	if mode == "ramp" {
 		r.Capacity, r.CPUPerClient = rampSummary(r.Steps)
-	} else if len(r.Steps) > 0 && mode != "profile" {
+	} else if len(r.Steps) > 0 && mode != "profile" && mode != "probe" {
 		r.CPUPerClient = holdCPUPerClient(r.Steps[0])
 		r.Window = r.Steps[0].Window
 	}
@@ -257,6 +266,9 @@ func clockTicks() (float64, error) {
 }
 
 func runPerformance(output *os.File, cmd command) error {
+	if scenarios[cmd.scenario].Unit == "probes" {
+		return runDelayRun(output, cmd)
+	}
 	// Players with no publisher need no media, so the cap check needs no source.
 	var tags []rtmpMessage
 	var flatness json.RawMessage
@@ -276,11 +288,11 @@ func runPerformance(output *os.File, cmd command) error {
 	}
 	settle, window := cmd.settle, cmd.window
 	if window == 0 {
-		settle, window = stepTiming(mode)
+		settle, window = scenarios[cmd.scenario].stepTiming(mode)
 	}
 	cap := cmd.cap
 	if cap == 0 {
-		cap = defaultClientCap
+		cap = scenarios[cmd.scenario].rampCap()
 	}
 	base := cmd.output
 	if base == "" {
@@ -291,7 +303,7 @@ func runPerformance(output *os.File, cmd command) error {
 		r := result{Setup: captureSetup(cmd), ABRun: cmd.abRun, Scenario: scenarios[cmd.scenario], Health: health{Healthy: true}, Validity: validity{Valid: true}}
 		clients := cmd.clients
 		if clients == 0 {
-			clients = 100
+			clients = scenarios[cmd.scenario].rampStart()
 		}
 		r.Scenario.Parameters = map[string]string{"settle": fmt.Sprint(settle), "window": fmt.Sprint(window), "mode": mode, "clients": fmt.Sprint(clients), "cap": fmt.Sprint(cap), "workers": fmt.Sprint(cores), "media": cmd.media}
 		if cmd.noPublisher {
@@ -300,7 +312,7 @@ func runPerformance(output *os.File, cmd command) error {
 			r.Setup = withSource(r.Setup, cmd.media, flatness)
 		}
 		for {
-			s, err := measureStep(mode, clients, settle, window, cores, cmd.srsPID, tags, cmd.media, cmd.noPublisher)
+			s, err := measureStep(cmd.scenario, mode, clients, settle, window, cores, cmd.srsPID, tags, cmd.media, cmd.noPublisher)
 			if err != nil {
 				return err
 			}
@@ -332,32 +344,41 @@ func runPerformance(output *os.File, cmd command) error {
 	return nil
 }
 
-func measureStep(mode string, clients, settle, window, cores, srsPID int, tags []rtmpMessage, media string, noPublisher bool) (step, error) {
+// stepStream is the stream of a step that starts at, new to the step, so a
+// step's publisher is never refused as busy while SRS has yet to close the
+// last step's publisher of that stream: an SRT or WHIP publisher's close
+// reaches SRS over UDP, after the next step's connect. A player scenario
+// plays perf-run-<ms>; a publisher or many-streams scenario's workers add
+// each client's index to perf-<ms>.
+func stepStream(scenario string, at time.Time) string {
+	if scenarios[scenario].Unit != "clients" {
+		return fmt.Sprintf("perf-%d", at.UnixMilli())
+	}
+	return fmt.Sprintf("perf-run-%d", at.UnixMilli())
+}
+
+func measureStep(scenario, mode string, clients, settle, window, cores, srsPID int, tags []rtmpMessage, media string, noPublisher bool) (step, error) {
 	seconds := settle + window
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	clock := &mediaClock{}
-	if !noPublisher {
+	// Players play the parent's one publisher; a publisher or many-streams
+	// step has its publishers in the workers, each on a stream of its own.
+	stream := stepStream(scenario, time.Now())
+	inWorkers := scenarios[scenario].Unit != "clients"
+	if !noPublisher && !inWorkers {
 		stop := make(chan struct{})
-		publisher, err := dialRTMP("127.0.0.1:1935", "live")
+		pubDone, err := startPublisher(scenarios[scenario].Publisher, stream, media, tags, clock, stop)
 		if err != nil {
+			close(stop)
 			return step{}, err
 		}
-		pubDone := make(chan error, 1)
-		go func() { pubDone <- publishRTMP(publisher, "perf-run", tags, clock, stop) }()
 		defer func() { close(stop); <-pubDone }()
-		deadline := time.Now().Add(5 * time.Second)
-		for clock.get() == 0 {
-			if time.Now().After(deadline) {
-				return step{}, fmt.Errorf("publisher sent no frames")
-			}
-			time.Sleep(10 * time.Millisecond)
-		}
 	}
 	if noPublisher {
 		media = ""
 	}
-	group, err := startWorkers(ctx, nil, "rtmp-rtmp", media, clients, cores)
+	group, err := startWorkers(ctx, nil, scenario, media, stream, clients, cores)
 	if err != nil {
 		return step{}, err
 	}
@@ -387,9 +408,9 @@ func measureStep(mode string, clients, settle, window, cores, srsPID int, tags [
 		if err != nil {
 			return step{}, err
 		}
-		all = append(all, sample{Second: second, UnixMillis: now.UnixMilli(), SRSCPUPercent: usage.srsCPUPercent, SRSCPUUsageUsec: usage.srsCPUUsageUsec, SRSRSSBytes: usage.srsRSSBytes, WorkerCPUPercent: usage.workerCPUPercent, Frames: counters.Frames, Bytes: counters.Bytes, LagMillis: counters.LagMillis, Failures: counters.Failures})
+		all = append(all, sample{Second: second, UnixMillis: now.UnixMilli(), SRSCPUPercent: usage.srsCPUPercent, SRSCPUUsageUsec: usage.srsCPUUsageUsec, SRSRSSBytes: usage.srsRSSBytes, WorkerCPUPercent: usage.workerCPUPercent, Frames: counters.Frames, Segments: counters.Segments, Bytes: counters.Bytes, LagMillis: counters.LagMillis, Failures: counters.Failures})
 	}
-	evaluated, _ := evaluateRampStep(clients, settle, all, defaultClientCap)
+	evaluated, _ := evaluateRampStep(scenarios[scenario], clients, settle, all, defaultClientCap)
 	evaluated.Mode = mode
 	evaluated.Samples = all
 	return evaluated, nil

@@ -189,44 +189,67 @@ func (r *rtmpReader) read() (rtmpMessage, error) {
 	}
 }
 
-func readFLVTags(reader io.Reader) ([]rtmpMessage, error) {
+// readFLVHeader reads the FLV header and the first previous tag size.
+func readFLVHeader(reader io.Reader) error {
 	var header [9]byte
 	if _, err := io.ReadFull(reader, header[:]); err != nil {
-		return nil, err
+		return err
 	}
 	if string(header[:3]) != "FLV" || binary.BigEndian.Uint32(header[5:9]) < 9 {
-		return nil, errors.New("invalid FLV header")
+		return errors.New("invalid FLV header")
 	}
-	if _, err := io.CopyN(io.Discard, reader, int64(binary.BigEndian.Uint32(header[5:9])-9)+4); err != nil {
+	_, err := io.CopyN(io.Discard, reader, int64(binary.BigEndian.Uint32(header[5:9])-9)+4)
+	return err
+}
+
+// readFLVTag reads one tag of any type with its previous tag size; io.EOF
+// only when the stream ends between two tags.
+func readFLVTag(reader io.Reader) (rtmpMessage, error) {
+	var h [11]byte
+	if _, err := io.ReadFull(reader, h[:]); err != nil {
+		return rtmpMessage{}, err
+	}
+	size := get24(h[1:4])
+	if size > 16<<20 {
+		return rtmpMessage{}, errors.New("FLV tag too large")
+	}
+	payload := make([]byte, size)
+	if _, err := io.ReadFull(reader, payload); err != nil {
+		return rtmpMessage{}, noEOF(err)
+	}
+	var previous [4]byte
+	if _, err := io.ReadFull(reader, previous[:]); err != nil {
+		return rtmpMessage{}, noEOF(err)
+	}
+	if binary.BigEndian.Uint32(previous[:]) != size+11 {
+		return rtmpMessage{}, errors.New("invalid FLV previous tag size")
+	}
+	return rtmpMessage{timestamp: get24(h[4:7]) | uint32(h[7])<<24, typeID: h[0], payload: payload}, nil
+}
+
+// noEOF turns an end inside a tag into io.ErrUnexpectedEOF.
+func noEOF(err error) error {
+	if err == io.EOF {
+		return io.ErrUnexpectedEOF
+	}
+	return err
+}
+
+func readFLVTags(reader io.Reader) ([]rtmpMessage, error) {
+	if err := readFLVHeader(reader); err != nil {
 		return nil, err
 	}
 	var tags []rtmpMessage
 	for {
-		var h [11]byte
-		_, err := io.ReadFull(reader, h[:])
+		tag, err := readFLVTag(reader)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return nil, err
 		}
-		size := get24(h[1:4])
-		if size > 16<<20 {
-			return nil, errors.New("FLV tag too large")
-		}
-		payload := make([]byte, size)
-		if _, err := io.ReadFull(reader, payload); err != nil {
-			return nil, err
-		}
-		var previous [4]byte
-		if _, err := io.ReadFull(reader, previous[:]); err != nil {
-			return nil, err
-		}
-		if binary.BigEndian.Uint32(previous[:]) != size+11 {
-			return nil, errors.New("invalid FLV previous tag size")
-		}
-		if h[0] == 8 || h[0] == 9 {
-			tags = append(tags, rtmpMessage{timestamp: get24(h[4:7]) | uint32(h[7])<<24, typeID: h[0], payload: payload})
+		if tag.typeID == 8 || tag.typeID == 9 {
+			tags = append(tags, tag)
 		}
 	}
 	if len(tags) == 0 {

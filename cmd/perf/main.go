@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 )
 
 type command struct {
@@ -40,7 +41,7 @@ func parseCommand(args []string) (command, error) {
 	case "run":
 		name := flags.String("scenario", "", "scenario name")
 		repeat := flags.Int("repeat", 1, "number of repeats")
-		mode := flags.String("mode", "ramp", "ramp, hold, or profile (a hold for perf, not a measurement)")
+		mode := flags.String("mode", "ramp", "ramp, hold, profile (a hold for perf, not a measurement), or probe (the delay probes' only mode)")
 		clients := flags.Int("clients", 0, "starting or fixed client count")
 		settle := flags.Int("settle", -1, "seconds a step settles before its samples count; default 2 for ramp, 30 for a hold")
 		window := flags.Int("window", 0, "counted seconds of a step; default 3 for ramp, 60 for hold, 75 for profile")
@@ -71,10 +72,21 @@ func parseCommand(args []string) (command, error) {
 		if *media == "" {
 			return command{}, errors.New("media is required")
 		}
-		if (*mode != "ramp" && *mode != "hold" && *mode != "profile") || *clients < 0 || *settle < -1 || *window < 0 || *cap < 0 || *cores < 0 || *srsPID < 0 {
+		if *noPublisher && scenarios[*name].Unit != "clients" {
+			return command{}, fmt.Errorf("scenario %s has its publishers in the workers, so -no-publisher does not apply", *name)
+		}
+		// The delay probes run only as a probe, and only they do.
+		probes := scenarios[*name].Unit == "probes"
+		if probes && !flagSet(flags, "mode") {
+			*mode = "probe"
+		}
+		if probes != (*mode == "probe") {
+			return command{}, fmt.Errorf("scenario %s: -mode probe is the delay probes' only mode, and only theirs", *name)
+		}
+		if (*mode != "ramp" && *mode != "hold" && *mode != "profile" && *mode != "probe") || *clients < 0 || *settle < -1 || *window < 0 || *cap < 0 || *cores < 0 || *srsPID < 0 {
 			return command{}, errors.New("invalid run options")
 		}
-		defaultSettle, defaultWindow := stepTiming(*mode)
+		defaultSettle, defaultWindow := scenarios[*name].stepTiming(*mode)
 		if *settle == -1 {
 			*settle = defaultSettle
 		}
@@ -115,8 +127,11 @@ func parseCommand(args []string) (command, error) {
 		if err := flags.Parse(args[1:]); err != nil {
 			return command{}, err
 		}
-		if flags.NArg() != 0 || *name != "rtmp-rtmp" {
-			return command{}, errors.New("smoke requires -scenario rtmp-rtmp")
+		if flags.NArg() != 0 || *name == "" {
+			return command{}, errors.New("smoke requires -scenario <name>")
+		}
+		if _, ok := scenarioByName(*name); !ok {
+			return command{}, fmt.Errorf("unknown scenario %q", *name)
 		}
 		if *media == "" {
 			return command{}, errors.New("media is required")
@@ -154,10 +169,92 @@ type scenario struct {
 	Player     string            `json:"player"`
 	Unit       string            `json:"unit"`
 	Parameters map[string]string `json:"parameters"`
+	// start and cap are the ramp's first and last client counts, when they
+	// differ from 100 and the TCP cap.
+	start, cap int
+	// segment is the seconds of a segment, the shipped default, in a
+	// segmented scenario such as HLS; 0 for a stream.
+	segment int
 }
 
 var scenarios = map[string]scenario{
+	"rtmp-hls":  {Name: "rtmp-hls", Publisher: "rtmp", Player: "hls", Unit: "clients", segment: 10},
+	"rtmp-dash": {Name: "rtmp-dash", Publisher: "rtmp", Player: "dash", Unit: "clients", segment: 10},
 	"rtmp-rtmp": {Name: "rtmp-rtmp", Publisher: "rtmp", Player: "rtmp", Unit: "clients"},
+	"rtmp-flv":  {Name: "rtmp-flv", Publisher: "rtmp", Player: "flv", Unit: "clients"},
+	"rtmp-ts":   {Name: "rtmp-ts", Publisher: "rtmp", Player: "ts", Unit: "clients"},
+	"rtmp-rtsp": {Name: "rtmp-rtsp", Publisher: "rtmp", Player: "rtsp", Unit: "clients"},
+	"srt-srt":   {Name: "srt-srt", Publisher: "srt", Player: "srt", Unit: "clients", start: 10, cap: 2000},
+	"rtmp-whep": {Name: "rtmp-whep", Publisher: "rtmp", Player: "whep", Unit: "clients", start: 10, cap: 2000},
+	"whip-whep": {Name: "whip-whep", Publisher: "whip", Player: "whep", Unit: "clients", start: 10, cap: 2000},
+	// The cross-protocol scenarios publish in one protocol and play in
+	// another, through SRS's bridges: SRT to RTMP, SRT to RTC (AAC to Opus)
+	// and RTC to RTMP (Opus to AAC). The players are the load, so the ramp
+	// takes their protocol's bounds.
+	"srt-rtmp":  {Name: "srt-rtmp", Publisher: "srt", Player: "rtmp", Unit: "clients"},
+	"srt-whep":  {Name: "srt-whep", Publisher: "srt", Player: "whep", Unit: "clients", start: 10, cap: 2000},
+	"whip-rtmp": {Name: "whip-rtmp", Publisher: "whip", Player: "rtmp", Unit: "clients"},
+	"whip-flv":  {Name: "whip-flv", Publisher: "whip", Player: "flv", Unit: "clients"},
+	// The publisher scenarios have N publishers, each of its own stream, and
+	// no player; many-streams has N streams, each with one RTMP publisher and
+	// two RTMP players, so its cap is the TCP cap's connections over three.
+	"rtmp-pub":     {Name: "rtmp-pub", Publisher: "rtmp", Unit: "publishers", start: 10},
+	"whip-pub":     {Name: "whip-pub", Publisher: "whip", Unit: "publishers", start: 10, cap: 2000},
+	"many-streams": {Name: "many-streams", Publisher: "rtmp", Player: "rtmp", Unit: "streams", start: 10, cap: defaultClientCap / 3},
+	// The delay probes (C7) measure delays, not capacity: an RTMP publisher
+	// and four RTMP players at the origin, the forward target and the edge.
+	"delays": {Name: "delays", Publisher: "rtmp", Player: "rtmp", Unit: "probes"},
+}
+
+func (s scenario) rampStart() int {
+	if s.start > 0 {
+		return s.start
+	}
+	return 100
+}
+
+func (s scenario) rampCap() int {
+	if s.cap > 0 {
+		return s.cap
+	}
+	return defaultClientCap
+}
+
+// gap is how long a player may get nothing before it fails: 5s for a stream,
+// three segment durations for a segmented scenario (D30).
+func (s scenario) gap() time.Duration {
+	if s.segment > 0 {
+		return time.Duration(3*s.segment) * time.Second
+	}
+	return 5 * time.Second
+}
+
+// lagLimit is the lag in milliseconds that fails a step, or 0 when lag is
+// reported but not judged, as for a segmented scenario, whose latency is
+// seconds by design.
+func (s scenario) lagLimit() int64 {
+	if s.segment > 0 {
+		return 0
+	}
+	return 2000
+}
+
+// stepTiming is the mode's default settle and window, except that a
+// segmented scenario's ramp step settles two segment durations, for the first
+// new segment, and counts three, so the gap rule can judge it.
+func (s scenario) stepTiming(mode string) (settle, window int) {
+	if s.segment > 0 && mode == "ramp" {
+		return 2 * s.segment, 3 * s.segment
+	}
+	return stepTiming(mode)
+}
+
+// smokeSeconds is how long the smoke plays: 10s, or three segment durations.
+func (s scenario) smokeSeconds() int {
+	if s.segment > 0 {
+		return 3 * s.segment
+	}
+	return 10
 }
 
 func scenarioByName(name string) (scenario, bool) {
@@ -176,9 +273,11 @@ type sample struct {
 	SRSRSSBytes      int64     `json:"srs_rss_bytes"`
 	WorkerCPUPercent []float64 `json:"worker_cpu_percent"`
 	Frames           int64     `json:"frames"`
-	Bytes            int64     `json:"bytes"`
-	LagMillis        int64     `json:"lag_millis"`
-	Failures         int64     `json:"failures"`
+	// Segments counts the segments players got, in a segmented scenario.
+	Segments  int64 `json:"segments,omitempty"`
+	Bytes     int64 `json:"bytes"`
+	LagMillis int64 `json:"lag_millis"`
+	Failures  int64 `json:"failures"`
 }
 
 type health struct {
@@ -233,6 +332,8 @@ type result struct {
 	Validity     validity `json:"validity"`
 	Capacity     int      `json:"capacity"`
 	CPUPerClient float64  `json:"cpu_per_client"`
+	// Delays is what a delay probe measured; nil for any other result.
+	Delays *delays `json:"delays,omitempty"`
 }
 
 func main() {
@@ -240,7 +341,7 @@ func main() {
 	if err == nil && cmd.kind == "worker" {
 		err = serveWorker(os.Stdin, os.Stdout)
 	} else if err == nil && cmd.kind == "smoke" {
-		err = runRTMPSmoke(os.Stdout, cmd)
+		err = runSmoke(os.Stdout, cmd)
 	} else if err == nil && cmd.kind == "run" {
 		err = runPerformance(os.Stdout, cmd)
 	} else if err == nil && cmd.kind == "compare" {

@@ -18,7 +18,7 @@ while [[ $# -gt 0 ]]; do
         *) pass_args+=("$1"); shift ;;
     esac
 done
-[[ "$scenario" == rtmp-rtmp && "$repeat" =~ ^[1-9][0-9]*$ && "$window" =~ ^[1-9][0-9]*$ ]] || {
+[[ "$scenario" =~ ^(rtmp-rtmp|rtmp-flv|rtmp-ts|rtmp-rtsp|srt-srt|rtmp-whep|whip-whep|srt-rtmp|srt-whep|whip-rtmp|whip-flv|rtmp-hls|rtmp-dash|rtmp-pub|whip-pub|many-streams|delays)$ &&"$repeat" =~ ^[1-9][0-9]*$ && "$window" =~ ^[1-9][0-9]*$ ]] || {
     echo "Invalid scenario, repeat or window" >&2
     exit 2
 }
@@ -27,6 +27,10 @@ done
     echo "Invalid -hold-clients, want <50%>,<90%> such as 6400,11520" >&2
     exit 2
 }
+if [[ "$scenario" == delays && -n "$hold_clients" ]]; then
+    echo "The delay probes have no holds, so no -hold-clients" >&2
+    exit 2
+fi
 for arg in "${pass_args[@]}"; do
     case "$arg" in
         -mode|-output|-srs-pid|-repeat|-scenario|-settle) echo "The run script controls $arg" >&2; exit 2 ;;
@@ -53,8 +57,13 @@ trap cleanup EXIT
 ) &
 heartbeat_pid=$!
 
-for port in 1935 1985 8080; do
-    if lsof -nP -iTCP:"$port" -sTCP:LISTEN | grep -q .; then
+for port in 1935 1985 8080 8554 19351 19352 10080/udp 8000/udp; do
+    if [[ "$port" == */udp ]]; then
+        in_use="$(lsof -nP -iUDP:"${port%/udp}" || true)"
+    else
+        in_use="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN || true)"
+    fi
+    if [[ -n "$in_use" ]]; then
         echo "SRS scenario port $port is already in use" >&2
         exit 1
     fi
@@ -77,6 +86,23 @@ docker_version="$(docker version --format '{{.Server.Version}}')"
 SRS_PERF_SCENARIO="$scenario" SRS_PERF_OUT="$out" make perf-up
 containers_started=1
 docker cp cmd/perf/out/srs-perf-linux srs-perf-load:/usr/local/bin/srs-perf
+
+# The delay probes measure delays, not capacity: one probe per repeat, which
+# settles 10s and counts the window, with no ramp, holds or profiles.
+if [[ "$scenario" == delays ]]; then
+    for ((i=1; i<=repeat; i++)); do
+        mkdir -p "$out/$run/repeat-$i"
+        docker exec srs-perf-load srs-perf run -scenario delays -mode probe \
+            -window "$window" -output "/out/$run/repeat-$i" -machine "$machine" \
+            -docker-version "$docker_version" "${pass_args[@]}" \
+            > "$out/$run/repeat-$i/probe-path.txt"
+    done
+    jq -s --arg scenario "$scenario" --arg run "$run" --argjson repeat "$repeat" \
+        '{scenario:$scenario,run:$run,repeat:$repeat,results:.}' \
+        "$out/$run"/repeat-*/*/result.json > "$out/$run/run.json"
+    echo "$out/$run/run.json"
+    exit 0
+fi
 
 # hold_count CAPACITY PERCENT gives a hold's clients: PERCENT of the ramp's
 # capacity, or the baseline's count from -hold-clients.

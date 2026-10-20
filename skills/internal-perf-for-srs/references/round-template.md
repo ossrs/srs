@@ -97,7 +97,7 @@ The round's progress. Tick a step when it is done, and log it in the Work log.
 
 Candidates a round may try after its bottleneck chains end. Each is judged like a bottleneck fix.
 
-**Profiling builds:** keep or remove each, from `make perf-build-check`. A removal's gain is less code with every test passing.
+**Profiling builds:** keep or remove each, from `make perf-build-check` and its `build-check.json`: whether each still configures, builds and starts. A removal's gain is less code with every test passing.
 
 - [ ] gperftools: `--gperf=on --gcp=on --gmp=on`, `--gmc`, `--gmd`, `/api/v1/tcmalloc`, `tcmalloc_release_rate` and `3rdparty/gperftools-2-fit`.
 - [ ] gprof: `--gprof=on` (`-pg -lc_p`).

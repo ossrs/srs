@@ -29,6 +29,13 @@ else
     fail "the image has /srs/perf/cbr.flv"
 fi
 
+opus_sizes=$(in_image ffprobe -v error -select_streams a -show_entries packet=size -of csv=p=0 /srs/perf/cbr-opus.ogg 2>/dev/null | cut -d, -f1 | sort -u | tr '\n' ' ' || true)
+if [[ "$opus_sizes" == "80 " ]]; then
+    pass "the image has /srs/perf/cbr-opus.ogg with every packet 80 bytes"
+else
+    fail "the image has /srs/perf/cbr-opus.ogg with every packet 80 bytes: $opus_sizes"
+fi
+
 record=$(in_image cat /srs/perf/cbr-flatness.json 2>/dev/null || true)
 if jq -e '.flat == true and .target_kbps == 200
         and .second.min >= 194 and .second.max <= 206 and .second.count >= 58

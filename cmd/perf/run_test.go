@@ -7,7 +7,27 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+// Each step plays and publishes a stream new to it, so a step's publisher is
+// never refused as busy while SRS has yet to read the close of the last
+// step's publisher of that stream over UDP, as for SRT and WHIP: perf-run
+// and the step's start in ms for a player scenario, perf and the start for
+// the publisher and many-streams scenarios, whose workers add each client's
+// index.
+func TestStepStream(t *testing.T) {
+	at := time.UnixMilli(1760000000123)
+	if got := stepStream("srt-rtmp", at); got != "perf-run-1760000000123" {
+		t.Errorf("player scenario stream = %q", got)
+	}
+	if got := stepStream("rtmp-pub", at); got != "perf-1760000000123" {
+		t.Errorf("publisher scenario stream = %q", got)
+	}
+	if stepStream("whip-flv", at) == stepStream("whip-flv", at.Add(time.Millisecond)) {
+		t.Error("two steps share a stream")
+	}
+}
 
 func TestRampDecision(t *testing.T) {
 	cases := []struct {
@@ -28,7 +48,7 @@ func TestRampDecision(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, stop := evaluateRampStep(tc.clients, 0, tc.samples, 10000)
+			got, stop := evaluateRampStep(scenario{}, tc.clients, 0, tc.samples, 10000)
 			if got.Health.Healthy != tc.wantHealthy || got.Validity.Valid != tc.wantValid || stop != tc.wantStop {
 				t.Fatalf("health=%+v validity=%+v stop=%v", got.Health, got.Validity, stop)
 			}
@@ -58,7 +78,7 @@ func TestStepCountsEverySampleAfterSettle(t *testing.T) {
 			samples[i].SRSCPUPercent = 100
 		}
 	}
-	_, stop := evaluateRampStep(100, 10, samples, 10000)
+	_, stop := evaluateRampStep(scenario{}, 100, 10, samples, 10000)
 	if stop {
 		t.Fatal("ramp stopped on settle CPU")
 	}
@@ -104,7 +124,7 @@ func TestRampStepCountsLastThreeOfFive(t *testing.T) {
 	if got := steadySamples(samples, 2); len(got) != 3 || got[0].SRSCPUPercent != 40 {
 		t.Fatalf("steady=%+v", got)
 	}
-	if _, stop := evaluateRampStep(100, 2, samples, defaultClientCap); stop {
+	if _, stop := evaluateRampStep(scenario{}, 100, 2, samples, defaultClientCap); stop {
 		t.Fatal("ramp stopped on settle CPU")
 	}
 	capacity, perClient := rampSummary([]step{{Clients: 100, SettleSeconds: 2, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}})
@@ -124,6 +144,9 @@ func TestStepTimingDefaults(t *testing.T) {
 		{"ramp", 2, 3},
 		{"hold", 30, 60},
 		{"profile", 30, 75},
+		// The delay probes settle 10s, for the forward and the edge to start,
+		// then measure 60s.
+		{"probe", 10, 60},
 	}
 	for _, tc := range cases {
 		settle, window := stepTiming(tc.mode)

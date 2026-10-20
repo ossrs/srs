@@ -30,3 +30,16 @@ else
     cat "$flatness" >&2
     exit 1
 fi
+
+# The Opus track a WHIP publisher sends beside the source's H.264: the same
+# 440 Hz sine, 32 kbps hard CBR in 20ms packets, so every packet is 80 bytes.
+# The load tool reads it and refuses a second outside 3% of the mean.
+opus="${out%.flv}-opus.ogg"
+ffmpeg -v error -y -f lavfi -i sine=frequency=440:sample_rate=48000 -t 60 \
+    -c:a libopus -b:a 32k -vbr off -frame_duration 20 -ac 2 "$opus"
+sizes=$(ffprobe -v error -select_streams a -show_entries packet=size -of csv=p=0 "$opus" | cut -d, -f1 | sort -u | tr '\n' ' ')
+if [[ "$sizes" != "80 " ]]; then
+    echo "Opus track $opus is not flat: packet sizes $sizes" >&2
+    exit 1
+fi
+echo "Opus track $opus: 32 kbps, every 20ms packet 80 bytes"

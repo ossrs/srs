@@ -151,13 +151,62 @@ func (c *rtmpClient) command(name, stream string) error {
 	return c.w.write(8, rtmpMessage{typeID: 20, streamID: c.id, payload: payload})
 }
 
+// mediaClock is a publisher's newest timestamp, and what a publisher scenario
+// measures of it: when its pace began, when it last sent a tag, and the tags
+// and bytes sent since the last take.
 type mediaClock struct {
 	mu     sync.RWMutex
 	newest uint32
+	begun  time.Time
+	last   time.Time
+	frames int64
+	bytes  int64
 }
 
-func (c *mediaClock) set(ts uint32) { c.mu.Lock(); c.newest = ts; c.mu.Unlock() }
-func (c *mediaClock) get() uint32   { c.mu.RLock(); defer c.mu.RUnlock(); return c.newest }
+func (c *mediaClock) get() uint32 { c.mu.RLock(); defer c.mu.RUnlock(); return c.newest }
+
+// begin marks the start of the pace, the real time of timestamp 0.
+func (c *mediaClock) begin(at time.Time) { c.mu.Lock(); c.begun = at; c.mu.Unlock() }
+
+// begunAt is the real time of timestamp 0, zero before the pace began.
+func (c *mediaClock) begunAt() time.Time { c.mu.RLock(); defer c.mu.RUnlock(); return c.begun }
+
+// sent records a tag the publisher sent.
+func (c *mediaClock) sent(tag rtmpMessage) {
+	c.mu.Lock()
+	c.newest, c.last = tag.timestamp, time.Now()
+	c.frames++
+	c.bytes += int64(len(tag.payload))
+	c.mu.Unlock()
+}
+
+// take gives the tags and bytes sent since the last take, and when the last
+// tag was sent, zero if none ever was.
+func (c *mediaClock) take() (frames, bytes int64, last time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	frames, bytes, last = c.frames, c.bytes, c.last
+	c.frames, c.bytes = 0, 0
+	return frames, bytes, last
+}
+
+// published is whether the publisher has sent a tag; take does not reset it.
+func (c *mediaClock) published() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return !c.last.IsZero()
+}
+
+// behind is how far, in milliseconds, the newest tag sent is behind its due
+// time; false before the pace began.
+func (c *mediaClock) behind(now time.Time) (int64, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.begun.IsZero() {
+		return 0, false
+	}
+	return now.Sub(c.begun).Milliseconds() - int64(c.newest), true
+}
 
 func publishRTMP(c *rtmpClient, stream string, tags []rtmpMessage, clock *mediaClock, stop <-chan struct{}) error {
 	defer c.conn.Close()
@@ -168,7 +217,21 @@ func publishRTMP(c *rtmpClient, stream string, tags []rtmpMessage, clock *mediaC
 		return err
 	}
 	c.conn.SetDeadline(time.Time{})
+	return paceSource(tags, clock, stop, func(tag rtmpMessage) error {
+		tag.streamID = c.id
+		csid := 6
+		if tag.typeID == 8 {
+			csid = 4
+		}
+		return c.w.write(csid, tag)
+	})
+}
+
+// paceSource sends the source's tags in real time and in a loop, each with its
+// timestamp in the loop, and records each on the publisher clock, until stop.
+func paceSource(tags []rtmpMessage, clock *mediaClock, stop <-chan struct{}, send func(rtmpMessage) error) error {
 	start := time.Now()
+	clock.begin(start)
 	duration := loopDuration(tags)
 	for loop := uint32(0); ; loop++ {
 		for _, original := range tags {
@@ -190,17 +253,56 @@ func publishRTMP(c *rtmpClient, stream string, tags []rtmpMessage, clock *mediaC
 			default:
 			}
 			tag.timestamp = ts
-			tag.streamID = c.id
-			csid := 6
-			if tag.typeID == 8 {
-				csid = 4
-			}
-			if err := c.w.write(csid, tag); err != nil {
+			if err := send(tag); err != nil {
 				return err
 			}
-			clock.set(ts)
+			clock.sent(tag)
 		}
 	}
+}
+
+// publishers publish the source to SRS in the shared network namespace, one
+// per scenario publisher protocol, until stop. media is the source's path,
+// for a publisher that sends a track made beside it, such as WHIP's Opus.
+var publishers = map[string]func(stream, media string, tags []rtmpMessage, clock *mediaClock, stop <-chan struct{}) error{
+	"rtmp": func(stream, media string, tags []rtmpMessage, clock *mediaClock, stop <-chan struct{}) error {
+		c, err := dialRTMP("127.0.0.1:1935", "live")
+		if err != nil {
+			return err
+		}
+		return publishRTMP(c, stream, tags, clock, stop)
+	},
+	"srt": func(stream, media string, tags []rtmpMessage, clock *mediaClock, stop <-chan struct{}) error {
+		return publishSRT("127.0.0.1:"+srtPort, "live", stream, tags, clock, stop)
+	},
+	"whip": func(stream, media string, tags []rtmpMessage, clock *mediaClock, stop <-chan struct{}) error {
+		return publishWHIP("127.0.0.1:"+rtcAPIPort, "live", stream, media, tags, clock, stop)
+	},
+}
+
+// startPublisher publishes the source with the scenario's publisher and waits
+// for its first tag. The returned channel gives the publisher's end.
+func startPublisher(kind, stream, media string, tags []rtmpMessage, clock *mediaClock, stop <-chan struct{}) (<-chan error, error) {
+	publish, ok := publishers[kind]
+	if !ok {
+		return nil, fmt.Errorf("no publisher for protocol %q", kind)
+	}
+	done := make(chan error, 1)
+	go func() { done <- publish(stream, media, tags, clock, stop) }()
+	deadline := time.After(5 * time.Second)
+	for clock.get() == 0 {
+		select {
+		case err := <-done:
+			if err == nil {
+				err = fmt.Errorf("publisher stopped")
+			}
+			return nil, fmt.Errorf("publish: %w", err)
+		case <-deadline:
+			return nil, fmt.Errorf("publisher sent no frames")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	return done, nil
 }
 
 func playRTMP(c *rtmpClient, stream string, stop <-chan struct{}, report chan<- rtmpMessage) error {
