@@ -5,6 +5,10 @@
 # syscall counts and SRS symbols in its symbol table. It prints the scenario's
 # verification row and the top SRS symbols of each profile hold, for ranking.
 # A delays run has no capacity or profile: its probes are checked instead.
+# A proxy run (-target proxy) has Go profiles instead: every file of
+# perf-profile-go.sh and the proxy's own symbols, no syscall counts; the check
+# prints the proxy's and origins' CPU at each hold and notes an origin-bound
+# ramp in the row.
 #
 # Usage: perf-verify.sh <run dir>, such as cmd/perf/out/<UTC>-rtmp-flv.
 # Exits 0 when every check passes, 1 when one fails, 2 on bad usage.
@@ -29,6 +33,7 @@ if ! jq -e '.results | type == "array"' "$run" >/dev/null 2>&1; then
 fi
 scenario=$(jq -r '.scenario' "$run")
 pass "run.json of $scenario"
+target=$(jq -r '.results[0].setup.target // "srs"' "$run")
 
 # The delays scenario has no capacity, holds or profiles: each repeat is one
 # probe, which must be healthy and valid with samples of every delay. Print
@@ -89,6 +94,35 @@ while read -r clients ok valid; do
 done < <(jq -r '.results[] | select(.scenario.parameters.mode == "hold")
     | "\(.steps[0].clients) \(.health.healthy) \(.validity.valid)"' "$run")
 
+# A proxy hold measures the proxy and keeps each origin's CPU beside it; the
+# report needs both, so print them, and fail a hold without the origins'.
+if [[ "$target" == proxy ]]; then
+    while read -r clients line; do
+        if [[ "$line" == *"origins none"* ]]; then fail "hold $clients origin CPU"; fi
+        echo "hold $clients: $line"
+    done < <(jq -r 'def f: . * 10 | round / 10 | tostring | if test("\\.") then . else . + ".0" end;
+        .results[] | select(.scenario.parameters.mode == "hold")
+        | "\(.steps[0].clients) proxy \(.window.srs_cpu_percent.mean | f)% ± \(.window.srs_cpu_percent.sd | f), origins "
+          + (if (.window.origin_cpu_percent // []) == [] then "none"
+             else [.window.origin_cpu_percent[] | "\(.mean | f)% ± \(.sd | f)"] | join(", ") end)' "$run")
+    # On several origins each hold's setup gives every origin's share: a
+    # player scenario's players on its stream, or a publisher scenario's
+    # streams. An origin with none means the hold measured fewer origins.
+    while read -r clients origins carrying text; do
+        [[ "$origins" -gt 1 ]] || continue
+        if [[ "$carrying" == "$origins" ]]; then
+            pass "hold $clients shares"
+        else
+            fail "hold $clients shares: $carrying of $origins origins"
+        fi
+        echo "hold $clients shares: $text"
+    done < <(jq -r '.results[] | select(.scenario.parameters.mode == "hold")
+        | (.setup.shares // []) as $s
+        | (if any($s[]; (.players // 0) > 0) then "players" else "streams" end) as $unit
+        | "\(.steps[0].clients) \(.setup.origins // 1) \([$s[] | select(((.players // 0) > 0) or ((.streams // 0) > 0 and $unit == "streams"))] | length) "
+          + ([$s[] | .[$unit] // 0 | tostring] | join(", ")) + " \($unit)"' "$run")
+fi
+
 # The noise: the CPU per client change between the two 50% holds. It does
 # not fail a run, but at 10% or more a comparison on this scenario needs an
 # A/B or a rerun with a 180s window, so the check notes it.
@@ -116,6 +150,51 @@ srs_symbols() {
     }' "$1"
 }
 
+# proxy_symbols FILE prints "<symbol> flat <flat%> cum <cum%>" for the
+# proxy's own symbols (module srsx) of a pprof -top table, in its order.
+proxy_symbols() {
+    awk '$2 ~ /%$/ && $3 ~ /%$/ && $5 ~ /%$/ && $6 ~ /^srsx\// {
+        print $6 " flat " $2 " cum " $5
+    }' "$1"
+}
+
+# A proxy run's profile holds: every file of perf-profile-go.sh, the proxy's
+# symbols, the goroutine total and the GC counts, which the report needs.
+if [[ "$target" == proxy ]]; then
+    srs_ok=1
+    for p in 50 90; do
+        prof="$dir/repeat-1/profile-$p"
+        for f in flamegraph.svg cpu.pb.gz allocs.pb.gz heap.pb.gz mutex.pb.gz block.pb.gz trace.out; do
+            if [[ -s "$prof/$f" ]]; then pass "profile-$p $f"; else fail "profile-$p $f"; fi
+        done
+        if grep -qE '^goroutine profile: total [0-9]+' "$prof/goroutine.txt" 2>/dev/null; then
+            pass "profile-$p goroutine.txt"
+        else
+            fail "profile-$p goroutine.txt"
+        fi
+        if jq -e '.before.num_gc and .after.num_gc and .after.pause_total_ns' "$prof/gc.json" >/dev/null 2>&1; then
+            pass "profile-$p gc.json"
+        else
+            fail "profile-$p gc.json"
+        fi
+        if [[ -n "$(proxy_symbols "$prof/top-symbols.txt" 2>/dev/null)" ]]; then
+            pass "profile-$p proxy symbols"
+        else
+            fail "profile-$p proxy symbols"
+            srs_ok=0
+        fi
+    done
+    for p in 50 90; do
+        prof="$dir/repeat-1/profile-$p"
+        total=$(sed -n 's/^goroutine profile: total \([0-9]*\).*/\1/p' "$prof/goroutine.txt" 2>/dev/null)
+        gc=$(jq -r '"\(.after.num_gc - .before.num_gc) GCs, \((.after.pause_total_ns - .before.pause_total_ns) / 100000 | round / 10 | tostring | if test("\\.") then . else . + ".0" end) ms of pauses"' \
+            "$prof/gc.json" 2>/dev/null)
+        echo "profile-$p: goroutines ${total:-?}, ${gc:-no GC counts}"
+        echo "Top proxy symbols at profile-$p (flat and cum share of the profiled CPU):"
+        proxy_symbols "$prof/top-symbols.txt" 2>/dev/null | head -10 | sed 's/^/  /'
+    done
+else
+
 # The profile holds: a flame graph, syscall counts and SRS symbols each.
 srs_ok=1
 for p in 50 90; do
@@ -138,6 +217,7 @@ for p in 50 90; do
     echo "Top SRS symbols at profile-$p (self share):"
     srs_symbols "$dir/repeat-1/profile-$p/top-symbols.txt" 2>/dev/null | head -10 | sed 's/^/  /'
 done
+fi
 
 # The verification row: scenario, capacity, healthy, SRS symbols. The top
 # bottleneck and the task are written by the rank step.
@@ -152,10 +232,39 @@ if [[ -n "$ramp" && "$capacity" != 0 && $(jq -r '.steps[-1].clients' <<< "$ramp"
     cap_text="$cap_text (cap)"
 elif [[ -n "$ramp" && $(jq -r '.validity.reason // ""' <<< "$ramp") == load-bound ]]; then
     cap_text="$cap_text (load-bound stop)"
+elif [[ -n "$ramp" && $(jq -r '.bound // ""' <<< "$ramp") == origin-bound ]]; then
+    # An origin reached 90% before the proxy: the capacity is the origin's.
+    cap_text="$cap_text (origin-bound)"
 fi
 symbols=no
-[[ "$srs_ok" == 1 ]] && symbols=yes
-echo "| \`$scenario\` | $cap_text | $healthy | $symbols |"
+if [[ "$target" == proxy ]]; then
+    # The bound that stopped a proxy ramp: the client cap, the load, an
+    # origin at 90% first, the proxy at 90% in the stop step, or else a
+    # failure with the proxy and every origin under 90%.
+    if [[ -n "$ramp" && "$capacity" != 0 ]]; then
+        jq -r --argjson c "$capacity" 'def f: . * 10 | round / 10 | tostring | if test("\\.") then . else . + ".0" end;
+            def n: tostring | until(test("^[0-9]{1,3}(,|$)"); sub("(?<a>[0-9])(?<b>[0-9]{3})(?<r>,|$)"; "\(.a),\(.b)\(.r)"));
+            ([.steps[] | select(.clients > $c)][0]) as $stop
+            | if $stop == null then "Bound: cap"
+              else (if .validity.reason == "load-bound" then "load"
+                  elif .bound == "origin-bound" then "origin"
+                  elif ($stop.window.srs_cpu_percent.mean // 0) >= 90 then "proxy"
+                  else "failure" end)
+                + " (stop at \($stop.clients | n): proxy \($stop.window.srs_cpu_percent.mean // 0 | f)%, origins "
+                + ([($stop.window.origin_cpu_percent // [])[] | "\(.mean | f)%"] | join(", ")) + ")"
+                | "Bound: " + . end' <<< "$ramp"
+    fi
+    # A proxy row names the target, the origin count when there are
+    # several, and has the proxy's symbols, not SRS's.
+    [[ "$srs_ok" == 1 ]] && symbols=proxy
+    origins=$(jq -r '.results[0].setup.origins // 1' "$run")
+    on=
+    [[ "$origins" -gt 1 ]] && on=" on $origins origins"
+    echo "| \`$scenario\` through the proxy$on | $cap_text | $healthy | $symbols |"
+else
+    [[ "$srs_ok" == 1 ]] && symbols=yes
+    echo "| \`$scenario\` | $cap_text | $healthy | $symbols |"
+fi
 
 if [[ "$failed" == 0 ]]; then echo "Verified $scenario"; else echo "Not verified $scenario"; fi
 exit "$failed"

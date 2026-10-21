@@ -16,11 +16,16 @@ type procUsage struct {
 	srsCPUUsageUsec  uint64
 	srsRSSBytes      int64
 	workerCPUPercent []float64
+	// The origins' CPU, each from its own container's cgroup, when the
+	// subject is the proxy; nil for SRS.
+	originCPUPercent   []float64
+	originCPUUsageUsec []uint64
 }
 
-// procSampler takes SRS CPU from its container's cgroup usage_usec, which
-// counts every thread and child of the container to the microsecond, and RSS
-// and each worker's CPU from /proc.
+// procSampler takes the subject's CPU (SRS, or the proxy) from its
+// container's cgroup usage_usec, which counts every thread and child of the
+// container to the microsecond, and RSS and each worker's CPU from /proc.
+// Behind the proxy, each origin's CPU comes from its own cgroup too.
 type procSampler struct {
 	root           string
 	cgroupRoot     string
@@ -31,10 +36,45 @@ type procSampler struct {
 	previous       map[int]uint64
 	previousUsage  uint64
 	previousTime   time.Time
+	originPIDs     []int
+	originCgroups  []string
+	previousOrigin []uint64
 }
 
 func newProcSampler(root, cgroupRoot string, srsPID int, workerPIDs []int, ticksPerSecond float64) *procSampler {
 	return &procSampler{root: root, cgroupRoot: cgroupRoot, srsPID: srsPID, workerPIDs: append([]int(nil), workerPIDs...), ticksPerSecond: ticksPerSecond}
+}
+
+// withOrigins samples the CPU of each origin beside the subject too.
+func (s *procSampler) withOrigins(pids []int) *procSampler {
+	s.originPIDs = append([]int(nil), pids...)
+	return s
+}
+
+// originUsage reads each origin's cgroup usage_usec, finding the cgroups at
+// the first call.
+func (s *procSampler) originUsage() ([]uint64, error) {
+	if len(s.originPIDs) == 0 {
+		return nil, nil
+	}
+	if s.originCgroups == nil {
+		for _, pid := range s.originPIDs {
+			cgroup, err := readCgroupPath(s.root, pid)
+			if err != nil {
+				return nil, err
+			}
+			s.originCgroups = append(s.originCgroups, cgroup)
+		}
+	}
+	usage := make([]uint64, len(s.originCgroups))
+	for i, cgroup := range s.originCgroups {
+		v, err := readCgroupUsage(s.cgroupRoot, cgroup)
+		if err != nil {
+			return nil, err
+		}
+		usage[i] = v
+	}
+	return usage, nil
 }
 
 // readCgroupPath reads the cgroup v2 path of a process. The load container
@@ -160,10 +200,18 @@ func (s *procSampler) sampleAt(now time.Time) (procUsage, error) {
 	if err != nil {
 		return procUsage{}, err
 	}
+	originUsage, err := s.originUsage()
+	if err != nil {
+		return procUsage{}, err
+	}
 	if !s.previousTime.IsZero() && !now.After(s.previousTime) {
 		return procUsage{}, fmt.Errorf("sample time must advance")
 	}
 	usage := procUsage{srsCPUUsageUsec: srsUsage, srsRSSBytes: rss, workerCPUPercent: make([]float64, len(s.workerPIDs))}
+	if originUsage != nil {
+		usage.originCPUUsageUsec = originUsage
+		usage.originCPUPercent = make([]float64, len(originUsage))
+	}
 	if !s.previousTime.IsZero() {
 		elapsed := now.Sub(s.previousTime).Seconds()
 		if srsUsage < s.previousUsage {
@@ -176,8 +224,15 @@ func (s *procSampler) sampleAt(now time.Time) (procUsage, error) {
 			}
 			usage.workerCPUPercent[i] = float64(current[pid]-s.previous[pid]) / (elapsed * s.ticksPerSecond) * 100
 		}
+		for i, v := range originUsage {
+			if v < s.previousOrigin[i] {
+				return procUsage{}, fmt.Errorf("cgroup usage_usec went backwards for %s", s.originCgroups[i])
+			}
+			usage.originCPUPercent[i] = float64(v-s.previousOrigin[i]) / (elapsed * 1e6) * 100
+		}
 	}
 	s.previous = current
+	s.previousOrigin = originUsage
 	s.previousUsage = srsUsage
 	s.previousTime = now
 	return usage, nil

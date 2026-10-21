@@ -13,7 +13,7 @@ import (
 // clientRuntime is a worker's share of a step's clients: players of the
 // parent's publisher, publishers, or streams, sampled once a second.
 type clientRuntime interface {
-	sample(publisherTimestamp uint32, final bool) workerResponse
+	sample(timestamps []uint32, final bool) workerResponse
 	close()
 }
 
@@ -44,10 +44,10 @@ func publisherOf(kind, media string, tags []rtmpMessage) (publishFunc, error) {
 }
 
 // startClients starts a worker's share of n clients of the scenario, client i
-// of the step being first+i: players of the stream, or publishers and streams
-// named by the step's prefix.
-func startClients(s scenario, n int, stream string, first int, media string, tags []rtmpMessage, timeline *sourceTimeline) (clientRuntime, error) {
-	names := func(i int) string { return streamName(stream, first+i) }
+// of the step being first+i: players split over the streams, or publishers and
+// streams named by the step's prefix, the one stream given.
+func startClients(s scenario, n int, streams []string, first int, media string, tags []rtmpMessage, timeline *sourceTimeline) (clientRuntime, error) {
+	names := func(i int) string { return streamName(streams[0], first+i) }
 	switch s.Unit {
 	case "publishers":
 		publish, err := publisherOf(s.Publisher, media, tags)
@@ -70,7 +70,10 @@ func startClients(s scenario, n int, stream string, first int, media string, tag
 	if err != nil {
 		return nil, err
 	}
-	return startPlayersOn(dial, n, timeline, s.gap(), func(int) string { return stream }, nil), nil
+	index := playerStreamIndex(first, n, len(streams))
+	players := startPlayersOn(dial, n, timeline, s.gap(), func(id int) string { return streams[index[id]] }, nil)
+	players.streams = index
+	return players, nil
 }
 
 // workerPublishers are N publishers, each of its own stream, measured by what
@@ -128,7 +131,7 @@ func startPublisherClients(publish publishFunc, n int, streamOf func(int) string
 // sample counts the tags and bytes sent in the last second; a publisher fails
 // when it ended, or sent nothing for the gap, or nothing in the whole step at
 // its last sample. Its lag is the most any publisher is behind its pace.
-func (w *workerPublishers) sample(_ uint32, final bool) workerResponse {
+func (w *workerPublishers) sample(_ []uint32, final bool) workerResponse {
 	r := workerResponse{Failures: w.failures.Swap(0)}
 	now := time.Now()
 	for i, c := range w.clocks {
@@ -185,9 +188,9 @@ func startStreams(publish publishFunc, dial func() (player, error), n int, strea
 	return &workerStreams{publishers: pubs, players: players}
 }
 
-func (w *workerStreams) sample(_ uint32, final bool) workerResponse {
-	p := w.publishers.sample(0, final)
-	r := w.players.sample(0, final)
+func (w *workerStreams) sample(_ []uint32, final bool) workerResponse {
+	p := w.publishers.sample(nil, final)
+	r := w.players.sample(nil, final)
 	r.Failures += p.Failures
 	if p.LagMillis > r.LagMillis {
 		r.LagMillis = p.LagMillis

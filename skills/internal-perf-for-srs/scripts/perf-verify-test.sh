@@ -190,6 +190,120 @@ make_delays delays-no-probe
 jq '.results = []' "$base/delays-no-probe/run.json" > "$base/delays-no-probe/r" && mv "$base/delays-no-probe/r" "$base/delays-no-probe/run.json"
 expect delays-no-probe 1 "FAIL probe results"
 
+# A proxy run (setup.target proxy) has Go profiles instead of perf's: the
+# check wants every file of perf-profile-go.sh, the proxy's own symbols in
+# pprof's top table and no syscall counts, prints the proxy's and each
+# origin's CPU at each hold, and notes an origin-bound ramp in the row.
+make_proxy_run() {
+    make_run "$1"
+    local dir="$base/$1"
+    jq '.results[].setup = {target:"proxy", proxy_version:"8.0.59", origins:1}
+        | .results[].steps[].window.origin_cpu_percent = [{mean:10.5, sd:0.4}]
+        | (.results[] | select(.scenario.parameters.mode == "hold")) |= (.window = .steps[0].window)' \
+        "$dir/run.json" > "$dir/r" && mv "$dir/r" "$dir/run.json"
+    for p in 50 90; do
+        local prof="$dir/repeat-1/profile-$p"
+        rm "$prof/syscalls.txt"
+        for f in cpu.pb.gz allocs.pb.gz heap.pb.gz mutex.pb.gz block.pb.gz trace.out; do
+            printf 'x' > "$prof/$f"
+        done
+        printf 'goroutine profile: total 3205\n1600 @ 0x1 0x2\n' > "$prof/goroutine.txt"
+        printf '{"before": {"num_gc":100,"pause_total_ns":5000000}, "after": {"num_gc":172,"pause_total_ns":9000000}}\n' > "$prof/gc.json"
+        # pprof -top's layout: a header, then flat, flat%, sum%, cum, cum%, name.
+        {
+            printf 'File: srs-proxy\nType: cpu\nDuration: 60.01s, Total samples = 8.52s (14.20%%)\n'
+            printf 'Showing nodes accounting for 7.63s, 89.55%% of 8.52s total\n'
+            printf '      flat  flat%%   sum%%        cum   cum%%\n'
+            printf '     5.57s 65.38%% 65.38%%      5.57s 65.38%%  internal/runtime/syscall.Syscall6\n'
+            printf '     0.11s  1.29%% 66.67%%      1.10s 12.91%%  runtime.mallocgc\n'
+            printf '      70ms  0.82%% 67.49%%      6.35s 74.53%%  srsx/internal/rtmp.(*protocol).WriteMessage\n'
+            printf '      10ms  0.12%% 67.61%%      7.10s 83.33%%  srsx/internal/proxy.(*rtmpConnection).serve.func1 (inline)\n'
+        } > "$prof/top-symbols.txt"
+    done
+}
+
+make_proxy_run proxy
+expect proxy 0 "| \`rtmp-flv\` through the proxy | 3,200 | yes | proxy |"
+expect proxy 0 "srsx/internal/rtmp.(*protocol).WriteMessage flat 0.82% cum 74.53%"
+expect proxy 0 "PASS profile-90 trace.out"
+expect proxy 0 "goroutines 3205, 72 GCs, 4.0 ms of pauses"
+expect proxy 0 "hold 2880: proxy 28.8% ± 0.5, origins 10.5% ± 0.4"
+expect proxy 0 "Verified rtmp-flv"
+
+make_proxy_run proxy-origin-bound
+jq '.results[0].bound = "origin-bound" | .results[0].steps[3].bound = "origin-bound"' \
+    "$base/proxy-origin-bound/run.json" > "$base/proxy-origin-bound/r" && mv "$base/proxy-origin-bound/r" "$base/proxy-origin-bound/run.json"
+expect proxy-origin-bound 0 "| \`rtmp-flv\` through the proxy | 3,200 (origin-bound) | yes | proxy |"
+
+make_proxy_run proxy-no-symbols
+printf '      flat  flat%%   sum%%        cum   cum%%\n     5.57s 65.38%% 65.38%%      5.57s 65.38%%  internal/runtime/syscall.Syscall6\n' \
+    > "$base/proxy-no-symbols/repeat-1/profile-90/top-symbols.txt"
+expect proxy-no-symbols 1 "FAIL profile-90 proxy symbols"
+
+make_proxy_run proxy-no-trace
+rm "$base/proxy-no-trace/repeat-1/profile-50/trace.out"
+expect proxy-no-trace 1 "FAIL profile-50 trace.out"
+
+make_proxy_run proxy-bad-gc
+printf '{}\n' > "$base/proxy-bad-gc/repeat-1/profile-90/gc.json"
+expect proxy-bad-gc 1 "FAIL profile-90 gc.json"
+
+make_proxy_run proxy-bad-goroutines
+: > "$base/proxy-bad-goroutines/repeat-1/profile-50/goroutine.txt"
+expect proxy-bad-goroutines 1 "FAIL profile-50 goroutine.txt"
+
+make_proxy_run proxy-no-origin-cpu
+jq 'del(.results[].window.origin_cpu_percent)' "$base/proxy-no-origin-cpu/run.json" > "$base/proxy-no-origin-cpu/r" && mv "$base/proxy-no-origin-cpu/r" "$base/proxy-no-origin-cpu/run.json"
+expect proxy-no-origin-cpu 1 "FAIL hold 2880 origin CPU"
+
+# The bound that stopped a proxy ramp: the client cap, the load, an origin
+# at 90% first, the proxy at 90% in the stop step, or a failure with the
+# proxy and every origin under 90%. The stop step's CPU is printed with it.
+expect proxy 0 "Bound: failure (stop at 6,400: proxy 64.0%, origins 10.5%)"
+expect proxy-origin-bound 0 "Bound: origin (stop at 6,400: proxy 64.0%, origins 10.5%)"
+make_proxy_run proxy-bound
+jq '.results[0].steps[3].window.srs_cpu_percent.mean = 95' \
+    "$base/proxy-bound/run.json" > "$base/proxy-bound/r" && mv "$base/proxy-bound/r" "$base/proxy-bound/run.json"
+expect proxy-bound 0 "Bound: proxy (stop at 6,400: proxy 95.0%, origins 10.5%)"
+make_proxy_run proxy-load-bound
+jq '.results[0].validity = {valid:false, reason:"load-bound"}' \
+    "$base/proxy-load-bound/run.json" > "$base/proxy-load-bound/r" && mv "$base/proxy-load-bound/r" "$base/proxy-load-bound/run.json"
+expect proxy-load-bound 0 "Bound: load (stop at 6,400: proxy 64.0%, origins 10.5%)"
+make_proxy_run proxy-cap
+jq '.results[0].steps |= .[0:3]' \
+    "$base/proxy-cap/run.json" > "$base/proxy-cap/r" && mv "$base/proxy-cap/r" "$base/proxy-cap/run.json"
+expect proxy-cap 0 "Bound: cap"
+
+# On several origins the row names the origin count, and each hold's setup
+# must show every origin carrying a share: a player scenario's players on its
+# one stream, or a publisher scenario's streams.
+make_proxy_origins_run() {
+    make_proxy_run "$1"
+    local dir="$base/$1"
+    jq '.results[].setup.origins = 3
+        | .results[].steps[].window.origin_cpu_percent = [{mean:10.5, sd:0.4}, {mean:11.0, sd:0.3}, {mean:9.5, sd:0.6}]
+        | (.results[] | select(.scenario.parameters.mode == "hold")) |= (.window = .steps[0].window
+            | .setup.shares = [range(3) as $i | {origin:($i + 1), stream:"s-\($i)", streams:1, players:(.steps[0].clients / 3 | floor)}])' \
+        "$dir/run.json" > "$dir/r" && mv "$dir/r" "$dir/run.json"
+}
+make_proxy_origins_run proxy-origins
+expect proxy-origins 0 "| \`rtmp-flv\` through the proxy on 3 origins | 3,200 | yes | proxy |"
+expect proxy-origins 0 "hold 2880: proxy 28.8% ± 0.5, origins 10.5% ± 0.4, 11.0% ± 0.3, 9.5% ± 0.6"
+expect proxy-origins 0 "hold 2880 shares: 960, 960, 960 players"
+expect proxy-origins 0 "Bound: failure (stop at 6,400: proxy 64.0%, origins 10.5%, 11.0%, 9.5%)"
+make_proxy_origins_run proxy-origins-publishers
+jq '(.results[] | select(.scenario.parameters.mode == "hold")).setup.shares |= map(del(.stream, .players) | .streams = 500)' \
+    "$base/proxy-origins-publishers/run.json" > "$base/proxy-origins-publishers/r" && mv "$base/proxy-origins-publishers/r" "$base/proxy-origins-publishers/run.json"
+expect proxy-origins-publishers 0 "hold 2880 shares: 500, 500, 500 streams"
+make_proxy_origins_run proxy-origins-idle
+jq '(.results[] | select(.scenario.parameters.mode == "hold")).setup.shares |= .[0:2]' \
+    "$base/proxy-origins-idle/run.json" > "$base/proxy-origins-idle/r" && mv "$base/proxy-origins-idle/r" "$base/proxy-origins-idle/run.json"
+expect proxy-origins-idle 1 "FAIL hold 2880 shares: 2 of 3 origins"
+make_proxy_origins_run proxy-origins-empty
+jq '(.results[] | select(.scenario.parameters.mode == "hold")).setup.shares[1] |= (.players = 0 | .streams = 0)' \
+    "$base/proxy-origins-empty/run.json" > "$base/proxy-origins-empty/r" && mv "$base/proxy-origins-empty/r" "$base/proxy-origins-empty/run.json"
+expect proxy-origins-empty 1 "FAIL hold 2880 shares: 2 of 3 origins"
+
 out=$(bash perf-verify.sh 2>&1); code=$?
 if [[ "$code" == 2 ]]; then pass "no argument exits 2"; else fail "no argument exits 2, got $code: $out"; fi
 

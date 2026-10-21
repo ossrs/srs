@@ -129,7 +129,7 @@ func TestPublisherClientsPublishOwnStreams(t *testing.T) {
 	var streams sync.Map
 	w := startPublisherClients(pacedPublish(cbrLikeTags(), &streams), 3, func(i int) string { return streamName("perf-1", 5+i) }, 5*time.Second)
 	time.Sleep(1200 * time.Millisecond)
-	got := w.sample(0, true)
+	got := w.sample(nil, true)
 	w.close()
 	if got.Frames < 3*50 || got.Bytes <= 0 || got.Failures != 0 || got.LagMillis > 100 {
 		t.Fatalf("sample = %+v", got)
@@ -149,7 +149,7 @@ func TestPublisherBehindPaceLags(t *testing.T) {
 	}, 1, func(i int) string { return "s" }, 5*time.Second)
 	defer w.close()
 	time.Sleep(50 * time.Millisecond)
-	if got := w.sample(0, false); got.LagMillis < 2400 || got.LagMillis > 2700 || got.Failures != 0 {
+	if got := w.sample(nil, false); got.LagMillis < 2400 || got.LagMillis > 2700 || got.Failures != 0 {
 		t.Fatalf("sample = %+v, want 2.5s lag", got)
 	}
 }
@@ -166,23 +166,23 @@ func TestPublisherClientsFailures(t *testing.T) {
 		return paceSource(cbrLikeTags(), clock, stop, func(rtmpMessage) error { return nil })
 	}, 1, func(i int) string { return "s" }, 5*time.Second)
 	time.Sleep(300 * time.Millisecond)
-	if got := retried.sample(0, true); got.Failures != 0 || got.Frames == 0 || calls.Load() != 3 {
+	if got := retried.sample(nil, true); got.Failures != 0 || got.Frames == 0 || calls.Load() != 3 {
 		t.Fatalf("retried sample = %+v after %d calls", got, calls.Load())
 	}
 	retried.close()
 
 	ended := startPublisherClients(func(string, *mediaClock, <-chan struct{}) error { return io.EOF }, 2, func(i int) string { return "s" }, 5*time.Second)
 	time.Sleep(50 * time.Millisecond)
-	if got := ended.sample(0, false); got.Failures != 2 {
+	if got := ended.sample(nil, false); got.Failures != 2 {
 		t.Fatalf("ended sample = %+v, want 2 failures", got)
 	}
 	ended.close()
 
 	silent := startPublisherClients(func(_ string, _ *mediaClock, stop <-chan struct{}) error { <-stop; return nil }, 1, func(i int) string { return "s" }, 5*time.Second)
-	if got := silent.sample(0, false); got.Failures != 0 {
+	if got := silent.sample(nil, false); got.Failures != 0 {
 		t.Fatalf("silent mid-step sample = %+v", got)
 	}
-	if got := silent.sample(0, true); got.Failures != 1 {
+	if got := silent.sample(nil, true); got.Failures != 1 {
 		t.Fatalf("silent final sample = %+v, want 1 failure", got)
 	}
 	silent.close()
@@ -216,7 +216,7 @@ func TestStreamsPlayEachStream(t *testing.T) {
 	dial := func() (player, error) { return &fakeStreamPlayer{tags: tags, played: &played}, nil }
 	w := startStreams(pacedPublish(tags, &published), dial, 3, func(i int) string { return streamName("perf-2", i) }, newSourceTimeline(tags), 5*time.Second)
 	time.Sleep(1500 * time.Millisecond)
-	got := w.sample(0, true)
+	got := w.sample(nil, true)
 	w.close()
 	if got.Frames < 6*30 || got.Failures != 0 || got.LagMillis > 300 {
 		t.Fatalf("sample = %+v", got)
@@ -244,7 +244,7 @@ func TestStreamsFailWithTheirPublisher(t *testing.T) {
 	dial := func() (player, error) { return &fakeStreamPlayer{tags: tags, played: &played}, nil }
 	w := startStreams(func(string, *mediaClock, <-chan struct{}) error { return io.EOF }, dial, 1, func(i int) string { return "s" }, newSourceTimeline(tags), 5*time.Second)
 	time.Sleep(50 * time.Millisecond)
-	got := w.sample(0, true)
+	got := w.sample(nil, true)
 	w.close()
 	if got.Failures != 3 {
 		t.Fatalf("sample = %+v, want the publisher and both players failed", got)

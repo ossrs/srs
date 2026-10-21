@@ -10,6 +10,20 @@ fail() { echo "FAIL $1"; failed=1; }
 has() {
     if grep -qF -- "$2" "$1" 2>/dev/null; then pass "$1: $2"; else fail "$1: $2"; fi
 }
+# Every relative link in file $1 resolves from the file's own folder.
+links_exist() {
+    local dir link
+    dir=$(dirname "$1")
+    [[ -f "$1" ]] || { fail "$1 exists"; return; }
+    for link in $(grep -oE '\]\([^)# ]+' "$1" | sed 's/^](//' | grep -v '^[a-z]*:' | sort -u); do
+        if [[ -e "$dir/$link" ]]; then pass "$1 link $link"; else fail "$1 link $link"; fi
+    done
+}
+# The text $3 is in SKILL.md's workflow $1, reported as $2.
+section() { sed -n "/^### $1/,/^### /p" SKILL.md; }
+in_section() {
+    if grep -qF -- "$3" <<< "$(section "$1")"; then pass "$2: $3"; else fail "$2: $3"; fi
+}
 
 has SKILL.md "name: internal-perf-for-srs"
 for workflow in "### Start a Round" "### Build the Tools" "### Run the Load and Profile" \
@@ -47,7 +61,8 @@ done
 registry=$(sed -nE 's/^	"([a-z0-9-]+)": +\{Name:.*/\1/p' ../../cmd/perf/main.go | sort | tr '\n' ' ')
 listed=$(sed -nE 's/^scenarios=\((.*)\)$/\1/p' scripts/perf-smoke.sh | tr ' ' '\n' | sort | tr '\n' ' ')
 if [[ -n "$registry" && "$registry" == "$listed" ]]; then pass "perf-smoke.sh lists the registry"; else fail "perf-smoke.sh lists the registry: [$listed] != [$registry]"; fi
-has scripts/perf-smoke.sh 'for s in "${scenarios[@]}"; do'
+has scripts/perf-smoke.sh 'list=("${scenarios[@]}")'
+has scripts/perf-smoke.sh 'for s in "${list[@]}"; do'
 has scripts/perf-smoke.sh 'bash "$0" "$s"'
 has SKILL.md 'With no `SCENARIO`, `make perf-smoke` smokes every scenario'
 # A stream smoke fails when no player got video, which only lag shows; the
@@ -80,8 +95,108 @@ done
 # network namespace, each from its own env; perf-down removes them, and the run
 # measures only the delays, with no ramp, holds or profiles.
 has scripts/perf-up.sh '"$PWD/cmd/perf/env/$scenario-$role.env"'
-has scripts/perf-up.sh '--network "container:$name-srs"'
+has scripts/perf-up.sh '--network "container:$owner"'
 has scripts/perf-down.sh '"$name-forward" "$name-edge"'
+# -target proxy: the Go proxy from the image on its own core, its one to four
+# origins behind it in its network namespace; perf-down removes them all.
+has ../../cmd/perf/Dockerfile "COPY --from=proxy /out/srs-proxy /srs/bin/srs-proxy"
+has scripts/perf-up.sh '--env-file "$PWD/cmd/perf/env/proxy/proxy.env"'
+has scripts/perf-up.sh '--env-file "$PWD/cmd/perf/env/proxy/$file"'
+has scripts/perf-up.sh '[[ "$origins" =~ ^[1-4]$ ]]'
+has scripts/perf-down.sh '"$name-origin1" "$name-origin2" "$name-origin3" "$name-origin4" "$name-proxy"'
+has ../../cmd/perf/env/proxy/proxy.env "GOMAXPROCS=1"
+has ../../cmd/perf/env/proxy/proxy.env "GO_PPROF=127.0.0.1:"
+has ../../cmd/perf/env/proxy/origin.env "SRS_HEARTBEAT_DEVICE_ID=origin1"
+for i in 2 3 4; do
+    has "../../cmd/perf/env/proxy/origin$i.env" "SRS_HEARTBEAT_DEVICE_ID=origin$i"
+done
+# Each origin listens on its own ports, so four fit in one network namespace.
+for key in SRS_RTMP_LISTEN SRS_HTTP_SERVER_LISTEN SRS_HTTP_API_LISTEN SRS_RTC_SERVER_LISTEN SRS_SRT_SERVER_LISTEN; do
+    ports=$(cat ../../cmd/perf/env/proxy/origin.env ../../cmd/perf/env/proxy/origin[234].env 2>/dev/null | sed -n "s/^$key=//p" | sort -u | wc -l | tr -d ' ')
+    if [[ "$ports" == 4 ]]; then pass "four origins: $key distinct"; else fail "four origins: $key distinct ($ports)"; fi
+done
+# The load tool reads each origin's streams from its HTTP API, origin i's 10
+# ports above origin i-1's, to place one stream on each origin; the smoke
+# checks every origin's share.
+api=19851
+for file in origin.env origin2.env origin3.env origin4.env; do
+    has "../../cmd/perf/env/proxy/$file" "SRS_HTTP_API_ENABLED=on"
+    has "../../cmd/perf/env/proxy/$file" "SRS_HTTP_API_LISTEN=$api"
+    api=$((api + 10))
+done
+has ../../cmd/perf/placement.go "const originAPIBase = 19851"
+has scripts/perf-smoke.sh '.setup.shares'
+has SKILL.md 'one stream on each origin'
+# The proxy scenarios are one list, every protocol the proxy relays without
+# conversion: each is in the registry and none is the delay probe; every one
+# runs on three origins by default. perf-up and the smoke read it.
+proxy_list=scripts/perf-proxy-scenarios.sh
+proxy_listed=$(sed -nE 's/^proxy_scenarios=\((.*)\)$/\1/p' "$proxy_list" 2>/dev/null | tr ' ' '\n' | sort | tr '\n' ' ')
+want="many-streams rtmp-flv rtmp-hls rtmp-pub rtmp-rtmp rtmp-ts srt-srt whip-pub whip-whep "
+if [[ "$proxy_listed" == "$want" ]]; then pass "proxy scenarios"; else fail "proxy scenarios: [$proxy_listed] != [$want]"; fi
+for s in $proxy_listed; do
+    if [[ " $registry" == *" $s "* && "$s" != delays ]]; then pass "proxy scenario $s in the registry"; else fail "proxy scenario $s in the registry"; fi
+done
+origins_of() { (source "$proxy_list" && proxy_origins "$1") 2>/dev/null; }
+for s in $proxy_listed; do
+    if [[ "$(origins_of "$s")" == 3 ]]; then pass "proxy origins: $s on 3"; else fail "proxy origins: $s on 3"; fi
+done
+# SRS_PERF_ORIGINS overrides the default, in perf-up and in the smoke's check.
+has scripts/perf-up.sh 'origins="${SRS_PERF_ORIGINS:-}"'
+has scripts/perf-smoke.sh '${SRS_PERF_ORIGINS:-$(proxy_origins "$scenario")}'
+has SKILL.md '`perf-up.sh -target proxy -origins <1-4>`'
+has SKILL.md '`origin4.env`'
+has scripts/perf-up.sh 'source "$(dirname "$0")/perf-proxy-scenarios.sh"'
+has scripts/perf-smoke.sh 'source "$(dirname "$0")/perf-proxy-scenarios.sh"'
+has scripts/perf-smoke.sh 'list=("${proxy_scenarios[@]}")'
+has scripts/perf-smoke.sh 'srs-perf smoke -scenario "$scenario" -target "$target"'
+has scripts/perf-smoke.sh '.setup.target == $target'
+has ../../Makefile 'SRS_PERF_TARGET="$(TARGET)" bash skills/internal-perf-for-srs/scripts/perf-smoke.sh'
+for text in '`make perf-smoke TARGET=proxy`' "](scripts/perf-proxy-scenarios.sh)"; do
+    has SKILL.md "$text"
+done
+for text in '`perf-up.sh -target proxy -origins <1-4>`' "](scripts/perf-proxy-up-test.sh)" '`bin/srs-perf run -target proxy`' '`origin-bound`'; do
+    has SKILL.md "$text"
+done
+# perf-run.sh -target proxy runs the proxy scenarios through the proxy and
+# profiles the proxy with Go's tools in the profile holds, from the load
+# container, which shares the proxy's loopback.
+has scripts/perf-run.sh 'source "$(dirname "$0")/perf-proxy-scenarios.sh"'
+has scripts/perf-run.sh 'SRS_PERF_TARGET="$target" SRS_PERF_SCENARIO="$scenario"'
+has scripts/perf-run.sh '-target "$target"'
+has scripts/perf-run.sh 'docker exec srs-perf-load bash /perf-scripts/perf-profile-go.sh "$profile"'
+# perf-run.sh -origins <1-4> sets a proxy run's origin count for perf-up.sh;
+# it refuses a count out of range and the SRS target before building anything.
+has scripts/perf-run.sh 'SRS_PERF_ORIGINS="$origins"'
+for text in 'or N with `-origins <1-4>`' "the bound that stopped the ramp" "each hold's shares"; do
+    has SKILL.md "$text"
+done
+for args in "-target srs -origins 3" "-target proxy -origins 0" "-target proxy -origins 5" "-target proxy -origins x"; do
+    # shellcheck disable=SC2086
+    bash scripts/perf-run.sh $args >/dev/null 2>&1
+    code=$?
+    if [[ "$code" == 2 ]]; then pass "perf-run.sh $args: refused"; else fail "perf-run.sh $args: refused (exit $code)"; fi
+done
+go_profile=scripts/perf-profile-go.sh
+for file in cpu.pb.gz allocs.pb.gz heap.pb.gz goroutine.txt mutex.pb.gz block.pb.gz trace.out \
+    gc.json top-symbols.txt flamegraph.svg; do
+    has "$go_profile" "$file"
+done
+# Mutex and block sampling only while the profiles record, off before the trace.
+rates_on=$(grep -n 'rates?mutex=$mutex_rate&block=$block_rate' "$go_profile" | head -1 | cut -d: -f1)
+cpu_line=$(grep -n 'cpu.pb.gz' "$go_profile" | head -1 | cut -d: -f1)
+rates_off=$(grep -n 'rates?mutex=0&block=0' "$go_profile" | head -1 | cut -d: -f1)
+trace_line=$(grep -n 'trace.out' "$go_profile" | head -1 | cut -d: -f1)
+if [[ -n "$rates_on" && -n "$rates_off" && -n "$cpu_line" && -n "$trace_line" \
+    && "$rates_on" -lt "$cpu_line" && "$rates_off" -lt "$trace_line" ]]; then
+    pass "$go_profile: mutex and block rates on for the profiles, off before the trace"
+else
+    fail "$go_profile: mutex and block rates on for the profiles, off before the trace"
+fi
+has ../../cmd/perf/Dockerfile "COPY --from=proxy /out/pprof /usr/local/bin/pprof"
+for text in '`perf-run.sh -target proxy`' "](scripts/perf-profile-go.sh)" "](scripts/perf-profile-go-test.sh)"; do
+    has SKILL.md "$text"
+done
 has scripts/perf-run.sh '-mode probe'
 has scripts/perf-smoke.sh '.delays.pause_millis.samples'
 for text in "C7" "NetStream.Pause.Notify" '`delays-forward.env`' '`delays-edge.env`'; do
@@ -105,6 +220,132 @@ if grep -qE 'git (checkout|stash|reset|revert)' scripts/perf-ab.sh; then
 else
     pass "perf-ab.sh: the worktree untouched"
 fi
+# The proxy A/B: the baseline proxy from a git tree, each side on its own cores.
+for text in '`perf-ab.sh -target proxy`' "that commit's proxy change taken out" '`perf-ab-test.sh -target proxy`'; do
+    has SKILL.md "$text"
+done
+has scripts/perf-ab.sh "cmd/perf/Dockerfile.ab-proxy"
+has scripts/perf-ab.sh "SRS_PERF_PROXY_IMAGE"
+has scripts/perf-ab.sh "perf-proxy-scenarios.sh"
+has ../../cmd/perf/Dockerfile.ab-proxy "FROM srs-perf:local"
+has ../../cmd/perf/Dockerfile.ab-proxy "COPY --from=proxy /out/srs-proxy /srs/bin/srs-proxy"
+# The proxy has its own section, one line per tool and then its guide in
+# subsections; the Tools section keeps only the SRS tools.
+proxy_section=$(sed -n '/^## Proxy$/,/^## /p' SKILL.md)
+tools_section=$(sed -n '/^## Tools$/,/^## /p' SKILL.md)
+if [[ -n "$proxy_section" ]]; then pass "SKILL.md: ## Proxy"; else fail "SKILL.md: ## Proxy"; fi
+for text in '`perf-up.sh -target proxy -origins <1-4>`' '`make perf-smoke TARGET=proxy`' \
+    '`bin/srs-perf run -target proxy`' 'one stream on each origin' '`perf-run.sh -target proxy`' '`perf-ab.sh -target proxy`' \
+    "](scripts/perf-proxy-scenarios.sh)" "](scripts/perf-profile-go.sh)" "](scripts/perf-profile-go-test.sh)" \
+    "](scripts/perf-proxy-up-test.sh)" '`perf-ab-test.sh -target proxy`' "-proxy-docker.md"; do
+    if grep -qF -- "$text" <<< "$proxy_section"; then pass "Proxy: $text"; else fail "Proxy: $text"; fi
+done
+if grep -qE -- '-target proxy|perf-profile-go|perf-proxy-' <<< "$tools_section"; then
+    fail "Tools: no proxy tool"
+else
+    pass "Tools: no proxy tool"
+fi
+if [[ -n "$proxy_section" ]] && ! sed '/^### /,$d' <<< "$proxy_section" | grep -vE '^(- \*\*|- \[|## |$)' | sed 1d | grep -q .; then
+    pass "Proxy: one line per tool"
+else
+    fail "Proxy: one line per tool"
+fi
+# The proxy guide, moved from internal-docs into SKILL.md's Proxy section, with the
+# manual steps as a short fallback.
+if [[ -e references/proxy.md ]]; then fail "no references/proxy.md"; else pass "no references/proxy.md"; fi
+for section in "### Proxy Topology" "### Proxy Scenarios" "### Measuring the Proxy" "### Proxy Profiles" "### Proxy A/B" "### Manual Proxy Profiling"; do
+    if grep -qxF -- "$section" <<< "$proxy_section"; then pass "Proxy: $section"; else fail "Proxy: $section"; fi
+done
+guide=SKILL.md
+for text in "perf-up.sh -target proxy" "perf-run.sh -target proxy" "perf-ab.sh -target proxy" \
+    "perf-profile-go.sh" "GOMAXPROCS=1" "GO_PPROF" "origin-bound" "-proxy-docker.md" "pprof -base"; do
+    has "$guide" "$text"
+done
+for s in $proxy_listed; do
+    has "$guide" "\`$s\`"
+done
+links_exist "$guide"
+docs=../internal-docs-for-srs
+if [[ -e "$docs/references/perf/proxy-whep.md" ]]; then fail "old proxy-whep.md removed"; else pass "old proxy-whep.md removed"; fi
+if grep -rqF "proxy-whep" "$docs" SKILL.md references; then fail "no proxy-whep link"; else pass "no proxy-whep link"; fi
+# The proxy guide is a skill, not a doc: internal-docs routes no doc to it, and
+# srs-develop's Task Router sends proxy performance work to this skill.
+if grep -rqF "internal-perf-for-srs" "$docs"; then fail "internal-docs: no route to the perf skill"; else pass "internal-docs: no route to the perf skill"; fi
+if grep -E '^- \*\*Performance\*\*' ../srs-develop/SKILL.md | grep -qF "Go proxy"; then pass "srs-develop: Performance row names the Go proxy"; else fail "srs-develop: Performance row names the Go proxy"; fi
+links_exist "$docs/references/proxy/features.md"
+# Reading Go profiles, and the proxy target in the round and report templates.
+go_read=$(sed -n '/^## Go profiles/,$p' references/reading-profiles.md)
+for text in "flat" "cum" "allocations per packet" "goroutine" "GC share" "gc.json" "go tool trace" \
+    "Scheduler latency" "Syscall" "-proxy-docker.md"; do
+    if grep -qF -- "$text" <<< "$go_read"; then pass "Go profiles: $text"; else fail "Go profiles: $text"; fi
+done
+for text in "**Target:**" "## Proxy scenarios" "Go profiles" "origin-bound" "-target proxy"; do
+    has references/round-template.md "$text"
+done
+round_proxy=$(sed -n '/^## Proxy scenarios/,/^## /p' references/round-template.md)
+for s in $proxy_listed; do
+    if grep -qF "| \`$s\` |" <<< "$round_proxy"; then pass "round template proxy scenario $s"; else fail "round template proxy scenario $s"; fi
+done
+for text in "| Target |" "| Proxy version |" "| Origins |" "origin CPU" "-proxy-docker.md" "Go profiles" "-target proxy"; do
+    has references/report-template.md "$text"
+done
+in_section "Write the Report" "Write the Report" "-proxy-docker.md"
+in_section "Rank Bottlenecks" "Rank" "Go profiles"
+# The proxy hand-over: SKILL.md lists every verified proxy scenario with its
+# capacity and top bottleneck, says how to start a proxy round, how to check a
+# proxy change, and names the proxy after-report.
+verified_proxy=$(sed -n '/^## Verified Proxy Scenarios/,/^## /p' SKILL.md)
+if [[ -n "$verified_proxy" ]]; then pass "SKILL.md: ## Verified Proxy Scenarios"; else fail "SKILL.md: ## Verified Proxy Scenarios"; fi
+# On several origins (D113): each proxy scenario's capacity on one origin and on
+# three, and the bound that stopped its ramp, as perf-verify.sh names it.
+proxy_header="| Scenario | Capacity on one origin | Capacity on three origins | Bound | Top bottleneck |"
+if grep -qxF -- "$proxy_header" <<< "$verified_proxy"; then pass "verified proxy header"; else fail "verified proxy header"; fi
+for s in $proxy_listed; do
+    if grep -qE "^\| \`$s\` \| [^|]+ \| [^|]+ \| (proxy|origin|load|cap|failure)[^|]* \| [^|]+ \|$" <<< "$verified_proxy"; then
+        pass "verified proxy $s"
+    else
+        fail "verified proxy $s"
+    fi
+done
+for text in "on three origins" "-proxy-origins-docker.md"; do
+    if grep -qF -- "$text" <<< "$verified_proxy"; then pass "Verified Proxy: $text"; else fail "Verified Proxy: $text"; fi
+done
+# A capacity run uses several origins, an A/B one origin per side: SKILL.md's
+# Proxy section, its proxy round, the guide and the templates say so.
+for text in "**Several origins:**" "one origin per side" "-proxy-origins-docker.md"; do
+    if grep -qF -- "$text" <<< "$proxy_section"; then pass "Proxy: $text"; else fail "Proxy: $text"; fi
+done
+for text in "10 vCPUs" "below the one-origin bound"; do
+    if grep -qF -- "$text" <<< "$proxy_section"; then pass "Proxy: $text"; else fail "Proxy: $text"; fi
+done
+proxy_round_header=$(grep -m1 '^| Scenario |' <<< "$round_proxy")
+for col in "| Origins |" "| Bound |"; do
+    if grep -qF -- "$col" <<< "$proxy_round_header"; then pass "round template proxy column $col"; else fail "round template proxy column $col"; fi
+done
+for s in $proxy_listed; do
+    origins_cell=$(grep -F "| \`$s\` |" <<< "$round_proxy" | awk -F' [|] ' '{print $3}')
+    if [[ "$origins_cell" == "$(origins_of "$s")" ]]; then
+        pass "round template proxy $s on its default origins"
+    else
+        fail "round template proxy $s on its default origins ($origins_cell)"
+    fi
+done
+has references/report-template.md "1 to 4, three by default"
+has references/report-template.md "-proxy-origins-docker.md"
+if grep -qF "origins on vCPUs 2 and 3" references/report-template.md; then
+    fail "report template: origins on vCPUs 2 to N+1"
+else
+    pass "report template: origins on vCPUs 2 to N+1"
+fi
+proxy_start=$(sed -n '/\*\*A proxy round:\*\*/,/^[0-9]\./p' <<< "$(section "Start a Round")")
+for text in "-proxy-round.md" "-target proxy" "## Proxy scenarios" "Verified Proxy Scenarios" "-cap 1000" \
+    "-cap 6400" "three origins" "one origin per side" "perf-verify.sh" "perf-ab.sh -target proxy"; do
+    if grep -qF -- "$text" <<< "$proxy_start"; then pass "Start a proxy round: $text"; else fail "Start a proxy round: $text"; fi
+done
+in_section "Check" "Check" "proxy-utest.sh"
+in_section "Check" "Check" "proxy E2E"
+in_section "Write the Report" "Write the Report" "-proxy-after-docker.md"
+if grep -qF -- "-proxy-after-docker.md" <<< "$proxy_section"; then pass "Proxy: -proxy-after-docker.md"; else fail "Proxy: -proxy-after-docker.md"; fi
 # The build check of the profiling builds: each in its own image, removed at the end.
 for text in '`make perf-build-check`' "](scripts/perf-build-check.sh)" "](scripts/perf-build-check-test.sh)" \
     '`--gperf=on --gcp=on --gmp=on`' '`--gprof=on`' '`--valgrind=on`' "build-check.json" "cmd/perf/Dockerfile.build"; do
@@ -181,16 +422,6 @@ if grep -qF 'tasks/' SKILL.md references/*.md; then fail "no round file in tasks
 if git check-ignore -q ../../cmd/perf/out/reports/x-round.md; then pass "round files git-ignored"; else fail "round files git-ignored"; fi
 rm -rf /tmp/srs-perf-round-test
 
-# Every relative link in file $1 resolves from the file's own folder.
-links_exist() {
-    local dir link
-    dir=$(dirname "$1")
-    [[ -f "$1" ]] || { fail "$1 exists"; return; }
-    for link in $(grep -oE '\]\([^)# ]+' "$1" | sed 's/^](//' | grep -v '^[a-z]*:' | sort -u); do
-        if [[ -e "$dir/$link" ]]; then pass "$1 link $link"; else fail "$1 link $link"; fi
-    done
-}
-
 develop=../srs-develop/SKILL.md
 deps=$(sed -n '/^## Skill Dependencies/,/^## /p' "$develop")
 router=$(sed -n '/^## Task Router/,$p' "$develop")
@@ -248,7 +479,7 @@ if [[ -n "$last_hold" && -n "$first_profile" && -n "$first_profile_hold" \
 else
     fail "$run: profile holds after the measuring holds"
 fi
-if grep -qE 'perf-profile\.sh.*&[[:space:]]*$' "$run"; then
+if grep -qE 'perf-profile(-go)?\.sh.*&[[:space:]]*$' "$run"; then
     fail "$run: no profiler beside a measuring hold"
 else
     pass "$run: no profiler beside a measuring hold"
@@ -325,9 +556,12 @@ for report in $afters; do
         if grep -qF -- "$text" <<< "$after"; then pass "$name: $text"; else fail "$name: $text"; fi
     done
     if grep -qE '^\| `[0-9a-f]{9}` \|' <<< "$after"; then pass "$name: commit rows"; else fail "$name: commit rows"; fi
-    # A change's verdict is an A/B, paired per second, with its 95% CI.
+    # A change's verdict is an A/B, paired per second, with its 95% CI; a proxy
+    # after-report names the proxy's CPU, so it never reads as SRS's.
+    subject=SRS
+    [[ "$name" == *-proxy-after-docker ]] && subject=Proxy
     for text in "**Method:**" \
-        "| Scenario | Hold clients | Method and window | SRS CPU before, mean ± sd | SRS CPU after, mean ± sd | Difference, 95% CI |" \
+        "| Scenario | Hold clients | Method and window | $subject CPU before, mean ± sd | $subject CPU after, mean ± sd | Difference, 95% CI |" \
         "paired per second"; do
         if grep -qF -- "$text" <<< "$after"; then pass "$name: $text"; else fail "$name: $text"; fi
     done
@@ -395,6 +629,73 @@ for report in $reports; do
     fi
 done
 
+# A proxy report: its title, the proxy rows of its Setup, the origin CPU
+# beside the proxy's, the proxy's Go symbols in its Bottlenecks, and a JSON of
+# proxy results with a ramp for every proxy scenario.
+proxy_reports=$(ls ../../cmd/perf/out/reports/*-proxy-docker.md ../../cmd/perf/out/reports/*-proxy-after-docker.md \
+    ../../cmd/perf/out/reports/*-proxy-origins-docker.md 2>/dev/null)
+for report in $proxy_reports; do
+    name=$(basename "$report" .md)
+    has "$report" "# SRS Proxy v"
+    setup=$(sed -n '/^## Setup/,/^## /p' "$report")
+    for text in "| Target | \`proxy\` |" "| Proxy version |" "| Origins |"; do
+        if grep -qF -- "$text" <<< "$setup"; then pass "$name: Setup $text"; else fail "$name: Setup $text"; fi
+    done
+    results=$(sed -n '/^## Results/,/^## /p' "$report")
+    if grep -qF "origin CPU" <<< "$results"; then pass "$name: origin CPU"; else fail "$name: origin CPU"; fi
+    bottlenecks=$(sed -n '/^## Bottlenecks/,/^## Syscalls/p' "$report")
+    if grep -qF "srsx/internal/" <<< "$bottlenecks"; then pass "$name: proxy symbols"; else fail "$name: proxy symbols"; fi
+    json="../../cmd/perf/out/reports/$name.json"
+    if jq -e 'all(.results[]; .setup.target == "proxy")' "$json" >/dev/null 2>&1; then
+        pass "$name: JSON is the proxy's"
+    else
+        fail "$name: JSON is the proxy's"
+    fi
+    for s in $proxy_listed; do
+        if jq -e --arg s "$s" 'any(.results[]; .scenario.name == $s and .scenario.parameters.mode == "ramp")' \
+            "$json" >/dev/null 2>&1; then
+            pass "$name: ramp of $s"
+        else
+            fail "$name: ramp of $s"
+        fi
+    done
+done
+
+# A proxy report on several origins puts each scenario's capacity on one
+# origin (Phase 7's final runs, linked) beside its capacity on N, with the
+# origin count and the bound that stopped the run; every result ran on more
+# than one origin, and every hold shows each origin carrying a share.
+for report in $(ls ../../cmd/perf/out/reports/*-proxy-origins-docker.md 2>/dev/null); do
+    name=$(basename "$report" .md)
+    results=$(sed -n '/^## Results/,/^## /p' "$report")
+    header="| Scenario | Capacity on one origin | Origins | Capacity on N origins | Bound | Proxy CPU per client | Proxy and origin CPU at the 90% hold |"
+    if grep -qF -- "$header" <<< "$results"; then pass "$name: capacity table"; else fail "$name: capacity table"; fi
+    for s in $proxy_listed; do
+        if grep -qE "^\| \`$s\` \| [^|]+ \| [1-4] \| [^|]+ \| (proxy|origin|load|cap|failure)[^|]* \|" <<< "$results"; then
+            pass "$name: capacity row of $s"
+        else
+            fail "$name: capacity row of $s"
+        fi
+    done
+    if grep -qE '\]\([0-9]{4}-[0-9]{2}-[0-9]{2}-v[^)]*-proxy-after-docker\.md\)' "$report"; then
+        pass "$name: links the one-origin runs"
+    else
+        fail "$name: links the one-origin runs"
+    fi
+    json="../../cmd/perf/out/reports/$name.json"
+    if jq -e '.results | length > 0 and all(.[]; (.setup.origins // 1) > 1)' "$json" >/dev/null 2>&1; then
+        pass "$name: JSON on several origins"
+    else
+        fail "$name: JSON on several origins"
+    fi
+    if jq -e '[.results[] | select(.scenario.parameters.mode == "hold")]
+        | length > 0 and all(.[]; (.setup.shares | length) == .setup.origins
+            and all(.setup.shares[]; (.players // 0) > 0 or (.streams // 0) > 0))' "$json" >/dev/null 2>&1; then
+        pass "$name: JSON holds share every origin"
+    else
+        fail "$name: JSON holds share every origin"
+    fi
+done
 
 # The step length, cap and run count the skill states match the tools.
 if grep -qx 'repeat=1' scripts/perf-run.sh; then pass "perf-run.sh: one run by default"; else fail "perf-run.sh: one run by default"; fi
@@ -431,10 +732,6 @@ for text in "**A/B preferred, sequential accepted:**" "**Temporary images:**" \
     '`srs-perf-build:<flag>`' "docker builder prune" "images left"; do
     has SKILL.md "$text"
 done
-section() { sed -n "/^### $1/,/^### /p" SKILL.md; }
-in_section() {
-    if grep -qF -- "$3" <<< "$(section "$1")"; then pass "$2: $3"; else fail "$2: $3"; fi
-}
 in_section "Run the Load and Profile" "Run the Load" "mean and sd"
 in_section "Run the Load and Profile" "Run the Load" "95% CI"
 in_section "Fix the Top Bottleneck" "Fix" "perf-ab.sh"
@@ -452,6 +749,17 @@ in_section "Rank Bottlenecks" "Rank" "perf-verify.sh"
 in_section "Rank Bottlenecks" "Rank" "noise"
 # A delays run is checked too: its probes and delays, with no capacity.
 in_section "Rank Bottlenecks" "Rank" "delays run"
+# A proxy run is checked too: its Go profiles, the proxy's and origins' CPU,
+# and an origin-bound capacity; no text says the check cannot read one.
+in_section "Rank Bottlenecks" "Rank" "a proxy run, it checks the Go profiles"
+in_section "Rank Bottlenecks" "Rank" "origin-bound"
+has SKILL.md "**\`perf-verify.sh\` on a proxy run:**"
+if grep -qF -- "perf-verify.sh <run dir>" <<< "$proxy_section"; then pass "Proxy: perf-verify.sh"; else fail "Proxy: perf-verify.sh"; fi
+if grep -rqF "does not read a proxy run" SKILL.md references; then
+    fail "the run check reads a proxy run"
+else
+    pass "the run check reads a proxy run"
+fi
 # whip-pub at its 2,000 cap runs the Docker VM out of memory in the holds.
 has SKILL.md "perf-run.sh -scenario whip-pub -cap 1000"
 has SKILL.md "one 20s hold"

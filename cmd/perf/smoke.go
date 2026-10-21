@@ -28,21 +28,36 @@ func runSmoke(output io.Writer, cmd command) error {
 	if err != nil {
 		return err
 	}
-	clock := &mediaClock{}
-	stop := make(chan struct{})
-	var stopOnce sync.Once
-	stopAll := func() { stopOnce.Do(func() { close(stop) }) }
-	defer stopAll()
-	pubDone, err := startPublisher(scenarios[cmd.scenario].Publisher, "perf-smoke", cmd.media, tags, clock, stop)
+	// SRS, or the proxy with its origins beside it, is pid 1 of the load
+	// container's pid namespace.
+	measured, origins, err := targetSetup(withSource(setup{}, cmd.media, flatness), cmd.target, proxyAPI, "/proc", 1)
 	if err != nil {
 		return err
 	}
+	// One stream on SRS, or one on each origin behind the proxy, with the
+	// players split over them.
+	apis := originAPIs(origins)
+	published, err := startStepStreams(scenarios[cmd.scenario].Publisher, "perf-smoke", cmd.media, tags, apis)
+	if err != nil {
+		return err
+	}
+	stop := make(chan struct{})
+	var stopOnce sync.Once
+	var stopErr error
+	stopAll := func() { stopOnce.Do(func() { close(stop); stopErr = stopStreams(published) }) }
+	// A publisher that does not stop must not hold up an error's return.
+	defer func() { go stopAll() }()
+	if measured.Shares, err = targetShares(s, apis, published, "perf-smoke", clients); err != nil {
+		return err
+	}
+	names := streamNames(published)
 	timeline, err := lagTimeline(cmd.media, tags)
 	if err != nil {
 		return err
 	}
 	players := newWorkerPlayers(clients, timeline)
 	players.gap = s.gap()
+	players.streams = playerStreamIndex(0, clients, len(names))
 	errors := make(chan error, clients)
 	var wg sync.WaitGroup
 	for i := 0; i < clients; i++ {
@@ -60,7 +75,7 @@ func runSmoke(output io.Writer, cmd command) error {
 					players.received(id, m)
 				}
 			}()
-			if err := c.play("perf-smoke", stop, report); err != nil {
+			if err := c.play(names[players.streams[id]], stop, report); err != nil {
 				select {
 				case <-stop:
 				default:
@@ -75,7 +90,7 @@ func runSmoke(output io.Writer, cmd command) error {
 	if err != nil {
 		return err
 	}
-	sampler := newProcSampler("/proc", "/sys/fs/cgroup", 1, nil, ticks)
+	sampler := newProcSampler("/proc", "/sys/fs/cgroup", 1, nil, ticks).withOrigins(origins)
 	if _, err := sampler.sampleAt(time.Now()); err != nil {
 		return err
 	}
@@ -88,13 +103,14 @@ func runSmoke(output io.Writer, cmd command) error {
 		case err := <-errors:
 			return err
 		case now := <-ticker.C:
-			counters := players.sample(clock.get(), false)
+			counters := players.sample(streamTimestamps(published), false)
 			usage, err := sampler.sampleAt(now)
 			if err != nil {
 				return err
 			}
 			second := sample{Second: len(samples) + 1, Frames: counters.Frames, Segments: counters.Segments, Bytes: counters.Bytes, LagMillis: counters.LagMillis}
 			second.SRSCPUPercent, second.SRSCPUUsageUsec, second.SRSRSSBytes = usage.srsCPUPercent, usage.srsCPUUsageUsec, usage.srsRSSBytes
+			second.OriginCPUPercent, second.OriginCPUUsageUsec = usage.originCPUPercent, usage.originCPUUsageUsec
 			samples = append(samples, second)
 			if counters.LagMillis > maxLag {
 				maxLag = counters.LagMillis
@@ -110,11 +126,12 @@ func runSmoke(output io.Writer, cmd command) error {
 	if limit := s.lagLimit(); limit > 0 && maxLag > limit {
 		return fmt.Errorf("player lag %dms exceeds %dms", maxLag, limit)
 	}
-	stopAll()
+	stopped := make(chan struct{})
+	go func() { stopAll(); close(stopped) }()
 	select {
-	case err := <-pubDone:
-		if err != nil {
-			return err
+	case <-stopped:
+		if stopErr != nil {
+			return stopErr
 		}
 	case <-time.After(3 * time.Second):
 		return fmt.Errorf("publisher did not stop")
@@ -126,7 +143,7 @@ func runSmoke(output io.Writer, cmd command) error {
 		return fmt.Errorf("players did not stop")
 	case <-done:
 	}
-	r := result{Setup: withSource(setup{}, cmd.media, flatness), Scenario: scenarios[cmd.scenario], Steps: []step{{Mode: "smoke", Clients: clients, SettleSeconds: 2, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}}, Health: health{Healthy: true}, Validity: validity{Valid: true}}
+	r := result{Setup: measured, Scenario: scenarios[cmd.scenario], Steps: []step{{Mode: "smoke", Clients: clients, SettleSeconds: 2, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}}, Health: health{Healthy: true}, Validity: validity{Valid: true}}
 	return json.NewEncoder(output).Encode(summarizeResult(r, "smoke"))
 }
 
@@ -140,11 +157,15 @@ func runPublisherSmoke(output io.Writer, cmd command, clients int) error {
 	if err != nil {
 		return err
 	}
+	measured, origins, err := targetSetup(withSource(setup{}, cmd.media, flatness), cmd.target, proxyAPI, "/proc", 1)
+	if err != nil {
+		return err
+	}
 	timeline, err := lagTimeline(cmd.media, tags)
 	if err != nil {
 		return err
 	}
-	runtime, err := startClients(s, clients, "perf-smoke", 0, cmd.media, tags, timeline)
+	runtime, err := startClients(s, clients, []string{"perf-smoke"}, 0, cmd.media, tags, timeline)
 	if err != nil {
 		return err
 	}
@@ -158,7 +179,7 @@ func runPublisherSmoke(output io.Writer, cmd command, clients int) error {
 	if err != nil {
 		return err
 	}
-	sampler := newProcSampler("/proc", "/sys/fs/cgroup", 1, nil, ticks)
+	sampler := newProcSampler("/proc", "/sys/fs/cgroup", 1, nil, ticks).withOrigins(origins)
 	if _, err := sampler.sampleAt(time.Now()); err != nil {
 		return err
 	}
@@ -167,13 +188,14 @@ func runPublisherSmoke(output io.Writer, cmd command, clients int) error {
 	var samples []sample
 	for len(samples) < s.smokeSeconds() {
 		now := <-ticker.C
-		counters := runtime.sample(0, len(samples)+1 == s.smokeSeconds())
+		counters := runtime.sample(nil, len(samples)+1 == s.smokeSeconds())
 		usage, err := sampler.sampleAt(now)
 		if err != nil {
 			return err
 		}
 		second := sample{Second: len(samples) + 1, Frames: counters.Frames, Bytes: counters.Bytes, LagMillis: counters.LagMillis, Failures: counters.Failures}
 		second.SRSCPUPercent, second.SRSCPUUsageUsec, second.SRSRSSBytes = usage.srsCPUPercent, usage.srsCPUUsageUsec, usage.srsRSSBytes
+		second.OriginCPUPercent, second.OriginCPUUsageUsec = usage.originCPUPercent, usage.originCPUUsageUsec
 		samples = append(samples, second)
 		if counters.Failures > 0 {
 			return fmt.Errorf("second %d: %d %s failed", second.Second, counters.Failures, s.Unit)
@@ -181,6 +203,9 @@ func runPublisherSmoke(output io.Writer, cmd command, clients int) error {
 		if limit := s.lagLimit(); limit > 0 && counters.LagMillis > limit {
 			return fmt.Errorf("second %d: lag %dms exceeds %dms", second.Second, counters.LagMillis, limit)
 		}
+	}
+	if measured.Shares, err = targetShares(s, originAPIs(origins), nil, "perf-smoke", clients); err != nil {
+		return err
 	}
 	done := make(chan struct{})
 	go func() { runtime.close(); close(done) }()
@@ -190,6 +215,6 @@ func runPublisherSmoke(output io.Writer, cmd command, clients int) error {
 		return fmt.Errorf("%s did not stop", s.Unit)
 	case <-done:
 	}
-	r := result{Setup: withSource(setup{}, cmd.media, flatness), Scenario: s, Steps: []step{{Mode: "smoke", Clients: clients, SettleSeconds: 2, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}}, Health: health{Healthy: true}, Validity: validity{Valid: true}}
+	r := result{Setup: measured, Scenario: s, Steps: []step{{Mode: "smoke", Clients: clients, SettleSeconds: 2, Samples: samples, Health: health{Healthy: true}, Validity: validity{Valid: true}}}, Health: health{Healthy: true}, Validity: validity{Valid: true}}
 	return json.NewEncoder(output).Encode(summarizeResult(r, "smoke"))
 }

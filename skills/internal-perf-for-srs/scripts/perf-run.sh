@@ -1,19 +1,27 @@
 #!/bin/bash
 set -eo pipefail
 
+source "$(dirname "$0")/perf-proxy-scenarios.sh"
 cd "$(dirname "$0")/../../.."
 lock="$PWD/skills/srs-develop/scripts/full-tier-lock.sh"
 scenario=rtmp-rtmp
+# -target proxy measures the Go proxy with its origins (perf-up.sh -target
+# proxy) and profiles it with Go's tools instead of Linux perf.
+target="${SRS_PERF_TARGET:-srs}"
 repeat=1
 hold_clients=
+# -origins <1-4> sets a proxy run's origin count; by default the scenario's.
+origins="${SRS_PERF_ORIGINS:-}"
 # A measuring hold settles 30s, then counts this many seconds; 180 for a verdict.
 window=60
 pass_args=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -scenario) scenario="$2"; shift 2 ;;
+        -target) target="$2"; shift 2 ;;
         -repeat) repeat="$2"; shift 2 ;;
         -hold-clients) hold_clients="$2"; shift 2 ;;
+        -origins) origins="$2"; shift 2 ;;
         -window) window="$2"; shift 2 ;;
         *) pass_args+=("$1"); shift ;;
     esac
@@ -27,6 +35,15 @@ done
     echo "Invalid -hold-clients, want <50%>,<90%> such as 6400,11520" >&2
     exit 2
 }
+case "$target" in
+    srs) ;;
+    proxy) is_proxy_scenario "$scenario" || { echo "The proxy does not relay scenario $scenario" >&2; exit 2; } ;;
+    *) echo "Invalid -target, want srs or proxy" >&2; exit 2 ;;
+esac
+if [[ -n "$origins" ]]; then
+    [[ "$target" == proxy ]] || { echo "-origins needs -target proxy" >&2; exit 2; }
+    [[ "$origins" =~ ^[1-4]$ ]] || { echo "Invalid -origins, want 1 to 4" >&2; exit 2; }
+fi
 if [[ "$scenario" == delays && -n "$hold_clients" ]]; then
     echo "The delay probes have no holds, so no -hold-clients" >&2
     exit 2
@@ -83,7 +100,7 @@ GOOS=linux GOARCH="$arch" go -C cmd/perf build -o ../../cmd/perf/out/srs-perf-li
 machine="$(sysctl -n hw.model 2>/dev/null || uname -m)"
 docker_version="$(docker version --format '{{.Server.Version}}')"
 
-SRS_PERF_SCENARIO="$scenario" SRS_PERF_OUT="$out" make perf-up
+SRS_PERF_TARGET="$target" SRS_PERF_SCENARIO="$scenario" SRS_PERF_ORIGINS="$origins" SRS_PERF_OUT="$out" make perf-up
 containers_started=1
 docker cp cmd/perf/out/srs-perf-linux srs-perf-load:/usr/local/bin/srs-perf
 
@@ -117,7 +134,7 @@ hold_count() {
 for ((i=1; i<=repeat; i++)); do
     repeat_out="$out/$run/repeat-$i"
     mkdir -p "$repeat_out"
-    docker exec srs-perf-load srs-perf run -scenario "$scenario" -mode ramp \
+    docker exec srs-perf-load srs-perf run -scenario "$scenario" -target "$target" -mode ramp \
         -output "/out/$run/repeat-$i" -machine "$machine" \
         -docker-version "$docker_version" "${pass_args[@]}" > "$repeat_out/ramp-path.txt"
     ramp_path="$(cat "$repeat_out/ramp-path.txt")"
@@ -130,7 +147,7 @@ for ((i=1; i<=repeat; i++)); do
     # runs in the SRS container: its cgroup is the CPU measured.
     for hold in 50 50-noise 90; do
         clients="$(hold_count "$capacity" "${hold%-noise}")"
-        docker exec srs-perf-load srs-perf run -scenario "$scenario" -mode hold \
+        docker exec srs-perf-load srs-perf run -scenario "$scenario" -target "$target" -mode hold \
             -clients "$clients" -window "$window" -output "/out/$run/repeat-$i" \
             -machine "$machine" -docker-version "$docker_version" \
             > "$repeat_out/hold-$hold-path.txt"
@@ -139,17 +156,23 @@ for ((i=1; i<=repeat; i++)); do
     # Then one profile hold per count: perf starts when the hold has settled
     # and records 60s, then counts syscalls for 10s. perf counts in SRS's cgroup,
     # so the profile hold's CPU is never a measurement, and its result stays out
-    # of run.json.
+    # of run.json. The proxy is profiled with Go's tools from the load
+    # container (perf-profile-go.sh): CPU, allocations, mutex and block for 60s,
+    # then a 10s runtime trace.
     for hold in 50 90; do
         clients="$(hold_count "$capacity" "$hold")"
         profile="/out/$run/repeat-$i/profile-$hold"
-        docker exec srs-perf-load srs-perf run -scenario "$scenario" -mode profile \
+        docker exec srs-perf-load srs-perf run -scenario "$scenario" -target "$target" -mode profile \
             -clients "$clients" -output "$profile" \
             -machine "$machine" -docker-version "$docker_version" \
             > "$repeat_out/profile-$hold-path.txt" &
         hold_pid=$!
         sleep 30
-        docker exec srs-perf-srs bash /perf-scripts/perf-profile.sh "$profile"
+        if [[ "$target" == proxy ]]; then
+            docker exec srs-perf-load bash /perf-scripts/perf-profile-go.sh "$profile"
+        else
+            docker exec srs-perf-srs bash /perf-scripts/perf-profile.sh "$profile"
+        fi
         wait "$hold_pid"
     done
     first="$out$(sed 's|^/out||' "$repeat_out/hold-50-path.txt")"

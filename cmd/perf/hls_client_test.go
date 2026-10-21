@@ -312,10 +312,10 @@ func TestWorkerPlayersGapAndSegments(t *testing.T) {
 		w.received(0, rtmpMessage{typeID: segmentMessage})
 		w.last[0].Store(time.Now().Add(-10 * time.Second).UnixNano())
 	}
-	if got := stream.sample(0, false); got.Failures != 1 || got.Frames != 1 || got.Segments != 1 {
+	if got := stream.sample(nil, false); got.Failures != 1 || got.Frames != 1 || got.Segments != 1 {
 		t.Fatalf("stream sample = %+v, want 1 failure, 1 frame, 1 segment", got)
 	}
-	if got := segmented.sample(0, false); got.Failures != 0 || got.Frames != 1 || got.Segments != 1 {
+	if got := segmented.sample(nil, false); got.Failures != 0 || got.Frames != 1 || got.Segments != 1 {
 		t.Fatalf("segmented sample = %+v, want no failure, 1 frame, 1 segment", got)
 	}
 }

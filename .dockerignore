@@ -16,3 +16,11 @@ trunk/research/*
 !trunk/research/index.html
 !skills/internal-perf-for-srs/scripts/perf-source.sh
 !skills/internal-perf-for-srs/scripts/perf-source-check.sh
+!go.mod
+!go.sum
+!cmd/proxy/
+!cmd/proxy/**
+!internal/
+!internal/**
+cmd/proxy/**/*_test.go
+internal/**/*_test.go

@@ -150,7 +150,7 @@ func TestLateJoinerIsNotAGOPBehind(t *testing.T) {
 	for _, m := range late {
 		w.received(1, m)
 	}
-	if got := w.sample(4400, false); got.LagMillis < 0 || got.LagMillis > 100 {
+	if got := w.sample([]uint32{4400}, false); got.LagMillis < 0 || got.LagMillis > 100 {
 		t.Fatalf("lag = %dms, want about 0; the late joiner is live", got.LagMillis)
 	}
 }
@@ -163,11 +163,28 @@ func TestPlayerBehindIsStillLagging(t *testing.T) {
 	for _, m := range joinAt(tags, 2300, 2400) {
 		w.received(0, m)
 	}
-	if got := w.sample(2440, false); got.LagMillis > 100 {
+	if got := w.sample([]uint32{2440}, false); got.LagMillis > 100 {
 		t.Fatalf("first lag = %dms, want about 40", got.LagMillis)
 	}
-	if got := w.sample(4900, false); got.LagMillis < 2400 || got.LagMillis > 2600 {
+	if got := w.sample([]uint32{4900}, false); got.LagMillis < 2400 || got.LagMillis > 2600 {
 		t.Fatalf("lag = %dms, want about 2500", got.LagMillis)
+	}
+}
+
+// Players split over several streams each measure lag against their own
+// stream's publisher, which started at its own time.
+func TestPlayersLagAgainstTheirOwnStream(t *testing.T) {
+	tags := cbrLikeTags()
+	w := newTestPlayers(2, tags)
+	w.streams = []int{0, 1}
+	for _, m := range joinAt(tags, 300, 4400) {
+		w.received(0, m)
+	}
+	for _, m := range joinAt(tags, 300, 2400) {
+		w.received(1, m)
+	}
+	if got := w.sample([]uint32{4400, 2400}, false); got.LagMillis < 0 || got.LagMillis > 100 {
+		t.Fatalf("lag = %dms, want about 0; each player is live on its own stream", got.LagMillis)
 	}
 }
 
@@ -180,14 +197,14 @@ func TestLagAcrossTheSourceLoop(t *testing.T) {
 	for _, m := range joinAt(tags, 4100, d+40) {
 		w.received(0, m)
 	}
-	if got := w.sample(d+20, false); got.LagMillis > 100 {
+	if got := w.sample([]uint32{d + 20}, false); got.LagMillis > 100 {
 		t.Fatalf("lag at the loop end = %dms, want about 0", got.LagMillis)
 	}
 	w = newTestPlayers(1, tags)
 	for _, m := range joinAt(tags, 2*d+2100, 2*d+2200) {
 		w.received(0, m)
 	}
-	if got := w.sample(2*d+2300, false); got.LagMillis < 50 || got.LagMillis > 150 {
+	if got := w.sample([]uint32{2*d + 2300}, false); got.LagMillis < 50 || got.LagMillis > 150 {
 		t.Fatalf("lag in the third loop = %dms, want about 100", got.LagMillis)
 	}
 }
@@ -196,7 +213,7 @@ func TestLagAcrossTheSourceLoop(t *testing.T) {
 func TestPlayersWithoutSourceHaveNoLag(t *testing.T) {
 	w := newWorkerPlayers(1, nil)
 	w.received(0, rtmpMessage{timestamp: 10, typeID: 9, payload: []byte{0x17, 1}})
-	if got := w.sample(5000, false); got.LagMillis != 0 || got.Frames != 1 {
+	if got := w.sample([]uint32{5000}, false); got.LagMillis != 0 || got.Frames != 1 {
 		t.Fatalf("sample = %+v", got)
 	}
 }
@@ -204,7 +221,7 @@ func TestPlayersWithoutSourceHaveNoLag(t *testing.T) {
 func TestWorkerPlayersCountFrames(t *testing.T) {
 	w := newWorkerPlayers(1, nil)
 	w.received(0, rtmpMessage{timestamp: 10, typeID: 8, payload: []byte{1, 2, 3}})
-	got := w.sample(0, true)
+	got := w.sample(nil, true)
 	if got.Frames != 1 || got.Bytes != 3 || got.Failures != 0 {
 		t.Fatalf("sample = %+v", got)
 	}

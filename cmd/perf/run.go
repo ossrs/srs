@@ -73,8 +73,45 @@ func evaluateRampStep(sc scenario, clients, settle int, samples []sample, cap in
 			break
 		}
 	}
-	stop := !s.Health.Healthy || cpu >= 90 || clients >= cap
+	if originBound(samples, settle) {
+		s.Bound = "origin-bound"
+	}
+	stop := !s.Health.Healthy || cpu >= 90 || s.Bound != "" || clients >= cap
 	return s, stop
+}
+
+// steadyOriginCPU is each origin's mean CPU over the counted samples; nil
+// for SRS, which has no origins.
+func steadyOriginCPU(samples []sample, settle int) []float64 {
+	steady := steadySamples(samples, settle)
+	var sums []float64
+	for _, s := range steady {
+		for i, cpu := range s.OriginCPUPercent {
+			if i >= len(sums) {
+				sums = append(sums, 0)
+			}
+			sums[i] += cpu
+		}
+	}
+	for i := range sums {
+		sums[i] /= float64(len(steady))
+	}
+	return sums
+}
+
+// originBound tells whether an origin behind the proxy reached 90% CPU while
+// the proxy did not: the step then measures the origin, not the proxy. When
+// both reach it, the proxy bounds the step, as it does on its own.
+func originBound(samples []sample, settle int) bool {
+	if steadyCPU(samples, settle) >= 90 {
+		return false
+	}
+	for _, cpu := range steadyOriginCPU(samples, settle) {
+		if cpu >= 90 {
+			return true
+		}
+	}
+	return false
 }
 
 // steadySamples skips the settle seconds and keeps every sample after them:
@@ -123,7 +160,14 @@ func statOf(values []float64) stat {
 func windowOf(samples []sample, settle int) window {
 	steady := steadySamples(samples, settle)
 	metrics := make([][]float64, 7)
+	var origins [][]float64
 	for _, s := range steady {
+		for i, cpu := range s.OriginCPUPercent {
+			if i >= len(origins) {
+				origins = append(origins, nil)
+			}
+			origins[i] = append(origins[i], cpu)
+		}
 		var workers float64
 		for _, cpu := range s.WorkerCPUPercent {
 			workers += cpu
@@ -135,10 +179,15 @@ func windowOf(samples []sample, settle int) window {
 			metrics[i] = append(metrics[i], v)
 		}
 	}
+	var originStats []stat
+	for _, values := range origins {
+		originStats = append(originStats, statOf(values))
+	}
 	return window{
 		Samples:          len(steady),
 		SRSCPUPercent:    statOf(metrics[0]),
 		SRSRSSBytes:      statOf(metrics[1]),
+		OriginCPUPercent: originStats,
 		WorkerCPUPercent: statOf(metrics[2]),
 		Frames:           statOf(metrics[3]),
 		Bytes:            statOf(metrics[4]),
@@ -155,6 +204,9 @@ func summarizeResult(r result, mode string) result {
 	for i := range r.Steps {
 		w := windowOf(r.Steps[i].Samples, r.Steps[i].SettleSeconds)
 		r.Steps[i].Window = &w
+		if r.Steps[i].Bound != "" {
+			r.Bound = r.Steps[i].Bound
+		}
 	}
 	if mode == "ramp" {
 		r.Capacity, r.CPUPerClient = rampSummary(r.Steps)
@@ -183,7 +235,7 @@ func rampSummary(steps []step) (int, float64) {
 			break
 		}
 		cpu := steadyCPU(s.Samples, s.SettleSeconds)
-		if cpu >= 90 {
+		if cpu >= 90 || originBound(s.Samples, s.SettleSeconds) {
 			break
 		}
 		capacity = s.Clients
@@ -311,8 +363,13 @@ func runPerformance(output *os.File, cmd command) error {
 		} else {
 			r.Setup = withSource(r.Setup, cmd.media, flatness)
 		}
+		var origins []int
+		var err error
+		if r.Setup, origins, err = targetSetup(r.Setup, cmd.target, proxyAPI, "/proc", subjectPID(cmd.srsPID)); err != nil {
+			return err
+		}
 		for {
-			s, err := measureStep(cmd.scenario, mode, clients, settle, window, cores, cmd.srsPID, tags, cmd.media, cmd.noPublisher)
+			s, err := measureStep(cmd.scenario, mode, clients, settle, window, cores, cmd.srsPID, origins, tags, cmd.media, cmd.noPublisher)
 			if err != nil {
 				return err
 			}
@@ -326,7 +383,7 @@ func runPerformance(output *os.File, cmd command) error {
 			if mode != "ramp" || !s.Health.Healthy || !s.Validity.Valid || clients >= cap {
 				break
 			}
-			if steadyCPU(s.Samples, settle) >= 90 {
+			if steadyCPU(s.Samples, settle) >= 90 || s.Bound != "" {
 				break
 			}
 			clients *= 2
@@ -334,6 +391,7 @@ func runPerformance(output *os.File, cmd command) error {
 				clients = cap
 			}
 		}
+		r.Setup.Shares = r.Steps[len(r.Steps)-1].Shares
 		r = summarizeResult(r, mode)
 		path, err := writeRunJSON(base, runName, r)
 		if err != nil {
@@ -357,40 +415,48 @@ func stepStream(scenario string, at time.Time) string {
 	return fmt.Sprintf("perf-run-%d", at.UnixMilli())
 }
 
-func measureStep(scenario, mode string, clients, settle, window, cores, srsPID int, tags []rtmpMessage, media string, noPublisher bool) (step, error) {
+// subjectPID is the measured server's pid: SRS, or the proxy, is pid 1 in the
+// load container's pid namespace unless -srs-pid says otherwise.
+func subjectPID(pid int) int {
+	if pid == 0 {
+		return 1
+	}
+	return pid
+}
+
+func measureStep(scenario, mode string, clients, settle, window, cores, srsPID int, origins []int, tags []rtmpMessage, media string, noPublisher bool) (step, error) {
 	seconds := settle + window
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clock := &mediaClock{}
-	// Players play the parent's one publisher; a publisher or many-streams
-	// step has its publishers in the workers, each on a stream of its own.
+	// Players play the parent's publishers, one on SRS or one on each origin
+	// behind the proxy; a publisher or many-streams step has its publishers in
+	// the workers, each on a stream of its own.
 	stream := stepStream(scenario, time.Now())
+	names := []string{stream}
+	apis := originAPIs(origins)
 	inWorkers := scenarios[scenario].Unit != "clients"
+	var published []placedStream
 	if !noPublisher && !inWorkers {
-		stop := make(chan struct{})
-		pubDone, err := startPublisher(scenarios[scenario].Publisher, stream, media, tags, clock, stop)
-		if err != nil {
-			close(stop)
+		var err error
+		if published, err = startStepStreams(scenarios[scenario].Publisher, stream, media, tags, apis); err != nil {
 			return step{}, err
 		}
-		defer func() { close(stop); <-pubDone }()
+		defer stopStreams(published)
+		names = streamNames(published)
 	}
 	if noPublisher {
 		media = ""
 	}
-	group, err := startWorkers(ctx, nil, scenario, media, stream, clients, cores)
+	group, err := startWorkers(ctx, nil, scenario, media, names, clients, cores)
 	if err != nil {
 		return step{}, err
 	}
 	defer group.close()
-	if srsPID == 0 {
-		srsPID = 1
-	}
 	ticks, err := clockTicks()
 	if err != nil {
 		return step{}, err
 	}
-	sampler := newProcSampler("/proc", "/sys/fs/cgroup", srsPID, group.pids(), ticks)
+	sampler := newProcSampler("/proc", "/sys/fs/cgroup", subjectPID(srsPID), group.pids(), ticks).withOrigins(origins)
 	if _, err := sampler.sampleAt(time.Now()); err != nil {
 		return step{}, err
 	}
@@ -399,7 +465,7 @@ func measureStep(scenario, mode string, clients, settle, window, cores, srsPID i
 	defer ticker.Stop()
 	for second := 1; second <= seconds; second++ {
 		<-ticker.C
-		counters, err := group.collectWithTimestamp(second, clock.get(), second == seconds)
+		counters, err := group.collectWithTimestamp(second, streamTimestamps(published), second == seconds)
 		if err != nil {
 			return step{}, err
 		}
@@ -408,10 +474,13 @@ func measureStep(scenario, mode string, clients, settle, window, cores, srsPID i
 		if err != nil {
 			return step{}, err
 		}
-		all = append(all, sample{Second: second, UnixMillis: now.UnixMilli(), SRSCPUPercent: usage.srsCPUPercent, SRSCPUUsageUsec: usage.srsCPUUsageUsec, SRSRSSBytes: usage.srsRSSBytes, WorkerCPUPercent: usage.workerCPUPercent, Frames: counters.Frames, Segments: counters.Segments, Bytes: counters.Bytes, LagMillis: counters.LagMillis, Failures: counters.Failures})
+		all = append(all, sample{Second: second, UnixMillis: now.UnixMilli(), SRSCPUPercent: usage.srsCPUPercent, SRSCPUUsageUsec: usage.srsCPUUsageUsec, SRSRSSBytes: usage.srsRSSBytes, OriginCPUPercent: usage.originCPUPercent, OriginCPUUsageUsec: usage.originCPUUsageUsec, WorkerCPUPercent: usage.workerCPUPercent, Frames: counters.Frames, Segments: counters.Segments, Bytes: counters.Bytes, LagMillis: counters.LagMillis, Failures: counters.Failures})
 	}
 	evaluated, _ := evaluateRampStep(scenarios[scenario], clients, settle, all, defaultClientCap)
 	evaluated.Mode = mode
 	evaluated.Samples = all
+	if evaluated.Shares, err = targetShares(scenarios[scenario], apis, published, stream, clients); err != nil {
+		return step{}, err
+	}
 	return evaluated, nil
 }

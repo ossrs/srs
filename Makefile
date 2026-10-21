@@ -18,8 +18,10 @@ perf: perf-image bin/srs-perf
 perf-unit:
 	go -C cmd/perf test -count=1 ./...
 
+# SCENARIO=<s> smokes one scenario, none smokes them all; TARGET=proxy smokes
+# through the Go proxy, only the scenarios it relays.
 perf-smoke: bin/srs-perf
-	bash skills/internal-perf-for-srs/scripts/perf-smoke.sh "$(SCENARIO)"
+	SRS_PERF_TARGET="$(TARGET)" bash skills/internal-perf-for-srs/scripts/perf-smoke.sh "$(SCENARIO)"
 
 perf-up:
 	bash skills/internal-perf-for-srs/scripts/perf-up.sh

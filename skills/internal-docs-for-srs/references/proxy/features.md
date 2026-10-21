@@ -165,7 +165,7 @@ parses the minimum needed to route, then proxies traffic to the chosen backend.
 - **Structured logging** (`internal/logger`) — JSON via `log/slog`, with `pid`,
   `version`, and a per-connection 7-char hex context ID (`cid`) for correlation.
 - **Profiling** (`internal/debug`) — optional `net/http/pprof` server enabled by
-  the `GO_PPROF` env var. See [../perf/proxy-whep.md](../perf/proxy-whep.md).
+  the `GO_PPROF` env var.
 - **Version / health endpoints** — `/api/v1/versions` is exposed on the HTTP API,
   System API, and HTTP Stream servers and doubles as a health check.
 

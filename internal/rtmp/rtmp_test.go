@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -2036,4 +2037,147 @@ func TestProtocolTransactionMapConcurrency(t *testing.T) {
 	}()
 
 	wg.Wait()
+}
+
+// socketWriter keeps each write it gets, as a socket sees one write syscall each.
+type socketWriter struct {
+	writes [][]byte
+}
+
+func (w *socketWriter) Write(p []byte) (int, error) {
+	w.writes = append(w.writes, append([]byte(nil), p...))
+	return len(p), nil
+}
+
+// newVideoMessages makes n small video messages of one stream, 40ms apart.
+func newVideoMessages(n int) []Message {
+	var msgs []Message
+	for i := range n {
+		m := NewStreamMessage(1).asMessage()
+		m.messageHeader.MessageType = MessageTypeVideo
+		m.messageHeader.Timestamp = uint64(i * 40)
+		m.payload = bytes.Repeat([]byte{byte(i + 1)}, 100)
+		msgs = append(msgs, m)
+	}
+	return msgs
+}
+
+func TestQueueMessageWritesOnFlush(t *testing.T) {
+	ctx := context.Background()
+	var conn socketWriter
+	p := NewProtocol(struct {
+		io.Reader
+		io.Writer
+	}{bytes.NewReader(nil), &conn})
+	var want bytes.Buffer
+	ref := NewProtocol(&want)
+
+	for _, m := range newVideoMessages(3) {
+		if err := p.QueueMessage(ctx, m); err != nil {
+			t.Fatalf("QueueMessage err=%v", err)
+		}
+		if err := ref.WriteMessage(ctx, m); err != nil {
+			t.Fatalf("WriteMessage err=%v", err)
+		}
+	}
+	if len(conn.writes) != 0 {
+		t.Fatalf("queued messages went out in %v writes before Flush", len(conn.writes))
+	}
+
+	if err := p.Flush(); err != nil {
+		t.Fatalf("Flush err=%v", err)
+	}
+	if len(conn.writes) != 1 || !bytes.Equal(conn.writes[0], want.Bytes()) {
+		t.Fatalf("writes=%v, want one write of the %vB that WriteMessage writes", len(conn.writes), want.Len())
+	}
+
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := p.QueueMessage(canceled, newVideoMessages(1)[0]); err != context.Canceled {
+		t.Fatalf("canceled QueueMessage err=%v", err)
+	}
+}
+
+// pendingReader reads its input for a source protocol and records, at each read of the connection, how many bytes
+// the relay's output still holds unwritten.
+type pendingReader struct {
+	r       io.Reader
+	out     *protocol
+	pending []int
+}
+
+func (r *pendingReader) Read(p []byte) (int, error) {
+	r.pending = append(r.pending, r.out.w.Buffered())
+	return r.r.Read(p)
+}
+
+func TestFlushBeforeReadHoldsNothingWhileReading(t *testing.T) {
+	ctx := context.Background()
+	msgs := newVideoMessages(3)
+	var in, want bytes.Buffer
+	writer, ref := NewProtocol(&in), NewProtocol(&want)
+	for _, m := range msgs {
+		if err := writer.WriteMessage(ctx, m); err != nil {
+			t.Fatalf("WriteMessage err=%v", err)
+		}
+		if err := ref.WriteMessage(ctx, m); err != nil {
+			t.Fatalf("WriteMessage err=%v", err)
+		}
+	}
+
+	var conn socketWriter
+	dst := NewProtocol(struct {
+		io.Reader
+		io.Writer
+	}{bytes.NewReader(nil), &conn})
+	input := &pendingReader{r: &in, out: dst.(*protocol)}
+	src := NewProtocol(struct {
+		io.Reader
+		io.Writer
+	}{input, io.Discard})
+	src.FlushBeforeRead(dst)
+
+	// Relay until the input ends: every message is queued, none flushed by the relay itself.
+	var err error
+	for err == nil {
+		var m Message
+		if m, err = src.ReadMessage(ctx); err == nil {
+			err = dst.QueueMessage(ctx, m)
+		}
+	}
+	if !errors.Is(err, io.EOF) {
+		t.Fatalf("relay ended with err=%v, want EOF", err)
+	}
+
+	// The three messages came in one read of the connection, so they leave in one write, made before the next read.
+	for i, n := range input.pending {
+		if n != 0 {
+			t.Fatalf("read %v of the connection while %vB of output waited", i, n)
+		}
+	}
+	if len(conn.writes) != 1 || !bytes.Equal(conn.writes[0], want.Bytes()) {
+		t.Fatalf("writes=%v, want one write of the %vB the three messages make", len(conn.writes), want.Len())
+	}
+}
+
+func TestFlushBeforeReadFailsTheRead(t *testing.T) {
+	ctx := context.Background()
+	var in bytes.Buffer
+	if err := NewProtocol(&in).WriteMessage(ctx, newVideoMessages(1)[0]); err != nil {
+		t.Fatalf("WriteMessage err=%v", err)
+	}
+
+	dst := NewProtocol(struct {
+		io.Reader
+		io.Writer
+	}{bytes.NewReader(nil), errWriter{}})
+	if err := dst.QueueMessage(ctx, newVideoMessages(1)[0]); err != nil {
+		t.Fatalf("QueueMessage err=%v", err)
+	}
+	src := NewProtocol(&in)
+	src.FlushBeforeRead(dst)
+
+	if _, err := src.ReadMessage(ctx); err == nil || !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("ReadMessage err=%v, want the output's write error", err)
+	}
 }

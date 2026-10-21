@@ -6,6 +6,12 @@
 - **Data:** `<YYYY-MM-DD>-v<version>-docker.json` beside this report, the combined `run.json` of the run `<run>`.
 - **SRS:** v<version> at `<commit>`, built in `srs-perf:local` with the image's release flags and frame pointers.
 
+**The proxy target:** a report on the Go proxy, measured with `-target proxy`, is named `<YYYY-MM-DD>-v<proxy version>-proxy-docker.md` (its after-report `-proxy-after-docker.md`, a baseline on several origins `-proxy-origins-docker.md` with the one-origin capacity, the bound and each origin's CPU beside each scenario's capacity on N origins), titled `SRS Proxy v<proxy version> Performance in Docker`, and differs only where this template says so:
+
+- Its Setup fills the Target, Proxy version and Origins rows, and the containers are the proxy's.
+- Its Results and Before and after give the proxy's CPU in the SRS CPU columns, headed Proxy CPU, with the origin CPU beside it from the result's `origin_cpu_percent`, and mark a capacity ended `origin-bound`.
+- Its Bottlenecks come from the Go profiles: `top-symbols.txt` with `flat` and `cum`, allocations per packet, goroutines and the GC share, per `reading-profiles.md`. Its Syscalls come from the trace's Syscall profile, not `perf trace`.
+
 ## Setup
 
 | Item | Value |
@@ -13,8 +19,11 @@
 | Machine | <model, performance and efficiency cores, memory> |
 | Docker | <version>, VM with <CPUs> CPUs and <memory> |
 | Kernel | <kernel> |
-| SRS container | vCPU 1, privileged for `perf` |
-| Load container | vCPUs 2–9, shares the SRS pid namespace and network |
+| Target | <`srs`, or `proxy`> |
+| Proxy version | <the result's `setup.proxy_version`, or — for SRS> |
+| Origins | <the result's `setup.origins`: 1 to 4, three by default; — for SRS> |
+| SRS container | vCPU 1, privileged for `perf`; for the proxy: the proxy on vCPU 1 with `GOMAXPROCS=1`, origins on vCPUs 2 to N+1 |
+| Load container | vCPUs 2–9, shares the SRS pid namespace and network; for the proxy: the rest of the cores, sharing the proxy's |
 | Core calibration gap | <gap>; <noisy when over 10%, or not noisy> |
 | Source | `<source>`; <flatness>: per-second mean, min and max in kbps, per-frame sd, ffmpeg version, from the result's `setup.source_flatness` |
 
@@ -82,5 +91,6 @@ The round's commits:
 2. `bash skills/internal-perf-for-srs/scripts/perf-run.sh -scenario <s>`
 3. `bin/srs-perf compare cmd/perf/out/reports/<YYYY-MM-DD>-v<version>-docker.json cmd/perf/out/<run>/run.json`, a sequential comparison.
 4. For a change, prefer an A/B: `bash skills/internal-perf-for-srs/scripts/perf-ab.sh -baseline <rev> -clients <n>`, or `-revert` with the change's commit.
+5. For a proxy report, add `-target proxy` to `perf-run.sh` and `perf-ab.sh`, with `-scenario <s>`.
 
 A sequential comparison is made only when both runs record the same machine, cores, memory, Docker version, kernel, source and scenario parameters, window included; otherwise the new run is a new baseline.

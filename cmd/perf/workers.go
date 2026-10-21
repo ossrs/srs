@@ -21,12 +21,14 @@ type workerRequest struct {
 	Clients  int    `json:"clients,omitempty"`
 	// Media is the source the publisher loops; players measure lag by it.
 	Media string `json:"media,omitempty"`
-	// Stream is the stream players play, or the prefix of the publishers'
-	// streams; First is the index in the step of the worker's first client.
-	Stream          string `json:"stream,omitempty"`
-	First           int    `json:"first,omitempty"`
-	Second          int    `json:"second,omitempty"`
-	LatestTimestamp uint32 `json:"latest_timestamp,omitempty"`
+	// Streams are the streams players split over, or one, the prefix of the
+	// publishers' streams; First is the index in the step of the worker's first
+	// client.
+	Streams []string `json:"streams,omitempty"`
+	First   int      `json:"first,omitempty"`
+	Second  int      `json:"second,omitempty"`
+	// LatestTimestamps is each stream's publisher's newest timestamp.
+	LatestTimestamps []uint32 `json:"latest_timestamps,omitempty"`
 	// Final marks the step's last sample: a player with no frame yet fails.
 	Final bool `json:"final,omitempty"`
 }
@@ -64,7 +66,7 @@ func splitClients(clients, cores int) []int {
 	return shares
 }
 
-func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario, media, stream string, clients, cores int) (*workerGroup, error) {
+func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario, media string, streams []string, clients, cores int) (*workerGroup, error) {
 	shares := splitClients(clients, cores)
 	if shares == nil {
 		return nil, fmt.Errorf("clients must be nonnegative and cores positive")
@@ -104,7 +106,7 @@ func startWorkers(ctx context.Context, factory func(int) *exec.Cmd, scenario, me
 		}
 		worker := &workerClient{cmd: cmd, input: input, enc: json.NewEncoder(input), dec: json.NewDecoder(output)}
 		group.workers = append(group.workers, worker)
-		if err := worker.enc.Encode(workerRequest{Kind: "start", Scenario: scenario, Media: media, Stream: stream, First: offsets[id], Clients: share}); err != nil {
+		if err := worker.enc.Encode(workerRequest{Kind: "start", Scenario: scenario, Media: media, Streams: streams, First: offsets[id], Clients: share}); err != nil {
 			group.close()
 			return nil, fmt.Errorf("configure worker %d: %w", id, err)
 		}
@@ -126,15 +128,15 @@ func (g *workerGroup) pids() []int {
 }
 
 func (g *workerGroup) collect(second int) (workerResponse, error) {
-	return g.collectWithTimestamp(second, 0, false)
+	return g.collectWithTimestamp(second, nil, false)
 }
 
-func (g *workerGroup) collectWithTimestamp(second int, timestamp uint32, final bool) (workerResponse, error) {
+func (g *workerGroup) collectWithTimestamp(second int, timestamps []uint32, final bool) (workerResponse, error) {
 	if second <= 0 {
 		return workerResponse{}, fmt.Errorf("sample second must be positive")
 	}
 	for i, worker := range g.workers {
-		if err := worker.enc.Encode(workerRequest{Kind: "sample", Second: second, LatestTimestamp: timestamp, Final: final}); err != nil {
+		if err := worker.enc.Encode(workerRequest{Kind: "sample", Second: second, LatestTimestamps: timestamps, Final: final}); err != nil {
 			return workerResponse{}, fmt.Errorf("request worker %d: %w", i, err)
 		}
 	}
@@ -238,11 +240,11 @@ func serveWorker(input io.Reader, output io.Writer) error {
 			return err
 		}
 	}
-	stream := start.Stream
-	if stream == "" {
-		stream = "perf-run"
+	streams := start.Streams
+	if len(streams) == 0 {
+		streams = []string{"perf-run"}
 	}
-	runtime, err := startClients(s, start.Clients, stream, start.First, start.Media, tags, timeline)
+	runtime, err := startClients(s, start.Clients, streams, start.First, start.Media, tags, timeline)
 	if err != nil {
 		return err
 	}
@@ -260,7 +262,7 @@ func serveWorker(input io.Reader, output io.Writer) error {
 			if request.Second <= 0 {
 				return fmt.Errorf("sample second must be positive")
 			}
-			if err := enc.Encode(runtime.sample(request.LatestTimestamp, request.Final)); err != nil {
+			if err := enc.Encode(runtime.sample(request.LatestTimestamps, request.Final)); err != nil {
 				return err
 			}
 		case "stop":
@@ -295,8 +297,11 @@ type workerPlayers struct {
 	offset   []int64
 	resolved []bool
 	// clocks is each player's own publisher, in a many-streams step; nil
-	// when every player plays the one publisher whose time sample gets.
+	// when the players play the publishers whose times sample gets.
 	clocks []*mediaClock
+	// streams is the index of each player's stream in sample's timestamps;
+	// nil when every player plays the first.
+	streams []int
 }
 
 func newWorkerPlayers(clients int, timeline *sourceTimeline) *workerPlayers {
@@ -484,7 +489,7 @@ func dialPlayer[T any](dial func() (T, error), stop <-chan struct{}) (T, error) 
 	}
 }
 
-func (w *workerPlayers) sample(publisherTimestamp uint32, final bool) workerResponse {
+func (w *workerPlayers) sample(timestamps []uint32, final bool) workerResponse {
 	r := workerResponse{Frames: w.frames.Swap(0), Segments: w.segments.Swap(0), Bytes: w.bytes.Swap(0), Failures: w.failures.Swap(0)}
 	now := time.Now()
 	for id := range w.last {
@@ -498,15 +503,24 @@ func (w *workerPlayers) sample(publisherTimestamp uint32, final bool) workerResp
 		if now.Sub(time.Unix(0, last)) > w.gap {
 			r.Failures++
 		}
-		newest := publisherTimestamp
+		var newest uint32
 		if w.clocks != nil {
 			newest = w.clocks[id].get()
+		} else if stream := w.streamOf(id); stream < len(timestamps) {
+			newest = timestamps[stream]
 		}
 		if lag, ok := w.lag(id, newest); ok && lag > r.LagMillis {
 			r.LagMillis = lag
 		}
 	}
 	return r
+}
+
+func (w *workerPlayers) streamOf(id int) int {
+	if w.streams == nil {
+		return 0
+	}
+	return w.streams[id]
 }
 
 func (w *workerPlayers) close() { close(w.stop); w.wg.Wait() }

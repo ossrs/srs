@@ -129,12 +129,6 @@ For RTMP Go API examples, load:
 
 - `internal/rtmp/example_test.go` — RTMP API examples for AMF0, handshake, and protocol workflows.
 
-### WHEP Performance Analysis
-
-For WHEP performance analysis, load:
-
-- `references/perf/proxy-whep.md` — Profile WHEP with pprof and srs-bench and compare CPU, allocation, heap, goroutine, and trace data.
-
 ### Next-Generation Go Proxy Documentation
 
 For next-generation Go proxy documentation, select the smallest relevant document:

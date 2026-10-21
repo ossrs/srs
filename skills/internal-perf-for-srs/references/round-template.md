@@ -8,7 +8,8 @@ A round file of the `internal-perf-for-srs` skill.
 
 Measure SRS v<version> under many simulated clients, fix the top bottleneck again and again, and report what improved. Started by hand on <date>.
 
-- **Scenarios:** <scenarios, such as rtmp-rtmp, or every scenario of the Scenarios table below>.
+- **Target:** <`srs`, or `proxy` for the Go proxy at v<proxy version> with SRS origins, every run and A/B with `-target proxy`>.
+- **Scenarios:** <scenarios, such as rtmp-rtmp, or every scenario of the Scenarios table below, or of the Proxy scenarios table for the proxy>.
 - **Limit:** <none: until the top bottleneck is something SRS cannot reasonably fix; or a limit, such as one kept change in at most <n> tries>.
 - **Code:** `<checkout>` on `<branch>`, from `<base commit>` on <date>. The round measures and commits there; it needs no separate checkout.
 - **In scope:** the baseline run and report, the bottleneck chains, the final run and the after-report.
@@ -46,6 +47,22 @@ Every scenario of the registry in `cmd/perf/main.go`. Keep the rows of the round
 | `many-streams` | RTMP streams, two players each | | | | | |
 | `delays` | The delay probes, no capacity | | — | — | — | — |
 
+## Proxy scenarios
+
+For a round on the Go proxy, in place of the Scenarios table: every scenario the proxy relays, run with `-target proxy` on three origins, so the proxy runs out before an origin does. Bound is what stopped the ramp, as `perf-verify.sh` names it: `proxy`, `origin`, `load`, `cap` or `failure`; a run bound by an origin or the load reruns once with `-origins 4`, and its row says 4. A fix's A/B keeps one origin per side, below the one-origin bound. Delete this table for an SRS round.
+
+| Scenario | Publish and play | Origins | Baseline run | Capacity | Bound | Proxy and origin CPU at 90% | Noise | Top bottleneck | Chain |
+|---|---|---|---|---|---|---|---|---|---|
+| `rtmp-rtmp` | RTMP to RTMP | 3 | | | | | | | |
+| `rtmp-flv` | RTMP to HTTP-FLV | 3 | | | | | | | |
+| `rtmp-ts` | RTMP to HTTP-TS, `-cap 6400` | 3 | | | | | | | |
+| `rtmp-hls` | RTMP to HLS | 3 | | | | | | | |
+| `srt-srt` | SRT to SRT | 3 | | | | | | | |
+| `whip-whep` | WHIP to WHEP | 3 | | | | | | | |
+| `rtmp-pub` | RTMP publishers only | 3 | | | | | | | |
+| `whip-pub` | WHIP publishers only, `-cap 1000` | 3 | | | | | | | |
+| `many-streams` | RTMP streams, two players each | 3 | | | | | | | |
+
 ## Current state
 
 | Item | State |
@@ -72,6 +89,7 @@ These come from the skill and hold for every round:
 - **Always the top bottleneck:** re-rank after each kept change; the next try fixes the new #1. No fixed candidate list.
 - **Chain limit:** 5 kept steps with no gain overall mark the chain "no gain yet, needs review"; move on to the next bottleneck.
 - **End:** when the top bottleneck is something SRS cannot reasonably fix, such as the kernel, syscalls already batched or crypto in RTC, or when the limit is reached.
+- **The proxy target:** a proxy round measures the proxy's cgroup CPU with each origin's beside it, profiles it with Go profiles (CPU, allocations, mutex, block, trace, heap, goroutines, GC) instead of `perf`, and compares by `perf-ab.sh -target proxy`. A ramp that ends `origin-bound` measured the origin; compare the proxy by its CPU per client at the holds. Its checks are the proxy's Go unit tests and the proxy E2E scripts of `srs-develop`.
 
 Decided for this round:
 
@@ -105,7 +123,7 @@ The round's progress. Tick a step when it is done, and log it in the Work log.
 **Baseline:**
 
 - [ ] **Build the tools:** the skill's Build the Tools. Test: `make perf` and `make perf-env-check` pass.
-- [ ] **Baseline run:** the skill's Run the Load and Profile for every scenario of the round, `perf-run.sh -scenario <s>`, one run each. Record the noise between its two 50% holds.
+- [ ] **Baseline run:** the skill's Run the Load and Profile for every scenario of the round, `perf-run.sh -scenario <s>`, one run each, with `-target proxy` for a proxy round. Record the noise between its two 50% holds.
 - [ ] **Baseline report:** the skill's Write the Report, and its JSON, with every section except Before and after. No SRS code changes. Link it from Background.
 - [ ] **Rank:** the skill's Rank Bottlenecks; fill the Ranking and start Chain 1 for the top bottleneck.
 

@@ -44,7 +44,7 @@ func TestWorkersCollectAndStop(t *testing.T) {
 		cmd.Env = append(os.Environ(), "SRS_PERF_FAKE_WORKER=1")
 		return cmd
 	}
-	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", "perf-run", 10, 3)
+	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", []string{"perf-run"}, 10, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestWorkersCollectEverySecond(t *testing.T) {
 		cmd.Env = append(os.Environ(), "SRS_PERF_FAKE_WORKER=1")
 		return cmd
 	}
-	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", "perf-run", 4, 2)
+	group, err := startWorkers(ctx, factory, "rtmp-rtmp", "", []string{"perf-run"}, 4, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,10 +155,10 @@ func TestWorkerHelperProcess(t *testing.T) {
 func TestPlayerWithoutFramesFailsAtStepEnd(t *testing.T) {
 	w := newWorkerPlayers(2, nil)
 	w.last[1].Store(time.Now().UnixNano())
-	if got := w.sample(0, false); got.Failures != 0 {
+	if got := w.sample(nil, false); got.Failures != 0 {
 		t.Fatalf("mid-step failures=%d, want 0", got.Failures)
 	}
-	if got := w.sample(0, true); got.Failures != 1 {
+	if got := w.sample(nil, true); got.Failures != 1 {
 		t.Fatalf("final failures=%d, want 1", got.Failures)
 	}
 }

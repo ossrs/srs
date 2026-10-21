@@ -36,8 +36,12 @@ func readComparisonResults(path string) ([]result, bool, error) {
 	return []result{value}, false, nil
 }
 
+// sameComparisonSetup matches the machine, the target and its origin count,
+// and the scenario. A proxy's version may differ, as in an A/B or a fix.
 func sameComparisonSetup(old, newer result) bool {
 	return old.Setup.Machine == newer.Setup.Machine &&
+		targetOf(old.Setup) == targetOf(newer.Setup) &&
+		old.Setup.Origins == newer.Setup.Origins &&
 		old.Setup.Cores == newer.Setup.Cores &&
 		old.Setup.MemoryBytes == newer.Setup.MemoryBytes &&
 		old.Setup.DockerVersion == newer.Setup.DockerVersion &&
@@ -74,6 +78,10 @@ func changeFlag(old, newer float64, metric string, lowerIsBetter bool) string {
 func compareResults(output io.Writer, old, newer result) error {
 	if old.Scenario.Parameters["mode"] == "profile" || newer.Scenario.Parameters["mode"] == "profile" {
 		_, err := fmt.Fprintln(output, "profile hold, not a measurement; no comparison")
+		return err
+	}
+	if o, n := targetOf(old.Setup), targetOf(newer.Setup); o != n {
+		_, err := fmt.Fprintf(output, "different target (%s against %s), no comparison\n", o, n)
 		return err
 	}
 	if !sameComparisonSetup(old, newer) {
