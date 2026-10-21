@@ -6,7 +6,7 @@ Curated facts. Keep them current, and remove what is no longer true.
 
 - SRS (Simple Realtime Server) is a real-time media server: RTMP, WebRTC, SRT, HLS, HTTP-FLV, DASH, GB28181, and more.
 - Created by William (winlin) in 2013, MIT licensed, with a global contributor base.
-- The C++ server is in `trunk/`; the next-generation Go server is in `cmd/` and `internal/`.
+- The C++ server is in `trunk/`; the Go proxy server is in `cmd/` and `internal/`.
 
 ## Sibling Projects
 

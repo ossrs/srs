@@ -1,0 +1,10 @@
+# The baseline SRS of an A/B run, built by perf-ab.sh from a git tree streamed
+# as the build context: srs-perf:local with only SRS rebuilt, so the source,
+# the profiling tools and the load tool are the same on both sides.
+FROM srs-perf:local
+
+RUN rm -rf /srs/trunk
+COPY trunk/ /srs/trunk/
+WORKDIR /srs/trunk
+RUN ./configure --srt=on --rtsp=on --sanitizer=off --utest=off \
+    --extra-flags="-g -fno-omit-frame-pointer -O2" && make -j2

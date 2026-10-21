@@ -1,6 +1,6 @@
 ---
 name: internal-obs-control
-description: Control OBS Studio over obs-websocket for live streaming and RTMP, SRT or WHIP tests. Manage profiles, scenes, sources and stream outputs; use isolated instances for automated or parallel tests.
+description: Use when a task needs OBS Studio, such as live streaming from OBS or publishing RTMP, SRT or WHIP to SRS from OBS in a manual, automated or parallel test, including setting up OBS profiles, scenes, sources and stream outputs.
 ---
 
 # OBS Control

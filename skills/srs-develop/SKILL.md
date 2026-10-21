@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases, the SRS Docker image toolchain, and the State Threads coroutine library. Use for planned changes to the next-generation SRS Go proxy, SRS browser player, ossrs/dev-docker images, ossrs/state-threads, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Planned next-generation origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
+description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases, the SRS Docker image toolchain, and the State Threads coroutine library. Use for planned changes to the SRS Go proxy, SRS browser player, ossrs/dev-docker images, ossrs/state-threads, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Development of a new origin or edge server is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
 ---
 
 # SRS and Oryx Development
@@ -50,6 +50,7 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 - `skills/internal-codemap-for-srs/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
 - `skills/internal-audit-for-srs/SKILL.md` — Audit a change in a fresh subagent that reads the code before the commit message and the tests; Review a PR and Scan PRs run it on the change. This skill remains responsible for the review and final result.
 - `skills/internal-obs-control/SKILL.md` — Drive isolated OBS instances for the OBS test scripts.
+- `skills/internal-perf-for-srs/SKILL.md` — Run an SRS performance round: load tool, profiles, ranked bottlenecks and reports. This skill remains responsible for the code changes and their checks.
 
 ## Cross-Component Verification
 
@@ -166,6 +167,7 @@ Choose exactly one supported task:
 - **Fix a Bug** — Use when an SRS or Oryx issue reports broken, unexpected, unsafe, or otherwise incorrect behavior and may require investigation or a maintenance fix. Verify the report, pause for maintainer approval at Truth Record boundaries, perform only the approved update, and record the final result in the selected project's record. → [Fix a Bug workflow](references/fix-a-bug.md)
 - **Learn Code** — Use when the user wants an explanation of existing SRS or Oryx implementation, architecture, control flow, or behavior without project changes. Route to the smallest relevant documentation and code map, reconcile them, and answer with focused source references. → [Learn Code workflow](references/learn-code.md)
 - **Review a PR** — Use for the maintainer's integration workflow after SRS or Oryx changes are already present locally. Select one repository, survey the branch relative to its actual base, correct stale navigation docs, then apply the selected project's version and changelog rules when required. → [Review a PR workflow](references/review-a-pr.md)
+- **Performance** — Use for an SRS or Go proxy performance, benchmark, load test or profile task: measure SRS or the proxy under many simulated clients, profile it, rank the bottlenecks, fix the top one, or write a performance report. A round is started by hand; an SRS version bump asks the user whether to run one. → [internal-perf-for-srs](../internal-perf-for-srs/SKILL.md)
 
 **If the routed task is not yet supported**, stop and tell the user:
 - What task type you routed to

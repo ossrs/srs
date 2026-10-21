@@ -51,3 +51,4 @@ cmake-build-debug
 
 # srs-integ test media, made by make integ-prepare
 /cmd/integ/testdata/media/
+cmd/perf/out/

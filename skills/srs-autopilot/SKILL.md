@@ -1,6 +1,6 @@
 ---
 name: srs-autopilot
-description: Plan and run a complex, multi-step SRS, Oryx, or State Threads task through a task file in `tasks/`. The main agent loops one subagent per task; each subagent implements, tests, and commits one task, then the loop continues until all tasks are done. It is autonomous, so no human review blocks the loop. Use when the user asks to plan a large task, write a task file, run or resume one (for example "run ./tasks/xxx.md"), or review its commits (for example "review ./tasks/xxx.md").
+description: Use when the user asks to plan a large, multi-step SRS, Oryx, or State Threads task or write a task file in `tasks/`, to run or resume one (for example "run ./tasks/xxx.md"), to review its commits (for example "review ./tasks/xxx.md"), or to list the tracked tasks.
 ---
 
 # SRS Autopilot

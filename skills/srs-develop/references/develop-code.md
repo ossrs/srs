@@ -19,8 +19,8 @@
 | **C++ media server maintenance** | → [C++ Media Server Maintenance](#c-media-server-maintenance) | ✅ Supported |
 | **State Threads** | → [State Threads](#state-threads) | ✅ Supported |
 | **Website** | → [Website](#website) | 🔒 Private skill |
-| **Origin server** | → [Origin Server](#origin-server) | ❌ Not yet supported |
-| **Edge server** | → [Edge Server](#edge-server) | ❌ Not yet supported |
+| **New origin server** | → [New Origin Server](#new-origin-server) | ❌ Not yet supported |
+| **New edge server** | → [New Edge Server](#new-edge-server) | ❌ Not yet supported |
 
 **If the routed service is not yet supported**, stop and tell the user:
 - What service you routed to
@@ -32,8 +32,8 @@ The proxy server is a complex, growing product — not a small app. It has many 
 
 ### Step 1: Module Routing (MANDATORY)
 
-1. Load `skills/internal-codemap-for-srs/SKILL.md`, then use its Reference Router to select the next-generation Go server code map.
-2. Load `skills/internal-docs-for-srs/SKILL.md`, then use its Reference Router to select the relevant next-generation server documentation references.
+1. Load `skills/internal-codemap-for-srs/SKILL.md`, then use its Reference Router to select the Go proxy server code map.
+2. Load `skills/internal-docs-for-srs/SKILL.md`, then use its Reference Router to select the relevant Go proxy documentation references.
 3. Study the routed module and document descriptions. Understand what each covers and its boundaries.
 4. Reason about which module(s) and which document(s) are relevant to the user's request. Consider:
    - Which module owns the functionality being changed?
@@ -230,10 +230,10 @@ The website is maintained in the separate `website/` repository by a private AI 
 
 Documentation content is not website development. Update the English documents bundled in `skills/internal-docs-for-srs/` with this workflow; translation, framework, and release stay with the private website skill.
 
-## Origin Server
+## New Origin Server
 
-**Not yet supported.** This refers to the next-generation origin server workflow.
+**Not yet supported.** This refers to a new origin server, separate from the C++ media server.
 
-## Edge Server
+## New Edge Server
 
-**Not yet supported.** Will be added in a future update.
+**Not yet supported.** This refers to a new edge server, separate from the C++ media server and the Go proxy.
