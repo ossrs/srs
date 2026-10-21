@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases, the SRS Docker image toolchain, and the State Threads coroutine library. Use for planned changes to the next-generation SRS Go proxy, SRS browser player, ossrs/dev-docker images, ossrs/state-threads, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Planned next-generation origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
+description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases, the SRS Docker image toolchain, and the State Threads coroutine library. Use for planned changes to the SRS Go proxy, SRS browser player, ossrs/dev-docker images, ossrs/state-threads, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Development of a new origin or edge server is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
 ---
 
 # SRS and Oryx Development

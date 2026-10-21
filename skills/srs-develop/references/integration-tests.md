@@ -1,6 +1,6 @@
 # SRS Cross-Component Integration Tests
 
-Use this suite for every standalone SRS runtime code change, whether the change is in the next-generation Go proxy or the C++ media server. Apply it during development, bug fixing, and pull-request review.
+Use this suite for every standalone SRS runtime code change, whether the change is in the Go proxy or the C++ media server. Apply it during development, bug fixing, and pull-request review.
 
 The `proxy-*` filenames describe the test entry point, not a proxy-only scope: the scripts exercise the proxy, SRS origin and edge roles, Redis routing, and RTMP, HTTP-FLV, HLS, SRT, and WHIP interoperability.
 

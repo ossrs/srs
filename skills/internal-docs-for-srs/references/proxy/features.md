@@ -182,4 +182,4 @@ parses the minimum needed to route, then proxies traffic to the chosen backend.
   segment requests, and a WebRTC client is only recognized by the proxy that
   handled its signaling (no cross-proxy migration). RTMP, HTTP-FLV/TS, and SRT
   are unaffected.
-- Current version: SRS `8.0.x` (next-generation Go server, signature `SRSX`).
+- Current version: SRS `8.0.x` (Go proxy server, signature `SRSX`).

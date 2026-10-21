@@ -1,6 +1,6 @@
 ---
 name: internal-docs-for-srs
-description: Use whenever support or development work needs SRS or Oryx project documentation, or when that documentation must be created, updated, or reviewed. Covers the C++ media server, State Threads, Oryx (deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, development), website pages, media streaming standards, the changelog, API examples, and the next-generation Go server and performance docs.
+description: Use whenever support or development work needs SRS or Oryx project documentation, or when that documentation must be created, updated, or reviewed. Covers the C++ media server, State Threads, Oryx (deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, development), website pages, media streaming standards, the changelog, API examples, and the Go proxy server and performance docs.
 ---
 
 # SRS Internal Documentation
@@ -129,9 +129,9 @@ For RTMP Go API examples, load:
 
 - `internal/rtmp/example_test.go` — RTMP API examples for AMF0, handshake, and protocol workflows.
 
-### Next-Generation Go Proxy Documentation
+### Go Proxy Documentation
 
-For next-generation Go proxy documentation, select the smallest relevant document:
+For Go proxy documentation, select the smallest relevant document:
 
 - `references/proxy/features.md` — Proxy feature status and limitations, including implemented protocols, APIs, load balancing, deployment, configuration, operations, and current limitations.
 - `references/proxy/proxy-design.md` — Proxy architecture, including stateless proxy design, built-in load balancing, Redis mode, and horizontal scaling.

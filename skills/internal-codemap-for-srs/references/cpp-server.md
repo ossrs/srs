@@ -1,6 +1,6 @@
 # C++ Server Code Map
 
-Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a task to the first-generation C++ media server. The listed modules, directories, configuration files, and vendored third-party dependency files define the trusted navigation scope.
+Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a task to the C++ media server. The listed modules, directories, configuration files, and vendored third-party dependency files define the trusted navigation scope.
 
 ## C++ Media Server Code
 
@@ -176,7 +176,7 @@ Utilities:
 
 **Config**
 
-Config (`trunk/conf/`) is only for the C++ media server. The next-generation Go server does not use these config files.
+Config (`trunk/conf/`) is only for the C++ media server. The Go proxy server does not use these config files.
 
 - `srs.conf` — Default config
 - `full.conf` — Full reference config with all options documented

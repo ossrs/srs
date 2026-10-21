@@ -72,7 +72,7 @@ Load knowledge in layers and stop when there is enough information.
 
 **Layer 3 — Last resort for a usage answer:**
 1. Load `skills/internal-codemap-for-srs/SKILL.md`.
-2. Select the smallest relevant C++ media server or next-generation Go server map and, when needed, its verification map.
+2. Select the smallest relevant C++ media server or Go proxy server map and, when needed, its verification map.
 3. Read only the module and file set selected by the map. Do not broadly grep directories or the repository root.
 
 ### Step 3: Answer by Topic
