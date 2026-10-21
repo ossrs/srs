@@ -165,24 +165,13 @@ type Protocol interface {
 	DecodeMessage(m Message) (Packet, error)
 	ReadMessage(ctx context.Context) (Message, error)
 	WritePacket(ctx context.Context, pkt Packet, streamID int) error
-	// WriteMessage writes the message and flushes it to the connection.
 	WriteMessage(ctx context.Context, m Message) error
-	// QueueMessage writes the message into the output buffer, which goes to the connection only when it is full or
-	// on Flush, so a relay sends the messages it read together in one write.
-	QueueMessage(ctx context.Context, m Message) error
-	// Flush writes the buffered output to the connection.
-	Flush() error
-	// FlushBeforeRead makes each read of this protocol's connection flush out first, so a relay that queues every
-	// message it reads to out holds none of them while it waits for more input.
-	FlushBeforeRead(out Protocol)
 }
 
 type protocol struct {
-	r *bufio.Reader
-	w *bufio.Writer
-	// flushBeforeRead is flushed before each read of the connection, set by FlushBeforeRead.
-	flushBeforeRead Protocol
-	input           struct {
+	r     *bufio.Reader
+	w     *bufio.Writer
+	input struct {
 		opt    *settings
 		chunks map[chunkID]*chunkStream
 
@@ -196,9 +185,9 @@ type protocol struct {
 
 func NewProtocol(rw io.ReadWriter) Protocol {
 	v := &protocol{
+		r: bufio.NewReader(rw),
 		w: bufio.NewWriter(rw),
 	}
-	v.r = bufio.NewReader(&connReader{v: v, r: rw})
 
 	v.input.opt = newSettings()
 	v.input.chunks = map[chunkID]*chunkStream{}
@@ -207,26 +196,6 @@ func NewProtocol(rw io.ReadWriter) Protocol {
 	v.output.opt = newSettings()
 
 	return v
-}
-
-// connReader reads the connection for the protocol's buffered reader, which calls it only when it has no input left,
-// and flushes the protocol's flushBeforeRead output first.
-type connReader struct {
-	v *protocol
-	r io.Reader
-}
-
-func (r *connReader) Read(p []byte) (int, error) {
-	if out := r.v.flushBeforeRead; out != nil {
-		if err := out.Flush(); err != nil {
-			return 0, errors.WithMessage(err, "flush before read")
-		}
-	}
-	return r.r.Read(p)
-}
-
-func (v *protocol) FlushBeforeRead(out Protocol) {
-	v.flushBeforeRead = out
 }
 
 // ExpectPacket reads and decodes RTMP messages until it finds a packet of type T.
@@ -834,27 +803,6 @@ func (v *protocol) onMessageArrivated(m *message) (err error) {
 }
 
 func (v *protocol) WriteMessage(ctx context.Context, m Message) (err error) {
-	if err = v.QueueMessage(ctx, m); err != nil {
-		return err
-	}
-
-	// TODO: We should convert buffered io to async io, because we will be stuck in block io here,
-	// TODO: but the risk is acceptable because we literally will set the underlay io timeout.
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-
-	return v.Flush()
-}
-
-func (v *protocol) Flush() error {
-	if err := v.w.Flush(); err != nil {
-		return errors.Wrapf(err, "flush writer")
-	}
-	return nil
-}
-
-func (v *protocol) QueueMessage(ctx context.Context, m Message) (err error) {
 	msg := m.asMessage()
 	msg.payloadLength = uint32(len(msg.payload))
 
@@ -894,6 +842,17 @@ func (v *protocol) QueueMessage(ctx context.Context, m Message) (err error) {
 			return errors.Wrapf(err, "write chunk payload %vB", size)
 		}
 		p = p[size:]
+	}
+
+	// TODO: We should convert buffered io to async io, because we will be stuck in block io here,
+	// TODO: but the risk is acceptable because we literally will set the underlay io timeout.
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+
+	// TODO: FIXME: Use writev to write for high performance.
+	if err = v.w.Flush(); err != nil {
+		return errors.Wrapf(err, "flush writer")
 	}
 
 	return

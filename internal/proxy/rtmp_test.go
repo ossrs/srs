@@ -1019,42 +1019,6 @@ func TestRtmpConnection_Serve_ViewerInvokesNewBackend(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// relayMessages
-// ---------------------------------------------------------------------------
-
-func TestRelayMessages_QueuesEachAndFlushesBeforeRead(t *testing.T) {
-	src, dst := &rtmpfakes.FakeProtocol{}, &rtmpfakes.FakeProtocol{}
-	src.ReadMessageReturnsOnCall(0, rtmp.NewMessage(), nil)
-	src.ReadMessageReturnsOnCall(1, rtmp.NewMessage(), nil)
-	src.ReadMessageReturnsOnCall(2, nil, io.EOF)
-
-	err := relayMessages(context.Background(), src, dst)
-	if err == nil || !errors.Is(err, io.EOF) || !strings.Contains(err.Error(), "read message") {
-		t.Fatalf("relayMessages err=%v, want the read's EOF", err)
-	}
-	if got := src.FlushBeforeReadCallCount(); got != 1 || src.FlushBeforeReadArgsForCall(0) != dst {
-		t.Fatalf("FlushBeforeRead called %v times, want once with the destination", got)
-	}
-	if got := dst.QueueMessageCallCount(); got != 2 {
-		t.Fatalf("QueueMessage called %v times, want 2", got)
-	}
-	if got := dst.WriteMessageCallCount(); got != 0 {
-		t.Fatalf("WriteMessage called %v times, want 0: a flush per message is a write per message", got)
-	}
-}
-
-func TestRelayMessages_QueueError(t *testing.T) {
-	src, dst := &rtmpfakes.FakeProtocol{}, &rtmpfakes.FakeProtocol{}
-	src.ReadMessageReturns(rtmp.NewMessage(), nil)
-	dst.QueueMessageReturns(io.ErrClosedPipe)
-
-	err := relayMessages(context.Background(), src, dst)
-	if err == nil || !errors.Is(err, io.ErrClosedPipe) || !strings.Contains(err.Error(), "write message") {
-		t.Fatalf("relayMessages err=%v, want the write error", err)
-	}
-}
-
-// ---------------------------------------------------------------------------
 // rtmpProxyServer: fakes and fixture
 // ---------------------------------------------------------------------------
 

@@ -399,7 +399,20 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 		defer wg.Done()
 		defer cancel()
 
-		r0 = relayMessages(ctx, backend.client, client)
+		r0 = func() error {
+			for {
+				m, err := backend.client.ReadMessage(ctx)
+				if err != nil {
+					return errors.Wrapf(err, "read message")
+				}
+				//logger.Debug(ctx, "client<- %v %v %vB", m.MessageType(), m.Timestamp(), len(m.Payload()))
+
+				// TODO: Update the stream ID if not the same.
+				if err := client.WriteMessage(ctx, m); err != nil {
+					return errors.Wrapf(err, "write message")
+				}
+			}
+		}()
 	}()
 
 	// Proxy all messages from client to backend.
@@ -409,7 +422,20 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 		defer wg.Done()
 		defer cancel()
 
-		r1 = relayMessages(ctx, client, backend.client)
+		r1 = func() error {
+			for {
+				m, err := client.ReadMessage(ctx)
+				if err != nil {
+					return errors.Wrapf(err, "read message")
+				}
+				//logger.Debug(ctx, "client-> %v %v %vB", m.MessageType(), m.Timestamp(), len(m.Payload()))
+
+				// TODO: Update the stream ID if not the same.
+				if err := backend.client.WriteMessage(ctx, m); err != nil {
+					return errors.Wrapf(err, "write message")
+				}
+			}
+		}()
 	}()
 
 	// Wait until all goroutine quit.
@@ -434,24 +460,6 @@ func (v *rtmpConnection) serve(ctx context.Context, conn net.Conn) error {
 	}
 
 	return parentCtx.Err()
-}
-
-// relayMessages copies every message from src to dst until an error. Each message is queued in dst's buffer, which
-// is flushed before src reads its connection, so the messages that arrive together, such as an origin's merged write
-// of several frames, leave in one write instead of one write per message.
-func relayMessages(ctx context.Context, src, dst rtmp.Protocol) error {
-	src.FlushBeforeRead(dst)
-	for {
-		m, err := src.ReadMessage(ctx)
-		if err != nil {
-			return errors.Wrapf(err, "read message")
-		}
-
-		// TODO: Update the stream ID if not the same.
-		if err := dst.QueueMessage(ctx, m); err != nil {
-			return errors.Wrapf(err, "write message")
-		}
-	}
 }
 
 type RTMPClientType string
