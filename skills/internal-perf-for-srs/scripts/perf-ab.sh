@@ -139,11 +139,12 @@ trap cleanup EXIT
 
 make perf
 if [[ "$target" == srs ]]; then
-    git archive --format=tar --add-file=cmd/perf/Dockerfile.ab --add-file=.dockerignore --prefix=trunk/ "$tree" |
+    git archive --format=tar --add-file=cmd/perf/Dockerfile.ab --prefix=trunk/ "$tree" \
+        ':(exclude)3rdparty/srs-bench' ':(exclude)3rdparty/srs-docs' ':(exclude)3rdparty/gtest-fit' |
         docker build -f Dockerfile.ab -t "$image" -
 else
-    git archive --format=tar --add-file=cmd/perf/Dockerfile.ab-proxy --add-file=.dockerignore \
-        "$tree" "${proxy_paths[@]}" | docker build -f Dockerfile.ab-proxy -t "$image" -
+    git archive --format=tar --add-file=cmd/perf/Dockerfile.ab-proxy \
+        "$tree" "${proxy_paths[@]}" ':(exclude,glob)**/*_test.go' | docker build -f Dockerfile.ab-proxy -t "$image" -
 fi
 
 arch="$(docker info --format '{{.Architecture}}')"
