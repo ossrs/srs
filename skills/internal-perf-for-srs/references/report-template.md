@@ -10,7 +10,7 @@
 
 - Its Setup fills the Target, Proxy version and Origins rows, and the containers are the proxy's.
 - Its Results and Before and after give the proxy's CPU in the SRS CPU columns, headed Proxy CPU, with the origin CPU beside it from the result's `origin_cpu_percent`, and mark a capacity ended `origin-bound`.
-- Its Bottlenecks come from the Go profiles: `top-symbols.txt` with `flat` and `cum`, allocations per packet, goroutines and the GC share, per `reading-profiles.md`. Its Syscalls come from the trace's Syscall profile, not `perf trace`.
+- Its Bottlenecks come from the Go profiles: `top-symbols.txt` with `flat` and `cum`, allocations per packet, goroutines and the GC share, per the Go profiles of `go-server.md`. Its Syscalls come from the trace's Syscall profile, not `perf trace`.
 
 ## Setup
 
@@ -52,7 +52,7 @@
 
 ## Bottlenecks
 
-Ranked by cost at the 90% profile hold, per `skills/internal-perf-for-srs/references/reading-profiles.md`.
+Ranked by cost at the 90% profile hold, per the target's reference, such as the Ranking of `skills/internal-perf-for-srs/references/cpp-server.md`.
 
 | Rank | Code path | Self share at 50% and 90% | Syscalls | SRS files and functions |
 |---|---|---|---|---|

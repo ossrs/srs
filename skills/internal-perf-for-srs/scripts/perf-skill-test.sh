@@ -24,6 +24,10 @@ section() { sed -n "/^### $1/,/^### /p" SKILL.md; }
 in_section() {
     if grep -qF -- "$3" <<< "$(section "$1")"; then pass "$2: $3"; else fail "$2: $3"; fi
 }
+cpp=references/cpp-server.md
+go=references/go-server.md
+# The text of section $2 (a ## heading) of the target reference $1.
+ref_section() { sed -n "/^## $2\$/,/^## /p" "$1"; }
 
 has SKILL.md "name: internal-perf-for-srs"
 for workflow in "### Start a Round" "### Build the Tools" "### Run the Load and Profile" \
@@ -34,6 +38,14 @@ done
 for link in $(grep -oE '\]\((references|scripts)/[^)#]+' SKILL.md | sed 's/^](//' | sort -u); do
     if [[ -f "$link" ]]; then pass "link $link"; else fail "link $link"; fi
 done
+# SKILL.md routes each target to its own reference, whose links resolve.
+has SKILL.md "## Target Router"
+for ref in "](references/cpp-server.md)" "](references/go-server.md)"; do
+    has SKILL.md "$ref"
+done
+links_exist "$cpp"
+links_exist "$go"
+if grep -qE '^## (Proxy|Verified Proxy Scenarios|Scenarios)$' SKILL.md; then fail "SKILL.md: no target section"; else pass "SKILL.md: no target section"; fi
 for text in "**Flat CBR source:**" "/srs/perf/cbr.flv" "make perf-source-test" \
     "](scripts/perf-source.sh)" "](scripts/perf-source-check.sh)" "](scripts/perf-source-test.sh)"; do
     has SKILL.md "$text"
@@ -53,7 +65,7 @@ has scripts/perf-up.sh "--cgroupns host"
 # the smoke and the run accept it.
 for s in $(sed -nE 's/^	"([a-z0-9-]+)": +\{Name:.*/\1/p' ../../cmd/perf/main.go); do
     if [[ -f "../../cmd/perf/env/$s.env" ]]; then pass "env $s"; else fail "env $s"; fi
-    has SKILL.md "\`$s\`"
+    has "$cpp" "\`$s\`"
     has scripts/perf-smoke.sh "$s"
     has scripts/perf-run.sh "$s"
 done
@@ -69,15 +81,15 @@ has SKILL.md 'With no `SCENARIO`, `make perf-smoke` smokes every scenario'
 # skill says which bridges SRS has and why whip-flv turns off guess_has_av.
 has scripts/perf-smoke.sh "([.steps[0].samples[].lag_millis] | max) > 0"
 for text in "**Cross-protocol scenarios:**" "SRS has no other bridge" '`guess_has_av` off' "two sender reports" "sender reports on the pace's clock, none from pion"; do
-    has SKILL.md "$text"
+    has "$cpp" "$text"
 done
-# The hand-over: SKILL.md says how to start a round on every protocol; the round template
+# The hand-over: the C++ reference says how to start a round on every protocol; the round template
 # has a row for every scenario, so a round on all protocols starts from the whole registry.
 scenarios=$(sed -n '/^## Scenarios/,/^## /p' references/round-template.md)
 for s in $(sed -nE 's/^	"([a-z0-9-]+)": +\{Name:.*/\1/p' ../../cmd/perf/main.go); do
     if grep -qF "| \`$s\` |" <<< "$scenarios"; then pass "round template scenario $s"; else fail "round template scenario $s"; fi
 done
-start=$(sed -n '/^### Start a Round/,/^### /p' SKILL.md)
+start=$(ref_section "$cpp" "Start a Round")
 for text in "**All protocols:**" "registry in \`cmd/perf/main.go\`" "-cap 1000" "one chain per code path"; do
     if grep -qF -- "$text" <<< "$start"; then pass "Start a Round: $text"; else fail "Start a Round: $text"; fi
 done
@@ -126,7 +138,7 @@ for file in origin.env origin2.env origin3.env origin4.env; do
 done
 has ../../cmd/perf/placement.go "const originAPIBase = 19851"
 has scripts/perf-smoke.sh '.setup.shares'
-has SKILL.md 'one stream on each origin'
+has "$go" 'one stream on each origin'
 # The proxy scenarios are one list, every protocol the proxy relays without
 # conversion: each is in the registry and none is the delay probe; every one
 # runs on three origins by default. perf-up and the smoke read it.
@@ -144,19 +156,19 @@ done
 # SRS_PERF_ORIGINS overrides the default, in perf-up and in the smoke's check.
 has scripts/perf-up.sh 'origins="${SRS_PERF_ORIGINS:-}"'
 has scripts/perf-smoke.sh '${SRS_PERF_ORIGINS:-$(proxy_origins "$scenario")}'
-has SKILL.md '`perf-up.sh -target proxy -origins <1-4>`'
-has SKILL.md '`origin4.env`'
+has "$go" '`perf-up.sh -target proxy -origins <1-4>`'
+has "$go" '`origin4.env`'
 has scripts/perf-up.sh 'source "$(dirname "$0")/perf-proxy-scenarios.sh"'
 has scripts/perf-smoke.sh 'source "$(dirname "$0")/perf-proxy-scenarios.sh"'
 has scripts/perf-smoke.sh 'list=("${proxy_scenarios[@]}")'
 has scripts/perf-smoke.sh 'srs-perf smoke -scenario "$scenario" -target "$target"'
 has scripts/perf-smoke.sh '.setup.target == $target'
 has ../../Makefile 'SRS_PERF_TARGET="$(TARGET)" bash skills/internal-perf-for-srs/scripts/perf-smoke.sh'
-for text in '`make perf-smoke TARGET=proxy`' "](scripts/perf-proxy-scenarios.sh)"; do
-    has SKILL.md "$text"
+for text in '`make perf-smoke TARGET=proxy`' "](../scripts/perf-proxy-scenarios.sh)"; do
+    has "$go" "$text"
 done
-for text in '`perf-up.sh -target proxy -origins <1-4>`' "](scripts/perf-proxy-up-test.sh)" '`bin/srs-perf run -target proxy`' '`origin-bound`'; do
-    has SKILL.md "$text"
+for text in '`perf-up.sh -target proxy -origins <1-4>`' "](../scripts/perf-proxy-up-test.sh)" '`bin/srs-perf run -target proxy`' '`origin-bound`'; do
+    has "$go" "$text"
 done
 # perf-run.sh -target proxy runs the proxy scenarios through the proxy and
 # profiles the proxy with Go's tools in the profile holds, from the load
@@ -169,7 +181,7 @@ has scripts/perf-run.sh 'docker exec srs-perf-load bash /perf-scripts/perf-profi
 # it refuses a count out of range and the SRS target before building anything.
 has scripts/perf-run.sh 'SRS_PERF_ORIGINS="$origins"'
 for text in 'or N with `-origins <1-4>`' "the bound that stopped the ramp" "each hold's shares"; do
-    has SKILL.md "$text"
+    has "$go" "$text"
 done
 for args in "-target srs -origins 3" "-target proxy -origins 0" "-target proxy -origins 5" "-target proxy -origins x"; do
     # shellcheck disable=SC2086
@@ -194,13 +206,13 @@ else
     fail "$go_profile: mutex and block rates on for the profiles, off before the trace"
 fi
 has ../../cmd/perf/Dockerfile "COPY --from=proxy /out/pprof /usr/local/bin/pprof"
-for text in '`perf-run.sh -target proxy`' "](scripts/perf-profile-go.sh)" "](scripts/perf-profile-go-test.sh)"; do
-    has SKILL.md "$text"
+for text in '`perf-run.sh -target proxy`' "](../scripts/perf-profile-go.sh)" "](../scripts/perf-profile-go-test.sh)"; do
+    has "$go" "$text"
 done
 has scripts/perf-run.sh '-mode probe'
 has scripts/perf-smoke.sh '.delays.pause_millis.samples'
 for text in "C7" "NetStream.Pause.Notify" '`delays-forward.env`' '`delays-edge.env`'; do
-    has SKILL.md "$text"
+    has "$cpp" "$text"
 done
 # Lag is in publisher time, since SRS starts each player's timestamps near zero.
 for text in "**Lag in publisher time:**" '`time_jitter full`' "unique payload"; do
@@ -211,7 +223,7 @@ for text in "](scripts/perf-ab.sh)" "](scripts/perf-ab-test.sh)" '`-baseline <re
     '`-revert <commit>`' '`-keep`' '`srs-perf-ab:<task>-<rev>`' "ab.json" "verdict.txt"; do
     has SKILL.md "$text"
 done
-has SKILL.md "that commit's trunk change taken out"
+has "$cpp" "that commit's trunk change taken out"
 has scripts/perf-ab.sh "git archive"
 has scripts/perf-ab.sh "acquire --wait"
 has scripts/perf-ab.sh "docker rmi"
@@ -222,41 +234,53 @@ else
 fi
 # The proxy A/B: the baseline proxy from a git tree, each side on its own cores.
 for text in '`perf-ab.sh -target proxy`' "that commit's proxy change taken out" '`perf-ab-test.sh -target proxy`'; do
-    has SKILL.md "$text"
+    has "$go" "$text"
 done
 has scripts/perf-ab.sh "cmd/perf/Dockerfile.ab-proxy"
 has scripts/perf-ab.sh "SRS_PERF_PROXY_IMAGE"
 has scripts/perf-ab.sh "perf-proxy-scenarios.sh"
 has ../../cmd/perf/Dockerfile.ab-proxy "FROM srs-perf:local"
 has ../../cmd/perf/Dockerfile.ab-proxy "COPY --from=proxy /out/srs-proxy /srs/bin/srs-proxy"
-# The proxy has its own section, one line per tool and then its guide in
-# subsections; the Tools section keeps only the SRS tools.
-proxy_section=$(sed -n '/^## Proxy$/,/^## /p' SKILL.md)
+# The Go server has its own reference, one line per tool and then its guide in
+# sections; SKILL.md's Tools keep only the shared tools.
+proxy_section=$(cat "$go" 2>/dev/null)
+go_tools=$(ref_section "$go" "Tools")
 tools_section=$(sed -n '/^## Tools$/,/^## /p' SKILL.md)
-if [[ -n "$proxy_section" ]]; then pass "SKILL.md: ## Proxy"; else fail "SKILL.md: ## Proxy"; fi
 for text in '`perf-up.sh -target proxy -origins <1-4>`' '`make perf-smoke TARGET=proxy`' \
     '`bin/srs-perf run -target proxy`' 'one stream on each origin' '`perf-run.sh -target proxy`' '`perf-ab.sh -target proxy`' \
-    "](scripts/perf-proxy-scenarios.sh)" "](scripts/perf-profile-go.sh)" "](scripts/perf-profile-go-test.sh)" \
-    "](scripts/perf-proxy-up-test.sh)" '`perf-ab-test.sh -target proxy`' "-proxy-docker.md"; do
-    if grep -qF -- "$text" <<< "$proxy_section"; then pass "Proxy: $text"; else fail "Proxy: $text"; fi
+    "](../scripts/perf-proxy-scenarios.sh)" "](../scripts/perf-profile-go.sh)" "](../scripts/perf-profile-go-test.sh)" \
+    "](../scripts/perf-proxy-up-test.sh)" '`perf-ab-test.sh -target proxy`' "-proxy-docker.md"; do
+    if grep -qF -- "$text" <<< "$go_tools"; then pass "Go Tools: $text"; else fail "Go Tools: $text"; fi
 done
-if grep -qE -- '-target proxy|perf-profile-go|perf-proxy-' <<< "$tools_section"; then
-    fail "Tools: no proxy tool"
+if grep -qE -- '-target proxy|perf-profile-go|perf-proxy-|perf-build-check|perf-profile\.sh' <<< "$tools_section"; then
+    fail "Tools: no target's own tool"
 else
-    pass "Tools: no proxy tool"
+    pass "Tools: no target's own tool"
 fi
-if [[ -n "$proxy_section" ]] && ! sed '/^### /,$d' <<< "$proxy_section" | grep -vE '^(- \*\*|- \[|## |$)' | sed 1d | grep -q .; then
-    pass "Proxy: one line per tool"
+if [[ -n "$go_tools" ]] && ! grep -vE '^(- \*\*|- \[|## |$)' <<< "$go_tools" | grep -q .; then
+    pass "Go Tools: one line per tool"
 else
-    fail "Proxy: one line per tool"
+    fail "Go Tools: one line per tool"
 fi
-# The proxy guide, moved from internal-docs into SKILL.md's Proxy section, with the
+# The proxy guide, moved from internal-docs into the Go server's reference, with the
 # manual steps as a short fallback.
 if [[ -e references/proxy.md ]]; then fail "no references/proxy.md"; else pass "no references/proxy.md"; fi
-for section in "### Proxy Topology" "### Proxy Scenarios" "### Measuring the Proxy" "### Proxy Profiles" "### Proxy A/B" "### Manual Proxy Profiling"; do
-    if grep -qxF -- "$section" <<< "$proxy_section"; then pass "Proxy: $section"; else fail "Proxy: $section"; fi
+for section in "## Topology" "## Scenarios" "## Measuring" "## Profiles" "## Go profiles" "## A/B" \
+    "## Manual Profiling" "## Verified Scenarios" "## Start a Round" "## Check" "## Report"; do
+    if grep -qxF -- "$section" "$go"; then pass "Go server: $section"; else fail "Go server: $section"; fi
 done
-guide=SKILL.md
+for section in "## Tools" "## Topology" "## Scenarios" "## Measuring" "## Profiles" "## Linux perf profiles" \
+    "## A/B" "## Verified Scenarios" "## Start a Round" "## Check" "## Report"; do
+    if grep -qxF -- "$section" "$cpp"; then pass "C++ server: $section"; else fail "C++ server: $section"; fi
+done
+# The C++ hand-over: every scenario of the registry has a verified row with its
+# capacity and top bottleneck.
+verified_cpp=$(ref_section "$cpp" "Verified Scenarios")
+if grep -qxF -- "| Scenario | Capacity | Top bottleneck |" <<< "$verified_cpp"; then pass "verified C++ header"; else fail "verified C++ header"; fi
+for s in $registry; do
+    if grep -qE "^\| \`$s\` \| [^|]+ \| [^|]+ \|$" <<< "$verified_cpp"; then pass "verified C++ $s"; else fail "verified C++ $s"; fi
+done
+guide=$go
 for text in "perf-up.sh -target proxy" "perf-run.sh -target proxy" "perf-ab.sh -target proxy" \
     "perf-profile-go.sh" "GOMAXPROCS=1" "GO_PPROF" "origin-bound" "-proxy-docker.md" "pprof -base"; do
     has "$guide" "$text"
@@ -264,7 +288,6 @@ done
 for s in $proxy_listed; do
     has "$guide" "\`$s\`"
 done
-links_exist "$guide"
 docs=../internal-docs-for-srs
 if [[ -e "$docs/references/perf/proxy-whep.md" ]]; then fail "old proxy-whep.md removed"; else pass "old proxy-whep.md removed"; fi
 if grep -rqF "proxy-whep" "$docs" SKILL.md references; then fail "no proxy-whep link"; else pass "no proxy-whep link"; fi
@@ -274,7 +297,7 @@ if grep -rqF "internal-perf-for-srs" "$docs"; then fail "internal-docs: no route
 if grep -E '^- \*\*Performance\*\*' ../srs-develop/SKILL.md | grep -qF "Go proxy"; then pass "srs-develop: Performance row names the Go proxy"; else fail "srs-develop: Performance row names the Go proxy"; fi
 links_exist "$docs/references/proxy/features.md"
 # Reading Go profiles, and the proxy target in the round and report templates.
-go_read=$(sed -n '/^## Go profiles/,$p' references/reading-profiles.md)
+go_read=$(ref_section "$go" "Go profiles")
 for text in "flat" "cum" "allocations per packet" "goroutine" "GC share" "gc.json" "go tool trace" \
     "Scheduler latency" "Syscall" "-proxy-docker.md"; do
     if grep -qF -- "$text" <<< "$go_read"; then pass "Go profiles: $text"; else fail "Go profiles: $text"; fi
@@ -289,13 +312,13 @@ done
 for text in "| Target |" "| Proxy version |" "| Origins |" "origin CPU" "-proxy-docker.md" "Go profiles" "-target proxy"; do
     has references/report-template.md "$text"
 done
-in_section "Write the Report" "Write the Report" "-proxy-docker.md"
+in_section "Write the Report" "Write the Report" "target's Report"
 in_section "Rank Bottlenecks" "Rank" "Go profiles"
-# The proxy hand-over: SKILL.md lists every verified proxy scenario with its
+# The proxy hand-over: the Go server reference lists every verified proxy scenario with its
 # capacity and top bottleneck, says how to start a proxy round, how to check a
 # proxy change, and names the proxy after-report.
-verified_proxy=$(sed -n '/^## Verified Proxy Scenarios/,/^## /p' SKILL.md)
-if [[ -n "$verified_proxy" ]]; then pass "SKILL.md: ## Verified Proxy Scenarios"; else fail "SKILL.md: ## Verified Proxy Scenarios"; fi
+verified_proxy=$(ref_section "$go" "Verified Scenarios")
+if [[ -n "$verified_proxy" ]]; then pass "Go server: ## Verified Scenarios"; else fail "Go server: ## Verified Scenarios"; fi
 # On several origins (D113): each proxy scenario's capacity on one origin and on
 # three, and the bound that stopped its ramp, as perf-verify.sh names it.
 proxy_header="| Scenario | Capacity on one origin | Capacity on three origins | Bound | Top bottleneck |"
@@ -310,8 +333,8 @@ done
 for text in "on three origins" "-proxy-origins-docker.md"; do
     if grep -qF -- "$text" <<< "$verified_proxy"; then pass "Verified Proxy: $text"; else fail "Verified Proxy: $text"; fi
 done
-# A capacity run uses several origins, an A/B one origin per side: SKILL.md's
-# Proxy section, its proxy round, the guide and the templates say so.
+# A capacity run uses several origins, an A/B one origin per side: the Go server
+# reference's Tools, its Start a Round, the guide and the templates say so.
 for text in "**Several origins:**" "one origin per side" "-proxy-origins-docker.md"; do
     if grep -qF -- "$text" <<< "$proxy_section"; then pass "Proxy: $text"; else fail "Proxy: $text"; fi
 done
@@ -337,24 +360,25 @@ if grep -qF "origins on vCPUs 2 and 3" references/report-template.md; then
 else
     pass "report template: origins on vCPUs 2 to N+1"
 fi
-proxy_start=$(sed -n '/\*\*A proxy round:\*\*/,/^[0-9]\./p' <<< "$(section "Start a Round")")
-for text in "-proxy-round.md" "-target proxy" "## Proxy scenarios" "Verified Proxy Scenarios" "-cap 1000" \
+proxy_start=$(ref_section "$go" "Start a Round")
+for text in "-proxy-round.md" "-target proxy" "## Proxy scenarios" "Verified Scenarios" "-cap 1000" \
     "-cap 6400" "three origins" "one origin per side" "perf-verify.sh" "perf-ab.sh -target proxy"; do
     if grep -qF -- "$text" <<< "$proxy_start"; then pass "Start a proxy round: $text"; else fail "Start a proxy round: $text"; fi
 done
-in_section "Check" "Check" "proxy-utest.sh"
-in_section "Check" "Check" "proxy E2E"
-in_section "Write the Report" "Write the Report" "-proxy-after-docker.md"
+for text in "proxy-utest.sh" "proxy E2E"; do
+    if grep -qF -- "$text" <<< "$(ref_section "$go" "Check")"; then pass "Go Check: $text"; else fail "Go Check: $text"; fi
+done
+has "$go" "-proxy-after-docker.md"
 if grep -qF -- "-proxy-after-docker.md" <<< "$proxy_section"; then pass "Proxy: -proxy-after-docker.md"; else fail "Proxy: -proxy-after-docker.md"; fi
 # The build check of the profiling builds: each in its own image, removed at the end.
-for text in '`make perf-build-check`' "](scripts/perf-build-check.sh)" "](scripts/perf-build-check-test.sh)" \
+for text in '`make perf-build-check`' "](../scripts/perf-build-check.sh)" "](../scripts/perf-build-check-test.sh)" \
     '`--gperf=on --gcp=on --gmp=on`' '`--gprof=on`' '`--valgrind=on`' "build-check.json" "cmd/perf/Dockerfile.build"; do
-    has SKILL.md "$text"
+    has "$cpp" "$text"
 done
 has scripts/perf-build-check.sh "acquire --wait"
 has scripts/perf-build-check.sh "docker rmi"
 has references/round-template.md "build-check.json"
-for file in scripts/perf-run.sh SKILL.md; do
+for file in scripts/perf-run.sh SKILL.md "$cpp" "$go"; do
     if grep -qF "integ-prepare" "$file"; then fail "$file: no integ-prepare"; else pass "$file: no integ-prepare"; fi
 done
 if grep -rqF --include='*.go' --exclude='*_test.go' '"doc/source.flv"' ../../cmd/perf; then
@@ -367,8 +391,8 @@ for section in "## Setup" "## Caveats" "## Method" "## Results" "## Bottlenecks"
     "## Syscalls" "## Before and after" "## Re-run and compare"; do
     has references/report-template.md "$section"
 done
-for topic in "## Flame graph" "## Symbol table" "## Syscall counts" "## Hotspot moved" "## Ranking"; do
-    has references/reading-profiles.md "$topic"
+for topic in "## Linux perf profiles" "### Flame graph" "### Symbol table" "### Syscall counts" "### Hotspot moved" "### Ranking"; do
+    has "$cpp" "$topic"
 done
 
 if grep -rqiE 'william|/Users/|winlin' SKILL.md references; then
@@ -414,7 +438,7 @@ for text in "baseline report already exists" "Baseline steps" "Ranking" "Chain 1
 done
 has references/round-template.md "at most <n> tries"
 # A code change passes every test, not only the unit tests and integ: the srs-develop Full tier.
-check=$(sed -n '/^### Check/,/^### /p' SKILL.md)
+check=$(ref_section "$cpp" "Check")
 if grep -qF 'Full tier' <<< "$check"; then pass "Check runs the Full tier"; else fail "Check runs the Full tier"; fi
 # A round file is the skill's working output, like its reports: git-ignored beside them, not in tasks/.
 has SKILL.md "cmd/perf/out/reports/<YYYY-MM-DD>-v<version>-round.md"
@@ -492,13 +516,13 @@ fi
 for text in "**No profiler in the window:**" "profile hold" '`-window <seconds>`' "180s" "settle 30s" "profile-<50|90>"; do
     has SKILL.md "$text"
 done
-has references/reading-profiles.md "profile-<50|90>"
+has "$cpp" "profile-<50|90>"
 # compare gives each side's mean and sd and the 95% CI of the difference:
 # paired per second for the two sides of an A/B run, unpaired otherwise.
 for text in "each side's mean and sd" "95% CI" "paired per second" '`-ab-run <id>`' "unpaired" "noisier" "mean difference"; do
     has SKILL.md "$text"
 done
-for doc in SKILL.md references/reading-profiles.md references/report-template.md; do
+for doc in SKILL.md "$cpp" references/report-template.md; do
     if grep -qE '75s hold|75s at 50%|last 20 counted|inside the 75s|while the hold still runs' "$doc"; then
         fail "$doc: no profiler in the measuring hold"
     else
@@ -748,12 +772,12 @@ in_section "Rank Bottlenecks" "Rank" "perf-verify.sh"
 # It notes a noise of 10% or more, which a later comparison must handle.
 in_section "Rank Bottlenecks" "Rank" "noise"
 # A delays run is checked too: its probes and delays, with no capacity.
-in_section "Rank Bottlenecks" "Rank" "delays run"
+has "$cpp" "delays run"
 # A proxy run is checked too: its Go profiles, the proxy's and origins' CPU,
 # and an origin-bound capacity; no text says the check cannot read one.
-in_section "Rank Bottlenecks" "Rank" "a proxy run, it checks the Go profiles"
-in_section "Rank Bottlenecks" "Rank" "origin-bound"
-has SKILL.md "**\`perf-verify.sh\` on a proxy run:**"
+has "$go" "a proxy run, it checks the Go profiles"
+has "$go" "origin-bound"
+has "$go" "**\`perf-verify.sh\` on a proxy run:**"
 if grep -qF -- "perf-verify.sh <run dir>" <<< "$proxy_section"; then pass "Proxy: perf-verify.sh"; else fail "Proxy: perf-verify.sh"; fi
 if grep -rqF "does not read a proxy run" SKILL.md references; then
     fail "the run check reads a proxy run"
@@ -761,7 +785,7 @@ else
     pass "the run check reads a proxy run"
 fi
 # whip-pub at its 2,000 cap runs the Docker VM out of memory in the holds.
-has SKILL.md "perf-run.sh -scenario whip-pub -cap 1000"
+has "$cpp" "perf-run.sh -scenario whip-pub -cap 1000"
 has SKILL.md "one 20s hold"
 if grep -qF "one 10s hold" SKILL.md; then fail "SKILL.md: cap check is 20s"; else pass "SKILL.md: cap check is 20s"; fi
 template=references/report-template.md
@@ -782,7 +806,7 @@ done
 has references/round-template.md "**Source:**"
 has references/round-template.md "perf-ab.sh"
 for text in "window mean" "90% profile hold" "no CPU per client"; do
-    has references/reading-profiles.md "$text"
+    has "$cpp" "$text"
 done
 if grep -rqF "doc/performance" SKILL.md references; then
     fail "no doc/performance in the skill text"
