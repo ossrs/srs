@@ -117,7 +117,11 @@ Each step below names what the target's reference adds, such as its scenarios, p
    - `-window <seconds>` sets the measuring holds' window: 60 by default, 180 for a fix's verdict. A comparison needs the same window on both sides.
    - Other flags pass through to `bin/srs-perf run` for the ramp, such as `-clients` and `-cap`.
 2. Record in the round file the run directory, the capacity, each hold's CPU mean and sd and its CPU per client, the noise between the two 50% holds, and the core calibration gap. A gap over 10% marks the run noisy. The run does not measure the gap itself: it copies the one from the last `make perf-env-check`, so note that check's date.
-3. Rerun only when a comparison's 95% CI spans the 10% line, such as a −9% difference with a CI of −12% to −6%: run an A/B, or run again with a 180s `-window`, and log why.
+3. Read a capacity as a ramp step, not an exact figure:
+   - Two runs of the same build can differ by one doubling step, when the step after the capacity reads a point or two from 90% or fails on a connect burst.
+   - Each target's Verified Scenarios names the ones seen to move.
+   - Compare two runs by their CPU per client at the same hold counts; never call a one-step capacity difference a gain or a loss on its own.
+4. Rerun only when a comparison's 95% CI spans the 10% line, such as a −9% difference with a CI of −12% to −6%: run an A/B, or run again with a 180s `-window`, and log why.
 
 ### Rank Bottlenecks
 

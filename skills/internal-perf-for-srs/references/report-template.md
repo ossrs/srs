@@ -11,6 +11,7 @@
 - Its Setup fills the Target, Proxy version and Origins rows, and the containers are the proxy's.
 - Its Results and Before and after give the proxy's CPU in the SRS CPU columns, headed Proxy CPU, with the origin CPU beside it from the result's `origin_cpu_percent`, and mark a capacity ended `origin-bound`.
 - Its Bottlenecks come from the Go profiles: `top-symbols.txt` with `flat` and `cum`, allocations per packet, goroutines and the GC share, per the Go profiles of `go-server.md`. Its Syscalls come from the trace's Syscall profile, not `perf trace`.
+- A baseline on several origins links the one-origin report, `-proxy-after-docker.md`, for its one-origin column. Its Results table is `| Scenario | Capacity on one origin | Origins | Capacity on N origins | Bound | Proxy CPU per client | Proxy and origin CPU at the 90% hold |`, with the bound as `perf-verify.sh` names it: `proxy`, `origin`, `load`, `cap` or `failure`.
 
 ## Setup
 

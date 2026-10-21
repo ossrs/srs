@@ -21,7 +21,7 @@ The C++ media server is the SRS origin and edge server in `trunk/`, one process 
 - **SRS:** `srs-perf-srs`, `./objs/srs -e` from `srs-perf:local` with the scenario's `cmd/perf/env/<scenario>.env`, on vCPU 1, since SRS is one thread. It runs `--privileged` for `perf`, with `--ulimit nofile=1048576` and the local port range 10000 to 65535, so 40,000 players fit on `127.0.0.1`; the UDP buffers `net.core.rmem_max`, `wmem_max`, `rmem_default` and `wmem_default` are 16 MB.
 - **Load:** `srs-perf-load` on vCPUs 2–9, eight worker processes of `bin/srs-perf`. It shares the SRS container's pid and network namespaces, so it sees SRS as pid 1 and dials `127.0.0.1`, and runs with `--cgroupns host` to read SRS's cgroup.
 - **Extra servers:** a scenario with `<scenario>-forward.env` or `<scenario>-edge.env`, such as `delays`, starts a forward target or an edge SRS in the SRS container's network namespace, on the load cores, so the measured SRS keeps its own core.
-- **Core calibration:** the Mac's 10 vCPUs mix performance and efficiency cores, and macOS may move SRS's vCPU to a slower core when the load is busy. `make perf-env-check` times a fixed CPU loop on vCPU 1 with the load cores idle and then busy ([scripts/perf-cpu-loop.sh](../scripts/perf-cpu-loop.sh), [scripts/perf-cpu-busy.sh](../scripts/perf-cpu-busy.sh)); a gap over 10% marks a run noisy.
+- **Core calibration:** the Mac's 10 vCPUs mix performance and efficiency cores, and macOS may move SRS's vCPU to a slower core when the load is busy. `make perf-env-check` times a fixed CPU loop on vCPU 1 with the load cores idle and then busy ([scripts/perf-cpu-loop.sh](../scripts/perf-cpu-loop.sh), [scripts/perf-cpu-busy.sh](../scripts/perf-cpu-busy.sh)); a gap over 10% marks a run noisy. On the M4 Mac of the verified runs it reads 74% to 83% at every check, so every run there is noisy, and a change's verdict is an A/B.
 
 ## Scenarios
 
@@ -55,6 +55,7 @@ Each has its SRS env in `cmd/perf/env/<scenario>.env`. Unless noted, it is one R
 - **The ramp** doubles the clients each 5s step, from 100 by default, from 10 for SRT and WebRTC players and the publisher scenarios, and from 10 streams for `many-streams`. It stops at SRS's 90%, a failed health check, or the cap in `cmd/perf/main.go`: 40,000 clients by default, 2,000 for SRT and WebRTC players and WHIP publishers, and 13,333 streams for `many-streams`. A failed step with the workers' average over 95% is `load-bound`, not an SRS limit.
 - **Max connections:** every scenario env sets `max_connections` to admit the cap; [scripts/perf-cap-check.sh](../scripts/perf-cap-check.sh) checks that the load side admits it.
 - **Connect bursts:** a doubling step can fail on the connect burst, not on SRS's steady cost, such as 104 of 6,400 RTMP players getting no frame at 39.5% SRS CPU. When the capacity reads a step lower than the CPU suggests, rerun with `-hold-clients` at the expected counts, and log it.
+- **Bursty HTTP files:** `rtmp-hls` and `rtmp-dash` players fetch a segment at a time, so SRS CPU's sd is about its mean, and their lag of 10 to 18s is the segment latency, not a failure. Compare them by an A/B or a 180s window. Their run takes about 16 minutes, since the ramp reaches 25,600.
 - **compare** refuses an SRS result against a proxy one.
 
 ## Profiles
@@ -66,7 +67,7 @@ Each has its SRS env in `cmd/perf/env/<scenario>.env`. Unless noted, it is one R
 - **`syscalls.txt`:** 10s of syscall counts, taken right after the record, inside the same profile hold, from `perf trace -s`, or `strace -c -f` when `perf trace` does not work. The tracer and `perf record` add SRS CPU, so a profile hold's CPU is never a measurement; compare syscall counts only between profile holds.
 - **`perf.data`:** the raw record, for `perf report` with other options.
 
-`perf-verify.sh <run dir>` checks the SRS symbols in both profile holds, and prints the top ones with the noise. A delays run has no capacity or profile: the check needs each probe healthy with samples of every delay, and prints the delays.
+`perf-verify.sh <run dir>` checks the SRS symbols in both profile holds, and prints the top ones with the noise. It lists only SRS's own symbols, so when libc or the kernel costs most, as the writes of `rtmp-ts` and `rtmp-rtsp` or the file serving of `rtmp-hls` and `rtmp-dash`, read `top-symbols.txt` for it. A delays run has no capacity or profile: the check needs each probe healthy with samples of every delay, and prints the delays.
 
 When `perf` gets no samples or no SRS symbols, stop and ask the user; do not build `perf`, switch to a VM, or use another profiler on your own. There is no manual fallback: `perf` needs the privileged container.
 
@@ -129,7 +130,7 @@ A change can be real without raising the capacity, so compare the profiles at th
 
 ## Verified Scenarios
 
-Every scenario was verified with SRS 8.0.62 in October 2026, on the CBR source, one `perf-run.sh` each, passing `perf-verify.sh`: a capacity, every step and hold healthy, and SRS symbols in each profile. `rtmp-rtmp` is the CBR baseline (`2026-10-19-v8.0.62-docker.md`, local), after the fan-out fix. The top bottleneck is at the 90% profile hold, where a round's ranking starts looking.
+Every scenario was verified with SRS 8.0.62 in October 2026, on the CBR source, one `perf-run.sh` each, passing `perf-verify.sh`: a capacity, every step and hold healthy, and SRS symbols in each profile. `rtmp-rtmp` is the CBR baseline (`2026-10-19-v8.0.62-docker.md`, local), after the fan-out fix. A second run of every scenario on 2026-10-21 (`2026-10-21-v8.0.62-docker.md`, local) found the same capacities and top bottlenecks, except for `rtmp-dash`, a ramp step higher. The top bottleneck is at the 90% profile hold, where a round's ranking starts looking.
 
 | Scenario | Capacity | Top bottleneck |
 |---|---|---|
@@ -137,9 +138,9 @@ Every scenario was verified with SRS 8.0.62 in October 2026, on the CBR source, 
 | `rtmp-flv` | 12,800 | `_st_epoll_dispatch` 9.9% self, then each player's own FLV mux (`SrsFlvTransmuxer::write_tags` 5.6%); 80k `epoll_ctl` and 40k `EAGAIN` reads in 10s |
 | `rtmp-ts` | 3,200 | One `writev` per media message per player (`SrsLiveStream::streaming_send_messages`, no merged write): 22 per player per second, HTTP-FLV 2.3 |
 | `rtmp-hls` | 12,800, load-bound stop | Segment serving in 4 KB read and write pairs (`SrsHttpFileServer::copy`, `SRS_HTTP_TS_SEND_BUFFER_SIZE` 4096); SRS self at most 1.4% |
-| `rtmp-dash` | 6,400 | The same 4 KB file serving, plus per-request headers and `srs_getenv` |
+| `rtmp-dash` | 6,400, the 12,800 step failing on a connect burst at 37% SRS CPU; 12,800 in the second run | The same 4 KB file serving, plus per-request headers and `srs_getenv` |
 | `rtmp-rtsp` | 3,200 | Two `write` calls per RTP packet (`SrsRtspTcpNetwork::write`, the 4-byte `$` header then the packet, `mw_msgs = 1`); `srs_assert` 3.6% |
-| `srt-srt` | 1,280 | libsrt, not SRS: `__kernel_clock_gettime` 22.5%, `CUDTUnited::locateAcquireSocket` 4.1%; SRS symbols under 1%; RSS 2.5 GB at 640 players |
+| `srt-srt` | 1,280 | libsrt, not SRS: `__kernel_clock_gettime` 22.5%, `CUDTUnited::locateAcquireSocket` 4.1%; SRS symbols under 1%; RSS 2.5 GB at 640 players. The 2,000 step fails the same 633 players at about 10% SRS CPU in both runs: a connection limit, not CPU |
 | `rtmp-whep` | 1,280 | SRTP protect: libsrtp's `bitvector_left_shift` 10.0% (SRS's 8192-packet replay window, `srs_app_rtc_dtls.cpp`), HMAC-SHA1 6.3%, AES-CTR 4.8%; one `sendto` per packet |
 | `whip-whep` | 2,000, the cap | The same SRTP path: `bitvector_left_shift` 11.7%, SHA-1 7.1%, AES-CTR 4.8%; `srs_assert` 5.8% |
 | `srt-rtmp` | 6,400 | The RTMP fan-out, as `rtmp-rtmp`; the SRT bridge's TS demux under 1% |
@@ -155,7 +156,7 @@ Every scenario was verified with SRS 8.0.62 in October 2026, on the CBR source, 
 
 - **Name:** from the SRS version, such as `2026-10-19-v8-round.md`; the template's Target line is `srs`.
 - **All protocols:** a round on every protocol takes every scenario of the registry in `cmd/perf/main.go`, and keeps every row of the template's Scenarios table:
-  - The baseline is one `perf-run.sh` per scenario, about 10 minutes each, so about 3 hours for all of them. Run `whip-pub` with `-cap 1000`; `delays` is a probe for the fixed-delay candidates, with no capacity or profile.
+  - The baseline is one `perf-run.sh` per scenario, about 9 minutes each and 16 for `rtmp-hls` and `rtmp-dash`, so about 2 hours 40 minutes for all of them. Run `whip-pub` with `-cap 1000`; `delays` is a probe for the fixed-delay candidates, with no capacity or profile.
   - Rank across the scenarios by the SRS code path, one chain per code path, and name in the chain every scenario the path serves, such as SRTP protect for `rtmp-whep`, `whip-whep` and `srt-whep`.
   - A fix measures each scenario its chain names, so a gain on one protocol is never a loss on another.
 - **One protocol:** keep only its rows of the Scenarios table and delete the rest, and the `## Proxy scenarios` table.

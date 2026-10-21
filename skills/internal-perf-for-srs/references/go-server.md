@@ -107,6 +107,7 @@ Every proxy scenario was verified with the Go proxy 8.0.59 and SRS 8.0.62 origin
 - One `perf-run.sh -target proxy` run passed `perf-verify.sh`: a capacity, every step and hold healthy, and the proxy's own `srsx/` symbols in each Go profile.
 - The capacity on three origins is the proxy's own limit: each origin carries a third of the players or streams. On one origin some scenarios stopped at the origin's limit, a lower bound of the proxy's; a round measures its own.
 - The bound is what stopped the three-origin ramp, as `perf-verify.sh` names it: `proxy` at its 90%, `cap` when the last step is the cap, `failure` when players failed with the proxy and every origin under 90%, or `origin` and `load`, which no run hit.
+- A second run of every scenario on three origins on 2026-10-21 (`2026-10-21-v8.0.59-proxy-origins-docker.md`, local) found the same capacities, bounds and top bottlenecks, except for `many-streams`, a ramp step lower.
 - The top bottleneck, at the three-origin 90% profile hold, is the proxy code path where a proxy round's ranking starts looking.
 
 | Scenario | Capacity on one origin | Capacity on three origins | Bound | Top bottleneck |
@@ -119,7 +120,7 @@ Every proxy scenario was verified with the Go proxy 8.0.59 and SRS 8.0.62 origin
 | `whip-whep` | 2,000, the cap | 2,000 | cap, proxy 54% at 1,800 | One `sendto` per packet (`rtcConnection.HandlePacket`) |
 | `rtmp-pub` | 1,280 | 1,280 | proxy, 2,560 at 100% | The RTMP relay's read side: each basic header through `encoding/binary.Read` (`readBasicHeader`) |
 | `whip-pub` | 1,000 with `-cap 1000`, by memory | 1,000 | cap, `-cap 1000`, proxy 44% at 900 | One `write` per packet to the origin, and the client address string per packet (`handleClientUDP`) |
-| `many-streams` | 1,280 streams | 1,280 streams | proxy, 2,560 at 98% | The RTMP relay's read side (`ReadMessage`) |
+| `many-streams` | 1,280 streams | 1,280 streams; 640 in the second run | proxy, 2,560 at 98%; 1,280 at 90.6% in the second run, against 89.2% before | The RTMP relay's read side (`ReadMessage`) |
 
 ## Start a Round
 
@@ -127,7 +128,7 @@ The Go server is measured on its own, never in a C++ round:
 
 - **Name:** from the proxy's version, `SRSX` in its `/api/v1/versions`, such as `2026-10-20-v8.0.59-proxy-round.md`, and set the template's Target line to `proxy`.
 - **Scenarios:** keep the template's `## Proxy scenarios` table in place of its Scenarios table: every row of [Verified Scenarios](#verified-scenarios), with its origins.
-- **Baseline:** one `perf-run.sh -target proxy -scenario <s>` per proxy scenario, on its three origins, about 10 minutes each, so about 90 minutes for nine. Run `whip-pub` with `-cap 1000` and `rtmp-ts` with `-cap 6400`, both capped by the Docker VM's memory. Check each run with `perf-verify.sh`, and rank by the proxy's code path from the Go profiles. A run still bound by an origin or the load reruns once with `-origins 4`.
+- **Baseline:** one `perf-run.sh -target proxy -scenario <s>` per proxy scenario, on its three origins, about 9 minutes each and 16 for `rtmp-hls`, so about 90 minutes for nine. Run `whip-pub` with `-cap 1000` and `rtmp-ts` with `-cap 6400`, both capped by the Docker VM's memory. Check each run with `perf-verify.sh`, and rank by the proxy's code path from the Go profiles. A run still bound by an origin or the load reruns once with `-origins 4`.
 - **A fix's verdict:** `perf-ab.sh -target proxy` at the 90% hold count of each scenario its code path serves, such as the RTMP relay for `rtmp-rtmp`, `rtmp-pub` and `many-streams`. The A/B runs one origin per side, so take a hold count below that scenario's one-origin capacity. Its tests are the proxy's, per [Check](#check).
 
 ## Check

@@ -355,6 +355,8 @@ for s in $proxy_listed; do
 done
 has references/report-template.md "1 to 4, three by default"
 has references/report-template.md "-proxy-origins-docker.md"
+# The several-origins table the report check below requires is in the template.
+has references/report-template.md "| Scenario | Capacity on one origin | Origins | Capacity on N origins | Bound | Proxy CPU per client | Proxy and origin CPU at the 90% hold |"
 if grep -qF "origins on vCPUs 2 and 3" references/report-template.md; then
     fail "report template: origins on vCPUs 2 to N+1"
 else
