@@ -15,6 +15,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_ts.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai32.hpp>
@@ -97,6 +98,7 @@ srs_error_t MockFrameTarget::on_frame(SrsMediaPacket *frame)
 {
     on_frame_count_++;
     last_frame_ = frame;
+    timestamps_.push_back(frame->timestamp_);
     return srs_error_copy(frame_error_);
 }
 
@@ -560,6 +562,105 @@ VOID TEST(SrtFrameBuilderTest, AssembleAssemblesAudioDurationPrint)
     EXPECT_EQ(20 * SRS_UTIME_SECONDS, builder->pp_audio_duration_->previous_tick_);
 
     builder->pp_audio_duration_->clk_ = NULL;
+}
+
+// One PES of nb_frames ADTS AAC-LC stereo frames at a sampling_frequency_index, with the single PTS
+// of its first frame, as FFmpeg's TS muxer packs audio by default.
+static srs_error_t srt_frame_builder_on_aac_pes(SrsSrtFrameBuilder *builder, int sfi, int nb_frames, int64_t pts)
+{
+    std::string pes;
+    for (int i = 0; i < nb_frames; i++) {
+        int size = 7 + 4;
+        uint8_t adts[] = {
+            0xff, 0xf1,
+            (uint8_t)(0x40 | (sfi << 2)),
+            (uint8_t)(0x80 | (size >> 11)),
+            (uint8_t)(size >> 3),
+            (uint8_t)(((size & 0x07) << 5) | 0x1f),
+            0xfc,
+            0x21, 0x10, 0x04, 0x60};
+        pes.append((char *)adts, sizeof(adts));
+    }
+
+    SrsTsChannel channel;
+    channel.apply_ = SrsTsPidApplyAudio;
+    channel.stream_ = SrsTsStreamAudioAAC;
+
+    SrsTsMessage msg(&channel, NULL);
+    msg.sid_ = SrsTsPESStreamIdAudioCommon;
+    msg.dts_ = msg.pts_ = pts;
+    msg.payload_->append(pes.data(), (int)pes.size());
+
+    return builder->on_ts_message(&msg);
+}
+
+// Each frame of a PES is timed by the samples before it, 1024 a frame: at 48 kHz that is 21.33ms,
+// not the 23.22ms of 44.1 kHz, the nearest FLV sound rate. The next PES then starts after the last
+// frame, with no step back.
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAac48kHzFrameTimes)
+{
+    srs_error_t err;
+
+    MockFrameTarget target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
+
+    // Index 3 is 48 kHz; the second PES is at 1170.67ms, after the 8 frames of the first.
+    HELPER_EXPECT_SUCCESS(srt_frame_builder_on_aac_pes(builder.get(), 3, 8, 90000));
+    HELPER_EXPECT_SUCCESS(srt_frame_builder_on_aac_pes(builder.get(), 3, 1, 90000 + 8 * 1024 * 90000 / 48000));
+
+    // The sequence header, then each frame.
+    int64_t want[] = {1000, 1000, 1021, 1042, 1064, 1085, 1106, 1128, 1149, 1170};
+    ASSERT_EQ((int)(sizeof(want) / sizeof(want[0])), (int)target.timestamps_.size());
+    for (int i = 0; i < (int)target.timestamps_.size(); i++) {
+        EXPECT_EQ(want[i], target.timestamps_[i]) << "frame " << i;
+    }
+}
+
+// Every AAC sample rate times the frames of a PES by its own rate, though FLV has only 5.5, 11, 22
+// and 44.1 kHz.
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAacFrameTimesEveryRate)
+{
+    srs_error_t err;
+
+    int rates[] = {96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350};
+    for (int sfi = 0; sfi < (int)(sizeof(rates) / sizeof(rates[0])); sfi++) {
+        int rate = rates[sfi];
+
+        MockFrameTarget target;
+        SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+        SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+        HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
+
+        HELPER_EXPECT_SUCCESS(srt_frame_builder_on_aac_pes(builder.get(), sfi, 4, 90000));
+
+        // The sequence header, then each frame.
+        ASSERT_EQ(5, (int)target.timestamps_.size()) << "rate " << rate;
+        for (int i = 0; i < 4; i++) {
+            EXPECT_EQ((int64_t)(1000 + i * 1024000.0 / rate), target.timestamps_[i + 1]) << "rate " << rate << ", frame " << i;
+        }
+    }
+}
+
+// A reserved sampling_frequency_index, 13 or 14, has no rate, so its frames keep the 44.1 kHz duration
+// instead of a division by zero. This is the behavior today, kept on purpose.
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAacReservedRateAs44100)
+{
+    srs_error_t err;
+
+    MockFrameTarget target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
+
+    HELPER_EXPECT_SUCCESS(srt_frame_builder_on_aac_pes(builder.get(), 13, 3, 90000));
+
+    int64_t want[] = {1000, 1000, 1023, 1046};
+    ASSERT_EQ((int)(sizeof(want) / sizeof(want[0])), (int)target.timestamps_.size());
+    for (int i = 0; i < (int)target.timestamps_.size(); i++) {
+        EXPECT_EQ(want[i], target.timestamps_[i]) << "frame " << i;
+    }
 }
 
 // The SRT bridge constructs its frame builder quiescent, and assembles it from its own assemble().

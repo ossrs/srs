@@ -14,6 +14,7 @@ import (
 
 	"github.com/bluenviron/gortsplib/v5/pkg/base"
 
+	"srs-integ/internal/audio"
 	"srs-integ/internal/check"
 	"srs-integ/internal/flv"
 	"srs-integ/internal/hls"
@@ -198,6 +199,91 @@ func srtCommonCells(t *testing.T) {
 			checkVideoCTS(c, player, want)
 		})
 	}
+
+	// ffmpeg packs several AAC frames into a PES of one PTS by default, so
+	// SRS times each frame by the samples before it, at the stream's rate:
+	// 21.33ms a frame at 48 kHz, which FLV has no sound rate for. Each RTMP
+	// audio tag is at the file's time of its frame, from the first.
+	check.Case(t, "SrtToRtmp_Aac48kFrameTimes", check.Normal, func(c *check.C) {
+		want := tsAudioTimes(c, media.AAC48kPackedTS)
+		srs := server.Common(c)
+		name := streamName(c)
+		player := dialRTMP(c, rtmpURL(srs, "live/"+name), nil)
+		ctx, cancel := context.WithTimeout(context.Background(), check.Scaled(time.Second))
+		defer cancel()
+		_, err := player.Play(ctx)
+		c.Must(err, "play")
+		srtThrough(c, srs, "live/"+name, media.AAC48kPackedTS, 2200*time.Millisecond)
+		checkAudioTimes(c, player, want)
+	})
+}
+
+// checkAudioTimes reads 60 AAC frames from a player that joined before the
+// publish, and checks each frame's time from the first is the file's want,
+// within 2ms: SRS cuts each PES time to whole ms before it adds the frames.
+func checkAudioTimes(c *check.C, player tagPlayer, want []time.Duration) {
+	c.Helper()
+	rec := &audioTimesRecorder{tagPlayer: player}
+	var a flv.Analyzer
+	c.Must(readUntil(rec, &a, report.Until{AudioHeader: true, AudioFrames: 60}, check.Scaled(time.Second)), "play")
+	c.Check(len(rec.times) <= len(want), "%v audio frames, the file has %v", len(rec.times), len(want))
+	for i, at := range rec.times {
+		if i >= len(want) {
+			break
+		}
+		got := time.Duration(at-rec.times[0]) * time.Millisecond
+		w := want[i] - want[0]
+		if d := got - w; d < -2*time.Millisecond || d > 2*time.Millisecond {
+			c.Check(false, "audio frame %v of %v at %v from the first, the file's %v", i, len(rec.times), got, w)
+			break
+		}
+	}
+}
+
+// tsAudioTimes is the time of each AAC frame of a TS test file, in file
+// order: a PES's PTS, then the samples of the frames before it in the PES.
+func tsAudioTimes(c *check.C, file string) []time.Duration {
+	c.Helper()
+	f, err := os.Open(media.Path(c, file))
+	c.Must(err, "open the media")
+	defer f.Close()
+	d := ts.NewDemuxer(f)
+	var times []time.Duration
+	for {
+		p, err := d.ReadPES()
+		if errors.Is(err, io.EOF) {
+			return times
+		}
+		c.Must(err, "read the media")
+		if p.Codec != "aac" {
+			continue
+		}
+		frames, err := audio.SplitFrames(p.Codec, p.Data)
+		c.Must(err, "split the AAC frames")
+		at := p.PTS
+		for _, fr := range frames {
+			times = append(times, at)
+			at += time.Duration(fr.Samples) * time.Second / time.Duration(fr.SampleRate)
+		}
+	}
+}
+
+// audioTimesRecorder keeps the timestamp of each AAC frame a player reads,
+// not of its sequence headers.
+type audioTimesRecorder struct {
+	tagPlayer
+	times []uint32
+}
+
+func (r *audioTimesRecorder) ReadTag() (*media.FLVTag, error) {
+	tag, err := r.tagPlayer.ReadTag()
+	if err != nil {
+		return nil, err
+	}
+	if d := tag.Data; tag.Type == media.TagAudio && len(d) >= 2 && d[0]>>4 == 10 && d[1] == 1 {
+		r.times = append(r.times, tag.Timestamp)
+	}
+	return tag, nil
 }
 
 // checkVideoCTS reads 30 video frames from a player that joined before the

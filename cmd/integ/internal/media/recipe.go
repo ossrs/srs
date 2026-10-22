@@ -28,6 +28,9 @@ const (
 	// AACOnlyTS and H264OnlyTS have one track each, in MPEG-TS, for SRT.
 	AACOnlyTS  = "aac-only.ts"
 	H264OnlyTS = "h264-only.ts"
+	// AAC48kPackedTS is AAC at 48 kHz, a rate FLV can't signal, in MPEG-TS
+	// as ffmpeg packs it by default: several frames to a PES, for SRT.
+	AAC48kPackedTS = "aac-48k-packed.ts"
 	// H264BaselineAAC has no B-frames, for RTMP to WebRTC and RTSP.
 	H264BaselineAAC = "h264-baseline-aac.flv"
 	// H264SlicesAAC has 2 slices in each frame, for GB28181.
@@ -90,8 +93,9 @@ var (
 	vp9 = Encoder{"libvpx-vp9", join(gopArgs, "-deadline", "good", "-cpu-used", "8", "-lag-in-frames", "0", "-row-mt", "1", "-b:v", "1M")}
 	av1 = Encoder{"libsvtav1", join(gopArgs, "-preset", "10", "-svtav1-params", "scd=0")}
 
-	aac = Encoder{"aac", []string{"-ar", "44100", "-ac", "2", "-b:a", "128k"}}
-	mp3 = Encoder{"libmp3lame", []string{"-ar", "44100", "-ac", "2", "-b:a", "128k"}}
+	aac    = Encoder{"aac", []string{"-ar", "44100", "-ac", "2", "-b:a", "128k"}}
+	aac48k = Encoder{"aac", []string{"-ar", "48000", "-ac", "2", "-b:a", "128k"}}
+	mp3    = Encoder{"libmp3lame", []string{"-ar", "44100", "-ac", "2", "-b:a", "128k"}}
 	// G.711 encoders are native to ffmpeg.
 	pcmu = Encoder{"pcm_mulaw", []string{"-ar", "8000", "-ac", "1"}}
 	pcma = Encoder{"pcm_alaw", []string{"-ar", "8000", "-ac", "1"}}
@@ -111,6 +115,7 @@ var Recipes = []Recipe{
 	{H264OpusTS, "mpegts", []Encoder{x264High}, opus},
 	{AACOnlyTS, "mpegts", nil, []Encoder{aac}},
 	{H264OnlyTS, "mpegts", []Encoder{x264High}, nil},
+	{AAC48kPackedTS, "mpegts", nil, []Encoder{aac48k}},
 	{H264BaselineAAC, "flv", []Encoder{x264Baseline}, []Encoder{aac}},
 	{H264SlicesAAC, "flv", []Encoder{x264Slices}, []Encoder{aac}},
 	{H264BaselineOpus, "mp4", []Encoder{x264Baseline}, opus},
@@ -131,6 +136,16 @@ var Recipes = []Recipe{
 // after the video.
 var muxArgs = map[string][]string{"mpegts": {"-pes_payload_size", "0"}}
 
+// packed are the files that keep ffmpeg's default packing, without muxArgs.
+var packed = map[string]bool{AAC48kPackedTS: true}
+
+func (r Recipe) mux() []string {
+	if packed[r.Name] {
+		return nil
+	}
+	return muxArgs[r.Format]
+}
+
 func join(base []string, more ...string) []string {
 	return append(append([]string{}, base...), more...)
 }
@@ -146,7 +161,7 @@ func (r Recipe) Spec() string {
 	b, _ := json.Marshal(struct {
 		Recipe
 		Mux []string `json:"mux,omitempty"`
-	}{r, muxArgs[r.Format]})
+	}{r, r.mux()})
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:8])
 }
@@ -190,6 +205,6 @@ func (r Recipe) Args(ff *FFmpeg, src, out string) (args []string, missing string
 		args = append(args, "-map", "0:a:0", "-c:a", e.Name)
 		args = append(args, e.Args...)
 	}
-	args = append(args, muxArgs[r.Format]...)
+	args = append(args, r.mux()...)
 	return append(args, "-f", r.Format, out), ""
 }

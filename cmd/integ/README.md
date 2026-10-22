@@ -237,6 +237,7 @@ with a fixed 1s GOP at 25 fps:
 | `hevc-aac.ts` | HEVC Main with B-frames | AAC 44.1 kHz stereo | SRT, in MPEG-TS; its unit test is in `internal/ts` |
 | `h264-opus.ts` | H.264 High with B-frames | Opus 48 kHz stereo | SRT, in MPEG-TS; its unit test is in `internal/ts` |
 | `aac-only.ts`, `h264-only.ts` | none, or H.264 High | AAC, or none | SRT with one track, in MPEG-TS |
+| `aac-48k-packed.ts` | none | AAC 48 kHz stereo, several frames to a PES | SRT frame times at a rate FLV can't signal, in MPEG-TS |
 | `aac-only.flv` | none | AAC | audio only |
 | `h264-only.flv` | H.264 High | none | video only |
 | `h264-high-mp3.flv` | H.264 High | MP3 44.1 kHz stereo | MP3 |
@@ -247,7 +248,7 @@ with a fixed 1s GOP at 25 fps:
 - **ffmpeg:** `$FFMPEG`, then `PATH`, then `~/.local/bin`, the first with libx264, libx265 and an Opus encoder (libopus, or the native `opus`). Cases use the same lookup.
 - **macOS:** when no ffmpeg is found, or it lacks libvpx-vp9 or libsvtav1, prepare runs `skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh` to build one in `~/.local/bin`. Other tests share that binary, so it first waits until the Full-tier lock is free and no ffmpeg runs.
 - **Unavailable:** a recipe whose encoder the ffmpeg lacks, such as VP9 and AV1 in CI, is recorded as unavailable, and its cases skip with "ffmpeg lacks <encoder>".
-- **MPEG-TS** files put each audio frame in a PES of its own (`-pes_payload_size 0`), as SRS's SRT docs publish TS, so the audio is within about 190ms of the video of the same time in file order; ffmpeg's default packs several frames into one, about 300ms late.
+- **MPEG-TS** files put each audio frame in a PES of its own (`-pes_payload_size 0`), as SRS's SRT docs publish TS, so the audio is within about 190ms of the video of the same time in file order; ffmpeg's default packs several frames into one, about 300ms late, which only `aac-48k-packed.ts` keeps.
 - **Cache:** `testdata/media/manifest.json` records the source's size and SHA-256, each recipe and the ffmpeg version. Only a file whose entry changed is made again.
 - **Missing or stale:** a case gets a file with `media.Path(c, media.H264HighAAC)`, which fails with "run make integ-prepare" when the file is missing or stale. It never skips for that.
 - **Checks:** ffmpeg versions make different bytes, so nothing checks bytes. The unit tests of `internal/media`, which need `make integ-prepare` first, read each file and check its codecs, profile, B-frames, GOP, frame rate, sample rate, duration and frame counts.
