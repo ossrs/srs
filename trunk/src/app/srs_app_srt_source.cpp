@@ -855,22 +855,11 @@ srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
         }
 
         // May have more than one aac frame in PES packet, and shared same timestamp,
-        // so we must calculate each aac frame's timestamp.
+        // so we must calculate each aac frame's timestamp, at the frame's sample rate, not the FLV
+        // sound rate, which has no 48kHz, or 44.1kHz when the index is invalid.
         int sample_rate = 44100;
-        switch (codec.sound_rate_) {
-        case SrsAudioSampleRate5512:
-            sample_rate = 5512;
-            break;
-        case SrsAudioSampleRate11025:
-            sample_rate = 11025;
-            break;
-        case SrsAudioSampleRate22050:
-            sample_rate = 22050;
-            break;
-        case SrsAudioSampleRate44100:
-        default:
-            sample_rate = 44100;
-            break;
+        if (codec.sampling_frequency_index_ < SrsAAcSampleRateNumbers && srs_aac_srates[codec.sampling_frequency_index_] > 0) {
+            sample_rate = srs_aac_srates[codec.sampling_frequency_index_];
         }
         uint32_t frame_pts = (double)pts + (frame_idx * (1024.0 * 1000.0 / sample_rate));
         duration_ms += 1024.0 * 1000.0 / sample_rate;
