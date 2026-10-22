@@ -603,6 +603,7 @@ VOID TEST(SrtFrameBuilderTest, OnTsAudioAac48kHzFrameTimes)
 
     MockFrameTarget target;
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    builder->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
     HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
 
@@ -630,6 +631,7 @@ VOID TEST(SrtFrameBuilderTest, OnTsAudioAacFrameTimesEveryRate)
 
         MockFrameTarget target;
         SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+        builder->assemble();
         SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
         HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
 
@@ -651,6 +653,7 @@ VOID TEST(SrtFrameBuilderTest, OnTsAudioAacReservedRateAs44100)
 
     MockFrameTarget target;
     SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    builder->assemble();
     SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
     HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
 
