@@ -20,7 +20,6 @@
 
 #include <sstream>
 #include <stdlib.h>
-#include <unistd.h>
 
 using namespace std;
 
@@ -28,7 +27,7 @@ string srs_time_to_utc_format_str(srs_utime_t u)
 {
     time_t s = srsu2s(u);
     struct tm t;
-    srs_assert(gmtime_r(&s, &t) != NULL);
+    srs_assert(srs_gmtime_r(&s, &t) != NULL);
 
     char print_buf[256];
     size_t ret = strftime(print_buf, sizeof(print_buf), "%Y-%m-%dT%H:%M:%SZ", &t);
@@ -90,6 +89,9 @@ std::string SrsInitMp4::tmppath()
 
 srs_error_t SrsInitMp4::rename()
 {
+    // Windows renames no open file.
+    fw_->close();
+
     return fragment_->rename();
 }
 
@@ -544,8 +546,10 @@ srs_error_t SrsMpdWriter::write(SrsFormat *format, ISrsFragmentWindow *afragment
     if ((err = fw->write((void *)content.data(), content.length(), NULL)) != srs_success) {
         return srs_error_wrap(err, "Write MPD file=%s failed", full_path.c_str());
     }
+    // Windows renames no open file.
+    fw->close();
 
-    if (::rename(full_path_tmp.c_str(), full_path.c_str()) < 0) {
+    if (srs_rename(full_path_tmp.c_str(), full_path.c_str()) < 0) {
         return srs_error_new(ERROR_DASH_WRITE_FAILED, "Rename %s to %s failed", full_path_tmp.c_str(), full_path.c_str());
     }
     mpd_path_ = full_path;

@@ -6,10 +6,7 @@
 
 #include <srs_app_edge.hpp>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <stdlib.h>
-#include <sys/socket.h>
 
 using namespace std;
 
@@ -1234,7 +1231,7 @@ srs_error_t SrsHttpFileReader::read(void *buf, size_t count, ssize_t *pnread)
     return err;
 }
 
-srs_error_t SrsHttpFileReader::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t SrsHttpFileReader::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     // TODO: FIXME: Use HTTP range for seek.
     return srs_success;

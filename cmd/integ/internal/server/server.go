@@ -35,17 +35,13 @@ import (
 )
 
 var (
-	flagSRS   = flag.String("integ.srs", "", "the SRS binary; default trunk/objs/srs of this repository")
+	flagSRS   = flag.String("integ.srs", "", "the SRS binary; default trunk/objs/srs of this repository, trunk/objs/windows/srs.exe on Windows")
 	flagTimer = flag.Bool("integ.timer", false, "allocate ports from the timer process's part of SRS_INTEG_PORTS")
 )
 
 const (
-	// workRoot holds one directory per run, named by the pid of the run.
-	workRoot = "/tmp/srs-integ"
 	// defaultPorts is the suite's port range when SRS_INTEG_PORTS is not set.
 	defaultPorts = "14000-14999"
-	// buildFlags is how to build an SRS that has every feature the suite needs.
-	buildFlags = "./configure --srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on"
 
 	readyTimeout = 10 * time.Second
 	readyPoll    = 20 * time.Millisecond
@@ -61,9 +57,6 @@ const (
 	// caught within a few seconds of media on the busiest server.
 	asanQuarantineMB = 16
 )
-
-// requiredFeatures are the build features of /api/v1/features the suite needs.
-var requiredFeatures = []string{"srt", "rtsp", "gb28181", "rtc", "simulator", "sanitizer"}
 
 // The state of this process's run: its port range, its directory and the
 // servers it started.
@@ -102,21 +95,21 @@ func setup() error {
 			root := moduleRoot()
 			run.binary = *flagSRS
 			if run.binary == "" {
-				run.binary = filepath.Join(root, "..", "..", "trunk", "objs", "srs")
+				run.binary = filepath.Join(root, "..", "..", "trunk", "objs", host.binary)
 			}
 			if run.binary, err = filepath.Abs(run.binary); err != nil {
 				return err
 			}
 			if _, err := os.Stat(run.binary); err != nil {
-				return fmt.Errorf("no SRS binary at %s: build it in trunk with %s && make, or set -integ.srs", run.binary, buildFlags)
+				return fmt.Errorf("no SRS binary at %s: build it %s, or set -integ.srs", run.binary, host.build)
 			}
 			run.tls = TLSFiles{
 				Key:  filepath.Join(root, "testdata", "server.key"),
 				Cert: filepath.Join(root, "testdata", "server.crt"),
 			}
 
-			cleanStaleRuns(workRoot, pidAlive)
-			run.dir = filepath.Join(workRoot, strconv.Itoa(os.Getpid()))
+			cleanStaleRuns(host.workRoot, pidAlive)
+			run.dir = filepath.Join(host.workRoot, strconv.Itoa(os.Getpid()))
 			return os.MkdirAll(run.dir, 0o755)
 		}()
 	})
@@ -127,11 +120,6 @@ func setup() error {
 func moduleRoot() string {
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Dir(filepath.Dir(filepath.Dir(file)))
-}
-
-func pidAlive(pid int) bool {
-	err := syscall.Kill(pid, 0)
-	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
 // ProcessRange returns the ports this process allocates from.
@@ -168,6 +156,25 @@ type Server struct {
 	workDir string
 	// belowPeak starts the process only below the peak, as Exec does.
 	belowPeak bool
+	// args are SRS's args: -e, or -c and the config file of a Vhost.
+	args []string
+}
+
+// srsArgs returns SRS's args: -e, or with a vhost, -c and the config file it
+// writes in dir.
+func srsArgs(vhost, dir string) ([]string, error) {
+	if vhost == "" {
+		return []string{"-e"}, nil
+	}
+	// Without the log dir, SRS's default ./objs is missing, and ffmpeg fails
+	// to start.
+	conf := "ff_log_dir \"" + filepath.ToSlash(dir) + "\";\n" +
+		"vhost __defaultVhost__ {\n" + vhost + "\n}\n"
+	file := filepath.Join(dir, "srs.conf")
+	if err := os.WriteFile(file, []byte(conf), 0o644); err != nil {
+		return nil, err
+	}
+	return []string{"-c", file}, nil
 }
 
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
@@ -177,6 +184,9 @@ func Start(name string, cfg Config) (*Server, error) {
 	if err := setup(); err != nil {
 		return nil, err
 	}
+	// The cases of a feature the build lacks fail on their own, not every case
+	// of a shared server that has its listener too.
+	cfg.Listeners = host.builtListeners(cfg.Listeners)
 
 	dir := filepath.Join(run.dir, fmt.Sprintf("%s-%d", unsafeName.ReplaceAllString(name, "_"), run.seq.Add(1)))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -217,6 +227,10 @@ func Start(name string, cfg Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	args, err := srsArgs(cfg.Vhost, dir)
+	if err != nil {
+		return nil, err
+	}
 	if err := os.WriteFile(filepath.Join(dir, "env.txt"), []byte(strings.Join(env, "\n")+"\n"), 0o644); err != nil {
 		return nil, err
 	}
@@ -227,7 +241,7 @@ func Start(name string, cfg Config) (*Server, error) {
 	}
 
 	s := &Server{Dir: dir, Ports: ports, burst: newSlots(burstSlots), auth: cfg.APIAuth,
-		workDir: filepath.Join(dir, cfg.WorkDir), belowPeak: cfg.BelowPeak}
+		workDir: filepath.Join(dir, cfg.WorkDir), belowPeak: cfg.BelowPeak, args: args}
 	if err := os.MkdirAll(s.workDir, 0o755); err != nil {
 		logFile.Close()
 		return nil, err
@@ -261,11 +275,12 @@ func Start(name string, cfg Config) (*Server, error) {
 func (s *Server) launch(env []string, logFile *os.File) error {
 	s.tail = newLogTail(logFile, tailLines)
 	s.done = make(chan struct{})
-	s.cmd = exec.Command(run.binary, "-e")
+	s.cmd = exec.Command(run.binary, s.args...)
 	s.cmd.Dir = s.Dir
 	s.cmd.Env = env
 	s.cmd.Stdout = s.tail
 	s.cmd.Stderr = s.tail
+	newProcessGroup(s.cmd)
 	var err error
 	if s.belowPeak {
 		err = run.procs.startGated(&cliStart, cliGateWait, s.cmd.Start)
@@ -373,8 +388,8 @@ func (s *Server) checkFeatures() error {
 		return fmt.Errorf("read the build features of %s: %w", run.binary, err)
 	}
 	if len(missing) > 0 {
-		return fmt.Errorf("SRS %s is built without %s: rebuild it in trunk with %s && make",
-			run.binary, strings.Join(missing, ", "), buildFlags)
+		return fmt.Errorf("SRS %s is built without %s: rebuild it %s",
+			run.binary, strings.Join(missing, ", "), host.build)
 	}
 	return nil
 }
@@ -429,14 +444,14 @@ func (s *Server) Features() (map[string]bool, error) {
 	return out, nil
 }
 
-// Signal sends a signal to the process.
-func (s *Server) Signal(sig os.Signal) error {
+// Signal sends a signal to the process; on Windows only SIGTERM, as Ctrl+Break.
+func (s *Server) Signal(sig syscall.Signal) error {
 	select {
 	case <-s.done:
 		return fmt.Errorf("SRS already exited with code %d", s.code)
 	default:
 	}
-	return s.cmd.Process.Signal(sig)
+	return signalProcess(s.cmd.Process, sig)
 }
 
 // Wait waits up to timeout for the process to exit and returns its exit code,
@@ -454,11 +469,12 @@ func (s *Server) Wait(timeout time.Duration) (int, error) {
 // time. It fails when the process had to be killed or did not exit with 0. A
 // process that a signal killed before is reported by the signal: the suite
 // never sends SIGKILL to a server that runs, the kernel's OOM killer does.
+// On Windows, SIGTERM is Ctrl+Break.
 func (s *Server) Stop() error {
 	select {
 	case <-s.done:
 	default:
-		s.cmd.Process.Signal(syscall.SIGTERM)
+		signalProcess(s.cmd.Process, syscall.SIGTERM)
 		if _, err := s.Wait(stopTimeout); err != nil {
 			s.kill()
 			return fmt.Errorf("SRS did not exit in %v after SIGTERM, killed it", stopTimeout)
@@ -684,7 +700,7 @@ func missingFeatures(body []byte) ([]string, error) {
 	}
 
 	var missing []string
-	for _, name := range requiredFeatures {
+	for _, name := range host.features {
 		if on, _ := v.Data.Features[name].(bool); !on {
 			missing = append(missing, name)
 		}

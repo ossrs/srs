@@ -7,12 +7,10 @@
 #include <srs_app_log.hpp>
 
 #include <stdarg.h>
-#include <sys/time.h>
 
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 #include <srs_app_config.hpp>
 #include <srs_app_utility.hpp>

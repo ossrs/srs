@@ -2476,7 +2476,7 @@ public:
     // The type of sample, audio or video.
     SrsFrameType type_;
     // The offset of sample in file.
-    off_t offset_;
+    srs_off_t offset_;
     // The index of sample with a track, start from 0.
     uint32_t index_;
     // The dts in tbn.
@@ -2630,7 +2630,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsMp4SampleManager *samples_;
     // The current written sample information.
     uint32_t current_index_;
-    off_t current_offset_;
+    srs_off_t current_offset_;
 
 public:
     // The video codec of first track, generally there is zero or one track.
@@ -2736,7 +2736,7 @@ class SrsMp4Encoder : public ISrsMp4Encoder
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsWriteSeeker *wsio_;
     // The mdat offset at file, we must update the header when flush.
-    off_t mdat_offset_;
+    srs_off_t mdat_offset_;
     // The mdat size in bytes, we must update it to the mdat box header.
     uint64_t mdat_bytes_;
     // The samples build from moov.

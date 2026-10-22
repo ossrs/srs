@@ -785,6 +785,36 @@ func TestWithForward(t *testing.T) {
 
 // TestRestartNeedsExit checks Restart refuses a server that still runs and
 // one with hooks, whose mock closed with it.
+// TestSrsArgs checks SRS's args: -e and no config file without a vhost; with
+// one, -c and a file of the FFmpeg log dir, the server's own dir, and the
+// default vhost with the text, the paths with forward slashes, which SRS's
+// config and FFmpeg take on Windows too.
+func TestSrsArgs(t *testing.T) {
+	dir := t.TempDir()
+	args, err := srsArgs("", dir)
+	if err != nil || !slices.Equal(args, []string{"-e"}) {
+		t.Errorf("args without a vhost: %v %v, want [-e]", args, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "srs.conf")); !os.IsNotExist(err) {
+		t.Errorf("config file without a vhost: %v, want none", err)
+	}
+
+	args, err = srsArgs("    exec {\n        enabled on;\n    }", dir)
+	file := filepath.Join(dir, "srs.conf")
+	if err != nil || !slices.Equal(args, []string{"-c", file}) {
+		t.Fatalf("args with a vhost: %v %v, want [-c %s]", args, err, file)
+	}
+	b, err := os.ReadFile(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "ff_log_dir \"" + filepath.ToSlash(dir) + "\";\n" +
+		"vhost __defaultVhost__ {\n    exec {\n        enabled on;\n    }\n}\n"
+	if string(b) != want {
+		t.Errorf("config file:\n%s\nwant:\n%s", b, want)
+	}
+}
+
 func TestRestartNeedsExit(t *testing.T) {
 	running := &Server{done: make(chan struct{})}
 	if err := running.Restart(); err == nil || !strings.Contains(err.Error(), "running") {

@@ -1693,7 +1693,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportNormal)
         SrsUniquePtr<SrsRtpPacket> video_rtp_pkt_uptr(video_rtp_pkt);
 
         uint32_t video_absolute_ts = srs_time_now_cached();
-        uint32_t video_rtp_ts = random();
+        uint32_t video_rtp_ts = srs_random();
 
         video_rtp_pkt->header_.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
@@ -1761,7 +1761,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportOutOfOrder)
         SrsUniquePtr<SrsRtpPacket> video_rtp_pkt_uptr(video_rtp_pkt);
 
         uint32_t video_absolute_ts = srs_time_now_cached();
-        uint32_t video_rtp_ts = random();
+        uint32_t video_rtp_ts = srs_random();
 
         video_rtp_pkt->header_.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
@@ -1834,7 +1834,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportConsecutive)
         SrsUniquePtr<SrsRtpPacket> video_rtp_pkt_uptr(video_rtp_pkt);
 
         uint32_t video_absolute_ts = srs_time_now_cached();
-        uint32_t video_rtp_ts = random();
+        uint32_t video_rtp_ts = srs_random();
 
         video_rtp_pkt->header_.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);
@@ -1940,7 +1940,7 @@ VOID TEST(KernelRTCTest, SyncTimestampBySenderReportDuplicated)
         SrsUniquePtr<SrsRtpPacket> video_rtp_pkt_uptr(video_rtp_pkt);
 
         uint32_t video_absolute_ts = srs_time_now_cached();
-        uint32_t video_rtp_ts = random();
+        uint32_t video_rtp_ts = srs_random();
 
         video_rtp_pkt->header_.set_timestamp(video_rtp_ts);
         video->on_rtp(rtc_source, video_rtp_pkt);

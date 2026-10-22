@@ -40,7 +40,7 @@ public:
 public:
     virtual srs_error_t write(void *data, size_t count, ssize_t *pnwrite);
     virtual srs_error_t read(void *data, size_t count, ssize_t *pnread);
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
 };
 
 class MockFileRemover
@@ -83,7 +83,7 @@ public:
 
 public:
     virtual srs_error_t write(void *buf, size_t count, ssize_t *pnwrite);
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
     // for mock
 public:
     void mock_reset_offset();
@@ -115,7 +115,7 @@ public:
 
 public:
     virtual srs_error_t read(void *buf, size_t count, ssize_t *pnread);
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
     // for mock
 public:
     // append data to current offset, modify the offset and size.

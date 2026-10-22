@@ -257,7 +257,12 @@ srs_error_t SrsDtlsCertificate::initialize()
 
         // Generates a key pair and stores it in the RSA structure provided in rsa.
         // @see https://www.openssl.org/docs/man1.0.2/man3/RSA_generate_key_ex.html
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+        // OpenSSL 3.2+ defaults to security level 2, which refuses an RSA key below 2048 bits.
+        int key_bits = 2048;
+#else
         int key_bits = 1024;
+#endif
         RSA_generate_key_ex(rsa, key_bits, exponent, NULL);
 
         // @see https://www.openssl.org/docs/man1.1.0/man3/EVP_PKEY_type.html
@@ -1016,7 +1021,7 @@ srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
     srs_error_t err = srs_success;
 
     srtp_policy_t policy;
-    bzero(&policy, sizeof(policy));
+    memset(&policy, 0, sizeof(policy));
 
     // TODO: Maybe we can use SRTP-GCM in future.
     // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701

@@ -8,7 +8,9 @@
 
 using namespace std;
 
+#ifndef _WIN32
 #include <pthread.h>
+#endif
 #include <srs_app_factory.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_ingest.hpp>
@@ -258,19 +260,19 @@ VOID TEST(UtestTmpPortTest, RandomStateRestoresTheSequence)
     std::vector<long> want;
     if (true) {
         SrsUtestRandomState state(7);
-        want.push_back(random());
-        want.push_back(random());
+        want.push_back(srs_random());
+        want.push_back(srs_random());
     }
 
     std::vector<long> got;
     SrsUtestRandomState state(7);
-    got.push_back(random());
+    got.push_back(srs_random());
     if (true) {
         SrsUtestRandomState seeded(1);
-        random();
-        random();
+        srs_random();
+        srs_random();
     }
-    got.push_back(random());
+    got.push_back(srs_random());
 
     EXPECT_EQ(want, got);
 }
@@ -299,21 +301,57 @@ VOID TEST(UtestTmpPortTest, PortRangeFromEnv)
     }
 }
 
+// A Windows temp directory, which has backslashes and a trailing one, becomes a path SRS can join with a slash.
+VOID TEST(UtestTmpDirTest, SlashPath)
+{
+    EXPECT_STREQ("C:/Users/a/AppData/Local/Temp", srs_utest_slash_path("C:\\Users\\a\\AppData\\Local\\Temp\\").c_str());
+    EXPECT_STREQ("C:/Temp", srs_utest_slash_path("C:/Temp//").c_str());
+    EXPECT_STREQ("/tmp", srs_utest_slash_path("/tmp/").c_str());
+    EXPECT_STREQ("/tmp", srs_utest_slash_path("/tmp").c_str());
+    EXPECT_STREQ("/", srs_utest_slash_path("/").c_str());
+    EXPECT_STREQ("C:/", srs_utest_slash_path("C:\\").c_str());
+}
+
+// The tests' temporary files go in a directory that exists and takes files on every OS, and the file prefix is in it.
+VOID TEST(UtestTmpDirTest, DirTakesFiles)
+{
+    string dir = srs_utest_tmp_dir();
+    ASSERT_FALSE(dir.empty());
+    EXPECT_EQ(dir, srs_utest_slash_path(dir));
+    EXPECT_EQ(dir + "/srs-utest-", _srs_tmp_file_prefix);
+
+    SrsPath path;
+    EXPECT_TRUE(path.is_dir(dir));
+
+    string file = _srs_tmp_file_prefix + "tmp-dir.txt";
+    FILE *f = fopen(file.c_str(), "w");
+    ASSERT_TRUE(f != NULL);
+    fclose(f);
+    EXPECT_TRUE(path.exists(file));
+    ::unlink(file.c_str());
+}
+
+#ifndef _WIN32 // POSIX only: Windows has no /tmp.
+// Unix keeps /tmp, not TMPDIR, so the paths of the tests and of the scripts that clean them up stay the same.
+VOID TEST(UtestTmpDirTest, UnixUsesTmp)
+{
+    EXPECT_STREQ("/tmp", srs_utest_tmp_dir().c_str());
+}
+#endif
+
 // Bind a socket of the type to the port of 127.0.0.1; a TCP one listens. A plain socket, with no
 // SO_REUSEADDR or SO_REUSEPORT, is a process that shares its port with no socket; a shared one sets both,
 // as another SRS or utest run does, so a listen of SRS on that port still binds. Returns the fd, or -1 if
 // the port is taken.
 static int utest_hold_port(int type, int port, bool shared = false)
 {
-    int fd = ::socket(AF_INET, type, 0);
+    int fd = (int)::socket(AF_INET, type, 0);
     if (fd < 0) {
         return -1;
     }
 
-    int v = 1;
-    if (shared && (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v)) != 0 ||
-                   ::setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &v, sizeof(v)) != 0)) {
-        ::close(fd);
+    if (shared && (srs_socket_reuseaddr(fd) != 0 || srs_socket_reuseport(fd) != 0)) {
+        srs_close_socket(fd);
         return -1;
     }
 
@@ -324,7 +362,7 @@ static int utest_hold_port(int type, int port, bool shared = false)
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     if (::bind(fd, (sockaddr *)&addr, sizeof(addr)) != 0 || (type == SOCK_STREAM && ::listen(fd, 1) != 0)) {
-        ::close(fd);
+        srs_close_socket(fd);
         return -1;
     }
     return fd;
@@ -357,7 +395,7 @@ public:
         _srs_utest_port_min = min_;
         _srs_utest_port_max = max_;
         if (fd_ >= 0) {
-            ::close(fd_);
+            srs_close_socket(fd_);
         }
     }
 
@@ -381,10 +419,10 @@ public:
             }
             int next = utest_hold_port(type_, port + 1);
             if (next < 0) {
-                ::close(fd);
+                srs_close_socket(fd);
                 continue;
             }
-            ::close(next);
+            srs_close_socket(next);
 
             fd_ = fd;
             held_ = port;
@@ -584,6 +622,28 @@ VOID TEST(UtestTmpPortTest, PortFreeWhenNoSocketHoldsIt)
     EXPECT_FALSE(srs_utest_port_free(SOCK_STREAM, "10.0.0.abc", port));
 }
 
+// The check's own socket is gone when it returns, so a free port stays free for the listen after it.
+VOID TEST(UtestTmpPortTest, PortFreeCheckLeavesThePortFree)
+{
+    srs_error_t err;
+
+    int types[] = {SOCK_STREAM, SOCK_DGRAM};
+    for (int i = 0; i < 2; i++) {
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_free_port(types[i], &port));
+        EXPECT_TRUE(srs_utest_port_free(types[i], "127.0.0.1", port));
+        EXPECT_TRUE(srs_utest_port_free(types[i], "127.0.0.1", port));
+
+        srs_netfd_t fd = NULL;
+        if (types[i] == SOCK_STREAM) {
+            HELPER_EXPECT_SUCCESS(srs_tcp_listen("127.0.0.1", port, &fd));
+        } else {
+            HELPER_EXPECT_SUCCESS(srs_udp_listen("127.0.0.1", port, &fd));
+        }
+        srs_close_stfd(fd);
+    }
+}
+
 // With every port of the range taken, the listen fails with no socket, so the test fails alone; once the
 // holder is gone, the range is the unit tests' again.
 VOID TEST(UtestTmpPortTest, ListenFailsWhenEveryPortIsTaken)
@@ -633,7 +693,11 @@ public:
     int stop_;
     int nn_probes_;
     bool started_;
+#ifdef _WIN32
+    HANDLE thread_;
+#else
     pthread_t thread_;
+#endif
 
 public:
     UtestFixedPortProber(int type, int port)
@@ -647,15 +711,26 @@ public:
     ~UtestFixedPortProber()
     {
         if (started_) {
+#ifdef _WIN32
+            InterlockedExchange((volatile LONG *)&stop_, 1);
+            WaitForSingleObject(thread_, INFINITE);
+            CloseHandle(thread_);
+#else
             __atomic_store_n(&stop_, 1, __ATOMIC_SEQ_CST);
             pthread_join(thread_, NULL);
+#endif
         }
     }
 
 public:
     srs_error_t start()
     {
+#ifdef _WIN32
+        thread_ = CreateThread(NULL, 0, win_cycle, this, 0, NULL);
+        if (!thread_) {
+#else
         if (pthread_create(&thread_, NULL, cycle, this) != 0) {
+#endif
             return srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "create prober");
         }
         started_ = true;
@@ -663,10 +738,25 @@ public:
     }
     int probes()
     {
+#ifdef _WIN32
+        return InterlockedCompareExchange((volatile LONG *)&nn_probes_, 0, 0);
+#else
         return __atomic_load_n(&nn_probes_, __ATOMIC_SEQ_CST);
+#endif
     }
 
 private:
+#ifdef _WIN32
+    static DWORD WINAPI win_cycle(LPVOID arg)
+    {
+        UtestFixedPortProber *prober = (UtestFixedPortProber *)arg;
+        while (!InterlockedCompareExchange((volatile LONG *)&prober->stop_, 0, 0)) {
+            srs_utest_port_free(prober->type_, "127.0.0.1", prober->port_);
+            InterlockedIncrement((volatile LONG *)&prober->nn_probes_);
+        }
+        return 0;
+    }
+#else
     static void *cycle(void *arg)
     {
         UtestFixedPortProber *prober = (UtestFixedPortProber *)arg;
@@ -676,6 +766,7 @@ private:
         }
         return NULL;
     }
+#endif
 };
 
 // A fixed port that another utest run's check holds for a moment, between this run's check and its listen,
@@ -799,13 +890,13 @@ VOID TEST(UdpListenerTest, SetEndpointAndSocketBuffer)
     // Verify socket buffer settings by checking socket options
     int sndbuf = 0;
     socklen_t opt_len = sizeof(sndbuf);
-    getsockopt(fd, SOL_SOCKET, SO_SNDBUF, (void *)&sndbuf, &opt_len);
+    srs_getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, &opt_len);
     // Socket buffer should be set (may not be exactly 10M due to OS limits, but should be > 0)
     EXPECT_GT(sndbuf, 0);
 
     int rcvbuf = 0;
     opt_len = sizeof(rcvbuf);
-    getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void *)&rcvbuf, &opt_len);
+    srs_getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, &opt_len);
     // Socket buffer should be set (may not be exactly 10M due to OS limits, but should be > 0)
     EXPECT_GT(rcvbuf, 0);
 
@@ -869,7 +960,7 @@ VOID TEST(UdpMuxListenerTest, SetSocketBuffer)
     // Verify SO_SNDBUF is set - should be greater than default
     int sndbuf = 0;
     socklen_t opt_len = sizeof(sndbuf);
-    int ret = getsockopt(fd, SOL_SOCKET, SO_SNDBUF, (void *)&sndbuf, &opt_len);
+    int ret = srs_getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sndbuf, &opt_len);
     EXPECT_EQ(ret, 0);
     EXPECT_GT(sndbuf, 0);
     // The actual buffer size may be less than 10M due to OS limits, but should be reasonably large
@@ -879,7 +970,7 @@ VOID TEST(UdpMuxListenerTest, SetSocketBuffer)
     // Verify SO_RCVBUF is set - should be greater than default
     int rcvbuf = 0;
     opt_len = sizeof(rcvbuf);
-    ret = getsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void *)&rcvbuf, &opt_len);
+    ret = srs_getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf, &opt_len);
     EXPECT_EQ(ret, 0);
     EXPECT_GT(rcvbuf, 0);
     // The actual buffer size may be less than 10M due to OS limits, but should be reasonably large

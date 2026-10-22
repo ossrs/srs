@@ -14,7 +14,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 using namespace std;
 
 #include <openssl/rand.h>
@@ -644,6 +643,9 @@ srs_error_t SrsHlsFmp4Muxer::write_init_mp4(SrsFormat *format, bool has_video, b
         return srs_error_new(ERROR_HLS_WRITE_FAILED, "no video and no audio sequence header");
     }
 
+    // Windows renames no open file.
+    init_writer->close();
+
     if ((err = init_mp4->rename()) != srs_success) {
         return srs_error_wrap(err, "rename hls init.mp4");
     }
@@ -1152,7 +1154,7 @@ srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
 
     std::string temp_m3u8 = m3u8_ + ".temp";
     if ((err = do_refresh_m3u8(temp_m3u8)) == srs_success) {
-        if (rename(temp_m3u8.c_str(), m3u8_.c_str()) < 0) {
+        if (srs_rename(temp_m3u8.c_str(), m3u8_.c_str()) < 0) {
             err = srs_error_new(ERROR_HLS_WRITE_FAILED, "hls: rename m3u8 file failed. %s => %s", temp_m3u8.c_str(), m3u8_.c_str());
         }
     }
@@ -1489,6 +1491,8 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
     // file. It is left open when the unpublish failed to write it, or when the publish failed to
     // write its key; its last data may be incomplete, so it is not listed.
     if (current_) {
+        // Windows removes no open file.
+        writer_->close();
         if ((err = current_->unlink_tmpfile()) != srs_success) {
             srs_warn("ignore unlink tmp ts failed %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -2093,7 +2097,7 @@ srs_error_t SrsHlsMuxer::refresh_m3u8()
 
     std::string temp_m3u8 = m3u8_ + ".temp";
     if ((err = do_refresh_m3u8(temp_m3u8)) == srs_success) {
-        if (rename(temp_m3u8.c_str(), m3u8_.c_str()) < 0) {
+        if (srs_rename(temp_m3u8.c_str(), m3u8_.c_str()) < 0) {
             err = srs_error_new(ERROR_HLS_WRITE_FAILED, "hls: rename m3u8 file failed. %s => %s", temp_m3u8.c_str(), m3u8_.c_str());
         }
     }

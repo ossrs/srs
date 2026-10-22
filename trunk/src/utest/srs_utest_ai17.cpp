@@ -34,7 +34,6 @@ using namespace std;
 
 #include <fstream>
 #include <sstream>
-#include <unistd.h>
 
 // Mock ISrsMpdWriter implementation
 MockMpdWriter::MockMpdWriter()
@@ -630,6 +629,28 @@ VOID TEST(DashInitMp4Test, FragmentDelegation)
     srs_freep(mock_fragment);
 }
 
+// The init file is closed when it is renamed from its temp path, as Windows renames no open file.
+VOID TEST(DashInitMp4Test, ClosedAtRename)
+{
+    srs_error_t err;
+
+    SrsPath path;
+    string file = _srs_tmp_file_prefix + "dash-close-init.mp4";
+    MockSrsFormat format;
+
+    SrsInitMp4 init_mp4;
+    init_mp4.set_path(file);
+    HELPER_ASSERT_SUCCESS(init_mp4.write(&format, true, 1));
+    EXPECT_TRUE(init_mp4.fw_->is_open());
+
+    HELPER_ASSERT_SUCCESS(init_mp4.rename());
+    EXPECT_FALSE(init_mp4.fw_->is_open());
+    EXPECT_TRUE(path.exists(file));
+    EXPECT_FALSE(path.exists(file + ".tmp"));
+
+    HELPER_EXPECT_SUCCESS(path.unlink(file));
+}
+
 VOID TEST(FragmentedMp4Test, InitializeWriteAndReap)
 {
     srs_error_t err;
@@ -870,7 +891,8 @@ VOID TEST(MpdWriterTest, WriteDurations)
 
     HELPER_EXPECT_SUCCESS(mpd_writer->initialize(mock_req.get()));
     HELPER_EXPECT_SUCCESS(mpd_writer->on_publish());
-    mpd_writer->home_ = "/tmp/srs-utest-dash-mpd";
+    std::string home = srs_utest_tmp_dir() + "/srs-utest-dash-mpd";
+    mpd_writer->home_ = home;
     mpd_writer->update_period_ = 5500 * SRS_UTIME_MILLISECONDS;
     mpd_writer->window_size_ = 3;
 
@@ -888,12 +910,13 @@ VOID TEST(MpdWriterTest, WriteDurations)
     SrsFormat format;
     HELPER_EXPECT_SUCCESS(mpd_writer->write(&format, &afragments, &vfragments));
 
-    std::ifstream ifs("/tmp/srs-utest-dash-mpd/livestream.mpd");
+    std::ifstream ifs((home + "/livestream.mpd").c_str());
     std::stringstream ss;
     ss << ifs.rdbuf();
+    ifs.close(); // Windows cannot remove a file that is still open.
     std::string mpd = ss.str();
-    ::unlink("/tmp/srs-utest-dash-mpd/livestream.mpd");
-    ::rmdir("/tmp/srs-utest-dash-mpd");
+    ::unlink((home + "/livestream.mpd").c_str());
+    ::rmdir(home.c_str());
 
     EXPECT_TRUE(mpd.find("minimumUpdatePeriod=\"PT5.500S\"") != std::string::npos) << mpd;
     EXPECT_TRUE(mpd.find("timeShiftBufferDepth=\"PT8.700S\"") != std::string::npos) << mpd;
@@ -915,7 +938,8 @@ static std::string mock_write_mpd(SrsFormat *format, bool audio = true, bool vid
 
     HELPER_EXPECT_SUCCESS(mpd_writer->initialize(mock_req.get()));
     HELPER_EXPECT_SUCCESS(mpd_writer->on_publish());
-    mpd_writer->home_ = "/tmp/srs-utest-dash-mpd";
+    std::string home = srs_utest_tmp_dir() + "/srs-utest-dash-mpd";
+    mpd_writer->home_ = home;
 
     SrsFragmentWindow afragments, vfragments;
     if (audio) {
@@ -934,12 +958,82 @@ static std::string mock_write_mpd(SrsFormat *format, bool audio = true, bool vid
     HELPER_EXPECT_SUCCESS(mpd_writer->write(format, &afragments, &vfragments));
     mpd_writer->config_ = NULL;
 
-    std::ifstream ifs("/tmp/srs-utest-dash-mpd/livestream.mpd");
+    std::ifstream ifs((home + "/livestream.mpd").c_str());
     std::stringstream ss;
     ss << ifs.rdbuf();
-    ::unlink("/tmp/srs-utest-dash-mpd/livestream.mpd");
-    ::rmdir("/tmp/srs-utest-dash-mpd");
+    ifs.close(); // Windows cannot remove a file that is still open.
+    ::unlink((home + "/livestream.mpd").c_str());
+    ::rmdir(home.c_str());
     return ss.str();
+}
+
+// A file writer that records, at each close of an open file, the path and whether the file is
+// still there.
+class MockCloseRecordingFileWriter : public SrsFileWriter
+{
+public:
+    std::vector<std::pair<std::string, bool> > *closes_;
+
+    MockCloseRecordingFileWriter(std::vector<std::pair<std::string, bool> > *closes) : closes_(closes) {}
+    virtual ~MockCloseRecordingFileWriter() { close(); }
+
+    virtual void close()
+    {
+        if (is_open()) {
+            SrsPath path;
+            closes_->push_back(std::make_pair(path_, path.exists(path_)));
+        }
+        SrsFileWriter::close();
+    }
+};
+
+class MockAppFactoryCloseRecordingWriters : public SrsAppFactory
+{
+public:
+    std::vector<std::pair<std::string, bool> > closes_;
+
+    virtual ISrsFileWriter *create_file_writer() { return new MockCloseRecordingFileWriter(&closes_); }
+};
+
+// Test: the MPD is closed, so all of it is on disk, before its temp file is renamed over the
+// MPD that players read. Windows also refuses to rename a file that is still open.
+VOID TEST(MpdWriterTest, ClosedBeforeRename)
+{
+    srs_error_t err;
+
+    MockAppFactoryCloseRecordingWriters factory;
+    SrsUniquePtr<SrsMpdWriter> mpd_writer(new SrsMpdWriter());
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockSrsRequest> mock_req(new MockSrsRequest("test.vhost", "live", "livestream"));
+    mpd_writer->config_ = mock_config.get();
+    mpd_writer->app_factory_ = &factory;
+
+    HELPER_EXPECT_SUCCESS(mpd_writer->initialize(mock_req.get()));
+    HELPER_EXPECT_SUCCESS(mpd_writer->on_publish());
+    std::string home = srs_utest_tmp_dir() + "/srs-utest-dash-mpd-close";
+    mpd_writer->home_ = home;
+
+    SrsFragmentWindow afragments, vfragments;
+    SrsFragment *vfragment = new SrsFragment();
+    vfragment->append(0);
+    vfragment->append(2000);
+    vfragments.append(vfragment);
+
+    SrsFormat format;
+    HELPER_EXPECT_SUCCESS(mpd_writer->write(&format, &afragments, &vfragments));
+
+    SrsPath path;
+    std::string mpd = home + "/livestream.mpd";
+    EXPECT_TRUE(path.exists(mpd));
+    EXPECT_FALSE(path.exists(mpd + ".tmp"));
+    ASSERT_EQ(1, (int)factory.closes_.size());
+    EXPECT_EQ(mpd + ".tmp", factory.closes_[0].first);
+    EXPECT_TRUE(factory.closes_[0].second);
+
+    ::unlink(mpd.c_str());
+    ::rmdir(home.c_str());
+    mpd_writer->config_ = NULL;
+    mpd_writer->app_factory_ = NULL;
 }
 
 // Test: the MPD's codecs come from the stream's codecs, as RFC 6381 and ISO/IEC 14496-15
@@ -1092,18 +1186,19 @@ VOID TEST(MpdWriterTest, DisposeNeverWrittenRemovesNothing)
     no_mpd->config_ = mock_config.get();
     HELPER_EXPECT_SUCCESS(no_mpd->initialize(mock_req.get()));
     HELPER_EXPECT_SUCCESS(no_mpd->on_publish());
-    no_mpd->home_ = "/tmp/srs-utest-dash-mpd-not-written";
+    std::string home = srs_utest_tmp_dir() + "/srs-utest-dash-mpd-not-written";
+    no_mpd->home_ = home;
 
     SrsPath path;
-    HELPER_EXPECT_SUCCESS(path.mkdir_all("/tmp/srs-utest-dash-mpd-not-written"));
-    std::ofstream("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd") << "mpd";
+    HELPER_EXPECT_SUCCESS(path.mkdir_all(home));
+    std::ofstream((home + "/livestream.mpd").c_str()) << "mpd";
     no_mpd->dispose();
-    bool other_mpd_kept = path.exists("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd");
+    bool other_mpd_kept = path.exists(home + "/livestream.mpd");
     int no_mpd_warns = log.warn_count_ - never_published_warns;
 
     _srs_log = original_log;
-    ::unlink("/tmp/srs-utest-dash-mpd-not-written/livestream.mpd");
-    ::rmdir("/tmp/srs-utest-dash-mpd-not-written");
+    ::unlink((home + "/livestream.mpd").c_str());
+    ::rmdir(home.c_str());
     no_mpd->config_ = NULL;
 
     EXPECT_EQ(0, never_published_warns);
@@ -1124,7 +1219,8 @@ VOID TEST(MpdWriterTest, DisposeRemovesWrittenMpd)
 
     HELPER_EXPECT_SUCCESS(mpd_writer->initialize(mock_req.get()));
     HELPER_EXPECT_SUCCESS(mpd_writer->on_publish());
-    mpd_writer->home_ = "/tmp/srs-utest-dash-mpd-dispose";
+    std::string home = srs_utest_tmp_dir() + "/srs-utest-dash-mpd-dispose";
+    mpd_writer->home_ = home;
 
     SrsFragmentWindow afragments, vfragments;
     SrsFragment *vfragment = new SrsFragment();
@@ -1138,19 +1234,19 @@ VOID TEST(MpdWriterTest, DisposeRemovesWrittenMpd)
     HELPER_EXPECT_SUCCESS(mpd_writer->write(&format, &afragments, &vfragments));
 
     SrsPath path;
-    bool written = path.exists("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
+    bool written = path.exists(home + "/livestream.mpd");
 
     MockLogForSignal log;
     ISrsLog *original_log = _srs_log;
     _srs_log = &log;
 
     mpd_writer->dispose();
-    bool left = path.exists("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
+    bool left = path.exists(home + "/livestream.mpd");
     mpd_writer->dispose();
 
     _srs_log = original_log;
-    ::unlink("/tmp/srs-utest-dash-mpd-dispose/livestream.mpd");
-    ::rmdir("/tmp/srs-utest-dash-mpd-dispose");
+    ::unlink((home + "/livestream.mpd").c_str());
+    ::rmdir(home.c_str());
     mpd_writer->config_ = NULL;
 
     EXPECT_TRUE(written);
@@ -1860,7 +1956,8 @@ VOID TEST(DashControllerTest, DisposeRemovesInitFiles)
     HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
     controller->config_ = mock_config.get();
     controller->app_factory_ = mock_factory.get();
-    controller->home_ = "/tmp/srs-utest-dash-dispose";
+    std::string home = srs_utest_tmp_dir() + "/srs-utest-dash-dispose";
+    controller->home_ = home;
 
     SrsUniquePtr<SrsFormat> format(new SrsFormat());
     HELPER_EXPECT_SUCCESS(format->initialize());
@@ -1890,7 +1987,7 @@ VOID TEST(DashControllerTest, DisposeRemovesInitFiles)
     // The init files, where refresh_init_mp4 writes them for this MPD; the mock init mp4
     // writes nothing, so the test makes the files.
     SrsPath path;
-    std::string dir = "/tmp/srs-utest-dash-dispose/live/livestream/livestream";
+    std::string dir = home + "/live/livestream/livestream";
     HELPER_EXPECT_SUCCESS(controller->refresh_init_mp4(video_sh.get(), format.get()));
     HELPER_EXPECT_SUCCESS(controller->refresh_init_mp4(audio_sh.get(), format.get()));
     std::ofstream(std::string(dir + "/video-init.mp4").c_str()) << "init";
@@ -1910,10 +2007,10 @@ VOID TEST(DashControllerTest, DisposeRemovesInitFiles)
 
     ::unlink(std::string(dir + "/video-init.mp4").c_str());
     ::unlink(std::string(dir + "/audio-init.mp4").c_str());
-    ::rmdir("/tmp/srs-utest-dash-dispose/live/livestream/livestream");
-    ::rmdir("/tmp/srs-utest-dash-dispose/live/livestream");
-    ::rmdir("/tmp/srs-utest-dash-dispose/live");
-    ::rmdir("/tmp/srs-utest-dash-dispose");
+    ::rmdir(dir.c_str());
+    ::rmdir((home + "/live/livestream").c_str());
+    ::rmdir((home + "/live").c_str());
+    ::rmdir(home.c_str());
     controller->config_ = NULL;
     controller->app_factory_ = NULL;
 
@@ -1936,7 +2033,10 @@ VOID TEST(DashControllerTest, DisposeNeverPublishedKeepsRootFiles)
     HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
     controller->config_ = mock_config.get();
 
+    // The root of a Windows drive has no /tmp, and mkdir_all cannot make a dir right under the
+    // root, so make it here and remove it at the end.
     SrsPath path;
+    bool made_tmp = !path.exists("/tmp") && srs_mkdir("/tmp") == 0;
     std::string dir = "/tmp/srs-utest-dash-root/livestream/livestream";
     HELPER_EXPECT_SUCCESS(path.mkdir_all(dir));
     std::ofstream(std::string(dir + "/video-init.mp4").c_str()) << "init";
@@ -1951,6 +2051,9 @@ VOID TEST(DashControllerTest, DisposeNeverPublishedKeepsRootFiles)
     ::rmdir("/tmp/srs-utest-dash-root/livestream/livestream");
     ::rmdir("/tmp/srs-utest-dash-root/livestream");
     ::rmdir("/tmp/srs-utest-dash-root");
+    if (made_tmp) {
+        ::rmdir("/tmp");
+    }
     controller->config_ = NULL;
 
     EXPECT_TRUE(video_kept);

@@ -156,7 +156,7 @@ wsl_build() {
   git -C "$dir" checkout -q --detach "$sha"
   cd "$dir/trunk"
   # Configure again when configure changed, since it lists the source files, or the flags differ.
-  if ! grep -q "\"$WSL_FLAGS\"" objs/srs_auto_headers.hpp 2>/dev/null || [[ configure -nt objs/Makefile ]]; then
+  if ! grep -q "\"$WSL_FLAGS\"" objs/srs_auto_headers.hpp 2>/dev/null || [[ configure -nt objs/Makefile || auto/module_files.txt -nt objs/Makefile ]]; then
     ./configure $WSL_FLAGS
   fi
   make -j"$(nproc)"

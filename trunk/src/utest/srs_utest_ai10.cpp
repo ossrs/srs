@@ -2935,7 +2935,7 @@ VOID TEST(SrsRtcAudioRecvTrackTest, OnBeforeDecodePayload)
     // Test case 1: Empty buffer - should return early without setting payload
     {
         SrsRtpPacket pkt;
-        char empty_data[0];
+        char empty_data[1] = {0};
         SrsBuffer empty_buf(empty_data, 0);
         ISrsRtpPayloader *payload = NULL;
         SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;

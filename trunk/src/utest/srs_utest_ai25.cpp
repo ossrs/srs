@@ -1821,6 +1821,7 @@ VOID TEST(HookOnPlayClientsTest, WhepRefusedPlayerLeavesStats)
     EXPECT_EQ(1, (int)stat->clients_.size());
 }
 
+#ifdef SRS_RTSP
 // An RTSP connection, with its own stats, whose stream has a publisher, for the life of the RTSP
 // client in the stats: it joins when its on_play passes at DESCRIBE, and leaves at TEARDOWN, when
 // the connection ends, or when the on_play hook refuses it.
@@ -2022,6 +2023,7 @@ VOID TEST(HookOnPlayClientsTest, RtspDescribeAgainMovesClient)
     HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
     EXPECT_EQ(1, (int)f.stat_.clients_.size());
 }
+#endif
 
 // The stat of the frames an RTMP publisher reports.
 class MockAppStatisticForFrames : public MockAppStatistic

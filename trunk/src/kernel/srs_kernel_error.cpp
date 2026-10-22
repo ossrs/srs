@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <sstream>
 #include <stdarg.h>
-#include <unistd.h>
 
 #include <map>
 #include <vector>
@@ -426,9 +425,8 @@ static struct
     const char *name;
     const char *descripton;
 } _srs_strerror_tab[] = {
-#ifndef _WIN32
-    {ERROR_SUCCESS, "Success", "Success"},
-#endif
+    // On Windows, ERROR_SUCCESS is the winerror.h macro 0L, not an SrsErrorCode.
+    {(SrsErrorCode)ERROR_SUCCESS, "Success", "Success"},
     SRS_ERRNO_MAP_SYSTEM(SRS_STRERRNO_GEN)
         SRS_ERRNO_MAP_RTMP(SRS_STRERRNO_GEN)
             SRS_ERRNO_MAP_APP(SRS_STRERRNO_GEN)

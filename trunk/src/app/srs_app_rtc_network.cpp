@@ -6,7 +6,6 @@
 
 #include <srs_app_rtc_network.hpp>
 
-#include <arpa/inet.h>
 using namespace std;
 
 #include <srs_app_http_static.hpp>
@@ -24,7 +23,7 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_rtc_stun.hpp>
 
-#ifdef SRS_OSX
+#if defined(SRS_OSX) || defined(_WIN32)
 // These functions are similar to the older byteorder(3) family of functions.
 // For example, be32toh() is identical to ntohl().
 // @see https://linux.die.net/man/3/be32toh

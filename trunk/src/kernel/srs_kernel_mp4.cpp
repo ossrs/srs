@@ -6230,7 +6230,7 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker *rs)
     }
 
     // For mdat before moov, we must reset the offset to the mdat.
-    off_t offset = -1;
+    srs_off_t offset = -1;
 
     while (true) {
         SrsMp4Box *box_raw = NULL;
@@ -6245,11 +6245,11 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker *rs)
                 return srs_error_wrap(err, "parse ftyp");
             }
         } else if (box->is_mdat()) {
-            off_t cur = 0;
+            srs_off_t cur = 0;
             if ((err = rsio_->lseek(0, SEEK_CUR, &cur)) != srs_success) {
                 return srs_error_wrap(err, "io seek");
             }
-            offset = off_t(cur - box->sz());
+            offset = srs_off_t(cur - box->sz());
         } else if (box->is_moov()) {
             SrsMp4MovieBox *moov = dynamic_cast<SrsMp4MovieBox *>(box.get());
             if ((err = parse_moov(moov)) != srs_success) {

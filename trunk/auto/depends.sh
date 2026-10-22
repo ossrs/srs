@@ -140,7 +140,6 @@ fi
 # Try to load cache if exists /usr/local/srs-cache
 #####################################################################################
 # Use srs-cache from base image. See https://github.com/ossrs/dev-docker/blob/ubuntu20-cache/Dockerfile
-# Note that the cache for cygwin is not under /usr/local, but copy to objs instead.
 if [[ -d /usr/local/srs-cache/srs/trunk/objs && $(pwd) != "/usr/local/srs-cache/srs/trunk" && $SRS_BUILD_CACHE == YES ]]; then
     SOURCE_DIR=$(ls -d /usr/local/srs-cache/srs/trunk/objs/Platform-SRS${SRS_MAJOR}-* 2>/dev/null|head -n 1)
     if [[ -d $SOURCE_DIR ]]; then
@@ -460,15 +459,6 @@ if [[ $SRS_USE_SYS_SRTP == NO ]]; then
             cd ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit &&
             $SRTP_CONFIGURE ${SRTP_OPTIONS} --prefix=${SRS_DEPENDS_LIBS}/${SRS_PLATFORM}/3rdparty/srtp2
         ) &&
-        # Sometimes it might fail because autoconf failed to generate crypto/include.config.h
-        if [[ $SRS_CYGWIN64 == YES ]]; then
-            SRS_PATCH_SOURCE=${SRS_WORKDIR}/3rdparty/patches/srtp/cygwin-crypto-include-config.h
-            if [[ $SRS_SRTP_ASM == YES ]]; then
-                SRS_PATCH_SOURCE=${SRS_WORKDIR}/3rdparty/patches/srtp/cygwin-gcm-crypto-include-config.h
-            fi
-            grep -q 'HAVE_UINT64_T 1' ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/crypto/include/config.h ||
-            cp -f $SRS_PATCH_SOURCE ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit/crypto/include/config.h
-        fi &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit ${SRS_JOBS} &&
         make -C ${SRS_OBJS}/${SRS_PLATFORM}/libsrtp-2-fit install &&
         cp -rf ${SRS_OBJS}/${SRS_PLATFORM}/3rdparty/srtp2 ${SRS_OBJS}/ &&

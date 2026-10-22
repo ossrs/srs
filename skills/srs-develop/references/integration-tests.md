@@ -263,7 +263,8 @@ Each test process binds ports only from its own range, so the parallel lanes nev
 | 15200–15299 | `obs-srt-publish-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, HTTP +1, API +2, RTC UDP +3, SRT UDP +4 | 100 | 5 | 95, inside the existing slot |
 | 15300–15399 | `obs-whip-publish-test.sh` at `SRS_TEST_PORT_BASE`: RTMP +0, HTTP +1, API +2, RTC UDP +3, SRT UDP +4 | 100 | 5 | 95, inside the existing slot |
 | 15400–15499 | `obs-linux-test.sh` at `SRS_TEST_PORT_BASE`: published from its SRS container on `127.0.0.1`, RTMP +0, HTTP +1, API +2, RTC UDP +3, SRT UDP +4 | 100 | 5 | 95, inside the existing slot |
-| 15500–15899 | Reserved for new test layers | 400 | 0 | 400 |
+| 15500–15599 | `srs-windows-runner.sh` on the Windows test host, not the local machine: its `build` step starts `srs.exe` at `SRS_TEST_PORT_BASE` with RTMP +0, HTTP +1, API +2 | 100 | 3 | 97, inside the existing slot |
+| 15600–15899 | Reserved for new test layers | 300 | 0 | 300 |
 | 15900–15999 | `obs-windows-test.sh` on the Windows test host, not the local machine: SRS in WSL with RTMP +0, HTTP +1, API +2, RTC UDP +3; its OBS instances take websocket ports from 15000–15099 there | 100 | 4 | 96, inside the existing slot |
 | 16000–20999 | Reserved for new test layers, except the proxy defaults 18000, 18080 and 20080 | 5,000 | 0 | 4,997 |
 | 21000–25999 | Black-box SRS servers, from `SRSPortAllocator` in `trunk/3rdparty/srs-bench/blackbox`, moved by `SRS_BLACKBOX_PORTS` | 5,000 | Random, per test | 0, owned by the allocator |

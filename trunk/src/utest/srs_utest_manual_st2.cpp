@@ -12,9 +12,7 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_st.hpp>
 
-#include <sys/time.h>
 #include <time.h>
-#include <unistd.h>
 
 using namespace std;
 

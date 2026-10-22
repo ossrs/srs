@@ -10,7 +10,7 @@
 # The steps run in a fake checkout, a git repository whose ffmpeg-4-fit configure is a fake, with a
 # fake MSYS2 bash and cygpath, so the FFmpeg build is checked for its options, its cache and failures.
 # A fake ST Makefile checks the ST build the same way, and the fake cmake's build makes fake link-check
-# programs.
+# programs, a fake srs.exe, whose start a fake curl and netstat check, and a fake srs_utest.exe.
 #
 # Prints PASS or FAIL per check, then a summary. Exit 0 when every check passed, 1 otherwise.
 
@@ -35,15 +35,34 @@ echo "$STUB_UNAME"
 EOF
 chmod +x /tmp/srs-windows-runner-test/bin/uname
 
-# The fake cmake logs its arguments, one call per line. A configure exits with STUB_CMAKE_EXIT. A
-# --build exits with STUB_CMAKE_BUILD_EXIT and makes the six link-check programs, except the one named
-# STUB_CHECK_MISSING. Each one logs its name, prints two lines, and exits 1 when its name is
+# The fake cmake logs its arguments, one call per line. A configure writes the list of srs sources
+# and exits with STUB_CMAKE_EXIT. A --build of the srs target prints STUB_SRS_BUILD_OUTPUT and exits
+# with STUB_SRS_BUILD_EXIT; when that is 0, it copies the fake srs.exe below into trunk/objs/windows.
+# Any other --build exits with STUB_CMAKE_BUILD_EXIT and makes the six link-check programs, except the
+# one named STUB_CHECK_MISSING. Each one logs its name, prints two lines, and exits 1 when its name is
 # STUB_CHECK_FAIL.
 cat > /tmp/srs-windows-runner-test/bin/cmake <<'EOF'
 #!/bin/bash
 echo "$*" >> /tmp/srs-windows-runner-test/cmake.log
 echo "fake cmake output"
-[[ $1 == --build ]] || exit ${STUB_CMAKE_EXIT:-0}
+if [[ $1 != --build ]]; then
+  mkdir -p trunk/objs/windows
+  printf 'src/core/srs_a.cpp\nsrc/core/srs_b.cpp\nsrc/kernel/srs_c.cpp\nsrc/main/srs_main_server.cpp\n' \
+    > trunk/objs/windows/srs-sources.txt
+  printf 'src/utest/srs_utest.cpp\nsrc/utest/srs_utest_ai01.cpp\nsrc/utest/srs_utest_ai02.cpp\n' \
+    > trunk/objs/windows/utest-sources.txt
+  exit ${STUB_CMAKE_EXIT:-0}
+fi
+if [[ " $* " == *" --target srs "* ]]; then
+  printf '%b' "$STUB_SRS_BUILD_OUTPUT"
+  [[ ${STUB_SRS_BUILD_EXIT:-0} == 0 ]] && cp /tmp/srs-windows-runner-test/srs.exe trunk/objs/windows/srs.exe
+  exit ${STUB_SRS_BUILD_EXIT:-0}
+fi
+if [[ " $* " == *" --target srs_utest "* ]]; then
+  printf '%b' "$STUB_UTEST_BUILD_OUTPUT"
+  [[ ${STUB_UTEST_BUILD_EXIT:-0} == 0 ]] && cp /tmp/srs-windows-runner-test/srs_utest.exe trunk/objs/windows/srs_utest.exe
+  exit ${STUB_UTEST_BUILD_EXIT:-0}
+fi
 mkdir -p trunk/objs/windows/deps-check
 for c in openssl srtp srt ffmpeg st gtest; do
   [[ $c == "$STUB_CHECK_MISSING" ]] && continue
@@ -54,6 +73,146 @@ done
 exit ${STUB_CMAKE_BUILD_EXIT:-0}
 EOF
 chmod +x /tmp/srs-windows-runner-test/bin/cmake
+
+# The fake srs.exe, which a passing build of the srs target copies into trunk/objs/windows. It logs
+# each call with its directory and the env it reads, one line per call. With -v it prints 8.0.64 and
+# exits with STUB_SRS_V_EXIT. With -t it refuses daemon, or passes with STUB_SRS_DAEMON_OK. With -e it
+# exits at once with STUB_SRS_START_EXIT, or writes the ports it listens on to the listening file,
+# except the one named by STUB_SRS_CLOSED (rtmp, http or api), and runs until SIGTERM removes it.
+cat > /tmp/srs-windows-runner-test/srs.exe <<'EOF'
+#!/bin/bash
+T=/tmp/srs-windows-runner-test
+echo "$* DIR=$PWD TANK=$SRS_LOG_TANK RTMP=$SRS_RTMP_LISTEN HTTP=$SRS_HTTP_SERVER_ENABLED:$SRS_HTTP_SERVER_LISTEN API=$SRS_HTTP_API_ENABLED:$SRS_HTTP_API_LISTEN" >> $T/srs.log
+case $1 in
+  -v) echo 8.0.64; exit ${STUB_SRS_V_EXIT:-0} ;;
+  -t)
+    echo "fake srs output"
+    if [[ -n $STUB_SRS_DAEMON_OK ]]; then echo "config file $3 test is successful"; exit 0; fi
+    echo "invalid config code=1023(ConfigInvalid) : daemon is not supported on this OS, set daemon off or SRS_DAEMON=off in $3"
+    exit 1
+    ;;
+esac
+echo "fake srs output"
+[[ -n $STUB_SRS_START_EXIT ]] && exit $STUB_SRS_START_EXIT
+ports=
+[[ $STUB_SRS_CLOSED == rtmp ]] || ports="$ports $SRS_RTMP_LISTEN"
+[[ $STUB_SRS_CLOSED == http ]] || ports="$ports $SRS_HTTP_SERVER_LISTEN"
+[[ $STUB_SRS_CLOSED == api ]] || ports="$ports $SRS_HTTP_API_LISTEN"
+sleep 60 &
+trap 'rm -f $T/listening; echo stopped >> $T/srs.log; kill $!; exit 0' TERM
+echo "$ports" > $T/listening
+wait
+EOF
+chmod +x /tmp/srs-windows-runner-test/srs.exe
+
+# The fake srs_utest.exe, which a passing build of the srs_utest target copies into trunk/objs/windows.
+# It logs its arguments and directory, and prints a gtest summary: all passed, two failed with
+# STUB_UTEST_FAIL, or it exits 3 at once, with no summary, with STUB_UTEST_CRASH.
+cat > /tmp/srs-windows-runner-test/srs_utest.exe <<'EOF'
+#!/bin/bash
+echo "$* DIR=$PWD" >> /tmp/srs-windows-runner-test/utest.log
+echo "fake utest output"
+[[ -n $STUB_UTEST_CRASH ]] && exit 3
+echo "[==========] 3 tests from 2 test suites ran. (5 ms total)"
+if [[ -z $STUB_UTEST_FAIL ]]; then
+  echo "[  PASSED  ] 3 tests."
+  exit 0
+fi
+echo "[  PASSED  ] 1 test."
+echo "[  FAILED  ] 2 tests, listed below:"
+echo "[  FAILED  ] KernelTest.A"
+echo "[  FAILED  ] KernelTest.B"
+echo ""
+echo " 2 FAILED TESTS"
+exit 1
+EOF
+chmod +x /tmp/srs-windows-runner-test/srs_utest.exe
+
+# The fake timeout logs its options and runs the command, as GNU timeout in Git Bash does.
+cat > /tmp/srs-windows-runner-test/bin/timeout <<'EOF'
+#!/bin/bash
+opts=
+while [[ $1 == -* ]]; do opts="$opts $1 $2"; shift 2; done
+echo "$opts $1 $2" >> /tmp/srs-windows-runner-test/timeout.log
+shift
+exec "$@"
+EOF
+chmod +x /tmp/srs-windows-runner-test/bin/timeout
+
+# The fake curl connects to the ports in the listening file and exits 7, as curl does when it cannot
+# connect, for any other. On the API port it answers /api/v1/versions with STUB_SRS_API_VERSION, by
+# default 8.0.64.
+cat > /tmp/srs-windows-runner-test/bin/curl <<'EOF'
+#!/bin/bash
+for a in "$@"; do [[ $a == http://* ]] && url=$a; done
+rest=${url#http://127.0.0.1:}
+port=${rest%%/*}
+echo "$port /${rest#*/}" >> /tmp/srs-windows-runner-test/curl.log
+grep -qw "$port" /tmp/srs-windows-runner-test/listening 2>/dev/null || exit 7
+if [[ /${rest#*/} == /api/v1/versions ]]; then
+  echo "{\"code\":0,\"server\":\"vid-0\",\"service\":\"x\",\"pid\":\"1\",\"data\":{\"major\":8,\"minor\":0,\"revision\":64,\"version\":\"${STUB_SRS_API_VERSION:-8.0.64}\"}}"
+fi
+exit 0
+EOF
+chmod +x /tmp/srs-windows-runner-test/bin/curl
+
+# The fake netstat lists the ports in the listening file as Windows netstat -an does, among a client
+# connection and a UDP port that are not listening.
+cat > /tmp/srs-windows-runner-test/bin/netstat <<'EOF'
+#!/bin/bash
+echo "Active Connections"
+echo "  Proto  Local Address          Foreign Address        State"
+echo "  TCP    127.0.0.1:20001        127.0.0.1:20002        ESTABLISHED"
+for p in $(cat /tmp/srs-windows-runner-test/listening 2>/dev/null); do
+  echo "  TCP    0.0.0.0:$p          0.0.0.0:0              LISTENING"
+done
+echo "  UDP    0.0.0.0:20003          *:*"
+EOF
+chmod +x /tmp/srs-windows-runner-test/bin/netstat
+
+# The fake go logs each call with its directory, one line per call. A build exits with
+# STUB_GO_BUILD_EXIT, or writes a fake srs-integ.exe at the -o path, which logs its arguments, prints
+# the media line and exits with STUB_PREPARE_EXIT. A test prints a srs-integ summary, with a failed
+# case when it exits with STUB_GO_TEST_EXIT.
+cat > /tmp/srs-windows-runner-test/bin/go <<'EOF'
+#!/bin/bash
+echo "$* DIR=$PWD" >> /tmp/srs-windows-runner-test/go.log
+echo "fake go output"
+args=" $* "
+if [[ $args == *" build "* ]]; then
+  [[ ${STUB_GO_BUILD_EXIT:-0} == 0 ]] || exit $STUB_GO_BUILD_EXIT
+  while [[ $# -gt 0 && $1 != -o ]]; do shift; done
+  out=$2
+  [[ $args == *" -C cmd/integ "* ]] && out=cmd/integ/$2
+  printf '#!/bin/bash\necho "$* DIR=$PWD" >> /tmp/srs-windows-runner-test/integ-cli.log\necho "fake prepare output"\necho "test media in cmd/integ/testdata/media: 0 made, 19 kept"\nexit ${STUB_PREPARE_EXIT:-0}\n' > "$out"
+  chmod +x "$out"
+  exit 0
+fi
+if [[ ${STUB_GO_TEST_EXIT:-0} == 0 ]]; then
+  echo "srs-integ main: 3 cases, 2 passed, 0 failed, 1 skipped, 0 known bugs"
+else
+  echo "--- FAIL: TestRtmp_Common/Play (0.12s)"
+  echo "srs-integ main: 3 cases, 1 passed, 1 failed, 1 skipped, 0 known bugs"
+  echo "  failed TestRtmp_Common/Play"
+fi
+echo "  skipped TestHttpFlv_Common/Audio: no tool"
+echo "  slowest:"
+echo "    120ms Normal TestRtmp_Common/Play"
+exit ${STUB_GO_TEST_EXIT:-0}
+EOF
+chmod +x /tmp/srs-windows-runner-test/bin/go
+
+# The fake make logs its arguments, one call per line, and prints a srs-integ summary.
+cat > /tmp/srs-windows-runner-test/bin/make <<EOF
+#!/bin/bash
+if [[ \$1 == integ-* ]]; then
+  echo "\$*" >> /tmp/srs-windows-runner-test/make.log
+  echo "srs-integ \${1#integ-}: 2 cases, 2 passed, 0 failed, 0 skipped, 0 known bugs"
+  exit 0
+fi
+exec $(command -v make) "\$@"
+EOF
+chmod +x /tmp/srs-windows-runner-test/bin/make
 
 # The fake cygpath prints the path unchanged, as if Windows and MSYS2 paths were the same.
 cat > /tmp/srs-windows-runner-test/bin/cygpath <<'EOF'
@@ -75,7 +234,7 @@ export SRS_MSYS2_ROOT=/tmp/srs-windows-runner-test/msys64
 # and exits with STUB_CONFIGURE_EXIT. It writes a Makefile whose build exits with STUB_MAKE_EXIT and
 # whose install puts the libraries under the prefix.
 FAKE=/tmp/srs-windows-runner-test/checkout
-mkdir -p $FAKE/trunk/src/core $FAKE/trunk/3rdparty/ffmpeg-4-fit
+mkdir -p $FAKE/trunk/src/core $FAKE/trunk/3rdparty/ffmpeg-4-fit $FAKE/cmd/integ
 touch $FAKE/trunk/src/core/srs_core.hpp
 cat > $FAKE/trunk/3rdparty/ffmpeg-4-fit/configure <<'EOF'
 #!/bin/bash
@@ -109,7 +268,9 @@ out() { cat /tmp/srs-windows-runner-test/out; }
 run() {
   rm -f /tmp/srs-windows-runner-test/cmake.log /tmp/srs-windows-runner-test/configure.log \
     /tmp/srs-windows-runner-test/pkg-config-path.log /tmp/srs-windows-runner-test/st-make.log \
-    /tmp/srs-windows-runner-test/checks.log
+    /tmp/srs-windows-runner-test/checks.log /tmp/srs-windows-runner-test/srs.log /tmp/srs-windows-runner-test/curl.log \
+    /tmp/srs-windows-runner-test/go.log /tmp/srs-windows-runner-test/integ-cli.log /tmp/srs-windows-runner-test/make.log \
+    /tmp/srs-windows-runner-test/utest.log /tmp/srs-windows-runner-test/timeout.log
   (cd $FAKE && PATH=/tmp/srs-windows-runner-test/bin:$PATH0 bash "$RUNNER" "$@") \
     > /tmp/srs-windows-runner-test/out 2>&1
   CODE=$?
@@ -162,6 +323,8 @@ check "vcpkg.json: gtest overridden to 1.16.0" '[[ $(jq -r ".overrides[] | selec
 run deps
 check "deps: configures trunk/cmake/windows into trunk/objs/windows, exit 0" \
   '[[ $CODE == 0 ]] && grep -q "^-S trunk/cmake/windows -B trunk/objs/windows " /tmp/srs-windows-runner-test/cmake.log'
+check "deps: configures with SRS_UTEST on, as --utest=on, so srs_utest.exe builds in the same tree" \
+  'grep -q "^-S trunk/cmake/windows -B trunk/objs/windows .*-DSRS_UTEST=ON" /tmp/srs-windows-runner-test/cmake.log'
 check "deps: passes" 'out | grep -q "^RESULT windows-x64 deps PASS"'
 check "deps: the cmake output goes to the log, not the console" '! out | grep -q "fake cmake output"'
 STUB_CMAKE_EXIT=1 run build
@@ -286,17 +449,257 @@ STUB_CHECK_MISSING=gtest run deps
 check "deps: a link-check program missing after the build, exit 1 naming it" \
   '[[ $CODE == 1 ]] && out | grep -q "^CHECK gtest FAIL"'
 
-# The steps after deps are not built yet, so each says not yet and exits 0.
+# The build step builds the srs target after deps, going on after a file fails, and counts the files
+# of each module that compiled.
 run build
-check "build: not yet" 'out | grep -q "^RESULT windows-x64 build SKIP not yet"'
+check "build: builds the srs target with ninja -k 0 after deps, exit 0" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == "deps build" ]] && [[ $(tail -1 /tmp/srs-windows-runner-test/cmake.log) == "--build trunk/objs/windows --target srs -- -k 0" ]]'
+check "build: passes, with every file compiled per module" \
+  'out | grep -q "^RESULT windows-x64 build PASS" && out | grep -q "^BUILD core 2 of 2, kernel 1 of 1, main 1 of 1 compiled$"'
+check "build: the build output goes to the log, not the console" \
+  '! out | grep -q "fake cmake output" && grep -q "fake cmake output" $FAKE/trunk/objs/windows-build.log'
+
+# After it links, the build step starts srs.exe: -v prints the version, the default config file is
+# refused for its daemon mode, and env-only srs.exe listens on RTMP, HTTP and the API at the ports
+# from SRS_TEST_PORT_BASE, answers /api/v1/versions with the same version, and stops.
+srs_calls() { cat /tmp/srs-windows-runner-test/srs.log 2>/dev/null; }
+check "start: srs.exe -v prints the version" 'out | grep -q "^START version PASS: 8.0.64$"'
+check "start: conf/srs.conf refused for daemon mode, in trunk, logging to the console" \
+  'out | grep -q "^START daemon PASS" && srs_calls | grep -q "^-t -c conf/srs.conf DIR=$FAKE/trunk TANK=console "'
+check "start: env-only srs.exe in trunk with RTMP, HTTP and API at the default ports" \
+  'srs_calls | grep -q "^-e DIR=$FAKE/trunk TANK= RTMP=15500 HTTP=on:15501 API=on:15502$"'
+check "start: RTMP, HTTP and the API answer the same version" \
+  'out | grep -q "^START env-only PASS: RTMP 15500, HTTP 15501, API 15502 version 8.0.64$"'
+check "start: srs.exe stopped, its ports closed" \
+  'out | grep -q "^START stop PASS" && srs_calls | grep -qx stopped && [[ ! -f /tmp/srs-windows-runner-test/listening ]]'
+check "start: the srs.exe output goes to the log, not the console" \
+  '! out | grep -q "fake srs output" && grep -q "fake srs output" $FAKE/trunk/objs/windows-start.log'
+SRS_TEST_PORT_BASE=16500 run build
+check "start: ports from SRS_TEST_PORT_BASE" \
+  '[[ $CODE == 0 ]] && srs_calls | grep -q "^-e .* RTMP=16500 HTTP=on:16501 API=on:16502$"'
+STUB_SRS_V_EXIT=1 run utest
+check "start: -v fails, the build step fails, the later steps do not run" \
+  '[[ $CODE == 1 ]] && out | grep -q "^START version FAIL" && [[ $(steps) == "deps build" ]] && ! srs_calls | grep -q "^-e "'
+STUB_SRS_DAEMON_OK=1 run build
+check "start: conf/srs.conf accepted with daemon on, fails" \
+  '[[ $CODE == 1 ]] && out | grep -q "^START daemon FAIL" && out | grep -q "test is successful"'
+STUB_SRS_START_EXIT=1 run build
+check "start: srs.exe quits at startup, fails with the log tail" \
+  '[[ $CODE == 1 ]] && out | grep -q "^START env-only FAIL" && out | grep -q "fake srs output" && out | grep -q "windows-start.log"'
+for p in rtmp http api; do
+  STUB_SRS_CLOSED=$p run build
+  check "start: $p not listening, fails, srs.exe stopped" \
+    '[[ $CODE == 1 ]] && out | grep -qi "^START env-only FAIL.*$p" && srs_calls | grep -qx stopped && [[ ! -f /tmp/srs-windows-runner-test/listening ]]'
+done
+STUB_SRS_API_VERSION=8.0.1 run build
+check "start: the API answers another version, fails, srs.exe stopped" \
+  '[[ $CODE == 1 ]] && out | grep -q "^START env-only FAIL.*8.0.1" && srs_calls | grep -qx stopped'
+echo " 15502" > /tmp/srs-windows-runner-test/listening
 run build
-check "build: runs deps first" '[[ $CODE == 0 ]] && [[ $(steps) == "deps build" ]]'
+check "start: a port already in use, fails before srs.exe starts" \
+  '[[ $CODE == 1 ]] && out | grep -q "^START env-only FAIL.*15502" && ! srs_calls | grep -q "^-e "'
+rm -f /tmp/srs-windows-runner-test/listening
+# Two files fail; the first error comes from a header both include, so it is shown once.
+STUB_SRS_BUILD_EXIT=1 STUB_SRS_BUILD_OUTPUT='[1/4] Building CXX object a\nFAILED: [code=2] CMakeFiles/srs.dir/__/__/src/core/srs_b.cpp.obj\nC:/srs/trunk/src/core/srs_core.hpp(69): fatal error C1189: #error:  "Only support"\nFAILED: CMakeFiles/srs.dir/__/__/src/kernel/srs_c.cpp.obj\nC:/srs/trunk/src/core/srs_core.hpp(69): fatal error C1189: #error:  "Only support"\nC:/srs/trunk/src/kernel/srs_c.cpp(9): error C2065: x: undeclared identifier\nninja: build stopped: cannot make progress due to previous errors.\n' \
+  run utest
+check "build: a file fails, exit 1, the later steps do not run" \
+  '[[ $CODE == 1 ]] && [[ $(steps) == "deps build" ]] && out | grep -q "^RESULT windows-x64 build FAIL"'
+check "build: a file fails, the files compiled per module" \
+  'out | grep -q "^BUILD core 1 of 2, kernel 0 of 1, main 1 of 1 compiled$"'
+check "build: a file fails, each compiler error shown once, not the rest of the log" \
+  '[[ $(out | grep -c "fatal error C1189") == 1 ]] && out | grep -q "error C2065" && ! out | grep -q "Building CXX" && out | grep -q "windows-build.log"'
+check "build: a file fails, srs.exe not started" '! srs_calls | grep -q .'
+
+# The Windows CMake build reads the module lists and makes the auto header with two helper files,
+# which run here in CMake script mode.
+CMAKE_DIR=$CHECKOUT/trunk/cmake/windows
+cat > /tmp/srs-windows-runner-test/driver.cmake <<'EOF'
+include("${SRS_CMAKE_DIR}/srs-modules.cmake")
+include("${SRS_CMAKE_DIR}/srs-auto-headers.cmake")
+srs_server_sources(files)
+string(REPLACE ";" "\n" text "${files}")
+file(WRITE "${OUT_SOURCES}" "${text}\n")
+if(DEFINED OUT_HEADER)
+  srs_write_auto_headers("${OUT_HEADER}")
+endif()
+EOF
+# Run the helpers with RTSP, GB28181, FFMPEG_FIT, SIMULATOR and UTEST as ON or OFF, in that order.
+cmake_p() {
+  cmake -DSRS_CMAKE_DIR="$CMAKE_DIR" -DSRS_RTSP=$1 -DSRS_GB28181=$2 -DSRS_FFMPEG_FIT=$3 \
+    -DSRS_SIMULATOR=$4 -DSRS_UTEST=$5 -DOUT_SOURCES=/tmp/srs-windows-runner-test/sources.txt \
+    -DOUT_HEADER=/tmp/srs-windows-runner-test/srs_auto_headers.hpp "${@:6}" \
+    -P /tmp/srs-windows-runner-test/driver.cmake > /tmp/srs-windows-runner-test/out 2>&1
+  CODE=$?
+}
+# The srs sources of the module list, read here with awk, for RTSP, GB28181 and FFMPEG_FIT as YES or NO.
+expected_sources() {
+  awk -v RTSP=$1 -v GB28181=$2 -v FFMPEG_FIT=$3 '
+    BEGIN { dir["CORE"] = "src/core"; dir["KERNEL"] = "src/kernel"; dir["PROTOCOL"] = "src/protocol";
+            dir["APP"] = "src/app"; dir["SERVER"] = "src/main"; on["RTSP"] = RTSP; on["GB28181"] = GB28181;
+            on["FFMPEG_FIT"] = FFMPEG_FIT }
+    /^[A-Z]/ && ($1 in dir) && ($3 == "" || on[$3] == "YES") { files[$1] = files[$1] dir[$1] "/" $2 ".cpp\n" }
+    END { printf "%s%s%s%s%s", files["CORE"], files["KERNEL"], files["PROTOCOL"], files["APP"], files["SERVER"] }
+  ' "$CHECKOUT/trunk/auto/module_files.txt"
+}
+yn() { [[ $1 == ON ]] && echo YES || echo NO; }
+if ! command -v cmake >/dev/null; then
+  echo "SETUP_FAIL: cmake is not installed; the CMake helper checks need it"
+  FAILED=$((FAILED + 1))
+fi
+SOURCES_OK=yes
+for rtsp in ON OFF; do for gb in ON OFF; do for fit in ON OFF; do
+  cmake_p $rtsp $gb $fit OFF OFF
+  [[ $(cat /tmp/srs-windows-runner-test/sources.txt 2>/dev/null) == "$(expected_sources $(yn $rtsp) $(yn $gb) $(yn $fit))" ]] ||
+    { SOURCES_OK="no, RTSP=$rtsp GB28181=$gb FFMPEG_FIT=$fit"; break 3; }
+done; done; done
+check "CMake: the srs sources from auto/module_files.txt, by condition ($SOURCES_OK)" '[[ $SOURCES_OK == yes ]]'
+# The same files, in the same order, as the srs link line of the Makefile ./configure made here.
+UNIX_OBJS=$CHECKOUT/trunk/objs
+if [[ -f $UNIX_OBJS/Makefile && -f $UNIX_OBJS/srs_auto_headers.hpp ]]; then
+  on_in_unix() { grep -q "^#define SRS_$1$" "$UNIX_OBJS/srs_auto_headers.hpp" && echo ON || echo OFF; }
+  cmake_p $(on_in_unix RTSP) $(on_in_unix GB28181) $(on_in_unix FFMPEG_FIT) OFF OFF
+  check "CMake: the srs sources equal the objects of ./objs/srs in the configured Makefile" \
+    '[[ $(cat /tmp/srs-windows-runner-test/sources.txt) == "$(grep -m 1 "^\./objs/srs:" "$UNIX_OBJS/Makefile" | tr " " "\n" | sed -nE "s|^\./objs/(src/.*)\.o$|\1.cpp|p")" ]]'
+else
+  echo "SKIP CMake sources against the Makefile: run ./configure in trunk first"
+fi
+mkdir -p /tmp/srs-windows-runner-test/trunk/auto
+printf 'CORE srs_core\nCORE srs_core_x NOSUCH\n' > /tmp/srs-windows-runner-test/trunk/auto/module_files.txt
+cmake_p ON ON ON OFF OFF -DSRS_TRUNK_DIR=/tmp/srs-windows-runner-test/trunk
+check "CMake: an unknown condition in the module list fails, naming it" '[[ $CODE != 0 ]] && out | grep -q "NOSUCH"'
+printf 'CORE srs_core\nCORE srs-core-x\n' > /tmp/srs-windows-runner-test/trunk/auto/module_files.txt
+cmake_p ON ON ON OFF OFF -DSRS_TRUNK_DIR=/tmp/srs-windows-runner-test/trunk
+check "CMake: a malformed line in the module list fails, naming it" '[[ $CODE != 0 ]] && out | grep -q "srs-core-x"'
+
+# The auto header has the macros ./configure writes, in the same order, with the Windows values.
+mkdir -p /tmp/srs-windows-runner-test/unix
+(cd "$CHECKOUT/trunk" && SRS_OBJS=/tmp/srs-windows-runner-test/unix bash auto/auto_headers.sh) >/dev/null 2>&1
+HEADER=/tmp/srs-windows-runner-test/srs_auto_headers.hpp
+macro_names() { grep -oE '^#(define|undef) [A-Za-z0-9_]+' "$1" | awk '{print $2}'; }
+authors() { sed -n '/^#define RTMP_SIG_SRS_AUTHORS/,/^"$/p' "$1"; }
+rm -f $HEADER
+cmake_p OFF ON ON OFF OFF
+check "auto header: the macros of auto/auto_headers.sh, in order" \
+  '[[ -s /tmp/srs-windows-runner-test/unix/srs_auto_headers.hpp ]] && [[ $(macro_names $HEADER) == "$(macro_names /tmp/srs-windows-runner-test/unix/srs_auto_headers.hpp)" ]]'
+check "auto header: the authors of AUTHORS.md" \
+  '[[ -n $(authors $HEADER) ]] && [[ $(authors $HEADER) == "$(authors /tmp/srs-windows-runner-test/unix/srs_auto_headers.hpp)" ]]'
+on_off() { local m; for m in "$@"; do grep -qx "#define $m" $HEADER && echo "$m on" || { grep -qx "#undef $m" $HEADER && echo "$m off"; }; done | tr '\n' ' '; }
+check "auto header: always on for Windows" \
+  '[[ $(on_off SRS_SRT SRS_RTC SRS_H265 SRS_HTTPS SRS_FFMPEG_STUB SRS_TRACE SRS_SINGLE_THREAD SRS_LOG_LEVEL_V2) == "SRS_SRT on SRS_RTC on SRS_H265 on SRS_HTTPS on SRS_FFMPEG_STUB on SRS_TRACE on SRS_SINGLE_THREAD on SRS_LOG_LEVEL_V2 on " ]]'
+check "auto header: off for Windows, such as OSX, backtrace, sanitizer and gperf" \
+  '[[ $(on_off SRS_OSX SRS_BACKTRACE SRS_SANITIZER SRS_SANITIZER_LOG SRS_VALGRIND SRS_GPERF SRS_CROSSBUILD SRS_CXX11 SRS_CXX14 SRS_FFMPEG_OPUS) == "SRS_OSX off SRS_BACKTRACE off SRS_SANITIZER off SRS_SANITIZER_LOG off SRS_VALGRIND off SRS_GPERF off SRS_CROSSBUILD off SRS_CXX11 off SRS_CXX14 off SRS_FFMPEG_OPUS off " ]]'
+check "auto header: the options, with FORCE_PUBLIC4UTEST following UTEST" \
+  '[[ $(on_off SRS_RTSP SRS_GB28181 SRS_FFMPEG_FIT SRS_SIMULATOR SRS_UTEST SRS_FORCE_PUBLIC4UTEST) == "SRS_RTSP off SRS_GB28181 on SRS_FFMPEG_FIT on SRS_SIMULATOR off SRS_UTEST off SRS_FORCE_PUBLIC4UTEST off " ]]'
+cmake_p ON OFF OFF ON ON
+check "auto header: the options turned the other way" \
+  '[[ $(on_off SRS_RTSP SRS_GB28181 SRS_FFMPEG_FIT SRS_SIMULATOR SRS_UTEST SRS_FORCE_PUBLIC4UTEST) == "SRS_RTSP on SRS_GB28181 off SRS_FFMPEG_FIT off SRS_SIMULATOR on SRS_UTEST on SRS_FORCE_PUBLIC4UTEST on " ]]'
+check "auto header: the CMake options in SRS_CONFIGURE" \
+  'grep -q "^#define SRS_CONFIGURE \".*-DSRS_RTSP=ON .*-DSRS_UTEST=ON" $HEADER'
+# The runner configures on every run, so an unchanged header keeps its build time and file, or every
+# file would build again.
+sed -i.bak -E 's/^#define SRS_BUILD_TS ".*"/#define SRS_BUILD_TS "1"/' $HEADER
+touch /tmp/srs-windows-runner-test/header-mark
+sleep 1
+cmake_p ON OFF OFF ON ON
+check "auto header: options unchanged, the file and its build time kept" \
+  'grep -qx "#define SRS_BUILD_TS \"1\"" $HEADER && [[ ! $HEADER -nt /tmp/srs-windows-runner-test/header-mark ]]'
+cmake_p OFF OFF OFF ON ON
+check "auto header: an option changed, a new build time" \
+  'grep -q "^#define SRS_BUILD_TS \"[0-9]\{10\}\"" $HEADER && grep -qx "#undef SRS_RTSP" $HEADER'
+
+# The CMake file builds srs.exe from those sources, with the MSVC options.
+check "CMake: an option per condition of the module list" \
+  '(for c in $(awk "/^[A-Z]/ && \$3 != \"\" {print \$3}" "$CHECKOUT/trunk/auto/module_files.txt" | sort -u); do grep -q "^option(SRS_$c " "$CMAKE_FILE" || exit 1; done)'
+check "CMake: srs.exe from srs_server_sources, with the auto header and the source list" \
+  'grep -q "^srs_server_sources(" "$CMAKE_FILE" && grep -q "^add_executable(srs " "$CMAKE_FILE" && grep -q "^srs_write_auto_headers(" "$CMAKE_FILE" && grep -q "srs-sources.txt" "$CMAKE_FILE"'
+check "CMake: C++14, /W3 and no /CETCOMPAT" \
+  'grep -q "CXX_STANDARD 14" "$CMAKE_FILE" && grep -q "/W3" "$CMAKE_FILE" && grep -q "/CETCOMPAT:NO" "$CMAKE_FILE"'
+
+# The utest sources: the srs modules but main, then the utest files of the module list, by condition,
+# as ./configure links srs_utest.
+cat > /tmp/srs-windows-runner-test/driver-utest.cmake <<'EOF'
+include("${SRS_CMAKE_DIR}/srs-modules.cmake")
+srs_utest_sources(files)
+string(REPLACE ";" "\n" text "${files}")
+file(WRITE "${OUT_SOURCES}" "${text}\n")
+EOF
+expected_utest_sources() {
+  expected_sources $1 $2 $3 | grep -v '^src/main/'
+  awk -v RTSP=$1 -v GB28181=$2 -v FFMPEG_FIT=$3 '
+    BEGIN { on["RTSP"] = RTSP; on["GB28181"] = GB28181; on["FFMPEG_FIT"] = FFMPEG_FIT }
+    $1 == "UTEST" && ($3 == "" || on[$3] == "YES") { print "src/utest/" $2 ".cpp" }
+  ' "$CHECKOUT/trunk/auto/module_files.txt"
+}
+UTEST_SOURCES_OK=yes
+for rtsp in ON OFF; do for gb in ON OFF; do
+  cmake -DSRS_CMAKE_DIR="$CMAKE_DIR" -DSRS_RTSP=$rtsp -DSRS_GB28181=$gb -DSRS_FFMPEG_FIT=ON -DSRS_SIMULATOR=OFF \
+    -DSRS_UTEST=ON -DOUT_SOURCES=/tmp/srs-windows-runner-test/sources.txt \
+    -P /tmp/srs-windows-runner-test/driver-utest.cmake > /tmp/srs-windows-runner-test/out 2>&1
+  [[ $(cat /tmp/srs-windows-runner-test/sources.txt 2>/dev/null) == "$(expected_utest_sources $(yn $rtsp) $(yn $gb) YES)" ]] ||
+    { UTEST_SOURCES_OK="no, RTSP=$rtsp GB28181=$gb"; break 2; }
+done; done
+check "CMake: the srs_utest sources, the modules but main and the utest files, by condition ($UTEST_SOURCES_OK)" \
+  '[[ $UTEST_SOURCES_OK == yes ]]'
+check "CMake: srs_utest.exe from srs_utest_sources with gtest, its own main, and the utest source list" \
+  'grep -q "^  srs_utest_sources(" "$CMAKE_FILE" && grep -q "add_executable(srs_utest " "$CMAKE_FILE" && grep -q "GTest::gtest[^_]" "$CMAKE_FILE" && ! grep -q "GTest::gtest_main" "$CMAKE_FILE" && grep -q "utest-sources.txt" "$CMAKE_FILE"'
+
+# The utest step builds srs_utest.exe after build, going on after a file fails, then runs it in trunk.
+utest_calls() { cat /tmp/srs-windows-runner-test/utest.log 2>/dev/null; }
 run utest
-check "utest: runs deps and build first" '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest" ]]'
-run integ
-check "integ: runs the steps before it" '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest integ" ]]'
+check "utest: builds the srs_utest target with ninja -k 0 after build, exit 0" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest" ]] && [[ $(grep -- "--target srs_utest" /tmp/srs-windows-runner-test/cmake.log) == "--build trunk/objs/windows --target srs_utest -- -k 0" ]]'
+check "utest: the utest files compiled" 'out | grep -q "^BUILD utest 3 of 3 compiled$"'
+check "utest: runs srs_utest.exe once in trunk, under a timeout" \
+  '[[ $(utest_calls) == " DIR=$FAKE/trunk" ]] && grep -q "srs_utest.exe$" /tmp/srs-windows-runner-test/timeout.log'
+check "utest: passes, with the gtest summary shown" \
+  'out | grep -q "^RESULT windows-x64 utest PASS" && out | grep -q "^\[==========\] 3 tests from 2 test suites ran" && out | grep -q "^\[  PASSED  \] 3 tests\.$"'
+check "utest: the build and test output goes to the logs, not the console" \
+  '! out | grep -q "fake cmake output" && ! out | grep -q "fake utest output" && grep -q "fake cmake output" $FAKE/trunk/objs/windows-utest-build.log && grep -q "fake utest output" $FAKE/trunk/objs/windows-utest.log'
+STUB_UTEST_FAIL=1 run integ
+check "utest: two tests fail, exit 1, the failed tests shown, the later steps do not run" \
+  '[[ $CODE == 1 ]] && [[ $(steps) == "deps build utest" ]] && out | grep -q "^RESULT windows-x64 utest FAIL" && out | grep -q "^\[  FAILED  \] KernelTest.B$" && out | grep -q "windows-utest.log" && [[ ! -s /tmp/srs-windows-runner-test/go.log ]]'
+STUB_UTEST_CRASH=1 run utest
+check "utest: srs_utest.exe quits with no summary, exit 1, its exit code and the log tail shown" \
+  '[[ $CODE == 1 ]] && out | grep -q "^UTEST srs_utest.exe exited 3 with no summary" && out | grep -q "fake utest output"'
+STUB_UTEST_BUILD_EXIT=1 STUB_UTEST_BUILD_OUTPUT='[1/3] Building CXX object a\nFAILED: CMakeFiles/srs_utest.dir/__/__/src/utest/srs_utest_ai01.cpp.obj\nC:/srs/trunk/src/utest/srs_utest_ai01.cpp(9): error C3861: fork: identifier not found\nFAILED: CMakeFiles/srs_utest.dir/__/__/src/utest/srs_utest_ai02.cpp.obj\nC:/srs/trunk/src/utest/srs_utest.hpp(9): fatal error C1083: Cannot open include file\nninja: build stopped: cannot make progress due to previous errors.\n' \
+  run utest
+check "utest: a file fails, exit 1, the files compiled and each error shown, no run" \
+  '[[ $CODE == 1 ]] && out | grep -q "^RESULT windows-x64 utest FAIL" && out | grep -q "^BUILD utest 1 of 3 compiled$" && out | grep -q "error C3861" && out | grep -q "fatal error C1083" && ! out | grep -q "Building CXX" && out | grep -q "windows-utest-build.log" && ! utest_calls | grep -q .'
+STUB_SRS_BUILD_EXIT=1 run utest
+check "utest: the srs build fails, srs_utest not built" \
+  '[[ $CODE == 1 ]] && [[ $(steps) == "deps build" ]] && ! grep -q -- "--target srs_utest" /tmp/srs-windows-runner-test/cmake.log'
+
+# The integ step makes the test media with the srs-integ CLI, then runs the cases against srs.exe, the
+# suite's default binary on Windows, with the class limits scaled by 4.
+go_calls() { cat /tmp/srs-windows-runner-test/go.log 2>/dev/null; }
 run integ 'TestRtmp_|TestHttpFlv_'
-check "integ with a pattern: the pattern shown" '[[ $CODE == 0 ]] && out | grep -q "^RESULT windows-x64 integ SKIP not yet.*TestRtmp_|TestHttpFlv_"'
+check "integ: runs the steps before it, passes" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest integ" ]] && out | grep -q "^RESULT windows-x64 integ PASS"'
+check "integ: builds the srs-integ CLI into trunk/objs/windows" \
+  'go_calls | grep -q "^-C cmd/integ build -o ../../trunk/objs/windows/srs-integ.exe \. DIR=$FAKE$"'
+check "integ: makes the test media from the checkout root, before the cases" \
+  '[[ $(cat /tmp/srs-windows-runner-test/integ-cli.log 2>/dev/null) == "prepare DIR=$FAKE" ]] && [[ $(go_calls | tail -1) == "-C cmd/integ/cases test "* ]]'
+check "integ: the pattern to go test -run, with -integ.limit-scale=4 and no -integ.srs" \
+  '[[ $(go_calls | tail -1) == "-C cmd/integ/cases test -count=1 -run TestRtmp_|TestHttpFlv_ -parallel 24 -args -integ.limit-scale=4 DIR=$FAKE" ]]'
+check "integ: the media line and the summary shown, the go output in the log" \
+  'out | grep -q "^test media in " && out | grep -q "^srs-integ main: 3 cases, 2 passed" && out | grep -q "^  skipped TestHttpFlv_Common/Audio: no tool" && ! out | grep -q "fake go output" && grep -q "fake go output" $FAKE/trunk/objs/windows-integ.log'
+check "integ: the slowest cases not shown" '! out | grep -q "120ms Normal"'
+STUB_GO_TEST_EXIT=1 run integ 'TestRtmp_'
+check "integ: a case fails, exit 1, the later steps do not run" \
+  '[[ $CODE == 1 ]] && [[ $(steps) == "deps build utest integ" ]] && out | grep -q "^RESULT windows-x64 integ FAIL"'
+check "integ: a case fails, the failed case and the log shown" \
+  'out | grep -q "^  failed TestRtmp_Common/Play" && out | grep -q "^--- FAIL: TestRtmp_Common/Play" && out | grep -q "windows-integ.log"'
+STUB_PREPARE_EXIT=1 run integ 'TestRtmp_'
+check "integ: the test media fails, exit 1, no case runs, the output shown" \
+  '[[ $CODE == 1 ]] && ! go_calls | grep -q " test " && out | grep -q "fake prepare output"'
+STUB_GO_BUILD_EXIT=1 run integ 'TestRtmp_'
+check "integ: the CLI does not build, exit 1, no case runs" \
+  '[[ $CODE == 1 ]] && ! go_calls | grep -q " test " && out | grep -q "fake go output"'
+run integ
+check "integ without a pattern: the main then the timer cases, as CI runs them" \
+  '[[ $CODE == 0 ]] && [[ $(cat /tmp/srs-windows-runner-test/make.log 2>/dev/null | tr "\n" "|") == "integ-main INTEG_ARGS=-integ.limit-scale=4|integ-timer INTEG_ARGS=-integ.limit-scale=4|" ]] && out | grep -q "^srs-integ main: " && out | grep -q "^srs-integ timer: "'
+STUB_SRS_BUILD_EXIT=1 run integ 'TestRtmp_'
+check "integ: the build fails, no case runs" '[[ $CODE == 1 ]] && ! go_calls | grep -q .'
 run obs
 check "obs: runs the steps before it" '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest integ obs" ]]'
 run full

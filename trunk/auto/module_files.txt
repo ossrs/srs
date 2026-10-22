@@ -1,0 +1,202 @@
+# The source files of each SRS module, read by ./configure and by the Windows
+# CMake build, so both builds compile the same files.
+#
+# Each line is: MODULE FILE [CONDITION]
+#   FILE is the basename of the .cpp and .hpp in the module's directory.
+#   CONDITION is the feature the file needs, as SRS_<CONDITION>=YES in configure,
+#   such as RTSP for --rtsp=on.
+# The files of a module build in the order listed.
+
+CORE srs_core
+CORE srs_core_version
+CORE srs_core_version8
+CORE srs_core_autofree
+CORE srs_core_time
+CORE srs_core_platform
+CORE srs_core_deprecated
+CORE srs_core_performance
+
+KERNEL srs_kernel_error
+KERNEL srs_kernel_log
+KERNEL srs_kernel_buffer
+KERNEL srs_kernel_utility
+KERNEL srs_kernel_flv
+KERNEL srs_kernel_codec
+KERNEL srs_kernel_io
+KERNEL srs_kernel_consts
+KERNEL srs_kernel_aac
+KERNEL srs_kernel_mp3
+KERNEL srs_kernel_ts
+KERNEL srs_kernel_stream
+KERNEL srs_kernel_balance
+KERNEL srs_kernel_mp4
+KERNEL srs_kernel_file
+KERNEL srs_kernel_kbps
+KERNEL srs_kernel_rtc_rtp
+KERNEL srs_kernel_rtc_rtcp
+KERNEL srs_kernel_packet
+KERNEL srs_kernel_st
+KERNEL srs_kernel_factory
+KERNEL srs_kernel_hourglass
+KERNEL srs_kernel_ps
+KERNEL srs_kernel_pithy_print
+KERNEL srs_kernel_rtc_queue
+KERNEL srs_kernel_resource
+
+PROTOCOL srs_protocol_amf0
+PROTOCOL srs_protocol_io
+PROTOCOL srs_protocol_conn
+PROTOCOL srs_protocol_rtmp_handshake
+PROTOCOL srs_protocol_rtmp_stack
+PROTOCOL srs_protocol_utility
+PROTOCOL srs_protocol_rtmp_msg_array
+PROTOCOL srs_protocol_raw_avc
+PROTOCOL srs_protocol_http_stack
+PROTOCOL srs_protocol_json
+PROTOCOL srs_protocol_stream
+PROTOCOL srs_protocol_format
+PROTOCOL srs_protocol_log
+PROTOCOL srs_protocol_st
+PROTOCOL srs_protocol_http_client
+PROTOCOL srs_protocol_http_conn
+PROTOCOL srs_protocol_rtmp_conn
+PROTOCOL srs_protocol_protobuf
+PROTOCOL srs_protocol_http_stack_llhttp
+PROTOCOL srs_protocol_http_stack_llhttpapi
+PROTOCOL srs_protocol_http_stack_llhttpadapter
+PROTOCOL srs_protocol_http_stack_llhttphttp
+PROTOCOL srs_protocol_srt
+PROTOCOL srs_protocol_rtc_stun
+PROTOCOL srs_protocol_rtp
+PROTOCOL srs_protocol_sdp
+PROTOCOL srs_protocol_rtsp_stack RTSP
+
+APP srs_app_server
+APP srs_app_rtmp_conn
+APP srs_app_rtmp_source
+APP srs_app_hls
+APP srs_app_forward
+APP srs_app_encoder
+APP srs_app_st
+APP srs_app_log
+APP srs_app_config
+APP srs_app_stream_bridge
+APP srs_app_reload
+APP srs_app_http_api
+APP srs_app_http_conn
+APP srs_app_http_hooks
+APP srs_app_ingest
+APP srs_app_ffmpeg
+APP srs_app_utility
+APP srs_app_edge
+APP srs_app_heartbeat
+APP srs_app_http_client
+APP srs_app_http_static
+APP srs_app_recv_thread
+APP srs_app_security
+APP srs_app_statistic
+APP srs_app_mpegts_udp
+APP srs_app_listener
+APP srs_app_async_call
+APP srs_app_process
+APP srs_app_dash
+APP srs_app_fragment
+APP srs_app_dvr
+APP srs_app_ng_exec
+APP srs_app_coworkers
+APP srs_app_circuit_breaker
+APP srs_app_factory
+APP srs_app_stream_token
+APP srs_app_http_stream
+APP srs_app_srt_server
+APP srs_app_srt_listener
+APP srs_app_srt_conn
+APP srs_app_srt_source
+APP srs_app_rtc_conn
+APP srs_app_rtc_dtls
+APP srs_app_rtc_network
+APP srs_app_rtc_server
+APP srs_app_rtc_source
+APP srs_app_rtc_api
+APP srs_app_rtsp_source RTSP
+APP srs_app_rtsp_conn RTSP
+APP srs_app_rtc_codec FFMPEG_FIT
+APP srs_app_gb28181 GB28181
+
+SERVER srs_main_server
+
+UTEST srs_utest
+UTEST srs_utest_manual_amf0
+UTEST srs_utest_manual_kernel
+UTEST srs_utest_manual_core
+UTEST srs_utest_manual_srt
+UTEST srs_utest_manual_config
+UTEST srs_utest_manual_rtmp
+UTEST srs_utest_manual_http
+UTEST srs_utest_manual_avc
+UTEST srs_utest_manual_reload
+UTEST srs_utest_manual_mp4
+UTEST srs_utest_manual_service
+UTEST srs_utest_manual_app_rtc2rtmp
+UTEST srs_utest_manual_rtc
+UTEST srs_utest_manual_config2
+UTEST srs_utest_manual_protocol
+UTEST srs_utest_manual_protocol2
+UTEST srs_utest_manual_kernel2
+UTEST srs_utest_manual_st
+UTEST srs_utest_manual_fmp4
+UTEST srs_utest_manual_source_lock
+UTEST srs_utest_manual_stream_token
+UTEST srs_utest_manual_rtc_recv_track
+UTEST srs_utest_manual_st2
+UTEST srs_utest_manual_hevc_structs
+UTEST srs_utest_manual_coworkers
+UTEST srs_utest_manual_pithy_print
+UTEST srs_utest_manual_protocol3
+UTEST srs_utest_manual_app
+UTEST srs_utest_manual_mock
+UTEST srs_utest_workflow_rtc_playstream
+UTEST srs_utest_workflow_rtc_publishstream
+UTEST srs_utest_workflow_rtc_conn
+UTEST srs_utest_workflow_rtmp_conn
+UTEST srs_utest_workflow_srt_conn
+UTEST srs_utest_workflow_http_conn
+UTEST srs_utest_workflow_forward
+UTEST srs_utest_workflow_rtc2rtmp
+UTEST srs_utest_workflow_rtmp2rtc
+UTEST srs_utest_ai01
+UTEST srs_utest_ai02
+UTEST srs_utest_ai03
+UTEST srs_utest_ai04
+UTEST srs_utest_ai05
+UTEST srs_utest_ai06
+UTEST srs_utest_ai07
+UTEST srs_utest_ai08
+UTEST srs_utest_ai09
+UTEST srs_utest_ai10
+UTEST srs_utest_ai11
+UTEST srs_utest_ai12
+UTEST srs_utest_ai13
+UTEST srs_utest_ai14
+UTEST srs_utest_ai15
+UTEST srs_utest_ai16
+UTEST srs_utest_ai17
+UTEST srs_utest_ai18
+UTEST srs_utest_ai19
+UTEST srs_utest_ai20
+UTEST srs_utest_ai24
+UTEST srs_utest_ai25
+UTEST srs_utest_ai26
+UTEST srs_utest_ai27
+UTEST srs_utest_ai28
+UTEST srs_utest_ai29
+UTEST srs_utest_ai30
+UTEST srs_utest_ai31
+UTEST srs_utest_ai32
+UTEST srs_utest_ai33
+UTEST srs_utest_ai34
+UTEST srs_utest_ai35
+UTEST srs_utest_manual_gb28181 GB28181
+UTEST srs_utest_ai23 GB28181
+UTEST srs_utest_ai21 RTSP
+UTEST srs_utest_ai22 RTSP

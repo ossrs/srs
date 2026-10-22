@@ -12,7 +12,8 @@
 #
 # The steps, in order; each step runs the steps before it, and stops at the first failure:
 #   deps    builds ST and the third-party libraries and runs a link check per library
-#   build   builds srs.exe
+#   build   builds srs.exe, counts the files of each module that compiled, and starts srs.exe once
+#           to check it answers on RTMP, HTTP and the API, at the ports from SRS_TEST_PORT_BASE
 #   utest   builds and runs srs_utest.exe
 #   integ   runs cmd/integ against srs.exe; the optional pattern goes to go test -run, such as
 #           'TestRtmp_|TestHttpFlv_'
@@ -91,7 +92,7 @@ fi
 step_deps() {
   mkdir -p trunk/objs/windows
   build_st || return 1
-  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows -G Ninja > trunk/objs/windows-deps.log 2>&1; then
+  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DSRS_UTEST=ON > trunk/objs/windows-deps.log 2>&1; then
     tail -n 40 trunk/objs/windows-deps.log
     echo "See trunk/objs/windows-deps.log"
     return 1
@@ -178,10 +179,169 @@ run_deps_checks() {
   return $failed
 }
 
+# srs.exe builds with Ninja going on after a file fails, so one run shows every file that does not
+# compile yet. A BUILD line counts the files of each module that compiled, from the source list the
+# CMake configure writes, and each compiler error is shown once, not the whole log.
+step_build() {
+  local ok=0
+  cmake --build trunk/objs/windows --target srs -- -k 0 > trunk/objs/windows-build.log 2>&1 && ok=1
+  build_summary trunk/objs/windows/srs-sources.txt trunk/objs/windows-build.log
+  if [[ $ok == 1 ]]; then
+    start_check
+    return
+  fi
+  grep -E ': (fatal )?error ' trunk/objs/windows-build.log | awk '!seen[$0]++' | head -n 40
+  echo "See trunk/objs/windows-build.log"
+  return 1
+}
+
+# Once srs.exe links, it starts in trunk, as SRS runs from there: -v prints the version, the default
+# config file is refused, since its daemon mode does not work on Windows, and env-only srs.exe listens
+# on RTMP +0, HTTP +1 and the API +2 from SRS_TEST_PORT_BASE, answers /api/v1/versions with the same
+# version, and stops. Its output goes to trunk/objs/windows-start.log.
+PORT_BASE=${SRS_TEST_PORT_BASE:-15500}
+start_check() {
+  local version output rtmp=$PORT_BASE http=$((PORT_BASE + 1)) api=$((PORT_BASE + 2)) p pid i answer
+  if ! version=$(trunk/objs/windows/srs.exe -v 2>&1) || [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "START version FAIL: $version"
+    return 1
+  fi
+  echo "START version PASS: $version"
+
+  output=$(cd trunk && SRS_LOG_TANK=console ./objs/windows/srs.exe -t -c conf/srs.conf 2>&1)
+  if [[ $? == 0 || $output != *"daemon is not supported"* ]]; then
+    echo "START daemon FAIL: conf/srs.conf not refused for daemon mode"
+    echo "$output" | tail -n 5
+    return 1
+  fi
+  echo "START daemon PASS: conf/srs.conf refused for daemon mode"
+
+  for p in $rtmp $http $api; do
+    if port_open $p; then
+      echo "START env-only FAIL: port $p in use before srs.exe starts"
+      return 1
+    fi
+  done
+  (cd trunk && exec env SRS_RTMP_LISTEN=$rtmp SRS_HTTP_SERVER_ENABLED=on SRS_HTTP_SERVER_LISTEN=$http \
+    SRS_HTTP_API_ENABLED=on SRS_HTTP_API_LISTEN=$api ./objs/windows/srs.exe -e) > trunk/objs/windows-start.log 2>&1 &
+  pid=$!
+  for i in $(seq 1 20); do
+    answer=$(curl -s -m 2 http://127.0.0.1:$api/api/v1/versions) && break
+    kill -0 $pid 2>/dev/null || break
+    sleep 0.5
+  done
+  output=
+  if ! kill -0 $pid 2>/dev/null; then
+    output="srs.exe quit at startup"
+  elif [[ -z $answer ]]; then
+    output="no answer from the API at $api"
+  elif [[ $answer != *"\"version\":\"$version\""* ]]; then
+    output="the API at $api answered $answer"
+  elif ! port_open $rtmp; then
+    output="RTMP $rtmp not listening"
+  elif ! port_open $http; then
+    output="HTTP $http not listening"
+  fi
+  stop_srs $pid
+  if [[ -n $output ]]; then
+    echo "START env-only FAIL: $output"
+    tail -n 20 trunk/objs/windows-start.log
+    echo "See trunk/objs/windows-start.log"
+    return 1
+  fi
+  echo "START env-only PASS: RTMP $rtmp, HTTP $http, API $api version $version"
+  for i in $(seq 1 10); do
+    port_open $api || break
+    sleep 0.5
+  done
+  if port_open $api; then
+    echo "START stop FAIL: API $api still listening"
+    return 1
+  fi
+  echo "START stop PASS"
+}
+
+# Read from netstat, not by connecting: Windows retries a refused connection to a local port for about
+# two seconds, so a connect cannot tell a closed port from a server that does not answer.
+port_open() {
+  netstat -an | grep -qE "^ *TCP +[^ ]+:$1 +[^ ]+ +LISTENING"
+}
+
+stop_srs() {
+  kill $1 2>/dev/null
+  wait $1 2>/dev/null
+}
+
+# Prints the BUILD line for the sources listed in $1, from the Ninja log $2.
+build_summary() {
+  local failed
+  failed=$(grep '^FAILED: ' $2 | grep -oE 'src/[a-z]+/[A-Za-z0-9_]+\.cpp\.obj' |
+    sed 's/\.obj$//' | sort -u | tr '\n' ' ')
+  awk -F/ -v failed="$failed" '
+    BEGIN { n = split(failed, f, " "); for (i = 1; i <= n; i++) bad[f[i]] = 1 }
+    NF == 3 { if (!($2 in total)) order[++m] = $2; total[$2]++; if (!($0 in bad)) ok[$2]++ }
+    END { for (i = 1; i <= m; i++) s = s (i > 1 ? ", " : "") order[i] " " ok[order[i]] + 0 " of " total[order[i]];
+          print "BUILD " s " compiled" }
+  ' $1
+}
+
+# srs_utest.exe builds like srs.exe, with a BUILD line for the utest files, then runs in trunk, as
+# ./objs/srs_utest runs on Unix. A hung test would hold the host, so it runs under a timeout. Its
+# output goes to trunk/objs/windows-utest.log; the gtest summary is shown, with the failed tests.
+UTEST_TIMEOUT=1800
+step_utest() {
+  local ok=0 code
+  cmake --build trunk/objs/windows --target srs_utest -- -k 0 > trunk/objs/windows-utest-build.log 2>&1 && ok=1
+  build_summary trunk/objs/windows/utest-sources.txt trunk/objs/windows-utest-build.log
+  if [[ $ok != 1 ]]; then
+    grep -E ': (fatal )?error ' trunk/objs/windows-utest-build.log | awk '!seen[$0]++' | head -n 40
+    echo "See trunk/objs/windows-utest-build.log"
+    return 1
+  fi
+  (cd trunk && timeout -k 10 $UTEST_TIMEOUT ./objs/windows/srs_utest.exe) > trunk/objs/windows-utest.log 2>&1
+  code=$?
+  if ! grep -q '^\[==========\] .* ran\.' trunk/objs/windows-utest.log; then
+    echo "UTEST srs_utest.exe exited $code with no summary"
+    tail -n 20 trunk/objs/windows-utest.log
+    echo "See trunk/objs/windows-utest.log"
+    return 1
+  fi
+  grep -E '^\[(==========|  PASSED  |  FAILED  )\] ' trunk/objs/windows-utest.log | awk '!seen[$0]++' | head -n 60
+  [[ $code == 0 ]] && return 0
+  echo "See trunk/objs/windows-utest.log"
+  return 1
+}
+
 # A step that is not built yet sets NOT_YET to say so.
-step_build() { NOT_YET="not yet"; }
-step_utest() { NOT_YET="not yet"; }
-step_integ() { NOT_YET="not yet${PATTERN:+, pattern $PATTERN}"; }
+
+# cmd/integ makes its test media with the srs-integ CLI, then runs its cases against srs.exe, its
+# default binary on Windows. ST's timers tick every 15.6 ms on Windows, so the class limits are scaled
+# by 4, as in CI. A pattern runs as one go test; without one, the main and the timer cases run one
+# after the other, as in CI. The output goes to trunk/objs/windows-integ.log; the media line and the
+# summary are shown, with the failing tests when a case fails.
+INTEG_ARGS="-integ.limit-scale=4"
+step_integ() {
+  local ok=0
+  {
+    go -C cmd/integ build -o ../../trunk/objs/windows/srs-integ.exe . &&
+      trunk/objs/windows/srs-integ.exe prepare &&
+      if [[ -n $PATTERN ]]; then
+        go -C cmd/integ/cases test -count=1 -run "$PATTERN" -parallel 24 -args $INTEG_ARGS
+      else
+        make integ-main INTEG_ARGS="$INTEG_ARGS" && make integ-timer INTEG_ARGS="$INTEG_ARGS"
+      fi
+  } > trunk/objs/windows-integ.log 2>&1 && ok=1
+  grep -E '^(test media in |unavailable, |srs-integ |  (failed|skipped|known bug) )' trunk/objs/windows-integ.log
+  [[ $ok == 1 ]] && return 0
+  if grep -q '^--- FAIL: ' trunk/objs/windows-integ.log; then
+    grep '^--- FAIL: ' trunk/objs/windows-integ.log | head -n 40
+  else
+    tail -n 40 trunk/objs/windows-integ.log
+  fi
+  echo "See trunk/objs/windows-integ.log"
+  return 1
+}
+
 step_obs() { NOT_YET="not yet"; }
 step_full() { NOT_YET="not yet"; }
 

@@ -54,3 +54,73 @@ target_link_libraries(ffmpeg INTERFACE
   bcrypt)
 
 add_subdirectory(deps-check)
+
+# srs.exe, from the sources ./configure builds for the same options.
+option(SRS_RTSP "RTSP server" OFF)
+option(SRS_GB28181 "GB28181 over TCP" OFF)
+option(SRS_FFMPEG_FIT "FFmpeg-fit for AAC and Opus in WebRTC" ON)
+option(SRS_SIMULATOR "RTC simulator API" OFF)
+option(SRS_UTEST "Build for the unit tests" OFF)
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/srs-modules.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/srs-auto-headers.cmake")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  "${SRS_TRUNK_DIR}/auto/module_files.txt" "${SRS_TRUNK_DIR}/AUTHORS.md")
+srs_write_auto_headers("${CMAKE_BINARY_DIR}/srs_auto_headers.hpp")
+srs_server_sources(SRS_SOURCES)
+# For srs-windows-runner.sh, which counts the files that compile per module.
+string(REPLACE ";" "\n" text "${SRS_SOURCES}")
+file(WRITE "${CMAKE_BINARY_DIR}/srs-sources.txt" "${text}\n")
+
+# The modules but main build once, into srs_modules, which srs.exe and srs_utest.exe both link.
+srs_module_files(SERVER SRS_MAIN_SOURCES)
+set(SRS_MODULE_SOURCES ${SRS_SOURCES})
+list(REMOVE_ITEM SRS_MODULE_SOURCES ${SRS_MAIN_SOURCES})
+list(TRANSFORM SRS_MODULE_SOURCES PREPEND "${SRS_TRUNK_DIR}/")
+list(TRANSFORM SRS_MAIN_SOURCES PREPEND "${SRS_TRUNK_DIR}/")
+add_library(srs_modules OBJECT ${SRS_MODULE_SOURCES})
+target_include_directories(srs_modules PUBLIC
+  "${CMAKE_BINARY_DIR}"
+  "${SRS_TRUNK_DIR}/src/core"
+  "${SRS_TRUNK_DIR}/src/kernel"
+  "${SRS_TRUNK_DIR}/src/protocol"
+  "${SRS_TRUNK_DIR}/src/app")
+# NOMINMAX keeps windows.h from defining min and max over std::min and std::max. The sources call
+# the POSIX names MSVC has, such as getpid and unlink, on purpose. The sources hold UTF-8 text,
+# which cl reads in the system code page without /utf-8.
+target_compile_definitions(srs_modules PUBLIC
+  WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS
+  _WINSOCK_DEPRECATED_NO_WARNINGS)
+target_compile_options(srs_modules PUBLIC /W3 /utf-8)
+# ST's context switch does not keep the shadow stack that /CETCOMPAT turns on.
+target_link_options(srs_modules PUBLIC /CETCOMPAT:NO)
+target_link_libraries(srs_modules PUBLIC st OpenSSL::SSL OpenSSL::Crypto libSRTP::srtp2 srt_lib ws2_32 iphlpapi)
+if(SRS_FFMPEG_FIT)
+  target_link_libraries(srs_modules PUBLIC ffmpeg)
+endif()
+
+add_executable(srs ${SRS_MAIN_SOURCES})
+target_include_directories(srs PRIVATE "${SRS_TRUNK_DIR}/src/main")
+target_link_libraries(srs PRIVATE srs_modules)
+set(SRS_TARGETS srs_modules srs)
+
+# srs_utest.exe, with SRS_UTEST on, as ./configure builds it with --utest=on. Its main is in
+# srs_utest.cpp, so it links gtest without gtest_main.
+if(SRS_UTEST)
+  srs_utest_sources(SRS_UTEST_SOURCES)
+  list(REMOVE_ITEM SRS_UTEST_SOURCES ${SRS_SOURCES})
+  # For srs-windows-runner.sh, which counts the utest files that compile.
+  string(REPLACE ";" "\n" text "${SRS_UTEST_SOURCES}")
+  file(WRITE "${CMAKE_BINARY_DIR}/utest-sources.txt" "${text}\n")
+  list(TRANSFORM SRS_UTEST_SOURCES PREPEND "${SRS_TRUNK_DIR}/")
+  add_executable(srs_utest ${SRS_UTEST_SOURCES})
+  target_include_directories(srs_utest PRIVATE "${SRS_TRUNK_DIR}/src/utest")
+  target_link_libraries(srs_utest PRIVATE srs_modules GTest::gtest)
+  list(APPEND SRS_TARGETS srs_utest)
+endif()
+
+set_target_properties(${SRS_TARGETS} PROPERTIES
+  CXX_STANDARD 14
+  CXX_STANDARD_REQUIRED ON
+  CXX_EXTENSIONS OFF
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")

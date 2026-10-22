@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <srs_app_log.hpp>
 #include <srs_kernel_error.hpp>
@@ -84,7 +83,11 @@ void MockLogWriterForFileLog::write_console(const char *color, const char *str_l
 // Whether fd is still an open descriptor of this process.
 static bool is_fd_open(int fd)
 {
+#ifdef _WIN32
+    return ::_get_osfhandle(fd) != -1;
+#else
     return ::fcntl(fd, F_GETFD) != -1;
+#endif
 }
 
 // The file logger reopens its log file on SIGUSR1, for log rotation. Every path out of reopen() must leave the
@@ -99,7 +102,7 @@ VOID TEST(FileLogTest, ReopenClearsTheDescriptorWhenTheTankIsConsole)
     SrsFileLog log;
 
     // The logger holds an open log file, as it does after a start with the file tank.
-    log.fd_ = ::open("/dev/null", O_RDWR);
+    log.fd_ = ::open(SRS_UTEST_NULL_FILE, O_RDWR);
     ASSERT_TRUE(log.fd_ > 0);
     int previous = log.fd_;
 
@@ -119,7 +122,7 @@ VOID TEST(FileLogTest, ReopenClearsTheDescriptorWhenNoLogFileIsConfigured)
     SrsFileLog log;
 
     // The logger holds an open log file, and keeps the file tank.
-    log.fd_ = ::open("/dev/null", O_RDWR);
+    log.fd_ = ::open(SRS_UTEST_NULL_FILE, O_RDWR);
     ASSERT_TRUE(log.fd_ > 0);
     int previous = log.fd_;
 
@@ -146,7 +149,7 @@ VOID TEST(FileLogTest, ReopenOpensTheConfiguredLogFile)
     string path = "./objs/srs_utest_ai30.log";
     ::unlink(path.c_str());
 
-    log.fd_ = ::open("/dev/null", O_RDWR);
+    log.fd_ = ::open(SRS_UTEST_NULL_FILE, O_RDWR);
     ASSERT_TRUE(log.fd_ > 0);
     int previous = log.fd_;
 

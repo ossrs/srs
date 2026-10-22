@@ -6,7 +6,6 @@
 
 #include <srs_app_rtc_server.hpp>
 
-#include <netdb.h>
 
 #include <set>
 using namespace std;

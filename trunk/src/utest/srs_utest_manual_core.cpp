@@ -734,10 +734,6 @@ VOID TEST(CoreSmartPtr, UniquePtrArray)
     EXPECT_EQ(100, *ptr);
 }
 
-#ifndef _WIN32
-#include <netdb.h>
-#endif
-
 void mock_free_chars(char *p)
 {
     free(p);

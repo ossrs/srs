@@ -6,9 +6,6 @@
 
 #include <srs_kernel_ts.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#include <unistd.h>
-
 #include <fcntl.h>
 #include <sstream>
 using namespace std;

@@ -20,11 +20,10 @@ using namespace std;
 #include <srs_utest_ai19.hpp>
 
 #include <algorithm>
-#include <arpa/inet.h>
-#include <poll.h>
 #include <set>
-#include <sys/socket.h>
-#include <unistd.h>
+#ifndef _WIN32
+#include <poll.h>
+#endif
 
 // Mock ISrsResourceManager implementation
 MockResourceManagerForBindSession::MockResourceManagerForBindSession()
@@ -2704,13 +2703,13 @@ VOID TEST(RtcPlayStreamTest, InitializeSeedLeavesRunSequence)
     if (true) {
         SrsUtestRandomState state(1);
         for (int i = 0; i < 1024; i++) {
-            seeded.push_back(random());
+            seeded.push_back(srs_random());
         }
     }
 
     std::vector<long> run;
     for (int i = 0; i < 4; i++) {
-        run.push_back(random());
+        run.push_back(srs_random());
     }
 
     bool found = false;
@@ -4373,6 +4372,28 @@ VOID TEST(DtlsCertificateTest, InitializeRsaFromInjectedConfig)
     cert.config_ = NULL;
 }
 
+// A DTLS context at the OpenSSL default security level takes the RSA certificate and key.
+// OpenSSL 3.2+ defaults to level 2, which refuses an RSA key below 2048 bits.
+VOID TEST(DtlsCertificateTest, RsaCertificateFitsTheDefaultSecurityLevel)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    config.ecdsa_ = false;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+    HELPER_ASSERT_SUCCESS(cert.initialize());
+
+    SSL_CTX *ctx = SSL_CTX_new(DTLS_method());
+    ASSERT_TRUE(ctx != NULL);
+    EXPECT_EQ(1, SSL_CTX_use_certificate(ctx, cert.get_cert()));
+    EXPECT_EQ(1, SSL_CTX_use_PrivateKey(ctx, cert.get_public_key()));
+    SSL_CTX_free(ctx);
+
+    cert.config_ = NULL;
+}
+
 // A second initialize keeps the first certificate and does not read the config again.
 VOID TEST(DtlsCertificateTest, InitializeOnceReadsConfigOnce)
 {
@@ -4554,16 +4575,25 @@ VOID TEST(RtcBlackholeTest, SendtoReachesInjectedEndpoint)
     pfd.fd = receiver;
     pfd.events = POLLIN;
     pfd.revents = 0;
+#ifdef _WIN32
+    EXPECT_EQ(1, WSAPoll(&pfd, 1, 1000));
+#else
     EXPECT_EQ(1, poll(&pfd, 1, 1000));
+#endif
 
+    // Windows has no MSG_DONTWAIT; poll has said the packet is there.
     char buf[64];
+#ifdef _WIN32
+    ssize_t nn = recv(receiver, buf, sizeof(buf), 0);
+#else
     ssize_t nn = recv(receiver, buf, sizeof(buf), MSG_DONTWAIT);
+#endif
     EXPECT_EQ((ssize_t)sizeof(data), nn);
     if (nn == (ssize_t)sizeof(data)) {
         EXPECT_STREQ("plaintext", buf);
     }
 
-    ::close(receiver);
+    srs_close_socket(receiver);
     blackhole.config_ = NULL;
 }
 

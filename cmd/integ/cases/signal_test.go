@@ -6,7 +6,6 @@ package cases
 
 import (
 	"bytes"
-	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -82,7 +81,7 @@ func refused(addr string) bool {
 		conn.Close()
 		return false
 	}
-	return errors.Is(err, syscall.ECONNREFUSED)
+	return connectRefused(err)
 }
 
 // untilRefused waits until a connect to addr is refused, for at most d, and
@@ -263,7 +262,7 @@ func TestTimer_Signal_LogFile(t *testing.T) {
 		c.Check(until(quitMargin, func() bool { return fileSize(c, rotated) > size }), "the renamed log didn't grow at a publish before SIGUSR1")
 		c.Check(!exists(logFile), "the log was there again before SIGUSR1")
 
-		sendSignal(c, srs, syscall.SIGUSR1)
+		sendSignal(c, srs, sigUsr1)
 		if !c.Check(until(quitMargin, func() bool { return exists(logFile) }), "no log %v after SIGUSR1", quitMargin) {
 			return
 		}
@@ -282,7 +281,7 @@ func TestTimer_Signal_LogFile(t *testing.T) {
 		lock(c)
 		before, err := os.ReadFile(logFile)
 		c.Must(err, "read the log")
-		sendSignal(c, srs, syscall.SIGUSR1)
+		sendSignal(c, srs, sigUsr1)
 		publishOnce(c, srs)
 		c.Check(until(quitMargin, func() bool { return fileSize(c, logFile) > int64(len(before)) }), "the log didn't grow at a publish after SIGUSR1")
 		after, err := os.ReadFile(logFile)
@@ -302,7 +301,7 @@ func TestTimer_Signal_Console(t *testing.T) {
 	// and no log file is made, not even SRS's default ./objs/srs.log.
 	check.Case(t, "Usr1KeepsConsole", check.Normal, func(c *check.C) {
 		console := filepath.Join(srs.Dir, "console.log")
-		sendSignal(c, srs, syscall.SIGUSR1)
+		sendSignal(c, srs, sigUsr1)
 		size := fileSize(c, console)
 		url := rtmpURL(srs, "live/"+streamName(c))
 		startPublisher(c, url, media.Path(c, media.H264HighAAC), publishLead)
