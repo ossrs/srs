@@ -62,7 +62,7 @@ option(SRS_FFMPEG_FIT "FFmpeg-fit for AAC and Opus in WebRTC" ON)
 option(SRS_SIMULATOR "RTC simulator API" OFF)
 option(SRS_UTEST "Build for the unit tests" OFF)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/srs-modules.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../srs-modules.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/srs-auto-headers.cmake")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
   "${SRS_TRUNK_DIR}/auto/module_files.txt" "${SRS_TRUNK_DIR}/AUTHORS.md")

@@ -626,7 +626,7 @@ check "build: a file fails, srs.exe not started" '! srs_calls | grep -q .'
 # which run here in CMake script mode.
 CMAKE_DIR=$CHECKOUT/trunk/cmake/windows
 cat > /tmp/srs-windows-runner-test/driver.cmake <<'EOF'
-include("${SRS_CMAKE_DIR}/srs-modules.cmake")
+include("${SRS_CMAKE_DIR}/../srs-modules.cmake")
 include("${SRS_CMAKE_DIR}/srs-auto-headers.cmake")
 srs_server_sources(files)
 string(REPLACE ";" "\n" text "${files}")
@@ -744,7 +744,7 @@ check "CMake: srs.exe and srs_utest.exe embed a manifest with the UTF-8 code pag
 # The utest sources: the srs modules but main, then the utest files of the module list, by condition,
 # as ./configure links srs_utest.
 cat > /tmp/srs-windows-runner-test/driver-utest.cmake <<'EOF'
-include("${SRS_CMAKE_DIR}/srs-modules.cmake")
+include("${SRS_CMAKE_DIR}/../srs-modules.cmake")
 srs_utest_sources(files)
 string(REPLACE ";" "\n" text "${files}")
 file(WRITE "${OUT_SOURCES}" "${text}\n")
@@ -768,6 +768,53 @@ check "CMake: the srs_utest sources, the modules but main and the utest files, b
   '[[ $UTEST_SOURCES_OK == yes ]]'
 check "CMake: srs_utest.exe from srs_utest_sources with gtest, its own main, and the utest source list" \
   'grep -q "^  srs_utest_sources(" "$CMAKE_FILE" && grep -q "add_executable(srs_utest " "$CMAKE_FILE" && grep -q "GTest::gtest[^_]" "$CMAKE_FILE" && ! grep -q "GTest::gtest_main" "$CMAKE_FILE" && grep -q "utest-sources.txt" "$CMAKE_FILE"'
+
+# The IDE CMake for macOS and Linux runs ./configure for the deps and the auto header, then takes the
+# srs and utest sources from the same helper, with the conditions of the header configure wrote.
+IDE_FILE=$CHECKOUT/trunk/cmake/CMakeLists.txt
+check "IDE CMake: srs and utest from srs-modules.cmake with the configured conditions, no glob of src" \
+  'grep -q "^include(.*/srs-modules.cmake\")" "$IDE_FILE" && grep -q "^srs_module_options_from_header(" "$IDE_FILE" && grep -q "^srs_server_sources(" "$IDE_FILE" && grep -q "^srs_utest_sources(" "$IDE_FILE" && ! grep -qi "AUX_SOURCE_DIRECTORY" "$IDE_FILE"'
+check "CMake: the Windows and the IDE CMake include the one srs-modules.cmake in trunk/cmake" \
+  '[[ -f $CHECKOUT/trunk/cmake/srs-modules.cmake && ! -e $CMAKE_DIR/srs-modules.cmake ]] && grep -q "^include(\"\${CMAKE_CURRENT_SOURCE_DIR}/../srs-modules.cmake\")" "$CMAKE_FILE"'
+cat > /tmp/srs-windows-runner-test/driver-ide.cmake <<'EOF'
+include("${SRS_CMAKE_DIR}/../srs-modules.cmake")
+srs_module_options_from_header("${SRS_HEADER}")
+srs_server_sources(files)
+string(REPLACE ";" "\n" text "${files}")
+file(WRITE "${OUT_SOURCES}" "${text}\n")
+srs_utest_sources(files)
+string(REPLACE ";" "\n" text "${files}")
+file(WRITE "${OUT_UTEST_SOURCES}" "${text}\n")
+EOF
+cmake_ide() {
+  cmake -DSRS_CMAKE_DIR="$CMAKE_DIR" -DSRS_HEADER="$1" -DOUT_SOURCES=/tmp/srs-windows-runner-test/sources.txt \
+    -DOUT_UTEST_SOURCES=/tmp/srs-windows-runner-test/utest-sources.txt \
+    -P /tmp/srs-windows-runner-test/driver-ide.cmake > /tmp/srs-windows-runner-test/out 2>&1
+  CODE=$?
+}
+# Only the exact #define turns a condition on, not its _BOOL macro or an #undef.
+printf '#define SRS_RTSP\n#define SRS_GB28181_BOOL true\n#undef SRS_FFMPEG_FIT\n' > /tmp/srs-windows-runner-test/ide-header.hpp
+cmake_ide /tmp/srs-windows-runner-test/ide-header.hpp
+check "IDE CMake: a condition is on when the header defines SRS_<CONDITION>" \
+  '[[ $CODE == 0 ]] && [[ $(cat /tmp/srs-windows-runner-test/sources.txt 2>/dev/null) == "$(expected_sources YES NO NO)" ]] && [[ $(cat /tmp/srs-windows-runner-test/utest-sources.txt 2>/dev/null) == "$(expected_utest_sources YES NO NO)" ]]'
+cmake_ide /tmp/srs-windows-runner-test/no-such-header.hpp
+check "IDE CMake: no header, fails, naming it" '[[ $CODE != 0 ]] && out | grep -q "no-such-header.hpp"'
+# The same files, in the same order, as the srs and srs_utest link lines of the Makefiles ./configure
+# made here, for whatever flags it was given.
+UTEST_MAKEFILE=$(ls $UNIX_OBJS/Platform-*/utest/Makefile 2>/dev/null | head -n 1)
+if [[ -f $UNIX_OBJS/Makefile && -f $UNIX_OBJS/srs_auto_headers.hpp && -n $UTEST_MAKEFILE ]]; then
+  cmake_ide "$UNIX_OBJS/srs_auto_headers.hpp"
+  unix_utest_objects() {
+    grep -m 1 "^SRS_SOURCE_OBJS = " "$UTEST_MAKEFILE" | tr " " "\n" | sed -nE "s|^\.\./\.\./\.\./\./objs/(src/.*)\.o$|\1.cpp|p"
+    grep -m 1 "^\.\./\.\./\.\./\./objs/srs_utest :" "$UTEST_MAKEFILE" | tr " " "\n" | sed -nE "s|^(srs_utest.*)\.o$|src/utest/\1.cpp|p"
+  }
+  check "IDE CMake: the srs sources equal the objects of ./objs/srs in the configured Makefile" \
+    '[[ $CODE == 0 ]] && [[ $(cat /tmp/srs-windows-runner-test/sources.txt) == "$(grep -m 1 "^\./objs/srs:" "$UNIX_OBJS/Makefile" | tr " " "\n" | sed -nE "s|^\./objs/(src/.*)\.o$|\1.cpp|p")" ]]'
+  check "IDE CMake: the utest sources equal the objects of srs_utest in the configured utest Makefile" \
+    '[[ $CODE == 0 ]] && [[ $(cat /tmp/srs-windows-runner-test/utest-sources.txt) == "$(unix_utest_objects)" ]]'
+else
+  echo "SKIP IDE CMake sources against the Makefiles: run ./configure --utest=on in trunk first"
+fi
 
 # The utest step builds srs_utest.exe after build, going on after a file fails, then runs it in trunk.
 utest_calls() { cat /tmp/srs-windows-runner-test/utest.log 2>/dev/null; }

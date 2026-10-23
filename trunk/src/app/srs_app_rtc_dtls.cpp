@@ -139,10 +139,15 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
     }
 #endif
 
+    // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
+    // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+    const char *ciphers = "ALL";
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
     // OpenSSL 3 allows DTLS 1.0 only at security level 0, so an explicit dtls1.0 would fail every handshake.
+    // Level 0 also drops the level 1 suite checks, so the list leaves out what they refuse.
     if (version == SrsDtlsVersion1_0) {
         SSL_CTX_set_security_level(dtls_ctx, 0);
+        ciphers = "ALL:!aNULL:!eNULL:!LOW:!MD5";
     }
 #endif
 
@@ -166,9 +171,7 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
 
     // Setup DTLS context.
     if (true) {
-        // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
-        // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
-        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
+        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, ciphers) == 1);
 
         // Setup the certificate.
         srs_assert(SSL_CTX_use_certificate(dtls_ctx, certificate->get_cert()) == 1);

@@ -45,27 +45,94 @@ Every script is in `skills/srs-develop/scripts/`; run it as `bash skills/srs-dev
 
 Run feature-specific bundled tests in addition to this matrix when the routed workflow or the touched area requires them. Every script is in `skills/srs-develop/scripts/`; run `.js` with `node` and `.sh` with `bash`.
 
-| Script | Covers |
-|---|---|
-| `obs-rtmp-publish-test.sh` | Isolated OBS H.264/AAC RTMP publish: API active and 640×360, HTTP-FLV and HLS video/audio playback; owned cleanup and a 60 s budget. Requires OBS, Python 3.9+, FFmpeg, jq and curl; `SRS_TEST_OBS=0` skips. |
-| `obs-srt-publish-test.sh` | Isolated OBS H.264/AAC SRT publish with the streamid in the Stream Key: SRT-to-RTMP bridge, API active and 640×360, HTTP-FLV video/audio playback; owned cleanup and a 60 s budget. Same dependencies and `SRS_TEST_OBS` gate as the RTMP test. |
-| `obs-whip-publish-test.sh` | Isolated OBS H.264/Opus WHIP publish with `eip=127.0.0.1`: RTC-to-RTMP bridge, API active and 640×360, API frames `KNOWN F2` while they read 0, HTTP-FLV H.264/AAC playback; owned cleanup and a 60 s budget. Same dependencies and `SRS_TEST_OBS` gate as the RTMP test. |
-| `obs-lane-test.sh` | The three OBS cases in parallel, each on its own slot from `SRS_TEST_PORT_BASE` (default 15100, then 15200 and 15300): their logs and results in order, then `LANE obs passed= skipped= known= failed= elapsed=`; fails over 60 s wall time. `SRS_TEST_OBS=0` skips. |
-| `obs-windows-test.sh` | OBS on the Windows test host publishes to the native `srs.exe` there, through `windows-host-run.sh` (`--wip` for the working tree): `srs-windows-runner.sh build` builds `srs.exe`, then `obs-lane-test.sh` runs the RTMP, SRT and WHIP cases there with the same checks and slots as on this machine, each against its own `srs.exe`; prints the build time and the cases' lines, and fails when the cases take over 60 s. `srs-windows-runner.sh obs` runs the same cases on the host after its earlier steps. Opt in with `SRS_TEST_WINDOWS_HOST`; `SRS_TEST_OBS=0` skips. The host needs OBS, and Python, FFmpeg, jq and curl in Git Bash. |
-| `obs-linux-test.sh` | OBS on this machine publishes to SRS built and run for Linux in Docker: the build step (`--build` alone) copies the tracked `trunk` files with their modification times into the volume `srs-obs-linux-build` and builds `objs/srs` there in `ossrs/srs:ubuntu20` with the Full-tier flags minus `--utest`, so the local `trunk/objs` keeps its own; SRS runs env-only in a container on slot 15400 with its ports published on `127.0.0.1`, and the RTMP H.264/AAC, SRT H.264/AAC and WHIP H.264/Opus cases (WHIP with `eip=127.0.0.1`) run in parallel with the same checks as the local cases; prints the build time and `RESULT linux`, fails when the cases take over 60 s, and removes the container on exit. Without a running Docker it prints `SKIP linux: unverified: Docker not available`; `SRS_TEST_OBS=0` skips. Same OBS dependencies as the RTMP test. |
-| `srs-windows-runner.sh` | The native Windows build and tests of SRS on the Windows test host, for changes that reach the Windows build, such as `trunk/src`, `trunk/cmake/windows`, `trunk/vcpkg.json` or `cmd/integ`. Run it from here with `windows-host-run.sh [--wip] <checkout> srs-windows-runner.sh [--alone] <step> [pattern]`. Steps: `deps` (ST, the vcpkg libraries and FFmpeg-fit, with a link check each), `build` (`srs.exe`, then one start that answers on RTMP, HTTP and the API), `utest` (`srs_utest.exe`), `integ [pattern]` (`cmd/integ` with `-integ.limit-scale 4`, the pattern to `go test -run`), `obs` and `full`. Each step runs the steps before it; `--alone` runs only the given one. `vs` generates the Visual Studio projects in `trunk/objs/windows-vs` after `deps`, and writes the committed solution `.vs/srs.slnx` that opens them, to build, run and debug in the IDE; commit `.vs/srs.slnx` when git shows a change. `package [version]`, for the release workflow, builds after `deps` and `build` without the test options and zips `srs.exe`, `conf` and the http root as `trunk/objs/windows/package/SRS-Windows-x86_64-<version>.zip`. Prints `RESULT windows-x64` lines, with the logs in `trunk/objs/windows-*.log` on the host. It refuses to start off native Windows, WSL included. Opt in with `SRS_TEST_WINDOWS_HOST`. |
-| `srs-windows-env-check.sh` | The Windows test host has every tool the runner needs, over SSH: Visual Studio 2022 or its Build Tools with cl, CMake and vcpkg; Git Bash with make, Go and FFmpeg; OBS; MSYS2 with make, nasm and pkgconf. One `TOOL` or `MISSING` line per tool. Run it to set up a host, or when the runner fails on a tool. Opt in with `SRS_TEST_WINDOWS_HOST`. |
-| `openssl3-api-check.sh` | The OpenSSL APIs SRS uses that OpenSSL 3 deprecates or removes, for changes to OpenSSL calls: it compiles every source of a configured `trunk` syntax only against OpenSSL 3 headers, as is and with `OPENSSL_NO_DEPRECATED`. A list, not a gate: it exits 1 while any use is left. |
-| `browser-page-url-test.js` | Browser player page URL parsing, for `trunk/research/players` changes. |
-| `gb28181-api-timeout-test.sh` | External-SIP GB28181 API session timeout cleanup. |
-| `gb28181-tcp-disconnect-test.sh` | External-SIP GB28181 TCP disconnect cleanup. |
-| `srs-reload-test.sh` | Config reload of a running SRS, for changes to reload, the RAW API or signal handling: reloads through `rpc=reload` and SIGHUP with a live RTMP publisher, a parse failure, a `check_config` failure and a `-e` server, each checked through `rpc=reload-fetch` and `rpc=raw`. Inotify auto-reload is Linux-only and not covered. |
-| `install-target-test.sh` | The `make install` recipe generated by `trunk/configure`, for changes to that `install` target or to `trunk/etc/init.d/srs`. |
-| `rtc-rtx-whip-publish-test.sh` | RFC 4588 RTX on the WebRTC publish path: FFmpeg publishes over WHIP under `nack_prefer_rtx on`, packets are dropped through the NACK simulator API, and SRS must unwrap RTX retransmissions. |
-| `rtc-rtx-whep-play-test.sh` | RFC 4588 RTX on the WebRTC play path: `tools/pion-whep` plays over WHEP under `nack_prefer_rtx on`, sent packets are dropped, and SRS must answer the NACK on the RTX SSRC. |
-| `rtc-plain-whep-play-test.sh` | Plain retransmission on the WebRTC play path, the RTX fallback: the same player under `nack_prefer_rtx off` must get an answer without `rtx` and a resend on the media SSRC. |
-| `rtc-plain-whip-publish-test.sh` | Plain retransmission on the WebRTC publish path, the RTX fallback: `tools/pion-whip` publishes over WHIP under `nack_prefer_rtx off`, offering `rtx` with a FID group, and must get an answer without `rtx` and resend on the media SSRC. |
-| `forward-status-test.sh` | `forward.destination` and the read-only `/api/v1/forwards/` API: an origin forwards to two destination SRS, and each forward is listed with its url and `forwarding`, `{id}` returns one, an unknown id fails and `DELETE` is 405, a stopped destination shows `retrying`, and after its restart it is `forwarding` again with the same id. |
+OBS tests:
+
+- `obs-rtmp-publish-test.sh` — isolated OBS H.264/AAC RTMP publish.
+  - Checks: API active and 640×360, HTTP-FLV and HLS video/audio playback.
+  - Owned cleanup and a 60 s budget.
+  - Requires OBS, Python 3.9+, FFmpeg, jq and curl; `SRS_TEST_OBS=0` skips.
+- `obs-srt-publish-test.sh` — isolated OBS H.264/AAC SRT publish, with the streamid in the Stream Key.
+  - Checks: the SRT-to-RTMP bridge, API active and 640×360, HTTP-FLV video/audio playback.
+  - Owned cleanup and a 60 s budget.
+  - Same dependencies and `SRS_TEST_OBS` gate as the RTMP test.
+- `obs-whip-publish-test.sh` — isolated OBS H.264/Opus WHIP publish, with `eip=127.0.0.1`.
+  - Checks: the RTC-to-RTMP bridge, API active and 640×360, API frames `KNOWN F2` while they read 0, HTTP-FLV H.264/AAC playback.
+  - Owned cleanup and a 60 s budget.
+  - Same dependencies and `SRS_TEST_OBS` gate as the RTMP test.
+- `obs-lane-test.sh` — the three OBS cases in parallel.
+  - Each case on its own slot from `SRS_TEST_PORT_BASE` (default 15100, then 15200 and 15300).
+  - Prints their logs and results in order, then `LANE obs passed= skipped= known= failed= elapsed=`.
+  - Fails over 60 s wall time; `SRS_TEST_OBS=0` skips.
+- `obs-windows-test.sh` — OBS on the Windows test host publishes to the native `srs.exe` there.
+  - Runs through `windows-host-run.sh`, with `--wip` for the working tree.
+  - `srs-windows-runner.sh build` builds `srs.exe`, then `obs-lane-test.sh` runs the RTMP, SRT and WHIP cases there, with the same checks and slots as on this machine, each against its own `srs.exe`.
+  - Prints the build time and the cases' lines, and fails when the cases take over 60 s.
+  - `srs-windows-runner.sh obs` runs the same cases on the host after its earlier steps.
+  - Opt in with `SRS_TEST_WINDOWS_HOST`; `SRS_TEST_OBS=0` skips.
+  - The host needs OBS, and Python, FFmpeg, jq and curl in Git Bash.
+- `obs-linux-test.sh` — OBS on this machine publishes to SRS built and run for Linux in Docker.
+  - Build step (`--build` alone): copies the tracked `trunk` files with their modification times into the volume `srs-obs-linux-build`, and builds `objs/srs` there in `ossrs/srs:ubuntu20` with the Full-tier flags minus `--utest`, so the local `trunk/objs` keeps its own.
+  - SRS runs env-only in a container on slot 15400, with its ports published on `127.0.0.1`.
+  - The RTMP H.264/AAC, SRT H.264/AAC and WHIP H.264/Opus cases (WHIP with `eip=127.0.0.1`) run in parallel, with the same checks as the local cases.
+  - Prints the build time and `RESULT linux`, fails when the cases take over 60 s, and removes the container on exit.
+  - Without a running Docker it prints `SKIP linux: unverified: Docker not available`; `SRS_TEST_OBS=0` skips.
+  - Same OBS dependencies as the RTMP test.
+
+Windows tests:
+
+- `srs-windows-runner.sh` — the native Windows build and tests of SRS on the Windows test host.
+  - Use it for changes that reach the Windows build, such as `trunk/src`, `trunk/cmake/windows`, `trunk/vcpkg.json` or `cmd/integ`.
+  - Run it from here with `windows-host-run.sh [--wip] <checkout> srs-windows-runner.sh [--alone] <step> [pattern]`.
+  - Test steps, each running the steps before it; `--alone` runs only the given one:
+    - `deps`: ST, the vcpkg libraries and FFmpeg-fit, with a link check each.
+    - `build`: `srs.exe`, then one start that answers on RTMP, HTTP and the API.
+    - `utest`: `srs_utest.exe`.
+    - `integ [pattern]`: `cmd/integ` with `-integ.limit-scale 4`, the pattern to `go test -run`.
+    - `obs` and `full`.
+  - Other steps:
+    - `vs`: after `deps`, generates the Visual Studio projects in `trunk/objs/windows-vs`, and writes the committed solution `.vs/srs.slnx` that opens them, to build, run and debug in the IDE; commit `.vs/srs.slnx` when git shows a change.
+    - `package [version]`: for the release workflow, builds after `deps` and `build` without the test options, and zips `srs.exe`, `conf` and the http root as `trunk/objs/windows/package/SRS-Windows-x86_64-<version>.zip`.
+  - Prints `RESULT windows-x64` lines, with the logs in `trunk/objs/windows-*.log` on the host.
+  - It refuses to start off native Windows, WSL included.
+  - Opt in with `SRS_TEST_WINDOWS_HOST`.
+- `srs-windows-env-check.sh` — the Windows test host has every tool the runner needs, over SSH.
+  - Visual Studio 2022 or its Build Tools with cl, CMake and vcpkg.
+  - Git Bash with make, Go and FFmpeg; OBS; MSYS2 with make, nasm and pkgconf.
+  - One `TOOL` or `MISSING` line per tool.
+  - Run it to set up a host, or when the runner fails on a tool. Opt in with `SRS_TEST_WINDOWS_HOST`.
+
+Other tests:
+
+- `openssl3-api-check.sh` — the OpenSSL APIs SRS uses that OpenSSL 3 deprecates or removes, for changes to OpenSSL calls.
+  - Compiles every source of a configured `trunk` syntax only against OpenSSL 3 headers, as is and with `OPENSSL_NO_DEPRECATED`, with clang or GCC.
+  - A compile that fails before the source, such as a bad option, is an `ERROR`.
+  - A list, not a gate: it exits 1 while any use is left.
+- `browser-page-url-test.js` — browser player page URL parsing, for `trunk/research/players` changes.
+- `gb28181-api-timeout-test.sh` — external-SIP GB28181 API session timeout cleanup.
+- `gb28181-tcp-disconnect-test.sh` — external-SIP GB28181 TCP disconnect cleanup.
+- `srs-reload-test.sh` — config reload of a running SRS, for changes to reload, the RAW API or signal handling.
+  - Reloads through `rpc=reload` and SIGHUP with a live RTMP publisher, a parse failure, a `check_config` failure and a `-e` server.
+  - Each is checked through `rpc=reload-fetch` and `rpc=raw`.
+  - Inotify auto-reload is Linux-only and not covered.
+- `install-target-test.sh` — the `make install` recipe generated by `trunk/configure`, for changes to that `install` target or to `trunk/etc/init.d/srs`.
+- `forward-status-test.sh` — `forward.destination` and the read-only `/api/v1/forwards/` API.
+  - An origin forwards to two destination SRS, and each forward is listed with its url and `forwarding`.
+  - `{id}` returns one, an unknown id fails and `DELETE` is 405.
+  - A stopped destination shows `retrying`, and after its restart it is `forwarding` again with the same id.
+
+WebRTC retransmission tests:
+
+- `rtc-rtx-whip-publish-test.sh` — RFC 4588 RTX on the WebRTC publish path.
+  - FFmpeg publishes over WHIP under `nack_prefer_rtx on`, and packets are dropped through the NACK simulator API.
+  - SRS must unwrap RTX retransmissions.
+- `rtc-rtx-whep-play-test.sh` — RFC 4588 RTX on the WebRTC play path.
+  - `tools/pion-whep` plays over WHEP under `nack_prefer_rtx on`, and sent packets are dropped.
+  - SRS must answer the NACK on the RTX SSRC.
+- `rtc-plain-whep-play-test.sh` — plain retransmission on the WebRTC play path, the RTX fallback.
+  - The same player under `nack_prefer_rtx off` must get an answer without `rtx` and a resend on the media SSRC.
+- `rtc-plain-whip-publish-test.sh` — plain retransmission on the WebRTC publish path, the RTX fallback.
+  - `tools/pion-whip` publishes over WHIP under `nack_prefer_rtx off`, offering `rtx` with a FID group.
+  - It must get an answer without `rtx` and a resend on the media SSRC.
 
 Helper scripts such as `gb28181-create-session.sh`, `gb28181-publish-stream.sh`, `proxy-e2e-origin.sh`, `setup-ffmpeg-with-whip.sh` and `windows-host-run.sh` are not standalone test cases unless a workflow explicitly invokes them. `windows-host-run.sh` syncs a checkout to the Windows test host and runs a script there, with `--wip` for the uncommitted working tree; its header lists the details.
 

@@ -5,8 +5,9 @@
 #   openssl3-api-check-test.sh
 #
 # Covers the argument and setup checks, that the OpenSSL 3 headers replace the bundled ones, the
-# deprecated and removed uses found and counted, a clean tree passing, and a source that does not
-# compile.
+# deprecated and removed uses found and counted, a clean tree passing, a compile that fails before the
+# compiler reads a source, and a source that does not compile. It runs with the system c++, clang or
+# GCC: run it with both, such as on macOS and in the ossrs/srs:ubuntu20 image.
 #
 # Prints PASS or FAIL per check, then a summary. Exit 0 when every check passed, 1 otherwise.
 
@@ -33,10 +34,11 @@ cat > $T/trunk/objs/openssl/include/openssl/fake.h <<'EOF'
 int OLD_fn(int a);
 int NEW_fn(int a);
 #define OLD_MACRO(a) ((a) != 0)
+typedef struct old_st OLD_TYPE;
 EOF
 cp $T/trunk/objs/openssl/include/openssl/* $T/ossl1/openssl/
 
-# The OpenSSL 3 headers: OLD_fn is deprecated, and both it and OLD_MACRO go away with
+# The OpenSSL 3 headers: OLD_fn is deprecated, and it, OLD_MACRO and the type OLD_TYPE go away with
 # OPENSSL_NO_DEPRECATED, as the 3.x headers do.
 cat > $T/ossl3/openssl/opensslv.h <<'EOF'
 #define OPENSSL_VERSION_NUMBER 0x30600040L
@@ -46,11 +48,13 @@ cat > $T/ossl3/openssl/fake.h <<'EOF'
 #ifndef OPENSSL_NO_DEPRECATED
 __attribute__((deprecated("Since OpenSSL 3.0"))) int OLD_fn(int a);
 #define OLD_MACRO(a) ((a) != 0)
+typedef struct old_st OLD_TYPE;
 #endif
 int NEW_fn(int a);
 EOF
 
-# a.cpp uses OLD_fn twice and OLD_MACRO once, b.cpp uses OLD_fn once, c.cpp uses only NEW_fn.
+# a.cpp uses OLD_fn twice and OLD_MACRO once, b.cpp uses OLD_fn once and OLD_TYPE once, c.cpp uses only
+# NEW_fn. Without OLD_TYPE, GCC also says the variable ctx is not declared; that is not an OpenSSL API.
 cat > $T/trunk/src/app/a.cpp <<'EOF'
 #include <openssl/fake.h>
 int a1() { return OLD_fn(1); }
@@ -59,6 +63,7 @@ EOF
 cat > $T/trunk/src/kernel/b.cpp <<'EOF'
 #include <openssl/fake.h>
 int b1() { return OLD_fn(1); }
+int b2() { OLD_TYPE *ctx = 0; return ctx != 0; }
 EOF
 cat > $T/trunk/src/kernel/c.cpp <<'EOF'
 #include <openssl/fake.h>
@@ -111,9 +116,11 @@ check "the OpenSSL 3 version is printed" 'out | grep -q "^OPENSSL3 .*OpenSSL 3.6
 check "every deprecated use, with file and line" 'out | grep -q "^DEPRECATED src/app/a.cpp:2 OLD_fn$" && out | grep -q "^DEPRECATED src/app/a.cpp:3 OLD_fn$" && out | grep -q "^DEPRECATED src/kernel/b.cpp:2 OLD_fn$"'
 check "three deprecated lines" '[[ $(out | grep -c "^DEPRECATED ") == 3 ]]'
 check "the macro gone without deprecated APIs is found" 'out | grep -q "^REMOVED src/app/a.cpp:3 OLD_MACRO$"'
+check "the type gone without deprecated APIs is found" 'out | grep -q "^REMOVED src/kernel/b.cpp:3 OLD_TYPE$"'
+check "a variable of a gone type is not an API" '! out | grep -q " ctx$"'
 check "the clean source is not listed" '! out | grep -q "c.cpp"'
-check "a summary per API" 'out | grep -q "^API OLD_fn 3 uses in src/app/a.cpp src/kernel/b.cpp$" && out | grep -q "^API OLD_MACRO 1 uses in src/app/a.cpp$"'
-check "RESULT FAIL with the counts" 'out | grep -q "^RESULT openssl3-api FAIL 3 deprecated and 4 removed uses of 2 APIs in 2 files, 3 sources checked"'
+check "a summary per API" 'out | grep -q "^API OLD_fn 3 uses in src/app/a.cpp src/kernel/b.cpp$" && out | grep -q "^API OLD_MACRO 1 uses in src/app/a.cpp$" && out | grep -q "^API OLD_TYPE 1 uses in src/kernel/b.cpp$"'
+check "RESULT FAIL with the counts" 'out | grep -q "^RESULT openssl3-api FAIL 3 deprecated and 5 removed uses of 3 APIs in 2 files, 3 sources checked"'
 check "no object files written" '! ls $T/trunk/objs/src >/dev/null 2>&1'
 
 # The default include dir comes from SRS_OPENSSL3_INCLUDE.
@@ -126,6 +133,16 @@ cp $T/trunk/src/kernel/c.cpp $T/trunk/src/app/a.cpp
 cp $T/trunk/src/kernel/c.cpp $T/trunk/src/kernel/b.cpp
 run $T/trunk $T/ossl3
 check "no deprecated use: exit 0 and RESULT PASS" '[[ $CODE == 0 ]] && out | grep -q "^RESULT openssl3-api PASS 0 deprecated and 0 removed uses of 0 APIs in 0 files, 3 sources checked"'
+
+# A compile that fails before the compiler reads a source, such as an option the compiler does not
+# know, is an ERROR of each source, never a PASS.
+cp $T/trunk/objs/Makefile $T/Makefile.good
+sed 's/^CXXFLAGS = /CXXFLAGS = -fno-such-option-for-test /' $T/Makefile.good > $T/trunk/objs/Makefile
+run $T/trunk $T/ossl3
+check "a driver error: exit 1, never PASS" '[[ $CODE == 1 ]] && ! out | grep -q "^RESULT openssl3-api PASS"'
+check "a driver error: an ERROR line per source, with the message" '[[ $(out | grep -c "^ERROR src/.*:0 .*-fno-such-option-for-test") == 3 ]]'
+check "a driver error: RESULT FAIL, 3 do not compile" 'out | grep -q "^RESULT openssl3-api FAIL .*3 sources checked, 3 do not compile"'
+cp $T/Makefile.good $T/trunk/objs/Makefile
 
 # A source that does not compile for another reason fails the check and says where.
 echo 'int broken() { return undeclared_thing; }' >> $T/trunk/src/kernel/b.cpp

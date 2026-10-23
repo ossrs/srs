@@ -19,7 +19,9 @@
 # Then one line per API (a function, type or macro), and the result:
 #   API <name> <uses> uses in <files>
 #   RESULT openssl3-api PASS|FAIL <n> deprecated and <n> removed uses of <n> APIs in <n> files, <n> sources checked
-# A source that does not compile even with the deprecated APIs prints ERROR <file>:<line> <message>.
+# A source that does not compile even with the deprecated APIs prints ERROR <file>:<line> <message>, and a
+# compile that fails before the compiler reads the source, such as an option the compiler does not
+# know, prints ERROR <file>:0 the compile failed: <message>. It works with clang and GCC.
 #
 # Exit 0 when no source uses a deprecated API, 1 when one does or a source does not compile, 2 when
 # the directory has no OpenSSL 3 headers, and 3 for bad arguments or when not in a configured trunk.
@@ -52,11 +54,28 @@ echo "OPENSSL3 $INC ($TEXT)"
 # The compiler's error limit option, so a source with many removed uses lists them all.
 LIMIT=-fmax-errors=0
 $CXX -ferror-limit=0 -fsyntax-only -x c++ /dev/null 2>/dev/null && LIMIT=-ferror-limit=0
+# Plain diagnostics in English with ASCII quotes, which the parsers below read; both clang and GCC take
+# -fdiagnostics-color, and GCC quotes with ' only in the C locale.
+COLOR=-fdiagnostics-color=never
 
 START=$(date +%s)
 WORK=objs/openssl3-api-check
 mkdir -p $WORK || exit 3
 TRUNK=$PWD
+
+# Runs one compile: <trunk> <output file> <source> <command...>. When the compile fails without an
+# error in a source under src, such as a bad option, it adds an error line for the source.
+cat > $WORK/compile.sh <<'END'
+cd "$1" || exit 1
+out=$2
+src=$3
+shift 3
+LC_ALL=C "$@" > "$out" 2>&1 && exit 0
+grep -q -E "^(\./)?src/[^:]+:[0-9]+:[0-9]+: error: " "$out" && exit 0
+msg=$(grep -m 1 "error" "$out")
+[[ -n $msg ]] || msg=$(head -1 "$out")
+echo "$src:0:0: error: the compile failed: $msg" >> "$out"
+END
 
 # One script per source and pass, the Makefile's command made syntax only, run 8 at a time.
 OBJS=$(grep -o '^\./objs/src/[^:]*\.o:' objs/Makefile | sed 's/:$//')
@@ -74,11 +93,9 @@ for obj in $OBJS; do
   fi
   CMD=$(echo "$CMD" | sed -e "s| -o ${obj//./\\.}||" -e "s|-I\./objs/openssl/include|-I$INC|" \
     -e 's/ -c / /' -e 's/ -fsanitize=[^ ]*//g')
-  # A source that fails before the compiler names a file, such as a bad option, gets an error line.
   SRC=${CMD##* }
-  echo "cd '$TRUNK' && { $CMD -fsyntax-only $LIMIT -fno-color-diagnostics > $WORK/$name.p1 2>&1 ||" \
-    "grep -q ': error: ' $WORK/$name.p1 || echo '$SRC:0:0: error: the compile failed' >> $WORK/$name.p1; }" > $WORK/$name.p1.sh
-  echo "cd '$TRUNK' && $CMD -fsyntax-only $LIMIT -fno-color-diagnostics -DOPENSSL_NO_DEPRECATED > $WORK/$name.p2 2>&1" > $WORK/$name.p2.sh
+  echo "bash '$TRUNK/$WORK/compile.sh' '$TRUNK' $WORK/$name.p1 $SRC $CMD -fsyntax-only $LIMIT $COLOR" > $WORK/$name.p1.sh
+  echo "bash '$TRUNK/$WORK/compile.sh' '$TRUNK' $WORK/$name.p2 $SRC $CMD -fsyntax-only $LIMIT $COLOR -DOPENSSL_NO_DEPRECATED" > $WORK/$name.p2.sh
   JOBS="$JOBS $WORK/$name.p1.sh $WORK/$name.p2.sh"
 done
 [[ -n $JOBS ]] && echo $JOBS | tr ' ' '\n' | xargs -P 8 -n 1 bash
@@ -97,10 +114,25 @@ parse() {
       -e 's|^([^ ]+) ([A-Za-z_][A-Za-z0-9_]*)[ *&].*$|\1 \2|' | sort -u
 }
 DEPRECATED=$(parse warning "$P1" "is deprecated")
-ERRORS=$(grep -h -E "^(\./)?src/[^:]+:[0-9]+:[0-9]+: error: " $P1 | sed -E -e 's|^\./||' \
-  -e 's|^([^:]+):([0-9]+):[0-9]+: error: (.*)|\1:\2 \3|' | sort -u)
-# Only the names that are gone; the other errors follow from them, such as a type mismatch.
-REMOVED=$(parse error "$P2" "(unknown type name|use of undeclared identifier) '")
+# The errors of the sources as is, and a compile without deprecated APIs that failed before the source.
+ERRORS=$( (grep -h -E "^(\./)?src/[^:]+:[0-9]+:[0-9]+: error: " $P1; grep -h -E ":0:0: error: the compile failed" $P2) |
+  sed -E -e 's|^\./||' -e 's|^([^:]+):([0-9]+):[0-9]+: error: (.*)|\1:\2 \3|' | sort -u)
+# Only the names that are gone, in clang's and GCC's words; the other errors follow from them, such as
+# a type mismatch. The two compilers recover from an error in different ways, so a few REMOVED lines
+# differ: clang skips a call with an argument of a removed type, and GCC the body of a function with a
+# parameter of one. The DEPRECATED lines and the APIs are the same.
+REMOVED=$(parse error "$P2" "(unknown type name|use of undeclared identifier|expected type-specifier before) '|' (was not declared in this scope|does not name a type|has not been declared)")
+# GCC also says a variable or parameter of a removed type is not declared, so keep only the names that
+# the OpenSSL headers declare, outside a comment: a function or function-like macro, a macro, or a type.
+in_headers() {
+  grep -r -h -E "(^|[^A-Za-z0-9_])$1\(|#[[:space:]]*define[[:space:]]+$1([^A-Za-z0-9_]|$)|typedef[^;]*[^A-Za-z0-9_]$1[[:space:]]*;" \
+    "$INC/openssl" | grep -q -v -E '^[[:space:]]*/?\*'
+}
+KEEP=
+for fn in $(echo "$REMOVED" | awk 'NF == 2 {print $2}' | sort -u); do
+  in_headers "$fn" && KEEP="$KEEP $fn"
+done
+REMOVED=$(echo "$REMOVED" | awk -v keep="$KEEP" 'BEGIN { n = split(keep, k, " "); for (i = 1; i <= n; i++) ok[k[i]] = 1 } ok[$2]')
 # A use that fails without OpenSSL 3 too is an ERROR, not a removed API.
 if [[ -n $ERRORS ]]; then
   REMOVED=$(echo "$REMOVED" | grep -v -F -f <(echo "$ERRORS" | awk '{print $1 " "}'))

@@ -2,8 +2,27 @@
 # both builds compile the same files. A file with a CONDITION is listed only when the CMake option
 # SRS_<CONDITION> is on, as configure lists it only for SRS_<CONDITION>=YES.
 if(NOT DEFINED SRS_TRUNK_DIR)
-  get_filename_component(SRS_TRUNK_DIR "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+  get_filename_component(SRS_TRUNK_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 endif()
+
+# Sets SRS_<CONDITION> for each condition of auto/module_files.txt, on when the srs_auto_headers.hpp
+# that ./configure wrote defines it, so the files are the ones configure chose.
+function(srs_module_options_from_header header)
+  if(NOT EXISTS "${header}")
+    message(FATAL_ERROR "No ${header}, run ./configure first")
+  endif()
+  file(STRINGS "${header}" defines REGEX "^#define SRS_[A-Z0-9_]+$")
+  file(STRINGS "${SRS_TRUNK_DIR}/auto/module_files.txt" lines REGEX "^[A-Z0-9_]+[ \t]+[A-Za-z0-9_]+[ \t]+[A-Z0-9_]+")
+  foreach(line IN LISTS lines)
+    string(REGEX REPLACE "^[A-Z0-9_]+[ \t]+[A-Za-z0-9_]+[ \t]+([A-Z0-9_]+).*$" "\\1" cond "${line}")
+    list(FIND defines "#define SRS_${cond}" i)
+    if(i LESS 0)
+      set(SRS_${cond} OFF PARENT_SCOPE)
+    else()
+      set(SRS_${cond} ON PARENT_SCOPE)
+    endif()
+  endforeach()
+endfunction()
 
 # Sets out to the files of module, as paths relative to the trunk, such as src/core/srs_core.cpp.
 function(srs_module_files module out)

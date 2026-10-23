@@ -4923,6 +4923,68 @@ VOID TEST(DtlsCtxTest, AutoAndDtls12KeepTheDefaultSecurityLevel)
     SSL_CTX_free(server);
 }
 
+// The security level 1 suite checks: no anonymous suite, no MD5 MAC, and no cipher below 80 bits. A dtls1.0
+// context runs at level 0 on OpenSSL 3, which allows them all, so its cipher list must leave them out.
+VOID TEST(DtlsCtxTest, Dtls10OffersOnlyLevelOneSuites)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    const char *roles[] = {"active", "passive"};
+    for (int i = 0; i < 2; i++) {
+        SSL_CTX *ctx = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, roles[i]);
+        ASSERT_TRUE(ctx != NULL);
+        SSL *ssl = SSL_new(ctx);
+        STACK_OF(SSL_CIPHER) *ciphers = SSL_get1_supported_ciphers(ssl);
+        ASSERT_TRUE(ciphers != NULL);
+        EXPECT_GT(sk_SSL_CIPHER_num(ciphers), 0);
+
+        for (int j = 0; j < sk_SSL_CIPHER_num(ciphers); j++) {
+            const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, j);
+            EXPECT_NE(NID_auth_null, SSL_CIPHER_get_auth_nid(cipher)) << roles[i] << " " << SSL_CIPHER_get_name(cipher);
+            EXPECT_NE(NID_md5, SSL_CIPHER_get_digest_nid(cipher)) << roles[i] << " " << SSL_CIPHER_get_name(cipher);
+            EXPECT_GE(SSL_CIPHER_get_bits(cipher, NULL), 80) << roles[i] << " " << SSL_CIPHER_get_name(cipher);
+        }
+
+        sk_SSL_CIPHER_free(ciphers);
+        SSL_free(ssl);
+        SSL_CTX_free(ctx);
+    }
+}
+
+// A DTLS 1.0 client that offers only anonymous suites gets no handshake from a dtls1.0 server.
+VOID TEST(DtlsCtxTest, Dtls10RefusesAnAnonymousSuite)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    // The client allows them at level 0, so it really offers them.
+    SSL_CTX *client = SSL_CTX_new(DTLS_client_method());
+    ASSERT_TRUE(client != NULL);
+    SSL_CTX_set_security_level(client, 0);
+    SSL_CTX_set_max_proto_version(client, DTLS1_VERSION);
+    ASSERT_EQ(1, SSL_CTX_set_cipher_list(client, "aNULL"));
+
+    SSL *offer = SSL_new(client);
+    STACK_OF(SSL_CIPHER) *offered = SSL_get1_supported_ciphers(offer);
+    ASSERT_TRUE(offered != NULL);
+    EXPECT_GT(sk_SSL_CIPHER_num(offered), 0);
+    sk_SSL_CIPHER_free(offered);
+    SSL_free(offer);
+
+    SSL_CTX *server = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "passive");
+    ASSERT_TRUE(server != NULL);
+
+    EXPECT_EQ(0, utest_dtls_handshake(client, server));
+
+    SSL_CTX_free(client);
+    SSL_CTX_free(server);
+}
+
 // A packet of n payload bytes, at an RTP time and a time in ms on the publisher's clock, -1 when not mapped.
 static SrsRtpPacket *mock_rtp_packet_for_sr(uint32_t ssrc, uint16_t seq, uint32_t ts, int64_t avsync_time, int n)
 {

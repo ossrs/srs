@@ -188,15 +188,15 @@ The C++ server has two builds that compile the same sources. Linux and macOS bui
 
 Shared:
 - `trunk/auto/module_files.txt` — The source files of every module (`CORE`, `KERNEL`, `PROTOCOL`, `APP`, `SERVER`, `UTEST`), one `MODULE FILE [CONDITION]` line each, read by both builds. A new source or utest file gets its line here.
+- `trunk/cmake/srs-modules.cmake` — Reads `auto/module_files.txt` for the Windows and the IDE CMake
 
 Linux and macOS:
 - `trunk/configure`, `trunk/auto/*.sh` — Options, third-party builds (`auto/depends.sh`), the generated `objs/srs_auto_headers.hpp` (`auto/auto_headers.sh`) and the generated Makefile
-- `trunk/cmake/CMakeLists.txt` — An IDE project that wraps `./configure`; not the Windows build
+- `trunk/cmake/CMakeLists.txt` — An IDE project that runs `./configure` for the deps and the auto header, with the sources `configure` chose from the module list; not the Windows build
 
 Windows x64 (MSVC, C++14, static `/MT`):
 - `trunk/vcpkg.json` — vcpkg manifest with a pinned baseline: OpenSSL 3, libsrtp, libsrt, opus and gtest
 - `trunk/cmake/windows/CMakeLists.txt` — The `srs` and `srs_utest` targets over one `srs_modules` object library, the vcpkg packages, ST and FFmpeg-fit as imported or interface libraries, the CMake options for the module conditions, and the MSVC flags
-- `trunk/cmake/windows/srs-modules.cmake` — Reads `auto/module_files.txt` for CMake
 - `trunk/cmake/windows/srs-auto-headers.cmake` — Writes `objs/windows/srs_auto_headers.hpp` with the macros of `auto/auto_headers.sh` and Windows values
 - `trunk/cmake/windows/srs.manifest` — The application manifest both programs embed, for the UTF-8 code page
 - `trunk/cmake/windows/deps-check/` — One link-check program per third-party library
