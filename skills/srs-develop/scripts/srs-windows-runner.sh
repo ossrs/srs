@@ -111,11 +111,13 @@ fi
 
 # ST comes first, since the Windows CMake build links it. Configuring that build installs the vcpkg
 # libraries. vcpkg keeps them in trunk/objs/windows/vcpkg_installed and in its binary cache, so a later
-# run only checks them.
+# run only checks them. With Ninja, CMake takes the first compiler it finds in PATH, which is clang++
+# when a Visual Studio with its clang tools puts them first, so the build names cl.
 step_deps() {
   mkdir -p trunk/objs/windows
   build_st || return 1
-  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows -G Ninja $CMAKE_OPTIONS > trunk/objs/windows-deps.log 2>&1; then
+  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl \
+      $CMAKE_OPTIONS > trunk/objs/windows-deps.log 2>&1; then
     tail -n 40 trunk/objs/windows-deps.log
     echo "See trunk/objs/windows-deps.log"
     return 1

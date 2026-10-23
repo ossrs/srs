@@ -437,7 +437,9 @@ check "deps: configures with SRS_GB28181 on, as --gb28181=on, so the integ GB281
   'grep -q "^-S trunk/cmake/windows -B trunk/objs/windows .*-DSRS_GB28181=ON" /tmp/srs-windows-runner-test/cmake.log'
 check "deps: configures with SRS_RTSP on, as --rtsp=on, so the integ RTSP cases run" \
   'grep -q "^-S trunk/cmake/windows -B trunk/objs/windows .*-DSRS_RTSP=ON" /tmp/srs-windows-runner-test/cmake.log'
-check "deps: passes" 'out | grep -q "^RESULT windows-x64 deps PASS"'
+check "deps: configures with cl as the C and C++ compiler, not the first compiler in PATH such as clang" \
+  'grep -q "^-S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl " /tmp/srs-windows-runner-test/cmake.log'
+check "deps: passes"'out | grep -q "^RESULT windows-x64 deps PASS"'
 check "deps: the cmake output goes to the log, not the console" '! out | grep -q "fake cmake output"'
 STUB_CMAKE_EXIT=1 run build
 check "deps: cmake fails, exit 1, the later steps do not run" \
@@ -933,8 +935,8 @@ rm -rf /tmp/srs-windows-runner-test/checkout/trunk/objs
 run package
 check "package: runs deps and build before it, not the test steps, passes" \
   '[[ $CODE == 0 ]] && [[ $(steps) == "deps build package" ]] && out | grep -q "^RESULT windows-x64 package PASS" && out | tail -1 | grep -q "^RESULT windows-x64 all PASS through package" && [[ ! -s /tmp/srs-windows-runner-test/utest.log ]] && ! go_calls | grep -q .'
-check "package: configures without the test options, with GB28181 and RTSP" \
-  '[[ $(grep "^-S " /tmp/srs-windows-runner-test/cmake.log) == "-S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DSRS_UTEST=OFF -DSRS_SIMULATOR=OFF -DSRS_GB28181=ON -DSRS_RTSP=ON" ]]'
+check "package: configures with cl, without the test options, with GB28181 and RTSP" \
+  '[[ $(grep "^-S " /tmp/srs-windows-runner-test/cmake.log) == "-S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DSRS_UTEST=OFF -DSRS_SIMULATOR=OFF -DSRS_GB28181=ON -DSRS_RTSP=ON" ]]'
 check "package: srs.exe started after the build, as for the tests" 'srs_calls | grep -q "^-e "'
 check "package: the zip named for the version srs.exe prints, its path shown" \
   '[[ -f $PKG/$P.zip ]] && out | grep -q "^PACKAGE trunk/objs/windows/package/$P.zip$"'

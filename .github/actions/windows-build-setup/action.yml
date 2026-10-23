@@ -6,7 +6,9 @@ runs:
   using: composite
   steps:
     # Pass the vcvars64.bat environment to the next steps: INCLUDE, LIB, LIBPATH, VCPKG_ROOT (the
-    # vcpkg of Visual Studio, which the CMake build uses), and only the PATH directories it adds.
+    # vcpkg of Visual Studio, which the CMake build uses), and only the PATH directories it adds. Each
+    # line of GITHUB_PATH goes before the ones above it, so they are written last first, which keeps
+    # the vcvars64 order: the MSVC tools stay before the clang tools of Visual Studio.
     - name: Setup MSVC environment
       shell: pwsh
       run: |
@@ -20,9 +22,9 @@ runs:
           if ($line -match '^(INCLUDE|LIB|LIBPATH|VCPKG_ROOT)=(.*)$') {
             [IO.File]::AppendAllText($env:GITHUB_ENV, "$($Matches[1])=$($Matches[2])`n")
           } elseif ($line -match '^PATH=(.*)$') {
-            foreach ($dir in $Matches[1] -split ';') {
-              if ($dir -and $old -notcontains $dir) { [IO.File]::AppendAllText($env:GITHUB_PATH, "$dir`n") }
-            }
+            $dirs = @($Matches[1] -split ';' | Where-Object { $_ -and $old -notcontains $_ })
+            [array]::Reverse($dirs)
+            foreach ($dir in $dirs) { [IO.File]::AppendAllText($env:GITHUB_PATH, "$dir`n") }
           }
         }
         $cache = "$env:RUNNER_TEMP\vcpkg-cache"

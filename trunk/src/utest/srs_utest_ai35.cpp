@@ -1075,11 +1075,58 @@ VOID TEST(PlatformTest, FileCloexecOnInvalidFdFails)
     EXPECT_EQ(-1, srs_file_cloexec(-1));
 }
 
-#ifndef _WIN32 // POSIX only: compares with getppid
+#ifdef _WIN32
+// The parent from the kernel's basic process info, apart from the Toolhelp snapshot srs_getppid reads.
+static pid_t platform_kernel_parent_pid()
+{
+    struct BasicInfo {
+        LONG_PTR exit_status;
+        PVOID peb;
+        ULONG_PTR affinity;
+        LONG_PTR priority;
+        ULONG_PTR pid;
+        ULONG_PTR parent;
+    };
+    typedef LONG(NTAPI * QueryFunc)(HANDLE, ULONG, PVOID, ULONG, PULONG);
+    QueryFunc query = (QueryFunc)::GetProcAddress(::GetModuleHandleW(L"ntdll.dll"), "NtQueryInformationProcess");
+    if (!query) {
+        return -1;
+    }
+
+    BasicInfo info;
+    memset(&info, 0, sizeof(info));
+    if (query(::GetCurrentProcess(), 0, &info, sizeof(info), NULL) != 0) {
+        return -1;
+    }
+    return (pid_t)info.parent;
+}
+
 VOID TEST(PlatformTest, GetppidIsTheParent)
 {
+    // No PID namespace on Windows: the program that started the utest has a pid.
     EXPECT_GT(srs_getppid(), 0);
+    EXPECT_NE((pid_t)::GetCurrentProcessId(), srs_getppid());
+    EXPECT_EQ(platform_kernel_parent_pid(), srs_getppid());
+}
+#else
+VOID TEST(PlatformTest, GetppidIsTheParent)
+{
+    // As PID 1 of a container, the parent is outside the PID namespace and getppid is 0, so only a child
+    // this process forks has a parent that is known and never 0.
     EXPECT_EQ(::getppid(), srs_getppid());
+
+    pid_t parent = ::getpid();
+    pid_t pid = ::fork();
+    ASSERT_GE(pid, 0);
+    if (pid == 0) {
+        pid_t got = srs_getppid();
+        ::_exit(got != ::getppid() ? 2 : (got != parent ? 3 : 0));
+    }
+
+    int status = -1;
+    ASSERT_EQ(pid, ::waitpid(pid, &status, 0));
+    ASSERT_TRUE(WIFEXITED(status));
+    EXPECT_EQ(0, WEXITSTATUS(status)) << "2: not getppid, 3: not the parent";
 }
 #endif
 

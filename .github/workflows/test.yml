@@ -205,8 +205,8 @@ jobs:
     runs-on: ubuntu-22.04
 
   # The native Windows x64 build with MSVC, and its utest, through srs-windows-runner.sh as on the
-  # Windows test host. The image has the same Visual Studio 2022 as that host, with its vcpkg, and
-  # MSYS2, which builds FFmpeg-fit.
+  # Windows test host. The image has Visual Studio 2026 (18), the newest one that host has too, with
+  # its vcpkg, and MSYS2, which builds FFmpeg-fit.
   windows:
     name: windows-utest
     steps:
