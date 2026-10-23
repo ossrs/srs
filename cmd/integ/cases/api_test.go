@@ -27,7 +27,7 @@ func TestApi_Smoke(t *testing.T) {
 	check.Case(t, "BuildFeatures", check.Fast, func(c *check.C) {
 		features, err := srs.Features()
 		c.Must(err, "features")
-		for _, name := range []string{"srt", "rtsp", "gb28181", "rtc", "simulator", "sanitizer"} {
+		for _, name := range server.BuildFeatures() {
 			c.Check(features[name], "feature %s is %v, want true", name, features[name])
 		}
 	})

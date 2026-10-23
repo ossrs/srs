@@ -4813,6 +4813,116 @@ VOID TEST(DtlsImplTest, InitializeBuildsContextThroughCertificate)
     impl.dtls_certificate_ = NULL;
 }
 
+static void utest_dtls_move(BIO *from, BIO *to)
+{
+    char buf[4096];
+    int nn;
+    while ((nn = BIO_read(from, buf, sizeof(buf))) > 0) {
+        BIO_write(to, buf, nn);
+    }
+}
+
+// A DTLS handshake between the two contexts through memory BIOs, as SRS feeds its UDP packets.
+// Returns the version both sides agreed on, or 0 when it did not finish.
+static int utest_dtls_handshake(SSL_CTX *client_ctx, SSL_CTX *server_ctx)
+{
+    SSL *client = SSL_new(client_ctx);
+    SSL *server = SSL_new(server_ctx);
+    BIO *client_in = BIO_new(BIO_s_mem());
+    BIO *client_out = BIO_new(BIO_s_mem());
+    BIO *server_in = BIO_new(BIO_s_mem());
+    BIO *server_out = BIO_new(BIO_s_mem());
+    SSL_set_bio(client, client_in, client_out);
+    SSL_set_bio(server, server_in, server_out);
+    SSL_set_connect_state(client);
+    SSL_set_accept_state(server);
+
+    SSL *peers[] = {client, server};
+    for (int i = 0; i < 2; i++) {
+        SSL_set_options(peers[i], SSL_OP_NO_QUERY_MTU);
+        SSL_set_mtu(peers[i], 1200);
+        DTLS_set_link_mtu(peers[i], 1200);
+    }
+
+    for (int i = 0; i < 32 && (!SSL_is_init_finished(client) || !SSL_is_init_finished(server)); i++) {
+        SSL_do_handshake(client);
+        utest_dtls_move(client_out, server_in);
+        SSL_do_handshake(server);
+        utest_dtls_move(server_out, client_in);
+    }
+
+    int version = 0;
+    if (SSL_is_init_finished(client) && SSL_is_init_finished(server) && SSL_version(client) == SSL_version(server)) {
+        version = SSL_version(client);
+    }
+
+    SSL_free(client);
+    SSL_free(server);
+    return version;
+}
+
+// dtls_version dtls1.0 on both sides completes a DTLS 1.0 handshake. OpenSSL 3 refuses DTLS 1.0 at
+// its default security level, so this is red there without a lower level for that context.
+VOID TEST(DtlsCtxTest, Dtls10HandshakeWithEcdsaCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *client = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "active");
+    SSL_CTX *server = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "passive");
+    ASSERT_TRUE(client != NULL);
+    ASSERT_TRUE(server != NULL);
+
+    EXPECT_EQ(DTLS1_VERSION, utest_dtls_handshake(client, server));
+
+    SSL_CTX_free(client);
+    SSL_CTX_free(server);
+}
+
+VOID TEST(DtlsCtxTest, Dtls10HandshakeWithRsaCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(false);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *client = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "active");
+    SSL_CTX *server = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "passive");
+    ASSERT_TRUE(client != NULL);
+    ASSERT_TRUE(server != NULL);
+
+    EXPECT_EQ(DTLS1_VERSION, utest_dtls_handshake(client, server));
+
+    SSL_CTX_free(client);
+    SSL_CTX_free(server);
+}
+
+// The default auto and dtls1.2 keep OpenSSL's default security level, and agree on DTLS 1.2.
+VOID TEST(DtlsCtxTest, AutoAndDtls12KeepTheDefaultSecurityLevel)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *defaults = SSL_CTX_new(DTLS_method());
+    SSL_CTX *client = srs_build_dtls_ctx(&certificate, SrsDtlsVersionAuto, "active");
+    SSL_CTX *server = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_2, "passive");
+    ASSERT_TRUE(defaults != NULL);
+    ASSERT_TRUE(client != NULL);
+    ASSERT_TRUE(server != NULL);
+
+    EXPECT_EQ(SSL_CTX_get_security_level(defaults), SSL_CTX_get_security_level(client));
+    EXPECT_EQ(SSL_CTX_get_security_level(defaults), SSL_CTX_get_security_level(server));
+    EXPECT_EQ(DTLS1_2_VERSION, utest_dtls_handshake(client, server));
+
+    SSL_CTX_free(defaults);
+    SSL_CTX_free(client);
+    SSL_CTX_free(server);
+}
+
 // A packet of n payload bytes, at an RTP time and a time in ms on the publisher's clock, -1 when not mapped.
 static SrsRtpPacket *mock_rtp_packet_for_sr(uint32_t ssrc, uint16_t seq, uint32_t ts, int64_t avsync_time, int n)
 {

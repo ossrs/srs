@@ -6,9 +6,11 @@
 #include <srs_utest_ai35.hpp>
 
 #include <srs_app_process.hpp>
+#include <srs_app_srt_server.hpp>
 #include <srs_core_platform.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_srt.hpp>
 #include <srs_protocol_st.hpp>
 
 #include <errno.h>
@@ -276,6 +278,84 @@ VOID TEST(PlatformTest, FileOpenMissingFails)
     EXPECT_EQ(-1, srs_file_open(platform_tmp_file("no-such-file").c_str(), O_RDONLY));
 }
 
+// A UTF-8 file name, as SRS gets it from a URL or a config, names that file on every OS.
+VOID TEST(PlatformTest, FileOpenTakesAUtf8Name)
+{
+    // U+540D in UTF-8.
+    string path = platform_tmp_file("utf8-\xE5\x90\x8D");
+    ::unlink(path.c_str());
+
+    int fd = srs_file_open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    ASSERT_GE(fd, 0);
+    EXPECT_EQ(2, srs_file_write(fd, "ok", 2));
+    EXPECT_EQ(0, srs_file_close(fd));
+
+#ifdef _WIN32
+    // The name on disk is U+540D, not the UTF-8 bytes read in a legacy code page.
+    wchar_t wpath[MAX_PATH];
+    ASSERT_GT(::MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path.c_str(), -1, wpath, MAX_PATH), 0);
+    EXPECT_NE(INVALID_FILE_ATTRIBUTES, ::GetFileAttributesW(wpath));
+#endif
+
+    EXPECT_EQ("ok", platform_read_file(path));
+    ::unlink(path.c_str());
+}
+
+// A log rotation renames the log while SRS writes it, and SRS keeps writing to the renamed file until it reopens.
+VOID TEST(PlatformTest, FileOpenRenamableAllowsARenameWhileOpen)
+{
+    string path = platform_tmp_file("renamable");
+    string moved = platform_tmp_file("renamable-moved");
+    ::unlink(path.c_str());
+    ::unlink(moved.c_str());
+
+    int fd = srs_file_open_renamable(path.c_str(), O_RDWR | O_CREAT | O_APPEND, 0644);
+    ASSERT_GE(fd, 0);
+    EXPECT_EQ(2, srs_file_write(fd, "a\n", 2));
+    EXPECT_EQ(0, srs_rename(path.c_str(), moved.c_str()));
+    EXPECT_EQ(2, srs_file_write(fd, "b\n", 2));
+    EXPECT_EQ(0, srs_file_close(fd));
+
+    EXPECT_EQ("a\nb\n", platform_read_file(moved));
+    EXPECT_NE(0, ::access(path.c_str(), F_OK));
+    ::unlink(moved.c_str());
+}
+
+VOID TEST(PlatformTest, FileOpenRenamableAllowsARemoveWhileOpen)
+{
+    string path = platform_tmp_file("renamable-removed");
+    ::unlink(path.c_str());
+
+    int fd = srs_file_open_renamable(path.c_str(), O_RDWR | O_CREAT | O_APPEND, 0644);
+    ASSERT_GE(fd, 0);
+    EXPECT_EQ(0, ::unlink(path.c_str()));
+    EXPECT_EQ(2, srs_file_write(fd, "a\n", 2));
+    EXPECT_EQ(0, srs_file_close(fd));
+
+    EXPECT_NE(0, ::access(path.c_str(), F_OK));
+}
+
+VOID TEST(PlatformTest, FileOpenRenamableAppendsToAnExistingFile)
+{
+    string path = platform_tmp_file("renamable-append");
+    platform_write_file(path, "old\n");
+
+    int fd = srs_file_open_renamable(path.c_str(), O_RDWR | O_CREAT | O_APPEND, 0644);
+    ASSERT_GE(fd, 0);
+    EXPECT_EQ(4, srs_file_write(fd, "new\n", 4));
+    EXPECT_EQ(0, srs_file_close(fd));
+
+    EXPECT_EQ("old\nnew\n", platform_read_file(path));
+    ::unlink(path.c_str());
+}
+
+VOID TEST(PlatformTest, FileOpenRenamableMissingDirFails)
+{
+    errno = 0;
+    EXPECT_EQ(-1, srs_file_open_renamable(platform_tmp_file("no-such-dir/file").c_str(), O_RDWR | O_CREAT | O_APPEND, 0644));
+    EXPECT_EQ(ENOENT, errno);
+}
+
 VOID TEST(PlatformTest, FileLseekUses64BitOffsets)
 {
     string path = platform_tmp_file("file-lseek");
@@ -510,6 +590,59 @@ VOID TEST(PlatformTest, BindFailsWithEaddrinuseOnATakenPort)
     }
 }
 
+VOID TEST(PlatformTest, SocketRefuseFastTakesAnyAddress)
+{
+    sockaddr_in loopback = platform_loopback(1935);
+    sockaddr_in remote = platform_loopback(1935);
+    remote.sin_addr.s_addr = htonl(0xc0a80001); // 192.168.0.1
+
+    srs_socket_t fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_NE(SRS_INVALID_SOCKET, fd);
+    EXPECT_EQ(0, srs_socket_refuse_fast(fd, (sockaddr *)&loopback));
+    EXPECT_EQ(0, srs_socket_refuse_fast(fd, (sockaddr *)&remote));
+    srs_close_socket(fd);
+}
+
+// A hook, an origin or a forward on this host that is down refuses at once, as on Linux; Windows would
+// retry the refused connect for about 2 s.
+VOID TEST(PlatformTest, LoopbackConnectRefusedAtOnce)
+{
+    srs_error_t err;
+
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_STREAM, &port));
+
+    srs_netfd_t stfd = NULL;
+    srs_utime_t starttime = srs_time_now_realtime();
+    err = srs_tcp_connect("127.0.0.1", port, 3 * SRS_UTIME_SECONDS, &stfd);
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+
+    EXPECT_EQ(ERROR_ST_CONNECT, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(stfd == NULL);
+    EXPECT_LT(elapsed, 500 * SRS_UTIME_MILLISECONDS);
+}
+
+VOID TEST(PlatformTest, LoopbackConnectStillConnects)
+{
+    srs_error_t err;
+
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_STREAM, &port));
+    sockaddr_in addr = platform_loopback(port);
+
+    srs_socket_t listener = ::socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_NE(SRS_INVALID_SOCKET, listener);
+    ASSERT_EQ(0, ::bind(listener, (sockaddr *)&addr, sizeof(addr)));
+    ASSERT_EQ(0, ::listen(listener, 8));
+
+    srs_netfd_t stfd = NULL;
+    HELPER_EXPECT_SUCCESS(srs_tcp_connect("127.0.0.1", port, 3 * SRS_UTIME_SECONDS, &stfd));
+    EXPECT_TRUE(stfd != NULL);
+    srs_close_stfd(stfd);
+    srs_close_socket(listener);
+}
+
 VOID TEST(PlatformTest, SocketCloexecSetsTheFlag)
 {
     srs_socket_t fd = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -571,6 +704,69 @@ VOID TEST(PlatformTest, SocketReuseaddrKeepsAListeningPortTaken)
 
     srs_close_socket(second);
     srs_close_socket(first);
+}
+
+// Sends to a port nobody listens on, so the host answers with an ICMP port unreachable, then expects the
+// next datagram from another peer to arrive.
+static void platform_expect_receives_after_unreachable(srs_netfd_t stfd, int port)
+{
+    srs_error_t err;
+
+    int gone = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_DGRAM, &gone));
+    ASSERT_NE(port, gone);
+    sockaddr_in to = platform_loopback(gone);
+    ASSERT_EQ(1, srs_sendto(stfd, (void *)"x", 1, (sockaddr *)&to, sizeof(to), SRS_UTIME_NO_TIMEOUT));
+    srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+
+    srs_socket_t peer = ::socket(AF_INET, SOCK_DGRAM, 0);
+    ASSERT_NE(SRS_INVALID_SOCKET, peer);
+    sockaddr_in addr = platform_loopback(port);
+    EXPECT_EQ(5, (int)::sendto(peer, "hello", 5, 0, (sockaddr *)&addr, sizeof(addr)));
+
+    char buf[16];
+    sockaddr_storage from;
+    int fromlen = sizeof(from);
+    errno = 0;
+    int n = srs_recvfrom(stfd, buf, sizeof(buf), (sockaddr *)&from, &fromlen, 1 * SRS_UTIME_SECONDS);
+    EXPECT_EQ(5, n) << "errno=" << errno;
+    if (n == 5) {
+        EXPECT_EQ(0, memcmp(buf, "hello", 5));
+    }
+
+    srs_close_socket(peer);
+}
+
+VOID TEST(PlatformTest, SocketIgnoreUnreachableKeepsReceiving)
+{
+    srs_error_t err;
+
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_DGRAM, &port));
+    sockaddr_in addr = platform_loopback(port);
+
+    srs_socket_t fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+    ASSERT_NE(SRS_INVALID_SOCKET, fd);
+    ASSERT_EQ(0, srs_bind(fd, (sockaddr *)&addr, sizeof(addr)));
+    EXPECT_EQ(0, srs_socket_ignore_unreachable(fd));
+
+    srs_netfd_t stfd = srs_netfd_open_socket((int)fd);
+    ASSERT_TRUE(stfd != NULL);
+    platform_expect_receives_after_unreachable(stfd, port);
+    srs_close_stfd(stfd);
+}
+
+VOID TEST(PlatformTest, UdpListenKeepsReceivingAfterUnreachable)
+{
+    srs_error_t err;
+
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_DGRAM, &port));
+
+    srs_netfd_t stfd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", port, &stfd));
+    platform_expect_receives_after_unreachable(stfd, port);
+    srs_close_stfd(stfd);
 }
 
 #ifndef _WIN32 // POSIX only: SO_REUSEPORT
@@ -655,6 +851,16 @@ VOID TEST(PlatformTest, GetrusageGivesTheMaxRss)
     EXPECT_LE(usage.ru_maxrss, expect.ru_maxrss);
 }
 #endif
+
+// The HTTP API's rusages reads these; a running process has a peak RSS and has faulted pages in.
+VOID TEST(PlatformTest, GetrusageGivesTheRssAndPageFaults)
+{
+    struct rusage usage;
+    memset(&usage, 0, sizeof(usage));
+    ASSERT_EQ(0, srs_getrusage(&usage));
+    EXPECT_GT(usage.ru_maxrss, 0);
+    EXPECT_GT(usage.ru_minflt, 0);
+}
 
 #ifndef _WIN32 // POSIX only: compares with sysconf
 VOID TEST(PlatformTest, FdLimitIsTheSystemLimit)
@@ -1149,3 +1355,80 @@ VOID TEST(SrsProcessTest, CycleSeesTheChildQuit)
     EXPECT_FALSE(process->started());
 }
 #endif
+
+// An SRT caller's induction handshake, the first packet a listener answers: a control header of the handshake type,
+// then the handshake content, every field a 32-bit big-endian word.
+static void platform_srt_induction(uint32_t *words, uint32_t socket_id)
+{
+    uint32_t hs[16] = {0x80000000, 0, 0, 0, 4, 2, 0x1000, 1500, 8192, 1, socket_id, 0, 0x7f000001, 0, 0, 0};
+    for (int i = 0; i < 16; i++) {
+        words[i] = htonl(hs[i]);
+    }
+}
+
+// Every peer of an SRT listener shares its one UDP socket, which libsrt makes. On Windows an ICMP port unreachable
+// from a peer that went away fails the next receive of that socket with WSAECONNRESET; libsrt takes it as a retry,
+// so the listener keeps accepting. This passes from the start: it guards the libsrt behavior SRS relies on.
+VOID TEST(SrtPlatformTest, ListenerKeepsAcceptingAfterUnreachable)
+{
+    srs_error_t err;
+
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_DGRAM, &port));
+
+    srs_srt_t listen_fd = srs_srt_socket_invalid();
+    HELPER_ASSERT_SUCCESS(srs_srt_socket_with_default_option(&listen_fd));
+    HELPER_ASSERT_SUCCESS(srs_srt_listen(listen_fd, "127.0.0.1", port));
+    SrsUniquePtr<SrsSrtSocket> listener(new SrsSrtSocket(_srs_srt_eventloop->poller(), listen_fd));
+
+    sockaddr_in addr = platform_loopback(port);
+    uint32_t hs[16];
+
+    // The listener answers the induction, so the packet is one it takes.
+    if (true) {
+        srs_socket_t fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+        ASSERT_NE(SRS_INVALID_SOCKET, fd);
+        srs_netfd_t peer = srs_netfd_open_socket((int)fd);
+        ASSERT_TRUE(peer != NULL);
+
+        platform_srt_induction(hs, 0x100);
+        EXPECT_EQ((int)sizeof(hs), srs_sendto(peer, hs, sizeof(hs), (sockaddr *)&addr, sizeof(addr), SRS_UTIME_NO_TIMEOUT));
+
+        char buf[1500];
+        sockaddr_storage from;
+        int fromlen = sizeof(from);
+        EXPECT_EQ((int)sizeof(hs), srs_recvfrom(peer, buf, sizeof(buf), (sockaddr *)&from, &fromlen, 1 * SRS_UTIME_SECONDS));
+        srs_close_stfd(peer);
+    }
+
+    // Peers that close right after their induction, so the answers reach closed ports.
+    for (int i = 0; i < 20; i++) {
+        srs_socket_t fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+        ASSERT_NE(SRS_INVALID_SOCKET, fd);
+        platform_srt_induction(hs, 0x200 + i);
+        EXPECT_EQ((int)sizeof(hs), (int)::sendto(fd, (const char *)hs, sizeof(hs), 0, (sockaddr *)&addr, sizeof(addr)));
+        srs_close_socket(fd);
+    }
+    srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+
+    srs_srt_t client_fd = srs_srt_socket_invalid();
+    HELPER_ASSERT_SUCCESS(srs_srt_socket_with_default_option(&client_fd));
+    SrsUniquePtr<SrsSrtSocket> client(new SrsSrtSocket(_srs_srt_eventloop->poller(), client_fd));
+    client->set_send_timeout(3 * SRS_UTIME_SECONDS);
+    HELPER_ASSERT_SUCCESS(client->connect("127.0.0.1", port));
+
+    listener->set_recv_timeout(3 * SRS_UTIME_SECONDS);
+    srs_srt_t accepted_fd = srs_srt_socket_invalid();
+    HELPER_ASSERT_SUCCESS(listener->accept(&accepted_fd));
+    SrsUniquePtr<SrsSrtSocket> accepted(new SrsSrtSocket(_srs_srt_eventloop->poller(), accepted_fd));
+
+    ssize_t nn = 0;
+    HELPER_ASSERT_SUCCESS(client->sendmsg((void *)"hello", 5, &nn));
+    EXPECT_EQ(5, (int)nn);
+
+    char buf[1500];
+    accepted->set_recv_timeout(3 * SRS_UTIME_SECONDS);
+    HELPER_ASSERT_SUCCESS(accepted->recvmsg(buf, sizeof(buf), &nn));
+    ASSERT_EQ(5, (int)nn);
+    EXPECT_EQ(0, memcmp(buf, "hello", 5));
+}

@@ -18,8 +18,12 @@ type PlatformSkip struct {
 // platformSkips is the skip list: the cases that do not run on an OS. Each
 // one is skipped there with its reason, and listed in the summary.
 var platformSkips = []PlatformSkip{
-	{GOOS: "windows", Pattern: `^TestTimer_(Signal_Quit/(QuitGraceful|TermDuringGracefulQuit)$|Signal_LogFile/|Signal_Console/|Reload_Sighup/)`,
-		Reason: "Windows has no console event for SIGQUIT, SIGUSR1 or SIGHUP; Ctrl+Break is SIGTERM, and Ctrl+C cannot be sent to one process"},
+	{GOOS: "windows", Pattern: `^TestTimer_Signal_Quit/(QuitGraceful|TermDuringGracefulQuit)$`,
+		Reason: "Windows has no console event for SIGQUIT; a graceful quit there is SIGTERM with force_grace_quit, as in ForceGraceQuit"},
+	{GOOS: "windows", Pattern: `^TestTimer_(Signal_LogFile/Usr1|Signal_Console/)`,
+		Reason: "Windows has no SIGUSR1; the log is reopened by the RAW API rpc=reopen-log, as in the LogFile RawApi cases"},
+	{GOOS: "windows", Pattern: `^TestTimer_Reload_Sighup/`,
+		Reason: "Windows has no SIGHUP; reload by the RAW API, as in TestTimer_Reload_RawApi"},
 }
 
 // platformSkip returns why a case does not run on goos, "" when it runs.

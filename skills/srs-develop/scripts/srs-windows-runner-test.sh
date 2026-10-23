@@ -325,6 +325,12 @@ check "deps: configures trunk/cmake/windows into trunk/objs/windows, exit 0" \
   '[[ $CODE == 0 ]] && grep -q "^-S trunk/cmake/windows -B trunk/objs/windows " /tmp/srs-windows-runner-test/cmake.log'
 check "deps: configures with SRS_UTEST on, as --utest=on, so srs_utest.exe builds in the same tree" \
   'grep -q "^-S trunk/cmake/windows -B trunk/objs/windows .*-DSRS_UTEST=ON" /tmp/srs-windows-runner-test/cmake.log'
+check "deps: configures with SRS_SIMULATOR on, as --simulator=on, so the integ NACK cases run" \
+  'grep -q "^-S trunk/cmake/windows -B trunk/objs/windows .*-DSRS_SIMULATOR=ON" /tmp/srs-windows-runner-test/cmake.log'
+check "deps: configures with SRS_GB28181 on, as --gb28181=on, so the integ GB28181 cases run" \
+  'grep -q "^-S trunk/cmake/windows -B trunk/objs/windows .*-DSRS_GB28181=ON" /tmp/srs-windows-runner-test/cmake.log'
+check "deps: configures with SRS_RTSP on, as --rtsp=on, so the integ RTSP cases run" \
+  'grep -q "^-S trunk/cmake/windows -B trunk/objs/windows .*-DSRS_RTSP=ON" /tmp/srs-windows-runner-test/cmake.log'
 check "deps: passes" 'out | grep -q "^RESULT windows-x64 deps PASS"'
 check "deps: the cmake output goes to the log, not the console" '! out | grep -q "fake cmake output"'
 STUB_CMAKE_EXIT=1 run build
@@ -593,8 +599,17 @@ check "auto header: the options, with FORCE_PUBLIC4UTEST following UTEST" \
 cmake_p ON OFF OFF ON ON
 check "auto header: the options turned the other way" \
   '[[ $(on_off SRS_RTSP SRS_GB28181 SRS_FFMPEG_FIT SRS_SIMULATOR SRS_UTEST SRS_FORCE_PUBLIC4UTEST) == "SRS_RTSP on SRS_GB28181 off SRS_FFMPEG_FIT off SRS_SIMULATOR on SRS_UTEST on SRS_FORCE_PUBLIC4UTEST on " ]]'
-check "auto header: the CMake options in SRS_CONFIGURE" \
-  'grep -q "^#define SRS_CONFIGURE \".*-DSRS_RTSP=ON .*-DSRS_UTEST=ON" $HEADER'
+check "auto header: the CMake options in SRS_USER_CONFIGURE" \
+  'grep -q "^#define SRS_USER_CONFIGURE \".*-DSRS_RTSP=ON .*-DSRS_UTEST=ON" $HEADER'
+# SRS_CONFIGURE is the options2 of /api/v1/features, with a configure switch per feature, as on Unix.
+switches() { local o m; for o in "$@"; do m=SRS_$(echo ${o%%=*} | tr 'a-z-' 'A-Z_'); grep -q "^#define SRS_CONFIGURE \".*--$o=on" $HEADER && echo "$m on" || { grep -q "^#define SRS_CONFIGURE \".*--$o=off" $HEADER && echo "$m off"; }; done | tr '\n' ' '; }
+FEATURES="srt rtc rtsp gb28181 ffmpeg-fit simulator utest sanitizer https"
+check "auto header: SRS_CONFIGURE has a switch per feature, as the macros" \
+  '[[ $(switches $FEATURES) == "$(on_off SRS_SRT SRS_RTC SRS_RTSP SRS_GB28181 SRS_FFMPEG_FIT SRS_SIMULATOR SRS_UTEST SRS_SANITIZER SRS_HTTPS)" ]]'
+cmake_p OFF ON ON OFF OFF
+check "auto header: SRS_CONFIGURE with the options turned the other way" \
+  '[[ $(switches $FEATURES) == "$(on_off SRS_SRT SRS_RTC SRS_RTSP SRS_GB28181 SRS_FFMPEG_FIT SRS_SIMULATOR SRS_UTEST SRS_SANITIZER SRS_HTTPS)" ]] && [[ $(switches rtsp utest) == "SRS_RTSP off SRS_UTEST off " ]]'
+cmake_p ON OFF OFF ON ON
 # The runner configures on every run, so an unchanged header keeps its build time and file, or every
 # file would build again.
 sed -i.bak -E 's/^#define SRS_BUILD_TS ".*"/#define SRS_BUILD_TS "1"/' $HEADER
@@ -614,6 +629,11 @@ check "CMake: srs.exe from srs_server_sources, with the auto header and the sour
   'grep -q "^srs_server_sources(" "$CMAKE_FILE" && grep -q "^add_executable(srs " "$CMAKE_FILE" && grep -q "^srs_write_auto_headers(" "$CMAKE_FILE" && grep -q "srs-sources.txt" "$CMAKE_FILE"'
 check "CMake: C++14, /W3 and no /CETCOMPAT" \
   'grep -q "CXX_STANDARD 14" "$CMAKE_FILE" && grep -q "/W3" "$CMAKE_FILE" && grep -q "/CETCOMPAT:NO" "$CMAKE_FILE"'
+check "CMake: the OpenSSL 1.x APIs SRS calls build without deprecation warnings" \
+  'grep -q "OPENSSL_API_COMPAT=0x10" "$CMAKE_FILE"'
+MANIFEST_FILE=$CHECKOUT/trunk/cmake/windows/srs.manifest
+check "CMake: srs.exe and srs_utest.exe embed a manifest with the UTF-8 code page" \
+  'grep -q "<activeCodePage [^>]*>UTF-8</activeCodePage>" "$MANIFEST_FILE" && grep -q "^add_executable(srs .*srs.manifest" "$CMAKE_FILE" && grep -q "add_executable(srs_utest .*srs.manifest" "$CMAKE_FILE"'
 
 # The utest sources: the srs modules but main, then the utest files of the module list, by condition,
 # as ./configure links srs_utest.

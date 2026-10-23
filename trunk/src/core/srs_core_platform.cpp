@@ -18,6 +18,8 @@
 #include <windows.h>
 // After windows.h, for the IP_ADAPTER_ADDRESSES of GetAdaptersAddresses.
 #include <iphlpapi.h>
+#include <mstcpip.h>
+#include <mswsock.h>
 #include <psapi.h>
 #include <tlhelp32.h>
 
@@ -88,6 +90,42 @@ int srs_bind(srs_socket_t fd, const sockaddr *addr, socklen_t size)
         errno = EINVAL;
     }
     return -1;
+}
+
+// Windows answers a refused SYN by sending it again, for about 2 s. A SYN to this host is never lost, so
+// it is sent only once there; a remote host keeps the retries a lossy network needs.
+int srs_socket_refuse_fast(srs_socket_t fd, const sockaddr *addr)
+{
+    bool loopback = false;
+    if (addr->sa_family == AF_INET) {
+        loopback = (ntohl(((const sockaddr_in *)addr)->sin_addr.s_addr) >> 24) == 127;
+    } else if (addr->sa_family == AF_INET6) {
+        loopback = IN6_IS_ADDR_LOOPBACK(&((const sockaddr_in6 *)addr)->sin6_addr) != 0;
+    }
+    if (!loopback) {
+        return 0;
+    }
+
+    TCP_INITIAL_RTO_PARAMETERS params;
+    params.Rtt = TCP_INITIAL_RTO_UNSPECIFIED_RTT;
+    params.MaxSynRetransmissions = TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS;
+    DWORD size = 0;
+    if (::WSAIoctl(fd, SIO_TCP_INITIAL_RTO, &params, sizeof(params), NULL, 0, &size, NULL, NULL) != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return 0;
+}
+
+int srs_socket_ignore_unreachable(srs_socket_t fd)
+{
+    BOOL report = FALSE;
+    DWORD size = 0;
+    if (::WSAIoctl(fd, SIO_UDP_CONNRESET, &report, sizeof(report), NULL, 0, &size, NULL, NULL) != 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    return 0;
 }
 
 int srs_socket_cloexec(srs_socket_t fd)
@@ -252,6 +290,8 @@ int srs_getrusage(struct rusage *usage)
         return -1;
     }
     usage->ru_maxrss = (long)(mem.PeakWorkingSetSize / 1024);
+    // Windows counts the soft and the hard page faults together, and most are soft, so all are minor here.
+    usage->ru_minflt = (long)mem.PageFaultCount;
     return 0;
 }
 
@@ -448,6 +488,52 @@ srs_off_t srs_file_lseek(int fd, srs_off_t offset, int whence)
 int srs_file_close(int fd)
 {
     return ::_close(fd);
+}
+
+int srs_file_open_renamable(const char *path, int oflag, int mode)
+{
+    int accmode = oflag & (_O_RDONLY | _O_WRONLY | _O_RDWR);
+    DWORD access = SYNCHRONIZE;
+    if (accmode != _O_WRONLY) {
+        access |= GENERIC_READ;
+    }
+    // Append only, as O_APPEND: every write goes to the end, whatever the file position.
+    if (accmode != _O_RDONLY) {
+        access |= (oflag & _O_APPEND) ? FILE_APPEND_DATA : GENERIC_WRITE;
+    }
+
+    DWORD disposition = OPEN_EXISTING;
+    if ((oflag & _O_CREAT) && (oflag & _O_EXCL)) {
+        disposition = CREATE_NEW;
+    } else if ((oflag & _O_CREAT) && (oflag & _O_TRUNC)) {
+        disposition = CREATE_ALWAYS;
+    } else if (oflag & _O_CREAT) {
+        disposition = OPEN_ALWAYS;
+    } else if (oflag & _O_TRUNC) {
+        disposition = TRUNCATE_EXISTING;
+    }
+    DWORD attributes = (mode & _S_IWRITE) ? FILE_ATTRIBUTE_NORMAL : FILE_ATTRIBUTE_READONLY;
+
+    HANDLE h = ::CreateFileA(path, access, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                             disposition, attributes, NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+        DWORD r0 = ::GetLastError();
+        if (r0 == ERROR_FILE_NOT_FOUND || r0 == ERROR_PATH_NOT_FOUND) {
+            errno = ENOENT;
+        } else if (r0 == ERROR_FILE_EXISTS) {
+            errno = EEXIST;
+        } else {
+            errno = EACCES;
+        }
+        return -1;
+    }
+
+    // Without _O_TEXT the descriptor is in binary mode, as srs_file_open.
+    int fd = ::_open_osfhandle((intptr_t)h, accmode == _O_RDONLY ? _O_RDONLY : 0);
+    if (fd < 0) {
+        ::CloseHandle(h);
+    }
+    return fd;
 }
 
 int srs_fseek(FILE *stream, srs_off_t offset, int whence)
@@ -926,6 +1012,17 @@ int srs_bind(srs_socket_t fd, const sockaddr *addr, socklen_t size)
     return ::bind(fd, addr, size);
 }
 
+// Linux and macOS refuse at once.
+int srs_socket_refuse_fast(srs_socket_t /*fd*/, const sockaddr * /*addr*/)
+{
+    return 0;
+}
+
+int srs_socket_ignore_unreachable(srs_socket_t /*fd*/)
+{
+    return 0;
+}
+
 int srs_socket_cloexec(srs_socket_t fd)
 {
     int flags = ::fcntl(fd, F_GETFD);
@@ -1066,6 +1163,11 @@ srs_off_t srs_file_lseek(int fd, srs_off_t offset, int whence)
 int srs_file_close(int fd)
 {
     return ::close(fd);
+}
+
+int srs_file_open_renamable(const char *path, int oflag, int mode)
+{
+    return ::open(path, oflag, mode);
 }
 
 int srs_fseek(FILE *stream, srs_off_t offset, int whence)

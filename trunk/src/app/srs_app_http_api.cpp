@@ -1075,7 +1075,7 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
     //////////////////////////////////////////////////////////////////////////
     // the rpc is required.
     // the allowed rpc method check.
-    if (rpc.empty() || (rpc != "reload" && rpc != "reload-fetch")) {
+    if (rpc.empty() || (rpc != "reload" && rpc != "reload-fetch" && rpc != "reopen-log")) {
         return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW);
     }
 
@@ -1097,6 +1097,11 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         data->set("rid", SrsJsonAny::str(reload_status_->id().c_str()));
 
         return srs_api_response(w, r, obj->dumps());
+    } else if (rpc == "reopen-log") {
+        // Windows has no SIGUSR1, so a log rotation asks for the reopen here. It changes no config, so it
+        // needs no allow_reload.
+        handler_->on_signal(SRS_SIGNAL_REOPEN_LOG);
+        return srs_api_response_code(w, r, ERROR_SUCCESS);
     }
 
     return err;

@@ -211,6 +211,12 @@ extern int srs_setsockopt(srs_socket_t fd, int level, int name, const void *valu
 extern int srs_getsockopt(srs_socket_t fd, int level, int name, void *value, socklen_t *size);
 // Winsock does not set errno, so a failed bind sets it here, such as EADDRINUSE.
 extern int srs_bind(srs_socket_t fd, const sockaddr *addr, socklen_t size);
+// Make a connect to a closed port on this host fail at once. Windows retries a refused connect for
+// about 2 s, so a down hook or origin on the same host would hold the client that long.
+extern int srs_socket_refuse_fast(srs_socket_t fd, const sockaddr *addr);
+// Keep a UDP socket receiving after an ICMP port unreachable from a peer that went away. Windows fails the
+// next receive with it even on an unconnected socket, which serves many peers; Unix only on a connected one.
+extern int srs_socket_ignore_unreachable(srs_socket_t fd);
 // Keep a child process from inheriting the socket.
 extern int srs_socket_cloexec(srs_socket_t fd);
 // Let a listener bind its port again while old connections are in TIME_WAIT.
@@ -305,6 +311,9 @@ extern ssize_t srs_file_read(int fd, void *buf, size_t count);
 extern ssize_t srs_file_write(int fd, const void *buf, size_t count);
 extern srs_off_t srs_file_lseek(int fd, srs_off_t offset, int whence);
 extern int srs_file_close(int fd);
+// Open a file that another process may rename or remove while it is open, as on Unix, such as a log that a
+// rotation tool moves away; Windows refuses that for a file the CRT opens.
+extern int srs_file_open_renamable(const char *path, int oflag, int mode);
 
 // The fseek and ftell of a FILE, with 64-bit offsets.
 extern int srs_fseek(FILE *stream, srs_off_t offset, int whence);

@@ -139,6 +139,13 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
     }
 #endif
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+    // OpenSSL 3 allows DTLS 1.0 only at security level 0, so an explicit dtls1.0 would fail every handshake.
+    if (version == SrsDtlsVersion1_0) {
+        SSL_CTX_set_security_level(dtls_ctx, 0);
+    }
+#endif
+
     if (certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L        // v1.0.2
         // For ECDSA, we could set the curves list.

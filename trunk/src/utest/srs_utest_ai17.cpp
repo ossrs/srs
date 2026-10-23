@@ -651,6 +651,25 @@ VOID TEST(DashInitMp4Test, ClosedAtRename)
     HELPER_EXPECT_SUCCESS(path.unlink(file));
 }
 
+// A segment left open, such as one whose reap failed, is closed when its temp file is removed,
+// as Windows removes no open file.
+VOID TEST(FragmentedMp4Test, ClosedAtUnlinkTmpfile)
+{
+    srs_error_t err;
+
+    SrsPath path;
+    string file = _srs_tmp_file_prefix + "dash-close-segment.m4s";
+
+    SrsFragmentedMp4 fmp4;
+    fmp4.set_path(file);
+    HELPER_ASSERT_SUCCESS(fmp4.fw_->open(fmp4.tmppath()));
+    EXPECT_TRUE(path.exists(file + ".tmp"));
+
+    HELPER_ASSERT_SUCCESS(fmp4.unlink_tmpfile());
+    EXPECT_TRUE(fmp4.fw_ == NULL || !fmp4.fw_->is_open());
+    EXPECT_FALSE(path.exists(file + ".tmp"));
+}
+
 VOID TEST(FragmentedMp4Test, InitializeWriteAndReap)
 {
     srs_error_t err;

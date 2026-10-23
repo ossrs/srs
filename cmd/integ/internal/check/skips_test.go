@@ -62,12 +62,15 @@ func TestPlatformSkipList(t *testing.T) {
 }
 
 // TestPlatformSkipSignalCases checks which signal cases run on Windows: the
-// quits by SIGTERM, which the adapter sends as Ctrl+Break, run; SIGQUIT,
-// SIGUSR1 and SIGHUP have no console event, so their cases are skipped.
+// quits by SIGTERM, which the adapter sends as Ctrl+Break, and the log reopen
+// by the RAW API run; SIGQUIT, SIGUSR1 and SIGHUP have no console event, so
+// their cases are skipped.
 func TestPlatformSkipSignalCases(t *testing.T) {
 	for _, name := range []string{
 		"TestTimer_Signal_Quit/TermFastQuit",
 		"TestTimer_Signal_Quit/ForceGraceQuit",
+		"TestTimer_Signal_LogFile/RawApiReopensRenamedLog",
+		"TestTimer_Signal_LogFile/RawApiAppendsToLog",
 		"TestTimer_Reload_RawApi/ReloadWithoutFile",
 	} {
 		if why := platformSkip(platformSkips, "windows", name); why != "" {
@@ -87,6 +90,63 @@ func TestPlatformSkipSignalCases(t *testing.T) {
 		}
 		if why := platformSkip(platformSkips, "linux", name); why != "" {
 			t.Errorf("%s on linux: skipped, %q; want it run", name, why)
+		}
+	}
+}
+
+// TestPlatformRunsRtspAndGbCases checks the cases of RTSP and GB28181 run on
+// Windows, whose build has both listeners, as on Linux, and the cases of the
+// other protocols around them too.
+func TestPlatformRunsRtspAndGbCases(t *testing.T) {
+	for _, name := range []string{
+		"TestRtsp_VhostOff/Describe",
+		"TestRtsp_RemuxOff/RtmpToRtspOff",
+		"TestApi_Common/RtspPlayerFields",
+		"TestHooks_Down/RtspPlay",
+		"TestConvert_RtcToRtmp/WhipToRtsp_NotConverted",
+		"TestConvert_Common/GbToRtsp_H264Aac",
+		"TestHooks_Down/RtmpPlay",
+		"TestHooks_Down/RtmpsPublish",
+		"TestApi_Common/Features",
+		"TestSecurity_Common/RtmpThenSrtRejected",
+		"TestConvert_RtcToRtmp/WhipToRtmp_NothingBeforeReports",
+		"TestCaster_UdpTsRepush/Plays",
+		"TestApi_Common/Gbps",
+		"TestGb_Common/Publish",
+		"TestTimer_Gb_MediaTimeout/NoConnectionEnds",
+		"TestApi_Common/DeleteGbPublisher",
+		"TestHooks_Common/GbPublishRejected",
+		"TestHooks_Down/GbPublish",
+		"TestSecurity_Common/RtmpThenGbRejected",
+		"TestConvert_Common/GbToRtmp_LatencyH264Only",
+	} {
+		for _, goos := range []string{"windows", "linux"} {
+			if why := platformSkip(platformSkips, goos, name); why != "" {
+				t.Errorf("%s on %s: skipped, %q; want it run", name, goos, why)
+			}
+		}
+	}
+}
+
+// TestPlatformRunsRtcSimulatorCases checks the WebRTC cases that call SRS's
+// NACK simulator run on Windows, whose build has the simulator, as on Linux.
+func TestPlatformRunsRtcSimulatorCases(t *testing.T) {
+	for _, name := range []string{
+		"TestRtc_Common/NackApiInvalidDrop",
+		"TestRtc_Common/NackApiNoSession",
+		"TestRtc_Common/NackPlayerPlain",
+		"TestRtc_Common/NackPlayerRtxNotPreferred",
+		"TestRtc_Common/NackPublisherPlain",
+		"TestRtc_NackTwccOff/NackOffPlayer",
+		"TestRtc_NackTwccOff/NackOffPublisher",
+		"TestRtc_PreferRtx/PlayerRtx",
+		"TestRtc_PreferRtx/PlayerWithoutRtxPlain",
+		"TestRtc_PreferRtx/PublisherRtx",
+	} {
+		for _, goos := range []string{"windows", "linux"} {
+			if why := platformSkip(platformSkips, goos, name); why != "" {
+				t.Errorf("%s on %s: skipped, %q; want it run", name, goos, why)
+			}
 		}
 	}
 }

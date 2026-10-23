@@ -87,10 +87,11 @@ target_include_directories(srs_modules PUBLIC
   "${SRS_TRUNK_DIR}/src/app")
 # NOMINMAX keeps windows.h from defining min and max over std::min and std::max. The sources call
 # the POSIX names MSVC has, such as getpid and unlink, on purpose. The sources hold UTF-8 text,
-# which cl reads in the system code page without /utf-8.
+# which cl reads in the system code page without /utf-8. SRS calls OpenSSL 1.x APIs that OpenSSL 3
+# deprecates but still has; the GCC pragmas that silence them on Unix do nothing in cl.
 target_compile_definitions(srs_modules PUBLIC
   WIN32_LEAN_AND_MEAN NOMINMAX _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS
-  _WINSOCK_DEPRECATED_NO_WARNINGS)
+  _WINSOCK_DEPRECATED_NO_WARNINGS OPENSSL_API_COMPAT=0x10000000L)
 target_compile_options(srs_modules PUBLIC /W3 /utf-8)
 # ST's context switch does not keep the shadow stack that /CETCOMPAT turns on.
 target_link_options(srs_modules PUBLIC /CETCOMPAT:NO)
@@ -99,7 +100,8 @@ if(SRS_FFMPEG_FIT)
   target_link_libraries(srs_modules PUBLIC ffmpeg)
 endif()
 
-add_executable(srs ${SRS_MAIN_SOURCES})
+# The manifest sets the UTF-8 code page, so file names in UTF-8 work as on Unix.
+add_executable(srs ${SRS_MAIN_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/srs.manifest")
 target_include_directories(srs PRIVATE "${SRS_TRUNK_DIR}/src/main")
 target_link_libraries(srs PRIVATE srs_modules)
 set(SRS_TARGETS srs_modules srs)
@@ -113,7 +115,7 @@ if(SRS_UTEST)
   string(REPLACE ";" "\n" text "${SRS_UTEST_SOURCES}")
   file(WRITE "${CMAKE_BINARY_DIR}/utest-sources.txt" "${text}\n")
   list(TRANSFORM SRS_UTEST_SOURCES PREPEND "${SRS_TRUNK_DIR}/")
-  add_executable(srs_utest ${SRS_UTEST_SOURCES})
+  add_executable(srs_utest ${SRS_UTEST_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/srs.manifest")
   target_include_directories(srs_utest PRIVATE "${SRS_TRUNK_DIR}/src/utest")
   target_link_libraries(srs_utest PRIVATE srs_modules GTest::gtest)
   list(APPEND SRS_TARGETS srs_utest)

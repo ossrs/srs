@@ -146,7 +146,7 @@ code and the signals the case sends it. No SRS source, internals or log text
 decides pass or fail; the log is attached only to explain a failure. The
 cases of the log settings (`TestEnv_*`) and of the log's reopen
 (`TestTimer_Signal_LogFile`, `TestTimer_Signal_Console`) are the one
-exception: the log is what those settings and that signal change, so they
+exception: the log is what those settings and that reopen change, so they
 read where it goes and the header of each line, its time, level and pid,
 never its text.
 
@@ -282,7 +282,8 @@ other than SIGTERM on Windows, is on the skip list in
 `internal/check/skips.go`: an OS, a pattern of the case names and the reason.
 It does not run on that OS, and the summary lists it as skipped with
 `not on <os>: <reason>`. A case that fails there for a bug gets a fix, not an
-entry.
+entry. A feature that a build lacks for now, such as GB28181 and RTSP on
+Windows, has an entry until the build has it.
 
 ### Ports
 
@@ -343,7 +344,7 @@ checks are in the test files under `cases/`.
 | Cluster | Origins | The origin cluster and its edge |
 | Dvr | Session, SessionMp4, Segment, SegmentNoWait, Apply | DVR to FLV and MP4, session and segment plans, `dvr_apply`, `on_dvr` |
 | HttpStatic | Common, RemuxOff, CtxOff | Static files, ranges, traversal, MIME types, VOD of FLV, MP4 and HLS |
-| Signal | Quit, LogFile, Console | Quit signals, log reopen by SIGUSR1 |
+| Signal | Quit, LogFile, Console | Quit signals, log reopen by SIGUSR1 and by the RAW API |
 | Process | Cli | The binary's command line, config test and exit codes |
 | Ingest | File | Ingest of a file by ffmpeg, as copy |
 | Transcode | Copy | Transcode by ffmpeg, as copy, and its stop with the source |

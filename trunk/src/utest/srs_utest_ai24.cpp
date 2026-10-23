@@ -2045,6 +2045,96 @@ VOID TEST(HlsFmp4MuxerWriterTest, RepublishKeepsWriterOfSegmentLeftOpen)
     EXPECT_EQ(0, factory.live_);
 }
 
+// The TS unpublish fails to write the last audio and leaves its segment open, and the dispose
+// removes its temp file. The writer is closed before the temp file is removed, as Windows
+// refuses to remove an open file.
+VOID TEST(HlsMuxerWriterTest, DisposeClosesSegmentLeftOpen)
+{
+    srs_error_t err;
+
+    MockAppFactoryFailingWriters factory;
+    MockFmp4SrsRequest req;
+    req.stream_ = "hls-dispose-left-open";
+
+    SrsPath path;
+
+    if (true) {
+        SrsHlsController controller;
+        SrsHlsMuxer *muxer = dynamic_cast<SrsHlsMuxer *>(controller.muxer_);
+        muxer->app_factory_ = &factory;
+        HELPER_ASSERT_SUCCESS(controller.initialize());
+
+        HELPER_ASSERT_SUCCESS(controller.on_publish(&req));
+        ASSERT_TRUE(muxer->is_segment_open());
+        muxer->set_latest_acodec(SrsAudioCodecIdAAC);
+        string left_tmp = muxer->current_->tmppath();
+        EXPECT_TRUE(path.exists(left_tmp));
+
+        controller.tsmc_->audio_ = new SrsTsMessage();
+        controller.tsmc_->audio_->dts_ = 90000;
+        controller.tsmc_->audio_->pts_ = 90000;
+        controller.tsmc_->audio_->sid_ = SrsTsPESStreamIdAudioCommon;
+        const char audio_data[] = {0x01, 0x02, 0x03, 0x04, 0x05};
+        controller.tsmc_->audio_->payload_->append(audio_data, sizeof(audio_data));
+
+        factory.fail_ = true;
+        err = controller.on_unpublish();
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
+        srs_freep(err);
+        factory.fail_ = false;
+        EXPECT_TRUE(muxer->is_segment_open());
+
+        factory.closes_.clear();
+        controller.dispose();
+        EXPECT_FALSE(muxer->is_segment_open());
+        EXPECT_FALSE(path.exists(left_tmp));
+        ASSERT_EQ(1, (int)factory.closes_.size());
+        EXPECT_EQ(left_tmp, factory.closes_[0].first);
+        EXPECT_TRUE(factory.closes_[0].second);
+        EXPECT_EQ(1, factory.live_);
+    }
+
+    EXPECT_EQ(0, factory.live_);
+}
+
+// The fmp4 unpublish fails to close its segment, which stays open, and the dispose removes its
+// temp file. The writer is closed before the temp file is removed, as Windows refuses to remove
+// an open file.
+VOID TEST(HlsFmp4MuxerWriterTest, DisposeClosesSegmentLeftOpen)
+{
+    srs_error_t err;
+
+    MockAppFactoryFailingWriters factory;
+    MockFmp4SrsRequest req;
+    req.stream_ = "fmp4-dispose-left-open";
+
+    SrsPath path;
+
+    if (true) {
+        SrsHlsFmp4Muxer muxer;
+        muxer.app_factory_ = &factory;
+        HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+        HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+        HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+        HELPER_ASSERT_SUCCESS(muxer.segment_open(0));
+        ASSERT_TRUE(muxer.current_ != NULL);
+        string tmp = muxer.current_->tmppath();
+        EXPECT_TRUE(path.exists(tmp));
+
+        factory.closes_.clear();
+        muxer.dispose();
+        EXPECT_TRUE(muxer.current_ == NULL);
+        EXPECT_FALSE(path.exists(tmp));
+        ASSERT_EQ(1, (int)factory.closes_.size());
+        EXPECT_EQ(tmp, factory.closes_[0].first);
+        EXPECT_TRUE(factory.closes_[0].second);
+        EXPECT_EQ(1, factory.live_);
+    }
+
+    EXPECT_EQ(0, factory.live_);
+}
+
 // The fmp4 publish fails to write the key of its first segment at the first frame. No segment is
 // left open with no file, so the next frame opens a new segment, which writes its key and its
 // file, and closes.

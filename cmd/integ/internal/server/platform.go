@@ -29,7 +29,7 @@ func platformOf(goos string) platform {
 		return platform{
 			binary:   filepath.Join("windows", "srs.exe"),
 			workRoot: filepath.Join(os.TempDir(), "srs-integ"),
-			features: []string{"srt", "rtc"},
+			features: []string{"srt", "rtsp", "gb28181", "rtc", "simulator"},
 			build:    "with skills/srs-develop/scripts/srs-windows-runner.sh build",
 		}
 	}
@@ -43,6 +43,12 @@ func platformOf(goos string) platform {
 
 // host is the platform this process runs on.
 var host = platformOf(runtime.GOOS)
+
+// BuildFeatures returns the build features of /api/v1/features that SRS has
+// on this OS, which the suite needs.
+func BuildFeatures() []string {
+	return slices.Clone(host.features)
+}
 
 // listenerFeatures are the listeners SRS has only when it is built with a
 // feature; it refuses to start with one it is built without.

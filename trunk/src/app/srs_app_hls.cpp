@@ -484,6 +484,8 @@ void SrsHlsFmp4Muxer::dispose()
     segments_->dispose();
 
     if (current_) {
+        // Windows removes no open file.
+        writer_->close();
         if ((err = current_->unlink_tmpfile()) != srs_success) {
             srs_warn("Unlink tmp ts failed %s", srs_error_desc(err).c_str());
             srs_freep(err);
@@ -1335,6 +1337,8 @@ void SrsHlsMuxer::dispose()
     segments_->dispose();
 
     if (current_) {
+        // Windows removes no open file.
+        writer_->close();
         if ((err = current_->unlink_tmpfile()) != srs_success) {
             srs_warn("Unlink tmp ts failed %s", srs_error_desc(err).c_str());
             srs_freep(err);

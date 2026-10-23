@@ -145,7 +145,7 @@ func apiRaw(t *testing.T) {
 	// doesn't serve: each is refused as the API being off.
 	check.Case(t, "RawOffRefused", check.Normal, func(c *check.C) {
 		srs := server.Common(c)
-		for _, q := range append([]string{"?rpc=reload", "?rpc=reload-fetch"}, rawUnservedRPCs...) {
+		for _, q := range append([]string{"?rpc=reload", "?rpc=reload-fetch", "?rpc=reopen-log"}, rawUnservedRPCs...) {
 			checkRawCode(c, srs, q, rawDisabledCode)
 		}
 	})
@@ -178,6 +178,12 @@ func TestApi_RawApi(t *testing.T) {
 	// the API being off.
 	check.Case(t, "ReloadNotAllowed", check.Normal, func(c *check.C) {
 		checkRawCode(c, srs, "?rpc=reload", rawDisabledCode)
+	})
+
+	// ReopenLogWithoutReload asks for a log reopen, which the RAW API serves
+	// without allow_reload, since it changes no config.
+	check.Case(t, "ReopenLogWithoutReload", check.Normal, func(c *check.C) {
+		checkRawCode(c, srs, "?rpc=reopen-log", 0)
 	})
 
 	// ReloadFetchBeforeReload reads the status of a server that never

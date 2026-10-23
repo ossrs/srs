@@ -138,7 +138,8 @@ srs_error_t SrsRtcBlackhole::initialize()
     blackhole_addr_->sin_addr.s_addr = inet_addr(host.c_str());
     blackhole_addr_->sin_port = htons(port);
 
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    int fd = (int)socket(AF_INET, SOCK_DGRAM, 0);
+    srs_socket_ignore_unreachable(fd);
     blackhole_stfd_ = srs_netfd_open_socket(fd);
     srs_assert(blackhole_stfd_);
 

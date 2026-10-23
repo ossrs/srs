@@ -277,6 +277,9 @@ srs_utime_t SrsFragmentedMp4::duration()
 
 srs_error_t SrsFragmentedMp4::unlink_tmpfile()
 {
+    // Windows removes no open file.
+    srs_freep(fw_);
+
     return fragment_->unlink_tmpfile();
 }
 

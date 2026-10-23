@@ -92,7 +92,7 @@ fi
 step_deps() {
   mkdir -p trunk/objs/windows
   build_st || return 1
-  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DSRS_UTEST=ON > trunk/objs/windows-deps.log 2>&1; then
+  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DSRS_UTEST=ON -DSRS_SIMULATOR=ON -DSRS_GB28181=ON -DSRS_RTSP=ON > trunk/objs/windows-deps.log 2>&1; then
     tail -n 40 trunk/objs/windows-deps.log
     echo "See trunk/objs/windows-deps.log"
     return 1

@@ -43,9 +43,10 @@ SrsLogWriter::~SrsLogWriter()
 
 int SrsLogWriter::open_file(const std::string &path)
 {
-    return ::open(path.c_str(),
-                  O_RDWR | O_CREAT | O_APPEND,
-                  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
+    // A rotation tool renames the log while SRS holds it open.
+    return srs_file_open_renamable(path.c_str(),
+                                   O_RDWR | O_CREAT | O_APPEND,
+                                   S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 }
 
 void SrsLogWriter::close_file(int fd)

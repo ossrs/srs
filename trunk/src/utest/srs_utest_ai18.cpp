@@ -3002,6 +3002,33 @@ VOID TEST(RtcServerTest, DiscoverCandidates_AutoDetectIPv4)
     EXPECT_TRUE(candidates.find("fe80::1") == candidates.end());   // IPv6 excluded when family=ipv4
 }
 
+// The interfaces of this host, as each OS lists them: every candidate is an IPv4 address a socket can bind.
+VOID TEST(RtcServerTest, DiscoverCandidates_HostInterfaces)
+{
+    SrsUniquePtr<SrsProtocolUtility> utility(new SrsProtocolUtility());
+    SrsUniquePtr<MockAppConfigForDiscoverCandidates> mock_config(new MockAppConfigForDiscoverCandidates());
+
+    SrsUniquePtr<SrsRtcUserConfig> ruc(new SrsRtcUserConfig());
+    ruc->req_->host_ = "example.com";
+
+    set<string> candidates = discover_candidates(utility.get(), mock_config.get(), ruc.get());
+    ASSERT_FALSE(candidates.empty());
+
+    for (set<string>::iterator it = candidates.begin(); it != candidates.end(); ++it) {
+        const string &ip = *it;
+
+        sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        ASSERT_EQ(1, inet_pton(AF_INET, ip.c_str(), &addr.sin_addr)) << ip;
+
+        srs_socket_t fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+        ASSERT_NE(SRS_INVALID_SOCKET, fd);
+        EXPECT_EQ(0, srs_bind(fd, (sockaddr *)&addr, sizeof(addr))) << ip;
+        srs_close_socket(fd);
+    }
+}
+
 VOID TEST(RtcServerTest, DiscoverCandidates_ExplicitCandidate)
 {
     // Create mock utility with network interfaces

@@ -219,6 +219,11 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
     }
 
+    if (srs_socket_refuse_fast(sock, r->ai_addr) == -1) {
+        srs_close_socket(sock);
+        return srs_error_new(ERROR_SOCKET_CONNECT, "refuse fast for %s:%d", server.c_str(), port);
+    }
+
     srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
     if (stfd == NULL) {
@@ -325,6 +330,10 @@ srs_error_t do_srs_udp_listen(int fd, addrinfo *r, srs_netfd_t *pfd)
 
     if (srs_bind(fd, r->ai_addr, (socklen_t)r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
+    }
+
+    if (srs_socket_ignore_unreachable(fd) == -1) {
+        return srs_error_new(ERROR_SOCKET_CREATE, "ignore port unreachable");
     }
 
     if ((*pfd = srs_netfd_open_socket(fd)) == NULL) {

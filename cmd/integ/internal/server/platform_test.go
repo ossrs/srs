@@ -40,27 +40,41 @@ func TestPlatformOf(t *testing.T) {
 	if p.workRoot != filepath.Join(os.TempDir(), "srs-integ") {
 		t.Errorf("windows: work root %q, want srs-integ in %s", p.workRoot, os.TempDir())
 	}
-	if !slices.Equal(p.features, []string{"srt", "rtc"}) {
-		t.Errorf("windows: features %v, want srt and rtc", p.features)
+	if !slices.Equal(p.features, []string{"srt", "rtsp", "gb28181", "rtc", "simulator"}) {
+		t.Errorf("windows: features %v, want srt, rtsp, gb28181, rtc and simulator", p.features)
 	}
 	if !strings.Contains(p.build, "srs-windows-runner.sh build") {
 		t.Errorf("windows: build %q, want the runner's build step", p.build)
 	}
 }
 
+// TestBuildFeatures checks that the cases get the features of this OS's
+// build, and a copy a case cannot change.
+func TestBuildFeatures(t *testing.T) {
+	got := BuildFeatures()
+	if !slices.Equal(got, host.features) {
+		t.Errorf("BuildFeatures %v, want %v", got, host.features)
+	}
+	got[0] = "changed"
+	if host.features[0] == "changed" {
+		t.Errorf("BuildFeatures gave the platform's own list")
+	}
+}
+
 // TestPlatformBuiltListeners checks a server, Common too, has every listener
-// on Unix, and on Windows only those of the features its build has, as SRS
-// refuses to start with a listener of a feature it is built without.
+// on Unix and Windows, whose builds have every feature, and only those of the
+// features a build has, as SRS refuses to start with a listener of a feature
+// it is built without.
 func TestPlatformBuiltListeners(t *testing.T) {
 	all := []Listener{RTMP, HTTPAPI, HTTPServer, RTCUDP, RTCTCP, SRT, RTSP, Exporter, GB, HTTPSAPI, HTTPSServer, RTMPS}
-	for _, goos := range []string{"linux", "darwin"} {
+	for _, goos := range []string{"linux", "darwin", "windows"} {
 		if got := platformOf(goos).builtListeners(all); !slices.Equal(got, all) {
 			t.Errorf("%s: %v, want %v", goos, got, all)
 		}
 	}
 	want := []Listener{RTMP, HTTPAPI, HTTPServer, RTCUDP, RTCTCP, SRT, Exporter, HTTPSAPI, HTTPSServer, RTMPS}
-	if got := platformOf("windows").builtListeners(all); !slices.Equal(got, want) {
-		t.Errorf("windows: %v, want %v", got, want)
+	if got := (platform{features: []string{"srt", "rtc"}}).builtListeners(all); !slices.Equal(got, want) {
+		t.Errorf("srt and rtc only: %v, want %v", got, want)
 	}
 	if !slices.Equal(CommonListeners, host.builtListeners(all)) {
 		t.Errorf("CommonListeners %v, want those of this platform", CommonListeners)

@@ -231,18 +231,22 @@ func publishOnce(c *check.C, srs *server.Server) {
 	publishOnly(c, rtmpURL(srs, "live/"+streamName(c)), rtmp.FMLE).Close()
 }
 
-// TestTimer_Signal_LogFile sends SIGUSR1 to a server of its own that logs to
-// a file, to reopen it, as a log rotation does. SRS reopens it at once, so
-// the cases are Normal; they run one at a time, since each watches the file.
-// The log's lines are read only for where they go and their pid, never for
-// their text.
+// TestTimer_Signal_LogFile reopens the log of a server of its own that logs
+// to a file, as a log rotation does: by SIGUSR1, and by the RAW API's
+// rpc=reopen-log, the way on Windows, which has no SIGUSR1. SRS reopens it
+// at once, so the cases are Normal; they run one at a time, since each
+// watches the file. The log's lines are read only for where they go and
+// their pid, never for their text.
 func TestTimer_Signal_LogFile(t *testing.T) {
 	t.Parallel()
 	srs := server.Group(t, server.Config{
 		Listeners: []server.Listener{server.RTMP, server.HTTPAPI},
 		BelowPeak: true,
 		Process:   map[string]string{"SRS_LOG_TANK": "file"},
-		Env:       map[string]string{"SRS_LOG_FILE": "./" + signalLog},
+		Env: map[string]string{
+			"SRS_LOG_FILE":                 "./" + signalLog,
+			"SRS_HTTP_API_RAW_API_ENABLED": "on",
+		},
 	})
 	logFile := filepath.Join(srs.WorkDir(), signalLog)
 	var mu sync.Mutex
@@ -250,44 +254,51 @@ func TestTimer_Signal_LogFile(t *testing.T) {
 		c.Untimed(func() { mu.Lock() })
 		c.Cleanup(mu.Unlock)
 	}
+	byUsr1 := func(c *check.C) { sendSignal(c, srs, sigUsr1) }
+	byRawAPI := func(c *check.C) { checkRawCode(c, srs, "?rpc=reopen-log", 0) }
 
-	// A log renamed away gets the lines until SIGUSR1; then SRS creates the
-	// log again, and its lines go there, not to the renamed one.
-	check.Case(t, "Usr1ReopensRenamedLog", check.Normal, func(c *check.C) {
+	// A log renamed away gets the lines until the reopen; then SRS creates
+	// the log again, and its lines go there, not to the renamed one.
+	reopensRenamedLog := func(c *check.C, reopen func(c *check.C)) {
 		lock(c)
 		rotated := filepath.Join(srs.WorkDir(), streamName(c)+".log")
 		c.Must(os.Rename(logFile, rotated), "rename the log")
 		size := fileSize(c, rotated)
 		publishOnce(c, srs)
-		c.Check(until(quitMargin, func() bool { return fileSize(c, rotated) > size }), "the renamed log didn't grow at a publish before SIGUSR1")
-		c.Check(!exists(logFile), "the log was there again before SIGUSR1")
+		c.Check(until(quitMargin, func() bool { return fileSize(c, rotated) > size }), "the renamed log didn't grow at a publish before the reopen")
+		c.Check(!exists(logFile), "the log was there again before the reopen")
 
-		sendSignal(c, srs, sigUsr1)
-		if !c.Check(until(quitMargin, func() bool { return exists(logFile) }), "no log %v after SIGUSR1", quitMargin) {
+		reopen(c)
+		if !c.Check(until(quitMargin, func() bool { return exists(logFile) }), "no log %v after the reopen", quitMargin) {
 			return
 		}
 		rotatedSize, size := fileSize(c, rotated), fileSize(c, logFile)
 		publishOnce(c, srs)
 		c.Check(until(quitMargin, func() bool { return fileSize(c, logFile) > size }), "the new log didn't grow at a publish")
-		c.CheckEqual(fileSize(c, rotated), rotatedSize, "the renamed log's size after SIGUSR1")
+		c.CheckEqual(fileSize(c, rotated), rotatedSize, "the renamed log's size after the reopen")
 		for _, l := range logLines(c, logFile, 0) {
 			c.CheckEqual(l.pid, srs.PID(), "the pid of a line of the new log: "+l.text)
 		}
-	})
+	}
 
 	// A log still in its place is reopened to append: what it had stays,
-	// and the lines after SIGUSR1 follow it.
-	check.Case(t, "Usr1AppendsToLog", check.Normal, func(c *check.C) {
+	// and the lines after the reopen follow it.
+	appendsToLog := func(c *check.C, reopen func(c *check.C)) {
 		lock(c)
 		before, err := os.ReadFile(logFile)
 		c.Must(err, "read the log")
-		sendSignal(c, srs, sigUsr1)
+		reopen(c)
 		publishOnce(c, srs)
-		c.Check(until(quitMargin, func() bool { return fileSize(c, logFile) > int64(len(before)) }), "the log didn't grow at a publish after SIGUSR1")
+		c.Check(until(quitMargin, func() bool { return fileSize(c, logFile) > int64(len(before)) }), "the log didn't grow at a publish after the reopen")
 		after, err := os.ReadFile(logFile)
 		c.Must(err, "read the log")
-		c.Check(bytes.HasPrefix(after, before), "the log after SIGUSR1 doesn't start with what it had: truncated or replaced")
-	})
+		c.Check(bytes.HasPrefix(after, before), "the log after the reopen doesn't start with what it had: truncated or replaced")
+	}
+
+	check.Case(t, "Usr1ReopensRenamedLog", check.Normal, func(c *check.C) { reopensRenamedLog(c, byUsr1) })
+	check.Case(t, "Usr1AppendsToLog", check.Normal, func(c *check.C) { appendsToLog(c, byUsr1) })
+	check.Case(t, "RawApiReopensRenamedLog", check.Normal, func(c *check.C) { reopensRenamedLog(c, byRawAPI) })
+	check.Case(t, "RawApiAppendsToLog", check.Normal, func(c *check.C) { appendsToLog(c, byRawAPI) })
 }
 
 // TestTimer_Signal_Console sends SIGUSR1 to the shared timer server

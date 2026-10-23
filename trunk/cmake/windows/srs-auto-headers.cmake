@@ -24,10 +24,25 @@ function(srs_write_auto_headers path)
   endforeach()
   list(JOIN options " " options)
 
+  # The configure switches of the features, in the order of ./configure, for the options2 of
+  # /api/v1/features, which tools read as on Unix.
+  set(switches "--https=on")
+  foreach(pair "utest:SRS_UTEST" "srt:ON" "rtc:ON" "rtsp:SRS_RTSP" "gb28181:SRS_GB28181" "simulator:SRS_SIMULATOR"
+          "ffmpeg-fit:SRS_FFMPEG_FIT" "ffmpeg-opus:OFF" "sanitizer:OFF")
+    string(REPLACE ":" ";" pair "${pair}")
+    list(GET pair 0 name)
+    list(GET pair 1 on)
+    if(${on})
+      string(APPEND switches " --${name}=on")
+    else()
+      string(APPEND switches " --${name}=off")
+    endif()
+  endforeach()
+
   set(body "")
   string(APPEND body "#define SRS_UNAME \"${CMAKE_HOST_SYSTEM_NAME} ${CMAKE_HOST_SYSTEM_VERSION} ${CMAKE_HOST_SYSTEM_PROCESSOR}\"\n")
   string(APPEND body "#define SRS_USER_CONFIGURE \"${options}\"\n")
-  string(APPEND body "#define SRS_CONFIGURE \"${options}\"\n\n")
+  string(APPEND body "#define SRS_CONFIGURE \"${switches}\"\n\n")
   srs_auto_macro(SRS_SRT ON)
   srs_auto_macro(SRS_CXX11 OFF)
   srs_auto_macro(SRS_CXX14 OFF)

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
@@ -100,14 +99,6 @@ func metricLine(c *check.C, text []byte, name string) string {
 	}
 	c.Fatalf("no %s in /metrics", name)
 	return ""
-}
-
-// uname runs uname with one flag, such as -s.
-func uname(c *check.C, flag string) string {
-	c.Helper()
-	out, err := exec.Command("uname", flag).Output()
-	c.Must(err, "uname "+flag)
-	return strings.TrimSpace(string(out))
 }
 
 // httpsAPIClient is an API client that trusts the test certificate.
@@ -208,9 +199,9 @@ func apiExporter(t *testing.T) {
 	check.Case(t, "MetricsUnameInfo", check.Fast, func(c *check.C) {
 		s := oneSample(c, scrape(c, server.Common(c)), "srs_node_uname_info")
 		c.CheckEqual(s.LabelNames(), unameLabels, "srs_node_uname_info labels")
-		for name, flag := range map[string]string{"sysname": "-s", "nodename": "-n", "release": "-r", "version": "-v", "machine": "-m"} {
+		for _, name := range unameLabels {
 			got, _ := s.Label(name)
-			c.CheckEqual(got, uname(c, flag), name)
+			c.CheckEqual(got, hostUname(c, name), name)
 		}
 	})
 
@@ -241,10 +232,7 @@ func apiExporter(t *testing.T) {
 		c.Untimed(func() {
 			until(2*time.Second, func() bool { mem = oneSample(c, scrape(c, srs), "srs_memory").Value; return mem > 0 })
 		})
-		out, err := exec.Command("ps", "-o", "rss=", "-p", strconv.Itoa(srs.PID())).Output()
-		c.Must(err, "ps")
-		rss, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
-		c.Must(err, "the RSS of ps")
+		rss := float64(processRSS(c, srs.PID()))
 		c.Check(mem >= rss/4 && mem <= rss*4, "srs_memory %v, want near the RSS of %v kB", mem, rss)
 	})
 }
