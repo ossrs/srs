@@ -645,15 +645,22 @@ cmake_p() {
     -P /tmp/srs-windows-runner-test/driver.cmake > /tmp/srs-windows-runner-test/out 2>&1
   CODE=$?
 }
-# The srs sources of the module list, read here with awk, for RTSP, GB28181 and FFMPEG_FIT as YES or NO.
+# The srs sources of the module list, for RTSP, GB28181 and FFMPEG_FIT as YES or NO, from its lists
+# in the order ./configure takes them.
 expected_sources() {
-  awk -v RTSP=$1 -v GB28181=$2 -v FFMPEG_FIT=$3 '
-    BEGIN { dir["CORE"] = "src/core"; dir["KERNEL"] = "src/kernel"; dir["PROTOCOL"] = "src/protocol";
-            dir["APP"] = "src/app"; dir["SERVER"] = "src/main"; on["RTSP"] = RTSP; on["GB28181"] = GB28181;
-            on["FFMPEG_FIT"] = FFMPEG_FIT }
-    /^[A-Z]/ && ($1 in dir) && ($3 == "" || on[$3] == "YES") { files[$1] = files[$1] dir[$1] "/" $2 ".cpp\n" }
-    END { printf "%s%s%s%s%s", files["CORE"], files["KERNEL"], files["PROTOCOL"], files["APP"], files["SERVER"] }
-  ' "$CHECKOUT/trunk/auto/module_files.txt"
+  (
+    . "$CHECKOUT/trunk/auto/module_files.sh"
+    in_dir() { local dir=$1; shift; printf "$dir/%s.cpp\n" "$@"; }
+    in_dir src/core "${SRS_CORE_FILES[@]}"
+    in_dir src/kernel "${SRS_KERNEL_FILES[@]}"
+    in_dir src/protocol "${SRS_PROTOCOL_FILES[@]}"
+    if [[ $1 == YES ]]; then in_dir src/protocol "${SRS_PROTOCOL_RTSP_FILES[@]}"; fi
+    in_dir src/app "${SRS_APP_FILES[@]}"
+    if [[ $1 == YES ]]; then in_dir src/app "${SRS_APP_RTSP_FILES[@]}"; fi
+    if [[ $3 == YES ]]; then in_dir src/app "${SRS_APP_FFMPEG_FIT_FILES[@]}"; fi
+    if [[ $2 == YES ]]; then in_dir src/app "${SRS_APP_GB28181_FILES[@]}"; fi
+    in_dir src/main "${SRS_SERVER_FILES[@]}"
+  )
 }
 yn() { [[ $1 == ON ]] && echo YES || echo NO; }
 if ! command -v cmake >/dev/null; then
@@ -666,7 +673,7 @@ for rtsp in ON OFF; do for gb in ON OFF; do for fit in ON OFF; do
   [[ $(cat /tmp/srs-windows-runner-test/sources.txt 2>/dev/null) == "$(expected_sources $(yn $rtsp) $(yn $gb) $(yn $fit))" ]] ||
     { SOURCES_OK="no, RTSP=$rtsp GB28181=$gb FFMPEG_FIT=$fit"; break 3; }
 done; done; done
-check "CMake: the srs sources from auto/module_files.txt, by condition ($SOURCES_OK)" '[[ $SOURCES_OK == yes ]]'
+check "CMake: the srs sources from auto/module_files.sh, by feature ($SOURCES_OK)" '[[ $SOURCES_OK == yes ]]'
 # The same files, in the same order, as the srs link line of the Makefile ./configure made here.
 UNIX_OBJS=$CHECKOUT/trunk/objs
 if [[ -f $UNIX_OBJS/Makefile && -f $UNIX_OBJS/srs_auto_headers.hpp ]]; then
@@ -678,12 +685,12 @@ else
   echo "SKIP CMake sources against the Makefile: run ./configure in trunk first"
 fi
 mkdir -p /tmp/srs-windows-runner-test/trunk/auto
-printf 'CORE srs_core\nCORE srs_core_x NOSUCH\n' > /tmp/srs-windows-runner-test/trunk/auto/module_files.txt
+printf 'SRS_CORE_FILES=(srs_core)\nSRS_CORE_NOSUCH_FILES=(srs_core_x)\n' > /tmp/srs-windows-runner-test/trunk/auto/module_files.sh
 cmake_p ON ON ON OFF OFF -DSRS_TRUNK_DIR=/tmp/srs-windows-runner-test/trunk
-check "CMake: an unknown condition in the module list fails, naming it" '[[ $CODE != 0 ]] && out | grep -q "NOSUCH"'
-printf 'CORE srs_core\nCORE srs-core-x\n' > /tmp/srs-windows-runner-test/trunk/auto/module_files.txt
+check "CMake: an unknown feature in the module list fails, naming it" '[[ $CODE != 0 ]] && out | grep -q "NOSUCH"'
+printf 'SRS_CORE_FILES=(srs_core\n    srs-core-x)\n' > /tmp/srs-windows-runner-test/trunk/auto/module_files.sh
 cmake_p ON ON ON OFF OFF -DSRS_TRUNK_DIR=/tmp/srs-windows-runner-test/trunk
-check "CMake: a malformed line in the module list fails, naming it" '[[ $CODE != 0 ]] && out | grep -q "srs-core-x"'
+check "CMake: a malformed file name in the module list fails, naming it" '[[ $CODE != 0 ]] && out | grep -q "srs-core-x"'
 
 # The auto header has the macros ./configure writes, in the same order, with the Windows values.
 mkdir -p /tmp/srs-windows-runner-test/unix
@@ -731,8 +738,8 @@ check "auto header: an option changed, a new build time" \
   'grep -q "^#define SRS_BUILD_TS \"[0-9]\{10\}\"" $HEADER && grep -qx "#undef SRS_RTSP" $HEADER'
 
 # The CMake file builds srs.exe from those sources, with the MSVC options.
-check "CMake: an option per condition of the module list" \
-  '(for c in $(awk "/^[A-Z]/ && \$3 != \"\" {print \$3}" "$CHECKOUT/trunk/auto/module_files.txt" | sort -u); do grep -q "^option(SRS_$c " "$CMAKE_FILE" || exit 1; done)'
+check "CMake: an option per feature of the module list" \
+  '(for f in $(sed -nE "s/^SRS_[A-Z]+_([A-Z0-9_]+)_FILES=.*/\1/p" "$CHECKOUT/trunk/auto/module_files.sh" | sort -u); do grep -q "^option(SRS_$f " "$CMAKE_FILE" || exit 1; done)'
 check "CMake: srs.exe from srs_server_sources, with the auto header and the source list" \
   'grep -q "^srs_server_sources(" "$CMAKE_FILE" && grep -q "^add_executable(srs " "$CMAKE_FILE" && grep -q "^srs_write_auto_headers(" "$CMAKE_FILE" && grep -q "srs-sources.txt" "$CMAKE_FILE"'
 check "CMake: C++14, /W3 and no /CETCOMPAT" \
@@ -743,7 +750,7 @@ MANIFEST_FILE=$CHECKOUT/trunk/cmake/windows/srs.manifest
 check "CMake: srs.exe and srs_utest.exe embed a manifest with the UTF-8 code page" \
   'grep -q "<activeCodePage [^>]*>UTF-8</activeCodePage>" "$MANIFEST_FILE" && grep -q "^add_executable(srs .*srs.manifest" "$CMAKE_FILE" && grep -q "add_executable(srs_utest .*srs.manifest" "$CMAKE_FILE"'
 
-# The utest sources: the srs modules but main, then the utest files of the module list, by condition,
+# The utest sources: the srs modules but main, then the utest files of the module list, by feature,
 # as ./configure links srs_utest.
 cat > /tmp/srs-windows-runner-test/driver-utest.cmake <<'EOF'
 include("${SRS_CMAKE_DIR}/../srs-modules.cmake")
@@ -753,10 +760,12 @@ file(WRITE "${OUT_SOURCES}" "${text}\n")
 EOF
 expected_utest_sources() {
   expected_sources $1 $2 $3 | grep -v '^src/main/'
-  awk -v RTSP=$1 -v GB28181=$2 -v FFMPEG_FIT=$3 '
-    BEGIN { on["RTSP"] = RTSP; on["GB28181"] = GB28181; on["FFMPEG_FIT"] = FFMPEG_FIT }
-    $1 == "UTEST" && ($3 == "" || on[$3] == "YES") { print "src/utest/" $2 ".cpp" }
-  ' "$CHECKOUT/trunk/auto/module_files.txt"
+  (
+    . "$CHECKOUT/trunk/auto/module_files.sh"
+    printf "src/utest/%s.cpp\n" "${SRS_UTEST_FILES[@]}"
+    if [[ $2 == YES ]]; then printf "src/utest/%s.cpp\n" "${SRS_UTEST_GB28181_FILES[@]}"; fi
+    if [[ $1 == YES ]]; then printf "src/utest/%s.cpp\n" "${SRS_UTEST_RTSP_FILES[@]}"; fi
+  )
 }
 UTEST_SOURCES_OK=yes
 for rtsp in ON OFF; do for gb in ON OFF; do
@@ -766,15 +775,15 @@ for rtsp in ON OFF; do for gb in ON OFF; do
   [[ $(cat /tmp/srs-windows-runner-test/sources.txt 2>/dev/null) == "$(expected_utest_sources $(yn $rtsp) $(yn $gb) YES)" ]] ||
     { UTEST_SOURCES_OK="no, RTSP=$rtsp GB28181=$gb"; break 2; }
 done; done
-check "CMake: the srs_utest sources, the modules but main and the utest files, by condition ($UTEST_SOURCES_OK)" \
+check "CMake: the srs_utest sources, the modules but main and the utest files, by feature ($UTEST_SOURCES_OK)" \
   '[[ $UTEST_SOURCES_OK == yes ]]'
 check "CMake: srs_utest.exe from srs_utest_sources with gtest, its own main, and the utest source list" \
   'grep -q "^  srs_utest_sources(" "$CMAKE_FILE" && grep -q "add_executable(srs_utest " "$CMAKE_FILE" && grep -q "GTest::gtest[^_]" "$CMAKE_FILE" && ! grep -q "GTest::gtest_main" "$CMAKE_FILE" && grep -q "utest-sources.txt" "$CMAKE_FILE"'
 
 # The IDE CMake for macOS and Linux runs ./configure for the deps and the auto header, then takes the
-# srs and utest sources from the same helper, with the conditions of the header configure wrote.
+# srs and utest sources from the same helper, with the features of the header configure wrote.
 IDE_FILE=$CHECKOUT/trunk/cmake/CMakeLists.txt
-check "IDE CMake: srs and utest from srs-modules.cmake with the configured conditions, no glob of src" \
+check "IDE CMake: srs and utest from srs-modules.cmake with the configured features, no glob of src" \
   'grep -q "^include(.*/srs-modules.cmake\")" "$IDE_FILE" && grep -q "^srs_module_options_from_header(" "$IDE_FILE" && grep -q "^srs_server_sources(" "$IDE_FILE" && grep -q "^srs_utest_sources(" "$IDE_FILE" && ! grep -qi "AUX_SOURCE_DIRECTORY" "$IDE_FILE"'
 check "CMake: the Windows and the IDE CMake include the one srs-modules.cmake in trunk/cmake" \
   '[[ -f $CHECKOUT/trunk/cmake/srs-modules.cmake && ! -e $CMAKE_DIR/srs-modules.cmake ]] && grep -q "^include(\"\${CMAKE_CURRENT_SOURCE_DIR}/../srs-modules.cmake\")" "$CMAKE_FILE"'
@@ -794,10 +803,10 @@ cmake_ide() {
     -P /tmp/srs-windows-runner-test/driver-ide.cmake > /tmp/srs-windows-runner-test/out 2>&1
   CODE=$?
 }
-# Only the exact #define turns a condition on, not its _BOOL macro or an #undef.
+# Only the exact #define turns a feature on, not its _BOOL macro or an #undef.
 printf '#define SRS_RTSP\n#define SRS_GB28181_BOOL true\n#undef SRS_FFMPEG_FIT\n' > /tmp/srs-windows-runner-test/ide-header.hpp
 cmake_ide /tmp/srs-windows-runner-test/ide-header.hpp
-check "IDE CMake: a condition is on when the header defines SRS_<CONDITION>" \
+check "IDE CMake: a feature is on when the header defines SRS_<FEATURE>" \
   '[[ $CODE == 0 ]] && [[ $(cat /tmp/srs-windows-runner-test/sources.txt 2>/dev/null) == "$(expected_sources YES NO NO)" ]] && [[ $(cat /tmp/srs-windows-runner-test/utest-sources.txt 2>/dev/null) == "$(expected_utest_sources YES NO NO)" ]]'
 cmake_ide /tmp/srs-windows-runner-test/no-such-header.hpp
 check "IDE CMake: no header, fails, naming it" '[[ $CODE != 0 ]] && out | grep -q "no-such-header.hpp"'

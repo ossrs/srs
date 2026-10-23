@@ -6,7 +6,7 @@
 #   bash skills/srs-develop/scripts/srs-utest-run.sh [--configure] [gtest-filter]
 #
 #   --configure     Re-run ./configure with the Full-tier flags, then remove the utest objects, which do not
-#                   depend on the configure header. Done on its own in a new checkout or after trunk/configure or trunk/auto/module_files.txt changes.
+#                   depend on the configure header. Done on its own in a new checkout or after trunk/configure or trunk/auto/module_files.sh changes.
 #   gtest-filter    Run only these tests, such as 'ForwarderTest.*'. Default: all tests.
 #
 # Exit code is the exit code of srs_utest, or 1 if the build fails.
@@ -25,7 +25,7 @@ for arg in "$@"; do
     esac
 done
 
-if [[ ! -f objs/Makefile || configure -nt objs/Makefile || auto/module_files.txt -nt objs/Makefile ]]; then
+if [[ ! -f objs/Makefile || configure -nt objs/Makefile || auto/module_files.sh -nt objs/Makefile ]]; then
     CONFIGURE=yes
 fi
 

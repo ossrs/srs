@@ -127,7 +127,7 @@ fi
 # Step 1: build. The OBS Linux build runs beside the local one, since Docker copies only the tracked files.
 build() {
     # The utest objects do not depend on the configure header, so remove them after a configure.
-    if ! grep -q "\"$FLAGS\"" trunk/objs/srs_auto_headers.hpp 2>/dev/null || [[ trunk/configure -nt trunk/objs/Makefile || trunk/auto/module_files.txt -nt trunk/objs/Makefile ]]; then
+    if ! grep -q "\"$FLAGS\"" trunk/objs/srs_auto_headers.hpp 2>/dev/null || [[ trunk/configure -nt trunk/objs/Makefile || trunk/auto/module_files.sh -nt trunk/objs/Makefile ]]; then
         (cd trunk && ./configure $FLAGS && find objs -path '*/utest/*.o' -delete) || return 1
     fi
     (cd trunk && make -j10 server) || return 1

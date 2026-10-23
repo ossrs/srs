@@ -49,7 +49,7 @@ clients come from.
 ## Build
 
 The Windows build is a CMake build, `trunk/cmake/windows/CMakeLists.txt`, that reads the same source
-lists as `./configure` (`trunk/auto/module_files.txt`). The libraries come from:
+lists as `./configure` (`trunk/auto/module_files.sh`). The libraries come from:
 
 * vcpkg, with the versions pinned in `trunk/vcpkg.json`: OpenSSL 3, libsrtp, libsrt, Opus and
   googletest.

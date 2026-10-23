@@ -1,30 +1,31 @@
-# The source files of the SRS modules, from auto/module_files.txt, which ./configure reads too, so
-# both builds compile the same files. A file with a CONDITION is listed only when the CMake option
-# SRS_<CONDITION> is on, as configure lists it only for SRS_<CONDITION>=YES.
+# The source files of the SRS modules, from auto/module_files.sh, which ./configure sources too, so
+# all builds compile the same files. The files of SRS_<MODULE>_<FEATURE>_FILES are listed only when
+# the CMake option SRS_<FEATURE> is on, as configure lists them only for SRS_<FEATURE>=YES.
 if(NOT DEFINED SRS_TRUNK_DIR)
   get_filename_component(SRS_TRUNK_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 endif()
 
-# Sets SRS_<CONDITION> for each condition of auto/module_files.txt, on when the srs_auto_headers.hpp
-# that ./configure wrote defines it, so the files are the ones configure chose.
+# Sets SRS_<FEATURE> for each feature of auto/module_files.sh, on when the srs_auto_headers.hpp that
+# ./configure wrote defines it, so the files are the ones configure chose.
 function(srs_module_options_from_header header)
   if(NOT EXISTS "${header}")
     message(FATAL_ERROR "No ${header}, run ./configure first")
   endif()
   file(STRINGS "${header}" defines REGEX "^#define SRS_[A-Z0-9_]+$")
-  file(STRINGS "${SRS_TRUNK_DIR}/auto/module_files.txt" lines REGEX "^[A-Z0-9_]+[ \t]+[A-Za-z0-9_]+[ \t]+[A-Z0-9_]+")
-  foreach(line IN LISTS lines)
-    string(REGEX REPLACE "^[A-Z0-9_]+[ \t]+[A-Za-z0-9_]+[ \t]+([A-Z0-9_]+).*$" "\\1" cond "${line}")
-    list(FIND defines "#define SRS_${cond}" i)
+  file(STRINGS "${SRS_TRUNK_DIR}/auto/module_files.sh" names REGEX "^SRS_[A-Z]+_[A-Z0-9_]+_FILES=")
+  foreach(name IN LISTS names)
+    string(REGEX REPLACE "^SRS_[A-Z]+_([A-Z0-9_]+)_FILES=.*$" "\\1" feature "${name}")
+    list(FIND defines "#define SRS_${feature}" i)
     if(i LESS 0)
-      set(SRS_${cond} OFF PARENT_SCOPE)
+      set(SRS_${feature} OFF PARENT_SCOPE)
     else()
-      set(SRS_${cond} ON PARENT_SCOPE)
+      set(SRS_${feature} ON PARENT_SCOPE)
     endif()
   endforeach()
 endfunction()
 
-# Sets out to the files of module, as paths relative to the trunk, such as src/core/srs_core.cpp.
+# Sets out to the files of module, as paths relative to the trunk, such as src/core/srs_core.cpp:
+# SRS_<MODULE>_FILES, then each SRS_<MODULE>_<FEATURE>_FILES whose feature is on, in the file's order.
 function(srs_module_files module out)
   set(dirs CORE src/core KERNEL src/kernel PROTOCOL src/protocol APP src/app SERVER src/main UTEST src/utest)
   list(FIND dirs ${module} i)
@@ -34,29 +35,29 @@ function(srs_module_files module out)
   math(EXPR i "${i} + 1")
   list(GET dirs ${i} dir)
 
+  # Each list is NAME=(file file ...) at the start of a line, and may go on over more lines.
+  file(READ "${SRS_TRUNK_DIR}/auto/module_files.sh" text)
+  string(REGEX MATCHALL "(^|\n)SRS_${module}_[A-Z0-9_]*FILES=\\([^)]*\\)" lists "${text}")
   set(files)
-  file(STRINGS "${SRS_TRUNK_DIR}/auto/module_files.txt" lines)
-  foreach(line IN LISTS lines)
-    if(line MATCHES "^[ \t]*(#|$)")
-      continue()
-    endif()
-    if(NOT line MATCHES "^([A-Z0-9_]+)[ \t]+([A-Za-z0-9_]+)([ \t]+([A-Z0-9_]+))?[ \t]*$")
-      message(FATAL_ERROR "Bad line in auto/module_files.txt: ${line}")
-    endif()
-    set(cond "${CMAKE_MATCH_4}")
-    if(NOT CMAKE_MATCH_1 STREQUAL module)
-      continue()
-    endif()
-    set(file "${dir}/${CMAKE_MATCH_2}.cpp")
-    if(cond)
-      if(NOT DEFINED SRS_${cond})
-        message(FATAL_ERROR "No option SRS_${cond} for ${line} in auto/module_files.txt")
+  foreach(list IN LISTS lists)
+    string(REGEX MATCH "SRS_${module}_(([A-Z0-9_]+)_)?FILES=\\(([^)]*)\\)" _ "${list}")
+    set(feature "${CMAKE_MATCH_2}")
+    string(STRIP "${CMAKE_MATCH_3}" names)
+    string(REGEX REPLACE "[ \t\r\n]+" ";" names "${names}")
+    if(feature)
+      if(NOT DEFINED SRS_${feature})
+        message(FATAL_ERROR "No option SRS_${feature} for SRS_${module}_${feature}_FILES in auto/module_files.sh")
       endif()
-      if(NOT SRS_${cond})
+      if(NOT SRS_${feature})
         continue()
       endif()
     endif()
-    list(APPEND files "${file}")
+    foreach(name IN LISTS names)
+      if(NOT name MATCHES "^[A-Za-z0-9_]+$")
+        message(FATAL_ERROR "Bad file ${name} in auto/module_files.sh")
+      endif()
+      list(APPEND files "${dir}/${name}.cpp")
+    endforeach()
   endforeach()
   set(${out} "${files}" PARENT_SCOPE)
 endfunction()

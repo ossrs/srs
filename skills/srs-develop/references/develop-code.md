@@ -167,7 +167,7 @@ Accept new features, bug fixes, security fixes, compatibility fixes, tests, and 
 1. Identify the verified root cause and implement the smallest compatible fix.
 2. Preserve C++98 compatibility and the existing coroutine, resource-ownership, protocol, configuration, and error-handling conventions. Follow `references/cpp-code-style.md`.
    - The same code also builds on Windows with MSVC as C++14: call OS functions through the shims in its Platform Calls section.
-   - A new source file gets its line in `trunk/auto/module_files.txt`, which `./configure` and the Windows CMake build both read.
+   - A new source file goes in its module's list in `trunk/auto/module_files.sh`, which `./configure` and the Windows CMake build both read.
 3. Add focused regression coverage following `references/testable-code.md`: write the test first, run it, and confirm it fails before implementing the fix. When the code under test is not mockable, refactor it for testability first; that refactor is behavior-preserving and is accepted in maintenance mode.
 4. Update user documentation only when the behavior or maintenance result changes what operators need to know.
 

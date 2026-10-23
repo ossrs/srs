@@ -59,7 +59,7 @@ container_build() {
   mkdir -p /build/srs
   tar -C /src -cf - --null -T - | tar -C /build/srs -xf -
   cd /build/srs/trunk
-  if ! grep -q "\"$FLAGS\"" objs/srs_auto_headers.hpp 2>/dev/null || [[ configure -nt objs/Makefile || auto/module_files.txt -nt objs/Makefile ]]; then
+  if ! grep -q "\"$FLAGS\"" objs/srs_auto_headers.hpp 2>/dev/null || [[ configure -nt objs/Makefile || auto/module_files.sh -nt objs/Makefile ]]; then
     ./configure $FLAGS
   fi
   make -j"$(nproc)" server

@@ -187,8 +187,8 @@ Config (`trunk/conf/`) is only for the C++ media server. The Go proxy server doe
 The C++ server has two builds that compile the same sources. Linux and macOS build with `./configure` and make; Windows x64 builds natively with MSVC through CMake.
 
 Shared:
-- `trunk/auto/module_files.txt` — The source files of every module (`CORE`, `KERNEL`, `PROTOCOL`, `APP`, `SERVER`, `UTEST`), one `MODULE FILE [CONDITION]` line each, read by both builds. A new source or utest file gets its line here.
-- `trunk/cmake/srs-modules.cmake` — Reads `auto/module_files.txt` for the Windows and the IDE CMake
+- `trunk/auto/module_files.sh` — The source files of every module (`CORE`, `KERNEL`, `PROTOCOL`, `APP`, `SERVER`, `UTEST`), as bash lists: `SRS_<MODULE>_FILES` always build, `SRS_<MODULE>_<FEATURE>_FILES` only when the feature is on. `./configure` sources it and both CMake builds read it. A new source or utest file goes in its module's list here.
+- `trunk/cmake/srs-modules.cmake` — Reads `auto/module_files.sh` for the Windows and the IDE CMake
 
 Linux and macOS:
 - `trunk/configure`, `trunk/auto/*.sh` — Options, third-party builds (`auto/depends.sh`), the generated `objs/srs_auto_headers.hpp` (`auto/auto_headers.sh`) and the generated Makefile

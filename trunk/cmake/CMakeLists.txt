@@ -67,10 +67,10 @@ INCLUDE_DIRECTORIES(${SRS_DIR}/objs
         ${SRS_DIR}/src/app
         ${SRS_DIR}/src/service)
 
-# The srs and utest sources from auto/module_files.txt, as ./configure chose them for the options above.
+# The srs and utest sources from auto/module_files.sh, as ./configure chose them for the options above.
 set(SRS_TRUNK_DIR ${SRS_DIR})
 include("${PROJECT_SOURCE_DIR}/srs-modules.cmake")
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SRS_DIR}/auto/module_files.txt")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SRS_DIR}/auto/module_files.sh")
 srs_module_options_from_header("${SRS_DIR}/objs/srs_auto_headers.hpp")
 srs_server_sources(SRS_FILES)
 srs_utest_sources(UTEST_FILES)

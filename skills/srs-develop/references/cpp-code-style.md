@@ -25,5 +25,5 @@ The same sources build on Linux and macOS with `./configure`, and on Windows x64
 - A new OS difference gets a new shim: a function with an `srs_` prefix, not a `#define` of the POSIX name. On Unix it is a one-line call of the POSIX function; the Windows code goes under `_WIN32`.
 - Winsock does not set `errno`. A shim whose caller reads `errno` sets it from `WSAGetLastError`, as `srs_bind` does.
 - Do not add POSIX headers to a source file: `srs_core_platform.hpp` includes the per-OS headers.
-- A new source file gets its line in `trunk/auto/module_files.txt`, which both builds read.
+- A new source file goes in its module's list in `trunk/auto/module_files.sh`, which both builds read.
 - A utest that has no meaning on Windows, such as one that forks or raises a signal, is guarded with `#ifndef _WIN32 // POSIX only: <reason>`. A test with a Windows meaning states it under `#ifdef _WIN32` instead.
