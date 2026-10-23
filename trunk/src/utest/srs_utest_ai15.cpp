@@ -1131,6 +1131,40 @@ VOID TEST(SrtEventLoopTest, InitializeRoutesSrtLogsToSrsLog)
     srt_setloglevel(LOG_CRIT);
 }
 
+VOID TEST(SrtEventLoopTest, AcceptWithNoClientIsNotAnError)
+{
+    srs_error_t err;
+
+    srt_setloglevel(LOG_ERR);
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    SrsSrtEventLoop eventloop;
+    HELPER_EXPECT_SUCCESS(eventloop.initialize());
+
+    srs_srt_t lfd = srs_srt_socket_invalid();
+    HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&lfd));
+    HELPER_EXPECT_SUCCESS(srs_srt_listen(lfd, "127.0.0.1", 0));
+
+    // The accept loop of SRS tries first and waits when no client is pending, which libsrt logs as an error.
+    sockaddr_storage addr;
+    int addrlen = sizeof(addr);
+    EXPECT_EQ(srs_srt_socket_invalid(), srt_accept(lfd, (sockaddr *)&addr, &addrlen));
+    EXPECT_EQ(SRT_EASYNCRCV, srt_getlasterror(NULL));
+    EXPECT_EQ(0, log.error_count_);
+
+    // A real libsrt error still goes to the SRS log as an error.
+    srs_utest_srt_provoke_error_log();
+    EXPECT_LT(0, log.error_count_);
+
+    srs_srt_close(lfd);
+    _srs_log = original_log;
+    srt_setloghandler(NULL, srs_utest_srt_silent_log_handler);
+    srt_setloglevel(LOG_CRIT);
+}
+
 MockTcpListenersForServer::MockTcpListenersForServer() : SrsMultipleTcpListeners(NULL)
 {
     add_count_ = 0;
