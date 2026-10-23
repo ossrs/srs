@@ -1,0 +1,53 @@
+name: Windows build setup
+description: >-
+  Prepare a GitHub Windows image for srs-windows-runner.sh, after the checkout: the MSVC x64
+  environment, the vcpkg and FFmpeg-fit caches, GNU make, and the MSYS2 tools that build FFmpeg-fit.
+runs:
+  using: composite
+  steps:
+    # Pass the vcvars64.bat environment to the next steps: INCLUDE, LIB, LIBPATH, VCPKG_ROOT (the
+    # vcpkg of Visual Studio, which the CMake build uses), and only the PATH directories it adds.
+    - name: Setup MSVC environment
+      shell: pwsh
+      run: |
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+        if (-not $vs) { throw "No Visual Studio with the MSVC x64 tools" }
+        $vars = cmd /c "`"$vs\VC\Auxiliary\Build\vcvars64.bat`" >nul && set"
+        if ($LASTEXITCODE -ne 0) { throw "vcvars64.bat failed" }
+        $old = $env:PATH -split ';'
+        foreach ($line in $vars) {
+          if ($line -match '^(INCLUDE|LIB|LIBPATH|VCPKG_ROOT)=(.*)$') {
+            [IO.File]::AppendAllText($env:GITHUB_ENV, "$($Matches[1])=$($Matches[2])`n")
+          } elseif ($line -match '^PATH=(.*)$') {
+            foreach ($dir in $Matches[1] -split ';') {
+              if ($dir -and $old -notcontains $dir) { [IO.File]::AppendAllText($env:GITHUB_PATH, "$dir`n") }
+            }
+          }
+        }
+        $cache = "$env:RUNNER_TEMP\vcpkg-cache"
+        New-Item -ItemType Directory -Force $cache | Out-Null
+        [IO.File]::AppendAllText($env:GITHUB_ENV, "VCPKG_DEFAULT_BINARY_CACHE=$cache`n")
+    # vcpkg's binary cache, so the libraries build again only when the manifest or the compiler
+    # changes.
+    - name: Cache the vcpkg libraries
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}\vcpkg-cache
+        key: windows-vcpkg-${{ hashFiles('trunk/vcpkg.json') }}
+        restore-keys: windows-vcpkg-
+    # The runner skips the FFmpeg-fit build while its stamp matches the fit source and options; when
+    # the options change, it builds again, so the MSYS2 tools are installed even on a cache hit.
+    - name: Cache FFmpeg-fit
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          trunk/objs/windows/ffmpeg
+          trunk/objs/windows/ffmpeg.stamp
+        key: windows-ffmpeg-${{ hashFiles('trunk/3rdparty/ffmpeg-4-fit/**') }}
+    - name: Install the MSYS2 tools for FFmpeg-fit
+      shell: pwsh
+      run: C:\msys64\usr\bin\bash.exe -lc 'pacman -Sy --noconfirm --needed make nasm pkgconf diffutils'
+    - name: Install GNU make
+      shell: bash
+      run: command -v make >/dev/null || choco install make --no-progress -y

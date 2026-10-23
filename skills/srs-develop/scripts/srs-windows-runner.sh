@@ -4,23 +4,31 @@
 #   RESULT windows-x64 <step> PASS|FAIL|SKIP <detail> (<seconds>s)
 # then RESULT windows-x64 all with the overall result.
 #
-#   srs-windows-runner.sh <step> [pattern]
+#   srs-windows-runner.sh [--alone] <step> [pattern]
 #
 # Run it from the root of the SRS checkout, in Git Bash with the MSVC x64 environment loaded. From
 # macOS or Linux, windows-host-run.sh does both on the host:
 #   windows-host-run.sh [--wip] ~/projects/srs-windows srs-windows-runner.sh <step> [pattern]
 #
-# The steps, in order; each step runs the steps before it, and stops at the first failure:
+# The steps, in order; each step runs the steps before it, and stops at the first failure. With
+# --alone, only the given step runs, for a caller that ran the steps before it, such as the Full tier:
 #   deps    builds ST and the third-party libraries and runs a link check per library
 #   build   builds srs.exe, counts the files of each module that compiled, and starts srs.exe once
 #           to check it answers on RTMP, HTTP and the API, at the ports from SRS_TEST_PORT_BASE
 #   utest   builds and runs srs_utest.exe
 #   integ   runs cmd/integ against srs.exe; the optional pattern goes to go test -run, such as
 #           'TestRtmp_|TestHttpFlv_'
-#   obs     runs the OBS cases against srs.exe
-#   full    runs the Full tier on the host
-# A step that is not built yet prints SKIP not yet and counts as passed. FFmpeg builds under the
-# MSYS2 in SRS_MSYS2_ROOT, by default /c/msys64.
+#   obs     runs the OBS cases against srs.exe, with OBS on the host
+#   full    runs the Full tier on the host, which runs the steps before it itself, so they do not
+#           run first
+#   package builds srs.exe for a release, without the test options, and zips it as
+#           SRS-Windows-x86_64-<version>.zip; only deps and build run before it, and the optional
+#           version names the zip, by default the one srs.exe prints
+#   vs      generates the Visual Studio projects in trunk/objs/windows-vs, and the solution
+#           .vs/srs.slnx that opens them, to build, run and debug srs.exe and srs_utest.exe in the
+#           IDE; only deps runs before it
+# A step that is not built yet, or obs when no case ran, prints SKIP and counts as passed. FFmpeg
+# builds under the MSYS2 in SRS_MSYS2_ROOT, by default /c/msys64.
 #
 # It runs only on native Windows, where uname -s is MINGW64* or MSYS* in Git Bash; anywhere else,
 # WSL included, it refuses to start.
@@ -29,7 +37,7 @@
 # this is not native Windows, and 3 for bad arguments or when not run in an SRS checkout.
 
 usage() {
-  echo "Usage: $0 deps|build|utest|integ [pattern]|obs|full"
+  echo "Usage: $0 [--alone] deps|build|utest|integ [pattern]|obs|full|package [version]|vs"
   exit 3
 }
 
@@ -73,13 +81,28 @@ case $OS in
 esac
 
 STEPS="deps build utest integ obs full"
+ALONE=
+if [[ $1 == --alone ]]; then
+  ALONE=1
+  shift
+fi
 TARGET=$1
 PATTERN=
+VERSION=
 case $TARGET in
   integ) [[ $# -le 2 ]] || usage; PATTERN=$2 ;;
-  deps|build|utest|obs|full) [[ $# == 1 ]] || usage ;;
+  package) [[ $# -le 2 ]] || usage; VERSION=$2 ;;
+  deps|build|utest|obs|full|vs) [[ $# == 1 ]] || usage ;;
   *) usage ;;
 esac
+[[ -z $ALONE && $TARGET != full ]] || STEPS=$TARGET
+[[ -n $ALONE || $TARGET != package ]] || STEPS="deps build package"
+[[ -n $ALONE || $TARGET != vs ]] || STEPS="deps vs"
+
+# The tests build srs.exe and srs_utest.exe in one tree, with the options of the Unix dev and CI
+# builds, so a step never flips the auto header. A release has no utest and no RTC simulator.
+CMAKE_OPTIONS="-DSRS_UTEST=ON -DSRS_SIMULATOR=ON -DSRS_GB28181=ON -DSRS_RTSP=ON"
+[[ $TARGET != package ]] || CMAKE_OPTIONS="-DSRS_UTEST=OFF -DSRS_SIMULATOR=OFF -DSRS_GB28181=ON -DSRS_RTSP=ON"
 
 if [[ ! -f trunk/src/core/srs_core.hpp ]]; then
   echo "SETUP_FAIL: $(pwd) is not an SRS checkout; run it from the checkout root"
@@ -92,7 +115,7 @@ fi
 step_deps() {
   mkdir -p trunk/objs/windows
   build_st || return 1
-  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DSRS_UTEST=ON -DSRS_SIMULATOR=ON -DSRS_GB28181=ON -DSRS_RTSP=ON > trunk/objs/windows-deps.log 2>&1; then
+  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows -G Ninja $CMAKE_OPTIONS > trunk/objs/windows-deps.log 2>&1; then
     tail -n 40 trunk/objs/windows-deps.log
     echo "See trunk/objs/windows-deps.log"
     return 1
@@ -342,8 +365,116 @@ step_integ() {
   return 1
 }
 
-step_obs() { NOT_YET="not yet"; }
-step_full() { NOT_YET="not yet"; }
+# The OBS cases run through obs-windows-test.sh against the srs.exe the build step made, each with its
+# own OBS and srs.exe. The output goes to trunk/objs/windows-obs.log; the result lines are shown. When
+# no case ran, such as on a host without OBS, the step is a skip, not a pass.
+step_obs() {
+  local ok=0
+  bash skills/srs-develop/scripts/obs-windows-test.sh --host-cases > trunk/objs/windows-obs.log 2>&1 && ok=1
+  grep -E '^(PASS|KNOWN|FAIL|SKIP|LANE) ' trunk/objs/windows-obs.log
+  if [[ $ok != 1 ]]; then
+    echo "See trunk/objs/windows-obs.log"
+    return 1
+  fi
+  grep -q '^PASS ' trunk/objs/windows-obs.log ||
+    NOT_YET="no OBS case ran: $(sed -n 's/^SKIP //p' trunk/objs/windows-obs.log | head -n 1)"
+}
+step_full() {
+  bash skills/srs-develop/scripts/srs-full-tier.sh
+}
+
+# The package step stages srs.exe with the files make install takes on Unix, the config files with
+# the certificate and the http root pages, in trunk/objs/windows/package, and zips it there with the
+# tar of Windows, which writes a zip for a .zip name. srs.exe must be the release build, need no DLL
+# that Windows lacks, since the zip has none, and check conf/console.conf from the staged directory.
+step_package() {
+  local version=$VERSION name dir=trunk/objs/windows/package system dlls dll missing= output
+  if ! grep -qE '^SRS_UTEST:[A-Z]+=OFF$' trunk/objs/windows/CMakeCache.txt 2>/dev/null ||
+     ! grep -qE '^SRS_SIMULATOR:[A-Z]+=OFF$' trunk/objs/windows/CMakeCache.txt; then
+    echo "PACKAGE build FAIL: srs.exe is not a release build, SRS_UTEST or SRS_SIMULATOR is not OFF; run package without --alone"
+    return 1
+  fi
+  [[ -n $version ]] || version=$(trunk/objs/windows/srs.exe -v 2>&1 | tr -d '\r')
+  if [[ ! $version =~ ^[0-9][0-9A-Za-z.-]*$ ]]; then
+    echo "PACKAGE version FAIL: $version"
+    return 1
+  fi
+  name=SRS-Windows-x86_64-$version
+  rm -rf trunk/objs/windows/package
+  mkdir -p $dir/$name/objs/nginx/html $dir/$name/conf &&
+    cp trunk/objs/windows/srs.exe $dir/$name/objs/ &&
+    cp trunk/conf/*.conf trunk/conf/server.key trunk/conf/server.crt $dir/$name/conf/ &&
+    cp trunk/research/index.html trunk/research/favicon.ico $dir/$name/objs/nginx/html/ &&
+    cp -R trunk/research/players trunk/research/console trunk/3rdparty/signaling/www/demos $dir/$name/objs/nginx/html/ ||
+    return 1
+
+  system=$(cygpath -u "${SYSTEMROOT:-C:\\Windows}")/System32
+  dlls=$(cd $dir && dumpbin -nologo -dependents $name/objs/srs.exe | tr -d '\r' | sed -n 's/^ *\([^ ]*\.[dD][lL][lL]\)$/\1/p')
+  for dll in $dlls; do
+    [[ -f $system/$dll ]] || missing="$missing $dll"
+  done
+  if [[ -z $dlls || -n $missing ]]; then
+    echo "PACKAGE dlls FAIL:${missing:- none listed by dumpbin}; the zip has no DLL, so srs.exe may need only those of Windows"
+    return 1
+  fi
+  echo "PACKAGE dlls PASS: $(echo $dlls)"
+
+  if ! output=$(cd $dir/$name && ./objs/srs.exe -t -c conf/console.conf 2>&1); then
+    echo "PACKAGE config FAIL: conf/console.conf"
+    echo "$output" | tail -n 5
+    return 1
+  fi
+  echo "PACKAGE config PASS: conf/console.conf"
+
+  if ! (cd $dir && "$system/tar.exe" -a -c -f $name.zip $name) > trunk/objs/windows-package.log 2>&1; then
+    tail -n 20 trunk/objs/windows-package.log
+    echo "See trunk/objs/windows-package.log"
+    return 1
+  fi
+  echo "PACKAGE $dir/$name.zip"
+}
+
+# The vs step configures the CMake build again in trunk/objs/windows-vs with the generator CMake picks
+# by default, the newest Visual Studio, and the options of the tests. The solution configures it again
+# by itself when a CMake file changes, and builds Debug by default, with ST and FFmpeg from deps.
+#
+# The projects hold the paths of this machine, so they stay in trunk/objs. The committed .vs/srs.slnx
+# is the generated .slnx with the project paths made relative to .vs, in the form Visual Studio saves
+# it in, so opening it in Visual Studio leaves it unchanged: no XML declaration, no project type, the
+# id after the other attributes, a space before />, and one Build line for a project no
+# configuration builds. The ids come from the target names, see trunk/cmake/windows/CMakeLists.txt,
+# so the file is the same on every machine. The step writes it, and git shows a change to commit when
+# the targets change.
+VS_SOLUTION=.vs/srs.slnx
+step_vs() {
+  local sln solution
+  if ! cmake -S trunk/cmake/windows -B trunk/objs/windows-vs -A x64 $CMAKE_OPTIONS > trunk/objs/windows-vs.log 2>&1; then
+    tail -n 40 trunk/objs/windows-vs.log
+    echo "See trunk/objs/windows-vs.log"
+    return 1
+  fi
+  sln=$(ls trunk/objs/windows-vs/srs.sln* 2>/dev/null | head -n 1)
+  if [[ -z $sln ]]; then
+    echo "VS solution FAIL: no trunk/objs/windows-vs/srs.sln; see trunk/objs/windows-vs.log"
+    return 1
+  fi
+  echo "VS $(sed -n 's/^CMAKE_GENERATOR:INTERNAL=//p' trunk/objs/windows-vs/CMakeCache.txt): $(cygpath -w "$PWD/$sln")"
+  if [[ $sln != *.slnx ]]; then
+    echo "VS $VS_SOLUTION not written: the solution is not an .slnx, which Visual Studio 2022 17.13 or later makes; open $sln"
+    return 0
+  fi
+  solution=$(tr -d '\r' < "$sln" | sed -E -e 's/^<\?xml .*\?>$//' -e 's/ Type="[^"]*"//' \
+    -e 's/( Id="[^"]*")( DefaultStartup="true")/\2\1/' \
+    -e 's#(<Project Path|<BuildDependency Project)="#\1="../trunk/objs/windows-vs/#g' \
+    -e 's#"/>#" />#g' -e 's#<Build Solution="[^"]*" Project="false" />#<Build Project="false" />#' | uniq)
+  mkdir -p "$(dirname $VS_SOLUTION)"
+  if [[ -f $VS_SOLUTION && $(cat $VS_SOLUTION) == "$solution" ]]; then
+    echo "VS $VS_SOLUTION is up to date: $(cygpath -w "$PWD/$VS_SOLUTION")"
+    return 0
+  fi
+  echo "$solution" > $VS_SOLUTION
+  echo "VS $VS_SOLUTION written, commit it if git shows a change: $(cygpath -w "$PWD/$VS_SOLUTION")"
+}
 
 START=$(date +%s)
 for s in $STEPS; do

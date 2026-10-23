@@ -153,6 +153,12 @@ bash skills/srs-develop/scripts/srs-utest-run.sh 'SuiteName.*'
 
 Reconfiguring overwrites the existing build configuration. Ask the maintainer for the flags they want — notably `--sanitizer=on` and `--rtsp=on` — before re-running configure on their working tree.
 
+The same tests build as `srs_utest.exe` on Windows, so a test must not assume a Unix host:
+
+- Put temporary files in `srs_utest_tmp_dir()`, not `/tmp`, and use `SRS_UTEST_NULL_FILE` for `/dev/null`.
+- Guard a test that cannot run on Windows as `references/cpp-code-style.md` Platform Calls says.
+- When the change reaches Windows, run it there as `references/develop-code.md` C++ Step 4 says.
+
 ## Go
 
 The Go proxy gets this for free: depend on interfaces and let counterfeiter generate the fakes. After changing or adding an interface carrying a `//go:generate go tool counterfeiter ...` directive, regenerate with `make generate`. Oryx has no generated fakes. The test-first contract above applies unchanged to both.

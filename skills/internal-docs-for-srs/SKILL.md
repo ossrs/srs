@@ -43,6 +43,7 @@ For C++ media server user documentation, select the smallest relevant document:
 - `references/cpp-docs/doc/getting-started.md` — Docker quick start, RTMP publishing, HTTP-FLV/HLS playback, WebRTC, HTTPS, SRT, and stream URL patterns.
 - `references/cpp-docs/doc/getting-started-ai.md` — SRS Robot, local AI agents, the skills system, and the project knowledge-base philosophy.
 - `references/cpp-docs/doc/getting-started-build.md` — Build SRS from source and cross-build for ARM or MIPS.
+- `references/cpp-docs/doc/windows.md` — Native Windows x64: release zip, MSVC build, console control and the RAW API, features, test skip list, and limits.
 - `references/cpp-docs/doc/getting-started-cdk.md` — Deploy SRS on AWS with srs-cdk.
 - `references/cpp-docs/doc/rtmp.md` — RTMP usage, Enhanced RTMP, configuration, RTMPS, protocol comparisons, and codec history.
 - `references/cpp-docs/doc/hls.md` — HLS compatibility, latency, segment configuration, HTTPS, and audio transcoding from WebRTC.

@@ -5121,12 +5121,9 @@ VOID TEST(KernelCodecTest, VideoFormatHevcInvalidLengthSizeMinusOne)
         ASSERT_TRUE(f.vcodec() != NULL);
         EXPECT_EQ(0, f.vcodec()->NAL_unit_length_);
 
-        // The decoder configuration record must not keep the rejected value either. Only
-        // "not 2" can be asserted here: SrsHevcDecoderConfigurationRecord has no
-        // constructor and SrsVideoCodecConfig does not initialize hevc_dec_conf_record_,
-        // so this field is indeterminate until an hvcC parses. See the AfterValid test
-        // below for the deterministic case.
-        EXPECT_NE(2, f.vcodec()->hevc_dec_conf_record_.length_size_minus_one_);
+        // The decoder configuration record must not keep the rejected value either: it
+        // stays at the zero SrsHevcDecoderConfigurationRecord starts with.
+        EXPECT_EQ(0, f.vcodec()->hevc_dec_conf_record_.length_size_minus_one_);
 
         // As in the AVC case, the rejected sequence header leaves the codec looking
         // initialized, so the frame below is not dropped by video_nalu_demux.

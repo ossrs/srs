@@ -126,3 +126,23 @@ set_target_properties(${SRS_TARGETS} PROPERTIES
   CXX_STANDARD_REQUIRED ON
   CXX_EXTENSIONS OFF
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+# The Visual Studio solution, which srs-windows-runner.sh vs generates: F5 starts srs.exe, and both
+# programs run in trunk, where the paths of the config files lead.
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT srs)
+set_target_properties(srs PROPERTIES
+  VS_DEBUGGER_WORKING_DIRECTORY "${SRS_TRUNK_DIR}"
+  VS_DEBUGGER_COMMAND_ARGUMENTS "-c conf/console.conf")
+if(SRS_UTEST)
+  set_target_properties(srs_utest PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${SRS_TRUNK_DIR}")
+endif()
+# The project ids come from the target names, not from the build directory as CMake makes them by
+# default, so .vs/srs.slnx, where Visual Studio writes them, is the same on every machine.
+if(CMAKE_GENERATOR MATCHES "^Visual Studio")
+  get_property(targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+  get_property(checks DIRECTORY deps-check PROPERTY BUILDSYSTEM_TARGETS)
+  foreach(target ALL_BUILD ZERO_CHECK ${targets} ${checks})
+    string(UUID guid NAMESPACE 6ba7b811-9dad-11d1-80b4-00c04fd430c8 NAME "ossrs/srs/${target}" TYPE MD5)
+    set(${target}_GUID_CMAKE "${guid}" CACHE INTERNAL "")
+  endforeach()
+endif()

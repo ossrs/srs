@@ -1256,6 +1256,8 @@ pid_t srs_process_spawn(const char *bin, const char *const argv[], const char *s
         return pid;
     }
 
+    // The child quits with _exit, after flushing what exit flushed, so it runs no exit handler of the parent's
+    // libraries: libsrt's waits for its worker threads, which the child does not have, and hung forever.
     ::signal(SIGINT, SIG_IGN);
     ::signal(SIGTERM, SIG_IGN);
 
@@ -1263,19 +1265,22 @@ pid_t srs_process_spawn(const char *bin, const char *const argv[], const char *s
     if (srs_redirect_output(stdout_file, STDOUT_FILENO) < 0 || srs_redirect_output(stderr_file, STDERR_FILENO) < 0 ||
         srs_redirect_output("/dev/null", STDIN_FILENO) < 0) {
         fprintf(stdout, "child process error, redirect io failed, errno=%d(%s)\n", errno, strerror(errno));
-        ::exit(-1);
+        fflush(stdout);
+        ::_exit(-1);
     }
 
     fprintf(stdout, "\n");
     fprintf(stdout, "process ppid=%d, cid=%s, pid=%d, in=%d, out=%d, err=%d\n",
             ppid, cid, ::getpid(), STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
     fprintf(stdout, "%s", info);
+    // The stdout file is fully buffered, and execv drops the buffer.
+    fflush(stdout);
 
     int r0 = ::execv(bin, (char *const *)argv);
     if (r0 < 0) {
         fprintf(stderr, "fork process failed, errno=%d(%s)", errno, strerror(errno));
     }
-    ::exit(r0);
+    ::_exit(r0);
 }
 
 int srs_self_pipe_open(int fds[2])

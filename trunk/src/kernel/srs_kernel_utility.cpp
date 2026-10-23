@@ -59,6 +59,9 @@ srs_utime_t srs_time_since_startup()
 srs_gettimeofday_t _srs_gettimeofday = srs_gettimeofday;
 #endif
 
+// For utest to mock it.
+srs_mkdir_t _srs_mkdir_fn = srs_mkdir;
+
 srs_utime_t srs_time_now_realtime()
 {
     timeval now;
@@ -401,9 +404,9 @@ int srs_do_create_dir_recursively(string dir)
         return ERROR_SYSTEM_DIR_EXISTS;
     }
 
-    // create parent first.
+    // create parent first. The parent of a dir under the root, such as /a, is empty, which is the root.
     size_t pos;
-    if ((pos = dir.rfind("/")) != std::string::npos) {
+    if ((pos = dir.rfind("/")) != std::string::npos && pos > 0) {
         std::string parent = dir.substr(0, pos);
         ret = srs_do_create_dir_recursively(parent);
         // return for error.
@@ -416,7 +419,7 @@ int srs_do_create_dir_recursively(string dir)
 
     // LCOV_EXCL_START
     // create curren dir.
-    if (srs_mkdir(dir.c_str()) < 0) {
+    if (_srs_mkdir_fn(dir.c_str()) < 0) {
         if (errno == EEXIST) {
             return ERROR_SYSTEM_DIR_EXISTS;
         }

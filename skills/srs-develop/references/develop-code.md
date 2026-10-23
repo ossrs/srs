@@ -166,6 +166,8 @@ Accept new features, bug fixes, security fixes, compatibility fixes, tests, and 
 
 1. Identify the verified root cause and implement the smallest compatible fix.
 2. Preserve C++98 compatibility and the existing coroutine, resource-ownership, protocol, configuration, and error-handling conventions. Follow `references/cpp-code-style.md`.
+   - The same code also builds on Windows with MSVC as C++14: call OS functions through the shims in its Platform Calls section.
+   - A new source file gets its line in `trunk/auto/module_files.txt`, which `./configure` and the Windows CMake build both read.
 3. Add focused regression coverage following `references/testable-code.md`: write the test first, run it, and confirm it fails before implementing the fix. When the code under test is not mockable, refactor it for testability first; that refactor is behavior-preserving and is accepted in maintenance mode.
 4. Update user documentation only when the behavior or maintenance result changes what operators need to know.
 
@@ -177,6 +179,15 @@ Accept new features, bug fixes, security fixes, compatibility fixes, tests, and 
 4. For external-SIP GB28181 session cleanup, run the focused regression for the affected terminal event. Use `scripts/gb28181-tcp-disconnect-test.sh` when a bound RTP/PS-over-TCP publisher disconnects, and `scripts/gb28181-api-timeout-test.sh` when an API-created session never receives a TCP connection. Each script builds and starts a disposable SRS with `--gb28181=on` and no embedded SIP server, then requires the same ID and SSRC to become publishable again.
 5. Run sanitizer verification when the fix changes coroutine interruption, sockets, resource ownership, shared pointers, or object destruction.
 6. Report every test result and any unverified platform or configuration scope. Do not push or stage files.
+
+### Step 4: Verify on Windows
+
+When the change reaches the native Windows build, such as `trunk/src`, `trunk/cmake/windows`, `trunk/vcpkg.json` or `cmd/integ`, test it on the Windows test host with `srs-windows-runner.sh <step>`, as the Feature-Specific Tests in `references/integration-tests.md` describe:
+
+1. Before the commit, try the working tree there as often as needed: `bash skills/srs-develop/scripts/windows-host-run.sh --wip <checkout> srs-windows-runner.sh <step>`. `--wip` snapshots the working tree, new files included, into a commit on no branch, pushes it to `<branch>-wip` on the branch's upstream, and runs it in the host's scratch worktree; the branch, the index and the files are left alone.
+2. After the commit, by the user or by a task that may commit, run it once without `--wip`. It pushes the commit to the branch's upstream when it is not there yet, never to `origin`, as in Step 5 of State Threads, and fast-forwards the host checkout. Report this run.
+3. Pick the step the change needs: `build` for code in `srs.exe`, `utest`, or `integ '<pattern>'` with the `go test -run` pattern of the touched features; `full` runs every Windows layer. Each step runs the steps before it.
+4. It runs only when `SRS_TEST_WINDOWS_HOST` is set; `srs-windows-env-check.sh` checks the host's tools. When it skips, report Windows as not tested with its reason. Add its `RESULT windows-x64` lines to the per-OS report. A failure goes back to Step 2.
 
 ## State Threads
 

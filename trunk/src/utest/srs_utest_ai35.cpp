@@ -472,6 +472,66 @@ VOID TEST(PlatformTest, MkdirCreatesTheDirOnce)
     ::rmdir(path.c_str());
 }
 
+VOID TEST(PlatformTest, MkdirHookDefaultsToTheShim)
+{
+    extern srs_mkdir_t _srs_mkdir_fn;
+    EXPECT_TRUE(_srs_mkdir_fn == srs_mkdir);
+}
+
+// Records each mkdir and creates nothing; like the system, an empty path fails with ENOENT.
+static vector<string> platform_mkdir_calls;
+static int platform_mock_mkdir(const char *path)
+{
+    platform_mkdir_calls.push_back(path);
+    if (!*path) {
+        errno = ENOENT;
+        return -1;
+    }
+    return 0;
+}
+
+class PlatformMkdirHook
+{
+public:
+    srs_mkdir_t old_;
+
+public:
+    PlatformMkdirHook()
+    {
+        extern srs_mkdir_t _srs_mkdir_fn;
+        old_ = _srs_mkdir_fn;
+        _srs_mkdir_fn = platform_mock_mkdir;
+        platform_mkdir_calls.clear();
+    }
+    ~PlatformMkdirHook()
+    {
+        extern srs_mkdir_t _srs_mkdir_fn;
+        _srs_mkdir_fn = old_;
+    }
+};
+
+VOID TEST(PlatformTest, MkdirAllCreatesAMissingDirUnderTheRoot)
+{
+    srs_error_t err;
+    string top = "/srs-utest-mkdir-missing";
+    ASSERT_FALSE(SrsPath().exists(top));
+
+    PlatformMkdirHook hook;
+    HELPER_EXPECT_SUCCESS(SrsPath().mkdir_all(top + "/a"));
+
+    ASSERT_EQ(2, (int)platform_mkdir_calls.size());
+    EXPECT_EQ(top, platform_mkdir_calls[0]);
+    EXPECT_EQ(top + "/a", platform_mkdir_calls[1]);
+}
+
+VOID TEST(PlatformTest, MkdirAllOfAnEmptyPathFails)
+{
+    srs_error_t err;
+
+    PlatformMkdirHook hook;
+    HELPER_EXPECT_FAILED(SrsPath().mkdir_all(""));
+}
+
 VOID TEST(PlatformTest, RenameReplacesTheTarget)
 {
     string from = platform_tmp_file("rename-from");
@@ -1149,6 +1209,21 @@ VOID TEST(PlatformTest, ProcessSpawnRedirectsTheOutput)
     ::unlink(err.c_str());
 }
 
+VOID TEST(PlatformTest, ProcessSpawnWritesTheBannerFirst)
+{
+    string out = platform_tmp_file("spawn-banner");
+    ::unlink(out.c_str());
+
+    EXPECT_EQ(0, platform_spawn_sh("echo out", vector<string>(), out, ""));
+
+    string got = platform_read_file(out);
+    string head = "\nprocess ppid=" + srs_strconv_format_int(::getpid()) + ", cid=cid, pid=";
+    EXPECT_TRUE(srs_strings_starts_with(got, head)) << got;
+    EXPECT_TRUE(srs_strings_ends_with(got, ", in=0, out=1, err=2\ninfo\nout\n")) << got;
+
+    ::unlink(out.c_str());
+}
+
 VOID TEST(PlatformTest, ProcessSpawnPassesTheArgsAsIs)
 {
     string out = platform_tmp_file("spawn-args");
@@ -1242,6 +1317,88 @@ VOID TEST(PlatformTest, ProcessKillEndsAChildThatIgnoresTerm)
 
     EXPECT_EQ(0, srs_kill(pid, SIGKILL));
     EXPECT_EQ(pid, srs_waitpid(pid, &status, 0));
+}
+
+// A libsrt socket starts libsrt's worker threads, which a forked child does not have. The child then hung in
+// libsrt's exit handler when it quit with exit(), so SRS took the failed ffmpeg for a running one.
+static srs_error_t platform_start_srt()
+{
+    srs_error_t err = srs_success;
+
+    srs_srt_t fd = srs_srt_socket_invalid();
+    if ((err = srs_srt_socket(&fd)) != srs_success) {
+        return srs_error_wrap(err, "srt socket");
+    }
+    return srs_srt_close(fd);
+}
+
+// Wait up to 3 seconds for the child to quit, and return its exit code. A child that does not quit is killed,
+// and -1 returned.
+static int platform_wait_quit(pid_t pid)
+{
+    int status = -1;
+    for (int i = 0; i < 300; i++) {
+        pid_t r0 = srs_waitpid(pid, &status, WNOHANG);
+        if (r0 == pid) {
+            return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+        }
+        if (r0 < 0) {
+            return -1;
+        }
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+
+    srs_kill(pid, SIGKILL);
+    srs_waitpid(pid, &status, 0);
+    return -1;
+}
+
+VOID TEST(PlatformTest, ProcessSpawnQuitsWhenTheRedirectFailsWithSrtStarted)
+{
+    srs_error_t err;
+    HELPER_ASSERT_SUCCESS(platform_start_srt());
+
+    string out = platform_tmp_file("spawn-redirect-fails");
+    string missing = platform_tmp_file("no-such-dir") + "/err.log";
+    ::unlink(out.c_str());
+
+    vector<const char *> argv;
+    argv.push_back("/bin/sh");
+    argv.push_back("-c");
+    argv.push_back("exit 0");
+    argv.push_back(NULL);
+
+    pid_t pid = srs_process_spawn("/bin/sh", &argv[0], out.c_str(), missing.c_str(), "cid", "");
+    ASSERT_GT(pid, 0);
+
+    EXPECT_EQ(255, platform_wait_quit(pid));
+    string got = platform_read_file(out);
+    EXPECT_TRUE(got.find("redirect io failed") != string::npos) << got;
+
+    ::unlink(out.c_str());
+}
+
+VOID TEST(PlatformTest, ProcessSpawnQuitsWhenTheExecFailsWithSrtStarted)
+{
+    srs_error_t err;
+    HELPER_ASSERT_SUCCESS(platform_start_srt());
+
+    string errf = platform_tmp_file("spawn-exec-fails");
+    string bin = platform_tmp_file("no-such-binary");
+    ::unlink(errf.c_str());
+
+    vector<const char *> argv;
+    argv.push_back(bin.c_str());
+    argv.push_back(NULL);
+
+    pid_t pid = srs_process_spawn(bin.c_str(), &argv[0], "/dev/null", errf.c_str(), "cid", "");
+    ASSERT_GT(pid, 0);
+
+    EXPECT_EQ(255, platform_wait_quit(pid));
+    string got = platform_read_file(errf);
+    EXPECT_TRUE(got.find("fork process failed") != string::npos) << got;
+
+    ::unlink(errf.c_str());
 }
 
 // Wait up to a second for the process to quit, which cycle sees.

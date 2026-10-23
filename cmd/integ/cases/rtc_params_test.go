@@ -183,16 +183,18 @@ func rtcErrors(t *testing.T) {
 
 // TestRtc_StartFails publishes by WHIP a stream that can't start: with
 // rtc_to_rtmp, the RTMP stream SRS converts it to records a DVR file under
-// /dev/null, which no directory can be made in, so the publish fails once
-// DTLS is done. SRS ends the session then, rather than keep a connected peer
-// that never publishes until the session times out.
+// console.log, the regular file of SRS's output in the server's dir, which no
+// directory can be made in on any OS, so the publish fails once DTLS is done.
+// SRS ends the session then, rather than keep a connected peer that never
+// publishes until the session times out. Not /dev/null: on Windows that is a
+// path on the drive, where SRS makes the dirs and the publish starts.
 func TestRtc_StartFails(t *testing.T) {
 	t.Parallel()
 	cfg := server.WithRTC(server.Config{
 		Listeners: []server.Listener{server.HTTPAPI, server.RTCUDP},
 		Hooks:     true,
 	}, server.RTC{RTCToRTMP: true})
-	srs := server.Group(t, server.WithDVR(cfg, server.DVR{Path: "/dev/null/[app]/[stream].flv"}))
+	srs := server.Group(t, server.WithDVR(cfg, server.DVR{Path: "console.log/[app]/[stream].flv"}))
 
 	// PublishEnds: the publisher leaves the API with its on_unpublish, and
 	// the stream is free, so the next WHIP publish is 201, not 409.

@@ -9,6 +9,7 @@ permissions: read-all
 # The dependency graph:
 # test(10m)
 # integ(7m)
+# windows
 # multiple-arch-armv7(13m)
 # multiple-arch-aarch64(7m)
 # fast(0s) - To limit all fastly run jobs after slow jobs.
@@ -203,6 +204,25 @@ jobs:
               make integ-timer INTEG_ARGS=-integ.limit-scale=4
     runs-on: ubuntu-22.04
 
+  # The native Windows x64 build with MSVC, and its utest, through srs-windows-runner.sh as on the
+  # Windows test host. The image has the same Visual Studio 2022 as that host, with its vcpkg, and
+  # MSYS2, which builds FFmpeg-fit.
+  windows:
+    name: windows-utest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The MSVC environment, the vcpkg and FFmpeg-fit caches, and the tools the runner needs, shared
+      # with the windows job of the release workflow.
+      - name: Setup the Windows build
+        uses: ./.github/actions/windows-build-setup
+      - name: Build and run SRS utest
+        shell: bash
+        timeout-minutes: 60
+        run: bash skills/srs-develop/scripts/srs-windows-runner.sh utest
+    runs-on: windows-2025
+    timeout-minutes: 90
+
   coverage:
     name: coverage
     steps:
@@ -304,6 +324,7 @@ jobs:
       - coverage
       - test
       - integ
+      - windows
       - build-centos7
       - build-ubuntu16
       - build-ubuntu18

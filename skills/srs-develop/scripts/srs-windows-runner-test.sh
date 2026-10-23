@@ -10,7 +10,8 @@
 # The steps run in a fake checkout, a git repository whose ffmpeg-4-fit configure is a fake, with a
 # fake MSYS2 bash and cygpath, so the FFmpeg build is checked for its options, its cache and failures.
 # A fake ST Makefile checks the ST build the same way, and the fake cmake's build makes fake link-check
-# programs, a fake srs.exe, whose start a fake curl and netstat check, and a fake srs_utest.exe.
+# programs, a fake srs.exe, whose start a fake curl and netstat check, and a fake srs_utest.exe. A
+# fake dumpbin and a fake Windows directory with tar.exe check the release package.
 #
 # Prints PASS or FAIL per check, then a summary. Exit 0 when every check passed, 1 otherwise.
 
@@ -35,8 +36,10 @@ echo "$STUB_UNAME"
 EOF
 chmod +x /tmp/srs-windows-runner-test/bin/uname
 
-# The fake cmake logs its arguments, one call per line. A configure writes the list of srs sources
-# and exits with STUB_CMAKE_EXIT. A --build of the srs target prints STUB_SRS_BUILD_OUTPUT and exits
+# The fake cmake logs its arguments, one call per line. A configure into trunk/objs/windows-vs writes a
+# CMakeCache.txt with the Visual Studio generator and, unless STUB_VS_NO_SLN, an srs.slnx with CRLF line
+# ends like CMake's, or srs.sln with STUB_VS_SLN, and exits with STUB_CMAKE_EXIT. Any other configure writes the list of srs sources,
+# a CMakeCache.txt with each -D option as a BOOL, and exits with STUB_CMAKE_EXIT. A --build of the srs target prints STUB_SRS_BUILD_OUTPUT and exits
 # with STUB_SRS_BUILD_EXIT; when that is 0, it copies the fake srs.exe below into trunk/objs/windows.
 # Any other --build exits with STUB_CMAKE_BUILD_EXIT and makes the six link-check programs, except the
 # one named STUB_CHECK_MISSING. Each one logs its name, prints two lines, and exits 1 when its name is
@@ -45,12 +48,35 @@ cat > /tmp/srs-windows-runner-test/bin/cmake <<'EOF'
 #!/bin/bash
 echo "$*" >> /tmp/srs-windows-runner-test/cmake.log
 echo "fake cmake output"
+if [[ $1 != --build && " $* " == *" -B trunk/objs/windows-vs "* ]]; then
+  mkdir -p trunk/objs/windows-vs
+  echo "CMAKE_GENERATOR:INTERNAL=Visual Studio 18 2026" > trunk/objs/windows-vs/CMakeCache.txt
+  if [[ -n $STUB_VS_SLN ]]; then
+    : > trunk/objs/windows-vs/srs.sln
+  elif [[ -z $STUB_VS_NO_SLN ]]; then
+    printf '%s\r\n' '<?xml version="1.0" encoding="UTF-8"?>' '<Solution>' \
+      '  <Project Path="ALL_BUILD.vcxproj" Type="8bc9" Id="f780">' \
+      '    <BuildDependency Project="ZERO_CHECK.vcxproj"/>' \
+      '    <BuildDependency Project="srs.vcxproj"/>' \
+      '    <Build Solution="Debug|*" Project="false"/>' \
+      '    <Build Solution="Release|*" Project="false"/>' \
+      '  </Project>' \
+      '  <Project Path="deps-check/deps-check-st.vcxproj" Type="8bc9" Id="268b"/>' \
+      '  <Project Path="srs.vcxproj" Type="8bc9" Id="f8a6" DefaultStartup="true"/>' \
+      '</Solution>' > trunk/objs/windows-vs/srs.slnx
+  fi
+  exit ${STUB_CMAKE_EXIT:-0}
+fi
 if [[ $1 != --build ]]; then
   mkdir -p trunk/objs/windows
   printf 'src/core/srs_a.cpp\nsrc/core/srs_b.cpp\nsrc/kernel/srs_c.cpp\nsrc/main/srs_main_server.cpp\n' \
     > trunk/objs/windows/srs-sources.txt
   printf 'src/utest/srs_utest.cpp\nsrc/utest/srs_utest_ai01.cpp\nsrc/utest/srs_utest_ai02.cpp\n' \
     > trunk/objs/windows/utest-sources.txt
+  : > trunk/objs/windows/CMakeCache.txt
+  for a in "$@"; do
+    [[ $a == -D*=* ]] && echo "${a#-D}" | sed 's/=/:BOOL=/' >> trunk/objs/windows/CMakeCache.txt
+  done
   exit ${STUB_CMAKE_EXIT:-0}
 fi
 if [[ " $* " == *" --target srs "* ]]; then
@@ -76,7 +102,8 @@ chmod +x /tmp/srs-windows-runner-test/bin/cmake
 
 # The fake srs.exe, which a passing build of the srs target copies into trunk/objs/windows. It logs
 # each call with its directory and the env it reads, one line per call. With -v it prints 8.0.64 and
-# exits with STUB_SRS_V_EXIT. With -t it refuses daemon, or passes with STUB_SRS_DAEMON_OK. With -e it
+# exits with STUB_SRS_V_EXIT. With -t it refuses daemon, or passes with STUB_SRS_DAEMON_OK, and
+# passes conf/console.conf, which sets daemon off, unless STUB_SRS_CONSOLE_FAIL. With -e it
 # exits at once with STUB_SRS_START_EXIT, or writes the ports it listens on to the listening file,
 # except the one named by STUB_SRS_CLOSED (rtmp, http or api), and runs until SIGTERM removes it.
 cat > /tmp/srs-windows-runner-test/srs.exe <<'EOF'
@@ -87,7 +114,9 @@ case $1 in
   -v) echo 8.0.64; exit ${STUB_SRS_V_EXIT:-0} ;;
   -t)
     echo "fake srs output"
-    if [[ -n $STUB_SRS_DAEMON_OK ]]; then echo "config file $3 test is successful"; exit 0; fi
+    if [[ -n $STUB_SRS_DAEMON_OK || ( $3 == conf/console.conf && -z $STUB_SRS_CONSOLE_FAIL ) ]]; then
+      echo "config file $3 test is successful"; exit 0
+    fi
     echo "invalid config code=1023(ConfigInvalid) : daemon is not supported on this OS, set daemon off or SRS_DAEMON=off in $3"
     exit 1
     ;;
@@ -221,6 +250,39 @@ echo "${@: -1}"
 EOF
 chmod +x /tmp/srs-windows-runner-test/bin/cygpath
 
+# The fake dumpbin lists the DLLs of an image as dumpbin /dependents does: two system DLLs, and
+# STUB_DLL too when set.
+cat > /tmp/srs-windows-runner-test/bin/dumpbin <<'EOF'
+#!/bin/bash
+echo "$*" >> /tmp/srs-windows-runner-test/dumpbin.log
+echo "Dump of file ${@: -1}"
+echo ""
+echo "  Image has the following dependencies:"
+echo ""
+echo "    WS2_32.dll"
+echo "    KERNEL32.dll"
+[[ -n $STUB_DLL ]] && echo "    $STUB_DLL"
+echo ""
+echo "  Summary"
+echo ""
+echo "        1000 .data"
+EOF
+chmod +x /tmp/srs-windows-runner-test/bin/dumpbin
+
+# The fake Windows directory has the two system DLLs, and a System32 tar.exe that logs its arguments
+# and directory and makes the zip with zip, as Windows' tar makes one with -a for a .zip name.
+mkdir -p /tmp/srs-windows-runner-test/windows/System32
+touch /tmp/srs-windows-runner-test/windows/System32/WS2_32.dll /tmp/srs-windows-runner-test/windows/System32/KERNEL32.dll
+cat > /tmp/srs-windows-runner-test/windows/System32/tar.exe <<'EOF'
+#!/bin/bash
+echo "$* DIR=$PWD" >> /tmp/srs-windows-runner-test/tar.log
+[[ -z $STUB_TAR_FAIL ]] || exit 1
+[[ $1 == -a && $2 == -c && $3 == -f ]] || exit 2
+exec zip -q -r "$4" "${@:5}"
+EOF
+chmod +x /tmp/srs-windows-runner-test/windows/System32/tar.exe
+export SYSTEMROOT=/tmp/srs-windows-runner-test/windows
+
 # The fake MSYS2 is a bash.exe that runs the local bash.
 mkdir -p /tmp/srs-windows-runner-test/msys64/usr/bin
 cat > /tmp/srs-windows-runner-test/msys64/usr/bin/bash.exe <<'EOF'
@@ -259,6 +321,47 @@ win64-debug:
 	mkdir -p WIN64_test_DBG && touch WIN64_test_DBG/libst.a && cp public.h WIN64_test_DBG/st.h
 	rm -f obj && ln -s WIN64_test_DBG obj
 EOF
+# Its OBS script logs its arguments and directory, prints a PASS and a LANE line and exits with
+# STUB_OBS_EXIT, or with STUB_OBS_SKIP only skips, as when the host has no OBS.
+mkdir -p $FAKE/skills/srs-develop/scripts
+cat > $FAKE/skills/srs-develop/scripts/obs-windows-test.sh <<'EOS'
+#!/bin/bash
+echo "$* DIR=$PWD" >> /tmp/srs-windows-runner-test/obs.log
+echo "fake obs output"
+if [[ -n $STUB_OBS_SKIP ]]; then
+  echo "SKIP OBS not available"
+  echo "LANE obs passed=0 skipped=3 known=0 failed=0 elapsed=1s"
+  exit 0
+fi
+echo "PASS API H264 AAC 640x360"
+echo "KNOWN F2 API frames 0"
+[[ ${STUB_OBS_EXIT:-0} == 0 ]] || echo "FAIL http-flv missing H264/aac playback"
+echo "LANE obs passed=3 skipped=0 known=1 failed=0 elapsed=20s"
+exit ${STUB_OBS_EXIT:-0}
+EOS
+# Its Full tier logs its arguments and directory, prints a lock line and a summary row, and exits with
+# STUB_FULL_EXIT.
+cat > $FAKE/skills/srs-develop/scripts/srs-full-tier.sh <<'EOS'
+#!/bin/bash
+echo "$* DIR=$PWD" >> /tmp/srs-windows-runner-test/full.log
+echo "lock: acquired after 0s"
+echo "windows-integ                        ${STUB_FULL_EXIT:-0}      2      0      9"
+exit ${STUB_FULL_EXIT:-0}
+EOS
+# The files the release package takes, as make install takes them on Unix: the config files with
+# the certificate, and the http root pages.
+mkdir -p $FAKE/trunk/conf $FAKE/trunk/research/players/js $FAKE/trunk/research/console \
+  $FAKE/trunk/3rdparty/signaling/www/demos
+echo "daemon off;" > $FAKE/trunk/conf/console.conf
+echo "daemon on;" > $FAKE/trunk/conf/srs.conf
+echo "key" > $FAKE/trunk/conf/server.key
+echo "crt" > $FAKE/trunk/conf/server.crt
+echo "notes" > $FAKE/trunk/conf/README.md
+echo "index" > $FAKE/trunk/research/index.html
+echo "icon" > $FAKE/trunk/research/favicon.ico
+echo "player" > $FAKE/trunk/research/players/js/srs.sdk.js
+echo "console" > $FAKE/trunk/research/console/index.html
+echo "demo" > $FAKE/trunk/3rdparty/signaling/www/demos/index.html
 git -C $FAKE init -q
 git -C $FAKE add -A
 git -C $FAKE -c user.name=test -c user.email=test@localhost commit -q -m init
@@ -270,7 +373,8 @@ run() {
     /tmp/srs-windows-runner-test/pkg-config-path.log /tmp/srs-windows-runner-test/st-make.log \
     /tmp/srs-windows-runner-test/checks.log /tmp/srs-windows-runner-test/srs.log /tmp/srs-windows-runner-test/curl.log \
     /tmp/srs-windows-runner-test/go.log /tmp/srs-windows-runner-test/integ-cli.log /tmp/srs-windows-runner-test/make.log \
-    /tmp/srs-windows-runner-test/utest.log /tmp/srs-windows-runner-test/timeout.log
+    /tmp/srs-windows-runner-test/utest.log /tmp/srs-windows-runner-test/timeout.log /tmp/srs-windows-runner-test/obs.log \
+    /tmp/srs-windows-runner-test/full.log /tmp/srs-windows-runner-test/dumpbin.log /tmp/srs-windows-runner-test/tar.log
   (cd $FAKE && PATH=/tmp/srs-windows-runner-test/bin:$PATH0 bash "$RUNNER" "$@") \
     > /tmp/srs-windows-runner-test/out 2>&1
   CODE=$?
@@ -291,6 +395,8 @@ run deps extra
 check "argument to deps: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: "'
 run integ 'TestRtmp_' extra
 check "two arguments to integ: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: "'
+run package 8.0.64 extra
+check "two arguments to package: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: .*package \[version\]"'
 
 # Native Windows only.
 STUB_UNAME=Darwin run deps
@@ -720,12 +826,147 @@ check "integ without a pattern: the main then the timer cases, as CI runs them" 
   '[[ $CODE == 0 ]] && [[ $(cat /tmp/srs-windows-runner-test/make.log 2>/dev/null | tr "\n" "|") == "integ-main INTEG_ARGS=-integ.limit-scale=4|integ-timer INTEG_ARGS=-integ.limit-scale=4|" ]] && out | grep -q "^srs-integ main: " && out | grep -q "^srs-integ timer: "'
 STUB_SRS_BUILD_EXIT=1 run integ 'TestRtmp_'
 check "integ: the build fails, no case runs" '[[ $CODE == 1 ]] && ! go_calls | grep -q .'
+# The obs step runs the OBS cases with obs-windows-test.sh against the srs.exe the build step made.
 run obs
-check "obs: runs the steps before it" '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest integ obs" ]]'
+check "obs: runs the steps before it, passes" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest integ obs" ]] && out | grep -q "^RESULT windows-x64 obs PASS"'
+check "obs: runs only the cases of obs-windows-test.sh, once, from the checkout root" \
+  '[[ $(cat /tmp/srs-windows-runner-test/obs.log 2>/dev/null) == "--host-cases DIR=$FAKE" ]]'
+check "obs: the PASS, KNOWN and LANE lines shown, the rest in the log" \
+  'out | grep -q "^PASS API H264 AAC 640x360$" && out | grep -q "^KNOWN F2 API frames 0$" && out | grep -q "^LANE obs passed=3 " && ! out | grep -q "fake obs output" && grep -q "fake obs output" $FAKE/trunk/objs/windows-obs.log'
+STUB_OBS_EXIT=1 run obs
+check "obs: a case fails, exit 1, the FAIL line and the log shown" \
+  '[[ $CODE == 1 ]] && out | grep -q "^RESULT windows-x64 obs FAIL" && out | grep -q "^FAIL http-flv missing" && out | grep -q "windows-obs.log"'
+STUB_OBS_SKIP=1 run obs
+check "obs: no case ran, such as without OBS, a skip with the reason" \
+  '[[ $CODE == 0 ]] && out | grep -q "^RESULT windows-x64 obs SKIP no OBS case ran: OBS not available" && out | grep -q "^SKIP OBS not available$"'
+STUB_UTEST_FAIL=1 run obs
+check "obs: utest fails, no case runs" '[[ $CODE == 1 ]] && [[ ! -s /tmp/srs-windows-runner-test/obs.log ]]'
+# --alone runs one step without the steps before it, for a caller that ran them, such as the Full
+# tier's lane W.
+rm -rf /tmp/srs-windows-runner-test/checkout/trunk/objs
+run build
+run --alone utest
+check "--alone utest: only utest runs, passes" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == utest ]] && out | grep -q "^RESULT windows-x64 utest PASS" && out | tail -1 | grep -q "^RESULT windows-x64 all PASS through utest"'
+check "--alone utest: no deps, no srs.exe build or start" \
+  '! st_built && ! grep -q -e "^-S " -e "--target srs " -e "--target srs-deps-check" /tmp/srs-windows-runner-test/cmake.log && [[ ! -s /tmp/srs-windows-runner-test/srs.log ]] && [[ -s /tmp/srs-windows-runner-test/utest.log ]]'
+run --alone integ 'TestRtmp_'
+check "--alone integ: only integ runs, with the pattern" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == integ ]] && [[ ! -s /tmp/srs-windows-runner-test/utest.log ]] && go_calls | grep -q " -run TestRtmp_ "'
+STUB_GO_TEST_EXIT=1 run --alone integ 'TestRtmp_'
+check "--alone integ: a case fails, exit 1" '[[ $CODE == 1 ]] && out | grep -q "^RESULT windows-x64 integ FAIL"'
+run --alone
+check "--alone without a step: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: "'
+run --alone utest extra
+check "--alone, argument to utest: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: "'
+
+# The full step runs the Full tier from the checkout root, which runs the build, utest, integ and OBS
+# steps itself, so the runner does not run them first.
 run full
-check "full: runs every step" '[[ $CODE == 0 ]] && [[ $(steps) == "deps build utest integ obs full" ]]'
-check "full: a summary line" 'out | tail -1 | grep -q "^RESULT windows-x64 all PASS"'
+check "full: only the Full tier runs, once, from the checkout root, passes" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == full ]] && [[ $(cat /tmp/srs-windows-runner-test/full.log 2>/dev/null) == " DIR=$FAKE" ]] && out | grep -q "^RESULT windows-x64 full PASS"'
+check "full: no step before it" '! st_built && [[ ! -s /tmp/srs-windows-runner-test/cmake.log ]] && [[ ! -s /tmp/srs-windows-runner-test/utest.log ]] && ! go_calls | grep -q .'
+check "full: the tier output shown" 'out | grep -q "^lock: acquired after 0s$" && out | grep -q "^windows-integ  "'
+check "full: a summary line" 'out | tail -1 | grep -q "^RESULT windows-x64 all PASS through full"'
 check "full: no plan IDs in the output" '! out | grep -qE "\bP[0-9]+(\.[0-9]+)?\b"'
+STUB_FULL_EXIT=1 run full
+check "full: the tier fails, exit 1" '[[ $CODE == 1 ]] && out | grep -q "^RESULT windows-x64 full FAIL"'
+
+# The package step builds srs.exe for a release, after deps and build but without the test steps and
+# options, and zips it with the files make install takes on Unix as SRS-Windows-x86_64-<version>.zip.
+PKG=$FAKE/trunk/objs/windows/package
+P=SRS-Windows-x86_64-8.0.64
+zip_files() { zipinfo -1 "$1" 2>/dev/null | grep -v '/$' | LC_ALL=C sort | tr '\n' ' '; }
+WANT="$P/conf/console.conf $P/conf/server.crt $P/conf/server.key $P/conf/srs.conf"
+WANT="$WANT $P/objs/nginx/html/console/index.html $P/objs/nginx/html/demos/index.html"
+WANT="$WANT $P/objs/nginx/html/favicon.ico $P/objs/nginx/html/index.html"
+WANT="$WANT $P/objs/nginx/html/players/js/srs.sdk.js $P/objs/srs.exe "
+rm -rf /tmp/srs-windows-runner-test/checkout/trunk/objs
+run package
+check "package: runs deps and build before it, not the test steps, passes" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == "deps build package" ]] && out | grep -q "^RESULT windows-x64 package PASS" && out | tail -1 | grep -q "^RESULT windows-x64 all PASS through package" && [[ ! -s /tmp/srs-windows-runner-test/utest.log ]] && ! go_calls | grep -q .'
+check "package: configures without the test options, with GB28181 and RTSP" \
+  '[[ $(grep "^-S " /tmp/srs-windows-runner-test/cmake.log) == "-S trunk/cmake/windows -B trunk/objs/windows -G Ninja -DSRS_UTEST=OFF -DSRS_SIMULATOR=OFF -DSRS_GB28181=ON -DSRS_RTSP=ON" ]]'
+check "package: srs.exe started after the build, as for the tests" 'srs_calls | grep -q "^-e "'
+check "package: the zip named for the version srs.exe prints, its path shown" \
+  '[[ -f $PKG/$P.zip ]] && out | grep -q "^PACKAGE trunk/objs/windows/package/$P.zip$"'
+check "package: the zip made by the Windows tar in the package dir" \
+  '[[ $(cat /tmp/srs-windows-runner-test/tar.log 2>/dev/null) == "-a -c -f $P.zip $P DIR=$PKG" ]]'
+check "package: srs.exe, the config files with the certificate, and the http root in the zip" \
+  '[[ $(zip_files $PKG/$P.zip) == "$WANT" ]]'
+check "package: the DLLs of the packaged srs.exe are all in System32" \
+  '[[ $(cat /tmp/srs-windows-runner-test/dumpbin.log 2>/dev/null) == "-nologo -dependents $P/objs/srs.exe" ]] && out | grep -q "^PACKAGE dlls PASS: WS2_32.dll KERNEL32.dll$"'
+check "package: the packaged srs.exe checks conf/console.conf in the package dir" \
+  'srs_calls | grep -q "^-t -c conf/console.conf DIR=$PKG/$P " && out | grep -q "^PACKAGE config PASS: conf/console.conf$"'
+mkdir -p $PKG/$P/objs && touch $PKG/$P/objs/old.exe
+run package 8.0-r1
+check "package: the version from the argument, no file of an earlier package" \
+  '[[ $CODE == 0 ]] && [[ -f $PKG/SRS-Windows-x86_64-8.0-r1.zip ]] && ! zip_files $PKG/SRS-Windows-x86_64-8.0-r1.zip | grep -q old.exe && [[ ! -e $PKG/$P ]]'
+STUB_DLL=libcrypto-3-x64.dll run package
+check "package: a DLL not in System32, exit 1 naming it, no zip" \
+  '[[ $CODE == 1 ]] && out | grep -q "^PACKAGE dlls FAIL: libcrypto-3-x64.dll" && [[ ! -f $PKG/$P.zip ]] && [[ ! -s /tmp/srs-windows-runner-test/tar.log ]]'
+STUB_SRS_CONSOLE_FAIL=1 run package
+check "package: the packaged srs.exe refuses conf/console.conf, exit 1, its output shown, no zip" \
+  '[[ $CODE == 1 ]] && out | grep -q "^PACKAGE config FAIL: conf/console.conf" && out | grep -q "fake srs output" && [[ ! -f $PKG/$P.zip ]]'
+STUB_TAR_FAIL=1 run package
+check "package: the zip fails, exit 1" '[[ $CODE == 1 ]] && out | grep -q "^RESULT windows-x64 package FAIL"'
+STUB_SRS_BUILD_EXIT=1 run package
+check "package: the build fails, nothing packaged" \
+  '[[ $CODE == 1 ]] && [[ $(steps) == "deps build" ]] && [[ ! -s /tmp/srs-windows-runner-test/tar.log ]]'
+run package
+run --alone package
+check "--alone package: after a release build, only package runs, passes" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == package ]] && [[ ! -s /tmp/srs-windows-runner-test/cmake.log ]] && [[ -f $PKG/$P.zip ]]'
+run build
+run --alone package
+check "--alone package: after a build for the tests, exit 1, nothing packaged" \
+  '[[ $CODE == 1 ]] && out | grep -q "^PACKAGE build FAIL: .*SRS_UTEST" && [[ ! -s /tmp/srs-windows-runner-test/tar.log ]]'
+
+# The vs step generates the Visual Studio solution after deps, with the options of the tests and the
+# generator CMake picks, and builds or runs nothing.
+rm -rf /tmp/srs-windows-runner-test/checkout/trunk/objs
+run vs
+check "vs: runs deps before it, not the build or test steps, passes" \
+  '[[ $CODE == 0 ]] && [[ $(steps) == "deps vs" ]] && out | tail -1 | grep -q "^RESULT windows-x64 all PASS through vs" && [[ -z $(srs_calls) ]] && [[ ! -s /tmp/srs-windows-runner-test/utest.log ]]'
+check "vs: configures trunk/objs/windows-vs for x64 with the test options and no -G, so the newest Visual Studio" \
+  '[[ $(grep -- "-B trunk/objs/windows-vs " /tmp/srs-windows-runner-test/cmake.log) == "-S trunk/cmake/windows -B trunk/objs/windows-vs -A x64 -DSRS_UTEST=ON -DSRS_SIMULATOR=ON -DSRS_GB28181=ON -DSRS_RTSP=ON" ]]'
+check "vs: builds nothing" '! grep -q -- "--build .*windows-vs" /tmp/srs-windows-runner-test/cmake.log'
+check "vs: the generator and the solution path shown" \
+  'out | grep -q "^VS Visual Studio 18 2026: .*trunk/objs/windows-vs/srs.slnx$"'
+check "vs: the cmake output goes to the log, not the console" '! out | grep -q "fake cmake output"'
+VS_WANT=$(printf '%s\n' '' '<Solution>' \
+  '  <Project Path="../trunk/objs/windows-vs/ALL_BUILD.vcxproj" Id="f780">' \
+  '    <BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />' \
+  '    <BuildDependency Project="../trunk/objs/windows-vs/srs.vcxproj" />' \
+  '    <Build Project="false" />' \
+  '  </Project>' \
+  '  <Project Path="../trunk/objs/windows-vs/deps-check/deps-check-st.vcxproj" Id="268b" />' \
+  '  <Project Path="../trunk/objs/windows-vs/srs.vcxproj" DefaultStartup="true" Id="f8a6" />' \
+  '</Solution>')
+VS_SLNX=/tmp/srs-windows-runner-test/checkout/.vs/srs.slnx
+check "vs: writes .vs/srs.slnx as Visual Studio saves it, the project paths relative to .vs, no CRs" \
+  '[[ $(cat $VS_SLNX) == "$VS_WANT" ]] && ! grep -q $'"'"'\r'"'"' $VS_SLNX && out | grep -q "^VS .vs/srs.slnx written, commit it if git shows a change: .*/.vs/srs.slnx$"'
+run --alone vs
+check "vs: .vs/srs.slnx up to date, not written again" \
+  '[[ $CODE == 0 ]] && [[ $(cat $VS_SLNX) == "$VS_WANT" ]] && out | grep -q "^VS .vs/srs.slnx is up to date: "'
+echo stale > $VS_SLNX
+run --alone vs
+check "vs: a stale .vs/srs.slnx written again" '[[ $(cat $VS_SLNX) == "$VS_WANT" ]] && out | grep -q "^VS .vs/srs.slnx written, "'
+rm -f /tmp/srs-windows-runner-test/checkout/trunk/objs/windows-vs/srs.slnx
+STUB_VS_SLN=1 run --alone vs
+check "vs: an older Visual Studio makes srs.sln, which is shown, .vs/srs.slnx not written, passes" \
+  '[[ $CODE == 0 ]] && out | grep -q "^VS .*trunk/objs/windows-vs/srs.sln$" && out | grep -q "^VS .vs/srs.slnx not written: " && [[ $(cat $VS_SLNX) == "$VS_WANT" ]]'
+rm -f /tmp/srs-windows-runner-test/checkout/trunk/objs/windows-vs/srs.sln
+rm -f /tmp/srs-windows-runner-test/checkout/trunk/objs/windows-vs/srs.slnx
+STUB_VS_NO_SLN=1 run --alone vs
+check "--alone vs: only vs runs" '[[ $(steps) == vs ]] && [[ $(grep -c "^-S " /tmp/srs-windows-runner-test/cmake.log) == 1 ]]'
+check "vs: no solution generated, exit 1" '[[ $CODE == 1 ]] && out | grep -q "^VS solution FAIL: "'
+STUB_CMAKE_EXIT=1 run --alone vs
+check "vs: cmake fails, exit 1, the log tail shown" \
+  '[[ $CODE == 1 ]] && out | grep -q "fake cmake output" && out | grep -q "^RESULT windows-x64 vs FAIL"'
+run vs x
+check "argument to vs: exit 3 with usage" '[[ $CODE == 3 ]] && out | grep -q "^Usage: .*|vs"'
 
 echo "SUMMARY passed=$PASSED failed=$FAILED"
 [[ $FAILED == 0 ]]

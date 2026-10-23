@@ -47,6 +47,10 @@ const gbLead = 200 * time.Millisecond
 // more come.
 const gbBurst = 2 * gbLead
 
+// gbPublished is how long SRS may take to publish a GB stream once its media
+// came, before the limit scale.
+const gbPublished = 300 * time.Millisecond
+
 // TestGb_Common checks GB28181 on the Common server, with an external SIP
 // server's part played by the case: it asks for a session by the publish API,
 // then sends PS over RTP over TCP to the GB port, and SRS publishes it to its
@@ -127,7 +131,7 @@ func gbSignaling(t *testing.T) {
 		s := gbStart(c, srs, media.H264BaselineAAC, 3_000_000_000+gbSSRC())
 		c.CheckEqual(s.answer.Code, 0, "code")
 		s.sendThrough(c, gbLead)
-		c.Check(untilPublishing(c, srs, "live/"+s.id, 300*time.Millisecond), "live/%v not published in 300ms", s.id)
+		c.Check(untilPublishing(c, srs, "live/"+s.id, check.Scaled(gbPublished)), "live/%v not published in %v", s.id, check.Scaled(gbPublished))
 	})
 }
 
@@ -196,7 +200,7 @@ func gbMedia(t *testing.T) {
 		h := waitHook(c, srs, "on_publish", s.id)
 		c.CheckEqual(h.Field("app"), "live", "app")
 		c.CheckEqual(h.Field("vhost"), "__defaultVhost__", "vhost")
-		c.Check(untilPublishing(c, srs, "live/"+s.id, 300*time.Millisecond), "live/%v not published in 300ms", s.id)
+		c.Check(untilPublishing(c, srs, "live/"+s.id, check.Scaled(gbPublished)), "live/%v not published in %v", s.id, check.Scaled(gbPublished))
 	})
 }
 
@@ -428,8 +432,8 @@ func TestGb_Reconnect(t *testing.T) {
 			streams[i], firsts[i] = s, s.conn
 		}
 		for _, s := range streams {
-			if !untilPublishing(c, srs, "live/"+s.id, 300*time.Millisecond) {
-				c.Fatalf("live/%v not published in 300ms", s.id)
+			if !untilPublishing(c, srs, "live/"+s.id, check.Scaled(gbPublished)) {
+				c.Fatalf("live/%v not published in %v", s.id, check.Scaled(gbPublished))
 			}
 			s.reconnect(c, srs)
 		}

@@ -2052,10 +2052,9 @@ VOID TEST(DashControllerTest, DisposeNeverPublishedKeepsRootFiles)
     HELPER_EXPECT_SUCCESS(controller->initialize(mock_req.get()));
     controller->config_ = mock_config.get();
 
-    // The root of a Windows drive has no /tmp, and mkdir_all cannot make a dir right under the
-    // root, so make it here and remove it at the end.
+    // The root of a Windows drive has no /tmp, so mkdir_all makes it, and the test removes it at the end.
     SrsPath path;
-    bool made_tmp = !path.exists("/tmp") && srs_mkdir("/tmp") == 0;
+    bool made_tmp = !path.exists("/tmp");
     std::string dir = "/tmp/srs-utest-dash-root/livestream/livestream";
     HELPER_EXPECT_SUCCESS(path.mkdir_all(dir));
     std::ofstream(std::string(dir + "/video-init.mp4").c_str()) << "init";
