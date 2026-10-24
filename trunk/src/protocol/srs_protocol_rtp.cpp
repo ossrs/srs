@@ -59,6 +59,9 @@ srs_error_t SrsRtpVideoBuilder::package_stap_a(SrsMediaPacket *msg, SrsRtpPacket
     if (format->vcodec_->id_ == SrsVideoCodecIdHEVC) {
         for (size_t i = 0; i < format->vcodec_->hevc_dec_conf_record_.nalu_vec_.size(); i++) {
             const SrsHevcHvccNalu &nalu = format->vcodec_->hevc_dec_conf_record_.nalu_vec_[i];
+            if (nalu.nal_data_vec_.empty() || nalu.nal_data_vec_[0].nal_unit_data_.empty()) {
+                continue;
+            }
             if (nalu.nal_unit_type_ == SrsHevcNaluType_VPS || nalu.nal_unit_type_ == SrsHevcNaluType_SPS || nalu.nal_unit_type_ == SrsHevcNaluType_PPS) {
                 const SrsHevcNalData &nal_data = nalu.nal_data_vec_[0];
                 params.push_back(&(vector<char> &)nal_data.nal_unit_data_);

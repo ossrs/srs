@@ -102,6 +102,16 @@ if [[ $SRS_SANITIZER == YES ]]; then
     CXXFLAGS="${CXXFLAGS} -fsanitize=address -fno-omit-frame-pointer";
 fi
 
+# Standard library bounds checks for utest, such as vector::operator[] past the end, which plain builds
+# silently allow. GCC 15 turns them on by default at -O0, and aborted on bugs the older compilers missed.
+if [[ $SRS_UTEST == YES ]]; then
+    if [[ $SRS_OSX == YES ]]; then
+        CXXFLAGS="${CXXFLAGS} -D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_FAST";
+    else
+        CXXFLAGS="${CXXFLAGS} -D_GLIBCXX_ASSERTIONS";
+    fi
+fi
+
 # Start to generate the Makefile.
 cat << END >> ${SRS_OBJS}/Makefile
 CC = ${SRS_TOOL_CC}

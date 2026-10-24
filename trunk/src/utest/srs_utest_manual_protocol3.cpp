@@ -2601,6 +2601,30 @@ VOID TEST(ProtocolSdpTest, SrsSdpParseGb28181Ssrc)
     EXPECT_STREQ("gb28181", video_descs[0]->ssrc_infos_[0].label_.c_str());
 }
 
+// The y= line sets the SSRC of a media description, so it fails when no m= line came before it.
+VOID TEST(ProtocolSdpTest, SrsSdpParseGb28181SsrcBeforeMedia)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        SrsSdp sdp;
+        std::string sdp_str =
+            "v=0\r\n"
+            "o=- 123456 654321 IN IP4 127.0.0.1\r\n"
+            "s=Test Session\r\n"
+            "t=0 0\r\n"
+            "y=0100008888\r\n"
+            "m=video 9 RTP/AVP 96\r\n";
+        HELPER_EXPECT_FAILED(sdp.parse(sdp_str));
+    }
+
+    if (true) {
+        SrsSdp sdp;
+        HELPER_EXPECT_FAILED(sdp.parse_line("y=0100008888"));
+        EXPECT_TRUE(sdp.media_descs_.empty());
+    }
+}
+
 VOID TEST(ProtocolSdpTest, SrsSdpIsUnified)
 {
     srs_error_t err = srs_success;

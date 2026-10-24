@@ -3287,7 +3287,7 @@ srs_error_t SrsTsMessageCache::do_cache_hevc(SrsParsedVideoPacket *frame)
         if (SrsIsIRAP(nalu_type) && !frame->has_sps_pps_ && !is_sps_pps_appended) {
             for (size_t i = 0; i < codec->hevc_dec_conf_record_.nalu_vec_.size(); i++) {
                 const SrsHevcHvccNalu &nalu = codec->hevc_dec_conf_record_.nalu_vec_[i];
-                if (nalu.num_nalus_ <= 0 || nalu.nal_data_vec_.empty())
+                if (nalu.num_nalus_ <= 0 || nalu.nal_data_vec_.empty() || nalu.nal_data_vec_[0].nal_unit_data_.empty())
                     continue;
 
                 srs_avc_insert_aud(video_->payload_, aud_inserted);
