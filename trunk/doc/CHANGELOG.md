@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-10-24, Merge [#4779](https://github.com/ossrs/srs/pull/4779): Kernel: Fix undefined behavior when dumping empty avcC, hvcC and ESDS boxes. v8.0.66 (#4779)
 * <strong>v8.0, 2026-10-24, [8.0 dev2(8.0.65)](https://github.com/ossrs/srs/releases/tag/v8.0-d2) released. 360819 lines.</strong>
 * v8.0, 2026-10-23, Merge [#4787](https://github.com/ossrs/srs/pull/4787): Windows: Native x64 build with MSVC. v8.0.65 (#4787)
 * v8.0, 2026-10-21, Merge [#4786](https://github.com/ossrs/srs/pull/4786): SRT: Fix the timestamps of 48 kHz AAC from SRT to RTMP. v8.0.64 (#4786)
