@@ -249,7 +249,7 @@ func Case(t *testing.T, name string, class Class, fn func(*C)) {
 	for _, n := range copyNames(name, class, scale) {
 		t.Run(n, func(t *testing.T) {
 			t.Parallel()
-			r := &runner{now: time.Now, knownBugsFail: knownBugsFail, results: results, settleUntil: settleDeadline(), sleep: time.Sleep, limitScale: limitScale}
+			r := &runner{now: time.Now, knownBugsFail: knownBugsFail, results: results, settleUntil: settleDeadline(), sleep: time.Sleep, limitScale: limitScale, goos: runtime.GOOS, skips: platformSkips}
 			r.run(t, class, fn)
 		})
 	}
@@ -265,6 +265,9 @@ type runner struct {
 	sleep       func(time.Duration)
 	// limitScale multiplies the class limits; 1 or less keeps them.
 	limitScale float64
+	// goos and skips pick the cases of the skip list that do not run here.
+	goos  string
+	skips []PlatformSkip
 }
 
 func (r *runner) run(parent testing.TB, class Class, fn func(*C)) Result {
@@ -275,6 +278,11 @@ func (r *runner) run(parent testing.TB, class Class, fn func(*C)) Result {
 	if class == Timer && !strings.HasPrefix(res.Name, "TestTimer_") {
 		parent.Errorf("Timer class only in TestTimer_ groups, not in %s", res.Name)
 		res.Outcome = Failed
+		return res
+	}
+	if reason := platformSkip(r.skips, r.goos, res.Name); reason != "" {
+		res.Outcome, res.Reason = Skipped, reason
+		parent.Skip(reason)
 		return res
 	}
 

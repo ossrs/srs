@@ -18,7 +18,6 @@
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_utility.hpp>
-#include <unistd.h>
 using namespace std;
 
 // To limit the ICE ufrag/username to avoid unknown issue.

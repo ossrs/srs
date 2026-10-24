@@ -6,7 +6,6 @@
 
 #include <srs_protocol_rtmp_conn.hpp>
 
-#include <unistd.h>
 using namespace std;
 
 #include <srs_kernel_kbps.hpp>

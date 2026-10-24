@@ -28,9 +28,11 @@ import (
 
 // envTZ is the time zone of the env cases' servers, UTC+5:45, so a local time
 // is never a UTC one, not even in its hour; envZone is the same zone in Go.
-const envTZ = "INTEG-5:45"
+// The name has three letters, the only form the Windows CRT reads: it takes
+// INTEG-5:45 as UTC+1.
+const envTZ = "INT-5:45"
 
-var envZone = time.FixedZone("INTEG", 5*3600+45*60)
+var envZone = time.FixedZone("INT", 5*3600+45*60)
 
 const (
 	// envServerID is the server id of TestEnv_Global.

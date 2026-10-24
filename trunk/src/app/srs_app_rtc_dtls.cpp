@@ -139,6 +139,18 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
     }
 #endif
 
+    // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
+    // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
+    const char *ciphers = "ALL";
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+    // OpenSSL 3 allows DTLS 1.0 only at security level 0, so an explicit dtls1.0 would fail every handshake.
+    // Level 0 also drops the level 1 suite checks, so the list leaves out what they refuse.
+    if (version == SrsDtlsVersion1_0) {
+        SSL_CTX_set_security_level(dtls_ctx, 0);
+        ciphers = "ALL:!aNULL:!eNULL:!LOW:!MD5";
+    }
+#endif
+
     if (certificate->is_ecdsa()) { // By ECDSA, https://stackoverflow.com/a/6006898
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L        // v1.0.2
         // For ECDSA, we could set the curves list.
@@ -159,9 +171,7 @@ SSL_CTX *srs_build_dtls_ctx(ISrsDtlsCertificate *certificate, SrsDtlsVersion ver
 
     // Setup DTLS context.
     if (true) {
-        // We use "ALL", while you can use "DEFAULT" means "ALL:!EXPORT:!LOW:!aNULL:!eNULL:!SSLv2"
-        // @see https://www.openssl.org/docs/man1.0.2/man1/ciphers.html
-        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, "ALL") == 1);
+        srs_assert(SSL_CTX_set_cipher_list(dtls_ctx, ciphers) == 1);
 
         // Setup the certificate.
         srs_assert(SSL_CTX_use_certificate(dtls_ctx, certificate->get_cert()) == 1);
@@ -257,7 +267,12 @@ srs_error_t SrsDtlsCertificate::initialize()
 
         // Generates a key pair and stores it in the RSA structure provided in rsa.
         // @see https://www.openssl.org/docs/man1.0.2/man3/RSA_generate_key_ex.html
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L // v3.0
+        // OpenSSL 3.2+ defaults to security level 2, which refuses an RSA key below 2048 bits.
+        int key_bits = 2048;
+#else
         int key_bits = 1024;
+#endif
         RSA_generate_key_ex(rsa, key_bits, exponent, NULL);
 
         // @see https://www.openssl.org/docs/man1.1.0/man3/EVP_PKEY_type.html
@@ -1016,7 +1031,7 @@ srs_error_t SrsSRTP::initialize(string recv_key, std::string send_key)
     srs_error_t err = srs_success;
 
     srtp_policy_t policy;
-    bzero(&policy, sizeof(policy));
+    memset(&policy, 0, sizeof(policy));
 
     // TODO: Maybe we can use SRTP-GCM in future.
     // @see https://bugs.chromium.org/p/chromium/issues/detail?id=713701

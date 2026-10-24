@@ -1,10 +1,10 @@
-# Next-Generation Go Server Code Map
+# Go Server Code Map
 
-Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a task to the next-generation Go server. The listed modules and files define the trusted navigation scope.
+Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a task to the Go server. The listed modules and files define the trusted navigation scope.
 
-## Next-Generation Server Code
+## Go Server Code
 
-The next-generation server (`cmd/` + `internal/`) is written in Go and maintained by AI. It is the future of SRS. Currently it only supports proxy, but work is ongoing to support the full feature set including origin, edge, and proxy servers.
+The Go server (`cmd/` + `internal/`) is written in Go and maintained by AI. It is the SRS proxy, which sits in front of the C++ media server origins.
 
 `cmd/proxy` — A stateless reverse proxy that sits in front of one or more SRS C++ origin servers. Accepts client connections (RTMP, HTTP-FLV/HLS, WebRTC WHIP/WHEP, SRT), resolves a backend origin via the load balancer, and transparently proxies traffic. Does not cache streams or process media — only forwards bytes. Configuration entirely via environment variables (or `.env` file), no config file. Supports two deployment modes: single-proxy (in-memory LB) and multi-proxy (Redis-based shared LB for horizontal scaling behind a network load balancer). Entry point: `cmd/proxy/main.go`.
 

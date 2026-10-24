@@ -683,7 +683,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxIpbFrame)
 
     // Test mux_ipb_frame with empty frame - should still work
     if (true) {
-        unsigned char empty_frame[] = {};
+        unsigned char empty_frame[1] = {0};
         std::string ibp_output;
 
         HELPER_EXPECT_SUCCESS(hevc.mux_ipb_frame((char *)empty_frame, 0, ibp_output));
@@ -2599,6 +2599,30 @@ VOID TEST(ProtocolSdpTest, SrsSdpParseGb28181Ssrc)
     EXPECT_EQ(1, (int)video_descs[0]->ssrc_infos_.size());
     EXPECT_STREQ("0100008888", video_descs[0]->ssrc_infos_[0].cname_.c_str());
     EXPECT_STREQ("gb28181", video_descs[0]->ssrc_infos_[0].label_.c_str());
+}
+
+// The y= line sets the SSRC of a media description, so it fails when no m= line came before it.
+VOID TEST(ProtocolSdpTest, SrsSdpParseGb28181SsrcBeforeMedia)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        SrsSdp sdp;
+        std::string sdp_str =
+            "v=0\r\n"
+            "o=- 123456 654321 IN IP4 127.0.0.1\r\n"
+            "s=Test Session\r\n"
+            "t=0 0\r\n"
+            "y=0100008888\r\n"
+            "m=video 9 RTP/AVP 96\r\n";
+        HELPER_EXPECT_FAILED(sdp.parse(sdp_str));
+    }
+
+    if (true) {
+        SrsSdp sdp;
+        HELPER_EXPECT_FAILED(sdp.parse_line("y=0100008888"));
+        EXPECT_TRUE(sdp.media_descs_.empty());
+    }
 }
 
 VOID TEST(ProtocolSdpTest, SrsSdpIsUnified)

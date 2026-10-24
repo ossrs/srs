@@ -11,8 +11,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
 #include <sys/inotify.h>
 #endif
 using namespace std;
@@ -575,7 +574,7 @@ srs_error_t SrsServer::initialize_st()
     srs_error_t err = srs_success;
 
     srs_trace("server main cid=%s, pid=%d, ppid=%d",
-              _srs_context->get_id().c_str(), ::getpid(), ::getppid());
+              _srs_context->get_id().c_str(), ::getpid(), srs_getppid());
 
     return err;
 }
@@ -1530,15 +1529,8 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
 
     // Set to close the fd when forking, to avoid fd leak when start a process.
     // See https://github.com/ossrs/srs/issues/518
-    if (true) {
-        int val;
-        if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
-            return srs_error_new(ERROR_SYSTEM_PID_GET_FILE_INFO, "fnctl F_GETFD error! fd=%d", fd);
-        }
-        val |= FD_CLOEXEC;
-        if (fcntl(fd, F_SETFD, val) < 0) {
-            return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "fcntl F_SETFD error! fd=%d", fd);
-        }
+    if (srs_socket_cloexec(fd) < 0) {
+        return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "set cloexec fd=%d", fd);
     }
 
     // Covert handler to resource.
@@ -1733,10 +1725,10 @@ SrsSignalManager::~SrsSignalManager()
     srs_close_stfd(signal_read_stfd_);
 
     if (sig_pipe_[0] > 0) {
-        ::close(sig_pipe_[0]);
+        srs_self_pipe_close(sig_pipe_[0]);
     }
     if (sig_pipe_[1] > 0) {
-        ::close(sig_pipe_[1]);
+        srs_self_pipe_close(sig_pipe_[1]);
     }
 
     app_factory_ = NULL;
@@ -1746,7 +1738,7 @@ SrsSignalManager::~SrsSignalManager()
 srs_error_t SrsSignalManager::initialize()
 {
     /* Create signal pipe */
-    if (pipe(sig_pipe_) < 0) {
+    if (srs_self_pipe_open(sig_pipe_) < 0) {
         return srs_error_new(ERROR_SYSTEM_CREATE_PIPE, "create pipe");
     }
 
@@ -1766,38 +1758,14 @@ srs_error_t SrsSignalManager::start()
      * the signal pipe should be initialized after the fork(2) call
      * so that each process has its own private pipe.
      */
-    struct sigaction sa;
 
     /* Install sig_catcher() as a signal handler */
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_RELOAD, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_FAST_QUIT, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_GRACEFULLY_QUIT, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_ASSERT_ABORT, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_REOPEN_LOG, &sa, NULL);
+    srs_signal_install(SRS_SIGNAL_RELOAD, SrsSignalManager::sig_catcher);
+    srs_signal_install(SRS_SIGNAL_FAST_QUIT, SrsSignalManager::sig_catcher);
+    srs_signal_install(SRS_SIGNAL_GRACEFULLY_QUIT, SrsSignalManager::sig_catcher);
+    srs_signal_install(SRS_SIGNAL_ASSERT_ABORT, SrsSignalManager::sig_catcher);
+    srs_signal_install(SIGINT, SrsSignalManager::sig_catcher);
+    srs_signal_install(SRS_SIGNAL_REOPEN_LOG, SrsSignalManager::sig_catcher);
 
     srs_trace("signal installed, reload=%d, reopen=%d, fast_quit=%d, grace_quit=%d",
               SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_FAST_QUIT, SRS_SIGNAL_GRACEFULLY_QUIT);
@@ -1840,7 +1808,7 @@ void SrsSignalManager::sig_catcher(int signo)
 
     /* write() is reentrant/async-safe */
     int fd = SrsSignalManager::instance->sig_pipe_[1];
-    write(fd, &signo, sizeof(int));
+    srs_self_pipe_write(fd, &signo, sizeof(int));
 
     errno = err;
 }
@@ -1871,7 +1839,7 @@ srs_error_t SrsInotifyWorker::start()
 {
     srs_error_t err = srs_success;
 
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     // Whether enable auto reload config.
     bool auto_reload = config_->inotify_auto_reload();
     if (!auto_reload && _srs_in_docker && config_->auto_reload_for_docker()) {
@@ -1953,7 +1921,7 @@ srs_error_t SrsInotifyWorker::cycle()
 {
     srs_error_t err = srs_success;
 
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     SrsPath path;
     string config_path = config_->config();
     string config_file = path.filepath_base(config_path);
@@ -2040,21 +2008,14 @@ srs_error_t SrsPidFileLocker::acquire()
 
     int fd;
     // open pid file
-    if ((fd = ::open(pid_file_.c_str(), O_WRONLY | O_CREAT, mode)) == -1) {
+    if ((fd = srs_file_open(pid_file_.c_str(), O_WRONLY | O_CREAT, mode)) == -1) {
         return srs_error_new(ERROR_SYSTEM_PID_ACQUIRE, "open pid file=%s", pid_file_.c_str());
     }
 
     // require write lock
-    struct flock lock;
-
-    lock.l_type = F_WRLCK;    // F_RDLCK, F_WRLCK, F_UNLCK
-    lock.l_start = 0;         // type offset, relative to l_whence
-    lock.l_whence = SEEK_SET; // SEEK_SET, SEEK_CUR, SEEK_END
-    lock.l_len = 0;
-
-    if (fcntl(fd, F_SETLK, &lock) == -1) {
+    if (srs_file_lock(fd) == -1) {
         if (errno == EACCES || errno == EAGAIN) {
-            ::close(fd);
+            srs_file_close(fd);
             srs_error("srs is already running!");
             return srs_error_new(ERROR_SYSTEM_PID_ALREADY_RUNNING, "srs is already running");
         }
@@ -2062,23 +2023,18 @@ srs_error_t SrsPidFileLocker::acquire()
     }
 
     // truncate file
-    if (ftruncate(fd, 0) != 0) {
+    if (srs_file_truncate(fd, 0) != 0) {
         return srs_error_new(ERROR_SYSTEM_PID_TRUNCATE_FILE, "truncate pid file=%s", pid_file_.c_str());
     }
 
     // write the pid
     std::string pid = srs_strconv_format_int(getpid());
-    if (write(fd, pid.c_str(), pid.length()) != (int)pid.length()) {
+    if (srs_file_write(fd, pid.c_str(), pid.length()) != (ssize_t)pid.length()) {
         return srs_error_new(ERROR_SYSTEM_PID_WRITE_FILE, "write pid=%s to file=%s", pid.c_str(), pid_file_.c_str());
     }
 
     // auto close when fork child process.
-    int val;
-    if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
-        return srs_error_new(ERROR_SYSTEM_PID_GET_FILE_INFO, "fcntl fd=%d", fd);
-    }
-    val |= FD_CLOEXEC;
-    if (fcntl(fd, F_SETFD, val) < 0) {
+    if (srs_file_cloexec(fd) < 0) {
         return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "lock file=%s fd=%d", pid_file_.c_str(), fd);
     }
 
@@ -2091,7 +2047,7 @@ srs_error_t SrsPidFileLocker::acquire()
 void SrsPidFileLocker::close()
 {
     if (pid_fd_ > 0) {
-        ::close(pid_fd_);
+        srs_file_close(pid_fd_);
         pid_fd_ = -1;
     }
 }

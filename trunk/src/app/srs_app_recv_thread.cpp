@@ -18,7 +18,6 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_stream.hpp>
 
-#include <sys/socket.h>
 using namespace std;
 
 // the max small bytes to group
@@ -554,14 +553,14 @@ void SrsPublishRecvThread::set_socket_buffer(srs_utime_t sleep_v)
     int fd = mr_fd_;
     int onb_rbuf = 0;
     socklen_t sock_buf_size = sizeof(int);
-    getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &onb_rbuf, &sock_buf_size);
+    srs_getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &onb_rbuf, &sock_buf_size);
 
     // socket recv buffer, system will double it.
     int nb_rbuf = socket_buffer_size / 2;
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
+    if (srs_setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
     }
-    getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
+    srs_getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
 
     srs_trace("mr change sleep %d=>%d, erbuf=%d, rbuf %d=>%d, sbytes=%d, realtime=%d",
               srsu2msi(mr_sleep_), srsu2msi(sleep_v), socket_buffer_size, onb_rbuf, nb_rbuf,

@@ -154,7 +154,7 @@ func TestDash_Options(t *testing.T) {
 		published, err := time.Parse(time.RFC3339, m.PublishTime)
 		c.CheckNoError(err, "publishTime")
 		// The times are in whole seconds; the stream starts at 0 now.
-		c.Check(!available.Before(start.Truncate(time.Second)) && !available.After(time.Now()), "availabilityStartTime %v, want the publish at %v", available, start)
+		c.Check(dash.IsPublishStart(available, start, time.Now()), "availabilityStartTime %v, want the publish at %v", available, start)
 		c.Check(!published.Before(available), "publishTime %v before availabilityStartTime %v", published, available)
 		if !c.Check(len(m.Periods) == 1, "periods %+v, want one", m.Periods) {
 			return

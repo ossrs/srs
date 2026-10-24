@@ -128,7 +128,7 @@ MockSrsSeeker::~MockSrsSeeker()
 {
 }
 
-srs_error_t MockSrsSeeker::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t MockSrsSeeker::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     if (seek_error_ != srs_success) {
         return srs_error_copy(seek_error_);
@@ -245,7 +245,7 @@ VOID TEST(KernelIOTest, ISrsSeekerInterface)
 {
     MockSrsSeeker seeker;
 
-    off_t seeked = 0;
+    srs_off_t seeked = 0;
 
     // Test SEEK_SET
     srs_error_t err = seeker.lseek(100, SEEK_SET, &seeked);
@@ -347,6 +347,62 @@ VOID TEST(KernelPacketTest, SrsMediaPacketTypeChecking)
     EXPECT_FALSE(packet.is_av());
     EXPECT_FALSE(packet.is_audio());
     EXPECT_FALSE(packet.is_video());
+}
+
+// The live source copies each message once per player, so an empty shared ptr must not allocate.
+VOID TEST(KernelPacketTest, SharedPtrNullHoldsNoCount)
+{
+    SrsSharedPtr<int> empty(NULL);
+    EXPECT_TRUE(empty.ref_count_ == NULL);
+
+    SrsSharedPtr<int> copied = empty;
+    EXPECT_TRUE(copied.ref_count_ == NULL);
+    EXPECT_TRUE(copied.get() == NULL);
+
+    SrsSharedPtr<int> assigned(new int(100));
+    assigned = empty;
+    EXPECT_TRUE(assigned.ref_count_ == NULL);
+    EXPECT_TRUE(assigned.get() == NULL);
+
+    SrsSharedPtr<int> object(new int(100));
+    SrsSharedPtr<int> filled;
+    filled = object;
+    EXPECT_EQ(object.get(), filled.get());
+    EXPECT_EQ(object.ref_count_, filled.ref_count_);
+    EXPECT_EQ(2u, *object.ref_count_);
+    EXPECT_EQ(100, *filled);
+
+    filled = empty;
+    EXPECT_TRUE(filled.ref_count_ == NULL);
+    EXPECT_EQ(1u, *object.ref_count_);
+}
+
+VOID TEST(KernelPacketTest, SrsMediaPacketCopySharesPayload)
+{
+    SrsMediaPacket empty;
+    EXPECT_TRUE(empty.payload_.ref_count_ == NULL);
+
+    SrsMediaPacket packet;
+    packet.timestamp_ = 1000;
+    packet.stream_id_ = 1;
+    packet.message_type_ = SrsFrameTypeVideo;
+    packet.wrap(new char[4], 4);
+    EXPECT_EQ(1u, *packet.payload_.ref_count_);
+
+    if (true) {
+        SrsUniquePtr<SrsMediaPacket> copy(packet.copy());
+        EXPECT_EQ(packet.payload(), copy->payload());
+        EXPECT_EQ(packet.payload_.ref_count_, copy->payload_.ref_count_);
+        EXPECT_EQ(2u, *packet.payload_.ref_count_);
+        EXPECT_EQ(1000, copy->timestamp_);
+        EXPECT_EQ(1, copy->stream_id_);
+        EXPECT_TRUE(copy->is_video());
+    }
+    EXPECT_EQ(1u, *packet.payload_.ref_count_);
+
+    SrsUniquePtr<SrsMediaPacket> copy(empty.copy());
+    EXPECT_TRUE(copy->payload_.ref_count_ == NULL);
+    EXPECT_TRUE(copy->payload() == NULL);
 }
 
 MockSrsResource::MockSrsResource()
@@ -4231,7 +4287,7 @@ VOID TEST(KernelRTCPTest, SrsRtcpCompound_Decode)
     }
 
     // Test with invalid compound packet (empty)
-    unsigned char empty_data[] = {};
+    unsigned char empty_data[1] = {0};
     SrsBuffer empty_buffer((char *)empty_data, 0);
     err = compound.decode(&empty_buffer);
     // Empty buffer may or may not cause error depending on implementation
@@ -5427,7 +5483,7 @@ VOID TEST(KernelTSTest, SrsEncFileWriter_write)
     EXPECT_TRUE(err == srs_success);
 
     // Open a temporary file for testing
-    std::string temp_file = "/tmp/srs_test_enc_" + srs_strconv_format_int(getpid()) + ".ts";
+    std::string temp_file = srs_utest_tmp_dir() + "/srs_test_enc_" + srs_strconv_format_int(getpid()) + ".ts";
     err = writer.open(temp_file);
     if (err != srs_success) {
         srs_freep(err);
@@ -5478,7 +5534,7 @@ VOID TEST(KernelTSTest, SrsEncFileWriter_close)
     EXPECT_TRUE(err == srs_success);
 
     // Open a temporary file
-    std::string temp_file = "/tmp/srs_test_enc_close_" + srs_strconv_format_int(getpid()) + ".ts";
+    std::string temp_file = srs_utest_tmp_dir() + "/srs_test_enc_close_" + srs_strconv_format_int(getpid()) + ".ts";
     err = writer.open(temp_file);
     if (err != srs_success) {
         srs_freep(err);
@@ -5518,7 +5574,7 @@ static void srs_utest_check_enc_file_padding(int nb_packets)
         iv[i] = (unsigned char)(0xf0 + i);
     }
 
-    std::string temp_file = "/tmp/srs_test_enc_pad_" + srs_strconv_format_int(getpid()) + "_" + srs_strconv_format_int(nb_packets) + ".ts";
+    std::string temp_file = srs_utest_tmp_dir() + "/srs_test_enc_pad_" + srs_strconv_format_int(getpid()) + "_" + srs_strconv_format_int(nb_packets) + ".ts";
 
     std::vector<unsigned char> plain;
     if (true) {
@@ -5670,7 +5726,7 @@ VOID TEST(KernelTSTest, SrsTsTransmuxer_set_has_video)
 
     // Initialize transmuxer to test with tscw
     SrsFileWriter writer;
-    std::string temp_file = "/tmp/srs_test_transmuxer_" + srs_strconv_format_int(getpid()) + ".ts";
+    std::string temp_file = srs_utest_tmp_dir() + "/srs_test_transmuxer_" + srs_strconv_format_int(getpid()) + ".ts";
     srs_error_t err = writer.open(temp_file);
     if (err == srs_success) {
         err = transmuxer.initialize(&writer);

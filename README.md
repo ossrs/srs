@@ -13,7 +13,8 @@
 
 SRS/8.0 ([Free](https://ossrs.io/lts/en-us/product#release-80)) is a simple, high-performance, AI-driven real-time media server.
 It supports RTMP, WebRTC, HLS, HTTP-FLV, SRT, MPEG-DASH, and GB28181 on Linux and macOS across
-x86_64, ARMv7, AArch64, Apple M1, RISC-V, LoongArch, and MIPS architectures. Supported codecs include
+x86_64, ARMv7, AArch64, Apple M1, RISC-V, LoongArch, and MIPS architectures, and natively on
+[Windows](https://ossrs.io/lts/en-us/docs/v8/doc/windows) x64. Supported codecs include
 H.264, H.265, AV1, VP9, AAC, Opus, and G.711. See the complete list of [features](trunk/doc/Features.md#features).
 
 [![SRS Overview](https://ossrs.io/lts/en-us/img/SRS-SingleNode-4.0-hd.png?v=115)](https://ossrs.io/lts/en-us/img/SRS-SingleNode-4.0-hd.png)
@@ -109,6 +110,8 @@ distributed under their [licenses](https://ossrs.io/lts/en-us/license).
 
 ## Releases
 
+* 2026-10-24, [Release v8.0-d2](https://github.com/ossrs/srs/releases/tag/v8.0-d2), v8.0-d2, 8.0 dev2, v8.0.65, 360819 lines.
+* 2026-10-21, [Release v8.0-d1](https://github.com/ossrs/srs/releases/tag/v8.0-d1), v8.0-d1, 8.0 dev1, v8.0.63, 356563 lines.
 * 2026-09-24, [Release v8.0-d0](https://github.com/ossrs/srs/releases/tag/v8.0-d0), v8.0-d0, 8.0 dev0, v8.0.48, 328208 lines.
 * 2026-09-18, [Release v7.0-a0](https://github.com/ossrs/srs/releases/tag/v7.0-a0), v7.0-a0, 7.0 alpha0, v7.0.162, 314832 lines.
 * 2026-08-12, [Release v7.0-d0](https://github.com/ossrs/srs/releases/tag/v7.0-d0), v7.0-d0, 7.0 dev0, v7.0.157, 313784 lines.

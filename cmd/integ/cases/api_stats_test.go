@@ -420,7 +420,7 @@ func TestTimer_Api_Frames(t *testing.T) {
 	t.Parallel()
 	srs := server.Shared(t, "SegmentsKeep", sharedSegmentsKeep())
 
-	// WhipFrameCounts publishes 13s of WHIP at once: within a second the
+	// WhipFrameCounts publishes 13s of WHIP fast: within a second the
 	// stream counts every one of the 325 video and 650 audio frames, and no
 	// more.
 	check.Case(t, "WhipFrameCounts", check.Timer, func(c *check.C) {
@@ -435,7 +435,7 @@ func TestTimer_Api_Frames(t *testing.T) {
 		c.CheckEqual(num(c, st, "frames"), v+a, "frames")
 	})
 
-	// WhipFrameCountsLag publishes 4s of WHIP at once: within a second the
+	// WhipFrameCountsLag publishes 4s of WHIP fast: within a second the
 	// stream counts its 100 video frames, far fewer than a batch of 289.
 	check.Case(t, "WhipFrameCountsLag", check.Timer, func(c *check.C) {
 		h, _ := whipStream(c, srs, streamName(c), 4*time.Second)

@@ -717,17 +717,45 @@ func rtspPlayerClient(c *check.C, srs *server.Server, stream string) (map[string
 // whipIDs are the ids of a WHIP publisher and its stream.
 type whipIDs struct{ client, stream string }
 
-// whipStream publishes the WHIP test file to live/name, d of it at once, and
-// keeps the publisher until the case ends.
+// whipStream publishes the WHIP test file to live/name, d of it: whipBurst
+// at once and the rest at whipSpeed times real time. It keeps the publisher
+// until the case ends.
 func whipStream(c *check.C, srs *server.Server, name string, d time.Duration) (whipIDs, *rtc.Publisher) {
 	c.Helper()
 	pub := rtcPublisher(c, whipURL(srs, "live", name), nil)
 	h := waitHook(c, srs, "on_publish", name)
-	whipThrough(c, srs, pub, rtcSamples(c), d)
+	samples := rtcSamples(c)
+	whipThrough(c, srs, pub, samples, min(d, whipBurst))
+	if d > whipBurst {
+		n := 0
+		for n < len(samples) && samples[n].DTS < d {
+			n++
+		}
+		start := time.Now()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second+d/whipSpeed)
+		defer cancel()
+		for _, s := range samples[:n] {
+			if s.DTS < whipBurst {
+				continue
+			}
+			time.Sleep(time.Until(start.Add((s.DTS - whipBurst) / whipSpeed)))
+			c.Must(pub.Send(ctx, []rtc.Sample{s}, nil), "publish the media")
+		}
+	}
 	ids := whipIDs{h.Field("client_id"), h.Field("stream_id")}
 	untilCodecs(c, srs, ids.stream)
 	return ids, pub
 }
+
+// On Linux, net.core.rmem_max, 208KB by default, caps the 10MB SO_RCVBUF of
+// SRS's UDP listener, and a burst of 2s of the WHIP test file overflows it
+// on a runner where SRS reads slowly, which loses packets the frame counts
+// must have: whipStream sends whipBurst of media at once, and the rest at
+// whipSpeed times real time.
+const (
+	whipBurst = time.Second
+	whipSpeed = 4
+)
 
 // apiCounts adds the cases of the frame and byte counts on Common.
 func apiCounts(t *testing.T) {

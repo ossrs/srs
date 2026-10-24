@@ -179,7 +179,7 @@ public:
     SrsSharedPtr(T *ptr = NULL)
     {
         ptr_ = ptr;
-        ref_count_ = new uint32_t(1);
+        ref_count_ = ptr ? new uint32_t(1) : NULL;
     }
     // Copy the shared ptr.
     SrsSharedPtr(const SrsSharedPtr<T> &cp)

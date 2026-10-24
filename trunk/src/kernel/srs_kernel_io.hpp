@@ -50,7 +50,7 @@ public:
      * @param seeked Upon successful completion, lseek() returns the resulting offset location as measured in bytes from
      *      the beginning of the file. NULL to ignore.
      */
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked) = 0;
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked) = 0;
 };
 
 /**

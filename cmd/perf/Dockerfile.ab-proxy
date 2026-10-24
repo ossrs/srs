@@ -1,0 +1,14 @@
+# The baseline Go proxy of a proxy A/B run, built by perf-ab.sh -target proxy
+# from a git tree's Go module files streamed as the build context: srs-perf:local
+# with only the proxy replaced, so the origins, source and load tool are the
+# same on both sides.
+FROM golang:1.25-bookworm AS proxy
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd/proxy/ cmd/proxy/
+COPY internal/ internal/
+RUN CGO_ENABLED=0 go build -o /out/srs-proxy ./cmd/proxy
+
+FROM srs-perf:local
+COPY --from=proxy /out/srs-proxy /srs/bin/srs-proxy

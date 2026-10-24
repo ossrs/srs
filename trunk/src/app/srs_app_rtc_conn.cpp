@@ -8,14 +8,10 @@
 
 using namespace std;
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 
 #include <fcntl.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <queue>
 #include <sstream>

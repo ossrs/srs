@@ -1,6 +1,6 @@
 ---
 name: internal-audit-for-srs
-description: Audit one SRS commit or review group before the user reads it, in a fresh context that sees the code before the commit message and the tests, and report what does not hold up, with a concrete scenario each. Use from the srs-autopilot review workflow, from the srs-develop Review a PR and Scan PRs workflows, or by hand on a commit, as the last check before a merge. It finds and reports; it never fixes, commits, or touches a branch. The parent skill owns the review workflow and the result.
+description: Use to check one SRS commit or review group for defects before the user reads it or before a merge, when the srs-autopilot review workflow or the srs-develop Review a PR and Scan PRs workflows ask for an audit, or when the user asks to audit a commit. Reports what does not hold up; fixing, committing and the review result stay with the caller.
 ---
 
 # SRS Internal Change Audit

@@ -32,6 +32,17 @@ func TestParseEncoders(t *testing.T) {
 			t.Errorf("%v is not an encoder", e)
 		}
 	}
+
+	// An ffmpeg for Windows ends its lines with CR LF.
+	got = parseEncoders(strings.ReplaceAll(out, "\n", "\r\n"))
+	for _, e := range []string{"libx264", "libvpx-vp9", "opus", "aac"} {
+		if !got[e] {
+			t.Errorf("CR LF: no %v in %v", e, got)
+		}
+	}
+	if got["------"] {
+		t.Error("CR LF: ------ is not an encoder")
+	}
 }
 
 func TestUsableAndComplete(t *testing.T) {

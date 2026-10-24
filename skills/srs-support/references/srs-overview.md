@@ -194,7 +194,7 @@ By default, transmuxing between sources is disabled. You need to enable it in th
 **Clustering:**
 
 - **Origin Cluster** — Used to extend the number of streams SRS can support. It is a cluster of multiple origin servers behind a proxy server. The proxy discovers which origin server a stream is on and routes to it. v3.0, 2018-02
-- **Proxy Redis Key Namespace** — The next-generation Go proxy can isolate independent clusters sharing one Redis database with the optional `PROXY_REDIS_KEY_PREFIX`; the default is empty for backward-compatible key names. v8.0.4, 2026-07
+- **Proxy Redis Key Namespace** — The Go proxy can isolate independent clusters sharing one Redis database with the optional `PROXY_REDIS_KEY_PREFIX`; the default is empty for backward-compatible key names. v8.0.4, 2026-07
 - **Edge Cluster** — Used to extend the number of viewers a stream can support. The current edge cluster is deprecated because it only supports the RTMP protocol, but a new edge cluster is planned to support more protocols. v1.0, 2014-04
 - **HLS Cluster** — Built by Nginx. It is a type of edge cluster for HLS. v5.0, 2022-04
 
@@ -284,7 +284,7 @@ SRS has been developed for over 13 years and has accumulated many useful feature
 
 - **Edge Cluster** — SRS supports origin cluster, but the edge cluster only supports RTMP. More protocols need to be supported in the edge cluster.
 - **Single-Threaded** — SRS is a single-threaded media server. There are no plans to support multi-threading — you can build a cluster to saturate all CPUs instead.
-- **Linux Only** — SRS currently targets Linux and does not support Windows natively. Windows users can run SRS through WSL (Windows Subsystem for Linux). Historically, SRS v5 supported Windows, but SRS v6 removed native Windows support. The key blocker was not Windows itself, but that SRS uses the ST coroutine model, which does not properly support Windows C++ exception handling. This became a severe problem because SRT relies on C++ exceptions, so SRT could not work reliably together with ST on Windows. In other words, this was a real technical blocker, not a product-positioning choice. In the future, AI may help solve this problem — for example by improving exception support in ST or by rewriting SRT-related code to avoid this dependency — so Windows support may become possible again.
+- **Windows** — SRS targets Linux for production, and macOS is suitable for development. Since SRS 8.0, SRS also runs natively on Windows x64: `srs.exe` is built with MSVC, and each release has a zip, `SRS-Windows-x86_64-<version>.zip`. It runs RTMP, HTTP-FLV, HLS, DASH, WebRTC, SRT, RTSP, GB28181, DVR, the HTTP API and callbacks, and passes the same black-box tests as Linux, but performance is not tuned: State Threads uses `WSAPoll`, not IOCP, and the system timer ticks every 15.6 ms. There are no Unix signals, so control is Ctrl+C or Ctrl+Break and the RAW API (`rpc=reload`, `rpc=reopen-log`), and the `/proc` system stats are 0. SRS 5.0.89 to 7.0.59 built on Windows with Cygwin64, which was removed in 7.0.60; WSL (Windows Subsystem for Linux) runs the Linux build too. See `doc/windows.md`.
 - **No Commercial Support** — As a pure open source project, there is no commercial support team. We are exploring how to use AI to maintain the project and support the community.
 
 ## Performance

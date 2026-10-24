@@ -543,7 +543,7 @@ srs_error_t MockEdgeFileReader::read(void *buf, size_t count, ssize_t *pnread)
     return srs_success;
 }
 
-srs_error_t MockEdgeFileReader::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t MockEdgeFileReader::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     return srs_success;
 }

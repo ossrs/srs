@@ -349,3 +349,32 @@ func TestDuration(t *testing.T) {
 		}
 	}
 }
+
+func TestIsPublishStart(t *testing.T) {
+	at := func(s string) time.Time {
+		v, err := time.Parse(time.RFC3339Nano, s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	// A publish that starts 8ms after a second boundary, and the MPD read
+	// 3s later.
+	start, now := at("2026-10-22T14:17:56.008361Z"), at("2026-10-22T14:17:59.5Z")
+	for _, tc := range []struct {
+		available string
+		want      bool
+	}{
+		{"2026-10-22T14:17:56Z", true},
+		{"2026-10-22T14:17:59Z", true},
+		// The server read its clock just before the publish reached it.
+		{"2026-10-22T14:17:55Z", true},
+		{"2026-10-22T14:17:54Z", false},
+		{"2026-10-22T14:18:00Z", false},
+		{"1970-01-01T00:00:00Z", false},
+	} {
+		if got := IsPublishStart(at(tc.available), start, now); got != tc.want {
+			t.Errorf("IsPublishStart(%v) = %v, want %v", tc.available, got, tc.want)
+		}
+	}
+}

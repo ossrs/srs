@@ -137,6 +137,20 @@ public:
     virtual bool is_force_grace_quit();
 };
 
+// Mock ISrsAppConfig for testing SrsPidFileLocker with a pid file.
+class MockAppConfigForPidFile : public MockAppConfig
+{
+public:
+    std::string pid_file_;
+
+public:
+    MockAppConfigForPidFile(std::string pid_file);
+    virtual ~MockAppConfigForPidFile();
+
+public:
+    virtual std::string get_pid_file();
+};
+
 // Mock ISrsAppConfig for testing SrsServer::do2_cycle()
 class MockAppConfigForDo2Cycle : public MockAppConfig
 {

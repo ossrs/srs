@@ -29,12 +29,14 @@ extern srs_utime_t srs_time_since_startup();
 extern srs_utime_t srs_time_now_realtime();
 
 // For utest to mock it.
-#include <sys/time.h>
 #ifdef SRS_OSX
-#define _srs_gettimeofday gettimeofday
+#define _srs_gettimeofday srs_gettimeofday
 #else
 typedef int (*srs_gettimeofday_t)(struct timeval *tv, struct timezone *tz);
 #endif
+
+// For utest to mock it.
+typedef int (*srs_mkdir_t)(const char *path);
 
 // Whether system is little endian
 extern bool srs_is_little_endian();

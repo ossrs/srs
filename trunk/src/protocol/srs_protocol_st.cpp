@@ -6,11 +6,10 @@
 
 #include <srs_protocol_st.hpp>
 
-#include <fcntl.h>
-#include <netdb.h>
 #include <st.h>
+#ifdef SRS_SANITIZER
 #include <sys/resource.h>
-#include <sys/socket.h>
+#endif
 using namespace std;
 
 #include <srs_core_autofree.hpp>
@@ -67,15 +66,9 @@ srs_error_t srs_st_init()
 
     // Select the best event system available on the OS. In Linux this is
     // epoll(). On BSD it will be kqueue.
-#if defined(SRS_CYGWIN64)
-    if (st_set_eventsys(ST_EVENTSYS_SELECT) == -1) {
-        return srs_error_new(ERROR_ST_SET_SELECT, "st enable st failed, current is %s", st_get_eventsys_name());
-    }
-#else
     if (st_set_eventsys(ST_EVENTSYS_ALT) == -1) {
         return srs_error_new(ERROR_ST_SET_EPOLL, "st enable st failed, current is %s", st_get_eventsys_name());
     }
-#endif
 
     // Before ST init, we might have already initialized the background cid.
     SrsContextId cid = _srs_context->get_id();
@@ -132,9 +125,7 @@ void srs_close_stfd_ptr(srs_netfd_t *stfd)
 
 srs_error_t srs_fd_closeexec(int fd)
 {
-    int flags = fcntl(fd, F_GETFD);
-    flags |= FD_CLOEXEC;
-    if (fcntl(fd, F_SETFD, flags) == -1) {
+    if (srs_socket_cloexec(fd) == -1) {
         return srs_error_new(ERROR_SOCKET_SETCLOSEEXEC, "FD_CLOEXEC fd=%d", fd);
     }
 
@@ -143,8 +134,7 @@ srs_error_t srs_fd_closeexec(int fd)
 
 srs_error_t srs_fd_reuseaddr(int fd)
 {
-    int v = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(int)) == -1) {
+    if (srs_socket_reuseaddr(fd) == -1) {
         return srs_error_new(ERROR_SOCKET_SETREUSEADDR, "SO_REUSEADDR fd=%d", fd);
     }
 
@@ -153,15 +143,9 @@ srs_error_t srs_fd_reuseaddr(int fd)
 
 srs_error_t srs_fd_reuseport(int fd)
 {
-#if defined(SO_REUSEPORT)
-    int v = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &v, sizeof(int)) == -1) {
+    if (srs_socket_reuseport(fd) == -1) {
         srs_warn("SO_REUSEPORT failed for fd=%d", fd);
     }
-#else
-#warning "SO_REUSEPORT is not supported by your OS"
-    srs_warn("SO_REUSEPORT is not supported util Linux kernel 3.9");
-#endif
 
     return srs_success;
 }
@@ -170,7 +154,7 @@ srs_error_t srs_fd_keepalive(int fd)
 {
 #ifdef SO_KEEPALIVE
     int v = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(int)) == -1) {
+    if (srs_setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &v, sizeof(int)) == -1) {
         return srs_error_new(ERROR_SOCKET_SETKEEPALIVE, "SO_KEEPALIVE fd=%d", fd);
     }
 #endif
@@ -230,15 +214,20 @@ srs_error_t srs_tcp_connect(string server, int port, srs_utime_t tm, srs_netfd_t
     }
     SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
-    int sock = socket(r->ai_family, r->ai_socktype, r->ai_protocol);
+    int sock = (int)socket(r->ai_family, r->ai_socktype, r->ai_protocol);
     if (sock == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "create socket");
+    }
+
+    if (srs_socket_refuse_fast(sock, r->ai_addr) == -1) {
+        srs_close_socket(sock);
+        return srs_error_new(ERROR_SOCKET_CONNECT, "refuse fast for %s:%d", server.c_str(), port);
     }
 
     srs_assert(!stfd);
     stfd = st_netfd_open_socket(sock);
     if (stfd == NULL) {
-        ::close(sock);
+        srs_close_socket(sock);
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "open socket");
     }
 
@@ -273,7 +262,7 @@ srs_error_t do_srs_tcp_listen(int fd, addrinfo *r, srs_netfd_t *pfd)
         return srs_error_wrap(err, "set reuseport");
     }
 
-    if (::bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+    if (srs_bind(fd, r->ai_addr, (socklen_t)r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
     }
 
@@ -310,13 +299,13 @@ srs_error_t srs_tcp_listen(std::string ip, int port, srs_netfd_t *pfd)
     SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
     int fd = 0;
-    if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
+    if ((fd = (int)socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
                              r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
     if ((err = do_srs_tcp_listen(fd, r.get(), pfd)) != srs_success) {
-        ::close(fd);
+        srs_close_socket(fd);
         return srs_error_wrap(err, "fd=%d", fd);
     }
 
@@ -339,8 +328,12 @@ srs_error_t do_srs_udp_listen(int fd, addrinfo *r, srs_netfd_t *pfd)
         return srs_error_wrap(err, "set reuseport");
     }
 
-    if (::bind(fd, r->ai_addr, r->ai_addrlen) == -1) {
+    if (srs_bind(fd, r->ai_addr, (socklen_t)r->ai_addrlen) == -1) {
         return srs_error_new(ERROR_SOCKET_BIND, "bind");
+    }
+
+    if (srs_socket_ignore_unreachable(fd) == -1) {
+        return srs_error_new(ERROR_SOCKET_CREATE, "ignore port unreachable");
     }
 
     if ((*pfd = srs_netfd_open_socket(fd)) == NULL) {
@@ -372,13 +365,13 @@ srs_error_t srs_udp_listen(std::string ip, int port, srs_netfd_t *pfd)
     SrsUniquePtr<addrinfo> r(r_raw, freeaddrinfo);
 
     int fd = 0;
-    if ((fd = socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
+    if ((fd = (int)socket(r->ai_family, r->ai_socktype, r->ai_protocol)) == -1) {
         return srs_error_new(ERROR_SOCKET_CREATE, "socket domain=%d, type=%d, protocol=%d",
                              r->ai_family, r->ai_socktype, r->ai_protocol);
     }
 
     if ((err = do_srs_udp_listen(fd, r.get(), pfd)) != srs_success) {
-        ::close(fd);
+        srs_close_socket(fd);
         return srs_error_wrap(err, "fd=%d", fd);
     }
 

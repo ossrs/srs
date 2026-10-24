@@ -102,6 +102,22 @@ sleep 3
 SRS_FULL_TIER_LOCK_TIMEOUT=2 bash "$LOCK" acquire --pid $pid > /dev/null 2>&1
 check "acquire after the timeout" "$?" "0"
 
+echo "=== refresh extends only the owner's lock"
+reset
+holder
+token=$(bash "$LOCK" acquire --pid $pid)
+old=$(sed -n 's/^start=//p' "$SRS_FULL_TIER_LOCK_DIR/owner")
+sed -i.bak "s/^start=.*/start=$((old - 600))/" "$SRS_FULL_TIER_LOCK_DIR/owner"
+bash "$LOCK" refresh "wrong-$token" > /dev/null 2>&1
+check "wrong token cannot refresh" "$?" "1"
+check "wrong token leaves start alone" "$(sed -n 's/^start=//p' "$SRS_FULL_TIER_LOCK_DIR/owner")" "$((old - 600))"
+bash "$LOCK" refresh "$token"
+check "owner refresh succeeds" "$?" "0"
+check "refresh updates start" "$(( $(date +%s) - $(sed -n 's/^start=//p' "$SRS_FULL_TIER_LOCK_DIR/owner") <= 2 ))" "1"
+bash "$LOCK" acquire --pid $pid > /dev/null 2>&1
+check "refreshed lock cannot be taken over" "$?" "1"
+bash "$LOCK" release "$token"
+
 echo "=== racing acquires, one winner"
 reset
 holder

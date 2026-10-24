@@ -6,12 +6,7 @@
 
 #include <srs_app_rtmp_conn.hpp>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <unistd.h>
 using namespace std;
 
 #include <srs_app_config.hpp>

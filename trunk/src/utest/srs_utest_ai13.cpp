@@ -223,7 +223,7 @@ srs_error_t MockFileWriterProxy::writev(const iovec *iov, int iovcnt, ssize_t *p
     return real_writer_->writev(iov, iovcnt, pnwrite);
 }
 
-srs_error_t MockFileWriterProxy::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t MockFileWriterProxy::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     return real_writer_->lseek(offset, whence, seeked);
 }

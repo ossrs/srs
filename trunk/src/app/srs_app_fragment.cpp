@@ -11,7 +11,6 @@
 #include <srs_kernel_utility.hpp>
 
 #include <sstream>
-#include <unistd.h>
 using namespace std;
 
 ISrsFragment::ISrsFragment()
@@ -149,7 +148,7 @@ srs_error_t SrsFragment::rename()
         full_path = srs_strings_replace(full_path, "[duration]", ss.str());
     }
 
-    int r0 = ::rename(tmp_file.c_str(), full_path.c_str());
+    int r0 = srs_rename(tmp_file.c_str(), full_path.c_str());
     if (r0 < 0) {
         return srs_error_new(ERROR_SYSTEM_FRAGMENT_RENAME, "rename %s to %s", tmp_file.c_str(), full_path.c_str());
     }

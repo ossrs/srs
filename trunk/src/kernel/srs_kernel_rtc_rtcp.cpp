@@ -9,7 +9,6 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 
-#include <arpa/inet.h>
 using namespace std;
 
 SrsRtcpCommon::SrsRtcpCommon() : ssrc_(0), data_(NULL), nb_data_(0)

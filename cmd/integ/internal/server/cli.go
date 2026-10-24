@@ -128,7 +128,7 @@ func Exec(t testing.TB, args []string, env map[string]string, timeout time.Durat
 	}
 	run.procs.exited()
 	r.Code = cmd.ProcessState.ExitCode()
-	r.Stdout, r.Stderr = stdout.String(), stderr.String()
+	r.Stdout, r.Stderr = cliOutput(stdout.Bytes()), cliOutput(stderr.Bytes())
 
 	t.Cleanup(func() {
 		if t.Failed() {
@@ -168,4 +168,10 @@ func (p *procCount) startGated(mu *sync.Mutex, max time.Duration, start func() e
 	}
 	p.started()
 	return nil
+}
+
+// cliOutput is the output of a run with LF line ends: srs.exe on Windows
+// writes CR LF, as its C runtime writes stdout in text mode.
+func cliOutput(b []byte) string {
+	return strings.ReplaceAll(string(b), "\r\n", "\n")
 }

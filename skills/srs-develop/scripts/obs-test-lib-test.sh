@@ -158,27 +158,74 @@ check launch_failure
 WIN="$SCRIPT_DIR/obs-windows-test.sh"
 check test "$(SRS_TEST_OBS=0 bash "$WIN")" = 'SKIP SRS_TEST_OBS=0'
 check test "$(SRS_TEST_WINDOWS_HOST= bash "$WIN")" = 'SKIP windows: SRS_TEST_WINDOWS_HOST is not set'
+check test "$(SRS_TEST_WINDOWS_HOST= bash "$WIN" --wip)" = 'SKIP windows: SRS_TEST_WINDOWS_HOST is not set'
 check test "$(bash "$WIN" --bogus >/dev/null 2>&1; echo $?)" = 3
-check test "$(bash "$WIN" --host-case srt 127.0.0.1 >/dev/null 2>&1; echo $?)" = 3
-check test "$(SRS_TEST_WINDOWS_HOST= bash "$WIN" --wip --build)" = 'SKIP windows: SRS_TEST_WINDOWS_HOST is not set'
-check test "$(bash "$WIN" --build --bogus >/dev/null 2>&1; echo $?)" = 3
-# The host step with --build builds SRS in WSL and stops before SRS and the cases, checked with a fake
-# wsl.exe and cygpath on PATH.
-WIN_FAKE=/tmp/srs-obs-lib-regression/win-bin
-mkdir -p "$WIN_FAKE"
-printf '%s\n' '#!/bin/bash' 'echo "$*" >> /tmp/srs-obs-lib-regression/wsl.args' > "$WIN_FAKE/wsl.exe"
-printf '%s\n' '#!/bin/bash' 'echo "$2"' > "$WIN_FAKE/cygpath"
-chmod +x "$WIN_FAKE/wsl.exe" "$WIN_FAKE/cygpath"
-windows_host_build() {
-  local output sha
-  : > /tmp/srs-obs-lib-regression/wsl.args
-  sha=$(git -C "$SCRIPT_DIR" rev-parse HEAD)
-  output=$(cd "$SCRIPT_DIR/../../.." && PATH="$WIN_FAKE:$PATH" bash "$WIN" --host rel main --build) || return 1
-  [[ "$output" == "BUILD wsl $sha "* ]] || return 1
-  [[ $(wc -l < /tmp/srs-obs-lib-regression/wsl.args) -eq 1 ]] \
-    && grep -q -- " --wsl-build $sha .* main rel$" /tmp/srs-obs-lib-regression/wsl.args
+check test "$(bash "$WIN" --build >/dev/null 2>&1; echo $?)" = 3
+check test "$(bash "$WIN" --wip --wip >/dev/null 2>&1; echo $?)" = 3
+check test "$(bash "$WIN" --host extra >/dev/null 2>&1; echo $?)" = 3
+# The host step builds srs.exe with the runner, then runs the lane against it; checked in a fake host
+# checkout whose runner and lane log their calls.
+WIN_HOST=/tmp/srs-obs-lib-regression/win-host
+mkdir -p "$WIN_HOST/skills/srs-develop/scripts" "$WIN_HOST/trunk/objs/windows"
+printf '%s\n' '#!/bin/bash' 'echo "runner $*" >> /tmp/srs-obs-lib-regression/win.calls' 'echo "runner output"' \
+  '[[ -z "${FAKE_BUILD_FAIL:-}" ]] || exit 1' 'touch trunk/objs/windows/srs.exe; chmod +x trunk/objs/windows/srs.exe' \
+  > "$WIN_HOST/skills/srs-develop/scripts/srs-windows-runner.sh"
+printf '%s\n' '#!/bin/bash' 'echo "lane $* BIN=$OBS_SRS_BIN PYTHON=$OBS_PYTHON" >> /tmp/srs-obs-lib-regression/win.calls' \
+  'printf "%s\r\n" "PASS API H264 AAC 640x360" "LANE obs passed=3"' 'exit ${FAKE_LANE_EXIT:-0}' \
+  > "$WIN_HOST/skills/srs-develop/scripts/obs-lane-test.sh"
+git -C "$WIN_HOST" init -q
+git -C "$WIN_HOST" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one
+win_host() {
+  rm -f /tmp/srs-obs-lib-regression/win.calls "$WIN_HOST/trunk/objs/windows/srs.exe"
+  WIN_OUT=$(cd "$WIN_HOST" && OBS_PYTHON=fake-python bash "$WIN" "$@" 2>&1) && WIN_CODE=0 || WIN_CODE=$?
+  WIN_CALLS=$(cat /tmp/srs-obs-lib-regression/win.calls 2>/dev/null || true)
 }
-check windows_host_build
+windows_host_passes() {
+  win_host --host
+  [[ $WIN_CODE -eq 0 && "$WIN_CALLS" == "runner build
+lane  BIN=objs/windows/srs.exe PYTHON=fake-python" ]] || return 1
+  [[ "$WIN_OUT" == "BUILD windows $(git -C "$WIN_HOST" rev-parse HEAD) "*"s
+PASS API H264 AAC 640x360
+LANE obs passed=3" ]]
+}
+check windows_host_passes
+windows_build_fails() {
+  FAKE_BUILD_FAIL=1 win_host --host
+  [[ $WIN_CODE -eq 1 && "$WIN_CALLS" == 'runner build' && "$WIN_OUT" == *'runner output'* \
+    && "$WIN_OUT" == *'FAIL srs.exe build of '* ]]
+}
+check windows_build_fails
+windows_lane_fails() {
+  FAKE_LANE_EXIT=1 win_host --host
+  [[ $WIN_CODE -eq 1 && "$WIN_OUT" == *'LANE obs passed=3' ]]
+}
+check windows_lane_fails
+# The runner's obs step runs only the cases, on the srs.exe it built.
+windows_cases_need_srs() {
+  win_host --host-cases
+  [[ $WIN_CODE -eq 1 && "$WIN_OUT" == 'FAIL build trunk/objs/windows/srs.exe first' && -z "$WIN_CALLS" ]]
+}
+check windows_cases_need_srs
+windows_cases_run() {
+  win_host --host-cases
+  touch "$WIN_HOST/trunk/objs/windows/srs.exe" && chmod +x "$WIN_HOST/trunk/objs/windows/srs.exe"
+  WIN_OUT=$(cd "$WIN_HOST" && OBS_PYTHON=fake-python bash "$WIN" --host-cases 2>&1) || return 1
+  [[ "$(cat /tmp/srs-obs-lib-regression/win.calls)" == 'lane  BIN=objs/windows/srs.exe PYTHON=fake-python' ]]
+}
+check windows_cases_run
+# OBS_SRS_BIN names the SRS binary under trunk that start spawns, objs/srs by default.
+srs_bin_start() (
+  local fake=/tmp/srs-obs-lib-regression/ws
+  mkdir -p "$fake/trunk/objs/windows"
+  printf '%s\n' '#!/bin/bash' 'echo "$0 $* RTMP=$SRS_RTMP_LISTEN"' > "$fake/trunk/objs/windows/srs.exe"
+  chmod +x "$fake/trunk/objs/windows/srs.exe"
+  OBS_WORKSPACE=$fake OBS_TEST_DIR=/tmp/srs-obs-lib-regression OBS_SRS_BIN=objs/windows/srs.exe
+  obs_test_ports 15100
+  obs_test_start_srs
+  wait "$OBS_SRS_PID"
+  [[ "$(cat /tmp/srs-obs-lib-regression/srs.log)" == './objs/windows/srs.exe -e RTMP=15100' ]]
+)
+check srs_bin_start
 # The Linux run: gates, the Docker build and the SRS container, checked with a
 # fake docker and a fake OBS probe on PATH.
 LINUX="$SCRIPT_DIR/obs-linux-test.sh"
@@ -219,45 +266,5 @@ linux_srs_exits() {
     /tmp/srs-obs-lib-regression/docker.args && tail -n 1 /tmp/srs-obs-lib-regression/docker.args | grep -q '^rm -f cid123$'
 }
 check linux_srs_exits
-# The WSL build configures on the first run, again when configure changed or the flags differ, and not
-# otherwise; checked with local repositories and a fake configure, make, nproc and wslpath on PATH.
-WSL_DIR=/tmp/srs-obs-lib-regression/wsl
-mkdir -p "$WSL_DIR/bin" "$WSL_DIR/src/trunk" "$WSL_DIR/home"
-printf '%s\n' '#!/bin/bash' 'echo "${@: -1}"' > "$WSL_DIR/bin/wslpath"
-printf '%s\n' '#!/bin/bash' 'echo 2' > "$WSL_DIR/bin/nproc"
-printf '%s\n' '#!/bin/bash' 'exit 0' > "$WSL_DIR/bin/make"
-chmod +x "$WSL_DIR/bin/wslpath" "$WSL_DIR/bin/nproc" "$WSL_DIR/bin/make"
-printf '%s\n' '#!/bin/bash' 'echo "$*" >> ../configure.args' 'mkdir -p objs' 'touch objs/Makefile' \
-  'echo "#define SRS_USER_CONFIGURE \"$*\"" > objs/srs_auto_headers.hpp' > "$WSL_DIR/src/trunk/configure"
-chmod +x "$WSL_DIR/src/trunk/configure"
-git -C "$WSL_DIR/src" init -q
-git -C "$WSL_DIR/src" add trunk/configure
-git -C "$WSL_DIR/src" -c user.name=t -c user.email=t@t commit -q -m one
-git clone -q "$WSL_DIR/src" "$WSL_DIR/home/main"
-wsl_build_run() {
-  (cd "$WSL_DIR" && HOME="$WSL_DIR/home" PATH="$WSL_DIR/bin:$PATH" \
-    bash "$WIN" --wsl-build "$(git -C "$WSL_DIR/src" rev-parse HEAD)" "$WSL_DIR/src" main rel >/dev/null 2>&1)
-}
-wsl_configures() {
-  local before after
-  before=$(cat "$WSL_DIR/home/rel/configure.args" 2>/dev/null | wc -l)
-  wsl_build_run || return 1
-  after=$(wc -l < "$WSL_DIR/home/rel/configure.args")
-  [[ $after -eq $((before + 1)) ]] && grep -q -- '"--srt=on --ffmpeg-opus=off"' "$WSL_DIR/home/rel/trunk/objs/srs_auto_headers.hpp"
-}
-wsl_reuses() {
-  local before
-  before=$(wc -l < "$WSL_DIR/home/rel/configure.args")
-  wsl_build_run && [[ $(wc -l < "$WSL_DIR/home/rel/configure.args") -eq $before ]]
-}
-check wsl_configures
-check wsl_reuses
-touch -t 202001010000 "$WSL_DIR/home/rel/trunk/objs/Makefile"
-echo '# changed' >> "$WSL_DIR/src/trunk/configure"
-git -C "$WSL_DIR/src" -c user.name=t -c user.email=t@t commit -q -am two
-check wsl_configures
-echo '#define SRS_USER_CONFIGURE "--srt=on"' > "$WSL_DIR/home/rel/trunk/objs/srs_auto_headers.hpp"
-check wsl_configures
-check wsl_reuses
 rm -rf /tmp/srs-obs-lib-regression
 echo "PASS $checks harness regressions"

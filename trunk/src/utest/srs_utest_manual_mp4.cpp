@@ -1544,6 +1544,35 @@ VOID TEST(KernelMp4Test, SpecificInfoBox)
     }
 
     if (true) {
+        SrsMp4DecoderSpecificInfo box;
+
+        stringstream ss;
+        SrsMp4DumpContext dc;
+        box.dumps_detail(ss, dc);
+
+        string v = ss.str();
+        EXPECT_STREQ(", tag=0x05, ASC 0B\n    ", v.c_str());
+    }
+
+    if (true) {
+        char buf[] = {0x05, 0x00};
+        SrsBuffer b(buf, sizeof(buf));
+
+        if (true) {
+            SrsMp4DecoderSpecificInfo box;
+            HELPER_EXPECT_SUCCESS(box.decode(&b));
+            EXPECT_EQ(0, (int)box.asc_.size());
+
+            stringstream ss;
+            SrsMp4DumpContext dc;
+            box.dumps_detail(ss, dc);
+
+            string v = ss.str();
+            EXPECT_STREQ(", tag=0x05, ASC 0B\n    ", v.c_str());
+        }
+    }
+
+    if (true) {
         char buf[2 + 13];
         SrsBuffer b(buf, sizeof(buf));
 

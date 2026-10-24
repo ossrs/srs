@@ -14,7 +14,6 @@ using namespace std;
 #include <srs_protocol_st.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_manual_mock.hpp>
-#include <unistd.h>
 
 // Mock ISrsSignalHandler implementation
 MockSignalHandlerForManager::MockSignalHandlerForManager()
@@ -89,7 +88,7 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
 
     // Test 3: Write SRS_SIGNAL_RELOAD directly to the pipe
     int signo = SRS_SIGNAL_RELOAD;
-    ssize_t nwrite = ::write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
+    ssize_t nwrite = srs_self_pipe_write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
     EXPECT_EQ((ssize_t)sizeof(int), nwrite);
 
     // Give time for signal to be processed
@@ -101,7 +100,7 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
 
     // Test 4: Write SRS_SIGNAL_REOPEN_LOG directly to the pipe
     signo = SRS_SIGNAL_REOPEN_LOG;
-    nwrite = ::write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
+    nwrite = srs_self_pipe_write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
     EXPECT_EQ((ssize_t)sizeof(int), nwrite);
 
     // Give time for signal to be processed
@@ -113,7 +112,7 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
 
     // Test 5: Write SRS_SIGNAL_FAST_QUIT directly to the pipe
     signo = SRS_SIGNAL_FAST_QUIT;
-    nwrite = ::write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
+    nwrite = srs_self_pipe_write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
     EXPECT_EQ((ssize_t)sizeof(int), nwrite);
 
     // Give time for signal to be processed
@@ -125,7 +124,7 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
 
     // Test 6: Write SRS_SIGNAL_GRACEFULLY_QUIT directly to the pipe
     signo = SRS_SIGNAL_GRACEFULLY_QUIT;
-    nwrite = ::write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
+    nwrite = srs_self_pipe_write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
     EXPECT_EQ((ssize_t)sizeof(int), nwrite);
 
     // Give time for signal to be processed
@@ -137,7 +136,7 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
 
     // Test 7: Write SRS_SIGNAL_PERSISTENCE_CONFIG directly to the pipe
     signo = SRS_SIGNAL_PERSISTENCE_CONFIG;
-    nwrite = ::write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
+    nwrite = srs_self_pipe_write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
     EXPECT_EQ((ssize_t)sizeof(int), nwrite);
 
     // Give time for signal to be processed
@@ -149,11 +148,11 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
 
     // Test 8: Write multiple signals in sequence
     signo = SRS_SIGNAL_RELOAD;
-    nwrite = ::write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
+    nwrite = srs_self_pipe_write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
     EXPECT_EQ((ssize_t)sizeof(int), nwrite);
 
     signo = SRS_SIGNAL_RELOAD;
-    nwrite = ::write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
+    nwrite = srs_self_pipe_write(signal_manager->sig_pipe_[1], &signo, sizeof(int));
     EXPECT_EQ((ssize_t)sizeof(int), nwrite);
 
     // Give time for signals to be processed
@@ -163,6 +162,28 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
     EXPECT_EQ(3, mock_handler.signal_reload_count_);
     EXPECT_EQ(SRS_SIGNAL_RELOAD, mock_handler.last_signo_);
 }
+
+#ifndef _WIN32 // POSIX only: signals
+// A signal the manager installed reaches the handler through the self-pipe and the signal coroutine.
+VOID TEST(SignalManagerTest, InstalledSignalReachesTheHandler)
+{
+    srs_error_t err;
+
+    MockSignalHandlerForManager mock_handler;
+    SrsUniquePtr<SrsSignalManager> signal_manager(new SrsSignalManager(&mock_handler));
+    signal_manager->assemble();
+
+    HELPER_EXPECT_SUCCESS(signal_manager->initialize());
+    HELPER_EXPECT_SUCCESS(signal_manager->start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_EQ(0, ::raise(SRS_SIGNAL_REOPEN_LOG));
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_EQ(1, mock_handler.signal_reopen_log_count_);
+    EXPECT_EQ(SRS_SIGNAL_REOPEN_LOG, mock_handler.last_signo_);
+}
+#endif
 
 // The constructor only captures the factory and context globals; it creates no coroutine,
 // so a test can inject both before assemble() runs.

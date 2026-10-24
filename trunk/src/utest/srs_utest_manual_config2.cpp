@@ -2778,7 +2778,8 @@ VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
     // Test server_id with custom pid file path
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid /tmp/custom-srs.pid;"));
+        string tmp_dir = srs_utest_tmp_dir();
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid " + tmp_dir + "/custom-srs.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
         MockFileRemover mfr(server_id_file);
@@ -2787,7 +2788,7 @@ VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
         EXPECT_FALSE(server_id.empty());
 
         // Verify correct server ID file path
-        EXPECT_STREQ("/tmp/custom-srs.id", server_id_file.c_str());
+        EXPECT_STREQ((tmp_dir + "/custom-srs.id").c_str(), server_id_file.c_str());
 
         // Verify the server ID was written to the correct file
         string file_content = srs_try_read_file(server_id_file);

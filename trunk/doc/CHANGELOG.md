@@ -7,6 +7,12 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-10-24, Merge [#4779](https://github.com/ossrs/srs/pull/4779): Kernel: Fix undefined behavior when dumping empty avcC, hvcC and ESDS boxes. v8.0.66 (#4779)
+* <strong>v8.0, 2026-10-24, [8.0 dev2(8.0.65)](https://github.com/ossrs/srs/releases/tag/v8.0-d2) released. 360819 lines.</strong>
+* v8.0, 2026-10-23, Merge [#4787](https://github.com/ossrs/srs/pull/4787): Windows: Native x64 build with MSVC. v8.0.65 (#4787)
+* v8.0, 2026-10-21, Merge [#4786](https://github.com/ossrs/srs/pull/4786): SRT: Fix the timestamps of 48 kHz AAC from SRT to RTMP. v8.0.64 (#4786)
+* <strong>v8.0, 2026-10-21, [8.0 dev1(8.0.63)](https://github.com/ossrs/srs/releases/tag/v8.0-d1) released. 356563 lines.</strong>
+* v8.0, 2026-10-21, Merge [#4785](https://github.com/ossrs/srs/pull/4785): Perf: Load and profile tools, and the first SRS and Go proxy fixes. v8.0.63 (#4785)
 * v8.0, 2026-10-17, Merge [#4780](https://github.com/ossrs/srs/pull/4780): OBS: Control skill and OBS tests in the Full tier. v8.0.62 (#4780)
 * v8.0, 2026-10-17, Merge [#4772](https://github.com/ossrs/srs/pull/4772): Integ: Add the srs-integ black-box suite, and fix the 120+ SRS bugs it found. v8.0.61 (#4772)
 * v8.0, 2026-10-10, Merge [#4767](https://github.com/ossrs/srs/pull/4767): Forward: Forwarder status API and keyframe restart. v8.0.60 (#4767)

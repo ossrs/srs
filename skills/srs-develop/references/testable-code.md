@@ -140,7 +140,7 @@ Mocks record what they were asked to do (`on_play_count_`, `start_play_count_`, 
 
 AI maintains the `srs_utest_ai*` and `srs_utest_workflow_*` files: a unit test goes into an existing `srs_utest_ai*` file or a new `srs_utest_aiNN`, a workflow test into the matching `srs_utest_workflow_*` file. The `srs_utest_manual_*` files are defined and implemented by humans; never add a test to them.
 
-Add the basename to the `MODULE_FILES` list in `trunk/configure`; a new file is not compiled until configure regenerates the makefile, which `srs-utest-run.sh` does on its own.
+Add the basename to `SRS_UTEST_FILES` in `trunk/auto/module_files.sh`; a new file is not compiled until configure regenerates the makefile, which `srs-utest-run.sh` does on its own.
 
 Some test files are conditional: `srs_utest_ai21`/`ai22` build only with `--rtsp=on` (default off) and `srs_utest_ai23` only with GB28181. A test that includes an RTSP or GB28181 header must live in one of those files, not in an unconditionally built one.
 
@@ -152,6 +152,12 @@ bash skills/srs-develop/scripts/srs-utest-run.sh 'SuiteName.*'
 ```
 
 Reconfiguring overwrites the existing build configuration. Ask the maintainer for the flags they want — notably `--sanitizer=on` and `--rtsp=on` — before re-running configure on their working tree.
+
+The same tests build as `srs_utest.exe` on Windows, so a test must not assume a Unix host:
+
+- Put temporary files in `srs_utest_tmp_dir()`, not `/tmp`, and use `SRS_UTEST_NULL_FILE` for `/dev/null`.
+- Guard a test that cannot run on Windows as `references/cpp-code-style.md` Platform Calls says.
+- When the change reaches Windows, run it there as `references/develop-code.md` C++ Step 4 says.
 
 ## Go
 

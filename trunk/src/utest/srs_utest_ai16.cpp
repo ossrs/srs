@@ -4070,6 +4070,51 @@ VOID TEST(HttpApiTest, GoApiRawObeysSwitchesOfReloadedConfig)
     mock_config.unsubscribe(api.get());
 }
 
+// Windows has no SIGUSR1, so a log rotation asks for the reopen through the RAW API. Reopening changes no
+// config, so it needs the RAW API on but not allow_reload.
+VOID TEST(HttpApiTest, GoApiRawReopensTheLog)
+{
+    srs_error_t err;
+
+    MockSignalHandler mock_handler;
+    MockAppConfigForRawApi mock_config;
+    mock_config.raw_api_ = true;
+    mock_config.allow_reload_ = false;
+
+    SrsUniquePtr<SrsGoApiRaw> api(new SrsGoApiRaw(&mock_handler));
+    api->config_ = &mock_config;
+    api->assemble();
+
+    {
+        MockResponseWriter w;
+        SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+        r->query_params_["rpc"] = "reopen-log";
+        mock_handler.reset();
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(response.find("\"code\":0") != string::npos) << response;
+        EXPECT_EQ(SRS_SIGNAL_REOPEN_LOG, mock_handler.signal_received_);
+        EXPECT_EQ(1, mock_handler.signal_count_);
+    }
+
+    // With the RAW API off, it is refused and the log stays as it is.
+    mock_config.raw_api_ = false;
+    {
+        MockResponseWriter w;
+        SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+        r->query_params_["rpc"] = "reopen-log";
+        mock_handler.reset();
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(response.find("\"code\":1061") != string::npos) << response;
+        EXPECT_EQ(0, mock_handler.signal_count_);
+    }
+
+    mock_config.unsubscribe(api.get());
+}
+
 VOID TEST(HttpApiTest, GoApiRawObeysRawApiEnabledByReload)
 {
     srs_error_t err;
