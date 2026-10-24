@@ -56,9 +56,9 @@ Remark:
 
 Supported operating systems and hardware:
 
-* Linux, with x86, x86-64 or arm.
-* Mac, with intel chip.
-* Other OS, such as Windows, please use [docker][docker-srs4].
+* Linux, with x86-64, ARMv7, AArch64, RISC-V, LoongArch or MIPS.
+* macOS, with an Intel chip or Apple silicon.
+* Windows x64, natively from SRS 8.0, see [Windows][windows]; or use [docker][docker-srs4].
 
 [authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
 [bigthanks]: https://ossrs.net/lts/zh-cn/product#release40
@@ -75,6 +75,7 @@ Supported operating systems and hardware:
 [console]: http://ossrs.net:8080/console
 [docker-srs3]: https://github.com/ossrs/srs-docker/tree/v3#usage
 [docker-srs4]: https://github.com/ossrs/srs-docker/tree/v4#usage
+[windows]: https://ossrs.io/lts/en-us/docs/v8/doc/windows
 [docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
 
 [v4_CN_Git]: https://ossrs.net/lts/zh-cn/docs/v4/doc/git

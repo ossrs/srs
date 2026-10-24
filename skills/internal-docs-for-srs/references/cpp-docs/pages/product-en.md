@@ -108,6 +108,10 @@ Code name: Free. Development started in 2026, currently in progress.
 
 SRS 8.0 development started at 2026.
 
+**Platforms**
+
+- [x] Windows - Native Windows x64 build with MSVC, a release zip, and the same black-box tests as Linux. [#4787](https://github.com/ossrs/srs/pull/4787)
+
 ## Release 7.0
 
 Code name: Kai. Named by TOC member [Haibo Chen](https://github.com/duiniuluantanqin). Development started August 2024, planned for release by the end of 2026.
