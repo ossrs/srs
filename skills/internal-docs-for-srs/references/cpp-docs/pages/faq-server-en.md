@@ -57,7 +57,7 @@ Issue according to the requirements.
   > 1. SRS also supports domestic Xin Chuang systems. If you need to adapt to a new domestic Xin Chuang system, you can submit an issue.
 * `Windows`: Special notes about Windows
   > 1. Generally, Windows is less used as a server, but there are some application scenarios. SRS 8.0 runs natively on Windows x64, built with MSVC, and each release has a zip for Windows, `SRS-Windows-x86_64-<version>.zip`, on [GitHub Releases](https://github.com/ossrs/srs/releases).
-  > 1. It runs RTMP, HTTP-FLV, HLS, DASH, WebRTC, SRT, RTSP, GB28181, DVR, the HTTP API and callbacks, and passes the same black-box tests as Linux. For the build, the features and the limits, such as the timer resolution and the stats that need Linux `/proc`, please refer to [Windows](https://ossrs.io/lts/en-us/docs/v8/doc/windows).
+  > 1. It runs RTMP, HTTP-FLV, HLS, DASH, WebRTC, SRT, RTSP, GB28181, DVR, the HTTP API and callbacks, and passes the same black-box tests as Linux. For the build, the features and the limits, such as the timer resolution and the stats that need Linux `/proc`, please refer to [Windows](./docs/v8/doc/windows).
   > 1. SRS 5.0.89 to 7.0.59 built on Windows with Cygwin64, which was removed in 7.0.60. WSL (Windows Subsystem for Linux) runs the Linux build too.
 
 <a name='dvr'></a>
