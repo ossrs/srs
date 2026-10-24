@@ -2493,8 +2493,13 @@ MockRandForHandshake::~MockRandForHandshake()
 
 void MockRandForHandshake::gen_bytes(char *bytes, int size)
 {
-    memset(bytes, 0x10 + (int)gen_bytes_sizes_.size(), size);
+    size_t index = gen_bytes_sizes_.size();
     gen_bytes_sizes_.push_back(size);
+    if (index < gen_bytes_values_.size()) {
+        memcpy(bytes, gen_bytes_values_[index].data(), srs_min(size, (int)gen_bytes_values_[index].size()));
+        return;
+    }
+    memset(bytes, 0x10 + (int)index, size);
 }
 
 std::string MockRandForHandshake::gen_str(int len)

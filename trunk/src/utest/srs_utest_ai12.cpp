@@ -3904,3 +3904,82 @@ VOID TEST(RtcPlayerNegotiatorTest, GeneratePlayLocalSdpDrawsCnameThroughInjected
     ASSERT_EQ(1, (int)local_sdp.media_descs_[1].ssrc_infos_.size());
     EXPECT_EQ("cname00000000001", local_sdp.media_descs_[1].ssrc_infos_[0].cname_);
 }
+
+// On Android arm64 the allocator tags the top byte of heap pointers with 0xb4, so an id taken from
+// an address had its top bit set and went negative, which Firefox rejects in setRemoteDescription.
+VOID TEST(RtcSdpSessionIdTest, TaggedTopByteGivesNonNegativeId)
+{
+    MockRandForHandshake rand;
+    rand.gen_bytes_values_.push_back(std::string("\xb4\x00\x00\x79\xbc\x25\xf3\x60", 8));
+
+    EXPECT_EQ("3746995412819899232", srs_rtc_sdp_session_id(&rand));
+
+    ASSERT_EQ(1, (int)rand.gen_bytes_sizes_.size());
+    EXPECT_EQ(8, rand.gen_bytes_sizes_[0]);
+}
+
+// JSEP requires the sess-id to be less than 2^63-1, so even all random bits set stays below it.
+VOID TEST(RtcSdpSessionIdTest, AllBitsSetStaysBelowJsepLimit)
+{
+    MockRandForHandshake rand;
+    rand.gen_bytes_values_.push_back(std::string(8, '\xff'));
+
+    EXPECT_EQ("4611686018427387903", srs_rtc_sdp_session_id(&rand));
+}
+
+VOID TEST(RtcPublisherNegotiatorTest, ConstructorCreatesRand)
+{
+    SrsUniquePtr<SrsRtcPublisherNegotiator> negotiator(new SrsRtcPublisherNegotiator());
+
+    EXPECT_TRUE(negotiator->rand_ != NULL);
+}
+
+// The publish answer draws its sess-id through the injected generator, never from an address.
+VOID TEST(RtcPublisherNegotiatorTest, GeneratePublishLocalSdpDrawsSessionIdThroughInjectedRand)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtcPublisherNegotiator> negotiator(new SrsRtcPublisherNegotiator());
+
+    MockRandForHandshake rand;
+    rand.gen_bytes_values_.push_back(std::string("\xb4\x00\x00\x79\xbc\x25\xf3\x60", 8));
+    srs_freep(negotiator->rand_);
+    negotiator->rand_ = &rand;
+
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+    MockRtcAsyncCallRequest req("test.vhost", "live", "stream1");
+    SrsSdp local_sdp;
+    err = negotiator->generate_publish_local_sdp(&req, local_sdp, stream_desc.get(), true, false);
+
+    // Restore before any assertion can return, so the negotiator never frees the stack mock.
+    negotiator->rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ("3746995412819899232", local_sdp.session_id_);
+    EXPECT_EQ("2", local_sdp.session_version_);
+}
+
+// The play answer draws its sess-id through the injected generator, never from an address.
+VOID TEST(RtcPlayerNegotiatorTest, GeneratePlayLocalSdpDrawsSessionIdThroughInjectedRand)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtcPlayerNegotiator> negotiator(new SrsRtcPlayerNegotiator());
+
+    MockRandForHandshake rand;
+    rand.gen_bytes_values_.push_back(std::string("\xb4\x00\x00\x79\xbc\x25\xf3\x60", 8));
+    srs_freep(negotiator->rand_);
+    negotiator->rand_ = &rand;
+
+    SrsUniquePtr<SrsRtcSourceDescription> stream_desc(new SrsRtcSourceDescription());
+    MockRtcAsyncCallRequest req("test.vhost", "live", "stream1");
+    SrsSdp local_sdp;
+    err = negotiator->generate_play_local_sdp(&req, local_sdp, stream_desc.get(), true, false);
+
+    // Restore before any assertion can return, so the negotiator never frees the stack mock.
+    negotiator->rand_ = NULL;
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ("3746995412819899232", local_sdp.session_id_);
+    EXPECT_EQ("2", local_sdp.session_version_);
+}
