@@ -124,6 +124,8 @@ type Reply struct {
 	// Hang never answers: the request waits until the client gives up or the
 	// mock closes.
 	Hang bool
+	// Release, when not nil, holds the answer until it is closed.
+	Release <-chan struct{}
 }
 
 // OK accepts, with HTTP 200 and code 0, the default reply.
@@ -159,6 +161,12 @@ func JSON(v any) Reply {
 // After returns the reply, answered after d.
 func (r Reply) After(d time.Duration) Reply {
 	r.Delay = d
+	return r
+}
+
+// Until returns the reply, answered once release is closed.
+func (r Reply) Until(release <-chan struct{}) Reply {
+	r.Release = release
 	return r
 }
 
@@ -309,6 +317,15 @@ func (s *Server) serve(w http.ResponseWriter, req *http.Request) {
 	if reply.Delay > 0 {
 		select {
 		case <-time.After(reply.Delay):
+		case <-req.Context().Done():
+			panic(http.ErrAbortHandler)
+		case <-s.closed:
+			panic(http.ErrAbortHandler)
+		}
+	}
+	if reply.Release != nil {
+		select {
+		case <-reply.Release:
 		case <-req.Context().Done():
 			panic(http.ErrAbortHandler)
 		case <-s.closed:

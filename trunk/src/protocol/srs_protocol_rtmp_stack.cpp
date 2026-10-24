@@ -16,7 +16,6 @@
 #include <srs_protocol_utility.hpp>
 
 // for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#include <unistd.h>
 
 #include <stdlib.h>
 using namespace std;

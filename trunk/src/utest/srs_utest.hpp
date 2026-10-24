@@ -38,8 +38,19 @@ using namespace std;
 // we add an empty macro for upp to show the smart tips.
 #define VOID
 
-// Temporary disk config.
+// Temporary disk config: files go in srs_utest_tmp_dir() and are named by this prefix.
 extern std::string _srs_tmp_file_prefix;
+// The directory for the tests' temporary files: /tmp on Unix, and the user's temp directory on Windows,
+// which has no /tmp. It has forward slashes and no trailing slash, as SRS joins paths with a slash.
+extern std::string srs_utest_tmp_dir();
+// The path with forward slashes and no trailing slash, such as C:/Users/a/Temp for C:\Users\a\Temp\.
+extern std::string srs_utest_slash_path(std::string path);
+// The null device, which takes every write and reads as empty.
+#ifdef _WIN32
+#define SRS_UTEST_NULL_FILE "NUL"
+#else
+#define SRS_UTEST_NULL_FILE "/dev/null"
+#endif
 // Temporary network config.
 extern std::string _srs_tmp_host;
 extern int _srs_tmp_port;
@@ -71,6 +82,14 @@ extern srs_error_t srs_utest_udp_mux_listener_listen(SrsUdpMuxListener *listener
 // port range, that every utest run may check at once. *pfd is NULL when a socket holds the port, so the
 // caller skips it, not fails.
 extern srs_error_t srs_utest_listen_fixed_port(int type, std::string ip, int port, srs_netfd_t *pfd);
+
+// Whether a child process would not inherit the file descriptor fd or the socket: FD_CLOEXEC on Unix,
+// no HANDLE_FLAG_INHERIT on Windows.
+extern bool srs_utest_fd_cloexec(int fd);
+extern bool srs_utest_socket_cloexec(srs_socket_t fd);
+// Make the file sparse, so a write far past its end stores no zeros up to it: Windows writes them unless the file
+// is sparse, and Unix file systems such as ext4 and APFS keep it sparse already.
+extern bool srs_utest_file_sparse(FILE *fp);
 
 // While it lives, random() draws from a sequence of its own, seeded by seed, and when it goes, random()
 // goes on with the sequence it had before. A test that needs fixed random values, like RTX sequence
@@ -465,7 +484,6 @@ class SrsTestTcpClient
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
-    SrsTcpClient *client_;
     SrsTcpConnection *conn_;
     string host_;
     int port_;

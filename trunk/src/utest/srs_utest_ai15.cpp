@@ -34,8 +34,8 @@ using namespace std;
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_manual_service.hpp>
+#include <fcntl.h>
 #include <srt/srt.h>
-#include <sys/socket.h>
 
 // Mock PID file locker implementation for SrsServer::initialize() testing
 MockPidFileLocker::MockPidFileLocker()
@@ -237,6 +237,108 @@ VOID TEST(SrsPidFileLockerTest, AcquireWithoutPidFile)
     HELPER_EXPECT_SUCCESS(locker.acquire());
     EXPECT_EQ(-1, locker.pid_fd_);
 }
+
+MockAppConfigForPidFile::MockAppConfigForPidFile(std::string pid_file)
+{
+    pid_file_ = pid_file;
+}
+
+MockAppConfigForPidFile::~MockAppConfigForPidFile()
+{
+}
+
+std::string MockAppConfigForPidFile::get_pid_file()
+{
+    return pid_file_;
+}
+
+static std::string pid_file_read(const std::string &path)
+{
+    std::string data;
+    FILE *fp = ::fopen(path.c_str(), "rb");
+    if (!fp) {
+        return data;
+    }
+
+    char buf[64];
+    size_t n;
+    while ((n = ::fread(buf, 1, sizeof(buf), fp)) > 0) {
+        data.append(buf, n);
+    }
+    ::fclose(fp);
+    return data;
+}
+
+VOID TEST(SrsPidFileLockerTest, AcquireReplacesTheOldPid)
+{
+    srs_error_t err;
+
+    std::string path = _srs_tmp_file_prefix + "pid-file-replace";
+    FILE *fp = ::fopen(path.c_str(), "wb");
+    ASSERT_TRUE(fp != NULL);
+    ::fputs("1234567890123", fp);
+    ::fclose(fp);
+
+    MockAppConfigForPidFile config(path);
+    if (true) {
+        SrsPidFileLocker locker;
+        locker.config_ = &config;
+
+        HELPER_EXPECT_SUCCESS(locker.acquire());
+        EXPECT_GT(locker.pid_fd_, 0);
+        EXPECT_EQ(srs_strconv_format_int(::getpid()), pid_file_read(path));
+
+        // A child process, such as FFmpeg, must not keep the lock after SRS quits.
+        EXPECT_TRUE(srs_utest_fd_cloexec(locker.pid_fd_));
+    }
+
+    ::unlink(path.c_str());
+}
+
+#ifndef _WIN32 // POSIX only: fork
+// The exit code of a child process that acquires a pid file its parent holds.
+static int pid_file_child_acquire(ISrsAppConfig *config)
+{
+    SrsPidFileLocker locker;
+    locker.config_ = config;
+
+    srs_error_t err = locker.acquire();
+    int code = srs_error_code(err) == ERROR_SYSTEM_PID_ALREADY_RUNNING ? 0 : 1;
+    srs_freep(err);
+    return code;
+}
+
+VOID TEST(SrsPidFileLockerTest, AcquireFailsWhileAnotherSrsHoldsIt)
+{
+    srs_error_t err;
+
+    std::string path = _srs_tmp_file_prefix + "pid-file-held";
+    ::unlink(path.c_str());
+
+    MockAppConfigForPidFile config(path);
+    if (true) {
+        SrsPidFileLocker locker;
+        locker.config_ = &config;
+        HELPER_EXPECT_SUCCESS(locker.acquire());
+
+        pid_t pid = srs_fork();
+        ASSERT_GE(pid, 0);
+        if (pid == 0) {
+            ::_exit(pid_file_child_acquire(&config));
+        }
+
+        int status = -1;
+        ASSERT_EQ(pid, srs_waitpid(pid, &status, 0));
+        EXPECT_TRUE(WIFEXITED(status));
+        EXPECT_EQ(0, WEXITSTATUS(status));
+
+        // The pid file still names the SRS that holds it.
+        EXPECT_EQ(srs_strconv_format_int(::getpid()), pid_file_read(path));
+    }
+
+    ::unlink(path.c_str());
+}
+#endif
 
 // Test SrsServer::initialize() method to verify proper initialization sequence
 // including PID file locking, SRT event loop, DTLS certificate, DVR async worker,
@@ -1024,6 +1126,40 @@ VOID TEST(SrtEventLoopTest, InitializeRoutesSrtLogsToSrsLog)
     EXPECT_LT(0, log.error_count_);
     EXPECT_STREQ("SRT", log.last_error_tag_.c_str());
 
+    _srs_log = original_log;
+    srt_setloghandler(NULL, srs_utest_srt_silent_log_handler);
+    srt_setloglevel(LOG_CRIT);
+}
+
+VOID TEST(SrtEventLoopTest, AcceptWithNoClientIsNotAnError)
+{
+    srs_error_t err;
+
+    srt_setloglevel(LOG_ERR);
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    SrsSrtEventLoop eventloop;
+    HELPER_EXPECT_SUCCESS(eventloop.initialize());
+
+    srs_srt_t lfd = srs_srt_socket_invalid();
+    HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&lfd));
+    HELPER_EXPECT_SUCCESS(srs_srt_listen(lfd, "127.0.0.1", 0));
+
+    // The accept loop of SRS tries first and waits when no client is pending, which libsrt logs as an error.
+    sockaddr_storage addr;
+    int addrlen = sizeof(addr);
+    EXPECT_EQ(srs_srt_socket_invalid(), srt_accept(lfd, (sockaddr *)&addr, &addrlen));
+    EXPECT_EQ(SRT_EASYNCRCV, srt_getlasterror(NULL));
+    EXPECT_EQ(0, log.error_count_);
+
+    // A real libsrt error still goes to the SRS log as an error.
+    srs_utest_srt_provoke_error_log();
+    EXPECT_LT(0, log.error_count_);
+
+    srs_srt_close(lfd);
     _srs_log = original_log;
     srt_setloghandler(NULL, srs_utest_srt_silent_log_handler);
     srt_setloglevel(LOG_CRIT);
@@ -3582,7 +3718,12 @@ srs_netfd_t MockRtmpTransportForDoCycle::fd()
     static srs_netfd_t dummy_stfd = NULL;
 
     if (fds[0] == -1) {
+#ifdef _WIN32
+        // Windows has no socketpair; one socket is enough for the descriptor.
+        fds[0] = (int)::socket(AF_INET, SOCK_STREAM, 0);
+#else
         socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+#endif
         dummy_stfd = srs_netfd_open_socket(fds[0]);
     }
 
@@ -3834,7 +3975,7 @@ VOID TEST(SrsUtilityTest, UpdateProcStat)
     // 2. Read /proc/self/stat for self process CPU statistics (Linux only)
     // 3. Calculate CPU usage percentages based on deltas
     // 4. Update the global stat objects
-    // On macOS, the function returns early but doesn't crash
+    // On macOS and Windows, the function returns early but doesn't crash
     srs_update_proc_stat();
 
     // Get system and self CPU stats after first update
@@ -3845,7 +3986,7 @@ VOID TEST(SrsUtilityTest, UpdateProcStat)
     EXPECT_TRUE(system_stat != NULL);
     EXPECT_TRUE(self_stat != NULL);
 
-#if !defined(SRS_OSX)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     // After first call, ok_ should be true if /proc/stat was read successfully
     EXPECT_TRUE(system_stat->ok_);
     // After first call, ok_ should be true if /proc/self/stat was read successfully
@@ -3857,7 +3998,7 @@ VOID TEST(SrsUtilityTest, UpdateProcStat)
     // the difference between current and previous values
     srs_update_proc_stat();
 
-#if !defined(SRS_OSX)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     // Verify that percent values are in valid range [0, 1]
     // Note: percent_ might be 0 if very little time passed between calls
     EXPECT_TRUE(system_stat->percent_ >= 0.0f);
@@ -3933,7 +4074,7 @@ VOID TEST(SrsUtilityTest, GetDiskDiskstatsStat)
     // Test case 1: Call with default config - should return true with ok_ = true
     // This is the major use scenario - the function should work with the global config
     // and return success even if no disk devices are configured or /proc/diskstats
-    // is not available (on macOS).
+    // is not available (on macOS and Windows).
     if (true) {
         SrsDiskStat stat;
         bool result = srs_get_disk_diskstats_stat(stat);
@@ -3945,7 +4086,7 @@ VOID TEST(SrsUtilityTest, GetDiskDiskstatsStat)
         EXPECT_TRUE(stat.sample_time_ > 0);
     }
 
-#if !defined(SRS_OSX)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     // Test case 2: Verify that disk stat fields are initialized
     // On Linux, if /proc/diskstats exists and disk devices are configured,
     // the function should read and accumulate disk statistics
@@ -4016,8 +4157,8 @@ VOID TEST(SrsUtilityTest, UpdateDiskStat)
         srs_update_disk_stat();
 
         SrsDiskStat *stat = srs_get_disk_stat();
-#if defined(SRS_OSX)
-        // No /proc on macOS, so the disk stat is not read and stays not ok.
+#if defined(SRS_OSX) || defined(_WIN32)
+        // No /proc on macOS or Windows, so the disk stat is not read and stays not ok.
         EXPECT_FALSE(stat->ok_);
 #else
         EXPECT_TRUE(stat->ok_);
@@ -4027,7 +4168,7 @@ VOID TEST(SrsUtilityTest, UpdateDiskStat)
         EXPECT_EQ(0.0f, stat->busy_);
     }
 
-#if !defined(SRS_OSX)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     // Test case 2: Second call to srs_update_disk_stat() - should calculate deltas
     // This tests the vmstat KBps calculation and diskstats busy percentage calculation
     // On Linux, if /proc/vmstat and /proc/diskstats exist, the function should
@@ -5615,10 +5756,10 @@ VOID TEST(UtilityTest, GetProcSelfStatSuccess)
 
     // Call get_proc_self_stat() - this is the main test
     // On Linux: reads /proc/self/stat and parses all fields
-    // On macOS: has no /proc, so fails and leaves ok_ false
+    // On macOS and Windows: has no /proc, so fails and leaves ok_ false
     bool result = get_proc_self_stat(stat);
 
-#if defined(SRS_OSX)
+#if defined(SRS_OSX) || defined(_WIN32)
     EXPECT_FALSE(result);
     EXPECT_FALSE(stat.ok_);
 #else
@@ -5710,11 +5851,11 @@ VOID TEST(UtilityTest, ParseProcSelfStatComm)
 }
 
 // The self and system proc stats and the meminfo are ok only where SRS reads
-// them from /proc. On macOS, which has no /proc, they stay not ok, so the API
+// them from /proc. On macOS and Windows, which have no /proc, they stay not ok, so the API
 // answers ok false, not ok true with every value 0.
 VOID TEST(UtilityTest, ProcStatsOkOnlyWhenRead)
 {
-#if !defined(SRS_OSX)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     bool want = true;
 #else
     bool want = false;

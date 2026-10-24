@@ -13,7 +13,6 @@
 #include <srs_utest_manual_kernel.hpp>
 
 #include <stdio.h>
-#include <unistd.h>
 
 using namespace std;
 
@@ -1357,12 +1356,13 @@ VOID TEST(HttpFileServerDirTest, PathIsDir)
     EXPECT_TRUE(path.is_dir("./"));
     EXPECT_FALSE(path.is_dir("./srs-utest-no-such-path"));
 
-    FILE *f = fopen("/tmp/srs-utest-path-is-dir.txt", "w");
+    string file = srs_utest_tmp_dir() + "/srs-utest-path-is-dir.txt";
+    FILE *f = fopen(file.c_str(), "w");
     ASSERT_TRUE(f != NULL);
     fclose(f);
-    EXPECT_TRUE(path.exists("/tmp/srs-utest-path-is-dir.txt"));
-    EXPECT_FALSE(path.is_dir("/tmp/srs-utest-path-is-dir.txt"));
-    unlink("/tmp/srs-utest-path-is-dir.txt");
+    EXPECT_TRUE(path.exists(file));
+    EXPECT_FALSE(path.is_dir(file));
+    unlink(file.c_str());
 }
 
 // A file whose name needs escaping is asked for percent-encoded, as a client must send it: the server looks for the

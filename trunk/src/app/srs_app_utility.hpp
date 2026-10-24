@@ -13,9 +13,7 @@
 #include <string>
 #include <vector>
 
-#include <arpa/inet.h>
 #include <limits.h>
-#include <sys/resource.h>
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_log.hpp>

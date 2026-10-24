@@ -176,15 +176,12 @@ func relayPublisher(c *check.C, srs *server.Server, stream string, w rtcCodec) *
 	return pub
 }
 
-// relaySend waits, for at most 150ms, until the publisher gets the player's
-// keyframe request, which shows SRS has subscribed the player, then sends the
-// codec's test file like sendRTCSamples.
+// relaySend waits until the publisher gets the player's keyframe request,
+// which shows SRS has subscribed the player, then sends the codec's test file
+// like sendRTCSamples. The player asks again until then, as requestKeyframe
+// does, since a request before SRS has subscribed it goes nowhere.
 func relaySend(c *check.C, pub *rtc.Publisher, player *rtc.Player, w rtcCodec) {
 	c.Helper()
-	n := pub.PLIs()
-	c.Must(player.RequestKeyframe(), "the player requests a keyframe")
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
-	defer cancel()
-	c.Must(pub.WaitPLI(ctx, n), "the publisher gets the player's keyframe request")
+	requestKeyframe(c, pub, player, "the player")
 	whipSend(c, pub, rtcFileSamples(c, w.file), rtcLead)
 }

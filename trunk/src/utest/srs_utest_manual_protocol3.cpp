@@ -683,7 +683,7 @@ VOID TEST(ProtocolRawAvcTest, SrsRawHEVCStreamMuxIpbFrame)
 
     // Test mux_ipb_frame with empty frame - should still work
     if (true) {
-        unsigned char empty_frame[] = {};
+        unsigned char empty_frame[1] = {0};
         std::string ibp_output;
 
         HELPER_EXPECT_SUCCESS(hevc.mux_ipb_frame((char *)empty_frame, 0, ibp_output));

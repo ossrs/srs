@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-10-23, Merge [#4787](https://github.com/ossrs/srs/pull/4787): Windows: Native x64 build with MSVC. v8.0.65 (#4787)
 * v8.0, 2026-10-21, Merge [#4786](https://github.com/ossrs/srs/pull/4786): SRT: Fix the timestamps of 48 kHz AAC from SRT to RTMP. v8.0.64 (#4786)
 * <strong>v8.0, 2026-10-21, [8.0 dev1(8.0.63)](https://github.com/ossrs/srs/releases/tag/v8.0-d1) released. 356563 lines.</strong>
 * v8.0, 2026-10-21, Merge [#4785](https://github.com/ossrs/srs/pull/4785): Perf: Load and profile tools, and the first SRS and Go proxy fixes. v8.0.63 (#4785)

@@ -65,7 +65,7 @@
     (void)0
 
 // Check CPU for ST(state-threads), please read https://github.com/ossrs/state-threads/issues/22
-#if !defined(__amd64__) && !defined(__x86_64__) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__) && !defined(__mips__) && !defined(__mips64) && !defined(__loongarch64) && !defined(__riscv)
+#if !defined(__amd64__) && !defined(__x86_64__) && !defined(_M_X64) && !defined(__i386__) && !defined(__arm__) && !defined(__aarch64__) && !defined(__mips__) && !defined(__mips64) && !defined(__loongarch64) && !defined(__riscv)
 #error "Only support i386/amd64/x86_64/arm/aarch64/mips/mips64/loongarch64/riscv cpu"
 #endif
 

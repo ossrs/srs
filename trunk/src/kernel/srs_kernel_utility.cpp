@@ -6,16 +6,11 @@
 
 #include <srs_kernel_utility.hpp>
 
-#include <arpa/inet.h>
 #include <fcntl.h>
-#include <netdb.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <sstream>
@@ -61,8 +56,11 @@ srs_utime_t srs_time_since_startup()
 
 // For utest to mock it.
 #ifndef SRS_OSX
-srs_gettimeofday_t _srs_gettimeofday = (srs_gettimeofday_t)::gettimeofday;
+srs_gettimeofday_t _srs_gettimeofday = srs_gettimeofday;
 #endif
+
+// For utest to mock it.
+srs_mkdir_t _srs_mkdir_fn = srs_mkdir;
 
 srs_utime_t srs_time_now_realtime()
 {
@@ -406,9 +404,9 @@ int srs_do_create_dir_recursively(string dir)
         return ERROR_SYSTEM_DIR_EXISTS;
     }
 
-    // create parent first.
+    // create parent first. The parent of a dir under the root, such as /a, is empty, which is the root.
     size_t pos;
-    if ((pos = dir.rfind("/")) != std::string::npos) {
+    if ((pos = dir.rfind("/")) != std::string::npos && pos > 0) {
         std::string parent = dir.substr(0, pos);
         ret = srs_do_create_dir_recursively(parent);
         // return for error.
@@ -421,8 +419,7 @@ int srs_do_create_dir_recursively(string dir)
 
     // LCOV_EXCL_START
     // create curren dir.
-    mode_t mode = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH;
-    if (::mkdir(dir.c_str(), mode) < 0) {
+    if (_srs_mkdir_fn(dir.c_str()) < 0) {
         if (errno == EEXIST) {
             return ERROR_SYSTEM_DIR_EXISTS;
         }
@@ -682,7 +679,7 @@ int srs_from_hex_char(uint8_t c, uint8_t *out)
     return -1;
 }
 
-char *srs_hex_encode_to_string(char *des, const u_int8_t *src, int len)
+char *srs_hex_encode_to_string(char *des, const uint8_t *src, int len)
 {
     if (src == NULL || len == 0 || des == NULL) {
         return NULL;
@@ -698,7 +695,7 @@ char *srs_hex_encode_to_string(char *des, const u_int8_t *src, int len)
     return des;
 }
 
-char *srs_hex_encode_to_string_lowercase(char *des, const u_int8_t *src, int len)
+char *srs_hex_encode_to_string_lowercase(char *des, const uint8_t *src, int len)
 {
     if (src == NULL || len == 0 || des == NULL) {
         return NULL;
@@ -779,10 +776,10 @@ long SrsRand::integer()
     static bool random_initialized = false;
     if (!random_initialized) {
         random_initialized = true;
-        ::srandom((unsigned long)(srs_time_now_realtime() | (::getpid() << 13)));
+        srs_srandom((unsigned long)(srs_time_now_realtime() | (::getpid() << 13)));
     }
 
-    return random();
+    return srs_random();
 }
 
 long SrsRand::integer(long min, long max)
@@ -909,14 +906,14 @@ string srs_net_address_any()
         int fd = socket(AF_INET, SOCK_DGRAM, 0);
         if (fd != -1) {
             ipv4_active = true;
-            close(fd);
+            srs_close_socket(fd);
         }
     }
     if (true) {
         int fd = socket(AF_INET6, SOCK_DGRAM, 0);
         if (fd != -1) {
             ipv6_active = true;
-            close(fd);
+            srs_close_socket(fd);
         }
     }
 

@@ -7,7 +7,6 @@
 #include <srs_app_statistic.hpp>
 
 #include <sstream>
-#include <unistd.h>
 using namespace std;
 
 #include <srs_app_config.hpp>

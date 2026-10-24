@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -294,14 +293,11 @@ func apiSystem(t *testing.T) {
 		srs := server.Common(c)
 		self := object(c, object(c, apiObject(c, srs, "/api/v1/summaries"), "data"), "self")
 		kb := num(c, self, "mem_kbyte")
-		out, err := exec.Command("ps", "-o", "rss=", "-p", strconv.Itoa(srs.PID())).Output()
-		c.Must(err, "ps")
-		rss, err := strconv.Atoi(strings.TrimSpace(string(out)))
-		c.Must(err, "parse ps rss "+string(out))
+		rss := processRSS(c, srs.PID())
 		// mem_kbyte is the peak, so it may be above the RSS now, but not by much.
 		// SRS samples it on a timer, and a new server's RSS may grow several
 		// times before the next sample, as with a sanitizer build on Linux.
-		c.Check(kb >= float64(rss)/16 && kb <= float64(rss)*16, "mem_kbyte %v, want near the RSS ps reports, %d kB", kb, rss)
+		c.Check(kb >= float64(rss)/16 && kb <= float64(rss)*16, "mem_kbyte %v, want near the RSS, %d kB", kb, rss)
 	})
 
 	check.Case(t, "Rusages", check.Fast, func(c *check.C) {

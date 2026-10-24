@@ -512,3 +512,17 @@ func Duration(s string) (time.Duration, error) {
 	}
 	return d, nil
 }
+
+// startClockLag is how long before a publish begins a server may take its
+// availabilityStartTime: it reads a clock it updates only now and then, such
+// as SRS's clock cached by a 20ms timer that runs late under load, so a
+// publish that begins just after a second boundary can get the second
+// before it.
+const startClockLag = time.Second
+
+// IsPublishStart reports whether available, an availabilityStartTime in
+// whole seconds, is the start of a publish that began at start, allowing
+// the server's clock lag, and is no later than now.
+func IsPublishStart(available, start, now time.Time) bool {
+	return !available.Before(start.Add(-startClockLag).Truncate(time.Second)) && !available.After(now)
+}

@@ -8,9 +8,7 @@
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_manual_st.hpp>
-#include <sys/time.h>
 #include <time.h>
-#include <unistd.h>
 
 using namespace std;
 
@@ -37,7 +35,7 @@ VOID TEST(StTest, MutexPtrSugar)
 VOID TEST(StTest, StUtimeInMicroseconds)
 {
     st_utime_t st_time_1 = st_utime();
-    usleep(1); // sleep 1 microsecond
+    st_usleep(1); // sleep 1 microsecond
     st_utime_t st_time_2 = st_utime();
 
     EXPECT_GT(st_time_1, 0);
@@ -45,13 +43,18 @@ VOID TEST(StTest, StUtimeInMicroseconds)
     EXPECT_GE(st_time_2, st_time_1);
     // st_time_2 - st_time_1 should be in range of [1, 3000] microseconds
     EXPECT_GE(st_time_2 - st_time_1, 0);
+#ifdef _WIN32
+    // Windows wakes a sleeping thread on the system timer tick, about 15.6 ms, so allow two ticks.
+    EXPECT_LE(st_time_2 - st_time_1, 2 * 15625);
+#else
     EXPECT_LE(st_time_2 - st_time_1, 3000);
+#endif
 }
 
 static inline st_utime_t time_gettimeofday()
 {
     struct timeval tv;
-    gettimeofday(&tv, NULL);
+    srs_gettimeofday(&tv, NULL);
     return (tv.tv_sec * 1000000LL + tv.tv_usec);
 }
 
@@ -125,14 +128,14 @@ VOID TEST(StTest, StUtimePerformance)
         int elapsed_time = clock() - start;
         st_utime_elapsed_time = elapsed_time;
         EXPECT_GT(t2, 0);
-        usleep(1);
+        st_usleep(1);
 
         start = clock();
         st_utime_t t1 = time_gettimeofday();
         elapsed_time = clock() - start;
         gettimeofday_elapsed_time = elapsed_time;
         EXPECT_GT(t1, 0);
-        usleep(1);
+        st_usleep(1);
 
         EXPECT_GE(gettimeofday_elapsed_time, 0);
         EXPECT_GE(st_utime_elapsed_time, 0);

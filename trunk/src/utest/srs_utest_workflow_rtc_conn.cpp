@@ -2484,6 +2484,8 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxLogsDetail)
     MockBlackholeForNack blackhole;
     MockRtcPublisherRtxScenario s;
     HELPER_ASSERT_SUCCESS(s.publish(mock_publisher_offer_with_rtx(kPubVideoPt, kPubRtxPt, kPubVideoPt, true), true));
+    // The connection's 20ms timer would request the gap too during the sleep below, so the test makes the only request.
+    s.conn_->nack_enabled_ = false;
 
     MockLogForNack log;
     HELPER_ASSERT_SUCCESS(s.feed(s.video_packet(100)));

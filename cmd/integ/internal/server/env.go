@@ -37,10 +37,11 @@ const (
 const UDPTSStream = "live/udpts"
 
 // CommonListeners are the listeners of the Common server: every listener
-// except UDPTS, because a server has only one stream caster.
-var CommonListeners = []Listener{
+// except UDPTS, because a server has only one stream caster, and those of the
+// features the platform's build lacks.
+var CommonListeners = host.builtListeners([]Listener{
 	RTMP, HTTPAPI, HTTPServer, RTCUDP, RTCTCP, SRT, RTSP, Exporter, GB, HTTPSAPI, HTTPSServer, RTMPS,
-}
+})
 
 // listenerInfo is how SRS turns a listener on: the env var that enables it, the
 // one that sets its port, and the listener it needs.
@@ -138,6 +139,11 @@ type Config struct {
 	// its peak so far, waiting at most 2s as a run of Exec does, so a group
 	// that may start late doesn't raise the peak.
 	BelowPeak bool
+	// Vhost is config text in the default vhost, for the features that have
+	// no env vars: ingest, transcode and exec. With it, SRS starts with a
+	// config file of only this vhost and the FFmpeg log dir, the server's own
+	// dir, and the env still sets the rest.
+	Vhost string
 }
 
 // TLSFiles are the key and certificate of the TLS listeners.

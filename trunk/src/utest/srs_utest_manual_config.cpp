@@ -118,7 +118,15 @@ int ISrsSetEnvConfig::srs_setenv(const std::string &key, const std::string &valu
         }
     }
 
+#ifdef _WIN32
+    // Windows has no setenv; its _putenv_s removes the variable for an empty value.
+    if (!overwrite && ::getenv(ekey.c_str())) {
+        return 0;
+    }
+    return ::_putenv_s(ekey.c_str(), value.c_str());
+#else
     return ::setenv(ekey.c_str(), value.c_str(), overwrite);
+#endif
 }
 
 int ISrsSetEnvConfig::srs_unsetenv(const std::string &key)
@@ -141,7 +149,11 @@ int ISrsSetEnvConfig::srs_unsetenv(const std::string &key)
         }
     }
 
+#ifdef _WIN32
+    return ::_putenv_s(ekey.c_str(), "");
+#else
     return ::unsetenv(ekey.c_str());
+#endif
 }
 
 VOID TEST(ConfigTest, CheckMacros)
@@ -1138,7 +1150,11 @@ VOID TEST(ConfigMainTest, CheckConf_daemon)
 
     if (true) {
         MockSrsConfig conf;
+#ifdef _WIN32
+        HELPER_ASSERT_FAILED(conf.mock_parse(_MIN_OK_CONF "daemon on;"));
+#else
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "daemon on;"));
+#endif
     }
 
     if (true) {
@@ -2840,13 +2856,20 @@ VOID TEST(ConfigMainTest, CheckGlobalConfig)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        EXPECT_TRUE(conf.get_daemon());
+        EXPECT_EQ(srs_daemon_supported(), conf.get_daemon());
     }
 
     if (true) {
         MockSrsConfig conf;
+#ifdef _WIN32
+        err = conf.mock_parse(_MIN_OK_CONF "daemon on;");
+        ASSERT_TRUE(err != srs_success);
+        EXPECT_TRUE(srs_error_desc(err).find("daemon is not supported") != string::npos);
+        srs_freep(err);
+#else
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "daemon on;"));
         EXPECT_TRUE(conf.get_daemon());
+#endif
     }
 
     if (true) {

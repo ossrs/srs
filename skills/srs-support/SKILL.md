@@ -104,7 +104,7 @@ Apply these rules to all SRS answers:
 - Provide the standard build steps: `cd trunk && ./configure && make`.
 - Show publishing and playback with FFmpeg and common players.
 - For Docker, reference `trunk/conf/docker.conf` and load the getting-started documentation.
-- Note that SRS targets Linux; use WSL on Windows, while macOS is suitable for development.
+- Note that SRS targets Linux for production; macOS is suitable for development; on Windows x64, SRS 8.0 runs natively from the release zip (load `doc/windows.md`), and WSL runs the Linux build.
 
 **Architecture questions**
 - Explain that SRS is single-process and single-threaded by design.

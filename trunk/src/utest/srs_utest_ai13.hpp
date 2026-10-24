@@ -86,7 +86,7 @@ public:
     virtual int64_t tellg();
     virtual srs_error_t write(void *buf, size_t count, ssize_t *pnwrite);
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
 };
 
 // Mock app factory for HLS testing

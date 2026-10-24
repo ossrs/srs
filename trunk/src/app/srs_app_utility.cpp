@@ -6,18 +6,12 @@
 
 #include <srs_app_utility.hpp>
 
-#include <arpa/inet.h>
-#include <ifaddrs.h>
-#include <netdb.h>
 #include <signal.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 #include <map>
 #include <math.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #ifdef SRS_OSX
 #include <sys/sysctl.h>
 #endif
@@ -167,19 +161,21 @@ string srs_path_build_timestamp(ISrsAppConfig *config, string template_path)
     // date and time substitude
     // clock time
     timeval tv;
-    if (gettimeofday(&tv, NULL) == -1) {
+    if (srs_gettimeofday(&tv, NULL) == -1) {
         return path;
     }
 
     // to calendar time
     struct tm now;
+    // The tv_sec of Winsock's timeval is a long.
+    time_t sec = tv.tv_sec;
     // Each of these functions returns NULL in case an error was detected. @see https://linux.die.net/man/3/localtime_r
     if (config->get_utc_time()) {
-        if (gmtime_r(&tv.tv_sec, &now) == NULL) {
+        if (srs_gmtime_r(&sec, &now) == NULL) {
             return path;
         }
     } else {
-        if (localtime_r(&tv.tv_sec, &now) == NULL) {
+        if (srs_localtime_r(&sec, &now) == NULL) {
             return path;
         }
     }
@@ -249,7 +245,7 @@ srs_error_t SrsAppUtility::kill(int &pid)
     }
 
     // first, try kill by SIGTERM.
-    if (::kill(pid, SIGTERM) < 0) {
+    if (srs_kill(pid, SIGTERM) < 0) {
         return srs_error_new(ERROR_SYSTEM_KILL, "kill");
     }
 
@@ -258,7 +254,7 @@ srs_error_t SrsAppUtility::kill(int &pid)
     for (int i = 0; i < SRS_PROCESS_QUIT_TIMEOUT_MS / 10; i++) {
         int status = 0;
         pid_t qpid = -1;
-        if ((qpid = waitpid(pid, &status, WNOHANG)) < 0) {
+        if ((qpid = srs_waitpid(pid, &status, WNOHANG)) < 0) {
             return srs_error_new(ERROR_SYSTEM_KILL, "kill");
         }
 
@@ -276,7 +272,7 @@ srs_error_t SrsAppUtility::kill(int &pid)
     }
 
     // then, try kill by SIGKILL.
-    if (::kill(pid, SIGKILL) < 0) {
+    if (srs_kill(pid, SIGKILL) < 0) {
         return srs_error_new(ERROR_SYSTEM_KILL, "kill");
     }
 
@@ -288,7 +284,7 @@ srs_error_t SrsAppUtility::kill(int &pid)
     int status = 0;
     // @remark when we use SIGKILL to kill process, it must be killed,
     //      so we always wait it to quit by infinite loop.
-    while (waitpid(pid, &status, 0) < 0) {
+    while (srs_waitpid(pid, &status, 0) < 0) {
         srs_usleep(10 * 1000);
         continue;
     }
@@ -325,7 +321,7 @@ SrsRusage *srs_get_system_rusage()
 
 void srs_update_system_rusage()
 {
-    if (getrusage(RUSAGE_SELF, &_srs_system_rusage.r_) < 0) {
+    if (srs_getrusage(&_srs_system_rusage.r_) < 0) {
         srs_warn("getrusage failed, ignore");
         return;
     }
@@ -446,8 +442,8 @@ SrsProcSystemStat *srs_get_system_proc_stat()
 
 bool get_proc_system_stat(SrsProcSystemStat &r)
 {
-#if defined(SRS_OSX)
-    // No /proc on macOS, so the stat is not read and stays not ok.
+#if defined(SRS_OSX) || defined(_WIN32)
+    // No /proc on macOS or Windows, so the stat is not read and stays not ok.
     return false;
 #else
     FILE *f = fopen("/proc/stat", "r");
@@ -488,8 +484,8 @@ bool get_proc_system_stat(SrsProcSystemStat &r)
 
 bool get_proc_self_stat(SrsProcSelfStat &r)
 {
-#if defined(SRS_OSX)
-    // No /proc on macOS, so the stat is not read and stays not ok.
+#if defined(SRS_OSX) || defined(_WIN32)
+    // No /proc on macOS or Windows, so the stat is not read and stays not ok.
     return false;
 #else
     FILE *f = fopen("/proc/self/stat", "r");
@@ -554,7 +550,7 @@ void srs_update_proc_stat()
     // @see https://github.com/ossrs/srs/issues/397
     static int user_hz = 0;
     if (user_hz <= 0) {
-        user_hz = (int)sysconf(_SC_CLK_TCK);
+        user_hz = srs_clock_ticks();
         srs_info("USER_HZ=%d", user_hz);
         srs_assert(user_hz > 0);
     }
@@ -637,7 +633,7 @@ SrsDiskStat *srs_get_disk_stat()
 
 bool srs_get_disk_vmstat_stat(SrsDiskStat &r)
 {
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     FILE *f = fopen("/proc/vmstat", "r");
     if (f == NULL) {
         srs_warn("open vmstat failed, ignore");
@@ -670,7 +666,7 @@ bool srs_get_disk_diskstats_stat(SrsDiskStat &r)
     r.ok_ = true;
     r.sample_time_ = srsu2ms(srs_time_now_realtime());
 
-#if !defined(SRS_OSX)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     // if disabled, ignore all devices.
     SrsConfDirective *conf = _srs_config->get_stats_disk_device();
     if (conf == NULL) {
@@ -832,8 +828,8 @@ SrsMemInfo *srs_get_meminfo()
 
 void srs_update_meminfo()
 {
-#if defined(SRS_OSX)
-    // No /proc on macOS, so the meminfo is not read and stays not ok.
+#if defined(SRS_OSX) || defined(_WIN32)
+    // No /proc on macOS or Windows, so the meminfo is not read and stays not ok.
     return;
 #else
     SrsMemInfo &r = _srs_system_meminfo;
@@ -898,8 +894,8 @@ SrsCpuInfo *srs_get_cpuinfo()
     // initialize cpu info.
     cpu = new SrsCpuInfo();
     cpu->ok_ = true;
-    cpu->nb_processors_ = (int)sysconf(_SC_NPROCESSORS_CONF);
-    cpu->nb_processors_online_ = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    cpu->nb_processors_ = srs_cpu_count(false);
+    cpu->nb_processors_online_ = srs_cpu_count(true);
 
     return cpu;
 }
@@ -931,7 +927,7 @@ void srs_update_platform_info()
 
     r.srs_startup_time_ = srsu2ms(srs_time_since_startup());
 
-#if !defined(SRS_OSX)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     if (true) {
         FILE *f = fopen("/proc/uptime", "r");
         if (f == NULL) {
@@ -960,6 +956,9 @@ void srs_update_platform_info()
 
         fclose(f);
     }
+#elif defined(_WIN32)
+    // Windows has no load average.
+    r.os_uptime_ = (double)::GetTickCount64() / 1000;
 #else
     // man 3 sysctl
     if (true) {
@@ -1025,7 +1024,7 @@ static SrsSnmpUdpStat _srs_snmp_udp_stat;
 
 bool get_udp_snmp_statistic(SrsSnmpUdpStat &r)
 {
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     if (true) {
         FILE *f = fopen("/proc/net/snmp", "r");
         if (f == NULL) {
@@ -1131,7 +1130,7 @@ int srs_get_network_devices_count()
 
 void srs_update_network_devices()
 {
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     if (true) {
         FILE *f = fopen("/proc/net/dev", "r");
         if (f == NULL) {
@@ -1219,7 +1218,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps *kbps)
     int nb_tcp_mem = 0;
     int nb_udp4 = 0;
 
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     if (true) {
         FILE *f = fopen("/proc/net/sockstat", "r");
         if (f == NULL) {
@@ -1267,7 +1266,7 @@ void srs_update_rtmp_server(int nb_conn, SrsKbps *kbps)
 
     int nb_tcp_estab = 0;
 
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     if (true) {
         FILE *f = fopen("/proc/net/snmp", "r");
         if (f == NULL) {

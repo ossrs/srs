@@ -157,6 +157,56 @@ jobs:
       SRS_SOURCE_MD5: ${{ env.SRS_SOURCE_MD5 }}
     runs-on: ubuntu-22.04
 
+  # The native Windows x64 srs.exe, built with MSVC as in the windows job of the test workflow, for a
+  # release: no utest and no RTC simulator. Everything links statically, so the zip has no DLL.
+  windows:
+    name: windows
+    needs:
+      - envs
+      - draft
+    steps:
+      ##################################################################################################################
+      - name: Covert output to env
+        shell: bash
+        run: |
+          echo "SRS_TAG=${{ needs.envs.outputs.SRS_TAG }}" >> "$GITHUB_ENV"
+          echo "SRS_VERSION=${{ needs.envs.outputs.SRS_VERSION }}" >> "$GITHUB_ENV"
+      ##################################################################################################################
+      # Git checkout
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Setup the Windows build
+        uses: ./.github/actions/windows-build-setup
+      ##################################################################################################################
+      # Create package zip for release: srs.exe in objs, the config files in conf, and the http root in
+      # objs/nginx/html, as make install lays them out on Unix. Generate variables like:
+      #   SRS_WINDOWS_ZIP=SRS-Windows-x86_64-6.0.145.zip
+      #   SRS_WINDOWS_MD5=3880a26e30b283edf05700a4e69956e5
+      - name: Create package zip
+        shell: bash
+        timeout-minutes: 60
+        run: |
+          bash skills/srs-develop/scripts/srs-windows-runner.sh package "$SRS_VERSION" &&
+          SRS_WINDOWS_ZIP=SRS-Windows-x86_64-$SRS_VERSION.zip &&
+          cp trunk/objs/windows/package/$SRS_WINDOWS_ZIP . &&
+          du -sh $SRS_WINDOWS_ZIP &&
+          echo "SRS_WINDOWS_ZIP=$SRS_WINDOWS_ZIP" >> "$GITHUB_ENV" &&
+          echo "SRS_WINDOWS_MD5=$(md5sum $SRS_WINDOWS_ZIP| awk '{print $1}')" >> "$GITHUB_ENV"
+      ##################################################################################################################
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF" "$SRS_WINDOWS_ZIP" \
+            --clobber --repo "$GITHUB_REPOSITORY"
+    # Map a step output to a job output, see https://docs.github.com/en/actions/using-jobs/defining-outputs-for-jobs
+    outputs:
+      SRS_WINDOWS_ZIP: ${{ env.SRS_WINDOWS_ZIP }}
+      SRS_WINDOWS_MD5: ${{ env.SRS_WINDOWS_MD5 }}
+    runs-on: windows-2025
+    timeout-minutes: 90
+
   docker-srs:
     name: docker-srs
     needs:
@@ -220,6 +270,7 @@ jobs:
       - envs
       - draft
       - linux
+      - windows
       - test
     steps:
       ##################################################################################################################
@@ -233,6 +284,8 @@ jobs:
           echo "SRS_PACKAGE_MD5=${{ needs.linux.outputs.SRS_PACKAGE_MD5 }}" >> $GITHUB_ENV
           echo "SRS_SOURCE_TAR=${{ needs.linux.outputs.SRS_SOURCE_TAR }}" >> $GITHUB_ENV
           echo "SRS_SOURCE_MD5=${{ needs.linux.outputs.SRS_SOURCE_MD5 }}" >> $GITHUB_ENV
+          echo "SRS_WINDOWS_ZIP=${{ needs.windows.outputs.SRS_WINDOWS_ZIP }}" >> $GITHUB_ENV
+          echo "SRS_WINDOWS_MD5=${{ needs.windows.outputs.SRS_WINDOWS_MD5 }}" >> $GITHUB_ENV
       ##################################################################################################################
       # Git checkout
       - name: Checkout repository
@@ -258,6 +311,7 @@ jobs:
             ## Resource
             * Source: ${{ env.SRS_SOURCE_MD5 }} [${{ env.SRS_SOURCE_TAR }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_SOURCE_TAR }})
             * Binary: ${{ env.SRS_PACKAGE_MD5 }} [${{ env.SRS_PACKAGE_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_PACKAGE_ZIP }})
+            * Windows: ${{ env.SRS_WINDOWS_MD5 }} [${{ env.SRS_WINDOWS_ZIP }}](https://github.com/ossrs/srs/releases/download/${{ env.SRS_TAG }}/${{ env.SRS_WINDOWS_ZIP }})
 
             ## Docker
             * [docker pull ossrs/srs:${{ env.SRS_MAJOR }}](https://ossrs.io/lts/en-us/docs/v7/doc/getting-started)

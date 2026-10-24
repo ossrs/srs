@@ -6,10 +6,7 @@
 
 #include <srs_app_forward.hpp>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <stdlib.h>
-#include <sys/socket.h>
 
 using namespace std;
 

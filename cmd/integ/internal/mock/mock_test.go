@@ -166,6 +166,40 @@ func TestDelay(t *testing.T) {
 	}
 }
 
+func TestUntil(t *testing.T) {
+	s := start(t)
+	release := make(chan struct{})
+	s.Script(Match{Stream: "a"}, Reject(7).Until(release))
+	answered := make(chan string, 1)
+	go func() {
+		res, err := http.Post(s.URL("/h"), "application/json", strings.NewReader(`{"action":"on_publish","stream":"a"}`))
+		if err != nil {
+			answered <- err.Error()
+			return
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		answered <- string(b)
+	}()
+	if _, err := s.Wait(ctxTimeout(t, time.Second), Match{Stream: "a"}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case body := <-answered:
+		t.Fatalf("answered %q before the release", body)
+	case <-time.After(200 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case body := <-answered:
+		if body != `{"code":7}` {
+			t.Errorf("body %q", body)
+		}
+	case <-time.After(time.Second):
+		t.Error("no answer 1s after the release")
+	}
+}
+
 func TestNoAnswer(t *testing.T) {
 	s := start(t)
 	s.Script(Match{Stream: "a"}, NoAnswer())
@@ -201,6 +235,7 @@ func TestCloseAnswersNothing(t *testing.T) {
 	}{
 		{"NoAnswer", NoAnswer()},
 		{"Delay", Reject(7).After(10 * time.Second)},
+		{"Until", Reject(7).Until(make(chan struct{}))},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s := start(t)

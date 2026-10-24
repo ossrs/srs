@@ -9,7 +9,6 @@
 // LCOV_EXCL_START
 #include <stdlib.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 
 #include <sstream>
 using namespace std;
@@ -29,7 +28,6 @@ using namespace std;
 #include <sanitizer/asan_interface.h>
 #endif
 
-#include <unistd.h>
 using namespace std;
 
 #include <srs_app_circuit_breaker.hpp>
@@ -127,6 +125,10 @@ srs_error_t do_main(int argc, char **argv, char **envp)
 #ifdef SRS_GPERF_MP
 #warning "gmp is not used for memory leak, please use gmc instead."
 #endif
+
+    if (srs_socket_startup() != 0) {
+        return srs_error_new(ERROR_SOCKET_CREATE, "socket startup");
+    }
 
     // never use srs log(srs_trace, srs_error, etc) before config parse the option,
     // which will load the log config and apply it.
@@ -317,8 +319,8 @@ void show_macro_features()
 #endif
 
         ss << ", conf:" << _srs_config->config() << ", limit:" << _srs_config->get_max_connections()
-           << ", writev:" << sysconf(_SC_IOV_MAX) << ", encoding:" << (srs_is_little_endian() ? "little-endian" : "big-endian")
-           << ", HZ:" << (int)sysconf(_SC_CLK_TCK);
+           << ", writev:" << srs_iov_max() << ", encoding:" << (srs_is_little_endian() ? "little-endian" : "big-endian")
+           << ", HZ:" << srs_clock_ticks();
 
         srs_trace("%s", ss.str().c_str());
     }
@@ -386,7 +388,11 @@ void show_macro_features()
               srsu2msi(SRS_PERF_MW_SLEEP), possible_mr_latency, srsu2msi(SRS_PERF_PLAY_QUEUE));
 
 #if VERSION_MAJOR > VERSION_STABLE
+#ifdef _MSC_VER
+#pragma message("Current branch is not stable.")
+#else
 #warning "Current branch is not stable."
+#endif
     srs_warn("%s/%s is not stable", RTMP_SIG_SRS_KEY, RTMP_SIG_SRS_VERSION);
 #endif
 
@@ -417,7 +423,7 @@ srs_error_t run_directly_or_daemon()
 
     srs_trace("start daemon mode...");
 
-    int pid = fork();
+    int pid = srs_fork();
 
     if (pid < 0) {
         return srs_error_new(-1, "fork father process");
@@ -426,13 +432,13 @@ srs_error_t run_directly_or_daemon()
     // grandpa
     if (pid > 0) {
         int status = 0;
-        waitpid(pid, &status, 0);
+        srs_waitpid(pid, &status, 0);
         srs_trace("grandpa process exit.");
         exit(0);
     }
 
     // father
-    pid = fork();
+    pid = srs_fork();
 
     if (pid < 0) {
         return srs_error_new(-1, "fork child process");

@@ -6,10 +6,7 @@
 
 #include <srs_protocol_utility.hpp>
 
-#include <unistd.h>
-
 #include <algorithm>
-#include <arpa/inet.h>
 #include <sstream>
 #include <stdlib.h>
 using namespace std;
@@ -22,16 +19,11 @@ using namespace std;
 #include <srs_protocol_io.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 
-#include <arpa/inet.h>
-#include <ifaddrs.h>
 #include <limits.h>
 #include <map>
 #include <math.h>
-#include <net/if.h>
-#include <netdb.h>
 #include <sstream>
 #include <stdlib.h>
-#include <unistd.h>
 using namespace std;
 
 #include <srs_core_autofree.hpp>
@@ -463,7 +455,7 @@ srs_error_t SrsProtocolUtility::write_iovs(ISrsProtocolReadWriter *skt, iovec *i
 
     // the limits of writev iovs.
     // for linux, generally it's 1024.
-    static int limits = (int)sysconf(_SC_IOV_MAX);
+    static int limits = srs_iov_max();
 
     // send in a time.
     if (size <= limits) {
@@ -625,7 +617,7 @@ void retrieve_local_ips(SrsProtocolUtility *utility)
 
     // Get the addresses.
     ifaddrs *ifap;
-    if (getifaddrs(&ifap) == -1) {
+    if (srs_getifaddrs(&ifap) == -1) {
         srs_warn("retrieve local ips, getifaddrs failed.");
         return;
     }
@@ -707,7 +699,7 @@ void retrieve_local_ips(SrsProtocolUtility *utility)
     srs_trace("%s", ss0.str().c_str());
     srs_trace("%s", ss1.str().c_str());
 
-    freeifaddrs(ifap);
+    srs_freeifaddrs(ifap);
 }
 
 vector<SrsIPAddress *> &SrsProtocolUtility::local_ips()
@@ -818,7 +810,6 @@ string SrsProtocolUtility::system_hostname()
 }
 // LCOV_EXCL_STOP
 
-#if defined(__linux__) || defined(SRS_OSX)
 utsname *SrsProtocolUtility::system_uname()
 {
     static utsname *system_info = NULL;
@@ -829,13 +820,12 @@ utsname *SrsProtocolUtility::system_uname()
 
     system_info = new utsname();
     memset(system_info, 0, sizeof(utsname));
-    if (uname(system_info) < 0) {
+    if (srs_uname(system_info) < 0) {
         srs_warn("uname failed");
     }
 
     return system_info;
 }
-#endif
 
 // See streamid of https://github.com/ossrs/srs/issues/2893
 // TODO: FIMXE: We should parse SRT streamid to URL object, rather than a HTTP url subpath.

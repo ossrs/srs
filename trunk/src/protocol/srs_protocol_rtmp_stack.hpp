@@ -14,7 +14,6 @@
 #include <vector>
 
 #ifndef _WIN32
-#include <sys/uio.h>
 #endif
 
 #include <srs_core_performance.hpp>

@@ -376,7 +376,7 @@ VOID TEST(KernelFileWriterTest, RealfileTest)
         HELPER_EXPECT_SUCCESS(f.write((void *)"HelloWorld", 10, NULL));
         EXPECT_EQ(15, f.tellg());
 
-        off_t v = 0;
+        srs_off_t v = 0;
         HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &v));
         EXPECT_EQ(15, v);
 

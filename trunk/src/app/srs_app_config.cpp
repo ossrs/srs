@@ -10,15 +10,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 // file operations.
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 #ifdef __linux__
 #include <linux/version.h>
-#include <sys/utsname.h>
 #endif
 
 #include <algorithm>
@@ -1711,7 +1708,7 @@ srs_error_t SrsConfig::persistence()
     }
 
     // rename the config file.
-    if (::rename(path.c_str(), config_file_.c_str()) < 0) {
+    if (srs_rename(path.c_str(), config_file_.c_str()) < 0) {
         SrsPath p;
         p.unlink(path);
         return srs_error_new(ERROR_SYSTEM_CONFIG_PERSISTENCE, "rename %s=>%s", path.c_str(), config_file_.c_str());
@@ -2289,6 +2286,10 @@ srs_error_t SrsConfig::check_normal_config()
         if (n != "pid" && n != "ff_log_dir" && n != "srs_log_tank" && n != "srs_log_level" && n != "srs_log_level_v2" && n != "srs_log_file" && n != "max_connections" && n != "daemon" && n != "heartbeat" && n != "http_api" && n != "stats" && n != "vhost" && n != "pithy_print_ms" && n != "http_server" && n != "stream_caster" && n != "rtc_server" && n != "srt_server" && n != "utc_time" && n != "work_dir" && n != "server_id" && n != "ff_log_level" && n != "grace_final_wait" && n != "force_grace_quit" && n != "grace_start_wait" && n != "empty_ip_ok" && n != "disable_daemon_for_docker" && n != "inotify_auto_reload" && n != "auto_reload_for_docker" && n != "tcmalloc_release_rate" && n != "circuit_breaker" && n != "is_full" && n != "in_docker" && n != "exporter" && n != "rtsp_server" && n != "rtmp" && n != "rtmps") {
             return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "illegal directive %s", n.c_str());
         }
+    }
+    // Windows has no fork, so refuse daemon rather than silently run in the foreground.
+    if (get_daemon() && !srs_daemon_supported()) {
+        return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "daemon is not supported on this OS, set daemon off or SRS_DAEMON=off");
     }
     // HDS is removed, so refuse its env vars rather than ignore them.
     if (true) {
@@ -3094,7 +3095,7 @@ srs_error_t SrsConfig::check_number_connections()
 
     // check max connections of system limits
     int nb_total = nb_connections + 128; // Simple reserved some fds.
-    int max_open_files = (int)sysconf(_SC_OPEN_MAX);
+    int max_open_files = srs_fd_limit();
     if (nb_total >= max_open_files) {
         srs_error("max_connections=%d, system limit to %d, please run: ulimit -HSn %d", nb_connections, max_open_files, srs_max(10000, nb_connections * 10));
         return srs_error_new(ERROR_SYSTEM_CONFIG_INVALID, "%d exceed max open files=%d", nb_total, max_open_files);
@@ -3136,9 +3137,10 @@ bool SrsConfig::get_daemon()
 
     SrsConfDirective *conf = root_->get("daemon");
 
-    // Without a config file, run in the foreground unless SRS_DAEMON sets it.
+    // Without a config file, run in the foreground unless SRS_DAEMON sets it. Where daemon is not supported,
+    // only an explicit daemon on is refused, so a config file without the directive still runs.
     if (!conf || conf->arg0().empty()) {
-        return !env_only_;
+        return !env_only_ && srs_daemon_supported();
     }
 
     return SRS_CONF_PREFER_TRUE(conf->arg0());

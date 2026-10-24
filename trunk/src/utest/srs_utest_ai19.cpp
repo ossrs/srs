@@ -33,7 +33,6 @@ using namespace std;
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_http.hpp>
 
-#include <sys/time.h>
 
 // Mock ISrsAppConfig implementation
 MockAppConfigForUdpCaster::MockAppConfigForUdpCaster()
@@ -4123,13 +4122,15 @@ std::string MockAppConfigForBuildTimestamp::get_ingest_input_url(SrsConfDirectiv
 static std::string build_timestamp_expected(bool utc)
 {
     timeval tv;
-    gettimeofday(&tv, NULL);
+    srs_gettimeofday(&tv, NULL);
+    // tv_sec is a long in the timeval of Windows.
+    time_t t = tv.tv_sec;
 
     struct tm now;
     if (utc) {
-        gmtime_r(&tv.tv_sec, &now);
+        srs_gmtime_r(&t, &now);
     } else {
-        localtime_r(&tv.tv_sec, &now);
+        srs_localtime_r(&t, &now);
     }
 
     char buf[64];

@@ -37,8 +37,6 @@
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_service.hpp>
 
-#include <sys/socket.h>
-#include <unistd.h>
 
 // Mock app factory for RTMP to RTC workflow testing
 class MockAppFactoryForRtmp2Rtc : public SrsAppFactory

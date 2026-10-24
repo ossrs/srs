@@ -128,7 +128,7 @@ MockSrsSeeker::~MockSrsSeeker()
 {
 }
 
-srs_error_t MockSrsSeeker::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t MockSrsSeeker::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     if (seek_error_ != srs_success) {
         return srs_error_copy(seek_error_);
@@ -245,7 +245,7 @@ VOID TEST(KernelIOTest, ISrsSeekerInterface)
 {
     MockSrsSeeker seeker;
 
-    off_t seeked = 0;
+    srs_off_t seeked = 0;
 
     // Test SEEK_SET
     srs_error_t err = seeker.lseek(100, SEEK_SET, &seeked);
@@ -4287,7 +4287,7 @@ VOID TEST(KernelRTCPTest, SrsRtcpCompound_Decode)
     }
 
     // Test with invalid compound packet (empty)
-    unsigned char empty_data[] = {};
+    unsigned char empty_data[1] = {0};
     SrsBuffer empty_buffer((char *)empty_data, 0);
     err = compound.decode(&empty_buffer);
     // Empty buffer may or may not cause error depending on implementation
@@ -5483,7 +5483,7 @@ VOID TEST(KernelTSTest, SrsEncFileWriter_write)
     EXPECT_TRUE(err == srs_success);
 
     // Open a temporary file for testing
-    std::string temp_file = "/tmp/srs_test_enc_" + srs_strconv_format_int(getpid()) + ".ts";
+    std::string temp_file = srs_utest_tmp_dir() + "/srs_test_enc_" + srs_strconv_format_int(getpid()) + ".ts";
     err = writer.open(temp_file);
     if (err != srs_success) {
         srs_freep(err);
@@ -5534,7 +5534,7 @@ VOID TEST(KernelTSTest, SrsEncFileWriter_close)
     EXPECT_TRUE(err == srs_success);
 
     // Open a temporary file
-    std::string temp_file = "/tmp/srs_test_enc_close_" + srs_strconv_format_int(getpid()) + ".ts";
+    std::string temp_file = srs_utest_tmp_dir() + "/srs_test_enc_close_" + srs_strconv_format_int(getpid()) + ".ts";
     err = writer.open(temp_file);
     if (err != srs_success) {
         srs_freep(err);
@@ -5574,7 +5574,7 @@ static void srs_utest_check_enc_file_padding(int nb_packets)
         iv[i] = (unsigned char)(0xf0 + i);
     }
 
-    std::string temp_file = "/tmp/srs_test_enc_pad_" + srs_strconv_format_int(getpid()) + "_" + srs_strconv_format_int(nb_packets) + ".ts";
+    std::string temp_file = srs_utest_tmp_dir() + "/srs_test_enc_pad_" + srs_strconv_format_int(getpid()) + "_" + srs_strconv_format_int(nb_packets) + ".ts";
 
     std::vector<unsigned char> plain;
     if (true) {
@@ -5726,7 +5726,7 @@ VOID TEST(KernelTSTest, SrsTsTransmuxer_set_has_video)
 
     // Initialize transmuxer to test with tscw
     SrsFileWriter writer;
-    std::string temp_file = "/tmp/srs_test_transmuxer_" + srs_strconv_format_int(getpid()) + ".ts";
+    std::string temp_file = srs_utest_tmp_dir() + "/srs_test_transmuxer_" + srs_strconv_format_int(getpid()) + ".ts";
     srs_error_t err = writer.open(temp_file);
     if (err == srs_success) {
         err = transmuxer.initialize(&writer);

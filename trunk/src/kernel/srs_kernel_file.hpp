@@ -14,9 +14,6 @@
 #include <cstdio>
 #include <string>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#include <sys/uio.h>
-
 class SrsFileReader;
 
 // The file writer factory.
@@ -70,7 +67,7 @@ public:
 public:
     virtual srs_error_t write(void *buf, size_t count, ssize_t *pnwrite);
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
 };
 
 // The file reader factory.
@@ -139,14 +136,14 @@ public:
     // Interface ISrsReadSeeker
 public:
     virtual srs_error_t read(void *buf, size_t count, ssize_t *pnread);
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
 };
 
 // For utest to mock it.
 typedef int (*srs_open_t)(const char *path, int oflag, ...);
 typedef ssize_t (*srs_write_t)(int fildes, const void *buf, size_t nbyte);
 typedef ssize_t (*srs_read_t)(int fildes, void *buf, size_t nbyte);
-typedef off_t (*srs_lseek_t)(int fildes, off_t offset, int whence);
+typedef srs_off_t (*srs_lseek_t)(int fildes, srs_off_t offset, int whence);
 typedef int (*srs_close_t)(int fildes);
 
 typedef FILE *(*srs_fopen_t)(const char *path, const char *mode);
@@ -154,9 +151,9 @@ typedef size_t (*srs_fwrite_t)(const void *ptr, size_t size, size_t nitems,
                                FILE *stream);
 typedef size_t (*srs_fread_t)(void *ptr, size_t size, size_t nitems,
                               FILE *stream);
-typedef int (*srs_fseek_t)(FILE *stream, long offset, int whence);
+typedef int (*srs_fseek_t)(FILE *stream, srs_off_t offset, int whence);
 typedef int (*srs_fclose_t)(FILE *stream);
-typedef long (*srs_ftell_t)(FILE *stream);
+typedef srs_off_t (*srs_ftell_t)(FILE *stream);
 typedef int (*srs_setvbuf_t)(FILE *stream, char *buf, int type, size_t size);
 
 #endif

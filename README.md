@@ -13,7 +13,8 @@
 
 SRS/8.0 ([Free](https://ossrs.io/lts/en-us/product#release-80)) is a simple, high-performance, AI-driven real-time media server.
 It supports RTMP, WebRTC, HLS, HTTP-FLV, SRT, MPEG-DASH, and GB28181 on Linux and macOS across
-x86_64, ARMv7, AArch64, Apple M1, RISC-V, LoongArch, and MIPS architectures. Supported codecs include
+x86_64, ARMv7, AArch64, Apple M1, RISC-V, LoongArch, and MIPS architectures, and natively on
+[Windows](https://ossrs.io/lts/en-us/docs/v8/doc/windows) x64. Supported codecs include
 H.264, H.265, AV1, VP9, AAC, Opus, and G.711. See the complete list of [features](trunk/doc/Features.md#features).
 
 [![SRS Overview](https://ossrs.io/lts/en-us/img/SRS-SingleNode-4.0-hd.png?v=115)](https://ossrs.io/lts/en-us/img/SRS-SingleNode-4.0-hd.png)

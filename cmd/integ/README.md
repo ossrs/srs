@@ -33,6 +33,16 @@ fail with "rebuild it ..." when `/api/v1/features` lacks one:
 cd trunk && ./configure --srt=on --gb28181=on --rtsp=on --utest=on --sanitizer=on --ffmpeg-opus=off --simulator=on && make
 ```
 
+On Windows:
+
+- The cases run `trunk/objs/windows/srs.exe`, which
+  `skills/srs-develop/scripts/srs-windows-runner.sh build` builds without the
+  sanitizer.
+- Every server has only the listeners of the features it is built with.
+- Windows has no signals, so the suite starts each server in a process group
+  of its own and sends SIGTERM as Ctrl+Break.
+- The runner's `integ [pattern]` step runs the suite there.
+
 Flags, after `-args`:
 
 - `-integ.srs <path>`: another SRS binary.
@@ -88,11 +98,11 @@ the CPU each Common server used, as a share of the one core SRS runs on. Run it 
 `cmd/integ/cases` with no package argument, as above, or `go test` hides the
 summary of a passing run.
 
-Each run works in `/tmp/srs-integ/<pid>/`, one directory per server with its
-env, pid file and console log. A group's directory is removed when it passes
-and kept when it fails; a failing case shows the last 30 lines of the log. The
-run removes its directory when every test passed, and the directories of
-earlier runs whose process is gone.
+Each run works in `/tmp/srs-integ/<pid>/`, or `%TEMP%\srs-integ\<pid>\` on
+Windows, one directory per server with its env, pid file and console log. A
+group's directory is removed when it passes and kept when it fails; a failing
+case shows the last 30 lines of the log. The run removes its directory when
+every test passed, and the directories of earlier runs whose process is gone.
 
 The CLI gives the stream tools by hand:
 
@@ -136,14 +146,17 @@ code and the signals the case sends it. No SRS source, internals or log text
 decides pass or fail; the log is attached only to explain a failure. The
 cases of the log settings (`TestEnv_*`) and of the log's reopen
 (`TestTimer_Signal_LogFile`, `TestTimer_Signal_Console`) are the one
-exception: the log is what those settings and that signal change, so they
+exception: the log is what those settings and that reopen change, so they
 read where it goes and the header of each line, its time, level and pid,
 never its text.
 
 ### Env only
 
 SRS starts as `objs/srs -e` with `SRS_*` env vars, never with a config file. A
-feature that needs a file, such as several vhosts, gets no case.
+feature that needs a file, such as several vhosts, gets no case. The one
+exception is ingest, transcode and exec, which have no env vars: their
+groups set `Config.Vhost`, and the adapter writes a file of only the
+default vhost and the FFmpeg log dir, for `-c`, while the env sets the rest.
 
 ### Naming
 
@@ -262,6 +275,16 @@ pass fails with "bug fixed, remove the KnownBug mark".
 A bug that shows only on some systems, in a race, or with some test media is
 marked only when the case sees it, such as the Linux-only ones.
 
+### Skip list
+
+A case that cannot pass on an OS by design, such as one that sends a signal
+other than SIGTERM on Windows, is on the skip list in
+`internal/check/skips.go`: an OS, a pattern of the case names and the reason.
+It does not run on that OS, and the summary lists it as skipped with
+`not on <os>: <reason>`. A case that fails there for a bug gets a fix, not an
+entry. A feature that a build lacks for now, such as GB28181 and RTSP on
+Windows, has an entry until the build has it.
+
 ### Ports
 
 The suite owns ports 14000–14999: the main process allocates from 14000–14799
@@ -321,6 +344,9 @@ checks are in the test files under `cases/`.
 | Cluster | Origins | The origin cluster and its edge |
 | Dvr | Session, SessionMp4, Segment, SegmentNoWait, Apply | DVR to FLV and MP4, session and segment plans, `dvr_apply`, `on_dvr` |
 | HttpStatic | Common, RemuxOff, CtxOff | Static files, ranges, traversal, MIME types, VOD of FLV, MP4 and HLS |
-| Signal | Quit, LogFile, Console | Quit signals, log reopen by SIGUSR1 |
+| Signal | Quit, LogFile, Console | Quit signals, log reopen by SIGUSR1 and by the RAW API |
 | Process | Cli | The binary's command line, config test and exit codes |
+| Ingest | File | Ingest of a file by ffmpeg, as copy |
+| Transcode | Copy | Transcode by ffmpeg, as copy, and its stop with the source |
+| Exec | Publish | ffmpeg run on publish, writing the stream to a file |
 | Env | Global, Cli | Global `SRS_*` env settings, log settings at start |

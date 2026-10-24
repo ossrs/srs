@@ -203,7 +203,7 @@ public:
     virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
     virtual srs_error_t read(void *buf, size_t count, ssize_t *pnread);
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
 };
 
 // Mock FLV decoder for testing edge FLV upstream

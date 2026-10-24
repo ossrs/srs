@@ -1,0 +1,57 @@
+
+<Solution>
+	<Configurations>
+		<BuildType Name="Debug" />
+		<BuildType Name="Release" />
+		<BuildType Name="MinSizeRel" />
+		<BuildType Name="RelWithDebInfo" />
+		<Platform Name="x64" />
+	</Configurations>
+	<Project Path="../trunk/objs/windows-vs/ALL_BUILD.vcxproj" Id="f9031582-af4f-3b2f-85cb-0f8a7c8b5ed5">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/srs.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/srs_modules.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/srs_utest.vcxproj" />
+		<Build Project="false" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" Id="eb158972-2a4a-3fad-9c82-442ba157909f" />
+	<Project Path="../trunk/objs/windows-vs/deps-check/deps-check-ffmpeg.vcxproj" Id="6341c54d-43ba-35d1-8b18-99fea8dc2c90">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/deps-check/deps-check-gtest.vcxproj" Id="89bb345e-eae6-3849-afa2-d322add0ddc3">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/deps-check/deps-check-openssl.vcxproj" Id="d44ac2e2-e7d8-3c44-8e2b-783a07bd1840">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/deps-check/deps-check-srt.vcxproj" Id="d097acfb-38ba-3e44-8996-ce50bfd2713e">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/deps-check/deps-check-srtp.vcxproj" Id="a685550a-0dec-3be7-8165-f4094fc8bc67">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/deps-check/deps-check-st.vcxproj" Id="a63f8e2d-52c8-3001-b25a-102d42fe3f32">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/srs.vcxproj" DefaultStartup="true" Id="d67f5ee1-7be3-3038-82fb-7e0046e38deb">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/srs_modules.vcxproj" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/deps-check/srs-deps-check.vcxproj" Id="0354143e-a5d0-3b52-9bf7-8debc490c73c">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/deps-check/deps-check-ffmpeg.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/deps-check/deps-check-gtest.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/deps-check/deps-check-openssl.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/deps-check/deps-check-srt.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/deps-check/deps-check-srtp.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/deps-check/deps-check-st.vcxproj" />
+		<Build Project="false" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/srs_modules.vcxproj" Id="fd1d6bca-e29e-3035-815b-13bbca9dcb56">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+	</Project>
+	<Project Path="../trunk/objs/windows-vs/srs_utest.vcxproj" Id="a654effb-8d7a-305b-aff9-ac87c19a30ac">
+		<BuildDependency Project="../trunk/objs/windows-vs/ZERO_CHECK.vcxproj" />
+		<BuildDependency Project="../trunk/objs/windows-vs/srs_modules.vcxproj" />
+	</Project>
+</Solution>

@@ -4,7 +4,8 @@
 # Slot offsets: RTMP +0, HTTP +1, API +2, RTC UDP +3, SRT UDP +4.
 # OBS_PYTHON names the Python command (default python3). OBS_SRS_HOST means
 # the caller already runs SRS on the slot at that address, so start never
-# spawns or kills SRS.
+# spawns or kills SRS. OBS_SRS_BIN names the SRS binary under trunk (default
+# objs/srs).
 
 obs_test_ports() {
   OBS_RTMP_PORT=$1
@@ -121,7 +122,7 @@ obs_test_init() {
   # Probe is read-only; never enable/restart the user's main OBS.
   probe=$("${OBS_PYTHON:-python3}" "$OBS_WS" probe --json) || { obs_test_skip 'OBS not available (probe failed)'; }
   obs_test_probe_available "$probe" || obs_test_skip 'OBS not available'
-  [[ -n "${OBS_SRS_HOST:-}" || -x "$OBS_WORKSPACE/trunk/objs/srs" ]] || { obs_test_fail 'build trunk/objs/srs first'; return 1; }
+  [[ -n "${OBS_SRS_HOST:-}" || -x "$OBS_WORKSPACE/trunk/${OBS_SRS_BIN:-objs/srs}" ]] || { obs_test_fail "build trunk/${OBS_SRS_BIN:-objs/srs} first"; return 1; }
   mkdir -p "$OBS_TEST_DIR/html"
   # Reject another live owner; never terminate a listener to acquire a slot.
   if [[ -z "${OBS_SRS_HOST:-}" && -f "$OBS_TEST_DIR/srs.pid" ]] && kill -0 "$(cat "$OBS_TEST_DIR/srs.pid")" 2>/dev/null; then
@@ -152,7 +153,7 @@ obs_test_start_srs() {
     SRS_VHOST_HLS_HLS_WINDOW=4 SRS_VHOST_HLS_HLS_PATH="$OBS_TEST_DIR/html" \
     SRS_VHOST_RTC_ENABLED=on SRS_VHOST_RTC_RTMP_TO_RTC=on SRS_VHOST_RTC_RTC_TO_RTMP=on \
     SRS_VHOST_SRT_ENABLED=on SRS_VHOST_SRT_SRT_TO_RTMP=on SRS_LOG_TANK=console \
-    "$@" ./objs/srs -e) >"$OBS_TEST_DIR/srs.log" 2>&1 &
+    "$@" "./${OBS_SRS_BIN:-objs/srs}" -e) >"$OBS_TEST_DIR/srs.log" 2>&1 &
   OBS_SRS_PID=$!
   printf '%s\n' "$OBS_SRS_PID" > "$OBS_TEST_DIR/srs.pid"
 }
