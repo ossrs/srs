@@ -274,6 +274,36 @@ func rtmpSignaling(t *testing.T) {
 	})
 }
 
+// TestRtmp_ChunkSize4096 plays on a variant whose vhost sets chunk_size 4096,
+// not the default 60000. SRS tells a client its chunk size at connect, and
+// splits every message larger than it, such as a keyframe, into chunks.
+func TestRtmp_ChunkSize4096(t *testing.T) {
+	t.Parallel()
+	srs := server.Group(t, server.PlayConfig(server.Play{ChunkSize: 4096}))
+
+	check.Case(t, "ConnectResult", check.Normal, func(c *check.C) {
+		cl := dialRTMP(c, rtmpURL(srs, "live/"+streamName(c)), nil)
+		c.CheckEqual(cl.ServerChunkSize(), 4096, "server chunk size")
+	})
+
+	// PublishPlay publishes in 128-byte chunks, so the size SRS reads with
+	// differs from the size it writes with, and plays back the test file,
+	// whose keyframes are larger than 4096 bytes.
+	check.Case(t, "PublishPlay", check.Normal, func(c *check.C) {
+		largest := 0
+		for _, tag := range readTags(c, media.H264HighAAC, 0, time.Second) {
+			largest = max(largest, len(tag.Data))
+		}
+		c.Check(largest > 4096, "largest message %d bytes, want more than 4096", largest)
+
+		url := rtmpURL(srs, "live/"+streamName(c))
+		startPublisherWith(c, url, media.Path(c, media.H264HighAAC), 0, &rtmp.Options{ChunkSize: 128}, rtmp.FMLE)
+		player, r := playRTMPClient(c, url, nil)
+		c.CheckEqual(player.ServerChunkSize(), 4096, "server chunk size")
+		checkPlayed(c, r, "h264", "aac")
+	})
+}
+
 // handshakeCase publishes and plays with one kind of handshake, which SRS
 // answers in the same kind.
 func handshakeCase(c *check.C, kind rtmp.Handshake) {

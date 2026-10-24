@@ -836,6 +836,9 @@ type Play struct {
 	// MergedWrite, when not nil, replaces Common's lowest latency with
 	// min_latency off and the merged write and read it sets.
 	MergedWrite *Merged
+	// ChunkSize is the size of the chunks SRS sends; 0 keeps SRS's default,
+	// 60000.
+	ChunkSize int
 }
 
 // Merged is how SRS merges the messages it writes to a player and reads from
@@ -882,6 +885,9 @@ func PlayConfig(p Play) Config {
 	}
 	if p.SendMinInterval > 0 {
 		env["SRS_VHOST_PLAY_SEND_MIN_INTERVAL"] = strconv.FormatInt(p.SendMinInterval.Milliseconds(), 10)
+	}
+	if p.ChunkSize > 0 {
+		env["SRS_VHOST_CHUNK_SIZE"] = strconv.Itoa(p.ChunkSize)
 	}
 	if m := p.MergedWrite; m != nil {
 		env["SRS_VHOST_MIN_LATENCY"] = "off"
