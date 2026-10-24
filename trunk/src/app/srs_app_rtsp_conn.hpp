@@ -17,7 +17,6 @@
 
 #include <map>
 #include <string>
-#include <sys/socket.h>
 #include <vector>
 
 class ISrsRequest;
@@ -180,6 +179,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRand *rand_;
     SrsSharedPtr<SrsRtspSource> source_;
     ISrsEphemeralDelta *delta_;
+    // The client's socket, owned: freed by the destructor, which closes the connection.
     ISrsProtocolReadWriter *skt_;
     ISrsSecurity *security_;
     iovec *cache_iov_;
@@ -189,6 +189,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // key: ssrc
     std::map<uint32_t, ISrsStreamWriter *> networks_;
     ISrsRtspPlayStream *player_;
+    // Whether an on_play passed for request_, so the play owes the hook server its on_stop.
+    bool on_play_passed_;
 
 public:
     SrsRtspConnection(ISrsResourceManager *cm, ISrsProtocolReadWriter *skt, std::string cip, int port);
@@ -252,7 +254,11 @@ public:
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     srs_error_t http_hooks_on_play(ISrsRequest *req);
+    // Send the on_stop of the last on_play that passed, once.
+    void http_hooks_on_stop();
     srs_error_t get_ssrc_by_stream_id(uint32_t stream_id, uint32_t *ssrc);
+    // Whether a SETUP gave any track of the last DESCRIBE a network to send on.
+    bool has_setup_track();
 };
 
 class SrsRtspTcpNetwork : public ISrsStreamWriter

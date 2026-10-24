@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <sstream>
 #include <stdarg.h>
-#include <unistd.h>
 
 #include <map>
 #include <vector>
@@ -188,9 +187,14 @@ void asan_report_callback(const char *str)
 // see https://github.com/google/sanitizers/wiki/SanitizerCommonFlags
 //
 // Also disable alloc_dealloc_mismatch for gdb.
+//
+// Disable the container overflow detect by detect_container_overflow, because libsrt is built without ASan. Its
+// inline std::vector code shares the instantiations of the instrumented SRS code, so libsrt grows a vector without
+// updating the container annotations, and a valid copy of the vector is reported as a heap-buffer-overflow, see
+// https://github.com/google/sanitizers/wiki/AddressSanitizerContainerOverflow#false-positives
 extern "C" const char *__asan_default_options()
 {
-    return "halt_on_error=0:detect_leaks=0:alloc_dealloc_mismatch=0";
+    return "halt_on_error=0:detect_leaks=0:alloc_dealloc_mismatch=0:detect_container_overflow=0";
 }
 #endif
 
@@ -421,9 +425,8 @@ static struct
     const char *name;
     const char *descripton;
 } _srs_strerror_tab[] = {
-#ifndef _WIN32
-    {ERROR_SUCCESS, "Success", "Success"},
-#endif
+    // On Windows, ERROR_SUCCESS is the winerror.h macro 0L, not an SrsErrorCode.
+    {(SrsErrorCode)ERROR_SUCCESS, "Success", "Success"},
     SRS_ERRNO_MAP_SYSTEM(SRS_STRERRNO_GEN)
         SRS_ERRNO_MAP_RTMP(SRS_STRERRNO_GEN)
             SRS_ERRNO_MAP_APP(SRS_STRERRNO_GEN)

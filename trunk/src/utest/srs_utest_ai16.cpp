@@ -717,6 +717,58 @@ std::string MockHttpMessageForLiveStream::path()
     return "/live/stream.flv";
 }
 
+MockInterruptedCoroutineForLiveStream::MockInterruptedCoroutineForLiveStream()
+{
+    pull_count_ = 0;
+}
+
+MockInterruptedCoroutineForLiveStream::~MockInterruptedCoroutineForLiveStream()
+{
+}
+
+srs_error_t MockInterruptedCoroutineForLiveStream::start()
+{
+    return srs_success;
+}
+
+void MockInterruptedCoroutineForLiveStream::stop()
+{
+}
+
+void MockInterruptedCoroutineForLiveStream::interrupt()
+{
+}
+
+srs_error_t MockInterruptedCoroutineForLiveStream::pull()
+{
+    pull_count_++;
+    return srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+}
+
+const SrsContextId &MockInterruptedCoroutineForLiveStream::cid()
+{
+    static SrsContextId cid;
+    return cid;
+}
+
+void MockInterruptedCoroutineForLiveStream::set_cid(const SrsContextId &cid)
+{
+}
+
+MockWaitingHttpxConnForLiveStream::MockWaitingHttpxConnForLiveStream()
+{
+}
+
+MockWaitingHttpxConnForLiveStream::~MockWaitingHttpxConnForLiveStream()
+{
+}
+
+srs_error_t MockWaitingHttpxConnForLiveStream::pop_message(ISrsHttpMessage **preq)
+{
+    srs_usleep(1 * SRS_UTIME_SECONDS);
+    return srs_error_new(ERROR_SOCKET_TIMEOUT, "read timeout");
+}
+
 VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
 {
     srs_error_t err;
@@ -776,11 +828,119 @@ VOID TEST(SrsLiveStreamTest, ServeHttpWithDisabledEntry)
     srs_freep(live_stream->entry_);
 }
 
+// Serve an HTTP-FLV viewer of a stream published with the given URLs, through a stream whose entry
+// is disabled, so serve_http() stops after the stat, and return the URLs the stat got.
+static void mock_live_stream_viewer_urls(bool https, std::string host, std::string referer, MockStatisticForLiveStream *stat)
+{
+    SrsUniquePtr<MockRequest> publisher(new MockRequest("test.vhost", "live", "stream1"));
+    publisher->tcUrl_ = "rtmp://127.0.0.1:19350/live";
+    publisher->port_ = 19350;
+    publisher->pageUrl_ = "http://publisher.example/live.html";
+    publisher->swfUrl_ = "http://publisher.example/player.swf";
+
+    SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
+    SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
+    MockSecurity security;
+    stream->stat_ = stat;
+    srs_freep(stream->security_);
+    stream->security_ = &security;
+    stream->entry_ = new SrsHttpMuxEntry();
+    stream->entry_->enabled = false;
+    stream->entry_->pattern = "/live/stream1.flv";
+
+    SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+    SrsHttpHeader header;
+    if (!host.empty()) {
+        header.set("Host", host);
+    }
+    if (!referer.empty()) {
+        header.set("Referer", referer);
+    }
+    message->set_header(&header, false);
+    srs_error_t err = message->set_url("/live/stream1.flv", false);
+    srs_freep(err);
+    message->set_https(https);
+
+    MockResponseWriter writer;
+    err = stream->serve_http(&writer, message.get());
+    srs_freep(err);
+
+    stream->stat_ = NULL;
+    stream->security_ = NULL;
+    srs_freep(stream->entry_);
+}
+
+// An HTTP-FLV viewer is listed with its own URLs, not the publisher's: the tcUrl of its app on the
+// HTTP server it asked, by its Host, and its Referer as the pageUrl, as its on_play has them.
+VOID TEST(SrsLiveStreamTest, ViewerListedWithItsOwnUrls)
+{
+    MockStatisticForLiveStream stat;
+    mock_live_stream_viewer_urls(false, "127.0.0.1:8080", "http://page.example/flv.html", &stat);
+
+    EXPECT_EQ(1, stat.on_client_count_);
+    EXPECT_STREQ("http://127.0.0.1:8080/live", stat.on_client_tc_url_.c_str());
+    EXPECT_STREQ("http://page.example/flv.html", stat.on_client_page_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_swf_url_.c_str());
+}
+
+// An HTTPS viewer's tcUrl is https://, and a viewer with no Referer has no pageUrl, not the
+// publisher's.
+VOID TEST(SrsLiveStreamTest, HttpsViewerWithoutReferer)
+{
+    MockStatisticForLiveStream stat;
+    mock_live_stream_viewer_urls(true, "[::1]:8088", "", &stat);
+
+    EXPECT_EQ(1, stat.on_client_count_);
+    EXPECT_STREQ("https://[::1]:8088/live", stat.on_client_tc_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_page_url_.c_str());
+    EXPECT_STREQ("", stat.on_client_swf_url_.c_str());
+}
+
+// A viewer of each HTTP remux is listed and checked by the security with the type of its own format:
+// an HTTP-TS, MP3 or AAC viewer is not an HTTP-FLV one.
+VOID TEST(SrsLiveStreamTest, ViewerTypeOfEachMount)
+{
+    const char *exts[] = {".flv", ".ts", ".mp3", ".aac"};
+    SrsRtmpConnType types[] = {SrsFlvPlay, SrsTsPlay, SrsMp3Play, SrsAacPlay};
+
+    for (int i = 0; i < 4; i++) {
+        string url = string("/live/stream1") + exts[i];
+        SrsUniquePtr<MockRequest> publisher(new MockRequest("test.vhost", "live", "stream1"));
+        SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
+        SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
+        MockStatisticForLiveStream stat;
+        MockSecurity security;
+        stream->stat_ = &stat;
+        srs_freep(stream->security_);
+        stream->security_ = &security;
+        stream->entry_ = new SrsHttpMuxEntry();
+        stream->entry_->enabled = false;
+        stream->entry_->pattern = url;
+
+        SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+        srs_error_t err = message->set_url(url, false);
+        srs_freep(err);
+
+        MockResponseWriter writer;
+        err = stream->serve_http(&writer, message.get());
+        srs_freep(err);
+
+        EXPECT_EQ(1, stat.on_client_count_) << url;
+        EXPECT_EQ(types[i], stat.on_client_type_) << url;
+        EXPECT_EQ(types[i], security.check_type_) << url;
+
+        stream->stat_ = NULL;
+        stream->security_ = NULL;
+        srs_freep(stream->entry_);
+    }
+}
+
 // Mock ISrsStatistic implementation for SrsLiveStream testing
 MockStatisticForLiveStream::MockStatisticForLiveStream()
 {
     on_client_count_ = 0;
     on_client_error_ = srs_success;
+    on_client_type_ = SrsRtmpConnUnknown;
     on_disconnect_count_ = 0;
 }
 
@@ -797,6 +957,12 @@ void MockStatisticForLiveStream::on_disconnect(std::string id, srs_error_t err)
 srs_error_t MockStatisticForLiveStream::on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type)
 {
     on_client_count_++;
+    on_client_tc_url_ = req->tcUrl_;
+    on_client_page_url_ = req->pageUrl_;
+    on_client_swf_url_ = req->swfUrl_;
+    on_client_app_ = req->app_;
+    on_client_stream_ = req->stream_;
+    on_client_type_ = type;
     return srs_error_copy(on_client_error_);
 }
 
@@ -981,29 +1147,33 @@ void MockHttpHooksForLiveStream::on_close(std::string url, ISrsRequest *req, int
 {
 }
 
-srs_error_t MockHttpHooksForLiveStream::on_publish(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForLiveStream::on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     return srs_success;
 }
 
-void MockHttpHooksForLiveStream::on_unpublish(std::string url, ISrsRequest *req)
+void MockHttpHooksForLiveStream::on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
 }
 
-srs_error_t MockHttpHooksForLiveStream::on_play(std::string url, ISrsRequest *req)
+srs_error_t MockHttpHooksForLiveStream::on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type)
 {
     on_play_count_++;
     on_play_calls_.push_back(std::make_pair(url, req));
+    on_play_types_.push_back(type);
+    on_play_tc_urls_.push_back(req->tcUrl_);
     return srs_error_copy(on_play_error_);
 }
 
-void MockHttpHooksForLiveStream::on_stop(std::string url, ISrsRequest *req)
+void MockHttpHooksForLiveStream::on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream)
 {
     on_stop_count_++;
     on_stop_calls_.push_back(std::make_pair(url, req));
+    on_stop_types_.push_back(type);
+    on_stop_tc_urls_.push_back(req->tcUrl_);
 }
 
-srs_error_t MockHttpHooksForLiveStream::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file)
+srs_error_t MockHttpHooksForLiveStream::on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream)
 {
     return srs_success;
 }
@@ -1082,28 +1252,85 @@ VOID TEST(SrsLiveStreamTest, HttpHooksOnPlayAndStop)
     SrsUniquePtr<MockHttpMessage> mock_http_msg(new MockHttpMessage());
 
     // Test http_hooks_on_play - should call hooks for all URLs
-    HELPER_EXPECT_SUCCESS(live_stream->http_hooks_on_play(mock_http_msg.get()));
+    HELPER_EXPECT_SUCCESS(live_stream->http_hooks_on_play(mock_http_msg.get(), SrsTsPlay));
 
-    // Verify on_play was called twice (once for each URL)
+    // Verify on_play was called twice (once for each URL), each with the player's type
     EXPECT_EQ(2, mock_hooks->on_play_count_);
     EXPECT_EQ(2, (int)mock_hooks->on_play_calls_.size());
     EXPECT_STREQ("http://localhost:8080/api/on_play", mock_hooks->on_play_calls_[0].first.c_str());
     EXPECT_STREQ("http://localhost:8080/api/on_play2", mock_hooks->on_play_calls_[1].first.c_str());
+    ASSERT_EQ(2, (int)mock_hooks->on_play_types_.size());
+    EXPECT_EQ(SrsTsPlay, mock_hooks->on_play_types_[0]);
+    EXPECT_EQ(SrsTsPlay, mock_hooks->on_play_types_[1]);
 
     // Test http_hooks_on_stop - should call hooks for all URLs
-    live_stream->http_hooks_on_stop(mock_http_msg.get());
+    live_stream->http_hooks_on_stop(mock_http_msg.get(), SrsTsPlay);
 
-    // Verify on_stop was called twice (once for each URL)
+    // Verify on_stop was called twice (once for each URL), each with the player's type
     EXPECT_EQ(2, mock_hooks->on_stop_count_);
     EXPECT_EQ(2, (int)mock_hooks->on_stop_calls_.size());
     EXPECT_STREQ("http://localhost:8080/api/on_stop", mock_hooks->on_stop_calls_[0].first.c_str());
     EXPECT_STREQ("http://localhost:8080/api/on_stop2", mock_hooks->on_stop_calls_[1].first.c_str());
+    ASSERT_EQ(2, (int)mock_hooks->on_stop_types_.size());
+    EXPECT_EQ(SrsTsPlay, mock_hooks->on_stop_types_[0]);
+    EXPECT_EQ(SrsTsPlay, mock_hooks->on_stop_types_[1]);
 
     // Clean up - set to NULL to avoid double free (mocks will be freed automatically)
     live_stream->config_ = NULL;
     live_stream->hooks_ = NULL;
     srs_freep(mock_config);
     srs_freep(mock_hooks);
+}
+
+// An HTTP player's on_play and on_stop have its own tcUrl, the URL of its app on the HTTP server
+// it asked, by its schema and Host, as /api/v1/clients lists it; not an rtmp:// URL of the vhost.
+VOID TEST(SrsLiveStreamTest, HttpHooksTcUrlIsThePlayers)
+{
+    srs_error_t err = srs_success;
+
+    struct {
+        bool https;
+        const char *host;
+        const char *want;
+    } cases[] = {
+        {false, "127.0.0.1:8080", "http://127.0.0.1:8080/live"},
+        {true, "[::1]:8088", "https://[::1]:8088/live"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SrsUniquePtr<MockRequest> publisher(new MockRequest("test.vhost", "live", "stream1"));
+        publisher->tcUrl_ = "rtmp://127.0.0.1:19350/live";
+        SrsUniquePtr<MockBufferCache> cache(new MockBufferCache());
+        SrsUniquePtr<SrsLiveStream> stream(new SrsLiveStream(publisher.get(), cache.get()));
+
+        MockAppConfigForLiveStreamHooks config;
+        MockHttpHooksForLiveStream hooks;
+        stream->config_ = &config;
+        stream->hooks_ = &hooks;
+        config.http_hooks_enabled_ = true;
+        config.on_play_directive_ = new SrsConfDirective();
+        config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+        config.on_stop_directive_ = new SrsConfDirective();
+        config.on_stop_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+        SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+        SrsHttpHeader header;
+        header.set("Host", cases[i].host);
+        message->set_header(&header, false);
+        HELPER_EXPECT_SUCCESS(message->set_url("/live/stream1.flv?k=v", false));
+        message->set_https(cases[i].https);
+
+        HELPER_EXPECT_SUCCESS(stream->http_hooks_on_play(message.get(), SrsFlvPlay));
+        stream->http_hooks_on_stop(message.get(), SrsFlvPlay);
+
+        ASSERT_EQ(1, (int)hooks.on_play_tc_urls_.size());
+        ASSERT_EQ(1, (int)hooks.on_stop_tc_urls_.size());
+        EXPECT_STREQ(cases[i].want, hooks.on_play_tc_urls_[0].c_str());
+        EXPECT_STREQ(cases[i].want, hooks.on_stop_tc_urls_[0].c_str());
+
+        stream->config_ = NULL;
+        stream->hooks_ = NULL;
+    }
 }
 
 VOID TEST(SrsLiveEntryTest, FormatDetection)
@@ -1309,11 +1536,6 @@ VOID TEST(SrsHttpStreamServerTest, HttpMountAndUnmount)
     {
         // Create SrsHttpStreamServer
         SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
-
-        // Replace the async worker created in constructor with our mock
-        MockAsyncCallWorker *mock_async = new MockAsyncCallWorker();
-        srs_freep(server->async_);
-        server->async_ = mock_async;
         server->config_ = mock_config;
 
         // Setup template handler for vhost
@@ -1353,9 +1575,8 @@ VOID TEST(SrsHttpStreamServerTest, HttpMountAndUnmount)
         // Verify entry is marked as disposing
         EXPECT_TRUE(entry->disposing_);
 
-        // Verify async task was scheduled
-        EXPECT_EQ(1, mock_async->execute_count_);
-        EXPECT_EQ(1, (int)mock_async->tasks_.size());
+        // Verify the teardown was started
+        EXPECT_EQ(1, (int)server->destroyers_.size());
 
         // Test http_mount after unmount - should fail with ERROR_STREAM_DISPOSING
         err = server->http_mount(mock_request.get());
@@ -1364,7 +1585,7 @@ VOID TEST(SrsHttpStreamServerTest, HttpMountAndUnmount)
         srs_freep(err);
 
         // Server destructor will be called here when exiting scope
-        // It will call async_->stop() and free async_, so we don't need to do it manually
+        // It waits for the teardown, which frees the stream entry
     }
 
     // Now we can safely free the mock config
@@ -1600,9 +1821,8 @@ VOID TEST(SrsGoApiFeaturesTest, ServeHttpSuccess)
     ASSERT_TRUE(hls_any->is_boolean());
     EXPECT_TRUE(hls_any->to_boolean());
 
-    SrsJsonAny *hds_any = features->get_property("hds");
-    ASSERT_TRUE(hds_any != NULL);
-    ASSERT_TRUE(hds_any->is_boolean());
+    // HDS is removed, so it is not a feature.
+    EXPECT_TRUE(features->get_property("hds") == NULL);
 
     SrsJsonAny *callback_any = features->get_property("callback");
     ASSERT_TRUE(callback_any != NULL);
@@ -1660,6 +1880,36 @@ VOID TEST(SrsGoApiFeaturesTest, ServeHttpSuccess)
     SrsJsonAny *mr_any = features->get_property("mr");
     ASSERT_TRUE(mr_any != NULL);
     ASSERT_TRUE(mr_any->is_boolean());
+
+    // Verify the build options, each one true exactly when its build macro is defined.
+    bool srt = false, rtsp = false, gb28181 = false, rtc = false, simulator = false, sanitizer = false;
+#ifdef SRS_SRT
+    srt = true;
+#endif
+#ifdef SRS_RTSP
+    rtsp = true;
+#endif
+#ifdef SRS_GB28181
+    gb28181 = true;
+#endif
+#ifdef SRS_RTC
+    rtc = true;
+#endif
+#ifdef SRS_SIMULATOR
+    simulator = true;
+#endif
+#ifdef SRS_SANITIZER
+    sanitizer = true;
+#endif
+
+    const char *names[] = {"srt", "rtsp", "gb28181", "rtc", "simulator", "sanitizer"};
+    bool expects[] = {srt, rtsp, gb28181, rtc, simulator, sanitizer};
+    for (int i = 0; i < (int)(sizeof(names) / sizeof(names[0])); i++) {
+        SrsJsonAny *any = features->get_property(names[i]);
+        ASSERT_TRUE(any != NULL) << names[i];
+        ASSERT_TRUE(any->is_boolean()) << names[i];
+        EXPECT_EQ(expects[i], any->to_boolean()) << names[i];
+    }
 }
 
 VOID TEST(SrsHttpStreamServerTest, DynamicMatchHttpFlv)
@@ -1685,11 +1935,6 @@ VOID TEST(SrsHttpStreamServerTest, DynamicMatchHttpFlv)
     {
         // Create SrsHttpStreamServer
         SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
-
-        // Replace the async worker created in constructor with our mock
-        MockAsyncCallWorker *mock_async = new MockAsyncCallWorker();
-        srs_freep(server->async_);
-        server->async_ = mock_async;
         server->config_ = mock_config;
 
         // Setup template handler for vhost
@@ -1746,6 +1991,7 @@ MockLiveStreamForDestroy::MockLiveStreamForDestroy()
 {
     alive_ = true;
     expired_ = false;
+    expire_keeps_alive_ = false;
 }
 
 MockLiveStreamForDestroy::~MockLiveStreamForDestroy()
@@ -1770,7 +2016,9 @@ bool MockLiveStreamForDestroy::alive()
 void MockLiveStreamForDestroy::expire()
 {
     expired_ = true;
-    alive_ = false;
+    if (!expire_keeps_alive_) {
+        alive_ = false;
+    }
 }
 
 MockBufferCacheForDestroy::MockBufferCacheForDestroy()
@@ -2004,6 +2252,46 @@ VOID TEST(SrsLiveStreamTest, DoServeHttpFlvWithDisabledEntry)
     srs_freep(live_stream->entry_);
 }
 
+VOID TEST(SrsLiveStreamTest, DoServeHttpEndsAtOnceWhenConnInterrupted)
+{
+    srs_error_t err;
+
+    // A DELETE of the player by the HTTP API interrupts its HTTP connection, while the receive
+    // thread waits for a request until its read timeout. The play loop must end at once.
+    SrsUniquePtr<MockRequest> mock_request(new MockRequest("test.vhost", "live", "stream1"));
+    SrsUniquePtr<MockBufferCache> mock_cache(new MockBufferCache());
+    SrsUniquePtr<SrsLiveStream> live_stream(new SrsLiveStream(mock_request.get(), mock_cache.get()));
+
+    live_stream->entry_ = new SrsHttpMuxEntry();
+    live_stream->entry_->enabled = true;
+    live_stream->entry_->pattern = "/live/stream.flv";
+
+    SrsUniquePtr<MockHttpMessageForLiveStream> mock_message(new MockHttpMessageForLiveStream());
+    MockHttpConnForLiveStream *conn = mock_message->mock_conn_;
+    srs_freep(conn->trd_);
+    MockInterruptedCoroutineForLiveStream *conn_trd = new MockInterruptedCoroutineForLiveStream();
+    conn->trd_ = conn_trd;
+    srs_freep(conn->mock_handler_);
+    conn->mock_handler_ = new MockWaitingHttpxConnForLiveStream();
+    MockResponseWriter mock_writer;
+
+    SrsUniquePtr<MockLiveSourceForQueue> mock_source(new MockLiveSourceForQueue());
+    SrsUniquePtr<MockLiveConsumerForQueue> mock_consumer(new MockLiveConsumerForQueue(mock_source.get()));
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    err = live_stream->do_serve_http(mock_source.get(), mock_consumer.get(), &mock_writer, mock_message.get());
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_GE(conn_trd->pull_count_, 1);
+    EXPECT_LT(elapsed, 300 * SRS_UTIME_MILLISECONDS);
+
+    srs_freep(live_stream->entry_);
+}
+
 VOID TEST(SrsLiveStreamTest, AliveAndExpireWithViewers)
 {
     // Test the major use scenario: alive() and expire() with multiple viewers
@@ -2103,6 +2391,54 @@ VOID TEST(HttpStreamDestroyTest, DestroyStreamSuccess)
     // After call(), the stream and cache objects are freed by SrsUniquePtr
     // We can only verify that the entry was removed from handlers
     EXPECT_EQ(0, (int)streamHandlers.size());
+}
+
+// Mount a stream entry with a mock stream and cache, as http_mount does from a template.
+static MockLiveStreamForDestroy *mount_entry_for_destroy(SrsHttpStreamServer *server, MockRequest *req)
+{
+    MockLiveStreamForDestroy *stream = new MockLiveStreamForDestroy();
+    SrsLiveEntry *entry = new SrsLiveEntry(req->get_stream_url() + ".flv");
+    entry->stream_ = stream;
+    entry->cache_ = new MockBufferCacheForDestroy();
+    entry->req_ = req->copy();
+    server->streamHandlers_[req->get_stream_url()] = entry;
+    return stream;
+}
+
+VOID TEST(SrsHttpStreamServerTest, UnmountNotHeldByOtherStreamViewer)
+{
+    srs_error_t err = srs_success;
+
+    // A stream unmounted while its HTTP-FLV viewer still ends its connection waits for that viewer,
+    // but another stream unmounted after it, with no viewer, is torn down at once, so it can be
+    // published again, not refused as disposing until the first stream's viewer has gone.
+    SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
+
+    SrsUniquePtr<MockRequest> watched_req(new MockRequest("test.vhost", "live", "watched"));
+    SrsUniquePtr<MockRequest> other_req(new MockRequest("test.vhost", "live", "other"));
+    MockLiveStreamForDestroy *watched = mount_entry_for_destroy(server.get(), watched_req.get());
+    watched->expire_keeps_alive_ = true;
+    MockLiveStreamForDestroy *other = mount_entry_for_destroy(server.get(), other_req.get());
+    other->alive_ = false;
+
+    server->http_unmount(watched_req.get());
+    server->http_unmount(other_req.get());
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+
+    // The other stream is gone, and publishes again; the watched one waits for its viewer.
+    EXPECT_TRUE(server->streamHandlers_.find(other_req->get_stream_url()) == server->streamHandlers_.end());
+    EXPECT_EQ(1, (int)server->streamHandlers_.size());
+    EXPECT_TRUE(watched->expired_);
+    HELPER_EXPECT_SUCCESS(server->http_mount(other_req.get()));
+
+    err = server->http_mount(watched_req.get());
+    EXPECT_EQ(ERROR_STREAM_DISPOSING, srs_error_code(err));
+    srs_freep(err);
+
+    // The viewer ends, so the watched stream is torn down at the next check.
+    watched->alive_ = false;
+    srs_usleep(150 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(server->streamHandlers_.find(watched_req->get_stream_url()) == server->streamHandlers_.end());
 }
 
 VOID TEST(SrsBufferCacheTest, StopAndAlive)
@@ -2351,6 +2687,53 @@ VOID TEST(HttpApiTest, GoApiV1ServeHttp)
 
     // Clean up - set stat_ back to NULL before destruction
     api->stat_ = NULL;
+}
+
+VOID TEST(HttpApiTest, GoApiV1IndexListsOnlyServedUrls)
+{
+    srs_error_t err;
+
+    // The v1 index lists only the URLs SRS serves: requests is served under tests,
+    // no handler serves perf, and tcmalloc is served only by a gperf build.
+    SrsUniquePtr<SrsGoApiV1> api(new SrsGoApiV1());
+    MockStatisticForLiveStream mock_stat;
+    api->stat_ = &mock_stat;
+
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    MockResponseWriter mock_writer;
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+    api->stat_ = NULL;
+
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+    size_t json_start = response.find("\r\n\r\n");
+    ASSERT_TRUE(json_start != string::npos);
+    SrsJsonAny *json = SrsJsonAny::loads(response.substr(json_start + 4));
+    ASSERT_TRUE(json != NULL);
+    ASSERT_TRUE(json->is_object());
+    SrsUniquePtr<SrsJsonObject> obj((SrsJsonObject *)json);
+
+    SrsJsonAny *urls_any = obj->get_property("urls");
+    ASSERT_TRUE(urls_any != NULL);
+    ASSERT_TRUE(urls_any->is_object());
+    SrsJsonObject *urls = urls_any->to_object();
+    EXPECT_TRUE(urls->get_property("versions") != NULL);
+    EXPECT_TRUE(urls->get_property("clusters") != NULL);
+    EXPECT_TRUE(urls->get_property("requests") == NULL);
+    EXPECT_TRUE(urls->get_property("perf") == NULL);
+#ifdef SRS_GPERF
+    EXPECT_TRUE(urls->get_property("tcmalloc") != NULL);
+#else
+    EXPECT_TRUE(urls->get_property("tcmalloc") == NULL);
+#endif
+
+    // The test endpoints stay, listed under tests.
+    SrsJsonAny *tests_any = obj->get_property("tests");
+    ASSERT_TRUE(tests_any != NULL);
+    ASSERT_TRUE(tests_any->is_object());
+    SrsJsonObject *tests = tests_any->to_object();
+    EXPECT_TRUE(tests->get_property("requests") != NULL);
+    EXPECT_TRUE(tests->get_property("errors") != NULL);
+    EXPECT_TRUE(tests->get_property("redirects") != NULL);
 }
 
 VOID TEST(SrsGoApiVhostsTest, ServeHttpGetAllVhosts)
@@ -2925,6 +3308,100 @@ VOID TEST(HttpApiTest, GoApiRequestsServeHttp)
     EXPECT_TRUE(response.find("\"time\"") != string::npos);
 }
 
+VOID TEST(HttpApiTest, GoApiRequestsHeadersAreRequestHeaders)
+{
+    srs_error_t err;
+
+    // The request's headers are in data.headers, and the server's information
+    // is in data.server, so the server object doesn't replace the headers.
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsHttpHeader header;
+    header.set("X-Integ-Case", "hello");
+    mock_msg->set_header(&header, false);
+
+    SrsUniquePtr<SrsGoApiRequests> api(new SrsGoApiRequests());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+    size_t body = response.find("\r\n\r\n");
+    ASSERT_TRUE(body != string::npos);
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(response.substr(body + 4)));
+    ASSERT_TRUE(json.get() && json->is_object());
+    SrsJsonAny *data = json->to_object()->get_property("data");
+    ASSERT_TRUE(data && data->is_object());
+
+    SrsJsonAny *headers = data->to_object()->get_property("headers");
+    ASSERT_TRUE(headers && headers->is_object());
+    SrsJsonAny *value = headers->to_object()->get_property("X-Integ-Case");
+    ASSERT_TRUE(value && value->is_string());
+    EXPECT_STREQ("hello", value->to_str().c_str());
+    EXPECT_TRUE(headers->to_object()->get_property("sigature") == NULL);
+
+    SrsJsonAny *server = data->to_object()->get_property("server");
+    ASSERT_TRUE(server && server->is_object());
+    SrsJsonAny *sig = server->to_object()->get_property("sigature");
+    ASSERT_TRUE(sig && sig->is_string());
+    EXPECT_STREQ(RTMP_SIG_SRS_KEY, sig->to_str().c_str());
+    EXPECT_TRUE(server->to_object()->get_property("version") != NULL);
+    EXPECT_TRUE(server->to_object()->get_property("link") != NULL);
+    EXPECT_TRUE(server->to_object()->get_property("time") != NULL);
+}
+
+// Serve /api/v1/tests/requests for a request of the url and Host, over HTTPS
+// or not, and return its data.uri.
+static string go_api_requests_uri(string host, string url, bool https)
+{
+    srs_error_t err;
+
+    MockResponseWriter mock_writer;
+    SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
+    mock_msg->is_jsonp_ = false;
+
+    SrsHttpHeader header;
+    header.set("Host", host);
+    mock_msg->set_header(&header, false);
+    HELPER_EXPECT_SUCCESS(mock_msg->set_url(url, false));
+    mock_msg->set_https(https);
+
+    SrsUniquePtr<SrsGoApiRequests> api(new SrsGoApiRequests());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&mock_writer, mock_msg.get()));
+
+    string response = HELPER_BUFFER2STR(&mock_writer.io.out_buffer);
+    size_t body = response.find("\r\n\r\n");
+    if (body == string::npos) {
+        return "";
+    }
+
+    SrsUniquePtr<SrsJsonAny> json(SrsJsonAny::loads(response.substr(body + 4)));
+    if (!json.get() || !json->is_object()) {
+        return "";
+    }
+    SrsJsonAny *data = json->to_object()->get_property("data");
+    if (!data || !data->is_object()) {
+        return "";
+    }
+    SrsJsonAny *uri = data->to_object()->get_property("uri");
+    return (uri && uri->is_string()) ? uri->to_str() : "";
+}
+
+VOID TEST(HttpApiTest, GoApiRequestsUriIsTheRequestUri)
+{
+    // The uri is the one the client asked for: the Host's port and the query
+    // are kept, and a vhost in the query doesn't replace the Host.
+    EXPECT_STREQ("http://127.0.0.1:1985/api/v1/tests/requests?k=v&vhost=other.vhost",
+                 go_api_requests_uri("127.0.0.1:1985", "/api/v1/tests/requests?k=v&vhost=other.vhost", false).c_str());
+    EXPECT_STREQ("https://127.0.0.1:1990/api/v1/tests/requests?k=v",
+                 go_api_requests_uri("127.0.0.1:1990", "/api/v1/tests/requests?k=v", true).c_str());
+    EXPECT_STREQ("http://[::1]:1985/api/v1/tests/requests",
+                 go_api_requests_uri("[::1]:1985", "/api/v1/tests/requests", false).c_str());
+    EXPECT_STREQ("http://ossrs.net/api/v1/tests/requests",
+                 go_api_requests_uri("ossrs.net", "/api/v1/tests/requests", false).c_str());
+}
+
 VOID TEST(HttpApiTest, GoApiVhostsServeHttpWithVhostId)
 {
     srs_error_t err;
@@ -2975,7 +3452,7 @@ VOID TEST(HttpApiTest, StreamsApiGetSpecificStream)
 
     // Create mock HTTP message for GET request with stream ID
     SrsUniquePtr<MockHttpMessageForApiResponse> mock_msg(new MockHttpMessageForApiResponse());
-    mock_msg->_method = SRS_CONSTS_HTTP_GET;
+    mock_msg->method_ = SRS_CONSTS_HTTP_GET;
     mock_msg->path_ = "/api/v1/streams/test_stream_id_123";
     HELPER_EXPECT_SUCCESS(mock_msg->set_url("http://127.0.0.1/api/v1/streams/test_stream_id_123", false));
 
@@ -3593,6 +4070,51 @@ VOID TEST(HttpApiTest, GoApiRawObeysSwitchesOfReloadedConfig)
     mock_config.unsubscribe(api.get());
 }
 
+// Windows has no SIGUSR1, so a log rotation asks for the reopen through the RAW API. Reopening changes no
+// config, so it needs the RAW API on but not allow_reload.
+VOID TEST(HttpApiTest, GoApiRawReopensTheLog)
+{
+    srs_error_t err;
+
+    MockSignalHandler mock_handler;
+    MockAppConfigForRawApi mock_config;
+    mock_config.raw_api_ = true;
+    mock_config.allow_reload_ = false;
+
+    SrsUniquePtr<SrsGoApiRaw> api(new SrsGoApiRaw(&mock_handler));
+    api->config_ = &mock_config;
+    api->assemble();
+
+    {
+        MockResponseWriter w;
+        SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+        r->query_params_["rpc"] = "reopen-log";
+        mock_handler.reset();
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(response.find("\"code\":0") != string::npos) << response;
+        EXPECT_EQ(SRS_SIGNAL_REOPEN_LOG, mock_handler.signal_received_);
+        EXPECT_EQ(1, mock_handler.signal_count_);
+    }
+
+    // With the RAW API off, it is refused and the log stays as it is.
+    mock_config.raw_api_ = false;
+    {
+        MockResponseWriter w;
+        SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+        r->query_params_["rpc"] = "reopen-log";
+        mock_handler.reset();
+        HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+        string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+        EXPECT_TRUE(response.find("\"code\":1061") != string::npos) << response;
+        EXPECT_EQ(0, mock_handler.signal_count_);
+    }
+
+    mock_config.unsubscribe(api.get());
+}
+
 VOID TEST(HttpApiTest, GoApiRawObeysRawApiEnabledByReload)
 {
     srs_error_t err;
@@ -3702,6 +4224,42 @@ VOID TEST(SrsGoApiMetricsTest, ServeHttpSuccess)
     EXPECT_TRUE(response.find("srs_clients_errs_total") != string::npos);
 
     // Clean up
+    api->stat_ = NULL;
+    api->config_ = NULL;
+}
+
+VOID TEST(SrsGoApiMetricsTest, LabelEscape)
+{
+    EXPECT_STREQ("", srs_api_metrics_label_escape("").c_str());
+    EXPECT_STREQ("cn-beijing", srs_api_metrics_label_escape("cn-beijing").c_str());
+    EXPECT_STREQ("edge \\\"a\\\\b\\\"", srs_api_metrics_label_escape("edge \"a\\b\"").c_str());
+    EXPECT_STREQ("a\\nb", srs_api_metrics_label_escape("a\nb").c_str());
+    EXPECT_STREQ("\\\\\\\\\\n\\\"", srs_api_metrics_label_escape("\\\\\n\"").c_str());
+    // Other characters, a tab and a carriage return too, stay as they are.
+    EXPECT_STREQ("a\tb\rc", srs_api_metrics_label_escape("a\tb\rc").c_str());
+}
+
+VOID TEST(SrsGoApiMetricsTest, LabelAndTagEscaped)
+{
+    srs_error_t err = srs_success;
+
+    MockStatisticForResampleKbps mock_stat;
+    MockAppConfig mock_config;
+
+    SrsUniquePtr<SrsGoApiMetrics> api(new SrsGoApiMetrics());
+    api->stat_ = &mock_stat;
+    api->config_ = &mock_config;
+    api->enabled_ = true;
+    api->label_ = "cn \"beijing\"";
+    api->tag_ = "edge \"a\\b\"\nc";
+
+    MockResponseWriter w;
+    SrsUniquePtr<MockHttpMessageForApiResponse> r(new MockHttpMessageForApiResponse());
+    HELPER_EXPECT_SUCCESS(api->serve_http(&w, r.get()));
+
+    string response = HELPER_BUFFER2STR(&w.io.out_buffer);
+    EXPECT_TRUE(response.find(",label=\"cn \\\"beijing\\\"\",tag=\"edge \\\"a\\\\b\\\"\\nc\"} 1\n") != string::npos) << response;
+
     api->stat_ = NULL;
     api->config_ = NULL;
 }
@@ -3912,4 +4470,72 @@ VOID TEST(HlsStreamTest, NewSessionRedrawsTakenCtxThroughInjectedRand)
     EXPECT_TRUE(hls->ctx_is_exist("fresh002"));
     EXPECT_TRUE(resp.find("?hls_ctx=fresh002") != string::npos);
     EXPECT_EQ(string::npos, resp.find("hls_ctx=taken001"));
+}
+
+// A playlist request of an HLS session, whose path is the stream's playlist file.
+class MockHttpMessageForHlsPlaylist : public MockHttpMessageForLiveStream
+{
+public:
+    virtual std::string path()
+    {
+        return "/live/stream1.m3u8";
+    }
+};
+
+// A new HLS session names its stream as every other player does, without the playlist's extension:
+// the request, which SrsHttpMessage::to_request() made without it, reaches the on_play hook and the
+// session, whose on_stop and API client use it, unchanged.
+VOID TEST(HlsStreamTest, NewSessionStreamWithoutPlaylistExtension)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForLiveStreamHooks config;
+    config.http_hooks_enabled_ = true;
+    config.on_play_directive_ = new SrsConfDirective();
+    config.on_play_directive_->name_ = "on_play";
+    config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/sessions");
+
+    MockStatisticForLiveStream stat;
+    MockHttpHooksForLiveStream hooks;
+    MockSecurity security;
+    MockRandForHandshake rand;
+    rand.gen_str_values_.push_back("ctx00001");
+
+    SrsUniquePtr<SrsHlsStream> hls(new SrsHlsStream());
+    hls->config_ = &config;
+    hls->stat_ = &stat;
+    hls->hooks_ = &hooks;
+    srs_freep(hls->security_);
+    hls->security_ = &security;
+    srs_freep(hls->rand_);
+    hls->rand_ = &rand;
+    hls->shared_timer_ = NULL;
+
+    SrsUniquePtr<MockHttpMessageForHlsPlaylist> message(new MockHttpMessageForHlsPlaylist());
+    SrsUniquePtr<MockRequest> request(new MockRequest("test.vhost", "live", "stream1"));
+    MockResponseWriter writer;
+
+    bool served = false;
+    err = hls->serve_m3u8_ctx(&writer, message.get(), NULL, "", request.get(), &served);
+
+    hls->config_ = NULL;
+    hls->stat_ = NULL;
+    hls->hooks_ = NULL;
+    hls->security_ = NULL;
+    hls->rand_ = NULL;
+
+    HELPER_EXPECT_SUCCESS(err);
+    EXPECT_TRUE(served);
+
+    EXPECT_STREQ("stream1", request->stream_.c_str());
+    EXPECT_EQ(1, hooks.on_play_count_);
+    if (hooks.on_play_count_ == 1) {
+        EXPECT_STREQ("stream1", hooks.on_play_calls_[0].second->stream_.c_str());
+    }
+
+    // The session keeps a copy of the request for its on_stop.
+    EXPECT_TRUE(hls->ctx_is_exist("ctx00001"));
+    if (hls->ctx_is_exist("ctx00001")) {
+        EXPECT_STREQ("stream1", hls->map_ctx_info_["ctx00001"]->req_->stream_.c_str());
+    }
 }

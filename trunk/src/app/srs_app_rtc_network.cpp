@@ -6,7 +6,6 @@
 
 #include <srs_app_rtc_network.hpp>
 
-#include <arpa/inet.h>
 using namespace std;
 
 #include <srs_app_http_static.hpp>
@@ -24,7 +23,7 @@ using namespace std;
 #include <srs_protocol_json.hpp>
 #include <srs_protocol_rtc_stun.hpp>
 
-#ifdef SRS_OSX
+#if defined(SRS_OSX) || defined(_WIN32)
 // These functions are similar to the older byteorder(3) family of functions.
 // For example, be32toh() is identical to ntohl().
 // @see https://linux.die.net/man/3/be32toh
@@ -747,17 +746,24 @@ srs_error_t SrsRtcTcpNetwork::write(void *buf, size_t size, ssize_t *nwrite)
         return srs_error_new(ERROR_SOCKET_CLOSED, "rtc tcp no socket");
     }
 
-    // Encode and send 2 bytes size, in network order.
+    // Send 2 bytes size, in network order, and the data in one write, so the data never waits for the peer
+    // to acknowledge the size, as it may with Nagle's algorithm.
     srs_assert(size <= 65535);
     uint8_t b[2] = {uint8_t(size >> 8), uint8_t(size)};
 
-    if ((err = sendonly_skt_->write((char *)b, sizeof(b), NULL)) != srs_success) {
-        return srs_error_wrap(err, "rtc tcp write len(%d)", size);
+    iovec iovs[2];
+    iovs[0].iov_base = (char *)b;
+    iovs[0].iov_len = sizeof(b);
+    iovs[1].iov_base = buf;
+    iovs[1].iov_len = size;
+
+    ssize_t n = 0;
+    if ((err = sendonly_skt_->writev(iovs, 2, &n)) != srs_success) {
+        return srs_error_wrap(err, "rtc tcp write len(%d) and body", size);
     }
 
-    // Send the data in size of bytes.
-    if ((err = sendonly_skt_->write(buf, size, nwrite)) != srs_success) {
-        return srs_error_wrap(err, "rtc tcp write body");
+    if (nwrite) {
+        *nwrite = n - sizeof(b);
     }
 
     return err;

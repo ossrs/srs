@@ -6,7 +6,6 @@
 
 #include <srs_app_rtc_server.hpp>
 
-#include <netdb.h>
 
 #include <set>
 using namespace std;
@@ -139,7 +138,8 @@ srs_error_t SrsRtcBlackhole::initialize()
     blackhole_addr_->sin_addr.s_addr = inet_addr(host.c_str());
     blackhole_addr_->sin_port = htons(port);
 
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    int fd = (int)socket(AF_INET, SOCK_DGRAM, 0);
+    srs_socket_ignore_unreachable(fd);
     blackhole_stfd_ = srs_netfd_open_socket(fd);
     srs_assert(blackhole_stfd_);
 
@@ -559,8 +559,11 @@ srs_error_t SrsRtcSessionManager::on_udp_packet(ISrsUdpMuxSocket *skt)
         if ((err = ping.decode(data, size)) != srs_success) {
             return srs_error_wrap(err, "decode stun packet failed");
         }
-        if (!session) {
-            session = find_rtc_session_by_username(ping.get_username());
+        // The username names the session, while the address may still be another session's: one whose client closed
+        // without a DTLS alert keeps its address until it times out, and a new client may get that port.
+        ISrsRtcConnection *named = find_rtc_session_by_username(ping.get_username());
+        if (named) {
+            session = named;
         }
         if (session) {
             session->switch_to_context();

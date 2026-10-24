@@ -14,6 +14,7 @@ using namespace std;
 #include <srs_core_deprecated.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_utility.hpp>
 
 #include <srt/srt.h>
 
@@ -89,6 +90,12 @@ static srs_error_t do_srs_srt_get_streamid(srs_srt_t srt_fd, string &streamid)
 
 static void srs_srt_log_handler(void *opaque, int level, const char *file, int line, const char *area, const char *message)
 {
+    // libsrt logs a non-blocking accept with no pending client as an error, but it is only the
+    // normal wait of SrsSrtSocket::accept, so log it as debug.
+    if (level == srt_logging::LogLevel::error && srs_strings_contains(message, "srt_accept: no pending connection")) {
+        level = srt_logging::LogLevel::debug;
+    }
+
     switch (level) {
     case srt_logging::LogLevel::debug:
         srs_info2(TAG_SRT, "%s:%d(%s) # %s", file, line, area, message);

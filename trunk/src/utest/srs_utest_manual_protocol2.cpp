@@ -8079,13 +8079,22 @@ VOID TEST(ProtocolHTTPTest, HTTPParser)
         EXPECT_EQ(70, (int)parser.parsed);
         EXPECT_EQ(5, (int)parser.parser->content_length);
 
-        // Reset for the next message.
+        // Resetting the content length doesn't resume the parser, which stays paused at the
+        // headers of the last message, so it parses nothing of the next one. Its error position
+        // is still in the last message's buffer, which is freed, so only the code is checked.
         parser.parser->content_length = 0;
 
-        // size = 80, nparsed = 70, nread = 0, content_length = 0, Header("Content-Length", 5)
-        HELPER_EXPECT_FAILED(parser.parse("GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld"));
-        EXPECT_EQ(0, (int)parser.parsed);
+        string next = "GET /gslb/v1/versions HTTP/1.1\r\nHost: ossrs.net\r\nContent-Length: 5\r\n\r\nWorld";
+        EXPECT_EQ(HPE_PAUSED, llhttp_execute(parser.parser, next.data(), next.length()));
         EXPECT_EQ(0, (int)parser.parser->content_length);
+
+        // After a reset, as SrsHttpParser does for each message, it parses the next message.
+        llhttp_reset(parser.parser);
+
+        // size = 80, nparsed = 70, nread = 0, content_length = 5, Header("Content-Length", 5)
+        HELPER_EXPECT_SUCCESS(parser.parse(next));
+        EXPECT_EQ(70, (int)parser.parsed);
+        EXPECT_EQ(5, (int)parser.parser->content_length);
     }
 
     if (true) {

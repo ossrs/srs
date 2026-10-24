@@ -6,15 +6,11 @@
 
 #include <srs_app_listener.hpp>
 
-#include <arpa/inet.h>
 #include <fcntl.h>
-#include <netdb.h>
 #include <signal.h>
 #include <stdlib.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 using namespace std;
 
 #include <srs_app_factory.hpp>
@@ -137,15 +133,15 @@ void SrsUdpListener::set_socket_buffer()
     if (true) {
         socklen_t opt_len = sizeof(default_sndbuf);
         // TODO: FIXME: check err
-        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&default_sndbuf, &opt_len);
+        srs_getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&default_sndbuf, &opt_len);
 
-        if ((r0_sndbuf = setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
+        if ((r0_sndbuf = srs_setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
             srs_warn("set SO_SNDBUF failed, expect=%d, r0=%d", expect_sndbuf, r0_sndbuf);
         }
 
         opt_len = sizeof(actual_sndbuf);
         // TODO: FIXME: check err
-        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&actual_sndbuf, &opt_len);
+        srs_getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&actual_sndbuf, &opt_len);
     }
 
     int default_rcvbuf = 0;
@@ -156,15 +152,15 @@ void SrsUdpListener::set_socket_buffer()
     if (true) {
         socklen_t opt_len = sizeof(default_rcvbuf);
         // TODO: FIXME: check err
-        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&default_rcvbuf, &opt_len);
+        srs_getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&default_rcvbuf, &opt_len);
 
-        if ((r0_rcvbuf = setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
+        if ((r0_rcvbuf = srs_setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
             srs_warn("set SO_RCVBUF failed, expect=%d, r0=%d", expect_rcvbuf, r0_rcvbuf);
         }
 
         opt_len = sizeof(actual_rcvbuf);
         // TODO: FIXME: check err
-        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&actual_rcvbuf, &opt_len);
+        srs_getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&actual_rcvbuf, &opt_len);
     }
 
     srs_trace("UDP #%d LISTEN at %s:%d, SO_SNDBUF(default=%d, expect=%d, actual=%d, r0=%d), SO_RCVBUF(default=%d, expect=%d, actual=%d, r0=%d)",
@@ -744,14 +740,14 @@ void SrsUdpMuxListener::set_socket_buffer()
     int r0_sndbuf = 0;
     if (true) {
         socklen_t opt_len = sizeof(default_sndbuf);
-        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&default_sndbuf, &opt_len);
+        srs_getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&default_sndbuf, &opt_len);
 
-        if ((r0_sndbuf = setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
+        if ((r0_sndbuf = srs_setsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&actual_sndbuf, sizeof(actual_sndbuf))) < 0) {
             srs_warn("set SO_SNDBUF failed, expect=%d, r0=%d", expect_sndbuf, r0_sndbuf);
         }
 
         opt_len = sizeof(actual_sndbuf);
-        getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&actual_sndbuf, &opt_len);
+        srs_getsockopt(fd(), SOL_SOCKET, SO_SNDBUF, (void *)&actual_sndbuf, &opt_len);
     }
 
     int default_rcvbuf = 0;
@@ -761,14 +757,14 @@ void SrsUdpMuxListener::set_socket_buffer()
     int r0_rcvbuf = 0;
     if (true) {
         socklen_t opt_len = sizeof(default_rcvbuf);
-        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&default_rcvbuf, &opt_len);
+        srs_getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&default_rcvbuf, &opt_len);
 
-        if ((r0_rcvbuf = setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
+        if ((r0_rcvbuf = srs_setsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&actual_rcvbuf, sizeof(actual_rcvbuf))) < 0) {
             srs_warn("set SO_RCVBUF failed, expect=%d, r0=%d", expect_rcvbuf, r0_rcvbuf);
         }
 
         opt_len = sizeof(actual_rcvbuf);
-        getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&actual_rcvbuf, &opt_len);
+        srs_getsockopt(fd(), SOL_SOCKET, SO_RCVBUF, (void *)&actual_rcvbuf, &opt_len);
     }
 
     srs_trace("UDP #%d LISTEN at %s:%d, SO_SNDBUF(default=%d, expect=%d, actual=%d, r0=%d), SO_RCVBUF(default=%d, expect=%d, actual=%d, r0=%d)",

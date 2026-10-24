@@ -65,14 +65,14 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPlayer)
     MockRtcSource *mock_rtc_source = new MockRtcSource();
     mock_rtc_sources->mock_source_ = SrsSharedPtr<SrsRtcSource>(mock_rtc_source);
 
-    // Create a real ISrsRtcConnection using _srs_app_factory_
+    // Create a real SrsRtcConnection, assembled after its manager is mocked below, so it subscribes to and
+    // unsubscribes from the same manager, never the global one.
     MockRtcAsyncTaskExecutor mock_exec;
     SrsContextId cid;
     cid.set_value("test-rtc-conn-player-workflow");
 
-    SrsUniquePtr<ISrsRtcConnection> conn_ptr(_srs_app_factory->create_rtc_connection(&mock_exec, cid));
-    SrsRtcConnection *conn = dynamic_cast<SrsRtcConnection *>(conn_ptr.get());
-    EXPECT_TRUE(conn != NULL);
+    SrsRtcConnection *conn = new SrsRtcConnection(&mock_exec, cid);
+    SrsUniquePtr<ISrsRtcConnection> conn_ptr(conn);
 
     // Mock the RTC conn, also mock the config in publisher_negotiator_ and player_negotiator_
     conn->circuit_breaker_ = mock_circuit_breaker.get();
@@ -81,6 +81,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPlayer)
     conn->config_ = mock_config.get();
     conn->dtls_certificate_ = mock_dtls_certificate.get();
     conn->app_factory_ = mock_app_factory.get();
+    conn->assemble();
 
     SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn->publisher_negotiator_);
     pub_neg->config_ = mock_config.get();
@@ -217,14 +218,14 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisher)
     MockRtcSource *mock_rtc_source = new MockRtcSource();
     mock_rtc_sources->mock_source_ = SrsSharedPtr<SrsRtcSource>(mock_rtc_source);
 
-    // Create a real ISrsRtcConnection using _srs_app_factory_
+    // Create a real SrsRtcConnection, assembled after its manager is mocked below, so it subscribes to and
+    // unsubscribes from the same manager, never the global one.
     MockRtcAsyncTaskExecutor mock_exec;
     SrsContextId cid;
     cid.set_value("test-rtc-conn-publisher-workflow");
 
-    SrsUniquePtr<ISrsRtcConnection> conn_ptr(_srs_app_factory->create_rtc_connection(&mock_exec, cid));
-    SrsRtcConnection *conn = dynamic_cast<SrsRtcConnection *>(conn_ptr.get());
-    EXPECT_TRUE(conn != NULL);
+    SrsRtcConnection *conn = new SrsRtcConnection(&mock_exec, cid);
+    SrsUniquePtr<ISrsRtcConnection> conn_ptr(conn);
 
     // Mock the RTC conn, also mock the config in publisher_negotiator_ and player_negotiator_
     conn->circuit_breaker_ = mock_circuit_breaker.get();
@@ -233,6 +234,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisher)
     conn->config_ = mock_config.get();
     conn->dtls_certificate_ = mock_dtls_certificate.get();
     conn->app_factory_ = mock_app_factory.get();
+    conn->assemble();
 
     SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn->publisher_negotiator_);
     pub_neg->config_ = mock_config.get();
@@ -430,14 +432,14 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForLibdatachannel)
     MockRtcSource *mock_rtc_source = new MockRtcSource();
     mock_rtc_sources->mock_source_ = SrsSharedPtr<SrsRtcSource>(mock_rtc_source);
 
-    // Create a real ISrsRtcConnection using _srs_app_factory_
+    // Create a real SrsRtcConnection, assembled after its manager is mocked below, so it subscribes to and
+    // unsubscribes from the same manager, never the global one.
     MockRtcAsyncTaskExecutor mock_exec;
     SrsContextId cid;
     cid.set_value("test-rtc-conn-libdatachannel-workflow");
 
-    SrsUniquePtr<ISrsRtcConnection> conn_ptr(_srs_app_factory->create_rtc_connection(&mock_exec, cid));
-    SrsRtcConnection *conn = dynamic_cast<SrsRtcConnection *>(conn_ptr.get());
-    EXPECT_TRUE(conn != NULL);
+    SrsRtcConnection *conn = new SrsRtcConnection(&mock_exec, cid);
+    SrsUniquePtr<ISrsRtcConnection> conn_ptr(conn);
 
     // Mock the RTC conn, also mock the config in publisher_negotiator_ and player_negotiator_
     conn->circuit_breaker_ = mock_circuit_breaker.get();
@@ -446,6 +448,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForLibdatachannel)
     conn->config_ = mock_config.get();
     conn->dtls_certificate_ = mock_dtls_certificate.get();
     conn->app_factory_ = mock_app_factory.get();
+    conn->assemble();
 
     SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn->publisher_negotiator_);
     pub_neg->config_ = mock_config.get();
@@ -605,14 +608,14 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisherWithAV1
     MockRtcSource *mock_rtc_source = new MockRtcSource();
     mock_rtc_sources->mock_source_ = SrsSharedPtr<SrsRtcSource>(mock_rtc_source);
 
-    // Create a real ISrsRtcConnection using _srs_app_factory_
+    // Create a real SrsRtcConnection, assembled after its manager is mocked below, so it subscribes to and
+    // unsubscribes from the same manager, never the global one.
     MockRtcAsyncTaskExecutor mock_exec;
     SrsContextId cid;
     cid.set_value("test-rtc-conn-publisher-av1-workflow");
 
-    SrsUniquePtr<ISrsRtcConnection> conn_ptr(_srs_app_factory->create_rtc_connection(&mock_exec, cid));
-    SrsRtcConnection *conn = dynamic_cast<SrsRtcConnection *>(conn_ptr.get());
-    EXPECT_TRUE(conn != NULL);
+    SrsRtcConnection *conn = new SrsRtcConnection(&mock_exec, cid);
+    SrsUniquePtr<ISrsRtcConnection> conn_ptr(conn);
 
     // Mock the RTC conn, also mock the config in publisher_negotiator_ and player_negotiator_
     conn->circuit_breaker_ = mock_circuit_breaker.get();
@@ -621,6 +624,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisherWithAV1
     conn->config_ = mock_config.get();
     conn->dtls_certificate_ = mock_dtls_certificate.get();
     conn->app_factory_ = mock_app_factory.get();
+    conn->assemble();
 
     SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn->publisher_negotiator_);
     pub_neg->config_ = mock_config.get();
@@ -823,14 +827,14 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisherWithVP9
     MockRtcSource *mock_rtc_source = new MockRtcSource();
     mock_rtc_sources->mock_source_ = SrsSharedPtr<SrsRtcSource>(mock_rtc_source);
 
-    // Create a real ISrsRtcConnection using _srs_app_factory_
+    // Create a real SrsRtcConnection, assembled after its manager is mocked below, so it subscribes to and
+    // unsubscribes from the same manager, never the global one.
     MockRtcAsyncTaskExecutor mock_exec;
     SrsContextId cid;
     cid.set_value("test-rtc-conn-publisher-vp9-workflow");
 
-    SrsUniquePtr<ISrsRtcConnection> conn_ptr(_srs_app_factory->create_rtc_connection(&mock_exec, cid));
-    SrsRtcConnection *conn = dynamic_cast<SrsRtcConnection *>(conn_ptr.get());
-    EXPECT_TRUE(conn != NULL);
+    SrsRtcConnection *conn = new SrsRtcConnection(&mock_exec, cid);
+    SrsUniquePtr<ISrsRtcConnection> conn_ptr(conn);
 
     // Mock the RTC conn, also mock the config in publisher_negotiator_ and player_negotiator_
     conn->circuit_breaker_ = mock_circuit_breaker.get();
@@ -839,6 +843,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisherWithVP9
     conn->config_ = mock_config.get();
     conn->dtls_certificate_ = mock_dtls_certificate.get();
     conn->app_factory_ = mock_app_factory.get();
+    conn->assemble();
 
     SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn->publisher_negotiator_);
     pub_neg->config_ = mock_config.get();
@@ -1041,14 +1046,14 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisherWithG71
     MockRtcSource *mock_rtc_source = new MockRtcSource();
     mock_rtc_sources->mock_source_ = SrsSharedPtr<SrsRtcSource>(mock_rtc_source);
 
-    // Create a real ISrsRtcConnection using _srs_app_factory_
+    // Create a real SrsRtcConnection, assembled after its manager is mocked below, so it subscribes to and
+    // unsubscribes from the same manager, never the global one.
     MockRtcAsyncTaskExecutor mock_exec;
     SrsContextId cid;
     cid.set_value("test-rtc-conn-publisher-g711-pcmu-workflow");
 
-    SrsUniquePtr<ISrsRtcConnection> conn_ptr(_srs_app_factory->create_rtc_connection(&mock_exec, cid));
-    SrsRtcConnection *conn = dynamic_cast<SrsRtcConnection *>(conn_ptr.get());
-    EXPECT_TRUE(conn != NULL);
+    SrsRtcConnection *conn = new SrsRtcConnection(&mock_exec, cid);
+    SrsUniquePtr<ISrsRtcConnection> conn_ptr(conn);
 
     // Mock the RTC conn, also mock the config in publisher_negotiator_ and player_negotiator_
     conn->circuit_breaker_ = mock_circuit_breaker.get();
@@ -1057,6 +1062,7 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcManuallyVerifyForPublisherWithG71
     conn->config_ = mock_config.get();
     conn->dtls_certificate_ = mock_dtls_certificate.get();
     conn->app_factory_ = mock_app_factory.get();
+    conn->assemble();
 
     SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn->publisher_negotiator_);
     pub_neg->config_ = mock_config.get();
@@ -1631,7 +1637,7 @@ public:
     SrsSdp local_sdp_;
 
 public:
-    MockRtcPlayerRtxScenario() : conn_ptr_(_srs_app_factory->create_rtc_connection(&exec_, cid_)), ruc_(new SrsRtcUserConfig())
+    MockRtcPlayerRtxScenario() : conn_ptr_(new SrsRtcConnection(&exec_, cid_)), ruc_(new SrsRtcUserConfig())
     {
         config_.rtc_dtls_role_ = "passive";
         dtls_certificate_.fingerprint_ = "test-fingerprint";
@@ -1646,6 +1652,8 @@ public:
         conn_->config_ = &config_;
         conn_->dtls_certificate_ = &dtls_certificate_;
         conn_->app_factory_ = &app_factory_;
+        // Subscribe to the mocked manager, which the connection unsubscribes from when freed.
+        conn_->assemble();
 
         SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn_->publisher_negotiator_);
         pub_neg->config_ = &config_;
@@ -2000,7 +2008,7 @@ public:
     uint8_t payload_[4];
 
 public:
-    MockRtcPublisherRtxScenario() : conn_ptr_(_srs_app_factory->create_rtc_connection(&exec_, cid_)), ruc_(new SrsRtcUserConfig())
+    MockRtcPublisherRtxScenario() : conn_ptr_(new SrsRtcConnection(&exec_, cid_)), ruc_(new SrsRtcUserConfig())
     {
         publisher_ = NULL;
         config_.rtc_dtls_role_ = "passive";
@@ -2017,6 +2025,8 @@ public:
         conn_->config_ = &config_;
         conn_->dtls_certificate_ = &dtls_certificate_;
         conn_->app_factory_ = &app_factory_;
+        // Subscribe to the mocked manager, which the connection unsubscribes from when freed.
+        conn_->assemble();
 
         SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn_->publisher_negotiator_);
         pub_neg->config_ = &config_;
@@ -2474,6 +2484,8 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPublisherRtxLogsDetail)
     MockBlackholeForNack blackhole;
     MockRtcPublisherRtxScenario s;
     HELPER_ASSERT_SUCCESS(s.publish(mock_publisher_offer_with_rtx(kPubVideoPt, kPubRtxPt, kPubVideoPt, true), true));
+    // The connection's 20ms timer would request the gap too during the sleep below, so the test makes the only request.
+    s.conn_->nack_enabled_ = false;
 
     MockLogForNack log;
     HELPER_ASSERT_SUCCESS(s.feed(s.video_packet(100)));

@@ -138,7 +138,7 @@ It prints one `RESULT <os> <run> PASS|FAIL` line per OS and run, then a summary 
 
 The whole run holds the global `st` lock, `full-tier-lock.sh --product st`, so the ST runs of other agents never share `obj/`, the Windows checkout, or the logs. SRS tiers hold their own lock and run in parallel. It prints a line while it waits for the lock and one when it gets it.
 
-`st-windows-test.sh` tests only a committed checkout, so Windows shows as not tested before the commit. It mirrors the local checkout on the host, and its header lists the details:
+`st-windows-test.sh` tests only a committed checkout, so Windows shows as not tested before the commit. It mirrors the local checkout on the host through `windows-host-run.sh`, whose header lists the details:
 
 - Setup: the same main repository and path under the host's home, the same remote name and URL, and the same worktree and branch, tracking the same upstream. It adds a missing remote or worktree, and aborts the test when the main repository is missing, a remote differs, or the host's checkout is on another branch or has changes.
 - Sync: when the commit is not on the branch's upstream, it pushes it there, unless the upstream is `origin`. The host then fast-forwards to the commit; it never resets.

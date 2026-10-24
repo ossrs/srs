@@ -13,8 +13,6 @@
 #include <srs_protocol_io.hpp>
 
 #include <algorithm>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 using namespace std;
 
 ISrsConnection::ISrsConnection()
@@ -54,7 +52,7 @@ srs_error_t SrsTcpConnection::set_tcp_nodelay(bool v)
     int fd = srs_netfd_fileno(stfd_);
 
     int ov = 0;
-    if ((r0 = getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &ov, &nb_v)) != 0) {
+    if ((r0 = srs_getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &ov, &nb_v)) != 0) {
         return srs_error_new(ERROR_SOCKET_NO_NODELAY, "getsockopt fd=%d, r0=%d", fd, r0);
     }
 
@@ -64,10 +62,10 @@ srs_error_t SrsTcpConnection::set_tcp_nodelay(bool v)
 #endif
 
     int iv = (v ? 1 : 0);
-    if ((r0 = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &iv, nb_v)) != 0) {
+    if ((r0 = srs_setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &iv, nb_v)) != 0) {
         return srs_error_new(ERROR_SOCKET_NO_NODELAY, "setsockopt fd=%d, r0=%d", fd, r0);
     }
-    if ((r0 = getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &iv, &nb_v)) != 0) {
+    if ((r0 = srs_getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &iv, &nb_v)) != 0) {
         return srs_error_new(ERROR_SOCKET_NO_NODELAY, "getsockopt fd=%d, r0=%d", fd, r0);
     }
 
@@ -85,7 +83,7 @@ srs_error_t SrsTcpConnection::set_socket_buffer(srs_utime_t buffer_v)
     socklen_t nb_v = sizeof(int);
 
     int ov = 0;
-    if ((r0 = getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ov, &nb_v)) != 0) {
+    if ((r0 = srs_getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ov, &nb_v)) != 0) {
         return srs_error_new(ERROR_SOCKET_SNDBUF, "getsockopt fd=%d, r0=%d", fd, r0);
     }
 
@@ -116,10 +114,10 @@ srs_error_t SrsTcpConnection::set_socket_buffer(srs_utime_t buffer_v)
 #endif
 
     // set the socket send buffer when required larger buffer
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &iv, nb_v) < 0) {
+    if (srs_setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &iv, nb_v) < 0) {
         return srs_error_new(ERROR_SOCKET_SNDBUF, "setsockopt fd=%d, r0=%d", fd, r0);
     }
-    if ((r0 = getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &iv, &nb_v)) != 0) {
+    if ((r0 = srs_getsockopt(fd, SOL_SOCKET, SO_SNDBUF, &iv, &nb_v)) != 0) {
         return srs_error_new(ERROR_SOCKET_SNDBUF, "getsockopt fd=%d, r0=%d", fd, r0);
     }
 
@@ -187,6 +185,7 @@ SrsBufferedReadWriter::SrsBufferedReadWriter(ISrsProtocolReadWriter *io)
 SrsBufferedReadWriter::~SrsBufferedReadWriter()
 {
     srs_freep(buf_);
+    srs_freep(io_);
 }
 
 srs_error_t SrsBufferedReadWriter::peek(char *buf, int *size)

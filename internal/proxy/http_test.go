@@ -408,20 +408,58 @@ func TestHLSPlayStream_ServeByBackend_DialError(t *testing.T) {
 // serveByBackend — HTTP round-trip via httptest.Server
 // =============================================================================
 
+// An origin's error answer, such as a 404 for a playlist SRS has not written
+// yet, reaches the client as the origin sent it, not as the proxy's 500, so
+// a player can tell a stream that is not ready from a broken proxy.
 func TestHLSPlayStream_ServeByBackend_NonOKStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, "live.ts not found\n")
+	}))
+	defer ts.Close()
+	host, port := httptestHostPort(t, ts)
+
+	v := newHLSPlayStream(func(s *hlsPlayStream) { s.SRSProxyBackendHLSID = "id" })
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/live.m3u8", nil)
+	rec := httptest.NewRecorder()
+	if err := v.serveByBackend(context.Background(), rec, req,
+		&lb.OriginServer{IP: host, HTTP: []string{port}}); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	}
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+	if got := rec.Body.String(); got != "live.ts not found\n" {
+		t.Fatalf("body = %q, want the origin's, not rewritten", got)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/plain" {
+		t.Fatalf("Content-Type = %q, want the origin's", got)
+	}
+}
+
+func TestHLSPlayStream_ServeHTTP_RelaysOriginNotFound(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer ts.Close()
 	host, port := httptestHostPort(t, ts)
 
-	v := newHLSPlayStream()
-	req := httptest.NewRequest(http.MethodGet, "http://example.com/live.m3u8", nil)
+	lbFake := &lbfakes.FakeOriginLoadBalancer{}
+	lbFake.PickReturns(&lb.OriginServer{IP: host, HTTP: []string{port}}, nil)
+	v := newHLSPlayStream(func(s *hlsPlayStream) {
+		s.ctx = context.Background()
+		s.loadBalancer = lbFake
+		s.StreamURL = "vhost/app/stream"
+	})
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/live/stream.m3u8", nil)
 	rec := httptest.NewRecorder()
-	err := v.serveByBackend(context.Background(), rec, req,
-		&lb.OriginServer{IP: host, HTTP: []string{port}})
-	if err == nil || !strings.Contains(err.Error(), "status=404") {
-		t.Fatalf("unexpected err: %v", err)
+	v.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want the origin's 404", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), host) {
+		t.Fatalf("body %q names the origin", rec.Body.String())
 	}
 }
 
@@ -800,7 +838,9 @@ func TestHTTPFlvTsConn_ServeByBackend_DialError(t *testing.T) {
 
 func TestHTTPFlvTsConn_ServeByBackend_NonOKStatus(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, "no stream\n")
 	}))
 	defer ts.Close()
 	host, port := httptestHostPort(t, ts)
@@ -808,10 +848,42 @@ func TestHTTPFlvTsConn_ServeByBackend_NonOKStatus(t *testing.T) {
 	v := newHTTPFlvTsConnection()
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/live.flv", nil)
 	rec := httptest.NewRecorder()
-	err := v.serveByBackend(context.Background(), rec, req,
-		&lb.OriginServer{IP: host, HTTP: []string{port}})
-	if err == nil || !strings.Contains(err.Error(), "status=404") {
+	if err := v.serveByBackend(context.Background(), rec, req,
+		&lb.OriginServer{IP: host, HTTP: []string{port}}); err != nil {
 		t.Fatalf("unexpected err: %v", err)
+	}
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+	if got := rec.Body.String(); got != "no stream\n" {
+		t.Fatalf("body = %q, want the origin's", got)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/plain" {
+		t.Fatalf("Content-Type = %q, want the origin's", got)
+	}
+}
+
+func TestHTTPFlvTsConn_ServeHTTP_RelaysOriginNotFound(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+	host, port := httptestHostPort(t, ts)
+
+	lbFake := &lbfakes.FakeOriginLoadBalancer{}
+	lbFake.PickReturns(&lb.OriginServer{IP: host, HTTP: []string{port}}, nil)
+	v := newHTTPFlvTsConnection(func(c *httpFlvTsConnection) {
+		c.ctx = context.Background()
+		c.loadBalancer = lbFake
+	})
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/live/stream.flv", nil)
+	rec := httptest.NewRecorder()
+	v.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want the origin's 404", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), host) {
+		t.Fatalf("body %q names the origin", rec.Body.String())
 	}
 }
 

@@ -7,7 +7,6 @@
 #include <srs_app_rtc_source.hpp>
 
 #include <math.h>
-#include <unistd.h>
 
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
@@ -446,9 +445,9 @@ SrsRtcSource::~SrsRtcSource()
     srs_freep(stream_desc_);
     srs_freep(rand_);
 
-    SrsContextId cid = _source_id;
+    SrsContextId cid = source_id_;
     if (cid.empty())
-        cid = _pre_source_id;
+        cid = pre_source_id_;
     srs_trace("free rtc source id=[%s]", cid.c_str());
 
     app_factory_ = NULL;
@@ -607,13 +606,13 @@ srs_error_t SrsRtcSource::on_source_changed()
     // Update context id if changed.
     bool id_changed = false;
     const SrsContextId &id = _srs_context->get_id();
-    if (_source_id.compare(id)) {
+    if (source_id_.compare(id)) {
         id_changed = true;
 
-        if (_pre_source_id.empty()) {
-            _pre_source_id = id;
+        if (pre_source_id_.empty()) {
+            pre_source_id_ = id;
         }
-        _source_id = id;
+        source_id_ = id;
     }
 
     // Notify all consumers.
@@ -635,12 +634,12 @@ srs_error_t SrsRtcSource::on_source_changed()
 
 SrsContextId SrsRtcSource::source_id()
 {
-    return _source_id;
+    return source_id_;
 }
 
 SrsContextId SrsRtcSource::pre_source_id()
 {
-    return _pre_source_id;
+    return pre_source_id_;
 }
 
 void SrsRtcSource::set_bridge(ISrsRtcBridge *bridge)
@@ -758,7 +757,7 @@ srs_error_t SrsRtcSource::on_publish()
         shared_timer_->timer100ms()->subscribe(this);
     }
 
-    stat_->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, source_id_.c_str());
 
     return err;
 }
@@ -772,10 +771,10 @@ void SrsRtcSource::on_unpublish()
 
     srs_trace("cleanup when unpublish, created=%u, deliver=%u", is_created_, is_delivering_packets_);
 
-    if (!_source_id.empty()) {
-        _pre_source_id = _source_id;
+    if (!source_id_.empty()) {
+        pre_source_id_ = source_id_;
     }
-    _source_id = SrsContextId();
+    source_id_ = SrsContextId();
 
     // The codec of the stream is unknown again, so the next player may choose any codec.
     bridge_video_codec_ = SrsVideoCodecIdReserved;
@@ -859,6 +858,11 @@ srs_error_t SrsRtcSource::on_rtp(SrsRtpPacket *pkt)
 }
 
 bool SrsRtcSource::has_stream_desc()
+{
+    return stream_desc_;
+}
+
+SrsRtcSourceDescription *SrsRtcSource::stream_desc()
 {
     return stream_desc_;
 }
@@ -1266,6 +1270,8 @@ srs_error_t SrsRtcRtpBuilder::package_opus(SrsParsedAudioPacket *audio, SrsRtpPa
     pkt->header_.set_marker(true);
     pkt->header_.set_sequence(audio_sequence_++);
     pkt->header_.set_timestamp(audio->dts_ * 48);
+    // The frame's time on the stream's clock, which the player's Sender Reports map the RTP time to.
+    pkt->set_avsync_time(audio->dts_);
 
     SrsRtpRawPayload *raw = new SrsRtpRawPayload();
     pkt->set_payload(raw, SrsRtpPacketPayloadTypeRaw);
@@ -1336,6 +1342,7 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsMediaPacket *msg)
         if ((err = package_stap_a(msg, pkt.get())) != srs_success) {
             return srs_error_wrap(err, "package stap-a");
         }
+        pkt->set_avsync_time(msg->timestamp_);
 
         if ((err = rtp_target_->on_rtp(pkt.get())) != srs_success) {
             return srs_error_wrap(err, "consume sps/pps");
@@ -1370,6 +1377,12 @@ srs_error_t SrsRtcRtpBuilder::on_video(SrsMediaPacket *msg)
 
     if (!pkts.empty()) {
         pkts.back()->header_.set_marker(true);
+    }
+
+    // A converted stream has no publisher's Sender Reports, so each packet carries its frame's time on the stream's
+    // clock, the RTMP time its RTP time counts from, which the player's Sender Reports map the RTP time to.
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        pkts[i]->set_avsync_time(msg->timestamp_);
     }
 
     return consume_packets(pkts);
@@ -1916,6 +1929,17 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     srs_error_t err = srs_success;
 
     srs_freep(audio_transcoder_);
+    video_codec_ = video_codec;
+    last_video_sequence_header_.clear();
+
+    // There is no G.711 decoder to transcode it to AAC, so the stream is converted without its audio,
+    // while WebRTC players still get the stream as it was published.
+    // TODO: FIXME: Add a G.711 transcoder to convert PCMU and PCMA to AAC for RTMP.
+    if (audio_codec == SrsAudioCodecIdPCMU || audio_codec == SrsAudioCodecIdPCMA) {
+        srs_trace("RTC: %s audio is not converted to RTMP, only the video", srs_audio_codec_id2str(audio_codec).c_str());
+        return err;
+    }
+
     audio_transcoder_ = app_factory_->create_audio_transcoder();
 
     SrsAudioCodecId to = SrsAudioCodecIdAAC;                   // The output audio codec.
@@ -1929,9 +1953,6 @@ srs_error_t SrsRtcFrameBuilder::initialize(ISrsRequest *r, SrsAudioCodecId audio
     if ((err = audio_transcoder_->initialize(audio_codec, to, channels, sample_rate, bitrate)) != srs_success) {
         return srs_error_wrap(err, "bridge initialize");
     }
-
-    video_codec_ = video_codec;
-    last_video_sequence_header_.clear();
 
     return err;
 }
@@ -1986,6 +2007,11 @@ srs_error_t SrsRtcFrameBuilder::on_rtp(SrsRtpPacket *pkt)
 srs_error_t SrsRtcFrameBuilder::packet_audio(SrsRtpPacket *src)
 {
     srs_error_t err = srs_success;
+
+    // No transcoder for the audio codec, such as G.711, so the audio is dropped.
+    if (!audio_transcoder_) {
+        return err;
+    }
 
     std::vector<SrsRtpPacket *> ready_packets;
     SrsUniquePtr<vector<SrsRtpPacket *> > pkts_disposer(&ready_packets, free_packets);
@@ -2547,6 +2573,10 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     // The start position packet may be null, so we need to find the actual first packet.
     SrsRtpPacket *first_frame_pkt = NULL;
 
+    // The frame is a keyframe if any of its packets is: an encoder may write an SEI
+    // before the IDR, so the first packet is not always the one with the IDR.
+    bool is_keyframe = false;
+
     // First loop: Calculate total payload size and find first packet
     for (uint16_t i = 0; i < (uint16_t)cnt; ++i) {
         uint16_t sn = start + i;
@@ -2562,6 +2592,10 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
 
         // Calculate payload size using helper function
         nb_payload += calculate_packet_payload_size(pkt);
+
+        if (!is_keyframe && pkt->is_keyframe(video_codec_)) {
+            is_keyframe = true;
+        }
     }
 
     if (0 == nb_payload) {
@@ -2597,12 +2631,12 @@ srs_error_t SrsRtcFrameBuilder::packet_video_rtmp(const uint16_t start, const ui
     // packet of a video frame, therefore we use the first available packet instead.
     SrsRtpPacket *pkt = first_frame_pkt;
 
-    if (pkt->is_keyframe(video_codec_)) {
+    if (is_keyframe) {
         frame_detector_->on_keyframe_detached();
     }
 
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
-    if (pkt->is_keyframe(video_codec_)) {
+    if (is_keyframe) {
         frame_type = SrsVideoAvcFrameTypeKeyFrame;
     }
 
@@ -3279,7 +3313,7 @@ SrsRtcRecvTrack::SrsRtcRecvTrack(ISrsRtcPacketReceiver *receiver, SrsRtcTrackDes
 
     // Initialize rate from SDP sample rate
     // rate_ is RTP units per millisecond (e.g., 90 for video 90kHz, 48 for audio 48kHz)
-    // This allows immediate A/V sync before receiving 2 RTCP SR packets
+    // This allows A/V sync from the 1st RTCP SR, before the 2nd one
     // Will be updated to precise rate after receiving 2nd SR
     rate_ = 0.0;
     if (init_rate_from_sdp && track_desc_->media_) {
@@ -3329,6 +3363,8 @@ void SrsRtcRecvTrack::update_rtt(int rtt)
 
 void SrsRtcRecvTrack::update_send_report_time(const SrsNtp &ntp, uint32_t rtp_time)
 {
+    bool has_last_report = last_sender_report_sys_time_ > 0;
+
     last_sender_report_ntp1_ = last_sender_report_ntp_;
     last_sender_report_rtp_time1_ = last_sender_report_rtp_time_;
 
@@ -3338,7 +3374,7 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp &ntp, uint32_t rtp_ti
     // TODO: FIXME: Use system wall clock.
     last_sender_report_sys_time_ = srs_time_now_realtime();
 
-    if (last_sender_report_rtp_time1_ > 0) {
+    if (has_last_report) {
         // WebRTC using sender report to sync audio/video timestamp, because audio video have different timebase,
         // typical audio opus is 48000Hz, video is 90000Hz.
         // We using two sender report point to calculate avsync timestamp(clock time) with any given rtp timestamp.
@@ -3373,7 +3409,8 @@ void SrsRtcRecvTrack::update_send_report_time(const SrsNtp &ntp, uint32_t rtp_ti
 
 int64_t SrsRtcRecvTrack::cal_avsync_time(uint32_t rtp_time)
 {
-    if (rate_ < 0.001) {
+    // Before the track's first SR, its RTP time is on no clock: each track's starts at a random value.
+    if (last_sender_report_sys_time_ == 0 || rate_ < 0.001) {
         return -1;
     }
 
@@ -3668,6 +3705,56 @@ uint16_t SrsRtcSeqJitter::correct(uint16_t value)
     return jitter_->correct(value);
 }
 
+SrsRtcSenderInfo::SrsRtcSenderInfo()
+{
+    rtp_time_ = 0;
+    avsync_time_ = -1;
+    packets_ = 0;
+    octets_ = 0;
+    pending_ = false;
+}
+
+SrsRtcSenderInfo::~SrsRtcSenderInfo()
+{
+}
+
+void SrsRtcSenderInfo::on_packet(SrsRtpPacket *pkt)
+{
+    packets_++;
+
+    ISrsRtpPayloader *payload = pkt->payload();
+    if (payload) {
+        octets_ += (uint32_t)payload->nb_bytes();
+    }
+
+    // Only a packet with a time on the stream's clock maps the track: for a WebRTC publisher, SRS knows it from the
+    // publisher's own Sender Reports; for a stream converted to WebRTC, it is the frame's RTMP time.
+    if (pkt->get_avsync_time() <= 0) {
+        return;
+    }
+
+    rtp_time_ = pkt->header_.get_timestamp();
+    avsync_time_ = pkt->get_avsync_time();
+    pending_ = true;
+}
+
+bool SrsRtcSenderInfo::fill(SrsRtcpSR *sr)
+{
+    if (!pending_) {
+        return false;
+    }
+    pending_ = false;
+
+    // The RTP time of the last packet as sent, and its time on the stream's clock, so the player maps every track
+    // to that one clock.
+    sr->set_ntp(SrsNtp::from_time_ms(avsync_time_).ntp_);
+    sr->set_rtp_ts(rtp_time_);
+    sr->set_rtp_send_packets(packets_);
+    sr->set_rtp_send_bytes(octets_);
+
+    return true;
+}
+
 ISrsRtcPacketSender::ISrsRtcPacketSender()
 {
 }
@@ -3697,6 +3784,8 @@ SrsRtcSendTrack::SrsRtcSendTrack(ISrsRtcPacketSender *sender, SrsRtcTrackDescrip
     
     rtx_seq_ = 0;
     rand_ = new SrsRand();
+
+    sender_info_ = new SrsRtcSenderInfo();
 }
 
 void SrsRtcSendTrack::assemble()
@@ -3713,6 +3802,7 @@ SrsRtcSendTrack::~SrsRtcSendTrack()
     srs_freep(jitter_ts_);
     srs_freep(jitter_seq_);
     srs_freep(rand_);
+    srs_freep(sender_info_);
 }
 
 bool SrsRtcSendTrack::has_ssrc(uint32_t ssrc)
@@ -3781,6 +3871,30 @@ void SrsRtcSendTrack::rebuild_packet(SrsRtpPacket *pkt)
     pkt->header_.set_timestamp(jitter_ts_->correct(ts));
 
     srs_info("RTC: Correct %s seq=%u/%u, ts=%u/%u", track_desc_->type_.c_str(), seq, pkt->header_.get_sequence(), ts, pkt->header_.get_timestamp());
+}
+
+srs_error_t SrsRtcSendTrack::send_rtcp_sr()
+{
+    srs_error_t err = srs_success;
+
+    SrsRtcpSR sr;
+    if (!sender_info_->fill(&sr)) {
+        return err;
+    }
+    sr.set_ssrc(track_desc_->ssrc_);
+
+    // The buffer has room for the SRTP trailer that the sender adds.
+    char buf[kRtpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+    if ((err = sr.encode(&stream)) != srs_success) {
+        return srs_error_wrap(err, "encode sr");
+    }
+
+    if ((err = sender_->send_rtcp(stream.data(), stream.pos())) != srs_success) {
+        return srs_error_wrap(err, "send sr, ssrc=%u", track_desc_->ssrc_);
+    }
+
+    return err;
 }
 
 srs_error_t SrsRtcSendTrack::on_nack(SrsRtpPacket **ppkt)
@@ -3908,6 +4022,8 @@ srs_error_t SrsRtcAudioSendTrack::on_rtp(SrsRtpPacket *pkt)
         return srs_error_wrap(err, "raw send");
     }
 
+    sender_info_->on_packet(pkt);
+
     srs_info("RTC: Send audio ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header_.get_ssrc(),
              pkt->header_.get_sequence(), pkt->is_keyframe(), pkt->header_.get_timestamp());
 
@@ -3962,6 +4078,8 @@ srs_error_t SrsRtcVideoSendTrack::on_rtp(SrsRtpPacket *pkt)
     if ((err = sender_->do_send_packet(pkt)) != srs_success) {
         return srs_error_wrap(err, "raw send");
     }
+
+    sender_info_->on_packet(pkt);
 
     srs_info("RTC: Send video ssrc=%d, seqno=%d, keyframe=%d, ts=%u", pkt->header_.get_ssrc(),
              pkt->header_.get_sequence(), pkt->is_keyframe(), pkt->header_.get_timestamp());
@@ -4027,6 +4145,8 @@ SrsRtcFormat::SrsRtcFormat()
     req_ = NULL;
     video_codec_reported_ = false;
     audio_codec_reported_ = false;
+    video_profile_ = 0;
+    video_level_ = 0;
 
     stat_ = _srs_stat;
 }
@@ -4044,7 +4164,7 @@ srs_error_t SrsRtcFormat::initialize(ISrsRequest *req)
     return srs_success;
 }
 
-srs_error_t SrsRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio)
+srs_error_t SrsRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, SrsRtpPacket *pkt, bool is_audio)
 {
     srs_error_t err = srs_success;
 
@@ -4070,97 +4190,165 @@ srs_error_t SrsRtcFormat::on_rtp_packet(SrsRtcRecvTrack *track, bool is_audio)
                 return err;
             }
 
-            // Get sample rate from media payload
-            SrsAudioSampleRate sample_rate = (SrsAudioSampleRate)audio_media->sample_;
+            // The SDP gives the sample rate in Hz, such as 48000 for opus/48000/2.
+            SrsAudioSampleRate sample_rate = srs_audio_sample_rate_from_number(audio_media->sample_);
 
-            // Get channels from audio payload
-            SrsAudioChannels channels = (SrsAudioChannels)audio_media->channel_;
+            // The SDP gives the number of channels, and none means one (RFC 4566).
+            SrsAudioChannels channels = (audio_media->channel_ >= 2) ? SrsAudioChannelsStereo : SrsAudioChannelsMono;
 
             if ((err = stat_->on_audio_info(req_, codec_id, sample_rate, channels,
                                             SrsAacObjectTypeReserved)) != srs_success) {
                 return srs_error_wrap(err, "stat audio info");
             }
             srs_trace("RTC: parsed %s codec, sample_rate=%dHz, channels=%d",
-                      srs_audio_codec_id2str(codec_id).c_str(), sample_rate, channels);
+                      srs_audio_codec_id2str(codec_id).c_str(), audio_media->sample_, audio_media->channel_);
         }
     } else {
-        // Only report once
-        if (video_codec_reported_) {
-            return err;
+        // Report the codec of the SDP once, then the picture size of each new SPS, which the SDP has not.
+        if (!video_codec_reported_) {
+            video_codec_reported_ = true;
+            if ((err = on_video_codec(track_desc->media_)) != srs_success) {
+                return srs_error_wrap(err, "video codec");
+            }
         }
-        video_codec_reported_ = true;
 
-        SrsCodecPayload *media = track_desc->media_;
-        SrsVideoCodecId codec_id = (SrsVideoCodecId)media->codec(true);
-
-        // Parse profile and level from track description
-        if (codec_id == SrsVideoCodecIdAVC) {
-            SrsVideoPayload *video_media = dynamic_cast<SrsVideoPayload *>(media);
-            if (!video_media || video_media->h264_param_.profile_level_id_.empty()) {
-                return err;
-            }
-
-            // Parse profile_level_id hex string (e.g., "42e01f")
-            // Format: PPCCLL where PP=profile_idc, CC=constraint_set, LL=level_idc
-            std::string profile_level_id = video_media->h264_param_.profile_level_id_;
-            if (profile_level_id.length() != 6) {
-                return err;
-            }
-
-            // Decode hex string to bytes
-            // srs_hex_decode_string expects size to be the hex string length (6 chars = 3 bytes)
-            uint8_t bytes[3];
-            int hex_len = (int)profile_level_id.length();
-            int r0 = srs_hex_decode_string(bytes, profile_level_id.c_str(), hex_len);
-            if (r0 != (int)sizeof(bytes)) {
-                srs_trace("RTC: failed to decode profile_level_id hex string: %s, r0=%d", profile_level_id.c_str(), r0);
-                video_codec_reported_ = true;
-                return err;
-            }
-
-            // Extract profile and level from the decoded bytes
-            SrsAvcProfile profile = (SrsAvcProfile)bytes[0];
-            SrsAvcLevel level = (SrsAvcLevel)bytes[2];
-
-            if ((err = stat_->on_video_info(req_, codec_id, profile, level, 0, 0)) != srs_success) {
-                return srs_error_wrap(err, "stat video info");
-            }
-            srs_trace("RTC: parsed %s codec, profile=%s, level=%s",
-                      srs_video_codec_id2str(codec_id).c_str(),
-                      srs_avc_profile2str(profile).c_str(),
-                      srs_avc_level2str(level).c_str());
-        } else if (codec_id == SrsVideoCodecIdHEVC) {
-            SrsVideoPayload *video_media = dynamic_cast<SrsVideoPayload *>(media);
-            if (!video_media || video_media->h265_param_.profile_id_.empty() ||
-                video_media->h265_param_.level_id_.empty()) {
-                return err;
-            }
-
-            // Parse HEVC profile_id and level_id from SDP parameters
-            // profile_id is a decimal string (e.g., "1" for Main profile)
-            // level_id is a decimal string (e.g., "93" for Level 3.1)
-            int profile_id = atoi(video_media->h265_param_.profile_id_.c_str());
-            int level_id = atoi(video_media->h265_param_.level_id_.c_str());
-
-            SrsHevcProfile profile = (SrsHevcProfile)profile_id;
-            SrsHevcLevel level = (SrsHevcLevel)level_id;
-
-            if ((err = stat_->on_video_info(req_, codec_id, profile, level, 0, 0)) != srs_success) {
-                return srs_error_wrap(err, "stat video info");
-            }
-            srs_trace("RTC: parsed %s codec, profile=%s, level=%d",
-                      srs_video_codec_id2str(codec_id).c_str(),
-                      srs_hevc_profile2str(profile).c_str(),
-                      level_id);
-        } else if (codec_id == SrsVideoCodecIdAV1 || codec_id == SrsVideoCodecIdVP9) {
-            // AV1 and VP9 are relay-only codecs for WebRTC-to-WebRTC
-            // No detailed profile/level parsing needed for relay mode
-            if ((err = stat_->on_video_info(req_, codec_id, 0, 0, 0, 0)) != srs_success) {
-                return srs_error_wrap(err, "stat video info");
-            }
-            srs_trace("RTC: parsed %s codec", srs_video_codec_id2str(codec_id).c_str());
+        if ((err = on_video_sps((SrsVideoCodecId)track_desc->media_->codec(true), pkt)) != srs_success) {
+            return srs_error_wrap(err, "video sps");
         }
     }
+
+    return err;
+}
+
+srs_error_t SrsRtcFormat::on_video_codec(SrsCodecPayload *media)
+{
+    srs_error_t err = srs_success;
+
+    SrsVideoCodecId codec_id = (SrsVideoCodecId)media->codec(true);
+
+    // Parse profile and level from track description
+    if (codec_id == SrsVideoCodecIdAVC) {
+        SrsVideoPayload *video_media = dynamic_cast<SrsVideoPayload *>(media);
+        if (!video_media || video_media->h264_param_.profile_level_id_.empty()) {
+            return err;
+        }
+
+        // Parse profile_level_id hex string (e.g., "42e01f")
+        // Format: PPCCLL where PP=profile_idc, CC=constraint_set, LL=level_idc
+        std::string profile_level_id = video_media->h264_param_.profile_level_id_;
+        if (profile_level_id.length() != 6) {
+            return err;
+        }
+
+        // Decode hex string to bytes
+        // srs_hex_decode_string expects size to be the hex string length (6 chars = 3 bytes)
+        uint8_t bytes[3];
+        int hex_len = (int)profile_level_id.length();
+        int r0 = srs_hex_decode_string(bytes, profile_level_id.c_str(), hex_len);
+        if (r0 != (int)sizeof(bytes)) {
+            srs_trace("RTC: failed to decode profile_level_id hex string: %s, r0=%d", profile_level_id.c_str(), r0);
+            video_codec_reported_ = true;
+            return err;
+        }
+
+        // Extract profile and level from the decoded bytes
+        SrsAvcProfile profile = (SrsAvcProfile)bytes[0];
+        SrsAvcLevel level = (SrsAvcLevel)bytes[2];
+        video_profile_ = profile;
+        video_level_ = level;
+
+        if ((err = stat_->on_video_info(req_, codec_id, profile, level, 0, 0)) != srs_success) {
+            return srs_error_wrap(err, "stat video info");
+        }
+        srs_trace("RTC: parsed %s codec, profile=%s, level=%s",
+                  srs_video_codec_id2str(codec_id).c_str(),
+                  srs_avc_profile2str(profile).c_str(),
+                  srs_avc_level2str(level).c_str());
+    } else if (codec_id == SrsVideoCodecIdHEVC) {
+        SrsVideoPayload *video_media = dynamic_cast<SrsVideoPayload *>(media);
+        if (!video_media || video_media->h265_param_.profile_id_.empty() ||
+            video_media->h265_param_.level_id_.empty()) {
+            return err;
+        }
+
+        // Parse HEVC profile_id and level_id from SDP parameters
+        // profile_id is a decimal string (e.g., "1" for Main profile)
+        // level_id is a decimal string (e.g., "93" for Level 3.1)
+        int profile_id = atoi(video_media->h265_param_.profile_id_.c_str());
+        int level_id = atoi(video_media->h265_param_.level_id_.c_str());
+
+        SrsHevcProfile profile = (SrsHevcProfile)profile_id;
+        SrsHevcLevel level = (SrsHevcLevel)level_id;
+        video_profile_ = profile;
+        video_level_ = level;
+
+        if ((err = stat_->on_video_info(req_, codec_id, profile, level, 0, 0)) != srs_success) {
+            return srs_error_wrap(err, "stat video info");
+        }
+        srs_trace("RTC: parsed %s codec, profile=%s, level=%d",
+                  srs_video_codec_id2str(codec_id).c_str(),
+                  srs_hevc_profile2str(profile).c_str(),
+                  level_id);
+    } else if (codec_id == SrsVideoCodecIdAV1 || codec_id == SrsVideoCodecIdVP9) {
+        // AV1 and VP9 are relay-only codecs for WebRTC-to-WebRTC
+        // No detailed profile/level parsing needed for relay mode
+        if ((err = stat_->on_video_info(req_, codec_id, 0, 0, 0, 0)) != srs_success) {
+            return srs_error_wrap(err, "stat video info");
+        }
+        srs_trace("RTC: parsed %s codec", srs_video_codec_id2str(codec_id).c_str());
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcFormat::on_video_sps(SrsVideoCodecId codec_id, SrsRtpPacket *pkt)
+{
+    srs_error_t err = srs_success;
+
+    // Only a STAP-A or AP, or an SPS of its own, carries the SPS, so other packets cost a check of the NALU type.
+    SrsNaluSample *sps = NULL;
+    if (codec_id == SrsVideoCodecIdAVC && pkt->nalu_type_ == kStapA) {
+        SrsRtpSTAPPayload *stap = dynamic_cast<SrsRtpSTAPPayload *>(pkt->payload());
+        sps = stap ? stap->get_sps() : NULL;
+    } else if (codec_id == SrsVideoCodecIdHEVC && pkt->nalu_type_ == kStapHevc) {
+        SrsRtpSTAPPayloadHevc *stap = dynamic_cast<SrsRtpSTAPPayloadHevc *>(pkt->payload());
+        sps = stap ? stap->get_sps() : NULL;
+    } else if ((codec_id == SrsVideoCodecIdAVC && pkt->nalu_type_ == SrsAvcNaluTypeSPS) ||
+               (codec_id == SrsVideoCodecIdHEVC && pkt->nalu_type_ == SrsHevcNaluType_SPS)) {
+        SrsRtpRawPayload *raw = dynamic_cast<SrsRtpRawPayload *>(pkt->payload());
+        sps = raw ? raw->sample_ : NULL;
+    }
+    if (!sps || !sps->bytes_ || sps->size_ <= 0) {
+        return err;
+    }
+
+    // Parse only an SPS that changed, as an RTMP stream reports the size at each new sequence header.
+    if (video_sps_.size() == (size_t)sps->size_ && memcmp(video_sps_.data(), sps->bytes_, sps->size_) == 0) {
+        return err;
+    }
+    video_sps_.assign(sps->bytes_, sps->size_);
+
+    SrsFormat format;
+    if ((err = format.initialize()) != srs_success) {
+        return srs_error_wrap(err, "format");
+    }
+    if (codec_id == SrsVideoCodecIdAVC) {
+        format.vcodec_->sequenceParameterSetNALUnit_.assign(sps->bytes_, sps->bytes_ + sps->size_);
+        err = format.avc_demux_sps();
+    } else {
+        SrsBuffer stream(sps->bytes_, sps->size_);
+        err = format.hevc_demux_sps(&stream);
+    }
+    if (err != srs_success) {
+        return srs_error_wrap(err, "demux sps");
+    }
+
+    // The profile and level stay those of the SDP, which the codec reported.
+    SrsVideoCodecConfig *vcodec = format.vcodec_;
+    if ((err = stat_->on_video_info(req_, codec_id, video_profile_, video_level_, vcodec->width_, vcodec->height_)) != srs_success) {
+        return srs_error_wrap(err, "stat video info");
+    }
+    srs_trace("RTC: parsed %s SPS, size=%dx%d", srs_video_codec_id2str(codec_id).c_str(), vcodec->width_, vcodec->height_);
 
     return err;
 }

@@ -31,7 +31,7 @@ using namespace std;
 
 MockSrsFile::MockSrsFile()
 {
-    _buf = new SrsBuffer(_data.bytes(), _data.length());
+    buf_ = new SrsBuffer(data_.bytes(), data_.length());
 }
 
 MockSrsFile::~MockSrsFile()
@@ -47,7 +47,7 @@ srs_error_t MockSrsFile::open(std::string /*file*/)
 
 void MockSrsFile::close()
 {
-    srs_freep(_buf);
+    srs_freep(buf_);
 }
 
 srs_error_t MockSrsFile::write(void *data, size_t count, ssize_t *pnwrite)
@@ -55,16 +55,16 @@ srs_error_t MockSrsFile::write(void *data, size_t count, ssize_t *pnwrite)
     srs_error_t err = srs_success;
 
     for (;;) {
-        if (_buf->left() >= (int)count) {
-            _buf->write_bytes((char *)data, count);
+        if (buf_->left() >= (int)count) {
+            buf_->write_bytes((char *)data, count);
             break;
         }
 
         // Append enough data and rebuild the buffer.
-        off_t pos = _buf->pos();
-        _data.append((const char *)data, count - _buf->left());
-        srs_freep(_buf);
-        _buf = new SrsBuffer(_data.bytes(), _data.length());
+        srs_off_t pos = buf_->pos();
+        data_.append((const char *)data, count - buf_->left());
+        srs_freep(buf_);
+        buf_ = new SrsBuffer(data_.bytes(), data_.length());
         lseek(pos, SEEK_SET, NULL);
     }
 
@@ -79,17 +79,17 @@ srs_error_t MockSrsFile::read(void *data, size_t count, ssize_t *pnread)
 {
     srs_error_t err = srs_success;
 
-    if (_buf->left() == 0) {
+    if (buf_->left() == 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_EOF, "EOF");
     }
 
-    int limit = srs_min(_buf->left(), (int)count);
+    int limit = srs_min(buf_->left(), (int)count);
 
     if (limit <= 0) {
         return srs_error_new(-1, "EOF");
     }
 
-    _buf->read_bytes((char *)data, limit);
+    buf_->read_bytes((char *)data, limit);
 
     if (pnread) {
         *pnread = limit;
@@ -98,26 +98,26 @@ srs_error_t MockSrsFile::read(void *data, size_t count, ssize_t *pnread)
     return err;
 }
 
-srs_error_t MockSrsFile::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t MockSrsFile::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     srs_error_t err = srs_success;
 
     if (whence == SEEK_SET) {
-        if (offset > _data.length()) {
+        if (offset > data_.length()) {
             return srs_error_new(-1, "Overflow");
         }
-        if (_buf->data()) {
-            _buf->skip(offset - _buf->pos());
+        if (buf_->data()) {
+            buf_->skip(offset - buf_->pos());
         }
     } else if (whence == SEEK_CUR) {
     } else if (whence == SEEK_END) {
-        if (_buf->data()) {
-            _buf->skip(_buf->left());
+        if (buf_->data()) {
+            buf_->skip(buf_->left());
         }
     }
 
     if (seeked) {
-        *seeked = (off_t)_buf->pos();
+        *seeked = (srs_off_t)buf_->pos();
     }
     return err;
 }
@@ -168,7 +168,7 @@ void MockSrsFileWriter::seek2(int64_t offset)
 
 int64_t MockSrsFileWriter::tellg()
 {
-    off_t offset = 0;
+    srs_off_t offset = 0;
     lseek(0, SEEK_CUR, &offset);
     return (int64_t)offset;
 }
@@ -177,7 +177,7 @@ int64_t MockSrsFileWriter::filesize()
 {
     int64_t cur = tellg();
 
-    off_t offset = 0;
+    srs_off_t offset = 0;
     lseek(0, SEEK_END, &offset);
 
     seek2(cur);
@@ -186,7 +186,7 @@ int64_t MockSrsFileWriter::filesize()
 
 char *MockSrsFileWriter::data()
 {
-    return uf->_data.bytes();
+    return uf->data_.bytes();
 }
 
 string MockSrsFileWriter::str()
@@ -212,7 +212,7 @@ srs_error_t MockSrsFileWriter::write(void *buf, size_t count, ssize_t *pnwrite)
     return uf->write(buf, count, pnwrite);
 }
 
-srs_error_t MockSrsFileWriter::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t MockSrsFileWriter::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     if (error_offset >= 0 && offset > error_offset) {
         return srs_error_new(-1, "overflow");
@@ -268,24 +268,24 @@ bool MockSrsFileReader::is_open()
 
 int64_t MockSrsFileReader::tellg()
 {
-    off_t offset = 0;
+    srs_off_t offset = 0;
     srs_error_t err = lseek(0, SEEK_CUR, &offset);
     srs_freep(err);
 
     return offset;
 }
 
-void MockSrsFileReader::skip(int64_t _size)
+void MockSrsFileReader::skip(int64_t size)
 {
-    int64_t offset = tellg() + _size;
+    int64_t offset = tellg() + size;
     srs_error_t err = lseek(offset, SEEK_SET, NULL);
     srs_freep(err);
 }
 
-int64_t MockSrsFileReader::seek2(int64_t _offset)
+int64_t MockSrsFileReader::seek2(int64_t pos)
 {
-    off_t offset = 0;
-    srs_error_t err = lseek(_offset, SEEK_SET, &offset);
+    srs_off_t offset = 0;
+    srs_error_t err = lseek(pos, SEEK_SET, &offset);
     srs_freep(err);
 
     return offset;
@@ -295,7 +295,7 @@ int64_t MockSrsFileReader::filesize()
 {
     int64_t cur = tellg();
 
-    off_t offset = 0;
+    srs_off_t offset = 0;
     srs_error_t err = lseek(0, SEEK_END, &offset);
     srs_freep(err);
 
@@ -308,7 +308,7 @@ srs_error_t MockSrsFileReader::read(void *buf, size_t count, ssize_t *pnread)
     return uf->read(buf, count, pnread);
 }
 
-srs_error_t MockSrsFileReader::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t MockSrsFileReader::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     if (!seekable) {
         return srs_error_new(-1, "unseekable");
@@ -2120,7 +2120,7 @@ VOID TEST(KernelUtilityTest, UtilityTime)
     srs_utime_t time1 = srs_time_now_cached();
     EXPECT_EQ(time, time1);
 
-    usleep(1 * SRS_UTIME_MILLISECONDS);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
     time1 = srs_time_now_realtime();
     EXPECT_TRUE(time1 > time);
 }
@@ -2136,7 +2136,7 @@ VOID TEST(KernelUtilityTest, UtilityStartupTime)
     srs_utime_t time1 = srs_time_since_startup();
     EXPECT_EQ(time, time1);
 
-    usleep(1 * SRS_UTIME_MILLISECONDS);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
     srs_time_now_realtime();
     time1 = srs_time_since_startup();
     EXPECT_EQ(time, time1);
@@ -5121,12 +5121,9 @@ VOID TEST(KernelCodecTest, VideoFormatHevcInvalidLengthSizeMinusOne)
         ASSERT_TRUE(f.vcodec() != NULL);
         EXPECT_EQ(0, f.vcodec()->NAL_unit_length_);
 
-        // The decoder configuration record must not keep the rejected value either. Only
-        // "not 2" can be asserted here: SrsHevcDecoderConfigurationRecord has no
-        // constructor and SrsVideoCodecConfig does not initialize hevc_dec_conf_record_,
-        // so this field is indeterminate until an hvcC parses. See the AfterValid test
-        // below for the deterministic case.
-        EXPECT_NE(2, f.vcodec()->hevc_dec_conf_record_.length_size_minus_one_);
+        // The decoder configuration record must not keep the rejected value either: it
+        // stays at the zero SrsHevcDecoderConfigurationRecord starts with.
+        EXPECT_EQ(0, f.vcodec()->hevc_dec_conf_record_.length_size_minus_one_);
 
         // As in the AVC case, the rejected sequence header leaves the codec looking
         // initialized, so the frame below is not dropped by video_nalu_demux.
@@ -5586,7 +5583,7 @@ VOID TEST(KernelFileTest, FileWriteReader)
 
     if (true) {
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
         EXPECT_TRUE(f.is_open());
 
         EXPECT_EQ(0, f.tellg());
@@ -5603,7 +5600,7 @@ VOID TEST(KernelFileTest, FileWriteReader)
 
     if (true) {
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open_append("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open_append(SRS_UTEST_NULL_FILE));
         EXPECT_TRUE(f.is_open());
     }
 
@@ -5614,7 +5611,7 @@ VOID TEST(KernelFileTest, FileWriteReader)
 
     if (true) {
         SrsFileReader f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
         EXPECT_TRUE(f.is_open());
         EXPECT_EQ(0, f.tellg());
         EXPECT_EQ(0, f.filesize());
@@ -5627,7 +5624,7 @@ VOID TEST(KernelFileTest, FileWriteReader)
 
     if (true) {
         SrsFileReader f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
         char buf[16];
         ssize_t nread = 0;
@@ -5661,7 +5658,7 @@ ssize_t mock_read(int /*fildes*/, void * /*buf*/, size_t /*nbyte*/)
     return -1;
 }
 
-off_t mock_lseek(int /*fildes*/, off_t /*offset*/, int /*whence*/)
+srs_off_t mock_lseek(int /*fildes*/, srs_off_t /*offset*/, int /*whence*/)
 {
     return -1;
 }
@@ -5676,7 +5673,7 @@ class MockSystemIO
 private:
     srs_open_t oo;
     srs_write_t ow;
-    srs_read_t _or;
+    srs_read_t or_;
     srs_lseek_t os;
     srs_close_t oc;
 
@@ -5686,7 +5683,7 @@ public:
         oo = _srs_open_fn;
         ow = _srs_write_fn;
         os = _srs_lseek_fn;
-        _or = _srs_read_fn;
+        or_ = _srs_read_fn;
         oc = _srs_close_fn;
         if (o) {
             _srs_open_fn = o;
@@ -5712,8 +5709,8 @@ public:
         if (ow) {
             _srs_write_fn = ow;
         }
-        if (_or) {
-            _srs_read_fn = _or;
+        if (or_) {
+            _srs_read_fn = or_;
         }
         if (os) {
             _srs_lseek_fn = os;
@@ -5747,7 +5744,7 @@ size_t mock_fread(void *ptr, size_t size, size_t nitems, FILE *stream)
     return -1;
 }
 
-int mock_fseek(FILE *stream, long offset, int whence)
+int mock_fseek(FILE *stream, srs_off_t offset, int whence)
 {
     return -1;
 }
@@ -5757,7 +5754,7 @@ int mock_fclose(FILE *stream)
     return -1;
 }
 
-long mock_ftell(FILE *stream)
+srs_off_t mock_ftell(FILE *stream)
 {
     return -1;
 }
@@ -5846,42 +5843,42 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
     // Should fail when open multiple times.
     if (true) {
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
-        HELPER_EXPECT_FAILED(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
+        HELPER_EXPECT_FAILED(f.open(SRS_UTEST_NULL_FILE));
     }
 
     // Should fail when open multiple times.
     if (true) {
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open_append("/dev/null"));
-        HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open_append(SRS_UTEST_NULL_FILE));
+        HELPER_EXPECT_FAILED(f.open_append(SRS_UTEST_NULL_FILE));
     }
 
     if (true) {
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open_append("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open_append(SRS_UTEST_NULL_FILE));
         HELPER_EXPECT_SUCCESS(f.set_iobuf_size(65536));
     }
 
     // Always fail.
     if (true) {
-        MockLibcIO _mockio(mock_fopen);
+        MockLibcIO mockio(mock_fopen);
         SrsFileWriter f;
-        HELPER_EXPECT_FAILED(f.open("/dev/null"));
-        HELPER_EXPECT_FAILED(f.open("/dev/null"));
+        HELPER_EXPECT_FAILED(f.open(SRS_UTEST_NULL_FILE));
+        HELPER_EXPECT_FAILED(f.open(SRS_UTEST_NULL_FILE));
     }
 
     if (true) {
-        MockLibcIO _mockio(mock_fopen);
+        MockLibcIO mockio(mock_fopen);
         SrsFileWriter f;
-        HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
-        HELPER_EXPECT_FAILED(f.open_append("/dev/null"));
+        HELPER_EXPECT_FAILED(f.open_append(SRS_UTEST_NULL_FILE));
+        HELPER_EXPECT_FAILED(f.open_append(SRS_UTEST_NULL_FILE));
     }
 
     // Should ok for write, writev or lseek.
     if (true) {
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
         ssize_t nn = 0;
         HELPER_EXPECT_SUCCESS(f.write((void *)"Hello", 5, &nn));
@@ -5898,9 +5895,9 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
         HELPER_EXPECT_SUCCESS(f.writev(iovs, 3, &nn));
         EXPECT_EQ(5, nn);
 
-        off_t seeked = 0;
+        srs_off_t seeked = 0;
         HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &seeked));
-#ifdef SRS_OSX
+#if defined(SRS_OSX) || defined(_WIN32)
         EXPECT_EQ(10, seeked);
 #else
         EXPECT_EQ(0, seeked);
@@ -5909,9 +5906,9 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
 
     // Always fail.
     if (true) {
-        MockLibcIO _mockio(NULL, mock_fwrite);
+        MockLibcIO mockio(NULL, mock_fwrite);
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
         ssize_t nn = 0;
         HELPER_EXPECT_FAILED(f.write((void *)"Hello", 5, &nn));
@@ -5926,31 +5923,31 @@ VOID TEST(KernelFileWriterTest, WriteSpecialCase)
         HELPER_EXPECT_FAILED(f.writev(iovs, 3, NULL));
     }
     if (true) {
-        MockLibcIO _mockio(NULL, NULL, NULL, mock_fseek);
+        MockLibcIO mockio(NULL, NULL, NULL, mock_fseek);
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
         HELPER_EXPECT_FAILED(f.lseek(0, 0, NULL));
     }
     if (true) {
-        MockLibcIO _mockio(NULL, NULL, NULL, NULL, mock_fclose);
+        MockLibcIO mockio(NULL, NULL, NULL, NULL, mock_fclose);
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
         f.close();
     }
 
     if (true) {
-        MockLibcIO _mockio(NULL, NULL, NULL, NULL, NULL, NULL, mock_setvbuf);
+        MockLibcIO mockio(NULL, NULL, NULL, NULL, NULL, NULL, mock_setvbuf);
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
         HELPER_EXPECT_FAILED(f.set_iobuf_size(100));
     }
 
     if (true) {
-        MockLibcIO _mockio(NULL, NULL, NULL, NULL, NULL, mock_ftell);
+        MockLibcIO mockio(NULL, NULL, NULL, NULL, NULL, mock_ftell);
         SrsFileWriter f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
         EXPECT_EQ(f.tellg(), -1);
     }
@@ -5963,49 +5960,49 @@ VOID TEST(KernelFileReaderTest, WriteSpecialCase)
     // Should fail when open multiple times.
     if (true) {
         SrsFileReader f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
-        HELPER_EXPECT_FAILED(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
+        HELPER_EXPECT_FAILED(f.open(SRS_UTEST_NULL_FILE));
     }
 
     // Always fail.
     if (true) {
-        MockSystemIO _mockio(mock_open);
+        MockSystemIO mockio(mock_open);
         SrsFileReader f;
-        HELPER_EXPECT_FAILED(f.open("/dev/null"));
-        HELPER_EXPECT_FAILED(f.open("/dev/null"));
+        HELPER_EXPECT_FAILED(f.open(SRS_UTEST_NULL_FILE));
+        HELPER_EXPECT_FAILED(f.open(SRS_UTEST_NULL_FILE));
     }
 
     // Should ok for lseek.
     if (true) {
         SrsFileReader f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
-        off_t seeked = 0;
+        srs_off_t seeked = 0;
         HELPER_EXPECT_SUCCESS(f.lseek(0, SEEK_CUR, &seeked));
         EXPECT_EQ(0, seeked);
     }
 
     // Always fail.
     if (true) {
-        MockSystemIO _mockio(NULL, NULL, mock_read);
+        MockSystemIO mockio(NULL, NULL, mock_read);
         SrsFileReader f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
         ssize_t nn = 0;
         char buf[16];
         HELPER_EXPECT_FAILED(f.read(buf, sizeof(buf), &nn));
     }
     if (true) {
-        MockSystemIO _mockio(NULL, NULL, NULL, mock_lseek);
+        MockSystemIO mockio(NULL, NULL, NULL, mock_lseek);
         SrsFileReader f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
 
         HELPER_EXPECT_FAILED(f.lseek(0, 0, NULL));
     }
     if (true) {
-        MockSystemIO _mockio(NULL, NULL, NULL, NULL, mock_close);
+        MockSystemIO mockio(NULL, NULL, NULL, NULL, mock_close);
         SrsFileReader f;
-        HELPER_EXPECT_SUCCESS(f.open("/dev/null"));
+        HELPER_EXPECT_SUCCESS(f.open(SRS_UTEST_NULL_FILE));
         f.close();
     }
 }
@@ -6031,7 +6028,7 @@ VOID TEST(KernelFileTest, ReadWriteCase)
     srs_error_t err;
 
     string filepath = _srs_tmp_file_prefix + "kernel-file-read-write-case.log";
-    MockFileRemover _mfr(filepath);
+    MockFileRemover mfr(filepath);
 
     SrsFileWriter w;
     HELPER_EXPECT_SUCCESS(w.open(filepath.c_str()));
@@ -6057,10 +6054,11 @@ VOID TEST(KernelFileTest, SeekCase)
     srs_error_t err;
 
     string filepath = _srs_tmp_file_prefix + "kernel-file-read-write-case.log";
-    MockFileRemover _mfr(filepath);
+    MockFileRemover mfr(filepath);
 
     SrsFileWriter w;
     HELPER_EXPECT_SUCCESS(w.open(filepath.c_str()));
+    EXPECT_TRUE(srs_utest_file_sparse(w.fp_));
 
     HELPER_EXPECT_SUCCESS(w.set_iobuf_size(65536));
 
@@ -6072,8 +6070,8 @@ VOID TEST(KernelFileTest, SeekCase)
     EXPECT_EQ(5, nn);
 
     // over 4g file test
-    long seek_pos = 0x100000002l;
-    off_t pos;
+    srs_off_t seek_pos = 0x100000002LL;
+    srs_off_t pos;
     HELPER_EXPECT_SUCCESS(w.lseek(seek_pos, SEEK_SET, &pos));
     EXPECT_EQ(seek_pos, pos);
 
@@ -6439,7 +6437,7 @@ public:
 VOID TEST(KernelUtilityTest, CoverTimeSpecial)
 {
     if (true) {
-        MockTime _mt(mock_gettimeofday);
+        MockTime mt(mock_gettimeofday);
         EXPECT_TRUE(-1 == srs_time_now_realtime());
     }
 }
@@ -7735,12 +7733,7 @@ VOID TEST(KernelUtilityTest, CoverCheckIPAddrValid)
     ASSERT_TRUE(srs_net_is_valid_ip("::"));
 
     ASSERT_FALSE(srs_net_is_valid_ip("256.256.256.256"));
-#ifdef SRS_CYGWIN64
-    // TODO: Might be a bug for cygwin64.
-    ASSERT_TRUE(srs_net_is_valid_ip("2001:0db8:85a3:0:0:8A2E:0370:7334:"));
-#else
     ASSERT_FALSE(srs_net_is_valid_ip("2001:0db8:85a3:0:0:8A2E:0370:7334:"));
-#endif
     ASSERT_FALSE(srs_net_is_valid_ip("1e1.4.5.6"));
 }
 

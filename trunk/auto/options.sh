@@ -3,7 +3,6 @@
 ################################################################
 help=no
 # feature options
-SRS_HDS=NO
 SRS_SRT=YES
 SRS_RTC=YES
 SRS_RTSP=NO
@@ -63,8 +62,6 @@ SRS_SHARED_FFMPEG=RESERVED
 SRS_SHARED_SRTP=RESERVED
 # whether enable the gcov
 SRS_GCOV=NO
-# Whether enable cloud logging and APM(Application Performance Monitor).
-SRS_APM=NO
 
 # whether enable the log verbose/info/trace level.
 # always enable the warn/error level.
@@ -255,7 +252,6 @@ Deprecated:
   --srt=on|off              Always enable SRT support. Default: $(value2switch $SRS_SRT)
   --single-thread=on        Always force single thread mode. Default: $(value2switch $SRS_SINGLE_THREAD)
   --cross-build             Enable cross-build, please set bellow Toolchain also. Default: $(value2switch $SRS_CROSS_BUILD)
-  --hds=on|off              Whether build the hds streaming, mux RTMP to F4M/F4V files. Default: $(value2switch $SRS_HDS)
   --osx                     Enable build for OSX/Darwin AppleOS. Deprecated for automatically detecting the OS.
   --x86-64                  Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
   --x86-x64                 Enable build for __x86_64 systems. Deprecated for automatically detecting the OS.
@@ -266,7 +262,7 @@ Removed:
   --cygwin64                No support cygwin64 anymore.
   --cxx11=off               Always disable C++11, force C++98 compatibility. Default: $(value2switch $SRS_CXX11)
   --cxx14=off               Always disable C++14, force C++98 compatibility. Default: $(value2switch $SRS_CXX14)
-  --apm=off                 No support APM(Application Performance Monitor) anymore.
+  --hds=off                 No support HDS(Adobe HTTP Dynamic Streaming) anymore.
 
 For example:
     ./configure
@@ -289,6 +285,7 @@ function parse_user_option() {
       || $option == '--without-stat' || $option == '--without-stream-caster' || $option == '--without-ssl'
       || $option == '--without-librtmp' || ($option == '--librtmp' && $(switch2value $value) == NO)
       || $option == '--without-research' || ($option == '--research' && $(switch2value $value) == NO)
+      || $option == '--without-hds' || ($option == '--hds' && $(switch2value $value) == NO)
     ]]; then
         echo "Ignore option $option $value"; return 0;
     fi
@@ -300,6 +297,10 @@ function parse_user_option() {
 
     if [[ $option == '--with-research' || $option == '--research' ]]; then
         echo "Error: The $option is not supported yet"; exit 1
+    fi
+
+    if [[ $option == '--with-hds' || $option == '--hds' ]]; then
+        echo "Error: The $option is removed, HDS is not supported anymore"; exit 1
     fi
 
     if [[ $option == '--arm' || $option == '--mips' || $option == '--with-arm-ubuntu12' || $option == '--with-mips-ubuntu12' ]]; then
@@ -337,7 +338,6 @@ function parse_user_option() {
         --https)                        SRS_HTTPS=$(switch2value $value) ;;
         --ssl-1-0)                      SRS_SSL_1_0=$(switch2value $value) ;;
         --ssl-local)                    SRS_SSL_LOCAL=$(switch2value $value) ;;
-        --hds)                          SRS_HDS=$(switch2value $value) ;;
         --transcode)                    SRS_TRANSCODE=$(switch2value $value) ;;
         --ingest)                       SRS_INGEST=$(switch2value $value) ;;
         --stat)                         SRS_STAT=$(switch2value $value) ;;
@@ -345,7 +345,6 @@ function parse_user_option() {
         --stream-converter)             SRS_STREAM_CASTER=$(switch2value $value) ;;
         --utest)                        SRS_UTEST=$(switch2value $value) ;;
         --gcov)                         SRS_GCOV=$(switch2value $value) ;;
-        --apm)                          SRS_APM=$(switch2value $value) ;;
         --srt)                          SRS_SRT=$(switch2value $value) ;;
         --rtc)                          SRS_RTC=$(switch2value $value) ;;
         --rtsp)                         SRS_RTSP=$(switch2value $value) ;;
@@ -407,8 +406,6 @@ function parse_user_option() {
         --without-nasm)                 SRS_NASM=NO                 ;; # Deprecated, might be removed in future.
         --with-nasm)                    SRS_NASM=YES                ;; # Deprecated, might be removed in future.
         --with-ssl)                     SRS_SSL=YES                 ;; # Deprecated, might be removed in future.
-        --with-hds)                     SRS_HDS=YES                 ;; # Deprecated, might be removed in future.
-        --without-hds)                  SRS_HDS=NO                  ;; # Deprecated, might be removed in future.
         --with-transcode)               SRS_TRANSCODE=YES           ;; # Deprecated, might be removed in future.
         --with-ingest)                  SRS_INGEST=YES              ;; # Deprecated, might be removed in future.
         --with-stat)                    SRS_STAT=YES                ;; # Deprecated, might be removed in future.
@@ -624,11 +621,6 @@ function apply_auto_options() {
         echo "Warning: --h265 option is deprecated. H.265/HEVC support is always enabled."
         SRS_H265=ON
     fi
-
-    if [[ $SRS_APM == YES ]]; then
-        echo "Warning: APM(Application Performance Monitor) is no longer supported."
-        SRS_APM=NO
-    fi
 }
 apply_auto_options
 
@@ -664,7 +656,6 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --config=$SRS_DEFAULT_CONFIG"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --osx=$(value2switch $SRS_OSX)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hls=$(value2switch $SRS_HLS)"
-    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --hds=$(value2switch $SRS_HDS)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --dvr=$(value2switch $SRS_DVR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --ssl=$(value2switch $SRS_SSL)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --https=$(value2switch $SRS_HTTPS)"
@@ -786,7 +777,6 @@ function check_option_conflicts() {
     fi fi
 
     # check variable neccessary
-    if [[ $SRS_HDS == RESERVED ]]; then echo "you must specifies the hds, see: ./configure --help"; __check_ok=NO; fi
     if [[ $SRS_SSL == RESERVED ]]; then echo "you must specifies the ssl, see: ./configure --help"; __check_ok=NO; fi
     if [[ $SRS_STREAM_CASTER == RESERVED ]]; then echo "you must specifies the stream-converter, see: ./configure --help"; __check_ok=NO; fi
     if [[ $SRS_UTEST == RESERVED ]]; then echo "you must specifies the utest, see: ./configure --help"; __check_ok=NO; fi

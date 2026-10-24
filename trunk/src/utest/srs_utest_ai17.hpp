@@ -38,6 +38,7 @@ public:
     std::string file_name_;
     int64_t sequence_number_;
     bool get_fragment_called_;
+    int write_count_;
 
 public:
     MockMpdWriter();
@@ -51,7 +52,11 @@ public:
     virtual srs_error_t initialize(ISrsRequest *r) { return srs_success; }
     virtual srs_error_t on_publish() { return srs_success; }
     virtual void on_unpublish() {}
-    virtual srs_error_t write(SrsFormat *format, ISrsFragmentWindow *afragments, ISrsFragmentWindow *vfragments) { return srs_success; }
+    virtual srs_error_t write(SrsFormat *format, ISrsFragmentWindow *afragments, ISrsFragmentWindow *vfragments)
+    {
+        write_count_++;
+        return srs_success;
+    }
     virtual void set_availability_start_time(srs_utime_t t) {}
     virtual srs_utime_t get_availability_start_time() { return 0; }
 };
@@ -158,6 +163,8 @@ public:
     bool unlink_tmpfile_called_;
     srs_error_t unlink_tmpfile_error_;
     srs_utime_t duration_;
+    // Counts the unlink_file calls, if set; it outlives the mock, which the controller may free.
+    int *unlink_file_count_;
 
 public:
     MockFragmentedMp4();
@@ -248,6 +255,8 @@ public:
     bool on_publish_called_;
     bool on_unpublish_called_;
     bool dispose_called_;
+    int on_audio_count_;
+    int on_video_count_;
 
 public:
     MockDashController();
@@ -401,11 +410,11 @@ public:
 public:
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);
@@ -435,6 +444,8 @@ class MockRtcApiServerForPlay : public ISrsRtcApiServer
 public:
     bool create_session_called_;
     MockRtcConnectionForPlay *mock_connection_;
+    // The session create_rtc_session made, which find_rtc_session_by_username finds by its username.
+    ISrsRtcConnection *session_;
 
 public:
     MockRtcApiServerForPlay();

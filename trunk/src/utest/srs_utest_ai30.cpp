@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include <stdarg.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <srs_app_log.hpp>
 #include <srs_kernel_error.hpp>
@@ -84,7 +83,11 @@ void MockLogWriterForFileLog::write_console(const char *color, const char *str_l
 // Whether fd is still an open descriptor of this process.
 static bool is_fd_open(int fd)
 {
+#ifdef _WIN32
+    return ::_get_osfhandle(fd) != -1;
+#else
     return ::fcntl(fd, F_GETFD) != -1;
+#endif
 }
 
 // The file logger reopens its log file on SIGUSR1, for log rotation. Every path out of reopen() must leave the
@@ -99,7 +102,7 @@ VOID TEST(FileLogTest, ReopenClearsTheDescriptorWhenTheTankIsConsole)
     SrsFileLog log;
 
     // The logger holds an open log file, as it does after a start with the file tank.
-    log.fd_ = ::open("/dev/null", O_RDWR);
+    log.fd_ = ::open(SRS_UTEST_NULL_FILE, O_RDWR);
     ASSERT_TRUE(log.fd_ > 0);
     int previous = log.fd_;
 
@@ -119,7 +122,7 @@ VOID TEST(FileLogTest, ReopenClearsTheDescriptorWhenNoLogFileIsConfigured)
     SrsFileLog log;
 
     // The logger holds an open log file, and keeps the file tank.
-    log.fd_ = ::open("/dev/null", O_RDWR);
+    log.fd_ = ::open(SRS_UTEST_NULL_FILE, O_RDWR);
     ASSERT_TRUE(log.fd_ > 0);
     int previous = log.fd_;
 
@@ -146,7 +149,7 @@ VOID TEST(FileLogTest, ReopenOpensTheConfiguredLogFile)
     string path = "./objs/srs_utest_ai30.log";
     ::unlink(path.c_str());
 
-    log.fd_ = ::open("/dev/null", O_RDWR);
+    log.fd_ = ::open(SRS_UTEST_NULL_FILE, O_RDWR);
     ASSERT_TRUE(log.fd_ > 0);
     int previous = log.fd_;
 
@@ -169,6 +172,38 @@ VOID TEST(FileLogTest, ReopenOpensTheConfiguredLogFile)
 
     log.config_ = NULL;
     ::unlink(path.c_str());
+}
+
+// A rotation tool renames the log while SRS holds it open, then asks SRS to reopen it; the lines written in between
+// go to the renamed file, byte for byte.
+VOID TEST(FileLogTest, LogWriterFileCanBeRenamedWhileOpen)
+{
+    string path = _srs_tmp_file_prefix + "ai30-rotate.log";
+    string moved = _srs_tmp_file_prefix + "ai30-rotate.log.1";
+    ::unlink(path.c_str());
+    ::unlink(moved.c_str());
+
+    SrsLogWriter writer;
+    int fd = writer.open_file(path);
+    ASSERT_GE(fd, 0);
+    writer.write_file(fd, "a\n", 2);
+    EXPECT_EQ(0, srs_rename(path.c_str(), moved.c_str()));
+    writer.write_file(fd, "b\n", 2);
+    writer.close_file(fd);
+
+    string data;
+    FILE *fp = ::fopen(moved.c_str(), "rb");
+    ASSERT_TRUE(fp != NULL);
+    char buf[16];
+    size_t n;
+    while ((n = ::fread(buf, 1, sizeof(buf), fp)) > 0) {
+        data.append(buf, n);
+    }
+    ::fclose(fp);
+
+    EXPECT_EQ("a\nb\n", data);
+    EXPECT_NE(0, ::access(path.c_str(), F_OK));
+    ::unlink(moved.c_str());
 }
 
 // The logger writes through ISrsLogWriter, so these tests read back the exact bytes and the exact descriptor the

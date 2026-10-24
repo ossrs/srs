@@ -1,8 +1,44 @@
 .PHONY: all build test fmt clean run generate
+.PHONY: integ integ-prepare integ-main integ-timer integ-unit
+.PHONY: perf perf-image perf-unit perf-smoke perf-source-test perf-env-check perf-up perf-down perf-build-check
 
 all: build
 
-build: fmt bin/srs-proxy
+perf-image:
+	docker build -f cmd/perf/Dockerfile -t srs-perf:local .
+
+PERF_GO_FILES := $(shell find cmd/perf -name '*.go')
+
+bin/srs-perf: cmd/perf/go.mod $(PERF_GO_FILES)
+	@mkdir -p bin
+	go -C cmd/perf build -o ../../bin/srs-perf .
+
+perf: perf-image bin/srs-perf
+
+perf-unit:
+	go -C cmd/perf test -count=1 ./...
+
+# SCENARIO=<s> smokes one scenario, none smokes them all; TARGET=proxy smokes
+# through the Go proxy, only the scenarios it relays.
+perf-smoke: bin/srs-perf
+	SRS_PERF_TARGET="$(TARGET)" bash skills/internal-perf-for-srs/scripts/perf-smoke.sh "$(SCENARIO)"
+
+perf-up:
+	bash skills/internal-perf-for-srs/scripts/perf-up.sh
+
+perf-down:
+	bash skills/internal-perf-for-srs/scripts/perf-down.sh
+
+perf-env-check:
+	bash skills/internal-perf-for-srs/scripts/perf-env-check.sh
+
+perf-source-test: perf-image
+	bash skills/internal-perf-for-srs/scripts/perf-source-test.sh
+
+perf-build-check:
+	bash skills/internal-perf-for-srs/scripts/perf-build-check.sh
+
+build: fmt bin/srs-proxy bin/srs-integ
 
 generate:
 	go generate ./...
@@ -11,14 +47,47 @@ bin/srs-proxy: cmd/proxy/*.go internal/**/*.go
 	@mkdir -p bin
 	go build -o bin/srs-proxy ./cmd/proxy
 
+# The black-box integration suite is its own Go module in cmd/integ.
+INTEG_GO_FILES := $(shell find cmd/integ -name '*.go')
+
+bin/srs-integ: cmd/integ/go.mod $(INTEG_GO_FILES)
+	@mkdir -p bin
+	go -C cmd/integ build -o ../../bin/srs-integ .
+
 test:
 	go test ./...
 
 fmt: ./.go-formarted
 
-./.go-formarted: cmd/proxy/*.go internal/**/*.go
+./.go-formarted: cmd/proxy/*.go internal/**/*.go $(INTEG_GO_FILES)
 	touch .go-formarted
 	go fmt ./cmd/... ./internal/...
+	go -C cmd/integ fmt ./...
+
+# Make the test media, then run the timer cases and the other cases as two go
+# test processes at once; it fails if either fails. They run in the cases
+# directory with no package argument, so go test prints the summary of a
+# passing run too. INTEG_ARGS passes flags to both, such as
+# INTEG_ARGS="-integ.scale=56 -integ.shards=2" for the scale check.
+integ: integ-prepare
+	@$(MAKE) --no-print-directory -j2 integ-timer integ-main
+
+# Make the test media from doc/source.flv; only changed files are made again.
+# On macOS it builds an ffmpeg with every encoder first, if needed.
+integ-prepare: bin/srs-integ
+	bin/srs-integ prepare -source doc/source.flv -dir cmd/integ/testdata/media -setup skills/srs-develop/scripts/setup-ffmpeg-with-whip.sh
+
+integ-timer:
+	go -C cmd/integ/cases test -count=1 -run '^TestTimer_' -parallel 256 -args -integ.timer -integ.settle=2s $(INTEG_ARGS)
+
+integ-main:
+	go -C cmd/integ/cases test -count=1 -skip '^TestTimer_' -parallel 24 -args $(INTEG_ARGS)
+
+# The unit tests of the suite's own packages, every test outside the cases
+# directory. The media tests read the test media, so it is made first.
+# INTEG_UNIT_ARGS passes go test flags, such as -v.
+integ-unit: integ-prepare
+	go -C cmd/integ test -count=1 $(INTEG_UNIT_ARGS) ./internal/... .
 
 clean:
 	rm -rf bin .go-formarted

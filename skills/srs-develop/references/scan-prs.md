@@ -5,6 +5,7 @@
 1. Select exactly one pull-request repository: `ossrs/srs` or `ossrs/oryx`. Use an explicit URL, product name, or established task context; ask when ambiguous.
 2. Prefer a pull request ID or URL from the user and scan only that pull request. If none is provided, scan only the single open pull request with the newest GitHub `updated_at` in the selected repository. Do not bulk-scan multiple pull requests.
 3. Read the complete body, commit history, code diff, comments, reviews and review threads, and checks. Do not rely on labels, review state, or the author's summary. Use the selected project's documentation and code map to inspect only the relevant current code.
+   - Audit the code change with `skills/internal-audit-for-srs/SKILL.md`: fetch the pull request's head to a local ref with `git fetch origin pull/<number>/head` (read-only on GitHub), audit `<merge-base>..FETCH_HEAD` with the merge base from `git merge-base origin/<base branch> FETCH_HEAD`, and carry its findings and test gaps into the report.
 4. Determine the pull request's goal from that complete current state: the bug it fixes or the feature it adds. Use the code only as evidence of that goal, not as a candidate to approve; it may still contain bugs.
 5. Return the repository, pull request link, goal and the evidence for it, latest meaningful activity, checks and review state, and one-line reason it needs maintainer attention.
 

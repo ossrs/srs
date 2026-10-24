@@ -9,10 +9,12 @@
 using namespace std;
 
 #include <srs_app_config.hpp>
+#include <srs_app_security.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai06.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -1628,7 +1630,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsListen)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty by default
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
     }
 
     // Test default value when rtmps section exists but no listen directive
@@ -1637,7 +1640,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsListen)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "rtmps{}"));
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty by default
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
     }
 
     // Test default value when listen directive exists but has no arguments
@@ -1646,7 +1650,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsListen)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "rtmps{listen;}"));
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty when no args
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
     }
 
     // Test single listen port
@@ -1937,7 +1942,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsCompleteConfiguration)
         EXPECT_FALSE(conf.get_rtmps_enabled());
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty by default
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
 
         EXPECT_STREQ("./conf/server.key", conf.get_rtmps_ssl_key().c_str());  // Default key
         EXPECT_STREQ("./conf/server.crt", conf.get_rtmps_ssl_cert().c_str()); // Default cert
@@ -2012,7 +2018,8 @@ VOID TEST(ConfigRtmpsTest, CheckRtmpsEdgeCases)
         EXPECT_FALSE(conf.get_rtmps_enabled()); // Default is false
 
         vector<string> listens = conf.get_rtmps_listen();
-        EXPECT_EQ(0, (int)listens.size()); // Empty by default
+        EXPECT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
 
         EXPECT_STREQ("./conf/server.key", conf.get_rtmps_ssl_key().c_str());  // Default key
         EXPECT_STREQ("./conf/server.crt", conf.get_rtmps_ssl_cert().c_str()); // Default cert
@@ -2086,6 +2093,186 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesVhostCluster)
     }
 }
 
+// SRS_VHOST_CLUSTER_PROTOCOL sets the protocol of an edge to pull from its origin, for every vhost,
+// overwriting the config file.
+VOID TEST(ConfigEnvTest, CheckEnvValuesVhostClusterEdge)
+{
+    srs_error_t err;
+
+    // The defaults: RTMP to the origin.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_STREQ("rtmp", conf.get_vhost_edge_protocol("__defaultVhost__").c_str());
+    }
+
+    // The env without a vhost in the config file.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, protocol, "SRS_VHOST_CLUSTER_PROTOCOL", "flv");
+        EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("__defaultVhost__").c_str());
+        EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("no.such.vhost").c_str());
+    }
+
+    // The env overwrites the cluster of the config file.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{mode remote; origin 127.0.0.1:1935; protocol flv;}}"));
+        EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("ossrs.net").c_str());
+
+        SrsSetEnvConfig(conf, protocol, "SRS_VHOST_CLUSTER_PROTOCOL", "flvs");
+        EXPECT_STREQ("flvs", conf.get_vhost_edge_protocol("ossrs.net").c_str());
+    }
+
+    // An empty env overwrites nothing.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{protocol flv;}}"));
+
+        SrsSetEnvConfig(conf, protocol, "SRS_VHOST_CLUSTER_PROTOCOL", "");
+        EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("ossrs.net").c_str());
+    }
+}
+
+// SRS_VHOST_CLUSTER_ORIGIN_CLUSTER and SRS_VHOST_CLUSTER_COWORKERS turn the origin cluster on and set the HTTP APIs
+// of its coworkers, for every vhost, overwriting the config file.
+VOID TEST(ConfigEnvTest, CheckEnvValuesVhostOriginCluster)
+{
+    srs_error_t err;
+
+    // The defaults: no origin cluster, and no coworkers.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_FALSE(conf.get_vhost_origin_cluster("__defaultVhost__"));
+        EXPECT_TRUE(conf.get_vhost_coworkers("__defaultVhost__").empty());
+    }
+
+    // The env without a vhost in the config file, the coworkers space separated.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, origin_cluster, "SRS_VHOST_CLUSTER_ORIGIN_CLUSTER", "on");
+        SrsSetEnvConfig(conf, coworkers, "SRS_VHOST_CLUSTER_COWORKERS", " 127.0.0.1:9091  127.0.0.1:9092 ");
+        EXPECT_TRUE(conf.get_vhost_origin_cluster("__defaultVhost__"));
+        EXPECT_TRUE(conf.get_vhost_origin_cluster("no.such.vhost"));
+        EXPECT_TRUE(conf.get_vhost_origin_cluster((SrsConfDirective *)NULL));
+
+        vector<string> coworkers = conf.get_vhost_coworkers("no.such.vhost");
+        ASSERT_EQ(2, (int)coworkers.size());
+        EXPECT_STREQ("127.0.0.1:9091", coworkers.at(0).c_str());
+        EXPECT_STREQ("127.0.0.1:9092", coworkers.at(1).c_str());
+    }
+
+    // The env overwrites the cluster of the config file.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{origin_cluster on; coworkers 127.0.0.1:9091 127.0.0.1:9092;}}"));
+        EXPECT_TRUE(conf.get_vhost_origin_cluster("ossrs.net"));
+        EXPECT_EQ(2, (int)conf.get_vhost_coworkers("ossrs.net").size());
+
+        SrsSetEnvConfig(conf, origin_cluster, "SRS_VHOST_CLUSTER_ORIGIN_CLUSTER", "off");
+        SrsSetEnvConfig(conf, coworkers, "SRS_VHOST_CLUSTER_COWORKERS", "127.0.0.1:9093");
+        EXPECT_FALSE(conf.get_vhost_origin_cluster("ossrs.net"));
+        EXPECT_FALSE(conf.get_vhost_origin_cluster(conf.get_vhost("ossrs.net")));
+
+        vector<string> coworkers = conf.get_vhost_coworkers("ossrs.net");
+        ASSERT_EQ(1, (int)coworkers.size());
+        EXPECT_STREQ("127.0.0.1:9093", coworkers.at(0).c_str());
+    }
+
+    // An empty env overwrites nothing.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{cluster{origin_cluster on; coworkers 127.0.0.1:9091;}}"));
+
+        SrsSetEnvConfig(conf, origin_cluster, "SRS_VHOST_CLUSTER_ORIGIN_CLUSTER", "");
+        SrsSetEnvConfig(conf, coworkers, "SRS_VHOST_CLUSTER_COWORKERS", "");
+        EXPECT_TRUE(conf.get_vhost_origin_cluster("ossrs.net"));
+
+        vector<string> coworkers = conf.get_vhost_coworkers("ossrs.net");
+        ASSERT_EQ(1, (int)coworkers.size());
+        EXPECT_STREQ("127.0.0.1:9091", coworkers.at(0).c_str());
+    }
+}
+
+// SRS_VHOST_DVR_DVR_APPLY sets the streams DVR records, for every vhost, overwriting the config file.
+VOID TEST(ConfigEnvTest, CheckEnvValuesVhostDvrApply)
+{
+    srs_error_t err;
+
+    SrsRequest applied;
+    applied.app_ = "live";
+    applied.stream_ = "s2";
+    SrsRequest other;
+    other.app_ = "live";
+    other.stream_ = "s3";
+
+    // The default: no filter, so every stream is recorded.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_TRUE(conf.get_dvr_apply("__defaultVhost__") == NULL);
+    }
+
+    // The env without a dvr section in the config file, space separated.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", " live/s1  live/s2 ");
+        SrsConfDirective *apply = conf.get_dvr_apply("no.such.vhost");
+        ASSERT_TRUE(apply != NULL);
+        ASSERT_EQ(2, (int)apply->args_.size());
+        EXPECT_STREQ("live/s1", apply->args_.at(0).c_str());
+        EXPECT_STREQ("live/s2", apply->args_.at(1).c_str());
+        EXPECT_TRUE(srs_config_apply_filter(apply, &applied));
+        EXPECT_FALSE(srs_config_apply_filter(apply, &other));
+    }
+
+    // The env overwrites the dvr_apply of the config file, with all too.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{dvr_apply live/s3;}}"));
+        EXPECT_TRUE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &other));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", "live/s2");
+        EXPECT_TRUE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &applied));
+        EXPECT_FALSE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &other));
+    }
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{dvr_apply live/s3;}}"));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", "all");
+        SrsConfDirective *apply = conf.get_dvr_apply("ossrs.net");
+        ASSERT_TRUE(apply != NULL);
+        EXPECT_STREQ("all", apply->arg0().c_str());
+        EXPECT_TRUE(srs_config_apply_filter(apply, &applied));
+    }
+
+    // An empty env, or one of spaces only, overwrites nothing.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{dvr_apply live/s3;}}"));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", "");
+        EXPECT_TRUE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &other));
+        EXPECT_FALSE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &applied));
+    }
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{dvr{dvr_apply live/s3;}}"));
+
+        SrsSetEnvConfig(conf, dvr_apply, "SRS_VHOST_DVR_DVR_APPLY", "   ");
+        EXPECT_TRUE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &other));
+        EXPECT_FALSE(srs_config_apply_filter(conf.get_dvr_apply("ossrs.net"), &applied));
+    }
+}
+
 VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
 {
     srs_error_t err;
@@ -2117,7 +2304,7 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
     // The env overwrites the stream caster of the config file.
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled off; caster flv; output rtmp://127.0.0.1/[app]/[stream]; listen 8936;}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled off; caster mpegts_over_udp; output rtmp://127.0.0.1/live/livestream; listen 8935;}"));
 
         SrsSetEnvConfig(conf, enabled, "SRS_STREAM_CASTER_ENABLED", "on");
         SrsSetEnvConfig(conf, listen, "SRS_STREAM_CASTER_LISTEN", "9000");
@@ -2126,7 +2313,7 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
         ASSERT_EQ(1, (int)casters.size());
         SrsConfDirective *c = casters.at(0);
         EXPECT_TRUE(conf.get_stream_caster_enabled(c));
-        EXPECT_STREQ("flv", conf.get_stream_caster_engine(c).c_str());
+        EXPECT_STREQ("mpegts_over_udp", conf.get_stream_caster_engine(c).c_str());
         EXPECT_EQ(9000, conf.get_stream_caster_listen(c));
     }
 
@@ -2139,12 +2326,12 @@ VOID TEST(ConfigEnvTest, CheckEnvValuesStreamCaster)
 
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster flv; listen 8936;}"));
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster mpegts_over_udp; listen 8935;}"));
 
         vector<SrsConfDirective *> casters = conf.get_stream_casters();
         ASSERT_EQ(1, (int)casters.size());
         EXPECT_TRUE(conf.get_stream_caster_enabled(casters.at(0)));
-        EXPECT_EQ(8936, conf.get_stream_caster_listen(casters.at(0)));
+        EXPECT_EQ(8935, conf.get_stream_caster_listen(casters.at(0)));
     }
 }
 
@@ -2156,7 +2343,7 @@ VOID TEST(ConfigParseOptionsTest, InDockerFromParsedConfig)
     srs_error_t err;
 
     string filepath = _srs_tmp_file_prefix + "utest-in-docker.conf";
-    MockFileRemover _mfr(filepath);
+    MockFileRemover mfr(filepath);
 
     if (true) {
         SrsFileWriter fw;
@@ -2182,6 +2369,78 @@ VOID TEST(ConfigParseOptionsTest, InDockerFromParsedConfig)
     HELPER_EXPECT_SUCCESS(err);
     EXPECT_TRUE(conf.get_in_docker());
     EXPECT_TRUE(parsed_in_docker);
+}
+
+// With env only, the parsed config has the default vhost, so the config test, which checks
+// the parsed config, checks the vhost settings set by env.
+VOID TEST(ConfigParseOptionsTest, EnvOnlyCheckSeesVhostSettings)
+{
+    srs_error_t err;
+
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        HELPER_EXPECT_SUCCESS(conf.parse_config());
+        EXPECT_TRUE(conf.get_vhost("__defaultVhost__", false) != NULL);
+        HELPER_EXPECT_SUCCESS(conf.check_config());
+    }
+
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, forward, "SRS_VHOST_FORWARD_ENABLED", "on");
+        SrsSetEnvConfig(conf, kickoff, "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000");
+        HELPER_EXPECT_SUCCESS(conf.parse_config());
+        err = conf.check_config();
+        EXPECT_TRUE(err != srs_success);
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("vhost.forward conflicts with vhost.publish.kickoff_for_idle") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    // Each setting alone is accepted.
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, forward, "SRS_VHOST_FORWARD_ENABLED", "on");
+        HELPER_EXPECT_SUCCESS(conf.parse_config());
+        HELPER_EXPECT_SUCCESS(conf.check_config());
+    }
+    if (true) {
+        SrsConfig conf;
+        conf.env_only_ = true;
+        SrsSetEnvConfig(conf, kickoff, "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE", "1000");
+        HELPER_EXPECT_SUCCESS(conf.parse_config());
+        HELPER_EXPECT_SUCCESS(conf.check_config());
+    }
+}
+
+// With a config file, parse_config() parses the file, adds no default vhost, and the check
+// refuses the same conflict of the file.
+VOID TEST(ConfigParseOptionsTest, FileCheckSeesVhostSettings)
+{
+    srs_error_t err;
+
+    string filepath = _srs_tmp_file_prefix + "utest-parse-config.conf";
+    MockFileRemover mfr(filepath);
+
+    if (true) {
+        SrsFileWriter fw;
+        HELPER_ASSERT_SUCCESS(fw.open(filepath));
+        string content = _MIN_OK_CONF "vhost v.ossrs.net { forward { enabled on; } publish { kickoff_for_idle 1000; } }";
+        HELPER_ASSERT_SUCCESS(fw.write((void *)content.data(), (int)content.length(), NULL));
+    }
+
+    SrsConfig conf;
+    conf.config_file_ = filepath;
+    HELPER_EXPECT_SUCCESS(conf.parse_config());
+    EXPECT_TRUE(conf.get_vhost("__defaultVhost__", false) == NULL);
+    EXPECT_TRUE(conf.get_vhost("v.ossrs.net", false) != NULL);
+    err = conf.check_config();
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
 }
 
 // The config owns the generator of its default server id.
@@ -2246,4 +2505,229 @@ VOID TEST(ConfigServerIdTest, DefaultIsKeptPerConfig)
     EXPECT_STREQ("vid-second2", id2.c_str());
     EXPECT_EQ(1, (int)rand1.gen_str_lens_.size());
     EXPECT_EQ(1, (int)rand2.gen_str_lens_.size());
+}
+
+// Count the rules of a security directive with the name and args.
+static int count_security_rules(SrsConfDirective *rules, string name, string action, string value)
+{
+    int n = 0;
+    for (int i = 0; rules && i < (int)rules->directives_.size(); i++) {
+        SrsConfDirective *rule = rules->at(i);
+        if (rule->name_ == name && rule->arg0() == action && rule->arg1() == value && rule->args_.size() == 2) {
+            n++;
+        }
+    }
+    return n;
+}
+
+// SRS_VHOST_SECURITY_ENABLED turns the security on or off for every vhost, overwriting the config file.
+VOID TEST(ConfigSecurityTest, EnabledFromEnv)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_FALSE(conf.get_security_enabled("__defaultVhost__"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+        EXPECT_TRUE(conf.get_security_enabled("__defaultVhost__"));
+        EXPECT_TRUE(conf.get_security_enabled("no.such.vhost"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{security{enabled on;}}"));
+        EXPECT_TRUE(conf.get_security_enabled("ossrs.net"));
+        SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "off");
+        EXPECT_FALSE(conf.get_security_enabled("ossrs.net"));
+
+        SrsConfDirective *vhost = conf.get_vhost("ossrs.net");
+        ASSERT_TRUE(vhost != NULL);
+        EXPECT_FALSE(conf.get_security_enabled(vhost));
+    }
+}
+
+// SRS_VHOST_SECURITY_ALLOW_PUBLISH, SRS_VHOST_SECURITY_ALLOW_PLAY, SRS_VHOST_SECURITY_DENY_PUBLISH and
+// SRS_VHOST_SECURITY_DENY_PLAY, each a space separated list of all, an ip or a cidr, make one rule per item,
+// like the allow and deny directives of the config file.
+VOID TEST(ConfigSecurityTest, RulesFromEnv)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    EXPECT_TRUE(conf.get_security_rules("__defaultVhost__") == NULL);
+
+    SrsSetEnvConfig(conf, allow_publish, "SRS_VHOST_SECURITY_ALLOW_PUBLISH", "127.0.0.1  10.0.0.0/8");
+    SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "all");
+    SrsSetEnvConfig(conf, deny_publish, "SRS_VHOST_SECURITY_DENY_PUBLISH", "10.1.2.3");
+    SrsSetEnvConfig(conf, deny_play, "SRS_VHOST_SECURITY_DENY_PLAY", "192.168.0.0/16 172.16.0.1");
+
+    SrsConfDirective *rules = conf.get_security_rules("__defaultVhost__");
+    ASSERT_TRUE(rules != NULL);
+    EXPECT_EQ(6, (int)rules->directives_.size());
+    EXPECT_EQ(1, count_security_rules(rules, "allow", "publish", "127.0.0.1"));
+    EXPECT_EQ(1, count_security_rules(rules, "allow", "publish", "10.0.0.0/8"));
+    EXPECT_EQ(1, count_security_rules(rules, "allow", "play", "all"));
+    EXPECT_EQ(1, count_security_rules(rules, "deny", "publish", "10.1.2.3"));
+    EXPECT_EQ(1, count_security_rules(rules, "deny", "play", "192.168.0.0/16"));
+    EXPECT_EQ(1, count_security_rules(rules, "deny", "play", "172.16.0.1"));
+
+    // The same rules for every vhost, and for each call.
+    EXPECT_TRUE(conf.get_security_rules("no.such.vhost") == rules);
+    EXPECT_TRUE(conf.get_security_rules("__defaultVhost__") == rules);
+}
+
+// The env rules replace the rules of the config file, even when only one of them is set; an empty value
+// overwrites nothing.
+VOID TEST(ConfigSecurityTest, EnvRulesReplaceFile)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{security{enabled on; allow publish all; allow play all;}}"));
+        SrsSetEnvConfig(conf, deny_play, "SRS_VHOST_SECURITY_DENY_PLAY", "all");
+        SrsConfDirective *rules = conf.get_security_rules("ossrs.net");
+        ASSERT_TRUE(rules != NULL);
+        EXPECT_EQ(1, (int)rules->directives_.size());
+        EXPECT_EQ(1, count_security_rules(rules, "deny", "play", "all"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost ossrs.net{security{enabled on; allow publish all;}}"));
+        SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "");
+        SrsSetEnvConfig(conf, deny_play, "SRS_VHOST_SECURITY_DENY_PLAY", "   ");
+        SrsConfDirective *rules = conf.get_security_rules("ossrs.net");
+        ASSERT_TRUE(rules != NULL);
+        EXPECT_EQ(1, count_security_rules(rules, "allow", "publish", "all"));
+        EXPECT_EQ(0, count_security_rules(rules, "deny", "play", ""));
+    }
+}
+
+// The security check applies the env rules: deny wins over allow, an ip or cidr matches the client, and with
+// the security on but no rule at all, every client is denied.
+VOID TEST(ConfigSecurityTest, CheckWithEnvRules)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+        SrsSetEnvConfig(conf, allow_publish, "SRS_VHOST_SECURITY_ALLOW_PUBLISH", "all");
+        SrsSetEnvConfig(conf, deny_publish, "SRS_VHOST_SECURITY_DENY_PUBLISH", "127.0.0.1");
+        SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "10.0.0.0/8");
+
+        SrsSecurity sec;
+        sec.config_ = &conf;
+        SrsRequest req;
+        req.vhost_ = "__defaultVhost__";
+        HELPER_EXPECT_FAILED(sec.check(SrsRtmpConnFMLEPublish, "127.0.0.1", &req));
+        HELPER_EXPECT_SUCCESS(sec.check(SrsRtcConnPublish, "192.168.1.2", &req));
+        HELPER_EXPECT_SUCCESS(sec.check(SrsRtmpConnPlay, "10.2.3.4", &req));
+        HELPER_EXPECT_FAILED(sec.check(SrsFlvPlay, "127.0.0.1", &req));
+        sec.config_ = NULL;
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+
+        SrsSecurity sec;
+        sec.config_ = &conf;
+        SrsRequest req;
+        req.vhost_ = "__defaultVhost__";
+        HELPER_EXPECT_FAILED(sec.check(SrsSrtConnPublish, "127.0.0.1", &req));
+        HELPER_EXPECT_FAILED(sec.check(SrsSrtConnPlay, "127.0.0.1", &req));
+        sec.config_ = NULL;
+    }
+
+    if (true) {
+        // Rules without the security on change nothing.
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, deny_publish, "SRS_VHOST_SECURITY_DENY_PUBLISH", "all");
+
+        SrsSecurity sec;
+        sec.config_ = &conf;
+        SrsRequest req;
+        req.vhost_ = "__defaultVhost__";
+        HELPER_EXPECT_SUCCESS(sec.check(SrsRtmpConnFMLEPublish, "127.0.0.1", &req));
+        sec.config_ = NULL;
+    }
+}
+
+// An RTSP, HTTP-TS, MP3 or AAC player is a player for the security: the play rules allow and deny it,
+// and the publish rules don't.
+VOID TEST(ConfigSecurityTest, PlayRulesApplyToEveryPlayer)
+{
+    srs_error_t err;
+
+    SrsRtmpConnType types[] = {SrsRtspConnPlay, SrsTsPlay, SrsMp3Play, SrsAacPlay};
+    for (int i = 0; i < 4; i++) {
+        SrsRtmpConnType type = types[i];
+
+        if (true) {
+            MockSrsConfig conf;
+            HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+            SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+            SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "10.0.0.0/8");
+            SrsSetEnvConfig(conf, deny_play, "SRS_VHOST_SECURITY_DENY_PLAY", "10.2.3.4");
+
+            SrsSecurity sec;
+            sec.config_ = &conf;
+            SrsRequest req;
+            req.vhost_ = "__defaultVhost__";
+            HELPER_EXPECT_SUCCESS(sec.check(type, "10.2.3.5", &req));
+            HELPER_EXPECT_FAILED(sec.check(type, "10.2.3.4", &req));
+            HELPER_EXPECT_FAILED(sec.check(type, "192.168.1.2", &req));
+            sec.config_ = NULL;
+        }
+
+        if (true) {
+            MockSrsConfig conf;
+            HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+            SrsSetEnvConfig(conf, security_enabled, "SRS_VHOST_SECURITY_ENABLED", "on");
+            SrsSetEnvConfig(conf, allow_play, "SRS_VHOST_SECURITY_ALLOW_PLAY", "all");
+            SrsSetEnvConfig(conf, deny_publish, "SRS_VHOST_SECURITY_DENY_PUBLISH", "all");
+
+            SrsSecurity sec;
+            sec.config_ = &conf;
+            SrsRequest req;
+            req.vhost_ = "__defaultVhost__";
+            HELPER_EXPECT_SUCCESS(sec.check(type, "127.0.0.1", &req));
+            sec.config_ = NULL;
+        }
+    }
+}
+
+// Each player and publisher type names its protocol in the API, and only publishers publish.
+VOID TEST(ClientTypeTest, EachTypeNamesItsProtocol)
+{
+    EXPECT_STREQ("rtmp-play", srs_client_type_string(SrsRtmpConnPlay).c_str());
+    EXPECT_STREQ("hls-play", srs_client_type_string(SrsHlsPlay).c_str());
+    EXPECT_STREQ("flv-play", srs_client_type_string(SrsFlvPlay).c_str());
+    EXPECT_STREQ("ts-play", srs_client_type_string(SrsTsPlay).c_str());
+    EXPECT_STREQ("mp3-play", srs_client_type_string(SrsMp3Play).c_str());
+    EXPECT_STREQ("aac-play", srs_client_type_string(SrsAacPlay).c_str());
+    EXPECT_STREQ("rtc-play", srs_client_type_string(SrsRtcConnPlay).c_str());
+    EXPECT_STREQ("srt-play", srs_client_type_string(SrsSrtConnPlay).c_str());
+    EXPECT_STREQ("rtsp-play", srs_client_type_string(SrsRtspConnPlay).c_str());
+    EXPECT_STREQ("fmle-publish", srs_client_type_string(SrsRtmpConnFMLEPublish).c_str());
+    EXPECT_STREQ("rtc-publish", srs_client_type_string(SrsRtcConnPublish).c_str());
+    EXPECT_STREQ("srt-publish", srs_client_type_string(SrsSrtConnPublish).c_str());
+
+    EXPECT_FALSE(srs_client_type_is_publish(SrsTsPlay));
+    EXPECT_FALSE(srs_client_type_is_publish(SrsMp3Play));
+    EXPECT_FALSE(srs_client_type_is_publish(SrsAacPlay));
+    EXPECT_FALSE(srs_client_type_is_publish(SrsRtspConnPlay));
+    EXPECT_TRUE(srs_client_type_is_publish(SrsRtcConnPublish));
 }

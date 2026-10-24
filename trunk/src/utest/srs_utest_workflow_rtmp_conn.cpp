@@ -35,8 +35,6 @@
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_service.hpp>
 
-#include <sys/socket.h>
-#include <unistd.h>
 
 // This test is used to verify the basic workflow of the RTMP connection.
 // It's finished with the help of AI, but each step is manually designed

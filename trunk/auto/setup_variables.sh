@@ -22,10 +22,6 @@ SRS_MAJOR=$(echo $SRS_VERSION |awk -F . '{print $1}');
 ret=$?; rm -rf ${SRS_OBJS}/test_version*; if [[ $ret -ne 0 ]]; then echo "Detect SRS version failed"; exit $ret; fi
 echo "Discover SRS version=${SRS_VERSION}, major=${SRS_MAJOR}"
 
-if [[ $OSTYPE == cygwin ]]; then
-    OS_KERNRL_RELEASE=$(uname -r|awk -F '(' '{print $1}')
-fi
-
 # Build platform cache.
 SRS_PLATFORM="${SRS_BUILD_TAG}${OS_PREFIX}-SRS${SRS_MAJOR}-${OS_KERNEL_NAME}-${OS_KERNRL_RELEASE}"
 # Build platform cache with gcc version.

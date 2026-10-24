@@ -6230,7 +6230,7 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker *rs)
     }
 
     // For mdat before moov, we must reset the offset to the mdat.
-    off_t offset = -1;
+    srs_off_t offset = -1;
 
     while (true) {
         SrsMp4Box *box_raw = NULL;
@@ -6245,11 +6245,11 @@ srs_error_t SrsMp4Decoder::initialize(ISrsReadSeeker *rs)
                 return srs_error_wrap(err, "parse ftyp");
             }
         } else if (box->is_mdat()) {
-            off_t cur = 0;
+            srs_off_t cur = 0;
             if ((err = rsio_->lseek(0, SEEK_CUR, &cur)) != srs_success) {
                 return srs_error_wrap(err, "io seek");
             }
-            offset = off_t(cur - box->sz());
+            offset = srs_off_t(cur - box->sz());
         } else if (box->is_moov()) {
             SrsMp4MovieBox *moov = dynamic_cast<SrsMp4MovieBox *>(box.get());
             if ((err = parse_moov(moov)) != srs_success) {
@@ -6822,7 +6822,8 @@ srs_error_t SrsMp4Encoder::flush()
 
             SrsMp4AudioSampleEntry *mp4a = new SrsMp4AudioSampleEntry();
             mp4a->data_reference_index_ = 1;
-            mp4a->samplerate_ = srs_audio_sample_rate2number(sample_rate_);
+            // The samplerate is 16.16 fixed point, as the fragmented MP4 writers set it.
+            mp4a->samplerate_ = uint32_t(srs_audio_sample_rate2number(sample_rate_)) << 16;
             if (sound_bits_ == SrsAudioSampleBits16bit) {
                 mp4a->samplesize_ = 16;
             } else {
@@ -6996,16 +6997,21 @@ srs_error_t SrsMp4Encoder::do_write_sample(SrsMp4Sample *ps, uint8_t *sample, ui
     return err;
 }
 
-SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
+SrsMp4ObjectType srs_mp4_audio_object_type(SrsAudioCodecId codec, SrsAudioSampleRate sample_rate)
 {
-    switch (acodec_) {
+    switch (codec) {
     case SrsAudioCodecIdAAC:
         return SrsMp4ObjectTypeAac;
     case SrsAudioCodecIdMP3:
-        return (srs_audio_sample_rate2number(sample_rate_) > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3; // 11172 - 3
+        return (srs_audio_sample_rate2number(sample_rate) > 24000) ? SrsMp4ObjectTypeMp1a : SrsMp4ObjectTypeMp3; // 11172 - 3
     default:
         return SrsMp4ObjectTypeForbidden;
     }
+}
+
+SrsMp4ObjectType SrsMp4Encoder::get_audio_object_type()
+{
+    return srs_mp4_audio_object_type(acodec_, sample_rate_);
 }
 
 ISrsMp4M2tsInitEncoder::ISrsMp4M2tsInitEncoder()
@@ -7257,13 +7263,16 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat *format, bool video, int tid)
             es->ES_ID_ = 0x02;
 
             SrsMp4DecoderConfigDescriptor &desc = es->decConfigDescr_;
-            desc.objectTypeIndication = SrsMp4ObjectTypeAac;
+            desc.objectTypeIndication = srs_mp4_audio_object_type(format->acodec_->id_, format->acodec_->sound_rate_);
             desc.streamType = SrsMp4StreamTypeAudioStream;
             srs_freep(desc.decSpecificInfo_);
 
-            SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
-            desc.decSpecificInfo_ = asc;
-            asc->asc_ = format->acodec_->aac_extra_data_;
+            // Only AAC has the decoder specific info, its AudioSpecificConfig; MP3 has none.
+            if (desc.objectTypeIndication == SrsMp4ObjectTypeAac) {
+                SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
+                desc.decSpecificInfo_ = asc;
+                asc->asc_ = format->acodec_->aac_extra_data_;
+            }
 
             SrsMp4DecodingTime2SampleBox *stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
@@ -7500,13 +7509,16 @@ srs_error_t SrsMp4M2tsInitEncoder::write(SrsFormat *format, int v_tid, int a_tid
             es->ES_ID_ = 0x02;
 
             SrsMp4DecoderConfigDescriptor &desc = es->decConfigDescr_;
-            desc.objectTypeIndication = SrsMp4ObjectTypeAac;
+            desc.objectTypeIndication = srs_mp4_audio_object_type(format->acodec_->id_, format->acodec_->sound_rate_);
             desc.streamType = SrsMp4StreamTypeAudioStream;
             srs_freep(desc.decSpecificInfo_);
 
-            SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
-            desc.decSpecificInfo_ = asc;
-            asc->asc_ = format->acodec_->aac_extra_data_;
+            // Only AAC has the decoder specific info, its AudioSpecificConfig; MP3 has none.
+            if (desc.objectTypeIndication == SrsMp4ObjectTypeAac) {
+                SrsMp4DecoderSpecificInfo *asc = new SrsMp4DecoderSpecificInfo();
+                desc.decSpecificInfo_ = asc;
+                asc->asc_ = format->acodec_->aac_extra_data_;
+            }
 
             SrsMp4DecodingTime2SampleBox *stts = new SrsMp4DecodingTime2SampleBox();
             stbl->set_stts(stts);
@@ -7825,6 +7837,8 @@ SrsFmp4SegmentEncoder::SrsFmp4SegmentEncoder()
     memset(iv_, 0, 16);
     key_ = (unsigned char *)new AES_KEY();
     do_sample_encryption_ = false;
+    video_codec_ = SrsVideoCodecIdAVC;
+    nalu_length_size_ = 4;
 }
 
 SrsFmp4SegmentEncoder::~SrsFmp4SegmentEncoder()
@@ -7862,6 +7876,12 @@ srs_error_t SrsFmp4SegmentEncoder::config_cipher(unsigned char *key, unsigned ch
     do_sample_encryption_ = true;
 
     return err;
+}
+
+void SrsFmp4SegmentEncoder::config_video_cipher(SrsVideoCodecId codec, int nalu_length_size)
+{
+    video_codec_ = codec;
+    nalu_length_size_ = (nalu_length_size >= 1 && nalu_length_size <= 4) ? nalu_length_size : 4;
 }
 
 srs_error_t SrsFmp4SegmentEncoder::write_sample(SrsMp4HandlerType ht, uint16_t ft,
@@ -7946,17 +7966,12 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t dts)
             return srs_error_wrap(err, "write samples");
         }
 
-        // TODO: write senc, and optional saiz & saio
+        // TODO: write the optional saiz & saio
         if (do_sample_encryption_) {
             SrsMp4SampleEncryptionBox *senc = new SrsMp4SampleEncryptionBox(0);
-            // video_samples_;
             vector<SrsMp4Sample *>::iterator it;
-            // write video sample data
             for (it = video_samples_->samples_.begin(); it != video_samples_->samples_.end(); ++it) {
-                // SrsMp4Sample* sample = *it;
-                // TODO: parse hevc|avc, nalu slice header, and calculate
-                // sample->data;
-                // sample->nb_data;
+                encrypt_video(*it, senc);
             }
 
             traf->append(senc);
@@ -7989,10 +8004,16 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t dts)
             return srs_error_wrap(err, "write samples");
         }
 
-        // TODO: write senc, and optional saiz & saio
+        // TODO: write the optional saiz & saio
         if (do_sample_encryption_) {
+            // Audio samples are encrypted whole, with no subsamples.
             SrsMp4SampleEncryptionBox *senc = new SrsMp4SampleEncryptionBox(0);
-            // this->iv_;
+            senc->flags_ = 0;
+            vector<SrsMp4Sample *>::iterator it;
+            for (it = audio_samples_->samples_.begin(); it != audio_samples_->samples_.end(); ++it) {
+                encrypt_audio(*it, senc);
+            }
+
             traf->append(senc);
         }
     }
@@ -8037,7 +8058,6 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t dts)
             SrsMp4Sample *sample = *it;
 
             // TODO: FIXME: Ensure all bytes are writen.
-            // TODO: do cbcs encryption here. sample are nalu_length + nalu data.
             if ((err = writer_->write(sample->data_, sample->nb_data_, NULL)) != srs_success) {
                 return srs_error_wrap(err, "write sample");
             }
@@ -8048,7 +8068,6 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t dts)
             SrsMp4Sample *sample = *it;
 
             // TODO: FIXME: Ensure all bytes are writen.
-            // TODO: do cbcs encryption here
             if ((err = writer_->write(sample->data_, sample->nb_data_, NULL)) != srs_success) {
                 return srs_error_wrap(err, "write sample");
             }
@@ -8056,4 +8075,102 @@ srs_error_t SrsFmp4SegmentEncoder::flush(uint64_t dts)
     }
 
     return err;
+}
+
+// The cbcs pattern of video, which the init file writes into tenc: of each run of 10 blocks of
+// 16 bytes, the first is encrypted and the other 9 are clear.
+#define SRS_FMP4_CBCS_CRYPT_BLOCKS 1
+#define SRS_FMP4_CBCS_SKIP_BLOCKS 9
+// The bytes of a slice NALU, with its header, left clear before its protected range, as the
+// SAMPLE-AES of HLS does for H.264, to keep the slice header clear.
+#define SRS_FMP4_CBCS_SLICE_CLEAR 32
+
+// Encrypt the whole 16-byte blocks of data in place by AES-128-CBC, from the constant IV, crypt
+// blocks of each run of crypt+skip blocks; skip 0 encrypts every block. The partial block at the
+// end stays clear, as cbcs (ISO/IEC 23001-7) says.
+static void srs_mp4_cbcs_encrypt(AES_KEY *key, unsigned char *iv, int crypt, int skip, uint8_t *data, uint32_t size)
+{
+    unsigned char chain[16];
+    memcpy(chain, iv, 16);
+
+    uint32_t blocks = size / 16;
+    for (uint32_t i = 0; i < blocks; i += crypt + skip) {
+        uint32_t n = srs_min((uint32_t)crypt, blocks - i);
+        AES_cbc_encrypt(data + i * 16, data + i * 16, n * 16, key, chain, AES_ENCRYPT);
+    }
+}
+
+// Add a subsample to entry, splitting a clear run longer than its 16-bit field.
+static void srs_mp4_cbcs_subsample(SrsMp4SampleEncryptionEntry *entry, uint32_t clear, uint32_t protect)
+{
+    while (clear > 0xffff) {
+        SrsMp4SubSampleEncryptionInfo info;
+        info.bytes_of_clear_data_ = 0xffff;
+        info.bytes_of_protected_data_ = 0;
+        entry->subsample_infos_.push_back(info);
+        clear -= 0xffff;
+    }
+
+    SrsMp4SubSampleEncryptionInfo info;
+    info.bytes_of_clear_data_ = (uint16_t)clear;
+    info.bytes_of_protected_data_ = protect;
+    entry->subsample_infos_.push_back(info);
+}
+
+void SrsFmp4SegmentEncoder::encrypt_video(SrsMp4Sample *sample, SrsMp4SampleEncryptionBox *senc)
+{
+    SrsMp4SampleEncryptionEntry *entry = new SrsMp4SampleEncryptionEntry(senc, 0);
+    senc->entries_.push_back(entry);
+
+    // The sample is NALUs, each after its length. Only the slices are encrypted, after their
+    // first bytes; the other NALUs, the lengths, and the bytes after a bad length are clear.
+    uint8_t *p = sample->data_;
+    uint32_t size = sample->nb_data_;
+    uint32_t pos = 0, clear = 0;
+    while (size - pos >= (uint32_t)nalu_length_size_) {
+        uint32_t nalu_size = 0;
+        for (int i = 0; i < nalu_length_size_; i++) {
+            nalu_size = (nalu_size << 8) | p[pos + i];
+        }
+        uint32_t start = pos + nalu_length_size_;
+        if (nalu_size == 0 || nalu_size > size - start) {
+            break;
+        }
+
+        bool slice;
+        if (video_codec_ == SrsVideoCodecIdHEVC) {
+            slice = SrsHevcNaluTypeParse(p[start]) < SrsHevcNaluType_VPS;
+        } else {
+            SrsAvcNaluType type = SrsAvcNaluTypeParse(p[start]);
+            slice = type >= SrsAvcNaluTypeNonIDR && type <= SrsAvcNaluTypeIDR;
+        }
+
+        uint32_t protect = 0;
+        if (slice && nalu_size >= SRS_FMP4_CBCS_SLICE_CLEAR + 16) {
+            protect = nalu_size - SRS_FMP4_CBCS_SLICE_CLEAR;
+        }
+
+        clear += nalu_length_size_ + nalu_size - protect;
+        if (protect > 0) {
+            uint8_t *data = p + start + SRS_FMP4_CBCS_SLICE_CLEAR;
+            srs_mp4_cbcs_encrypt((AES_KEY *)key_, iv_, SRS_FMP4_CBCS_CRYPT_BLOCKS, SRS_FMP4_CBCS_SKIP_BLOCKS, data, protect);
+            srs_mp4_cbcs_subsample(entry, clear, protect);
+            clear = 0;
+        }
+
+        pos = start + nalu_size;
+    }
+
+    clear += size - pos;
+    if (clear > 0 || entry->subsample_infos_.empty()) {
+        srs_mp4_cbcs_subsample(entry, clear, 0);
+    }
+}
+
+void SrsFmp4SegmentEncoder::encrypt_audio(SrsMp4Sample *sample, SrsMp4SampleEncryptionBox *senc)
+{
+    SrsMp4SampleEncryptionEntry *entry = new SrsMp4SampleEncryptionEntry(senc, 0);
+    senc->entries_.push_back(entry);
+
+    srs_mp4_cbcs_encrypt((AES_KEY *)key_, iv_, 1, 0, sample->data_, sample->nb_data_);
 }

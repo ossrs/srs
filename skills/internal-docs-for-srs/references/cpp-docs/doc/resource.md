@@ -26,7 +26,6 @@ For optional HTTPS services, which might be provided by other web servers:
 For optional stream converter services, to push streams to SRS:
 
 * `udp://8935`, Stream Converter: [Push MPEGTS over UDP](./streamer.md#push-mpeg-ts-over-udp) server.
-* `tcp://8936`, Stream Converter: [Push HTTP-FLV](./streamer.md#push-http-flv-to-srs) server.
 * `udp://10080`, Stream Converter: [Push SRT Media](https://github.com/ossrs/srs/issues/1147#issuecomment-577469119) server.
 
 For external services to work with SRS:

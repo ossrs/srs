@@ -133,7 +133,7 @@ FFmpeg, OBS, VLC, and WebRTC. SRS collaborates with these communities and uses t
 In addition to the SRS server, they also work on Oryx and WordPress plugins, with the main goal of creating 
 simpler application methods for different industries, including:
 
-* [Oryx](https://github.com/ossrs/oryx): Oryx(SRS Stack) is an out-of-the-box, single-machine video cloud solution that includes FFmpeg and SRS. It's designed for users who aren't familiar with command lines and allows them to set up audio and video applications through Tencent Cloud images or BaoTa with mouse operations.
+* [Oryx](https://github.com/ossrs/oryx): Oryx(SRS Stack) is an out-of-the-box, single-machine video cloud solution that includes FFmpeg and SRS. It's designed for users who aren't familiar with command lines and allows them to set up audio and video applications through a DigitalOcean Droplet or the aaPanel (BaoTa) plugin with mouse operations.
 * [WordPress-Plugin-SrsPlayer](https://github.com/ossrs/WordPress-Plugin-SrsPlayer): This plugin is for the publishing industry, such as personal blogs and media websites, making it easy for users to utilize audio and video capabilities.
 * [srs-unity](https://github.com/ossrs/srs-unity): This project is for the gaming industry, integrating Unity's WebRTC SDK to use audio and video capabilities.
 

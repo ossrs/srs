@@ -114,13 +114,10 @@ VOID TEST(ConfigRtcTest, CheckRtcPliForRtmpRangeValidation)
         EXPECT_EQ(6 * SRS_UTIME_SECONDS, conf.get_rtc_pli_for_rtmp("test.com"));
     }
 
-    // Test negative value (should reset to default)
+    // Test negative value (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{pli_for_rtmp -1;}}"));
-
-        // Should reset to default (6 seconds) when value is negative
-        EXPECT_EQ(6 * SRS_UTIME_SECONDS, conf.get_rtc_pli_for_rtmp("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{pli_for_rtmp -1;}}"));
     }
 }
 
@@ -227,13 +224,10 @@ VOID TEST(ConfigRtcTest, CheckRtcPliForRtmpEdgeCases)
         EXPECT_EQ(6 * SRS_UTIME_SECONDS, conf.get_rtc_pli_for_rtmp("__defaultVhost__"));
     }
 
-    // Test non-numeric configuration value (should parse as 0 and reset to default)
+    // Test non-numeric configuration value (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{pli_for_rtmp invalid;}}"));
-
-        // Should reset to default when config value is non-numeric
-        EXPECT_EQ(6 * SRS_UTIME_SECONDS, conf.get_rtc_pli_for_rtmp("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{rtc{pli_for_rtmp invalid;}}"));
     }
 
     // Test multiple vhosts with different configurations
@@ -1164,80 +1158,6 @@ VOID TEST(ConfigVhostTest, CheckAtc)
 
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc no;}}"));
         EXPECT_FALSE(conf.get_atc("test.com")); // "no" != "on", so it's false
-    }
-}
-
-VOID TEST(ConfigVhostTest, CheckAtcAuto)
-{
-    srs_error_t err;
-
-    // Test default value when no configuration is provided
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be false (SRS_CONF_PREFER_FALSE)
-        EXPECT_FALSE(conf.get_atc_auto("__defaultVhost__"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test default value when vhost exists but no play section
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no play section
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test default value when play exists but no atc_auto config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{mw_latency 350;}}"));
-
-        // Should return default value when no atc_auto config
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test default value when atc_auto has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test explicit atc_auto enabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto on;}}"));
-
-        EXPECT_TRUE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test explicit atc_auto disabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto off;}}"));
-
-        EXPECT_FALSE(conf.get_atc_auto("test.com"));
-    }
-
-    // Test various boolean values (SRS_CONF_PREFER_FALSE: only "on" is true)
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto true;}}"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com")); // "true" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto false;}}"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com")); // "false" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto yes;}}"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com")); // "yes" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc_auto no;}}"));
-        EXPECT_FALSE(conf.get_atc_auto("test.com")); // "no" != "on", so it's false
     }
 }
 
@@ -2966,6 +2886,19 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyFilePath)
     }
 }
 
+// With no hls_key_file_path, each vhost puts its keys in its own hls_path.
+VOID TEST(ConfigHlsTest, HlsKeyFilePathDefaultPerVhost)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost a.com{hls{hls_path /data/a;}} vhost b.com{hls{hls_path /data/b;}}"));
+
+    EXPECT_STREQ("/data/a", conf.get_hls_key_file_path("a.com").c_str());
+    EXPECT_STREQ("/data/b", conf.get_hls_key_file_path("b.com").c_str());
+    EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_file_path("__defaultVhost__").c_str());
+}
+
 VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
 {
     srs_error_t err;
@@ -2975,9 +2908,9 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be the same as get_hls_path() which is "./objs/nginx/html"
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("__defaultVhost__").c_str());
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("test.com").c_str());
+        // No default: an empty hls_key_url makes the key URI relative to the playlist.
+        EXPECT_STREQ("", conf.get_hls_key_url("__defaultVhost__").c_str());
+        EXPECT_STREQ("", conf.get_hls_key_url("test.com").c_str());
     }
 
     // Test default value when vhost exists but no hls section
@@ -2986,7 +2919,7 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{mw_latency 350;}}"));
 
         // Should return default value when no hls section
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("test.com").c_str());
+        EXPECT_STREQ("", conf.get_hls_key_url("test.com").c_str());
     }
 
     // Test default value when hls section exists but no hls_key_url config
@@ -2995,7 +2928,7 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
 
         // Should return default value when no hls_key_url config
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("test.com").c_str());
+        EXPECT_STREQ("", conf.get_hls_key_url("test.com").c_str());
     }
 
     // Test default value when hls_key_url has empty argument
@@ -3004,7 +2937,7 @@ VOID TEST(ConfigHlsTest, CheckHlsKeyUrl)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{hls_key_url;}}"));
 
         // Should return default value when empty argument
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hls_key_url("test.com").c_str());
+        EXPECT_STREQ("", conf.get_hls_key_url("test.com").c_str());
     }
 
     // Test custom hls_key_url values
@@ -3171,85 +3104,10 @@ VOID TEST(ConfigVhostTest, CheckQueueLength)
         EXPECT_EQ(0 * SRS_UTIME_SECONDS, conf.get_queue_length("test.com"));
     }
 
-    // Test negative values (should be parsed as is)
+    // Test negative values (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{queue_length -5;}}"));
-        EXPECT_EQ(-5 * SRS_UTIME_SECONDS, conf.get_queue_length("test.com"));
-    }
-}
-
-VOID TEST(ConfigVhostTest, CheckReferEnabled)
-{
-    srs_error_t err;
-
-    // Test default value when no configuration is provided
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be false (SRS_CONF_PREFER_FALSE)
-        EXPECT_FALSE(conf.get_refer_enabled("__defaultVhost__"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test default value when vhost exists but no refer config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no refer config
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test default value when refer section exists but no enabled config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{all play.ossrs.net;}}"));
-
-        // Should return default value when no enabled config
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test default value when refer enabled has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test explicit refer enabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled on;}}"));
-
-        EXPECT_TRUE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test explicit refer disabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled off;}}"));
-
-        EXPECT_FALSE(conf.get_refer_enabled("test.com"));
-    }
-
-    // Test various boolean values (SRS_CONF_PREFER_FALSE: only "on" is true)
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled true;}}"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com")); // "true" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled false;}}"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com")); // "false" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled yes;}}"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com")); // "yes" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{refer{enabled no;}}"));
-        EXPECT_FALSE(conf.get_refer_enabled("test.com")); // "no" != "on", so it's false
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{queue_length -5;}}"));
     }
 }
 
@@ -3461,11 +3319,10 @@ VOID TEST(ConfigPublishTest, CheckPublishKickoffForIdle)
         EXPECT_EQ(0, conf.get_publish_kickoff_for_idle("test.com"));
     }
 
-    // Test negative values (should be parsed as is)
+    // Test negative values (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{publish{kickoff_for_idle -10;}}"));
-        EXPECT_EQ((srs_utime_t)(-10 * SRS_UTIME_SECONDS), conf.get_publish_kickoff_for_idle("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{publish{kickoff_for_idle -10;}}"));
     }
 
     // Test multiple vhosts with different configurations
@@ -3852,8 +3709,7 @@ VOID TEST(ConfigDashTest, CheckDashFragment)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment 0;}}"));
         EXPECT_EQ(0, conf.get_dash_fragment("test.com"));
 
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment -5;}}"));
-        EXPECT_EQ((srs_utime_t)(-5 * SRS_UTIME_SECONDS), conf.get_dash_fragment("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_fragment -5;}}"));
     }
 }
 
@@ -3917,8 +3773,7 @@ VOID TEST(ConfigDashTest, CheckDashUpdatePeriod)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_update_period 0;}}"));
         EXPECT_EQ(0, conf.get_dash_update_period("test.com"));
 
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_update_period -10;}}"));
-        EXPECT_EQ((srs_utime_t)(-10 * SRS_UTIME_SECONDS), conf.get_dash_update_period("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_update_period -10;}}"));
     }
 }
 
@@ -3982,8 +3837,7 @@ VOID TEST(ConfigDashTest, CheckDashTimeshift)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_timeshift 0;}}"));
         EXPECT_EQ(0, conf.get_dash_timeshift("test.com"));
 
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_timeshift -30;}}"));
-        EXPECT_EQ((srs_utime_t)(-30 * SRS_UTIME_SECONDS), conf.get_dash_timeshift("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_timeshift -30;}}"));
     }
 }
 
@@ -4213,9 +4067,8 @@ VOID TEST(ConfigDashTest, CheckDashWindowSizeEnvironment)
 
         SrsSetEnvConfig(conf, dash_window_size1, "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "20");
 
-        // Environment should override config value
-        // Note: Due to SRS_OVERWRITE_BY_ENV_FLOAT_SECONDS bug, env values are converted to microseconds
-        EXPECT_EQ(20 * SRS_UTIME_SECONDS, conf.get_dash_window_size("test.com"));
+        // Environment should override config value, as a count of segments like the directive
+        EXPECT_EQ(20, conf.get_dash_window_size("test.com"));
     }
 
     // Test environment variable with valid values
@@ -4224,10 +4077,10 @@ VOID TEST(ConfigDashTest, CheckDashWindowSizeEnvironment)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
         SrsSetEnvConfig(conf, dash_window_size2, "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "15");
-        EXPECT_EQ(15 * SRS_UTIME_SECONDS, conf.get_dash_window_size("test.com"));
+        EXPECT_EQ(15, conf.get_dash_window_size("test.com"));
 
         SrsSetEnvConfig(conf, dash_window_size3, "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "1");
-        EXPECT_EQ(1 * SRS_UTIME_SECONDS, conf.get_dash_window_size("test.com"));
+        EXPECT_EQ(1, conf.get_dash_window_size("test.com"));
     }
 
     // Test environment variable with zero and negative values
@@ -4239,7 +4092,7 @@ VOID TEST(ConfigDashTest, CheckDashWindowSizeEnvironment)
         EXPECT_EQ(0, conf.get_dash_window_size("test.com"));
 
         SrsSetEnvConfig(conf, dash_window_size5, "SRS_VHOST_DASH_DASH_WINDOW_SIZE", "-10");
-        EXPECT_EQ(-10 * SRS_UTIME_SECONDS, conf.get_dash_window_size("test.com"));
+        EXPECT_EQ(-10, conf.get_dash_window_size("test.com"));
     }
 }
 
@@ -4405,11 +4258,10 @@ VOID TEST(ConfigDashTest, CheckDashDispose)
         EXPECT_EQ(0, conf.get_dash_dispose("test.com"));
     }
 
-    // Test negative values
+    // Test negative values (refused by the config check)
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_dispose -60;}}"));
-        EXPECT_EQ(-60 * SRS_UTIME_SECONDS, conf.get_dash_dispose("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dash{dash_dispose -60;}}"));
     }
 }
 
@@ -4653,302 +4505,922 @@ VOID TEST(ConfigHlsTest, CheckHlsEntryPrefix)
     }
 }
 
-// HDS Configuration Tests
-VOID TEST(ConfigHdsTest, CheckHdsEnabled)
+// HDS is removed: a config file with the hds section of a vhost is refused, with an error that names it,
+// whatever the section holds.
+VOID TEST(ConfigHdsTest, HdsSectionRemoved)
 {
-    srs_error_t err;
+    const char *confs[] = {
+        "vhost test.com{hds{enabled on;}}",
+        "vhost test.com{hds{enabled off;}}",
+        "vhost test.com{hds{hds_path ./objs/nginx/html; hds_fragment 10; hds_window 60;}}",
+        "vhost test.com{hds{}}",
+        "vhost __defaultVhost__{hls{enabled on;} hds{enabled on;}}",
+    };
 
-    // Test default value when no configuration is provided
-    if (true) {
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be false (SRS_CONF_PREFER_FALSE)
-        EXPECT_FALSE(conf.get_hds_enabled("__defaultVhost__"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test default value when vhost exists but no hds section
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no hds section
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test default value when hds exists but no enabled config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path ./objs/nginx/html;}}"));
-
-        // Should return default value when no enabled config
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test default value when enabled has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test explicit hds enabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled on;}}"));
-
-        EXPECT_TRUE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test explicit hds disabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled off;}}"));
-
-        EXPECT_FALSE(conf.get_hds_enabled("test.com"));
-    }
-
-    // Test various boolean values (SRS_CONF_PREFER_FALSE: only "on" is true)
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled true;}}"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com")); // "true" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled false;}}"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com")); // "false" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled yes;}}"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com")); // "yes" != "on", so it's false
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled no;}}"));
-        EXPECT_FALSE(conf.get_hds_enabled("test.com")); // "no" != "on", so it's false
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + confs[i]);
+        EXPECT_TRUE(err != srs_success) << confs[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("vhost.hds") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
     }
 }
 
-VOID TEST(ConfigHdsTest, CheckHdsPath)
+// The FLV POST caster is removed: a config file with a stream_caster of caster flv is refused, with an error
+// that names it, enabled or not. The other casters are still accepted.
+VOID TEST(ConfigCasterTest, FlvCasterRemoved)
 {
-    srs_error_t err;
+    const char *confs[] = {
+        "stream_caster{enabled on; caster flv; output rtmp://127.0.0.1/[app]/[stream]; listen 8936;}",
+        "stream_caster{enabled off; caster flv; output rtmp://127.0.0.1/[app]/[stream]; listen 8936;}",
+        "stream_caster{caster flv;}",
+        "stream_caster{enabled on; caster mpegts_over_udp; output rtmp://127.0.0.1/live/s; listen 8935;} "
+        "stream_caster{enabled on; caster flv; listen 8936;}",
+    };
 
-    // Test default value when no configuration is provided
-    if (true) {
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be "./objs/nginx/html"
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("__defaultVhost__").c_str());
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("test.com").c_str());
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + confs[i]);
+        EXPECT_TRUE(err != srs_success) << confs[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("stream_caster.caster flv") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
     }
 
-    // Test default value when vhost exists but no hds section
     if (true) {
+        srs_error_t err;
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no hds section
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("test.com").c_str());
-    }
-
-    // Test default value when hds exists but no hds_path config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled on;}}"));
-
-        // Should return default value when no hds_path config
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("test.com").c_str());
-    }
-
-    // Test default value when hds_path has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("test.com").c_str());
-    }
-
-    // Test valid hds_path values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path /var/www/hds;}}"));
-        EXPECT_STREQ("/var/www/hds", conf.get_hds_path("test.com").c_str());
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path ./custom/hds/path;}}"));
-        EXPECT_STREQ("./custom/hds/path", conf.get_hds_path("test.com").c_str());
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_path /tmp/hds;}}"));
-        EXPECT_STREQ("/tmp/hds", conf.get_hds_path("test.com").c_str());
-    }
-
-    // Test multiple vhosts with different hds paths
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF
-                                              "vhost vhost1.com{hds{hds_path /var/www/hds1;}} "
-                                              "vhost vhost2.com{hds{hds_path /var/www/hds2;}} "
-                                              "vhost vhost3.com{hds{enabled on;}}"));
-
-        EXPECT_STREQ("/var/www/hds1", conf.get_hds_path("vhost1.com").c_str());
-        EXPECT_STREQ("/var/www/hds2", conf.get_hds_path("vhost2.com").c_str());
-        EXPECT_STREQ("./objs/nginx/html", conf.get_hds_path("vhost3.com").c_str()); // default
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster mpegts_over_udp; output rtmp://127.0.0.1/live/s; listen 8935;}"));
+        EXPECT_STREQ("mpegts_over_udp", conf.get_stream_caster_engine(conf.get_stream_casters().at(0)).c_str());
     }
 }
 
-VOID TEST(ConfigHdsTest, CheckHdsFragment)
+// The FLV POST caster is removed: SRS_STREAM_CASTER_CASTER=flv makes the config refused, with an error that
+// names it, whether the caster is enabled or not. The other casters by env are still accepted.
+VOID TEST(ConfigCasterTest, FlvCasterEnvRemoved)
 {
-    srs_error_t err;
+    const char *enabled[] = {"on", "off", ""};
 
-    // Test default value when no configuration is provided
-    if (true) {
+    for (int i = 0; i < (int)(sizeof(enabled) / sizeof(enabled[0])); i++) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        SrsSetEnvConfig(conf, caster, "SRS_STREAM_CASTER_CASTER", "flv");
+        SrsSetEnvConfig(conf, enabled, "SRS_STREAM_CASTER_ENABLED", enabled[i]);
 
-        // Default should be 10 seconds
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("__defaultVhost__"));
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << "SRS_STREAM_CASTER_ENABLED=" << enabled[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("SRS_STREAM_CASTER_CASTER=flv") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
     }
 
-    // Test default value when vhost exists but no hds section
     if (true) {
+        srs_error_t err;
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no hds section
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-    }
-
-    // Test default value when hds exists but no hds_fragment config
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled on;}}"));
-
-        // Should return default value when no hds_fragment config
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-    }
-
-    // Test default value when hds_fragment has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-    }
-
-    // Test valid hds_fragment values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment 5;}}"));
-        EXPECT_EQ(5 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment 2.5;}}"));
-        EXPECT_EQ((srs_utime_t)(2.5 * SRS_UTIME_SECONDS), conf.get_hds_fragment("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment 30;}}"));
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_fragment("test.com"));
-    }
-
-    // Test zero and negative values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment 0;}}"));
-        EXPECT_EQ(0, conf.get_hds_fragment("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_fragment -5;}}"));
-        EXPECT_EQ((srs_utime_t)(-5 * SRS_UTIME_SECONDS), conf.get_hds_fragment("test.com"));
-    }
-
-    // Test multiple vhosts with different fragment values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF
-                                              "vhost vhost1.com{hds{hds_fragment 5;}} "
-                                              "vhost vhost2.com{hds{hds_fragment 15;}} "
-                                              "vhost vhost3.com{hds{enabled on;}}"));
-
-        EXPECT_EQ(5 * SRS_UTIME_SECONDS, conf.get_hds_fragment("vhost1.com"));
-        EXPECT_EQ(15 * SRS_UTIME_SECONDS, conf.get_hds_fragment("vhost2.com"));
-        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_hds_fragment("vhost3.com")); // default
+        SrsSetEnvConfig(conf, caster, "SRS_STREAM_CASTER_CASTER", "mpegts_over_udp");
+        SrsSetEnvConfig(conf, enabled, "SRS_STREAM_CASTER_ENABLED", "on");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
     }
 }
 
-VOID TEST(ConfigHdsTest, CheckHdsWindow)
+// asprocess is removed: a config file with the asprocess directive is refused, with an error that names it,
+// on or off. daemon alone is still accepted.
+VOID TEST(ConfigMainTest, AsprocessRemoved)
+{
+    const char *confs[] = {
+        "asprocess on;",
+        "asprocess off;",
+        "daemon off; asprocess on;",
+        "asprocess;",
+    };
+
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + confs[i]);
+        EXPECT_TRUE(err != srs_success) << confs[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("asprocess") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "daemon off;"));
+        EXPECT_FALSE(conf.get_daemon());
+    }
+}
+
+// asprocess is removed: SRS_ASPROCESS, on or off, makes the config refused, with an error that names it.
+// An empty SRS_ASPROCESS is unset, as every empty env var is.
+VOID TEST(ConfigMainTest, AsprocessEnvRemoved)
+{
+    const char *values[] = {"on", "off"};
+
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, asprocess, "SRS_ASPROCESS", values[i]);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << "SRS_ASPROCESS=" << values[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("SRS_ASPROCESS") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, asprocess, "SRS_ASPROCESS", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
+// The latest version query is removed: a config file with query_latest_version or first_wait_for_qlv is
+// refused, with an error that names the directive, on or off.
+VOID TEST(ConfigMainTest, LatestVersionQueryRemoved)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } cases[] = {
+        {"query_latest_version on;", "query_latest_version"},
+        {"query_latest_version off;", "query_latest_version"},
+        {"query_latest_version;", "query_latest_version"},
+        {"first_wait_for_qlv 300;", "first_wait_for_qlv"},
+        {"first_wait_for_qlv 0.5;", "first_wait_for_qlv"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + cases[i].conf);
+        EXPECT_TRUE(err != srs_success) << cases[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+}
+
+// The latest version query is removed: SRS_QUERY_LATEST_VERSION, on or off, and SRS_FIRST_WAIT_FOR_QLV
+// make the config refused, with an error that names the env var. An empty one is unset, as every empty
+// env var is.
+VOID TEST(ConfigMainTest, LatestVersionQueryEnvRemoved)
+{
+    struct {
+        const char *name;
+        const char *value;
+    } cases[] = {
+        {"SRS_QUERY_LATEST_VERSION", "on"},
+        {"SRS_QUERY_LATEST_VERSION", "off"},
+        {"SRS_FIRST_WAIT_FOR_QLV", "300"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, qlv, cases[i].name, cases[i].value);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << cases[i].name << "=" << cases[i].value;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, qlv, "SRS_QUERY_LATEST_VERSION", "");
+        SrsSetEnvConfig(conf, wait, "SRS_FIRST_WAIT_FOR_QLV", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
+// The time directives the getters read with atof, in seconds or in milliseconds, and their env vars.
+struct MockTimeDirective {
+    const char *prefix;
+    const char *suffix;
+    const char *name;
+    const char *env;
+};
+
+static MockTimeDirective mock_time_directives[] = {
+    {"heartbeat{interval ", ";}", "interval", "SRS_HEARTBEAT_INTERVAL"},
+    {"stream_caster{media_connect_timeout ", ";}", "media_connect_timeout", "SRS_STREAM_CASTER_MEDIA_CONNECT_TIMEOUT"},
+    {"vhost test.com{rtc{stun_timeout ", ";}}", "stun_timeout", "SRS_VHOST_RTC_STUN_TIMEOUT"},
+    {"vhost test.com{rtc{pli_for_rtmp ", ";}}", "pli_for_rtmp", "SRS_VHOST_RTC_PLI_FOR_RTMP"},
+    {"vhost test.com{play{queue_length ", ";}}", "queue_length", "SRS_VHOST_PLAY_QUEUE_LENGTH"},
+    {"vhost test.com{play{send_min_interval ", ";}}", "send_min_interval", "SRS_VHOST_PLAY_SEND_MIN_INTERVAL"},
+    {"vhost test.com{publish{kickoff_for_idle ", ";}}", "kickoff_for_idle", "SRS_VHOST_PUBLISH_KICKOFF_FOR_IDLE"},
+    {"vhost test.com{dash{dash_fragment ", ";}}", "dash_fragment", "SRS_VHOST_DASH_DASH_FRAGMENT"},
+    {"vhost test.com{dash{dash_update_period ", ";}}", "dash_update_period", "SRS_VHOST_DASH_DASH_UPDATE_PERIOD"},
+    {"vhost test.com{dash{dash_timeshift ", ";}}", "dash_timeshift", "SRS_VHOST_DASH_DASH_TIMESHIFT"},
+    {"vhost test.com{dash{dash_dispose ", ";}}", "dash_dispose", "SRS_VHOST_DASH_DASH_DISPOSE"},
+    {"vhost test.com{hls{hls_fragment ", ";}}", "hls_fragment", "SRS_VHOST_HLS_HLS_FRAGMENT"},
+    {"vhost test.com{hls{hls_window ", ";}}", "hls_window", "SRS_VHOST_HLS_HLS_WINDOW"},
+    {"vhost test.com{hls{hls_dispose ", ";}}", "hls_dispose", "SRS_VHOST_HLS_HLS_DISPOSE"},
+    {"vhost test.com{dvr{dvr_duration ", ";}}", "dvr_duration", "SRS_VHOST_DVR_DVR_DURATION"},
+    {"vhost test.com{http_remux{fast_cache ", ";}}", "fast_cache", "SRS_VHOST_HTTP_REMUX_FAST_CACHE"},
+};
+
+// A value of a time directive that is not a finite number of seconds or milliseconds that is not negative.
+static const char *mock_bad_times[] = {"nan", "NAN", "-nan", "inf", "-inf", "infinity", "1e400", "-1", "-0.5", "abc"};
+
+// A value of a time directive that every one of them takes.
+static const char *mock_good_times[] = {"10", "0.5", ".5", "1e1"};
+
+// A time directive in a config file must be a finite number that is not negative, so the getter's cast to
+// srs_utime_t is defined: nan, inf, a negative number or no number at all is refused by the config check,
+// with an error that names the directive and the value.
+VOID TEST(ConfigMainTest, TimeDirectiveNotFiniteRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_time_directives) / sizeof(mock_time_directives[0])); i++) {
+        MockTimeDirective &d = mock_time_directives[i];
+
+        for (int j = 0; j < (int)(sizeof(mock_bad_times) / sizeof(mock_bad_times[0])); j++) {
+            string c = string(_MIN_OK_CONF) + d.prefix + mock_bad_times[j] + d.suffix;
+
+            MockSrsConfig conf;
+            srs_error_t err = conf.mock_parse(c);
+            EXPECT_TRUE(err != srs_success) << c;
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(string(d.name) + "=" + mock_bad_times[j]) != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
+
+        for (int j = 0; j < (int)(sizeof(mock_good_times) / sizeof(mock_good_times[0])); j++) {
+            string c = string(_MIN_OK_CONF) + d.prefix + mock_good_times[j] + d.suffix;
+
+            srs_error_t err;
+            MockSrsConfig conf;
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(c));
+        }
+    }
+}
+
+// A time directive's env var must be a finite number that is not negative too: nan, inf, a negative number
+// or no number at all is refused by the config check, with an error that names the env var and the value.
+// An empty one is unset, as every empty env var is.
+VOID TEST(ConfigMainTest, TimeDirectiveEnvNotFiniteRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_time_directives) / sizeof(mock_time_directives[0])); i++) {
+        MockTimeDirective &d = mock_time_directives[i];
+
+        for (int j = 0; j < (int)(sizeof(mock_bad_times) / sizeof(mock_bad_times[0])); j++) {
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, time, d.env, mock_bad_times[j]);
+
+            srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+            EXPECT_TRUE(err != srs_success) << d.env << "=" << mock_bad_times[j];
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(string(d.env) + "=" + mock_bad_times[j]) != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
+
+        for (int j = 0; j < (int)(sizeof(mock_good_times) / sizeof(mock_good_times[0])); j++) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, time, d.env, mock_good_times[j]);
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
+
+        if (true) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, time, d.env, "");
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
+    }
+}
+
+// The HLS ratios, by config file and env var.
+static MockTimeDirective mock_ratio_directives[] = {
+    {"vhost test.com{hls{hls_td_ratio ", ";}}", "hls_td_ratio", "SRS_VHOST_HLS_HLS_TD_RATIO"},
+    {"vhost test.com{hls{hls_aof_ratio ", ";}}", "hls_aof_ratio", "SRS_VHOST_HLS_HLS_AOF_RATIO"},
+};
+
+// A value of an HLS ratio that is not a finite number above zero.
+static const char *mock_bad_ratios[] = {"nan", "NAN", "-nan", "inf", "-inf", "infinity", "1e400", "-1", "0", "-0.5", "abc"};
+
+// A value of an HLS ratio that both of them take.
+static const char *mock_good_ratios[] = {"1.5", "2.0", "0.8", "3", ".5", "1e1"};
+
+// An HLS ratio in a config file must be a finite number above zero, since the muxer multiplies the fragment
+// by it into a srs_utime_t, undefined for nan or inf, and a ratio of zero or below has no meaning for the
+// target duration or the pure audio segment: it is refused by the config check, with an error that names the
+// directive and the value.
+VOID TEST(ConfigMainTest, HlsRatioNotPositiveRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_ratio_directives) / sizeof(mock_ratio_directives[0])); i++) {
+        MockTimeDirective &d = mock_ratio_directives[i];
+
+        for (int j = 0; j < (int)(sizeof(mock_bad_ratios) / sizeof(mock_bad_ratios[0])); j++) {
+            string c = string(_MIN_OK_CONF) + d.prefix + mock_bad_ratios[j] + d.suffix;
+
+            MockSrsConfig conf;
+            srs_error_t err = conf.mock_parse(c);
+            EXPECT_TRUE(err != srs_success) << c;
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(string(d.name) + "=" + mock_bad_ratios[j]) != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
+
+        for (int j = 0; j < (int)(sizeof(mock_good_ratios) / sizeof(mock_good_ratios[0])); j++) {
+            string c = string(_MIN_OK_CONF) + d.prefix + mock_good_ratios[j] + d.suffix;
+
+            srs_error_t err;
+            MockSrsConfig conf;
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(c));
+        }
+    }
+}
+
+// An HLS ratio's env var must be a finite number above zero too, refused by the config check with an error
+// that names the env var and the value. An empty one is unset, as every empty env var is.
+VOID TEST(ConfigMainTest, HlsRatioEnvNotPositiveRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_ratio_directives) / sizeof(mock_ratio_directives[0])); i++) {
+        MockTimeDirective &d = mock_ratio_directives[i];
+
+        for (int j = 0; j < (int)(sizeof(mock_bad_ratios) / sizeof(mock_bad_ratios[0])); j++) {
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, ratio, d.env, mock_bad_ratios[j]);
+
+            srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+            EXPECT_TRUE(err != srs_success) << d.env << "=" << mock_bad_ratios[j];
+            if (err != srs_success) {
+                string desc = srs_error_desc(err);
+                EXPECT_TRUE(desc.find(string(d.env) + "=" + mock_bad_ratios[j]) != string::npos) << desc;
+            }
+            srs_freep(err);
+        }
+
+        for (int j = 0; j < (int)(sizeof(mock_good_ratios) / sizeof(mock_good_ratios[0])); j++) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, ratio, d.env, mock_good_ratios[j]);
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
+
+        if (true) {
+            srs_error_t err;
+            MockSrsConfig conf;
+            SrsSetEnvConfig(conf, ratio, d.env, "");
+            HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        }
+    }
+}
+
+// A value of tcmalloc_release_rate that is not a finite number.
+static const char *mock_bad_release_rates[] = {"nan", "NAN", "-nan", "inf", "-inf", "infinity", "1e400", "abc"};
+
+// A value of tcmalloc_release_rate that is taken, with the rate the getter clamps it to, from 0 to 10.
+static struct {
+    const char *value;
+    double rate;
+} mock_good_release_rates[] = {{"0", 0}, {"0.5", 0.5}, {"10", 10}, {"1e1", 10}, {"15", 10}, {"-5", 0}};
+
+// The tcmalloc_release_rate in a config file must be a finite number, since the getter clamps it to 0 to 10
+// with srs_min and srs_max, which pass nan through to tcmalloc, and a value with no number has no rate: it is
+// refused by the config check, with an error that names the directive and the value. A finite number out of
+// the range is still clamped.
+VOID TEST(ConfigMainTest, TcmallocReleaseRateNotFiniteRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_bad_release_rates) / sizeof(mock_bad_release_rates[0])); i++) {
+        string c = string(_MIN_OK_CONF) + "tcmalloc_release_rate " + mock_bad_release_rates[i] + ";";
+
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(c);
+        EXPECT_TRUE(err != srs_success) << c;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(string("tcmalloc_release_rate=") + mock_bad_release_rates[i]) != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    for (int i = 0; i < (int)(sizeof(mock_good_release_rates) / sizeof(mock_good_release_rates[0])); i++) {
+        string c = string(_MIN_OK_CONF) + "tcmalloc_release_rate " + mock_good_release_rates[i].value + ";";
+
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(c));
+        EXPECT_EQ(mock_good_release_rates[i].rate, conf.tcmalloc_release_rate()) << c;
+    }
+}
+
+// The SRS_TCMALLOC_RELEASE_RATE env var must be a finite number too, refused by the config check with an
+// error that names the env var and the value. An empty one is unset, as every empty env var is.
+VOID TEST(ConfigMainTest, TcmallocReleaseRateEnvNotFiniteRefused)
+{
+    for (int i = 0; i < (int)(sizeof(mock_bad_release_rates) / sizeof(mock_bad_release_rates[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, rate, "SRS_TCMALLOC_RELEASE_RATE", mock_bad_release_rates[i]);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << "SRS_TCMALLOC_RELEASE_RATE=" << mock_bad_release_rates[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(string("SRS_TCMALLOC_RELEASE_RATE=") + mock_bad_release_rates[i]) != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    for (int i = 0; i < (int)(sizeof(mock_good_release_rates) / sizeof(mock_good_release_rates[0])); i++) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, rate, "SRS_TCMALLOC_RELEASE_RATE", mock_good_release_rates[i].value);
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_EQ(mock_good_release_rates[i].rate, conf.tcmalloc_release_rate()) << mock_good_release_rates[i].value;
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, rate, "SRS_TCMALLOC_RELEASE_RATE", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_EQ(0.8, conf.tcmalloc_release_rate());
+    }
+}
+
+// The bandwidth check is removed: a config file with the bandcheck section of a vhost is refused, with an
+// error that names it, whatever the section holds.
+VOID TEST(ConfigMainTest, BandcheckRemoved)
+{
+    const char *confs[] = {
+        "vhost test.com{bandcheck{enabled on;}}",
+        "vhost test.com{bandcheck{enabled off;}}",
+        "vhost test.com{bandcheck{key \"35c9b402c12a7246868752e2878f7e0e\"; interval 30; limit_kbps 4000;}}",
+        "vhost test.com{bandcheck{}}",
+        "vhost __defaultVhost__{hls{enabled on;} bandcheck{enabled on;}}",
+    };
+
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + confs[i]);
+        EXPECT_TRUE(err != srs_success) << confs[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("vhost.bandcheck") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+}
+
+// The referer check is removed, so its vhost section and the SRS1 style
+// directives are refused by their own names, enabled or not.
+VOID TEST(ConfigMainTest, ReferRemoved)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } cases[] = {
+        {"vhost test.com{refer{enabled on; all github.com;}}", "vhost.refer of"},
+        {"vhost test.com{refer{enabled off;}}", "vhost.refer of"},
+        {"vhost test.com{refer{play github.com; publish github.com;}}", "vhost.refer of"},
+        {"vhost test.com{refer{}}", "vhost.refer of"},
+        {"vhost test.com{refer github.com github.io;}", "vhost.refer of"},
+        {"vhost test.com{refer_play github.com github.io;}", "vhost.refer_play of"},
+        {"vhost test.com{refer_publish github.com github.io;}", "vhost.refer_publish of"},
+        {"vhost __defaultVhost__{hls{enabled on;} refer_play github.com;}", "vhost.refer_play of"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + cases[i].conf);
+        EXPECT_TRUE(err != srs_success) << cases[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+}
+
+// atc_auto is removed: a config file with it in the play section, or in the vhost as SRS1 wrote it, is refused,
+// with an error that names the directive, on or off.
+VOID TEST(ConfigMainTest, AtcAutoRemoved)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } cases[] = {
+        {"vhost test.com{play{atc_auto on;}}", "vhost.play.atc_auto of"},
+        {"vhost test.com{play{atc_auto off;}}", "vhost.play.atc_auto of"},
+        {"vhost test.com{play{atc_auto;}}", "vhost.play.atc_auto of"},
+        {"vhost test.com{play{atc on; atc_auto on;}}", "vhost.play.atc_auto of"},
+        {"vhost test.com{atc_auto on;}", "vhost.atc_auto of"},
+        {"vhost test.com{atc on; atc_auto off;}", "vhost.atc_auto of"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + cases[i].conf);
+        EXPECT_TRUE(err != srs_success) << cases[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    // atc stays, in the play section and as SRS1 wrote it.
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{play{atc on;}} vhost v1.com{atc on;}"));
+        EXPECT_TRUE(conf.get_atc("test.com"));
+        EXPECT_TRUE(conf.get_atc("v1.com"));
+    }
+}
+
+// atc_auto is removed: SRS_VHOST_PLAY_ATC_AUTO, on or off, is refused with an error that names it.
+VOID TEST(ConfigMainTest, AtcAutoEnvRemoved)
+{
+    const char *values[] = {"on", "off"};
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, atc_auto, "SRS_VHOST_PLAY_ATC_AUTO", values[i]);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << values[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("SRS_VHOST_PLAY_ATC_AUTO") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, atc_auto, "SRS_VHOST_PLAY_ATC_AUTO", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
+// token_traverse is removed: a config file with it in the cluster section, or in the vhost as SRS1 wrote it,
+// is refused, with an error that names the directive and points to the HTTP hooks, on or off.
+VOID TEST(ConfigMainTest, TokenTraverseRemoved)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } cases[] = {
+        {"vhost test.com{cluster{token_traverse on;}}", "vhost.cluster.token_traverse of"},
+        {"vhost test.com{cluster{token_traverse off;}}", "vhost.cluster.token_traverse of"},
+        {"vhost test.com{cluster{token_traverse;}}", "vhost.cluster.token_traverse of"},
+        {"vhost test.com{cluster{mode remote; origin 127.0.0.1:1935; token_traverse on;}}", "vhost.cluster.token_traverse of"},
+        {"vhost test.com{token_traverse on;}", "vhost.token_traverse of"},
+        {"vhost test.com{mode remote; origin 127.0.0.1:1935; token_traverse off;}", "vhost.token_traverse of"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + cases[i].conf);
+        EXPECT_TRUE(err != srs_success) << cases[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(cases[i].name) != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("HTTP hooks") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    // The other cluster directives stay, in the cluster section and as SRS1 wrote them.
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{cluster{mode remote; origin 127.0.0.1:1935; vhost v2.com; debug_srs_upnode off; protocol flv; follow_client on;}} "
+                                                           "vhost v1.com{mode remote; origin 127.0.0.1:1936; vhost v3.com; debug_srs_upnode off;}"));
+        EXPECT_TRUE(conf.get_vhost_is_edge("test.com"));
+        EXPECT_STREQ("127.0.0.1:1935", conf.get_vhost_edge_origin("test.com")->arg0().c_str());
+        EXPECT_STREQ("v2.com", conf.get_vhost_edge_transform_vhost("test.com").c_str());
+        EXPECT_FALSE(conf.get_debug_srs_upnode("test.com"));
+        EXPECT_STREQ("flv", conf.get_vhost_edge_protocol("test.com").c_str());
+        EXPECT_TRUE(conf.get_vhost_edge_follow_client("test.com"));
+        EXPECT_TRUE(conf.get_vhost_is_edge("v1.com"));
+        EXPECT_STREQ("127.0.0.1:1936", conf.get_vhost_edge_origin("v1.com")->arg0().c_str());
+        EXPECT_STREQ("v3.com", conf.get_vhost_edge_transform_vhost("v1.com").c_str());
+        EXPECT_FALSE(conf.get_debug_srs_upnode("v1.com"));
+    }
+}
+
+// token_traverse is removed: SRS_VHOST_CLUSTER_TOKEN_TRAVERSE, on or off, is refused with an error that names it
+// and points to the HTTP hooks.
+VOID TEST(ConfigMainTest, TokenTraverseEnvRemoved)
+{
+    const char *values[] = {"on", "off"};
+    for (int i = 0; i < (int)(sizeof(values) / sizeof(values[0])); i++) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, token_traverse, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", values[i]);
+
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success) << values[i];
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("SRS_VHOST_CLUSTER_TOKEN_TRAVERSE") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("removed") != string::npos) << desc;
+            EXPECT_TRUE(desc.find("HTTP hooks") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, token_traverse, "SRS_VHOST_CLUSTER_TOKEN_TRAVERSE", "");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
+// An enabled exporter or RTMPS listen that is not an endpoint is refused, as the
+// other listeners' are, with an error that names it. Disabled, it is not checked.
+VOID TEST(ConfigListenTest, ExporterAndRtmpsListenInvalid)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } bad[] = {
+        {"exporter{enabled on; listen abc;}", "exporter.listen"},
+        {"exporter{enabled on; listen 0;}", "exporter.listen"},
+        {"exporter{enabled on; listen 1.2.3:9972;}", "exporter.listen"},
+        {"rtmps{enabled on; listen abc;}", "rtmps.listen"},
+        {"rtmps{enabled on; listen 0;}", "rtmps.listen"},
+        {"rtmps{enabled on; listen 1443 abc;}", "rtmps.listen"},
+    };
+    for (int i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + bad[i].conf);
+        EXPECT_TRUE(err != srs_success) << bad[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(bad[i].name) != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    const char *good[] = {
+        "exporter{enabled on; listen 9972;}",
+        "exporter{enabled on; listen 127.0.0.1:9972;}",
+        "exporter{enabled on;}",
+        "exporter{enabled off; listen abc;}",
+        "rtmps{enabled on; listen 1443;}",
+        "rtmps{enabled on; listen 1443 127.0.0.1:1444;}",
+        "rtmps{enabled off; listen abc;}",
+    };
+    for (int i = 0; i < (int)(sizeof(good) / sizeof(good[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(string(_MIN_OK_CONF) + good[i]);
+        EXPECT_TRUE(err == srs_success) << good[i] << ": " << (err ? srs_error_desc(err) : "");
+        srs_freep(err);
+    }
+}
+
+// The same listens set by env: SRS_EXPORTER_LISTEN and SRS_RTMPS_LISTEN that are not
+// endpoints are refused when their listener is on.
+VOID TEST(ConfigListenTest, ExporterAndRtmpsListenEnvInvalid)
+{
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_EXPORTER_ENABLED", "on");
+        SrsSetEnvConfig(conf, listen, "SRS_EXPORTER_LISTEN", "abc");
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success);
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("exporter.listen=abc") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_RTMPS_ENABLED", "on");
+        SrsSetEnvConfig(conf, listen, "SRS_RTMPS_LISTEN", "abc");
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success);
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("rtmps.listen=abc") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_EXPORTER_ENABLED", "off");
+        SrsSetEnvConfig(conf, listen, "SRS_EXPORTER_LISTEN", "abc");
+        SrsSetEnvConfig(conf, rtmps_enabled, "SRS_RTMPS_ENABLED", "off");
+        SrsSetEnvConfig(conf, rtmps_listen, "SRS_RTMPS_LISTEN", "abc");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, enabled, "SRS_EXPORTER_ENABLED", "on");
+        SrsSetEnvConfig(conf, listen, "SRS_EXPORTER_LISTEN", "9972");
+        SrsSetEnvConfig(conf, rtmps_enabled, "SRS_RTMPS_ENABLED", "on");
+        SrsSetEnvConfig(conf, rtmps_listen, "SRS_RTMPS_LISTEN", "1443 1444");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+    }
+}
+
+// RTMPS enabled with no listen, in the file or by env, listens on 1443, as full.conf
+// sets it, like the other listeners that have a default port.
+VOID TEST(ConfigListenTest, RtmpsListenDefault)
 {
     srs_error_t err;
 
-    // Test default value when no configuration is provided
+    const char *confs[] = {
+        "rtmps{enabled on;}",
+        "rtmps{enabled on; listen;}",
+    };
+    for (int i = 0; i < (int)(sizeof(confs) / sizeof(confs[0])); i++) {
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(string(_MIN_OK_CONF) + confs[i]));
+        EXPECT_TRUE(conf.get_rtmps_enabled()) << confs[i];
+
+        vector<string> listens = conf.get_rtmps_listen();
+        ASSERT_EQ(1, (int)listens.size()) << confs[i];
+        EXPECT_STREQ("1443", listens.at(0).c_str());
+    }
+
     if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, rtmps_enabled, "SRS_RTMPS_ENABLED", "on");
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+        EXPECT_TRUE(conf.get_rtmps_enabled());
+
+        vector<string> listens = conf.get_rtmps_listen();
+        ASSERT_EQ(1, (int)listens.size());
+        EXPECT_STREQ("1443", listens.at(0).c_str());
+    }
+}
+
+// A port above 65535, which no socket has, is not an endpoint: alone, after a host,
+// or after an IPv6 host; 65535 and below are.
+VOID TEST(ConfigListenTest, EndpointPortOutOfRange)
+{
+    EXPECT_TRUE(srs_net_is_valid_endpoint("1"));
+    EXPECT_TRUE(srs_net_is_valid_endpoint("65535"));
+    EXPECT_TRUE(srs_net_is_valid_endpoint("127.0.0.1:65535"));
+    EXPECT_TRUE(srs_net_is_valid_endpoint("[::1]:65535"));
+
+    EXPECT_FALSE(srs_net_is_valid_endpoint("65536"));
+    EXPECT_FALSE(srs_net_is_valid_endpoint("79999"));
+    EXPECT_FALSE(srs_net_is_valid_endpoint("2147483647"));
+    EXPECT_FALSE(srs_net_is_valid_endpoint("127.0.0.1:65536"));
+    EXPECT_FALSE(srs_net_is_valid_endpoint("[::1]:65536"));
+}
+
+// Every listener refuses a port above 65535, by the config file and by env, with an
+// error that names the listen.
+VOID TEST(ConfigListenTest, ListenPortOutOfRange)
+{
+    struct {
+        const char *conf;
+        const char *name;
+    } bad[] = {
+        {"rtmp{listen 65536;}", "rtmp.listen=65536"},
+        {"rtmp{listen 1935 127.0.0.1:79999;}", "rtmp.listen=127.0.0.1:79999"},
+        {_MIN_OK_CONF "http_api{enabled on; listen 65536;}", "http_api.listen"},
+        {_MIN_OK_CONF "http_server{enabled on; listen 65536;}", "http_server.listen"},
+        {_MIN_OK_CONF "rtc_server{enabled on; listen 65536;}", "rtc_server.listen"},
+        {_MIN_OK_CONF "srt_server{enabled on; listen 65536;}", "srt_server.listen"},
+        {_MIN_OK_CONF "exporter{enabled on; listen 65536;}", "exporter.listen"},
+        {_MIN_OK_CONF "rtmps{enabled on; listen 65536;}", "rtmps.listen"},
+    };
+    for (int i = 0; i < (int)(sizeof(bad) / sizeof(bad[0])); i++) {
+        MockSrsConfig conf;
+        srs_error_t err = conf.mock_parse(bad[i].conf);
+        EXPECT_TRUE(err != srs_success) << bad[i].conf;
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find(bad[i].name) != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+
+    if (true) {
+        srs_error_t err;
+        MockSrsConfig conf;
+        HELPER_EXPECT_SUCCESS(conf.mock_parse("rtmp{listen 65535 127.0.0.1:65534;}"));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        SrsSetEnvConfig(conf, listen, "SRS_RTMP_LISTEN", "79999");
+        srs_error_t err = conf.mock_parse(_MIN_OK_CONF);
+        EXPECT_TRUE(err != srs_success);
+        if (err != srs_success) {
+            string desc = srs_error_desc(err);
+            EXPECT_TRUE(desc.find("rtmp.listen=79999") != string::npos) << desc;
+        }
+        srs_freep(err);
+    }
+}
+
+// The timers in seconds read a fraction of a second, from the config file and
+// from env, and a whole number still reads as before.
+VOID TEST(ConfigTimerTest, SecondsAcceptFractions)
+{
+    srs_error_t err;
+
+    // Each config sets every timer to the same value, which reads as want.
+    struct {
+        const char *value;
+        srs_utime_t want;
+    } cases[] = {
+        {"0.5", 500 * SRS_UTIME_MILLISECONDS},
+        {"1.25", 1250 * SRS_UTIME_MILLISECONDS},
+        {"10", 10 * SRS_UTIME_SECONDS},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        string v = cases[i].value;
+        srs_utime_t want = cases[i].want;
+
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "heartbeat{interval " + v + ";} " +
+                                              "vhost test.com{rtc{stun_timeout " + v + ";} play{queue_length " + v + ";} " +
+                                              "dash{dash_dispose " + v + ";} hls{hls_dispose " + v + ";} dvr{dvr_duration " + v + ";}}"));
+        EXPECT_EQ(want, conf.get_heartbeat_interval()) << v;
+        EXPECT_EQ(want, conf.get_rtc_stun_timeout("test.com")) << v;
+        EXPECT_EQ(want, conf.get_queue_length("test.com")) << v;
+        EXPECT_EQ(want, conf.get_dash_dispose("test.com")) << v;
+        EXPECT_EQ(want, conf.get_hls_dispose("test.com")) << v;
+        EXPECT_EQ(want, conf.get_dvr_duration("test.com")) << v;
+    }
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        const char *v = cases[i].value;
+        srs_utime_t want = cases[i].want;
+
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-
-        // Default should be 60 seconds
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("__defaultVhost__"));
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
+        SrsSetEnvConfig(conf, heartbeat, "SRS_HEARTBEAT_INTERVAL", v);
+        SrsSetEnvConfig(conf, stun, "SRS_VHOST_RTC_STUN_TIMEOUT", v);
+        SrsSetEnvConfig(conf, queue, "SRS_VHOST_PLAY_QUEUE_LENGTH", v);
+        SrsSetEnvConfig(conf, dash, "SRS_VHOST_DASH_DASH_DISPOSE", v);
+        SrsSetEnvConfig(conf, hls, "SRS_VHOST_HLS_HLS_DISPOSE", v);
+        SrsSetEnvConfig(conf, dvr, "SRS_VHOST_DVR_DVR_DURATION", v);
+        EXPECT_EQ(want, conf.get_heartbeat_interval()) << v;
+        EXPECT_EQ(want, conf.get_rtc_stun_timeout("test.com")) << v;
+        EXPECT_EQ(want, conf.get_queue_length("test.com")) << v;
+        EXPECT_EQ(want, conf.get_dash_dispose("test.com")) << v;
+        EXPECT_EQ(want, conf.get_hls_dispose("test.com")) << v;
+        EXPECT_EQ(want, conf.get_dvr_duration("test.com")) << v;
     }
+}
 
-    // Test default value when vhost exists but no hds section
+// A heartbeat interval of a fraction of a second is above 0, so it passes the
+// config test, while 0 is still refused.
+VOID TEST(ConfigTimerTest, HeartbeatIntervalFraction)
+{
+    srs_error_t err;
+
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hls{enabled on;}}"));
-
-        // Should return default value when no hds section
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
+        HELPER_EXPECT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "heartbeat{enabled on; interval 0.5;}"));
     }
 
-    // Test default value when hds exists but no hds_window config
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{enabled on;}}"));
-
-        // Should return default value when no hds_window config
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
-    }
-
-    // Test default value when hds_window has empty argument
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window;}}"));
-
-        // Should return default value when empty argument
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
-    }
-
-    // Test valid hds_window values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window 30;}}"));
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window 120.5;}}"));
-        EXPECT_EQ((srs_utime_t)(120.5 * SRS_UTIME_SECONDS), conf.get_hds_window("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window 300;}}"));
-        EXPECT_EQ(300 * SRS_UTIME_SECONDS, conf.get_hds_window("test.com"));
-    }
-
-    // Test zero and negative values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window 0;}}"));
-        EXPECT_EQ(0, conf.get_hds_window("test.com"));
-
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{hds{hds_window -10;}}"));
-        EXPECT_EQ((srs_utime_t)(-10 * SRS_UTIME_SECONDS), conf.get_hds_window("test.com"));
-    }
-
-    // Test multiple vhosts with different window values
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF
-                                              "vhost vhost1.com{hds{hds_window 30;}} "
-                                              "vhost vhost2.com{hds{hds_window 120;}} "
-                                              "vhost vhost3.com{hds{enabled on;}}"));
-
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.get_hds_window("vhost1.com"));
-        EXPECT_EQ(120 * SRS_UTIME_SECONDS, conf.get_hds_window("vhost2.com"));
-        EXPECT_EQ(60 * SRS_UTIME_SECONDS, conf.get_hds_window("vhost3.com")); // default
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "heartbeat{enabled on; interval 0;}"));
     }
 }
 
@@ -5315,8 +5787,7 @@ VOID TEST(ConfigDvrTest, CheckDvrDuration)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dvr{dvr_duration 0;}}"));
         EXPECT_EQ(0, conf.get_dvr_duration("test.com"));
 
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dvr{dvr_duration -60;}}"));
-        EXPECT_EQ((srs_utime_t)(-60 * SRS_UTIME_SECONDS), conf.get_dvr_duration("test.com"));
+        HELPER_EXPECT_FAILED(conf.mock_parse(_MIN_OK_CONF "vhost test.com{dvr{dvr_duration -60;}}"));
     }
 
     // Test multiple vhosts with different duration values
@@ -6468,8 +6939,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be 120
-        EXPECT_EQ(120, conf.get_srto_latency());
+        // Not set
+        EXPECT_EQ(-1, conf.get_srto_latency());
     }
 
     // Test default value when srt_server section exists but no latency config
@@ -6477,8 +6948,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{enabled on;}"));
 
-        // Should return default value when no latency config
-        EXPECT_EQ(120, conf.get_srto_latency());
+        // Not set when no latency config
+        EXPECT_EQ(-1, conf.get_srto_latency());
     }
 
     // Test custom latency values
@@ -6494,12 +6965,12 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoLatency)
         EXPECT_EQ(0, conf.get_srto_latency());
     }
 
-    // Test empty latency argument (should use default)
+    // Test empty latency argument (not set)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{latency;}"));
 
-        EXPECT_EQ(120, conf.get_srto_latency()); // Default value
+        EXPECT_EQ(-1, conf.get_srto_latency());
     }
 }
 
@@ -6512,8 +6983,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoRecvLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be 120
-        EXPECT_EQ(120, conf.get_srto_recv_latency());
+        // Not set
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
     }
 
     // Test default value when srt_server section exists but no recvlatency config
@@ -6521,8 +6992,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoRecvLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{enabled on;}"));
 
-        // Should return default value when no recvlatency config
-        EXPECT_EQ(120, conf.get_srto_recv_latency());
+        // Not set when no recvlatency config
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
     }
 
     // Test custom recvlatency values
@@ -6538,12 +7009,12 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoRecvLatency)
         EXPECT_EQ(0, conf.get_srto_recv_latency());
     }
 
-    // Test empty recvlatency argument (should use default)
+    // Test empty recvlatency argument (not set)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{recvlatency;}"));
 
-        EXPECT_EQ(120, conf.get_srto_recv_latency()); // Default value
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
     }
 }
 
@@ -6556,8 +7027,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoPeerLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
 
-        // Default should be 0
-        EXPECT_EQ(0, conf.get_srto_peer_latency());
+        // Not set
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
     }
 
     // Test default value when srt_server section exists but no peerlatency config
@@ -6565,8 +7036,8 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoPeerLatency)
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{enabled on;}"));
 
-        // Should return default value when no peerlatency config
-        EXPECT_EQ(0, conf.get_srto_peer_latency());
+        // Not set when no peerlatency config
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
     }
 
     // Test custom peerlatency values
@@ -6582,12 +7053,51 @@ VOID TEST(ConfigSrtServerTest, CheckSrtoPeerLatency)
         EXPECT_EQ(0, conf.get_srto_peer_latency());
     }
 
-    // Test empty peerlatency argument (should use default)
+    // Test empty peerlatency argument (not set)
     if (true) {
         MockSrsConfig conf;
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{peerlatency;}"));
 
-        EXPECT_EQ(0, conf.get_srto_peer_latency()); // Default value
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
+    }
+}
+
+// Each latency reads only its own setting, by config or env: the latency doesn't set the recvlatency or
+// peerlatency here, libsrt does when the listener sets it.
+VOID TEST(ConfigSrtServerTest, CheckSrtoLatencyReadsOnlyItsOwn)
+{
+    srs_error_t err;
+
+    // The latency alone leaves the recvlatency and peerlatency not set.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "srt_server{latency 300;}"));
+        EXPECT_EQ(300, conf.get_srto_latency());
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
+    }
+
+    // The latency from env alone, likewise.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, srto_latency, "SRS_SRT_SERVER_LATENCY", "300");
+        EXPECT_EQ(300, conf.get_srto_latency());
+        EXPECT_EQ(-1, conf.get_srto_recv_latency());
+        EXPECT_EQ(-1, conf.get_srto_peer_latency());
+    }
+
+    // The recvlatency and peerlatency from env.
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
+
+        SrsSetEnvConfig(conf, srto_recv_latency, "SRS_SRT_SERVER_RECVLATENCY", "250");
+        SrsSetEnvConfig(conf, srto_peer_latency, "SRS_SRT_SERVER_PEERLATENCY", "150");
+        EXPECT_EQ(-1, conf.get_srto_latency());
+        EXPECT_EQ(250, conf.get_srto_recv_latency());
+        EXPECT_EQ(150, conf.get_srto_peer_latency());
     }
 }
 

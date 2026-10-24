@@ -94,6 +94,26 @@ public:
     virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
 };
 
+// Mock app factory for SrsEdgeForwarder::start(): a recording RTMP client for each origin, whose
+// connect fails for an origin in down_ and whose publish fails for the origin refuse_, and a mock
+// coroutine, so no coroutine runs.
+class MockEdgeForwarderFactory : public SrsAppFactory
+{
+public:
+    std::vector<std::string> down_;
+    std::string refuse_;
+    // The url of each client handed out, in order; the forwarder owns the clients.
+    std::vector<std::string> urls_;
+
+public:
+    MockEdgeForwarderFactory();
+    virtual ~MockEdgeForwarderFactory();
+
+public:
+    virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
+};
+
 // Mock HTTP client for testing edge FLV upstream
 class MockEdgeHttpClient : public ISrsHttpClient
 {
@@ -183,7 +203,7 @@ public:
     virtual int64_t seek2(int64_t offset);
     virtual int64_t filesize();
     virtual srs_error_t read(void *buf, size_t count, ssize_t *pnread);
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
 };
 
 // Mock FLV decoder for testing edge FLV upstream
@@ -325,6 +345,7 @@ class MockStatisticForRtspPlayStream : public ISrsStatistic
 public:
     int on_client_count_;
     srs_error_t on_client_error_;
+    SrsRtmpConnType last_client_type_;
 
 public:
     MockStatisticForRtspPlayStream();
@@ -516,6 +537,31 @@ public:
     virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
 };
 
+// Mock ISrsProtocolReadWriter for testing that SrsRtspConnection frees the client's socket, which
+// closes the TCP connection. It reports its own destruction through a flag the test owns.
+class MockSocketForRtspConn : public ISrsProtocolReadWriter
+{
+public:
+    // Set to true by the destructor, so a test can prove the socket was freed. Borrowed, not owned.
+    bool *destroyed_;
+
+public:
+    MockSocketForRtspConn(bool *destroyed);
+    virtual ~MockSocketForRtspConn();
+
+public:
+    virtual srs_error_t read_fully(void *buf, size_t size, ssize_t *nread);
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
+    virtual void set_recv_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_recv_timeout();
+    virtual int64_t get_recv_bytes();
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+    virtual void set_send_timeout(srs_utime_t tm);
+    virtual srs_utime_t get_send_timeout();
+    virtual int64_t get_send_bytes();
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
+};
+
 // Mock ISrsResourceManager for testing SrsRtspConnection::assemble() and its destructor, which must
 // subscribe and unsubscribe the dispose handler on the same injected manager instance.
 class MockResourceManagerForRtspConn : public ISrsResourceManager
@@ -579,6 +625,7 @@ public:
         std::string url_;
         ISrsRequest *req_;
         std::string file_;
+        SrsStatisticStreamSnapshot stream_;
     };
     std::vector<OnDvrCall> on_dvr_calls_;
     int on_dvr_count_;
@@ -591,11 +638,11 @@ public:
 public:
     virtual srs_error_t on_connect(std::string url, ISrsRequest *req);
     virtual void on_close(std::string url, ISrsRequest *req, int64_t send_bytes, int64_t recv_bytes);
-    virtual srs_error_t on_publish(std::string url, ISrsRequest *req);
-    virtual void on_unpublish(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_play(std::string url, ISrsRequest *req);
-    virtual void on_stop(std::string url, ISrsRequest *req);
-    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file);
+    virtual srs_error_t on_publish(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_unpublish(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_play(std::string url, ISrsRequest *req, SrsRtmpConnType type);
+    virtual void on_stop(std::string url, ISrsRequest *req, SrsRtmpConnType type, const SrsStatisticStreamSnapshot &stream);
+    virtual srs_error_t on_dvr(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, const SrsStatisticStreamSnapshot &stream);
     virtual srs_error_t on_hls(SrsContextId cid, std::string url, ISrsRequest *req, std::string file, std::string ts_url,
                                std::string m3u8, std::string m3u8_url, int sn, srs_utime_t duration);
     virtual srs_error_t on_hls_notify(SrsContextId cid, std::string url, ISrsRequest *req, std::string ts_url, int nb_notify);

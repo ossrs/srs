@@ -83,7 +83,6 @@
     XX(ERROR_THREAD_INTERRUPED, 1070, "StThreadInterrupt", "ST thread is interrupted")                                 \
     XX(ERROR_THREAD_TERMINATED, 1071, "StThreadTerminate", "ST thread is terminated")                                  \
     XX(ERROR_THREAD_DUMMY, 1072, "StThreadDummy", "Can not operate ST dummy thread")                                   \
-    XX(ERROR_ASPROCESS_PPID, 1073, "SystemAsProcess", "As-process does not support pid change")                        \
     XX(ERROR_EXCEED_CONNECTIONS, 1074, "ConnectionsExceed", "Failed for exceed system max connections")                \
     XX(ERROR_SOCKET_SETKEEPALIVE, 1075, "SocketKeepAlive", "Failed to set socket option SO_KEEPALIVE")                 \
     XX(ERROR_SOCKET_NO_NODELAY, 1076, "SocketNoDelay", "Failed to set socket option TCP_NODELAY")                      \
@@ -95,11 +94,6 @@
     XX(ERROR_THREAD_CREATE, 1082, "StThreadCreate", "Create ST thread failed")                                         \
     XX(ERROR_THREAD_FINISHED, 1083, "StThreadFinished", "ST thread finished without error")                            \
     XX(ERROR_PB_NO_SPACE, 1084, "ProtobufNoSpace", "Failed to encode protobuf for no buffer space left")               \
-    XX(ERROR_CLS_INVALID_CONFIG, 1085, "ClsConfig", "Invalid configuration for TencentCloud CLS")                      \
-    XX(ERROR_CLS_EXCEED_SIZE, 1086, "ClsExceedSize", "CLS logs exceed max size 5MB")                                   \
-    XX(ERROR_APM_EXCEED_SIZE, 1087, "ApmExceedSize", "APM logs exceed max size 5MB")                                   \
-    XX(ERROR_APM_ENDPOINT, 1088, "ApmEndpoint", "APM endpoint is invalid")                                             \
-    XX(ERROR_APM_AUTH, 1089, "ApmAuth", "APM team or token is invalid")                                                \
     XX(ERROR_EXPORTER_DISABLED, 1090, "ExporterDisable", "Prometheus exporter is disabled")                            \
     XX(ERROR_ST_SET_SELECT, 1091, "StSetSelect", "ST set select failed")                                               \
     XX(ERROR_BACKTRACE_PARSE_NOT_SUPPORT, 1092, "BacktraceParseNotSupport", "Backtrace parse not supported")           \
@@ -132,7 +126,7 @@
     XX(ERROR_RTMP_CH_SCHEMA, 2012, "RtmpSchema", "RTMP handshake failed for schema changed")                           \
     XX(ERROR_RTMP_PACKET_SIZE, 2013, "RtmpPacketSize", "RTMP packet size changed in chunks")                           \
     XX(ERROR_RTMP_VHOST_NOT_FOUND, 2014, "NoVhost", "Request vhost not found")                                         \
-    XX(ERROR_RTMP_ACCESS_DENIED, 2015, "SecurityDenied", "Referer check failed and access denied")                     \
+    XX(ERROR_RTMP_ACCESS_DENIED, 2015, "SecurityDenied", "Access denied")                                              \
     XX(ERROR_RTMP_HANDSHAKE, 2016, "RtmpHandshake", "RTMP handshake failed")                                           \
     XX(ERROR_RTMP_NO_REQUEST, 2017, "RtmpNoRequest", "Invalid RTMP response for no request found")                     \
     XX(ERROR_RTMP_HS_SSL_REQUIRE, 2018, "RtmpSslRequire", "RTMP handshake failed for SSL required")                    \
@@ -232,12 +226,6 @@
     XX(ERROR_HTTP_DVR_CREATE_REQUEST, 3053, "DvrCreate", "Failed for DVR create request")                   \
     XX(ERROR_HTTP_DVR_NO_TAEGET, 3054, "DvrNoTarget", "Failed for DVR no target")                           \
     XX(ERROR_ADTS_ID_NOT_AAC, 3055, "AacAdtsId", "Failed for ADTS id not AAC")                              \
-    XX(ERROR_HDS_OPEN_F4M_FAILED, 3056, "HdsOpenF4m", "Failed to open F4m file for HDS")                    \
-    XX(ERROR_HDS_WRITE_F4M_FAILED, 3057, "HdsWriteF4m", "Failed to write F4m file for HDS")                 \
-    XX(ERROR_HDS_OPEN_BOOTSTRAP_FAILED, 3058, "HdsOpenBoot", "Failed to open bootstrap for HDS")            \
-    XX(ERROR_HDS_WRITE_BOOTSTRAP_FAILED, 3059, "HdsWriteBoot", "Failed to write bootstrap for HDS")         \
-    XX(ERROR_HDS_OPEN_FRAGMENT_FAILED, 3060, "HdsOpenFragment", "Failed to open fragment file for HDS")     \
-    XX(ERROR_HDS_WRITE_FRAGMENT_FAILED, 3061, "HdsWriteFragment", "Failed to write fragment file for HDS")  \
     XX(ERROR_HLS_NO_STREAM, 3062, "HlsNoStream", "No stream configured for HLS")                            \
     XX(ERROR_JSON_LOADS, 3063, "JsonLoads", "Failed for JSOn loads")                                        \
     XX(ERROR_RESPONSE_CODE, 3064, "HttpResponseCode", "No code in HTTP response json object")               \
@@ -278,7 +266,8 @@
     XX(ERROR_HEVC_DECODE_ERROR, 3099, "HevcDecode", "HEVC decode av stream failed")                         \
     XX(ERROR_MP4_HVCC_CHANGE, 3100, "Mp4HvcCChange", "MP4 does not support video HvcC change")              \
     XX(ERROR_HEVC_API_NO_PREFIXED, 3101, "HevcAnnexbPrefix", "No annexb prefix for HEVC decoder")           \
-    XX(ERROR_NALU_EMPTY, 3102, "NaluEmpty", "NALU is empty")
+    XX(ERROR_NALU_EMPTY, 3102, "NaluEmpty", "NALU is empty")                                                \
+    XX(ERROR_AUDIO_CODEC_UNSUPPORTED, 3103, "AudioCodecUnsupported", "Unsupported audio codec")
 
 /**************************************************/
 /* HTTP/StreamConverter protocol error. */
@@ -335,7 +324,9 @@
     XX(ERROR_STREAM_CASTER_HEVC_FORMAT, 4057, "CasterTsHevcFormat", "Invalid ts HEVC Format for stream caster")              \
     XX(ERROR_HTTP_JSONP, 4058, "HttpJsonp", "Invalid callback for JSONP")                                                    \
     XX(ERROR_HEVC_NALU_UEV, 4059, "HevcNaluUev", "Failed to read UEV for HEVC NALU")                                         \
-    XX(ERROR_HEVC_NALU_SEV, 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")
+    XX(ERROR_HEVC_NALU_SEV, 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")                                         \
+    XX(ERROR_GB_RTMP_CONNECTING, 4061, "GbRtmpConnecting", "Drop GB28181 media while connecting its RTMP output")            \
+    XX(ERROR_GB_SESSION_ENDED, 4062, "GbSessionEnded", "Drop GB28181 media of a session that has ended")
 
 /**************************************************/
 /* RTC/RTSP protocol error. */

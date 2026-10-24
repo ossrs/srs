@@ -118,7 +118,7 @@ VOID TEST(HTTPSClientTest, HTTPSClientPost)
 
         string post_data = "{\"test\": \"data\"}";
         ISrsHttpMessage *res = NULL;
-        HELPER_ASSERT_SUCCESS(client.post("/api/test", post_data, &res));
+        HELPER_ASSERT_SUCCESS(client.post("/api/test", post_data, &res)) << server.last_error();
         SrsUniquePtr<ISrsHttpMessage> res_uptr(res);
 
         ISrsHttpResponseReader *br = res->body_reader();
@@ -144,7 +144,7 @@ VOID TEST(HTTPSClientTest, HTTPSClientPost)
         HELPER_ASSERT_SUCCESS(client.initialize("https", "127.0.0.1", server.get_port(), 5 * SRS_UTIME_SECONDS));
 
         ISrsHttpMessage *res = NULL;
-        HELPER_ASSERT_SUCCESS(client.get("/api/test", "", &res));
+        HELPER_ASSERT_SUCCESS(client.get("/api/test", "", &res)) << server.last_error();
         SrsUniquePtr<ISrsHttpMessage> res_uptr(res);
 
         ISrsHttpResponseReader *br = res->body_reader();
@@ -338,6 +338,69 @@ VOID TEST(HTTPSClientTest, HTTPSClientErrorHandling)
     }
 }
 
+// A server whose handshake fails closes the connection, so the client fails at
+// once, not at its read timeout, and the server keeps the error for the test.
+VOID TEST(HTTPSClientTest, HTTPSServerHandshakeFailureClosesConnection)
+{
+    srs_error_t err;
+
+    SrsHttpsTestServer server("HTTPS OK", "./conf/no-such-server.key", "./conf/no-such-server.crt");
+    HELPER_ASSERT_SUCCESS(server.start());
+
+    SrsHttpClient client;
+    HELPER_ASSERT_SUCCESS(client.initialize("https", "127.0.0.1", server.get_port(), 3 * SRS_UTIME_SECONDS));
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    ISrsHttpMessage *res = NULL;
+    HELPER_EXPECT_FAILED(client.get("/api/test", "", &res));
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+    EXPECT_TRUE(res == NULL);
+    EXPECT_LT(elapsed, 1 * SRS_UTIME_SECONDS);
+
+    string server_err = server.last_error();
+    EXPECT_TRUE(server_err.find("ssl handshake") != string::npos) << server_err;
+    EXPECT_TRUE(server_err.find("no-such-server.crt") != string::npos) << server_err;
+}
+
+// The server closes each connection it accepted when it is done with it, so the
+// client reads EOF after the response.
+VOID TEST(HTTPSClientTest, HTTPSServerClosesConnectionAfterResponse)
+{
+    srs_error_t err;
+
+    SrsHttpsTestServer server("HTTPS OK");
+    HELPER_ASSERT_SUCCESS(server.start());
+
+    SrsTcpClient tcp("127.0.0.1", server.get_port(), 3 * SRS_UTIME_SECONDS);
+    HELPER_ASSERT_SUCCESS(tcp.connect());
+    tcp.set_recv_timeout(3 * SRS_UTIME_SECONDS);
+    tcp.set_send_timeout(3 * SRS_UTIME_SECONDS);
+
+    SrsSslClient ssl(&tcp);
+    HELPER_ASSERT_SUCCESS(ssl.handshake("127.0.0.1"));
+
+    string req = "GET /api/test HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+    HELPER_ASSERT_SUCCESS(ssl.write((void *)req.data(), req.length(), NULL));
+
+    // Read the response, then the close of the connection.
+    string got;
+    srs_utime_t starttime = srs_time_now_realtime();
+    while (true) {
+        char buf[1024];
+        ssize_t nn = 0;
+        if ((err = ssl.read(buf, sizeof(buf), &nn)) != srs_success) {
+            srs_freep(err);
+            break;
+        }
+        got.append(buf, nn);
+    }
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+
+    EXPECT_TRUE(got.find("HTTPS OK") != string::npos) << got;
+    EXPECT_LT(elapsed, 1 * SRS_UTIME_SECONDS);
+    EXPECT_TRUE(server.last_error().empty()) << server.last_error();
+}
+
 VOID TEST(HTTPSClientTest, HTTPSClientHeaders)
 {
     srs_error_t err;
@@ -360,7 +423,7 @@ VOID TEST(HTTPSClientTest, HTTPSClientHeaders)
 
         string post_data = "{\"ssl\": \"test\"}";
         ISrsHttpMessage *res = NULL;
-        HELPER_ASSERT_SUCCESS(client.post("/api/ssl-headers", post_data, &res));
+        HELPER_ASSERT_SUCCESS(client.post("/api/ssl-headers", post_data, &res)) << server.last_error();
         SrsUniquePtr<ISrsHttpMessage> res_uptr(res);
 
         ISrsHttpResponseReader *br = res->body_reader();
@@ -526,7 +589,7 @@ VOID TEST(HTTPSClientTest, HTTPSClientLargeData)
         string large_data(2048, 'S');
 
         ISrsHttpMessage *res = NULL;
-        HELPER_ASSERT_SUCCESS(client.post("/api/ssl-large", large_data, &res));
+        HELPER_ASSERT_SUCCESS(client.post("/api/ssl-large", large_data, &res)) << server.last_error();
         SrsUniquePtr<ISrsHttpMessage> res_uptr(res);
 
         ISrsHttpResponseReader *br = res->body_reader();
@@ -541,6 +604,32 @@ VOID TEST(HTTPSClientTest, HTTPSClientLargeData)
 
         // Test kbps sampling after large transfer
         client.kbps_sample("HTTPS-LARGE", 500 * SRS_UTIME_MILLISECONDS);
+    }
+}
+
+// The request target of a url is its path and query, and starts with a slash
+// even when the url has no path, as a request line needs.
+VOID TEST(HTTPClientTest, UriRequestTarget)
+{
+    srs_error_t err;
+
+    struct {
+        const char *url;
+        const char *target;
+    } cases[] = {
+        {"http://127.0.0.1:8085/api/v1/heartbeat?k1=v1&k2=v2", "/api/v1/heartbeat?k1=v1&k2=v2"},
+        {"http://127.0.0.1:8085/api/v1/heartbeat", "/api/v1/heartbeat"},
+        {"http://127.0.0.1:8085/?token=abc", "/?token=abc"},
+        {"http://127.0.0.1:8085?token=abc", "/?token=abc"},
+        {"http://127.0.0.1:8085", "/"},
+        {"http://127.0.0.1:8085#frag", "/"},
+        {"http://127.0.0.1:8085?token=abc#frag", "/?token=abc"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SrsHttpUri uri;
+        HELPER_EXPECT_SUCCESS(uri.initialize(cases[i].url));
+        EXPECT_STREQ(cases[i].target, uri.get_request_target().c_str()) << cases[i].url;
     }
 }
 
@@ -987,7 +1076,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterReadFully)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered reader below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);
@@ -1046,7 +1136,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterTimeoutAndStats)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered reader below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);
@@ -1114,7 +1205,8 @@ VOID TEST(TCPConnectionTest, BufferedReadWriterWriteMethods)
         // Give time for connection to be established
         srs_usleep(1 * SRS_UTIME_MILLISECONDS);
 
-        SrsTcpConnection *server_conn = server.get_connection();
+        // The buffered writer below owns the server connection.
+        SrsTcpConnection *server_conn = server.take_connection();
         SrsTcpConnection *client_conn = client.get_connection();
 
         ASSERT_TRUE(server_conn != NULL);

@@ -14,7 +14,7 @@ The stream architecture of SRS.
 |     Input            | SRS(Simple RTMP Server)    |     Output     |
 +----------------------+----------------------------+----------------+
 |                      |   +-> DASH ----------------+-> DASH player  |
-|    Encoder(1)        |   +-> RTMP/HDS  -----------+-> Flash player |
+|    Encoder(1)        |   +-> RTMP  ---------------+-> Flash player |
 |  (FMLE,OBS,   --RTMP-+->-+-> HLS/HTTP ------------+-> M3U8 player  |
 |  FFmpeg,XSPLIT,      |   +-> FLV/MP3/Aac/Ts ------+-> HTTP player  |
 |  ......)             |   +-> Fowarder ------------+-> RTMP server  |
@@ -56,9 +56,9 @@ Remark:
 
 Supported operating systems and hardware:
 
-* Linux, with x86, x86-64 or arm.
-* Mac, with intel chip.
-* Other OS, such as Windows, please use [docker][docker-srs4].
+* Linux, with x86-64, ARMv7, AArch64, RISC-V, LoongArch or MIPS.
+* macOS, with an Intel chip or Apple silicon.
+* Windows x64, natively from SRS 8.0, see [Windows][windows]; or use [docker][docker-srs4].
 
 [authors]: https://github.com/ossrs/srs/blob/4.0release/trunk/AUTHORS.txt
 [bigthanks]: https://ossrs.net/lts/zh-cn/product#release40
@@ -75,6 +75,7 @@ Supported operating systems and hardware:
 [console]: http://ossrs.net:8080/console
 [docker-srs3]: https://github.com/ossrs/srs-docker/tree/v3#usage
 [docker-srs4]: https://github.com/ossrs/srs-docker/tree/v4#usage
+[windows]: https://ossrs.io/lts/en-us/docs/v8/doc/windows
 [docker-dev]: https://github.com/ossrs/srs-docker/tree/dev#usage
 
 [v4_CN_Git]: https://ossrs.net/lts/zh-cn/docs/v4/doc/git
@@ -162,8 +163,6 @@ Supported operating systems and hardware:
 [v4_EN_DVR]: https://ossrs.io/lts/en-us/docs/v4/doc/dvr
 [v4_CN_SrsLog]: https://ossrs.net/lts/zh-cn/docs/v4/doc/log
 [v4_EN_SrsLog]: https://ossrs.io/lts/en-us/docs/v4/doc/log
-[v4_CN_DRM2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/drm#tokentraverse
-[v4_EN_DRM2]: https://ossrs.io/lts/en-us/docs/v4/doc/drm#tokentraverse
 [v4_CN_SampleHTTP]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http
 [v4_EN_SampleHTTP]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http
 [v4_CN_FlvVodStream]: https://ossrs.net/lts/zh-cn/docs/v4/doc/flv-vod-stream
@@ -172,12 +171,8 @@ Supported operating systems and hardware:
 [v4_EN_Security]: https://ossrs.io/lts/en-us/docs/v4/doc/security
 [v4_CN_DeliveryHttpStream]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-http-flv
 [v4_EN_DeliveryHttpStream]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-http-flv
-[v4_CN_DeliveryHDS]: https://ossrs.net/lts/zh-cn/docs/v4/doc/delivery-hds
-[v4_EN_DeliveryHDS]: https://ossrs.io/lts/en-us/docs/v4/doc/delivery-hds
 [v4_CN_Streamer]: https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer
 [v4_EN_Streamer]: https://ossrs.io/lts/en-us/docs/v4/doc/streamer
-[v4_CN_Streamer2]: https://ossrs.net/lts/zh-cn/docs/v4/doc/streamer#push-http-flv-to-srs
-[v4_EN_Streamer2]: https://ossrs.io/lts/en-us/docs/v4/doc/streamer#push-http-flv-to-srs
 [v4_CN_SampleHttpFlv]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flv
 [v4_EN_SampleHttpFlv]: https://ossrs.io/lts/en-us/docs/v4/doc/sample-http-flv
 [v4_CN_SampleHttpFlvCluster]: https://ossrs.net/lts/zh-cn/docs/v4/doc/sample-http-flvCluster

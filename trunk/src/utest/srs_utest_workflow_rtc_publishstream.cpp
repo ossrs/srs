@@ -207,19 +207,21 @@ VOID TEST(BasicWorkflowRtcPublishStreamTest, CountPrimaryRtcMediaFrames)
     stream_desc->video_track_descs_.at(0)->set_fec_ssrc(video_fec_ssrc);
     HELPER_EXPECT_SUCCESS(publish_stream->initialize(&mock_request, stream_desc.get()));
 
-    // Send complete three-packet video frames until statistics are reported.
-    // The reported value must equal the number of primary marker packets, not
-    // the number of RTP packets used to carry those frames.
-    int primary_video_frames = 0;
+    // Send complete three-packet video frames, then report them as the timer
+    // does. The reported value must equal the number of primary marker
+    // packets, not the number of RTP packets used to carry those frames.
+    int primary_video_frames = 300;
     uint16_t video_sequence = 100;
     uint32_t video_timestamp = 90000;
-    for (; primary_video_frames < 1000 && mock_stat.video_frame_calls_ == 0; ++primary_video_frames) {
+    for (int i = 0; i < primary_video_frames; ++i) {
         HELPER_EXPECT_SUCCESS(send_rtp_packet(publish_stream.get(), track_factory.video_ssrc_, video_sequence++, video_timestamp, track_factory.video_pt_, false));
         HELPER_EXPECT_SUCCESS(send_rtp_packet(publish_stream.get(), track_factory.video_ssrc_, video_sequence++, video_timestamp, track_factory.video_pt_, false));
         HELPER_EXPECT_SUCCESS(send_rtp_packet(publish_stream.get(), track_factory.video_ssrc_, video_sequence++, video_timestamp, track_factory.video_pt_, true));
         video_timestamp += 3000;
     }
-    EXPECT_GT(mock_stat.video_frame_calls_, 0);
+    EXPECT_EQ(0, mock_stat.video_frame_calls_);
+    publish_stream->report_frame_stats();
+    EXPECT_EQ(1, mock_stat.video_frame_calls_);
     EXPECT_EQ(primary_video_frames, mock_stat.video_frames_);
 
     // Auxiliary marker packets do not describe new source frames and must not
@@ -230,29 +232,33 @@ VOID TEST(BasicWorkflowRtcPublishStreamTest, CountPrimaryRtcMediaFrames)
         uint32_t ssrc = i % 2 ? video_rtx_ssrc : video_fec_ssrc;
         HELPER_EXPECT_SUCCESS(send_rtp_packet(publish_stream.get(), ssrc, video_sequence++, video_timestamp, track_factory.video_pt_, true));
     }
+    publish_stream->report_frame_stats();
     EXPECT_EQ(video_calls_before_auxiliary, mock_stat.video_frame_calls_);
     EXPECT_EQ(video_frames_before_auxiliary, mock_stat.video_frames_);
 
     // A duplicate primary marker is acceptable for these approximate statistics.
     // Count every observation until the next report without deduplicating it.
-    int duplicate_video_packets = 0;
+    int duplicate_video_packets = 50;
     int video_calls_before_duplicates = mock_stat.video_frame_calls_;
     int video_frames_before_duplicates = mock_stat.video_frames_;
-    for (; duplicate_video_packets < 1000 && mock_stat.video_frame_calls_ == video_calls_before_duplicates; ++duplicate_video_packets) {
+    for (int i = 0; i < duplicate_video_packets; ++i) {
         HELPER_EXPECT_SUCCESS(send_rtp_packet(publish_stream.get(), track_factory.video_ssrc_, 65000, video_timestamp, track_factory.video_pt_, true));
     }
-    EXPECT_GT(mock_stat.video_frame_calls_, video_calls_before_duplicates);
+    publish_stream->report_frame_stats();
+    EXPECT_EQ(video_calls_before_duplicates + 1, mock_stat.video_frame_calls_);
     EXPECT_EQ(video_frames_before_duplicates + duplicate_video_packets, mock_stat.video_frames_);
 
     // Each primary audio RTP packet is an audio frame observation.
-    int primary_audio_frames = 0;
+    int primary_audio_frames = 300;
     uint16_t audio_sequence = 1000;
     uint32_t audio_timestamp = 48000;
-    for (; primary_audio_frames < 1000 && mock_stat.audio_frame_calls_ == 0; ++primary_audio_frames) {
+    for (int i = 0; i < primary_audio_frames; ++i) {
         HELPER_EXPECT_SUCCESS(send_rtp_packet(publish_stream.get(), track_factory.audio_ssrc_, audio_sequence++, audio_timestamp, track_factory.audio_pt_, false));
         audio_timestamp += 960;
     }
-    EXPECT_GT(mock_stat.audio_frame_calls_, 0);
+    EXPECT_EQ(0, mock_stat.audio_frame_calls_);
+    publish_stream->report_frame_stats();
+    EXPECT_EQ(1, mock_stat.audio_frame_calls_);
     EXPECT_EQ(primary_audio_frames, mock_stat.audio_frames_);
 
     // RTX and FEC audio packets are transport data rather than media frames.
@@ -262,6 +268,7 @@ VOID TEST(BasicWorkflowRtcPublishStreamTest, CountPrimaryRtcMediaFrames)
         uint32_t ssrc = i % 2 ? audio_rtx_ssrc : audio_fec_ssrc;
         HELPER_EXPECT_SUCCESS(send_rtp_packet(publish_stream.get(), ssrc, audio_sequence++, audio_timestamp, track_factory.audio_pt_, false));
     }
+    publish_stream->report_frame_stats();
     EXPECT_EQ(audio_calls_before_auxiliary, mock_stat.audio_frame_calls_);
     EXPECT_EQ(audio_frames_before_auxiliary, mock_stat.audio_frames_);
 

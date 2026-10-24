@@ -7,6 +7,7 @@
 #include <srs_protocol_http_stack.hpp>
 
 #include <algorithm>
+#include <ctype.h>
 #include <sstream>
 #include <stdlib.h>
 using namespace std;
@@ -25,9 +26,7 @@ using namespace std;
 #define SRS_HTTP_TS_SEND_BUFFER_SIZE 4096
 
 #define SRS_HTTP_AUTH_SCHEME_BASIC "Basic"
-#define SRS_HTTP_AUTH_PREFIX_BASIC SRS_HTTP_AUTH_SCHEME_BASIC " "
 #define SRS_HTTP_AUTH_SCHEME_BEARER "Bearer"
-#define SRS_HTTP_AUTH_PREFIX_BEARER SRS_HTTP_AUTH_SCHEME_BEARER " "
 
 // Calculate the output size needed to base64-encode x bytes to a null-terminated string.
 #define SRS_AV_BASE64_SIZE(x) (((x) + 2) / 3 * 4 + 1)
@@ -202,55 +201,55 @@ srs_error_t srs_av_base64_encode(std::string plaintext, std::string &cipher)
 // get the status text of code.
 string srs_generate_http_status_text(int status)
 {
-    static std::map<int, std::string> _status_map;
-    if (_status_map.empty()) {
-        _status_map[SRS_CONSTS_HTTP_Continue] = SRS_CONSTS_HTTP_Continue_str;
-        _status_map[SRS_CONSTS_HTTP_SwitchingProtocols] = SRS_CONSTS_HTTP_SwitchingProtocols_str;
-        _status_map[SRS_CONSTS_HTTP_OK] = SRS_CONSTS_HTTP_OK_str;
-        _status_map[SRS_CONSTS_HTTP_Created] = SRS_CONSTS_HTTP_Created_str;
-        _status_map[SRS_CONSTS_HTTP_Accepted] = SRS_CONSTS_HTTP_Accepted_str;
-        _status_map[SRS_CONSTS_HTTP_NonAuthoritativeInformation] = SRS_CONSTS_HTTP_NonAuthoritativeInformation_str;
-        _status_map[SRS_CONSTS_HTTP_NoContent] = SRS_CONSTS_HTTP_NoContent_str;
-        _status_map[SRS_CONSTS_HTTP_ResetContent] = SRS_CONSTS_HTTP_ResetContent_str;
-        _status_map[SRS_CONSTS_HTTP_PartialContent] = SRS_CONSTS_HTTP_PartialContent_str;
-        _status_map[SRS_CONSTS_HTTP_MultipleChoices] = SRS_CONSTS_HTTP_MultipleChoices_str;
-        _status_map[SRS_CONSTS_HTTP_MovedPermanently] = SRS_CONSTS_HTTP_MovedPermanently_str;
-        _status_map[SRS_CONSTS_HTTP_Found] = SRS_CONSTS_HTTP_Found_str;
-        _status_map[SRS_CONSTS_HTTP_SeeOther] = SRS_CONSTS_HTTP_SeeOther_str;
-        _status_map[SRS_CONSTS_HTTP_NotModified] = SRS_CONSTS_HTTP_NotModified_str;
-        _status_map[SRS_CONSTS_HTTP_UseProxy] = SRS_CONSTS_HTTP_UseProxy_str;
-        _status_map[SRS_CONSTS_HTTP_TemporaryRedirect] = SRS_CONSTS_HTTP_TemporaryRedirect_str;
-        _status_map[SRS_CONSTS_HTTP_BadRequest] = SRS_CONSTS_HTTP_BadRequest_str;
-        _status_map[SRS_CONSTS_HTTP_Unauthorized] = SRS_CONSTS_HTTP_Unauthorized_str;
-        _status_map[SRS_CONSTS_HTTP_PaymentRequired] = SRS_CONSTS_HTTP_PaymentRequired_str;
-        _status_map[SRS_CONSTS_HTTP_Forbidden] = SRS_CONSTS_HTTP_Forbidden_str;
-        _status_map[SRS_CONSTS_HTTP_NotFound] = SRS_CONSTS_HTTP_NotFound_str;
-        _status_map[SRS_CONSTS_HTTP_MethodNotAllowed] = SRS_CONSTS_HTTP_MethodNotAllowed_str;
-        _status_map[SRS_CONSTS_HTTP_NotAcceptable] = SRS_CONSTS_HTTP_NotAcceptable_str;
-        _status_map[SRS_CONSTS_HTTP_ProxyAuthenticationRequired] = SRS_CONSTS_HTTP_ProxyAuthenticationRequired_str;
-        _status_map[SRS_CONSTS_HTTP_RequestTimeout] = SRS_CONSTS_HTTP_RequestTimeout_str;
-        _status_map[SRS_CONSTS_HTTP_Conflict] = SRS_CONSTS_HTTP_Conflict_str;
-        _status_map[SRS_CONSTS_HTTP_Gone] = SRS_CONSTS_HTTP_Gone_str;
-        _status_map[SRS_CONSTS_HTTP_LengthRequired] = SRS_CONSTS_HTTP_LengthRequired_str;
-        _status_map[SRS_CONSTS_HTTP_PreconditionFailed] = SRS_CONSTS_HTTP_PreconditionFailed_str;
-        _status_map[SRS_CONSTS_HTTP_RequestEntityTooLarge] = SRS_CONSTS_HTTP_RequestEntityTooLarge_str;
-        _status_map[SRS_CONSTS_HTTP_RequestURITooLarge] = SRS_CONSTS_HTTP_RequestURITooLarge_str;
-        _status_map[SRS_CONSTS_HTTP_UnsupportedMediaType] = SRS_CONSTS_HTTP_UnsupportedMediaType_str;
-        _status_map[SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable] = SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable_str;
-        _status_map[SRS_CONSTS_HTTP_ExpectationFailed] = SRS_CONSTS_HTTP_ExpectationFailed_str;
-        _status_map[SRS_CONSTS_HTTP_InternalServerError] = SRS_CONSTS_HTTP_InternalServerError_str;
-        _status_map[SRS_CONSTS_HTTP_NotImplemented] = SRS_CONSTS_HTTP_NotImplemented_str;
-        _status_map[SRS_CONSTS_HTTP_BadGateway] = SRS_CONSTS_HTTP_BadGateway_str;
-        _status_map[SRS_CONSTS_HTTP_ServiceUnavailable] = SRS_CONSTS_HTTP_ServiceUnavailable_str;
-        _status_map[SRS_CONSTS_HTTP_GatewayTimeout] = SRS_CONSTS_HTTP_GatewayTimeout_str;
-        _status_map[SRS_CONSTS_HTTP_HTTPVersionNotSupported] = SRS_CONSTS_HTTP_HTTPVersionNotSupported_str;
+    static std::map<int, std::string> status_map;
+    if (status_map.empty()) {
+        status_map[SRS_CONSTS_HTTP_Continue] = SRS_CONSTS_HTTP_Continue_str;
+        status_map[SRS_CONSTS_HTTP_SwitchingProtocols] = SRS_CONSTS_HTTP_SwitchingProtocols_str;
+        status_map[SRS_CONSTS_HTTP_OK] = SRS_CONSTS_HTTP_OK_str;
+        status_map[SRS_CONSTS_HTTP_Created] = SRS_CONSTS_HTTP_Created_str;
+        status_map[SRS_CONSTS_HTTP_Accepted] = SRS_CONSTS_HTTP_Accepted_str;
+        status_map[SRS_CONSTS_HTTP_NonAuthoritativeInformation] = SRS_CONSTS_HTTP_NonAuthoritativeInformation_str;
+        status_map[SRS_CONSTS_HTTP_NoContent] = SRS_CONSTS_HTTP_NoContent_str;
+        status_map[SRS_CONSTS_HTTP_ResetContent] = SRS_CONSTS_HTTP_ResetContent_str;
+        status_map[SRS_CONSTS_HTTP_PartialContent] = SRS_CONSTS_HTTP_PartialContent_str;
+        status_map[SRS_CONSTS_HTTP_MultipleChoices] = SRS_CONSTS_HTTP_MultipleChoices_str;
+        status_map[SRS_CONSTS_HTTP_MovedPermanently] = SRS_CONSTS_HTTP_MovedPermanently_str;
+        status_map[SRS_CONSTS_HTTP_Found] = SRS_CONSTS_HTTP_Found_str;
+        status_map[SRS_CONSTS_HTTP_SeeOther] = SRS_CONSTS_HTTP_SeeOther_str;
+        status_map[SRS_CONSTS_HTTP_NotModified] = SRS_CONSTS_HTTP_NotModified_str;
+        status_map[SRS_CONSTS_HTTP_UseProxy] = SRS_CONSTS_HTTP_UseProxy_str;
+        status_map[SRS_CONSTS_HTTP_TemporaryRedirect] = SRS_CONSTS_HTTP_TemporaryRedirect_str;
+        status_map[SRS_CONSTS_HTTP_BadRequest] = SRS_CONSTS_HTTP_BadRequest_str;
+        status_map[SRS_CONSTS_HTTP_Unauthorized] = SRS_CONSTS_HTTP_Unauthorized_str;
+        status_map[SRS_CONSTS_HTTP_PaymentRequired] = SRS_CONSTS_HTTP_PaymentRequired_str;
+        status_map[SRS_CONSTS_HTTP_Forbidden] = SRS_CONSTS_HTTP_Forbidden_str;
+        status_map[SRS_CONSTS_HTTP_NotFound] = SRS_CONSTS_HTTP_NotFound_str;
+        status_map[SRS_CONSTS_HTTP_MethodNotAllowed] = SRS_CONSTS_HTTP_MethodNotAllowed_str;
+        status_map[SRS_CONSTS_HTTP_NotAcceptable] = SRS_CONSTS_HTTP_NotAcceptable_str;
+        status_map[SRS_CONSTS_HTTP_ProxyAuthenticationRequired] = SRS_CONSTS_HTTP_ProxyAuthenticationRequired_str;
+        status_map[SRS_CONSTS_HTTP_RequestTimeout] = SRS_CONSTS_HTTP_RequestTimeout_str;
+        status_map[SRS_CONSTS_HTTP_Conflict] = SRS_CONSTS_HTTP_Conflict_str;
+        status_map[SRS_CONSTS_HTTP_Gone] = SRS_CONSTS_HTTP_Gone_str;
+        status_map[SRS_CONSTS_HTTP_LengthRequired] = SRS_CONSTS_HTTP_LengthRequired_str;
+        status_map[SRS_CONSTS_HTTP_PreconditionFailed] = SRS_CONSTS_HTTP_PreconditionFailed_str;
+        status_map[SRS_CONSTS_HTTP_RequestEntityTooLarge] = SRS_CONSTS_HTTP_RequestEntityTooLarge_str;
+        status_map[SRS_CONSTS_HTTP_RequestURITooLarge] = SRS_CONSTS_HTTP_RequestURITooLarge_str;
+        status_map[SRS_CONSTS_HTTP_UnsupportedMediaType] = SRS_CONSTS_HTTP_UnsupportedMediaType_str;
+        status_map[SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable] = SRS_CONSTS_HTTP_RequestedRangeNotSatisfiable_str;
+        status_map[SRS_CONSTS_HTTP_ExpectationFailed] = SRS_CONSTS_HTTP_ExpectationFailed_str;
+        status_map[SRS_CONSTS_HTTP_InternalServerError] = SRS_CONSTS_HTTP_InternalServerError_str;
+        status_map[SRS_CONSTS_HTTP_NotImplemented] = SRS_CONSTS_HTTP_NotImplemented_str;
+        status_map[SRS_CONSTS_HTTP_BadGateway] = SRS_CONSTS_HTTP_BadGateway_str;
+        status_map[SRS_CONSTS_HTTP_ServiceUnavailable] = SRS_CONSTS_HTTP_ServiceUnavailable_str;
+        status_map[SRS_CONSTS_HTTP_GatewayTimeout] = SRS_CONSTS_HTTP_GatewayTimeout_str;
+        status_map[SRS_CONSTS_HTTP_HTTPVersionNotSupported] = SRS_CONSTS_HTTP_HTTPVersionNotSupported_str;
     }
 
     std::string status_text;
-    if (_status_map.find(status) == _status_map.end()) {
+    if (status_map.find(status) == status_map.end()) {
         status_text = "Status Unknown";
     } else {
-        status_text = _status_map[status];
+        status_text = status_map[status];
     }
 
     return status_text;
@@ -515,10 +514,24 @@ string srs_http_fs_fullpath(string dir, string pattern, string upath)
     // The vhost prefix is ignored, for example:
     //      pattern=ossrs.net/api, the vhost is ossrs.net, the pattern equals to /api under this vhost,
     //      so the virtual directory is also api
+    // The mux matches the pattern to the path as the URL encodes it, but upath is decoded, so the virtual directory is
+    // decoded too, to remove as many bytes as it has in upath, for example:
+    //      pattern=/a%20b/, the virtual directory is "a b", upath=/a b/index.html, fullpath={dir}/index.html
+    // A virtual directory that doesn't decode matches no path that does, so it is kept as is.
     size_t pos = pattern.find("/");
     string filename = upath;
-    if (upath.length() > pattern.length() && pos != string::npos) {
-        filename = upath.substr(pattern.length() - pos);
+    if (pos != string::npos) {
+        string vdir = pattern.substr(pos);
+        string decoded;
+        srs_error_t err = SrsHttpUri::path_unescape(vdir, decoded);
+        if (err == srs_success) {
+            vdir = decoded;
+        }
+        srs_freep(err);
+
+        if (upath.length() > vdir.length()) {
+            filename = upath.substr(vdir.length());
+        }
     }
 
     string fullpath = srs_strings_trim_end(dir, "/");
@@ -555,18 +568,54 @@ void SrsHttpFileServer::set_path(SrsPath *v)
     path_ = v;
 }
 
+// Whether a path has a ".." segment, which would leave the served dir. A name with two dots in it, such as
+// a..b.dat, is not one.
+static bool srs_http_path_has_dotdot(const string &path)
+{
+    size_t start = 0;
+    while (start <= path.length()) {
+        size_t end = path.find('/', start);
+        if (end == string::npos) {
+            end = path.length();
+        }
+        if (path.compare(start, end - start, "..") == 0) {
+            return true;
+        }
+        start = end + 1;
+    }
+    return false;
+}
+
 srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
+    srs_error_t err = srs_success;
+
     srs_assert(entry_);
 
     // For each HTTP session, we use short-term HTTP connection.
     SrsHttpHeader *hdr = w->header();
     hdr->set("Connection", "Close");
 
+    // The URL carries the path percent-encoded, as a file name with a space, a percent sign or a non-ASCII character
+    // must be, so the file is looked up by the decoded path. A malformed escape, or a NUL that would cut the file name
+    // short, is a bad request. The mux refuses a ".." segment, but encoded dots or slashes make a ".." segment only
+    // once decoded, so it is checked here again, and not served.
     string upath = r->path();
-    string fullpath = srs_http_fs_fullpath(dir, entry_->pattern, upath);
+    string fpath;
+    if ((err = SrsHttpUri::path_unescape(upath, fpath)) != srs_success || fpath.find('\0') != string::npos) {
+        srs_warn("http bad path=%s, pattern=%s, err=%s", upath.c_str(), entry_->pattern.c_str(),
+                 err ? srs_error_summary(err).c_str() : "NUL");
+        srs_freep(err);
+        return srs_go_http_error(w, SRS_CONSTS_HTTP_BadRequest);
+    }
+    if (srs_http_path_has_dotdot(fpath)) {
+        srs_warn("http path not clean=%s, pattern=%s, upath=%s", fpath.c_str(), entry_->pattern.c_str(), upath.c_str());
+        return SrsHttpNotFoundHandler().serve_http(w, r);
+    }
+
+    string fullpath = srs_http_fs_fullpath(dir, entry_->pattern, fpath);
     SrsPath path;
-    string basename = path.filepath_base(upath);
+    string basename = path.filepath_base(fpath);
 
     // stat current dir, if exists, return error.
     if (!path_->exists(fullpath)) {
@@ -577,15 +626,27 @@ srs_error_t SrsHttpFileServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMes
     srs_trace("http match file=%s, pattern=%s, upath=%s",
               fullpath.c_str(), entry_->pattern.c_str(), upath.c_str());
 
-    // handle file according to its extension.
+    // A directory is not a file to read. Without its slash, redirect to the path with the slash, as web servers do, so
+    // its index page is served and its relative links resolve; the location is the path as the URL encodes it. With
+    // the slash, the path is its default page, so a directory there has no page to serve. The location has one leading
+    // slash and its backslashes escaped, because a browser reads "//dir/" and "/\dir/" as the host dir.
+    if (path_->is_dir(fullpath)) {
+        if (srs_strings_ends_with(fpath, "/")) {
+            return SrsHttpNotFoundHandler().serve_http(w, r);
+        }
+        string location = srs_strings_replace("/" + srs_strings_trim_start(upath, "/") + "/", "\\", "%5C");
+        return SrsHttpRedirectHandler(location, SRS_CONSTS_HTTP_MovedPermanently).serve_http(w, r);
+    }
+
+    // handle file according to the extension of its decoded name.
     // use vod stream for .flv/.fhv
-    if (srs_strings_ends_with(upath, ".flv", ".fhv")) {
+    if (srs_strings_ends_with(fpath, ".flv", ".fhv")) {
         return serve_flv_file(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".m3u8")) {
+    } else if (srs_strings_ends_with(fpath, ".m3u8")) {
         return serve_m3u8_ctx(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".ts", ".m4s") || basename == "init.mp4") {
+    } else if (srs_strings_ends_with(fpath, ".ts", ".m4s") || basename == "init.mp4") {
         return serve_ts_ctx(w, r, fullpath);
-    } else if (srs_strings_ends_with(upath, ".mp4")) {
+    } else if (srs_strings_ends_with(fpath, ".mp4")) {
         return serve_mp4_file(w, r, fullpath);
     }
 
@@ -609,49 +670,49 @@ srs_error_t SrsHttpFileServer::serve_file(ISrsHttpResponseWriter *w, ISrsHttpMes
     // unset the content length to encode in chunked encoding.
     w->header()->set_content_length(length);
 
-    static std::map<std::string, std::string> _mime;
-    if (_mime.empty()) {
-        _mime[".ts"] = "video/MP2T";
-        _mime[".flv"] = "video/x-flv";
-        _mime[".m4v"] = "video/x-m4v";
-        _mime[".3gpp"] = "video/3gpp";
-        _mime[".3gp"] = "video/3gpp";
-        _mime[".mp4"] = "video/mp4";
-        _mime[".aac"] = "audio/x-aac";
-        _mime[".mp3"] = "audio/mpeg";
-        _mime[".m4a"] = "audio/x-m4a";
-        _mime[".ogg"] = "audio/ogg";
+    static std::map<std::string, std::string> mime;
+    if (mime.empty()) {
+        mime[".ts"] = "video/MP2T";
+        mime[".flv"] = "video/x-flv";
+        mime[".m4v"] = "video/x-m4v";
+        mime[".3gpp"] = "video/3gpp";
+        mime[".3gp"] = "video/3gpp";
+        mime[".mp4"] = "video/mp4";
+        mime[".aac"] = "audio/x-aac";
+        mime[".mp3"] = "audio/mpeg";
+        mime[".m4a"] = "audio/x-m4a";
+        mime[".ogg"] = "audio/ogg";
         // @see hls-m3u8-draft-pantos-http-live-streaming-12.pdf, page 5.
-        _mime[".m3u8"] = "application/vnd.apple.mpegurl"; // application/x-mpegURL
-        _mime[".rss"] = "application/rss+xml";
-        _mime[".json"] = "application/json";
-        _mime[".swf"] = "application/x-shockwave-flash";
-        _mime[".doc"] = "application/msword";
-        _mime[".zip"] = "application/zip";
-        _mime[".rar"] = "application/x-rar-compressed";
-        _mime[".xml"] = "text/xml";
-        _mime[".html"] = "text/html";
-        _mime[".js"] = "text/javascript";
-        _mime[".css"] = "text/css";
-        _mime[".ico"] = "image/x-icon";
-        _mime[".png"] = "image/png";
-        _mime[".jpeg"] = "image/jpeg";
-        _mime[".jpg"] = "image/jpeg";
-        _mime[".gif"] = "image/gif";
+        mime[".m3u8"] = "application/vnd.apple.mpegurl"; // application/x-mpegURL
+        mime[".rss"] = "application/rss+xml";
+        mime[".json"] = "application/json";
+        mime[".swf"] = "application/x-shockwave-flash";
+        mime[".doc"] = "application/msword";
+        mime[".zip"] = "application/zip";
+        mime[".rar"] = "application/x-rar-compressed";
+        mime[".xml"] = "text/xml";
+        mime[".html"] = "text/html";
+        mime[".js"] = "text/javascript";
+        mime[".css"] = "text/css";
+        mime[".ico"] = "image/x-icon";
+        mime[".png"] = "image/png";
+        mime[".jpeg"] = "image/jpeg";
+        mime[".jpg"] = "image/jpeg";
+        mime[".gif"] = "image/gif";
         // For MPEG-DASH.
-        _mime[".mpd"] = "application/dash+xml";
-        _mime[".m4s"] = "video/iso.segment";
-        _mime[".mp4v"] = "video/mp4";
+        mime[".mpd"] = "application/dash+xml";
+        mime[".m4s"] = "video/iso.segment";
+        mime[".mp4v"] = "video/mp4";
     }
 
     if (true) {
         SrsPath path;
         std::string ext = path.filepath_ext(fullpath);
 
-        if (_mime.find(ext) == _mime.end()) {
+        if (mime.find(ext) == mime.end()) {
             w->header()->set_content_type("application/octet-stream");
         } else {
-            w->header()->set_content_type(_mime[ext]);
+            w->header()->set_content_type(mime[ext]);
         }
     }
 
@@ -722,8 +783,14 @@ srs_error_t SrsHttpFileServer::serve_mp4_file(ISrsHttpResponseWriter *w, ISrsHtt
         end = ::atoll(range.substr(pos + 1).c_str());
     }
 
+    // A range with no start is a suffix length, resolved against the file size by the VOD stream. A suffix of zero
+    // bytes names no byte, so the VOD stream refuses it with 416.
+    if (pos == 0 && end >= 0) {
+        start = -1;
+    }
+
     // invalid param, serve as whole mp4 file.
-    if (start < 0 || (end != -1 && start > end)) {
+    if (start < -1 || (start >= 0 && end != -1 && start > end)) {
         return serve_file(w, r, fullpath);
     }
 
@@ -978,8 +1045,8 @@ srs_error_t SrsHttpServeMux::find_handler(ISrsHttpMessage *r, ISrsHttpHandler **
 {
     srs_error_t err = srs_success;
 
-    // TODO: FIXME: support the path . and ..
-    if (r->url().find("..") != std::string::npos) {
+    // Only a ".." segment of the path is a traversal; two dots in a name, such as a..b.dat, or in the query are not.
+    if (srs_http_path_has_dotdot(r->path())) {
         return srs_error_new(ERROR_HTTP_URL_NOT_CLEAN, "url %s not canonical", r->url().c_str());
     }
 
@@ -1152,6 +1219,26 @@ ISrsHttpAuthenticator::~ISrsHttpAuthenticator()
 {
 }
 
+// Parse the credentials "<scheme> <token>" of an Authorization header. The scheme is
+// case-insensitive (RFC 9110 11.1) and one or more spaces follow it (11.4). Return false when
+// the credentials are of another scheme; the token is empty when there is none.
+static bool srs_http_auth_parse(const string &auth, const string &scheme, string &token)
+{
+    if (auth.size() <= scheme.size() || auth.at(scheme.size()) != ' ') {
+        return false;
+    }
+
+    for (size_t i = 0; i < scheme.size(); i++) {
+        if (tolower((unsigned char)auth.at(i)) != tolower((unsigned char)scheme.at(i))) {
+            return false;
+        }
+    }
+
+    size_t pos = auth.find_first_not_of(' ', scheme.size());
+    token = (pos == string::npos) ? "" : auth.substr(pos);
+    return true;
+}
+
 SrsHttpBasicAuthenticator::SrsHttpBasicAuthenticator(string username, string password)
 {
     username_ = username;
@@ -1164,43 +1251,61 @@ SrsHttpBasicAuthenticator::~SrsHttpBasicAuthenticator()
 
 bool SrsHttpBasicAuthenticator::match(ISrsHttpMessage *r)
 {
-    // Basic authentication only protects the HTTP API.
-    return r->path().find("/api/") != string::npos;
+    // Basic authentication only protects the HTTP API, the paths under /api/, not a stream whose
+    // app or name has /api/ in it.
+    return srs_strings_starts_with(r->path(), "/api/");
 }
 
 srs_error_t SrsHttpBasicAuthenticator::authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+{
+    srs_error_t err = do_authenticate(r);
+
+    // Every 401 challenges the client (RFC 9110 15.5.2), also for credentials of another
+    // scheme or that don't parse. The Basic challenge requires a realm (RFC 7617 2), without
+    // which a strict client doesn't prompt for the credentials.
+    if (err != srs_success) {
+        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC " realm=\"SRS\"");
+    }
+
+    return err;
+}
+
+srs_error_t SrsHttpBasicAuthenticator::do_authenticate(ISrsHttpMessage *r)
 {
     srs_error_t err = srs_success;
 
     string auth = r->header()->get("Authorization");
     if (auth.empty()) {
-        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
     }
 
-    if (!srs_strings_contains(auth, SRS_HTTP_AUTH_PREFIX_BASIC)) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid auth %s, should start with %s", auth.c_str(), SRS_HTTP_AUTH_PREFIX_BASIC);
+    // The refusals go to the log, so they never hold the header, the token or the password,
+    // which is often a near-miss of the real one; only the user is named.
+    string token;
+    if (!srs_http_auth_parse(auth, SRS_HTTP_AUTH_SCHEME_BASIC, token)) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid auth, should start with %s", SRS_HTTP_AUTH_SCHEME_BASIC);
     }
 
-    string token = srs_erase_first_substr(auth, SRS_HTTP_AUTH_PREFIX_BASIC);
     if (token.empty()) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token from auth %s", auth.c_str());
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty token");
     }
 
     string plaintext;
     if ((err = srs_av_base64_decode(token, plaintext)) != srs_success) {
-        return srs_error_wrap(err, "decode token %s", token.c_str());
+        return srs_error_wrap(err, "decode token");
     }
 
-    // The token format must be username:password
-    vector<string> user_pwd = srs_strings_split(plaintext, ":");
-    if (user_pwd.size() != 2) {
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s", plaintext.c_str());
+    // The token format is user-id:password, where the user-id ends at the first colon and
+    // the password may have colons (RFC 7617 2).
+    size_t pos = plaintext.find(':');
+    if (pos == string::npos) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token, no colon");
     }
 
-    if (username_ != user_pwd[0] || password_ != user_pwd[1]) {
-        w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BASIC);
-        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid token %s:%s", user_pwd[0].c_str(), user_pwd[1].c_str());
+    string username = plaintext.substr(0, pos);
+    string password = plaintext.substr(pos + 1);
+    if (username_ != username || password_ != password) {
+        return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid credentials of user %s", username.c_str());
     }
 
     return err;
@@ -1218,9 +1323,10 @@ SrsHttpBearerAuthenticator::~SrsHttpBearerAuthenticator()
 
 bool SrsHttpBearerAuthenticator::match(ISrsHttpMessage *r)
 {
-    // Bearer authentication always protects the HTTP API and optionally protects WebRTC signaling APIs.
+    // Bearer authentication always protects the HTTP API under /api/, and optionally the WebRTC
+    // signaling APIs under /rtc/; not a stream whose app or name has /api/ or /rtc/ in it.
     string path = r->path();
-    return path.find("/api/") != string::npos || (rtc_bearer_enabled_ && path.find("/rtc/") != string::npos);
+    return srs_strings_starts_with(path, "/api/") || (rtc_bearer_enabled_ && srs_strings_starts_with(path, "/rtc/"));
 }
 
 srs_error_t SrsHttpBearerAuthenticator::authenticate(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
@@ -1230,12 +1336,12 @@ srs_error_t SrsHttpBearerAuthenticator::authenticate(ISrsHttpResponseWriter *w, 
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "empty Authorization");
     }
-    if (!srs_strings_starts_with(auth, SRS_HTTP_AUTH_PREFIX_BEARER)) {
+    string token;
+    if (!srs_http_auth_parse(auth, SRS_HTTP_AUTH_SCHEME_BEARER, token)) {
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid bearer auth");
     }
 
-    string token = auth.substr(sizeof(SRS_HTTP_AUTH_PREFIX_BEARER) - 1);
     if (token.empty() || token != token_) {
         w->header()->set("WWW-Authenticate", SRS_HTTP_AUTH_SCHEME_BEARER);
         return srs_error_new(SRS_CONSTS_HTTP_Unauthorized, "invalid bearer token");
@@ -1385,6 +1491,15 @@ string SrsHttpUri::get_path()
 string SrsHttpUri::get_query()
 {
     return query_;
+}
+
+string SrsHttpUri::get_request_target()
+{
+    string target = path_.empty() ? "/" : path_;
+    if (!query_.empty()) {
+        target += "?" + query_;
+    }
+    return target;
 }
 
 string SrsHttpUri::get_query_by_key(std::string key)

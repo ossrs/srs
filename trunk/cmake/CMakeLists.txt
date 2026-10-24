@@ -25,11 +25,11 @@ ProcessorCount(JOBS)
 # We should always configure SRS for switching between branches.
 IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     EXECUTE_PROCESS(
-        COMMAND ./configure --osx --srt=on --gb28181=on --rtsp=on --apm=on --h265=on --hds=on --utest=on --ffmpeg-opus=off --jobs=${JOBS}
+        COMMAND ./configure --osx --srt=on --gb28181=on --rtsp=on --h265=on --utest=on --ffmpeg-opus=off --jobs=${JOBS}
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ELSE ()
     EXECUTE_PROCESS(
-        COMMAND ./configure --srt=on --gb28181=on --rtsp=on --apm=on --h265=on --hds=on --utest=on --ffmpeg-opus=off --jobs=${JOBS}
+        COMMAND ./configure --srt=on --gb28181=on --rtsp=on --h265=on --utest=on --ffmpeg-opus=off --jobs=${JOBS}
         WORKING_DIRECTORY ${SRS_DIR} RESULT_VARIABLE ret)
 ENDIF ()
 if(NOT ret EQUAL 0)
@@ -67,19 +67,26 @@ INCLUDE_DIRECTORIES(${SRS_DIR}/objs
         ${SRS_DIR}/src/app
         ${SRS_DIR}/src/service)
 
-# Common used sources for SRS and utest.
-AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/core SOURCE_FILES)
-AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/kernel SOURCE_FILES)
-AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/protocol SOURCE_FILES)
-AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/app SOURCE_FILES)
+# The srs and utest sources from auto/module_files.sh, as ./configure chose them for the options above.
+set(SRS_TRUNK_DIR ${SRS_DIR})
+include("${PROJECT_SOURCE_DIR}/srs-modules.cmake")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SRS_DIR}/auto/module_files.sh")
+srs_module_options_from_header("${SRS_DIR}/objs/srs_auto_headers.hpp")
+srs_server_sources(SRS_FILES)
+srs_utest_sources(UTEST_FILES)
+set(SRS_SOURCE_FILES)
+foreach(FILE ${SRS_FILES})
+    list(APPEND SRS_SOURCE_FILES ${SRS_DIR}/${FILE})
+endforeach()
+set(UTEST_SOURCE_FILES)
+foreach(FILE ${UTEST_FILES})
+    list(APPEND UTEST_SOURCE_FILES ${SRS_DIR}/${FILE})
+endforeach()
 
 ADD_DEFINITIONS("-g -O0 -fsanitize=address -fno-omit-frame-pointer")
 
 ###########################################################
 # Setup SRS project
-
-set(SRS_SOURCE_FILES ${SOURCE_FILES})
-list(APPEND SRS_SOURCE_FILES ${SRS_DIR}/src/main/srs_main_server.cpp)
 
 ADD_EXECUTABLE(srs ${SRS_SOURCE_FILES})
 TARGET_LINK_LIBRARIES(srs dl)
@@ -96,8 +103,6 @@ ADD_SUBDIRECTORY(${SRS_DIR}/3rdparty/gtest-fit gtest-fit)
 INCLUDE_DIRECTORIES(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
 INCLUDE_DIRECTORIES(${SRS_DIR}/src/utest)
-set(UTEST_SOURCE_FILES ${SOURCE_FILES})
-AUX_SOURCE_DIRECTORY(${SRS_DIR}/src/utest UTEST_SOURCE_FILES)
 
 ADD_EXECUTABLE(utest ${UTEST_SOURCE_FILES})
 TARGET_LINK_LIBRARIES(utest gtest gtest_main)

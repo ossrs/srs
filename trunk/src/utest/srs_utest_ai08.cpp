@@ -15,6 +15,7 @@ using namespace std;
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
+#include <srs_kernel_ts.hpp>
 #include <srs_protocol_format.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_utest_ai32.hpp>
@@ -97,6 +98,7 @@ srs_error_t MockFrameTarget::on_frame(SrsMediaPacket *frame)
 {
     on_frame_count_++;
     last_frame_ = frame;
+    timestamps_.push_back(frame->timestamp_);
     return srs_error_copy(frame_error_);
 }
 
@@ -122,6 +124,8 @@ srs_error_t MockRtpTarget::on_rtp(SrsRtpPacket *pkt)
 {
     on_rtp_count_++;
     last_rtp_ = pkt;
+    rtp_times_.push_back(pkt->header_.get_timestamp());
+    avsync_times_.push_back(pkt->get_avsync_time());
     return srs_error_copy(rtp_error_);
 }
 
@@ -558,6 +562,108 @@ VOID TEST(SrtFrameBuilderTest, AssembleAssemblesAudioDurationPrint)
     EXPECT_EQ(20 * SRS_UTIME_SECONDS, builder->pp_audio_duration_->previous_tick_);
 
     builder->pp_audio_duration_->clk_ = NULL;
+}
+
+// One PES of nb_frames ADTS AAC-LC stereo frames at a sampling_frequency_index, with the single PTS
+// of its first frame, as FFmpeg's TS muxer packs audio by default.
+static srs_error_t srt_frame_builder_on_aac_pes(SrsSrtFrameBuilder *builder, int sfi, int nb_frames, int64_t pts)
+{
+    std::string pes;
+    for (int i = 0; i < nb_frames; i++) {
+        int size = 7 + 4;
+        uint8_t adts[] = {
+            0xff, 0xf1,
+            (uint8_t)(0x40 | (sfi << 2)),
+            (uint8_t)(0x80 | (size >> 11)),
+            (uint8_t)(size >> 3),
+            (uint8_t)(((size & 0x07) << 5) | 0x1f),
+            0xfc,
+            0x21, 0x10, 0x04, 0x60};
+        pes.append((char *)adts, sizeof(adts));
+    }
+
+    SrsTsChannel channel;
+    channel.apply_ = SrsTsPidApplyAudio;
+    channel.stream_ = SrsTsStreamAudioAAC;
+
+    SrsTsMessage msg(&channel, NULL);
+    msg.sid_ = SrsTsPESStreamIdAudioCommon;
+    msg.dts_ = msg.pts_ = pts;
+    msg.payload_->append(pes.data(), (int)pes.size());
+
+    return builder->on_ts_message(&msg);
+}
+
+// Each frame of a PES is timed by the samples before it, 1024 a frame: at 48 kHz that is 21.33ms,
+// not the 23.22ms of 44.1 kHz, the nearest FLV sound rate. The next PES then starts after the last
+// frame, with no step back.
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAac48kHzFrameTimes)
+{
+    srs_error_t err;
+
+    MockFrameTarget target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    builder->assemble();
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
+
+    // Index 3 is 48 kHz; the second PES is at 1170.67ms, after the 8 frames of the first.
+    HELPER_EXPECT_SUCCESS(srt_frame_builder_on_aac_pes(builder.get(), 3, 8, 90000));
+    HELPER_EXPECT_SUCCESS(srt_frame_builder_on_aac_pes(builder.get(), 3, 1, 90000 + 8 * 1024 * 90000 / 48000));
+
+    // The sequence header, then each frame.
+    int64_t want[] = {1000, 1000, 1021, 1042, 1064, 1085, 1106, 1128, 1149, 1170};
+    ASSERT_EQ((int)(sizeof(want) / sizeof(want[0])), (int)target.timestamps_.size());
+    for (int i = 0; i < (int)target.timestamps_.size(); i++) {
+        EXPECT_EQ(want[i], target.timestamps_[i]) << "frame " << i;
+    }
+}
+
+// Every AAC sample rate times the frames of a PES by its own rate, though FLV has only 5.5, 11, 22
+// and 44.1 kHz.
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAacFrameTimesEveryRate)
+{
+    srs_error_t err;
+
+    int rates[] = {96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350};
+    for (int sfi = 0; sfi < (int)(sizeof(rates) / sizeof(rates[0])); sfi++) {
+        int rate = rates[sfi];
+
+        MockFrameTarget target;
+        SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+        builder->assemble();
+        SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+        HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
+
+        HELPER_EXPECT_SUCCESS(srt_frame_builder_on_aac_pes(builder.get(), sfi, 4, 90000));
+
+        // The sequence header, then each frame.
+        ASSERT_EQ(5, (int)target.timestamps_.size()) << "rate " << rate;
+        for (int i = 0; i < 4; i++) {
+            EXPECT_EQ((int64_t)(1000 + i * 1024000.0 / rate), target.timestamps_[i + 1]) << "rate " << rate << ", frame " << i;
+        }
+    }
+}
+
+// A reserved sampling_frequency_index, 13 or 14, has no rate, so its frames keep the 44.1 kHz duration
+// instead of a division by zero. This is the behavior today, kept on purpose.
+VOID TEST(SrtFrameBuilderTest, OnTsAudioAacReservedRateAs44100)
+{
+    srs_error_t err;
+
+    MockFrameTarget target;
+    SrsUniquePtr<SrsSrtFrameBuilder> builder(new SrsSrtFrameBuilder(&target));
+    builder->assemble();
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(builder->initialize(req.get()));
+
+    HELPER_EXPECT_SUCCESS(srt_frame_builder_on_aac_pes(builder.get(), 13, 3, 90000));
+
+    int64_t want[] = {1000, 1000, 1023, 1046};
+    ASSERT_EQ((int)(sizeof(want) / sizeof(want[0])), (int)target.timestamps_.size());
+    for (int i = 0; i < (int)target.timestamps_.size(); i++) {
+        EXPECT_EQ(want[i], target.timestamps_[i]) << "frame " << i;
+    }
 }
 
 // The SRT bridge constructs its frame builder quiescent, and assembles it from its own assemble().
@@ -4849,4 +4955,117 @@ VOID TEST(RtcFrameBuilderTest, InitializeAacBitrateFromInjectedConfig)
     EXPECT_EQ(64000, factory.last_transcoder_->initialize_bit_rate_);
 
     builder.config_ = NULL;
+}
+
+// SRS has no G.711 decoder, so a stream of G.711 audio is converted to RTMP without its audio: the
+// builder creates no transcoder for PCMU or PCMA, and still starts. The global factory's transcoder
+// fails to open a G.711 decoder, so the start is checked with it too.
+VOID TEST(RtcFrameBuilderTest, InitializeG711WithoutTranscoder)
+{
+    srs_error_t err;
+
+    SrsAudioCodecId codecs[] = {SrsAudioCodecIdPCMU, SrsAudioCodecIdPCMA};
+    for (int i = 0; i < 2; i++) {
+        MockAppFactoryForRtcFrameBuilder factory;
+        MockRtcFrameTarget target;
+        SrsRtcFrameBuilder builder(&factory, &target);
+
+        SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+        HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), codecs[i], SrsVideoCodecIdAVC));
+        EXPECT_EQ(0, factory.create_audio_transcoder_count_);
+        EXPECT_TRUE(builder.audio_transcoder_ == NULL);
+        EXPECT_EQ(SrsVideoCodecIdAVC, builder.video_codec_);
+
+        SrsRtcFrameBuilder global(_srs_app_factory, &target);
+        HELPER_EXPECT_SUCCESS(global.initialize(req.get(), codecs[i], SrsVideoCodecIdAVC));
+        EXPECT_TRUE(global.audio_transcoder_ == NULL);
+    }
+}
+
+// The G.711 audio of a stream is dropped, with no AAC sequence header and no frame, while its video
+// is still converted.
+VOID TEST(RtcFrameBuilderTest, OnRtpG711AudioDropped)
+{
+    srs_error_t err;
+
+    MockAppFactoryForRtcFrameBuilder factory;
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(&factory, &target);
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdPCMA, SrsVideoCodecIdAVC));
+    HELPER_EXPECT_SUCCESS(builder.on_publish());
+
+    for (int i = 0; i < 5; i++) {
+        SrsUniquePtr<SrsRtpPacket> pkt(create_mock_rtp_packet(true, 1000 + i * 20, 11111, 100 + i, 8000 + i * 160));
+        HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt.get()));
+    }
+    EXPECT_EQ(0, target.on_frame_count_);
+
+    // A keyframe, then a frame of two packets, the last with the marker of the frame's end.
+    SrsUniquePtr<SrsRtpPacket> keyframe(create_video_rtp_packet_for_frame_test(100, 90000, 1000, true));
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(keyframe.get()));
+    SrsUniquePtr<SrsRtpPacket> pkt1(create_video_rtp_packet_for_frame_test(101, 93000, 1100, false));
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt1.get()));
+    SrsUniquePtr<SrsRtpPacket> pkt2(create_video_rtp_packet_for_frame_test(102, 93000, 1100, false));
+    pkt2->header_.set_marker(true);
+    HELPER_EXPECT_SUCCESS(builder.on_rtp(pkt2.get()));
+    EXPECT_GT(target.on_frame_count_, 0);
+    ASSERT_TRUE(target.last_frame_ != NULL);
+    EXPECT_TRUE(target.last_frame_->is_video());
+}
+
+// A stream converted to WebRTC has no publisher's Sender Reports, so each packet the builder makes carries the
+// time of its frame on the stream's clock, the RTMP time in ms that its RTP time counts from, for the Sender
+// Reports that SRS sends a player.
+VOID TEST(StreamBridgeTest, SrsRtcRtpBuilder_PacketsCarryFrameTime)
+{
+    srs_error_t err;
+
+    SrsSharedPtr<SrsRtcSource> rtc_source(new SrsRtcSource());
+    SrsUniquePtr<MockStreamBridgeRequest> req(new MockStreamBridgeRequest());
+    HELPER_EXPECT_SUCCESS(rtc_source->initialize(req.get()));
+
+    MockRtpTarget rtp_target;
+    SrsRtcRtpBuilder builder(_srs_app_factory, &rtp_target, rtc_source);
+    builder.assemble();
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get()));
+
+    // The H.264 sequence header, then an IDR, which the builder sends after a STAP-A of its SPS and PPS.
+    uint8_t sh_raw[] = {
+        0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+        0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+        0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+    SrsUniquePtr<SrsMediaPacket> sh(new SrsMediaPacket());
+    sh->message_type_ = SrsFrameTypeVideo;
+    char *sh_data = new char[sizeof(sh_raw)];
+    memcpy(sh_data, sh_raw, sizeof(sh_raw));
+    sh->wrap(sh_data, sizeof(sh_raw));
+    sh->timestamp_ = 1000;
+    HELPER_EXPECT_SUCCESS(builder.on_video(sh.get()));
+
+    uint8_t idr_raw[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x65, 0x88, 0x84, 0x00, 0x10};
+    SrsUniquePtr<SrsMediaPacket> idr(new SrsMediaPacket());
+    idr->message_type_ = SrsFrameTypeVideo;
+    char *idr_data = new char[sizeof(idr_raw)];
+    memcpy(idr_data, idr_raw, sizeof(idr_raw));
+    idr->wrap(idr_data, sizeof(idr_raw));
+    idr->timestamp_ = 2040;
+    HELPER_EXPECT_SUCCESS(builder.on_video(idr.get()));
+
+    ASSERT_EQ(2, (int)rtp_target.avsync_times_.size());
+    for (int i = 0; i < 2; i++) {
+        EXPECT_EQ(2040 * 90, (int64_t)rtp_target.rtp_times_[i]);
+        EXPECT_EQ(2040, rtp_target.avsync_times_[i]);
+    }
+
+    // An Opus frame, at its RTP time of 48 kHz.
+    char opus[] = {0x78, 0x01, 0x02};
+    SrsParsedAudioPacket audio;
+    audio.dts_ = 2060;
+    HELPER_EXPECT_SUCCESS(audio.add_sample(opus, sizeof(opus)));
+    SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+    HELPER_EXPECT_SUCCESS(builder.package_opus(&audio, pkt.get()));
+    EXPECT_EQ(2060u * 48, pkt->header_.get_timestamp());
+    EXPECT_EQ(2060, pkt->get_avsync_time());
 }

@@ -7,12 +7,12 @@
 ## Step 1: Route and read documentation first
 
 1. Load `skills/internal-docs-for-srs/SKILL.md` and use its Reference Router before reading project documentation.
-2. Classify the question by product first, then by server generation, service, protocol, or feature. Select and read the smallest relevant document set for design intent, architecture, and documented behavior.
+2. Classify the question by product first, then by server, service, protocol, or feature. Select and read the smallest relevant document set for design intent, architecture, and documented behavior.
 3. If the documentation router has no matching route, or a fully resolved routed file is unavailable, record the documentation gap and continue to code routing. Do not broadly search documentation directories or invent intent.
 
 ## Step 2: Route to the responsible code
 
-1. Load `skills/internal-codemap-for-srs/SKILL.md` and use its Reference Router to select the relevant SRS or Oryx map. If choosing the wrong product or server generation would materially change the answer, ask the user to clarify.
+1. Load `skills/internal-codemap-for-srs/SKILL.md` and use its Reference Router to select the relevant SRS or Oryx map. If choosing the wrong product or server would materially change the answer, ask the user to clarify.
 2. Use the selected map descriptions to identify the owning module and the smallest relevant file set. When the map lists a directory, list filenames only in that directory before selecting files.
 3. Read or search only the selected files. Add another routed module only when evidence shows that the implementation crosses the first module boundary.
 4. For Oryx, keep the current working directory unchanged and inspect the project-root-relative `oryx/` path, which may be a directory or a symlink to the user's preferred checkout. If it is unavailable, ask the user to make the checkout available there; do not search for another checkout.

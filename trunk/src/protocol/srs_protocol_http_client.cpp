@@ -6,7 +6,6 @@
 
 #include <srs_protocol_http_client.hpp>
 
-#include <arpa/inet.h>
 #include <sstream>
 using namespace std;
 

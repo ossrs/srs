@@ -165,7 +165,7 @@ parses the minimum needed to route, then proxies traffic to the chosen backend.
 - **Structured logging** (`internal/logger`) — JSON via `log/slog`, with `pid`,
   `version`, and a per-connection 7-char hex context ID (`cid`) for correlation.
 - **Profiling** (`internal/debug`) — optional `net/http/pprof` server enabled by
-  the `GO_PPROF` env var. See [../perf/proxy-whep.md](../perf/proxy-whep.md).
+  the `GO_PPROF` env var.
 - **Version / health endpoints** — `/api/v1/versions` is exposed on the HTTP API,
   System API, and HTTP Stream servers and doubles as a health check.
 
@@ -182,4 +182,4 @@ parses the minimum needed to route, then proxies traffic to the chosen backend.
   segment requests, and a WebRTC client is only recognized by the proxy that
   handled its signaling (no cross-proxy migration). RTMP, HTTP-FLV/TS, and SRT
   are unaffected.
-- Current version: SRS `8.0.x` (next-generation Go server, signature `SRSX`).
+- Current version: SRS `8.0.x` (Go proxy server, signature `SRSX`).

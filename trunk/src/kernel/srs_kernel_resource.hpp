@@ -37,24 +37,22 @@ public:
     virtual void on_disposing(ISrsResource *c) = 0;
 };
 
-// The item to identify the fast id object.
+// The item to identify the fast id object. A slot holds the first fast id that takes it, until that id
+// is removed; another fast id of the same slot is found in the map.
 class SrsResourceFastIdItem
 {
 public:
     // If available, use the resource in item.
     bool available_;
-    // How many resource have the same fast-id, which contribute a collision.
-    int nn_collisions_;
-    // The first fast-id of resources.
+    // The fast id that holds the slot.
     uint64_t fast_id_;
-    // The first resource object.
+    // The resource of the fast id, the same as in the map.
     ISrsResource *impl_;
 
 public:
     SrsResourceFastIdItem()
     {
         available_ = false;
-        nn_collisions_ = 0;
         fast_id_ = 0;
         impl_ = NULL;
     }

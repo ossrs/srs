@@ -8,21 +8,19 @@
 
 using namespace std;
 
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_dvr.hpp>
+#include <srs_app_edge.hpp>
 #include <srs_app_encoder.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_http_conn.hpp>
 #include <srs_app_ingest.hpp>
-#include <srs_app_latest_version.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_process.hpp>
 #include <srs_app_recv_thread.hpp>
-#include <srs_app_refer.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_packet.hpp>
@@ -35,7 +33,6 @@ using namespace std;
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_http.hpp>
 
-#include <sys/time.h>
 
 // Mock ISrsAppConfig implementation
 MockAppConfigForUdpCaster::MockAppConfigForUdpCaster()
@@ -651,6 +648,373 @@ VOID TEST(MpegtsOverUdpTest, OnTsVideoWithSpsPpsIdrFrame)
     delete[] annexb_data;
 }
 
+// Append an ADTS frame of AAC LC, stereo, at the sampling frequency index sfi, with size bytes of payload.
+static void mock_append_adts_frame(std::string &pes, int sfi, int size)
+{
+    int frame_length = 7 + size;
+    pes.push_back((char)0xff);
+    pes.push_back((char)0xf1);
+    pes.push_back((char)((1 << 6) | (sfi << 2) | (2 >> 2)));
+    pes.push_back((char)(((2 & 0x03) << 6) | ((frame_length >> 11) & 0x03)));
+    pes.push_back((char)((frame_length >> 3) & 0xff));
+    pes.push_back((char)(((frame_length & 0x07) << 5) | 0x1f));
+    pes.push_back((char)0xfc);
+    for (int i = 0; i < size; i++) {
+        pes.push_back((char)(0x21 + i));
+    }
+}
+
+// Collect the timestamps of the audio messages the caster queued, in order.
+static std::vector<int64_t> mock_queued_audio_times(SrsMpegtsQueue *queue)
+{
+    std::vector<int64_t> times;
+    std::map<int64_t, SrsMediaPacket *>::iterator it;
+    for (it = queue->msgs_.begin(); it != queue->msgs_.end(); ++it) {
+        if (it->second->is_audio()) {
+            times.push_back(it->first);
+        }
+    }
+    return times;
+}
+
+// A PES of several AAC frames, as ffmpeg muxes TS by default, has the time of
+// its first frame only; each frame after it comes 1024 samples later, so the
+// caster must time each frame, not stamp them all with the PES's time.
+VOID TEST(MpegtsOverUdpTest, OnTsAudioTimesEachFrameOfPes)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
+
+    // The RTMP output is connected, and the caster's own queue holds what it writes.
+    udp_handler->sdk_ = new MockRtmpClient();
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(udp_handler->queue_);
+    ASSERT_TRUE(queue != NULL);
+
+    // The first PES, 3 frames at 44.1kHz from 1000ms: the sequence header at
+    // 1000ms, then the frames 23.2ms apart; the queue moves the first frame
+    // 1ms after the header, which holds its time.
+    if (true) {
+        std::string pes;
+        for (int i = 0; i < 3; i++) {
+            mock_append_adts_frame(pes, 4, 10);
+        }
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 90000;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_audio(msg.get(), &avs));
+        EXPECT_TRUE(avs.empty());
+
+        std::vector<int64_t> times = mock_queued_audio_times(queue);
+        ASSERT_EQ(4, (int)times.size());
+        EXPECT_EQ(1000, times[0]);
+        EXPECT_EQ(1001, times[1]);
+        EXPECT_EQ(1023, times[2]);
+        EXPECT_EQ(1046, times[3]);
+    }
+
+    // The next PES, 4 frames at 48kHz from 2000ms: 21.3ms apart, no header.
+    if (true) {
+        std::string pes;
+        for (int i = 0; i < 4; i++) {
+            mock_append_adts_frame(pes, 3, 10);
+        }
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 180000;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_audio(msg.get(), &avs));
+
+        std::vector<int64_t> times = mock_queued_audio_times(queue);
+        ASSERT_EQ(8, (int)times.size());
+        EXPECT_EQ(2000, times[4]);
+        EXPECT_EQ(2021, times[5]);
+        EXPECT_EQ(2042, times[6]);
+        EXPECT_EQ(2064, times[7]);
+    }
+
+    // The caster frees its queue with the queued messages, and the mock RTMP client.
+}
+
+// Append an annexb NALU, its start code then its bytes.
+static void mock_append_annexb_nalu(std::string &pes, const char *nalu, int size)
+{
+    pes.append("\x00\x00\x00\x01", 4);
+    pes.append(nalu, size);
+}
+
+// Collect the video messages the caster queued, in order of time.
+static std::vector<SrsMediaPacket *> mock_queued_videos(SrsMpegtsQueue *queue)
+{
+    std::vector<SrsMediaPacket *> videos;
+    std::map<int64_t, SrsMediaPacket *>::iterator it;
+    for (it = queue->msgs_.begin(); it != queue->msgs_.end(); ++it) {
+        if (it->second->is_video()) {
+            videos.push_back(it->second);
+        }
+    }
+    return videos;
+}
+
+// A PES is one access unit: x264 puts an SEI before the first IDR, and a frame
+// may have several slices. The caster must send the whole access unit as one
+// RTMP message, a keyframe when it has an IDR slice, not each NALU as a message
+// of its own, which makes the SEI an inter frame before the keyframe.
+VOID TEST(MpegtsOverUdpTest, OnTsVideoSendsAccessUnitAsOneMessage)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
+
+    // The RTMP output is connected, and the caster's own queue holds what it
+    // writes: with no audio, it sends nothing.
+    udp_handler->sdk_ = new MockRtmpClient();
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(udp_handler->queue_);
+    ASSERT_TRUE(queue != NULL);
+
+    const char aud[] = {0x09, (char)0xf0};
+    const char sps[] = {0x67, 0x64, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+    const char sei[] = {0x06, 0x05, 0x02, 0x11, 0x22, (char)0x80};
+    const char idr0[] = {0x65, (char)0x88, (char)0x84, 0x01};
+    const char idr1[] = {0x65, 0x00, 0x22, 0x02};
+    const char p0[] = {0x41, (char)0x9a, 0x11, 0x03};
+    const char p1[] = {0x41, 0x00, 0x33, 0x04};
+
+    // The first access unit at 1000ms: AUD, SPS, PPS, SEI and an IDR of 2 slices.
+    if (true) {
+        std::string pes;
+        mock_append_annexb_nalu(pes, aud, sizeof(aud));
+        mock_append_annexb_nalu(pes, sps, sizeof(sps));
+        mock_append_annexb_nalu(pes, pps, sizeof(pps));
+        mock_append_annexb_nalu(pes, sei, sizeof(sei));
+        mock_append_annexb_nalu(pes, idr0, sizeof(idr0));
+        mock_append_annexb_nalu(pes, idr1, sizeof(idr1));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 90000;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_video(msg.get(), &avs));
+        EXPECT_TRUE(avs.empty());
+    }
+
+    // The next access unit at 1040ms: AUD and a P-frame of 2 slices.
+    if (true) {
+        std::string pes;
+        mock_append_annexb_nalu(pes, aud, sizeof(aud));
+        mock_append_annexb_nalu(pes, p0, sizeof(p0));
+        mock_append_annexb_nalu(pes, p1, sizeof(p1));
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = msg->pts_ = 93600;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_video(msg.get(), &avs));
+    }
+
+    // The sequence header, then one message for each access unit.
+    std::vector<SrsMediaPacket *> videos = mock_queued_videos(queue);
+    ASSERT_EQ(3, (int)videos.size());
+
+    // The sequence header at 1000ms, a keyframe.
+    EXPECT_EQ(1000, videos[0]->timestamp_);
+    ASSERT_GE(videos[0]->size(), 2);
+    EXPECT_EQ(0x17, (uint8_t)videos[0]->payload()[0]);
+    EXPECT_EQ(SrsVideoAvcFrameTraitSequenceHeader, videos[0]->payload()[1]);
+
+    // The first frame, a keyframe that starts with the SEI, its NALUs in the
+    // order they came, each with its 4-byte size; the queue moves it 1ms after
+    // the header, which holds its time.
+    if (true) {
+        std::string want;
+        want.append("\x17\x01\x00\x00\x00", 5);
+        want.append("\x00\x00\x00\x06", 4);
+        want.append(sei, sizeof(sei));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr0, sizeof(idr0));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(idr1, sizeof(idr1));
+        EXPECT_EQ(1001, videos[1]->timestamp_);
+        EXPECT_EQ(want, std::string(videos[1]->payload(), videos[1]->size()));
+    }
+
+    // The next frame, an inter frame of its 2 slices.
+    if (true) {
+        std::string want;
+        want.append("\x27\x01\x00\x00\x00", 5);
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p0, sizeof(p0));
+        want.append("\x00\x00\x00\x04", 4);
+        want.append(p1, sizeof(p1));
+        EXPECT_EQ(1040, videos[2]->timestamp_);
+        EXPECT_EQ(want, std::string(videos[2]->payload(), videos[2]->size()));
+    }
+
+    // The caster frees its queue with the queued messages, and the mock RTMP client.
+}
+
+// A frame whose PES has a presentation time after its decode time, as with
+// B-frames, goes with the difference as its composition time; the sequence
+// header has none.
+VOID TEST(MpegtsOverUdpTest, OnTsVideoKeepsCompositionTime)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
+
+    udp_handler->sdk_ = new MockRtmpClient();
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(udp_handler->queue_);
+    ASSERT_TRUE(queue != NULL);
+
+    const char sps[] = {0x67, 0x64, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+    const char idr[] = {0x65, (char)0x88, (char)0x84, 0x01};
+    const char p[] = {0x41, (char)0x9a, 0x11, 0x03};
+    const char b[] = {0x01, (char)0x9e, 0x22, 0x04};
+
+    // Each PES: its NALUs, its dts and its pts, in 90kHz.
+    struct {
+        bool keyframe;
+        int64_t dts;
+        int64_t pts;
+    } frames[] = {
+        {true, 90000, 97200}, // the keyframe at 1000ms, shown at 1080ms
+        {false, 93600, 108000}, // a P-frame at 1040ms, shown at 1200ms
+        {false, 97200, 100800}, // a B-frame at 1080ms, shown at 1120ms
+        {false, 100800, 100800}, // a frame of no B-frame, shown at its dts
+        {false, 104400, 101000}, // a pts before the dts, which no stream has
+    };
+
+    for (int i = 0; i < (int)(sizeof(frames) / sizeof(frames[0])); i++) {
+        std::string pes;
+        if (frames[i].keyframe) {
+            mock_append_annexb_nalu(pes, sps, sizeof(sps));
+            mock_append_annexb_nalu(pes, pps, sizeof(pps));
+            mock_append_annexb_nalu(pes, idr, sizeof(idr));
+        } else if (i == 2) {
+            mock_append_annexb_nalu(pes, b, sizeof(b));
+        } else {
+            mock_append_annexb_nalu(pes, p, sizeof(p));
+        }
+
+        SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+        msg->dts_ = frames[i].dts;
+        msg->pts_ = frames[i].pts;
+        SrsBuffer avs((char *)pes.data(), (int)pes.size());
+        HELPER_EXPECT_SUCCESS(udp_handler->on_ts_video(msg.get(), &avs));
+    }
+
+    std::vector<SrsMediaPacket *> videos = mock_queued_videos(queue);
+    ASSERT_EQ(6, (int)videos.size());
+
+    // The composition time, 3 bytes after the frame type and packet type.
+    int want_cts[] = {0, 80, 160, 40, 0, 0};
+    uint32_t want_time[] = {1000, 1001, 1040, 1080, 1120, 1160};
+    for (int i = 0; i < 6; i++) {
+        ASSERT_GE(videos[i]->size(), 5);
+        const uint8_t *v = (const uint8_t *)videos[i]->payload();
+        int cts = (v[2] << 16) | (v[3] << 8) | v[4];
+        EXPECT_EQ(want_cts[i], cts) << "video " << i;
+        EXPECT_EQ(want_time[i], (uint32_t)videos[i]->timestamp_) << "video " << i;
+    }
+    EXPECT_EQ(SrsVideoAvcFrameTraitSequenceHeader, videos[0]->payload()[1]);
+}
+
+// Count the video and audio sequence headers the caster queued, of the
+// times from start to before end in ms.
+static void mock_queued_sequence_headers(SrsMpegtsQueue *queue, int64_t start, int64_t end, int &nb_video, int &nb_audio)
+{
+    nb_video = nb_audio = 0;
+    std::map<int64_t, SrsMediaPacket *>::iterator it;
+    for (it = queue->msgs_.begin(); it != queue->msgs_.end(); ++it) {
+        SrsMediaPacket *msg = it->second;
+        if (it->first < start || it->first >= end || msg->size() < 2 || msg->payload()[1] != 0) {
+            continue;
+        }
+        if (msg->is_video()) {
+            nb_video++;
+        } else if (msg->is_audio()) {
+            nb_audio++;
+        }
+    }
+}
+
+// When the caster's RTMP output closes, as when the server closes the
+// caster's publisher for a stream idle past its timeout, the next push is a
+// new publish: the caster sends each sequence header again, and nothing it
+// queued for the closed publish.
+VOID TEST(MpegtsOverUdpTest, ClosedOutputSendsSequenceHeadersAgain)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    udp_handler->assemble();
+
+    // The RTMP output is connected; the factory makes the next one.
+    udp_handler->sdk_ = new MockRtmpClient();
+    SrsUniquePtr<MockAppFactoryForMpegtsOverUdp> mock_factory(new MockAppFactoryForMpegtsOverUdp());
+    mock_factory->mock_rtmp_client_ = new MockRtmpClient();
+    udp_handler->app_factory_ = mock_factory.get();
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(udp_handler->queue_);
+    ASSERT_TRUE(queue != NULL);
+
+    const char sps[] = {0x67, 0x64, 0x00, 0x1f, (char)0xac, (char)0xd9};
+    const char pps[] = {0x68, (char)0xeb, (char)0xe3, (char)0xcb};
+
+    // A push of an AAC frame, then the SPS and PPS, at dts: the queue holds
+    // fewer than 2 frames of each track, so the caster sends nothing yet.
+    struct Push {
+        static void run(SrsMpegtsOverUdp *caster, int64_t dts, const char *sps, int nb_sps, const char *pps, int nb_pps)
+        {
+            srs_error_t err;
+            if (true) {
+                std::string pes;
+                mock_append_adts_frame(pes, 4, 10);
+                SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+                msg->dts_ = msg->pts_ = dts;
+                SrsBuffer avs((char *)pes.data(), (int)pes.size());
+                HELPER_EXPECT_SUCCESS(caster->on_ts_audio(msg.get(), &avs));
+            }
+            if (true) {
+                std::string pes;
+                mock_append_annexb_nalu(pes, sps, nb_sps);
+                mock_append_annexb_nalu(pes, pps, nb_pps);
+                SrsUniquePtr<SrsTsMessage> msg(new SrsTsMessage());
+                msg->dts_ = msg->pts_ = dts;
+                SrsBuffer avs((char *)pes.data(), (int)pes.size());
+                HELPER_EXPECT_SUCCESS(caster->on_ts_video(msg.get(), &avs));
+            }
+        }
+    };
+
+    // The first push: both sequence headers.
+    Push::run(udp_handler.get(), 900000, sps, sizeof(sps), pps, sizeof(pps));
+    int nb_video = 0, nb_audio = 0;
+    mock_queued_sequence_headers(queue, 10000, 11000, nb_video, nb_audio);
+    EXPECT_EQ(1, nb_video);
+    EXPECT_EQ(1, nb_audio);
+
+    // The output closes, and what it queued goes with it.
+    udp_handler->close();
+    EXPECT_TRUE(udp_handler->sdk_ == NULL);
+    EXPECT_TRUE(queue->msgs_.empty());
+
+    // The second push, the same codecs from the start: a new output, and both
+    // sequence headers again, at the second push's times.
+    Push::run(udp_handler.get(), 0, sps, sizeof(sps), pps, sizeof(pps));
+    EXPECT_TRUE(mock_factory->create_rtmp_client_called_);
+    EXPECT_TRUE(udp_handler->sdk_ == mock_factory->mock_rtmp_client_);
+    mock_queued_sequence_headers(queue, 0, 1000, nb_video, nb_audio);
+    EXPECT_EQ(1, nb_video);
+    EXPECT_EQ(1, nb_audio);
+    ASSERT_FALSE(queue->msgs_.empty());
+    EXPECT_GT(10000, queue->msgs_.rbegin()->first);
+
+    // The caster frees its queue with the queued messages, and the second mock RTMP client.
+    udp_handler->app_factory_ = NULL;
+}
+
 // Test SrsMpegtsOverUdp::write_h264_sps_pps - major use scenario
 // This test covers the complete SPS/PPS writing flow:
 // 1. Both SPS and PPS have changed (h264_sps_changed_ and h264_pps_changed_ are true)
@@ -709,11 +1073,9 @@ VOID TEST(MpegtsOverUdpTest, WriteH264SpsPps)
 // Test SrsMpegtsOverUdp::write_h264_ipb_frame - major use scenario
 // This test covers the complete IPB frame writing flow:
 // 1. SPS/PPS already sent (h264_sps_pps_sent_ = true)
-// 2. Write an IDR frame (keyframe) with valid H.264 NALU data
-// 3. Verify it detects IDR frame type correctly (NALU type 5)
-// 4. Verify it calls avc_->mux_ipb_frame to mux the frame
-// 5. Verify it calls avc_->mux_avc2flv with correct frame type (keyframe)
-// 6. Verify it calls rtmp_write_packet to write the video packet
+// 2. Write an access unit of an IDR frame (keyframe), its NALU with its 4-byte size
+// 3. Verify it calls avc_->mux_avc2flv with correct frame type (keyframe)
+// 4. Verify it calls rtmp_write_packet to write the video packet
 VOID TEST(MpegtsOverUdpTest, WriteH264IpbFrameWithIdrFrame)
 {
     srs_error_t err;
@@ -737,13 +1099,13 @@ VOID TEST(MpegtsOverUdpTest, WriteH264IpbFrameWithIdrFrame)
 
     // Create an IDR frame NALU (type 5)
     // NALU header: 0x65 = 0110 0101 (forbidden_zero_bit=0, nal_ref_idc=3, nal_unit_type=5)
-    char idr_frame[] = {0x65, (char)0x88, (char)0x84, 0x00, 0x01, 0x02, 0x03, 0x04};
-    int frame_size = sizeof(idr_frame);
+    char idr_frame[] = {0x00, 0x00, 0x00, 0x08, 0x65, (char)0x88, (char)0x84, 0x00, 0x01, 0x02, 0x03, 0x04};
+    std::string ibps(idr_frame, sizeof(idr_frame));
 
     // Test write_h264_ipb_frame with IDR frame
     uint32_t dts = 2000;
     uint32_t pts = 2000;
-    HELPER_EXPECT_SUCCESS(udp_handler->write_h264_ipb_frame(idr_frame, frame_size, dts, pts));
+    HELPER_EXPECT_SUCCESS(udp_handler->write_h264_ipb_frame(ibps, true, dts, pts));
 
     // Clean up - set to NULL to avoid double-free
     udp_handler->avc_ = NULL;
@@ -758,6 +1120,7 @@ MockAppFactoryForMpegtsOverUdp::MockAppFactoryForMpegtsOverUdp()
 {
     mock_rtmp_client_ = NULL;
     create_rtmp_client_called_ = false;
+    cto_ = sto_ = 0;
 }
 
 MockAppFactoryForMpegtsOverUdp::~MockAppFactoryForMpegtsOverUdp()
@@ -768,193 +1131,14 @@ MockAppFactoryForMpegtsOverUdp::~MockAppFactoryForMpegtsOverUdp()
 ISrsBasicRtmpClient *MockAppFactoryForMpegtsOverUdp::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
 {
     create_rtmp_client_called_ = true;
+    cto_ = cto;
+    sto_ = sto;
     return mock_rtmp_client_;
 }
 
 void MockAppFactoryForMpegtsOverUdp::reset()
 {
     create_rtmp_client_called_ = false;
-}
-
-// Mock ISrsAppConfig implementation for SrsHttpFlvListener
-MockAppConfigForHttpFlvListener::MockAppConfigForHttpFlvListener()
-{
-    stream_caster_listen_port_ = 0;
-}
-
-MockAppConfigForHttpFlvListener::~MockAppConfigForHttpFlvListener()
-{
-}
-
-int MockAppConfigForHttpFlvListener::get_stream_caster_listen(SrsConfDirective *conf)
-{
-    return stream_caster_listen_port_;
-}
-
-// Mock SrsTcpListener implementation
-MockTcpListenerForHttpFlv::MockTcpListenerForHttpFlv(ISrsTcpHandler *h) : SrsTcpListener(h)
-{
-    endpoint_port_ = 0;
-    set_endpoint_called_ = false;
-    set_label_called_ = false;
-    listen_called_ = false;
-    close_called_ = false;
-}
-
-MockTcpListenerForHttpFlv::~MockTcpListenerForHttpFlv()
-{
-}
-
-ISrsListener *MockTcpListenerForHttpFlv::set_endpoint(const std::string &i, int p)
-{
-    endpoint_ip_ = i;
-    endpoint_port_ = p;
-    set_endpoint_called_ = true;
-    return this;
-}
-
-ISrsListener *MockTcpListenerForHttpFlv::set_label(const std::string &label)
-{
-    label_ = label;
-    set_label_called_ = true;
-    return this;
-}
-
-srs_error_t MockTcpListenerForHttpFlv::listen()
-{
-    listen_called_ = true;
-    return srs_success;
-}
-
-void MockTcpListenerForHttpFlv::close()
-{
-    close_called_ = true;
-}
-
-void MockTcpListenerForHttpFlv::reset()
-{
-    endpoint_ip_ = "";
-    endpoint_port_ = 0;
-    label_ = "";
-    set_endpoint_called_ = false;
-    set_label_called_ = false;
-    listen_called_ = false;
-    close_called_ = false;
-}
-
-// Mock ISrsAppCasterFlv implementation
-MockAppCasterFlv::MockAppCasterFlv()
-{
-    assemble_count_ = 0;
-    initialize_called_ = false;
-    on_tcp_client_called_ = false;
-    initialize_error_ = srs_success;
-    on_tcp_client_error_ = srs_success;
-}
-
-MockAppCasterFlv::~MockAppCasterFlv()
-{
-    srs_freep(initialize_error_);
-    srs_freep(on_tcp_client_error_);
-}
-
-void MockAppCasterFlv::assemble()
-{
-    assemble_count_++;
-}
-
-srs_error_t MockAppCasterFlv::initialize(SrsConfDirective *c)
-{
-    initialize_called_ = true;
-    if (initialize_error_ != srs_success) {
-        return srs_error_copy(initialize_error_);
-    }
-    return srs_success;
-}
-
-srs_error_t MockAppCasterFlv::on_tcp_client(ISrsListener *listener, srs_netfd_t stfd)
-{
-    on_tcp_client_called_ = true;
-    if (on_tcp_client_error_ != srs_success) {
-        return srs_error_copy(on_tcp_client_error_);
-    }
-    return srs_success;
-}
-
-srs_error_t MockAppCasterFlv::start()
-{
-    return srs_success;
-}
-
-bool MockAppCasterFlv::empty()
-{
-    return true;
-}
-
-size_t MockAppCasterFlv::size()
-{
-    return 0;
-}
-
-void MockAppCasterFlv::add(ISrsResource *conn, bool *exists)
-{
-}
-
-void MockAppCasterFlv::add_with_id(const std::string &id, ISrsResource *conn)
-{
-}
-
-void MockAppCasterFlv::add_with_fast_id(uint64_t id, ISrsResource *conn)
-{
-}
-
-void MockAppCasterFlv::add_with_name(const std::string &name, ISrsResource *conn)
-{
-}
-
-ISrsResource *MockAppCasterFlv::at(int index)
-{
-    return NULL;
-}
-
-ISrsResource *MockAppCasterFlv::find_by_id(std::string id)
-{
-    return NULL;
-}
-
-ISrsResource *MockAppCasterFlv::find_by_fast_id(uint64_t id)
-{
-    return NULL;
-}
-
-ISrsResource *MockAppCasterFlv::find_by_name(std::string name)
-{
-    return NULL;
-}
-
-void MockAppCasterFlv::remove(ISrsResource *c)
-{
-}
-
-void MockAppCasterFlv::subscribe(ISrsDisposingHandler *h)
-{
-}
-
-void MockAppCasterFlv::unsubscribe(ISrsDisposingHandler *h)
-{
-}
-
-srs_error_t MockAppCasterFlv::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
-{
-    return srs_success;
-}
-
-void MockAppCasterFlv::reset()
-{
-    initialize_called_ = false;
-    on_tcp_client_called_ = false;
-    srs_freep(initialize_error_);
-    srs_freep(on_tcp_client_error_);
 }
 
 // Test SrsMpegtsOverUdp::rtmp_write_packet - major use scenario
@@ -1057,395 +1241,31 @@ VOID TEST(MpegtsOverUdpTest, RtmpWritePacketWithVideoData)
     srs_freep(mock_sdk);
 }
 
-// Test SrsHttpFlvListener - covers the major use scenario:
-// 1. Create listener
-// 2. Initialize with valid port configuration
-// 3. Verify listener and caster are properly configured
-// 4. Start listening
-// 5. Close the listener
-VOID TEST(HttpFlvListenerTest, InitializeAndListen)
+// The RTMP output waits for its own RTMP server as the forwarder does, not
+// only the pulse: the server reads its media only once the on_publish hook
+// accepts, so a send may wait as long as the hook.
+VOID TEST(MpegtsOverUdpTest, RtmpOutputWaitsForHook)
 {
     srs_error_t err;
 
-    // Create mock config with valid port
-    SrsUniquePtr<MockAppConfigForHttpFlvListener> mock_config(new MockAppConfigForHttpFlvListener());
-    mock_config->stream_caster_listen_port_ = 8080;
-
-    // Create SrsHttpFlvListener first (it will be the handler for the mock listener)
-    SrsUniquePtr<SrsHttpFlvListener> listener(new SrsHttpFlvListener());
-
-    // Create mock listener and caster (pass listener as handler to mock_listener)
-    MockTcpListenerForHttpFlv *mock_listener = new MockTcpListenerForHttpFlv(listener.get());
-    MockAppCasterFlv *mock_caster = new MockAppCasterFlv();
-
-    // Inject mock dependencies
-    listener->config_ = mock_config.get();
-    listener->listener_ = mock_listener;
-    listener->caster_ = mock_caster;
-
-    // Create a dummy config directive
-    SrsConfDirective conf;
-
-    // Test initialize() - should configure listener and caster
-    HELPER_EXPECT_SUCCESS(listener->initialize(&conf));
-
-    // Verify listener was configured with correct endpoint
-    EXPECT_TRUE(mock_listener->set_endpoint_called_);
-    EXPECT_EQ(8080, mock_listener->endpoint_port_);
-    EXPECT_EQ(srs_net_address_any(), mock_listener->endpoint_ip_);
-
-    // Verify listener label was set
-    EXPECT_TRUE(mock_listener->set_label_called_);
-    EXPECT_EQ("PUSH-FLV", mock_listener->label_);
-
-    // Verify caster was initialized
-    EXPECT_TRUE(mock_caster->initialize_called_);
-
-    // Test listen() - should start listening
-    HELPER_EXPECT_SUCCESS(listener->listen());
-    EXPECT_TRUE(mock_listener->listen_called_);
-
-    // Test close() - should close listener
-    listener->close();
-    EXPECT_TRUE(mock_listener->close_called_);
-
-    // Clean up - set to NULL to avoid double-free
-    listener->config_ = NULL;
-    listener->listener_ = NULL;
-    listener->caster_ = NULL;
-}
-
-// assemble() assembles the caster, which the constructor only allocates.
-VOID TEST(HttpFlvListenerTest, AssembleAssemblesCaster)
-{
-    SrsUniquePtr<SrsHttpFlvListener> listener(new SrsHttpFlvListener());
-
-    // Owned by the listener, whose destructor frees it.
-    MockAppCasterFlv *caster = new MockAppCasterFlv();
-    srs_freep(listener->caster_);
-    listener->caster_ = caster;
-
-    listener->assemble();
-    EXPECT_EQ(1, caster->assemble_count_);
-    EXPECT_FALSE(caster->initialize_called_);
-}
-
-// Mock ISrsAppConfig implementation for SrsAppCasterFlv
-MockAppConfigForAppCasterFlv::MockAppConfigForAppCasterFlv()
-{
-    stream_caster_output_ = "";
-}
-
-MockAppConfigForAppCasterFlv::~MockAppConfigForAppCasterFlv()
-{
-}
-
-std::string MockAppConfigForAppCasterFlv::get_stream_caster_output(SrsConfDirective *conf)
-{
-    return stream_caster_output_;
-}
-
-// Mock SrsHttpServeMux implementation for SrsAppCasterFlv
-MockHttpServeMuxForAppCasterFlv::MockHttpServeMuxForAppCasterFlv()
-{
-    handle_called_ = false;
-    handle_pattern_ = "";
-    handle_handler_ = NULL;
-    handle_error_ = srs_success;
-}
-
-MockHttpServeMuxForAppCasterFlv::~MockHttpServeMuxForAppCasterFlv()
-{
-    srs_freep(handle_error_);
-}
-
-srs_error_t MockHttpServeMuxForAppCasterFlv::handle(std::string pattern, ISrsHttpHandler *handler)
-{
-    handle_called_ = true;
-    handle_pattern_ = pattern;
-    handle_handler_ = handler;
-    if (handle_error_ != srs_success) {
-        return srs_error_copy(handle_error_);
-    }
-    return srs_success;
-}
-
-void MockHttpServeMuxForAppCasterFlv::reset()
-{
-    handle_called_ = false;
-    handle_pattern_ = "";
-    handle_handler_ = NULL;
-    srs_freep(handle_error_);
-}
-
-// Mock SrsResourceManager implementation for SrsAppCasterFlv
-MockResourceManagerForAppCasterFlv::MockResourceManagerForAppCasterFlv() : SrsResourceManager("TEST")
-{
-    start_called_ = false;
-    start_error_ = srs_success;
-}
-
-MockResourceManagerForAppCasterFlv::~MockResourceManagerForAppCasterFlv()
-{
-    srs_freep(start_error_);
-}
-
-srs_error_t MockResourceManagerForAppCasterFlv::start()
-{
-    start_called_ = true;
-    if (start_error_ != srs_success) {
-        return srs_error_copy(start_error_);
-    }
-    return srs_success;
-}
-
-void MockResourceManagerForAppCasterFlv::reset()
-{
-    start_called_ = false;
-    srs_freep(start_error_);
-}
-
-// The constructor does not assemble the resource manager it owns, which would
-// create its cond through the global kernel factory before a test could inject one.
-VOID TEST(AppCasterFlvTest, ConstructorLeavesResourceManagerUnassembled)
-{
-    SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
-
-    EXPECT_TRUE(_srs_kernel_factory == caster->manager_->factory_);
-    EXPECT_TRUE(NULL == caster->manager_->cond_);
-}
-
-// assemble() assembles the resource manager, which creates its cond through the
-// manager's kernel factory.
-VOID TEST(AppCasterFlvTest, AssembleAssemblesResourceManager)
-{
-    MockKernelFactoryForFastTimer factory;
-    SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
-    caster->manager_->factory_ = &factory;
-
-    caster->assemble();
-    EXPECT_EQ(1, factory.create_cond_count_);
-}
-
-// Test SrsAppCasterFlv::initialize - covers the major use scenario:
-// 1. Create SrsAppCasterFlv
-// 2. Mock dependencies (config_, http_mux_, manager_)
-// 3. Call initialize() with config directive
-// 4. Verify config_->get_stream_caster_output() was called and output_ is set
-// 5. Verify http_mux_->handle() was called with "/" pattern
-// 6. Verify manager_->start() was called
-VOID TEST(AppCasterFlvTest, InitializeSuccess)
-{
-    srs_error_t err;
-
-    // Create mock dependencies
-    SrsUniquePtr<MockAppConfigForAppCasterFlv> mock_config(new MockAppConfigForAppCasterFlv());
-    mock_config->stream_caster_output_ = "rtmp://127.0.0.1/live/[stream]";
-
-    MockHttpServeMuxForAppCasterFlv *mock_http_mux = new MockHttpServeMuxForAppCasterFlv();
-    MockResourceManagerForAppCasterFlv *mock_manager = new MockResourceManagerForAppCasterFlv();
-    mock_manager->assemble();
-
-    // Create SrsAppCasterFlv
-    SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
-
-    // Inject mock dependencies
-    caster->config_ = mock_config.get();
-    caster->http_mux_ = mock_http_mux;
-    caster->manager_ = mock_manager;
-
-    // Create a dummy config directive
-    SrsConfDirective conf;
-
-    // Test initialize() - should configure output, register HTTP handler, and start manager
-    HELPER_EXPECT_SUCCESS(caster->initialize(&conf));
-
-    // Verify output_ was set from config
-    EXPECT_EQ("rtmp://127.0.0.1/live/[stream]", caster->output_);
-
-    // Verify http_mux_->handle() was called with "/" pattern
-    EXPECT_TRUE(mock_http_mux->handle_called_);
-    EXPECT_EQ("/", mock_http_mux->handle_pattern_);
-    EXPECT_EQ(caster.get(), mock_http_mux->handle_handler_);
-
-    // Verify manager_->start() was called
-    EXPECT_TRUE(mock_manager->start_called_);
-
-    // Clean up - set to NULL to avoid double-free
-    caster->config_ = NULL;
-    caster->http_mux_ = NULL;
-    caster->manager_ = NULL;
-    srs_freep(mock_http_mux);
-    srs_freep(mock_manager);
-}
-
-// Mock ISrsConnection implementation for testing SrsAppCasterFlv resource manager methods
-// Note: ISrsConnection inherits from ISrsResource, so we only need to inherit from ISrsConnection
-class MockResourceForAppCasterFlv : public ISrsConnection
-{
-public:
-    SrsContextId cid_;
-    std::string desc_;
-    std::string remote_ip_;
-
-public:
-    MockResourceForAppCasterFlv()
-    {
-        cid_ = _srs_context->generate_id();
-        desc_ = "mock-resource";
-        remote_ip_ = "127.0.0.1";
-    }
-    virtual ~MockResourceForAppCasterFlv()
-    {
-    }
-    virtual const SrsContextId &get_id()
-    {
-        return cid_;
-    }
-    virtual std::string desc()
-    {
-        return desc_;
-    }
-    virtual std::string remote_ip()
-    {
-        return remote_ip_;
-    }
-};
-
-// Test SrsAppCasterFlv resource manager delegation - covers the major use scenario:
-// This test verifies that SrsAppCasterFlv correctly delegates all ISrsResourceManager
-// interface methods to its internal manager_ object. This is the core functionality
-// of SrsAppCasterFlv as a resource manager wrapper.
-//
-// The test covers:
-// 1. start() - delegates to manager_->start()
-// 2. empty() - delegates to manager_->empty()
-// 3. size() - delegates to manager_->size()
-// 4. add() - delegates to manager_->add()
-// 5. add_with_id() - delegates to manager_->add_with_id()
-// 6. add_with_fast_id() - delegates to manager_->add_with_fast_id()
-// 7. add_with_name() - delegates to manager_->add_with_name()
-// 8. at() - delegates to manager_->at()
-// 9. find_by_id() - delegates to manager_->find_by_id()
-// 10. find_by_fast_id() - delegates to manager_->find_by_fast_id()
-// 11. find_by_name() - delegates to manager_->find_by_name()
-// 12. remove() - removes from conns_ vector and delegates to manager_->remove()
-// 13. subscribe() - delegates to manager_->subscribe()
-// 14. unsubscribe() - delegates to manager_->unsubscribe()
-VOID TEST(AppCasterFlvTest, ResourceManagerDelegation)
-{
-    srs_error_t err;
-
-    // Create mock dependencies
-    SrsUniquePtr<MockAppConfigForAppCasterFlv> mock_config(new MockAppConfigForAppCasterFlv());
-    mock_config->stream_caster_output_ = "rtmp://127.0.0.1/live/[stream]";
-
-    MockHttpServeMuxForAppCasterFlv *mock_http_mux = new MockHttpServeMuxForAppCasterFlv();
-
-    // Use real SrsResourceManager for this test to verify actual delegation behavior
-    SrsResourceManager *real_manager = new SrsResourceManager("TEST-CFLV");
-    real_manager->assemble();
-
-    // Create SrsAppCasterFlv
-    SrsUniquePtr<SrsAppCasterFlv> caster(new SrsAppCasterFlv());
-
-    // Inject mock dependencies
-    caster->config_ = mock_config.get();
-    caster->http_mux_ = mock_http_mux;
-    caster->manager_ = real_manager;
-
-    // Test 1: start() - should delegate to manager_->start()
-    HELPER_EXPECT_SUCCESS(caster->start());
-
-    // Test 2: empty() - should return true initially (no resources added)
-    EXPECT_TRUE(caster->empty());
-
-    // Test 3: size() - should return 0 initially
-    EXPECT_EQ(0, (int)caster->size());
-
-    // Create mock resources for testing
-    MockResourceForAppCasterFlv *resource1 = new MockResourceForAppCasterFlv();
-    MockResourceForAppCasterFlv *resource2 = new MockResourceForAppCasterFlv();
-    MockResourceForAppCasterFlv *resource3 = new MockResourceForAppCasterFlv();
-
-    // Test 4: add() - should delegate to manager_->add()
-    caster->add(resource1);
-    EXPECT_FALSE(caster->empty());
-    EXPECT_EQ(1, (int)caster->size());
-
-    // Test 5: add_with_id() - should delegate to manager_->add_with_id()
-    std::string id2 = "resource-id-2";
-    caster->add_with_id(id2, resource2);
-    EXPECT_EQ(2, (int)caster->size());
-
-    // Test 6: add_with_fast_id() - should delegate to manager_->add_with_fast_id()
-    uint64_t fast_id3 = 12345;
-    caster->add_with_fast_id(fast_id3, resource3);
-    EXPECT_EQ(3, (int)caster->size());
-
-    // Test 7: add_with_name() - should delegate to manager_->add_with_name()
-    MockResourceForAppCasterFlv *resource4 = new MockResourceForAppCasterFlv();
-    std::string name4 = "resource-name-4";
-    caster->add_with_name(name4, resource4);
-    EXPECT_EQ(4, (int)caster->size());
-
-    // Test 8: at() - should delegate to manager_->at()
-    ISrsResource *found_at_0 = caster->at(0);
-    EXPECT_TRUE(found_at_0 != NULL);
-    EXPECT_EQ(resource1, found_at_0);
-
-    // Test 9: find_by_id() - should delegate to manager_->find_by_id()
-    ISrsResource *found_by_id = caster->find_by_id(id2);
-    EXPECT_TRUE(found_by_id != NULL);
-    EXPECT_EQ(resource2, found_by_id);
-
-    // Test 10: find_by_fast_id() - should delegate to manager_->find_by_fast_id()
-    ISrsResource *found_by_fast_id = caster->find_by_fast_id(fast_id3);
-    EXPECT_TRUE(found_by_fast_id != NULL);
-    EXPECT_EQ(resource3, found_by_fast_id);
-
-    // Test 11: find_by_name() - should delegate to manager_->find_by_name()
-    ISrsResource *found_by_name = caster->find_by_name(name4);
-    EXPECT_TRUE(found_by_name != NULL);
-    EXPECT_EQ(resource4, found_by_name);
-
-    // Test 12: remove() - should remove from conns_ vector and delegate to manager_->remove()
-    // First, add resource1 to conns_ vector to test the remove logic
-    caster->conns_.push_back(resource1);
-    EXPECT_EQ(1, (int)caster->conns_.size());
-
-    // Remove resource1 - should remove from conns_ and delegate to manager_
-    caster->remove(resource1);
-    EXPECT_EQ(0, (int)caster->conns_.size());
-    // Note: After remove(), the resource is moved to zombies in manager and will be freed asynchronously
-    // So we should NOT access resource1 after this point
-
-    // Test 13: subscribe() - should delegate to manager_->subscribe()
-    MockSrsDisposingHandler handler;
-    caster->subscribe(&handler);
-    // Verify subscription by checking that handler is notified when a resource is removed
-    caster->remove(resource2);
-    // Give time for async disposal (manager runs in coroutine)
-    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-    // Handler should have been called (but we can't easily verify this without more complex setup)
-
-    // Test 14: unsubscribe() - should delegate to manager_->unsubscribe()
-    caster->unsubscribe(&handler);
-    // After unsubscribe, handler should not be notified for future removals
-
-    // Clean up remaining resources
-    caster->remove(resource3);
-    caster->remove(resource4);
-
-    // Give time for async disposal
-    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-
-    // Clean up - set to NULL to avoid double-free
-    caster->config_ = NULL;
-    caster->http_mux_ = NULL;
-    caster->manager_ = NULL;
-    srs_freep(mock_http_mux);
-    srs_freep(real_manager);
+    SrsUniquePtr<SrsMpegtsOverUdp> udp_handler(new SrsMpegtsOverUdp());
+    SrsUniquePtr<MockRtmpClient> mock_sdk(new MockRtmpClient());
+    MockAppFactoryForMpegtsOverUdp mock_factory;
+    mock_factory.mock_rtmp_client_ = mock_sdk.get();
+
+    udp_handler->app_factory_ = &mock_factory;
+    udp_handler->output_ = "rtmp://127.0.0.1/live/stream";
+
+    HELPER_EXPECT_SUCCESS(udp_handler->connect());
+    EXPECT_TRUE(udp_handler->sdk_ == mock_sdk.get());
+    EXPECT_TRUE(mock_sdk->connect_called_);
+    EXPECT_TRUE(mock_sdk->publish_called_);
+    EXPECT_EQ(SRS_CONSTS_RTMP_TIMEOUT, mock_factory.cto_);
+    EXPECT_EQ(SRS_CONSTS_RTMP_TIMEOUT, mock_factory.sto_);
+
+    // The client belongs to the test, not the caster.
+    udp_handler->app_factory_ = NULL;
+    udp_handler->sdk_ = NULL;
 }
 
 // Mock ISrsCoroutine implementation for testing SrsHttpConn::cycle()
@@ -1659,6 +1479,166 @@ VOID TEST(HttpConnTest, AssembleWiresInjectedContextAndSocket)
     conn->context_ = NULL;
 }
 
+VOID TEST(HttpConnTest, InvalidJsonpCallbackAnsweredBadRequest)
+{
+    srs_error_t err;
+
+    MockHttpxConn handler;
+    MockBufferIO skt;
+    skt.append("GET /api/v1/versions?callback=alert(1) HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, NULL, "127.0.0.1", 8080));
+    conn->trd_ = new MockCoroutineForCycle();
+    HELPER_EXPECT_SUCCESS(conn->parser_->initialize(HTTP_REQUEST));
+    HELPER_EXPECT_SUCCESS(conn->set_jsonp(true));
+
+    // GOAL: the refused callback still ends the connection with its error.
+    ISrsRequest *req = NULL;
+    err = conn->process_requests(&req);
+    EXPECT_EQ(ERROR_HTTP_JSONP, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(req);
+
+    // GOAL: the client is told why by 400, with the error code and its short name, never the callback,
+    // so nothing it sent is echoed back as script.
+    string out(skt.out_buffer.bytes(), skt.out_buffer.length());
+    EXPECT_TRUE(srs_strings_starts_with(out, "HTTP/1.1 400 Bad Request\r\n")) << out;
+    EXPECT_TRUE(srs_strings_contains(out, "Connection: Close\r\n")) << out;
+    EXPECT_TRUE(srs_strings_contains(out, "Content-Type: text/plain; charset=utf-8\r\n")) << out;
+    EXPECT_TRUE(srs_strings_ends_with(out, "\r\n\r\n4058: HttpJsonp")) << out;
+    EXPECT_FALSE(srs_strings_contains(out, "alert")) << out;
+
+    // GOAL: no handler sees the refused request.
+    EXPECT_FALSE(handler.on_http_message_called_);
+}
+
+VOID TEST(HttpConnTest, ValidJsonpCallbackNotRefused)
+{
+    srs_error_t err;
+
+    MockHttpxConn handler;
+    MockBufferIO skt;
+    skt.append("GET /api/v1/versions?callback=cb HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    MockHttpServeMux mux;
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, &mux, "127.0.0.1", 8080));
+    conn->trd_ = new MockCoroutineForCycle();
+    HELPER_EXPECT_SUCCESS(conn->parser_->initialize(HTTP_REQUEST));
+    HELPER_EXPECT_SUCCESS(conn->set_jsonp(true));
+    HELPER_EXPECT_SUCCESS(conn->set_auth_enabled(false));
+
+    // GOAL: a callback of allowed characters is served as before, and the connection ends only when the
+    // client sends nothing more. This passes before and after the refused callback got its answer.
+    ISrsRequest *req = NULL;
+    err = conn->process_requests(&req);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(req);
+
+    EXPECT_TRUE(handler.on_http_message_called_);
+    EXPECT_EQ(1, mux.serve_http_count_);
+    EXPECT_EQ(0, skt.out_length());
+}
+
+VOID TEST(HttpConnTest, UrlNotCleanAnsweredBadRequest)
+{
+    srs_error_t err;
+
+    MockHttpxConn handler;
+    MockBufferIO skt;
+    skt.append("GET /a/../secret.dat HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    SrsHttpServeMux mux;
+    HELPER_EXPECT_SUCCESS(mux.initialize());
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, &mux, "127.0.0.1", 8080));
+    conn->trd_ = new MockCoroutineForCycle();
+    HELPER_EXPECT_SUCCESS(conn->parser_->initialize(HTTP_REQUEST));
+    HELPER_EXPECT_SUCCESS(conn->set_auth_enabled(false));
+
+    // GOAL: the mux still refuses a URL with "..", and the refusal ends the connection with its error.
+    ISrsRequest *req = NULL;
+    err = conn->process_requests(&req);
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(req);
+
+    // GOAL: the client is told why by 400, with the error code and its short name, before the close.
+    string out(skt.out_buffer.bytes(), skt.out_buffer.length());
+    EXPECT_TRUE(srs_strings_starts_with(out, "HTTP/1.1 400 Bad Request\r\n")) << out;
+    EXPECT_TRUE(srs_strings_contains(out, "Connection: Close\r\n")) << out;
+    EXPECT_TRUE(srs_strings_contains(out, "Content-Type: text/plain; charset=utf-8\r\n")) << out;
+    EXPECT_TRUE(srs_strings_ends_with(out, "\r\n\r\n4002: HttpUrlNotClean")) << out;
+}
+
+VOID TEST(HttpConnTest, CleanUrlNotRefused)
+{
+    srs_error_t err;
+
+    MockHttpxConn handler;
+    MockBufferIO skt;
+    skt.append("GET /a/secret.dat HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+
+    SrsHttpServeMux mux;
+    HELPER_EXPECT_SUCCESS(mux.initialize());
+    SrsUniquePtr<SrsHttpConn> conn(new SrsHttpConn(&handler, &skt, &mux, "127.0.0.1", 8080));
+    conn->trd_ = new MockCoroutineForCycle();
+    HELPER_EXPECT_SUCCESS(conn->parser_->initialize(HTTP_REQUEST));
+    HELPER_EXPECT_SUCCESS(conn->set_auth_enabled(false));
+
+    // GOAL: a clean URL nothing is mounted at gets the mux's 404 once, and the connection ends only when
+    // the client sends nothing more. This passes before and after the refused URL got its answer.
+    ISrsRequest *req = NULL;
+    err = conn->process_requests(&req);
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    srs_freep(err);
+    srs_freep(req);
+
+    string out(skt.out_buffer.bytes(), skt.out_buffer.length());
+    EXPECT_TRUE(srs_strings_starts_with(out, "HTTP/1.1 404 Not Found\r\n")) << out;
+    EXPECT_FALSE(srs_strings_contains(out, "HTTP/1.1 400")) << out;
+}
+
+// The error code of the lookup of a URL by a mux with nothing mounted.
+static int srs_utest_mux_find_handler_code(string url)
+{
+    SrsHttpServeMux mux;
+    srs_error_t err = mux.initialize();
+    srs_freep(err);
+
+    SrsHttpHeader header;
+    header.set("Host", "127.0.0.1");
+    SrsHttpMessage msg;
+    msg.set_header(&header, false);
+    if ((err = msg.set_url(url, false)) != srs_success) {
+        int code = srs_error_code(err);
+        srs_freep(err);
+        return code;
+    }
+
+    ISrsHttpHandler *h = NULL;
+    err = mux.find_handler(&msg, &h);
+    int code = srs_error_code(err);
+    srs_freep(err);
+    return code;
+}
+
+VOID TEST(HttpServeMuxTest, DotDotSegmentRefused)
+{
+    // GOAL: a path with a ".." segment, in the middle or at the end, is not clean.
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/a/../x"));
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/a/.."));
+    EXPECT_EQ(ERROR_HTTP_URL_NOT_CLEAN, srs_utest_mux_find_handler_code("/../x.flv?t=1"));
+}
+
+VOID TEST(HttpServeMuxTest, TwoDotsInNameOrQueryNotRefused)
+{
+    // GOAL: two dots in a name or in the query are no traversal, so the lookup goes on to the mux's 404 handler.
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/a..b.dat"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/live/...flv"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/x.flv?t=a..b"));
+    EXPECT_EQ(ERROR_SUCCESS, srs_utest_mux_find_handler_code("/x.flv?t=/../"));
+}
+
 VOID TEST(HttpxConnTest, ConstructionReachesNoCollaborator)
 {
     std::string before = _srs_context->get_id().c_str();
@@ -1857,9 +1837,6 @@ VOID TEST(BufferCacheTest, HttpMountAssemblesBufferCache)
 
     if (true) {
         SrsUniquePtr<SrsHttpStreamServer> server(new SrsHttpStreamServer());
-        MockAsyncCallWorker *async = new MockAsyncCallWorker();
-        srs_freep(server->async_);
-        server->async_ = async;
         server->config_ = &config;
 
         server->templateHandlers_["test.vhost"] = new SrsLiveEntry("[vhost]/[app]/[stream].flv");
@@ -1876,82 +1853,24 @@ VOID TEST(BufferCacheTest, HttpMountAssemblesBufferCache)
     }
 }
 
-// The constructor only stores its arguments and captures the context global; it neither switches
-// the coroutine's id nor creates the HTTP connection, so a test can inject before assemble() runs.
-VOID TEST(DynamicHttpConnTest, ConstructorCapturesContextWithoutWork)
-{
-    std::string before = _srs_context->get_id().c_str();
-
-    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
-    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
-
-    EXPECT_STREQ(before.c_str(), _srs_context->get_id().c_str());
-    EXPECT_TRUE(dyn_conn->context_ == _srs_context);
-    EXPECT_TRUE(dyn_conn->mux_ == mux.get());
-    EXPECT_TRUE(dyn_conn->conn_ == NULL);
-    EXPECT_TRUE(dyn_conn->skt_ == NULL);
-    EXPECT_TRUE(dyn_conn->pprint_ == NULL);
-}
-
-// assemble() switches to a new client id through the injected context, then creates the HTTP connection.
-VOID TEST(DynamicHttpConnTest, AssembleSetsNewIdThroughContext)
-{
-    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
-    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
-
-    MockContextForRtmpConn context;
-    context.id_.set_value("dynamic-http-cid");
-    dyn_conn->context_ = &context;
-    dyn_conn->assemble();
-
-    EXPECT_EQ(1, context.generate_id_count_);
-    EXPECT_EQ(1, context.set_id_count_);
-    EXPECT_STREQ("dynamic-http-cid", context.id_.c_str());
-    EXPECT_TRUE(dyn_conn->conn_ != NULL);
-
-    dyn_conn->context_ = NULL;
-}
-
-VOID TEST(DynamicHttpConnTest, AssembleAssemblesHttpConnUnderNewContext)
-{
-    std::string before = _srs_context->get_id().c_str();
-
-    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
-    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(NULL, NULL, mux.get(), "127.0.0.1", 8080));
-    dyn_conn->assemble();
-
-    // GOAL: the owner switches to a new client id, then assembles its HTTP connection, so the
-    // connection's coroutine runs under that new id and its delta measures the owner's socket.
-    EXPECT_STRNE(before.c_str(), _srs_context->get_id().c_str());
-
-    SrsHttpConn *conn = dynamic_cast<SrsHttpConn *>(dyn_conn->conn_);
-    ASSERT_TRUE(conn != NULL);
-    ASSERT_TRUE(conn->trd_ != NULL);
-    EXPECT_EQ(0, conn->trd_->cid().compare(_srs_context->get_id()));
-
-    SrsNetworkDelta *delta = dynamic_cast<SrsNetworkDelta *>(conn->delta_);
-    EXPECT_TRUE(dyn_conn->skt_ == delta->in_);
-    EXPECT_TRUE(dyn_conn->skt_ == delta->out_);
-}
-
-// Mock ISrsHttpResponseReader implementation for SrsDynamicHttpConn::do_proxy
-MockHttpResponseReaderForDynamicConn::MockHttpResponseReaderForDynamicConn()
+// Mock ISrsHttpResponseReader implementation for SrsHttpFileReader
+MockHttpResponseReaderForHttpFileReader::MockHttpResponseReaderForHttpFileReader()
 {
     content_ = "";
     read_pos_ = 0;
     eof_ = false;
 }
 
-MockHttpResponseReaderForDynamicConn::~MockHttpResponseReaderForDynamicConn()
+MockHttpResponseReaderForHttpFileReader::~MockHttpResponseReaderForHttpFileReader()
 {
 }
 
-bool MockHttpResponseReaderForDynamicConn::eof()
+bool MockHttpResponseReaderForHttpFileReader::eof()
 {
     return eof_;
 }
 
-srs_error_t MockHttpResponseReaderForDynamicConn::read(void *buf, size_t size, ssize_t *nread)
+srs_error_t MockHttpResponseReaderForHttpFileReader::read(void *buf, size_t size, ssize_t *nread)
 {
     if (eof_) {
         *nread = 0;
@@ -1971,133 +1890,15 @@ srs_error_t MockHttpResponseReaderForDynamicConn::read(void *buf, size_t size, s
     return srs_success;
 }
 
-void MockHttpResponseReaderForDynamicConn::reset()
+void MockHttpResponseReaderForHttpFileReader::reset()
 {
     content_ = "";
     read_pos_ = 0;
     eof_ = false;
 }
 
-// Mock ISrsFlvDecoder implementation for SrsDynamicHttpConn::do_proxy
-MockFlvDecoderForDynamicConn::MockFlvDecoderForDynamicConn()
-{
-    read_tag_header_called_ = false;
-    read_tag_data_called_ = false;
-    read_previous_tag_size_called_ = false;
-    read_tag_header_error_ = srs_success;
-    read_tag_data_error_ = srs_success;
-    read_previous_tag_size_error_ = srs_success;
-    tag_type_ = 0;
-    tag_size_ = 0;
-    tag_time_ = 0;
-    tag_data_ = NULL;
-    tag_data_size_ = 0;
-}
-
-MockFlvDecoderForDynamicConn::~MockFlvDecoderForDynamicConn()
-{
-    srs_freep(read_tag_header_error_);
-    srs_freep(read_tag_data_error_);
-    srs_freep(read_previous_tag_size_error_);
-}
-
-srs_error_t MockFlvDecoderForDynamicConn::initialize(ISrsReader *fr)
-{
-    return srs_success;
-}
-
-srs_error_t MockFlvDecoderForDynamicConn::read_header(char header[9])
-{
-    return srs_success;
-}
-
-srs_error_t MockFlvDecoderForDynamicConn::read_tag_header(char *ptype, int32_t *pdata_size, uint32_t *ptime)
-{
-    read_tag_header_called_ = true;
-
-    if (read_tag_header_error_ != srs_success) {
-        return srs_error_copy(read_tag_header_error_);
-    }
-
-    *ptype = tag_type_;
-    *pdata_size = tag_size_;
-    *ptime = tag_time_;
-
-    return srs_success;
-}
-
-srs_error_t MockFlvDecoderForDynamicConn::read_tag_data(char *data, int32_t size)
-{
-    read_tag_data_called_ = true;
-
-    if (read_tag_data_error_ != srs_success) {
-        return srs_error_copy(read_tag_data_error_);
-    }
-
-    if (tag_data_ && tag_data_size_ > 0) {
-        memcpy(data, tag_data_, srs_min(size, tag_data_size_));
-    }
-
-    return srs_success;
-}
-
-srs_error_t MockFlvDecoderForDynamicConn::read_previous_tag_size(char previous_tag_size[4])
-{
-    read_previous_tag_size_called_ = true;
-
-    if (read_previous_tag_size_error_ != srs_success) {
-        return srs_error_copy(read_previous_tag_size_error_);
-    }
-
-    // Write a dummy previous tag size
-    previous_tag_size[0] = 0;
-    previous_tag_size[1] = 0;
-    previous_tag_size[2] = 0;
-    previous_tag_size[3] = 0;
-
-    return srs_success;
-}
-
-void MockFlvDecoderForDynamicConn::reset()
-{
-    read_tag_header_called_ = false;
-    read_tag_data_called_ = false;
-    read_previous_tag_size_called_ = false;
-    srs_freep(read_tag_header_error_);
-    srs_freep(read_tag_data_error_);
-    srs_freep(read_previous_tag_size_error_);
-    tag_type_ = 0;
-    tag_size_ = 0;
-    tag_time_ = 0;
-    tag_data_ = NULL;
-    tag_data_size_ = 0;
-}
-
-// Mock ISrsAppFactory implementation for SrsDynamicHttpConn::do_proxy
-MockAppFactoryForDynamicConn::MockAppFactoryForDynamicConn()
-{
-    mock_rtmp_client_ = NULL;
-    create_rtmp_client_called_ = false;
-}
-
-MockAppFactoryForDynamicConn::~MockAppFactoryForDynamicConn()
-{
-    // Don't free mock_rtmp_client_ - it's managed by the test
-}
-
-ISrsBasicRtmpClient *MockAppFactoryForDynamicConn::create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
-{
-    create_rtmp_client_called_ = true;
-    return mock_rtmp_client_;
-}
-
-void MockAppFactoryForDynamicConn::reset()
-{
-    create_rtmp_client_called_ = false;
-}
-
-// Mock ISrsPithyPrint implementation for SrsDynamicHttpConn::do_proxy
-MockPithyPrintForDynamicConn::MockPithyPrintForDynamicConn()
+// Mock ISrsPithyPrint implementation for SrsIngester
+MockPithyPrintForIngester::MockPithyPrintForIngester()
 {
     elapse_called_ = false;
     can_print_called_ = false;
@@ -2105,393 +1906,32 @@ MockPithyPrintForDynamicConn::MockPithyPrintForDynamicConn()
     age_value_ = 0;
 }
 
-MockPithyPrintForDynamicConn::~MockPithyPrintForDynamicConn()
+MockPithyPrintForIngester::~MockPithyPrintForIngester()
 {
 }
 
-void MockPithyPrintForDynamicConn::elapse()
+void MockPithyPrintForIngester::elapse()
 {
     elapse_called_ = true;
 }
 
-bool MockPithyPrintForDynamicConn::can_print()
+bool MockPithyPrintForIngester::can_print()
 {
     can_print_called_ = true;
     return can_print_result_;
 }
 
-srs_utime_t MockPithyPrintForDynamicConn::age()
+srs_utime_t MockPithyPrintForIngester::age()
 {
     return age_value_;
 }
 
-void MockPithyPrintForDynamicConn::reset()
+void MockPithyPrintForIngester::reset()
 {
     elapse_called_ = false;
     can_print_called_ = false;
     can_print_result_ = false;
     age_value_ = 0;
-}
-
-// Test SrsDynamicHttpConn::do_proxy - covers the major use scenario:
-// 1. Create RTMP client via app_factory_->create_rtmp_client()
-// 2. Connect to RTMP server via sdk_->connect()
-// 3. Publish stream via sdk_->publish()
-// 4. Read FLV tags from decoder in a loop until EOF:
-//    - Read tag header (type, size, time)
-//    - Read tag data
-//    - Create RTMP message from tag data
-//    - Send message to RTMP server
-//    - Read previous tag size
-// 5. Verify all operations completed successfully
-VOID TEST(DynamicHttpConnTest, DoProxyWithVideoAndAudioTags)
-{
-    srs_error_t err;
-
-    // Create mock dependencies
-    MockHttpResponseReaderForDynamicConn mock_reader;
-    MockFlvDecoderForDynamicConn mock_decoder;
-    MockRtmpClient *mock_rtmp_client = new MockRtmpClient();
-    SrsUniquePtr<MockAppFactoryForDynamicConn> mock_factory(new MockAppFactoryForDynamicConn());
-    MockPithyPrintForDynamicConn *mock_pprint = new MockPithyPrintForDynamicConn();
-
-    // Configure mock factory to return our mock RTMP client
-    mock_factory->mock_rtmp_client_ = mock_rtmp_client;
-
-    // Create SrsDynamicHttpConn - we need to test do_proxy which is private
-    // So we'll create a minimal test setup
-    // Note: We can't easily instantiate SrsDynamicHttpConn due to its constructor requirements
-    // Instead, we'll test the logic by simulating what do_proxy does
-
-    // Configure mock decoder to return 2 FLV tags (1 video, 1 audio), then EOF
-    // First tag: video tag
-    mock_decoder.tag_type_ = SrsFrameTypeVideo;
-    mock_decoder.tag_size_ = 20;
-    mock_decoder.tag_time_ = 1000;
-
-    // Create video tag data (H.264 keyframe)
-    char video_data[20];
-    video_data[0] = 0x17; // AVC keyframe
-    video_data[1] = 0x01; // AVC NALU
-    for (int i = 2; i < 20; i++) {
-        video_data[i] = i;
-    }
-    mock_decoder.tag_data_ = video_data;
-    mock_decoder.tag_data_size_ = 20;
-
-    // Simulate the do_proxy workflow
-    // Step 1: Create RTMP client
-    std::string output = "rtmp://127.0.0.1/live/stream";
-    srs_utime_t cto = SRS_CONSTS_RTMP_TIMEOUT;
-    srs_utime_t sto = SRS_CONSTS_RTMP_PULSE;
-    ISrsBasicRtmpClient *sdk = mock_factory->create_rtmp_client(output, cto, sto);
-    EXPECT_TRUE(mock_factory->create_rtmp_client_called_);
-    EXPECT_TRUE(sdk != NULL);
-
-    // Step 2: Connect to RTMP server
-    HELPER_EXPECT_SUCCESS(sdk->connect());
-    EXPECT_TRUE(mock_rtmp_client->connect_called_);
-
-    // Step 3: Publish stream
-    HELPER_EXPECT_SUCCESS(sdk->publish(SRS_CONSTS_RTMP_PROTOCOL_CHUNK_SIZE));
-    EXPECT_TRUE(mock_rtmp_client->publish_called_);
-
-    // Step 4: Read and send first FLV tag (video)
-    mock_pprint->elapse();
-    EXPECT_TRUE(mock_pprint->elapse_called_);
-
-    char type;
-    int32_t size;
-    uint32_t time;
-    HELPER_EXPECT_SUCCESS(mock_decoder.read_tag_header(&type, &size, &time));
-    EXPECT_TRUE(mock_decoder.read_tag_header_called_);
-    EXPECT_EQ(SrsFrameTypeVideo, type);
-    EXPECT_EQ(20, size);
-    EXPECT_EQ(1000, (int)time);
-
-    char *data = new char[size];
-    HELPER_EXPECT_SUCCESS(mock_decoder.read_tag_data(data, size));
-    EXPECT_TRUE(mock_decoder.read_tag_data_called_);
-
-    // Create RTMP message from tag data
-    SrsRtmpCommonMessage *cmsg = NULL;
-    HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(type, time, data, size, sdk->sid(), &cmsg));
-    EXPECT_TRUE(cmsg != NULL);
-
-    // Convert to media packet
-    SrsMediaPacket *msg = new SrsMediaPacket();
-    cmsg->to_msg(msg);
-    srs_freep(cmsg);
-
-    // Send message to RTMP server
-    HELPER_EXPECT_SUCCESS(sdk->send_and_free_message(msg));
-    EXPECT_TRUE(mock_rtmp_client->send_and_free_message_called_);
-    EXPECT_EQ(1, mock_rtmp_client->send_message_count_);
-
-    // Read previous tag size
-    char pps[4];
-    HELPER_EXPECT_SUCCESS(mock_decoder.read_previous_tag_size(pps));
-    EXPECT_TRUE(mock_decoder.read_previous_tag_size_called_);
-
-    // Step 5: Simulate second tag (audio)
-    mock_decoder.read_tag_header_called_ = false;
-    mock_decoder.read_tag_data_called_ = false;
-    mock_decoder.read_previous_tag_size_called_ = false;
-    mock_decoder.tag_type_ = SrsFrameTypeAudio;
-    mock_decoder.tag_size_ = 10;
-    mock_decoder.tag_time_ = 1040;
-
-    char audio_data[10];
-    audio_data[0] = 0xaf; // AAC
-    audio_data[1] = 0x01; // AAC raw
-    for (int i = 2; i < 10; i++) {
-        audio_data[i] = i + 10;
-    }
-    mock_decoder.tag_data_ = audio_data;
-    mock_decoder.tag_data_size_ = 10;
-
-    mock_pprint->elapse();
-
-    HELPER_EXPECT_SUCCESS(mock_decoder.read_tag_header(&type, &size, &time));
-    EXPECT_TRUE(mock_decoder.read_tag_header_called_);
-    EXPECT_EQ(SrsFrameTypeAudio, type);
-    EXPECT_EQ(10, size);
-    EXPECT_EQ(1040, (int)time);
-
-    data = new char[size];
-    HELPER_EXPECT_SUCCESS(mock_decoder.read_tag_data(data, size));
-    EXPECT_TRUE(mock_decoder.read_tag_data_called_);
-
-    cmsg = NULL;
-    HELPER_EXPECT_SUCCESS(srs_rtmp_create_msg(type, time, data, size, sdk->sid(), &cmsg));
-    EXPECT_TRUE(cmsg != NULL);
-
-    msg = new SrsMediaPacket();
-    cmsg->to_msg(msg);
-    srs_freep(cmsg);
-
-    HELPER_EXPECT_SUCCESS(sdk->send_and_free_message(msg));
-    EXPECT_EQ(2, mock_rtmp_client->send_message_count_);
-
-    HELPER_EXPECT_SUCCESS(mock_decoder.read_previous_tag_size(pps));
-
-    // Step 6: Verify EOF handling
-    mock_reader.eof_ = true;
-    EXPECT_TRUE(mock_reader.eof());
-
-    // Clean up
-    srs_freep(mock_rtmp_client);
-    srs_freep(mock_pprint);
-}
-
-// Mock ISrsResourceManager implementation for testing SrsDynamicHttpConn
-MockResourceManagerForDynamicConn::MockResourceManagerForDynamicConn()
-{
-    remove_called_ = false;
-    removed_resource_ = NULL;
-}
-
-MockResourceManagerForDynamicConn::~MockResourceManagerForDynamicConn()
-{
-}
-
-srs_error_t MockResourceManagerForDynamicConn::start()
-{
-    return srs_success;
-}
-
-bool MockResourceManagerForDynamicConn::empty()
-{
-    return true;
-}
-
-size_t MockResourceManagerForDynamicConn::size()
-{
-    return 0;
-}
-
-void MockResourceManagerForDynamicConn::add(ISrsResource *conn, bool *exists)
-{
-}
-
-void MockResourceManagerForDynamicConn::add_with_id(const std::string &id, ISrsResource *conn)
-{
-}
-
-void MockResourceManagerForDynamicConn::add_with_fast_id(uint64_t id, ISrsResource *conn)
-{
-}
-
-void MockResourceManagerForDynamicConn::add_with_name(const std::string &name, ISrsResource *conn)
-{
-}
-
-ISrsResource *MockResourceManagerForDynamicConn::at(int index)
-{
-    return NULL;
-}
-
-ISrsResource *MockResourceManagerForDynamicConn::find_by_id(std::string id)
-{
-    return NULL;
-}
-
-ISrsResource *MockResourceManagerForDynamicConn::find_by_fast_id(uint64_t id)
-{
-    return NULL;
-}
-
-ISrsResource *MockResourceManagerForDynamicConn::find_by_name(std::string name)
-{
-    return NULL;
-}
-
-void MockResourceManagerForDynamicConn::remove(ISrsResource *c)
-{
-    remove_called_ = true;
-    removed_resource_ = c;
-}
-
-void MockResourceManagerForDynamicConn::subscribe(ISrsDisposingHandler *h)
-{
-}
-
-void MockResourceManagerForDynamicConn::unsubscribe(ISrsDisposingHandler *h)
-{
-}
-
-void MockResourceManagerForDynamicConn::reset()
-{
-    remove_called_ = false;
-    removed_resource_ = NULL;
-}
-
-// Mock ISrsHttpConn implementation for testing SrsDynamicHttpConn
-MockHttpConnForDynamicConn::MockHttpConnForDynamicConn()
-{
-    remote_ip_ = "192.168.1.100";
-}
-
-MockHttpConnForDynamicConn::~MockHttpConnForDynamicConn()
-{
-}
-
-ISrsKbpsDelta *MockHttpConnForDynamicConn::delta()
-{
-    return NULL;
-}
-
-srs_error_t MockHttpConnForDynamicConn::start()
-{
-    return srs_success;
-}
-
-srs_error_t MockHttpConnForDynamicConn::cycle()
-{
-    return srs_success;
-}
-
-srs_error_t MockHttpConnForDynamicConn::pull()
-{
-    return srs_success;
-}
-
-srs_error_t MockHttpConnForDynamicConn::set_crossdomain_enabled(bool v)
-{
-    return srs_success;
-}
-
-srs_error_t MockHttpConnForDynamicConn::set_auth_enabled(bool auth_enabled)
-{
-    return srs_success;
-}
-
-srs_error_t MockHttpConnForDynamicConn::set_jsonp(bool v)
-{
-    return srs_success;
-}
-
-std::string MockHttpConnForDynamicConn::remote_ip()
-{
-    return remote_ip_;
-}
-
-const SrsContextId &MockHttpConnForDynamicConn::get_id()
-{
-    return context_id_;
-}
-
-std::string MockHttpConnForDynamicConn::desc()
-{
-    return "MockHttpConn";
-}
-
-void MockHttpConnForDynamicConn::expire()
-{
-}
-
-// Test SrsDynamicHttpConn - covers the major use scenario:
-// 1. Create SrsDynamicHttpConn with mock manager and connection
-// 2. Test on_conn_done() which is the key method that removes the connection from manager
-// 3. Verify manager_->remove(this) was called correctly
-// 4. Test other simple methods: desc(), remote_ip(), get_id()
-// 5. Test on_start(), on_http_message(), on_message_done() which all return srs_success
-VOID TEST(DynamicHttpConnTest, OnConnDoneRemovesFromManager)
-{
-    srs_error_t err;
-
-    // Create mock dependencies
-    MockResourceManagerForDynamicConn *mock_manager = new MockResourceManagerForDynamicConn();
-    MockHttpConnForDynamicConn *mock_conn = new MockHttpConnForDynamicConn();
-
-    // Create a dummy netfd (we won't actually use it for network operations)
-    srs_netfd_t dummy_fd = NULL;
-
-    // Create SrsHttpServeMux (required by constructor)
-    SrsUniquePtr<SrsHttpServeMux> mux(new SrsHttpServeMux());
-
-    // Create SrsDynamicHttpConn
-    SrsUniquePtr<SrsDynamicHttpConn> dyn_conn(new SrsDynamicHttpConn(
-        mock_manager, dummy_fd, mux.get(), "192.168.1.100", 8080));
-
-    // Inject mock conn_ to avoid using real connection
-    dyn_conn->conn_ = mock_conn;
-
-    // Test desc() - should return "DHttpConn"
-    EXPECT_EQ("DHttpConn", dyn_conn->desc());
-
-    // Test remote_ip() - should delegate to conn_->remote_ip()
-    EXPECT_EQ("192.168.1.100", dyn_conn->remote_ip());
-
-    // Test get_id() - should delegate to conn_->get_id()
-    const SrsContextId &id = dyn_conn->get_id();
-    EXPECT_EQ(mock_conn->context_id_.compare(id), 0);
-
-    // Test on_start() - should return srs_success
-    HELPER_EXPECT_SUCCESS(dyn_conn->on_start());
-
-    // Test on_http_message() - should return srs_success
-    HELPER_EXPECT_SUCCESS(dyn_conn->on_http_message(NULL, NULL));
-
-    // Test on_message_done() - should return srs_success
-    HELPER_EXPECT_SUCCESS(dyn_conn->on_message_done(NULL, NULL));
-
-    // Test on_conn_done() - the key method that removes connection from manager
-    srs_error_t test_error = srs_error_new(1000, "test error");
-    err = dyn_conn->on_conn_done(test_error);
-
-    // Verify manager_->remove(this) was called
-    EXPECT_TRUE(mock_manager->remove_called_);
-    EXPECT_EQ(dyn_conn.get(), mock_manager->removed_resource_);
-
-    // Verify on_conn_done returns the same error passed to it
-    EXPECT_TRUE(err == test_error);
-
-    // Clean up - set to NULL to avoid double-free
-    dyn_conn->conn_ = NULL;
-    srs_freep(mock_conn);
-    srs_freep(mock_manager);
-    srs_freep(err);
 }
 
 // Test SrsHttpFileReader::read - covers the major use scenario:
@@ -2505,7 +1945,7 @@ VOID TEST(HttpFileReaderTest, ReadDataFromHttpResponse)
     srs_error_t err;
 
     // Create mock HTTP response reader
-    SrsUniquePtr<MockHttpResponseReaderForDynamicConn> mock_http(new MockHttpResponseReaderForDynamicConn());
+    SrsUniquePtr<MockHttpResponseReaderForHttpFileReader> mock_http(new MockHttpResponseReaderForHttpFileReader());
 
     // Set up test data - simulate HTTP response with 100 bytes
     std::string test_data;
@@ -2782,6 +2222,8 @@ MockHttpConnForHttpxConn::MockHttpConnForHttpxConn()
     remote_ip_ = "127.0.0.1";
     context_id_ = _srs_context->generate_id();
     delta_ = NULL;
+    crossdomain_ = false;
+    crossdomain_set_ = false;
 }
 
 MockHttpConnForHttpxConn::~MockHttpConnForHttpxConn()
@@ -2810,6 +2252,8 @@ srs_error_t MockHttpConnForHttpxConn::pull()
 
 srs_error_t MockHttpConnForHttpxConn::set_crossdomain_enabled(bool v)
 {
+    crossdomain_ = v;
+    crossdomain_set_ = true;
     return srs_success;
 }
 
@@ -2942,6 +2386,59 @@ VOID TEST(HttpxConnTest, OnConnDoneStatsStreamingClientAndKeepsError)
     connx->stat_ = NULL;
 }
 
+MockAppConfigForHttpxConnCors::MockAppConfigForHttpxConnCors()
+{
+    http_api_crossdomain_ = false;
+    http_stream_crossdomain_ = false;
+}
+
+MockAppConfigForHttpxConnCors::~MockAppConfigForHttpxConnCors()
+{
+}
+
+bool MockAppConfigForHttpxConnCors::get_http_api_crossdomain()
+{
+    return http_api_crossdomain_;
+}
+
+bool MockAppConfigForHttpxConnCors::get_http_stream_crossdomain()
+{
+    return http_stream_crossdomain_;
+}
+
+// A connection of an HTTP API listener answers CORS by the API's crossdomain, and a connection of
+// the HTTP server's listener by the server's, whichever of the two is on.
+VOID TEST(HttpxConnTest, StartTakesCrossdomainOfItsListener)
+{
+    srs_error_t err;
+
+    for (int i = 0; i < 4; i++) {
+        bool api_listener = (i & 1) != 0;
+        bool api_on = (i & 2) != 0;
+
+        MockAppConfigForHttpxConnCors config;
+        config.http_api_crossdomain_ = api_on;
+        config.http_stream_crossdomain_ = !api_on;
+
+        SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, NULL, NULL, "127.0.0.1", 8080, "", ""));
+        connx->config_ = &config;
+        if (api_listener) {
+            connx->set_api_listener(true);
+        }
+
+        MockHttpConnForHttpxConn *conn = new MockHttpConnForHttpxConn();
+        connx->conn_ = conn;
+
+        HELPER_EXPECT_SUCCESS(connx->start());
+
+        bool want = api_listener ? api_on : !api_on;
+        EXPECT_TRUE(conn->crossdomain_set_);
+        EXPECT_EQ(want, conn->crossdomain_) << "api_listener=" << api_listener << ", api_on=" << api_on;
+
+        connx->config_ = NULL;
+    }
+}
+
 // Test SrsQueueRecvThread basic queue operations
 // This test covers the major use scenario: consume messages, check queue state, pump messages, and handle errors
 VOID TEST(QueueRecvThreadTest, BasicQueueOperations)
@@ -3071,7 +2568,7 @@ VOID TEST(PublishRecvThreadTest, BasicOperations)
     video_msg->header_.payload_length_ = 100;
     video_msg->create_payload(100);
 
-    // Note: consume() will try to call _conn->handle_publish_message() which will fail with NULL _conn
+    // Note: consume() will try to call conn_->handle_publish_message() which will fail with NULL conn_
     // So we expect this to fail, but we can still test the counter increment by checking nb_msgs
     // For this basic test, we'll just verify the initial state and error handling
 
@@ -3103,12 +2600,16 @@ MockFFMPEGForEncoder::MockFFMPEGForEncoder()
 {
     initialize_called_ = false;
     start_called_ = false;
+    initialize_error_ = srs_success;
+    initialize_transcode_error_ = srs_success;
     start_error_ = srs_success;
     output_ = "";
 }
 
 MockFFMPEGForEncoder::~MockFFMPEGForEncoder()
 {
+    srs_freep(initialize_error_);
+    srs_freep(initialize_transcode_error_);
 }
 
 void MockFFMPEGForEncoder::append_iparam(std::string iparam)
@@ -3128,12 +2629,12 @@ srs_error_t MockFFMPEGForEncoder::initialize(std::string in, std::string out, st
 {
     initialize_called_ = true;
     output_ = out;
-    return srs_success;
+    return srs_error_copy(initialize_error_);
 }
 
 srs_error_t MockFFMPEGForEncoder::initialize_transcode(SrsConfDirective *engine)
 {
-    return srs_success;
+    return srs_error_copy(initialize_transcode_error_);
 }
 
 srs_error_t MockFFMPEGForEncoder::initialize_copy()
@@ -3179,6 +2680,7 @@ MockAppConfigForEncoder::MockAppConfigForEncoder()
     transcode_enabled_ = true;
     transcode_ffmpeg_bin_ = "/usr/bin/ffmpeg";
     engine_enabled_ = true;
+    engine_output_ = "rtmp://127.0.0.1/live/livestream_hd";
     target_scope_ = ""; // Default to vhost scope (empty string)
 }
 
@@ -3218,7 +2720,7 @@ bool MockAppConfigForEncoder::get_engine_enabled(SrsConfDirective *conf)
 
 std::string MockAppConfigForEncoder::get_engine_output(SrsConfDirective *conf)
 {
-    return "rtmp://127.0.0.1/live/livestream_hd";
+    return engine_output_;
 }
 
 bool MockAppConfigForEncoder::get_ff_log_enabled()
@@ -3310,9 +2812,9 @@ VOID TEST(EncoderTest, OnPublishMajorScenario)
 // 2. Configure mock config to return transcode directive for stream scope
 // 3. Call parse_scope_engines() to parse all three scopes (vhost, app, stream) and create FFmpeg engines
 // 4. Verify that FFmpeg engines are created and added to ffmpegs_ vector
-// 5. Verify that output URLs are tracked in _transcoded_url for loop detection
+// 5. Verify that output URLs are tracked in the transcoded URLs for loop detection
 // 6. Call clear_engines() to clean up all engines
-// 7. Verify that engines are properly freed and removed from _transcoded_url
+// 7. Verify that engines are properly freed and removed from the transcoded URLs
 VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
 {
     srs_error_t err;
@@ -3350,8 +2852,10 @@ VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
     SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
 
     // Inject mock dependencies
+    std::vector<std::string> transcoded_urls;
     encoder->config_ = mock_config.get();
     encoder->app_factory_ = mock_factory.get();
+    encoder->transcoded_urls_ = &transcoded_urls;
 
     // Create mock request
     SrsUniquePtr<MockSrsRequest> req(new MockSrsRequest("test.vhost", "live", "livestream"));
@@ -3373,15 +2877,21 @@ VOID TEST(EncoderTest, ParseScopeEnginesAndClearEngines)
     EXPECT_TRUE(ffmpeg_at_0 != NULL);
     EXPECT_EQ((ISrsFFMPEG *)mock_ffmpeg, ffmpeg_at_0);
 
-    // Test clear_engines() - should free all engines and remove from _transcoded_url
+    // Verify that the output URL is tracked for loop detection
+    ASSERT_EQ(1, (int)transcoded_urls.size());
+    EXPECT_STREQ(mock_ffmpeg->output().c_str(), transcoded_urls.at(0).c_str());
+
+    // Test clear_engines() - should free all engines and remove from the transcoded URLs
     encoder->clear_engines();
 
-    // Verify that ffmpegs_ vector is now empty
+    // Verify that ffmpegs_ vector and the transcoded URLs are now empty
     EXPECT_EQ(0, (int)encoder->ffmpegs_.size());
+    EXPECT_EQ(0, (int)transcoded_urls.size());
 
     // Clean up - set to NULL to avoid double-free
     encoder->config_ = NULL;
     encoder->app_factory_ = NULL;
+    encoder->transcoded_urls_ = NULL;
 
     // Clean up directives
     srs_freep(transcode_conf);
@@ -3418,8 +2928,10 @@ VOID TEST(EncoderTest, InitializeFFmpegMajorScenario)
     mock_config->get_engine_output(engine.get()); // Will return "rtmp://127.0.0.1/live/livestream_hd"
 
     // Create SrsEncoder and inject mock dependencies
+    std::vector<std::string> transcoded_urls;
     SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
     encoder->config_ = mock_config.get();
+    encoder->transcoded_urls_ = &transcoded_urls;
 
     // Test initialize_ffmpeg() - should construct URLs and initialize ffmpeg
     HELPER_EXPECT_SUCCESS(encoder->initialize_ffmpeg(mock_ffmpeg.get(), req.get(), engine.get()));
@@ -3436,6 +2948,117 @@ VOID TEST(EncoderTest, InitializeFFmpegMajorScenario)
 
     // Clean up - set to NULL to avoid double-free
     encoder->config_ = NULL;
+    encoder->transcoded_urls_ = NULL;
+}
+
+// A stream that another encoder transcoded to, published back as an input, is a loop: the encoder
+// refuses it and doesn't track its output, so it transcodes no stream again.
+VOID TEST(EncoderTest, InitializeFFmpegRefusesTranscodedInput)
+{
+    srs_error_t err;
+
+    MockAppConfigForEncoder config;
+    MockFFMPEGForEncoder ffmpeg;
+    MockSrsRequest req("test.vhost", "live", "livestream_hd");
+    req.port_ = 1935;
+
+    SrsConfDirective engine;
+    engine.name_ = "engine";
+    engine.args_.push_back("hd");
+
+    std::vector<std::string> transcoded_urls;
+    transcoded_urls.push_back("rtmp://127.0.0.1:1935/live/livestream_hd?vhost=test.vhost");
+
+    SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+    encoder->config_ = &config;
+    encoder->transcoded_urls_ = &transcoded_urls;
+
+    err = encoder->initialize_ffmpeg(&ffmpeg, &req, &engine);
+    EXPECT_EQ(ERROR_ENCODER_LOOP, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_FALSE(ffmpeg.initialize_called_);
+    ASSERT_EQ(1, (int)transcoded_urls.size());
+    EXPECT_STREQ("rtmp://127.0.0.1:1935/live/livestream_hd?vhost=test.vhost", transcoded_urls.at(0).c_str());
+
+    encoder->config_ = NULL;
+    encoder->transcoded_urls_ = NULL;
+}
+
+// An engine that fails to start transcodes nothing, so its output is no transcoded stream: the
+// encoder tracks no URL for it, and a later publish of that output is transcoded, not refused as a loop.
+VOID TEST(EncoderTest, FailedEngineLeavesNoTranscodedUrl)
+{
+    srs_error_t err;
+
+    for (int i = 0; i < 2; i++) {
+        bool transcode_fails = (i == 1);
+
+        SrsConfDirective engine;
+        engine.name_ = "engine";
+        engine.args_.push_back("hd");
+
+        MockAppConfigForEncoder config;
+        config.transcode_directive_ = &engine;
+        config.transcode_engines_.push_back(&engine);
+        config.engine_output_ = "rtmp://127.0.0.1:[port]/[app]/[stream]_[engine]?vhost=[vhost]";
+
+        std::vector<std::string> transcoded_urls;
+        MockAppFactoryForEncoder factory;
+
+        // The engine of live/livestream fails to start, at its initialize or its transcode settings.
+        MockFFMPEGForEncoder *failed = new MockFFMPEGForEncoder();
+        if (transcode_fails) {
+            failed->initialize_transcode_error_ = srs_error_new(ERROR_ENCODER_VCODEC, "mock vcodec");
+        } else {
+            failed->initialize_error_ = srs_error_new(ERROR_ENCODER_VCODEC, "mock ffmpeg");
+        }
+        factory.mock_ffmpeg_ = failed;
+
+        SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
+        encoder->config_ = &config;
+        encoder->app_factory_ = &factory;
+        encoder->transcoded_urls_ = &transcoded_urls;
+
+        MockSrsRequest req("test.vhost", "live", "livestream");
+        req.port_ = 1935;
+        err = encoder->parse_scope_engines(&req);
+        EXPECT_EQ(ERROR_ENCODER_VCODEC, srs_error_code(err)) << i;
+        srs_freep(err);
+
+        EXPECT_EQ(0, (int)encoder->ffmpegs_.size()) << i;
+        EXPECT_EQ(0, (int)transcoded_urls.size()) << i;
+
+        // The output it would have published, live/livestream_hd, is published by another client.
+        MockFFMPEGForEncoder *next = new MockFFMPEGForEncoder();
+        factory.mock_ffmpeg_ = next;
+
+        SrsUniquePtr<SrsEncoder> next_encoder(new SrsEncoder());
+        next_encoder->config_ = &config;
+        next_encoder->app_factory_ = &factory;
+        next_encoder->transcoded_urls_ = &transcoded_urls;
+
+        MockSrsRequest next_req("test.vhost", "live", "livestream_hd");
+        next_req.port_ = 1935;
+        HELPER_ASSERT_SUCCESS(next_encoder->parse_scope_engines(&next_req));
+
+        EXPECT_EQ(1, (int)next_encoder->ffmpegs_.size()) << i;
+        EXPECT_TRUE(next->initialize_called_) << i;
+        ASSERT_EQ(1, (int)transcoded_urls.size()) << i;
+        EXPECT_STREQ("rtmp://127.0.0.1:1935/live/livestream_hd_hd?vhost=test.vhost", transcoded_urls.at(0).c_str()) << i;
+
+        // Each encoder stops when its stream unpublishes, and none of the outputs stays tracked.
+        next_encoder->on_unpublish();
+        encoder->on_unpublish();
+        EXPECT_EQ(0, (int)transcoded_urls.size()) << i;
+
+        next_encoder->config_ = NULL;
+        next_encoder->app_factory_ = NULL;
+        next_encoder->transcoded_urls_ = NULL;
+        encoder->config_ = NULL;
+        encoder->app_factory_ = NULL;
+        encoder->transcoded_urls_ = NULL;
+    }
 }
 
 VOID TEST(ProcessTest, InitializeWithRedirection)
@@ -3484,364 +3107,6 @@ VOID TEST(ProcessTest, InitializeWithRedirection)
 
     // Verify cli_ contains full original command with redirection
     EXPECT_STREQ("/usr/bin/ffmpeg -i input.flv -c copy output.flv 1>/dev/null 2>/dev/null", process->cli_.c_str());
-}
-
-VOID TEST(LatestVersionTest, BuildFeatures_MajorScenario)
-{
-    // Call srs_build_features with the current config
-    // This test verifies the function runs without errors and produces valid output
-    stringstream ss;
-    srs_build_features(ss);
-    string result = ss.str();
-
-    // Verify OS is included (either mac or linux)
-    EXPECT_TRUE(result.find("&os=") != string::npos);
-
-    // Verify architecture is included (x86, arm, riscv, mips, or loong)
-    bool has_arch = (result.find("&x86=1") != string::npos) ||
-                    (result.find("&arm=1") != string::npos) ||
-                    (result.find("&riscv=1") != string::npos) ||
-                    (result.find("&mips=1") != string::npos) ||
-                    (result.find("&loong=1") != string::npos);
-    EXPECT_TRUE(has_arch);
-
-    // Verify the result is not empty and starts with &
-    EXPECT_FALSE(result.empty());
-    EXPECT_EQ('&', result[0]);
-}
-
-// Mock ISrsHttpResponseReader implementation for SrsLatestVersion
-MockHttpResponseReaderForLatestVersion::MockHttpResponseReaderForLatestVersion()
-{
-    content_ = "";
-    read_pos_ = 0;
-    eof_ = false;
-}
-
-MockHttpResponseReaderForLatestVersion::~MockHttpResponseReaderForLatestVersion()
-{
-}
-
-srs_error_t MockHttpResponseReaderForLatestVersion::read(void *buf, size_t size, ssize_t *nread)
-{
-    if (read_pos_ >= content_.length()) {
-        eof_ = true;
-        *nread = 0;
-        return srs_success;
-    }
-
-    size_t to_read = srs_min(size, content_.length() - read_pos_);
-    memcpy(buf, content_.data() + read_pos_, to_read);
-    read_pos_ += to_read;
-    *nread = to_read;
-
-    if (read_pos_ >= content_.length()) {
-        eof_ = true;
-    }
-
-    return srs_success;
-}
-
-bool MockHttpResponseReaderForLatestVersion::eof()
-{
-    return eof_;
-}
-
-void MockHttpResponseReaderForLatestVersion::reset()
-{
-    content_ = "";
-    read_pos_ = 0;
-    eof_ = false;
-}
-
-// Mock ISrsHttpMessage implementation for SrsLatestVersion
-MockHttpMessageForLatestVersion::MockHttpMessageForLatestVersion()
-{
-    status_code_ = 200;
-    body_content_ = "";
-    body_reader_ = new MockHttpResponseReaderForLatestVersion();
-}
-
-MockHttpMessageForLatestVersion::~MockHttpMessageForLatestVersion()
-{
-    srs_freep(body_reader_);
-}
-
-uint8_t MockHttpMessageForLatestVersion::message_type()
-{
-    return 0;
-}
-
-uint8_t MockHttpMessageForLatestVersion::method()
-{
-    return 0;
-}
-
-uint16_t MockHttpMessageForLatestVersion::status_code()
-{
-    return status_code_;
-}
-
-std::string MockHttpMessageForLatestVersion::method_str()
-{
-    return "GET";
-}
-
-bool MockHttpMessageForLatestVersion::is_http_get()
-{
-    return true;
-}
-
-bool MockHttpMessageForLatestVersion::is_http_put()
-{
-    return false;
-}
-
-bool MockHttpMessageForLatestVersion::is_http_post()
-{
-    return false;
-}
-
-bool MockHttpMessageForLatestVersion::is_http_delete()
-{
-    return false;
-}
-
-bool MockHttpMessageForLatestVersion::is_http_options()
-{
-    return false;
-}
-
-std::string MockHttpMessageForLatestVersion::uri()
-{
-    return "";
-}
-
-std::string MockHttpMessageForLatestVersion::url()
-{
-    return "";
-}
-
-std::string MockHttpMessageForLatestVersion::host()
-{
-    return "";
-}
-
-std::string MockHttpMessageForLatestVersion::path()
-{
-    return "";
-}
-
-std::string MockHttpMessageForLatestVersion::query()
-{
-    return "";
-}
-
-std::string MockHttpMessageForLatestVersion::ext()
-{
-    return "";
-}
-
-srs_error_t MockHttpMessageForLatestVersion::body_read_all(std::string &body)
-{
-    body = body_content_;
-    return srs_success;
-}
-
-ISrsHttpResponseReader *MockHttpMessageForLatestVersion::body_reader()
-{
-    return body_reader_;
-}
-
-int64_t MockHttpMessageForLatestVersion::content_length()
-{
-    return body_content_.length();
-}
-
-std::string MockHttpMessageForLatestVersion::query_get(std::string key)
-{
-    return "";
-}
-
-SrsHttpHeader *MockHttpMessageForLatestVersion::header()
-{
-    return NULL;
-}
-
-bool MockHttpMessageForLatestVersion::is_jsonp()
-{
-    return false;
-}
-
-bool MockHttpMessageForLatestVersion::is_keep_alive()
-{
-    return false;
-}
-
-ISrsRequest *MockHttpMessageForLatestVersion::to_request(std::string vhost)
-{
-    return NULL;
-}
-
-std::string MockHttpMessageForLatestVersion::parse_rest_id(std::string pattern)
-{
-    return "";
-}
-
-void MockHttpMessageForLatestVersion::reset()
-{
-    status_code_ = 200;
-    body_content_ = "";
-    body_reader_->reset();
-}
-
-// Mock ISrsHttpClient implementation for SrsLatestVersion
-MockHttpClientForLatestVersion::MockHttpClientForLatestVersion()
-{
-    initialize_called_ = false;
-    get_called_ = false;
-    port_ = 0;
-    mock_response_ = NULL;
-    initialize_error_ = srs_success;
-    get_error_ = srs_success;
-}
-
-MockHttpClientForLatestVersion::~MockHttpClientForLatestVersion()
-{
-    srs_freep(initialize_error_);
-    srs_freep(get_error_);
-}
-
-srs_error_t MockHttpClientForLatestVersion::initialize(std::string schema, std::string h, int p, srs_utime_t tm)
-{
-    initialize_called_ = true;
-    schema_ = schema;
-    host_ = h;
-    port_ = p;
-    return srs_error_copy(initialize_error_);
-}
-
-srs_error_t MockHttpClientForLatestVersion::get(std::string path, std::string req, ISrsHttpMessage **ppmsg)
-{
-    get_called_ = true;
-    path_ = path;
-    if (ppmsg && mock_response_) {
-        *ppmsg = mock_response_;
-    }
-    return srs_error_copy(get_error_);
-}
-
-srs_error_t MockHttpClientForLatestVersion::post(std::string path, std::string req, ISrsHttpMessage **ppmsg)
-{
-    return srs_success;
-}
-
-void MockHttpClientForLatestVersion::set_recv_timeout(srs_utime_t tm)
-{
-}
-
-void MockHttpClientForLatestVersion::kbps_sample(const char *label, srs_utime_t age)
-{
-}
-
-void MockHttpClientForLatestVersion::reset()
-{
-    initialize_called_ = false;
-    get_called_ = false;
-    port_ = 0;
-    schema_ = "";
-    host_ = "";
-    path_ = "";
-    srs_freep(initialize_error_);
-    srs_freep(get_error_);
-}
-
-// Mock ISrsAppFactory implementation for SrsLatestVersion
-MockAppFactoryForLatestVersion::MockAppFactoryForLatestVersion()
-{
-    mock_http_client_ = NULL;
-    create_http_client_called_ = false;
-}
-
-MockAppFactoryForLatestVersion::~MockAppFactoryForLatestVersion()
-{
-    // Don't free mock_http_client_ - it's managed by the test
-}
-
-ISrsHttpClient *MockAppFactoryForLatestVersion::create_http_client()
-{
-    create_http_client_called_ = true;
-    return mock_http_client_;
-}
-
-void MockAppFactoryForLatestVersion::reset()
-{
-    create_http_client_called_ = false;
-}
-
-// Test SrsLatestVersion::query_latest_version - covers the major use scenario:
-// 1. Create SrsLatestVersion instance
-// 2. Mock app_factory_ to return mock HTTP client
-// 3. Mock HTTP client to return successful response with JSON data
-// 4. Call query_latest_version()
-// 5. Verify HTTP client was initialized with correct schema, host, port
-// 6. Verify HTTP GET request was made with correct path and query parameters
-// 7. Verify response JSON was parsed correctly (match_version and stable_version)
-// 8. Verify URL was generated with correct parameters (version, id, session, role, etc.)
-VOID TEST(LatestVersionTest, QueryLatestVersionSuccess)
-{
-    srs_error_t err;
-
-    // Create SrsLatestVersion instance
-    SrsUniquePtr<SrsLatestVersion> version_checker(new SrsLatestVersion());
-
-    // Create mock dependencies
-    MockHttpClientForLatestVersion *mock_http_client = new MockHttpClientForLatestVersion();
-    SrsUniquePtr<MockAppFactoryForLatestVersion> mock_factory(new MockAppFactoryForLatestVersion());
-
-    // Configure mock factory to return our mock HTTP client
-    mock_factory->mock_http_client_ = mock_http_client;
-
-    // Create mock HTTP response with valid JSON
-    MockHttpMessageForLatestVersion *mock_response = new MockHttpMessageForLatestVersion();
-    mock_response->status_code_ = 200;
-    mock_response->body_content_ = "{\"match_version\":\"v7.0.0\",\"stable_version\":\"v6.0.120\"}";
-
-    // Configure mock HTTP client to return our mock response
-    mock_http_client->mock_response_ = mock_response;
-
-    // Inject mock factory into version_checker
-    version_checker->app_factory_ = mock_factory.get();
-
-    // Set server_id and session_id for testing
-    version_checker->server_id_ = "test-server-id";
-    version_checker->session_id_ = "test-session-id";
-
-    // Test query_latest_version()
-    std::string url;
-    HELPER_EXPECT_SUCCESS(version_checker->query_latest_version(url));
-
-    // Verify app_factory_->create_http_client() was called
-    EXPECT_TRUE(mock_factory->create_http_client_called_);
-
-    // Note: We cannot verify mock_http_client fields after query_latest_version() because
-    // the HTTP client is freed by SrsUniquePtr inside query_latest_version().
-    // The test already verifies the main functionality: successful query and JSON parsing.
-
-    // Verify URL contains expected parameters
-    EXPECT_TRUE(url.find("http://api.ossrs.net/service/v1/releases?") != std::string::npos);
-    EXPECT_TRUE(url.find("version=v") != std::string::npos);
-    EXPECT_TRUE(url.find("id=test-server-id") != std::string::npos);
-    EXPECT_TRUE(url.find("session=test-session-id") != std::string::npos);
-    EXPECT_TRUE(url.find("role=srs") != std::string::npos);
-
-    // Verify response was parsed correctly
-    EXPECT_EQ("v7.0.0", version_checker->match_version_);
-    EXPECT_EQ("v6.0.120", version_checker->stable_version_);
-
-    // Clean up - set to NULL to avoid double-free
-    version_checker->app_factory_ = NULL;
-    // Note: mock_http_client and mock_response are already freed by query_latest_version()
 }
 
 // Mock ISrsAppConfig implementation for SrsNgExec
@@ -4085,6 +3350,7 @@ MockHttpClientForHeartbeat::MockHttpClientForHeartbeat()
     post_error_ = srs_success;
     should_delete_response_ = true;
     request_body_out_ = NULL;
+    path_out_ = NULL;
 }
 
 MockHttpClientForHeartbeat::~MockHttpClientForHeartbeat()
@@ -4116,6 +3382,9 @@ srs_error_t MockHttpClientForHeartbeat::post(std::string path, std::string req, 
     request_body_ = req;
     if (request_body_out_) {
         *request_body_out_ = req;
+    }
+    if (path_out_) {
+        *path_out_ = path;
     }
     if (ppmsg && mock_response_) {
         *ppmsg = (ISrsHttpMessage *)mock_response_;
@@ -4344,6 +3613,7 @@ MockFastTimerForCircuitBreaker::MockFastTimerForCircuitBreaker()
 {
     subscribe_called_ = false;
     subscribed_handler_ = NULL;
+    unsubscribed_handler_ = NULL;
 }
 
 MockFastTimerForCircuitBreaker::~MockFastTimerForCircuitBreaker()
@@ -4363,12 +3633,14 @@ void MockFastTimerForCircuitBreaker::subscribe(ISrsFastTimerHandler *handler)
 
 void MockFastTimerForCircuitBreaker::unsubscribe(ISrsFastTimerHandler *handler)
 {
+    unsubscribed_handler_ = handler;
 }
 
 void MockFastTimerForCircuitBreaker::reset()
 {
     subscribe_called_ = false;
     subscribed_handler_ = NULL;
+    unsubscribed_handler_ = NULL;
 }
 
 // Mock ISrsSharedTimer implementation for SrsCircuitBreaker
@@ -4624,38 +3896,69 @@ VOID TEST(HttpHeartbeatTest, DoHeartbeatSummariesFromInjectedConfig)
     heartbeat->stat_ = NULL;
 }
 
-VOID TEST(ReferTest, CheckReferWithMatchingDomain)
+// Run one heartbeat to the url, and return the path it was posted to.
+static srs_error_t heartbeat_post_path(std::string url, std::string *path)
+{
+    MockAppConfigForHeartbeat config;
+    config.heartbeat_url_ = url;
+
+    MockHttpMessageForHeartbeat *response = new MockHttpMessageForHeartbeat();
+    response->body_content_ = "{\"code\":0}";
+
+    MockHttpClientForHeartbeat *client = new MockHttpClientForHeartbeat();
+    client->mock_response_ = response;
+    client->path_out_ = path;
+
+    MockAppFactoryForHeartbeat factory;
+    factory.mock_http_client_ = client;
+
+    MockStatisticForHeartbeat stat;
+
+    SrsUniquePtr<SrsHttpHeartbeat> heartbeat(new SrsHttpHeartbeat());
+    heartbeat->config_ = &config;
+    heartbeat->app_factory_ = &factory;
+    heartbeat->stat_ = &stat;
+
+    // The client and its response are freed by do_heartbeat().
+    srs_error_t err = heartbeat->do_heartbeat();
+    factory.mock_http_client_ = NULL;
+
+    heartbeat->config_ = NULL;
+    heartbeat->app_factory_ = NULL;
+    heartbeat->stat_ = NULL;
+    return err;
+}
+
+// The heartbeat keeps its url's query, as the hooks do, since a receiver may
+// take a token or an id from it.
+VOID TEST(HttpHeartbeatTest, DoHeartbeatPostsUrlQuery)
 {
     srs_error_t err;
 
-    // Create SrsRefer instance
-    SrsUniquePtr<SrsRefer> refer(new SrsRefer());
+    std::string path;
+    HELPER_EXPECT_SUCCESS(heartbeat_post_path("http://127.0.0.1:8085/api/v1/heartbeat?k1=v1&k2=v2", &path));
+    EXPECT_STREQ("/api/v1/heartbeat?k1=v1&k2=v2", path.c_str());
+}
 
-    // Create refer directive with allowed domains
-    SrsUniquePtr<SrsConfDirective> refer_conf(new SrsConfDirective());
-    refer_conf->name_ = "refer";
-    refer_conf->args_.push_back("github.com");
-    refer_conf->args_.push_back("github.io");
+// A url without a query is posted to its path alone, with no "?".
+VOID TEST(HttpHeartbeatTest, DoHeartbeatPostsPathWithoutQuery)
+{
+    srs_error_t err;
 
-    // Test 1: Valid page URL matching github.com domain
-    HELPER_EXPECT_SUCCESS(refer->check("http://www.github.com/path", refer_conf.get()));
+    std::string path;
+    HELPER_EXPECT_SUCCESS(heartbeat_post_path("http://127.0.0.1:8085/api/v1/heartbeat", &path));
+    EXPECT_STREQ("/api/v1/heartbeat", path.c_str());
+}
 
-    // Test 2: Valid page URL matching github.io domain
-    HELPER_EXPECT_SUCCESS(refer->check("https://ossrs.github.io/index.html", refer_conf.get()));
+// A url with a query and no path is posted to the root with its query, since
+// a request line must start its target with a slash.
+VOID TEST(HttpHeartbeatTest, DoHeartbeatPostsQueryWithoutPath)
+{
+    srs_error_t err;
 
-    // Test 3: Valid page URL with port number
-    HELPER_EXPECT_SUCCESS(refer->check("http://api.github.com:8080/api", refer_conf.get()));
-
-    // Test 4: Invalid page URL not matching any allowed domain
-    HELPER_EXPECT_FAILED(refer->check("http://example.com/page", refer_conf.get()));
-
-    // Test 5: NULL refer directive should allow all
-    HELPER_EXPECT_SUCCESS(refer->check("http://any-domain.com/page", NULL));
-
-    // Test 6: Empty refer directive should deny access
-    SrsUniquePtr<SrsConfDirective> empty_refer(new SrsConfDirective());
-    empty_refer->name_ = "refer";
-    HELPER_EXPECT_FAILED(refer->check("http://example.com/page", empty_refer.get()));
+    std::string path;
+    HELPER_EXPECT_SUCCESS(heartbeat_post_path("http://127.0.0.1:8085?k1=v1&k2=v2", &path));
+    EXPECT_STREQ("/?k1=v1&k2=v2", path.c_str());
 }
 
 // Test SrsCircuitBreaker - covers the major use scenario:
@@ -4819,13 +4122,15 @@ std::string MockAppConfigForBuildTimestamp::get_ingest_input_url(SrsConfDirectiv
 static std::string build_timestamp_expected(bool utc)
 {
     timeval tv;
-    gettimeofday(&tv, NULL);
+    srs_gettimeofday(&tv, NULL);
+    // tv_sec is a long in the timeval of Windows.
+    time_t t = tv.tv_sec;
 
     struct tm now;
     if (utc) {
-        gmtime_r(&tv.tv_sec, &now);
+        srs_gmtime_r(&t, &now);
     } else {
-        localtime_r(&tv.tv_sec, &now);
+        srs_localtime_r(&t, &now);
     }
 
     char buf[64];
@@ -4943,8 +4248,10 @@ VOID TEST(EncoderTest, InitializeFFmpegBuildsTimestampThroughConfig)
     engine.name_ = "engine";
     engine.args_.push_back("hd");
 
+    std::vector<std::string> transcoded_urls;
     SrsUniquePtr<SrsEncoder> encoder(new SrsEncoder());
     encoder->config_ = &config;
+    encoder->transcoded_urls_ = &transcoded_urls;
 
     HELPER_EXPECT_SUCCESS(encoder->initialize_ffmpeg(&ffmpeg, &req, &engine));
 
@@ -4952,6 +4259,7 @@ VOID TEST(EncoderTest, InitializeFFmpegBuildsTimestampThroughConfig)
     EXPECT_TRUE(ffmpeg.output_.find("[2006]") == std::string::npos) << ffmpeg.output_;
 
     encoder->config_ = NULL;
+    encoder->transcoded_urls_ = NULL;
 }
 
 VOID TEST(IngesterTest, InitializeFFmpegBuildsTimestampThroughConfig)

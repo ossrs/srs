@@ -1,6 +1,6 @@
 ---
 name: srs-develop
-description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases, the SRS Docker image toolchain, and the State Threads coroutine library. Use for planned changes to the next-generation SRS Go proxy, SRS browser player, ossrs/dev-docker images, ossrs/state-threads, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Planned next-generation origin and edge development is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
+description: Develop, modify, debug, review, maintain, and explain the SRS and Oryx codebases, the SRS Docker image toolchain, and the State Threads coroutine library. Use for planned changes to the SRS Go proxy, SRS browser player, ossrs/dev-docker images, ossrs/state-threads, or Oryx Go backend, React dashboard, integrated runtime, packaging, installers, releases, and tests; bug maintenance; issue and pull-request triage; pull-request review; and Learn Code questions. Development of a new origin or edge server is not yet supported. NOT for end-user support, usage questions, or configuration help — use srs-support for those.
 ---
 
 # SRS and Oryx Development
@@ -31,6 +31,15 @@ Environment-specific values belong to the user:
 
 ⚠️ **Keep every AI skill change as minimal as possible.** The maintainer reviews every line and word, so change only what the task requires.
 
+## Critical Rule: Comments Only for Hidden Context
+
+⚠️ **Write a comment only when it gives background the code cannot show**, such as a protocol quirk, a past bug, a platform limitation, or why the obvious approach was not used.
+
+- Never write a comment that repeats what the code does or names.
+- New, self-explanatory code needs no comment.
+- No plan IDs, task step names, or process history in comments.
+- When unsure, leave the comment out.
+
 ## Independent Implementation from a Reference PR
 
 When reimplementing a fix instead of adopting a specific pull request as-is — most often a "fixes"/"resolves" PR whose implementation is rejected — read only its problem description and discussion to understand what is broken. Do not open, re-read, or pattern-match its diff while designing or writing the fix. Design and implement from the current codebase and the problem statement alone.
@@ -39,6 +48,9 @@ When reimplementing a fix instead of adopting a specific pull request as-is — 
 
 - `skills/internal-docs-for-srs/SKILL.md` — Route and load project documentation. This skill remains responsible for the development workflow and final result.
 - `skills/internal-codemap-for-srs/SKILL.md` — Route code navigation and verification to the relevant server map. This skill remains responsible for the development workflow and final result.
+- `skills/internal-audit-for-srs/SKILL.md` — Audit a change in a fresh subagent that reads the code before the commit message and the tests; Review a PR and Scan PRs run it on the change. This skill remains responsible for the review and final result.
+- `skills/internal-obs-control/SKILL.md` — Drive isolated OBS instances for the OBS test scripts.
+- `skills/internal-perf-for-srs/SKILL.md` — Run an SRS performance round: load tool, profiles, ranked bottlenecks and reports. This skill remains responsible for the code changes and their checks.
 
 ## Cross-Component Verification
 
@@ -70,6 +82,7 @@ Use **Bash** for skill-owned automation and AI test scripts, including regressio
 - Keep them compatible with macOS `/bin/bash` 3.2.
 - Do not create or run Python scripts, inline Python, or Python validation helpers unless the user explicitly requests Python.
 - Use shell utilities such as `curl` and `jq` for HTTP and JSON work; check required commands before running the test.
+- The `skills/internal-obs-control` scripts are an approved exception: they use stdlib Python 3.9+. The `srs-develop` test scripts calling them stay Bash 3.2 compatible.
 
 ## Build and Test in Place
 
@@ -154,6 +167,7 @@ Choose exactly one supported task:
 - **Fix a Bug** — Use when an SRS or Oryx issue reports broken, unexpected, unsafe, or otherwise incorrect behavior and may require investigation or a maintenance fix. Verify the report, pause for maintainer approval at Truth Record boundaries, perform only the approved update, and record the final result in the selected project's record. → [Fix a Bug workflow](references/fix-a-bug.md)
 - **Learn Code** — Use when the user wants an explanation of existing SRS or Oryx implementation, architecture, control flow, or behavior without project changes. Route to the smallest relevant documentation and code map, reconcile them, and answer with focused source references. → [Learn Code workflow](references/learn-code.md)
 - **Review a PR** — Use for the maintainer's integration workflow after SRS or Oryx changes are already present locally. Select one repository, survey the branch relative to its actual base, correct stale navigation docs, then apply the selected project's version and changelog rules when required. → [Review a PR workflow](references/review-a-pr.md)
+- **Performance** — Use for an SRS or Go proxy performance, benchmark, load test or profile task: measure SRS or the proxy under many simulated clients, profile it, rank the bottlenecks, fix the top one, or write a performance report. A round is started by hand; an SRS version bump asks the user whether to run one. → [internal-perf-for-srs](../internal-perf-for-srs/SKILL.md)
 
 **If the routed task is not yet supported**, stop and tell the user:
 - What task type you routed to

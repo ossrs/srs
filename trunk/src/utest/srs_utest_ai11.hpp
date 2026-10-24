@@ -408,6 +408,7 @@ public:
     int send_rtcp_rr_count_;
     int send_rtcp_xr_rrtr_count_;
     int send_periodic_twcc_count_;
+    int report_frame_stats_count_;
 
 public:
     MockRtcRtcpSender();
@@ -417,6 +418,7 @@ public:
     virtual bool is_sender_started();
     virtual srs_error_t send_rtcp_rr();
     virtual srs_error_t send_rtcp_xr_rrtr();
+    virtual void report_frame_stats();
     virtual bool is_sender_twcc_enabled();
     virtual srs_error_t send_periodic_twcc();
 
@@ -442,6 +444,23 @@ public:
 public:
     virtual void expire();
     void reset();
+};
+
+// Mock statistic with one stream, which it drops when a client disconnects, as
+// SrsStatistic drops a stream with no publisher and no player.
+class MockStatisticDropsStream : public MockAppStatistic
+{
+public:
+    SrsStatisticStream *stream_;
+    bool dropped_;
+
+public:
+    MockStatisticDropsStream();
+    virtual ~MockStatisticDropsStream();
+
+public:
+    virtual SrsStatisticStream *find_stream_by_url(std::string url);
+    virtual void on_disconnect(std::string id, srs_error_t err);
 };
 
 // Mock ISrsAppConfig for testing SrsDtlsCertificate::initialize()

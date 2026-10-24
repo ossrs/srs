@@ -8,6 +8,7 @@
 #define SRS_APP_RTC_CONN_HPP
 
 #include <srs_app_async_call.hpp>
+#include <srs_app_http_hooks.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_reload.hpp>
 #include <srs_app_rtc_dtls.hpp>
@@ -26,7 +27,6 @@
 
 #include <map>
 #include <string>
-#include <sys/socket.h>
 #include <vector>
 
 class SrsUdpMuxSocket;
@@ -254,12 +254,14 @@ class SrsRtcAsyncCallOnStop : public ISrsAsyncCallTask
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
     ISrsRequest *req_;
+    // The stream when the player stopped, which the stats may drop before the hook runs.
+    SrsStatisticStreamSnapshot stream_;
     ISrsHttpHooks *hooks_;
     ISrsContext *context_;
     ISrsAppConfig *config_;
 
 public:
-    SrsRtcAsyncCallOnStop(SrsContextId c, ISrsRequest *r);
+    SrsRtcAsyncCallOnStop(SrsContextId c, ISrsRequest *r, const SrsStatisticStreamSnapshot &stream);
     virtual ~SrsRtcAsyncCallOnStop();
 
 public:
@@ -284,8 +286,14 @@ public:
 };
 
 // A RTC play stream, client pull and play stream from SRS.
-class SrsRtcPlayStream : public ISrsRtcPlayStream
+class SrsRtcPlayStream : public ISrsRtcPlayStream, public ISrsFastTimerHandler
 {
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    ISrsSharedTimer *shared_timer_;
+    // Held by the timer while it sends, which may yield, so the stream is not freed meanwhile.
+    srs_mutex_t lock_;
+
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsExecRtcAsyncTask *exec_;
@@ -351,6 +359,11 @@ public:
 public:
     void on_stream_change(SrsRtcSourceDescription *desc);
 
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Whether on_stream_change would key a track by another publisher SSRC than it has now.
+    bool is_stream_changed(SrsRtcSourceDescription *desc);
+
 public:
     virtual const SrsContextId &context_id();
 
@@ -385,6 +398,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     // Interface ISrsRtcPliWorkerHandler
 public:
     virtual srs_error_t do_request_keyframe(uint32_t ssrc, SrsContextId cid);
+    // Interface ISrsFastTimerHandler, every second for the Sender Reports.
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    srs_error_t on_timer(srs_utime_t interval);
 };
 
 // The RTC RTCP sender interface.
@@ -398,6 +415,8 @@ public:
     virtual bool is_sender_started() = 0;
     virtual srs_error_t send_rtcp_rr() = 0;
     virtual srs_error_t send_rtcp_xr_rrtr() = 0;
+    // Report the frames counted since the last report to the stream stats.
+    virtual void report_frame_stats() = 0;
 
 public:
     virtual bool is_sender_twcc_enabled() = 0;
@@ -489,9 +508,11 @@ SRS_DECLARE_PRIVATE: // clang-format on
 SRS_DECLARE_PRIVATE: // clang-format on
     SrsContextId cid_;
     ISrsRequest *req_;
+    // The stream when the publisher stopped, which the stats may drop before the hook runs.
+    SrsStatisticStreamSnapshot stream_;
 
 public:
-    SrsRtcAsyncCallOnUnpublish(SrsContextId c, ISrsRequest *r);
+    SrsRtcAsyncCallOnUnpublish(SrsContextId c, ISrsRequest *r, const SrsStatisticStreamSnapshot &stream);
     virtual ~SrsRtcAsyncCallOnUnpublish();
 
 public:
@@ -629,6 +650,7 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool is_sender_twcc_enabled();
     srs_error_t send_rtcp_rr();
     srs_error_t send_rtcp_xr_rrtr();
+    void report_frame_stats();
 
 public:
     srs_error_t on_rtp_cipher(char *buf, int nb_buf, bool *dropped);
@@ -943,7 +965,15 @@ public:
     srs_error_t on_rtcp_feedback_remb(SrsRtcpFbCommon *rtcp);
 
 public:
+    // Start the publishers and players. A stream that fails to start ends the session, so the
+    // client never keeps a connected peer that doesn't publish or play.
     srs_error_t on_dtls_handshake_done();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    srs_error_t start_streams();
+
+public:
     srs_error_t on_dtls_alert(std::string type, std::string desc);
     bool is_alive();
     bool is_disposing();

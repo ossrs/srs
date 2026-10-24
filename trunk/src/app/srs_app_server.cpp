@@ -11,14 +11,12 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
 #include <sys/inotify.h>
 #endif
 using namespace std;
 
 #include <srs_app_async_call.hpp>
-#include <srs_app_caster_flv.hpp>
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_coworkers.hpp>
@@ -27,7 +25,6 @@ using namespace std;
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_ingest.hpp>
-#include <srs_app_latest_version.hpp>
 #include <srs_app_log.hpp>
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_reload.hpp>
@@ -115,7 +112,7 @@ srs_error_t srs_global_initialize()
 
     _srs_srt_sources = new SrsSrtSourceManager();
     _srs_srt_sources->assemble();
-    _srt_eventloop = new SrsSrtEventLoop();
+    _srs_srt_eventloop = new SrsSrtEventLoop();
 
     // Initialize the coworkers singleton before any API handler, which captures it.
     _srs_coworkers = SrsCoWorkers::instance();
@@ -204,8 +201,6 @@ SrsServer::SrsServer()
     pid_file_locker_ = new SrsPidFileLocker();
 
     signal_manager_ = new SrsSignalManager(this);
-    latest_version_ = new SrsLatestVersion();
-    ppid_ = 0;
 
     http_api_mux_ = new SrsHttpServeMux();
 
@@ -219,7 +214,6 @@ SrsServer::SrsServer()
 #ifdef SRS_RTSP
     rtsp_listener_ = new SrsMultipleTcpListeners(this);
 #endif
-    stream_caster_flv_listener_ = new SrsHttpFlvListener();
     stream_caster_mpegts_ = new SrsUdpCasterListener();
     exporter_listener_ = new SrsTcpListener(this);
 #ifdef SRS_GB28181
@@ -256,15 +250,13 @@ SrsServer::SrsServer()
     app_factory_ = _srs_app_factory;
     reload_status_ = _srs_reload_status;
     blackhole_ = _srs_blackhole;
-    srt_eventloop_ = _srt_eventloop;
+    srt_eventloop_ = _srs_srt_eventloop;
     coworkers_ = _srs_coworkers;
 }
 
 void SrsServer::assemble()
 {
-    ppid_ = ::getppid();
     signal_manager_->assemble();
-    stream_caster_flv_listener_->assemble();
     stream_caster_mpegts_->assemble();
     http_server_->assemble();
     ingester_->assemble();
@@ -288,7 +280,6 @@ SrsServer::~SrsServer()
     srs_freep(pid_file_locker_);
 
     srs_freep(signal_manager_);
-    srs_freep(latest_version_);
     srs_freep(rtmp_listener_);
     srs_freep(rtmps_listener_);
     srs_freep(api_listener_);
@@ -299,7 +290,6 @@ SrsServer::~SrsServer()
 #ifdef SRS_RTSP
     srs_freep(rtsp_listener_);
 #endif
-    srs_freep(stream_caster_flv_listener_);
     srs_freep(stream_caster_mpegts_);
     srs_freep(exporter_listener_);
 #ifdef SRS_GB28181
@@ -355,7 +345,6 @@ void SrsServer::dispose()
 #ifdef SRS_RTSP
     rtsp_listener_->close();
 #endif
-    stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
 #ifdef SRS_GB28181
@@ -390,7 +379,6 @@ void SrsServer::gracefully_dispose()
 #ifdef SRS_RTSP
     rtsp_listener_->close();
 #endif
-    stream_caster_flv_listener_->close();
     stream_caster_mpegts_->close();
     exporter_listener_->close();
 #ifdef SRS_GB28181
@@ -585,14 +573,8 @@ srs_error_t SrsServer::initialize_st()
 {
     srs_error_t err = srs_success;
 
-    // check asprocess.
-    bool asprocess = config_->get_asprocess();
-    if (asprocess && ppid_ == 1) {
-        return srs_error_new(ERROR_SYSTEM_ASSERT_FAILED, "ppid=%d illegal for asprocess", ppid_);
-    }
-
-    srs_trace("server main cid=%s, pid=%d, ppid=%d, asprocess=%d",
-              _srs_context->get_id().c_str(), ::getpid(), ppid_, asprocess);
+    srs_trace("server main cid=%s, pid=%d, ppid=%d",
+              _srs_context->get_id().c_str(), ::getpid(), srs_getppid());
 
     return err;
 }
@@ -604,11 +586,6 @@ srs_error_t SrsServer::initialize_signal()
 
     if ((err = signal_manager_->initialize()) != srs_success) {
         return srs_error_wrap(err, "init signal manager");
-    }
-
-    // Start the version query coroutine.
-    if ((err = latest_version_->start()) != srs_success) {
-        return srs_error_wrap(err, "start version query");
     }
 
     return err;
@@ -708,11 +685,6 @@ srs_error_t SrsServer::listen()
         if (srs_stream_caster_is_udp(caster)) {
             listener = stream_caster_mpegts_;
             if ((err = stream_caster_mpegts_->initialize(conf)) != srs_success) {
-                return srs_error_wrap(err, "initialize");
-            }
-        } else if (srs_stream_caster_is_flv(caster)) {
-            listener = stream_caster_flv_listener_;
-            if ((err = stream_caster_flv_listener_->initialize(conf)) != srs_success) {
                 return srs_error_wrap(err, "initialize");
             }
         } else if (srs_stream_caster_is_gb28181(caster)) {
@@ -1105,15 +1077,7 @@ srs_error_t SrsServer::do_cycle()
 {
     srs_error_t err = srs_success;
 
-    // for asprocess.
-    bool asprocess = config_->get_asprocess();
-
     while (true) {
-        // asprocess check.
-        if (asprocess && ::getppid() != ppid_) {
-            return srs_error_new(ERROR_ASPROCESS_PPID, "asprocess ppid changed from %d to %d", ppid_, ::getppid());
-        }
-
         if ((err = do2_cycle()) != srs_success) {
             return srs_error_wrap(err, "cycle");
         }
@@ -1173,7 +1137,10 @@ srs_error_t SrsServer::setup_ticks()
     }
 
     if (config_->get_heartbeat_enabled()) {
-        if ((err = timer_->tick(9, config_->get_heartbeat_interval())) != srs_success) {
+        // The timer ticks every 1s, so round the interval down to whole seconds, at least 1s.
+        srs_utime_t seconds = srsu2s(config_->get_heartbeat_interval());
+        srs_utime_t interval = srs_max(1, seconds) * SRS_UTIME_SECONDS;
+        if ((err = timer_->tick(9, interval)) != srs_success) {
             return srs_error_wrap(err, "tick");
         }
     }
@@ -1562,15 +1529,8 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
 
     // Set to close the fd when forking, to avoid fd leak when start a process.
     // See https://github.com/ossrs/srs/issues/518
-    if (true) {
-        int val;
-        if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
-            return srs_error_new(ERROR_SYSTEM_PID_GET_FILE_INFO, "fnctl F_GETFD error! fd=%d", fd);
-        }
-        val |= FD_CLOEXEC;
-        if (fcntl(fd, F_SETFD, val) < 0) {
-            return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "fcntl F_SETFD error! fd=%d", fd);
-        }
+    if (srs_socket_cloexec(fd) < 0) {
+        return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "set cloexec fd=%d", fd);
     }
 
     // Covert handler to resource.
@@ -1593,7 +1553,6 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
         int nn = sizeof(b);
         if ((err = io->peek((char *)b, &nn)) != srs_success) {
             srs_freep(io);
-            srs_freep(skt);
             return srs_error_wrap(err, "peek");
         }
 
@@ -1633,6 +1592,7 @@ srs_error_t SrsServer::do_on_tcp_client(ISrsListener *listener, srs_netfd_t &stf
             string key = listener == apis_listener_ ? config_->get_https_api_ssl_key() : "";
             string cert = listener == apis_listener_ ? config_->get_https_api_ssl_cert() : "";
             SrsHttpxConn *conn = new SrsHttpxConn(conn_manager_, new SrsTcpConnection(stfd2), http_api_mux_, ip, port, key, cert);
+            conn->set_api_listener(true);
             conn->assemble();
             resource = conn;
         } else if (listener == http_listener_ || listener == https_listener_) {
@@ -1765,10 +1725,10 @@ SrsSignalManager::~SrsSignalManager()
     srs_close_stfd(signal_read_stfd_);
 
     if (sig_pipe_[0] > 0) {
-        ::close(sig_pipe_[0]);
+        srs_self_pipe_close(sig_pipe_[0]);
     }
     if (sig_pipe_[1] > 0) {
-        ::close(sig_pipe_[1]);
+        srs_self_pipe_close(sig_pipe_[1]);
     }
 
     app_factory_ = NULL;
@@ -1778,7 +1738,7 @@ SrsSignalManager::~SrsSignalManager()
 srs_error_t SrsSignalManager::initialize()
 {
     /* Create signal pipe */
-    if (pipe(sig_pipe_) < 0) {
+    if (srs_self_pipe_open(sig_pipe_) < 0) {
         return srs_error_new(ERROR_SYSTEM_CREATE_PIPE, "create pipe");
     }
 
@@ -1798,38 +1758,14 @@ srs_error_t SrsSignalManager::start()
      * the signal pipe should be initialized after the fork(2) call
      * so that each process has its own private pipe.
      */
-    struct sigaction sa;
 
     /* Install sig_catcher() as a signal handler */
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_RELOAD, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_FAST_QUIT, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_GRACEFULLY_QUIT, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_ASSERT_ABORT, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SIGINT, &sa, NULL);
-
-    sa.sa_handler = SrsSignalManager::sig_catcher;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(SRS_SIGNAL_REOPEN_LOG, &sa, NULL);
+    srs_signal_install(SRS_SIGNAL_RELOAD, SrsSignalManager::sig_catcher);
+    srs_signal_install(SRS_SIGNAL_FAST_QUIT, SrsSignalManager::sig_catcher);
+    srs_signal_install(SRS_SIGNAL_GRACEFULLY_QUIT, SrsSignalManager::sig_catcher);
+    srs_signal_install(SRS_SIGNAL_ASSERT_ABORT, SrsSignalManager::sig_catcher);
+    srs_signal_install(SIGINT, SrsSignalManager::sig_catcher);
+    srs_signal_install(SRS_SIGNAL_REOPEN_LOG, SrsSignalManager::sig_catcher);
 
     srs_trace("signal installed, reload=%d, reopen=%d, fast_quit=%d, grace_quit=%d",
               SRS_SIGNAL_RELOAD, SRS_SIGNAL_REOPEN_LOG, SRS_SIGNAL_FAST_QUIT, SRS_SIGNAL_GRACEFULLY_QUIT);
@@ -1872,7 +1808,7 @@ void SrsSignalManager::sig_catcher(int signo)
 
     /* write() is reentrant/async-safe */
     int fd = SrsSignalManager::instance->sig_pipe_[1];
-    write(fd, &signo, sizeof(int));
+    srs_self_pipe_write(fd, &signo, sizeof(int));
 
     errno = err;
 }
@@ -1903,7 +1839,7 @@ srs_error_t SrsInotifyWorker::start()
 {
     srs_error_t err = srs_success;
 
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     // Whether enable auto reload config.
     bool auto_reload = config_->inotify_auto_reload();
     if (!auto_reload && _srs_in_docker && config_->auto_reload_for_docker()) {
@@ -1985,7 +1921,7 @@ srs_error_t SrsInotifyWorker::cycle()
 {
     srs_error_t err = srs_success;
 
-#if !defined(SRS_OSX) && !defined(SRS_CYGWIN64)
+#if !defined(SRS_OSX) && !defined(_WIN32)
     SrsPath path;
     string config_path = config_->config();
     string config_file = path.filepath_base(config_path);
@@ -2072,21 +2008,14 @@ srs_error_t SrsPidFileLocker::acquire()
 
     int fd;
     // open pid file
-    if ((fd = ::open(pid_file_.c_str(), O_WRONLY | O_CREAT, mode)) == -1) {
+    if ((fd = srs_file_open(pid_file_.c_str(), O_WRONLY | O_CREAT, mode)) == -1) {
         return srs_error_new(ERROR_SYSTEM_PID_ACQUIRE, "open pid file=%s", pid_file_.c_str());
     }
 
     // require write lock
-    struct flock lock;
-
-    lock.l_type = F_WRLCK;    // F_RDLCK, F_WRLCK, F_UNLCK
-    lock.l_start = 0;         // type offset, relative to l_whence
-    lock.l_whence = SEEK_SET; // SEEK_SET, SEEK_CUR, SEEK_END
-    lock.l_len = 0;
-
-    if (fcntl(fd, F_SETLK, &lock) == -1) {
+    if (srs_file_lock(fd) == -1) {
         if (errno == EACCES || errno == EAGAIN) {
-            ::close(fd);
+            srs_file_close(fd);
             srs_error("srs is already running!");
             return srs_error_new(ERROR_SYSTEM_PID_ALREADY_RUNNING, "srs is already running");
         }
@@ -2094,23 +2023,18 @@ srs_error_t SrsPidFileLocker::acquire()
     }
 
     // truncate file
-    if (ftruncate(fd, 0) != 0) {
+    if (srs_file_truncate(fd, 0) != 0) {
         return srs_error_new(ERROR_SYSTEM_PID_TRUNCATE_FILE, "truncate pid file=%s", pid_file_.c_str());
     }
 
     // write the pid
     std::string pid = srs_strconv_format_int(getpid());
-    if (write(fd, pid.c_str(), pid.length()) != (int)pid.length()) {
+    if (srs_file_write(fd, pid.c_str(), pid.length()) != (ssize_t)pid.length()) {
         return srs_error_new(ERROR_SYSTEM_PID_WRITE_FILE, "write pid=%s to file=%s", pid.c_str(), pid_file_.c_str());
     }
 
     // auto close when fork child process.
-    int val;
-    if ((val = fcntl(fd, F_GETFD, 0)) < 0) {
-        return srs_error_new(ERROR_SYSTEM_PID_GET_FILE_INFO, "fcntl fd=%d", fd);
-    }
-    val |= FD_CLOEXEC;
-    if (fcntl(fd, F_SETFD, val) < 0) {
+    if (srs_file_cloexec(fd) < 0) {
         return srs_error_new(ERROR_SYSTEM_PID_SET_FILE_INFO, "lock file=%s fd=%d", pid_file_.c_str(), fd);
     }
 
@@ -2123,7 +2047,7 @@ srs_error_t SrsPidFileLocker::acquire()
 void SrsPidFileLocker::close()
 {
     if (pid_fd_ > 0) {
-        ::close(pid_fd_);
+        srs_file_close(pid_fd_);
         pid_fd_ = -1;
     }
 }

@@ -9,7 +9,6 @@
 #include <signal.h>
 #include <sstream>
 #include <stdlib.h>
-#include <unistd.h>
 using namespace std;
 
 #include <srs_app_config.hpp>
@@ -34,10 +33,6 @@ using namespace std;
 #ifdef SRS_VALGRIND
 #include <valgrind/memcheck.h>
 #include <valgrind/valgrind.h>
-#endif
-
-#if defined(__linux__) || defined(SRS_OSX)
-#include <sys/utsname.h>
 #endif
 
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter *w, string callback, string data)
@@ -159,6 +154,25 @@ void srs_api_parse_pagination(ISrsHttpMessage *r, int &start, int &count)
     count = rcount.empty() ? 10 : srs_max(1, atoi(rcount.c_str()));
 }
 
+std::string srs_api_metrics_label_escape(const std::string &v)
+{
+    std::string r;
+    r.reserve(v.length());
+    for (size_t i = 0; i < v.length(); i++) {
+        char c = v.at(i);
+        if (c == '\\') {
+            r.append("\\\\");
+        } else if (c == '"') {
+            r.append("\\\"");
+        } else if (c == '\n') {
+            r.append("\\n");
+        } else {
+            r.push_back(c);
+        }
+    }
+    return r;
+}
+
 // @remark we will free the code.
 srs_error_t srs_api_response_code(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, srs_error_t code)
 {
@@ -276,15 +290,15 @@ srs_error_t SrsGoApiV1::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r
     urls->set("meminfos", SrsJsonAny::str("the meminfo of system"));
     urls->set("authors", SrsJsonAny::str("the license, copyright, authors and contributors"));
     urls->set("features", SrsJsonAny::str("the supported features of SRS"));
-    urls->set("requests", SrsJsonAny::str("the request itself, for http debug"));
     urls->set("vhosts", SrsJsonAny::str("manage all vhosts or specified vhost"));
     urls->set("streams", SrsJsonAny::str("manage all streams or specified stream"));
     urls->set("clients", SrsJsonAny::str("manage all clients or specified client, default query top 10 clients"));
     urls->set("forwards", SrsJsonAny::str("query all forwards or specified forward, filter by ?stream=id, default query top 10 forwards"));
     urls->set("raw", SrsJsonAny::str("raw api for srs, support CUID srs for instance the config"));
     urls->set("clusters", SrsJsonAny::str("origin cluster server API"));
-    urls->set("perf", SrsJsonAny::str("System performance stat"));
+#ifdef SRS_GPERF
     urls->set("tcmalloc", SrsJsonAny::str("tcmalloc api with params ?page=summary|api"));
+#endif
 #ifdef SRS_VALGRIND
     urls->set("valgrind", SrsJsonAny::str("valgrind api with params ?check=full|added|changed|new|quick"));
 #endif
@@ -624,11 +638,6 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
 
     features->set("ssl", SrsJsonAny::boolean(true));
     features->set("hls", SrsJsonAny::boolean(true));
-#ifdef SRS_HDS
-    features->set("hds", SrsJsonAny::boolean(true));
-#else
-    features->set("hds", SrsJsonAny::boolean(false));
-#endif
     features->set("callback", SrsJsonAny::boolean(true));
     features->set("api", SrsJsonAny::boolean(true));
     features->set("httpd", SrsJsonAny::boolean(true));
@@ -656,6 +665,38 @@ srs_error_t SrsGoApiFeatures::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
     features->set("mr", SrsJsonAny::boolean(true));
 #else
     features->set("mr", SrsJsonAny::boolean(false));
+#endif
+
+    // The build options, so a client can check the protocols and tools this binary was built with.
+#ifdef SRS_SRT
+    features->set("srt", SrsJsonAny::boolean(true));
+#else
+    features->set("srt", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_RTSP
+    features->set("rtsp", SrsJsonAny::boolean(true));
+#else
+    features->set("rtsp", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_GB28181
+    features->set("gb28181", SrsJsonAny::boolean(true));
+#else
+    features->set("gb28181", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_RTC
+    features->set("rtc", SrsJsonAny::boolean(true));
+#else
+    features->set("rtc", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_SIMULATOR
+    features->set("simulator", SrsJsonAny::boolean(true));
+#else
+    features->set("simulator", SrsJsonAny::boolean(false));
+#endif
+#ifdef SRS_SANITIZER
+    features->set("sanitizer", SrsJsonAny::boolean(true));
+#else
+    features->set("sanitizer", SrsJsonAny::boolean(false));
 #endif
 
     return srs_api_response(w, r, obj->dumps());
@@ -696,7 +737,7 @@ srs_error_t SrsGoApiRequests::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMess
 
     // server informations
     SrsJsonObject *server = SrsJsonAny::object();
-    data->set("headers", server);
+    data->set("server", server);
 
     server->set("sigature", SrsJsonAny::str(RTMP_SIG_SRS_KEY));
     server->set("version", SrsJsonAny::str(RTMP_SIG_SRS_VERSION));
@@ -1034,7 +1075,7 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
     //////////////////////////////////////////////////////////////////////////
     // the rpc is required.
     // the allowed rpc method check.
-    if (rpc.empty() || (rpc != "reload" && rpc != "reload-fetch")) {
+    if (rpc.empty() || (rpc != "reload" && rpc != "reload-fetch" && rpc != "reopen-log")) {
         return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW);
     }
 
@@ -1056,6 +1097,11 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         data->set("rid", SrsJsonAny::str(reload_status_->id().c_str()));
 
         return srs_api_response(w, r, obj->dumps());
+    } else if (rpc == "reopen-log") {
+        // Windows has no SIGUSR1, so a log rotation asks for the reopen here. It changes no config, so it
+        // needs no allow_reload.
+        handler_->on_signal(SRS_SIGNAL_REOPEN_LOG);
+        return srs_api_response_code(w, r, ERROR_SUCCESS);
     }
 
     return err;
@@ -1395,36 +1441,34 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     std::stringstream ss;
 
-#if defined(__linux__) || defined(SRS_OSX)
     // Get system info
     SrsProtocolUtility utility;
     utsname *system_info = utility.system_uname();
     ss << "# HELP srs_node_uname_info Labeled system information as provided by the uname system call.\n"
        << "# TYPE srs_node_uname_info gauge\n"
        << "srs_node_uname_info{"
-       << "sysname=\"" << system_info->sysname << "\","
-       << "nodename=\"" << system_info->nodename << "\","
-       << "release=\"" << system_info->release << "\","
-       << "version=\"" << system_info->version << "\","
-       << "machine=\"" << system_info->machine << "\""
+       << "sysname=\"" << srs_api_metrics_label_escape(system_info->sysname) << "\","
+       << "nodename=\"" << srs_api_metrics_label_escape(system_info->nodename) << "\","
+       << "release=\"" << srs_api_metrics_label_escape(system_info->release) << "\","
+       << "version=\"" << srs_api_metrics_label_escape(system_info->version) << "\","
+       << "machine=\"" << srs_api_metrics_label_escape(system_info->machine) << "\""
        << "} 1\n";
-#endif
 
     // Build info from Config.
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"
        << "# TYPE srs_build_info gauge\n"
        << "srs_build_info{"
-       << "server=\"" << stat_->server_id() << "\","
-       << "service=\"" << stat_->service_id() << "\","
+       << "server=\"" << srs_api_metrics_label_escape(stat_->server_id()) << "\","
+       << "service=\"" << srs_api_metrics_label_escape(stat_->service_id()) << "\","
        << "pid=\"" << stat_->service_pid() << "\","
        << "build_date=\"" << SRS_BUILD_DATE << "\","
        << "major=\"" << VERSION_MAJOR << "\","
        << "version=\"" << RTMP_SIG_SRS_VERSION << "\","
        << "code=\"" << RTMP_SIG_SRS_CODE << "\"";
     if (!label_.empty())
-        ss << ",label=\"" << label_ << "\"";
+        ss << ",label=\"" << srs_api_metrics_label_escape(label_) << "\"";
     if (!tag_.empty())
-        ss << ",tag=\"" << tag_ << "\"";
+        ss << ",tag=\"" << srs_api_metrics_label_escape(tag_) << "\"";
     ss << "} 1\n";
 
     // Get ProcSelfStat

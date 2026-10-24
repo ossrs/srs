@@ -23,14 +23,12 @@ class SrsRtmpServer;
 class ISrsRequest;
 class SrsResponse;
 class SrsLiveSource;
-class SrsRefer;
 class SrsLiveConsumer;
 class SrsRtmpCommonMessage;
 class SrsStSocket;
 class SrsHttpHooks;
 class SrsBandwidth;
 class SrsKbps;
-class SrsRtmpClient;
 class SrsMediaPacket;
 class SrsQueueRecvThread;
 class SrsPublishRecvThread;
@@ -193,7 +191,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsRtmpServer *rtmp_;
-    SrsRefer *refer_;
     SrsBandwidth *bandwidth_;
     ISrsSecurity *security_;
     // The wakable handler, maybe NULL.
@@ -216,6 +213,10 @@ SRS_DECLARE_PRIVATE: // clang-format on
     srs_utime_t publish_normal_timeout_;
     // Whether enable the tcp_nodelay.
     bool tcp_nodelay_;
+    // Whether the on_connect hook accepted the client, so it gets the on_close hook when it closes.
+    // A client that only connects, never playing or publishing, gets neither, and one the on_connect
+    // hook refused gets no on_close, as one refused by on_play gets no on_stop.
+    bool on_connect_checked_;
     // About the rtmp client.
     SrsClientInfo *info_;
 
@@ -262,6 +263,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     virtual srs_error_t redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> source);
+    // Drain what the client sent, until it is idle, so closing the connection is a FIN, not a reset that
+    // drops what SRS has not sent yet.
+    virtual void drain_client_input();
 
 public:
     virtual srs_error_t do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveConsumer *consumer, SrsQueueRecvThread *trd);
@@ -275,11 +279,6 @@ public:
     virtual srs_error_t process_publish_message(SrsSharedPtr<SrsLiveSource> &source, SrsRtmpCommonMessage *msg);
     virtual srs_error_t process_play_control_msg(SrsLiveConsumer *consumer, SrsRtmpCommonMessage *msg);
     virtual void set_sock_options();
-
-// clang-format off
-SRS_DECLARE_PRIVATE: // clang-format on
-    virtual srs_error_t check_edge_token_traverse_auth();
-    virtual srs_error_t do_token_traverse_auth(SrsRtmpClient *client);
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

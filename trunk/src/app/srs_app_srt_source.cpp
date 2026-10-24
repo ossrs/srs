@@ -670,10 +670,6 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
                 return srs_error_wrap(err, "demux pps");
             }
 
-            if (!pps.empty()) {
-                vps_sps_pps_change_ = true;
-            }
-
             hevc_pps.push_back(pps);
             continue;
         }
@@ -681,7 +677,12 @@ srs_error_t SrsSrtFrameBuilder::on_ts_video_hevc(SrsTsMessage *msg, SrsBuffer *a
         ipb_frames.push_back(make_pair(frame, frame_size));
     }
 
+    // TS repeats the parameter sets before each keyframe, so only PPS that differ
+    // from the last ones are a change.
     if (!hevc_pps.empty()) {
+        if (hevc_pps_ != hevc_pps) {
+            vps_sps_pps_change_ = true;
+        }
         hevc_pps_ = hevc_pps;
     }
 
@@ -758,12 +759,21 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage *msg, vector<pair<cha
 
     // ts tbn to flv tbn.
     uint32_t dts = (uint32_t)(msg->dts_ / 90);
+    uint32_t pts = (uint32_t)(msg->pts_ / 90);
+    int32_t cts = pts - dts;
 
     // for IDR frame, the frame is keyframe.
     SrsVideoAvcFrameType frame_type = SrsVideoAvcFrameTypeInterFrame;
 
-    // 5bytes video tag header
-    int frame_size = 5;
+    // A frame not shown at its decode time, such as a B-frame, carries its
+    // composition time in a CodedFrames tag, 3 bytes after the fourcc.
+    int8_t packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFramesX;
+    if (cts != 0) {
+        packet_type = SrsVideoHEVCFrameTraitPacketTypeCodedFrames;
+    }
+
+    // 5bytes video tag header, and 3bytes composition time for CodedFrames.
+    int frame_size = (packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFrames) ? 8 : 5;
     for (size_t i = 0; i != ipb_frames.size(); ++i) {
         // 4 bytes for nalu length.
         frame_size += 4 + ipb_frames[i].second;
@@ -780,8 +790,11 @@ srs_error_t SrsSrtFrameBuilder::on_hevc_frame(SrsTsMessage *msg, vector<pair<cha
 
     // Write 5bytes video tag header.
     // @see: https://veovera.org/docs/enhanced/enhanced-rtmp-v1.pdf, page 8
-    payload.write_1bytes(SRS_FLV_IS_EX_HEADER | (frame_type << 4) | SrsVideoHEVCFrameTraitPacketTypeCodedFramesX);
+    payload.write_1bytes(SRS_FLV_IS_EX_HEADER | (frame_type << 4) | packet_type);
     payload.write_4bytes(0x68766331); // 'h' 'v' 'c' '1'
+    if (packet_type == SrsVideoHEVCFrameTraitPacketTypeCodedFrames) {
+        payload.write_3bytes(cts); // composition time
+    }
 
     // Write video nalus.
     for (size_t i = 0; i != ipb_frames.size(); ++i) {
@@ -842,22 +855,11 @@ srs_error_t SrsSrtFrameBuilder::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
         }
 
         // May have more than one aac frame in PES packet, and shared same timestamp,
-        // so we must calculate each aac frame's timestamp.
+        // so we must calculate each aac frame's timestamp, at the frame's sample rate, not the FLV
+        // sound rate, which has no 48kHz, or 44.1kHz when the index is invalid.
         int sample_rate = 44100;
-        switch (codec.sound_rate_) {
-        case SrsAudioSampleRate5512:
-            sample_rate = 5512;
-            break;
-        case SrsAudioSampleRate11025:
-            sample_rate = 11025;
-            break;
-        case SrsAudioSampleRate22050:
-            sample_rate = 22050;
-            break;
-        case SrsAudioSampleRate44100:
-        default:
-            sample_rate = 44100;
-            break;
+        if (codec.sampling_frequency_index_ < SrsAAcSampleRateNumbers && srs_aac_srates[codec.sampling_frequency_index_] > 0) {
+            sample_rate = srs_aac_srates[codec.sampling_frequency_index_];
         }
         uint32_t frame_pts = (double)pts + (frame_idx * (1024.0 * 1000.0 / sample_rate));
         duration_ms += 1024.0 * 1000.0 / sample_rate;
@@ -989,31 +991,52 @@ srs_error_t SrsSrtFormat::on_srt_packet(SrsSrtPacket *pkt)
 {
     srs_error_t err = srs_success;
 
-    // Skip TS parsing if both video and audio codecs have been reported
-    // This avoids unnecessary TS decoding and log flooding from unrecognized stream types
-    if (video_codec_reported_ && audio_codec_reported_) {
-        return err;
-    }
-
     char *buf = pkt->data();
     int nb_buf = pkt->size();
 
-    // Parse TS packets to extract codec information
     int nb_packet = nb_buf / SRS_TS_PACKET_SIZE;
     for (int i = 0; i < nb_packet; i++) {
         char *p = buf + (i * SRS_TS_PACKET_SIZE);
-        SrsUniquePtr<SrsBuffer> stream(new SrsBuffer(p, SRS_TS_PACKET_SIZE));
 
-        // Decode TS packet and call on_ts_message for each message
-        if ((err = ts_ctx_->decode(stream.get(), this)) != srs_success) {
-            // Ignore parse errors, just log and continue
-            srs_warn("srt format parse ts packet err=%s", srs_error_desc(err).c_str());
-            srs_freep(err);
-            continue;
+        // Decode the TS only until both codecs are reported, which avoids unnecessary
+        // TS decoding and log flooding from unrecognized stream types.
+        if (!video_codec_reported_ || !audio_codec_reported_) {
+            SrsBuffer stream(p, SRS_TS_PACKET_SIZE);
+
+            // Decode TS packet and call on_ts_message for each message
+            if ((err = ts_ctx_->decode(&stream, this)) != srs_success) {
+                // Ignore parse errors, just log and continue
+                srs_warn("srt format parse ts packet err=%s", srs_error_desc(err).c_str());
+                srs_freep(err);
+            }
         }
+
+        // Count the frames for the whole stream, from the TS packet header only.
+        count_ts_frame(p);
     }
 
     return err;
+}
+
+void SrsSrtFormat::count_ts_frame(char *p)
+{
+    // Each PES, a frame, starts in a TS packet with the payload_unit_start_indicator.
+    if ((uint8_t)p[0] != 0x47 || (p[1] & 0x40) == 0) {
+        return;
+    }
+
+    // The PMT, decoded while the codecs are found, maps the PID to its stream type.
+    int pid = ((p[1] & 0x1f) << 8) | (uint8_t)p[2];
+    SrsTsChannel *channel = ts_ctx_->get(pid);
+    if (!channel) {
+        return;
+    }
+
+    if (channel->stream_ == SrsTsStreamVideoH264 || channel->stream_ == SrsTsStreamVideoHEVC) {
+        update_ts_message_stats(false);
+    } else if (channel->stream_ == SrsTsStreamAudioAAC) {
+        update_ts_message_stats(true);
+    }
 }
 
 void SrsSrtFormat::update_ts_message_stats(bool is_audio)
@@ -1052,9 +1075,6 @@ srs_error_t SrsSrtFormat::on_ts_message(SrsTsMessage *msg)
 
     // Only parse video and audio messages
     if (msg->channel_->stream_ == SrsTsStreamVideoH264 || msg->channel_->stream_ == SrsTsStreamVideoHEVC) {
-        // Update statistics for video frames
-        update_ts_message_stats(false);
-
         if (video_codec_reported_) {
             return err;
         }
@@ -1077,9 +1097,6 @@ srs_error_t SrsSrtFormat::on_ts_message(SrsTsMessage *msg)
                       c->width_, c->height_);
         }
     } else if (msg->channel_->stream_ == SrsTsStreamAudioAAC) {
-        // Update statistics for audio frames
-        update_ts_message_stats(true);
-
         if (audio_codec_reported_) {
             return err;
         }
@@ -1275,9 +1292,9 @@ SrsSrtSource::~SrsSrtSource()
     srs_freep(req_);
     srs_freep(format_);
 
-    SrsContextId cid = _source_id;
+    SrsContextId cid = source_id_;
     if (cid.empty())
-        cid = _pre_source_id;
+        cid = pre_source_id_;
     srs_trace("free srt source id=[%s]", cid.c_str());
 
     stat_ = NULL;
@@ -1335,14 +1352,14 @@ srs_error_t SrsSrtSource::on_source_id_changed(SrsContextId id)
 {
     srs_error_t err = srs_success;
 
-    if (!_source_id.compare(id)) {
+    if (!source_id_.compare(id)) {
         return err;
     }
 
-    if (_pre_source_id.empty()) {
-        _pre_source_id = id;
+    if (pre_source_id_.empty()) {
+        pre_source_id_ = id;
     }
-    _source_id = id;
+    source_id_ = id;
 
     // notice all consumer
     std::vector<ISrsSrtConsumer *>::iterator it;
@@ -1359,12 +1376,12 @@ srs_error_t SrsSrtSource::on_source_id_changed(SrsContextId id)
 
 SrsContextId SrsSrtSource::source_id()
 {
-    return _source_id;
+    return source_id_;
 }
 
 SrsContextId SrsSrtSource::pre_source_id()
 {
-    return _pre_source_id;
+    return pre_source_id_;
 }
 
 void SrsSrtSource::update_auth(ISrsRequest *r)
@@ -1433,7 +1450,7 @@ srs_error_t SrsSrtSource::on_publish()
         return srs_error_wrap(err, "bridge on publish");
     }
 
-    stat_->on_stream_publish(req_, _source_id.c_str());
+    stat_->on_stream_publish(req_, source_id_.c_str());
 
     return err;
 }

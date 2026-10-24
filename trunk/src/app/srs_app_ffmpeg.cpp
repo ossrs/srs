@@ -10,12 +10,6 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#ifndef _WIN32
-#include <unistd.h>
-#endif
 
 #include <vector>
 using namespace std;

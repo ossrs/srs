@@ -9,8 +9,6 @@
 
 #include <srs_core.hpp>
 
-#include <sys/uio.h>
-
 #include <map>
 #include <sstream>
 #include <string>
@@ -19,17 +17,10 @@
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_utility.hpp>
 
-#include <arpa/inet.h>
 #include <string>
 #include <vector>
 
 #include <srs_protocol_st.hpp>
-
-#if defined(__linux__) || defined(SRS_OSX)
-#include <sys/utsname.h>
-#endif
-
-#include <ifaddrs.h>
 
 class ISrsHttpMessage;
 class ISrsConfig;
@@ -70,6 +61,11 @@ extern std::string srs_net_url_convert_legacy_rtmp_url(const std::string &url);
 //      rtmp://ip/live?secret=xxx/livestream
 extern void srs_net_url_guess_stream(std::string &app, std::string &param, std::string &stream);
 
+// Normalize a query parameter so it can be appended directly to a URL.
+// For example, "token=abc" becomes "?token=abc", while "?token=abc" and
+// an empty parameter are returned unchanged.
+extern std::string srs_net_url_normalize_param(const std::string &param);
+
 // parse query string to map(k,v).
 // must format as key=value&...&keyN=valueN
 extern void srs_net_url_parse_query(std::string q, std::map<std::string, std::string> &query);
@@ -94,6 +90,10 @@ extern std::string srs_net_url_encode_sid(std::string vhost, std::string app, st
 //      tcUrl: rtmp://v.ossrs.net/live
 //      stream: livestream
 extern void srs_net_url_parse_rtmp_url(std::string url, std::string &tcUrl, std::string &stream);
+
+// Parse the app and stream of an HTTP path, for example, live and livestream of /live/livestream.flv,
+// the default app for a file at the root.
+extern void srs_net_url_parse_http_path(std::string path, std::string &app, std::string &stream);
 
 // Genereate the rtmp url, for instance, rtmp://server:port/app/stream?param
 // @remark We always put vhost in param, in the query of url.
@@ -153,10 +153,8 @@ public:
 public:
     // Get hostname
     virtual std::string system_hostname(void);
-#if defined(__linux__) || defined(SRS_OSX)
     // Get system uname info.
     virtual utsname *system_uname();
-#endif
 };
 
 // Get the original ip from query and header by proxy.

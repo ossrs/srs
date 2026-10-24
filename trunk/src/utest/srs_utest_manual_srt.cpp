@@ -19,7 +19,7 @@ using namespace std;
 
 #include <srt/srt.h>
 
-extern SrsSrtEventLoop *_srt_eventloop;
+extern SrsSrtEventLoop *_srs_srt_eventloop;
 
 // TODO: FIXME: set srt log handler.
 
@@ -165,7 +165,7 @@ public:
             return srs_error_wrap(err, "srt listen");
         }
 
-        srt_socket_ = new SrsSrtSocket(_srt_eventloop->poller(), srt_server_fd_);
+        srt_socket_ = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_server_fd_);
 
         return err;
     }
@@ -211,7 +211,7 @@ VOID TEST(ServiceStSRTTest, ListenConnectAccept)
     srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket(&srt_client_fd));
 
-    SrsUniquePtr<SrsSrtSocket> srt_client_socket(new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd));
+    SrsUniquePtr<SrsSrtSocket> srt_client_socket(new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_client_fd));
 
     // No client connected, accept will timeout.
     srs_srt_t srt_fd = srs_srt_socket_invalid();
@@ -236,7 +236,7 @@ VOID TEST(ServiceStSRTTest, ConnectTimeout)
 
     srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
-    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_client_fd);
 
     srt_client_socket->set_send_timeout(50 * SRS_UTIME_MILLISECONDS);
     // Client connect to server which is no listening.
@@ -258,7 +258,7 @@ VOID TEST(ServiceStSRTTest, ConnectWithStreamid)
     srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
     HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
-    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_client_fd);
 
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
@@ -283,7 +283,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
 
     srs_srt_t srt_client_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
-    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+    SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_client_fd);
 
     // Client connect to server
     HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
@@ -292,7 +292,7 @@ VOID TEST(ServiceStSRTTest, ReadWrite)
     srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
     HELPER_EXPECT_SUCCESS(srt_server.accept(&srt_server_accepted_fd));
     EXPECT_NE(srt_server_accepted_fd, srs_srt_socket_invalid());
-    SrsSrtSocket *srt_server_accepted_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_server_accepted_fd);
+    SrsSrtSocket *srt_server_accepted_socket = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_server_accepted_fd);
 
     if (true) {
         std::string content = "Hello, SRS SRT!";
@@ -650,7 +650,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
         srs_srt_t srt_client_fd = srs_srt_socket_invalid();
         HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
         HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
-        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_client_fd);
 
         // SRT connect without passphrase, will reject.
         HELPER_EXPECT_FAILED(srt_client_socket->connect(server_ip, server_port));
@@ -661,7 +661,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
         HELPER_EXPECT_SUCCESS(srs_srt_socket_with_default_option(&srt_client_fd));
         HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
         HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, "wrong_passphrase"));
-        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_client_fd);
 
         // SRT connect with wrong passphrase, will reject.
         HELPER_EXPECT_FAILED(srt_client_socket->connect(server_ip, server_port));
@@ -673,7 +673,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
         HELPER_EXPECT_SUCCESS(srs_srt_set_streamid(srt_client_fd, streamid));
         // Set correct passphrase.
         HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, passphrase));
-        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+        SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_client_fd);
         HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
         srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();
@@ -694,7 +694,7 @@ VOID TEST(ServiceSRTTest, Encrypt)
             HELPER_EXPECT_SUCCESS(srs_srt_set_passphrase(srt_client_fd, passphrase));
             // Set different pbkeylen.
             HELPER_EXPECT_SUCCESS(srs_srt_set_pbkeylen(srt_client_fd, pbkeylens[i]));
-            SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srt_eventloop->poller(), srt_client_fd);
+            SrsSrtSocket *srt_client_socket = new SrsSrtSocket(_srs_srt_eventloop->poller(), srt_client_fd);
             HELPER_EXPECT_SUCCESS(srt_client_socket->connect(server_ip, server_port));
 
             srs_srt_t srt_server_accepted_fd = srs_srt_socket_invalid();

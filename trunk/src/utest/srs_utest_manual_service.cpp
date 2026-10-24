@@ -15,7 +15,6 @@ using namespace std;
 #include <srs_protocol_st.hpp>
 #include <srs_protocol_utility.hpp>
 
-#include <netdb.h>
 #include <srs_core_autofree.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_http_client.hpp>
@@ -27,7 +26,8 @@ using namespace std;
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_protocol.hpp>
 #include <st.h>
-#include <sys/socket.h>
+
+#include <limits.h>
 
 MockSrsConnection::MockSrsConnection()
 {
@@ -83,6 +83,15 @@ srs_error_t MockTcpHandler::on_tcp_client(ISrsListener *listener, srs_netfd_t st
     return srs_success;
 }
 
+// The listener accepts in its own coroutine, which may need more than one poll to see the client, such as on
+// Windows, where a sleep lasts a timer tick of about 15.6 ms.
+static void utest_wait_accepted(MockTcpHandler *h)
+{
+    for (int i = 0; i < 100 && !h->fd; i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+}
+
 VOID TEST(TCPServerTest, PingPong)
 {
     srs_error_t err;
@@ -105,7 +114,7 @@ VOID TEST(TCPServerTest, PingPong)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        utest_wait_accepted(&h);
         EXPECT_TRUE(h.fd != NULL);
     }
 
@@ -119,10 +128,8 @@ VOID TEST(TCPServerTest, PingPong)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_OSX
+        utest_wait_accepted(&h);
         ASSERT_TRUE(h.fd != NULL);
-#endif
         SrsStSocket skt(h.fd);
 
         HELPER_EXPECT_SUCCESS(c.write((void *)"Hello", 5, NULL));
@@ -142,10 +149,8 @@ VOID TEST(TCPServerTest, PingPong)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_OSX
+        utest_wait_accepted(&h);
         ASSERT_TRUE(h.fd != NULL);
-#endif
         SrsStSocket skt(h.fd);
 
         HELPER_EXPECT_SUCCESS(c.write((void *)"Hello", 5, NULL));
@@ -167,10 +172,8 @@ VOID TEST(TCPServerTest, PingPong)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_OSX
+        utest_wait_accepted(&h);
         ASSERT_TRUE(h.fd != NULL);
-#endif
         SrsStSocket skt(h.fd);
 
         HELPER_EXPECT_SUCCESS(c.write((void *)"Hello SRS", 9, NULL));
@@ -203,10 +206,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_OSX
+        utest_wait_accepted(&h);
         ASSERT_TRUE(h.fd != NULL);
-#endif
         SrsStSocket skt(h.fd);
         skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
@@ -226,10 +227,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_OSX
+        utest_wait_accepted(&h);
         ASSERT_TRUE(h.fd != NULL);
-#endif
         SrsStSocket skt(h.fd);
         skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
@@ -249,10 +248,8 @@ VOID TEST(TCPServerTest, PingPongWithTimeout)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_OSX
+        utest_wait_accepted(&h);
         ASSERT_TRUE(h.fd != NULL);
-#endif
         SrsStSocket skt(h.fd);
         skt.set_recv_timeout(1 * SRS_UTIME_MILLISECONDS);
 
@@ -287,6 +284,17 @@ VOID TEST(TCPServerTest, StringIsDigital)
     EXPECT_FALSE(srs_is_digit_number("10e3"));
     EXPECT_FALSE(srs_is_digit_number("!1234567890"));
     EXPECT_FALSE(srs_is_digit_number(""));
+}
+
+// A value past LONG_MAX, such as one over 32 bits where long is 32 bits like on Windows, gives LONG_MAX and ERANGE.
+static long utest_strtol_hex(long long v)
+{
+    return v > LONG_MAX ? LONG_MAX : (long)v;
+}
+
+static int utest_strtol_errno(long long v)
+{
+    return v > LONG_MAX ? ERANGE : 0;
 }
 
 VOID TEST(TCPServerTest, StringIsHex)
@@ -340,8 +348,8 @@ VOID TEST(TCPServerTest, StringIsHex)
         char *str = (char *)"1234567890";
         char *parsed = str;
         errno = 0;
-        EXPECT_EQ(0x1234567890L, ::strtol(str, &parsed, 16));
-        EXPECT_EQ(0, errno);
+        EXPECT_EQ(utest_strtol_hex(0x1234567890LL), ::strtol(str, &parsed, 16));
+        EXPECT_EQ(utest_strtol_errno(0x1234567890LL), errno);
         EXPECT_EQ(str + 10, parsed);
     }
 
@@ -349,8 +357,8 @@ VOID TEST(TCPServerTest, StringIsHex)
         char *str = (char *)"0123456789";
         char *parsed = str;
         errno = 0;
-        EXPECT_EQ(0x123456789L, ::strtol(str, &parsed, 16));
-        EXPECT_EQ(0, errno);
+        EXPECT_EQ(utest_strtol_hex(0x123456789LL), ::strtol(str, &parsed, 16));
+        EXPECT_EQ(utest_strtol_errno(0x123456789LL), errno);
         EXPECT_EQ(str + 10, parsed);
     }
 
@@ -358,8 +366,8 @@ VOID TEST(TCPServerTest, StringIsHex)
         char *str = (char *)"1234567890a";
         char *parsed = str;
         errno = 0;
-        EXPECT_EQ(0x1234567890a, ::strtol(str, &parsed, 16));
-        EXPECT_EQ(0, errno);
+        EXPECT_EQ(utest_strtol_hex(0x1234567890aLL), ::strtol(str, &parsed, 16));
+        EXPECT_EQ(utest_strtol_errno(0x1234567890aLL), errno);
         EXPECT_EQ(str + 11, parsed);
     }
 
@@ -367,8 +375,8 @@ VOID TEST(TCPServerTest, StringIsHex)
         char *str = (char *)"0x1234567890a";
         char *parsed = str;
         errno = 0;
-        EXPECT_EQ(0x1234567890a, ::strtol(str, &parsed, 16));
-        EXPECT_EQ(0, errno);
+        EXPECT_EQ(utest_strtol_hex(0x1234567890aLL), ::strtol(str, &parsed, 16));
+        EXPECT_EQ(utest_strtol_errno(0x1234567890aLL), errno);
         EXPECT_EQ(str + 13, parsed);
     }
 
@@ -376,8 +384,8 @@ VOID TEST(TCPServerTest, StringIsHex)
         char *str = (char *)"1234567890f";
         char *parsed = str;
         errno = 0;
-        EXPECT_EQ(0x1234567890f, ::strtol(str, &parsed, 16));
-        EXPECT_EQ(0, errno);
+        EXPECT_EQ(utest_strtol_hex(0x1234567890fLL), ::strtol(str, &parsed, 16));
+        EXPECT_EQ(utest_strtol_errno(0x1234567890fLL), errno);
         EXPECT_EQ(str + 11, parsed);
     }
 
@@ -405,8 +413,8 @@ VOID TEST(TCPServerTest, StringIsHex)
         char *str = (char *)"1234567890g";
         char *parsed = str;
         errno = 0;
-        EXPECT_EQ(0x1234567890, ::strtol(str, &parsed, 16));
-        EXPECT_EQ(0, errno);
+        EXPECT_EQ(utest_strtol_hex(0x1234567890LL), ::strtol(str, &parsed, 16));
+        EXPECT_EQ(utest_strtol_errno(0x1234567890LL), errno);
         EXPECT_EQ(str + 10, parsed);
     }
 
@@ -425,7 +433,7 @@ VOID TEST(TCPServerTest, StringIsHex)
         char *str = (char *)"1fffffffffffffffffffffffffffff";
         char *parsed = str;
         errno = 0;
-        EXPECT_EQ(0x7fffffffffffffff, ::strtol(str, &parsed, 16));
+        EXPECT_EQ(LONG_MAX, ::strtol(str, &parsed, 16));
         EXPECT_NE(0, errno);
         EXPECT_EQ(str + 30, parsed);
     }
@@ -444,10 +452,8 @@ VOID TEST(TCPServerTest, WritevIOVC)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_OSX
+        utest_wait_accepted(&h);
         ASSERT_TRUE(h.fd != NULL);
-#endif
         SrsStSocket skt(h.fd);
 
         iovec iovs[3];
@@ -474,10 +480,8 @@ VOID TEST(TCPServerTest, WritevIOVC)
         SrsTcpClient c(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
         HELPER_EXPECT_SUCCESS(c.connect());
 
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-#ifdef SRS_OSX
+        utest_wait_accepted(&h);
         ASSERT_TRUE(h.fd != NULL);
-#endif
         SrsStSocket skt(h.fd);
 
         iovec iovs[3];
@@ -935,18 +939,20 @@ VOID TEST(TCPServerTest, TCPListen)
     }
 
     // If listen multiple times, should success for we already set the REUSEPORT.
+    // Windows has no SO_REUSEPORT, so there the second listen finds the port in use.
     if (true) {
         srs_netfd_t pfd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_tcp_listen("127.0.0.1", 1935, &pfd));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &pfd));
 
         srs_netfd_t pfd2 = NULL;
-        srs_error_t err2 = srs_tcp_listen("127.0.0.1", 1935, &pfd2);
+        srs_error_t err2 = srs_tcp_listen("127.0.0.1", port, &pfd2);
 
         srs_close_stfd(pfd);
         srs_close_stfd(pfd2);
-#ifdef SRS_CYGWIN64
-        // Should failed because cygwin does not support REUSE_PORT.
-        HELPER_EXPECT_FAILED(err2);
+#ifdef _WIN32
+        EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err2));
+        srs_freep(err2);
 #else
         HELPER_EXPECT_SUCCESS(err2);
 #endif
@@ -955,7 +961,8 @@ VOID TEST(TCPServerTest, TCPListen)
     // Typical listen.
     if (true) {
         srs_netfd_t pfd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_tcp_listen("127.0.0.1", 1935, &pfd));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_tcp_listen("127.0.0.1", &port, &pfd));
         srs_close_stfd(pfd);
     }
 }
@@ -972,22 +979,30 @@ VOID TEST(TCPServerTest, UDPListen)
     }
 
     // If listen multiple times, should success for we already set the REUSEPORT.
+    // Windows has no SO_REUSEPORT, so there the second listen finds the port in use.
     if (true) {
         srs_netfd_t pfd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 1935, &pfd));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &port, &pfd));
 
         srs_netfd_t pfd2 = NULL;
-        srs_error_t err2 = srs_udp_listen("127.0.0.1", 1935, &pfd2);
+        srs_error_t err2 = srs_udp_listen("127.0.0.1", port, &pfd2);
 
         srs_close_stfd(pfd);
         srs_close_stfd(pfd2);
+#ifdef _WIN32
+        EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err2));
+        srs_freep(err2);
+#else
         HELPER_EXPECT_SUCCESS(err2);
+#endif
     }
 
     // Typical listen.
     if (true) {
         srs_netfd_t pfd = NULL;
-        HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 1935, &pfd));
+        int port = 0;
+        HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &port, &pfd));
         srs_close_stfd(pfd);
     }
 }
@@ -1102,10 +1117,10 @@ MockOnCycleThread3::~MockOnCycleThread3()
     srs_close_stfd(fd);
 }
 
-srs_error_t MockOnCycleThread3::start(std::string ip, int port)
+srs_error_t MockOnCycleThread3::start(std::string ip, int *port)
 {
     srs_error_t err = srs_success;
-    if ((err = srs_tcp_listen(ip, port, &fd)) != srs_success) {
+    if ((err = srs_utest_tcp_listen(ip, port, &fd)) != srs_success) {
         return err;
     }
 
@@ -1163,9 +1178,10 @@ VOID TEST(TCPServerTest, TCPClientServer)
     srs_error_t err;
 
     MockOnCycleThread3 trd;
-    HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", 1935));
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(trd.start("127.0.0.1", &port));
 
-    SrsTcpClient c("127.0.0.1", 1935, 1 * SRS_UTIME_SECONDS);
+    SrsTcpClient c("127.0.0.1", port, 1 * SRS_UTIME_SECONDS);
     HELPER_ASSERT_SUCCESS(c.connect());
 
     c.set_recv_timeout(1 * SRS_UTIME_SECONDS);
@@ -1586,8 +1602,8 @@ VOID TEST(ThreadCriticalTest, FailIfCloseActiveFD)
     SrsTcpClient c0(_srs_tmp_host, _srs_tmp_port, _srs_tmp_timeout);
     HELPER_EXPECT_SUCCESS(c0.connect());
 
-    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-    EXPECT_TRUE(h.fd != NULL);
+    utest_wait_accepted(&h);
+    ASSERT_TRUE(h.fd != NULL);
 
     MockAsyncReaderThread trd0(h.fd);
     HELPER_EXPECT_SUCCESS(trd0.start());

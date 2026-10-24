@@ -1,6 +1,6 @@
 ---
 name: srs-autopilot
-description: Plan and run a complex, multi-step SRS, Oryx, or State Threads task through a task file in `tasks/`. The main agent loops one subagent per task; each subagent implements, tests, and commits one task, then the loop continues until all tasks are done. It is autonomous, so no human review blocks the loop. Use when the user asks to plan a large task, write a task file, run or resume one (for example "run ./tasks/xxx.md"), or review its commits (for example "review ./tasks/xxx.md").
+description: Use when the user asks to plan a large, multi-step SRS, Oryx, or State Threads task or write a task file in `tasks/`, to run or resume one (for example "run ./tasks/xxx.md"), to review its commits (for example "review ./tasks/xxx.md"), or to list the tracked tasks.
 ---
 
 # SRS Autopilot
@@ -10,13 +10,14 @@ A task file is the plan, the state, and the log of one complex task. The main ag
 ## Skill Dependencies
 
 - `skills/srs-develop/SKILL.md` — product background when planning, and every subagent follows it for its one task (Task Router, TDD, tests, commit format).
+- `skills/internal-audit-for-srs/SKILL.md` — the review's audit of each pick before the user reads it: a fresh subagent reads the code before the message and the tests, and reports findings with a scenario each. It never fixes.
 
 ## Git Rules
 
 These override the `srs-develop` git rules for tasks run by this skill:
 
 - When a task's tests pass, the subagent runs `git add` on the files it changed and commits them in the owning repository. One commit per task.
-- Never `git push`. The one exception is `srs-develop` `scripts/st-windows-test.sh`: to test on another OS, it pushes the commit to its branch's upstream, such as a personal fork, only to sync the branch to the test host. It never pushes to `origin`.
+- Never `git push`. The exceptions are `srs-develop` `scripts/st-windows-test.sh` and `scripts/windows-host-run.sh`: to test on another OS, they push the commit, or with `--wip` a snapshot to `<branch>-wip`, to its branch's upstream, such as a personal fork, only to sync the branch to the test host. They never push to `origin`.
 - Never commit the task file or the tracker; `tasks/` is outside the repositories.
 - Never touch the review branch or worktree while running tasks; only a review ([Review Commits](#review-commits)) changes them.
 - Decide on your own: when unsure, choose the best option, log it as a decision, and go on. Stop and ask the user only for a dangerous operation or a severe, unexpected situation.

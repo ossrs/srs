@@ -108,6 +108,10 @@ Code name: Free. Development started in 2026, currently in progress.
 
 SRS 8.0 development started at 2026.
 
+**Platforms**
+
+- [x] Windows - Native Windows x64 build with MSVC, a release zip, and the same black-box tests as Linux. [#4787](https://github.com/ossrs/srs/pull/4787)
+
 ## Release 7.0
 
 Code name: Kai. Named by TOC member [Haibo Chen](https://github.com/duiniuluantanqin). Development started August 2024, planned for release by the end of 2026.
@@ -160,7 +164,6 @@ Code name: Kai. Named by TOC member [Haibo Chen](https://github.com/duiniuluanta
 
 - [x] GB28181 Changes - Removed embedded SIP server, enforce external SIP usage. [#4466](https://github.com/ossrs/srs/pull/4466)
 - [x] RTMP Config Section - Moved RTMP configs to rtmp{} section. [#4454](https://github.com/ossrs/srs/pull/4454)
-- [x] Cloud Features Removed - Removed cloud CLS and APM. [#4456](https://github.com/ossrs/srs/pull/4456)
 
 SRS 7.0 development started at 2024.08.
 
@@ -230,7 +233,7 @@ their contributions to community promotion and development.
 - [x] Loongarch, supporting Loongson architecture and Loongarch64 server platform. [#2689](https://github.com/ossrs/srs/issues/2689)
 - [x] Enhanced DASH, solving DASH freezing issues, reaching a commercially viable standard. [#3240](https://github.com/ossrs/srs/issues/3240)
 - [x] Support for Google Address Sanitizer, solving wild pointer location issues. [#3216](https://github.com/ossrs/srs/issues/3216)
-- [x] Prometheus Exporter, supporting cloud-native observability capabilities, and also supporting Tencent Cloud CLS and APM docking. [#2899](https://github.com/ossrs/srs/issues/2899)
+- [x] Prometheus Exporter, supporting cloud-native observability capabilities. [#2899](https://github.com/ossrs/srs/issues/2899)
 - [x] Enhanced SRT, coroutine-native SRT improvements, more convenient maintenance, and stability. [#3010](https://github.com/ossrs/srs/issues/3010)
 - [x] Unity WebRTC, supporting Unity platform docking with SRS, using WHIP protocol. srs-unity
 - [x] Support for WHIP protocol, push and pull streams. [#2324](https://github.com/ossrs/srs/issues/2324)

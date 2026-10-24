@@ -16,7 +16,7 @@ Decide open choices yourself: pick the best option and log it as a decision. Sto
 Follow the srs-autopilot skill's git rules, its references/track-task-files.md for the tracker row, and the srs-develop skill for the work.
 Run only plain commands and script files; never a multi-line shell blob such as bash -c '...'. If the task needs a new check, write it as a script file.
 Mark the task [~], write tests first, implement, and run the tests until they pass.
-Commit, add a todo row for the commit, with its commit time, at the end of the Review commits table, tick the task [x], update Current state, add a Work log entry, update the task file's row in tasks/tracker.md (progress, next task, date, and `done` if all tasks are done), then quit.
+Commit, add a todo row for the commit, with its commit time, at the end of the Review commits table, tick the task [x], update Current state, add a Work log entry, replace the status, progress, next task and date of the task file's row in tasks/tracker.md (`done` if all tasks are done; never append to the row, it holds no details), then quit.
 If blocked, do not commit; leave the task [~], log the blocker, set the tracker row to `blocked` (or `paused` if it needs the user), and report.
 Report: the task ID, the start and end time, the commit hash, the files changed and lines added and removed, the tests passed and failed by type (such as utest, integration tool, script, or E2E) and by OS and CPU (such as macOS arm64, Linux arm64 in Docker, Windows x64), the OSes not tested and why, and anything blocked or for the user, or that all tasks are done.
 ```

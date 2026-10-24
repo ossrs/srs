@@ -16,7 +16,12 @@ using namespace std;
 #include <srs_kernel_packet.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_protocol_format.hpp>
+#include <srs_protocol_raw_avc.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+
+#include <new>
+#include <stdlib.h>
+#include <string.h>
 
 MockRtcFrameTarget::MockRtcFrameTarget()
 {
@@ -1891,6 +1896,77 @@ VOID TEST(ReproduceIssue4695, HevcDoesNotEmitIdenticalSequenceHeaderTwice)
     SrsUniquePtr<SrsRtpPacket> repeated(create_hevc_stap_packet_with_vps_sps_pps());
     HELPER_EXPECT_SUCCESS(builder.packet_sequence_header_hevc(repeated.get()));
     EXPECT_EQ(1, target.on_frame_count_);
+}
+
+// The HEVC sequence header that RTC-to-RTMP muxes writes the fields of the
+// decoder configuration record that the VPS and SPS do not set, such as the
+// avgFrameRate, from a new codec config. They must start at zero, not with
+// what the memory held before, or the same VPS/SPS/PPS mux to different
+// headers, and a player gets a second sequence header.
+VOID TEST(ReproduceIssue4695, HevcDecoderConfigurationRecordStartsZeroed)
+{
+    void *memory = malloc(sizeof(SrsVideoCodecConfig));
+    memset(memory, 0xa5, sizeof(SrsVideoCodecConfig));
+    SrsVideoCodecConfig *vcodec = new (memory) SrsVideoCodecConfig();
+
+    SrsHevcDecoderConfigurationRecord *r = &vcodec->hevc_dec_conf_record_;
+    EXPECT_EQ(0, r->configuration_version_);
+    EXPECT_EQ(0, r->general_profile_space_);
+    EXPECT_EQ(0, r->general_tier_flag_);
+    EXPECT_EQ(0, r->general_profile_idc_);
+    EXPECT_EQ(0u, r->general_profile_compatibility_flags_);
+    EXPECT_EQ(0u, r->general_constraint_indicator_flags_);
+    EXPECT_EQ(0, r->general_level_idc_);
+    EXPECT_EQ(0, r->min_spatial_segmentation_idc_);
+    EXPECT_EQ(0, r->parallelism_type_);
+    EXPECT_EQ(0, r->chroma_format_);
+    EXPECT_EQ(0, r->bit_depth_luma_minus8_);
+    EXPECT_EQ(0, r->bit_depth_chroma_minus8_);
+    EXPECT_EQ(0, r->avg_frame_rate_);
+    EXPECT_EQ(0, r->constant_frame_rate_);
+    EXPECT_EQ(0, r->num_temporal_layers_);
+    EXPECT_EQ(0, r->temporal_id_nested_);
+    EXPECT_EQ(0, r->length_size_minus_one_);
+    EXPECT_TRUE(r->nalu_vec_.empty());
+
+    vcodec->~SrsVideoCodecConfig();
+    free(memory);
+}
+
+// The same VPS/SPS/PPS mux to the same HEVC sequence header, whatever the
+// memory of each mux's codec config held before, so RTC-to-RTMP sends it once.
+VOID TEST(ReproduceIssue4695, HevcSequenceHeaderSameOnDirtyMemory)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<SrsRtpPacket> pkt(create_hevc_stap_packet_with_vps_sps_pps());
+    SrsRtpSTAPPayloadHevc *stap = dynamic_cast<SrsRtpSTAPPayloadHevc *>(pkt->payload());
+    ASSERT_TRUE(stap != NULL);
+    SrsNaluSample *vps = stap->get_vps();
+    SrsNaluSample *sps = stap->get_sps();
+    SrsNaluSample *pps = stap->get_pps();
+    ASSERT_TRUE(vps && sps && pps);
+    std::vector<std::string> ppss;
+    ppss.push_back(std::string(pps->bytes_, pps->size_));
+
+    std::string headers[2];
+    for (int i = 0; i < 2; i++) {
+        // Leave memory of the codec config's size filled with a different byte
+        // each time, which the next codec config may reuse.
+        void *dirty = malloc(sizeof(SrsVideoCodecConfig));
+        memset(dirty, i ? 0x5a : 0xa5, sizeof(SrsVideoCodecConfig));
+        free(dirty);
+
+        SrsRawHEVCStream hevc;
+        HELPER_EXPECT_SUCCESS(hevc.mux_sequence_header(std::string(vps->bytes_, vps->size_), std::string(sps->bytes_, sps->size_), ppss, headers[i]));
+    }
+
+    EXPECT_FALSE(headers[0].empty());
+    EXPECT_TRUE(headers[0] == headers[1]);
+    // avgFrameRate, at bytes 19 and 20 of the record, is not in the VPS or SPS.
+    ASSERT_GT((int)headers[0].size(), 20);
+    EXPECT_EQ(0, (uint8_t)headers[0][19]);
+    EXPECT_EQ(0, (uint8_t)headers[0][20]);
 }
 
 // Test SrsRtcFrameBuilder::packet_sequence_header_avc with STAP-A payload containing SPS and PPS

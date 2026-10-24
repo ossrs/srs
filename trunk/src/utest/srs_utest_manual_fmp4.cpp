@@ -6,9 +6,11 @@
 
 #include <srs_utest_manual_fmp4.hpp>
 
+#include <openssl/aes.h>
 #include <sstream>
 using namespace std;
 
+#include <srs_app_config.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
@@ -16,6 +18,7 @@ using namespace std;
 #include <srs_kernel_stream.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_kernel.hpp>
 
 // Mock class implementations
@@ -40,12 +43,14 @@ MockSrsFormat::MockSrsFormat()
         0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
         0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
         0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
-    on_video(0, (char *)video_raw, sizeof(video_raw));
+    memcpy(video_raw_, video_raw, sizeof(video_raw));
+    on_video(0, (char *)video_raw_, sizeof(video_raw_));
 
     // Setup audio sequence header (AAC)
     uint8_t audio_raw[] = {
         0xaf, 0x00, 0x12, 0x10};
-    on_audio(0, (char *)audio_raw, sizeof(audio_raw));
+    memcpy(audio_raw_, audio_raw, sizeof(audio_raw));
+    on_audio(0, (char *)audio_raw_, sizeof(audio_raw_));
 }
 
 MockSrsFormat::~MockSrsFormat()
@@ -127,6 +132,114 @@ VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioVideo)
     string content = fw.str();
     EXPECT_TRUE(content.find("ftyp") != string::npos);
     EXPECT_TRUE(content.find("moov") != string::npos);
+}
+
+// The H.264 sequence header of MockSrsFormat and an MP3 frame at 44.1kHz, 16 bits, stereo,
+// which SRS takes as the MP3 sequence header, for MP3 has none and it is the first frame.
+class MockSrsFormatMp3 : public SrsFormat
+{
+public:
+    uint8_t mp3_[8];
+
+public:
+    MockSrsFormatMp3()
+    {
+        initialize();
+
+        uint8_t video_raw[] = {
+            0x17,
+            0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20,
+            0xac, 0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00,
+            0x32, 0x0f, 0x18, 0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+        on_video(0, (char *)video_raw, sizeof(video_raw));
+
+        uint8_t mp3[] = {0x2f, 0xff, 0xfb, 0x90, 0x64, 0x00, 0x00, 0x00};
+        memcpy(mp3_, mp3, sizeof(mp3));
+        on_audio(0, (char *)mp3_, sizeof(mp3_));
+    }
+};
+
+// Decodes the boxes of an init file and returns the decoder config of its audio track's
+// esds, or NULL.
+static SrsMp4DecoderConfigDescriptor *fmp4_audio_decoder_config(string content, vector<SrsMp4Box *> &boxes)
+{
+    srs_error_t err = srs_success;
+
+    SrsBuffer b((char *)content.data(), (int)content.size());
+    while (!b.empty()) {
+        SrsMp4Box *box = NULL;
+        if ((err = SrsMp4Box::discovery(&b, &box)) != srs_success) {
+            srs_freep(err);
+            break;
+        }
+        boxes.push_back(box);
+        if ((err = box->decode(&b)) != srs_success) {
+            srs_freep(err);
+            break;
+        }
+    }
+
+    for (int i = 0; i < (int)boxes.size(); i++) {
+        SrsMp4MovieBox *moov = dynamic_cast<SrsMp4MovieBox *>(boxes[i]);
+        SrsMp4TrackBox *trak = moov ? moov->audio() : NULL;
+        SrsMp4AudioSampleEntry *mp4a = trak ? trak->mp4a() : NULL;
+        SrsMp4EsdsBox *esds = mp4a ? mp4a->esds() : NULL;
+        if (esds) {
+            return &esds->es->decConfigDescr_;
+        }
+    }
+    return NULL;
+}
+
+VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioVideoMp3)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsInitMp4Segment segment(&fw);
+
+    segment.set_path("/tmp/init_av_mp3.mp4");
+    MockSrsFormatMp3 fmt;
+    ASSERT_TRUE(fmt.is_mp3_sequence_header());
+
+    HELPER_ASSERT_SUCCESS(segment.write(&fmt, 1, 2));
+
+    // The audio track of an MP3 stream is MPEG-1 audio, with no AAC decoder specific info.
+    vector<SrsMp4Box *> boxes;
+    SrsMp4DecoderConfigDescriptor *desc = fmp4_audio_decoder_config(fw.str(), boxes);
+    EXPECT_TRUE(desc != NULL);
+    if (desc) {
+        EXPECT_EQ(SrsMp4ObjectTypeMp1a, desc->objectTypeIndication);
+        EXPECT_TRUE(desc->decSpecificInfo_ == NULL);
+    }
+    for (int i = 0; i < (int)boxes.size(); i++) {
+        srs_freep(boxes[i]);
+    }
+}
+
+VOID TEST(Fmp4Test, SrsInitMp4Segment_AudioVideoAacEsds)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsInitMp4Segment segment(&fw);
+
+    segment.set_path("/tmp/init_av_aac.mp4");
+    MockSrsFormat fmt;
+
+    HELPER_ASSERT_SUCCESS(segment.write(&fmt, 1, 2));
+
+    // The audio track of an AAC stream is AAC, with the AudioSpecificConfig.
+    vector<SrsMp4Box *> boxes;
+    SrsMp4DecoderConfigDescriptor *desc = fmp4_audio_decoder_config(fw.str(), boxes);
+    EXPECT_TRUE(desc != NULL);
+    if (desc) {
+        EXPECT_EQ(SrsMp4ObjectTypeAac, desc->objectTypeIndication);
+        EXPECT_TRUE(desc->decSpecificInfo_ != NULL);
+    }
+    for (int i = 0; i < (int)boxes.size(); i++) {
+        srs_freep(boxes[i]);
+    }
 }
 
 VOID TEST(Fmp4Test, SrsInitMp4Segment_WithEncryption)
@@ -264,6 +377,135 @@ VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_WithEncryption)
     EXPECT_TRUE(content.find("senc") != string::npos); // Sample Encryption Box
 }
 
+// Encrypts the whole 16-byte blocks of data in place with AES-128-CBC from iv, crypt blocks of
+// each run of crypt+skip, as the cbcs scheme does; skip 0 encrypts every block.
+static void mock_cbcs_encrypt(const unsigned char *key, const unsigned char *iv, int crypt, int skip, uint8_t *data, int size)
+{
+    AES_KEY k;
+    AES_set_encrypt_key(key, 128, &k);
+    unsigned char chain[16];
+    memcpy(chain, iv, 16);
+    for (int i = 0; i + 16 <= size; i += 16 * (crypt + skip)) {
+        int n = srs_min(crypt, (size - i) / 16);
+        AES_cbc_encrypt(data + i, data + i, n * 16, &k, chain, AES_ENCRYPT);
+    }
+}
+
+VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_CbcsAvcAndAac)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsFmp4SegmentEncoder encoder;
+    HELPER_ASSERT_SUCCESS(encoder.initialize(&fw, 0, 0, 1, 2));
+
+    unsigned char key[16] = {0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48,
+                             0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50};
+    unsigned char iv[16] = {0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
+                            0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x60};
+    HELPER_ASSERT_SUCCESS(encoder.config_cipher(key, iv));
+    encoder.config_video_cipher(SrsVideoCodecIdAVC, 4);
+
+    // An SEI of 10 bytes, then an IDR slice of 100 bytes, each after its 4-byte length.
+    uint8_t video[118];
+    for (int i = 0; i < (int)sizeof(video); i++) {
+        video[i] = (uint8_t)(i * 7 + 3);
+    }
+    uint8_t sei[] = {0x00, 0x00, 0x00, 0x0a, 0x06};
+    memcpy(video, sei, sizeof(sei));
+    uint8_t idr[] = {0x00, 0x00, 0x00, 0x64, 0x65};
+    memcpy(video + 14, idr, sizeof(idr));
+    HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 1000, 1000, video, sizeof(video)));
+
+    uint8_t audio[40];
+    for (int i = 0; i < (int)sizeof(audio); i++) {
+        audio[i] = (uint8_t)(i * 5 + 1);
+    }
+    HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeSOUN, 0x00, 1000, 1000, audio, sizeof(audio)));
+
+    HELPER_ASSERT_SUCCESS(encoder.flush(2000));
+    string content = fw.str();
+    ASSERT_GT(content.size(), sizeof(video) + sizeof(audio));
+
+    // The slice is clear for its first 32 bytes, then its whole blocks take the 1:9 pattern,
+    // and the SEI and the lengths are clear.
+    uint8_t want_video[sizeof(video)];
+    memcpy(want_video, video, sizeof(video));
+    mock_cbcs_encrypt(key, iv, 1, 9, want_video + 50, 68);
+    string got_video = content.substr(content.size() - sizeof(audio) - sizeof(video), sizeof(video));
+    EXPECT_EQ(string((char *)want_video, sizeof(video)), got_video);
+    EXPECT_NE(string((char *)video, sizeof(video)), got_video);
+
+    // Every whole block of the audio sample is encrypted, the last 8 bytes clear.
+    uint8_t want_audio[sizeof(audio)];
+    memcpy(want_audio, audio, sizeof(audio));
+    mock_cbcs_encrypt(key, iv, 1, 0, want_audio, sizeof(audio));
+    string got_audio = content.substr(content.size() - sizeof(audio));
+    EXPECT_EQ(string((char *)want_audio, sizeof(audio)), got_audio);
+    EXPECT_NE(string((char *)audio, sizeof(audio)), got_audio);
+
+    // The video senc has one sample with the subsample of 50 clear and 68 protected bytes; the
+    // audio senc one sample with no subsamples, as the constant IV leaves no IV per sample.
+    size_t pos = content.find("senc");
+    ASSERT_NE(string::npos, pos);
+    uint8_t want_video_senc[] = {0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01,
+                                 0x00, 0x01, 0x00, 0x32, 0x00, 0x00, 0x00, 0x44};
+    EXPECT_EQ(string((char *)want_video_senc, sizeof(want_video_senc)), content.substr(pos + 4, sizeof(want_video_senc)));
+    EXPECT_EQ(0x18, (uint8_t)content.at(pos - 1));
+
+    pos = content.find("senc", pos + 4);
+    ASSERT_NE(string::npos, pos);
+    uint8_t want_audio_senc[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
+    EXPECT_EQ(string((char *)want_audio_senc, sizeof(want_audio_senc)), content.substr(pos + 4, sizeof(want_audio_senc)));
+    EXPECT_EQ(0x10, (uint8_t)content.at(pos - 1));
+}
+
+VOID TEST(Fmp4Test, SrsFmp4SegmentEncoder_CbcsHevcSubsamples)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsFmp4SegmentEncoder encoder;
+    HELPER_ASSERT_SUCCESS(encoder.initialize(&fw, 0, 0, 1, 2));
+
+    unsigned char key[16] = {0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68,
+                             0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f, 0x70};
+    unsigned char iv[16] = {0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78,
+                            0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x80};
+    HELPER_ASSERT_SUCCESS(encoder.config_cipher(key, iv));
+    encoder.config_video_cipher(SrsVideoCodecIdHEVC, 4);
+
+    // A VPS of 20 bytes, an IDR_W_RADL slice of 48 bytes, then a length past the end of the
+    // sample with 5 bytes after it, which stay clear.
+    uint8_t video[85];
+    for (int i = 0; i < (int)sizeof(video); i++) {
+        video[i] = (uint8_t)(i * 11 + 2);
+    }
+    uint8_t vps[] = {0x00, 0x00, 0x00, 0x14, 0x40, 0x01};
+    memcpy(video, vps, sizeof(vps));
+    uint8_t idr[] = {0x00, 0x00, 0x00, 0x30, 0x26, 0x01};
+    memcpy(video + 24, idr, sizeof(idr));
+    uint8_t cut[] = {0x00, 0x00, 0x03, 0xe8};
+    memcpy(video + 76, cut, sizeof(cut));
+    HELPER_ASSERT_SUCCESS(encoder.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 1000, 1000, video, sizeof(video)));
+
+    HELPER_ASSERT_SUCCESS(encoder.flush(2000));
+    string content = fw.str();
+    ASSERT_GT(content.size(), sizeof(video));
+
+    uint8_t want_video[sizeof(video)];
+    memcpy(want_video, video, sizeof(video));
+    mock_cbcs_encrypt(key, iv, 1, 9, want_video + 60, 16);
+    EXPECT_EQ(string((char *)want_video, sizeof(video)), content.substr(content.size() - sizeof(video)));
+
+    // Subsamples of 60 clear and 16 protected bytes, then 9 clear bytes.
+    size_t pos = content.find("senc");
+    ASSERT_NE(string::npos, pos);
+    uint8_t want_senc[] = {0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02,
+                           0x00, 0x3c, 0x00, 0x00, 0x00, 0x10, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00};
+    EXPECT_EQ(string((char *)want_senc, sizeof(want_senc)), content.substr(pos + 4, sizeof(want_senc)));
+}
+
 VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_Basic)
 {
     srs_error_t err;
@@ -311,6 +553,227 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteInitMp4)
     muxer.dispose();
 }
 
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_InitUriInStreamDir)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // The default init file [app]/[stream]/init.mp4 is in a dir per stream, not beside the
+    // playlist [app]/[stream].m3u8, so the playlist lists it by that dir.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    EXPECT_STREQ("livestream/init.mp4", muxer.init_mp4_uri_.c_str());
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_InitUriBesidePlaylist)
+{
+    srs_error_t err;
+
+    SrsSetEnvConfig(*_srs_config, init_file, "SRS_VHOST_HLS_HLS_INIT_FILE", "[app]/[stream]-init.mp4");
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // An init file beside the playlist is listed by its file name.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    EXPECT_STREQ("livestream-init.mp4", muxer.init_mp4_uri_.c_str());
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_PlaylistEntryPrefix)
+{
+    srs_error_t err;
+
+    SrsSetEnvConfig(*_srs_config, entry_prefix, "SRS_VHOST_HLS_HLS_ENTRY_PREFIX", "http://cdn.example.com");
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // The playlist lists the init file and each segment after hls_entry_prefix and the
+    // playlist's dir, as TS does.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    EXPECT_STREQ("http://cdn.example.com/live/livestream/init.mp4", muxer.init_mp4_uri_.c_str());
+
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+
+    std::stringstream ss;
+    HELPER_ASSERT_SUCCESS(muxer.do_refresh_m3u8_segment(muxer.current_, ss));
+    EXPECT_TRUE(srs_strings_ends_with(ss.str(), "\nhttp://cdn.example.com/live/livestream-0.m4s\n")) << ss.str();
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_PlaylistNoEntryPrefix)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // Without hls_entry_prefix, a segment beside the playlist is listed by its file name.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+
+    std::stringstream ss;
+    HELPER_ASSERT_SUCCESS(muxer.do_refresh_m3u8_segment(muxer.current_, ss));
+    EXPECT_TRUE(srs_strings_ends_with(ss.str(), "\nlivestream-0.m4s\n")) << ss.str();
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_KeysShareInitIv)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+    muxer.hls_keys_ = true;
+    muxer.hls_fragments_per_key_ = 1;
+
+    // The init file, written at the sequence header before any segment, holds the constant IV.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    unsigned char init_iv[16];
+    memcpy(init_iv, muxer.iv_, 16);
+    unsigned char zeros[16] = {0};
+    EXPECT_NE(0, memcmp(init_iv, zeros, 16));
+
+    // Each segment, also after a new key, encrypts with the IV of the init file.
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_EQ(0, memcmp(init_iv, muxer.current_->iv_, 16));
+    unsigned char first_key[16];
+    memcpy(first_key, muxer.key_, 16);
+
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(2000));
+    MockSrsMediaPacket video_msg2(true, 2000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg2, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_NE(0, memcmp(first_key, muxer.key_, 16));
+    EXPECT_EQ(0, memcmp(init_iv, muxer.current_->iv_, 16));
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_KeysVideoCipherBySequenceHeader)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+    muxer.hls_keys_ = true;
+    muxer.hls_fragments_per_key_ = 1;
+
+    // A sequence header with NALU lengths of 2 bytes, before any segment.
+    MockSrsFormat fmt;
+    fmt.vcodec_->NAL_unit_length_ = 1;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+
+    // The segment opened at the next frame encrypts its video by that sequence header.
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_EQ(SrsVideoCodecIdAVC, muxer.current_->enc_.video_codec_);
+    EXPECT_EQ(2, muxer.current_->enc_.nalu_length_size_);
+
+    // A new sequence header while the segment is open changes how it encrypts.
+    fmt.vcodec_->NAL_unit_length_ = 3;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    EXPECT_EQ(4, muxer.current_->enc_.nalu_length_size_);
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_DiscontinuityPerPublish)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // The sequence header comes before any segment is open, so the first segment of the
+    // publish gets the discontinuity, as with TS.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    HELPER_ASSERT_SUCCESS(muxer.on_sequence_header());
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_TRUE(muxer.current_->is_sequence_header());
+
+    std::stringstream ss;
+    HELPER_ASSERT_SUCCESS(muxer.do_refresh_m3u8_segment(muxer.current_, ss));
+    EXPECT_TRUE(srs_strings_starts_with(ss.str(), "#EXT-X-DISCONTINUITY\n")) << ss.str();
+
+    // The next segment of the same publish has none.
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(2000));
+    MockSrsMediaPacket video_msg2(true, 2000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg2, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_FALSE(muxer.current_->is_sequence_header());
+
+    // A republish closes the segment and sends the sequence header again, and its first
+    // segment gets the discontinuity.
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(3000));
+    HELPER_ASSERT_SUCCESS(muxer.on_sequence_header());
+    MockSrsMediaPacket video_msg3(true, 0);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg3, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_TRUE(muxer.current_->is_sequence_header());
+
+    // A sequence header while a segment is open marks that segment, as with TS.
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(1000));
+    MockSrsMediaPacket video_msg4(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg4, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+    EXPECT_FALSE(muxer.current_->is_sequence_header());
+    HELPER_ASSERT_SUCCESS(muxer.on_sequence_header());
+    EXPECT_TRUE(muxer.current_->is_sequence_header());
+
+    muxer.dispose();
+}
+
 VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteMedia)
 {
     srs_error_t err;
@@ -345,6 +808,35 @@ VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_WriteMedia)
 
     // Should have accumulated duration from timestamp progression
     EXPECT_GT(muxer.duration(), 0);
+
+    muxer.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsFmp4Muxer_InitAfterSegmentOpen)
+{
+    srs_error_t err;
+
+    SrsHlsFmp4Muxer muxer;
+    HELPER_ASSERT_SUCCESS(muxer.initialize(1, 2));
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(muxer.on_publish(&req));
+    HELPER_ASSERT_SUCCESS(muxer.update_config(&req));
+
+    // The init file of the video, then a keyframe opens a segment.
+    MockSrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, false));
+    MockSrsMediaPacket video_msg(true, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_video(&video_msg, &fmt));
+    ASSERT_TRUE(muxer.current_ != NULL);
+
+    // An audio sequence header after the first video frame, as an MP3 stream's first frame,
+    // writes the init file again while the segment is open, and the segment still closes.
+    HELPER_ASSERT_SUCCESS(muxer.write_init_mp4(&fmt, true, true));
+    MockSrsMediaPacket audio_msg(false, 1000);
+    HELPER_ASSERT_SUCCESS(muxer.write_audio(&audio_msg, &fmt));
+    HELPER_ASSERT_SUCCESS(muxer.segment_close(2000));
+    EXPECT_EQ(1, muxer.segments_->size());
 
     muxer.dispose();
 }
@@ -398,6 +890,30 @@ VOID TEST(Fmp4Test, SrsHlsMp4Controller_PublishWorkflow)
     // Unpublish
     HELPER_ASSERT_SUCCESS(controller.on_unpublish());
 
+    controller.dispose();
+}
+
+VOID TEST(Fmp4Test, SrsHlsMp4Controller_Mp3SequenceHeader)
+{
+    srs_error_t err;
+
+    SrsHlsMp4Controller controller;
+    HELPER_ASSERT_SUCCESS(controller.initialize());
+
+    MockFmp4SrsRequest req;
+    HELPER_ASSERT_SUCCESS(controller.on_publish(&req));
+
+    // The first MP3 frame stands for the sequence header, which has no AAC extra data, and
+    // the init file gets the audio track.
+    MockSrsFormatMp3 fmt;
+    MockSrsMediaPacket video_sh(true, 0);
+    HELPER_ASSERT_SUCCESS(controller.on_sequence_header(&video_sh, &fmt));
+    MockSrsMediaPacket audio_sh(false, 0);
+    HELPER_ASSERT_SUCCESS(controller.on_sequence_header(&audio_sh, &fmt));
+    EXPECT_TRUE(controller.has_video_sh_);
+    EXPECT_TRUE(controller.has_audio_sh_);
+
+    HELPER_ASSERT_SUCCESS(controller.on_unpublish());
     controller.dispose();
 }
 

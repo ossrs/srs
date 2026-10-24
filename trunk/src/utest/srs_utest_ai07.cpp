@@ -1156,8 +1156,8 @@ VOID TEST(AppTest2, RtcSourceOnSourceChangedPreviousSourceId)
     HELPER_EXPECT_SUCCESS(source->on_source_changed());
     SrsContextId first_context = source->source_id();
 
-    // Note: Due to the buggy implementation, _pre_source_id gets set to the current context ID
-    // on the first call when _source_id was empty, so it's not empty after the first call
+    // Note: Due to the buggy implementation, pre_source_id_ gets set to the current context ID
+    // on the first call when source_id_ was empty, so it's not empty after the first call
     EXPECT_FALSE(source->pre_source_id().empty());
     EXPECT_TRUE(source->pre_source_id().compare(first_context) == 0);
 

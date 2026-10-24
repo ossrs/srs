@@ -17,10 +17,10 @@ VOID TEST(ConfigMainTest, CheckIncludeEmptyConfig)
 
     if (true) {
         string filepath = _srs_tmp_file_prefix + "utest-main.conf";
-        MockFileRemover _mfr(filepath);
+        MockFileRemover mfr(filepath);
 
         string included = _srs_tmp_file_prefix + "utest-included-empty.conf";
-        MockFileRemover _mfr2(included);
+        MockFileRemover mfr2(included);
 
         if (true) {
             SrsFileWriter fw;
@@ -2528,7 +2528,7 @@ VOID TEST(ConfigUtilityTest, TryReadWriteFile)
     // Test writing and reading a file
     if (true) {
         string test_file = _srs_tmp_file_prefix + "utest-read-write.txt";
-        MockFileRemover _mfr(test_file);
+        MockFileRemover mfr(test_file);
 
         string test_content = "test server id content";
         srs_try_write_file(test_file, test_content);
@@ -2554,7 +2554,7 @@ VOID TEST(ConfigUtilityTest, TryReadWriteFile)
     // Test writing empty content
     if (true) {
         string test_file = _srs_tmp_file_prefix + "utest-empty.txt";
-        MockFileRemover _mfr(test_file);
+        MockFileRemover mfr(test_file);
 
         srs_try_write_file(test_file, "");
         string content = srs_try_read_file(test_file);
@@ -2564,7 +2564,7 @@ VOID TEST(ConfigUtilityTest, TryReadWriteFile)
     // Test writing and reading large content (up to buffer size)
     if (true) {
         string test_file = _srs_tmp_file_prefix + "utest-large.txt";
-        MockFileRemover _mfr(test_file);
+        MockFileRemover mfr(test_file);
 
         // Create content close to buffer size (1024 bytes)
         string large_content(1000, 'A');
@@ -2577,7 +2577,7 @@ VOID TEST(ConfigUtilityTest, TryReadWriteFile)
     // Test reading file larger than buffer (should only read first 1024 bytes)
     if (true) {
         string test_file = _srs_tmp_file_prefix + "utest-oversized.txt";
-        MockFileRemover _mfr(test_file);
+        MockFileRemover mfr(test_file);
 
         // Create content larger than buffer size (1024 bytes)
         string oversized_content(2000, 'B');
@@ -2726,7 +2726,7 @@ VOID TEST(ConfigTest, GetServerIdWithoutPidFile)
     EXPECT_STREQ("", conf.get_pid_file().c_str());
 
     string server_id_file = srs_server_id_path("");
-    MockFileRemover _mfr(server_id_file);
+    MockFileRemover mfr(server_id_file);
 
     EXPECT_FALSE(conf.get_server_id().empty());
     EXPECT_STREQ("", srs_try_read_file(server_id_file).c_str());
@@ -2743,7 +2743,7 @@ VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
 
         // Clean up any existing server id file
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         // First call should generate a server ID and write to file
         string server_id1 = conf.get_server_id();
@@ -2764,7 +2764,7 @@ VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid ./objs/test-file-write.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         // Call get_server_id which should write to file
         string server_id = conf.get_server_id();
@@ -2778,16 +2778,17 @@ VOID TEST(ConfigTest, GetServerIdWithFileGeneration)
     // Test server_id with custom pid file path
     if (true) {
         MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid /tmp/custom-srs.pid;"));
+        string tmp_dir = srs_utest_tmp_dir();
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid " + tmp_dir + "/custom-srs.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         string server_id = conf.get_server_id();
         EXPECT_FALSE(server_id.empty());
 
         // Verify correct server ID file path
-        EXPECT_STREQ("/tmp/custom-srs.id", server_id_file.c_str());
+        EXPECT_STREQ((tmp_dir + "/custom-srs.id").c_str(), server_id_file.c_str());
 
         // Verify the server ID was written to the correct file
         string file_content = srs_try_read_file(server_id_file);
@@ -2805,7 +2806,7 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "server_id config-id; pid ./objs/priority-test.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         // Pre-write a different ID to file
         srs_try_write_file(server_id_file, "file-id");
@@ -2823,7 +2824,7 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "server_id config-file-id; pid ./objs/config-priority.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         string server_id = conf.get_server_id();
         EXPECT_STREQ("config-file-id", server_id.c_str());
@@ -2835,7 +2836,7 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "server_id; pid ./objs/empty-config.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         string server_id = conf.get_server_id();
         EXPECT_FALSE(server_id.empty());
@@ -2849,7 +2850,7 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
         HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "pid ./objs/consistency-test.pid;"));
 
         string server_id_file = srs_server_id_path(conf.get_pid_file());
-        MockFileRemover _mfr(server_id_file);
+        MockFileRemover mfr(server_id_file);
 
         string server_id1 = conf.get_server_id();
         string server_id2 = conf.get_server_id();
@@ -2857,117 +2858,6 @@ VOID TEST(ConfigTest, GetServerIdPriorityAndEdgeCases)
 
         EXPECT_STREQ(server_id1.c_str(), server_id2.c_str());
         EXPECT_STREQ(server_id2.c_str(), server_id3.c_str());
-    }
-}
-
-VOID TEST(ConfigMainTest, CheckQueryLatestVersion)
-{
-    srs_error_t err;
-
-    // Test default value when query_latest_version is not configured
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        EXPECT_FALSE(conf.whether_query_latest_version()); // Default is false
-    }
-
-    // Test query_latest_version enabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "query_latest_version on;"));
-        EXPECT_TRUE(conf.whether_query_latest_version());
-    }
-
-    // Test query_latest_version disabled
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "query_latest_version off;"));
-        EXPECT_FALSE(conf.whether_query_latest_version());
-    }
-
-    // Test query_latest_version with various true values (SRS_CONF_PREFER_TRUE: anything != "off")
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "query_latest_version true;"));
-        EXPECT_TRUE(conf.whether_query_latest_version());
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "query_latest_version yes;"));
-        EXPECT_TRUE(conf.whether_query_latest_version());
-    }
-
-    // Debug: Check if environment variable is set
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "query_latest_version false;"));
-        // Print debug info
-        printf("DEBUG: query_latest_version false -> %s\n", conf.whether_query_latest_version() ? "true" : "false");
-        // EXPECT_TRUE(conf.whether_query_latest_version()); // "false" != "off", so it's true
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "query_latest_version no;"));
-        // Print debug info
-        printf("DEBUG: query_latest_version no -> %s\n", conf.whether_query_latest_version() ? "true" : "false");
-        // EXPECT_TRUE(conf.whether_query_latest_version()); // "no" != "off", so it's true
-    }
-
-    // Test environment variable override
-    if (true) {
-        MockSrsConfig conf;
-        SrsSetEnvConfig(conf, query_latest_version, "SRS_QUERY_LATEST_VERSION", "on");
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "query_latest_version off;"));
-        EXPECT_TRUE(conf.whether_query_latest_version()); // Environment variable should override config
-    }
-
-    if (true) {
-        MockSrsConfig conf;
-        SrsSetEnvConfig(conf, query_latest_version, "SRS_QUERY_LATEST_VERSION", "off");
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "query_latest_version on;"));
-        EXPECT_FALSE(conf.whether_query_latest_version()); // Environment variable should override config
-    }
-}
-
-VOID TEST(ConfigMainTest, CheckFirstWaitForQlv)
-{
-    srs_error_t err;
-
-    // Test default value when first_wait_for_qlv is not configured
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF));
-        EXPECT_EQ(5 * 60 * SRS_UTIME_SECONDS, conf.first_wait_for_qlv()); // Default is 5 minutes
-    }
-
-    // Test first_wait_for_qlv with custom value in seconds
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "first_wait_for_qlv 120;"));
-        EXPECT_EQ(120 * SRS_UTIME_SECONDS, conf.first_wait_for_qlv()); // 2 minutes
-    }
-
-    // Test first_wait_for_qlv with zero value
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "first_wait_for_qlv 0;"));
-        EXPECT_EQ(0, conf.first_wait_for_qlv());
-    }
-
-    // Test first_wait_for_qlv with large value
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "first_wait_for_qlv 3600;"));
-        EXPECT_EQ(3600 * SRS_UTIME_SECONDS, conf.first_wait_for_qlv()); // 1 hour
-    }
-
-    // Test first_wait_for_qlv with small value
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "first_wait_for_qlv 30;"));
-        EXPECT_EQ(30 * SRS_UTIME_SECONDS, conf.first_wait_for_qlv()); // 30 seconds
     }
 }
 
@@ -3688,16 +3578,6 @@ VOID TEST(ConfigMainTest, CheckStreamCasterEngine)
         SrsConfDirective *stream_caster = conf.get_root()->get("stream_caster");
         ASSERT_TRUE(stream_caster != NULL);
         EXPECT_STREQ("gb28181", conf.get_stream_caster_engine(stream_caster).c_str());
-    }
-
-    // Test get_stream_caster_engine with flv caster
-    if (true) {
-        MockSrsConfig conf;
-        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster{enabled on; caster flv;}"));
-
-        SrsConfDirective *stream_caster = conf.get_root()->get("stream_caster");
-        ASSERT_TRUE(stream_caster != NULL);
-        EXPECT_STREQ("flv", conf.get_stream_caster_engine(stream_caster).c_str());
     }
 
     // Test get_stream_caster_engine with mpegts-over-udp caster

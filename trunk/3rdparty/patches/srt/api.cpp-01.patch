@@ -1,4 +1,0 @@
-1312c1312
-<             LOGC(cnlog.Debug, log << "srt_accept: no pending connection available at the moment");
----
->             LOGC(cnlog.Error, log << "srt_accept: no pending connection available at the moment");

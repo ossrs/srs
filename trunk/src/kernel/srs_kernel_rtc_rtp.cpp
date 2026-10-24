@@ -6,7 +6,6 @@
 
 #include <srs_kernel_rtc_rtp.hpp>
 
-#include <arpa/inet.h>
 #include <fcntl.h>
 #include <sstream>
 using namespace std;

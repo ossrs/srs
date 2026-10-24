@@ -18,7 +18,6 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_stream.hpp>
 
-#include <sys/socket.h>
 using namespace std;
 
 // the max small bytes to group
@@ -288,7 +287,7 @@ ISrsPublishRecvThread::~ISrsPublishRecvThread()
 {
 }
 
-SrsPublishRecvThread::SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest *_req,
+SrsPublishRecvThread::SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest *req,
                                            int mr_sock_fd, srs_utime_t tm, SrsRtmpConn *conn, SrsSharedPtr<SrsLiveSource> source, SrsContextId parent_cid)
 {
     rtmp_ = rtmp_sdk;
@@ -302,8 +301,11 @@ SrsPublishRecvThread::SrsPublishRecvThread(ISrsRtmpServer *rtmp_sdk, ISrsRequest
     video_frames_ = 0;
     audio_frames_ = 0;
     error_ = srs_cond_new();
+    reported_video_frames_ = 0;
+    reported_audio_frames_ = 0;
+    frames_report_time_ = 0;
 
-    req_ = _req;
+    req_ = req;
     mr_fd_ = mr_sock_fd;
 
     trd_ = new SrsRecvThread(this, rtmp_sdk, tm, parent_cid);
@@ -354,6 +356,28 @@ uint64_t SrsPublishRecvThread::nb_video_frames()
 uint64_t SrsPublishRecvThread::nb_audio_frames()
 {
     return audio_frames_;
+}
+
+srs_error_t SrsPublishRecvThread::report_frames()
+{
+    srs_error_t err = srs_success;
+
+    ISrsStatistic *stat = conn_->stat_;
+
+    // Update the stat for video fps.
+    // @remark https://github.com/ossrs/srs/issues/851
+    if ((err = stat->on_video_frames(req_, (int)(video_frames_ - reported_video_frames_))) != srs_success) {
+        return srs_error_wrap(err, "stat video frames");
+    }
+    reported_video_frames_ = video_frames_;
+
+    // Update the stat for audio frames.
+    if ((err = stat->on_audio_frames(req_, (int)(audio_frames_ - reported_audio_frames_))) != srs_success) {
+        return srs_error_wrap(err, "stat audio frames");
+    }
+    reported_audio_frames_ = audio_frames_;
+
+    return err;
 }
 
 srs_error_t SrsPublishRecvThread::error_code()
@@ -420,6 +444,16 @@ srs_error_t SrsPublishRecvThread::consume(SrsRtmpCommonMessage *msg)
 
     if (err != srs_success) {
         return srs_error_wrap(err, "handle publish message");
+    }
+
+    // Report the frames to the stream stats at the first message, then at most once a second, not
+    // only when the publishing loop's wait times out.
+    srs_utime_t now = srs_time_now_cached();
+    if (now - frames_report_time_ >= SRS_UTIME_SECONDS) {
+        frames_report_time_ = now;
+        if ((err = report_frames()) != srs_success) {
+            return srs_error_wrap(err, "report frames");
+        }
     }
 
     // Yield to another coroutines.
@@ -519,14 +553,14 @@ void SrsPublishRecvThread::set_socket_buffer(srs_utime_t sleep_v)
     int fd = mr_fd_;
     int onb_rbuf = 0;
     socklen_t sock_buf_size = sizeof(int);
-    getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &onb_rbuf, &sock_buf_size);
+    srs_getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &onb_rbuf, &sock_buf_size);
 
     // socket recv buffer, system will double it.
     int nb_rbuf = socket_buffer_size / 2;
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
+    if (srs_setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, sock_buf_size) < 0) {
         srs_warn("set sock SO_RCVBUF=%d failed.", nb_rbuf);
     }
-    getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
+    srs_getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &nb_rbuf, &sock_buf_size);
 
     srs_trace("mr change sleep %d=>%d, erbuf=%d, rbuf %d=>%d, sbytes=%d, realtime=%d",
               srsu2msi(mr_sleep_), srsu2msi(sleep_v), socket_buffer_size, onb_rbuf, nb_rbuf,

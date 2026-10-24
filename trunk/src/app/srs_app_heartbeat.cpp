@@ -183,7 +183,7 @@ srs_error_t SrsHttpHeartbeat::do_heartbeat()
 
     std::string req = obj->dumps();
     ISrsHttpMessage *msg_raw = NULL;
-    if ((err = http->post(uri.get_path(), req, &msg_raw)) != srs_success) {
+    if ((err = http->post(uri.get_request_target(), req, &msg_raw)) != srs_success) {
         return srs_error_wrap(err, "http post hartbeart uri failed. url=%s, request=%s", url.c_str(), req.c_str());
     }
 

@@ -13,9 +13,7 @@
 #include <string>
 #include <vector>
 
-#include <arpa/inet.h>
 #include <limits.h>
-#include <sys/resource.h>
 
 #include <srs_app_st.hpp>
 #include <srs_kernel_log.hpp>
@@ -38,6 +36,12 @@ extern SrsLogLevel srs_get_log_level_v2(std::string level);
 //       [stream], the stream name of stream.
 // @return the replaced path.
 extern std::string srs_path_build_stream(std::string template_path, std::string vhost, std::string app, std::string stream);
+
+// Parse the app and stream from a path that srs_path_build_stream built from template_path, for
+// example, live/livestream/index.m3u8 from [app]/[stream]/index.m3u8. The [vhost] must be vhost.
+// The app may have dirs, the stream has none, and a repeated variable must have the same value.
+// @return whether the template has both [app] and [stream], and the path matches it.
+extern bool srs_path_parse_stream(std::string template_path, std::string vhost, std::string path, std::string &app, std::string &stream);
 
 // Build the path according to timestamp, where replace variables:
 //       [2006], replace this const to current year.
@@ -82,6 +86,11 @@ public:
 
 public:
     SrsRusage();
+
+public:
+    // The peak resident set size in kilobytes. The ru_maxrss of getrusage is in
+    // kilobytes on Linux, but in bytes on macOS.
+    int64_t maxrss_kbyte();
 };
 
 // Get system rusage, use cache to avoid performance problem.
@@ -358,11 +367,14 @@ public:
 extern SrsProcSelfStat *srs_get_self_proc_stat();
 // Get system cpu stat, use cache to avoid performance problem.
 extern SrsProcSystemStat *srs_get_system_proc_stat();
-// The daemon st-thread will update it.
+// The daemon st-thread will update it. Without /proc, as on macOS, the stats stay not ok.
 extern void srs_update_proc_stat();
 // Read process self stat from /proc/self/stat (Linux only).
-// @return true on success, false on failure.
+// @return true on success, false on failure or without /proc, as on macOS.
 extern bool get_proc_self_stat(SrsProcSelfStat &r);
+// Parse a line of /proc/[pid]/stat into r, the comm without its parentheses.
+// @return true on success, false when the line has no comm in parentheses.
+extern bool srs_parse_proc_self_stat(const std::string &line, SrsProcSelfStat &r);
 
 // Stat disk iops
 // @see: http://stackoverflow.com/questions/4458183/how-the-util-of-iostat-is-computed
@@ -513,7 +525,7 @@ public:
 
 // Get system meminfo, use cache to avoid performance problem.
 extern SrsMemInfo *srs_get_meminfo();
-// The daemon st-thread will update it.
+// The daemon st-thread will update it. Without /proc, as on macOS, the meminfo stays not ok.
 extern void srs_update_meminfo();
 
 // system cpu hardware info.

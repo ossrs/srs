@@ -76,6 +76,11 @@ public:
     // Interface ISrsReusableThreadHandler.
 public:
     virtual srs_error_t cycle();
+
+// clang-format off
+SRS_DECLARE_PRIVATE: // clang-format on
+    // Accept a caller and give it to the handler.
+    virtual srs_error_t do_cycle();
 };
 
 #endif

@@ -2935,7 +2935,7 @@ VOID TEST(SrsRtcAudioRecvTrackTest, OnBeforeDecodePayload)
     // Test case 1: Empty buffer - should return early without setting payload
     {
         SrsRtpPacket pkt;
-        char empty_data[0];
+        char empty_data[1] = {0};
         SrsBuffer empty_buf(empty_data, 0);
         ISrsRtpPayloader *payload = NULL;
         SrsRtpPacketPayloadType ppt = SrsRtpPacketPayloadTypeUnknown;
@@ -3181,4 +3181,102 @@ VOID TEST(SrsRtcRecvTrackTest, NackReceiverParameterPassing)
     EXPECT_EQ(55555, track_desc1->ssrc_);
     EXPECT_TRUE(track_desc2.get() != NULL);
     EXPECT_EQ(66666, track_desc2->ssrc_);
+}
+
+// Make a raw RTP packet of one NALU, which starts with its NALU header.
+static SrsRtpPacket *create_test_nalu_packet(uint16_t seq, uint32_t ts, bool marker, uint8_t nalu_type, bool hevc)
+{
+    SrsRtpPacket *pkt = create_test_rtp_packet(seq, ts, 12345, marker);
+    pkt->nalu_type_ = nalu_type;
+    SrsRtpRawPayload *raw = dynamic_cast<SrsRtpRawPayload *>(pkt->payload());
+    raw->payload_[0] = hevc ? (char)(nalu_type << 1) : (char)(0x60 | nalu_type);
+    if (hevc) {
+        raw->payload_[1] = 0x01;
+    }
+    return pkt;
+}
+
+// A WebRTC keyframe whose first NALU after the parameter sets is an SEI: the parameter
+// sets went to the sequence header, so the frame's first packet is the SEI and its IDR
+// comes after it. The RTMP frame is a keyframe, since the frame has an IDR.
+VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpSeiBeforeIdrIsKeyframe)
+{
+    srs_error_t err;
+
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
+
+    // The keyframe started at its parameter sets, which are not in the cache.
+    SrsUniquePtr<SrsRtpPacket> sps_pps(create_test_nalu_packet(199, 3000, false, SrsAvcNaluTypeSPS, false));
+    builder.frame_detector_->on_keyframe_start(sps_pps.get());
+
+    builder.video_cache_->store_packet(create_test_nalu_packet(200, 3000, false, SrsAvcNaluTypeSEI, false));
+    builder.video_cache_->store_packet(create_test_nalu_packet(201, 3000, true, SrsAvcNaluTypeIDR, false));
+
+    HELPER_EXPECT_SUCCESS(builder.packet_video_rtmp(200, 201));
+
+    EXPECT_EQ(1, target.on_frame_count_);
+    ASSERT_TRUE(target.last_frame_ != NULL);
+    // FrameType 1 (keyframe), CodecID 7 (AVC), AVCPacketType 1 (NALU).
+    EXPECT_EQ(0x17, (uint8_t)target.last_frame_->payload()[0]);
+    EXPECT_EQ(0x01, (uint8_t)target.last_frame_->payload()[1]);
+    // Both NALUs are in the frame, the SEI first.
+    EXPECT_EQ(5 + 2 * (4 + 64), target.last_frame_->size());
+    EXPECT_EQ(0x60 | SrsAvcNaluTypeSEI, (uint8_t)target.last_frame_->payload()[5 + 4]);
+    EXPECT_EQ(0x60 | SrsAvcNaluTypeIDR, (uint8_t)target.last_frame_->payload()[5 + 4 + 64 + 4]);
+
+    // The keyframe is detached, so the next keyframe starts a new frame.
+    SrsRtcFrameBuilderVideoFrameDetector *detector = dynamic_cast<SrsRtcFrameBuilderVideoFrameDetector *>(builder.frame_detector_);
+    ASSERT_TRUE(detector != NULL);
+    EXPECT_EQ(-1, detector->rtp_key_frame_ts_);
+}
+
+// The same for HEVC: x265 writes a prefix SEI before the IDR of every keyframe.
+VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpSeiBeforeIdrIsKeyframeHevc)
+{
+    srs_error_t err;
+
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdHEVC));
+
+    builder.video_cache_->store_packet(create_test_nalu_packet(300, 6000, false, SrsHevcNaluType_SEI, true));
+    builder.video_cache_->store_packet(create_test_nalu_packet(301, 6000, true, SrsHevcNaluType_CODED_SLICE_IDR, true));
+
+    HELPER_EXPECT_SUCCESS(builder.packet_video_rtmp(300, 301));
+
+    EXPECT_EQ(1, target.on_frame_count_);
+    ASSERT_TRUE(target.last_frame_ != NULL);
+    // IsExHeader, FrameType 1 (keyframe), PacketType 3 (CodedFramesX), then 'hvc1'.
+    EXPECT_EQ(0x80 | (1 << 4) | 3, (uint8_t)target.last_frame_->payload()[0]);
+    EXPECT_EQ(5 + 2 * (4 + 64), target.last_frame_->size());
+    EXPECT_EQ(SrsHevcNaluType_SEI << 1, (uint8_t)target.last_frame_->payload()[5 + 4]);
+    EXPECT_EQ(SrsHevcNaluType_CODED_SLICE_IDR << 1, (uint8_t)target.last_frame_->payload()[5 + 4 + 64 + 4]);
+}
+
+// A frame with an SEI and no IDR stays an inter frame.
+VOID TEST(SrsRtcFrameBuilderTest, PacketVideoRtmpSeiWithoutIdrIsInterFrame)
+{
+    srs_error_t err;
+
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+
+    SrsUniquePtr<MockRtcRequest> req(new MockRtcRequest());
+    HELPER_EXPECT_SUCCESS(builder.initialize(req.get(), SrsAudioCodecIdAAC, SrsVideoCodecIdAVC));
+
+    builder.video_cache_->store_packet(create_test_nalu_packet(400, 9000, false, SrsAvcNaluTypeSEI, false));
+    builder.video_cache_->store_packet(create_test_nalu_packet(401, 9000, true, SrsAvcNaluTypeNonIDR, false));
+
+    HELPER_EXPECT_SUCCESS(builder.packet_video_rtmp(400, 401));
+
+    EXPECT_EQ(1, target.on_frame_count_);
+    ASSERT_TRUE(target.last_frame_ != NULL);
+    // FrameType 2 (inter frame), CodecID 7 (AVC).
+    EXPECT_EQ(0x27, (uint8_t)target.last_frame_->payload()[0]);
 }

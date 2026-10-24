@@ -47,6 +47,8 @@ public:
     int on_frame_count_;
     SrsMediaPacket *last_frame_;
     srs_error_t frame_error_;
+    // The timestamp of each frame, in order, because a builder may pass a frame on its stack.
+    std::vector<int64_t> timestamps_;
 
 public:
     MockFrameTarget();
@@ -62,6 +64,9 @@ public:
     int on_rtp_count_;
     SrsRtpPacket *last_rtp_;
     srs_error_t rtp_error_;
+    // The RTP time and the time on the stream's clock of each packet, in order.
+    std::vector<uint32_t> rtp_times_;
+    std::vector<int64_t> avsync_times_;
 
 public:
     MockRtpTarget();

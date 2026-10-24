@@ -44,12 +44,6 @@ function srs_undefine_macro()
 # generate auto headers file, depends on the finished of options.sh
 #####################################################################################
 # auto headers in depends.
-if [[ $SRS_HDS == YES ]]; then
-    srs_define_macro "SRS_HDS" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_HDS" $SRS_AUTO_HEADERS_H
-fi
-
 srs_define_macro "SRS_SRT" $SRS_AUTO_HEADERS_H
 
 if [[ $SRS_CXX11 == YES ]]; then
@@ -212,11 +206,6 @@ if [[ $SRS_CROSS_BUILD == YES ]]; then
     srs_define_macro "SRS_CROSSBUILD" $SRS_AUTO_HEADERS_H
 else
     srs_undefine_macro "SRS_CROSSBUILD" $SRS_AUTO_HEADERS_H
-fi
-if [[ $SRS_CYGWIN64 == YES ]]; then
-    srs_define_macro "SRS_CYGWIN64" $SRS_AUTO_HEADERS_H
-else
-    srs_undefine_macro "SRS_CYGWIN64" $SRS_AUTO_HEADERS_H
 fi
 if [[ $SRS_OSX == YES ]]; then
     srs_define_macro "SRS_OSX" $SRS_AUTO_HEADERS_H

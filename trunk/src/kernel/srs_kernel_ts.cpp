@@ -6,9 +6,6 @@
 
 #include <srs_kernel_ts.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#include <unistd.h>
-
 #include <fcntl.h>
 #include <sstream>
 using namespace std;
@@ -2915,11 +2912,12 @@ srs_error_t SrsEncFileWriter::config_cipher(unsigned char *key, unsigned char *i
 
 void SrsEncFileWriter::close()
 {
-    if (nb_buf > 0) {
+    // PKCS#7 pads every segment, with 1 to 16 bytes: a segment whose data is
+    // whole AES blocks, as when write() has just flushed its 4 packets, or
+    // has no data, gets a block of 16 padding bytes.
+    if (is_open()) {
         int nb_padding = 16 - (nb_buf % 16);
-        if (nb_padding > 0) {
-            memset(buf + nb_buf, nb_padding, nb_padding);
-        }
+        memset(buf + nb_buf, nb_padding, nb_padding);
 
         SrsUniquePtr<char[]> cipher(new char[nb_buf + nb_padding]);
 

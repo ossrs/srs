@@ -440,3 +440,36 @@ VOID TEST(ReproduceIssue4756, CameraSpsWithTrailingZerosInSequenceHeader)
     EXPECT_EQ(1280, format.vcodec()->width_);
     EXPECT_EQ(720, format.vcodec()->height_);
 }
+
+// An FLV audio tag of a codec other than MP3 and AAC is refused with an audio codec error that names the codec,
+// for PCM, Nellymoser, G.711, Speex, the enhanced-RTMP sound format 9 and the legacy Opus id 13 alike.
+VOID TEST(KernelFormatAudioTest, UnsupportedCodecIsAnAudioCodecError)
+{
+    srs_error_t err;
+
+    struct {
+        uint8_t sound_format_;
+        const char *name_;
+    } cases[] = {
+        {0x02, "codec=0(Other)"},
+        {0x32, "codec=3(Other)"},
+        {0x62, "codec=6(Other)"},
+        {0x72, "codec=7(PCMA)"},
+        {0x82, "codec=8(PCMU)"},
+        {0x92, "codec=9(Other)"},
+        {0xb2, "codec=11(Other)"},
+        {0xd2, "codec=13(Opus)"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        char tag[] = {(char)cases[i].sound_format_, 0x00, 0x01, 0x02};
+
+        SrsFormat format;
+        HELPER_EXPECT_SUCCESS(format.initialize());
+        err = format.on_audio(0, tag, (int)sizeof(tag));
+        EXPECT_TRUE(err != srs_success) << cases[i].name_;
+        EXPECT_EQ(ERROR_AUDIO_CODEC_UNSUPPORTED, srs_error_code(err)) << cases[i].name_;
+        EXPECT_TRUE(srs_error_desc(err).find(cases[i].name_) != string::npos) << srs_error_desc(err);
+        srs_freep(err);
+    }
+}

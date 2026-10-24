@@ -7,7 +7,9 @@ on: [push, pull_request]
 permissions: read-all
 
 # The dependency graph:
-# test(6m)
+# test(10m)
+# integ(7m)
+# windows
 # multiple-arch-armv7(13m)
 # multiple-arch-aarch64(7m)
 # fast(0s) - To limit all fastly run jobs after slow jobs.
@@ -133,6 +135,94 @@ jobs:
               cd 3rdparty/srs-bench && (./objs/srs_test -test.v || (cat ../../objs/srs.log && exit 1))'
     runs-on: ubuntu-22.04
 
+  integ:
+    name: integration-test
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - name: Build test image
+        run: docker build --tag srs:test --build-arg MAKEARGS='-j2' -f trunk/Dockerfile.test .
+      # For srs-integ, the black-box integration suite, see cmd/integ/README.md. The image's
+      # ffmpeg 5 writes HEVC in legacy FLV, so the test media, and the cases that run ffmpeg, use
+      # its ffmpeg7. Each step mounts the media directory, so the media is made once, and kept in
+      # the cache for the next runs; prepare makes again only the files whose recipe, source or
+      # ffmpeg changed.
+      - name: Restore the test media
+        id: media
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: cmd/integ/testdata/media
+          key: integ-media-${{ hashFiles('doc/source.flv', 'cmd/integ/internal/media/*.go') }}
+          restore-keys: integ-media-
+      - name: Make the test media
+        run: |
+          docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 \
+            -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media srs:test \
+            make integ-prepare
+      - name: Save the test media
+        if: steps.media.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: cmd/integ/testdata/media
+          key: ${{ steps.media.outputs.cache-primary-key }}
+      # Its unit tests test its clients and analyzers, and its media tests read the test media.
+      # Some send media over UDP to a local fake server, which a busy runner can drop, so they
+      # are retried like the cases.
+      - name: Run SRS integration unit test
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 \
+              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media srs:test \
+              make integ-unit
+      # CI runners are slower than a developer's machine, so the class limits of the cases are 4
+      # times longer. The cases and the timer cases run one after the other, not at once as make
+      # integ does: a runner has few cores, and the timer cases check SRS's timers, which the
+      # other cases would slow. Each is retried alone, so a timer flake doesn't run the rest again.
+      - name: Run SRS integration test
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          retry_on: error
+          command: |
+            docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 \
+              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media srs:test \
+              make integ-main INTEG_ARGS=-integ.limit-scale=4
+      - name: Run SRS integration timer test
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_on: error
+          command: |
+            docker run --rm -w /srs --env FFMPEG=/usr/local/bin/ffmpeg7 \
+              -v ${{ github.workspace }}/cmd/integ/testdata/media:/srs/cmd/integ/testdata/media srs:test \
+              make integ-timer INTEG_ARGS=-integ.limit-scale=4
+    runs-on: ubuntu-22.04
+
+  # The native Windows x64 build with MSVC, and its utest, through srs-windows-runner.sh as on the
+  # Windows test host. The image has Visual Studio 2026 (18), the newest one that host has too, with
+  # its vcpkg, and MSYS2, which builds FFmpeg-fit.
+  windows:
+    name: windows-utest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      # The MSVC environment, the vcpkg and FFmpeg-fit caches, and the tools the runner needs, shared
+      # with the windows job of the release workflow.
+      - name: Setup the Windows build
+        uses: ./.github/actions/windows-build-setup
+      - name: Build and run SRS utest
+        shell: bash
+        timeout-minutes: 60
+        run: bash skills/srs-develop/scripts/srs-windows-runner.sh utest
+    runs-on: windows-2025
+    timeout-minutes: 90
+
   coverage:
     name: coverage
     steps:
@@ -233,6 +323,8 @@ jobs:
     needs:
       - coverage
       - test
+      - integ
+      - windows
       - build-centos7
       - build-ubuntu16
       - build-ubuntu18

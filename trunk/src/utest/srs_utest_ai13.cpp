@@ -223,7 +223,7 @@ srs_error_t MockFileWriterProxy::writev(const iovec *iov, int iovcnt, ssize_t *p
     return real_writer_->writev(iov, iovcnt, pnwrite);
 }
 
-srs_error_t MockFileWriterProxy::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t MockFileWriterProxy::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     return real_writer_->lseek(offset, whence, seeked);
 }
@@ -2087,4 +2087,137 @@ VOID TEST(HlsTest, OnVideoTypicalScenario)
 
     // Clean up
     hls->on_unpublish();
+}
+
+// A keyframe of AVC for the dispose cases, which own the format and packet.
+static srs_error_t mock_hls_keyframe(SrsFormat *format, SrsMediaPacket *video_packet)
+{
+    srs_error_t err = srs_success;
+
+    format->vcodec_ = new SrsVideoCodecConfig();
+    format->vcodec_->id_ = SrsVideoCodecIdAVC;
+    format->video_ = new SrsParsedVideoPacket();
+    if ((err = format->video_->initialize(format->vcodec_)) != srs_success) {
+        return err;
+    }
+    format->video_->frame_type_ = SrsVideoAvcFrameTypeKeyFrame;
+    format->video_->avc_packet_type_ = SrsVideoAvcFrameTraitNALU;
+
+    video_packet->timestamp_ = 2000;
+    video_packet->message_type_ = SrsFrameTypeVideo;
+    char *video_data = new char[20];
+    for (int i = 0; i < 20; i++) {
+        video_data[i] = (char)(0x10 + i);
+    }
+    video_packet->wrap(video_data, 20);
+
+    format->video_->nb_samples_ = 1;
+    format->video_->samples_[0].bytes_ = video_data;
+    format->video_->samples_[0].size_ = 20;
+
+    return err;
+}
+
+// A publisher idle past hls_dispose has its HLS disposed while it stays
+// published. When it sends media again, HLS starts again, fed with the
+// sequence headers, and writes the media.
+VOID TEST(HlsTest, DisposedIdlePublisherResumesOnMedia)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForHlsNotify> mock_config(new MockAppConfigForHlsNotify());
+    mock_config->set_hls_enabled(true);
+    mock_config->hls_dispose_ = 1 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsHls> hls(new SrsHls());
+    hls->assemble();
+    hls->config_ = mock_config.get();
+
+    SrsUniquePtr<MockHlsRequest> req(new MockHlsRequest("test.vhost", "live", "stream1"));
+    MockOriginHub mock_hub;
+    HELPER_EXPECT_SUCCESS(hls->initialize(&mock_hub, req.get()));
+
+    srs_freep(hls->controller_);
+    MockHlsController *mock_controller = new MockHlsController();
+    hls->controller_ = mock_controller;
+
+    HELPER_EXPECT_SUCCESS(hls->on_publish());
+
+    // The publisher sends nothing past hls_dispose, and the cycle disposes
+    // its HLS.
+    hls->last_update_time_ = 1;
+    HELPER_EXPECT_SUCCESS(hls->cycle());
+    EXPECT_FALSE(hls->enabled_);
+    EXPECT_EQ(1, mock_controller->on_unpublish_count_);
+    EXPECT_EQ(1, mock_controller->dispose_count_);
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    SrsUniquePtr<SrsMediaPacket> video_packet(new SrsMediaPacket());
+    HELPER_EXPECT_SUCCESS(mock_hls_keyframe(format.get(), video_packet.get()));
+
+    // The publisher sends media again.
+    HELPER_EXPECT_SUCCESS(hls->on_video(video_packet.get(), format.get()));
+    EXPECT_TRUE(hls->enabled_);
+    EXPECT_EQ(2, mock_controller->on_publish_count_);
+    EXPECT_EQ(1, mock_hub.on_hls_request_sh_count_);
+    EXPECT_EQ(1, mock_controller->write_video_count_);
+
+    hls->on_unpublish();
+}
+
+// HLS turned off by an unpublish, by an error under hls_on_error ignore, or by
+// the dispose at the server's quit stays off: only the cycle's dispose of an
+// idle publisher resumes on media.
+VOID TEST(HlsTest, DisposedThenUnpublishedStaysOff)
+{
+    srs_error_t err;
+
+    SrsUniquePtr<MockAppConfigForHlsNotify> mock_config(new MockAppConfigForHlsNotify());
+    mock_config->set_hls_enabled(true);
+    mock_config->hls_dispose_ = 1 * SRS_UTIME_SECONDS;
+
+    SrsUniquePtr<SrsHls> hls(new SrsHls());
+    hls->assemble();
+    hls->config_ = mock_config.get();
+
+    SrsUniquePtr<MockHlsRequest> req(new MockHlsRequest("test.vhost", "live", "stream1"));
+    MockOriginHub mock_hub;
+    HELPER_EXPECT_SUCCESS(hls->initialize(&mock_hub, req.get()));
+
+    srs_freep(hls->controller_);
+    MockHlsController *mock_controller = new MockHlsController();
+    hls->controller_ = mock_controller;
+
+    SrsUniquePtr<SrsFormat> format(new SrsFormat());
+    SrsUniquePtr<SrsMediaPacket> video_packet(new SrsMediaPacket());
+    HELPER_EXPECT_SUCCESS(mock_hls_keyframe(format.get(), video_packet.get()));
+
+    // Disposed while idle, then the publisher leaves.
+    HELPER_EXPECT_SUCCESS(hls->on_publish());
+    hls->last_update_time_ = 1;
+    HELPER_EXPECT_SUCCESS(hls->cycle());
+    EXPECT_EQ(1, mock_controller->dispose_count_);
+    hls->on_unpublish();
+    HELPER_EXPECT_SUCCESS(hls->on_video(video_packet.get(), format.get()));
+    EXPECT_FALSE(hls->enabled_);
+    EXPECT_EQ(1, mock_controller->on_publish_count_);
+    EXPECT_EQ(0, mock_controller->write_video_count_);
+
+    // Turned off without a dispose, as the hub does for hls_on_error ignore.
+    HELPER_EXPECT_SUCCESS(hls->on_publish());
+    hls->on_unpublish();
+    HELPER_EXPECT_SUCCESS(hls->on_video(video_packet.get(), format.get()));
+    EXPECT_FALSE(hls->enabled_);
+    EXPECT_EQ(2, mock_controller->on_publish_count_);
+    EXPECT_EQ(0, mock_controller->write_video_count_);
+
+    // Disposed while published, as the server does when it quits.
+    HELPER_EXPECT_SUCCESS(hls->on_publish());
+    hls->dispose();
+    EXPECT_EQ(2, mock_controller->dispose_count_);
+    HELPER_EXPECT_SUCCESS(hls->on_video(video_packet.get(), format.get()));
+    EXPECT_FALSE(hls->enabled_);
+    EXPECT_EQ(3, mock_controller->on_publish_count_);
+    EXPECT_EQ(0, mock_controller->write_video_count_);
+    EXPECT_EQ(0, mock_hub.on_hls_request_sh_count_);
 }

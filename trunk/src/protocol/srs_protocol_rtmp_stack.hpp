@@ -14,7 +14,6 @@
 #include <vector>
 
 #ifndef _WIN32
-#include <sys/uio.h>
 #endif
 
 #include <srs_core_performance.hpp>
@@ -417,7 +416,7 @@ public:
     int32_t extended_timestamp_;
 
 public:
-    SrsChunkStream(int _cid);
+    SrsChunkStream(int cid);
     virtual ~SrsChunkStream();
 };
 
@@ -539,8 +538,12 @@ enum SrsRtmpConnType {
     SrsRtmpConnPlay = 0x0100,
     SrsHlsPlay = 0x0101,
     SrsFlvPlay = 0x0102,
+    SrsTsPlay = 0x0103,
+    SrsMp3Play = 0x0104,
+    SrsAacPlay = 0x0105,
     SrsRtcConnPlay = 0x0110,
     SrsSrtConnPlay = 0x0120,
+    SrsRtspConnPlay = 0x0130,
     // All publishers.
     SrsRtmpConnFMLEPublish = 0x0200,
     SrsRtmpConnFlashPublish = 0x0201,
@@ -1015,7 +1018,7 @@ public:
     SrsAmf0Any *response_;
 
 public:
-    SrsCallResPacket(double _transaction_id);
+    SrsCallResPacket(double transaction_id);
     virtual ~SrsCallResPacket();
     // Encode functions for concrete packet to override.
 public:
@@ -1077,7 +1080,7 @@ public:
     double stream_id_;
 
 public:
-    SrsCreateStreamResPacket(double _transaction_id, double _stream_id);
+    SrsCreateStreamResPacket(double transaction_id, double stream_id);
     virtual ~SrsCreateStreamResPacket();
     // Decode functions for concrete packet to override.
 public:
@@ -1164,7 +1167,7 @@ public:
     // @remark, never be NULL, an AMF0 undefined instance.
     SrsAmf0Any *args_; // undefined
 public:
-    SrsFMLEStartResPacket(double _transaction_id);
+    SrsFMLEStartResPacket(double transaction_id);
     virtual ~SrsFMLEStartResPacket();
 
 public:

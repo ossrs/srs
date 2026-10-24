@@ -6,10 +6,6 @@
 
 #include <srs_kernel_file.hpp>
 
-// for srs-librtmp, @see https://github.com/ossrs/srs/issues/213
-#include <sys/uio.h>
-#include <unistd.h>
-
 #include <fcntl.h>
 #include <sstream>
 using namespace std;
@@ -18,18 +14,18 @@ using namespace std;
 #include <srs_kernel_log.hpp>
 
 // For utest to mock it.
-srs_open_t _srs_open_fn = ::open;
-srs_write_t _srs_write_fn = ::write;
-srs_read_t _srs_read_fn = ::read;
-srs_lseek_t _srs_lseek_fn = ::lseek;
-srs_close_t _srs_close_fn = ::close;
+srs_open_t _srs_open_fn = srs_file_open;
+srs_write_t _srs_write_fn = srs_file_write;
+srs_read_t _srs_read_fn = srs_file_read;
+srs_lseek_t _srs_lseek_fn = srs_file_lseek;
+srs_close_t _srs_close_fn = srs_file_close;
 
 srs_fopen_t _srs_fopen_fn = ::fopen;
 srs_fwrite_t _srs_fwrite_fn = ::fwrite;
 srs_fread_t _srs_fread_fn = ::fread;
-srs_fseek_t _srs_fseek_fn = ::fseek;
+srs_fseek_t _srs_fseek_fn = srs_fseek;
 srs_fclose_t _srs_fclose_fn = ::fclose;
-srs_ftell_t _srs_ftell_fn = ::ftell;
+srs_ftell_t _srs_ftell_fn = srs_ftell;
 srs_setvbuf_t _srs_setvbuf_fn = ::setvbuf;
 
 ISrsFileWriter::ISrsFileWriter()
@@ -127,7 +123,7 @@ void SrsFileWriter::seek2(int64_t offset)
 {
     srs_assert(is_open());
 
-    int r0 = _srs_fseek_fn(fp_, (long)offset, SEEK_SET);
+    int r0 = _srs_fseek_fn(fp_, offset, SEEK_SET);
     srs_assert(r0 != -1);
 }
 
@@ -179,11 +175,11 @@ srs_error_t SrsFileWriter::writev(const iovec *iov, int iovcnt, ssize_t *pnwrite
     return err;
 }
 
-srs_error_t SrsFileWriter::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t SrsFileWriter::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
     srs_assert(is_open());
 
-    if (_srs_fseek_fn(fp_, (long)offset, whence) == -1) {
+    if (_srs_fseek_fn(fp_, offset, whence) == -1) {
         return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek file");
     }
 
@@ -270,13 +266,13 @@ int64_t SrsFileReader::tellg()
 
 void SrsFileReader::skip(int64_t size)
 {
-    off_t r0 = _srs_lseek_fn(fd_, (off_t)size, SEEK_CUR);
+    srs_off_t r0 = _srs_lseek_fn(fd_, (srs_off_t)size, SEEK_CUR);
     srs_assert(r0 != -1);
 }
 
 int64_t SrsFileReader::seek2(int64_t offset)
 {
-    return (int64_t)_srs_lseek_fn(fd_, (off_t)offset, SEEK_SET);
+    return (int64_t)_srs_lseek_fn(fd_, (srs_off_t)offset, SEEK_SET);
 }
 
 int64_t SrsFileReader::filesize()
@@ -284,7 +280,7 @@ int64_t SrsFileReader::filesize()
     int64_t cur = tellg();
     int64_t size = (int64_t)_srs_lseek_fn(fd_, 0, SEEK_END);
 
-    off_t r0 = _srs_lseek_fn(fd_, (off_t)cur, SEEK_SET);
+    srs_off_t r0 = _srs_lseek_fn(fd_, (srs_off_t)cur, SEEK_SET);
     srs_assert(r0 != -1);
 
     return size;
@@ -311,9 +307,9 @@ srs_error_t SrsFileReader::read(void *buf, size_t count, ssize_t *pnread)
     return err;
 }
 
-srs_error_t SrsFileReader::lseek(off_t offset, int whence, off_t *seeked)
+srs_error_t SrsFileReader::lseek(srs_off_t offset, int whence, srs_off_t *seeked)
 {
-    off_t sk = _srs_lseek_fn(fd_, offset, whence);
+    srs_off_t sk = _srs_lseek_fn(fd_, offset, whence);
     if (sk < 0) {
         return srs_error_new(ERROR_SYSTEM_FILE_SEEK, "seek %d failed", (int)sk);
     }
