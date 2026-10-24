@@ -110,7 +110,7 @@ Whenever a task bumps a version or adds a changelog entry, load `references/vers
 
 ## Git Worktree
 
-Create a git worktree only when the user asks.
+Create a git worktree only when the user asks, or when Review a PR starts on an SRS pull request.
 
 Put it next to the SRS checkout and name it `srs-<topic>`, for example `~/projects/srs-pr-4757` for `~/projects/srs`, so relative symlinks such as `oryx/` keep working.
 
