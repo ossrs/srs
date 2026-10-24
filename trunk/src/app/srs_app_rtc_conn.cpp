@@ -2540,7 +2540,15 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig *ruc, SrsSdp &local_sd
 
     std::map<uint32_t, SrsRtcTrackDescription *> play_sub_relations;
     if ((err = player_negotiator_->negotiate_play_capability(ruc, play_sub_relations)) != srs_success) {
-        return srs_error_wrap(err, "play negotiate, offer=%s", srs_strings_replace(ruc->remote_sdp_str_.c_str(), "\r\n", "\\r\\n").c_str());
+        err = srs_error_wrap(err, "play negotiate, offer=%s", srs_strings_replace(ruc->remote_sdp_str_.c_str(), "\r\n", "\\r\\n").c_str());
+
+        // Free the descriptions already allocated by negotiate, see the ownership
+        // comment below.
+        for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = play_sub_relations.begin(); it != play_sub_relations.end(); ++it) {
+            srs_freep(it->second);
+        }
+
+        return err;
     }
 
     if (!play_sub_relations.size()) {
@@ -2564,11 +2572,18 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig *ruc, SrsSdp &local_sd
     }
 
     if ((err = player_negotiator_->generate_play_local_sdp(req, local_sdp, stream_desc.get(), ruc->remote_sdp_.is_unified(), ruc->audio_before_video_)) != srs_success) {
-        return srs_error_wrap(err, "generate local sdp");
+        err = srs_error_wrap(err, "generate local sdp");
+    } else if ((err = create_player(req, play_sub_relations)) != srs_success) {
+        err = srs_error_wrap(err, "create player");
     }
 
-    if ((err = create_player(req, play_sub_relations)) != srs_success) {
-        return srs_error_wrap(err, "create player");
+    // The negotiate allocates a track description for each offered track, while
+    // all consumers keep their own copies: the stream_desc above for local SDP,
+    // and the send tracks built by player, which copy again in SrsRtcSendTrack.
+    // So free the originals here, no matter whether the player is established,
+    // to avoid leaking them on every play request. #4783
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = play_sub_relations.begin(); it != play_sub_relations.end(); ++it) {
+        srs_freep(it->second);
     }
 
     return err;
