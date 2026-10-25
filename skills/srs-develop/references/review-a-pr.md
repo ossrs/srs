@@ -16,6 +16,8 @@
 3. Determine the actual PR base from the pull request when available. Otherwise use `develop` for SRS and `origin/main` for Oryx unless the branch clearly tracks another base.
 4. Inspect the selected repository's status, branch, commit, and remotes. Do not overwrite unrelated work or mix diffs from both repositories.
 5. For an SRS pull request, fetch its head into a local branch `pr-<number>` and create the worktree `srs-pr-<number>` on it, as Git Worktree in `skills/srs-develop/SKILL.md` describes. Run every later step in that worktree.
+   - Make `pr-<number>` track the PR's head branch, so a push updates the PR. Read the head repository and branch with `gh pr view <number> --json headRepository,headRefName,maintainerCanModify`, add a remote named after the head repository's owner when it is missing, and fetch that branch.
+   - Tell the user when `maintainerCanModify` is false: a push to the head branch is refused.
 
 ## Step 1: Survey the changes
 
@@ -32,9 +34,9 @@ For a PR that fixes a bug, prove the problem exists before the fix is trusted. T
 
 1. In the SRS checkout on the base branch, without the PR's change, write a unit test that reproduces the problem, following the red phase in `references/testable-code.md`. It asserts the correct behavior, so it fails on the base.
 2. Run it and show the user the failure. Pause until the user confirms it fails for the problem the PR fixes.
-3. Fix the problem in the same checkout, run the test, and show the user that it passes.
-4. Merge the base branch into the PR branch in the worktree, since the PR may be behind it. Resolve any conflicts, show the user each resolution, and let the user stage them.
-5. Pick the test and the fix into the PR worktree, resolve conflicts with the PR's change, run the test there, and show that it passes. Then continue with the next step in the worktree.
+3. Fix the problem in the same checkout, run the test, and show the user that it passes. After the user reviews them, commit the test and the fix.
+4. Merge the base branch, at its commit before the fix, into the PR branch in the worktree, since the PR may be behind it. Resolve any conflicts, show the user each resolution, and commit the merge after the user reviews it.
+5. Cherry-pick that commit into the PR worktree, resolve conflicts with the PR's change, run the test there, and show that it passes. Then continue with the next step in the worktree.
 
 ## Step 3: Correct stale navigation docs
 

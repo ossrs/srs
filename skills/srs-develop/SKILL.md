@@ -126,9 +126,9 @@ Apply these rules whenever a task produces a commit:
   - `git -C dev-docker/` for Dev Docker
   - `git -C state-threads/` for State Threads
   - `git -C website/` for the website
-- Never run `git add`; the user stages the files they approve.
+- Never run `git add`; the user stages the files they approve. The exception is a resolved conflict in a merge or cherry-pick the user asked for.
 - Never run `git push` unless the user explicitly asks.
-- Commit only when the user explicitly asks.
+- Commit only when the user explicitly asks. Asking for a step that makes a commit, such as a merge or a cherry-pick, asks for that commit.
 - Before committing, run the owning repository's staged diff, understand every staged change, and write an appropriate title and description. Do not include staged changes from another repository in the same commit.
 - Prefix the commit title with the tool that made the changes: `OpenClaw:`, `Claude:`, `Codex:`, or `Kiro:`.
 - If Claude made changes, use this commit message format. End it with the co-author line the Claude Code harness gives; it names the current model, so do not hard-code one:
