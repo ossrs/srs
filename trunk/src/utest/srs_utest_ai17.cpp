@@ -5741,3 +5741,181 @@ VOID TEST(HookRejectionTest, WhipRejectedPublisherSessionFreedDuringHook)
     api->publish_->config_ = NULL;
     api->publish_->hooks_ = NULL;
 }
+
+MockFileReaderFactoryForVodStream::MockFileReaderFactoryForVodStream(string content)
+{
+    content_ = content;
+    create_count_ = 0;
+}
+
+MockFileReaderFactoryForVodStream::~MockFileReaderFactoryForVodStream()
+{
+}
+
+SrsFileReader *MockFileReaderFactoryForVodStream::create_file_reader()
+{
+    create_count_++;
+    return new MockSrsFileReader(content_.data(), (int)content_.length());
+}
+
+MockResponseWriterForVodStream::MockResponseWriterForVodStream()
+{
+}
+
+MockResponseWriterForVodStream::~MockResponseWriterForVodStream()
+{
+}
+
+srs_error_t MockResponseWriterForVodStream::filter(SrsHttpHeader *h)
+{
+    string content_range = h->get("Content-Range");
+    srs_error_t err = MockResponseWriter::filter(h);
+    if (!content_range.empty()) {
+        h->set("Content-Range", content_range);
+    }
+    return err;
+}
+
+MockSecurityForHlsStream::MockSecurityForHlsStream()
+{
+    check_count_ = 0;
+    check_error_ = srs_success;
+}
+
+MockSecurityForHlsStream::~MockSecurityForHlsStream()
+{
+    srs_freep(check_error_);
+}
+
+srs_error_t MockSecurityForHlsStream::check(SrsRtmpConnType type, std::string ip, ISrsRequest *req)
+{
+    check_count_++;
+    return srs_error_copy(check_error_);
+}
+
+// Serve the playlist url through a VOD stream, and return the raw HTTP response in resp.
+static srs_error_t mock_vod_serve_m3u8(SrsVodStream *stream, string url, string &resp)
+{
+    srs_error_t err = srs_success;
+
+    MockResponseWriter w;
+    SrsHttpMessage r(NULL, NULL);
+    if ((err = r.set_url(url, false)) != srs_success) {
+        return srs_error_wrap(err, "set url");
+    }
+
+    err = stream->serve_http(&w, &r);
+    resp = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+    return err;
+}
+
+VOID TEST(HookRejectionTest, HlsDeniedViewerCannotRetryWithSameCtx)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    // The stream owns the factory, which counts the reads of the playlist file.
+    MockFileReaderFactoryForVodStream *factory = new MockFileReaderFactoryForVodStream("#EXTM3U\n#EXTINF:10.000,\nstream1-0.ts\n");
+    SrsVodStream stream("/tmp");
+    stream.set_fs_factory(factory);
+    stream.set_path(new MockSrsPathAlwaysExists());
+    stream.entry_ = &entry;
+
+    // The security rules deny every attempt of this viewer.
+    MockSecurityForHlsStream security;
+    security.check_error_ = srs_error_new(ERROR_SYSTEM_SECURITY_DENY, "deny by rule");
+    srs_freep(stream.hls_.security_);
+    stream.hls_.security_ = &security;
+
+    // The first request with a client-chosen hls_ctx is denied.
+    string resp;
+    HELPER_EXPECT_FAILED(mock_vod_serve_m3u8(&stream, "/live/stream1.m3u8?hls_ctx=chosenbyclient", resp));
+    EXPECT_EQ(1, security.check_count_);
+
+    // The denied viewer is removed from statistic at once, because it has no session to expire.
+    EXPECT_TRUE(_srs_stat->find_client("chosenbyclient") == NULL);
+
+    // GOAL: retrying with the same hls_ctx runs the security check again and is denied again. The
+    // playlist of the stream must never be read for a viewer the check denied.
+    HELPER_EXPECT_FAILED(mock_vod_serve_m3u8(&stream, "/live/stream1.m3u8?hls_ctx=chosenbyclient", resp));
+    EXPECT_EQ(2, security.check_count_);
+    EXPECT_EQ(string::npos, resp.find("stream1-0.ts"));
+    EXPECT_EQ(0, factory->create_count_);
+    EXPECT_TRUE(stream.hls_.map_ctx_info_.empty());
+
+    stream.hls_.security_ = NULL;
+}
+
+// Serve the file of url, MP4 or FLV, with the range of url, and return the raw HTTP response in resp.
+static srs_error_t mock_vod_serve_range(string content, string url, string &resp)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    SrsVodStream stream("/tmp");
+    stream.set_fs_factory(new MockFileReaderFactoryForVodStream(content));
+    stream.set_path(new MockSrsPathAlwaysExists());
+    stream.entry_ = &entry;
+
+    MockResponseWriterForVodStream w;
+    SrsHttpMessage r(NULL, NULL);
+    if ((err = r.set_url(url, false)) != srs_success) {
+        return srs_error_wrap(err, "set url");
+    }
+
+    if ((err = stream.serve_http(&w, &r)) != srs_success) {
+        return srs_error_wrap(err, "serve http");
+    }
+
+    resp = HELPER_BUFFER2STR(&w.io.out_buffer);
+
+    return err;
+}
+
+// The range end is inclusive, so an end at the file size names one byte past the file, and is clamped
+// to the last byte.
+VOID TEST(VodStreamRangeTest, RangeEndAtFilesizeServesTheWholeFile)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_range("Hello, world!", "/index.mp4?bytes=0-13", resp));
+
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Length: 13", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 0-12/13", resp);
+    EXPECT_PRED2(is_string_contain, "Hello, world!", resp);
+}
+
+// A range end far beyond the file is clamped to the last byte as well.
+VOID TEST(VodStreamRangeTest, RangeEndBeyondFilesizeIsClamped)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_range("Hello, world!", "/index.mp4?bytes=7-100", resp));
+
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Length: 6", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 7-12/13", resp);
+    EXPECT_PRED2(is_string_contain, "world!", resp);
+}
+
+// A range inside the file is served as asked.
+VOID TEST(VodStreamRangeTest, RangeInsideTheFileIsUnchanged)
+{
+    srs_error_t err = srs_success;
+
+    string resp;
+    HELPER_ASSERT_SUCCESS(mock_vod_serve_range("Hello, world!", "/index.mp4?bytes=2-5", resp));
+
+    EXPECT_PRED2(is_string_contain, "206 Partial Content", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Length: 4", resp);
+    EXPECT_PRED2(is_string_contain, "Content-Range: bytes 2-5/13", resp);
+    EXPECT_PRED2(is_string_contain, "llo,", resp);
+}

@@ -127,6 +127,15 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     } else {
         // Create a m3u8 in memory, contains the session id(ctx).
         err = serve_new_session(w, r, req, ctx);
+
+        // Never keep the ctx of a refused viewer alive, because the client may choose the ctx, and a
+        // retry with it would be served as an existing session, which skips the security check and
+        // the on_play hook. The viewer was added to statistic before the checks and has no session
+        // to expire, so remove it now.
+        if (err != srs_success) {
+            _srs_stat->on_disconnect(ctx, err);
+            return err;
+        }
     }
 
     // Always make the ctx alive now.
@@ -571,9 +580,10 @@ srs_error_t SrsVodStream::serve_mp4_stream(ISrsHttpResponseWriter *w, ISrsHttpMe
         return srs_vod_range_not_satisfiable(w, fullpath, fs->filesize(), start);
     }
 
-    if (end > fs->filesize()) {
-        return srs_error_new(ERROR_HTTP_REMUX_OFFSET_OVERFLOW, "http mp4 streaming %s overflow. size=%" PRId64 ", offset=%d",
-                             fullpath.c_str(), fs->filesize(), start);
+    // The end is the last byte position and it is inclusive, so the last byte a client may ask for is filesize-1.
+    // Clamp an end that reaches or passes the end of the file, as the clients expect the bytes that do exist.
+    if (end >= fs->filesize()) {
+        end = fs->filesize() - 1;
     }
 
     // seek to data offset, [start, end] for range.

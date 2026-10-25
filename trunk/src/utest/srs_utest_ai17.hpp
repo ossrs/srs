@@ -16,7 +16,9 @@
 #include <srs_app_factory.hpp>
 #include <srs_app_fragment.hpp>
 #include <srs_app_hls.hpp>
+#include <srs_app_http_static.hpp>
 #include <srs_app_rtc_api.hpp>
+#include <srs_app_security.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_file.hpp>
@@ -28,6 +30,7 @@
 #include <srs_utest_ai11.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
+#include <srs_utest_manual_http.hpp>
 
 // Mock ISrsMpdWriter for testing MPD fragment generation
 class MockMpdWriter : public ISrsMpdWriter
@@ -586,6 +589,48 @@ public:
     virtual srs_error_t dumps_streams(SrsJsonArray *arr, int start, int count);
     virtual srs_error_t dumps_clients(SrsJsonArray *arr, int start, int count);
     virtual srs_error_t dumps_metrics(int64_t &send_bytes, int64_t &recv_bytes, int64_t &nstreams, int64_t &nclients, int64_t &total_nclients, int64_t &nerrs);
+};
+
+// Serves the VOD file from memory, for the range and HLS session tests of SrsVodStream.
+class MockFileReaderFactoryForVodStream : public ISrsFileReaderFactory
+{
+public:
+    std::string content_;
+    int create_count_;
+
+public:
+    MockFileReaderFactoryForVodStream(std::string content);
+    virtual ~MockFileReaderFactoryForVodStream();
+
+public:
+    virtual SrsFileReader *create_file_reader();
+};
+
+// Keeps the Content-Range header, which MockResponseWriter drops, so the range tests can assert it.
+class MockResponseWriterForVodStream : public MockResponseWriter
+{
+public:
+    MockResponseWriterForVodStream();
+    virtual ~MockResponseWriterForVodStream();
+
+public:
+    virtual srs_error_t filter(SrsHttpHeader *h);
+};
+
+// The security of SrsHlsStream, which holds the concrete SrsSecurity, with the check result chosen by the test.
+class MockSecurityForHlsStream : public SrsSecurity
+{
+public:
+    int check_count_;
+    // The error of every check, copied to the caller, or success.
+    srs_error_t check_error_;
+
+public:
+    MockSecurityForHlsStream();
+    virtual ~MockSecurityForHlsStream();
+
+public:
+    virtual srs_error_t check(SrsRtmpConnType type, std::string ip, ISrsRequest *req);
 };
 
 #endif

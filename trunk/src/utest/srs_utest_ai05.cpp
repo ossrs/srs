@@ -477,6 +477,287 @@ void MockSrsFastTimer::clear()
     timer_calls_.clear();
 }
 
+MockUnsubscribingFastTimer::MockUnsubscribingFastTimer()
+{
+    timer_ = NULL;
+    target_ = NULL;
+    on_timer_count_ = 0;
+}
+
+MockUnsubscribingFastTimer::~MockUnsubscribingFastTimer()
+{
+}
+
+srs_error_t MockUnsubscribingFastTimer::on_timer(srs_utime_t interval)
+{
+    on_timer_count_++;
+
+    if (timer_ && target_) {
+        timer_->unsubscribe(target_);
+    }
+
+    return srs_success;
+}
+
+MockCoroutineForFastTimer::MockCoroutineForFastTimer()
+{
+    pull_count_ = 0;
+    pull_success_ = 0;
+}
+
+MockCoroutineForFastTimer::~MockCoroutineForFastTimer()
+{
+}
+
+srs_error_t MockCoroutineForFastTimer::start()
+{
+    return srs_success;
+}
+
+void MockCoroutineForFastTimer::stop()
+{
+}
+
+void MockCoroutineForFastTimer::interrupt()
+{
+}
+
+srs_error_t MockCoroutineForFastTimer::pull()
+{
+    if (++pull_count_ <= pull_success_) {
+        return srs_success;
+    }
+    return srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+}
+
+const SrsContextId &MockCoroutineForFastTimer::cid()
+{
+    return cid_;
+}
+
+void MockCoroutineForFastTimer::set_cid(const SrsContextId &cid)
+{
+    cid_ = cid;
+}
+
+MockTimeForFastTimer::MockTimeForFastTimer()
+{
+}
+
+MockTimeForFastTimer::~MockTimeForFastTimer()
+{
+}
+
+void MockTimeForFastTimer::usleep(srs_utime_t duration)
+{
+    usleep_calls_.push_back(duration);
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleNotifiesEveryHandlerWhenOneUnsubscribesItself)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    // Replace the coroutine and clock the constructor created, so cycle() runs the given rounds
+    // instead of the real timer forever.
+    srs_freep(timer.trd_);
+    timer.trd_ = &trd;
+    srs_freep(timer.time_);
+    timer.time_ = &time;
+
+    // The first handler leaves the timer while the round is still running, as a connection torn
+    // down inside its own callback does.
+    MockUnsubscribingFastTimer first;
+    first.timer_ = &timer;
+    first.target_ = &first;
+    MockSrsFastTimer second;
+    MockSrsFastTimer third;
+
+    timer.subscribe(&first);
+    timer.subscribe(&second);
+    timer.subscribe(&third);
+
+    trd.pull_success_ = 1;
+
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // Every handler still subscribed when the round reaches it must be notified.
+    EXPECT_EQ(1, first.on_timer_count_);
+    EXPECT_EQ(1, (int)second.timer_calls_.size());
+    EXPECT_EQ(1, (int)third.timer_calls_.size());
+
+    // The handler that left is gone once the round ends.
+    EXPECT_EQ(2, (int)timer.handlers_.size());
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleSkipsHandlerUnsubscribedDuringTheRound)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    // Replace the coroutine and clock the constructor created, so cycle() runs the given rounds
+    // instead of the real timer forever.
+    srs_freep(timer.trd_);
+    timer.trd_ = &trd;
+    srs_freep(timer.time_);
+    timer.time_ = &time;
+
+    MockSrsFastTimer second;
+    MockSrsFastTimer third;
+
+    // The first handler removes a handler the round has not reached yet.
+    MockUnsubscribingFastTimer first;
+    first.timer_ = &timer;
+    first.target_ = &third;
+
+    timer.subscribe(&first);
+    timer.subscribe(&second);
+    timer.subscribe(&third);
+
+    trd.pull_success_ = 1;
+
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // A handler that unsubscribed during the round must not be notified afterwards: it may already
+    // be destroyed.
+    EXPECT_EQ(1, first.on_timer_count_);
+    EXPECT_EQ(1, (int)second.timer_calls_.size());
+    EXPECT_EQ(0, (int)third.timer_calls_.size());
+    EXPECT_EQ(2, (int)timer.handlers_.size());
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleNeverNotifiesAFreedHandler)
+{
+    // A subscriber that unsubscribes from its own destructor, as SrsRtcPublishRtcpTimer,
+    // SrsRtcPublishTwccTimer and SrsRtcConnectionNackTimer all do.
+    class SelfRemovingHandler : public ISrsFastTimerHandler
+    {
+    public:
+        ISrsFastTimer *timer_;
+        int calls_;
+        SelfRemovingHandler()
+        {
+            timer_ = NULL;
+            calls_ = 0;
+        }
+        virtual ~SelfRemovingHandler()
+        {
+            if (timer_) {
+                timer_->unsubscribe(this);
+            }
+        }
+        virtual srs_error_t on_timer(srs_utime_t interval)
+        {
+            calls_++;
+            return srs_success;
+        }
+    };
+
+    // A handler that frees another subscriber during the round, as a connection torn down while
+    // this callback yields on I/O does.
+    class DeletingHandler : public ISrsFastTimerHandler
+    {
+    public:
+        SelfRemovingHandler *victim_;
+        DeletingHandler()
+        {
+            victim_ = NULL;
+        }
+        virtual srs_error_t on_timer(srs_utime_t interval)
+        {
+            srs_freep(victim_);
+            return srs_success;
+        }
+    };
+
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    // Replace the coroutine and clock the constructor created, so cycle() runs the given rounds
+    // instead of the real timer forever.
+    srs_freep(timer.trd_);
+    timer.trd_ = &trd;
+    srs_freep(timer.time_);
+    timer.time_ = &time;
+
+    SelfRemovingHandler *victim = new SelfRemovingHandler();
+    victim->timer_ = &timer;
+
+    DeletingHandler deleter;
+    deleter.victim_ = victim;
+
+    timer.subscribe(&deleter);
+    timer.subscribe(victim);
+
+    trd.pull_success_ = 1;
+
+    // The freed subscriber must not be notified after the handler that freed it. Walking a copy of
+    // the subscriber list taken before the round would read that freed object here, which the
+    // sanitizer build reports as a heap-use-after-free.
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    // Only the handler that did the freeing is left.
+    EXPECT_EQ(1, (int)timer.handlers_.size());
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+}
+
+VOID TEST(KernelHourglassTest, SrsFastTimerCycleTicksEverySubscriberAndSleeps)
+{
+    MockCoroutineForFastTimer trd;
+    MockTimeForFastTimer time;
+
+    SrsFastTimer timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    // Replace the coroutine and clock the constructor created, so cycle() runs the given rounds
+    // instead of the real timer forever.
+    srs_freep(timer.trd_);
+    timer.trd_ = &trd;
+    srs_freep(timer.time_);
+    timer.time_ = &time;
+
+    MockSrsFastTimer first;
+    MockSrsFastTimer second;
+    timer.subscribe(&first);
+    timer.subscribe(&second);
+
+    // Two rounds, then the coroutine is interrupted.
+    trd.pull_success_ = 2;
+
+    srs_error_t err = timer.cycle();
+    EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err));
+    srs_freep(err);
+
+    ASSERT_EQ(2, (int)first.timer_calls_.size());
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, first.timer_calls_[0]);
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, first.timer_calls_[1]);
+    ASSERT_EQ(2, (int)second.timer_calls_.size());
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, second.timer_calls_[0]);
+
+    // One sleep of the configured interval per round, after the handlers ran.
+    ASSERT_EQ(2, (int)time.usleep_calls_.size());
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, time.usleep_calls_[0]);
+    EXPECT_EQ(20 * SRS_UTIME_MILLISECONDS, time.usleep_calls_[1]);
+
+    timer.trd_ = NULL;
+    timer.time_ = NULL;
+}
+
 // Tests for srs_kernel_hourglass.hpp
 VOID TEST(KernelHourglassTest, ISrsHourGlassHandlerInterface)
 {

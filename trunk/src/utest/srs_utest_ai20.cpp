@@ -8,11 +8,13 @@
 
 using namespace std;
 
+#include <srs_app_log.hpp>
 #include <srs_app_server.hpp>
 #include <srs_kernel_consts.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_manual_mock.hpp>
+#include <fcntl.h>
 #include <unistd.h>
 
 // Mock ISrsSignalHandler implementation
@@ -160,4 +162,116 @@ VOID TEST(SignalManagerTest, MajorWorkflow)
     // Verify the signal was received multiple times (now 3 times total)
     EXPECT_EQ(3, mock_handler.signal_reload_count_);
     EXPECT_EQ(SRS_SIGNAL_RELOAD, mock_handler.last_signo_);
+}
+
+// The file the descriptor 0 tests put on descriptor 0, in place of the standard input of the test.
+#define MOCK_FILE_LOG_FD0 "./objs/srs_utest_ai20_fd0.log"
+
+VOID TEST(FileLogTest, ReopenClearsTheDescriptorWhenTheTankIsConsole)
+{
+    SrsFileLog log;
+
+    // The logger holds an open log file, as it does after a start with the file tank.
+    log.fd_ = ::open("/dev/null", O_RDWR);
+    ASSERT_TRUE(log.fd_ > 0);
+    int previous = log.fd_;
+
+    // A reload moved the logs to the console, then SIGUSR1 asked for a reopen.
+    log.log_to_file_tank_ = false;
+    log.reopen();
+
+    // GOAL: the descriptor is closed and the member no longer names it.
+    EXPECT_EQ(-1, ::fcntl(previous, F_GETFD));
+    EXPECT_EQ(-1, log.fd_);
+}
+
+VOID TEST(FileLogTest, WriteLogWritesToDescriptorZero)
+{
+    // The process was started with its standard input closed, so the log file is descriptor 0.
+    int stdin_fd = ::dup(0);
+    ASSERT_TRUE(stdin_fd > 0);
+    int fd = ::open(MOCK_FILE_LOG_FD0, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    ASSERT_TRUE(fd > 0);
+    ::dup2(fd, 0);
+    ::close(fd);
+
+    if (true) {
+        SrsFileLog log;
+        log.log_to_file_tank_ = true;
+        log.fd_ = 0;
+
+        char str_log[16] = "hello";
+        log.write_log(log.fd_, str_log, 5, SrsLogLevelTrace);
+
+        // The logger must not close the standard input of the test on the way out.
+        log.fd_ = -1;
+    }
+
+    ::dup2(stdin_fd, 0);
+    ::close(stdin_fd);
+
+    // GOAL: the line reaches descriptor 0.
+    char buf[16] = {0};
+    fd = ::open(MOCK_FILE_LOG_FD0, O_RDONLY);
+    ASSERT_TRUE(fd > 0);
+    ssize_t nn = ::read(fd, buf, sizeof(buf) - 1);
+    ::close(fd);
+    ::unlink(MOCK_FILE_LOG_FD0);
+    EXPECT_EQ(6, (int)nn);
+    EXPECT_STREQ("hello\n", buf);
+}
+
+VOID TEST(FileLogTest, ReopenClosesDescriptorZero)
+{
+    int stdin_fd = ::dup(0);
+    ASSERT_TRUE(stdin_fd > 0);
+    int fd = ::open(MOCK_FILE_LOG_FD0, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    ASSERT_TRUE(fd > 0);
+    ::dup2(fd, 0);
+    ::close(fd);
+
+    bool closed = false;
+    int fd_after = 0;
+    if (true) {
+        SrsFileLog log;
+        log.log_to_file_tank_ = false;
+        log.fd_ = 0;
+
+        log.reopen();
+
+        closed = (::fcntl(0, F_GETFD) == -1);
+        fd_after = log.fd_;
+        log.fd_ = -1;
+    }
+
+    ::dup2(stdin_fd, 0);
+    ::close(stdin_fd);
+    ::unlink(MOCK_FILE_LOG_FD0);
+
+    // GOAL: descriptor 0 is closed like any other log file, and the logger holds no descriptor.
+    EXPECT_TRUE(closed);
+    EXPECT_EQ(-1, fd_after);
+}
+
+VOID TEST(FileLogTest, DestructorClosesDescriptorZero)
+{
+    int stdin_fd = ::dup(0);
+    ASSERT_TRUE(stdin_fd > 0);
+    int fd = ::open(MOCK_FILE_LOG_FD0, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    ASSERT_TRUE(fd > 0);
+    ::dup2(fd, 0);
+    ::close(fd);
+
+    SrsFileLog *log = new SrsFileLog();
+    log->fd_ = 0;
+    srs_freep(log);
+
+    bool closed = (::fcntl(0, F_GETFD) == -1);
+
+    ::dup2(stdin_fd, 0);
+    ::close(stdin_fd);
+    ::unlink(MOCK_FILE_LOG_FD0);
+
+    // GOAL: descriptor 0 was closed on the way out.
+    EXPECT_TRUE(closed);
 }

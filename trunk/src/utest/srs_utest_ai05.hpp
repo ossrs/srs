@@ -116,6 +116,60 @@ public:
     void clear();
 };
 
+// Mock ISrsFastTimerHandler that unsubscribes a handler while the timer is dispatching, to cover
+// the subscriber list changing under SrsFastTimer::cycle().
+class MockUnsubscribingFastTimer : public ISrsFastTimerHandler
+{
+public:
+    // The timer to unsubscribe from, and the handler to remove, which may be this one.
+    ISrsFastTimer *timer_;
+    ISrsFastTimerHandler *target_;
+    int on_timer_count_;
+
+public:
+    MockUnsubscribingFastTimer();
+    virtual ~MockUnsubscribingFastTimer();
+
+public:
+    virtual srs_error_t on_timer(srs_utime_t interval);
+};
+
+// Mock ISrsCoroutine for testing SrsFastTimer::cycle()
+class MockCoroutineForFastTimer : public ISrsCoroutine
+{
+public:
+    int pull_count_;
+    // Return success for the first pull_success_ pulls, then an interrupted error.
+    int pull_success_;
+    SrsContextId cid_;
+
+public:
+    MockCoroutineForFastTimer();
+    virtual ~MockCoroutineForFastTimer();
+
+public:
+    virtual srs_error_t start();
+    virtual void stop();
+    virtual void interrupt();
+    virtual srs_error_t pull();
+    virtual const SrsContextId &cid();
+    virtual void set_cid(const SrsContextId &cid);
+};
+
+// Mock ISrsTime for testing SrsFastTimer::cycle()
+class MockTimeForFastTimer : public ISrsTime
+{
+public:
+    std::vector<srs_utime_t> usleep_calls_;
+
+public:
+    MockTimeForFastTimer();
+    virtual ~MockTimeForFastTimer();
+
+public:
+    virtual void usleep(srs_utime_t duration);
+};
+
 // Mock RTP ring buffer for testing NACK receiver
 class MockRtpRingBuffer : public SrsRtpRingBuffer
 {

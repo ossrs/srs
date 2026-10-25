@@ -522,6 +522,41 @@ public:
     virtual int64_t get_send_bytes();
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
 };
+
+// Mock ISrsProtocolReadWriter whose write yields while hold_ is set, as a real socket does when the
+// client stops reading and the send buffer is full, so another coroutine runs in the middle of a send.
+class MockBlockingSocketForRtspConn : public MockSocketForRtspConn
+{
+public:
+    bool hold_;
+    int write_count_;
+    std::vector<int> channels_;
+
+public:
+    MockBlockingSocketForRtspConn();
+    virtual ~MockBlockingSocketForRtspConn();
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+};
+
+// Mock coroutine handler that sends one RTP packet through SrsRtspConnection::do_send_packet(), as the
+// play coroutine of the connection does.
+class MockRtspSenderForRtspConn : public ISrsCoroutineHandler
+{
+public:
+    SrsRtspConnection *conn_;
+    SrsRtpPacket *pkt_;
+    bool done_;
+    srs_error_t err_;
+
+public:
+    MockRtspSenderForRtspConn(SrsRtspConnection *conn, SrsRtpPacket *pkt);
+    virtual ~MockRtspSenderForRtspConn();
+
+public:
+    virtual srs_error_t cycle();
+};
 #endif
 
 // Mock ISrsDvrPlan for testing SrsDvrSegmenter
