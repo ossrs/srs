@@ -331,7 +331,7 @@ checks are in the test files under `cases/`.
 | Https | Common | The HTTPS server's TLS |
 | Hls | Common, Options, Fmp4, Fmp4Default, TsFloor, Keys, Fmp4Keys, Sessions, CtxOff, Dispose, Fmp4Dispose, Cleanup | HLS TS and fMP4, its options and file names, encryption, `hls_ctx` sessions, dispose and cleanup |
 | Dash | Common, Options, StreamDir, Dispose, Cleanup | DASH play, the MPD, its options, dispose and cleanup |
-| Rtc | Common, Transport, PreferRtx, NackTwccOff, StartFails | WHIP and WHEP: signaling, media, transport, a client that moves to another port, NACK, RTX, TWCC, a failed start |
+| Rtc | Common, Transport, PreferRtx, NackTwccOff, StartFails | WHIP and WHEP: signaling, media, transport, a client that moves to another port, NACK, RTX, TWCC, packets the client loses, a failed start |
 | Srt | Common, Latencies, LatencyOnly, Options, PeerIdle | SRT publish and play, latencies, stream ids, encryption, idle peers |
 | Rtsp | Common, Options, VhostOff | RTSP play from RTMP, its options |
 | Gb | Common, Reconnect, MediaTimeout, RtmpOutput | GB28181 publish over TCP, reconnects, media timeouts, its RTMP output |
