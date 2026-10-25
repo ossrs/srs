@@ -1692,7 +1692,12 @@ srs_error_t SrsConfig::persistence()
     }
 
     // do persistence to writer.
-    if ((err = do_persistence(&fw)) != srs_success) {
+    err = do_persistence(&fw);
+
+    // Windows can neither rename nor unlink a file that is still open.
+    fw.close();
+
+    if (err != srs_success) {
         SrsPath p;
         p.unlink(path);
         return srs_error_wrap(err, "persistence");
