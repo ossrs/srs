@@ -26,8 +26,10 @@ type options struct {
 	LogLevel   string
 	// Rtx is whether the offer carries rtx, from the PION_WHEP_RTX environment variable, on by default; off forces
 	// plain retransmission from the client side, whatever nack_prefer_rtx SRS runs with.
-	Rtx    bool
-	Inputs []inputOption
+	Rtx bool
+	// RequireSession is from the PION_WHEP_REQUIRE_SESSION environment variable, off by default.
+	RequireSession bool
+	Inputs         []inputOption
 	// Duration is -t: how long to play before exiting, zero to play until interrupted.
 	Duration     time.Duration
 	OutputFormat string // null
@@ -161,5 +163,23 @@ func rtxFromEnv(getenv func(string) string) (bool, error) {
 		return false, nil
 	default:
 		return false, fmt.Errorf("Invalid value '%s' for %s; use on or off", value, envRtx)
+	}
+}
+
+// envRequireSession is the environment variable that makes the session's own HTTP resource part of the result, as
+// FFmpeg has no option for it: on fails the run when the answer has no Location, or when the DELETE to it on exit
+// is not answered 2xx; off, or unset, keeps that best effort.
+const envRequireSession = "PION_WHEP_REQUIRE_SESSION"
+
+// requireSessionFromEnv reads envRequireSession through getenv: "" or "off" is false, "on" is true, and anything
+// else is an error naming the variable and the value.
+func requireSessionFromEnv(getenv func(string) string) (bool, error) {
+	switch value := getenv(envRequireSession); value {
+	case "", "off":
+		return false, nil
+	case "on":
+		return true, nil
+	default:
+		return false, fmt.Errorf("Invalid value '%s' for %s; use on or off", value, envRequireSession)
 	}
 }

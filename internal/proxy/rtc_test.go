@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -866,6 +867,148 @@ func TestWebRTCProxyServer_HandleApiForWHIP_HappyPath(t *testing.T) {
 	}
 	if got := stored.GetUfrag(); got != "local-ufrag:remote-ufrag" {
 		t.Fatalf("stored ufrag=%q, want local-ufrag:remote-ufrag", got)
+	}
+}
+
+// A WHIP or WHEP client deletes its session or sends trickle ICE to the Location
+// of the answer (RFC 9725), and reads the answer by its Content-Type. The proxy
+// must pass the backend's headers to the client, and fix the framing of the
+// answer it rewrites.
+func TestWebRTCProxyServer_HandleApi_PreservesBackendHeaders(t *testing.T) {
+	const backendRTCPort = "8000"
+	cases := []struct {
+		name        string
+		url         string
+		offer       string
+		answer      string
+		contentType string
+		status      int
+		serve       func(*webRTCProxyServer) func(context.Context, http.ResponseWriter, *http.Request) error
+	}{
+		{"WHIP", "http://example.com/rtc/v1/whip/?app=live&stream=demo", sampleSDPOffer,
+			sampleSDPAnswer(backendRTCPort), "application/sdp", http.StatusCreated,
+			func(v *webRTCProxyServer) func(context.Context, http.ResponseWriter, *http.Request) error {
+				return v.HandleApiForWHIP
+			}},
+		{"WHEP", "http://example.com/rtc/v1/whep/?app=live&stream=demo", sampleSDPOffer,
+			sampleSDPAnswer(backendRTCPort), "application/sdp", http.StatusCreated,
+			func(v *webRTCProxyServer) func(context.Context, http.ResponseWriter, *http.Request) error {
+				return v.HandleApiForWHEP
+			}},
+		// The legacy /rtc/v1/play/ API used by srs-bench wraps the SDP in JSON.
+		{"LegacyPlay", "http://example.com/rtc/v1/play/",
+			`{"api":"http://10.0.0.1:1985/rtc/v1/play/","sdp":"v=0\r\na=ice-ufrag:remote-ufrag\r\na=ice-pwd:remote-pwd-very-long-value-32xx\r\n","streamurl":"webrtc://example.com/live/demo"}`,
+			`{"code":0,"sessionid":"sid","sdp":"v=0\r\na=ice-ufrag:local-ufrag\r\na=ice-pwd:local-pwd-very-long-value-32xxxx\r\na=candidate:1 1 udp 1 1.2.3.4 ` + backendRTCPort + ` typ host\r\n"}`,
+			"application/json", http.StatusOK,
+			func(v *webRTCProxyServer) func(context.Context, http.ResponseWriter, *http.Request) error {
+				return v.HandleApiForWHEP
+			}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newWebRTCFixture()
+			f.env.WebRTCServerReturns("19000")
+
+			const location = "/rtc/v1/whip/?action=delete&token=abc&app=live&stream=demo&session=s1"
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.ReadAll(r.Body)
+				w.Header().Set("Location", location)
+				w.Header().Set("Content-Type", tc.contentType)
+				w.Header().Set("Content-Length", strconv.Itoa(len(tc.answer)))
+				w.Header().Set("Connection", "X-Hop")
+				w.Header().Set("X-Hop", "1")
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.answer))
+			}))
+			defer backend.Close()
+
+			f.server.backendURL = func(b *lb.OriginServer, r *http.Request) (string, error) {
+				return backend.URL + r.URL.Path, nil
+			}
+			f.lb.PickReturns(&lb.OriginServer{IP: "10.0.0.1", API: []string{"1985"}, RTC: []string{backendRTCPort}}, nil)
+
+			req := httptest.NewRequest(http.MethodPost, tc.url, strings.NewReader(tc.offer))
+			rec := httptest.NewRecorder()
+			if err := tc.serve(f.server)(context.Background(), rec, req); err != nil {
+				t.Fatalf("serve: %v", err)
+			}
+
+			// Result() holds the headers as they were when the status was written,
+			// which is what net/http sends.
+			resp := rec.Result()
+			body, _ := io.ReadAll(resp.Body)
+			if resp.StatusCode != tc.status {
+				t.Fatalf("client status=%d, want %d", resp.StatusCode, tc.status)
+			}
+			if !strings.Contains(string(body), " 19000 typ host") {
+				t.Fatalf("answer did not rewrite backend port; got %q", body)
+			}
+			if got := resp.Header.Get("Location"); got != location {
+				t.Errorf("Location=%q, want %q", got, location)
+			}
+			if got := resp.Header.Get("Content-Type"); got != tc.contentType {
+				t.Errorf("Content-Type=%q, want %q", got, tc.contentType)
+			}
+			if got := resp.Header.Get("Content-Length"); got != strconv.Itoa(len(body)) {
+				t.Errorf("Content-Length=%q, delivered answer length=%d", got, len(body))
+			}
+			if got := resp.Header.Get("X-Hop"); got != "" {
+				t.Errorf("hop-by-hop X-Hop=%q forwarded, want none", got)
+			}
+		})
+	}
+}
+
+// A WHIP or WHEP client ends its session with a DELETE to the Location of the
+// answer, which reaches the proxy. The backend answers it with an empty 200,
+// which the client must get as is, and no new connection is stored.
+func TestWebRTCProxyServer_HandleApi_DeletePassesThrough(t *testing.T) {
+	cases := []struct {
+		name  string
+		url   string
+		serve func(*webRTCProxyServer) func(context.Context, http.ResponseWriter, *http.Request) error
+	}{
+		{"WHIP", "http://example.com/rtc/v1/whip/?action=delete&token=abc&app=live&stream=demo&session=s1",
+			func(v *webRTCProxyServer) func(context.Context, http.ResponseWriter, *http.Request) error {
+				return v.HandleApiForWHIP
+			}},
+		{"WHEP", "http://example.com/rtc/v1/whep/?action=delete&token=abc&app=live&stream=demo&session=s1",
+			func(v *webRTCProxyServer) func(context.Context, http.ResponseWriter, *http.Request) error {
+				return v.HandleApiForWHEP
+			}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newWebRTCFixture()
+
+			var backendMethod atomic.Value
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				backendMethod.Store(r.Method)
+				w.Header().Set("Content-Length", "0")
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer backend.Close()
+
+			f.server.backendURL = func(b *lb.OriginServer, r *http.Request) (string, error) {
+				return backend.URL + r.URL.Path + "?" + r.URL.RawQuery, nil
+			}
+			f.lb.PickReturns(&lb.OriginServer{IP: "10.0.0.1", API: []string{"1985"}, RTC: []string{"8000"}}, nil)
+
+			req := httptest.NewRequest(http.MethodDelete, tc.url, nil)
+			rec := httptest.NewRecorder()
+			if err := tc.serve(f.server)(context.Background(), rec, req); err != nil {
+				t.Fatalf("DELETE: %v", err)
+			}
+			if got := backendMethod.Load(); got != http.MethodDelete {
+				t.Fatalf("backend method=%v, want DELETE", got)
+			}
+			if resp := rec.Result(); resp.StatusCode != http.StatusOK {
+				t.Fatalf("client status=%d, want 200", resp.StatusCode)
+			}
+			if f.lb.StoreWebRTCCallCount() != 0 {
+				t.Fatalf("StoreWebRTC called %d times for a DELETE, want 0", f.lb.StoreWebRTCCallCount())
+			}
+		})
 	}
 }
 

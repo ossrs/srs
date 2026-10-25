@@ -31,6 +31,14 @@ same running SRS can be verified in both formats:
 PION_WHEP_RTX=off ./objs/pion-whep -hide_banner -loglevel debug -i 'http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream' -t 10 -f null -
 ```
 
+On exit the tool sends a DELETE to the `Location` of the answer, as WHEP asks, and by default a missing `Location`
+or a failed DELETE only makes a debug line. `PION_WHEP_REQUIRE_SESSION=on` makes either one fail the run, so a
+server or proxy that drops the `Location` cannot pass by playing alone:
+
+```bash
+PION_WHEP_REQUIRE_SESSION=on ./objs/pion-whep -hide_banner -i 'http://localhost:1985/rtc/v1/whep/?app=live&stream=livestream' -t 10 -f null -
+```
+
 The log lines a script greps, printed at `verbose` and above:
 
 ```

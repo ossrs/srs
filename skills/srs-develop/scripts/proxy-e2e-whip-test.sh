@@ -127,7 +127,9 @@ verify_whep_playback() {
   fi
 
   echo "Verifying WHEP playback: $url"
-  if ! "$tool_bin" -hide_banner -f whep -i "$url" -t 5 -f null - >"$log" 2>&1; then
+  # The session must end by a DELETE to the Location of the answer, which the
+  # proxy has to forward from the origin and route back.
+  if ! PION_WHEP_REQUIRE_SESSION=on "$tool_bin" -hide_banner -f whep -i "$url" -t 5 -f null - >"$log" 2>&1; then
     echo "FAIL: WHEP playback failed. pion-whep log:" >&2
     cat "$log" >&2
     exit 1
@@ -409,6 +411,37 @@ probe_has_audio_video "HLS" "$HLS_URL"
 echo "=== Step 9: Verifying WebRTC WHEP playback via proxy ==="
 verify_whep_playback "http://localhost:$PROXY_HTTP_API_PORT/rtc/v1/whep/?app=live&stream=$STREAM_NAME" \
   /tmp/srs-pion-whep-whip-e2e.log
+
+# --- Step 10: Verify the WHIP publisher ends its session by its Location ---
+# FFmpeg sends a DELETE to the Location of the WHIP answer when it stops, so
+# the origin ends the session at once instead of at the STUN timeout. Through
+# the proxy this needs the Location forwarded and the DELETE routed back.
+echo "=== Step 10: Verifying WHIP session delete via proxy ==="
+# WHEP shares the handler and its log line, and pion-whep has already deleted
+# its own session, so count the deletes after FFmpeg stops.
+deletes_before=$(grep -c "WHIP: Delete session=" /tmp/srs-origin-whip-e2e.log || true)
+kill -INT "$FFMPEG_PID" 2>/dev/null || true
+for ((i = 1; i <= 10; i++)); do
+  if ! kill -0 "$FFMPEG_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 1
+done
+deleted=0
+for ((i = 1; i <= 5; i++)); do
+  if [[ "$(grep -c "WHIP: Delete session=" /tmp/srs-origin-whip-e2e.log || true)" -gt "$deletes_before" ]]; then
+    deleted=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$deleted" == "1" ]]; then
+  echo "PASS: WHIP session deleted on the origin."
+else
+  echo "FAIL: the origin got no WHIP DELETE after FFmpeg stopped. FFmpeg log:" >&2
+  tail -20 /tmp/srs-ffmpeg-whip-e2e.log >&2
+  exit 1
+fi
 
 echo ""
 echo "=== E2E WHIP Proxy Test PASSED ==="

@@ -435,6 +435,39 @@ VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
     srs_freep(mock_muxer);
 }
 
+// Test that a bound session never ends by the media connect timeout, whatever value the config
+// gives it: zero, negative, or a value that is not a number, which parses to zero.
+VOID TEST(GB28181Test, SessionBoundIgnoresNonPositiveTimeout)
+{
+    srs_error_t err = srs_success;
+
+    srs_utime_t timeouts[] = {0, -1 * SRS_UTIME_SECONDS};
+    for (int i = 0; i < (int)(sizeof(timeouts) / sizeof(timeouts[0])); i++) {
+        SrsUniquePtr<MockAppConfigForGbSession> mock_config(new MockAppConfigForGbSession());
+        MockGbMuxer *mock_muxer = new MockGbMuxer();
+        SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+        session->assemble();
+
+        session->config_ = mock_config.get();
+        session->muxer_ = mock_muxer;
+        mock_config->media_connect_timeout_ = timeouts[i];
+        session->setup(NULL);
+
+        MockGbMediaTcpConn *media = new MockGbMediaTcpConn();
+        media->is_connected_ = true;
+        SrsSharedResource<ISrsGbMediaTcpConn> media_resource(media);
+        session->on_media_transport(media_resource);
+
+        // The media keeps flowing, so every drive keeps the session.
+        for (int j = 0; j < 3; j++) {
+            HELPER_EXPECT_SUCCESS(session->drive_state());
+        }
+
+        session->muxer_ = NULL;
+        srs_freep(mock_muxer);
+    }
+}
+
 // Test SrsGbSession::on_media_disconnected - only the current transport may
 // terminate the session, while a stale transport must be ignored.
 VOID TEST(GB28181Test, SessionOnMediaDisconnected)
@@ -1465,6 +1498,70 @@ VOID TEST(GbMediaTcpConnTest, BindSessionRefusesEndedSession)
     conn->session_ = NULL;
     conn->gb_manager_ = NULL;
     conn->wrapper_ = NULL;
+}
+
+// Test that a media connection which another connection replaced on the same SSRC never uses the
+// session after the current connection drops and the manager frees the session; the stale one's
+// next pack and its own disconnect come later.
+VOID TEST(GbMediaTcpConnTest, StaleMediaOutlivesSession)
+{
+    srs_error_t err = srs_success;
+
+    SrsGbSession *session = new SrsGbSession();
+    session->assemble();
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> session_owner(new MockInterruptableForRtcTcpConn());
+    session->setup_owner(NULL, session_owner.get(), NULL);
+    SrsSharedResource<ISrsGbSession> *session_wrapper = new SrsSharedResource<ISrsGbSession>(session);
+
+    SrsUniquePtr<MockResourceManagerForBindSession> mock_manager(new MockResourceManagerForBindSession());
+    mock_manager->session_to_return_ = session_wrapper;
+
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> stale_owner(new MockInterruptableForRtcTcpConn());
+    SrsGbMediaTcpConn *stale = new SrsGbMediaTcpConn();
+    stale->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > stale_wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(stale));
+    stale->setup_owner(stale_wrapper.get(), stale_owner.get(), NULL);
+    stale->gb_manager_ = mock_manager.get();
+
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> current_owner(new MockInterruptableForRtcTcpConn());
+    SrsGbMediaTcpConn *current = new SrsGbMediaTcpConn();
+    current->assemble();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > current_wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(current));
+    current->setup_owner(current_wrapper.get(), current_owner.get(), NULL);
+    current->gb_manager_ = mock_manager.get();
+
+    // Both connections bind the session by the same SSRC, the second one replaces the first.
+    HELPER_EXPECT_SUCCESS(stale->bind_session(12345, &stale->session_));
+    HELPER_EXPECT_SUCCESS(current->bind_session(12345, &current->session_));
+    EXPECT_EQ(session, stale->session_);
+    EXPECT_EQ(session, current->session_);
+    EXPECT_EQ(current, session->media_.get());
+
+    // The current connection drops, which ends the session.
+    session->on_media_disconnected(current);
+    current->session_ = NULL;
+    EXPECT_TRUE(session_owner->interrupt_called_);
+    EXPECT_FALSE(stale_owner->interrupt_called_);
+
+    // The manager frees the ended session, which must cut the stale connection off it.
+    mock_manager->session_to_return_ = NULL;
+    srs_freep(session_wrapper);
+    EXPECT_TRUE(stale->session_ == NULL);
+    EXPECT_TRUE(stale_owner->interrupt_called_);
+
+    // The stale connection's next pack and its disconnect leave the freed session alone.
+    SrsUniquePtr<SrsTsMessage> video(new SrsTsMessage());
+    video->sid_ = SrsTsPESStreamIdVideoCommon;
+    video->payload_->append("video_data", 10);
+    std::vector<SrsTsMessage *> msgs;
+    msgs.push_back(video.get());
+    HELPER_EXPECT_SUCCESS(stale->on_ps_pack(NULL, msgs));
+
+    stale->owner_coroutine_ = NULL;
+    HELPER_EXPECT_SUCCESS(stale->cycle());
+
+    stale->gb_manager_ = NULL;
+    current->gb_manager_ = NULL;
 }
 
 // Test SrsMpegpsQueue::push - covers the major use scenario:

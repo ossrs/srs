@@ -347,7 +347,7 @@ srs_error_t SrsGbSession::drive_state()
     // The publish API reserves the ID and SSRC while the external SIP server
     // starts its media publisher. Once TCP binds, its connection owns the
     // session lifecycle; otherwise release an abandoned reservation.
-    if (srs_time_since(connecting_starttime_, srs_time_now_realtime()) >= media_connect_timeout_) {
+    if (connecting_starttime_ && srs_time_since(connecting_starttime_, srs_time_now_realtime()) >= media_connect_timeout_) {
         return srs_error_new(ERROR_SUCCESS, "wait media connection timeout");
     }
 

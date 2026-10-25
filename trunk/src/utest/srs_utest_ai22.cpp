@@ -2002,6 +2002,55 @@ srs_error_t MockSocketForRtspConn::writev(const iovec *iov, int iov_size, ssize_
     return srs_success;
 }
 
+MockBlockingSocketForRtspConn::MockBlockingSocketForRtspConn() : MockSocketForRtspConn(NULL)
+{
+    hold_ = false;
+    write_count_ = 0;
+}
+
+MockBlockingSocketForRtspConn::~MockBlockingSocketForRtspConn()
+{
+}
+
+srs_error_t MockBlockingSocketForRtspConn::write(void *buf, size_t size, ssize_t *nwrite)
+{
+    write_count_++;
+
+    // The interleaved header is '$', the channel, then the size.
+    if (size == 4) {
+        channels_.push_back(((uint8_t *)buf)[1]);
+    }
+
+    while (hold_) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+
+    if (nwrite) {
+        *nwrite = (ssize_t)size;
+    }
+    return srs_success;
+}
+
+MockRtspSenderForRtspConn::MockRtspSenderForRtspConn(SrsRtspConnection *conn, SrsRtpPacket *pkt)
+{
+    conn_ = conn;
+    pkt_ = pkt;
+    done_ = false;
+    err_ = srs_success;
+}
+
+MockRtspSenderForRtspConn::~MockRtspSenderForRtspConn()
+{
+    srs_freep(err_);
+}
+
+srs_error_t MockRtspSenderForRtspConn::cycle()
+{
+    err_ = conn_->do_send_packet(pkt_);
+    done_ = true;
+    return srs_success;
+}
+
 // MockResourceManagerForRtspConn implementation
 MockResourceManagerForRtspConn::MockResourceManagerForRtspConn()
 {
@@ -3911,6 +3960,89 @@ VOID TEST(RtspConnectionTest, RepeatedSetupFreesPreviousNetwork)
     ISrsStreamWriter *network = conn->networks_[12345];
     srs_freep(network);
     conn->networks_.clear();
+}
+
+// The connection keeps reading requests while its player sends, and a send to a slow client yields
+// inside the writer of the track, between the interleaved header and the payload. A SETUP of that
+// track in this state would replace the writer the player is still in, so it is not valid while a
+// player plays (RFC 2326, 455 Method Not Valid in This State), as DESCRIBE is not.
+VOID TEST(RtspConnectionTest, SetupWhilePlayingIsRefused)
+{
+    srs_error_t err = srs_success;
+
+    MockBlockingSocketForRtspConn *skt = new MockBlockingSocketForRtspConn();
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, skt, "127.0.0.1", 8554));
+
+    MockRtspStack *mock_rtsp = new MockRtspStack();
+    srs_freep(conn->rtsp_);
+    conn->rtsp_ = mock_rtsp;
+    conn->session_id_ = "session1";
+
+    SrsRtcTrackDescription *video_desc = new SrsRtcTrackDescription();
+    video_desc->type_ = "video";
+    video_desc->id_ = "0";
+    video_desc->ssrc_ = 12345;
+    conn->tracks_[12345] = video_desc;
+
+    SrsRtspRequest *req = new SrsRtspRequest();
+    req->method_ = "SETUP";
+    req->seq_ = 2;
+    req->stream_id_ = 0;
+    req->transport_ = new SrsRtspTransport();
+    req->transport_->transport_ = "RTP";
+    req->transport_->profile_ = "AVP";
+    req->transport_->lower_transport_ = "TCP";
+    req->transport_->interleaved_min_ = 0;
+    req->transport_->interleaved_max_ = 1;
+    HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+    EXPECT_EQ(SRS_CONSTS_RTSP_OK, mock_rtsp->last_response_status_);
+    ISrsStreamWriter *network = conn->networks_[12345];
+    ASSERT_TRUE(network != NULL);
+
+    // What PLAY makes, then the player sends a packet and the client stops reading.
+    conn->player_ = new MockRtspPlayStream();
+
+    SrsUniquePtr<SrsRtpPacket> pkt(new SrsRtpPacket());
+    pkt->header_.set_ssrc(12345);
+    MockRtspSenderForRtspConn sender(conn.get(), pkt.get());
+    SrsUniquePtr<SrsSTCoroutine> trd(new SrsSTCoroutine("rtsp_sender", &sender));
+
+    skt->hold_ = true;
+    HELPER_EXPECT_SUCCESS(trd->start());
+    while (skt->write_count_ == 0) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+
+    // A SETUP of the same track to another channel, while the player is inside its writer.
+    req = new SrsRtspRequest();
+    req->method_ = "SETUP";
+    req->seq_ = 3;
+    req->stream_id_ = 0;
+    req->transport_ = new SrsRtspTransport();
+    req->transport_->transport_ = "RTP";
+    req->transport_->profile_ = "AVP";
+    req->transport_->lower_transport_ = "TCP";
+    req->transport_->interleaved_min_ = 2;
+    req->transport_->interleaved_max_ = 3;
+    mock_rtsp->reset();
+    HELPER_EXPECT_SUCCESS(conn->on_rtsp_request(req));
+
+    // GOAL: the SETUP is refused with the session, and the writer of the track stays.
+    EXPECT_TRUE(mock_rtsp->send_message_called_);
+    EXPECT_EQ(3, mock_rtsp->last_response_seq_);
+    EXPECT_EQ(SRS_CONSTS_RTSP_MethodNotValidInThisState, mock_rtsp->last_response_status_);
+    EXPECT_STREQ("session1", mock_rtsp->last_response_session_.c_str());
+    EXPECT_TRUE(conn->networks_[12345] == network);
+
+    // GOAL: the client reads again, and the player finishes the packet on the channel it was set up on.
+    skt->hold_ = false;
+    while (!sender.done_) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    HELPER_EXPECT_SUCCESS(srs_error_copy(sender.err_));
+    EXPECT_EQ(2, skt->write_count_);
+    ASSERT_EQ(1, (int)skt->channels_.size());
+    EXPECT_EQ(0, skt->channels_[0]);
 }
 
 // do_send_packet runs for every RTP packet. A lookup miss must not modify the map: std::map's

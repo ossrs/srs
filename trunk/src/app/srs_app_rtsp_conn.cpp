@@ -673,6 +673,20 @@ srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
         std::string local_sdp_escaped = srs_strings_replace(sdp.c_str(), "\r\n", "\\r\\n");
         srs_trace("RTSP: DESCRIBE cseq=%ld, session=%s, sdp: %s", req->seq_, session_id_.c_str(), local_sdp_escaped.c_str());
     } else if (req->is_setup()) {
+        // The player sends on another coroutine, which yields inside the writer of a track when the
+        // client reads slowly, so a SETUP that replaces that writer is not valid while a player plays
+        // (RFC 2326, 455 Method Not Valid in This State). A TEARDOWN ends the play first.
+        if (player_) {
+            SrsUniquePtr<SrsRtspResponse> res(new SrsRtspResponse((int)req->seq_));
+            res->status_ = SRS_CONSTS_RTSP_MethodNotValidInThisState;
+            res->session_ = session_id_;
+            if ((err = rtsp_->send_message(res.get())) != srs_success) {
+                return srs_error_wrap(err, "response setup");
+            }
+            srs_warn("RTSP: SETUP cseq=%ld while playing, session=%s", req->seq_, session_id_.c_str());
+            return err;
+        }
+
         // SETUP carries its parameters in the Transport header, which the parser leaves NULL when the
         // client omits it, while is_setup() only looks at the method. Refuse such a request here: the
         // response and do_setup() below both dereference the transport, and asserting on it would end
