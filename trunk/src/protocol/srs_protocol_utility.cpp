@@ -549,7 +549,6 @@ bool SrsProtocolUtility::is_internet(const sockaddr *addr)
             return false;
         }
 
-        // LCOV_EXCL_START
         // Others.
         if (IN6_IS_ADDR_MULTICAST(&a6->sin6_addr)) {
             return false;
@@ -569,7 +568,6 @@ bool SrsProtocolUtility::is_internet(const sockaddr *addr)
         if (IN6_IS_ADDR_MC_GLOBAL(&a6->sin6_addr)) {
             return false;
         }
-        // LCOV_EXCL_STOP
     }
 
     return true;
@@ -682,7 +680,6 @@ void retrieve_local_ips(SrsProtocolUtility *utility)
                 continue;
             }
 
-            // LCOV_EXCL_START
             // retrieve IP address, ignore the tun0 network device, whose addr is NULL.
             // @see: https://github.com/ossrs/srs/issues/141
             bool ipv4 = (cur->ifa_addr->sa_family == AF_INET);
@@ -692,7 +689,6 @@ void retrieve_local_ips(SrsProtocolUtility *utility)
             if (ipv4 && ready && !ignored) {
                 discover_network_iface(utility, cur, ips, ss0, ss1, false, loopback);
             }
-            // LCOV_EXCL_STOP
         }
     }
 
@@ -751,7 +747,6 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
         return ip->ip_;
     }
 
-    // LCOV_EXCL_START
     // Finally, use first whatever kind of address.
     if (!ips.empty() && _srs_public_internet_address.empty()) {
         SrsIPAddress *ip = ips[0];
@@ -760,7 +755,6 @@ string SrsProtocolUtility::public_internet_address(bool ipv4_only)
         _srs_public_internet_address = ip->ip_;
         return ip->ip_;
     }
-    // LCOV_EXCL_STOP
 
     return "";
 }
@@ -792,7 +786,6 @@ string srs_get_original_ip(ISrsHttpMessage *r)
 
 std::string _srs_system_hostname;
 
-// LCOV_EXCL_START
 string SrsProtocolUtility::system_hostname()
 {
     if (!_srs_system_hostname.empty()) {
@@ -808,7 +801,6 @@ string SrsProtocolUtility::system_hostname()
     _srs_system_hostname = std::string(buf);
     return _srs_system_hostname;
 }
-// LCOV_EXCL_STOP
 
 utsname *SrsProtocolUtility::system_uname()
 {

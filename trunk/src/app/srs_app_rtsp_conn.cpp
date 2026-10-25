@@ -474,7 +474,6 @@ SrsRtspConnection::~SrsRtspConnection()
     context_ = NULL;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsRtspConnection::do_send_packet(SrsRtpPacket *pkt)
 {
     srs_error_t err = srs_success;
@@ -508,7 +507,6 @@ srs_error_t SrsRtspConnection::do_send_packet(SrsRtpPacket *pkt)
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 ISrsKbpsDelta *SrsRtspConnection::delta()
 {
@@ -535,7 +533,6 @@ void SrsRtspConnection::expire()
     trd_->interrupt();
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsRtspConnection::start()
 {
     srs_error_t err = srs_success;
@@ -613,7 +610,6 @@ srs_error_t SrsRtspConnection::do_cycle()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsRtspConnection::on_rtsp_request(SrsRtspRequest *req_raw)
 {

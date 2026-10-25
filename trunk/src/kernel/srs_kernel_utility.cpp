@@ -417,7 +417,6 @@ int srs_do_create_dir_recursively(string dir)
         ret = ERROR_SUCCESS;
     }
 
-    // LCOV_EXCL_START
     // create curren dir.
     if (_srs_mkdir_fn(dir.c_str()) < 0) {
         if (errno == EEXIST) {
@@ -428,7 +427,6 @@ int srs_do_create_dir_recursively(string dir)
         srs_error("create dir %s failed. ret=%d", dir.c_str(), ret);
         return ret;
     }
-    // LCOV_EXCL_STOP
 
     srs_info("create dir %s success.", dir.c_str());
 

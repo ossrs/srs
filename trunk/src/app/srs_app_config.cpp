@@ -162,7 +162,6 @@ SrsConfigBuffer::~SrsConfigBuffer()
     srs_freepa(start_);
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsConfigBuffer::fullfill(const char *filename)
 {
     srs_error_t err = srs_success;
@@ -193,7 +192,6 @@ srs_error_t SrsConfigBuffer::fullfill(const char *filename)
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 bool SrsConfigBuffer::empty()
 {
@@ -692,7 +690,6 @@ srs_error_t srs_config_transform_vhost(SrsConfDirective *root)
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t srs_config_dumps_engine(SrsConfDirective *dir, SrsJsonObject *engine)
 {
     srs_error_t err = srs_success;
@@ -794,7 +791,6 @@ srs_error_t srs_config_dumps_engine(SrsConfDirective *dir, SrsJsonObject *engine
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 SrsConfDirective::SrsConfDirective()
 {
@@ -1074,7 +1070,6 @@ srs_error_t SrsConfDirective::persistence(SrsFileWriter *writer, int level)
     return err;
 }
 
-// LCOV_EXCL_START
 SrsJsonArray *SrsConfDirective::dumps_args()
 {
     SrsJsonArray *arr = SrsJsonAny::array();
@@ -1104,7 +1099,6 @@ SrsJsonAny *SrsConfDirective::dumps_arg0_to_boolean()
 {
     return SrsJsonAny::boolean(arg0() == "on");
 }
-// LCOV_EXCL_STOP
 
 // see: ngx_conf_parse
 srs_error_t SrsConfDirective::parse_conf(SrsConfigBuffer *buffer, SrsDirectiveContext ctx, SrsConfig *conf)
@@ -1448,7 +1442,6 @@ void SrsConfig::unsubscribe(ISrsReloadHandler *handler)
     it = subscribes_.erase(it);
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsConfig::reload(SrsReloadState *pstate)
 {
     *pstate = SrsReloadStateInit;
@@ -1481,7 +1474,6 @@ srs_error_t SrsConfig::reload(SrsReloadState *pstate)
     *pstate = SrsReloadStateFinished;
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::reload_conf(SrsConfig *conf)
 {
@@ -1544,7 +1536,6 @@ srs_error_t SrsConfig::reload_conf(SrsConfig *conf)
 }
 
 // see: ngx_get_options
-// LCOV_EXCL_START
 srs_error_t SrsConfig::parse_options(int argc, char **argv)
 {
     srs_error_t err = srs_success;
@@ -1756,7 +1747,6 @@ string SrsConfig::config()
     return config_file_;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsConfig::parse_argv(int &i, char **argv)
 {
     srs_error_t err = srs_success;
@@ -2173,7 +2163,6 @@ srs_error_t SrsConfig::build_buffer(string src, SrsConfigBuffer **pbuffer)
     *pbuffer = buffer;
     return err;
 }
-// LCOV_EXCL_STOP
 
 // Parse the value as a finite number, such as 10, 0.5 or 1e3; false for nan, inf or a value with no number.
 static bool srs_config_parse_finite(const string &value, double *v)
@@ -3080,7 +3069,6 @@ srs_error_t SrsConfig::check_normal_config()
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsConfig::check_number_connections()
 {
     srs_error_t err = srs_success;
@@ -3103,7 +3091,6 @@ srs_error_t SrsConfig::check_number_connections()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsConfig::parse_buffer(SrsConfigBuffer *buffer)
 {

@@ -53,7 +53,6 @@ SrsHlsVirtualConn::~SrsHlsVirtualConn()
     srs_freep(req_);
 }
 
-// LCOV_EXCL_START
 void SrsHlsVirtualConn::expire()
 {
     interrupt_ = true;
@@ -61,7 +60,6 @@ void SrsHlsVirtualConn::expire()
     // remove statistic quickly
     stat_->on_disconnect(ctx_, srs_success);
 }
-// LCOV_EXCL_STOP
 
 SrsHlsStream::SrsHlsStream()
 {
@@ -168,7 +166,6 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     return err;
 }
 
-// LCOV_EXCL_START
 void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     string ctx = r->query_get(SRS_CONTEXT_IN_HLS);
@@ -190,7 +187,6 @@ void SrsHlsStream::on_serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r
     // session id to match the client.
     stat_->kbps_add_delta(ctx, delta);
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, ISrsRequest *req, std::string &ctx)
 {
@@ -367,7 +363,6 @@ void SrsHlsStream::alive(std::string ctx, ISrsRequest *req)
     }
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHlsStream::http_hooks_on_play(ISrsRequest *req)
 {
     srs_error_t err = srs_success;
@@ -400,9 +395,7 @@ srs_error_t SrsHlsStream::http_hooks_on_play(ISrsRequest *req)
 
     return err;
 }
-// LCOV_EXCL_STOP
 
-// LCOV_EXCL_START
 void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
 {
     if (!config_->get_vhost_http_hooks_enabled(req->vhost_)) {
@@ -433,7 +426,6 @@ void SrsHlsStream::http_hooks_on_stop(ISrsRequest *req)
 
     return;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsStream::on_timer(srs_utime_t interval)
 {
@@ -697,7 +689,6 @@ srs_error_t SrsVodStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessage *r, std::string fullpath)
 {
     srs_error_t err = srs_success;
@@ -720,7 +711,6 @@ srs_error_t SrsVodStream::serve_ts_ctx(ISrsHttpResponseWriter *w, ISrsHttpMessag
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 ISrsHttpStaticServer::ISrsHttpStaticServer()
 {
@@ -744,12 +734,10 @@ SrsHttpStaticServer::~SrsHttpStaticServer()
     config_ = NULL;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHttpStaticServer::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
 {
     return mux_->serve_http(w, r);
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpStaticServer::initialize()
 {

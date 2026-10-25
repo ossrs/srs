@@ -131,7 +131,6 @@ srs_error_t SrsMpegtsQueue::push(SrsMediaPacket *msg)
             break;
         }
 
-        // LCOV_EXCL_START
         // adjust the ts, add 1ms.
         msg->timestamp_ += 1;
 
@@ -140,7 +139,6 @@ srs_error_t SrsMpegtsQueue::push(SrsMediaPacket *msg)
             srs_freep(msg);
             return err;
         }
-        // LCOV_EXCL_STOP
     }
 
     if (msg->is_audio()) {
@@ -229,13 +227,11 @@ void SrsMpegtsOverUdp::assemble()
     pprint_ = SrsPithyPrint::create_caster();
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsMpegtsOverUdp::initialize(SrsConfDirective *c)
 {
     output_ = config_->get_stream_caster_output(c);
     return srs_success;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsMpegtsOverUdp::on_udp_packet(const sockaddr *from, const int fromlen, char *buf, int nb_buf)
 {
@@ -334,7 +330,6 @@ srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char *buf, int
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage *msg)
 {
     srs_error_t err = srs_success;
@@ -424,9 +419,7 @@ srs_error_t SrsMpegtsOverUdp::on_ts_message(SrsTsMessage *msg)
     // TODO: FIXME: implements it.
     return err;
 }
-// LCOV_EXCL_STOP
 
-// LCOV_EXCL_START
 srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
@@ -527,7 +520,6 @@ srs_error_t SrsMpegtsOverUdp::on_ts_video(SrsTsMessage *msg, SrsBuffer *avs)
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsMpegtsOverUdp::write_h264_sps_pps(uint32_t dts, uint32_t pts)
 {
@@ -594,7 +586,6 @@ srs_error_t SrsMpegtsOverUdp::write_h264_ipb_frame(const std::string &ibps, bool
     return rtmp_write_packet(SrsFrameTypeVideo, timestamp, flv, nb_flv);
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsMpegtsOverUdp::on_ts_audio(SrsTsMessage *msg, SrsBuffer *avs)
 {
     srs_error_t err = srs_success;
@@ -671,7 +662,6 @@ srs_error_t SrsMpegtsOverUdp::write_audio_raw_frame(char *frame, int frame_size,
 
     return rtmp_write_packet(SrsFrameTypeAudio, dts, data, size);
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, char *data, int size)
 {
@@ -702,7 +692,6 @@ srs_error_t SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, c
             break;
         }
 
-        // LCOV_EXCL_START
         if (pprint_->can_print()) {
             srs_trace("mpegts: send msg %s age=%d, dts=%" PRId64 ", size=%d",
                       msg->is_audio() ? "A" : msg->is_video() ? "V"
@@ -715,7 +704,6 @@ srs_error_t SrsMpegtsOverUdp::rtmp_write_packet(char type, uint32_t timestamp, c
             close();
             return srs_error_wrap(err, "send messages");
         }
-        // LCOV_EXCL_STOP
     }
 
     return err;

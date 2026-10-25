@@ -28,7 +28,6 @@ SrsCoWorkers *_srs_coworkers = NULL;
 
 SrsCoWorkers *SrsCoWorkers::instance_ = NULL;
 
-// LCOV_EXCL_START
 SrsCoWorkers::SrsCoWorkers()
 {
     config_ = _srs_config;
@@ -135,7 +134,6 @@ ISrsRequest *SrsCoWorkers::find_stream_info(string vhost, string app, string str
 
     return it->second;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsCoWorkers::on_publish(ISrsRequest *r)
 {

@@ -141,7 +141,6 @@ SrsHttpConn::~SrsHttpConn()
     context_ = NULL;
 }
 
-// LCOV_EXCL_START
 std::string SrsHttpConn::desc()
 {
     return "HttpConn";
@@ -151,7 +150,6 @@ ISrsKbpsDelta *SrsHttpConn::delta()
 {
     return delta_;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpConn::start()
 {
@@ -390,7 +388,6 @@ string SrsHttpConn::remote_ip()
     return ip_;
 }
 
-// LCOV_EXCL_START
 const SrsContextId &SrsHttpConn::get_id()
 {
     return trd_->cid();
@@ -400,7 +397,6 @@ void SrsHttpConn::expire()
 {
     trd_->interrupt();
 }
-// LCOV_EXCL_STOP
 
 ISrsHttpxConn::ISrsHttpxConn()
 {
@@ -568,7 +564,6 @@ srs_error_t SrsHttpxConn::on_conn_done(srs_error_t r0)
     return r0;
 }
 
-// LCOV_EXCL_START
 std::string SrsHttpxConn::desc()
 {
     if (ssl_) {
@@ -586,7 +581,6 @@ const SrsContextId &SrsHttpxConn::get_id()
 {
     return conn_->get_id();
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpxConn::start()
 {

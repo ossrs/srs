@@ -721,7 +721,6 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
 }
 
 // For media server, we don't care the codec, so we just try to parse sps-pps, and we could ignore any error if fail.
-// LCOV_EXCL_START
 
 // struct ptl
 SrsHevcProfileTierLevel::SrsHevcProfileTierLevel()
@@ -2192,8 +2191,6 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
 
     return err;
 }
-
-// LCOV_EXCL_STOP
 
 srs_error_t SrsFormat::video_nalu_demux(SrsBuffer *stream)
 {

@@ -74,7 +74,6 @@ SrsSimpleRtmpClient::~SrsSimpleRtmpClient()
     config_ = NULL;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsSimpleRtmpClient::connect_app()
 {
     SrsProtocolUtility utility;
@@ -86,7 +85,6 @@ srs_error_t SrsSimpleRtmpClient::connect_app()
 
     return do_connect_app(local_ip->ip_, debug_srs_upnode);
 }
-// LCOV_EXCL_STOP
 
 SrsClientInfo::SrsClientInfo()
 {
@@ -118,12 +116,10 @@ srs_netfd_t SrsRtmpTransport::fd()
     return stfd_;
 }
 
-// LCOV_EXCL_START
 int SrsRtmpTransport::osfd()
 {
     return srs_netfd_fileno(stfd_);
 }
-// LCOV_EXCL_STOP
 
 ISrsProtocolReadWriter *SrsRtmpTransport::io()
 {
@@ -140,7 +136,6 @@ const char *SrsRtmpTransport::transport_type()
     return "plaintext";
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsRtmpTransport::set_socket_buffer(srs_utime_t buffer_v)
 {
     return skt_->set_socket_buffer(buffer_v);
@@ -150,7 +145,6 @@ srs_error_t SrsRtmpTransport::set_tcp_nodelay(bool v)
 {
     return skt_->set_tcp_nodelay(v);
 }
-// LCOV_EXCL_STOP
 
 int64_t SrsRtmpTransport::get_recv_bytes()
 {
@@ -162,7 +156,6 @@ int64_t SrsRtmpTransport::get_send_bytes()
     return skt_->get_send_bytes();
 }
 
-// LCOV_EXCL_START
 SrsRtmpsTransport::SrsRtmpsTransport(srs_netfd_t c) : SrsRtmpTransport(c)
 {
     ssl_ = new SrsSslConnection(skt_);
@@ -198,7 +191,6 @@ const char *SrsRtmpsTransport::transport_type()
 {
     return "ssl";
 }
-// LCOV_EXCL_STOP
 
 SrsRtmpConn::SrsRtmpConn(ISrsRtmpTransport *transport, string cip, int cport)
 {
@@ -298,12 +290,10 @@ SrsRtmpConn::~SrsRtmpConn()
 #endif
 }
 
-// LCOV_EXCL_START
 std::string SrsRtmpConn::desc()
 {
     return "RtmpConn";
 }
-// LCOV_EXCL_STOP
 
 std::string srs_ipv4_string(uint32_t rip)
 {
@@ -349,7 +339,6 @@ srs_error_t SrsRtmpConn::do_cycle()
 
     // show client identity
     if (req->args_) {
-        // LCOV_EXCL_START
         std::string srs_version;
         std::string srs_server_ip;
         int srs_pid = 0;
@@ -373,7 +362,6 @@ srs_error_t SrsRtmpConn::do_cycle()
             srs_trace("edge-srs ip=%s, version=%s, pid=%d, id=%d",
                       srs_server_ip.c_str(), srs_version.c_str(), srs_pid, srs_id);
         }
-        // LCOV_EXCL_STOP
     }
 
     if ((err = service_cycle()) != srs_success) {
@@ -394,12 +382,10 @@ srs_error_t SrsRtmpConn::do_cycle()
     return err;
 }
 
-// LCOV_EXCL_START
 ISrsKbpsDelta *SrsRtmpConn::delta()
 {
     return delta_;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsRtmpConn::service_cycle()
 {
@@ -460,7 +446,6 @@ srs_error_t SrsRtmpConn::service_cycle()
             return srs_error_wrap(err, "rtmp: stream service");
         }
 
-        // LCOV_EXCL_START
         // for republish, continue service
         if (srs_error_code(err) == ERROR_CONTROL_REPUBLISH) {
             // set timeout to a larger value, wait for encoder to republish.
@@ -487,7 +472,6 @@ srs_error_t SrsRtmpConn::service_cycle()
 
         // for other system control message, fatal error.
         return srs_error_wrap(err, "rtmp: reject");
-        // LCOV_EXCL_STOP
     }
 
     return err;
@@ -509,14 +493,12 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
 
     srs_net_url_parse_tcurl(req->tcUrl_, req->schema_, req->host_, req->vhost_, req->app_, req->stream_, req->port_, req->param_);
 
-    // LCOV_EXCL_START
     // guess stream name
     if (req->stream_.empty()) {
         string app = req->app_, param = req->param_;
         srs_net_url_guess_stream(req->app_, req->param_, req->stream_);
         srs_trace("Guessing by app=%s, param=%s to app=%s, param=%s, stream=%s", app.c_str(), param.c_str(), req->app_.c_str(), req->param_.c_str(), req->stream_.c_str());
     }
-    // LCOV_EXCL_STOP
 
     req->strip();
     srs_trace("client identified, type=%s, vhost=%s, app=%s, stream=%s, param=%s, duration=%dms",
@@ -629,12 +611,10 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
 
         return publishing(live_source);
     }
-    // LCOV_EXCL_START
     default: {
         return srs_error_new(ERROR_SYSTEM_CLIENT_INVALID, "rtmp: unknown client type=%d", info_->type_);
     }
     }
-    // LCOV_EXCL_STOP
 
     return err;
 }
@@ -729,7 +709,6 @@ srs_error_t SrsRtmpConn::playing(SrsSharedPtr<SrsLiveSource> source)
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsRtmpConn::redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> source)
 {
     srs_error_t err = srs_success;
@@ -772,7 +751,6 @@ srs_error_t SrsRtmpConn::redirect_to_origin_cluster(SrsSharedPtr<SrsLiveSource> 
 
     return srs_error_new(ERROR_OCLUSTER_REDIRECT, "no origin");
 }
-// LCOV_EXCL_STOP
 
 void SrsRtmpConn::drain_client_input()
 {
@@ -870,7 +848,6 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
             continue;
         }
 
-        // LCOV_EXCL_START
         // only when user specifies the duration,
         // we start to collect the durations for each message.
         if (user_specified_duration_to_stop) {
@@ -892,7 +869,6 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
         if (count > 0 && (err = rtmp_->send_and_free_messages(msgs.msgs_, count, info_->res_->stream_id_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: send %d messages", count);
         }
-        // LCOV_EXCL_STOP
 
         // if duration specified, and exceed it, stop play live.
         // @see: https://github.com/ossrs/srs/issues/45
@@ -1065,7 +1041,6 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
             return srs_error_wrap(err, "rtmp: receive thread");
         }
 
-        // LCOV_EXCL_START
         // when not got any messages, timeout.
         if (rtrd->nb_msgs() <= nb_msgs) {
             return srs_error_new(ERROR_SOCKET_TIMEOUT, "rtmp: publish timeout %dms, nb_msgs=%d",
@@ -1088,7 +1063,6 @@ srs_error_t SrsRtmpConn::do_publishing(SrsSharedPtr<SrsLiveSource> source, SrsPu
                       kbps_->get_recv_kbps(), kbps_->get_recv_kbps_30s(), kbps_->get_recv_kbps_5m(), mr, srsu2msi(mr_sleep),
                       srsu2msi(publish_1stpkt_timeout_), srsu2msi(publish_normal_timeout_));
         }
-        // LCOV_EXCL_STOP
     }
 
     return err;
@@ -1254,7 +1228,6 @@ srs_error_t SrsRtmpConn::process_publish_message(SrsSharedPtr<SrsLiveSource> &so
 {
     srs_error_t err = srs_success;
 
-    // LCOV_EXCL_START
     // for edge, directly proxy message to origin.
     if (info_->edge_) {
         if ((err = source->on_edge_proxy_publish(msg)) != srs_success) {
@@ -1262,7 +1235,6 @@ srs_error_t SrsRtmpConn::process_publish_message(SrsSharedPtr<SrsLiveSource> &so
         }
         return err;
     }
-    // LCOV_EXCL_STOP
 
     // process audio packet
     if (msg->header_.is_audio()) {
@@ -1279,7 +1251,6 @@ srs_error_t SrsRtmpConn::process_publish_message(SrsSharedPtr<SrsLiveSource> &so
         return err;
     }
 
-    // LCOV_EXCL_START
     // process aggregate packet
     if (msg->header_.is_aggregate()) {
         if ((err = source->on_aggregate(msg)) != srs_success) {
@@ -1305,7 +1276,6 @@ srs_error_t SrsRtmpConn::process_publish_message(SrsSharedPtr<SrsLiveSource> &so
         }
         return err;
     }
-    // LCOV_EXCL_STOP
 
     return err;
 }
@@ -1340,7 +1310,6 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer *consumer, Srs
     // TODO: FIXME: response in right way, or forward in edge mode.
     SrsCallPacket *call = dynamic_cast<SrsCallPacket *>(pkt.get());
     if (call) {
-        // LCOV_EXCL_START
         // only response it when transaction id not zero,
         // for the zero means donot need response.
         if (call->transaction_id_ > 0) {
@@ -1352,7 +1321,6 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer *consumer, Srs
             }
         }
         return err;
-        // LCOV_EXCL_STOP
     }
 
     // pause
@@ -1371,7 +1339,6 @@ srs_error_t SrsRtmpConn::process_play_control_msg(SrsLiveConsumer *consumer, Srs
     return err;
 }
 
-// LCOV_EXCL_START
 void SrsRtmpConn::set_sock_options()
 {
     ISrsRequest *req = info_->req_;
@@ -1387,7 +1354,6 @@ void SrsRtmpConn::set_sock_options()
         }
     }
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsRtmpConn::on_disconnect()
 {
@@ -1630,7 +1596,6 @@ srs_error_t SrsRtmpConn::cycle()
     // Note that we create this object, so we use manager to remove it.
     manager_->remove(this);
 
-    // LCOV_EXCL_START
     // success.
     if (err == srs_success) {
         srs_trace("client finished.");
@@ -1653,7 +1618,6 @@ srs_error_t SrsRtmpConn::cycle()
     } else {
         srs_error("serve error %s", srs_error_desc(err).c_str());
     }
-    // LCOV_EXCL_STOP
 
     srs_freep(err);
     return srs_success;
@@ -1669,9 +1633,7 @@ const SrsContextId &SrsRtmpConn::get_id()
     return trd_->cid();
 }
 
-// LCOV_EXCL_START
 void SrsRtmpConn::expire()
 {
     trd_->interrupt();
 }
-// LCOV_EXCL_STOP
