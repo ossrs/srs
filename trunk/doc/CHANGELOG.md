@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v8-changes"></a>
 
 ## SRS 8.0 Changelog
+* v8.0, 2026-10-24, Merge [#4784](https://github.com/ossrs/srs/pull/4784): RTC: Fix memory leak of track descriptions on each WebRTC play. v8.0.68 (#4784)
 * v8.0, 2026-10-24, Merge [#4782](https://github.com/ossrs/srs/pull/4782): RTC: Fix negative SDP session-id on Android. v8.0.67 (#4782)
 * v8.0, 2026-10-24, Merge [#4779](https://github.com/ossrs/srs/pull/4779): Kernel: Fix undefined behavior when dumping empty avcC, hvcC and ESDS boxes. v8.0.66 (#4779)
 * <strong>v8.0, 2026-10-24, [8.0 dev2(8.0.65)](https://github.com/ossrs/srs/releases/tag/v8.0-d2) released. 360819 lines.</strong>
