@@ -280,13 +280,143 @@ func TestRawPublish(t *testing.T) {
 	}
 }
 
+// TestRawSRTP plays and publishes with SRTP to a fake ICE-lite server, over
+// UDP and over TCP. The publisher sends what its rewrite function returns in
+// place of each packet, protected, and what its tamper function returns in
+// place of each protected one; WriteRTCP protects any bytes after a first
+// RTCP header, and WriteRaw sends bytes as they are.
+func TestRawSRTP(t *testing.T) {
+	for _, tcp := range []bool{false, true} {
+		t.Run(fmt.Sprintf("TCP=%v/Play", tcp), func(t *testing.T) {
+			t.Parallel()
+			srv := newFakeRawWith(t, true, tcp, true)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			p, err := RawPlay(ctx, srv.URL+"/rtc/v1/whep/?app=live&stream=s", &Options{TCP: tcp, SRTP: true}, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer p.Close()
+			if err := p.RequestKeyframe(); err != nil {
+				t.Fatal(err)
+			}
+			if err := srv.waitPLI(ctx, 1111); err != nil {
+				t.Fatal(err)
+			}
+			srv.sendSamples(t, readSamples(t, 2*time.Second))
+			r, err := p.Until(ctx, report.Until{VideoHeader: true, Keyframes: 2, VideoFrames: 50, AudioFrames: 100})
+			if err != nil {
+				t.Fatal(err)
+			}
+			checkTwoSeconds(t, r)
+		})
+
+		t.Run(fmt.Sprintf("TCP=%v/Publish", tcp), func(t *testing.T) {
+			t.Parallel()
+			srv := newFakeRawWith(t, true, tcp, true)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			p, err := RawPublish(ctx, srv.URL+"/rtc/v1/whip/?app=live&stream=s", &Options{TCP: tcp, SRTP: true}, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer p.Close()
+			srv.sendPLI(t)
+			if err := p.WaitPLI(ctx, 0); err != nil {
+				t.Fatal(err)
+			}
+			samples := readSamples(t, 3*time.Second)
+			var first, rest []Sample
+			for _, s := range samples {
+				if s.DTS < 2*time.Second {
+					first = append(first, s)
+				} else {
+					rest = append(rest, s)
+				}
+			}
+			if err := p.Send(ctx, first, burstPacer(tcp)); err != nil {
+				t.Fatal(err)
+			}
+			r, err := srv.analysis.Until(ctx, report.Until{VideoHeader: true, Keyframes: 2, VideoFrames: 50, AudioFrames: 99})
+			if err != nil {
+				t.Fatal(err)
+			}
+			checkTwoSeconds(t, r)
+			if bad, _ := srv.received(); bad != 0 {
+				t.Errorf("%v packets the server couldn't unprotect", bad)
+			}
+
+			// The rewrite function sends no audio, and the tamper function
+			// sends each video packet twice: as it is, and with its last
+			// byte, of the authentication tag, changed, which the server
+			// can't unprotect.
+			var mu sync.Mutex
+			var video int
+			p.Rewrite(func(b []byte, isVideo bool) [][]byte {
+				if !isVideo {
+					return nil
+				}
+				return [][]byte{b}
+			})
+			p.Tamper(func(b []byte, isVideo bool) [][]byte {
+				if !isVideo {
+					return [][]byte{b}
+				}
+				mu.Lock()
+				video++
+				mu.Unlock()
+				bad := append([]byte(nil), b...)
+				bad[len(bad)-1] ^= 0xff
+				return [][]byte{bad, b}
+			})
+			audio := r.Audio.Frames
+			if err := p.Send(ctx, rest, burstPacer(tcp)); err != nil {
+				t.Fatal(err)
+			}
+			r, err = srv.analysis.Until(ctx, report.Until{VideoFrames: 75})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Audio.Frames != audio {
+				t.Errorf("%v audio frames after the rewrite, want %v", r.Audio.Frames, audio)
+			}
+			p.Rewrite(nil)
+			p.Tamper(nil)
+
+			// An RTCP packet with bytes after its header that aren't RTCP,
+			// and RTP that SRTP didn't protect.
+			junk := []byte{0x80, 200, 0, 1, 0, 0, 0, 1, 0xde, 0xad}
+			if err := p.WriteRTCP(junk); err != nil {
+				t.Fatal(err)
+			}
+			if err := p.WriteRaw([]byte{0x80, 96, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0xde, 0xad}); err != nil {
+				t.Fatal(err)
+			}
+			mu.Lock()
+			want := video + 1
+			mu.Unlock()
+			for {
+				bad, rtcps := srv.received()
+				if bad == want && len(rtcps) > 0 && string(rtcps[len(rtcps)-1]) == string(junk) {
+					break
+				}
+				if ctx.Err() != nil {
+					t.Fatalf("%v packets the server couldn't unprotect, want %v; RTCP %x", bad, want, rtcps)
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		})
+	}
+}
+
 // A fakeRaw is an ICE-lite server in the test that answers WHIP and WHEP
 // with srsAnswer's credentials and codecs, on a UDP port, or a TCP port, of
 // its own: it answers STUN, does the DTLS handshake as the server when
-// asked, and sends and reads clear RTP.
+// asked, and sends and reads RTP, in clear or with SRTP.
 type fakeRaw struct {
 	URL      string
 	withDTLS bool
+	withSRTP bool
 	tcp      bool
 	udp      *net.UDPConn
 	ln       net.Listener
@@ -298,6 +428,12 @@ type fakeRaw struct {
 	peer       net.Conn
 	mux        *mux
 	plis       []uint32
+	// srtp protects what the server sends and unprotects what it receives,
+	// once the handshake is done; bad counts the packets it couldn't
+	// unprotect, and rtcp is the RTCP packets it received, in clear.
+	srtp       *srtpPair
+	bad        int
+	rtcp       [][]byte
 	ready      chan struct{}
 	vs         *sender
 	as         *sender
@@ -316,6 +452,13 @@ func newFakeRaw(t *testing.T, withDTLS bool) *fakeRaw {
 // is set, framed as RFC 4571 says, and over UDP otherwise.
 func newFakeRawOn(t *testing.T, withDTLS, tcp bool) *fakeRaw {
 	t.Helper()
+	return newFakeRawWith(t, withDTLS, tcp, false)
+}
+
+// newFakeRawWith makes a fake server that protects its RTP and RTCP with
+// SRTP after the DTLS handshake when withSRTP is set.
+func newFakeRawWith(t *testing.T, withDTLS, tcp, withSRTP bool) *fakeRaw {
+	t.Helper()
 	udp, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {
 		t.Fatal(err)
@@ -324,7 +467,7 @@ func newFakeRawOn(t *testing.T, withDTLS, tcp bool) *fakeRaw {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &fakeRaw{withDTLS: withDTLS, tcp: tcp, udp: udp, ln: ln, analysis: newAnalysis(), ready: make(chan struct{}),
+	f := &fakeRaw{withDTLS: withDTLS, withSRTP: withSRTP, tcp: tcp, udp: udp, ln: ln, analysis: newAnalysis(), ready: make(chan struct{}),
 		vs: newVideoSender(), as: newAudioSender()}
 	answer := strings.ReplaceAll(srsAnswer, " 14100 ", fmt.Sprintf(" %d ", udp.LocalAddr().(*net.UDPAddr).Port))
 	answer = strings.ReplaceAll(answer, " 14101 ", fmt.Sprintf(" %d ", ln.Addr().(*net.TCPAddr).Port))
@@ -428,6 +571,16 @@ func (f *fakeRaw) serve(t *testing.T) {
 			t.Error(err)
 			return
 		}
+		if f.withSRTP {
+			s, err := newSRTPPair(c, false)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			f.mu.Lock()
+			f.srtp = s
+			f.mu.Unlock()
+		}
 	}
 	close(f.ready)
 	for {
@@ -437,7 +590,19 @@ func (f *fakeRaw) serve(t *testing.T) {
 		case <-m.done:
 			return
 		}
+		if f.srtp != nil {
+			var err error
+			if p, err = f.srtp.unprotect(p); err != nil {
+				f.mu.Lock()
+				f.bad++
+				f.mu.Unlock()
+				continue
+			}
+		}
 		if isRTCP(p) {
+			f.mu.Lock()
+			f.rtcp = append(f.rtcp, p)
+			f.mu.Unlock()
 			pkts, err := rtcp.Unmarshal(p)
 			if err != nil {
 				continue
@@ -562,12 +727,33 @@ func (f *fakeRaw) sendSamples(t *testing.T, samples []Sample) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			peer.Write(b)
+			peer.Write(f.protect(t, b))
 		}
 	}
 }
 
-// sendPLI sends a clear PLI to the publisher.
+// protect returns a packet as the server sends it.
+func (f *fakeRaw) protect(t *testing.T, b []byte) []byte {
+	t.Helper()
+	if f.srtp == nil {
+		return b
+	}
+	b, err := f.srtp.protect(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// received returns how many packets the server couldn't unprotect, and the
+// RTCP packets it received.
+func (f *fakeRaw) received() (int, [][]byte) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.bad, append([][]byte(nil), f.rtcp...)
+}
+
+// sendPLI sends a PLI to the publisher.
 func (f *fakeRaw) sendPLI(t *testing.T) {
 	t.Helper()
 	peer := f.waitReady(t)
@@ -575,7 +761,7 @@ func (f *fakeRaw) sendPLI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	peer.Write(b)
+	peer.Write(f.protect(t, b))
 }
 
 // A peerConn is a UDP socket as a connection to one peer.

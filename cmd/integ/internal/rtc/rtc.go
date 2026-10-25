@@ -86,6 +86,10 @@ type Options struct {
 	// Dropper loses RTP packets of the session in its UDP socket, as a
 	// network does.
 	Dropper *Dropper
+	// SRTP makes a raw session protect what it sends, and unprotect what it
+	// receives, with the keys of its DTLS handshake, for a server that
+	// encrypts, as SRS does unless encrypt=false.
+	SRTP bool
 }
 
 func (o *Options) client() *http.Client {

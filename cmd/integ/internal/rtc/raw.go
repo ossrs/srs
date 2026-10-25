@@ -34,7 +34,7 @@ import (
 // of, and for checks of ICE itself. It sends STUN binding requests to the
 // server's UDP candidate, or its TCP one with Options.TCP, until one is
 // answered, then does the DTLS handshake, or none, and sends and reads RTP
-// and RTCP in clear.
+// and RTCP in clear, or with SRTP when Options.SRTP is set.
 type RawSession struct {
 	Session
 	// DTLS tells whether the session did a DTLS handshake.
@@ -45,6 +45,29 @@ type RawSession struct {
 	conn   net.Conn
 	mux    *mux
 	dconn  *dtls.Conn
+	srtp   *srtpPair
+}
+
+// WriteRaw sends b to the server as it is, with no SRTP.
+func (s *RawSession) WriteRaw(b []byte) error {
+	_, err := s.conn.Write(b)
+	return err
+}
+
+// protect returns an RTP or RTCP packet as the session sends it.
+func (s *RawSession) protect(b []byte) ([]byte, error) {
+	if s.srtp == nil {
+		return b, nil
+	}
+	return s.srtp.protect(b)
+}
+
+// unprotect returns an RTP or RTCP packet the session received in clear.
+func (s *RawSession) unprotect(b []byte) ([]byte, error) {
+	if s.srtp == nil {
+		return b, nil
+	}
+	return s.srtp.unprotect(b)
 }
 
 // Close closes the DTLS connection, which tells the server with a
@@ -107,10 +130,11 @@ func (s *RawSession) connect(ctx context.Context, url string, withDTLS bool) (er
 		SRTPProtectionProfiles: []dtls.SRTPProtectionProfile{dtls.SRTP_AES128_CM_HMAC_SHA1_80},
 	}
 	// The server is passive unless its answer says active.
-	if strings.Contains(s.Answer, "a=setup:active") {
-		s.dconn, err = dtls.Server(s.mux.packetConn(), s.conn.RemoteAddr(), cfg)
-	} else {
+	isClient := !strings.Contains(s.Answer, "a=setup:active")
+	if isClient {
 		s.dconn, err = dtls.Client(s.mux.packetConn(), s.conn.RemoteAddr(), cfg)
+	} else {
+		s.dconn, err = dtls.Server(s.mux.packetConn(), s.conn.RemoteAddr(), cfg)
 	}
 	if err != nil {
 		return err
@@ -119,6 +143,11 @@ func (s *RawSession) connect(ctx context.Context, url string, withDTLS bool) (er
 		return fmt.Errorf("DTLS handshake: %w", err)
 	}
 	s.DTLS = true
+	if s.opts != nil && s.opts.SRTP {
+		if s.srtp, err = newSRTPPair(s.dconn, isClient); err != nil {
+			return fmt.Errorf("SRTP: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -174,13 +203,14 @@ func (s *RawSession) media(kind, codec string) (*answerMedia, uint8, error) {
 	return nil, 0, fmt.Errorf("the answer has no %v %v", kind, codec)
 }
 
-// A RawPublisher sends H.264 and Opus in clear RTP.
+// A RawPublisher sends H.264 and Opus in RTP.
 type RawPublisher struct {
 	RawSession
 	*pliCounter
 
-	mu           sync.Mutex
-	video, audio rawTrack
+	mu              sync.Mutex
+	video, audio    rawTrack
+	rewrite, tamper func(b []byte, video bool) [][]byte
 }
 
 // A rawTrack is a track a raw publisher sends: its packets, SSRC and payload
@@ -236,6 +266,10 @@ func (p *RawPublisher) readRTCP() {
 			if !isRTCP(b) {
 				continue
 			}
+			b, err := p.unprotect(b)
+			if err != nil {
+				continue
+			}
 			if pkts, err := rtcp.Unmarshal(b); err == nil {
 				p.countPLIs(pkts)
 			}
@@ -259,6 +293,59 @@ func (p *RawPublisher) Write(s Sample) error {
 		if err != nil {
 			return err
 		}
+		out := [][]byte{b}
+		if p.rewrite != nil {
+			out = p.rewrite(b, s.Video)
+		}
+		for _, b := range out {
+			if err := p.send(b, s.Video); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// WriteRTCP sends an RTCP packet, which may be a compound one, or anything
+// after its first header.
+func (p *RawPublisher) WriteRTCP(b []byte) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.send(b, false)
+}
+
+// Rewrite has the publisher send, in place of each RTP packet of its
+// samples, in clear, the packets f returns, which it then sends as the
+// others; nil sends each as it is again. f runs while the publisher writes,
+// and must not call it.
+func (p *RawPublisher) Rewrite(f func(b []byte, video bool) [][]byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.rewrite = f
+}
+
+// Tamper has the publisher send, in place of each RTP or RTCP packet as it
+// goes to the network, after SRTP, the packets f returns; nil sends each as
+// it is again. video is false for RTCP. f runs while the publisher writes,
+// and must not call it.
+func (p *RawPublisher) Tamper(f func(b []byte, video bool) [][]byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.tamper = f
+}
+
+// send protects a packet and sends it, or what the tamper function returns
+// in its place. The caller holds mu.
+func (p *RawPublisher) send(b []byte, video bool) error {
+	b, err := p.protect(b)
+	if err != nil {
+		return err
+	}
+	out := [][]byte{b}
+	if p.tamper != nil {
+		out = p.tamper(b, video)
+	}
+	for _, b := range out {
 		if _, err := p.conn.Write(b); err != nil {
 			return err
 		}
@@ -303,6 +390,10 @@ func (p *RawPlayer) readRTP() {
 		if isRTCP(b) {
 			continue
 		}
+		b, err := p.unprotect(b)
+		if err != nil {
+			continue
+		}
 		var pkt rtp.Packet
 		if pkt.Unmarshal(b) != nil {
 			continue
@@ -316,8 +407,8 @@ func (p *RawPlayer) readRTP() {
 	}
 }
 
-// RequestKeyframe sends a picture loss indication, in clear RTCP, for the
-// video the server sends.
+// RequestKeyframe sends a picture loss indication for the video the server
+// sends.
 func (p *RawPlayer) RequestKeyframe() error {
 	m, _, err := p.media("video", "h264")
 	if err != nil {
@@ -328,6 +419,9 @@ func (p *RawPlayer) RequestKeyframe() error {
 	}
 	b, err := rtcp.Marshal([]rtcp.Packet{&rtcp.PictureLossIndication{SenderSSRC: 1, MediaSSRC: m.ssrc}})
 	if err != nil {
+		return err
+	}
+	if b, err = p.protect(b); err != nil {
 		return err
 	}
 	_, err = p.conn.Write(b)
