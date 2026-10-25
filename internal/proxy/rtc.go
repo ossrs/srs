@@ -379,12 +379,15 @@ func (v *webRTCProxyServer) handleClientUDP(ctx context.Context, addr net.Addr, 
 		return err
 	}
 
-	// Search the connection by addr.
-	if s, ok := v.addresses.Load(addr.String()); ok {
+	// A STUN binding names its connection by ufrag. A new session can reuse
+	// the address of one that ended, so the ufrag wins and the address cache
+	// follows it; other packets are found by the address.
+	if connection != nil {
+		if s, ok := v.addresses.Load(addr.String()); !ok || s != connection {
+			v.addresses.Store(addr.String(), connection)
+		}
+	} else if s, ok := v.addresses.Load(addr.String()); ok {
 		connection = s
-	} else if connection != nil {
-		// Cache the address for fast search.
-		v.addresses.Store(addr.String(), connection)
 	}
 
 	// If connection is not found, ignore the packet.

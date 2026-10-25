@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-24, Merge [#4785](https://github.com/ossrs/srs/pull/4785): Proxy: Route a WebRTC STUN binding by its ufrag, not a cached client address. v7.0.204 (#4785)
 * v7.0, 2026-10-24, Merge [#4718](https://github.com/ossrs/srs/pull/4718): Proxy: Preserve HTTP response headers and safely rewrite HLS. v7.0.203 (#4718)
 * v7.0, 2026-10-24, Merge [#4711](https://github.com/ossrs/srs/pull/4711): Codex: Preserve forwarded HTTP-FLV client IP behind a reverse proxy. v7.0.202 (#4711)
 * v7.0, 2026-10-24, Merge [#4731](https://github.com/ossrs/srs/pull/4731): TS: Increment PMT version when codecs change for strict demuxers. v7.0.201 (#4731)
