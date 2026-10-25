@@ -37,6 +37,19 @@
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_service.hpp>
 
+class MockIssue4621Statistic : public MockAppStatistic
+{
+public:
+    std::string client_ip_;
+
+public:
+    virtual srs_error_t on_client(std::string id, ISrsRequest *req, ISrsExpire *conn, SrsRtmpConnType type)
+    {
+        client_ip_ = req->ip_;
+        return srs_error_new(ERROR_SOCKET_READ, "stop after capturing HTTP-FLV client IP");
+    }
+};
+
 // This test is used to verify the basic workflow of the HTTP connection.
 // It's finished with the help of AI, but each step is manually designed
 // and verified. So this is not dominated by AI, but by humanbeing.
@@ -324,4 +337,42 @@ VOID TEST(BasicWorkflowHttpConnTest, ManuallyVerifyForHttpStream)
     cond->wait();
     EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(r0));
     srs_freep(r0);
+}
+
+VOID TEST(ReproduceIssue4621, PreserveForwardedIpForHttpFlvClient)
+{
+    SrsUniquePtr<MockRequest> mock_request(new MockRequest("test.vhost", "live", "livestream"));
+    SrsUniquePtr<MockBufferCache> mock_cache(new MockBufferCache());
+    SrsUniquePtr<SrsLiveStream> live_stream(new SrsLiveStream(mock_request.get(), mock_cache.get()));
+
+    SrsUniquePtr<MockAppConfig> mock_config(new MockAppConfig());
+    SrsUniquePtr<MockLiveSourceManager> mock_live_sources(new MockLiveSourceManager());
+    SrsUniquePtr<MockIssue4621Statistic> mock_stat(new MockIssue4621Statistic());
+    SrsUniquePtr<MockHttpHooks> mock_hooks(new MockHttpHooks());
+    SrsUniquePtr<MockResponseWriter> mock_writer(new MockResponseWriter());
+    SrsUniquePtr<MockHttpMessage> mock_message(new MockHttpMessage());
+    SrsUniquePtr<SrsHttpMuxEntry> mock_entry(new SrsHttpMuxEntry());
+    MockProtocolReadWriter *mock_io = new MockProtocolReadWriter();
+    SrsUniquePtr<MockHttpServeMux> mock_http_mux(new MockHttpServeMux());
+    SrsUniquePtr<MockConnectionManager> mock_manager(new MockConnectionManager());
+    SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(mock_manager.get(), mock_io, mock_http_mux.get(), "192.168.1.100", 8080, "", ""));
+    SrsHttpConn *conn = new SrsHttpConn(connx.get(), mock_io, mock_http_mux.get(), "192.168.1.100", 8080);
+
+    live_stream->config_ = mock_config.get();
+    live_stream->live_sources_ = mock_live_sources.get();
+    live_stream->stat_ = mock_stat.get();
+    live_stream->hooks_ = mock_hooks.get();
+    mock_entry->enabled = true;
+    live_stream->entry_ = mock_entry.get();
+
+    connx->config_ = mock_config.get();
+    srs_freep(connx->conn_);
+    connx->conn_ = conn;
+    mock_message->set_connection(conn);
+    mock_message->header()->set("X-Forwarded-For", "203.0.113.42");
+
+    srs_error_t err = live_stream->serve_http(mock_writer.get(), mock_message.get());
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    EXPECT_STREQ("203.0.113.42", mock_stat->client_ip_.c_str());
+    srs_freep(err);
 }

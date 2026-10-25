@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-24, Merge [#4711](https://github.com/ossrs/srs/pull/4711): Codex: Preserve forwarded HTTP-FLV client IP behind a reverse proxy. v7.0.202 (#4711)
 * v7.0, 2026-10-24, Merge [#4731](https://github.com/ossrs/srs/pull/4731): TS: Increment PMT version when codecs change for strict demuxers. v7.0.201 (#4731)
 * v7.0, 2026-10-24, Merge [#4703](https://github.com/ossrs/srs/pull/4703): Codex: Clean up publish state after forward backend failures. v7.0.200 (#4703)
 * v7.0, 2026-10-24, Merge [#4721](https://github.com/ossrs/srs/pull/4721): GB28181: Clean up external SIP sessions after timeout or TCP disconnect. v7.0.199 (#4721)
