@@ -35,6 +35,7 @@ public:
     virtual srs_error_t write(char *data, int size);
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
     virtual void write_header(int code);
+    virtual bool header_wrote();
 
 public:
     virtual srs_error_t filter(SrsHttpHeader *h);
@@ -57,6 +58,7 @@ public:
     virtual srs_error_t write(char *data, int size);
     virtual srs_error_t writev(const iovec *iov, int iovcnt, ssize_t *pnwrite);
     virtual void write_header(int code);
+    virtual bool header_wrote();
 
 public:
     virtual srs_error_t filter(SrsHttpHeader *h);

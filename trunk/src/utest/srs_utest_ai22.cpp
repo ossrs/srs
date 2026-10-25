@@ -3502,7 +3502,7 @@ VOID TEST(RtspConnectionTest, NoOnStopWithoutOnPlay)
         RtspOnStopFixture f;
         f.hooks_.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code 401");
         HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream1"));
-        EXPECT_EQ(SRS_CONSTS_RTSP_InternalServerError, f.rtsp_->last_response_status_);
+        EXPECT_EQ(SRS_CONSTS_RTSP_Unauthorized, f.rtsp_->last_response_status_);
 
         HELPER_EXPECT_SUCCESS(f.request("TEARDOWN", "rtsp://127.0.0.1:8554/live/stream1"));
         HELPER_EXPECT_SUCCESS(f.conn_->do_teardown());
@@ -3639,7 +3639,7 @@ VOID TEST(RtspConnectionTest, RefusedDescribeDropsTracks)
 
     f.hooks_.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code 401");
     HELPER_EXPECT_SUCCESS(f.request("DESCRIBE", "rtsp://127.0.0.1:8554/live/stream2"));
-    EXPECT_EQ(SRS_CONSTS_RTSP_InternalServerError, f.rtsp_->last_response_status_);
+    EXPECT_EQ(SRS_CONSTS_RTSP_Unauthorized, f.rtsp_->last_response_status_);
     EXPECT_TRUE(f.conn_->tracks_.empty());
 
     // A SETUP of the old track finds none.
@@ -5997,4 +5997,58 @@ VOID TEST(RtspConnectionTest, SendPacketDoesNotInsertOnLookupMiss)
     srs_freep(err);
 
     EXPECT_EQ(0, (int)conn->networks_.size());
+}
+
+// RTSP: a viewer refused by the on_play hook must receive 401 Unauthorized at DESCRIBE, which is an
+// authorization decision, not 500 Internal Server Error, which describes a server fault.
+VOID TEST(HookRejectionTest, RtspRejectedViewerReceivesHookStatus)
+{
+    srs_error_t err = srs_success;
+
+    MockRtspStack *mock_rtsp = new MockRtspStack();
+    MockSecurity mock_security;
+    MockRtspSourceManager mock_rtsp_sources;
+
+    // Enable the on_play hook for this vhost.
+    MockAppConfigForHttpHooksOnPlay mock_config;
+    mock_config.http_hooks_enabled_ = true;
+    mock_config.on_play_directive_ = new SrsConfDirective();
+    mock_config.on_play_directive_->name_ = "on_play";
+    mock_config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/play");
+
+    // The hook rejects this viewer as unauthorized.
+    MockHttpHooksForOnPlay mock_hooks;
+    mock_hooks.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code 401");
+
+    SrsUniquePtr<SrsRtspConnection> conn(new SrsRtspConnection(NULL, NULL, "127.0.0.1", 8554));
+    srs_freep(conn->rtsp_);
+    conn->rtsp_ = mock_rtsp;
+    conn->config_ = &mock_config;
+    srs_freep(conn->security_);
+    conn->security_ = &mock_security;
+    conn->hooks_ = &mock_hooks;
+    conn->rtsp_sources_ = &mock_rtsp_sources;
+    conn->session_id_ = "test_session_123";
+
+    SrsRtspRequest *req = new SrsRtspRequest();
+    req->method_ = "DESCRIBE";
+    req->uri_ = "rtsp://127.0.0.1:8554/live/stream";
+    req->seq_ = 1;
+
+    mock_rtsp->reset();
+    err = conn->on_rtsp_request(req);
+    HELPER_EXPECT_SUCCESS(err);
+
+    // The hook must have been consulted and a DESCRIBE response returned.
+    EXPECT_EQ(1, mock_hooks.on_play_count_);
+    EXPECT_TRUE(mock_rtsp->send_message_called_);
+    EXPECT_STREQ("DESCRIBE", mock_rtsp->last_response_type_.c_str());
+
+    // GOAL: the rejection is reported as an authorization failure, not as a server fault.
+    EXPECT_EQ(SRS_CONSTS_RTSP_Unauthorized, mock_rtsp->last_response_status_);
+
+    conn->config_ = NULL;
+    conn->security_ = NULL;
+    conn->hooks_ = NULL;
+    conn->rtsp_sources_ = NULL;
 }

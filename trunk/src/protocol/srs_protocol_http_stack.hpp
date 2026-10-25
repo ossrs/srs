@@ -201,6 +201,10 @@ public:
     // send error codes.
     // @remark, user must set header then write or write_header.
     virtual void write_header(int code) = 0;
+
+    // Whether the response header is already sent to the client. Once sent, the status can never be
+    // changed, so an error handler must not try to respond again.
+    virtual bool header_wrote() = 0;
 };
 
 // The reader interface for http response.

@@ -595,48 +595,49 @@ srs_error_t SrsRtmpConn::stream_service_cycle()
 
     switch (info_->type_) {
     case SrsRtmpConnPlay: {
-        // response connection start play
-        if ((err = rtmp_->start_play(info_->res_->stream_id_)) != srs_success) {
-            return srs_error_wrap(err, "rtmp: start play");
-        }
-
         // We must do stat the client before hooks, because hooks depends on it.
         if ((err = stat_->on_client(_srs_context->get_id().c_str(), req, this, info_->type_)) != srs_success) {
             return srs_error_wrap(err, "rtmp: stat client");
         }
 
-        // We must do hook after stat, because depends on it.
+        // We must do hook after stat, because depends on it. Note that we must authorize the
+        // viewer before responding, because start_play() sends onStatus(NetStream.Play.Start),
+        // which tells the viewer that playback started; a refused viewer must never receive it.
         if ((err = http_hooks_on_play()) != srs_success) {
             return srs_error_wrap(err, "rtmp: callback on play");
         }
 
-        err = playing(live_source);
+        // response connection start play
+        if ((err = rtmp_->start_play(info_->res_->stream_id_)) != srs_success) {
+            err = srs_error_wrap(err, "rtmp: start play");
+        } else {
+            err = playing(live_source);
+        }
+
+        // The on_stop hook pairs with the on_play hook above, whatever happened after it.
         http_hooks_on_stop();
 
         return err;
     }
-    case SrsRtmpConnFMLEPublish: {
-        if ((err = rtmp_->start_fmle_publish(info_->res_->stream_id_)) != srs_success) {
-            return srs_error_wrap(err, "rtmp: start FMLE publish");
+    case SrsRtmpConnFMLEPublish:
+    case SrsRtmpConnHaivisionPublish:
+    case SrsRtmpConnFlashPublish: {
+        // Authorize the publisher before responding, because start_publish() sends
+        // onStatus(NetStream.Publish.Start), which tells the publisher that publishing started;
+        // a refused publisher must never receive it.
+        if ((err = authorize_publish()) != srs_success) {
+            return srs_error_wrap(err, "rtmp: authorize publish");
+        }
+
+        // The on_unpublish hook pairs with the on_publish hook accepted above.
+        if ((err = start_publish()) != srs_success) {
+            http_hooks_on_unpublish();
+            return srs_error_wrap(err, "rtmp: start publish");
         }
 
         return publishing(live_source);
     }
     // LCOV_EXCL_START
-    case SrsRtmpConnHaivisionPublish: {
-        if ((err = rtmp_->start_haivision_publish(info_->res_->stream_id_)) != srs_success) {
-            return srs_error_wrap(err, "rtmp: start HAIVISION publish");
-        }
-
-        return publishing(live_source);
-    }
-    case SrsRtmpConnFlashPublish: {
-        if ((err = rtmp_->start_flash_publish(info_->res_->stream_id_)) != srs_success) {
-            return srs_error_wrap(err, "rtmp: start FLASH publish");
-        }
-
-        return publishing(live_source);
-    }
     default: {
         return srs_error_new(ERROR_SYSTEM_CLIENT_INVALID, "rtmp: unknown client type=%d", info_->type_);
     }
@@ -910,7 +911,9 @@ srs_error_t SrsRtmpConn::do_playing(SrsSharedPtr<SrsLiveSource> source, SrsLiveC
     return err;
 }
 
-srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
+// Decide whether the publisher may publish, before stream_service_cycle() responds to it with
+// onStatus(NetStream.Publish.Start). A refused publisher must never be told publishing started.
+srs_error_t SrsRtmpConn::authorize_publish()
 {
     srs_error_t err = srs_success;
 
@@ -936,6 +939,41 @@ srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
     if ((err = http_hooks_on_publish()) != srs_success) {
         return srs_error_wrap(err, "rtmp: callback on publish");
     }
+
+    return err;
+}
+
+srs_error_t SrsRtmpConn::start_publish()
+{
+    srs_error_t err = srs_success;
+
+    int stream_id = info_->res_->stream_id_;
+
+    if (info_->type_ == SrsRtmpConnFMLEPublish) {
+        if ((err = rtmp_->start_fmle_publish(stream_id)) != srs_success) {
+            return srs_error_wrap(err, "start FMLE publish");
+        }
+    } else if (info_->type_ == SrsRtmpConnHaivisionPublish) {
+        if ((err = rtmp_->start_haivision_publish(stream_id)) != srs_success) {
+            return srs_error_wrap(err, "start HAIVISION publish");
+        }
+    } else {
+        if ((err = rtmp_->start_flash_publish(stream_id)) != srs_success) {
+            return srs_error_wrap(err, "start FLASH publish");
+        }
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtmpConn::publishing(SrsSharedPtr<SrsLiveSource> source)
+{
+    srs_error_t err = srs_success;
+
+    // Note that the publisher is already authorized by authorize_publish(), which
+    // stream_service_cycle() runs before it responds that publishing started.
+
+    ISrsRequest *req = info_->req_;
 
     // TODO: FIXME: Should refine the state of publishing.
     srs_error_t acquire_err = acquire_publish(source);

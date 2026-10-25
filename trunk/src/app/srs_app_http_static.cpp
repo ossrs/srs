@@ -134,12 +134,17 @@ srs_error_t SrsHlsStream::serve_m3u8_ctx(ISrsHttpResponseWriter *w, ISrsHttpMess
         // to expire, so remove it now.
         if (err != srs_success) {
             _srs_stat->on_disconnect(ctx, err);
+            srs_http_stream_serve_error(w, err);
             return err;
         }
     }
 
     // Always make the ctx alive now.
     alive(ctx, req);
+
+    // This is the root of HLS streaming, so it owns telling the viewer why it was refused. Never
+    // respond in the branch that raised the error, see srs_http_stream_serve_error.
+    srs_http_stream_serve_error(w, err);
 
     return err;
 }
@@ -196,9 +201,11 @@ srs_error_t SrsHlsStream::serve_new_session(ISrsHttpResponseWriter *w, ISrsHttpM
         return srs_error_wrap(err, "HLS: security check");
     }
 
-    // We must do hook after stat, because depends on it.
+    // We must do hook after stat, because depends on it. Transform to ERROR_SYSTEM_AUTH, so that
+    // the root error handler in serve_m3u8_ctx() answers 401 rather than 500; a refused viewer is
+    // not a server fault.
     if ((err = http_hooks_on_play(req)) != srs_success) {
-        return srs_error_wrap(err, "HLS: http_hooks_on_play");
+        return srs_error_transform(ERROR_SYSTEM_AUTH, err, "HLS: http_hooks_on_play");
     }
 
     // Determine the media playlist URL path in master playlist based on configuration.

@@ -42,6 +42,40 @@ using namespace std;
 #include <srs_protocol_stream.hpp>
 #include <srs_protocol_utility.hpp>
 
+void srs_http_stream_serve_error(ISrsHttpResponseWriter *w, srs_error_t err)
+{
+    // Nothing to report when the viewer was served, or when the response is already on the wire, in
+    // which case the status can no longer be changed and writing again would corrupt the stream.
+    if (err == srs_success || w->header_wrote()) {
+        return;
+    }
+
+    // Map the error onto a status for the viewer. Add a new error here rather than at the place
+    // that raises it, so that every status of HTTP streaming is decided in one place.
+    int code = srs_error_code(err);
+
+    int status = 0;
+    if (code == ERROR_SYSTEM_AUTH) {
+        // Refused by the on_play HTTP callback, see the http_hooks_on_play of each streaming handler.
+        status = SRS_CONSTS_HTTP_Unauthorized;
+    }
+
+    // Keep closing the connection for an error we have no status for yet, which is what SRS has
+    // always done, rather than answering every failure with a misleading generic status.
+    if (!status) {
+        return;
+    }
+
+    // Note that we send the error code and its short name, never srs_error_desc, which may carry the
+    // callback URL or the response of the callback backend.
+    string msg = srs_fmt_sprintf("%d: %s", code, srs_error_code_str(err).c_str());
+
+    // Ignore the write error, because the caller returns the error that explains the refusal, which
+    // matters more to the operator than a viewer that already went away.
+    srs_error_t r0 = srs_go_http_error(w, status, msg);
+    srs_freep(r0);
+}
+
 ISrsHttpConnOwner::ISrsHttpConnOwner()
 {
 }

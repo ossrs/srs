@@ -11,8 +11,10 @@ using namespace std;
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
 #include <srs_app_http_hooks.hpp>
+#include <srs_app_http_stream.hpp>
 #include <srs_app_rtc_api.hpp>
 #include <srs_app_rtc_server.hpp>
+#include <srs_app_rtmp_conn.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_app_utility.hpp>
 #include <srs_core_autofree.hpp>
@@ -24,10 +26,12 @@ using namespace std;
 #include <srs_utest_ai16.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai23.hpp>
+#include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_fmp4.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
+#include <srs_utest_manual_mock.hpp>
 
 #include <fstream>
 #include <sstream>
@@ -5847,6 +5851,351 @@ VOID TEST(HookRejectionTest, HlsDeniedViewerCannotRetryWithSameCtx)
     EXPECT_TRUE(stream.hls_.map_ctx_info_.empty());
 
     stream.hls_.security_ = NULL;
+}
+
+// The application code a hook returns to reject an unauthorized client.
+#define MOCK_HOOK_REJECT_STATUS 401
+
+// HLS: a viewer refused by the on_play hook must receive 401 on the m3u8 request, not a silently
+// closed connection, which a player cannot tell apart from a crash or a network failure.
+//
+// SrsHlsStream reads the global config and hooks, so the hook is enabled by the environment and
+// the global hooks are replaced for this test only.
+VOID TEST(HookRejectionTest, HlsRejectedViewerReceivesHookStatus)
+{
+    srs_error_t err = srs_success;
+
+    SrsSetEnvConfig(*_srs_config, hooks_enabled, "SRS_VHOST_HTTP_HOOKS_ENABLED", "on");
+    SrsSetEnvConfig(*_srs_config, hooks_on_play, "SRS_VHOST_HTTP_HOOKS_ON_PLAY", "http://127.0.0.1:8085/api/v1/play");
+
+    // The hook rejects this viewer as unauthorized.
+    MockHttpHooksForOnPlay hooks;
+    hooks.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+    ISrsHttpHooks *old_hooks = _srs_hooks;
+    _srs_hooks = &hooks;
+
+    SrsHttpMuxEntry entry;
+    entry.pattern = "/";
+
+    MockFileReaderFactoryForVodStream *factory = new MockFileReaderFactoryForVodStream("#EXTM3U\n#EXTINF:10.000,\nstream1-0.ts\n");
+    SrsVodStream stream("/tmp");
+    stream.set_fs_factory(factory);
+    stream.set_path(new MockSrsPathAlwaysExists());
+    stream.entry_ = &entry;
+
+    // The security rules allow this viewer, so the hook decides.
+    MockSecurityForHlsStream security;
+    srs_freep(stream.hls_.security_);
+    stream.hls_.security_ = &security;
+
+    string response;
+    err = mock_vod_serve_m3u8(&stream, "/live/stream1.m3u8?hls_ctx=refusedbyhook", response);
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+
+    // The hook must have been consulted and the playback rejected.
+    EXPECT_EQ(1, security.check_count_);
+    EXPECT_EQ(1, hooks.on_play_count_);
+    EXPECT_EQ(0, factory->create_count_);
+
+    // GOAL: the player receives the hook's status instead of a silent disconnect.
+    EXPECT_FALSE(response.empty());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+
+    // The rejection must not leak the hook URL or any backend detail to the viewer.
+    EXPECT_EQ(string::npos, response.find("127.0.0.1"));
+    EXPECT_EQ(string::npos, response.find("api/v1/play"));
+
+    // The refused viewer is still never kept alive, and is removed from statistic at once.
+    EXPECT_TRUE(stream.hls_.map_ctx_info_.empty());
+    EXPECT_TRUE(_srs_stat->find_client("refusedbyhook") == NULL);
+
+    _srs_hooks = old_hooks;
+    stream.hls_.security_ = NULL;
+}
+
+// HTTP-FLV: a viewer refused by the on_play hook must receive 401, not a silently closed connection.
+VOID TEST(HookRejectionTest, HttpFlvRejectedViewerReceivesHookStatus)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<MockHttpMessageForLiveStream> message(new MockHttpMessageForLiveStream());
+    MockResponseWriter writer;
+    MockRequest request("test.vhost", "live", "stream1");
+    MockBufferCache cache;
+    MockStatisticForLiveStream stat;
+    MockSecurity security;
+
+    // Enable the on_play hook for this vhost.
+    MockAppConfigForLiveStreamHooks config;
+    config.http_hooks_enabled_ = true;
+    config.on_play_directive_ = new SrsConfDirective();
+    config.on_play_directive_->name_ = "on_play";
+    config.on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/play");
+
+    // The hook rejects this viewer as unauthorized.
+    MockHttpHooksForLiveStream hooks;
+    hooks.on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+
+    SrsLiveStream stream(&request, &cache);
+    stream.stat_ = &stat;
+    srs_freep(stream.security_);
+    stream.security_ = &security;
+    stream.config_ = &config;
+    stream.hooks_ = &hooks;
+    stream.entry_ = new SrsHttpMuxEntry();
+    stream.entry_->enabled = false;
+
+    err = stream.serve_http(&writer, message.get());
+    EXPECT_TRUE(err != srs_success);
+    srs_freep(err);
+
+    // The hook must have been consulted and the playback rejected.
+    EXPECT_EQ(1, hooks.on_play_count_);
+    EXPECT_TRUE(stream.viewers_.empty());
+
+    // GOAL: the player receives the hook's status instead of a silent disconnect.
+    string response(writer.io.out_buffer.bytes(), writer.io.out_buffer.length());
+    EXPECT_FALSE(response.empty());
+    EXPECT_EQ(0, (int)response.find("HTTP/1.1 401"));
+
+    // The rejection must not leak the hook URL or any backend detail to the viewer.
+    EXPECT_EQ(string::npos, response.find("127.0.0.1"));
+    EXPECT_EQ(string::npos, response.find("api/v1/play"));
+
+    stream.stat_ = NULL;
+    stream.security_ = NULL;
+    stream.config_ = NULL;
+    stream.hooks_ = NULL;
+    srs_freep(stream.entry_);
+}
+
+// RTMP: start_play() sends onStatus(NetStream.Play.Start), so a viewer refused by the on_play hook
+// must be refused before it, never told playback started and then dropped.
+VOID TEST(HookRejectionTest, RtmpRejectedViewerIsNotToldPlaybackStarted)
+{
+    srs_error_t err = srs_success;
+
+    MockRtmpTransportForDoCycle *transport = new MockRtmpTransportForDoCycle();
+    MockRtmpServer *rtmp = new MockRtmpServer();
+    MockSecurity *security = new MockSecurity();
+
+    // Enable the on_play hook for this vhost. The default vhost must exist, otherwise
+    // check_vhost() refuses the client long before the hook is consulted.
+    MockAppConfigForHttpHooksOnPlay *config = new MockAppConfigForHttpHooksOnPlay();
+    config->default_vhost_ = new SrsConfDirective();
+    config->default_vhost_->name_ = "vhost";
+    config->default_vhost_->args_.push_back("__defaultVhost__");
+    config->http_hooks_enabled_ = true;
+    config->on_play_directive_ = new SrsConfDirective();
+    config->on_play_directive_->name_ = "on_play";
+    config->on_play_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/play");
+
+    // The hook rejects this viewer as unauthorized.
+    MockHttpHooksForOnPlay *hooks = new MockHttpHooksForOnPlay();
+    hooks->on_play_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+
+    SrsRtmpConn *conn = new SrsRtmpConn(transport, "127.0.0.1", 1935);
+    conn->config_ = config;
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = rtmp;
+    srs_freep(conn->security_);
+    conn->security_ = security;
+    conn->hooks_ = hooks;
+
+    rtmp->type_ = SrsRtmpConnPlay;
+    rtmp->stream_ = "livestream";
+    conn->info_->type_ = SrsRtmpConnPlay;
+    conn->info_->req_->tcUrl_ = "rtmp://127.0.0.1/live";
+    conn->info_->req_->vhost_ = "__defaultVhost__";
+    conn->info_->req_->app_ = "live";
+    conn->info_->req_->stream_ = "livestream";
+
+    err = conn->stream_service_cycle();
+
+    // The hook must have been consulted and the playback rejected.
+    EXPECT_EQ(1, hooks->on_play_count_);
+    EXPECT_TRUE(err != srs_success);
+
+    // GOAL: a rejected viewer is never sent onStatus(NetStream.Play.Start).
+    EXPECT_EQ(0, rtmp->start_play_count_);
+
+    srs_freep(err);
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+    srs_freep(config);
+    srs_freep(hooks);
+}
+
+// RTMP: start_fmle_publish() sends onStatus(NetStream.Publish.Start), so a publisher refused by the
+// on_publish hook must be refused before it, never told publishing started and then dropped.
+VOID TEST(HookRejectionTest, RtmpRejectedPublisherIsNotToldPublishStarted)
+{
+    srs_error_t err = srs_success;
+
+    MockRtmpTransportForDoCycle *transport = new MockRtmpTransportForDoCycle();
+    MockRtmpServer *rtmp = new MockRtmpServer();
+    MockSecurity *security = new MockSecurity();
+
+    // Enable the on_publish hook for this vhost. The default vhost must exist, otherwise
+    // check_vhost() refuses the client long before the hook is consulted.
+    MockAppConfigForHttpHooksOnPublish *config = new MockAppConfigForHttpHooksOnPublish();
+    config->default_vhost_ = new SrsConfDirective();
+    config->default_vhost_->name_ = "vhost";
+    config->default_vhost_->args_.push_back("__defaultVhost__");
+    config->http_hooks_enabled_ = true;
+    config->on_publish_directive_ = new SrsConfDirective();
+    config->on_publish_directive_->name_ = "on_publish";
+    config->on_publish_directive_->args_.push_back("http://127.0.0.1:8085/api/v1/publish");
+
+    // The hook rejects this publisher as unauthorized.
+    MockHttpHooksForOnPublish *hooks = new MockHttpHooksForOnPublish();
+    hooks->on_publish_error_ = srs_error_new(ERROR_RESPONSE_CODE, "http: response object code %d", MOCK_HOOK_REJECT_STATUS);
+
+    SrsRtmpConn *conn = new SrsRtmpConn(transport, "127.0.0.1", 1935);
+    conn->config_ = config;
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = rtmp;
+    srs_freep(conn->security_);
+    conn->security_ = security;
+    conn->hooks_ = hooks;
+
+    rtmp->type_ = SrsRtmpConnFMLEPublish;
+    rtmp->stream_ = "livestream";
+    conn->info_->type_ = SrsRtmpConnFMLEPublish;
+    conn->info_->req_->tcUrl_ = "rtmp://127.0.0.1/live";
+    conn->info_->req_->vhost_ = "__defaultVhost__";
+    conn->info_->req_->app_ = "live";
+    conn->info_->req_->stream_ = "livestream";
+
+    err = conn->stream_service_cycle();
+
+    // The hook must have been consulted and the publish rejected.
+    EXPECT_EQ(1, hooks->on_publish_count_);
+    EXPECT_TRUE(err != srs_success);
+
+    // GOAL: a rejected publisher is never sent onStatus(NetStream.Publish.Start).
+    EXPECT_EQ(0, rtmp->start_fmle_publish_count_);
+
+    srs_freep(err);
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+    srs_freep(config);
+    srs_freep(hooks);
+}
+
+// RTMP: on_play runs before start_play(), so a viewer the hook accepted can still fail in
+// start_play(), for example when it closed the socket during a slow callback. The hook backend
+// counted that viewer, so it must still get the on_stop that pairs with the accepted on_play.
+VOID TEST(HookRejectionTest, RtmpAcceptedViewerGetsOnStopWhenStartPlayFails)
+{
+    srs_error_t err = srs_success;
+
+    MockRtmpTransportForDoCycle *transport = new MockRtmpTransportForDoCycle();
+    MockRtmpServer *rtmp = new MockRtmpServer();
+    MockSecurity *security = new MockSecurity();
+
+    MockAppConfigForSrtHooks *config = new MockAppConfigForSrtHooks();
+    config->default_vhost_ = new SrsConfDirective();
+    config->default_vhost_->name_ = "vhost";
+    config->default_vhost_->args_.push_back("__defaultVhost__");
+    config->http_hooks_enabled_ = true;
+    config->set_on_play_urls(std::vector<std::string>(1, "http://127.0.0.1:8085/api/v1/play"));
+    config->set_on_stop_urls(std::vector<std::string>(1, "http://127.0.0.1:8085/api/v1/stop"));
+
+    // The hook accepts the viewer, then answering the play fails.
+    MockHttpHooksForSrt *hooks = new MockHttpHooksForSrt();
+    rtmp->start_play_error_ = srs_error_new(ERROR_SOCKET_WRITE, "mock start play");
+
+    SrsRtmpConn *conn = new SrsRtmpConn(transport, "127.0.0.1", 1935);
+    conn->config_ = config;
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = rtmp;
+    srs_freep(conn->security_);
+    conn->security_ = security;
+    conn->hooks_ = hooks;
+
+    rtmp->type_ = SrsRtmpConnPlay;
+    rtmp->stream_ = "livestream";
+    conn->info_->type_ = SrsRtmpConnPlay;
+    conn->info_->req_->tcUrl_ = "rtmp://127.0.0.1/live";
+    conn->info_->req_->vhost_ = "__defaultVhost__";
+    conn->info_->req_->app_ = "live";
+    conn->info_->req_->stream_ = "livestream";
+
+    err = conn->stream_service_cycle();
+    EXPECT_TRUE(err != srs_success);
+
+    EXPECT_EQ(1, hooks->on_play_count_);
+    EXPECT_EQ(1, rtmp->start_play_count_);
+    EXPECT_EQ(1, hooks->on_stop_count_);
+
+    srs_freep(err);
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+    srs_freep(config);
+    srs_freep(hooks);
+}
+
+// RTMP: on_publish runs before start_fmle_publish(), so a publisher the hook accepted can still
+// fail in the FMLE handshake, for example when it disconnects during a slow callback. The hook
+// backend counted that publisher, so it must still get the on_unpublish that pairs with it.
+VOID TEST(HookRejectionTest, RtmpAcceptedPublisherGetsOnUnpublishWhenStartPublishFails)
+{
+    srs_error_t err = srs_success;
+
+    MockRtmpTransportForDoCycle *transport = new MockRtmpTransportForDoCycle();
+    MockRtmpServer *rtmp = new MockRtmpServer();
+    MockSecurity *security = new MockSecurity();
+
+    MockAppConfigForSrtHooks *config = new MockAppConfigForSrtHooks();
+    config->default_vhost_ = new SrsConfDirective();
+    config->default_vhost_->name_ = "vhost";
+    config->default_vhost_->args_.push_back("__defaultVhost__");
+    config->http_hooks_enabled_ = true;
+    config->set_on_publish_urls(std::vector<std::string>(1, "http://127.0.0.1:8085/api/v1/publish"));
+    config->set_on_unpublish_urls(std::vector<std::string>(1, "http://127.0.0.1:8085/api/v1/unpublish"));
+
+    // The hook accepts the publisher, then the FMLE handshake fails.
+    MockHttpHooksForSrt *hooks = new MockHttpHooksForSrt();
+    rtmp->start_publish_error_ = srs_error_new(ERROR_SOCKET_READ, "mock start FMLE publish");
+
+    SrsRtmpConn *conn = new SrsRtmpConn(transport, "127.0.0.1", 1935);
+    conn->config_ = config;
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = rtmp;
+    srs_freep(conn->security_);
+    conn->security_ = security;
+    conn->hooks_ = hooks;
+
+    rtmp->type_ = SrsRtmpConnFMLEPublish;
+    rtmp->stream_ = "livestream";
+    conn->info_->type_ = SrsRtmpConnFMLEPublish;
+    conn->info_->req_->tcUrl_ = "rtmp://127.0.0.1/live";
+    conn->info_->req_->vhost_ = "__defaultVhost__";
+    conn->info_->req_->app_ = "live";
+    conn->info_->req_->stream_ = "livestream";
+
+    err = conn->stream_service_cycle();
+    EXPECT_TRUE(err != srs_success);
+
+    EXPECT_EQ(1, hooks->on_publish_count_);
+    EXPECT_EQ(1, rtmp->start_fmle_publish_count_);
+    EXPECT_EQ(1, hooks->on_unpublish_count_);
+
+    srs_freep(err);
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+    srs_freep(config);
+    srs_freep(hooks);
 }
 
 // Serve the file of url, MP4 or FLV, with the range of url, and return the raw HTTP response in resp.
