@@ -22,6 +22,7 @@ class ISrsBasicRtmpClient;
 class ISrsHttpClient;
 class ISrsFileReader;
 class ISrsFlvDecoder;
+class ISrsEdgeUpstream;
 class ISrsHttpResponseReader;
 class ISrsRtspSendTrack;
 class ISrsRtspConnection;
@@ -81,6 +82,8 @@ public:
     virtual ISrsHttpClient *create_http_client() = 0;
     virtual ISrsFileReader *create_http_file_reader(ISrsHttpResponseReader *r) = 0;
     virtual ISrsFlvDecoder *create_flv_decoder() = 0;
+    virtual ISrsEdgeUpstream *create_edge_flv_upstream(std::string schema) = 0;
+    virtual ISrsEdgeUpstream *create_edge_rtmp_upstream(std::string redirect) = 0;
 #ifdef SRS_RTSP
     virtual ISrsRtspSendTrack *create_rtsp_audio_send_track(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc) = 0;
     virtual ISrsRtspSendTrack *create_rtsp_video_send_track(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc) = 0;
@@ -138,6 +141,8 @@ public:
     virtual ISrsHttpClient *create_http_client();
     virtual ISrsFileReader *create_http_file_reader(ISrsHttpResponseReader *r);
     virtual ISrsFlvDecoder *create_flv_decoder();
+    virtual ISrsEdgeUpstream *create_edge_flv_upstream(std::string schema);
+    virtual ISrsEdgeUpstream *create_edge_rtmp_upstream(std::string redirect);
 #ifdef SRS_RTSP
     virtual ISrsRtspSendTrack *create_rtsp_audio_send_track(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc);
     virtual ISrsRtspSendTrack *create_rtsp_video_send_track(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc);

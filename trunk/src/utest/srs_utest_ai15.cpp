@@ -1210,10 +1210,12 @@ MockTcpListenerForServer::MockTcpListenerForServer() : SrsTcpListener(NULL)
     endpoint_port_ = 0;
     listen_count_ = 0;
     close_count_ = 0;
+    listen_error_ = srs_success;
 }
 
 MockTcpListenerForServer::~MockTcpListenerForServer()
 {
+    srs_freep(listen_error_);
 }
 
 ISrsListener *MockTcpListenerForServer::set_endpoint(const std::string &i, int p)
@@ -1232,7 +1234,10 @@ ISrsListener *MockTcpListenerForServer::set_label(const std::string &label)
 srs_error_t MockTcpListenerForServer::listen()
 {
     listen_count_++;
-    return srs_success;
+
+    srs_error_t err = listen_error_;
+    listen_error_ = srs_success;
+    return err;
 }
 
 void MockTcpListenerForServer::close()
@@ -1426,11 +1431,13 @@ MockUdpCasterListenerForServer::MockUdpCasterListenerForServer()
     listen_count_ = 0;
     close_count_ = 0;
     initialize_error_ = srs_success;
+    listen_error_ = srs_success;
 }
 
 MockUdpCasterListenerForServer::~MockUdpCasterListenerForServer()
 {
     srs_freep(initialize_error_);
+    srs_freep(listen_error_);
 }
 
 void MockUdpCasterListenerForServer::assemble()
@@ -1451,7 +1458,10 @@ srs_error_t MockUdpCasterListenerForServer::initialize(SrsConfDirective *conf)
 srs_error_t MockUdpCasterListenerForServer::listen()
 {
     listen_count_++;
-    return srs_success;
+
+    srs_error_t err = listen_error_;
+    listen_error_ = srs_success;
+    return err;
 }
 
 void MockUdpCasterListenerForServer::close()
@@ -3605,6 +3615,7 @@ MockCoroutineForRtmpConn::MockCoroutineForRtmpConn()
 {
     pull_error_ = srs_success;
     pull_count_ = 0;
+    interrupt_count_ = 0;
 }
 
 MockCoroutineForRtmpConn::~MockCoroutineForRtmpConn()
@@ -3623,6 +3634,7 @@ void MockCoroutineForRtmpConn::stop()
 
 void MockCoroutineForRtmpConn::interrupt()
 {
+    interrupt_count_++;
 }
 
 srs_error_t MockCoroutineForRtmpConn::pull()

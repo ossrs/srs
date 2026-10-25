@@ -271,6 +271,8 @@ public:
     std::string set_label_;
     int listen_count_;
     int close_count_;
+    // The error listen() returns, owned by the caller once returned.
+    srs_error_t listen_error_;
 
 public:
     MockTcpListenerForServer();
@@ -294,6 +296,8 @@ public:
     int close_count_;
     // The error initialize() returns, owned by the caller once returned.
     srs_error_t initialize_error_;
+    // The error listen() returns, owned by the caller once returned.
+    srs_error_t listen_error_;
 
 public:
     MockUdpCasterListenerForServer();
@@ -742,6 +746,7 @@ class MockCoroutineForRtmpConn : public ISrsCoroutine
 public:
     srs_error_t pull_error_;
     int pull_count_;
+    int interrupt_count_;
 
 public:
     MockCoroutineForRtmpConn();

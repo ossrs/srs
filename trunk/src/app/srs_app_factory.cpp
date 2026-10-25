@@ -120,6 +120,16 @@ ISrsFlvDecoder *SrsAppFactory::create_flv_decoder()
     return new SrsFlvDecoder();
 }
 
+ISrsEdgeUpstream *SrsAppFactory::create_edge_flv_upstream(std::string schema)
+{
+    return new SrsEdgeFlvUpstream(schema);
+}
+
+ISrsEdgeUpstream *SrsAppFactory::create_edge_rtmp_upstream(std::string redirect)
+{
+    return new SrsEdgeRtmpUpstream(redirect);
+}
+
 #ifdef SRS_RTSP
 ISrsRtspSendTrack *SrsAppFactory::create_rtsp_audio_send_track(ISrsRtspConnection *session, SrsRtcTrackDescription *track_desc)
 {

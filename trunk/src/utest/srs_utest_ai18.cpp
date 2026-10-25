@@ -118,10 +118,21 @@ int64_t MockSrtSocket::get_recv_bytes()
 MockSrtPollerForSrtConnection::MockSrtPollerForSrtConnection()
 {
     del_socket_count_ = 0;
+    add_socket_count_ = 0;
+    mod_socket_count_ = 0;
+    wait_count_ = 0;
+    add_socket_error_ = srs_success;
+    mod_socket_error_ = srs_success;
+    del_socket_error_ = srs_success;
+    wait_error_ = srs_success;
 }
 
 MockSrtPollerForSrtConnection::~MockSrtPollerForSrtConnection()
 {
+    srs_freep(add_socket_error_);
+    srs_freep(mod_socket_error_);
+    srs_freep(del_socket_error_);
+    srs_freep(wait_error_);
 }
 
 srs_error_t MockSrtPollerForSrtConnection::initialize()
@@ -131,24 +142,27 @@ srs_error_t MockSrtPollerForSrtConnection::initialize()
 
 srs_error_t MockSrtPollerForSrtConnection::add_socket(SrsSrtSocket *srt_skt)
 {
-    return srs_success;
+    add_socket_count_++;
+    return srs_error_copy(add_socket_error_);
 }
 
 srs_error_t MockSrtPollerForSrtConnection::mod_socket(SrsSrtSocket *srt_skt)
 {
-    return srs_success;
+    mod_socket_count_++;
+    return srs_error_copy(mod_socket_error_);
 }
 
 srs_error_t MockSrtPollerForSrtConnection::del_socket(SrsSrtSocket *srt_skt)
 {
     del_socket_count_++;
-    return srs_success;
+    return srs_error_copy(del_socket_error_);
 }
 
 srs_error_t MockSrtPollerForSrtConnection::wait(int timeout_ms, int *pn_fds)
 {
+    wait_count_++;
     *pn_fds = 0;
-    return srs_success;
+    return srs_error_copy(wait_error_);
 }
 
 int MockSrtPollerForSrtConnection::size()
@@ -3606,10 +3620,12 @@ MockRtcNetworkForUdpNetwork::MockRtcNetworkForUdpNetwork()
     on_rtp_called_ = false;
     on_rtcp_called_ = false;
     on_dtls_called_ = false;
+    on_rtp_error_ = srs_success;
 }
 
 MockRtcNetworkForUdpNetwork::~MockRtcNetworkForUdpNetwork()
 {
+    srs_freep(on_rtp_error_);
 }
 
 srs_error_t MockRtcNetworkForUdpNetwork::initialize(SrsSessionConfig *cfg, bool dtls, bool srtp)
@@ -3646,7 +3662,7 @@ srs_error_t MockRtcNetworkForUdpNetwork::on_stun(SrsStunPacket *r, char *data, i
 srs_error_t MockRtcNetworkForUdpNetwork::on_rtp(char *data, int nb_data)
 {
     on_rtp_called_ = true;
-    return srs_success;
+    return srs_error_copy(on_rtp_error_);
 }
 
 srs_error_t MockRtcNetworkForUdpNetwork::on_rtcp(char *data, int nb_data)

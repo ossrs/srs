@@ -97,6 +97,9 @@ public:
     int nb_pulls_;
     int pull_count_;
     int stop_count_;
+    int start_count_;
+    // The error start() returns a copy of, owned by the mock.
+    srs_error_t start_error_;
     SrsContextId cid_;
 
 public:

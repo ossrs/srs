@@ -484,6 +484,9 @@ public:
     std::string last_response_type_; // "OPTIONS", "DESCRIBE", "SETUP", "PLAY", "TEARDOWN"
     int last_response_status_;
     srs_error_t send_message_error_;
+    // The requests recv_message() hands out in order; then it fails with recv_error_ when it is set.
+    std::vector<SrsRtspRequest *> requests_;
+    srs_error_t recv_error_;
 
 public:
     MockRtspStack();
@@ -528,6 +531,8 @@ public:
     // Set to true by the destructor, so a test can prove the writer was freed. Borrowed, not owned.
     bool *destroyed_;
     int write_count_;
+    // The error write returns a copy of, owned by the mock.
+    srs_error_t write_error_;
 
 public:
     MockStreamWriterForRtspConn(bool *destroyed);
@@ -606,6 +611,8 @@ public:
     int unsubscribe_count_;
     ISrsDisposingHandler *last_subscribed_handler_;
     ISrsDisposingHandler *last_unsubscribed_handler_;
+    int remove_count_;
+    ISrsResource *last_removed_;
 
 public:
     MockResourceManagerForRtspConn();

@@ -412,6 +412,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     trd_ = new SrsDummyCoroutine();
 
     config_ = _srs_config;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
@@ -423,6 +424,7 @@ SrsEdgeIngester::~SrsEdgeIngester()
     srs_freep(trd_);
 
     config_ = NULL;
+    app_factory_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -451,7 +453,8 @@ srs_error_t SrsEdgeIngester::start()
     }
 
     srs_freep(trd_);
-    trd_ = new SrsSTCoroutine("edge-igs", this);
+    // An empty cid, so the coroutine takes a new one when it starts.
+    trd_ = app_factory_->create_coroutine("edge-igs", this, SrsContextId());
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
@@ -523,9 +526,9 @@ srs_error_t SrsEdgeIngester::do_cycle()
         // Create object by protocol.
         srs_freep(upstream_);
         if (edge_protocol == "flv" || edge_protocol == "flvs") {
-            upstream_ = new SrsEdgeFlvUpstream(edge_protocol == "flv" ? "http" : "https");
+            upstream_ = app_factory_->create_edge_flv_upstream(edge_protocol == "flv" ? "http" : "https");
         } else {
-            upstream_ = new SrsEdgeRtmpUpstream(redirect);
+            upstream_ = app_factory_->create_edge_rtmp_upstream(redirect);
         }
 
         if ((err = source_->on_source_id_changed(_srs_context->get_id())) != srs_success) {

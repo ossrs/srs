@@ -114,6 +114,7 @@ public:
     srs_error_t annexb_demux_error_;
     srs_error_t sps_demux_error_;
     srs_error_t pps_demux_error_;
+    srs_error_t mux_ipb_frame_error_;
 
     // Mock return values
     char *demux_frame_;
@@ -359,10 +360,18 @@ class MockFFMPEGForEncoder : public ISrsFFMPEG
 public:
     bool initialize_called_;
     bool start_called_;
+    int cycle_count_;
+    int stop_count_;
     srs_error_t initialize_error_;
     srs_error_t initialize_transcode_error_;
     srs_error_t start_error_;
+    srs_error_t cycle_error_;
+    std::string input_;
     std::string output_;
+    std::string log_;
+    std::vector<std::string> iparams_;
+    std::string oformat_;
+    int initialize_copy_count_;
 
 public:
     MockFFMPEGForEncoder();
@@ -394,6 +403,8 @@ public:
     bool engine_enabled_;
     std::string engine_output_;
     std::string target_scope_; // The scope for which to return transcode_directive_
+    bool ff_log_enabled_;
+    std::string ff_log_dir_;
 
 public:
     MockAppConfigForEncoder();
@@ -407,6 +418,7 @@ public:
     virtual bool get_engine_enabled(SrsConfDirective *conf);
     virtual std::string get_engine_output(SrsConfDirective *conf);
     virtual bool get_ff_log_enabled();
+    virtual std::string get_ff_log_dir();
     void reset();
 };
 
@@ -415,6 +427,10 @@ class MockAppFactoryForEncoder : public SrsAppFactory
 {
 public:
     MockFFMPEGForEncoder *mock_ffmpeg_;
+    // The coroutine for the next create_coroutine(), owned by the caller once handed out; a real one
+    // is made when it is NULL.
+    ISrsCoroutine *coroutine_;
+    int create_coroutine_count_;
 
 public:
     MockAppFactoryForEncoder();
@@ -422,6 +438,7 @@ public:
 
 public:
     virtual ISrsFFMPEG *create_ffmpeg(std::string ffmpeg_bin);
+    virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
     void reset();
 };
 

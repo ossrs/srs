@@ -246,6 +246,7 @@ MockAppFactory::MockAppFactory()
     real_fragmented_mp4_ = NULL;
     create_file_writer_count_ = 0;
     create_file_reader_count_ = 0;
+    writer_error_offset_ = -1;
 }
 
 MockAppFactory::~MockAppFactory()
@@ -264,6 +265,7 @@ ISrsFileWriter *MockAppFactory::create_file_writer()
     create_file_writer_count_++;
     // Create a new mock writer and save reference for testing
     MockSrsFileWriter *writer = new MockSrsFileWriter();
+    writer->error_offset = writer_error_offset_;
     real_writer_ = writer;
     return writer;
 }

@@ -454,6 +454,7 @@ MockMpegtsRawH264Stream::MockMpegtsRawH264Stream()
     annexb_demux_error_ = srs_success;
     sps_demux_error_ = srs_success;
     pps_demux_error_ = srs_success;
+    mux_ipb_frame_error_ = srs_success;
     demux_frame_ = NULL;
     demux_frame_size_ = 0;
     is_sps_result_ = false;
@@ -465,6 +466,7 @@ MockMpegtsRawH264Stream::~MockMpegtsRawH264Stream()
     srs_freep(annexb_demux_error_);
     srs_freep(sps_demux_error_);
     srs_freep(pps_demux_error_);
+    srs_freep(mux_ipb_frame_error_);
 }
 
 srs_error_t MockMpegtsRawH264Stream::annexb_demux(SrsBuffer *stream, char **pframe, int *pnb_frame)
@@ -531,6 +533,10 @@ srs_error_t MockMpegtsRawH264Stream::mux_sequence_header(std::string sps, std::s
 
 srs_error_t MockMpegtsRawH264Stream::mux_ipb_frame(char *frame, int frame_size, std::string &ibp)
 {
+    if (mux_ipb_frame_error_ != srs_success) {
+        return srs_error_copy(mux_ipb_frame_error_);
+    }
+
     // Simple mock implementation
     ibp.assign(frame, frame_size);
     return srs_success;
@@ -2600,24 +2606,32 @@ MockFFMPEGForEncoder::MockFFMPEGForEncoder()
 {
     initialize_called_ = false;
     start_called_ = false;
+    cycle_count_ = 0;
+    stop_count_ = 0;
     initialize_error_ = srs_success;
     initialize_transcode_error_ = srs_success;
     start_error_ = srs_success;
+    cycle_error_ = srs_success;
     output_ = "";
+    initialize_copy_count_ = 0;
 }
 
 MockFFMPEGForEncoder::~MockFFMPEGForEncoder()
 {
     srs_freep(initialize_error_);
     srs_freep(initialize_transcode_error_);
+    srs_freep(start_error_);
+    srs_freep(cycle_error_);
 }
 
 void MockFFMPEGForEncoder::append_iparam(std::string iparam)
 {
+    iparams_.push_back(iparam);
 }
 
 void MockFFMPEGForEncoder::set_oformat(std::string format)
 {
+    oformat_ = format;
 }
 
 std::string MockFFMPEGForEncoder::output()
@@ -2628,7 +2642,9 @@ std::string MockFFMPEGForEncoder::output()
 srs_error_t MockFFMPEGForEncoder::initialize(std::string in, std::string out, std::string log)
 {
     initialize_called_ = true;
+    input_ = in;
     output_ = out;
+    log_ = log;
     return srs_error_copy(initialize_error_);
 }
 
@@ -2639,6 +2655,7 @@ srs_error_t MockFFMPEGForEncoder::initialize_transcode(SrsConfDirective *engine)
 
 srs_error_t MockFFMPEGForEncoder::initialize_copy()
 {
+    initialize_copy_count_++;
     return srs_success;
 }
 
@@ -2650,11 +2667,13 @@ srs_error_t MockFFMPEGForEncoder::start()
 
 srs_error_t MockFFMPEGForEncoder::cycle()
 {
-    return srs_success;
+    cycle_count_++;
+    return srs_error_copy(cycle_error_);
 }
 
 void MockFFMPEGForEncoder::stop()
 {
+    stop_count_++;
 }
 
 void MockFFMPEGForEncoder::fast_stop()
@@ -2681,6 +2700,7 @@ MockAppConfigForEncoder::MockAppConfigForEncoder()
     transcode_ffmpeg_bin_ = "/usr/bin/ffmpeg";
     engine_enabled_ = true;
     engine_output_ = "rtmp://127.0.0.1/live/livestream_hd";
+    ff_log_enabled_ = false;
     target_scope_ = ""; // Default to vhost scope (empty string)
 }
 
@@ -2725,7 +2745,12 @@ std::string MockAppConfigForEncoder::get_engine_output(SrsConfDirective *conf)
 
 bool MockAppConfigForEncoder::get_ff_log_enabled()
 {
-    return false;
+    return ff_log_enabled_;
+}
+
+std::string MockAppConfigForEncoder::get_ff_log_dir()
+{
+    return ff_log_dir_;
 }
 
 void MockAppConfigForEncoder::reset()
@@ -2738,16 +2763,31 @@ void MockAppConfigForEncoder::reset()
 MockAppFactoryForEncoder::MockAppFactoryForEncoder()
 {
     mock_ffmpeg_ = NULL;
+    coroutine_ = NULL;
+    create_coroutine_count_ = 0;
 }
 
 MockAppFactoryForEncoder::~MockAppFactoryForEncoder()
 {
     reset();
+    srs_freep(coroutine_);
 }
 
 ISrsFFMPEG *MockAppFactoryForEncoder::create_ffmpeg(std::string ffmpeg_bin)
 {
     return (ISrsFFMPEG *)mock_ffmpeg_;
+}
+
+ISrsCoroutine *MockAppFactoryForEncoder::create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid)
+{
+    create_coroutine_count_++;
+    if (!coroutine_) {
+        return SrsAppFactory::create_coroutine(name, handler, cid);
+    }
+
+    ISrsCoroutine *trd = coroutine_;
+    coroutine_ = NULL;
+    return trd;
 }
 
 void MockAppFactoryForEncoder::reset()
