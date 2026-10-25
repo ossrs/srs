@@ -1,16 +1,17 @@
 #!/bin/bash
 #
 # Run the Full tier of references/integration-tests.md on this checkout: Step 1 builds, then lanes A-G in
-# parallel, then lane H alone, under the SRS global lock. Every log is in /tmp/srs-full-tier; the summary is one
-# row per layer, then the unverified OBS checks.
+# parallel, then lane H alone, under the SRS global lock. On native Windows, in Git Bash, it runs lane W
+# instead: the Windows build, utest and integ, with the OBS cases on that host. Every log is in
+# /tmp/srs-full-tier; the summary is one row per layer, then the unverified OBS checks.
 #
 # Usage:
 #   bash skills/srs-develop/scripts/srs-full-tier.sh
 #
 # Environment:
 #   SRS_TEST_OBS               1 by default; 0 skips the OBS builds and lane G.
-#   SRS_TEST_WINDOWS_HOST      the Windows test host; when set, Step 1 builds SRS in WSL there and lane G runs
-#                              obs-windows-test.sh.
+#   SRS_TEST_WINDOWS_HOST      the Windows test host; when set, lane G runs obs-windows-test.sh, which builds
+#                              srs.exe there. Not read on native Windows.
 #   SRS_FULL_TIER_LOGS         the log directory, /tmp/srs-full-tier by default; srs-full-tier-test.sh moves it.
 #
 # Exit code is 0 only if every layer passes.
@@ -23,7 +24,13 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 SCRIPTS="$ROOT/skills/srs-develop/scripts"
 cd "$ROOT" || exit 1
 
-for cmd in go ffmpeg ffprobe curl jq node; do
+# Native Windows runs lane W only, which needs fewer tools.
+WINDOWS=
+TOOLS="go ffmpeg ffprobe curl jq node"
+case $(uname -s) in
+    MINGW64*|MSYS*) WINDOWS=1; TOOLS="go ffmpeg curl" ;;
+esac
+for cmd in $TOOLS; do
     if ! command -v $cmd >/dev/null 2>&1; then
         echo "no $cmd in PATH"
         exit 1
@@ -53,11 +60,74 @@ layer() {
     return $code
 }
 
-# Step 1: build. The OBS builds run beside the local one: Docker copies only the tracked files, and WSL builds
-# on the Windows host.
+# Summary: exit code, pass and fail counts, duration. Go tests count --- PASS/FAIL, gtest counts [ OK ]/[ FAILED ],
+# srs-integ the passed cases and known bugs of its own summary, since it runs without -v, and the OBS layers their
+# PASS and FAIL lines. An OBS SKIP or KNOWN line is listed as unverified, never counted as passed. The Windows
+# runner shows only summaries: its CHECK and START lines, and the gtest PASSED count.
+integ_passes() {
+    sed -nE 's/^srs-integ [a-z]+: [0-9]+ cases, ([0-9]+) passed, [0-9]+ failed, [0-9]+ skipped, ([0-9]+) known bugs$/\1 \2/p' |
+        awk '{ s += $1 + $2 } END { print s + 0 }'
+}
+summary() {
+    FAILED=0
+    UNVERIFIED=
+    printf '%-32s %5s %6s %6s %6s\n' layer exit pass fail secs
+    for r in $LOGS/*.result; do
+        name=$(basename $r .result)
+        read code secs <$r
+        clean=$(tr -d '\r' <$LOGS/$name.log | sed 's/\x1b\[[0-9;]*m//g')
+        pass=$(echo "$clean" | grep -cE -e '--- PASS|^\[       OK \]')
+        pass=$(( pass + $(echo "$clean" | integ_passes) ))
+        fail=$(echo "$clean" | grep -cE -e '--- FAIL|^\[  FAILED  \] [A-Za-z]')
+        if [[ $name == obs-* ]]; then
+            pass=$(( pass + $(echo "$clean" | grep -c '^PASS ') ))
+            fail=$(( fail + $(echo "$clean" | grep -c '^FAIL ') ))
+            UNVERIFIED="$UNVERIFIED
+$(echo "$clean" | sed -nE "s/^((SKIP|KNOWN) .*)/unverified $name: \1/p")"
+        fi
+        if [[ $name == windows-* ]]; then
+            pass=$(( pass + $(echo "$clean" | grep -cE '^(CHECK|START) [a-z-]+ PASS') ))
+            pass=$(( pass + $(echo "$clean" | sed -nE 's/^\[  PASSED  \] ([0-9]+) tests?\.$/\1/p' | awk '{ s += $1 } END { print s + 0 }') ))
+            fail=$(( fail + $(echo "$clean" | grep -cE '^(CHECK|START) [a-z-]+ FAIL') ))
+        fi
+        printf '%-32s %5s %6s %6s %6s\n' $name $code $pass $fail $secs
+        if [[ $code != 0 ]]; then FAILED=1; fi
+    done
+    echo "$UNVERIFIED" | sed '/^$/d'
+    if [[ $OBS == 0 ]]; then
+        echo "lane G: skipped (SRS_TEST_OBS=0)"
+    fi
+    echo "lanes: $(( $(date +%s) - START ))s, logs in $LOGS"
+    exit $FAILED
+}
+
+# Native Windows: lane W, srs-windows-runner.sh's build, then its utest beside the OBS cases on this host, then
+# its integ alone, as lane H. The Unix build and lanes A-H need ./configure, so they do not run here.
+if [[ -n $WINDOWS ]]; then
+    echo "step 1: lane W build"
+    if ! layer windows-build bash $SCRIPTS/srs-windows-runner.sh build; then
+        echo "build failed, log $LOGS/windows-build.log"
+        tail -n 30 $LOGS/windows-build.log
+        exit 1
+    fi
+    START=$(date +%s)
+    if [[ $OBS != 0 ]]; then
+        echo "step 2: lane W utest, lane G"
+        layer obs-windows bash $SCRIPTS/obs-windows-test.sh --host-cases & PG=$!
+    else
+        echo "step 2: lane W utest, lane G: skipped (SRS_TEST_OBS=0)"
+    fi
+    layer windows-utest bash $SCRIPTS/srs-windows-runner.sh --alone utest
+    wait $PG
+    echo "step 3: lane W integ"
+    layer windows-integ bash $SCRIPTS/srs-windows-runner.sh --alone integ
+    summary
+fi
+
+# Step 1: build. The OBS Linux build runs beside the local one, since Docker copies only the tracked files.
 build() {
     # The utest objects do not depend on the configure header, so remove them after a configure.
-    if ! grep -q "\"$FLAGS\"" trunk/objs/srs_auto_headers.hpp 2>/dev/null || [[ trunk/configure -nt trunk/objs/Makefile ]]; then
+    if ! grep -q "\"$FLAGS\"" trunk/objs/srs_auto_headers.hpp 2>/dev/null || [[ trunk/configure -nt trunk/objs/Makefile || trunk/auto/module_files.sh -nt trunk/objs/Makefile ]]; then
         (cd trunk && ./configure $FLAGS && find objs -path '*/utest/*.o' -delete) || return 1
     fi
     (cd trunk && make -j10 server) || return 1
@@ -65,11 +135,7 @@ build() {
     (cd trunk/3rdparty/srs-bench && make test) || return 1
 }
 obs_build() {
-    layer obs-linux-build bash $SCRIPTS/obs-linux-test.sh --build &
-    if [[ -n ${SRS_TEST_WINDOWS_HOST:-} ]]; then
-        layer obs-windows-build bash $SCRIPTS/obs-windows-test.sh --build &
-    fi
-    wait
+    layer obs-linux-build bash $SCRIPTS/obs-linux-test.sh --build
 }
 echo "step 1: build"
 if [[ $OBS != 0 ]]; then
@@ -165,35 +231,4 @@ wait $PA $PB $PC $PD $PE $PF $PG
 echo "step 3: lane H"
 lane_h
 
-# Summary: exit code, pass and fail counts, duration. Go tests count --- PASS/FAIL, gtest counts [ OK ]/[ FAILED ],
-# srs-integ the passed cases and known bugs of its own summary, since it runs without -v, and the OBS layers their
-# PASS and FAIL lines. An OBS SKIP or KNOWN line is listed as unverified, never counted as passed.
-integ_passes() {
-    sed -nE 's/^srs-integ [a-z]+: [0-9]+ cases, ([0-9]+) passed, [0-9]+ failed, [0-9]+ skipped, ([0-9]+) known bugs$/\1 \2/p' |
-        awk '{ s += $1 + $2 } END { print s + 0 }'
-}
-FAILED=0
-UNVERIFIED=
-printf '%-32s %5s %6s %6s %6s\n' layer exit pass fail secs
-for r in $LOGS/*.result; do
-    name=$(basename $r .result)
-    read code secs <$r
-    clean=$(tr -d '\r' <$LOGS/$name.log | sed 's/\x1b\[[0-9;]*m//g')
-    pass=$(echo "$clean" | grep -cE -e '--- PASS|^\[       OK \]')
-    pass=$(( pass + $(echo "$clean" | integ_passes) ))
-    fail=$(echo "$clean" | grep -cE -e '--- FAIL|^\[  FAILED  \] [A-Za-z]')
-    if [[ $name == obs-* ]]; then
-        pass=$(( pass + $(echo "$clean" | grep -c '^PASS ') ))
-        fail=$(( fail + $(echo "$clean" | grep -c '^FAIL ') ))
-        UNVERIFIED="$UNVERIFIED
-$(echo "$clean" | sed -nE "s/^((SKIP|KNOWN) .*)/unverified $name: \1/p")"
-    fi
-    printf '%-32s %5s %6s %6s %6s\n' $name $code $pass $fail $secs
-    if [[ $code != 0 ]]; then FAILED=1; fi
-done
-echo "$UNVERIFIED" | sed '/^$/d'
-if [[ $OBS == 0 ]]; then
-    echo "lane G: skipped (SRS_TEST_OBS=0)"
-fi
-echo "lanes: $(( $(date +%s) - START ))s, logs in $LOGS"
-exit $FAILED
+summary

@@ -52,13 +52,13 @@ public:
 class MockSrsSeeker : public ISrsSeeker
 {
 public:
-    off_t position_;
+    srs_off_t position_;
     srs_error_t seek_error_;
 
 public:
     MockSrsSeeker();
     virtual ~MockSrsSeeker();
-    virtual srs_error_t lseek(off_t offset, int whence, off_t *seeked);
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked);
     void set_error(srs_error_t err);
 };
 

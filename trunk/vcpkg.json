@@ -1,0 +1,21 @@
+{
+  "name": "srs",
+  "builtin-baseline": "9eec002df1cd109f8f104cd966a763daf9751489",
+  "dependencies": [
+    "openssl",
+    {
+      "name": "libsrtp",
+      "features": ["openssl"]
+    },
+    "libsrt",
+    "opus",
+    "gtest"
+  ],
+  "overrides": [
+    {
+      "name": "gtest",
+      "version": "1.16.0",
+      "port-version": 1
+    }
+  ]
+}

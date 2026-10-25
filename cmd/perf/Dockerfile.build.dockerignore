@@ -1,0 +1,16 @@
+*
+!trunk/
+!trunk/**
+trunk/objs/
+trunk/3rdparty/srs-bench/
+trunk/3rdparty/srs-docs/
+trunk/3rdparty/gtest-fit/
+trunk/research/*
+!trunk/research/api-server/
+!trunk/research/api-server/**
+!trunk/research/console/
+!trunk/research/console/**
+!trunk/research/players/
+!trunk/research/players/**
+!trunk/research/favicon.ico
+!trunk/research/index.html

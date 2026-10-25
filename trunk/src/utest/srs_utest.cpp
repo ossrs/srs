@@ -17,15 +17,22 @@
 #include <srs_kernel_resource.hpp>
 #include <srs_protocol_st.hpp>
 
+#include <algorithm>
 #include <string>
 using namespace std;
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
+#ifndef _WIN32
+#include <fcntl.h>
 #include <sys/mman.h>
-#include <sys/socket.h>
+#else
+// winioctl.h has inline functions that return VOID, which srs_utest.hpp defines as empty.
+#pragma push_macro("VOID")
+#undef VOID
+#define VOID void
+#include <winioctl.h>
+#pragma pop_macro("VOID")
+#endif
 #include <sys/types.h>
-#include <unistd.h>
 
 #include <srs_app_factory.hpp>
 #include <srs_app_srt_server.hpp>
@@ -41,8 +48,31 @@ using namespace std;
 #include <srs_app_rtc_codec.hpp>
 #include <srs_app_st.hpp>
 
+std::string srs_utest_slash_path(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+    while (path.size() > 1 && path[path.size() - 1] == '/' && path[path.size() - 2] != ':') {
+        path.erase(path.size() - 1);
+    }
+    return path;
+}
+
+std::string srs_utest_tmp_dir()
+{
+#ifdef _WIN32
+    char buf[MAX_PATH + 1];
+    DWORD n = GetTempPathA(sizeof(buf), buf);
+    if (n == 0 || n > sizeof(buf)) {
+        return "";
+    }
+    return srs_utest_slash_path(std::string(buf, n));
+#else
+    return "/tmp";
+#endif
+}
+
 // Temporary disk config.
-std::string _srs_tmp_file_prefix = "/tmp/srs-utest-";
+std::string _srs_tmp_file_prefix = srs_utest_tmp_dir() + "/srs-utest-";
 // Temporary network config.
 std::string _srs_tmp_host = "127.0.0.1";
 // A free port from the unit tests' range, set by prepare_main(), so the listener tests never share
@@ -80,6 +110,45 @@ int srs_utest_random_port()
     return rand.integer(_srs_utest_port_min, _srs_utest_port_max);
 }
 
+#ifdef _WIN32
+static bool srs_utest_handle_cloexec(HANDLE h)
+{
+    DWORD flags = 0;
+    return h != INVALID_HANDLE_VALUE && GetHandleInformation(h, &flags) && !(flags & HANDLE_FLAG_INHERIT);
+}
+
+bool srs_utest_fd_cloexec(int fd)
+{
+    return srs_utest_handle_cloexec((HANDLE)_get_osfhandle(fd));
+}
+
+bool srs_utest_socket_cloexec(srs_socket_t fd)
+{
+    return srs_utest_handle_cloexec((HANDLE)fd);
+}
+
+bool srs_utest_file_sparse(FILE *fp)
+{
+    DWORD bytes = 0;
+    return ::DeviceIoControl((HANDLE)_get_osfhandle(_fileno(fp)), FSCTL_SET_SPARSE, NULL, 0, NULL, 0, &bytes, NULL) != 0;
+}
+#else
+bool srs_utest_fd_cloexec(int fd)
+{
+    return (::fcntl(fd, F_GETFD) & FD_CLOEXEC) != 0;
+}
+
+bool srs_utest_socket_cloexec(srs_socket_t fd)
+{
+    return srs_utest_fd_cloexec(fd);
+}
+
+bool srs_utest_file_sparse(FILE *fp)
+{
+    return true;
+}
+#endif
+
 SrsUtestRandomState::SrsUtestRandomState(unsigned int seed)
 {
     // SrsRand seeds random() from the clock at its first use; make that use before the first state,
@@ -92,12 +161,12 @@ SrsUtestRandomState::SrsUtestRandomState(unsigned int seed)
         rand.integer();
     }
 
-    previous_ = ::initstate(seed, state_, sizeof(state_));
+    previous_ = srs_initstate(seed, state_, sizeof(state_));
 }
 
 SrsUtestRandomState::~SrsUtestRandomState()
 {
-    ::setstate(previous_);
+    srs_setstate(previous_);
 }
 
 // kernel module.
@@ -154,7 +223,7 @@ bool srs_utest_port_free(int type, std::string ip, int port)
     }
 
     int r0 = ::bind(fd, (sockaddr *)&addr, len);
-    ::close(fd);
+    srs_close_socket(fd);
     return r0 == 0;
 }
 
@@ -377,7 +446,9 @@ public:
     virtual void OnTestEnd(const testing::TestInfo & /*info*/)
     {
         check(_srs_conn_manager);
+#ifdef SRS_RTSP
         check(_srs_rtsp_manager);
+#endif
     }
 
 private:
@@ -395,6 +466,12 @@ private:
     }
 };
 
+#ifdef _WIN32
+static void srs_utest_invalid_parameter(const wchar_t *, const wchar_t *, const wchar_t *, unsigned int, uintptr_t)
+{
+}
+#endif
+
 // We could do something in the main of utest.
 // Copy from gtest-1.6.0/src/gtest_main.cc
 GTEST_API_ int main(int argc, char **argv)
@@ -402,6 +479,16 @@ GTEST_API_ int main(int argc, char **argv)
     srs_error_t err = srs_success;
 
     _srs_binary = argv[0];
+
+#ifdef _WIN32
+    // The CRT ends the process when a call gets a closed or invalid descriptor, which tests pass on purpose,
+    // unless a handler returns, and then the call fails with EBADF.
+    _set_invalid_parameter_handler(srs_utest_invalid_parameter);
+#endif
+    if (srs_socket_startup() != 0) {
+        fprintf(stderr, "Failed, socket startup\n");
+        return -1;
+    }
 
     if ((err = prepare_main()) != srs_success) {
         fprintf(stderr, "Failed, %s\n", srs_error_desc(err).c_str());
@@ -537,8 +624,12 @@ MockProtectedBuffer::MockProtectedBuffer() : raw_memory_(NULL), size_(0), data_(
 MockProtectedBuffer::~MockProtectedBuffer()
 {
     if (size_ && raw_memory_) {
+#ifdef _WIN32
+        VirtualFree(raw_memory_, 0, MEM_RELEASE);
+#else
         long page_size = sysconf(_SC_PAGESIZE);
         munmap(raw_memory_, page_size * 2);
+#endif
     }
 }
 
@@ -546,23 +637,43 @@ int MockProtectedBuffer::alloc(int size)
 {
     srs_assert(!raw_memory_);
 
+#ifdef _WIN32
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    long page_size = info.dwPageSize;
+#else
     long page_size = sysconf(_SC_PAGESIZE);
+#endif
     if (size >= page_size)
         return -1;
 
+#ifdef _WIN32
+    char *data = (char *)VirtualAlloc(NULL, page_size * 2, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (!data) {
+        return -1;
+    }
+#else
     char *data = (char *)mmap(NULL, page_size * 2, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
     if (data == MAP_FAILED) {
         return -1;
     }
+#endif
 
     size_ = size;
     raw_memory_ = data;
     data_ = data + page_size - size;
 
+#ifdef _WIN32
+    DWORD old_protect;
+    if (!VirtualProtect(data + page_size, page_size, PAGE_NOACCESS, &old_protect)) {
+        return -1;
+    }
+#else
     int r0 = mprotect(data + page_size, page_size, PROT_NONE);
     if (r0 < 0) {
         return r0;
     }
+#endif
 
     return 0;
 }
@@ -1018,14 +1129,18 @@ int SrsTestTcpServer::get_port()
     return port_;
 }
 
+// The listener accepts in its own coroutine, which may not have run yet when the client's connect returns.
 SrsTcpConnection *SrsTestTcpServer::get_connection()
 {
+    for (int i = 0; i < 100 && !conn_; i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
     return conn_;
 }
 
 SrsTcpConnection *SrsTestTcpServer::take_connection()
 {
-    SrsTcpConnection *conn = conn_;
+    SrsTcpConnection *conn = get_connection();
     conn_ = NULL;
     return conn;
 }
@@ -1055,7 +1170,6 @@ srs_error_t SrsTestTcpServer::on_tcp_client(ISrsListener *listener, srs_netfd_t 
 
 SrsTestTcpClient::SrsTestTcpClient(string host, int port, srs_utime_t timeout)
 {
-    client_ = NULL;
     conn_ = NULL;
     host_ = host;
     port_ = port;
@@ -1067,23 +1181,17 @@ SrsTestTcpClient::~SrsTestTcpClient()
     close();
 }
 
+// One connection only: the server keeps the last one it accepted, so a second would replace the first while a
+// test reads it.
 srs_error_t SrsTestTcpClient::connect()
 {
     srs_error_t err = srs_success;
 
     close(); // Close any existing connection
 
-    client_ = new SrsTcpClient(host_, port_, timeout_);
-    if ((err = client_->connect()) != srs_success) {
-        return srs_error_wrap(err, "tcp client connect %s:%d", host_.c_str(), port_);
-    }
-
-    // Create SrsTcpConnection from the connected client
-    // We need to get the file descriptor from the client
-    // Since SrsTcpClient doesn't expose the fd directly, we'll create a new connection
     srs_netfd_t stfd = NULL;
     if ((err = srs_tcp_connect(host_, port_, timeout_, &stfd)) != srs_success) {
-        return srs_error_wrap(err, "tcp connect for connection %s:%d", host_.c_str(), port_);
+        return srs_error_wrap(err, "tcp client connect %s:%d", host_.c_str(), port_);
     }
 
     conn_ = new SrsTcpConnection(stfd);
@@ -1093,7 +1201,6 @@ srs_error_t SrsTestTcpClient::connect()
 
 void SrsTestTcpClient::close()
 {
-    srs_freep(client_);
     srs_freep(conn_);
 }
 
@@ -1104,18 +1211,18 @@ SrsTcpConnection *SrsTestTcpClient::get_connection()
 
 srs_error_t SrsTestTcpClient::write(void *buf, size_t size, ssize_t *nwrite)
 {
-    if (!client_) {
+    if (!conn_) {
         return srs_error_new(ERROR_SOCKET_WRITE, "client not connected");
     }
-    return client_->write(buf, size, nwrite);
+    return conn_->write(buf, size, nwrite);
 }
 
 srs_error_t SrsTestTcpClient::read(void *buf, size_t size, ssize_t *nread)
 {
-    if (!client_) {
+    if (!conn_) {
         return srs_error_new(ERROR_SOCKET_READ, "client not connected");
     }
-    return client_->read(buf, size, nread);
+    return conn_->read(buf, size, nread);
 }
 
 SrsUdpTestServer::SrsUdpTestServer(string host)
@@ -1239,7 +1346,7 @@ srs_error_t SrsUdpTestClient::connect()
 
     stfd_ = srs_netfd_open_socket(sock);
     if (stfd_ == NULL) {
-        ::close(sock);
+        srs_close_socket(sock);
         return srs_error_new(ERROR_ST_OPEN_SOCKET, "open udp socket");
     }
 

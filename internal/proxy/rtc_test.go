@@ -1174,6 +1174,45 @@ func TestWebRTCProxyServer_HandleClientUDP_StunLBError(t *testing.T) {
 	}
 }
 
+func TestWebRTCProxyServer_HandleClientUDP_StunWinsOverReusedAddress(t *testing.T) {
+	// A client address can be reused by a new session after an old one ended,
+	// such as a new UDP socket bound to a freed port. The new session's STUN
+	// binding names its connection by ufrag, so it must reach that connection,
+	// not the old one cached for the address, and the address must follow it.
+	f := newWebRTCFixture()
+	newConn := func(ufrag, stop string) *rtcConnection {
+		lb := &lbfakes.FakeOriginLoadBalancer{}
+		lb.PickReturns(nil, errors.New(stop))
+		c := newRTCConnection(func(c *rtcConnection) {
+			c.loadBalancer = lb
+			c.StreamURL = "vhost/app/" + ufrag
+			c.Ufrag = ufrag
+		})
+		c.Initialize(context.Background(), f.listener)
+		return c
+	}
+	stale := newConn("old:R", "stale connection")
+	fresh := newConn("new:R", "fresh connection")
+	f.server.usernames.Store("new:R", fresh)
+
+	addr := &net.UDPAddr{IP: net.ParseIP("1.2.3.4"), Port: 7007}
+	f.server.addresses.Store(addr.String(), stale)
+
+	err := f.server.handleClientUDP(context.Background(), addr, newStunBindingRequest("new:R"))
+	if err == nil || !strings.Contains(err.Error(), "fresh connection") {
+		t.Fatalf("expected the STUN binding to reach the fresh connection, got %v", err)
+	}
+	if got, ok := f.server.addresses.Load(addr.String()); !ok || got != fresh {
+		t.Fatal("expected the address to map to the fresh connection")
+	}
+
+	// Media after the binding follows the address to the fresh connection.
+	err = f.server.handleClientUDP(context.Background(), addr, fakeRTPPacket())
+	if err == nil || !strings.Contains(err.Error(), "fresh connection") {
+		t.Fatalf("expected media to reach the fresh connection, got %v", err)
+	}
+}
+
 func TestWebRTCProxyServer_HandleClientUDP_UsesCachedAddress(t *testing.T) {
 	// A non-STUN packet from an address already in the address cache must be
 	// dispatched to the cached connection without consulting the LB.

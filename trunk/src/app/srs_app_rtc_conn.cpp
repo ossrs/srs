@@ -8,13 +8,9 @@
 
 using namespace std;
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 
 #include <fcntl.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include <queue>
 #include <sstream>
@@ -3434,6 +3430,18 @@ srs_error_t SrsRtcConnection::create_publisher(ISrsRequest *req, SrsRtcSourceDes
     return err;
 }
 
+std::string srs_rtc_sdp_session_id(ISrsRand *rand)
+{
+    uint8_t bytes[8];
+    rand->gen_bytes((char *)bytes, sizeof(bytes));
+
+    uint64_t v = 0;
+    for (int i = 0; i < (int)sizeof(bytes); i++) {
+        v = (v << 8) | bytes[i];
+    }
+    return srs_strconv_format_int((int64_t)(v & 0x3fffffffffffffffULL));
+}
+
 ISrsRtcPublisherNegotiator::ISrsRtcPublisherNegotiator()
 {
 }
@@ -3445,10 +3453,13 @@ ISrsRtcPublisherNegotiator::~ISrsRtcPublisherNegotiator()
 SrsRtcPublisherNegotiator::SrsRtcPublisherNegotiator()
 {
     config_ = _srs_config;
+    rand_ = new SrsRand();
 }
 
 SrsRtcPublisherNegotiator::~SrsRtcPublisherNegotiator()
 {
+    srs_freep(rand_);
+
     config_ = NULL;
 }
 
@@ -3989,7 +4000,7 @@ srs_error_t SrsRtcPublisherNegotiator::generate_publish_local_sdp(ISrsRequest *r
     local_sdp.version_ = "0";
 
     local_sdp.username_ = RTMP_SIG_SRS_SERVER;
-    local_sdp.session_id_ = srs_strconv_format_int((int64_t)this);
+    local_sdp.session_id_ = srs_rtc_sdp_session_id(rand_);
     local_sdp.session_version_ = "2";
     local_sdp.nettype_ = "IN";
     local_sdp.addrtype_ = "IP4";
@@ -4441,7 +4452,7 @@ srs_error_t SrsRtcPlayerNegotiator::generate_play_local_sdp(ISrsRequest *req, Sr
     local_sdp.version_ = "0";
 
     local_sdp.username_ = RTMP_SIG_SRS_SERVER;
-    local_sdp.session_id_ = srs_strconv_format_int((int64_t)this);
+    local_sdp.session_id_ = srs_rtc_sdp_session_id(rand_);
     local_sdp.session_version_ = "2";
     local_sdp.nettype_ = "IN";
     local_sdp.addrtype_ = "IP4";

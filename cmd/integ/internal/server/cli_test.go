@@ -151,3 +151,19 @@ func TestStartGated(t *testing.T) {
 		t.Errorf("live %d total %d after a failed start, want 1 and 4", p.live.Load(), p.total.Load())
 	}
 }
+
+// TestCLIOutput checks that the output of a run has LF line ends, also from
+// a binary whose C runtime writes CR LF in text mode, as on Windows.
+func TestCLIOutput(t *testing.T) {
+	for _, tt := range []struct{ in, want string }{
+		{"8.0.64\n", "8.0.64\n"},
+		{"8.0.64\r\n", "8.0.64\n"},
+		{"Usage:\r\n  -h\r\n", "Usage:\n  -h\n"},
+		{"a\rb", "a\rb"},
+		{"", ""},
+	} {
+		if got := cliOutput([]byte(tt.in)); got != tt.want {
+			t.Errorf("cliOutput(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}

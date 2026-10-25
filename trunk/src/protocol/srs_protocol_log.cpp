@@ -8,8 +8,6 @@
 
 #include <sstream>
 #include <stdarg.h>
-#include <sys/time.h>
-#include <unistd.h>
 using namespace std;
 
 #include <srs_kernel_error.hpp>
@@ -111,19 +109,20 @@ bool srs_log_header(char *buffer, int size, bool utc, bool dangerous, const char
 {
     // clock time
     timeval tv;
-    if (gettimeofday(&tv, NULL) == -1) {
+    if (srs_gettimeofday(&tv, NULL) == -1) {
         return false;
     }
 
-    // to calendar time
+    // to calendar time, from a time_t: the Winsock timeval has a long tv_sec.
+    time_t sec = tv.tv_sec;
     struct tm now;
     // Each of these functions returns NULL in case an error was detected. @see https://linux.die.net/man/3/localtime_r
     if (utc) {
-        if (gmtime_r(&tv.tv_sec, &now) == NULL) {
+        if (srs_gmtime_r(&sec, &now) == NULL) {
             return false;
         }
     } else {
-        if (localtime_r(&tv.tv_sec, &now) == NULL) {
+        if (srs_localtime_r(&sec, &now) == NULL) {
             return false;
         }
     }

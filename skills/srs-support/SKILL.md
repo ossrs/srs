@@ -72,7 +72,7 @@ Load knowledge in layers and stop when there is enough information.
 
 **Layer 3 — Last resort for a usage answer:**
 1. Load `skills/internal-codemap-for-srs/SKILL.md`.
-2. Select the smallest relevant C++ media server or next-generation Go server map and, when needed, its verification map.
+2. Select the smallest relevant C++ media server or Go proxy server map and, when needed, its verification map.
 3. Read only the module and file set selected by the map. Do not broadly grep directories or the repository root.
 
 ### Step 3: Answer by Topic
@@ -104,7 +104,7 @@ Apply these rules to all SRS answers:
 - Provide the standard build steps: `cd trunk && ./configure && make`.
 - Show publishing and playback with FFmpeg and common players.
 - For Docker, reference `trunk/conf/docker.conf` and load the getting-started documentation.
-- Note that SRS targets Linux; use WSL on Windows, while macOS is suitable for development.
+- Note that SRS targets Linux for production; macOS is suitable for development; on Windows x64, SRS 8.0 runs natively from the release zip (load `doc/windows.md`), and WSL runs the Linux build.
 
 **Architecture questions**
 - Explain that SRS is single-process and single-threaded by design.

@@ -163,6 +163,7 @@ ifeq ($(BUILD), OPT)
 OTHER_FLAGS += -O2
 else
 OTHER_FLAGS += $(DBG_FLAGS)
+ML64_FLAGS  += -Zi
 DEFINES     += -DDEBUG
 endif
 
@@ -316,10 +317,12 @@ $(HEADER): public.h
 $(TARGETDIR)/%.o: %.S
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# The WIN64 context switch is MASM assembly, md_win64.asm.
+# The WIN64 context switch is MASM assembly, md_win64.asm. The debug build assembles it with -Zi, as it
+# compiles C with -Z7, so the PDB of a program has its functions and lines: a debugger sets a breakpoint
+# on _st_md_cxt_save by name, and steps md_win64.asm by source line.
 ifeq ($(OS), WIN64)
 $(TARGETDIR)/%.o: %.asm
-	ml64 -nologo -c -Fo$@ $<
+	ml64 -nologo $(ML64_FLAGS) -c -Fo$@ $<
 endif
 
 $(TARGETDIR)/%.o: %.c common.h md.h

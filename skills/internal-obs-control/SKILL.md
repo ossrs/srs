@@ -1,6 +1,6 @@
 ---
 name: internal-obs-control
-description: Control OBS Studio over obs-websocket for live streaming and RTMP, SRT or WHIP tests. Manage profiles, scenes, sources and stream outputs; use isolated instances for automated or parallel tests.
+description: Use when a task needs OBS Studio, such as live streaming from OBS or publishing RTMP, SRT or WHIP to SRS from OBS in a manual, automated or parallel test, including setting up OBS profiles, scenes, sources and stream outputs.
 ---
 
 # OBS Control
@@ -73,8 +73,9 @@ How they run:
   (`srs-full-tier.sh`), within 60 s.
 - **SRS on Linux**: lane G also runs `obs-linux-test.sh`, the same three cases against SRS built for
   Linux and run in Docker. Without a running Docker it reports unverified.
-- **SRS for Windows OBS**: when `SRS_TEST_WINDOWS_HOST` is set, lane G also runs
-  `obs-windows-test.sh`: RTMP and WHIP from OBS on the Windows test host to SRS in WSL there.
+- **SRS on Windows**: when `SRS_TEST_WINDOWS_HOST` is set, lane G also runs
+  `obs-windows-test.sh`: the same three cases from OBS on the Windows test host to the native
+  `srs.exe` there.
 - **`SRS_TEST_OBS`**: default `1`. With `SRS_TEST_OBS=0`, lane G and every OBS script print
   `SKIP SRS_TEST_OBS=0` and exit 0.
 - **No OBS**: a script prints `SKIP OBS not available` and exits 0; the Full tier reports it as

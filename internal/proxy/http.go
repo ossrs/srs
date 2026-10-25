@@ -397,8 +397,10 @@ func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 	}
 	defer resp.Body.Close()
 
+	// An origin's error answer, such as a 404 for a stream that is not
+	// published, is relayed with its status below like a stream.
 	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)
+		logger.Warn(ctx, "proxy stream to %v answered status=%v", backendURL, resp.Status)
 	}
 
 	// Copy end-to-end headers before committing the response. Headers changed
@@ -523,12 +525,15 @@ func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWrite
 	}
 	defer resp.Body.Close()
 
+	// An origin's error answer, such as a 404 for a playlist SRS has not
+	// written yet, is relayed as it is, with its status, so a player can tell
+	// a stream that is not ready from a broken proxy.
 	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)
+		logger.Warn(ctx, "proxy stream to %v answered status=%v", backendURL, resp.Status)
 	}
 
-	// For TS file, directly copy it.
-	if !strings.HasSuffix(r.URL.Path, ".m3u8") {
+	// For TS file or an error answer, directly copy it.
+	if resp.StatusCode != http.StatusOK || !strings.HasSuffix(r.URL.Path, ".m3u8") {
 		copyBackendResponseHeaders(w.Header(), resp.Header)
 		w.WriteHeader(resp.StatusCode)
 

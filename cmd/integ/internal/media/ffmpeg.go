@@ -67,7 +67,7 @@ func ProbeFFmpeg(path string) (*FFmpeg, error) {
 // the "------" separator is " <flags> <name> <description>".
 func parseEncoders(out string) map[string]bool {
 	encoders := map[string]bool{}
-	_, list, ok := strings.Cut(out, "------\n")
+	_, list, ok := strings.Cut(strings.ReplaceAll(out, "\r\n", "\n"), "------\n")
 	if !ok {
 		return encoders
 	}

@@ -2967,6 +2967,8 @@ VOID TEST(ForwarderStatusTest, StatesFollowConnectPublishAndRetry)
     stat.clk_ = NULL;
 }
 
+// Its mocks are in srs_utest_ai23, which builds only with GB28181.
+#ifdef SRS_GB28181
 // A packet over TCP goes out in one write, its 2-byte size in network order then its data, so the data never waits
 // for the peer to acknowledge the size.
 VOID TEST(RtcTcpNetworkTest, WritesSizeAndDataInOneWrite)
@@ -3005,6 +3007,7 @@ VOID TEST(RtcTcpNetworkTest, WritesSizeAndDataInOneWrite)
 
     tcp_network.sendonly_skt_ = NULL;
 }
+#endif
 
 MockServerTcpAcceptor::MockServerTcpAcceptor(SrsServer *server, ISrsListener *as)
 {

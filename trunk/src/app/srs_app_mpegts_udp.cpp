@@ -6,11 +6,7 @@
 
 #include <srs_app_mpegts_udp.hpp>
 
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in.h>
 #include <stdlib.h>
-#include <sys/socket.h>
 using namespace std;
 
 #include <srs_app_config.hpp>

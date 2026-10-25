@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"srs-integ/internal/audio"
 	"srs-integ/internal/media"
 	"srs-integ/internal/report"
 )
@@ -498,6 +499,7 @@ func TestGeneratedTS(t *testing.T) {
 		{media.H264OpusTS, "h264", "High", "opus", 48000, 0},
 		{media.AACOnlyTS, "", "", "aac", 44100, 1},
 		{media.H264OnlyTS, "h264", "High", "", 0, 0},
+		{media.AAC48kPackedTS, "", "", "aac", 48000, 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.file, func(t *testing.T) {
@@ -539,5 +541,39 @@ func TestGeneratedTS(t *testing.T) {
 				t.Error(err)
 			}
 		})
+	}
+}
+
+// TestGeneratedPackedTS checks the file of ffmpeg's default packing has
+// several AAC frames in each PES but its last, all with the PES's one PTS.
+func TestGeneratedPackedTS(t *testing.T) {
+	f, err := os.Open(media.Path(t, media.AAC48kPackedTS))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	d := NewDemuxer(f)
+	var counts []int
+	for {
+		p, err := d.ReadPES()
+		if errors.Is(err, io.EOF) {
+			break
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		frames, err := audio.SplitFrames(p.Codec, p.Data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		counts = append(counts, len(frames))
+	}
+	if len(counts) < 2 {
+		t.Fatalf("%v PES, want many", len(counts))
+	}
+	for i, n := range counts[:len(counts)-1] {
+		if n < 2 {
+			t.Fatalf("PES %v has %v frames, want several: %v", i, n, counts)
+		}
 	}
 }

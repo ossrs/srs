@@ -1,6 +1,6 @@
 # C++ Server Code Map
 
-Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a task to the first-generation C++ media server. The listed modules, directories, configuration files, and vendored third-party dependency files define the trusted navigation scope.
+Use this reference after `skills/internal-codemap-for-srs/SKILL.md` routes a task to the C++ media server. The listed modules, directories, configuration files, and vendored third-party dependency files define the trusted navigation scope.
 
 ## C++ Media Server Code
 
@@ -15,7 +15,7 @@ The C++ media server (`trunk/src/`) serves as both origin server and edge server
 - `core_autofree` — SrsUniquePtr smart pointer (RAII)
 - `core_deprecated` — Deprecated SrsAutoFree, kept for compat
 - `core_performance` — Performance tuning constants (merge-read, etc.)
-- `core_platform` — Platform abstraction (32/64-bit, PRId64, large file support)
+- `core_platform` — Platform shims, the one place where Linux, macOS and Windows differ: the per-OS headers, `srs_socket_t`, `srs_off_t`, and `srs_`-prefixed calls for sockets, file IO, time, random, interfaces, uname, resource usage, the pid file lock, signals and the self-pipe, and child processes (`srs_process_spawn`, `srs_kill`, `srs_waitpid`). Each is the POSIX call on Unix and Win32 code under `_WIN32`; also the 32/64-bit and `PRId64` checks
 - `core_time` — Time types and conversions (srs_utime_t, ms/us)
 
 `kernel/` — Low-level building blocks, no network, no protocol logic:
@@ -161,8 +161,8 @@ Utilities:
 - `app_security` — Security: allow/deny rules for publish/play
 - `app_statistic` — Server/stream/client/forward statistics
 - `app_heartbeat` — HTTP heartbeat to API server
-- `app_utility` — System info, disk/CPU/memory stats
-- `app_process` — Child process management
+- `app_utility` — System info, disk/CPU/memory stats; the `/proc` readers, which macOS and Windows skip
+- `app_process` — Child process management, started through `srs_process_spawn`
 - `app_async_call` — Async HTTP callback execution
 - `app_recv_thread` — Background RTMP message receive thread
 - `app_ng_exec` — exec hooks (on_publish exec)
@@ -176,17 +176,39 @@ Utilities:
 
 **Config**
 
-Config (`trunk/conf/`) is only for the C++ media server. The next-generation Go server does not use these config files.
+Config (`trunk/conf/`) is only for the C++ media server. The Go proxy server does not use these config files.
 
 - `srs.conf` — Default config
 - `full.conf` — Full reference config with all options documented
 - Feature-specific configs: `rtc.conf`, `srt.conf`, `hls.conf`, `dvr.*.conf`, `edge.conf`, `forward.*.conf`, `gb28181.conf`, `dash.conf`, etc.
+
+## Build
+
+The C++ server has two builds that compile the same sources. Linux and macOS build with `./configure` and make; Windows x64 builds natively with MSVC through CMake.
+
+Shared:
+- `trunk/auto/module_files.sh` — The source files of every module (`CORE`, `KERNEL`, `PROTOCOL`, `APP`, `SERVER`, `UTEST`), as bash lists: `SRS_<MODULE>_FILES` always build, `SRS_<MODULE>_<FEATURE>_FILES` only when the feature is on. `./configure` sources it and both CMake builds read it. A new source or utest file goes in its module's list here.
+- `trunk/cmake/srs-modules.cmake` — Reads `auto/module_files.sh` for the Windows and the IDE CMake
+
+Linux and macOS:
+- `trunk/configure`, `trunk/auto/*.sh` — Options, third-party builds (`auto/depends.sh`), the generated `objs/srs_auto_headers.hpp` (`auto/auto_headers.sh`) and the generated Makefile
+- `trunk/cmake/CMakeLists.txt` — An IDE project that runs `./configure` for the deps and the auto header, with the sources `configure` chose from the module list; not the Windows build
+
+Windows x64 (MSVC, C++14, static `/MT`):
+- `trunk/vcpkg.json` — vcpkg manifest with a pinned baseline: OpenSSL 3, libsrtp, libsrt, opus and gtest
+- `trunk/cmake/windows/CMakeLists.txt` — The `srs` and `srs_utest` targets over one `srs_modules` object library, the vcpkg packages, ST and FFmpeg-fit as imported or interface libraries, the CMake options for the module conditions, and the MSVC flags
+- `trunk/cmake/windows/srs-auto-headers.cmake` — Writes `objs/windows/srs_auto_headers.hpp` with the macros of `auto/auto_headers.sh` and Windows values
+- `trunk/cmake/windows/srs.manifest` — The application manifest both programs embed, for the UTF-8 code page
+- `trunk/cmake/windows/deps-check/` — One link-check program per third-party library
+- `skills/srs-develop/scripts/srs-windows-runner.sh` — Drives the Windows build on the host: ST with `make win64-debug`, FFmpeg-fit under MSYS2 with the MSVC toolchain, the CMake configure and build, the tests, the release zip, and the Visual Studio projects in `trunk/objs/windows-vs/` with the committed solution `.vs/srs.slnx` that opens them (the `vs` step; the start-up project and debugger settings are in `trunk/cmake/windows/CMakeLists.txt`). Output in `trunk/objs/windows/`
+- `.github/actions/windows-build-setup` — The MSVC environment, caches and tools of the Windows CI jobs: the `windows` job of `.github/workflows/test.yml` (build and utest) and of `.github/workflows/release.yml` (the release zip)
 
 ## Tests and Verification
 
 `trunk/src/utest/` — Unit tests for internal functions, classes, parsers, codecs, and configuration without starting SRS. Links directly against SRS source and uses mocks such as `MockSrsConfig`.
 
 - Build and run: `cd trunk && ./configure --utest && make utest && ./objs/srs_utest`
+- On Windows: `srs_utest.exe`, built and run by the `utest` step of `srs-windows-runner.sh`. A test that has no meaning there is guarded with `#ifndef _WIN32 // POSIX only: <reason>`; temp files go in `srs_utest_tmp_dir()`
 - `srs_utest_ai*` — AI-written unit tests
 - `srs_utest_manual_*` — Manually written tests, defined and implemented by humans
 - `srs_utest_workflow_*` — Workflow and integration tests, AI-maintained like `srs_utest_ai*`
@@ -203,6 +225,10 @@ Config (`trunk/conf/`) is only for the C++ media server. The next-generation Go 
 - `http_api_test.go` — HTTP API
 - `forward_test.go` — Forward (destination and backend)
 - `mp3_test.go` — MP3
+
+`cmd/integ/` — The `srs-integ` black-box suite, the one that also runs against `srs.exe` on Windows; `cmd/integ/README.md` has its rules and catalog. The OS differences live in two files:
+- `cmd/integ/internal/server/platform.go` — Per OS: the SRS binary, the work dir, how SRS is stopped, and the features the build has
+- `cmd/integ/internal/check/skips.go` — The named skip list: an OS, a case-name pattern and the reason
 
 `trunk/3rdparty/srs-bench/srs/` — E2E protocol tests against an externally started SRS server. Uses real Pion WebRTC, RTMP, and HTTP API clients.
 
@@ -229,7 +255,7 @@ State Threads is the coroutine library used by the C++ media server only. The Go
 The C++ server uses FFmpeg through two independent paths; do not treat the executable and the linked libraries as one dependency:
 
 - **In-process FFmpeg API** — `app_rtc_codec` calls `libavcodec`, `libswresample`, and `libavutil` directly for packet-level AAC/MP3/Opus audio conversion in the RTMP-to-RTC and RTC-to-RTMP bridges. This path is compiled under `SRS_FFMPEG_FIT`, normally links the pruned `trunk/3rdparty/ffmpeg-4-fit/` libraries into `objs/srs`, and does not start an FFmpeg process. Follow `app_rtc_source` for bridge ownership and `app_rtc_codec` for decode, resample, FIFO, encode, and FFmpeg log handling.
-- **External FFmpeg binary** — `app_ingest` and `app_encoder` create `app_ffmpeg`, which builds CLI arguments and delegates to `app_process` to `fork()` and `execv()` the configured executable. This path handles general ingest, video/audio transcoding, filters, snapshots, containers, and protocols supported by that executable; media normally enters or leaves SRS through configured URLs rather than in-process frames. A normal SRS source build finds the host `ffmpeg` with `which` and copies it to `objs/ffmpeg/bin/ffmpeg`; it does not build the full CLI from `ffmpeg-4-fit`. For the FFmpeg versions compiled by the Docker toolchain, default-binary selection, and packaging into release images, route separately to the [Dev Docker map](dev-docker.md).
+- **External FFmpeg binary** — `app_ingest` and `app_encoder` create `app_ffmpeg`, which builds CLI arguments and delegates to `app_process`, which starts the configured executable with `srs_process_spawn` (`fork()` and `execv()` on Unix, `CreateProcessW` in a job on Windows). This path handles general ingest, video/audio transcoding, filters, snapshots, containers, and protocols supported by that executable; media normally enters or leaves SRS through configured URLs rather than in-process frames. A normal SRS source build finds the host `ffmpeg` with `which` and copies it to `objs/ffmpeg/bin/ffmpeg`; it does not build the full CLI from `ffmpeg-4-fit`. For the FFmpeg versions compiled by the Docker toolchain, default-binary selection, and packaging into release images, route separately to the [Dev Docker map](dev-docker.md).
 
 The similarly named output paths have different roles: `objs/ffmpeg/lib/` and its headers support the linked API, while `objs/ffmpeg/bin/ffmpeg` is the independently executable CLI. Use `trunk/auto/depends.sh` to trace both source-build dependency paths.
 
@@ -241,7 +267,7 @@ Build and portability:
 - `configure` — FFmpeg feature and platform configuration; regenerates enabled codec and component lists
 - `Makefile` — Top-level build, library ordering, installation, and cleanup targets
 - `ffbuild/` — Shared make rules plus version and pkg-config generation scripts
-- `compat/` — Vendored C atomic and `va_copy` compatibility headers
+- `compat/` — Vendored C atomic and `va_copy` compatibility headers, and the Windows files the MSVC build needs (`windows/mslink`, `w32pthreads.h`, `atomics/win32/`)
 - `LICENSE.md` — FFmpeg licensing summary and optional-library license boundaries
 
 `libavcodec/` — Audio codec APIs and implementations:

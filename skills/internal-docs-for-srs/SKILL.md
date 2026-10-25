@@ -1,6 +1,6 @@
 ---
 name: internal-docs-for-srs
-description: Route SRS and Oryx tasks to the smallest relevant set of trusted project documentation and maintain the project documentation bundled with this skill. Use whenever support or development work requires locating, choosing, reading, creating, updating, or reviewing SRS documentation, or whenever Oryx work requires project documentation for deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, or development. Includes the C++ media server documentation, State Threads documentation, Oryx project documentation, website pages, media streaming standard documents, changelog, executable API examples, and next-generation Go server and performance documentation.
+description: Use whenever support or development work needs SRS or Oryx project documentation, or when that documentation must be created, updated, or reviewed. Covers the C++ media server, State Threads, Oryx (deployment, streaming, authentication, recording to local or S3-compatible storage, restreaming, virtual live, camera, transcoding, HTTPS, APIs, callbacks, AI features, development), website pages, media streaming standards, the changelog, API examples, and the Go proxy server and performance docs.
 ---
 
 # SRS Internal Documentation
@@ -43,6 +43,7 @@ For C++ media server user documentation, select the smallest relevant document:
 - `references/cpp-docs/doc/getting-started.md` — Docker quick start, RTMP publishing, HTTP-FLV/HLS playback, WebRTC, HTTPS, SRT, and stream URL patterns.
 - `references/cpp-docs/doc/getting-started-ai.md` — SRS Robot, local AI agents, the skills system, and the project knowledge-base philosophy.
 - `references/cpp-docs/doc/getting-started-build.md` — Build SRS from source and cross-build for ARM or MIPS.
+- `references/cpp-docs/doc/windows.md` — Native Windows x64: release zip, MSVC build, console control and the RAW API, features, test skip list, and limits.
 - `references/cpp-docs/doc/getting-started-cdk.md` — Deploy SRS on AWS with srs-cdk.
 - `references/cpp-docs/doc/rtmp.md` — RTMP usage, Enhanced RTMP, configuration, RTMPS, protocol comparisons, and codec history.
 - `references/cpp-docs/doc/hls.md` — HLS compatibility, latency, segment configuration, HTTPS, and audio transcoding from WebRTC.
@@ -129,15 +130,9 @@ For RTMP Go API examples, load:
 
 - `internal/rtmp/example_test.go` — RTMP API examples for AMF0, handshake, and protocol workflows.
 
-### WHEP Performance Analysis
+### Go Proxy Documentation
 
-For WHEP performance analysis, load:
-
-- `references/perf/proxy-whep.md` — Profile WHEP with pprof and srs-bench and compare CPU, allocation, heap, goroutine, and trace data.
-
-### Next-Generation Go Proxy Documentation
-
-For next-generation Go proxy documentation, select the smallest relevant document:
+For Go proxy documentation, select the smallest relevant document:
 
 - `references/proxy/features.md` — Proxy feature status and limitations, including implemented protocols, APIs, load balancing, deployment, configuration, operations, and current limitations.
 - `references/proxy/proxy-design.md` — Proxy architecture, including stateless proxy design, built-in load balancing, Redis mode, and horizontal scaling.

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -181,7 +182,7 @@ func hooksRtc(t *testing.T) {
 		blocker.hold(c, srs)
 		rtcDelete(c, &pub.Session)
 		c.Must(untilGone(c, srs, "/api/v1/clients/"+id), "the publisher in the API")
-		blocker.checkHeld(c)
+		blocker.release(c, srs, id)
 
 		h := waitClientHook(c, srs, "on_unpublish", id)
 		c.CheckEqual(h.Field("stream_id"), published.Field("stream_id"), "on_unpublish stream_id, the on_publish's")
@@ -209,7 +210,7 @@ func hooksRtc(t *testing.T) {
 		c.Must(untilGone(c, srs, "/api/v1/clients/"+playID), "the player in the API")
 		rtcDelete(c, &pub.Session)
 		c.Must(untilGone(c, srs, "/api/v1/clients/"+pubID), "the publisher in the API")
-		blocker.checkHeld(c)
+		blocker.release(c, srs, playID, pubID)
 
 		stop := waitClientHook(c, srs, "on_stop", playID)
 		c.CheckEqual(stop.Field("stream_id"), published.Field("stream_id"), "on_stop stream_id, the publisher's")
@@ -221,44 +222,54 @@ func hooksRtc(t *testing.T) {
 	})
 }
 
-// rtcHookQueueHold is how long a hook server holds the on_unpublish of a
-// WebRTC publisher, which keeps SRS's queue of WebRTC hooks busy.
-const rtcHookQueueHold = 200 * time.Millisecond
-
 // rtcHookBlocker is a WHIP publisher whose on_unpublish the hook server
-// answers only after rtcHookQueueHold. SRS sends the on_unpublish and on_stop
-// of WebRTC clients from one queue, so the hooks queued while it waits wait
-// too.
+// answers only when the case releases it. SRS sends the on_unpublish and
+// on_stop of WebRTC clients from one queue, so the hooks queued while it
+// waits wait too. A release by the case, not a fixed hold, since the deletes
+// and API polls the hold must outlast take longer on a slow host.
 type rtcHookBlocker struct {
-	pub *rtc.Publisher
-	id  string
-	// unpublished is when its on_unpublish came, once hold returns.
-	unpublished time.Time
+	pub  *rtc.Publisher
+	id   string
+	gate chan struct{}
+	once sync.Once
 }
 
-// newRtcHookBlocker publishes the blocker's stream by WHIP.
+// newRtcHookBlocker publishes the blocker's stream by WHIP. Its on_unpublish
+// is released when the case ends at the latest, so a failed case does not
+// hold the queue of a shared server.
 func newRtcHookBlocker(c *check.C, srs *server.Server, name string) *rtcHookBlocker {
 	c.Helper()
-	srs.Hooks.Script(hookOfStream("on_unpublish", name), mock.OK().After(rtcHookQueueHold))
-	pub := rtcPublisher(c, whipURL(srs, "live", name), nil)
-	return &rtcHookBlocker{pub: pub, id: waitHook(c, srs, "on_publish", name).Field("client_id")}
+	b := &rtcHookBlocker{gate: make(chan struct{})}
+	c.Cleanup(b.answer)
+	srs.Hooks.Script(hookOfStream("on_unpublish", name), mock.OK().Until(b.gate))
+	b.pub = rtcPublisher(c, whipURL(srs, "live", name), nil)
+	b.id = waitHook(c, srs, "on_publish", name).Field("client_id")
+	return b
 }
 
 // hold deletes the blocker and waits for its on_unpublish, which then holds
-// the queue for rtcHookQueueHold.
+// the queue until release.
 func (b *rtcHookBlocker) hold(c *check.C, srs *server.Server) {
 	c.Helper()
 	rtcDelete(c, &b.pub.Session)
-	b.unpublished = waitClientHook(c, srs, "on_unpublish", b.id).Time
+	waitClientHook(c, srs, "on_unpublish", b.id)
 }
 
-// checkHeld fails the case if the hook server answered the blocker's
-// on_unpublish already, so a hook queued since hold may not have waited.
-func (b *rtcHookBlocker) checkHeld(c *check.C) {
+// release fails the case if a hook of the clients came while the queue was
+// held, then answers the blocker's on_unpublish.
+func (b *rtcHookBlocker) release(c *check.C, srs *server.Server, ids ...string) {
 	c.Helper()
-	if held := time.Since(b.unpublished); held >= rtcHookQueueHold {
-		c.Fatalf("the queue held for %v only, the clients left %v after the blocking hook came", rtcHookQueueHold, held)
+	for _, id := range ids {
+		queued := srs.Hooks.Requests(mock.Match{Func: func(r mock.Request) bool {
+			return r.Field("client_id") == id && (r.Action() == "on_unpublish" || r.Action() == "on_stop")
+		}})
+		c.CheckEqual(hookActions(queued), []string(nil), "hooks of client "+id+" while the queue is held")
 	}
+	b.answer()
+}
+
+func (b *rtcHookBlocker) answer() {
+	b.once.Do(func() { close(b.gate) })
 }
 
 // hooksSrt adds the hook cases of SRT publishers and players.

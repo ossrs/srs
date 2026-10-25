@@ -9,7 +9,6 @@
 #include <signal.h>
 #include <sstream>
 #include <stdlib.h>
-#include <unistd.h>
 using namespace std;
 
 #include <srs_app_config.hpp>
@@ -34,10 +33,6 @@ using namespace std;
 #ifdef SRS_VALGRIND
 #include <valgrind/memcheck.h>
 #include <valgrind/valgrind.h>
-#endif
-
-#if defined(__linux__) || defined(SRS_OSX)
-#include <sys/utsname.h>
 #endif
 
 srs_error_t srs_api_response_jsonp(ISrsHttpResponseWriter *w, string callback, string data)
@@ -1080,7 +1075,7 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
     //////////////////////////////////////////////////////////////////////////
     // the rpc is required.
     // the allowed rpc method check.
-    if (rpc.empty() || (rpc != "reload" && rpc != "reload-fetch")) {
+    if (rpc.empty() || (rpc != "reload" && rpc != "reload-fetch" && rpc != "reopen-log")) {
         return srs_api_response_code(w, r, ERROR_SYSTEM_CONFIG_RAW);
     }
 
@@ -1102,6 +1097,11 @@ srs_error_t SrsGoApiRaw::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *
         data->set("rid", SrsJsonAny::str(reload_status_->id().c_str()));
 
         return srs_api_response(w, r, obj->dumps());
+    } else if (rpc == "reopen-log") {
+        // Windows has no SIGUSR1, so a log rotation asks for the reopen here. It changes no config, so it
+        // needs no allow_reload.
+        handler_->on_signal(SRS_SIGNAL_REOPEN_LOG);
+        return srs_api_response_code(w, r, ERROR_SUCCESS);
     }
 
     return err;
@@ -1441,7 +1441,6 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
 
     std::stringstream ss;
 
-#if defined(__linux__) || defined(SRS_OSX)
     // Get system info
     SrsProtocolUtility utility;
     utsname *system_info = utility.system_uname();
@@ -1454,7 +1453,6 @@ srs_error_t SrsGoApiMetrics::serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessa
        << "version=\"" << srs_api_metrics_label_escape(system_info->version) << "\","
        << "machine=\"" << srs_api_metrics_label_escape(system_info->machine) << "\""
        << "} 1\n";
-#endif
 
     // Build info from Config.
     ss << "# HELP srs_build_info A metric with a constant '1' value labeled by build_date, version from which SRS was built.\n"

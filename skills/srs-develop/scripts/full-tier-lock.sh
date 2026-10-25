@@ -4,6 +4,7 @@
 #
 #   full-tier-lock.sh [--product NAME] acquire [--wait SECONDS] [--pid PID]   prints a token
 #   full-tier-lock.sh [--product NAME] release TOKEN
+#   full-tier-lock.sh [--product NAME] refresh TOKEN
 #   full-tier-lock.sh [--product NAME] status
 #
 # Acquire from the one script that runs the whole tier: the lock's owner is that process, the
@@ -14,7 +15,7 @@
 # /tmp/srs-full-tier.lock, and any other, such as st for State Threads, /tmp/srs-full-tier-st.lock.
 
 usage() {
-  echo "Usage: $0 [--product NAME] acquire [--wait SECONDS] [--pid PID] | release TOKEN | status" >&2
+  echo "Usage: $0 [--product NAME] acquire [--wait SECONDS] [--pid PID] | release TOKEN | refresh TOKEN | status" >&2
   exit 2
 }
 
@@ -119,6 +120,23 @@ release() {
   rm -rf "$LOCK_DIR"
 }
 
+refresh() {
+  [[ -n "$1" ]] || usage
+  local takeover="$LOCK_DIR.takeover"
+  if ! mkdir "$takeover" 2>/dev/null; then
+    echo "full-tier-lock: takeover in progress" >&2
+    return 1
+  fi
+  if [[ "$(owner_value token)" != "$1" ]]; then
+    echo "full-tier-lock: token $1 does not own the lock" >&2
+    rmdir "$takeover"
+    return 1
+  fi
+  sed "s/^start=.*/start=$(date +%s)/" "$LOCK_DIR/owner" > "$LOCK_DIR/owner.tmp"
+  mv "$LOCK_DIR/owner.tmp" "$LOCK_DIR/owner"
+  rmdir "$takeover"
+}
+
 status() {
   if [[ ! -d "$LOCK_DIR" ]]; then
     echo "free"
@@ -130,6 +148,7 @@ status() {
 case "$1" in
   acquire) shift; acquire "$@" ;;
   release) shift; release "$@" ;;
+  refresh) shift; refresh "$@" ;;
   status) status ;;
   *) usage ;;
 esac

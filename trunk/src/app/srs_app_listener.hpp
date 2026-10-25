@@ -9,8 +9,6 @@
 
 #include <srs_core.hpp>
 
-#include <netinet/in.h>
-#include <sys/socket.h>
 
 #include <map>
 #include <string>

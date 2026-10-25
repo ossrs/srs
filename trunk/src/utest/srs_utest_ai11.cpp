@@ -20,11 +20,10 @@ using namespace std;
 #include <srs_utest_ai19.hpp>
 
 #include <algorithm>
-#include <arpa/inet.h>
-#include <poll.h>
 #include <set>
-#include <sys/socket.h>
-#include <unistd.h>
+#ifndef _WIN32
+#include <poll.h>
+#endif
 
 // Mock ISrsResourceManager implementation
 MockResourceManagerForBindSession::MockResourceManagerForBindSession()
@@ -2704,13 +2703,13 @@ VOID TEST(RtcPlayStreamTest, InitializeSeedLeavesRunSequence)
     if (true) {
         SrsUtestRandomState state(1);
         for (int i = 0; i < 1024; i++) {
-            seeded.push_back(random());
+            seeded.push_back(srs_random());
         }
     }
 
     std::vector<long> run;
     for (int i = 0; i < 4; i++) {
-        run.push_back(random());
+        run.push_back(srs_random());
     }
 
     bool found = false;
@@ -4373,6 +4372,28 @@ VOID TEST(DtlsCertificateTest, InitializeRsaFromInjectedConfig)
     cert.config_ = NULL;
 }
 
+// A DTLS context at the OpenSSL default security level takes the RSA certificate and key.
+// OpenSSL 3.2+ defaults to level 2, which refuses an RSA key below 2048 bits.
+VOID TEST(DtlsCertificateTest, RsaCertificateFitsTheDefaultSecurityLevel)
+{
+    srs_error_t err = srs_success;
+
+    MockAppConfigForDtlsCertificate config;
+    config.ecdsa_ = false;
+
+    SrsDtlsCertificate cert;
+    cert.config_ = &config;
+    HELPER_ASSERT_SUCCESS(cert.initialize());
+
+    SSL_CTX *ctx = SSL_CTX_new(DTLS_method());
+    ASSERT_TRUE(ctx != NULL);
+    EXPECT_EQ(1, SSL_CTX_use_certificate(ctx, cert.get_cert()));
+    EXPECT_EQ(1, SSL_CTX_use_PrivateKey(ctx, cert.get_public_key()));
+    SSL_CTX_free(ctx);
+
+    cert.config_ = NULL;
+}
+
 // A second initialize keeps the first certificate and does not read the config again.
 VOID TEST(DtlsCertificateTest, InitializeOnceReadsConfigOnce)
 {
@@ -4554,16 +4575,25 @@ VOID TEST(RtcBlackholeTest, SendtoReachesInjectedEndpoint)
     pfd.fd = receiver;
     pfd.events = POLLIN;
     pfd.revents = 0;
+#ifdef _WIN32
+    EXPECT_EQ(1, WSAPoll(&pfd, 1, 1000));
+#else
     EXPECT_EQ(1, poll(&pfd, 1, 1000));
+#endif
 
+    // Windows has no MSG_DONTWAIT; poll has said the packet is there.
     char buf[64];
+#ifdef _WIN32
+    ssize_t nn = recv(receiver, buf, sizeof(buf), 0);
+#else
     ssize_t nn = recv(receiver, buf, sizeof(buf), MSG_DONTWAIT);
+#endif
     EXPECT_EQ((ssize_t)sizeof(data), nn);
     if (nn == (ssize_t)sizeof(data)) {
         EXPECT_STREQ("plaintext", buf);
     }
 
-    ::close(receiver);
+    srs_close_socket(receiver);
     blackhole.config_ = NULL;
 }
 
@@ -4781,6 +4811,178 @@ VOID TEST(DtlsImplTest, InitializeBuildsContextThroughCertificate)
     EXPECT_TRUE(SSL_CTX_get0_certificate(impl.dtls_ctx_) == certificate.real_->get_cert());
 
     impl.dtls_certificate_ = NULL;
+}
+
+static void utest_dtls_move(BIO *from, BIO *to)
+{
+    char buf[4096];
+    int nn;
+    while ((nn = BIO_read(from, buf, sizeof(buf))) > 0) {
+        BIO_write(to, buf, nn);
+    }
+}
+
+// A DTLS handshake between the two contexts through memory BIOs, as SRS feeds its UDP packets.
+// Returns the version both sides agreed on, or 0 when it did not finish.
+static int utest_dtls_handshake(SSL_CTX *client_ctx, SSL_CTX *server_ctx)
+{
+    SSL *client = SSL_new(client_ctx);
+    SSL *server = SSL_new(server_ctx);
+    BIO *client_in = BIO_new(BIO_s_mem());
+    BIO *client_out = BIO_new(BIO_s_mem());
+    BIO *server_in = BIO_new(BIO_s_mem());
+    BIO *server_out = BIO_new(BIO_s_mem());
+    SSL_set_bio(client, client_in, client_out);
+    SSL_set_bio(server, server_in, server_out);
+    SSL_set_connect_state(client);
+    SSL_set_accept_state(server);
+
+    SSL *peers[] = {client, server};
+    for (int i = 0; i < 2; i++) {
+        SSL_set_options(peers[i], SSL_OP_NO_QUERY_MTU);
+        SSL_set_mtu(peers[i], 1200);
+        DTLS_set_link_mtu(peers[i], 1200);
+    }
+
+    for (int i = 0; i < 32 && (!SSL_is_init_finished(client) || !SSL_is_init_finished(server)); i++) {
+        SSL_do_handshake(client);
+        utest_dtls_move(client_out, server_in);
+        SSL_do_handshake(server);
+        utest_dtls_move(server_out, client_in);
+    }
+
+    int version = 0;
+    if (SSL_is_init_finished(client) && SSL_is_init_finished(server) && SSL_version(client) == SSL_version(server)) {
+        version = SSL_version(client);
+    }
+
+    SSL_free(client);
+    SSL_free(server);
+    return version;
+}
+
+// dtls_version dtls1.0 on both sides completes a DTLS 1.0 handshake. OpenSSL 3 refuses DTLS 1.0 at
+// its default security level, so this is red there without a lower level for that context.
+VOID TEST(DtlsCtxTest, Dtls10HandshakeWithEcdsaCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *client = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "active");
+    SSL_CTX *server = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "passive");
+    ASSERT_TRUE(client != NULL);
+    ASSERT_TRUE(server != NULL);
+
+    EXPECT_EQ(DTLS1_VERSION, utest_dtls_handshake(client, server));
+
+    SSL_CTX_free(client);
+    SSL_CTX_free(server);
+}
+
+VOID TEST(DtlsCtxTest, Dtls10HandshakeWithRsaCertificate)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(false);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *client = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "active");
+    SSL_CTX *server = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "passive");
+    ASSERT_TRUE(client != NULL);
+    ASSERT_TRUE(server != NULL);
+
+    EXPECT_EQ(DTLS1_VERSION, utest_dtls_handshake(client, server));
+
+    SSL_CTX_free(client);
+    SSL_CTX_free(server);
+}
+
+// The default auto and dtls1.2 keep OpenSSL's default security level, and agree on DTLS 1.2.
+VOID TEST(DtlsCtxTest, AutoAndDtls12KeepTheDefaultSecurityLevel)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    SSL_CTX *defaults = SSL_CTX_new(DTLS_method());
+    SSL_CTX *client = srs_build_dtls_ctx(&certificate, SrsDtlsVersionAuto, "active");
+    SSL_CTX *server = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_2, "passive");
+    ASSERT_TRUE(defaults != NULL);
+    ASSERT_TRUE(client != NULL);
+    ASSERT_TRUE(server != NULL);
+
+    EXPECT_EQ(SSL_CTX_get_security_level(defaults), SSL_CTX_get_security_level(client));
+    EXPECT_EQ(SSL_CTX_get_security_level(defaults), SSL_CTX_get_security_level(server));
+    EXPECT_EQ(DTLS1_2_VERSION, utest_dtls_handshake(client, server));
+
+    SSL_CTX_free(defaults);
+    SSL_CTX_free(client);
+    SSL_CTX_free(server);
+}
+
+// The security level 1 suite checks: no anonymous suite, no MD5 MAC, and no cipher below 80 bits. A dtls1.0
+// context runs at level 0 on OpenSSL 3, which allows them all, so its cipher list must leave them out.
+VOID TEST(DtlsCtxTest, Dtls10OffersOnlyLevelOneSuites)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    const char *roles[] = {"active", "passive"};
+    for (int i = 0; i < 2; i++) {
+        SSL_CTX *ctx = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, roles[i]);
+        ASSERT_TRUE(ctx != NULL);
+        SSL *ssl = SSL_new(ctx);
+        STACK_OF(SSL_CIPHER) *ciphers = SSL_get1_supported_ciphers(ssl);
+        ASSERT_TRUE(ciphers != NULL);
+        EXPECT_GT(sk_SSL_CIPHER_num(ciphers), 0);
+
+        for (int j = 0; j < sk_SSL_CIPHER_num(ciphers); j++) {
+            const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, j);
+            EXPECT_NE(NID_auth_null, SSL_CIPHER_get_auth_nid(cipher)) << roles[i] << " " << SSL_CIPHER_get_name(cipher);
+            EXPECT_NE(NID_md5, SSL_CIPHER_get_digest_nid(cipher)) << roles[i] << " " << SSL_CIPHER_get_name(cipher);
+            EXPECT_GE(SSL_CIPHER_get_bits(cipher, NULL), 80) << roles[i] << " " << SSL_CIPHER_get_name(cipher);
+        }
+
+        sk_SSL_CIPHER_free(ciphers);
+        SSL_free(ssl);
+        SSL_CTX_free(ctx);
+    }
+}
+
+// A DTLS 1.0 client that offers only anonymous suites gets no handshake from a dtls1.0 server.
+VOID TEST(DtlsCtxTest, Dtls10RefusesAnAnonymousSuite)
+{
+    srs_error_t err = srs_success;
+
+    MockDtlsCertificateForDtlsCtx certificate(true);
+    HELPER_ASSERT_SUCCESS(certificate.initialize());
+
+    // The client allows them at level 0, so it really offers them.
+    SSL_CTX *client = SSL_CTX_new(DTLS_client_method());
+    ASSERT_TRUE(client != NULL);
+    SSL_CTX_set_security_level(client, 0);
+    SSL_CTX_set_max_proto_version(client, DTLS1_VERSION);
+    ASSERT_EQ(1, SSL_CTX_set_cipher_list(client, "aNULL"));
+
+    SSL *offer = SSL_new(client);
+    STACK_OF(SSL_CIPHER) *offered = SSL_get1_supported_ciphers(offer);
+    ASSERT_TRUE(offered != NULL);
+    EXPECT_GT(sk_SSL_CIPHER_num(offered), 0);
+    sk_SSL_CIPHER_free(offered);
+    SSL_free(offer);
+
+    SSL_CTX *server = srs_build_dtls_ctx(&certificate, SrsDtlsVersion1_0, "passive");
+    ASSERT_TRUE(server != NULL);
+
+    EXPECT_EQ(0, utest_dtls_handshake(client, server));
+
+    SSL_CTX_free(client);
+    SSL_CTX_free(server);
 }
 
 // A packet of n payload bytes, at an RTP time and a time in ms on the publisher's clock, -1 when not mapped.
