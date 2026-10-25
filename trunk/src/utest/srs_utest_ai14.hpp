@@ -42,6 +42,11 @@ public:
 class MockLiveSourceForQueue : public SrsLiveSource
 {
 public:
+    int initialize_count_;
+    // The error initialize returns a copy of, owned by the mock.
+    srs_error_t initialize_error_;
+
+public:
     MockLiveSourceForQueue();
     virtual ~MockLiveSourceForQueue();
     virtual void on_consumer_destroy(SrsLiveConsumer *consumer);
@@ -297,6 +302,9 @@ class MockAppFactoryForSourceManager : public SrsAppFactory
 {
 public:
     int create_live_source_count_;
+    // The error each created source's initialize returns a copy of, owned by the mock.
+    srs_error_t live_source_initialize_error_;
+    MockLiveSourceForQueue *live_source_;
 
 public:
     MockAppFactoryForSourceManager();
