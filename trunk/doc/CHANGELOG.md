@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* <strong>v7.0, 2026-10-25, [7.0 alpha3(7.0.205)](https://github.com/ossrs/srs/releases/tag/v7.0-a3) released. 329753 lines.</strong>
 * v7.0, 2026-10-25, Merge [#4737](https://github.com/ossrs/srs/pull/4737): Hooks: Report on_play and on_publish rejection to the client. v7.0.205 (#4737)
 * v7.0, 2026-10-24, Merge [#4785](https://github.com/ossrs/srs/pull/4785): Proxy: Route a WebRTC STUN binding by its ufrag, not a cached client address. v7.0.204 (#4785)
 * v7.0, 2026-10-24, Merge [#4718](https://github.com/ossrs/srs/pull/4718): Proxy: Preserve HTTP response headers and safely rewrite HLS. v7.0.203 (#4718)
