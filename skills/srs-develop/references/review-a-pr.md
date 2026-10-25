@@ -56,8 +56,15 @@ For a PR that fixes a bug, prove the problem exists before the fix is trusted. T
 1. Ask the user for the PR number if they haven't given it.
 2. Load `references/version-and-changelog.md` and apply it. It is the single owner of the version-bump and changelog rules for both projects.
 
-## Step 6: Comment on the PR (optional)
+## Step 6: Update or comment on the PR
 
-1. Only when the user explicitly asks. Never post or edit a PR comment on your own initiative.
+The user's decision on the PR picks what to do:
+
+- **Merge:** after the problem is confirmed and the version and changelog are bumped, rewrite the PR title and description from what the review learned: the problem, the fix, and the verification. Use the changelog summary and version as the title, such as `RTC: Fix negative SDP session-id on Android. v8.0.67`. Show the user the draft, then update the PR with `gh pr edit <number> --repo <owner/repo> --title <title> --body-file <file>`.
+- **Close or give up:** comment on the PR with the reason, as below.
+
+To comment:
+
+1. Only when the user decides it. Never post or edit a PR comment on your own initiative.
 2. Post one comment with `gh pr comment <number> --repo <owner/repo> --body-file <file>`. Keep it to the findings the user asked for (e.g. Background/Current state/Conclusion); drop metadata sections meant for issue Truth Records.
 3. To revise it later instead of duplicating, use `gh pr comment <number> --repo <owner/repo> --edit-last --body-file <file>`.
