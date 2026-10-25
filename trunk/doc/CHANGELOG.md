@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-24, Merge [#4751](https://github.com/ossrs/srs/pull/4751): WebRTC: Verify STUN integrity, fix SRT and WebRTC TCP republish. Clients that send unsigned STUN binding requests are now rejected. v7.0.197 (#4751)
 * v7.0, 2026-10-24, Merge [#4779](https://github.com/ossrs/srs/pull/4779): Kernel: Fix undefined behavior when dumping empty avcC, hvcC and ESDS boxes. v7.0.196 (#4779)
 * v7.0, 2026-10-24, Merge [#4758](https://github.com/ossrs/srs/pull/4758): Live: Drop a live source whose initialize failed, so the next publisher gets a new one instead of crashing SRS. v7.0.195 (#4758)
 * v7.0, 2026-10-24, Merge [#4753](https://github.com/ossrs/srs/pull/4753): Kernel: Fix TS caster crash, RAW API reload and RTCP count. v7.0.194 (#4753)

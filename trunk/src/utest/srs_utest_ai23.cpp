@@ -3330,12 +3330,14 @@ MockRtcConnectionForUdpNetwork::MockRtcConnectionForUdpNetwork()
     on_rtp_plaintext_called_ = false;
     on_rtcp_called_ = false;
     binding_requests_ = 0;
+    binding_request_error_ = srs_success;
     udp_network_ = NULL;
 }
 
 MockRtcConnectionForUdpNetwork::~MockRtcConnectionForUdpNetwork()
 {
     srs_freep(on_dtls_alert_error_);
+    srs_freep(binding_request_error_);
 }
 
 const SrsContextId &MockRtcConnectionForUdpNetwork::get_id()
@@ -3438,7 +3440,7 @@ srs_error_t MockRtcConnectionForUdpNetwork::on_rtcp(char *data, int nb_data)
 srs_error_t MockRtcConnectionForUdpNetwork::on_binding_request(SrsStunPacket *r, std::string &ice_pwd)
 {
     binding_requests_++;
-    return srs_success;
+    return srs_error_copy(binding_request_error_);
 }
 
 ISrsRtcNetwork *MockRtcConnectionForUdpNetwork::udp()
@@ -3538,6 +3540,7 @@ void MockRtcConnectionForUdpNetwork::reset()
     on_rtp_plaintext_called_ = false;
     on_rtcp_called_ = false;
     binding_requests_ = 0;
+    srs_freep(binding_request_error_);
 }
 
 // Test SrsRtcUdpNetwork initialization and DTLS handling
@@ -4052,6 +4055,55 @@ VOID TEST(RtcUdpNetworkTest, UpdateSendonlySocketAndGetPeerInfo)
     // Now safe to free the mock sockets
     srs_freep(mock_socket1);
     srs_freep(mock_socket2);
+}
+
+// A binding request switches the session to its peer address only after the connection accepted it, so a request the
+// connection rejects, such as one without a valid MESSAGE-INTEGRITY, neither redirects the session's traffic nor adds
+// an address to it.
+VOID TEST(RtcUdpNetworkTest, OnStunFromPeerSwitchesAddressOnlyWhenAccepted)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForUdpNetwork conn;
+    MockEphemeralDelta delta;
+    MockResourceManagerForUdpNetwork manager;
+    MockUdpMuxSocket socket;
+    socket.peer_ip_ = "192.168.1.100";
+    socket.peer_port_ = 5000;
+    socket.peer_id_ = "192.168.1.100:5000";
+
+    SrsRtcUdpNetwork udp_network(&conn, &delta);
+    udp_network.conn_manager_ = &manager;
+
+    SrsStunPacket request;
+    request.set_message_type(BindingRequest);
+    request.set_local_ufrag("local_user");
+    request.set_remote_ufrag("remote_user");
+    request.set_transcation_id("transaction123");
+
+    char data[100];
+    memset(data, 0, sizeof(data));
+
+    srs_error_t rejected = srs_error_new(ERROR_RTC_STUN, "mock integrity error");
+    conn.binding_request_error_ = srs_error_copy(rejected);
+    srs_freep(rejected);
+    HELPER_EXPECT_FAILED(udp_network.on_stun(&socket, &request, data, sizeof(data)));
+    EXPECT_TRUE(udp_network.sendonly_skt_ == NULL);
+    EXPECT_TRUE(udp_network.peer_addresses_.empty());
+    EXPECT_TRUE(manager.id_map_.empty());
+    EXPECT_EQ(0, socket.sendto_called_count_);
+
+    srs_freep(conn.binding_request_error_);
+    HELPER_EXPECT_SUCCESS(udp_network.on_stun(&socket, &request, data, sizeof(data)));
+    EXPECT_EQ((ISrsUdpMuxSocket *)&socket, udp_network.sendonly_skt_);
+    EXPECT_EQ(1u, udp_network.peer_addresses_.size());
+    EXPECT_TRUE(manager.id_map_.find("192.168.1.100:5000") != manager.id_map_.end());
+    EXPECT_EQ(1, socket.sendto_called_count_);
+
+    // The mock socket copies itself as the cached address, so it must not be freed by the network.
+    udp_network.peer_addresses_.clear();
+    udp_network.sendonly_skt_ = NULL;
+    udp_network.conn_manager_ = NULL;
 }
 
 // Test SrsRtcTcpNetwork major use scenario: DTLS handshake and RTP/RTCP protection
@@ -5019,4 +5071,118 @@ VOID TEST(RtcSessionManagerTest, BindingRequestFromOldSessionAddressGoesToNamedS
     network.conn_manager_ = NULL;
     old_network.conn_manager_ = NULL;
     socket.data_ = NULL;
+}
+
+static std::string build_rtc_tcp_stun_binding_request(std::string username)
+{
+    char stun_buf[128];
+    memset(stun_buf, 0, sizeof(stun_buf));
+
+    int username_len = (int)username.size();
+    int username_padded = (username_len + 3) / 4 * 4;
+    int message_size = 4 + username_padded;
+    int stun_size = 20 + message_size;
+
+    // STUN header: BindingRequest, message length, magic cookie and transaction ID.
+    stun_buf[0] = 0x00;
+    stun_buf[1] = 0x01;
+    stun_buf[2] = (message_size >> 8) & 0xff;
+    stun_buf[3] = message_size & 0xff;
+    stun_buf[4] = 0x21;
+    stun_buf[5] = 0x12;
+    stun_buf[6] = 0xa4;
+    stun_buf[7] = 0x42;
+    for (int i = 8; i < 20; ++i) {
+        stun_buf[i] = i - 8;
+    }
+
+    // USERNAME attribute.
+    stun_buf[20] = 0x00;
+    stun_buf[21] = 0x06;
+    stun_buf[22] = (username_len >> 8) & 0xff;
+    stun_buf[23] = username_len & 0xff;
+    memcpy(stun_buf + 24, username.data(), username_len);
+
+    // RFC4571 frame: two-byte packet length followed by the STUN packet.
+    std::string frame;
+    frame.push_back((stun_size >> 8) & 0xff);
+    frame.push_back(stun_size & 0xff);
+    frame.append(stun_buf, stun_size);
+    return frame;
+}
+
+// A client may close its TCP connection after the STUN handshake but before DTLS completes, and then
+// reconnect over TCP for the same session. The closed connection must release the session's TCP
+// network, otherwise the network keeps the closed socket and rejects the reconnection.
+VOID TEST(RtcTcpConnTest, CycleReleasesNetworkWhenClosedBeforeEstablished)
+{
+    srs_error_t err;
+    std::string read_data = build_rtc_tcp_stun_binding_request("test:session");
+
+    MockResourceManagerForTcpConnHandshake conn_manager;
+    MockRtcConnectionForTcpConnHandshake session;
+    MockEphemeralDelta delta;
+    SrsUniquePtr<SrsRtcTcpNetwork> network(new SrsRtcTcpNetwork(&session, &delta));
+    session.tcp_network_ = network.get();
+    conn_manager.session_to_return_ = &session;
+
+    // The cycle switches the process context to the connection, so restore it for the other tests.
+    SrsContextId saved_cid = _srs_context->get_id();
+
+    // The first connection completes the STUN handshake, then reads nothing more, so cycle() returns.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io_a(new MockProtocolReadWriterForTcpNetwork());
+    io_a->set_read_data(read_data);
+    SrsRtcTcpConn *raw_a = new SrsRtcTcpConn(io_a.get(), "192.168.1.10", 10000);
+    SrsSharedResource<ISrsRtcTcpConn> *wrapper_a = new SrsSharedResource<ISrsRtcTcpConn>(raw_a);
+    raw_a->conn_manager_ = &conn_manager;
+    MockInterruptableForRtcTcpConn coroutine;
+    MockContextIdSetterForRtcTcpConn cid_setter;
+    raw_a->setup_owner(wrapper_a, &coroutine, &cid_setter);
+
+    HELPER_EXPECT_SUCCESS(raw_a->cycle());
+    _srs_context->set_id(saved_cid);
+    EXPECT_FALSE(network->is_establelished());
+
+    // GOAL: the closed connection no longer owns the network, and its socket is no longer used to send.
+    EXPECT_TRUE(NULL == network->owner().get());
+    EXPECT_TRUE(NULL == network->sendonly_skt_);
+
+    // The executor then frees its wrapper, which frees the connection and its socket.
+    raw_a->on_executor_done(&coroutine);
+    raw_a->skt_ = NULL;
+    srs_freep(wrapper_a);
+
+    // GOAL: the same client reconnects over TCP for the same session.
+    SrsUniquePtr<MockProtocolReadWriterForTcpNetwork> io_b(new MockProtocolReadWriterForTcpNetwork());
+    io_b->set_read_data(read_data);
+    SrsRtcTcpConn *raw_b = new SrsRtcTcpConn(io_b.get(), "192.168.1.10", 10001);
+    SrsUniquePtr<SrsSharedResource<ISrsRtcTcpConn> > wrapper_b(new SrsSharedResource<ISrsRtcTcpConn>(raw_b));
+    raw_b->conn_manager_ = &conn_manager;
+    raw_b->wrapper_ = wrapper_b.get();
+
+    HELPER_EXPECT_SUCCESS(raw_b->handshake());
+    EXPECT_TRUE(raw_b == network->owner().get());
+    EXPECT_TRUE(io_b.get() == network->sendonly_skt_);
+
+    raw_b->skt_ = NULL;
+    raw_b->conn_manager_ = NULL;
+    raw_b->wrapper_ = NULL;
+    network->sendonly_skt_ = NULL;
+    network->set_owner(SrsSharedResource<ISrsRtcTcpConn>());
+    session.tcp_network_ = NULL;
+    conn_manager.session_to_return_ = NULL;
+}
+
+// A released network has no socket, but DTLS may still try to send through it.
+VOID TEST(RtcTcpNetworkTest, WriteWithoutSocketFails)
+{
+    srs_error_t err;
+
+    MockRtcConnectionForTcpConnHandshake session;
+    MockEphemeralDelta delta;
+    SrsUniquePtr<SrsRtcTcpNetwork> network(new SrsRtcTcpNetwork(&session, &delta));
+
+    // GOAL: the write fails with an error instead of crashing.
+    char data[] = "dtls";
+    HELPER_EXPECT_FAILED(network->write(data, sizeof(data), NULL));
 }

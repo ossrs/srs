@@ -113,6 +113,8 @@ public:
     bool on_rtp_plaintext_called_;
     bool on_rtcp_called_;
     int binding_requests_;
+    // The error on_binding_request returns, to reject the binding request.
+    srs_error_t binding_request_error_;
     // The network udp() returns.
     ISrsRtcNetwork *udp_network_;
 

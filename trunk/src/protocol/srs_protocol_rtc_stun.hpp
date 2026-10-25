@@ -71,6 +71,9 @@ SRS_DECLARE_PRIVATE: // clang-format on
     bool use_candidate_;
     bool ice_controlled_;
     bool ice_controlling_;
+    // The MESSAGE-INTEGRITY of a decoded packet, and the bytes it signs.
+    std::string message_integrity_;
+    std::string integrity_input_;
 
 public:
     SrsStunPacket();
@@ -96,6 +99,8 @@ public:
     void set_mapped_address(const uint32_t &addr);
     void set_mapped_port(const uint32_t &port);
     srs_error_t decode(const char *buf, const int nb_buf);
+    // Check the MESSAGE-INTEGRITY of a decoded packet against the ICE password, see RFC 5389 section 15.4.
+    srs_error_t check_message_integrity(const std::string &pwd) const;
     srs_error_t encode(const std::string &pwd, SrsBuffer *stream);
 
 // clang-format off
