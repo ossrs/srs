@@ -858,6 +858,32 @@ VOID TEST(KernelHevcSpsTest, ConformanceWindowCropsTo1080p)
     EXPECT_EQ(8, dec->bit_depth_chroma_minus8_);
 }
 
+VOID TEST(KernelHevcSpsTest, SeparateColourPlaneFlagNotKeptFromPreviousSps)
+{
+    srs_error_t err;
+
+    SrsFormat format;
+    HELPER_EXPECT_SUCCESS(format.initialize());
+
+    UtestHevcSps s444;
+    s444.chroma_format_idc_ = 3;
+    s444.separate_colour_plane_flag_ = 1;
+    UtestBitWriter b444;
+    utest_hevc_write_sps_rbsp(b444, s444);
+    std::vector<char> data444 = b444.bytes();
+    HELPER_EXPECT_SUCCESS(format.hevc_demux_sps_rbsp(&data444[0], (int)data444.size()));
+    EXPECT_EQ(1084, format.vcodec_->height_);
+
+    // The same SPS id, now 4:2:0, which has no separate_colour_plane_flag.
+    UtestHevcSps s420;
+    UtestBitWriter b420;
+    utest_hevc_write_sps_rbsp(b420, s420);
+    std::vector<char> data420 = b420.bytes();
+    HELPER_EXPECT_SUCCESS(format.hevc_demux_sps_rbsp(&data420[0], (int)data420.size()));
+    EXPECT_EQ(0, format.vcodec_->hevc_dec_conf_record_.sps_table_[0].separate_colour_plane_flag_);
+    EXPECT_EQ(1080, format.vcodec_->height_);
+}
+
 VOID TEST(KernelHevcSpsTest, SeparateColourPlanesCropOneSamplePerOffset)
 {
     srs_error_t err;
