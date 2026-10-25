@@ -46,6 +46,8 @@ public:
     int on_frame_count_;
     SrsMediaPacket *last_frame_;
     srs_error_t frame_error_;
+    // The timestamp of each frame, in order, because a builder may pass a frame on its stack.
+    std::vector<int64_t> timestamps_;
 
 public:
     MockFrameTarget();
