@@ -4016,6 +4016,80 @@ VOID TEST(KernelRTCPTest, SrsRtcpRR_Decode)
     srs_freep(err);
 }
 
+// A Sender Report whose header length passes the outer check but which is
+// too short for its sender info, or for the report blocks its RC counts,
+// must return an error, not read past the buffer.
+VOID TEST(KernelRTCPTest, SrsRtcpSR_DecodeMalformedRc)
+{
+    // RC=31, length=1: passes the header's payload-length check, then the
+    // sender info reads run past the 8-byte packet.
+    if (true) {
+        unsigned char data[] = {0x9F, 0xC8, 0x00, 0x01, 0x12, 0x34, 0x56, 0x78};
+        SrsBuffer buffer((char *)data, sizeof(data));
+        SrsRtcpSR sr;
+        srs_error_t err = sr.decode(&buffer);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+
+    // RC=31, long enough for the sender info but carrying no report block.
+    if (true) {
+        unsigned char data[] = {
+            0x9F, 0xC8, 0x00, 0x06, // V=2, RC=31, PT=200(SR), length=6
+            0x12, 0x34, 0x56, 0x78, // SSRC of sender
+            0x11, 0x22, 0x33, 0x44, // NTP MSW
+            0x55, 0x66, 0x77, 0x88, // NTP LSW
+            0xAA, 0xBB, 0xCC, 0xDD, // RTP timestamp
+            0x00, 0x00, 0x12, 0x34, // packet count
+            0x00, 0x56, 0x78, 0x9A  // octet count
+        };
+        SrsBuffer buffer((char *)data, sizeof(data));
+        SrsRtcpSR sr;
+        srs_error_t err = sr.decode(&buffer);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+}
+
+// A Receiver Report whose header length passes the outer check but which is
+// too short for its first report block, or for the blocks its RC counts
+// beyond the first, must return an error, not read past the buffer.
+VOID TEST(KernelRTCPTest, SrsRtcpRR_DecodeMalformedRc)
+{
+    // RC=1, but the first report block is cut short.
+    if (true) {
+        unsigned char data[] = {
+            0x81, 0xC9, 0x00, 0x02, // V=2, RC=1, PT=201(RR), length=2
+            0x12, 0x34, 0x56, 0x78, // SSRC of sender
+            0x87, 0x65, 0x43, 0x21  // SSRC of first source, then nothing
+        };
+        SrsBuffer buffer((char *)data, sizeof(data));
+        SrsRtcpRR rr;
+        srs_error_t err = rr.decode(&buffer);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+
+    // RC=2, one full report block but not the second it counts.
+    if (true) {
+        unsigned char data[] = {
+            0x82, 0xC9, 0x00, 0x07, // V=2, RC=2, PT=201(RR), length=7
+            0x12, 0x34, 0x56, 0x78, // SSRC of sender
+            0x87, 0x65, 0x43, 0x21, // SSRC of first source
+            0x18, 0x00, 0x00, 0x01, // fraction lost + cumulative lost
+            0x00, 0x00, 0x12, 0x34, // extended highest sequence number
+            0x00, 0x00, 0x56, 0x78, // interarrival jitter
+            0xAB, 0xCD, 0xEF, 0x12, // last SR
+            0x00, 0x00, 0x34, 0x56  // delay since last SR, then nothing
+        };
+        SrsBuffer buffer((char *)data, sizeof(data));
+        SrsRtcpRR rr;
+        srs_error_t err = rr.decode(&buffer);
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+    }
+}
+
 VOID TEST(KernelRTCPTest, SrsRtcpTWCC_Decode)
 {
     // Test SrsRtcpTWCC::decode function

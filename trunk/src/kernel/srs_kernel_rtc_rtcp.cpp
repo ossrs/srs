@@ -343,9 +343,7 @@ void SrsRtcpSR::set_rtp_send_bytes(uint32_t bytes)
     send_rtp_bytes_ = bytes;
 }
 
-srs_error_t SrsRtcpSR::decode(SrsBuffer *buffer)
-{
-    /* @doc: https://tools.ietf.org/html/rfc3550#section-6.4.1
+/* @doc: https://tools.ietf.org/html/rfc3550#section-6.4.1
         0                   1                   2                   3
         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -381,7 +379,9 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
        +=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
        |                  profile-specific extensions                  |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    */
+*/
+srs_error_t SrsRtcpSR::decode(SrsBuffer *buffer)
+{
     srs_error_t err = srs_success;
     data_ = buffer->head();
     nb_data_ = buffer->left();
@@ -390,14 +390,21 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         return srs_error_wrap(err, "decode header");
     }
 
+    if (!buffer->require(20)) {
+        return srs_error_new(ERROR_RTC_RTCP, "require sr sender info, left=%d", buffer->left());
+    }
     ntp_ = buffer->read_8bytes();
     rtp_ts_ = buffer->read_4bytes();
     send_rtp_packets_ = buffer->read_4bytes();
     send_rtp_bytes_ = buffer->read_4bytes();
 
     if (header_.rc > 0) {
-        char buf[1500];
-        buffer->read_bytes(buf, header_.rc * 24);
+        int nb_reports = header_.rc * 24;
+        if (!buffer->require(nb_reports)) {
+            return srs_error_new(ERROR_RTC_RTCP, "require sr rc=%d reports=%d, left=%d", header_.rc, nb_reports, buffer->left());
+        }
+        char buf[1500]; // rc is 5 bits, so rc*24 is at most 744.
+        buffer->read_bytes(buf, nb_reports);
     }
 
     return err;
@@ -607,7 +614,9 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         return srs_error_new(ERROR_RTC_RTCP_EMPTY_RR, "rc=0");
     }
 
-    // TODO: FIXME: Security check for read.
+    if (!buffer->require(24)) {
+        return srs_error_new(ERROR_RTC_RTCP, "require rr report block, left=%d", buffer->left());
+    }
     rb_.ssrc_ = buffer->read_4bytes();
     rb_.fraction_lost_ = buffer->read_1bytes();
     rb_.lost_packets_ = buffer->read_3bytes();
@@ -616,10 +625,13 @@ block  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     rb_.lsr_ = buffer->read_4bytes();
     rb_.dlsr_ = buffer->read_4bytes();
 
-    // TODO: FIXME: Security check for read.
     if (header_.rc > 1) {
-        char buf[1500];
-        buffer->read_bytes(buf, (header_.rc - 1) * 24);
+        int nb_reports = (header_.rc - 1) * 24;
+        if (!buffer->require(nb_reports)) {
+            return srs_error_new(ERROR_RTC_RTCP, "require rr rc=%d reports=%d, left=%d", header_.rc, nb_reports, buffer->left());
+        }
+        char buf[1500]; // rc is 5 bits, so (rc-1)*24 is at most 720.
+        buffer->read_bytes(buf, nb_reports);
     }
 
     return err;
