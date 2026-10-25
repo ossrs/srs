@@ -2532,20 +2532,28 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig *ruc, SrsSdp &local_sd
 {
     srs_error_t err = srs_success;
 
-    ISrsRequest *req = ruc->req_;
-
     std::map<uint32_t, SrsRtcTrackDescription *> play_sub_relations;
     if ((err = player_negotiator_->negotiate_play_capability(ruc, play_sub_relations)) != srs_success) {
         err = srs_error_wrap(err, "play negotiate, offer=%s", srs_strings_replace(ruc->remote_sdp_str_.c_str(), "\r\n", "\\r\\n").c_str());
-
-        // Free the descriptions already allocated by negotiate, see the ownership
-        // comment below.
-        for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = play_sub_relations.begin(); it != play_sub_relations.end(); ++it) {
-            srs_freep(it->second);
-        }
-
-        return err;
+    } else {
+        err = do_add_player(ruc, local_sdp, play_sub_relations);
     }
+
+    // The negotiator copies each track for this play, while the answer and the player keep their own copies, so the
+    // relations are freed on every return, or each play leaks them.
+    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = play_sub_relations.begin(); it != play_sub_relations.end(); ++it) {
+        SrsRtcTrackDescription *track_desc = it->second;
+        srs_freep(track_desc);
+    }
+
+    return err;
+}
+
+srs_error_t SrsRtcConnection::do_add_player(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, std::map<uint32_t, SrsRtcTrackDescription *> &play_sub_relations)
+{
+    srs_error_t err = srs_success;
+
+    ISrsRequest *req = ruc->req_;
 
     if (!play_sub_relations.size()) {
         return srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no play relations");
@@ -2568,18 +2576,11 @@ srs_error_t SrsRtcConnection::add_player(SrsRtcUserConfig *ruc, SrsSdp &local_sd
     }
 
     if ((err = player_negotiator_->generate_play_local_sdp(req, local_sdp, stream_desc.get(), ruc->remote_sdp_.is_unified(), ruc->audio_before_video_)) != srs_success) {
-        err = srs_error_wrap(err, "generate local sdp");
-    } else if ((err = create_player(req, play_sub_relations)) != srs_success) {
-        err = srs_error_wrap(err, "create player");
+        return srs_error_wrap(err, "generate local sdp");
     }
 
-    // The negotiate allocates a track description for each offered track, while
-    // all consumers keep their own copies: the stream_desc above for local SDP,
-    // and the send tracks built by player, which copy again in SrsRtcSendTrack.
-    // So free the originals here, no matter whether the player is established,
-    // to avoid leaking them on every play request. #4783
-    for (std::map<uint32_t, SrsRtcTrackDescription *>::iterator it = play_sub_relations.begin(); it != play_sub_relations.end(); ++it) {
-        srs_freep(it->second);
+    if ((err = create_player(req, play_sub_relations)) != srs_success) {
+        return srs_error_wrap(err, "create player");
     }
 
     return err;
