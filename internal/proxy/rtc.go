@@ -215,12 +215,15 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 		return errors.Errorf("proxy api to %v failed, status=%v", backendURL, resp.Status)
 	}
 
-	// Copy all headers from backend to client.
-	w.WriteHeader(resp.StatusCode)
-	for k, v := range resp.Header {
-		for _, vv := range v {
-			w.Header().Add(k, vv)
+	// A WHIP client ends its session by a DELETE to the Location of the answer,
+	// which carries no SDP.
+	if r.Method == http.MethodDelete {
+		copyBackendResponseHeaders(w.Header(), resp.Header)
+		w.WriteHeader(resp.StatusCode)
+		if _, err = io.Copy(w, resp.Body); err != nil {
+			return errors.Wrapf(err, "copy delete response from %v", backendURL)
 		}
+		return nil
 	}
 
 	// Parse the local SDP answer from backend.
@@ -272,6 +275,14 @@ func (v *webRTCProxyServer) proxyApiToBackend(
 	})); err != nil {
 		return errors.Wrapf(err, "load or store webrtc %v", streamURL)
 	}
+
+	// Headers changed after WriteHeader are not sent by net/http, and a WHIP
+	// client needs the backend's Location to delete its session.
+	copyBackendResponseHeaders(w.Header(), resp.Header)
+	if localSDPAnswer != string(b) {
+		repairRewrittenResponseHeaders(w.Header(), len(localSDPAnswer))
+	}
+	w.WriteHeader(resp.StatusCode)
 
 	// Response client with local answer.
 	if _, err = w.Write([]byte(localSDPAnswer)); err != nil {

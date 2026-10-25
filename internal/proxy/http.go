@@ -44,6 +44,60 @@ func buildBackendHTTPURL(ip string, port int, path string) string {
 	return fmt.Sprintf("http://%v:%v%s", ip, port, path)
 }
 
+// copyBackendResponseHeaders copies end-to-end response headers while dropping
+// fields that apply only to the backend connection. Connection can nominate
+// additional hop-by-hop fields, so collect those names before copying.
+func copyBackendResponseHeaders(dst, src http.Header) {
+	hopByHop := map[string]bool{
+		"Connection":          true,
+		"Proxy-Connection":    true,
+		"Keep-Alive":          true,
+		"Proxy-Authenticate":  true,
+		"Proxy-Authorization": true,
+		"Te":                  true,
+		"Trailer":             true,
+		"Transfer-Encoding":   true,
+		"Upgrade":             true,
+	}
+	for _, value := range src.Values("Connection") {
+		for _, name := range strings.Split(value, ",") {
+			if name = strings.TrimSpace(name); name != "" {
+				hopByHop[http.CanonicalHeaderKey(name)] = true
+			}
+		}
+	}
+
+	for name, values := range src {
+		name = http.CanonicalHeaderKey(name)
+		if hopByHop[name] {
+			continue
+		}
+
+		dst.Del(name)
+		for _, value := range values {
+			dst.Add(name, value)
+		}
+	}
+}
+
+// repairRewrittenResponseHeaders removes backend representation metadata that
+// no longer describes a rewritten response body, then publishes its new size.
+func repairRewrittenResponseHeaders(header http.Header, contentLength int) {
+	for _, name := range []string{
+		"Accept-Ranges",
+		"Content-Digest",
+		"Content-Encoding",
+		"Content-MD5",
+		"Content-Range",
+		"Digest",
+		"ETag",
+		"Repr-Digest",
+	} {
+		header.Del(name)
+	}
+	header.Set("Content-Length", strconv.Itoa(contentLength))
+}
+
 type httpStreamProxyServer struct {
 	// The environment interface.
 	environment env.ProxyEnvironment
@@ -347,13 +401,10 @@ func (v *httpFlvTsConnection) serveByBackend(ctx context.Context, w http.Respons
 		return errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)
 	}
 
-	// Copy all headers from backend to client.
+	// Copy end-to-end headers before committing the response. Headers changed
+	// after WriteHeader are not sent by net/http.
+	copyBackendResponseHeaders(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	for k, v := range resp.Header {
-		for _, vv := range v {
-			w.Header().Add(k, vv)
-		}
-	}
 
 	logger.Debug(ctx, "HTTP start streaming")
 
@@ -476,16 +527,11 @@ func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWrite
 		return errors.Errorf("proxy stream to %v failed, status=%v", backendURL, resp.Status)
 	}
 
-	// Copy all headers from backend to client.
-	w.WriteHeader(resp.StatusCode)
-	for k, v := range resp.Header {
-		for _, vv := range v {
-			w.Header().Add(k, vv)
-		}
-	}
-
 	// For TS file, directly copy it.
 	if !strings.HasSuffix(r.URL.Path, ".m3u8") {
+		copyBackendResponseHeaders(w.Header(), resp.Header)
+		w.WriteHeader(resp.StatusCode)
+
 		if _, err := io.Copy(w, resp.Body); err != nil {
 			return errors.Wrapf(err, "copy stream to client, backend=%v", backendURL)
 		}
@@ -500,12 +546,19 @@ func (v *hlsPlayStream) serveByBackend(ctx context.Context, w http.ResponseWrite
 		return errors.Wrapf(err, "read stream from %v", backendURL)
 	}
 
-	m3u8 := string(b)
+	backendM3U8 := string(b)
+	m3u8 := backendM3U8
 	if strings.Contains(m3u8, ".ts?") {
-		m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbhid=%v&&", v.SRSProxyBackendHLSID))
+		m3u8 = strings.ReplaceAll(m3u8, ".ts?", fmt.Sprintf(".ts?spbhid=%v&", v.SRSProxyBackendHLSID))
 	} else {
 		m3u8 = strings.ReplaceAll(m3u8, ".ts", fmt.Sprintf(".ts?spbhid=%v", v.SRSProxyBackendHLSID))
 	}
+
+	copyBackendResponseHeaders(w.Header(), resp.Header)
+	if m3u8 != backendM3U8 {
+		repairRewrittenResponseHeaders(w.Header(), len(m3u8))
+	}
+	w.WriteHeader(resp.StatusCode)
 
 	if _, err := io.Copy(w, strings.NewReader(m3u8)); err != nil {
 		return errors.Wrapf(err, "proxy m3u8 client to %v", backendURL)

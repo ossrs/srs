@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	stdSync "sync"
@@ -50,6 +51,122 @@ func reservedClosedPort(t *testing.T) (string, string) {
 		t.Fatalf("close listener: %v", err)
 	}
 	return addr.IP.String(), strconv.Itoa(addr.Port)
+}
+
+// =============================================================================
+// HTTP response header helpers
+// =============================================================================
+
+func TestCopyBackendResponseHeaders(t *testing.T) {
+	dst := http.Header{
+		"Cache-Control": {"old-value"},
+		"X-Proxy":       {"preserved"},
+	}
+	src := http.Header{}
+	src.Set("Cache-Control", "no-cache")
+	src.Set("Content-Type", "application/vnd.apple.mpegurl")
+	src.Add("X-Multi-Value", "first")
+	src.Add("X-Multi-Value", "second")
+
+	// Connection nominates extra fields that are hop-by-hop even when their
+	// names are otherwise unknown to the proxy.
+	src.Add("Connection", "X-Backend-Hop, X-Backend-Second")
+	src.Set("X-Backend-Hop", "secret")
+	src.Set("X-Backend-Second", "secret-2")
+
+	for _, name := range []string{
+		"Proxy-Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"TE",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+	} {
+		src.Set(name, "must-not-pass")
+	}
+
+	copyBackendResponseHeaders(dst, src)
+
+	for name, want := range map[string][]string{
+		"Cache-Control": {"no-cache"},
+		"Content-Type":  {"application/vnd.apple.mpegurl"},
+		"X-Multi-Value": {"first", "second"},
+		"X-Proxy":       {"preserved"},
+	} {
+		if got := dst.Values(name); !slices.Equal(got, want) {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+
+	for _, name := range []string{
+		"Connection",
+		"X-Backend-Hop",
+		"X-Backend-Second",
+		"Proxy-Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"TE",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+	} {
+		if got := dst.Values(name); len(got) != 0 {
+			t.Errorf("hop-by-hop header %s was copied: %q", name, got)
+		}
+	}
+}
+
+func TestRepairRewrittenResponseHeaders(t *testing.T) {
+	header := http.Header{
+		"Accept-Ranges":    {"bytes"},
+		"Content-Digest":   {"sha-256=:digest:"},
+		"Content-Encoding": {"gzip"},
+		"Content-Length":   {"18", "stale-duplicate"},
+		"Content-Md5":      {"md5"},
+		"Content-Range":    {"bytes 0-17/18"},
+		"Digest":           {"sha-256=digest"},
+		"Etag":             {`"origin-playlist-v1"`},
+		"Repr-Digest":      {"sha-256=:digest:"},
+		"Cache-Control":    {"no-cache"},
+		"Content-Type":     {"application/vnd.apple.mpegurl"},
+		"Last-Modified":    {"Wed, 12 Aug 2026 12:00:00 GMT"},
+		"Vary":             {"Origin"},
+		"X-Origin":         {"srs"},
+	}
+
+	repairRewrittenResponseHeaders(header, 39)
+
+	for _, name := range []string{
+		"Accept-Ranges",
+		"Content-Digest",
+		"Content-Encoding",
+		"Content-MD5",
+		"Content-Range",
+		"Digest",
+		"ETag",
+		"Repr-Digest",
+	} {
+		if got := header.Values(name); len(got) != 0 {
+			t.Errorf("stale representation header %s remains: %q", name, got)
+		}
+	}
+	if got := header.Values("Content-Length"); !slices.Equal(got, []string{"39"}) {
+		t.Errorf("Content-Length = %q, want [39]", got)
+	}
+	for name, want := range map[string]string{
+		"Cache-Control": "no-cache",
+		"Content-Type":  "application/vnd.apple.mpegurl",
+		"Last-Modified": "Wed, 12 Aug 2026 12:00:00 GMT",
+		"Vary":          "Origin",
+		"X-Origin":      "srs",
+	} {
+		if got := header.Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
 }
 
 // =============================================================================
@@ -370,8 +487,107 @@ func TestHLSPlayStream_ServeByBackend_M3U8RewritesTSWithQuery(t *testing.T) {
 		&lb.OriginServer{IP: host, HTTP: []string{port}}); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	if want := "live-0.ts?spbhid=ABC&&token=foo"; !strings.Contains(rec.Body.String(), want) {
+	if want := "live-0.ts?spbhid=ABC&token=foo"; !strings.Contains(rec.Body.String(), want) {
 		t.Fatalf("missing %q in body: %q", want, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "&&") {
+		t.Fatalf("rewritten query contains an empty parameter: %q", rec.Body.String())
+	}
+}
+
+func TestHLSPlayStream_ServeByBackend_PreservesEndToEndHeaders(t *testing.T) {
+	backendM3U8 := "#EXTM3U\n"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.apple.mpegurl")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Last-Modified", "Wed, 12 Aug 2026 12:00:00 GMT")
+		w.Header().Set("Vary", "Origin")
+		w.Header().Set("X-Origin", "srs")
+		_, _ = io.WriteString(w, backendM3U8)
+	}))
+	defer backend.Close()
+	host, port := httptestHostPort(t, backend)
+
+	stream := newHLSPlayStream(func(s *hlsPlayStream) { s.SRSProxyBackendHLSID = "ABC" })
+	proxyErr := make(chan error, 1)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyErr <- stream.serveByBackend(context.Background(), w, r,
+			&lb.OriginServer{IP: host, HTTP: []string{port}})
+	}))
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/live.m3u8")
+	if err != nil {
+		t.Fatalf("request proxy: %v", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read playlist: %v", err)
+	}
+	if got, want := string(body), backendM3U8; got != want {
+		t.Errorf("body = %q, want %q", got, want)
+	}
+	for name, want := range map[string]string{
+		"Content-Type":  "application/vnd.apple.mpegurl",
+		"Cache-Control": "no-cache",
+		"Last-Modified": "Wed, 12 Aug 2026 12:00:00 GMT",
+		"Vary":          "Origin",
+		"X-Origin":      "srs",
+	} {
+		if got := resp.Header.Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+	if err := <-proxyErr; err != nil {
+		t.Errorf("proxy response failed: %v", err)
+	}
+}
+
+func TestHLSPlayStream_ServeByBackend_RewrittenBodyUsesValidFraming(t *testing.T) {
+	backendM3U8 := "#EXTM3U\nlive-0.ts\n"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", strconv.Itoa(len(backendM3U8)))
+		w.Header().Set("ETag", `"origin-playlist-v1"`)
+		_, _ = io.WriteString(w, backendM3U8)
+	}))
+	defer backend.Close()
+	host, port := httptestHostPort(t, backend)
+
+	stream := newHLSPlayStream(func(s *hlsPlayStream) { s.SRSProxyBackendHLSID = "ABC" })
+	proxyErr := make(chan error, 1)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyErr <- stream.serveByBackend(context.Background(), w, r,
+			&lb.OriginServer{IP: host, HTTP: []string{port}})
+	}))
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/live.m3u8")
+	if err != nil {
+		t.Fatalf("request proxy: %v", err)
+	}
+	defer resp.Body.Close()
+	body, readErr := io.ReadAll(resp.Body)
+
+	if readErr != nil {
+		t.Errorf("read complete rewritten playlist: %v", readErr)
+	}
+	if got, want := string(body), "#EXTM3U\nlive-0.ts?spbhid=ABC\n"; got != want {
+		t.Errorf("body = %q, want %q", got, want)
+	}
+	// A correct implementation may recompute Content-Length or omit it and use
+	// chunked framing. It must never expose the backend length for a body that
+	// was enlarged by playlist rewriting.
+	if resp.ContentLength >= 0 && resp.ContentLength != int64(len(body)) {
+		t.Errorf("Content-Length = %d, delivered body length = %d", resp.ContentLength, len(body))
+	}
+	// A strong validator for the backend bytes is stale after the proxy
+	// rewrites those bytes. The proxy may remove it or generate a new value.
+	if got := resp.Header.Get("ETag"); got == `"origin-playlist-v1"` {
+		t.Errorf("forwarded stale backend ETag %q for rewritten playlist", got)
+	}
+	if err := <-proxyErr; err != nil {
+		t.Errorf("proxy response failed: %v", err)
 	}
 }
 
@@ -619,6 +835,100 @@ func TestHTTPFlvTsConn_ServeByBackend_BodyPassthrough(t *testing.T) {
 	}
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+}
+
+func TestHTTPFlvTsConn_ServeByBackend_PreservesEndToEndHeaders(t *testing.T) {
+	payload := []byte{0x46, 0x4c, 0x56, 0x01, 0x05, 0x00, 0x00, 0x00}
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "video/x-flv")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("ETag", `"flv-v1"`)
+		w.Header().Set("Last-Modified", "Wed, 12 Aug 2026 12:00:00 GMT")
+		w.Header().Set("Vary", "Origin")
+		w.Header().Set("X-Origin", "srs")
+		w.Header().Set("Content-Length", strconv.Itoa(len(payload)))
+		_, _ = w.Write(payload)
+	}))
+	defer backend.Close()
+	host, port := httptestHostPort(t, backend)
+
+	conn := newHTTPFlvTsConnection()
+	proxyErr := make(chan error, 1)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyErr <- conn.serveByBackend(context.Background(), w, r,
+			&lb.OriginServer{IP: host, HTTP: []string{port}})
+	}))
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/live.flv")
+	if err != nil {
+		t.Fatalf("request proxy: %v", err)
+	}
+	defer resp.Body.Close()
+	body, readErr := io.ReadAll(resp.Body)
+
+	if readErr != nil {
+		t.Errorf("read complete FLV response: %v", readErr)
+	}
+	if !bytes.Equal(body, payload) {
+		t.Errorf("body = %v, want %v", body, payload)
+	}
+	for name, want := range map[string]string{
+		"Content-Type":  "video/x-flv",
+		"Cache-Control": "no-store",
+		"ETag":          `"flv-v1"`,
+		"Last-Modified": "Wed, 12 Aug 2026 12:00:00 GMT",
+		"Vary":          "Origin",
+		"X-Origin":      "srs",
+	} {
+		if got := resp.Header.Get(name); got != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+	if resp.ContentLength >= 0 && resp.ContentLength != int64(len(body)) {
+		t.Errorf("Content-Length = %d, delivered body length = %d", resp.ContentLength, len(body))
+	}
+	if err := <-proxyErr; err != nil {
+		t.Errorf("proxy response failed: %v", err)
+	}
+}
+
+func TestHTTPFlvTsConn_ServeByBackend_DropsHopByHopHeaders(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Connection", "X-Backend-Hop")
+		w.Header().Set("X-Backend-Hop", "secret")
+		w.Header().Set("Keep-Alive", "timeout=5")
+		w.Header().Set("Proxy-Connection", "keep-alive")
+		_, _ = io.WriteString(w, "FLV")
+	}))
+	defer backend.Close()
+	host, port := httptestHostPort(t, backend)
+
+	conn := newHTTPFlvTsConnection()
+	proxyErr := make(chan error, 1)
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyErr <- conn.serveByBackend(context.Background(), w, r,
+			&lb.OriginServer{IP: host, HTTP: []string{port}})
+	}))
+	defer proxy.Close()
+
+	resp, err := http.Get(proxy.URL + "/live.flv")
+	if err != nil {
+		t.Fatalf("request proxy: %v", err)
+	}
+	defer resp.Body.Close()
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		t.Fatalf("read FLV response: %v", err)
+	}
+
+	for _, name := range []string{"Connection", "X-Backend-Hop", "Keep-Alive", "Proxy-Connection"} {
+		if got := resp.Header.Values(name); len(got) != 0 {
+			t.Errorf("hop-by-hop header %s was forwarded: %q", name, got)
+		}
+	}
+	if err := <-proxyErr; err != nil {
+		t.Errorf("proxy response failed: %v", err)
 	}
 }
 
