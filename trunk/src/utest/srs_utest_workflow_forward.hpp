@@ -48,4 +48,18 @@ public:
     virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto);
 };
 
+// Mock the dynamic-forward HTTP boundary without opening a real socket.
+class MockHttpHooksForForwardBackendFailure : public MockHttpHooks
+{
+public:
+    int on_forward_backend_count_;
+    srs_error_t on_forward_backend_error_;
+
+public:
+    MockHttpHooksForForwardBackendFailure();
+    virtual ~MockHttpHooksForForwardBackendFailure();
+    virtual srs_error_t on_forward_backend(std::string url, ISrsRequest *req, std::vector<std::string> &rtmp_urls);
+    void set_on_forward_backend_error(srs_error_t err);
+};
+
 #endif
