@@ -197,4 +197,20 @@ public:
     virtual ISrsCoroutine *create_coroutine(const std::string &name, ISrsCoroutineHandler *handler, SrsContextId cid);
 };
 
+// Mock random generator, fills each gen_bytes() call with the next of gen_bytes_values_,
+// then with one distinct byte, 0x10 for the first call, 0x11 for the second, and so on.
+class MockRandForSdpSessionId : public SrsRand
+{
+public:
+    std::vector<int> gen_bytes_sizes_;
+    std::vector<std::string> gen_bytes_values_;
+
+public:
+    MockRandForSdpSessionId();
+    virtual ~MockRandForSdpSessionId();
+
+public:
+    virtual void gen_bytes(char *bytes, int size);
+};
+
 #endif

@@ -991,12 +991,16 @@ public:
     virtual srs_error_t generate_publish_local_sdp(ISrsRequest *req, SrsSdp &local_sdp, SrsRtcSourceDescription *stream_desc, bool unified_plan, bool audio_before_video) = 0;
 };
 
+// The sess-id of the SDP o= line, which JSEP requires to be a number less than 2^63-1.
+extern std::string srs_rtc_sdp_session_id(SrsRand *rand);
+
 // Negotiate via SDP exchange for WebRTC publisher.
 class SrsRtcPublisherNegotiator : public ISrsRtcPublisherNegotiator
 {
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
+    SrsRand *rand_;
 
 public:
     SrsRtcPublisherNegotiator();
@@ -1033,6 +1037,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
     ISrsRtcSourceManager *rtc_sources_;
     ISrsRtcSSRCGenerator *ssrc_generator_;
+    // The random generator of the sess-id and the cname in the play answer.
+    SrsRand *rand_;
 
 public:
     SrsRtcPlayerNegotiator();
