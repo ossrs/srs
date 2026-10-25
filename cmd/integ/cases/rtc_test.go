@@ -358,6 +358,7 @@ func TestRtc_Common(t *testing.T) {
 	rtcParams(t)
 	rtcCodecs(t)
 	rtcTransport(t)
+	rtcRebind(t)
 	rtcRecovery(t)
 }
 
