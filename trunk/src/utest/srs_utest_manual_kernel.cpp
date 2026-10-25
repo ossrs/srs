@@ -5283,6 +5283,16 @@ public:
             bits_.push_back((v >> i) & 1);
         }
     }
+    // Append ue(v), the unsigned Exp-Golomb coding of 9.2 of ITU-T H.265.
+    void ue(uint32_t v) {
+        uint32_t code = v + 1;
+        int nb_bits = 0;
+        for (uint32_t t = code; t; t >>= 1) {
+            nb_bits++;
+        }
+        u(0, nb_bits - 1);
+        u(code, nb_bits);
+    }
     // The bits, zero padded to a byte boundary.
     std::vector<char> bytes() const {
         std::vector<char> out((bits_.size() + 7) / 8, 0);
@@ -5350,6 +5360,69 @@ VOID TEST(KernelCodecTest, HevcPtlSubLayersReservedZero33And35Bits)
     EXPECT_EQ(1, ptl.sub_layer_inbld_flag_[1]);
     EXPECT_EQ(120, ptl.sub_layer_level_idc_[1]);
     EXPECT_EQ(0, stream.left());
+}
+
+// Writes the general profile_tier_level(1, 0) of an HEVC SPS, with no sub-layers.
+static void hevc_write_ptl_main(HevcPtlBitWriter &b)
+{
+    b.u(0, 2);           // general_profile_space
+    b.u(0, 1);           // general_tier_flag
+    b.u(1, 5);           // general_profile_idc
+    b.u(0x60000000, 32); // general_profile_compatibility_flag
+    b.u(0x9, 4);         // progressive/interlaced/non_packed/frame_only source flags
+    b.u(0, 11);
+    b.u(0, 32);          // the 43 constraint and reserved bits
+    b.u(0, 1);           // general_inbld_flag
+    b.u(93, 8);          // general_level_idc
+}
+
+// Writes a seq_parameter_set_rbsp() up to log2_max_pic_order_cnt_lsb_minus4, where the parser stops.
+// chroma_format_idc 3 carries separate_colour_plane_flag, which 4:2:0 and 4:2:2 omit.
+static std::vector<char> hevc_write_sps_rbsp(uint32_t chroma_format_idc, int separate_colour_plane_flag,
+    uint32_t height, uint32_t conf_bottom)
+{
+    HevcPtlBitWriter b;
+    b.u(0, 4);  // sps_video_parameter_set_id
+    b.u(0, 3);  // sps_max_sub_layers_minus1
+    b.u(1, 1);  // sps_temporal_id_nesting_flag
+    hevc_write_ptl_main(b);
+    b.ue(0);    // sps_seq_parameter_set_id
+    b.ue(chroma_format_idc);
+    if (chroma_format_idc == 3) {
+        b.u(separate_colour_plane_flag, 1);
+    }
+    b.ue(1920); // pic_width_in_luma_samples
+    b.ue(height);
+    b.u(1, 1);  // conformance_window_flag
+    b.ue(0);    // conf_win_left_offset
+    b.ue(0);    // conf_win_right_offset
+    b.ue(0);    // conf_win_top_offset
+    b.ue(conf_bottom);
+    b.ue(0);    // bit_depth_luma_minus8
+    b.ue(0);    // bit_depth_chroma_minus8
+    b.ue(4);    // log2_max_pic_order_cnt_lsb_minus4
+    return b.bytes();
+}
+
+// separate_colour_plane_flag is present only for 4:4:4 and inferred 0 otherwise, but the SPS table
+// entry is reused by id. A 4:2:0 SPS that follows a 4:4:4 one of the same id must not keep the stale
+// flag, or sub_height_c stays 1 and the height is cropped by one row per offset instead of two.
+VOID TEST(KernelCodecTest, HevcSpsSeparateColourPlaneFlagNotKeptFromPreviousSps)
+{
+    srs_error_t err;
+
+    SrsFormat format;
+    HELPER_EXPECT_SUCCESS(format.initialize());
+
+    std::vector<char> data444 = hevc_write_sps_rbsp(3, 1, 1088, 4);
+    HELPER_EXPECT_SUCCESS(format.hevc_demux_sps_rbsp(&data444[0], (int)data444.size()));
+    EXPECT_EQ(1084, format.vcodec_->height_);
+
+    // The same SPS id, now 4:2:0, which has no separate_colour_plane_flag.
+    std::vector<char> data420 = hevc_write_sps_rbsp(1, 0, 1088, 4);
+    HELPER_EXPECT_SUCCESS(format.hevc_demux_sps_rbsp(&data420[0], (int)data420.size()));
+    EXPECT_EQ(0, format.vcodec_->hevc_dec_conf_record_.sps_table_[0].separate_colour_plane_flag_);
+    EXPECT_EQ(1080, format.vcodec_->height_);
 }
 
 VOID TEST(KernelCoecTest, VideoFormatRbspData)

@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-25, Kernel: Fix stale separate_colour_plane_flag in HEVC SPS. v7.0.207
 * v7.0, 2026-10-25, Kernel: Fix heap overflow in HEVC sub-layer profile_tier_level. v7.0.206
 * <strong>v7.0, 2026-10-25, [7.0 alpha3(7.0.205)](https://github.com/ossrs/srs/releases/tag/v7.0-a3) released. 329753 lines.</strong>
 * v7.0, 2026-10-25, Merge [#4737](https://github.com/ossrs/srs/pull/4737): Hooks: Report on_play and on_publish rejection to the client. v7.0.205 (#4737)

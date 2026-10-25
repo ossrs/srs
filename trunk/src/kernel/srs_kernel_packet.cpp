@@ -1153,6 +1153,8 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
         return srs_error_wrap(err, "chroma_format_idc");
     }
 
+    // Inferred to be 0 when not present, and the SPS table entry may hold a previous SPS.
+    sps->separate_colour_plane_flag_ = 0;
     if (sps->chroma_format_idc_ == 3) {
         if (!bs.require_bits(1)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "separate_colour_plane_flag requires 1 only %d bits", bs.left_bits());
