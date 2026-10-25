@@ -259,7 +259,6 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
     }
     srs_trace("Edge: Connect to %s ok, status=%d, location=%s", url.c_str(), hr_->status_code(), location.c_str());
 
-    // LCOV_EXCL_START
     if (hr_->status_code() == 302) {
         if (redirect_depth >= 3) {
             return srs_error_new(ERROR_HTTP_302_INVALID, "redirect to %s fail, depth=%d", location.c_str(), redirect_depth);
@@ -284,7 +283,6 @@ srs_error_t SrsEdgeFlvUpstream::do_connect(ISrsRequest *r, ISrsLbRoundRobin *lb,
         }
         return do_connect(r, lb, redirect_depth + 1);
     }
-    // LCOV_EXCL_STOP
 
     srs_freep(reader_);
     reader_ = app_factory_->create_http_file_reader(hr_->body_reader());
@@ -414,6 +412,7 @@ SrsEdgeIngester::SrsEdgeIngester()
     trd_ = new SrsDummyCoroutine();
 
     config_ = _srs_config;
+    app_factory_ = _srs_app_factory;
 }
 
 SrsEdgeIngester::~SrsEdgeIngester()
@@ -425,6 +424,7 @@ SrsEdgeIngester::~SrsEdgeIngester()
     srs_freep(trd_);
 
     config_ = NULL;
+    app_factory_ = NULL;
 }
 
 // CRITICAL: This method is called AFTER the source has been added to the source pool
@@ -444,7 +444,6 @@ srs_error_t SrsEdgeIngester::initialize(SrsSharedPtr<SrsLiveSource> s, ISrsPlayE
     return srs_success;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsEdgeIngester::start()
 {
     srs_error_t err = srs_success;
@@ -454,7 +453,8 @@ srs_error_t SrsEdgeIngester::start()
     }
 
     srs_freep(trd_);
-    trd_ = new SrsSTCoroutine("edge-igs", this);
+    // An empty cid, so the coroutine takes a new one when it starts.
+    trd_ = app_factory_->create_coroutine("edge-igs", this, SrsContextId());
 
     if ((err = trd_->start()) != srs_success) {
         return srs_error_wrap(err, "coroutine");
@@ -462,7 +462,6 @@ srs_error_t SrsEdgeIngester::start()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 void SrsEdgeIngester::stop()
 {
@@ -478,7 +477,6 @@ void SrsEdgeIngester::stop()
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_INGESTER_CIMS (3 * SRS_UTIME_SECONDS)
 
-// LCOV_EXCL_START
 srs_error_t SrsEdgeIngester::cycle()
 {
     srs_error_t err = srs_success;
@@ -528,9 +526,9 @@ srs_error_t SrsEdgeIngester::do_cycle()
         // Create object by protocol.
         srs_freep(upstream_);
         if (edge_protocol == "flv" || edge_protocol == "flvs") {
-            upstream_ = new SrsEdgeFlvUpstream(edge_protocol == "flv" ? "http" : "https");
+            upstream_ = app_factory_->create_edge_flv_upstream(edge_protocol == "flv" ? "http" : "https");
         } else {
-            upstream_ = new SrsEdgeRtmpUpstream(redirect);
+            upstream_ = app_factory_->create_edge_rtmp_upstream(redirect);
         }
 
         if ((err = source_->on_source_id_changed(_srs_context->get_id())) != srs_success) {
@@ -611,7 +609,6 @@ srs_error_t SrsEdgeIngester::ingest(string &redirect)
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, string &redirect)
 {
@@ -639,7 +636,6 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
         return err;
     }
 
-    // LCOV_EXCL_START
     // process onMetaData
     if (msg->header_.is_amf0_data() || msg->header_.is_amf3_data()) {
         SrsRtmpCommand *pkt_raw = NULL;
@@ -658,9 +654,7 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
 
         return err;
     }
-    // LCOV_EXCL_STOP
 
-    // LCOV_EXCL_START
     // call messages, for example, reject, redirect.
     if (msg->header_.is_amf0_command() || msg->header_.is_amf3_command()) {
         SrsRtmpCommand *pkt_raw = NULL;
@@ -703,7 +697,6 @@ srs_error_t SrsEdgeIngester::process_publish_message(SrsRtmpCommonMessage *msg, 
             return srs_error_new(ERROR_CONTROL_REDIRECT, "RTMP 302 redirect to %s", redirect.c_str());
         }
     }
-    // LCOV_EXCL_STOP
 
     return err;
 }
@@ -849,7 +842,6 @@ void SrsEdgeForwarder::stop()
 // when error, edge ingester sleep for a while and retry.
 #define SRS_EDGE_FORWARDER_CIMS (3 * SRS_UTIME_SECONDS)
 
-// LCOV_EXCL_START
 srs_error_t SrsEdgeForwarder::cycle()
 {
     srs_error_t err = srs_success;
@@ -941,7 +933,6 @@ srs_error_t SrsEdgeForwarder::do_cycle()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsEdgeForwarder::proxy(SrsRtmpCommonMessage *msg)
 {
@@ -1165,7 +1156,6 @@ SrsHttpFileReader::~SrsHttpFileReader()
     srs_freep(file_reader_);
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHttpFileReader::open(std::string /*file*/)
 {
     return srs_success;
@@ -1198,7 +1188,6 @@ int64_t SrsHttpFileReader::filesize()
 {
     return 0;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHttpFileReader::read(void *buf, size_t count, ssize_t *pnread)
 {

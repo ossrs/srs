@@ -951,8 +951,6 @@ SrsTsPacket *SrsTsPacket::create_pes_first(ISrsTsContext *context,
     pkt->payload_ = pes;
 
     if (pcr >= 0) {
-        // Ignore coverage for PCR, we don't use it in HLS.
-        // LCOV_EXCL_START
         SrsTsAdaptationField *af = new SrsTsAdaptationField(pkt);
         pkt->adaptation_field_ = af;
         pkt->adaption_field_control_ = SrsTsAdaptationFieldTypeBoth;
@@ -968,7 +966,6 @@ SrsTsPacket *SrsTsPacket::create_pes_first(ISrsTsContext *context,
         af->adaptation_field_extension_flag_ = 0;
         af->program_clock_reference_base_ = pcr;
         af->program_clock_reference_extension_ = 0;
-        // LCOV_EXCL_STOP
     }
 
     pes->pes_.packet_start_code_prefix_ = 0x01;
@@ -1117,8 +1114,6 @@ srs_error_t SrsTsAdaptationField::decode(SrsBuffer *stream)
         program_clock_reference_base_ = (pcrv >> 15) & 0x1ffffffffLL;
     }
 
-    // Ignore coverage for bellow, we don't use it in HLS.
-    // LCOV_EXCL_START
     if (OPCR_flag_) {
         if (!stream->require(6)) {
             return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: demux af OPCR_flag");
@@ -1226,7 +1221,6 @@ srs_error_t SrsTsAdaptationField::decode(SrsBuffer *stream)
         nb_af_ext_reserved_ = adaptation_field_extension_length_ - (stream->pos() - pos_af_ext);
         stream->skip(nb_af_ext_reserved_);
     }
-    // LCOV_EXCL_STOP
 
     nb_af_reserved_ = adaption_field_length_ - (stream->pos() - pos_af);
     stream->skip(nb_af_reserved_);
@@ -1291,8 +1285,6 @@ srs_error_t SrsTsAdaptationField::encode(SrsBuffer *stream)
     tmpv |= (transport_private_data_flag_ << 1) & 0x02;
     stream->write_1bytes(tmpv);
 
-    // Ignore the coverage bellow, for we don't use them in HLS.
-    // LCOV_EXCL_START
     if (PCR_flag_) {
         if (!stream->require(6)) {
             return srs_error_new(ERROR_STREAM_CASTER_TS_AF, "ts: mux af PCR_flag");
@@ -1385,7 +1377,6 @@ srs_error_t SrsTsAdaptationField::encode(SrsBuffer *stream)
             stream->skip(nb_af_ext_reserved_);
         }
     }
-    // LCOV_EXCL_STOP
 
     if (nb_af_reserved_) {
         stream->skip(nb_af_reserved_);
@@ -1550,9 +1541,6 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
             }
         }
 
-        // Ignore coverage bellow, for we don't use them in HLS.
-        // LCOV_EXCL_START
-
         // 6B
         if (ESCR_flag_) {
             ESCR_extension_ = 0;
@@ -1681,8 +1669,6 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
             stream->skip(nb_stuffings_);
         }
 
-        // LCOV_EXCL_STOP
-
         // PES_packet_data_byte, page58.
         // the packet size contains the header size.
         // The number of PES_packet_data_bytes, N, is specified by the
@@ -1708,8 +1694,6 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
         //      nb_payload_, Dump specified bytes in stream.
         has_payload_ = true;
 
-        // Ignore coverage bellow, for we don't use them in HLS.
-        // LCOV_EXCL_START
     } else if (sid == SrsTsPESStreamIdProgramStreamMap || sid == SrsTsPESStreamIdPrivateStream2 || sid == SrsTsPESStreamIdEcmStream || sid == SrsTsPESStreamIdEmmStream || sid == SrsTsPESStreamIdProgramStreamDirectory || sid == SrsTsPESStreamIdDsmccStream || sid == SrsTsPESStreamIdH2221TypeE) {
         // for (i = 0; i < PES_packet_length; i++) {
         //         PES_packet_data_byte
@@ -1731,7 +1715,6 @@ srs_error_t SrsMpegPES::decode(SrsBuffer *stream)
         stream->skip(nb_paddings_);
         srs_info("ts: drop %dB padding bytes", nb_paddings);
 
-        // LCOV_EXCL_STOP
     } else {
         int nb_drop = stream->size() - stream->pos();
         stream->skip(nb_drop);
@@ -1763,14 +1746,11 @@ int SrsMpegPES::size()
         sz += PES_extension_flag_ ? 1 : 0;
 
         if (PES_extension_flag_) {
-            // Ignore coverage bellow, for we don't use them in HLS.
-            // LCOV_EXCL_START
             sz += PES_private_data_flag_ ? 16 : 0;
             sz += pack_header_field_flag_ ? 1 + pack_field_.size() : 0; // 1+x bytes.
             sz += program_packet_sequence_counter_flag_ ? 2 : 0;
             sz += P_STD_buffer_flag_ ? 2 : 0;
             sz += PES_extension_flag_2_ ? 1 + PES_extension_field_.size() : 0; // 1+x bytes.
-            // LCOV_EXCL_STOP
         }
         PES_header_data_length_ = sz - PES_header_data_length_;
 
@@ -1875,9 +1855,6 @@ srs_error_t SrsMpegPES::encode(SrsBuffer *stream)
         }
     }
 
-    // Ignore coverage bellow, for we don't use them in HLS.
-    // LCOV_EXCL_START
-
     // 6B
     if (ESCR_flag_) {
         stream->skip(6);
@@ -1936,8 +1913,6 @@ srs_error_t SrsMpegPES::encode(SrsBuffer *stream)
         stream->skip(nb_stuffings_);
         srs_warn("ts: demux PES, ignore the stuffings.");
     }
-
-    // LCOV_EXCL_STOP
 
     return err;
 }

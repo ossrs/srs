@@ -43,10 +43,12 @@ MockMpdWriter::MockMpdWriter()
     sequence_number_ = 1;
     get_fragment_called_ = false;
     write_count_ = 0;
+    write_error_ = srs_success;
 }
 
 MockMpdWriter::~MockMpdWriter()
 {
+    srs_freep(write_error_);
 }
 
 srs_error_t MockMpdWriter::get_fragment(bool video, std::string &home, std::string &filename, int64_t time, int64_t &sn)
@@ -263,12 +265,15 @@ MockFragmentedMp4::MockFragmentedMp4()
     reap_called_ = false;
     unlink_tmpfile_called_ = false;
     unlink_tmpfile_error_ = srs_success;
+    reap_error_ = srs_success;
     duration_ = 0;
     unlink_file_count_ = NULL;
 }
 
 MockFragmentedMp4::~MockFragmentedMp4()
 {
+    srs_freep(unlink_tmpfile_error_);
+    srs_freep(reap_error_);
 }
 
 srs_error_t MockFragmentedMp4::initialize(ISrsRequest *r, bool video, int64_t time, ISrsMpdWriter *mpd, uint32_t tid)
@@ -286,7 +291,7 @@ srs_error_t MockFragmentedMp4::write(SrsMediaPacket *shared_msg, SrsFormat *form
 srs_error_t MockFragmentedMp4::reap(uint64_t &dts)
 {
     reap_called_ = true;
-    return srs_success;
+    return srs_error_copy(reap_error_);
 }
 
 void MockFragmentedMp4::set_path(std::string v)
@@ -2918,16 +2923,21 @@ MockHttpMessageForRtcApi::MockHttpMessageForRtcApi() : SrsHttpMessage()
     mock_conn_ = new MockHttpConn();
     set_connection(mock_conn_);
     body_content_ = "";
+    body_read_all_error_ = srs_success;
     method_ = SRS_CONSTS_HTTP_POST; // Default to POST
 }
 
 MockHttpMessageForRtcApi::~MockHttpMessageForRtcApi()
 {
     srs_freep(mock_conn_);
+    srs_freep(body_read_all_error_);
 }
 
 srs_error_t MockHttpMessageForRtcApi::body_read_all(std::string &body)
 {
+    if (body_read_all_error_ != srs_success) {
+        return srs_error_copy(body_read_all_error_);
+    }
     body = body_content_;
     return srs_success;
 }

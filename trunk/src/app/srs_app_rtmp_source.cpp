@@ -728,7 +728,6 @@ bool SrsGopCache::empty()
     return gop_cache_.empty();
 }
 
-// LCOV_EXCL_START
 srs_utime_t SrsGopCache::start_time()
 {
     if (empty()) {
@@ -740,7 +739,6 @@ srs_utime_t SrsGopCache::start_time()
 
     return srs_utime_t(msg->timestamp_ * SRS_UTIME_MILLISECONDS);
 }
-// LCOV_EXCL_STOP
 
 bool SrsGopCache::pure_audio()
 {
@@ -755,7 +753,6 @@ ISrsLiveSourceHandler::~ISrsLiveSourceHandler()
 {
 }
 
-// LCOV_EXCL_START
 // TODO: FIXME: Remove it?
 bool srs_hls_can_continue(int ret, SrsMediaPacket *sh, SrsMediaPacket *msg)
 {
@@ -774,7 +771,6 @@ bool srs_hls_can_continue(int ret, SrsMediaPacket *sh, SrsMediaPacket *msg)
 
     return false;
 }
-// LCOV_EXCL_STOP
 
 SrsMixQueue::SrsMixQueue()
 {
@@ -2635,7 +2631,6 @@ void SrsLiveSource::set_gop_cache_max_frames(int v)
     gop_cache_->set_gop_cache_max_frames(v);
 }
 
-// LCOV_EXCL_START
 SrsRtmpJitterAlgorithm SrsLiveSource::jitter()
 {
     return jitter_algorithm_;
@@ -2656,4 +2651,3 @@ void SrsLiveSource::on_edge_proxy_unpublish()
 {
     publish_edge_->on_proxy_unpublish();
 }
-// LCOV_EXCL_STOP

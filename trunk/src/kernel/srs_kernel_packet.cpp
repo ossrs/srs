@@ -721,7 +721,6 @@ srs_error_t SrsFormat::video_avc_demux(SrsBuffer *stream, int64_t timestamp)
 }
 
 // For media server, we don't care the codec, so we just try to parse sps-pps, and we could ignore any error if fail.
-// LCOV_EXCL_START
 
 // struct ptl
 SrsHevcProfileTierLevel::SrsHevcProfileTierLevel()
@@ -1150,6 +1149,8 @@ srs_error_t SrsFormat::hevc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
         return srs_error_wrap(err, "chroma_format_idc");
     }
 
+    // Inferred to be 0 when not present, and the SPS table entry may hold a previous SPS.
+    sps->separate_colour_plane_flag_ = 0;
     if (sps->chroma_format_idc_ == 3) {
         if (!bs.require_bits(1)) {
             return srs_error_new(ERROR_HEVC_DECODE_ERROR, "separate_colour_plane_flag requires 1 only %d bits", bs.left_bits());
@@ -1689,7 +1690,10 @@ srs_error_t SrsFormat::hevc_demux_rbsp_ptl(SrsBitBuffer *bs, SrsHevcProfileTierL
     ptl->sub_layer_intra_constraint_flag_.resize(max_sub_layers_minus1);
     ptl->sub_layer_one_picture_only_constraint_flag_.resize(max_sub_layers_minus1);
     ptl->sub_layer_lower_bit_rate_constraint_flag_.resize(max_sub_layers_minus1);
+    ptl->sub_layer_reserved_zero_7bits_.resize(max_sub_layers_minus1);
+    ptl->sub_layer_reserved_zero_33bits_.resize(max_sub_layers_minus1);
     ptl->sub_layer_reserved_zero_34bits_.resize(max_sub_layers_minus1);
+    ptl->sub_layer_reserved_zero_35bits_.resize(max_sub_layers_minus1);
     ptl->sub_layer_reserved_zero_43bits_.resize(max_sub_layers_minus1);
     ptl->sub_layer_inbld_flag_.resize(max_sub_layers_minus1);
     ptl->sub_layer_reserved_zero_bit_.resize(max_sub_layers_minus1);
@@ -2192,8 +2196,6 @@ srs_error_t SrsFormat::avc_demux_sps_rbsp(char *rbsp, int nb_rbsp)
 
     return err;
 }
-
-// LCOV_EXCL_STOP
 
 srs_error_t SrsFormat::video_nalu_demux(SrsBuffer *stream)
 {

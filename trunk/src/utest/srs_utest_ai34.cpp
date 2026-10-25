@@ -196,15 +196,19 @@ MockCoroutineForForwarder::MockCoroutineForForwarder(int nb_pulls)
     nb_pulls_ = nb_pulls;
     pull_count_ = 0;
     stop_count_ = 0;
+    start_count_ = 0;
+    start_error_ = srs_success;
 }
 
 MockCoroutineForForwarder::~MockCoroutineForForwarder()
 {
+    srs_freep(start_error_);
 }
 
 srs_error_t MockCoroutineForForwarder::start()
 {
-    return srs_success;
+    start_count_++;
+    return srs_error_copy(start_error_);
 }
 
 void MockCoroutineForForwarder::stop()

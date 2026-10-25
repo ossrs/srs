@@ -58,6 +58,13 @@ class MockSrtPollerForSrtConnection : public ISrsSrtPoller
 {
 public:
     int del_socket_count_;
+    int add_socket_count_;
+    int mod_socket_count_;
+    int wait_count_;
+    srs_error_t add_socket_error_;
+    srs_error_t mod_socket_error_;
+    srs_error_t del_socket_error_;
+    srs_error_t wait_error_;
 
 public:
     MockSrtPollerForSrtConnection();
@@ -430,6 +437,7 @@ public:
     bool on_rtp_called_;
     bool on_rtcp_called_;
     bool on_dtls_called_;
+    srs_error_t on_rtp_error_;
 
 public:
     MockRtcNetworkForUdpNetwork();

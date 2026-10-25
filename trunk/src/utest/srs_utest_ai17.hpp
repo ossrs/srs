@@ -39,6 +39,8 @@ public:
     int64_t sequence_number_;
     bool get_fragment_called_;
     int write_count_;
+    // The error write returns a copy of, owned by the mock.
+    srs_error_t write_error_;
 
 public:
     MockMpdWriter();
@@ -55,7 +57,7 @@ public:
     virtual srs_error_t write(SrsFormat *format, ISrsFragmentWindow *afragments, ISrsFragmentWindow *vfragments)
     {
         write_count_++;
-        return srs_success;
+        return srs_error_copy(write_error_);
     }
     virtual void set_availability_start_time(srs_utime_t t) {}
     virtual srs_utime_t get_availability_start_time() { return 0; }
@@ -162,6 +164,7 @@ public:
     bool reap_called_;
     bool unlink_tmpfile_called_;
     srs_error_t unlink_tmpfile_error_;
+    srs_error_t reap_error_;
     srs_utime_t duration_;
     // Counts the unlink_file calls, if set; it outlives the mock, which the controller may free.
     int *unlink_file_count_;
@@ -354,6 +357,7 @@ class MockHttpMessageForRtcApi : public SrsHttpMessage
 public:
     MockHttpConn *mock_conn_;
     std::string body_content_;
+    srs_error_t body_read_all_error_;
     std::map<std::string, std::string> query_params_;
     uint8_t method_;
 

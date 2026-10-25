@@ -64,7 +64,6 @@ srs_error_t SrsEncoder::on_publish(ISrsRequest *req)
     // parse the transcode engines for vhost and app and stream.
     err = parse_scope_engines(req);
 
-    // LCOV_EXCL_START
     // ignore the loop encoder
     // if got a loop, donot transcode the whole stream.
     if (srs_error_code(err) == ERROR_ENCODER_LOOP) {
@@ -85,7 +84,6 @@ srs_error_t SrsEncoder::on_publish(ISrsRequest *req)
     }
 
     return err;
-    // LCOV_EXCL_STOP
 }
 
 void SrsEncoder::on_unpublish()
@@ -97,7 +95,6 @@ void SrsEncoder::on_unpublish()
 // when error, encoder sleep for a while and retry.
 #define SRS_RTMP_ENCODER_CIMS (3 * SRS_UTIME_SECONDS)
 
-// LCOV_EXCL_START
 srs_error_t SrsEncoder::cycle()
 {
     srs_error_t err = srs_success;
@@ -153,7 +150,6 @@ srs_error_t SrsEncoder::do_cycle()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 void SrsEncoder::clear_engines()
 {
@@ -296,7 +292,6 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     output = srs_strings_replace(output, "[engine]", engine->arg0());
     output = srs_path_build_timestamp(config_, output);
 
-    // LCOV_EXCL_START
     std::string log_file = SRS_CONSTS_NULL_FILE; // disabled
     // write ffmpeg info to log file.
     if (config_->get_ff_log_enabled()) {
@@ -315,7 +310,6 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
         }
         log_file += ".log";
     }
-    // LCOV_EXCL_STOP
 
     // important: loop check, donot transcode again.
     std::vector<std::string>::iterator it;
@@ -338,7 +332,6 @@ srs_error_t SrsEncoder::initialize_ffmpeg(ISrsFFMPEG *ffmpeg, ISrsRequest *req, 
     return err;
 }
 
-// LCOV_EXCL_START
 void SrsEncoder::show_encode_log_message()
 {
     pprint_->elapse();
@@ -350,4 +343,3 @@ void SrsEncoder::show_encode_log_message()
                   pprint_->age(), (int)ffmpegs_.size(), input_stream_name_.c_str());
     }
 }
-// LCOV_EXCL_STOP

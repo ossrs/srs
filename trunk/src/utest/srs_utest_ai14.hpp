@@ -201,6 +201,20 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsMetaCache *meta_;
 
 public:
+    int on_source_id_changed_count_;
+    int on_publish_count_;
+    int on_unpublish_count_;
+    int on_audio_count_;
+    int on_video_count_;
+    int on_aggregate_count_;
+    int on_meta_data_count_;
+    // The errors the handlers return a copy of, owned by the mock.
+    srs_error_t on_source_id_changed_error_;
+    srs_error_t on_publish_error_;
+    srs_error_t on_audio_error_;
+    srs_error_t on_meta_data_error_;
+
+public:
     MockLiveSourceForOriginHub();
     virtual ~MockLiveSourceForOriginHub();
     virtual void on_consumer_destroy(SrsLiveConsumer *consumer);

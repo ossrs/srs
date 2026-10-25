@@ -58,6 +58,7 @@ SRS_UTEST_FILES=(srs_utest srs_utest_manual_amf0 srs_utest_manual_kernel srs_ute
     srs_utest_ai11 srs_utest_ai12 srs_utest_ai13 srs_utest_ai14 srs_utest_ai15 srs_utest_ai16
     srs_utest_ai17 srs_utest_ai18 srs_utest_ai19 srs_utest_ai20 srs_utest_ai24 srs_utest_ai25
     srs_utest_ai26 srs_utest_ai27 srs_utest_ai28 srs_utest_ai29 srs_utest_ai30 srs_utest_ai31
-    srs_utest_ai32 srs_utest_ai33 srs_utest_ai34 srs_utest_ai35)
+    srs_utest_ai32 srs_utest_ai33 srs_utest_ai34 srs_utest_ai35 srs_utest_ai36 srs_utest_ai37
+    srs_utest_ai38 srs_utest_ai39)
 SRS_UTEST_GB28181_FILES=(srs_utest_manual_gb28181 srs_utest_ai23)
 SRS_UTEST_RTSP_FILES=(srs_utest_ai21 srs_utest_ai22)

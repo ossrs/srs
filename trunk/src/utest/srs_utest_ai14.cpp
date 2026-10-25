@@ -1746,12 +1746,29 @@ MockLiveSourceForOriginHub::MockLiveSourceForOriginHub()
 {
     format_ = new SrsRtmpFormat();
     meta_ = new SrsMetaCache();
+
+    on_source_id_changed_count_ = 0;
+    on_publish_count_ = 0;
+    on_unpublish_count_ = 0;
+    on_audio_count_ = 0;
+    on_video_count_ = 0;
+    on_aggregate_count_ = 0;
+    on_meta_data_count_ = 0;
+    on_source_id_changed_error_ = srs_success;
+    on_publish_error_ = srs_success;
+    on_audio_error_ = srs_success;
+    on_meta_data_error_ = srs_success;
 }
 
 MockLiveSourceForOriginHub::~MockLiveSourceForOriginHub()
 {
     srs_freep(format_);
     srs_freep(meta_);
+
+    srs_freep(on_source_id_changed_error_);
+    srs_freep(on_publish_error_);
+    srs_freep(on_audio_error_);
+    srs_freep(on_meta_data_error_);
 }
 
 void MockLiveSourceForOriginHub::on_consumer_destroy(SrsLiveConsumer *consumer)
@@ -1780,36 +1797,43 @@ SrsRtmpFormat *MockLiveSourceForOriginHub::format()
 
 srs_error_t MockLiveSourceForOriginHub::on_source_id_changed(SrsContextId id)
 {
-    return srs_success;
+    on_source_id_changed_count_++;
+    return srs_error_copy(on_source_id_changed_error_);
 }
 
 srs_error_t MockLiveSourceForOriginHub::on_publish()
 {
-    return srs_success;
+    on_publish_count_++;
+    return srs_error_copy(on_publish_error_);
 }
 
 void MockLiveSourceForOriginHub::on_unpublish()
 {
+    on_unpublish_count_++;
 }
 
 srs_error_t MockLiveSourceForOriginHub::on_audio(SrsRtmpCommonMessage *audio)
 {
-    return srs_success;
+    on_audio_count_++;
+    return srs_error_copy(on_audio_error_);
 }
 
 srs_error_t MockLiveSourceForOriginHub::on_video(SrsRtmpCommonMessage *video)
 {
+    on_video_count_++;
     return srs_success;
 }
 
 srs_error_t MockLiveSourceForOriginHub::on_aggregate(SrsRtmpCommonMessage *msg)
 {
+    on_aggregate_count_++;
     return srs_success;
 }
 
 srs_error_t MockLiveSourceForOriginHub::on_meta_data(SrsRtmpCommonMessage *msg, SrsOnMetaDataPacket *metadata)
 {
-    return srs_success;
+    on_meta_data_count_++;
+    return srs_error_copy(on_meta_data_error_);
 }
 
 // The constructor only allocates its children, so the DVR it creates is not yet

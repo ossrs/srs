@@ -881,7 +881,6 @@ void SrsRtcTcpConn::on_executor_done(ISrsInterruptable *executor)
     owner_coroutine_ = NULL;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsRtcTcpConn::cycle()
 {
     srs_error_t err = do_cycle();
@@ -972,7 +971,6 @@ srs_error_t SrsRtcTcpConn::do_cycle()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsRtcTcpConn::handshake()
 {

@@ -120,7 +120,9 @@ verify_whep_playback() {
   fi
 
   echo "Verifying WHEP playback: $url"
-  if ! "$tool_bin" -hide_banner -f whep -i "$url" -t 5 -f null - >"$log" 2>&1; then
+  # The session must end by a DELETE to the Location of the answer, which the
+  # proxy has to forward from the origin and route back.
+  if ! PION_WHEP_REQUIRE_SESSION=on "$tool_bin" -hide_banner -f whep -i "$url" -t 5 -f null - >"$log" 2>&1; then
     echo "FAIL: WHEP playback failed. pion-whep log:" >&2
     cat "$log" >&2
     exit 1

@@ -112,7 +112,6 @@ void SrsHlsSegment::config_cipher(unsigned char *key, unsigned char *iv)
     fw->config_cipher(key, iv);
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHlsSegment::rename()
 {
     if (true) {
@@ -123,7 +122,6 @@ srs_error_t SrsHlsSegment::rename()
 
     return SrsFragment::rename();
 }
-// LCOV_EXCL_STOP
 
 SrsInitMp4Segment::SrsInitMp4Segment(ISrsFileWriter *fw)
 {
@@ -814,7 +812,6 @@ srs_error_t SrsHlsFmp4Muxer::update_config(ISrsRequest *r)
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHlsFmp4Muxer::create_directories()
 {
     srs_error_t err = srs_success;
@@ -836,7 +833,6 @@ srs_error_t SrsHlsFmp4Muxer::create_directories()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsFmp4Muxer::segment_open(srs_utime_t basetime)
 {
@@ -1144,7 +1140,6 @@ srs_error_t SrsHlsFmp4Muxer::write_hls_key()
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
 {
     srs_error_t err = srs_success;
@@ -1172,7 +1167,6 @@ srs_error_t SrsHlsFmp4Muxer::refresh_m3u8()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsFmp4Muxer::do_refresh_m3u8(std::string m3u8_file)
 {
@@ -1329,7 +1323,6 @@ SrsHlsMuxer::~SrsHlsMuxer()
     app_factory_ = NULL;
 }
 
-// LCOV_EXCL_START
 void SrsHlsMuxer::dispose()
 {
     srs_error_t err = srs_success;
@@ -1356,7 +1349,6 @@ void SrsHlsMuxer::dispose()
 
     srs_trace("gracefully dispose hls %s", req_ ? req_->get_stream_url().c_str() : "");
 }
-// LCOV_EXCL_STOP
 
 int SrsHlsMuxer::sequence_no()
 {
@@ -1516,7 +1508,6 @@ srs_error_t SrsHlsMuxer::update_config(ISrsRequest *r, string entry_prefix,
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHlsMuxer::create_directories()
 {
     srs_error_t err = srs_success;
@@ -1539,7 +1530,6 @@ srs_error_t SrsHlsMuxer::create_directories()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsMuxer::recover_hls()
 {
@@ -2089,7 +2079,6 @@ srs_error_t SrsHlsMuxer::write_hls_key()
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHlsMuxer::refresh_m3u8()
 {
     srs_error_t err = srs_success;
@@ -2117,7 +2106,6 @@ srs_error_t SrsHlsMuxer::refresh_m3u8()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsMuxer::do_refresh_m3u8(string m3u8_file)
 {
@@ -2377,7 +2365,6 @@ srs_error_t SrsHlsController::on_unpublish()
     return err;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsHlsController::on_sequence_header(SrsMediaPacket *msg, SrsFormat *format)
 {
     // TODO: support discontinuity for the same stream
@@ -2388,7 +2375,6 @@ srs_error_t SrsHlsController::on_sequence_header(SrsMediaPacket *msg, SrsFormat 
     // when the sequence header changed, the stream is not republish.
     return muxer_->on_sequence_header();
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHlsController::write_audio(SrsMediaPacket *shared_audio, SrsFormat *format)
 {
@@ -2843,7 +2829,6 @@ srs_error_t SrsHls::do_reload(int *reloading, int *reloaded, int *refreshed)
     return err;
 }
 
-// LCOV_EXCL_START
 void SrsHls::dispose()
 {
     // Call on_unpublish only if still enabled to avoid duplicate calls.
@@ -2861,7 +2846,6 @@ void SrsHls::dispose()
     // Always dispose files when hls_dispose timeout occurs, even if already unpublished.
     controller_->dispose();
 }
-// LCOV_EXCL_STOP
 
 srs_error_t SrsHls::cycle()
 {
@@ -3131,7 +3115,6 @@ srs_error_t SrsHls::on_video(SrsMediaPacket *shared_video, SrsFormat *format)
     return err;
 }
 
-// LCOV_EXCL_START
 void SrsHls::hls_show_mux_log()
 {
     pprint_->elapse();
@@ -3147,5 +3130,4 @@ void SrsHls::hls_show_mux_log()
               pprint_->age(), controller_->sequence_no(), controller_->ts_url().c_str(),
               srsu2msi(controller_->duration()), controller_->deviation());
 }
-// LCOV_EXCL_STOP
 

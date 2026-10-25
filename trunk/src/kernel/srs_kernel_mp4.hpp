@@ -961,7 +961,6 @@ public:
 
 // 8.6.6 Edit List Box
 // ISO_IEC_14496-12-base-format-2012.pdf, page 55
-// LCOV_EXCL_START
 class SrsMp4ElstEntry
 {
 public:
@@ -989,7 +988,6 @@ public:
     virtual std::stringstream &dumps(std::stringstream &ss, SrsMp4DumpContext dc);
     virtual std::stringstream &dumps_detail(std::stringstream &ss, SrsMp4DumpContext dc);
 };
-// LCOV_EXCL_STOP
 
 // 8.6.6 Edit List Box (elst)
 // ISO_IEC_14496-12-base-format-2012.pdf, page 54
@@ -1804,7 +1802,6 @@ public:
 
 // 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 49
-// LCOV_EXCL_START
 class SrsMp4CttsEntry
 {
 public:
@@ -1822,7 +1819,6 @@ public:
 public:
     virtual std::stringstream &dumps_detail(std::stringstream &ss, SrsMp4DumpContext dc);
 };
-// LCOV_EXCL_STOP
 
 // 8.6.1.3 Composition Time to Sample Box (ctts), for Video.
 // ISO_IEC_14496-12-base-format-2012.pdf, page 49
@@ -3021,7 +3017,6 @@ SRS_DECLARE_PRIVATE: // clang-format on
     virtual void encrypt_audio(SrsMp4Sample *sample, SrsMp4SampleEncryptionBox *senc);
 };
 
-// LCOV_EXCL_START
 /////////////////////////////////////////////////////////////////////////////////
 // MP4 dumps functions.
 /////////////////////////////////////////////////////////////////////////////////
@@ -3126,7 +3121,5 @@ void srs_mp4_pfn_elem(T &elem, std::stringstream &ss, SrsMp4DumpContext /*dc*/)
 {
     ss << elem;
 }
-
-// LCOV_EXCL_STOP
 
 #endif

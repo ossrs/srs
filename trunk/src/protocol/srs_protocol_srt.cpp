@@ -18,8 +18,6 @@ using namespace std;
 
 #include <srt/srt.h>
 
-// LCOV_EXCL_START
-
 // TODO: FIXME: protocol could no include app's header file, so define TAG_SRT in this file.
 #define TAG_SRT "SRT"
 
@@ -724,7 +722,6 @@ ISrsSrtOptions::~ISrsSrtOptions()
 {
 }
 
-// LCOV_EXCL_START
 SrsSrtOptions::SrsSrtOptions()
 {
 }
@@ -802,7 +799,6 @@ srs_error_t SrsSrtOptions::set_pbkeylen(srs_srt_t srt_fd, int pbkeylen)
 {
     return srs_srt_set_pbkeylen(srt_fd, pbkeylen);
 }
-// LCOV_EXCL_STOP
 
 ISrsSrtSocket::ISrsSrtSocket()
 {
@@ -1135,5 +1131,3 @@ srs_error_t SrsSrtSocket::check_error()
 
     return err;
 }
-
-// LCOV_EXCL_STOP

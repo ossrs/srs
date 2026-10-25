@@ -497,6 +497,116 @@ VOID TEST(HookRejectionTest, RtmpRejectedPublisherIsNotToldPublishStarted)
     srs_freep(hooks);
 }
 
+// RTMP: on_play runs before start_play(), so a viewer the hook accepted can still fail in
+// start_play(), for example when it closed the socket during a slow callback. The hook backend
+// counted that viewer, so it must still get the on_stop that pairs with the accepted on_play.
+VOID TEST(HookRejectionTest, RtmpAcceptedViewerGetsOnStopWhenStartPlayFails)
+{
+    srs_error_t err = srs_success;
+
+    MockRtmpTransportForDoCycle *transport = new MockRtmpTransportForDoCycle();
+    MockRtmpServer *rtmp = new MockRtmpServer();
+    MockSecurity *security = new MockSecurity();
+
+    MockAppConfigForSrtHooks *config = new MockAppConfigForSrtHooks();
+    config->default_vhost_ = new SrsConfDirective();
+    config->default_vhost_->name_ = "vhost";
+    config->default_vhost_->args_.push_back("__defaultVhost__");
+    config->http_hooks_enabled_ = true;
+    config->set_on_play_urls(std::vector<std::string>(1, "http://127.0.0.1:8085/api/v1/play"));
+    config->set_on_stop_urls(std::vector<std::string>(1, "http://127.0.0.1:8085/api/v1/stop"));
+
+    // The hook accepts the viewer, then answering the play fails.
+    MockHttpHooksForSrt *hooks = new MockHttpHooksForSrt();
+    rtmp->start_play_error_ = srs_error_new(ERROR_SOCKET_WRITE, "mock start play");
+
+    SrsRtmpConn *conn = new SrsRtmpConn(transport, "127.0.0.1", 1935);
+    conn->config_ = config;
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = rtmp;
+    srs_freep(conn->security_);
+    conn->security_ = security;
+    conn->hooks_ = hooks;
+
+    rtmp->type_ = SrsRtmpConnPlay;
+    rtmp->stream_ = "livestream";
+    conn->info_->type_ = SrsRtmpConnPlay;
+    conn->info_->req_->tcUrl_ = "rtmp://127.0.0.1/live";
+    conn->info_->req_->vhost_ = "__defaultVhost__";
+    conn->info_->req_->app_ = "live";
+    conn->info_->req_->stream_ = "livestream";
+
+    err = conn->stream_service_cycle();
+    EXPECT_TRUE(err != srs_success);
+
+    EXPECT_EQ(1, hooks->on_play_count_);
+    EXPECT_EQ(1, rtmp->start_play_count_);
+    EXPECT_EQ(1, hooks->on_stop_count_);
+
+    srs_freep(err);
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+    srs_freep(config);
+    srs_freep(hooks);
+}
+
+// RTMP: on_publish runs before start_fmle_publish(), so a publisher the hook accepted can still
+// fail in the FMLE handshake, for example when it disconnects during a slow callback. The hook
+// backend counted that publisher, so it must still get the on_unpublish that pairs with it.
+VOID TEST(HookRejectionTest, RtmpAcceptedPublisherGetsOnUnpublishWhenStartPublishFails)
+{
+    srs_error_t err = srs_success;
+
+    MockRtmpTransportForDoCycle *transport = new MockRtmpTransportForDoCycle();
+    MockRtmpServer *rtmp = new MockRtmpServer();
+    MockSecurity *security = new MockSecurity();
+
+    MockAppConfigForSrtHooks *config = new MockAppConfigForSrtHooks();
+    config->default_vhost_ = new SrsConfDirective();
+    config->default_vhost_->name_ = "vhost";
+    config->default_vhost_->args_.push_back("__defaultVhost__");
+    config->http_hooks_enabled_ = true;
+    config->set_on_publish_urls(std::vector<std::string>(1, "http://127.0.0.1:8085/api/v1/publish"));
+    config->set_on_unpublish_urls(std::vector<std::string>(1, "http://127.0.0.1:8085/api/v1/unpublish"));
+
+    // The hook accepts the publisher, then the FMLE handshake fails.
+    MockHttpHooksForSrt *hooks = new MockHttpHooksForSrt();
+    rtmp->start_publish_error_ = srs_error_new(ERROR_SOCKET_READ, "mock start FMLE publish");
+
+    SrsRtmpConn *conn = new SrsRtmpConn(transport, "127.0.0.1", 1935);
+    conn->config_ = config;
+    conn->assemble();
+
+    srs_freep(conn->rtmp_);
+    conn->rtmp_ = rtmp;
+    srs_freep(conn->security_);
+    conn->security_ = security;
+    conn->hooks_ = hooks;
+
+    rtmp->type_ = SrsRtmpConnFMLEPublish;
+    rtmp->stream_ = "livestream";
+    conn->info_->type_ = SrsRtmpConnFMLEPublish;
+    conn->info_->req_->tcUrl_ = "rtmp://127.0.0.1/live";
+    conn->info_->req_->vhost_ = "__defaultVhost__";
+    conn->info_->req_->app_ = "live";
+    conn->info_->req_->stream_ = "livestream";
+
+    err = conn->stream_service_cycle();
+    EXPECT_TRUE(err != srs_success);
+
+    EXPECT_EQ(1, hooks->on_publish_count_);
+    EXPECT_EQ(1, rtmp->start_fmle_publish_count_);
+    EXPECT_EQ(1, hooks->on_unpublish_count_);
+
+    srs_freep(err);
+    conn->hooks_ = NULL;
+    srs_freep(conn);
+    srs_freep(config);
+    srs_freep(hooks);
+}
+
 // RTMP: an FMLE encoder unpublishes and publishes again on the same connection, and each publish
 // runs stream_service_cycle() on the same request. Each publish must parse the param of the tcUrl
 // and its own stream name only, not append the last publish's param again.

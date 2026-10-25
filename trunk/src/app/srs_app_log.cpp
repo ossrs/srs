@@ -101,7 +101,6 @@ SrsFileLog::~SrsFileLog()
     srs_freep(writer_);
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsFileLog::initialize()
 {
     // Capture the config here rather than in the constructor: the logger is one of the first objects created, before
@@ -121,7 +120,6 @@ srs_error_t SrsFileLog::initialize()
 
     return srs_success;
 }
-// LCOV_EXCL_STOP
 
 void SrsFileLog::reopen()
 {

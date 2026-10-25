@@ -484,6 +484,9 @@ public:
     std::string last_response_type_; // "OPTIONS", "DESCRIBE", "SETUP", "PLAY", "TEARDOWN"
     int last_response_status_;
     srs_error_t send_message_error_;
+    // The requests recv_message() hands out in order; then it fails with recv_error_ when it is set.
+    std::vector<SrsRtspRequest *> requests_;
+    srs_error_t recv_error_;
 
 public:
     MockRtspStack();
@@ -528,6 +531,8 @@ public:
     // Set to true by the destructor, so a test can prove the writer was freed. Borrowed, not owned.
     bool *destroyed_;
     int write_count_;
+    // The error write returns a copy of, owned by the mock.
+    srs_error_t write_error_;
 
 public:
     MockStreamWriterForRtspConn(bool *destroyed);
@@ -562,6 +567,41 @@ public:
     virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite);
 };
 
+// Mock ISrsProtocolReadWriter whose write yields while hold_ is set, as a real socket does when the
+// client stops reading and the send buffer is full, so another coroutine runs in the middle of a send.
+class MockBlockingSocketForRtspConn : public MockSocketForRtspConn
+{
+public:
+    bool hold_;
+    int write_count_;
+    std::vector<int> channels_;
+
+public:
+    MockBlockingSocketForRtspConn();
+    virtual ~MockBlockingSocketForRtspConn();
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite);
+};
+
+// Mock coroutine handler that sends one RTP packet through SrsRtspConnection::do_send_packet(), as the
+// play coroutine of the connection does.
+class MockRtspSenderForRtspConn : public ISrsCoroutineHandler
+{
+public:
+    SrsRtspConnection *conn_;
+    SrsRtpPacket *pkt_;
+    bool done_;
+    srs_error_t err_;
+
+public:
+    MockRtspSenderForRtspConn(SrsRtspConnection *conn, SrsRtpPacket *pkt);
+    virtual ~MockRtspSenderForRtspConn();
+
+public:
+    virtual srs_error_t cycle();
+};
+
 // Mock ISrsResourceManager for testing SrsRtspConnection::assemble() and its destructor, which must
 // subscribe and unsubscribe the dispose handler on the same injected manager instance.
 class MockResourceManagerForRtspConn : public ISrsResourceManager
@@ -571,6 +611,8 @@ public:
     int unsubscribe_count_;
     ISrsDisposingHandler *last_subscribed_handler_;
     ISrsDisposingHandler *last_unsubscribed_handler_;
+    int remove_count_;
+    ISrsResource *last_removed_;
 
 public:
     MockResourceManagerForRtspConn();

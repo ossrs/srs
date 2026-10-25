@@ -49,7 +49,6 @@ ISrsAppFactory::~ISrsAppFactory()
 {
 }
 
-// LCOV_EXCL_START
 SrsAppFactory::SrsAppFactory()
 {
     kernel_factory_ = new SrsFinalFactory();
@@ -119,6 +118,16 @@ ISrsFileReader *SrsAppFactory::create_http_file_reader(ISrsHttpResponseReader *r
 ISrsFlvDecoder *SrsAppFactory::create_flv_decoder()
 {
     return new SrsFlvDecoder();
+}
+
+ISrsEdgeUpstream *SrsAppFactory::create_edge_flv_upstream(std::string schema)
+{
+    return new SrsEdgeFlvUpstream(schema);
+}
+
+ISrsEdgeUpstream *SrsAppFactory::create_edge_rtmp_upstream(std::string redirect)
+{
+    return new SrsEdgeRtmpUpstream(redirect);
 }
 
 #ifdef SRS_RTSP
@@ -237,7 +246,6 @@ ISrsRtcPublishStream *SrsAppFactory::create_rtc_publish_stream(ISrsExecRtcAsyncT
 {
     return new SrsRtcPublishStream(exec, expire, receiver, cid);
 }
-// LCOV_EXCL_STOP
 
 ISrsRtcPlayStream *SrsAppFactory::create_rtc_play_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketSender *sender, const SrsContextId &cid)
 {
@@ -339,7 +347,6 @@ srs_utime_t SrsConfigProxy::get_pithy_print()
     return _srs_config->get_pithy_print();
 }
 
-// LCOV_EXCL_START
 std::string SrsConfigProxy::get_default_app_name()
 {
     return _srs_config->get_default_app_name();
@@ -349,7 +356,6 @@ std::string SrsConfigProxy::get_srt_default_mode()
 {
     return _srs_config->get_srt_default_mode();
 }
-// LCOV_EXCL_STOP
 
 SrsTrueTime::SrsTrueTime()
 {

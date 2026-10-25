@@ -54,12 +54,10 @@ void SrsFragment::append(int64_t dts)
     dur_ = dts_in_tbn - start_dts_;
 }
 
-// LCOV_EXCL_START
 srs_utime_t SrsFragment::get_start_dts()
 {
     return start_dts_;
 }
-// LCOV_EXCL_STOP
 
 srs_utime_t SrsFragment::duration()
 {
@@ -86,7 +84,6 @@ void SrsFragment::set_path(string v)
     filepath_ = v;
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsFragment::unlink_file()
 {
     srs_error_t err = srs_success;
@@ -114,14 +111,12 @@ srs_error_t SrsFragment::create_dir()
 
     return err;
 }
-// LCOV_EXCL_STOP
 
 string SrsFragment::tmppath()
 {
     return filepath_ + ".tmp";
 }
 
-// LCOV_EXCL_START
 srs_error_t SrsFragment::unlink_tmpfile()
 {
     srs_error_t err = srs_success;
@@ -156,19 +151,16 @@ srs_error_t SrsFragment::rename()
     filepath_ = full_path;
     return err;
 }
-// LCOV_EXCL_STOP
 
 void SrsFragment::set_number(uint64_t n)
 {
     number_ = n;
 }
 
-// LCOV_EXCL_START
 uint64_t SrsFragment::number()
 {
     return number_;
 }
-// LCOV_EXCL_STOP
 
 ISrsFragmentWindow::ISrsFragmentWindow()
 {
@@ -192,16 +184,13 @@ SrsFragmentWindow::~SrsFragmentWindow()
     }
     fragments_.clear();
 
-    // LCOV_EXCL_START
     for (it = expired_fragments_.begin(); it != expired_fragments_.end(); ++it) {
         ISrsFragment *fragment = *it;
         srs_freep(fragment);
     }
     expired_fragments_.clear();
-    // LCOV_EXCL_STOP
 }
 
-// LCOV_EXCL_START
 void SrsFragmentWindow::dispose()
 {
     srs_error_t err = srs_success;
@@ -228,7 +217,6 @@ void SrsFragmentWindow::dispose()
     }
     expired_fragments_.clear();
 }
-// LCOV_EXCL_STOP
 
 void SrsFragmentWindow::append(ISrsFragment *fragment)
 {
@@ -251,16 +239,13 @@ void SrsFragmentWindow::shrink(srs_utime_t window)
         }
     }
 
-    // LCOV_EXCL_START
     for (int i = 0; i < remove_index && !fragments_.empty(); i++) {
         ISrsFragment *fragment = *fragments_.begin();
         fragments_.erase(fragments_.begin());
         expired_fragments_.push_back(fragment);
     }
-    // LCOV_EXCL_STOP
 }
 
-// LCOV_EXCL_START
 void SrsFragmentWindow::clear_expired(bool delete_files)
 {
     srs_error_t err = srs_success;
@@ -278,7 +263,6 @@ void SrsFragmentWindow::clear_expired(bool delete_files)
 
     expired_fragments_.clear();
 }
-// LCOV_EXCL_STOP
 
 srs_utime_t SrsFragmentWindow::max_duration()
 {

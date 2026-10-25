@@ -107,6 +107,8 @@ public:
     ISrsFragmentedMp4 *real_fragmented_mp4_;
     int create_file_writer_count_;
     int create_file_reader_count_;
+    // The error_offset of each writer made, so a write past it fails; -1 for none.
+    int writer_error_offset_;
 
 public:
     MockAppFactory();

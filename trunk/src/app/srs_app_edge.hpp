@@ -193,6 +193,7 @@ class SrsEdgeIngester : public ISrsCoroutineHandler, public ISrsEdgeIngester
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     ISrsAppConfig *config_;
+    ISrsAppFactory *app_factory_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on

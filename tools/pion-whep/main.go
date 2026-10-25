@@ -66,6 +66,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "pion-whep: %v\n", err)
 		os.Exit(1)
 	}
+	if o.RequireSession, err = requireSessionFromEnv(os.Getenv); err != nil {
+		fmt.Fprintf(os.Stderr, "pion-whep: %v\n", err)
+		os.Exit(1)
+	}
 
 	lg := newLogger(o.LogLevel)
 	if !o.HideBanner {
@@ -224,7 +228,9 @@ func play(o *options, lg *logger) error {
 
 	err = wait(o.Duration, failed, lg, &st)
 	pc.Close()
-	deleteSession(sessionURL, lg)
+	if endErr := endSession(sessionURL, o.RequireSession, lg); endErr != nil && err == nil {
+		err = endErr
+	}
 
 	video, audio, bytes := st.snapshot()
 	nacks, plain, rtx := nackLog.Stats()
@@ -308,24 +314,40 @@ func postOffer(whepURL, offer string) (answer, sessionURL string, err error) {
 	return answer, sessionURL, nil
 }
 
-// deleteSession tells the server the session is over, as WHEP asks; a failure only makes a debug line.
-func deleteSession(sessionURL string, lg *logger) {
+// endSession tells the server the session is over by a DELETE to its Location, as WHEP asks. Unless require is
+// set, a missing Location or a failed DELETE only makes a debug line.
+func endSession(sessionURL string, require bool, lg *logger) error {
+	err := deleteSession(sessionURL)
+	if err != nil {
+		lg.printf("debug", "Session delete %s: %v", sessionURL, err)
+	} else {
+		lg.printf("debug", "Session delete %s: ok", sessionURL)
+	}
+	if !require {
+		return nil
+	}
+	return err
+}
+
+func deleteSession(sessionURL string) error {
 	if sessionURL == "" {
-		return
+		return errors.New("the answer has no Location")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, sessionURL, nil)
 	if err != nil {
-		return
+		return err
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		lg.printf("debug", "Session delete %s: %v", sessionURL, err)
-		return
+		return err
 	}
 	resp.Body.Close()
-	lg.printf("debug", "Session delete %s: %s", sessionURL, resp.Status)
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("session delete %s: %s", sessionURL, resp.Status)
+	}
+	return nil
 }
 
 func kindName(kind webrtc.RTPCodecType) string {
