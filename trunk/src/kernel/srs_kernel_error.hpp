@@ -335,7 +335,8 @@
     XX(ERROR_HTTP_JSONP, 4058, "HttpJsonp", "Invalid callback for JSONP")                                                    \
     XX(ERROR_HEVC_NALU_UEV, 4059, "HevcNaluUev", "Failed to read UEV for HEVC NALU")                                         \
     XX(ERROR_HEVC_NALU_SEV, 4060, "HevcNaluSev", "Failed to read SEV for HEVC NALU")                                         \
-    XX(ERROR_GB_RTMP_CONNECTING, 4061, "GbRtmpConnecting", "Drop GB28181 media while connecting its RTMP output")
+    XX(ERROR_GB_RTMP_CONNECTING, 4061, "GbRtmpConnecting", "Drop GB28181 media while connecting its RTMP output")            \
+    XX(ERROR_GB_SESSION_ENDED, 4062, "GbSessionEnded", "Drop GB28181 media of a session that has ended")
 
 /**************************************************/
 /* RTC/RTSP protocol error. */

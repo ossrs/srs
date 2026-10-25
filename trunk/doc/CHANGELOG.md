@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-24, Merge [#4721](https://github.com/ossrs/srs/pull/4721): GB28181: Clean up external SIP sessions after timeout or TCP disconnect. v7.0.199 (#4721)
 * v7.0, 2026-10-24, Merge [#4680](https://github.com/ossrs/srs/pull/4680): RTMP: Fix chunk timestamp/basic-header decoding and harden packet unmarshal. v7.0.198 (#4680)
 * v7.0, 2026-10-24, Merge [#4751](https://github.com/ossrs/srs/pull/4751): WebRTC: Verify STUN integrity, fix SRT and WebRTC TCP republish. Clients that send unsigned STUN binding requests are now rejected. v7.0.197 (#4751)
 * v7.0, 2026-10-24, Merge [#4779](https://github.com/ossrs/srs/pull/4779): Kernel: Fix undefined behavior when dumping empty avcC, hvcC and ESDS boxes. v7.0.196 (#4779)

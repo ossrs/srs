@@ -131,15 +131,19 @@ public:
     virtual void setup_owner(SrsSharedResource<ISrsGbSession> *wrapper, ISrsInterruptable *owner_coroutine, ISrsContextIdSetter *owner_cid) = 0;
     // Notice session to use current media connection.
     virtual void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media) = 0;
+    // Notice session that its current media connection is disconnected.
+    virtual void on_media_disconnected(ISrsGbMediaTcpConn *media) = 0;
+    // Whether the session's cycle ended, so it takes no media connection.
+    virtual bool is_ended() = 0;
 
 public:
     virtual void on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs) = 0;
 };
 
 // The main logic object for GB, the session.
-// Each session contains a media object, that are managed by session. This means session always
-// lives longer than media, and session will dispose media when session disposed. In another word,
-// media objects use directly pointer to session, while session use shared ptr.
+// Each session holds every media connection that bound it by shared ptr, and a media connection points
+// back at the session by a raw pointer. The session cuts those pointers by interrupt() when its cycle
+// ends and when it is freed, so a connection never points at a freed session.
 class SrsGbSession : public ISrsGbSession
 {
 // clang-format off
@@ -163,12 +167,19 @@ SRS_DECLARE_PRIVATE: // clang-format on
     SrsGbSessionState state_;
 
     SrsSharedResource<ISrsGbMediaTcpConn> media_;
+    // The media connections that bound this session and still run, media_ among them; each points at
+    // this session until its interrupt().
+    std::vector<SrsSharedResource<ISrsGbMediaTcpConn> > medias_;
     ISrsGbMuxer *muxer_;
+    // Whether the cycle ended, so no media connection binds the session or uses its muxer any more.
+    bool cycle_done_;
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     // When wait for media connecting, timeout if exceed.
     srs_utime_t connecting_starttime_;
+    // Timeout for an API-created session waiting for its media TCP connection.
+    srs_utime_t media_connect_timeout_;
     // The time we enter reinviting state.
     srs_utime_t reinviting_starttime_;
     // The number of timeout, dispose session if exceed.
@@ -218,6 +229,10 @@ public:
 
     // When got available media transport.
     void on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media);
+    // When current media transport is disconnected.
+    void on_media_disconnected(ISrsGbMediaTcpConn *media);
+    // Whether the session's cycle ended, so it takes no media connection.
+    bool is_ended();
 
     // Interface ISrsCoroutineHandler
 public:
@@ -323,7 +338,8 @@ SRS_DECLARE_PRIVATE: // clang-format on
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
     bool connected_;
-    // The owner session object, note that we use the raw pointer and should never free it.
+    // The session this connection bound. The session sets it to NULL by interrupt() when its cycle ends
+    // or it is freed, so it never points at a freed session.
     ISrsGbSession *session_;
     uint32_t nn_rtcp_;
 

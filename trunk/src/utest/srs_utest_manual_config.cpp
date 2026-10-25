@@ -3119,6 +3119,26 @@ VOID TEST(ConfigMainTest, CheckStreamConverter)
 
         EXPECT_EQ(8080, conf.get_stream_caster_listen(arr.at(0)));
     }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster;"));
+
+        vector<SrsConfDirective *> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, (int)arr.size());
+
+        EXPECT_EQ(10 * SRS_UTIME_SECONDS, conf.get_stream_caster_media_connect_timeout(arr.at(0)));
+    }
+
+    if (true) {
+        MockSrsConfig conf;
+        HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "stream_caster {media_connect_timeout 0.5;}"));
+
+        vector<SrsConfDirective *> arr = conf.get_stream_casters();
+        ASSERT_EQ(1, (int)arr.size());
+
+        EXPECT_EQ(500 * SRS_UTIME_MILLISECONDS, conf.get_stream_caster_media_connect_timeout(arr.at(0)));
+    }
 }
 
 VOID TEST(ConfigMainTest, CheckVhostConfig2)

@@ -31,7 +31,6 @@
 using namespace std;
 
 #define SRS_GB_MAX_RECOVER 16
-#define SRS_GB_MAX_TIMEOUT 3
 #define SRS_GB_LARGE_PACKET 1500
 #define SRS_GB_SESSION_DRIVE_INTERVAL (300 * SRS_UTIME_MILLISECONDS)
 
@@ -71,14 +70,16 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
     owner_cid_ = NULL;
 
     muxer_ = new SrsGbMuxer(this);
+    cycle_done_ = false;
     state_ = SrsGbSessionStateInit;
 
-    connecting_starttime_ = 0;
     nn_timeout_ = 0;
     reinviting_starttime_ = 0;
 
     ppp_ = new SrsAlonePithyPrint();
     startime_ = srs_time_now_realtime();
+    connecting_starttime_ = startime_;
+    media_connect_timeout_ = 0;
     total_packs_ = 0;
     total_msgs_ = 0;
     total_recovered_ = 0;
@@ -101,6 +102,12 @@ SrsGbSession::SrsGbSession() : media_(new SrsGbMediaTcpConn())
 
 SrsGbSession::~SrsGbSession()
 {
+    // Cut the media connections' pointers to this session before it is freed.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
+        media->interrupt();
+    }
+
     srs_freep(muxer_);
     srs_freep(ppp_);
 
@@ -111,6 +118,7 @@ void SrsGbSession::setup(SrsConfDirective *conf)
 {
     std::string output = config_->get_stream_caster_output(conf);
     muxer_->setup(output);
+    media_connect_timeout_ = config_->get_stream_caster_media_connect_timeout(conf);
 
     srs_trace("Session: Start output=%s", output.c_str());
 }
@@ -167,6 +175,11 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
             continue;
         }
 
+        // The session ended while this connection was in the muxer, so don't connect or send for it again.
+        if (cycle_done_) {
+            return;
+        }
+
         // Directly mux audio message.
         srs_error_t err = muxer_->on_ts_message(msg);
         if (err != srs_success) {
@@ -176,7 +189,7 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
     }
 
     // Send the generated video message.
-    if (video->payload_->length() > 0) {
+    if (!cycle_done_ && video->payload_->length() > 0) {
         srs_error_t err = muxer_->on_ts_message(video.get());
         if (err != srs_success) {
             srs_warn("Muxer: Ignore video err %s", srs_error_desc(err).c_str());
@@ -187,10 +200,38 @@ void SrsGbSession::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::
 
 void SrsGbSession::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
 {
+    medias_.push_back(media);
     media_ = media;
+    connecting_starttime_ = 0;
 
     // Change id of SIP and all its child coroutines.
     media_->set_cid(cid_);
+}
+
+void SrsGbSession::on_media_disconnected(ISrsGbMediaTcpConn *media)
+{
+    // The connection ended, so it points at this session no more.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &conn = medias_.at(i);
+        if (conn.get() == media) {
+            medias_.erase(medias_.begin() + i);
+            break;
+        }
+    }
+
+    // Ignore a stale transport after the session has switched to a new one.
+    if (media_.get() != media) {
+        return;
+    }
+
+    if (owner_coroutine_) {
+        owner_coroutine_->interrupt();
+    }
+}
+
+bool SrsGbSession::is_ended()
+{
+    return !owner_coroutine_ || cycle_done_;
 }
 
 // LCOV_EXCL_START
@@ -207,8 +248,23 @@ srs_error_t SrsGbSession::cycle()
     // Drive the session cycle.
     err = do_cycle();
 
-    // Interrupt the media transport when session terminated.
-    media_->interrupt();
+    // No connection binds the session from now, so the interrupt below reaches every one that uses it.
+    cycle_done_ = true;
+
+    // Interrupt the media transports when session terminated, which cuts their pointers to it.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
+        media->interrupt();
+    }
+
+    // The session and its muxer are freed after the cycle, so wait for its media connections to quit. A
+    // connection in the muxer, where a connect or send yields, quits once its interrupted I/O returns.
+    for (int i = 0; i < (int)medias_.size(); i++) {
+        SrsSharedResource<ISrsGbMediaTcpConn> &media = medias_.at(i);
+        while (media->is_connected()) {
+            srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+        }
+    }
 
     // success.
     if (err == srs_success) {
@@ -218,7 +274,7 @@ srs_error_t SrsGbSession::cycle()
 
     // It maybe success with message.
     if (srs_error_code(err) == ERROR_SUCCESS) {
-        srs_trace("client finished %s.", srs_error_summary(err).c_str());
+        srs_warn("client finished %s.", srs_error_summary(err).c_str());
         srs_freep(err);
         return err;
     }
@@ -274,6 +330,13 @@ srs_error_t SrsGbSession::do_cycle()
 srs_error_t SrsGbSession::drive_state()
 {
     srs_error_t err = srs_success;
+
+    // The publish API reserves the ID and SSRC while the external SIP server
+    // starts its media publisher. Once TCP binds, its connection owns the
+    // session lifecycle; otherwise release an abandoned reservation.
+    if (connecting_starttime_ && srs_time_since(connecting_starttime_, srs_time_now_realtime()) >= media_connect_timeout_) {
+        return srs_error_new(ERROR_SUCCESS, "wait media connection timeout");
+    }
 
 #define SRS_GB_CHANGE_STATE_TO(state)                                        \
     {                                                                        \
@@ -501,6 +564,8 @@ bool SrsGbMediaTcpConn::is_connected()
 
 void SrsGbMediaTcpConn::interrupt()
 {
+    // The session ended or is freed: never use it again.
+    session_ = NULL;
     if (owner_coroutine_)
         owner_coroutine_->interrupt();
 }
@@ -533,6 +598,14 @@ srs_error_t SrsGbMediaTcpConn::cycle()
 
     // Change state to disconnected.
     connected_ = false;
+
+    // The external SIP server owns the signaling lifecycle, so a closed media
+    // transport is the terminal event available to SRS for this session.
+    if (session_) {
+        session_->on_media_disconnected(this);
+        session_ = NULL;
+    }
+
     srs_trace("PS: Media disconnect, code=%d", srs_error_code(err));
 
     // success.
@@ -669,6 +742,12 @@ srs_error_t SrsGbMediaTcpConn::on_ps_pack(SrsPsPacket *ps, const std::vector<Srs
 {
     srs_error_t err = srs_success;
 
+    // The session interrupted this connection while it was in the muxer, so drop the packs left in the
+    // buffer; the coroutine ends at its next pull.
+    if (!session_) {
+        return err;
+    }
+
     // Change state to connected.
     if (!connected_) {
         connected_ = true;
@@ -703,6 +782,10 @@ srs_error_t SrsGbMediaTcpConn::bind_session(uint32_t ssrc, ISrsGbSession **psess
 
     ISrsGbSession *raw_session = (*session).get();
     srs_assert(raw_session);
+
+    // A session whose cycle ended may still be found, until the manager frees it.
+    if (raw_session->is_ended())
+        return err;
 
     // Notice session to use current media connection.
     raw_session->on_media_transport(*wrapper_);
@@ -1401,6 +1484,13 @@ srs_error_t SrsGbMuxer::connect()
     // Connect and publish yield, so another coroutine may come here meanwhile.
     if (connecting_) {
         return srs_error_new(ERROR_GB_RTMP_CONNECTING, "RTMP is connecting");
+    }
+
+    // The session's end interrupts its media connections once, and a send that the interrupt fails clears
+    // it, so the rest of the pack would connect again, publish for a device that has left, and keep the
+    // cycle waiting for the connection to leave the muxer.
+    if (session_->is_ended()) {
+        return srs_error_new(ERROR_GB_SESSION_ENDED, "session ended");
     }
 
     // Cleanup the data before connect again.

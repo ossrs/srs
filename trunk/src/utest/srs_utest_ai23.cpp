@@ -68,6 +68,7 @@ void MockGbMuxer::reset()
 MockAppConfigForGbSession::MockAppConfigForGbSession()
 {
     stream_caster_output_ = "";
+    media_connect_timeout_ = 10 * SRS_UTIME_SECONDS;
 }
 
 MockAppConfigForGbSession::~MockAppConfigForGbSession()
@@ -77,6 +78,11 @@ MockAppConfigForGbSession::~MockAppConfigForGbSession()
 std::string MockAppConfigForGbSession::get_stream_caster_output(SrsConfDirective *conf)
 {
     return stream_caster_output_;
+}
+
+srs_utime_t MockAppConfigForGbSession::get_stream_caster_media_connect_timeout(SrsConfDirective *conf)
+{
+    return media_connect_timeout_;
 }
 
 void MockAppConfigForGbSession::set_stream_caster_output(const std::string &output)
@@ -115,6 +121,9 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
 
     // Setup mock config to return test output
     mock_config->set_stream_caster_output("rtmp://127.0.0.1/live/test_stream");
+    mock_config->media_connect_timeout_ = 500 * SRS_UTIME_MILLISECONDS;
+
+    EXPECT_EQ(0, session->media_connect_timeout_);
 
     // Test setup() method
     SrsConfDirective *conf = NULL;
@@ -123,6 +132,7 @@ VOID TEST(GB28181Test, SessionSetupAndOwner)
     // Verify muxer->setup() was called with correct output
     EXPECT_TRUE(mock_muxer->setup_called_);
     EXPECT_STREQ("rtmp://127.0.0.1/live/test_stream", mock_muxer->setup_output_.c_str());
+    EXPECT_EQ(500 * SRS_UTIME_MILLISECONDS, session->media_connect_timeout_);
 
     // Test setup_owner() method
     SrsSharedResource<ISrsGbSession> *wrapper = NULL;
@@ -277,6 +287,7 @@ MockGbMediaTcpConn::MockGbMediaTcpConn()
 {
     set_cid_called_ = false;
     is_connected_ = false;
+    interrupt_called_ = false;
 }
 
 MockGbMediaTcpConn::~MockGbMediaTcpConn()
@@ -298,6 +309,7 @@ bool MockGbMediaTcpConn::is_connected()
 
 void MockGbMediaTcpConn::interrupt()
 {
+    interrupt_called_ = true;
 }
 
 void MockGbMediaTcpConn::set_cid(const SrsContextId &cid)
@@ -329,6 +341,7 @@ void MockGbMediaTcpConn::reset()
 {
     set_cid_called_ = false;
     received_cid_ = SrsContextId();
+    interrupt_called_ = false;
 }
 
 // Test SrsGbSession::on_media_transport - covers the major use scenario:
@@ -365,10 +378,271 @@ VOID TEST(GB28181Test, SessionOnMediaTransport)
 
     // Verify that the session's context ID was passed to the media transport
     EXPECT_EQ(0, mock_media->received_cid_.compare(session_cid));
+    EXPECT_EQ(0, session->connecting_starttime_);
 
     // Clean up - set to NULL to avoid double-free
     session->muxer_ = NULL;
     srs_freep(mock_muxer);
+}
+
+// Test that an API-created session expires while waiting for its media TCP
+// connection, but stops using that timeout as soon as a transport binds.
+VOID TEST(GB28181Test, SessionMediaConnectionTimeout)
+{
+    srs_error_t err = srs_success;
+    SrsUniquePtr<MockAppConfigForGbSession> mock_config(new MockAppConfigForGbSession());
+    MockGbMuxer *mock_muxer = new MockGbMuxer();
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    session->config_ = mock_config.get();
+    session->muxer_ = mock_muxer;
+    mock_config->media_connect_timeout_ = 500 * SRS_UTIME_MILLISECONDS;
+    session->setup(NULL);
+
+    session->connecting_starttime_ = srs_time_now_realtime();
+    HELPER_EXPECT_SUCCESS(session->drive_state());
+
+    session->connecting_starttime_ = srs_time_now_realtime() - 10 * SRS_UTIME_SECONDS;
+    err = session->drive_state();
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SUCCESS, srs_error_code(err));
+    srs_freep(err);
+
+    MockGbMediaTcpConn *media = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> media_resource(media);
+    session->on_media_transport(media_resource);
+    HELPER_EXPECT_SUCCESS(session->drive_state());
+
+    session->muxer_ = NULL;
+    srs_freep(mock_muxer);
+}
+
+// Test that a bound session never ends by the media connect timeout, whatever value the config
+// gives it: zero, negative, or a value that is not a number, which parses to zero.
+VOID TEST(GB28181Test, SessionBoundIgnoresNonPositiveTimeout)
+{
+    srs_error_t err = srs_success;
+
+    srs_utime_t timeouts[] = {0, -1 * SRS_UTIME_SECONDS};
+    for (int i = 0; i < (int)(sizeof(timeouts) / sizeof(timeouts[0])); i++) {
+        SrsUniquePtr<MockAppConfigForGbSession> mock_config(new MockAppConfigForGbSession());
+        MockGbMuxer *mock_muxer = new MockGbMuxer();
+        SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+        session->config_ = mock_config.get();
+        session->muxer_ = mock_muxer;
+        mock_config->media_connect_timeout_ = timeouts[i];
+        session->setup(NULL);
+
+        MockGbMediaTcpConn *media = new MockGbMediaTcpConn();
+        media->is_connected_ = true;
+        SrsSharedResource<ISrsGbMediaTcpConn> media_resource(media);
+        session->on_media_transport(media_resource);
+
+        // The media keeps flowing, so every drive keeps the session.
+        for (int j = 0; j < 3; j++) {
+            HELPER_EXPECT_SUCCESS(session->drive_state());
+        }
+
+        session->muxer_ = NULL;
+        srs_freep(mock_muxer);
+    }
+}
+
+// Test SrsGbSession::on_media_disconnected - only the current transport may
+// terminate the session, while a stale transport must be ignored.
+VOID TEST(GB28181Test, SessionOnMediaDisconnected)
+{
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+
+    MockGbMediaTcpConn *current = new MockGbMediaTcpConn();
+    MockGbMediaTcpConn *stale = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> current_resource(current);
+    SrsSharedResource<ISrsGbMediaTcpConn> stale_resource(stale);
+
+    session->setup_owner(NULL, owner.get(), NULL);
+    session->on_media_transport(current_resource);
+
+    session->on_media_disconnected(stale);
+    EXPECT_FALSE(owner->interrupt_called_);
+
+    session->on_media_disconnected(current);
+    EXPECT_TRUE(owner->interrupt_called_);
+}
+
+// Test SrsGbSession::is_ended - a session ends with its cycle, when its executor is done.
+VOID TEST(GB28181Test, SessionEndsWithItsCycle)
+{
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+
+    session->setup_owner(NULL, owner.get(), NULL);
+    EXPECT_FALSE(session->is_ended());
+
+    session->on_executor_done(owner.get());
+    EXPECT_TRUE(session->is_ended());
+}
+
+// Test that a session interrupts every media connection that bound it when it is freed, which cuts
+// their pointers to the session, so no connection points at the freed session.
+VOID TEST(GB28181Test, SessionFreedInterruptsEveryMedia)
+{
+    SrsGbSession *session = new SrsGbSession();
+
+    MockGbMediaTcpConn *first = new MockGbMediaTcpConn();
+    MockGbMediaTcpConn *second = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> first_resource(first);
+    SrsSharedResource<ISrsGbMediaTcpConn> second_resource(second);
+
+    session->on_media_transport(first_resource);
+    session->on_media_transport(second_resource);
+    EXPECT_EQ(second, session->media_.get());
+    EXPECT_FALSE(first->interrupt_called_);
+    EXPECT_FALSE(second->interrupt_called_);
+
+    srs_freep(session);
+    EXPECT_TRUE(first->interrupt_called_);
+    EXPECT_TRUE(second->interrupt_called_);
+}
+
+// Test that a session forgets a media connection that ended, so it holds and interrupts only the
+// connections that still run.
+VOID TEST(GB28181Test, SessionForgetsDisconnectedMedia)
+{
+    SrsGbSession *session = new SrsGbSession();
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+    session->setup_owner(NULL, owner.get(), NULL);
+
+    MockGbMediaTcpConn *first = new MockGbMediaTcpConn();
+    MockGbMediaTcpConn *second = new MockGbMediaTcpConn();
+    SrsSharedResource<ISrsGbMediaTcpConn> first_resource(first);
+    SrsSharedResource<ISrsGbMediaTcpConn> second_resource(second);
+
+    session->on_media_transport(first_resource);
+    session->on_media_transport(second_resource);
+    EXPECT_EQ(2u, session->medias_.size());
+
+    // The stale connection ends: forgotten, and the session goes on.
+    session->on_media_disconnected(first);
+    EXPECT_EQ(1u, session->medias_.size());
+    EXPECT_FALSE(owner->interrupt_called_);
+
+    srs_freep(session);
+    EXPECT_FALSE(first->interrupt_called_);
+    EXPECT_TRUE(second->interrupt_called_);
+}
+
+// Test that a session's cycle ends only after its media connections quit, so the
+// session and its muxer, freed after the cycle, are never freed under a connection
+// in the muxer, where a connect or send of the RTMP output yields. The interrupt
+// ends only the I/O it finds, so the connection must not mux the rest of its pack.
+VOID TEST(GB28181Test, SessionCycleWaitsForMediaInMuxer)
+{
+    srs_error_t err = srs_success;
+
+    SrsUniquePtr<SrsTsMessage> audio(new SrsTsMessage());
+    audio->sid_ = SrsTsPESStreamIdAudioCommon;
+    audio->payload_->append("audio_data", 10);
+    SrsUniquePtr<SrsTsMessage> audio2(new SrsTsMessage());
+    audio2->sid_ = SrsTsPESStreamIdAudioCommon;
+    audio2->payload_->append("audio_data", 10);
+
+    // The connection's coroutine outlives the session, which interrupts it when freed.
+    MockGbMediaCoroutine media(NULL, audio.get());
+    media.msgs_.push_back(audio2.get());
+    SrsSTCoroutine trd("gb-media", &media);
+
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    MockGbYieldingMuxer *muxer = new MockGbYieldingMuxer(10 * SRS_UTIME_SECONDS);
+    srs_freep(session->muxer_);
+    session->muxer_ = muxer;
+    media.session_ = session.get();
+
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+    owner->pull_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "mock interrupted");
+    SrsUniquePtr<MockContextIdSetterForRtcTcpConn> owner_cid(new MockContextIdSetterForRtcTcpConn());
+    session->setup_owner(NULL, owner.get(), owner_cid.get());
+
+    // A connection that never sent a pack, so it was never in the muxer.
+    MockGbMediaTcpConn *idle = new MockGbMediaTcpConn();
+    session->on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn>(idle));
+    MockGbMediaTcpConnInMuxer *conn = new MockGbMediaTcpConnInMuxer(&media, &trd);
+    session->on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+
+    // The connection's coroutine enters the muxer with the first message of its pack, and yields there.
+    HELPER_EXPECT_SUCCESS(trd.start());
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    EXPECT_EQ(1, muxer->nn_messages_);
+    EXPECT_FALSE(muxer->left_);
+    EXPECT_TRUE(conn->is_connected());
+
+    // The session's cycle ends and interrupts its connections. The interrupted one leaves the muxer
+    // without muxing the second message, and quits; the cycle returns only then, and no connection
+    // binds the session after it.
+    EXPECT_FALSE(session->is_ended());
+    srs_utime_t starttime = srs_time_now_realtime();
+    HELPER_EXPECT_SUCCESS(session->cycle());
+    EXPECT_LT(srs_time_now_realtime() - starttime, 1 * SRS_UTIME_SECONDS);
+    EXPECT_TRUE(idle->interrupt_called_);
+    EXPECT_TRUE(conn->interrupt_called_);
+    EXPECT_TRUE(muxer->left_);
+    EXPECT_EQ(1, muxer->nn_messages_);
+    EXPECT_FALSE(conn->is_connected());
+    EXPECT_TRUE(session->is_ended());
+
+    trd.stop();
+}
+
+// A session reserved by the publish API whose media never connects expires,
+// counting from when the session was created.
+VOID TEST(GB28181Test, SessionWithoutMediaExpiresFromCreation)
+{
+    srs_error_t err = srs_success;
+    SrsUniquePtr<MockAppConfigForGbSession> mock_config(new MockAppConfigForGbSession());
+    MockGbMuxer *mock_muxer = new MockGbMuxer();
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+
+    session->config_ = mock_config.get();
+    session->muxer_ = mock_muxer;
+    mock_config->media_connect_timeout_ = 1 * SRS_UTIME_MILLISECONDS;
+    session->setup(NULL);
+
+    srs_usleep(5 * SRS_UTIME_MILLISECONDS);
+    err = session->drive_state();
+    EXPECT_TRUE(err != srs_success);
+    EXPECT_EQ(ERROR_SUCCESS, srs_error_code(err));
+    srs_freep(err);
+
+    session->muxer_ = NULL;
+    srs_freep(mock_muxer);
+}
+
+// When the bound media TCP connection of a session closes, the connection
+// tells the session, which ends so its ID and SSRC can be published again.
+VOID TEST(GB28181Test, MediaTcpConnDisconnectEndsSession)
+{
+    srs_error_t err;
+    SrsUniquePtr<SrsGbSession> session(new SrsGbSession());
+    MockInterruptableForRtcTcpConn session_owner;
+    session->setup_owner(NULL, &session_owner, NULL);
+
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+    MockInterruptableForRtcTcpConn conn_owner;
+    MockContextIdSetterForRtcTcpConn conn_cid;
+    conn->setup_owner(wrapper.get(), &conn_owner, &conn_cid);
+
+    // The media connection is bound to the session, then the peer closes it:
+    // the reader has no data, so the next read fails.
+    conn->conn_ = new MockProtocolReadWriterForTcpNetwork();
+    conn->session_ = session.get();
+    session->on_media_transport(*wrapper.get());
+
+    HELPER_EXPECT_SUCCESS(conn->cycle());
+    EXPECT_TRUE(session_owner.interrupt_called_);
+    EXPECT_TRUE(conn->session_ == NULL);
+    EXPECT_FALSE(conn->is_connected());
 }
 
 // Test SrsGbSession::drive_state - covers the major use scenario:
@@ -392,6 +666,7 @@ VOID TEST(GB28181Test, SessionDriveState)
     session->muxer_ = mock_muxer;
     session->media_ = SrsSharedResource<ISrsGbMediaTcpConn>(mock_media);
     session->device_id_ = "test-device-123";
+    session->setup(NULL);
 
     // Verify initial state is Init
     EXPECT_EQ(SrsGbSessionStateInit, session->state_);
@@ -777,6 +1052,8 @@ MockGbSessionForMediaConn::MockGbSessionForMediaConn()
     received_pack_ = NULL;
     received_ps_ = NULL;
     on_media_transport_called_ = false;
+    on_media_disconnected_called_ = false;
+    ended_ = false;
 }
 
 MockGbSessionForMediaConn::~MockGbSessionForMediaConn()
@@ -795,6 +1072,16 @@ void MockGbSessionForMediaConn::on_media_transport(SrsSharedResource<ISrsGbMedia
 {
     on_media_transport_called_ = true;
     received_media_ = media;
+}
+
+void MockGbSessionForMediaConn::on_media_disconnected(ISrsGbMediaTcpConn *media)
+{
+    on_media_disconnected_called_ = true;
+}
+
+bool MockGbSessionForMediaConn::is_ended()
+{
+    return ended_;
 }
 
 void MockGbSessionForMediaConn::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
@@ -832,6 +1119,7 @@ void MockGbSessionForMediaConn::reset()
     received_ps_ = NULL;
     received_msgs_.clear();
     on_media_transport_called_ = false;
+    on_media_disconnected_called_ = false;
 }
 
 // Test SrsGbMediaTcpConn::on_ps_pack - covers the major use scenario:
@@ -956,6 +1244,148 @@ VOID TEST(GbMediaTcpConnTest, BindSession)
     // Clean up - set to NULL to avoid double-free
     conn->gb_manager_ = NULL;
     conn->wrapper_ = NULL;
+}
+
+// Test that the session cuts a media connection's pointer to it by interrupt(), before the
+// connection's coroutine is interrupted, so the connection never uses the session again, not even
+// to tell it that the connection closed.
+VOID TEST(GbMediaTcpConnTest, InterruptDetachesSession)
+{
+    srs_error_t err = srs_success;
+
+    MockGbSessionForMediaConn *mock_session = new MockGbSessionForMediaConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbSession> > session_wrapper(new SrsSharedResource<ISrsGbSession>(mock_session));
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> owner(new MockInterruptableForRtcTcpConn());
+
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+    conn->setup_owner(wrapper.get(), owner.get(), NULL);
+    conn->session_ = mock_session;
+
+    conn->interrupt();
+    EXPECT_TRUE(conn->session_ == NULL);
+    EXPECT_TRUE(owner->interrupt_called_);
+
+    // The cycle ends at once with no owner coroutine, and leaves the session alone.
+    conn->owner_coroutine_ = NULL;
+    HELPER_EXPECT_SUCCESS(conn->cycle());
+    EXPECT_FALSE(mock_session->on_media_disconnected_called_);
+}
+
+// Test that a media connection the session dropped while it was in the muxer drops the packs left
+// in its buffer, rather than use the session; its coroutine ends at its next pull.
+VOID TEST(GbMediaTcpConnTest, OnPsPackDroppedWhenDetached)
+{
+    srs_error_t err = srs_success;
+
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+
+    SrsUniquePtr<SrsTsMessage> video(new SrsTsMessage());
+    video->sid_ = SrsTsPESStreamIdVideoCommon;
+    video->payload_->append("video_data", 10);
+    std::vector<SrsTsMessage *> msgs;
+    msgs.push_back(video.get());
+
+    HELPER_EXPECT_SUCCESS(conn->on_ps_pack(NULL, msgs));
+    EXPECT_FALSE(conn->is_connected());
+}
+
+// Test that a media connection doesn't bind a session whose cycle ended, which the manager still
+// finds by SSRC until it frees it, and binds the next session of the SSRC.
+VOID TEST(GbMediaTcpConnTest, BindSessionRefusesEndedSession)
+{
+    srs_error_t err = srs_success;
+
+    MockGbSessionForMediaConn *ended = new MockGbSessionForMediaConn();
+    ended->ended_ = true;
+    SrsUniquePtr<SrsSharedResource<ISrsGbSession> > ended_wrapper(new SrsSharedResource<ISrsGbSession>(ended));
+
+    SrsUniquePtr<MockResourceManagerForBindSession> mock_manager(new MockResourceManagerForBindSession());
+    mock_manager->session_to_return_ = ended_wrapper.get();
+
+    SrsGbMediaTcpConn *conn = new SrsGbMediaTcpConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(conn));
+    conn->gb_manager_ = mock_manager.get();
+    conn->wrapper_ = wrapper.get();
+
+    HELPER_EXPECT_SUCCESS(conn->bind_session(12345, &conn->session_));
+    EXPECT_TRUE(conn->session_ == NULL);
+    EXPECT_FALSE(ended->on_media_transport_called_);
+
+    // The next session of the SSRC, created after the manager freed the ended one.
+    MockGbSessionForMediaConn *next = new MockGbSessionForMediaConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbSession> > next_wrapper(new SrsSharedResource<ISrsGbSession>(next));
+    mock_manager->session_to_return_ = next_wrapper.get();
+
+    HELPER_EXPECT_SUCCESS(conn->bind_session(12345, &conn->session_));
+    EXPECT_EQ(next, conn->session_);
+    EXPECT_TRUE(next->on_media_transport_called_);
+
+    conn->session_ = NULL;
+    conn->gb_manager_ = NULL;
+    conn->wrapper_ = NULL;
+}
+
+// Test that a media connection which another connection replaced on the same SSRC never uses the
+// session after the current connection drops and the manager frees the session; the stale one's
+// next pack and its own disconnect come later.
+VOID TEST(GbMediaTcpConnTest, StaleMediaOutlivesSession)
+{
+    srs_error_t err = srs_success;
+
+    SrsGbSession *session = new SrsGbSession();
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> session_owner(new MockInterruptableForRtcTcpConn());
+    session->setup_owner(NULL, session_owner.get(), NULL);
+    SrsSharedResource<ISrsGbSession> *session_wrapper = new SrsSharedResource<ISrsGbSession>(session);
+
+    SrsUniquePtr<MockResourceManagerForBindSession> mock_manager(new MockResourceManagerForBindSession());
+    mock_manager->session_to_return_ = session_wrapper;
+
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> stale_owner(new MockInterruptableForRtcTcpConn());
+    SrsGbMediaTcpConn *stale = new SrsGbMediaTcpConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > stale_wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(stale));
+    stale->setup_owner(stale_wrapper.get(), stale_owner.get(), NULL);
+    stale->gb_manager_ = mock_manager.get();
+
+    SrsUniquePtr<MockInterruptableForRtcTcpConn> current_owner(new MockInterruptableForRtcTcpConn());
+    SrsGbMediaTcpConn *current = new SrsGbMediaTcpConn();
+    SrsUniquePtr<SrsSharedResource<ISrsGbMediaTcpConn> > current_wrapper(new SrsSharedResource<ISrsGbMediaTcpConn>(current));
+    current->setup_owner(current_wrapper.get(), current_owner.get(), NULL);
+    current->gb_manager_ = mock_manager.get();
+
+    // Both connections bind the session by the same SSRC, the second one replaces the first.
+    HELPER_EXPECT_SUCCESS(stale->bind_session(12345, &stale->session_));
+    HELPER_EXPECT_SUCCESS(current->bind_session(12345, &current->session_));
+    EXPECT_EQ(session, stale->session_);
+    EXPECT_EQ(session, current->session_);
+    EXPECT_EQ(current, session->media_.get());
+
+    // The current connection drops, which ends the session.
+    session->on_media_disconnected(current);
+    current->session_ = NULL;
+    EXPECT_TRUE(session_owner->interrupt_called_);
+    EXPECT_FALSE(stale_owner->interrupt_called_);
+
+    // The manager frees the ended session, which must cut the stale connection off it.
+    mock_manager->session_to_return_ = NULL;
+    srs_freep(session_wrapper);
+    EXPECT_TRUE(stale->session_ == NULL);
+    EXPECT_TRUE(stale_owner->interrupt_called_);
+
+    // The stale connection's next pack and its disconnect leave the freed session alone.
+    SrsUniquePtr<SrsTsMessage> video(new SrsTsMessage());
+    video->sid_ = SrsTsPESStreamIdVideoCommon;
+    video->payload_->append("video_data", 10);
+    std::vector<SrsTsMessage *> msgs;
+    msgs.push_back(video.get());
+    HELPER_EXPECT_SUCCESS(stale->on_ps_pack(NULL, msgs));
+
+    stale->owner_coroutine_ = NULL;
+    HELPER_EXPECT_SUCCESS(stale->cycle());
+
+    stale->gb_manager_ = NULL;
+    current->gb_manager_ = NULL;
 }
 
 // Test SrsMpegpsQueue::push - covers the major use scenario:
@@ -1409,6 +1839,7 @@ void MockGbMpegpsQueue::reset()
 MockGbSessionForMuxer::MockGbSessionForMuxer()
 {
     device_id_ = "34020000001320000001";
+    ended_ = false;
 }
 
 MockGbSessionForMuxer::~MockGbSessionForMuxer()
@@ -1425,6 +1856,15 @@ void MockGbSessionForMuxer::setup_owner(SrsSharedResource<ISrsGbSession> *wrappe
 
 void MockGbSessionForMuxer::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
 {
+}
+
+void MockGbSessionForMuxer::on_media_disconnected(ISrsGbMediaTcpConn *media)
+{
+}
+
+bool MockGbSessionForMuxer::is_ended()
+{
+    return ended_;
 }
 
 void MockGbSessionForMuxer::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
@@ -1505,6 +1945,91 @@ srs_error_t MockGbSendingRtmpClient::send_and_free_message(SrsMediaPacket *msg)
         return srs_error_new(ERROR_SOCKET_WRITE, "mock send failed");
     }
     return srs_success;
+}
+
+MockGbEndingRtmpClient::MockGbEndingRtmpClient(MockGbSessionForMuxer *session, int end_at, int *sends)
+{
+    session_ = session;
+    end_at_ = end_at;
+    sends_ = sends;
+}
+
+MockGbEndingRtmpClient::~MockGbEndingRtmpClient()
+{
+}
+
+srs_error_t MockGbEndingRtmpClient::send_and_free_message(SrsMediaPacket *msg)
+{
+    srs_freep(msg);
+    int nn = ++(*sends_);
+
+    if (nn == end_at_) {
+        session_->ended_ = true;
+        return srs_error_new(ERROR_SOCKET_WRITE, "mock send interrupted");
+    }
+
+    send_message_count_++;
+    return srs_success;
+}
+
+MockGbYieldingMuxer::MockGbYieldingMuxer(srs_utime_t delay)
+{
+    delay_ = delay;
+    nn_messages_ = 0;
+    left_ = false;
+}
+
+MockGbYieldingMuxer::~MockGbYieldingMuxer()
+{
+}
+
+srs_error_t MockGbYieldingMuxer::on_ts_message(SrsTsMessage *msg)
+{
+    on_ts_message_called_ = true;
+    nn_messages_++;
+    // As a send, the sleep yields, and an interrupt ends it.
+    srs_usleep(delay_);
+    left_ = true;
+    return srs_success;
+}
+
+MockGbMediaCoroutine::MockGbMediaCoroutine(SrsGbSession *session, SrsTsMessage *msg)
+{
+    session_ = session;
+    msgs_.push_back(msg);
+    done_ = false;
+}
+
+MockGbMediaCoroutine::~MockGbMediaCoroutine()
+{
+}
+
+srs_error_t MockGbMediaCoroutine::cycle()
+{
+    session_->on_ps_pack(&ctx_, NULL, msgs_);
+    done_ = true;
+    return srs_success;
+}
+
+MockGbMediaTcpConnInMuxer::MockGbMediaTcpConnInMuxer(MockGbMediaCoroutine *media, SrsSTCoroutine *trd)
+{
+    media_ = media;
+    trd_ = trd;
+}
+
+MockGbMediaTcpConnInMuxer::~MockGbMediaTcpConnInMuxer()
+{
+}
+
+bool MockGbMediaTcpConnInMuxer::is_connected()
+{
+    return !media_->done_;
+}
+
+void MockGbMediaTcpConnInMuxer::interrupt()
+{
+    interrupt_called_ = true;
+    trd_->interrupt();
 }
 
 MockAppFactoryForGbMuxer::MockAppFactoryForGbMuxer()
@@ -2366,6 +2891,65 @@ VOID TEST(GbMuxerTest, WriteWhileSendingQueued)
     EXPECT_TRUE(muxer->sdk_ == NULL);
 }
 
+// A session's end interrupts its media connection in a send of the RTMP
+// output, which fails and frees the client. The rest of that connection's
+// pack, and any media after it, makes no new client: the ended session never
+// publishes again, and its cycle's wait for the connection to leave the muxer
+// ends.
+VOID TEST(GbMuxerTest, NoConnectAfterSessionEnded)
+{
+    srs_error_t err = srs_success;
+
+    MockAppFactoryForGbMuxer factory;
+    SrsUniquePtr<MockGbSessionForMuxer> mock_session(new MockGbSessionForMuxer());
+    SrsUniquePtr<SrsGbMuxer> muxer(new SrsGbMuxer(mock_session.get()));
+    muxer->setup("rtmp://127.0.0.1/live/[stream]");
+    muxer->app_factory_ = &factory;
+
+    int sends = 0;
+    factory.clients_.push_back(new MockGbEndingRtmpClient(mock_session.get(), 2, &sends));
+
+    // While the session lives, the first audio connects, and the queue sends
+    // a frame once it has two.
+    char *data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeAudio, 0, data, 4));
+    EXPECT_EQ(1, factory.created_);
+    EXPECT_TRUE(muxer->sdk_ != NULL);
+    EXPECT_EQ(0, sends);
+
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_SUCCESS(muxer->rtmp_write_packet(SrsFrameTypeAudio, 23, data, 4));
+    EXPECT_EQ(1, sends);
+    EXPECT_FALSE(mock_session->is_ended());
+
+    // The session ends in the next send, which fails and frees the client.
+    data = new char[4];
+    memset(data, 0, 4);
+    HELPER_EXPECT_FAILED(muxer->rtmp_write_packet(SrsFrameTypeAudio, 46, data, 4));
+    EXPECT_EQ(2, sends);
+    EXPECT_TRUE(mock_session->is_ended());
+    EXPECT_TRUE(muxer->sdk_ == NULL);
+
+    // The video of the same pack, and the media after it, connect no more.
+    data = new char[4];
+    memset(data, 0, 4);
+    err = muxer->rtmp_write_packet(SrsFrameTypeVideo, 50, data, 4);
+    EXPECT_EQ(ERROR_GB_SESSION_ENDED, srs_error_code(err));
+    srs_freep(err);
+
+    data = new char[4];
+    memset(data, 0, 4);
+    err = muxer->rtmp_write_packet(SrsFrameTypeAudio, 69, data, 4);
+    EXPECT_EQ(ERROR_GB_SESSION_ENDED, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(1, factory.created_);
+    EXPECT_TRUE(muxer->sdk_ == NULL);
+    EXPECT_EQ(2, sends);
+}
+
 // Test SrsPackContext::on_ts_message - covers the major use scenario:
 // 1. Accumulate multiple TS messages in the same PS pack
 // 2. Trigger on_ps_pack callback when a new pack ID is detected
@@ -2803,6 +3387,15 @@ void MockGbSessionForApiPublish::setup_owner(SrsSharedResource<ISrsGbSession> *w
 
 void MockGbSessionForApiPublish::on_media_transport(SrsSharedResource<ISrsGbMediaTcpConn> media)
 {
+}
+
+void MockGbSessionForApiPublish::on_media_disconnected(ISrsGbMediaTcpConn *media)
+{
+}
+
+bool MockGbSessionForApiPublish::is_ended()
+{
+    return false;
 }
 
 void MockGbSessionForApiPublish::on_ps_pack(ISrsPackContext *ctx, SrsPsPacket *ps, const std::vector<SrsTsMessage *> &msgs)
