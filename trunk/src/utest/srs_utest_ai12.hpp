@@ -213,4 +213,23 @@ public:
     virtual void gen_bytes(char *bytes, int size);
 };
 
+// Mock ISrsRtcNetworks for testing SrsRtcConnection, which returns the injected network as the available one.
+class MockRtcNetworksForConnection : public ISrsRtcNetworks
+{
+public:
+    ISrsRtcNetwork *available_;
+
+public:
+    MockRtcNetworksForConnection(ISrsRtcNetwork *available);
+    virtual ~MockRtcNetworksForConnection();
+
+public:
+    virtual srs_error_t initialize(SrsSessionConfig *cfg, bool dtls, bool srtp);
+    virtual void set_state(SrsRtcNetworkState state);
+    virtual ISrsRtcNetwork *udp();
+    virtual ISrsRtcNetwork *tcp();
+    virtual ISrsRtcNetwork *available();
+    virtual ISrsKbpsDelta *delta();
+};
+
 #endif

@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-24, Merge [#4753](https://github.com/ossrs/srs/pull/4753): Kernel: Fix TS caster crash, RAW API reload and RTCP count. v7.0.194 (#4753)
 * v7.0, 2026-10-24, Merge [#4750](https://github.com/ossrs/srs/pull/4750): Kernel: Fix RTSP SETUP crash, HLS ctx check bypass, log fd and timer bugs. v7.0.193 (#4750)
 * v7.0, 2026-10-24, Merge [#4786](https://github.com/ossrs/srs/pull/4786): SRT: Fix the timestamps of 48 kHz AAC from SRT to RTMP. v7.0.192 (#4786)
 * v7.0, 2026-10-24, Merge [#4784](https://github.com/ossrs/srs/pull/4784): RTC: Fix memory leak of track descriptions on each WebRTC play. v7.0.191 (#4784)

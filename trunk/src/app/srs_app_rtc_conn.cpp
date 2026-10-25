@@ -1863,8 +1863,6 @@ srs_error_t SrsRtcPublishStream::send_periodic_twcc()
         return err;
     }
 
-    ++_srs_pps_srtcps->sugar_;
-
     // limit the max count=1024 to avoid dead loop.
     for (int i = 0; i < 1024 && rtcp_twcc_->need_feedback(); ++i) {
         char pkt[kMaxUDPDataSize];
@@ -2852,7 +2850,6 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver *nack, uint32_t ss
     }
 
     ++_srs_pps_snack2->sugar_;
-    ++_srs_pps_srtcps->sugar_;
 
     char buf[kRtcpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
@@ -2870,8 +2867,6 @@ void SrsRtcConnection::check_send_nacks(SrsRtpNackForReceiver *nack, uint32_t ss
 
 srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer *rtp_queue, const uint64_t &last_send_systime, const SrsNtp &last_send_ntp)
 {
-    ++_srs_pps_srtcps->sugar_;
-
     // @see https://tools.ietf.org/html/rfc3550#section-6.4.2
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
@@ -2910,8 +2905,6 @@ srs_error_t SrsRtcConnection::send_rtcp_rr(uint32_t ssrc, SrsRtpRingBuffer *rtp_
 
 srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 {
-    ++_srs_pps_srtcps->sugar_;
-
     /*
      @see: http://www.rfc-editor.org/rfc/rfc3611.html#section-2
 
@@ -2957,8 +2950,6 @@ srs_error_t SrsRtcConnection::send_rtcp_xr_rrtr(uint32_t ssrc)
 
 srs_error_t SrsRtcConnection::send_rtcp_fb_pli(uint32_t ssrc, const SrsContextId &cid_of_subscriber)
 {
-    ++_srs_pps_srtcps->sugar_;
-
     char buf[kRtpPacketSize];
     SrsBuffer stream(buf, sizeof(buf));
     stream.write_1bytes(0x81);
