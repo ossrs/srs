@@ -614,6 +614,62 @@ VOID TEST(KernelHevcPtlTest, SubLayersReadProfileAndLevel)
     EXPECT_EQ(0, stream.left());
 }
 
+VOID TEST(KernelHevcPtlTest, SubLayersReadReservedZero33And35Bits)
+{
+    srs_error_t err;
+
+    // profile_tier_level(0, 2): sub-layer 0 is the high throughput profile 5, with reserved_zero_33bits,
+    // and sub-layer 1 is Main 10 profile 2, with reserved_zero_7bits and reserved_zero_35bits.
+    UtestBitWriter b;
+    b.u(90, 8);  // general_level_idc
+    b.u(2, 2);   // sub-layer 0: profile present
+    b.u(3, 2);   // sub-layer 1: profile and level present
+    b.u(0, 12);  // reserved_zero_2bits for i from 2 to 7
+
+    b.u(0, 2);
+    b.u(0, 1);
+    b.u(5, 5);   // sub_layer_profile_idc
+    b.u(0, 32);
+    b.u(0, 4);
+    b.u(0, 9);
+    b.u(1, 1);   // max_14bit_constraint_flag
+    b.u(1, 1);
+    b.u(0xcafebabe, 32); // reserved_zero_33bits
+    b.u(1, 1);   // sub_layer_inbld_flag
+
+    b.u(0, 2);
+    b.u(0, 1);
+    b.u(2, 5);   // sub_layer_profile_idc
+    b.u(0, 32);
+    b.u(0, 4);
+    b.u(0x55, 7); // reserved_zero_7bits
+    b.u(1, 1);    // one_picture_only_constraint_flag
+    b.u(5, 3);
+    b.u(0x01020304, 32); // reserved_zero_35bits
+    b.u(1, 1);    // sub_layer_inbld_flag
+    b.u(120, 8);  // sub_layer_level_idc
+
+    std::vector<char> data = b.bytes();
+    SrsBuffer stream(&data[0], (int)data.size());
+    SrsBitBuffer bs(&stream);
+    SrsHevcProfileTierLevel ptl;
+    SrsFormat format;
+    HELPER_EXPECT_SUCCESS(format.hevc_demux_rbsp_ptl(&bs, &ptl, 0, 2));
+
+    ASSERT_EQ(2u, ptl.sub_layer_reserved_zero_33bits_.size());
+    EXPECT_EQ(5, ptl.sub_layer_profile_idc_[0]);
+    EXPECT_EQ(((uint64_t)1 << 32) | 0xcafebabe, ptl.sub_layer_reserved_zero_33bits_[0]);
+    EXPECT_EQ(1, ptl.sub_layer_inbld_flag_[0]);
+
+    EXPECT_EQ(2, ptl.sub_layer_profile_idc_[1]);
+    EXPECT_EQ(0x55, ptl.sub_layer_reserved_zero_7bits_[1]);
+    EXPECT_EQ(1, ptl.sub_layer_one_picture_only_constraint_flag_[1]);
+    EXPECT_EQ(((uint64_t)5 << 32) | 0x01020304, ptl.sub_layer_reserved_zero_35bits_[1]);
+    EXPECT_EQ(1, ptl.sub_layer_inbld_flag_[1]);
+    EXPECT_EQ(120, ptl.sub_layer_level_idc_[1]);
+    EXPECT_EQ(0, stream.left());
+}
+
 // Each case is profile_tier_level() cut on a byte boundary right before the named field.
 VOID TEST(KernelHevcPtlTest, TruncatedFieldsFail)
 {
