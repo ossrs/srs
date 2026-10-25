@@ -326,6 +326,7 @@ SrsTsContext::SrsTsContext()
     sync_byte_ = 0x47; // ts default sync byte.
     vcodec_ = SrsVideoCodecIdReserved;
     acodec_ = SrsAudioCodecIdReserved1;
+    pmt_version_ = 0;
 }
 
 SrsTsContext::~SrsTsContext()
@@ -361,6 +362,7 @@ void SrsTsContext::reset()
     ready_ = false;
     vcodec_ = SrsVideoCodecIdReserved;
     acodec_ = SrsAudioCodecIdReserved1;
+    pmt_version_ = 0;
 }
 
 SrsTsChannel *SrsTsContext::get(int pid)
@@ -514,6 +516,11 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter *writer, int16_t vpid,
 
     int16_t pmt_number = TS_PMT_NUMBER;
     int16_t pmt_pid = TS_PMT_PID;
+    // The PMT for this announcement uses the current version. We increment after a
+    // successful write so the first PMT is version 0 and every subsequent PMT (e.g.
+    // when AAC audio appears after the initial video-only PMT) carries a new version,
+    // which is required by ISO/IEC 13818-1 for demuxers to accept the update.
+    uint8_t pmt_version = pmt_version_;
     if (true) {
         SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pat(this, pmt_number, pmt_pid));
 
@@ -535,7 +542,7 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter *writer, int16_t vpid,
         }
     }
     if (true) {
-        SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as));
+        SrsUniquePtr<SrsTsPacket> pkt(SrsTsPacket::create_pmt(this, pmt_number, pmt_pid, vpid, vs, apid, as, pmt_version));
 
         pkt->sync_byte_ = sync_byte_;
 
@@ -554,6 +561,11 @@ srs_error_t SrsTsContext::encode_pat_pmt(ISrsStreamWriter *writer, int16_t vpid,
             return srs_error_wrap(err, "ts: write packet");
         }
     }
+
+    // Advance the PMT version (modulo 32) so the next announcement, if its content
+    // changes, is recognized as a new version by strict demuxers. Only advance after
+    // the PMT has been written successfully.
+    pmt_version_ = (pmt_version_ + 1) & 0x1F;
 
     // When PAT and PMT are writen, the context is ready now.
     ready_ = true;
@@ -873,7 +885,7 @@ SrsTsPacket *SrsTsPacket::create_pat(ISrsTsContext *context, int16_t pmt_number,
 }
 
 SrsTsPacket *SrsTsPacket::create_pmt(ISrsTsContext *context,
-                                     int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as)
+                                     int16_t pmt_number, int16_t pmt_pid, int16_t vpid, SrsTsStream vs, int16_t apid, SrsTsStream as, uint8_t version_number)
 {
     SrsTsPacket *pkt = new SrsTsPacket(context);
     pkt->sync_byte_ = 0x47;
@@ -894,7 +906,7 @@ SrsTsPacket *SrsTsPacket::create_pmt(ISrsTsContext *context,
     pmt->section_syntax_indicator = 1;
     pmt->section_length = 0; // calc in size.
     pmt->program_number = pmt_number;
-    pmt->version_number = 0;
+    pmt->version_number = version_number & 0x1F;
     pmt->current_next_indicator = 1;
     pmt->section_number = 0;
     pmt->last_section_number = 0;
