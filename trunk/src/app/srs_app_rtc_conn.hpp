@@ -975,6 +975,7 @@ public:
 
 // clang-format off
 SRS_DECLARE_PRIVATE: // clang-format on
+    srs_error_t do_add_player(SrsRtcUserConfig *ruc, SrsSdp &local_sdp, std::map<uint32_t, SrsRtcTrackDescription *> &play_sub_relations);
     srs_error_t create_player(ISrsRequest *request, std::map<uint32_t, SrsRtcTrackDescription *> sub_relations);
     srs_error_t create_publisher(ISrsRequest *request, SrsRtcSourceDescription *stream_desc);
 };

@@ -30,6 +30,8 @@
 #include <srs_utest.hpp>
 
 #include <srs_app_factory.hpp>
+#include <srs_app_rtc_conn.hpp>
+#include <srs_app_rtc_source.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 class MockAppFactoryForRtcConn : public SrsAppFactory
@@ -57,6 +59,71 @@ public:
         SrsRtcPublishStream *publisher = new SrsRtcPublishStream(exec, expire, receiver, cid);
         publisher->rtc_sources_ = rtc_sources_;
         return publisher;
+    }
+};
+
+// A track description that counts its own destruction, to tell whether the play relations negotiated by add_player
+// are freed.
+class MockRtcTrackDescriptionForRelease : public SrsRtcTrackDescription
+{
+public:
+    int *freed_;
+
+public:
+    MockRtcTrackDescriptionForRelease(int *freed, std::string type, uint32_t ssrc)
+    {
+        freed_ = freed;
+        type_ = type;
+        id_ = type;
+        ssrc_ = ssrc;
+    }
+    virtual ~MockRtcTrackDescriptionForRelease()
+    {
+        (*freed_)++;
+    }
+};
+
+// A player negotiator that fills the play relations with counted tracks, then fails or succeeds as the test chooses.
+class MockRtcPlayerNegotiatorForRelease : public ISrsRtcPlayerNegotiator
+{
+public:
+    int *freed_;
+    int negotiated_;
+    srs_error_t negotiate_error_;
+    srs_error_t generate_error_;
+
+public:
+    MockRtcPlayerNegotiatorForRelease(int *freed)
+    {
+        freed_ = freed;
+        negotiated_ = 0;
+        negotiate_error_ = srs_success;
+        generate_error_ = srs_success;
+    }
+    virtual ~MockRtcPlayerNegotiatorForRelease()
+    {
+        srs_freep(negotiate_error_);
+        srs_freep(generate_error_);
+    }
+
+public:
+    // Negotiate an audio track, then fail if asked, before the video track like a video m-line without a matching
+    // codec does.
+    virtual srs_error_t negotiate_play_capability(SrsRtcUserConfig *ruc, std::map<uint32_t, SrsRtcTrackDescription *> &sub_relations)
+    {
+        sub_relations[100] = new MockRtcTrackDescriptionForRelease(freed_, "audio", 100);
+        negotiated_++;
+        if (negotiate_error_ != srs_success) {
+            return srs_error_copy(negotiate_error_);
+        }
+
+        sub_relations[200] = new MockRtcTrackDescriptionForRelease(freed_, "video", 200);
+        negotiated_++;
+        return srs_success;
+    }
+    virtual srs_error_t generate_play_local_sdp(ISrsRequest *req, SrsSdp &local_sdp, SrsRtcSourceDescription *stream_desc, bool unified_plan, bool audio_before_video)
+    {
+        return srs_error_copy(generate_error_);
     }
 };
 

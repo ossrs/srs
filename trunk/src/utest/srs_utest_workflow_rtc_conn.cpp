@@ -1546,3 +1546,178 @@ VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayHevcStreamByAvcOnlyPlayer)
     HELPER_EXPECT_FAILED(s.play("", s.sdp_.create_chrome_player_offer_with_h264()));
 }
 #endif
+
+// A player negotiation through the public add_player, with the mocks the manually verified player workflow uses. The
+// mocks are declared before the connection so they outlive it.
+class MockRtcPlayerConnScenario
+{
+public:
+    MockCircuitBreaker circuit_breaker_;
+    MockConnectionManager conn_manager_;
+    MockRtcSourceManager rtc_sources_;
+    MockAppConfig config_;
+    MockDtlsCertificate dtls_certificate_;
+    MockSdpFactory sdp_;
+    MockAppFactoryForRtcConn app_factory_;
+    MockRtcAsyncTaskExecutor exec_;
+    SrsContextId cid_;
+    SrsUniquePtr<ISrsRtcConnection> conn_ptr_;
+    SrsRtcConnection *conn_;
+    SrsUniquePtr<SrsRtcUserConfig> ruc_;
+    SrsSdp local_sdp_;
+
+public:
+    MockRtcPlayerConnScenario() : conn_ptr_(new SrsRtcConnection(&exec_, cid_)), ruc_(new SrsRtcUserConfig())
+    {
+        config_.rtc_dtls_role_ = "passive";
+        dtls_certificate_.fingerprint_ = "test-fingerprint";
+        app_factory_.rtc_sources_ = &rtc_sources_;
+        app_factory_.mock_protocol_utility_ = new MockProtocolUtility("192.168.1.100");
+        rtc_sources_.mock_source_ = SrsSharedPtr<SrsRtcSource>(new MockRtcSource());
+
+        conn_ = dynamic_cast<SrsRtcConnection *>(conn_ptr_.get());
+        conn_->circuit_breaker_ = &circuit_breaker_;
+        conn_->conn_manager_ = &conn_manager_;
+        conn_->rtc_sources_ = &rtc_sources_;
+        conn_->config_ = &config_;
+        conn_->dtls_certificate_ = &dtls_certificate_;
+        conn_->app_factory_ = &app_factory_;
+        // Subscribe to the mocked manager, which the connection unsubscribes from when freed.
+        conn_->assemble();
+
+        srs_freep(ruc_->req_);
+        ruc_->req_ = new MockRtcAsyncCallRequest("test.vhost", "live", "stream1");
+        ruc_->publish_ = false;
+        ruc_->dtls_ = true;
+        ruc_->srtp_ = true;
+        ruc_->audio_before_video_ = false;
+    }
+    virtual ~MockRtcPlayerConnScenario()
+    {
+    }
+
+public:
+    // Negotiate the offer, and return the result of add_player.
+    srs_error_t add_player(const std::string &offer)
+    {
+        srs_error_t err = srs_success;
+
+        ruc_->remote_sdp_str_ = offer;
+        if ((err = ruc_->remote_sdp_.parse(offer)) != srs_success) {
+            return srs_error_wrap(err, "parse offer");
+        }
+
+        local_sdp_.session_config_.dtls_role_ = config_.get_rtc_dtls_role(ruc_->req_->vhost_);
+        if ((err = conn_->add_player(ruc_.get(), local_sdp_)) != srs_success) {
+            return srs_error_wrap(err, "add player");
+        }
+
+        return err;
+    }
+};
+
+// Replace the player negotiator of the connection, which owns and frees the mock.
+static MockRtcPlayerNegotiatorForRelease *mock_release_negotiator(MockRtcPlayerConnScenario &s, int *freed)
+{
+    MockRtcPlayerNegotiatorForRelease *negotiator = new MockRtcPlayerNegotiatorForRelease(freed);
+    srs_freep(s.conn_->player_negotiator_);
+    s.conn_->player_negotiator_ = negotiator;
+    return negotiator;
+}
+
+// The play relations negotiated by add_player are freed once the player is created, because the send tracks of the
+// player keep their own copies. A leak here grows with every WebRTC play.
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerFreesRelationsOnSuccess)
+{
+    srs_error_t err;
+
+    int freed = 0;
+    MockRtcPlayerConnScenario s;
+    MockRtcPlayerNegotiatorForRelease *negotiator = mock_release_negotiator(s, &freed);
+
+    HELPER_ASSERT_SUCCESS(s.add_player(s.sdp_.create_chrome_player_offer_with_h264()));
+    EXPECT_EQ(2, negotiator->negotiated_);
+    EXPECT_EQ(2, freed);
+
+    // The player keeps working on its own copies.
+    ASSERT_EQ(1, (int)s.conn_->players_.size());
+    SrsRtcPlayStream *player = dynamic_cast<SrsRtcPlayStream *>(s.conn_->players_.begin()->second);
+    ASSERT_TRUE(player != NULL);
+    ASSERT_EQ(1, (int)player->audio_tracks_.size());
+    ASSERT_EQ(1, (int)player->video_tracks_.size());
+    SrsRtcAudioSendTrack *audio = player->audio_tracks_.begin()->second;
+    SrsRtcVideoSendTrack *video = player->video_tracks_.begin()->second;
+    EXPECT_EQ(100u, audio->track_desc_->ssrc_);
+    EXPECT_EQ(200u, video->track_desc_->ssrc_);
+}
+
+// When negotiation fails after some tracks are negotiated, those tracks are freed.
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerFreesRelationsOnNegotiateError)
+{
+    srs_error_t err;
+
+    int freed = 0;
+    MockRtcPlayerConnScenario s;
+    MockRtcPlayerNegotiatorForRelease *negotiator = mock_release_negotiator(s, &freed);
+    negotiator->negotiate_error_ = srs_error_new(ERROR_RTC_SDP_EXCHANGE, "no valid video");
+
+    HELPER_EXPECT_FAILED(s.add_player(s.sdp_.create_chrome_player_offer_with_h264()));
+    EXPECT_EQ(1, negotiator->negotiated_);
+    EXPECT_EQ(1, freed);
+    EXPECT_TRUE(s.conn_->players_.empty());
+}
+
+// When the answer SDP fails, no player is created and the negotiated tracks are freed.
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerFreesRelationsOnLocalSdpError)
+{
+    srs_error_t err;
+
+    int freed = 0;
+    MockRtcPlayerConnScenario s;
+    MockRtcPlayerNegotiatorForRelease *negotiator = mock_release_negotiator(s, &freed);
+    negotiator->generate_error_ = srs_error_new(ERROR_RTC_SDP_EXCHANGE, "local sdp");
+
+    HELPER_EXPECT_FAILED(s.add_player(s.sdp_.create_chrome_player_offer_with_h264()));
+    EXPECT_EQ(2, negotiator->negotiated_);
+    EXPECT_EQ(2, freed);
+    EXPECT_TRUE(s.conn_->players_.empty());
+}
+
+// Playing the same stream again on a connection reuses its player, and the tracks negotiated for each play are freed.
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerFreesRelationsWhenPlayerExists)
+{
+    srs_error_t err;
+
+    int freed = 0;
+    MockRtcPlayerConnScenario s;
+    MockRtcPlayerNegotiatorForRelease *negotiator = mock_release_negotiator(s, &freed);
+
+    HELPER_ASSERT_SUCCESS(s.add_player(s.sdp_.create_chrome_player_offer_with_h264()));
+    EXPECT_EQ(2, freed);
+
+    HELPER_ASSERT_SUCCESS(s.add_player(s.sdp_.create_chrome_player_offer_with_h264()));
+    EXPECT_EQ(4, negotiator->negotiated_);
+    EXPECT_EQ(4, freed);
+    EXPECT_EQ(1, (int)s.conn_->players_.size());
+}
+
+// Playing another stream whose tracks have the same SSRCs fails, and the tracks negotiated for it are freed.
+VOID TEST(BasicWorkflowRtcConnTest, WorkflowRtcPlayerFreesRelationsOnDuplicatedSsrc)
+{
+    srs_error_t err;
+
+    int freed = 0;
+    MockRtcPlayerConnScenario s;
+    MockRtcPlayerNegotiatorForRelease *negotiator = mock_release_negotiator(s, &freed);
+
+    HELPER_ASSERT_SUCCESS(s.add_player(s.sdp_.create_chrome_player_offer_with_h264()));
+    EXPECT_EQ(2, freed);
+
+    srs_freep(s.ruc_->req_);
+    s.ruc_->req_ = new MockRtcAsyncCallRequest("test.vhost", "live", "stream2");
+    err = s.add_player(s.sdp_.create_chrome_player_offer_with_h264());
+    EXPECT_EQ(ERROR_RTC_DUPLICATED_SSRC, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(4, negotiator->negotiated_);
+    EXPECT_EQ(4, freed);
+}

@@ -7,6 +7,7 @@ The changelog for SRS.
 <a name="v7-changes"></a>
 
 ## SRS 7.0 Changelog
+* v7.0, 2026-10-24, Merge [#4784](https://github.com/ossrs/srs/pull/4784): RTC: Fix memory leak of track descriptions on each WebRTC play. v7.0.191 (#4784)
 * v7.0, 2026-10-24, Merge [#4782](https://github.com/ossrs/srs/pull/4782): RTC: Fix negative SDP session-id on Android. v7.0.190 (#4782)
 * <strong>v7.0, 2026-10-17, [7.0 alpha2(7.0.189)](https://github.com/ossrs/srs/releases/tag/v7.0-a2) released. 325597 lines.</strong>
 * v7.0, 2026-10-17, Misc: Fix proc stats, on_dvr stream, edge failover and transcode. v7.0.189
