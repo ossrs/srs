@@ -98,6 +98,12 @@ func TestDropper(t *testing.T) {
 		t.Errorf("dropped %v of b, want none", got)
 	}
 
+	d.DropAfter(a, 2, 1, 1)
+	check("drop 1 of a after 2", sent(rtp(a, 30), rtp(a, 31), rtp(a, 30), rtp(a, 32), rtp(a, 33)), rtp(a, 30), rtp(a, 31), rtp(a, 30), rtp(a, 33))
+	if got := d.Dropped(a); !slices.Equal(got, []uint16{2, 3, 10, 10, 32}) {
+		t.Errorf("dropped %v, want [2 3 10 10 32]", got)
+	}
+
 	d.Drop(b, 1, 1)
 	for _, p := range [][]byte{rtp(b, 20), rtp(b, 21)} {
 		if _, err := server.WriteToUDP(p, conn.LocalAddr().(*net.UDPAddr)); err != nil {

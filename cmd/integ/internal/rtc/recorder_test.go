@@ -139,13 +139,14 @@ func TestRecorderLocal(t *testing.T) {
 	}
 	rec := r.Record()
 	s := rec.Sent("video/H264")
-	want := &Stream{SSRC: 3, MimeType: "video/H264", Packets: 4, Repeated: []uint16{2}}
+	want := &Stream{SSRC: 3, MimeType: "video/H264", Packets: 4, Repeated: []uint16{2},
+		TWCC: map[uint16]uint16{1: 100, 2: 103, 3: 102}}
 	if !reflect.DeepEqual(s, want) {
 		t.Errorf("media stream %+v, want %+v", s, want)
 	}
 	x := rec.Sent("video/rtx")
-	if x == nil || x.SSRC != 4 || !reflect.DeepEqual(x.OSNs, []uint16{2}) {
-		t.Errorf("RTX stream %+v, want SSRC 4 with OSN 2", x)
+	if x == nil || x.SSRC != 4 || !reflect.DeepEqual(x.OSNs, []uint16{2}) || !reflect.DeepEqual(x.TWCC, map[uint16]uint16{50: 104}) {
+		t.Errorf("RTX stream %+v, want SSRC 4 with OSN 2 and TWCC 104", x)
 	}
 	if want := []uint16{100, 101, 102, 103, 104}; !reflect.DeepEqual(rec.TWCC, want) {
 		t.Errorf("TWCC %v, want %v", rec.TWCC, want)
@@ -196,6 +197,45 @@ func TestRecorderRTCP(t *testing.T) {
 	fb := TWCCFeedback(rec.RTCPIn)
 	if len(fb) != 1 || fb[0].BaseSequenceNumber != 100 || fb[0].FbPktCount != 3 {
 		t.Errorf("TWCC feedback %+v, want one with base 100 and count 3", fb)
+	}
+}
+
+// TestTWCCReceived checks what TWCC feedbacks say of each packet: of run
+// length and status vector chunks, past the padding of the last chunk, and
+// a feedback that covers a packet twice or fewer packets than it counts.
+func TestTWCCReceived(t *testing.T) {
+	const (
+		lost  = rtcp.TypeTCCPacketNotReceived
+		small = rtcp.TypeTCCPacketReceivedSmallDelta
+		large = rtcp.TypeTCCPacketReceivedLargeDelta
+	)
+	run := func(symbol, n uint16) rtcp.PacketStatusChunk {
+		return &rtcp.RunLengthChunk{PacketStatusSymbol: symbol, RunLength: n}
+	}
+	vector := func(size uint16, symbols ...uint16) rtcp.PacketStatusChunk {
+		return &rtcp.StatusVectorChunk{SymbolSize: size, SymbolList: symbols}
+	}
+	fbs := []*rtcp.TransportLayerCC{
+		{BaseSequenceNumber: 65534, PacketStatusCount: 5, PacketChunks: []rtcp.PacketStatusChunk{run(small, 2), run(lost, 3)}},
+		{BaseSequenceNumber: 3, PacketStatusCount: 4, PacketChunks: []rtcp.PacketStatusChunk{
+			vector(rtcp.TypeTCCSymbolSizeTwoBit, large, lost, small, small, lost, lost, lost)}},
+	}
+	got, err := TWCCReceived(fbs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[uint16]bool{65534: true, 65535: true, 0: false, 1: false, 2: false, 3: true, 4: false, 5: true, 6: true}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("TWCCReceived = %v, want %v", got, want)
+	}
+
+	again := []*rtcp.TransportLayerCC{fbs[0], {BaseSequenceNumber: 2, PacketStatusCount: 1, PacketChunks: []rtcp.PacketStatusChunk{run(small, 1)}}}
+	if _, err := TWCCReceived(again); err == nil {
+		t.Error("a packet two feedbacks cover: no error")
+	}
+	short := []*rtcp.TransportLayerCC{{BaseSequenceNumber: 1, PacketStatusCount: 3, PacketChunks: []rtcp.PacketStatusChunk{run(small, 2)}}}
+	if _, err := TWCCReceived(short); err == nil {
+		t.Error("a feedback of fewer packets than it counts: no error")
 	}
 }
 

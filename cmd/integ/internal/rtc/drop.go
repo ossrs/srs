@@ -19,12 +19,13 @@ import (
 // in Options.Dropper of one session, before it connects.
 type Dropper struct {
 	mu sync.Mutex
-	// ssrc is the stream it drops, n how many more new packets of it, and
-	// times how many times in all it loses each.
-	ssrc     uint32
-	n, times int
-	left     map[uint16]int
-	dropped  map[uint32][]uint16
+	// ssrc is the stream it drops, skip how many more new packets of it to
+	// pass first, n how many more to lose, and times how many times in all
+	// it loses each.
+	ssrc           uint32
+	skip, n, times int
+	left           map[uint16]int
+	dropped        map[uint32][]uint16
 }
 
 // Drop loses the next n RTP packets of the stream ssrc, and each time one of
@@ -32,9 +33,14 @@ type Dropper struct {
 // its first resend. A stream the session sends, or receives, as its SSRC
 // says. It replaces the earlier Drop.
 func (d *Dropper) Drop(ssrc uint32, n, times int) {
+	d.DropAfter(ssrc, 0, n, times)
+}
+
+// DropAfter is Drop after the next skip packets of the stream ssrc pass.
+func (d *Dropper) DropAfter(ssrc uint32, skip, n, times int) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	d.ssrc, d.n, d.times, d.left = ssrc, n, times, map[uint16]int{}
+	d.ssrc, d.skip, d.n, d.times, d.left = ssrc, skip, n, times, map[uint16]int{}
 }
 
 // Dropped is the sequence numbers of the packets of the stream ssrc the
@@ -61,6 +67,11 @@ func (d *Dropper) lose(b []byte) bool {
 	left, ok := d.left[seq]
 	if !ok {
 		if d.n == 0 {
+			return false
+		}
+		if d.skip > 0 {
+			d.skip--
+			d.left[seq] = 0
 			return false
 		}
 		d.n--
