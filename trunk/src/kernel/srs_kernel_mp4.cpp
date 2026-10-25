@@ -3272,7 +3272,7 @@ stringstream &SrsMp4AvccBox::dumps_detail(stringstream &ss, SrsMp4DumpContext dc
 
     ss << ", AVC Config: " << (int)avc_config_.size() << "B" << endl;
     srs_mp4_padding(ss, dc.indent());
-    srs_mp4_print_bytes(ss, (const char *)&avc_config_[0], (int)avc_config_.size(), dc.indent());
+    srs_mp4_print_bytes(ss, (const char *)avc_config_.data(), (int)avc_config_.size(), dc.indent());
     return ss;
 }
 
@@ -3328,7 +3328,7 @@ stringstream &SrsMp4HvcCBox::dumps_detail(stringstream &ss, SrsMp4DumpContext dc
 
     ss << ", HEVC Config: " << (int)hevc_config_.size() << "B" << endl;
     srs_mp4_padding(ss, dc.indent());
-    srs_mp4_print_bytes(ss, (const char *)&hevc_config_[0], (int)hevc_config_.size(), dc.indent());
+    srs_mp4_print_bytes(ss, (const char *)hevc_config_.data(), (int)hevc_config_.size(), dc.indent());
     return ss;
 }
 
@@ -3577,7 +3577,7 @@ stringstream &SrsMp4DecoderSpecificInfo::dumps_detail(stringstream &ss, SrsMp4Du
 
     ss << endl;
     srs_mp4_padding(ss, dc.indent());
-    return srs_mp4_print_bytes(ss, (const char *)&asc_[0], (int)asc_.size(), dc.indent());
+    return srs_mp4_print_bytes(ss, (const char *)asc_.data(), (int)asc_.size(), dc.indent());
 }
 
 SrsMp4DecoderConfigDescriptor::SrsMp4DecoderConfigDescriptor() : upStream(0), bufferSizeDB_(0), maxBitrate_(0), avgBitrate_(0)

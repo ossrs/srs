@@ -5217,6 +5217,61 @@ VOID TEST(KernelCodecTest, VideoFormatHevcInvalidLengthSizeMinusOneAfterValid)
     }
 }
 
+// An hvcC may carry a zero-length VPS/SPS/PPS, like an avcC may carry a zero-length SPS. The
+// demuxer and the TS muxer, which inserts the parameter sets before an IRAP frame, must not
+// index the empty NALU data.
+VOID TEST(KernelCodecTest, VideoFormatHevcZeroLengthNalu)
+{
+    srs_error_t err;
+
+    SrsFormat f;
+    HELPER_EXPECT_SUCCESS(f.initialize());
+
+    uint8_t sh[] = {
+        0x1c,             // 1, Keyframe; 12, HEVC.
+        0x00,             // 0, Sequence header.
+        0x00, 0x00, 0x00, // Timestamp.
+        // HEVC extra data, VPS/SPS/PPS.
+        0x01,                               // configuration_version, must be 1.
+        0x00,                               // profile_space, tier_flag, profile_idc.
+        0x00, 0x00, 0x00, 0x00,             // general_profile_compatibility_flags.
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // general_constraint_indicator_flags.
+        0x00,                               // general_level_idc.
+        0x00, 0x00,                         // min_spatial_segmentation_idc.
+        0x00,                               // parallelism_type.
+        0x00,                               // chroma_format.
+        0x00,                               // bit_depth_luma_minus8.
+        0x00,                               // bit_depth_chroma_minus8.
+        0x00, 0x00,                         // avg_frame_rate.
+        0x03,                               // ..., length_size_minus_one, 4 bytes.
+        0x01,                               // numOfArrays.
+        0x20,                               // array_completeness, nal_unit_type 32, VPS.
+        0x00, 0x01,                         // num_nalus.
+        0x00, 0x00,                         // nal_unit_length, zero.
+    };
+    HELPER_EXPECT_SUCCESS(f.on_video(0, (char *)sh, sizeof(sh)));
+
+    ASSERT_TRUE(f.vcodec() != NULL);
+    ASSERT_EQ(1, (int)f.vcodec()->hevc_dec_conf_record_.nalu_vec_.size());
+    const SrsHevcHvccNalu &vps = f.vcodec()->hevc_dec_conf_record_.nalu_vec_[0];
+    ASSERT_EQ(1, (int)vps.nal_data_vec_.size());
+    EXPECT_TRUE(vps.nal_data_vec_[0].nal_unit_data_.empty());
+
+    uint8_t frame[] = {
+        0x1c,                   // 1, Keyframe; 12, HEVC.
+        0x01,                   // 1, NALU.
+        0x00, 0x00, 0x00,       // Composition time.
+        0x00, 0x00, 0x00, 0x02, // NALU length.
+        0x26, 0x01,             // IDR_W_RADL.
+    };
+    HELPER_EXPECT_SUCCESS(f.on_video(0, (char *)frame, sizeof(frame)));
+
+    SrsTsMessageCache cache;
+    cache.video_ = new SrsTsMessage();
+    HELPER_EXPECT_SUCCESS(cache.do_cache_hevc(f.video_));
+    EXPECT_GT(cache.video_->payload_->length(), 0);
+}
+
 VOID TEST(KernelCoecTest, VideoFormatRbspData)
 {
     if (true) {

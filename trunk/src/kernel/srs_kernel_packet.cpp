@@ -874,9 +874,10 @@ srs_error_t SrsFormat::hevc_demux_hvcc(SrsBuffer *stream)
                                      data_item.nal_unit_length_, stream->left());
             }
             // copy vps/pps/sps data
-            data_item.nal_unit_data_.resize(data_item.nal_unit_length_);
-
-            stream->read_bytes((char *)(&data_item.nal_unit_data_[0]), data_item.nal_unit_length_);
+            if (data_item.nal_unit_length_ > 0) {
+                data_item.nal_unit_data_.resize(data_item.nal_unit_length_);
+                stream->read_bytes((char *)(&data_item.nal_unit_data_[0]), data_item.nal_unit_length_);
+            }
             srs_info("hevc nalu type:%d, array_completeness:%d, num_nalus:%d, i:%d, nal_unit_length:%d",
                      hevc_unit.nal_unit_type_, hevc_unit.array_completeness_, hevc_unit.num_nalus_, i, data_item.nal_unit_length_);
             hevc_unit.nal_data_vec_.push_back(data_item);
@@ -896,7 +897,7 @@ srs_error_t SrsFormat::hevc_demux_vps_sps_pps(SrsHevcHvccNalu *nal)
 {
     srs_error_t err = srs_success;
 
-    if (nal->nal_data_vec_.empty()) {
+    if (nal->nal_data_vec_.empty() || nal->nal_data_vec_[0].nal_unit_data_.empty()) {
         return err;
     }
 

@@ -1177,6 +1177,10 @@ srs_error_t SrsSdp::parse_gb28181_ssrc(const std::string &content)
     // to standard format:
     //      a=ssrc:0100008888 cname:0100008888
     //      a=ssrc:0100008888 label:gb28181
+    if (media_descs_.empty()) {
+        return srs_error_new(ERROR_RTC_SDP_DECODE, "no media for gb ssrc %s", content.c_str());
+    }
+
     string cname = srs_fmt_sprintf("a=ssrc:%s cname:%s", content.c_str(), content.c_str());
     if ((err = media_descs_.back().parse_line(cname)) != srs_success) {
         return srs_error_wrap(err, "parse gb %s cname", content.c_str());

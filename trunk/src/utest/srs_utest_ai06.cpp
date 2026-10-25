@@ -1472,6 +1472,55 @@ VOID TEST(RTPVideoBuilderTest, PackageStapAHevc)
     }
 }
 
+// The STAP-A for RTC is built from the hvcC of the publisher, where an array may hold no NALU,
+// or a zero-length one. With no parameter set to send, it fails instead of indexing them.
+VOID TEST(RTPVideoBuilderTest, PackageStapAHevcEmptyNalu)
+{
+    srs_error_t err;
+
+    // The last 5 bytes are one VPS array with num_nalus 0, then with one zero-length NALU.
+    uint8_t arrays[][5] = {
+        {0x20, 0x00, 0x00, 0x00, 0x00},
+        {0x20, 0x00, 0x01, 0x00, 0x00},
+    };
+    for (int i = 0; i < 2; i++) {
+        SrsFormat format;
+        HELPER_EXPECT_SUCCESS(format.initialize());
+
+        uint8_t sh[] = {
+            0x1c,             // 1, Keyframe; 12, HEVC.
+            0x00,             // 0, Sequence header.
+            0x00, 0x00, 0x00, // Timestamp.
+            // HEVC extra data, VPS/SPS/PPS.
+            0x01,                               // configuration_version, must be 1.
+            0x00,                               // profile_space, tier_flag, profile_idc.
+            0x00, 0x00, 0x00, 0x00,             // general_profile_compatibility_flags.
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // general_constraint_indicator_flags.
+            0x00,                               // general_level_idc.
+            0x00, 0x00,                         // min_spatial_segmentation_idc.
+            0x00,                               // parallelism_type.
+            0x00,                               // chroma_format.
+            0x00,                               // bit_depth_luma_minus8.
+            0x00,                               // bit_depth_chroma_minus8.
+            0x00, 0x00,                         // avg_frame_rate.
+            0x03,                               // ..., length_size_minus_one, 4 bytes.
+            0x01,                               // numOfArrays.
+            0x00, 0x00, 0x00, 0x00, 0x00,       // The VPS array.
+        };
+        memcpy(sh + sizeof(sh) - 5, arrays[i], 5);
+        HELPER_EXPECT_SUCCESS(format.on_video(0, (char *)sh, sizeof(sh)));
+
+        SrsRtpVideoBuilder builder;
+        builder.video_payload_type_ = 96;
+        builder.video_ssrc_ = 0x12345678;
+        builder.format_ = &format;
+
+        SrsMediaPacket msg;
+        SrsRtpPacket pkt;
+        HELPER_EXPECT_FAILED(builder.package_stap_a(&msg, &pkt));
+    }
+}
+
 VOID TEST(RTPVideoBuilderTest, PackageNalusWithEmptySamples)
 {
     srs_error_t err;
