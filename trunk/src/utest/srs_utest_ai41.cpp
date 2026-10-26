@@ -3027,3 +3027,1034 @@ VOID TEST(ProtocolRtmpHandshakeTest, OriginResetsAfterS0S1S2_C2WriteFails)
     EXPECT_EQ(0, io.length());
     EXPECT_EQ(2, io.writes_tried_);
 }
+
+// An AMF0 command or data payload written field by field, as a peer builds one. A peer can stop
+// at any field, or put a value of the wrong type in it.
+class RtmpStackAmf0
+{
+public:
+    string data_;
+
+public:
+    RtmpStackAmf0 &str(const string &v)
+    {
+        vector<char> b(SrsAmf0Size::str(v));
+        SrsBuffer s(&b[0], (int)b.size());
+        srs_error_t err = srs_amf0_write_string(&s, v);
+        srs_freep(err);
+        data_.append(&b[0], b.size());
+        return *this;
+    }
+    RtmpStackAmf0 &num(double v)
+    {
+        vector<char> b(SrsAmf0Size::number());
+        SrsBuffer s(&b[0], (int)b.size());
+        srs_error_t err = srs_amf0_write_number(&s, v);
+        srs_freep(err);
+        data_.append(&b[0], b.size());
+        return *this;
+    }
+    RtmpStackAmf0 &boolean(bool v)
+    {
+        vector<char> b(SrsAmf0Size::boolean());
+        SrsBuffer s(&b[0], (int)b.size());
+        srs_error_t err = srs_amf0_write_boolean(&s, v);
+        srs_freep(err);
+        data_.append(&b[0], b.size());
+        return *this;
+    }
+    RtmpStackAmf0 &null()
+    {
+        char b[1];
+        SrsBuffer s(b, 1);
+        srs_error_t err = srs_amf0_write_null(&s);
+        srs_freep(err);
+        data_.append(b, 1);
+        return *this;
+    }
+    // Writes the object and frees it.
+    RtmpStackAmf0 &obj(SrsAmf0Object *v)
+    {
+        SrsUniquePtr<SrsAmf0Object> o(v);
+        vector<char> b(SrsAmf0Size::object(o.get()));
+        SrsBuffer s(&b[0], (int)b.size());
+        srs_error_t err = o->write(&s);
+        srs_freep(err);
+        data_.append(&b[0], b.size());
+        return *this;
+    }
+    RtmpStackAmf0 &raw(const char *bytes, int size)
+    {
+        data_.append(bytes, size);
+        return *this;
+    }
+};
+
+// The chunks of one RTMP message as a peer sends them at the default chunk size of 128: a fmt=0
+// header on chunk stream cid, then a 1-byte fmt=3 header before each further 128 bytes.
+static string rtmp_stack_chunks(int cid, uint8_t type, uint32_t stream_id, const string &payload)
+{
+    int size = (int)payload.size();
+
+    string b;
+    b.push_back((char)cid);
+    b.append(3, '\0'); // timestamp
+    b.push_back((char)(size >> 16));
+    b.push_back((char)(size >> 8));
+    b.push_back((char)size);
+    b.push_back((char)type);
+    for (int i = 0; i < 4; i++) {
+        b.push_back((char)(stream_id >> (8 * i))); // little endian
+    }
+
+    for (int pos = 0; pos < size; pos += 128) {
+        if (pos > 0) {
+            b.push_back((char)(0xc0 | cid));
+        }
+        b.append(payload.substr(pos, 128));
+    }
+    return b;
+}
+
+// An AMF0 command message on chunk stream 3, as clients send connect, createStream and the like.
+static string rtmp_stack_command(const RtmpStackAmf0 &c, uint32_t stream_id = 0)
+{
+    return rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, stream_id, c.data_);
+}
+
+// The payload of a command as SRS's own encoder writes it, for a peer that sends a well-formed one.
+static string rtmp_stack_payload(SrsRtmpCommand *pkt_raw)
+{
+    SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
+
+    int size = 0;
+    char *payload = NULL;
+    srs_error_t err = pkt->encode(size, payload);
+    srs_freep(err);
+
+    string b(payload, size);
+    srs_freepa(payload);
+    return b;
+}
+
+// The server receives one message and decodes it, as SrsRtmpConn does with a client's command.
+static srs_error_t rtmp_stack_recv_decode(const string &chunks, SrsRtmpCommand **ppkt)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append(chunks);
+    SrsProtocol proto(&io);
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    if ((err = proto.recv_message(&msg_raw)) != srs_success) {
+        return srs_error_wrap(err, "recv");
+    }
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+    return proto.decode_message(msg.get(), ppkt);
+}
+
+// Checks that err failed with the code and a description that holds want, then frees it.
+static void rtmp_stack_expect_error(srs_error_t err, int code, const string &want, const string &label)
+{
+    EXPECT_TRUE(err != srs_success) << label;
+    if (err == srs_success) {
+        return;
+    }
+    string desc = srs_error_desc(err);
+    EXPECT_EQ(code, srs_error_code(err)) << label << ": " << desc;
+    EXPECT_NE(string::npos, desc.find(want)) << label << ": " << desc;
+    srs_freep(err);
+}
+
+// The command name and transaction id of each message SRS wrote, read as the peer's RTMP stack
+// reads them; a control message gives its type in the name, such as "type=4".
+static vector<pair<string, double> > rtmp_stack_sent(MockBufferIO &io)
+{
+    vector<pair<string, double> > sent;
+
+    MockBufferIO peer;
+    peer.append(string(io.out_buffer.bytes(), io.out_buffer.length()));
+    SrsProtocol proto(&peer);
+
+    // The stack reads all the bytes at once, so read messages until it has none left.
+    while (true) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        srs_error_t err = proto.recv_message(&msg_raw);
+        if (err != srs_success) {
+            srs_freep(err);
+            break;
+        }
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        if (!msg->header_.is_amf0_command() && !msg->header_.is_amf0_data()) {
+            sent.push_back(make_pair(srs_fmt_sprintf("type=%d", msg->header_.message_type_), 0.0));
+            continue;
+        }
+
+        SrsBuffer b(msg->payload(), msg->size());
+        string name;
+        double tid = 0;
+        srs_error_t r0 = srs_amf0_read_string(&b, name);
+        srs_freep(r0);
+        if (!b.empty()) {
+            r0 = srs_amf0_read_number(&b, tid);
+            srs_freep(r0);
+        }
+        sent.push_back(make_pair(name, tid));
+    }
+
+    return sent;
+}
+
+// The peer of an RTMP connection, whose connection is reset after it took a given number of
+// messages: SrsProtocol writes each message with one writev, and a writev after the reset fails.
+class RtmpStackResetIO : public MockBufferIO
+{
+public:
+    int writevs_left_;
+    int writevs_tried_;
+
+public:
+    RtmpStackResetIO(int writevs_left) : writevs_left_(writevs_left), writevs_tried_(0) {}
+
+public:
+    virtual srs_error_t writev(const iovec *iov, int iov_size, ssize_t *nwrite)
+    {
+        writevs_tried_++;
+        if (writevs_left_ <= 0) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "connection reset by peer");
+        }
+        writevs_left_--;
+        return MockBufferIO::writev(iov, iov_size, nwrite);
+    }
+};
+
+// A peer's connection drops inside a chunk header: after the first byte of a 3-byte basic header
+// (a chunk stream id of 320 or more), or inside the 4-byte extended timestamp of a message whose
+// timestamp is past 0xffffff, such as a publisher on air for more than 4.6 hours.
+VOID TEST(ProtocolRtmpStackTest, PeerClosesInsideChunkHeader_ReadFails)
+{
+    if (true) {
+        MockBufferIO io;
+        io.append(string("\x01\x10", 2)); // fmt=0, cid=1 means a 3-byte basic header; one byte of two
+        SrsProtocol proto(&io);
+
+        SrsRtmpCommonMessage *msg = NULL;
+        rtmp_stack_expect_error(proto.recv_message(&msg), ERROR_SOCKET_READ, "basic header requires 3 bytes", "basic header");
+        EXPECT_TRUE(msg == NULL);
+    }
+
+    if (true) {
+        uint8_t chunk[] = {
+            0x04,             // fmt=0, cid=4
+            0xff, 0xff, 0xff, // timestamp 0xffffff, so an extended timestamp follows
+            0x00, 0x00, 0x04, // payload length
+            0x08,             // audio
+            0x01, 0x00, 0x00, 0x00,
+            0x01, 0x00, // two bytes of the four of the extended timestamp
+        };
+        MockBufferIO io;
+        io.append(chunk, sizeof(chunk));
+        SrsProtocol proto(&io);
+
+        SrsRtmpCommonMessage *msg = NULL;
+        rtmp_stack_expect_error(proto.recv_message(&msg), ERROR_SOCKET_READ, "read 4 bytes ext timestamp", "ext timestamp");
+        EXPECT_TRUE(msg == NULL);
+    }
+}
+
+// A malformed peer starts a chunk stream with a fmt=2 chunk, which has no message length or type
+// for the stream to take. RTMP allows only fmt=0 there (and SRS takes fmt=1 for librtmp's ping),
+// so the connection is refused.
+VOID TEST(ProtocolRtmpStackTest, FreshChunkStreamStartsWithFmt2_Refused)
+{
+    MockBufferIO io;
+    io.append(string("\x83\x00\x00\x28", 4)); // fmt=2, cid=3, timestamp delta 40
+    SrsProtocol proto(&io);
+
+    SrsRtmpCommonMessage *msg = NULL;
+    rtmp_stack_expect_error(proto.recv_message(&msg), ERROR_RTMP_CHUNK_START, "fresh chunk expect fmt=0, actual=2", "fmt=2");
+    EXPECT_TRUE(msg == NULL);
+}
+
+// FFmpeg publishes its timecode as a 4-byte AMF0 data message that starts with 0x00 (#3803),
+// which is no AMF0 data the server knows. It is ignored with no packet, and the publisher's next
+// data message, its metadata, is decoded as usual.
+VOID TEST(ProtocolRtmpStackTest, FfmpegTimecodeDataMessage_Ignored)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtmpCommand *pkt = NULL;
+    string timecode = rtmp_stack_chunks(4, RTMP_MSG_AMF0DataMessage, 1, string("\x00\x00\x01\x00", 4));
+    HELPER_EXPECT_SUCCESS(rtmp_stack_recv_decode(timecode, &pkt));
+    EXPECT_TRUE(pkt == NULL);
+    srs_freep(pkt);
+
+    SrsAmf0Object *meta = SrsAmf0Any::object();
+    meta->set("width", SrsAmf0Any::number(1280));
+    string metadata = rtmp_stack_chunks(4, RTMP_MSG_AMF0DataMessage, 1, RtmpStackAmf0().str("@setDataFrame").str("onMetaData").obj(meta).data_);
+    HELPER_EXPECT_SUCCESS(rtmp_stack_recv_decode(metadata, &pkt));
+    SrsUniquePtr<SrsRtmpCommand> got(pkt);
+    SrsOnMetaDataPacket *on_metadata = dynamic_cast<SrsOnMetaDataPacket *>(got.get());
+    ASSERT_TRUE(on_metadata != NULL);
+    EXPECT_EQ("onMetaData", on_metadata->name_);
+    ASSERT_TRUE(on_metadata->metadata_->get_property("width") != NULL);
+    EXPECT_EQ(1280, on_metadata->metadata_->get_property("width")->to_number());
+}
+
+// A publisher sets no acknowledgement window, so the server's in_ack_size (2500000 here) decides:
+// after each half window received, the server acks the bytes received. On a long publish the
+// count reaches 0xf0000000 (3.75 GB), and the sequence restarts from the bytes received since
+// the last ack instead of overflowing.
+VOID TEST(ProtocolRtmpStackTest, LongPublishPasses4GB_AckSequenceRestarts)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    SrsProtocol proto(&io);
+    HELPER_EXPECT_SUCCESS(proto.set_in_window_ack_size(2500000));
+
+    string audio = rtmp_stack_chunks(4, RTMP_MSG_AudioMessage, 1, string("\xaf\x01\x21\x10", 4));
+
+    // Two GB into the session.
+    io.rbytes = 0x80000000LL;
+    io.append(audio);
+    SrsRtmpCommonMessage *msg = NULL;
+    HELPER_EXPECT_SUCCESS(proto.recv_message(&msg));
+    srs_freep(msg);
+    int64_t first = io.rbytes;
+
+    // Almost 4 GB into the session.
+    io.rbytes = 0xf8000000LL;
+    io.append(audio);
+    HELPER_EXPECT_SUCCESS(proto.recv_message(&msg));
+    srs_freep(msg);
+    int64_t second = io.rbytes;
+
+    // The publisher reads two acks.
+    MockBufferIO publisher;
+    publisher.append(string(io.out_buffer.bytes(), io.out_buffer.length()));
+    SrsProtocol peer(&publisher);
+
+    uint32_t want[] = {(uint32_t)first, (uint32_t)(second - first)};
+    for (int i = 0; i < 2; i++) {
+        HELPER_ASSERT_SUCCESS(peer.recv_message(&msg));
+        SrsUniquePtr<SrsRtmpCommonMessage> m(msg);
+        SrsRtmpCommand *pkt_raw = NULL;
+        HELPER_ASSERT_SUCCESS(peer.decode_message(m.get(), &pkt_raw));
+        SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
+        SrsAcknowledgementPacket *ack = dynamic_cast<SrsAcknowledgementPacket *>(pkt.get());
+        ASSERT_TRUE(ack != NULL) << i;
+        EXPECT_EQ(want[i], ack->sequence_number_) << i;
+    }
+
+    // And nothing else.
+    rtmp_stack_expect_error(peer.recv_message(&msg), ERROR_SOCKET_READ, "read", "no third message");
+}
+
+// The server answers an ack or a ping the moment it receives the message that makes it due. When
+// the peer's connection is already reset, that write fails, and receiving fails with it, so the
+// connection ends at once.
+VOID TEST(ProtocolRtmpStackTest, PeerGoneWhenAutoResponseDue_RecvFails)
+{
+    srs_error_t err = srs_success;
+
+    // An ack is due after half the window.
+    if (true) {
+        MockBufferIO io;
+        io.out_err = srs_error_new(ERROR_SOCKET_WRITE, "connection reset by peer");
+        SrsProtocol proto(&io);
+        HELPER_EXPECT_SUCCESS(proto.set_in_window_ack_size(2500000));
+
+        io.rbytes = 2000000;
+        io.append(rtmp_stack_chunks(4, RTMP_MSG_AudioMessage, 1, string("\xaf\x01\x21\x10", 4)));
+        SrsRtmpCommonMessage *msg = NULL;
+        rtmp_stack_expect_error(proto.recv_message(&msg), ERROR_SOCKET_WRITE, "send ack", "ack");
+        EXPECT_TRUE(msg == NULL);
+    }
+
+    // A ping request from the peer, as FMS-style clients send to measure the round trip.
+    if (true) {
+        MockBufferIO io;
+        io.out_err = srs_error_new(ERROR_SOCKET_WRITE, "connection reset by peer");
+        SrsProtocol proto(&io);
+
+        io.append(rtmp_stack_chunks(2, RTMP_MSG_UserControlMessage, 0, string("\x00\x06\x00\x00\x0d\x0f", 6)));
+        SrsRtmpCommonMessage *msg = NULL;
+        rtmp_stack_expect_error(proto.recv_message(&msg), ERROR_SOCKET_WRITE, "ping response", "ping");
+        EXPECT_TRUE(msg == NULL);
+    }
+}
+
+// The receive thread of a connection turns off the auto response, so an ack that falls due is
+// queued and sent after the next message the server sends. When the connection is reset right
+// after that message, the queued ack fails, and the send fails with it.
+VOID TEST(ProtocolRtmpStackTest, QueuedAckFailsAfterSend_SendFails)
+{
+    srs_error_t err = srs_success;
+
+    string audio = rtmp_stack_chunks(4, RTMP_MSG_AudioMessage, 1, string("\xaf\x01\x21\x10", 4));
+
+    // After a command, such as the onStatus of an unpublish.
+    if (true) {
+        RtmpStackResetIO io(1);
+        SrsProtocol proto(&io);
+        proto.set_auto_response(false);
+        HELPER_EXPECT_SUCCESS(proto.set_in_window_ack_size(2500000));
+
+        io.rbytes = 2000000;
+        io.append(audio);
+        SrsRtmpCommonMessage *msg = NULL;
+        HELPER_EXPECT_SUCCESS(proto.recv_message(&msg));
+        srs_freep(msg);
+        EXPECT_EQ(0, io.out_length()); // The ack is queued.
+
+        rtmp_stack_expect_error(proto.send_and_free_packet(new SrsOnStatusCallPacket(), 1), ERROR_SOCKET_WRITE, "manual flush response", "command");
+        EXPECT_EQ(2, io.writevs_tried_);
+    }
+
+    // After media, such as a batch of frames to a player.
+    if (true) {
+        RtmpStackResetIO io(1);
+        SrsProtocol proto(&io);
+        proto.set_auto_response(false);
+        HELPER_EXPECT_SUCCESS(proto.set_in_window_ack_size(2500000));
+
+        io.rbytes = 2000000;
+        io.append(audio);
+        SrsRtmpCommonMessage *msg = NULL;
+        HELPER_EXPECT_SUCCESS(proto.recv_message(&msg));
+        srs_freep(msg);
+
+        rtmp_stack_expect_error(proto.send_and_free_message(http_conn_aac_packet(40), 1), ERROR_SOCKET_WRITE, "manual flush response", "media");
+        EXPECT_EQ(2, io.writevs_tried_);
+    }
+}
+
+// A malformed peer sends a protocol control message shorter than its fields. Each is refused,
+// which ends the connection, rather than read past the message.
+VOID TEST(ProtocolRtmpStackTest, PeerSendsControlMessagesCutShort_Refused)
+{
+    struct {
+        const char *label;
+        uint8_t type;
+        const char *bytes;
+        int size;
+        int code;
+    } cases[] = {
+        {"set chunk size of 2 bytes", RTMP_MSG_SetChunkSize, "\x00\x00", 2, ERROR_RTMP_MESSAGE_DECODE},
+        {"window ack size of 3 bytes", RTMP_MSG_WindowAcknowledgementSize, "\x00\x26\x25", 3, ERROR_RTMP_MESSAGE_DECODE},
+        {"user control with no event type", RTMP_MSG_UserControlMessage, "\x00", 1, ERROR_RTMP_MESSAGE_DECODE},
+        {"ping with 2 bytes of its timestamp", RTMP_MSG_UserControlMessage, "\x00\x06\x00\x00", 4, ERROR_RTMP_MESSAGE_DECODE},
+        {"FMS event with no data", RTMP_MSG_UserControlMessage, "\x00\x1a", 2, ERROR_RTMP_MESSAGE_DECODE},
+        // The code says encode, but it is the decode of a set buffer length with no length.
+        {"set buffer length with no length", RTMP_MSG_UserControlMessage, "\x00\x03\x00\x00\x00\x01", 6, ERROR_RTMP_MESSAGE_ENCODE},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockBufferIO io;
+        io.append(rtmp_stack_chunks(2, cases[i].type, 0, string(cases[i].bytes, cases[i].size)));
+        SrsProtocol proto(&io);
+
+        SrsRtmpCommonMessage *msg = NULL;
+        rtmp_stack_expect_error(proto.recv_message(&msg), cases[i].code, "decode message", cases[i].label);
+        EXPECT_TRUE(msg == NULL) << cases[i].label;
+        EXPECT_EQ(0, io.out_length()) << cases[i].label;
+    }
+}
+
+// An edge or ingest pulls from an Adobe Media Server, which sends the FMS control event 0x1a with
+// a 1-byte event data, not the 4 bytes of the other events. It is taken with its one byte, and
+// the server sends nothing back for it.
+VOID TEST(ProtocolRtmpStackTest, EdgePullsFromFmsWithEvent0_DecodedWithOneByte)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO io;
+    io.append(rtmp_stack_chunks(2, RTMP_MSG_UserControlMessage, 0, string("\x00\x1a\x01", 3)));
+    SrsRtmpClient client(&io);
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(client.recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+    SrsRtmpCommand *pkt_raw = NULL;
+    HELPER_ASSERT_SUCCESS(client.decode_message(msg.get(), &pkt_raw));
+    SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
+    SrsUserControlPacket *event = dynamic_cast<SrsUserControlPacket *>(pkt.get());
+    ASSERT_TRUE(event != NULL);
+    EXPECT_EQ(SrsPCUCFmsEvent0, event->event_type_);
+    EXPECT_EQ(1, event->event_data_);
+
+    EXPECT_EQ(0, io.out_length());
+}
+
+// A vhost with chunk_size 128, the smallest allowed, and a 200 KB key frame: the frame takes about
+// 1,600 chunks, more than the 1,024 the server's iovec array holds at first. The array grows, and
+// the player gets the whole frame intact.
+VOID TEST(ProtocolRtmpStackTest, PlayerKeyFrameOverIovCapacity_DeliveredIntact)
+{
+    srs_error_t err = srs_success;
+
+    int size = 200 * 1024;
+    string frame(size, '\0');
+    frame[0] = 0x17; // AVC key frame
+    frame[1] = 0x01; // NALU
+    for (int i = 2; i < size; i++) {
+        frame[i] = (char)(i % 251);
+    }
+
+    MockBufferIO io;
+    SrsProtocol proto(&io);
+    int iovs_before = proto.nb_out_iovs_;
+
+    SrsMediaPacket *msg = new SrsMediaPacket();
+    msg->timestamp_ = 40;
+    msg->message_type_ = SrsFrameTypeVideo;
+    char *data = new char[size];
+    memcpy(data, frame.data(), size);
+    msg->wrap(data, size);
+    HELPER_ASSERT_SUCCESS(proto.send_and_free_message(msg, 1));
+    EXPECT_GT(proto.nb_out_iovs_, iovs_before);
+
+    // The player reads it at the same chunk size.
+    MockBufferIO player;
+    player.append(string(io.out_buffer.bytes(), io.out_buffer.length()));
+    SrsProtocol peer(&player);
+    SrsRtmpCommonMessage *got_raw = NULL;
+    HELPER_ASSERT_SUCCESS(peer.recv_message(&got_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> got(got_raw);
+    EXPECT_TRUE(got->header_.is_video());
+    EXPECT_EQ(40, got->header_.timestamp_);
+    ASSERT_EQ(size, got->size());
+    EXPECT_EQ(0, memcmp(frame.data(), got->payload(), size));
+}
+
+// A malformed or broken client sends a command cut short, or with a value of the wrong type in a
+// field. The server refuses it at that field instead of reading past the message.
+VOID TEST(ProtocolRtmpStackTest, ClientCommandsCutShort_Refused)
+{
+    SrsAmf0Object *connect_obj = SrsAmf0Any::object();
+    connect_obj->set("app", SrsAmf0Any::str("live"));
+    RtmpStackAmf0 connect = RtmpStackAmf0().str("connect").num(1).obj(connect_obj);
+
+    struct {
+        const char *label;
+        RtmpStackAmf0 cmd;
+        int code;
+        const char *field;
+    } cases[] = {
+        {"connect with no transaction id", RtmpStackAmf0().str("connect"), ERROR_RTMP_AMF0_DECODE, "transaction_id"},
+        // A Flash client whose objectEncoding is 3 puts an AMF3 value, marker 0x11, after the object.
+        {"connect with AMF3 args", RtmpStackAmf0(connect).raw("\x11\x0a", 2), ERROR_RTMP_AMF0_INVALID, "args"},
+        {"connect with args object cut", RtmpStackAmf0(connect).raw("\x03\x00\x05token", 8), ERROR_RTMP_AMF0_DECODE, "args"},
+        {"createStream with no transaction id", RtmpStackAmf0().str("createStream"), ERROR_RTMP_AMF0_DECODE, "transaction_id"},
+        {"closeStream with no transaction id", RtmpStackAmf0().str("closeStream"), ERROR_RTMP_AMF0_DECODE, "transaction_id"},
+        {"FCPublish with no transaction id", RtmpStackAmf0().str("FCPublish"), ERROR_RTMP_AMF0_DECODE, "transaction_id"},
+        {"releaseStream with no stream", RtmpStackAmf0().str("releaseStream").num(2).null(), ERROR_RTMP_AMF0_DECODE, "stream_name"},
+        {"publish with no transaction id", RtmpStackAmf0().str("publish"), ERROR_RTMP_AMF0_DECODE, "transaction_id"},
+        {"publish with no stream", RtmpStackAmf0().str("publish").num(5).null(), ERROR_RTMP_AMF0_DECODE, "stream_name"},
+        {"publish with a number as type", RtmpStackAmf0().str("publish").num(5).null().str("livestream").num(0), ERROR_RTMP_AMF0_DECODE, "publish type"},
+        {"pause with no transaction id", RtmpStackAmf0().str("pause"), ERROR_RTMP_AMF0_DECODE, "transaction_id"},
+        {"pause with no flag", RtmpStackAmf0().str("pause").num(0).null(), ERROR_RTMP_AMF0_DECODE, "is_pause"},
+        {"pause with no time", RtmpStackAmf0().str("pause").num(0).null().boolean(true), ERROR_RTMP_AMF0_DECODE, "time"},
+        {"play with no transaction id", RtmpStackAmf0().str("play"), ERROR_RTMP_AMF0_DECODE, "transaction_id"},
+        {"play with no stream", RtmpStackAmf0().str("play").num(4).null(), ERROR_RTMP_AMF0_DECODE, "stream_name"},
+        {"play with a string as start", RtmpStackAmf0().str("play").num(4).null().str("livestream").str("0"), ERROR_RTMP_AMF0_DECODE, "start"},
+        {"play with a string as duration", RtmpStackAmf0().str("play").num(4).null().str("livestream").num(-2).str("-1"), ERROR_RTMP_AMF0_DECODE, "duration"},
+        {"play with reset cut", RtmpStackAmf0().str("play").num(4).null().str("livestream").num(-2).num(-1).raw("\x01", 1), ERROR_RTMP_AMF0_DECODE, "reset"},
+        {"call with object cut", RtmpStackAmf0().str("FCSubscribe").num(3).raw("\x02\x00", 2), ERROR_RTMP_AMF0_DECODE, "command_object"},
+        {"call with AMF3 args", RtmpStackAmf0().str("FCSubscribe").num(3).null().raw("\x11\x0a", 2), ERROR_RTMP_AMF0_INVALID, "discovery args"},
+        {"call with args cut", RtmpStackAmf0().str("FCSubscribe").num(3).null().raw("\x00\x40", 2), ERROR_RTMP_AMF0_DECODE, "read args"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        SrsRtmpCommand *pkt = NULL;
+        rtmp_stack_expect_error(rtmp_stack_recv_decode(rtmp_stack_command(cases[i].cmd, 1), &pkt), cases[i].code, cases[i].field, cases[i].label);
+        EXPECT_TRUE(pkt == NULL) << cases[i].label;
+        srs_freep(pkt);
+    }
+}
+
+// A client passes a string after the connect object, such as a token, where RTMP puts optional
+// user arguments as an object (#186). The connect is accepted and the string dropped, so the
+// request has no args.
+VOID TEST(ProtocolRtmpStackTest, ConnectWithStringArgs_ArgsDropped)
+{
+    srs_error_t err = srs_success;
+
+    SrsAmf0Object *obj = SrsAmf0Any::object();
+    obj->set("app", SrsAmf0Any::str("live"));
+    obj->set("tcUrl", SrsAmf0Any::str("rtmp://127.0.0.1/live"));
+    RtmpStackAmf0 connect = RtmpStackAmf0().str("connect").num(1).obj(obj).str("token=abc");
+
+    MockBufferIO io;
+    io.append(rtmp_stack_command(connect));
+    SrsRtmpServer rtmp(&io);
+
+    SrsRequest req;
+    HELPER_ASSERT_SUCCESS(rtmp.connect_app(&req));
+    EXPECT_EQ("rtmp://127.0.0.1/live", req.tcUrl_);
+    EXPECT_EQ("live", req.app_);
+    EXPECT_TRUE(req.args_ == NULL);
+}
+
+// A Flash player closes its NetStream, which sends closeStream(0, null) on its stream. The server
+// decodes it as a close, which ends the play.
+VOID TEST(ProtocolRtmpStackTest, FlashPlayerClosesStream_CloseStreamDecoded)
+{
+    srs_error_t err = srs_success;
+
+    SrsRtmpCommand *pkt_raw = NULL;
+    HELPER_ASSERT_SUCCESS(rtmp_stack_recv_decode(rtmp_stack_command(RtmpStackAmf0().str("closeStream").num(0).null(), 1), &pkt_raw));
+    SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
+
+    SrsCloseStreamPacket *close = dynamic_cast<SrsCloseStreamPacket *>(pkt.get());
+    ASSERT_TRUE(close != NULL);
+    EXPECT_EQ("closeStream", close->command_name_);
+    EXPECT_EQ(0, close->transaction_id_);
+}
+
+// An encoder sends @setDataFrame onMetaData with no metadata after the name. It is taken as an
+// empty metadata, not refused.
+VOID TEST(ProtocolRtmpStackTest, PublisherMetadataWithEmptyBody_Accepted)
+{
+    srs_error_t err = srs_success;
+
+    string metadata = rtmp_stack_chunks(4, RTMP_MSG_AMF0DataMessage, 1, RtmpStackAmf0().str("@setDataFrame").str("onMetaData").data_);
+    SrsRtmpCommand *pkt_raw = NULL;
+    HELPER_ASSERT_SUCCESS(rtmp_stack_recv_decode(metadata, &pkt_raw));
+    SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
+
+    SrsOnMetaDataPacket *on_metadata = dynamic_cast<SrsOnMetaDataPacket *>(pkt.get());
+    ASSERT_TRUE(on_metadata != NULL);
+    EXPECT_EQ("onMetaData", on_metadata->name_);
+    EXPECT_EQ(0, on_metadata->metadata_->count());
+}
+
+// The connect reply of an origin, on chunk stream 3, as the edge or forwarder receives it.
+static srs_error_t rtmp_stack_edge_connect(const RtmpStackAmf0 &reply, SrsServerInfo *si)
+{
+    MockBufferIO io;
+    io.append(rtmp_stack_command(reply));
+    SrsRtmpClient client(&io);
+
+    SrsRequest req;
+    req.tcUrl_ = "rtmp://127.0.0.1/live";
+    return client.connect_app("live", req.tcUrl_, &req, false, si);
+}
+
+// An origin that refuses the app answers connect with _error, as nginx-rtmp and others do with
+// NetConnection.Connect.Rejected, or sends a reply cut inside its properties. The edge's connect
+// fails, so it does not go on to create a stream.
+VOID TEST(ProtocolRtmpStackTest, OriginConnectReplyNotAResult_ConnectFails)
+{
+    SrsAmf0Object *info = SrsAmf0Any::object();
+    info->set("level", SrsAmf0Any::str("error"));
+    info->set("code", SrsAmf0Any::str("NetConnection.Connect.Rejected"));
+    SrsServerInfo si;
+    rtmp_stack_expect_error(rtmp_stack_edge_connect(RtmpStackAmf0().str("_error").num(1).null().obj(info), &si),
+                            ERROR_RTMP_AMF0_DECODE, "command_name=_error", "_error");
+
+    rtmp_stack_expect_error(rtmp_stack_edge_connect(RtmpStackAmf0().str("_result").num(1).raw("\x03\x00\x06""fmsVer", 9), &si),
+                            ERROR_RTMP_AMF0_DECODE, "args", "props cut");
+}
+
+// A Red5 origin (1.0.6) answers connect with null where the properties object goes (#418). The
+// null is ignored, and the edge connects with the status in the information object.
+VOID TEST(ProtocolRtmpStackTest, Red5OriginConnectReplyWithNullProps_Connected)
+{
+    srs_error_t err = srs_success;
+
+    SrsAmf0Object *info = SrsAmf0Any::object();
+    info->set("level", SrsAmf0Any::str("status"));
+    info->set("code", SrsAmf0Any::str("NetConnection.Connect.Success"));
+    info->set("objectEncoding", SrsAmf0Any::number(0));
+
+    SrsServerInfo si;
+    HELPER_EXPECT_SUCCESS(rtmp_stack_edge_connect(RtmpStackAmf0().str("_result").num(1).null().obj(info), &si));
+    EXPECT_EQ("", si.ip_); // Red5 sends no SRS server data.
+}
+
+// The origin answers createStream with _error, such as an origin at its stream limit, or with a
+// _result that has no stream id. The edge's createStream fails instead of playing on a stream id
+// the origin never gave.
+VOID TEST(ProtocolRtmpStackTest, OriginRejectsCreateStream_CreateStreamFails)
+{
+    struct {
+        const char *label;
+        RtmpStackAmf0 reply;
+        const char *want;
+    } cases[] = {
+        {"_error", RtmpStackAmf0().str("_error").num(2).null().obj(SrsAmf0Any::object()), "command_name=_error"},
+        {"no stream id", RtmpStackAmf0().str("_result").num(2).null(), "stream_id"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        MockBufferIO io;
+        io.append(rtmp_stack_command(cases[i].reply));
+        SrsRtmpClient client(&io);
+
+        int stream_id = -1;
+        rtmp_stack_expect_error(client.create_stream(stream_id), ERROR_RTMP_AMF0_DECODE, cases[i].want, cases[i].label);
+        EXPECT_EQ(-1, stream_id) << cases[i].label;
+    }
+}
+
+// The origin resets the edge's or forwarder's connection at each message it sends while it
+// connects, creates the stream and starts to play or publish, such as an origin restarting. The
+// step fails with the write error, and nothing after it is sent.
+VOID TEST(ProtocolRtmpStackTest, OriginResetsWhileEdgeConnects_EachSendFails)
+{
+    SrsRequest req;
+    req.tcUrl_ = "rtmp://127.0.0.1/live";
+
+    // connect, then the window ack size.
+    for (int sent = 0; sent < 2; sent++) {
+        RtmpStackResetIO io(sent);
+        SrsRtmpClient client(&io);
+        SrsServerInfo si;
+        rtmp_stack_expect_error(client.connect_app("live", req.tcUrl_, &req, false, &si), ERROR_SOCKET_WRITE, "send packet", "connect");
+        EXPECT_EQ(sent + 1, io.writevs_tried_);
+    }
+
+    if (true) {
+        RtmpStackResetIO io(0);
+        SrsRtmpClient client(&io);
+        int stream_id = 0;
+        rtmp_stack_expect_error(client.create_stream(stream_id), ERROR_SOCKET_WRITE, "send packet", "createStream");
+    }
+
+    // play, then the buffer length, then the chunk size of 60000.
+    if (true) {
+        RtmpStackResetIO io(1);
+        SrsRtmpClient client(&io);
+        rtmp_stack_expect_error(client.play("livestream", 1, 60000), ERROR_SOCKET_WRITE, "send set buffer length failed", "buffer length");
+    }
+    if (true) {
+        RtmpStackResetIO io(2);
+        SrsRtmpClient client(&io);
+        rtmp_stack_expect_error(client.play("livestream", 1, 60000), ERROR_SOCKET_WRITE, "send set chunk size failed", "play chunk size");
+    }
+
+    // The chunk size of 60000, then publish.
+    if (true) {
+        RtmpStackResetIO io(1);
+        SrsRtmpClient client(&io);
+        rtmp_stack_expect_error(client.publish("livestream", 1, 60000), ERROR_SOCKET_WRITE, "send publish message failed", "publish");
+    }
+}
+
+// One step of the server's replies to a client that connects, as SrsRtmpConn sends them.
+static srs_error_t rtmp_stack_server_connect_step(SrsRtmpServer *rtmp, int step)
+{
+    SrsRequest req;
+    req.tcUrl_ = "rtmp://127.0.0.1/live";
+    bool accepted = false;
+
+    switch (step) {
+    case 0:
+        return rtmp->connect_app(&req);
+    case 1:
+        return rtmp->set_window_ack_size(2500000);
+    case 2:
+        return rtmp->set_peer_bandwidth(2500000, 2);
+    case 3:
+        return rtmp->response_connect_app(&req, "127.0.0.1");
+    case 4:
+        return rtmp->on_bw_done();
+    case 5:
+        return rtmp->set_chunk_size(60000);
+    case 6:
+        return rtmp->start_publishing(1);
+    default: {
+        srs_error_t err = rtmp->redirect(&req, "rtmp://127.0.0.2/live/livestream", accepted);
+        EXPECT_FALSE(accepted);
+        return err;
+    }
+    }
+}
+
+// The client resets its connection at each step of the server's replies to its connect: before
+// connect, or at the window ack size, peer bandwidth, connect result, onBWDone, chunk size,
+// publish start or a redirect. Each step fails with the error, so the connection ends there.
+VOID TEST(ProtocolRtmpStackTest, ClientResetsDuringConnectReplies_EachReplyFails)
+{
+    const char *wants[] = {
+        "expect connect app response", "send ack", "send set peer bandwidth", "send connect app response",
+        "send onBWDone", "send set chunk size", "send NetStream.Publish.Start", "send redirect/reject",
+    };
+    for (int i = 0; i < (int)(sizeof(wants) / sizeof(wants[0])); i++) {
+        RtmpStackResetIO io(0);
+        SrsRtmpServer rtmp(&io);
+        int code = (i == 0) ? ERROR_SOCKET_READ : ERROR_SOCKET_WRITE;
+        rtmp_stack_expect_error(rtmp_stack_server_connect_step(&rtmp, i), code, wants[i], wants[i]);
+        EXPECT_EQ(0, io.out_length()) << wants[i];
+    }
+
+    // The reject is the last message to a client the server refuses; its failure is only logged.
+    RtmpStackResetIO io(0);
+    SrsRtmpServer rtmp(&io);
+    SrsRequest req;
+    rtmp.response_connect_reject(&req, "denied by hook");
+    EXPECT_EQ(1, io.writevs_tried_);
+    EXPECT_EQ(0, io.out_length());
+}
+
+// A player resets its connection at each message the server sends to start the play, or to pause
+// and resume it. The step fails with the write error, and nothing after it is sent; with no reset
+// the player gets every message in order.
+VOID TEST(ProtocolRtmpStackTest, PlayerResetsDuringPlayStartOrPause_StepFails)
+{
+    srs_error_t err = srs_success;
+
+    const char *play_steps[] = {"send StreamBegin", "send NetStream.Play.Reset", "send NetStream.Play.Start", "send |RtmpSampleAccess true"};
+    for (int i = 0; i < 4; i++) {
+        RtmpStackResetIO io(i);
+        SrsRtmpServer rtmp(&io);
+        rtmp_stack_expect_error(rtmp.start_play(1), ERROR_SOCKET_WRITE, play_steps[i], play_steps[i]);
+        EXPECT_EQ(i + 1, io.writevs_tried_) << play_steps[i];
+    }
+    if (true) {
+        RtmpStackResetIO io(4);
+        SrsRtmpServer rtmp(&io);
+        HELPER_EXPECT_SUCCESS(rtmp.start_play(1));
+        vector<pair<string, double> > sent = rtmp_stack_sent(io);
+        ASSERT_EQ(4u, sent.size());
+        EXPECT_EQ("type=4", sent[0].first);
+        EXPECT_EQ("onStatus", sent[1].first);
+        EXPECT_EQ("onStatus", sent[2].first);
+        EXPECT_EQ("|RtmpSampleAccess", sent[3].first);
+    }
+
+    const char *pause_steps[] = {"send NetStream.Pause.Notify", "send StreamEOF"};
+    const char *unpause_steps[] = {"send NetStream.Unpause.Notify", "send StreamBegin"};
+    for (int i = 0; i < 2; i++) {
+        RtmpStackResetIO io(i);
+        SrsRtmpServer rtmp(&io);
+        rtmp_stack_expect_error(rtmp.on_play_client_pause(1, true), ERROR_SOCKET_WRITE, pause_steps[i], pause_steps[i]);
+
+        RtmpStackResetIO io2(i);
+        SrsRtmpServer rtmp2(&io2);
+        rtmp_stack_expect_error(rtmp2.on_play_client_pause(1, false), ERROR_SOCKET_WRITE, unpause_steps[i], unpause_steps[i]);
+    }
+}
+
+// The messages FFmpeg and OBS send to publish after releaseStream: FCPublish, createStream and
+// publish, as the FMLE flow has them.
+static string rtmp_stack_fmle_publish_messages(int count)
+{
+    SrsCreateStreamPacket *create_stream = new SrsCreateStreamPacket();
+    create_stream->transaction_id_ = 4;
+    SrsPublishPacket *publish = new SrsPublishPacket();
+    publish->transaction_id_ = 5;
+    publish->stream_name_ = "livestream";
+
+    string payloads[] = {
+        rtmp_stack_payload(SrsFMLEStartPacket::create_FC_publish("livestream")),
+        rtmp_stack_payload(create_stream),
+        rtmp_stack_payload(publish),
+    };
+    uint32_t stream_ids[] = {0, 0, 1};
+
+    string b;
+    for (int i = 0; i < count; i++) {
+        b += rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, stream_ids[i], payloads[i]);
+    }
+    return b;
+}
+
+// A publisher resets or closes its connection at each step of starting or stopping a publish:
+// the FMLE flow of FFmpeg and OBS, the Haivision flow, and the unpublish. Each step fails with the
+// error, so the server never takes the stream as published or sends what follows.
+VOID TEST(ProtocolRtmpStackTest, PublisherResetsDuringPublishStartOrStop_StepFails)
+{
+    srs_error_t err = srs_success;
+
+    // The client leaves before each of its messages.
+    const char *recv_steps[] = {"recv FCPublish", "recv createStream", "recv publish"};
+    for (int i = 0; i < 3; i++) {
+        RtmpStackResetIO io(3);
+        io.append(rtmp_stack_fmle_publish_messages(i));
+        SrsRtmpServer rtmp(&io);
+        rtmp_stack_expect_error(rtmp.start_fmle_publish(1), ERROR_SOCKET_READ, recv_steps[i], recv_steps[i]);
+        EXPECT_EQ(i, io.writevs_tried_) << recv_steps[i];
+    }
+
+    // The client resets at each reply.
+    const char *send_steps[] = {"send FCPublish response", "send createStream response", "send NetStream.Publish.Start"};
+    for (int i = 0; i < 3; i++) {
+        RtmpStackResetIO io(i);
+        io.append(rtmp_stack_fmle_publish_messages(3));
+        SrsRtmpServer rtmp(&io);
+        rtmp_stack_expect_error(rtmp.start_fmle_publish(1), ERROR_SOCKET_WRITE, send_steps[i], send_steps[i]);
+        EXPECT_EQ(i + 1, io.writevs_tried_) << send_steps[i];
+    }
+    if (true) {
+        RtmpStackResetIO io(3);
+        io.append(rtmp_stack_fmle_publish_messages(3));
+        SrsRtmpServer rtmp(&io);
+        HELPER_EXPECT_SUCCESS(rtmp.start_fmle_publish(1));
+        vector<pair<string, double> > sent = rtmp_stack_sent(io);
+        ASSERT_EQ(3u, sent.size());
+        EXPECT_EQ(3, sent[0].second); // FCPublish
+        EXPECT_EQ(4, sent[1].second); // createStream
+        EXPECT_EQ("onFCPublish", sent[2].first);
+    }
+
+    // Haivision, which sends publish after its FCPublish was answered while identifying.
+    if (true) {
+        RtmpStackResetIO io(1);
+        SrsRtmpServer rtmp(&io);
+        rtmp_stack_expect_error(rtmp.start_haivision_publish(1), ERROR_SOCKET_READ, "recv publish", "haivision recv");
+    }
+    if (true) {
+        SrsPublishPacket *publish = new SrsPublishPacket();
+        publish->stream_name_ = "livestream";
+        RtmpStackResetIO io(0);
+        io.append(rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, 1, rtmp_stack_payload(publish)));
+        SrsRtmpServer rtmp(&io);
+        rtmp_stack_expect_error(rtmp.start_haivision_publish(1), ERROR_SOCKET_WRITE, "send NetStream.Publish.Start", "haivision send");
+    }
+
+    // The unpublish replies to FCUnpublish.
+    const char *unpublish_steps[] = {"send NetStream.unpublish.Success", "send FCUnpublish response", "send NetStream.Unpublish.Success"};
+    for (int i = 0; i < 3; i++) {
+        RtmpStackResetIO io(i);
+        SrsRtmpServer rtmp(&io);
+        rtmp_stack_expect_error(rtmp.fmle_unpublish(1, 6), ERROR_SOCKET_WRITE, unpublish_steps[i], unpublish_steps[i]);
+        EXPECT_EQ(i + 1, io.writevs_tried_) << unpublish_steps[i];
+    }
+}
+
+// The client resets its connection when the server answers its first command, while the server
+// identifies whether it plays or publishes: releaseStream (FMLE), createStream, FCPublish after
+// createStream (Haivision), or a _checkbw call. The identify fails with the write error.
+VOID TEST(ProtocolRtmpStackTest, ClientResetsDuringIdentify_ResponseFails)
+{
+    string release_stream = rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, 0, rtmp_stack_payload(SrsFMLEStartPacket::create_release_stream("livestream")));
+    string create_stream = rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, 0, rtmp_stack_payload(new SrsCreateStreamPacket()));
+    string fc_publish = rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, 0, rtmp_stack_payload(SrsFMLEStartPacket::create_FC_publish("livestream")));
+    string checkbw = rtmp_stack_command(RtmpStackAmf0().str("_checkbw").num(2).null());
+
+    struct {
+        const char *label;
+        string messages;
+        int sent;
+        const char *want;
+    } cases[] = {
+        {"releaseStream", release_stream, 0, "send releaseStream response"},
+        {"createStream", create_stream, 0, "send createStream response"},
+        {"Haivision FCPublish", create_stream + fc_publish, 1, "send FCPublish"},
+        {"_checkbw", checkbw, 0, "response call"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        RtmpStackResetIO io(cases[i].sent);
+        io.append(cases[i].messages);
+        SrsRtmpServer rtmp(&io);
+
+        SrsRtmpConnType type = SrsRtmpConnUnknown;
+        string stream;
+        srs_utime_t duration = 0;
+        rtmp_stack_expect_error(rtmp.identify_client(1, type, stream, duration), ERROR_SOCKET_WRITE, cases[i].want, cases[i].label);
+        EXPECT_EQ(cases[i].sent + 1, io.writevs_tried_) << cases[i].label;
+    }
+}
+
+// The play of a client that sends a command the server does not handle before or after its
+// createStream: librtmp with live=1 sends FCSubscribe before createStream, and FFmpeg sends
+// getStreamLength between createStream and play. FCSubscribe gets a null _result, getStreamLength
+// is ignored, and the client is identified as a player of its stream either way.
+VOID TEST(ProtocolRtmpStackTest, PlayerSendsFcSubscribeOrGetStreamLength_IdentifiedAsPlayer)
+{
+    srs_error_t err = srs_success;
+
+    SrsCreateStreamPacket *create_stream = new SrsCreateStreamPacket();
+    create_stream->transaction_id_ = 4;
+    string create = rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, 0, rtmp_stack_payload(create_stream));
+    SrsPlayPacket *play_pkt = new SrsPlayPacket();
+    play_pkt->stream_name_ = "livestream";
+    string play = rtmp_stack_chunks(8, RTMP_MSG_AMF0CommandMessage, 1, rtmp_stack_payload(play_pkt));
+
+    // librtmp, live=1.
+    if (true) {
+        string fc_subscribe = rtmp_stack_command(RtmpStackAmf0().str("FCSubscribe").num(3).null().str("livestream"));
+        MockBufferIO io;
+        io.append(fc_subscribe + create + play);
+        SrsRtmpServer rtmp(&io);
+
+        SrsRtmpConnType type = SrsRtmpConnUnknown;
+        string stream;
+        srs_utime_t duration = 0;
+        HELPER_ASSERT_SUCCESS(rtmp.identify_client(1, type, stream, duration));
+        EXPECT_EQ(SrsRtmpConnPlay, type);
+        EXPECT_EQ("livestream", stream);
+
+        vector<pair<string, double> > sent = rtmp_stack_sent(io);
+        ASSERT_EQ(2u, sent.size());
+        EXPECT_EQ("_result", sent[0].first);
+        EXPECT_EQ(3, sent[0].second); // FCSubscribe
+        EXPECT_EQ("_result", sent[1].first);
+        EXPECT_EQ(4, sent[1].second); // createStream
+    }
+
+    // FFmpeg.
+    if (true) {
+        string get_stream_length = rtmp_stack_command(RtmpStackAmf0().str("getStreamLength").num(5).null().str("livestream"), 1);
+        MockBufferIO io;
+        io.append(create + get_stream_length + play);
+        SrsRtmpServer rtmp(&io);
+
+        SrsRtmpConnType type = SrsRtmpConnUnknown;
+        string stream;
+        srs_utime_t duration = 0;
+        HELPER_ASSERT_SUCCESS(rtmp.identify_client(1, type, stream, duration));
+        EXPECT_EQ(SrsRtmpConnPlay, type);
+        EXPECT_EQ("livestream", stream);
+
+        vector<pair<string, double> > sent = rtmp_stack_sent(io);
+        ASSERT_EQ(1u, sent.size());
+        EXPECT_EQ(4, sent[0].second); // createStream only
+    }
+}
+
+// A broken client sends createStream, then a play cut after its name. The identify fails at the
+// play, after the createStream was answered, instead of waiting for another command.
+VOID TEST(ProtocolRtmpStackTest, PlayCutShortAfterCreateStream_IdentifyFails)
+{
+    string create = rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, 0, rtmp_stack_payload(new SrsCreateStreamPacket()));
+    string play = rtmp_stack_command(RtmpStackAmf0().str("play"), 1);
+
+    MockBufferIO io;
+    io.append(create + play);
+    SrsRtmpServer rtmp(&io);
+
+    SrsRtmpConnType type = SrsRtmpConnUnknown;
+    string stream;
+    srs_utime_t duration = 0;
+    rtmp_stack_expect_error(rtmp.identify_client(1, type, stream, duration), ERROR_RTMP_AMF0_DECODE, "decode identify", "play cut");
+    EXPECT_EQ(1u, rtmp_stack_sent(io).size()); // The createStream result.
+}
+
+// A stream's source keeps the request of its first client. A later client of the stream that
+// passed connect args, such as a token, updates the source's request, which then holds the
+// later client's args instead of the first one's.
+VOID TEST(ProtocolRtmpStackTest, LaterClientWithConnectArgs_SourceRequestTakesItsArgs)
+{
+    SrsRequest source_req;
+    source_req.args_ = SrsAmf0Any::object();
+    source_req.args_->set("token", SrsAmf0Any::str("first"));
+
+    SrsRequest client_req;
+    client_req.args_ = SrsAmf0Any::object();
+    client_req.args_->set("token", SrsAmf0Any::str("second"));
+
+    source_req.update_auth(&client_req);
+    ASSERT_TRUE(source_req.args_ != NULL);
+    ASSERT_TRUE(source_req.args_->get_property("token") != NULL);
+    EXPECT_EQ("second", source_req.args_->get_property("token")->to_str());
+    EXPECT_NE(source_req.args_, client_req.args_); // A copy, not shared.
+}
