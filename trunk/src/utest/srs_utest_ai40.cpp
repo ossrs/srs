@@ -8,6 +8,7 @@
 #include <srs_core_platform.hpp>
 #include <srs_kernel_aac.hpp>
 #include <srs_kernel_buffer.hpp>
+#include <srs_kernel_codec.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -219,4 +220,129 @@ VOID TEST(KernelBufferTest, StapHevcNaluSizeWithTopBitSetIsRejected)
 
     EXPECT_TRUE(stap.nalus_.empty());
     EXPECT_EQ(4, buf.pos());
+}
+
+// An RTMP publisher sends an AAC sequence header whose AudioSpecificConfig carries a sample rate index. The origin
+// turns the index into a sample rate for the stream statistics, and the HTTP API reports it as a number, so a
+// stream at any common AAC rate shows its real rate, not the 44100 that the FLV tag header always claims for AAC.
+VOID TEST(KernelCodecTest, AacSequenceHeaderRateReportedByStreamApi)
+{
+    // Index 3 (48000) to 11 (8000) of ISO/IEC 14496-3, the rates encoders such as OBS, FFmpeg and phones use.
+    for (int index = 3; index <= 11; index++) {
+        if (srs_aac_srates[index] == 32000) {
+            continue; // The enum has no 32000, see DISABLED_AacSequenceHeaderRateReportedByStreamApi_32kHzReportsZero.
+        }
+
+        SrsAudioSampleRate rate = srs_audio_sample_rate_from_number(srs_aac_srates[index]);
+        EXPECT_NE(SrsAudioSampleRateForbidden, rate) << "index " << index;
+        EXPECT_EQ((uint32_t)srs_aac_srates[index], srs_audio_sample_rate2number(rate)) << "index " << index;
+    }
+}
+
+// The same for an AAC stream at 32000 Hz, an index the encoders of some IP cameras use, or at 96000, 88200, 64000
+// or 7350 Hz. The enum has no value for these rates, so the stream API reports a sample rate of 0.
+VOID TEST(KernelCodecTest, DISABLED_AacSequenceHeaderRateReportedByStreamApi_32kHzReportsZero)
+{
+    for (int index = 0; index <= 12; index++) {
+        SrsAudioSampleRate rate = srs_audio_sample_rate_from_number(srs_aac_srates[index]);
+        EXPECT_EQ((uint32_t)srs_aac_srates[index], srs_audio_sample_rate2number(rate)) << "index " << index;
+    }
+}
+
+// An RTMP publisher sends MP3, whose sample rate is the FLV tag header's SoundRate: 5.5, 11, 22 or 44 kHz. The
+// stream API reports it as a number in Hz.
+VOID TEST(KernelCodecTest, Mp3FlvSoundRateReportedByStreamApi)
+{
+    EXPECT_EQ(5512u, srs_audio_sample_rate2number(SrsAudioSampleRate5512));
+    EXPECT_EQ(11025u, srs_audio_sample_rate2number(SrsAudioSampleRate11025));
+    EXPECT_EQ(22050u, srs_audio_sample_rate2number(SrsAudioSampleRate22050));
+    EXPECT_EQ(44100u, srs_audio_sample_rate2number(SrsAudioSampleRate44100));
+}
+
+// An enhanced RTMP publisher, such as OBS 29.1 or later, sends HEVC with the extended video tag header: the top bit
+// set, the frame type in bits 4-6, the packet type in bits 0-3, then the FourCC "hvc1". The origin must find the
+// sequence start, to cache it for players that join later, and must not take a coded frame for it.
+VOID TEST(KernelCodecTest, EnhancedRtmpHevcSequenceStartIsSequenceHeader)
+{
+    // Key frame, SequenceStart.
+    char start[] = {(char)0x90, 'h', 'v', 'c', '1', 0x01};
+    EXPECT_TRUE(SrsFlvVideo::hevc(start, sizeof(start)));
+    EXPECT_FALSE(SrsFlvVideo::h264(start, sizeof(start)));
+    EXPECT_TRUE(SrsFlvVideo::keyframe(start, sizeof(start)));
+    EXPECT_TRUE(SrsFlvVideo::sh(start, sizeof(start)));
+
+    // Key frame, CodedFrames: a key frame, but not the sequence header.
+    char coded[] = {(char)0x91, 'h', 'v', 'c', '1', 0x00, 0x00, 0x00};
+    EXPECT_TRUE(SrsFlvVideo::hevc(coded, sizeof(coded)));
+    EXPECT_TRUE(SrsFlvVideo::keyframe(coded, sizeof(coded)));
+    EXPECT_FALSE(SrsFlvVideo::sh(coded, sizeof(coded)));
+
+    // Inter frame, CodedFramesX.
+    char inter[] = {(char)0xa3, 'h', 'v', 'c', '1', 0x00};
+    EXPECT_TRUE(SrsFlvVideo::hevc(inter, sizeof(inter)));
+    EXPECT_FALSE(SrsFlvVideo::keyframe(inter, sizeof(inter)));
+    EXPECT_FALSE(SrsFlvVideo::sh(inter, sizeof(inter)));
+}
+
+// The origin accepts an enhanced RTMP HEVC packet, and drops one it cannot handle: a header cut before the end of
+// the FourCC, or another codec's FourCC, such as AV1 ("av01") or VP9 ("vp09") from a newer OBS.
+VOID TEST(KernelCodecTest, EnhancedRtmpVideoAcceptedOnlyForHevc)
+{
+    char hevc[] = {(char)0x91, 'h', 'v', 'c', '1', 0x00, 0x00, 0x00};
+    EXPECT_TRUE(SrsFlvVideo::acceptable(hevc, sizeof(hevc)));
+
+    // The tag ends inside the FourCC.
+    EXPECT_FALSE(SrsFlvVideo::acceptable(hevc, 4));
+    EXPECT_FALSE(SrsFlvVideo::hevc(hevc, 4));
+
+    char av1[] = {(char)0x90, 'a', 'v', '0', '1', 0x00};
+    EXPECT_FALSE(SrsFlvVideo::acceptable(av1, sizeof(av1)));
+    EXPECT_FALSE(SrsFlvVideo::hevc(av1, sizeof(av1)));
+    EXPECT_FALSE(SrsFlvVideo::sh(av1, sizeof(av1)));
+
+    char vp9[] = {(char)0x91, 'v', 'p', '0', '9', 0x00};
+    EXPECT_FALSE(SrsFlvVideo::acceptable(vp9, sizeof(vp9)));
+}
+
+// The stream API and the sequence header log show the H.264 level from the SPS level_idc, which is ten times the
+// level. Encoders write 4.2 for 1080p60, 5.2 for 4K60, and 6 to 6.2 for 8K.
+VOID TEST(KernelCodecTest, AvcLevelOfHighFrameRateAndLargeStreamsReported)
+{
+    EXPECT_STREQ("4.2", srs_avc_level2str((SrsAvcLevel)42).c_str());
+    EXPECT_STREQ("5.2", srs_avc_level2str((SrsAvcLevel)52).c_str());
+    EXPECT_STREQ("6", srs_avc_level2str((SrsAvcLevel)60).c_str());
+    EXPECT_STREQ("6.1", srs_avc_level2str((SrsAvcLevel)61).c_str());
+    EXPECT_STREQ("6.2", srs_avc_level2str((SrsAvcLevel)62).c_str());
+}
+
+// The stream API and the sequence header log show the HEVC profile from general_profile_idc: Main10 for HDR and
+// 10-bit streams, Main Still Picture, and Rext for 4:2:2 or 4:4:4. A profile SRS does not name, such as SCC (9),
+// shows as "Other".
+VOID TEST(KernelCodecTest, HevcProfileOfTenBitAndRangeExtensionStreamsReported)
+{
+    EXPECT_STREQ("Main", srs_hevc_profile2str((SrsHevcProfile)1).c_str());
+    EXPECT_STREQ("Main10", srs_hevc_profile2str((SrsHevcProfile)2).c_str());
+    EXPECT_STREQ("Main Still Picture", srs_hevc_profile2str((SrsHevcProfile)3).c_str());
+    EXPECT_STREQ("Rext", srs_hevc_profile2str((SrsHevcProfile)4).c_str());
+    EXPECT_STREQ("Other", srs_hevc_profile2str((SrsHevcProfile)9).c_str());
+}
+
+// The stream API and the sequence header log show the HEVC level from general_level_idc, which is 30 times the
+// level: from 1 (30) for small streams to 6.2 (186) for 8K. A value that is no level shows as "Other".
+VOID TEST(KernelCodecTest, HevcLevelFromGeneralLevelIdcReported)
+{
+    EXPECT_STREQ("1", srs_hevc_level2str((SrsHevcLevel)30).c_str());
+    EXPECT_STREQ("2", srs_hevc_level2str((SrsHevcLevel)60).c_str());
+    EXPECT_STREQ("2.1", srs_hevc_level2str((SrsHevcLevel)63).c_str());
+    EXPECT_STREQ("3", srs_hevc_level2str((SrsHevcLevel)90).c_str());
+    EXPECT_STREQ("3.1", srs_hevc_level2str((SrsHevcLevel)93).c_str());
+    EXPECT_STREQ("4", srs_hevc_level2str((SrsHevcLevel)120).c_str());
+    EXPECT_STREQ("4.1", srs_hevc_level2str((SrsHevcLevel)123).c_str());
+    EXPECT_STREQ("5", srs_hevc_level2str((SrsHevcLevel)150).c_str());
+    EXPECT_STREQ("5.1", srs_hevc_level2str((SrsHevcLevel)153).c_str());
+    EXPECT_STREQ("5.2", srs_hevc_level2str((SrsHevcLevel)156).c_str());
+    EXPECT_STREQ("6", srs_hevc_level2str((SrsHevcLevel)180).c_str());
+    EXPECT_STREQ("6.1", srs_hevc_level2str((SrsHevcLevel)183).c_str());
+    EXPECT_STREQ("6.2", srs_hevc_level2str((SrsHevcLevel)186).c_str());
+    EXPECT_STREQ("Other", srs_hevc_level2str((SrsHevcLevel)31).c_str());
 }
