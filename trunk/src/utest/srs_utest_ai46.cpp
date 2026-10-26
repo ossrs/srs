@@ -2621,3 +2621,53 @@ VOID TEST(AppHlsTest, ServerQuitsWhileUnpublishWaitsOnHlsCallbacks_UnpublishedOn
     _srs_config = saved_config;
     _srs_hooks = saved_hooks;
 }
+
+// The WebRTC server's UDP port answers each browser at the address its packets came from. One browser's network goes
+// away, so the host has no route from the port's interface to that address any more: the send to it fails with a
+// socket write error, which the session's UDP network returns. The port is shared by every session, so the next send
+// to another browser still reaches it.
+VOID TEST(AppListenerTest, BrowserAddressUnreachable_SendFailsOtherBrowsersStillServed)
+{
+    srs_error_t err;
+
+    int port = 0;
+    srs_netfd_t server_fd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_utest_udp_listen("127.0.0.1", &port, &server_fd));
+    SrsUniquePtr<SrsUdpMuxSocket> skt(new SrsUdpMuxSocket(server_fd));
+
+    srs_netfd_t other_fd = NULL;
+    HELPER_ASSERT_SUCCESS(srs_udp_listen("127.0.0.1", 0, &other_fd));
+    int other_port = srs_get_local_port(srs_netfd_fileno(other_fd));
+
+    // The gone browser, at an address of the documentation range (TEST-NET-1), with no route from loopback.
+    sockaddr_in *gone = (sockaddr_in *)&skt->from_;
+    memset(gone, 0, sizeof(sockaddr_in));
+    gone->sin_family = AF_INET;
+    gone->sin_port = htons(9);
+    gone->sin_addr.s_addr = inet_addr("192.0.2.1");
+    skt->fromlen_ = sizeof(sockaddr_in);
+
+    string answer = "stun-binding-response";
+    err = skt->sendto((void *)answer.data(), (int)answer.size(), SRS_UTIME_NO_TIMEOUT);
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    srs_freep(err);
+
+    // The other browser, still on the network.
+    sockaddr_in *other = (sockaddr_in *)&skt->from_;
+    memset(other, 0, sizeof(sockaddr_in));
+    other->sin_family = AF_INET;
+    other->sin_port = htons(other_port);
+    other->sin_addr.s_addr = inet_addr("127.0.0.1");
+    HELPER_EXPECT_SUCCESS(skt->sendto((void *)answer.data(), (int)answer.size(), SRS_UTIME_NO_TIMEOUT));
+
+    char buf[1500];
+    sockaddr_in from;
+    int fromlen = sizeof(from);
+    int n = srs_recvfrom(other_fd, buf, sizeof(buf), (sockaddr *)&from, &fromlen, SRS_UTIME_SECONDS);
+    ASSERT_EQ((int)answer.size(), n);
+    EXPECT_EQ(answer, string(buf, n));
+    EXPECT_EQ(port, (int)ntohs(from.sin_port));
+
+    srs_close_stfd(other_fd);
+    srs_close_stfd(server_fd);
+}
