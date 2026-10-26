@@ -15,6 +15,7 @@ import (
 	"net/netip"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pion/stun/v4"
 	"github.com/pion/webrtc/v4"
@@ -65,6 +66,49 @@ func Bind(ctx context.Context, offer, answer string, opts *Options) (*Binding, e
 	b.Local, _ = netip.ParseAddrPort(s.conn.LocalAddr().String())
 	s.awaitClose(ctx)
 	return b, nil
+}
+
+// Intrude sends STUN binding requests for the session of an offer and its
+// answer, as Bind does from a new socket, every 50ms until ctx ends,
+// and returns how many RTP and RTCP packets came to that socket: a server
+// that moves the session there sends it the session's media.
+func Intrude(ctx context.Context, offer, answer string, opts *Options) (int, error) {
+	s := &RawSession{Session: Session{Offer: offer, Answer: answer, opts: opts}}
+	defer s.Close()
+	var err error
+	if s.offer, err = parseAnswer(offer); err != nil {
+		return 0, fmt.Errorf("offer: %w", err)
+	}
+	if s.answer, err = parseAnswer(answer); err != nil {
+		return 0, fmt.Errorf("answer: %w", err)
+	}
+	if err := s.dial(ctx); err != nil {
+		return 0, err
+	}
+	media := 0
+	tick := time.NewTicker(50 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		req, err := bindingRequest(s.answer.ufrag, s.offer.ufrag, s.answer.pwd, false)
+		if err != nil {
+			return media, err
+		}
+		if _, err := s.conn.Write(req.Raw); err != nil {
+			return media, err
+		}
+	wait:
+		for {
+			select {
+			case <-s.mux.media:
+				media++
+			case <-s.mux.stun:
+			case <-tick.C:
+				break wait
+			case <-ctx.Done():
+				return media, nil
+			}
+		}
+	}
 }
 
 // awaitClose closes the write side of a TCP connection and waits, until ctx

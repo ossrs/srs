@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -63,6 +64,9 @@ type Stream struct {
 	// OSNs are the original sequence numbers an RTX stream's packets carry,
 	// in order.
 	OSNs []uint16
+	// TWCC is the transport-wide sequence number of each packet of a sent
+	// stream, by its sequence number; of the last time, for one sent again.
+	TWCC map[uint16]uint16
 
 	started bool
 	// highest is the highest sequence number so far, past the 16-bit wrap.
@@ -107,7 +111,8 @@ func (s *Stream) add(seq uint16, ts uint32, payload []byte) {
 // copy is a copy of the log, without its state.
 func (s *Stream) copy() *Stream {
 	return &Stream{SSRC: s.SSRC, MimeType: s.MimeType, Packets: s.Packets, FirstTimestamp: s.FirstTimestamp,
-		Missed: slices.Clone(s.Missed), Late: slices.Clone(s.Late), Repeated: slices.Clone(s.Repeated), OSNs: slices.Clone(s.OSNs)}
+		Missed: slices.Clone(s.Missed), Late: slices.Clone(s.Late), Repeated: slices.Clone(s.Repeated), OSNs: slices.Clone(s.OSNs),
+		TWCC: maps.Clone(s.TWCC)}
 }
 
 // NewRecorder makes a recorder.
@@ -175,7 +180,8 @@ func (r *Recorder) BindLocalStream(info *interceptor.StreamInfo, writer intercep
 			mime = kind + "/rtx"
 		}
 		r.update(func(rec *Record) {
-			stream(rec.Out, h.SSRC, mime).add(h.SequenceNumber, h.Timestamp, payload)
+			s := stream(rec.Out, h.SSRC, mime)
+			s.add(h.SequenceNumber, h.Timestamp, payload)
 			if twcc == 0 {
 				return
 			}
@@ -183,6 +189,10 @@ func (r *Recorder) BindLocalStream(info *interceptor.StreamInfo, writer intercep
 				var e rtp.TransportCCExtension
 				if e.Unmarshal(b) == nil {
 					rec.TWCC = append(rec.TWCC, e.TransportSequence)
+					if s.TWCC == nil {
+						s.TWCC = map[uint16]uint16{}
+					}
+					s.TWCC[h.SequenceNumber] = e.TransportSequence
 				}
 			}
 		})
@@ -306,4 +316,37 @@ func TWCCFeedback(pkts []rtcp.Packet) []*rtcp.TransportLayerCC {
 		}
 	}
 	return out
+}
+
+// TWCCReceived is what the TWCC feedbacks fbs say of each transport-wide
+// sequence number they cover: whether it was received. It fails when a
+// feedback's chunks don't cover its packet status count, or when two
+// feedbacks cover the same packet.
+func TWCCReceived(fbs []*rtcp.TransportLayerCC) (map[uint16]bool, error) {
+	out := map[uint16]bool{}
+	for i, f := range fbs {
+		seq, left := f.BaseSequenceNumber, int(f.PacketStatusCount)
+		for _, chunk := range f.PacketChunks {
+			var symbols []uint16
+			switch ch := chunk.(type) {
+			case *rtcp.RunLengthChunk:
+				symbols = slices.Repeat([]uint16{ch.PacketStatusSymbol}, int(ch.RunLength))
+			case *rtcp.StatusVectorChunk:
+				symbols = ch.SymbolList
+			}
+			// The last chunk of a feedback may have more symbols than packets.
+			for _, s := range symbols[:min(len(symbols), left)] {
+				if _, ok := out[seq]; ok {
+					return nil, fmt.Errorf("feedback %d covers %v, which an earlier one covers", i, seq)
+				}
+				out[seq] = s != rtcp.TypeTCCPacketNotReceived
+				seq++
+				left--
+			}
+		}
+		if left > 0 {
+			return nil, fmt.Errorf("feedback %d covers %v packets, its chunks %v fewer", i, f.PacketStatusCount, left)
+		}
+	}
+	return out, nil
 }

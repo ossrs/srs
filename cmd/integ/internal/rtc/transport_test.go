@@ -185,6 +185,51 @@ func TestBindClosed(t *testing.T) {
 	}
 }
 
+// TestIntrude checks the binding requests go on until ctx ends, every 50ms,
+// and the media packets that come back are counted, not the STUN.
+func TestIntrude(t *testing.T) {
+	udp, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer udp.Close()
+	requests := make(chan int, 1)
+	go func() {
+		n := 0
+		defer func() { requests <- n }()
+		b := make([]byte, 1500)
+		for {
+			udp.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+			_, from, err := udp.ReadFromUDP(b)
+			if err != nil {
+				return
+			}
+			n++
+			udp.WriteToUDP([]byte{1, 1, 0, 0}, from)
+			udp.WriteToUDP([]byte{0x80, 96, 0, 1}, from)
+		}
+	}()
+	answer := strings.ReplaceAll(srsAnswer, " 14100 ", " "+portOf(udp.LocalAddr())+" ")
+	offer, err := Offer(true, []string{"H264"}, []string{"opus"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Millisecond)
+	defer cancel()
+	media, err := Intrude(ctx, offer, answer, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := <-requests
+	if n < 3 || n > 5 {
+		t.Errorf("%v binding requests in 180ms, want one every 50ms", n)
+	}
+	if media != n {
+		t.Errorf("%v media packets, want one for each of the %v requests", media, n)
+	}
+}
+
 // portOf is the port of a socket's address.
 func portOf(a net.Addr) string {
 	return strconv.Itoa(int(netip.MustParseAddrPort(a.String()).Port()))

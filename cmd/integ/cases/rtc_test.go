@@ -358,7 +358,10 @@ func TestRtc_Common(t *testing.T) {
 	rtcParams(t)
 	rtcCodecs(t)
 	rtcTransport(t)
+	rtcRebind(t)
 	rtcRecovery(t)
+	rtcLoss(t)
+	rtcCorrupt(t)
 }
 
 // whipURL is the WHIP URL of a stream.

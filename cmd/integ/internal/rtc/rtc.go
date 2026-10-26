@@ -26,6 +26,8 @@ import (
 	"github.com/pion/interceptor"
 	"github.com/pion/interceptor/pkg/nack"
 	"github.com/pion/interceptor/pkg/report"
+	"github.com/pion/transport/v4"
+	"github.com/pion/transport/v4/stdnet"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -78,6 +80,16 @@ type Options struct {
 	// Reports, so the audio maps that much later than the video sent with
 	// it.
 	AudioReportShift time.Duration
+	// Rebinder takes the session's UDP socket, and can move it to another
+	// local port while the session runs.
+	Rebinder *Rebinder
+	// Dropper loses RTP packets of the session in its UDP socket, as a
+	// network does.
+	Dropper *Dropper
+	// SRTP makes a raw session protect what it sends, and unprotect what it
+	// receives, with the keys of its DTLS handshake, for a server that
+	// encrypts, as SRS does unless encrypt=false.
+	SRTP bool
 }
 
 func (o *Options) client() *http.Client {
@@ -233,6 +245,20 @@ func newPeerConnection(opts *Options) (*webrtc.PeerConnection, *Recorder, error)
 	se.SetIncludeLoopbackCandidate(true)
 	se.SetIPFilter(func(ip net.IP) bool { return ip.IsLoopback() })
 	se.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
+	if opts != nil && (opts.Rebinder != nil || opts.Dropper != nil) {
+		n, err := stdnet.NewNet()
+		if err != nil {
+			return nil, nil, err
+		}
+		var nw transport.Net = n
+		if opts.Rebinder != nil {
+			nw = &rebindNet{Net: n, r: opts.Rebinder}
+		}
+		if opts.Dropper != nil {
+			nw = &dropNet{Net: nw, d: opts.Dropper}
+		}
+		se.SetNet(nw)
+	}
 	// pion checks candidates every 200ms while it connects, or at the
 	// disconnected timeout when that is shorter: it pings, and nominates the
 	// pair that answered on its next check, so a connection takes 200ms. With

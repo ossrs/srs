@@ -161,6 +161,7 @@ var sharedFmp4KeysRTC = server.RTC{DTLSRole: "active", StunStrictCheck: true, No
 func TestRtc_PreferRtx(t *testing.T) {
 	t.Parallel()
 	srs := server.Shared(t, "Fmp4Keys", sharedFmp4Keys())
+	rtcLossRtx(t, srs)
 
 	// PlayerRtx plays with a player that offers RTX: the answer has rtx for
 	// H.264 and an RTX stream, and each packet the simulator drops comes
@@ -214,6 +215,7 @@ var sharedTsFloorRTC = server.RTC{NoNack: true, NoTWCC: true}
 func TestRtc_NackTwccOff(t *testing.T) {
 	t.Parallel()
 	srs := server.Shared(t, "TsFloor", sharedTsFloor())
+	rtcLossNackOff(t, srs)
 
 	// NackOffPlayer drops packets SRS sends a player: the answer offers no
 	// NACK, and when the player asks for the lost packets anyway, SRS

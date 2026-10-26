@@ -325,7 +325,8 @@ func TestHls_Fmp4(t *testing.T) {
 // the RAW API on with reload off, which the other groups never use, and
 // TestHttpStatic_RemuxOff for FLV files, which the remux off leaves to the
 // static files, and for the vhost's static files at escapedMount, a path no
-// other group asks for.
+// other group asks for. TestRtc_TwccLoss shares it for WebRTC with nack off,
+// which no other group plays.
 func sharedRemuxOff() server.Config {
 	cfg := server.HLSConfig(server.HLS{FMP4: true})
 	cfg.Env["SRS_VHOST_HTTP_REMUX_ENABLED"] = "off"
@@ -336,6 +337,7 @@ func sharedRemuxOff() server.Config {
 		MPDFile:    "[app]/[stream]-manifest.mpd",
 	}), sharedRemuxOffSRT)
 	cfg = server.WithStatic(cfg, escapedMount)
+	cfg = server.WithRTC(cfg, server.RTC{NoNack: true})
 	return server.WithRawAPI(server.WithRTSP(cfg, server.RTSPOptions{NoRTMPToRTSP: true}), server.RawAPI{})
 }
 
