@@ -17,10 +17,12 @@
 #include <srs_kernel_hourglass.hpp>
 #include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_mp4.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
+#include <srs_protocol_raw_avc.hpp>
 #include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_st.hpp>
@@ -40,6 +42,7 @@
 #include <dlfcn.h>
 #endif
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -1226,4 +1229,834 @@ VOID TEST(KernelMp3Test, DISABLED_HttpAacPlayerGetsEmptyAudioMessage_ServerAbort
 
     // One ADTS frame: the 7-byte header and the 2 raw bytes.
     EXPECT_EQ(9, writer.filesize());
+}
+
+// H.264 sequence header of a 768x320 stream, as an FLV video tag, and the same stream after its encoder restarted
+// with another PPS.
+static const uint8_t mp4_avc_sh[] = {
+    0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20, 0xac,
+    0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18,
+    0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+static const uint8_t mp4_avc_sh_new_pps[] = {
+    0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20, 0xac,
+    0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18,
+    0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x3c};
+// An H.264 key frame and inter frame, each one NALU after its 4-byte length.
+static const uint8_t mp4_avc_idr[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x65, 0x88, 0x84, 0x00, 0x10};
+static const uint8_t mp4_avc_inter[] = {0x27, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x41, 0x9a, 0x21, 0x6c, 0x42};
+// The same frames as MP4 samples, without the FLV tag header.
+static const uint8_t mp4_avc_idr_sample[] = {0x00, 0x00, 0x00, 0x05, 0x65, 0x88, 0x84, 0x00, 0x10};
+static const uint8_t mp4_avc_inter_sample[] = {0x00, 0x00, 0x00, 0x05, 0x41, 0x9a, 0x21, 0x6c, 0x42};
+// HEVC key frame (IDR_W_RADL) and inter frame (TRAIL_R), as FLV video tags with the codec id 12.
+static const uint8_t mp4_hevc_idr[] = {0x1c, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x26, 0x01, 0xaf, 0x00, 0x10};
+static const uint8_t mp4_hevc_inter[] = {0x2c, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x02, 0x01, 0xd0, 0x00, 0x10};
+// AAC LC sequence headers: 44.1 kHz stereo; 48 kHz stereo; and 44.1 kHz mono, flagged mono as the SRT and RTSP
+// ingest does from the ADTS channel configuration.
+static const uint8_t mp4_aac_sh[] = {0xaf, 0x00, 0x12, 0x10};
+static const uint8_t mp4_aac_sh_48k[] = {0xaf, 0x00, 0x11, 0x90};
+static const uint8_t mp4_aac_mono_sh[] = {0xae, 0x00, 0x12, 0x08};
+static const uint8_t mp4_aac_frame[] = {0xaf, 0x01, 0x21, 0x11, 0x45, 0x00};
+static const uint8_t mp4_aac_frame_sample[] = {0x21, 0x11, 0x45, 0x00};
+
+// The HEVC sequence header of a 720p stream as an FLV video tag with the codec id 12: the HEVCDecoderConfigurationRecord
+// of one VPS, SPS and PPS, or of the PPS twice, as the encoder sends after a restart with other settings.
+static srs_error_t mp4_hevc_sh(int nb_pps, string &tag)
+{
+    srs_error_t err = srs_success;
+
+    const uint8_t vps[] = {0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03,
+                           0x00, 0x00, 0x03, 0x00, 0x3d, 0x95, 0x98, 0x09};
+    const uint8_t sps[] = {0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03,
+                           0x00, 0x3d, 0xa0, 0x02, 0x80, 0x80, 0x2d, 0x16, 0x59, 0x59, 0xa4, 0x93, 0x2b, 0xc0, 0x40, 0x40,
+                           0x00, 0x00, 0xfa, 0x40, 0x00, 0x17, 0x70, 0x02};
+    const uint8_t pps[] = {0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40};
+
+    vector<string> ppss(nb_pps, string((const char *)pps, sizeof(pps)));
+    string record;
+    SrsRawHEVCStream hevc;
+    if ((err = hevc.mux_sequence_header(string((const char *)vps, sizeof(vps)), string((const char *)sps, sizeof(sps)), ppss, record)) != srs_success) {
+        return srs_error_wrap(err, "mux hevc sequence header");
+    }
+
+    tag = string("\x1c\x00\x00\x00\x00", 5) + record;
+    return err;
+}
+
+// Feeds one FLV video tag to the MP4 encoder the way SrsDvrMp4Segmenter::encode_video does.
+static srs_error_t mp4_dvr_video(SrsMp4Encoder *enc, SrsFormat *fmt, uint32_t dts, const uint8_t *tag, int size)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = fmt->on_video(dts, (char *)tag, size)) != srs_success) {
+        return srs_error_wrap(err, "demux video");
+    }
+
+    SrsVideoAvcFrameTrait ct = fmt->video_->avc_packet_type_;
+    if (ct == SrsVideoAvcFrameTraitSequenceHeader) {
+        enc->vcodec_ = fmt->vcodec_->id_;
+    }
+
+    uint32_t pts = dts + (uint32_t)fmt->video_->cts_;
+    return enc->write_sample(fmt, SrsMp4HandlerTypeVIDE, fmt->video_->frame_type_, ct, dts, pts, (uint8_t *)fmt->raw_, (uint32_t)fmt->nb_raw_);
+}
+
+// Feeds one FLV audio tag to the MP4 encoder the way SrsDvrMp4Segmenter::encode_audio does.
+static srs_error_t mp4_dvr_audio(SrsMp4Encoder *enc, SrsFormat *fmt, uint32_t dts, const uint8_t *tag, int size)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = fmt->on_audio(dts, (char *)tag, size)) != srs_success) {
+        return srs_error_wrap(err, "demux audio");
+    }
+
+    SrsAudioAacFrameTrait ct = fmt->audio_->aac_packet_type_;
+    if (ct == SrsAudioAacFrameTraitSequenceHeader) {
+        enc->set_audio_codec(fmt->acodec_->id_, fmt->acodec_->sound_rate_, fmt->acodec_->sound_size_, fmt->acodec_->sound_type_);
+    }
+
+    return enc->write_sample(fmt, SrsMp4HandlerTypeSOUN, 0x00, ct, dts, dts, (uint8_t *)fmt->raw_, (uint32_t)fmt->nb_raw_);
+}
+
+// The top-level boxes of an MP4 file or segment, decoded as a player reads them.
+class Mp4TopBoxes
+{
+public:
+    vector<SrsMp4Box *> boxes_;
+
+public:
+    ~Mp4TopBoxes()
+    {
+        for (int i = 0; i < (int)boxes_.size(); i++) {
+            SrsMp4Box *box = boxes_[i];
+            srs_freep(box);
+        }
+    }
+
+    srs_error_t decode(const string &data)
+    {
+        srs_error_t err = srs_success;
+
+        SrsBuffer buf((char *)data.data(), (int)data.size());
+        while (!buf.empty()) {
+            int start = buf.pos();
+
+            SrsMp4Box *box = NULL;
+            if ((err = SrsMp4Box::discovery(&buf, &box)) != srs_success) {
+                return srs_error_wrap(err, "discovery at %d", start);
+            }
+            boxes_.push_back(box);
+
+            if ((err = box->decode(&buf)) != srs_success) {
+                return srs_error_wrap(err, "decode at %d", start);
+            }
+
+            // The mdat decodes only its header; skip its payload to the next box.
+            buf.skip(start + (int)box->sz() - buf.pos());
+        }
+
+        return err;
+    }
+
+    SrsMp4Box *find(SrsMp4BoxType type)
+    {
+        for (int i = 0; i < (int)boxes_.size(); i++) {
+            if (boxes_[i]->type_ == type) {
+                return boxes_[i];
+            }
+        }
+        return NULL;
+    }
+
+    SrsMp4MovieBox *moov()
+    {
+        return dynamic_cast<SrsMp4MovieBox *>(find(SrsMp4BoxTypeMOOV));
+    }
+};
+
+// A publisher sends HEVC over RTMP and the vhost records it to .mp4. The moov must describe an hev1 track whose
+// hvcC holds the publisher's sequence header, so a player can decode it. An encoder resends the same sequence
+// header, such as on each key frame, and the recording goes on with the one config.
+VOID TEST(KernelMp4Test, DvrHevcStreamRecordsHev1TrackWithItsConfig)
+{
+    srs_error_t err;
+
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+
+    MockSrsFileWriter fw;
+    SrsMp4Encoder enc;
+    SrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(fmt.initialize());
+    HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, (const uint8_t *)sh.data(), (int)sh.size()));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, mp4_hevc_idr, sizeof(mp4_hevc_idr)));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 40, (const uint8_t *)sh.data(), (int)sh.size()));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 40, mp4_hevc_inter, sizeof(mp4_hevc_inter)));
+    HELPER_ASSERT_SUCCESS(enc.flush());
+
+    Mp4TopBoxes file;
+    HELPER_ASSERT_SUCCESS(file.decode(fw.str()));
+    ASSERT_TRUE(file.moov() != NULL);
+    SrsMp4TrackBox *trak = file.moov()->video();
+    ASSERT_TRUE(trak != NULL);
+    ASSERT_EQ(1u, trak->stsd()->entry_count());
+
+    SrsMp4VisualSampleEntry *hev1 = dynamic_cast<SrsMp4VisualSampleEntry *>(trak->stsd()->entrie_at(0));
+    ASSERT_TRUE(hev1 != NULL);
+    EXPECT_EQ(SrsMp4BoxTypeHEV1, hev1->type_);
+    EXPECT_GT(fmt.vcodec_->width_, 0);
+    EXPECT_EQ(fmt.vcodec_->width_, (int)hev1->width_);
+    EXPECT_EQ(fmt.vcodec_->height_, (int)hev1->height_);
+
+    SrsMp4HvcCBox *hvcC = hev1->hvcC();
+    ASSERT_TRUE(hvcC != NULL);
+    EXPECT_EQ(sh.substr(5), string(hvcC->hevc_config_.begin(), hvcC->hevc_config_.end()));
+
+    // The two frames are the samples; the resent sequence header is not.
+    EXPECT_EQ(2u, trak->stsz()->sample_count_);
+}
+
+// An RTMP publisher resends its H.264 and AAC sequence headers in the middle of a DVR recording, as an encoder does
+// when its output reconnects. The .mp4 keeps the one config of each track and only the frames become samples.
+VOID TEST(KernelMp4Test, DvrResentAvcAndAacSequenceHeadersAreIgnored)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    SrsMp4Encoder enc;
+    SrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(fmt.initialize());
+    HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, mp4_avc_sh, sizeof(mp4_avc_sh)));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_audio(&enc, &fmt, 0, mp4_aac_sh, sizeof(mp4_aac_sh)));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, mp4_avc_idr, sizeof(mp4_avc_idr)));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_audio(&enc, &fmt, 0, mp4_aac_frame, sizeof(mp4_aac_frame)));
+
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 40, mp4_avc_sh, sizeof(mp4_avc_sh)));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_audio(&enc, &fmt, 40, mp4_aac_sh, sizeof(mp4_aac_sh)));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 40, mp4_avc_inter, sizeof(mp4_avc_inter)));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_audio(&enc, &fmt, 46, mp4_aac_frame, sizeof(mp4_aac_frame)));
+    HELPER_ASSERT_SUCCESS(enc.flush());
+
+    Mp4TopBoxes file;
+    HELPER_ASSERT_SUCCESS(file.decode(fw.str()));
+    ASSERT_TRUE(file.moov() != NULL);
+
+    SrsMp4TrackBox *vide = file.moov()->video();
+    ASSERT_TRUE(vide != NULL && vide->avc1() != NULL && vide->avc1()->avcC() != NULL);
+    vector<char> &avcc = vide->avc1()->avcC()->avc_config_;
+    EXPECT_EQ(string((const char *)mp4_avc_sh + 5, sizeof(mp4_avc_sh) - 5), string(avcc.begin(), avcc.end()));
+    EXPECT_EQ(2u, vide->stsz()->sample_count_);
+
+    SrsMp4TrackBox *soun = file.moov()->audio();
+    ASSERT_TRUE(soun != NULL && soun->mp4a() != NULL);
+    SrsMp4DecoderSpecificInfo *asc = soun->mp4a()->esds()->es->decConfigDescr_.decSpecificInfo_;
+    ASSERT_TRUE(asc != NULL);
+    EXPECT_EQ(string("\x12\x10", 2), string(asc->asc_.begin(), asc->asc_.end()));
+    EXPECT_EQ(2u, soun->stsz()->sample_count_);
+}
+
+// A publisher restarts its encoder with other settings during a DVR recording, and the new sequence header differs.
+// One .mp4 has one sample description per track, so the recording fails with an error, instead of writing frames
+// the moov describes wrongly. The same holds for H.264, HEVC and AAC.
+VOID TEST(KernelMp4Test, DvrCodecConfigChangeMidRecordingFails)
+{
+    srs_error_t err;
+
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsMp4Encoder enc;
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+        HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, mp4_avc_sh, sizeof(mp4_avc_sh)));
+        HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, mp4_avc_idr, sizeof(mp4_avc_idr)));
+
+        err = mp4_dvr_video(&enc, &fmt, 40, mp4_avc_sh_new_pps, sizeof(mp4_avc_sh_new_pps));
+        EXPECT_EQ(ERROR_MP4_AVCC_CHANGE, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        string sh, sh_new;
+        HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+        HELPER_ASSERT_SUCCESS(mp4_hevc_sh(2, sh_new));
+
+        MockSrsFileWriter fw;
+        SrsMp4Encoder enc;
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+        HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, (const uint8_t *)sh.data(), (int)sh.size()));
+        HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, mp4_hevc_idr, sizeof(mp4_hevc_idr)));
+
+        err = mp4_dvr_video(&enc, &fmt, 40, (const uint8_t *)sh_new.data(), (int)sh_new.size());
+        EXPECT_EQ(ERROR_MP4_HVCC_CHANGE, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsMp4Encoder enc;
+        SrsFormat fmt;
+        HELPER_ASSERT_SUCCESS(fmt.initialize());
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw));
+
+        HELPER_EXPECT_SUCCESS(mp4_dvr_audio(&enc, &fmt, 0, mp4_aac_sh, sizeof(mp4_aac_sh)));
+        HELPER_EXPECT_SUCCESS(mp4_dvr_audio(&enc, &fmt, 0, mp4_aac_frame, sizeof(mp4_aac_frame)));
+
+        err = mp4_dvr_audio(&enc, &fmt, 23, mp4_aac_sh_48k, sizeof(mp4_aac_sh_48k));
+        EXPECT_EQ(ERROR_MP4_ASC_CHANGE, srs_error_code(err));
+        srs_freep(err);
+    }
+}
+
+// The file of a DVR recording that grew past 4 GB. The writer keeps the boxes the encoder writes, and only counts
+// the bytes of a frame's payload, so a test can pass a frame size larger than its buffer.
+class Mp4LargeFileWriter : public ISrsWriteSeeker
+{
+public:
+    // The writes of up to 64 KB, by file offset.
+    map<int64_t, string> chunks_;
+    int64_t pos_;
+    int64_t size_;
+
+public:
+    Mp4LargeFileWriter()
+    {
+        pos_ = size_ = 0;
+    }
+
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        if (size <= 64 * 1024) {
+            chunks_[pos_] = string((char *)buf, size);
+        }
+        pos_ += size;
+        size_ = srs_max(size_, pos_);
+        if (nwrite) {
+            *nwrite = size;
+        }
+        return srs_success;
+    }
+
+    virtual srs_error_t writev(const iovec * /*iov*/, int /*iov_size*/, ssize_t * /*nwrite*/)
+    {
+        return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "not supported");
+    }
+
+    virtual srs_error_t lseek(srs_off_t offset, int whence, srs_off_t *seeked)
+    {
+        if (whence == SEEK_SET) {
+            pos_ = offset;
+        } else if (whence == SEEK_CUR) {
+            pos_ += offset;
+        } else {
+            pos_ = size_ + offset;
+        }
+        if (seeked) {
+            *seeked = pos_;
+        }
+        return srs_success;
+    }
+};
+
+// A long DVR recording of a high bitrate stream passes 4 GB, beyond a 32-bit box size or chunk offset. The mdat
+// must use the 64-bit large size, taking the 8 bytes of the free box the encoder reserved before it, and both
+// tracks must use co64 for the offsets of their samples. Otherwise a player seeks into the wrong bytes.
+VOID TEST(KernelMp4Test, DvrRecordingOver4GBUsesLargeSizeAndChunkOffsets)
+{
+    srs_error_t err;
+
+    Mp4LargeFileWriter w;
+    SrsMp4Encoder enc;
+    SrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(fmt.initialize());
+    HELPER_ASSERT_SUCCESS(enc.initialize(&w));
+
+    HELPER_EXPECT_SUCCESS(mp4_dvr_video(&enc, &fmt, 0, mp4_avc_sh, sizeof(mp4_avc_sh)));
+    HELPER_EXPECT_SUCCESS(mp4_dvr_audio(&enc, &fmt, 0, mp4_aac_sh, sizeof(mp4_aac_sh)));
+
+    // Each key frame stands for over half an hour of the stream.
+    const uint32_t nb_frame = 2200000000u;
+    for (int i = 0; i < 3; i++) {
+        uint32_t dts = i * 1000;
+        HELPER_ASSERT_SUCCESS(fmt.on_video(dts, (char *)mp4_avc_idr, sizeof(mp4_avc_idr)));
+        HELPER_EXPECT_SUCCESS(enc.write_sample(&fmt, SrsMp4HandlerTypeVIDE, fmt.video_->frame_type_, fmt.video_->avc_packet_type_, dts, dts, (uint8_t *)fmt.raw_, nb_frame));
+    }
+    HELPER_EXPECT_SUCCESS(mp4_dvr_audio(&enc, &fmt, 3000, mp4_aac_frame, sizeof(mp4_aac_frame)));
+    HELPER_ASSERT_SUCCESS(enc.flush());
+
+    // The ftyp, then the free box and the mdat header, 8 bytes each, then the samples.
+    ASSERT_TRUE(w.chunks_.count(0));
+    int64_t ftyp_size = (int64_t)w.chunks_[0].size();
+    int64_t first_sample = ftyp_size + 16;
+    uint64_t mdat_bytes = 3 * (uint64_t)nb_frame + sizeof(mp4_aac_frame_sample);
+
+    // The mdat header now starts where the free box was, with the large size.
+    ASSERT_TRUE(w.chunks_.count(ftyp_size));
+    string mdat_header = w.chunks_[ftyp_size];
+    ASSERT_EQ(16u, mdat_header.size());
+    SrsBuffer mdat_buf((char *)mdat_header.data(), (int)mdat_header.size());
+    SrsMp4Box *box = NULL;
+    HELPER_ASSERT_SUCCESS(SrsMp4Box::discovery(&mdat_buf, &box));
+    SrsUniquePtr<SrsMp4Box> mdat(box);
+    EXPECT_TRUE(dynamic_cast<SrsMp4MediaDataBox *>(mdat.get()) != NULL);
+    // The size 1 says the 64-bit size follows the type.
+    EXPECT_EQ(1u, (uint32_t)mdat_buf.read_4bytes());
+    EXPECT_EQ(SrsMp4BoxTypeMDAT, (SrsMp4BoxType)mdat_buf.read_4bytes());
+    EXPECT_EQ(16 + mdat_bytes, (uint64_t)mdat_buf.read_8bytes());
+
+    // The moov follows the samples.
+    int64_t moov_offset = first_sample + (int64_t)mdat_bytes;
+    ASSERT_TRUE(w.chunks_.count(moov_offset));
+    Mp4TopBoxes moov;
+    HELPER_ASSERT_SUCCESS(moov.decode(w.chunks_[moov_offset]));
+    ASSERT_TRUE(moov.moov() != NULL);
+
+    SrsMp4SampleTableBox *vide = moov.moov()->video()->stbl();
+    EXPECT_TRUE(vide->stco() == NULL);
+    ASSERT_TRUE(vide->co64() != NULL);
+    ASSERT_EQ(3u, vide->co64()->entry_count_);
+    for (int i = 0; i < 3; i++) {
+        EXPECT_EQ((uint64_t)first_sample + i * (uint64_t)nb_frame, vide->co64()->entries_[i]);
+        EXPECT_EQ(nb_frame, vide->stsz()->entry_sizes_[i]);
+    }
+
+    SrsMp4SampleTableBox *soun = moov.moov()->audio()->stbl();
+    EXPECT_TRUE(soun->stco() == NULL);
+    ASSERT_TRUE(soun->co64() != NULL);
+    ASSERT_EQ(1u, soun->co64()->entry_count_);
+    EXPECT_EQ((uint64_t)first_sample + 3 * (uint64_t)nb_frame, soun->co64()->entries_[0]);
+}
+
+typedef srs_error_t (*Mp4WriteSession)(MockSrsFileWriter *fw);
+
+// The disk fills at each byte up to where a clean run starts its last write, so a write is always refused: the
+// session must report the error, not leave a truncated file as if it were whole.
+static void mp4_expect_disk_full_fails(Mp4WriteSession session, int64_t last_write_start)
+{
+    for (int64_t full = 0; full <= last_write_start; full++) {
+        MockSrsFileWriter fw;
+        fw.error_offset = (int)full;
+        srs_error_t err = session(&fw);
+        EXPECT_TRUE(err != srs_success) << "disk full at " << full;
+        srs_freep(err);
+    }
+}
+
+static srs_error_t mp4_dvr_session(MockSrsFileWriter *fw)
+{
+    srs_error_t err = srs_success;
+
+    SrsMp4Encoder enc;
+    SrsFormat fmt;
+    if ((err = fmt.initialize()) != srs_success) {
+        return srs_error_wrap(err, "format");
+    }
+    if ((err = enc.initialize(fw)) != srs_success) {
+        return srs_error_wrap(err, "initialize");
+    }
+    if ((err = mp4_dvr_video(&enc, &fmt, 0, mp4_avc_sh, sizeof(mp4_avc_sh))) != srs_success) {
+        return srs_error_wrap(err, "avc sh");
+    }
+    if ((err = mp4_dvr_audio(&enc, &fmt, 0, mp4_aac_sh, sizeof(mp4_aac_sh))) != srs_success) {
+        return srs_error_wrap(err, "aac sh");
+    }
+    if ((err = mp4_dvr_video(&enc, &fmt, 0, mp4_avc_idr, sizeof(mp4_avc_idr))) != srs_success) {
+        return srs_error_wrap(err, "idr");
+    }
+    if ((err = mp4_dvr_audio(&enc, &fmt, 0, mp4_aac_frame, sizeof(mp4_aac_frame))) != srs_success) {
+        return srs_error_wrap(err, "aac");
+    }
+    if ((err = mp4_dvr_video(&enc, &fmt, 40, mp4_avc_inter, sizeof(mp4_avc_inter))) != srs_success) {
+        return srs_error_wrap(err, "inter");
+    }
+    return enc.flush();
+}
+
+// The disk fills while SRS records a stream to .mp4: writing the ftyp, the free box, the mdat header, a frame, or
+// the moov at the end fails, and the recording reports it.
+VOID TEST(KernelMp4Test, DvrDiskFullFailsTheRecording)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter fw;
+    HELPER_ASSERT_SUCCESS(mp4_dvr_session(&fw));
+    string file = fw.str();
+    size_t moov = file.find("moov");
+    ASSERT_NE(string::npos, moov);
+
+    // The moov is the last box written at the end; the mdat header is then rewritten in place.
+    mp4_expect_disk_full_fails(mp4_dvr_session, (int64_t)moov - 4);
+}
+
+static srs_error_t mp4_dash_video_init_session(MockSrsFileWriter *fw)
+{
+    srs_error_t err = srs_success;
+
+    SrsFormat fmt;
+    if ((err = fmt.initialize()) != srs_success) {
+        return srs_error_wrap(err, "format");
+    }
+    if ((err = fmt.on_video(0, (char *)mp4_avc_sh, sizeof(mp4_avc_sh))) != srs_success) {
+        return srs_error_wrap(err, "avc sh");
+    }
+
+    SrsMp4M2tsInitEncoder init;
+    if ((err = init.initialize(fw)) != srs_success) {
+        return srs_error_wrap(err, "initialize");
+    }
+    return init.write(&fmt, true, 1);
+}
+
+static srs_error_t mp4_dash_segment_session(MockSrsFileWriter *fw)
+{
+    srs_error_t err = srs_success;
+
+    SrsMp4M2tsSegmentEncoder enc;
+    if ((err = enc.initialize(fw, 1, 0, 1)) != srs_success) {
+        return srs_error_wrap(err, "initialize");
+    }
+    if ((err = enc.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 0, 0, (uint8_t *)mp4_avc_idr_sample, sizeof(mp4_avc_idr_sample))) != srs_success) {
+        return srs_error_wrap(err, "idr");
+    }
+    if ((err = enc.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeInterFrame, 40, 40, (uint8_t *)mp4_avc_inter_sample, sizeof(mp4_avc_inter_sample))) != srs_success) {
+        return srs_error_wrap(err, "inter");
+    }
+    uint64_t dts = 80;
+    return enc.flush(dts);
+}
+
+// The disk fills while SRS writes DASH: the init.mp4 (ftyp, moov) or a segment (styp, sidx, moof, mdat header, a
+// frame) fails to write, and the error is reported.
+VOID TEST(KernelMp4Test, DashDiskFullFailsInitAndSegment)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter init;
+    HELPER_ASSERT_SUCCESS(mp4_dash_video_init_session(&init));
+    size_t moov = init.str().find("moov");
+    ASSERT_NE(string::npos, moov);
+    mp4_expect_disk_full_fails(mp4_dash_video_init_session, (int64_t)moov - 4);
+
+    MockSrsFileWriter segment;
+    HELPER_ASSERT_SUCCESS(mp4_dash_segment_session(&segment));
+    mp4_expect_disk_full_fails(mp4_dash_segment_session, segment.filesize() - (int64_t)sizeof(mp4_avc_inter_sample));
+}
+
+static srs_error_t mp4_hls_init_session(MockSrsFileWriter *fw)
+{
+    srs_error_t err = srs_success;
+
+    SrsFormat fmt;
+    if ((err = fmt.initialize()) != srs_success) {
+        return srs_error_wrap(err, "format");
+    }
+    if ((err = fmt.on_video(0, (char *)mp4_avc_sh, sizeof(mp4_avc_sh))) != srs_success) {
+        return srs_error_wrap(err, "avc sh");
+    }
+    if ((err = fmt.on_audio(0, (char *)mp4_aac_sh, sizeof(mp4_aac_sh))) != srs_success) {
+        return srs_error_wrap(err, "aac sh");
+    }
+
+    SrsMp4M2tsInitEncoder init;
+    if ((err = init.initialize(fw)) != srs_success) {
+        return srs_error_wrap(err, "initialize");
+    }
+    return init.write(&fmt, 1, 2);
+}
+
+static srs_error_t mp4_hls_segment_session(MockSrsFileWriter *fw)
+{
+    srs_error_t err = srs_success;
+
+    SrsFmp4SegmentEncoder enc;
+    if ((err = enc.initialize(fw, 1, 0, 1, 2)) != srs_success) {
+        return srs_error_wrap(err, "initialize");
+    }
+    if ((err = enc.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 0, 0, (uint8_t *)mp4_avc_idr_sample, sizeof(mp4_avc_idr_sample))) != srs_success) {
+        return srs_error_wrap(err, "idr");
+    }
+    if ((err = enc.write_sample(SrsMp4HandlerTypeSOUN, 0, 0, 0, (uint8_t *)mp4_aac_frame_sample, sizeof(mp4_aac_frame_sample))) != srs_success) {
+        return srs_error_wrap(err, "aac");
+    }
+    return enc.flush(40);
+}
+
+// The disk fills while SRS writes HLS fMP4: the init.mp4 of both tracks (ftyp, moov) or a segment (moof, mdat
+// header, a video or audio frame) fails to write, and the error is reported.
+VOID TEST(KernelMp4Test, HlsFmp4DiskFullFailsInitAndSegment)
+{
+    srs_error_t err;
+
+    MockSrsFileWriter init;
+    HELPER_ASSERT_SUCCESS(mp4_hls_init_session(&init));
+    size_t moov = init.str().find("moov");
+    ASSERT_NE(string::npos, moov);
+    mp4_expect_disk_full_fails(mp4_hls_init_session, (int64_t)moov - 4);
+
+    // The audio frames are written after the video frames.
+    MockSrsFileWriter segment;
+    HELPER_ASSERT_SUCCESS(mp4_hls_segment_session(&segment));
+    mp4_expect_disk_full_fails(mp4_hls_segment_session, segment.filesize() - (int64_t)sizeof(mp4_aac_frame_sample));
+}
+
+// DASH of an HEVC stream: the video init.mp4 must describe an hev1 track whose hvcC holds the stream's sequence
+// header.
+VOID TEST(KernelMp4Test, DashHevcVideoInitSegmentHasHev1Track)
+{
+    srs_error_t err;
+
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+    SrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(fmt.initialize());
+    HELPER_ASSERT_SUCCESS(fmt.on_video(0, (char *)sh.data(), (int)sh.size()));
+
+    MockSrsFileWriter fw;
+    SrsMp4M2tsInitEncoder init;
+    HELPER_ASSERT_SUCCESS(init.initialize(&fw));
+    HELPER_ASSERT_SUCCESS(init.write(&fmt, true, 1));
+
+    Mp4TopBoxes file;
+    HELPER_ASSERT_SUCCESS(file.decode(fw.str()));
+    ASSERT_TRUE(file.moov() != NULL && file.moov()->video() != NULL);
+    SrsMp4VisualSampleEntry *hev1 = dynamic_cast<SrsMp4VisualSampleEntry *>(file.moov()->video()->stsd()->entrie_at(0));
+    ASSERT_TRUE(hev1 != NULL);
+    EXPECT_EQ(SrsMp4BoxTypeHEV1, hev1->type_);
+    EXPECT_EQ(fmt.vcodec_->width_, (int)hev1->width_);
+    ASSERT_TRUE(hev1->hvcC() != NULL);
+    EXPECT_EQ(sh.substr(5), string(hev1->hvcC()->hevc_config_.begin(), hev1->hvcC()->hevc_config_.end()));
+}
+
+// DASH of a mono AAC stream, such as one an SRT encoder publishes from a single microphone: the audio init.mp4
+// must say one channel, or a player upmixes or fails to configure its decoder.
+VOID TEST(KernelMp4Test, DashMonoAacInitSegmentHasOneChannel)
+{
+    srs_error_t err;
+
+    SrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(fmt.initialize());
+    HELPER_ASSERT_SUCCESS(fmt.on_audio(0, (char *)mp4_aac_mono_sh, sizeof(mp4_aac_mono_sh)));
+
+    MockSrsFileWriter fw;
+    SrsMp4M2tsInitEncoder init;
+    HELPER_ASSERT_SUCCESS(init.initialize(&fw));
+    HELPER_ASSERT_SUCCESS(init.write(&fmt, false, 2));
+
+    Mp4TopBoxes file;
+    HELPER_ASSERT_SUCCESS(file.decode(fw.str()));
+    ASSERT_TRUE(file.moov() != NULL && file.moov()->audio() != NULL);
+    SrsMp4AudioSampleEntry *mp4a = file.moov()->audio()->mp4a();
+    ASSERT_TRUE(mp4a != NULL);
+    EXPECT_EQ(1, mp4a->channelcount_);
+    EXPECT_EQ(16, mp4a->samplesize_);
+    EXPECT_EQ(44100u << 16, mp4a->samplerate_);
+}
+
+// HLS fMP4 of an H.264 stream with mono AAC: the init.mp4 of both tracks must say one audio channel.
+VOID TEST(KernelMp4Test, HlsFmp4MonoAacInitSegmentHasOneChannel)
+{
+    srs_error_t err;
+
+    SrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(fmt.initialize());
+    HELPER_ASSERT_SUCCESS(fmt.on_video(0, (char *)mp4_avc_sh, sizeof(mp4_avc_sh)));
+    HELPER_ASSERT_SUCCESS(fmt.on_audio(0, (char *)mp4_aac_mono_sh, sizeof(mp4_aac_mono_sh)));
+
+    MockSrsFileWriter fw;
+    SrsMp4M2tsInitEncoder init;
+    HELPER_ASSERT_SUCCESS(init.initialize(&fw));
+    HELPER_ASSERT_SUCCESS(init.write(&fmt, 1, 2));
+
+    Mp4TopBoxes file;
+    HELPER_ASSERT_SUCCESS(file.decode(fw.str()));
+    ASSERT_TRUE(file.moov() != NULL && file.moov()->audio() != NULL && file.moov()->video() != NULL);
+    SrsMp4AudioSampleEntry *mp4a = file.moov()->audio()->mp4a();
+    ASSERT_TRUE(mp4a != NULL);
+    EXPECT_EQ(1, mp4a->channelcount_);
+    EXPECT_EQ(16, mp4a->samplesize_);
+}
+
+// HLS fMP4 with SAMPLE-AES (cbcs) of an HEVC stream with AAC: in the init.mp4 the hev1 entry becomes encv and the
+// mp4a entry enca, each with a sinf that keeps the original format in frma, so a player knows what it decodes once
+// it decrypts, and the cbcs scheme in schm.
+VOID TEST(KernelMp4Test, HlsFmp4EncryptedHevcInitSegmentProtectsBothTracks)
+{
+    srs_error_t err;
+
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+    SrsFormat fmt;
+    HELPER_ASSERT_SUCCESS(fmt.initialize());
+    HELPER_ASSERT_SUCCESS(fmt.on_video(0, (char *)sh.data(), (int)sh.size()));
+    HELPER_ASSERT_SUCCESS(fmt.on_audio(0, (char *)mp4_aac_sh, sizeof(mp4_aac_sh)));
+
+    MockSrsFileWriter fw;
+    SrsMp4M2tsInitEncoder init;
+    HELPER_ASSERT_SUCCESS(init.initialize(&fw));
+    unsigned char kid[16], iv[16];
+    memset(kid, 0x11, sizeof(kid));
+    memset(iv, 0x22, sizeof(iv));
+    init.config_encryption(1, 9, kid, iv, 16);
+    HELPER_ASSERT_SUCCESS(init.write(&fmt, 1, 2));
+
+    string data = fw.str();
+    size_t encv = data.find("encv");
+    ASSERT_NE(string::npos, encv);
+    size_t frma = data.find("frma", encv);
+    ASSERT_NE(string::npos, frma);
+    EXPECT_EQ("hev1", data.substr(frma + 4, 4));
+    // No sample entry is left as a clear hev1.
+    EXPECT_EQ(frma + 4, data.find("hev1"));
+    EXPECT_NE(string::npos, data.find(sh.substr(5), encv));
+
+    size_t enca = data.find("enca");
+    ASSERT_NE(string::npos, enca);
+    frma = data.find("frma", enca);
+    ASSERT_NE(string::npos, frma);
+    EXPECT_EQ("mp4a", data.substr(frma + 4, 4));
+
+    size_t schm = data.find("schm", encv);
+    ASSERT_NE(string::npos, schm);
+    EXPECT_EQ("cbcs", data.substr(schm + 8, 4));
+}
+
+// A DASH segment carries each frame's composition offset in the trun. B-frames give positive offsets, and a trun of
+// version 0 holds them unsigned. Some encoders shift the presentation time before the decoding time, which gives a
+// negative offset, such as -40 ms for the first frame of a segment; the trun must then be version 1, which holds
+// them signed, or a player shows the frame about 2^32 ticks late. The sidx in front gives the start and the
+// duration of the segment for the player to keep audio and video in sync.
+VOID TEST(KernelMp4Test, DashSegmentTrunVersionFollowsTheSignOfCompositionOffsets)
+{
+    srs_error_t err;
+
+    // B-frames: the key frame shows 80 ms after it decodes.
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsMp4M2tsSegmentEncoder enc;
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw, 1, 0, 1));
+        HELPER_ASSERT_SUCCESS(enc.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 0, 80, (uint8_t *)mp4_avc_idr_sample, sizeof(mp4_avc_idr_sample)));
+        HELPER_ASSERT_SUCCESS(enc.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeInterFrame, 40, 40, (uint8_t *)mp4_avc_inter_sample, sizeof(mp4_avc_inter_sample)));
+        uint64_t dts = 80;
+        HELPER_ASSERT_SUCCESS(enc.flush(dts));
+
+        Mp4TopBoxes segment;
+        HELPER_ASSERT_SUCCESS(segment.decode(fw.str()));
+        SrsMp4MovieFragmentBox *moof = dynamic_cast<SrsMp4MovieFragmentBox *>(segment.find(SrsMp4BoxTypeMOOF));
+        ASSERT_TRUE(moof != NULL);
+        SrsMp4TrackFragmentBox *traf = dynamic_cast<SrsMp4TrackFragmentBox *>(moof->get(SrsMp4BoxTypeTRAF));
+        ASSERT_TRUE(traf != NULL && traf->trun() != NULL);
+        SrsMp4TrackFragmentRunBox *trun = traf->trun();
+        EXPECT_EQ(0, trun->version_);
+        ASSERT_EQ(2u, trun->entries_.size());
+        EXPECT_EQ(80, trun->entries_[0]->sample_composition_time_offset_);
+        EXPECT_EQ(0, trun->entries_[1]->sample_composition_time_offset_);
+    }
+
+    // The third segment starts at 2s; its key frame decodes at 2040 and shows at 2000.
+    if (true) {
+        MockSrsFileWriter fw;
+        SrsMp4M2tsSegmentEncoder enc;
+        HELPER_ASSERT_SUCCESS(enc.initialize(&fw, 3, 2 * SRS_UTIME_SECONDS, 1));
+        HELPER_ASSERT_SUCCESS(enc.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 2040, 2000, (uint8_t *)mp4_avc_idr_sample, sizeof(mp4_avc_idr_sample)));
+        HELPER_ASSERT_SUCCESS(enc.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeInterFrame, 2080, 2120, (uint8_t *)mp4_avc_inter_sample, sizeof(mp4_avc_inter_sample)));
+        uint64_t dts = 2120;
+        HELPER_ASSERT_SUCCESS(enc.flush(dts));
+
+        Mp4TopBoxes segment;
+        HELPER_ASSERT_SUCCESS(segment.decode(fw.str()));
+        ASSERT_EQ(4u, segment.boxes_.size());
+        EXPECT_EQ(SrsMp4BoxTypeSTYP, segment.boxes_[0]->type_);
+        EXPECT_EQ(SrsMp4BoxTypeSIDX, segment.boxes_[1]->type_);
+        EXPECT_EQ(SrsMp4BoxTypeMOOF, segment.boxes_[2]->type_);
+        EXPECT_EQ(SrsMp4BoxTypeMDAT, segment.boxes_[3]->type_);
+
+        SrsMp4MovieFragmentBox *moof = dynamic_cast<SrsMp4MovieFragmentBox *>(segment.boxes_[2]);
+        ASSERT_TRUE(moof != NULL);
+        SrsMp4TrackFragmentBox *traf = dynamic_cast<SrsMp4TrackFragmentBox *>(moof->get(SrsMp4BoxTypeTRAF));
+        ASSERT_TRUE(traf != NULL && traf->trun() != NULL);
+        SrsMp4TrackFragmentRunBox *trun = traf->trun();
+        EXPECT_EQ(1, trun->version_);
+        ASSERT_EQ(2u, trun->entries_.size());
+        EXPECT_EQ(-40, trun->entries_[0]->sample_composition_time_offset_);
+        EXPECT_EQ(40, trun->entries_[1]->sample_composition_time_offset_);
+        EXPECT_EQ(40u, trun->entries_[0]->sample_duration_);
+        EXPECT_EQ(40u, trun->entries_[1]->sample_duration_);
+        EXPECT_EQ(sizeof(mp4_avc_idr_sample), trun->entries_[0]->sample_size_);
+        // The samples start right after the mdat header that follows the moof.
+        EXPECT_EQ((int32_t)moof->sz() + 8, trun->data_offset_);
+
+        SrsMp4SegmentIndexBox *sidx = dynamic_cast<SrsMp4SegmentIndexBox *>(segment.boxes_[1]);
+        ASSERT_TRUE(sidx != NULL);
+        EXPECT_EQ(1, sidx->version_);
+        EXPECT_EQ(1000u, sidx->timescale_);
+        EXPECT_EQ(2000u, sidx->earliest_presentation_time_);
+        ASSERT_EQ(1u, sidx->entries_.size());
+        EXPECT_EQ(80u, sidx->entries_[0].subsegment_duration_);
+        EXPECT_EQ(moof->sz() + segment.boxes_[3]->sz(), sidx->entries_[0].referenced_size_);
+        EXPECT_EQ(1, sidx->entries_[0].starts_with_SAP_);
+    }
+}
+
+// HLS fMP4 with SAMPLE-AES (cbcs): a key frame carries an SEI over 64 KB before its slice, such as one with large
+// user data. The senc gives the clear bytes before each protected range in a 16-bit field, so a clear run over
+// 65535 bytes is split into subsamples with no protected bytes. The player then leaves the whole SEI and the slice
+// header clear, and decrypts only the first block of each 10 in the rest of the slice.
+VOID TEST(KernelMp4Test, HlsFmp4EncryptedFrameWithLargeSeiSplitsTheClearRun)
+{
+    srs_error_t err;
+
+    // An SEI NALU of 70000 bytes, then an IDR slice of 100 bytes, each after its 4-byte length.
+    string sample;
+    sample.append("\x00\x01\x11\x70", 4);
+    sample.append(1, '\x06');
+    sample.append(69999, '\x5a');
+    sample.append("\x00\x00\x00\x64", 4);
+    sample.append(1, '\x65');
+    for (int i = 0; i < 99; i++) {
+        sample.append(1, (char)i);
+    }
+
+    MockSrsFileWriter fw;
+    SrsFmp4SegmentEncoder enc;
+    HELPER_ASSERT_SUCCESS(enc.initialize(&fw, 1, 0, 1, 2));
+    unsigned char key[16], iv[16];
+    memset(key, 0x33, sizeof(key));
+    memset(iv, 0x44, sizeof(iv));
+    HELPER_ASSERT_SUCCESS(enc.config_cipher(key, iv));
+    enc.config_video_cipher(SrsVideoCodecIdAVC, 4);
+    HELPER_ASSERT_SUCCESS(enc.write_sample(SrsMp4HandlerTypeVIDE, SrsVideoAvcFrameTypeKeyFrame, 0, 0, (uint8_t *)sample.data(), (uint32_t)sample.size()));
+    HELPER_ASSERT_SUCCESS(enc.flush(40));
+
+    string data = fw.str();
+    size_t senc_type = data.find("senc");
+    ASSERT_NE(string::npos, senc_type);
+    SrsBuffer buf((char *)data.data() + senc_type - 4, (int)(data.size() - senc_type + 4));
+    SrsMp4SampleEncryptionBox senc(0);
+    HELPER_ASSERT_SUCCESS(senc.decode(&buf));
+    ASSERT_EQ(1u, senc.entries_.size());
+
+    // The SEI with its length, and the slice's length and first 32 bytes, are 70040 clear bytes before the 68
+    // protected bytes of the slice.
+    vector<SrsMp4SubSampleEncryptionInfo> &infos = senc.entries_[0]->subsample_infos_;
+    ASSERT_EQ(2u, infos.size());
+    EXPECT_EQ(65535, infos[0].bytes_of_clear_data_);
+    EXPECT_EQ(0u, infos[0].bytes_of_protected_data_);
+    EXPECT_EQ(70040 - 65535, infos[1].bytes_of_clear_data_);
+    EXPECT_EQ(68u, infos[1].bytes_of_protected_data_);
+
+    // In the mdat, only the first 16 protected bytes are encrypted.
+    size_t mdat_type = data.find("mdat");
+    ASSERT_NE(string::npos, mdat_type);
+    string out = data.substr(mdat_type + 4);
+    ASSERT_EQ(sample.size(), out.size());
+    EXPECT_EQ(sample.substr(0, 70040), out.substr(0, 70040));
+    EXPECT_NE(sample.substr(70040, 16), out.substr(70040, 16));
+    EXPECT_EQ(sample.substr(70056), out.substr(70056));
 }
