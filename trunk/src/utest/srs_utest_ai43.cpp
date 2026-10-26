@@ -14,6 +14,7 @@
 #include <srs_app_heartbeat.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_http_api.hpp>
+#include <srs_app_http_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
@@ -33,6 +34,7 @@
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai16.hpp>
+#include <srs_utest_ai19.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_ai34.hpp>
 #include <srs_utest_ai40.hpp>
@@ -3051,4 +3053,274 @@ VOID TEST(AppHttpApiTest, MetricsScrapedWithExporterOff_Refused)
     HELPER_ASSERT_SUCCESS(mux.serve_http(&w, &r));
     EXPECT_EQ(ERROR_EXPORTER_DISABLED, http_api_utest_code(io)) << http_api_utest_body(io);
     EXPECT_EQ(string::npos, http_api_utest_body(io).find("srs_build_info"));
+}
+
+// The coroutine of an HTTP connection: a kick (expire) interrupts it, and from then on each pull fails, as for the
+// server's coroutine.
+class HttpConnUtestCoroutine : public MockCoroutineForCycle
+{
+public:
+    virtual void interrupt()
+    {
+        if (pull_error_ == srs_success) {
+            pull_error_ = srs_error_new(ERROR_THREAD_INTERRUPED, "interrupted");
+        }
+    }
+};
+
+// A client of the HTTP API listener, whose socket holds the requests it sends, served by the server's HTTP connection
+// and its owner, with the API mounted as the server mounts it.
+class HttpConnUtestClient
+{
+public:
+    MockSrsConfig conf_;
+    MockResourceManagerForHttpxConn manager_;
+    HttpApiUtestServer api_;
+    MockBufferIO *io_;
+    SrsHttpxConn *connx_;
+    SrsHttpConn *conn_;
+
+public:
+    HttpConnUtestClient(string requests)
+    {
+        io_ = new MockBufferIO();
+        io_->append(requests);
+
+        connx_ = new SrsHttpxConn(&manager_, io_, &api_.mux_, "127.0.0.1", 50000, "", "");
+        connx_->config_ = &conf_;
+        connx_->set_api_listener(true);
+
+        conn_ = new SrsHttpConn(connx_, io_, &api_.mux_, "127.0.0.1", 50000);
+        conn_->config_ = &conf_;
+        conn_->trd_ = new HttpConnUtestCoroutine();
+        connx_->conn_ = conn_;
+    }
+    virtual ~HttpConnUtestClient()
+    {
+        conn_->config_ = NULL;
+        connx_->config_ = NULL;
+        srs_freep(connx_);
+    }
+
+public:
+    // Starts the connection as the server does when it accepts the client, by this http_api section.
+    srs_error_t start(string http_api)
+    {
+        srs_error_t err = srs_success;
+        if ((err = conf_.mock_parse(string(_MIN_OK_CONF) + "http_api { enabled on; " + http_api + " }")) != srs_success) {
+            return srs_error_wrap(err, "config");
+        }
+        return connx_->start();
+    }
+    // Runs the connection's coroutine until the client has nothing more to send, and returns what it was sent.
+    string serve()
+    {
+        srs_error_t err = conn_->cycle();
+        EXPECT_TRUE(err == srs_success);
+        srs_freep(err);
+        return string(io_->out_buffer.bytes(), io_->out_buffer.length());
+    }
+};
+
+// The status lines of the HTTP replies in what a client was sent, in order.
+static vector<string> http_conn_utest_statuses(string replies)
+{
+    vector<string> statuses;
+    for (size_t pos = replies.find("HTTP/1.1 "); pos != string::npos; pos = replies.find("HTTP/1.1 ", pos + 1)) {
+        statuses.push_back(replies.substr(pos, replies.find("\r\n", pos) - pos));
+    }
+    return statuses;
+}
+
+// The operator protects the HTTP API with basic auth. A dashboard on one keep-alive connection that sends no
+// credentials, or a wrong password, is refused with 401 and the Basic challenge, so a browser prompts for them; with
+// the right user and password it is served. A path outside /api/, such as a stream, is not protected: it gets the
+// mux's 404, not a 401.
+VOID TEST(AppHttpConnTest, ApiBasicAuth_OnlyRightCredentialsServed)
+{
+    srs_error_t err;
+
+    // admin:secret and admin:wrong in base64.
+    HttpConnUtestClient client(
+        "GET /api/v1/versions HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+        "GET /api/v1/versions HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Basic YWRtaW46d3Jvbmc=\r\n\r\n"
+        "GET /api/v1/versions HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Basic YWRtaW46c2VjcmV0\r\n\r\n"
+        "GET /live/livestream.flv HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+    HELPER_ASSERT_SUCCESS(client.start("auth { enabled on; type basic; username admin; password secret; }"));
+
+    string replies = client.serve();
+    vector<string> statuses = http_conn_utest_statuses(replies);
+    ASSERT_EQ(4, (int)statuses.size()) << replies;
+    EXPECT_STREQ("HTTP/1.1 401 Unauthorized", statuses[0].c_str());
+    EXPECT_STREQ("HTTP/1.1 401 Unauthorized", statuses[1].c_str());
+    EXPECT_STREQ("HTTP/1.1 200 OK", statuses[2].c_str());
+    EXPECT_STREQ("HTTP/1.1 404 Not Found", statuses[3].c_str());
+    EXPECT_NE(string::npos, replies.find("WWW-Authenticate: Basic realm=\"SRS\"\r\n")) << replies;
+    EXPECT_NE(string::npos, replies.find("\"version\":\"" RTMP_SIG_SRS_VERSION "\"")) << replies;
+
+    // The client left after its requests, so the connection ends and removes itself.
+    EXPECT_TRUE(client.manager_.remove_called_);
+}
+
+// The operator protects the HTTP API with a bearer token, and the WebRTC signaling too (rtc_bearer_enabled). A script
+// with no token is refused with 401 and the Bearer challenge, at the API and at a WHIP publish; with the token it is
+// served. With rtc_bearer_enabled off, the signaling is not protected: the WHIP path gets past auth to the mux.
+VOID TEST(AppHttpConnTest, ApiBearerAuth_TokenGuardsApiAndRtcSignaling)
+{
+    srs_error_t err;
+
+    string requests = "GET /api/v1/versions HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+                      "GET /api/v1/versions HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Bearer t1\r\n\r\n"
+                      "POST /rtc/v1/whip/?app=live&stream=livestream HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\n\r\n";
+
+    if (true) {
+        HttpConnUtestClient client(requests);
+        HELPER_ASSERT_SUCCESS(client.start("auth { enabled on; type bearer; token t1; rtc_bearer_enabled on; }"));
+
+        string replies = client.serve();
+        vector<string> statuses = http_conn_utest_statuses(replies);
+        ASSERT_EQ(3, (int)statuses.size()) << replies;
+        EXPECT_STREQ("HTTP/1.1 401 Unauthorized", statuses[0].c_str());
+        EXPECT_STREQ("HTTP/1.1 200 OK", statuses[1].c_str());
+        EXPECT_STREQ("HTTP/1.1 401 Unauthorized", statuses[2].c_str());
+        EXPECT_NE(string::npos, replies.find("WWW-Authenticate: Bearer\r\n")) << replies;
+    }
+
+    if (true) {
+        HttpConnUtestClient client(requests);
+        HELPER_ASSERT_SUCCESS(client.start("auth { enabled on; type bearer; token t1; }"));
+
+        string replies = client.serve();
+        vector<string> statuses = http_conn_utest_statuses(replies);
+        ASSERT_EQ(3, (int)statuses.size()) << replies;
+        EXPECT_STREQ("HTTP/1.1 401 Unauthorized", statuses[0].c_str());
+        EXPECT_STREQ("HTTP/1.1 200 OK", statuses[1].c_str());
+        EXPECT_STREQ("HTTP/1.1 404 Not Found", statuses[2].c_str());
+    }
+}
+
+// The process is out of memory when the server accepts an HTTP client, so no coroutine can be created for it. The
+// start fails with the ST error, and the server closes the client.
+VOID TEST(AppHttpConnTest, ClientWhenNoCoroutineCanBeCreated_Refused)
+{
+    HttpConnUtestClient client("GET /api/v1/versions HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+    srs_freep(client.conn_->trd_);
+    client.conn_->assemble();
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)forward_st_thread_create_out_of_memory;
+    srs_error_t err = client.start("");
+    _pfn_st_thread_create = ov;
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("coroutine")) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(0, client.io_->out_length());
+}
+
+// The live stream handler of an HTTP-FLV viewer, whose publisher has unpublished: it ends the viewer with stream EOF,
+// as SrsLiveStream does once its entry is disabled.
+class HttpConnUtestUnpublishedStream : public ISrsHttpHandler
+{
+public:
+    virtual srs_error_t serve_http(ISrsHttpResponseWriter *w, ISrsHttpMessage *r)
+    {
+        return srs_error_new(ERROR_HTTP_STREAM_EOF, "Stream EOF");
+    }
+};
+
+// Each way an HTTP connection ends is logged by its cause, and none is an error of the coroutine: a client that leaves
+// is a warning, an HTTP-FLV viewer ended by its publisher's unpublish is a server disconnect warning, and a client that
+// sends a request that is not HTTP, such as a scanner, is an error log naming the parse error.
+VOID TEST(AppHttpConnTest, ConnectionEnd_LoggedByCause)
+{
+    srs_error_t err;
+
+    const char *requests[] = {
+        "GET /api/v1/versions HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n",
+        "GET /live/livestream.flv HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n",
+        "\x16\x03\x01\x02\x00\x01\x00\x01\xfc\x03\x03\r\n\r\n",
+    };
+    for (int i = 0; i < 3; i++) {
+        HttpConnUtestClient client(requests[i]);
+        HELPER_ASSERT_SUCCESS(client.api_.mux_.handle("/live/livestream.flv", new HttpConnUtestUnpublishedStream()));
+        HELPER_ASSERT_SUCCESS(client.start(""));
+
+        MockLogForSignal log;
+        ISrsLog *original = _srs_log;
+        _srs_log = &log;
+        client.serve();
+        _srs_log = original;
+
+        if (i == 0) {
+            EXPECT_NE("", utest_log_find(log.warns_, "client disconnect peer. ret=1007"));
+            EXPECT_EQ(0, log.error_count_);
+        } else if (i == 1) {
+            EXPECT_NE("", utest_log_find(log.warns_, "server disconnect. ret=4040"));
+            EXPECT_EQ(0, log.error_count_);
+        } else {
+            EXPECT_NE("", utest_log_find(log.errors_, "serve error"));
+            EXPECT_NE("", utest_log_find(log.errors_, "parse message"));
+            EXPECT_EQ(0, log.warn_count_);
+        }
+        EXPECT_TRUE(client.manager_.remove_called_) << i;
+    }
+}
+
+// The socket of an HTTP-FLV viewer that sends nothing after its request: each read of the recv thread times out,
+// and at the given read the operator kicks the viewer, as the API's DELETE does from another coroutine.
+class HttpConnUtestIdleViewerSocket : public MockSslConnection
+{
+public:
+    int kick_at_;
+    ISrsExpire *kick_;
+
+public:
+    HttpConnUtestIdleViewerSocket()
+    {
+        kick_at_ = 0;
+        kick_ = NULL;
+    }
+
+public:
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread)
+    {
+        if (++read_count_ == kick_at_ && kick_) {
+            kick_->expire();
+        }
+        return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout");
+    }
+};
+
+// The recv thread of an idle HTTP-FLV viewer reads its socket with a 3s timeout, so a kick is seen within 3s: it reads
+// again at each timeout, and after the operator kicks the viewer, it stops at the next timeout with the interrupt. An
+// HTTPS-FLV viewer is read through TLS, never from the raw socket under it.
+VOID TEST(AppHttpConnTest, IdleFlvViewerKicked_RecvThreadStopsAtNextTimeout)
+{
+    srs_error_t err;
+
+    for (int https = 0; https < 2; https++) {
+        HttpConnUtestIdleViewerSocket *raw = new HttpConnUtestIdleViewerSocket();
+        HttpConnUtestIdleViewerSocket *tls = https ? new HttpConnUtestIdleViewerSocket() : NULL;
+        HttpConnUtestIdleViewerSocket *skt = https ? tls : raw;
+
+        SrsUniquePtr<SrsHttpxConn> connx(new SrsHttpxConn(NULL, raw, NULL, "127.0.0.1", 50000, https ? "/key.pem" : "", https ? "/cert.pem" : ""));
+        connx->ssl_ = tls;
+        SrsHttpConn *conn = new SrsHttpConn(connx.get(), skt, NULL, "127.0.0.1", 50000);
+        conn->trd_ = new HttpConnUtestCoroutine();
+        connx->conn_ = conn;
+
+        skt->kick_at_ = 3;
+        skt->kick_ = conn;
+
+        err = connx->pop_message(NULL);
+        EXPECT_EQ(ERROR_THREAD_INTERRUPED, srs_error_code(err)) << https;
+        srs_freep(err);
+
+        EXPECT_EQ(3, skt->read_count_) << https;
+        EXPECT_EQ(3 * SRS_UTIME_SECONDS, skt->get_recv_timeout()) << https;
+        if (https) {
+            EXPECT_EQ(0, raw->read_count_);
+        }
+    }
 }
