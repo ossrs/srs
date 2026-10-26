@@ -53,6 +53,13 @@
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_service.hpp>
+#include <srs_utest_ai07.hpp>
+#include <srs_utest_ai11.hpp>
+#include <srs_utest_workflow_rtc_conn.hpp>
+#include <srs_app_rtc_network.hpp>
+#include <srs_kernel_rtc_rtcp.hpp>
+#include <srs_kernel_rtc_rtp.hpp>
+#include <srs_protocol_sdp.hpp>
 #ifdef SRS_FFMPEG_FIT
 #include <srs_app_rtc_codec.hpp>
 #endif
@@ -3007,3 +3014,1400 @@ VOID TEST(AppRtcCodecTest, DISABLED_WhipG722WithRtcToRtmp_PublishRefused)
     HELPER_EXPECT_SUCCESS(builder.initialize(&req, g722, SrsVideoCodecIdAVC));
 }
 #endif
+
+// The factory of an RTC server whose publish and play streams find the server's RTC sources, and whose candidate
+// discovery gets a fresh utility each time, as the connection frees it.
+class RtcConnUtestFactory : public MockAppFactoryForRtcConn
+{
+public:
+    virtual ISrsProtocolUtility *create_protocol_utility()
+    {
+        return new MockProtocolUtility("192.168.1.100");
+    }
+    virtual ISrsRtcPlayStream *create_rtc_play_stream(ISrsExecRtcAsyncTask *exec, ISrsExpire *expire, ISrsRtcPacketSender *sender, const SrsContextId &cid)
+    {
+        SrsRtcPlayStream *player = new SrsRtcPlayStream(exec, expire, sender, cid);
+        player->rtc_sources_ = rtc_sources_;
+        return player;
+    }
+};
+
+// A client's UDP address, which keeps every packet the server sends to it.
+class RtcConnUtestSocket : public MockUdpMuxSocket
+{
+public:
+    std::vector<std::string> sent_;
+
+public:
+    virtual srs_error_t sendto(void *data, int size, srs_utime_t timeout)
+    {
+        sent_.push_back(std::string((char *)data, size));
+        return MockUdpMuxSocket::sendto(data, size, timeout);
+    }
+};
+
+// The RTC server from config text: the stream's source, the sessions' manager, the circuit breaker and the DTLS
+// certificate every WebRTC session of a client shares.
+class RtcConnUtestServer
+{
+public:
+    MockSrsConfig conf_;
+    MockCircuitBreaker circuit_breaker_;
+    MockConnectionManager conn_manager_;
+    MockRtcSourceManager rtc_sources_;
+    MockDtlsCertificate dtls_certificate_;
+    RtcConnUtestFactory app_factory_;
+    MockRtcAsyncTaskExecutor exec_;
+    MockRtcSource *source_;
+
+public:
+    RtcConnUtestServer()
+    {
+        dtls_certificate_.fingerprint_ = "test-fingerprint";
+        app_factory_.rtc_sources_ = &rtc_sources_;
+        source_ = new MockRtcSource();
+        rtc_sources_.mock_source_ = SrsSharedPtr<SrsRtcSource>(source_);
+    }
+
+public:
+    srs_error_t initialize(std::string text = "")
+    {
+        if (text.find("rtc_server") == std::string::npos) {
+            text = "rtc_server { enabled on; listen 8000; candidate 192.168.1.100; } " + text;
+        }
+        return conf_.mock_parse(string(_MIN_OK_CONF) + text);
+    }
+};
+
+// A WebRTC client of the server, a WHIP publisher or a WHEP player, with its own session, as SrsRtcSessionManager
+// makes one for each offer.
+class RtcConnUtestClient
+{
+public:
+    RtcConnUtestServer *server_;
+    SrsContextId cid_;
+    SrsUniquePtr<ISrsRtcConnection> conn_ptr_;
+    SrsRtcConnection *conn_;
+    SrsRtcUserConfig ruc_;
+    SrsSdp answer_;
+    RtcConnUtestSocket skt_;
+
+public:
+    RtcConnUtestClient(RtcConnUtestServer *server) : conn_ptr_(new SrsRtcConnection(&server->exec_, cid_))
+    {
+        server_ = server;
+
+        conn_ = dynamic_cast<SrsRtcConnection *>(conn_ptr_.get());
+        conn_->circuit_breaker_ = &server->circuit_breaker_;
+        conn_->conn_manager_ = &server->conn_manager_;
+        conn_->rtc_sources_ = &server->rtc_sources_;
+        conn_->config_ = &server->conf_;
+        conn_->dtls_certificate_ = &server->dtls_certificate_;
+        conn_->app_factory_ = &server->app_factory_;
+        conn_->assemble();
+
+        SrsRtcPublisherNegotiator *pub_neg = dynamic_cast<SrsRtcPublisherNegotiator *>(conn_->publisher_negotiator_);
+        pub_neg->config_ = &server->conf_;
+        SrsRtcPlayerNegotiator *play_neg = dynamic_cast<SrsRtcPlayerNegotiator *>(conn_->player_negotiator_);
+        play_neg->config_ = &server->conf_;
+        play_neg->rtc_sources_ = &server->rtc_sources_;
+
+        srs_freep(ruc_.req_);
+        ruc_.req_ = new MockRtcAsyncCallRequest("__defaultVhost__", "live", "livestream");
+        skt_.peer_id_ = "10.0.0.1:50000";
+    }
+    ~RtcConnUtestClient()
+    {
+        SrsRtcUdpNetwork *udp = dynamic_cast<SrsRtcUdpNetwork *>(conn_->networks_->udp());
+        udp->sendonly_skt_ = NULL;
+    }
+
+public:
+    // Sends the offer to the WHIP API, with the codecs a client asks for by `?vcodec=` and `?acodec=`.
+    srs_error_t publish(std::string offer, std::string vcodec = "", std::string acodec = "")
+    {
+        ruc_.publish_ = true;
+        ruc_.vcodec_ = vcodec;
+        ruc_.acodec_ = acodec;
+        return exchange(offer);
+    }
+
+    // Sends the offer to the WHEP API, with the codec a client asks for by `?codec=`.
+    srs_error_t play(std::string offer, std::string vcodec = "")
+    {
+        ruc_.publish_ = false;
+        ruc_.vcodec_ = vcodec;
+        return exchange(offer);
+    }
+
+    // The client's ICE and DTLS are done with encryption off, so the session sends to the client's UDP address.
+    srs_error_t connect()
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = conn_->initialize(ruc_.req_, false, false, "utest")) != srs_success) {
+            return srs_error_wrap(err, "initialize");
+        }
+
+        SrsRtcUdpNetwork *udp = dynamic_cast<SrsRtcUdpNetwork *>(conn_->networks_->udp());
+        udp->sendonly_skt_ = &skt_;
+        udp->set_state(SrsRtcNetworkStateEstablished);
+
+        return err;
+    }
+
+    // The media sections of the answer of the type, audio or video.
+    std::vector<SrsMediaDesc *> answered(std::string type)
+    {
+        return answer_.find_media_descs(type);
+    }
+
+    // The publish stream of the client, after it published.
+    SrsRtcPublishStream *publisher()
+    {
+        return dynamic_cast<SrsRtcPublishStream *>(conn_->publishers_.begin()->second);
+    }
+
+    // The play stream of the client, after it played.
+    SrsRtcPlayStream *player()
+    {
+        return dynamic_cast<SrsRtcPlayStream *>(conn_->players_.begin()->second);
+    }
+
+    srs_error_t on_rtp(std::string bytes)
+    {
+        srs_error_t err = srs_success;
+
+        std::string copy = bytes;
+        bool dropped = false;
+        if ((err = conn_->on_rtp_cipher((char *)copy.data(), (int)copy.size(), &dropped)) != srs_success) {
+            return srs_error_wrap(err, "cipher");
+        }
+        if (dropped) {
+            return err;
+        }
+        return conn_->on_rtp_plaintext((char *)copy.data(), (int)copy.size());
+    }
+
+    srs_error_t on_rtcp(std::string bytes)
+    {
+        std::string copy = bytes;
+        return conn_->on_rtcp((char *)copy.data(), (int)copy.size());
+    }
+
+private:
+    srs_error_t exchange(std::string offer)
+    {
+        srs_error_t err = srs_success;
+
+        ruc_.remote_sdp_str_ = offer;
+        if ((err = ruc_.remote_sdp_.parse(offer)) != srs_success) {
+            return srs_error_wrap(err, "parse offer");
+        }
+
+        answer_.session_config_.dtls_role_ = server_->conf_.get_rtc_dtls_role(ruc_.req_->vhost_);
+        answer_.session_config_.dtls_version_ = server_->conf_.get_rtc_dtls_version(ruc_.req_->vhost_);
+
+        if (ruc_.publish_) {
+            err = conn_->add_publisher(&ruc_, answer_);
+        } else {
+            err = conn_->add_player(&ruc_, answer_);
+        }
+        if (err != srs_success) {
+            return srs_error_wrap(err, "add");
+        }
+
+        conn_->set_all_tracks_status(ruc_.req_->get_stream_url(), ruc_.publish_, true);
+
+        std::string username;
+        if ((err = conn_->generate_local_sdp(&ruc_, answer_, username)) != srs_success) {
+            return srs_error_wrap(err, "local sdp");
+        }
+
+        return err;
+    }
+};
+
+// One m= section of a browser's offer: the transport lines of every section, then the codec and SSRC lines.
+static std::string rtc_conn_utest_section(std::string kind, std::string mid, std::string direction, std::string pts, std::string lines)
+{
+    return "m=" + kind + " 9 UDP/TLS/RTP/SAVPF " + pts + "\r\n" +
+           "c=IN IP4 0.0.0.0\r\n"
+           "a=rtcp:9 IN IP4 0.0.0.0\r\n"
+           "a=ice-ufrag:utst\r\n"
+           "a=ice-pwd:utestpassword1234567890ab\r\n"
+           "a=ice-options:trickle\r\n"
+           "a=fingerprint:sha-256 AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99\r\n"
+           "a=setup:actpass\r\n"
+           "a=mid:" +
+           mid + "\r\n" +
+           "a=" + direction + "\r\n" +
+           "a=rtcp-mux\r\n" + lines;
+}
+
+static std::string rtc_conn_utest_offer(std::string bundle, std::string sections)
+{
+    return "v=0\r\n"
+           "o=- 4611731400430051336 2 IN IP4 127.0.0.1\r\n"
+           "s=-\r\n"
+           "t=0 0\r\n"
+           "a=group:BUNDLE " +
+           bundle + "\r\n" +
+           "a=msid-semantic: WMS stream\r\n" + sections;
+}
+
+#define RTC_CONN_UTEST_TWCC_EXTMAP "a=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\n"
+
+// Chrome's Opus section of a publisher, on SSRC 1001.
+static std::string rtc_conn_utest_opus_publisher()
+{
+    return rtc_conn_utest_section("audio", "0", "sendonly", "111",
+                                  "a=rtpmap:111 opus/48000/2\r\n"
+                                  "a=fmtp:111 minptime=10;useinbandfec=1\r\n"
+                                  "a=ssrc:1001 cname:utest\r\n"
+                                  "a=ssrc:1001 msid:stream audio\r\n");
+}
+
+// Chrome's H.264 section of a publisher, on SSRC 2001.
+static std::string rtc_conn_utest_h264_publisher()
+{
+    return rtc_conn_utest_section("video", "1", "sendonly", "106",
+                                  "a=rtpmap:106 H264/90000\r\n"
+                                  "a=rtcp-fb:106 nack\r\n"
+                                  "a=rtcp-fb:106 nack pli\r\n"
+                                  "a=fmtp:106 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+                                  "a=ssrc:2001 cname:utest\r\n"
+                                  "a=ssrc:2001 msid:stream video\r\n");
+}
+
+// A publisher's video section of one codec, on SSRC 2001.
+static std::string rtc_conn_utest_video_publisher(std::string pt, std::string codec)
+{
+    return rtc_conn_utest_section("video", "1", "sendonly", pt,
+                                  RTC_CONN_UTEST_TWCC_EXTMAP
+                                  "a=rtpmap:" +
+                                      pt + " " + codec + "/90000\r\n" +
+                                      "a=rtcp-fb:" + pt + " nack\r\n" +
+                                      "a=rtcp-fb:" + pt + " nack pli\r\n" +
+                                      "a=rtcp-fb:" + pt + " transport-cc\r\n" +
+                                      "a=ssrc:2001 cname:utest\r\n"
+                                      "a=ssrc:2001 msid:stream video\r\n");
+}
+
+// A player's Opus section.
+static std::string rtc_conn_utest_opus_player()
+{
+    return rtc_conn_utest_section("audio", "0", "recvonly", "111", "a=rtpmap:111 opus/48000/2\r\n");
+}
+
+// A player's video section of one codec, with TWCC as Chrome offers it.
+static std::string rtc_conn_utest_video_player(std::string pt, std::string codec, std::string fmtp = "")
+{
+    std::string lines = RTC_CONN_UTEST_TWCC_EXTMAP "a=rtpmap:" + pt + " " + codec + "/90000\r\n" +
+                        "a=rtcp-fb:" + pt + " nack\r\n" +
+                        "a=rtcp-fb:" + pt + " nack pli\r\n" +
+                        "a=rtcp-fb:" + pt + " transport-cc\r\n";
+    if (!fmtp.empty()) {
+        lines += "a=fmtp:" + pt + " " + fmtp + "\r\n";
+    }
+    return rtc_conn_utest_section("video", "1", "recvonly", pt, lines);
+}
+
+static bool rtc_conn_utest_has_fb(const SrsMediaPayloadType &pt, std::string fb)
+{
+    return std::find(pt.rtcp_fb_.begin(), pt.rtcp_fb_.end(), fb) != pt.rtcp_fb_.end();
+}
+
+// An RTP packet of a publisher, with the TWCC sequence number in extension 3 if it has one.
+static std::string rtc_conn_utest_rtp(uint32_t ssrc, uint8_t pt, uint16_t seq, int twcc_sn = -1)
+{
+    SrsRtpPacket pkt;
+    pkt.header_.set_ssrc(ssrc);
+    pkt.header_.set_payload_type(pt);
+    pkt.header_.set_sequence(seq);
+    pkt.header_.set_timestamp(90000 + seq * 3000);
+    pkt.header_.set_marker(true);
+    if (twcc_sn >= 0) {
+        srs_error_t err = pkt.header_.set_twcc_sequence_number(3, (uint16_t)twcc_sn);
+        srs_freep(err);
+    }
+
+    SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+    static char payload[] = {0x65, (char)0x88, (char)0x84, 0x00};
+    raw->payload_ = payload;
+    raw->nn_payload_ = sizeof(payload);
+    pkt.set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+
+    char buf[kRtpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+    srs_error_t err = pkt.encode(&stream);
+    srs_freep(err);
+    return std::string(buf, stream.pos());
+}
+
+// Safari publishes HEVC by WHIP with `?codec=hevc`, and a player that asks for HEVC plays it: each answer takes the
+// H.265 payload type the client offered, with NACK and TWCC feedback, and the player's answer the TWCC extension too.
+VOID TEST(AppRtcConnTest, WhipHevcPublishedThenPlayedByHevcPlayer)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    std::string offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_video_publisher("49", "H265"));
+    HELPER_ASSERT_SUCCESS(publisher.publish(offer, "hevc"));
+
+    std::vector<SrsMediaDesc *> videos = publisher.answered("video");
+    ASSERT_EQ(1, (int)videos.size());
+    ASSERT_EQ(1, (int)videos[0]->payload_types_.size());
+    SrsMediaPayloadType &pub = videos[0]->payload_types_[0];
+    EXPECT_EQ(49, pub.payload_type_);
+    EXPECT_STREQ("H265", pub.encoding_name_.c_str());
+    EXPECT_TRUE(rtc_conn_utest_has_fb(pub, "nack"));
+    EXPECT_TRUE(rtc_conn_utest_has_fb(pub, "nack pli"));
+    EXPECT_TRUE(rtc_conn_utest_has_fb(pub, "transport-cc"));
+
+    RtcConnUtestClient player(&server);
+    offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("100", "H265", "level-id=93;profile-id=1;tier-flag=0;tx-mode=SRST"));
+    HELPER_ASSERT_SUCCESS(player.play(offer, "hevc"));
+
+    videos = player.answered("video");
+    ASSERT_EQ(1, (int)videos.size());
+    ASSERT_EQ(1, (int)videos[0]->payload_types_.size());
+    SrsMediaPayloadType &play = videos[0]->payload_types_[0];
+    EXPECT_EQ(100, play.payload_type_);
+    EXPECT_STREQ("H265", play.encoding_name_.c_str());
+    EXPECT_TRUE(rtc_conn_utest_has_fb(play, "transport-cc"));
+    EXPECT_EQ(kTWCCExt, videos[0]->extmaps_[3]);
+    // The player's packets are the publisher's, with the player's payload type.
+    EXPECT_EQ(49, player.player()->video_tracks_.begin()->second->track_desc_->media_->pt_of_publisher_);
+}
+
+// A WHIP client asks for a codec with `?codec=` that its offer does not have, such as a browser without HEVC or
+// AV1, or for the default H.264 with an offer of VP8 only: the publish is refused at the offer.
+VOID TEST(AppRtcConnTest, WhipCodecAskedForButNotOfferedRefused)
+{
+    srs_error_t err;
+
+    struct {
+        const char *vcodec_;
+        const char *offered_;
+    } cases[] = {
+        {"hevc", "H264"},
+        {"av1", "H264"},
+        {"vp9", "H264"},
+        {"", "VP8"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+
+        RtcConnUtestClient publisher(&server);
+        std::string offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_video_publisher("96", cases[i].offered_));
+        err = publisher.publish(offer, cases[i].vcodec_);
+        EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err)) << cases[i].vcodec_;
+        srs_freep(err);
+        EXPECT_TRUE(publisher.conn_->publishers_.empty());
+    }
+}
+
+// Chrome M96 names AV1 `AV1X`. It publishes AV1 with `?codec=av1`, and an M96 player plays it with `?codec=av1`:
+// both answers are AV1X, the encoding name the clients offered.
+// @see https://bugs.chromium.org/p/webrtc/issues/detail?id=13166
+VOID TEST(AppRtcConnTest, ChromeM96PublishesAndPlaysAv1AsAv1x)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    std::string offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_video_publisher("35", "AV1X"));
+    HELPER_ASSERT_SUCCESS(publisher.publish(offer, "av1"));
+    ASSERT_EQ(1, (int)publisher.answered("video").size());
+    EXPECT_STREQ("AV1X", publisher.answered("video")[0]->payload_types_[0].encoding_name_.c_str());
+
+    RtcConnUtestClient player(&server);
+    offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("45", "AV1X"));
+    HELPER_ASSERT_SUCCESS(player.play(offer, "av1"));
+    ASSERT_EQ(1, (int)player.answered("video").size());
+    SrsMediaPayloadType &play = player.answered("video")[0]->payload_types_[0];
+    EXPECT_EQ(45, play.payload_type_);
+    EXPECT_STREQ("AV1X", play.encoding_name_.c_str());
+
+    // A player that asks for AV1 from a browser without it, such as Safari, is refused.
+    RtcConnUtestClient h264_player(&server);
+    offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"));
+    err = h264_player.play(offer, "av1");
+    EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err));
+    srs_freep(err);
+}
+
+// Chrome publishes VP9 with `?codec=vp9` and TWCC, and a VP9 player plays it, while a player without VP9 is refused,
+// as SRS does not transcode for WebRTC.
+VOID TEST(AppRtcConnTest, WhipVp9PublishedThenPlayedOnlyByVp9Player)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    std::string offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_video_publisher("98", "VP9"));
+    HELPER_ASSERT_SUCCESS(publisher.publish(offer, "vp9"));
+    ASSERT_EQ(1, (int)publisher.answered("video").size());
+    SrsMediaPayloadType &pub = publisher.answered("video")[0]->payload_types_[0];
+    EXPECT_STREQ("VP9", pub.encoding_name_.c_str());
+    EXPECT_TRUE(rtc_conn_utest_has_fb(pub, "transport-cc"));
+    // The publisher is told the TWCC numbers its packets carry.
+    EXPECT_EQ(3, publisher.publisher()->twcc_id_);
+
+    RtcConnUtestClient player(&server);
+    offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("101", "VP9"));
+    HELPER_ASSERT_SUCCESS(player.play(offer));
+    EXPECT_STREQ("VP9", player.answered("video")[0]->payload_types_[0].encoding_name_.c_str());
+
+    RtcConnUtestClient h264_player(&server);
+    offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"));
+    err = h264_player.play(offer, "vp9");
+    EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err));
+    srs_freep(err);
+}
+
+// H.264 offers without the ideal payload type, profile 42e01f with packetization-mode=1 and
+// level-asymmetry-allowed=1, as from embedded and hardware clients: the first fully set payload of another profile is
+// taken, else the first one without fmtp, else the first one at all.
+VOID TEST(AppRtcConnTest, WhipH264WithoutIdealPayloadTakesBestOffered)
+{
+    srs_error_t err;
+
+    struct {
+        const char *name_;
+        const char *lines_;
+        const char *pts_;
+        int chosen_;
+    } cases[] = {
+        // A High profile camera, which has no Baseline 42e01f.
+        {"high-only",
+         "a=rtpmap:102 H264/90000\r\n"
+         "a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=640c1f\r\n"
+         "a=rtpmap:104 H264/90000\r\n"
+         "a=fmtp:104 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=640c1f\r\n",
+         "102 104", 104},
+        // A client that offers H.264 with no fmtp at all, after one only in packetization-mode=0.
+        {"no-fmtp",
+         "a=rtpmap:102 H264/90000\r\n"
+         "a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42e01f\r\n"
+         "a=rtpmap:96 H264/90000\r\n",
+         "102 96", 96},
+        // Only 42e01f in packetization-mode=0.
+        {"mode-0-only",
+         "a=rtpmap:102 H264/90000\r\n"
+         "a=rtcp-fb:102 nack\r\n"
+         "a=rtcp-fb:102 transport-cc\r\n"
+         "a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42e01f\r\n",
+         "102", 102},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+
+        RtcConnUtestClient publisher(&server);
+        std::string video = rtc_conn_utest_section("video", "1", "sendonly", cases[i].pts_,
+                                                   std::string(RTC_CONN_UTEST_TWCC_EXTMAP) + cases[i].lines_ +
+                                                       "a=ssrc:2001 cname:utest\r\n"
+                                                       "a=ssrc:2001 msid:stream video\r\n");
+        HELPER_EXPECT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + video)));
+
+        ASSERT_EQ(1, (int)publisher.answered("video").size()) << cases[i].name_;
+        SrsMediaPayloadType &pub = publisher.answered("video")[0]->payload_types_[0];
+        EXPECT_EQ(cases[i].chosen_, pub.payload_type_) << cases[i].name_;
+        EXPECT_STREQ("H264", pub.encoding_name_.c_str());
+    }
+
+    // The fallback keeps the feedback the client offered for it.
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+    RtcConnUtestClient publisher(&server);
+    std::string video = rtc_conn_utest_section("video", "1", "sendonly", "102", std::string(RTC_CONN_UTEST_TWCC_EXTMAP) + cases[2].lines_ + "a=ssrc:2001 cname:utest\r\n");
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + video)));
+    SrsMediaPayloadType &pub = publisher.answered("video")[0]->payload_types_[0];
+    EXPECT_TRUE(rtc_conn_utest_has_fb(pub, "nack"));
+    EXPECT_TRUE(rtc_conn_utest_has_fb(pub, "transport-cc"));
+}
+
+// The audio of a WHIP offer: Opus with NACK and TWCC feedback, as Chrome with audio NACK or Pion offers it, an IP camera's or SIP gateway's G.711 alone (PCMU
+// first, as Chrome orders them), and the codecs SRS does not take, G.722 alone or a codec asked for by
+// `?acodec=` that the offer lacks, which are refused.
+VOID TEST(AppRtcConnTest, WhipAudioCodecOfTheOffer)
+{
+    srs_error_t err;
+
+    struct {
+        const char *lines_;
+        const char *pts_;
+        const char *acodec_;
+        const char *chosen_;
+    } cases[] = {
+        {"a=rtpmap:111 opus/48000/2\r\n"
+         "a=rtcp-fb:111 nack\r\n"
+         "a=rtcp-fb:111 transport-cc\r\n",
+         "111", "", "opus"},
+        {"a=rtpmap:0 PCMU/8000\r\n"
+         "a=rtpmap:8 PCMA/8000\r\n",
+         "0 8", "", "PCMU"},
+        {"a=rtpmap:8 PCMA/8000\r\n", "8", "", "PCMA"},
+        {"a=rtpmap:9 G722/8000\r\n", "9", "", NULL},
+        {"a=rtpmap:111 opus/48000/2\r\n", "111", "PCMA", NULL},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+
+        RtcConnUtestClient publisher(&server);
+        std::string audio = rtc_conn_utest_section("audio", "0", "sendonly", cases[i].pts_,
+                                                   std::string(RTC_CONN_UTEST_TWCC_EXTMAP) + cases[i].lines_ +
+                                                       "a=ssrc:1001 cname:utest\r\n"
+                                                       "a=ssrc:1001 msid:stream audio\r\n");
+        err = publisher.publish(rtc_conn_utest_offer("0 1", audio + rtc_conn_utest_h264_publisher()), "", cases[i].acodec_);
+
+        if (!cases[i].chosen_) {
+            EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err)) << cases[i].pts_;
+            srs_freep(err);
+            continue;
+        }
+
+        HELPER_EXPECT_SUCCESS(err);
+        ASSERT_EQ(1, (int)publisher.answered("audio").size());
+        SrsMediaPayloadType &pub = publisher.answered("audio")[0]->payload_types_[0];
+        EXPECT_STREQ(cases[i].chosen_, pub.encoding_name_.c_str());
+        if (i == 0) {
+            EXPECT_TRUE(rtc_conn_utest_has_fb(pub, "nack"));
+            EXPECT_TRUE(rtc_conn_utest_has_fb(pub, "transport-cc"));
+        }
+    }
+}
+
+// A G.711 stream, from an IP camera or a SIP gateway by WHIP, is played by a player that offers the same codec, and a
+// player that offers Opus only is refused, as SRS does not transcode for WebRTC.
+VOID TEST(AppRtcConnTest, G711StreamPlayedOnlyByPlayerWithIt)
+{
+    srs_error_t err;
+
+    const char *codecs[] = {"PCMU", "PCMA"};
+    for (int i = 0; i < 2; i++) {
+        std::string pt = i == 0 ? "0" : "8";
+        std::string rtpmap = "a=rtpmap:" + pt + " " + codecs[i] + "/8000\r\n";
+
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+
+        RtcConnUtestClient publisher(&server);
+        std::string audio = rtc_conn_utest_section("audio", "0", "sendonly", pt, rtpmap + "a=ssrc:1001 cname:utest\r\n");
+        HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", audio + rtc_conn_utest_h264_publisher())));
+
+        RtcConnUtestClient player(&server);
+        audio = rtc_conn_utest_section("audio", "0", "recvonly", "111 " + pt, "a=rtpmap:111 opus/48000/2\r\n" + rtpmap);
+        HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", audio + rtc_conn_utest_video_player("106", "H264"))));
+        ASSERT_EQ(1, (int)player.answered("audio").size());
+        EXPECT_STREQ(codecs[i], player.answered("audio")[0]->payload_types_[0].encoding_name_.c_str());
+
+        RtcConnUtestClient opus_player(&server);
+        err = opus_player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264")));
+        EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err)) << codecs[i];
+        srs_freep(err);
+    }
+}
+
+// A player that offers a kind of media the stream does not have, or only codecs the stream is not in, is refused at
+// the offer, rather than answered without that media, which leaves the client waiting for a track that never comes:
+// audio for a video-only stream, video for an audio-only stream, VP8 for an H.264 stream, and `?codec=vp9` before
+// any publisher, when the stream only has its placeholder tracks.
+// @see https://github.com/ossrs/srs/issues/4738
+VOID TEST(AppRtcConnTest, PlayerOfferingMediaTheStreamLacksRefused)
+{
+    srs_error_t err;
+
+    std::string player_offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"));
+
+    if (true) {
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+        RtcConnUtestClient publisher(&server);
+        HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("1", rtc_conn_utest_h264_publisher())));
+
+        RtcConnUtestClient player(&server);
+        err = player.play(player_offer);
+        EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err));
+        EXPECT_TRUE(srs_error_desc(err).find("no audio track") != std::string::npos);
+        srs_freep(err);
+    }
+
+    if (true) {
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+        RtcConnUtestClient publisher(&server);
+        HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0", rtc_conn_utest_opus_publisher())));
+
+        RtcConnUtestClient player(&server);
+        err = player.play(player_offer);
+        EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err));
+        EXPECT_TRUE(srs_error_desc(err).find("no video track") != std::string::npos);
+        srs_freep(err);
+    }
+
+    if (true) {
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+        RtcConnUtestClient publisher(&server);
+        HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+
+        RtcConnUtestClient player(&server);
+        err = player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("96", "VP8")));
+        EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    if (true) {
+        RtcConnUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.initialize());
+        MockRtcAsyncCallRequest req("__defaultVhost__", "live", "livestream");
+        HELPER_ASSERT_SUCCESS(server.source_->initialize(&req));
+
+        RtcConnUtestClient player(&server);
+        err = player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("98", "VP9")), "vp9");
+        EXPECT_EQ(ERROR_RTC_SDP_EXCHANGE, srs_error_code(err));
+        EXPECT_TRUE(srs_error_desc(err).find("no VP9 track") != std::string::npos);
+        srs_freep(err);
+    }
+}
+
+// Chrome offers RED for Opus and RED with ULPFEC for video. Its publish answer keeps the video RED, and a Chrome
+// player gets RED on both tracks, with the publisher's RED payload types mapped to its own. When another publisher
+// with other RED payload types takes over the stream, the player maps the new ones.
+VOID TEST(AppRtcConnTest, ChromeRedPublishedThenPlayedAndRepublished)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    // A publisher offers RED with its payload types, Opus 111 with RED 63, H.264 106 with RED 121 and ULPFEC 122.
+    struct RedPts {
+        const char *audio_red_;
+        const char *video_red_;
+        uint32_t base_ssrc_;
+    };
+    struct RedOffer {
+        static std::string publisher(RedPts p)
+        {
+            std::string ar = p.audio_red_, vr = p.video_red_;
+            char a[16], v[16];
+            snprintf(a, sizeof(a), "%u", p.base_ssrc_);
+            snprintf(v, sizeof(v), "%u", p.base_ssrc_ + 1);
+            std::string audio = rtc_conn_utest_section("audio", "0", "sendonly", "111 " + ar,
+                                                       "a=rtpmap:111 opus/48000/2\r\n"
+                                                       "a=rtpmap:" +
+                                                           ar + " red/48000/2\r\n" +
+                                                           "a=fmtp:" + ar + " 111/111\r\n" +
+                                                           "a=ssrc:" + a + " cname:utest\r\n" +
+                                                           "a=ssrc:" + a + " msid:stream audio\r\n");
+            std::string video = rtc_conn_utest_section("video", "1", "sendonly", "106 " + vr + " 122",
+                                                       "a=rtpmap:106 H264/90000\r\n"
+                                                       "a=fmtp:106 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+                                                       "a=rtpmap:" +
+                                                           vr + " red/90000\r\n" +
+                                                           "a=rtpmap:122 ulpfec/90000\r\n"
+                                                           "a=ssrc:" +
+                                                           v + " cname:utest\r\n" +
+                                                           "a=ssrc:" + v + " msid:stream video\r\n");
+            return rtc_conn_utest_offer("0 1", audio + video);
+        }
+    };
+
+    RedPts first = {"63", "121", 1001};
+    RtcConnUtestClient *publisher = new RtcConnUtestClient(&server);
+    HELPER_ASSERT_SUCCESS(publisher->publish(RedOffer::publisher(first)));
+    std::vector<SrsMediaDesc *> videos = publisher->answered("video");
+    ASSERT_EQ(1, (int)videos.size());
+    ASSERT_EQ(2, (int)videos[0]->payload_types_.size());
+    EXPECT_STREQ("H264", videos[0]->payload_types_[0].encoding_name_.c_str());
+    EXPECT_STREQ("red", videos[0]->payload_types_[1].encoding_name_.c_str());
+    EXPECT_EQ(121, videos[0]->payload_types_[1].payload_type_);
+
+    // A Chrome player offers RED as 100 for audio and 120 for video.
+    RtcConnUtestClient player(&server);
+    std::string audio = rtc_conn_utest_section("audio", "0", "recvonly", "111 100",
+                                               "a=rtpmap:111 opus/48000/2\r\n"
+                                               "a=rtpmap:100 red/48000/2\r\n");
+    std::string video = rtc_conn_utest_section("video", "1", "recvonly", "106 120",
+                                               "a=rtpmap:106 H264/90000\r\n"
+                                               "a=fmtp:106 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+                                               "a=rtpmap:120 red/90000\r\n");
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", audio + video)));
+
+    std::vector<SrsMediaDesc *> audios = player.answered("audio");
+    ASSERT_EQ(1, (int)audios.size());
+    ASSERT_EQ(2, (int)audios[0]->payload_types_.size());
+    EXPECT_STREQ("red", audios[0]->payload_types_[0].encoding_name_.c_str());
+    EXPECT_EQ(100, audios[0]->payload_types_[0].payload_type_);
+    EXPECT_STREQ("opus", audios[0]->payload_types_[1].encoding_name_.c_str());
+    videos = player.answered("video");
+    ASSERT_EQ(1, (int)videos.size());
+    ASSERT_EQ(2, (int)videos[0]->payload_types_.size());
+    EXPECT_EQ(120, videos[0]->payload_types_[1].payload_type_);
+
+    SrsRtcPlayStream *play = player.player();
+    SrsRtcTrackDescription *atrack = play->audio_tracks_.begin()->second->track_desc_;
+    SrsRtcTrackDescription *vtrack = play->video_tracks_.begin()->second->track_desc_;
+    EXPECT_EQ(63, atrack->red_->pt_of_publisher_);
+    EXPECT_EQ(100, atrack->red_->pt_);
+    EXPECT_EQ(121, vtrack->red_->pt_of_publisher_);
+    EXPECT_EQ(120, vtrack->red_->pt_);
+
+    // The first publisher leaves, and another one publishes with RED 96 and 125, which the source tells the player.
+    srs_freep(publisher);
+    RtcConnUtestClient second(&server);
+    RedPts other = {"96", "125", 3001};
+    HELPER_ASSERT_SUCCESS(second.publish(RedOffer::publisher(other)));
+    EXPECT_TRUE(play->is_stream_changed(server.source_->stream_desc()));
+    play->on_stream_change(server.source_->stream_desc());
+
+    atrack = play->audio_tracks_.begin()->second->track_desc_;
+    vtrack = play->video_tracks_.begin()->second->track_desc_;
+    EXPECT_EQ(3001u, play->audio_tracks_.begin()->first);
+    EXPECT_EQ(96, atrack->red_->pt_of_publisher_);
+    EXPECT_EQ(100, atrack->red_->pt_);
+    EXPECT_EQ(3002u, play->video_tracks_.begin()->first);
+    EXPECT_EQ(125, vtrack->red_->pt_of_publisher_);
+    EXPECT_EQ(120, vtrack->red_->pt_);
+}
+
+// libdatachannel may offer its tracks with no SSRC lines. A video track with none still gets its section in the
+// answer, and a track of the stream named by its mid.
+// @see https://github.com/ossrs/srs/issues/4570#issuecomment-3604598513
+VOID TEST(AppRtcConnTest, LibdatachannelVideoWithoutSsrcPublished)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    std::string video = rtc_conn_utest_section("video", "video", "sendonly", "96",
+                                               "a=rtpmap:96 H264/90000\r\n"
+                                               "a=fmtp:96 packetization-mode=1;profile-level-id=42e01f;level-asymmetry-allowed=1\r\n");
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("video", video)));
+
+    std::vector<SrsMediaDesc *> videos = publisher.answered("video");
+    ASSERT_EQ(1, (int)videos.size());
+    EXPECT_STREQ("video", videos[0]->mid_.c_str());
+    EXPECT_EQ(96, videos[0]->payload_types_[0].payload_type_);
+
+    SrsRtcSourceDescription *desc = server.source_->stream_desc();
+    ASSERT_EQ(1, (int)desc->video_track_descs_.size());
+    EXPECT_STREQ("track-video-video", desc->video_track_descs_[0]->id_.c_str());
+    EXPECT_STREQ("live/livestream", desc->video_track_descs_[0]->msid_.c_str());
+}
+
+// A publisher that sends ULPFEC on its own SSRC, grouped with the media by `a=ssrc-group:FEC` (RFC 5956): its FEC
+// SSRC belongs to the video track and reaches the publisher, and a player's answer groups it with the video too.
+VOID TEST(AppRtcConnTest, PublisherWithFecSsrcGroup)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    std::string video = rtc_conn_utest_section("video", "1", "sendonly", "106 122",
+                                               "a=rtpmap:106 H264/90000\r\n"
+                                               "a=fmtp:106 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+                                               "a=rtpmap:122 ulpfec/90000\r\n"
+                                               "a=ssrc-group:FEC 2001 2002\r\n"
+                                               "a=ssrc:2001 cname:utest\r\n"
+                                               "a=ssrc:2001 msid:stream video\r\n"
+                                               "a=ssrc:2002 cname:utest\r\n"
+                                               "a=ssrc:2002 msid:stream video\r\n");
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + video)));
+
+    SrsRtcSourceDescription *desc = server.source_->stream_desc();
+    ASSERT_EQ(1, (int)desc->video_track_descs_.size());
+    EXPECT_EQ(2001u, desc->video_track_descs_[0]->ssrc_);
+    EXPECT_EQ(2002u, desc->video_track_descs_[0]->fec_ssrc_);
+    EXPECT_TRUE(publisher.conn_->publishers_ssrc_map_[2002] == publisher.publisher());
+
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    std::vector<SrsMediaDesc *> videos = player.answered("video");
+    ASSERT_EQ(1, (int)videos.size());
+    ASSERT_EQ(1, (int)videos[0]->ssrc_groups_.size());
+    EXPECT_STREQ("FEC", videos[0]->ssrc_groups_[0].semantic_.c_str());
+    ASSERT_EQ(2, (int)videos[0]->ssrc_groups_[0].ssrcs_.size());
+    EXPECT_EQ(videos[0]->ssrc_infos_[0].ssrc_, videos[0]->ssrc_groups_[0].ssrcs_[0]);
+    EXPECT_EQ(2002u, videos[0]->ssrc_groups_[0].ssrcs_[1]);
+}
+
+// An offer whose video reuses the audio SSRC, from a broken or hostile client, is refused, as the server could not
+// tell the tracks' packets apart. Once that session is gone, the stream can be published by a good offer.
+VOID TEST(AppRtcConnTest, OfferWithVideoReusingAudioSsrcRefused)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    if (true) {
+        RtcConnUtestClient publisher(&server);
+        std::string video = rtc_conn_utest_section("video", "1", "sendonly", "106",
+                                                   "a=rtpmap:106 H264/90000\r\n"
+                                                   "a=fmtp:106 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+                                                   "a=ssrc:1001 cname:utest\r\n"
+                                                   "a=ssrc:1001 msid:stream video\r\n");
+        err = publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + video));
+        EXPECT_EQ(ERROR_RTC_DUPLICATED_SSRC, srs_error_code(err));
+        srs_freep(err);
+    }
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_EXPECT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+}
+
+// The answer's candidates follow `rtc_server.protocol`, UDP, TCP or both, each on its own port, and its DTLS role is
+// the opposite of the client's: passive to an active client, active to a passive one, and the configured role to a
+// client that offers both.
+VOID TEST(AppRtcConnTest, AnswerCandidatesAndDtlsRole)
+{
+    srs_error_t err;
+
+    struct {
+        const char *protocol_;
+        const char *setup_;
+        const char *answer_setup_;
+    } cases[] = {
+        {"udp", "active", "passive"},
+        {"tcp", "passive", "active"},
+        {"all", "actpass", "passive"},
+    };
+
+    for (int i = 0; i < (int)(sizeof(cases) / sizeof(cases[0])); i++) {
+        RtcConnUtestServer server;
+        std::string protocol = cases[i].protocol_;
+        HELPER_ASSERT_SUCCESS(server.initialize("rtc_server { enabled on; listen 8000; candidate 192.168.1.100; protocol " + protocol +
+                                                "; tcp { enabled on; listen 8080; } }"));
+
+        RtcConnUtestClient publisher(&server);
+        std::string offer = rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher());
+        offer = srs_strings_replace(offer, "a=setup:actpass", std::string("a=setup:") + cases[i].setup_);
+        HELPER_ASSERT_SUCCESS(publisher.publish(offer));
+
+        ASSERT_FALSE(publisher.answer_.media_descs_.empty());
+        SrsMediaDesc &media = publisher.answer_.media_descs_[0];
+        EXPECT_STREQ(cases[i].answer_setup_, media.session_info_.setup_.c_str()) << protocol;
+
+        std::vector<SrsCandidate> &candidates = media.candidates_;
+        if (protocol == "udp") {
+            ASSERT_EQ(1, (int)candidates.size());
+            EXPECT_STREQ("udp", candidates[0].protocol_.c_str());
+            EXPECT_EQ(8000, candidates[0].port_);
+        } else if (protocol == "tcp") {
+            ASSERT_EQ(1, (int)candidates.size());
+            EXPECT_STREQ("tcp", candidates[0].protocol_.c_str());
+            EXPECT_EQ(8080, candidates[0].port_);
+        } else {
+            ASSERT_EQ(2, (int)candidates.size());
+            EXPECT_STREQ("udp", candidates[0].protocol_.c_str());
+            EXPECT_EQ(8000, candidates[0].port_);
+            EXPECT_STREQ("tcp", candidates[1].protocol_.c_str());
+            EXPECT_EQ(8080, candidates[1].port_);
+        }
+        EXPECT_STREQ("192.168.1.100", candidates[0].ip_.c_str());
+    }
+}
+
+// A publisher's packet as the source gives it to each player, by default of the publisher's video SSRC 2001 and payload
+// type 106.
+static SrsRtpPacket *rtc_conn_utest_source_packet(uint16_t seq, uint32_t ssrc = 2001, uint8_t pt = 106, bool audio = false)
+{
+    std::string bytes = rtc_conn_utest_rtp(ssrc, pt, seq);
+    SrsRtpPacket *pkt = new SrsRtpPacket();
+    char *p = pkt->wrap((char *)bytes.data(), (int)bytes.size());
+    SrsBuffer buf(p, (int)bytes.size());
+    srs_error_t err = pkt->decode(&buf);
+    srs_freep(err);
+    pkt->frame_type_ = audio ? SrsFrameTypeAudio : SrsFrameTypeVideo;
+    return pkt;
+}
+
+// A WHEP player whose ICE and DTLS are done gets each video packet of the publisher at its UDP address, with its own
+// SSRC and payload type. It asks for a lost one by NACK, which is sent again, and for a keyframe by PLI, which goes
+// to the publisher's SSRC. When its address stops taking packets, such as a client gone without a goodbye, the
+// session still takes the next packet.
+VOID TEST(AppRtcConnTest, WhepPlayerGetsPacketsAtItsAddress)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+
+    // The player offers H.264 as 102.
+    RtcConnUtestClient player(&server);
+    std::string video = rtc_conn_utest_section("video", "1", "recvonly", "102",
+                                               "a=rtpmap:102 H264/90000\r\n"
+                                               "a=rtcp-fb:102 nack\r\n"
+                                               "a=rtcp-fb:102 nack pli\r\n"
+                                               "a=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n");
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + video)));
+    HELPER_ASSERT_SUCCESS(player.connect());
+    uint32_t player_ssrc = player.answered("video")[0]->ssrc_infos_[0].ssrc_;
+
+    SrsRtcPlayStream *play = player.player();
+    for (uint16_t seq = 100; seq < 102; seq++) {
+        SrsRtpPacket *pkt = rtc_conn_utest_source_packet(seq);
+        HELPER_EXPECT_SUCCESS(play->send_packet(pkt));
+        srs_freep(pkt);
+    }
+
+    ASSERT_EQ(2, (int)player.skt_.sent_.size());
+    SrsRtpHeader h;
+    SrsBuffer b0((char *)player.skt_.sent_[0].data(), (int)player.skt_.sent_[0].size());
+    HELPER_ASSERT_SUCCESS(h.decode(&b0));
+    EXPECT_EQ(player_ssrc, h.get_ssrc());
+    EXPECT_EQ(102, h.get_payload_type());
+    uint16_t first_seq = h.get_sequence();
+
+    // The player lost the first packet.
+    SrsRtcpNack nack(player_ssrc);
+    nack.set_media_ssrc(player_ssrc);
+    nack.add_lost_sn(first_seq);
+    char buf[kRtcpPacketSize];
+    SrsBuffer nb(buf, sizeof(buf));
+    HELPER_ASSERT_SUCCESS(nack.encode(&nb));
+    HELPER_EXPECT_SUCCESS(player.on_rtcp(std::string(buf, nb.pos())));
+    ASSERT_EQ(3, (int)player.skt_.sent_.size());
+    EXPECT_EQ(player.skt_.sent_[0], player.skt_.sent_[2]);
+
+    // The player asks for a keyframe.
+    SrsRtcpPli pli(player_ssrc);
+    pli.set_media_ssrc(player_ssrc);
+    SrsBuffer pb(buf, sizeof(buf));
+    HELPER_ASSERT_SUCCESS(pli.encode(&pb));
+    HELPER_EXPECT_SUCCESS(player.on_rtcp(std::string(buf, pb.pos())));
+    SrsRtcPliWorker *worker = dynamic_cast<SrsRtcPliWorker *>(play->pli_worker_);
+    EXPECT_TRUE(worker->plis_.find(2001) != worker->plis_.end());
+
+    // The client is gone.
+    srs_error_t gone = srs_error_new(ERROR_SOCKET_WRITE, "sendto ECONNREFUSED");
+    player.skt_.set_sendto_error(gone);
+    srs_freep(gone);
+    for (uint16_t seq = 102; seq < 104; seq++) {
+        SrsRtpPacket *pkt = rtc_conn_utest_source_packet(seq);
+        HELPER_EXPECT_SUCCESS(play->send_packet(pkt));
+        srs_freep(pkt);
+    }
+    EXPECT_EQ(5, (int)player.skt_.sent_.size());
+}
+
+// Chrome sends a sender report for each SSRC every second, which the publisher keeps for A/V sync and for the
+// receiver reports it sends back.
+VOID TEST(AppRtcConnTest, PublisherSenderReportKeptByItsTrack)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+
+    SrsRtcpSR sr;
+    sr.set_ssrc(2001);
+    sr.set_ntp(((uint64_t)3900000000u << 32) | 0x80000000u);
+    sr.set_rtp_ts(123456);
+    char buf[kRtcpPacketSize];
+    SrsBuffer b(buf, sizeof(buf));
+    HELPER_ASSERT_SUCCESS(sr.encode(&b));
+    HELPER_EXPECT_SUCCESS(publisher.on_rtcp(std::string(buf, b.pos())));
+
+    ASSERT_EQ(1, (int)publisher.publisher()->video_tracks_.size());
+    EXPECT_EQ(123456, publisher.publisher()->video_tracks_[0]->last_sender_report_rtp_time_);
+}
+
+// A publisher's RTCP XR whose report block says it is longer than the packet, as from a broken client or a forged
+// packet, is refused, never read past its end.
+VOID TEST(AppRtcConnTest, PublisherXrBlockLongerThanPacketRefused)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+
+    // XR of 12 bytes from SSRC 2001, with an RRTR block that says it has 44 bytes.
+    uint8_t xr[] = {0x80, 207, 0x00, 0x03, 0x00, 0x00, 0x07, 0xD1, 0x04, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00};
+    err = publisher.on_rtcp(std::string((char *)xr, sizeof(xr)));
+    EXPECT_EQ(ERROR_RTC_RTCP_CHECK, srs_error_code(err));
+    srs_freep(err);
+}
+
+// A publisher on an overloaded server: at the circuit breaker's high level, or its critical level too, the packets 101
+// to 104 are lost and 105 comes, then the load is back to normal when 106 comes, and 107 to 109 are lost. Every part of the session
+// shares the server's circuit breaker, as they share the global one in the server. Gets what the session sent during
+// the overload, and the sequence numbers of its NACK after it.
+static srs_error_t rtc_conn_utest_nack_through_overload(bool critical, std::vector<std::string> &during, std::vector<uint16_t> &after)
+{
+    srs_error_t err = srs_success;
+
+    ListenerUtestClock clock;
+
+    RtcConnUtestServer server;
+    if ((err = server.initialize()) != srs_success) {
+        return srs_error_wrap(err, "server");
+    }
+
+    RtcConnUtestClient publisher(&server);
+    if ((err = publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher()))) != srs_success) {
+        return srs_error_wrap(err, "publish");
+    }
+    if ((err = publisher.connect()) != srs_success) {
+        return srs_error_wrap(err, "connect");
+    }
+
+    SrsRtcPublishStream *pub = publisher.publisher();
+    pub->circuit_breaker_ = &server.circuit_breaker_;
+    pub->video_tracks_[0]->circuit_breaker_ = &server.circuit_breaker_;
+    pub->audio_tracks_[0]->circuit_breaker_ = &server.circuit_breaker_;
+
+    if ((err = publisher.on_rtp(rtc_conn_utest_rtp(2001, 106, 100))) != srs_success) {
+        return srs_error_wrap(err, "rtp");
+    }
+
+    server.circuit_breaker_.hybrid_high_water_level_ = true;
+    server.circuit_breaker_.hybrid_critical_water_level_ = critical;
+    if ((err = publisher.on_rtp(rtc_conn_utest_rtp(2001, 106, 105))) != srs_success) {
+        return srs_error_wrap(err, "rtp");
+    }
+    _srs_system_time_us_cache = clock.base_ + 100 * SRS_UTIME_MILLISECONDS;
+    if ((err = publisher.conn_->do_check_send_nacks()) != srs_success) {
+        return srs_error_wrap(err, "nack");
+    }
+    during = publisher.skt_.sent_;
+    publisher.skt_.sent_.clear();
+
+    server.circuit_breaker_.hybrid_high_water_level_ = false;
+    server.circuit_breaker_.hybrid_critical_water_level_ = false;
+    if ((err = publisher.on_rtp(rtc_conn_utest_rtp(2001, 106, 106))) != srs_success) {
+        return srs_error_wrap(err, "rtp");
+    }
+    if ((err = publisher.on_rtp(rtc_conn_utest_rtp(2001, 106, 110))) != srs_success) {
+        return srs_error_wrap(err, "rtp");
+    }
+    _srs_system_time_us_cache = clock.base_ + 200 * SRS_UTIME_MILLISECONDS;
+    if ((err = publisher.conn_->do_check_send_nacks()) != srs_success) {
+        return srs_error_wrap(err, "nack");
+    }
+
+    pub->circuit_breaker_ = NULL;
+    pub->video_tracks_[0]->circuit_breaker_ = NULL;
+    pub->audio_tracks_[0]->circuit_breaker_ = NULL;
+
+    if (publisher.skt_.sent_.size() != 1) {
+        return srs_error_new(ERROR_RTC_RTCP, "sent %d", (int)publisher.skt_.sent_.size());
+    }
+
+    SrsRtcpCompound compound;
+    SrsBuffer b((char *)publisher.skt_.sent_[0].data(), (int)publisher.skt_.sent_[0].size());
+    if ((err = compound.decode(&b)) != srs_success) {
+        return srs_error_wrap(err, "decode");
+    }
+    SrsUniquePtr<SrsRtcpCommon> rtcp(compound.get_next_rtcp());
+    SrsRtcpNack *nack = dynamic_cast<SrsRtcpNack *>(rtcp.get());
+    if (!nack || nack->get_media_ssrc() != 2001) {
+        return srs_error_new(ERROR_RTC_RTCP, "not a NACK of 2001");
+    }
+    after = nack->get_lost_sns();
+
+    return err;
+}
+
+static bool rtc_conn_utest_has_sn(const std::vector<uint16_t> &sns, uint16_t sn)
+{
+    return std::find(sns.begin(), sns.end(), sn) != sns.end();
+}
+
+// The server overloaded: at the circuit breaker's critical level, a publisher's lost packets are not asked for by
+// NACK, to spare the CPU. Once the load is back to normal, the packets lost during the overload, which may still be
+// resent in time, are asked for with the new losses.
+VOID TEST(AppRtcConnTest, OverloadedServerSendsNoNack)
+{
+    srs_error_t err;
+
+    std::vector<std::string> during;
+    std::vector<uint16_t> after;
+    HELPER_ASSERT_SUCCESS(rtc_conn_utest_nack_through_overload(true, during, after));
+
+    EXPECT_TRUE(during.empty());
+    for (uint16_t sn = 101; sn < 105; sn++) {
+        EXPECT_TRUE(rtc_conn_utest_has_sn(after, sn)) << sn;
+    }
+    for (uint16_t sn = 107; sn < 110; sn++) {
+        EXPECT_TRUE(rtc_conn_utest_has_sn(after, sn)) << sn;
+    }
+    EXPECT_FALSE(rtc_conn_utest_has_sn(after, 106));
+}
+
+// After the overload, the server should not ask for a packet it got during it. But at the critical level the
+// publisher skips the track's NACK step, which also records the packet in the receive queue, so the first packet
+// after it finds the whole gap since the last packet before it and asks for 105, which came (B48). The publisher
+// resends every such packet, a burst as large as the receive queue after a long overload, just as the server
+// recovers.
+VOID TEST(AppRtcConnTest, DISABLED_OverloadEnds_PacketReceivedDuringItAskedByNack)
+{
+    srs_error_t err;
+
+    std::vector<std::string> during;
+    std::vector<uint16_t> after;
+    HELPER_ASSERT_SUCCESS(rtc_conn_utest_nack_through_overload(true, during, after));
+
+    EXPECT_FALSE(rtc_conn_utest_has_sn(after, 105));
+}
+
+// The server busy: at the circuit breaker's high level, below critical, the publisher's packets still go through the
+// receive queue, but no loss is asked for by NACK, and the packets lost then are never asked for, as only the
+// losses after the load is back to normal are.
+VOID TEST(AppRtcConnTest, BusyServerSendsNoNack)
+{
+    srs_error_t err;
+
+    std::vector<std::string> during;
+    std::vector<uint16_t> after;
+    HELPER_ASSERT_SUCCESS(rtc_conn_utest_nack_through_overload(false, during, after));
+
+    EXPECT_TRUE(during.empty());
+    ASSERT_EQ(3, (int)after.size());
+    EXPECT_EQ(107, after[0]);
+    EXPECT_EQ(108, after[1]);
+    EXPECT_EQ(109, after[2]);
+}
+
+// Chrome numbers each packet for TWCC. A packet the network duplicates comes with a number already seen, and is
+// dropped before SRTP; the feedback of the numbers is sent to the publisher, and a timer that fires late, as on a
+// busy server, is logged.
+VOID TEST(AppRtcConnTest, PublisherTwccNumbersFedBack)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_video_publisher("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(publisher.connect());
+
+    std::string pkt = rtc_conn_utest_rtp(2001, 106, 100, 7);
+    HELPER_EXPECT_SUCCESS(publisher.on_rtp(pkt));
+    EXPECT_EQ(1, server.source_->rtp_video_count_);
+
+    err = publisher.on_rtp(pkt);
+    EXPECT_EQ(ERROR_RTC_RTCP, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(1, server.source_->rtp_video_count_);
+
+    SrsRtcPublishStream *pub = publisher.publisher();
+    pub->last_time_send_twcc_ = srs_time_now_cached() - 200 * SRS_UTIME_MILLISECONDS;
+    uint32_t late_before = pub->twcc_epp_->nn_count_;
+    HELPER_EXPECT_SUCCESS(pub->send_periodic_twcc());
+    EXPECT_EQ(late_before + 1, pub->twcc_epp_->nn_count_);
+
+    ASSERT_EQ(1, (int)publisher.skt_.sent_.size());
+    const std::string &fb = publisher.skt_.sent_[0];
+    ASSERT_GE((int)fb.size(), 12);
+    EXPECT_EQ(205, (uint8_t)fb[1]);
+    EXPECT_EQ(15, (uint8_t)fb[0] & 0x1F);
+}
+
+// A publisher's RTP packet whose padding count is more than the packet, as from a broken client with encryption off,
+// is refused before it reaches the stream.
+VOID TEST(AppRtcConnTest, PublisherRtpWithPaddingPastItsEndRefused)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+
+    uint8_t rtp[] = {0xA0, 106, 0x00, 0x64, 0x00, 0x01, 0x5F, 0x90, 0x00, 0x00, 0x07, 0xD1, 0x65, 0x88, 0x09};
+    err = publisher.on_rtp(std::string((char *)rtp, sizeof(rtp)));
+    EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, server.source_->rtp_video_count_);
+}
+
+// A Plan-B publisher sends its camera and its screen as two SSRCs of one video section, and a Plan-B player gets both
+// in its one video section, each with an SSRC of its own. The player asks for a lost packet of the screen by NACK,
+// and it is sent again from the screen's track.
+VOID TEST(AppRtcConnTest, PlanBCameraAndScreenPlayed)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    std::string video = rtc_conn_utest_section("video", "1", "sendonly", "106",
+                                               "a=rtpmap:106 H264/90000\r\n"
+                                               "a=fmtp:106 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\n"
+                                               "a=ssrc:2001 cname:utest\r\n"
+                                               "a=ssrc:2001 msid:stream camera\r\n"
+                                               "a=ssrc:2002 cname:utest\r\n"
+                                               "a=ssrc:2002 msid:stream screen\r\n");
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + video)));
+    ASSERT_EQ(2, (int)server.source_->stream_desc()->video_track_descs_.size());
+
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    std::vector<SrsMediaDesc *> videos = player.answered("video");
+    ASSERT_EQ(1, (int)videos.size());
+    ASSERT_EQ(2, (int)videos[0]->ssrc_infos_.size());
+    uint32_t screen_ssrc = videos[0]->ssrc_infos_[1].ssrc_;
+    EXPECT_NE(videos[0]->ssrc_infos_[0].ssrc_, screen_ssrc);
+    HELPER_ASSERT_SUCCESS(player.connect());
+
+    SrsRtcPlayStream *play = player.player();
+    SrsRtpPacket *pkt = rtc_conn_utest_source_packet(500, 2002);
+    HELPER_EXPECT_SUCCESS(play->send_packet(pkt));
+    srs_freep(pkt);
+    ASSERT_EQ(1, (int)player.skt_.sent_.size());
+
+    SrsRtpHeader h;
+    SrsBuffer b((char *)player.skt_.sent_[0].data(), (int)player.skt_.sent_[0].size());
+    HELPER_ASSERT_SUCCESS(h.decode(&b));
+    EXPECT_EQ(screen_ssrc, h.get_ssrc());
+
+    SrsRtcpNack nack(screen_ssrc);
+    nack.set_media_ssrc(screen_ssrc);
+    nack.add_lost_sn(h.get_sequence());
+    char buf[kRtcpPacketSize];
+    SrsBuffer nb(buf, sizeof(buf));
+    HELPER_ASSERT_SUCCESS(nack.encode(&nb));
+    HELPER_EXPECT_SUCCESS(player.on_rtcp(std::string(buf, nb.pos())));
+    ASSERT_EQ(2, (int)player.skt_.sent_.size());
+    EXPECT_EQ(player.skt_.sent_[0], player.skt_.sent_[1]);
+}
+
+// On a server with `protocol all`, a WHEP client may finish DTLS on both UDP and TCP, so its session is told twice
+// that it is connected: the player starts once. Each second the player sends a sender report for each track that
+// sent media; when the client is gone, each report fails, and the next track's report is still tried.
+VOID TEST(AppRtcConnTest, WhepPlayerConnectedTwiceStartsOnce)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_player() + rtc_conn_utest_video_player("106", "H264"))));
+    HELPER_ASSERT_SUCCESS(player.connect());
+
+    SrsRtcPlayStream *play = player.player();
+    HELPER_EXPECT_SUCCESS(player.conn_->on_dtls_handshake_done());
+    ASSERT_TRUE(play->is_started_);
+    ISrsCoroutine *sender = play->trd_;
+    HELPER_EXPECT_SUCCESS(player.conn_->on_dtls_handshake_done());
+    EXPECT_TRUE(sender == play->trd_);
+
+    // The packets have their time on the stream's clock, which the publisher's sender reports gave.
+    SrsRtpPacket *pkt = rtc_conn_utest_source_packet(100, 1001, 111, true);
+    pkt->set_avsync_time(1000);
+    HELPER_EXPECT_SUCCESS(play->send_packet(pkt));
+    srs_freep(pkt);
+    pkt = rtc_conn_utest_source_packet(100);
+    pkt->set_avsync_time(1000);
+    HELPER_EXPECT_SUCCESS(play->send_packet(pkt));
+    srs_freep(pkt);
+    ASSERT_EQ(2, (int)player.skt_.sent_.size());
+
+    srs_error_t gone = srs_error_new(ERROR_SOCKET_WRITE, "sendto ECONNREFUSED");
+    player.skt_.set_sendto_error(gone);
+    srs_freep(gone);
+    HELPER_EXPECT_SUCCESS(play->on_timer(1 * SRS_UTIME_SECONDS));
+    ASSERT_EQ(4, (int)player.skt_.sent_.size());
+    EXPECT_EQ(200, (uint8_t)player.skt_.sent_[2][1]);
+    EXPECT_EQ(200, (uint8_t)player.skt_.sent_[3][1]);
+}
+
+// Each second the publisher's session sends a receiver report and an XR RRTR for each track. When the publisher is
+// gone without a goodbye, sending fails, and the error names the track, for the timer's warning.
+VOID TEST(AppRtcConnTest, PublisherGoneReceiverReportsFail)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient publisher(&server);
+    HELPER_ASSERT_SUCCESS(publisher.publish(rtc_conn_utest_offer("0 1", rtc_conn_utest_opus_publisher() + rtc_conn_utest_h264_publisher())));
+    HELPER_ASSERT_SUCCESS(publisher.connect());
+    HELPER_EXPECT_SUCCESS(publisher.on_rtp(rtc_conn_utest_rtp(2001, 106, 100)));
+
+    SrsRtcPublishStream *pub = publisher.publisher();
+    HELPER_EXPECT_SUCCESS(pub->send_rtcp_rr());
+    HELPER_EXPECT_SUCCESS(pub->send_rtcp_xr_rrtr());
+    EXPECT_EQ(4, (int)publisher.skt_.sent_.size());
+
+    srs_error_t gone = srs_error_new(ERROR_SOCKET_WRITE, "sendto ECONNREFUSED");
+    publisher.skt_.set_sendto_error(gone);
+    srs_freep(gone);
+
+    err = pub->send_rtcp_rr();
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    EXPECT_TRUE(srs_error_desc(err).find("ssrc=2001") != std::string::npos);
+    srs_freep(err);
+
+    err = pub->send_rtcp_xr_rrtr();
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    EXPECT_TRUE(srs_error_desc(err).find("ssrc=2001") != std::string::npos);
+    srs_freep(err);
+}
+
+// A video-only stream, such as a screen share, republished by another publisher with another SSRC: its player sees
+// the stream changed by the video alone, and maps the new SSRC to its video track.
+VOID TEST(AppRtcConnTest, VideoOnlyStreamRepublishedToItsPlayer)
+{
+    srs_error_t err;
+
+    RtcConnUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.initialize());
+
+    RtcConnUtestClient *first = new RtcConnUtestClient(&server);
+    HELPER_ASSERT_SUCCESS(first->publish(rtc_conn_utest_offer("1", rtc_conn_utest_h264_publisher())));
+
+    RtcConnUtestClient player(&server);
+    HELPER_ASSERT_SUCCESS(player.play(rtc_conn_utest_offer("1", rtc_conn_utest_video_player("106", "H264"))));
+    SrsRtcPlayStream *play = player.player();
+    EXPECT_FALSE(play->is_stream_changed(server.source_->stream_desc()));
+
+    srs_freep(first);
+    RtcConnUtestClient second(&server);
+    std::string video = srs_strings_replace(rtc_conn_utest_h264_publisher(), "a=ssrc:2001", "a=ssrc:4001");
+    HELPER_ASSERT_SUCCESS(second.publish(rtc_conn_utest_offer("1", video)));
+
+    EXPECT_TRUE(play->is_stream_changed(server.source_->stream_desc()));
+    play->on_stream_change(server.source_->stream_desc());
+    EXPECT_EQ(4001u, play->video_tracks_.begin()->first);
+    EXPECT_FALSE(play->is_stream_changed(server.source_->stream_desc()));
+}
