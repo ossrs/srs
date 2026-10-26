@@ -35,11 +35,13 @@
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_utest_ai09.hpp>
 #include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai17.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai23.hpp>
+#include <srs_utest_ai24.hpp>
 #include <srs_utest_ai30.hpp>
 #include <srs_utest_ai34.hpp>
 #include <srs_utest_ai38.hpp>
@@ -51,6 +53,9 @@
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_service.hpp>
+#ifdef SRS_FFMPEG_FIT
+#include <srs_app_rtc_codec.hpp>
+#endif
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
@@ -2762,3 +2767,243 @@ VOID TEST(AppRtcApiTest, NackApi_DropsOnNamedSessionOnly)
         EXPECT_EQ(i == 3 ? 3 : 0, w.server_.session_.nack_drop_) << queries[i];
     }
 }
+
+#ifdef SRS_FFMPEG_FIT
+// The AAC of an RTMP stream transcoded to Opus for WebRTC players, as SrsRtcRtpBuilder does: frames of 1024 samples at
+// 44.1kHz with their ADTS header, each with the time aac_dts[i] in ms. Each Opus frame's time is kept with the index of
+// the AAC frame that gave it.
+struct RtcCodecUtestOpus {
+    std::vector<int64_t> dts_;
+    std::vector<int> from_;
+};
+
+static void rtc_codec_utest_aac_to_opus(const std::vector<int64_t> &aac_dts, RtcCodecUtestOpus &opus)
+{
+    srs_error_t err = srs_success;
+
+    std::vector<std::string> frames;
+    encode_aac_adts_frames((int)aac_dts.size(), frames);
+    ASSERT_EQ(aac_dts.size(), frames.size());
+
+    SrsAudioTranscoder transcoder;
+    HELPER_ASSERT_SUCCESS(transcoder.initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, 2, 48000, 48000));
+
+    for (int i = 0; i < (int)frames.size(); i++) {
+        SrsParsedAudioPacket aac;
+        aac.dts_ = aac_dts[i];
+        aac.cts_ = 0;
+        HELPER_ASSERT_SUCCESS(aac.add_sample((char *)frames[i].data(), (int)frames[i].size()));
+
+        std::vector<SrsParsedAudioPacket *> outs;
+        HELPER_ASSERT_SUCCESS(transcoder.transcode(&aac, outs));
+        for (int j = 0; j < (int)outs.size(); j++) {
+            opus.dts_.push_back(outs[j]->dts_);
+            opus.from_.push_back(i);
+        }
+        transcoder.free_frames(outs);
+    }
+}
+
+// The times of n AAC frames from start, 1024 samples at 44.1kHz each.
+static void rtc_codec_utest_aac_times(int64_t start, int n, std::vector<int64_t> &aac_dts)
+{
+    for (int i = 0; i < n; i++) {
+        aac_dts.push_back(start + (int64_t)i * 1024 * 1000 / 44100);
+    }
+}
+
+static int rtc_codec_utest_count(const std::vector<std::string> &lines, const std::string &text)
+{
+    int n = 0;
+    for (int i = 0; i < (int)lines.size(); i++) {
+        if (lines[i].find(text) != std::string::npos) {
+            n++;
+        }
+    }
+    return n;
+}
+
+// The index of each Opus frame that is not 20ms after the one before it.
+static std::vector<int> rtc_codec_utest_breaks(const RtcCodecUtestOpus &opus)
+{
+    std::vector<int> breaks;
+    for (int i = 1; i < (int)opus.dts_.size(); i++) {
+        int64_t step = opus.dts_[i] - opus.dts_[i - 1];
+        if (step < 19 || step > 21) {
+            breaks.push_back(i);
+        }
+    }
+    return breaks;
+}
+
+// An RTMP encoder whose audio stops for 10s and comes back, such as a camera whose microphone was muted: the Opus for
+// WebRTC players jumps to the new time with the AAC, so the audio stays in sync with the video, and goes on in 20ms
+// steps on both sides of the jump. The jump is logged once.
+VOID TEST(AppRtcCodecTest, RtmpAudioResumesAfter10s_OpusJumpsToNewTime)
+{
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    std::vector<int64_t> aac_dts;
+    rtc_codec_utest_aac_times(0, 25, aac_dts);
+    rtc_codec_utest_aac_times(10000, 25, aac_dts);
+
+    RtcCodecUtestOpus opus;
+    rtc_codec_utest_aac_to_opus(aac_dts, opus);
+    _srs_log = original_log;
+
+    std::vector<int> breaks = rtc_codec_utest_breaks(opus);
+    ASSERT_EQ(1, (int)breaks.size());
+    int jump = breaks[0];
+    ASSERT_GT(jump, 20);
+    ASSERT_GT((int)opus.dts_.size(), jump + 20);
+
+    // The encoder hands out each Opus frame one AAC frame later, so the new time comes with the first or second AAC
+    // frame after the gap.
+    EXPECT_GE(opus.from_[jump], 25);
+    EXPECT_LE(opus.from_[jump], 26);
+    // Before the gap, Opus follows the AAC from 0. The encoder's 6.5ms delay moves a frame a little before the AAC.
+    EXPECT_LE(opus.dts_[jump - 1], aac_dts[24] + 40);
+    // After the gap, Opus goes on from the AAC's new time.
+    EXPECT_GE(opus.dts_[jump], 10000 - 20);
+    EXPECT_LE(opus.dts_[jump], 10000 + 40);
+
+    EXPECT_EQ(1, rtc_codec_utest_count(log.traces_, "time diff to large"));
+}
+
+// An RTMP encoder whose audio time goes back, such as an encoder that restarts its clock at 0 on the same connection:
+// the Opus for WebRTC players starts again at 0 with the AAC, instead of going on from 60s.
+VOID TEST(AppRtcCodecTest, RtmpAudioTimeRestartsAtZero_OpusRestartsWithIt)
+{
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    std::vector<int64_t> aac_dts;
+    rtc_codec_utest_aac_times(60000, 25, aac_dts);
+    rtc_codec_utest_aac_times(0, 25, aac_dts);
+
+    RtcCodecUtestOpus opus;
+    rtc_codec_utest_aac_to_opus(aac_dts, opus);
+    _srs_log = original_log;
+
+    std::vector<int> breaks = rtc_codec_utest_breaks(opus);
+    ASSERT_EQ(1, (int)breaks.size());
+    int reset = breaks[0];
+    ASSERT_GT(reset, 20);
+    ASSERT_GT((int)opus.dts_.size(), reset + 20);
+
+    EXPECT_GE(opus.from_[reset], 25);
+    EXPECT_LE(opus.from_[reset], 26);
+    EXPECT_GE(opus.dts_[reset - 1], 60000 - 20);
+    EXPECT_GE(opus.dts_[reset], -20);
+    EXPECT_LE(opus.dts_[reset], 40);
+
+    EXPECT_EQ(1, rtc_codec_utest_count(log.traces_, "time diff to large"));
+}
+
+// An RTMP encoder whose audio has a gap under 1s, such as a few frames lost on a busy network: the Opus for WebRTC
+// players goes on in 20ms steps over the gap and does not jump, so the players hear no break.
+VOID TEST(AppRtcCodecTest, RtmpAudioGapUnder1s_OpusStaysContinuous)
+{
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    std::vector<int64_t> aac_dts;
+    rtc_codec_utest_aac_times(0, 25, aac_dts);
+    rtc_codec_utest_aac_times(aac_dts.back() + 900, 25, aac_dts);
+
+    RtcCodecUtestOpus opus;
+    rtc_codec_utest_aac_to_opus(aac_dts, opus);
+    _srs_log = original_log;
+
+    ASSERT_GT((int)opus.dts_.size(), 40);
+    for (int i = 1; i < (int)opus.dts_.size(); i++) {
+        EXPECT_GE(opus.dts_[i] - opus.dts_[i - 1], 19) << "frame " << i;
+        EXPECT_LE(opus.dts_[i] - opus.dts_[i - 1], 21) << "frame " << i;
+    }
+
+    EXPECT_EQ(0, rtc_codec_utest_count(log.traces_, "time diff to large"));
+}
+
+// An RTMP encoder that sends one corrupt AAC frame, its ADTS header right but its data garbage: the AAC decoder's error
+// goes to the SRS error log through the FFmpeg log callback, the frame fails to transcode, and the next good frames
+// give Opus again, so the WebRTC players lose only that frame.
+VOID TEST(AppRtcCodecTest, RtmpCorruptAacFrame_DecoderErrorLoggedThenRecovers)
+{
+    srs_error_t err = srs_success;
+
+    std::vector<std::string> frames;
+    encode_aac_adts_frames(30, frames);
+    ASSERT_EQ(30, (int)frames.size());
+
+    // Frame 10 keeps its 7-byte ADTS header, with garbage after it.
+    std::string corrupt = frames[10];
+    for (int i = 7; i < (int)corrupt.size(); i++) {
+        corrupt[i] = (char)(0xff - i * 7);
+    }
+    frames[10] = corrupt;
+
+    SrsAudioTranscoder transcoder;
+    HELPER_ASSERT_SUCCESS(transcoder.initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, 2, 48000, 48000));
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+    bool original_disabled = SrsFFmpegLogHelper::disabled_;
+    SrsFFmpegLogHelper::disabled_ = false;
+
+    int errors_before = -1;
+    int failed = 0;
+    int opus_after = 0;
+    for (int i = 0; i < (int)frames.size(); i++) {
+        if (i == 10) {
+            errors_before = log.error_count_;
+        }
+
+        SrsParsedAudioPacket aac;
+        aac.dts_ = (int64_t)i * 1024 * 1000 / 44100;
+        aac.cts_ = 0;
+        HELPER_EXPECT_SUCCESS(aac.add_sample((char *)frames[i].data(), (int)frames[i].size()));
+
+        std::vector<SrsParsedAudioPacket *> outs;
+        err = transcoder.transcode(&aac, outs);
+        if (err != srs_success) {
+            EXPECT_EQ(10, i);
+            EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+            failed++;
+            srs_freep(err);
+        } else if (i > 10) {
+            opus_after += (int)outs.size();
+        }
+        transcoder.free_frames(outs);
+    }
+
+    SrsFFmpegLogHelper::disabled_ = original_disabled;
+    _srs_log = original_log;
+
+    EXPECT_EQ(1, failed);
+    EXPECT_EQ(0, errors_before);
+    EXPECT_GT(log.error_count_, errors_before);
+    EXPECT_GT(opus_after, 15);
+}
+
+// A WHIP client that asks for G.722 audio with `?acodec=G722`, as Chrome offers it, publishing to a vhost with
+// `rtc_to_rtmp on`: there is no transcoder from G.722, as from G.711, so the stream should be converted to RTMP
+// without its audio while WebRTC players still get it. The frame builder instead fails, as the transcoder finds no
+// decoder for the codec, so the source refuses the publish after DTLS (B47).
+VOID TEST(AppRtcCodecTest, DISABLED_WhipG722WithRtcToRtmp_PublishRefused)
+{
+    srs_error_t err = srs_success;
+
+    MockRtcFrameTarget target;
+    SrsRtcFrameBuilder builder(_srs_app_factory, &target);
+    MockRequest req("__defaultVhost__", "live", "livestream");
+
+    // The SDP's track codec name G722 maps to no SRS audio codec.
+    SrsAudioCodecId g722 = srs_audio_codec_str2id("G722");
+    HELPER_EXPECT_SUCCESS(builder.initialize(&req, g722, SrsVideoCodecIdAVC));
+}
+#endif
