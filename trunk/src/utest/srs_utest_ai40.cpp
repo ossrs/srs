@@ -6,6 +6,9 @@
 #include <srs_utest_ai40.hpp>
 
 #include <srs_core_platform.hpp>
+#include <srs_kernel_aac.hpp>
+#include <srs_kernel_error.hpp>
+#include <srs_utest_manual_kernel.hpp>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -138,3 +141,31 @@ VOID TEST(PlatformTest, RedirectOutputFailsWhenTheFdIsBad)
     ::unlink(out.c_str());
 }
 #endif
+
+// An HTTP .aac player gets ADTS frames, a 7-byte header then the raw AAC data, for each RTMP audio packet. When
+// the player goes away, the next write, the frame's ADTS header, fails. The stream stops with the socket error,
+// and no part of that frame reaches the writer.
+VOID TEST(KernelAACTest, AdtsHeaderWriteFailsWhenPlayerLeaves)
+{
+    srs_error_t err;
+
+    SrsAacTransmuxer m;
+    MockSrsFileWriter f;
+    HELPER_EXPECT_SUCCESS(m.initialize(&f));
+
+    // AAC sequence header, 44.1kHz stereo, then one raw frame of one byte.
+    HELPER_EXPECT_SUCCESS(m.write_audio(0, (char *)"\xaf\x00\x12\x10", 4));
+    HELPER_EXPECT_SUCCESS(m.write_audio(0, (char *)"\xaf\x01\xcb", 3));
+    EXPECT_EQ(8, f.tellg());
+
+    // The player disconnects, so every write fails from now on.
+    f.err = srs_error_new(ERROR_SOCKET_WRITE, "player closed");
+
+    err = m.write_audio(23, (char *)"\xaf\x01\xcc", 3);
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("write aac header"));
+    srs_freep(err);
+
+    // Nothing of the failed frame was written.
+    EXPECT_EQ(8, f.tellg());
+}
