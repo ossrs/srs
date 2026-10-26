@@ -4468,3 +4468,967 @@ VOID TEST(KernelRtcRtpTest, PacketPaddingLongerThanBufferRefused)
     EXPECT_TRUE(err != srs_success);
     srs_freep(err);
 }
+
+// One 188-byte TS packet: the 4-byte header, then the payload. A payload shorter than 184 bytes is padded the way a
+// muxer pads the last packet of a PES, by an adaptation field of stuffing bytes, which for a payload of 183 bytes is
+// the single length byte 0.
+static string ts_packet(uint16_t pid, bool pusi, uint8_t cc, const string &payload)
+{
+    string p;
+    p.push_back((char)0x47);
+    p.push_back((char)(((pusi ? 1 : 0) << 6) | ((pid >> 8) & 0x1f)));
+    p.push_back((char)(pid & 0xff));
+
+    int nb_af = 184 - (int)payload.size();
+    if (nb_af <= 0) {
+        p.push_back((char)(0x10 | (cc & 0x0f)));
+        return p + payload.substr(0, 184);
+    }
+
+    p.push_back((char)(0x30 | (cc & 0x0f)));
+    p.push_back((char)(nb_af - 1));
+    if (nb_af > 1) {
+        p.push_back((char)0x00);
+        p += string(nb_af - 2, (char)0xff);
+    }
+    return p + payload;
+}
+
+// A TS packet with the adaptation field control and the adaptation field (its length byte first) given as they are,
+// for a packet damaged in transit; the rest of the 188 bytes is the payload, then 0xff.
+static string ts_packet_af(uint16_t pid, bool pusi, uint8_t afc, const string &af, const string &payload)
+{
+    string p;
+    p.push_back((char)0x47);
+    p.push_back((char)(((pusi ? 1 : 0) << 6) | ((pid >> 8) & 0x1f)));
+    p.push_back((char)(pid & 0xff));
+    p.push_back((char)((afc << 4) & 0x30));
+    p += af + payload;
+    if (p.size() < 188) {
+        p += string(188 - p.size(), (char)0xff);
+    }
+    return p.substr(0, 188);
+}
+
+// An adaptation field of nb bytes after its length byte: the flags, then stuffing.
+static string ts_af_stuffing(int nb)
+{
+    return string(1, (char)nb) + string(1, (char)0x00) + string(nb - 1, (char)0xff);
+}
+
+// A PSI section after its pointer field: the table id, the section length, the body and the CRC.
+static string ts_psi(uint8_t table_id, const string &body)
+{
+    int section_length = (int)body.size() + 4;
+
+    string s;
+    s.push_back((char)table_id);
+    s.push_back((char)(0xb0 | ((section_length >> 8) & 0x0f)));
+    s.push_back((char)(section_length & 0xff));
+    s += body;
+    s += rtcp_be32(srs_crc32_mpegts(s.data(), (int)s.size()));
+
+    return string(1, (char)0x00) + s;
+}
+
+// A PAT of program 1 whose PMT is on pmt_pid.
+static string ts_pat(uint16_t pmt_pid)
+{
+    return ts_psi(0x00, rtcp_be16(1) + string("\xc1\x00\x00", 3) + rtcp_be16(1) + rtcp_be16(0xe000 | pmt_pid));
+}
+
+// One elementary stream of a PMT, with its descriptors.
+static string ts_pmt_es(uint8_t stream_type, uint16_t pid, const string &es_info)
+{
+    return string(1, (char)stream_type) + rtcp_be16(0xe000 | pid) + rtcp_be16((uint16_t)(0xf000 | es_info.size())) + es_info;
+}
+
+// A PMT of program 1 with its program descriptors and elementary streams.
+static string ts_pmt(uint16_t pcr_pid, const string &program_info, const string &streams)
+{
+    string body = rtcp_be16(1) + string("\xc1\x00\x00", 3) + rtcp_be16(0xe000 | pcr_pid);
+    body += rtcp_be16((uint16_t)(0xf000 | program_info.size())) + program_info + streams;
+    return ts_psi(0x02, body);
+}
+
+// A packet of one PSI section, the rest of the payload filled as the muxer does, with 0xff.
+static string ts_psi_packet(uint16_t pid, const string &section, char fill = (char)0xff)
+{
+    return ts_packet(pid, true, 0, section + string(184 - section.size(), fill));
+}
+
+// The PAT and PMT an encoder sends first: H.264 on PID 0x100 and AAC on PID 0x101, the PMT on 0x1001.
+static string ts_av_program()
+{
+    string streams = ts_pmt_es(0x1b, 0x100, "") + ts_pmt_es(0x0f, 0x101, "");
+    return ts_psi_packet(0, ts_pat(0x1001)) + ts_psi_packet(0x1001, ts_pmt(0x100, "", streams));
+}
+
+// A 33-bit PTS or DTS in its 5 bytes with the marker bits.
+static string ts_timestamp(uint8_t prefix, int64_t v)
+{
+    string s;
+    s.push_back((char)((prefix << 4) | (((v >> 30) & 0x07) << 1) | 0x01));
+    s += rtcp_be16((uint16_t)((((v >> 15) & 0x7fff) << 1) | 0x01));
+    s += rtcp_be16((uint16_t)(((v & 0x7fff) << 1) | 0x01));
+    return s;
+}
+
+// A PES header: the start code, the stream id, the PES_packet_length for nb_data bytes of data (0 without
+// with_length, as muxers write video), and the PTS, with the DTS when it differs.
+static string ts_pes_header(uint8_t sid, int64_t pts, int64_t dts, int nb_data, bool with_length)
+{
+    bool has_dts = (pts != dts);
+    int nb_header = has_dts ? 10 : 5;
+
+    string s("\x00\x00\x01", 3);
+    s.push_back((char)sid);
+    s += rtcp_be16(with_length ? (uint16_t)(3 + nb_header + nb_data) : 0);
+    s.push_back((char)0x80);
+    s.push_back((char)(has_dts ? 0xc0 : 0x80));
+    s.push_back((char)nb_header);
+    s += ts_timestamp(has_dts ? 0x03 : 0x02, pts);
+    if (has_dts) {
+        s += ts_timestamp(0x01, dts);
+    }
+    return s;
+}
+
+// Frame data of nb bytes that differ from each other, so a lost or repeated part shows.
+static string ts_frame_data(int nb, uint8_t seed)
+{
+    string s;
+    for (int i = 0; i < nb; i++) {
+        s.push_back((char)(seed + i * 7));
+    }
+    return s;
+}
+
+// A PES split into the TS packets of one PID, the first one starting the unit, with continuity counters from cc.
+static vector<string> ts_pes_packets(uint16_t pid, uint8_t cc, const string &pes)
+{
+    vector<string> pkts;
+    for (size_t pos = 0; pos < pes.size(); pos += 184) {
+        pkts.push_back(ts_packet(pid, pos == 0, cc++, pes.substr(pos, 184)));
+    }
+    return pkts;
+}
+
+// The messages the demuxer gives the SRT or UDP ingest, copied out, as the ingest uses each before the next.
+class TsMessages : public ISrsTsHandler
+{
+public:
+    struct Message {
+        int pid_;
+        SrsTsStream stream_;
+        SrsTsPESStreamId sid_;
+        int64_t dts_;
+        int64_t pts_;
+        string payload_;
+    };
+    vector<Message> msgs_;
+    // Returned for each message, as an ingest that refuses it does.
+    srs_error_t refuse_;
+
+public:
+    TsMessages()
+    {
+        refuse_ = srs_success;
+    }
+    virtual ~TsMessages()
+    {
+        srs_freep(refuse_);
+    }
+
+public:
+    virtual srs_error_t on_ts_message(SrsTsMessage *msg)
+    {
+        Message m;
+        m.pid_ = msg->channel_->pid_;
+        m.stream_ = msg->channel_->stream_;
+        m.sid_ = msg->sid_;
+        m.dts_ = msg->dts_;
+        m.pts_ = msg->pts_;
+        if (msg->payload_->length() > 0) {
+            m.payload_ = string(msg->payload_->bytes(), msg->payload_->length());
+        }
+        msgs_.push_back(m);
+        return (refuse_ != srs_success) ? srs_error_copy(refuse_) : srs_success;
+    }
+};
+
+// Feeds a publisher's TS to the demuxer one 188-byte packet at a time, as the SRT and UDP ingest do.
+static srs_error_t ts_decode(SrsTsContext *ctx, const string &ts, ISrsTsHandler *h)
+{
+    srs_error_t err = srs_success;
+
+    for (size_t pos = 0; pos + SRS_TS_PACKET_SIZE <= ts.size(); pos += SRS_TS_PACKET_SIZE) {
+        SrsBuffer b((char *)ts.data() + pos, SRS_TS_PACKET_SIZE);
+        if ((err = ctx->decode(&b, h)) != srs_success) {
+            return srs_error_wrap(err, "ts packet at %d", (int)pos);
+        }
+    }
+
+    return err;
+}
+
+// Decodes a new publisher's program and then ts, the packets of one test case.
+static srs_error_t ts_decode_after_program(const string &ts, ISrsTsHandler *h)
+{
+    SrsTsContext ctx;
+    return ts_decode(&ctx, ts_av_program() + ts, h);
+}
+
+// Reads the last PMT (PID 0x1001) of a muxer's output: its PCR PID and each stream's type and PID.
+static bool ts_read_pmt(const string &ts, int &pcr_pid, vector<pair<int, int> > &streams)
+{
+    bool found = false;
+
+    for (size_t pos = 0; pos + SRS_TS_PACKET_SIZE <= ts.size(); pos += SRS_TS_PACKET_SIZE) {
+        int pid = (((uint8_t)ts[pos + 1] & 0x1f) << 8) | (uint8_t)ts[pos + 2];
+        if (pid != 0x1001) {
+            continue;
+        }
+
+        SrsTsContext ctx;
+        ctx.set(0x1001, SrsTsPidApplyPMT);
+        SrsTsPacket pkt(&ctx);
+        SrsBuffer b((char *)ts.data() + pos, SRS_TS_PACKET_SIZE);
+        SrsTsMessage *msg = NULL;
+        srs_error_t err = pkt.decode(&b, &msg);
+        if (err != srs_success) {
+            srs_freep(err);
+            return false;
+        }
+
+        SrsTsPayloadPMT *pmt = dynamic_cast<SrsTsPayloadPMT *>(pkt.payload_);
+        if (!pmt) {
+            return false;
+        }
+
+        pcr_pid = pmt->PCR_PID;
+        streams.clear();
+        for (int i = 0; i < (int)pmt->infos.size(); i++) {
+            SrsTsPayloadPMTESInfo *info = pmt->infos.at(i);
+            streams.push_back(make_pair((int)info->stream_type, (int)info->elementary_PID));
+        }
+        found = true;
+    }
+
+    return found;
+}
+
+// Whether the TS packet at index carries a PCR in its adaptation field.
+static bool ts_has_pcr(const string &ts, int index)
+{
+    string p = ts.substr(index * SRS_TS_PACKET_SIZE, SRS_TS_PACKET_SIZE);
+    int afc = ((uint8_t)p[3] >> 4) & 0x03;
+    if (afc != 2 && afc != 3) {
+        return false;
+    }
+    return (uint8_t)p[4] > 0 && ((uint8_t)p[5] & 0x10) != 0;
+}
+
+// The NALUs of an AnnexB payload, after either start code.
+static vector<string> ts_annexb_nalus(const string &p)
+{
+    vector<string> nalus;
+    size_t start = string::npos;
+
+    for (size_t i = 0; i + 3 <= p.size();) {
+        if (p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 1) {
+            if (start != string::npos) {
+                string nalu = p.substr(start, i - start);
+                while (!nalu.empty() && nalu[nalu.size() - 1] == 0) {
+                    nalu.erase(nalu.size() - 1);
+                }
+                nalus.push_back(nalu);
+            }
+            i += 3;
+            start = i;
+            continue;
+        }
+        i++;
+    }
+    if (start != string::npos) {
+        nalus.push_back(p.substr(start));
+    }
+
+    return nalus;
+}
+
+// Writes one FLV tag of a publisher to an HLS segment as SrsHlsController does: the format parses it, the muxer
+// caches the frame as a TS message, skipping AAC and video sequence headers, and the segment's writer writes it.
+static srs_error_t ts_hls_write(SrsFormat *fmt, SrsTsMessageCache *cache, SrsTsContextWriter *tscw, bool video, int64_t timestamp, const string &tag)
+{
+    srs_error_t err = srs_success;
+
+    string data = tag;
+    if (video) {
+        if ((err = fmt->on_video(timestamp, (char *)data.data(), (int)data.size())) != srs_success) {
+            return srs_error_wrap(err, "format video");
+        }
+        if (fmt->video()->avc_packet_type_ == SrsVideoAvcFrameTraitSequenceHeader) {
+            return err;
+        }
+        if ((err = cache->cache_video(fmt->video(), timestamp * 90)) != srs_success) {
+            return srs_error_wrap(err, "cache video");
+        }
+        err = tscw->write_video(cache->video());
+        SrsTsMessage *msg = cache->video();
+        srs_freep(msg);
+        cache->set_video(NULL);
+        return err;
+    }
+
+    if ((err = fmt->on_audio(timestamp, (char *)data.data(), (int)data.size())) != srs_success) {
+        return srs_error_wrap(err, "format audio");
+    }
+    if (fmt->is_aac_sequence_header()) {
+        return err;
+    }
+    if ((err = cache->cache_audio(fmt->audio(), timestamp * 90)) != srs_success) {
+        return srs_error_wrap(err, "cache audio");
+    }
+    err = tscw->write_audio(cache->audio());
+    SrsTsMessage *msg = cache->audio();
+    srs_freep(msg);
+    cache->set_audio(NULL);
+    return err;
+}
+
+// Writes one FLV tag to an HTTP-TS player's encoder, as SrsLiveStream::streaming_send_messages does.
+static srs_error_t ts_http_write(SrsTsStreamEncoder *enc, bool video, int64_t timestamp, const uint8_t *tag, int size)
+{
+    string data((const char *)tag, size);
+    if (video) {
+        return enc->write_video(timestamp, (char *)data.data(), (int)data.size());
+    }
+    return enc->write_audio(timestamp, (char *)data.data(), (int)data.size());
+}
+
+// FFmpeg pads a PES packet one byte short of a full packet with an adaptation field of only its length byte, 0. The
+// SRT ingest skips that byte and gets the whole frame.
+VOID TEST(KernelTsTest, SrtPublisherOneByteStuffingIsSkipped)
+{
+    srs_error_t err = srs_success;
+
+    // The 14-byte PES header and 169 bytes of data leave one byte of the 184 for the adaptation field.
+    string data = ts_frame_data(169, 1);
+    string pes = ts_pes_header(0xc0, 90000, 90000, (int)data.size(), true) + data;
+    vector<string> pkts = ts_pes_packets(0x101, 0, pes);
+    ASSERT_EQ(1, (int)pkts.size());
+    EXPECT_EQ(0x30, (uint8_t)pkts[0][3] & 0x30);
+    EXPECT_EQ(0, (uint8_t)pkts[0][4]);
+
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode_after_program(pkts[0], &h));
+    ASSERT_EQ(1, (int)h.msgs_.size());
+    EXPECT_EQ(0x101, h.msgs_[0].pid_);
+    EXPECT_EQ(SrsTsStreamAudioAAC, h.msgs_[0].stream_);
+    EXPECT_EQ(90000, h.msgs_[0].pts_);
+    EXPECT_TRUE(data == h.msgs_[0].payload_);
+}
+
+// A packet whose adaptation field length is out of range for its adaptation field control is refused: more than 182
+// bytes with a payload, or other than 183 without one.
+VOID TEST(KernelTsTest, SrtPublisherCorruptAdaptationFieldFailsThePacket)
+{
+    if (true) {
+        TsMessages h;
+        string pkt = ts_packet_af(0x100, false, 3, string(1, (char)183), "");
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_AF, ts_decode_after_program(pkt, &h));
+        EXPECT_EQ(0, (int)h.msgs_.size());
+    }
+
+    if (true) {
+        TsMessages h;
+        string pkt = ts_packet_af(0x100, false, 2, string(1, (char)100), "");
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_AF, ts_decode_after_program(pkt, &h));
+        EXPECT_EQ(0, (int)h.msgs_.size());
+    }
+}
+
+// An encoder with SCTE-35 ad markers sends a registration descriptor in its PMT, an ISO 639 language descriptor on
+// its audio, and a SCTE-35 stream. The ingest keeps the H.264 and AAC streams, drops the SCTE-35 stream, and skips its
+// packets.
+VOID TEST(KernelTsTest, SrtPublisherPmtWithDescriptorsAndScte35Track)
+{
+    srs_error_t err = srs_success;
+
+    string registration("\x05\x04" "CUEI", 6);
+    string language("\x0a\x04" "eng\x00", 6);
+    string streams = ts_pmt_es(0x1b, 0x100, "") + ts_pmt_es(0x0f, 0x101, language) + ts_pmt_es(0x86, 0x1f0, "");
+    string ts = ts_psi_packet(0, ts_pat(0x1001)) + ts_psi_packet(0x1001, ts_pmt(0x100, registration, streams));
+
+    SrsTsContext ctx;
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode(&ctx, ts, &h));
+
+    ASSERT_TRUE(ctx.get(0x100) != NULL);
+    EXPECT_EQ(SrsTsPidApplyVideo, ctx.get(0x100)->apply_);
+    EXPECT_EQ(SrsTsStreamVideoH264, ctx.get(0x100)->stream_);
+    ASSERT_TRUE(ctx.get(0x101) != NULL);
+    EXPECT_EQ(SrsTsPidApplyAudio, ctx.get(0x101)->apply_);
+    EXPECT_EQ(SrsTsStreamAudioAAC, ctx.get(0x101)->stream_);
+    EXPECT_TRUE(ctx.get(0x1f0) == NULL);
+
+    // A splice_info_section on the SCTE-35 PID is skipped, and the next audio frame comes through.
+    string scte35 = ts_packet(0x1f0, true, 0, ts_psi(0xfc, string(16, (char)0x00)));
+    string data = ts_frame_data(32, 3);
+    string audio = ts_packet(0x101, true, 0, ts_pes_header(0xc0, 90000, 90000, (int)data.size(), true) + data);
+    HELPER_EXPECT_SUCCESS(ts_decode(&ctx, scte35 + audio, &h));
+    ASSERT_EQ(1, (int)h.msgs_.size());
+    EXPECT_EQ(0x101, h.msgs_[0].pid_);
+    EXPECT_TRUE(data == h.msgs_[0].payload_);
+}
+
+// A PAT or PMT damaged in transit fails its packet: a bad CRC, a section longer than the packet, a section cut by the
+// adaptation field, or a descriptor loop longer than the section. An empty section is ignored.
+VOID TEST(KernelTsTest, SrtPublisherDamagedPsiFailsThePacket)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        string pat = ts_pat(0x1001);
+        pat[pat.size() - 1] ^= 0xff;
+        SrsTsContext ctx;
+        TsMessages h;
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_PSI, ts_decode(&ctx, ts_psi_packet(0, pat), &h));
+    }
+
+    if (true) {
+        string pat = ts_pat(0x1001);
+        pat[2] = (char)0xb3;
+        pat[3] = (char)0xff;
+        SrsTsContext ctx;
+        TsMessages h;
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_PSI, ts_decode(&ctx, ts_psi_packet(0, pat), &h));
+    }
+
+    if (true) {
+        // The adaptation field leaves the pointer field and the table id, but not the section length.
+        string pkt = ts_packet_af(0, true, 3, ts_af_stuffing(181), string("\x00\x00", 2));
+        SrsTsContext ctx;
+        TsMessages h;
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_PSI, ts_decode(&ctx, pkt, &h));
+    }
+
+    if (true) {
+        // An empty PAT teaches nothing, and the program comes from the next PAT. The ingest only logs a failed
+        // packet, so whether this one fails does not matter.
+        SrsTsContext ctx;
+        TsMessages h;
+        srs_error_t r0 = ts_decode(&ctx, ts_psi_packet(0, string("\x00\x00\xb0\x00", 4)), &h);
+        srs_freep(r0);
+        EXPECT_TRUE(ctx.get(0x1001) == NULL);
+        HELPER_EXPECT_SUCCESS(ts_decode(&ctx, ts_psi_packet(0, ts_pat(0x1001)), &h));
+        ASSERT_TRUE(ctx.get(0x1001) != NULL);
+        EXPECT_EQ(SrsTsPidApplyPMT, ctx.get(0x1001)->apply_);
+    }
+
+    if (true) {
+        // The program_info_length says 1023 bytes.
+        string pmt = ts_pmt(0x100, "", ts_pmt_es(0x1b, 0x100, ""));
+        pmt[11] = (char)0xf3;
+        pmt[12] = (char)0xff;
+        SrsTsContext ctx;
+        TsMessages h;
+        string ts = ts_psi_packet(0, ts_pat(0x1001)) + ts_psi_packet(0x1001, pmt);
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_PMT, ts_decode(&ctx, ts, &h));
+    }
+
+    if (true) {
+        // The audio stream's ES_info_length says 1023 bytes.
+        string es = ts_pmt_es(0x0f, 0x101, "");
+        es[3] = (char)0xf3;
+        es[4] = (char)0xff;
+        SrsTsContext ctx;
+        TsMessages h;
+        string ts = ts_psi_packet(0, ts_pat(0x1001)) + ts_psi_packet(0x1001, ts_pmt(0x101, "", es));
+        packet_expect_error_code(ERROR_STREAM_CASTER_TS_PMT, ts_decode(&ctx, ts, &h));
+    }
+}
+
+// An encoder that pads its PAT and PMT packets with zeros instead of 0xff still has its program read.
+VOID TEST(KernelTsTest, SrtPublisherPsiPaddedWithZerosStillParses)
+{
+    srs_error_t err = srs_success;
+
+    string streams = ts_pmt_es(0x1b, 0x100, "") + ts_pmt_es(0x0f, 0x101, "");
+    string ts = ts_psi_packet(0, ts_pat(0x1001), (char)0x00) + ts_psi_packet(0x1001, ts_pmt(0x100, "", streams), (char)0x00);
+
+    SrsTsContext ctx;
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode(&ctx, ts, &h));
+    ASSERT_TRUE(ctx.get(0x100) != NULL);
+    EXPECT_EQ(SrsTsPidApplyVideo, ctx.get(0x100)->apply_);
+    ASSERT_TRUE(ctx.get(0x101) != NULL);
+    EXPECT_EQ(SrsTsPidApplyAudio, ctx.get(0x101)->apply_);
+}
+
+// A publisher whose stream the ingest joins in the middle of a frame: the rest of that frame is dropped, and the next
+// frame comes through.
+VOID TEST(KernelTsTest, SrtPublisherJoinedMidFrameDropsTheRest)
+{
+    srs_error_t err = srs_success;
+
+    string data = ts_frame_data(404, 5);
+    vector<string> pkts = ts_pes_packets(0x101, 0, ts_pes_header(0xc0, 90000, 90000, (int)data.size(), true) + data);
+    ASSERT_EQ(3, (int)pkts.size());
+
+    string next = ts_frame_data(100, 9);
+    vector<string> next_pkts = ts_pes_packets(0x101, 3, ts_pes_header(0xc0, 91920, 91920, (int)next.size(), true) + next);
+
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode_after_program(pkts[1] + pkts[2] + next_pkts[0], &h));
+    ASSERT_EQ(1, (int)h.msgs_.size());
+    EXPECT_EQ(91920, h.msgs_[0].pts_);
+    EXPECT_TRUE(next == h.msgs_[0].payload_);
+}
+
+// The last packet of a frame is lost: the next frame's start shows it, the cut frame is dropped, and the next frame
+// comes through.
+VOID TEST(KernelTsTest, SrtPublisherLostLastPacketDropsTheFrame)
+{
+    srs_error_t err = srs_success;
+
+    string data = ts_frame_data(404, 5);
+    vector<string> pkts = ts_pes_packets(0x101, 0, ts_pes_header(0xc0, 90000, 90000, (int)data.size(), true) + data);
+    ASSERT_EQ(3, (int)pkts.size());
+
+    string next = ts_frame_data(100, 9);
+    vector<string> next_pkts = ts_pes_packets(0x101, 3, ts_pes_header(0xc0, 91920, 91920, (int)next.size(), true) + next);
+
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode_after_program(pkts[0] + pkts[1] + next_pkts[0], &h));
+    ASSERT_EQ(1, (int)h.msgs_.size());
+    EXPECT_EQ(91920, h.msgs_[0].pts_);
+    EXPECT_TRUE(next == h.msgs_[0].payload_);
+}
+
+// A packet that arrives twice, as UDP may deliver it, is used once.
+VOID TEST(KernelTsTest, SrtPublisherDuplicatedPacketIsUsedOnce)
+{
+    srs_error_t err = srs_success;
+
+    string data = ts_frame_data(404, 5);
+    vector<string> pkts = ts_pes_packets(0x101, 0, ts_pes_header(0xc0, 90000, 90000, (int)data.size(), true) + data);
+    ASSERT_EQ(3, (int)pkts.size());
+
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode_after_program(pkts[0] + pkts[1] + pkts[1] + pkts[2], &h));
+    ASSERT_EQ(1, (int)h.msgs_.size());
+    EXPECT_TRUE(data == h.msgs_[0].payload_);
+}
+
+// A packet in the middle of a frame is lost: the gap in the continuity counter drops the frame, and the next frame
+// comes through.
+VOID TEST(KernelTsTest, SrtPublisherLostMiddlePacketDropsTheFrame)
+{
+    srs_error_t err = srs_success;
+
+    string data = ts_frame_data(404, 5);
+    vector<string> pkts = ts_pes_packets(0x101, 0, ts_pes_header(0xc0, 90000, 90000, (int)data.size(), true) + data);
+    ASSERT_EQ(3, (int)pkts.size());
+
+    string next = ts_frame_data(100, 9);
+    vector<string> next_pkts = ts_pes_packets(0x101, 3, ts_pes_header(0xc0, 91920, 91920, (int)next.size(), true) + next);
+
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode_after_program(pkts[0] + pkts[2] + next_pkts[0], &h));
+    ASSERT_EQ(1, (int)h.msgs_.size());
+    EXPECT_EQ(91920, h.msgs_[0].pts_);
+    EXPECT_TRUE(next == h.msgs_[0].payload_);
+}
+
+// A PES header damaged in transit fails its packet: a bad start code, a header cut by the adaptation field, optional
+// fields past the packet, a PES_packet_length shorter than the header, or a PTS or DTS with a bad marker or prefix.
+VOID TEST(KernelTsTest, SrtPublisherDamagedPesHeaderFailsThePacket)
+{
+    string data = ts_frame_data(8, 1);
+    string pts_only = ts_pes_header(0xc0, 90000, 90000, (int)data.size(), true) + data;
+    string pts_dts = ts_pes_header(0xe0, 93600, 90000, (int)data.size(), true) + data;
+
+    vector<string> damaged;
+    // The start code 00 00 02.
+    damaged.push_back(pts_only);
+    damaged.back()[2] = 0x02;
+    // The PES_packet_length 3 holds less than the flags and the PTS.
+    damaged.push_back(pts_only);
+    damaged.back()[4] = 0x00;
+    damaged.back()[5] = 0x03;
+    // The PTS: the marker after bits 32..30, the prefix, the marker after bits 29..15, the marker after bits 14..0.
+    damaged.push_back(pts_only);
+    damaged.back()[9] &= ~0x01;
+    damaged.push_back(pts_only);
+    damaged.back()[9] &= 0x0f;
+    damaged.push_back(pts_only);
+    damaged.back()[11] &= ~0x01;
+    damaged.push_back(pts_only);
+    damaged.back()[13] &= ~0x01;
+    // The PTS, then the DTS, of a frame with both.
+    damaged.push_back(pts_dts);
+    damaged.back()[9] &= ~0x01;
+    damaged.push_back(pts_dts);
+    damaged.back()[14] &= ~0x01;
+
+    vector<string> pkts;
+    for (int i = 0; i < (int)damaged.size(); i++) {
+        pkts.push_back(ts_packet(0x101, true, 0, damaged[i]));
+    }
+    // A PES header of 4 bytes, cut by the adaptation field.
+    pkts.push_back(ts_packet_af(0x101, true, 3, ts_af_stuffing(179), string("\x00\x00\x01\xc0", 4)));
+    // The flags ask for a PTS and a DTS, but the packet ends after them.
+    pkts.push_back(ts_packet_af(0x101, true, 3, ts_af_stuffing(174), string("\x00\x00\x01\xc0\x00\x00\x80\xc0\x0a", 9)));
+
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        TsMessages h;
+        srs_error_t err = ts_decode_after_program(pkts[i], &h);
+        EXPECT_EQ(ERROR_STREAM_CASTER_TS_PSE, srs_error_code(err)) << "case " << i;
+        srs_freep(err);
+        EXPECT_EQ(0, (int)h.msgs_.size()) << "case " << i;
+    }
+}
+
+// The ingest refuses a frame, for example the SRT bridge on a codec it does not support: the demuxer stops and
+// returns its error.
+VOID TEST(KernelTsTest, SrtIngestRefusingFrameFailsTheDecode)
+{
+    string data = ts_frame_data(32, 3);
+    string audio = ts_packet(0x101, true, 0, ts_pes_header(0xc0, 90000, 90000, (int)data.size(), true) + data);
+
+    TsMessages h;
+    h.refuse_ = srs_error_new(ERROR_STREAM_CASTER_TS_CODEC, "unsupported codec");
+    packet_expect_error_code(ERROR_STREAM_CASTER_TS_CODEC, ts_decode_after_program(audio, &h));
+    EXPECT_EQ(1, (int)h.msgs_.size());
+}
+
+// An H.264 encoder such as OBS sends the SPS and PPS only in the sequence header. HLS puts them before each key frame
+// of the segment, after an access unit delimiter, and only the delimiter before an inter frame.
+VOID TEST(KernelTsTest, HlsKeyFrameGetsSpsPpsOfSequenceHeader)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsFileWriter w;
+    SrsTsContext ctx;
+    SrsTsContextWriter tscw(&w, &ctx, SrsAudioCodecIdDisabled, SrsVideoCodecIdAVC);
+    SrsFormat fmt;
+    HELPER_EXPECT_SUCCESS(fmt.initialize());
+    SrsTsMessageCache cache;
+
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, true, 0, string((const char *)mp4_avc_sh, sizeof(mp4_avc_sh))));
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, true, 40, string((const char *)mp4_avc_idr, sizeof(mp4_avc_idr))));
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, true, 80, string((const char *)mp4_avc_inter, sizeof(mp4_avc_inter))));
+
+    SrsTsContext demux;
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode(&demux, w.str(), &h));
+    ASSERT_EQ(2, (int)h.msgs_.size());
+
+    vector<string> key = ts_annexb_nalus(h.msgs_[0].payload_);
+    ASSERT_EQ(4, (int)key.size());
+    EXPECT_TRUE(string("\x09\xf0", 2) == key[0]);
+    EXPECT_TRUE(string((const char *)mp4_avc_sh + 13, 25) == key[1]);
+    EXPECT_TRUE(string((const char *)mp4_avc_sh + 41, 5) == key[2]);
+    EXPECT_TRUE(string((const char *)mp4_avc_idr + 9, 5) == key[3]);
+
+    vector<string> inter = ts_annexb_nalus(h.msgs_[1].payload_);
+    ASSERT_EQ(2, (int)inter.size());
+    EXPECT_TRUE(string("\x09\xf0", 2) == inter[0]);
+    EXPECT_TRUE(string((const char *)mp4_avc_inter + 9, 5) == inter[1]);
+}
+
+// An HEVC encoder sends the VPS, SPS and PPS only in the sequence header. HLS puts them before each IRAP frame, and
+// nothing before an inter frame.
+VOID TEST(KernelTsTest, HlsHevcKeyFrameGetsParameterSetsOfSequenceHeader)
+{
+    srs_error_t err = srs_success;
+
+    string sh;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, sh));
+
+    MockSrsFileWriter w;
+    SrsTsContext ctx;
+    SrsTsContextWriter tscw(&w, &ctx, SrsAudioCodecIdDisabled, SrsVideoCodecIdHEVC);
+    SrsFormat fmt;
+    HELPER_EXPECT_SUCCESS(fmt.initialize());
+    SrsTsMessageCache cache;
+
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, true, 0, sh));
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, true, 40, string((const char *)mp4_hevc_idr, sizeof(mp4_hevc_idr))));
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, true, 80, string((const char *)mp4_hevc_inter, sizeof(mp4_hevc_inter))));
+
+    SrsTsContext demux;
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode(&demux, w.str(), &h));
+    ASSERT_EQ(2, (int)h.msgs_.size());
+    EXPECT_EQ(SrsTsStreamVideoHEVC, h.msgs_[0].stream_);
+
+    vector<string> key = ts_annexb_nalus(h.msgs_[0].payload_);
+    ASSERT_EQ(4, (int)key.size());
+    EXPECT_EQ(SrsHevcNaluType_VPS, SrsHevcNaluTypeParse(key[0][0]));
+    EXPECT_EQ(SrsHevcNaluType_SPS, SrsHevcNaluTypeParse(key[1][0]));
+    EXPECT_EQ(SrsHevcNaluType_PPS, SrsHevcNaluTypeParse(key[2][0]));
+    EXPECT_TRUE(string((const char *)mp4_hevc_idr + 9, 5) == key[3]);
+
+    vector<string> inter = ts_annexb_nalus(h.msgs_[1].payload_);
+    ASSERT_EQ(1, (int)inter.size());
+    EXPECT_TRUE(string((const char *)mp4_hevc_inter + 9, 5) == inter[0]);
+}
+
+// A frame whose composition time is over 1s, as an encoder with a deep B-frame delay sends, keeps its PTS through the
+// HLS segment and back through the demuxer.
+VOID TEST(KernelTsTest, HlsFrameWithCompositionTimeOver1sKeepsItsPts)
+{
+    srs_error_t err = srs_success;
+
+    string idr((const char *)mp4_avc_idr, sizeof(mp4_avc_idr));
+    idr[2] = 0x00;
+    idr[3] = 0x05;
+    idr[4] = (char)0xdc; // 1500ms
+
+    MockSrsFileWriter w;
+    SrsTsContext ctx;
+    SrsTsContextWriter tscw(&w, &ctx, SrsAudioCodecIdDisabled, SrsVideoCodecIdAVC);
+    SrsFormat fmt;
+    HELPER_EXPECT_SUCCESS(fmt.initialize());
+    SrsTsMessageCache cache;
+
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, true, 0, string((const char *)mp4_avc_sh, sizeof(mp4_avc_sh))));
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, true, 1000, idr));
+
+    SrsTsContext demux;
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode(&demux, w.str(), &h));
+    ASSERT_EQ(1, (int)h.msgs_.size());
+    EXPECT_EQ(90000, h.msgs_[0].dts_);
+    EXPECT_EQ(90000 + 1500 * 90, h.msgs_[0].pts_);
+}
+
+// An MP3 radio stream to HLS: the PMT lists MP3 on its PID, carrying the PCR, and each frame goes out as it came.
+VOID TEST(KernelTsTest, HlsMp3AudioOnlyStream)
+{
+    srs_error_t err = srs_success;
+
+    // MP3, 44.1 kHz, 16-bit, stereo; an MPEG-1 Layer III frame header and data.
+    string frame = string("\xff\xfb\x90\x64", 4) + ts_frame_data(28, 2);
+    string tag = string("\x2f", 1) + frame;
+
+    MockSrsFileWriter w;
+    SrsTsContext ctx;
+    SrsTsContextWriter tscw(&w, &ctx, SrsAudioCodecIdMP3, SrsVideoCodecIdDisabled);
+    SrsFormat fmt;
+    HELPER_EXPECT_SUCCESS(fmt.initialize());
+    SrsTsMessageCache cache;
+
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, false, 0, tag));
+    HELPER_EXPECT_SUCCESS(ts_hls_write(&fmt, &cache, &tscw, false, 26, tag));
+
+    int pcr_pid = 0;
+    vector<pair<int, int> > streams;
+    ASSERT_TRUE(ts_read_pmt(w.str(), pcr_pid, streams));
+    ASSERT_EQ(1, (int)streams.size());
+    EXPECT_EQ(SrsTsStreamAudioMp3, streams[0].first);
+    EXPECT_EQ(0x102, streams[0].second);
+    EXPECT_EQ(0x102, pcr_pid);
+    // The PAT, the PMT, then the first frame's packet with the PCR.
+    EXPECT_TRUE(ts_has_pcr(w.str(), 2));
+
+    SrsTsContext demux;
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode(&demux, w.str(), &h));
+    ASSERT_EQ(2, (int)h.msgs_.size());
+    EXPECT_EQ(SrsTsStreamAudioMp3, h.msgs_[0].stream_);
+    EXPECT_TRUE(frame == h.msgs_[0].payload_);
+    EXPECT_EQ(26 * 90, h.msgs_[1].dts_);
+    EXPECT_TRUE(frame == h.msgs_[1].payload_);
+}
+
+// An HTTP-TS player leaves: the write of the PMT after the PAT, or of a frame after both, fails, and the encoder
+// returns the error.
+VOID TEST(KernelTsTest, HttpTsPlayerLeavesMidStream)
+{
+    srs_error_t err = srs_success;
+
+    if (true) {
+        MockSrsFileWriter w;
+        w.error_offset = SRS_TS_PACKET_SIZE;
+        SrsTsStreamEncoder enc;
+        HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
+        HELPER_EXPECT_SUCCESS(ts_http_write(&enc, false, 0, mp4_aac_sh, sizeof(mp4_aac_sh)));
+        err = ts_http_write(&enc, false, 23, mp4_aac_frame, sizeof(mp4_aac_frame));
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+        EXPECT_EQ(SRS_TS_PACKET_SIZE, w.filesize());
+    }
+
+    if (true) {
+        MockSrsFileWriter w;
+        w.error_offset = 2 * SRS_TS_PACKET_SIZE;
+        SrsTsStreamEncoder enc;
+        HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
+        HELPER_EXPECT_SUCCESS(ts_http_write(&enc, true, 0, mp4_avc_sh, sizeof(mp4_avc_sh)));
+        err = ts_http_write(&enc, true, 40, mp4_avc_idr, sizeof(mp4_avc_idr));
+        EXPECT_TRUE(err != srs_success);
+        srs_freep(err);
+        EXPECT_EQ(2 * SRS_TS_PACKET_SIZE, w.filesize());
+    }
+}
+
+// A publisher sends a video info frame (#288): the HTTP-TS player gets nothing for it, and the next key frame.
+VOID TEST(KernelTsTest, HttpTsVideoInfoFrameIsSkipped)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsFileWriter w;
+    SrsTsStreamEncoder enc;
+    HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
+    HELPER_EXPECT_SUCCESS(ts_http_write(&enc, true, 0, mp4_avc_sh, sizeof(mp4_avc_sh)));
+
+    // Frame type 5 (video info), H.264, packet type 1.
+    const uint8_t info[] = {0x57, 0x01};
+    HELPER_EXPECT_SUCCESS(ts_http_write(&enc, true, 20, info, sizeof(info)));
+    EXPECT_EQ(0, w.filesize());
+
+    HELPER_EXPECT_SUCCESS(ts_http_write(&enc, true, 40, mp4_avc_idr, sizeof(mp4_avc_idr)));
+    SrsTsContext demux;
+    TsMessages h;
+    HELPER_EXPECT_SUCCESS(ts_decode(&demux, w.str(), &h));
+    ASSERT_EQ(1, (int)h.msgs_.size());
+    EXPECT_EQ(40 * 90, h.msgs_[0].dts_);
+}
+
+// A broken encoder sends an AAC frame of 8192 bytes, more than the 13-bit ADTS frame length can carry: the HTTP-TS
+// encoder refuses it.
+VOID TEST(KernelTsTest, HttpTsAacFrameTooLongForAdtsIsRefused)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsFileWriter w;
+    SrsTsStreamEncoder enc;
+    HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
+    HELPER_EXPECT_SUCCESS(ts_http_write(&enc, false, 0, mp4_aac_sh, sizeof(mp4_aac_sh)));
+
+    string tag = string("\xaf\x01", 2) + string(8192, (char)0x21);
+    packet_expect_error_code(ERROR_HLS_AAC_FRAME_LENGTH, ts_http_write(&enc, false, 23, (const uint8_t *)tag.data(), (int)tag.size()));
+    EXPECT_EQ(0, w.filesize());
+}
+
+extern srs_fwrite_t _srs_fwrite_fn;
+
+static size_t ts_fwrite_disk_full(const void * /*ptr*/, size_t /*size*/, size_t /*nitems*/, FILE * /*stream*/)
+{
+    return 0;
+}
+
+// Makes every fwrite fail as on a full disk while it lives.
+class TsDiskFullScope
+{
+private:
+    srs_fwrite_t fwrite_;
+
+public:
+    TsDiskFullScope()
+    {
+        fwrite_ = _srs_fwrite_fn;
+        _srs_fwrite_fn = ts_fwrite_disk_full;
+    }
+    ~TsDiskFullScope()
+    {
+        _srs_fwrite_fn = fwrite_;
+    }
+};
+
+// An encrypted HLS segment on a full disk: the write that fills an AES block fails, and closing the segment, whose
+// padding block fails to write too, still closes the file. Nothing reaches the disk.
+VOID TEST(KernelTsTest, HlsEncryptedSegmentOnFullDisk)
+{
+    srs_error_t err = srs_success;
+
+    unsigned char key[16];
+    unsigned char iv[16];
+    for (int i = 0; i < 16; i++) {
+        key[i] = (unsigned char)i;
+        iv[i] = (unsigned char)(0xf0 + i);
+    }
+
+    string path = srs_utest_tmp_dir() + "/srs_utest_ai40_hls_enc_full_" + srs_strconv_format_int(getpid()) + ".ts";
+
+    char pkt[SRS_TS_PACKET_SIZE];
+    memset(pkt, 0xff, sizeof(pkt));
+    pkt[0] = 0x47;
+
+    SrsEncFileWriter w;
+    HELPER_EXPECT_SUCCESS(w.config_cipher(key, iv));
+    HELPER_ASSERT_SUCCESS(w.open(path));
+
+    if (true) {
+        TsDiskFullScope full;
+
+        // Three packets wait in the AES block; the fourth fills it, which fails to go to disk.
+        for (int i = 0; i < 3; i++) {
+            HELPER_EXPECT_SUCCESS(w.write(pkt, SRS_TS_PACKET_SIZE, NULL));
+        }
+        packet_expect_error_code(ERROR_SYSTEM_FILE_WRITE, w.write(pkt, SRS_TS_PACKET_SIZE, NULL));
+
+        // HLS closes the segment when it gives up on it, with one more packet waiting.
+        HELPER_EXPECT_SUCCESS(w.write(pkt, SRS_TS_PACKET_SIZE, NULL));
+        w.close();
+    }
+    EXPECT_FALSE(w.is_open());
+
+    FILE *fp = fopen(path.c_str(), "rb");
+    ASSERT_TRUE(fp != NULL);
+    fseek(fp, 0, SEEK_END);
+    EXPECT_EQ(0, ftell(fp));
+    fclose(fp);
+    unlink(path.c_str());
+}
+
+// B15: an empty audio tag of an RTMP aggregate message (the B5 path) makes the HTTP-TS encoder write the previous
+// audio frame again. SrsFormat::on_audio returns early for an empty tag and keeps the previous frame, whose samples
+// point into the previous message's payload, and SrsTsTransmuxer caches and writes that frame.
+VOID TEST(KernelTsTest, DISABLED_HttpTsEmptyAudioAfterFrame_PreviousFrameWrittenAgain)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsFileWriter w;
+    SrsTsStreamEncoder enc;
+    HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
+
+    HELPER_EXPECT_SUCCESS(ts_http_write(&enc, false, 0, mp4_aac_sh, sizeof(mp4_aac_sh)));
+    // The frame stays alive here, as when the GOP cache still holds its message; with the payload freed, the
+    // second write reads freed memory.
+    string frame((const char *)mp4_aac_frame, sizeof(mp4_aac_frame));
+    HELPER_EXPECT_SUCCESS(enc.write_audio(23, (char *)frame.data(), (int)frame.size()));
+    int64_t size = w.filesize();
+
+    HELPER_EXPECT_SUCCESS(enc.write_audio(46, NULL, 0));
+    EXPECT_EQ(size, w.filesize());
+}
+
+// B16: a vhost with parse_sps off (#474) takes an H.264 stream whose SPS the parser refuses, here one with the
+// reserved_zero_2bits set, and plays it over HTTP-FLV and HLS, but its HTTP-TS players are refused at the sequence
+// header: SrsTsTransmuxer parses the stream again with its own SrsFormat, which always parses the SPS.
+VOID TEST(KernelTsTest, DISABLED_HttpTsWithParseSpsOff_SequenceHeaderRefused)
+{
+    srs_error_t err = srs_success;
+
+    // The SPS's constraint flags byte, 0x00, with the reserved_zero_2bits set.
+    string sh((const char *)mp4_avc_sh, sizeof(mp4_avc_sh));
+    sh[15] = 0x03;
+
+    // The source, with parse_sps off, takes the sequence header.
+    SrsFormat source;
+    HELPER_EXPECT_SUCCESS(source.initialize());
+    source.avc_parse_sps_ = false;
+    HELPER_EXPECT_SUCCESS(source.on_video(0, (char *)sh.data(), (int)sh.size()));
+
+    MockSrsFileWriter w;
+    SrsTsStreamEncoder enc;
+    HELPER_EXPECT_SUCCESS(enc.initialize(&w, NULL));
+    HELPER_EXPECT_SUCCESS(enc.write_video(0, (char *)sh.data(), (int)sh.size()));
+    HELPER_EXPECT_SUCCESS(ts_http_write(&enc, true, 40, mp4_avc_idr, sizeof(mp4_avc_idr)));
+    EXPECT_LT(0, w.filesize());
+}
