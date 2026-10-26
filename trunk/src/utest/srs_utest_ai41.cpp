@@ -16,6 +16,7 @@
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
+#include <srs_kernel_packet.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_amf0.hpp>
@@ -26,6 +27,7 @@
 #include <srs_protocol_rtc_stun.hpp>
 #include <srs_protocol_rtmp_handshake.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_rtp.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_ai08.hpp>
@@ -4057,4 +4059,89 @@ VOID TEST(ProtocolRtmpStackTest, LaterClientWithConnectArgs_SourceRequestTakesIt
     ASSERT_TRUE(source_req.args_->get_property("token") != NULL);
     EXPECT_EQ("second", source_req.args_->get_property("token")->to_str());
     EXPECT_NE(source_req.args_, client_req.args_); // A copy, not shared.
+}
+
+// Packages the two slices of one frame, merged as with rtc_server.merge_nalus on, and returns the
+// payload bytes each FU-A packet carries after its FU indicator and header.
+static vector<int> rtp_merged_frame_fu_sizes(SrsVideoCodecId codec, vector<char> &slice0, vector<char> &slice1)
+{
+    vector<int> sizes;
+
+    SrsFormat format;
+    format.vcodec_ = new SrsVideoCodecConfig();
+    format.vcodec_->id_ = codec;
+
+    SrsRtpVideoBuilder builder;
+    srs_error_t err = builder.initialize(&format, 0x1234, 96);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+
+    SrsNaluSample s0(&slice0[0], (int)slice0.size());
+    SrsNaluSample s1(&slice1[0], (int)slice1.size());
+    vector<SrsNaluSample *> samples;
+    samples.push_back(&s0);
+    samples.push_back(&s1);
+
+    SrsMediaPacket msg;
+    msg.timestamp_ = 40;
+
+    vector<SrsRtpPacket *> pkts;
+    err = builder.package_nalus(&msg, samples, pkts);
+    EXPECT_TRUE(err == srs_success);
+    srs_freep(err);
+
+    for (int i = 0; i < (int)pkts.size(); i++) {
+        SrsRtpPacket *pkt = pkts[i];
+        vector<SrsNaluSample *> *nalus = NULL;
+        if (codec == SrsVideoCodecIdHEVC) {
+            nalus = &static_cast<SrsRtpFUAPayloadHevc *>(pkt->payload())->nalus_;
+        } else {
+            nalus = &static_cast<SrsRtpFUAPayload *>(pkt->payload())->nalus_;
+        }
+
+        int size = 0;
+        for (int j = 0; j < (int)nalus->size(); j++) {
+            size += nalus->at(j)->size_;
+        }
+        sizes.push_back(size);
+        srs_freep(pkt);
+    }
+
+    srs_freep(format.vcodec_);
+    return sizes;
+}
+
+// With rtc_server.merge_nalus on, RTMP to WebRTC packs all slices of a frame into one NALU and
+// cuts it into FU-A packets of up to 1200 bytes. When the merged NALU minus its header is a whole
+// number of 1200-byte fragments, such as two slices of 1000 and 1398 bytes (2401 with the 3-byte
+// separator), the frame must take exactly two fragments. The packet count is computed from the
+// size with the header, so a third FU-A with the end bit and no data is sent.
+VOID TEST(ProtocolRtpTest, DISABLED_MergedFrameOfWholeFragments_EmptyLastFuA)
+{
+    // H.264: two IDR slices, 1000 + 3 + 1398 = 2401 bytes, a 1-byte NALU header.
+    if (true) {
+        vector<char> slice0(1000, (char)0x88);
+        vector<char> slice1(1398, (char)0x88);
+        slice0[0] = slice1[0] = 0x65;
+
+        vector<int> sizes = rtp_merged_frame_fu_sizes(SrsVideoCodecIdAVC, slice0, slice1);
+        EXPECT_EQ(2, (int)sizes.size());
+        for (int i = 0; i < (int)sizes.size(); i++) {
+            EXPECT_GT(sizes[i], 0) << "FU-A " << i << " of " << sizes.size();
+        }
+    }
+
+    // H.265: two TRAIL_R slices, 1000 + 3 + 1399 = 2402 bytes, a 2-byte NALU header.
+    if (true) {
+        vector<char> slice0(1000, (char)0x88);
+        vector<char> slice1(1399, (char)0x88);
+        slice0[0] = slice1[0] = 0x02;
+        slice0[1] = slice1[1] = 0x01;
+
+        vector<int> sizes = rtp_merged_frame_fu_sizes(SrsVideoCodecIdHEVC, slice0, slice1);
+        EXPECT_EQ(2, (int)sizes.size());
+        for (int i = 0; i < (int)sizes.size(); i++) {
+            EXPECT_GT(sizes[i], 0) << "FU-A " << i << " of " << sizes.size();
+        }
+    }
 }
