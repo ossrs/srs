@@ -4281,3 +4281,78 @@ VOID TEST(AppRtspSourceTest, DISABLED_HevcParameterSetsInBand_PublisherDisconnec
     EXPECT_STREQ("nalu,nalu,nalu,nalu*", rtsp_source_utest_got(player).c_str());
 }
 #endif
+
+// Checks a client of the given type and address against the default vhost's security of the config text, as
+// SrsRtmpConn, SrsRtcConnection, SrsMpegtsSrtConn, SrsRtspConnection and the HTTP stream servers do when a client
+// joins, and returns the error code, 0 when the client is allowed.
+static int security_utest_check(MockSrsConfig *conf, SrsRtmpConnType type, string ip)
+{
+    SrsSecurity sec;
+    sec.config_ = conf;
+    SrsRequest req;
+    req.vhost_ = "__defaultVhost__";
+
+    srs_error_t err = sec.check(type, ip, &req);
+    sec.config_ = NULL;
+
+    int code = srs_error_code(err);
+    srs_freep(err);
+    return code;
+}
+
+// A vhost that takes streams only from the encoders of a private network (`allow publish 10.0.0.0/8;`): an RTMP,
+// WebRTC or SRT encoder at 10.1.2.3 publishes, while one outside the network, even the next address after it, is
+// refused as not allowed; the rule says nothing about players, so a player in the network is refused too.
+VOID TEST(AppSecurityTest, AllowPublishBySubnet_EncodersInNetworkOnly)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{security{enabled on; allow publish 10.0.0.0/8;}}"));
+
+    EXPECT_EQ(0, security_utest_check(&conf, SrsRtmpConnFMLEPublish, "10.1.2.3"));
+    EXPECT_EQ(0, security_utest_check(&conf, SrsRtcConnPublish, "10.255.255.255"));
+    EXPECT_EQ(0, security_utest_check(&conf, SrsSrtConnPublish, "10.0.0.1"));
+
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_ALLOW, security_utest_check(&conf, SrsRtmpConnFMLEPublish, "11.0.0.0"));
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_ALLOW, security_utest_check(&conf, SrsRtcConnPublish, "192.168.1.5"));
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_ALLOW, security_utest_check(&conf, SrsRtmpConnPlay, "10.1.2.3"));
+}
+
+// A vhost that keeps the players of an office network out (`deny play 192.168.0.0/16; allow play all;`): an RTMP,
+// HTTP-FLV, HLS or WebRTC player at 192.168.3.4 is denied by the rule, while a player outside it plays, and an encoder
+// in the network is not a player, so the play rules do not deny it.
+VOID TEST(AppSecurityTest, DenyPlayBySubnet_PlayersInNetworkDenied)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{security{enabled on; deny play 192.168.0.0/16; allow play all; allow publish all;}}"));
+
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_DENY, security_utest_check(&conf, SrsRtmpConnPlay, "192.168.3.4"));
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_DENY, security_utest_check(&conf, SrsFlvPlay, "192.168.0.1"));
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_DENY, security_utest_check(&conf, SrsHlsPlay, "192.168.255.254"));
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_DENY, security_utest_check(&conf, SrsRtcConnPlay, "192.168.3.4"));
+
+    EXPECT_EQ(0, security_utest_check(&conf, SrsRtmpConnPlay, "192.169.0.1"));
+    EXPECT_EQ(0, security_utest_check(&conf, SrsFlvPlay, "10.0.0.5"));
+    EXPECT_EQ(0, security_utest_check(&conf, SrsRtmpConnFMLEPublish, "192.168.3.4"));
+}
+
+// A vhost open to every encoder but a subnet it does not trust (`deny publish 172.16.0.0/12; allow publish all;`): an
+// RTMP or SRT encoder at 172.20.1.1 is denied by the rule, while one just past the /12 network, 172.32.0.1, publishes,
+// and a player in the subnet is not an encoder, so it still plays.
+VOID TEST(AppSecurityTest, DenyPublishBySubnet_EncodersInNetworkDenied)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(_MIN_OK_CONF "vhost __defaultVhost__{security{enabled on; deny publish 172.16.0.0/12; allow publish all; allow play all;}}"));
+
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_DENY, security_utest_check(&conf, SrsRtmpConnFMLEPublish, "172.20.1.1"));
+    EXPECT_EQ(ERROR_SYSTEM_SECURITY_DENY, security_utest_check(&conf, SrsSrtConnPublish, "172.31.255.255"));
+
+    EXPECT_EQ(0, security_utest_check(&conf, SrsRtmpConnFMLEPublish, "172.32.0.1"));
+    EXPECT_EQ(0, security_utest_check(&conf, SrsSrtConnPublish, "172.15.255.255"));
+    EXPECT_EQ(0, security_utest_check(&conf, SrsRtmpConnPlay, "172.20.1.1"));
+}
