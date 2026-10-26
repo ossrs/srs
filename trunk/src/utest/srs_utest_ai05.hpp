@@ -27,12 +27,16 @@ public:
     std::string data_;
     size_t pos_;
     srs_error_t read_error_;
+    // Returned once the data is read, as a socket that times out or resets after
+    // some bytes; owned by the mock.
+    srs_error_t drained_error_;
 
 public:
     MockSrsReader(const std::string &data);
     virtual ~MockSrsReader();
     virtual srs_error_t read(void *buf, size_t size, ssize_t *nread);
     void set_error(srs_error_t err);
+    void set_drained_error(srs_error_t err);
 };
 
 class MockSrsWriter : public ISrsWriter
