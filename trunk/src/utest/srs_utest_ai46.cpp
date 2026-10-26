@@ -6,7 +6,9 @@
 
 #include <srs_utest_ai46.hpp>
 
+#include <srs_app_rtc_codec.hpp>
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtmp_source.hpp>
 #include <srs_app_srt_listener.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_srt_source.hpp>
@@ -15,12 +17,18 @@
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_ts.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_protocol_rtmp_msg_array.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_protocol_srt.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_utest_ai08.hpp>
+#include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai24.hpp>
 #include <srs_utest_ai32.hpp>
 #include <srs_utest_ai37.hpp>
+#include <srs_utest_ai40.hpp>
+#include <srs_utest_ai42.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_mock.hpp>
 
@@ -1133,3 +1141,578 @@ VOID TEST(AppStatisticTest, WhipVp9AndAv1Publishers_ListedWithoutProfileOrLevel)
         EXPECT_EQ(0, video->get_property("height")->to_integer()) << names[i];
     }
 }
+
+#ifdef SRS_FFMPEG_FIT
+// Makes the origin hub of a live stream as the server does, reading the test config, so it forwards as the vhost says;
+// its HLS, DASH, DVR, transcoder and exec do nothing.
+class StreamBridgeUtestHubFactory : public SrsAppFactory
+{
+public:
+    ISrsAppConfig *config_;
+    ISrsStatistic *stat_;
+
+public:
+    StreamBridgeUtestHubFactory()
+    {
+        config_ = NULL;
+        stat_ = NULL;
+    }
+
+public:
+    virtual ISrsOriginHub *create_origin_hub()
+    {
+        SrsOriginHub *hub = new SrsOriginHub();
+        hub->config_ = config_;
+        hub->stat_ = stat_;
+
+        srs_freep(hub->hls_);
+        hub->hls_ = new MockHlsForOriginHub();
+        srs_freep(hub->dash_);
+        hub->dash_ = new MockDashForOriginHub();
+        srs_freep(hub->dvr_);
+        hub->dvr_ = new MockDvrForOriginHub();
+        srs_freep(hub->encoder_);
+        hub->encoder_ = new MockMediaEncoderForOriginHub();
+        srs_freep(hub->ng_exec_);
+        hub->ng_exec_ = new MockNgExecForOriginHub();
+
+        hub->assemble();
+        return hub;
+    }
+};
+
+// A stream of the server converted between RTMP and WebRTC: the real SrsLiveSource of its RTMP side and the real
+// SrsRtcSource of its WebRTC side, with the vhost from config text and a real statistic, joined by the bridge the
+// encoder's connection makes: SrsRtcBridge for a WHIP publisher (rtc_to_rtmp), SrsRtmpBridge for an RTMP encoder
+// (rtmp_to_rtc), SrsSrtBridge for an SRT encoder (srt_to_rtmp and rtmp_to_rtc) with its real SrsSrtSource. Players of
+// both sides take what the stream gets.
+class StreamBridgeUtestStream
+{
+public:
+    MockSrsConfig conf_;
+    SrsStatistic stat_;
+    MockLiveSourceHandler handler_;
+    MockClockForPithyPrint clock_;
+    StreamBridgeUtestHubFactory factory_;
+    SrsRequest req_;
+    SrsSharedPtr<SrsLiveSource> live_;
+    SrsSharedPtr<SrsRtcSource> rtc_;
+    SrsSharedPtr<SrsSrtSource> srt_;
+    SrsTsContext ts_;
+    MockLogForSignal log_;
+    vector<SrsLiveConsumer *> rtmp_players_;
+    vector<SrsRtcConsumer *> rtc_players_;
+
+public:
+    StreamBridgeUtestStream()
+    {
+        req_.vhost_ = "__defaultVhost__";
+        req_.app_ = "live";
+        req_.stream_ = "livestream";
+        clock_.now_ = 100 * SRS_UTIME_SECONDS;
+    }
+    virtual ~StreamBridgeUtestStream()
+    {
+        for (int i = 0; i < (int)rtmp_players_.size(); i++) {
+            SrsLiveConsumer *player = rtmp_players_.at(i);
+            srs_freep(player);
+        }
+        for (int i = 0; i < (int)rtc_players_.size(); i++) {
+            SrsRtcConsumer *player = rtc_players_.at(i);
+            srs_freep(player);
+        }
+    }
+
+public:
+    // Creates both sources of the stream, as the source managers do.
+    srs_error_t open(string text)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = conf_.mock_parse(string(_MIN_OK_CONF) + text)) != srs_success) {
+            return srs_error_wrap(err, "parse");
+        }
+        factory_.config_ = &conf_;
+        factory_.stat_ = &stat_;
+
+        SrsLiveSource *live = new SrsLiveSource();
+        live->config_ = &conf_;
+        live->stat_ = &stat_;
+        live->handler_ = &handler_;
+        live->app_factory_ = &factory_;
+        live->clk_ = &clock_;
+        live_ = SrsSharedPtr<SrsLiveSource>(live);
+        live->assemble();
+        if ((err = live->initialize(live_, &req_)) != srs_success) {
+            return srs_error_wrap(err, "live source");
+        }
+
+        SrsRtcSource *rtc = new SrsRtcSource();
+        rtc->config_ = &conf_;
+        rtc->stat_ = &stat_;
+        rtc_ = SrsSharedPtr<SrsRtcSource>(rtc);
+        if ((err = rtc->initialize(&req_)) != srs_success) {
+            return srs_error_wrap(err, "rtc source");
+        }
+
+        return err;
+    }
+    // A WHIP publisher of Opus and H.264 starts to send, after DTLS, as SrsRtcPublishStream::initialize and start do.
+    srs_error_t whip_publish()
+    {
+        srs_error_t err = srs_success;
+
+        SrsRtcSourceDescription desc;
+        SrsRtcTrackDescription *audio = new SrsRtcTrackDescription();
+        audio->type_ = "audio";
+        audio->id_ = "audio-whip";
+        audio->ssrc_ = 1234;
+        audio->media_ = new SrsAudioPayload(111, "opus", 48000, 2);
+        desc.audio_track_desc_ = audio;
+        SrsRtcTrackDescription *video = new SrsRtcTrackDescription();
+        video->type_ = "video";
+        video->id_ = "video-whip";
+        video->ssrc_ = 5678;
+        video->media_ = new SrsVideoPayload(106, "H264", 90000);
+        desc.video_track_descs_.push_back(video);
+        rtc_->set_stream_desc(&desc);
+
+        SrsRtcBridge *bridge = new SrsRtcBridge(_srs_app_factory);
+        live_->set_cache(false);
+        bridge->enable_rtc2rtmp(live_);
+        if ((err = bridge->initialize(&req_)) != srs_success) {
+            srs_freep(bridge);
+            return srs_error_wrap(err, "bridge");
+        }
+        rtc_->set_bridge(bridge);
+
+        return rtc_->on_publish();
+    }
+    // An Opus packet of the WHIP publisher, as its audio track gives it to the source.
+    srs_error_t whip_opus(uint16_t seq, int64_t avsync_time, const string &opus)
+    {
+        SrsRtpPacket pkt;
+        pkt.header_.set_ssrc(1234);
+        pkt.header_.set_sequence(seq);
+        pkt.header_.set_timestamp((uint32_t)(avsync_time * 48));
+        pkt.header_.set_payload_type(111);
+        pkt.frame_type_ = SrsFrameTypeAudio;
+        pkt.set_avsync_time(avsync_time);
+
+        SrsRtpRawPayload *raw = new SrsRtpRawPayload();
+        raw->payload_ = pkt.wrap((int)opus.size());
+        raw->nn_payload_ = (int)opus.size();
+        memcpy(raw->payload_, opus.data(), opus.size());
+        pkt.set_payload(raw, SrsRtpPacketPayloadTypeRaw);
+
+        return rtc_->on_rtp(&pkt);
+    }
+    // An RTMP encoder starts to publish, as SrsRtmpConn::acquire_publish does on a vhost with rtmp_to_rtc.
+    srs_error_t rtmp_publish()
+    {
+        srs_error_t err = srs_success;
+
+        SrsRtmpBridge *bridge = new SrsRtmpBridge(_srs_app_factory);
+        bridge->enable_rtmp2rtc(rtc_);
+        if ((err = bridge->initialize(&req_)) != srs_success) {
+            srs_freep(bridge);
+            return srs_error_wrap(err, "bridge");
+        }
+        live_->set_bridge(bridge);
+
+        return live_->on_publish();
+    }
+    srs_error_t rtmp_video(int64_t timestamp, const uint8_t *data, int size)
+    {
+        SrsRtmpCommonMessage msg;
+        msg.header_.initialize_video(size, (uint32_t)timestamp, 1);
+        msg.create_payload(size);
+        memcpy(msg.payload(), data, size);
+        return live_->on_video(&msg);
+    }
+    srs_error_t rtmp_audio(int64_t timestamp, const uint8_t *data, int size)
+    {
+        SrsRtmpCommonMessage msg;
+        msg.header_.initialize_audio(size, (uint32_t)timestamp, 1);
+        msg.create_payload(size);
+        memcpy(msg.payload(), data, size);
+        return live_->on_audio(&msg);
+    }
+    // An SRT encoder starts to publish, as SrsMpegtsSrtConn::acquire_publish does on a vhost with srt_to_rtmp and
+    // rtmp_to_rtc: the bridge converts the stream to both RTMP and WebRTC.
+    srs_error_t srt_publish()
+    {
+        srs_error_t err = srs_success;
+
+        srt_ = SrsSharedPtr<SrsSrtSource>(new SrsSrtSource());
+        srt_->assemble();
+        srt_->stat_ = &stat_;
+        dynamic_cast<SrsSrtFormat *>(srt_->format_)->stat_ = &stat_;
+        if ((err = srt_->initialize(&req_)) != srs_success) {
+            return srs_error_wrap(err, "srt source");
+        }
+
+        SrsSrtBridge *bridge = new SrsSrtBridge(_srs_app_factory);
+        bridge->assemble();
+        bridge->enable_srt2rtmp(live_);
+        bridge->enable_srt2rtc(rtc_);
+        if ((err = bridge->initialize(&req_)) != srs_success) {
+            srs_freep(bridge);
+            return srs_error_wrap(err, "bridge");
+        }
+        srt_->set_bridge(bridge);
+
+        return srt_->on_publish();
+    }
+    // The SRT encoder sends a PES of one ADTS frame at the time in ms, muxed in TS as FFmpeg or OBS does, in SRT packets
+    // of 7 TS packets, with the server's log kept.
+    srs_error_t srt_audio(int64_t timestamp, const string &adts)
+    {
+        srs_error_t err = srs_success;
+
+        SrsTsMessage msg;
+        msg.sid_ = SrsTsPESStreamIdAudioCommon;
+        msg.dts_ = msg.pts_ = timestamp * 90;
+        msg.payload_->append(adts.data(), (int)adts.length());
+        SrtSourceUtestTsWriter writer;
+        if ((err = ts_.encode(&writer, &msg, SrsVideoCodecIdAVC, SrsAudioCodecIdAAC)) != srs_success) {
+            return srs_error_wrap(err, "mux");
+        }
+
+        ISrsLog *original = _srs_log;
+        _srs_log = &log_;
+
+        const int nb_srt = 7 * SRS_TS_PACKET_SIZE;
+        for (size_t off = 0; off < writer.data_.size(); off += nb_srt) {
+            int size = (int)srs_min((size_t)nb_srt, writer.data_.size() - off);
+            SrsUniquePtr<SrsSrtPacket> pkt(new SrsSrtPacket());
+            pkt->wrap((char *)writer.data_.data() + off, size);
+            if ((err = srt_->on_srt_packet(pkt.get())) != srs_success) {
+                break;
+            }
+        }
+
+        _srs_log = original;
+        return err;
+    }
+    // How many warnings the server logged with the text.
+    int warned(const string &text)
+    {
+        int n = 0;
+        for (int i = 0; i < (int)log_.warns_.size(); i++) {
+            if (log_.warns_[i].find(text) != string::npos) {
+                n++;
+            }
+        }
+        return n;
+    }
+    // An RTMP player joins, as SrsRtmpConn::playing does.
+    SrsLiveConsumer *rtmp_play()
+    {
+        SrsLiveConsumer *player = NULL;
+        srs_error_t err = live_->create_consumer(player);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        if (!player) {
+            return NULL;
+        }
+        rtmp_players_.push_back(player);
+
+        err = live_->consumer_dumps(player, true, true, true);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        return player;
+    }
+    // A WebRTC player joins, as SrsRtcPlayStream does.
+    SrsRtcConsumer *rtc_play()
+    {
+        ISrsRtcConsumer *player = NULL;
+        srs_error_t err = rtc_->create_consumer(player);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        if (!player) {
+            return NULL;
+        }
+        SrsRtcConsumer *consumer = dynamic_cast<SrsRtcConsumer *>(player);
+        rtc_players_.push_back(consumer);
+
+        err = rtc_->consumer_dumps(player);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        return consumer;
+    }
+};
+
+// What the RTMP player got since it last read: A and V for the sequence headers, a and v for frames.
+static string stream_bridge_utest_rtmp_got(SrsLiveConsumer *player)
+{
+    SrsMessageArray msgs(1024);
+    int count = 0;
+    srs_error_t err = player->dump_packets(&msgs, count);
+    EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+    srs_freep(err);
+
+    string got;
+    for (int i = 0; i < count; i++) {
+        SrsMediaPacket *msg = msgs.msgs_[i];
+        if (msg->is_audio()) {
+            got += SrsFlvAudio::sh(msg->payload(), msg->size()) ? "A" : "a";
+        } else if (msg->is_video()) {
+            got += SrsFlvVideo::sh(msg->payload(), msg->size()) ? "V" : "v";
+        }
+    }
+    msgs.free(count);
+    return got;
+}
+
+// The number of packets the WebRTC player got since it last read.
+static int stream_bridge_utest_rtc_got(SrsRtcConsumer *player)
+{
+    int n = 0;
+    for (;;) {
+        SrsRtpPacket *pkt = NULL;
+        srs_error_t err = player->dump_packet(&pkt);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        if (!pkt) {
+            break;
+        }
+        srs_freep(pkt);
+        n++;
+    }
+    return n;
+}
+
+// Opus frames of 20ms, as a browser sends them, from n AAC frames transcoded as the RTMP to WebRTC bridge does.
+static void stream_bridge_utest_opus(int n, vector<string> &opus)
+{
+    srs_error_t err = srs_success;
+
+    vector<string> aac;
+    encode_aac_adts_frames(n, aac);
+
+    SrsAudioTranscoder transcoder;
+    HELPER_ASSERT_SUCCESS(transcoder.initialize(SrsAudioCodecIdAAC, SrsAudioCodecIdOpus, 2, 48000, 48000));
+    for (int i = 0; i < (int)aac.size(); i++) {
+        SrsParsedAudioPacket frame;
+        frame.dts_ = (int64_t)i * 1024 * 1000 / 44100;
+        frame.cts_ = 0;
+        HELPER_ASSERT_SUCCESS(frame.add_sample((char *)aac[i].data(), (int)aac[i].size()));
+
+        vector<SrsParsedAudioPacket *> outs;
+        HELPER_ASSERT_SUCCESS(transcoder.transcode(&frame, outs));
+        for (int j = 0; j < (int)outs.size(); j++) {
+            SrsParsedAudioPacket *out = outs.at(j);
+            opus.push_back(string(out->samples_[0].bytes_, out->samples_[0].size_));
+        }
+        transcoder.free_frames(outs);
+    }
+}
+
+// A WHIP publisher to a vhost with `rtc_to_rtmp on` that also forwards to an rtmps:// URL, such as YouTube's RTMPS
+// ingest, which forward does not support: the RTMP side refuses the publish as not supported, so the session fails
+// after DTLS. When the session ends, both sides of the stream are released, so a publisher can take it again.
+VOID TEST(AppStreamBridgeTest, WhipToRtmpForwardingToRtmps_RefusedThenStreamReleased)
+{
+    srs_error_t err;
+
+    StreamBridgeUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { rtc { enabled on; rtc_to_rtmp on; } "
+                                 "forward { enabled on; destination rtmps://a.rtmps.example.com/live2; } }"));
+    EXPECT_TRUE(s.live_->can_publish(false));
+    EXPECT_TRUE(s.rtc_->can_publish());
+
+    err = s.whip_publish();
+    EXPECT_EQ(ERROR_NOT_SUPPORTED, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("rtmp target publish")) << srs_error_desc(err);
+    EXPECT_NE(string::npos, srs_error_desc(err).find("forward does not support RTMPS")) << srs_error_desc(err);
+    srs_freep(err);
+
+    // The server's publish handler, which mounts the HTTP stream, is never reached, and the stream is not published.
+    EXPECT_EQ(0, s.handler_.on_publish_count_);
+    EXPECT_FALSE(s.live_->can_publish(false));
+    EXPECT_FALSE(s.rtc_->can_publish());
+
+    // The session ends, as SrsRtcPublishStream's destructor unpublishes the source.
+    s.rtc_->on_unpublish();
+    EXPECT_TRUE(s.live_->can_publish(false));
+    EXPECT_TRUE(s.rtc_->can_publish());
+    EXPECT_EQ(1, s.handler_.on_unpublish_count_);
+}
+
+// A WHIP publisher to a vhost with `rtc_to_rtmp on` sends one Opus packet the decoder refuses, such as one whose frame
+// count is 0 from a broken encoder: WebRTC players get it as published, the packet fails to convert, which the server
+// logs, and the next packets are converted again, so RTMP players lose only that packet's audio.
+VOID TEST(AppStreamBridgeTest, WhipToRtmpCorruptOpusPacket_OnlyThatPacketLost)
+{
+    srs_error_t err;
+
+    vector<string> opus;
+    stream_bridge_utest_opus(50, opus);
+    ASSERT_GE((int)opus.size(), 40);
+
+    StreamBridgeUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { rtc { enabled on; rtc_to_rtmp on; } }"));
+    HELPER_ASSERT_SUCCESS(s.whip_publish());
+    SrsLiveConsumer *rtmp_player = s.rtmp_play();
+    SrsRtcConsumer *rtc_player = s.rtc_play();
+    ASSERT_TRUE(rtmp_player != NULL);
+    ASSERT_TRUE(rtc_player != NULL);
+
+    for (int i = 0; i < 20; i++) {
+        HELPER_EXPECT_SUCCESS(s.whip_opus(100 + i, 1000 + i * 20, opus.at(i)));
+    }
+    string before = stream_bridge_utest_rtmp_got(rtmp_player);
+    ASSERT_GT(before.size(), 10u) << before;
+    EXPECT_EQ('A', before.at(0)) << before;
+    EXPECT_EQ(string(before.size() - 1, 'a'), before.substr(1));
+    EXPECT_EQ(20, stream_bridge_utest_rtc_got(rtc_player));
+
+    // The TOC byte of a 20ms CELT frame with code 3, then a frame count of 0, which RFC 6716 forbids.
+    err = s.whip_opus(120, 1000 + 20 * 20, string("\xfb\x00", 2));
+    EXPECT_EQ(ERROR_RTC_RTP_MUXER, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("frame builder on rtp")) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(1, stream_bridge_utest_rtc_got(rtc_player));
+
+    for (int i = 21; i < 40; i++) {
+        HELPER_EXPECT_SUCCESS(s.whip_opus(100 + i, 1000 + i * 20, opus.at(i)));
+    }
+    string after = stream_bridge_utest_rtmp_got(rtmp_player);
+    EXPECT_GT(after.size(), 10u) << after;
+    EXPECT_EQ(string(after.size(), 'a'), after);
+    EXPECT_EQ(19, stream_bridge_utest_rtc_got(rtc_player));
+
+    s.rtc_->on_unpublish();
+}
+
+// The RTMP audio message of an ADTS frame: the FLV audio tag header of AAC, then the raw frame without its ADTS header.
+static string stream_bridge_utest_flv_aac(const string &adts)
+{
+    return string("\xaf\x01", 2) + adts.substr(7);
+}
+
+// An ADTS frame that keeps its 7-byte header, with garbage after it, which the AAC decoder refuses.
+static string stream_bridge_utest_corrupt(const string &adts)
+{
+    string corrupt = adts;
+    for (int i = 7; i < (int)corrupt.size(); i++) {
+        corrupt[i] = (char)(0xff - i * 7);
+    }
+    return corrupt;
+}
+
+// An SRT encoder to a vhost with `srt_to_rtmp on` and `rtmp_to_rtc on` sends one corrupt AAC frame, its ADTS header
+// right but its data garbage: RTMP players get every frame as sent, the WebRTC side fails to transcode only that frame,
+// which the server logs, and the next frames give Opus again, so WebRTC players lose only that frame and the encoder
+// stays.
+VOID TEST(AppStreamBridgeTest, SrtToRtmpAndRtcCorruptAacFrame_OnlyWebrtcLosesThatFrame)
+{
+    srs_error_t err;
+
+    vector<string> aac;
+    encode_aac_adts_frames(30, aac);
+    ASSERT_EQ(30, (int)aac.size());
+
+    StreamBridgeUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { srt { enabled on; srt_to_rtmp on; } "
+                                 "rtc { enabled on; rtmp_to_rtc on; } }"));
+    HELPER_ASSERT_SUCCESS(s.srt_publish());
+    SrsLiveConsumer *rtmp_player = s.rtmp_play();
+    SrsRtcConsumer *rtc_player = s.rtc_play();
+    ASSERT_TRUE(rtmp_player != NULL);
+    ASSERT_TRUE(rtc_player != NULL);
+
+    for (int i = 0; i < 10; i++) {
+        HELPER_EXPECT_SUCCESS(s.srt_audio(i * 1024 * 1000 / 44100, aac.at(i)));
+    }
+    EXPECT_EQ("A" + string(10, 'a'), stream_bridge_utest_rtmp_got(rtmp_player));
+    EXPECT_GT(stream_bridge_utest_rtc_got(rtc_player), 5);
+    EXPECT_EQ(0, s.warned("rtp builder on frame"));
+
+    HELPER_EXPECT_SUCCESS(s.srt_audio(10 * 1024 * 1000 / 44100, stream_bridge_utest_corrupt(aac.at(10))));
+    EXPECT_EQ("a", stream_bridge_utest_rtmp_got(rtmp_player));
+    EXPECT_EQ(0, stream_bridge_utest_rtc_got(rtc_player));
+    EXPECT_EQ(1, s.warned("rtp builder on frame"));
+
+    for (int i = 11; i < 30; i++) {
+        HELPER_EXPECT_SUCCESS(s.srt_audio(i * 1024 * 1000 / 44100, aac.at(i)));
+    }
+    EXPECT_EQ(string(19, 'a'), stream_bridge_utest_rtmp_got(rtmp_player));
+    EXPECT_GT(stream_bridge_utest_rtc_got(rtc_player), 15);
+    EXPECT_EQ(1, s.warned("rtp builder on frame"));
+
+    s.srt_->on_unpublish();
+}
+
+// An RTMP encoder to a vhost with `rtmp_to_rtc on` sends one corrupt AAC frame, its ADTS data garbage. As for SRT, the
+// WebRTC players should lose only that frame, and the encoder should stay. The WebRTC builder instead returns the
+// decoder's error, the live source returns it before the RTMP players get the frame, and SrsRtmpConn ends the publish
+// on it, so one bad frame disconnects the encoder (B62).
+VOID TEST(AppStreamBridgeTest, DISABLED_RtmpToRtcCorruptAacFrame_PublisherDisconnected)
+{
+    srs_error_t err;
+
+    vector<string> aac;
+    encode_aac_adts_frames(20, aac);
+    ASSERT_EQ(20, (int)aac.size());
+
+    StreamBridgeUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { rtc { enabled on; rtmp_to_rtc on; } }"));
+    HELPER_ASSERT_SUCCESS(s.rtmp_publish());
+    SrsLiveConsumer *rtmp_player = s.rtmp_play();
+    SrsRtcConsumer *rtc_player = s.rtc_play();
+    ASSERT_TRUE(rtmp_player != NULL);
+    ASSERT_TRUE(rtc_player != NULL);
+
+    HELPER_ASSERT_SUCCESS(s.rtmp_audio(0, flv_utest_aac_sh, sizeof(flv_utest_aac_sh)));
+    for (int i = 0; i < 20; i++) {
+        string frame = stream_bridge_utest_flv_aac(i == 10 ? stream_bridge_utest_corrupt(aac.at(i)) : aac.at(i));
+        HELPER_EXPECT_SUCCESS(s.rtmp_audio(i * 1024 * 1000 / 44100, (const uint8_t *)frame.data(), (int)frame.size()));
+    }
+    EXPECT_EQ("A" + string(20, 'a'), stream_bridge_utest_rtmp_got(rtmp_player));
+    EXPECT_GT(stream_bridge_utest_rtc_got(rtc_player), 15);
+
+    s.live_->on_unpublish();
+}
+
+// An HEVC RTMP encoder that sends its VPS, SPS and PPS in band, in each key frame, with a sequence header that holds
+// none, as ISO/IEC 14496-15 allows for hev1, to a vhost with `rtmp_to_rtc on`. The live source takes both, and the
+// WebRTC player should get the key frame's NALUs. The WebRTC builder instead fails the key frame, "vps/sps/pps
+// empty", and the live source returns it, so the encoder is disconnected at its first key frame (B61, as B57 for RTSP).
+VOID TEST(AppStreamBridgeTest, DISABLED_RtmpHevcParameterSetsInBandToRtc_PublisherDisconnected)
+{
+    srs_error_t err;
+
+    StreamBridgeUtestStream s;
+    HELPER_ASSERT_SUCCESS(s.open("vhost __defaultVhost__ { rtc { enabled on; rtmp_to_rtc on; } }"));
+    HELPER_ASSERT_SUCCESS(s.rtmp_publish());
+    SrsRtcConsumer *player = s.rtc_play();
+    ASSERT_TRUE(player != NULL);
+
+    // The HEVCDecoderConfigurationRecord: version 1, Main profile, level 3.1, 4-byte NALU sizes, and no arrays.
+    const uint8_t sh[] = {0x1c, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x60, 0x00, 0x00, 0x00, 0x90, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x5d, 0xf0, 0x00, 0xfc, 0xfd, 0xf8, 0xf8, 0x00, 0x00, 0x0f, 0x00};
+    HELPER_ASSERT_SUCCESS(s.rtmp_video(0, sh, sizeof(sh)));
+
+    string tag;
+    HELPER_ASSERT_SUCCESS(mp4_hevc_sh(1, tag));
+    SrsFormat format;
+    HELPER_ASSERT_SUCCESS(format.initialize());
+    HELPER_ASSERT_SUCCESS(format.on_video(0, (char *)tag.data(), (int)tag.size()));
+
+    // The key frame: the VPS, SPS and PPS, then the IDR, each with its size.
+    string frame("\x1c\x01\x00\x00\x00", 5);
+    vector<SrsHevcHvccNalu> &arrays = format.vcodec_->hevc_dec_conf_record_.nalu_vec_;
+    for (int i = 0; i < (int)arrays.size(); i++) {
+        const vector<uint8_t> &nalu = arrays.at(i).nal_data_vec_.at(0).nal_unit_data_;
+        frame += string(3, '\0') + (char)nalu.size() + string((const char *)&nalu[0], nalu.size());
+    }
+    frame += string("\x00\x00\x00\x05\x26\x01\xaf\x00\x10", 9);
+
+    HELPER_EXPECT_SUCCESS(s.rtmp_video(40, (const uint8_t *)frame.data(), (int)frame.size()));
+    EXPECT_EQ(4, stream_bridge_utest_rtc_got(player));
+
+    s.live_->on_unpublish();
+}
+#endif
