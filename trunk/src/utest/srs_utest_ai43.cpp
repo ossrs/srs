@@ -15,6 +15,8 @@
 #include <srs_app_hls.hpp>
 #include <srs_app_http_api.hpp>
 #include <srs_app_http_conn.hpp>
+#include <srs_app_http_hooks.hpp>
+#include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
@@ -37,6 +39,7 @@
 #include <srs_utest_ai19.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_ai34.hpp>
+#include <srs_utest_ai36.hpp>
 #include <srs_utest_ai40.hpp>
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_manual_config.hpp>
@@ -3323,4 +3326,386 @@ VOID TEST(AppHttpConnTest, IdleFlvViewerKicked_RecvThreadStopsAtNextTimeout)
             EXPECT_EQ(0, raw->read_count_);
         }
     }
+}
+
+// The server's own HTTP hooks, posting with its HTTP client, over a real statistic, as the RTMP connection and the
+// DVR and HLS workers call them.
+class HooksUtestHooks
+{
+public:
+    SrsAppFactory factory_;
+    SrsStatistic stat_;
+    MockSrsConfig config_;
+    SrsHttpHooks hooks_;
+    MockRequest req_;
+
+public:
+    HooksUtestHooks() : req_("__defaultVhost__", "live", "livestream")
+    {
+        hooks_.factory_ = &factory_;
+        hooks_.stat_ = &stat_;
+        hooks_.config_ = &config_;
+        req_.ip_ = "192.168.1.100";
+        req_.tcUrl_ = "rtmp://127.0.0.1/live";
+    }
+    ~HooksUtestHooks()
+    {
+        hooks_.factory_ = NULL;
+        hooks_.stat_ = NULL;
+        hooks_.config_ = NULL;
+    }
+};
+
+// A hook server's whole answer that allows the client, as the SRS docs ask.
+static string hooks_utest_ok()
+{
+    return mock_http_response(200, "{\"code\":0}");
+}
+
+// The body of the POST a hook server got.
+static string hooks_utest_body(const string &request)
+{
+    size_t pos = request.find("\r\n\r\n");
+    return pos == string::npos ? "" : request.substr(pos + 4);
+}
+
+// A publisher and a player of live/livestream are in the HTTP API's stream list when their hooks run, as the RTMP
+// connection adds each client before its on_publish or on_play hook, and takes the stream snapshot before it leaves.
+// Each callback names the stream by the id the API lists, so the hook server can look it up, and the play and stop
+// callbacks carry the stream's client count.
+VOID TEST(AppHttpHooksTest, HooksOfAListedStream_CarryItsApiStreamId)
+{
+    srs_error_t err;
+
+    HooksUtestHooks h;
+    HELPER_ASSERT_SUCCESS(h.stat_.on_client("hooks-publisher", &h.req_, NULL, SrsRtmpConnFMLEPublish));
+    HELPER_ASSERT_SUCCESS(h.stat_.on_client("hooks-player", &h.req_, NULL, SrsRtmpConnPlay));
+    SrsStatisticStream *stream = h.stat_.find_stream_by_url(h.req_.get_stream_url());
+    ASSERT_TRUE(stream != NULL);
+    string stream_id = "\"stream_id\":\"" + stream->id_ + "\"";
+    SrsStatisticStreamSnapshot snapshot(&h.stat_, &h.req_);
+
+    const char *actions[] = {"on_publish", "on_play", "on_unpublish", "on_stop", "on_dvr", "on_hls"};
+    for (int i = 0; i < (int)(sizeof(actions) / sizeof(actions[0])); i++) {
+        string action = actions[i];
+        HttpUtestOneReplyServer server(hooks_utest_ok());
+        HELPER_ASSERT_SUCCESS(server.start());
+        string url = "http://" + server.server() + "/api/v1/streams";
+
+        MockLogForSignal log;
+        ISrsLog *original = _srs_log;
+        _srs_log = &log;
+        err = srs_success;
+        if (action == "on_publish") {
+            err = h.hooks_.on_publish(url, &h.req_, SrsRtmpConnFMLEPublish);
+        } else if (action == "on_play") {
+            err = h.hooks_.on_play(url, &h.req_, SrsRtmpConnPlay);
+        } else if (action == "on_unpublish") {
+            h.hooks_.on_unpublish(url, &h.req_, SrsRtmpConnFMLEPublish, snapshot);
+        } else if (action == "on_stop") {
+            h.hooks_.on_stop(url, &h.req_, SrsRtmpConnPlay, snapshot);
+        } else if (action == "on_dvr") {
+            err = h.hooks_.on_dvr(SrsContextId(), url, &h.req_, "./objs/nginx/html/live/livestream.flv", snapshot);
+        } else {
+            err = h.hooks_.on_hls(SrsContextId(), url, &h.req_, "./objs/nginx/html/live/livestream-0.ts", "livestream-0.ts",
+                                  "./objs/nginx/html/live/livestream.m3u8", "live/livestream.m3u8", 0, 10 * SRS_UTIME_SECONDS);
+        }
+        _srs_log = original;
+        HELPER_EXPECT_SUCCESS(err);
+        EXPECT_TRUE(log.warns_.empty()) << action;
+
+        string body = hooks_utest_body(server.request_);
+        EXPECT_NE(string::npos, body.find("\"action\":\"" + action + "\"")) << body;
+        EXPECT_NE(string::npos, body.find(stream_id)) << body;
+        if (action == "on_play" || action == "on_stop") {
+            EXPECT_NE(string::npos, body.find("\"clients\":2")) << body;
+        }
+    }
+}
+
+// An operator leaves the schema out of the on_connect url. The config loads, but each client is refused at connect
+// with the url parse error, and nothing is posted, not even to the host and port the url names.
+VOID TEST(AppHttpHooksTest, HookUrlWithoutSchema_ConnectRefusedAndNothingPosted)
+{
+    srs_error_t err;
+
+    HooksUtestHooks h;
+    HttpUtestOneReplyServer server(hooks_utest_ok());
+    HELPER_ASSERT_SUCCESS(server.start());
+    string url = server.server() + "/api/v1/clients";
+
+    err = h.hooks_.on_connect(url, &h.req_);
+    // Give the server a chance to accept, had the hook connected.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_EQ(ERROR_HTTP_PARSE_URI, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("on_connect failed")) << desc;
+    EXPECT_NE(string::npos, desc.find("url=" + url)) << desc;
+    EXPECT_TRUE(server.request_.empty()) << server.request_;
+}
+
+// The hook server answers the publisher's on_publish, but closes before its whole body is sent: the publish is
+// refused with the body read error, as an allow cannot be told from a deny.
+VOID TEST(AppHttpHooksTest, HookServerClosesMidBody_PublishRefused)
+{
+    srs_error_t err;
+
+    HooksUtestHooks h;
+    HttpUtestOneReplyServer server("HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\n{\"co");
+    HELPER_ASSERT_SUCCESS(server.start());
+
+    err = h.hooks_.on_publish("http://" + server.server() + "/api/v1/streams", &h.req_, SrsRtmpConnFMLEPublish);
+    EXPECT_TRUE(err != srs_success);
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("on_publish failed")) << desc;
+    EXPECT_NE(string::npos, desc.find("body read")) << desc;
+    EXPECT_NE(string::npos, hooks_utest_body(server.request_).find("\"action\":\"on_publish\"")) << server.request_;
+}
+
+// An auth server denies a player with HTTP 403: the play is refused with the status, and the error names the url and
+// the hook server's answer.
+VOID TEST(AppHttpHooksTest, AuthServerDeniesPlayer_PlayRefused)
+{
+    srs_error_t err;
+
+    HooksUtestHooks h;
+    HttpUtestOneReplyServer server(mock_http_response(403, "denied"));
+    HELPER_ASSERT_SUCCESS(server.start());
+    string url = "http://" + server.server() + "/api/v1/sessions";
+
+    err = h.hooks_.on_play(url, &h.req_, SrsRtmpConnPlay);
+    EXPECT_EQ(ERROR_HTTP_STATUS_INVALID, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("on_play failed")) << desc;
+    EXPECT_NE(string::npos, desc.find("url=" + url)) << desc;
+    EXPECT_NE(string::npos, desc.find("response=denied")) << desc;
+}
+
+// The hook server is down when a client leaves: on_close, on_unpublish and on_stop cannot post, and each logs a
+// warning naming the url and goes on, as the client is gone anyway.
+VOID TEST(AppHttpHooksTest, HookServerDownWhenClientsLeave_CloseUnpublishStopOnlyWarn)
+{
+    HooksUtestHooks h;
+    // Never started, so nothing listens on its port.
+    HttpUtestOneReplyServer down("");
+    string url = "http://" + down.server() + "/api/v1/clients";
+    SrsStatisticStreamSnapshot snapshot(&h.stat_, &h.req_);
+
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    h.hooks_.on_close(url, &h.req_, 1024, 2048);
+    h.hooks_.on_unpublish(url, &h.req_, SrsRtmpConnFMLEPublish, snapshot);
+    h.hooks_.on_stop(url, &h.req_, SrsRtmpConnPlay, snapshot);
+    _srs_log = original;
+
+    const char *actions[] = {"on_close", "on_unpublish", "on_stop"};
+    for (int i = 0; i < 3; i++) {
+        string warn = utest_log_find(log.warns_, string("http: ignore ") + actions[i] + " failed");
+        EXPECT_NE(string::npos, warn.find("url=" + url)) << actions[i] << ": " << warn;
+        EXPECT_NE(string::npos, warn.find("ret=" + srs_strconv_format_int(ERROR_ST_CONNECT))) << actions[i] << ": " << warn;
+    }
+}
+
+// The hook server is down when a DVR file or an HLS segment is done: on_dvr and on_hls fail with the url, so the
+// async worker that called them logs it.
+VOID TEST(AppHttpHooksTest, HookServerDownWhenFileDone_DvrAndHlsCallbacksFail)
+{
+    srs_error_t err;
+
+    HooksUtestHooks h;
+    HttpUtestOneReplyServer down("");
+    string url = "http://" + down.server() + "/api/v1/dvrs";
+    SrsStatisticStreamSnapshot snapshot(&h.stat_, &h.req_);
+
+    err = h.hooks_.on_dvr(SrsContextId(), url, &h.req_, "./objs/nginx/html/live/livestream.flv", snapshot);
+    EXPECT_EQ(ERROR_ST_CONNECT, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("http post on_dvr uri failed")) << desc;
+    EXPECT_NE(string::npos, desc.find("url=" + url)) << desc;
+
+    err = h.hooks_.on_hls(SrsContextId(), url, &h.req_, "./objs/nginx/html/live/livestream-0.ts", "livestream-0.ts",
+                          "./objs/nginx/html/live/livestream.m3u8", "live/livestream.m3u8", 0, 10 * SRS_UTIME_SECONDS);
+    EXPECT_EQ(ERROR_ST_CONNECT, srs_error_code(err));
+    desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("http: post " + url)) << desc;
+    EXPECT_NE(string::npos, desc.find("\"action\":\"on_hls\"")) << desc;
+}
+
+// With hls_entry_prefix set to a CDN, each segment's url in the playlist is absolute, and on_hls_notify fetches the
+// segment from that url itself instead of the configured one, so the CDN caches it before players ask.
+VOID TEST(AppHttpHooksTest, HlsNotifyWithCdnEntryPrefix_FetchesSegmentFromCdn)
+{
+    srs_error_t err;
+
+    HooksUtestHooks h;
+    HttpUtestOneReplyServer cdn(mock_http_response(200, "0123456789"));
+    HELPER_ASSERT_SUCCESS(cdn.start());
+    // The configured notify url, which nothing listens on.
+    HttpUtestOneReplyServer down("");
+    string ts_url = "http://" + cdn.server() + "/live/livestream-0.ts";
+
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    err = h.hooks_.on_hls_notify(SrsContextId(), "http://" + down.server() + "/api/v1/hls/[app]/[stream]/[ts_url]", &h.req_, ts_url, 64);
+    _srs_log = original;
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ(0, (int)cdn.request_.find("GET /live/livestream-0.ts HTTP/1.1\r\n")) << cdn.request_;
+    string trace = utest_log_find(log.traces_, "on_hls_notify success");
+    EXPECT_NE(string::npos, trace.find("url=" + ts_url)) << trace;
+    EXPECT_NE(string::npos, trace.find("code=200")) << trace;
+    EXPECT_NE(string::npos, trace.find("read=10B, err=Success")) << trace;
+}
+
+// The CDN closes in the middle of the segment the notify reads: the read stops at the error, which is logged with
+// the bytes read, and the notify still succeeds, as a notify failure must not stop HLS.
+VOID TEST(AppHttpHooksTest, HlsNotifyCdnClosesMidSegment_ReadStopsAndIgnored)
+{
+    srs_error_t err;
+
+    HooksUtestHooks h;
+    HttpUtestOneReplyServer cdn("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n0123456789");
+    HELPER_ASSERT_SUCCESS(cdn.start());
+
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    err = h.hooks_.on_hls_notify(SrsContextId(), "http://" + cdn.server() + "/live/[ts_url]", &h.req_, "livestream-0.ts", 64);
+    _srs_log = original;
+    HELPER_EXPECT_SUCCESS(err);
+
+    EXPECT_EQ(0, (int)cdn.request_.find("GET /live/livestream-0.ts HTTP/1.1\r\n")) << cdn.request_;
+    string trace = utest_log_find(log.traces_, "on_hls_notify success");
+    EXPECT_NE(string::npos, trace.find("read=10B")) << trace;
+    EXPECT_NE(string::npos, trace.find("err=code=")) << trace;
+}
+
+// An operator leaves the schema out of the on_hls_notify url: each notify fails with the url parse error, so the
+// async worker logs it, and nothing is fetched.
+VOID TEST(AppHttpHooksTest, HlsNotifyUrlWithoutSchema_NotifyFails)
+{
+    srs_error_t err;
+
+    HooksUtestHooks h;
+    HttpUtestOneReplyServer cdn(mock_http_response(200, "0123456789"));
+    HELPER_ASSERT_SUCCESS(cdn.start());
+
+    err = h.hooks_.on_hls_notify(SrsContextId(), cdn.server() + "/live/[stream]/[ts_url]", &h.req_, "livestream-0.ts", 64);
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    EXPECT_EQ(ERROR_HTTP_PARSE_URI, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("http: init url=" + cdn.server() + "/live/livestream/livestream-0.ts")) << desc;
+    EXPECT_TRUE(cdn.request_.empty()) << cdn.request_;
+}
+
+// An edge's player asks an origin of a cluster for a stream it does not have, so the origin asks its coworkers,
+// through the server's own HTTP hooks, which origin has it, and redirects the player there.
+class HooksUtestClusterOrigin
+{
+public:
+    HooksUtestHooks h_;
+    MockAppConfigForRtmpConnCluster config_;
+    MockRtmpServerForRedirect *rtmp_;
+    SrsUniquePtr<SrsRtmpConn> conn_;
+
+public:
+    HooksUtestClusterOrigin() : conn_(new SrsRtmpConn(new MockRtmpTransportForDoCycle(), "192.168.1.100", 1935))
+    {
+        conn_->config_ = &config_;
+        conn_->assemble();
+        conn_->hooks_ = &h_.hooks_;
+        rtmp_ = new MockRtmpServerForRedirect();
+        srs_freep(conn_->rtmp_);
+        conn_->rtmp_ = rtmp_;
+
+        ISrsRequest *req = conn_->info_->req_;
+        req->vhost_ = "__defaultVhost__";
+        req->host_ = "127.0.0.1";
+        req->app_ = "live";
+        req->stream_ = "livestream";
+    }
+    ~HooksUtestClusterOrigin()
+    {
+        conn_->hooks_ = NULL;
+        conn_->config_ = NULL;
+    }
+
+public:
+    srs_error_t redirect()
+    {
+        SrsSharedPtr<SrsLiveSource> source(new MockLiveSource());
+        return conn_->redirect_to_origin_cluster(source);
+    }
+};
+
+// The answer of an SRS coworker's cluster API, with the origin it found or null, as SrsGoApiClusters writes it.
+static string hooks_utest_cluster_answer(string origin)
+{
+    string query = "{\"ip\":\"127.0.0.1\",\"vhost\":\"__defaultVhost__\",\"app\":\"live\",\"stream\":\"livestream\"}";
+    return mock_http_response(200, "{\"code\":0,\"data\":{\"query\":" + query + ",\"origin\":" + origin + "}}");
+}
+
+// Of three coworkers, the first is down and the second does not have the stream, so it answers no origin: both are
+// skipped, and the player is redirected to the origin the third names.
+VOID TEST(AppHttpHooksTest, ClusterCoworkerDownOrWithoutStream_RedirectsToTheOneWithIt)
+{
+    srs_error_t err;
+
+    HttpUtestOneReplyServer down("");
+    HttpUtestOneReplyServer without(hooks_utest_cluster_answer("null"));
+    HELPER_ASSERT_SUCCESS(without.start());
+    HttpUtestOneReplyServer with(hooks_utest_cluster_answer("{\"ip\":\"10.0.0.3\",\"port\":19350,\"vhost\":\"__defaultVhost__\","
+                                                            "\"api\":\"10.0.0.3:1985\",\"routers\":[\"10.0.0.3:1985\"]}"));
+    HELPER_ASSERT_SUCCESS(with.start());
+
+    HooksUtestClusterOrigin o;
+    o.config_.coworkers_.push_back(down.server());
+    o.config_.coworkers_.push_back(without.server());
+    o.config_.coworkers_.push_back(with.server());
+
+    err = o.redirect();
+    EXPECT_EQ(ERROR_CONTROL_REDIRECT, srs_error_code(err));
+    srs_freep(err);
+
+    EXPECT_EQ(0, (int)without.request_.find("POST /api/v1/clusters?vhost=__defaultVhost__&ip=127.0.0.1&app=live&stream=livestream&coworker=" + without.server() + " HTTP/1.1\r\n")) << without.request_;
+    EXPECT_EQ(0, (int)with.request_.find("POST /api/v1/clusters?")) << with.request_;
+    ASSERT_EQ(1, (int)o.rtmp_->redirect_urls_.size());
+    EXPECT_NE(string::npos, o.rtmp_->redirect_urls_[0].find("10.0.0.3:19350")) << o.rtmp_->redirect_urls_[0];
+}
+
+// An operator lists the HTTP hooks server as a coworker by mistake. It answers each discovery as a hook, with "0" or
+// {"code":0}, which names no origin, so no coworker can be used and the player is refused with the discovery error.
+VOID TEST(AppHttpHooksTest, ClusterCoworkerIsHookServer_NoOriginFound)
+{
+    srs_error_t err;
+
+    HttpUtestOneReplyServer plain(mock_http_response(200, "0"));
+    HELPER_ASSERT_SUCCESS(plain.start());
+    HttpUtestOneReplyServer json(hooks_utest_ok());
+    HELPER_ASSERT_SUCCESS(json.start());
+
+    HooksUtestClusterOrigin o;
+    o.config_.coworkers_.push_back(plain.server());
+    o.config_.coworkers_.push_back(json.server());
+
+    err = o.redirect();
+    EXPECT_EQ(ERROR_OCLUSTER_DISCOVER, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("discover coworkers")) << desc;
+    EXPECT_NE(string::npos, desc.find("parse data {\"code\":0}")) << desc;
+
+    EXPECT_EQ(0, (int)plain.request_.find("POST /api/v1/clusters?")) << plain.request_;
+    EXPECT_EQ(0, (int)json.request_.find("POST /api/v1/clusters?")) << json.request_;
+    EXPECT_TRUE(o.rtmp_->redirect_urls_.empty());
 }
