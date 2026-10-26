@@ -3544,50 +3544,6 @@ static SrsConfDirective *edge_utest_origin(string server)
     return conf;
 }
 
-// An HTTP-FLV origin on a random local port for one request of an edge: it answers with reply_, the response header
-// and as much of the body as the test wants, then closes.
-class EdgeUtestFlvOrigin : public SrsHttpTestServer
-{
-public:
-    string reply_;
-    string request_;
-
-public:
-    EdgeUtestFlvOrigin(string reply) : SrsHttpTestServer("")
-    {
-        reply_ = reply;
-    }
-
-public:
-    virtual srs_error_t start()
-    {
-        srs_error_t err = SrsHttpTestServer::start();
-        // Let State Threads run once, so its clock is fresh, as RtmpConnTestOrigin does.
-        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
-        return err;
-    }
-    virtual srs_error_t do_cycle(srs_netfd_t cfd)
-    {
-        srs_error_t err = srs_success;
-
-        SrsStSocket skt(cfd);
-        skt.set_recv_timeout(1 * SRS_UTIME_SECONDS);
-        skt.set_send_timeout(1 * SRS_UTIME_SECONDS);
-
-        char buf[1024];
-        ssize_t nn = 0;
-        if ((err = skt.read(buf, sizeof(buf), &nn)) != srs_success) {
-            return err;
-        }
-        request_.assign(buf, nn);
-
-        return skt.write((void *)reply_.data(), reply_.size(), NULL);
-    }
-    string server()
-    {
-        return "127.0.0.1:" + srs_strconv_format_int(get_port());
-    }
-};
 
 // The FLV header with audio and video, and the previous tag size 0 after it.
 static string edge_utest_flv_header()
@@ -3808,7 +3764,7 @@ VOID TEST(AppEdgeTest, FlvPullFromOrigin_SourceGetsMetadataAndFrameUntilBodyEnds
 
     for (int i = 0; i < 2; i++) {
         bool with_length = (i == 0);
-        EdgeUtestFlvOrigin origin(edge_utest_flv_reply(body, with_length ? (int)body.size() : -1));
+        HttpUtestOneReplyServer origin(edge_utest_flv_reply(body, with_length ? (int)body.size() : -1));
         HELPER_ASSERT_SUCCESS(origin.start());
 
         MockEdgeIngesterFixture f(1000);
@@ -3842,7 +3798,7 @@ VOID TEST(AppEdgeTest, FlvOriginBodyCut_PullFailsWhereItStops)
 
     if (true) {
         string page = "<html>offline</html>";
-        EdgeUtestFlvOrigin origin("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 20\r\n\r\n" + page);
+        HttpUtestOneReplyServer origin("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 20\r\n\r\n" + page);
         HELPER_ASSERT_SUCCESS(origin.start());
 
         MockAppConfigForEdgeIngester config;
@@ -3868,7 +3824,7 @@ VOID TEST(AppEdgeTest, FlvOriginBodyCut_PullFailsWhereItStops)
     const char *steps[] = {"read pts", "read tag header", "read tag data", "read pts"};
 
     for (int i = 0; i < 4; i++) {
-        EdgeUtestFlvOrigin origin(edge_utest_flv_reply(bodies[i], 1000));
+        HttpUtestOneReplyServer origin(edge_utest_flv_reply(bodies[i], 1000));
         HELPER_ASSERT_SUCCESS(origin.start());
 
         MockAppConfigForEdgeIngester config;
@@ -3905,7 +3861,7 @@ VOID TEST(AppEdgeTest, FlvOriginScriptTagWithoutName_PullEndsAtIt)
 
     string body = edge_utest_flv_header();
     body += edge_utest_flv_tag(18, 0, edge_utest_amf0(SrsAmf0Any::number(1), SrsAmf0Any::str("onMetaData")));
-    EdgeUtestFlvOrigin origin(edge_utest_flv_reply(body, (int)body.size()));
+    HttpUtestOneReplyServer origin(edge_utest_flv_reply(body, (int)body.size()));
     HELPER_ASSERT_SUCCESS(origin.start());
 
     MockAppConfigForEdgeIngester config;
@@ -3953,7 +3909,7 @@ VOID TEST(AppEdgeTest, FlvPullFails_ErrorNamesWhereItFailed)
 
     if (true) {
         // Never started, so nothing listens on its port.
-        EdgeUtestFlvOrigin down("");
+        HttpUtestOneReplyServer down("");
         MockAppConfigForEdgeIngester config;
         config.origin_ = edge_utest_origin(down.server());
         SrsUniquePtr<SrsEdgeFlvUpstream> upstream(new SrsEdgeFlvUpstream("http"));
@@ -3967,7 +3923,7 @@ VOID TEST(AppEdgeTest, FlvPullFails_ErrorNamesWhereItFailed)
     }
 
     if (true) {
-        EdgeUtestFlvOrigin origin("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+        HttpUtestOneReplyServer origin("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
         HELPER_ASSERT_SUCCESS(origin.start());
         MockAppConfigForEdgeIngester config;
         config.origin_ = edge_utest_origin(origin.server());
@@ -4552,7 +4508,7 @@ VOID TEST(AppFactoryTest, EdgeVhostClusterProtocol_ServerPullsByIt)
     srs_error_t err;
 
     if (true) {
-        EdgeUtestFlvOrigin origin(factory_utest_flv_reply());
+        HttpUtestOneReplyServer origin(factory_utest_flv_reply());
         HELPER_ASSERT_SUCCESS(origin.start());
 
         FactoryUtestServerConfig server;
@@ -4594,7 +4550,7 @@ VOID TEST(AppFactoryTest, EdgeFollowsClientProtocol_ServerPullsByThePlayersProto
     srs_error_t err;
 
     if (true) {
-        EdgeUtestFlvOrigin origin(factory_utest_flv_reply());
+        HttpUtestOneReplyServer origin(factory_utest_flv_reply());
         HELPER_ASSERT_SUCCESS(origin.start());
 
         FactoryUtestServerConfig server;

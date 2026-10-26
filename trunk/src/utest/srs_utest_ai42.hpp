@@ -15,6 +15,7 @@
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_pithy_print.hpp>
+#include <srs_kernel_utility.hpp>
 #include <srs_protocol_st.hpp>
 
 // The pithy print stages, with one stage set to print at each call, so its line, such as the kbps line of an edge pull
@@ -88,6 +89,52 @@ public:
         srs_netfd_t fd = server_;
         server_ = NULL;
         return fd;
+    }
+};
+
+// An HTTP server on a random local port for one request, such as an HTTP-FLV origin for an edge or a heartbeat
+// collector: it keeps the request, answers with reply_, the response header and as much of the body as the test
+// wants, then closes.
+class HttpUtestOneReplyServer : public SrsHttpTestServer
+{
+public:
+    string reply_;
+    string request_;
+
+public:
+    HttpUtestOneReplyServer(string reply) : SrsHttpTestServer("")
+    {
+        reply_ = reply;
+    }
+
+public:
+    virtual srs_error_t start()
+    {
+        srs_error_t err = SrsHttpTestServer::start();
+        // Let State Threads run once, so its clock is fresh, as RtmpConnTestOrigin does.
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        return err;
+    }
+    virtual srs_error_t do_cycle(srs_netfd_t cfd)
+    {
+        srs_error_t err = srs_success;
+
+        SrsStSocket skt(cfd);
+        skt.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+        skt.set_send_timeout(1 * SRS_UTIME_SECONDS);
+
+        char buf[1024];
+        ssize_t nn = 0;
+        if ((err = skt.read(buf, sizeof(buf), &nn)) != srs_success) {
+            return err;
+        }
+        request_.assign(buf, nn);
+
+        return skt.write((void *)reply_.data(), reply_.size(), NULL);
+    }
+    string server()
+    {
+        return "127.0.0.1:" + srs_strconv_format_int(get_port());
     }
 };
 

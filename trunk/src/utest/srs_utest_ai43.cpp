@@ -10,6 +10,7 @@
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
 #endif
+#include <srs_app_heartbeat.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_st.hpp>
 #include <srs_app_statistic.hpp>
@@ -28,6 +29,7 @@
 #include <srs_utest_ai34.hpp>
 #include <srs_utest_ai40.hpp>
 #include <srs_utest_ai42.hpp>
+#include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_protocol.hpp>
@@ -1157,3 +1159,136 @@ VOID TEST(AppGb28181Test, SipServerReservesSession_BusyUntilItEnds)
     api.gb_manager_ = NULL;
 }
 #endif
+
+// A collector that answers the heartbeat with a whole JSON body.
+static const char *heartbeat_utest_ok = "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\n{\"code\":0}";
+
+// Runs one heartbeat tick of the server, which reads the heartbeat section of this config text, posting with the
+// server's own HTTP client and statistic. Returns the warnings the tick logged.
+static vector<string> heartbeat_utest_tick(string section, srs_error_t *perr)
+{
+    MockSrsConfig conf;
+    *perr = conf.mock_parse(string(_MIN_OK_CONF) + "heartbeat { enabled on; " + section + " }");
+    if (*perr != srs_success) {
+        return vector<string>();
+    }
+
+    SrsHttpHeartbeat heartbeat;
+    heartbeat.config_ = &conf;
+
+    MockLogForSignal log;
+    ISrsLog *original = _srs_log;
+    _srs_log = &log;
+    heartbeat.heartbeat();
+    _srs_log = original;
+
+    heartbeat.config_ = NULL;
+    return log.warns_;
+}
+
+// The warning that holds this text, or "" when no warning does.
+static string heartbeat_utest_warn(const vector<string> &warns, string text)
+{
+    for (int i = 0; i < (int)warns.size(); i++) {
+        if (warns[i].find(text) != string::npos) {
+            return warns[i];
+        }
+    }
+    return "";
+}
+
+// A collector that needs a bearer token: with auth enabled, each tick posts the server's report to the url's path
+// with the configured token in the Authorization header, and the device id the operator named, and logs no warning.
+VOID TEST(AppHeartbeatTest, CollectorWithBearerAuth_TickPostsTokenAndDevice)
+{
+    srs_error_t err;
+
+    HttpUtestOneReplyServer collector(heartbeat_utest_ok);
+    HELPER_ASSERT_SUCCESS(collector.start());
+
+    vector<string> warns = heartbeat_utest_tick("url http://" + collector.server() + "/api/v1/servers; device_id srs-utest-01;"
+                                                "auth { enabled on; type bearer; token t1; }",
+                                                &err);
+    HELPER_ASSERT_SUCCESS(err);
+
+    EXPECT_STREQ("", heartbeat_utest_warn(warns, "heartbeat err").c_str());
+    string req = collector.request_;
+    EXPECT_EQ(0, (int)req.find("POST /api/v1/servers HTTP/1.1\r\n")) << req;
+    EXPECT_NE(string::npos, req.find("\r\nAuthorization: Bearer t1\r\n")) << req;
+    EXPECT_NE(string::npos, req.find("\"device_id\":\"srs-utest-01\"")) << req;
+}
+
+// An operator writes the collector's token but leaves out "enabled on": auth is off, so the tick posts with no
+// Authorization header, and the collector, not the server, refuses it.
+VOID TEST(AppHeartbeatTest, CollectorAuthWithoutEnabled_TickPostsNoToken)
+{
+    srs_error_t err;
+
+    HttpUtestOneReplyServer collector(heartbeat_utest_ok);
+    HELPER_ASSERT_SUCCESS(collector.start());
+
+    vector<string> warns = heartbeat_utest_tick("url http://" + collector.server() + "/api/v1/servers;"
+                                                "auth { type bearer; token t1; }",
+                                                &err);
+    HELPER_ASSERT_SUCCESS(err);
+
+    EXPECT_STREQ("", heartbeat_utest_warn(warns, "heartbeat err").c_str());
+    string req = collector.request_;
+    EXPECT_EQ(0, (int)req.find("POST /api/v1/servers HTTP/1.1\r\n")) << req;
+    EXPECT_EQ(string::npos, req.find("Authorization")) << req;
+}
+
+// The collector is down: the tick cannot post, logs a warning naming the url, and returns, so the server keeps
+// running and tries again at the next tick.
+VOID TEST(AppHeartbeatTest, CollectorDown_TickWarnsWithUrl)
+{
+    srs_error_t err;
+
+    // Never started, so nothing listens on its port.
+    HttpUtestOneReplyServer down("");
+    string url = "http://" + down.server() + "/api/v1/servers";
+
+    vector<string> warns = heartbeat_utest_tick("url " + url + ";", &err);
+    HELPER_ASSERT_SUCCESS(err);
+
+    string warn = heartbeat_utest_warn(warns, "heartbeat err");
+    EXPECT_NE(string::npos, warn.find("http post hartbeart uri failed. url=" + url)) << warn;
+}
+
+// An operator leaves the schema out of the heartbeat url. The config loads, but each tick logs that the url cannot be
+// parsed and posts nothing, not even to the host and port the url names.
+VOID TEST(AppHeartbeatTest, HeartbeatUrlWithoutSchema_TickWarnsAndPostsNothing)
+{
+    srs_error_t err;
+
+    HttpUtestOneReplyServer collector(heartbeat_utest_ok);
+    HELPER_ASSERT_SUCCESS(collector.start());
+    string url = collector.server() + "/api/v1/servers";
+
+    vector<string> warns = heartbeat_utest_tick("url " + url + ";", &err);
+    HELPER_ASSERT_SUCCESS(err);
+    // Give the collector a chance to accept, had the tick connected.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    string warn = heartbeat_utest_warn(warns, "heartbeat err");
+    EXPECT_NE(string::npos, warn.find("http uri parse hartbeart url failed. url=" + url)) << warn;
+    EXPECT_NE(string::npos, warn.find("no schema")) << warn;
+    EXPECT_TRUE(collector.request_.empty()) << collector.request_;
+}
+
+// The collector answers the post but closes before its whole body is sent: the tick fails reading the body and logs
+// it.
+VOID TEST(AppHeartbeatTest, CollectorClosesMidBody_TickWarnsReadBody)
+{
+    srs_error_t err;
+
+    HttpUtestOneReplyServer collector("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\n{\"code\"");
+    HELPER_ASSERT_SUCCESS(collector.start());
+
+    vector<string> warns = heartbeat_utest_tick("url http://" + collector.server() + "/api/v1/servers;", &err);
+    HELPER_ASSERT_SUCCESS(err);
+
+    EXPECT_EQ(0, (int)collector.request_.find("POST /api/v1/servers HTTP/1.1\r\n")) << collector.request_;
+    string warn = heartbeat_utest_warn(warns, "heartbeat err");
+    EXPECT_NE(string::npos, warn.find("read body")) << warn;
+}
