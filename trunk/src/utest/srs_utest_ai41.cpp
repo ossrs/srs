@@ -6,11 +6,14 @@
 #include <srs_utest_ai41.hpp>
 
 #include <srs_app_rtc_source.hpp>
+#include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
 #include <srs_app_statistic.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_amf0.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai05.hpp>
 #include <srs_utest_manual_config.hpp>
@@ -26,6 +29,7 @@
 #include <string>
 
 using namespace std;
+using namespace srs_internal;
 
 extern srs_utime_t _srs_system_time_us_cache;
 extern srs_mkdir_t _srs_mkdir_fn;
@@ -244,4 +248,132 @@ VOID TEST(KernelUtilityTest, DISABLED_SecurityAllowRuleWithPrefixLengthOver32_Re
 
     HELPER_EXPECT_SUCCESS(sec.check(SrsRtmpConnPlay, "192.168.1.5", &req));
     sec.config_ = NULL;
+}
+
+// An AMF0 Date of a script tag: the 0x0B marker, 8 bytes of milliseconds since the
+// epoch, and a 2-byte time zone in minutes.
+static void amf0_write_raw_date(SrsBuffer *b, int64_t ms_bits, int16_t time_zone)
+{
+    b->write_1bytes(0x0B);
+    b->write_8bytes(ms_bits);
+    b->write_2bytes(time_zone);
+}
+
+// A publisher that sends an FLV file's script tag as it is, such as a file indexed by
+// flvtool2 or yamdi, puts a keyframes index (strict arrays of times and file positions)
+// and a metadatadate Date in its @setDataFrame onMetaData ECMA array. The server copies
+// the array into the metadata object, removes the duration, adds its own server info,
+// and encodes it again for every player. A player must get the index and the date as
+// the publisher sent them.
+VOID TEST(ProtocolAmf0Test, PublisherMetadataWithKeyframesIndex_PlayerGetsArraysAndDate)
+{
+    srs_error_t err = srs_success;
+
+    const double times[] = {0, 2.002, 4.004};
+    const double positions[] = {13, 52310, 104998};
+    const int64_t date_bits = 0x4278d3c8a0b10000LL;
+
+    char buf[1024];
+    SrsBuffer b(buf, sizeof(buf));
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_string(&b, "@setDataFrame"));
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_string(&b, "onMetaData"));
+    b.write_1bytes(0x08); // ECMA array.
+    b.write_4bytes(5);
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_utf8(&b, "duration"));
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_number(&b, 60.06));
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_utf8(&b, "width"));
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_number(&b, 1280));
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_utf8(&b, "height"));
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_number(&b, 720));
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_utf8(&b, "metadatadate"));
+    amf0_write_raw_date(&b, date_bits, -480);
+    HELPER_ASSERT_SUCCESS(srs_amf0_write_utf8(&b, "keyframes"));
+    if (true) {
+        SrsUniquePtr<SrsAmf0Object> keyframes(SrsAmf0Any::object());
+        SrsAmf0StrictArray *t = SrsAmf0Any::strict_array();
+        SrsAmf0StrictArray *p = SrsAmf0Any::strict_array();
+        for (int i = 0; i < 3; i++) {
+            t->append(SrsAmf0Any::number(times[i]));
+            p->append(SrsAmf0Any::number(positions[i]));
+        }
+        keyframes->set("times", t);
+        keyframes->set("filepositions", p);
+        HELPER_ASSERT_SUCCESS(srs_amf0_write_any(&b, keyframes.get()));
+    }
+    b.write_2bytes(0x00); // ECMA array end.
+    b.write_1bytes(0x09);
+
+    // The server decodes the publisher's message.
+    SrsOnMetaDataPacket published;
+    SrsBuffer in(buf, b.pos());
+    HELPER_ASSERT_SUCCESS(published.decode(&in));
+    EXPECT_STREQ("onMetaData", published.name_.c_str());
+
+    // The meta cache encodes it again for players.
+    SrsMessageHeader header;
+    header.message_type_ = RTMP_MSG_AMF0DataMessage;
+    header.payload_length_ = b.pos();
+    SrsMetaCache cache;
+    bool updated = false;
+    HELPER_ASSERT_SUCCESS(cache.update_data(&header, &published, updated));
+    ASSERT_TRUE(updated);
+    ASSERT_TRUE(cache.data() != NULL);
+
+    // A player decodes what the server sends.
+    SrsOnMetaDataPacket played;
+    SrsBuffer out(cache.data()->payload(), cache.data()->size());
+    HELPER_ASSERT_SUCCESS(played.decode(&out));
+    SrsAmf0Object *meta = played.metadata_;
+
+    EXPECT_TRUE(meta->get_property("duration") == NULL);
+    ASSERT_TRUE(meta->ensure_property_string("server") != NULL);
+    ASSERT_TRUE(meta->ensure_property_number("width") != NULL);
+    EXPECT_EQ(1280, meta->ensure_property_number("width")->to_number());
+
+    SrsAmf0Any *date = meta->get_property("metadatadate");
+    ASSERT_TRUE(date != NULL);
+    ASSERT_TRUE(date->is_date());
+    EXPECT_EQ(date_bits, date->to_date());
+    EXPECT_EQ(-480, date->to_date_time_zone());
+
+    SrsAmf0Any *index = meta->get_property("keyframes");
+    ASSERT_TRUE(index != NULL);
+    ASSERT_TRUE(index->is_object());
+    SrsAmf0Any *t = index->to_object()->get_property("times");
+    SrsAmf0Any *p = index->to_object()->get_property("filepositions");
+    ASSERT_TRUE(t != NULL && t->is_strict_array());
+    ASSERT_TRUE(p != NULL && p->is_strict_array());
+    ASSERT_EQ(3, t->to_strict_array()->count());
+    ASSERT_EQ(3, p->to_strict_array()->count());
+    for (int i = 0; i < 3; i++) {
+        EXPECT_EQ(times[i], t->to_strict_array()->at(i)->to_number());
+        EXPECT_EQ(positions[i], p->to_strict_array()->at(i)->to_number());
+    }
+}
+
+// A broken encoder sends onMetaData whose message ends inside a Date: in its 8 bytes of
+// milliseconds, or before its 2-byte time zone. The server must refuse the metadata as
+// an AMF0 decode error, not read past the message.
+VOID TEST(ProtocolAmf0Test, PublisherMetadataCutInsideDate_DecodeFails)
+{
+    srs_error_t err = srs_success;
+
+    // The bytes after the Date marker that the message still holds.
+    const int lefts[] = {5, 9};
+    for (int i = 0; i < 2; i++) {
+        char buf[128];
+        SrsBuffer b(buf, sizeof(buf));
+        HELPER_ASSERT_SUCCESS(srs_amf0_write_string(&b, "onMetaData"));
+        b.write_1bytes(0x08); // ECMA array.
+        b.write_4bytes(1);
+        HELPER_ASSERT_SUCCESS(srs_amf0_write_utf8(&b, "metadatadate"));
+        amf0_write_raw_date(&b, 0x4278d3c8a0b10000LL, 0);
+        int size = b.pos() - 11 + 1 + lefts[i];
+
+        SrsOnMetaDataPacket pkt;
+        SrsBuffer in(buf, size);
+        err = pkt.decode(&in);
+        EXPECT_EQ(ERROR_RTMP_AMF0_DECODE, srs_error_code(err)) << "left=" << lefts[i];
+        srs_freep(err);
+    }
 }
