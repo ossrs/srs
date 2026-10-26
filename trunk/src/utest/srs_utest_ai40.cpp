@@ -13,12 +13,15 @@
 #include <srs_app_http_stream.hpp>
 #include <srs_kernel_file.hpp>
 #include <srs_kernel_flv.hpp>
+#include <srs_kernel_hourglass.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_rtc_rtp.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
+#include <srs_protocol_st.hpp>
+#include <srs_utest_ai05.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_manual_http.hpp>
 #include <srs_utest_manual_kernel.hpp>
@@ -794,4 +797,102 @@ VOID TEST(KernelFlvTest, HttpFlvHasAudioOffDropsAudioTags)
     HELPER_EXPECT_SUCCESS(enc.write_video(0, avc, sizeof(avc)));
     ASSERT_EQ(13 + (11 + 6 + 4), w.filesize());
     EXPECT_EQ(SrsFrameTypeVideo, (uint8_t)w.data()[13]);
+}
+
+// State Threads returns NULL when it cannot map the stack of a new coroutine, such as when the
+// process is out of memory or over its address space limit.
+static void *hourglass_st_thread_create_out_of_memory(void *(* /*start*/)(void *arg), void * /*arg*/, int /*joinable*/, int /*stack_size*/)
+{
+    return NULL;
+}
+
+// The server and every source manager start a 1s hourglass for their periodic jobs, such as the
+// stats and heartbeat ticks. When no coroutine can be created for it, start fails with the ST error,
+// so the server stops starting up instead of running without its timer, and no tick is ever fired.
+VOID TEST(KernelHourglassTest, ServerTimerFailsToStartWhenNoCoroutineCanBeCreated)
+{
+    srs_error_t err = srs_success;
+
+    MockSrsHourGlass handler;
+    SrsHourGlass hourglass("srs", &handler, 1 * SRS_UTIME_SECONDS);
+    hourglass.assemble();
+    HELPER_EXPECT_SUCCESS(hourglass.tick(2, 3 * SRS_UTIME_SECONDS));
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)hourglass_st_thread_create_out_of_memory;
+    err = hourglass.start();
+    _pfn_st_thread_create = ov;
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
+    EXPECT_TRUE(srs_error_desc(err).find("start timer") != string::npos);
+    srs_freep(err);
+
+    // A started hourglass fires every due tick in its first round, as soon as this test yields.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(handler.events_.empty());
+}
+
+// The shared 20ms, 100ms, 1s and 5s timers are fast timers built by the kernel factory at startup.
+// When no coroutine can be created for one, start fails with the ST error and no subscriber, such as
+// the clock monitor or an RTC connection, is ever called.
+VOID TEST(KernelHourglassTest, SharedFastTimerFailsToStartWhenNoCoroutineCanBeCreated)
+{
+    srs_error_t err = srs_success;
+
+    ISrsFastTimer *timer = _srs_kernel_factory->create_fast_timer("shared", 20 * SRS_UTIME_MILLISECONDS);
+    SrsUniquePtr<ISrsFastTimer> guard(timer);
+
+    MockSrsFastTimer handler;
+    timer->subscribe(&handler);
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)hourglass_st_thread_create_out_of_memory;
+    err = timer->start();
+    _pfn_st_thread_create = ov;
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
+    EXPECT_TRUE(srs_error_desc(err).find("start timer") != string::npos);
+    srs_freep(err);
+
+    // A started timer notifies its subscribers in its first round, as soon as this test yields.
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(handler.timer_calls_.empty());
+}
+
+// At startup srs_global_initialize() starts the four shared timers in order. When one cannot start,
+// the error names that timer for the operator, the timers after it are not started, and the clock
+// monitor is not subscribed, so the server exits instead of running with a timer missing.
+VOID TEST(KernelHourglassTest, SharedTimerStartupNamesTheTimerThatFailed)
+{
+    const char *names[] = {"start timer20ms", "start timer100ms", "start timer1s", "start timer5s"};
+
+    for (int failed = 0; failed < 4; failed++) {
+        MockFastTimerForSharedTimer timers[4];
+        timers[failed].start_error_ = srs_error_new(ERROR_ST_CREATE_CYCLE_THREAD, "create failed");
+
+        MockKernelFactoryForFastTimer factory;
+        for (int i = 0; i < 4; i++) {
+            factory.fast_timers_.push_back(&timers[i]);
+        }
+
+        SrsSharedTimer shared;
+        shared.factory_ = &factory;
+
+        srs_error_t err = shared.initialize();
+        EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err)) << "failed=" << failed;
+        EXPECT_TRUE(srs_error_desc(err).find(names[failed]) != string::npos) << "failed=" << failed;
+        srs_freep(err);
+
+        for (int i = 0; i < 4; i++) {
+            EXPECT_EQ(i <= failed ? 1 : 0, timers[i].start_count_) << "failed=" << failed << ", timer=" << i;
+        }
+        EXPECT_TRUE(timers[0].subscribed_.empty()) << "failed=" << failed;
+
+        // The timers are borrowed, so the destructor must not free them.
+        shared.timer20ms_ = NULL;
+        shared.timer100ms_ = NULL;
+        shared.timer1s_ = NULL;
+        shared.timer5s_ = NULL;
+        shared.factory_ = NULL;
+    }
 }
