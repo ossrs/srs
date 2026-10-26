@@ -11,6 +11,7 @@
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_ingest.hpp>
 #include <srs_app_listener.hpp>
+#include <srs_app_log.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
@@ -25,6 +26,7 @@
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai23.hpp>
+#include <srs_utest_ai30.hpp>
 #include <srs_utest_ai38.hpp>
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_manual_config.hpp>
@@ -34,7 +36,11 @@
 #endif
 
 #include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <netinet/in.h>
+#include <stdarg.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -986,4 +992,150 @@ VOID TEST(AppListenerTest, WebrtcRecvRateLine_RatesInUnitsByLoad)
     line = listener_utest_rtc_recv_line(50, &err);
     HELPER_ASSERT_SUCCESS(err);
     EXPECT_NE(string::npos, line.find(", udp 1, pps 2/2(w), schedule 1")) << line;
+}
+
+// Log a line the way the SRS log macros do, through a va_list, with errno set as the failed call left it.
+static void log_utest_log(SrsFileLog &log, SrsLogLevel level, int error_number, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    errno = error_number;
+    log.log(level, NULL, SrsContextId(), fmt, args);
+    errno = 0;
+    va_end(args);
+}
+
+// The process's stdout, sent to a file while the scope lives, so a test reads what the console tank printed.
+class LogUtestStdoutScope
+{
+public:
+    int saved_fd_;
+
+public:
+    LogUtestStdoutScope()
+    {
+        fflush(stdout);
+        saved_fd_ = ::dup(STDOUT_FILENO);
+        int fd = ::open("/tmp/srs-utest-log-console.txt", O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        ::dup2(fd, STDOUT_FILENO);
+        ::close(fd);
+    }
+    ~LogUtestStdoutScope()
+    {
+        restore();
+    }
+
+public:
+    void restore()
+    {
+        if (saved_fd_ < 0) {
+            return;
+        }
+        fflush(stdout);
+        ::dup2(saved_fd_, STDOUT_FILENO);
+        ::close(saved_fd_);
+        saved_fd_ = -1;
+    }
+    string read()
+    {
+        restore();
+        string text;
+        FILE *f = ::fopen("/tmp/srs-utest-log-console.txt", "rb");
+        if (f) {
+            char buf[1024];
+            size_t n;
+            while ((n = ::fread(buf, 1, sizeof(buf), f)) > 0) {
+                text.append(buf, n);
+            }
+            ::fclose(f);
+        }
+        ::unlink("/tmp/srs-utest-log-console.txt");
+        return text;
+    }
+};
+
+// With `srs_log_tank console`, the server prints its log to the terminal: a trace line plain, as the operator reads
+// most lines, and a warning in yellow, reset at its end so the next line is plain again.
+VOID TEST(AppLogTest, ConsoleTankPrintsTracePlainAndWarnInYellow)
+{
+    SrsFileLog log;
+    log.log_to_file_tank_ = false;
+
+    LogUtestStdoutScope console;
+    log_utest_log(log, SrsLogLevelTrace, 0, "RTMP client ip=%s:%d", "127.0.0.1", 50320);
+    log_utest_log(log, SrsLogLevelWarn, 0, "client disconnect peer. ret=%d", 1007);
+    string text = console.read();
+
+    size_t eol = text.find('\n');
+    ASSERT_NE(string::npos, eol) << text;
+    string trace = text.substr(0, eol + 1);
+    string warn = text.substr(eol + 1);
+
+    EXPECT_EQ('[', trace[0]) << trace;
+    EXPECT_NE(string::npos, trace.find("[INFO]")) << trace;
+    EXPECT_NE(string::npos, trace.find("] RTMP client ip=127.0.0.1:50320\n")) << trace;
+    EXPECT_EQ(string::npos, trace.find('\033')) << trace;
+
+    EXPECT_EQ(0, (int)warn.find("\033[33m[")) << warn;
+    EXPECT_NE(string::npos, warn.find("[WARN]")) << warn;
+    EXPECT_NE(string::npos, warn.find("] client disconnect peer. ret=1007\n\033[0m")) << warn;
+    EXPECT_EQ(warn.length() - 4, warn.rfind("\033[0m")) << warn;
+}
+
+// A hook server that answers on_connect with a body over the 64KB log buffer, such as an HTML error page with a 200,
+// makes the "on_connect ok" trace too long: the line is dropped whole rather than printed cut, and the next line of
+// the server is printed as usual.
+VOID TEST(AppLogTest, HookResponseOver64KB_TraceLineDroppedNextLinePrinted)
+{
+    MockLogWriterForFileLog writer;
+    SrsFileLog log;
+    srs_freep(log.writer_);
+    log.writer_ = &writer;
+    log.log_to_file_tank_ = false;
+
+    string res(70 * 1024, 'x');
+    log_utest_log(log, SrsLogLevelTrace, 0, "http: on_connect ok, client_id=%s, url=%s, request=%s, response=%s",
+                  "7k0v5u21", "http://127.0.0.1:8085/api/v1/clients", "{\"action\":\"on_connect\"}", res.c_str());
+    EXPECT_EQ(0, writer.write_console_count_);
+
+    log_utest_log(log, SrsLogLevelTrace, 0, "RTMP client ip=%s:%d", "127.0.0.1", 50320);
+    ASSERT_EQ(1, writer.write_console_count_);
+    EXPECT_NE(string::npos, writer.console_.find("] RTMP client ip=127.0.0.1:50320\n")) << writer.console_;
+
+    log.writer_ = NULL;
+}
+
+// An error line ends with the text of errno, such as "(Broken pipe)" after a client left mid-write. When the error
+// description fills the log buffer so that the errno text no longer fits, the line is dropped rather than printed
+// without it; a description a few bytes shorter is printed with the errno text.
+VOID TEST(AppLogTest, ErrorWithErrnoFillingTheBuffer_LineDropped)
+{
+    MockLogWriterForFileLog writer;
+    SrsFileLog log;
+    srs_freep(log.writer_);
+    log.writer_ = &writer;
+    log.log_to_file_tank_ = false;
+
+    // The header of an error line has a fixed width for a given errno: measure it on a short line.
+    string errno_text = string("(") + strerror(EPIPE) + ")";
+    log_utest_log(log, SrsLogLevelError, EPIPE, "serve error %s", "x");
+    ASSERT_EQ(1, writer.write_console_count_);
+    int header = (int)writer.console_.length() - (int)strlen("serve error x") - (int)errno_text.length() - 1;
+    ASSERT_GT(header, 0);
+    EXPECT_EQ(errno_text + "\n", writer.console_.substr(writer.console_.length() - errno_text.length() - 1));
+
+    // The description fits the 64KB buffer with 3 bytes left, too few for the errno text.
+    int fits = 65536 - header - 3 - (int)strlen("serve error ");
+    string desc(fits, 'd');
+    log_utest_log(log, SrsLogLevelError, EPIPE, "serve error %s", desc.c_str());
+    EXPECT_EQ(1, writer.write_console_count_);
+
+    // With room for the errno text, the line is printed whole.
+    desc.resize(fits - (int)errno_text.length());
+    log_utest_log(log, SrsLogLevelError, EPIPE, "serve error %s", desc.c_str());
+    ASSERT_EQ(2, writer.write_console_count_);
+    EXPECT_STREQ("\033[31m", writer.console_color_.c_str());
+    EXPECT_EQ(errno_text + "\n", writer.console_.substr(writer.console_.length() - errno_text.length() - 1));
+
+    log.writer_ = NULL;
 }
