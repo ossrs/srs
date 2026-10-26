@@ -12,6 +12,7 @@
 #include <srs_app_ingest.hpp>
 #include <srs_app_listener.hpp>
 #include <srs_app_log.hpp>
+#include <srs_app_mpegts_udp.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
@@ -19,6 +20,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_pithy_print.hpp>
+#include <srs_kernel_ts.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
@@ -27,9 +29,12 @@
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai23.hpp>
 #include <srs_utest_ai30.hpp>
+#include <srs_utest_ai34.hpp>
 #include <srs_utest_ai38.hpp>
+#include <srs_utest_ai41.hpp>
 #include <srs_utest_ai42.hpp>
 #include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_service.hpp>
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
@@ -1138,4 +1143,521 @@ VOID TEST(AppLogTest, ErrorWithErrnoFillingTheBuffer_LineDropped)
     EXPECT_EQ(errno_text + "\n", writer.console_.substr(writer.console_.length() - errno_text.length() - 1));
 
     log.writer_ = NULL;
+}
+
+// An encoder sending MPEG-TS over UDP to the caster, as FFmpeg's `-f mpegts udp://host:port` does. The real TS muxer
+// writes the PAT and PMT, again before each key frame as FFmpeg resends them, and the PES packets of each frame.
+class MpegtsUtestEncoder
+{
+public:
+    MockSrsFileWriter w_;
+    SrsTsContext ctx_;
+    SrsVideoCodecId vcodec_;
+    int taken_;
+
+public:
+    MpegtsUtestEncoder(SrsVideoCodecId vcodec)
+    {
+        vcodec_ = vcodec;
+        taken_ = 0;
+    }
+
+public:
+    // A video access unit of the NALUs at the time in ms.
+    srs_error_t video(int64_t ms, const vector<string> &nalus, bool key)
+    {
+        if (key) {
+            ctx_.reset();
+        }
+
+        SrsTsMessage msg;
+        msg.sid_ = SrsTsPESStreamIdVideoCommon;
+        msg.dts_ = msg.pts_ = ms * 90;
+        msg.write_pcr_ = key;
+        for (int i = 0; i < (int)nalus.size(); i++) {
+            msg.payload_->append("\x00\x00\x00\x01", 4);
+            msg.payload_->append(nalus[i].data(), (int)nalus[i].size());
+        }
+
+        SrsTsContextWriter tscw(&w_, &ctx_, SrsAudioCodecIdAAC, vcodec_);
+        return tscw.write_video(&msg);
+    }
+    // An audio PES of the ADTS frames at the time in ms.
+    srs_error_t audio(int64_t ms, const string &adts)
+    {
+        SrsTsMessage msg;
+        msg.sid_ = SrsTsPESStreamIdAudioCommon;
+        msg.dts_ = msg.pts_ = ms * 90;
+        msg.payload_->append(adts.data(), (int)adts.size());
+
+        SrsTsContextWriter tscw(&w_, &ctx_, SrsAudioCodecIdAAC, vcodec_);
+        return tscw.write_audio(&msg);
+    }
+    // The TS written since the last call, cut into datagrams of the size; FFmpeg sends 1316 bytes, 7 TS packets.
+    vector<string> datagrams(int size)
+    {
+        string ts = w_.str().substr(taken_);
+        taken_ += (int)ts.size();
+
+        vector<string> pkts;
+        for (int pos = 0; pos < (int)ts.size(); pos += size) {
+            pkts.push_back(ts.substr(pos, size));
+        }
+        return pkts;
+    }
+};
+
+// An ADTS frame of AAC at 44.1kHz, stereo, with 8 bytes of data. The profile is the ADTS profile, the object type
+// minus 1: 1 for AAC LC, 3 for AAC LTP (FFmpeg's `-profile:a aac_ltp`).
+static string mpegts_utest_adts(int profile)
+{
+    int size = 8;
+    int len = 7 + size;
+    string f;
+    f.push_back((char)0xff);
+    f.push_back((char)0xf1);
+    f.push_back((char)(((profile & 0x03) << 6) | (4 << 2) | (2 >> 2)));
+    f.push_back((char)(((2 & 0x03) << 6) | ((len >> 11) & 0x03)));
+    f.push_back((char)((len >> 3) & 0xff));
+    f.push_back((char)(((len & 0x07) << 5) | 0x1f));
+    f.push_back((char)0xfc);
+    for (int i = 0; i < size; i++) {
+        f.push_back((char)(0x21 + i));
+    }
+    return f;
+}
+
+// The H.264 NALUs of an encoder: its SPS and PPS, an IDR slice and a P slice.
+static const string mpegts_utest_sps("\x67\x64\x00\x1f\xac\xd9\x40\x50\x05\xbb\x01\x10", 12);
+static const string mpegts_utest_pps("\x68\xeb\xe3\xcb\x22\xc0", 6);
+static const string mpegts_utest_idr("\x65\x88\x84\x00\x10", 5);
+static const string mpegts_utest_p("\x41\x9a\x21\x6c\x42", 5);
+
+// An H.264 key frame with its SPS and PPS, as an encoder sends each key frame.
+static vector<string> mpegts_utest_key_frame()
+{
+    vector<string> nalus;
+    nalus.push_back(mpegts_utest_sps);
+    nalus.push_back(mpegts_utest_pps);
+    nalus.push_back(mpegts_utest_idr);
+    return nalus;
+}
+
+static vector<string> mpegts_utest_nalus(const string &nalu)
+{
+    return vector<string>(1, nalu);
+}
+
+// Writes an H.264 and AAC stream of the GOPs, each a key frame then P frames every 40ms, with an audio PES of one
+// frame every 40ms, from the time in ms.
+static srs_error_t mpegts_utest_write_gops(MpegtsUtestEncoder *enc, int64_t start, int gops, int frames)
+{
+    srs_error_t err = srs_success;
+
+    for (int g = 0; g < gops; g++) {
+        for (int i = 0; i < frames; i++) {
+            int64_t ms = start + (g * frames + i) * 40;
+            bool key = (i == 0);
+            if ((err = enc->video(ms, key ? mpegts_utest_key_frame() : mpegts_utest_nalus(mpegts_utest_p), key)) != srs_success) {
+                return err;
+            }
+            if ((err = enc->audio(ms, mpegts_utest_adts(1))) != srs_success) {
+                return err;
+            }
+        }
+    }
+
+    return err;
+}
+
+// The RTMP clients the caster creates to publish to its output, each a mock that records what it sends. The caster
+// frees a client when it closes it.
+class MpegtsUtestFactory : public SrsAppFactory
+{
+public:
+    vector<string> urls_;
+    MockRtmpClientForForwarder *client_;
+
+public:
+    MpegtsUtestFactory()
+    {
+        client_ = NULL;
+    }
+    virtual ~MpegtsUtestFactory()
+    {
+    }
+
+public:
+    virtual ISrsBasicRtmpClient *create_rtmp_client(std::string url, srs_utime_t cto, srs_utime_t sto)
+    {
+        urls_.push_back(url);
+        client_ = new MockRtmpClientForForwarder();
+        return client_;
+    }
+};
+
+// The MPEG-TS caster of a `stream_caster` with `caster mpegts_over_udp`, from config text, fed the datagrams of an
+// encoder at 127.0.0.1:5000 as the UDP listener gives them.
+class MpegtsUtestCaster
+{
+public:
+    MockSrsConfig conf_;
+    MpegtsUtestFactory factory_;
+    SrsMpegtsOverUdp *caster_;
+
+public:
+    MpegtsUtestCaster()
+    {
+        caster_ = new SrsMpegtsOverUdp();
+        caster_->config_ = &conf_;
+        caster_->app_factory_ = &factory_;
+    }
+    virtual ~MpegtsUtestCaster()
+    {
+        srs_freep(caster_);
+    }
+
+public:
+    srs_error_t initialize(string output)
+    {
+        srs_error_t err = srs_success;
+
+        string text = "stream_caster { enabled on; caster mpegts_over_udp; output " + output + "; listen 8935; }";
+        if ((err = conf_.mock_parse(string(_MIN_OK_CONF) + text)) != srs_success) {
+            return err;
+        }
+
+        caster_->assemble();
+        return caster_->initialize(conf_.get_stream_casters().at(0));
+    }
+    srs_error_t send(const vector<string> &datagrams)
+    {
+        srs_error_t err = srs_success;
+
+        sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(5000);
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+        for (int i = 0; i < (int)datagrams.size(); i++) {
+            string pkt = datagrams[i];
+            if ((err = caster_->on_udp_packet((sockaddr *)&addr, sizeof(addr), (char *)pkt.data(), (int)pkt.size())) != srs_success) {
+                return err;
+            }
+        }
+        return err;
+    }
+    // What the caster published to its output so far.
+    vector<MockForwarderSentPacket> sent()
+    {
+        return factory_.client_ ? factory_.client_->sent_ : vector<MockForwarderSentPacket>();
+    }
+};
+
+// How many of the packets are of the type.
+static int mpegts_utest_count(const vector<MockForwarderSentPacket> &sent, SrsFrameType type)
+{
+    int n = 0;
+    for (int i = 0; i < (int)sent.size(); i++) {
+        if (sent[i].type_ == type) {
+            n++;
+        }
+    }
+    return n;
+}
+
+// An IP camera sends HEVC video and AAC audio in MPEG-TS over UDP. The caster publishes H.264 and AAC only: it drops
+// each HEVC frame and goes on with the TS, so the audio still reaches the RTMP output, once the queue that waits for
+// video holds 300 audio frames. The pithy print lines name the HEVC stream and the audio it sends.
+VOID TEST(AppMpegtsUdpTest, CameraSendsHevcWithAac_AudioPublishedHevcDropped)
+{
+    srs_error_t err;
+
+    ListenerUtestLog log;
+    PithyPrintAtOnceScope pithy(SrsPithyPrint::create_caster);
+
+    MpegtsUtestCaster c;
+    HELPER_ASSERT_SUCCESS(c.initialize("rtmp://127.0.0.1/live/livestream"));
+
+    // An HEVC key frame of VPS, SPS, PPS and an IDR slice, then a trailing frame, and 3 PES of 101 AAC frames each.
+    MpegtsUtestEncoder enc(SrsVideoCodecIdHEVC);
+    vector<string> hevc;
+    hevc.push_back(string("\x40\x01\x0c\x01", 4));
+    hevc.push_back(string("\x42\x01\x01\x01", 4));
+    hevc.push_back(string("\x44\x01\xc1\x72", 4));
+    hevc.push_back(string("\x26\x01\xaf\x08", 4));
+    HELPER_ASSERT_SUCCESS(enc.video(0, hevc, true));
+    HELPER_ASSERT_SUCCESS(enc.video(40, mpegts_utest_nalus(string("\x02\x01\xd0\x08", 4)), false));
+    string adts;
+    for (int i = 0; i < 101; i++) {
+        adts.append(mpegts_utest_adts(1));
+    }
+    for (int i = 0; i < 3; i++) {
+        HELPER_ASSERT_SUCCESS(enc.audio(i * 2345, adts));
+    }
+    HELPER_ASSERT_SUCCESS(c.send(enc.datagrams(1316)));
+
+    // The AAC sequence header and the first frames, and no video.
+    vector<MockForwarderSentPacket> sent = c.sent();
+    ASSERT_GE((int)sent.size(), 1);
+    EXPECT_EQ(0, mpegts_utest_count(sent, SrsFrameTypeVideo));
+    EXPECT_EQ((int)sent.size(), mpegts_utest_count(sent, SrsFrameTypeAudio));
+    ASSERT_GE((int)sent[0].payload_.size(), 2);
+    EXPECT_EQ(0xaf, (uint8_t)sent[0].payload_[0]);
+    EXPECT_EQ(0x00, (uint8_t)sent[0].payload_[1]);
+    EXPECT_EQ("rtmp://127.0.0.1/live/livestream", c.factory_.urls_.at(0));
+
+    string got = log.last_trace("mpegts: got Video");
+    EXPECT_NE(string::npos, got.find("stream=H.265")) << got;
+    EXPECT_NE(string::npos, log.last_trace("mpegts: got Audio").find("stream=AAC"));
+    EXPECT_NE(string::npos, log.last_trace("mpegts: send msg A").find("size="));
+}
+
+// An encoder sends its TS in datagrams smaller than one TS packet, such as FFmpeg with `?pkt_size=100`. The caster
+// waits for each whole 188-byte packet and publishes the same stream as from datagrams of 7 packets.
+VOID TEST(AppMpegtsUdpTest, EncoderSendsDatagramsSmallerThanTsPacket_StreamReassembled)
+{
+    srs_error_t err;
+
+    vector<MockForwarderSentPacket> whole;
+    if (true) {
+        MpegtsUtestCaster c;
+        HELPER_ASSERT_SUCCESS(c.initialize("rtmp://127.0.0.1/live/livestream"));
+        MpegtsUtestEncoder enc(SrsVideoCodecIdAVC);
+        HELPER_ASSERT_SUCCESS(mpegts_utest_write_gops(&enc, 0, 2, 5));
+        HELPER_ASSERT_SUCCESS(c.send(enc.datagrams(1316)));
+        whole = c.sent();
+    }
+
+    ListenerUtestLog log;
+    MpegtsUtestCaster c;
+    HELPER_ASSERT_SUCCESS(c.initialize("rtmp://127.0.0.1/live/livestream"));
+    MpegtsUtestEncoder enc(SrsVideoCodecIdAVC);
+    HELPER_ASSERT_SUCCESS(mpegts_utest_write_gops(&enc, 0, 2, 5));
+    HELPER_ASSERT_SUCCESS(c.send(enc.datagrams(100)));
+    vector<MockForwarderSentPacket> sent = c.sent();
+
+    // The video sequence header, key frames and audio, the same as from whole packets.
+    ASSERT_GE((int)whole.size(), 10);
+    EXPECT_GE(mpegts_utest_count(whole, SrsFrameTypeVideo), 5);
+    EXPECT_GE(mpegts_utest_count(whole, SrsFrameTypeAudio), 5);
+    ASSERT_EQ(whole.size(), sent.size());
+    for (int i = 0; i < (int)sent.size(); i++) {
+        EXPECT_EQ(whole[i].type_, sent[i].type_) << i;
+        EXPECT_EQ(whole[i].timestamp_, sent[i].timestamp_) << i;
+        EXPECT_TRUE(whole[i].payload_ == sent[i].payload_) << i;
+    }
+    EXPECT_GE(log.warns("udp: wait 127.0.0.1:5000 packet 100/100 bytes"), 1);
+}
+
+// The caster joins a stream midway, such as when SRS restarts while an encoder keeps sending TS in datagrams of 1000
+// bytes, not a multiple of 188. Its first datagram starts inside a TS packet: the caster skips to the next sync byte,
+// then publishes from the next PAT, PMT and key frame.
+VOID TEST(AppMpegtsUdpTest, CasterJoinsUnalignedStreamMidway_PublishesFromNextKeyFrame)
+{
+    srs_error_t err;
+
+    MpegtsUtestCaster c;
+    HELPER_ASSERT_SUCCESS(c.initialize("rtmp://127.0.0.1/live/livestream"));
+
+    MpegtsUtestEncoder enc(SrsVideoCodecIdAVC);
+    HELPER_ASSERT_SUCCESS(mpegts_utest_write_gops(&enc, 0, 3, 5));
+    vector<string> datagrams = enc.datagrams(1000);
+    ASSERT_GE((int)datagrams.size(), 3);
+    ASSERT_NE(0x47, (uint8_t)datagrams[1][0]);
+    datagrams.erase(datagrams.begin());
+    HELPER_ASSERT_SUCCESS(c.send(datagrams));
+
+    // The first video is the sequence header, then the key frame of the second GOP, at 200ms.
+    vector<MockForwarderSentPacket> sent = c.sent();
+    int first_video = -1;
+    for (int i = 0; i < (int)sent.size() && first_video < 0; i++) {
+        if (sent[i].type_ == SrsFrameTypeVideo) {
+            first_video = i;
+        }
+    }
+    ASSERT_GE(first_video, 0);
+    ASSERT_GT((int)sent.size(), first_video + 1);
+    EXPECT_EQ(0x17, (uint8_t)sent[first_video].payload_[0]);
+    EXPECT_EQ(0x00, (uint8_t)sent[first_video].payload_[1]);
+    int key = -1;
+    for (int i = first_video + 1; i < (int)sent.size() && key < 0; i++) {
+        if (sent[i].type_ == SrsFrameTypeVideo) {
+            key = i;
+        }
+    }
+    ASSERT_GE(key, 0);
+    EXPECT_EQ(0x17, (uint8_t)sent[key].payload_[0]);
+    EXPECT_EQ(0x01, (uint8_t)sent[key].payload_[1]);
+    // The queue moves a message 1ms on when another holds its time, here the sequence header.
+    EXPECT_EQ(201, sent[key].timestamp_);
+}
+
+// An encoder sends AAC LTP, such as FFmpeg with `-profile:a aac_ltp`. The caster makes no AAC sequence header for that
+// profile, so it drops the audio and goes on with the TS: the H.264 video is published, once the queue that waits for
+// audio holds 100 video frames.
+VOID TEST(AppMpegtsUdpTest, EncoderSendsAacLtp_AudioDroppedVideoPublished)
+{
+    srs_error_t err;
+
+    MpegtsUtestCaster c;
+    HELPER_ASSERT_SUCCESS(c.initialize("rtmp://127.0.0.1/live/livestream"));
+
+    MpegtsUtestEncoder enc(SrsVideoCodecIdAVC);
+    for (int i = 0; i < 105; i++) {
+        int64_t ms = i * 40;
+        bool key = (i % 50 == 0);
+        HELPER_ASSERT_SUCCESS(enc.video(ms, key ? mpegts_utest_key_frame() : mpegts_utest_nalus(mpegts_utest_p), key));
+        HELPER_ASSERT_SUCCESS(enc.audio(ms, mpegts_utest_adts(3)));
+    }
+    HELPER_ASSERT_SUCCESS(c.send(enc.datagrams(1316)));
+
+    vector<MockForwarderSentPacket> sent = c.sent();
+    ASSERT_GE((int)sent.size(), 2);
+    EXPECT_EQ(0, mpegts_utest_count(sent, SrsFrameTypeAudio));
+    EXPECT_EQ((int)sent.size(), mpegts_utest_count(sent, SrsFrameTypeVideo));
+    EXPECT_EQ(0x17, (uint8_t)sent[0].payload_[0]);
+    EXPECT_EQ(0x00, (uint8_t)sent[0].payload_[1]);
+    EXPECT_EQ(0x17, (uint8_t)sent[1].payload_[0]);
+    EXPECT_EQ(0x01, (uint8_t)sent[1].payload_[1]);
+    EXPECT_TRUE(c.caster_->aac_specific_config_.empty());
+}
+
+// The RTMP origin of the caster's output resets the connection at the publish, as a load balancer in front of a
+// restarting origin does. The caster closes its RTMP client and keeps no frame or sequence header of the failed
+// publish, so the next frame connects again and its publish starts with the sequence header.
+VOID TEST(AppMpegtsUdpTest, OriginResetsAtPublish_CasterClosesAndForgetsSequenceHeaders)
+{
+    srs_error_t err;
+
+    RtmpConnTestOrigin origin(RtmpConnOriginResetAfterCreateStream);
+    HELPER_ASSERT_SUCCESS(origin.start());
+
+    MpegtsUtestCaster c;
+    c.caster_->app_factory_ = _srs_app_factory;
+    HELPER_ASSERT_SUCCESS(c.initialize(origin.rtmp_url("livestream")));
+
+    MpegtsUtestEncoder enc(SrsVideoCodecIdAVC);
+    HELPER_ASSERT_SUCCESS(enc.audio(0, mpegts_utest_adts(1)));
+    HELPER_ASSERT_SUCCESS(c.send(enc.datagrams(1316)));
+
+    EXPECT_EQ("rtmp://127.0.0.1:" + srs_strconv_format_int(origin.get_port()) + "/live", origin.tc_url_);
+    EXPECT_TRUE(c.caster_->sdk_ == NULL);
+    EXPECT_TRUE(c.caster_->aac_specific_config_.empty());
+    EXPECT_EQ(0, (int)dynamic_cast<SrsMpegtsQueue *>(c.caster_->queue_)->msgs_.size());
+}
+
+// Another program holds the UDP port of the MPEG-TS caster. The caster's listen fails, naming the port, so the server
+// does not start.
+VOID TEST(AppMpegtsUdpTest, CasterPortHeldByAnotherProgram_ListenFails)
+{
+    srs_error_t err;
+
+    int port = 0;
+    HELPER_ASSERT_SUCCESS(srs_utest_free_port(SOCK_DGRAM, &port));
+    int other = ::socket(AF_INET6, SOCK_DGRAM, 0);
+    ASSERT_GE(other, 0);
+    sockaddr_in6 addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin6_family = AF_INET6;
+    addr.sin6_port = htons(port);
+    addr.sin6_addr = in6addr_any;
+    ASSERT_EQ(0, ::bind(other, (sockaddr *)&addr, sizeof(addr)));
+
+    MockSrsConfig conf;
+    string text = "stream_caster { enabled on; caster mpegts_over_udp; output rtmp://127.0.0.1/live/livestream; listen " + srs_strconv_format_int(port) + "; }";
+    HELPER_ASSERT_SUCCESS(conf.mock_parse(string(_MIN_OK_CONF) + text));
+
+    SrsUniquePtr<SrsUdpCasterListener> listener(new SrsUdpCasterListener());
+    listener->config_ = &conf;
+    dynamic_cast<SrsMpegtsOverUdp *>(listener->caster_)->config_ = &conf;
+    listener->assemble();
+    HELPER_ASSERT_SUCCESS(listener->initialize(conf.get_stream_casters().at(0)));
+
+    err = listener->listen();
+    EXPECT_EQ(ERROR_SOCKET_BIND, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    EXPECT_NE(string::npos, desc.find(":" + srs_strconv_format_int(port))) << desc;
+    srs_freep(err);
+
+    listener->close();
+    ::close(other);
+}
+
+// An encoder, or any host that reaches the caster's UDP port, sends a key frame, then a PES whose SPS is cut to 3 bytes
+// and whose PPS is new. The caster should keep the SPS it has and go on. It takes the cut SPS as an empty one, and the
+// new PPS then makes it build a sequence header from that empty SPS, whose assert aborts the server.
+VOID TEST(AppMpegtsUdpTest, DISABLED_CutSpsThenNewPps_ServerAborts)
+{
+    srs_error_t err;
+
+    MpegtsUtestCaster c;
+    HELPER_ASSERT_SUCCESS(c.initialize("rtmp://127.0.0.1/live/livestream"));
+
+    MpegtsUtestEncoder enc(SrsVideoCodecIdAVC);
+    HELPER_ASSERT_SUCCESS(enc.video(0, mpegts_utest_key_frame(), true));
+    vector<string> nalus;
+    nalus.push_back(mpegts_utest_sps.substr(0, 3));
+    nalus.push_back(string("\x68\xee\x3c\x80", 4));
+    nalus.push_back(mpegts_utest_idr);
+    HELPER_ASSERT_SUCCESS(enc.video(40, nalus, true));
+    HELPER_ASSERT_SUCCESS(enc.video(80, mpegts_utest_nalus(mpegts_utest_p), false));
+    HELPER_ASSERT_SUCCESS(c.send(enc.datagrams(1316)));
+
+    EXPECT_EQ(mpegts_utest_sps, c.caster_->h264_sps_);
+    EXPECT_TRUE(c.caster_->h264_sps_pps_sent_);
+}
+
+// An encoder, or any host that reaches the caster's UDP port, sends a PES with two start codes in a row, an empty NALU.
+// The caster should skip it and publish the frame. It reads the empty NALU's type and asks whether it is an SPS, whose
+// assert of a non-empty NALU aborts the server.
+VOID TEST(AppMpegtsUdpTest, DISABLED_TwoStartCodesInARow_ServerAborts)
+{
+    srs_error_t err;
+
+    MpegtsUtestCaster c;
+    HELPER_ASSERT_SUCCESS(c.initialize("rtmp://127.0.0.1/live/livestream"));
+
+    MpegtsUtestEncoder enc(SrsVideoCodecIdAVC);
+    vector<string> nalus = mpegts_utest_key_frame();
+    nalus.insert(nalus.begin(), string());
+    HELPER_ASSERT_SUCCESS(enc.video(0, nalus, true));
+    HELPER_ASSERT_SUCCESS(enc.video(40, mpegts_utest_nalus(mpegts_utest_p), false));
+    HELPER_ASSERT_SUCCESS(c.send(enc.datagrams(1316)));
+
+    EXPECT_EQ(mpegts_utest_sps, c.caster_->h264_sps_);
+    EXPECT_TRUE(c.caster_->h264_sps_pps_sent_);
+}
+
+// A video-only encoder whose PES carry no PTS: the TS demuxer gives each frame dts 0. The queue holds video until it
+// has audio or 100 frames, and moves a message 1ms on, at most 10 times, while another holds its time. From the 12th
+// message on, each one replaces the message at 10ms, which is lost and never freed, while the video count goes on.
+VOID TEST(AppMpegtsUdpTest, DISABLED_VideoOnlyWithoutPts_QueuedFramesReplacedAndLeaked)
+{
+    srs_error_t err;
+
+    MpegtsUtestCaster c;
+    HELPER_ASSERT_SUCCESS(c.initialize("rtmp://127.0.0.1/live/livestream"));
+
+    SrsTsChannel channel;
+    channel.apply_ = SrsTsPidApplyVideo;
+    channel.stream_ = SrsTsStreamVideoH264;
+    SrsTsPacket packet(NULL);
+
+    // The sequence header and 12 frames.
+    for (int i = 0; i < 12; i++) {
+        SrsTsMessage msg(&channel, &packet);
+        msg.sid_ = SrsTsPESStreamIdVideoCommon;
+        vector<string> nalus = (i == 0) ? mpegts_utest_key_frame() : mpegts_utest_nalus(mpegts_utest_p);
+        for (int j = 0; j < (int)nalus.size(); j++) {
+            msg.payload_->append("\x00\x00\x00\x01", 4);
+            msg.payload_->append(nalus[j].data(), (int)nalus[j].size());
+        }
+        HELPER_ASSERT_SUCCESS(c.caster_->on_ts_message(&msg));
+    }
+
+    SrsMpegtsQueue *queue = dynamic_cast<SrsMpegtsQueue *>(c.caster_->queue_);
+    EXPECT_EQ(13, queue->nb_videos_);
+    EXPECT_EQ(13, (int)queue->msgs_.size());
 }
