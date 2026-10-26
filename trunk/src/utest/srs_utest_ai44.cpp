@@ -55,6 +55,7 @@
 #include <srs_utest_manual_service.hpp>
 #include <srs_utest_ai07.hpp>
 #include <srs_utest_ai11.hpp>
+#include <srs_utest_ai37.hpp>
 #include <srs_utest_workflow_rtc_conn.hpp>
 #include <srs_app_rtc_network.hpp>
 #include <srs_kernel_rtc_rtcp.hpp>
@@ -71,6 +72,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <openssl/ssl.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -4410,4 +4412,115 @@ VOID TEST(AppRtcConnTest, VideoOnlyStreamRepublishedToItsPlayer)
     play->on_stream_change(server.source_->stream_desc());
     EXPECT_EQ(4001u, play->video_tracks_.begin()->first);
     EXPECT_FALSE(play->is_stream_changed(server.source_->stream_desc()));
+}
+
+// The DTLS version the API puts in a session's config for the vhost, from a config text.
+static string rtc_dtls_utest_vhost_version(MockSrsConfig *conf, string version)
+{
+    string text = "vhost __defaultVhost__ { rtc { enabled on; dtls_version " + version + "; } }";
+    srs_error_t err = conf->mock_parse(string(_MIN_OK_CONF) + text);
+    srs_freep(err);
+    return conf->get_rtc_dtls_version("__defaultVhost__");
+}
+
+// A vhost with dtls_version dtls1.0 answers a client that speaks only DTLS 1.0, such as an old device: SRS, passive,
+// agrees on DTLS 1.0, and both sides derive the same SRTP keys, so media flows both ways.
+VOID TEST(AppRtcDtlsTest, Dtls10VhostAgreesWithDtls10Client)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    string version = rtc_dtls_utest_vhost_version(&conf, "dtls1.0");
+    ASSERT_STREQ("dtls1.0", version.c_str());
+
+    MockDtlsCallbackForHandshake ccb, scb;
+    SrsDtls client(&ccb);
+    SrsDtls server(&scb);
+    HELPER_ASSERT_SUCCESS(client.initialize("active", "dtls1.0"));
+    HELPER_ASSERT_SUCCESS(server.initialize("passive", version));
+    HELPER_ASSERT_SUCCESS(server.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(client.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(dtls_exchange(&client, &ccb, &server, &scb));
+
+    EXPECT_EQ(1, ccb.handshake_done_count_);
+    EXPECT_EQ(1, scb.handshake_done_count_);
+    EXPECT_TRUE(scb.alerts_.empty());
+    EXPECT_EQ(DTLS1_VERSION, SSL_version(server.impl_->dtls_));
+    EXPECT_EQ(DTLS1_VERSION, SSL_version(client.impl_->dtls_));
+
+    string client_recv, client_send, server_recv, server_send;
+    HELPER_ASSERT_SUCCESS(client.get_srtp_key(client_recv, client_send));
+    HELPER_ASSERT_SUCCESS(server.get_srtp_key(server_recv, server_send));
+    EXPECT_TRUE(client_send == server_recv);
+    EXPECT_TRUE(client_recv == server_send);
+
+    SrsSRTP client_srtp, server_srtp;
+    HELPER_ASSERT_SUCCESS(client_srtp.initialize(client_recv, client_send));
+    HELPER_ASSERT_SUCCESS(server_srtp.initialize(server_recv, server_send));
+    expect_srtp_round_trip(&client_srtp, &server_srtp, 1);
+    expect_srtp_round_trip(&server_srtp, &client_srtp, 1);
+}
+
+// A vhost with dtls_version dtls1.0 cannot serve a browser that no longer speaks DTLS 1.0: SRS answers its ClientHello
+// by a DTLS 1.0 ServerHello, the browser refuses it by a fatal protocol_version alert, and SRS hands the alert to the
+// session, which closes on a fatal alert (SrsRtcConnection::on_dtls_alert), see RFC 6347 section 4.2.1.
+VOID TEST(AppRtcDtlsTest, Dtls10VhostRefusedByDtls12OnlyBrowser)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    string version = rtc_dtls_utest_vhost_version(&conf, "dtls1.0");
+
+    MockDtlsCallbackForHandshake ccb, scb;
+    SrsDtls client(&ccb);
+    SrsDtls server(&scb);
+    HELPER_ASSERT_SUCCESS(client.initialize("active", "auto"));
+    ASSERT_EQ(1, SSL_set_min_proto_version(client.impl_->dtls_, DTLS1_2_VERSION));
+    HELPER_ASSERT_SUCCESS(server.initialize("passive", version));
+    HELPER_ASSERT_SUCCESS(server.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(client.start_active_handshake());
+
+    // The browser fails at the ServerHello and sends its alert record(21).
+    HELPER_EXPECT_FAILED(dtls_exchange(&client, &ccb, &server, &scb));
+    ASSERT_EQ(1, (int)ccb.alerts_.size());
+    EXPECT_STREQ("fatal", ccb.alerts_[0].first.c_str());
+    EXPECT_STREQ("PV", ccb.alerts_[0].second.c_str());
+    ASSERT_EQ(1, (int)ccb.packets_.size());
+    EXPECT_EQ(21, (uint8_t)ccb.packets_[0][0]);
+
+    // SRS hands the alert to the session, and its handshake never completes.
+    err = server.on_dtls(&ccb.packets_[0][0], (int)ccb.packets_[0].size());
+    srs_freep(err);
+    ASSERT_EQ(1, (int)scb.alerts_.size());
+    EXPECT_STREQ("fatal", scb.alerts_[0].first.c_str());
+    EXPECT_STREQ("PV", scb.alerts_[0].second.c_str());
+    EXPECT_EQ(0, scb.handshake_done_count_);
+    EXPECT_EQ(0, ccb.handshake_done_count_);
+    EXPECT_FALSE(server.impl_->handshake_done_for_us_);
+}
+
+// A vhost with dtls_version dtls1.2 should allow only DTLS 1.2, as dtls1.0 allows only DTLS 1.0, so it refuses a
+// client that offers only DTLS 1.0 by a fatal protocol_version alert. B49: it agrees on DTLS 1.0, because the
+// dtls1.2 context uses the version-flexible method, the same as auto.
+VOID TEST(AppRtcDtlsTest, DISABLED_Dtls12VhostAcceptsDtls10Client)
+{
+    srs_error_t err;
+
+    MockSrsConfig conf;
+    string version = rtc_dtls_utest_vhost_version(&conf, "dtls1.2");
+    ASSERT_STREQ("dtls1.2", version.c_str());
+
+    MockDtlsCallbackForHandshake ccb, scb;
+    SrsDtls client(&ccb);
+    SrsDtls server(&scb);
+    HELPER_ASSERT_SUCCESS(client.initialize("active", "dtls1.0"));
+    HELPER_ASSERT_SUCCESS(server.initialize("passive", version));
+    HELPER_ASSERT_SUCCESS(server.start_active_handshake());
+    HELPER_ASSERT_SUCCESS(client.start_active_handshake());
+
+    err = dtls_exchange(&client, &ccb, &server, &scb);
+    srs_freep(err);
+    EXPECT_EQ(0, scb.handshake_done_count_) << "agreed on version 0x" << std::hex << SSL_version(server.impl_->dtls_);
+    ASSERT_FALSE(scb.alerts_.empty());
+    EXPECT_STREQ("PV", scb.alerts_[0].second.c_str());
 }
