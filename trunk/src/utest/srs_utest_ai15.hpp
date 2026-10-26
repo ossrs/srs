@@ -111,8 +111,10 @@ public:
     int error_count_;
     std::string last_error_tag_;
     std::vector<std::string> errors_;
-    // The warning logs.
+    // The warning logs, the tag of the last one, and the text of each.
     int warn_count_;
+    std::string last_warn_tag_;
+    std::vector<std::string> warns_;
     // The text of each trace log.
     std::vector<std::string> traces_;
 
