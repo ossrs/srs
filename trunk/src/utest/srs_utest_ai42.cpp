@@ -9,7 +9,9 @@
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
 #include <srs_app_dash.hpp>
+#include <srs_app_dvr.hpp>
 #include <srs_app_factory.hpp>
+#include <srs_app_fragment.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_srt_server.hpp>
@@ -20,6 +22,7 @@
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_conn.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_srt.hpp>
@@ -27,8 +30,10 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai16.hpp>
 #include <srs_utest_ai17.hpp>
 #include <srs_utest_ai19.hpp>
+#include <srs_utest_ai22.hpp>
 #include <srs_utest_ai06.hpp>
 #include <srs_utest_ai40.hpp>
 #include <srs_utest_manual_config.hpp>
@@ -2634,4 +2639,913 @@ VOID TEST(AppDashTest, IdlePublisherResumesOnFullDisk_ResumeFails)
     srs_freep(err);
     EXPECT_EQ(1, s.on_dash_request_sh_count_);
     EXPECT_FALSE(s.exists("video-init.mp4"));
+}
+
+// A DVR segmenter of the server's kind that reads the stream's config, and notes the path of each file it opens, so
+// the test finds and removes the files.
+template <class T>
+class DvrUtestSegmenter : public T
+{
+public:
+    vector<string> *paths_;
+
+public:
+    DvrUtestSegmenter(ISrsAppConfig *config, vector<string> *paths)
+    {
+        this->config_ = config;
+        paths_ = paths;
+    }
+    virtual ~DvrUtestSegmenter()
+    {
+    }
+    virtual srs_error_t open()
+    {
+        srs_error_t err = T::open();
+        string path = this->fragment_->fullpath();
+        if (!path.empty() && (paths_->empty() || paths_->back() != path)) {
+            paths_->push_back(path);
+        }
+        return err;
+    }
+};
+
+// The DVR segmenters of a stream read the stream's config, as the server's read the server's.
+class DvrUtestFactory : public SrsAppFactory
+{
+public:
+    ISrsAppConfig *config_;
+    vector<string> *paths_;
+
+public:
+    DvrUtestFactory()
+    {
+        config_ = NULL;
+        paths_ = NULL;
+    }
+    virtual ~DvrUtestFactory()
+    {
+    }
+    virtual ISrsDvrSegmenter *create_dvr_flv_segmenter()
+    {
+        return new DvrUtestSegmenter<SrsDvrFlvSegmenter>(config_, paths_);
+    }
+    virtual ISrsDvrSegmenter *create_dvr_mp4_segmenter()
+    {
+        return new DvrUtestSegmenter<SrsDvrMp4Segmenter>(config_, paths_);
+    }
+};
+
+// A stream published to a vhost with DVR, its files under home, fed the packets of an RTMP publisher as the origin hub
+// feeds them: each packet is parsed by the stream's format first, and the metadata is the one the source encodes. As
+// the hub, it feeds the cached metadata and sequence headers again when the DVR asks for them at a new segment. The
+// on_dvr calls the DVR queues are kept, not run.
+class DvrUtestStream : public MockOriginHub
+{
+public:
+    string home_;
+    vector<string> paths_;
+    MockSrsConfig conf_;
+    DvrUtestFactory factory_;
+    MockSrsRequest req_;
+    MockAsyncCallWorker async_;
+    MockHttpHooksForDvrAsyncCall hooks_;
+    SrsDvr *dvr_;
+    SrsFormat format_;
+    SrsMediaPacket *metadata_;
+    SrsMediaPacket *vsh_;
+    SrsFormat vsh_format_;
+    SrsMediaPacket *ash_;
+    SrsFormat ash_format_;
+
+public:
+    DvrUtestStream(string name) : req_("__defaultVhost__", "live", "livestream")
+    {
+        home_ = _srs_tmp_file_prefix + name;
+        dvr_ = new SrsDvr();
+        metadata_ = NULL;
+        vsh_ = NULL;
+        ash_ = NULL;
+    }
+    virtual ~DvrUtestStream()
+    {
+        srs_freep(dvr_);
+        srs_freep(metadata_);
+        srs_freep(vsh_);
+        srs_freep(ash_);
+        srs_freep(hooks_.on_dvr_error_);
+        remove_files();
+    }
+
+public:
+    // Loads the vhost with the dvr section and the other vhost sections, and makes the stream's DVR, as the hub does
+    // when the source is made.
+    srs_error_t start(string dvr, string vhost = "")
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = config_load(conf_, "vhost __defaultVhost__ { dvr { " + dvr + " } " + vhost + " }")) != srs_success) {
+            return srs_error_wrap(err, "config");
+        }
+        if ((err = format_.initialize()) != srs_success) {
+            return srs_error_wrap(err, "format");
+        }
+        if ((err = vsh_format_.initialize()) != srs_success) {
+            return srs_error_wrap(err, "vsh format");
+        }
+        if ((err = ash_format_.initialize()) != srs_success) {
+            return srs_error_wrap(err, "ash format");
+        }
+
+        factory_.config_ = &conf_;
+        factory_.paths_ = &paths_;
+        dvr_->config_ = &conf_;
+        dvr_->app_factory_ = &factory_;
+        dvr_->assemble();
+
+        if ((err = dvr_->initialize(this, &req_)) != srs_success) {
+            return srs_error_wrap(err, "initialize");
+        }
+        dynamic_cast<SrsDvrPlan *>(dvr_->plan_)->async_ = &async_;
+
+        return err;
+    }
+    srs_error_t publish(string dvr, string vhost = "")
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = start(dvr, vhost)) != srs_success) {
+            return srs_error_wrap(err, "start");
+        }
+        return dvr_->on_publish(&req_);
+    }
+    // The onMetaData of an encoder, as the source encodes it again.
+    srs_error_t metadata()
+    {
+        srs_error_t err = srs_success;
+
+        SrsOnMetaDataPacket pkt;
+        pkt.metadata_->set("width", SrsAmf0Any::number(768));
+        pkt.metadata_->set("height", SrsAmf0Any::number(320));
+        pkt.metadata_->set("videocodecid", SrsAmf0Any::number(7));
+        pkt.metadata_->set("audiocodecid", SrsAmf0Any::number(10));
+
+        int size = 0;
+        char *payload = NULL;
+        if ((err = pkt.encode(size, payload)) != srs_success) {
+            return srs_error_wrap(err, "encode");
+        }
+
+        SrsMediaPacket msg;
+        msg.wrap(payload, size);
+        msg.message_type_ = SrsFrameTypeScript;
+        srs_freep(metadata_);
+        metadata_ = msg.copy();
+
+        return dvr_->on_meta_data(&msg);
+    }
+    srs_error_t video(int64_t ts, const uint8_t *data, int size)
+    {
+        srs_error_t err = srs_success;
+
+        SrsMediaPacket msg;
+        char *payload = new char[size];
+        memcpy(payload, data, size);
+        msg.wrap(payload, size);
+        msg.timestamp_ = ts;
+        msg.message_type_ = SrsFrameTypeVideo;
+
+        if ((err = format_.on_video(ts, msg.payload(), msg.size())) != srs_success) {
+            return srs_error_wrap(err, "format");
+        }
+        if (format_.is_avc_sequence_header()) {
+            srs_freep(vsh_);
+            vsh_ = msg.copy();
+            if ((err = vsh_format_.on_video(ts, vsh_->payload(), vsh_->size())) != srs_success) {
+                return srs_error_wrap(err, "vsh format");
+            }
+        }
+
+        return dvr_->on_video(&msg, &format_);
+    }
+    srs_error_t audio(int64_t ts, const uint8_t *data, int size)
+    {
+        srs_error_t err = srs_success;
+
+        SrsMediaPacket msg;
+        char *payload = new char[size];
+        memcpy(payload, data, size);
+        msg.wrap(payload, size);
+        msg.timestamp_ = ts;
+        msg.message_type_ = SrsFrameTypeAudio;
+
+        if ((err = format_.on_audio(ts, msg.payload(), msg.size())) != srs_success) {
+            return srs_error_wrap(err, "format");
+        }
+        if (format_.is_aac_sequence_header()) {
+            srs_freep(ash_);
+            ash_ = msg.copy();
+            if ((err = ash_format_.on_audio(ts, ash_->payload(), ash_->size())) != srs_success) {
+                return srs_error_wrap(err, "ash format");
+            }
+        }
+
+        return dvr_->on_audio(&msg, &format_);
+    }
+    srs_error_t sequence_headers()
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = video(0, dash_avc_sh, sizeof(dash_avc_sh))) != srs_success) {
+            return srs_error_wrap(err, "avc sh");
+        }
+        if ((err = audio(0, dash_aac_sh, sizeof(dash_aac_sh))) != srs_success) {
+            return srs_error_wrap(err, "aac sh");
+        }
+        return err;
+    }
+    // Sends the media from one time to another, in ms: 10 video and 10 audio frames a second, a key frame at from and
+    // each gop after it.
+    srs_error_t av(int64_t from, int64_t to, int64_t gop = 1000)
+    {
+        srs_error_t err = srs_success;
+
+        for (int64_t ts = from; ts <= to; ts += 100) {
+            const uint8_t *frame = ((ts - from) % gop) == 0 ? dash_avc_idr : dash_avc_inter;
+            if ((err = video(ts, frame, sizeof(dash_avc_idr))) != srs_success) {
+                return srs_error_wrap(err, "video %d", (int)ts);
+            }
+            if ((err = audio(ts, dash_aac_frame, sizeof(dash_aac_frame))) != srs_success) {
+                return srs_error_wrap(err, "audio %d", (int)ts);
+            }
+        }
+        return err;
+    }
+    // The metadata, the sequence headers, and the media from one time to another.
+    srs_error_t record(int64_t from, int64_t to)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = metadata()) != srs_success) {
+            return srs_error_wrap(err, "metadata");
+        }
+        if ((err = sequence_headers()) != srs_success) {
+            return srs_error_wrap(err, "sequence headers");
+        }
+        return av(from, to);
+    }
+    // As SrsOriginHub, feeds the cached metadata and sequence headers.
+    virtual srs_error_t on_dvr_request_sh()
+    {
+        srs_error_t err = srs_success;
+
+        on_dvr_request_sh_count_++;
+        if (metadata_ && (err = dvr_->on_meta_data(metadata_)) != srs_success) {
+            return srs_error_wrap(err, "dvr metadata");
+        }
+        if (vsh_ && (err = dvr_->on_video(vsh_, &vsh_format_)) != srs_success) {
+            return srs_error_wrap(err, "dvr video");
+        }
+        if (ash_ && (err = dvr_->on_audio(ash_, &ash_format_)) != srs_success) {
+            return srs_error_wrap(err, "dvr audio");
+        }
+        return err;
+    }
+
+public:
+    string fixed_path(string ext)
+    {
+        return home_ + "/[app]/[stream]" + ext;
+    }
+    string stream_path(string ext)
+    {
+        return home_ + "/live/livestream" + ext;
+    }
+    SrsDvrAsyncCallOnDvr *on_dvr(int i)
+    {
+        return dynamic_cast<SrsDvrAsyncCallOnDvr *>(async_.tasks_.at(i));
+    }
+    // The file of the on_dvr call the DVR queued, numbered from 0.
+    string file(int i)
+    {
+        return on_dvr(i)->path_;
+    }
+    bool exists(string path)
+    {
+        SrsPath p;
+        return p.exists(path);
+    }
+    // Runs the on_dvr call with the stream's config and hooks.
+    srs_error_t call_on_dvr(int i)
+    {
+        SrsDvrAsyncCallOnDvr *call = on_dvr(i);
+        call->config_ = &conf_;
+        call->hooks_ = &hooks_;
+        return call->call();
+    }
+    void remove_files()
+    {
+        for (int i = 0; i < (int)paths_.size(); i++) {
+            ::unlink(paths_[i].c_str());
+            ::unlink((paths_[i] + ".tmp").c_str());
+        }
+        ::rmdir((home_ + "/live").c_str());
+        ::rmdir(home_.c_str());
+    }
+};
+
+// A tag of an FLV file: its type, timestamp, and the first two bytes of its data.
+struct DvrUtestFlvTag {
+    int type_;
+    int64_t ts_;
+    uint8_t b0_;
+    uint8_t b1_;
+};
+
+static vector<DvrUtestFlvTag> dvr_utest_flv_tags(const string &flv)
+{
+    vector<DvrUtestFlvTag> tags;
+    for (size_t pos = 13; pos + 11 <= flv.size();) {
+        const uint8_t *p = (const uint8_t *)flv.data() + pos;
+        int size = (p[1] << 16) | (p[2] << 8) | p[3];
+        DvrUtestFlvTag tag;
+        tag.type_ = p[0];
+        tag.ts_ = (int64_t)((p[7] << 24) | (p[4] << 16) | (p[5] << 8) | p[6]);
+        tag.b0_ = size > 0 ? p[11] : 0;
+        tag.b1_ = size > 1 ? p[12] : 0;
+        tags.push_back(tag);
+        pos += 11 + size + 4;
+    }
+    return tags;
+}
+
+static int dvr_utest_count_tags(const vector<DvrUtestFlvTag> &tags, int type)
+{
+    int n = 0;
+    for (int i = 0; i < (int)tags.size(); i++) {
+        n += tags[i].type_ == type ? 1 : 0;
+    }
+    return n;
+}
+
+// The number of a property of the FLV file's metadata, or -1.
+static double dvr_utest_flv_meta_number(const string &flv, const string &name)
+{
+    string key = string(1, '\0') + string(1, (char)name.length()) + name;
+    size_t pos = flv.find(key);
+    if (pos == string::npos) {
+        return -1;
+    }
+
+    SrsBuffer b((char *)flv.data() + pos + key.length(), (int)(flv.size() - pos - key.length()));
+    SrsAmf0Any *v = NULL;
+    srs_error_t err = srs_amf0_read_any(&b, &v);
+    if (err != srs_success) {
+        srs_freep(err);
+        return -1;
+    }
+
+    double n = v->is_number() ? v->to_number() : -1;
+    srs_freep(v);
+    return n;
+}
+
+static int dvr_fwrite_calls_ = 0;
+static int dvr_fwrite_full_from_ = -1;
+
+// Fails each write from the one numbered dvr_fwrite_full_from_ on, as a disk that fills there and stays full.
+static size_t dvr_fwrite_full_from(const void *ptr, size_t size, size_t nitems, FILE *stream)
+{
+    int n = dvr_fwrite_calls_++;
+    if (dvr_fwrite_full_from_ >= 0 && n >= dvr_fwrite_full_from_) {
+        return 0;
+    }
+    return ::fwrite(ptr, size, nitems, stream);
+}
+
+// The disk DVR writes to, which fills at a write.
+class DvrUtestDiskScope
+{
+public:
+    srs_fwrite_t fwrite_fn_;
+
+public:
+    DvrUtestDiskScope(int full_from)
+    {
+        fwrite_fn_ = _srs_fwrite_fn;
+        _srs_fwrite_fn = dvr_fwrite_full_from;
+        dvr_fwrite_calls_ = 0;
+        dvr_fwrite_full_from_ = full_from;
+    }
+    virtual ~DvrUtestDiskScope()
+    {
+        _srs_fwrite_fn = fwrite_fn_;
+        dvr_fwrite_full_from_ = -1;
+    }
+};
+
+// A publisher streams H.264 and AAC for 3 seconds to a vhost recording each publish to one FLV file. The file is
+// written as .tmp while the publish lasts, and named when it ends; its metadata then holds the file's size and its 3s
+// duration, so players can seek in it. The on_dvr backend is called with the file.
+VOID TEST(AppDvrTest, SessionRecordsFlvWithSizeAndDuration)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-session");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; dvr_path " + s.home_ + "/[app]/[stream].[timestamp].flv;",
+                                    "http_hooks { enabled on; on_dvr http://127.0.0.1:8085/api/v1/dvrs; }"));
+    HELPER_ASSERT_SUCCESS(s.record(0, 3000));
+    ASSERT_EQ(1, (int)s.paths_.size());
+    EXPECT_TRUE(s.exists(s.paths_[0] + ".tmp"));
+    EXPECT_FALSE(s.exists(s.paths_[0]));
+    EXPECT_TRUE(s.async_.tasks_.empty());
+
+    s.dvr_->on_unpublish();
+    ASSERT_EQ(1, (int)s.async_.tasks_.size());
+    string path = s.file(0);
+    EXPECT_STREQ(s.paths_[0].c_str(), path.c_str());
+    EXPECT_FALSE(s.exists(path + ".tmp"));
+
+    string flv = config_read_file(path);
+    EXPECT_EQ((double)flv.size(), dvr_utest_flv_meta_number(flv, "filesize"));
+    EXPECT_EQ(3.0, dvr_utest_flv_meta_number(flv, "duration"));
+    EXPECT_EQ(768, dvr_utest_flv_meta_number(flv, "width"));
+
+    // The metadata, both sequence headers, and 31 video and 31 audio frames, the first video frame a key frame.
+    vector<DvrUtestFlvTag> tags = dvr_utest_flv_tags(flv);
+    ASSERT_EQ(65, (int)tags.size());
+    EXPECT_EQ(SrsFrameTypeScript, tags[0].type_);
+    EXPECT_EQ(32, dvr_utest_count_tags(tags, SrsFrameTypeVideo));
+    EXPECT_EQ(32, dvr_utest_count_tags(tags, SrsFrameTypeAudio));
+    EXPECT_EQ(0x17, tags[3].b0_);
+    EXPECT_EQ(0x01, tags[3].b1_);
+    EXPECT_EQ(3000, tags[64].ts_);
+
+    HELPER_EXPECT_SUCCESS(s.call_on_dvr(0));
+    ASSERT_EQ(1, s.hooks_.on_dvr_count_);
+    EXPECT_STREQ("http://127.0.0.1:8085/api/v1/dvrs", s.hooks_.on_dvr_calls_[0].url_.c_str());
+    EXPECT_STREQ(path.c_str(), s.hooks_.on_dvr_calls_[0].file_.c_str());
+}
+
+// The operator sets dvr_path to a dir, with no file name. Each file is named in it by the stream and the time in ms.
+VOID TEST(AppDvrTest, DvrPathIsDir_FileNamedByStreamAndTime)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-dir");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; dvr_path " + s.home_ + "/[app];"));
+    HELPER_ASSERT_SUCCESS(s.record(0, 1000));
+    s.dvr_->on_unpublish();
+
+    ASSERT_EQ(1, (int)s.async_.tasks_.size());
+    string path = s.file(0);
+    string prefix = s.stream_path(".");
+    ASSERT_TRUE(srs_strings_starts_with(path, prefix)) << path;
+    ASSERT_TRUE(srs_strings_ends_with(path, ".flv")) << path;
+    string ms = path.substr(prefix.length(), path.length() - prefix.length() - 4);
+    EXPECT_EQ(13, (int)ms.length()) << path;
+    EXPECT_EQ(string::npos, ms.find_first_not_of("0123456789")) << path;
+    EXPECT_TRUE(s.exists(path));
+}
+
+// The operator names the DVR file by the stream only, with no time, and the publisher publishes the stream again. DVR
+// does not append to nor overwrite the first recording, so the publish is refused; the first file is kept as it was.
+VOID TEST(AppDvrTest, SessionRepublishToFixedPath_Refused)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-fixed");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; dvr_path " + s.fixed_path(".flv") + ";"));
+    HELPER_ASSERT_SUCCESS(s.record(0, 1000));
+    s.dvr_->on_unpublish();
+    ASSERT_EQ(1, (int)s.async_.tasks_.size());
+    string flv = config_read_file(s.file(0));
+    ASSERT_FALSE(flv.empty());
+
+    DvrUtestStream again("ai42-dvr-fixed");
+    err = again.publish("enabled on; dvr_plan session; dvr_path " + again.fixed_path(".flv") + ";");
+    EXPECT_EQ(ERROR_DVR_CANNOT_APPEND, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("open segment")) << srs_error_desc(err);
+    srs_freep(err);
+    again.dvr_->on_unpublish();
+    EXPECT_TRUE(again.async_.tasks_.empty());
+    EXPECT_TRUE(again.paths_.empty());
+
+    EXPECT_TRUE(flv == config_read_file(s.file(0)));
+}
+
+// An audio-only stream, such as a radio, records 1s segments named by the stream only, with no time. The first
+// segment is cut and reported at 1s, but the second has the same name, so DVR fails the audio, and the hub stops DVR
+// for the stream; the first file is kept.
+VOID TEST(AppDvrTest, SegmentPathWithoutTime_SecondSegmentRefused)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-radio");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan segment; dvr_duration 1; dvr_path " + s.fixed_path(".flv") + ";"));
+    HELPER_ASSERT_SUCCESS(s.audio(0, dash_aac_sh, sizeof(dash_aac_sh)));
+    for (int64_t ts = 0; ts < 1000; ts += 100) {
+        HELPER_ASSERT_SUCCESS(s.audio(ts, dash_aac_frame, sizeof(dash_aac_frame)));
+    }
+    EXPECT_TRUE(s.async_.tasks_.empty());
+
+    err = s.audio(1000, dash_aac_frame, sizeof(dash_aac_frame));
+    EXPECT_EQ(ERROR_DVR_CANNOT_APPEND, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("segment open")) << srs_error_desc(err);
+    srs_freep(err);
+    s.dvr_->on_unpublish();
+
+    ASSERT_EQ(1, (int)s.async_.tasks_.size());
+    vector<DvrUtestFlvTag> tags = dvr_utest_flv_tags(config_read_file(s.file(0)));
+    EXPECT_EQ(11, dvr_utest_count_tags(tags, SrsFrameTypeAudio));
+    EXPECT_EQ(0, dvr_utest_count_tags(tags, SrsFrameTypeVideo));
+}
+
+// The operator sets dvr_path under a regular file, such as a typo naming another service's file. DVR can not make the
+// stream's dir, so the publish is refused; the file is not touched.
+VOID TEST(AppDvrTest, DvrPathUnderRegularFile_PublishRefused)
+{
+    srs_error_t err;
+
+    string file = _srs_tmp_file_prefix + "ai42-dvr-file";
+    config_write_file(file, "html");
+
+    DvrUtestStream s("ai42-dvr-file-home");
+    err = s.publish("enabled on; dvr_plan segment; dvr_path " + file + "/[app]/[stream].[timestamp].flv;");
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_NE(string::npos, srs_error_desc(err).find("segment open")) << srs_error_desc(err);
+    EXPECT_NE(string::npos, srs_error_desc(err).find("create dir")) << srs_error_desc(err);
+    srs_freep(err);
+    s.dvr_->on_unpublish();
+
+    EXPECT_TRUE(s.async_.tasks_.empty());
+    EXPECT_STREQ("html", config_read_file(file).c_str());
+    ::unlink(file.c_str());
+}
+
+// The DVR volume was remounted read-only after an I/O error, and a publisher publishes again to a stream whose dir an
+// earlier publish made. The file can not be created, so the publish is refused, and no file is left.
+VOID TEST(AppDvrTest, ReadOnlyVolumeAtPublish_PublishRefused)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-ro");
+    SrsPath path;
+    HELPER_ASSERT_SUCCESS(path.mkdir_all(s.home_ + "/live"));
+
+    srs_fopen_t fopen_fn = _srs_fopen_fn;
+    _srs_fopen_fn = dash_fopen_read_only;
+    err = s.publish("enabled on; dvr_plan session; dvr_path " + s.fixed_path(".flv") + ";");
+    _srs_fopen_fn = fopen_fn;
+
+    EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
+    srs_freep(err);
+    s.dvr_->on_unpublish();
+
+    EXPECT_TRUE(s.async_.tasks_.empty());
+    EXPECT_FALSE(s.exists(s.stream_path(".flv")));
+    EXPECT_FALSE(s.exists(s.stream_path(".flv.tmp")));
+}
+
+// The disk fills while a publisher records a session to FLV. Whichever write the disk fills at, from the FLV header
+// at the publish to the size and duration written at the end, DVR fails it, the hub stops DVR for the stream, and no
+// file is named nor reported to on_dvr as a complete recording. With room, the recording completes.
+VOID TEST(AppDvrTest, FlvSessionDiskFillsAtAnyWrite_NoFileReported)
+{
+    srs_error_t err;
+
+    int fill_points = 0;
+    for (int k = 0; k < 1000; k++) {
+        DvrUtestStream s("ai42-dvr-full-flv");
+        DvrUtestDiskScope disk(k);
+
+        err = s.publish("enabled on; dvr_plan session; dvr_path " + s.fixed_path(".flv") + ";");
+        if (err == srs_success) {
+            err = s.record(0, 2000);
+        }
+        // The hub stops DVR at an error, and the publish ends.
+        s.dvr_->on_unpublish();
+
+        if (err == srs_success && !s.async_.tasks_.empty()) {
+            EXPECT_TRUE(s.exists(s.file(0)));
+            break;
+        }
+
+        fill_points++;
+        if (err != srs_success) {
+            EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err)) << k << " " << srs_error_desc(err);
+            srs_freep(err);
+        }
+        EXPECT_TRUE(s.async_.tasks_.empty()) << k;
+        EXPECT_FALSE(s.exists(s.stream_path(".flv"))) << k;
+    }
+
+    // The header, the metadata, 2 sequence headers, 42 frames and the 2 updates at the end, each a write or more.
+    EXPECT_GT(fill_points, 48);
+}
+
+// As for FLV, the disk fills while a publisher records a session to MP4: the ftyp and mdat header at the publish,
+// each sample, or the moov at the end. DVR fails it, and no file is named nor reported. With room, the recording
+// completes.
+VOID TEST(AppDvrTest, Mp4SessionDiskFillsAtAnyWrite_NoFileReported)
+{
+    srs_error_t err;
+
+    int fill_points = 0;
+    for (int k = 0; k < 1000; k++) {
+        DvrUtestStream s("ai42-dvr-full-mp4");
+        DvrUtestDiskScope disk(k);
+
+        err = s.publish("enabled on; dvr_plan session; dvr_path " + s.fixed_path(".mp4") + ";");
+        if (err == srs_success) {
+            err = s.record(0, 2000);
+        }
+        s.dvr_->on_unpublish();
+
+        if (err == srs_success && !s.async_.tasks_.empty()) {
+            EXPECT_TRUE(s.exists(s.file(0)));
+            EXPECT_STREQ(s.stream_path(".mp4").c_str(), s.file(0).c_str());
+            break;
+        }
+
+        fill_points++;
+        if (err != srs_success) {
+            EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err)) << k << " " << srs_error_desc(err);
+            srs_freep(err);
+        }
+        EXPECT_TRUE(s.async_.tasks_.empty()) << k;
+        EXPECT_FALSE(s.exists(s.stream_path(".mp4"))) << k;
+    }
+
+    // The ftyp, the free box and mdat header, 42 samples and the moov.
+    EXPECT_GT(fill_points, 44);
+}
+
+// The disk fills while a publisher records 1s segments. Whichever write the disk fills at, in a segment, at the cut
+// that closes it, at the next segment's header, or at the metadata and sequence headers the hub feeds the new
+// segment, DVR fails it and the hub stops DVR for the stream. A segment is named only when it is reported to on_dvr;
+// a segment the disk filled in keeps its .tmp name. With room, both segments complete.
+VOID TEST(AppDvrTest, SegmentDiskFillsAtAnyWrite_OnlyClosedSegmentsReported)
+{
+    srs_error_t err;
+
+    int fill_points = 0;
+    for (int k = 0; k < 1000; k++) {
+        DvrUtestStream s("ai42-dvr-full-seg");
+        DvrUtestDiskScope disk(k);
+
+        err = s.publish("enabled on; dvr_plan segment; dvr_duration 1; dvr_path " + s.home_ + "/[app]/[stream].[timestamp].flv;");
+        if (err == srs_success) {
+            err = s.record(0, 900);
+        }
+        if (err == srs_success) {
+            // The next segment's name, in ms, differs from the first's.
+            ::usleep(2000);
+            err = s.av(1000, 1500);
+        }
+        s.dvr_->on_unpublish();
+
+        if (err == srs_success && s.async_.tasks_.size() == 2) {
+            EXPECT_TRUE(s.exists(s.file(0)));
+            EXPECT_TRUE(s.exists(s.file(1)));
+            break;
+        }
+
+        fill_points++;
+        if (err != srs_success) {
+            EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err)) << k << " " << srs_error_desc(err);
+            srs_freep(err);
+        }
+
+        // A file exists by its name only if it was reported.
+        for (int i = 0; i < (int)s.paths_.size(); i++) {
+            bool reported = i < (int)s.async_.tasks_.size() && s.file(i) == s.paths_[i];
+            EXPECT_EQ(reported, s.exists(s.paths_[i])) << k << " " << s.paths_[i];
+        }
+    }
+
+    EXPECT_GT(fill_points, 40);
+}
+
+// The publisher's encoder starts mid-GOP, such as after it reconnects. With dvr_wait_keyframe on, DVR drops the video
+// frames before the first key frame, which no player can decode, and keeps the audio.
+VOID TEST(AppDvrTest, PublisherStartsMidGop_FramesBeforeKeyframeDropped)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-midgop");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; dvr_wait_keyframe on; dvr_path " + s.fixed_path(".flv") + ";"));
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    for (int64_t ts = 0; ts < 500; ts += 100) {
+        HELPER_ASSERT_SUCCESS(s.video(ts, dash_avc_inter, sizeof(dash_avc_inter)));
+        HELPER_ASSERT_SUCCESS(s.audio(ts, dash_aac_frame, sizeof(dash_aac_frame)));
+    }
+    HELPER_ASSERT_SUCCESS(s.av(500, 1400));
+    s.dvr_->on_unpublish();
+
+    ASSERT_EQ(1, (int)s.async_.tasks_.size());
+    vector<DvrUtestFlvTag> tags = dvr_utest_flv_tags(config_read_file(s.file(0)));
+    EXPECT_EQ(1 + 10, dvr_utest_count_tags(tags, SrsFrameTypeVideo));
+    EXPECT_EQ(1 + 15, dvr_utest_count_tags(tags, SrsFrameTypeAudio));
+
+    // After the sequence header, the first video frame is the key frame at 500ms.
+    for (int i = 0, n = 0; i < (int)tags.size(); i++) {
+        if (tags[i].type_ == SrsFrameTypeVideo && n++ == 1) {
+            EXPECT_EQ(0x17, tags[i].b0_);
+            EXPECT_EQ(500, tags[i].ts_);
+        }
+    }
+}
+
+// A publisher sends a key frame each 2s to a vhost recording 1s segments. The segment reaches 1s at an inter frame,
+// and DVR waits for the key frame at 2s to cut it, so each segment starts at a key frame. The hub feeds the new
+// segment the metadata and sequence headers, so it plays alone; with the default time_jitter full, the new segment's
+// timeline starts at 0, its key frame 10ms after the headers, as for any jump over 250ms.
+VOID TEST(AppDvrTest, SegmentWaitsForKeyframe_NewSegmentStartsWithHeaders)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-gop");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan segment; dvr_duration 1; dvr_wait_keyframe on; dvr_path " + s.home_ + "/[app]/[stream].[timestamp].flv;"));
+    HELPER_ASSERT_SUCCESS(s.metadata());
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    HELPER_ASSERT_SUCCESS(s.av(0, 1900, 2000));
+    EXPECT_TRUE(s.async_.tasks_.empty());
+
+    // The next segment's name, in ms, differs from the first's.
+    ::usleep(2000);
+    HELPER_ASSERT_SUCCESS(s.av(2000, 2900, 2000));
+    EXPECT_EQ(1, s.on_dvr_request_sh_count_);
+    s.dvr_->on_unpublish();
+    ASSERT_EQ(2, (int)s.async_.tasks_.size());
+
+    vector<DvrUtestFlvTag> first = dvr_utest_flv_tags(config_read_file(s.file(0)));
+    ASSERT_EQ(3 + 40, (int)first.size());
+    EXPECT_EQ(1900, first.back().ts_);
+
+    string flv = config_read_file(s.file(1));
+    vector<DvrUtestFlvTag> second = dvr_utest_flv_tags(flv);
+    ASSERT_EQ(3 + 20, (int)second.size());
+    EXPECT_EQ(SrsFrameTypeScript, second[0].type_);
+    EXPECT_EQ(SrsFrameTypeVideo, second[1].type_);
+    EXPECT_EQ(0x00, second[1].b1_);
+    EXPECT_EQ(SrsFrameTypeAudio, second[2].type_);
+    EXPECT_EQ(0x00, second[2].b1_);
+    EXPECT_EQ(SrsFrameTypeVideo, second[3].type_);
+    EXPECT_EQ(0x17, second[3].b0_);
+    EXPECT_EQ(10, second[3].ts_);
+    EXPECT_EQ(910, second.back().ts_);
+    EXPECT_EQ(0.91, dvr_utest_flv_meta_number(flv, "duration"));
+}
+
+// A publisher sends a key frame each second to a vhost recording 3s segments with time_jitter off, to keep the
+// publisher's timestamps. Each segment should span 3s. But the hub feeds each new segment the cached sequence
+// headers, which keep their timestamp 0, so from the second segment on the segment counts its duration from 0: it is
+// over 3s at once, and every key frame cuts a new 1s segment. The segments' metadata duration and timeline also start
+// at 0. The same happens with time_jitter zero.
+VOID TEST(AppDvrTest, DISABLED_SegmentWithJitterOff_LaterSegmentsCutEachKeyframe)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-jitter-off");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan segment; dvr_duration 3; time_jitter off; dvr_path " + s.home_ + "/[app]/[stream].[timestamp].flv;"));
+    HELPER_ASSERT_SUCCESS(s.metadata());
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    for (int64_t sec = 0; sec < 10; sec++) {
+        // Each segment's name, in ms, differs from the one before.
+        ::usleep(2000);
+        HELPER_ASSERT_SUCCESS(s.av(sec * 1000, sec * 1000 + 900));
+    }
+    s.dvr_->on_unpublish();
+
+    // The segments 0-3s, 3-6s, 6-9s and 9-9.9s.
+    EXPECT_EQ(4, (int)s.async_.tasks_.size());
+}
+
+// The operator turns the HTTP hooks off for the vhost but keeps the on_dvr URL. The recording completes, and no
+// backend is called.
+VOID TEST(AppDvrTest, HooksDisabled_OnDvrNotCalled)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-nohooks");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; dvr_path " + s.fixed_path(".flv") + ";",
+                                    "http_hooks { enabled off; on_dvr http://127.0.0.1:8085/api/v1/dvrs; }"));
+    HELPER_ASSERT_SUCCESS(s.record(0, 1000));
+    s.dvr_->on_unpublish();
+
+    ASSERT_EQ(1, (int)s.async_.tasks_.size());
+    HELPER_EXPECT_SUCCESS(s.call_on_dvr(0));
+    EXPECT_EQ(0, s.hooks_.on_dvr_count_);
+}
+
+// The first of two on_dvr backends refuses the file. The call fails with the backend's URL, for the async worker to
+// log, and the second backend is not called for it.
+VOID TEST(AppDvrTest, OnDvrBackendRefuses_LaterBackendNotCalled)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-refuse");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; dvr_path " + s.fixed_path(".flv") + ";",
+                                    "http_hooks { enabled on; on_dvr http://127.0.0.1:8085/api/v1/dvrs http://127.0.0.1:8086/api/v1/dvrs; }"));
+    HELPER_ASSERT_SUCCESS(s.record(0, 1000));
+    s.dvr_->on_unpublish();
+    ASSERT_EQ(1, (int)s.async_.tasks_.size());
+
+    s.hooks_.on_dvr_error_ = srs_error_new(ERROR_RESPONSE_CODE, "backend refused");
+    err = s.call_on_dvr(0);
+    EXPECT_EQ(ERROR_RESPONSE_CODE, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("on_dvr http://127.0.0.1:8085/api/v1/dvrs")) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(1, s.hooks_.on_dvr_count_);
+}
+
+// The operator records only some streams with dvr_apply. A publish of another stream records nothing.
+VOID TEST(AppDvrTest, DvrApplyOtherStream_NotRecorded)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-apply");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_apply live/show; dvr_plan session; dvr_path " + s.fixed_path(".flv") + ";"));
+    HELPER_ASSERT_SUCCESS(s.record(0, 1000));
+    s.dvr_->on_unpublish();
+
+    EXPECT_TRUE(s.paths_.empty());
+    EXPECT_TRUE(s.async_.tasks_.empty());
+    EXPECT_FALSE(s.exists(s.home_));
+}
+
+// The operator turns DVR off for a vhost with segments set up. A publish records nothing.
+VOID TEST(AppDvrTest, SegmentDvrDisabled_NotRecorded)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-off");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled off; dvr_plan segment; dvr_duration 1; dvr_path " + s.fixed_path(".flv") + ";"));
+    HELPER_ASSERT_SUCCESS(s.record(0, 2000));
+    s.dvr_->on_unpublish();
+
+    EXPECT_TRUE(s.paths_.empty());
+    EXPECT_TRUE(s.async_.tasks_.empty());
+    EXPECT_FALSE(s.exists(s.home_));
+}
+
+// The operator mistypes the plan, such as "segments". The config check passes it, and the stream's DVR refuses it
+// when the source is made, so the hub refuses the stream.
+VOID TEST(AppDvrTest, DvrPlanTypo_StreamRefused)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-plan");
+    err = s.start("enabled on; dvr_plan segments; dvr_path " + s.fixed_path(".flv") + ";");
+    EXPECT_EQ(ERROR_DVR_ILLEGAL_PLAN, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("plan=segments")) << srs_error_desc(err);
+    srs_freep(err);
+}
+
+// The disk is full when a publisher publishes to a vhost recording each session to FLV: the file is created, but its
+// FLV header can not be written, so the publish is refused. The operator frees space and the publisher publishes
+// again. The file of the refused publish, which holds no FLV header, was left open, and the new publish closes it,
+// names it and reports it to on_dvr as a recording. The same happens at a segment cut when the disk fills at the new
+// segment's header: the stream's unpublish names and reports that segment.
+VOID TEST(AppDvrTest, DISABLED_HeaderWriteFailsThenRepublish_EmptyFileReported)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-empty");
+    if (true) {
+        DvrUtestDiskScope disk(0);
+        err = s.publish("enabled on; dvr_plan session; dvr_path " + s.home_ + "/[app]/[stream].[timestamp].flv;");
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
+        srs_freep(err);
+        s.dvr_->on_unpublish();
+    }
+
+    // The next file's name, in ms, differs from the first's.
+    ::usleep(2000);
+    HELPER_ASSERT_SUCCESS(s.dvr_->on_publish(&s.req_));
+
+    // No recording is complete, nor reported.
+    for (int i = 0; i < (int)s.async_.tasks_.size(); i++) {
+        string flv = config_read_file(s.file(i));
+        EXPECT_TRUE(srs_strings_starts_with(flv, "FLV")) << s.file(i) << " has " << flv.size() << " bytes";
+    }
+    EXPECT_TRUE(s.async_.tasks_.empty());
+}
+
+// A publisher sends only the metadata and sequence headers to a vhost recording MP4, then leaves, such as a stream
+// probe or an encoder that stops at once. An MP4 with no sample can not be written, so nothing is reported, which is
+// right, but the .tmp file is left on the disk for good, one for each such publish.
+VOID TEST(AppDvrTest, DISABLED_Mp4PublishWithNoFrame_TmpFileLeft)
+{
+    srs_error_t err;
+
+    DvrUtestStream s("ai42-dvr-mp4-empty");
+    HELPER_ASSERT_SUCCESS(s.publish("enabled on; dvr_plan session; dvr_path " + s.fixed_path(".mp4") + ";"));
+    HELPER_ASSERT_SUCCESS(s.metadata());
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    s.dvr_->on_unpublish();
+
+    EXPECT_TRUE(s.async_.tasks_.empty());
+    EXPECT_FALSE(s.exists(s.stream_path(".mp4")));
+    EXPECT_FALSE(s.exists(s.stream_path(".mp4.tmp")));
 }
