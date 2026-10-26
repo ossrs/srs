@@ -17,6 +17,8 @@
 #include <srs_app_http_conn.hpp>
 #include <srs_app_http_hooks.hpp>
 #include <srs_app_http_static.hpp>
+#include <srs_app_http_stream.hpp>
+#include <srs_app_edge.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_app_rtmp_source.hpp>
 #include <srs_app_security.hpp>
@@ -31,8 +33,10 @@
 #include <srs_kernel_pithy_print.hpp>
 #include <srs_kernel_resource.hpp>
 #include <srs_kernel_utility.hpp>
+#include <srs_protocol_amf0.hpp>
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_json.hpp>
+#include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_st.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai14.hpp>
@@ -53,6 +57,7 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <netinet/in.h>
+#include <set>
 #include <stdio.h>
 #include <string>
 #include <sys/socket.h>
@@ -4132,4 +4137,954 @@ VOID TEST(AppHttpStaticTest, Mp4RangeViewerLeaves_ServingStops)
         EXPECT_NE(string::npos, desc.find("read mp4=")) << desc;
         EXPECT_EQ(fail_at, io.nb_writes_) << fail_at;
     }
+}
+
+// The media of an encoder as FLV tags: H.264 and AAC, or MP3 frames whose last byte tells them apart.
+static const uint8_t hstream_avc_sh[] = {
+    0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20, 0xac,
+    0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18,
+    0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+static const uint8_t hstream_avc_idr[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x65, 0x88, 0x84, 0x00, 0x10};
+static const uint8_t hstream_aac_sh[] = {0xaf, 0x00, 0x12, 0x10};
+static const uint8_t hstream_aac_frame[] = {0xaf, 0x01, 0x21, 0x00};
+static const uint8_t hstream_mp3_frame_a[] = {0x2f, 0xff, 0xfb, 0x90, 0x11};
+static const uint8_t hstream_mp3_frame_b[] = {0x2f, 0xff, 0xfb, 0x90, 0x22};
+
+// A message the encoder publishes: 'a' audio, 'v' video or 'm' its onMetaData, at a timestamp in ms.
+struct HttpStreamUtestFrame {
+    char type_;
+    int64_t timestamp_;
+    string data_;
+};
+typedef vector<HttpStreamUtestFrame> HttpStreamUtestBatch;
+
+static HttpStreamUtestFrame hstream_frame(char type, int64_t timestamp, const uint8_t *data, int size)
+{
+    HttpStreamUtestFrame f;
+    f.type_ = type;
+    f.timestamp_ = timestamp;
+    f.data_ = string((const char *)data, size);
+    return f;
+}
+#define HSTREAM_FRAME(type, timestamp, data) hstream_frame(type, timestamp, data, (int)sizeof(data))
+
+// The default vhost remuxing its RTMP streams to HTTP by the given http_remux options, with mw_latency 0, as a
+// low-latency config sets, so an HTTP player waits 10ms between its polls of the stream.
+#define HSTREAM_VHOST(remux) "vhost __defaultVhost__ { play { mw_latency 0; } http_remux { enabled on; " remux " } } "
+
+// The request of an RTMP encoder that publishes a stream, as the RTMP connection parses it.
+class HttpStreamUtestRequest : public SrsRequest
+{
+public:
+    HttpStreamUtestRequest(string vhost, string app, string stream)
+    {
+        vhost_ = vhost;
+        app_ = app;
+        stream_ = stream;
+        host_ = "127.0.0.1";
+        port_ = 1935;
+        schema_ = "rtmp";
+        tcUrl_ = "rtmp://127.0.0.1/" + app;
+    }
+};
+
+// The HTTP server of an SRS that remuxes its RTMP streams to HTTP, made as SrsServer makes it, with the config loaded
+// from the test's text, and its own live sources and stream API registry for the scope of a test. An encoder publishes
+// and unpublishes through its live source, which asks the server to mount and unmount its HTTP stream, as SrsServer
+// does, and its messages go into the live source.
+class HttpStreamUtestServer : public ISrsLiveSourceHandler
+{
+public:
+    MockSrsConfig conf_;
+    SrsStatistic stat_;
+    SrsLiveSourceManager sources_;
+    SrsHttpServer *server_;
+    HttpStreamUtestRequest req_;
+
+private:
+    SrsConfig *saved_config_;
+    SrsLiveSourceManager *saved_sources_;
+    SrsStatistic *saved_stat_;
+
+public:
+    HttpStreamUtestServer() : req_("__defaultVhost__", "live", "livestream")
+    {
+        server_ = NULL;
+        stat_.config_ = &conf_;
+        stat_.server_id_ = "vid-utest-server";
+
+        saved_config_ = _srs_config;
+        saved_sources_ = _srs_sources;
+        saved_stat_ = _srs_stat;
+        _srs_config = &conf_;
+        _srs_sources = &sources_;
+        _srs_stat = &stat_;
+    }
+    virtual ~HttpStreamUtestServer()
+    {
+        srs_freep(server_);
+        _srs_config = saved_config_;
+        _srs_sources = saved_sources_;
+        _srs_stat = saved_stat_;
+    }
+
+public:
+    srs_error_t start(string vhosts)
+    {
+        srs_error_t err = srs_success;
+        if ((err = conf_.mock_parse(string(_MIN_OK_CONF) + vhosts)) != srs_success) {
+            return srs_error_wrap(err, "config");
+        }
+
+        server_ = new SrsHttpServer();
+        server_->assemble();
+        return server_->initialize();
+    }
+    SrsHttpStreamServer *streams()
+    {
+        return dynamic_cast<SrsHttpStreamServer *>(server_->http_stream_);
+    }
+    // The encoder of the request publishes, by default the encoder of req_.
+    srs_error_t publish(ISrsRequest *r = NULL)
+    {
+        return source(r)->on_publish();
+    }
+    // The encoder unpublishes, or a refused publish is released, as the RTMP connection releases it. The teardown of
+    // the HTTP stream starts.
+    void unpublish(ISrsRequest *r = NULL)
+    {
+        source(r)->on_unpublish();
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    // The server mounts the HTTP stream of a publish, as the source's on_publish asks it.
+    srs_error_t mount(ISrsRequest *r)
+    {
+        return server_->http_mount(r);
+    }
+    // The server unmounts an HTTP stream, as the source's on_unpublish asks it, or a stream that its player mounted, as
+    // on an edge, and the teardown starts.
+    void unmount(ISrsRequest *r)
+    {
+        server_->http_unmount(r);
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+    SrsSharedPtr<SrsLiveSource> source(ISrsRequest *r = NULL)
+    {
+        SrsSharedPtr<SrsLiveSource> source;
+        srs_error_t err = sources_.fetch_or_create(r ? r : &req_, source);
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        source->handler_ = this;
+        return source;
+    }
+    // Interface ISrsLiveSourceHandler, as SrsServer.
+    virtual srs_error_t on_publish(ISrsRequest *r)
+    {
+        return server_->http_mount(r);
+    }
+    virtual void on_unpublish(ISrsRequest *r)
+    {
+        // A source still publishing when the test ends unpublishes as it is freed, after the server.
+        if (server_) {
+            server_->http_unmount(r);
+        }
+    }
+    // The encoder's messages, in order, as the RTMP connection passes them to the live source.
+    srs_error_t send(const HttpStreamUtestBatch &batch)
+    {
+        srs_error_t err = srs_success;
+
+        SrsSharedPtr<SrsLiveSource> s = source();
+        for (int i = 0; i < (int)batch.size(); i++) {
+            const HttpStreamUtestFrame &f = batch.at(i);
+
+            SrsRtmpCommonMessage msg;
+            if (f.type_ == 'm') {
+                SrsOnMetaDataPacket meta;
+                meta.metadata_->set("width", SrsAmf0Any::number(768));
+                meta.metadata_->set("height", SrsAmf0Any::number(320));
+                msg.header_.initialize_amf0_script(0, 1);
+                msg.header_.timestamp_ = f.timestamp_;
+                err = s->on_meta_data(&msg, &meta);
+            } else {
+                int size = (int)f.data_.size();
+                if (f.type_ == 'a') {
+                    msg.header_.initialize_audio(size, (uint32_t)f.timestamp_, 1);
+                } else {
+                    msg.header_.initialize_video(size, (uint32_t)f.timestamp_, 1);
+                }
+                msg.create_payload(size);
+                memcpy(msg.payload(), f.data_.data(), size);
+                err = (f.type_ == 'a') ? s->on_audio(&msg) : s->on_video(&msg);
+            }
+
+            if (err != srs_success) {
+                return srs_error_wrap(err, "message %d", i);
+            }
+        }
+
+        return err;
+    }
+    // Finds the handler of a GET of the url, as the server does for each HTTP request before the static files.
+    srs_error_t match(string url, ISrsHttpHandler **ph)
+    {
+        srs_error_t err = srs_success;
+
+        SrsHttpMessage r(NULL, NULL);
+        r.set_basic(HTTP_REQUEST, HTTP_GET, (llhttp_status_t)200, -1);
+        if ((err = r.set_url(url, false)) != srs_success) {
+            return srs_error_wrap(err, "url");
+        }
+
+        *ph = NULL;
+        return streams()->mux()->find_handler(&r, ph);
+    }
+    // The live stream handler mounted for the stream url, or NULL.
+    ISrsHttpHandler *mounted(string stream_url)
+    {
+        std::map<std::string, SrsLiveEntry *>::iterator it = streams()->streamHandlers_.find(stream_url);
+        return (it == streams()->streamHandlers_.end()) ? NULL : it->second->stream_;
+    }
+};
+
+// The coroutine of an HTTP player's connection, with the context id the server gives it, so the stream API lists the
+// player by the id its connection ends with.
+class HttpStreamUtestCoroutine : public HttpConnUtestCoroutine
+{
+public:
+    SrsContextId cid_;
+
+public:
+    HttpStreamUtestCoroutine()
+    {
+        cid_ = _srs_context->generate_id();
+    }
+    virtual const SrsContextId &cid()
+    {
+        return cid_;
+    }
+};
+
+// The socket of an HTTP player: it holds the request the player sent. Once the server has read it, the player sends
+// nothing more, so each read of the server's recv thread waits, as for its 3s timeout, while the encoder publishes the
+// next of its batches. When no batch is left, the player closes the connection.
+class HttpStreamUtestPlayerSocket : public MockBufferIO
+{
+public:
+    HttpStreamUtestServer *server_;
+    vector<HttpStreamUtestBatch> batches_;
+    int nb_waits_;
+
+public:
+    HttpStreamUtestPlayerSocket(HttpStreamUtestServer *server)
+    {
+        server_ = server;
+        nb_waits_ = 0;
+    }
+    virtual ~HttpStreamUtestPlayerSocket()
+    {
+    }
+
+public:
+    virtual srs_error_t read(void *buf, size_t size, ssize_t *nread)
+    {
+        if (in_buffer.length() > 0) {
+            return MockBufferIO::read(buf, size, nread);
+        }
+
+        if (!on_wait(nb_waits_++)) {
+            return srs_error_new(ERROR_SOCKET_READ, "player closed");
+        }
+
+        srs_usleep(50 * SRS_UTIME_MILLISECONDS);
+        return srs_error_new(ERROR_SOCKET_TIMEOUT, "timeout");
+    }
+    // The player waits for the n-th time, from 0. Returns false when the player closes its connection instead.
+    virtual bool on_wait(int n)
+    {
+        if (n >= (int)batches_.size()) {
+            return false;
+        }
+
+        srs_error_t err = server_->send(batches_.at(n));
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        return true;
+    }
+};
+
+// An HTTP player of the server: a client of the HTTP server listener that asks for one path, served by the server's
+// HTTP connection and its owner.
+class HttpStreamUtestPlayer
+{
+public:
+    MockResourceManagerForHttpxConn manager_;
+    HttpStreamUtestPlayerSocket *io_;
+    HttpStreamUtestCoroutine *trd_;
+    SrsHttpxConn *connx_;
+    SrsHttpConn *conn_;
+
+public:
+    HttpStreamUtestPlayer(HttpStreamUtestServer *server, string path, HttpStreamUtestPlayerSocket *io = NULL)
+    {
+        io_ = io ? io : new HttpStreamUtestPlayerSocket(server);
+        io_->append("GET " + path + " HTTP/1.1\r\nHost: 127.0.0.1:8080\r\n\r\n");
+
+        connx_ = new SrsHttpxConn(&manager_, io_, server->server_, "127.0.0.1", 50000, "", "");
+        conn_ = new SrsHttpConn(connx_, io_, server->server_, "127.0.0.1", 50000);
+        trd_ = new HttpStreamUtestCoroutine();
+        conn_->trd_ = trd_;
+        connx_->conn_ = conn_;
+    }
+    virtual ~HttpStreamUtestPlayer()
+    {
+        srs_freep(connx_);
+    }
+
+public:
+    // The player connects and plays until it closes or the server ends its connection. Returns what it was sent.
+    string play()
+    {
+        srs_error_t err = connx_->start();
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+
+        // The connection's coroutine runs with the connection's context id, as the server's does.
+        SrsContextId saved = _srs_context->get_id();
+        _srs_context->set_id(trd_->cid_);
+        err = conn_->cycle();
+        _srs_context->set_id(saved);
+        srs_freep(err);
+
+        return string(io_->out_buffer.bytes(), io_->out_buffer.length());
+    }
+};
+
+// The status line of the reply to an HTTP player, or empty if it got none.
+static string hstream_status(const string &reply)
+{
+    return reply.substr(0, reply.find("\r\n"));
+}
+
+// The body of the chunked reply to an HTTP player.
+static string hstream_body(const string &reply)
+{
+    size_t pos = reply.find("\r\n\r\n");
+    if (pos == string::npos) {
+        return "";
+    }
+
+    string body;
+    for (pos += 4; pos < reply.size();) {
+        size_t eol = reply.find("\r\n", pos);
+        if (eol == string::npos) {
+            break;
+        }
+        int size = (int)strtol(reply.substr(pos, eol - pos).c_str(), NULL, 16);
+        if (size <= 0) {
+            break;
+        }
+        body += reply.substr(eol + 2, size);
+        pos = eol + 2 + size + 2;
+    }
+    return body;
+}
+
+// The tag types of an HTTP-FLV body in order, after its FLV header: A audio, V video, S script.
+static string hstream_flv_tags(const string &flv)
+{
+    string types;
+    for (size_t pos = 9 + 4; pos + 11 <= flv.size();) {
+        uint8_t type = (uint8_t)flv.at(pos);
+        int size = ((uint8_t)flv.at(pos + 1) << 16) | ((uint8_t)flv.at(pos + 2) << 8) | (uint8_t)flv.at(pos + 3);
+        types.push_back(type == 8 ? 'A' : (type == 9 ? 'V' : 'S'));
+        pos += 11 + size + 4;
+    }
+    return types;
+}
+
+// An H.264 and AAC stream with a GOP in the cache: the sequence headers, a keyframe and an audio frame.
+static HttpStreamUtestBatch hstream_gop()
+{
+    HttpStreamUtestBatch gop;
+    gop.push_back(HSTREAM_FRAME('v', 0, hstream_avc_sh));
+    gop.push_back(HSTREAM_FRAME('a', 0, hstream_aac_sh));
+    gop.push_back(HSTREAM_FRAME('v', 0, hstream_avc_idr));
+    gop.push_back(HSTREAM_FRAME('a', 23, hstream_aac_frame));
+    return gop;
+}
+
+// An HTTP-TS player joins a stream with a GOP in the cache. It gets the GOP at once as a transport stream: TS packets
+// of 188 bytes, the PAT first, then the PMT and the video and audio. When it leaves, the stream API drops it and the
+// source has no consumer left for it.
+VOID TEST(AppHttpStreamTest, TsPlayerJoinsStream_GetsGopAsTransportStream)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].ts;")));
+    HELPER_ASSERT_SUCCESS(server.publish());
+    HELPER_ASSERT_SUCCESS(server.send(hstream_gop()));
+
+    if (true) {
+        HttpStreamUtestPlayer player(&server, "/live/livestream.ts");
+        string reply = player.play();
+        EXPECT_STREQ("HTTP/1.1 200 OK", hstream_status(reply).c_str());
+        EXPECT_NE(string::npos, reply.find("Content-Type: video/MP2T\r\n")) << reply;
+
+        string ts = hstream_body(reply);
+        ASSERT_GT((int)ts.size(), 0);
+        EXPECT_EQ(0, (int)ts.size() % 188);
+
+        vector<int> pids;
+        for (size_t i = 0; i + 188 <= ts.size(); i += 188) {
+            EXPECT_EQ(0x47, (uint8_t)ts.at(i)) << i;
+            pids.push_back((((uint8_t)ts.at(i + 1) & 0x1f) << 8) | (uint8_t)ts.at(i + 2));
+        }
+        ASSERT_GE((int)pids.size(), 4);
+        EXPECT_EQ(0, pids.at(0));
+        std::set<int> unique(pids.begin(), pids.end());
+        EXPECT_GE((int)unique.size(), 4);
+
+        EXPECT_TRUE(player.manager_.remove_called_);
+    }
+
+    EXPECT_TRUE(server.stat_.clients_.empty());
+    EXPECT_TRUE(server.source()->consumers_.empty());
+    server.unpublish();
+}
+
+// An HTTP .aac player of an audio stream on a vhost with fast_cache: the stream's cache plays it from the publish on,
+// so a player that joins later gets the last seconds of audio at once, as ADTS frames, not only the audio after it
+// joined.
+VOID TEST(AppHttpStreamTest, AacPlayerWithFastCache_GetsRecentAudioAtJoin)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("fast_cache 30; mount [vhost]/[app]/[stream].aac;")));
+    HELPER_ASSERT_SUCCESS(server.publish());
+
+    // The cache plays the stream once its coroutine runs.
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+
+    HttpStreamUtestBatch audio;
+    audio.push_back(HSTREAM_FRAME('a', 0, hstream_aac_sh));
+    audio.push_back(HSTREAM_FRAME('a', 0, hstream_aac_frame));
+    audio.push_back(HSTREAM_FRAME('a', 23, hstream_aac_frame));
+    audio.push_back(HSTREAM_FRAME('a', 46, hstream_aac_frame));
+    HELPER_ASSERT_SUCCESS(server.send(audio));
+
+    // The cache takes the audio at its next poll of the stream, every 500ms.
+    srs_usleep(600 * SRS_UTIME_MILLISECONDS);
+
+    if (true) {
+        HttpStreamUtestPlayer player(&server, "/live/livestream.aac");
+        string reply = player.play();
+        EXPECT_STREQ("HTTP/1.1 200 OK", hstream_status(reply).c_str());
+        EXPECT_NE(string::npos, reply.find("Content-Type: audio/x-aac\r\n")) << reply;
+
+        // Three ADTS frames, each the 7-byte header and the 2 raw bytes.
+        string aac = hstream_body(reply);
+        ASSERT_EQ(27, (int)aac.size());
+        for (int i = 0; i < 27; i += 9) {
+            EXPECT_EQ(0xff, (uint8_t)aac.at(i)) << i;
+            EXPECT_EQ(0xf0, (uint8_t)aac.at(i + 1) & 0xf0) << i;
+            EXPECT_EQ(string("\x21\x00", 2), aac.substr(i + 7, 2)) << i;
+        }
+    }
+
+    // The teardown stops the cache.
+    server.unpublish();
+    EXPECT_TRUE(server.streams()->streamHandlers_.empty());
+    EXPECT_TRUE(server.source()->consumers_.empty());
+}
+
+// An HTTP .mp3 player of an MP3 stream on a vhost without fast_cache gets the ID3 header, then only the audio published
+// after it joined: an MP3 stream has no sequence header, and audio has no GOP cache.
+VOID TEST(AppHttpStreamTest, Mp3PlayerWithoutFastCache_GetsOnlyAudioAfterJoin)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].mp3;")));
+    HELPER_ASSERT_SUCCESS(server.publish());
+
+    HttpStreamUtestBatch before;
+    before.push_back(HSTREAM_FRAME('a', 0, hstream_mp3_frame_a));
+    HELPER_ASSERT_SUCCESS(server.send(before));
+
+    HttpStreamUtestPlayerSocket *io = new HttpStreamUtestPlayerSocket(&server);
+    HttpStreamUtestBatch after;
+    after.push_back(HSTREAM_FRAME('a', 26, hstream_mp3_frame_b));
+    io->batches_.push_back(after);
+
+    HttpStreamUtestPlayer player(&server, "/live/livestream.mp3", io);
+    string reply = player.play();
+    EXPECT_STREQ("HTTP/1.1 200 OK", hstream_status(reply).c_str());
+    EXPECT_NE(string::npos, reply.find("Content-Type: audio/mpeg\r\n")) << reply;
+
+    // The 20-byte ID3 header, then the frame without its FLV tag byte.
+    string mp3 = hstream_body(reply);
+    ASSERT_EQ(24, (int)mp3.size());
+    EXPECT_EQ("ID3", mp3.substr(0, 3));
+    EXPECT_EQ(string("\xff\xfb\x90\x22", 4), mp3.substr(20));
+
+    server.unpublish();
+}
+
+// A player of each format closes its connection before the server writes it anything: the write of the FLV header, the
+// ID3 header, the first TS packets or the first ADTS frame fails. The server ends the session at that write: nothing
+// is sent, the stream API drops the player, and the source has no consumer left for it.
+VOID TEST(AppHttpStreamTest, PlayerGoneAtFirstWrite_SessionEnds)
+{
+    srs_error_t err;
+
+    const char *exts[] = {"flv", "mp3", "ts", "aac"};
+    for (int i = 0; i < 4; i++) {
+        string ext = exts[i];
+
+        HttpStreamUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream]." + ext + ";")));
+        HELPER_ASSERT_SUCCESS(server.publish());
+        if (ext == "mp3") {
+            HttpStreamUtestBatch audio;
+            audio.push_back(HSTREAM_FRAME('a', 0, hstream_mp3_frame_a));
+            HELPER_ASSERT_SUCCESS(server.send(audio));
+        } else {
+            HELPER_ASSERT_SUCCESS(server.send(hstream_gop()));
+        }
+
+        // An .aac player gets no GOP, only the audio after it joined.
+        HttpStreamUtestPlayerSocket *io = new HttpStreamUtestPlayerSocket(&server);
+        io->out_err = srs_error_new(ERROR_SOCKET_WRITE, "peer reset");
+        HttpStreamUtestBatch audio;
+        audio.push_back(HSTREAM_FRAME('a', 46, hstream_aac_frame));
+        io->batches_.push_back(audio);
+
+        if (true) {
+            HttpStreamUtestPlayer player(&server, "/live/livestream." + ext, io);
+            string reply = player.play();
+            EXPECT_TRUE(reply.empty()) << ext;
+            EXPECT_TRUE(player.manager_.remove_called_) << ext;
+        }
+
+        EXPECT_TRUE(server.stat_.clients_.empty()) << ext;
+        EXPECT_TRUE(server.source()->consumers_.empty()) << ext;
+        server.unpublish();
+    }
+}
+
+// An HTTP-FLV player waits for a stream before its encoder starts. The encoder sends its onMetaData first, then the
+// sequence headers and audio frames before its first video frame. The FLV header waits for the first batch with media,
+// and the player guesses the stream from it (https://github.com/ossrs/srs/issues/939): audio frames and no video frame
+// is an audio-only stream, so the header flags audio only, and the video tags are dropped as they do not match it.
+VOID TEST(AppHttpStreamTest, FlvPlayerBeforeEncoder_HeaderGuessedFromFirstMedia)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].flv;")));
+    HELPER_ASSERT_SUCCESS(server.publish());
+
+    HttpStreamUtestPlayerSocket *io = new HttpStreamUtestPlayerSocket(&server);
+    HttpStreamUtestBatch metadata;
+    metadata.push_back(hstream_frame('m', 0, NULL, 0));
+    io->batches_.push_back(metadata);
+
+    HttpStreamUtestBatch media;
+    media.push_back(HSTREAM_FRAME('v', 0, hstream_avc_sh));
+    media.push_back(HSTREAM_FRAME('a', 0, hstream_aac_sh));
+    media.push_back(HSTREAM_FRAME('a', 0, hstream_aac_frame));
+    media.push_back(HSTREAM_FRAME('a', 23, hstream_aac_frame));
+    io->batches_.push_back(media);
+
+    HttpStreamUtestPlayer player(&server, "/live/livestream.flv", io);
+    string reply = player.play();
+    EXPECT_STREQ("HTTP/1.1 200 OK", hstream_status(reply).c_str());
+
+    string flv = hstream_body(reply);
+    ASSERT_GE((int)flv.size(), 13);
+    EXPECT_EQ("FLV", flv.substr(0, 3));
+    EXPECT_EQ(0x04, (uint8_t)flv.at(4));
+
+    // The audio sequence header and frames follow the header; the video sequence header is dropped.
+    string tags = hstream_flv_tags(flv);
+    ASSERT_GE((int)tags.size(), 3) << tags;
+    EXPECT_EQ("AAA", tags.substr(tags.size() - 3)) << tags;
+    EXPECT_EQ(string::npos, tags.find('V')) << tags;
+
+    server.unpublish();
+}
+
+// The first HTTP player of a stream that is not mounted yet, as on an edge, is matched by the vhost's mount template,
+// which mounts the stream. A request the template does not match is left to the static files: no extension, a vhost
+// that is disabled or has no http_remux, another extension than the mount's, a path shorter than the mount, or a longer
+// one when the mount has no [app]. A mounted stream is then matched by its own mount.
+VOID TEST(AppHttpStreamTest, PlayerOfUnmountedStream_MatchedByMountTemplate)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(
+        "vhost __defaultVhost__ { http_remux { enabled on; mount [vhost]/[app]/[stream].flv; } } "
+        "vhost ts.vhost { http_remux { enabled on; mount [vhost]/[app]/[stream].ts; } } "
+        "vhost mp3.vhost { http_remux { enabled on; mount [vhost]/[app]/[stream].mp3; } } "
+        "vhost aac.vhost { http_remux { enabled on; mount [vhost]/[app]/[stream].aac; } } "
+        "vhost off.vhost { enabled off; http_remux { enabled on; mount [vhost]/[app]/[stream].flv; } } "
+        "vhost plain.vhost { } "
+        "vhost one.vhost { http_remux { enabled on; mount [vhost]/live/[stream].flv; } } "));
+
+    const char *unmatched[] = {
+        "http://127.0.0.1/live/livestream",
+        "http://off.vhost/live/livestream.flv",
+        "http://plain.vhost/live/livestream.flv",
+        "http://127.0.0.1/live/livestream.ts",
+        "http://ts.vhost/live/livestream.flv",
+        "http://mp3.vhost/live/livestream.flv",
+        "http://aac.vhost/live/livestream.flv",
+        "http://127.0.0.1/livestream.flv",
+        "http://one.vhost/live/sub/livestream.flv",
+    };
+    for (int i = 0; i < (int)(sizeof(unmatched) / sizeof(unmatched[0])); i++) {
+        ISrsHttpHandler *h = NULL;
+        HELPER_ASSERT_SUCCESS(server.match(unmatched[i], &h));
+        EXPECT_TRUE(h->is_not_found()) << unmatched[i];
+    }
+    EXPECT_TRUE(server.streams()->streamHandlers_.empty());
+
+    HttpStreamUtestRequest flv("__defaultVhost__", "live", "livestream");
+    HttpStreamUtestRequest ts("ts.vhost", "live", "livestream");
+    HttpStreamUtestRequest one("one.vhost", "live", "livestream");
+
+    // The vhosts' mounts first, for a mount of the default vhost has no host, so it matches the path on any vhost.
+    ISrsHttpHandler *h = NULL;
+    HELPER_ASSERT_SUCCESS(server.match("http://ts.vhost/live/livestream.ts", &h));
+    EXPECT_TRUE(h != NULL && h == server.mounted(ts.get_stream_url()));
+    HELPER_ASSERT_SUCCESS(server.match("http://one.vhost/live/livestream.flv", &h));
+    EXPECT_TRUE(h != NULL && h == server.mounted(one.get_stream_url()));
+    HELPER_ASSERT_SUCCESS(server.match("http://127.0.0.1/live/livestream.flv", &h));
+    EXPECT_TRUE(h != NULL && h == server.mounted(flv.get_stream_url()));
+    EXPECT_EQ(3, (int)server.streams()->streamHandlers_.size());
+
+    // The next player of the stream is matched by the stream's own mount, with no new mount.
+    ISrsHttpHandler *again = NULL;
+    HELPER_ASSERT_SUCCESS(server.match("http://127.0.0.1/live/livestream.flv", &again));
+    EXPECT_TRUE(again == server.mounted(flv.get_stream_url()));
+    EXPECT_EQ(3, (int)server.streams()->streamHandlers_.size());
+
+    server.unmount(&flv);
+    server.unmount(&ts);
+    server.unmount(&one);
+    EXPECT_TRUE(server.streams()->streamHandlers_.empty());
+}
+
+// The socket of an HTTP-FLV player that still plays when its encoder unpublishes: at its first wait the encoder
+// unpublishes, and the teardown of the stream, which waits for this player to leave, kicks it. Meanwhile, new players
+// ask for the stream, before and after the operator disables http_remux and reloads.
+class HttpStreamUtestTeardownPlayerSocket : public HttpStreamUtestPlayerSocket
+{
+public:
+    srs_error_t new_player_err_;
+    srs_error_t after_reload_err_;
+
+public:
+    HttpStreamUtestTeardownPlayerSocket(HttpStreamUtestServer *server) : HttpStreamUtestPlayerSocket(server)
+    {
+        new_player_err_ = srs_success;
+        after_reload_err_ = srs_success;
+    }
+    virtual ~HttpStreamUtestTeardownPlayerSocket()
+    {
+        srs_freep(new_player_err_);
+        srs_freep(after_reload_err_);
+    }
+
+public:
+    virtual bool on_wait(int n)
+    {
+        if (n > 0) {
+            return false;
+        }
+
+        server_->unpublish();
+
+        ISrsHttpHandler *h = NULL;
+        new_player_err_ = server_->match("http://127.0.0.1/live/livestream.flv", &h);
+
+        srs_error_t err = server_->conf_.mock_parse(string(_MIN_OK_CONF) + "vhost __defaultVhost__ { http_remux { enabled off; } }");
+        EXPECT_TRUE(err == srs_success) << srs_error_desc(err);
+        srs_freep(err);
+        after_reload_err_ = server_->match("http://127.0.0.1/live/livestream.flv", &h);
+        return true;
+    }
+};
+
+// An encoder unpublishes while an HTTP-FLV player still plays its stream. The teardown kicks the player and waits for
+// it to leave. A new player of the stream meanwhile is refused, as the stream is disposing; after the operator disables
+// http_remux and reloads, it is refused as disabled. Once the player left, the stream is unmounted.
+VOID TEST(AppHttpStreamTest, NewPlayerDuringTeardown_Refused)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].flv;")));
+    HELPER_ASSERT_SUCCESS(server.publish());
+    HELPER_ASSERT_SUCCESS(server.send(hstream_gop()));
+
+    HttpStreamUtestTeardownPlayerSocket *io = new HttpStreamUtestTeardownPlayerSocket(&server);
+    if (true) {
+        HttpStreamUtestPlayer player(&server, "/live/livestream.flv", io);
+        string reply = player.play();
+        EXPECT_STREQ("HTTP/1.1 200 OK", hstream_status(reply).c_str());
+        EXPECT_EQ("FLV", hstream_body(reply).substr(0, 3));
+
+        EXPECT_EQ(ERROR_STREAM_DISPOSING, srs_error_code(io->new_player_err_)) << srs_error_desc(io->new_player_err_);
+        EXPECT_EQ(ERROR_HTTP_DYNAMIC_MATCH, srs_error_code(io->after_reload_err_)) << srs_error_desc(io->after_reload_err_);
+    }
+
+    // The teardown checks every 100ms whether its player left.
+    srs_usleep(150 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(server.streams()->streamHandlers_.empty());
+}
+
+// The socket of an HTTP-FLV player that still plays when its encoder unpublishes: at its first wait the encoder
+// unpublishes, then publishes again at once, which is refused while the teardown waits for this player, and the refused
+// publish is released, as the RTMP connection releases it.
+class HttpStreamUtestRepublishPlayerSocket : public HttpStreamUtestPlayerSocket
+{
+public:
+    srs_error_t republish_err_;
+    int nb_teardowns_;
+
+public:
+    HttpStreamUtestRepublishPlayerSocket(HttpStreamUtestServer *server) : HttpStreamUtestPlayerSocket(server)
+    {
+        republish_err_ = srs_success;
+        nb_teardowns_ = 0;
+    }
+    virtual ~HttpStreamUtestRepublishPlayerSocket()
+    {
+        srs_freep(republish_err_);
+    }
+
+public:
+    virtual bool on_wait(int n)
+    {
+        if (n > 0) {
+            return false;
+        }
+
+        server_->unpublish();
+        republish_err_ = server_->publish();
+        server_->unpublish();
+        nb_teardowns_ = (int)server_->streams()->destroyers_.size();
+        return true;
+    }
+};
+
+// An encoder reconnects while an HTTP-FLV player of its stream has not left yet. The publish is refused while the
+// teardown of the stream waits for the player, and the release of the refused publish starts no second teardown. Once
+// the player left, the encoder publishes again; a later unpublish frees the teardowns that are done.
+VOID TEST(AppHttpStreamTest, EncoderRepublishesDuringTeardown_RefusedThenPublishesAgain)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].flv;")));
+    HELPER_ASSERT_SUCCESS(server.publish());
+    HELPER_ASSERT_SUCCESS(server.send(hstream_gop()));
+
+    HttpStreamUtestRepublishPlayerSocket *io = new HttpStreamUtestRepublishPlayerSocket(&server);
+    if (true) {
+        HttpStreamUtestPlayer player(&server, "/live/livestream.flv", io);
+        player.play();
+        EXPECT_EQ(ERROR_STREAM_DISPOSING, srs_error_code(io->republish_err_)) << srs_error_desc(io->republish_err_);
+        EXPECT_EQ(1, io->nb_teardowns_);
+    }
+
+    srs_usleep(150 * SRS_UTIME_MILLISECONDS);
+    EXPECT_TRUE(server.streams()->streamHandlers_.empty());
+
+    // The encoder publishes again, and unpublishes: the teardown that is done is freed.
+    HELPER_EXPECT_SUCCESS(server.publish());
+    server.unpublish();
+    EXPECT_EQ(1, (int)server.streams()->destroyers_.size());
+    EXPECT_TRUE(server.streams()->streamHandlers_.empty());
+}
+
+// The operator mounts http_remux with an extension SRS cannot remux to, such as .mp4. The config is accepted and the
+// stream is mounted when it is published, but its player is refused: the connection is closed with no reply, and the
+// stream API drops it. On an edge, a player of a stream that is not mounted yet is not matched by such a mount.
+VOID TEST(AppHttpStreamTest, MountWithUnsupportedExtension_PlayerRefused)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].mp4;")));
+    HELPER_ASSERT_SUCCESS(server.publish());
+    HELPER_ASSERT_SUCCESS(server.send(hstream_gop()));
+
+    if (true) {
+        HttpStreamUtestPlayer player(&server, "/live/livestream.mp4");
+        string reply = player.play();
+        EXPECT_TRUE(reply.empty()) << reply;
+        EXPECT_TRUE(player.manager_.remove_called_);
+    }
+    EXPECT_TRUE(server.stat_.clients_.empty());
+    EXPECT_TRUE(server.source()->consumers_.empty());
+
+    ISrsHttpHandler *h = NULL;
+    HELPER_ASSERT_SUCCESS(server.match("http://127.0.0.1/live/other.mp4", &h));
+    EXPECT_TRUE(h->is_not_found());
+
+    server.unpublish();
+}
+
+// The last player of an edge stream left, and the edge is stopping its pull from the origin, when a new HTTP-FLV player
+// arrives. The edge refuses the new player while it stops: its connection is closed with no reply, and the stream API
+// drops it.
+VOID TEST(AppHttpStreamTest, EdgePlayerWhileEdgeStopsPull_Refused)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start("vhost __defaultVhost__ { cluster { mode remote; origin 127.0.0.1:19350; } "
+                                       "http_remux { enabled on; mount [vhost]/[app]/[stream].flv; } } "));
+
+    SrsSharedPtr<SrsLiveSource> source = server.source();
+    source->play_edge_->state_ = SrsEdgeStateIngestStopping;
+
+    if (true) {
+        HttpStreamUtestPlayer player(&server, "/live/livestream.flv");
+        string reply = player.play();
+        EXPECT_TRUE(reply.empty()) << reply;
+        EXPECT_TRUE(player.manager_.remove_called_);
+    }
+    EXPECT_TRUE(server.stat_.clients_.empty());
+    EXPECT_TRUE(source->consumers_.empty());
+
+    // The player's request mounted the stream, as an edge mounts on demand.
+    EXPECT_TRUE(server.mounted(server.req_.get_stream_url()) != NULL);
+    source->play_edge_->state_ = SrsEdgeStateInit;
+    server.unmount(&server.req_);
+}
+
+// The process is out of memory, so no coroutine can be created. The mount of a publish on a vhost with fast_cache
+// fails, as its stream cache cannot start, and the release of the refused publish unmounts the stream. A player that
+// arrives is refused, as its recv thread cannot start: nothing is sent, and the stream API drops it.
+VOID TEST(AppHttpStreamTest, NoCoroutineCanBeCreated_PublishAndPlayerRefused)
+{
+    srs_error_t err;
+
+    if (true) {
+        HttpStreamUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("fast_cache 30; mount [vhost]/[app]/[stream].aac;")));
+
+        // The mount the source asks for, after its hub started.
+        _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+        _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)forward_st_thread_create_out_of_memory;
+        err = server.mount(&server.req_);
+        _pfn_st_thread_create = ov;
+
+        EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(err));
+        EXPECT_NE(string::npos, srs_error_desc(err).find("start stream cache failed")) << srs_error_desc(err);
+        srs_freep(err);
+
+        server.unmount(&server.req_);
+        EXPECT_TRUE(server.streams()->streamHandlers_.empty());
+    }
+
+    if (true) {
+        HttpStreamUtestServer server;
+        HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].flv;")));
+        HELPER_ASSERT_SUCCESS(server.publish());
+        HELPER_ASSERT_SUCCESS(server.send(hstream_gop()));
+
+        if (true) {
+            HttpStreamUtestPlayer player(&server, "/live/livestream.flv");
+
+            _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+            _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)forward_st_thread_create_out_of_memory;
+            string reply = player.play();
+            _pfn_st_thread_create = ov;
+
+            EXPECT_TRUE(reply.empty()) << reply;
+            EXPECT_TRUE(player.manager_.remove_called_);
+        }
+        EXPECT_TRUE(server.stat_.clients_.empty());
+        EXPECT_TRUE(server.source()->consumers_.empty());
+        server.unpublish();
+    }
+}
+
+// The mount of http_remux has no [app], so the same stream name in two apps maps to one mount. The second encoder's
+// publish is refused, as the mount is taken, and the first stream's players are still served at the mount.
+VOID TEST(AppHttpStreamTest, TwoStreamsOnOneMount_SecondPublishRefused)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[stream].flv;")));
+    HELPER_ASSERT_SUCCESS(server.publish());
+
+    // The mount the source of the second publish asks for.
+    HttpStreamUtestRequest game("__defaultVhost__", "game", "livestream");
+    err = server.mount(&game);
+    EXPECT_EQ(ERROR_HTTP_PATTERN_DUPLICATED, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+
+    ISrsHttpHandler *h = NULL;
+    HELPER_ASSERT_SUCCESS(server.match("http://127.0.0.1/livestream.flv", &h));
+    EXPECT_TRUE(h != NULL && h == server.mounted(server.req_.get_stream_url()));
+
+    server.unpublish();
+}
+
+// The same as above, then the refused publish is released, as the RTMP connection releases a publish the source
+// refused: the source's unpublish unmounts the second stream, whose teardown unmounts the mount by its pattern alone.
+// It removes the first stream's mount, and the mux entry frees its handler, the first stream's live stream, while the
+// stream is published and may serve players. The first stream's players should still be served at the mount; instead,
+// the next one mounts a new stream of another app there, and the first stream's unpublish reads the freed stream.
+VOID TEST(AppHttpStreamTest, DISABLED_RefusedPublishOnSharedMount_UnmountsFirstStream)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[stream].flv;")));
+    HELPER_ASSERT_SUCCESS(server.mount(&server.req_));
+
+    HttpStreamUtestRequest game("__defaultVhost__", "game", "livestream");
+    err = server.mount(&game);
+    EXPECT_EQ(ERROR_HTTP_PATTERN_DUPLICATED, srs_error_code(err)) << srs_error_desc(err);
+    srs_freep(err);
+    server.unmount(&game);
+
+    ISrsHttpHandler *h = NULL;
+    HELPER_ASSERT_SUCCESS(server.match("http://127.0.0.1/livestream.flv", &h));
+    EXPECT_TRUE(h != NULL && h == server.mounted(server.req_.get_stream_url()));
+
+    // Not unmounted: the first stream's teardown would read the freed stream.
+}
+
+// The process is out of memory when an encoder unpublishes, so the teardown of its HTTP stream cannot start. The stream
+// stays disposing, though no teardown runs, so when memory is back, the encoder's next publish should mount the stream
+// again; instead, every publish of the stream is refused as disposing until the server restarts.
+VOID TEST(AppHttpStreamTest, DISABLED_UnpublishWhenNoCoroutineCanBeCreated_StreamNeverPublishesAgain)
+{
+    srs_error_t err;
+
+    HttpStreamUtestServer server;
+    HELPER_ASSERT_SUCCESS(server.start(HSTREAM_VHOST("mount [vhost]/[app]/[stream].flv;")));
+    HELPER_ASSERT_SUCCESS(server.mount(&server.req_));
+
+    // The unmount the source's unpublish asks for.
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)forward_st_thread_create_out_of_memory;
+    server.unmount(&server.req_);
+    _pfn_st_thread_create = ov;
+
+    // The mount the source's next publish asks for.
+    srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    HELPER_EXPECT_SUCCESS(server.mount(&server.req_));
 }
