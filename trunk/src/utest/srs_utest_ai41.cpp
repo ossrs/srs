@@ -24,6 +24,7 @@
 #include <srs_protocol_http_conn.hpp>
 #include <srs_protocol_log.hpp>
 #include <srs_protocol_rtc_stun.hpp>
+#include <srs_protocol_rtmp_handshake.hpp>
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai05.hpp>
@@ -2725,4 +2726,304 @@ VOID TEST(ProtocolRtmpConnTest, OriginResetAfterCreateStream_PlayAndPublishFail)
         srs_freep(err);
         EXPECT_EQ("livestream", stream);
     }
+}
+
+// The peer of an RTMP handshake, whose connection is reset after it took a given number of
+// writes: a write after the reset fails, as on a TCP socket that got an RST.
+class RtmpHandshakeResetIO : public MockBufferIO
+{
+public:
+    int writes_left_;
+    int writes_tried_;
+
+public:
+    RtmpHandshakeResetIO(int writes_left) : writes_left_(writes_left), writes_tried_(0) {}
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        writes_tried_++;
+        if (writes_left_ <= 0) {
+            return srs_error_new(ERROR_SOCKET_WRITE, "connection reset by peer");
+        }
+        writes_left_--;
+        return MockBufferIO::write(buf, size, nwrite);
+    }
+};
+
+// The C0C1 of a client that does the simple handshake, as librtmp (OBS) sends for rtmp://:
+// version 3, then the time, zero and random bytes, with no digest.
+static string rtmp_hs_plain_c0c1()
+{
+    SrsHandshakeBytes bytes;
+    srs_error_t err = bytes.create_c0c1();
+    srs_assert(err == srs_success);
+    return string(bytes.c0c1_, 1537);
+}
+
+// The C0C1 of a client that does the complex handshake, as FFmpeg and Flash send: version 3,
+// then a C1 signed with the Flash Player key in the given schema. When zero_key is set, the
+// client signs a C1 whose DH public key is all zeros.
+static srs_error_t rtmp_hs_signed_c0c1(srs_schema_type schema, bool zero_key, SrsC1S1 &c1, string &c0c1)
+{
+    srs_error_t err = srs_success;
+
+    if ((err = c1.c1_create(schema)) != srs_success) {
+        return srs_error_wrap(err, "create c1");
+    }
+
+    if (zero_key) {
+        memset(c1.get_key(), 0, 128);
+        if ((err = c1.payload_->c1_create(&c1)) != srs_success) {
+            return srs_error_wrap(err, "sign c1");
+        }
+    }
+
+    char buf[1537];
+    buf[0] = 0x03;
+    if ((err = c1.dump(buf + 1, 1536)) != srs_success) {
+        return srs_error_wrap(err, "dump c1");
+    }
+    c0c1.assign(buf, sizeof(buf));
+
+    return err;
+}
+
+// An OBS publisher (simple handshake) gets S0S1S2 and leaves before it sends C2, such as when
+// the user stops streaming at that moment. The server sent S0, an S1 that echoes the client's
+// time, and an S2 that echoes C1 (#46), and the connection fails at reading C2.
+VOID TEST(ProtocolRtmpHandshakeTest, ObsLeavesBeforeC2_ServerSentS0S1S2)
+{
+    srs_error_t err = srs_success;
+
+    string c0c1 = rtmp_hs_plain_c0c1();
+    MockBufferIO io;
+    io.append(c0c1);
+
+    SrsRtmpServer rtmp(&io);
+    err = rtmp.handshake();
+    EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("simple handshake")) << desc;
+    EXPECT_NE(string::npos, desc.find("read c2")) << desc;
+
+    ASSERT_EQ(3073, io.out_length());
+    string s0s1s2(io.out_buffer.bytes(), 3073);
+    EXPECT_EQ(0x03, (uint8_t)s0s1s2[0]);
+    EXPECT_EQ(c0c1.substr(1, 4), s0s1s2.substr(5, 4));
+    EXPECT_EQ(c0c1.substr(1, 1536), s0s1s2.substr(1537, 1536));
+}
+
+// An OBS publisher (simple handshake) resets the connection right after its C0C1, such as an
+// encoder that times out and reconnects. Writing S0S1S2 fails, and the server ends the
+// connection with the write error.
+VOID TEST(ProtocolRtmpHandshakeTest, ObsResetsAfterC0C1_ServerReplyFails)
+{
+    srs_error_t err = srs_success;
+
+    RtmpHandshakeResetIO io(0);
+    io.append(rtmp_hs_plain_c0c1());
+
+    SrsRtmpServer rtmp(&io);
+    err = rtmp.handshake();
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("simple handshake")) << desc;
+    EXPECT_NE(string::npos, desc.find("write s0s1s2")) << desc;
+    EXPECT_EQ(1, io.writes_tried_);
+}
+
+// A tool posts to the RTMP port by mistake, such as an HTTP API client set to port 1935. Its
+// request is not an RTMP C0 (version 3) and carries no Flash digest, so the server refuses it
+// as not plain RTMP and sends nothing back.
+VOID TEST(ProtocolRtmpHandshakeTest, HttpPostToRtmpPort_RefusedWithoutReply)
+{
+    srs_error_t err = srs_success;
+
+    string body = "{\"action\":\"on_publish\",\"stream\":\"" + string(2048, 'x') + "\"}";
+    string request = "POST /api/v1/streams HTTP/1.1\r\nHost: 127.0.0.1:1935\r\nContent-Type: application/json\r\n";
+    request += "Content-Length: " + srs_strconv_format_int(body.size()) + "\r\n\r\n" + body;
+
+    MockBufferIO io;
+    io.append(request);
+
+    SrsRtmpServer rtmp(&io);
+    err = rtmp.handshake();
+    EXPECT_EQ(ERROR_RTMP_PLAIN_REQUIRED, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("version=50")) << desc;
+    EXPECT_EQ(0, io.out_length());
+}
+
+// A Flash or FFmpeg publisher (complex handshake, either schema) gets S0S1S2 and leaves before
+// it sends C2. The server sent S0, an S1 signed with the FMS key and an S2 that answers the
+// client's digest, which a Flash client checks, and the connection fails at reading C2.
+VOID TEST(ProtocolRtmpHandshakeTest, FlashLeavesBeforeC2_ServerSentSignedS1S2)
+{
+    srs_error_t err = srs_success;
+
+    srs_schema_type schemas[] = {srs_schema0, srs_schema1};
+    for (int i = 0; i < 2; i++) {
+        SrsC1S1 c1;
+        string c0c1;
+        HELPER_ASSERT_SUCCESS(rtmp_hs_signed_c0c1(schemas[i], false, c1, c0c1));
+
+        MockBufferIO io;
+        io.append(c0c1);
+
+        SrsRtmpServer rtmp(&io);
+        err = rtmp.handshake();
+        EXPECT_EQ(ERROR_SOCKET_READ, srs_error_code(err)) << "schema " << schemas[i];
+        string desc = srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_NE(string::npos, desc.find("complex handshake")) << desc;
+        EXPECT_NE(string::npos, desc.find("read c2")) << desc;
+
+        ASSERT_EQ(3073, io.out_length());
+        char *s0s1s2 = io.out_buffer.bytes();
+        EXPECT_EQ(0x03, (uint8_t)s0s1s2[0]);
+
+        bool is_valid = false;
+        SrsC1S1 s1;
+        HELPER_ASSERT_SUCCESS(s1.parse(s0s1s2 + 1, 1536, c1.schema()));
+        HELPER_ASSERT_SUCCESS(s1.s1_validate_digest(is_valid));
+        EXPECT_TRUE(is_valid) << "schema " << schemas[i];
+
+        is_valid = false;
+        SrsC2S2 s2;
+        HELPER_ASSERT_SUCCESS(s2.parse(s0s1s2 + 1537, 1536));
+        HELPER_ASSERT_SUCCESS(s2.s2_validate(&c1, is_valid));
+        EXPECT_TRUE(is_valid) << "schema " << schemas[i];
+    }
+}
+
+// A Flash or FFmpeg publisher (complex handshake) resets the connection right after its C0C1.
+// Writing S0S1S2 fails, and the server ends the connection with the write error; it does not
+// try the simple handshake on the dead connection.
+VOID TEST(ProtocolRtmpHandshakeTest, FlashResetsAfterC0C1_ServerReplyFails)
+{
+    srs_error_t err = srs_success;
+
+    SrsC1S1 c1;
+    string c0c1;
+    HELPER_ASSERT_SUCCESS(rtmp_hs_signed_c0c1(srs_schema1, false, c1, c0c1));
+
+    RtmpHandshakeResetIO io(0);
+    io.append(c0c1);
+
+    SrsRtmpServer rtmp(&io);
+    err = rtmp.handshake();
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("complex handshake")) << desc;
+    EXPECT_NE(string::npos, desc.find("write s0s1s2")) << desc;
+    EXPECT_EQ(1, io.writes_tried_);
+}
+
+// A client signs its C1 with the Flash Player key but leaves the DH public key in it all
+// zeros, which is not a valid DH public value. The server cannot compute the key of S1, so it
+// closes the connection without a reply.
+VOID TEST(ProtocolRtmpHandshakeTest, ClientSignsC1WithZeroKey_ClosedWithoutReply)
+{
+    srs_error_t err = srs_success;
+
+    SrsC1S1 c1;
+    string c0c1;
+    HELPER_ASSERT_SUCCESS(rtmp_hs_signed_c0c1(srs_schema1, true, c1, c0c1));
+
+    // The digest is valid, so the server takes the complex handshake.
+    bool is_valid = false;
+    HELPER_ASSERT_SUCCESS(c1.c1_validate_digest(is_valid));
+    ASSERT_TRUE(is_valid);
+
+    MockBufferIO io;
+    io.append(c0c1);
+
+    SrsRtmpServer rtmp(&io);
+    err = rtmp.handshake();
+    EXPECT_EQ(ERROR_OpenSslComputeSharedKey, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("create s1 from c1")) << desc;
+    EXPECT_EQ(0, io.out_length());
+}
+
+// An edge or forwarder connects to an origin that resets the connection at once, such as an
+// SRS origin over its max_connections. Writing C0C1 fails, and the client gets the write error
+// to retry.
+VOID TEST(ProtocolRtmpHandshakeTest, OriginResetsOnAccept_C0C1WriteFails)
+{
+    srs_error_t err = srs_success;
+
+    RtmpHandshakeResetIO io(0);
+
+    SrsRtmpClient rtmp(&io);
+    err = rtmp.handshake();
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("write c0c1")) << desc;
+    EXPECT_EQ(1, io.writes_tried_);
+}
+
+// The edge's origin is set to a port where FFmpeg serves MPEG-TS over TCP (tcp://...?listen).
+// It sends TS packets as soon as the edge connects, so S0 is the TS sync byte 0x47, not
+// version 3. The edge refuses the origin and sends no C2.
+VOID TEST(ProtocolRtmpHandshakeTest, OriginPortServesMpegts_HandshakeRefused)
+{
+    srs_error_t err = srs_success;
+
+    string ts;
+    while (ts.size() < 3073) {
+        string pkt(188, (char)0xff);
+        pkt[0] = 0x47;
+        pkt[1] = 0x1f;
+        pkt[2] = (char)0xff;
+        pkt[3] = 0x10;
+        ts += pkt;
+    }
+
+    MockBufferIO io;
+    io.append(ts);
+
+    SrsRtmpClient rtmp(&io);
+    err = rtmp.handshake();
+    EXPECT_EQ(ERROR_RTMP_HANDSHAKE, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("version=47")) << desc;
+
+    // Only C0C1 was sent.
+    EXPECT_EQ(1537, io.out_length());
+}
+
+// The origin sends S0S1S2, then resets the connection, such as an origin restarting at that
+// moment. Writing C2 fails, and the edge or forwarder gets the write error to retry.
+VOID TEST(ProtocolRtmpHandshakeTest, OriginResetsAfterS0S1S2_C2WriteFails)
+{
+    srs_error_t err = srs_success;
+
+    // An origin that answers with the simple handshake: S0, a random S1, and C1 echoed as S2.
+    SrsHandshakeBytes origin;
+    string c1(1536, 'c');
+    HELPER_ASSERT_SUCCESS(origin.create_s0s1s2(c1.data()));
+
+    RtmpHandshakeResetIO io(1);
+    io.append(string(origin.s0s1s2_, 3073));
+
+    SrsRtmpClient rtmp(&io);
+    err = rtmp.handshake();
+    EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err));
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("write c2")) << desc;
+
+    // C0C1 was sent, and the whole S0S1S2 read.
+    EXPECT_EQ(1537, io.out_length());
+    EXPECT_EQ(0, io.length());
+    EXPECT_EQ(2, io.writes_tried_);
 }
