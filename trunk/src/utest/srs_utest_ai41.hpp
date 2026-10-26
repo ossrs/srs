@@ -12,6 +12,8 @@
 */
 #include <srs_utest.hpp>
 
+#include <srs_core_autofree.hpp>
+#include <srs_kernel_buffer.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_flv.hpp>
 #include <srs_kernel_utility.hpp>
@@ -22,6 +24,7 @@
 #include <sys/socket.h>
 
 #include <string>
+#include <vector>
 
 // How far the test origin of an edge pull or a forwarder push goes before it stops.
 enum RtmpConnOriginStep {
@@ -216,5 +219,93 @@ public:
         return "rtmp://127.0.0.1:" + srs_strconv_format_int(get_port()) + "/live/" + stream;
     }
 };
+
+// An AMF0 command or data payload written field by field, as a peer builds one. A peer can stop
+// at any field, or put a value of the wrong type in it.
+class RtmpStackAmf0
+{
+public:
+    std::string data_;
+
+public:
+    RtmpStackAmf0 &str(const std::string &v)
+    {
+        std::vector<char> b(SrsAmf0Size::str(v));
+        SrsBuffer s(&b[0], (int)b.size());
+        srs_error_t err = srs_amf0_write_string(&s, v);
+        srs_freep(err);
+        data_.append(&b[0], b.size());
+        return *this;
+    }
+    RtmpStackAmf0 &num(double v)
+    {
+        std::vector<char> b(SrsAmf0Size::number());
+        SrsBuffer s(&b[0], (int)b.size());
+        srs_error_t err = srs_amf0_write_number(&s, v);
+        srs_freep(err);
+        data_.append(&b[0], b.size());
+        return *this;
+    }
+    RtmpStackAmf0 &boolean(bool v)
+    {
+        std::vector<char> b(SrsAmf0Size::boolean());
+        SrsBuffer s(&b[0], (int)b.size());
+        srs_error_t err = srs_amf0_write_boolean(&s, v);
+        srs_freep(err);
+        data_.append(&b[0], b.size());
+        return *this;
+    }
+    RtmpStackAmf0 &null()
+    {
+        char b[1];
+        SrsBuffer s(b, 1);
+        srs_error_t err = srs_amf0_write_null(&s);
+        srs_freep(err);
+        data_.append(b, 1);
+        return *this;
+    }
+    // Writes the object and frees it.
+    RtmpStackAmf0 &obj(SrsAmf0Object *v)
+    {
+        SrsUniquePtr<SrsAmf0Object> o(v);
+        std::vector<char> b(SrsAmf0Size::object(o.get()));
+        SrsBuffer s(&b[0], (int)b.size());
+        srs_error_t err = o->write(&s);
+        srs_freep(err);
+        data_.append(&b[0], b.size());
+        return *this;
+    }
+    RtmpStackAmf0 &raw(const char *bytes, int size)
+    {
+        data_.append(bytes, size);
+        return *this;
+    }
+};
+
+// The chunks of one RTMP message as a peer sends them at the default chunk size of 128: a fmt=0
+// header on chunk stream cid, then a 1-byte fmt=3 header before each further 128 bytes.
+static std::string rtmp_stack_chunks(int cid, uint8_t type, uint32_t stream_id, const std::string &payload)
+{
+    int size = (int)payload.size();
+
+    std::string b;
+    b.push_back((char)cid);
+    b.append(3, '\0'); // timestamp
+    b.push_back((char)(size >> 16));
+    b.push_back((char)(size >> 8));
+    b.push_back((char)size);
+    b.push_back((char)type);
+    for (int i = 0; i < 4; i++) {
+        b.push_back((char)(stream_id >> (8 * i))); // little endian
+    }
+
+    for (int pos = 0; pos < size; pos += 128) {
+        if (pos > 0) {
+            b.push_back((char)(0xc0 | cid));
+        }
+        b.append(payload.substr(pos, 128));
+    }
+    return b;
+}
 
 #endif

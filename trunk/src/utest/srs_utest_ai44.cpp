@@ -15,10 +15,14 @@
 #include <srs_app_mpegts_udp.hpp>
 #include <srs_app_ng_exec.hpp>
 #include <srs_app_process.hpp>
+#include <srs_app_recv_thread.hpp>
 #include <srs_app_rtmp_conn.hpp>
+#include <srs_app_rtmp_source.hpp>
 #include <srs_app_server.hpp>
 #include <srs_app_st.hpp>
+#include <srs_app_statistic.hpp>
 #include <srs_core_autofree.hpp>
+#include <srs_core_performance.hpp>
 #include <srs_kernel_error.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_pithy_print.hpp>
@@ -27,6 +31,7 @@
 #include <srs_protocol_conn.hpp>
 #include <srs_protocol_http_stack.hpp>
 #include <srs_protocol_st.hpp>
+#include <srs_utest_ai14.hpp>
 #include <srs_utest_ai15.hpp>
 #include <srs_utest_ai18.hpp>
 #include <srs_utest_ai23.hpp>
@@ -38,6 +43,7 @@
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_kernel.hpp>
+#include <srs_utest_manual_mock.hpp>
 #include <srs_utest_manual_service.hpp>
 #ifdef SRS_GB28181
 #include <srs_app_gb28181.hpp>
@@ -1739,3 +1745,444 @@ VOID TEST(AppNgExecTest, EncoderPublishes_CommandsRunWithStreamNamesUntilUnpubli
     ::unlink(out.c_str());
 }
 #endif
+
+// A player's pause command, as it sends one on its play stream.
+static string recv_thread_utest_pause(bool is_pause)
+{
+    RtmpStackAmf0 c;
+    c.str("pause").num(0).null().boolean(is_pause).num(1000);
+    return rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, 1, c.data_);
+}
+
+// An AAC frame of a publisher, small enough for one read.
+static string recv_thread_utest_audio()
+{
+    return rtmp_stack_chunks(4, RTMP_MSG_AudioMessage, 1, string("\xaf\x01\x21\x10", 4));
+}
+
+// The receive thread of an RTMP player, as SrsRtmpConn::playing makes it: it takes the player's messages from its
+// connection over loopback, and queues them for the play loop, which waits on the player's consumer.
+class RecvThreadUtestPlayer
+{
+public:
+    StUtestTcpPair pair_;
+    MockLiveSourceForQueue source_;
+    SrsTcpConnection *skt_;
+    SrsRtmpServer *rtmp_;
+    SrsLiveConsumer *consumer_;
+    SrsQueueRecvThread *rtrd_;
+    SrsStSocket client_;
+
+public:
+    RecvThreadUtestPlayer()
+    {
+        skt_ = NULL;
+        rtmp_ = NULL;
+        consumer_ = NULL;
+        rtrd_ = NULL;
+    }
+    ~RecvThreadUtestPlayer()
+    {
+        srs_freep(rtrd_);
+        srs_freep(consumer_);
+        srs_freep(rtmp_);
+        srs_freep(skt_);
+    }
+
+public:
+    srs_error_t open()
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = pair_.open()) != srs_success) {
+            return srs_error_wrap(err, "open");
+        }
+
+        skt_ = new SrsTcpConnection(pair_.take_server());
+        rtmp_ = new SrsRtmpServer(skt_);
+        consumer_ = new SrsLiveConsumer(&source_);
+        rtrd_ = new SrsQueueRecvThread(consumer_, rtmp_, SRS_PERF_MW_SLEEP, _srs_context->get_id());
+        client_.init(pair_.client_);
+
+        return err;
+    }
+    srs_error_t send(string data)
+    {
+        return client_.write((void *)data.data(), data.size(), NULL);
+    }
+};
+
+// Wakes the player's consumer after 2s, so a play loop that nothing else wakes does not wait for good.
+class RecvThreadUtestWaker : public ISrsCoroutineHandler
+{
+public:
+    SrsLiveConsumer *consumer_;
+    SrsSTCoroutine trd_;
+
+public:
+    RecvThreadUtestWaker(SrsLiveConsumer *consumer) : trd_("utest-waker", this)
+    {
+        consumer_ = consumer;
+    }
+    virtual ~RecvThreadUtestWaker()
+    {
+        trd_.stop();
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        srs_usleep(2 * SRS_UTIME_SECONDS);
+        srs_error_t err = trd_.pull();
+        if (err == srs_success) {
+            consumer_->wakeup();
+        }
+        return err;
+    }
+};
+
+// A player pauses a stream whose publisher sends nothing yet. The play loop waits on the consumer for media with no
+// timeout, so only the receive thread can wake it: the pause wakes it at once, and the loop gets the pause.
+VOID TEST(AppRecvThreadTest, PlayerOfStreamWithoutMediaPauses_PlayLoopWokenAtOnce)
+{
+    srs_error_t err;
+
+    RecvThreadUtestPlayer p;
+    HELPER_ASSERT_SUCCESS(p.open());
+    HELPER_ASSERT_SUCCESS(p.rtrd_->start());
+
+    RecvThreadUtestWaker waker(p.consumer_);
+    HELPER_ASSERT_SUCCESS(waker.trd_.start());
+
+    HELPER_ASSERT_SUCCESS(p.send(recv_thread_utest_pause(true)));
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    p.consumer_->wait(SRS_PERF_MW_MIN_MSGS, SRS_PERF_MW_SLEEP);
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+    EXPECT_LT(elapsed, 1 * SRS_UTIME_SECONDS);
+
+    ASSERT_EQ(1, p.rtrd_->size());
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(p.rtrd_->pump());
+    SrsRtmpCommand *pkt_raw = NULL;
+    HELPER_ASSERT_SUCCESS(p.rtmp_->decode_message(msg.get(), &pkt_raw));
+    SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
+    SrsPausePacket *pause = dynamic_cast<SrsPausePacket *>(pkt.get());
+    ASSERT_TRUE(pause != NULL);
+    EXPECT_TRUE(pause->is_pause_);
+
+    p.rtrd_->stop();
+}
+
+// A player sends pause, resume and pause again at once. The receive thread takes one message at a time and holds the
+// next until the play loop has handled the queued one, as a message may end the play. When the play ends with a
+// message still queued, the thread stops at once, that is no receive error, and the message is dropped with the
+// thread; the message never taken stays on the connection.
+VOID TEST(AppRecvThreadTest, PlayerSendsMoreBeforeFirstHandled_HeldUntilPumpedThenDroppedAtStop)
+{
+    srs_error_t err;
+
+    RecvThreadUtestPlayer p;
+    HELPER_ASSERT_SUCCESS(p.open());
+    HELPER_ASSERT_SUCCESS(p.send(recv_thread_utest_pause(true) + recv_thread_utest_pause(false) + recv_thread_utest_pause(true)));
+    HELPER_ASSERT_SUCCESS(p.rtrd_->start());
+
+    srs_usleep(100 * SRS_UTIME_MILLISECONDS);
+    ASSERT_EQ(1, p.rtrd_->size());
+
+    // The play loop handles the pause; the thread takes the resume after its wait.
+    SrsRtmpCommonMessage *first = p.rtrd_->pump();
+    srs_freep(first);
+    for (int i = 0; i < 100 && p.rtrd_->empty(); i++) {
+        srs_usleep(10 * SRS_UTIME_MILLISECONDS);
+    }
+    ASSERT_EQ(1, p.rtrd_->size());
+
+    // The play ends while the resume is queued.
+    srs_utime_t starttime = srs_time_now_realtime();
+    p.rtrd_->stop();
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+    EXPECT_LT(elapsed, 300 * SRS_UTIME_MILLISECONDS);
+
+    err = p.rtrd_->error_code();
+    HELPER_EXPECT_SUCCESS(err);
+    EXPECT_EQ(1, p.rtrd_->size());
+
+    SrsRtmpCommonMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(p.rtmp_->recv_message(&msg_raw));
+    SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+    SrsRtmpCommand *pkt_raw = NULL;
+    HELPER_ASSERT_SUCCESS(p.rtmp_->decode_message(msg.get(), &pkt_raw));
+    SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
+    SrsPausePacket *pause = dynamic_cast<SrsPausePacket *>(pkt.get());
+    ASSERT_TRUE(pause != NULL);
+    EXPECT_TRUE(pause->is_pause_);
+}
+
+static void *recv_thread_utest_st_thread_create_out_of_memory(void *(* /*start*/)(void *arg), void * /*arg*/, int /*joinable*/, int /*stack_size*/)
+{
+    return NULL;
+}
+
+// A player and a publisher arrive when no coroutine can be created for their receive threads: each start fails with
+// the ST error, which refuses the play or the publish.
+VOID TEST(AppRecvThreadTest, ClientsWhenNoCoroutineCanBeCreated_PlayAndPublishRefused)
+{
+    MockRtmpServer rtmp;
+    MockSrsRequest req("__defaultVhost__", "live", "livestream");
+    SrsSharedPtr<SrsLiveSource> source;
+    SrsQueueRecvThread player(NULL, &rtmp, SRS_PERF_MW_SLEEP, _srs_context->get_id());
+    SrsPublishRecvThread publisher(&rtmp, &req, -1, 0, NULL, source, _srs_context->get_id());
+
+    _ST_THREAD_CREATE_PFN ov = _pfn_st_thread_create;
+    _pfn_st_thread_create = (_ST_THREAD_CREATE_PFN)recv_thread_utest_st_thread_create_out_of_memory;
+    srs_error_t play_err = player.start();
+    srs_error_t publish_err = publisher.start();
+    _pfn_st_thread_create = ov;
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(play_err)) << srs_error_desc(play_err);
+    EXPECT_NE(string::npos, srs_error_desc(play_err).find("queue recv thread")) << srs_error_desc(play_err);
+    srs_freep(play_err);
+
+    EXPECT_EQ(ERROR_ST_CREATE_CYCLE_THREAD, srs_error_code(publish_err)) << srs_error_desc(publish_err);
+    EXPECT_NE(string::npos, srs_error_desc(publish_err).find("publish recv thread")) << srs_error_desc(publish_err);
+    srs_freep(publish_err);
+}
+
+// The receive thread of an RTMP publisher, as SrsRtmpConn::publishing makes it: the real connection over loopback
+// with the vhost from config text, the stream's source and the stream stats.
+class RecvThreadUtestPublisher
+{
+public:
+    MockSrsConfig conf_;
+    StUtestTcpPair pair_;
+    SrsStatistic stat_;
+    MockSrsRequest req_;
+    MockLiveSource *source_raw_;
+    SrsSharedPtr<SrsLiveSource> source_;
+    SrsRtmpConn *conn_;
+    SrsPublishRecvThread *rtrd_;
+    SrsStSocket client_;
+    int fd_;
+
+public:
+    RecvThreadUtestPublisher() : req_("__defaultVhost__", "live", "livestream"), source_raw_(new MockLiveSource()), source_(source_raw_)
+    {
+        conn_ = NULL;
+        rtrd_ = NULL;
+        fd_ = -1;
+    }
+    ~RecvThreadUtestPublisher()
+    {
+        srs_freep(rtrd_);
+        srs_freep(conn_);
+    }
+
+public:
+    srs_error_t open(string text)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = conf_.mock_parse(string(_MIN_OK_CONF) + text)) != srs_success) {
+            return srs_error_wrap(err, "parse");
+        }
+
+        if ((err = pair_.open()) != srs_success) {
+            return srs_error_wrap(err, "open");
+        }
+
+        conn_ = new SrsRtmpConn(new SrsRtmpTransport(pair_.take_server()), "127.0.0.1", 1935);
+        conn_->config_ = &conf_;
+        conn_->assemble();
+        conn_->stat_ = &stat_;
+        conn_->info_->type_ = SrsRtmpConnFMLEPublish;
+        conn_->info_->res_->stream_id_ = 1;
+        fd_ = conn_->transport_->osfd();
+
+        rtrd_ = new SrsPublishRecvThread(conn_->rtmp_, &req_, fd_, 0, conn_, source_, _srs_context->get_id());
+        rtrd_->config_ = &conf_;
+        rtrd_->assemble();
+
+        client_.init(pair_.client_);
+
+        return err;
+    }
+    srs_error_t send(string data)
+    {
+        return client_.write((void *)data.data(), data.size(), NULL);
+    }
+    // Waits for the thread to take n messages, at most about 2s.
+    void wait_msgs(int n)
+    {
+        for (int i = 0; i < 2000 && rtrd_->nb_msgs() < n; i++) {
+            srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        }
+    }
+    int rcvbuf()
+    {
+        int v = 0;
+        socklen_t n = sizeof(int);
+        getsockopt(fd_, SOL_SOCKET, SO_RCVBUF, &v, &n);
+        return v;
+    }
+    bool merged_read()
+    {
+        SrsRtmpServer *rtmp = dynamic_cast<SrsRtmpServer *>(conn_->rtmp_);
+        return rtmp->protocol_->in_buffer_->merged_read_;
+    }
+};
+
+// A publisher on a vhost with merged read, `mr on; mr_latency 350;`. When its thread starts, the socket's receive
+// buffer is sized for 350ms of a 5Mbps stream, and after a small read the thread waits the latency for more data
+// before it takes the frame. When the publish ends, merged read is off again.
+VOID TEST(AppRecvThreadTest, PublisherOnVhostWithMergedRead_BufferSizedAndSmallReadsWaitForMore)
+{
+    srs_error_t err;
+
+    ListenerUtestLog log;
+    RecvThreadUtestPublisher p;
+    HELPER_ASSERT_SUCCESS(p.open("vhost __defaultVhost__ { publish { mr on; mr_latency 350; } }"));
+    int before = p.rcvbuf();
+
+    HELPER_ASSERT_SUCCESS(p.rtrd_->start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    // 350ms at 5000kbps is 218750 bytes; the thread sets half of it, which Linux doubles.
+    string line = log.last_trace("mr change sleep");
+    string want = "mr change sleep 350=>350, erbuf=218750, rbuf " + srs_strconv_format_int(before) + "=>" + srs_strconv_format_int(p.rcvbuf());
+    EXPECT_NE(string::npos, line.find(want)) << line;
+    EXPECT_GE(p.rcvbuf(), 109375);
+    EXPECT_TRUE(p.merged_read());
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    HELPER_ASSERT_SUCCESS(p.send(recv_thread_utest_audio()));
+    p.wait_msgs(1);
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+    EXPECT_EQ(1, p.rtrd_->nb_msgs());
+    EXPECT_EQ(1, p.source_raw_->on_audio_count_);
+    EXPECT_GE(elapsed, 300 * SRS_UTIME_MILLISECONDS);
+
+    p.rtrd_->stop();
+    EXPECT_FALSE(p.merged_read());
+}
+
+// Merged read is on, but the vhost wants the lowest latency (`min_latency on`), or sets `mr_latency 0`: a small read
+// is taken at once.
+VOID TEST(AppRecvThreadTest, PublisherWithMergedReadButMinLatencyOrZeroLatency_SmallReadsDoNotWait)
+{
+    srs_error_t err;
+
+    const char *vhosts[] = {
+        "vhost __defaultVhost__ { min_latency on; publish { mr on; mr_latency 350; } }",
+        "vhost __defaultVhost__ { publish { mr on; mr_latency 0; } }",
+    };
+    for (int i = 0; i < 2; i++) {
+        RecvThreadUtestPublisher p;
+        HELPER_ASSERT_SUCCESS(p.open(vhosts[i]));
+        HELPER_ASSERT_SUCCESS(p.rtrd_->start());
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        EXPECT_TRUE(p.merged_read()) << vhosts[i];
+
+        srs_utime_t starttime = srs_time_now_realtime();
+        HELPER_ASSERT_SUCCESS(p.send(recv_thread_utest_audio()));
+        p.wait_msgs(1);
+        srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+        EXPECT_EQ(1, p.rtrd_->nb_msgs()) << vhosts[i];
+        EXPECT_LT(elapsed, 200 * SRS_UTIME_MILLISECONDS) << vhosts[i];
+
+        p.rtrd_->stop();
+    }
+}
+
+// A coroutine that runs once, when it gets the CPU, and records how many messages the publisher's thread had taken.
+class RecvThreadUtestProbe : public ISrsCoroutineHandler
+{
+public:
+    SrsPublishRecvThread *rtrd_;
+    int64_t ran_at_;
+    SrsSTCoroutine trd_;
+
+public:
+    RecvThreadUtestProbe(SrsPublishRecvThread *rtrd) : trd_("utest-probe", this)
+    {
+        rtrd_ = rtrd;
+        ran_at_ = -1;
+    }
+    virtual ~RecvThreadUtestProbe()
+    {
+    }
+
+public:
+    virtual srs_error_t cycle()
+    {
+        ran_at_ = rtrd_->nb_msgs();
+        return srs_success;
+    }
+};
+
+// A publisher's burst of 20 frames is already in the socket, so its thread never waits for a read. It yields after
+// every 15 messages, so another ready coroutine, such as another client's, runs in the middle of the burst.
+VOID TEST(AppRecvThreadTest, PublisherSendsBurst_OtherCoroutinesRunEvery15Messages)
+{
+    srs_error_t err;
+
+    RecvThreadUtestPublisher p;
+    HELPER_ASSERT_SUCCESS(p.open(""));
+
+    string burst;
+    for (int i = 0; i < 20; i++) {
+        burst += recv_thread_utest_audio();
+    }
+    HELPER_ASSERT_SUCCESS(p.send(burst));
+
+    RecvThreadUtestProbe probe(p.rtrd_);
+    HELPER_ASSERT_SUCCESS(p.rtrd_->start());
+    HELPER_ASSERT_SUCCESS(probe.trd_.start());
+    p.wait_msgs(20);
+
+    EXPECT_EQ(20, p.rtrd_->nb_msgs());
+    EXPECT_EQ(20, p.source_raw_->on_audio_count_);
+    EXPECT_EQ(15, probe.ran_at_);
+
+    p.rtrd_->stop();
+}
+
+// An encoder such as OBS or FFmpeg stops with FCUnpublish. The thread answers that the unpublish succeeded, ends with
+// the republish error, and wakes the publish loop, which ends the publish.
+VOID TEST(AppRecvThreadTest, EncoderSendsFcUnpublish_ThreadEndsAndWakesPublishLoop)
+{
+    srs_error_t err;
+
+    RecvThreadUtestPublisher p;
+    HELPER_ASSERT_SUCCESS(p.open(""));
+    HELPER_ASSERT_SUCCESS(p.rtrd_->start());
+    srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+    RtmpStackAmf0 unpublish;
+    unpublish.str("FCUnpublish").num(5).null().str("livestream");
+    HELPER_ASSERT_SUCCESS(p.send(recv_thread_utest_audio() + rtmp_stack_chunks(3, RTMP_MSG_AMF0CommandMessage, 1, unpublish.data_)));
+
+    srs_utime_t starttime = srs_time_now_realtime();
+    HELPER_EXPECT_SUCCESS(p.rtrd_->wait(5 * SRS_UTIME_SECONDS));
+    srs_utime_t elapsed = srs_time_now_realtime() - starttime;
+    EXPECT_LT(elapsed, 1 * SRS_UTIME_SECONDS);
+
+    err = p.rtrd_->error_code();
+    EXPECT_EQ(ERROR_CONTROL_REPUBLISH, srs_error_code(err)) << srs_error_desc(err);
+    EXPECT_NE(string::npos, srs_error_desc(err).find("handle publish message")) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(1, p.source_raw_->on_audio_count_);
+
+    // The encoder reads NetStream.Unpublish.Success.
+    string replies;
+    p.client_.set_recv_timeout(1 * SRS_UTIME_SECONDS);
+    for (int i = 0; i < 10 && replies.find("NetStream.Unpublish.Success") == string::npos; i++) {
+        char buf[4096];
+        ssize_t nread = 0;
+        if ((err = p.client_.read(buf, sizeof(buf), &nread)) != srs_success) {
+            srs_freep(err);
+            break;
+        }
+        replies.append(buf, nread);
+    }
+    EXPECT_NE(string::npos, replies.find("NetStream.Unpublish.Success"));
+}
