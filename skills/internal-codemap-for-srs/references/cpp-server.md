@@ -209,6 +209,7 @@ Windows x64 (MSVC, C++14, static `/MT`):
 
 - Build and run: `cd trunk && ./configure --utest && make utest && ./objs/srs_utest`
 - On Windows: `srs_utest.exe`, built and run by the `utest` step of `srs-windows-runner.sh`. A test that has no meaning there is guarded with `#ifndef _WIN32 // POSIX only: <reason>`; temp files go in `srs_utest_tmp_dir()`
+- Line coverage, as Codecov measures it: `bash skills/srs-develop/scripts/srs-utest-coverage.sh [--lines] [file ...]` builds and runs the utest on Linux in Docker and lists each file's missed lines
 - `srs_utest_ai*` — AI-written unit tests
 - `srs_utest_manual_*` — Manually written tests, defined and implemented by humans
 - `srs_utest_workflow_*` — Workflow and integration tests, AI-maintained like `srs_utest_ai*`
