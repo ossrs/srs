@@ -20,6 +20,7 @@
 #include <srs_protocol_rtmp_stack.hpp>
 #include <srs_protocol_sdp.hpp>
 #include <srs_utest_ai05.hpp>
+#include <srs_utest_ai29.hpp>
 #include <srs_utest_manual_config.hpp>
 #include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_mock.hpp>
@@ -1774,5 +1775,256 @@ VOID TEST(ProtocolHttpConnTest, CorsPreflightFromClosedPage_FinalRequestFails)
             EXPECT_NE(string::npos, out.find("Access-Control-Allow-Origin: *\r\n")) << out;
             EXPECT_NE(string::npos, out.find("Content-Length: 0\r\n")) << out;
         }
+    }
+}
+
+// An API client whose Basic token is mangled: the last padding cut off or replaced, padding
+// where a character must be, or bytes after the padding. Each is refused with a challenge, also
+// the one whose token holds the right user and password before the trailing bytes.
+VOID TEST(ProtocolHttpStackTest, ApiClientWithMangledBasicToken_Refused)
+{
+    srs_error_t err = srs_success;
+
+    const char *tokens[] = {
+        "YWRtaW46YQ=",       // "admin:a" with one of its two '=' cut off
+        "YWRtaW46YQ=Q",      // "admin:a" with its second '=' replaced by a character
+        "YWRtaW46Y===",      // padding at the second character of a quantum
+        "YWRtaW46YWRtaW4=x", // "admin:admin", then a trailing byte
+    };
+    for (int i = 0; i < (int)(sizeof(tokens) / sizeof(tokens[0])); i++) {
+        MockBufferIO in;
+        in.append(string("GET /api/v1/streams/ HTTP/1.1\r\nHost: 192.168.1.10:1985\r\nAuthorization: Basic ") + tokens[i] + "\r\n\r\n");
+        SrsHttpParser hp;
+        SrsHttpMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &in, HTTP_REQUEST, false, &msg_raw));
+        SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+        SrsHttpBasicAuthenticator auth("admin", "admin");
+        ASSERT_TRUE(auth.match(msg.get()));
+
+        MockBufferIO io;
+        SrsHttpResponseWriter w(&io);
+        err = auth.authenticate(&w, msg.get());
+        EXPECT_EQ(ERROR_BASE64_DECODE, srs_error_code(err)) << tokens[i];
+        srs_freep(err);
+        EXPECT_STREQ("Basic realm=\"SRS\"", w.header()->get("WWW-Authenticate").c_str()) << tokens[i];
+    }
+}
+
+// A WHIP client on Node.js fetch sends its header names in lower case, as HTTP/2 does. The
+// server looks up each header by its canonical name, so the names are stored that way.
+VOID TEST(ProtocolHttpStackTest, WhipClientWithLowerCaseHeaderNames_HeadersFound)
+{
+    srs_error_t err = srs_success;
+
+    MockBufferIO in;
+    in.append("POST /rtc/v1/whip/?app=live&stream=livestream HTTP/1.1\r\nhost: 192.168.1.10:1985\r\n"
+              "content-type: application/sdp\r\nx-forwarded-for: 10.0.0.8\r\ncontent-length: 4\r\n\r\nv=0\n");
+    SrsHttpParser hp;
+    SrsHttpMessage *msg_raw = NULL;
+    HELPER_ASSERT_SUCCESS(http_conn_parse(&hp, &in, HTTP_REQUEST, false, &msg_raw));
+    SrsUniquePtr<SrsHttpMessage> msg(msg_raw);
+
+    EXPECT_STREQ("application/sdp", msg->header()->get("Content-Type").c_str());
+    EXPECT_STREQ("10.0.0.8", msg->header()->get("X-Forwarded-For").c_str());
+    EXPECT_EQ(4, msg->content_length());
+    EXPECT_STREQ("192.168.1.10", msg->host().c_str());
+    EXPECT_STREQ("livestream", msg->query_get("stream").c_str());
+}
+
+// Writes a file of size bytes in the utest tmp dir, and returns its path.
+static string http_stack_write_file(string name, int size)
+{
+    string path = srs_utest_tmp_dir() + "/" + name;
+    string data(size, 'F');
+    SrsFileWriter fw;
+    srs_error_t err = fw.open(path);
+    if (err == srs_success) {
+        err = fw.write((void *)data.data(), data.length(), NULL);
+    }
+    srs_freep(err);
+    return path;
+}
+
+// A flv.js or Flash player that seeks to the start asks for the VOD file with start=0, and a
+// player with a bad start parameter gets the same: the whole file, not a stream from an offset.
+VOID TEST(ProtocolHttpStackTest, FlvVodPlayerSeeksToStart_WholeFileServed)
+{
+    srs_error_t err = srs_success;
+
+    string name = "srs-utest-ai41-vod.flv";
+    string path = http_stack_write_file(name, 100);
+
+    const char *starts[] = {"0", "abc"};
+    for (int i = 0; i < 2; i++) {
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+        SrsHttpFileServer h(srs_utest_tmp_dir());
+        h.entry_ = &e;
+
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/" + name + "?start=" + starts[i], false));
+
+        MockBufferIO io;
+        SrsHttpResponseWriter w(&io);
+        HELPER_EXPECT_SUCCESS(h.serve_http(&w, &r));
+
+        string out = HELPER_BUFFER2STR(&io.out_buffer);
+        EXPECT_EQ(0u, out.find("HTTP/1.1 200 OK\r\n")) << starts[i];
+        EXPECT_NE(string::npos, out.find("Content-Length: 100\r\n")) << starts[i];
+        EXPECT_NE(string::npos, out.find("Content-Type: video/x-flv\r\n")) << starts[i];
+        EXPECT_EQ(string(100, 'F'), out.substr(out.find("\r\n\r\n") + 4)) << starts[i];
+    }
+
+    ::unlink(path.c_str());
+}
+
+// A player downloading a static file closes the connection: the first write fails and the
+// download stops with the socket error. For an empty file, the header is the only write, in
+// final_request, which fails the same way.
+VOID TEST(ProtocolHttpStackTest, PlayerLeavesDuringFileDownload_ServeFails)
+{
+    srs_error_t err = srs_success;
+
+    int sizes[] = {6000, 0};
+    for (int i = 0; i < 2; i++) {
+        string name = "srs-utest-ai41-download.mp4v";
+        string path = http_stack_write_file(name, sizes[i]);
+
+        SrsHttpMuxEntry e;
+        e.pattern = "/";
+        SrsHttpFileServer h(srs_utest_tmp_dir());
+        h.entry_ = &e;
+
+        SrsHttpMessage r(NULL, NULL);
+        HELPER_ASSERT_SUCCESS(r.set_url("/" + name, false));
+
+        MockBufferIO io;
+        io.out_err = srs_error_new(ERROR_SOCKET_WRITE, "broken pipe");
+        SrsHttpResponseWriter w(&io);
+        err = h.serve_http(&w, &r);
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << sizes[i];
+        srs_freep(err);
+        EXPECT_EQ(0, io.out_length());
+
+        ::unlink(path.c_str());
+    }
+}
+
+// Truncates the served file at the first write to the player, as an operator who copies a new
+// file over the old one while a player downloads it.
+class HttpStackTruncatingIO : public MockBufferIO
+{
+public:
+    string path_;
+    bool truncated_;
+
+public:
+    HttpStackTruncatingIO(string path) : path_(path), truncated_(false) {}
+
+public:
+    virtual srs_error_t write(void *buf, size_t size, ssize_t *nwrite)
+    {
+        if (!truncated_) {
+            truncated_ = true;
+            if (::truncate(path_.c_str(), 0) != 0) {
+                return srs_error_new(ERROR_SYSTEM_FILE_WRITE, "truncate");
+            }
+        }
+        return MockBufferIO::write(buf, size, nwrite);
+    }
+};
+
+// A static file is cut short while a player downloads it: the server read the first block
+// before, and the next read hits the new end. The download stops with the EOF error, after the
+// header that promised the old size and the first block; the server then closes the connection,
+// so the player sees a short body.
+VOID TEST(ProtocolHttpStackTest, FileTruncatedDuringDownload_DownloadStops)
+{
+    srs_error_t err = srs_success;
+
+    string name = "srs-utest-ai41-truncated.mp4v";
+    string path = http_stack_write_file(name, 6000);
+
+    SrsHttpMuxEntry e;
+    e.pattern = "/";
+    SrsHttpFileServer h(srs_utest_tmp_dir());
+    h.entry_ = &e;
+
+    SrsHttpMessage r(NULL, NULL);
+    HELPER_ASSERT_SUCCESS(r.set_url("/" + name, false));
+
+    HttpStackTruncatingIO io(path);
+    SrsHttpResponseWriter w(&io);
+    err = h.serve_http(&w, &r);
+    EXPECT_EQ(ERROR_SYSTEM_FILE_EOF, srs_error_code(err));
+    srs_freep(err);
+
+    string out = HELPER_BUFFER2STR(&io.out_buffer);
+    EXPECT_EQ(0u, out.find("HTTP/1.1 200 OK\r\n"));
+    EXPECT_NE(string::npos, out.find("Content-Length: 6000\r\n"));
+    EXPECT_EQ(4096u, out.length() - (out.find("\r\n\r\n") + 4));
+
+    ::unlink(path.c_str());
+}
+
+// An HLS segment is removed, by hls_dispose or the cleanup of old segments, after the server saw
+// it exist but before it opens it. The mux returns the open error, and the player gets nothing.
+VOID TEST(ProtocolHttpStackTest, SegmentRemovedBeforeOpen_MuxReturnsOpenError)
+{
+    srs_error_t err = srs_success;
+
+    SrsHttpServeMux mux;
+    HELPER_ASSERT_SUCCESS(mux.initialize());
+
+    SrsHttpFileServer *h = new SrsHttpFileServer(srs_utest_tmp_dir());
+    h->set_path(new MockSrsPathForHttpFileServer(false));
+    HELPER_ASSERT_SUCCESS(mux.handle("/", h));
+
+    SrsHttpMessage r(NULL, NULL);
+    HELPER_ASSERT_SUCCESS(r.set_url("/live/srs-utest-ai41-removed-0.ts", false));
+
+    MockBufferIO io;
+    SrsHttpResponseWriter w(&io);
+    err = mux.serve_http(&w, &r);
+    EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_EQ(0, io.out_length());
+}
+
+// An encoder that puts a token as the user of its RTMP URL, such as rtmp://token@host/live: the
+// token is not part of the host, so the vhost, app and stream are found as without it.
+VOID TEST(ProtocolHttpStackTest, RtmpTcUrlWithUserOnly_HostWithoutUser)
+{
+    string schema, host, vhost, app, stream = "livestream", param;
+    int port = 0;
+    srs_net_url_parse_tcurl("rtmp://token@192.168.1.10/live", schema, host, vhost, app, stream, port, param);
+
+    EXPECT_STREQ("rtmp", schema.c_str());
+    EXPECT_STREQ("192.168.1.10", host.c_str());
+    EXPECT_STREQ("192.168.1.10", vhost.c_str());
+    EXPECT_STREQ("live", app.c_str());
+    EXPECT_STREQ("livestream", stream.c_str());
+    EXPECT_EQ(1935, port);
+
+    SrsHttpUri uri;
+    srs_error_t err = srs_success;
+    HELPER_ASSERT_SUCCESS(uri.initialize("http://token@127.0.0.1:8085/api/v1/streams"));
+    EXPECT_STREQ("token", uri.username().c_str());
+    EXPECT_STREQ("", uri.password().c_str());
+    EXPECT_STREQ("127.0.0.1", uri.get_host().c_str());
+    EXPECT_EQ(8085, uri.get_port());
+}
+
+// An operator writes a hook URL with no host, such as on_publish http:///api/v1/streams. The
+// hook refuses the URL instead of calling a host it made up.
+VOID TEST(ProtocolHttpStackTest, HookUrlWithNoHost_Refused)
+{
+    const char *urls[] = {"http:///api/v1/streams", "http://token@/api/v1/streams"};
+    for (int i = 0; i < 2; i++) {
+        SrsHttpUri uri;
+        srs_error_t err = uri.initialize(urls[i]);
+        EXPECT_EQ(ERROR_HTTP_PARSE_URI, srs_error_code(err)) << urls[i];
+        srs_freep(err);
     }
 }
