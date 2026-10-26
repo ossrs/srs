@@ -6,11 +6,13 @@
 #include <srs_utest_ai42.hpp>
 
 #include <srs_app_async_call.hpp>
+#include <srs_app_circuit_breaker.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_srt_server.hpp>
 #include <srs_app_st.hpp>
 #include <srs_core_autofree.hpp>
 #include <srs_kernel_error.hpp>
+#include <srs_kernel_kbps.hpp>
 #include <srs_kernel_log.hpp>
 #include <srs_kernel_utility.hpp>
 #include <srs_protocol_conn.hpp>
@@ -21,6 +23,8 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai19.hpp>
+#include <srs_utest_ai40.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <arpa/inet.h>
@@ -1276,4 +1280,151 @@ VOID TEST(AppAsyncCallTest, HlsCallbacksGoOnWhenOnHlsBackendRefusesASegment)
 
     worker.stop();
     _srs_log = original_log;
+}
+
+// A server with `circuit_breaker` on at the default levels: high above 90% CPU for 2s, critical above
+// 95% for 1s, dying above 99% for 5s in a row. Its process holds 200MB.
+class CircuitBreakerServer
+{
+public:
+    MockAppConfigForCircuitBreaker config_;
+    MockSharedTimerForCircuitBreaker timer_;
+    // Owned by the breaker.
+    MockHostForCircuitBreaker *host_;
+    SrsCircuitBreaker breaker_;
+
+public:
+    CircuitBreakerServer()
+    {
+        config_.circuit_breaker_enabled_ = true;
+        config_.high_threshold_ = 90;
+        config_.high_pulse_ = 2;
+        config_.critical_threshold_ = 95;
+        config_.critical_pulse_ = 1;
+        config_.dying_threshold_ = 99;
+        config_.dying_pulse_ = 5;
+
+        host_ = new MockHostForCircuitBreaker();
+        host_->proc_stat_->rss_ = 200 * 1024 / 4; // 4KB pages.
+
+        srs_freep(breaker_.host_);
+        breaker_.host_ = host_;
+        breaker_.config_ = &config_;
+        breaker_.shared_timer_ = &timer_;
+    }
+};
+
+// An RTC server under load, with a WebRTC publisher on a lossy network. Every 10s the RTC stats timer
+// computes the rates of the last 10s, as SrsRtcSessionManager does. While the CPU is above the high
+// level, the breaker logs every second the CPU, memory and levels, and how many NACK requests the
+// server sent the publisher per second. With no request sent, the line has no snk group, and below the
+// high level there is no line at all.
+VOID TEST(AppCircuitBreakerTest, OverloadedRtcServerWithLossyPublisher_LogsNackRequests)
+{
+    srs_error_t err;
+
+    KbpsGlobalPpsScope scope(kbps_rtc_line_pps());
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    CircuitBreakerServer server;
+    HELPER_EXPECT_SUCCESS(server.breaker_.initialize());
+    log.traces_.clear();
+
+    // The server has just started, at 50% CPU: the breaker is off and logs nothing.
+    if (true) {
+        scope.clock_.set_clock(0);
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+
+        server.host_->proc_stat_->percent_ = 0.50;
+        HELPER_EXPECT_SUCCESS(server.breaker_.on_timer(1 * SRS_UTIME_SECONDS));
+        EXPECT_FALSE(server.breaker_.hybrid_high_water_level());
+        EXPECT_TRUE(log.traces_.empty());
+    }
+
+    // In the next 10s the publisher loses packets and the server sends it 50 NACK requests, then the
+    // CPU goes to 92%: the breaker is high, and its line shows 5 requests a second.
+    if (true) {
+        _srs_pps_snack2->sugar_ += 50;
+        scope.clock_.set_clock(10 * SRS_UTIME_SECONDS);
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+
+        server.host_->proc_stat_->percent_ = 0.92;
+        HELPER_EXPECT_SUCCESS(server.breaker_.on_timer(1 * SRS_UTIME_SECONDS));
+        EXPECT_TRUE(server.breaker_.hybrid_high_water_level());
+        EXPECT_FALSE(server.breaker_.hybrid_critical_water_level());
+
+        ASSERT_EQ(1, (int)log.traces_.size());
+        EXPECT_EQ(0u, log.traces_[0].find("CircuitBreaker: cpu=92.00%,200MB, break=1,0,0, cond=92.00%, snk=5,"))
+            << log.traces_[0];
+    }
+
+    // The network is clean for the next 10s and the CPU reaches 96%: the breaker is critical too, and
+    // the line has no NACK requests to show.
+    if (true) {
+        scope.clock_.set_clock(20 * SRS_UTIME_SECONDS);
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+
+        server.host_->proc_stat_->percent_ = 0.96;
+        HELPER_EXPECT_SUCCESS(server.breaker_.on_timer(1 * SRS_UTIME_SECONDS));
+        EXPECT_TRUE(server.breaker_.hybrid_critical_water_level());
+
+        ASSERT_EQ(2, (int)log.traces_.size());
+        EXPECT_STREQ("CircuitBreaker: cpu=96.00%,200MB, break=1,1,0, cond=96.00%", log.traces_[1].c_str());
+    }
+
+    _srs_log = original_log;
+}
+
+// While the breaker is critical, the server skips the NACKs and TWCC feedback of every WebRTC publisher
+// and counts each skip in _srs_pps_snack4. The breaker line ends with that count per second, so the
+// operator sees what the breaker drops. Nothing updates the counter's rate, so the line always shows 0.
+// The number before it, which the code names the NACK seqs sent, is never counted at all.
+VOID TEST(AppCircuitBreakerTest, DISABLED_CriticalBreakerSkipsRtcFeedback_SkippedCountAlwaysZero)
+{
+    srs_error_t err;
+
+    vector<SrsPps *> pps = kbps_rtc_line_pps();
+    pps.push_back(_srs_pps_snack3);
+    pps.push_back(_srs_pps_snack4);
+    KbpsGlobalPpsScope scope(pps);
+
+    MockLogForSignal log;
+    ISrsLog *original_log = _srs_log;
+    _srs_log = &log;
+
+    CircuitBreakerServer server;
+    HELPER_EXPECT_SUCCESS(server.breaker_.initialize());
+
+    scope.clock_.set_clock(0);
+    if (true) {
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+    }
+
+    // In 10s the server sent the publisher 50 NACK requests, then went critical and skipped 30 NACK and
+    // TWCC rounds, as SrsRtcPublishStream and SrsRtcConnection count them.
+    _srs_pps_snack2->sugar_ += 50;
+    _srs_pps_snack4->sugar_ += 30;
+
+    scope.clock_.set_clock(10 * SRS_UTIME_SECONDS);
+    if (true) {
+        SrsKbsRtcStats stats;
+        srs_global_rtc_update(&stats);
+    }
+
+    server.host_->proc_stat_->percent_ = 0.96;
+    log.traces_.clear();
+    HELPER_EXPECT_SUCCESS(server.breaker_.on_timer(1 * SRS_UTIME_SECONDS));
+    _srs_log = original_log;
+
+    ASSERT_EQ(1, (int)log.traces_.size());
+    string line = log.traces_[0];
+    ASSERT_NE(string::npos, line.find(", snk=5,")) << line;
+    EXPECT_STREQ(",3", line.substr(line.rfind(',')).c_str()) << line;
 }

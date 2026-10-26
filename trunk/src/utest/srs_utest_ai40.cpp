@@ -915,37 +915,6 @@ VOID TEST(KernelHourglassTest, SharedTimerStartupNamesTheTimerThatFailed)
     }
 }
 
-// The server's stats lines are built every 10s from global counters that every other test shares.
-// This scope gives each listed counter a test clock and an empty history, as in a server that just
-// started, and puts the counter back as it was when the test ends.
-class KbpsGlobalPpsScope
-{
-public:
-    MockWallClock clock_;
-    vector<SrsPps *> pps_;
-    vector<SrsPps> saved_;
-
-public:
-    KbpsGlobalPpsScope(const vector<SrsPps *> &pps)
-    {
-        pps_ = pps;
-        for (int i = 0; i < (int)pps.size(); i++) {
-            SrsPps *p = pps[i];
-            saved_.push_back(*p);
-
-            SrsPps fresh;
-            fresh.clk_ = &clock_;
-            *p = fresh;
-        }
-    }
-    ~KbpsGlobalPpsScope()
-    {
-        for (int i = 0; i < (int)pps_.size(); i++) {
-            *pps_[i] = saved_[i];
-        }
-    }
-};
-
 static vector<SrsPps *> kbps_server_line_pps()
 {
     SrsPps *all[] = {_srs_pps_cids_get, _srs_pps_cids_set, _srs_pps_timer, _srs_pps_pub, _srs_pps_conn,
@@ -956,7 +925,7 @@ static vector<SrsPps *> kbps_server_line_pps()
     return vector<SrsPps *>(all, all + sizeof(all) / sizeof(all[0]));
 }
 
-static vector<SrsPps *> kbps_rtc_line_pps()
+vector<SrsPps *> kbps_rtc_line_pps()
 {
     SrsPps *all[] = {_srs_pps_rpkts, _srs_pps_rrtps, _srs_pps_rstuns, _srs_pps_rrtcps, _srs_pps_spkts,
                      _srs_pps_srtps, _srs_pps_sstuns, _srs_pps_srtcps, _srs_pps_pli, _srs_pps_twcc, _srs_pps_rr,
