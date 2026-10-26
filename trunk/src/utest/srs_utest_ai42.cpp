@@ -8,6 +8,8 @@
 #include <srs_app_async_call.hpp>
 #include <srs_app_circuit_breaker.hpp>
 #include <srs_app_config.hpp>
+#include <srs_app_dash.hpp>
+#include <srs_app_factory.hpp>
 #include <srs_app_ffmpeg.hpp>
 #include <srs_app_hls.hpp>
 #include <srs_app_srt_server.hpp>
@@ -25,14 +27,17 @@
 #include <srs_protocol_utility.hpp>
 #include <srs_utest_ai13.hpp>
 #include <srs_utest_ai15.hpp>
+#include <srs_utest_ai17.hpp>
 #include <srs_utest_ai19.hpp>
 #include <srs_utest_ai06.hpp>
 #include <srs_utest_ai40.hpp>
 #include <srs_utest_manual_config.hpp>
+#include <srs_utest_manual_coworkers.hpp>
 #include <srs_utest_manual_kernel.hpp>
 #include <srs_utest_manual_mock.hpp>
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -2104,4 +2109,529 @@ VOID TEST(AppConfigTest, TranscodeEnginesGiveFfmpegOptions)
         EXPECT_EQ(720, ffmpeg.vheight_);
         EXPECT_EQ(44100, ffmpeg.asample_rate_);
     }
+}
+
+extern srs_fopen_t _srs_fopen_fn;
+
+// An H.264 768x320 stream and an AAC 44.1 kHz stereo stream, as FLV tags: the sequence headers, a key frame, an inter
+// frame and an audio frame.
+static const uint8_t dash_avc_sh[] = {
+    0x17, 0x00, 0x00, 0x00, 0x00, 0x01, 0x64, 0x00, 0x20, 0xff, 0xe1, 0x00, 0x19, 0x67, 0x64, 0x00, 0x20, 0xac,
+    0xd9, 0x40, 0xc0, 0x29, 0xb0, 0x11, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x03, 0x00, 0x32, 0x0f, 0x18,
+    0x31, 0x96, 0x01, 0x00, 0x05, 0x68, 0xeb, 0xec, 0xb2, 0x2c};
+static const uint8_t dash_avc_idr[] = {0x17, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x65, 0x88, 0x84, 0x00, 0x10};
+static const uint8_t dash_avc_inter[] = {0x27, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x41, 0x9a, 0x21, 0x6c, 0x42};
+static const uint8_t dash_aac_sh[] = {0xaf, 0x00, 0x12, 0x10};
+static const uint8_t dash_aac_frame[] = {0xaf, 0x01, 0x21, 0x11, 0x45, 0x00};
+
+// The DASH segments of a stream read the dash_path of the stream's config, as the server's segments do.
+class DashUtestFactory : public SrsAppFactory
+{
+public:
+    ISrsAppConfig *config_;
+
+public:
+    DashUtestFactory()
+    {
+        config_ = NULL;
+    }
+    virtual ~DashUtestFactory()
+    {
+    }
+    virtual ISrsFragmentedMp4 *create_fragmented_mp4()
+    {
+        SrsFragmentedMp4 *fragment = new SrsFragmentedMp4();
+        fragment->config_ = config_;
+        return fragment;
+    }
+};
+
+// A stream published with DASH on, its files under home, fed the packets of an RTMP publisher as the origin hub feeds
+// them: each packet is parsed by the stream's format first. As the hub, it feeds the cached video sequence header
+// again when a disposed DASH resumes.
+class DashUtestStream : public MockOriginHub
+{
+public:
+    string home_;
+    MockSrsConfig conf_;
+    DashUtestFactory factory_;
+    MockSrsRequest req_;
+    SrsDash *dash_;
+    SrsFormat format_;
+    SrsMediaPacket *vsh_;
+    SrsFormat vsh_format_;
+
+public:
+    DashUtestStream(string name) : req_("__defaultVhost__", "live", "livestream")
+    {
+        home_ = _srs_tmp_file_prefix + name;
+        dash_ = new SrsDash();
+        vsh_ = NULL;
+    }
+    virtual ~DashUtestStream()
+    {
+        srs_freep(dash_);
+        srs_freep(vsh_);
+        remove_files();
+    }
+
+public:
+    srs_error_t publish(string options)
+    {
+        return publish_to(home_, options);
+    }
+    srs_error_t publish_to(string dash_path, string options)
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = config_load(conf_, "vhost __defaultVhost__ { dash { enabled on; dash_path " + dash_path + "; " + options + " } }")) != srs_success) {
+            return srs_error_wrap(err, "config");
+        }
+        if ((err = format_.initialize()) != srs_success) {
+            return srs_error_wrap(err, "format");
+        }
+        if ((err = vsh_format_.initialize()) != srs_success) {
+            return srs_error_wrap(err, "vsh format");
+        }
+
+        dash_->config_ = &conf_;
+        SrsDashController *controller = dynamic_cast<SrsDashController *>(dash_->controller_);
+        controller->config_ = &conf_;
+        controller->app_factory_ = &factory_;
+        dynamic_cast<SrsMpdWriter *>(controller->mpd_)->config_ = &conf_;
+        factory_.config_ = &conf_;
+
+        if ((err = dash_->initialize(this, &req_)) != srs_success) {
+            return srs_error_wrap(err, "initialize");
+        }
+        return dash_->on_publish();
+    }
+    srs_error_t video(int64_t ts, const uint8_t *data, int size)
+    {
+        srs_error_t err = srs_success;
+
+        SrsMediaPacket msg;
+        char *payload = new char[size];
+        memcpy(payload, data, size);
+        msg.wrap(payload, size);
+        msg.timestamp_ = ts;
+        msg.message_type_ = SrsFrameTypeVideo;
+
+        if ((err = format_.on_video(ts, msg.payload(), msg.size())) != srs_success) {
+            return srs_error_wrap(err, "format");
+        }
+        if (format_.is_avc_sequence_header()) {
+            srs_freep(vsh_);
+            vsh_ = msg.copy();
+            if ((err = vsh_format_.on_video(ts, vsh_->payload(), vsh_->size())) != srs_success) {
+                return srs_error_wrap(err, "vsh format");
+            }
+        }
+
+        return dash_->on_video(&msg, &format_);
+    }
+    srs_error_t audio(int64_t ts, const uint8_t *data, int size)
+    {
+        srs_error_t err = srs_success;
+
+        SrsMediaPacket msg;
+        char *payload = new char[size];
+        memcpy(payload, data, size);
+        msg.wrap(payload, size);
+        msg.timestamp_ = ts;
+        msg.message_type_ = SrsFrameTypeAudio;
+
+        if ((err = format_.on_audio(ts, msg.payload(), msg.size())) != srs_success) {
+            return srs_error_wrap(err, "format");
+        }
+
+        return dash_->on_audio(&msg, &format_);
+    }
+    // Sends the sequence headers of both tracks.
+    srs_error_t sequence_headers()
+    {
+        srs_error_t err = srs_success;
+
+        if ((err = video(0, dash_avc_sh, sizeof(dash_avc_sh))) != srs_success) {
+            return srs_error_wrap(err, "avc sh");
+        }
+        if ((err = audio(0, dash_aac_sh, sizeof(dash_aac_sh))) != srs_success) {
+            return srs_error_wrap(err, "aac sh");
+        }
+        return err;
+    }
+    // Sends the media from one time to another, in ms: 10 video and 10 audio frames a second, a key frame each second.
+    srs_error_t av(int64_t from, int64_t to)
+    {
+        srs_error_t err = srs_success;
+
+        for (int64_t ts = from; ts <= to; ts += 100) {
+            const uint8_t *frame = (ts % 1000) == 0 ? dash_avc_idr : dash_avc_inter;
+            if ((err = video(ts, frame, sizeof(dash_avc_idr))) != srs_success) {
+                return srs_error_wrap(err, "video %d", (int)ts);
+            }
+            if ((err = audio(ts, dash_aac_frame, sizeof(dash_aac_frame))) != srs_success) {
+                return srs_error_wrap(err, "audio %d", (int)ts);
+            }
+        }
+        return err;
+    }
+    // On the hub's request, feeds the cached video sequence header again, as SrsOriginHub does.
+    virtual srs_error_t on_dash_request_sh()
+    {
+        on_dash_request_sh_count_++;
+        if (!vsh_) {
+            return srs_success;
+        }
+        return dash_->on_video(vsh_, &vsh_format_);
+    }
+
+public:
+    string stream_dir()
+    {
+        return home_ + "/live/livestream";
+    }
+    bool exists(string name)
+    {
+        SrsPath path;
+        return path.exists(stream_dir() + "/" + name);
+    }
+    string mpd()
+    {
+        return config_read_file(home_ + "/live/livestream.mpd");
+    }
+    // Removes the files DASH may write for the stream, and their dirs.
+    void remove_files()
+    {
+        const char *tracks[] = {"video", "audio"};
+        for (int t = 0; t < 2; t++) {
+            for (int i = 0; i < 32; i++) {
+                string m4s = stream_dir() + "/" + tracks[t] + "-" + srs_strconv_format_int(i) + ".m4s";
+                ::unlink(m4s.c_str());
+                ::unlink((m4s + ".tmp").c_str());
+            }
+            string init = stream_dir() + "/" + tracks[t] + "-init.mp4";
+            ::unlink(init.c_str());
+            ::unlink((init + ".tmp").c_str());
+        }
+        string mpd = home_ + "/live/livestream.mpd";
+        ::unlink(mpd.c_str());
+        ::unlink((mpd + ".tmp").c_str());
+        ::rmdir(stream_dir().c_str());
+        ::rmdir((home_ + "/live").c_str());
+        ::rmdir(home_.c_str());
+    }
+};
+
+static int dash_utest_count(const string &s, const string &sub)
+{
+    int n = 0;
+    for (size_t pos = s.find(sub); pos != string::npos; pos = s.find(sub, pos + sub.length())) {
+        n++;
+    }
+    return n;
+}
+
+// A publisher streams H.264 and AAC for 10 seconds to a vhost with DASH segments of 0.5s and a window of 2. A key
+// frame each second cuts both tracks into 1s segments. The MPD lists the last 2 segments of each track, the server
+// keeps the one before for players of the previous MPD, and dash_cleanup removes the older segment files, so the disk
+// use stays bounded on a long publish. The dispose leaves nothing.
+VOID TEST(AppDashTest, LongPublishSlidesWindowAndRemovesOldSegments)
+{
+    srs_error_t err;
+
+    DashUtestStream s("ai42-dash-long");
+    HELPER_ASSERT_SUCCESS(s.publish("dash_fragment 0.5; dash_window_size 2; dash_cleanup on;"));
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    EXPECT_TRUE(s.exists("video-init.mp4"));
+    EXPECT_TRUE(s.exists("audio-init.mp4"));
+
+    HELPER_ASSERT_SUCCESS(s.av(0, 10000));
+
+    // Segments 8 and 9 of each track are listed, from their start in the stream.
+    string mpd = s.mpd();
+    EXPECT_EQ(2, dash_utest_count(mpd, "startNumber=\"8\"")) << mpd;
+    EXPECT_EQ(4, dash_utest_count(mpd, "<S t=")) << mpd;
+    EXPECT_EQ(2, dash_utest_count(mpd, "<S t=\"8000\" d=\"1000\" />")) << mpd;
+    EXPECT_EQ(2, dash_utest_count(mpd, "<S t=\"9000\" d=\"1000\" />")) << mpd;
+
+    for (int i = 0; i < 7; i++) {
+        EXPECT_FALSE(s.exists("video-" + srs_strconv_format_int(i) + ".m4s")) << i;
+        EXPECT_FALSE(s.exists("audio-" + srs_strconv_format_int(i) + ".m4s")) << i;
+    }
+    for (int i = 7; i < 10; i++) {
+        EXPECT_TRUE(s.exists("video-" + srs_strconv_format_int(i) + ".m4s")) << i;
+        EXPECT_TRUE(s.exists("audio-" + srs_strconv_format_int(i) + ".m4s")) << i;
+    }
+    EXPECT_TRUE(s.exists("video-10.m4s.tmp"));
+    EXPECT_TRUE(s.exists("audio-10.m4s.tmp"));
+
+    s.dash_->on_unpublish();
+    s.dash_->dispose();
+    EXPECT_EQ(0, ::rmdir(s.stream_dir().c_str()));
+}
+
+// The operator sets dash_path under a regular file, such as a typo naming another service's file. DASH can not make
+// the stream's dir, so the publisher's sequence headers fail, and the hub stops DASH for the stream; the file is not
+// touched.
+VOID TEST(AppDashTest, DashPathUnderRegularFile_SequenceHeadersFail)
+{
+    srs_error_t err;
+
+    string file = _srs_tmp_file_prefix + "ai42-dash-file";
+    MockFileRemover remover(file);
+    config_write_file(file, "html");
+
+    DashUtestStream s("ai42-dash-file-home");
+    HELPER_ASSERT_SUCCESS(s.publish_to(file + "/dash", ""));
+
+    err = s.video(0, dash_avc_sh, sizeof(dash_avc_sh));
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_NE(string::npos, srs_error_desc(err).find("Create media home failed")) << srs_error_desc(err);
+    srs_freep(err);
+
+    err = s.audio(0, dash_aac_sh, sizeof(dash_aac_sh));
+    ASSERT_TRUE(err != srs_success);
+    EXPECT_NE(string::npos, srs_error_desc(err).find("Consume audio failed")) << srs_error_desc(err);
+    srs_freep(err);
+
+    EXPECT_STREQ("html", config_read_file(file).c_str());
+}
+
+// Creates no file for writing, as a volume mounted read-only.
+static FILE *dash_fopen_read_only(const char *path, const char *mode)
+{
+    if (mode[0] == 'w' || mode[0] == 'a') {
+        errno = EROFS;
+        return NULL;
+    }
+    return ::fopen(path, mode);
+}
+
+// The DASH volume was remounted read-only after an I/O error, and a publisher publishes again to a stream whose dir an
+// earlier publish made. The init file of the sequence header can not be created, so the hub stops DASH for the
+// stream; no init file, nor its temporary file, is left.
+VOID TEST(AppDashTest, ReadOnlyVolumeAtPublish_InitFileNotCreated)
+{
+    srs_error_t err;
+
+    DashUtestStream s("ai42-dash-ro");
+    SrsPath path;
+    HELPER_ASSERT_SUCCESS(path.mkdir_all(s.stream_dir()));
+    HELPER_ASSERT_SUCCESS(s.publish(""));
+
+    srs_fopen_t fopen_fn = _srs_fopen_fn;
+    _srs_fopen_fn = dash_fopen_read_only;
+    err = s.video(0, dash_avc_sh, sizeof(dash_avc_sh));
+    _srs_fopen_fn = fopen_fn;
+
+    EXPECT_EQ(ERROR_SYSTEM_FILE_OPENE, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_FALSE(s.exists("video-init.mp4"));
+    EXPECT_FALSE(s.exists("video-init.mp4.tmp"));
+}
+
+static bool dash_disk_full_ = false;
+
+// Fails every write once the disk is full.
+static size_t dash_fwrite_disk_full(const void *ptr, size_t size, size_t nitems, FILE *stream)
+{
+    if (dash_disk_full_) {
+        return 0;
+    }
+    return ::fwrite(ptr, size, nitems, stream);
+}
+
+// The disk DASH writes to, which a test fills.
+class DashUtestDiskScope
+{
+public:
+    srs_fwrite_t fwrite_fn_;
+
+public:
+    DashUtestDiskScope()
+    {
+        fwrite_fn_ = _srs_fwrite_fn;
+        _srs_fwrite_fn = dash_fwrite_disk_full;
+        dash_disk_full_ = false;
+    }
+    virtual ~DashUtestDiskScope()
+    {
+        _srs_fwrite_fn = fwrite_fn_;
+        dash_disk_full_ = false;
+    }
+    void fill()
+    {
+        dash_disk_full_ = true;
+    }
+};
+
+// The disk fills while publishers stream to DASH. Each write that fails stops DASH for the stream, through the hub,
+// and leaves no file a player would get:
+// - at the publish, the init file of the sequence header;
+// - mid-stream, the segment a key frame finishes;
+// - mid-stream on an audio-only stream, the segment its duration finishes.
+VOID TEST(AppDashTest, DiskFullWhileStreaming_WriteFailsStopsDash)
+{
+    srs_error_t err;
+
+    if (true) {
+        DashUtestDiskScope disk;
+        DashUtestStream s("ai42-dash-full-init");
+        HELPER_ASSERT_SUCCESS(s.publish(""));
+
+        disk.fill();
+        err = s.video(0, dash_avc_sh, sizeof(dash_avc_sh));
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
+        srs_freep(err);
+        EXPECT_FALSE(s.exists("video-init.mp4"));
+    }
+
+    if (true) {
+        DashUtestDiskScope disk;
+        DashUtestStream s("ai42-dash-full-av");
+        HELPER_ASSERT_SUCCESS(s.publish("dash_fragment 0.5;"));
+        HELPER_ASSERT_SUCCESS(s.sequence_headers());
+        HELPER_ASSERT_SUCCESS(s.av(0, 900));
+
+        disk.fill();
+        err = s.video(1000, dash_avc_idr, sizeof(dash_avc_idr));
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
+        EXPECT_NE(string::npos, srs_error_desc(err).find("Flush encoder failed")) << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_FALSE(s.exists("video-0.m4s"));
+    }
+
+    if (true) {
+        DashUtestDiskScope disk;
+        DashUtestStream s("ai42-dash-full-audio");
+        HELPER_ASSERT_SUCCESS(s.publish("dash_fragment 0.5;"));
+        HELPER_ASSERT_SUCCESS(s.audio(0, dash_aac_sh, sizeof(dash_aac_sh)));
+        for (int ts = 0; ts <= 500; ts += 100) {
+            HELPER_ASSERT_SUCCESS(s.audio(ts, dash_aac_frame, sizeof(dash_aac_frame)));
+        }
+
+        disk.fill();
+        err = s.audio(600, dash_aac_frame, sizeof(dash_aac_frame));
+        EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
+        EXPECT_NE(string::npos, srs_error_desc(err).find("Flush encoder failed")) << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_FALSE(s.exists("audio-0.m4s"));
+    }
+}
+
+#ifndef _WIN32 // Windows deletes no open file.
+// A cleanup job of the operator deletes the stream's DASH dir while the publisher streams. The segment being written
+// is gone with its dir, so the next key frame can not finish it, and the hub stops DASH for the stream rather than
+// list a segment players can not get.
+VOID TEST(AppDashTest, CleanupJobDeletesStreamDir_SegmentNotFinished)
+{
+    srs_error_t err;
+
+    DashUtestStream s("ai42-dash-deleted");
+    HELPER_ASSERT_SUCCESS(s.publish("dash_fragment 0.5;"));
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    HELPER_ASSERT_SUCCESS(s.av(0, 900));
+    EXPECT_TRUE(s.exists("video-0.m4s.tmp"));
+
+    s.remove_files();
+    SrsPath path;
+    ASSERT_FALSE(path.exists(s.stream_dir()));
+
+    err = s.video(1000, dash_avc_idr, sizeof(dash_avc_idr));
+    EXPECT_EQ(ERROR_SYSTEM_FRAGMENT_RENAME, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_FALSE(s.exists("video-0.m4s"));
+}
+#endif
+
+// The operator turns the dispose off (dash_dispose 0). A publisher that sends nothing for a long time keeps its DASH:
+// the cycle does not dispose it.
+VOID TEST(AppDashTest, DisposeOffIdlePublisherKeepsDash)
+{
+    srs_error_t err;
+
+    MockAppConfig config;
+    config.dash_enabled_ = true;
+    config.dash_dispose_ = 0;
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    MockOriginHub hub;
+
+    SrsDash dash;
+    dash.config_ = &config;
+    srs_freep(dash.controller_);
+    MockDashController *controller = new MockDashController();
+    dash.controller_ = controller;
+    HELPER_EXPECT_SUCCESS(dash.initialize(&hub, &req));
+    HELPER_EXPECT_SUCCESS(dash.on_publish());
+
+    dash.last_update_time_ = 1;
+    HELPER_EXPECT_SUCCESS(dash.cycle());
+    EXPECT_TRUE(dash.enabled_);
+    EXPECT_FALSE(controller->on_unpublish_called_);
+    EXPECT_FALSE(controller->dispose_called_);
+
+    dash.on_unpublish();
+    dash.config_ = NULL;
+}
+
+// A publisher stays idle past dash_dispose, and the cycle disposes its DASH. While it stays idle, the next timeouts
+// find nothing to dispose: the cycle does not dispose it again.
+VOID TEST(AppDashTest, IdlePublisherDisposedOnlyOnce)
+{
+    srs_error_t err;
+
+    MockAppConfig config;
+    config.dash_enabled_ = true;
+    config.dash_dispose_ = 1 * SRS_UTIME_SECONDS;
+    MockSrsRequest req("test.vhost", "live", "livestream");
+    MockOriginHub hub;
+
+    SrsDash dash;
+    dash.config_ = &config;
+    srs_freep(dash.controller_);
+    MockDashController *controller = new MockDashController();
+    dash.controller_ = controller;
+    HELPER_EXPECT_SUCCESS(dash.initialize(&hub, &req));
+    HELPER_EXPECT_SUCCESS(dash.on_publish());
+
+    dash.last_update_time_ = 1;
+    HELPER_EXPECT_SUCCESS(dash.cycle());
+    EXPECT_FALSE(dash.enabled_);
+    EXPECT_TRUE(controller->dispose_called_);
+
+    controller->on_unpublish_called_ = false;
+    controller->dispose_called_ = false;
+    dash.last_update_time_ = 1;
+    HELPER_EXPECT_SUCCESS(dash.cycle());
+    EXPECT_FALSE(controller->on_unpublish_called_);
+    EXPECT_FALSE(controller->dispose_called_);
+
+    dash.config_ = NULL;
+}
+
+// A publisher idle past dash_dispose has its DASH disposed and its files removed. When it sends media again, DASH
+// starts again and the hub feeds the cached sequence header; with the disk full by then, the init file can not be
+// written, so the media fails and the hub stops DASH for the stream.
+VOID TEST(AppDashTest, IdlePublisherResumesOnFullDisk_ResumeFails)
+{
+    srs_error_t err;
+
+    DashUtestDiskScope disk;
+    DashUtestStream s("ai42-dash-resume");
+    HELPER_ASSERT_SUCCESS(s.publish("dash_fragment 0.5; dash_dispose 1;"));
+    HELPER_ASSERT_SUCCESS(s.sequence_headers());
+    HELPER_ASSERT_SUCCESS(s.av(0, 900));
+
+    s.dash_->last_update_time_ = 1;
+    HELPER_ASSERT_SUCCESS(s.dash_->cycle());
+    EXPECT_FALSE(s.exists("video-init.mp4"));
+
+    disk.fill();
+    err = s.video(1000, dash_avc_idr, sizeof(dash_avc_idr));
+    EXPECT_EQ(ERROR_SYSTEM_FILE_WRITE, srs_error_code(err));
+    EXPECT_NE(string::npos, srs_error_desc(err).find("dash request sh")) << srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_EQ(1, s.on_dash_request_sh_count_);
+    EXPECT_FALSE(s.exists("video-init.mp4"));
 }
