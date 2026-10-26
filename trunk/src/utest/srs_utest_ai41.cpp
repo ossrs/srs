@@ -2364,3 +2364,365 @@ VOID TEST(ProtocolRtcStunTest, AttributeLongerThanMessage_RefusedBeforeSession)
     EXPECT_EQ(ERROR_RTC_STUN, stun_session_manager_receive(request, &network_got_it));
     EXPECT_FALSE(network_got_it);
 }
+
+// How far the test origin of an edge pull or a forwarder push goes before it stops.
+enum RtmpConnOriginStep {
+    // Not an RTMP server: an HTTP server answers the handshake with an HTTP error.
+    RtmpConnOriginNotRtmp,
+    // Refuses the app with an _error onStatus and closes, as an RTMP server does for an app
+    // it does not serve.
+    RtmpConnOriginRejectsApp,
+    // Answers connect, then exits, as an origin that restarts at that moment.
+    RtmpConnOriginExitsAfterConnect,
+    // Answers createStream, then the connection is reset.
+    RtmpConnOriginResetAfterCreateStream,
+    // Serves the play or publish of the client.
+    RtmpConnOriginServes,
+};
+
+// An RTMP origin on a random local port for one connection of an edge or a forwarder,
+// which stops at the step the test picks.
+class RtmpConnTestOrigin : public SrsHttpTestServer
+{
+public:
+    RtmpConnOriginStep step_;
+    string tc_url_;
+    SrsRtmpConnType type_;
+    string stream_;
+    string video_;
+    string error_;
+
+public:
+    RtmpConnTestOrigin(RtmpConnOriginStep step) : SrsHttpTestServer("")
+    {
+        step_ = step;
+        type_ = SrsRtmpConnUnknown;
+    }
+
+public:
+    virtual srs_error_t start()
+    {
+        srs_error_t err = SrsHttpTestServer::start();
+        // Let State Threads run once, so its clock is fresh before the origin sets its
+        // timeouts, as RawReplyTcpServer does.
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+        return err;
+    }
+    virtual srs_error_t do_cycle(srs_netfd_t cfd)
+    {
+        srs_error_t err = do_serve(cfd);
+        if (err != srs_success) {
+            error_ = srs_error_desc(err);
+        }
+        return err;
+    }
+
+private:
+    srs_error_t do_serve(srs_netfd_t cfd)
+    {
+        srs_error_t err = srs_success;
+
+        SrsStSocket skt(cfd);
+        skt.set_recv_timeout(3 * SRS_UTIME_SECONDS);
+        skt.set_send_timeout(3 * SRS_UTIME_SECONDS);
+
+        if (step_ == RtmpConnOriginNotRtmp) {
+            char buf[1537];
+            if ((err = skt.read(buf, sizeof(buf), NULL)) != srs_success) {
+                return srs_error_wrap(err, "read c0c1");
+            }
+            string res = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+            return skt.write((void *)res.data(), res.size(), NULL);
+        }
+
+        SrsRtmpServer rtmp(&skt);
+        if ((err = rtmp.handshake()) != srs_success) {
+            return srs_error_wrap(err, "handshake");
+        }
+
+        SrsRequest req;
+        if ((err = rtmp.connect_app(&req)) != srs_success) {
+            return srs_error_wrap(err, "connect app");
+        }
+        tc_url_ = req.tcUrl_;
+
+        if (step_ == RtmpConnOriginRejectsApp) {
+            rtmp.response_connect_reject(&req, "app not allowed");
+            return err;
+        }
+
+        if ((err = rtmp.response_connect_app(&req, "127.0.0.1")) != srs_success) {
+            return srs_error_wrap(err, "response connect app");
+        }
+        if (step_ == RtmpConnOriginExitsAfterConnect) {
+            return err;
+        }
+
+        if (step_ == RtmpConnOriginResetAfterCreateStream) {
+            SrsRtmpCommonMessage *msg_raw = NULL;
+            SrsCreateStreamPacket *pkt_raw = NULL;
+            if ((err = rtmp.expect_message<SrsCreateStreamPacket>(&msg_raw, &pkt_raw)) != srs_success) {
+                return srs_error_wrap(err, "expect create stream");
+            }
+            SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+            SrsUniquePtr<SrsCreateStreamPacket> pkt(pkt_raw);
+            if ((err = rtmp.send_and_free_packet(new SrsCreateStreamResPacket(pkt->transaction_id_, 1), 0)) != srs_success) {
+                return srs_error_wrap(err, "response create stream");
+            }
+            // Close with a reset, as a load balancer in front of the origin that drops the
+            // connection does.
+            struct linger lg;
+            lg.l_onoff = 1;
+            lg.l_linger = 0;
+            setsockopt(srs_netfd_fileno(cfd), SOL_SOCKET, SO_LINGER, &lg, sizeof(lg));
+            return err;
+        }
+
+        srs_utime_t duration = 0;
+        if ((err = rtmp.identify_client(1, type_, stream_, duration)) != srs_success) {
+            return srs_error_wrap(err, "identify client");
+        }
+
+        if (type_ == SrsRtmpConnPlay) {
+            if ((err = rtmp.start_play(1)) != srs_success) {
+                return srs_error_wrap(err, "start play");
+            }
+
+            SrsOnMetaDataPacket *meta = new SrsOnMetaDataPacket();
+            meta->metadata_->set("width", SrsAmf0Any::number(1280));
+            meta->metadata_->set("height", SrsAmf0Any::number(720));
+            if ((err = rtmp.send_and_free_packet(meta, 1)) != srs_success) {
+                return srs_error_wrap(err, "send metadata");
+            }
+
+            if ((err = rtmp.send_and_free_message(rtmp_conn_video_packet(), 1)) != srs_success) {
+                return srs_error_wrap(err, "send video");
+            }
+
+            // Serve until the edge leaves.
+            while (true) {
+                SrsRtmpCommonMessage *msg = NULL;
+                if ((err = rtmp.recv_message(&msg)) != srs_success) {
+                    srs_freep(err);
+                    return err;
+                }
+                srs_freep(msg);
+            }
+        }
+
+        if ((err = rtmp.start_flash_publish(1)) != srs_success) {
+            return srs_error_wrap(err, "start publish");
+        }
+        while (video_.empty()) {
+            SrsRtmpCommonMessage *msg_raw = NULL;
+            if ((err = rtmp.recv_message(&msg_raw)) != srs_success) {
+                return srs_error_wrap(err, "recv media");
+            }
+            SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+            if (msg->header_.is_video()) {
+                video_.assign(msg->payload(), msg->size());
+            }
+        }
+
+        return err;
+    }
+
+public:
+    // An AVC key frame of 4 KB, larger than the 128-byte default chunk.
+    static SrsMediaPacket *rtmp_conn_video_packet()
+    {
+        SrsMediaPacket *msg = new SrsMediaPacket();
+        msg->timestamp_ = 40;
+        msg->message_type_ = SrsFrameTypeVideo;
+        char *data = new char[4096];
+        for (int i = 0; i < 4096; i++) {
+            data[i] = (char)(i % 251);
+        }
+        data[0] = 0x17;
+        data[1] = 0x01;
+        msg->wrap(data, 4096);
+        return msg;
+    }
+
+    string rtmp_url(string stream)
+    {
+        return "rtmp://127.0.0.1:" + srs_strconv_format_int(get_port()) + "/live/" + stream;
+    }
+};
+
+// An edge pulls a stream with a token from its origin: it connects, plays the stream with
+// the token in the stream name, then reads the origin's metadata and video as its ingester
+// does, with the ingester's read timeout.
+VOID TEST(ProtocolRtmpConnTest, EdgePullsFromOrigin_GetsMetadataAndVideo)
+{
+    srs_error_t err = srs_success;
+
+    RtmpConnTestOrigin origin(RtmpConnOriginServes);
+    HELPER_ASSERT_SUCCESS(origin.start());
+
+    SrsBasicRtmpClient sdk(origin.rtmp_url("livestream?token=abc"), 3 * SRS_UTIME_SECONDS, 3 * SRS_UTIME_SECONDS);
+    HELPER_ASSERT_SUCCESS(sdk.connect());
+
+    // The edge passes the vhost in the tcUrl, so it plays without the vhost in the stream.
+    string stream;
+    HELPER_ASSERT_SUCCESS(sdk.play(60000, false, &stream));
+    EXPECT_EQ("livestream?token=abc", stream);
+
+    sdk.set_recv_timeout(3 * SRS_UTIME_SECONDS);
+
+    double width = 0;
+    string video;
+    for (int i = 0; i < 16 && video.empty(); i++) {
+        SrsRtmpCommonMessage *msg_raw = NULL;
+        HELPER_ASSERT_SUCCESS(sdk.recv_message(&msg_raw));
+        SrsUniquePtr<SrsRtmpCommonMessage> msg(msg_raw);
+
+        if (msg->header_.is_amf0_data()) {
+            SrsRtmpCommand *pkt_raw = NULL;
+            HELPER_ASSERT_SUCCESS(sdk.decode_message(msg.get(), &pkt_raw));
+            SrsUniquePtr<SrsRtmpCommand> pkt(pkt_raw);
+            // The |RtmpSampleAccess of the play start is data too.
+            SrsOnMetaDataPacket *meta = dynamic_cast<SrsOnMetaDataPacket *>(pkt.get());
+            if (!meta) {
+                continue;
+            }
+            SrsAmf0Any *prop = meta->metadata_->ensure_property_number("width");
+            ASSERT_TRUE(prop != NULL);
+            width = prop->to_number();
+        } else if (msg->header_.is_video()) {
+            video.assign(msg->payload(), msg->size());
+        }
+    }
+
+    EXPECT_EQ(1280, width);
+    SrsUniquePtr<SrsMediaPacket> sent(RtmpConnTestOrigin::rtmp_conn_video_packet());
+    EXPECT_EQ(string(sent->payload(), sent->size()), video);
+
+    EXPECT_EQ(SrsRtmpConnPlay, origin.type_);
+    EXPECT_EQ("livestream?token=abc", origin.stream_);
+    EXPECT_EQ("rtmp://127.0.0.1:" + srs_strconv_format_int(origin.get_port()) + "/live", origin.tc_url_);
+
+    // The origin sends nothing more, so a read with the forwarder's short pulse times out,
+    // and the caller goes on with its loop.
+    sdk.set_recv_timeout(10 * SRS_UTIME_MILLISECONDS);
+    SrsRtmpCommonMessage *msg = NULL;
+    err = sdk.recv_message(&msg);
+    EXPECT_EQ(ERROR_SOCKET_TIMEOUT, srs_error_code(err));
+    srs_freep(err);
+    EXPECT_TRUE(msg == NULL);
+}
+
+// A forwarder pushes a stream to its destination: it connects, publishes with the vhost's
+// chunk size, and sends a key frame, which the destination gets whole.
+VOID TEST(ProtocolRtmpConnTest, ForwarderPublishesToDestination_DestinationGetsVideo)
+{
+    srs_error_t err = srs_success;
+
+    RtmpConnTestOrigin origin(RtmpConnOriginServes);
+    HELPER_ASSERT_SUCCESS(origin.start());
+
+    SrsBasicRtmpClient sdk(origin.rtmp_url("livestream"), 3 * SRS_UTIME_SECONDS, 3 * SRS_UTIME_SECONDS);
+    HELPER_ASSERT_SUCCESS(sdk.connect());
+
+    string stream;
+    HELPER_ASSERT_SUCCESS(sdk.publish(60000, false, &stream));
+    EXPECT_EQ("livestream", stream);
+
+    HELPER_ASSERT_SUCCESS(sdk.send_and_free_message(RtmpConnTestOrigin::rtmp_conn_video_packet()));
+    for (int i = 0; i < 100 && origin.video_.empty(); i++) {
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+    }
+
+    EXPECT_EQ(SrsRtmpConnFlashPublish, origin.type_);
+    EXPECT_EQ("livestream", origin.stream_);
+    SrsUniquePtr<SrsMediaPacket> sent(RtmpConnTestOrigin::rtmp_conn_video_packet());
+    EXPECT_EQ(string(sent->payload(), sent->size()), origin.video_) << origin.error_;
+}
+
+// The operator sets the edge's origin to the HTTP API port by mistake. The HTTP server
+// answers the RTMP handshake with an HTTP error and closes, so the edge's connect fails at
+// the handshake.
+VOID TEST(ProtocolRtmpConnTest, EdgeOriginIsHttpPort_ConnectFailsAtHandshake)
+{
+    srs_error_t err = srs_success;
+
+    RtmpConnTestOrigin origin(RtmpConnOriginNotRtmp);
+    HELPER_ASSERT_SUCCESS(origin.start());
+
+    SrsBasicRtmpClient sdk(origin.rtmp_url("livestream"), 3 * SRS_UTIME_SECONDS, 3 * SRS_UTIME_SECONDS);
+    err = sdk.connect();
+    ASSERT_TRUE(err != srs_success);
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("handshake")) << desc;
+    EXPECT_EQ(string::npos, desc.find("connect app")) << desc;
+}
+
+// The origin refuses the app with an _error onStatus and closes, as an RTMP server does for
+// an app it does not serve. The edge's connect fails at connect app.
+VOID TEST(ProtocolRtmpConnTest, OriginRejectsApp_ConnectFailsAtConnectApp)
+{
+    srs_error_t err = srs_success;
+
+    RtmpConnTestOrigin origin(RtmpConnOriginRejectsApp);
+    HELPER_ASSERT_SUCCESS(origin.start());
+
+    SrsBasicRtmpClient sdk(origin.rtmp_url("livestream"), 3 * SRS_UTIME_SECONDS, 3 * SRS_UTIME_SECONDS);
+    err = sdk.connect();
+    ASSERT_TRUE(err != srs_success);
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("connect app")) << desc;
+    EXPECT_EQ(string::npos, desc.find("create stream")) << desc;
+
+    EXPECT_EQ("rtmp://127.0.0.1:" + srs_strconv_format_int(origin.get_port()) + "/live", origin.tc_url_);
+}
+
+// The origin answers connect, then exits, as an origin that restarts at that moment. The
+// edge's connect fails at createStream.
+VOID TEST(ProtocolRtmpConnTest, OriginExitsAfterConnect_ConnectFailsAtCreateStream)
+{
+    srs_error_t err = srs_success;
+
+    RtmpConnTestOrigin origin(RtmpConnOriginExitsAfterConnect);
+    HELPER_ASSERT_SUCCESS(origin.start());
+
+    SrsBasicRtmpClient sdk(origin.rtmp_url("livestream"), 3 * SRS_UTIME_SECONDS, 3 * SRS_UTIME_SECONDS);
+    err = sdk.connect();
+    ASSERT_TRUE(err != srs_success);
+    string desc = srs_error_desc(err);
+    srs_freep(err);
+    EXPECT_NE(string::npos, desc.find("create stream")) << desc;
+    EXPECT_EQ("", origin.error_);
+}
+
+// The connection to the origin is reset right after createStream, such as by a load
+// balancer in front of the origin. The play of an edge and the publish of a forwarder fail
+// writing their commands, and the caller retries.
+VOID TEST(ProtocolRtmpConnTest, OriginResetAfterCreateStream_PlayAndPublishFail)
+{
+    srs_error_t err = srs_success;
+
+    for (int i = 0; i < 2; i++) {
+        bool is_play = (i == 0);
+
+        RtmpConnTestOrigin origin(RtmpConnOriginResetAfterCreateStream);
+        HELPER_ASSERT_SUCCESS(origin.start());
+
+        SrsBasicRtmpClient sdk(origin.rtmp_url("livestream"), 3 * SRS_UTIME_SECONDS, 3 * SRS_UTIME_SECONDS);
+        HELPER_ASSERT_SUCCESS(sdk.connect());
+
+        // Let the reset reach the client.
+        srs_usleep(1 * SRS_UTIME_MILLISECONDS);
+
+        string stream;
+        if (is_play) {
+            err = sdk.play(60000, false, &stream);
+        } else {
+            err = sdk.publish(60000, false, &stream);
+        }
+        EXPECT_EQ(ERROR_SOCKET_WRITE, srs_error_code(err)) << (is_play ? "play" : "publish") << ": " << srs_error_desc(err);
+        srs_freep(err);
+        EXPECT_EQ("livestream", stream);
+    }
+}
